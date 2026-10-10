@@ -1,0 +1,50 @@
+{
+  "name": "lms-pll-lab",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "LMS × Fractional-N PLL Calibration Lab — 繁體中文互動教學與校正實驗網站",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "golden": "python3 -m pytest golden -q",
+    "golden:export": "python3 golden/export_vectors.py",
+    "verify": "node scripts/verify.mjs",
+    "golden:sspll": "cd analysis/sspll/golden && python3 -m pytest -q"
+  },
+  "dependencies": {
+    "highlight.js": "^11.10.0",
+    "katex": "^0.16.11",
+    "mermaid": "^11.4.1",
+    "plotly.js-dist-min": "^2.35.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/react": "^16.1.0",
+    "@types/katex": "^0.16.7",
+    "@types/node": "^22.10.2",
+    "@types/plotly.js-dist-min": "^2.3.4",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^9.17.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.16",
+    "globals": "^15.14.0",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.18.2",
+    "vite": "^6.0.7",
+    "vitest": "^3.0.5"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "lms-playground-deadbeat",
+  "title": "一步到位：μ = 1/x² = 0.25",
+  "page": "/ch/01",
+  "experiment": "lms-playground",
+  "description": "x=2 時 μ=0.25 使 p=0，理想模型一步到答案。",
+  "params": {
+    "a": 3,
+    "w0": 1,
+    "x": 2,
+    "mu": 0.25,
+    "steps": 10,
+    "noiseSigma": 0,
+    "seed": 20261010
+  },
+  "expected": "w₁ = 3 = a；之後 δ_n = 0。",
+  "tests": [
+    "T02"
+  ],
+  "source": "illustrative"
+}

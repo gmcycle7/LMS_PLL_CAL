@@ -1,0 +1,20 @@
+{
+  "id": "optimizer-lesson10",
+  "title": "Ch14：第 10 課設計計算器（δ0 = 3 fs、σ_v = 100 fs、N = 4096、T = 131072）",
+  "page": "/ch/14",
+  "experiment": "lr-optimizer",
+  "description": "重現第 10 課的設計計算器：B = 32、θ = 0、目標為終點 RMS。",
+  "params": {
+    "sigmaV": 100,
+    "N": 4096,
+    "T": 131072,
+    "delta0": 3,
+    "thetaDeg": 0,
+    "fsHz": 4000000000.0,
+    "objective": "final",
+    "pmTargetDeg": 60,
+    "allowOsc": false
+  },
+  "expected": "精確最佳 μ* = 10.66 fs、RMS 0.4474 fs、pole 0.9149、PM 87.56°；代入課程的 α = 11.20 fs 得 RMS 0.4488 fs、pole 0.9106、PM 87.44°（曲線很平，只差 0.3%）。漸近式 ln A/(2BK) = 11.17 fs（A = 300.4）。",
+  "source": "illustrative"
+}

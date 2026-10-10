@@ -1,0 +1,64 @@
+{
+  "id": "gmac-fp-antiwindup",
+  "title": "Saturation / anti-windup：a 先超出範圍再回來",
+  "page": "/ch/04",
+  "experiment": "gmac-fixed-point",
+  "description": "DTC gain 範圍 [0, 8] fs、內部暫存器 ±32 fs；a = 16 fs（超出）在 block 250 跳回 4 fs。A：無 anti-windup；B：anti-windup；C：內部暫存器 wrap。",
+  "params": {
+    "bx": 6,
+    "log2N": 10,
+    "codeRange": "symmetric",
+    "codeKind": "uniform",
+    "dsmFrac": 0.3,
+    "scenario": "random",
+    "deltaOverSigma": 3,
+    "ellB": 4,
+    "ditherRatio": 1,
+    "aTrue": 16,
+    "aStepBlock": 250,
+    "aStepValue": 4,
+    "w0": 0,
+    "mu": 10,
+    "sigmaV": 100,
+    "physMin": 0,
+    "physMax": 8,
+    "regMin": -32,
+    "regMax": 32,
+    "numBlocks": 700,
+    "seed": 20261010,
+    "cases": [
+      {
+        "accBits": 16,
+        "negate": "extend",
+        "accOverflow": "wrap",
+        "gmMode": "average",
+        "gFracBits": 4,
+        "rounding": "half_even",
+        "antiWindup": false,
+        "regOverflow": "saturate"
+      },
+      {
+        "accBits": 16,
+        "negate": "extend",
+        "accOverflow": "wrap",
+        "gmMode": "average",
+        "gFracBits": 4,
+        "rounding": "half_even",
+        "antiWindup": true,
+        "regOverflow": "saturate"
+      },
+      {
+        "accBits": 16,
+        "negate": "extend",
+        "accOverflow": "wrap",
+        "gmMode": "average",
+        "gFracBits": 4,
+        "rounding": "half_even",
+        "antiWindup": false,
+        "regOverflow": "wrap"
+      }
+    ]
+  },
+  "expected": "A：W 積到 32 fs 的上限，a 跳回後約 243 blocks 才回到 4 fs（F-04.12：放掉 windup 232.9 + 由 rail 收斂約 9 ⇒ 預測約 242）；B：約 7 blocks；C：超出範圍期間 W wrap 一次，實際 gain 由 8 fs 直接跳到 0 fs（rail 到 rail）。",
+  "source": "simulation"
+}

@@ -1,0 +1,41 @@
+{
+  "id": "T08",
+  "description_zh": "一階 Calibration Loop L(z) = g/(z−1)：g = 1 ⇒ Pole 0、PM 60°",
+  "spec_section": "§8.2",
+  "inputs": {
+    "g": 1.0,
+    "g_list": [
+      0.2,
+      0.5,
+      1.0,
+      1.5,
+      1.8,
+      2.0
+    ]
+  },
+  "expected": {
+    "pole": 0.0,
+    "pm_deg": 60.0,
+    "crossover_omega_rad": 1.0471975511965976,
+    "pole_list": [
+      0.8,
+      0.5,
+      0.0,
+      -0.5,
+      -0.8,
+      -1.0
+    ],
+    "pm_deg_list": [
+      84.26082952273322,
+      75.52248781407008,
+      60.0,
+      41.409622109270856,
+      25.841932763167122,
+      0.0
+    ]
+  },
+  "tolerance": {
+    "abs": 1e-09
+  },
+  "notes": "PM = 90° − asin(g/2)（0 < g ≤ 2）；crossover ω_c = 2 asin(g/2) rad/block。已用數值 crossover 交叉驗證。"
+}

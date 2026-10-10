@@ -1,0 +1,29 @@
+{
+  "id": "bias-inl-cubic-noisefree",
+  "title": "三階 INL：無雜訊 Sign-LMS → 1.40（T12c）",
+  "page": "/ch/11",
+  "experiment": "bias-inl-lab",
+  "description": "σ_v = 0：comparator 只看 sign(e)，固定點由 |x| 加權中位數決定。",
+  "params": {
+    "a": 1,
+    "w0": 1,
+    "b": 0,
+    "c2": 0,
+    "c3": 0.1,
+    "kappa": 0,
+    "codeKind": "five_level",
+    "codeShift": 0,
+    "dsmKind": "first_order",
+    "dsmFrac": 0.3,
+    "algorithm": "sign",
+    "sigmaV": 0,
+    "dcMode": "none",
+    "jitterSlope": 0,
+    "jitterRef": -2
+  },
+  "expected": "w* = 1.4（|x| 加權中位數，[精確｜指定模型]）；平均 GMAC 在 (1.1, 1.4) 為 +0.4、> 1.4 為 −1.2；MC 的 w 在 1.4 附近做 O(μ) limit cycle。MAE = 0.12（< 1.34 處的 0.144），MSE = 0.036（> 0.0288）。",
+  "tests": [
+    "T12"
+  ],
+  "source": "illustrative"
+}

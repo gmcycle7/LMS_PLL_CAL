@@ -1,0 +1,1033 @@
+/* Dashboard / Learning Roadmap（只用全站 design tokens；class 一律 dash- 前綴） */
+
+.dash {
+  overflow-wrap: break-word;
+}
+.dash section {
+  scroll-margin-top: calc(var(--topbar-h) + 12px);
+}
+.dash-h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.dash-h2-kicker {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-faint);
+  letter-spacing: 0.02em;
+}
+.dash-lead-sm {
+  color: var(--text-muted);
+  margin-top: -0.2em;
+}
+
+/* ---------- Hero ---------- */
+.dash-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 24px;
+  padding: 28px 28px 24px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background:
+    radial-gradient(120% 140% at 0% 0%, var(--accent-soft) 0%, transparent 55%),
+    linear-gradient(160deg, var(--surface) 0%, var(--surface-2) 100%);
+  box-shadow: var(--shadow);
+}
+.dash-kicker {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+.dash-title {
+  font-size: 2rem;
+  line-height: 1.2;
+  margin: 0.25em 0 0.35em;
+}
+.dash-subtitle {
+  font-size: 1.08rem;
+  color: var(--text-muted);
+  margin: 0 0 0.8em;
+}
+.dash-thesis-line {
+  border-left: 3px solid var(--accent);
+  padding: 4px 0 4px 12px;
+  margin: 14px 0;
+}
+.dash-thesis-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.dash-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 4px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.dash-pill:hover {
+  border-color: var(--accent);
+}
+.dash-pill-n {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+.dash-start {
+  align-self: start;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  padding: 16px 16px 14px;
+  box-shadow: var(--shadow);
+}
+.dash-start-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.03em;
+}
+.dash-start h2 {
+  font-size: 1.15rem;
+  border: none;
+  margin: 0.2em 0 0.4em;
+  padding: 0;
+}
+.dash-start table {
+  font-size: 0.86rem;
+  margin: 8px 0;
+}
+.dash-start td,
+.dash-start th {
+  padding: 4px 6px;
+  text-align: center;
+}
+.dash-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+}
+.dash-cta:hover {
+  text-decoration: none;
+  filter: brightness(1.08);
+}
+.dash-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+.dash-stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+.dash-stat-v {
+  font-size: 1.45rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.dash-stat-l {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.dash-toc {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 10px 0 4px;
+  margin-top: 12px;
+  scrollbar-width: thin;
+}
+.dash-toc button {
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 0.84rem;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.dash-toc button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ---------- 共用 chip / 狀態 ---------- */
+.dash-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+.dash-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--surface);
+  white-space: nowrap;
+}
+.dash-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  text-decoration: none;
+}
+.dash-chip-primary {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.dash-chip-missing {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.dash-cond-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 0.78rem;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.dash-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex: 0 0 auto;
+}
+.dash-erratum {
+  display: inline-block;
+  padding: 0 7px;
+  border-radius: 4px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.7;
+  white-space: nowrap;
+  border: 1px dashed var(--warn);
+  color: var(--warn);
+  background: var(--warn-soft);
+}
+.dash-erratum.dash-sev-high {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+.dash-erratum:hover {
+  text-decoration: none;
+  filter: brightness(1.05);
+}
+.dash-state {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-weight: 800;
+  font-size: 0.8rem;
+  flex: 0 0 auto;
+  color: #fff;
+}
+.dash-state-ok {
+  background: var(--ok);
+}
+.dash-state-warn {
+  background: var(--warn);
+}
+.dash-state-fail {
+  background: var(--danger);
+}
+:root[data-theme='dark'] .dash-state,
+:root[data-theme='dark'] .dash-pill-n {
+  color: var(--bg);
+}
+
+/* ---------- 學習路線 ---------- */
+.dash-route {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 14px 16px 16px;
+  margin: 14px 0;
+  box-shadow: var(--shadow);
+}
+.dash-route-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.dash-route-title {
+  font-size: 1.08rem;
+  font-weight: 700;
+  margin: 0;
+}
+.dash-route-title small {
+  font-weight: 500;
+  color: var(--text-faint);
+  margin-left: 6px;
+}
+.dash-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.dash-progress-bar {
+  width: 110px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.dash-progress-bar span {
+  display: block;
+  height: 100%;
+  background: var(--ok);
+}
+.dash-flow {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: grid;
+  grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+  gap: 22px;
+  counter-reset: step;
+}
+.dash-step {
+  position: relative;
+  min-width: 0;
+}
+.dash-step + .dash-step::before {
+  content: '';
+  position: absolute;
+  left: -19px;
+  top: 30px;
+  width: 16px;
+  height: 2px;
+  background: var(--border-strong);
+}
+.dash-step + .dash-step::after {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 26px;
+  border: 5px solid transparent;
+  border-left: 6px solid var(--border-strong);
+}
+.dash-step-card {
+  display: block;
+  height: 100%;
+  padding: 8px 10px 8px;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--route-c, var(--accent));
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text);
+}
+.dash-step-card:hover {
+  text-decoration: none;
+  border-color: var(--route-c, var(--accent));
+  background: var(--surface);
+}
+.dash-step.is-done .dash-step-card {
+  background: var(--ok-soft);
+}
+.dash-step-n {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-faint);
+}
+.dash-step-label {
+  display: block;
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1.3;
+}
+.dash-step-zh {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.dash-step-meta {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.74rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+.dash-step-also {
+  font-size: 0.74rem;
+  color: var(--text-faint);
+  margin-top: 4px;
+}
+.dash-step-also a {
+  margin-right: 4px;
+}
+@media (max-width: 900px) {
+  .dash-flow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+  .dash-step + .dash-step::before {
+    left: 22px;
+    top: -12px;
+    width: 2px;
+    height: 10px;
+  }
+  .dash-step + .dash-step::after {
+    left: 17px;
+    top: -6px;
+    border: 6px solid transparent;
+    border-top: 6px solid var(--border-strong);
+    border-bottom: none;
+  }
+  .dash-step-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 2px 10px;
+    align-items: baseline;
+  }
+  .dash-step-n {
+    grid-row: span 2;
+  }
+  .dash-step-meta {
+    margin-top: 0;
+    grid-column: 3;
+    grid-row: 1 / span 2;
+    align-self: center;
+  }
+}
+
+/* ---------- 六個條件 ---------- */
+.dash-cond-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: 14px;
+  margin-top: 12px;
+}
+.dash-cond-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 14px 12px;
+  border: 1px solid var(--border);
+  border-left: 5px solid var(--cond-c);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  min-width: 0;
+}
+.dash-cond-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.dash-cond-n {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--cond-c);
+  color: #fff;
+  font-weight: 800;
+  flex: 0 0 auto;
+}
+:root[data-theme='dark'] .dash-cond-n {
+  color: var(--bg);
+}
+.dash-cond-title {
+  font-weight: 700;
+  font-size: 1.05rem;
+  line-height: 1.25;
+}
+.dash-cond-en {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-faint);
+}
+.dash-cond-live {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.dash-cond-ask {
+  font-size: 0.92rem;
+}
+.dash-cond-tex {
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  overflow-x: auto;
+}
+.dash-cond-tex .c-texblock {
+  margin: 0;
+}
+/* 推導正後方的「帶入手算」 */
+.dash-handcalc {
+  margin: 10px 0 18px;
+  min-width: 0;
+}
+.dash-handcalc-lead {
+  margin: 0 0 6px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+.dash-handcalc-lead strong {
+  color: var(--text);
+}
+
+/* 目前 Case 的即時結果（關鍵數值 + 原因；數學以 KaTeX 顯示，取代原本只有 tooltip 的做法） */
+.dash-cond-now {
+  font-size: 0.84rem;
+  line-height: 1.5;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--ok);
+  background: var(--ok-soft);
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.dash-cond-now-warn {
+  border-left-color: var(--warn);
+  background: var(--warn-soft);
+}
+.dash-cond-now-fail {
+  border-left-color: var(--danger);
+  background: var(--danger-soft);
+}
+.dash-cond-now-why {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+.dash-cond-fail {
+  font-size: 0.86rem;
+  color: var(--text-muted);
+}
+.dash-cond-fail strong {
+  color: var(--danger);
+  font-weight: 600;
+}
+.dash-cond-hw {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.dash-cond-foot {
+  margin-top: auto;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.dash-claims {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+.dash-claims ul {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0 0;
+}
+.dash-claims li {
+  display: flex;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 0.92rem;
+}
+.dash-claims-box {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  background: var(--surface);
+}
+.dash-claims-box.ok {
+  border-top: 3px solid var(--ok);
+}
+.dash-claims-box.bad {
+  border-top: 3px solid var(--danger);
+}
+@media (max-width: 760px) {
+  .dash-hero {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 18px 16px;
+  }
+  .dash-title {
+    font-size: 1.55rem;
+  }
+  .dash-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dash-claims {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------- 推導 / 體檢 ---------- */
+.dash-details {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  margin: 12px 0;
+}
+.dash-details > summary {
+  cursor: pointer;
+  padding: 10px 14px;
+  font-weight: 600;
+}
+.dash-details > .dash-details-body {
+  padding: 0 14px 12px;
+}
+.dash-ctl-group {
+  border: none;
+  padding: 0;
+  margin: 0 0 10px;
+  min-width: 0;
+}
+.dash-ctl-group > legend {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-faint);
+  letter-spacing: 0.02em;
+  padding: 0;
+  margin-bottom: 4px;
+}
+.dash-check-table td,
+.dash-check-table th {
+  vertical-align: middle;
+}
+.dash-check-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 9em;
+}
+.dash-check-cell span:last-child {
+  font-size: 0.82rem;
+}
+.dash-reasons {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0;
+}
+.dash-reasons li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--border);
+  font-size: 0.9rem;
+}
+.dash-reasons li:last-child {
+  border-bottom: none;
+}
+
+/* ---------- 章節地圖 ---------- */
+.dash-group-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin: 18px 0 8px;
+}
+.dash-ch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 1fr));
+  gap: 12px;
+}
+.dash-ch-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 12px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  min-width: 0;
+}
+.dash-ch-card.is-done {
+  border-color: var(--ok);
+  background: linear-gradient(0deg, var(--surface), var(--surface)) padding-box;
+}
+.dash-ch-top {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.dash-ch-nav {
+  font-weight: 700;
+  line-height: 1.35;
+}
+.dash-ch-title {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+.dash-ch-summary {
+  font-size: 0.86rem;
+}
+.dash-ch-meta {
+  font-size: 0.76rem;
+  color: var(--text-faint);
+}
+.dash-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.dash-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* ---------- 15 個問題 ---------- */
+.dash-q-list {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+  display: grid;
+  gap: 8px;
+}
+.dash-q {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.dash-q-n {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+.dash-q-text {
+  font-weight: 600;
+}
+.dash-q-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 4px;
+}
+.dash-q details {
+  grid-column: 2;
+  margin-top: 2px;
+}
+.dash-q summary {
+  cursor: pointer;
+  font-size: 0.86rem;
+  color: var(--accent);
+}
+.dash-q-answer {
+  font-size: 0.9rem;
+  margin-top: 6px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.dash-q-answer .c-texblock {
+  margin: 4px 0;
+}
+@media (max-width: 520px) {
+  .dash-q {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dash-q details {
+    grid-column: 1;
+  }
+}
+
+/* ---------- 學習模式 ---------- */
+.dash-modes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.dash-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.dash-mode.is-active {
+  border: 2px solid var(--accent);
+  background: var(--accent-soft);
+}
+.dash-mode h3 {
+  margin: 0;
+  font-size: 1.02rem;
+}
+.dash-mode ul {
+  margin: 0;
+  padding-left: 1.2em;
+  font-size: 0.88rem;
+}
+.dash-mode .btn {
+  margin-top: auto;
+  align-self: flex-start;
+}
+@media (max-width: 760px) {
+  .dash-modes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------- 驗證與勘誤 ---------- */
+.dash-verif {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.dash-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 14px 16px;
+  min-width: 0;
+}
+.dash-panel h3 {
+  margin: 0 0 8px;
+}
+.dash-sevbar {
+  display: flex;
+  height: 14px;
+  border-radius: 7px;
+  overflow: hidden;
+  background: var(--surface-3);
+  margin: 8px 0;
+}
+.dash-sevbar span {
+  display: block;
+  height: 100%;
+}
+.dash-sev-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 0.84rem;
+}
+.dash-sev-legend b {
+  font-variant-numeric: tabular-nums;
+}
+.dash-tgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
+  gap: 6px;
+  margin: 8px 0;
+}
+.dash-tgrid > div {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  min-width: 0;
+}
+.dash-tcounts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 0.86rem;
+}
+@media (max-width: 760px) {
+  .dash-verif {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------- 結尾 ---------- */
+.dash-footnote {
+  margin-top: 28px;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+/* ---------- 小標題 / 圖例 ---------- */
+.dash-h3 {
+  font-size: 1.02rem;
+  margin: 18px 0 6px;
+}
+.dash-legend-table td,
+.dash-legend-table th {
+  vertical-align: top;
+  font-size: 0.9rem;
+}
+.dash-legend-table button.dash-chip {
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+/* ---------- Monte Carlo 交叉比對 ---------- */
+.dash-mc {
+  margin: 18px 0 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--info);
+  border-radius: var(--radius);
+  background: var(--surface);
+  min-width: 0;
+}
+.dash-mc-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin: 8px 0;
+}
+.dash-mc-verdict {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 10px 0 6px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--ok-soft);
+  font-size: 0.92rem;
+}
+.dash-mc-verdict[data-status='mismatch'] {
+  background: var(--danger-soft);
+}
+.dash-mc-table td,
+.dash-mc-table th {
+  vertical-align: middle;
+  font-size: 0.88rem;
+}
+
+/* ---------- 12 個必備實驗 ---------- */
+.dash-gal-grid {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
+  gap: 10px;
+}
+.dash-gal-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  min-width: 0;
+}
+.dash-gal-card:hover {
+  border-color: var(--accent);
+}
+.dash-gal-link {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  color: var(--text);
+  font-weight: 600;
+  line-height: 1.35;
+}
+.dash-gal-link:hover {
+  color: var(--accent);
+  text-decoration: none;
+}
+.dash-gal-n {
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 4px;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.dash-gal-expected {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.dash-cond-example {
+  font-size: 0.8rem;
+  padding: 3px 10px;
+  white-space: normal;
+  text-align: left;
+  line-height: 1.35;
+}
+button.dash-chip {
+  font-family: inherit;
+  cursor: pointer;
+}
+/* 以按鈕捲動到條件卡片 / 問題時，避開固定的 topbar */
+.dash-cond-card,
+.dash-q,
+.dash-mc {
+  scroll-margin-top: calc(var(--topbar-h) + 12px);
+}

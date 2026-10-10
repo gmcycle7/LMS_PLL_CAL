@@ -1,0 +1,28 @@
+{
+  "id": "sign-lms-fp-outliers",
+  "title": "單邊 outlier + x ≡ 1：LMS 被拉走",
+  "page": "/ch/02",
+  "experiment": "sign-lms-fixed-points",
+  "description": "Gaussian σ = 0.3，5% 機率 +20。",
+  "params": {
+    "a": 3,
+    "xKind": "const",
+    "xAmp": 1,
+    "noiseKind": "gaussian",
+    "sigma": 0.3,
+    "outlierProb": 0.05,
+    "outlierSize": 20,
+    "huberDelta": 0.5,
+    "nlmsEps": 0.1,
+    "mu": 0.01,
+    "steps": 6000,
+    "runs": 24,
+    "algos": [
+      "lms",
+      "sign_error",
+      "huber"
+    ]
+  },
+  "expected": "w*：LMS 4.000、Sign-Error 3.020、Huber 3.029。",
+  "source": "simulation"
+}

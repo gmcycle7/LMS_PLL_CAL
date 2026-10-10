@@ -1,0 +1,31 @@
+{
+  "id": "quant-update-rate-mixing",
+  "title": "Code 更新率：每個 reference cycle vs 每 1024 cycle 更新",
+  "page": "/ch/13",
+  "experiment": "quantized-gain-lab",
+  "description": "同樣的 toggle pattern：N_upd = 1 時 code 誤差的 tone 在 2f_u/5 = 40 MHz（PLL 頻寬 1 MHz 外）；N_upd = 1024 時在 2f_u/5 ≈ 39 kHz（頻寬內）。直覺上後者比較差，但 δt = Δ_LSB·e·x 還要再與 DSM residue x 的頻譜捲積，最後的 output jitter 以模擬為準（§13.5 第 5、6 點）。FCW frac = 13/128（DSM 週期 128 個 cycle，混頻產物全部解析得出來）。",
+  "params": {
+    "target": 32.4,
+    "mixing": true,
+    "pllBwHz": 1000000,
+    "fs": 100000000,
+    "length": 131072,
+    "mixSamples": 131072,
+    "dsmFrac": 0.1015625,
+    "cases": [
+      {
+        "strategy": "toggle",
+        "lmsNoise": false,
+        "nUpd": 1
+      },
+      {
+        "strategy": "toggle",
+        "lmsNoise": false,
+        "nUpd": 1024
+      }
+    ]
+  },
+  "expected": "兩個 Case 都用 2^17 個 reference cycle（相同的紀錄長度與積分下限 f_L ≈ 3.05 kHz）；δt 的 RMS（未經 PLL）兩者相近（約 0.061 fs）。經 |T|² 積分後的 σ_out 卻是 N_upd = 1 較大（約 0.012 fs，N_upd = 1024 約 0.0045 fs）：40 MHz 的 code tone 與 DSM residue 的高次諧波（k·f_s/128）混頻，差頻落回通帶。把 FCW frac 改成 0.1 會出現「混頻產物的週期比紀錄長」的警告（FCW 陷阱）。",
+  "tests": [],
+  "source": "illustrative"
+}

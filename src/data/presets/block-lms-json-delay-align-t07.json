@@ -1,0 +1,61 @@
+{
+  "id": "block-lms-json-delay-align-t07",
+  "title": "T07：φ = −120°、D = 4 對齊後收斂",
+  "page": "/models",
+  "experiment": "block-lms-json",
+  "description": "同上的單頻 code，path 相位 −120°；GMAC 改用延遲 D = 4 的 x[n − 4]，θ = φ + ΩD = 0°。",
+  "params": {
+    "config": {
+      "model": "sign_error_block_lms",
+      "seed": 20261010,
+      "units": {
+        "time": "fs",
+        "frequency": "Hz"
+      },
+      "sample_rate_hz": 4000000000,
+      "output_frequency_hz": 13000000000,
+      "gm_accum_samples": 4096,
+      "gain_initial": 0,
+      "gain_true": 3,
+      "gain_step": 10,
+      "code_normalization": "none",
+      "gm_mode": "average",
+      "pd_noise_rms_fs": 100,
+      "comparator_offset_fs": 0,
+      "comparator_encoding": "bipolar_pm_one",
+      "gm_code_delay_samples": 4,
+      "cal_update_delay_blocks": 0,
+      "pll_error_path": {
+        "kind": "single_tone",
+        "parameters": {
+          "magnitude": 1,
+          "phase_deg": -120,
+          "omega": 0.5235987755982988
+        }
+      },
+      "seeded_pattern": {
+        "kind": "sinusoid",
+        "parameters": {
+          "amplitude": 1,
+          "omega": 0.5235987755982988,
+          "phase_deg": 0,
+          "random_phase": false
+        }
+      },
+      "gain_register": {
+        "internal_bits": 20,
+        "physical_bits": 6,
+        "rounding": "nearest",
+        "overflow": "saturate"
+      },
+      "mode": "exploratory",
+      "regressor_mode": "delayed",
+      "num_blocks": 1000
+    }
+  },
+  "expected": "C_D = 0.5（T07，單頻相關最大），g = 0.0399、p = 0.9601；w 收斂到 a = 3 fs。",
+  "source": "simulation",
+  "tests": [
+    "T07"
+  ]
+}

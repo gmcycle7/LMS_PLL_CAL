@@ -1,0 +1,447 @@
+/* Unified Calibration Lab（/lab）。class 一律加 lab- 前綴；顏色只用 global.css 的 token（深淺主題皆可讀）。 */
+
+.lab-page {
+  min-width: 0;
+}
+.lab-page > section,
+.lab-page section[aria-labelledby] {
+  margin-bottom: 2.2rem;
+}
+.lab-head-tags {
+  margin-bottom: 1rem;
+}
+
+/* 開場問題框 */
+.lab-question {
+  border-left: 4px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin: 0.8rem 0 1.2rem;
+}
+.lab-question-label {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.lab-question p {
+  margin: 0.4rem 0;
+}
+
+/* 逐步推導外框 */
+.lab-steps {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  margin: 0.8rem 0;
+  background: var(--surface);
+  min-width: 0;
+}
+.lab-steps > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 4px 0;
+}
+.lab-steps-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 1px 8px;
+  margin-right: 6px;
+  border-radius: 999px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  vertical-align: middle;
+}
+
+/* 勘誤與章節連結 */
+.lab-erratum {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0 6px;
+  margin: 0 2px;
+  border-radius: 999px;
+  border: 1px solid var(--warn);
+  color: var(--warn);
+  background: var(--warn-soft);
+  white-space: nowrap;
+  text-decoration: none;
+}
+.lab-chlink {
+  margin-right: 0.5em;
+  white-space: nowrap;
+}
+
+/* 表格（一律放在 .table-wrap 內，窄螢幕在自己的容器內捲動） */
+.lab-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.88rem;
+}
+.lab-table caption {
+  caption-side: top;
+  text-align: left;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  padding: 4px 0;
+}
+.lab-table th,
+.lab-table td {
+  border: 1px solid var(--border);
+  padding: 5px 8px;
+  vertical-align: top;
+  text-align: left;
+}
+.lab-table thead th,
+.lab-table thead td {
+  background: var(--surface-2);
+  font-weight: 700;
+}
+.lab-table tbody th {
+  font-weight: 600;
+  background: var(--surface);
+}
+.lab-num,
+.lab-table-num td {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.lab-table-num th {
+  white-space: nowrap;
+}
+.lab-formula-cell {
+  min-width: 13rem;
+}
+.lab-row-bad td {
+  background: var(--danger-soft);
+}
+.lab-scroll-y {
+  max-height: 26rem;
+  overflow: auto;
+}
+.lab-dot {
+  display: inline-block;
+  width: 0.7em;
+  height: 0.7em;
+  border-radius: 50%;
+  vertical-align: baseline;
+}
+.lab-tex-scroll {
+  overflow-x: auto;
+  padding: 6px 0;
+}
+.lab-eig {
+  display: inline-block;
+  margin: 0 0.5em 0 0.2em;
+}
+
+/* 狀態膠囊 */
+.lab-pill {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.lab-pill-ok {
+  color: var(--ok);
+  background: var(--ok-soft);
+}
+.lab-pill-mismatch {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+.lab-pill-na {
+  color: var(--text-muted);
+  background: var(--surface-3);
+}
+.lab-pill-not-implemented {
+  color: var(--warn);
+  background: var(--warn-soft);
+}
+.lab-inline-tags {
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+/* 進度列 */
+.lab-progress {
+  position: relative;
+  height: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  overflow: hidden;
+  margin: 0.5rem 0 0.8rem;
+}
+.lab-progress-bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--accent-soft);
+  border-right: 2px solid var(--accent);
+  transition: width 0.15s linear;
+}
+.lab-progress-text {
+  position: relative;
+  display: block;
+  line-height: 1.5rem;
+  padding: 0 8px;
+}
+
+/* 參數面板 */
+.lab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.lab-group {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  min-width: 0;
+}
+.lab-group > summary {
+  cursor: pointer;
+  padding: 5px 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+.lab-group-title {
+  font-weight: 700;
+}
+.lab-group-body {
+  padding: 4px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+}
+
+/* 分頁列 */
+.lab-tabs-wrap {
+  position: sticky;
+  top: var(--topbar-h);
+  z-index: 3;
+  background: var(--bg);
+  padding-top: 6px;
+  margin-bottom: 8px;
+}
+.lab-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  border-bottom: 2px solid var(--border-strong);
+  scrollbar-width: thin;
+}
+.lab-tab {
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.lab-tab:hover {
+  color: var(--text);
+}
+.lab-tab.is-active {
+  background: var(--surface);
+  color: var(--accent);
+  font-weight: 700;
+  border-color: var(--border-strong);
+  box-shadow: inset 0 3px 0 var(--accent);
+}
+.lab-tab-busy {
+  margin-left: 6px;
+}
+.lab-tab-hint {
+  margin: 4px 2px 0;
+}
+.lab-tabpanel {
+  min-width: 0;
+}
+.lab-tryit ol {
+  margin: 0.3rem 0;
+  padding-left: 1.3rem;
+}
+.lab-tryit li {
+  margin: 0.25rem 0;
+}
+
+/* 實驗結果區 */
+.lab-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  margin: 0.4rem 0 0.8rem;
+}
+.lab-status-run {
+  color: var(--accent);
+  font-weight: 600;
+}
+.lab-stale-flag {
+  color: var(--warn);
+}
+.lab-replay-badge {
+  margin-left: auto;
+  white-space: nowrap;
+}
+.lab-results {
+  min-width: 0;
+}
+.lab-stale {
+  opacity: 0.6;
+}
+.lab-fold {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  margin: 0.6rem 0;
+  background: var(--surface);
+  min-width: 0;
+}
+.lab-fold > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 3px 0;
+}
+.lab-subhead {
+  margin: 1.4rem 0 0.5rem;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.lab-inline-controls {
+  max-width: 28rem;
+  margin: 0.4rem 0;
+}
+.lab-step {
+  margin: 0.4rem 0 1rem;
+}
+.lab-report {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 1.2rem 0 0.4rem;
+}
+.lab-preset-note {
+  border-left: 4px solid var(--ok);
+  background: var(--ok-soft);
+  padding: 6px 12px;
+  border-radius: 0 6px 6px 0;
+  margin: 0.4rem 0 0.8rem;
+}
+.lab-preset-note p {
+  margin: 0.2rem 0;
+}
+.lab-preset-issues {
+  color: var(--warn);
+}
+
+/* 九級卡片 */
+.lab-stages {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.lab-stage {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 8px 10px;
+  min-width: 0;
+  margin-bottom: 0 !important;
+}
+.lab-stage-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-bottom: 6px;
+}
+.lab-stage-title {
+  margin: 0;
+  font-size: 1rem;
+}
+.lab-stage-links {
+  margin-left: auto;
+}
+.lab-stage-table {
+  font-size: 0.84rem;
+}
+.lab-stage-table th {
+  width: 46%;
+}
+.lab-stage-info {
+  margin: 0.3rem 0;
+}
+.lab-stage-assume {
+  margin-top: 4px;
+}
+.lab-stage-assume > summary {
+  cursor: pointer;
+  color: var(--text-muted);
+}
+.lab-stage-assume ul {
+  margin: 0.3rem 0;
+  padding-left: 1.2rem;
+}
+.lab-whatif {
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 12px 0;
+  min-width: 0;
+}
+.lab-whatif h4 {
+  margin: 0 0 0.3rem;
+}
+
+.lab-notes {
+  margin: 0.4rem 0;
+  padding-left: 1.2rem;
+}
+
+/* 手機：單欄、表格在容器內捲動 */
+@media (max-width: 900px) {
+  .lab-stages {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 760px) {
+  .lab-tabs-wrap {
+    position: static;
+  }
+  .lab-replay-badge {
+    margin-left: 0;
+  }
+  .lab-stage-links {
+    margin-left: 0;
+  }
+  .lab-stage-table th {
+    width: auto;
+    min-width: 9rem;
+  }
+}

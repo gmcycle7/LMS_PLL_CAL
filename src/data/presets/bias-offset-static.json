@@ -1,0 +1,26 @@
+{
+  "id": "bias-offset-static",
+  "title": "Comparator offset：靜態假 gain bias（x ∈ {0,1,2,3}、b = 0.5）",
+  "page": "/ch/11",
+  "experiment": "bias-inl-lab",
+  "description": "主迴路不消除 PD 的 DC（mode none），非零均值 code。",
+  "params": {
+    "a": 1,
+    "w0": 1,
+    "b": 0.5,
+    "c2": 0,
+    "c3": 0,
+    "kappa": 0,
+    "codeKind": "unipolar4",
+    "codeShift": 0,
+    "dsmKind": "first_order",
+    "dsmFrac": 0.3,
+    "algorithm": "sign",
+    "sigmaV": 1,
+    "dcMode": "none",
+    "jitterSlope": 0,
+    "jitterRef": -2
+  },
+  "expected": "一階公式 w* = a + bE[x]/E[x²] = 1 + 0.5·1.5/3.5 = 1.2143；Sign-LMS mean-field 1.2141（σ_v = 1）。（勘誤 E03 情境 A）",
+  "source": "illustrative"
+}

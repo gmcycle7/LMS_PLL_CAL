@@ -1,0 +1,28 @@
+{
+  "id": "mixing-zoh-hold",
+  "title": "δw 以 ZOH 每 16 個 sample 更新（multirate）",
+  "page": "/ch/12",
+  "experiment": "code-mixing-lab",
+  "description": "δw 只在 block 邊界更新（f_u = f_sim/16 = 256 kHz）：tone 乘上 sinc 權重並在 k·f_u ± f_w 出現 image（勘誤 E09 / E29）。",
+  "params": {
+    "fsim": 4096000.0,
+    "L": 4096,
+    "fx": 100000.0,
+    "A": 1,
+    "m": 0,
+    "codeWhite": 0,
+    "fw": 10000.0,
+    "B": 1,
+    "holdN": 16,
+    "dwNoiseSigma": 0,
+    "dwNoiseP": 0.92,
+    "fOut": 13000000000.0,
+    "Tmag": 1,
+    "window": "rectangular"
+  },
+  "expected": "ZOH 權重 0.99750 ⇒ 90 / 110 kHz 各 0.49875 fs（−93.82 dBc）；k·256 kHz ± 10 kHz 附近出現 image。",
+  "tests": [
+    "T15"
+  ],
+  "source": "simulation"
+}

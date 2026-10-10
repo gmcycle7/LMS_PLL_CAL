@@ -1,0 +1,25 @@
+{
+  "id": "stability-fixed-x2-mu01",
+  "title": "固定 x = 2、μ = 0.1：單調收斂",
+  "page": "/ch/03",
+  "experiment": "stability-lab",
+  "description": "退化分布（每筆 x 都是 2），三種收斂判據完全一致。",
+  "params": {
+    "dist": "fixed",
+    "xValue": 2,
+    "sigma": 1,
+    "halfWidth": 1.7320508075688772,
+    "amplitude": 1,
+    "listText": "0, 0, 0, 0, 0, 0, 0, 0, 0, 3",
+    "delta0": 1,
+    "paths": 2000,
+    "steps": 200,
+    "noiseSigma": 0,
+    "mu": 0.1
+  },
+  "expected": "p = 1 − μx² = 0.6；mean / MS / a.s. 界都等於 2/x² = 0.5；所有路徑相同，log₁₀|δ₂₀₀| ≈ −44.37。",
+  "tests": [
+    "T02"
+  ],
+  "source": "illustrative"
+}

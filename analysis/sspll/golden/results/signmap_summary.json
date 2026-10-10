@@ -1,0 +1,290 @@
+{
+ "L1": {
+  "phos_inverted_MHz_tau0.001": [],
+  "gos_inverted_MHz_tau0.001": [],
+  "m1_inverted_MHz_tau0.001": [],
+  "m4_inverted_MHz_tau0.001": [],
+  "m2_inverted_MHz_tau0.001": [],
+  "m3_inverted_MHz_tau0.001": [],
+  "phos_inverted_MHz_tau0.01": [],
+  "gos_inverted_MHz_tau0.01": [],
+  "m1_inverted_MHz_tau0.01": [],
+  "m4_inverted_MHz_tau0.01": [],
+  "m2_inverted_MHz_tau0.01": [],
+  "m3_inverted_MHz_tau0.01": [],
+  "large_signal_inverted_MHz": [
+   [
+    0.5,
+    1.5
+   ],
+   [
+    465.5,
+    500.5
+   ],
+   [
+    953.5,
+    953.5
+   ],
+   [
+    965.5,
+    1000.5
+   ],
+   [
+    1465.5,
+    1497.5
+   ],
+   [
+    1502.5,
+    1502.5
+   ],
+   [
+    1963.5,
+    1963.5
+   ],
+   [
+    1965.5,
+    1999.5
+   ]
+  ],
+  "n_large_signal_inverted": 145,
+  "n_large_signal_inverted_ac": 5,
+  "n_large_signal_inverted_Ponly_ac": null,
+  "worst_kP": 0.00075326,
+  "worst_kP_at_MHz": 0.5,
+  "min_kG": 0.015367,
+  "min_kG_at_MHz": 499.5,
+  "n_inverted_kP_1diff": 0,
+  "min_kP_1diff": 0.00058579,
+  "n_inverted_kG_1diff": 0,
+  "min_kG_1diff": 0.011969,
+  "n_inverted_kP_fx": 0,
+  "min_kP_fx": 0.00093505,
+  "n_inverted_kP_D1": 1837,
+  "min_kP_D1": -1.2411,
+  "n_inverted_kG_D1": 1560,
+  "min_kG_D1": -0.9266,
+  "n_inverted_kP_2diff": 426,
+  "min_kP_2diff": -0.15988,
+  "n_inverted_kP_Ponly": 0,
+  "min_kP_Ponly": null,
+  "n_inverted_kG_Ponly": 0,
+  "min_kG_Ponly": null
+ },
+ "L2": {
+  "phos_inverted_MHz_tau0.001": [
+   [
+    13.5,
+    19.5
+   ],
+   [
+    22.5,
+    125.5
+   ],
+   [
+    980.5,
+    986.5
+   ],
+   [
+    1013.5,
+    1019.5
+   ],
+   [
+    1960.5,
+    1974.5
+   ],
+   [
+    1980.5,
+    1986.5
+   ]
+  ],
+  "gos_inverted_MHz_tau0.001": [],
+  "m1_inverted_MHz_tau0.001": [
+   [
+    22.5,
+    125.5
+   ]
+  ],
+  "m4_inverted_MHz_tau0.001": [
+   [
+    13.5,
+    19.5
+   ],
+   [
+    980.5,
+    986.5
+   ],
+   [
+    1013.5,
+    1019.5
+   ],
+   [
+    1980.5,
+    1986.5
+   ]
+  ],
+  "m2_inverted_MHz_tau0.001": [
+   [
+    25.5,
+    39.5
+   ],
+   [
+    1960.5,
+    1974.5
+   ]
+  ],
+  "m3_inverted_MHz_tau0.001": [
+   [
+    13.5,
+    19.5
+   ]
+  ],
+  "phos_inverted_MHz_tau0.01": [
+   [
+    29.5,
+    123.5
+   ]
+  ],
+  "gos_inverted_MHz_tau0.01": [],
+  "m1_inverted_MHz_tau0.01": [
+   [
+    29.5,
+    123.5
+   ]
+  ],
+  "m4_inverted_MHz_tau0.01": [],
+  "m2_inverted_MHz_tau0.01": [],
+  "m3_inverted_MHz_tau0.01": [],
+  "large_signal_inverted_MHz": [
+   [
+    0.5,
+    124.5
+   ],
+   [
+    466.5,
+    508.5
+   ],
+   [
+    958.5,
+    1001.5
+   ],
+   [
+    1003.5,
+    1008.5
+   ],
+   [
+    1010.5,
+    1041.5
+   ],
+   [
+    1468.5,
+    1499.5
+   ],
+   [
+    1938.5,
+    1999.5
+   ]
+  ],
+  "n_large_signal_inverted": 344,
+  "n_large_signal_inverted_ac": 321,
+  "n_large_signal_inverted_Ponly_ac": 5,
+  "worst_kP": -0.13974,
+  "worst_kP_at_MHz": 83.5,
+  "min_kG": 0.0003137,
+  "min_kG_at_MHz": 499.5,
+  "n_inverted_kP_1diff": 0,
+  "min_kP_1diff": 0.00058579,
+  "n_inverted_kG_1diff": 0,
+  "min_kG_1diff": 0.012,
+  "n_inverted_kP_fx": 0,
+  "min_kP_fx": 0.0012025,
+  "n_inverted_kP_D1": 1982,
+  "min_kP_D1": -1.181,
+  "n_inverted_kG_D1": 1560,
+  "min_kG_D1": -0.89431,
+  "n_inverted_kP_2diff": 568,
+  "min_kP_2diff": -0.24603,
+  "n_inverted_kP_Ponly": 0,
+  "min_kP_Ponly": 0.001018,
+  "n_inverted_kG_Ponly": 0,
+  "min_kG_Ponly": 0.02073
+ },
+ "L3": {
+  "phos_inverted_MHz_tau0.001": [
+   [
+    14.5,
+    105.5
+   ]
+  ],
+  "gos_inverted_MHz_tau0.001": [],
+  "m1_inverted_MHz_tau0.001": [
+   [
+    14.5,
+    105.5
+   ]
+  ],
+  "m4_inverted_MHz_tau0.001": [],
+  "m2_inverted_MHz_tau0.001": [],
+  "m3_inverted_MHz_tau0.001": [],
+  "phos_inverted_MHz_tau0.01": [
+   [
+    23.5,
+    103.5
+   ]
+  ],
+  "gos_inverted_MHz_tau0.01": [],
+  "m1_inverted_MHz_tau0.01": [
+   [
+    23.5,
+    103.5
+   ]
+  ],
+  "m4_inverted_MHz_tau0.01": [],
+  "m2_inverted_MHz_tau0.01": [],
+  "m3_inverted_MHz_tau0.01": [],
+  "large_signal_inverted_MHz": [
+   [
+    0.5,
+    115.5
+   ],
+   [
+    471.5,
+    499.5
+   ],
+   [
+    958.5,
+    1041.5
+   ],
+   [
+    1470.5,
+    1499.5
+   ],
+   [
+    1950.5,
+    1999.5
+   ]
+  ],
+  "n_large_signal_inverted": 309,
+  "n_large_signal_inverted_ac": 291,
+  "n_large_signal_inverted_Ponly_ac": 28,
+  "worst_kP": -0.095683,
+  "worst_kP_at_MHz": 67.5,
+  "min_kG": 0.00048474,
+  "min_kG_at_MHz": 0.5,
+  "n_inverted_kP_1diff": 0,
+  "min_kP_1diff": 0.00058579,
+  "n_inverted_kG_1diff": 0,
+  "min_kG_1diff": 0.012,
+  "n_inverted_kP_fx": 0,
+  "min_kP_fx": 0.0013743,
+  "n_inverted_kP_D1": 1925,
+  "min_kP_D1": -1.085,
+  "n_inverted_kG_D1": 1368,
+  "min_kG_D1": -0.81918,
+  "n_inverted_kP_2diff": 745,
+  "min_kP_2diff": -0.33715,
+  "n_inverted_kP_Ponly": 0,
+  "min_kP_Ponly": 0.00096361,
+  "n_inverted_kG_Ponly": 0,
+  "min_kG_Ponly": 0.019648
+ }
+}

@@ -1,0 +1,22 @@
+{
+  "id": "sspll-cl-l2-inband",
+  "title": "SSPLL L2、α = 0.02（80 MHz）閉迴路 LMS：raw 發散 vs 一階差分／filtered-x 收斂",
+  "page": "/case/sspll",
+  "experiment": "sspll-closed-loop",
+  "description": "真 1-bit 比較器的 sign-error block LMS（σ_v = 200 fs、N = 512、N_τ = 25 blocks，插圖值）。A：raw；B：一階差分；C：filtered-x（Ĥ = H）。載入後會自動執行（也可以按「執行 Run」）。",
+  "params": {
+    "loop": "L2",
+    "fMHz": 80,
+    "caseA": "raw",
+    "caseB": "1diff",
+    "caseC": "fx",
+    "nBlocks": 1500,
+    "nBlk": 512,
+    "tauBlocks": 25,
+    "uOsFs": 0,
+    "lanes": 2,
+    "seed": 3
+  },
+  "expected": "golden（Python，6000 blocks × 2 lanes）：raw 的 PHOS 誤差由 173.3 fs 發散到 28.4 ps（第 600 block 已到 1.83 ps），1diff 收斂到 6.2 fs，filtered-x 4.4 fs。TS port 用不同的隨機數，數值只在統計上一致：raw 在第 600 block 約 1–3 ps、1diff < 25 fs；Monte Carlo 交叉比對會在第 1400 block 比較即時模擬與 golden 軌跡的 PHOS rms（容許 4 倍；raw 的發散是決定性的，實際相差不到 10%）。小訊號預測 κ_PHOS：raw −0.138、1diff +0.091。",
+  "source": "simulation"
+}

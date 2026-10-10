@@ -1,0 +1,23 @@
+{
+  "id": "gmac-encoding-dc-code",
+  "title": "0/1 忘了映射：code 有 DC 時的偏差",
+  "page": "/ch/04",
+  "experiment": "gmac-bit-encoding",
+  "description": "Gaussian code N(0.5, 1)、σ_v = 100 fs、μ = 10 fs、N = 256、a = 3 fs。",
+  "params": {
+    "N": 256,
+    "numBlocks": 1500,
+    "mu": 10,
+    "sigmaV": 100,
+    "aTrue": 3,
+    "w0": 0,
+    "codeMean": 0.5,
+    "codeSigma": 1,
+    "seed": 20261010
+  },
+  "expected": "±1 與 2b − 1 完全重合、收斂到 ≈ 3 fs；忘了映射的收斂到 ≈ 63.2 fs（mean-field 63.23；線性化 53.1 fs 低估），且 K 減半。",
+  "tests": [
+    "T04"
+  ],
+  "source": "simulation"
+}

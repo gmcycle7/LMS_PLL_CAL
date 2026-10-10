@@ -1,0 +1,39 @@
+{
+  "id": "optimizer-corner-e16",
+  "title": "Ch14：勘誤 E16 例子（K_min/K_max = 1/3、ε = 0.01、B = 12）",
+  "page": "/ch/14",
+  "experiment": "corner-interval",
+  "description": "三個 corner 的 K = 0.004 / 0.008 / 0.012 fs⁻¹（直接輸入 K_i；關閉「直接輸入」時改用等效的 σ_v、θ = 0）。",
+  "params": {
+    "corners": [
+      {
+        "name": "K = 0.004",
+        "sigmaV": 199.47114020071635,
+        "thetaDeg": 0,
+        "k": 0.004
+      },
+      {
+        "name": "K = 0.008",
+        "sigmaV": 99.73557010035817,
+        "thetaDeg": 0,
+        "k": 0.008
+      },
+      {
+        "name": "K = 0.012",
+        "sigmaV": 66.49038006690544,
+        "thetaDeg": 0,
+        "k": 0.012
+      }
+    ],
+    "eps": 0.01,
+    "B": 12,
+    "pmTargetDeg": 60,
+    "delta0": 3,
+    "N": 4096,
+    "rmsTarget": 1,
+    "measure": false,
+    "directK": true
+  },
+  "expected": "B_min = ln 0.01/ln(2/3) = 11.36 → 12；B = 12 時區間 [79.677, 83.333] fs（只有約 4% 寬）。",
+  "source": "illustrative"
+}

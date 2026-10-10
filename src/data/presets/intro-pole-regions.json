@@ -1,0 +1,11 @@
+{
+  "id": "intro-pole-regions",
+  "title": "入門：μ = 0.25 / 0.4 / 0.5（一步到位 / 震盪收斂 / 邊界）",
+  "page": "/ch/00",
+  "experiment": "intro-playground",
+  "description": "x = 2 時 p = 1 − 4μ：μ = 0.25 → p = 0（deadbeat），0.4 → p = −0.6（正負交替但收斂），0.5 → p = −1（永遠在 1 與 5 之間跳）。",
+  "params": { "a": 3, "w0": 1, "x": 2, "steps": 20, "sigmaV": 0, "mus": [0.25, 0.4, 0.5] },
+  "expected": "Case A 第 1 步即 w = 3；Case B 震盪收斂；Case C 為邊界（警告說明不收斂）。",
+  "tests": ["T02"],
+  "source": "illustrative"
+}

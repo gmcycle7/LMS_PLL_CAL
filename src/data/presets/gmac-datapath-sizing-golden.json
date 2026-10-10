@@ -1,0 +1,18 @@
+{
+  "id": "gmac-datapath-sizing-golden",
+  "title": "Golden：6-bit symmetric × 4096",
+  "page": "/models",
+  "experiment": "gmac-datapath-sizing",
+  "description": "golden vector negative_tests.json 的設定，floor 右移、不保留小數 bit。",
+  "params": {
+    "bx": 6,
+    "log2N": 12,
+    "range": "symmetric",
+    "rounding": "floor",
+    "gFracBits": 0,
+    "sigmaV": 100,
+    "mu": 10
+  },
+  "expected": "B_acc = 18 bits（= B_x + ⌈log₂N⌉）；17 bits 時 31×4096 = 126976 wrap 成 −4096；floor 截斷平衡點 δ* ≈ 2.08 fs（> σ_w ≈ 0.40 fs，發出截斷偏差警告）。",
+  "source": "illustrative"
+}

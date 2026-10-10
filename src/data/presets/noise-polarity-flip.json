@@ -1,0 +1,24 @@
+{
+  "id": "noise-polarity-flip",
+  "title": "C = −0.5：更新極性錯誤",
+  "page": "/ch/12",
+  "experiment": "lms-noise-lab",
+  "description": "反面測試：有效 code 相關為負（例如 PLL error path 相位 > 90°，第 6 章）。p = 1 − μK_qC > 1，正 learning rate 讓誤差遠離 w*。",
+  "params": {
+    "N": 4096,
+    "fs": 4000000000.0,
+    "mu": 10,
+    "sigmaV": 100,
+    "C": -0.5,
+    "gmMode": "average",
+    "engine": "binomial",
+    "blocks": 4000,
+    "chains": 8,
+    "dw0": 3
+  },
+  "expected": "警告「C ≤ 0：更新極性錯誤，正 learning rate 會使平均誤差發散」；p = 1.03989；線性引擎指數發散；Sign-LMS 引擎以約 μ = 10 fs/block 線性漂移遠離 w*（約 4200 blocks 後 ≈ 4×10⁴ fs），並出現「線性漂移」警告。",
+  "tests": [
+    "T13"
+  ],
+  "source": "simulation"
+}

@@ -1,0 +1,19 @@
+{
+  "id": "fft-spur-pitfalls-short-record",
+  "title": "短紀錄 N = 256：spur 埋進雜訊",
+  "page": "/models",
+  "experiment": "fft-spur-pitfalls",
+  "description": "紀錄只有 256 點（processing gain 不足）。",
+  "params": {
+    "log2N": 8,
+    "offsetBins": 0.5,
+    "spurOffsetBins": 10,
+    "spurDbc": -80,
+    "noiseDbc": -60,
+    "window": "blackmanHarris",
+    "welchLog2Seg": 8,
+    "seed": 20261010
+  },
+  "expected": "每 bin 雜訊底約 −78 dBc，高於 spur −80 dBc，發出「Spur 埋在雜訊底下」警告；coherent tone fit 的 3σ 相對誤差也超過 100%（量不到）。",
+  "source": "illustrative"
+}

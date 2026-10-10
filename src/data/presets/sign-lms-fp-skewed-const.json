@@ -1,0 +1,29 @@
+{
+  "id": "sign-lms-fp-skewed-const",
+  "title": "偏斜雜訊 + x ≡ 1：平均 vs 中位數",
+  "page": "/ch/02",
+  "experiment": "sign-lms-fixed-points",
+  "description": "x ≡ 1 時 Sign-Error 與 Sign-Sign 是同一個演算法。",
+  "params": {
+    "a": 3,
+    "xKind": "const",
+    "xAmp": 1,
+    "noiseKind": "skewed",
+    "sigma": 1,
+    "outlierProb": 0,
+    "outlierSize": 0,
+    "huberDelta": 0.5,
+    "nlmsEps": 0.1,
+    "mu": 0.01,
+    "steps": 6000,
+    "runs": 24,
+    "algos": [
+      "lms",
+      "sign_error",
+      "sign_sign",
+      "huber"
+    ]
+  },
+  "expected": "w*：LMS 3.000（a + E[v]）、Sign-Error = Sign-Sign 2.693（a + med(v) = 3 + ln2 − 1）、Huber 2.734。",
+  "source": "simulation"
+}

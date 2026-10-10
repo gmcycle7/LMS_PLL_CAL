@@ -1,0 +1,22 @@
+{
+  "id": "sspll-cl-l2-offset",
+  "title": "SSPLL L2、α = 0.137（帶外）+ 比較器 offset 25 fs：raw 的共模漂移，zero-mean 不漂",
+  "page": "/case/sspll",
+  "experiment": "sspll-closed-loop",
+  "description": "α·f_ref = 548 MHz 在反號帶外，raw 的 eig(C) 全為正；但比較器 offset 讓 E[q] ≠ 0，成為與誤差無關的 forcing 項。A：raw；B：zm（GOS 減 1/2、PHOS 減 1/8）；C：一階差分。",
+  "params": {
+    "loop": "L2",
+    "fMHz": 548,
+    "caseA": "raw",
+    "caseB": "zm",
+    "caseC": "1diff",
+    "nBlocks": 1500,
+    "nBlk": 512,
+    "tauBlocks": 25,
+    "uOsFs": 25,
+    "lanes": 2,
+    "seed": 3
+  },
+  "expected": "golden（4000 blocks）：raw 的 GOS 偏差 133 fs、PHOS 共模漂到 3.9 ps；zm 為 2.8 fs／0；1diff 為 7.4 fs／0。公式：E[q] = erf(25/(√2·200)) = 0.0995，raw 的 GOS 穩態偏差 −145.8 fs。本頁的即時模擬只跑 1500 blocks：raw 的共模約 1.4–1.5 ps（forcing 公式 B·μ_p·E[q]/8 = 1.50 ps），GOS 偏差約 0.13–0.15 ps；zm 與 1diff 的共模為 0。Analytic 交叉比對是「共模漂移 vs forcing 公式」；因為有 offset，與 golden 軌跡的執行條件不同，Monte Carlo 欄顯示 n/a、圖上不疊 golden 軌跡。",
+  "source": "simulation"
+}

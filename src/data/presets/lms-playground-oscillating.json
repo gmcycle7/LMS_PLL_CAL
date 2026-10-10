@@ -1,0 +1,21 @@
+{
+  "id": "lms-playground-oscillating",
+  "title": "正負交替收斂：μ = 0.4",
+  "page": "/ch/01",
+  "experiment": "lms-playground",
+  "description": "p = 1 − 0.4·4 = −0.6：穩定不代表不震盪。",
+  "params": {
+    "a": 3,
+    "w0": 1,
+    "x": 2,
+    "mu": 0.4,
+    "steps": 20,
+    "noiseSigma": 0,
+    "seed": 20261010
+  },
+  "expected": "δ_n = 2·(−0.6)ⁿ，正負交替、絕對值以 0.6 倍縮小。",
+  "tests": [
+    "T02"
+  ],
+  "source": "illustrative"
+}

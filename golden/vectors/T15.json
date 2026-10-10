@@ -1,0 +1,38 @@
+{
+  "id": "T15",
+  "description_zh": "f_out = 13 GHz、output timing tone 0.5 fs peak、|T| = 1 ⇒ 單邊 Spur ≈ −93.8 dBc",
+  "spec_section": "§12.2、§12.4",
+  "inputs": {
+    "f_out_hz": 13000000000.0,
+    "At_peak_s": 5e-16,
+    "fx_hz": 100000.0,
+    "fw_hz": 10000.0,
+    "x_amp": 1.0,
+    "dw_amp_s": 1e-15
+  },
+  "expected": {
+    "beta_rad": 4.084070449666732e-05,
+    "spur_dbc": -93.7987354132602,
+    "spur_dbc_bessel": -93.79873541144924,
+    "mixing_tone_freqs_hz": [
+      90000.0,
+      110000.0
+    ],
+    "mixing_tone_peak_s": [
+      5e-16,
+      5e-16
+    ]
+  },
+  "tolerance": {
+    "abs": 1e-09
+  },
+  "tolerance_overrides": {
+    "beta_rad": {
+      "rel": 1e-12
+    },
+    "mixing_tone_peak_s": {
+      "abs": 1e-27
+    }
+  },
+  "notes": "β = 2π f_out A_t；小角 PM 單邊 spur = 20 log10(β/2) = 20 log10(π f_out A_t)；精確 J1(β)/J0(β) 版本差 < 1e−8 dB。δt = x·δw：cos(2π·100k t) × 1 fs·cos(2π·10k t) ⇒ 90/110 kHz 各 0.5 fs peak。"
+}

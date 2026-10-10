@@ -1,0 +1,13 @@
+{
+  "id": "optimizer-sm-pvt-step",
+  "title": "Ch14：狀態機——大的 mode／PVT step（Δa = 100 fs）",
+  "page": "/ch/14",
+  "experiment": "cal-state-machine",
+  "description": "block 450 時 a 跳 100 fs：TRACK 警報 → RESTART → COARSE。",
+  "params": {
+    "stepBlock": 450,
+    "stepSize": 100
+  },
+  "expected": "block 450 的 100 fs 跳變在 2 個 block 內觸發 TRACK 警報並 RESTART（COARSE 20 blocks + VERIFY 16 blocks）。MC 評估 RMS（含 VERIFY 的 ±Δ）：狀態機 ≈ 8.8 fs（只看暫存器誤差 ≈ 8.7 fs）、固定快 μ ≈ 10.5 fs、固定安靜 μ ≈ 23.0 fs。把 VERIFY 擾動 Δ 從 10 fs 加大到 40 fs：狀態機變成 ≈ 10.7 fs，優勢被 VERIFY 的代價吃掉。",
+  "source": "illustrative"
+}

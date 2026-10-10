@@ -1,0 +1,35 @@
+{
+  "id": "polarity-phase120",
+  "title": "原始相關器 Phase = 120°：正 Learning Rate 發散",
+  "galleryIndex": 3,
+  "page": "/ch/06",
+  "experiment": "polarity-explorer",
+  "description": "規格 §19.2 #3 / T06：單頻 code x = cos(πn/6)（Ω = 30°/sample），PLL 誤差路徑在該頻率 |H| = 1、φ = 120°，GMAC 用 raw x（D = 0）。μ = 10 fs、σ_v = 100 fs、N = 1024、400 blocks、a = 3 fs、w₀ = 0。",
+  "params": {
+    "mode": "tone",
+    "mag": 1,
+    "phiDeg": 120,
+    "omega": 0.5235987755982988,
+    "A": 1,
+    "D": 0,
+    "loopType": "typeII",
+    "zeta": 0.7,
+    "bwRatio": 0.01,
+    "loopDelay": 0,
+    "code": "tone",
+    "toneRatio": 0.3,
+    "frac": 0.01,
+    "mu": 10,
+    "sigmaV": 100,
+    "N": 1024,
+    "blocks": 400,
+    "a": 3,
+    "w0": 0,
+    "regressor": "x"
+  },
+  "expected": "C = (A²/2)|H|cos120° = −0.25 < 0；K_q = 0.0079788 fs⁻¹；平均 pole p = 1 − μK_qC = 1.0199471 > 1（golden T06）。seed 20261010、8 chains：400 blocks 後 MC 平均 δ ≈ +715 fs（chain 0 的 δ ≈ 733 fs，與 blockLms 參考模型逐 block 相同）。δ 先指數遠離 0；誤差大到 comparator 飽和後轉為線性漂移，斜率 μ·(2+√3)/12 = 3.11 fs/block（F-06.15）。降低 μ 只會變慢。",
+  "tests": [
+    "T06"
+  ],
+  "source": "simulation"
+}

@@ -1,0 +1,24 @@
+{
+  "id": "noise-sum-mode-bug",
+  "title": "GMAC 用總和卻沿用 average 的 μ",
+  "page": "/ch/12",
+  "experiment": "lms-noise-lab",
+  "description": "反面測試（勘誤 E18、T13 golden 的 g_sum_mode）：sum-mode 的 G 大 N 倍，若 μ 沒有除以 N，g = 326.8、pole = −325.8。",
+  "params": {
+    "N": 4096,
+    "fs": 4000000000.0,
+    "mu": 10,
+    "sigmaV": 100,
+    "C": 1,
+    "gmMode": "sum",
+    "engine": "binomial",
+    "blocks": 4000,
+    "chains": 8,
+    "dw0": 3
+  },
+  "expected": "g = 326.81、p = −325.81；警告「gm_mode=sum 時有效增益放大 N 倍」與「g ≥ 2：一階模型不穩定」。",
+  "tests": [
+    "T13"
+  ],
+  "source": "simulation"
+}

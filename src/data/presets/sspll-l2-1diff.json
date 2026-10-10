@@ -1,0 +1,16 @@
+{
+  "id": "sspll-l2-1diff",
+  "title": "SSPLL L2、α·f_ref = 84 MHz、一階差分 regressor：安全",
+  "page": "/case/sspll",
+  "experiment": "sspll-signmap",
+  "description": "與 sspll-l2-inband 同一個 α（0.021，PMUX 以 84 MHz 旋轉），只把 GMAC regressor 換成一階差分 r[n] = x[n] − x[n−1]（G = 1 − z⁻¹）。Γ_eff = H_PD·(1 − e^{jΩ}) 的實部處處 ≥ 0（Type-II 條件 K_i ≤ 2K_p 且 K_p + K_i/2 ≤ 2），由 PSD 定理對任何 α 都不反號。",
+  "params": {
+    "loop": "L2",
+    "fMHz": 84,
+    "mode": "1diff",
+    "tau": 0.001,
+    "nTau": 25
+  },
+  "expected": "κ_PHOS = 8 min Re λ = +0.09836（mode 1），其餘模態 +0.3936／+0.5971／+0.6655；κ_GOS = +1.1867；mode-1 嚴格下界 +0.0399 > 0。精確週期 α = 21/1000 的 joint 9×9 min Re eig（同一正規化）= +0.09836；大訊號 κ∞ = +0.139（也不反向）。1diff 的 margin min g(Ω) = K_p − K_i/2 = 0.2686。",
+  "source": "simulation"
+}

@@ -1,0 +1,37 @@
+{
+  "id": "negative_tests",
+  "description_zh": "規格 §17 反面測試的關鍵數值（極性反轉、缺乏 PE、sum/average scaling、0/1 編碼、code 錯位、overflow）",
+  "spec_section": "§17",
+  "inputs": {
+    "mu_fs": 10.0,
+    "kq_per_fs": 0.007978845608028654,
+    "N": 4096,
+    "Omega_rad": 0.5235987755982988,
+    "gmac_input_bits": 6
+  },
+  "expected": {
+    "reversed_polarity_pole": 1.0797884560802866,
+    "missing_pe_eig_min": 0.0,
+    "sum_mode_gain_multiplier": 4096,
+    "wrong_encoding_update_at_truth_zero_mean_code": 0.0,
+    "wrong_encoding_update_at_truth_dc_code": 0.125,
+    "misaligned_C_D4_phi0": -0.24999999999999992,
+    "gmac_bits_required": 18,
+    "gmac_17bit_wrapped_sum": -4096
+  },
+  "tolerance": {
+    "abs": 1e-12
+  },
+  "tolerance_overrides": {
+    "sum_mode_gain_multiplier": {
+      "abs": 0
+    },
+    "gmac_bits_required": {
+      "abs": 0
+    },
+    "gmac_17bit_wrapped_sum": {
+      "abs": 0
+    }
+  },
+  "notes": "wrong_encoding_*：把 0/1 當 q 時，在 w = a 的平均更新 = E[x]/2（零均值 code 為 0、DC code {−1..1.5} 為 0.125）。gmac_17bit_wrapped_sum：31×4096 在 17-bit two's complement 下 wrap 成 −4096（符號翻轉）。"
+}

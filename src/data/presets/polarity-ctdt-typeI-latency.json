@@ -1,0 +1,16 @@
+{
+  "id": "polarity-ctdt-typeI-latency",
+  "title": "Type-I + latency：K = 0.8、d = 1 時低頻也變號",
+  "page": "/ch/06",
+  "experiment": "polarity-ct-dt",
+  "description": "Type-I DPLL（K = ω_cT_s = 0.8）加一個 sample 的額外 latency。",
+  "params": {
+    "type": "typeI",
+    "zeta": 0.7,
+    "wLTs": 0.8,
+    "loopDelay": 1
+  },
+  "expected": "迴路穩定（K < 1），但低頻係數 κ = 1 − K(d + ½) = −0.2 < 0：Re{H} < 0 的頻帶從 0 延伸到約 0.903ω_cT_s。",
+  "tests": [],
+  "source": "simulation"
+}

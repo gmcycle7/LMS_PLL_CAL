@@ -1,0 +1,13 @@
+{
+  "id": "optimizer-sm-small-step",
+  "title": "Ch14：狀態機——小的 PVT step（Δa = 25 fs）：RESTART 不一定划算",
+  "page": "/ch/14",
+  "experiment": "cal-state-machine",
+  "description": "block 450 時 a 只跳 25 fs。警報仍會觸發 RESTART，但重新 COARSE + VERIFY 的代價和收斂的好處差不多。",
+  "params": {
+    "stepBlock": 450,
+    "stepSize": 25
+  },
+  "expected": "MC 評估 RMS（含 VERIFY 的 ±Δ）：狀態機 ≈ 3.1 fs（暫存器誤差 ≈ 2.7 fs）、固定快 μ ≈ 2.65 fs、固定安靜 μ ≈ 5.65 fs。把警報門檻拉到極大（不 RESTART、只靠 μ_track 追）：≈ 5.65 fs。結論：RESTART 比留在 TRACK 好，但小 step 時不如一直用固定快 μ——guard 的好處取決於 step 大小與 VERIFY 的代價。",
+  "source": "illustrative"
+}

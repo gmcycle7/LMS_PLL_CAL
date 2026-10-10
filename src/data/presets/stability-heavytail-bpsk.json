@@ -1,0 +1,25 @@
+{
+  "id": "stability-heavytail-bpsk",
+  "title": "±1 code：δ_n² 是確定值",
+  "page": "/ch/03",
+  "experiment": "stability-heavytail",
+  "description": "|x| 常數時每條路徑都相同。",
+  "params": {
+    "dist": "pm_one",
+    "xValue": 2,
+    "sigma": 1,
+    "halfWidth": 1.7320508075688772,
+    "amplitude": 1,
+    "listText": "0, 0, 0, 0, 0, 0, 0, 0, 0, 3",
+    "mu": 0.8,
+    "n": 5,
+    "delta0": 1,
+    "pathsPerBatch": 4000,
+    "batches": 100
+  },
+  "expected": "真實 SE = 0、覆蓋率 100%：E[δ₅²] = (1 − 0.8)¹⁰ = 1.024e−7。",
+  "tests": [
+    "T03"
+  ],
+  "source": "illustrative"
+}

@@ -1,0 +1,53 @@
+{
+  "id": "block-lms-json-type2-mash",
+  "title": "L2：type-II DT PLL + MASH 1-1-1 residue",
+  "page": "/models",
+  "experiment": "block-lms-json",
+  "description": "較真實的 L2 組合：DTC 誤差經 type-II DPLL 的 H_PD（ω_nT_s = 0.05、ζ = 0.7、d = 1，狀態跨 block 持續），code 為 MASH 1-1-1 residue（標準化）。",
+  "params": {
+    "config": {
+      "model": "sign_error_block_lms",
+      "seed": 20261010,
+      "units": {
+        "time": "fs",
+        "frequency": "Hz"
+      },
+      "sample_rate_hz": 4000000000,
+      "output_frequency_hz": 13000000000,
+      "gm_accum_samples": 4096,
+      "gain_initial": 0,
+      "gain_true": 3,
+      "gain_step": 10,
+      "code_normalization": "standardize",
+      "gm_mode": "average",
+      "pd_noise_rms_fs": 100,
+      "comparator_offset_fs": 0,
+      "comparator_encoding": "bipolar_pm_one",
+      "gm_code_delay_samples": 0,
+      "cal_update_delay_blocks": 0,
+      "pll_error_path": {
+        "kind": "type2_dt",
+        "parameters": {
+          "wn_ts": 0.05,
+          "zeta": 0.7,
+          "loop_delay": 1
+        }
+      },
+      "seeded_pattern": {
+        "kind": "mash111",
+        "parameters": {
+          "frac": 0.3
+        }
+      },
+      "gain_register": {
+        "internal_bits": 20,
+        "physical_bits": 6,
+        "rounding": "nearest",
+        "overflow": "saturate"
+      },
+      "mode": "exploratory"
+    }
+  },
+  "expected": "C ≈ 0.99（h_PD[0] = 1，code 高通），g ≈ 0.079，收斂到 a = 3 fs，σ_w ≈ 0.40 fs。",
+  "source": "simulation"
+}

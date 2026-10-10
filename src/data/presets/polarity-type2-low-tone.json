@@ -1,0 +1,34 @@
+{
+  "id": "polarity-type2-low-tone",
+  "title": "Type-II PLL、tone 在 0.3ω_n：二次微分讓極性反轉",
+  "page": "/ch/06",
+  "experiment": "polarity-explorer",
+  "description": "PLL 模式：DT Type-II 迴路（ζ = 0.7、BW/f_ref = 0.01 ⇒ ω_nT_s = 0.03067、d = 0），standardize 後的單頻 code 在 Ω = 0.3ω_nT_s。μ = 100 fs 讓發散在 400 blocks 內明顯。",
+  "params": {
+    "mode": "pll",
+    "mag": 1,
+    "phiDeg": 120,
+    "omega": 0.5235987755982988,
+    "A": 1,
+    "D": 0,
+    "loopType": "typeII",
+    "zeta": 0.7,
+    "bwRatio": 0.01,
+    "loopDelay": 0,
+    "code": "tone",
+    "toneRatio": 0.3,
+    "frac": 0.01,
+    "mu": 100,
+    "sigmaV": 100,
+    "N": 1024,
+    "blocks": 400,
+    "a": 3,
+    "w0": 0,
+    "regressor": "x"
+  },
+  "expected": "C/σ² ≈ Re{H_PD(e^{jΩ})} = −0.0814（CT 原型 −0.0815，E44）；四種估計（時域、譜線和、Welch、自相關）一致；p ≈ 1.065；閉迴路發散。",
+  "tests": [
+    "T06"
+  ],
+  "source": "simulation"
+}

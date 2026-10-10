@@ -1,0 +1,41 @@
+{
+  "id": "sign-lms-tie-rules",
+  "title": "sign(0) 慣例：剛好踩到 w = a（勘誤 E40）",
+  "page": "/ch/02",
+  "experiment": "sign-lms-compare",
+  "description": "a = 3、w₀ = 1、x ≡ 2、μ = 0.125（步長 0.25 為二進位精確數，第 8 步 e 恰為 0）。Case A/B/C 分別為 sign(0) = 0 / +1 / −1。",
+  "params": {
+    "a": 3,
+    "w0": 1,
+    "steps": 30,
+    "runs": 4,
+    "algos": [
+      "lms",
+      "sign_error"
+    ],
+    "deltaRef": "a",
+    "mu": 0.125,
+    "xKind": "const",
+    "xAmp": 2,
+    "noiseKind": "none",
+    "sigma": 0,
+    "outlierProb": 0,
+    "outlierSize": 0,
+    "tie": "zero",
+    "schedule": "constant",
+    "n0": 500,
+    "stepMatch": "same-mu",
+    "huberDelta": 0.5,
+    "nlmsEps": 0.1,
+    "compare": [
+      {
+        "tie": "plus"
+      },
+      {
+        "tie": "minus"
+      }
+    ]
+  },
+  "expected": "Sign-Error：sign(0)=0 凍結在 3；+1 ⇒ {3, 3.25}；−1 ⇒ {2.75, 3}。T01 的 μ = 0.1 因 IEEE double 累加成 3.0000000000000004，三種慣例都在 {2.8, 3.0000000000000004} 跳（E40）。",
+  "source": "simulation"
+}

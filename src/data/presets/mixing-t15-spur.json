@@ -1,0 +1,29 @@
+{
+  "id": "mixing-t15-spur",
+  "title": "13 GHz output + 0.5 fs peak tone：約 −93.8 dBc spur",
+  "galleryIndex": 9,
+  "page": "/ch/12",
+  "experiment": "code-mixing-lab",
+  "description": "規格 §12.4 / §19.2 #9：x = cos(2π·100 kHz·t)、δw = 1 fs·cos(2π·10 kHz·t) ⇒ δt 在 90 kHz 與 110 kHz 各 0.5 fs peak；|T| = 1、f_out = 13 GHz。Coherent sampling（f_sim = 4.096 MHz、L = 4096，bin = 1 kHz）。",
+  "params": {
+    "fsim": 4096000.0,
+    "L": 4096,
+    "fx": 100000.0,
+    "A": 1,
+    "m": 0,
+    "codeWhite": 0,
+    "fw": 10000.0,
+    "B": 1,
+    "holdN": 1,
+    "dwNoiseSigma": 0,
+    "dwNoiseP": 0.92,
+    "fOut": 13000000000.0,
+    "Tmag": 1,
+    "window": "rectangular"
+  },
+  "expected": "toneFit：90 kHz 與 110 kHz 各 0.5000 fs；β = 4.0841×10⁻⁵ rad；每個 spur 20log10(β/2) = −93.799 dBc；Bessel 與 e^{jφ} FFT 直接量測皆 −93.799 dBc。",
+  "tests": [
+    "T15"
+  ],
+  "source": "simulation"
+}

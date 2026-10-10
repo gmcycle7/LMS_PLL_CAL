@@ -1,0 +1,313 @@
+/* Papers / Reading 頁專屬樣式（class 一律 papers- 前綴；顏色只用全站 token，深淺主題自動跟隨） */
+
+.papers-lead {
+  font-size: 1.02rem;
+}
+
+.papers-question {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 10px 14px;
+  margin: 12px 0;
+}
+
+.papers-subhead {
+  margin: 18px 0 6px;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+/* ── 表格 ── */
+.papers-table td.num,
+.papers-table th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.papers-table td.mono {
+  font-family: var(--font-mono);
+}
+.papers-table caption {
+  caption-side: top;
+  text-align: left;
+  padding-bottom: 4px;
+}
+.papers-table tr.papers-row-bad td {
+  background: var(--danger-soft);
+}
+.papers-table tr.papers-row-hl td {
+  background: var(--ok-soft);
+}
+.papers-claims th[scope='row'] {
+  width: 11em;
+  white-space: normal;
+}
+.papers-path-what {
+  min-width: 9em;
+}
+.papers-vocab td {
+  min-width: 8em;
+}
+
+.papers-ok {
+  color: var(--ok);
+  font-weight: 600;
+}
+.papers-bad {
+  color: var(--danger);
+  font-weight: 600;
+}
+.papers-zero {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+/* ── 勘誤標記 ── */
+.papers-erratum {
+  display: inline;
+  font-size: 0.85rem;
+}
+.papers-erratum-tag {
+  display: inline-block;
+  padding: 0 6px;
+  margin: 0 4px 0 2px;
+  border-radius: 999px;
+  border: 1px solid var(--warn);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.papers-erratum-tag:hover {
+  text-decoration: underline;
+}
+.papers-erratum-text {
+  color: var(--text-muted);
+}
+
+/* ── 本站頁面 chip ── */
+.papers-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  vertical-align: middle;
+}
+.papers-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--accent);
+  font-size: 0.82rem;
+  text-decoration: none;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.papers-chip:hover {
+  border-color: var(--accent);
+}
+.papers-chip-missing {
+  color: var(--text-muted);
+}
+.papers-jump {
+  color: var(--accent);
+}
+
+/* ── 文獻卡片 ── */
+.papers-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin: 18px 0;
+  box-shadow: var(--shadow);
+  scroll-margin-top: calc(var(--topbar-h) + 12px);
+  min-width: 0;
+}
+.papers-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+.papers-id {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 1px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--accent-text);
+}
+.papers-badge {
+  font-size: 0.78rem;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.papers-card-title {
+  margin: 10px 0 4px;
+  font-size: 1.05rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.papers-cite {
+  border-left: 3px solid var(--border-strong);
+  padding: 2px 0 2px 10px;
+  margin: 6px 0 10px;
+}
+.papers-cite-text {
+  margin: 0 0 4px;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+.papers-cite-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  align-items: baseline;
+}
+.papers-doi {
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+.papers-nodoi {
+  font-size: 0.86rem;
+  color: var(--warn);
+}
+.papers-links {
+  margin: 6px 0 0;
+  font-size: 0.88rem;
+}
+.papers-links a {
+  overflow-wrap: anywhere;
+}
+.papers-related {
+  line-height: 1.9;
+}
+.papers-tips ul {
+  margin-top: 4px;
+}
+
+/* ── 依模式收合的推導區 ── */
+.papers-fold {
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  margin: 12px 0 4px;
+  min-width: 0;
+}
+.papers-fold > summary {
+  cursor: pointer;
+  padding: 8px 12px;
+  font-weight: 600;
+  background: var(--surface-2, var(--bg));
+  border-radius: var(--radius-sm);
+}
+.papers-fold-hint {
+  font-weight: 400;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-left: 6px;
+}
+.papers-fold-body {
+  padding: 4px 12px 10px;
+  min-width: 0;
+}
+.papers-derived {
+  min-width: 0;
+}
+
+/* ── 教科書清單 ── */
+.papers-topic {
+  margin: 10px 0 16px;
+}
+.papers-books {
+  list-style: none;
+  padding-left: 0;
+  margin: 6px 0;
+}
+.papers-books > li {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  margin: 6px 0;
+  background: var(--surface);
+  display: grid;
+  gap: 3px;
+}
+.papers-books cite {
+  font-style: italic;
+  font-weight: 600;
+}
+
+@media (max-width: 560px) {
+  .papers-card {
+    padding: 12px 10px;
+  }
+  .papers-fold-body {
+    padding: 4px 6px 8px;
+  }
+  .papers-claims th[scope='row'] {
+    width: auto;
+  }
+}
+
+/* ── 公式登錄錨點（F-PR.n） ── */
+.papers-formula {
+  scroll-margin-top: calc(var(--topbar-h) + 12px);
+  min-width: 0;
+}
+.papers-formula-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: -2px 0 10px;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+}
+.papers-formula-title {
+  overflow-wrap: anywhere;
+}
+
+/* ── 引用格式切換與複製 ── */
+.papers-cite-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: center;
+  margin-top: 6px;
+}
+.papers-cite-copied {
+  font-size: 0.82rem;
+  color: var(--ok);
+}
+.papers-bibtex {
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2, var(--bg));
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  overflow-x: auto;
+  white-space: pre;
+  max-width: 100%;
+}
+.papers-bib {
+  margin-top: 6px;
+}
+.papers-bib > summary {
+  cursor: pointer;
+  color: var(--text-muted);
+}

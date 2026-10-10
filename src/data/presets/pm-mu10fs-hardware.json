@@ -1,0 +1,11 @@
+{
+  "id": "pm-mu10fs-hardware",
+  "title": "μ = 10 fs、σ_v = 100 fs：g = 0.0798，PM 87.7°（入門課 Lesson 4 / T13 的數字）",
+  "page": "/ch/08",
+  "experiment": "pm-lab",
+  "description": "把無因次的 g 換回硬體單位：K_q = √(2/π)/σ_v = 0.0079788 fs⁻¹（σ_v = 100 fs、±1 code、C = 1），μ = 10 fs ⇒ g = μK_q = 0.0797885。這麼小的 g 對延遲不敏感：把 d 從 0 調到 6，PM 只從 87.7° 降到 60.3°。穩定上界 μ < g*(d)/K_q：d = 0 為 250.66 fs、d = 1 為 125.33 fs、d = 2 為 77.46 fs。",
+  "params": { "g": 0.07978845608028654, "d": 0, "steps": 80 },
+  "expected": "pole 1 − g = 0.92021（golden T13 的 p）；ω_c = 0.07981 rad/block；PM = 87.71°；delay margin ≈ 19.18 blocks；指標「對應 μ」= 10 fs。",
+  "tests": ["T08"],
+  "source": "illustrative"
+}

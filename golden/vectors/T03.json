@@ -1,0 +1,44 @@
+{
+  "id": "T03",
+  "description_zh": "Gaussian regressor（E[x²]=1、E[x⁴]=3）：mean 上限 2、mean-square 上限 2/3",
+  "spec_section": "§3.1",
+  "inputs": {
+    "Ex2": 1.0,
+    "Ex4": 3.0,
+    "distribution": "gaussian",
+    "mu_list": [
+      0.3,
+      0.6,
+      0.6666666666666666,
+      0.7,
+      1.0,
+      1.9
+    ]
+  },
+  "expected": {
+    "mu_mean_max": 2.0,
+    "mu_ms_max": 0.6666666666666666,
+    "ms_factor_list": [
+      0.67,
+      0.8800000000000001,
+      1.0,
+      1.0699999999999998,
+      2.0,
+      8.030000000000001
+    ],
+    "mean_factor_list": [
+      0.7,
+      0.4,
+      0.33333333333333337,
+      0.30000000000000004,
+      0.0,
+      -0.8999999999999999
+    ],
+    "mu_ms_max_bpsk": 2.0,
+    "mu_ms_max_uniform": 1.1111111111111112
+  },
+  "tolerance": {
+    "abs": 1e-12
+  },
+  "notes": "ms_factor = E[(1−μx²)²] = 1 − 2μE[x²] + μ²E[x⁴]（< 1 才均方收斂）；mean_factor = 1 − μE[x²]。假設 x_n iid 且與 δ_n 獨立、無外加量測雜訊。bpsk = ±1（E[x⁴]=1）、uniform = U(−√3, √3)（E[x⁴]=9/5）。"
+}

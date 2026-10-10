@@ -1,0 +1,40 @@
+{
+  "id": "preconditioner_variance",
+  "description_zh": "完整 Preconditioning 的穩態變異 Var(δ_i) = γ/(K_q² N λ_i (2 − γ))",
+  "spec_section": "§10.1",
+  "inputs": {
+    "R": [
+      [
+        1.0,
+        0.99
+      ],
+      [
+        0.99,
+        1.0
+      ]
+    ],
+    "kq_per_fs": 0.007978845608028654,
+    "N": 4096,
+    "gamma_list": [
+      0.5,
+      1.0,
+      1.5
+    ]
+  },
+  "expected": {
+    "var_lambda_max_list": [
+      0.642370514189967,
+      1.927111542569901,
+      5.781334627709703
+    ],
+    "var_lambda_min_list": [
+      127.83173232380344,
+      383.4951969714103,
+      1150.485590914231
+    ]
+  },
+  "tolerance": {
+    "rel": 1e-12
+  },
+  "notes": "模型：G = K_q R δ + η、η ~ N(0, R/N)、M = γ(K_q R)⁻¹（δ = a − w）。在此線性 Gaussian 模型下為精確式，pytest 以 MC 驗證。"
+}

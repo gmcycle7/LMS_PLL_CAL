@@ -1,0 +1,39 @@
+{
+  "id": "optimizer-corner-empty",
+  "title": "Ch14：區間為空（同 E16 例子但 B = 11）",
+  "page": "/ch/14",
+  "experiment": "corner-interval",
+  "description": "B 比 B_min 少 1：μ_min > μ_max。",
+  "params": {
+    "corners": [
+      {
+        "name": "K = 0.004",
+        "sigmaV": 199.47114020071635,
+        "thetaDeg": 0,
+        "k": 0.004
+      },
+      {
+        "name": "K = 0.008",
+        "sigmaV": 99.73557010035817,
+        "thetaDeg": 0,
+        "k": 0.008
+      },
+      {
+        "name": "K = 0.012",
+        "sigmaV": 66.49038006690544,
+        "thetaDeg": 0,
+        "k": 0.012
+      }
+    ],
+    "eps": 0.01,
+    "B": 11,
+    "pmTargetDeg": 60,
+    "delta0": 3,
+    "N": 4096,
+    "rmsTarget": 1,
+    "measure": false,
+    "directK": true
+  },
+  "expected": "出現「區間為空」警告並列出 B_min = 12 與解法（延長 B、降低 K 散佈、放寬 ε／PM、變動步長）。",
+  "source": "illustrative"
+}

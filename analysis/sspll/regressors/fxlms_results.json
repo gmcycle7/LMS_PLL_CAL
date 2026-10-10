@@ -1,0 +1,54 @@
+{
+ "true_loop": "T2_pm60_lat1",
+ "D": 0,
+ "rows": [
+  {
+   "min_8ReLam_zoom": -0.13979704587472486,
+   "min_8ReLam_full": -0.13965638054656584,
+   "min_12Cgos": 4.674449961848668e-06,
+   "label": "plain LMS (no filter)"
+  },
+  {
+   "min_8ReLam_zoom": 0.0004403602494599847,
+   "min_8ReLam_full": 0.0023485879971199206,
+   "min_12Cgos": 0.0030069678720725606,
+   "max_phase_mismatch_deg": 2.8976224510265264e-15,
+   "label": "FxLMS, H_hat = H (exact model)"
+  },
+  {
+   "min_8ReLam_zoom": 0.0004766201948271353,
+   "min_8ReLam_full": 0.002541974372411391,
+   "min_12Cgos": 0.0032545662665594277,
+   "max_phase_mismatch_deg": 25.05996702428756,
+   "label": "FxLMS, H_hat = Type-II PM45 model"
+  },
+  {
+   "min_8ReLam_zoom": 0.00037525275432334865,
+   "min_8ReLam_full": 0.0020013480169735376,
+   "min_12Cgos": 0.0025623860862572724,
+   "max_phase_mismatch_deg": 45.01341849138093,
+   "label": "FxLMS, H_hat = Type-II PM75 model"
+  },
+  {
+   "min_8ReLam_zoom": 0.0004994298751206865,
+   "min_8ReLam_full": 0.0026636260006128315,
+   "min_12Cgos": 0.0034103205061827,
+   "max_phase_mismatch_deg": 39.7792876336071,
+   "label": "FxLMS, H_hat = Type-II lat 2 model"
+  },
+  {
+   "min_8ReLam_zoom": 0.00034334169766285993,
+   "min_8ReLam_full": 0.0018311557208685885,
+   "min_12Cgos": 0.0023444837613774815,
+   "max_phase_mismatch_deg": 89.98038160638536,
+   "label": "FxLMS, H_hat = Type-I model"
+  },
+  {
+   "min_8ReLam_zoom": 0.0004826029511888234,
+   "min_8ReLam_full": 0.0025738824063403914,
+   "min_12Cgos": 0.0032954190823803265,
+   "max_phase_mismatch_deg": 9.335707266193753,
+   "label": "FxLMS, H_hat = CPPLL PM55 model"
+  }
+ ]
+}

@@ -1,0 +1,31 @@
+{
+  "id": "quant-overload-wrap",
+  "title": "w* = 63.4 超出 6-bit 範圍：wrap 讓 gain 由 63 崩到 0",
+  "page": "/ch/13",
+  "experiment": "quantized-gain-lab",
+  "description": "目標超出 [0, 63]（反面測試，§13.6）。overflow 設為 wrap 時硬體丟掉進位：量化結果 64 被繞回 0，code 在 63 與 0 之間跳（40% 的更新，平均 code 只剩 0.6 × 63 = 37.8）。改成 saturate 時 code 停在 63，但 ΔΣ 的 r 無界成長（windup），需開 anti-windup。",
+  "params": {
+    "target": 63.4,
+    "overflow": "wrap",
+    "antiWindup": false,
+    "length": 4096,
+    "mixing": false,
+    "cases": [
+      {
+        "strategy": "deltaSigma",
+        "lmsNoise": false,
+        "nUpd": 1
+      },
+      {
+        "strategy": "freeze",
+        "lmsNoise": false,
+        "nUpd": 1
+      }
+    ]
+  },
+  "expected": "警告：w* 超出 code 範圍、wrap 造成 code 0；Case A（ΔΣ）code 範圍 0–63、週期 5 的循環 [63, 0, 63, 0, 63]、overflow 次數為更新次數的 40%、平均 code 37.8、r 仍在 ±0.5 LSB 內。改 saturate 後 code 停在 63、ΔΣ 的 r 持續累積（需 anti-windup）。",
+  "tests": [
+    "T16"
+  ],
+  "source": "illustrative"
+}

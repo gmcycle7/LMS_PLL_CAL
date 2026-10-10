@@ -1,0 +1,48 @@
+{
+  "id": "filtered-x-type2-model-error",
+  "title": "Type-II 模型誤差：頻寬 +50% 與漏算 1 sample latency",
+  "page": "/ch/07",
+  "experiment": "delay-fx-lab",
+  "description": "Type-II DPLL（ω_nT_s = 0.1、ζ = 0.7、d = 1），低通 AR(1) code（ρ = 0.98）。A filtered-x Ĥ = H、B 頻寬 +50%、C 模型 latency d̂ = 0（漏算 1 sample）。",
+  "params": {
+    "scenario": {
+      "pathKind": "type2_dt",
+      "wnTs": 0.1,
+      "zeta": 0.7,
+      "loopDelay": 1,
+      "codeKind": "ar1",
+      "rho": 0.98,
+      "a": 3,
+      "w0": 0,
+      "sigmaV": 100,
+      "N": 1024,
+      "blocks": 300,
+      "Dmax": 64
+    },
+    "cases": [
+      {
+        "mode": "filtered",
+        "D": 0,
+        "mu": 30
+      },
+      {
+        "mode": "filtered",
+        "D": 0,
+        "mu": 30,
+        "bwErrPct": 50
+      },
+      {
+        "mode": "filtered",
+        "D": 0,
+        "mu": 30,
+        "loopDelayErr": -1
+      }
+    ],
+    "seed": 20261010
+  },
+  "expected": "E[u²] = 0.1895；頻寬 +50% 時 E[u·u_f] = 0.148、漏算 latency 時 0.168：相位差在 code 能量集中的頻帶 < 90°，三者都收斂（g 略降）。對照 raw-x C = 0.0315（ρ 低、雜訊大）。",
+  "tests": [
+    "T07"
+  ],
+  "source": "simulation"
+}

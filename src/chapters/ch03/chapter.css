@@ -1,0 +1,235 @@
+/* 第 3 章專屬樣式（class 一律以 ch03- 開頭） */
+
+.ch03 h2 {
+  margin-top: 2.2rem;
+  scroll-margin-top: calc(var(--topbar-h) + 12px);
+}
+
+.ch03-lead {
+  font-size: 1.05rem;
+  line-height: 1.75;
+}
+
+.ch03-erratum {
+  display: inline-block;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--warn);
+  color: var(--warn);
+  background: var(--warn-soft);
+  text-decoration: none;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.ch03-erratum:hover {
+  text-decoration: underline;
+}
+
+.ch03-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 6px 0 12px;
+}
+
+.ch03-fblock {
+  margin: 12px 0 16px;
+}
+.ch03-fblock-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: center;
+  margin-top: -2px;
+}
+
+.ch03-steps {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 8px 14px;
+  margin: 14px 0;
+}
+.ch03-steps > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 4px 0;
+}
+.ch03-steps-hint {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-left: 6px;
+}
+
+.ch03-trio {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 14px 0;
+}
+@media (max-width: 760px) {
+  .ch03-trio {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.ch03-trio-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 10px 12px;
+  min-width: 0;
+}
+.ch03-trio-card h4 {
+  margin: 0 0 4px;
+  font-size: 0.98rem;
+}
+.ch03-trio-num {
+  font-family: var(--font-mono);
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.ch03-num td,
+.ch03-num th {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.ch03-num td:first-child,
+.ch03-num th:first-child {
+  text-align: left;
+}
+
+.ch03-plots {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 900px) {
+  .ch03-plots {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.ch03-listinput {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0 12px;
+}
+.ch03-listinput label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.ch03-listinput input {
+  width: 100%;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  padding: 6px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+}
+.ch03-listinput input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+.ch03-listinput .ch03-listinput-err {
+  color: var(--danger);
+  font-size: 0.8rem;
+}
+
+.ch03-status {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+.ch03-status-ok {
+  color: var(--ok);
+  background: var(--ok-soft);
+}
+.ch03-status-bad {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+.ch03-status-edge {
+  color: var(--warn);
+  background: var(--warn-soft);
+}
+
+.ch03-running {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 4px 0;
+}
+.ch03-note {
+  font-size: 0.88rem;
+  margin: 6px 0;
+  padding: 6px 10px;
+  border-left: 3px solid var(--accent);
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+}
+
+.ch03-roadmap {
+  columns: 2;
+  column-gap: 24px;
+  padding-left: 1.4em;
+  margin: 10px 0 14px;
+}
+@media (max-width: 600px) {
+  .ch03-roadmap {
+    columns: 1;
+  }
+}
+.ch03-roadmap li {
+  break-inside: avoid;
+  margin: 2px 0;
+}
+.ch03-toc {
+  background: none;
+  border: none;
+  padding: 2px 0;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+.ch03-toc:hover {
+  text-decoration: underline;
+}
+
+/* 手機：長行內公式與數字不撐破版面 */
+.ch03 p,
+.ch03 li,
+.ch03-trio-num,
+.ch03-fblock-meta {
+  overflow-wrap: anywhere;
+}
+.ch03 .c-tex .katex {
+  white-space: normal;
+}
+
+.ch03-quote {
+  margin: 10px 0 12px;
+  padding: 8px 14px;
+  border-left: 4px solid var(--ok);
+  background: var(--ok-soft);
+  border-radius: var(--radius-sm);
+}
+
+/* 帶入手算：邀請文字緊貼在題目上方 */
+.ch03-handcalc {
+  margin: 16px 0;
+}
+.ch03-handcalc-invite {
+  margin: 0 0 -8px;
+  font-size: 0.92rem;
+}

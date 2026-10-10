@@ -1,0 +1,884 @@
+/*
+ * 共用元件樣式（src/components/**）。
+ * 只使用 src/styles/global.css 定義的設計 token，深淺主題皆自動適用。
+ * class 一律以 c- 為前綴，避免與章節樣式衝突。
+ */
+
+/* ===== 工具 ===== */
+.c-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.c-icon {
+  flex: 0 0 auto;
+  vertical-align: -0.15em;
+}
+.c-ok {
+  color: var(--ok);
+  font-weight: 700;
+}
+.c-bad {
+  color: var(--danger);
+  font-weight: 700;
+}
+.c-figcaption {
+  margin-top: 6px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+.c-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ===== Badge + tooltip ===== */
+.c-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.7;
+  white-space: nowrap;
+  vertical-align: middle;
+  cursor: default;
+}
+.c-badge:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.c-has-tip {
+  position: relative;
+}
+/* 隱藏時用 display:none（visibility:hidden 仍佔版面，會在手機造成水平捲動） */
+.c-tip {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  z-index: 25;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: 6px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.5;
+  white-space: normal;
+  text-align: left;
+}
+.c-has-tip:hover > .c-tip,
+.c-has-tip:focus > .c-tip,
+.c-has-tip:focus-within > .c-tip {
+  display: block;
+}
+.c-tip-list {
+  display: block;
+  margin-top: 4px;
+}
+.c-tip-item {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* 三層結論標籤（規格 §0.1） */
+.c-claim-exact {
+  color: var(--tag-exact);
+  background: var(--tag-exact-soft);
+  border-color: var(--tag-exact);
+}
+.c-claim-approx {
+  color: var(--tag-approx);
+  background: var(--tag-approx-soft);
+  border-color: var(--tag-approx);
+}
+.c-claim-research {
+  color: var(--tag-research);
+  background: var(--tag-research-soft);
+  border-color: var(--tag-research);
+}
+
+/* 模型層級：L0–L2 教學、L3 多參數、L4–L6 sign-off 等級 */
+.c-level {
+  font-family: var(--font-mono);
+}
+.c-level-L0,
+.c-level-L1,
+.c-level-L2 {
+  color: var(--info);
+  background: var(--info-soft);
+  border-color: var(--info);
+}
+.c-level-L3 {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.c-level-L4,
+.c-level-L5,
+.c-level-L6 {
+  color: var(--tag-research);
+  background: var(--tag-research-soft);
+  border-color: var(--tag-research);
+}
+
+/* 來源標示 */
+.c-source-illustrative {
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border-style: dashed;
+  border-color: var(--border-strong);
+}
+.c-source-simulation {
+  color: var(--info);
+  background: var(--info-soft);
+  border-color: var(--info);
+}
+.c-source-literature {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.c-source-measured {
+  color: var(--ok);
+  background: var(--ok-soft);
+  border-color: var(--ok);
+}
+
+/* 驗證狀態：只有 pass 用綠色 verified */
+.c-test-pass {
+  color: var(--ok);
+  background: var(--ok-soft);
+  border-color: var(--ok);
+}
+.c-test-partial {
+  color: var(--warn);
+  background: var(--warn-soft);
+  border-color: var(--warn);
+}
+.c-test-fail {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: var(--danger);
+}
+.c-test-missing {
+  color: var(--text-faint);
+  background: var(--surface-2);
+  border-color: var(--border);
+  border-style: dashed;
+}
+
+/* ===== Callout ===== */
+.c-callout-title {
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+/* ===== KaTeX ===== */
+.c-tex .katex {
+  font-size: 1.05em;
+}
+.c-tex-error {
+  color: var(--danger);
+  font-family: var(--font-mono);
+}
+.c-texblock {
+  margin: 14px 0;
+  min-width: 0;
+}
+.c-texblock-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.c-texblock-math {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+.c-texblock-math .katex-display {
+  margin: 0.4em 0;
+}
+.c-formula-id {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.c-texblock-label {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* ===== Mermaid ===== */
+.c-mermaid {
+  margin: 16px 0;
+  min-width: 0;
+}
+.c-mermaid-svg {
+  overflow-x: auto;
+  text-align: center;
+  -webkit-overflow-scrolling: touch;
+}
+.c-mermaid-svg svg {
+  height: auto;
+}
+.c-mermaid-loading {
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+}
+.c-mermaid-error {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ===== Plot ===== */
+.c-plot {
+  margin: 14px 0;
+  min-width: 0;
+}
+.c-plot-title {
+  font-weight: 600;
+  font-size: 0.92rem;
+  margin-bottom: 2px;
+}
+.c-plot-frame {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+.c-plot-gd {
+  width: 100%;
+}
+.c-plot-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  text-align: center;
+  background: var(--surface-2);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+.c-plot-error {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: var(--danger);
+}
+.c-plot-note {
+  margin-top: 4px;
+  color: var(--warn);
+}
+
+/* ===== ParamControl / Select / Toggle ===== */
+.c-param {
+  margin: 0 0 14px;
+  min-width: 0;
+}
+.c-param:last-child {
+  margin-bottom: 0;
+}
+.c-param-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 8px;
+}
+.c-param-label {
+  font-weight: 600;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+.c-param-reg {
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  overflow-wrap: anywhere;
+}
+.c-param-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+}
+.c-param-slider {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+}
+.c-param-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+.c-param-input {
+  width: 10ch;
+  text-align: right;
+}
+.c-param-unit {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.c-param.has-warning .c-param-input {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+.c-param.is-disabled {
+  opacity: 0.6;
+}
+.c-param-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 12px;
+  margin-top: 2px;
+  line-height: 1.5;
+}
+.c-param-hint {
+  color: var(--text-muted);
+}
+.c-param-warn {
+  color: var(--danger);
+  font-weight: 600;
+  line-height: 1.5;
+}
+.c-select-input {
+  width: 100%;
+  max-width: 100%;
+  margin-top: 2px;
+}
+.c-toggle-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.c-toggle-input {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 20px;
+  margin: 0;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-3);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.c-toggle-input::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  transition: transform 0.15s ease;
+}
+.c-toggle-input:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.c-toggle-input:checked::after {
+  transform: translateX(14px);
+}
+.c-toggle-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.c-toggle-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* ===== Section（直覺 → 圖 → 公式 → 範例 → 探索 → 注意假設） ===== */
+.c-section {
+  --c-kind: var(--border-strong);
+  margin: 28px 0;
+  padding-left: 14px;
+  border-left: 3px solid var(--c-kind);
+  min-width: 0;
+}
+.c-section-intuition {
+  --c-kind: var(--tag-approx);
+}
+.c-section-diagram {
+  --c-kind: var(--info);
+}
+.c-section-formula {
+  --c-kind: var(--accent);
+}
+.c-section-example {
+  --c-kind: var(--ok);
+}
+.c-section-explore {
+  --c-kind: var(--tag-research);
+}
+.c-section-assumptions {
+  --c-kind: var(--danger);
+}
+.c-section-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--c-kind);
+}
+.c-section-title {
+  margin: 0.15em 0 0.5em;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.c-section-body > :first-child {
+  margin-top: 0;
+}
+
+/* ===== Derivation ===== */
+.c-derivation {
+  margin: 14px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  min-width: 0;
+}
+.c-derivation-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.92rem;
+  text-align: left;
+  cursor: pointer;
+}
+.c-derivation-toggle:hover {
+  background: var(--surface-3);
+}
+.c-derivation-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.c-derivation.is-open .c-derivation-toggle {
+  border-bottom: 1px solid var(--border);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.c-derivation-chevron {
+  display: inline-flex;
+  color: var(--text-muted);
+  transition: transform 0.15s ease;
+}
+.c-derivation.is-open .c-derivation-chevron {
+  transform: rotate(90deg);
+}
+.c-derivation-title {
+  font-weight: 600;
+  min-width: 0;
+}
+.c-derivation-hint {
+  margin-left: auto;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.c-derivation-body {
+  padding: 10px 14px 14px;
+}
+.c-tabs {
+  display: flex;
+  gap: 2px;
+  margin: 8px 0 10px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.c-tab {
+  padding: 6px 10px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.c-tab:hover {
+  color: var(--text);
+}
+.c-tab.is-active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+.c-tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.c-tabpanel {
+  min-width: 0;
+}
+.c-derivation-table {
+  font-size: 0.88rem;
+}
+.c-assumption-list {
+  margin: 0.3em 0;
+  font-size: 0.9rem;
+}
+.c-assumption-list li {
+  margin: 2px 0;
+}
+
+/* ===== MetricTable ===== */
+.c-metric-wrap {
+  margin: 10px 0;
+}
+.c-metric-table {
+  margin: 0;
+  font-size: 0.88rem;
+}
+.c-metric-table caption {
+  caption-side: top;
+  text-align: left;
+  font-weight: 600;
+  padding-bottom: 4px;
+}
+.c-metric-table td.num,
+.c-metric-table th.num {
+  white-space: nowrap;
+}
+
+/* ===== ExperimentShell ===== */
+.c-exp {
+  container-type: inline-size;
+  container-name: exp;
+  margin: 24px 0;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  min-width: 0;
+}
+.c-exp-head {
+  margin-bottom: 8px;
+}
+.c-exp-title {
+  margin: 0 0 6px;
+  padding: 0;
+  border: none;
+}
+.c-exp-desc {
+  margin-top: 6px;
+  font-size: 0.92rem;
+  color: var(--text-muted);
+}
+.c-exp-warnings .callout {
+  margin: 8px 0;
+}
+.c-exp-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  margin: 12px 0;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.c-exp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.c-freeze.is-active {
+  background: var(--info-soft);
+  border-color: var(--info);
+  color: var(--info);
+  font-weight: 600;
+}
+.c-seed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.c-seed-label {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+.c-seed-input {
+  width: 12ch;
+}
+.c-exp-presets {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.c-exp-presets select {
+  max-width: 100%;
+  min-width: 0;
+}
+.c-exp-body {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.c-exp-controls,
+.c-exp-results {
+  min-width: 0;
+}
+.c-exp-controls {
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.c-exp-crosscheck {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.c-exp-crosscheck-title,
+.c-exp-subtitle {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.c-check {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+  padding: 2px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  font-size: 0.82rem;
+}
+.c-check-name {
+  font-weight: 600;
+}
+.c-check-ok {
+  border-color: var(--ok);
+  background: var(--ok-soft);
+}
+.c-check-ok .c-check-status {
+  color: var(--ok);
+}
+.c-check-mismatch {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+.c-check-mismatch .c-check-status {
+  color: var(--danger);
+  font-weight: 700;
+}
+.c-check-not-implemented {
+  border-style: dashed;
+  border-color: var(--warn);
+  background: var(--warn-soft);
+}
+.c-check-not-implemented .c-check-status {
+  color: var(--warn);
+}
+.c-check-n\/a .c-check-status {
+  color: var(--text-faint);
+}
+.c-exp-assumptions {
+  margin-top: 12px;
+}
+.c-exp-summary {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.c-exp-summary summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.c-exp-summary-list {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 2px 12px;
+  margin: 8px 0;
+}
+.c-exp-summary-list dt {
+  color: var(--text-muted);
+}
+.c-exp-summary-list dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.c-exp-json {
+  max-height: 320px;
+  overflow: auto;
+  margin: 6px 0 0;
+  background: var(--surface);
+}
+.c-exp-export {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+.c-spinner {
+  display: inline-block;
+  width: 0.9em;
+  height: 0.9em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: c-spin 0.8s linear infinite;
+}
+@keyframes c-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .c-spinner {
+    animation-duration: 2.4s;
+  }
+  .c-derivation-chevron,
+  .c-toggle-input,
+  .c-toggle-input::after {
+    transition: none;
+  }
+}
+
+/* 雙欄 → 單欄：視窗 < 900px，或實驗框本身太窄（例如桌面側欄開啟時） */
+@media (max-width: 900px) {
+  .c-exp-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .c-exp {
+    padding: 12px;
+  }
+  /* iOS 在 < 16px 的輸入框聚焦時會自動放大頁面 */
+  .c-param-input,
+  .c-seed-input,
+  .c-select-input,
+  .c-exp-presets select {
+    font-size: 16px;
+  }
+}
+@container exp (max-width: 680px) {
+  .c-exp-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ===== Case A / B / C ===== */
+.c-cases {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 8px 0 12px;
+}
+.c-cases-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.c-case {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.c-case.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.c-case-btn,
+.c-case-remove {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.c-case.is-active .c-case-btn {
+  font-weight: 600;
+  color: var(--accent);
+}
+.c-case-remove {
+  padding: 3px 8px 3px 2px;
+  color: var(--text-muted);
+}
+.c-case-remove:hover {
+  color: var(--danger);
+}
+.c-case-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}

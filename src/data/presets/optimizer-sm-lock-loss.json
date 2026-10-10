@@ -1,0 +1,14 @@
+{
+  "id": "optimizer-sm-lock-loss",
+  "title": "Ch14：狀態機——PLL 失鎖 40 個 block",
+  "page": "/ch/14",
+  "experiment": "cal-state-machine",
+  "description": "block 300–339 失鎖，cycle slip 造成假相關 β = 0.3。可關掉 lock detect 比較。",
+  "params": {
+    "lockLossStart": 300,
+    "lockLossLen": 40,
+    "unlockBias": 0.3
+  },
+  "expected": "lock detect 開：失鎖期間 w 不動，重新鎖定後先 VERIFY。MC 評估 RMS：狀態機 ≈ 1.64 fs（其中暫存器誤差只有 ≈ 0.47 fs，其餘是 VERIFY 的 ±Δ 擾動）；固定快 μ ≈ 21 fs、固定安靜 μ ≈ 6.5 fs。關掉 lock detect：假相關把 w 拉到暫存器邊界、觸發警報與 clip，RMS ≈ 38 fs。",
+  "source": "illustrative"
+}

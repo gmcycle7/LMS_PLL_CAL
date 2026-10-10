@@ -1,0 +1,19 @@
+{
+  "id": "T17",
+  "description_zh": "Stochastic Rounding：32/33 隨機切換、P(33) = 0.4 ⇒ 平均 32.4、變異 0.24 LSB²",
+  "spec_section": "§13.3",
+  "inputs": {
+    "low_code": 32,
+    "high_code": 33,
+    "p_high": 0.4
+  },
+  "expected": {
+    "mean": 32.4,
+    "variance": 0.24,
+    "rms": 0.4898979485566356
+  },
+  "tolerance": {
+    "abs": 1e-12
+  },
+  "notes": "每次獨立的 Bernoulli：E = 32 + p、Var = p(1−p)。TypeScript 端應以自己的 seed 做 MC，並用 CI（例如 ±4 SE）比對此期望值。"
+}

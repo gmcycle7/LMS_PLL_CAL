@@ -1,0 +1,19 @@
+{
+  "id": "fft-spur-pitfalls-coherent-rect",
+  "title": "Coherent sampling + 矩形窗",
+  "page": "/models",
+  "experiment": "fft-spur-pitfalls",
+  "description": "同一組 tone 改成整數週期（δ = 0）。",
+  "params": {
+    "log2N": 12,
+    "offsetBins": 0,
+    "spurOffsetBins": 40,
+    "spurDbc": -80,
+    "noiseDbc": -60,
+    "window": "rectangular",
+    "welchLog2Seg": 9,
+    "seed": 20261010
+  },
+  "expected": "洩漏 < −200 dBc；whole-record FFT、coherent tone fit 都在 −80 dBc 的 1 dB 內；雜訊底中位數 + 1.59 dB ≈ 解析每 bin 雜訊底。(B) Welch（nperseg = 512）的主瓣積分含約 −77 dBc 的白雜訊，讀到約 −75 dBc，並有「Welch 主瓣積分被雜訊墊高」的警告；沒有洩漏類警告。",
+  "source": "illustrative"
+}

@@ -1,0 +1,162 @@
+/* Ch08 專屬樣式（class 一律 ch08- 前綴；顏色只用全站 token，深淺主題自動切換） */
+
+.ch08 {
+  min-width: 0;
+}
+
+/* 勘誤標記 */
+.ch08-erratum {
+  display: inline-block;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid var(--warn);
+  background: var(--warn-soft);
+  color: var(--warn);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.ch08-erratum:hover {
+  text-decoration: underline;
+}
+.ch08-erratum-text {
+  color: var(--text-muted);
+}
+
+/* 依學習模式展開的推導框 */
+.ch08-expand {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  margin: 12px 0;
+  padding: 6px 12px;
+}
+.ch08-expand > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.ch08-expand-badge {
+  display: inline-block;
+  font-size: 0.74rem;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text);
+  margin-right: 4px;
+  vertical-align: 1px;
+}
+.ch08-expand-body {
+  padding: 6px 0 4px;
+  min-width: 0;
+}
+
+/* 表格 */
+.ch08-table {
+  font-size: 0.9rem;
+}
+.ch08-table caption {
+  caption-side: top;
+  text-align: left;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  padding-bottom: 4px;
+}
+.ch08-table td.mono,
+.ch08-table td .mono {
+  white-space: nowrap;
+}
+.ch08-row-active td {
+  background: var(--accent-soft);
+}
+.ch08-verdict-ok {
+  color: var(--ok);
+  font-weight: 600;
+}
+.ch08-verdict-bad {
+  color: var(--danger);
+  font-weight: 600;
+}
+.ch08-verdict-marginal {
+  color: var(--warn);
+  font-weight: 600;
+}
+.ch08-bad {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* 「換你算」：帶入手算題前的一句引導 */
+.ch08-handcalc {
+  margin: 16px 0;
+}
+.ch08-handcalc-lead {
+  margin: 0 0 -8px;
+  font-size: 0.92rem;
+}
+
+/* 「試試看」清單 */
+.ch08-try {
+  margin: 4px 0 0;
+}
+.ch08-try li {
+  margin: 2px 0;
+}
+
+/* Monte Carlo 設定（PM Lab） */
+.ch08-mc-settings {
+  border-top: 1px dashed var(--border);
+  margin-top: 8px;
+  padding-top: 6px;
+}
+.ch08-mc-settings > summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+/* 矩陣輸入（Dual-Loop 一般化模式） */
+.ch08-matrix {
+  margin: 10px 0;
+}
+.ch08-matrix-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.ch08-matrix-title {
+  font-weight: 600;
+}
+.ch08-matrix-grid {
+  display: grid;
+  gap: 4px;
+  max-width: 320px;
+}
+.ch08-cell {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 4px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.88rem;
+  text-align: right;
+}
+.ch08-cell:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
+}
+.ch08-cell.is-invalid {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+@media (max-width: 480px) {
+  .ch08-table {
+    font-size: 0.82rem;
+  }
+}

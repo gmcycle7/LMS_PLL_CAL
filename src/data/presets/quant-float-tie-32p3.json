@@ -1,0 +1,25 @@
+{
+  "id": "quant-float-tie-32p3",
+  "title": "浮點 tie 翻轉：w = 32.3 時 float ΔΣ 與 bit-true 模型分歧",
+  "page": "/ch/13",
+  "experiment": "quantized-gain-lab",
+  "description": "float 模式下 32.3 + 0.2 的累積誤差讓 v 落在 32.4999… 而非 32.5，round-half-up 的 tie 被翻轉；序列在 n = 4 與精確模型不同（勘誤 E15：必須用整數 / 定點比對）。",
+  "params": {
+    "target": 32.3,
+    "arithmetic": "float",
+    "length": 4096,
+    "mixing": false,
+    "cases": [
+      {
+        "strategy": "deltaSigma",
+        "lmsNoise": false,
+        "nUpd": 1
+      }
+    ]
+  },
+  "expected": "Fixed-Point 交叉比對：mismatch，第一個分歧在 n = 4；兩者週期都是 10、平均都是 32.3（只差相位）。",
+  "tests": [
+    "T16"
+  ],
+  "source": "illustrative"
+}

@@ -1,0 +1,33 @@
+{
+  "id": "gauge-raw-gmac-drift",
+  "title": "u-domain ＋ raw x̃ GMAC：w_b 沒有恢復力而 random walk",
+  "page": "/ch/09",
+  "experiment": "gauge-one-hot",
+  "description": "PLL 抑制 DC，GMAC 仍用原始 regressor x̃（硬體常見）並加入 σ_v = 0.1 fs 雜訊：E[G_b] = 0，w_b 與 aᵢ 共模只受雜訊驅動。",
+  "params": {
+    "b": 0.3,
+    "a0": 1.0,
+    "a1": -0.5,
+    "a2": 0.2,
+    "a3": 0.7,
+    "c": 0.9,
+    "dB": 0.4,
+    "dcNull": true,
+    "pathType": "type2",
+    "pllMethod": "dpll",
+    "wnTs": 0.05,
+    "zeta": 0.7,
+    "hpPole": 0.95,
+    "sequence": "random",
+    "T": 20000,
+    "skip": 2000,
+    "mu": 0.2,
+    "N": 16,
+    "blocks": 1000,
+    "sigmaV": 0.1,
+    "gmacReg": "raw",
+    "seed": 20261010
+  },
+  "expected": "Run C 的 w_b 呈 random walk，1000 blocks 後的漂移量級 ≈ μσ_v√(K/N) = 0.2·0.1·√(1000/16) ≈ 0.158 fs；改成 filtered ũ GMAC 時 w_b 凍結（|Δw_b| ≈ 0）。",
+  "source": "illustrative"
+}

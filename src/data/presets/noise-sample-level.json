@@ -1,0 +1,24 @@
+{
+  "id": "noise-sample-level",
+  "title": "同 T13 例，改用逐 sample 的 runBlockLms",
+  "page": "/ch/12",
+  "experiment": "lms-noise-lab",
+  "description": "引擎 (c)：真的產生 4096 個 ±1 code、Gaussian v、1-bit q 並在 GMAC 累加（約 1000 萬個 sample，請按「執行 Run」）。與引擎 (a)(b) 比較 σ_w。",
+  "params": {
+    "N": 4096,
+    "fs": 4000000000.0,
+    "mu": 10,
+    "sigmaV": 100,
+    "C": 1,
+    "gmMode": "average",
+    "engine": "sample",
+    "blocks": 1000,
+    "chains": 2,
+    "dw0": 3
+  },
+  "expected": "預設 seed：σ_w ≈ 0.373 fs，95% CI 約 [0.334, 0.408] fs（2 chains × 1000 blocks；chain 少時用 AR(1) 有效樣本數的 CI，約 ±10%），涵蓋解析值 0.39919 fs；p̂ ≈ 0.905。約 920 萬個 comparator sample，worker 內約 1–2 秒。",
+  "tests": [
+    "T13"
+  ],
+  "source": "simulation"
+}

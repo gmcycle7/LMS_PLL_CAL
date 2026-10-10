@@ -1,0 +1,29 @@
+{
+  "id": "bias-inl-cubic-mse",
+  "title": "三階 INL：MSE-LMS 精確 1.34（T12a）",
+  "page": "/ch/11",
+  "experiment": "bias-inl-lab",
+  "description": "同 gallery #7 的誤差模型，但 GMAC 用多位元 e（conventional LMS）。",
+  "params": {
+    "a": 1,
+    "w0": 1,
+    "b": 0,
+    "c2": 0,
+    "c3": 0.1,
+    "kappa": 0,
+    "codeKind": "five_level",
+    "codeShift": 0,
+    "dsmKind": "first_order",
+    "dsmFrac": 0.3,
+    "algorithm": "mse",
+    "sigmaV": 1,
+    "dcMode": "none",
+    "jitterSlope": 0,
+    "jitterRef": -2
+  },
+  "expected": "w* = 67/50 = 1.34（[精確｜指定模型]，與 σ_v 無關）；E[e_det²] 由 0.26（w = 1）降到 0.0288（w = 1.34）。",
+  "tests": [
+    "T12"
+  ],
+  "source": "illustrative"
+}

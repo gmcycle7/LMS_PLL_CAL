@@ -1,0 +1,28 @@
+{
+  "id": "pe-pm1-staircase",
+  "title": "±1 sparse-flip code：階梯式歸零與退化窗口",
+  "page": "/ch/09",
+  "experiment": "pe-eigen-lab",
+  "description": "u₂ = s·u₁，P(s = −1) = 0.005（ρ = .99），GMAC N = 1、g = .5：每個 sample 的 I − ½uuᵀ 剛好是投影，個別軌跡的差模分量要嘛維持初值、要嘛（第一次 flip 後）精確歸零。",
+  "params": {
+    "rho": 0.99,
+    "dist": "pm1",
+    "detector": "linear",
+    "sigmaV": 0,
+    "kqMode": "normalized",
+    "muInput": 0.5,
+    "N": 1,
+    "N0": 100,
+    "d10": 1,
+    "d20": 0,
+    "blocks": 800,
+    "chains": 200,
+    "seed": 20261010
+  },
+  "expected": "ensemble 平均依 0.995^k 衰減（k₉₅ = 598），但每條軌跡是平台＋跳到 0；mean-square 半徑 = 0.995（不是 0.995²）；N₀ = 100 的窗口約 60.6% 退化（λ_min(R_k) = 0），其餘窗口的 λ_min(R_k) 平均 0.0254（精確二項，高於 λ_min(R) = 0.01）。",
+  "tests": [
+    "T10",
+    "T11"
+  ],
+  "source": "illustrative"
+}

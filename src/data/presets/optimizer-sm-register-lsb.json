@@ -1,0 +1,12 @@
+{
+  "id": "optimizer-sm-register-lsb",
+  "title": "Ch14：狀態機——定點暫存器 LSB = 0.25 fs（L5 dead zone）",
+  "page": "/ch/14",
+  "experiment": "cal-state-machine",
+  "description": "w 以 0.25 fs 量化：μ_track·σ_G ≈ 0.06 fs < ½ LSB。",
+  "params": {
+    "registerLsb": 0.25
+  },
+  "expected": "出現 dead zone 警告；模型層級顯示 L5；TRACK 階段係數幾乎不動，無法追蹤 ramp：MC 評估 RMS ≈ 0.49 fs（浮點 ≈ 0.40 fs）。",
+  "source": "illustrative"
+}

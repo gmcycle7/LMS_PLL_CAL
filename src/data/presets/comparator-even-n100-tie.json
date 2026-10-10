@@ -1,0 +1,11 @@
+{
+  "id": "comparator-even-n100-tie",
+  "title": "偶數 N = 100 的 tie：strict 只有 49.2%（勘誤 E02）",
+  "page": "/ch/05",
+  "experiment": "comparator-lab",
+  "description": "規格表格的 53.2% 對應的是 random tie-break（或奇數 N = 101）。照字面只算 S_N > 0 時，N = 100 的正確率 49.2% 反而低於 50%；P(S_N = 0) = 7.9%。切換 tie rule 觀察 49.2% / 53.2% / 57.1% 與 skip 的 49.2% / 7.9% / 42.9%。",
+  "params": { "s": 1, "sigma": 100, "theta": 0, "N": 100, "tieRule": "strict", "trials": 40000, "method": "auto", "axis": "sum" },
+  "expected": "strict 49.20%；half 53.17%；sign(0)=+1 57.14%；skip：判對 49.2%、不動 7.9%、判錯 42.9%；CLT 規格式 53.18%（只和 half 一致）。",
+  "tests": ["T05"],
+  "source": "illustrative"
+}

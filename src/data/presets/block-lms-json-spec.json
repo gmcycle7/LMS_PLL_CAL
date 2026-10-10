@@ -1,0 +1,51 @@
+{
+  "id": "block-lms-json-spec",
+  "title": "§15.3 範例原文（T13 / T14）",
+  "page": "/models",
+  "experiment": "block-lms-json",
+  "description": "規格 §15.3 的 JSON 逐字照錄：iid ±1 code、unit-RMS、identity path、average GMAC、σ_v = 100 fs、N = 4096、μ = 10 fs。",
+  "params": {
+    "config": {
+      "model": "sign_error_block_lms",
+      "seed": 20261010,
+      "units": {
+        "time": "fs",
+        "frequency": "Hz"
+      },
+      "sample_rate_hz": 4000000000,
+      "output_frequency_hz": 13000000000,
+      "gm_accum_samples": 4096,
+      "gain_initial": 0,
+      "gain_true": 3,
+      "gain_step": 10,
+      "code_normalization": "unit_rms",
+      "gm_mode": "average",
+      "pd_noise_rms_fs": 100,
+      "comparator_offset_fs": 0,
+      "comparator_encoding": "bipolar_pm_one",
+      "gm_code_delay_samples": 0,
+      "cal_update_delay_blocks": 0,
+      "pll_error_path": {
+        "kind": "identity",
+        "parameters": {}
+      },
+      "seeded_pattern": {
+        "kind": "iid_pm_one",
+        "parameters": {}
+      },
+      "gain_register": {
+        "internal_bits": 20,
+        "physical_bits": 6,
+        "rounding": "nearest",
+        "overflow": "saturate"
+      },
+      "mode": "exploratory"
+    }
+  },
+  "expected": "K_q = 0.0079788 fs⁻¹、g = 0.079788、p = 0.920212；σ_w 預測 0.3992 fs；f_u = 976.5625 kHz、exact f_3dB = 12.93 kHz、ENBW = 20.29 kHz；模擬後半段 std 與預測相符（4×relSE 內），平均 w 在 w* = 3 fs 的 4×SE 內。",
+  "source": "simulation",
+  "tests": [
+    "T13",
+    "T14"
+  ]
+}

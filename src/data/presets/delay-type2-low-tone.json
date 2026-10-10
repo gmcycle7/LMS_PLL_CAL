@@ -1,0 +1,46 @@
+{
+  "id": "delay-type2-low-tone",
+  "title": "Type-II 低頻 tone：需要 D = 119 才能對齊",
+  "page": "/ch/07",
+  "experiment": "delay-fx-lab",
+  "description": "E44 的 DT Type-II DPLL（ω_nT_s = 0.1、ζ = 0.7、d = 0），code tone Ω = 0.03 = 0.3ω_nT_s（§6.1 的例子）。A raw-x、B delayed-x（D = 119）、C filtered-x（Ĥ = H）；μ 各自調整使 g ≈ 0.05。",
+  "params": {
+    "scenario": {
+      "pathKind": "type2_dt",
+      "wnTs": 0.1,
+      "zeta": 0.7,
+      "loopDelay": 0,
+      "codeKind": "sinusoid",
+      "omega": 0.03,
+      "a": 10,
+      "w0": 0,
+      "sigmaV": 20,
+      "N": 2048,
+      "blocks": 300,
+      "Dmax": 240
+    },
+    "cases": [
+      {
+        "mode": "raw",
+        "D": 0,
+        "mu": 14
+      },
+      {
+        "mode": "delayed",
+        "D": 119,
+        "mu": 14
+      },
+      {
+        "mode": "filtered",
+        "D": 0,
+        "mu": 160
+      }
+    ],
+    "seed": 20261010
+  },
+  "expected": "∠H_PD = 155.378°（DT；CT 原型為 155.2°）、|H_PD| = 0.0893：C_raw = −0.0812（p = 1.045，發散）、D* = 119.04 ⇒ C_119 = +0.0893、filtered-x E[u²] = 0.00797（ρ = 1）。B、C 皆收斂到 a = 10 fs（seed 20261010：後半段 mean w ≈ 9.90 fs）。把 code Ω 改成 0.05，D = 119 立即失效。",
+  "tests": [
+    "T07"
+  ],
+  "source": "simulation"
+}

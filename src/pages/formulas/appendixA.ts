@@ -1,0 +1,448 @@
+import type { ClaimKind } from '@/data/types'
+import type { RefValues } from './refValues'
+import { texHz, texNum, texPct } from './format'
+
+/**
+ * 附錄 A「一頁公式速查」的修正版。
+ * - fromSpec：規格附錄 A 原有的列（true）或本站依勘誤補上的列（false，顯示「本站補充」）。
+ * - spec：規格原文（若本站改寫了公式或使用條件）。
+ * - related：站內公式登錄的 ID（點擊後跳到該頁的錨點）；測試會檢查每個 ID 都存在。
+ * - example：代入數字；一律由 refValues() 計算。
+ */
+export type QuickGroup = 'A' | 'B' | 'C'
+
+export const QUICK_GROUP_LABEL: Record<QuickGroup, string> = {
+  A: 'Part A｜LMS 數學基礎',
+  B: 'Part B｜PLL 校正實作',
+  C: 'Part C｜Noise、Bias、量化與設計',
+}
+
+export interface QuickRefRow {
+  key: string
+  group: QuickGroup
+  topic: string
+  tex: string
+  conditions: string
+  claim: ClaimKind
+  fromSpec: boolean
+  spec?: string
+  errata: string[]
+  related: string[]
+  example?: (r: RefValues) => string
+}
+
+export const QUICK_REF: QuickRefRow[] = [
+  // ───────── Part A ─────────
+  {
+    key: 'lms',
+    group: 'A',
+    topic: 'Scalar LMS',
+    tex: String.raw`w_{n+1}=w_n+\mu\,e_nx_n,\qquad e_n=y_n-w_nx_n`,
+    conditions: String.raw`MSE 的當筆梯度：等於對 $J(w)=\tfrac12E[(y-wx)^2]$ 以步長 $\mu$ 做 SGD（規格 §1 的 $J_2$ 沒有 $\tfrac12$，梯度差 2 倍）`,
+    claim: 'exact',
+    fromSpec: true,
+    errata: ['E41'],
+    related: ['F-00.2', 'F-01.7', 'F-02.5'],
+    example: (r) =>
+      String.raw`$a=${r.t01.a}$、$x=${r.t01.x}$、$w_0=${r.t01.w0}$、$\mu=${r.t01.mu}$：$w_1=${texNum(r.t01.w[1])}$、$w_2=${texNum(r.t01.w[2])}$`,
+  },
+  {
+    key: 'signError',
+    group: 'A',
+    topic: 'Sign-Error LMS',
+    tex: String.raw`w_{n+1}=w_n+\mu\,\operatorname{sign}(e_n)\,x_n`,
+    conditions: String.raw`MAE 的次梯度；固定點 $E[x\operatorname{sign}e]=0$（加權中位數），一般 $\ne$ MSE 的固定點。$\operatorname{sign}(0)$ 必須明定（硬體 tie → $+1$；數學次梯度 $0$），固定步長會在固定點附近形成 $O(\mu|x|)$ 的 limit cycle`,
+    claim: 'exact',
+    fromSpec: true,
+    errata: ['E40'],
+    related: ['F-02.6', 'F-01.12', 'F-02.10'],
+    example: (r) =>
+      String.raw`$a=${r.partA.step.a}$、$x=${r.partA.step.x}$、$w_0=${r.partA.step.w0}$、$\mu=${r.partA.step.mu}$（$e_0=${texNum(r.partA.step.a * r.partA.step.x - r.partA.step.w0 * r.partA.step.x)}$）：Sign-Error 走到 $w_1=${texNum(r.partA.step.sign)}$（固定走 $\mu|x|$）；同一筆資料 LMS 走到 $${texNum(r.partA.step.lms)}$（步長正比於 $e$）`,
+  },
+  {
+    key: 'signSign',
+    group: 'A',
+    topic: 'Sign-Sign LMS',
+    tex: String.raw`w_{n+1}=w_n+\mu\,\operatorname{sign}(e_n)\operatorname{sign}(x_n)`,
+    conditions: String.raw`連 regressor 的幅度也丟掉，別和 Sign-Error 混淆；多參數時的收斂性需另外檢查`,
+    claim: 'exact',
+    fromSpec: false,
+    errata: ['E43'],
+    related: ['F-02.7', 'F-02.8'],
+  },
+  {
+    key: 'fixedX',
+    group: 'A',
+    topic: '固定 x 的穩定',
+    tex: String.raw`\delta_{n+1}=(1-\mu x^2)\,\delta_n\;\Rightarrow\;0<\mu<\frac{2}{x^2}`,
+    conditions: String.raw`無雜訊、固定非零 $x$；$\delta=a-w$。$0<\mu<1/x^2$ 單調、$\mu=1/x^2$ 一步到位、$1/x^2<\mu<2/x^2$ 交替收斂`,
+    claim: 'exact',
+    fromSpec: true,
+    errata: ['E39'],
+    related: ['F-03.3', 'F-00.5', 'F-01.8'],
+    example: (r) => String.raw`$x=${r.fixedX.x}$：$0<\mu<${texNum(r.fixedX.muMax)}$；$\mu=0.1$ 時 pole $p=${texNum(r.fixedX.poleAtMu)}$`,
+  },
+  {
+    key: 'randomX',
+    group: 'A',
+    topic: '隨機 x：三種穩定',
+    tex: String.raw`\underbrace{0<\mu<\frac{2}{P_x}}_{\text{mean}},\quad \underbrace{0<\mu<\frac{2P_x}{E[x^4]}}_{\text{mean-square}},\quad \underbrace{E\ln|1-\mu x^2|<0}_{\text{almost-sure}}`,
+    conditions: String.raw`$x_n$ iid（$E[x^4]$ 有限）、雜訊零均值且與 $x$ 獨立。此時 $\delta_n$ 與 $x_n$ 自動獨立，mean／mean-square 遞迴是精確式（不是 independence approximation）；相關 regressor（$u=h*x$）才降為近似`,
+    claim: 'exact',
+    fromSpec: false,
+    errata: ['E14', 'E38'],
+    related: ['F-03.5', 'F-03.7', 'F-03.9', 'F-SO.9'],
+    example: (r) =>
+      String.raw`Gaussian $x$（$P_x=1$、$E[x^4]=3$）：mean $${texNum(r.stability.meanMuMax)}$、mean-square $${texNum(r.stability.msMuMax)}$、almost-sure $\approx${texNum(r.stability.asMuMax)}$；$\pm1$ code 時 mean 與 MS 界相同（$${texNum(r.stability.msMuMaxBpsk)}$）`,
+  },
+  {
+    key: 'msd',
+    group: 'A',
+    topic: 'MSD 與 MSE',
+    tex: String.raw`E[e^2]=P_x\,E[\delta^2]+\sigma_v^2`,
+    conditions: String.raw`$E[\delta^2]$ 是係數均方偏差（MSD），不是 MSE 成本 $J=E[e^2]$；iid $x$、雜訊零均值且與 $x$ 獨立時上式精確`,
+    claim: 'exact',
+    fromSpec: false,
+    errata: ['E42'],
+    related: ['F-03.6', 'F-03.11', 'F-02.16'],
+    example: (r) =>
+      String.raw`固定 $x=${r.partA.msd.x}$（$P_x=${texNum(r.partA.msd.px)}$）、$\mu=${r.partA.msd.mu}$、$\sigma_v=${r.partA.msd.sigmaV}$：穩態 MSD $=\frac{\mu P_x\sigma_v^2}{2P_x-\mu E[x^4]}=${texNum(r.partA.msd.msd)}$，MSE $=${texNum(r.partA.msd.px)}\times${texNum(r.partA.msd.msd)}+${texNum(r.partA.msd.sigmaV ** 2)}=${texNum(r.partA.msd.mse)}$——兩個數字差很多，圖例要分開標`,
+  },
+  // ───────── Part B ─────────
+  {
+    key: 'gaussComp',
+    group: 'B',
+    topic: 'Gaussian Comparator',
+    tex: String.raw`P(q=+1)=\Phi\!\Big(\frac{s}{\sigma_v}\Big),\qquad m_q=E[q]=\operatorname{erf}\!\Big(\frac{s}{\sqrt2\,\sigma_v}\Big)`,
+    conditions: String.raw`$v\sim\mathcal N(0,\sigma_v^2)$；$q=\pm1$`,
+    claim: 'exact',
+    fromSpec: true,
+    errata: ['E34'],
+    related: ['F-05.1', 'F-05.2'],
+    example: (r) =>
+      String.raw`$s=1\,\mathrm{fs}$、$\sigma_v=100\,\mathrm{fs}$：$P(q=+1)=${texNum(r.comparator.pPlus, 7)}$、$m_q=${texNum(r.comparator.meanQ, 6)}$`,
+  },
+  {
+    key: 'kq',
+    group: 'B',
+    topic: 'Comparator 小訊號',
+    tex: String.raw`K_q=\frac{\sqrt{2/\pi}}{\sigma_v},\qquad E[q]\approx K_q\,s`,
+    conditions: String.raw`$|s|\ll\sigma_v$；相對誤差約 $(s/\sigma_v)^2/6$`,
+    claim: 'approx',
+    fromSpec: true,
+    errata: [],
+    related: ['F-05.10', 'F-05.11'],
+    example: (r) =>
+      String.raw`$K_q=${texNum(r.comparator.kq, 6)}\,\mathrm{fs^{-1}}$；$s/\sigma_v=0.56$ 時高估 $${texPct(r.comparator.linErrAt056)}$`,
+  },
+  {
+    key: 'sumAvg',
+    group: 'B',
+    topic: 'GMAC：sum 與 average',
+    tex: String.raw`S_N=\sum_{i=1}^Nq_i:\ E=Nm_q,\ \operatorname{Var}=N(1-m_q^2);\qquad G=\frac{S_N}{N}:\ E=m_q,\ \operatorname{Var}=\frac{1-m_q^2}{N}`,
+    conditions: String.raw`$x\equiv1$、$q_i$ iid。sum mode 沿用 average 的 $\mu$ 會把 $g$ 放大 $N$ 倍`,
+    claim: 'exact',
+    fromSpec: false,
+    errata: ['E07', 'E18'],
+    related: ['F-05.4', 'F-04.3', 'F-04.5'],
+    example: (r) => String.raw`T13 條件下 sum mode：$g=${texNum(r.loop.gSum)}$、pole $${texNum(r.loop.pSum)}$（發散）`,
+  },
+  {
+    key: 'direction',
+    group: 'B',
+    topic: '方向判斷機率',
+    tex: String.raw`P(S_N>0)\approx\Phi\!\Big(\frac{m_q\sqrt N}{\sqrt{1-m_q^2}}\Big)\quad(N\ \text{奇數})`,
+    conditions: String.raw`偶數 $N$ 有 tie：上式近似的是 $P(S_N>0)+\tfrac12P(S_N=0)$；嚴格 $P(S_N>0)$ 用 $\Phi\big(\frac{Nm_q-1}{\sqrt{N(1-m_q^2)}}\big)$。Monte Carlo 與解析必須用同一條 tie rule`,
+    claim: 'approx',
+    fromSpec: false,
+    errata: ['E02', 'E07'],
+    related: ['F-05.6', 'F-05.7', 'F-05.8'],
+    example: (r) =>
+      String.raw`$N=100$（exact）：$P(S_N>0)=${texNum(r.direction.n100.pos)}$、tie $${texNum(r.direction.n100.tie)}$；sign(0)=+1 時 $${texNum(r.direction.n100PlusRule)}$；CLT $${texNum(r.direction.n100Clt)}$；$N=101$ exact $${texNum(r.direction.n101)}$`,
+  },
+  {
+    key: 'codeCorr',
+    group: 'B',
+    topic: '原始 Code Correlation',
+    tex: String.raw`C=E\big[x\,(h*x)\big]=\frac1{2\pi}\int_{-\pi}^{\pi}S_{xx}(e^{j\Omega})\operatorname{Re}\{H_{\mathrm{PD}}(e^{j\Omega})\}\,d\Omega`,
+    conditions: String.raw`純量 regressor、靜態 $w$；$\Omega$ 為 rad/sample，用 DT 的 $H(e^{j\Omega})$ 或 $h[n]$（不可代入 CT 的 $H(j\Omega)$）`,
+    claim: 'exact',
+    fromSpec: true,
+    spec: String.raw`$C=E[x(H*x)]$`,
+    errata: ['E44', 'E12'],
+    related: ['F-06.2', 'F-06.11', 'F-06.12'],
+  },
+  {
+    key: 'tone',
+    group: 'B',
+    topic: '單頻 Phase Shift／Delayed Code',
+    tex: String.raw`C_D=\frac{A^2}{2}\,|H(e^{j\Omega})|\cos(\phi+\Omega D)\qquad(D=0\ \text{即單頻 }C)`,
+    conditions: String.raw`$x=A\cos\Omega n$、$0<\Omega<\pi$、長時間或整數週期平均；$D$ 施於 GMAC code。$\Omega\in\{0,\pi\}$ 時為 $A^2H(e^{j\Omega})\cos(\Omega D)$（兩倍）；有限 $N$ 有 ripple $\le\frac{A^2|H|}{2}\min(1,\frac1{N|\sin\Omega|})$`,
+    claim: 'exact',
+    fromSpec: true,
+    spec: String.raw`$C=(A^2/2)|H|\cos\phi$、$C_D=(A^2/2)|H|\cos(\phi+\Omega D)$（未寫 $\Omega$ 的範圍）`,
+    errata: ['E46'],
+    related: ['F-06.4', 'F-06.5', 'F-07.2'],
+    example: (r) =>
+      String.raw`$A=|H|=1$、$\Omega=\pi/6$。T06：$\phi=${r.tone.phiDeg}^\circ\Rightarrow C=${texNum(r.tone.C)}<0$，$\mu=10\,\mathrm{fs}$、$\sigma_v=100\,\mathrm{fs}$ 時 pole $${texNum(r.tone.pole, 6)}>1$（平均發散）。T07：$\phi=${r.tone.phiDegDelay}^\circ$，$D=0$ 時 $${texNum(r.tone.CDelay0)}$；$D=${r.tone.D}$ 使 $\theta=\phi+\Omega D=0^\circ\Rightarrow C_D=${texNum(r.tone.CD)}$。反過來 $\phi=0$ 卻延遲 $D=${r.tone.D}$：$${texNum(r.tone.misalignedCD)}$（對齊錯誤一樣會反號）`,
+  },
+  {
+    key: 'filteredX',
+    group: 'B',
+    topic: 'Filtered-x LMS',
+    tex: String.raw`E[G_k^{(f)}]\approx K_q\,(a-w_k)\,E[u\,u_f],\qquad E[u\,u_f]=\frac1{2\pi}\int S_{xx}\operatorname{Re}\{H\hat H^*\}\,d\Omega`,
+    conditions: String.raw`block 更新 $w_{k+1}=w_k+\mu G_k^{(f)}$；只有 $\hat H=H$ 時 $E[u\,u_f]=E[u^2]\ge0$`,
+    claim: 'approx',
+    fromSpec: false,
+    errata: ['E45', 'E35'],
+    related: ['F-07.10', 'F-07.11', 'F-07.12'],
+  },
+  {
+    key: 'pole',
+    group: 'B',
+    topic: 'Calibration Pole',
+    tex: String.raw`p=1-\mu K_qC=1-g,\qquad K=K_qC,\quad g=\mu K`,
+    conditions: String.raw`局部、慢速、無更新延遲；$K$ 單位 $\mathrm{fs^{-1}}$、$\mu$ 單位 $\mathrm{fs}$、$g$ 無因次`,
+    claim: 'approx',
+    fromSpec: true,
+    errata: ['E13'],
+    related: ['F-06.3', 'F-08.3', 'F-15.3'],
+    example: (r) => String.raw`T13：$p=${texNum(r.loop.p, 7)}$、$\tau=-1/\ln p=${texNum(r.loop.tau)}$ blocks`,
+  },
+  {
+    key: 'polarity',
+    group: 'B',
+    topic: 'Polarity Margin',
+    tex: String.raw`M_{\mathrm{polarity}}=\arcsin(\cos\theta)=90^\circ-|\mathrm{wrap}_{180}(\theta)|,\quad \mathrm{wrap}_{180}(\theta)\in[-180^\circ,180^\circ)`,
+    conditions: String.raw`單頻相關的正負，不是 calibration phase margin；wrap 的週期是 $360^\circ$`,
+    claim: 'exact',
+    fromSpec: false,
+    errata: ['E20'],
+    related: ['F-08.1'],
+    example: (r) =>
+      String.raw`$\theta=${r.polarity.theta}^\circ\Rightarrow M=${texNum(r.polarity.correct)}^\circ$（誤用 mod 180° 得 $${texNum(r.polarity.bug)}^\circ$）；$\theta=${r.polarity.theta200}^\circ\Rightarrow${texNum(r.polarity.correct200)}^\circ$`,
+  },
+  {
+    key: 'pm',
+    group: 'B',
+    topic: '一階 LMS Phase Margin',
+    tex: String.raw`\mathrm{PM}_d=90^\circ-(2d+1)\arcsin\frac g2,\qquad g^*(d)=2\sin\frac{\pi}{4d+2}`,
+    conditions: String.raw`$L_{\mathrm{cal}}(z)=g\,z^{-d}/(z-1)$、$0<g<2$、$g=\mu K$；$d=0$ 即規格的 $90^\circ-\arcsin(g/2)$。$g=g^*$ 為臨界（marginal），不可顯示為穩定`,
+    claim: 'exact',
+    fromSpec: true,
+    spec: String.raw`$90^\circ-\arcsin(g/2)$（只有 $d=0$）`,
+    errata: ['E13'],
+    related: ['F-08.5', 'F-08.8', 'F-08.9'],
+    example: (r) =>
+      String.raw`$g=1$：pole $${texNum(r.pm.g1.pole)}$、PM $${texNum(r.pm.g1.pmDeg)}^\circ$；$g=1.5$：PM $${texNum(r.pm.g15.pmDeg)}^\circ$、delay margin 只有 $${texNum(r.pm.g15.delayMargin, 3)}$ block`,
+  },
+  {
+    key: 'dual',
+    group: 'B',
+    topic: '雙迴路（主 PLL × LMS）',
+    tex: String.raw`0<\mu\,b_sc_s<1-r_s\ \ (\text{完整}),\qquad 0<\mu\,b_sc_s<2(1-r_s)\ \ (\text{quasi-static})`,
+    conditions: String.raw`二狀態觀測 $s_{k+1}=r_ss_k+b_s\delta_k$、$G_k=c_ss_k$；兩者恰差 2 倍且與 $r_s$ 無關，原因是一個 block 的 sample→observe latency，不只是時間尺度分離`,
+    claim: 'exact',
+    fromSpec: false,
+    errata: ['E19', 'E31'],
+    related: ['F-08.11', 'F-08.12', 'F-08.15'],
+    example: (r) => String.raw`$r_s=${r.dual.r}$、$b_s=${r.dual.b}$、$c_s=${r.dual.c}$：完整 $\mu<${texNum(r.dual.muFullHi)}$；quasi-static $\mu<${texNum(r.dual.muSimpHi)}$`,
+  },
+  {
+    key: 'pe',
+    group: 'B',
+    topic: 'PE / Eigen',
+    tex: String.raw`\mathbf R=E[\mathbf u\mathbf u^T],\qquad \alpha_{\mathrm{PE}}\mathbf I\preceq\sum_{n=n_0}^{n_0+N_0-1}\mathbf u[n]\mathbf u^T[n]\preceq\beta_{\mathrm{PE}}\mathbf I`,
+    conditions: String.raw`正確的有效 regressors（經 $H_{\mathrm{PD}}$ 之後）；mean recursion 的 598 blocks 是 ensemble 平均，per-sample（$N=1$）Gaussian 的 mean-square 可能發散`,
+    claim: 'exact',
+    fromSpec: true,
+    spec: String.raw`$\mathbf R=E[\mathbf u\mathbf u^T]$`,
+    errata: ['E35', 'E23', 'E04'],
+    related: ['F-09.9', 'F-09.10', 'F-09.8'],
+    example: (r) => String.raw`$\rho=${r.mimo.rho}$：$\lambda=${texNum(r.mimo.lamMax)},\ ${texNum(r.mimo.lamMin)}$`,
+  },
+  {
+    key: 'mimo',
+    group: 'B',
+    topic: '原始 MIMO 更新',
+    tex: String.raw`\boldsymbol\delta_{k+1}\approx(\mathbf I-\mu K_q\mathbf C)\,\boldsymbol\delta_k,\qquad p_i=1-\mu K_q\lambda_i\ \ (\mathbf C=\mathbf R)`,
+    conditions: String.raw`$\mathbf C=E[\mathbf x\mathbf u^T]$；§10.1 的數字只在 $K_q\equiv1$（$\mu$ 代表 $\mu K_q$）時成立`,
+    claim: 'approx',
+    fromSpec: true,
+    errata: ['E05', 'E08'],
+    related: ['F-10.2', 'F-10.3', 'F-09.3'],
+    example: (r) =>
+      String.raw`$\mu K_q=0.5$：慢 pole $${texNum(r.mimo.slowPole)}$、95% 需 $${r.mimo.blocks95}$ blocks；若 $K_q=${texNum(r.mimo.kqPhysical)}\,\mathrm{fs^{-1}}$、$\mu=0.5\,\mathrm{fs}$：$${r.mimo.physicalBlocks95}$ blocks`,
+  },
+  {
+    key: 'precond',
+    group: 'B',
+    topic: 'Preconditioner',
+    tex: String.raw`\mathbf M=\gamma\big(K_q(\mathbf R+\varepsilon_R\mathbf I)\big)^{-1}\Rightarrow p_i=1-\gamma\frac{\lambda_i}{\lambda_i+\varepsilon_R},\qquad \operatorname{Var}(\xi_i)\approx\frac{\gamma}{K_q^2N\lambda_i(2-\gamma)}`,
+    conditions: String.raw`$\varepsilon_R=0$ 為完整反矩陣（所有 pole $1-\gamma$）；Ch10 記 $\lambda_{\mathrm{reg}}$。pole 公式在 $\mathbf M$ 以真實的 $\mathbf R$ 建構時精確；變異數式是 $\varepsilon_R=0$、近平衡、獨立 Gaussian regressor 下的近似，而且它是 eigen-mode 座標 $\boldsymbol\xi=\mathbf V^T\boldsymbol\delta$ 的變異數，不是第 $i$ 個參數的`,
+    claim: 'approx',
+    fromSpec: false,
+    errata: ['E22', 'E37', 'E21'],
+    related: ['F-10.4', 'F-10.8', 'F-10.6'],
+    example: (r) =>
+      String.raw`$\gamma=0.5$：pole $${texNum(r.mimo.preconditionedPole)}$、$${r.mimo.preconditionedBlocks95}$ blocks；$0.5\mathbf R^{-1}$ 元素 $${texNum(r.mimo.mDiag)}/${texNum(r.mimo.mOff)}$；mode 變異 $${texNum(r.mimo.modeVarSlow)}$ vs 參數 $${texNum(r.mimo.paramVar)}\,\mathrm{fs^2}$`,
+  },
+  {
+    key: 'jacobian',
+    group: 'B',
+    topic: 'Jacobian 更新',
+    tex: String.raw`\mathbf A=\mathbf I+\mathbf M\mathbf J,\qquad \text{穩定}\iff\rho\big(\mathbf I+\mathbf M(\hat{\mathbf J})\,\mathbf J_{\mathrm{true}}\big)<1`,
+    conditions: String.raw`在固定點附近局部線性化；$\mathbf M$ 用量測 $\hat{\mathbf J}$ 建構時必須以真實 $\mathbf J$ 算 poles`,
+    claim: 'exact',
+    fromSpec: true,
+    spec: String.raw`$\mathbf A=I+\mathbf M\mathbf J$`,
+    errata: ['E24'],
+    related: ['F-10.10', 'F-10.11', 'F-SO.7'],
+    example: (r) => String.raw`T18：$\operatorname{eig}(\mathbf I+0.2\mathbf J)=${r.mimo.t18Eig.map((v) => texNum(v)).join(',\\ ')}$`,
+  },
+  // ───────── Part C ─────────
+  {
+    key: 'bias',
+    group: 'C',
+    topic: 'GMAC 固定點（bias）',
+    tex: String.raw`w^*=a+\frac{b\,E[x]+E[x\,d(x)]+E[x\,\varepsilon_{\mathrm{cc}}]}{E[x^2]}`,
+    conditions: String.raw`MSE-LMS，或 Sign-LMS 且 $\sigma_v\gg$ 固定點處整個 deterministic residual；PD 誤差的 DC 沒被主 PLL 消除。共用 BBPD（type-II，$E[q]=0$）時改為 $a+\frac{\operatorname{Cov}(x,d+\varepsilon_{\mathrm{cc}})}{\operatorname{Var}(x)}$`,
+    claim: 'approx',
+    fromSpec: false,
+    errata: ['E01', 'E03', 'E12', 'E17'],
+    related: ['F-11.4', 'F-11.6', 'F-11.7'],
+    example: (r) =>
+      String.raw`只有 offset：$x\in\{${r.offsetBias.values.join(',')}\}$ 等機率（$E[x]=${texNum(r.offsetBias.ex)}$、$E[x^2]=${texNum(r.offsetBias.ex2)}$、$\operatorname{Var}(x)=${texNum(r.offsetBias.varX)}$）、$a=${r.offsetBias.a}$、$b=${r.offsetBias.b}$：靜態式 $w^*=${texNum(r.offsetBias.staticW, 5)}$（假的 gain bias）；共用 BBPD 時 $b$ 被吸收成固定相位，$w^*=${texNum(r.offsetBias.sharedW, 5)}$`,
+  },
+  {
+    key: 'inl',
+    group: 'C',
+    topic: '三階 INL 的最佳線性 gain',
+    tex: String.raw`w^*_{\mathrm{MSE}}=a+c_3\frac{E[x^4]}{E[x^2]}`,
+    conditions: String.raw`MSE-LMS 精確；Sign-LMS 隨 $\sigma_v$ 由 $|x|$ 加權中位數（$\sigma_v=0$）移向 MSE 解；必須寫出 code 分布`,
+    claim: 'exact',
+    fromSpec: false,
+    errata: ['E01', 'E11'],
+    related: ['F-11.8', 'F-11.9', 'F-11.10'],
+    example: (r) =>
+      String.raw`$x\in\{-2..2\}$、$a=1$、$c_3=0.1$：MSE $${texNum(r.bias.mse)}$；Sign $\sigma_v=0$：$${texNum(r.bias.sign0, 6)}$；$\sigma_v=1$：$${texNum(r.bias.sign1, 7)}$`,
+  },
+  {
+    key: 'whiteNoise',
+    group: 'C',
+    topic: '白 GMAC Noise',
+    tex: String.raw`\sigma_w^2=\frac{\mu^2\sigma_\eta^2}{1-p^2},\qquad \sigma_\eta^2=\frac{1-m_q^2}{N}\approx\frac1N`,
+    conditions: String.raw`iid block noise、$|p|<1$；T13 前提：unit-RMS code、identity path（$C=1$）、average mode、近平衡`,
+    claim: 'exact',
+    fromSpec: true,
+    spec: String.raw`$\sigma_w^2=\mu^2\sigma_\eta^2/(1-p^2)$（前提未寫齊）`,
+    errata: ['E30'],
+    related: ['F-12.5', 'F-12.6'],
+    example: (r) => String.raw`$\sigma_v=100\,\mathrm{fs}$、$N=4096$、$\mu=10\,\mathrm{fs}$：$\sigma_w=${texNum(r.loop.sigmaW, 6)}\,\mathrm{fs}$`,
+  },
+  {
+    key: 'bw',
+    group: 'C',
+    topic: '−3 dB 頻寬與 ENBW',
+    tex: String.raw`f_{3\mathrm{dB}}=\frac{f_u}{2\pi}\arccos\!\Big(1-\frac{(1-p)^2}{2p}\Big),\qquad \mathrm{ENBW}=\frac{f_u}{2}\cdot\frac{1-p}{1+p}`,
+    conditions: String.raw`$f_{3\mathrm{dB}}$ 只在 $3-2\sqrt2\le p<1$ 存在；$p<0$ 為 high-pass。白雜訊積分用 ENBW：$\sigma_w^2=S_w^{(1)}(0)\cdot\mathrm{ENBW}$。不可把 $f_{3\mathrm{dB}}$ 標成 Noise BW`,
+    claim: 'exact',
+    fromSpec: false,
+    errata: ['E06', 'E10', 'E26', 'E27'],
+    related: ['F-12.7', 'F-12.8', 'F-12.9'],
+    example: (r) =>
+      String.raw`T14：$f_{3\mathrm{dB}}=${texHz(r.loop.f3dbExact)}$、$\mathrm{ENBW}=${texHz(r.loop.enbw)}$；$(1-p)$ 近似 $${texHz(r.loop.f3dbOneMinusP)}$`,
+  },
+  {
+    key: 'psd',
+    group: 'C',
+    topic: 'PSD 正規化',
+    tex: String.raw`S^{(1)}(f)=\frac{2}{f_r}\,S\big(e^{j2\pi f/f_r}\big),\qquad \mathcal L(f)=10\log_{10}\frac{S^{(1)}_\phi(f)}{2}`,
+    conditions: String.raw`$S(e^{j\Omega})$ 為 DTFT 形式（$\sigma^2=\frac1{2\pi}\int S\,d\Omega$）；$f_r$ 是該序列的取樣率（block 量用 $f_u$、sample 量用 $f_s$）`,
+    claim: 'exact',
+    fromSpec: false,
+    errata: ['E28'],
+    related: ['F-12.10'],
+    example: (r) =>
+      String.raw`T13 的係數雜訊在 DC：DTFT 形式 $${texNum(r.psd.swDtftDc)}\,\mathrm{fs^2}$ $\Rightarrow S_w^{(1)}(0)=\frac{2}{f_u}\times${texNum(r.psd.swDtftDc)}=${texNum(r.psd.sw1Dc)}\,\mathrm{fs^2/Hz}$（兩個數字差 $${texNum(r.psd.dbErrBlock, 3)}\,\mathrm{dB}$）`,
+  },
+  {
+    key: 'dtc',
+    group: 'C',
+    topic: 'DTC Timing Error',
+    tex: String.raw`\delta t[n]=x[n]\,\delta w[n],\qquad \delta w[n]=\delta w_{\lfloor (n-n_c)/N\rfloor}`,
+    conditions: String.raw`線性化 DTC gain error、$\delta w=w-w^*$；ZOH + commit latency $n_c$。sample-rate PSD 要用 ZOH 版本 $S_w^{(f_s)}$`,
+    claim: 'exact',
+    fromSpec: true,
+    spec: String.raw`$\delta t[n]=x[n]\delta w[n]$（未定義 $\delta w[n]$）`,
+    errata: ['E09', 'E29', 'E33'],
+    related: ['F-12.11', 'F-12.14', 'F-12.13'],
+    example: (r) =>
+      String.raw`$N=4096$、$n_c=${r.units.exampleNc}$：$n=${r.units.exampleN}$ 的那一筆用的是 $\delta w_{${r.units.exampleKWithLatency}}$（沒有 latency 時是 $\delta w_{${r.units.exampleK}}$）。ZOH 後 DC 的 DTFT 形式放大 $N$ 倍，單邊 per-Hz 不變：$${texNum(r.psd.swZoh1Dc)}\,\mathrm{fs^2/Hz}$`,
+  },
+  {
+    key: 'output',
+    group: 'C',
+    topic: 'PLL Output Transfer',
+    tex: String.raw`\phi_{\mathrm{out}}(s)=-2\pi f_{\mathrm{out}}\,T(s)\,\delta t(s),\qquad S^{(1)}_{\phi,\mathrm{out}}=(2\pi f_{\mathrm{out}})^2|T|^2S^{(1)}_{\delta t}`,
+    conditions: String.raw`指定的 feedback injection 模型與極性；$H_{\mathrm{PD}}+T=1$`,
+    claim: 'approx',
+    fromSpec: true,
+    errata: [],
+    related: ['F-12.15', 'F-12.16', 'F-12.17'],
+    example: (r) =>
+      String.raw`示例（不是量測）：$f_{\mathrm{out}}=13\,\mathrm{GHz}$、$|T|=1$、$S^{(1)}_{\delta t}=${texNum(r.psd.exampleSt)}\,\mathrm{fs^2/Hz}\Rightarrow S^{(1)}_{\phi}=${texNum(r.psd.exampleSphi)}\,\mathrm{rad^2/Hz}\Rightarrow\mathcal L=${texNum(r.psd.exampleL, 5)}\,\mathrm{dBc/Hz}$`,
+  },
+  {
+    key: 'spur',
+    group: 'C',
+    topic: 'Spur Approx',
+    tex: String.raw`\text{spur}\approx20\log_{10}\frac{\beta}{2}=20\log_{10}\big(\pi f_{\mathrm{out}}|T|A_t\big)\ \mathrm{dBc}`,
+    conditions: String.raw`單 tone、$A_t$ 為 output timing tone 的 peak、小角調變；規格寫的是 $|T|=1$ 的特例`,
+    claim: 'approx',
+    fromSpec: true,
+    spec: String.raw`$20\log_{10}(\pi f_{out}A_t)$（$|T|=1$）`,
+    errata: [],
+    related: ['F-12.18'],
+    example: (r) => String.raw`$13\,\mathrm{GHz}$、$0.5\,\mathrm{fs}$：$${texNum(r.spur.dbc)}\,\mathrm{dBc}$（Bessel $${texNum(r.spur.dbcBessel)}$）`,
+  },
+  {
+    key: 'efb',
+    group: 'C',
+    topic: '常數目標的量化循環',
+    tex: String.raw`w_H=\frac{P}{q}\ (\text{最簡分數})\;\Rightarrow\;\text{一階 EFB 週期}=q,\qquad \sum_k\text{線功率}=\frac1q\sum_{n}e[n]^2`,
+    conditions: String.raw`一階 error-feedback ΔΣ 對常數有理輸入必然進入週期 $q$ 的 limit cycle（與初始 $r$ 無關）；常數目標時與週期 toggle 是同一個循環。定點 $F$ bits 時週期為 $2^F/\gcd$`,
+    claim: 'exact',
+    fromSpec: false,
+    errata: ['E15', 'E47', 'E49'],
+    related: ['F-13.7', 'F-13.8', 'F-13.4'],
+    example: (r) =>
+      String.raw`$32.4$：$f_u/5$ 功率 $${texNum(r.quant.f5Power)}$、$2f_u/5$ 功率 $${texNum(r.quant.f25Power)}\,\mathrm{LSB^2}$（高 $${texNum(r.quant.ratioDb)}\,\mathrm{dB}$）；總和 $${texNum(r.quant.total)}$ vs freeze $${texNum(r.quant.freezePower)}$（全在 DC）`,
+  },
+  {
+    key: 'corner',
+    group: 'C',
+    topic: 'Corner-based μ 區間',
+    tex: String.raw`\frac{1-\varepsilon^{1/B}}{K_{\min}}\le\mu\le\frac1{K_{\max}},\qquad \text{非空}\iff B\ge\frac{\ln\varepsilon}{\ln(1-K_{\min}/K_{\max})}`,
+    conditions: String.raw`$\varepsilon$ 是相對縮減比例 $0<\varepsilon<1$；理想一階、無延遲線性模型；只約束平均誤差，RMS 還要檢查雜訊項`,
+    claim: 'exact',
+    fromSpec: false,
+    errata: ['E16'],
+    related: ['F-14.15', 'F-14.16'],
+    example: (r) =>
+      String.raw`$K_{\min}=${r.corner.kMin}$、$K_{\max}=${r.corner.kMax}$、$B=${r.corner.B}$、$\varepsilon=${r.corner.eps}$：$\mu\in[${texNum(r.corner.muLo, 5)},\ ${texNum(r.corner.muHi, 5)}]\,\mathrm{fs}$`,
+  },
+  {
+    key: 'msdB',
+    group: 'C',
+    topic: 'B 次更新後的均方誤差',
+    tex: String.raw`E[\delta_B^2]=\delta_0^2p^{2B}+\mu^2\sigma_\eta^2\frac{1-p^{2B}}{1-p^2}\quad\big(p^2=1:\ \delta_0^2+B\mu^2\sigma_\eta^2\big)`,
+    conditions: String.raw`線性化 iid 模型下精確（任意 $\eta$ 分布）；1-bit Sign-LMS 只在 $|\delta_0|\lesssim0.2\sigma_v$ 時近似，$\delta_0\gtrsim0.5\sigma_v$ 時 comparator 飽和（slew-limited）`,
+    claim: 'exact',
+    fromSpec: false,
+    errata: ['E48'],
+    related: ['F-14.3', 'F-14.4', 'F-14.5'],
+    example: (r) =>
+      String.raw`T13 的 $\mu,p,\sigma_\eta^2$、$\delta_0=${r.msdB.delta0}\,\mathrm{fs}$：$B=${r.msdB.B[0]}\Rightarrow${texNum(r.msdB.msd[0])}\,\mathrm{fs^2}$；$B=${r.msdB.B[1]}\Rightarrow${texNum(r.msdB.msd[1])}\,\mathrm{fs^2}$（雜訊底 $\sigma_w^2=${texNum(r.msdB.floor)}\,\mathrm{fs^2}$）`,
+  },
+]

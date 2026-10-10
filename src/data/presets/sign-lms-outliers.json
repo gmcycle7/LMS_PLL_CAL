@@ -1,0 +1,39 @@
+{
+  "id": "sign-lms-outliers",
+  "title": "單邊 outlier：LMS 被拉走、Sign-Error 抗干擾",
+  "page": "/ch/02",
+  "experiment": "sign-lms-compare",
+  "description": "x ≡ 1、Gaussian σ = 0.3，另有 5% 機率 +20 的單邊突波（E[v] = 1）。Case B 改成 ±1 的 x（E[x] = 0）。",
+  "params": {
+    "a": 3,
+    "w0": 0,
+    "steps": 6000,
+    "runs": 32,
+    "algos": [
+      "lms",
+      "sign_error",
+      "huber"
+    ],
+    "deltaRef": "a",
+    "mu": 0.01,
+    "xKind": "const",
+    "xAmp": 1,
+    "noiseKind": "gaussian",
+    "sigma": 0.3,
+    "outlierProb": 0.05,
+    "outlierSize": 20,
+    "tie": "plus",
+    "schedule": "constant",
+    "n0": 500,
+    "stepMatch": "same-mu",
+    "huberDelta": 0.5,
+    "nlmsEps": 0.1,
+    "compare": [
+      {
+        "xKind": "bpsk"
+      }
+    ]
+  },
+  "expected": "Case A：LMS w* = 3 + p·s = 4.000、Sign-Error 3.020、Huber（δ = 0.5）3.029；Case B（E[x] = 0）：三者 w* 都回到 3，但 LMS 的抖動大很多。",
+  "source": "simulation"
+}

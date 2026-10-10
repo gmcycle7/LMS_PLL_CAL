@@ -1,0 +1,11 @@
+{
+  "id": "comparator-n42499-95pct",
+  "title": "N = 42,499：方向判斷 95%（T05 奇數精確門檻）",
+  "page": "/ch/05",
+  "experiment": "comparator-lab",
+  "description": "s = 1 fs、σ_v = 100 fs，取最小的奇數 N 使精確 P(S_N > 0) ≥ 95%。CLT 連續解為 42,497.29。",
+  "params": { "s": 1, "sigma": 100, "theta": 0, "N": 42499, "tieRule": "strict", "trials": 20000, "method": "auto", "axis": "sum" },
+  "expected": "精確 P(判對) = 0.95000（剛好跨過 95%）；N = 42,497 時未達；Monte Carlo 的 Wilson 95% 區間應涵蓋 0.95。",
+  "tests": ["T05"],
+  "source": "illustrative"
+}

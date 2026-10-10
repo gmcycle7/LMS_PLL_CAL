@@ -1,0 +1,10 @@
+{
+  "id": "intro-wrong-polarity",
+  "title": "入門（反面）：μ < 0 的極性錯誤與 x = 0 的不可辨識",
+  "page": "/ch/00",
+  "experiment": "intro-playground",
+  "description": "Case A μ = −0.05（往上坡走），Case B μ = 0.1 作為對照。再把 x 改成 0，觀察『不可辨識』警告。",
+  "params": { "a": 3, "w0": 1, "x": 2, "steps": 40, "sigmaV": 0, "mus": [-0.05, 0.1] },
+  "expected": "Case A：p = 1.2 > 1，|δ| 每步放大 1.2 倍並顯示 polarity 警告；Case B 正常收斂。",
+  "source": "illustrative"
+}

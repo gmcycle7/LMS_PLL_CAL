@@ -1,0 +1,28 @@
+{
+  "id": "mixing-dc-offset",
+  "title": "Code 有 DC（m = 0.5）：低頻直通 spur",
+  "page": "/ch/12",
+  "experiment": "code-mixing-lab",
+  "description": "x = 0.5 + cos(2π·100 kHz·t)：除了 90 / 110 kHz，還在 f_w = 10 kHz 出現 m·B = 0.5 fs 的 tone——落在 PLL 頻寬內，最容易到達 output。",
+  "params": {
+    "fsim": 4096000.0,
+    "L": 4096,
+    "fx": 100000.0,
+    "A": 1,
+    "m": 0.5,
+    "codeWhite": 0,
+    "fw": 10000.0,
+    "B": 1,
+    "holdN": 1,
+    "dwNoiseSigma": 0,
+    "dwNoiseP": 0.92,
+    "fOut": 13000000000.0,
+    "Tmag": 1,
+    "window": "rectangular"
+  },
+  "expected": "10 kHz：0.5 fs（−93.80 dBc）；90 / 110 kHz：各 0.5 fs。",
+  "tests": [
+    "T15"
+  ],
+  "source": "simulation"
+}

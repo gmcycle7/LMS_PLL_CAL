@@ -1,0 +1,18 @@
+{
+  "id": "gmac-datapath-sizing-half-up",
+  "title": "round half up",
+  "page": "/models",
+  "experiment": "gmac-datapath-sizing",
+  "description": "右移前先加 2^{ℓ−1}。",
+  "params": {
+    "bx": 6,
+    "log2N": 12,
+    "range": "symmetric",
+    "rounding": "half_up",
+    "gFracBits": 0,
+    "sigmaV": 100,
+    "mu": 10
+  },
+  "expected": "δ* ≈ 0（只剩恰好一半的微小偏差），無截斷警告。",
+  "source": "illustrative"
+}

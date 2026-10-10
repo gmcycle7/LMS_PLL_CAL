@@ -1,0 +1,11 @@
+{
+  "id": "dual-loop-zero-latency",
+  "title": "一般化：觀測沒有 latency（d_s ≠ 0）→ quasi-static 反而太保守",
+  "page": "/ch/08",
+  "experiment": "dual-loop",
+  "description": "s_k = r s_{k−1} + b δ_k、G_k = c s_k，寫成 A_s = 0.8、b_s = 0.2、c_s = 0.8、d_s = 0.2，F(z) = 0.2z/(z − 0.8)。F(1) 仍是 1，但完整範圍是 0 < μ < 18。",
+  "params": { "mode": "general", "A": [[0.8]], "b": [0.2], "c": [0.8], "d": 0.2, "mu": 5, "muScanMax": 25, "steps": 300 },
+  "expected": "μ = 5：quasi-static pole −4（預測發散），完整 ρ(A_comb) = √0.8 = 0.894（穩定）；完整穩定區間 (0, 18)。",
+  "tests": ["T09"],
+  "source": "illustrative"
+}

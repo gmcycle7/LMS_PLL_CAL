@@ -1,0 +1,237 @@
+/* Ch00 入門課專屬樣式（class 一律 ch00- 前綴） */
+
+.ch00-lead {
+  font-size: 1.05rem;
+  line-height: 1.75;
+}
+
+.ch00-question {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 12px 16px;
+  margin: 16px 0;
+}
+.ch00-question strong {
+  color: var(--accent);
+}
+
+.ch00-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 8px 0 12px;
+}
+
+.ch00-goals {
+  margin: 8px 0 0;
+  padding-left: 1.3em;
+}
+.ch00-goals li {
+  margin: 4px 0;
+}
+
+/* 黑盒子示意（純 CSS，不依賴圖檔） */
+.ch00-blackbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+  font-size: 1.05rem;
+}
+.ch00-blackbox-io {
+  padding: 6px 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.ch00-blackbox-box {
+  padding: 14px 22px;
+  border-radius: var(--radius);
+  background: var(--text);
+  color: var(--bg);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.ch00-blackbox-arrow {
+  color: var(--text-muted);
+  font-size: 1.3rem;
+}
+
+/* 數值表：數字靠右、等寬 */
+.ch00-num-table td.num,
+.ch00-num-table th.num {
+  text-align: right;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+.ch00-num-table tr.is-current td {
+  background: var(--accent-soft);
+}
+.ch00-num-table td.pos {
+  color: var(--ok);
+}
+.ch00-num-table td.neg {
+  color: var(--danger);
+}
+
+/* 勘誤標記 */
+.ch00-erratum {
+  display: block;
+  border: 1px solid var(--warn);
+  background: var(--warn-soft);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  margin: 10px 0;
+  font-size: 0.9rem;
+}
+.ch00-erratum-badge {
+  display: inline-block;
+  font-weight: 700;
+  font-size: 0.78rem;
+  color: var(--warn);
+  border: 1px solid var(--warn);
+  border-radius: 999px;
+  padding: 0 8px;
+  margin-right: 8px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.ch00-erratum-badge:hover {
+  text-decoration: underline;
+}
+.ch00-erratum-details summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.ch00-erratum-details p {
+  margin: 4px 0 0;
+}
+
+/* 試試看／你會發現 */
+.ch00-tryit {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: 10px 14px;
+  margin: 12px 0;
+}
+.ch00-tryit-title {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.ch00-tryit ul {
+  margin: 0;
+  padding-left: 1.2em;
+}
+.ch00-tryit li {
+  margin: 3px 0;
+}
+
+/* 「帶入手算」題前的邀請句 */
+.ch00-handcalc {
+  margin: 16px 0;
+}
+.ch00-handcalc-lead {
+  margin: 0 0 6px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+}
+.ch00-handcalc-lead strong {
+  color: var(--accent);
+}
+
+.ch00-observe {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border-left: 3px solid var(--ok);
+  background: var(--ok-soft);
+  padding: 8px 12px;
+  margin: 12px 0;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.ch00-observe-label {
+  font-weight: 700;
+  color: var(--ok);
+  white-space: nowrap;
+}
+
+/* 應用卡片 */
+.ch00-app-card h4 {
+  margin: 0 0 6px;
+}
+.ch00-app-card p {
+  margin: 6px 0;
+}
+
+/* 注意假設表：四欄都是句子，給每欄最小寬度，窄螢幕在 .table-wrap 內水平捲動 */
+.ch00-assume td,
+.ch00-assume th {
+  vertical-align: top;
+  min-width: 10em;
+}
+.ch00-assume td:last-child,
+.ch00-assume th:last-child {
+  min-width: 7em;
+}
+
+/* 學習地圖 */
+.ch00-map td:first-child {
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+.ch00-map .ch00-here {
+  font-weight: 700;
+  color: var(--ok);
+}
+
+.ch00-routes {
+  margin: 8px 0;
+  padding-left: 1.2em;
+}
+
+/* 單一實驗內的次要說明 */
+.ch00-plot-note {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 4px 0 12px;
+}
+
+/* Playground：目前這一步的更新公式（代入數字） */
+.ch00-live {
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  margin: 8px 0 12px;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* 學習地圖說明文字中的「本章」標記（表格外） */
+.ch00-here {
+  font-weight: 700;
+  color: var(--ok);
+}
+
+/* 句子中間的行內勘誤標記 */
+.ch00-erratum-inline {
+  margin: 0 2px;
+  vertical-align: baseline;
+}
+
+@media (max-width: 560px) {
+  .ch00-blackbox {
+    font-size: 0.95rem;
+  }
+  .ch00-observe {
+    flex-direction: column;
+    gap: 2px;
+  }
+}

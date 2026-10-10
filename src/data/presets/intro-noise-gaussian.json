@@ -1,0 +1,10 @@
+{
+  "id": "intro-noise-gaussian",
+  "title": "入門：雜訊平均 1/√N（Gaussian x、σ_v = 1）",
+  "page": "/ch/00",
+  "experiment": "intro-noise-average",
+  "description": "a = 3、w = 2（δ = 1）、x ~ N(0,1)、σ_v = 1；200 次試驗、N 最長 1024。",
+  "params": { "a": 3, "w": 2, "sigmaV": 1, "xKind": "gaussian", "trials": 200, "nMax": 1024, "seed": 20261010 },
+  "expected": "E[e·x] = 1；s₁ = √(2·1² + 1) = √3 ≈ 1.732；N = 1024 時 std ≈ 0.0541。",
+  "source": "simulation"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "intro-mu-explorer",
+  "title": "入門：μ = 0.02 / 0.10 / 0.65（慢 / 穩 / 發散）",
+  "page": "/ch/00",
+  "experiment": "intro-playground",
+  "description": "a = 3、w0 = 1、x = 2、無雜訊；Case A/B/C 三個學習率同圖比較。x = 2 時理論穩定區 0 < μ < 0.5。",
+  "params": { "a": 3, "w0": 1, "x": 2, "steps": 30, "sigmaV": 0, "mus": [0.02, 0.1, 0.65] },
+  "expected": "pole 分別為 0.92（單調、慢）、0.6（單調、約 10 步到 1%）、−1.6（震盪發散，第 58 步 |w| 超過 1e12）。",
+  "tests": ["T01", "T02"],
+  "source": "illustrative"
+}

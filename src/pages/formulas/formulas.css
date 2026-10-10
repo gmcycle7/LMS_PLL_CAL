@@ -1,0 +1,778 @@
+/*
+ * Formula & Unit Reference 頁（class 一律 fr- 前綴；顏色只用全站 token，深淺主題自動跟隨）。
+ * 手機（375 px）：頁面本身不水平捲動——寬表格在 ≤ 640 px 改成「一列一張卡片」（td 前顯示 data-label），
+ * 公式（.c-texblock-math、.katex-display）與程式碼各自在自己的容器內捲動。
+ */
+
+.fr {
+  min-width: 0;
+  /* 最後一道防線：萬一有內容比視窗寬，也不讓整頁出現水平捲軸（clip 不會建立捲動容器，黏在上方的搜尋列仍然有效） */
+  overflow-x: clip;
+}
+/*
+ * 無法換行的長行內公式：讓它在所屬的小卡片內水平捲動，而不是撐寬整頁。
+ * 只套用在「裡面沒有 hover tooltip（.c-has-tip）」的區塊：overflow-x: auto 會連帶讓 overflow-y 變成 auto，
+ * 區塊底部的 tooltip 會被裁掉或冒出捲軸，所以 .fr-topic、.callout 等不套用。
+ */
+.fr-limit,
+.fr-gloss-item,
+.fr-collapsible-body {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.fr p,
+.fr li,
+.fr dd,
+.fr td {
+  overflow-wrap: anywhere;
+}
+.fr .nowrap {
+  overflow-wrap: normal;
+}
+
+/* ───────────── 搜尋列（黏在 topbar 下方） ───────────── */
+.fr-search {
+  position: sticky;
+  top: var(--topbar-h, 52px);
+  z-index: 5;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0 8px;
+  margin-bottom: 14px;
+}
+.fr-search-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.fr-search-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  flex: 0 0 auto;
+}
+.fr .fr-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: inherit;
+  font-size: 1rem; /* ≥ 16 px：iOS 聚焦時不會自動放大頁面 */
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+}
+.fr .fr-search-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.fr-search-clear {
+  flex: 0 0 auto;
+}
+.fr-search-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  margin-top: 6px;
+}
+.fr-search-status {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.fr-toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.fr-toc-btn,
+.fr-chip {
+  font: inherit;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  padding: 1px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.fr-chip {
+  white-space: normal;
+  text-align: left;
+}
+.fr-toc-btn:hover:not(:disabled),
+.fr-chip:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.fr-toc-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.fr-toc-btn.is-empty {
+  color: var(--text-faint);
+  border-style: dashed;
+}
+.fr-toc-count {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.fr-toc-btn.is-empty .fr-toc-count {
+  background: transparent;
+  color: var(--text-faint);
+}
+.fr-examples,
+.fr-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin-top: 6px;
+}
+.fr-examples {
+  margin: -6px 0 14px;
+}
+.fr-chip-row {
+  margin-top: 0;
+}
+
+/* ───────────── 頁首 ───────────── */
+.fr-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  margin: 10px 0 14px;
+}
+.fr-stats > span {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 3px 10px;
+  font-size: 0.88rem;
+}
+.fr-stats strong {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.fr-compact {
+  margin: 0.3em 0;
+  padding-left: 1.3em;
+}
+.fr-compact li {
+  margin: 0.25em 0;
+}
+
+/* ───────────── 段落共用 ───────────── */
+.fr-section-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 8px 0;
+}
+.fr-count {
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.fr-count-zero {
+  color: var(--danger);
+}
+.fr-nomatch {
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  margin: 8px 0 16px;
+}
+.fr-sub {
+  margin: 1.4em 0 0.5em;
+  font-size: 1.02rem;
+}
+.fr-tag-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  vertical-align: middle;
+}
+.fr-tag-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.fr-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.fr-badge-added {
+  color: var(--info);
+  background: var(--info-soft);
+  border: 1px solid var(--info);
+}
+.fr-none {
+  color: var(--danger);
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+.fr-missing {
+  color: var(--danger);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
+/* ───────────── 勘誤、頁面、公式連結 ───────────── */
+.fr-erratum {
+  display: inline-block;
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1.55;
+  padding: 0 7px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--warn);
+  color: var(--warn);
+  background: var(--warn-soft);
+  white-space: nowrap;
+  text-decoration: none;
+}
+.fr-erratum.fr-sev-high {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+.fr-erratum.fr-sev-low {
+  border-color: var(--border-strong);
+  color: var(--text-muted);
+  background: var(--surface-2);
+}
+.fr-erratum:hover {
+  filter: brightness(0.96);
+  text-decoration: underline;
+}
+.fr-page-link,
+.fr-formula-link {
+  display: inline-block;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  padding: 0 7px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  white-space: nowrap;
+  text-decoration: none;
+}
+.fr-formula-link {
+  font-family: var(--font-mono);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.fr-page-link:hover,
+.fr-formula-link:hover {
+  border-color: var(--accent);
+  text-decoration: underline;
+}
+
+/* ───────────── 表格 ───────────── */
+.fr-table {
+  font-size: 0.9rem;
+  margin: 0.5em 0;
+}
+.fr-table th {
+  white-space: nowrap;
+}
+.fr-table td > .c-texblock {
+  margin: 2px 0;
+}
+.fr-table .c-texblock-math .katex-display {
+  margin: 0.25em 0;
+  text-align: left;
+}
+.fr-table .c-texblock-math .katex-display > .katex {
+  text-align: left;
+}
+.fr-group-row th {
+  background: var(--accent-soft);
+  color: var(--text);
+  text-align: left;
+  font-size: 0.88rem;
+  white-space: normal;
+}
+.fr-sym-cell {
+  white-space: nowrap;
+}
+.fr-sym-table td:nth-child(2),
+.fr-sym-table td:nth-child(4) {
+  min-width: 14em;
+}
+.fr-example {
+  font-size: 0.86rem;
+  min-width: 12em;
+}
+.fr-spec-orig {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+td.fr-spec-orig {
+  min-width: 9em;
+}
+.fr-quick-table td:nth-child(2) {
+  min-width: 17em;
+}
+.fr-quick-table td:nth-child(3) {
+  min-width: 13em;
+}
+.fr-quick-topic {
+  min-width: 7em;
+}
+.fr-coll-list {
+  margin: 0;
+  padding-left: 1.1em;
+}
+.fr-coll-list li {
+  margin: 0.15em 0;
+}
+.fr-focus > td,
+tr.fr-focus > td {
+  background: var(--accent-soft);
+}
+tr.fr-focus > td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.fr-cov-missing > td {
+  background: var(--danger-soft);
+}
+.fr-case-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 2px;
+}
+.fr-chain-table td:nth-child(2) {
+  white-space: nowrap;
+}
+
+/* ───────────── 公式登錄 ───────────── */
+.fr-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 14px;
+  margin: 10px 0 6px;
+}
+.fr-filters > * {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.fr-reg-summary {
+  margin: 4px 0 8px;
+}
+.fr-reg-formula {
+  min-width: 18em;
+}
+.fr-reg-cond {
+  min-width: 12em;
+  font-size: 0.86rem;
+}
+.fr-f-title {
+  font-weight: 600;
+}
+.fr-tex-src {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.74rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.fr-units {
+  margin-top: 4px;
+}
+.fr-more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+/* ───────────── 附錄 B ───────────── */
+.fr-limits {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.fr-limit.card {
+  margin: 10px 0;
+  padding: 12px 14px;
+}
+.fr-limit p {
+  margin: 0.4em 0;
+}
+.fr-limit-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+.fr-limit-no {
+  flex: 0 0 auto;
+  min-width: 2.1em;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-3);
+}
+.fr-why {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.fr-limit-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin-top: 6px;
+}
+
+/* ───────────── 術語表 ───────────── */
+.fr-gloss {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
+  margin: 0;
+}
+.fr-gloss-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  min-width: 0;
+}
+.fr-gloss dt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  font-weight: 600;
+}
+.fr-gloss dd {
+  margin: 4px 0 0;
+  font-size: 0.92rem;
+}
+.fr-abbr {
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 4px;
+  padding: 0 6px;
+}
+.fr-en {
+  font-weight: 400;
+  font-size: 0.86rem;
+  color: var(--text-muted);
+}
+.fr-gloss-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+/* ───────────── 單位子題 ───────────── */
+.fr-topic {
+  border-top: 1px solid var(--border);
+  margin-top: 22px;
+  padding-top: 6px;
+  min-width: 0;
+}
+.fr-topic-title {
+  margin: 0.6em 0 0.4em;
+  font-size: 1.12rem;
+}
+.fr-topic-no {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 4px;
+  padding: 0 6px;
+  margin-right: 2px;
+  vertical-align: 0.08em;
+}
+.fr-topic-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin-top: 12px;
+}
+.fr-prereq-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 14px;
+  align-items: start;
+}
+.fr-collapsible {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  margin: 12px 0;
+  min-width: 0;
+}
+.fr-collapsible > summary {
+  cursor: pointer;
+  padding: 7px 12px;
+  font-weight: 600;
+  font-size: 0.94rem;
+}
+.fr-collapsible[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+.fr-collapsible-body {
+  padding: 6px 12px 10px;
+  min-width: 0;
+}
+.fr-mc-hint {
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+}
+
+/* ───────────── 時間軸示意圖（SVG） ───────────── */
+.fr-figure {
+  margin: 12px 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.fr-timeline {
+  display: block;
+  width: 100%;
+  min-width: 560px;
+  max-width: 760px;
+  height: auto;
+}
+.fr-tl-label {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--text);
+}
+.fr-tl-text {
+  font-size: 11px;
+  fill: var(--text);
+}
+.fr-tl-small {
+  font-size: 10px;
+  fill: var(--text-muted);
+}
+.fr-tl-axis {
+  stroke: var(--border-strong);
+  stroke-width: 1.2;
+}
+.fr-tl-tick {
+  stroke: var(--text-faint);
+  stroke-width: 1;
+}
+.fr-tl-tick-major {
+  stroke: var(--text);
+  stroke-width: 1.6;
+}
+.fr-tl-block {
+  fill: var(--surface-2);
+  stroke: var(--border-strong);
+  stroke-width: 1;
+}
+.fr-tl-block-on {
+  fill: var(--accent-soft);
+  stroke: var(--accent);
+}
+.fr-tl-w {
+  stroke: var(--series-2);
+  stroke-width: 2;
+  fill: none;
+}
+.fr-tl-guide {
+  stroke: var(--text-faint);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.fr-tl-dim {
+  stroke: var(--series-4);
+  stroke-width: 2;
+}
+
+/* ───────────── 卡片式表格：公式登錄的「卡片檢視」與窄螢幕 ───────────── */
+.fr-cards .fr-table,
+.fr-cards .fr-table tbody,
+.fr-cards .fr-table tr,
+.fr-cards .fr-table td,
+.fr-cards .fr-table th {
+  display: block;
+  width: auto;
+  min-width: 0;
+}
+.fr-cards .fr-table thead {
+  display: none;
+}
+.fr-cards .fr-table tr {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  margin: 8px 0;
+  padding: 6px 10px;
+}
+.fr-cards .fr-table tr.fr-group-row {
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 14px 0 4px;
+}
+.fr-cards .fr-table tr.fr-group-row th {
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+}
+.fr-cards .fr-table td {
+  border: none;
+  padding: 3px 0;
+  background: none;
+  box-shadow: none;
+}
+.fr-cards .fr-table td[data-label]::before {
+  content: attr(data-label);
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+.fr-cards .fr-table tr.fr-focus {
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+@media (max-width: 760px) {
+  .fr-gloss,
+  .fr-prereq-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .fr-search {
+    padding-top: 8px;
+  }
+  .fr-search-label {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  /* 與 .fr-cards 相同的卡片排版，套用到本頁所有 fr-table */
+  .fr .fr-table,
+  .fr .fr-table tbody,
+  .fr .fr-table tr,
+  .fr .fr-table td,
+  .fr .fr-table th {
+    display: block;
+    width: auto;
+    min-width: 0;
+  }
+  .fr .fr-table thead {
+    display: none;
+  }
+  .fr .fr-table tr {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    margin: 8px 0;
+    padding: 6px 10px;
+  }
+  .fr .fr-table tr.fr-group-row {
+    border: none;
+    background: none;
+    padding: 0;
+    margin: 14px 0 4px;
+  }
+  .fr .fr-table tr.fr-group-row th {
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 4px 10px;
+  }
+  .fr .fr-table td {
+    border: none;
+    padding: 3px 0;
+    background: none;
+    box-shadow: none;
+    white-space: normal;
+  }
+  .fr .fr-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+  }
+  .fr .fr-table tr.fr-focus {
+    border-color: var(--accent);
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+  .fr-toc {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    max-width: 100%;
+    padding-bottom: 2px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .fr-toc-btn {
+    font-size: 0.76rem;
+    padding: 1px 7px;
+    flex: 0 0 auto;
+  }
+  .fr-search-status {
+    flex-basis: 100%;
+    font-size: 0.76rem;
+  }
+  /* 沒在搜尋時把說明文字收起來，黏在上方的列只留輸入框與目錄 */
+  .fr[data-searching='false'] .fr-search-status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@media print {
+  .fr-search {
+    position: static;
+  }
+  .fr-examples,
+  .fr-toc {
+    display: none;
+  }
+}

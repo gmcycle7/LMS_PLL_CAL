@@ -1,0 +1,19 @@
+{
+  "id": "sign-lms-band-stall",
+  "title": "步長衰減太快：停在半路（stall）",
+  "page": "/ch/02",
+  "experiment": "sign-lms-band",
+  "description": "μ₀ = 0.01、n₀ = 10：Σμ_n|x| 只隨 ln N 成長。",
+  "params": {
+    "a": 3,
+    "x": 1,
+    "w0": 0,
+    "mu": 0.01,
+    "steps": 2000,
+    "tie": "plus",
+    "schedule": "harmonic",
+    "n0": 10
+  },
+  "expected": "前 2000 步最多只能移動 ≈ 0.535 < |a − w₀| = 3：走不到 a（警告會說明原因與需要的步數）。",
+  "source": "illustrative"
+}

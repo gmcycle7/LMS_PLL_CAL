@@ -1,0 +1,19 @@
+{
+  "id": "fft-spur-pitfalls-noncoherent-rect",
+  "title": "非相干 + 矩形窗（最容易騙人）",
+  "page": "/models",
+  "experiment": "fft-spur-pitfalls",
+  "description": "載波落在兩個 bin 正中間（δ = ½），矩形窗。",
+  "params": {
+    "log2N": 12,
+    "offsetBins": 0.5,
+    "spurOffsetBins": 40,
+    "spurDbc": -80,
+    "noiseDbc": -60,
+    "window": "rectangular",
+    "welchLog2Seg": 9,
+    "seed": 20261010
+  },
+  "expected": "載波讀值少 3.92 dB（scalloping）；只有載波時 spur 位置的洩漏約 −41.6 dBc，遠高於真實 −80 dBc，FFT 讀到約 −38 dBc（錯約 40 dB），並發出「載波洩漏遮蔽 spur」警告；coherent tone fit 仍在 3σ 內。",
+  "source": "illustrative"
+}

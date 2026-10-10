@@ -1,0 +1,10 @@
+{
+  "id": "intro-noise-pm-one",
+  "title": "入門：±1 碼時只剩量測雜訊（s₁ = σ_v）",
+  "page": "/ch/00",
+  "experiment": "intro-noise-average",
+  "description": "同上但 x = ±1：x² ≡ 1，單筆 e·x 的變異數只剩 σ_v²E[x²]。",
+  "params": { "a": 3, "w": 2, "sigmaV": 1, "xKind": "pm_one", "trials": 200, "nMax": 1024, "seed": 20261010 },
+  "expected": "s₁ = σ_v = 1；N = 1024 時 std ≈ 0.03125。",
+  "source": "simulation"
+}

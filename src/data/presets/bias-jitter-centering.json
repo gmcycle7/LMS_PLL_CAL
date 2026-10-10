@@ -1,0 +1,26 @@
+{
+  "id": "bias-jitter-centering",
+  "title": "Code-dependent jitter：centering 失效（0.9601）",
+  "page": "/ch/11",
+  "experiment": "bias-inl-lab",
+  "description": "x 已置中（5-level），b = 0.2，σ_v(x) = √(1 + 0.25(x + 2)²)（Research 模式可調 ρ_j、x_j）。",
+  "params": {
+    "a": 1,
+    "w0": 1,
+    "b": 0.2,
+    "c2": 0,
+    "c3": 0,
+    "kappa": 0,
+    "codeKind": "five_level",
+    "codeShift": 0,
+    "dsmKind": "first_order",
+    "dsmFrac": 0.3,
+    "algorithm": "sign",
+    "sigmaV": 1,
+    "dcMode": "none",
+    "jitterSlope": 0.25,
+    "jitterRef": -2
+  },
+  "expected": "Sign-LMS w* = 0.9601（1/σ_v(x) 加權，mean-field 0.96007）；σ_v 常數時為 1.0000；切到 MSE-LMS 為 1.0000。加 c₃ = 0.1 時 1.3008（σ_v 常數時 1.3403）。（勘誤 E17）",
+  "source": "illustrative"
+}

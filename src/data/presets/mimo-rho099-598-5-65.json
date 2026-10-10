@@ -1,0 +1,55 @@
+{
+  "id": "mimo-rho099-598-5-65",
+  "title": "ρ = 0.99：一般 LMS / 完整反矩陣 / regularized = 598 / 5 / 65 blocks",
+  "page": "/ch/10",
+  "experiment": "mimo-lms",
+  "description": "R = [[1, .99], [.99, 1]]、σ_v = 100 fs（K_q = 0.00797885 fs⁻¹）、N = 4096、δ₀ = (30, 0) fs。Case A：μK_q = 0.5（實體 μ = 62.67 fs）；Case B：M = 0.5(K_qR)⁻¹；Case C：M = 0.5(K_q(R + 0.1I))⁻¹（R 形式 λ_reg，勘誤 E22）。",
+  "params": {
+    "P": 2,
+    "mode": "R",
+    "R": [
+      [
+        1,
+        0.99
+      ],
+      [
+        0.99,
+        1
+      ]
+    ],
+    "sigmaV": 100,
+    "N": 4096,
+    "dist": "gaussian",
+    "delta0": [
+      30,
+      0
+    ],
+    "blocks": 700,
+    "engine": "linear",
+    "jhatSource": "exact",
+    "showAllRules": true,
+    "cases": [
+      {
+        "rule": "scalar",
+        "muKq": 0.5
+      },
+      {
+        "rule": "full",
+        "gamma": 0.5
+      },
+      {
+        "rule": "regularized",
+        "regForm": "R",
+        "gamma": 0.5,
+        "lambdaReg": 0.1
+      }
+    ],
+    "seed": 20261010
+  },
+  "expected": "慢 pole 0.995 / 0.5 / 0.954545 ⇒ 95% 衰減 598 / 5 / 65 blocks（勘誤 E05：K_q 已包含在 μK_q 與 M 內）；穩態每參數 RMS 約 1.198 / 8.015 / 2.182 fs（Lyapunov）。",
+  "tests": [
+    "T10",
+    "T11"
+  ],
+  "source": "illustrative"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "pm-d1-critical",
+  "title": "d = 1、g = 1：臨界（根在 e^{±jπ/3}）",
+  "page": "/ch/08",
+  "experiment": "pm-lab",
+  "description": "一個 block 的更新延遲把臨界增益從 2 降到 1；g = 1 時兩個根正好在單位圓上，誤差以 6 個 block 的週期持續振盪。",
+  "params": { "g": 1, "d": 1, "steps": 60 },
+  "expected": "ρ = 1（marginal，不可視為穩定）；PM_1 = 0°；根角度 π/3；g* (d=1) = 1。",
+  "tests": ["T08"],
+  "source": "illustrative"
+}

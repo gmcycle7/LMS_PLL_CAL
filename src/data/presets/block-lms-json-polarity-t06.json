@@ -1,0 +1,60 @@
+{
+  "id": "block-lms-json-polarity-t06",
+  "title": "T06：φ = 120° 的 error path ⇒ C < 0",
+  "page": "/models",
+  "experiment": "block-lms-json",
+  "description": "單頻 code x = cos(πn/6)（A = 1，不正規化），path 在 Ω = π/6 有 |H| = 1、φ = 120°，GMAC 用 raw x。",
+  "params": {
+    "config": {
+      "model": "sign_error_block_lms",
+      "seed": 20261010,
+      "units": {
+        "time": "fs",
+        "frequency": "Hz"
+      },
+      "sample_rate_hz": 4000000000,
+      "output_frequency_hz": 13000000000,
+      "gm_accum_samples": 4096,
+      "gain_initial": 0,
+      "gain_true": 3,
+      "gain_step": 10,
+      "code_normalization": "none",
+      "gm_mode": "average",
+      "pd_noise_rms_fs": 100,
+      "comparator_offset_fs": 0,
+      "comparator_encoding": "bipolar_pm_one",
+      "gm_code_delay_samples": 0,
+      "cal_update_delay_blocks": 0,
+      "pll_error_path": {
+        "kind": "single_tone",
+        "parameters": {
+          "magnitude": 1,
+          "phase_deg": 120,
+          "omega": 0.5235987755982988
+        }
+      },
+      "seeded_pattern": {
+        "kind": "sinusoid",
+        "parameters": {
+          "amplitude": 1,
+          "omega": 0.5235987755982988,
+          "phase_deg": 0,
+          "random_phase": false
+        }
+      },
+      "gain_register": {
+        "internal_bits": 20,
+        "physical_bits": 6,
+        "rounding": "nearest",
+        "overflow": "saturate"
+      },
+      "mode": "exploratory",
+      "num_blocks": 300
+    }
+  },
+  "expected": "C = (A²/2)|H|cos120° = −0.25，pole = 1 + μK_q·0.25 = 1.01995（T06）；發出「C ≤ 0：更新極性錯誤」警告；w 單調遠離 a = 3 fs（300 blocks 後遠低於 −100 fs）。",
+  "source": "simulation",
+  "tests": [
+    "T06"
+  ]
+}

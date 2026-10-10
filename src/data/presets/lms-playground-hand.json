@@ -1,0 +1,23 @@
+{
+  "id": "lms-playground-hand",
+  "title": "手算 LMS：w₀=1, a=3, x=2, μ=0.1",
+  "galleryIndex": 1,
+  "page": "/ch/01",
+  "experiment": "lms-playground",
+  "description": "規格 §1.2 的手算例：固定 x=2、無雜訊，從手算理解 LMS 的「預測 → 比較 → 修正」。",
+  "params": {
+    "a": 3,
+    "w0": 1,
+    "x": 2,
+    "mu": 0.1,
+    "steps": 20,
+    "noiseSigma": 0,
+    "seed": 20261010
+  },
+  "expected": "w₁ = 1.8、w₂ = 2.28（精確 57/25）；pole p = 1 − μx² = 0.6，單調收斂到 3；δ = a − w 為 +2, +1.2, +0.72。",
+  "tests": [
+    "T01",
+    "T02"
+  ],
+  "source": "illustrative"
+}

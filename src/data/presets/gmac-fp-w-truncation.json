@@ -1,0 +1,70 @@
+{
+  "id": "gmac-fp-w-truncation",
+  "title": "第二個截斷點：μ·G 取整到 W 的 LSB",
+  "page": "/ch/04",
+  "experiment": "gmac-fixed-point",
+  "description": "÷N 的右移用 half-even（F_G = 4，沒有偏差），只看「×μ 之後加進 W」這一步。A：W 為浮點；B：Δ_W = 0.15625 fs（= 8·μΔ_G，等於再右移 3 bits）用 floor；C：同樣的 Δ_W 用 half-even。",
+  "params": {
+    "bx": 6,
+    "log2N": 10,
+    "codeRange": "symmetric",
+    "codeKind": "uniform",
+    "dsmFrac": 0.3,
+    "scenario": "random",
+    "deltaOverSigma": 3,
+    "ellB": 3,
+    "ditherRatio": 1,
+    "aTrue": 3,
+    "aStepBlock": -1,
+    "aStepValue": 3,
+    "w0": 0,
+    "mu": 10,
+    "sigmaV": 100,
+    "physMin": -16,
+    "physMax": 16,
+    "regMin": -32,
+    "regMax": 32,
+    "numBlocks": 2000,
+    "seed": 20261010,
+    "cases": [
+      {
+        "accBits": 16,
+        "negate": "extend",
+        "accOverflow": "wrap",
+        "gmMode": "average",
+        "gFracBits": 4,
+        "rounding": "half_even",
+        "antiWindup": true,
+        "regOverflow": "saturate",
+        "wLsb": 0,
+        "wRounding": "half_even"
+      },
+      {
+        "accBits": 16,
+        "negate": "extend",
+        "accOverflow": "wrap",
+        "gmMode": "average",
+        "gFracBits": 4,
+        "rounding": "half_even",
+        "antiWindup": true,
+        "regOverflow": "saturate",
+        "wLsb": 0.15625,
+        "wRounding": "floor"
+      },
+      {
+        "accBits": 16,
+        "negate": "extend",
+        "accOverflow": "wrap",
+        "gmMode": "average",
+        "gFracBits": 4,
+        "rounding": "half_even",
+        "antiWindup": true,
+        "regOverflow": "saturate",
+        "wLsb": 0.15625,
+        "wRounding": "half_even"
+      }
+    ]
+  },
+  "expected": "A（W 浮點）：定點 − 浮點 ≈ 0；B（floor）：≈ −2.58 ± 0.07 fs，F-04.18 預測 −2.653 fs（= −(1 − 1/8)·Δ_W/(2g)，g = 0.02577）；C（half-even）：≈ 0。把 μ 改成 5 fs（g 減半）時 B 的預測變成 −5.685 fs——偏差加倍。多 seed 平均（gmac.test.ts）：−2.68 ± 0.02 與 −5.66 ± 0.05 fs。",
+  "source": "simulation"
+}

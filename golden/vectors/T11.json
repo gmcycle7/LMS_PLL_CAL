@@ -1,0 +1,41 @@
+{
+  "id": "T11",
+  "description_zh": "μ = 0.5、λ_min = 0.01 ⇒ 慢 Pole 0.995、95% 衰減約 598 blocks",
+  "spec_section": "§9、§10.1",
+  "inputs": {
+    "mu": 0.5,
+    "lambda_min": 0.01,
+    "lambda_max": 1.99,
+    "decay_fraction": 0.05
+  },
+  "expected": {
+    "slow_pole": 0.995,
+    "fast_pole": 0.0050000000000000044,
+    "blocks_95": 598,
+    "blocks_95_real": 597.6473372217686,
+    "preconditioned_pole": 0.5,
+    "preconditioned_blocks_95": 5,
+    "preconditioner_M": [
+      [
+        25.12562814070348,
+        -24.874371859296446
+      ],
+      [
+        -24.874371859296446,
+        25.12562814070348
+      ]
+    ]
+  },
+  "tolerance": {
+    "abs": 1e-09
+  },
+  "tolerance_overrides": {
+    "blocks_95": {
+      "abs": 0
+    },
+    "preconditioned_blocks_95": {
+      "abs": 0
+    }
+  },
+  "notes": "blocks_95 = ceil(log 0.05 / log 0.995)（整數，需完全相等）。preconditioner_M = 0.5·R⁻¹，元素約 ±25（規格「反矩陣元素約 ±25」指的是 M；R⁻¹ 本身約 ±50）。"
+}

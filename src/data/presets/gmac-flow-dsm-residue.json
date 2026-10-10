@@ -1,0 +1,28 @@
+{
+  "id": "gmac-flow-dsm-residue",
+  "title": "DSM residue 當 code（正確的 ±1 映射）",
+  "page": "/ch/04",
+  "experiment": "gmac-signal-flow",
+  "description": "一階 DSM residue（frac 0.3）、不正規化：code 一律 ≤ 0、平均約 −0.45。q = 2b − 1 時仍收斂到 a。",
+  "params": {
+    "N": 32,
+    "numBlocks": 64,
+    "sigmaV": 20,
+    "aTrue": 30,
+    "w0": 0,
+    "pattern": "dsm_first_order",
+    "normalization": "none",
+    "path": "identity",
+    "hpPole": 0.5,
+    "encoding": "bipolar_pm_one",
+    "seed": 20261010,
+    "cases": [
+      {
+        "gmMode": "average",
+        "mu": 10
+      }
+    ]
+  },
+  "expected": "E[x] ≈ −0.45、E[x²] ≈ 0.285 ⇒ K 較小，g ≈ 0.114；w 收斂到 a = 30 fs 附近（後半段平均約 29.7 fs）。",
+  "source": "simulation"
+}

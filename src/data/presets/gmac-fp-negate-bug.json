@@ -1,0 +1,54 @@
+{
+  "id": "gmac-fp-negate-bug",
+  "title": "條件取負的最負 code 陷阱",
+  "page": "/ch/04",
+  "experiment": "gmac-fixed-point",
+  "description": "code 用完整範圍（含 −32）。A：先延伸到 B_x + 1 bits 再取負；B：在 6 bits 內取負。面板 A 選「一直是最負 code」。",
+  "params": {
+    "bx": 6,
+    "log2N": 10,
+    "codeRange": "full",
+    "codeKind": "uniform",
+    "dsmFrac": 0.3,
+    "scenario": "min_code",
+    "deltaOverSigma": 3,
+    "ellB": 4,
+    "ditherRatio": 1,
+    "aTrue": 3,
+    "aStepBlock": -1,
+    "aStepValue": 3,
+    "w0": 0,
+    "mu": 10,
+    "sigmaV": 100,
+    "physMin": -16,
+    "physMax": 16,
+    "regMin": -32,
+    "regMax": 32,
+    "numBlocks": 1500,
+    "seed": 20261010,
+    "cases": [
+      {
+        "accBits": 17,
+        "negate": "extend",
+        "accOverflow": "wrap",
+        "gmMode": "average",
+        "gFracBits": 4,
+        "rounding": "half_even",
+        "antiWindup": true,
+        "regOverflow": "saturate"
+      },
+      {
+        "accBits": 17,
+        "negate": "inplace",
+        "accOverflow": "wrap",
+        "gmMode": "average",
+        "gFracBits": 4,
+        "rounding": "half_even",
+        "antiWindup": true,
+        "regOverflow": "saturate"
+      }
+    ]
+  },
+  "expected": "面板 A：B 的總和變號（−32 取負仍是 −32）。面板 C：只有 1/64 的 sample 是 −32，但 B 的 w 仍偏約 −6.1 fs（F-04.15 的自洽預測 −6.16 fs；近似 −p_min/K = −5.87 fs），A 的定點 − 浮點 ≈ 0。",
+  "source": "simulation"
+}

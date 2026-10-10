@@ -1,0 +1,20 @@
+{
+  "id": "polarity-fcw-delay1",
+  "title": "近整數 FCW 掃描（D = 1）：regressor 落後一個 sample 就變號",
+  "page": "/ch/06",
+  "experiment": "polarity-fcw-sweep",
+  "description": "同上一個 preset，但 GMAC code delay D = 1（regressor 比 PD 誤差晚一個 sample）。",
+  "params": {
+    "loopType": "typeII",
+    "zeta": 0.7,
+    "bwRatio": 0.01,
+    "loopDelay": 0,
+    "delay": 1,
+    "fracMin": 0.0003,
+    "fracMax": 0.45,
+    "points": 32
+  },
+  "expected": "一階 DSM residue 在 frac < frac* = K_i·D = 9.40e−4 時 C_1 < 0（frac = 3e−4：C_1/σ² = −0.00245，模擬 = 精確理論 = −12·frac·D + 12·frac²/K_i，F-06.18）；frac 超過約 0.2 之後再次變負（x[n−1] 與 x[n] 反相關），最低 −0.51；MASH 1-1-1 最低 −0.70；三角波最低 −0.96。",
+  "tests": [],
+  "source": "simulation"
+}

@@ -1,0 +1,26 @@
+{
+  "id": "bias-offset-linear-pd",
+  "title": "Comparator offset：線性 PD 鎖定 + 獨立 comparator",
+  "page": "/ch/11",
+  "experiment": "bias-inl-lab",
+  "description": "主迴路由線性 PD/TDC 鎖定（E[e_PD] = 0），另一個帶 offset b 的 comparator 觀察 e_PD。",
+  "params": {
+    "a": 1,
+    "w0": 1,
+    "b": 0.5,
+    "c2": 0,
+    "c3": 0,
+    "kappa": 0,
+    "codeKind": "unipolar4",
+    "codeShift": 0,
+    "dsmKind": "first_order",
+    "dsmFrac": 0.3,
+    "algorithm": "sign",
+    "sigmaV": 1,
+    "dcMode": "linear_pd",
+    "jitterSlope": 0,
+    "jitterRef": -2
+  },
+  "expected": "一階 w* = a + (bE[x] + Cov)/Var(x) = 1 + 0.5·1.5/1.25 = 1.6；mean-field 1.5897 —— 比靜態式（1.214）更大。（勘誤 E03 情境 C）",
+  "source": "illustrative"
+}

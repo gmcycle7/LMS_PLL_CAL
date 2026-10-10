@@ -1,0 +1,43 @@
+{
+  "id": "sign-lms-skewed",
+  "title": "偏斜雜訊：E[ex]=0 與 E[sign(e)x]=0 的固定點不同",
+  "page": "/ch/02",
+  "experiment": "sign-lms-compare",
+  "description": "x ≡ 1（估計直流量）、v = σ(Exp − 1)（平均 0、中位數 σ(ln2 − 1)）。Case B 改成 x ~ U[0.5, 1.5]，Case C 改成 ±1（對稱 x）。",
+  "params": {
+    "a": 3,
+    "w0": 0,
+    "steps": 6000,
+    "runs": 32,
+    "algos": [
+      "lms",
+      "sign_error",
+      "sign_sign",
+      "huber"
+    ],
+    "deltaRef": "wstar",
+    "mu": 0.01,
+    "xKind": "const",
+    "xAmp": 1,
+    "noiseKind": "skewed",
+    "sigma": 1,
+    "outlierProb": 0,
+    "outlierSize": 0,
+    "tie": "plus",
+    "schedule": "constant",
+    "n0": 500,
+    "stepMatch": "same-mu",
+    "huberDelta": 0.5,
+    "nlmsEps": 0.1,
+    "compare": [
+      {
+        "xKind": "uniformPos"
+      },
+      {
+        "xKind": "bpsk"
+      }
+    ]
+  },
+  "expected": "Case A：LMS → 3.000（平均）、Sign-Error = Sign-Sign → 2.693（= 3 + ln2 − 1，中位數）、Huber（δ = 0.5）→ 2.734；Case B：Sign-Error 2.7195、Sign-Sign 2.697 也不同；Case C（±1）：全部 = 3。",
+  "source": "simulation"
+}

@@ -1,0 +1,24 @@
+{
+  "id": "noise-unstable",
+  "title": "μ = 260 fs：g ≥ 2，一階模型不穩定",
+  "page": "/ch/12",
+  "experiment": "lms-noise-lab",
+  "description": "反面測試：g = μK = 2.07 ⇒ |p| = 1.07 > 1。線性模型沒有穩態；非線性 Sign-LMS 因 |G| ≤ 1 不會數值發散，而是在 w* 兩側做有界的大幅振盪（相鄰 block 正負交替）。",
+  "params": {
+    "N": 4096,
+    "fs": 4000000000.0,
+    "mu": 260,
+    "sigmaV": 100,
+    "C": 1,
+    "gmMode": "average",
+    "engine": "binomial",
+    "blocks": 4000,
+    "chains": 8,
+    "dw0": 3
+  },
+  "expected": "警告「g ≥ 2：一階模型不穩定」；σ_w（解析）不存在；Binomial 引擎顯示有界振盪：RMS 約 46 fs（約 0.46σ_v，比 T13 例的 0.399 fs 大兩個數量級），lag-1 自相關 ≈ −1，並出現「有界振盪」警告。",
+  "tests": [
+    "T13"
+  ],
+  "source": "simulation"
+}

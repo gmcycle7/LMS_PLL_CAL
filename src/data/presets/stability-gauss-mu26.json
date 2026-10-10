@@ -1,0 +1,25 @@
+{
+  "id": "stability-gauss-mu26",
+  "title": "Gaussian、μ = 2.6：almost-sure 也發散",
+  "page": "/ch/03",
+  "experiment": "stability-lab",
+  "description": "超過 μ_as ≈ 2.4212。",
+  "params": {
+    "dist": "gaussian",
+    "xValue": 2,
+    "sigma": 1,
+    "halfWidth": 1.7320508075688772,
+    "amplitude": 1,
+    "listText": "0, 0, 0, 0, 0, 0, 0, 0, 0, 3",
+    "delta0": 1,
+    "paths": 2000,
+    "steps": 400,
+    "noiseSigma": 0,
+    "mu": 2.6
+  },
+  "expected": "λ = +0.04632 > 0；典型路徑 n = 400 時 ≈ 10^+8.05；三種判據都發散。",
+  "tests": [
+    "T03"
+  ],
+  "source": "illustrative"
+}

@@ -1,0 +1,19 @@
+{
+  "id": "sign-lms-band-harmonic",
+  "title": "遞減步長 μ₀/(1+n/n₀)：跳動帶寬 → 0",
+  "page": "/ch/02",
+  "experiment": "sign-lms-band",
+  "description": "同上，但步長 μ_n = 0.4/(1 + n/20)。",
+  "params": {
+    "a": 3,
+    "x": 1,
+    "w0": 0,
+    "mu": 0.4,
+    "steps": 400,
+    "tie": "plus",
+    "schedule": "harmonic",
+    "n0": 20
+  },
+  "expected": "|δ_n| ≤ μ_n|x| 隨 n 以 1/n 下降；第 400 步 |δ| < 0.02。",
+  "source": "illustrative"
+}

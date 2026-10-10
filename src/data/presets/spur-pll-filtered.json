@@ -1,0 +1,28 @@
+{
+  "id": "spur-pll-filtered",
+  "title": "|T| = 0.1：PLL 頻寬外的 spur 低 20 dB",
+  "page": "/ch/12",
+  "experiment": "code-mixing-lab",
+  "description": "同 T15，但 tone 落在 |T| = 0.1 的頻率（PLL 頻寬外）：β 與 spur 振幅都乘 0.1。",
+  "params": {
+    "fsim": 4096000.0,
+    "L": 4096,
+    "fx": 100000.0,
+    "A": 1,
+    "m": 0,
+    "codeWhite": 0,
+    "fw": 10000.0,
+    "B": 1,
+    "holdN": 1,
+    "dwNoiseSigma": 0,
+    "dwNoiseP": 0.92,
+    "fOut": 13000000000.0,
+    "Tmag": 0.1,
+    "window": "rectangular"
+  },
+  "expected": "每個 spur −113.80 dBc（比 |T| = 1 低 20.00 dB）。",
+  "tests": [
+    "T15"
+  ],
+  "source": "simulation"
+}

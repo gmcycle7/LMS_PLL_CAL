@@ -1,0 +1,17 @@
+{
+  "id": "optimizer-phase60",
+  "title": "Ch14：誤差路徑相位 θ = 60°（C = 0.5）",
+  "page": "/ch/14",
+  "experiment": "lr-optimizer",
+  "description": "同第 10 課條件，但 C = cos 60° = 0.5：K 減半。",
+  "params": {
+    "sigmaV": 100,
+    "N": 4096,
+    "T": 131072,
+    "delta0": 3,
+    "thetaDeg": 60,
+    "objective": "final"
+  },
+  "expected": "K = 3.989e-3 fs⁻¹、μ* ≈ 16.20 fs、RMS ≈ 0.794 fs、pole 0.9354、PM 88.15°：K 減半時 RMS 變差約 1.8 倍，μ* 不是單純加倍。",
+  "source": "illustrative"
+}

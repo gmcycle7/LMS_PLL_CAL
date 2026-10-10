@@ -1,0 +1,31 @@
+{
+  "id": "gmac-flow-unmapped-dsm",
+  "title": "反面教材：DSM code（全部 ≤ 0）＋ 0/1 忘了映射",
+  "page": "/ch/04",
+  "experiment": "gmac-signal-flow",
+  "description": "同上一個 preset，但 comparator 編碼改成「忘了映射」。code 全部 ≤ 0 ⇒ G_bug = (1/N)Σ b·x ≤ 0 恆成立。",
+  "params": {
+    "N": 32,
+    "numBlocks": 64,
+    "sigmaV": 20,
+    "aTrue": 30,
+    "w0": 0,
+    "pattern": "dsm_first_order",
+    "normalization": "none",
+    "path": "identity",
+    "hpPole": 0.5,
+    "encoding": "unipolar_unmapped_bug",
+    "seed": 20261010,
+    "cases": [
+      {
+        "gmMode": "average",
+        "mu": 10
+      }
+    ]
+  },
+  "expected": "沒有固定點：每個 block 的 G 都 ≤ 0，w 單調往下漂（後半段平均約 −25 fs，且仍在下降），直到 DTC gain 的 rail；blockLms 的 mean-field 固定點在此不存在（頁面以說明取代該警告）。",
+  "tests": [
+    "T04"
+  ],
+  "source": "simulation"
+}

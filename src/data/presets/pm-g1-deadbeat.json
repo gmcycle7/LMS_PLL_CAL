@@ -1,0 +1,11 @@
+{
+  "id": "pm-g1-deadbeat",
+  "title": "g = 1、d = 0：pole 0、PM 60°（T08）",
+  "page": "/ch/08",
+  "experiment": "pm-lab",
+  "description": "一階 calibration loop L(z) = g/(z − 1) 在 g = 1：一步到位（deadbeat），gain crossover ω_c = π/3。",
+  "params": { "g": 1, "d": 0, "steps": 40 },
+  "expected": "閉迴路 pole = 0；ω_c = π/3 = 1.0472 rad/block；PM = 60°；GM = 6.02 dB；delay margin = 1 block。",
+  "tests": ["T08"],
+  "source": "illustrative"
+}

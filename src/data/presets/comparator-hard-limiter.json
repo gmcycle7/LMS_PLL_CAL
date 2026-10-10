@@ -1,0 +1,11 @@
+{
+  "id": "comparator-hard-limiter",
+  "title": "σ_v = 0：Comparator 退化成 hard limiter",
+  "page": "/ch/05",
+  "experiment": "comparator-lab",
+  "description": "沒有雜訊時 E[q] = sign(s − θ)：單一樣本就確定方向，但 S 曲線變成階梯，K_q 不存在（在 θ 處無限大、其他地方為 0）。LMS 迴路會出現 ±μ 的 limit cycle（見本章 dither 實驗）。",
+  "params": { "s": 1, "sigma": 0, "theta": 0, "N": 11, "tieRule": "half", "trials": 1000, "method": "auto", "axis": "sum" },
+  "expected": "P(q=+1) = 1、S_N = N（每個 trial 都一樣）；K_q 顯示為 ∞（不存在）並出現 hard-limiter 警告。",
+  "tests": ["T04"],
+  "source": "illustrative"
+}

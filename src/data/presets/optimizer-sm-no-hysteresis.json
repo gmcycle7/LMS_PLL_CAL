@@ -1,0 +1,15 @@
+{
+  "id": "optimizer-sm-no-hysteresis",
+  "title": "Ch14：狀態機——沒有 hysteresis 的 TRACK 警報（單一門檻 3σ）",
+  "page": "/ch/14",
+  "experiment": "cal-state-machine",
+  "description": "單一門檻 3σ、沒有持續時間要求。把 hysteresis 打開（同樣的高門檻 3σ、低門檻 1.5σ、持續 4 個 block）比較誤警報次數。",
+  "params": {
+    "hysteresis": false,
+    "alarmHiZ": 3,
+    "alarmLoZ": 1.5,
+    "alarmHold": 4
+  },
+  "expected": "雜訊造成反覆誤警報：MC（48 runs）平均約 0.6 次 RESTART／run，評估 RMS ≈ 1.2 fs（每次誤警報都要付 COARSE + VERIFY 的代價）。同樣門檻但打開 hysteresis：約 0.17 次／run、RMS ≈ 0.76 fs。預設的 6σ／3σ 門檻：0 次、RMS ≈ 0.40 fs——門檻高度比遲滯更關鍵，遲滯與持續時間則在同一門檻下再減少數倍誤警報。",
+  "source": "illustrative"
+}

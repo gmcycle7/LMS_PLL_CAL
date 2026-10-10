@@ -1,0 +1,850 @@
+/* 手算練習簿頁專屬樣式（class 一律 wb- 前綴；顏色只用全站 token，深淺主題自動跟隨） */
+
+.wb-lead {
+  font-size: 1.02rem;
+}
+.wb-head-tags {
+  margin-bottom: 6px;
+}
+.wb-section {
+  margin-top: 8px;
+}
+.wb-section h2,
+.wb-group,
+.wb-item,
+.wb-tools,
+.wb-sheet {
+  scroll-margin-top: calc(var(--topbar-h) + 12px);
+}
+.wb-bad {
+  color: var(--danger);
+}
+
+/* ── 本頁目錄 ── */
+.wb-toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 4px;
+}
+
+/* ── 說明 ── */
+.wb-why li,
+.wb-how li,
+.wb-habits li {
+  margin: 6px 0;
+}
+.wb-demo {
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  padding: 4px 14px 6px;
+  margin: 14px 0;
+  background: var(--surface);
+}
+.wb-demo h3 {
+  margin-top: 0.6em;
+}
+.wb-level-table th[scope='row'] {
+  background: none;
+  font-weight: 400;
+}
+
+/* ── 難度徽章 ── */
+.wb-level {
+  display: inline-block;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.wb-level-beginner {
+  color: var(--ok);
+  border-color: var(--ok);
+  background: var(--ok-soft);
+}
+.wb-level-engineer {
+  color: var(--info);
+  border-color: var(--info);
+  background: var(--info-soft);
+}
+.wb-level-research {
+  color: var(--tag-research);
+  border-color: var(--tag-research);
+  background: var(--tag-research-soft);
+}
+
+/* ── 手算工具 ── */
+.wb-tools {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--series-4);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--surface);
+  padding: 8px 14px;
+  margin: 12px 0 18px;
+}
+.wb-tools > summary {
+  cursor: pointer;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  list-style-position: inside;
+}
+.wb-tools > summary::marker {
+  color: var(--text-muted);
+}
+.wb-tools-title {
+  font-weight: 700;
+}
+.wb-tools-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 28px;
+  margin-top: 6px;
+}
+@media (max-width: 1100px) {
+  .wb-tools-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.wb-tool {
+  min-width: 0;
+}
+.wb-tool h4 {
+  margin: 0.9em 0 0.3em;
+}
+.wb-tool-notes {
+  margin: 6px 0;
+  padding-left: 1.3em;
+}
+.wb-tool-notes li {
+  margin: 3px 0;
+}
+.wb-phi-table,
+.wb-const-table,
+.wb-approx-table,
+.wb-db-table,
+.wb-mini-table,
+.wb-stats-table,
+.wb-level-table {
+  font-size: 0.88rem;
+}
+.wb-phi-table caption,
+.wb-mini-table caption {
+  caption-side: top;
+  text-align: left;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  padding-bottom: 4px;
+}
+.wb-phi-table th,
+.wb-phi-table td {
+  padding: 2px 10px;
+  font-variant-numeric: tabular-nums;
+}
+.wb-phi-table th[scope='row'] {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+.wb-phi-table tbody tr:nth-child(5n) td,
+.wb-phi-table tbody tr:nth-child(5n) th {
+  border-bottom: 2px solid var(--border-strong);
+}
+.wb-const-table td,
+.wb-approx-table td,
+.wb-approx-table th,
+.wb-db-table td,
+.wb-db-table th,
+.wb-mini-table td,
+.wb-mini-table th {
+  padding: 3px 8px;
+}
+.wb-db-tables {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0 16px;
+}
+.wb-tool-calc {
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  margin: 8px 0;
+}
+.wb-tool-calc .c-texblock {
+  margin: 4px 0;
+}
+.wb-lookup-steps {
+  margin-top: 6px;
+}
+.wb-inline-field {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+.wb-inline-field input[type='text'] {
+  width: 9em;
+  font-family: var(--font-mono);
+}
+.wb-inline-field input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+/* ── 右下角的浮動手算工具 ── */
+.wb-dock {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
+}
+.wb-dock > * {
+  pointer-events: auto;
+}
+.wb-dock-toggle {
+  box-shadow: var(--shadow);
+  border-radius: 999px;
+  padding: 6px 16px;
+}
+.wb-dock-panel {
+  width: min(460px, calc(100vw - 32px));
+  max-height: min(70vh, calc(100vh - var(--topbar-h) - 80px));
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22);
+  padding: 8px 12px 10px;
+}
+.wb-dock-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  position: sticky;
+  top: -8px;
+  background: var(--surface);
+  padding: 6px 0;
+  z-index: 1;
+}
+.wb-dock-head .btn {
+  padding: 1px 10px;
+  font-size: 0.8rem;
+}
+
+/* ── 分頁 ── */
+.wb-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border-bottom: 2px solid var(--border);
+  margin: 10px 0 12px;
+}
+.wb-tab {
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 7px 16px;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  cursor: pointer;
+  margin-bottom: -2px;
+}
+.wb-tab:hover {
+  color: var(--text);
+}
+.wb-tab.active {
+  background: var(--surface);
+  color: var(--accent);
+  border-color: var(--border-strong);
+  border-bottom: 2px solid var(--surface);
+}
+.wb-tab:focus-visible,
+.wb-chip:focus-visible,
+.wb-item-head:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ── 篩選列 ── */
+.wb-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 18px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  margin-bottom: 14px;
+}
+.wb-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.wb-filter select {
+  max-width: min(100%, 22em);
+}
+.wb-filter-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--text-faint);
+}
+.wb-filter-search {
+  flex: 1 1 12em;
+}
+.wb-filter-search input {
+  font: inherit;
+  font-size: 0.88rem;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  width: 100%;
+}
+.wb-filter-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  color: var(--text-muted);
+}
+.wb-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.wb-chip {
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.wb-chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.wb-clear {
+  padding: 1px 8px;
+  font-size: 0.8rem;
+}
+
+/* ── 題庫列表 ── */
+.wb-group {
+  margin: 0 0 18px;
+}
+.wb-group-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 2px;
+}
+.wb-group-head h3 {
+  margin: 0.6em 0 0.2em;
+}
+.wb-group-toggle {
+  margin-left: auto;
+  padding: 1px 8px;
+  font-size: 0.8rem;
+}
+.wb-group-title {
+  margin: 2px 0 6px;
+}
+.wb-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.wb-item {
+  border-bottom: 1px solid var(--border);
+}
+.wb-item-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 6px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.94rem;
+  line-height: 1.5;
+  text-align: left;
+  cursor: pointer;
+}
+.wb-item-head:hover {
+  background: var(--surface-2);
+}
+.wb-item.open > .wb-item-head {
+  background: var(--accent-soft);
+}
+.wb-item-caret {
+  flex: 0 0 1em;
+  color: var(--text-muted);
+}
+.wb-item-id {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.wb-item-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.wb-item-meta {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.wb-solved {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--ok);
+  white-space: nowrap;
+}
+.wb-item-body {
+  padding: 0 0 6px 4px;
+}
+.wb-item-body .c-handcalc {
+  margin: 8px 0 10px;
+}
+@media (max-width: 640px) {
+  .wb-item-head {
+    flex-wrap: wrap;
+  }
+  .wb-item-title {
+    flex-basis: 100%;
+    order: 3;
+  }
+  .wb-item-meta {
+    margin-left: auto;
+  }
+}
+
+/* ── 已知／求 ── */
+.wb-block-label {
+  display: inline-block;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--surface);
+  background: var(--text-muted);
+  border-radius: 4px;
+  padding: 0 7px;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.wb-given,
+.wb-asks {
+  list-style: none;
+  margin: 4px 0 8px;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 22px;
+}
+.wb-given li,
+.wb-asks li {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.wb-given-label {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+.wb-given-label::before {
+  content: '（';
+}
+.wb-given-label::after {
+  content: '）';
+}
+
+/* ── 隨機練習 ── */
+.wb-practice-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.wb-practice-pos {
+  color: var(--text-muted);
+}
+.wb-next {
+  margin-left: auto;
+}
+.wb-practice-from {
+  margin: 4px 0 0;
+}
+.wb-practice-summary {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+}
+.wb-practice-summary.ok {
+  color: var(--ok);
+  font-weight: 600;
+}
+.wb-stats {
+  margin-top: 22px;
+}
+.wb-stats-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+.wb-stats-head h3 {
+  margin: 0;
+}
+.wb-stats-total {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 24px;
+  margin: 8px 0;
+  font-size: 0.95rem;
+}
+.wb-stats-total strong {
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+.wb-stats-table th[scope='row'] {
+  background: none;
+  font-weight: 400;
+}
+.wb-stats-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.wb-bar {
+  display: inline-block;
+  width: 110px;
+  max-width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  overflow: hidden;
+  vertical-align: middle;
+}
+.wb-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--ok);
+}
+
+/* ── 練習卷：出卷控制 ── */
+.wb-fieldset {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 12px 10px;
+  margin: 10px 0;
+  min-width: 0;
+  background: var(--surface);
+}
+.wb-fieldset legend {
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 0 6px;
+}
+.wb-fieldset-actions {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.wb-fieldset-actions .btn {
+  padding: 1px 8px;
+  font-size: 0.8rem;
+}
+.wb-checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 2px 14px;
+}
+.wb-checks-col {
+  grid-template-columns: minmax(0, 1fr);
+}
+.wb-check {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+.wb-control-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 0 14px;
+}
+.wb-sheet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin: 10px 0 4px;
+}
+
+/* ── 練習卷：卷面（螢幕預覽） ── */
+.wb-sheet {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  padding: 22px 26px 26px;
+  margin: 16px 0;
+}
+.wb-sheet-title {
+  margin: 0 0 6px;
+  padding: 0;
+  border: none;
+  font-size: 1.3rem;
+}
+.wb-sheet-sub {
+  margin: 0 0 6px;
+}
+.wb-sheet-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 18px;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+}
+.wb-sheet-name {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 28px;
+  margin: 12px 0 6px;
+  font-size: 0.95rem;
+}
+.wb-sheet-rules {
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  margin: 6px 0;
+}
+.wb-sheet-head {
+  border-bottom: 2px solid var(--text);
+  padding-bottom: 6px;
+  margin-bottom: 10px;
+}
+.wb-blank {
+  display: inline-block;
+  width: 7.5em;
+  border-bottom: 1px solid var(--text);
+  height: 1.1em;
+  vertical-align: baseline;
+}
+.wb-blank-wide {
+  width: 11em;
+}
+.wb-blank-short {
+  width: 3em;
+}
+.wb-sheet-questions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.wb-q,
+.wb-a {
+  padding: 10px 0 12px;
+  border-bottom: 1px dashed var(--border-strong);
+}
+.wb-q-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+}
+.wb-q-no {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.wb-q-title {
+  font-weight: 700;
+  flex: 1 1 60%;
+  min-width: 0;
+}
+.wb-q-meta {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.wb-q .c-texblock {
+  margin: 6px 0;
+}
+.wb-q-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.wb-q-row .wb-given,
+.wb-q-row .wb-asks {
+  margin: 2px 0 6px;
+}
+.wb-asks li {
+  margin-bottom: 4px;
+}
+.wb-q-tips {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+}
+.wb-q-tips ul {
+  margin: 0;
+  padding-left: 1.2em;
+}
+.wb-work {
+  margin-top: 6px;
+}
+.wb-work-line {
+  height: 2.1em;
+  border-bottom: 1px solid var(--border);
+}
+.wb-sheet-tools,
+.wb-sheet-answers {
+  margin-top: 22px;
+  padding-top: 12px;
+  border-top: 2px solid var(--text);
+}
+.wb-a .c-steps-list {
+  margin-top: 6px;
+}
+.wb-a .c-texblock {
+  margin: 4px 0;
+}
+
+/*
+ * ───────────────────────── 列印：只印練習卷 ─────────────────────────
+ * 這些規則全部以 body.wb-print-sheet 為前提；這個 class 只在「練習卷」分頁掛載時存在（Worksheet.tsx 的 effect，卸載時移除）。
+ * 所以在其他頁面、或本頁的其他分頁按列印，行為和原本完全一樣。
+ */
+@media print {
+  /* 1. 明確隱藏全站外框與本頁卷子以外的區塊（不依賴新語法，任何瀏覽器都有效） */
+  body.wb-print-sheet .topbar,
+  body.wb-print-sheet .sidebar,
+  body.wb-print-sheet .nav-scrim,
+  body.wb-print-sheet .page-header,
+  body.wb-print-sheet .page-kicker,
+  body.wb-print-sheet .page-pager,
+  body.wb-print-sheet .wb-noprint {
+    display: none !important;
+  }
+  body.wb-print-sheet,
+  body.wb-print-sheet .app-shell {
+    background: #fff !important;
+    min-height: 0 !important;
+  }
+  body.wb-print-sheet .content {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  body.wb-print-sheet .page {
+    max-width: none !important;
+  }
+
+  /* 2. 卷面：白底黑字（深色主題下 token 是亮色字，直接印會看不見），拿掉螢幕預覽的外框 */
+  body.wb-print-sheet .wb-sheet {
+    --text: #000;
+    --text-muted: #333;
+    --text-faint: #555;
+    --surface: #fff;
+    --surface-2: #f3f3f3;
+    --surface-3: #e6e6e6;
+    --border: #999;
+    --border-strong: #666;
+    --accent: #000;
+    color: #000;
+    background: #fff;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    margin: 0;
+    padding: 0;
+    font-size: 10.5pt;
+    line-height: 1.5;
+  }
+  body.wb-print-sheet .wb-sheet th {
+    background: #f3f3f3;
+  }
+  body.wb-print-sheet .wb-sheet a {
+    color: inherit;
+    text-decoration: none;
+  }
+  /* 瀏覽器預設不印背景色：「已知／求」的反白標籤改成黑字加框，否則白字印在白紙上看不見 */
+  body.wb-print-sheet .wb-sheet .wb-block-label {
+    color: #000;
+    background: none;
+    border: 1px solid #000;
+  }
+  /* 長公式：螢幕上可以水平捲動，紙上不行 → 不裁切、字縮小一點 */
+  body.wb-print-sheet .wb-sheet .katex-display,
+  body.wb-print-sheet .wb-sheet .c-texblock-math,
+  body.wb-print-sheet .wb-sheet .table-wrap {
+    overflow: visible !important;
+  }
+  body.wb-print-sheet .wb-sheet .katex {
+    font-size: 1em;
+  }
+
+  /* 3. 分頁：一題（含作答區）不拆成兩頁；解答可能比一頁長，所以只要求「一步」不被切開；附錄與解答各從新的一頁開始。
+        紙張邊界用列印對話框的設定（這裡不寫 @page：它無法只套用在這一頁，會影響全站其他頁面的列印） */
+  body.wb-print-sheet .wb-q,
+  body.wb-print-sheet .wb-sheet .c-step,
+  body.wb-print-sheet .wb-sheet .c-handcalc-results,
+  body.wb-print-sheet .wb-sheet table {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  body.wb-print-sheet .wb-sheet-tools,
+  body.wb-print-sheet .wb-sheet-answers {
+    break-before: page;
+    page-break-before: always;
+    border-top: none;
+    margin-top: 0;
+    padding-top: 0;
+  }
+  body.wb-print-sheet .wb-q-head,
+  body.wb-print-sheet .wb-sheet-title {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+}
+
+/*
+ * 4. 保險：外框日後若多了新的元素（公告列、浮動按鈕…），上面第 1 段的清單就會漏掉。
+ *    這條規則把「不是卷子、不在卷子裡、也不包住卷子」的元素全部隱藏。它單獨成一條規則：
+ *    不支援 :has() 的瀏覽器會整條丟棄，第 1 段照樣有效。
+ */
+@media print {
+  body.wb-print-sheet *:not(.wb-sheet):not(.wb-sheet *):not(:has(.wb-sheet)) {
+    display: none !important;
+  }
+}

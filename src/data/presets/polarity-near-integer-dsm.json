@@ -1,0 +1,34 @@
+{
+  "id": "polarity-near-integer-dsm",
+  "title": "近整數 FCW（frac = 0.002）：一階 DSM residue 的恢復力消失",
+  "page": "/ch/06",
+  "experiment": "polarity-explorer",
+  "description": "PLL 模式、Type-II、BW/f_ref = 0.01、一階 DSM residue、frac = 0.002（Ω0 = 0.41ω_nT_s）。",
+  "params": {
+    "mode": "pll",
+    "mag": 1,
+    "phiDeg": 120,
+    "omega": 0.5235987755982988,
+    "A": 1,
+    "D": 0,
+    "loopType": "typeII",
+    "zeta": 0.7,
+    "bwRatio": 0.01,
+    "loopDelay": 0,
+    "code": "dsm1",
+    "toneRatio": 0.3,
+    "frac": 0.002,
+    "mu": 10,
+    "sigmaV": 100,
+    "N": 1024,
+    "blocks": 400,
+    "a": 3,
+    "w0": 0,
+    "regressor": "x"
+  },
+  "expected": "C ≈ 0.0505（時域，σ_x² ≈ 0.999）；封閉式（精確鋸齒自相關，F-06.17）0.0510 ≈ σ_x²·(3/π²)(Ω0/ω_nT_s)²（§6.4：Type-II 的 m₀ = m₁ = 0 消去一階項）：小訊號沒有變號，但 p ≈ 0.9959，收斂極慢；而且只是局部穩定——mean-field 特性在 δ_c ≈ 76.7 fs 變號（F-06.19）。",
+  "tests": [
+    "T06"
+  ],
+  "source": "simulation"
+}

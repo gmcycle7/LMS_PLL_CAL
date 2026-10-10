@@ -1,0 +1,26 @@
+{
+  "id": "quant-prbs7-stochastic",
+  "title": "Stochastic rounding 用 PRBS-7：週期 127 與 51/127 的偏差",
+  "page": "/ch/13",
+  "experiment": "quantized-gain-lab",
+  "description": "以 7-bit LFSR 取代理想亂數：輸出週期 2^7 − 1 = 127，P(33) = 51/127 ≈ 0.40157（規格 §13.3 的 PRBS 警告）。",
+  "params": {
+    "target": 32.4,
+    "randomSource": "prbs",
+    "prbsBits": 7,
+    "length": 16384,
+    "mixing": false,
+    "cases": [
+      {
+        "strategy": "stochastic",
+        "lmsNoise": false,
+        "nUpd": 1
+      }
+    ]
+  },
+  "expected": "偵測週期 127、平均 32 + 51/127 ≈ 32.40157；譜線表為精確 DFT（離散譜線，不是白雜訊）。",
+  "tests": [
+    "T17"
+  ],
+  "source": "illustrative"
+}

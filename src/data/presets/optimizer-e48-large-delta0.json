@@ -1,0 +1,19 @@
+{
+  "id": "optimizer-e48-large-delta0",
+  "title": "Ch14：勘誤 E48——δ0 = 2σ_v 時線性公式失效",
+  "page": "/ch/14",
+  "experiment": "lr-optimizer",
+  "description": "δ0 = 200 fs = 2σ_v、B = 30：comparator 飽和（slew-limited）。按 Run 比較線性公式與 Monte Carlo。",
+  "params": {
+    "sigmaV": 100,
+    "N": 4096,
+    "T": 122880,
+    "delta0": 200,
+    "thetaDeg": 0,
+    "objective": "final",
+    "chains": 1000,
+    "blockLmsRuns": 48
+  },
+  "expected": "出現 E48 警告；線性最佳 μ* ≈ 26.2 fs、線性 RMS ≈ 0.69 fs。Monte Carlo 的 E[δ_B²] 明顯大於線性預測（交叉比對顯示 mismatch：δ0 大時的預期失效）。",
+  "source": "illustrative"
+}

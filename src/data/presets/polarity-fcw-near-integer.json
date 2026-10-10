@@ -1,0 +1,20 @@
+{
+  "id": "polarity-fcw-near-integer",
+  "title": "近整數 FCW 掃描（D = 0）：鋸齒 → 0⁺、三角波 < 0、MASH ≈ 1",
+  "page": "/ch/06",
+  "experiment": "polarity-fcw-sweep",
+  "description": "Type-II（ζ = 0.7、BW/f_ref = 0.01），GMAC code delay D = 0，frac 從 3e−4 掃到 0.45。",
+  "params": {
+    "loopType": "typeII",
+    "zeta": 0.7,
+    "bwRatio": 0.01,
+    "loopDelay": 0,
+    "delay": 0,
+    "fracMin": 0.0003,
+    "fracMax": 0.45,
+    "points": 32
+  },
+  "expected": "一階 DSM residue 的小訊號 C/σ² 全部 > 0：frac = 3e−4 時只剩 0.00115（模擬 = 精確鋸齒自相關理論 = 動差展開 (3/π²)Δ² = 12·frac²/K_i，log–log 斜率 2；m₀ = m₁ = 0、m₂ = 2/K_i = 2126.83）；三角波最低約 −0.198（變號）；MASH 1-1-1 ≈ 1.022。但近整數端只有局部穩定：mean-field 變號點 δ_c/σ_v 由 0.23（frac = 3e−4）增加到約 3.2（frac = 4e−3），更大的 frac 不變號。",
+  "tests": [],
+  "source": "simulation"
+}

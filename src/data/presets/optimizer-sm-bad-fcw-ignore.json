@@ -1,0 +1,14 @@
+{
+  "id": "optimizer-sm-bad-fcw-ignore",
+  "title": "Ch14：狀態機——bad-FCW policy = ignore",
+  "page": "/ch/14",
+  "experiment": "cal-state-machine",
+  "description": "block 300–449 進入 near-integer FCW（C → 0、假相關 0.05），policy 設為 ignore。改成 freeze 比較。",
+  "params": {
+    "badFcwStart": 300,
+    "badFcwLen": 150,
+    "badFcwPolicy": "ignore"
+  },
+  "expected": "ignore：假相關觸發 TRACK 警報 → RESTART → VERIFY 量不到斜率 → FAULT（MC 48/48 runs），評估 RMS ≈ 11.6 fs；改成 freeze：安靜度過，RMS ≈ 0.43 fs。",
+  "source": "illustrative"
+}

@@ -1,0 +1,17 @@
+{
+  "id": "optimizer-c-near-zero",
+  "title": "Ch14：θ = 88°（C ≈ 0.035）：幾乎沒有恢復力",
+  "page": "/ch/14",
+  "experiment": "lr-optimizer",
+  "description": "C 接近 0：K 很小，最佳 μ 對 g 很小、variance 趨近 random walk。",
+  "params": {
+    "sigmaV": 100,
+    "N": 4096,
+    "T": 131072,
+    "delta0": 3,
+    "thetaDeg": 88,
+    "objective": "final"
+  },
+  "expected": "出現「C ≈ 0」警告；K = 2.78e-4 fs⁻¹，最佳 RMS ≈ 2.87 fs（幾乎沒有比 δ0 = 3 fs 好）。",
+  "source": "illustrative"
+}

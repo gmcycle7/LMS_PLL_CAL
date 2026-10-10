@@ -1,0 +1,21 @@
+{
+  "id": "T14",
+  "description_zh": "f_s = 4 GHz、N = 4096 ⇒ f_u = 976.5625 kHz；Calibration Noise BW「約 12.9 kHz」（四種定義分列）",
+  "spec_section": "§12",
+  "inputs": {
+    "fs_hz": 4000000000.0,
+    "N": 4096,
+    "p": 0.9202115439197135
+  },
+  "expected": {
+    "f_u_hz": 976562.5,
+    "bw_one_minus_p_hz": 12401.100768406435,
+    "bw_neg_ln_p_hz": 12923.831540085783,
+    "bw_exact_3db_hz": 12931.284485590351,
+    "enbw_one_sided_hz": 20289.018256251733
+  },
+  "tolerance": {
+    "rel": 1e-10
+  },
+  "notes": "規格的「約 12.9 kHz」只符合 −ln(p)/(2π)·f_u（12.924 kHz）與精確 discrete-time −3 dB（12.931 kHz）；(1−p)/(2π)·f_u = 12.401 kHz（≈ 12.4 kHz，不符），one-sided ENBW = f_u(1−p)/(2(1+p)) = 20.29 kHz（不符）。−3 dB：|μ/(e^{jΩ}−p)|² 降到 DC 的一半，cos Ω = (1 + p² − 2(1−p)²)/(2p)。"
+}

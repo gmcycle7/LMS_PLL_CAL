@@ -1,0 +1,11 @@
+{
+  "id": "pm-reversed-polarity",
+  "title": "反面測試：極性反轉（g = −0.0798）",
+  "page": "/ch/08",
+  "experiment": "pm-lab",
+  "description": "μ = 10 fs、K_q = 0.00797885/fs 但相關 C = −1：g = −μK_q，pole 1 + μK_q = 1.0798 > 1。調小 μ 不會改變符號。",
+  "params": { "g": -0.0797884560802866, "d": 0, "steps": 60 },
+  "expected": "pole = 1.0797885（golden negative_tests.reversed_polarity_pole）；沒有 gain crossover；警告說明極性錯誤。",
+  "tests": ["T08"],
+  "source": "illustrative"
+}

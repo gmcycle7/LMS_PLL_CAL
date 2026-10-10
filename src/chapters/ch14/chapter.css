@@ -1,0 +1,255 @@
+/* Ch14 專屬樣式（class 一律 ch14- 前綴） */
+
+.ch14 {
+  min-width: 0;
+}
+
+.ch14-lead {
+  font-size: 1.02rem;
+  line-height: 1.75;
+}
+
+.ch14-erratum {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+  margin: 0.6rem 0;
+  padding: 0.45rem 0.7rem;
+  border: 1px dashed var(--warn);
+  border-radius: var(--radius-sm);
+  background: var(--warn-soft);
+  font-size: 0.9rem;
+}
+
+.ch14-erratum-tag {
+  flex: none;
+  font-weight: 600;
+  color: var(--warn);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.ch14-erratum-tag:hover {
+  text-decoration: underline;
+}
+
+.ch14-erratum-body {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.ch14-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.4rem;
+}
+
+.ch14-controls h4,
+.ch14-group-title {
+  margin: 0.6rem 0 0.2rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+.ch14-details {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.6rem;
+  margin: 0.4rem 0;
+  background: var(--surface);
+}
+
+.ch14-details > summary {
+  cursor: pointer;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  padding: 0.2rem 0;
+}
+
+.ch14-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.ch14-table th,
+.ch14-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.ch14-table th {
+  background: var(--surface-2);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ch14-table td.num {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.ch14-table tr.is-best td {
+  background: var(--ok-soft);
+}
+
+.ch14-table tr.is-bad td {
+  background: var(--danger-soft);
+}
+
+.ch14-events {
+  max-height: 16rem;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  background: var(--surface-2);
+}
+
+.ch14-events .k {
+  color: var(--text-muted);
+  display: inline-block;
+  min-width: 3.2rem;
+}
+
+.ch14-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.8rem;
+  font-size: 0.8rem;
+  margin: 0.3rem 0 0.6rem;
+}
+
+.ch14-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.ch14-legend i {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 2px;
+  border: 1px solid var(--border-strong);
+}
+
+.ch14-corner {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.6rem 0.2rem;
+  margin: 0.4rem 0;
+  background: var(--surface);
+}
+
+.ch14-corner-head {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+}
+
+.ch14-corner-head input[type='text'] {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.ch14-pill {
+  display: inline-block;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ch14-pill.ok {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.ch14-pill.bad {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.ch14-pill.warn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.ch14-steps-ol {
+  padding-left: 1.3rem;
+}
+
+.ch14-steps-ol li {
+  margin: 0.35rem 0;
+}
+
+.ch14-kv {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+}
+
+.ch14-kv > div {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.55rem;
+  background: var(--surface);
+  min-width: 0;
+}
+
+.ch14-kv .lbl {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.ch14-kv .val {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.ch14-row-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.4rem 0;
+}
+
+@media (max-width: 480px) {
+  .ch14-table {
+    font-size: 0.8rem;
+  }
+  .ch14-table th,
+  .ch14-table td {
+    padding: 0.3rem 0.35rem;
+  }
+}
+
+/* 「帶入手算」版位：邀請句緊貼在題目上方 */
+.ch14-handcalc {
+  margin: 1rem 0;
+}
+
+.ch14-handcalc-invite {
+  margin: 0 0 0.2rem;
+  font-size: 0.95rem;
+}
+
+.ch14-handcalc .c-handcalc {
+  margin-top: 0.4rem;
+}

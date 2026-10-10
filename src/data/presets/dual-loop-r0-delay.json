@@ -1,0 +1,11 @@
+{
+  "id": "dual-loop-r0-delay",
+  "title": "r = 0：主迴路瞬間穩態，仍然只有一半的範圍（= d = 1）",
+  "page": "/ch/08",
+  "experiment": "dual-loop",
+  "description": "E19：r = 0 時完整模型就是 δ_{k+1} = δ_k − μbc·δ_{k−1}（§8.3 d = 1）。μbc = 1.1：quasi-static 說穩定（pole −0.1），完整模型發散。",
+  "params": { "mode": "two-state", "r": 0, "b": 0.5, "c": 1, "mu": 2.2, "steps": 300 },
+  "expected": "完整上界 μ < (1 − r)/(bc) = 2；quasi-static 上界 4；μ = 2.2 時完整 ρ = √1.1 = 1.0488。",
+  "tests": ["T09"],
+  "source": "illustrative"
+}

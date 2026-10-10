@@ -1,0 +1,18 @@
+{
+  "id": "mse-mae-four-point",
+  "title": "y = [0,0,0,10]：平均 2.5 vs 中位數 0",
+  "page": "/ch/01",
+  "experiment": "mse-vs-mae",
+  "description": "規格 §2.3：同一組隨機抽樣資料，LMS 圍繞平均 2.5 抖動，Sign-Error 停在中位數 0 附近。",
+  "params": {
+    "model": "four_point",
+    "mu": 0.2,
+    "w0": 1,
+    "n": 4000,
+    "tie": "zero",
+    "huberDelta": 1,
+    "seed": 7
+  },
+  "expected": "LMS 時間平均 ≈ 2.5、std ≈ √(0.2·18.75/1.8) = 1.443；Sign-Error（定點）時間平均 → μ/2 = 0.1、std = (√3/2)μ ≈ 0.173（點質量資料：抖動是 O(μ)）；Huber → 1/3 附近。三個交叉比對（門檻 5σ，理論標準誤）皆為 ok。",
+  "source": "simulation"
+}

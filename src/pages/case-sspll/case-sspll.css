@@ -1,0 +1,163 @@
+/* 案例頁 /case/sspll 專屬樣式（class 一律 cs- 前綴） */
+.case-sspll .cs-lead {
+  font-size: 1.02rem;
+  line-height: 1.75;
+}
+
+.case-sspll .cs-question {
+  border-left: 4px solid var(--accent, #2563eb);
+  padding: 0.5rem 0.9rem;
+  margin: 0.8rem 0;
+  background: var(--surface-2, rgba(127, 127, 127, 0.08));
+  border-radius: 0 6px 6px 0;
+}
+
+.case-sspll .cs-claim {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  margin: 0 0.2rem;
+  vertical-align: baseline;
+}
+
+.case-sspll .cs-claim-note {
+  font-size: 0.86em;
+  color: var(--text-muted, #666);
+}
+
+.case-sspll .cs-table table {
+  font-size: 0.9rem;
+}
+
+.case-sspll .cs-table caption {
+  caption-side: bottom;
+  text-align: left;
+  font-size: 0.82rem;
+  color: var(--text-muted, #666);
+  padding-top: 0.35rem;
+}
+
+.case-sspll .cs-table td,
+.case-sspll .cs-table th {
+  vertical-align: top;
+}
+
+.case-sspll .cs-num td:not(:first-child),
+.case-sspll .cs-num th:not(:first-child) {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 正＝restoring（藍）、負＝反號（紅）、近 0＝dead zone（灰）；同時用粗體／斜體，不只靠顏色 */
+.case-sspll .cs-pos {
+  color: var(--ok, #1d6fa5);
+}
+
+.case-sspll .cs-neg {
+  color: var(--danger, #c0392b);
+  font-weight: 700;
+}
+
+.case-sspll .cs-dead {
+  color: var(--text-muted, #777);
+  font-style: italic;
+}
+
+.case-sspll .cs-src {
+  margin-top: 0.25rem;
+}
+
+.case-sspll .cs-tryit {
+  border: 1px dashed var(--border, #bbb);
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  margin: 0.8rem 0;
+}
+
+.case-sspll .cs-tryit-title {
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.case-sspll .cs-tryit ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.case-sspll .cs-plots {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+@media (min-width: 1100px) {
+  .case-sspll .cs-plots.cs-plots-2 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.case-sspll .cs-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.1rem;
+  font-size: 0.84rem;
+  margin: 0.3rem 0 0.6rem;
+}
+
+.case-sspll .cs-swatch {
+  display: inline-block;
+  width: 0.9em;
+  height: 0.9em;
+  border-radius: 2px;
+  margin-right: 0.3em;
+  vertical-align: -0.1em;
+}
+
+.case-sspll .cs-rank li {
+  margin-bottom: 0.45rem;
+}
+
+.case-sspll .cs-toc {
+  columns: 2;
+  column-gap: 2rem;
+  font-size: 0.92rem;
+}
+
+@media (max-width: 700px) {
+  .case-sspll .cs-toc {
+    columns: 1;
+  }
+}
+
+.case-sspll .cs-golden-note {
+  font-size: 0.86rem;
+}
+
+.case-sspll .cs-checklist li {
+  margin-bottom: 0.4rem;
+}
+
+.case-sspll .cs-recipe > li {
+  margin-bottom: 0.6rem;
+}
+
+.case-sspll .cs-inline-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 0.6rem 1rem;
+  margin: 0.5rem 0;
+}
+
+/* 「帶入手算」題前的邀請句 */
+.case-sspll .cs-hand {
+  margin: 1rem 0 1.2rem;
+}
+
+.case-sspll .cs-hand-invite {
+  margin: 0 0 0.3rem;
+}
+
+.case-sspll .cs-hand .c-handcalc {
+  margin-top: 0.3rem;
+}

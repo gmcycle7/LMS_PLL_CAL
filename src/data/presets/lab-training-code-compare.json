@@ -1,0 +1,65 @@
+{
+  "id": "lab-training-code-compare",
+  "title": "Training：一階 DSM vs MASH 1-1-1 vs code randomization（α = 1e-3）",
+  "page": "/lab",
+  "experiment": "training-sequence-lab",
+  "description": "同一個 FCW（frac = 0.001）、同一個 Type-II 2 MHz PLL，比較三串 code：A 一階 DSM、B MASH 1-1-1、C 一階 DSM 加上 ±1 T_vco 的均勻隨機化（研究延伸的行為模型）。要辨識的參數：gain、INL 二階、INL 三階。",
+  "params": {
+    "shared": {
+      "seed": 20261010,
+      "fRefHz": 4000000000.0,
+      "nInt": 3,
+      "pll": "type2",
+      "pllBwHz": 2000000.0,
+      "zeta": 0.7,
+      "loopDelay": 0,
+      "regressor": "raw",
+      "codeDelay": 0,
+      "sigmaV": 100,
+      "length": 131072,
+      "N0": 4096,
+      "maxLag": 128,
+      "maxDelay": 96,
+      "residualGainFs": 0.1,
+      "c2": 0.05,
+      "c3": 0.02,
+      "basis": {
+        "gain": true,
+        "inl2": true,
+        "inl3": true,
+        "offset": false
+      }
+    },
+    "patterns": [
+      {
+        "source": "dsm_first_order",
+        "frac": 0.001,
+        "dsmBits": 20,
+        "dither": false,
+        "randomization": "none",
+        "randAmp": 1,
+        "normalization": "standardize"
+      },
+      {
+        "source": "mash111",
+        "frac": 0.001,
+        "dsmBits": 20,
+        "dither": false,
+        "randomization": "none",
+        "randAmp": 1,
+        "normalization": "standardize"
+      },
+      {
+        "source": "dsm_first_order",
+        "frac": 0.001,
+        "dsmBits": 20,
+        "dither": false,
+        "randomization": "uniform",
+        "randAmp": 1,
+        "normalization": "standardize"
+      }
+    ]
+  },
+  "expected": "三組都滿秩（3 / 3）。scaled Jacobian 的 condition number：A ≈ 22、B ≈ 12、C ≈ 14（MASH 與隨機化的激勵比較均勻）。靜態殘差（Δa = 0.1 fs、c₂ = 0.05、c₃ = 0.02）在輸出端：A 有約 −114 dBc 的 tone 在 4.0 MHz，B 偵測不到譜線，C 的 tone 比 A 低約 5–6 dB——overlay 是加上去的，鋸齒本身沒有變小；變小的是正規化的 scale（raw code 的標準差 0.289 → 0.645 T_vco），所以同樣 Δa = 0.1 fs per unit code 對應的實體 gain 誤差較小。把 offset 基底打開：三組的秩都變成 3 / 4（H_PD(1) = 0，E04）。",
+  "source": "simulation"
+}

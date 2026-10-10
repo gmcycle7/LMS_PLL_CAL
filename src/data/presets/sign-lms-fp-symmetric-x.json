@@ -1,0 +1,28 @@
+{
+  "id": "sign-lms-fp-symmetric-x",
+  "title": "對稱 x（±1）：偏斜雜訊不再造成差異",
+  "page": "/ch/02",
+  "experiment": "sign-lms-fixed-points",
+  "description": "x = ±1 等機率：x 與 −x 的貢獻成對抵消。",
+  "params": {
+    "a": 3,
+    "xKind": "bpsk",
+    "xAmp": 1,
+    "noiseKind": "skewed",
+    "sigma": 1,
+    "outlierProb": 0,
+    "outlierSize": 0,
+    "huberDelta": 0.5,
+    "nlmsEps": 0.1,
+    "mu": 0.01,
+    "steps": 6000,
+    "runs": 24,
+    "algos": [
+      "lms",
+      "sign_error",
+      "sign_sign"
+    ]
+  },
+  "expected": "所有演算法 w* = 3（雖然雜訊仍然偏斜）。",
+  "source": "simulation"
+}

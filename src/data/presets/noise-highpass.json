@@ -1,0 +1,24 @@
+{
+  "id": "noise-highpass",
+  "title": "μ = 160 fs：p < 0，係數雜訊變 high-pass",
+  "page": "/ch/12",
+  "experiment": "lms-noise-lab",
+  "description": "μK = 1.277 ⇒ p = −0.2766：相鄰 block 的 δw 正負交替，雜訊集中在 f_u/2 附近，low-pass 頻寬定義不適用（勘誤 E27）。",
+  "params": {
+    "N": 4096,
+    "fs": 4000000000.0,
+    "mu": 160,
+    "sigmaV": 100,
+    "C": 1,
+    "gmMode": "average",
+    "engine": "binomial",
+    "blocks": 4000,
+    "chains": 8,
+    "dw0": 3
+  },
+  "expected": "p = −0.27662；型態 high-pass；S_w 在 f_u/2 最大；σ_w 仍由 μ²σ_η²/(1−p²) 給出並與模擬一致。",
+  "tests": [
+    "T14"
+  ],
+  "source": "simulation"
+}

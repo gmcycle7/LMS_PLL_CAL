@@ -1,0 +1,17 @@
+{
+  "id": "optimizer-polarity",
+  "title": "Ch14：θ = 120°（C < 0）極性錯誤",
+  "page": "/ch/14",
+  "experiment": "lr-optimizer",
+  "description": "反面例子：C = cos 120° = −0.5。",
+  "params": {
+    "sigmaV": 100,
+    "N": 4096,
+    "T": 131072,
+    "delta0": 3,
+    "thetaDeg": 120,
+    "objective": "final"
+  },
+  "expected": "出現「C ≤ 0：更新極性錯誤，正 learning rate 會使平均誤差發散」警告；沒有可行的 μ，Run 停用；曲線顯示 E[δ_B²] 隨 μ 單調變大。",
+  "source": "illustrative"
+}

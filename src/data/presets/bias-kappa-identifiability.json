@@ -1,0 +1,26 @@
+{
+  "id": "bias-kappa-identifiability",
+  "title": "ε_cc = κx：w* = a + κ（不可辨識）",
+  "page": "/ch/11",
+  "experiment": "bias-inl-lab",
+  "description": "Deterministic code-correlated error 與真實 gain 共線。",
+  "params": {
+    "a": 1,
+    "w0": 1,
+    "b": 0,
+    "c2": 0,
+    "c3": 0,
+    "kappa": 0.1,
+    "codeKind": "five_level",
+    "codeShift": 0,
+    "dsmKind": "first_order",
+    "dsmFrac": 0.3,
+    "algorithm": "sign",
+    "sigmaV": 1,
+    "dcMode": "none",
+    "jitterSlope": 0,
+    "jitterRef": -2
+  },
+  "expected": "w* = a + κ = 1.1（任何 code 分布、MSE 或 Sign 皆同）；畫面應出現「不可辨識」警告：(a, κ) = (1, 0.1) 與 (1.1, 0) 的 comparator 統計完全相同。（勘誤 E12）",
+  "source": "illustrative"
+}

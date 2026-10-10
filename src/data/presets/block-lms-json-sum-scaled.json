@@ -1,0 +1,50 @@
+{
+  "id": "block-lms-json-sum-scaled",
+  "title": "sum GMAC + μ/N（等同 average）",
+  "page": "/models",
+  "experiment": "block-lms-json",
+  "description": "sum 模式把 μ 除以 N = 4096：μ = 0.00244140625。N 為 2 的冪，與 average 模式逐位元相同。",
+  "params": {
+    "config": {
+      "model": "sign_error_block_lms",
+      "seed": 20261010,
+      "units": {
+        "time": "fs",
+        "frequency": "Hz"
+      },
+      "sample_rate_hz": 4000000000,
+      "output_frequency_hz": 13000000000,
+      "gm_accum_samples": 4096,
+      "gain_initial": 0,
+      "gain_true": 3,
+      "gain_step": 0.00244140625,
+      "code_normalization": "unit_rms",
+      "gm_mode": "sum",
+      "pd_noise_rms_fs": 100,
+      "comparator_offset_fs": 0,
+      "comparator_encoding": "bipolar_pm_one",
+      "gm_code_delay_samples": 0,
+      "cal_update_delay_blocks": 0,
+      "pll_error_path": {
+        "kind": "identity",
+        "parameters": {}
+      },
+      "seeded_pattern": {
+        "kind": "iid_pm_one",
+        "parameters": {}
+      },
+      "gain_register": {
+        "internal_bits": 20,
+        "physical_bits": 6,
+        "rounding": "nearest",
+        "overflow": "saturate"
+      },
+      "mode": "exploratory"
+    }
+  },
+  "expected": "g = 0.079788（與 §15.3 範例相同），w 軌跡與 average 模式完全一致。",
+  "source": "simulation",
+  "tests": [
+    "T13"
+  ]
+}

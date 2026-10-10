@@ -1,0 +1,26 @@
+{
+  "id": "inl-gaussian-code",
+  "title": "Gaussian code 上的三階 INL（1.30 vs 1.2775）",
+  "page": "/ch/11",
+  "experiment": "bias-inl-lab",
+  "description": "x ~ N(0, 1)、a = 1、c₃ = 0.1。",
+  "params": {
+    "a": 1,
+    "w0": 1,
+    "b": 0,
+    "c2": 0,
+    "c3": 0.1,
+    "kappa": 0,
+    "codeKind": "gaussian",
+    "codeShift": 0,
+    "dsmKind": "first_order",
+    "dsmFrac": 0.3,
+    "algorithm": "sign",
+    "sigmaV": 1,
+    "dcMode": "none",
+    "jitterSlope": 0,
+    "jitterRef": -2
+  },
+  "expected": "MSE-LMS：w* = a + c₃E[x⁴]/E[x²] = 1.30；Sign-LMS σ_v = 1：mean-field 1.27753（Gaussian code 的尾端讓 max|e_det|/σ_v 很大，線性化失效）；σ_v = 0：1.13863。（勘誤 E11）",
+  "source": "illustrative"
+}

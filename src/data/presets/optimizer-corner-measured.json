@@ -1,0 +1,43 @@
+{
+  "id": "optimizer-corner-measured",
+  "title": "Ch14：以 ±Δ 量測 K̂ 後設計區間（6 步流程）",
+  "page": "/ch/14",
+  "experiment": "corner-interval",
+  "description": "開啟量測：每個 corner 以 Δ = 20 fs、M = 64 blocks 量 K̂，用 K̂ ∓ 2se 保守設計。",
+  "params": {
+    "corners": [
+      {
+        "name": "TT 25°C",
+        "sigmaV": 100,
+        "thetaDeg": 0
+      },
+      {
+        "name": "SS −40°C",
+        "sigmaV": 140,
+        "thetaDeg": 25
+      },
+      {
+        "name": "FF 125°C",
+        "sigmaV": 70,
+        "thetaDeg": 10
+      },
+      {
+        "name": "near-grid FCW",
+        "sigmaV": 100,
+        "thetaDeg": 55
+      }
+    ],
+    "eps": 0.01,
+    "B": 12,
+    "pmTargetDeg": 60,
+    "delta0": 3,
+    "N": 4096,
+    "rmsTarget": 1,
+    "measure": true,
+    "Delta": 20,
+    "M": 64,
+    "z": 2
+  },
+  "expected": "每個 corner 顯示 K̂ ± se，se = σ_η/(Δ√(2M)) = 6.91e-05 fs⁻¹（各 corner 相同）；表格列出 F-14.21 預測的截斷偏差 −Δ²(c² + 3s²)/(6σ_v²)：TT（θ = 0）−0.67%、near-grid FCW（θ = 55°）−1.56%。以 K̂ ∓ 2se 設計的保守區間通常比模型區間窄；量測不確定度太大（M 太小、Δ 太小）時區間會變空。",
+  "source": "simulation"
+}

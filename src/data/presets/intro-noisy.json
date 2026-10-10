@@ -1,0 +1,21 @@
+{
+  "id": "intro-noisy",
+  "title": "入門：有雜訊時 w 在 a 附近抖動（σ_v = 0.5）",
+  "page": "/ch/00",
+  "experiment": "intro-playground",
+  "description": "σ_v = 0.5、2000 步；三個 μ 的穩態抖動與理論 std(w∞) = √(μσ_v²/(2 − μx²)) 比較（Monte Carlo 欄以 AR(1) 有效樣本數做 z 檢定；μ 很小時相鄰樣本高度相關，需要較長的模擬）。",
+  "params": {
+    "a": 3,
+    "w0": 1,
+    "x": 2,
+    "steps": 2000,
+    "sigmaV": 0.5,
+    "mus": [
+      0.01,
+      0.05,
+      0.2
+    ]
+  },
+  "expected": "理論穩態 std(w)：μ = 0.01 → 0.0357、0.05 → 0.0833、0.2 → 0.2041；μ 越小抖動越小但收斂越慢。",
+  "source": "illustrative"
+}

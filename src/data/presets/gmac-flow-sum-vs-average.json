@@ -1,0 +1,39 @@
+{
+  "id": "gmac-flow-sum-vs-average",
+  "title": "Sum vs average：同一個 μ，loop gain 差 N 倍",
+  "page": "/ch/04",
+  "experiment": "gmac-signal-flow",
+  "description": "Case A：average、μ = 10 fs；Case B：sum、μ 不變；Case C：sum、μ = 10/16。共用 seed。",
+  "params": {
+    "N": 16,
+    "numBlocks": 24,
+    "sigmaV": 20,
+    "aTrue": 30,
+    "w0": 0,
+    "pattern": "iid_pm_one",
+    "normalization": "unit_rms",
+    "path": "identity",
+    "hpPole": 0.5,
+    "encoding": "bipolar_pm_one",
+    "seed": 20261010,
+    "cases": [
+      {
+        "gmMode": "average",
+        "mu": 10
+      },
+      {
+        "gmMode": "sum",
+        "mu": 10
+      },
+      {
+        "gmMode": "sum",
+        "mu": 0.625
+      }
+    ]
+  },
+  "expected": "B 的 g = NμK ≈ 6.38（pole ≈ −5.4）：w 在 −40 與 120 fs 之間來回跳、不收斂；C 用 μ/N，w_k 與 A 完全重合（g 相同）。",
+  "tests": [
+    "T13"
+  ],
+  "source": "simulation"
+}

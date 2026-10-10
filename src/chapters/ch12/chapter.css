@@ -1,0 +1,177 @@
+/* 第 12 章專屬樣式（class 一律 ch12- 前綴） */
+
+.ch12-erratum {
+  display: inline-block;
+  margin: 0 0.25em;
+  padding: 0 0.45em;
+  border: 1px solid var(--warn);
+  border-radius: 999px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 0.78em;
+  line-height: 1.55;
+  white-space: nowrap;
+  text-decoration: none;
+  vertical-align: 0.1em;
+}
+.ch12-erratum:hover {
+  text-decoration: underline;
+}
+
+.ch12-fold {
+  margin: 0.75rem 0;
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  padding: 0.35rem 0.75rem;
+  background: var(--surface);
+}
+.ch12-fold > summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.ch12-question {
+  border-left: 4px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 0.75rem 1rem;
+  border-radius: 0 8px 8px 0;
+  margin: 1rem 0;
+}
+.ch12-question strong {
+  color: var(--accent);
+}
+
+.ch12-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+.ch12-table th,
+.ch12-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+}
+.ch12-table th {
+  background: var(--surface-2);
+  font-weight: 600;
+}
+.ch12-table td.num,
+.ch12-table th.num {
+  text-align: right;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+.ch12-table tr.ch12-hl td {
+  background: var(--accent-soft);
+}
+.ch12-table tr.ch12-bad td {
+  background: var(--danger-soft);
+}
+
+.ch12-goals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+.ch12-goal {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.6rem 0.8rem;
+  background: var(--surface);
+}
+.ch12-goal-title {
+  font-weight: 700;
+  margin-bottom: 0.2rem;
+}
+
+.ch12-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+.ch12-kpi {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.45rem 0.6rem;
+  background: var(--surface);
+  min-width: 0;
+}
+.ch12-kpi-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.ch12-kpi-value {
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.ch12-try {
+  border: 1px solid var(--ok);
+  background: var(--ok-soft);
+  border-radius: 8px;
+  padding: 0.5rem 0.8rem;
+  margin: 0.75rem 0;
+}
+.ch12-try::before {
+  content: '試試看：';
+  font-weight: 700;
+  color: var(--ok);
+}
+
+.ch12-controls-group {
+  border-top: 1px solid var(--border);
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+}
+.ch12-controls-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.ch12-status {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0.25rem 0 0.5rem;
+}
+
+.ch12-hw {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.6rem;
+}
+
+@media (max-width: 480px) {
+  .ch12-table {
+    font-size: 0.84rem;
+  }
+  .ch12-table th,
+  .ch12-table td {
+    padding: 0.3rem 0.35rem;
+  }
+}
+
+/* 帶入手算（HandCalc）前的邀請句 */
+.ch12-hand {
+  margin: 1rem 0;
+}
+.ch12-hand-invite {
+  margin: 0 0 0.4rem;
+  padding-left: 0.75rem;
+  border-left: 3px solid var(--accent);
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+.ch12-hand-invite::before {
+  content: '換你算：';
+  font-weight: 700;
+  color: var(--accent);
+}

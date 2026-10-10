@@ -1,0 +1,25 @@
+{
+  "id": "stability-gauss-mu08",
+  "title": "Gaussian、μ = 0.8：均方發散但路徑收斂（勘誤 E14）",
+  "page": "/ch/03",
+  "experiment": "stability-lab",
+  "description": "介於 MS 界 2/3 與 mean 界 2 之間：E[δ²] 爆炸，但幾乎每條路徑收斂。",
+  "params": {
+    "dist": "gaussian",
+    "xValue": 2,
+    "sigma": 1,
+    "halfWidth": 1.7320508075688772,
+    "amplitude": 1,
+    "listText": "0, 0, 0, 0, 0, 0, 0, 0, 0, 3",
+    "delta0": 1,
+    "paths": 2000,
+    "steps": 200,
+    "noiseSigma": 0,
+    "mu": 0.8
+  },
+  "expected": "1 − μP_x = 0.2、g = 1.32 > 1（n = 200 時 √E[δ²] ≈ 10^12.06）、λ = −0.4657 < 0（典型路徑 ≈ 10^−40.45）；MC 收斂比例 ≈ 100%。",
+  "tests": [
+    "T03"
+  ],
+  "source": "illustrative"
+}

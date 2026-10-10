@@ -1,0 +1,28 @@
+{
+  "id": "gmac-flow-basic",
+  "title": "GMAC 訊號流：小 N 逐拍追蹤（average）",
+  "page": "/ch/04",
+  "experiment": "gmac-signal-flow",
+  "description": "N = 16、σ_v = 20 fs、a = 30 fs、iid ±1 code：一拍一拍看 q·x 怎麼累加成 S，再變成 w 的更新。",
+  "params": {
+    "N": 16,
+    "numBlocks": 24,
+    "sigmaV": 20,
+    "aTrue": 30,
+    "w0": 0,
+    "pattern": "iid_pm_one",
+    "normalization": "unit_rms",
+    "path": "identity",
+    "hpPole": 0.5,
+    "encoding": "bipolar_pm_one",
+    "seed": 20261010,
+    "cases": [
+      {
+        "gmMode": "average",
+        "mu": 10
+      }
+    ]
+  },
+  "expected": "K = K_q·C = √(2/π)/20 ≈ 0.0399 fs⁻¹，g = μK ≈ 0.399、pole ≈ 0.601；w_k 約 10 個 block 內進入 a = 30 fs 附近，之後以數 fs 抖動。",
+  "source": "simulation"
+}

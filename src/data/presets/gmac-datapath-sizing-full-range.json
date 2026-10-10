@@ -1,0 +1,18 @@
+{
+  "id": "gmac-datapath-sizing-full-range",
+  "title": "Full-range code：條件取負多 1 bit",
+  "page": "/models",
+  "experiment": "gmac-datapath-sizing",
+  "description": "code 允許 −32（full range）。",
+  "params": {
+    "bx": 6,
+    "log2N": 12,
+    "range": "full",
+    "rounding": "floor",
+    "gFracBits": 0,
+    "sigmaV": 100,
+    "mu": 10
+  },
+  "expected": "B_acc = 19 bits；經驗法則 18 bits 不夠（+32×4096 = 131072 wrap 成 −131072），發出警告。",
+  "source": "illustrative"
+}

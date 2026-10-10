@@ -1,0 +1,45 @@
+{
+  "id": "delay-code-misalignment",
+  "title": "反面測試：H = 1 卻把 code 錯位 D = 4",
+  "page": "/ch/07",
+  "experiment": "delay-fx-lab",
+  "description": "規格 §17 反面測試「Code Misalignment」：誤差路徑 H = 1（φ = 0），但 GMAC 的 code 多延遲了 D 個 sample。Case A 對齊（raw-x）、B 錯位 D = 4（ΩD = 120°）、C 錯位 D = 3（ΩD = 90°）。",
+  "params": {
+    "scenario": {
+      "pathKind": "identity",
+      "mag": 1,
+      "phiDeg": -120,
+      "codeKind": "sinusoid",
+      "omega": 0.5235987755982988,
+      "a": 3,
+      "w0": 0,
+      "sigmaV": 100,
+      "N": 1024,
+      "blocks": 300,
+      "Dmax": 24
+    },
+    "cases": [
+      {
+        "mode": "raw",
+        "D": 0,
+        "mu": 10
+      },
+      {
+        "mode": "delayed",
+        "D": 4,
+        "mu": 10
+      },
+      {
+        "mode": "delayed",
+        "D": 3,
+        "mu": 10
+      }
+    ],
+    "seed": 20261010
+  },
+  "expected": "C_0 = +1（收斂）、C_4 = cos 120° = −0.5（發散；negative_tests.json 以 A = 1 為 −0.25）、C_3 = cos 90° = 0（沒有恢復力，w 隨雜訊漂移，交叉比對標為 n/a）。",
+  "tests": [
+    "T07"
+  ],
+  "source": "simulation"
+}

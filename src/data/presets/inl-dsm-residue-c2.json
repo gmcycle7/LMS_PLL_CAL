@@ -1,0 +1,26 @@
+{
+  "id": "inl-dsm-residue-c2",
+  "title": "DSM residue 上的二階 INL + offset（共用 BBPD）",
+  "page": "/ch/11",
+  "experiment": "bias-inl-lab",
+  "description": "first-order DSM、frac = 77/256、x = residue ∈ [0, 1)、b = 0.05、c₂ = 0.1、σ_v = 0.5。",
+  "params": {
+    "a": 1,
+    "w0": 1,
+    "b": 0.05,
+    "c2": 0.1,
+    "c3": 0,
+    "kappa": 0,
+    "codeKind": "dsm",
+    "codeShift": 0,
+    "dsmKind": "first_order",
+    "dsmFrac": 0.3,
+    "algorithm": "sign",
+    "sigmaV": 0.5,
+    "dcMode": "shared_bbpd",
+    "jitterSlope": 0,
+    "jitterRef": -2
+  },
+  "expected": "shared BBPD：w* = 1.09961（= a + c₂Cov(x, x²)/Var(x)，offset 不貢獻）；切到 none：1.15（含 bE[x]/E[x²] = 0.0751）；linear PD：1.3975。E[x²] = 0.3314、Var(x) = 0.0833（約 4 倍）。（勘誤 E03）",
+  "source": "illustrative"
+}

@@ -1,0 +1,195 @@
+/* Ch09 專屬樣式（class 一律加 ch09- 前綴） */
+
+.ch09-erratum {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.15em;
+  padding: 0 0.45em;
+  margin: 0 0.15em;
+  border: 1px solid var(--warn);
+  border-radius: 999px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 0.78em;
+  font-weight: 600;
+  line-height: 1.6;
+  text-decoration: none;
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+
+.ch09-erratum:hover,
+.ch09-erratum:focus-visible {
+  text-decoration: underline;
+}
+
+.ch09-erratum-text {
+  font-weight: 500;
+  white-space: normal;
+}
+
+.ch09-deriv {
+  margin: 0.75rem 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.ch09-deriv > summary {
+  cursor: pointer;
+  padding: 0.55rem 0.8rem;
+  font-weight: 600;
+  list-style-position: inside;
+}
+
+.ch09-deriv-badge {
+  display: inline-block;
+  padding: 0 0.45em;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.8em;
+  font-weight: 700;
+  margin-right: 0.25em;
+}
+
+.ch09-deriv-body {
+  padding: 0 0.8rem 0.6rem;
+  min-width: 0;
+}
+
+/* 兩欄圖表格線：窄螢幕自動變一欄，避免頁面水平捲動 */
+.ch09-plots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+  min-width: 0;
+}
+
+.ch09-plots > * {
+  min-width: 0;
+}
+
+.ch09-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+  gap: 0.5rem 0.9rem;
+}
+
+.ch09-controls-group {
+  grid-column: 1 / -1;
+  margin: 0.4rem 0 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.15rem;
+}
+
+.ch09-table td,
+.ch09-table th {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.ch09-table td:first-child,
+.ch09-table th:first-child {
+  text-align: left;
+}
+
+.ch09-table td.ch09-left,
+.ch09-table th.ch09-left {
+  text-align: left;
+}
+
+.ch09-ok {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.ch09-bad {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.ch09-note {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  margin: 0.25rem 0 0.75rem;
+}
+
+.ch09-lead {
+  font-size: 1.05rem;
+  line-height: 1.75;
+}
+
+.ch09-status {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0.25rem 0;
+}
+
+.ch09-kv {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: 0.4rem 0.8rem;
+  margin: 0.5rem 0;
+}
+
+.ch09-kv > div {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.55rem;
+  background: var(--surface);
+  min-width: 0;
+}
+
+.ch09-kv .ch09-kv-label {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.ch09-kv .ch09-kv-value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.ch09-toc {
+  columns: 2 240px;
+  column-gap: 1.5rem;
+  margin: 0.5rem 0 1rem;
+  padding-left: 1.2rem;
+}
+
+.ch09-toc li {
+  break-inside: avoid;
+  margin: 0.15rem 0;
+}
+
+.ch09-toc-link {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ch09-toc-link:hover,
+.ch09-toc-link:focus-visible {
+  text-decoration: underline;
+}
+
+/* 帶入手算：邀請句緊貼在題目上方 */
+.ch09-handcalc {
+  margin: 1rem 0;
+}
+
+.ch09-handcalc-invite {
+  margin: 0 0 0.4rem;
+}

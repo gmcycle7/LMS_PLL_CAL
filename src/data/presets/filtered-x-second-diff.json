@@ -1,0 +1,47 @@
+{
+  "id": "filtered-x-second-diff",
+  "title": "Type-II 的二次差分 regressor（低頻 tone）",
+  "page": "/ch/07",
+  "experiment": "delay-fx-lab",
+  "description": "同 Type-II 低頻 tone 場景（Ω = 0.03）：A raw-x、B filtered-x 用二次差分 Ĥ₂ = (1 − z⁻¹)²/(ω_nT_s)²、C filtered-x（Ĥ = H）。",
+  "params": {
+    "scenario": {
+      "pathKind": "type2_dt",
+      "wnTs": 0.1,
+      "zeta": 0.7,
+      "loopDelay": 0,
+      "codeKind": "sinusoid",
+      "omega": 0.03,
+      "a": 10,
+      "w0": 0,
+      "sigmaV": 20,
+      "N": 2048,
+      "blocks": 300,
+      "Dmax": 240
+    },
+    "cases": [
+      {
+        "mode": "raw",
+        "D": 0,
+        "mu": 14
+      },
+      {
+        "mode": "filtered",
+        "D": 0,
+        "mu": 160,
+        "hatBase": "second_diff"
+      },
+      {
+        "mode": "filtered",
+        "D": 0,
+        "mu": 160
+      }
+    ],
+    "seed": 20261010
+  },
+  "expected": "Ĥ₂ 與 H_PD 在 Ω = 0.03 的相位差 −22.9°：E[u·u_f] = 0.00740（ρ = 0.921），與 E[u²] = 0.00797 相近；B、C 都收斂到 a = 10 fs，A 發散。",
+  "tests": [
+    "T07"
+  ],
+  "source": "simulation"
+}

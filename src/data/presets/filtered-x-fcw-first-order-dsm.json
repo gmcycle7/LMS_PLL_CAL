@@ -1,0 +1,46 @@
+{
+  "id": "filtered-x-fcw-first-order-dsm",
+  "title": "FCW 與一階 DSM code：換一個 channel，raw-x 的極性就翻了",
+  "page": "/ch/07",
+  "experiment": "delay-fx-lab",
+  "description": "寬頻 Type-II DPLL（ω_nT_s = 0.25、ζ = 0.7、loop latency d = 2；約等於 4 GHz reference、320 MHz 頻寬），regressor 是一階 DSM（phase accumulator）的 DTC phase residue：基頻 frac·f_s 的 sawtooth。FCW 小數 0.05（基頻 Ω = 0.314，低於 raw-x 的極性邊界）。A raw-x、B delayed-x（D = 12）、C filtered-x（Ĥ = H）。",
+  "params": {
+    "scenario": {
+      "pathKind": "type2_dt",
+      "wnTs": 0.25,
+      "zeta": 0.7,
+      "loopDelay": 2,
+      "codeKind": "dsm1",
+      "frac": 0.05,
+      "a": 3,
+      "w0": 0,
+      "sigmaV": 100,
+      "N": 1024,
+      "blocks": 300,
+      "Dmax": 64
+    },
+    "cases": [
+      {
+        "mode": "raw",
+        "D": 0,
+        "mu": 20
+      },
+      {
+        "mode": "delayed",
+        "D": 12,
+        "mu": 20
+      },
+      {
+        "mode": "filtered",
+        "D": 0,
+        "mu": 20
+      }
+    ],
+    "seed": 20261010
+  },
+  "expected": "一階 DSM 無封閉式 PSD，只顯示經驗值（seed 20261010）。frac = 0.05：raw-x C ≈ −0.13（ρ ≈ −0.07，pole 1.021，300 blocks 後 w ≈ +199 fs，被推離 a = 3 fs）；delayed-x D = 12：C ≈ +1.36（ρ ≈ 0.73），收斂；filtered-x：E[u²] ≈ 3.46（ρ = 1），收斂。把 FCW 小數改成 0.3（換 channel）：raw-x 變成 C ≈ +0.99（收斂），同一個 D = 12 卻變成 C ≈ −0.18（發散）；filtered-x 仍然收斂。改成 0.01（near-integer）：raw-x 的 ρ 只剩約 0.02（τ ≈ 295 blocks，幾乎沒有恢復力）。",
+  "tests": [
+    "T07"
+  ],
+  "source": "simulation"
+}

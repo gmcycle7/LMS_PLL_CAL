@@ -1,0 +1,482 @@
+/* Sign-off Checklist / Design Review 頁（class 一律 so- 前綴） */
+
+.so-page {
+  min-width: 0;
+}
+
+.so-lead {
+  font-size: 1.02rem;
+}
+
+.so-toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 0.86rem;
+  margin: 8px 0 4px;
+  padding: 8px 12px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+}
+
+.so-toc a {
+  white-space: nowrap;
+}
+
+/* ---------- 勘誤標記 ---------- */
+.so-erratum {
+  display: inline-block;
+  font-size: 0.74rem;
+  line-height: 1.3;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--warn);
+  color: var(--warn);
+  background: var(--warn-soft);
+  white-space: nowrap;
+  margin: 0 2px;
+  vertical-align: 1px;
+}
+.so-erratum:hover {
+  text-decoration: none;
+  filter: brightness(1.05);
+}
+.so-erratum-note {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  margin: 8px 0;
+}
+
+.so-details {
+  margin: 10px 0;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+}
+.so-details > summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 0.9rem;
+}
+
+/* ---------- 判決徽章 ---------- */
+.so-verdict {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.so-verdict-ok {
+  color: var(--ok);
+  background: var(--ok-soft);
+}
+.so-verdict-bad {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+.so-verdict-warn {
+  color: var(--warn);
+  background: var(--warn-soft);
+}
+.so-verdict-muted {
+  color: var(--text-muted);
+  background: var(--surface-2);
+}
+
+/* ---------- 六個條件表 ---------- */
+.so-pillars td:first-child {
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+/* ---------- Review matrix ---------- */
+.so-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+}
+.so-meta label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.86rem;
+  color: var(--text-muted);
+  min-width: 0;
+}
+.so-meta input {
+  width: 100%;
+  min-width: 0;
+}
+@media (max-width: 640px) {
+  .so-meta {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.so-progress {
+  display: flex;
+  height: 14px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--surface-3);
+  margin: 10px 0 6px;
+}
+.so-progress > span {
+  display: block;
+  height: 100%;
+}
+.so-seg-pass {
+  background: var(--ok);
+}
+.so-seg-waived {
+  background: var(--warn);
+}
+.so-seg-fail {
+  background: var(--danger);
+}
+.so-seg-in-progress {
+  background: var(--info);
+}
+.so-seg-not-started {
+  background: transparent;
+}
+
+.so-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+}
+.so-legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: -1px;
+  border: 1px solid var(--border-strong);
+}
+
+.so-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 12px 0;
+}
+.so-toolbar .so-spacer {
+  flex: 1 1 auto;
+}
+.so-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.so-case {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  margin: 14px 0;
+  min-width: 0;
+}
+.so-case > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: baseline;
+}
+.so-case > summary::-webkit-details-marker {
+  display: none;
+}
+.so-case > summary::before {
+  content: '▸';
+  color: var(--text-faint);
+}
+.so-case[open] > summary::before {
+  content: '▾';
+}
+.so-case-title {
+  font-weight: 700;
+  font-size: 1.04rem;
+}
+.so-case-count {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+.so-case-body {
+  padding: 0 14px 12px;
+}
+.so-case-spec {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  margin: 0 0 8px;
+}
+
+.so-check {
+  border-top: 1px solid var(--border);
+  padding: 10px 0;
+  min-width: 0;
+}
+.so-check-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: center;
+}
+.so-check-title {
+  font-weight: 600;
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.so-status {
+  font-size: 0.86rem;
+  border-width: 2px;
+  min-width: 9.5em;
+}
+.so-status[data-status='pass'] {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+.so-status[data-status='fail'] {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.so-status[data-status='waived'] {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+.so-status[data-status='in-progress'] {
+  border-color: var(--info);
+  color: var(--info);
+}
+.so-check-grid {
+  display: grid;
+  grid-template-columns: 7.5em minmax(0, 1fr);
+  gap: 4px 10px;
+  font-size: 0.92rem;
+  margin-top: 6px;
+}
+.so-check-grid > dt {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+}
+.so-check-grid > dd {
+  margin: 0;
+  min-width: 0;
+}
+@media (max-width: 560px) {
+  .so-check-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .so-check-grid > dt {
+    margin-top: 4px;
+  }
+  .so-status {
+    width: 100%;
+  }
+}
+.so-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+}
+.so-note {
+  width: 100%;
+  min-height: 2.6em;
+  font: inherit;
+  font-size: 0.88rem;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  resize: vertical;
+  margin-top: 6px;
+}
+.so-note[data-missing='true'] {
+  border-color: var(--danger);
+}
+.so-note-warn {
+  font-size: 0.82rem;
+  color: var(--danger);
+}
+.so-updated {
+  font-size: 0.76rem;
+  color: var(--text-faint);
+}
+
+/* ---------- 宣稱語句 ---------- */
+.so-stmts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 760px) {
+  .so-stmts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.so-stmt {
+  border: 1px solid var(--border);
+  border-left: 5px solid var(--ok);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  background: var(--surface);
+  min-width: 0;
+}
+.so-stmt-bad {
+  border-left-color: var(--danger);
+}
+.so-stmt-text {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.so-stmt-mark {
+  display: inline-block;
+  min-width: 2.2em;
+  font-weight: 700;
+}
+.so-stmt-ok .so-stmt-mark {
+  color: var(--ok);
+}
+.so-stmt-bad .so-stmt-mark {
+  color: var(--danger);
+}
+.so-stmt-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.so-stmt dl {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+}
+.so-stmt dt {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin-top: 4px;
+}
+.so-stmt dd {
+  margin: 0;
+}
+
+/* ---------- 實驗輸出 ---------- */
+.so-kv {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 10px 0;
+}
+.so-kv > div {
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  min-width: 0;
+}
+.so-kv .k {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.so-kv .v {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.so-matrix-input {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+}
+@media (max-width: 560px) {
+  .so-matrix-input {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.so-corner-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
+  align-items: end;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--border);
+}
+.so-corner-row input[type='text'] {
+  width: 100%;
+  min-width: 0;
+}
+@media (max-width: 640px) {
+  .so-corner-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------- 反面測試、附錄 B ---------- */
+.so-neg-sig {
+  font-variant-numeric: tabular-nums;
+}
+.so-neg-sig div {
+  white-space: nowrap;
+}
+.so-limits {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 760px) {
+  .so-limits {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.so-limit {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  background: var(--surface);
+  min-width: 0;
+}
+.so-limit h3 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+.so-limit-no {
+  display: inline-block;
+  min-width: 1.8em;
+  color: var(--accent);
+}
+.so-limit-action {
+  font-size: 0.9rem;
+  border-left: 3px solid var(--accent);
+  padding-left: 8px;
+  margin-top: 6px;
+}
+
+/* ---------- 帶入手算 ---------- */
+.so-handcalc {
+  margin: 14px 0;
+  min-width: 0;
+}
+.so-handcalc-lead {
+  margin: 0 0 6px;
+  font-size: 0.92rem;
+  color: var(--text-muted);
+}

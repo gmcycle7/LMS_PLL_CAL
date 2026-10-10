@@ -1,0 +1,19 @@
+{
+  "id": "sign-lms-band-default",
+  "title": "a = 3、x = 1、μ = 0.4：2.8 ↔ 3.2 的 limit cycle",
+  "page": "/ch/02",
+  "experiment": "sign-lms-band",
+  "description": "固定 x、無雜訊的 Sign-Error：每步走 h = μ|x| = 0.4。",
+  "params": {
+    "a": 3,
+    "x": 1,
+    "w0": 0,
+    "mu": 0.4,
+    "steps": 40,
+    "tie": "plus",
+    "schedule": "constant",
+    "n0": 20
+  },
+  "expected": "第 7 步起在 2.8 與 3.2 間跳動，時間平均 3.0，|δ| < 0.4（F-02.10）。LMS 以 pole 0.6 指數收斂。",
+  "source": "illustrative"
+}

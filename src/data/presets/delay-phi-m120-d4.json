@@ -1,0 +1,46 @@
+{
+  "id": "delay-phi-m120-d4",
+  "title": "φ = −120°、D = 4：Delay 修正極性",
+  "galleryIndex": 4,
+  "page": "/ch/07",
+  "experiment": "delay-fx-lab",
+  "description": "規格 §19.2 #4 / T07：單頻 code Ω = π/6（30°/sample），誤差路徑在該頻率為 |H| = 1、φ = −120°。Case A raw-x、B delayed-x（D = 4）、C filtered-x（Ĥ = H），同一個 seed 的閉迴路 Block Sign-LMS。",
+  "params": {
+    "scenario": {
+      "pathKind": "single_tone",
+      "mag": 1,
+      "phiDeg": -120,
+      "codeKind": "sinusoid",
+      "omega": 0.5235987755982988,
+      "a": 3,
+      "w0": 0,
+      "sigmaV": 100,
+      "N": 1024,
+      "blocks": 300,
+      "Dmax": 24
+    },
+    "cases": [
+      {
+        "mode": "raw",
+        "D": 0,
+        "mu": 10
+      },
+      {
+        "mode": "delayed",
+        "D": 4,
+        "mu": 10
+      },
+      {
+        "mode": "filtered",
+        "D": 0,
+        "mu": 10
+      }
+    ],
+    "seed": 20261010
+  },
+  "expected": "unit-power code（A²/2 = 1）：C_raw = −0.5、C_4 = +1、殘餘相位 θ = 0°、polarity margin 90°（golden T07 以 A = 1 為 −0.25／+0.5）。K_q = 0.007979 fs⁻¹、μ = 10 fs：raw-x 平均 pole 1.0399（被推離 a，seed 20261010 時 300 blocks 後 w ≈ −988 fs），delayed-x 與 filtered-x pole 0.9202、τ ≈ 12 blocks，後半段 mean w ≈ 3.30 fs（a = 3 fs）。",
+  "tests": [
+    "T07"
+  ],
+  "source": "simulation"
+}

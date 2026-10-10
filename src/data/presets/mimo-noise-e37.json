@@ -1,0 +1,50 @@
+{
+  "id": "mimo-noise-e37",
+  "title": "完整 Preconditioner 的雜訊：模式變異 127.8 / 0.642 vs 每參數 64.2 fs²",
+  "page": "/ch/10",
+  "experiment": "mimo-lms",
+  "description": "勘誤 E37 / E21 的例子：ρ = 0.99、γ = 0.5、N = 4096、σ_v = 100 fs。按「執行 Run」跑穩態共變異 Monte Carlo（worker），比較模式座標 ξ = Vᵀδ 的變異與每個參數的變異。",
+  "params": {
+    "P": 2,
+    "mode": "R",
+    "R": [
+      [
+        1,
+        0.99
+      ],
+      [
+        0.99,
+        1
+      ]
+    ],
+    "sigmaV": 100,
+    "N": 4096,
+    "dist": "gaussian",
+    "delta0": [
+      30,
+      0
+    ],
+    "blocks": 300,
+    "engine": "linear",
+    "jhatSource": "exact",
+    "showAllRules": true,
+    "cases": [
+      {
+        "rule": "full",
+        "gamma": 0.5
+      },
+      {
+        "rule": "scalar",
+        "muKq": 0.5
+      }
+    ],
+    "mcChains": 64,
+    "mcRecord": 2000,
+    "seed": 20261010
+  },
+  "expected": "Var(ξ) = γ/(K_q²Nλ_i(2−γ)) = 0.642（λ = 1.99）與 127.8 fs²（λ = 0.01）；每參數 Var(δ_j) = c·[R⁻¹]_jj = 64.24 fs²（RMS 8.01 fs）；σ_weak/σ_strong = √199 = 14.1。Monte Carlo（64 chains × 2000 blocks）的估計應落在這些值的 ±4 SE 內（交叉比對的判準）；95% CI 則是每個量各有約 5% 的機率不包含真值——預設 seed 下快模式的區間 [0.6289, 0.6422] 就剛好擦邊（差約 2 SE），屬正常的統計起伏。",
+  "tests": [
+    "T10"
+  ],
+  "source": "illustrative"
+}

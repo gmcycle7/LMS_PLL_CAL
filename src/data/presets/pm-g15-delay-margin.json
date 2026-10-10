@@ -1,0 +1,11 @@
+{
+  "id": "pm-g15-delay-margin",
+  "title": "g = 1.5：PM 41.4°，但 delay margin 只有 0.426 block",
+  "page": "/ch/08",
+  "experiment": "pm-lab",
+  "description": "d = 0 時穩定（pole −0.5，交替收斂）；把 d 改成 1 立刻發散——PM 小的代價是對延遲脆弱。",
+  "params": { "g": 1.5, "d": 0, "steps": 40 },
+  "expected": "pole = −0.5；PM = 41.41°；DM = 0.426 blocks；改成 d = 1 後 ρ > 1（g > g*(1) = 1）。",
+  "tests": ["T08"],
+  "source": "illustrative"
+}

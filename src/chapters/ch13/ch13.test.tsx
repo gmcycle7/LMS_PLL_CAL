@@ -1,0 +1,327 @@
+import { render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { SettingsProvider } from '@/app/settings'
+import { presetsForExperiment } from '@/app/presets'
+import { extractRegion, listRegions } from '@/components'
+import quantSrc from '@/simulation/models/quantizer.ts?raw'
+import { STRATEGIES, runQuantCriteria, runQuantLab } from '@/simulation/models/quantizer'
+import { FORMULAS } from './formulas'
+import { HANDCALCS } from './handcalcs'
+import { DEFAULT_LAB_PARAMS } from './common'
+import Chapter13 from './index'
+import { EXPERIMENT_ID } from './experiments/QuantizedGainLab'
+import { bernoulliVarSe, crossChecks, metricRows } from './experiments/labChecks'
+
+const P = vi.hoisted(() => ({
+  react: vi.fn(async () => undefined),
+  purge: vi.fn(),
+  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
+  downloadImage: vi.fn(async () => ''),
+  Plots: { resize: vi.fn() },
+  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
+}))
+vi.mock('plotly.js-dist-min', () => ({ default: P }))
+
+const M = vi.hoisted(() => ({
+  initialize: vi.fn(),
+  render: vi.fn(async (id: string) => ({ svg: `<svg id="${id}"></svg>`, diagramType: 'flowchart-v2' })),
+}))
+vi.mock('mermaid', () => ({ default: M }))
+
+function renderChapter(mode: 'beginner' | 'engineer' | 'research' = 'engineer', route = '/ch/13') {
+  localStorage.setItem('lmspll.mode', mode)
+  return render(
+    <MemoryRouter initialEntries={[route]}>
+      <SettingsProvider>
+        <Chapter13 />
+      </SettingsProvider>
+    </MemoryRouter>,
+  )
+}
+
+afterEach(() => localStorage.clear())
+
+/**
+ * 時間上限：單獨執行時整章渲染約十幾秒；多個測試程序同時跑、CPU 嚴重超額時（load average 曾超過 600）會慢數十倍，
+ * 所以把上限放寬——逾時只代表機器太忙，不該蓋掉真正的斷言。
+ */
+const WAIT_MS = 240_000
+const TEST_MS = 300_000
+
+describe('Chapter 13（jsdom smoke）', () => {
+  // 每種學習模式各一個測試（各有自己的時間上限）：整章渲染一次要跑 8 題手算與所有章內模擬，
+  // 多個測試程序同時執行、CPU 超額時，三種模式串在同一個測試裡會先撞到逾時而不是真正的斷言。
+  it.each(['beginner', 'engineer', 'research'] as const)(
+    '%s 模式能渲染不丟錯，包含符號表、五策略段落、勘誤標記、帶入手算與實驗',
+    async (mode) => {
+      const errSpy = vi.spyOn(console, 'error')
+      try {
+        const { unmount, container } = renderChapter(mode)
+        expect(screen.getByText('本章符號')).toBeTruthy()
+        expect(screen.getAllByText(/方法 A：Freeze/).length).toBeGreaterThan(0)
+        expect(screen.getAllByText(/方法 D：高解析 accumulator/).length).toBeGreaterThan(0)
+        expect(container.querySelectorAll('.ch13-erratum').length).toBeGreaterThan(5)
+        for (const id of ['E13', 'E15', 'E47', 'E49']) expect(screen.getAllByText(`勘誤 ${id}`).length).toBeGreaterThan(0)
+        // 勘誤連到驗證頁
+        const link = container.querySelector('a.ch13-erratum') as HTMLAnchorElement
+        expect(link.getAttribute('href')).toBe('#/verification')
+        expect(screen.getByText('Quantized Gain Lab：6-bit code、limit cycle、dither、ΔΣ')).toBeTruthy()
+        // CodeCompare 顯示真實程式碼（不是 region 載入錯誤）
+        expect(screen.queryByText(/程式碼載入錯誤/)).toBeNull()
+        // 所有 LaTeX 都能被 KaTeX 解析（throwOnError:false 時錯誤會變成 .katex-error）
+        const texErrors = Array.from(container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.getAttribute('title') ?? e.textContent)
+        expect(texErrors).toEqual([])
+        // §13.4 的共變異數由完整週期計算：Cov(r[n−1], r[n]) = −0.0400（舊版用 499 對相鄰樣本，顯示成 −0.0401）
+        expect(container.textContent).toContain(String.raw`\mathrm{Cov}(r[n-1],r[n])=-0.0400`)
+        expect(container.textContent).not.toContain('-0.0401')
+        // §13.6 的 wrap 示範：40% 的更新被繞回 0（硬體丟掉進位，r 不會多出 64）
+        expect(container.querySelector('#ch13-nonideal')?.textContent).toContain('40.0%')
+        // 每個登錄的公式 ID 在每種模式都恰好有一個 TexBlock 錨點（Formula & Unit Reference 頁會連過來）
+        for (const f of FORMULAS) expect(container.querySelectorAll(`[id="formula-${f.id}"]`).length, `${mode}: ${f.id}`).toBe(1)
+        // 「帶入手算」：HC-13.1 … HC-13.8 在每種模式都各出現一次（不藏在收合的推導框裡），順序與章節一致
+        expect(Array.from(container.querySelectorAll('.c-handcalc')).map((el) => el.id)).toEqual(HANDCALCS.map((h) => `handcalc-${h.id}`))
+        for (const el of Array.from(container.querySelectorAll('.c-handcalc'))) {
+          expect(el.closest('details'), `${mode}: ${el.id} 不應放在可收合的區塊內`).toBeNull()
+          expect(el.querySelectorAll('.c-step').length, `${mode}: ${el.id}`).toBeGreaterThan(0)
+        }
+        // 綜合題放在「思考題」之前（docs/teaching-style.md §7）
+        const syn = container.querySelector('#ch13-synthesis') as HTMLElement
+        const quiz = container.querySelector('#ch13-quiz') as HTMLElement
+        expect(syn.querySelector('[id="handcalc-HC-13.8"]')).not.toBeNull()
+        expect(syn.compareDocumentPosition(quiz) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+        unmount()
+        // React 的 key / hooks / DOM 巢狀警告都走 console.error：smoke render 不允許任何一則
+        expect(errSpy.mock.calls.map((c) => String(c[0]))).toEqual([])
+      } finally {
+        errSpy.mockRestore()
+      }
+    },
+    TEST_MS,
+  )
+
+  it('實驗在 jsdom 以 inline 模式跑完，顯示週期偵測（常數 32.4 的 Toggle：週期 5）與五策略總表', async () => {
+    const { container } = renderChapter('engineer')
+    await waitFor(() => expect(container.querySelector('.ch13-period')).not.toBeNull(), { timeout: WAIT_MS, interval: 250 })
+    const period = container.querySelector('.ch13-period') as HTMLElement
+    expect(period.textContent).toContain('Limit-cycle period detector')
+    expect(period.querySelector('.ch13-period-detected')?.textContent).toBe('5')
+    const summaries = Array.from(container.querySelectorAll('summary')).map((s) => s.textContent ?? '')
+    expect(summaries.some((t) => t.includes('五策略總表'))).toBe(true)
+    // 勘誤 E15 的 acceptance check 直接顯示在五策略總表上方（由模擬結果判定，不是寫死的文字）
+    const accept = container.querySelector('[data-testid="ch13-accept-db"]') as HTMLElement
+    expect(accept.textContent).toContain('✓ D ≡ B')
+    expect(accept.textContent).toContain('[32, 33, 32, 33, 32]')
+    // Freeze/Track 切換按鈕存在（規格 §13.6）
+    expect(Array.from(container.querySelectorAll('button')).some((b) => /凍結 Freeze/.test(b.textContent ?? ''))).toBe(true)
+    // 六準則表（runQuantCriteria，inline worker）
+    await waitFor(() => expect(container.querySelector('#ch13-criteria table')).not.toBeNull(), { timeout: WAIT_MS, interval: 250 })
+    const crit = container.querySelector('#ch13-criteria') as HTMLElement
+    // 「FCW 陷阱」示範與解析度說明都由模擬結果產生（混頻週期 640 與 2621440 個 cycle）
+    expect(crit.textContent).toContain('FCW 陷阱')
+    expect(crit.textContent).toContain('2621440')
+    expect(crit.textContent).toContain(String.raw`\mathrm{lcm}(5,128)=640`)
+    // 準則 3 的排序由數字推得：本例 Freeze 最小、limit cycle（B、D）最大
+    expect(crit.textContent).toMatch(/由小到大：\s*A（/)
+    expect(crit.textContent).toContain('本例最差的是週期性的 limit cycle')
+    // 非同步結果出現後，整頁仍然沒有 KaTeX 解析錯誤
+    expect(Array.from(container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.textContent)).toEqual([])
+  }, TEST_MS)
+
+  it('?preset=quant-fixed-point-period-512 會套用 preset（偵測週期 512、定點格點）', async () => {
+    const { container } = renderChapter('engineer', '/ch/13?preset=quant-fixed-point-period-512')
+    await waitFor(
+      () => {
+        const el = container.querySelector('.ch13-period') as HTMLElement | null
+        expect(el?.textContent ?? '').toContain('fixed')
+        expect(el?.querySelector('.ch13-period-detected')?.textContent).toBe('512')
+      },
+      { timeout: WAIT_MS, interval: 250 },
+    )
+  }, TEST_MS)
+})
+
+describe('Chapter 13：網址 preset 的 Case 清單', () => {
+  it('?preset=quant-lms-noise-time-varying：三個 Case（B / C / D，皆含 LMS 雜訊）全部套用，不殘留預設的 ΔΣ + dither（舊版只更新 Case A）', async () => {
+    const { container } = renderChapter('engineer', '/ch/13?preset=quant-lms-noise-time-varying')
+    await waitFor(
+      () => {
+        const text = container.querySelector('#ch13-lab')?.textContent ?? ''
+        expect(text).toContain('Case A：(B) Deterministic Toggle（LMS 雜訊）')
+        expect(text).toContain('Case B：(C) Stochastic Rounding（LMS 雜訊）')
+        expect(text).toContain('Case C：(D) 1st-order ΔΣ（EFB）（LMS 雜訊）')
+      },
+      { timeout: WAIT_MS, interval: 250 },
+    )
+    expect(container.querySelector('#ch13-lab')?.textContent ?? '').not.toContain('Case C：(E)')
+    // 時變情境：沒有解析期望值 ⇒ 不顯示 D ≡ B 的 acceptance 判定
+    expect(container.querySelector('[data-testid="ch13-accept-db"]')).toBeNull()
+  }, TEST_MS)
+
+  it('?preset=quant-overload-wrap：兩個 Case（ΔΣ 與 Freeze）；wrap 的 ΔΣ 偵測到週期 5 並顯示 overload 警告', async () => {
+    const { container } = renderChapter('engineer', '/ch/13?preset=quant-overload-wrap')
+    await waitFor(
+      () => {
+        const el = container.querySelector('.ch13-period') as HTMLElement | null
+        expect(el?.querySelector('.ch13-period-detected')?.textContent).toBe('5')
+        // 偵測窗口從 n = L/4 = 1024 起（1024 mod 5 = 4）⇒ 顯示的一個週期是 [63, 0, 63, 0, 63] 的循環移位
+        expect(el?.textContent ?? '').toContain('[63, 63, 0, 63, 0]')
+      },
+      { timeout: WAIT_MS, interval: 250 },
+    )
+    const lab = container.querySelector('#ch13-lab')?.textContent ?? ''
+    expect(lab).toContain('超出 6-bit code 範圍')
+    expect(lab).toMatch(/Case A：Overflow \d+ 次且使用 wrap/)
+    // 警告裡的數學（w*、[0, 63]、→）先經 warnTex 換成 `$...$`，再由 KaTeX 顯示：沒有解析錯誤，也沒有殘留的 Unicode 拼字
+    const warnBox = container.querySelector('#ch13-lab .c-exp-warnings') as HTMLElement
+    expect(warnBox.querySelectorAll('.katex').length).toBeGreaterThan(1)
+    expect(warnBox.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+    expect(warnBox.textContent).toContain('w^*')
+    // KaTeX 以外的純文字（把 .katex 節點拿掉再看）不再有 w*、→ 或落單的 $
+    const plain = warnBox.cloneNode(true) as HTMLElement
+    plain.querySelectorAll('.katex').forEach((el) => el.remove())
+    expect(plain.textContent).toContain('超出 6-bit code 範圍')
+    expect(plain.textContent).not.toMatch(/w\*|→|\$/)
+  }, TEST_MS)
+})
+
+describe('Chapter 13：Lab 的交叉比對必須誠實（labChecks）', () => {
+  const shared = (() => {
+    const { lmsNoise: _a, nUpd: _b, ...rest } = { ...DEFAULT_LAB_PARAMS, mixing: false }
+    return rest
+  })()
+  const runOne = (over: Partial<typeof DEFAULT_LAB_PARAMS>, strategy: (typeof STRATEGIES)[number], lmsNoise = false) =>
+    runQuantLab({ params: { ...DEFAULT_LAB_PARAMS, mixing: false, ...over }, cases: [{ id: 'A', strategy, lmsNoise, nUpd: 1 }], compareAll: false }).runs[0]
+
+  it('T17: stochastic 的 Analytic 檢查真的比對樣本變異與 p(1−p)（±4SE），Monte Carlo 比對平均', () => {
+    const run = runOne({}, 'stochastic')
+    const cc = crossChecks(run, shared, DEFAULT_LAB_PARAMS.length)
+    expect(cc.analytic.status).toBe('ok')
+    expect(cc.analytic.note).toMatch(/樣本變異/)
+    expect(cc.monteCarlo.status).toBe('ok')
+    // 故意把解析值改錯 → 必須報 mismatch（不可無條件 ok）
+    const bad = { ...run, theory: { ...run.theory!, variance: 0.2, errPower: 0.2 } }
+    expect(crossChecks(bad, shared, DEFAULT_LAB_PARAMS.length).analytic.status).toBe('mismatch')
+  })
+
+  it('Freeze/Track：LMS 凍結後的定點常數 w_H，Fixed-Point 檢查比對偵測週期與 D/gcd（ok）；Analytic 仍為 n/a（沒有封閉解）', () => {
+    const over = { arithmetic: 'fixed' as const, fracBits: 8, length: 8192, lmsFreezeAt: 2048, lmsNoise: true }
+    const r = runOne(over, 'deltaSigma', true)
+    const cc = crossChecks(r, { ...shared, ...over }, over.length)
+    expect(cc.analytic.status).toBe('n/a')
+    expect(cc.fixedPoint.status).toBe('ok')
+    expect(cc.fixedPoint.note).toMatch(/LMS 凍結後/)
+  })
+
+  it('沒做的就不標 ok：E 的 Monte Carlo 為 not-implemented；時變情境 Analytic 為 n/a；Freeze 的 Monte Carlo 為 n/a', () => {
+    expect(crossChecks(runOne({}, 'deltaSigmaDither'), shared, DEFAULT_LAB_PARAMS.length).monteCarlo.status).toBe('not-implemented')
+    const tv = crossChecks(runOne({ lmsNoise: true }, 'deltaSigma', true), shared, DEFAULT_LAB_PARAMS.length)
+    expect(tv.analytic.status).toBe('n/a')
+    expect(tv.fixedPoint.status).toBe('n/a')
+    expect(crossChecks(runOne({}, 'freeze'), shared, DEFAULT_LAB_PARAMS.length).monteCarlo.status).toBe('n/a')
+    expect(crossChecks(undefined, shared, 100).analytic.status).toBe('not-implemented')
+  })
+
+  it('T16: Fixed-Point 檢查——F = 10 時偵測週期 = 2^F/gcd = 512（ok）；float 32.3 的 tie 翻轉報 mismatch', () => {
+    const fixed = { ...shared, arithmetic: 'fixed' as const, fracBits: 10 }
+    const r = runOne({ arithmetic: 'fixed', fracBits: 10 }, 'deltaSigma')
+    const cc = crossChecks(r, fixed, DEFAULT_LAB_PARAMS.length)
+    expect(cc.fixedPoint.status).toBe('ok')
+    expect(cc.fixedPoint.note).toMatch(/512/)
+    expect(cc.analytic.status).toBe('ok')
+    const fl = runOne({ target: 32.3, arithmetic: 'float', length: 1000 }, 'deltaSigma')
+    expect(crossChecks(fl, { ...shared, target: 32.3, arithmetic: 'float', length: 1000 }, 1000).fixedPoint.status).toBe('mismatch')
+    // 記錄太短：解析週期 > 可偵測上限 ⇒ n/a（不可假裝 ok）
+    const short = runOne({ arithmetic: 'fixed', fracBits: 16, length: 4096 }, 'deltaSigma')
+    expect(crossChecks(short, { ...shared, arithmetic: 'fixed', fracBits: 16, length: 4096 }, 4096).fixedPoint.status).toBe('n/a')
+  })
+
+  it('metricRows：stochastic 的總功率容差由 p(1−p) 推得（不是寫死 0.0096），頻帶內列標示精確 / 近似', () => {
+    const r = runOne({ target: 32.25 }, 'stochastic')
+    const rows = metricRows(r, { ...shared, target: 32.25 })
+    const pow = rows.find((x) => x.name.startsWith('總誤差功率'))!
+    expect(pow.analytic).toBeCloseTo(0.1875, 12)
+    expect(pow.tolerance).toBeCloseTo(4 * bernoulliVarSe(0.1875, DEFAULT_LAB_PARAMS.length) + 1e-9, 12)
+    expect(Math.abs((pow.value as number) - 0.1875)).toBeLessThanOrEqual(pow.tolerance!)
+    const lf = rows.find((x) => x.name.startsWith('頻帶內誤差'))!
+    expect(lf.claim).toBe('approx')
+    const rb = metricRows(runOne({}, 'toggle'), shared)
+    expect(rb.find((x) => x.name.startsWith('頻帶內誤差'))!.claim).toBe('exact')
+  })
+
+  it('§13.5b 相位檢查：floor 版 D 與 B 逐點相同 ⇒ σ_out 完全相同；解析得出來的 FCW 下 round-half-up 版（循環移位）也幾乎相同；FCW 陷阱下「靜態偏移」跟著相位變', () => {
+    const res = runQuantCriteria({ params: { ...DEFAULT_LAB_PARAMS, length: 4000, mixSamples: 1 << 15, nperseg: 1024 }, driftPerK: 0.2, nUpdSlow: 256, trapFrac: 0.1 })
+    expect(res.phase.dsFloor).toBe(res.phase.toggle)
+    expect(res.phaseMean.dsFloor).toBe(res.phaseMean.toggle)
+    expect(res.rows).toHaveLength(5)
+    // 預設 FCW = 13/128：混頻週期 640 個 cycle，全部解析得出來 ⇒ B 與 D 的 σ_out 只差在數值誤差的量級
+    expect(Math.abs(res.phase.dsNearest! - res.phase.toggle!) / res.phase.toggle!).toBeLessThan(1e-3)
+    // 本例最差的是 limit cycle（B、D），Freeze 最小：與 E15「D ≡ B」及 §13.5「dither 不一定勝過 Freeze」一致
+    const out = (s: string) => res.rows.find((r) => r.strategy === s)!.constant.sigmaOutFs!
+    expect(out('toggle')).toBeGreaterThan(out('stochastic'))
+    expect(out('deltaSigma')).toBeGreaterThan(out('deltaSigmaDither'))
+    expect(out('freeze')).toBeLessThan(out('deltaSigmaDither'))
+    // FCW 陷阱（frac = 0.1）：短紀錄的 σ_out 嚴重低估，B 與 D 的「靜態偏移」不同；完整週期的慢階梯才是真正的 in-band 成分
+    const trap = res.trap!
+    expect(trap.productPeriod).toBe(5 * 2 ** 19)
+    expect(trap.complete).toBe(true)
+    expect(Math.abs(trap.short.meanToggle - trap.short.meanDs)).toBeGreaterThan(0.005)
+    expect(trap.slowRmsFs).toBeGreaterThan(3 * trap.short.sigmaOutToggle)
+    expect(trap.slowRmsFs / out('toggle')).toBeGreaterThan(0.8)
+    expect(trap.slowRmsFs / out('toggle')).toBeLessThan(1.25)
+    // 有 mixing 的情境使用相同數目的 reference cycle ⇒ 相同的積分下限 f_L（快 / 慢更新率才是同一個量的比較）
+    for (const r of res.rows) {
+      expect(r.constant.fLowHz).toBe(r.slow.fLowHz)
+      expect(r.constant.fLowHz).toBe(r.noise.fLowHz)
+      expect(r.drift.sigmaOutFs).toBeNull() // drift 情境不算 mixing
+    }
+  })
+})
+
+describe('Chapter 13：資料與程式碼一致性', () => {
+  it('頁面引用的 core region 都存在於 quantizer.ts', () => {
+    const regions = listRegions(quantSrc)
+    for (const r of ['quantize', 'residual', 'freezeStep', 'toggleStep', 'stochasticStep', 'deltaSigmaStep', 'deltaSigmaDitherStep', 'prbs', 'dither', 'lmsTarget', 'lineSpectrum', 'zohWeight', 'efbPeriod', 'whiteApprox', 'mixing', 'slowProduct', 'runQuantLab'])
+      expect(regions).toContain(r)
+    // 五個策略的差異行都有標記
+    for (const r of ['freezeStep', 'toggleStep', 'stochasticStep', 'deltaSigmaStep', 'deltaSigmaDitherStep']) expect(extractRegion(quantSrc, r)).toContain('← 差異')
+  })
+
+  it('公式登錄：ID 唯一、格式 F-13.x、勘誤 id 正確', () => {
+    const ids = FORMULAS.map((f) => f.id)
+    expect(new Set(ids).size).toBe(ids.length)
+    for (const f of FORMULAS) {
+      expect(f.id).toMatch(/^F-13\.\d+$/)
+      expect(f.page).toBe('/ch/13')
+      if (f.erratumId) expect(['E13', 'E15', 'E47', 'E49']).toContain(f.erratumId)
+    }
+  })
+
+  it('presets：Gallery #10 存在、屬於本實驗，且每個 preset 的參數都能跑', () => {
+    const ps = presetsForExperiment(EXPERIMENT_ID)
+    expect(ps.length).toBeGreaterThanOrEqual(6)
+    const g10 = ps.find((p) => p.galleryIndex === 10)
+    expect(g10).toBeTruthy()
+    expect(g10!.page).toBe('/ch/13')
+    for (const p of ps) {
+      expect(p.id.startsWith('quant')).toBe(true)
+      const { cases, ...rest } = p.params as Record<string, unknown> & { cases: { strategy: (typeof STRATEGIES)[number]; lmsNoise: boolean; nUpd: number }[] }
+      const params = { ...DEFAULT_LAB_PARAMS, ...rest, mixing: false, length: Math.min(Number(rest.length ?? 4096), 4096) }
+      const r = runQuantLab({ params, cases: cases.map((c, i) => ({ id: String(i), ...c })), compareAll: false })
+      expect(r.runs.length).toBe(cases.length)
+    }
+  })
+
+  it('Gallery #10 的期望值：A −0.4 / 0.16、B ≡ D 週期 5、0.24、C ≈ 0.24、E ≈ 0.32 無譜線', () => {
+    const r = runQuantLab({ params: { ...DEFAULT_LAB_PARAMS, mixing: false, length: 1 << 15 }, cases: [], compareAll: true, compareScenario: { lmsNoise: false, nUpd: 1 } })
+    const get = (s: string) => r.compare.find((x) => x.strategy === s)!
+    expect(get('freeze').metrics.dcError).toBeCloseTo(-0.4, 12)
+    expect(get('freeze').metrics.errPower).toBeCloseTo(0.16, 12)
+    expect(get('toggle').metrics.period).toBe(5)
+    expect(get('deltaSigma').metrics.period).toBe(5)
+    expect(get('toggle').lines[0].power).toBeCloseTo(0.2094427191, 9)
+    expect(get('deltaSigma').lines[0].power).toBeCloseTo(0.2094427191, 9)
+    expect(Math.abs(get('stochastic').metrics.errPower - 0.24)).toBeLessThan(0.01)
+    expect(get('deltaSigmaDither').metrics.errPower).toBeGreaterThan(0.3)
+    expect(get('deltaSigmaDither').metrics.maxSpur).toBeNull()
+  })
+})

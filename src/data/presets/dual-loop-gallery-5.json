@@ -1,0 +1,21 @@
+{
+  "id": "dual-loop-gallery-5",
+  "title": "雙迴路 r = .8、b = .2、c = 1、μ = 1.2：靜態預測穩定、完整模型發散",
+  "galleryIndex": 5,
+  "page": "/ch/08",
+  "experiment": "dual-loop",
+  "description": "規格 §19.2 Gallery #5（T09）。quasi-static 簡化 pole = −0.2（穩定），完整二狀態模型 poles 0.9 ± j0.4796、|z| = √1.04 = 1.0198（發散）。",
+  "params": {
+    "mode": "two-state",
+    "r": 0.8,
+    "b": 0.2,
+    "c": 1,
+    "mu": 1.2,
+    "steps": 300
+  },
+  "expected": "完整 poles 0.9 ± j0.4796，|z| = √1.04 = 1.019804 > 1；完整 μ 範圍 (0, 1)，quasi-static (0, 2)。發散很慢（每 block 只長 2%、振盪週期約 12.8 blocks）：前 30 blocks 峰值只有約 1.70；|δ_100| = 0.43 剛好在零交越附近，但同一週期的峰值已約 6.76；300 blocks 時 |δ| ≈ 204。",
+  "tests": [
+    "T09"
+  ],
+  "source": "illustrative"
+}

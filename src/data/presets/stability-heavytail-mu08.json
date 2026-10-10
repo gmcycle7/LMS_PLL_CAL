@@ -1,0 +1,25 @@
+{
+  "id": "stability-heavytail-mu08",
+  "title": "μ = 0.8、n = 5：天真 CI 失效（勘誤 E14）",
+  "page": "/ch/03",
+  "experiment": "stability-heavytail",
+  "description": "每批 4000 條、100 批。",
+  "params": {
+    "dist": "gaussian",
+    "xValue": 2,
+    "sigma": 1,
+    "halfWidth": 1.7320508075688772,
+    "amplitude": 1,
+    "listText": "0, 0, 0, 0, 0, 0, 0, 0, 0, 3",
+    "mu": 0.8,
+    "n": 5,
+    "delta0": 1,
+    "pathsPerBatch": 4000,
+    "batches": 100
+  },
+  "expected": "精確 E[δ₅²] = 1.32⁵ = 4.0075；真實 SE ≈ 34.3（每批）；覆蓋率遠低於 95%（seed 20261010 時 36%），真實 SE / 樣本 SE 的中位數約 64。",
+  "tests": [
+    "T03"
+  ],
+  "source": "illustrative"
+}

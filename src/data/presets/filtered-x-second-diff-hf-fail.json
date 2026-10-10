@@ -1,0 +1,47 @@
+{
+  "id": "filtered-x-second-diff-hf-fail",
+  "title": "二次差分在中頻 tone（Ω = π/6）失效",
+  "page": "/ch/07",
+  "experiment": "delay-fx-lab",
+  "description": "Type-II DPLL（ω_nT_s = 0.1），code tone 在 Ω = π/6：高於 ω_n、落在二次差分相位差 > 90° 的中頻帶（約 0.11–1.49 rad/sample）。A raw-x、B 二次差分（μ 縮小以便觀察）、C filtered-x（Ĥ = H）。",
+  "params": {
+    "scenario": {
+      "pathKind": "type2_dt",
+      "wnTs": 0.1,
+      "zeta": 0.7,
+      "loopDelay": 0,
+      "codeKind": "sinusoid",
+      "omega": 0.5235987755982988,
+      "a": 3,
+      "w0": 0,
+      "sigmaV": 100,
+      "N": 1024,
+      "blocks": 300,
+      "Dmax": 24
+    },
+    "cases": [
+      {
+        "mode": "raw",
+        "D": 0,
+        "mu": 10
+      },
+      {
+        "mode": "filtered",
+        "D": 0,
+        "mu": 0.5,
+        "hatBase": "second_diff"
+      },
+      {
+        "mode": "filtered",
+        "D": 0,
+        "mu": 10
+      }
+    ],
+    "seed": 20261010
+  },
+  "expected": "∠H_PD = 16.3°（高頻 H_PD ≈ 1）：raw-x C = +1.03（收斂）；Ĥ₂ 的相位 150°，相位差 −133.7° ⇒ E[u·u_f] = −19.9（發散）；filtered-x E[u²] = 1.156（收斂）。",
+  "tests": [
+    "T07"
+  ],
+  "source": "simulation"
+}

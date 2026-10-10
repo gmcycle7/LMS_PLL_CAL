@@ -1,0 +1,47 @@
+{
+  "id": "filtered-x-second-diff-wideband-fail",
+  "title": "二次差分遇到寬頻低通 code（AR(1) ρ = 0.98）：幾乎沒有恢復力",
+  "page": "/ch/07",
+  "experiment": "delay-fx-lab",
+  "description": "F-07.16 的反面例子：Type-II DPLL（ω_nT_s = 0.1、ζ = 0.7、d = 1），code 是低通 AR(1)（ρ_x = 0.98，能量大多在 ω_n 以下）。A filtered-x（Ĥ = H）、B 二次差分 Ĥ₂、C raw-x。",
+  "params": {
+    "scenario": {
+      "pathKind": "type2_dt",
+      "wnTs": 0.1,
+      "zeta": 0.7,
+      "loopDelay": 1,
+      "codeKind": "ar1",
+      "rho": 0.98,
+      "a": 3,
+      "w0": 0,
+      "sigmaV": 100,
+      "N": 1024,
+      "blocks": 300,
+      "Dmax": 64
+    },
+    "cases": [
+      {
+        "mode": "filtered",
+        "D": 0,
+        "mu": 30
+      },
+      {
+        "mode": "filtered",
+        "D": 0,
+        "mu": 0.3,
+        "hatBase": "second_diff"
+      },
+      {
+        "mode": "raw",
+        "D": 0,
+        "mu": 30
+      }
+    ],
+    "seed": 20261010
+  },
+  "expected": "A（Ĥ = H）：E[u²] = 0.1895、ρ = 1，pole 0.9547，收斂（seed 20261010：後半段 mean w ≈ 2.72 fs）。B（二次差分）：E[u·u_f] = −3.4×10⁻⁴、ρ_ref ≈ 0——正負票幾乎完全抵消（F-07.16：d = 1 時 h[1] = 0），沒有平均恢復力，w 隨雜訊漂移（300 blocks 後 w ≈ −10.2 fs；交叉比對標為 n/a）。C（raw-x）：C = 0.0315、ρ = 0.065，方向對但 τ ≈ 129 blocks，300 blocks 內尚未穩定。",
+  "tests": [
+    "T07"
+  ],
+  "source": "simulation"
+}

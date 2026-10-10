@@ -1,0 +1,25 @@
+{
+  "id": "noise-colored-eta",
+  "title": "研究延伸：GMAC 雜訊不是白色（AR(1) S_η，r = 0.5）",
+  "page": "/ch/12",
+  "experiment": "lms-noise-lab",
+  "description": "引擎 (a) 以 AR(1) 產生 η（R_η[ℓ] = σ_η² r^|ℓ|）。同樣的 σ_η² = 1/N，σ_w² 乘上 (1 + pr)/(1 − pr)；lag-1 自相關變成 ρ₁ = p + r(1 − p²)/(1 + pr)，所以用 p̂ 推頻寬會偏差。",
+  "params": {
+    "N": 4096,
+    "fs": 4000000000.0,
+    "mu": 10,
+    "sigmaV": 100,
+    "C": 1,
+    "gmMode": "average",
+    "engine": "linear",
+    "blocks": 4000,
+    "chains": 8,
+    "dw0": 3,
+    "etaR": 0.5
+  },
+  "expected": "修正因子 (1 + pr)/(1 − pr) = 2.7044；σ_w（解析）= 0.65647 fs（白色時 0.39919 fs）；ρ₁ = 0.97268；Monte Carlo 95% CI 涵蓋 colored 解析值。",
+  "tests": [
+    "T13"
+  ],
+  "source": "simulation"
+}

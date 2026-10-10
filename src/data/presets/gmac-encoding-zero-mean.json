@@ -1,0 +1,20 @@
+{
+  "id": "gmac-encoding-zero-mean",
+  "title": "0/1 忘了映射：零均值 code 會把 bug 藏起來",
+  "page": "/ch/04",
+  "experiment": "gmac-bit-encoding",
+  "description": "同上，但 code 平均為 0。",
+  "params": {
+    "N": 256,
+    "numBlocks": 1500,
+    "mu": 10,
+    "sigmaV": 100,
+    "aTrue": 3,
+    "w0": 0,
+    "codeMean": 0,
+    "codeSigma": 1,
+    "seed": 20261010
+  },
+  "expected": "三條曲線都收斂到 ≈ 3 fs，但忘了映射的那條 K 只有一半、時間常數加倍——只看最終值會漏掉這個 bug。",
+  "source": "simulation"
+}

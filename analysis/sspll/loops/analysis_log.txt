@@ -1,0 +1,216 @@
+==============================================================================
+1. NOMINAL DESIGNS  (f_ref = 4 GHz, closed-loop |T| -3 dB = 320 MHz)
+==============================================================================
+--- L1_typeI: L1_typeI_D1
+  params: K=0.388836, K_rad_per_s=1555350000.0, latency_D=1.0, latency_mode=fd, f_pole_Hz=None, tau_eq_cycles=0.5, K_tau_eq=0.194418
+  f3dB=320.0000 MHz (unique=True), fc=249.13 MHz, PM=78.79 deg, GM=14.23 dB @ 2000.0 MHz, delay margin=3.514 cyc, modulus margin=0.806
+  |T| peak=-0.000 dB @ 0.0 MHz; |H_PD| peak=1.878 dB @ 2000.0 MHz; stable=True
+  inversion band(s) Re{H_PD}<0: none;  |T|>0dB band(s): none MHz
+  pole: z=[0.6111636356313721, 0.0], |z|=0.611164, fn=313.47 MHz, zeta=1.0000
+  angle(H_PD) [deg] @ 1:89.8, 5:89.1, 20:86.3, 50:80.8, 100:71.9, 150:63.9, 200:56.7, 250:50.5, 320:43.2, 500:30.2, 1000:13.6, 2000:0.0
+--- L2_typeII_PM60: L2_typeII_PM60_D1
+  params: Kp=0.287717, Ki=0.0382535, zeta_ct_equiv=0.735529, wn_norm=0.195585, fn_ct_equiv_Hz=124513000.0, f_zero_Hz=84641900.0, pm_target_deg=60, latency_D=1.0, latency_mode=fd
+  f3dB=320.0000 MHz (unique=True), fc=209.59 MHz, PM=60.00 deg, GM=16.28 dB @ 2000.0 MHz, delay margin=3.181 cyc, modulus margin=0.847
+  |T| peak=2.127 dB @ 107.1 MHz; |H_PD| peak=1.447 dB @ 2000.0 MHz; stable=True
+  inversion band(s) Re{H_PD}<0: [0.00, 134.82] MHz;  |T|>0dB band(s): [0.00, 209.59] MHz
+     min Re{H}=-0.2053 @ 83.8 MHz
+  pole: z=[0.8370147846227225, 0.10811701960373363], |z|=0.843969, fn=135.47 MHz, zeta=0.7972
+  pole: z=[0.8370147846227225, -0.10811701960373363], |z|=0.843969, fn=135.47 MHz, zeta=0.7972
+  angle(H_PD) [deg] @ 1:179.3, 5:176.6, 20:166.4, 50:145.6, 100:110.9, 150:82.3, 200:62.9, 250:50.1, 320:38.6, 500:23.7, 1000:9.8, 2000:0.0
+--- L3_cppll_impulse_PMct60: L3_cppll_impulse_PMct60_D1
+  params: mapping=impulse, pm_domain=ct, pm_target_deg=60, b_ratio=13.9282, PM_ct_formula_deg=60.0, K_norm=0.0247554, wz_norm=0.0814444, wp_norm=1.13437, wc_norm=0.303955, f_c_design_Hz=193504000.0, f_z_Hz=51849100.0, f_p_Hz=722165000.0, Ki_equiv=0.0247554, Kp_equiv=0.282132, latency_D=1.0, latency_mode=fd
+  f3dB=320.0000 MHz (unique=True), fc=195.94 MHz, PM=58.58 deg, GM=22.09 dB @ 2000.0 MHz, delay margin=3.322 cyc, modulus margin=0.795
+  |T| peak=1.736 dB @ 93.0 MHz; |H_PD| peak=1.991 dB @ 424.1 MHz; stable=True
+  inversion band(s) Re{H_PD}<0: [0.00, 117.28] MHz;  |T|>0dB band(s): [0.00, 203.89] MHz
+     min Re{H}=-0.1616 @ 67.3 MHz
+  pole: z=[0.8801011901795157, 0.0], |z|=0.880101, fn=81.31 MHz, zeta=1.0000
+  pole: z=[0.7124224508829159, 0.0], |z|=0.712422, fn=215.87 MHz, zeta=1.0000
+  pole: z=[0.5129526939826234, 0.0], |z|=0.512953, fn=424.99 MHz, zeta=1.0000
+  angle(H_PD) [deg] @ 1:179.0, 5:174.9, 20:159.8, 50:132.6, 100:98.9, 150:75.9, 200:59.6, 250:47.4, 320:35.1, 500:17.6, 1000:3.9, 2000:0.0
+--- L3_cppll_impulse_PMct55: L3_cppll_impulse_PMct55_D1
+  params: mapping=impulse, pm_domain=ct, pm_target_deg=55, b_ratio=10.059, PM_ct_formula_deg=55.0, K_norm=0.0276057, wz_norm=0.0932954, wp_norm=0.93846, wc_norm=0.295895, f_c_design_Hz=188373000.0, f_z_Hz=59393700.0, f_p_Hz=597442000.0, Ki_equiv=0.0276057, Kp_equiv=0.266479, latency_D=1.0, latency_mode=fd
+  f3dB=320.0000 MHz (unique=True), fc=190.49 MHz, PM=53.91 deg, GM=23.71 dB @ 2000.0 MHz, delay margin=3.145 cyc, modulus margin=0.764
+  |T| peak=2.140 dB @ 105.8 MHz; |H_PD| peak=2.334 dB @ 351.0 MHz; stable=True
+  inversion band(s) Re{H_PD}<0: [0.00, 125.95] MHz;  |T|>0dB band(s): [0.00, 221.78] MHz
+     min Re{H}=-0.1949 @ 75.2 MHz
+  pole: z=[0.8365695536413214, 0.0], |z|=0.83657, fn=113.60 MHz, zeta=1.0000
+  pole: z=[0.6824151483298763, 0.04437887986796408], |z|=0.683857, fn=245.43 MHz, zeta=0.9857
+  pole: z=[0.6824151483298763, -0.04437887986796408], |z|=0.683857, fn=245.43 MHz, zeta=0.9857
+  angle(H_PD) [deg] @ 1:179.1, 5:175.7, 20:162.7, 50:138.3, 100:104.2, 150:78.7, 200:59.9, 250:46.0, 320:32.5, 500:14.6, 1000:2.8, 2000:0.0
+--- L3_cppll_impulse_PMdt60: L3_cppll_impulse_PMdt60_D1
+  params: mapping=impulse, pm_domain=dt, pm_target_deg=60, b_ratio=15.5621, PM_ct_formula_deg=61.5511, K_norm=0.0239159, wz_norm=0.0778622, wp_norm=1.2117, wc_norm=0.307157, f_c_design_Hz=195542000.0, f_z_Hz=49568600.0, f_p_Hz=771390000.0, Ki_equiv=0.0239159, Kp_equiv=0.287419, latency_D=1.0, latency_mode=fd
+  f3dB=320.0000 MHz (unique=True), fc=198.09 MHz, PM=60.00 deg, GM=21.54 dB @ 2000.0 MHz, delay margin=3.365 cyc, modulus margin=0.803
+  |T| peak=1.625 dB @ 89.3 MHz; |H_PD| peak=1.904 dB @ 452.3 MHz; stable=True
+  inversion band(s) Re{H_PD}<0: [0.00, 114.64] MHz;  |T|>0dB band(s): [0.00, 198.09] MHz
+     min Re{H}=-0.1523 @ 65.0 MHz
+  pole: z=[0.8898323872823402, 0.0], |z|=0.889832, fn=74.31 MHz, zeta=1.0000
+  pole: z=[0.712632851228169, 0.0], |z|=0.712633, fn=215.68 MHz, zeta=1.0000
+  pole: z=[0.4694539833169238, 0.0], |z|=0.469454, fn=481.40 MHz, zeta=1.0000
+  angle(H_PD) [deg] @ 1:178.9, 5:174.6, 20:158.7, 50:130.8, 100:97.4, 150:75.2, 200:59.5, 250:47.8, 320:35.9, 500:18.6, 1000:4.3, 2000:0.0
+--- L3_cppll_zoh_PMct60: L3_cppll_zoh_PMct60_D1
+  params: mapping=zoh, pm_domain=ct, pm_target_deg=60, b_ratio=13.9282, PM_ct_formula_deg=60.0, K_norm=0.0208548, wz_norm=0.074753, wp_norm=1.04118, wc_norm=0.278982, f_c_design_Hz=177606000.0, f_z_Hz=47589300.0, f_p_Hz=662833000.0, Ki_equiv=0.0208548, Kp_equiv=0.258952, latency_D=1.0, latency_mode=fd
+  f3dB=320.0000 MHz (unique=True), fc=177.11 MHz, PM=52.04 deg, GM=17.87 dB @ 813.3 MHz, delay margin=3.265 cyc, modulus margin=0.707
+  |T| peak=2.050 dB @ 100.7 MHz; |H_PD| peak=3.012 dB @ 326.2 MHz; stable=True
+  inversion band(s) Re{H_PD}<0: [0.00, 115.10] MHz;  |T|>0dB band(s): [0.00, 223.21] MHz
+     min Re{H}=-0.1804 @ 66.3 MHz
+  pole: z=[0.8924535490305924, 0.0], |z|=0.892454, fn=72.44 MHz, zeta=1.0000
+  pole: z=[0.6760564103883898, 0.14323143587219114], |z|=0.691063, fn=270.20 MHz, zeta=0.8706
+  pole: z=[0.6760564103883898, -0.14323143587219114], |z|=0.691063, fn=270.20 MHz, zeta=0.8706
+  angle(H_PD) [deg] @ 1:178.9, 5:174.6, 20:158.9, 50:131.3, 100:97.9, 150:74.3, 200:56.3, 250:42.2, 320:27.9, 500:9.0, 1000:-1.2, 2000:-0.0
+--- L3_cppll_ct_PMct60: L3_cppll_ct_PMct60_D1
+  params: mapping=ct, pm_domain=ct, pm_target_deg=60, b_ratio=13.9282, PM_ct_formula_deg=60.0, K_norm=0.0276712, wz_norm=0.0861073, wp_norm=1.19932, wc_norm=0.321357, f_c_design_Hz=204582000.0, f_z_Hz=54817600.0, f_p_Hz=763511000.0, Ki_equiv=0.0276712, Kp_equiv=0.298284, latency_D=1.0, latency_mode=fd
+  f3dB=320.0000 MHz (unique=True), fc=204.58 MHz, PM=60.00 deg, GM=inf dB @ nan MHz, delay margin=3.259 cyc, modulus margin=0.822
+  |T| peak=1.703 dB @ 95.3 MHz; |H_PD| peak=1.703 dB @ 439.3 MHz; stable=True
+  inversion band(s) Re{H_PD}<0: [0.00, 121.68] MHz;  |T|>0dB band(s): [0.00, 204.58] MHz
+     min Re{H}=-0.1600 @ 70.3 MHz
+  pole: z=None, |z|=None, fn=469.85 MHz, zeta=1.0000
+  pole: z=None, |z|=None, fn=204.58 MHz, zeta=1.0000
+  pole: z=None, |z|=None, fn=89.08 MHz, zeta=1.0000
+  angle(H_PD) [deg] @ 1:179.0, 5:175.2, 20:160.8, 50:134.6, 100:101.1, 150:77.9, 200:61.3, 250:49.0, 320:36.6, 500:18.8, 1000:4.5, 2000:0.7
+--- L3_cppll_ctdelay_PMct60: L3_cppll_ct_delay_PMct60_D1
+  params: mapping=ct_delay, pm_domain=ct, pm_target_deg=60, b_ratio=13.9282, PM_ct_formula_deg=60.0, K_norm=0.0204373, wz_norm=0.0740011, wp_norm=1.0307, wc_norm=0.276176, f_c_design_Hz=175819000.0, f_z_Hz=47110600.0, f_p_Hz=656165000.0, Ki_equiv=0.0204373, Kp_equiv=0.256347, latency_D=1.0, latency_mode=fd
+  f3dB=320.0000 MHz (unique=True), fc=175.82 MHz, PM=52.09 deg, GM=17.10 dB @ 799.9 MHz, delay margin=3.292 cyc, modulus margin=0.706
+  |T| peak=2.045 dB @ 99.5 MHz; |H_PD| peak=3.027 dB @ 327.7 MHz; stable=None
+  inversion band(s) Re{H_PD}<0: [0.00, 113.96] MHz;  |T|>0dB band(s): [0.00, 221.85] MHz
+     min Re{H}=-0.1801 @ 65.5 MHz
+  angle(H_PD) [deg] @ 1:178.9, 5:174.6, 20:158.7, 50:130.9, 100:97.3, 150:73.8, 200:55.9, 250:42.0, 320:27.8, 500:9.0, 1000:-1.5, 2000:-1.5
+==============================================================================
+2. ANALYTIC CHECKS
+==============================================================================
+L1: Re{H}/W^2 -> (1-K/2)/K^2 = 5.32814; measured [5.32814322 5.32812146 5.32594617]
+L2: Re{H}/W^2 -> -1/Ki = -26.14142; measured [-26.14141012 -26.14052314 -26.0518049 ]
+L3: Re{H}/W^2 -> -1/K = -40.39521; measured [-40.3951739  -40.39114799 -39.99116167]
+  L1_typeI: angle(H_PD) at W=[0.0001 0.001  0.01  ] -> [89.9881296  89.88129614 88.81311974]
+  L2_typeII_PM60: angle(H_PD) at W=[0.0001 0.001  0.01  ] -> [179.95690595 179.56905811 175.68915399]
+  L3_cppll_impulse_PMct60: angle(H_PD) at W=[0.0001 0.001  0.01  ] -> [179.93470132 179.34702285 173.47980584]
+L2 band edge: exact closed form 134.820 MHz | CT f_n(design) 124.513 | CT f3dB/g(zeta) 152.698 | DT-corrected 168.753 MHz (zeta=0.7355, g=2.0956, PM_ct(zeta)=66.96)
+   CT-equivalent loop (same Kp,Ki, no sampling) would have f3dB = 260.94 MHz
+L3 CT band edge closed form 121.679 MHz vs numeric 121.679 MHz; w_inv/w_c = 0.5948
+L3 impulse band edge from closed-form Re{L}=-1: 117.278 MHz vs numeric 117.278 MHz
+==============================================================================
+3. SWEEPS
+==============================================================================
+3a. L2 Type-II SSPLL, PM sweep (D=1)
+  PM    zeta       Kp        Ki   fz MHz   fc MHz  GM dB  Tpk dB  Hpk dB f_inv MHz f_inv/f3dB CT f3dB/g  pole fn  pole z
+  45  0.4638  0.22325  0.057915   165.15   199.35  17.99   3.904   2.465   162.991     0.5093    179.57   163.43  0.4921  | CT2 same-PM: zeta=0.420 f_inv=183.64  minReH=-0.3854
+  50  0.5376  0.24464  0.051762   134.70   201.61  17.38   3.251   1.768   154.985     0.4843    172.37   155.49  0.5743  | CT2 same-PM: zeta=0.478 f_inv=178.24  minReH=-0.3168
+  55  0.6251  0.26598  0.045260   108.33   204.93  16.81   2.667   1.386   145.772     0.4555    163.63   146.35  0.6725  | CT2 same-PM: zeta=0.541 f_inv=172.06  minReH=-0.2580
+  60  0.7355  0.28772  0.038253    84.64   209.59  16.28   2.127   1.447   134.820     0.4213    152.70   135.47  0.7972  | CT2 same-PM: zeta=0.612 f_inv=164.91  minReH=-0.2053
+  65  0.8891  0.31047  0.030484    62.51   215.99  15.76   1.610   1.544   121.116     0.3785    138.36   121.81  0.9714  | CT2 same-PM: zeta=0.697 f_inv=156.47  minReH=-0.1559
+  70  1.1428  0.33520  0.021510    40.85   224.73  15.24   1.088   1.650   102.448     0.3201    117.96    50.91  1.0000  | CT2 same-PM: zeta=0.803 f_inv=146.20  minReH=-0.1066
+  75  1.7700  0.36346  0.010542    18.46   236.78  14.69   0.523   1.770    72.297     0.2259     83.75    19.86  1.0000  | CT2 same-PM: zeta=0.949 f_inv=133.13  minReH=-0.0528
+3b. L3 CPPLL impulse-invariant, PM sweep, pm_domain=ct
+  PM       b   PMct   PMdt   fz MHz   fp MHz   fc MHz  GM dB  Tpk dB  Hpk dB f_inv MHz f_inv/f3dB  pole fn  pole z
+  45   5.828  45.00  44.32    76.12    443.7   185.47  26.25   3.250   3.362   144.184     0.4506   189.14  0.7064
+  50   7.549  50.00  49.14    67.43    509.0   187.13  25.09   2.635   2.783   134.964     0.4218   199.24  0.8674
+  55  10.059  55.00  53.91    59.39    597.4   190.49  23.71   2.140   2.334   125.953     0.3936   245.43  0.9857
+  60  13.928  60.00  58.58    51.85    722.2   195.94  22.09   1.736   1.991   117.278     0.3665    81.31  1.0000
+  65  20.346  65.00  63.09    44.52    905.9   203.68  20.24   1.398   1.742   108.763     0.3399    61.37  1.0000
+  70  32.163  70.00  67.33    37.05   1191.6   213.44  18.27   1.103   1.587    99.802     0.3119    46.42  1.0000
+  75  57.695  75.00  71.15    29.02   1674.5   224.23  16.41   0.834   1.551    89.293     0.2790    33.73  1.0000
+3b. L3 CPPLL impulse-invariant, PM sweep, pm_domain=dt
+  PM       b   PMct   PMdt   fz MHz   fp MHz   fc MHz  GM dB  Tpk dB  Hpk dB f_inv MHz f_inv/f3dB  pole fn  pole z
+  45   6.036  45.71  45.00    74.85    451.8   185.62  26.10   3.155   3.272   142.879     0.4465   189.80  0.7275
+  50   7.927  50.89  50.00    65.95    522.8   187.59  24.86   2.539   2.695   133.335     0.4167   204.07  0.8965
+  55  10.802  56.15  55.00    57.62    622.4   191.55  23.36   2.040   2.246   123.922     0.3873   104.24  1.0000
+  60  15.562  61.55  60.00    49.57    771.4   198.09  21.54   1.625   1.904   114.638     0.3582    74.31  1.0000
+  65  24.609  67.21  65.00    41.27   1015.6   207.78  19.38   1.263   1.661   104.918     0.3279    54.37  1.0000
+  70  47.100  73.42  70.00    31.64   1490.3   220.81  16.96   0.917   1.547    92.872     0.2902    37.59  1.0000
+  75 173.442  81.32  75.00    17.67   3064.2   236.46  14.83   0.506   1.737    71.040     0.2220    19.05  1.0000
+3c. L3 mapping comparison (b from CT PM=60 deg, wc rescaled to 320 MHz in each domain)
+  ct        fc_design= 204.58 MHz  fc= 204.58  PM= 60.00  GM=   inf  Tpk= 1.703 dB  f_inv= 121.679 MHz  bands=[0.00, 121.68] MHz (min Re H=-0.1600)
+  ct_delay  fc_design= 175.82 MHz  fc= 175.82  PM= 52.09  GM= 17.10  Tpk= 2.045 dB  f_inv= 113.956 MHz  bands=[0.00, 113.96] MHz (min Re H=-0.1801)
+  impulse   fc_design= 193.50 MHz  fc= 195.94  PM= 58.58  GM= 22.09  Tpk= 1.736 dB  f_inv= 117.278 MHz  bands=[0.00, 117.28] MHz (min Re H=-0.1616)
+  zoh       fc_design= 177.61 MHz  fc= 177.11  PM= 52.04  GM= 17.87  Tpk= 2.050 dB  f_inv= 115.096 MHz  bands=[0.00, 115.10] MHz (min Re H=-0.1804)
+3d. Latency sweep  (D = total z-delay; D=1 baseline; tau_eq = D - 1/2 cycles CT-equivalent)
+  (L2 fixed-zeta rows use zeta = 0.7355 from the D=1, PM=60 design)
+  L1  D=0.5  K=0.49738 K*tau_eq=0.0000 PM= 90.00 GM=   inf Tpk=-0.000 dB  bands=none
+  L1  D=1.0  K=0.38884 K*tau_eq=0.1944 PM= 78.79 GM= 14.23 Tpk=-0.000 dB  bands=none
+  L1  D=1.5  K=0.31247 K*tau_eq=0.3125 PM= 72.02 GM= 13.11 Tpk=-0.000 dB  bands=none
+  L1  D=2.0  K=0.26227 K*tau_eq=0.3934 PM= 67.39 GM= 11.62 Tpk=-0.000 dB  bands=none
+  L1  D=2.5  K=0.23101 K*tau_eq=0.4620 PM= 63.47 GM= 10.40 Tpk=-0.000 dB  bands=none
+  L1  D=3.0  K=0.21337 K*tau_eq=0.5334 PM= 59.38 GM=  9.24 Tpk= 0.102 dB  bands=none
+  L1(modz ZOH pulse) D=1.5  K=0.32261 PM= 71.67 Tpk=-0.000 stable=True bands=none
+  L1(modz ZOH pulse) D=2.5  K=0.23850 PM= 62.80 Tpk=-0.000 stable=True bands=none
+  L2(PM60) D=0.5  zeta=0.5423 Kp=0.28168 Ki=0.067447 PM= 60.00 GM=   inf Tpk= 2.572 f_inv= 165.101 MHz bands=[0.00, 165.10] MHz (min Re H=-0.2555)
+  L2(PM60) D=1.0  zeta=0.7355 Kp=0.28772 Ki=0.038253 PM= 60.00 GM= 16.28 Tpk= 2.127 f_inv= 134.820 MHz bands=[0.00, 134.82] MHz (min Re H=-0.2053)
+  L2(PM60) D=1.5  zeta=0.9688 Kp=0.27052 Ki=0.019491 PM= 60.00 GM= 13.89 Tpk= 1.603 f_inv= 103.940 MHz bands=[0.00, 103.94] MHz (min Re H=-0.1506)
+  L2(PM60) D=2.0  zeta=1.2864 Kp=0.24656 Ki=0.009184 PM= 60.00 GM= 11.83 Tpk= 1.080 f_inv=  76.517 MHz bands=[0.00, 76.52] MHz (min Re H=-0.0998)
+  L2(PM60) D=2.5  zeta=1.9342 Kp=0.22652 Ki=0.003429 PM= 60.00 GM= 10.41 Tpk= 0.541 f_inv=  50.161 MHz bands=[0.00, 50.16] MHz (min Re H=-0.0504)
+  L2(PM60) D=3.0  infeasible: L2: PM=60 deg not reachable at BW=320 MHz, D=3 (max PM over zeta<=4 is 58.5 deg)
+  L2(zeta fixed) D=0.5  Kp=0.33912 Ki=0.053143 PM= 69.90 GM=   inf Tpk= 1.766 f_inv= 146.595 MHz bands=[0.00, 146.60] MHz (min Re H=-0.1755)
+  L2(zeta fixed) D=1.0  Kp=0.28772 Ki=0.038253 PM= 60.00 GM= 16.28 Tpk= 2.127 f_inv= 134.820 MHz bands=[0.00, 134.82] MHz (min Re H=-0.2053)
+  L2(zeta fixed) D=1.5  Kp=0.24907 Ki=0.028666 PM= 52.88 GM= 14.33 Tpk= 2.496 f_inv= 124.187 MHz bands=[0.00, 124.19] MHz (min Re H=-0.2335)
+  L2(zeta fixed) D=2.0  Kp=0.22191 Ki=0.022757 PM= 47.29 GM= 12.14 Tpk= 2.892 f_inv= 116.434 MHz bands=[0.00, 116.43] MHz (min Re H=-0.2612)
+  L2(zeta fixed) D=2.5  Kp=0.20461 Ki=0.019345 PM= 42.28 GM= 10.35 Tpk= 3.377 f_inv= 112.560 MHz bands=[0.00, 112.56] MHz (min Re H=-0.2915)
+  L2(zeta fixed) D=3.0  Kp=0.19585 Ki=0.017726 PM= 37.07 GM=  8.68 Tpk= 4.107 f_inv= 113.320 MHz bands=[0.00, 113.32] MHz (min Re H=-0.3307)
+  L3(b fixed, PMct60) D=0.5  fc= 237.54 PM= 68.63 GM=   inf Tpk= 1.444 f_inv= 128.154 MHz bands=[0.00, 128.15] MHz (min Re H=-0.1411)
+  L3(b fixed, PMct60) D=1.0  fc= 195.94 PM= 58.58 GM= 22.09 Tpk= 1.736 f_inv= 117.278 MHz bands=[0.00, 117.28] MHz (min Re H=-0.1616)
+  L3(b fixed, PMct60) D=1.5  fc= 170.35 PM= 51.25 GM= 15.30 Tpk= 2.076 f_inv= 110.801 MHz bands=[0.00, 110.80] MHz (min Re H=-0.1809)
+  L3(b fixed, PMct60) D=2.0  fc= 156.30 PM= 45.02 GM= 11.48 Tpk= 2.581 f_inv= 109.591 MHz bands=[0.00, 109.59] MHz (min Re H=-0.2018)
+  L3(b fixed, PMct60) D=2.5  fc= 150.13 PM= 38.89 GM=  8.87 Tpk= 3.537 f_inv= 113.633 MHz bands=[0.00, 113.63] MHz (min Re H=-0.2285)
+  L3(b fixed, PMct60) D=3.0  fc= 149.89 PM= 32.18 GM=  6.68 Tpk= 5.279 f_inv= 123.218 MHz bands=[0.00, 123.22] MHz (min Re H=-0.2700)
+  L3(dt PM60) D=0.5  b=8.145 PM= 60.00 Tpk= 1.985 f_inv= 140.382 MHz
+  L3(dt PM60) D=1.0  b=15.562 PM= 60.00 Tpk= 1.625 f_inv= 114.638 MHz
+  L3(dt PM60) D=1.5  b=31.685 PM= 60.00 Tpk= 1.257 f_inv=  90.695 MHz
+  L3(dt PM60) D=2.0  b=73.216 PM= 60.00 Tpk= 0.895 f_inv=  69.510 MHz
+  L3(dt PM60) D=2.5  b=267.309 PM= 60.00 Tpk= 0.503 f_inv=  48.413 MHz
+  L3(dt PM60) D=3.0  infeasible: L3: dt PM=60 deg not reachable (max 58.4 deg)
+  modz cross-check L2_typeII_PM60_D1.5: PM= 60.00 f_inv= 134.820 MHz stable=True
+  modz cross-check L3_cppll_impulse_PMct60_D1.5: PM= 52.56 f_inv= 115.636 MHz stable=True
+3d'. L1 large-latency scan (fd): first D where Re{H_PD}<0 appears vs K*(D-1/2)
+  D= 3.00 K=0.21337 K(D-1/2)=0.5334 PM= 59.38 Tpk= 0.102 dB bands=none
+  D= 3.25 K=0.20863 K(D-1/2)=0.5737 PM= 57.07 Tpk= 0.412 dB bands=none
+  D= 3.50 K=0.20631 K(D-1/2)=0.6189 PM= 54.47 Tpk= 0.906 dB bands=none
+  D= 3.75 K=0.20631 K(D-1/2)=0.6705 PM= 51.51 Tpk= 1.587 dB bands=none
+  D= 4.00 K=0.20863 K(D-1/2)=0.7302 PM= 48.09 Tpk= 2.477 dB bands=none
+  D= 4.25 K=0.21337 K(D-1/2)=0.8001 PM= 44.07 Tpk= 3.622 dB bands=none
+  D= 4.50 K=0.22072 K(D-1/2)=0.8829 PM= 39.31 Tpk= 5.097 dB bands=none
+  D= 4.75 K=0.23101 K(D-1/2)=0.9818 PM= 33.62 Tpk= 7.036 dB bands=none
+  D= 5.00 K=0.24466 K(D-1/2)=1.1010 PM= 26.76 Tpk= 9.703 dB bands=[0.00, 107.08] MHz (min Re H=-0.0162)
+  D= 5.25 K=0.26227 K(D-1/2)=1.2458 PM= 18.41 Tpk=13.740 dB bands=[0.00, 151.27] MHz (min Re H=-0.1165)
+  D= 5.50 K=0.28458 K(D-1/2)=1.4229 PM=  8.19 Tpk=21.671 dB bands=[0.00, 179.40] MHz (min Re H=-0.6439)
+3e. L1 Type-I + parasitic pole (ZOH-exact), D=1
+  fp=     inf K=0.38884 zeta_ct=     - PM= 78.79 GM= 14.23 Tpk=-0.000 dB  bands=none  CT-pred edge=none (zeta_ct>=0.5)
+  fp=   8 GHz K=0.37852 zeta_ct= 2.881 PM= 77.45 GM= 15.96 Tpk=-0.000 dB  bands=none  CT-pred edge=none (zeta_ct>=0.5)
+  fp=   4 GHz K=0.36805 zeta_ct= 2.066 PM= 76.19 GM= 18.02 Tpk=-0.000 dB  bands=none  CT-pred edge=none (zeta_ct>=0.5)
+  fp=   2 GHz K=0.34829 zeta_ct= 1.502 PM= 73.88 GM= 20.43 Tpk=-0.000 dB  bands=none  CT-pred edge=none (zeta_ct>=0.5)
+  fp=   1 GHz K=0.32043 zeta_ct= 1.107 PM= 69.77 GM= 18.42 Tpk=-0.000 dB  bands=none  CT-pred edge=none (zeta_ct>=0.5)
+  fp=0.75 GHz K=0.31044 zeta_ct= 0.974 PM= 67.15 GM= 18.03 Tpk=-0.000 dB  bands=none  CT-pred edge=none (zeta_ct>=0.5)
+  fp= 0.5 GHz K=0.30616 zeta_ct= 0.801 PM= 61.74 GM= 17.51 Tpk= 0.048 dB  bands=none  CT-pred edge=none (zeta_ct>=0.5)
+  fp= 0.4 GHz K=0.31295 zeta_ct= 0.708 PM= 57.53 GM= 17.07 Tpk= 0.409 dB  bands=none  CT-pred edge=none (zeta_ct>=0.5)
+  fp= 0.3 GHz K=0.33670 zeta_ct= 0.592 PM= 50.48 GM= 16.18 Tpk= 1.384 dB  bands=none  CT-pred edge=none (zeta_ct>=0.5)
+  fp=0.25 GHz K=0.36316 zeta_ct= 0.520 PM= 45.15 GM= 15.40 Tpk= 2.304 dB  bands=[0.00, 80.49] MHz (min Re H=-0.0035)  CT-pred edge=none (zeta_ct>=0.5)
+  fp= 0.2 GHz K=0.41066 zeta_ct= 0.437 PM= 38.08 GM= 14.22 Tpk= 3.747 dB  bands=[0.00, 141.54] MHz (min Re H=-0.0519)  CT-pred edge=110.8 MHz
+  fp=0.15 GHz K=0.50207 zeta_ct= 0.343 PM= 28.90 GM= 12.35 Tpk= 6.110 dB  bands=[0.00, 174.52] MHz (min Re H=-0.2110)  CT-pred edge=159.5 MHz
+  fp= 0.1 GHz K=0.70629 zeta_ct= 0.236 PM= 17.54 GM=  9.27 Tpk=10.413 dB  bands=[0.00, 194.35] MHz (min Re H=-0.7201)  CT-pred edge=187.0 MHz
+==============================================================================
+4. ILLUSTRATION (linearised / small-mu mean dynamics, first-order accumulator, correlator delay 0)
+   GOS: g_eff = <(h*rho)rho_ac>/<rho_ac^2>;  PHOS: min Re eig(R) and min eig(sym R) on the observable subspace
+==============================================================================
+     alpha  f(8a)MHz  f(a)MHz | GOS g_eff L1 / L2 / L3      | PHOS min Re eig(R) L1 / L2 / L3
+  0.000244      7.81     0.98 | +0.0299 +0.0012 +0.0018 | +1.84e-04 -2.78e-18 -3.59e-18
+  0.001953     62.50     7.81 | +0.2255 +0.0766 +0.1179 | +1.47e-03 -1.35e-07 -2.07e-06
+  0.003906    125.00    15.62 | +0.4202 +0.3191 +0.4158 | +2.94e-03 -5.26e-04 -2.46e-04
+  0.015625    500.00    62.50 | +1.0224 +1.0981 +1.1661 | +1.21e-02 -1.35e-02 -1.18e-02
+  0.064453   1937.50   257.81 | +1.0292 +0.9611 +0.9170 | +6.86e-02 +9.05e-02 +1.02e-01
+  0.100098    796.88   400.39 | +1.1049 +1.1053 +1.1034 | +1.02e-01 +1.24e-01 +1.32e-01
+  0.129883    156.25   519.53 | +0.5052 +0.4865 +0.5722 | +1.18e-01 +1.33e-01 +1.35e-01
+  0.265625    500.00  1062.50 | +1.0224 +1.0981 +1.1661 | +7.73e-02 +9.56e-02 +1.05e-01
+  0.370117    156.25  1480.47 | +0.5052 +0.4865 +0.5722 | +1.10e-01 +1.26e-01 +1.35e-01
+  0.492188    250.00  1968.75 | +0.7182 +0.8472 +0.9230 | +2.01e-02 -5.26e-04 +2.34e-03
+  slow-sawtooth GOS asymptotics: Type-I g ~ 6/(K P);  Type-II g ~ 12/(K_i P^2)  (P = sawtooth period, samples)
+   P=   512: L1: g=0.02989 pred=0.03014  L2: g=0.00120 pred=0.00120  L3: g=0.00185 pred=0.00185
+   P=   256: L1: g=0.05930 pred=0.06028  L2: g=0.00479 pred=0.00479  L3: g=0.00740 pred=0.00740
+   P=   128: L1: g=0.11666 pred=0.12055  L2: g=0.01915 pred=0.01915  L3: g=0.02959 pred=0.02959
+   P=    64: L1: g=0.22555 pred=0.24110  L2: g=0.07657 pred=0.07659  L3: g=0.11789 pred=0.11835
+  L1: sum of PD error after a unit phase step = +2.571776e+00  (Type-I theory 1/K = 2.571776)
+  L2: sum of PD error after a unit phase step = -4.420131e-12  (Type-I theory 1/K = 0.000000)
+  L3: sum of PD error after a unit phase step = +1.080906e-10  (Type-I theory 1/K = 0.000000)
+  fine scan alpha = j/4096, j = 1..2047:
+   L1: PHOS unstable-mode alpha*f_ref runs [MHz]: 
+   L1: GOS g_eff min=+0.0299 @ alpha=0.000244, fraction<0 = 0.000 (3 alphas with rho==0 excluded) | PHOS min Re eig<0 fraction = 0.000, min=+1.839e-04 @ alpha=0.000244
+   L2: PHOS unstable-mode alpha*f_ref runs [MHz]: [3.9,126.0], [980.5,989.3], [994.1,994.1], [996.1,996.1], [1003.9,1003.9], [1005.9,1005.9], [1010.7,1019.5], [1960.0,1989.3], [1992.2,1992.2], [1994.1,1994.1], [1996.1,1996.1]
+   L2: GOS g_eff min=+0.0012 @ alpha=0.124756, fraction<0 = 0.000 (3 alphas with rho==0 excluded) | PHOS min Re eig<0 fraction = 0.090, min=-1.746e-02 @ alpha=0.020752
+   L3: PHOS unstable-mode alpha*f_ref runs [MHz]: [3.9,105.5]
+   L3: GOS g_eff min=+0.0018 @ alpha=0.000244, fraction<0 = 0.000 (3 alphas with rho==0 excluded) | PHOS min Re eig<0 fraction = 0.051, min=-1.196e-02 @ alpha=0.016846

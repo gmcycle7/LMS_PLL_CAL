@@ -1,0 +1,23 @@
+{
+  "id": "stability-gauss-noise-mu08",
+  "title": "Gaussian + 雜訊 σ_v = 0.1、μ = 0.8：穩態 MSD 無限大（heavy tail）",
+  "page": "/ch/03",
+  "experiment": "stability-lab",
+  "description": "g > 1 但 λ < 0：穩態分布存在、二階動差不存在。",
+  "params": {
+    "dist": "gaussian",
+    "xValue": 2,
+    "sigma": 1,
+    "halfWidth": 1.7320508075688772,
+    "amplitude": 1,
+    "listText": "0, 0, 0, 0, 0, 0, 0, 0, 0, 3",
+    "delta0": 1,
+    "paths": 20000,
+    "steps": 300,
+    "noiseSigma": 0.1,
+    "mu": 0.8
+  },
+  "expected": "MSD∞ = ∞（g = 1.32 ≥ 1）；Kesten 尾指數 κ_t ≈ 1.546 < 2；Hill 估計（最後一步，取最大 2%）為近似值，seed 20261010 時約 1.44（與 κ_t 差約 7%，換 seed 可差 10% 左右）；分位帶仍為有限值。",
+  "tests": [],
+  "source": "illustrative"
+}

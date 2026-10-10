@@ -1,0 +1,440 @@
+{
+ "L1": {
+  "f3dB": 320.0,
+  "PM": 78.79,
+  "stable": true,
+  "raw_min": 0.0,
+  "raw_neg_span_MHz": [],
+  "d1_min": 1.0152964388608107e-12,
+  "d1_min_at_MHz": 0.0
+ },
+ "L2 PM60": {
+  "f3dB": 320.0,
+  "PM": 60.0,
+  "stable": true,
+  "raw_min": -0.2053,
+  "raw_neg_span_MHz": [
+   0.0,
+   134.82
+  ],
+  "d1_min": 2.8606738822635217e-23,
+  "d1_min_at_MHz": 0.0
+ },
+ "L3 imp": {
+  "f3dB": 320.0,
+  "PM": 58.58,
+  "stable": true,
+  "raw_min": -0.1616,
+  "raw_neg_span_MHz": [
+   0.0,
+   117.27
+  ],
+  "d1_min": 6.865212820053179e-23,
+  "d1_min_at_MHz": 0.0
+ },
+ "L1 lat1.5": {
+  "f3dB": 320.0,
+  "PM": 71.67,
+  "stable": true,
+  "raw_min": 0.0,
+  "raw_neg_span_MHz": [],
+  "d1_min": 1.2237219348769241e-12,
+  "d1_min_at_MHz": 0.0
+ },
+ "L2 PM60 lat1.5 (redesign)": {
+  "f3dB": 320.0,
+  "PM": 60.0,
+  "stable": true,
+  "raw_min": -0.1467,
+  "raw_neg_span_MHz": [
+   0.0,
+   105.73
+  ],
+  "d1_min": 1.0095540075672643e-22,
+  "d1_min_at_MHz": 0.0
+ },
+ "L2 lat1.5 (Kp,Ki fixed)": {
+  "f3dB": 375.47,
+  "PM": 50.56,
+  "stable": true,
+  "raw_min": -0.2416,
+  "raw_neg_span_MHz": [
+   0.0,
+   146.48
+  ],
+  "d1_min": 2.65695519002146e-23,
+  "d1_min_at_MHz": 0.0
+ },
+ "L1 lat2.0": {
+  "f3dB": 320.0,
+  "PM": 67.39,
+  "stable": true,
+  "raw_min": 0.0,
+  "raw_neg_span_MHz": [],
+  "d1_min": 1.505231150380779e-12,
+  "d1_min_at_MHz": 0.0
+ },
+ "L2 PM60 lat2.0 (redesign)": {
+  "f3dB": 320.0,
+  "PM": 60.0,
+  "stable": true,
+  "raw_min": -0.0998,
+  "raw_neg_span_MHz": [
+   0.0,
+   76.51
+  ],
+  "d1_min": 4.300997882637522e-22,
+  "d1_min_at_MHz": 0.0
+ },
+ "L2 lat2.0 (Kp,Ki fixed)": {
+  "f3dB": 473.81,
+  "PM": 41.14,
+  "stable": true,
+  "raw_min": -0.2922,
+  "raw_neg_span_MHz": [
+   0.0,
+   161.6
+  ],
+  "d1_min": 2.4532364977788754e-23,
+  "d1_min_at_MHz": 0.0
+ },
+ "L1 lat2.5": {
+  "f3dB": 320.0,
+  "PM": 62.8,
+  "stable": true,
+  "raw_min": 0.0,
+  "raw_neg_span_MHz": [],
+  "d1_min": 1.6552863734341774e-12,
+  "d1_min_at_MHz": 0.0
+ },
+ "L2 PM60 lat2.5 (redesign)": {
+  "f3dB": 320.0,
+  "PM": 60.0,
+  "stable": true,
+  "raw_min": -0.0416,
+  "raw_neg_span_MHz": [
+   0.0,
+   47.26
+  ],
+  "d1_min": 4.080398603554993e-21,
+  "d1_min_at_MHz": 0.0
+ },
+ "L2 lat2.5 (Kp,Ki fixed)": {
+  "f3dB": 457.19,
+  "PM": 31.92,
+  "stable": true,
+  "raw_min": -0.3728,
+  "raw_neg_span_MHz": [
+   0.0,
+   175.95
+  ],
+  "d1_min": 2.249517805536289e-23,
+  "d1_min_at_MHz": 0.0
+ },
+ "L2 PM45": {
+  "f3dB": 320.0,
+  "PM": 45.0,
+  "stable": true,
+  "raw_min": -0.3854,
+  "raw_neg_span_MHz": [
+   0.0,
+   162.98
+  ],
+  "d1_min": 9.027814050071e-24,
+  "d1_min_at_MHz": 0.0
+ },
+ "L2 PM75": {
+  "f3dB": 320.0,
+  "PM": 75.0,
+  "stable": true,
+  "raw_min": -0.0528,
+  "raw_neg_span_MHz": [
+   0.0,
+   72.29
+  ],
+  "d1_min": 5.02375576548181e-22,
+  "d1_min_at_MHz": 0.0
+ },
+ "L3 zoh": {
+  "f3dB": 320.0,
+  "PM": 52.04,
+  "stable": true,
+  "raw_min": -0.1804,
+  "raw_neg_span_MHz": [
+   0.0,
+   115.09
+  ],
+  "d1_min": 8.530524840827466e-23,
+  "d1_min_at_MHz": 0.0
+ },
+ "L3 PM45 imp": {
+  "f3dB": 320.0,
+  "PM": 44.32,
+  "stable": true,
+  "raw_min": -0.2844,
+  "raw_neg_span_MHz": [
+   0.0,
+   144.18
+  ],
+  "d1_min": 2.9010028811577696e-23,
+  "d1_min_at_MHz": 0.0
+ },
+ "L2 gain x0.6": {
+  "f3dB": 204.7,
+  "PM": 53.69,
+  "stable": true,
+  "raw_min": -0.2882,
+  "raw_neg_span_MHz": [
+   0.0,
+   101.01
+  ],
+  "d1_min": 4.767789803840474e-23,
+  "d1_min_at_MHz": 0.0
+ },
+ "L3 gain x0.6": {
+  "f3dB": 194.04,
+  "PM": 56.83,
+  "stable": true,
+  "raw_min": -0.2256,
+  "raw_neg_span_MHz": [
+   0.0,
+   84.86
+  ],
+  "d1_min": 1.1442021367004432e-22,
+  "d1_min_at_MHz": 0.0
+ },
+ "L2 gain x0.8": {
+  "f3dB": 260.29,
+  "PM": 57.65,
+  "stable": true,
+  "raw_min": -0.2383,
+  "raw_neg_span_MHz": [
+   0.0,
+   118.55
+  ],
+  "d1_min": 3.5758423528485053e-23,
+  "d1_min_at_MHz": 0.0
+ },
+ "L3 gain x0.8": {
+  "f3dB": 255.19,
+  "PM": 58.44,
+  "stable": true,
+  "raw_min": -0.187,
+  "raw_neg_span_MHz": [
+   0.0,
+   101.29
+  ],
+  "d1_min": 8.581516025136513e-23,
+  "d1_min_at_MHz": 0.0
+ },
+ "L2 gain x1.25": {
+  "f3dB": 402.94,
+  "PM": 61.49,
+  "stable": true,
+  "raw_min": -0.1766,
+  "raw_neg_span_MHz": [
+   0.0,
+   154.09
+  ],
+  "d1_min": 2.288539105801035e-23,
+  "d1_min_at_MHz": 0.0
+ },
+ "L3 gain x1.25": {
+  "f3dB": 403.79,
+  "PM": 57.67,
+  "stable": true,
+  "raw_min": -0.1399,
+  "raw_neg_span_MHz": [
+   0.0,
+   137.35
+  ],
+  "d1_min": 5.492170256006692e-23,
+  "d1_min_at_MHz": 0.0
+ },
+ "L2 gain x1.5": {
+  "f3dB": 498.77,
+  "PM": 61.96,
+  "stable": true,
+  "raw_min": -0.1561,
+  "raw_neg_span_MHz": [
+   0.0,
+   172.73
+  ],
+  "d1_min": 1.907115921495424e-23,
+  "d1_min_at_MHz": 0.0
+ },
+ "L3 gain x1.5": {
+  "f3dB": 487.78,
+  "PM": 56.17,
+  "stable": true,
+  "raw_min": -0.1246,
+  "raw_neg_span_MHz": [
+   0.0,
+   158.16
+  ],
+  "d1_min": 4.5768085466523357e-23,
+  "d1_min_at_MHz": 0.0
+ },
+ "L1 pole 1G": {
+  "f3dB": 320.0,
+  "PM": 74.63,
+  "stable": true,
+  "raw_min": 0.0,
+  "raw_neg_span_MHz": [],
+  "d1_min": 1.0903982946496725e-12,
+  "d1_min_at_MHz": 0.0
+ },
+ "L1 pole 0.5G": {
+  "f3dB": 320.0,
+  "PM": 66.75,
+  "stable": true,
+  "raw_min": 0.0,
+  "raw_neg_span_MHz": [],
+  "d1_min": 1.1586746083088737e-12,
+  "d1_min_at_MHz": 0.0
+ },
+ "L1 pole 0.25G": {
+  "f3dB": 320.0,
+  "PM": 51.51,
+  "stable": true,
+  "raw_min": 0.0,
+  "raw_neg_span_MHz": [],
+  "d1_min": 1.0258487164128892e-12,
+  "d1_min_at_MHz": 0.0
+ },
+ "P-only L2 (lat1)": {
+  "f3dB": 218.09,
+  "PM": 81.73,
+  "stable": true,
+  "raw_min": 0.0,
+  "raw_neg_span_MHz": [],
+  "d1_min": 1.372126886817992e-12,
+  "d1_min_at_MHz": 0.0
+ },
+ "P-only L2 lat2": {
+  "f3dB": 381.75,
+  "PM": 65.19,
+  "stable": true,
+  "raw_min": 0.0,
+  "raw_neg_span_MHz": [],
+  "d1_min": 1.3721268868209448e-12,
+  "d1_min_at_MHz": 0.0
+ },
+ "P-only L2 lat2.5": {
+  "f3dB": 415.95,
+  "PM": 57.25,
+  "stable": true,
+  "raw_min": 0.0,
+  "raw_neg_span_MHz": [],
+  "d1_min": 1.3721268868222858e-12,
+  "d1_min_at_MHz": 0.0
+ },
+ "P-only L2 + pole 0.5G": {
+  "f3dB": 263.49,
+  "PM": 69.79,
+  "stable": true,
+  "raw_min": 0.0,
+  "raw_neg_span_MHz": [],
+  "d1_min": 1.37212688682092e-12,
+  "d1_min_at_MHz": 0.0
+ },
+ "L2 PM60 + sampler mem k=0.1 (cmp on hold)": {
+  "f3dB": 320.0,
+  "PM": 60.0,
+  "stable": true,
+  "raw_min": -0.1876,
+  "raw_neg_span_MHz": [
+   0.0,
+   126.85
+  ],
+  "d1_min": 3.6968724759145267e-23,
+  "d1_min_at_MHz": 0.0
+ },
+ "L2 PM60 + sampler mem k=0.1 (cmp on sample)": {
+  "f3dB": 320.0,
+  "PM": 60.0,
+  "stable": true,
+  "raw_min": -0.1921,
+  "raw_neg_span_MHz": [
+   0.0,
+   129.24
+  ],
+  "d1_min": 3.645804682788617e-23,
+  "d1_min_at_MHz": 0.0
+ },
+ "L1 + sampler mem k=0.1 (cmp on hold)": {
+  "f3dB": 320.0,
+  "PM": 76.95,
+  "stable": true,
+  "raw_min": 0.0,
+  "raw_neg_span_MHz": [],
+  "d1_min": 1.0502803433302443e-12,
+  "d1_min_at_MHz": 0.0
+ },
+ "L2 PM60 + sampler mem k=0.3 (cmp on hold)": {
+  "f3dB": 320.0,
+  "PM": 60.0,
+  "stable": true,
+  "raw_min": -0.1402,
+  "raw_neg_span_MHz": [
+   0.0,
+   106.17
+  ],
+  "d1_min": 7.863807491196219e-23,
+  "d1_min_at_MHz": 0.0
+ },
+ "L2 PM60 + sampler mem k=0.3 (cmp on sample)": {
+  "f3dB": 320.0,
+  "PM": 60.0,
+  "stable": true,
+  "raw_min": -0.1516,
+  "raw_neg_span_MHz": [
+   0.0,
+   114.42
+  ],
+  "d1_min": 7.583318851359391e-23,
+  "d1_min_at_MHz": 0.0
+ },
+ "L1 + sampler mem k=0.3 (cmp on hold)": {
+  "f3dB": 320.0,
+  "PM": 72.26,
+  "stable": true,
+  "raw_min": 0.0,
+  "raw_neg_span_MHz": [],
+  "d1_min": 1.1236545418825993e-12,
+  "d1_min_at_MHz": 0.0
+ },
+ "L2 PM60 + sampler mem k=0.5 (cmp on hold)": {
+  "f3dB": 320.0,
+  "PM": 60.0,
+  "stable": true,
+  "raw_min": -0.0582,
+  "raw_neg_span_MHz": [
+   0.0,
+   66.96
+  ],
+  "d1_min": 5.731586511342919e-22,
+  "d1_min_at_MHz": 0.0
+ },
+ "L2 PM60 + sampler mem k=0.5 (cmp on sample)": {
+  "f3dB": 320.0,
+  "PM": 60.0,
+  "stable": true,
+  "raw_min": -0.0658,
+  "raw_neg_span_MHz": [
+   0.0,
+   83.43
+  ],
+  "d1_min": 5.564244937183096e-22,
+  "d1_min_at_MHz": 0.0
+ },
+ "L1 + sampler mem k=0.5 (cmp on hold)": {
+  "f3dB": 320.0,
+  "PM": 64.63,
+  "stable": true,
+  "raw_min": 0.0,
+  "raw_neg_span_MHz": [],
+  "d1_min": 1.1567023050128975e-12,
+  "d1_min_at_MHz": 0.0
+ }
+}

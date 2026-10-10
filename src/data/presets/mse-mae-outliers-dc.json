@@ -1,0 +1,25 @@
+{
+  "id": "mse-mae-outliers-dc",
+  "title": "DC 估計 + 10% outlier（s = 20）",
+  "page": "/ch/01",
+  "experiment": "mse-vs-mae",
+  "description": "x ≡ 1、σ_v = 1、ε = 0.1、s = 20：平均被拉到 a + εs，中位數只偏 σΦ⁻¹(5/9)；Sign-Error 的軌跡抖動是 O(√μ)，不是 O(μ)。",
+  "params": {
+    "model": "contaminated",
+    "xDist": "const",
+    "xScale": 1,
+    "a": 3,
+    "sigma": 1,
+    "outlierProb": 0.1,
+    "outlierSize": 20,
+    "outlierSign": "positive",
+    "mu": 0.05,
+    "w0": 0,
+    "n": 8000,
+    "tie": "zero",
+    "huberDelta": 1,
+    "seed": 11
+  },
+  "expected": "母體最佳解：L2 = 5、L1 = 3.1397、Huber 介於兩者；LMS 時間平均 ≈ 5；Sign-Error 時間平均 ≈ 3.14（在中位數 ± μ 內，E40），但軌跡的 std ≈ √(μ/(4f)) ≈ 0.19，是單步步長 μ = 0.05 的近 4 倍（F-01.18）。",
+  "source": "simulation"
+}

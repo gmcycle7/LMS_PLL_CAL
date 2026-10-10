@@ -1,0 +1,19 @@
+{
+  "id": "sign-lms-band-exact-landing",
+  "title": "剛好踩到 w = a：sign(0) 決定結果（E40）",
+  "page": "/ch/02",
+  "experiment": "sign-lms-band",
+  "description": "a = 3、x = 2、w₀ = 1、μ = 0.125：h = 0.25 是二進位精確數，第 8 步 e = 0。",
+  "params": {
+    "a": 3,
+    "x": 2,
+    "w0": 1,
+    "mu": 0.125,
+    "steps": 30,
+    "tie": "zero",
+    "schedule": "constant",
+    "n0": 20
+  },
+  "expected": "sign(0)=0 ⇒ 凍結在 3；改成 +1 ⇒ {3, 3.25}；−1 ⇒ {2.75, 3}。",
+  "source": "illustrative"
+}

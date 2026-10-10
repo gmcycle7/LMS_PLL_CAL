@@ -1,0 +1,55 @@
+{
+  "id": "T16",
+  "description_zh": "目標 32.4 LSB、週期 5 toggle [32,32,33,32,33] ⇒ 平均 32.4、週期 5",
+  "spec_section": "§13.1、§13.2、§13.4",
+  "inputs": {
+    "target_lsb": 32.4,
+    "pattern": [
+      32,
+      32,
+      33,
+      32,
+      33
+    ],
+    "bits": 6
+  },
+  "expected": {
+    "mean": 32.4,
+    "period": 5,
+    "freeze_code": 32,
+    "freeze_error_lsb": -0.3999999999999986,
+    "dft_mag_list": [
+      32.4,
+      0.12360679774997854,
+      0.32360679774997886,
+      0.32360679774997886,
+      0.12360679774997854
+    ],
+    "ef_period": 5,
+    "ef_cycle": [
+      32,
+      33,
+      32,
+      33,
+      32
+    ]
+  },
+  "tolerance": {
+    "abs": 1e-12
+  },
+  "tolerance_overrides": {
+    "period": {
+      "abs": 0
+    },
+    "ef_period": {
+      "abs": 0
+    },
+    "freeze_code": {
+      "abs": 0
+    },
+    "ef_cycle": {
+      "abs": 0
+    }
+  },
+  "notes": "dft_mag_list[k] = |DFT{pattern}[k]|/5：k=0 為平均，k=1、2 為 f_toggle/5、2f_toggle/5 的譜線（(√5∓1)/10）。ef_*：一階 error-feedback quantizer（round-half-up、r[−1] = 0）在常數 32.4 的輸出，週期 5，循環 [32,33,32,33,32] 是規格 pattern 的循環位移。詳見 quantizer_first_order.json。"
+}

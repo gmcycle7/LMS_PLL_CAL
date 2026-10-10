@@ -1,0 +1,17 @@
+{
+  "id": "gmac-residue-hand-example",
+  "title": "Fractional residue：手算表的例子（K_F = 5、4-bit）",
+  "page": "/ch/04",
+  "experiment": "gmac-residue",
+  "description": "一階累加器、M = 16、frac = 5/16、f_vco = 13 GHz、DTC gain 誤差 1%。與 §2 的手算表相同。",
+  "params": {
+    "kind": "first_order",
+    "frac": 0.3125,
+    "bits": 4,
+    "length": 64,
+    "gainErrPct": 1,
+    "fvcoGHz": 13
+  },
+  "expected": "K_F/M = 5/16，residue 以 16 拍為週期，r[n] ∈ [−0.9375, 0] T_vco（divider edge 永遠早到）；DTC 需要的延遲 ∈ [0, 72115] fs；1% gain 誤差 ⇒ PD 殘差最大 721.15 fs（= 0.01 × 15/16 × 76923 fs）。",
+  "source": "simulation"
+}

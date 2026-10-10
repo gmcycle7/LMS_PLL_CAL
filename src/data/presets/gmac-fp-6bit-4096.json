@@ -1,0 +1,64 @@
+{
+  "id": "gmac-fp-6bit-4096",
+  "title": "定點 overflow：6-bit × 4096 需要 18 bits",
+  "page": "/ch/04",
+  "experiment": "gmac-fixed-point",
+  "description": "面板 A 為最壞情況；面板 C 從 w₀ = −400 fs 開機（|δ| ≫ σ_v，q ≈ sign(x)），±full-scale code。A：18 bits；B：17 bits wrap；C：17 bits saturate。",
+  "params": {
+    "bx": 6,
+    "log2N": 12,
+    "codeRange": "symmetric",
+    "codeKind": "pm_full_scale",
+    "dsmFrac": 0.3,
+    "scenario": "worst_case",
+    "deltaOverSigma": 3,
+    "ellB": 4,
+    "ditherRatio": 1,
+    "aTrue": 3,
+    "aStepBlock": -1,
+    "aStepValue": 3,
+    "w0": -400,
+    "mu": 10,
+    "sigmaV": 100,
+    "physMin": -512,
+    "physMax": 512,
+    "regMin": -1024,
+    "regMax": 1024,
+    "numBlocks": 300,
+    "seed": 20261010,
+    "cases": [
+      {
+        "accBits": 18,
+        "negate": "extend",
+        "accOverflow": "wrap",
+        "gmMode": "average",
+        "gFracBits": 4,
+        "rounding": "half_even",
+        "antiWindup": true,
+        "regOverflow": "saturate"
+      },
+      {
+        "accBits": 17,
+        "negate": "extend",
+        "accOverflow": "wrap",
+        "gmMode": "average",
+        "gFracBits": 4,
+        "rounding": "half_even",
+        "antiWindup": true,
+        "regOverflow": "saturate"
+      },
+      {
+        "accBits": 17,
+        "negate": "extend",
+        "accOverflow": "saturate",
+        "gmMode": "average",
+        "gFracBits": 4,
+        "rounding": "half_even",
+        "antiWindup": true,
+        "regOverflow": "saturate"
+      }
+    ]
+  },
+  "expected": "面板 A：17 bits 時 exact 126976 wrap 成 −4096（golden negative_tests）、saturate 停在 65535。面板 C：A 收斂到 3 fs；B 每個 block 都溢位、S 變號，w 往反方向跑（300 blocks 後約 −494 fs）；C 方向正確、收斂較慢。",
+  "source": "simulation"
+}

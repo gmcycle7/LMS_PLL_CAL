@@ -1,0 +1,25 @@
+{
+  "id": "stability-bpsk-mu15",
+  "title": "±1 code、μ = 1.5：三個界限相同",
+  "page": "/ch/03",
+  "experiment": "stability-lab",
+  "description": "|x| 為常數（kurtosis κ = 1），Jensen 取等號。",
+  "params": {
+    "dist": "pm_one",
+    "xValue": 2,
+    "sigma": 1,
+    "halfWidth": 1.7320508075688772,
+    "amplitude": 1,
+    "listText": "0, 0, 0, 0, 0, 0, 0, 0, 0, 3",
+    "delta0": 1,
+    "paths": 2000,
+    "steps": 200,
+    "noiseSigma": 0,
+    "mu": 1.5
+  },
+  "expected": "mean / MS / a.s. 界都是 2；每條路徑都乘 −0.5：g = 0.25 = (1 − μ)²、λ = ln 0.5 = −0.6931。",
+  "tests": [
+    "T03"
+  ],
+  "source": "illustrative"
+}

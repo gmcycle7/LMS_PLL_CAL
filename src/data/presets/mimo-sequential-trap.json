@@ -1,0 +1,56 @@
+{
+  "id": "mimo-sequential-trap",
+  "title": "Sequential 陷阱：x₁ = x₂（ρ = 1）時誤差全被先校的 w₁ 吸收",
+  "page": "/ch/10",
+  "experiment": "mimo-lms",
+  "description": "R = [[1, 1], [1, 1]]（兩個 regressor 完全相同，λ_min = 0），δ₀ = a − w₀ = (3, 1) fs。Case A：sequential（γ = 0.5、每階段 60 blocks、1 sweep）；Case B：完整反矩陣（應拒絕並解釋不可辨識）；Case C：regularized λ_reg = 0.1。",
+  "params": {
+    "P": 2,
+    "mode": "R",
+    "R": [
+      [
+        1,
+        1
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    "sigmaV": 10,
+    "N": 4096,
+    "dist": "gaussian",
+    "delta0": [
+      3,
+      1
+    ],
+    "blocks": 120,
+    "engine": "linear",
+    "jhatSource": "exact",
+    "showAllRules": false,
+    "cases": [
+      {
+        "rule": "sequential",
+        "gamma": 0.5,
+        "seqBlocksPerPhase": 60,
+        "seqSweeps": 1
+      },
+      {
+        "rule": "full",
+        "gamma": 0.5
+      },
+      {
+        "rule": "regularized",
+        "regForm": "R",
+        "gamma": 0.5,
+        "lambdaReg": 0.1
+      }
+    ],
+    "seed": 20261010
+  },
+  "expected": "Case A：階段 1 後 δ₁ + δ₂ → 0（w₁ → 4 = a₁ + δ₂(0)），階段 2 GMAC₂ = 0、w₂ 不動 ⇒ 平均終值 δ = (−1, 1)；Case B：『λ_min = 0 ⇒ 不可辨識，(K_qR)⁻¹ 不存在』；Case C：只修正共模，差模 δ₁ − δ₂ = 2 fs 凍結（pole = 1）。",
+  "tests": [
+    "T10"
+  ],
+  "source": "illustrative"
+}

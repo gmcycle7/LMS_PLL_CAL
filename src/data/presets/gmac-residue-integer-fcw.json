@@ -1,0 +1,17 @@
+{
+  "id": "gmac-residue-integer-fcw",
+  "title": "反面教材：整數 FCW（K_F = 0）沒有東西可以學",
+  "page": "/ch/04",
+  "experiment": "gmac-residue",
+  "description": "frac = 0：累加器永遠不溢位。DTC code 恆為 0，GMAC 的 regressor 沒有激勵。",
+  "params": {
+    "kind": "first_order",
+    "frac": 0,
+    "bits": 8,
+    "length": 64,
+    "gainErrPct": 1,
+    "fvcoGHz": 13
+  },
+  "expected": "y[n] ≡ 0、r[n] ≡ 0、PD 殘差 ≡ 0：不管 DTC gain 錯多少，PD 都看不到（x ≡ 0 ⇒ C = E[x²] = 0）。顯示「K_F = 0：…缺乏激勵（Persistent Excitation，Ch09）」警告。",
+  "source": "simulation"
+}

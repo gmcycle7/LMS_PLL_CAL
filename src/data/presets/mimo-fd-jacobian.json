@@ -1,0 +1,56 @@
+{
+  "id": "mimo-fd-jacobian",
+  "title": "§10.2 中央差分量測 Ĵ + 真正的 1-bit Sign-LMS",
+  "page": "/ch/10",
+  "experiment": "mimo-lms",
+  "description": "R = [[1, .9], [.9, 1]]、σ_v = 100 fs、±1 碼。Ĵ 以中央差分量測（Δ = 30 fs = 0.3σ_v、N_J = 4096），模擬用 sample 引擎（逐 sample comparator，N = 1024）。觀察 Ĵ 的 1-bit 截斷（−1.5%）與量測雜訊如何改變 poles。Monte Carlo 預設 16 chains × 1000 blocks（sample 引擎約 1.7×10⁷ 個 comparator sample，在運算預算內）。",
+  "params": {
+    "P": 2,
+    "mode": "R",
+    "R": [
+      [
+        1,
+        0.9
+      ],
+      [
+        0.9,
+        1
+      ]
+    ],
+    "sigmaV": 100,
+    "N": 1024,
+    "dist": "pm1",
+    "delta0": [
+      40,
+      0
+    ],
+    "blocks": 300,
+    "engine": "sample",
+    "jhatSource": "finiteDiff",
+    "fdDeltaFs": 30,
+    "fdSamples": 4096,
+    "showAllRules": false,
+    "cases": [
+      {
+        "rule": "full",
+        "gamma": 0.5
+      },
+      {
+        "rule": "regularized",
+        "regForm": "R",
+        "gamma": 0.5,
+        "lambdaReg": 0.05
+      },
+      {
+        "rule": "scalar",
+        "muKq": 0.5
+      }
+    ],
+    "seed": 20261010,
+    "mcChains": 16,
+    "mcRecord": 1000
+  },
+  "expected": "Ĵ 在初始工作點 δ₀ = (40, 0) fs 量測：理論期望 E[Ĵ_n] ≈ [[−0.912, −0.820], [−0.820, −0.912]]（1-bit 截斷 + 工作點增益壓縮；δ₀ = 0 時為 −0.9852·R）；每元素量測雜訊 std ≈ 0.046，相對 λ_min = 0.1 不可忽略 ⇒ 完整反矩陣的 poles 偏離 0.5。",
+  "tests": [],
+  "source": "illustrative"
+}

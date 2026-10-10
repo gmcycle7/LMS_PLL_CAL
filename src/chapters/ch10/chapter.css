@@ -1,0 +1,213 @@
+/* Ch10 專屬樣式（class 一律加 ch10- 前綴） */
+
+.ch10 {
+  min-width: 0;
+}
+
+.ch10-erratum {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 0 6px;
+  margin: 0 2px;
+  border-radius: 999px;
+  border: 1px solid var(--warn);
+  color: var(--warn);
+  background: var(--warn-soft);
+  text-decoration: none;
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+.ch10-erratum:hover {
+  text-decoration: underline;
+}
+
+.ch10-tags {
+  margin: 6px 0 10px;
+}
+
+.ch10-deriv {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  margin: 12px 0;
+}
+.ch10-deriv > summary {
+  cursor: pointer;
+  padding: 8px 12px;
+  font-weight: 600;
+  list-style-position: inside;
+}
+.ch10-deriv-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  margin-right: 4px;
+}
+.ch10-deriv-body {
+  padding: 4px 12px 10px;
+  min-width: 0;
+}
+
+.ch10-tryit {
+  margin: 10px 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px dashed var(--border-strong);
+}
+.ch10-tryit-badge {
+  font-weight: 700;
+  color: var(--accent);
+  margin-right: 4px;
+}
+
+/* 「換你算」：帶入手算題前的一句邀請 */
+.ch10-hand {
+  margin: 16px 0;
+  min-width: 0;
+}
+.ch10-hand-invite {
+  margin: 0 0 6px;
+}
+.ch10-hand-invite strong {
+  color: var(--accent);
+}
+
+.ch10 table td,
+.ch10 table th {
+  vertical-align: middle;
+}
+.ch10-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ch10-hl {
+  background: var(--accent-soft);
+}
+.ch10-bad {
+  color: var(--danger);
+  font-weight: 600;
+}
+.ch10-good {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+/* ===== 矩陣編輯器 ===== */
+.ch10-matrix {
+  display: inline-grid;
+  gap: 4px;
+  padding: 6px 10px;
+  border-left: 2px solid var(--text-muted);
+  border-right: 2px solid var(--text-muted);
+  border-radius: 4px;
+  margin: 4px 0;
+  max-width: 100%;
+}
+.ch10-matrix input {
+  width: 4.6em;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  padding: 3px 4px;
+  text-align: right;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+}
+.ch10-matrix input[aria-invalid='true'] {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+.ch10-matrix input:disabled {
+  opacity: 0.65;
+}
+.ch10-matrix-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+.ch10-matrix-msg {
+  font-size: 0.8rem;
+  color: var(--danger);
+}
+
+.ch10-fieldset {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px 8px;
+  margin: 10px 0;
+  min-width: 0;
+}
+.ch10-fieldset > legend {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding: 0 4px;
+}
+
+.ch10-vec {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.ch10-kpi {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 10px 0;
+}
+.ch10-kpi > div {
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  min-width: 0;
+}
+.ch10-kpi-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.ch10-kpi-value {
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.ch10-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.ch10-step-cursor {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.ch10-sub {
+  margin-top: 1.6em;
+}
+
+/* 含行內矩陣的段落：窄螢幕時在自身容器內水平捲動，不撐開頁面 */
+.ch10-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+  min-width: 0;
+}
+.ch10 .c-step-why {
+  overflow-wrap: anywhere;
+}

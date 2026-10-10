@@ -1,0 +1,25 @@
+{
+  "id": "pe-n1-ms-divergent",
+  "title": "N = 1 Gaussian：mean 收斂、mean-square 發散（勘誤 E23）",
+  "page": "/ch/09",
+  "experiment": "pe-eigen-lab",
+  "description": "per-sample（GMAC N = 1）Gaussian regressor、ρ = .99、g = .5：平均遞迴與 Gallery #6 完全相同（0.995、598），但均方遞迴的 spectral radius 為 1.9801。",
+  "params": {
+    "rho": 0.99,
+    "dist": "gaussian",
+    "detector": "linear",
+    "sigmaV": 0,
+    "kqMode": "normalized",
+    "muInput": 0.5,
+    "N": 1,
+    "N0": 100,
+    "d10": 1,
+    "d20": 0,
+    "blocks": 200,
+    "chains": 400,
+    "seed": 20261010
+  },
+  "expected": "mean 半徑 0.995、ρ_MS = 1.9801（發散）；MC 的中位數 ‖δ‖ 在收斂，但 E‖δ‖² 的樣本平均被少數軌跡主導；N 改成 2 時 ρ_MS = 0.99254。",
+  "tests": ["T11"],
+  "source": "illustrative"
+}

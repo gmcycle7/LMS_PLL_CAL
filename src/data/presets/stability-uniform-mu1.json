@@ -1,0 +1,25 @@
+{
+  "id": "stability-uniform-mu1",
+  "title": "Uniform U(−√3, √3)、μ = 1",
+  "page": "/ch/03",
+  "experiment": "stability-lab",
+  "description": "單位功率 uniform code：κ = 9/5。",
+  "params": {
+    "dist": "uniform",
+    "xValue": 2,
+    "sigma": 1,
+    "halfWidth": 1.7320508075688772,
+    "amplitude": 1,
+    "listText": "0, 0, 0, 0, 0, 0, 0, 0, 0, 3",
+    "delta0": 1,
+    "paths": 2000,
+    "steps": 200,
+    "noiseSigma": 0,
+    "mu": 1
+  },
+  "expected": "mean 界 2、MS 界 10/9 ≈ 1.111、a.s. 界 ≈ 2.0905；μ = 1 時 1 − μP_x = 0、g = 0.8、λ = −0.5465。",
+  "tests": [
+    "T03"
+  ],
+  "source": "illustrative"
+}

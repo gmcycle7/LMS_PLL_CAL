@@ -1,0 +1,60 @@
+{
+  "id": "mimo-3x3-gos-phos-gain",
+  "title": "3×3：GOS / PHOS / DTC gain 三個 loop 的耦合",
+  "page": "/ch/10",
+  "experiment": "mimo-lms",
+  "description": "示意的 3×3 regressor 自相關 R = [[1, .95, .4], [.95, 1, .4], [.4, .4, 1]]（前兩個高度相關），σ_v = 100 fs、N = 4096、δ₀ = (20, −10, 15) fs。比較 scalar、完整反矩陣與 regularized。",
+  "params": {
+    "P": 3,
+    "mode": "R",
+    "R": [
+      [
+        1,
+        0.95,
+        0.4
+      ],
+      [
+        0.95,
+        1,
+        0.4
+      ],
+      [
+        0.4,
+        0.4,
+        1
+      ]
+    ],
+    "sigmaV": 100,
+    "N": 4096,
+    "dist": "gaussian",
+    "delta0": [
+      20,
+      -10,
+      15
+    ],
+    "blocks": 400,
+    "engine": "linear",
+    "jhatSource": "exact",
+    "showAllRules": true,
+    "cases": [
+      {
+        "rule": "scalar",
+        "muKq": 0.5
+      },
+      {
+        "rule": "full",
+        "gamma": 0.5
+      },
+      {
+        "rule": "regularized",
+        "regForm": "R",
+        "gamma": 0.5,
+        "lambdaReg": 0.05
+      }
+    ],
+    "seed": 20261010
+  },
+  "expected": "λ(R) ≈ 2.214 / 0.736 / 0.050（κ ≈ 44.3）；scalar μK_q = 0.5 慢 pole 0.975（119 blocks）；完整反矩陣所有 pole 0.5（5 blocks，但前兩個參數 RMS 3.63 fs vs scalar 1.21 fs）；regularized λ_reg = 0.05 慢 pole 0.75（11 blocks，RMS 2.42 fs）。",
+  "tests": [],
+  "source": "illustrative"
+}

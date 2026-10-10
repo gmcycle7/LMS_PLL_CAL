@@ -1,0 +1,25 @@
+{
+  "id": "stability-gauss-mu23",
+  "title": "Gaussian、μ = 2.3：連 mean 都發散，路徑仍收斂",
+  "page": "/ch/03",
+  "experiment": "stability-lab",
+  "description": "mean pole = −1.3 已在單位圓外，但 λ 仍略小於 0。",
+  "params": {
+    "dist": "gaussian",
+    "xValue": 2,
+    "sigma": 1,
+    "halfWidth": 1.7320508075688772,
+    "amplitude": 1,
+    "listText": "0, 0, 0, 0, 0, 0, 0, 0, 0, 3",
+    "delta0": 1,
+    "paths": 2000,
+    "steps": 1000,
+    "noiseSigma": 0,
+    "mu": 2.3
+  },
+  "expected": "1 − μP_x = −1.3、g = 12.27、λ = −0.03243；典型路徑 n = 1000 時 ≈ 10^−14.09；收斂比例（|δ| < 10⁻³|δ₀|）在 N = 200 時約一半、N = 1000 時約 3/4（seed 20261010），隨 N 增加趨近 1（收斂很慢）。",
+  "tests": [
+    "T03"
+  ],
+  "source": "illustrative"
+}

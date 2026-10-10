@@ -1,0 +1,251 @@
+/* 第 06 章專屬樣式（class 一律 ch06- 前綴） */
+
+.ch06-lead {
+  font-size: 1.05rem;
+  line-height: 1.75;
+}
+
+.ch06-question {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 12px 16px;
+  margin: 16px 0;
+}
+.ch06-question-title {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.ch06-toc {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 10px 14px;
+  margin: 16px 0;
+}
+.ch06-toc ol {
+  margin: 6px 0 0;
+  columns: 2;
+  column-gap: 24px;
+}
+@media (max-width: 640px) {
+  .ch06-toc ol {
+    columns: 1;
+  }
+}
+
+.ch06-section {
+  margin: 40px 0 24px;
+  scroll-margin-top: calc(var(--topbar-h) + 12px);
+}
+.ch06-h2 {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+.ch06-kicker {
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 0 8px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.ch06-erratum {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--warn);
+  background: var(--warn-soft);
+  border: 1px solid var(--warn);
+  border-radius: 999px;
+  padding: 0 8px;
+  margin: 0 4px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.ch06-erratum:hover {
+  text-decoration: underline;
+}
+.ch06-erratum-note {
+  font-weight: 400;
+  white-space: normal;
+}
+
+.ch06-jump {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+
+.ch06-stepbox {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  margin: 14px 0;
+}
+.ch06-stepbox > summary {
+  cursor: pointer;
+  padding: 8px 12px;
+  font-weight: 600;
+  list-style: revert;
+}
+.ch06-stepbox-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent-text);
+  background: var(--accent);
+  border-radius: 4px;
+  padding: 1px 6px;
+  margin-right: 4px;
+}
+.ch06-stepbox-body {
+  padding: 4px 14px 12px;
+  border-top: 1px solid var(--border);
+  min-width: 0;
+}
+
+.ch06-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 6px 0;
+}
+
+.ch06-table td.num,
+.ch06-table th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ch06-table td.neg {
+  color: var(--danger);
+  font-weight: 600;
+}
+.ch06-table td.pos {
+  color: var(--ok);
+  font-weight: 600;
+}
+.ch06-table caption {
+  caption-side: bottom;
+  text-align: left;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  padding-top: 6px;
+}
+
+.ch06-mini {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.ch06-grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+@media (max-width: 760px) {
+  .ch06-grid2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.ch06-case-badge {
+  display: inline-block;
+  min-width: 1.6em;
+  text-align: center;
+  font-weight: 700;
+  border-radius: 4px;
+  padding: 0 4px;
+  color: #fff;
+}
+
+.ch06-verdict {
+  display: inline-block;
+  font-weight: 700;
+  border-radius: 4px;
+  padding: 1px 8px;
+}
+.ch06-verdict.pos {
+  color: var(--ok);
+  background: var(--ok-soft);
+}
+.ch06-verdict.neg {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+.ch06-verdict.zero {
+  color: var(--warn);
+  background: var(--warn-soft);
+}
+
+.ch06-controls-group {
+  border-top: 1px dashed var(--border);
+  margin-top: 10px;
+  padding-top: 8px;
+}
+.ch06-controls-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  letter-spacing: 0.02em;
+}
+
+.ch06-hw {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}
+
+.ch06-keypoint {
+  font-weight: 600;
+}
+
+/* 帶入手算（HandCalc）前的引導句 */
+.ch06-handcalc {
+  margin: 14px 0 18px;
+}
+.ch06-handcalc-lead {
+  margin: 0 0 6px;
+  color: var(--text-muted);
+}
+.ch06-handcalc-lead strong {
+  color: var(--text);
+  margin-right: 4px;
+}
+
+/* 章首的手算題索引 */
+.ch06-handcalc-index {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 10px 14px;
+  margin: 12px 0;
+  font-size: 0.92rem;
+}
+.ch06-handcalc-index p {
+  margin: 0 0 6px;
+}
+.ch06-handcalc-index ol {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  columns: 2 320px;
+  column-gap: 24px;
+}
+.ch06-handcalc-index li {
+  break-inside: avoid;
+  margin: 2px 0;
+}

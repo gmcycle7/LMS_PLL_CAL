@@ -1,0 +1,64 @@
+{
+  "id": "gmac-fp-floor-bias",
+  "title": "Rounding 偏差：floor vs half-even",
+  "page": "/ch/04",
+  "experiment": "gmac-fixed-point",
+  "description": "6-bit 對稱 uniform code、N = 1024、σ_v = 100 fs。A：floor、F_G = 2；B：half-even、F_G = 2；C：floor、F_G = 4。2000 blocks。",
+  "params": {
+    "bx": 6,
+    "log2N": 10,
+    "codeRange": "symmetric",
+    "codeKind": "uniform",
+    "dsmFrac": 0.3,
+    "scenario": "random",
+    "deltaOverSigma": 3,
+    "ellB": 4,
+    "ditherRatio": 1,
+    "aTrue": 3,
+    "aStepBlock": -1,
+    "aStepValue": 3,
+    "w0": 0,
+    "mu": 10,
+    "sigmaV": 100,
+    "physMin": -16,
+    "physMax": 16,
+    "regMin": -32,
+    "regMax": 32,
+    "numBlocks": 2000,
+    "seed": 20261010,
+    "cases": [
+      {
+        "accBits": 16,
+        "negate": "extend",
+        "accOverflow": "wrap",
+        "gmMode": "average",
+        "gFracBits": 2,
+        "rounding": "floor",
+        "antiWindup": true,
+        "regOverflow": "saturate"
+      },
+      {
+        "accBits": 16,
+        "negate": "extend",
+        "accOverflow": "wrap",
+        "gmMode": "average",
+        "gFracBits": 2,
+        "rounding": "half_even",
+        "antiWindup": true,
+        "regOverflow": "saturate"
+      },
+      {
+        "accBits": 16,
+        "negate": "extend",
+        "accOverflow": "wrap",
+        "gmMode": "average",
+        "gFracBits": 4,
+        "rounding": "floor",
+        "antiWindup": true,
+        "regOverflow": "saturate"
+      }
+    ]
+  },
+  "expected": "定點 − 浮點：A ≈ −1.59 ± 0.05 fs（預測 −1.51）；B ≈ 0；C ≈ −0.39 ± 0.02 fs（預測 −0.373）。多 seed 平均見 gmac.test.ts（−1.516 vs −1.510）。",
+  "source": "simulation"
+}

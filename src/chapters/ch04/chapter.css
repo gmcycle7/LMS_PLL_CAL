@@ -1,0 +1,167 @@
+/* Ch04 專屬樣式（class 一律加 ch04- 前綴） */
+
+.ch04-erratum {
+  display: inline-block;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  padding: 0 6px;
+  margin: 0 2px;
+  border-radius: 999px;
+  border: 1px solid var(--warn);
+  color: var(--warn);
+  background: var(--warn-soft);
+  text-decoration: none;
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+.ch04-erratum:hover {
+  text-decoration: underline;
+}
+
+.ch04-fold {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  margin: 12px 0;
+}
+.ch04-fold > summary {
+  cursor: pointer;
+  padding: 8px 12px;
+  font-weight: 600;
+  list-style-position: inside;
+}
+.ch04-fold-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  margin-right: 4px;
+}
+.ch04-fold-body {
+  padding: 4px 12px 12px;
+  min-width: 0;
+}
+
+.ch04-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  margin: 10px 0;
+}
+.ch04-kpi {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  background: var(--surface-2);
+  min-width: 0;
+}
+.ch04-kpi-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.ch04-kpi-value {
+  font-size: 1.05rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.ch04-kpi-note {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.ch04-scroll {
+  max-height: 340px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.ch04-scroll table {
+  margin: 0;
+}
+.ch04-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+tr.ch04-now td {
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+tr.ch04-future td {
+  color: var(--text-muted);
+  opacity: 0.55;
+}
+td.ch04-pos {
+  color: var(--ok);
+}
+td.ch04-neg {
+  color: var(--danger);
+}
+
+.ch04-controls-group {
+  border-top: 1px dashed var(--border);
+  margin-top: 8px;
+  padding-top: 6px;
+}
+.ch04-controls-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 4px 0;
+}
+
+.ch04-toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  font-size: 0.88rem;
+  margin: 8px 0 16px;
+}
+
+.ch04-update {
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  margin: 10px 0;
+  background: var(--accent-soft);
+  overflow-x: auto;
+}
+
+.ch04-mini {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin: 12px 0;
+  background: var(--surface);
+  min-width: 0;
+}
+
+.ch04-panel-title {
+  font-weight: 700;
+  margin: 18px 0 6px;
+}
+
+/* Mermaid 圖 + KaTeX 圖說（common.tsx 的 MermaidFig） */
+.ch04-mermaid-fig {
+  margin: 16px 0;
+  min-width: 0;
+}
+.ch04-mermaid-fig .c-mermaid {
+  margin: 0;
+}
+.ch04-mermaid-caption {
+  margin: 6px 0 0;
+}
+
+/* 「帶入手算」題前面的引導句 */
+.ch04-handcalc {
+  margin: 16px 0;
+  min-width: 0;
+}
+.ch04-handcalc-lead {
+  margin: 0 0 6px;
+  font-size: 0.92rem;
+}

@@ -1,0 +1,25 @@
+{
+  "id": "stability-fixed-x2-mu06",
+  "title": "固定 x = 2、μ = 0.6：震盪發散",
+  "page": "/ch/03",
+  "experiment": "stability-lab",
+  "description": "μ 超過 2/x² = 0.5，pole 跑出單位圓。",
+  "params": {
+    "dist": "fixed",
+    "xValue": 2,
+    "sigma": 1,
+    "halfWidth": 1.7320508075688772,
+    "amplitude": 1,
+    "listText": "0, 0, 0, 0, 0, 0, 0, 0, 0, 3",
+    "delta0": 1,
+    "paths": 2000,
+    "steps": 200,
+    "noiseSigma": 0,
+    "mu": 0.6
+  },
+  "expected": "p = −1.4（|p| > 1），log₁₀|δ₂₀₀| ≈ +29.23；三種判據同時發散。",
+  "tests": [
+    "T02"
+  ],
+  "source": "illustrative"
+}

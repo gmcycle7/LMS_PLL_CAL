@@ -1,0 +1,11 @@
+{
+  "id": "comparator-dither-tradeoff",
+  "title": "雜訊像 dither：σ_v = 0 / 1 / 30 fs 的 Sign-LMS（Case A/B/C）",
+  "page": "/ch/05",
+  "experiment": "comparator-dither",
+  "description": "逐 sample Sign-LMS（x ≡ 1，步長 μ = 0.5 fs，真值 a = 1.1 fs）。σ_v = 0：period-2 limit cycle，時間平均偏 +0.15 fs；σ_v = 1 fs：時間平均無偏；σ_v = 30 fs：無偏但 RMS 變大、收斂變慢。",
+  "params": { "a": 1.1, "w0": 0, "mu": 0.5, "theta": 0, "steps": 20000, "sigmas": [0, 1, 30] },
+  "expected": "精確穩態（birth–death）：σ_v = 0 平均 1.25 fs（bias +0.15）；σ_v = 1 bias < 0.01 fs；σ_v = 30 RMS ≈ 3.1 fs（線性化 √(μ/(K_q(2−μK_q))) 吻合）。",
+  "tests": [],
+  "source": "illustrative"
+}

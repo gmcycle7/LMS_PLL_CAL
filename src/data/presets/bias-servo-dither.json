@@ -1,0 +1,26 @@
+{
+  "id": "bias-servo-dither",
+  "title": "主迴路 servo 的抖動也是 dither（shared BBPD、σ_v = 0.1）",
+  "page": "/ch/11",
+  "experiment": "bias-inl-lab",
+  "description": "5-level code、a = 1、c₃ = 0.1、b = 0.3、σ_v = 0.1，comparator 就是 type-II 主 PLL 的 BBPD（k_φ = 0.01/sample）。σ_v 小於最大殘差，固定點對 dither 的大小很敏感。",
+  "params": {
+    "a": 1,
+    "w0": 1,
+    "b": 0.3,
+    "c2": 0,
+    "c3": 0.1,
+    "kappa": 0,
+    "codeKind": "five_level",
+    "codeShift": 0,
+    "dsmKind": "first_order",
+    "dsmFrac": 0.3,
+    "algorithm": "sign",
+    "sigmaV": 0.1,
+    "dcMode": "shared_bbpd",
+    "jitterSlope": 0,
+    "jitterRef": -2
+  },
+  "expected": "理想 DC null 的 mean-field：w* = 1.366577（offset 被吸收，與 b = 0 的靜態值相同）。按 Run：Monte Carlo 比它低約 0.002，因為 servo 的 φ 抖動（std 約 0.035）等效於額外 dither，σ_eff = √(σ_v² + Var φ) ≈ 0.106；MC 與 servo-aware 固定點 w*(σ_eff) ≈ 1.3648 一致（交叉比對 ✓）。把 k_φ 調大到 0.1，偏移變成約 0.014。（勘誤 E03；F-11.17）",
+  "source": "illustrative"
+}

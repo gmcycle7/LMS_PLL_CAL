@@ -1,0 +1,572 @@
+import { useMemo, useState, type ReactNode } from 'react'
+import type { Data } from 'plotly.js-dist-min'
+import { Callout, ClaimTag, ParamControl, Plot, Section, StepDerivation, Tex, TexBlock, TestBadge, mathText, useThemeTokens } from '@/components'
+import { DEFAULT_RULE, analyzeRule, buildPlant, corrMatrix, type RuleConfig } from '@/simulation/models/mimo'
+import { Deriv, Erratum, Hand, TagRow, TryIt, n, nint, texMat, tn } from '../common'
+import { NUM, SIGMA_KQ1 } from '../numbers'
+
+const rule = (r: Partial<RuleConfig>): RuleConfig => ({ ...DEFAULT_RULE, ...r })
+
+/** ρ 滑桿：一般 / 完整反矩陣 / regularized 的主導 pole 與 95% blocks（全部由 analyzeRule 計算，K_q 正規化為 1） */
+function RhoWidget() {
+  const [rho, setRho] = useState(0.99)
+  const [muKq, setMuKq] = useState(0.5)
+  const [gamma, setGamma] = useState(0.5)
+  const [lambdaReg, setLambdaReg] = useState(0.1)
+  const tokens = useThemeTokens()
+
+  const rows = useMemo(() => {
+    const plant = buildPlant({ mode: 'R', R: corrMatrix(2, rho), sigmaV: SIGMA_KQ1, N: 4096 })
+    const cfgs: { key: string; label: ReactNode; cfg: RuleConfig }[] = [
+      {
+        key: 'scalar',
+        label: (
+          <>
+            一般 LMS（<Tex>{String.raw`\mathbf M=\mu\mathbf I`}</Tex>）
+          </>
+        ),
+        cfg: rule({ rule: 'scalar', muKq }),
+      },
+      {
+        key: 'full',
+        label: (
+          <>
+            完整反矩陣 <Tex>{String.raw`\gamma(K_q\mathbf R)^{-1}`}</Tex>
+          </>
+        ),
+        cfg: rule({ rule: 'full', gamma }),
+      },
+      {
+        key: 'reg',
+        label: (
+          <>
+            Regularized <Tex>{String.raw`\gamma\big(K_q(\mathbf R+\lambda_{\mathrm{reg}}\mathbf I)\big)^{-1}`}</Tex>
+          </>
+        ),
+        cfg: rule({ rule: 'regularized', regForm: 'R', gamma, lambdaReg }),
+      },
+    ]
+    return cfgs.map(({ key, label, cfg }) => {
+      const an = analyzeRule(plant, cfg, plant.Jn)
+      return { key, label, an }
+    })
+  }, [rho, muKq, gamma, lambdaReg])
+
+  const curve = useMemo(() => {
+    const rhos = Array.from({ length: 120 }, (_, i) => 1 - Math.pow(10, -0.2 - (3.6 * i) / 119)) // 0.37 … 0.99984
+    const mk = (cfgOf: () => RuleConfig) =>
+      rhos.map((r) => {
+        const plant = buildPlant({ mode: 'R', R: corrMatrix(2, r), sigmaV: SIGMA_KQ1, N: 4096 })
+        const an = analyzeRule(plant, cfgOf(), plant.Jn)
+        return an.ok && an.blocks95 !== null ? an.blocks95 : null
+      })
+    return {
+      x: rhos.map((r) => 1 - r),
+      scalar: mk(() => rule({ rule: 'scalar', muKq })),
+      full: mk(() => rule({ rule: 'full', gamma })),
+      reg: mk(() => rule({ rule: 'regularized', regForm: 'R', gamma, lambdaReg })),
+    }
+  }, [muKq, gamma, lambdaReg])
+
+  const data: Data[] = useMemo(
+    () => [
+      { x: curve.x, y: curve.scalar, name: '一般 LMS', mode: 'lines', line: { color: tokens.series[0] } },
+      { x: curve.x, y: curve.full, name: '完整反矩陣', mode: 'lines', line: { color: tokens.series[1] } },
+      { x: curve.x, y: curve.reg, name: 'Regularized', mode: 'lines', line: { color: tokens.series[2] } },
+      {
+        x: [1 - rho, 1 - rho, 1 - rho],
+        y: rows.map((r) => r.an.blocks95 ?? null),
+        name: `目前 ρ = ${rho}`,
+        mode: 'markers',
+        marker: { size: 9, color: [tokens.series[0], tokens.series[1], tokens.series[2]], line: { width: 1, color: tokens.text } },
+      },
+    ],
+    [curve, rows, rho, tokens],
+  )
+  const layout = useMemo(() => ({ xaxis: { title: { text: '1 − ρ（越往左 regressor 越相關）' } }, yaxis: { title: { text: 'k₉₅（blocks）' } } }), [])
+
+  return (
+    <div className="card">
+      <TagRow>
+        <strong>
+          動手觀察 1：<Tex>{String.raw`\rho`}</Tex> 滑桿（<Tex>{'K_q'}</Tex> 正規化為 1）
+        </strong>
+        <ClaimTag kind="exact" />
+        <span className="small muted">
+          mean recursion、<Tex>{String.raw`\hat{\mathbf J}=\mathbf J`}</Tex>
+        </span>
+      </TagRow>
+      <div className="grid-2">
+        <div>
+          <ParamControl
+            label={mathText(String.raw`$\rho$（regressor 相關係數）`)}
+            ariaLabel="ρ（regressor 相關係數）"
+            value={rho}
+            onChange={setRho}
+            min={0}
+            max={0.9999}
+            step={0.0001}
+            digits={6}
+            unit="無因次"
+            reg="BEH_RHO（R₁₂）"
+            hint={mathText(String.raw`$\mathbf R=\begin{bmatrix}1&\rho\\\rho&1\end{bmatrix}$；$\lambda=1\pm\rho$`)}
+          />
+          <ParamControl
+            label={mathText(String.raw`$\mu K_q$（一般 LMS）`)}
+            ariaLabel="μK_q（一般 LMS）"
+            value={muKq}
+            onChange={setMuKq}
+            min={0.001}
+            max={2.5}
+            step={0.001}
+            unit="無因次"
+            reg="REG_CAL_MU（× K_q）"
+            hint={mathText(String.raw`穩定需 $0<\mu K_q<2/\lambda_{\max}=2/(1+\rho)$`)}
+          />
+        </div>
+        <div>
+          <ParamControl
+            label={mathText(String.raw`$\gamma$（preconditioned loop gain）`)}
+            ariaLabel="γ（preconditioned loop gain）"
+            value={gamma}
+            onChange={setGamma}
+            min={0.001}
+            max={1.999}
+            step={0.001}
+            unit="無因次"
+            reg="REG_CAL_GAMMA"
+            hint={mathText(String.raw`完整反矩陣時所有 pole $=1-\gamma$`)}
+          />
+          <ParamControl
+            label={mathText(String.raw`$\lambda_{\mathrm{reg}}$（R 形式）`)}
+            ariaLabel="λ_reg（R 形式）"
+            value={lambdaReg}
+            onChange={setLambdaReg}
+            min={0}
+            max={10}
+            step={0.0001}
+            unit="無因次（R 形式）"
+            reg="REG_CAL_LAMBDA_REG"
+            hint={mathText(String.raw`與 $\mathbf R$ 同單位（正規化 regressor ⇒ 無因次）；勘誤 E22`)}
+          />
+        </div>
+      </div>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>方法</th>
+              <th className="ch10-num">
+                主導 pole（<Tex>{'|p|'}</Tex> 最大）
+              </th>
+              <th className="ch10-num">95% 衰減 blocks</th>
+              <th className="ch10-num">
+                <Tex>{String.raw`\rho(\mathbf I+\mathbf M\mathbf J)`}</Tex>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ key, label, an }) => (
+              <tr key={key}>
+                <td>{label}</td>
+                <td className="ch10-num">{an.ok && an.poles[0] ? n(an.poles[0].re, 6) : '—'}</td>
+                <td className="ch10-num">{an.ok ? an.blocks95 === null ? <span className="ch10-bad">不收斂</span> : nint(an.blocks95) : <span className="ch10-bad">{an.error}</span>}</td>
+                <td className="ch10-num">{an.ok ? n(an.spectralRadius, 6) : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <Plot
+        title={String.raw`95% 衰減所需 blocks $k_{95}$ vs $1-\rho$（log–log）`}
+        ariaLabel="95% 衰減所需 blocks vs 1 − ρ（log–log）"
+        data={data}
+        xLog
+        yLog
+        height={300}
+        csvName="ch10-blocks-vs-rho"
+        layout={layout}
+        caption={
+          <>
+            一般 LMS 的 <Tex>{String.raw`k_{95}\approx\ln0.05/\ln\big(1-\mu K_q(1-\rho)\big)\propto1/(1-\rho)`}</Tex>；完整反矩陣與 <Tex>{String.raw`\rho`}</Tex> 無關（只要{' '}
+            <Tex>{String.raw`\rho<1`}</Tex>）；regularized 在 <Tex>{String.raw`1-\rho\ll\lambda_{\mathrm{reg}}`}</Tex> 後才開始變慢。
+          </>
+        }
+      />
+      <TryIt>
+        <Tex>{String.raw`\rho=0.99`}</Tex> 時三列應是{' '}
+        <strong>
+          {nint(NUM.rho099.blocksScalar)} / {nint(NUM.rho099.blocksFull)} / {nint(NUM.rho099.blocksReg)}
+        </strong>
+        。把 <Tex>{String.raw`\rho`}</Tex> 拉到 0.9999：一般 LMS 需要約 6 萬個 block；把 <Tex>{String.raw`\mu K_q`}</Tex> 拉到超過{' '}
+        <Tex>{String.raw`2/\lambda_{\max}=2/(1+\rho)`}</Tex>（<Tex>{String.raw`\rho=0.99`}</Tex> 時約 1.005），一般 LMS 的快模式 pole 跑到 −1 以下而發散。再把{' '}
+        <Tex>{String.raw`\lambda_{\mathrm{reg}}`}</Tex> 調到 0，regularized 就變回完整反矩陣。
+      </TryIt>
+    </div>
+  )
+}
+
+export function S2UpdateMatrix() {
+  const r = NUM.rho099
+  const ph = NUM.phys
+  return (
+    <>
+      <Section
+        kind="formula"
+        title={
+          <>
+            10.3 更新矩陣 <Tex>{String.raw`\mathbf M`}</Tex>：誤差遞迴與 pole
+          </>
+        }
+        level={2}
+        id="ch10-update-matrix"
+      >
+        <TagRow>
+          <span className="small muted">規格 §10、§10.1</span>
+          <ClaimTag kind="exact" />
+        </TagRow>
+        <p>
+          有了 <Tex>{String.raw`\mathbf G_k\approx K_q\mathbf R\boldsymbol\delta_k+\boldsymbol\eta_k`}</Tex>，一般的多參數更新是
+        </p>
+        <TexBlock>{String.raw`\mathbf w_{k+1}=\mathbf w_k+\mathbf M\,\mathbf G_k`}</TexBlock>
+        <p>
+          <Tex>{String.raw`\mathbf M`}</Tex> 是 <Tex>{'P\\times P'}</Tex> 的「更新矩陣」：第 i 列告訴硬體「第 i 個係數要用哪些 GMAC 的輸出、各乘多少」。五種常見選擇：
+        </p>
+        <ul>
+          <li>
+            <strong>原始 LMS</strong>：<Tex>{String.raw`\mathbf M=\mu\mathbf I`}</Tex>（每個係數只看自己的 GMAC，大家同一個步長）。
+          </li>
+          <li>
+            <strong>Diagonal</strong>：<Tex>{String.raw`\mathbf M=\operatorname{diag}(\mu_1,\dots,\mu_P)`}</Tex>（每個 loop 各自調步長）。
+          </li>
+          <li>
+            <strong>NLMS</strong>：<Tex>{String.raw`\mathbf M=\tilde\mu/(K_q\operatorname{tr}\mathbf R)\cdot\mathbf I`}</Tex>（用 regressor 總能量正規化，§10.6）。
+          </li>
+          <li>
+            <strong>理想 Preconditioning</strong>：<Tex>{String.raw`\mathbf M=\gamma(K_q\mathbf R)^{-1}`}</Tex>（每個係數用<strong>全部</strong> GMAC 的線性組合）。
+          </li>
+          <li>
+            <strong>Noise-robust</strong>：<Tex>{String.raw`\mathbf M=\gamma\big(K_q(\mathbf R+\lambda_{\mathrm{reg}}\mathbf I)\big)^{-1}`}</Tex> 或對 Jacobian 用 regularized pseudoinverse（§10.5）。
+          </li>
+        </ul>
+        <Deriv title="把更新式改寫成誤差的遞迴">
+          <StepDerivation
+            steps={[
+              {
+                tex: String.raw`\mathbf a-\mathbf w_{k+1}=\mathbf a-\mathbf w_k-\mathbf M\mathbf G_k`,
+                why: (
+                  <>
+                    兩邊同時被 <Tex>{String.raw`\mathbf a`}</Tex> 減（<Tex>{String.raw`\mathbf a`}</Tex> 是常數）。
+                  </>
+                ),
+              },
+              {
+                tex: String.raw`\boldsymbol\delta_{k+1}=\boldsymbol\delta_k-\mathbf M\mathbf G_k`,
+                why: (
+                  <>
+                    定義 <Tex>{String.raw`\boldsymbol\delta=\mathbf a-\mathbf w`}</Tex>（全站極性約定）。
+                  </>
+                ),
+              },
+              {
+                tex: String.raw`\boldsymbol\delta_{k+1}=\boldsymbol\delta_k-\mathbf M(K_q\mathbf R\boldsymbol\delta_k+\boldsymbol\eta_k)`,
+                why: (
+                  <>
+                    代入 <Tex>{String.raw`\mathbf G\approx K_q\mathbf R\boldsymbol\delta+\boldsymbol\eta`}</Tex>（F-10.1）。
+                  </>
+                ),
+              },
+              {
+                tex: String.raw`\boldsymbol\delta_{k+1}=(\mathbf I-K_q\mathbf M\mathbf R)\,\boldsymbol\delta_k-\mathbf M\boldsymbol\eta_k`,
+                why: (
+                  <>
+                    把 <Tex>{String.raw`\boldsymbol\delta_k`}</Tex> 提出來（矩陣分配律，注意 <Tex>{String.raw`\mathbf M`}</Tex> 在左邊、不可交換）。
+                  </>
+                ),
+              },
+              {
+                tex: String.raw`\mathbf J\equiv\frac{\partial E[\mathbf G]}{\partial\mathbf w}=-K_q\mathbf R\ \Rightarrow\ \mathbf I-K_q\mathbf M\mathbf R=\mathbf I+\mathbf M\mathbf J`,
+                why: (
+                  <>
+                    <Tex>{String.raw`\mathbf w`}</Tex> 增加 ⇒ <Tex>{String.raw`\boldsymbol\delta`}</Tex> 減少 ⇒ <Tex>{String.raw`\mathbf G`}</Tex> 減少，所以 Jacobian 帶負號。
+                  </>
+                ),
+              },
+            ]}
+          />
+        </Deriv>
+        <TexBlock
+          id="F-10.2"
+          label={
+            <>
+              一般更新矩陣下的誤差遞迴（<Tex>{String.raw`\mathbf A_{\mathrm{cal}}`}</Tex> 的 eigenvalue = 平均 poles）
+            </>
+          }
+        >
+          {String.raw`\boxed{\boldsymbol\delta_{k+1}=\mathbf A_{\mathrm{cal}}\,\boldsymbol\delta_k-\mathbf M\boldsymbol\eta_k,\qquad \mathbf A_{\mathrm{cal}}=\mathbf I-K_q\mathbf M\mathbf R=\mathbf I+\mathbf M\mathbf J}`}
+        </TexBlock>
+        <p>
+          取平均（<Tex>{String.raw`E[\boldsymbol\eta]=0`}</Tex>）得到 <Tex>{String.raw`E[\boldsymbol\delta_{k+1}]=\mathbf A_{\mathrm{cal}}E[\boldsymbol\delta_k]`}</Tex>：
+          平均誤差收斂 ⇔ <Tex>{String.raw`\mathbf A_{\mathrm{cal}}`}</Tex> 的所有 eigenvalue 在單位圓內。這是<strong>平均收斂（mean convergence）</strong>，不是「每條軌跡一定收斂」。
+        </p>
+
+        <h3 className="ch10-sub">
+          原始 LMS：<Tex>{String.raw`\mathbf M=\mu\mathbf I`}</Tex> 的 poles
+        </h3>
+        <Deriv title="用 eigen 分解把耦合拆開">
+          <StepDerivation
+            steps={[
+              {
+                tex: String.raw`\mathbf A_{\mathrm{cal}}=\mathbf I-\mu K_q\mathbf R`,
+                why: (
+                  <>
+                    代入 <Tex>{String.raw`\mathbf M=\mu\mathbf I`}</Tex>。
+                  </>
+                ),
+              },
+              {
+                tex: String.raw`=\mathbf V\mathbf V^T-\mu K_q\mathbf V\boldsymbol\Lambda\mathbf V^T`,
+                why: (
+                  <>
+                    <Tex>{String.raw`\mathbf R=\mathbf V\boldsymbol\Lambda\mathbf V^T`}</Tex>，且 <Tex>{String.raw`\mathbf V\mathbf V^T=\mathbf I`}</Tex>（eigenvector 正交）。
+                  </>
+                ),
+              },
+              {
+                tex: String.raw`=\mathbf V(\mathbf I-\mu K_q\boldsymbol\Lambda)\mathbf V^T`,
+                why: (
+                  <>
+                    左右提出 <Tex>{String.raw`\mathbf V`}</Tex>、<Tex>{String.raw`\mathbf V^T`}</Tex>。
+                  </>
+                ),
+              },
+              {
+                tex: String.raw`\boldsymbol\xi_{k+1}=(\mathbf I-\mu K_q\boldsymbol\Lambda)\,\boldsymbol\xi_k,\quad \boldsymbol\xi=\mathbf V^T\boldsymbol\delta`,
+                why: (
+                  <>
+                    兩邊左乘 <Tex>{String.raw`\mathbf V^T`}</Tex>：在 eigen 座標中矩陣是對角的 ⇒ 每個模式各自是一個等比數列。
+                  </>
+                ),
+              },
+              { tex: String.raw`\xi_{i,k}=(1-\mu K_q\lambda_i)^k\,\xi_{i,0}`, why: '對角矩陣的 k 次方 = 對角元素各自 k 次方。' },
+            ]}
+          />
+        </Deriv>
+        <TexBlock id="F-10.3" label="Scalar LMS 的模式 pole 與穩定範圍（mean recursion）">
+          {String.raw`\boxed{p_i=1-\mu K_q\lambda_i(\mathbf R)},\qquad 0<\mu K_q<\frac{2}{\lambda_{\max}}`}
+        </TexBlock>
+        <p>
+          穩定範圍由最大 eigenvalue 決定（快模式不能 overshoot 超過 −1），但收斂速度由最小 eigenvalue 決定（慢模式）。兩者的比值就是{' '}
+          <Tex>{String.raw`\kappa=\lambda_{\max}/\lambda_{\min}`}</Tex>：<strong>即使 <Tex>{String.raw`\mu`}</Tex> 選到最大合法值，慢模式 pole 也大於</strong>{' '}
+          <Tex>{String.raw`1-2/\kappa`}</Tex>（因為 <Tex>{String.raw`\mu K_q\lambda_{\min}<2\lambda_{\min}/\lambda_{\max}`}</Tex>）。
+        </p>
+
+        <h3 className="ch10-sub">
+          理想 Preconditioner：<Tex>{String.raw`\mathbf M=\gamma(K_q\mathbf R)^{-1}\Rightarrow p_i=1-\gamma`}</Tex>
+        </h3>
+        <Deriv title="為什麼一個反矩陣就能讓所有模式一樣快">
+          <StepDerivation
+            steps={[
+              {
+                tex: String.raw`\mathbf A_{\mathrm{cal}}=\mathbf I-K_q\,\gamma(K_q\mathbf R)^{-1}\mathbf R`,
+                why: (
+                  <>
+                    代入 <Tex>{String.raw`\mathbf M=\gamma(K_q\mathbf R)^{-1}`}</Tex>。
+                  </>
+                ),
+              },
+              {
+                tex: String.raw`=\mathbf I-\gamma\,K_q\,\frac{1}{K_q}\mathbf R^{-1}\mathbf R`,
+                why: (
+                  <>
+                    <Tex>{String.raw`(c\mathbf R)^{-1}=c^{-1}\mathbf R^{-1}`}</Tex>（純量可以提出）。
+                  </>
+                ),
+              },
+              {
+                tex: String.raw`=\mathbf I-\gamma\mathbf I=(1-\gamma)\mathbf I`,
+                why: (
+                  <>
+                    <Tex>{String.raw`\mathbf R^{-1}\mathbf R=\mathbf I`}</Tex>（<Tex>{String.raw`\mathbf R`}</Tex> 正定才有反矩陣）。
+                  </>
+                ),
+              },
+              { tex: String.raw`\boldsymbol\delta_k=(1-\gamma)^k\boldsymbol\delta_0`, why: '每個方向都是同一個等比數列：沒有慢模式了。' },
+            ]}
+          />
+        </Deriv>
+        <TexBlock
+          id="F-10.4"
+          label={
+            <>
+              完整 Preconditioner（<Tex>{String.raw`\mathbf R`}</Tex> 正定、模型匹配；<Tex>{'K_q'}</Tex> 必須包含在 <Tex>{String.raw`\mathbf M`}</Tex> 裡）
+            </>
+          }
+        >
+          {String.raw`\boxed{\mathbf M=\gamma(K_q\mathbf R)^{-1}\ \Rightarrow\ \mathbf A_{\mathrm{cal}}=(1-\gamma)\mathbf I,\quad p_i=1-\gamma\ \ \forall i}`}
+        </TexBlock>
+        <p>
+          穩定需要 <Tex>{String.raw`0<\gamma<2`}</Tex>；<Tex>{String.raw`\gamma=1`}</Tex> 時一步到位（deadbeat）。直覺：<Tex>{String.raw`\mathbf R^{-1}`}</Tex> 把「看得不清楚」的方向放大、「看得很清楚」的方向縮小，
+          使每個方向的有效 loop gain 都是 <Tex>{String.raw`\gamma`}</Tex>。代價在 §10.4。
+        </p>
+      </Section>
+
+      <Section
+        kind="example"
+        title={
+          <>
+            10.3.1 強耦合的代價：598 個 block 變成 5 個 block（並寫清楚 <Tex>{'K_q'}</Tex>）
+          </>
+        }
+        id="ch10-598"
+      >
+        <TagRow>
+          <span className="small muted">規格 §10.1</span>
+          <Erratum id="E05" />
+          <Erratum id="E08" />
+          <Erratum id="E21" />
+          <TestBadge id="T11" />
+        </TagRow>
+        <Callout
+          kind="info"
+          title={
+            <>
+              本例採正規化 <Tex>{'K_q=1'}</Tex>（<Tex>{String.raw`\mu`}</Tex> 代表無單位 loop gain <Tex>{String.raw`\mu K_q`}</Tex>）
+            </>
+          }
+        >
+          <p>
+            規格 §10.1 的 0.995、598、0.5、5 只在 <Tex>{'K_q=1'}</Tex>（或 <Tex>{String.raw`\mu`}</Tex> 已吸收 <Tex>{'K_q'}</Tex>）時成立。下表先用正規化數字，再換成第 5 章的實體{' '}
+            <Tex>{String.raw`K_q=${tn(NUM.Kq, 6)}\ \mathrm{fs}^{-1}`}</Tex>。
+          </p>
+        </Callout>
+        <p>
+          <Tex>{String.raw`\mathbf R=\begin{bmatrix}1&0.99\\0.99&1\end{bmatrix}`}</Tex>：<Tex>{String.raw`\lambda_{\max}=${tn(r.eig[0])}`}</Tex>、
+          <Tex>{String.raw`\lambda_{\min}=${tn(r.eig[1])}`}</Tex>、<Tex>{String.raw`\kappa=${tn(r.cond, 5)}`}</Tex>。
+        </p>
+        <ol>
+          <li>
+            一般 LMS，<Tex>{String.raw`\mu K_q=0.5`}</Tex>：慢 pole <Tex>{String.raw`p_{\min}=1-0.5\times${tn(r.eig[1])}=${tn(r.slow)}`}</Tex>，快 pole{' '}
+            <Tex>{String.raw`1-0.5\times${tn(r.eig[0])}=${tn(r.fast)}`}</Tex>。
+          </li>
+          <li>
+            95% 衰減需要 <Tex>{String.raw`|p|^k\le0.05`}</Tex>。兩邊取 ln（ln 是遞增函數，但 <Tex>{String.raw`\ln|p|<0`}</Tex>，除過去不等號反向）：
+            <TexBlock id="F-10.5">{String.raw`\boxed{k_{95}=\left\lceil\frac{\ln0.05}{\ln|p|}\right\rceil}=\left\lceil\frac{${tn(r.ln005, 5)}}{${tn(r.lnSlow, 5)}}\right\rceil=\lceil ${tn(r.blocksScalarReal, 5)}\rceil=${r.blocksScalar}`}</TexBlock>
+          </li>
+          <li>
+            完整反矩陣 <Tex>{String.raw`\mathbf M=0.5(K_q\mathbf R)^{-1}`}</Tex>（<Tex>{String.raw`\gamma=0.5`}</Tex>）：所有 pole = 0.5，
+            <Tex>{String.raw`k_{95}=\lceil\ln0.05/\ln0.5\rceil=\lceil ${tn(r.blocksFullReal, 4)}\rceil=${r.blocksFull}`}</Tex>（驗算：<Tex>{String.raw`0.5^4=0.0625>0.05`}</Tex>、
+            <Tex>{String.raw`0.5^5=0.03125\le0.05`}</Tex>）。
+          </li>
+        </ol>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>情境</th>
+                <th>更新矩陣</th>
+                <th className="ch10-num">最慢 pole</th>
+                <th className="ch10-num">95% blocks</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  正規化 <Tex>{'K_q=1'}</Tex>，一般 LMS
+                </td>
+                <td>
+                  <Tex>{String.raw`\mu K_q=0.5`}</Tex>
+                </td>
+                <td className="ch10-num">{n(r.slow, 6)}</td>
+                <td className="ch10-num">{nint(r.blocksScalar)}</td>
+              </tr>
+              <tr className="ch10-hl">
+                <td>
+                  正規化 <Tex>{'K_q=1'}</Tex>，完整反矩陣
+                </td>
+                <td>
+                  <Tex>{String.raw`0.5(K_q\mathbf R)^{-1}`}</Tex>
+                </td>
+                <td className="ch10-num">0.5</td>
+                <td className="ch10-num">{nint(r.blocksFull)}</td>
+              </tr>
+              <tr>
+                <td>
+                  實體 <Tex>{String.raw`K_q=${tn(NUM.Kq, 6)}\ \mathrm{fs}^{-1}`}</Tex>
+                </td>
+                <td>
+                  <Tex>{String.raw`\mu=0.5\ \mathrm{fs}`}</Tex>
+                </td>
+                <td className="ch10-num">{n(ph.slowPole, 9)}</td>
+                <td className="ch10-num">{nint(ph.blocks)}</td>
+              </tr>
+              <tr>
+                <td className="ch10-bad">錯誤：忘了 <Tex>{'K_q'}</Tex></td>
+                <td>
+                  <Tex>{String.raw`0.5\mathbf R^{-1}`}</Tex>
+                </td>
+                <td className="ch10-num">{n(ph.forgotKqPole, 6)}</td>
+                <td className="ch10-num">{nint(ph.forgotKqBlocks)}</td>
+              </tr>
+              <tr>
+                <td className="ch10-good">正確：把 <Tex>{'K_q'}</Tex> 放進反矩陣</td>
+                <td>
+                  <Tex>{String.raw`0.5(K_q\mathbf R)^{-1}`}</Tex>
+                </td>
+                <td className="ch10-num">{n(ph.fullPole, 6)}</td>
+                <td className="ch10-num">{nint(ph.fullBlocks)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p className="small muted">
+          全表由 <code>analyzeRule()</code> 計算。「忘了 <Tex>{'K_q'}</Tex>」那一列：<Tex>{String.raw`\mathbf A=\mathbf I-K_q\cdot0.5\mathbf R^{-1}\mathbf R=(1-0.5K_q)\mathbf I`}</Tex>，pole ={' '}
+          {n(ph.forgotKqPole, 6)}，需要 {nint(ph.forgotKqBlocks)} 個 block——比規格宣稱的 {r.blocksFull} 慢 {n(ph.forgotKqBlocks / r.blocksFull, 4)} 倍。這就是勘誤 E05 / E08 要求 Lab 同時顯示{' '}
+          <Tex>{String.raw`g_i=\mu K_q\lambda_i`}</Tex> 與單位（<Tex>{'K_q'}</Tex> 為 <Tex>{String.raw`\mathrm{fs}^{-1}`}</Tex>、<Tex>{String.raw`\mu`}</Tex> 為 fs）的原因。
+        </p>
+        <Hand id="HC-10.2">
+          598 是怎麼來的？預設數字（<Tex>{String.raw`\rho=0.99,\ \mu K_q=0.5`}</Tex>）就是上面的例子。把 <Tex>{String.raw`\rho`}</Tex> 換成 0.9 或 0.5、<Tex>{String.raw`\mu K_q`}</Tex> 換成你想試的值，先用紙筆（<Tex>{String.raw`\ln`}</Tex>{' '}
+          按計算機）算出兩個 pole 與 <Tex>{'k_{95}'}</Tex>，再展開步驟對答案。
+        </Hand>
+
+        <h3 className="ch10-sub">反矩陣有多大？（不是 ±25，而是 ±50）</h3>
+        <TexBlock>
+          {String.raw`\mathbf R^{-1}=\frac{1}{1-\rho^2}\begin{bmatrix}1&-\rho\\-\rho&1\end{bmatrix}=${texMat(r.Rinv, 5)},\qquad \mathbf M_n=K_q\mathbf M=0.5\mathbf R^{-1}=${texMat(r.Mn, 5)}`}
+        </TexBlock>
+        <p>
+          規格說「反矩陣元素約 ±25」：其實 <Tex>{String.raw`\mathbf R^{-1}`}</Tex> 本身是{' '}
+          <strong>
+            {n(r.Rinv[0][0], 4)} / {n(r.Rinv[0][1], 4)}
+          </strong>
+          ，±25 是 <Tex>{String.raw`0.5\mathbf R^{-1}`}</Tex>（而且對角為正、非對角為負，不是「±」隨意）
+          <Erratum id="E21" />。換成實體單位 <Tex>{String.raw`\mathbf M=\mathbf M_n/K_q=${texMat(ph.Mphys, 5)}\ \mathrm{fs}`}</Tex>：一個 GMAC 的單位輸出要讓係數動約{' '}
+          {n(ph.Mphys[0][0], 3)} fs，暫存器的位寬與定點誤差都要重新評估。
+        </p>
+        <p>
+          元素大小不是重點，<strong>方向增益</strong>才是：<Tex>{String.raw`\mathbf M_n`}</Tex> 的 eigenvalue 是{' '}
+          <Tex>{String.raw`\gamma/\lambda_{\min}=${tn(r.eigMn[0], 5)}`}</Tex>（沿慢 eigenvector <Tex>{String.raw`[1,-1]^T/\sqrt2`}</Tex>）與{' '}
+          <Tex>{String.raw`\gamma/\lambda_{\max}=${tn(r.eigMn[1], 5)}`}</Tex>（沿快 eigenvector）。GMAC noise 沿慢方向被乘上 {n(r.eigMn[0], 4)}——下一節計算代價。
+        </p>
+        <Hand id="HC-10.3">
+          2×2 的反矩陣只要四則運算。預設數字會算出上面的 <Tex>{String.raw`\mathbf M_n=${texMat(r.Mn, 4)}`}</Tex>；把 <Tex>{'R_{12}'}</Tex> 換成 0.6 或 0.8（或把 <Tex>{'R_{11}'}</Tex> 改成 2，模擬兩個
+          regressor 功率不同）先用紙筆算一次，並驗算 <Tex>{String.raw`\mathbf M_n\mathbf R=\gamma\mathbf I`}</Tex>，再展開步驟對答案。
+        </Hand>
+      </Section>
+
+      <Section
+        kind="explore"
+        title={
+          <>
+            動手觀察：相關係數 <Tex>{String.raw`\rho`}</Tex> 對三種更新矩陣的影響
+          </>
+        }
+      >
+        <RhoWidget />
+        <p className="small muted">
+          Diagonal 規則在這個例子裡沒有幫助：<Tex>{String.raw`\mathbf R`}</Tex> 的對角都是 1，「讓每個 loop 單獨 <Tex>{String.raw`p=1-\gamma`}</Tex>」得到{' '}
+          <Tex>{String.raw`\mathbf M_n=${texMat(r.diagMn, 3)}`}</Tex>，和 <Tex>{String.raw`\mu K_q=0.5`}</Tex> 的 scalar LMS 完全一樣（{nint(r.blocksScalar)} blocks）。對角正規化只能修正「各參數功率不同」，修正不了「參數之間相關」。
+        </p>
+      </Section>
+    </>
+  )
+}

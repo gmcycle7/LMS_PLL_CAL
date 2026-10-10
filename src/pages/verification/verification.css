@@ -1,0 +1,375 @@
+/* 驗證頁（/verification）專用樣式；class 一律以 ver- 開頭 */
+
+.ver-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin: 12px 0 16px;
+}
+.ver-kpi {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 10px 12px;
+  min-width: 0;
+}
+.ver-kpi-label {
+  font-size: 0.8em;
+  color: var(--text-muted);
+}
+.ver-kpi-value {
+  font-size: 1.35em;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.ver-kpi-note {
+  font-size: 0.78em;
+  color: var(--text-faint);
+  overflow-wrap: anywhere;
+}
+
+.ver-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.88em;
+}
+.ver-table th,
+.ver-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 6px 8px;
+  vertical-align: top;
+  text-align: left;
+}
+.ver-table th {
+  background: var(--surface-2);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ver-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+.ver-table .ver-wide {
+  min-width: 190px;
+}
+.ver-table .ver-mid {
+  min-width: 130px;
+}
+.ver-row-target td {
+  background: var(--accent-soft);
+}
+.ver-detail-row > td {
+  background: var(--surface-2);
+  padding: 10px 12px 14px;
+}
+.ver-mono {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  overflow-wrap: anywhere;
+}
+.ver-pass {
+  color: var(--ok);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ver-fail {
+  color: var(--danger);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ver-miss {
+  color: var(--warn);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ver-muted {
+  color: var(--text-muted);
+}
+.ver-tid {
+  font-weight: 700;
+  white-space: nowrap;
+  scroll-margin-top: calc(var(--topbar-h) + 12px);
+}
+.ver-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.ver-chip {
+  display: inline-block;
+  font-size: 0.78em;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 0 7px;
+  color: var(--text-muted);
+  text-decoration: none;
+  white-space: nowrap;
+  background: var(--surface);
+}
+a.ver-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.ver-chip-erratum {
+  border-color: var(--warn);
+  color: var(--warn);
+  background: var(--warn-soft);
+}
+.ver-chip-high {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+.ver-chip-medium {
+  border-color: var(--warn);
+  color: var(--warn);
+  background: var(--warn-soft);
+}
+.ver-chip-low {
+  border-color: var(--info);
+  color: var(--info);
+  background: var(--info-soft);
+}
+.ver-btn-small {
+  font-size: 0.8em;
+  padding: 2px 8px;
+}
+
+/* 勘誤卡片 */
+.ver-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px 12px;
+  align-items: end;
+  margin: 8px 0 12px;
+}
+.ver-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 0.85em;
+  color: var(--text-muted);
+  min-width: 0;
+}
+.ver-filters select,
+.ver-filters input[type='search'] {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 4px 6px;
+  min-width: 0;
+  width: 100%;
+}
+.ver-filters .ver-check {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+.ver-errata-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ver-erratum {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 10px 12px;
+  scroll-margin-top: calc(var(--topbar-h) + 12px);
+  min-width: 0;
+}
+.ver-erratum.sev-high {
+  border-left-color: var(--danger);
+}
+.ver-erratum.sev-medium {
+  border-left-color: var(--warn);
+}
+.ver-erratum.sev-low {
+  border-left-color: var(--info);
+}
+.ver-erratum.ver-target {
+  box-shadow: 0 0 0 3px var(--accent);
+}
+.ver-erratum:focus {
+  outline: none;
+}
+.ver-erratum-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: baseline;
+}
+.ver-erratum-id {
+  font-weight: 700;
+  font-size: 1.05em;
+}
+.ver-erratum-key {
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  color: var(--text-faint);
+  overflow-wrap: anywhere;
+}
+.ver-erratum dl {
+  margin: 8px 0 0;
+  display: grid;
+  grid-template-columns: 4.5em minmax(0, 1fr);
+  gap: 6px 10px;
+}
+.ver-erratum dt {
+  font-weight: 600;
+  color: var(--text-muted);
+  font-size: 0.88em;
+}
+.ver-erratum dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+  min-width: 0;
+}
+.ver-erratum details summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.88em;
+}
+@media (max-width: 520px) {
+  .ver-erratum dl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* pipeline / 狀態圖例 */
+.ver-status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+  margin: 10px 0;
+}
+.ver-status-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  background: var(--surface);
+  min-width: 0;
+}
+.ver-status-card h4 {
+  margin: 0 0 4px;
+  font-size: 0.95em;
+}
+.ver-cmd {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  overflow-x: auto;
+  white-space: pre;
+}
+.ver-handcalc td,
+.ver-handcalc th {
+  text-align: right;
+}
+.ver-mut-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  background: var(--surface);
+  margin: 10px 0;
+  min-width: 0;
+  overflow-x: auto;
+}
+.ver-z-bar {
+  display: inline-block;
+  height: 8px;
+  border-radius: 4px;
+  vertical-align: middle;
+  background: var(--accent);
+}
+.ver-z-bar.bad {
+  background: var(--danger);
+}
+.ver-z-cell {
+  min-width: 110px;
+  white-space: nowrap;
+}
+
+/* 勘誤卡片：數學重點（KaTeX）與即時證據 */
+.ver-em {
+  margin: 8px 0 4px;
+  min-width: 0;
+}
+.ver-em-gist {
+  margin: 0 0 6px;
+  line-height: 1.6;
+  font-weight: 500;
+}
+.ver-em-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 8px;
+}
+.ver-em-cell {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px 2px;
+  min-width: 0;
+  background: var(--surface-2);
+}
+.ver-em-cell .c-texblock {
+  margin: 4px 0;
+}
+.ver-em-spec {
+  border-left: 3px solid var(--warn);
+}
+.ver-em-fix {
+  border-left: 3px solid var(--ok);
+}
+.ver-em-label {
+  font-size: 0.78em;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.ver-live {
+  margin: 8px 0;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  min-width: 0;
+}
+.ver-live-title {
+  font-size: 0.85em;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.ver-live-checks {
+  margin: 6px 0 0;
+  padding-left: 1.2em;
+}
+.ver-live-checks li {
+  margin: 2px 0;
+  overflow-wrap: anywhere;
+}
+.ver-erratum details {
+  margin-top: 6px;
+}
+.ver-plan {
+  margin: 4px 0 8px;
+  padding-left: 1.2em;
+}
+.ver-plan li {
+  margin: 2px 0;
+}
+.ver-plot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 12px;
+}
+.ver-plot-grid > * {
+  min-width: 0;
+}

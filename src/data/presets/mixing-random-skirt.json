@@ -1,0 +1,28 @@
+{
+  "id": "mixing-random-skirt",
+  "title": "隨機係數雜訊（σ = 0.399 fs）：只有 skirt，沒有 spur",
+  "page": "/ch/12",
+  "experiment": "code-mixing-lab",
+  "description": "B = 0，改用 block-rate AR(1) 係數雜訊（σ = 0.399 fs、p = 0.92、每 4 個 sample 更新）。頻譜只有以 100 kHz 為中心的連續裙擺；讀數隨 L（bin 寬）改變，spur 不會。",
+  "params": {
+    "fsim": 4096000.0,
+    "L": 16384,
+    "fx": 100000.0,
+    "A": 1,
+    "m": 0,
+    "codeWhite": 0,
+    "fw": 10000.0,
+    "B": 0,
+    "holdN": 4,
+    "dwNoiseSigma": 0.399,
+    "dwNoiseP": 0.92,
+    "fOut": 13000000000.0,
+    "Tmag": 1,
+    "window": "rectangular"
+  },
+  "expected": "spur 表顯示「沒有離散 tone」；100 kHz 附近只有連續 floor（裙擺）；δt RMS 的期望值是 σ/√2 = 0.282 fs，單次實現（預設 seed）約 0.30 fs——係數雜訊高度相關，一段紀錄的起伏本來就大；交叉比對的 Monte Carlo 欄以 batch-means z 檢定核對 δt 均方值 E[x²]σ² = σ²/2（z ≈ 1.3，ok）。",
+  "tests": [
+    "T15"
+  ],
+  "source": "simulation"
+}

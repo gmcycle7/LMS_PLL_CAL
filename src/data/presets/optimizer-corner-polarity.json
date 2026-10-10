@@ -1,0 +1,30 @@
+{
+  "id": "optimizer-corner-polarity",
+  "title": "Ch14：一個 corner 極性錯誤（θ = 100°）",
+  "page": "/ch/14",
+  "experiment": "corner-interval",
+  "description": "反面例子：某個 FCW 讓 C < 0。",
+  "params": {
+    "corners": [
+      {
+        "name": "TT 25°C",
+        "sigmaV": 100,
+        "thetaDeg": 0
+      },
+      {
+        "name": "bad FCW",
+        "sigmaV": 100,
+        "thetaDeg": 100
+      }
+    ],
+    "eps": 0.01,
+    "B": 12,
+    "pmTargetDeg": 60,
+    "delta0": 3,
+    "N": 4096,
+    "rmsTarget": 1,
+    "measure": false
+  },
+  "expected": "出現「C ≤ 0：…更新極性錯誤」警告；區間無定義（不是找更好 μ 的問題）。",
+  "source": "illustrative"
+}

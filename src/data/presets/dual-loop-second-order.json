@@ -1,0 +1,11 @@
+{
+  "id": "dual-loop-second-order",
+  "title": "一般化：二階觀測（poles 0.8 ± j0.2）→ quasi-static 高估約 7 倍",
+  "page": "/ch/08",
+  "experiment": "dual-loop",
+  "description": "F(z) = 0.04(z + 1)/(z² − 1.6z + 0.68)，F(1) = 1。quasi-static 說 0 < μ < 2；觀測路徑的相位延遲使完整範圍只剩約 0 < μ < 0.284。",
+  "params": { "mode": "general", "A": [[1.6, -0.68], [1, 0]], "b": [1, 0], "c": [0.04, 0.04], "d": 0, "mu": 0.3, "muScanMax": 3, "steps": 400 },
+  "expected": "μ = 0.3：quasi-static pole 0.7（穩定），完整 ρ(A_comb) ≈ 1.0045（發散）。",
+  "tests": ["T09"],
+  "source": "illustrative"
+}

@@ -1,0 +1,19 @@
+{
+  "id": "fft-spur-pitfalls-short-welch",
+  "title": "Welch segment 太短（RBW 太寬）",
+  "page": "/models",
+  "experiment": "fft-spur-pitfalls",
+  "description": "Welch nperseg = 64：spur 與載波只差 0.625 個 Welch bin。",
+  "params": {
+    "log2N": 12,
+    "offsetBins": 0.5,
+    "spurOffsetBins": 40,
+    "spurDbc": -80,
+    "noiseDbc": -60,
+    "window": "blackmanHarris",
+    "welchLog2Seg": 6,
+    "seed": 20261010
+  },
+  "expected": "發出「Welch segment 太短」警告；(B) 的主瓣積分量到的是載波（約 0 dBc），完全不是 spur。",
+  "source": "illustrative"
+}

@@ -1,0 +1,62 @@
+{
+  "id": "mimo-gallery12-offdiag-diverge",
+  "title": "兩個 GMAC 對角斜率正確，但 off-diagonal 耦合造成發散",
+  "galleryIndex": 12,
+  "page": "/ch/10",
+  "experiment": "mimo-lms",
+  "description": "規格 §19.2 Gallery #12（T18）。量測 Jacobian J = [[−1, 2], [2, −1]]（K_q 正規化為 1）：對角都是 −1，每個 loop 單獨調成 pole 0.8 都穩定。Case A = diagonal（γ = 0.2，單 loop pole 0.8）、Case B = scalar μK_q = 0.2（同一個 M）、Case C = 完整反矩陣 −γJ⁻¹（γ = 0.5）。下方「六種規則」表使用 active case 的超參數（μK_q = γ = 0.2、J 形式 λ_reg = 0.1）：scalar / diagonal 都是 1.2，regularized pinv（J 形式）與完整反矩陣則穩定。",
+  "params": {
+    "P": 2,
+    "mode": "J",
+    "Jn": [
+      [
+        -1,
+        2
+      ],
+      [
+        2,
+        -1
+      ]
+    ],
+    "sigmaV": 0.7978845608028654,
+    "N": 4096,
+    "dist": "gaussian",
+    "delta0": [
+      1,
+      0.5
+    ],
+    "blocks": 40,
+    "engine": "linear",
+    "jhatSource": "exact",
+    "showAllRules": true,
+    "cases": [
+      {
+        "rule": "diagonal",
+        "gamma": 0.2,
+        "muKq": 0.2,
+        "regForm": "J",
+        "lambdaReg": 0.1
+      },
+      {
+        "rule": "scalar",
+        "muKq": 0.2,
+        "gamma": 0.2,
+        "regForm": "J",
+        "lambdaReg": 0.1
+      },
+      {
+        "rule": "full",
+        "gamma": 0.5,
+        "muKq": 0.2,
+        "regForm": "J",
+        "lambdaReg": 0.1
+      }
+    ],
+    "seed": 20261010
+  },
+  "expected": "eig(J) = +1、−3；單一 loop pole 1 + 0.2·J_ii = 0.8；一起更新 eig(I + 0.2J) = 1.2、0.4（ρ = 1.2 > 1）⇒ Case A、B 沿共模 [1,1]/√2 每個 block 放大 1.2 倍而發散；Case C 所有 pole = 0.5 收斂。縮小 μ 無效：共模 pole = 1 + μ > 1。",
+  "tests": [
+    "T18"
+  ],
+  "source": "illustrative"
+}

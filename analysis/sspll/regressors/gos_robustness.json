@@ -1,0 +1,493 @@
+[
+ {
+  "type": "T1",
+  "lat": 1,
+  "PM": 78.7892625734959,
+  "peaking_dB": -6.93053471292298e-10,
+  "ReH_neg_band_MHz": [],
+  "ReH_min": 2.1034667543950616e-10,
+  "min_12Cgos": 0.001882672197557376,
+  "at_beta_MHz": 0.48828125,
+  "min_8ReLam1": 0.00027585048642039936,
+  "at_offset_MHz": 0.18310546875,
+  "lam1_signif_inverted_span_MHz": null,
+  "stable": true
+ },
+ {
+  "type": "T1",
+  "lat": 2,
+  "PM": 67.39403158284755,
+  "peaking_dB": -5.313386481223136e-10,
+  "ReH_neg_band_MHz": [],
+  "ReH_min": 3.4812912020596236e-10,
+  "min_12Cgos": 0.0027909976766232773,
+  "at_beta_MHz": 0.48828125,
+  "min_8ReLam1": 0.00040896306646514766,
+  "at_offset_MHz": 0.18310546875,
+  "lam1_signif_inverted_span_MHz": null,
+  "stable": true
+ },
+ {
+  "type": "T1",
+  "lat": 3,
+  "PM": 59.37910299757819,
+  "peaking_dB": 0.10167803362337377,
+  "ReH_neg_band_MHz": [],
+  "ReH_min": 4.0460509928622115e-10,
+  "min_12Cgos": 0.0034308473217377665,
+  "at_beta_MHz": 0.48828125,
+  "min_8ReLam1": 0.0005027043389824117,
+  "at_offset_MHz": 0.18310546875,
+  "lam1_signif_inverted_span_MHz": null,
+  "stable": true
+ },
+ {
+  "type": "T1",
+  "lat": 4,
+  "PM": 48.08615330882222,
+  "peaking_dB": 2.4770818975103115,
+  "ReH_neg_band_MHz": [],
+  "ReH_min": 2.447053571663676e-10,
+  "min_12Cgos": 0.0035095232465234133,
+  "at_beta_MHz": 0.48828125,
+  "min_8ReLam1": 0.0005141200972368754,
+  "at_offset_MHz": 0.18310546875,
+  "lam1_signif_inverted_span_MHz": null,
+  "stable": true
+ },
+ {
+  "type": "T1",
+  "lat": 5,
+  "PM": 26.760200381725184,
+  "peaking_dB": 9.703184804473095,
+  "ReH_neg_band_MHz": [
+   [
+    0.004,
+    107.07378586000002
+   ]
+  ],
+  "ReH_min": -0.016239086065039723,
+  "min_12Cgos": 0.002993911175056764,
+  "at_beta_MHz": 0.48828125,
+  "min_8ReLam1": 0.00043840396556654867,
+  "at_offset_MHz": 0.18310546875,
+  "lam1_signif_inverted_span_MHz": null,
+  "stable": true
+ },
+ {
+  "type": "T2",
+  "lat": 1,
+  "pm_target": 30,
+  "PM": 30.0,
+  "peaking_dB": 6.603111303235031,
+  "ReH_neg_band_MHz": [
+   [
+    0.004,
+    182.17363566000003
+   ]
+  ],
+  "ReH_min": -0.7099285760960518,
+  "min_12Cgos": 2.3847334379016016e-06,
+  "at_beta_MHz": 0.48828125,
+  "min_8ReLam1": -0.6185270665142579,
+  "at_offset_MHz": 142.88330078125,
+  "lam1_signif_inverted_span_MHz": [
+   15.07568359375,
+   180.48095703125
+  ],
+  "stable": true
+ },
+ {
+  "type": "T2",
+  "lat": 1,
+  "pm_target": 35,
+  "PM": 35.00000000000631,
+  "peaking_dB": 5.536362822115901,
+  "ReH_neg_band_MHz": [
+   [
+    0.004,
+    176.44364712
+   ]
+  ],
+  "ReH_min": -0.5725704819511788,
+  "min_12Cgos": 2.573091307399986e-06,
+  "at_beta_MHz": 0.48828125,
+  "min_8ReLam1": -0.48859541769745884,
+  "at_offset_MHz": 133.36181640625,
+  "lam1_signif_inverted_span_MHz": [
+   14.70947265625,
+   174.01123046875
+  ],
+  "stable": true
+ },
+ {
+  "type": "T2",
+  "lat": 1,
+  "pm_target": 40,
+  "PM": 39.999999999086754,
+  "peaking_dB": 4.653330613538332,
+  "ReH_neg_band_MHz": [
+   [
+    0.004,
+    170.08365984
+   ]
+  ],
+  "ReH_min": -0.4682331811389603,
+  "min_12Cgos": 2.8022945602130178e-06,
+  "at_beta_MHz": 0.48828125,
+  "min_8ReLam1": -0.3921750186794353,
+  "at_offset_MHz": 125.06103515625,
+  "lam1_signif_inverted_span_MHz": [
+   14.58740234375,
+   167.05322265625
+  ],
+  "stable": true
+ },
+ {
+  "type": "T2",
+  "lat": 1,
+  "pm_target": 45,
+  "PM": 45.000000000156376,
+  "peaking_dB": 3.9036697483868474,
+  "ReH_neg_band_MHz": [
+   [
+    0.004,
+    162.98367404
+   ]
+  ],
+  "ReH_min": -0.3853555610266442,
+  "min_12Cgos": 3.087533235332801e-06,
+  "at_beta_MHz": 0.48828125,
+  "min_8ReLam1": -0.3098516707736795,
+  "at_offset_MHz": 116.63818359375,
+  "lam1_signif_inverted_span_MHz": [
+   36.07177734375,
+   158.75244140625
+  ],
+  "stable": true
+ },
+ {
+  "type": "T2",
+  "lat": 1,
+  "pm_target": 60,
+  "PM": 60.00000000008367,
+  "peaking_dB": 2.1274901019670125,
+  "ReH_neg_band_MHz": [
+   [
+    0.004,
+    134.81373038000004
+   ]
+  ],
+  "ReH_min": -0.20529466586837739,
+  "min_12Cgos": 4.674449961848668e-06,
+  "at_beta_MHz": 0.48828125,
+  "min_8ReLam1": -0.13979704587472486,
+  "at_offset_MHz": 83.31298828125,
+  "lam1_signif_inverted_span_MHz": [
+   22.39990234375,
+   125.79345703125
+  ],
+  "stable": true
+ },
+ {
+  "type": "T2",
+  "lat": 1,
+  "pm_target": 75,
+  "PM": 74.99999999985991,
+  "peaking_dB": 0.5228303441792646,
+  "ReH_neg_band_MHz": [
+   [
+    0.004,
+    72.29385542000001
+   ]
+  ],
+  "ReH_min": -0.05283735814521119,
+  "min_12Cgos": 1.6962587786934432e-05,
+  "at_beta_MHz": 0.48828125,
+  "min_8ReLam1": -0.016256564004351222,
+  "at_offset_MHz": 24.23095703125,
+  "lam1_signif_inverted_span_MHz": [
+   5.79833984375,
+   43.39599609375
+  ],
+  "stable": true
+ },
+ {
+  "type": "T2",
+  "lat": 2,
+  "pm_target": 30,
+  "PM": 29.999999998755555,
+  "peaking_dB": 6.249928428183649,
+  "ReH_neg_band_MHz": [
+   [
+    0.004,
+    150.22369956
+   ]
+  ],
+  "ReH_min": -0.6194382705027636,
+  "min_12Cgos": 4.309734870105254e-06,
+  "at_beta_MHz": 0.48828125,
+  "min_8ReLam1": -0.5330497406107136,
+  "at_offset_MHz": 113.70849609375,
+  "lam1_signif_inverted_span_MHz": [
+   12.63427734375,
+   148.37646484375
+  ],
+  "stable": true
+ },
+ {
+  "type": "T2",
+  "lat": 2,
+  "pm_target": 45,
+  "PM": 45.00000000000074,
+  "peaking_dB": 3.2532564112142475,
+  "ReH_neg_band_MHz": [
+   [
+    0.004,
+    121.66375668
+   ]
+  ],
+  "ReH_min": -0.2951546954504731,
+  "min_12Cgos": 7.111690512519864e-06,
+  "at_beta_MHz": 0.48828125,
+  "min_8ReLam1": -0.21982606467630353,
+  "at_offset_MHz": 79.89501953125,
+  "lam1_signif_inverted_span_MHz": [
+   22.39990234375,
+   116.63818359375
+  ],
+  "stable": true
+ },
+ {
+  "type": "T2",
+  "lat": 3,
+  "pm_target": 30,
+  "PM": 29.99999999999997,
+  "peaking_dB": 5.838850127775145,
+  "ReH_neg_band_MHz": [
+   [
+    0.004,
+    127.93374414000003
+   ]
+  ],
+  "ReH_min": -0.49855872862708456,
+  "min_12Cgos": 7.494059554862228e-06,
+  "at_beta_MHz": 0.48828125,
+  "min_8ReLam1": -0.42184472970263265,
+  "at_offset_MHz": 90.88134765625,
+  "lam1_signif_inverted_span_MHz": [
+   12.51220703125,
+   126.03759765625
+  ],
+  "stable": true
+ },
+ {
+  "type": "T2",
+  "lat": 3,
+  "pm_target": 45,
+  "PM": 45.00000000002174,
+  "peaking_dB": 2.5125995388470064,
+  "ReH_neg_band_MHz": [
+   [
+    0.004,
+    93.51381298000003
+   ]
+  ],
+  "ReH_min": -0.1967392953911591,
+  "min_12Cgos": 1.5735102976516214e-05,
+  "at_beta_MHz": 0.48828125,
+  "min_8ReLam1": -0.12294281151851454,
+  "at_offset_MHz": 55.48095703125,
+  "lam1_signif_inverted_span_MHz": [
+   9.46044921875,
+   86.73095703125
+  ],
+  "stable": true
+ },
+ {
+  "type": "T2",
+  "lat": 1,
+  "pm_target": 45,
+  "f_pole": 400000000.0,
+  "PM": 45.00000000035149,
+  "peaking_dB": 2.9946919779719594,
+  "ReH_neg_band_MHz": [
+   [
+    0.004,
+    140.98371804
+   ]
+  ],
+  "ReH_min": -0.25218436128522065,
+  "min_12Cgos": 5.790873687932477e-06,
+  "at_beta_MHz": 0.48828125,
+  "min_8ReLam1": -0.18303179026684016,
+  "at_offset_MHz": 88.19580078125,
+  "lam1_signif_inverted_span_MHz": [
+   20.08056640625,
+   134.46044921875
+  ],
+  "stable": true
+ },
+ {
+  "type": "T2",
+  "lat": 1,
+  "pm_target": 45,
+  "f_pole": 800000000.0,
+  "PM": 45.00000000000077,
+  "peaking_dB": 3.6325500191175584,
+  "ReH_neg_band_MHz": [
+   [
+    0.004,
+    152.12369576000003
+   ]
+  ],
+  "ReH_min": -0.34594589828076017,
+  "min_12Cgos": 3.906251968114775e-06,
+  "at_beta_MHz": 0.48828125,
+  "min_8ReLam1": -0.27238388241866995,
+  "at_offset_MHz": 105.16357421875,
+  "lam1_signif_inverted_span_MHz": [
+   32.04345703125,
+   147.39990234375
+  ],
+  "stable": true
+ },
+ {
+  "type": "CP",
+  "pm_target": 40,
+  "tau": 0.0,
+  "PM": 40.00000000000006,
+  "peaking_dB": 3.9207272833254887,
+  "ReH_neg_band_MHz": [
+   [
+    0.004,
+    152.31369538
+   ]
+  ],
+  "ReH_min": -0.3402840643654065,
+  "min_12Cgos": 4.673253342536769e-06,
+  "at_beta_MHz": 0.48828125,
+  "min_8ReLam1": -0.2688599429380369,
+  "at_offset_MHz": 100.03662109375,
+  "lam1_signif_inverted_span_MHz": [
+   31.18896484375,
+   147.76611328125
+  ],
+  "stable": true
+ },
+ {
+  "type": "CP",
+  "pm_target": 40,
+  "tau": 1.25e-10,
+  "PM": 39.99999999999994,
+  "peaking_dB": 3.7036933599714894,
+  "ReH_neg_band_MHz": [
+   [
+    0.004,
+    141.02371796
+   ]
+  ],
+  "ReH_min": -0.30479421450611227,
+  "min_12Cgos": 6.012351809941743e-06,
+  "at_beta_MHz": 0.48828125,
+  "min_8ReLam1": -0.23394596517145122,
+  "at_offset_MHz": 93.68896484375,
+  "lam1_signif_inverted_span_MHz": [
+   25.81787109375,
+   136.16943359375
+  ],
+  "stable": true
+ },
+ {
+  "type": "CP",
+  "pm_target": 55,
+  "tau": 0.0,
+  "PM": 55.00000000000021,
+  "peaking_dB": 2.039823281574698,
+  "ReH_neg_band_MHz": [
+   [
+    0.004,
+    123.91375218000002
+   ]
+  ],
+  "ReH_min": -0.18672300878929832,
+  "min_12Cgos": 6.642028364568962e-06,
+  "at_beta_MHz": 0.48828125,
+  "min_8ReLam1": -0.11932154750302573,
+  "at_offset_MHz": 71.47216796875,
+  "lam1_signif_inverted_span_MHz": [
+   15.68603515625,
+   114.07470703125
+  ],
+  "stable": true
+ },
+ {
+  "type": "CP",
+  "pm_target": 55,
+  "tau": 1.25e-10,
+  "PM": 54.99999999903383,
+  "peaking_dB": 1.7987358514781238,
+  "ReH_neg_band_MHz": [
+   [
+    0.004,
+    110.94377812000002
+   ]
+  ],
+  "ReH_min": -0.1618735584637258,
+  "min_12Cgos": 8.918700936268763e-06,
+  "at_beta_MHz": 0.48828125,
+  "min_8ReLam1": -0.09374574182871392,
+  "at_offset_MHz": 62.56103515625,
+  "lam1_signif_inverted_span_MHz": [
+   12.02392578125,
+   100.15869140625
+  ],
+  "stable": true
+ },
+ {
+  "type": "CP",
+  "pm_target": 65,
+  "tau": 0.0,
+  "PM": 65.0000000000011,
+  "peaking_dB": 1.2631722929952276,
+  "ReH_neg_band_MHz": [
+   [
+    0.004,
+    104.91379018000002
+   ]
+  ],
+  "ReH_min": -0.12098846798296735,
+  "min_12Cgos": 8.578020455998086e-06,
+  "at_beta_MHz": 0.48828125,
+  "min_8ReLam1": -0.0609244835083618,
+  "at_offset_MHz": 55.48095703125,
+  "lam1_signif_inverted_span_MHz": [
+   10.92529296875,
+   88.92822265625
+  ],
+  "stable": true
+ },
+ {
+  "type": "CP",
+  "pm_target": 65,
+  "tau": 1.25e-10,
+  "PM": 64.99999999999993,
+  "peaking_dB": 1.0418785484995134,
+  "ReH_neg_band_MHz": [
+   [
+    0.004,
+    92.25381550000002
+   ]
+  ],
+  "ReH_min": -0.09958096037107061,
+  "min_12Cgos": 1.1747073038267249e-05,
+  "at_beta_MHz": 0.48828125,
+  "min_8ReLam1": -0.04217871531004566,
+  "at_offset_MHz": 43.39599609375,
+  "lam1_signif_inverted_span_MHz": [
+   8.48388671875,
+   72.93701171875
+  ],
+  "stable": true
+ }
+]

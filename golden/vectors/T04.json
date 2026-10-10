@@ -1,0 +1,27 @@
+{
+  "id": "T04",
+  "description_zh": "1-bit Comparator：s=1 fs、σ_v=100 fs ⇒ P(q=+1) ≈ 0.503989、K_q ≈ 0.00797885/fs",
+  "spec_section": "§5、§5.1",
+  "inputs": {
+    "s_fs": 1.0,
+    "sigma_fs": 100.0
+  },
+  "expected": {
+    "p_plus": 0.5039893563146316,
+    "p_minus": 0.4960106436853684,
+    "mean_q": 0.007978712629263208,
+    "kq_per_fs": 0.007978845608028654,
+    "kq_times_s": 0.007978845608028654,
+    "wrong_encoding_mean_update_at_w_eq_a": 0.12499999999999999,
+    "wrong_encoding_fixed_point_shift_fs": 41.26986535003289
+  },
+  "tolerance": {
+    "abs": 1e-12
+  },
+  "tolerance_overrides": {
+    "wrong_encoding_fixed_point_shift_fs": {
+      "abs": 1e-06
+    }
+  },
+  "notes": "E[q] = erf(s/(√2σ)) 與 K_q·s 相差約 (s/σ)²/6 的相對量。wrong_encoding_*：反面測試，把 0/1 位元直接當 q（應 q = 2b − 1），code 取 {−1,−0.5,0,0.5,1,1.5} 等機率、a = 300 fs，在 w = a 時 E[b·x] = E[x]/2 = 0.125 ≠ 0，Sign-LMS 固定點偏移約 +41.27 fs。"
+}

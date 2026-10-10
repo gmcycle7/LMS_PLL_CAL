@@ -1,0 +1,25 @@
+{
+  "id": "mse-mae-outliers-regression",
+  "title": "零均值 Gaussian x + outlier",
+  "page": "/ch/01",
+  "experiment": "mse-vs-mae",
+  "description": "x ~ N(0,1)：outlier 與 x 獨立時三種母體最佳解都是 a，outlier 只讓 LMS 抖得更大。",
+  "params": {
+    "model": "contaminated",
+    "xDist": "gaussian",
+    "xScale": 1,
+    "a": 3,
+    "sigma": 0.5,
+    "outlierProb": 0.05,
+    "outlierSize": 30,
+    "outlierSign": "positive",
+    "mu": 0.01,
+    "w0": 0,
+    "n": 12000,
+    "tie": "zero",
+    "huberDelta": 1,
+    "seed": 5
+  },
+  "expected": "三種母體最佳解 = 3；LMS 穩態 std = √(μP_xE[ṽ²]/(2P_x − μE[x⁴])) ≈ 0.48（E42），遠大於 Sign-Error 的 ≈ 0.057（擴散近似 √(μ/(4f))）；Gaussian x 沒有格點，Monte Carlo / Fixed-Point 交叉比對為 n/a。",
+  "source": "simulation"
+}

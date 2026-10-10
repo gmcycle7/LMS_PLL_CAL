@@ -1,0 +1,181 @@
+/* Ch01 專屬樣式（class 一律加 ch01- 前綴） */
+
+.ch01-lead {
+  font-size: 1.02rem;
+  line-height: 1.75;
+}
+
+.ch01-erratum {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  margin: 0 2px;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid var(--warn);
+  background: var(--warn-soft);
+  color: var(--text);
+  font-size: 0.78rem;
+  line-height: 1.6;
+  text-decoration: none;
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+.ch01-erratum:hover {
+  text-decoration: underline;
+}
+.ch01-erratum-note {
+  white-space: normal;
+}
+.ch01-specnote {
+  border-color: var(--info);
+  background: var(--info-soft);
+}
+
+.ch01-try {
+  margin: 10px 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: var(--radius-sm);
+  font-size: 0.92rem;
+}
+.ch01-try-badge {
+  display: inline-block;
+  font-weight: 700;
+  color: var(--accent-text);
+  margin-right: 4px;
+}
+
+.ch01-pll {
+  margin: 14px 0;
+  padding: 10px 14px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.ch01-pll-title {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.ch01-table td,
+.ch01-table th {
+  vertical-align: top;
+}
+.ch01-table td.num,
+.ch01-table th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ch01-table tr.is-current td {
+  background: var(--accent-soft);
+}
+.ch01-table caption {
+  caption-side: bottom;
+  text-align: left;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  padding-top: 4px;
+}
+
+.ch01-stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+.ch01-stat {
+  flex: 1 1 140px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.ch01-stat-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.ch01-stat-value {
+  font-size: 1.05rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.ch01-cursor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  font-size: 0.9rem;
+}
+.ch01-cursor input[type='range'] {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.ch01-two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 760px) {
+  .ch01-two {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.ch01-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0;
+  font-size: 0.9rem;
+}
+.ch01-flow-box {
+  padding: 4px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.ch01-flow-arrow {
+  color: var(--text-faint);
+}
+
+.ch01-muted-note {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.ch01-chapter h2 {
+  scroll-margin-top: calc(var(--topbar-h) + 8px);
+}
+
+/* 資料流方塊內是不換行的行內 KaTeX：窄螢幕時讓單一方塊自己捲動，避免整頁水平捲動 */
+.ch01-flow-box {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* 帶長說明的勘誤／規格補充標籤：窄螢幕時整顆標籤不可超出內容寬度（說明文字會換行） */
+.ch01-erratum {
+  max-width: 100%;
+}
+.ch01-erratum-note {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* 「帶入手算」題前的一句引言（題目本身是共用的 .c-handcalc） */
+.ch01-handcalc {
+  margin: 16px 0;
+}
+.ch01-handcalc-invite {
+  margin: 0 0 -8px;
+  font-size: 0.92rem;
+}

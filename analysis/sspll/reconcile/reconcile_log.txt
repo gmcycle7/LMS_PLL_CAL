@@ -1,0 +1,187 @@
+
+[S0] model parity
+   sim designs re-run in 8.3s
+   L1: max|dH| vs loops 2.84e-15, vs regressors 5.90e-15, vs sim 4.97e-16 | f3dB 320.000000 MHz PM 78.789 band []
+   L2: max|dH| vs loops 3.73e-09, vs regressors 1.72e-12, vs sim 1.88e-14 | f3dB 320.000000 MHz PM 60.000 band [[0.0, 134.8201, -0.2053, 83.82]]
+   L3: max|dH| vs loops 1.55e-14, vs regressors nan, vs sim 1.51e-14 | f3dB 320.000000 MHz PM 58.581 band [[0.0, 117.2777, -0.1616, 67.3231]]
+   sim 0.8x/1.2x model params vs mine (rel, sim stored to 6 digits): {'L1_bw0.8': '5.5e-07', 'L1_bw1.2': '2.5e-07', 'L2_bw0.8': '5.6e-07', 'L2_bw1.2': '1.4e-06', 'L3_bw0.8': '2.2e-07', 'L3_bw1.2': '4.0e-07'}
+   regressors' CP_pm55 (a DIFFERENT CPPLL, b_mine=10.802, DT PM 55.00) rebuilt: max|dH| 1.3e-14, band [[0.0, 123.922, -0.187, 73.281]]
+
+[S1] full-precision: copied sim.measure_S vs deterministic replica
+   L1: max |sim - replica| over 6 alpha x 4 variants x 2 est = 2.21e-14
+   L2: max |sim - replica| over 6 alpha x 4 variants x 2 est = 1.55e-14
+   L3: max |sim - replica| over 6 alpha x 4 variants x 2 est = 4.80e-14
+
+[S2/S3/S5] fine grid (500 alpha x 3 loops)
+   computed in 95s
+   [S2] L1: replica vs stored sim: max abs diff over all variants/estimators/quantities = 4.17e-06; open-loop {'gos': 4.97634336238395e-07, 'phos': 4.950797225511394e-07}
+   [S3] L1 decomposition (max abs, un-normalised): {'est_erf_minus_lin_phos': '8.95e-04', 'est_erf_minus_lin_gos': '1.59e-04', 'finite_record_phos': '6.47e-06', 'finite_record_gos': '2.81e-05', 'acc_side_phos': '4.72e-16', 'acc_side_gos': '6.01e-03', 'n_left_side': 248, 'physical_model_phos': '0.00e+00', 'physical_model_gos': '4.23e-03', 'physical_model_gos_rel': '5.21e-02', 'rational_vs_ergodic_phos_8divQ': '1.55e-06', 'rational_vs_ergodic_phos_8notdivQ': '6.21e-01', 'rational_vs_ergodic_gos': '3.67e-07', 'n_8divQ': 250}
+       GOS normalisation 12*C_GOS / kappa_GOS(sim): median 3.959 (theory: (1/3)/(1/12)/(1-a)... see text)
+       tau=0.001: PHOS class disagreements sim-vs-ergodic 2, sim-vs-exact-periodic 0; sim inverted []; ergodic []; ergodic m1-only []; GOS inverted sim/theory 0/0
+       tau=0.01: PHOS class disagreements sim-vs-ergodic 2, sim-vs-exact-periodic 0; sim inverted []; ergodic []; ergodic m1-only []; GOS inverted sim/theory 0/0
+       worst PHOS: sim [0.001, 0.006094718007675244], exact periodic (sim norm) 0.00603, 8*lam exact ideal 0.00603, ergodic worst [0.5, 9.8849933300676e-05]
+   [S3] L1 variants (#alpha inverted /500, kappa<-1e-3; sim vs theory):
+       raw        {'sim_phos_inv': 0, 'th_phos_inv': 0, 'sim_gos_inv': 0, 'th_gos_inv': 0, 'sim_joint_inv': 0, 'th_joint_inv': 0, 'sim_phos_min': 0.0061, 'th_phos_min': 0.006, 'sim_gos_min': 0.0295, 'th_gos_min': 0.0295, 'max_abs_kappa_diff_phos': 0.0031}
+       1diff      {'sim_phos_inv': 0, 'th_phos_inv': 0, 'sim_gos_inv': 0, 'th_gos_inv': 0, 'sim_joint_inv': 0, 'th_joint_inv': 0, 'sim_phos_min': 0.0047, 'th_phos_min': 0.0047, 'sim_gos_min': 0.0232, 'th_gos_min': 0.0232, 'max_abs_kappa_diff_phos': 0.0066}
+       2diff      {'sim_phos_inv': 106, 'th_phos_inv': 106, 'sim_gos_inv': 0, 'th_gos_inv': 0, 'sim_joint_inv': 106, 'th_joint_inv': 106, 'sim_phos_min': -0.1595, 'th_phos_min': -0.1602, 'sim_gos_min': 0.0091, 'th_gos_min': 0.0091, 'max_abs_kappa_diff_phos': 0.0114}
+       fx:exact   {'sim_phos_inv': 0, 'th_phos_inv': 0, 'sim_gos_inv': 0, 'th_gos_inv': 0, 'sim_joint_inv': 0, 'th_joint_inv': 0, 'sim_phos_min': 0.0075, 'th_phos_min': 0.0075, 'sim_gos_min': 0.0366, 'th_gos_min': 0.0366, 'max_abs_kappa_diff_phos': 0.0048}
+       fx:bw0.8   {'sim_phos_inv': 0, 'th_phos_inv': 0, 'sim_gos_inv': 0, 'th_gos_inv': 0, 'sim_joint_inv': 0, 'th_joint_inv': 0, 'sim_phos_min': 0.008, 'th_phos_min': 0.008, 'sim_gos_min': 0.0388, 'th_gos_min': 0.0388, 'max_abs_kappa_diff_phos': 0.0125}
+       fx:bw1.2   {'sim_phos_inv': 0, 'th_phos_inv': 0, 'sim_gos_inv': 0, 'th_gos_inv': 0, 'sim_joint_inv': 0, 'th_joint_inv': 0, 'sim_phos_min': 0.0072, 'th_phos_min': 0.0071, 'sim_gos_min': 0.0349, 'th_gos_min': 0.0348, 'max_abs_kappa_diff_phos': 0.0078}
+       D:1        {'sim_phos_inv': 459, 'th_phos_inv': 460, 'sim_gos_inv': 387, 'th_gos_inv': 390, 'sim_joint_inv': 487, 'th_joint_inv': 487, 'sim_phos_min': -1.5037, 'th_phos_min': -1.5018, 'sim_gos_min': -0.2555, 'th_gos_min': -0.2552, 'max_abs_kappa_diff_phos': 0.0072}
+       D:-1       {'th_phos_inv': 428, 'th_gos_inv': 248, 'th_phos_min': -1.3986, 'th_gos_min': -0.2239}
+       fx:typeI   {'th_phos_inv': 0, 'th_gos_inv': 0, 'th_phos_min': 0.0075, 'th_gos_min': 0.0366}
+   [S5] L1 large signal: replica vs sim max abs 4.99e-07
+       raw         {'A=1ps': {'sim_inverted': 0, 'periodic_inverted': 0, 'disagree': 0, 'sim_worst': -2.2424237527772167e-16, 'periodic_worst': 0.0}, 'A=5ps': {'sim_inverted': 36, 'periodic_inverted': 36, 'disagree': 0, 'sim_worst': -0.2942628347506029, 'periodic_worst': -0.2939778834107212}, 'A=inf': {'inverted': 34, 'worst': -0.528963758995708}}
+       ac          {'A=1ps': {'sim_inverted': 0, 'periodic_inverted': 0, 'disagree': 0, 'sim_worst': -2.2424237527772167e-16, 'periodic_worst': 0.0}, 'A=5ps': {'sim_inverted': 0, 'periodic_inverted': 0, 'disagree': 0, 'sim_worst': -8.858303478236339e-16, 'periodic_worst': 0.0}, 'A=inf': {'inverted': 0, 'worst': 0.0}}
+       1diff       {'A=1ps': {'sim_inverted': 0, 'periodic_inverted': 0, 'disagree': 0, 'sim_worst': 0.0, 'periodic_worst': 0.0}, 'A=5ps': {'sim_inverted': 0, 'periodic_inverted': 0, 'disagree': 0, 'sim_worst': 0.0, 'periodic_worst': 0.0}, 'A=inf': {'inverted': 0, 'worst': 0.0}}
+       fx:exact    {'A=1ps': {'sim_inverted': 0, 'periodic_inverted': 0, 'disagree': 0, 'sim_worst': -2.6776411268383995e-32, 'periodic_worst': 0.0}, 'A=5ps': {'sim_inverted': 0, 'periodic_inverted': 0, 'disagree': 0, 'sim_worst': -1.972141879734943e-31, 'periodic_worst': 0.0}, 'A=inf': {'inverted': 0, 'worst': 0.0}}
+   [S2] L2: replica vs stored sim: max abs diff over all variants/estimators/quantities = 4.96e-06; open-loop {'gos': 4.97634336238395e-07, 'phos': 4.950797225511394e-07}
+   [S3] L2 decomposition (max abs, un-normalised): {'est_erf_minus_lin_phos': '7.72e-04', 'est_erf_minus_lin_gos': '1.85e-04', 'finite_record_phos': '8.88e-06', 'finite_record_gos': '3.40e-05', 'acc_side_phos': '5.00e-16', 'acc_side_gos': '5.65e-03', 'n_left_side': 248, 'physical_model_phos': '0.00e+00', 'physical_model_gos': '4.10e-03', 'physical_model_gos_rel': '6.52e-02', 'rational_vs_ergodic_phos_8divQ': '2.43e-06', 'rational_vs_ergodic_phos_8notdivQ': '5.91e-01', 'rational_vs_ergodic_gos': '4.43e-07', 'n_8divQ': 250}
+       GOS normalisation 12*C_GOS / kappa_GOS(sim): median 3.982 (theory: (1/3)/(1/12)/(1-a)... see text)
+       tau=0.001: PHOS class disagreements sim-vs-ergodic 8, sim-vs-exact-periodic 6; sim inverted [[0.004, 0.031], [0.245, 0.249], [0.251, 0.255], [0.49, 0.493], [0.495, 0.496]]; ergodic [[0.004, 0.031], [0.245, 0.246], [0.254, 0.255], [0.49, 0.493], [0.495, 0.496]]; ergodic m1-only [[0.006, 0.031]]; GOS inverted sim/theory 0/0
+       tau=0.01: PHOS class disagreements sim-vs-ergodic 2, sim-vs-exact-periodic 0; sim inverted [[0.008, 0.031]]; ergodic [[0.008, 0.031]]; ergodic m1-only [[0.008, 0.031]]; GOS inverted sim/theory 0/0
+       worst PHOS: sim [0.02, -0.14471653582846528], exact periodic (sim norm) -0.14430, 8*lam exact ideal -0.13852, ergodic worst [0.021, -0.13952679107781168]
+   [S3] L2 variants (#alpha inverted /500, kappa<-1e-3; sim vs theory):
+       raw        {'sim_phos_inv': 44, 'th_phos_inv': 38, 'sim_gos_inv': 0, 'th_gos_inv': 0, 'sim_joint_inv': 44, 'th_joint_inv': 38, 'sim_phos_min': -0.1447, 'th_phos_min': -0.1443, 'sim_gos_min': 0.005, 'th_gos_min': 0.005, 'max_abs_kappa_diff_phos': 0.0031}
+       1diff      {'sim_phos_inv': 0, 'th_phos_inv': 0, 'sim_gos_inv': 0, 'th_gos_inv': 0, 'sim_joint_inv': 0, 'th_joint_inv': 0, 'sim_phos_min': 0.0047, 'th_phos_min': 0.0047, 'sim_gos_min': 0.0237, 'th_gos_min': 0.0237, 'max_abs_kappa_diff_phos': 0.0063}
+       2diff      {'sim_phos_inv': 145, 'th_phos_inv': 145, 'sim_gos_inv': 0, 'th_gos_inv': 0, 'sim_joint_inv': 145, 'th_joint_inv': 145, 'sim_phos_min': -0.2497, 'th_phos_min': -0.2502, 'sim_gos_min': 0.0076, 'th_gos_min': 0.0076, 'max_abs_kappa_diff_phos': 0.0115}
+       fx:exact   {'sim_phos_inv': 0, 'th_phos_inv': 0, 'sim_gos_inv': 0, 'th_gos_inv': 0, 'sim_joint_inv': 0, 'th_joint_inv': 0, 'sim_phos_min': 0.0097, 'th_phos_min': 0.0096, 'sim_gos_min': 0.0487, 'th_gos_min': 0.0487, 'max_abs_kappa_diff_phos': 0.0045}
+       fx:bw0.8   {'sim_phos_inv': 0, 'th_phos_inv': 0, 'sim_gos_inv': 0, 'th_gos_inv': 0, 'sim_joint_inv': 0, 'th_joint_inv': 0, 'sim_phos_min': 0.0104, 'th_phos_min': 0.0103, 'sim_gos_min': 0.0519, 'th_gos_min': 0.0519, 'max_abs_kappa_diff_phos': 0.0046}
+       fx:bw1.2   {'sim_phos_inv': 0, 'th_phos_inv': 0, 'sim_gos_inv': 0, 'th_gos_inv': 0, 'sim_joint_inv': 0, 'th_joint_inv': 0, 'sim_phos_min': 0.009, 'th_phos_min': 0.0089, 'sim_gos_min': 0.0452, 'th_gos_min': 0.0452, 'max_abs_kappa_diff_phos': 0.0049}
+       D:1        {'sim_phos_inv': 496, 'th_phos_inv': 496, 'sim_gos_inv': 384, 'th_gos_inv': 384, 'sim_joint_inv': 500, 'th_joint_inv': 500, 'sim_phos_min': -1.4286, 'th_phos_min': -1.4269, 'sim_gos_min': -0.231, 'th_gos_min': -0.2307, 'max_abs_kappa_diff_phos': 0.0066}
+       D:-1       {'th_phos_inv': 454, 'th_gos_inv': 256, 'th_phos_min': -1.3304, 'th_gos_min': -0.219}
+       fx:typeI   {'th_phos_inv': 0, 'th_gos_inv': 0, 'th_phos_min': 0.0075, 'th_gos_min': 0.038}
+       P-only loop {'th_phos_inv': 0, 'th_gos_inv': 0, 'th_phos_min': 0.0081, 'th_gos_min': 0.0392}
+   [S5] L2 large signal: replica vs sim max abs 4.99e-07
+       raw         {'A=1ps': {'sim_inverted': 70, 'periodic_inverted': 70, 'disagree': 0, 'sim_worst': -0.2416075880362899, 'periodic_worst': -0.24153797621412978}, 'A=5ps': {'sim_inverted': 81, 'periodic_inverted': 81, 'disagree': 0, 'sim_worst': -0.5636689720902077, 'periodic_worst': -0.5635607513265857}, 'A=inf': {'inverted': 83, 'worst': -0.6707494927424728}}
+       ac          {'A=1ps': {'sim_inverted': 68, 'periodic_inverted': 68, 'disagree': 0, 'sim_worst': -0.2416075880362899, 'periodic_worst': -0.24153797621412978}, 'A=5ps': {'sim_inverted': 79, 'periodic_inverted': 79, 'disagree': 0, 'sim_worst': -0.5636689720902077, 'periodic_worst': -0.5635607513265857}, 'A=inf': {'inverted': 77, 'worst': -0.6707494927424728}}
+       1diff       {'A=1ps': {'sim_inverted': 0, 'periodic_inverted': 0, 'disagree': 0, 'sim_worst': 0.0, 'periodic_worst': 0.0}, 'A=5ps': {'sim_inverted': 0, 'periodic_inverted': 0, 'disagree': 0, 'sim_worst': 0.0, 'periodic_worst': 0.0}, 'A=inf': {'inverted': 0, 'worst': 0.0}}
+       fx:exact    {'A=1ps': {'sim_inverted': 0, 'periodic_inverted': 0, 'disagree': 0, 'sim_worst': 4.416083159412104e-29, 'periodic_worst': 0.0}, 'A=5ps': {'sim_inverted': 0, 'periodic_inverted': 0, 'disagree': 0, 'sim_worst': 1.5935061637845919e-28, 'periodic_worst': 0.0}, 'A=inf': {'inverted': 0, 'worst': 0.0}}
+       P-only loop {'A=inf': {'inverted': 24, 'worst': -0.47869868319132475}}
+       P-only loop + ac {'A=inf': {'inverted': 0, 'worst': 0.0}}
+   [S2] L3: replica vs stored sim: max abs diff over all variants/estimators/quantities = 3.72e-06; open-loop {'gos': 4.97634336238395e-07, 'phos': 4.950797225511394e-07}
+   [S3] L3 decomposition (max abs, un-normalised): {'est_erf_minus_lin_phos': '5.98e-04', 'est_erf_minus_lin_gos': '1.93e-04', 'finite_record_phos': '2.78e-05', 'finite_record_gos': '3.94e-05', 'acc_side_phos': '6.11e-16', 'acc_side_gos': '5.39e-03', 'n_left_side': 248, 'physical_model_phos': '0.00e+00', 'physical_model_gos': '4.13e-03', 'physical_model_gos_rel': '5.37e-02', 'rational_vs_ergodic_phos_8divQ': '2.36e-06', 'rational_vs_ergodic_phos_8notdivQ': '5.43e-01', 'rational_vs_ergodic_gos': '5.85e-07', 'n_8divQ': 250}
+       GOS normalisation 12*C_GOS / kappa_GOS(sim): median 3.975 (theory: (1/3)/(1/12)/(1-a)... see text)
+       tau=0.001: PHOS class disagreements sim-vs-ergodic 6, sim-vs-exact-periodic 4; sim inverted [[0.004, 0.026], [0.248, 0.249], [0.251, 0.252]]; ergodic [[0.004, 0.026]]; ergodic m1-only [[0.004, 0.026]]; GOS inverted sim/theory 0/0
+       tau=0.01: PHOS class disagreements sim-vs-ergodic 2, sim-vs-exact-periodic 0; sim inverted [[0.006, 0.025]]; ergodic [[0.006, 0.025]]; ergodic m1-only [[0.006, 0.025]]; GOS inverted sim/theory 0/0
+       worst PHOS: sim [0.016, -0.09920266392242497], exact periodic (sim norm) -0.09905, 8*lam exact ideal -0.09508, ergodic worst [0.017, -0.09568090626714433]
+   [S3] L3 variants (#alpha inverted /500, kappa<-1e-3; sim vs theory):
+       raw        {'sim_phos_inv': 27, 'th_phos_inv': 23, 'sim_gos_inv': 0, 'th_gos_inv': 0, 'sim_joint_inv': 27, 'th_joint_inv': 23, 'sim_phos_min': -0.0992, 'th_phos_min': -0.099, 'sim_gos_min': 0.0077, 'th_gos_min': 0.0077, 'max_abs_kappa_diff_phos': 0.0031}
+       1diff      {'sim_phos_inv': 0, 'th_phos_inv': 0, 'sim_gos_inv': 0, 'th_gos_inv': 0, 'sim_joint_inv': 0, 'th_joint_inv': 0, 'sim_phos_min': 0.0047, 'th_phos_min': 0.0047, 'sim_gos_min': 0.0237, 'th_gos_min': 0.0237, 'max_abs_kappa_diff_phos': 0.0059}
+       2diff      {'sim_phos_inv': 188, 'th_phos_inv': 188, 'sim_gos_inv': 0, 'th_gos_inv': 0, 'sim_joint_inv': 188, 'th_joint_inv': 188, 'sim_phos_min': -0.3838, 'th_phos_min': -0.3842, 'sim_gos_min': 0.005, 'th_gos_min': 0.005, 'max_abs_kappa_diff_phos': 0.0115}
+       fx:exact   {'sim_phos_inv': 0, 'th_phos_inv': 0, 'sim_gos_inv': 0, 'th_gos_inv': 0, 'sim_joint_inv': 0, 'th_joint_inv': 0, 'sim_phos_min': 0.0111, 'th_phos_min': 0.011, 'sim_gos_min': 0.0557, 'th_gos_min': 0.0556, 'max_abs_kappa_diff_phos': 0.0041}
+       fx:bw0.8   {'sim_phos_inv': 0, 'th_phos_inv': 0, 'sim_gos_inv': 0, 'th_gos_inv': 0, 'sim_joint_inv': 0, 'th_joint_inv': 0, 'sim_phos_min': 0.0119, 'th_phos_min': 0.0118, 'sim_gos_min': 0.0599, 'th_gos_min': 0.0599, 'max_abs_kappa_diff_phos': 0.0042}
+       fx:bw1.2   {'sim_phos_inv': 0, 'th_phos_inv': 0, 'sim_gos_inv': 0, 'th_gos_inv': 0, 'sim_joint_inv': 0, 'th_joint_inv': 0, 'sim_phos_min': 0.0102, 'th_phos_min': 0.0101, 'sim_gos_min': 0.0511, 'th_gos_min': 0.0511, 'max_abs_kappa_diff_phos': 0.0044}
+       D:1        {'sim_phos_inv': 482, 'th_phos_inv': 482, 'sim_gos_inv': 336, 'th_gos_inv': 336, 'sim_joint_inv': 500, 'th_joint_inv': 500, 'sim_phos_min': -1.2975, 'th_phos_min': -1.2963, 'sim_gos_min': -0.2076, 'th_gos_min': -0.2073, 'max_abs_kappa_diff_phos': 0.0057}
+       D:-1       {'th_phos_inv': 455, 'th_gos_inv': 264, 'th_phos_min': -1.2331, 'th_gos_min': -0.2006}
+       fx:typeI   {'th_phos_inv': 0, 'th_gos_inv': 0, 'th_phos_min': 0.0082, 'th_gos_min': 0.0414}
+       P-only loop {'th_phos_inv': 0, 'th_gos_inv': 0, 'th_phos_min': 0.0077, 'th_gos_min': 0.0376}
+   [S5] L3 large signal: replica vs sim max abs 5.00e-07
+       raw         {'A=1ps': {'sim_inverted': 58, 'periodic_inverted': 58, 'disagree': 0, 'sim_worst': -0.16670057336926059, 'periodic_worst': -0.1665841149605384}, 'A=5ps': {'sim_inverted': 72, 'periodic_inverted': 72, 'disagree': 0, 'sim_worst': -0.47070946994273455, 'periodic_worst': -0.47064916227867426}, 'A=inf': {'inverted': 75, 'worst': -0.92}}
+       ac          {'A=1ps': {'sim_inverted': 56, 'periodic_inverted': 56, 'disagree': 0, 'sim_worst': -0.16670057336926059, 'periodic_worst': -0.1665841149605384}, 'A=5ps': {'sim_inverted': 66, 'periodic_inverted': 66, 'disagree': 0, 'sim_worst': -0.47070946994273455, 'periodic_worst': -0.47064916227867426}, 'A=inf': {'inverted': 69, 'worst': -0.92}}
+       1diff       {'A=1ps': {'sim_inverted': 0, 'periodic_inverted': 0, 'disagree': 0, 'sim_worst': 0.0, 'periodic_worst': 0.0}, 'A=5ps': {'sim_inverted': 0, 'periodic_inverted': 0, 'disagree': 0, 'sim_worst': 0.0, 'periodic_worst': 0.0}, 'A=inf': {'inverted': 0, 'worst': 0.0}}
+       fx:exact    {'A=1ps': {'sim_inverted': 0, 'periodic_inverted': 0, 'disagree': 0, 'sim_worst': 0.0, 'periodic_worst': 0.0}, 'A=5ps': {'sim_inverted': 0, 'periodic_inverted': 0, 'disagree': 0, 'sim_worst': 0.0, 'periodic_worst': 0.0}, 'A=inf': {'inverted': 0, 'worst': 0.0}}
+       P-only loop {'A=inf': {'inverted': 32, 'worst': -0.5581247617837632}}
+       P-only loop + ac {'A=inf': {'inverted': 8, 'worst': -0.4189999999999999}}
+
+[S4] cross-check against loops/lms_alpha_scan.npz and regressors/sign_maps.json
+   loops L1: 256 alpha=j/4096: max|g_eff diff| 2.7e-15, max|PHOS min eig diff| 7.1e-16
+   loops L2: 256 alpha=j/4096: max|g_eff diff| 1.6e-09, max|PHOS min eig diff| 4.1e-10
+   loops L3: 256 alpha=j/4096: max|g_eff diff| 4.4e-15, max|PHOS min eig diff| 1.2e-15
+   regressors T1_lat1_D0: 128 alpha: max|C_gos diff| 5.0e-07, max|Re lam_m diff| 5.0e-06 (their values rounded to 5 sig.)
+   regressors T2_pm60_lat1_D0: 128 alpha: max|C_gos diff| 4.8e-07, max|Re lam_m diff| 5.0e-06 (their values rounded to 5 sig.)
+   regressors T2_pm60_lat1_Dp1: 128 alpha: max|C_gos diff| 4.3e-07, max|Re lam_m diff| 4.9e-06 (their values rounded to 5 sig.)
+   regressors T2_pm60_lat1_Dm1: 128 alpha: max|C_gos diff| 4.9e-07, max|Re lam_m diff| 5.0e-06 (their values rounded to 5 sig.)
+   regressors T1_lat1_Dp1: 128 alpha: max|C_gos diff| 4.2e-07, max|Re lam_m diff| 4.9e-06 (their values rounded to 5 sig.)
+
+[S6] dense sign maps alpha = j/4096 (ideal model, floor convention)
+   computed in 77s
+   L1: raw PHOS inverted (tau 1e-3) [] MHz; (tau 1e-2) []; GOS inv 0; min kappa 0.0015 @ 1.0 MHz
+       D:1       : n inverted phos/gos/joint (tau 1e-3) 1881/1596/1992, min kappa phos -1.2413, min kappa gos -1.2413, min ReGamma -1.2413
+       D:-1      : n inverted phos/gos/joint (tau 1e-3) 1753/1036/1922, min kappa phos -1.2413, min kappa gos -1.2413, min ReGamma -1.2413
+       1diff     : n inverted phos/gos/joint (tau 1e-3) 0/0/0, min kappa phos 0.0011, min kappa gos 0.0233, min ReGamma 0.0000
+       2diff     : n inverted phos/gos/joint (tau 1e-3) 437/0/437, min kappa phos -0.1602, min kappa gos 0.0091, min ReGamma -0.1731
+       fx:exact  : n inverted phos/gos/joint (tau 1e-3) 0/0/0, min kappa phos 0.0018, min kappa gos 0.0371, min ReGamma 0.0000
+       fx:bw0.8  : n inverted phos/gos/joint (tau 1e-3) 0/0/0, min kappa phos 0.0019, min kappa gos 0.0394, min ReGamma 0.0000
+       fx:bw1.2  : n inverted phos/gos/joint (tau 1e-3) 0/0/0, min kappa phos 0.0017, min kappa gos 0.0353, min ReGamma 0.0000
+       fx:typeI  : n inverted phos/gos/joint (tau 1e-3) 0/0/0, min kappa phos 0.0018, min kappa gos 0.0371, min ReGamma 0.0000
+       large-signal A->inf #inverted: {'raw': 149, 'ac': 5, '1diff': 0, 'fx:exact': 0}
+   L2: raw PHOS inverted (tau 1e-3) [[12.6953125, 19.53125], [22.4609375, 125.0], [980.46875, 987.3046875], [1012.6953125, 1019.53125], [1959.9609375, 1974.609375], [1980.46875, 1987.3046875]] MHz; (tau 1e-2) [[29.296875, 124.0234375]]; GOS inv 0; min kappa -0.1397 @ 83.0 MHz
+       D:1       : n inverted phos/gos/joint (tau 1e-3) 2030/1596/2048, min kappa phos -1.1812, min kappa gos -1.1812, min ReGamma -1.1812
+       D:-1      : n inverted phos/gos/joint (tau 1e-3) 1865/1060/2029, min kappa phos -1.1812, min kappa gos -1.1812, min ReGamma -1.1812
+       1diff     : n inverted phos/gos/joint (tau 1e-3) 0/0/0, min kappa phos 0.0011, min kappa gos 0.0234, min ReGamma 0.0000
+       2diff     : n inverted phos/gos/joint (tau 1e-3) 582/0/582, min kappa phos -0.2463, min kappa gos 0.0076, min ReGamma -0.2776
+       fx:exact  : n inverted phos/gos/joint (tau 1e-3) 0/0/0, min kappa phos 0.0023, min kappa gos 0.0481, min ReGamma 0.0000
+       fx:bw0.8  : n inverted phos/gos/joint (tau 1e-3) 0/0/0, min kappa phos 0.0025, min kappa gos 0.0513, min ReGamma 0.0000
+       fx:bw1.2  : n inverted phos/gos/joint (tau 1e-3) 0/0/0, min kappa phos 0.0022, min kappa gos 0.0447, min ReGamma 0.0000
+       fx:typeI  : n inverted phos/gos/joint (tau 1e-3) 0/0/0, min kappa phos 0.0018, min kappa gos 0.0375, min ReGamma 0.0000
+       P-only loop: n_phos_inv 0, n_gos_inv 0, min kappa phos 0.0020, gos 0.0403
+       large-signal A->inf #inverted: {'raw': 343, 'ac': 324, '1diff': 0, 'fx:exact': 0, 'P-only loop': 109, 'P-only loop + ac': 2}
+   L3: raw PHOS inverted (tau 1e-3) [[14.6484375, 105.46875]] MHz; (tau 1e-2) [[23.4375, 103.515625]]; GOS inv 0; min kappa -0.0957 @ 67.4 MHz
+       D:1       : n inverted phos/gos/joint (tau 1e-3) 1971/1396/2048, min kappa phos -1.0853, min kappa gos -1.0853, min ReGamma -1.0853
+       D:-1      : n inverted phos/gos/joint (tau 1e-3) 1864/1092/2016, min kappa phos -1.0853, min kappa gos -1.0853, min ReGamma -1.0853
+       1diff     : n inverted phos/gos/joint (tau 1e-3) 0/0/0, min kappa phos 0.0011, min kappa gos 0.0234, min ReGamma 0.0000
+       2diff     : n inverted phos/gos/joint (tau 1e-3) 762/0/762, min kappa phos -0.3372, min kappa gos 0.0051, min ReGamma -0.4143
+       fx:exact  : n inverted phos/gos/joint (tau 1e-3) 0/0/0, min kappa phos 0.0027, min kappa gos 0.0550, min ReGamma 0.0000
+       fx:bw0.8  : n inverted phos/gos/joint (tau 1e-3) 0/0/0, min kappa phos 0.0029, min kappa gos 0.0592, min ReGamma 0.0000
+       fx:bw1.2  : n inverted phos/gos/joint (tau 1e-3) 0/0/0, min kappa phos 0.0025, min kappa gos 0.0505, min ReGamma 0.0000
+       fx:typeI  : n inverted phos/gos/joint (tau 1e-3) 0/0/0, min kappa phos 0.0020, min kappa gos 0.0409, min ReGamma 0.0000
+       P-only loop: n_phos_inv 0, n_gos_inv 0, min kappa phos 0.0019, gos 0.0382
+       large-signal A->inf #inverted: {'raw': 312, 'ac': 292, '1diff': 0, 'fx:exact': 0, 'P-only loop': 133, 'P-only loop + ac': 33}
+
+[S7] closed-loop sign-error LMS spot checks (real 1-bit comparator, sigma_v = 200 fs, N = 512, 6000 blocks, 2 noise lanes)
+   36 runs in 8s
+   L2|0.02|raw            PHOS init    173 fs -> final median   26840.2 fs (max   28300.6) | GOS final     10.7 fs
+   L2|0.02|1diff          PHOS init    173 fs -> final median       6.7 fs (max     173.3) | GOS final      3.7 fs
+   L2|0.02|fx:exact       PHOS init    173 fs -> final median       4.5 fs (max     173.3) | GOS final      3.2 fs
+   L2|0.02|raw|Ponly      PHOS init    173 fs -> final median       6.3 fs (max     173.3) | GOS final      3.6 fs
+   L2|0.02|ac|Ponly       PHOS init    173 fs -> final median       6.2 fs (max     173.3) | GOS final      3.5 fs
+   L2|0.002|raw           PHOS init    173 fs -> final median    6014.9 fs (max    6440.0) | GOS final    204.9 fs
+   L2|0.002|1diff         PHOS init    173 fs -> final median      24.4 fs (max     173.3) | GOS final      8.6 fs
+   L2|0.002|fx:exact      PHOS init    173 fs -> final median      15.3 fs (max     173.3) | GOS final      7.3 fs
+   L2|0.002|raw|Ponly     PHOS init    173 fs -> final median      13.1 fs (max     173.3) | GOS final      9.5 fs
+   L2|0.002|ac|Ponly      PHOS init    173 fs -> final median      12.4 fs (max     173.3) | GOS final      6.5 fs
+   L2|0.496|raw           PHOS init    173 fs -> final median   45997.3 fs (max   72907.1) | GOS final  31081.7 fs
+   L2|0.496|1diff         PHOS init    173 fs -> final median       3.3 fs (max     173.3) | GOS final      5.8 fs
+   L2|0.496|fx:exact      PHOS init    173 fs -> final median       4.5 fs (max     173.3) | GOS final      4.1 fs
+   L2|0.496|raw|Ponly     PHOS init    173 fs -> final median       6.4 fs (max     173.3) | GOS final     11.1 fs
+   L2|0.496|ac|Ponly      PHOS init    173 fs -> final median       6.2 fs (max     173.3) | GOS final      5.8 fs
+   L2|0.253|raw           PHOS init    173 fs -> final median     139.4 fs (max     930.5) | GOS final     14.2 fs
+   L2|0.253|1diff         PHOS init    173 fs -> final median       3.4 fs (max     173.3) | GOS final      8.3 fs
+   L2|0.253|fx:exact      PHOS init    173 fs -> final median       3.8 fs (max     173.3) | GOS final      5.8 fs
+   L2|0.253|raw|Ponly     PHOS init    173 fs -> final median       4.4 fs (max     173.3) | GOS final     11.3 fs
+   L2|0.253|ac|Ponly      PHOS init    173 fs -> final median       4.2 fs (max     173.3) | GOS final      8.3 fs
+   L3|0.016|raw           PHOS init    173 fs -> final median   18458.9 fs (max   21889.4) | GOS final   1044.8 fs
+   L3|0.016|1diff         PHOS init    173 fs -> final median       8.3 fs (max     173.3) | GOS final      3.4 fs
+   L3|0.016|raw|Ponly     PHOS init    173 fs -> final median       7.4 fs (max     173.3) | GOS final      7.3 fs
+   L3|0.002|raw           PHOS init    173 fs -> final median   12914.5 fs (max   16168.1) | GOS final    412.7 fs
+   L3|0.002|1diff         PHOS init    173 fs -> final median      24.3 fs (max     173.3) | GOS final      8.0 fs
+   L3|0.002|raw|Ponly     PHOS init    173 fs -> final median      23.7 fs (max     173.3) | GOS final      9.1 fs
+   L1|0.02|raw            PHOS init    173 fs -> final median       6.9 fs (max     173.3) | GOS final      7.1 fs
+   L1|0.02|ac             PHOS init    173 fs -> final median       6.9 fs (max     173.3) | GOS final      3.4 fs
+   L1|0.122|raw           PHOS init    173 fs -> final median       3.7 fs (max     173.3) | GOS final     13.2 fs
+   L1|0.122|ac            PHOS init    173 fs -> final median       3.7 fs (max     173.3) | GOS final      4.8 fs
+   L2|0.122|raw|Ponly     PHOS init    173 fs -> final median       3.7 fs (max     173.3) | GOS final     11.2 fs
+   L2|0.122|ac|Ponly      PHOS init    173 fs -> final median       3.8 fs (max     173.3) | GOS final      4.3 fs
+   L2|0.122|raw           PHOS init    173 fs -> final median       3.7 fs (max     173.3) | GOS final     24.4 fs
+   L2|0.137|2diff         PHOS init    173 fs -> final median     750.9 fs (max     811.1) | GOS final     33.7 fs
+   L2|0.137|raw           PHOS init    173 fs -> final median       3.8 fs (max     173.3) | GOS final     10.3 fs
+   L2|0.137|D:1           PHOS init    173 fs -> final median    1736.9 fs (max   13951.5) | GOS final   7347.8 fs
+
+[S8] closed-form conditions
+   (1) Re H<0 <=> Re L<-1 <=> Re T>1: mismatches 0; Re H<0 with |T|<=1: 0
+   (2) Type-I Re H closed form max err 1.1e-15; min Re H 2.10e-12 (>= 0)
+   (3) Type-II f_inv closed form 134.820096 MHz, numeric 134.820096 MHz
+   (4) CPPLL -Re L closed form max rel err 9.0e-10; band [0.0, 117.2776885156046]
+   (5) ergodic harmonic sums vs exact periodic (Q = 8192): max err 6.5e-10
+   (6) L2: mode-1 inversion GUARANTEED for alpha*f_ref in [32.6793472, 125.32749420000003] MHz (Re H < -0.0626); impossible above 136.39 MHz
+   (6) L3: mode-1 inversion GUARANTEED for alpha*f_ref in [27.729446199999998, 105.087899] MHz (Re H < -0.0636); impossible above 118.78 MHz
+   (7) L1 GOS slow sawtooth [P, C exact D0, asym D0, C exact D1, asym D1]: [[64, 0.01879, 0.02009, 0.003794, 0.004467], [256, 0.004942, 0.005023, 0.001075, 0.001117], [1024, 0.001251, 0.001256, 0.0002766, 0.0002792]]
+   (7) L2 GOS slow sawtooth [P, C exact D0, asym D0, C exact D1, asym D1]: [[64, 0.00638, 0.006382, -0.009245, -0.01563], [256, 0.0003989, 0.0003989, -0.003507, -0.003906], [1024, 2.493e-05, 2.493e-05, -0.0009516, -0.0009766]]
+   (7) L3 GOS slow sawtooth [P, C exact D0, asym D0, C exact D1, asym D1]: [[64, 0.009822, 0.009862, -0.005798, -0.01563], [256, 0.0006164, 0.0006164, -0.00329, -0.003906], [1024, 3.852e-05, 3.852e-05, -0.000938, -0.0009766]]
+   (8) L1 min_f Re Gamma_eff: {'raw': 0.0, '1diff': 0.0, '2diff': -0.1731, 'D:1': -1.2413, 'D:-1': -1.2413, 'fx:exact': 0.0, 'fx:bw0.8': 0.0, 'fx:bw1.2': 0.0, 'fx:typeI': 0.0, 'one_diff_margin': 0.3888}
+   (8) L2 min_f Re Gamma_eff: {'raw': -0.2053, '1diff': 0.0, '2diff': -0.2776, 'D:1': -1.1812, 'D:-1': -1.1812, 'fx:exact': 0.0, 'fx:bw0.8': 0.0, 'fx:bw1.2': 0.0, 'fx:typeI': 0.0, 'P-only loop': 0.0, 'one_diff_margin': 0.2686}
+   (8) L3 min_f Re Gamma_eff: {'raw': -0.1616, '1diff': 0.0, '2diff': -0.4143, 'D:1': -1.0853, 'D:-1': -1.0853, 'fx:exact': 0.0, 'fx:bw0.8': 0.0, 'fx:bw1.2': 0.0, 'fx:typeI': 0.0, 'P-only loop': 0.0, 'one_diff_margin': 0.2698}
+   (9) f_vco check (L2, alpha=0.021): {'12GHz': {'gos': 0.089323, 'phos': -0.017441, 'joint': -0.017441}, '16GHz': {'gos': 0.089323, 'phos': -0.017441, 'joint': -0.017441}, '24GHz': {'gos': 0.089323, 'phos': -0.017441, 'joint': -0.017441}}
+
+runtime 228s

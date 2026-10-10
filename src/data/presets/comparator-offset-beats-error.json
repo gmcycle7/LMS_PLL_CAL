@@ -1,0 +1,11 @@
+{
+  "id": "comparator-offset-beats-error",
+  "title": "Comparator offset θ = 2 fs 蓋過 1 fs 誤差：N 越大越確定判錯",
+  "page": "/ch/05",
+  "experiment": "comparator-lab",
+  "description": "P(q=+1) = Φ((s − θ)/σ_v) < 0.5，E[q] 與 s 反號。增加 N 只會讓錯誤方向更確定；offset 必須先校正（或用 chopping / BBPD 的 integral path 吸收）。",
+  "params": { "s": 1, "sigma": 100, "theta": 2, "N": 10001, "tieRule": "half", "trials": 4000, "method": "auto", "axis": "sum" },
+  "expected": "E[q] = −0.0079787；精確 P(判對) ≈ 21.2%；達 95% 的精確門檻不存在。",
+  "tests": ["T04"],
+  "source": "illustrative"
+}

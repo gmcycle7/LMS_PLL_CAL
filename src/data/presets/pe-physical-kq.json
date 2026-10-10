@@ -1,0 +1,25 @@
+{
+  "id": "pe-physical-kq",
+  "title": "1-bit comparator、物理 K_q：μ = 0.5 fs 需要 75,091 blocks（勘誤 E05）",
+  "page": "/ch/09",
+  "experiment": "pe-eigen-lab",
+  "description": "同樣的「μ = 0.5」，改成 1-bit comparator（σ_v = 100 fs ⇒ K_q = 0.00797885 fs⁻¹）且 μ 以物理單位 fs 輸入：g = μK_q = 0.00399，慢 pole 0.99996011。",
+  "params": {
+    "rho": 0.99,
+    "dist": "gaussian",
+    "detector": "sign",
+    "sigmaV": 100,
+    "kqMode": "physical",
+    "muInput": 0.5,
+    "N": 64,
+    "N0": 100,
+    "d10": 1,
+    "d20": 0,
+    "blocks": 1000,
+    "chains": 32,
+    "seed": 20261010
+  },
+  "expected": "K_q = 0.00797885 fs⁻¹、g = 0.0039894；慢 pole 0.99996011，k₉₅ = 75,091 blocks（不是 598）。把 K_q 模式切回「正規化」並設 g = 0.5，對應 μ = 62.666 fs。",
+  "tests": ["T11"],
+  "source": "illustrative"
+}

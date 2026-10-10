@@ -1,0 +1,54 @@
+{
+  "id": "block-lms-json-unipolar-bug",
+  "title": "反面：comparator 0/1 未映射成 ±1",
+  "page": "/models",
+  "experiment": "block-lms-json",
+  "description": "q = b ∈ {0, 1}（忘了 2b − 1），code 為平均 0.5 的 Gaussian、不正規化（§16.1 第 1 項）。",
+  "params": {
+    "config": {
+      "model": "sign_error_block_lms",
+      "seed": 20261010,
+      "units": {
+        "time": "fs",
+        "frequency": "Hz"
+      },
+      "sample_rate_hz": 4000000000,
+      "output_frequency_hz": 13000000000,
+      "gm_accum_samples": 4096,
+      "gain_initial": 0,
+      "gain_true": 3,
+      "gain_step": 10,
+      "code_normalization": "none",
+      "gm_mode": "average",
+      "pd_noise_rms_fs": 100,
+      "comparator_offset_fs": 0,
+      "comparator_encoding": "unipolar_unmapped_bug",
+      "gm_code_delay_samples": 0,
+      "cal_update_delay_blocks": 0,
+      "pll_error_path": {
+        "kind": "identity",
+        "parameters": {}
+      },
+      "seeded_pattern": {
+        "kind": "gaussian",
+        "parameters": {
+          "mean": 0.5,
+          "sigma": 1,
+          "ar1": 0
+        }
+      },
+      "gain_register": {
+        "internal_bits": 20,
+        "physical_bits": 6,
+        "rounding": "nearest",
+        "overflow": "saturate"
+      },
+      "mode": "exploratory"
+    }
+  },
+  "expected": "有效增益減半（K = ½K_qC），且 E[x] ≠ 0 使固定點移到 w* ≈ 63.5 fs（mean-field），模擬平均約 63 fs，而不是 a = 3 fs。",
+  "source": "simulation",
+  "tests": [
+    "T04"
+  ]
+}

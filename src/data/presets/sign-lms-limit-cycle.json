@@ -1,0 +1,35 @@
+{
+  "id": "sign-lms-limit-cycle",
+  "title": "固定 x = 1、μ = 0.4、無雜訊：LMS 收斂 vs Sign-Error 跳動",
+  "page": "/ch/02",
+  "experiment": "sign-lms-compare",
+  "description": "規格 §2.3「固定步長易在最佳值附近跳動」的數值版：a = 3、w₀ = 0、x ≡ 1、v = 0。",
+  "params": {
+    "a": 3,
+    "w0": 0,
+    "steps": 40,
+    "runs": 4,
+    "algos": [
+      "lms",
+      "sign_error",
+      "sign_sign",
+      "nlms"
+    ],
+    "deltaRef": "a",
+    "mu": 0.4,
+    "xKind": "const",
+    "xAmp": 1,
+    "noiseKind": "none",
+    "sigma": 0,
+    "outlierProb": 0,
+    "outlierSize": 0,
+    "tie": "plus",
+    "schedule": "constant",
+    "n0": 500,
+    "stepMatch": "same-mu",
+    "huberDelta": 0.5,
+    "nlmsEps": 0.1
+  },
+  "expected": "LMS：pole 1 − μx² = 0.6，指數收斂到 3；Sign-Error 與 Sign-Sign：第 7 步起在 2.8 ↔ 3.2 之間跳動（|δ| < μ|x| = 0.4，F-02.10）；NLMS：μ̃ = 0.4、ε = 0.1 ⇒ pole 1 − 0.4/1.1 ≈ 0.636。",
+  "source": "simulation"
+}

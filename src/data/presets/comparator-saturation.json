@@ -1,0 +1,11 @@
+{
+  "id": "comparator-saturation",
+  "title": "大誤差 s = 60 fs（s/σ_v = 0.6）：K_q 線性化失效、S 曲線開始飽和",
+  "page": "/ch/05",
+  "experiment": "comparator-lab",
+  "description": "E[q] = erf(0.6/√2) = 0.4515，但線性近似 K_q·s = 0.4787，高估約 6%；局部斜率只剩 K_q 的 83.5%。",
+  "params": { "s": 60, "sigma": 100, "theta": 0, "N": 101, "tieRule": "half", "trials": 4000, "method": "auto", "axis": "sum" },
+  "expected": "線性化相對誤差 ≈ +6.0%（r²/6 ≈ 6.0%）；N = 101 已幾乎 100% 判對。",
+  "tests": ["T04"],
+  "source": "illustrative"
+}

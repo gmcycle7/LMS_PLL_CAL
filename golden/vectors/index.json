@@ -1,0 +1,152 @@
+{
+  "schema_version": 1,
+  "golden_model_version": "1.0.0",
+  "generator": "golden/export_vectors.py",
+  "comparison_rule": "|actual − expected| ≤ abs + rel·|expected|（逐元素）；tolerance_overrides 覆寫個別 key",
+  "vectors": [
+    {
+      "id": "T01",
+      "file": "T01.json",
+      "spec_section": "§1.2",
+      "description_zh": "手算 LMS：a=3、w0=1、x=2、μ=0.1，前兩步 w1=1.8、w2=2.28"
+    },
+    {
+      "id": "T02",
+      "file": "T02.json",
+      "spec_section": "§3",
+      "description_zh": "固定 x=2 的 LMS 穩定區間 0 < μ < 0.5（Pole p = 1 − μx²）"
+    },
+    {
+      "id": "T03",
+      "file": "T03.json",
+      "spec_section": "§3.1",
+      "description_zh": "Gaussian regressor（E[x²]=1、E[x⁴]=3）：mean 上限 2、mean-square 上限 2/3"
+    },
+    {
+      "id": "T04",
+      "file": "T04.json",
+      "spec_section": "§5、§5.1",
+      "description_zh": "1-bit Comparator：s=1 fs、σ_v=100 fs ⇒ P(q=+1) ≈ 0.503989、K_q ≈ 0.00797885/fs"
+    },
+    {
+      "id": "T05",
+      "file": "T05.json",
+      "spec_section": "§5",
+      "description_zh": "Comparator 方向判斷：N ≈ 42500 時 P(G_N > 0) ≈ 95%（iid / CLT）；規格未定義平手，各種解讀分列"
+    },
+    {
+      "id": "T06",
+      "file": "T06.json",
+      "spec_section": "§6、§6.1",
+      "description_zh": "單頻 x = A cos Ωn、φ = 120°：C = (A²/2)|H|cos φ < 0 ⇒ 正步長平均發散"
+    },
+    {
+      "id": "T07",
+      "file": "T07.json",
+      "spec_section": "§7、§8.1",
+      "description_zh": "Delay Alignment：φ = −120°、Ω = π/6、D = 4 ⇒ 殘餘相位 0°、單頻相關性正最大"
+    },
+    {
+      "id": "T08",
+      "file": "T08.json",
+      "spec_section": "§8.2",
+      "description_zh": "一階 Calibration Loop L(z) = g/(z−1)：g = 1 ⇒ Pole 0、PM 60°"
+    },
+    {
+      "id": "T09",
+      "file": "T09.json",
+      "spec_section": "§8.4",
+      "description_zh": "雙迴路 r=0.8、b=0.2、c=1、μ=1.2：|z| ≈ 1.01980 > 1（簡化模型卻預測穩定）"
+    },
+    {
+      "id": "T10",
+      "file": "T10.json",
+      "spec_section": "§9",
+      "description_zh": "R = [[1, .99], [.99, 1]]：eigenvalues 1.99、0.01；condition number 199"
+    },
+    {
+      "id": "T11",
+      "file": "T11.json",
+      "spec_section": "§9、§10.1",
+      "description_zh": "μ = 0.5、λ_min = 0.01 ⇒ 慢 Pole 0.995、95% 衰減約 598 blocks"
+    },
+    {
+      "id": "T12",
+      "file": "T12.json",
+      "spec_section": "§11.2",
+      "description_zh": "三階 DTC INL：x ∈ {−2,−1,0,1,2} 等機率、a = 1、c = 0.1 ⇒ 單係數 LMS 最佳線性 gain 1.34"
+    },
+    {
+      "id": "T13",
+      "file": "T13.json",
+      "spec_section": "§12.1",
+      "description_zh": "σ_v = 100 fs、N = 4096、μ = 10 fs、C = 1 ⇒ p ≈ 0.92021、σ_w ≈ 0.399 fs"
+    },
+    {
+      "id": "T14",
+      "file": "T14.json",
+      "spec_section": "§12",
+      "description_zh": "f_s = 4 GHz、N = 4096 ⇒ f_u = 976.5625 kHz；Calibration Noise BW「約 12.9 kHz」（四種定義分列）"
+    },
+    {
+      "id": "T15",
+      "file": "T15.json",
+      "spec_section": "§12.2、§12.4",
+      "description_zh": "f_out = 13 GHz、output timing tone 0.5 fs peak、|T| = 1 ⇒ 單邊 Spur ≈ −93.8 dBc"
+    },
+    {
+      "id": "T16",
+      "file": "T16.json",
+      "spec_section": "§13.1、§13.2、§13.4",
+      "description_zh": "目標 32.4 LSB、週期 5 toggle [32,32,33,32,33] ⇒ 平均 32.4、週期 5"
+    },
+    {
+      "id": "T17",
+      "file": "T17.json",
+      "spec_section": "§13.3",
+      "description_zh": "Stochastic Rounding：32/33 隨機切換、P(33) = 0.4 ⇒ 平均 32.4、變異 0.24 LSB²"
+    },
+    {
+      "id": "T18",
+      "file": "T18.json",
+      "spec_section": "§10.2",
+      "description_zh": "J = [[−1, 2], [2, −1]]、M = 0.2I ⇒ eig(I + MJ) = 1.2、0.4（一起更新時發散）"
+    },
+    {
+      "id": "delay_bounds",
+      "file": "delay_bounds.json",
+      "spec_section": "§8.3",
+      "description_zh": "更新延遲 d 個 block：δ_{k+1} = δ_k − gδ_{k−d} 的臨界增益 g_crit = 2 sin(π/(4d+2))"
+    },
+    {
+      "id": "comparator_table",
+      "file": "comparator_table.json",
+      "spec_section": "§5、§5.1",
+      "description_zh": "Gaussian Comparator S 曲線：s/σ 對 P(+1)、E[q] 與小訊號線性近似"
+    },
+    {
+      "id": "quantizer_first_order",
+      "file": "quantizer_first_order.json",
+      "spec_section": "§13.4",
+      "description_zh": "一階 Error-Feedback Quantizer 對常數 32.4 的輸出：週期 5 的決定性 limit cycle"
+    },
+    {
+      "id": "preconditioner_variance",
+      "file": "preconditioner_variance.json",
+      "spec_section": "§10.1",
+      "description_zh": "完整 Preconditioning 的穩態變異 Var(δ_i) = γ/(K_q² N λ_i (2 − γ))"
+    },
+    {
+      "id": "msd_after_blocks",
+      "file": "msd_after_blocks.json",
+      "spec_section": "§14、§14.1",
+      "description_zh": "§14 E[δ_B²] = δ0² p^{2B} + μ²σ_η²(1 − p^{2B})/(1 − p²)"
+    },
+    {
+      "id": "negative_tests",
+      "file": "negative_tests.json",
+      "spec_section": "§17",
+      "description_zh": "規格 §17 反面測試的關鍵數值（極性反轉、缺乏 PE、sum/average scaling、0/1 編碼、code 錯位、overflow）"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "gmac-datapath-sizing-guard-bits",
+  "title": "floor 右移、保留 4 個小數 bit",
+  "page": "/models",
+  "experiment": "gmac-datapath-sizing",
+  "description": "右移 8 bits、保留 F_G = 4。",
+  "params": {
+    "bx": 6,
+    "log2N": 12,
+    "range": "symmetric",
+    "rounding": "floor",
+    "gFracBits": 4,
+    "sigmaV": 100,
+    "mu": 10
+  },
+  "expected": "δ* ≈ 0.129 fs，近似式 Δ_G/(2K) = 0.130 fs；小於 σ_w，無截斷警告。",
+  "source": "illustrative"
+}

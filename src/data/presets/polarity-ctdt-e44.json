@@ -1,0 +1,16 @@
+{
+  "id": "polarity-ctdt-e44",
+  "title": "E44：ω_nT_s = 0.3、d = 1，polarity 邊界移到 1.49ω_n",
+  "page": "/ch/06",
+  "experiment": "polarity-ct-dt",
+  "description": "CT 原型與 DT Type-II 迴路的 Re{H_PD} 對照。",
+  "params": {
+    "type": "typeII",
+    "zeta": 0.7,
+    "wLTs": 0.3,
+    "loopDelay": 1
+  },
+  "expected": "DT 邊界 Ω₀ = 1.4926ω_nT_s（CT 為 ω_n）；∠H(0.3ω_nT_s) = 161.28°（CT 155.22°）；白色 code 錯誤代入 CT 得 0.7988σ²，正確 DT 值為 1。",
+  "tests": [],
+  "source": "simulation"
+}

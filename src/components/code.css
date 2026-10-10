@@ -1,0 +1,425 @@
+/* ===== CodeBlock / CodeCompare ===== */
+.c-code {
+  margin: 14px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+.c-code-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.82rem;
+}
+.c-code-title {
+  font-weight: 600;
+}
+.c-code-path {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+.c-code-lang {
+  margin-left: auto;
+  color: var(--text-faint);
+}
+.c-code-copy {
+  padding: 1px 8px;
+  font-size: 0.78rem;
+}
+.c-code-pre {
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  padding: 8px 0;
+  background: var(--surface);
+  max-height: 520px;
+  overflow: auto;
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+.c-code-pre code {
+  display: block;
+  min-width: max-content;
+}
+.c-code-line {
+  display: block;
+  padding: 0 12px 0 0;
+  white-space: pre;
+}
+.c-code-ln {
+  display: inline-block;
+  width: 3.2em;
+  padding-right: 0.9em;
+  text-align: right;
+  color: var(--text-faint);
+  user-select: none;
+}
+.c-code-mark {
+  background: var(--warn-soft);
+  box-shadow: inset 3px 0 0 var(--warn);
+}
+.c-code-caption {
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  padding: 6px 2px;
+}
+
+.c-code-compare {
+  margin: 16px 0;
+}
+.c-code-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.c-code-tab {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 4px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.c-code-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.c-code-compare-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.c-code-compare-note {
+  font-size: 0.84rem;
+  color: var(--text-muted);
+}
+.c-code-compare-tabs .c-code-compare-item,
+.c-code-compare-columns .c-code-compare-item {
+  display: none;
+}
+.c-code-compare-tabs .c-code-compare-item.active,
+.c-code-compare-columns .c-code-compare-item.active {
+  display: block;
+}
+.c-code-compare-label {
+  display: none;
+}
+@media (min-width: 1200px) {
+  .c-code-compare-columns .c-code-tabs {
+    display: none;
+  }
+  .c-code-compare-columns .c-code-compare-body {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+    grid-auto-flow: column;
+    gap: 10px;
+  }
+  .c-code-compare-columns .c-code-compare-item {
+    display: block;
+    min-width: 0;
+  }
+  .c-code-compare-columns .c-code-compare-label {
+    display: block;
+  }
+}
+
+/* highlight.js tokens using site tokens (both themes) */
+.hljs-keyword,
+.hljs-built_in,
+.hljs-literal {
+  color: var(--series-5);
+}
+.hljs-string,
+.hljs-regexp {
+  color: var(--series-3);
+}
+.hljs-number {
+  color: var(--series-4);
+}
+.hljs-comment {
+  color: var(--text-faint);
+  font-style: italic;
+}
+.hljs-title,
+.hljs-title.function_,
+.hljs-title.class_ {
+  color: var(--series-1);
+}
+.hljs-type,
+.hljs-params {
+  color: var(--series-6);
+}
+.hljs-attr,
+.hljs-property,
+.hljs-variable {
+  color: var(--series-2);
+}
+
+/* ===== Teaching components ===== */
+.c-symbols {
+  margin: 14px 0 18px;
+}
+.c-symbols-title,
+.c-quiz-title,
+.c-recap-title,
+.c-steps-title {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.c-quiz {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--series-5);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--surface);
+  padding: 10px 14px;
+  margin: 16px 0;
+}
+.c-quiz-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0;
+}
+.c-quiz-opt {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.c-quiz-opt.ok {
+  background: var(--ok-soft);
+}
+.c-quiz-opt.bad {
+  background: var(--danger-soft);
+}
+.c-quiz-verdict {
+  font-weight: 600;
+  margin: 4px 0 8px;
+}
+.c-quiz-verdict.ok {
+  color: var(--ok);
+}
+.c-quiz-verdict.bad {
+  color: var(--danger);
+}
+.c-quiz-answer {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+}
+.c-recap {
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  padding: 12px 16px;
+  margin: 20px 0;
+}
+.c-recap-label {
+  font-size: 0.86rem;
+  color: var(--text-muted);
+}
+.c-recap-sub {
+  font-weight: 600;
+  margin-top: 10px;
+}
+.c-recap-points {
+  margin: 4px 0 0;
+}
+.c-prereq {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  margin: 12px 0;
+  padding: 6px 12px;
+}
+.c-prereq summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.c-prereq-badge {
+  display: inline-block;
+  font-size: 0.74rem;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--info);
+  color: var(--surface);
+  margin-right: 4px;
+  vertical-align: 1px;
+}
+.c-prereq-body {
+  padding: 6px 0 4px;
+}
+.c-steps {
+  margin: 14px 0;
+}
+.c-steps-list {
+  margin: 0;
+  padding-left: 1.6em;
+}
+.c-step {
+  margin: 4px 0 10px;
+}
+.c-step-tex .katex-display {
+  margin: 0.2em 0;
+  text-align: left;
+}
+.c-step-tex .katex-display > .katex {
+  text-align: left;
+}
+.c-step-why {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  border-left: 2px solid var(--border-strong);
+  padding-left: 8px;
+}
+.c-steps-result {
+  margin-top: 6px;
+}
+
+/* ===== HandCalc（帶入手算） ===== */
+.c-handcalc {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--series-3);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--surface);
+  padding: 10px 14px 12px;
+  margin: 18px 0;
+}
+.c-handcalc-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.c-handcalc-badge {
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--series-3);
+  color: var(--surface);
+  white-space: nowrap;
+}
+.c-handcalc-title {
+  font-weight: 700;
+}
+.c-handcalc-meta {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.c-handcalc-id {
+  font-family: var(--font-mono);
+}
+.c-handcalc-intro {
+  margin: 6px 0 0;
+}
+.c-handcalc-inputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 6px 14px;
+  margin: 8px 0;
+}
+.c-handcalc-input,
+.c-handcalc-answer label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+.c-handcalc-input input,
+.c-handcalc-answer input {
+  width: 7.5em;
+  font-family: var(--font-mono);
+}
+.c-handcalc-input.bad input {
+  border-color: var(--danger);
+}
+.c-handcalc-sym {
+  min-width: 2.4em;
+}
+.c-handcalc-label {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+}
+.c-handcalc-unit {
+  color: var(--text-muted);
+}
+.c-handcalc-err {
+  flex-basis: 100%;
+  color: var(--danger);
+  font-size: 0.8rem;
+}
+.c-handcalc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+.c-handcalc-modes {
+  display: flex;
+  gap: 4px;
+}
+.c-handcalc-practice {
+  border-top: 1px dashed var(--border);
+  margin-top: 6px;
+  padding-top: 6px;
+}
+.c-handcalc-answer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0;
+}
+.c-handcalc-verdict {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.c-handcalc-verdict.ok {
+  color: var(--ok);
+}
+.c-handcalc-verdict.bad {
+  color: var(--danger);
+}
+.c-handcalc-solution {
+  border-top: 1px dashed var(--border);
+  margin-top: 8px;
+  padding-top: 8px;
+}
+.c-handcalc-notes {
+  margin: 6px 0 0;
+  font-size: 0.9rem;
+}
+.c-handcalc-tips {
+  margin-top: 8px;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+}
+.c-handcalc-tips summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+@media print {
+  .c-handcalc-actions,
+  .c-handcalc-intro {
+    display: none;
+  }
+}

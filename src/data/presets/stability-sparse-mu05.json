@@ -1,0 +1,23 @@
+{
+  "id": "stability-sparse-mu05",
+  "title": "稀疏 code {0×9, 3}、μ = 0.5：mean 收斂但路徑發散",
+  "page": "/ch/03",
+  "experiment": "stability-lab",
+  "description": "10 筆中 1 筆是 3：抽到 3 時乘上 −3.5。mean 與 a.s. 沒有一般順序的反例。",
+  "params": {
+    "dist": "list",
+    "xValue": 2,
+    "sigma": 1,
+    "halfWidth": 1.7320508075688772,
+    "amplitude": 1,
+    "listText": "0, 0, 0, 0, 0, 0, 0, 0, 0, 3",
+    "delta0": 1,
+    "paths": 2000,
+    "steps": 200,
+    "noiseSigma": 0,
+    "mu": 0.5
+  },
+  "expected": "P_x = 0.9：1 − μP_x = 0.55（mean 收斂）；g = 2.125、λ = +0.1253 > 0（MS 與 a.s. 界都是 2/9）；典型路徑 n = 200 時 ≈ 10^+10.88。",
+  "tests": [],
+  "source": "illustrative"
+}

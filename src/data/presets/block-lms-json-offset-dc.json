@@ -1,0 +1,50 @@
+{
+  "id": "block-lms-json-offset-dc",
+  "title": "Comparator offset × 未置中 code（靜態 bias）",
+  "page": "/models",
+  "experiment": "block-lms-json",
+  "description": "comparator offset b = 30 fs，code 為 [0, 1) 均勻分布、unit_rms 只除 RMS 不減平均（§11.1）。",
+  "params": {
+    "config": {
+      "model": "sign_error_block_lms",
+      "seed": 20261010,
+      "units": {
+        "time": "fs",
+        "frequency": "Hz"
+      },
+      "sample_rate_hz": 4000000000,
+      "output_frequency_hz": 13000000000,
+      "gm_accum_samples": 4096,
+      "gain_initial": 0,
+      "gain_true": 3,
+      "gain_step": 10,
+      "code_normalization": "unit_rms",
+      "gm_mode": "average",
+      "pd_noise_rms_fs": 100,
+      "comparator_offset_fs": 30,
+      "comparator_encoding": "bipolar_pm_one",
+      "gm_code_delay_samples": 0,
+      "cal_update_delay_blocks": 0,
+      "pll_error_path": {
+        "kind": "identity",
+        "parameters": {}
+      },
+      "seeded_pattern": {
+        "kind": "uniform",
+        "parameters": {
+          "low": 0,
+          "high": 1
+        }
+      },
+      "gain_register": {
+        "internal_bits": 20,
+        "physical_bits": 6,
+        "rounding": "nearest",
+        "overflow": "saturate"
+      },
+      "mode": "exploratory"
+    }
+  },
+  "expected": "靜態模型 w* ≈ a + b·E[x]/E[x²] = 3 + 30×0.866 ≈ 29 fs，發出 bias 警告；若 comparator 就是 type-II 主迴路的 BBPD（DC 被歸零），此 bias 不存在（E03）。",
+  "source": "simulation"
+}

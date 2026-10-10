@@ -1,0 +1,47 @@
+{
+  "id": "filtered-x-latency-mismatch",
+  "title": "E45：Ĥ 多算 latency，filtered-x 也會反向更新",
+  "page": "/ch/07",
+  "experiment": "delay-fx-lab",
+  "description": "T07 的單頻場景，三個 Case 都用 filtered-x：A Ĥ = H、B Ĥ = H·z⁻³、C Ĥ = H·z⁻⁴。相位差 ΩΔ = 0°、90°、120°。",
+  "params": {
+    "scenario": {
+      "pathKind": "single_tone",
+      "mag": 1,
+      "phiDeg": -120,
+      "codeKind": "sinusoid",
+      "omega": 0.5235987755982988,
+      "a": 3,
+      "w0": 0,
+      "sigmaV": 100,
+      "N": 1024,
+      "blocks": 300,
+      "Dmax": 24
+    },
+    "cases": [
+      {
+        "mode": "filtered",
+        "D": 0,
+        "mu": 10
+      },
+      {
+        "mode": "filtered",
+        "D": 0,
+        "mu": 10,
+        "extraDelay": 3
+      },
+      {
+        "mode": "filtered",
+        "D": 0,
+        "mu": 10,
+        "extraDelay": 4
+      }
+    ],
+    "seed": 20261010
+  },
+  "expected": "E[u·u_f] = cos(ΩΔ)：A = +1（收斂）、B = 0（沒有恢復力）、C = −0.5（pole 1.0399，發散）。若誤用 E[u²] = 1 計算 pole，三者都會顯示 0.9202（錯誤）。",
+  "tests": [
+    "T07"
+  ],
+  "source": "simulation"
+}

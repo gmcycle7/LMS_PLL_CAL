@@ -1,0 +1,11 @@
+{
+  "id": "dual-loop-mu05-slow",
+  "title": "雙迴路 μ = 0.5：都穩定，但實際慢 13 倍（E19）",
+  "page": "/ch/08",
+  "experiment": "dual-loop",
+  "description": "超過複數門檻 μ = (1 − r)²/(4bc) = 0.05 後，完整模型的 |z| = √(0.8 + 0.2μ) ≥ 0.9：簡化 pole 0.5 嚴重高估收斂速度。",
+  "params": { "mode": "two-state", "r": 0.8, "b": 0.2, "c": 1, "mu": 0.5, "steps": 300 },
+  "expected": "quasi-static pole 0.5（τ ≈ 1.44 blocks）；完整 ρ = 0.9487（τ ≈ 19 blocks）。",
+  "tests": ["T09"],
+  "source": "illustrative"
+}

@@ -1,0 +1,125 @@
+/* Ch11 專屬樣式（class 一律 ch11- 前綴） */
+
+.ch11-erratum {
+  display: inline-block;
+  margin: 0 0.25em;
+  padding: 0 0.45em;
+  border: 1px solid var(--warn);
+  border-radius: 999px;
+  color: var(--warn);
+  background: var(--warn-soft);
+  font-size: 0.78em;
+  line-height: 1.6;
+  white-space: nowrap;
+  text-decoration: none;
+  vertical-align: 0.1em;
+}
+.ch11-erratum:hover {
+  text-decoration: underline;
+}
+
+.ch11-details {
+  margin: 0.75rem 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.ch11-details > summary {
+  cursor: pointer;
+  padding: 0.55rem 0.8rem;
+  font-weight: 600;
+  list-style-position: inside;
+}
+.ch11-details-body {
+  padding: 0 0.8rem 0.7rem;
+  min-width: 0;
+}
+
+.ch11-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.6rem;
+  margin: 0.5rem 0 0.9rem;
+}
+.ch11-kpi {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+  background: var(--surface-2);
+  min-width: 0;
+}
+.ch11-kpi-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.ch11-kpi-value {
+  font-size: 1.15rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.ch11-kpi-note {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.ch11-group-title {
+  margin: 0.8rem 0 0.3rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+.ch11-group-title:first-child {
+  margin-top: 0;
+}
+
+.ch11-table td,
+.ch11-table th {
+  font-variant-numeric: tabular-nums;
+}
+.ch11-table td.num {
+  text-align: right;
+  white-space: nowrap;
+}
+.ch11-table tr.ch11-hl td {
+  background: var(--accent-soft);
+}
+
+.ch11-plot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: 0.75rem;
+  min-width: 0;
+}
+.ch11-plot-grid > * {
+  min-width: 0;
+}
+
+.ch11-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  vertical-align: middle;
+}
+
+.ch11-lead {
+  font-size: 1.05rem;
+}
+
+.ch11-status {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* 帶入手算（HandCalc）前的引言 */
+.ch11-hand {
+  margin: 1rem 0;
+  min-width: 0;
+}
+.ch11-hand-lead {
+  margin: 0 0 0.25rem;
+}
+.ch11-hand .c-handcalc {
+  margin-top: 0.4rem;
+}

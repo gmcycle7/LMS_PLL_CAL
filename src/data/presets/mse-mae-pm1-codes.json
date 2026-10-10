@@ -1,0 +1,25 @@
+{
+  "id": "mse-mae-pm1-codes",
+  "title": "±1 code regressor + outlier",
+  "page": "/ch/01",
+  "experiment": "mse-vs-mae",
+  "description": "x = ±1（像 DSM ±1 code）：Sign-Error 仍在格點上，lattice 解與定點 Monte Carlo 可精確比對。",
+  "params": {
+    "model": "contaminated",
+    "xDist": "pm1",
+    "xScale": 1,
+    "a": 3,
+    "sigma": 1,
+    "outlierProb": 0.1,
+    "outlierSize": 20,
+    "outlierSign": "positive",
+    "mu": 0.05,
+    "w0": 0,
+    "n": 8000,
+    "tie": "plus",
+    "huberDelta": 1,
+    "seed": 9
+  },
+  "expected": "三種母體最佳解 = 3；定點 Sign-Error 的時間平均與 lattice 精確值在 5σ（鏈的精確標準誤）內一致；std ≈ 0.19 ≈ √(μ/(4f))。",
+  "source": "simulation"
+}

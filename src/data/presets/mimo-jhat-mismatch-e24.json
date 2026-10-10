@@ -1,0 +1,68 @@
+{
+  "id": "mimo-jhat-mismatch-e24",
+  "title": "Ĵ 失配（勘誤 E24）：ρ̂ = 0.996 的完整反矩陣發散，λ_reg = 1e-4 救回",
+  "page": "/ch/10",
+  "experiment": "mimo-lms",
+  "description": "真實 R = [[1, .99], [.99, 1]]，但 M 用量測的 Ĵ_n = −[[1, .996], [.996, 1]] 建構（J 形式 regularized pinv，γ = 1）。Case A：λ_reg = 0；Case B：λ_reg = 1e-4；Case C：λ_reg = 1e-3。",
+  "params": {
+    "P": 2,
+    "mode": "R",
+    "R": [
+      [
+        1,
+        0.99
+      ],
+      [
+        0.99,
+        1
+      ]
+    ],
+    "sigmaV": 100,
+    "N": 4096,
+    "dist": "gaussian",
+    "delta0": [
+      30,
+      0
+    ],
+    "blocks": 60,
+    "engine": "linear",
+    "jhatSource": "custom",
+    "jhatCustom": [
+      [
+        -1,
+        -0.996
+      ],
+      [
+        -0.996,
+        -1
+      ]
+    ],
+    "showAllRules": false,
+    "cases": [
+      {
+        "rule": "regularized",
+        "regForm": "J",
+        "gamma": 1,
+        "lambdaReg": 0
+      },
+      {
+        "rule": "regularized",
+        "regForm": "J",
+        "gamma": 1,
+        "lambdaReg": 0.0001
+      },
+      {
+        "rule": "regularized",
+        "regForm": "J",
+        "gamma": 1,
+        "lambdaReg": 0.001
+      }
+    ],
+    "seed": 20261010
+  },
+  "expected": "poles = eig(I + M(Ĵ)J)：λ_reg = 0 ⇒ 0.003 與 −1.5（發散，差模每 block ×−1.5）；λ_reg = 1e-4 ⇒ 0.003、0.655；λ_reg = 1e-3 ⇒ 0.003、0.961。封閉式 1 − γσ²/(σ²+λ_reg) 在 Ĵ ≠ J 時不成立。",
+  "tests": [
+    "T18"
+  ],
+  "source": "illustrative"
+}

@@ -1,0 +1,44 @@
+{
+  "id": "T10",
+  "description_zh": "R = [[1, .99], [.99, 1]]：eigenvalues 1.99、0.01；condition number 199",
+  "spec_section": "§9",
+  "inputs": {
+    "R": [
+      [
+        1.0,
+        0.99
+      ],
+      [
+        0.99,
+        1.0
+      ]
+    ],
+    "rho_missing_pe": 1.0
+  },
+  "expected": {
+    "eig_max": 1.99,
+    "eig_min": 0.009999999999999953,
+    "cond": 199.00000000000196,
+    "eigvec_max": [
+      0.7071067811865475,
+      0.7071067811865475
+    ],
+    "eigvec_min": [
+      0.7071067811865475,
+      -0.7071067811865475
+    ],
+    "missing_pe_eig_list": [
+      2.0,
+      0.0
+    ]
+  },
+  "tolerance": {
+    "abs": 1e-12
+  },
+  "tolerance_overrides": {
+    "cond": {
+      "rel": 1e-10
+    }
+  },
+  "notes": "eigenvector 正規化：單位長度、第一個非零分量為正。missing_pe_eig_list：反面測試 ρ = 1 ⇒ eigenvalues [2, 0]，[1, −1]/√2 方向不可辨識（cond = ∞；浮點 SVD 會給 ~1e17）。"
+}

@@ -1,0 +1,30 @@
+{
+  "id": "noise-code-spectra",
+  "title": "三種 code 的 δt 頻譜：0.398 / 0.281 / 0.0089 fs",
+  "page": "/ch/12",
+  "experiment": "code-spectra-lab",
+  "description": "同一個 σ_w = 0.399 fs 乘上常數 / 100 kHz 單頻 / ±1 隨機 code，在 0…1 MHz 內的 RMS；type-II PLL（f_3dB,T = 1 MHz、ζ = 0.707）下的 output 與 PD residual。按 Run 做逐 sample + FFT 驗證。",
+  "params": {
+    "N": 4096,
+    "fs": 4000000000.0,
+    "mu": 10,
+    "sigmaV": 100,
+    "C": 1,
+    "fx": 100000.0,
+    "toneA": 1,
+    "fBw": 1000000.0,
+    "f3dbT": 1000000.0,
+    "zeta": 0.707,
+    "fL": 1000.0,
+    "fH": 100000000.0,
+    "fOut": 13000000000.0,
+    "blocks": 256,
+    "chains": 6,
+    "engine": "linear"
+  },
+  "expected": "in-band RMS：常數 0.3976、單頻 0.2811、±1 隨機 0.00893 fs（解析，含 ZOH multirate 修正）；模擬的 in-band 比例 CI 涵蓋解析值。",
+  "tests": [
+    "T13"
+  ],
+  "source": "simulation"
+}

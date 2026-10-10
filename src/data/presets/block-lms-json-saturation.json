@@ -1,0 +1,49 @@
+{
+  "id": "block-lms-json-saturation",
+  "title": "L5：真值超出可調範圍（saturate）",
+  "page": "/models",
+  "experiment": "block-lms-json",
+  "description": "6-bit unsigned 實體 code × 0.125 fs 的最大值 7.875 fs，但 a = 9 fs（§16.1 第 8 項）。",
+  "params": {
+    "config": {
+      "model": "sign_error_block_lms",
+      "seed": 20261010,
+      "units": {
+        "time": "fs",
+        "frequency": "Hz"
+      },
+      "sample_rate_hz": 4000000000,
+      "output_frequency_hz": 13000000000,
+      "gm_accum_samples": 4096,
+      "gain_initial": 0,
+      "gain_true": 9,
+      "gain_step": 10,
+      "code_normalization": "unit_rms",
+      "gm_mode": "average",
+      "pd_noise_rms_fs": 100,
+      "comparator_offset_fs": 0,
+      "comparator_encoding": "bipolar_pm_one",
+      "gm_code_delay_samples": 0,
+      "cal_update_delay_blocks": 0,
+      "pll_error_path": {
+        "kind": "identity",
+        "parameters": {}
+      },
+      "seeded_pattern": {
+        "kind": "iid_pm_one",
+        "parameters": {}
+      },
+      "gain_register": {
+        "internal_bits": 20,
+        "physical_bits": 6,
+        "rounding": "nearest",
+        "overflow": "saturate",
+        "quantize_physical": true
+      },
+      "mode": "exploratory",
+      "num_blocks": 600
+    }
+  },
+  "expected": "實體 gain 停在 rail 7.875 fs，saturationCount > 0 並發出飽和警告；GMAC 永遠同號。",
+  "source": "simulation"
+}

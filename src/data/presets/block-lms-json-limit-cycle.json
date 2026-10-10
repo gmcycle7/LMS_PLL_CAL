@@ -1,0 +1,49 @@
+{
+  "id": "block-lms-json-limit-cycle",
+  "title": "L5：σ_v = 0 的定點 limit cycle",
+  "page": "/models",
+  "experiment": "block-lms-json",
+  "description": "無 comparator 雜訊、a = 3.05 fs 落在兩個實體 code（LSB = 0.125 fs）之間，quantize_physical = true（§16.1 第 6 項、§13）。",
+  "params": {
+    "config": {
+      "model": "sign_error_block_lms",
+      "seed": 20261010,
+      "units": {
+        "time": "fs",
+        "frequency": "Hz"
+      },
+      "sample_rate_hz": 4000000000,
+      "output_frequency_hz": 13000000000,
+      "gm_accum_samples": 4096,
+      "gain_initial": 0,
+      "gain_true": 3.05,
+      "gain_step": 0.05,
+      "code_normalization": "unit_rms",
+      "gm_mode": "average",
+      "pd_noise_rms_fs": 0,
+      "comparator_offset_fs": 0,
+      "comparator_encoding": "bipolar_pm_one",
+      "gm_code_delay_samples": 0,
+      "cal_update_delay_blocks": 0,
+      "pll_error_path": {
+        "kind": "identity",
+        "parameters": {}
+      },
+      "seeded_pattern": {
+        "kind": "iid_pm_one",
+        "parameters": {}
+      },
+      "gain_register": {
+        "internal_bits": 20,
+        "physical_bits": 6,
+        "rounding": "nearest",
+        "overflow": "saturate",
+        "quantize_physical": true
+      },
+      "mode": "exploratory",
+      "num_blocks": 400
+    }
+  },
+  "expected": "實體 gain 在 3.000 與 3.125 fs 之間以週期 2 toggle，平均 3.0625 fs ≠ 3.05 fs；σ_v = 0 警告（K_q 無定義）。",
+  "source": "simulation"
+}

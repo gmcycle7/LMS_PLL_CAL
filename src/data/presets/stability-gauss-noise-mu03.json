@@ -1,0 +1,25 @@
+{
+  "id": "stability-gauss-noise-mu03",
+  "title": "Gaussian + 雜訊 σ_v = 0.1、μ = 0.3：有限穩態 MSD",
+  "page": "/ch/03",
+  "experiment": "stability-lab",
+  "description": "g < 1：穩態 MSD 有限，分位帶停在 √MSD∞ 附近。",
+  "params": {
+    "dist": "gaussian",
+    "xValue": 2,
+    "sigma": 1,
+    "halfWidth": 1.7320508075688772,
+    "amplitude": 1,
+    "listText": "0, 0, 0, 0, 0, 0, 0, 0, 0, 3",
+    "delta0": 1,
+    "paths": 2000,
+    "steps": 300,
+    "noiseSigma": 0.1,
+    "mu": 0.3
+  },
+  "expected": "MSD∞ = μP_xσ_v²/(2P_x − μM_4) = 0.002727（√ = 0.0522）、MSE∞ = 0.01273；Kesten 尾指數 κ_t ≈ 5.31 > 2。",
+  "tests": [
+    "T03"
+  ],
+  "source": "illustrative"
+}

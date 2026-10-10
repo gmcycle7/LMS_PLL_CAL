@@ -1,0 +1,12 @@
+{
+  "id": "comparator-1fs-100fs",
+  "title": "1 fs Error + 100 fs RMS Noise：1-bit 仍保留微弱資訊",
+  "galleryIndex": 2,
+  "page": "/ch/05",
+  "experiment": "comparator-lab",
+  "description": "固定誤差 s = 1 fs 埋在 σ_v = 100 fs 的 Gaussian 雜訊裡，comparator 只輸出 ±1。單次幾乎是擲硬幣，但 N = 10,001 次（奇數，沒有 tie）累加後，方向判斷正確率約 78.8%。",
+  "params": { "s": 1, "sigma": 100, "theta": 0, "N": 10001, "tieRule": "half", "trials": 4000, "method": "auto", "axis": "sum" },
+  "expected": "P(q=+1) = Φ(0.01) = 0.503989（T04）；E[q] = 0.0079787；K_q = 0.00797885 fs⁻¹；E[S_N] = 79.8、SD(S_N) = 100.0；精確 P(判對) = 78.75%（CLT 78.75%）；達 95% 需 N ≈ 42,500（奇數精確門檻 42,499，T05）。",
+  "tests": ["T04", "T05"],
+  "source": "illustrative"
+}

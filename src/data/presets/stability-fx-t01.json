@@ -1,0 +1,19 @@
+{
+  "id": "stability-fx-t01",
+  "title": "手算例子 a = 3、w₀ = 1、x = 2、μ = 0.1",
+  "page": "/ch/03",
+  "experiment": "stability-fixed-x",
+  "description": "規格 T01 / T02 的手算例子（δ = a − w）。",
+  "params": {
+    "a": 3,
+    "w0": 1,
+    "x": 2,
+    "mu": 0.1,
+    "steps": 20
+  },
+  "expected": "w₁ = 1.8、w₂ = 2.28；δ = +2、+1.2、+0.72；p = 0.6。",
+  "tests": [
+    "T02"
+  ],
+  "source": "illustrative"
+}

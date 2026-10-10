@@ -1,0 +1,33 @@
+{
+  "id": "T13",
+  "description_zh": "σ_v = 100 fs、N = 4096、μ = 10 fs、C = 1 ⇒ p ≈ 0.92021、σ_w ≈ 0.399 fs",
+  "spec_section": "§12.1",
+  "inputs": {
+    "sigma_v_fs": 100.0,
+    "N": 4096,
+    "mu_fs": 10.0,
+    "C": 1.0,
+    "sigma_eta2": 0.000244140625
+  },
+  "expected": {
+    "K_per_fs": 0.007978845608028654,
+    "g": 0.07978845608028654,
+    "p": 0.9202115439197135,
+    "sigma_w_fs": 0.3991861429909288,
+    "sigma_w2_fs2": 0.15934957675597425,
+    "g_sum_mode": 326.81351610485365,
+    "pole_sum_mode": -325.81351610485365
+  },
+  "tolerance": {
+    "abs": 1e-12
+  },
+  "tolerance_overrides": {
+    "g_sum_mode": {
+      "rel": 1e-12
+    },
+    "pole_sum_mode": {
+      "rel": 1e-12
+    }
+  },
+  "notes": "K = K_q·C、g = μK、p = 1 − g、σ_w = μ/√(N(1 − p²))（σ_η² ≈ 1/N；x = ±1 時精確值為 (1 − m²)/N）。g_sum_mode / pole_sum_mode：反面測試，GMAC 用總和卻沿用 average 的 μ ⇒ g 乘以 N。0.399 fs 是 gain-equivalent noise，不是 output jitter。"
+}

@@ -1,0 +1,50 @@
+{
+  "id": "block-lms-json-sum-mode",
+  "title": "反面：sum GMAC 卻沿用 average 的 μ",
+  "page": "/models",
+  "experiment": "block-lms-json",
+  "description": "只把 gm_mode 改成 sum、μ 仍為 10 fs（§16.1 第 4 項、§17 反面測試）。",
+  "params": {
+    "config": {
+      "model": "sign_error_block_lms",
+      "seed": 20261010,
+      "units": {
+        "time": "fs",
+        "frequency": "Hz"
+      },
+      "sample_rate_hz": 4000000000,
+      "output_frequency_hz": 13000000000,
+      "gm_accum_samples": 4096,
+      "gain_initial": 0,
+      "gain_true": 3,
+      "gain_step": 10,
+      "code_normalization": "unit_rms",
+      "gm_mode": "sum",
+      "pd_noise_rms_fs": 100,
+      "comparator_offset_fs": 0,
+      "comparator_encoding": "bipolar_pm_one",
+      "gm_code_delay_samples": 0,
+      "cal_update_delay_blocks": 0,
+      "pll_error_path": {
+        "kind": "identity",
+        "parameters": {}
+      },
+      "seeded_pattern": {
+        "kind": "iid_pm_one",
+        "parameters": {}
+      },
+      "gain_register": {
+        "internal_bits": 20,
+        "physical_bits": 6,
+        "rounding": "nearest",
+        "overflow": "saturate"
+      },
+      "mode": "exploratory"
+    }
+  },
+  "expected": "g = N·0.079788 = 326.8、pole = −325.8，發出「gm_mode=sum 時有效增益放大 N 倍」與「g ≥ 2」警告；sign-LMS 的 |G| 有界，w 在數萬 fs 的兩個值之間 period-2 振盪，不會收斂到 3 fs。",
+  "source": "simulation",
+  "tests": [
+    "T13"
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "id": "gauge-dc-null",
+  "title": "PLL 抑制 DC（H_PD(1) = 0）：null space 變 2 維（勘誤 E04）",
+  "page": "/ch/09",
+  "experiment": "gauge-one-hot",
+  "description": "同 Gallery #11，但誤差經 type-II DPLL 的 H_PD（ω_nT_s = 0.05、ζ = 0.7）。b 的 regressor（常數 1）被濾成 0，Σũᵢ 也 → 0：b 完全不可觀察，aᵢ 共模也不可觀察。",
+  "params": {
+    "b": 0.3,
+    "a0": 1.0,
+    "a1": -0.5,
+    "a2": 0.2,
+    "a3": 0.7,
+    "c": 0.9,
+    "dB": 0.4,
+    "dcNull": true,
+    "pathType": "type2",
+    "pllMethod": "dpll",
+    "wnTs": 0.05,
+    "zeta": 0.7,
+    "hpPole": 0.95,
+    "sequence": "random",
+    "T": 20000,
+    "skip": 2000,
+    "mu": 0.5,
+    "N": 64,
+    "blocks": 150,
+    "sigmaV": 0.02,
+    "gmacReg": "filtered",
+    "seed": 20261010
+  },
+  "expected": "H_PD(1) = 0；R_u 有 2 個零 eigenvalue，非零的 3 個 ≈ ‖h‖²/4（DPLL：‖h‖² ≈ 1.055 ⇒ ≈ 0.264）；只動 b 的 θ'' 在暖機後與 θ 輸出相同；約束表中 u-domain 只有「不更新 b ＋ 固定 a₀」完全可辨識。",
+  "source": "illustrative"
+}

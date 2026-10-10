@@ -1,0 +1,30 @@
+{
+  "id": "bias-inl-gallery7",
+  "title": "三階 INL：最佳線性 Gain 1.34（a = 1、c₃ = 0.1、5-level code）",
+  "galleryIndex": 7,
+  "page": "/ch/11",
+  "experiment": "bias-inl-lab",
+  "description": "a = 1、c₃ = 0.1，x 於 {−2,−1,0,1,2} 等機率、identity path（無 PLL 濾波）、mode none；Sign-LMS 搭配 Gaussian comparator noise σ_v = 1（σ_v ≫ max|e_det| = 0.24）。用 Case B/C 加入 MSE-LMS 與 σ_v = 0 對照。",
+  "params": {
+    "a": 1,
+    "w0": 1,
+    "b": 0,
+    "c2": 0,
+    "c3": 0.1,
+    "kappa": 0,
+    "codeKind": "five_level",
+    "codeShift": 0,
+    "dsmKind": "first_order",
+    "dsmFrac": 0.3,
+    "algorithm": "sign",
+    "sigmaV": 1,
+    "dcMode": "none",
+    "jitterSlope": 0,
+    "jitterRef": -2
+  },
+  "expected": "MSE-LMS（conventional）：w* = a + c₃E[x⁴]/E[x²] = 1 + 0.1·6.8/2 = 1.34（精確）。本 preset 的 Sign-LMS（σ_v = 1）：mean-field w* = 1.340346 ≈ 1.34 + 3.456×10⁻⁴/σ_v²，MC 95% CI 應包含 1.340346。殘差 e(x; 1.34) = (−0.12, +0.24, 0, −0.24, +0.12)：GMAC 歸零但 e ≠ 0。注意：±1 code 時為 1.10，unit Gaussian code 為 1.30（MSE）；無雜訊 Sign-Error LMS 的固定點為 1.40（|x| 加權中位數）。（勘誤 E01、E11）",
+  "tests": [
+    "T12"
+  ],
+  "source": "illustrative"
+}

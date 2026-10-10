@@ -1,0 +1,44 @@
+{
+  "id": "quant-gallery-10-five-strategies",
+  "title": "6-bit target 32.4：Freeze vs periodic toggle vs dither vs first-order noise shaping",
+  "galleryIndex": 10,
+  "page": "/ch/13",
+  "experiment": "quantized-gain-lab",
+  "description": "常數 w* = 32.4 LSB、6-bit register、同一 seed 比較五種量化策略（A Freeze、B Toggle、C Stochastic、D 一階 ΔΣ、E ΔΣ + dither）。Case A/B/C 預設為 B、D、E，可直接看到常數輸入時 D ≡ B（勘誤 E15）。",
+  "params": {
+    "target": 32.4,
+    "bits": 6,
+    "rounding": "nearest",
+    "overflow": "saturate",
+    "arithmetic": "rational",
+    "ditherLsb": 1,
+    "ditherPdf": "uniform",
+    "randomSource": "ideal",
+    "driftPerK": 0,
+    "lmsFreezeAt": 0,
+    "mixing": true,
+    "cases": [
+      {
+        "strategy": "toggle",
+        "lmsNoise": false,
+        "nUpd": 1
+      },
+      {
+        "strategy": "deltaSigma",
+        "lmsNoise": false,
+        "nUpd": 1
+      },
+      {
+        "strategy": "deltaSigmaDither",
+        "lmsNoise": false,
+        "nUpd": 1
+      }
+    ]
+  },
+  "expected": "五策略表：A 的 DC 誤差 −0.4 LSB（δw = w − w*；δ = a − w 為 +0.4）、功率 0.16 LSB² 全在 DC；B 與 D 週期 5、2f_u/5 線功率 0.20944、f_u/5 線功率 0.03056、總 0.24 LSB²，D 的循環是 B 的循環移位；C 平均 32.4、變異 ≈ 0.24 LSB²（白色）；E 輸出 31–34、總功率 ≈ 0.32 LSB²、無譜線。",
+  "tests": [
+    "T16",
+    "T17"
+  ],
+  "source": "illustrative"
+}

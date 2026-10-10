@@ -1,0 +1,18 @@
+{
+  "id": "pm-d2-unstable",
+  "title": "d = 2、g = 0.65：一階模型說穩定，實際發散",
+  "page": "/ch/08",
+  "experiment": "pm-lab",
+  "description": "d = 2 的臨界增益是 2 sin(π/10) = 0.618；g = 0.65 超過它。此 preset 把 MC blocks 設為 300：按 Run 可看到線性模型指數成長，而真實 sign-LMS 停在 σ_v 量級的有界 limit cycle（Monte Carlo 與線性模型的比對會誠實顯示 mismatch）。",
+  "params": {
+    "g": 0.65,
+    "d": 2,
+    "steps": 120,
+    "mcBlocks": 300
+  },
+  "expected": "ρ ≈ 1.0147 > 1；PM_2 ≈ −4.8°；一階 PM 71.0° 完全沒算到延遲。",
+  "tests": [
+    "T08"
+  ],
+  "source": "illustrative"
+}

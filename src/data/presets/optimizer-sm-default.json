@@ -1,0 +1,10 @@
+{
+  "id": "optimizer-sm-default",
+  "title": "Ch14：狀態機預設情境（coarse → verify → fine → track → freeze）",
+  "page": "/ch/14",
+  "experiment": "cal-state-machine",
+  "description": "σ_v = 100 fs、N = 1024、δ0 = 100 fs、PVT ramp 0.002 fs/block、block 600–679 低雜訊模式；警報門檻 6σ／3σ、持續 2 個 block，VERIFY 擾動 Δ = 10 fs。",
+  "params": {},
+  "expected": "block 107 進入 TRACK；低雜訊視窗內係數改動 0 次（兩個對照組約 76、80 次）。MC（48 runs，以 DTC 實際誤差計）評估 RMS：狀態機 ≈ 0.40 fs、固定快 μ ≈ 0.80 fs、固定安靜 μ ≈ 0.71 fs；收斂到 2 fs：狀態機 47 blocks、固定快 μ 60 blocks、固定安靜 μ 268 blocks；600 runs 內沒有誤警報。線性 TRACK 預測 0.373 fs。",
+  "source": "illustrative"
+}

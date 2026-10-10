@@ -1,0 +1,26 @@
+{
+  "id": "quant-fixed-point-period-512",
+  "title": "定點 w_H（F = 10）：limit cycle 週期 512",
+  "page": "/ch/13",
+  "experiment": "quantized-gain-lab",
+  "description": "內部 accumulator 只有 F = 10 個小數 bit，32.4 被表示成 33178/1024 = 32.400390625。一階 ΔΣ 的週期變成 2^F/gcd(410, 1024) = 512（勘誤 E15）。",
+  "params": {
+    "target": 32.4,
+    "arithmetic": "fixed",
+    "fracBits": 10,
+    "length": 16384,
+    "mixing": false,
+    "cases": [
+      {
+        "strategy": "deltaSigma",
+        "lmsNoise": false,
+        "nUpd": 1
+      }
+    ]
+  },
+  "expected": "Limit-cycle detector：偵測週期 512 = 解析週期 512；主線位於 205f_u/512 ≈ 0.4004 f_u，旁邊以 f_u/512 為間距的 sideband。",
+  "tests": [
+    "T16"
+  ],
+  "source": "illustrative"
+}

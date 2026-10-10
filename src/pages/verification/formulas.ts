@@ -1,0 +1,158 @@
+import type { FormulaEntry } from '@/data/types'
+
+const r = String.raw
+
+/**
+ * 驗證頁（/verification，規格 §17、§20.4）的公式登錄。ID 採 'F-VF.n'（VF = VeriFication）。
+ * Formula & Unit Reference 頁以 import.meta.glob('../*\/formulas.ts') 收錄；頁面內的錨點為 id="formula-F-VF.n"
+ * （common.tsx 的 <FBlock id>：TeX 直接取自這裡，所以兩處永遠是同一份）。
+ *
+ * 這些是「怎麼判定一個數字對不對」的公式（容忍度、標準誤、誤報率、估計量的偏差修正），
+ * 不是 LMS / PLL 本身的公式；後者在各章的 F-NN.x。每一條在 acceptance.test.ts 都有對應的數值測試。
+ * conditions 維持純文字（彙整頁把它當純文字顯示）。
+ */
+const page = '/verification'
+
+export const FORMULAS: FormulaEntry[] = [
+  {
+    id: 'F-VF.1',
+    title: 'Golden 比對規則（逐元素；與 numpy.isclose 相同）',
+    tex: r`\text{通過}\iff|a_k-e_k|\le b_k,\qquad b_k=\varepsilon_{\rm abs}+\varepsilon_{\rm rel}\,|e_k|,\qquad r_k=\frac{|a_k-e_k|}{b_k}\le1`,
+    conditions: 'a_k：網站即時值；e_k：golden 期望值；陣列與矩陣逐元素；NaN 或形狀不符一律不通過；整數門檻用 abs = rel = 0（必須完全相等）',
+    claim: 'exact',
+    level: 'L0',
+    specSection: '17',
+    page,
+    units: { eps_abs: '與 e_k 同單位', eps_rel: '無因次' },
+  },
+  {
+    id: 'F-VF.2',
+    title: '浮點捨入誤差在穩定一階遞迴中的累積上界',
+    tex: r`d_{n+1}=p\,d_n+\eta_n,\ |\eta_n|\le c\,\varepsilon_{\rm mach}\max|w|\ \Rightarrow\ |d_n|\le\frac{c\,\varepsilon_{\rm mach}\max|w|}{1-|p|}`,
+    conditions: '|p| < 1；每步 c 次浮點運算（c 約 3–4）；IEEE double 的 ε_mach = 2^-52；是上界，不是等式',
+    claim: 'approx',
+    level: 'L0',
+    specSection: '17',
+    page,
+    units: { eps_mach: '無因次（2.22e-16）', d_n: '與 w 同單位' },
+  },
+  {
+    id: 'F-VF.3',
+    title: 'Monte Carlo 估計的標準誤與 z 分數',
+    tex: r`\hat\theta=\frac1n\sum_{i=1}^nX_i,\qquad\mathrm{SE}=\sqrt{\operatorname{Var}(\hat\theta)}=\frac{\sigma}{\sqrt n},\qquad z=\frac{\hat\theta-\theta}{\mathrm{SE}}\ \xrightarrow{\ n\to\infty\ }\ \mathcal N(0,1)`,
+    conditions: 'X_i 獨立同分布、變異數 σ² 有限（中央極限定理）；相關樣本要用有效樣本數或多條獨立 chain',
+    claim: 'approx',
+    level: 'L0',
+    specSection: '17',
+    page,
+    units: { SE: '與 theta 同單位', z: '無因次（幾個標準誤）' },
+  },
+  {
+    id: 'F-VF.4',
+    title: '單項誤報率與 K 項的聯集上界',
+    tex: r`\alpha=P\big(|z|>z_{\rm crit}\big)=2\,[1-\Phi(z_{\rm crit})],\qquad P(\text{K 項中至少一項誤報})=1-(1-\alpha)^K\le K\alpha`,
+    conditions: '模型正確且 z 為標準常態；K 項互相獨立時等號左式成立，不獨立時 Kα 仍是上界（Bonferroni）',
+    claim: 'exact',
+    level: 'L0',
+    specSection: '17',
+    page,
+  },
+  {
+    id: 'F-VF.5',
+    title: '把 Student-t 統計量換成尾機率相同的等效 z',
+    tex: r`t=\frac{\hat\theta-\theta}{\widehat{\mathrm{SE}}}\sim t_\nu,\qquad z_{\rm eq}=\operatorname{sign}(t)\,\Big|\Phi^{-1}\!\big(F_\nu(-|t|)\big)\Big|,\qquad|z_{\rm eq}|\le z_{\rm crit}\iff|t|\le t_{\rm crit}=-F_\nu^{-1}\!\big(\Phi(-z_{\rm crit})\big)`,
+    conditions: 'SE 由 ν + 1 個獨立且近似常態的樣本估計（例如 R 條 chain：ν = R − 1）；ν → ∞ 時 z_eq = t、t_crit = z_crit；z_crit = 4、ν = 23 時 t_crit ≈ 4.877',
+    claim: 'exact',
+    level: 'L0',
+    specSection: '17',
+    page,
+    units: { nu: '自由度（整數）' },
+  },
+  {
+    id: 'F-VF.6',
+    title: '相關樣本（AR(1)）的樣本變異數偏差',
+    tex: r`E[s^2]=\sigma^2\Big[1-\frac{2S_1}{n(n-1)}\Big],\qquad S_1=\sum_{k=1}^{n-1}(n-k)\,p^k=\frac{p\,[\,n(1-p)-(1-p^n)\,]}{(1-p)^2}`,
+    conditions: '平穩 AR(1)（lag-k 自相關 p^k）取 n 個連續樣本、扣掉樣本平均、除以 n − 1；大 n 時偏差約 −2p/((1−p)n)',
+    claim: 'exact',
+    level: 'L1',
+    specSection: '12.1',
+    page,
+    units: { s2: 'fs²（T13）', p: '無因次' },
+    erratumId: 'E30',
+  },
+  {
+    id: 'F-VF.7',
+    title: 'lag-1 自相關估計量的有限樣本偏差',
+    tex: r`r_1=\frac{\sum_{i=1}^{n-1}c_ic_{i+1}}{\sum_{i=1}^{n}c_i^2},\ \ c_i=x_i-\bar x:\qquad E[r_1]\approx p-\frac{1+3p}{n}\ \ (R=1),\qquad E[r_1]\approx p-\frac{1+2p}{n}-\frac{p}{nR}\ \ (R\text{ 條 chain 合併})`,
+    conditions: '平穩 AR(1)；分子分母各自對 R 條獨立 chain 加總後再相除；誤差 O(1/n²)。程式用有限 n 的精確期望值比（ar1Lag1Expectation）',
+    claim: 'approx',
+    level: 'L1',
+    specSection: '12',
+    page,
+    erratumId: 'E06',
+  },
+  {
+    id: 'F-VF.8',
+    title: '由自相關估計 ENBW 的標準誤（delta method）',
+    tex: r`\mathrm{ENBW}(p)=\frac{f_u}{2}\cdot\frac{1-p}{1+p}\ \Rightarrow\ \mathrm{SE}\big(\widehat{\mathrm{ENBW}}\big)\approx\Big|\frac{d\,\mathrm{ENBW}}{dp}\Big|\,\mathrm{SE}(\hat p)=\frac{f_u}{(1+p)^2}\sqrt{\frac{1-p^2}{n}}`,
+    conditions: '一階泰勒傳遞；SE(p̂) 用 Bartlett 的漸近式 (1 − p²)/n（n 為 chain × block 的總樣本數；chain 很短時——每條只有約 200 個 block——會低估一成多，可由 §V.3 的多 seed 校準看出）',
+    claim: 'approx',
+    level: 'L1',
+    specSection: '12',
+    page,
+    units: { ENBW: 'Hz', f_u: 'Hz' },
+    erratumId: 'E06',
+  },
+  {
+    id: 'F-VF.9',
+    title: '兩點分布的樣本變異數：標準誤，以及它與樣本平均完全相依',
+    tex: r`s^2=\frac{n}{n-1}\,\hat p\,(1-\hat p),\qquad\mathrm{SE}(s^2)\approx\sqrt{\frac{\mu_4-\sigma^4}{n}}=|1-2p|\sqrt{\frac{p(1-p)}{n}},\qquad\mu_4=p(1-p)\,[1-3p(1-p)]`,
+    conditions: 'y 只取兩個相鄰的值（T17：32 / 33）；s² 是 p̂ 的函數，所以「變異」的 z 與「平均」的 z 幾乎相同，不是獨立證據',
+    claim: 'exact',
+    level: 'L5',
+    specSection: '13.3',
+    page,
+    units: { s2: 'LSB²' },
+  },
+  {
+    id: 'F-VF.10',
+    title: 'z 的校準分數（K 個 seed）',
+    tex: r`Z_{\rm mean}=\bar z\,\sqrt K,\qquad Z_{\rm sd}=\frac{(s_z^2)^{1/3}-\big(1-\tfrac{2}{9\nu}\big)}{\sqrt{2/(9\nu)}},\quad\nu=K-1`,
+    conditions: 'z_1…z_K 為 iid N(0,1) 時兩個分數都近似 N(0,1)；Z_sd 用 Wilson–Hilferty 的立方根近似（(K−1)s_z² ~ χ²_ν）',
+    claim: 'approx',
+    level: 'L0',
+    specSection: '17',
+    page,
+  },
+  {
+    id: 'F-VF.11',
+    title: '可偵測的最小偏差與所需樣本數',
+    tex: r`|\theta'-\theta|\ge z_{\rm crit}\,\mathrm{SE}=\frac{z_{\rm crit}\,\sigma}{\sqrt n}\quad\Longleftrightarrow\quad n\ge\Big(\frac{z_{\rm crit}\,\sigma}{|\theta'-\theta|}\Big)^2`,
+    conditions: '錯誤模型的真值 θ′ 與期望值 θ 的差要超過門檻才「大致」抓得到（檢定力約 50%）；要 ≥ 97.7% 的檢定力需再加 2 個 SE',
+    claim: 'approx',
+    level: 'L0',
+    specSection: '17',
+    page,
+  },
+  {
+    id: 'F-VF.12',
+    title: 'Mutant 被抓到的條件',
+    tex: r`\text{抓到}\iff\Delta=\big|f_{\rm mutant}(x)-f(x)\big|>\varepsilon_{\rm abs}+\varepsilon_{\rm rel}\,|f(x)|`,
+    conditions: '同一組輸入 x；Δ = 0 的改動（例如 δ 的極性對 pole）任何容忍度都抓不到，必須換觀測量',
+    claim: 'exact',
+    level: 'L0',
+    specSection: '17',
+    page,
+    erratumId: 'E39',
+  },
+  {
+    id: 'F-VF.13',
+    title: '引用精度規則（勘誤的數值證據）',
+    tex: r`\text{文件寫到小數第 }d\text{ 位}\ \Rightarrow\ |a-e|\le0.51\times10^{-d}`,
+    conditions: 'e 為 docs/validation.md 逐字引用的數字（四捨五入到第 d 位）；0.5 是捨入的半格，另加 2% 餘裕',
+    claim: 'exact',
+    level: 'L0',
+    specSection: '17',
+    page,
+  },
+]

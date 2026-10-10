@@ -1,0 +1,12 @@
+{
+  "id": "optimizer-sm-polarity",
+  "title": "Ch14：狀態機——極性錯誤（θ = 120°）",
+  "page": "/ch/14",
+  "experiment": "cal-state-machine",
+  "description": "反面例子：C < 0，COARSE 把 w 推離 a。",
+  "params": {
+    "thetaDeg": 120
+  },
+  "expected": "出現極性警告；COARSE 把 w 推到暫存器邊界，clip detect 觸發 4 次後進入 FAULT 並退回 w_0（MC 48/48 runs FAULT）；從未進入 TRACK。",
+  "source": "illustrative"
+}

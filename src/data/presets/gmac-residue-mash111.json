@@ -1,0 +1,17 @@
+{
+  "id": "gmac-residue-mash111",
+  "title": "Fractional residue：MASH 1-1-1（residue 有正有負）",
+  "page": "/ch/04",
+  "experiment": "gmac-residue",
+  "description": "MASH 1-1-1、12-bit、frac = 0.3（量化成 1229/4096）、f_vco = 13 GHz、DTC gain 誤差 1%。",
+  "params": {
+    "kind": "mash111",
+    "frac": 0.3,
+    "bits": 12,
+    "length": 512,
+    "gainErrPct": 1,
+    "fvcoGHz": 13
+  },
+  "expected": "frac 被量化成 K_F/M = 1229/4096 = 0.30004883（顯示 FCW 量化警告）；residue 可正可負、|r| < 2 T_vco（本例 512 拍內為 [−1.814, 1.889]），所以 DTC 需要約 4 T_vco 的範圍與 offset；1% gain 誤差 ⇒ PD 殘差最大約 1453 fs。",
+  "source": "simulation"
+}

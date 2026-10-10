@@ -1,0 +1,48 @@
+{
+  "id": "block-lms-json-update-delay",
+  "title": "更新延遲 d = 2、g = 0.80 > 0.618",
+  "page": "/models",
+  "experiment": "block-lms-json",
+  "description": "gain commit 延遲 2 個 block，μ = 100 fs（g = 0.798）（§16.1 第 7 項、§8.3）。",
+  "params": {
+    "config": {
+      "model": "sign_error_block_lms",
+      "seed": 20261010,
+      "units": {
+        "time": "fs",
+        "frequency": "Hz"
+      },
+      "sample_rate_hz": 4000000000,
+      "output_frequency_hz": 13000000000,
+      "gm_accum_samples": 4096,
+      "gain_initial": 0,
+      "gain_true": 3,
+      "gain_step": 100,
+      "code_normalization": "unit_rms",
+      "gm_mode": "average",
+      "pd_noise_rms_fs": 100,
+      "comparator_offset_fs": 0,
+      "comparator_encoding": "bipolar_pm_one",
+      "gm_code_delay_samples": 0,
+      "cal_update_delay_blocks": 2,
+      "pll_error_path": {
+        "kind": "identity",
+        "parameters": {}
+      },
+      "seeded_pattern": {
+        "kind": "iid_pm_one",
+        "parameters": {}
+      },
+      "gain_register": {
+        "internal_bits": 20,
+        "physical_bits": 6,
+        "rounding": "nearest",
+        "overflow": "saturate"
+      },
+      "mode": "exploratory",
+      "num_blocks": 400
+    }
+  },
+  "expected": "臨界增益 2sin(π/10) = 0.618；平均模型 ρ ≈ 1.077 不穩定並發出警告；sign-LMS 的 |G| 有界，w 不會數值發散，而是以約 ±150 fs 的峰值（RMS 約 107 fs）持續振盪。",
+  "source": "simulation"
+}

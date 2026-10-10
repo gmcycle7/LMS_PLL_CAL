@@ -1,0 +1,44 @@
+{
+  "id": "sign-lms-decreasing-step",
+  "title": "遞減步長：固定 μ vs μ₀/(1+n/n₀) vs gear-shift",
+  "page": "/ch/02",
+  "experiment": "sign-lms-compare",
+  "description": "Gaussian x、Gaussian 雜訊 σ = 0.5、μ₀ = 0.05。Case A 固定步長、B harmonic（n₀ = 200）、C gear-shift（每 1000 步減半，下限 μ₀/64）。",
+  "params": {
+    "a": 3,
+    "w0": 0,
+    "steps": 8000,
+    "runs": 24,
+    "algos": [
+      "lms",
+      "sign_error",
+      "sign_sign"
+    ],
+    "deltaRef": "a",
+    "mu": 0.05,
+    "xKind": "gauss",
+    "xAmp": 1,
+    "noiseKind": "gaussian",
+    "sigma": 0.5,
+    "outlierProb": 0,
+    "outlierSize": 0,
+    "tie": "plus",
+    "schedule": "constant",
+    "n0": 500,
+    "stepMatch": "same-mu",
+    "huberDelta": 0.5,
+    "nlmsEps": 0.1,
+    "compare": [
+      {
+        "schedule": "harmonic",
+        "n0": 200
+      },
+      {
+        "schedule": "gear",
+        "n0": 1000
+      }
+    ]
+  },
+  "expected": "Case A 的 |δ| 停在固定的穩態帶（std ∝ √μ）；Case B、C 的 |δ| 中位數持續下降（F-02.11、F-02.17），但 gear-shift 最後停在 μ₀/64 的帶寬。",
+  "source": "simulation"
+}

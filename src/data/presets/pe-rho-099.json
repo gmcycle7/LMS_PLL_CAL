@@ -1,0 +1,26 @@
+{
+  "id": "pe-rho-099",
+  "title": "ρ = 0.99：慢 Eigenmode（598 blocks）",
+  "galleryIndex": 6,
+  "page": "/ch/09",
+  "experiment": "pe-eigen-lab",
+  "description": "R = [[1, .99], [.99, 1]]、g = μK_q = 0.5（K_q 正規化為 1，linear detector）、GMAC N = 16：correlation ellipse 幾乎是一條線，平均軌跡一步掉到慢軸 (1, −1)/√2，再以 pole 0.995 慢慢回到原點。",
+  "params": {
+    "rho": 0.99,
+    "dist": "gaussian",
+    "detector": "linear",
+    "sigmaV": 0,
+    "kqMode": "normalized",
+    "muInput": 0.5,
+    "N": 16,
+    "N0": 100,
+    "d10": 1,
+    "d20": 0,
+    "blocks": 800,
+    "chains": 64,
+    "seed": 20261010
+  },
+  "expected": "λ = 1.99 / 0.01、κ = 199；快 pole 0.005、慢 pole 0.995；慢模式 95% 衰減 598 blocks（ln 0.05/ln 0.995 = 597.65）。這是 mean recursion 的結論（勘誤 E23）：N = 16 時 mean-square 半徑 0.99003 < 1；若用 §5 的物理 K_q = 0.00797885 fs⁻¹ 而 μ = 0.5 fs，則需 75,091 blocks（勘誤 E05）。",
+  "tests": ["T10", "T11"],
+  "source": "illustrative"
+}

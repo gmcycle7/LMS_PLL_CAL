@@ -1,0 +1,19 @@
+{
+  "id": "stability-fx-boundary",
+  "title": "μ = 2/x² = 0.5：邊界",
+  "page": "/ch/03",
+  "experiment": "stability-fixed-x",
+  "description": "p = −1：|δ| 不變、正負交替。",
+  "params": {
+    "a": 3,
+    "w0": 1,
+    "x": 2,
+    "mu": 0.5,
+    "steps": 10
+  },
+  "expected": "w 在 1 與 5 之間跳；|δ_n| = 2。",
+  "tests": [
+    "T02"
+  ],
+  "source": "illustrative"
+}

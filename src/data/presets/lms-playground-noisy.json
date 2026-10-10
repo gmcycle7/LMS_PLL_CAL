@@ -1,0 +1,18 @@
+{
+  "id": "lms-playground-noisy",
+  "title": "有雜訊：σ_v = 1、μ = 0.1",
+  "page": "/ch/01",
+  "experiment": "lms-playground",
+  "description": "加入零均值雜訊後 w 在 a 附近抖動；穩態 Var(w) = μσ_v²/(2 − μx²)。",
+  "params": {
+    "a": 3,
+    "w0": 1,
+    "x": 2,
+    "mu": 0.1,
+    "steps": 200,
+    "noiseSigma": 1,
+    "seed": 20261010
+  },
+  "expected": "穩態 Var(w) = 0.1/(2 − 0.4) = 0.0625（std 0.25）；Monte Carlo 400 條路徑在 4·SE 內一致。",
+  "source": "simulation"
+}

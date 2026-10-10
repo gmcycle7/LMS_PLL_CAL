@@ -1,0 +1,390 @@
+/* Part D：Behavioral Models、RTL 與 Sign-off（/models）。class 一律加 models- 前綴。 */
+
+.models-page {
+  min-width: 0;
+}
+.models-page section {
+  margin-bottom: 2.2rem;
+}
+.models-head-tags {
+  margin-bottom: 1rem;
+}
+
+/* 開場問題框 */
+.models-question {
+  border-left: 4px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin: 0.8rem 0 1.2rem;
+}
+.models-question-label {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+/* 表格 */
+.models-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9rem;
+}
+.models-table th,
+.models-table td {
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+  vertical-align: top;
+  text-align: left;
+}
+.models-table thead th {
+  background: var(--surface-2);
+  font-weight: 700;
+}
+.models-num td,
+.models-num th {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.models-num td:first-child,
+.models-num th:first-child {
+  text-align: left;
+}
+.models-levels td:nth-child(5) {
+  min-width: 14rem;
+}
+.models-params td:nth-child(2) {
+  min-width: 12rem;
+}
+.models-ext td:first-child code {
+  color: var(--text-muted);
+}
+.models-json-val {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.8rem;
+}
+.models-formula-cell {
+  min-width: 10rem;
+}
+.models-sumrow td {
+  font-weight: 600;
+  background: var(--surface-2);
+}
+
+/* 狀態膠囊 */
+.models-status {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.models-status-full {
+  color: var(--ok);
+  background: var(--ok-soft);
+}
+.models-status-partial {
+  color: var(--warn);
+  background: var(--warn-soft);
+}
+.models-status-none {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.models-tight {
+  margin: 0.3rem 0;
+  padding-left: 1.3rem;
+}
+.models-tight li {
+  margin: 0.2rem 0;
+}
+
+/* 逐步推導外框 */
+.models-steps {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  margin: 0.8rem 0;
+  background: var(--surface);
+}
+.models-steps > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 4px 0;
+}
+.models-steps-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  margin-right: 4px;
+}
+
+/* 勘誤標記與章節連結 */
+.models-erratum {
+  display: inline-flex;
+  gap: 4px;
+  align-items: baseline;
+  margin: 0 2px;
+}
+.models-erratum a {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.models-erratum-text {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.models-chlink {
+  white-space: nowrap;
+}
+
+/* 手算結果 */
+.models-hand-blocks {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+/* 帶入手算（HandCalcSlot） */
+.models-handcalc {
+  margin: 1rem 0 1.2rem;
+  min-width: 0;
+}
+.models-handcalc-lead {
+  margin: 0 0 0.3rem;
+  color: var(--text-muted);
+}
+/* 「換你算」指路（題目在別的章節，本頁不重複出題） */
+.models-handcalc-pointer {
+  margin: 0.8rem 0 1rem;
+  padding: 6px 12px;
+  border-left: 3px solid var(--accent);
+  background: var(--surface-2);
+  border-radius: 0 6px 6px 0;
+  overflow-wrap: anywhere;
+}
+
+/* 互動面板（非 ExperimentShell 的小計算） */
+.models-panel {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  margin: 1rem 0;
+  background: var(--surface);
+}
+.models-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px 16px;
+  margin-bottom: 0.8rem;
+}
+
+/* JSON 編輯器 */
+.models-json {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 1rem;
+  min-width: 0;
+}
+.models-json-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.models-upload {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+.models-upload input[type='file'] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+}
+.models-json-text {
+  width: 100%;
+  min-height: 18rem;
+  box-sizing: border-box;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  resize: vertical;
+  tab-size: 2;
+}
+.models-json-text[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+.models-ok {
+  color: var(--ok);
+  font-weight: 600;
+}
+.models-bad {
+  color: var(--danger);
+  font-weight: 600;
+}
+.models-filled code {
+  word-break: break-word;
+}
+.models-run-status {
+  margin: 0.4rem 0;
+}
+.models-pin-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0.5rem 0;
+}
+.models-analytic {
+  margin: 0.8rem 0;
+}
+.models-analytic > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.models-mc {
+  margin: 0.8rem 0;
+}
+
+/* §16.1 檢查卡片 */
+.models-checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
+  gap: 12px;
+  margin: 1rem 0 1.5rem;
+}
+.models-check {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: var(--surface);
+  min-width: 0;
+}
+.models-check h3 {
+  font-size: 1rem;
+  margin: 0 0 6px;
+}
+.models-check-no {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 0.85rem;
+  margin-right: 4px;
+}
+.models-check-dl {
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+}
+.models-check-dl dt {
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+.models-check-dl dd {
+  margin: 2px 0 0;
+}
+.models-preset-links {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+/* §16.3 語句測驗 */
+.models-score {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  margin-bottom: 0.6rem;
+}
+.models-statements {
+  padding-left: 1.4rem;
+}
+.models-statement {
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.models-statement.is-right {
+  border-color: var(--ok);
+  background: var(--ok-soft);
+}
+.models-statement.is-wrong {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+.models-statement-text {
+  margin-bottom: 6px;
+}
+.models-spec-tag {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 0.72rem;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.models-statement-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.models-statement-why {
+  margin-top: 8px;
+  font-size: 0.9rem;
+}
+.models-tryit {
+  border-left: 3px solid var(--series-3, var(--ok));
+  padding-left: 10px;
+  margin: 0.6rem 0 1rem;
+}
+.models-tryit ol {
+  margin: 0.2rem 0 0;
+}
+/* 長的錯誤訊息／欄位路徑在窄螢幕換行，不撐出水平捲軸 */
+.models-json li code,
+.models-check code {
+  overflow-wrap: anywhere;
+}
+.models-check h3 .c-tex {
+  white-space: normal;
+}
+
+@media (max-width: 600px) {
+  .models-table {
+    font-size: 0.82rem;
+  }
+  .models-json-text {
+    font-size: 16px;
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "id": "fft-spur-pitfalls-noncoherent-bh",
+  "title": "非相干 + Blackman-Harris",
+  "page": "/models",
+  "experiment": "fft-spur-pitfalls",
+  "description": "δ = ½，改用 4-term Blackman-Harris 窗。",
+  "params": {
+    "log2N": 12,
+    "offsetBins": 0.5,
+    "spurOffsetBins": 40,
+    "spurDbc": -80,
+    "noiseDbc": -60,
+    "window": "blackmanHarris",
+    "welchLog2Seg": 9,
+    "seed": 20261010
+  },
+  "expected": "spur 位置的洩漏降到約 −120 dBc；FFT 讀值在 −80 dBc 的 3 dB 內；scalloping 只剩約 −0.83 dB。",
+  "source": "illustrative"
+}

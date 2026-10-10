@@ -1,0 +1,24 @@
+{
+  "id": "noise-no-3db",
+  "title": "μ = 110 fs：−3 dB 點不存在",
+  "page": "/ch/12",
+  "experiment": "lms-noise-lab",
+  "description": "μK = 0.878 > 2√2 − 2 ≈ 0.828 ⇒ p = 0.1223 < 3 − 2√2：|H|² 在 Nyquist 仍高於 DC 的一半（勘誤 E27）。近似公式仍給數字，exact 解不存在。",
+  "params": {
+    "N": 4096,
+    "fs": 4000000000.0,
+    "mu": 110,
+    "sigmaV": 100,
+    "C": 1,
+    "gmMode": "average",
+    "engine": "binomial",
+    "blocks": 4000,
+    "chains": 8,
+    "dw0": 3
+  },
+  "expected": "p = 0.12233；型態「Low-pass，但 −3 dB 點不存在」；exact f_3dB 顯示「不存在」，(1−p) 與 −ln p 近似仍輸出數字（警告）；ENBW = (f_u/2)(1−p)/(1+p) 仍有效。",
+  "tests": [
+    "T14"
+  ],
+  "source": "simulation"
+}

@@ -1,0 +1,64 @@
+{
+  "id": "lab-compare-regressor",
+  "title": "Compare：raw vs delayed（D = 64）vs filtered-x（一階 DSM、α = 0.0055）",
+  "page": "/lab",
+  "experiment": "unified-lab-compare",
+  "description": "同一個 seed、同一組硬體，只換 GMAC 的 regressor。frac = 0.0055 是 FCW sweep 裡 D = 64 會變號的通道之一。",
+  "params": {
+    "base": {
+      "seed": 20261010,
+      "fRefHz": 4000000000,
+      "nInt": 3,
+      "codeSource": "dsm_first_order",
+      "frac": 0.0055,
+      "dsmBits": 20,
+      "dither": false,
+      "normalization": "standardize",
+      "aFs": 3,
+      "w0Fs": 0,
+      "dtcOffsetFs": 0,
+      "c2": 0,
+      "c3": 0,
+      "pll": "type2",
+      "pllBwHz": 2000000,
+      "zeta": 0.7,
+      "loopDelay": 0,
+      "sigmaV": 100,
+      "compOffsetFs": 0,
+      "encoding": "bipolar_pm_one",
+      "N": 4096,
+      "gmMode": "average",
+      "regressor": "raw",
+      "codeDelay": 0,
+      "fxGain": 1,
+      "fxExtraDelay": 0,
+      "quantize": false,
+      "internalBits": 20,
+      "physicalBits": 6,
+      "lsbFs": 0.125,
+      "rounding": "nearest",
+      "overflow": "saturate",
+      "signedReg": false,
+      "muFs": 10,
+      "updateDelay": 0,
+      "blocks": 1500,
+      "outBlocks": 64,
+      "fLHz": 1000,
+      "fHHz": 100000000
+    },
+    "cases": [
+      {
+        "regressor": "raw"
+      },
+      {
+        "regressor": "delayed",
+        "codeDelay": 64
+      },
+      {
+        "regressor": "filtered"
+      }
+    ]
+  },
+  "expected": "Case A（raw）：C ≈ 1.00、τ ≈ 12 blocks，收斂到 3 fs 附近。Case B（delayed，D = 64）：C ≈ −0.39 < 0，w 一路遠離 a（1500 個 block 後偏離數千 fs），警告說明是極性錯誤而不是 μ 太大。Case C（filtered-x，Ĥ = H）：C ≈ 1.00，收斂。三個 case 的跨級一致性都是「一致」。",
+  "source": "simulation"
+}

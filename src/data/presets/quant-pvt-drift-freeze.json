@@ -1,0 +1,33 @@
+{
+  "id": "quant-pvt-drift-freeze",
+  "title": "PVT 漂移：Freeze 追不上、ΔΣ 跟得上",
+  "page": "/ch/13",
+  "experiment": "quantized-gain-lab",
+  "description": "w* 每 1000 次更新漂移 +0.2 LSB。Freeze 停在 32；ΔΣ 的平均以 telescoping 性質追蹤 w_H（§13.5 第 4 點）。",
+  "params": {
+    "target": 32.4,
+    "driftPerK": 0.2,
+    "length": 8192,
+    "mixing": false,
+    "cases": [
+      {
+        "strategy": "freeze",
+        "lmsNoise": false,
+        "nUpd": 1
+      },
+      {
+        "strategy": "toggle",
+        "lmsNoise": false,
+        "nUpd": 1
+      },
+      {
+        "strategy": "deltaSigma",
+        "lmsNoise": false,
+        "nUpd": 1
+      }
+    ]
+  },
+  "expected": "最後 1/4 紀錄的 DC 誤差：Freeze 約 −1.8 LSB；ΔΣ 約 0；Toggle 受 1/L_t 解析度限制（≤ 0.1 LSB）。",
+  "tests": [],
+  "source": "illustrative"
+}

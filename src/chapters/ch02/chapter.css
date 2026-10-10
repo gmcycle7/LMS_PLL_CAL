@@ -1,0 +1,168 @@
+/* Ch02 專屬樣式（class 一律加 ch02- 前綴） */
+
+.ch02-erratum {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  font-size: 0.78rem;
+  padding: 1px 6px;
+  margin: 0 2px;
+  border-radius: 999px;
+  border: 1px solid var(--warn);
+  color: var(--warn);
+  background: var(--warn-soft);
+  text-decoration: none;
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+
+.ch02-erratum:hover {
+  text-decoration: underline;
+}
+
+.ch02-erratum-text {
+  white-space: normal;
+}
+
+.ch02-roadmap {
+  margin: 0.5rem 0 1rem;
+  padding-left: 1.4rem;
+}
+
+.ch02-roadmap li {
+  margin: 0.2rem 0;
+}
+
+.ch02-question {
+  border-left: 4px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  margin: 0.75rem 0 1rem;
+}
+
+.ch02-table td,
+.ch02-table th {
+  vertical-align: top;
+}
+
+.ch02-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ch02-table .hl {
+  background: var(--accent-soft);
+}
+
+.ch02-big-table {
+  min-width: 860px;
+}
+
+.ch02-big-table th:first-child,
+.ch02-big-table td:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--surface);
+  z-index: 1;
+}
+
+.ch02-controls-group {
+  min-width: 0; /* fieldset 預設 min-content，會在手機上撐出水平捲動 */
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  margin: 0.5rem 0;
+}
+
+.ch02-controls-group > legend {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  padding: 0 4px;
+}
+
+.ch02-algo-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+}
+
+.ch02-algo-toggles label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+}
+
+.ch02-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.ch02-kicker {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.ch02-try {
+  margin: 0.5rem 0;
+  padding-left: 1.2rem;
+}
+
+.ch02-try li {
+  margin: 0.15rem 0;
+}
+
+.ch02-note {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.ch02-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 0.75rem;
+}
+
+.ch02 h2 {
+  scroll-margin-top: 64px;
+}
+
+.ch02 .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 0;
+}
+
+.ch02-fold {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin: 0.6rem 0;
+  background: var(--surface);
+}
+
+.ch02-fold > summary {
+  cursor: pointer;
+  padding: 0.4rem 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.ch02-fold-body {
+  padding: 0 0.75rem 0.5rem;
+  min-width: 0;
+}
+
+/* 「帶入手算」題與它的引言（放在對應推導的正後方） */
+.ch02-handcalc {
+  margin: 0.9rem 0 1.1rem;
+  min-width: 0;
+}
+
+.ch02-handcalc-lead {
+  margin: 0 0 0.35rem;
+  font-size: 0.92rem;
+}

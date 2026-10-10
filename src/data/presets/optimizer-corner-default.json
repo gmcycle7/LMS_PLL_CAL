@@ -1,0 +1,40 @@
+{
+  "id": "optimizer-corner-default",
+  "title": "Ch14：四個 PVT／FCW corner 的 μ 區間",
+  "page": "/ch/14",
+  "experiment": "corner-interval",
+  "description": "TT／SS／FF／near-grid FCW 四個示例 corner，ε = 0.01、B = 12、PM ≥ 60°。",
+  "params": {
+    "corners": [
+      {
+        "name": "TT 25°C",
+        "sigmaV": 100,
+        "thetaDeg": 0
+      },
+      {
+        "name": "SS −40°C",
+        "sigmaV": 140,
+        "thetaDeg": 25
+      },
+      {
+        "name": "FF 125°C",
+        "sigmaV": 70,
+        "thetaDeg": 10
+      },
+      {
+        "name": "near-grid FCW",
+        "sigmaV": 100,
+        "thetaDeg": 55
+      }
+    ],
+    "eps": 0.01,
+    "B": 12,
+    "pmTargetDeg": 60,
+    "delta0": 3,
+    "N": 4096,
+    "rmsTarget": 1,
+    "measure": false
+  },
+  "expected": "K_min = 4.576e-3（near-grid FCW）、K_max = 1.1225e-2（FF），r = 0.408；B_min = ⌈8.79⌉ = 9；B = 12 時區間 [69.64, 89.09] fs。",
+  "source": "illustrative"
+}

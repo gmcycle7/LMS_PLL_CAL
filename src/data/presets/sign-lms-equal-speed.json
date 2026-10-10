@@ -1,0 +1,43 @@
+{
+  "id": "sign-lms-equal-speed",
+  "title": "同收斂速度：Gaussian / Laplacian / impulsive 雜訊",
+  "page": "/ch/02",
+  "experiment": "sign-lms-compare",
+  "description": "三個 Case 只換雜訊形狀（標準差同為 σ = 0.5），步長以 same-speed 對齊（線性化 μK 相同），比較穩態精度。",
+  "params": {
+    "a": 3,
+    "w0": 0,
+    "steps": 3000,
+    "runs": 32,
+    "algos": [
+      "lms",
+      "sign_error",
+      "sign_sign",
+      "nlms"
+    ],
+    "deltaRef": "a",
+    "mu": 0.02,
+    "xKind": "gauss",
+    "xAmp": 1,
+    "noiseKind": "gaussian",
+    "sigma": 0.5,
+    "outlierProb": 0,
+    "outlierSize": 0,
+    "tie": "plus",
+    "schedule": "constant",
+    "n0": 500,
+    "stepMatch": "same-speed",
+    "huberDelta": 0.5,
+    "nlmsEps": 0.1,
+    "compare": [
+      {
+        "noiseKind": "laplacian"
+      },
+      {
+        "noiseKind": "impulsive"
+      }
+    ]
+  },
+  "expected": "Sign-Error / LMS 的穩態 std 比（同 μK）：Gaussian ≈ √(π/2) = 1.253、Laplacian ≈ √(1/2) = 0.707、impulsive ≈ 0.538（F-02.14，線性化）。所有演算法的 w* = 3。",
+  "source": "simulation"
+}

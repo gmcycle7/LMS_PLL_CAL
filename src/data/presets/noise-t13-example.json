@@ -1,0 +1,26 @@
+{
+  "id": "noise-t13-example",
+  "title": "f_s = 4 GHz、N = 4096、σ_v = 100 fs、μ = 10 fs：gain noise 約 0.399 fs",
+  "galleryIndex": 8,
+  "page": "/ch/12",
+  "experiment": "lms-noise-lab",
+  "description": "規格 §12.1 / §19.2 #8 的標準例。條件（勘誤 E30）：白色 Gaussian σ_v、unit-RMS ±1 iid code、identity path（C = 1）、average-mode GMAC、σ_η² ≈ 1/N。引擎 (b) 精確 Binomial Block Sign-LMS，8 chains × 4000 blocks。",
+  "params": {
+    "N": 4096,
+    "fs": 4000000000.0,
+    "mu": 10,
+    "sigmaV": 100,
+    "C": 1,
+    "gmMode": "average",
+    "engine": "binomial",
+    "blocks": 4000,
+    "chains": 8,
+    "dw0": 3
+  },
+  "expected": "p = 0.920212；f_u = 976.5625 kHz；exact f_3dB = 12.931 kHz（−ln p 12.924、(1−p) 12.401 kHz）；ENBW = 20.289 kHz；σ_w（解析）= 0.39919 fs，Monte Carlo 95% CI 涵蓋；τ ≈ 12.0 blocks ≈ 12.3 μs。",
+  "tests": [
+    "T13",
+    "T14"
+  ],
+  "source": "simulation"
+}

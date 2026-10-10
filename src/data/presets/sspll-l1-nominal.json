@@ -1,0 +1,17 @@
+{
+  "id": "sspll-l1-nominal",
+  "title": "SSPLL L1（Type-I、1 拍延遲、320 MHz）：沒有反號帶",
+  "page": "/case/sspll",
+  "experiment": "sspll-hpd",
+  "description": "標稱的 Type-I SSPLL：L = K z⁻¹/(1 − z⁻¹)，K 由 |T| 的 −3 dB = 320 MHz 的 closed form 決定。Re H_PD = (2 − K)(1 − cos Ω)/|1 − (1 − K)e^{−jΩ}|² ≥ 0，沒有反號帶；但把延遲改成 5 拍（K(d − ½) = 1.10 > 1）或加 200 MHz 寄生極點就會出現。",
+  "params": {
+    "loop": "L1",
+    "bwMHz": 320,
+    "lat": 1,
+    "fPoleMHz": 0,
+    "gainScale": 1,
+    "showRemedy": true
+  },
+  "expected": "K = 0.388836、PM = 78.79°、|T| 沒有 peaking（0 dB）、f3dB = 320.000 MHz；反號帶：無；Type-I 延遲判據 K(d − ½) = 0.1944 < 1；1diff 的 margin = 0.3888。TS port 與 golden 的 hpd_L1.json 在 1500 個頻率點上的 max|ΔRe H| < 6×10⁻⁶（JSON 只存 6 位有效數字）。",
+  "source": "simulation"
+}

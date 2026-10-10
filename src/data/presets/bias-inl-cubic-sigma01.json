@@ -1,0 +1,29 @@
+{
+  "id": "bias-inl-cubic-sigma01",
+  "title": "三階 INL：σ_v = 0.1 時線性化失效（1.36658）",
+  "page": "/ch/11",
+  "experiment": "bias-inl-lab",
+  "description": "σ_v = 0.1 < max|e_det|：E[q|x] 已進入 erf 飽和區。",
+  "params": {
+    "a": 1,
+    "w0": 1,
+    "b": 0,
+    "c2": 0,
+    "c3": 0.1,
+    "kappa": 0,
+    "codeKind": "five_level",
+    "codeShift": 0,
+    "dsmKind": "first_order",
+    "dsmFrac": 0.3,
+    "algorithm": "sign",
+    "sigmaV": 0.1,
+    "dcMode": "none",
+    "jitterSlope": 0,
+    "jitterRef": -2
+  },
+  "expected": "mean-field w* = 1.366577（不是 1.34，也不是二階近似 1.37456）；max|e_det|/σ_v ≈ 2.67，畫面應出現「線性化失效」警告；MC CI 不含 1.34。",
+  "tests": [
+    "T12"
+  ],
+  "source": "illustrative"
+}

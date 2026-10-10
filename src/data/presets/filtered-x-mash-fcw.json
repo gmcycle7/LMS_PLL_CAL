@@ -1,0 +1,46 @@
+{
+  "id": "filtered-x-mash-fcw",
+  "title": "MASH DSM code（FCW）：寬頻 code 不需要、也不能用 delay",
+  "page": "/ch/07",
+  "experiment": "delay-fx-lab",
+  "description": "Type-II DPLL（ω_nT_s = 0.05、d = 1），regressor 為 20-bit MASH 1-1-1 的 DTC phase residue（FCW 小數 0.3，standardize）。A raw-x、B delayed-x（D = 4）、C filtered-x。",
+  "params": {
+    "scenario": {
+      "pathKind": "type2_dt",
+      "wnTs": 0.05,
+      "zeta": 0.7,
+      "loopDelay": 1,
+      "codeKind": "mash111",
+      "frac": 0.3,
+      "a": 3,
+      "w0": 0,
+      "sigmaV": 100,
+      "N": 1024,
+      "blocks": 300,
+      "Dmax": 32
+    },
+    "cases": [
+      {
+        "mode": "raw",
+        "D": 0,
+        "mu": 10
+      },
+      {
+        "mode": "delayed",
+        "D": 4,
+        "mu": 10
+      },
+      {
+        "mode": "filtered",
+        "D": 0,
+        "mu": 10
+      }
+    ],
+    "seed": 20261010
+  },
+  "expected": "高通的 DSM residue 經 H_PD ≈ 1：raw-x C ≈ +0.98（收斂）；延遲 4 個 sample 後 C ≈ 0（沒有恢復力）；filtered-x C ≈ +0.97（ρ = 1，收斂）。MASH 無封閉式 PSD，只顯示經驗值。",
+  "tests": [
+    "T07"
+  ],
+  "source": "simulation"
+}

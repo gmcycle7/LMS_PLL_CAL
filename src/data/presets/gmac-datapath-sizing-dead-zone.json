@@ -1,0 +1,18 @@
+{
+  "id": "gmac-datapath-sizing-dead-zone",
+  "title": "N = 2²⁰、F_G = 0：自然 dither 不足 → 死區",
+  "page": "/models",
+  "experiment": "gmac-datapath-sizing",
+  "description": "N = 2²⁰ 時 S/2^ℓ 的標準差只有 0.03 LSB。",
+  "params": {
+    "bx": 6,
+    "log2N": 20,
+    "range": "symmetric",
+    "rounding": "half_up",
+    "gFracBits": 0,
+    "sigmaV": 100,
+    "mu": 10
+  },
+  "expected": "死區寬約 2.4 fs（遠大於 σ_w ≈ 0.025 fs），發出「自然 dither 不足」與「死區」警告；accumulator 需 26 bits。",
+  "source": "illustrative"
+}

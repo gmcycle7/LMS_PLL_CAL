@@ -1,0 +1,19 @@
+{
+  "id": "stability-fx-deadbeat",
+  "title": "μ = 1/x² = 0.25：一步到位",
+  "page": "/ch/03",
+  "experiment": "stability-fixed-x",
+  "description": "p = 0（deadbeat）。",
+  "params": {
+    "a": 3,
+    "w0": 1,
+    "x": 2,
+    "mu": 0.25,
+    "steps": 10
+  },
+  "expected": "p = 0：w₁ = 3、δ₁ = 0。",
+  "tests": [
+    "T02"
+  ],
+  "source": "illustrative"
+}

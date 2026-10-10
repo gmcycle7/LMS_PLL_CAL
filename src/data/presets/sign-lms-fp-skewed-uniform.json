@@ -1,0 +1,28 @@
+{
+  "id": "sign-lms-fp-skewed-uniform",
+  "title": "偏斜雜訊 + 正值 x：三個固定點都不同",
+  "page": "/ch/02",
+  "experiment": "sign-lms-fixed-points",
+  "description": "x ~ U[0.5, 1.5]、v = σ(Exp − 1)。",
+  "params": {
+    "a": 3,
+    "xKind": "uniformPos",
+    "xAmp": 1,
+    "noiseKind": "skewed",
+    "sigma": 1,
+    "outlierProb": 0,
+    "outlierSize": 0,
+    "huberDelta": 0.5,
+    "nlmsEps": 0.1,
+    "mu": 0.01,
+    "steps": 6000,
+    "runs": 24,
+    "algos": [
+      "lms",
+      "sign_error",
+      "sign_sign"
+    ]
+  },
+  "expected": "w*：LMS 3.000、Sign-Error 2.7195、Sign-Sign 2.697（ψ(w) 的零交越；Monte Carlo 在 4·SE 內一致）。",
+  "source": "simulation"
+}

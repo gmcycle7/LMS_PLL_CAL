@@ -1,0 +1,34 @@
+{
+  "id": "polarity-delay-d8",
+  "title": "φ = 120°、D = 8：Delay 讓極性轉正（預覽第 07 章）",
+  "page": "/ch/06",
+  "experiment": "polarity-explorer",
+  "description": "同 Gallery #3，但 GMAC 用 x[n − 8]：φ + ΩD = 120° + 240° = 360°。",
+  "params": {
+    "mode": "tone",
+    "mag": 1,
+    "phiDeg": 120,
+    "omega": 0.5235987755982988,
+    "A": 1,
+    "D": 8,
+    "loopType": "typeII",
+    "zeta": 0.7,
+    "bwRatio": 0.01,
+    "loopDelay": 0,
+    "code": "tone",
+    "toneRatio": 0.3,
+    "frac": 0.01,
+    "mu": 10,
+    "sigmaV": 100,
+    "N": 1024,
+    "blocks": 400,
+    "a": 3,
+    "w0": 0,
+    "regressor": "x"
+  },
+  "expected": "C_D = +0.5（最大）、p = 0.960106；閉迴路收斂到 a 附近（seed 20261010、8 chains：400 blocks 後 MC 平均 δ ≈ 0.64 fs；線性模型的穩態雜訊 σ_w ≈ 0.79 fs）。",
+  "tests": [
+    "T06"
+  ],
+  "source": "simulation"
+}

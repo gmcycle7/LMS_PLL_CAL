@@ -1,0 +1,25 @@
+{
+  "id": "pe-rho-1-missing",
+  "title": "ρ = 1：完全缺乏 PE（不可辨識方向）",
+  "page": "/ch/09",
+  "experiment": "pe-eigen-lab",
+  "description": "兩個 regressor 永遠相同（u₁ = u₂）。反面測試：λ_min = 0、κ = ∞，差模 (1, −1)/√2 的 pole = 1，誤差永遠停在初值。",
+  "params": {
+    "rho": 1,
+    "dist": "gaussian",
+    "detector": "linear",
+    "sigmaV": 0,
+    "kqMode": "normalized",
+    "muInput": 0.5,
+    "N": 16,
+    "N0": 100,
+    "d10": 1,
+    "d20": 0,
+    "blocks": 300,
+    "chains": 64,
+    "seed": 20261010
+  },
+  "expected": "eigenvalues [2, 0]；慢模式座標恆為 1/√2 ≈ 0.7071（δ 停在 (0.5, −0.5)）；警告「λ_min = 0：不可辨識」。",
+  "tests": ["T10"],
+  "source": "illustrative"
+}
