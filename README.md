@@ -1,5 +1,7 @@
 # LMS × Fractional-N PLL Calibration Lab
 
+**線上網站：<https://gmcycle7.github.io/LMS_PLL_CAL/>**（每次 push 到 `main` 由 GitHub Actions 自動 build 並部署）
+
 繁體中文互動教學網站與校正實驗室：從高中數學的 LMS，一路到 DTC-based Fractional-N PLL 的 Sign-LMS / GMAC 校正、極性、穩定性、Persistent Excitation、MIMO Preconditioning、Bias、Noise → Jitter/Spur、6-bit 量化與 ΔΣ。
 
 - 主規格：[docs/LMS_PLL_Calibration_Website_Blueprint_ZH_TW.md](docs/LMS_PLL_Calibration_Website_Blueprint_ZH_TW.md)
