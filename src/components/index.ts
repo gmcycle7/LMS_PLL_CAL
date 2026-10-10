@@ -114,3 +114,6 @@ export {
 // 帶入手算
 export { HandCalc, type HandCalcProps } from './HandCalc'
 export { texNum, texNumP, checkAnswer, defaultValues, randomValues, inputError } from './handcalcMath'
+
+// 系統地圖（每章開頭的「你在這裡」方塊圖）
+export { SystemMap, systemMapChart, SYSTEM_BLOCK_LABEL, type SystemBlock, type SystemMapProps } from './SystemMap'
