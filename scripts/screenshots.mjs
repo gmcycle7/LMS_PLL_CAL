@@ -10,6 +10,10 @@
  *   top            頁面頂端一個視窗
  *   <kind>:<n>     該種元素的前 n 個（逐一捲到畫面中、等方塊圖畫完再截）；kind 見 SELECTORS
  *   all-mermaid    該頁全部方塊圖
+ * 其他選項：
+ *   --mode beginner|engineer|research   學習模式（預設 engineer，和訪客第一次看到的一樣）
+ *   --only 3,7,12                       只截指定序號的元素（序號與 diagram-audit 相同，從 1 起算）
+ * 截元素之前會把收合的 <details> 全部展開。
  * 檔名：<route>__<viewport>-<theme>__<shot>-<i>.png
  */
 import { mkdirSync, rmSync } from 'node:fs'
@@ -26,6 +30,8 @@ const routes = (args.routes ?? '/').split(',')
 const themes = (args.theme ?? 'light').split(',')
 const viewports = (args.viewport ?? 'desktop').split(',')
 const shots = (args.shots ?? 'top').split(',')
+const mode = args.mode ?? 'engineer'
+const only = args.only ? new Set(args.only.split(',').map(Number)) : null
 const chrome = args.chrome ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 
 const VIEWPORT = {
@@ -69,6 +75,7 @@ try {
         const page = await browser.newPage()
         await page.setViewport(VIEWPORT[vpName] ?? VIEWPORT.desktop)
         await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: theme }])
+        await page.evaluateOnNewDocument((m) => localStorage.setItem('lmspll.mode', m), mode)
         await page.goto(`${base}/#${route}`, { waitUntil: 'networkidle2', timeout: 120000 })
         // HashRouter：同一份文件換 hash 時 goto 不一定重新載入，保險起見等標題出現
         await page.waitForSelector('article.page', { timeout: 60000 })
@@ -87,6 +94,8 @@ try {
           // 元素截圖時藏起固定在上方的工具列，避免蓋住被截的元素
           if (!page.__chromeHidden) {
             await page.addStyleTag({ content: '.topbar{visibility:hidden!important}' })
+            await page.evaluate(() => document.querySelectorAll('details').forEach((d) => (d.open = true)))
+            await sleep(300)
             page.__chromeHidden = true
           }
           const [kindRaw, nRaw] = shot.split(':')
@@ -94,8 +103,9 @@ try {
           const sel = SELECTORS[kind]
           if (!sel) continue
           const handles = await page.$$(sel)
-          const limit = kindRaw === 'all-mermaid' ? handles.length : Math.min(handles.length, Number(nRaw ?? 1))
+          const limit = kindRaw === 'all-mermaid' || only ? handles.length : Math.min(handles.length, Number(nRaw ?? 1))
           for (let i = 0; i < limit; i++) {
+            if (only && !only.has(i + 1)) continue
             const h = handles[i]
             await h.evaluate((el) => el.scrollIntoView({ block: 'center' }))
             if (kind === 'mermaid') {

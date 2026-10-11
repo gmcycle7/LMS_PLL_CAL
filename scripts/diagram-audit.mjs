@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /**
  * 量每一頁每張方塊圖的實際尺寸，找出「比版面寬、要橫向捲動」或「縮得太小」的圖。
- *   node scripts/diagram-audit.mjs --base http://localhost:5173 --routes /ch/05,/ch/06 [--viewport desktop|mobile] [--json out.json]
+ *   node scripts/diagram-audit.mjs --base http://localhost:5173 --routes /ch/05,/ch/06 [--viewport desktop|mobile]
+ *        [--mode beginner|engineer|research] [--json out.json]
+ * 預設用 Research 模式（內容最多），並把收合的 <details> 全部展開，才量得到藏在裡面的圖。
  * 每張圖輸出：序號、圖說開頭、自然寬×高（px）、顯示倍率、超出版面的寬度（px，0 表示放得下）。
  */
 import { rmSync, writeFileSync } from 'node:fs'
@@ -15,6 +17,7 @@ const args = Object.fromEntries(
 const base = (args.base ?? 'http://localhost:5173').replace(/\/$/, '')
 const routes = (args.routes ?? '/').split(',')
 const vp = args.viewport === 'mobile' ? { width: 375, height: 812, deviceScaleFactor: 2, isMobile: true, hasTouch: true } : { width: 1280, height: 900 }
+const mode = args.mode ?? 'research'
 const chrome = args.chrome ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 
 const profileDir = join(tmpdir(), `lmspll-audit-${process.pid}`)
@@ -30,10 +33,13 @@ try {
     // 每一頁開新分頁：HashRouter 換 hash 不會重新載入，舊頁的圖會被誤算進來
     const page = await browser.newPage()
     await page.setViewport(vp)
+    await page.evaluateOnNewDocument((m) => localStorage.setItem('lmspll.mode', m), mode)
     await page.goto(`${base}/#${route}`, { waitUntil: 'networkidle2', timeout: 120000 })
     await page.waitForSelector('article.page', { timeout: 60000 })
     const rows = await page.evaluate(async () => {
       const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+      document.querySelectorAll('details').forEach((d) => (d.open = true))
+      await sleep(300)
       const figs = [...document.querySelectorAll('figure.c-mermaid')]
       const out = []
       for (let i = 0; i < figs.length; i++) {
