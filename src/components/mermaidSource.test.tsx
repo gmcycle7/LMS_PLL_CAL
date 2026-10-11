@@ -77,3 +77,14 @@ describe('withReadableMinWidth', () => {
     expect(withReadableMinWidth('<div>not svg</div>')).toBe('<div>not svg</div>')
   })
 })
+
+describe('unicodeMathIn', () => {
+  it('找出 KaTeX 以外的 Unicode 數學；一般文字與箭頭不算', async () => {
+    const { unicodeMathIn } = await import('./mermaidTestUtils')
+    expect(unicodeMathIn('Loop filter → VCO / DCO，有限位元')).toEqual([])
+    expect(unicodeMathIn('w_k 加上 μ·e，σ² ≤ 1')).toEqual(expect.arrayContaining(['w_k', 'μ', '·', 'σ', '²', '≤']))
+    const r = await renderMermaidForTest(String.raw`flowchart LR
+  A["誤差 $e[n]$"] --> B["步長 μ"]`)
+    expect(unicodeMathIn(r.plainText)).toEqual(['μ'])
+  })
+})
