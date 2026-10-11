@@ -288,7 +288,7 @@ export function BlackBoxSection() {
 function RatioTable({ rows, caption }: { rows: { x: number; y: number; ratio: number }[]; caption: ReactNode }) {
   return (
     <div className="table-wrap">
-      <table className="ch00-num-table">
+      <table className="ch00-num-table ch00-ratio-table">
         <caption className="small muted">{caption}</caption>
         <thead>
           <tr>
@@ -352,7 +352,7 @@ export function LoopSection() {
       </ol>
       <ChapterDiagram name="CHART_LOOP">
         <p>
-          先由左到右看主線：<Tex>{'x[n]'}</Tex> 進「① 預測」變成 <Tex>{'\\hat y[n]'}</Tex>，和黑盒子送來的 <Tex>{'y[n]'}</Tex> 在「② 比較」相減得到 <Tex>{'e[n]'}</Tex>，再進「③ 修正」。
+          先從上方的「① 預測」開始，順著箭頭（順時針）看主線：<Tex>{'x[n]'}</Tex> 進「① 預測」變成 <Tex>{'\\hat y[n]'}</Tex>，和黑盒子送來的 <Tex>{'y[n]'}</Tex> 在右邊的「② 比較」相減得到 <Tex>{'e[n]'}</Tex>，再往左下進「③ 修正」。
           再看兩條容易漏掉的線：<Tex>{'x[n]'}</Tex> 有<strong>第二條</strong>線直接接到「③ 修正」（修正量要用到它，下面馬上說明為什麼）；而「③ 修正」的輸出{' '}
           <Tex>{'w[n+1]'}</Tex> 繞回「① 預測」——這條回授線讓它成為一個迴圈。
         </p>

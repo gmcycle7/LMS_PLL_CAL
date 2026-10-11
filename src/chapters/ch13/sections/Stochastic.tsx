@@ -110,7 +110,7 @@ export function StochasticSection() {
         caption="方法 C 的方塊圖。和方法 B 比：計數器與固定 pattern 換成了藍色的亂數產生器與比較器，其餘相同；一樣沒有回授線。"
       />
       <p className="small ch13-figwalk">
-        先看藍色兩塊：亂數產生器每次吐出一個均勻落在 0 到 1 之間的數（圖上的 rand，程式碼的 <code>c.rand()</code>），比 <Tex>{'p'}</Tex> 小就進位。再看右邊：圖上的 <Tex>{'X[n]'}</Tex> 是「這一拍有沒有進位」的 0 / 1 隨機變數（Bernoulli，下面的先備知識），
+        先看藍色兩塊：亂數產生器每次吐出一個均勻落在 0 到 1 之間的數（圖上的 rand，程式碼的 <code>c.rand()</code>），比 <Tex>{'p'}</Tex> 小就進位。再看下半部：圖上的 <Tex>{'X[n]'}</Tex> 是「這一拍有沒有進位」的 0 / 1 隨機變數（Bernoulli，下面的先備知識），
         輸出 <Tex>{String.raw`y[n]=32+X[n]`}</Tex>；圖上最後一格的 <Tex>{String.raw`E[y]`}</Tex> 與 <Tex>{String.raw`\mathrm{Var}(y)`}</Tex> 就是下面要手算的兩個動差（公式 F-13.6）。
       </p>
       <Prereq title="期望值、變異數與 Bernoulli 隨機變數">
@@ -173,7 +173,16 @@ export function StochasticSection() {
         height={260}
         yLog
         csvName="ch13-stochastic-psd"
-        layout={{ xaxis: { title: { text: String.raw`$f$ [Hz]（$f_u = 1\,\mathrm{MHz}$）` } }, yaxis: { title: { text: String.raw`PSD [$\mathrm{LSB}^2/\mathrm{Hz}$]` } } }}
+        layout={{
+          xaxis: { title: { text: String.raw`$f$ [Hz]（$f_u = 1\,\mathrm{MHz}$）` } },
+          yaxis: {
+            title: { text: String.raw`PSD [$\mathrm{LSB}^2/\mathrm{Hz}$]` },
+            // 資料跨不到一個 decade：log 軸預設會塞滿 2–9 的次要刻度文字，改成只標四個刻度
+            range: [Math.log10(3e-8), Math.log10(1.2e-6)],
+            tickvals: [1e-7, 2e-7, 5e-7, 1e-6],
+            ticktext: [String.raw`$10^{-7}$`, String.raw`$2\times10^{-7}$`, String.raw`$5\times10^{-7}$`, String.raw`$10^{-6}$`],
+          },
+        }}
         caption={
           <>
             Welch：Hann、nperseg {psd.nperseg}、{psd.nSegments} 段、ENBW {n(psd.enbwHz, 4)} Hz、one-sided、<Tex>{String.raw`\mathrm{LSB}^2/\mathrm{Hz}`}</Tex>；<Tex>{'2^{15}'}</Tex> 個 sample（seed 7）。虛線是理論值{' '}

@@ -14,6 +14,14 @@
  * - 狀態圖（stateDiagram-v2）的轉移文字沒有雙引號，不會被前處理轉換：公式要直接寫成單一段 `$$...$$`
  *   （文字用 `\text{}` 包起來）；狀態方塊的標籤有雙引號，照一般寫 `$...$`。
  * - 顏色：藍（focus）= 這張圖要看的方塊；紅（warn）= 會出問題的地方；綠（ok）= 安全 / 對策。深淺主題都看得清楚。
+ * - 版面（桌機 1280px 不橫向捲動，docs/teaching-style.md §8）：長鏈與迴圈用 `flowchart TB`（由上往下讀）；
+ *   不要用 subgraph 的 `direction LR` 折列——只要群組內有節點連到群組外，Mermaid 就忽略它（diagrams.test.tsx 會檢查）；
+ *   決策用六角形 `{{...}}`（菱形的邊長 = 文字寬 + 文字高，長問句會長成很大的正方形），標籤用 `<br/>` 手動換行（約 14 個中文字一行）。
+ *   圖說與圖旁說明裡的方位詞（上面／下面／左邊／右邊）要和這裡的排版一致。
+ * - 群組（subgraph）的標題不放 `$...$`：全站主題的 `.cluster-label span { font-size: .86em }` 會疊在 KaTeX 的每一層 span 上，
+ *   標題裡的公式只剩 6–7px（diagrams.test.tsx 會檢查）；公式寫在群組裡的方塊。
+ * - 兩個來源各以正負號連到兩個加法點時，連線會交叉（正負號標籤疊在交叉點，分不出哪個是哪個）：
+ *   加一條隱形連線 `A ~~~ B`，讓 B 排在 A 的下一層，兩個來源就不會交叉（見 CHART_ERROR_PATH）。
  */
 import type { SystemBlock } from '@/components'
 
@@ -25,9 +33,9 @@ const STYLE = String.raw`
 /* ───────────────────────── §13.0 開場 ───────────────────────── */
 
 /** （原有）6-bit gain code 的訊號流：高解析 accumulator → 量化策略 → 6-bit register → DTC。 */
-export const CHART_SIGNAL_FLOW = String.raw`flowchart LR
+export const CHART_SIGNAL_FLOW = String.raw`flowchart TB
   G["GMAC 平均 $G_k$"] --> ACC["LMS accumulator<br/>$w_H$（高解析）"]
-  ACC --> Q{"量化策略<br/>A Freeze / B Toggle / C Stochastic<br/>D $\Delta\Sigma$ / E $\Delta\Sigma$+dither"}
+  ACC --> Q["量化策略<br/>A Freeze / B Toggle / C Stochastic<br/>D $\Delta\Sigma$ / E $\Delta\Sigma$+dither"]
   Q --> REG["6-bit gain register<br/>$y \in \{0, \ldots, 63\}$"]
   REG --> DTC["DTC：延遲 $= \Delta_{\mathrm{LSB}} \cdot y \cdot x[n]$"]
   DSM["DSM residue $x[n]$"] --> DTC
@@ -36,7 +44,7 @@ export const CHART_SIGNAL_FLOW = String.raw`flowchart LR
   class Q focus`
 
 /** 誤差的定義、單位換算與兩種正負號約定（F-13.1、勘誤 E13 / E49）。 */
-export const CHART_ERROR_PATH = String.raw`flowchart LR
+export const CHART_ERROR_PATH = String.raw`flowchart TB
   Y["$y[n]$<br/>6-bit code（LSB）"] -- "＋" --> S1(("＋"))
   WS["$w^*$<br/>理想係數 32.4（LSB）"] -- "−" --> S1
   S1 -- "$e = \delta w = y - w^*$（LSB）" --> K["$\times\, \Delta_{\mathrm{LSB}}$<br/>fs/LSB，示例 0.125"]
@@ -46,13 +54,14 @@ export const CHART_ERROR_PATH = String.raw`flowchart LR
   T --> OUT["PLL 輸出的 jitter / spur"]
   WS -- "＋" --> S2(("＋"))
   Y -- "−" --> S2
+  Y ~~~ WS
   S2 -- "$\delta = a - w = w^* - y = -\delta w$" --> N0["§0 的約定<br/>同一個誤差，正負號相反"]${STYLE}
   class S1,K focus`
 
 /* ───────────────────────── §13.1 方法 A ───────────────────────── */
 
 /** 方法 A：只在凍結瞬間量化一次，之後完全不看 w_H。 */
-export const CHART_FREEZE = String.raw`flowchart LR
+export const CHART_FREEZE = String.raw`flowchart TB
   WH["$w_H[n]$<br/>LMS accumulator（高解析）"] -- "凍結瞬間取樣一次" --> LAT["latch：$w_{\mathrm{freeze}} = w^* = 32.4$<br/>之後不再更新"]
   WH -. "之後的變化被忽略" .-> LAT
   LAT --> Q["$Q_B$：$\lfloor 32.4 + \tfrac12 \rfloor$"]
@@ -65,7 +74,7 @@ export const CHART_FREEZE = String.raw`flowchart LR
 /* ───────────────────────── §13.2 方法 B ───────────────────────── */
 
 /** 方法 B：計數器 + Bresenham pattern（開迴路，沒有回授線）。F-13.3。 */
-export const CHART_TOGGLE = String.raw`flowchart LR
+export const CHART_TOGGLE = String.raw`flowchart TB
   WH["$w_H = 32.4$"] --> SP["拆開：$\lfloor w_H \rfloor = 32$<br/>小數 $p = 0.4$"]
   SP -- "$p$" --> H["$h = \mathrm{round}(p \cdot L_t) = 2$<br/>$L_t = 5$ 次裡進位 2 次"]
   CNT["計數器 $n' = n \bmod L_t$<br/>$0, 1, 2, 3, 4, 0, \ldots$"] --> PAT["Bresenham pattern<br/>$s = \lfloor (n'+1)h/L_t \rfloor - \lfloor n'h/L_t \rfloor$"]
@@ -76,7 +85,7 @@ export const CHART_TOGGLE = String.raw`flowchart LR
   class CNT,PAT focus`
 
 /** 週期 5 的誤差怎麼變成兩條譜線（F-13.4、勘誤 E47）。 */
-export const CHART_TOGGLE_SPECTRUM = String.raw`flowchart LR
+export const CHART_TOGGLE_SPECTRUM = String.raw`flowchart TB
   E["$e[n] = y[n] - 32.4$<br/>$-0.4, -0.4, 0.6, -0.4, 0.6$（週期 5）"] --> DFT["離散傅立葉係數 $c_k$<br/>$k = 0, 1, 2, 3, 4$"]
   DFT --> C0["$k = 0$：$c_0$ = 平均 $= 0$<br/>沒有 DC 誤差"]
   DFT --> C1["$k = 1$ 與 $4$（共軛對）<br/>$|c_1| = (\sqrt5 - 1)/10 = 0.1236$"]
@@ -89,7 +98,7 @@ export const CHART_TOGGLE_SPECTRUM = String.raw`flowchart LR
   class P2 warn`
 
 /** code 以 ZOH 保持到更快的取樣率：譜線複製到所有 k·f_u/5，並乘上離散 sinc² 權重（F-13.5）。 */
-export const CHART_ZOH = String.raw`flowchart LR
+export const CHART_ZOH = String.raw`flowchart TB
   E["$e[n]$：每次 code 更新一個值<br/>取樣率 $f_u$，週期 5"] --> ZOH["ZOH：每個 code 保持 $N_h$ 個 cycle<br/>$z[m] = e[\lfloor m/N_h \rfloor]$"]
   ZOH --> Z["$z[m]$：每個 reference cycle 一個值<br/>取樣率 $f_s = N_h \cdot f_u$，週期 $5 \cdot N_h$"]
   Z --> L["譜線出現在所有 $k \cdot f_u/5$<br/>$k = 1, 2, 3, \ldots$（不只 $k = 1, 2$）"]
@@ -102,7 +111,7 @@ export const CHART_ZOH = String.raw`flowchart LR
 /* ───────────────────────── §13.3 方法 C ───────────────────────── */
 
 /** 方法 C：亂數 + 比較器決定要不要進位（F-13.6）。 */
-export const CHART_STOCHASTIC = String.raw`flowchart LR
+export const CHART_STOCHASTIC = String.raw`flowchart TB
   WH["$w_H = 32.4$"] --> SP["拆開：$\lfloor w_H \rfloor = 32$<br/>小數 $p = 0.4$"]
   RNG["亂數產生器（或 PRBS）<br/>$\mathrm{rand}[n]$ 均勻落在 0 到 1，每次獨立"] --> CMP{"$\mathrm{rand}[n] \lt p$ ?"}
   SP -- "$p$" --> CMP
@@ -115,7 +124,7 @@ export const CHART_STOCHASTIC = String.raw`flowchart LR
 /* ───────────────────────── §13.4 方法 D ───────────────────────── */
 
 /** 一階 error-feedback ΔΣ 迴圈：加法器、Q、相減、z⁻¹（訊號 v、y、r）。 */
-export const CHART_EFB_LOOP = String.raw`flowchart LR
+export const CHART_EFB_LOOP = String.raw`flowchart TB
   WH["$w_H[n]$<br/>高解析係數"] -- "＋" --> A1(("＋"))
   A1 -- "$v[n] = w_H[n] + r[n-1]$" --> Q["$Q_6$：$\lfloor v + \tfrac12 \rfloor$<br/>6-bit 量化器"]
   Q -- "$y[n]$" --> OUT["$y[n]$<br/>6-bit code，送到 DTC"]
@@ -141,7 +150,7 @@ export const CHART_LIMIT_CYCLE = String.raw`stateDiagram-v2
   R4 --> R0 : $$v = 32.0 \to y = 32$$`
 
 /** 訊號路徑（增益 1）與誤差路徑（NTF = 1 − z⁻¹）：F-13.7、F-13.9。 */
-export const CHART_NTF_PATHS = String.raw`flowchart LR
+export const CHART_NTF_PATHS = String.raw`flowchart TB
   WH["$W_H(z)$<br/>訊號：高解析係數"] -- "＋，訊號路徑增益 1" --> S(("＋"))
   R["$R(z)$<br/>量化誤差 $r$"] --> NTF["$\mathrm{NTF}(z) = 1 - z^{-1}$<br/>現在的 $r$ 減掉上一次的 $r$"]
   NTF -- "−" --> S
@@ -151,7 +160,7 @@ export const CHART_NTF_PATHS = String.raw`flowchart LR
   class NTF focus`
 
 /** 同一個迴圈換個畫法：r 是 (w_H − y) 的累加器，有界 ⇒ 平均追得上（F-13.12）。 */
-export const CHART_TELESCOPING = String.raw`flowchart LR
+export const CHART_TELESCOPING = String.raw`flowchart TB
   WH["$w_H[n]$"] -- "＋" --> D0(("＋"))
   Y["$y[n]$"] -- "−" --> D0
   D0 -- "$w_H[n] - y[n]$" --> ACC["累加器 $1/(1 - z^{-1})$<br/>$r[n] = r[n-1] + (w_H[n] - y[n])$"]
@@ -173,7 +182,7 @@ export const CHART_PERIOD_FLOW = String.raw`flowchart TB
 /* ───────────────────────── §13.4E 方法 E ───────────────────────── */
 
 /** 方法 E：dither 只加在量化器輸入；回授的 r 以未加 dither 的 v 為基準（F-13.10）。 */
-export const CHART_DITHER_LOOP = String.raw`flowchart LR
+export const CHART_DITHER_LOOP = String.raw`flowchart TB
   WH["$w_H[n]$"] -- "＋" --> A1(("＋"))
   A1 -- "＋ $v[n] = w_H[n] + r[n-1]$" --> A3(("＋"))
   DI["dither $d[n]$<br/>零平均亂數，峰對峰寬度 $A$"] -- "＋" --> A3
@@ -188,12 +197,12 @@ export const CHART_DITHER_LOOP = String.raw`flowchart LR
 /* ───────────────────────── 五策略比較 ───────────────────────── */
 
 /** 五種策略並排：送進共用量化器的東西不同；藍色 = 有誤差回授（閉迴路）。 */
-export const CHART_FIVE_STRATEGIES = String.raw`flowchart LR
-  WH["$w_H[n]$<br/>高解析係數"] --> SA["A Freeze<br/>$v$ = 凍結時的 $w^*$，不再看 $w_H$"]
-  WH --> SB["B Toggle<br/>$v = \lfloor w_H \rfloor + \mathrm{pattern}(n \bmod L_t)$"]
-  WH --> SC["C Stochastic<br/>$v = \lfloor w_H \rfloor + (\mathrm{rand} \lt p)$"]
+export const CHART_FIVE_STRATEGIES = String.raw`flowchart TB
+  WH["$w_H[n]$<br/>高解析係數"] --> SA["A Freeze<br/>$v$ = 凍結時的 $w^*$<br/>不再看 $w_H$"]
+  WH --> SB["B Toggle<br/>$v = \lfloor w_H \rfloor$<br/>$+\,\mathrm{pattern}(n \bmod L_t)$"]
+  WH --> SC["C Stochastic<br/>$v = \lfloor w_H \rfloor$<br/>$+\,(\mathrm{rand} \lt p)$"]
   WH --> SD["D $\Delta\Sigma$<br/>$v = w_H + r[n-1]$"]
-  WH --> SE["E $\Delta\Sigma$ + dither<br/>量化 $v + d$，$v = w_H + r[n-1]$"]
+  WH --> SE["E $\Delta\Sigma$ + dither<br/>量化 $v + d$<br/>$v = w_H + r[n-1]$"]
   CNT["計數器 $n$"] -.-> SB
   RNG["亂數 / PRBS"] -.-> SC
   RNG -.-> SE
@@ -202,9 +211,9 @@ export const CHART_FIVE_STRATEGIES = String.raw`flowchart LR
   SC --> Q
   SD --> Q
   SE --> Q
-  Q --> Y["$y[n]$<br/>6-bit code"]
-  Q -. "$r[n] = v - y$，經 $z^{-1}$ 回授" .-> SD
-  Q -. "$r[n] = v - y$，經 $z^{-1}$ 回授" .-> SE${STYLE}
+  Q -. "$r[n] = v - y$<br/>經 $z^{-1}$ 回授" .-> SD
+  Q -. "$r[n] = v - y$<br/>經 $z^{-1}$ 回授" .-> SE
+  Q --> Y["$y[n]$<br/>6-bit code"]${STYLE}
   class SD,SE focus`
 
 /** 同樣的功率、不同的頻率分布：「平均正確 ≠ 頻譜理想」。 */
@@ -216,13 +225,13 @@ export const CHART_POWER_SPLIT = String.raw`flowchart LR
   class BD warn`
 
 /** Quantized Gain Lab 算了什麼：從參數到 σ_out 的資料流。 */
-export const CHART_LAB_PIPELINE = String.raw`flowchart LR
+export const CHART_LAB_PIPELINE = String.raw`flowchart TB
   PRM["參數：$w^*$、位元數、rounding、seed"] --> WH["lmsTarget：產生 $w_H[n]$<br/>常數，或加 LMS 雜訊 / PVT 漂移"]
   WH --> ST["量化策略 A 到 E<br/>每個 Case 選一種"]
   ST --> Y["$y[n]$<br/>6-bit code"]
   Y --> PER["週期偵測<br/>limit-cycle period"]
   Y --> ERR["$e = y - w^*$"]
-  ERR --> SPEC["譜線表與 Welch PSD<br/>DC 誤差、總功率、頻帶內功率"]
+  ERR --> SPEC["譜線表與 Welch PSD<br/>DC 誤差、總功率、<br/>頻帶內功率"]
   ERR --> MIX["ZOH 保持 $N_{\mathrm{upd}}$ 個 cycle<br/>再 $\times\, x[n] \times \Delta_{\mathrm{LSB}}$"]
   MIX --> TF["乘上 $|T(f)|^2$ 再積分"]
   TF --> SIG["$\sigma_{\mathrm{out}}$（fs）"]${STYLE}
@@ -231,7 +240,7 @@ export const CHART_LAB_PIPELINE = String.raw`flowchart LR
 /* ───────────────────────── §13.5a 時變 w_H ───────────────────────── */
 
 /** w_H[n] = w* + δw[n]（AR(1) 的 LMS 雜訊）；code 誤差拆成 e = ε + δw。 */
-export const CHART_TIME_VARYING = String.raw`flowchart LR
+export const CHART_TIME_VARYING = String.raw`flowchart TB
   XI["白雜訊 $\xi[n]$<br/>獨立、零平均、變異數 1"] --> AR["AR(1)：$\delta w[n+1] = p_{\mathrm{cal}} \cdot \delta w[n] + g \cdot \xi[n]$<br/>一階 low-pass，$g = \sqrt{1 - p_{\mathrm{cal}}^2} \cdot \sigma_w$"]
   AR -- "＋ $\delta w[n]$，RMS $= \sigma_w$" --> S1(("＋"))
   WS["$w^* = 32.4$"] -- "＋" --> S1
@@ -243,16 +252,17 @@ export const CHART_TIME_VARYING = String.raw`flowchart LR
   S3 --> OUT["$e[n] = y[n] - w^* = \epsilon[n] + \delta w[n]$<br/>code 誤差"]${STYLE}
   class QS focus`
 
-/** 頻帶內量化誤差：白色（一次方）vs 一階塑形（三次方）。F-13.13。 */
+/**
+ * 頻帶內量化誤差：白色（一次方）vs 一階塑形（三次方）。F-13.13。
+ * 兩個群組都有連到外面的 CMP：Mermaid 會忽略群組自己的 direction，所以不寫；兩欄各自由上往下讀。
+ */
 export const CHART_INBAND = String.raw`flowchart TB
   subgraph CW["C Stochastic：白色誤差"]
-    direction LR
     C1["每次的變異數 $p(1 - p)$<br/>平均 $E[p(1 - p)] \approx p_0(1 - p_0) - \sigma_w^2$"] --> C2["PSD 是平的<br/>高度 $2 \cdot E[p(1 - p)]/f_u$"]
     C2 --> C3["頻帶內 $=$ 高度 $\times$ 寬度 $f_B$<br/>$P_{\mathrm{in}} = 2 \cdot E[p(1 - p)] \cdot (f_B/f_u)$"]
   end
-  subgraph DS["D $\Delta\Sigma$：被 $1 - z^{-1}$ 塑形的誤差"]
-    direction LR
-    D1["$r$ 的變異數 $\sigma_r^2$<br/>白色近似取 $1/12$"] --> D2["PSD $\approx (2\pi f/f_u)^2 \cdot 2\sigma_r^2/f_u$<br/>低頻時隨 $f^2$ 變小"]
+  subgraph DS["D 誤差回授：被 NTF 塑形"]
+    D1["$r$ 的變異數 $\sigma_r^2$<br/>白色近似取 $1/12$<br/>塑形的 NTF $= 1 - z^{-1}$"] --> D2["PSD $\approx (2\pi f/f_u)^2 \cdot 2\sigma_r^2/f_u$<br/>低頻時隨 $f^2$ 變小"]
     D2 --> D3["積分到 $f_B$：$f^2$ 的積分是 $f_B^3/3$<br/>$P_{\mathrm{in}} \approx (8\pi^2/3) \cdot \sigma_r^2 \cdot (f_B/f_u)^3$"]
   end
   C3 --> CMP["$f_B/f_u = 1/64$：一次方對三次方<br/>約 $6\times10^{-3}$ 對 $8\times10^{-6}\,\mathrm{LSB}^2$"]
@@ -262,7 +272,7 @@ export const CHART_INBAND = String.raw`flowchart TB
 /* ───────────────────────── §13.5b 六個準則 ───────────────────────── */
 
 /** code 誤差到 output jitter 的路徑：ZOH → 乘上 DSM residue → Δ_LSB → |T(f)|²（F-13.11）。 */
-export const CHART_MIXING_PATH = String.raw`flowchart LR
+export const CHART_MIXING_PATH = String.raw`flowchart TB
   Y["$y[k]$<br/>6-bit code，每 $N_{\mathrm{upd}}$ 個 cycle 更新（$f_u$）"] -- "＋" --> S(("＋"))
   WS["$w^*$"] -- "−" --> S
   S -- "$e[k] = y[k] - w^*$" --> ZOH["ZOH：保持 $N_{\mathrm{upd}}$ 個 cycle<br/>$e_s[n] = e[\lfloor n/N_{\mathrm{upd}} \rfloor]$"]
@@ -297,16 +307,16 @@ export const CHART_RECORD_CHECK = String.raw`flowchart TB
 
 /** 沿著 §13.5 六個準則的選擇流程（教學用的思考順序，不是 sign-off 規則）。 */
 export const CHART_DECISION = String.raw`flowchart TB
-  ST["要把 $w_H$ 放進 6-bit code"] --> Q1{"準則 1、4<br/>能接受最多 $\tfrac12$ LSB 的 static error<br/>而且不必追 PVT 漂移？"}
-  Q1 -- "能" --> SA["A Freeze<br/>沒有 code tone、不切換"]
-  Q1 -- "不能" --> Q2{"$w_H$ 會一直變嗎？<br/>背景 LMS 持續更新"}
-  Q2 -- "會，LMS 雜訊本身就像 dither" --> SD["D $\Delta\Sigma$<br/>平均追上 $w_H$，頻帶內量化誤差很小"]
-  Q2 -- "不會，常數或已凍結" --> Q3{"準則 2、6<br/>limit cycle 的 tone 乘上 DSM residue<br/>差頻會落進 $T(f)$ 通帶？"}
+  ST["要把 $w_H$ 放進 6-bit code"] --> Q1{{"準則 1、4<br/>能接受最多 $\tfrac12$ LSB 的<br/>static error，而且<br/>不必追 PVT 漂移？"}}
+  Q1 -- "能" --> SA["A Freeze<br/>沒有 code tone、<br/>不切換"]
+  Q1 -- "不能" --> Q2{{"$w_H$ 會一直變嗎？<br/>背景 LMS 持續更新"}}
+  Q2 -- "會，LMS 雜訊<br/>本身就像 dither" --> SD["D $\Delta\Sigma$<br/>平均追上 $w_H$，<br/>頻帶內量化誤差很小"]
+  Q2 -- "不會，<br/>常數或已凍結" --> Q3{{"準則 2、6<br/>limit cycle 的 tone 乘上<br/>DSM residue，差頻會<br/>落進 $T(f)$ 通帶？"}}
   Q3 -- "不會" --> SBD["B Toggle 或 D $\Delta\Sigma$<br/>常數時是同一個循環"]
-  Q3 -- "會，或不確定" --> Q4{"準則 3<br/>能接受 code 擺到 31 到 34<br/>與較大的總功率？"}
-  Q4 -- "能" --> SE["E $\Delta\Sigma$ + dither<br/>打散 tone，低頻仍被塑形"]
-  Q4 -- "不能" --> SC["C Stochastic<br/>只用兩階、白色，頻帶內地板較高"]
-  SA --> V["準則 5：用實際的 FCW、$N_{\mathrm{upd}}$、$T(f)$ 模擬確認<br/>紀錄要長於混頻週期"]
+  Q3 -- "會，或不確定" --> Q4{{"準則 3<br/>能接受 code 擺到<br/>31 到 34 與較大的<br/>總功率？"}}
+  Q4 -- "能" --> SE["E $\Delta\Sigma$ + dither<br/>打散 tone，<br/>低頻仍被塑形"]
+  Q4 -- "不能" --> SC["C Stochastic<br/>只用兩階、白色，<br/>頻帶內地板較高"]
+  SA --> V["準則 5：用實際的 FCW、$N_{\mathrm{upd}}$、$T(f)$<br/>模擬確認，紀錄要長於混頻週期"]
   SD --> V
   SBD --> V
   SE --> V
@@ -316,7 +326,7 @@ export const CHART_DECISION = String.raw`flowchart TB
 /* ───────────────────────── §13.6 非理想 ───────────────────────── */
 
 /** 超出 6-bit 範圍時：saturate（夾住，但 r 會 windup）對 wrap（進位被丟掉，code 掉到 0）。 */
-export const CHART_SAT_WRAP = String.raw`flowchart LR
+export const CHART_SAT_WRAP = String.raw`flowchart TB
   V["$v[n] = 63.4 + r[n-1]$<br/>有些拍四捨五入得到 64，超出 0 到 63"] --> OV{"overflow 怎麼處理？"}
   OV -- "saturate" --> SAT["$y = 63$<br/>夾在最大 code"]
   OV -- "wrap：丟掉進位" --> WR["$y = 64 \bmod 64 = 0$<br/>gain 瞬間崩到 0"]
@@ -327,7 +337,7 @@ export const CHART_SAT_WRAP = String.raw`flowchart LR
   class SAT,AW ok`
 
 /** anti-windup 夾在哪裡：r 存回暫存器之前（對應程式碼的 residual()）。 */
-export const CHART_ANTIWINDUP = String.raw`flowchart LR
+export const CHART_ANTIWINDUP = String.raw`flowchart TB
   WH["$w_H[n]$<br/>例：63.3，超出範圍"] -- "＋" --> A1(("＋"))
   A1 -- "$v[n]$" --> Q["$Q_6$ + saturate<br/>$y$ 最大只能 63"]
   Q -- "$y[n]$" --> OUT["$y[n] = 63$"]
@@ -351,21 +361,21 @@ export const CHART_CDC = String.raw`flowchart LR
 
 /** 綜合手算 HC-13.8 的計算順序（預設數字）。 */
 export const CHART_SYNTHESIS_FLOW = String.raw`flowchart TB
-  IN["已知：$w^* = 32.4$、$\Delta_{\mathrm{LSB}} = 0.125\,\mathrm{fs/LSB}$、$x_{\mathrm{rms}} = 1$<br/>$\sigma_w = 0.2\,\mathrm{LSB}$、$f_u/f_B = 64$"] --> A1["A Freeze：$y = \lfloor 32.4 + \tfrac12 \rfloor = 32$<br/>$\delta w = -0.4\,\mathrm{LSB}$"]
-  A1 --> A2["$\Delta_{\mathrm{LSB}} \cdot |\delta w| \cdot x_{\mathrm{rms}} = 0.05\,\mathrm{fs}$<br/>全在 DC，所以也全在頻帶內"]
-  IN --> S1["兩階切換 B / C / D：$p_0 = 0.4$<br/>$e_{\mathrm{rms}} = \sqrt{0.4 \times 0.6} = 0.490\,\mathrm{LSB}$"]
-  S1 --> S2["總 RMS：$0.125 \times 0.490 = 0.0612\,\mathrm{fs}$<br/>比 Freeze 大"]
-  S1 --> C1["C：$E[p(1 - p)] \approx 0.24 - 0.2^2 = 0.20$<br/>$P_{\mathrm{in}} = 2 \times 0.20 / 64 = 6.25\times10^{-3}\,\mathrm{LSB}^2$"]
-  C1 --> C2["頻帶內：$0.125 \times \sqrt{P_{\mathrm{in}}} = 0.00988\,\mathrm{fs}$"]
-  S1 --> D1["D：$P_{\mathrm{in}} \approx 2.193 \times (1/64)^3$<br/>$= 8.37\times10^{-6}\,\mathrm{LSB}^2$"]
-  D1 --> D2["頻帶內：$0.125 \times \sqrt{P_{\mathrm{in}}} = 3.62\times10^{-4}\,\mathrm{fs}$"]${STYLE}
+  IN["已知：$w^* = 32.4$、$\Delta_{\mathrm{LSB}} = 0.125\,\mathrm{fs/LSB}$、<br/>$x_{\mathrm{rms}} = 1$、$\sigma_w = 0.2\,\mathrm{LSB}$、$f_u/f_B = 64$"] --> A1["A Freeze：<br/>$y = \lfloor 32.4 + \tfrac12 \rfloor = 32$<br/>$\delta w = -0.4\,\mathrm{LSB}$"]
+  A1 --> A2["$\Delta_{\mathrm{LSB}} \cdot |\delta w| \cdot x_{\mathrm{rms}}$<br/>$= 0.05\,\mathrm{fs}$<br/>全在 DC，所以也全在頻帶內"]
+  IN --> S1["兩階切換 B / C / D：<br/>$p_0 = 0.4$<br/>$e_{\mathrm{rms}} = \sqrt{0.4 \times 0.6} = 0.490\,\mathrm{LSB}$"]
+  S1 --> S2["總 RMS：<br/>$0.125 \times 0.490$<br/>$= 0.0612\,\mathrm{fs}$<br/>比 Freeze 大"]
+  S1 --> C1["C：$E[p(1 - p)]$<br/>$\approx 0.24 - 0.2^2 = 0.20$<br/>$P_{\mathrm{in}} = 2 \times 0.20 / 64$<br/>$= 6.25\times10^{-3}\,\mathrm{LSB}^2$"]
+  C1 --> C2["頻帶內：<br/>$0.125 \times \sqrt{P_{\mathrm{in}}}$<br/>$= 0.00988\,\mathrm{fs}$"]
+  S1 --> D1["D：$P_{\mathrm{in}}$<br/>$\approx 2.193 \times (1/64)^3$<br/>$= 8.37\times10^{-6}\,\mathrm{LSB}^2$"]
+  D1 --> D2["頻帶內：<br/>$0.125 \times \sqrt{P_{\mathrm{in}}}$<br/>$= 3.62\times10^{-4}\,\mathrm{fs}$"]${STYLE}
   class A2,S2 focus
   class C2,D2 ok`
 
 /** （原有）校正邏輯到 DTC 與 PLL 輸出的硬體路徑。 */
-export const CHART_HARDWARE_MAP = String.raw`flowchart LR
-  subgraph CAL["校正邏輯（$f_u$ domain）"]
-    LMS["LMS accumulator $w_H$<br/>（$B+F$ bit）"] --> QS["量化策略<br/>$Q_B$ / toggle / PRBS / $\Delta\Sigma$ / dither"]
+export const CHART_HARDWARE_MAP = String.raw`flowchart TB
+  subgraph CAL["校正邏輯（code 更新率的 domain）"]
+    LMS["LMS accumulator $w_H$<br/>（$B+F$ bit，$f_u$ domain）"] --> QS["量化策略<br/>$Q_B$ / toggle / PRBS / $\Delta\Sigma$ / dither"]
   end
   QS -- "6-bit code（CDC：同步 / gray）" --> REG["DTC gain register<br/>（$f_s$ domain，ZOH $N_{\mathrm{upd}}$）"]
   REG --> DTC["DTC delay $= \Delta_{\mathrm{LSB}} \cdot y \cdot x[n]$"]

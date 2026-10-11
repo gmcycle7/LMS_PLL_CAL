@@ -12,6 +12,8 @@
  *   Mermaid 11 把標籤當 Markdown：單獨的 ASCII「+」「-」會被當成清單，畫面上變成「Unsupported markdown: list」。
  * - 每張圖的訊號名稱、正負號、箭頭方向與取樣率（sample $n$／block $k$）都和頁面上的公式一致（$\delta = a - w$；$\bar G$ 是 block 平均）；
  *   diagrams.test.ts 以真正的 mermaid 解析並畫出每一張，逐條核對。
+ * - 版面（teaching-style §8「版面寬度」）：桌機正文欄約 900 px，圖的自然寬度要在約 1260 px 以內，所以全部用 flowchart TB（橫向 LR 的長鏈會寬到 1500–2000 px）；
+ *   節點與連線都留在節點層級（不用 subgraph 折行），順序、標籤與極性不變。
  * - 顏色（深淺主題都看得清楚）：藍 = 這一段的主角；綠 = 通過／可 sign-off；紅 = 失敗／不可 sign-off；棕 = 對照用、容易被忽略的另一條路。
  */
 
@@ -65,7 +67,7 @@ export const CHART_SIGNOFF_FLOW = String.raw`flowchart TB
  * $\hat S = (\bar G_+ - \bar G_-)/(2\Delta)$、$\hat K = -\hat S$、$\mathrm{se}(\hat S) = \sigma_\eta/(\Delta\sqrt{2M})$；三分法判決就是 judges.ts 的 polarityVerdict。
  * $\bar G_\pm$ 是 block 速率（索引 $k$）的 GMAC 平均，各 $M$ 個 block。
  */
-export const CHART_FREEZE_MEASURE = String.raw`flowchart LR
+export const CHART_FREEZE_MEASURE = String.raw`flowchart TB
   FZ(["freeze：$w$ 不自己更新<br/>在 $w_0$ 附近推兩個工作點"])
   UP["$w = w_0 + \Delta$<br/>丟掉 settling 的 block<br/>量 $M$ 個 block，平均得 $\bar G_+$"]
   DN["$w = w_0 - \Delta$<br/>丟掉 settling 的 block<br/>量 $M$ 個 block，平均得 $\bar G_-$"]
@@ -101,7 +103,7 @@ export const CHART_FREEZE_MEASURE = String.raw`flowchart LR
  * §3.5：從「掃了 $n$ 個點、全部沒失效」到可以寫進報告的一句話（F-SO.8）。
  * $k_f = 0$：$p_U = 1 - \alpha^{1/n} \approx -\ln\alpha / n$；$k_f \gt 0$：Clopper–Pearson。上界只對與試驗同分布的條件成立。
  */
-export const CHART_EVIDENCE = String.raw`flowchart LR
+export const CHART_EVIDENCE = String.raw`flowchart TB
   SW(["指定的 sweep<br/>FCW、corner、mode…<br/>共 $n$ 次獨立試驗（獨立 seed）"])
   RUN["跑完整模擬<br/>用事先定好的失效判準"]
   CNT["數失效次數 $k_f$"]
@@ -127,21 +129,21 @@ export const CHART_EVIDENCE = String.raw`flowchart LR
  * §4：同一組 $(\mu, d)$ 要通過所有 corner（cornerJudge 的五項判準）。
  * $K_c = K_q(\sigma_{v,c})\cos\theta_c$、$g_c = \mu K_c$；$z^{d+1} - z^d + g_c = 0$ 的根在單位圓內才有穩態，$k_{95}$ 與 $\sigma_w$ 才有意義。
  */
-export const CHART_CORNER_JUDGE = String.raw`flowchart LR
+export const CHART_CORNER_JUDGE = String.raw`flowchart TB
   MU(["同一組 $(\mu, d, N)$<br/>硬體只有一個 $\mu$"])
   CS(["corner 清單<br/>$(\sigma_{v,c}, \theta_c)$：PVT、PLL BW、mode"])
   G["對每個 corner $c$：<br/>$K_c = K_q(\sigma_{v,c})\cdot\cos\theta_c$<br/>$g_c = \mu\cdot K_c$"]
   P["${CIRC[0]} 極性<br/>$K_c \gt 0$"]
-  ST["${CIRC[1]} 穩定<br/>$z^{d+1} - z^d + g_c = 0$ 的根 $\lvert z\rvert \lt 1$<br/>（$g_c \lt g_{\mathrm{crit}}(d)$）"]
   PM["${CIRC[2]} 相位裕度<br/>$\mathrm{PM}_d(g_c) \ge \mathrm{PM}_t$"]
+  ST["${CIRC[1]} 穩定<br/>$z^{d+1} - z^d + g_c = 0$ 的根 $\lvert z\rvert \lt 1$<br/>（$g_c \lt g_{\mathrm{crit}}(d)$）"]
   SET["${CIRC[3]} 收斂<br/>$k_{95} \le B$"]
   NS["${CIRC[4]} 雜訊<br/>$\sigma_{w,c} = \mu\cdot\sigma_\eta\cdot\sqrt{\sum h^2} \le \sigma_{w,\max}$"]
   ALL(["所有 corner $\times$ 五項判準都過<br/>這個 $\mu$ 才可行"])
   MU --> G
   CS --> G
   G --> P
-  G --> ST
   G --> PM
+  G --> ST
   ST -- "$\rho \lt 1$ 才有穩態" --> SET
   ST -- "$\rho \lt 1$ 才有穩態" --> NS
   P --> ALL
@@ -158,7 +160,7 @@ export const CHART_CORNER_JUDGE = String.raw`flowchart LR
  * §7：多參數的線性化迴路（F-SO.7）。$\delta\mathbf w = \mathbf w - \mathbf w^*$；$E[\mathbf G_k] \approx \mathbf J\,\delta\mathbf w_k$；$\mathbf w_{k+1} = \mathbf w_k + \mathbf M\,\mathbf G_k$
  * ⇒ $\delta\mathbf w_{k+1} = \delta\mathbf w_k + \mathbf M\mathbf J\,\delta\mathbf w_k = (\mathbf I + \mathbf M\mathbf J)\,\delta\mathbf w_k$。只看對角元素會漏掉交叉項。
  */
-export const CHART_MIMO_LOOP = String.raw`flowchart LR
+export const CHART_MIMO_LOOP = String.raw`flowchart TB
   X(["$\delta\mathbf w_k = \mathbf w_k - \mathbf w^*$<br/>向量：每個參數一個分量"])
   J["$\times \mathbf J$<br/>$E[\mathbf G_k] \approx \mathbf J\cdot\delta\mathbf w_k$"]
   MM["$\times \mathbf M$<br/>更新矩陣：$\mathbf w_{k+1} = \mathbf w_k + \mathbf M\cdot\mathbf G_k$"]
@@ -184,7 +186,7 @@ export const CHART_MIMO_LOOP = String.raw`flowchart LR
  * $\delta t[n] = x[n]\,\delta w[n]$（block 速率 $k$ 的 $\delta w_k$ 以 ZOH 展開到 sample 速率 $n$，含 commit latency $n_c$）；
  * 輸出路徑用 $T = \frac{L}{1+L}$（不是 $H_{\mathrm{PD}}$）；$\varphi_{\mathrm{out}} = -2\pi f_{\mathrm{out}}\,T\,\delta t$；tone 時 $\beta = 2\pi f_{\mathrm{out}} A_t\,\lvert T(f_m)\rvert$，spur $\approx 20\log_{10}(\beta/2)$。
  */
-export const CHART_OUTPUT_PATH = String.raw`flowchart LR
+export const CHART_OUTPUT_PATH = String.raw`flowchart TB
   W(["$\delta w_k$：係數偏差<br/>（block 速率，索引 $k$）"])
   ZOH["ZOH 展開到 sample 速率<br/>$\delta w[n] = \delta w_{\lfloor (n - n_c)/N\rfloor}$<br/>$n_c$ = commit latency"]
   X(["code $x[n]$"])
@@ -208,16 +210,16 @@ export const CHART_OUTPUT_PATH = String.raw`flowchart LR
   class SPUR,JIT alt`
 
 /**
- * §9：反面測試的兩道防線。上排：故意注入錯誤，確認模擬／RTL／UI 都出現預期的數學特徵與解釋型警告。
- * 下排：公式與獨立的時域 Monte Carlo 交叉比對（$\sigma_w = \mu\sigma_\eta/\sqrt{1-p^2}$ 對 MC；漏掉平方的 $\sqrt{1-p}$ 版本要被抓出來）。
+ * §9：反面測試的兩道防線（TB 版面：兩條互不相連的流程左右並排）。左邊：故意注入錯誤，確認模擬／RTL／UI 都出現預期的數學特徵與解釋型警告。
+ * 右邊：公式與獨立的時域 Monte Carlo 交叉比對（$\sigma_w = \mu\sigma_\eta/\sqrt{1-p^2}$ 對 MC；漏掉平方的 $\sqrt{1-p}$ 版本要被抓出來）。
  */
-export const CHART_NEGATIVE_CHECKS = String.raw`flowchart LR
+export const CHART_NEGATIVE_CHECKS = String.raw`flowchart TB
   INJ(["注入錯誤<br/>極性反轉、$N$ 改變忘記 scaling、<br/>overflow…"])
   SIM["模擬／RTL／UI 照常執行"]
   SIG["數學特徵（本頁即時計算）<br/>pole、$g$ 乘上 $N$、wrap 後的值…"]
   WARN(["應該出現解釋型警告<br/>而不是一條漂亮的收斂曲線"])
   FORM["路徑 A：解析公式<br/>$\sigma_w = \mu\sigma_\eta/\sqrt{1 - p^2}$"]
-  TD["路徑 B：獨立的時域 Monte Carlo<br/>多個 seeds，Student-t 95% CI"]
+  TD["路徑 B：獨立的時域<br/>Monte Carlo<br/>多個 seeds，<br/>Student-t 95% CI"]
   CMP{"差距在容許誤差內？<br/>（容許誤差 = CI 半寬）"}
   OK(["$\checkmark$ 交叉比對通過"])
   BAD(["$\times$ 公式或模擬有錯<br/>例：分母寫成 $\sqrt{1 - p}$ 會落在這裡"])

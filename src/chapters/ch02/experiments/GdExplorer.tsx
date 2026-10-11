@@ -101,7 +101,8 @@ export function GdExplorer() {
       y: Array.from(tr.J.slice(0, shown + 1)),
       name: '$w_n$',
       mode: 'text+markers',
-      text: range(shown + 1).map((n) => `$w_{${n}}$`),
+      // 越往後點越擠在谷底（w₄ w₅ w₆ 的標籤會疊在一起，放到下面又會被 x 軸切掉）：第 4 步之後只標偶數步，其餘的點在下方的逐步數值表裡
+      text: range(shown + 1).map((n) => (n >= 4 && n % 2 === 1 ? '' : `$w_{${n}}$`)),
       textposition: 'top right',
       marker: { size: 8, color: tokens.series[1] },
     })

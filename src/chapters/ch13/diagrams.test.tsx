@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import katex from 'katex'
 import mermaid from 'mermaid'
 import { SettingsProvider } from '@/app/settings'
-import { SYSTEM_BLOCK_LABEL, defaultValues, stripMathDelimiters, systemMapChart } from '@/components'
+import { SYSTEM_BLOCK_LABEL, defaultValues, stripMathDelimiters, systemMapModel } from '@/components'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { firstOrderPeriod, quantizeFcw, runDsm } from '@/simulation/models/dsm'
 import {
@@ -130,6 +130,77 @@ describe('Ch13 方塊圖：真正的 mermaid parser 與 render', () => {
       }
     },
   )
+
+  // 版面寬度（docs/teaching-style.md §8）：桌機（視窗 1280px）上圖要放進正文欄，自然寬度約 1260px 以內。
+  // 下面這些圖橫向排會長到 1300–2000px（以前要橫向捲動），所以用直向（flowchart TB）。
+  const WAS_TOO_WIDE = [
+    'CHART_SIGNAL_FLOW',
+    'CHART_ERROR_PATH',
+    'CHART_FREEZE',
+    'CHART_TOGGLE',
+    'CHART_TOGGLE_SPECTRUM',
+    'CHART_ZOH',
+    'CHART_STOCHASTIC',
+    'CHART_TELESCOPING',
+    'CHART_DITHER_LOOP',
+    'CHART_LAB_PIPELINE',
+    'CHART_TIME_VARYING',
+    'CHART_MIXING_PATH',
+    'CHART_DECISION',
+    'CHART_SAT_WRAP',
+    'CHART_ANTIWINDUP',
+    'CHART_SYNTHESIS_FLOW',
+    'CHART_HARDWARE_MAP',
+  ]
+
+  it('版面：以前會超出正文欄寬的圖都改成直向（TB）；仍然橫向的流程圖，最長的一條路不超過 5 個節點', async () => {
+    for (const name of WAS_TOO_WIDE) expect(byName(name), `${name} 要用 flowchart TB`).toMatch(/^flowchart TB\n/)
+    for (const d of DIAGRAMS.filter((x) => x.kind === 'flowchart' && /^flowchart (LR|RL)\n/.test(x.chart))) {
+      expect(WAS_TOO_WIDE, `${d.name} 是橫向排版，卻在「以前太寬」的清單裡`).not.toContain(d.name)
+      const { edges } = await flow(d.chart)
+      const next = new Map<string, string[]>()
+      for (const e of edges) next.set(e.start, [...(next.get(e.start) ?? []), e.end])
+      const memo = new Map<string, number>()
+      const longest = (id: string, seen: Set<string>): number => {
+        if (memo.has(id)) return memo.get(id)!
+        if (seen.has(id)) return 0 // 迴圈（橫向排版的圖不該有，保險）
+        seen.add(id)
+        const len = 1 + Math.max(0, ...(next.get(id) ?? []).map((n) => longest(n, seen)))
+        seen.delete(id)
+        memo.set(id, len)
+        return len
+      }
+      const depth = Math.max(...[...next.keys()].map((id) => longest(id, new Set())))
+      expect(depth, `${d.name} 橫向排版的最長路徑（節點數）`).toBeLessThanOrEqual(5)
+    }
+  })
+
+  it('群組（subgraph）的 direction 只在群組內的線都留在群組裡時才有用：Mermaid 一遇到「群組內節點連到群組外」就忽略它，所以這時不要寫 direction', async () => {
+    for (const d of DIAGRAMS.filter((x) => x.kind === 'flowchart')) {
+      const diagram = await mermaid.mermaidAPI.getDiagramFromText(d.chart)
+      const db = diagram.db as unknown as { getSubGraphs: () => { id: string; nodes: string[]; dir?: string }[]; getEdges: () => Edge[] }
+      for (const sg of db.getSubGraphs()) {
+        if (!sg.dir) continue
+        const inside = new Set(sg.nodes)
+        const leaking = db.getEdges().filter((e) => inside.has(e.start) !== inside.has(e.end))
+        expect(leaking.map((e) => `${e.start}->${e.end}`), `${d.name}.${sg.id} 有 direction ${sg.dir}，但有連到群組外的線，direction 會被忽略`).toEqual([])
+      }
+    }
+  })
+
+  it('群組（subgraph）的標題不放公式（`$...$`）：全站主題會把群組標題裡的 KaTeX 逐層縮小到 6–7px，公式要寫在群組裡的方塊', async () => {
+    let groups = 0
+    for (const d of DIAGRAMS.filter((x) => x.kind === 'flowchart')) {
+      const diagram = await mermaid.mermaidAPI.getDiagramFromText(d.chart)
+      const db = diagram.db as unknown as { getSubGraphs: () => { id: string; title: string }[] }
+      for (const sg of db.getSubGraphs()) {
+        expect(sg.title, `${d.name}.${sg.id} 的群組標題`).not.toContain('$')
+        expect(sg.title.trim().length, `${d.name}.${sg.id} 的群組標題`).toBeGreaterThan(0)
+        groups++
+      }
+    }
+    expect(groups).toBeGreaterThanOrEqual(3) // INBAND 兩組 + HARDWARE_MAP 一組
+  })
 
   it('標籤的寫法：不以半形 + - * 或「1.」開頭（Mermaid 11 會當成 Markdown 清單），加法點用全形＋、負號用 U+2212', () => {
     for (const d of DIAGRAMS) {
@@ -335,23 +406,15 @@ describe('Ch13 方塊圖與公式一致：加法點 / 乘法點 / 延遲', () =>
 })
 
 describe('Ch13 章首的系統地圖', () => {
-  it('focus = Gain accumulator、Quantizer、Gain correction；Mermaid 原始碼可解析', async () => {
+  it('focus = Gain accumulator、Quantizer、Gain correction（系統地圖的資料模型標成主角的就是這三塊）', () => {
     expect(SYSTEM_MAP_FOCUS).toEqual(['acc', 'qnt', 'gc'])
-    const chart = systemMapChart(SYSTEM_MAP_FOCUS)
-    expect(chart).toContain('class ACC,QNT,GC focus')
-    const r = await mermaid.parse(chart, { suppressErrors: false })
-    expect(r && typeof r === 'object' ? r.diagramType : r).toBe('flowchart-v2')
+    const model = systemMapModel(SYSTEM_MAP_FOCUS)
+    expect(model.blocks.filter((b) => b.focused).map((b) => b.id)).toEqual(expect.arrayContaining(['acc', 'qnt', 'gc']))
+    expect(model.blocks.filter((b) => b.focused)).toHaveLength(SYSTEM_MAP_FOCUS.length)
+    expect(model.blocks.filter((b) => !b.focused).length).toBe(model.blocks.length - 3)
   })
 
-  it('系統地圖也真的 render 一次：公式都由 KaTeX 排版，沒有殘留的 `$`、Unsupported markdown 或 Unicode 拼的數學', async () => {
-    const r = await renderMermaidForTest(systemMapChart(SYSTEM_MAP_FOCUS))
-    expect(r.text).not.toMatch(/Unsupported markdown/)
-    expect(r.text).not.toContain('$')
-    expect(r.mathCount).toBeGreaterThanOrEqual(8)
-    expect(unicodeMathIn(r.plainText)).toEqual([])
-  })
-
-  it('頁面開頭真的 render <SystemMap>：在「這次我們要回答的問題」之後、第一張本章方塊圖之前', () => {
+  it('頁面開頭真的 render <SystemMap>（手排 SVG，不經 Mermaid）：藍色方塊就是 focus，公式由 KaTeX 排版；位置在「這次我們要回答的問題」之後、第一張本章方塊圖之前', () => {
     localStorage.setItem('lmspll.mode', 'engineer')
     const { container, unmount } = render(
       <MemoryRouter>
@@ -364,9 +427,23 @@ describe('Ch13 章首的系統地圖', () => {
     // Intro：系統地圖 + 訊號流 + 誤差路徑
     expect(figs).toHaveLength(1 + DIAGRAMS.filter((d) => d.file === 'sections/Intro.tsx').length)
     const map = figs[0]
+    expect(map.classList.contains('c-sysmap')).toBe(true)
+    expect(figs.slice(1).some((f) => f.classList.contains('c-sysmap'))).toBe(false)
     expect(map.getAttribute('aria-label')).toContain('系統方塊圖')
     // aria-label 是純文字：方塊名稱裡的 `$...$` 只留 TeX 原始碼、拿掉分隔符號
     for (const b of SYSTEM_MAP_FOCUS) expect(map.getAttribute('aria-label')).toContain(stripMathDelimiters(SYSTEM_BLOCK_LABEL[b]))
+    // 藍色（is-focus）的方塊就是 SYSTEM_MAP_FOCUS，其餘的方塊沒有標成主角
+    const focused = Array.from(map.querySelectorAll('.c-sysmap-block.is-focus')).map((g) => g.getAttribute('data-block'))
+    expect(focused.sort()).toEqual([...SYSTEM_MAP_FOCUS].sort())
+    expect(map.querySelectorAll('.c-sysmap-block[data-focus="true"]')).toHaveLength(SYSTEM_MAP_FOCUS.length)
+    expect(map.querySelectorAll('.c-sysmap-block')).toHaveLength(systemMapModel(SYSTEM_MAP_FOCUS).blocks.length)
+    // 方塊裡的公式由 KaTeX 排版：沒有殘留的 `$`、解析錯誤或 Unicode 拼的數學
+    expect(map.querySelectorAll('.c-sysmap-svg .katex').length).toBeGreaterThanOrEqual(8)
+    expect(map.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+    const plain = map.querySelector('.c-sysmap-svg')!.cloneNode(true) as Element
+    plain.querySelectorAll('.katex').forEach((el) => el.remove())
+    expect(plain.textContent).not.toContain('$')
+    expect(unicodeMathIn(plain.textContent ?? '')).toEqual([])
     const question = container.querySelector('#ch13-question') as HTMLElement
     expect(question.compareDocumentPosition(map) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(map.compareDocumentPosition(figs[1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -425,6 +502,9 @@ describe('Ch13 方塊圖上的數字與模型一致（quantizer.ts）', () => {
     expect(D.CHART_ERROR_PATH).toContain(String.raw`$e = \delta w = y - w^*$`)
     expect(D.CHART_ERROR_PATH).toContain(String.raw`$\delta = a - w = w^* - y = -\delta w$`)
     expect(D.CHART_ERROR_PATH).toContain(`示例 ${LSB_FS_EXAMPLE}`)
+    // 版面：y 與 w* 各以相反的正負號連到兩個加法點。隱形連線 `Y ~~~ WS` 讓 w* 排在 y 的下一層，四條帶正負號的線才不會交叉
+    // （交叉時兩個「−」標籤疊在一起，看不出哪個負號屬於哪條線）；它不是訊號線，所以只能是 invisible
+    expect(D.CHART_ERROR_PATH).toContain('Y ~~~ WS')
   })
 
   it('Freeze 圖：Q(32.4) = 32、e = −0.4、平方平均 0.16', () => {

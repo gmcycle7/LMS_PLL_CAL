@@ -407,7 +407,7 @@ export function SignMapExplorer() {
   }, [map, dP.tau, fFold, tokens])
   const heatLayout: Partial<Layout> = useMemo(
     () => ({
-      xaxis: { title: { text: '$\\min(\\alpha,\\,1-\\alpha)\\cdot f_{\\mathrm{ref}}$ [MHz]（直線 = 目前的 $\\alpha$）' }, type: dP.logX ? 'log' : 'linear' },
+      xaxis: { title: { text: '$\\min(\\alpha,\\,1-\\alpha)\\cdot f_{\\mathrm{ref}}$ [MHz]<br>（直線 = 目前的 $\\alpha$）' }, type: dP.logX ? 'log' : 'linear' },
       yaxis: { automargin: true },
       margin: { l: 170 },
     }),

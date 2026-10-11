@@ -31,7 +31,6 @@ const PM_LAYOUT: Partial<Layout> = {
   xaxis: { title: { text: '$g$' } },
   yaxis: { title: { text: '$PM$ [deg]' }, range: [0, 95] },
   yaxis2: { title: { text: '$DM$ [blocks]' }, overlaying: 'y', side: 'right', range: [0, 3], showgrid: false },
-  legend: { orientation: 'h', y: -0.3 },
 }
 const POLE_LAYOUT: Partial<Layout> = { xaxis: { title: { text: '$g$' } }, yaxis: { title: { text: 'pole' }, range: [-1.3, 1.1] } }
 

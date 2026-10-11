@@ -1029,12 +1029,12 @@ export function MimoLab() {
         </details>
       )}
 
-      <div className="grid-2">
+      <div className="ch10-plot-pair">
         <Plot
           title={String.raw`poles $=\operatorname{eig}(\mathbf I+\mathbf M\mathbf J)$（單位圓內才收斂）`}
           ariaLabel="poles = eig(I + MJ)（單位圓內才收斂）"
           data={poleData}
-          height={300}
+          height={360}
           csvName="ch10-poles"
           layout={poleLayout}
         />
@@ -1042,7 +1042,7 @@ export function MimoLab() {
           title={String.raw`相平面 $(\delta_1,\delta_2)$ 與平均更新方向（Case ${eff.activeId}）`}
           ariaLabel={`相平面 (δ₁, δ₂) 與平均更新方向（Case ${eff.activeId}）`}
           data={phaseData}
-          height={300}
+          height={480}
           csvName="ch10-phase-plane"
           layout={phaseLayout}
           caption={P === 3 ? String.raw`$P=3$：方向場畫在 $\delta_3=0$ 的切面上。` : '箭頭 = 平均每個 block 的修正方向；scalar LMS 的箭頭不指向原點（沿快模式先走），完整反矩陣則直指原點。'}

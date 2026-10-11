@@ -180,6 +180,12 @@
   cursor: pointer;
 }
 
+/* 目錄裡的項目用 block：標題折行時，編號才會對齊第一行（inline-block 的按鈕會讓編號掉到最後一行的基線）；
+   行內用的 .ch09-toc-link（符號表連結、手算邀請句）維持行內 */
+.ch09-toc li > .ch09-toc-link {
+  display: block;
+}
+
 .ch09-toc-link:hover,
 .ch09-toc-link:focus-visible {
   text-decoration: underline;

@@ -331,7 +331,7 @@ E[t^{k+1}]&=\int_{-\infty}^{\infty}t^{k}\,\big(t\varphi(t)\big)\,dt=\int_{-\inft
           ariaLabel="delta n 乘 x n 後與雜訊 v n 相加得到誤差 e n；e n 乘 mu x n 後從 delta n 中減掉得到 delta n 加 1，延遲一步回授"
         />
         <p>
-          先看紅色的加法點：<Tex>{T`v[n]`}</Tex> 加在 <Tex>{T`\delta[n]\,x[n]`}</Tex> 上，成為誤差 <Tex>{T`e[n]=\delta[n]\,x[n]+v[n]`}</Tex>。再跟著 <Tex>{T`e[n]`}</Tex> 往右：它乘上 <Tex>{T`\mu\,x[n]`}</Tex>（虛線：和前面乘法點用的是同一個 <Tex>{T`x[n]`}</Tex>）後從{' '}
+          先看紅色的加法點：<Tex>{T`v[n]`}</Tex> 加在 <Tex>{T`\delta[n]\,x[n]`}</Tex> 上，成為誤差 <Tex>{T`e[n]=\delta[n]\,x[n]+v[n]`}</Tex>。再跟著 <Tex>{T`e[n]`}</Tex> 往下：它乘上 <Tex>{T`\mu\,x[n]`}</Tex>（虛線：和前面乘法點用的是同一個 <Tex>{T`x[n]`}</Tex>）後從{' '}
           <Tex>{T`\delta[n]`}</Tex> 裡被<strong>減掉</strong>（−），雜訊也就一起被帶進 <Tex>{T`\delta[n+1]`}</Tex>——多出來的那一項是 <Tex>{T`-\mu\,x[n]\,v[n]`}</Tex>。這張圖就是下面推導的第 1 步。
         </p>
         <Fig

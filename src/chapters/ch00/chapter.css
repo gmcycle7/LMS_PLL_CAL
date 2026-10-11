@@ -79,6 +79,19 @@
   color: var(--danger);
 }
 
+/* 三欄的小表（x、y、y/x）：不要把最後一欄撐到整個內文寬，數字離表頭太遠；置中、欄與欄之間留點空 */
+.ch00-ratio-table {
+  width: auto;
+  min-width: min(100%, 26rem);
+  margin-left: auto;
+  margin-right: auto;
+}
+.ch00-ratio-table th,
+.ch00-ratio-table td {
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
 /* 勘誤標記 */
 .ch00-erratum {
   display: block;

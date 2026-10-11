@@ -277,7 +277,7 @@ export function AccumulationSection() {
         <Tex>{'K=K_qC'}</Tex> 無關）。
       </p>
       <Fig name="decision">
-        先看左邊三格：<Tex>{'N'}</Tex> 個 <Tex>{'q'}</Tex> 裡有 <Tex>{'K'}</Tex> 個 <Tex>{'+1'}</Tex>、<Tex>{'N-K'}</Tex> 個 <Tex>{'-1'}</Tex>，所以{' '}
+        先看上面三格：<Tex>{'N'}</Tex> 個 <Tex>{'q'}</Tex> 裡有 <Tex>{'K'}</Tex> 個 <Tex>{'+1'}</Tex>、<Tex>{'N-K'}</Tex> 個 <Tex>{'-1'}</Tex>，所以{' '}
         <Tex>{'S_N=2K-N'}</Tex>。再看菱形的三個出口：<Tex>{'K'}</Tex> 過半就判 <Tex>{'+1'}</Tex>，不到一半就判 <Tex>{'-1'}</Tex>；紅色的第三個出口{' '}
         <Tex>{'S_N=0'}</Tex> 是平手（tie），只有 <Tex>{'N'}</Tex> 是偶數、而且 <Tex>{'K'}</Tex> 剛好等於 <Tex>{'N/2'}</Tex> 時才會走到。下面的推導就是把這三個出口的機率各自寫出來。
       </Fig>

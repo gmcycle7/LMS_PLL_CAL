@@ -298,8 +298,8 @@ export function S4Jacobian() {
           方向，各做一次「分母加了 <Tex>{String.raw`\lambda_{\mathrm{reg}}`}</Tex> 的除法」。用上面的 SVD 把它畫出來：
         </p>
         <Fig id="pinv-svd">
-          先看 ①（晶片）：誤差 <Tex>{String.raw`\boldsymbol\epsilon`}</Tex> 被 <Tex>{String.raw`\mathbf V^T`}</Tex> 拆成模式，每個模式乘上自己的 singular value <Tex>{String.raw`\sigma_i`}</Tex>，再被{' '}
-          <Tex>{String.raw`\mathbf U`}</Tex> 轉成 GMAC 看到的方向，得到綠色的 <Tex>{String.raw`E[\mathbf G_k]=\mathbf J\boldsymbol\epsilon_k`}</Tex>。再看 ②（更新矩陣），它從同一個 <Tex>{String.raw`\mathbf G_k`}</Tex>（綠色）接下去：先用{' '}
+          先看左邊的框 ①（晶片）：誤差 <Tex>{String.raw`\boldsymbol\epsilon`}</Tex> 被 <Tex>{String.raw`\mathbf V^T`}</Tex> 拆成模式，每個模式乘上自己的 singular value <Tex>{String.raw`\sigma_i`}</Tex>，再被{' '}
+          <Tex>{String.raw`\mathbf U`}</Tex> 轉成 GMAC 看到的方向，得到綠色的 <Tex>{String.raw`E[\mathbf G_k]=\mathbf J\boldsymbol\epsilon_k`}</Tex>。再看右邊的框 ②（更新矩陣），它從同一個 <Tex>{String.raw`\mathbf G_k`}</Tex>（綠色）接下去：先用{' '}
           <Tex>{String.raw`\mathbf U^T`}</Tex> 轉回來，乘上藍色的 <Tex>{String.raw`\sigma_i/(\sigma_i^2+\lambda_{\mathrm{reg}})`}</Tex>，再用{' '}
           <Tex>{String.raw`\mathbf V`}</Tex> 轉回參數座標並乘 <Tex>{String.raw`-\gamma`}</Tex>。<Tex>{String.raw`\mathbf U`}</Tex> 與 <Tex>{String.raw`\mathbf U^T`}</Tex> 相消（<Tex>{String.raw`\mathbf U^T\mathbf U=\mathbf I`}</Tex>），所以模式{' '}
           <Tex>{'i'}</Tex> 繞一圈只乘了 <Tex>{String.raw`\sigma_i\times\sigma_i/(\sigma_i^2+\lambda_{\mathrm{reg}})\times(-\gamma)`}</Tex>：加上原來的 1 就是下面 F-10.10 的{' '}

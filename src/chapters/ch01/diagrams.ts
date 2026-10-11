@@ -23,6 +23,7 @@ import { mermaidMathDelimiters } from '@/components/mermaidSource'
  *   Mermaid 把彼此不相連的 subgraph 依「宣告的相反順序」由上往下排，所以原始碼裡**最後宣告的那一列在最上面**；
  *   DIAGRAMS 的 rows 欄位記錄讀者看到的由上到下順序，diagrams.test.tsx 以實際排版結果核對。
  * - 迴路圖：dagre 會把「第一個走回已經過節點」的連線當成回授線倒著畫，所以先宣告順向路徑、最後才宣告回授線。
+ * - 圖 1-4 是例外的分組：兩個模型的誤差放進同一個 subgraph（ERRS），三條線從這一組分出去（每種計分都吃到兩個模型），免得 2×3 條線互相交叉。
  */
 
 /** 章首系統地圖要標成藍色的方塊：1-bit comparator（§2 的 sign）＋ GMAC、步長、累加器（更新式的三個零件）。 */
@@ -63,16 +64,16 @@ ${STYLE}
  * 下標寫成 $w_{n+1}$，避免「w_n+1」被誤讀成 $w_n + 1$。
  */
 export const CHART_LMS_LOOP = String.raw`flowchart LR
-  X["$x_n$（輸入 / DSM code）"] --> MUL["$\times w_n$（預測）"]
+  X["$x_n$<br/>（輸入 /<br/>DSM code）"] --> MUL["$\times w_n$<br/>（預測）"]
   MUL --> YH["$\hat y_n = w_n x_n$"]
-  X --> BOX["黑盒子：$a\, x_n$"]
+  X --> BOX["黑盒子<br/>$a\, x_n$"]
   BOX -- "＋" --> ADD(("＋"))
-  V["$v_n$（雜訊）"] -- "＋" --> ADD
-  ADD --> Y["$y_n$（量測）"]
+  V["$v_n$<br/>（雜訊）"] -- "＋" --> ADD
+  ADD --> Y["$y_n$<br/>（量測）"]
   Y -- "＋" --> SUB(("＋"))
   YH -- "−" --> SUB
   SUB --> E["$e_n = y_n - \hat y_n$"]
-  E --> UPD["$w_{n+1} = w_n + \mu\, e_n\, x_n$"]
+  E --> UPD["更新<br/>$w_{n+1} = w_n$<br/>$+ \mu\, e_n\, x_n$"]
   X --> UPD
   UPD -->|"下一筆"| MUL
 ${STYLE}
@@ -82,11 +83,11 @@ ${STYLE}
 export const CHART_DATA_TO_COST = String.raw`flowchart LR
   subgraph COST["再把很多筆的誤差變成一個數，然後找最小"]
     direction LR
-    E2["每一筆的誤差 $e$"] --> SQ["Squares<br/>平方：$e^2$"]
-    SQ --> AV["Mean<br/>很多筆取平均：$E[e^2]$"]
-    AV --> J["成本<br/>$J_2(w) = E[(y - w\, x)^2]$"]
-    J --> MIN["Least<br/>換不同的 $w$，找最小"]
-    MIN --> WS["最佳解 $w^*$"]
+    E2["每一筆的<br/>誤差 $e$"] --> SQ["Squares<br/>平方：$e^2$"]
+    SQ --> AV["Mean<br/>很多筆<br/>取平均<br/>$E[e^2]$"]
+    AV --> J["成本<br/>$J_2(w) =$<br/>$E[(y - w\, x)^2]$"]
+    J --> MIN["Least<br/>換不同的 $w$<br/>找最小"]
+    MIN --> WS["最佳解<br/>$w^*$"]
   end
   subgraph ERR["先算一筆資料的誤差"]
     direction LR
@@ -101,14 +102,14 @@ ${STYLE}
 
 /** 圖 1-4：同一組誤差、三種計分方式（模型 A：$\pm10$；模型 B：$\pm1$）。 */
 export const CHART_SCORE_COMPARE = String.raw`flowchart LR
-  A["模型 A 的誤差 $e$<br/>$+10$、$-10$、$+10$、$-10$"]
-  B["模型 B 的誤差 $e$<br/>$+1$、$-1$、$+1$、$-1$"]
-  A --> M1["直接平均<br/>$\operatorname{mean}(e)$"]
-  B --> M1
-  A --> M2["先取絕對值再平均<br/>$\operatorname{mean}(|e|)$"]
-  B --> M2
-  A --> M3["先平方再平均<br/>$\operatorname{mean}(e^2)$"]
-  B --> M3
+  subgraph ERRS["同一組四筆誤差，兩個模型"]
+    direction LR
+    A["模型 A 的誤差 $e$<br/>$+10$、$-10$、$+10$、$-10$"]
+    B["模型 B 的誤差 $e$<br/>$+1$、$-1$、$+1$、$-1$"]
+  end
+  ERRS --> M1["直接平均<br/>$\operatorname{mean}(e)$"]
+  ERRS --> M2["先取絕對值再平均<br/>$\operatorname{mean}(|e|)$"]
+  ERRS --> M3["先平方再平均<br/>$\operatorname{mean}(e^2)$"]
   M1 --> R1["A = 0、B = 0<br/>正負抵消，分不出好壞"]
   M2 --> R2["A = 10、B = 1<br/>分得出來（MAE）"]
   M3 --> R3["A = 100、B = 1<br/>分得出來，大誤差罰更重（MSE）"]
@@ -132,13 +133,13 @@ ${STYLE}
 
 /** 圖 1-6：Normal equation 畫成相關器——誤差乘輸入、平均、看是不是 0。先宣告誤差節點，「再調 w → 新的誤差」才會是往回畫的回授線。 */
 export const CHART_NORMAL_EQ = String.raw`flowchart LR
-  E["誤差 $e = y - w\, x$"] --> M(("$\times$"))
+  E["誤差<br/>$e = y - w\, x$"] --> M(("$\times$"))
   X["輸入 $x$"] --> M
-  M --> AV["很多筆取平均<br/>$E[\,\cdot\,]$"]
-  AV --> C["誤差與輸入的相關<br/>$E[e\, x]$"]
-  C --> Q{"$E[e\, x]$ 等於 0 嗎？"}
+  M --> AV["很多筆<br/>取平均<br/>$E[\,\cdot\,]$"]
+  AV --> C["誤差與輸入<br/>的相關<br/>$E[e\, x]$"]
+  C --> Q{"$E[e\, x]$<br/>等於 0 嗎？"}
   Q -- "是" --> DONE["到達最佳解 $w^*$<br/>$E[e^*\, x] = 0$"]
-  Q -- "否：誤差還跟著 $x$ 動" --> ADJ["再調 $w$<br/>平均更新量 $= \mu\, E[e\, x]$"]
+  Q -- "否" --> ADJ["再調 $w$（誤差還跟著 $x$ 動）<br/>平均更新量 $= \mu\, E[e\, x]$"]
   ADJ -->|"新的誤差"| E
 ${STYLE}
   class M,AV,C focus
@@ -199,31 +200,34 @@ ${STYLE}
 export const CHART_HAND_FLOW = String.raw`flowchart LR
   subgraph S1["第 1 筆（$n = 1$）"]
     direction LR
-    A1["目前的 $w_1 = 1.8$"] --> B1["① 預測<br/>$\hat y_1 = 1.8 \times 2 = 3.6$"]
-    B1 --> C1["② 比較<br/>$e_1 = 6 - 3.6 = 2.4$"]
-    C1 --> D1["③ 修正量<br/>$\Delta w_1 = 0.1 \times 2.4 \times 2 = 0.48$"]
-    D1 --> N1["$w_2 = 1.8 + 0.48 = 2.28$"]
+    A1["目前的<br/>$w_1 = 1.8$"] --> B1["① 預測<br/>$\hat y_1 = 1.8 \times 2$<br/>$= 3.6$"]
+    B1 --> C1["② 比較<br/>$e_1 = 6 - 3.6$<br/>$= 2.4$"]
+    C1 --> D1["③ 修正量 $\Delta w_1$<br/>$= 0.1 \times 2.4 \times 2$<br/>$= 0.48$"]
+    D1 --> N1["新的 $w_2$<br/>$= 1.8 + 0.48$<br/>$= 2.28$"]
   end
   subgraph S0["第 0 筆（$n = 0$）"]
     direction LR
-    A0["目前的 $w_0 = 1$"] --> B0["① 預測<br/>$\hat y_0 = 1 \times 2 = 2$"]
-    B0 --> C0["② 比較<br/>$e_0 = 6 - 2 = 4$"]
-    C0 --> D0["③ 修正量<br/>$\Delta w_0 = 0.1 \times 4 \times 2 = 0.8$"]
-    D0 --> N0["$w_1 = 1 + 0.8 = 1.8$"]
+    A0["目前的<br/>$w_0 = 1$"] --> B0["① 預測<br/>$\hat y_0 = 1 \times 2$<br/>$= 2$"]
+    B0 --> C0["② 比較<br/>$e_0 = 6 - 2$<br/>$= 4$"]
+    C0 --> D0["③ 修正量 $\Delta w_0$<br/>$= 0.1 \times 4 \times 2$<br/>$= 0.8$"]
+    D0 --> N0["新的 $w_1$<br/>$= 1 + 0.8$<br/>$= 1.8$"]
   end
 ${STYLE}
   class N0,A1,N1 focus`
 
-/** 圖 1-11：固定 x、無雜訊時的參數誤差迴路——繞一圈的增益是 $\mu x^2$，所以 $p = 1 - \mu x^2$。 */
-export const CHART_DELTA_LOOP = String.raw`flowchart LR
+/**
+ * 圖 1-11：固定 x、無雜訊時的參數誤差迴路——繞一圈的增益是 $\mu x^2$，所以 $p = 1 - \mu x^2$。
+ * 九格串成一條橫的會寬到 1360px，所以由上往下畫（節點單行、回授線沿著右邊往回）；折成兩列的版本要把「−」回授線改成 subgraph 之間的連線，極性就不清楚了。
+ */
+export const CHART_DELTA_LOOP = String.raw`flowchart TB
   A["真值 $a$"] -- "＋" --> D(("＋"))
-  D --> DL["參數誤差<br/>$\delta_n = a - w_n$"]
+  D --> DL["參數誤差 $\delta_n = a - w_n$"]
   DL --> X1["$\times\, x$"]
-  X1 --> E["誤差<br/>$e_n = \delta_n\, x$"]
+  X1 --> E["誤差 $e_n = \delta_n\, x$"]
   E --> X2["$\times\, \mu\, x$"]
-  X2 --> DW["更新量<br/>$\Delta w_n = \mu\, x^2\, \delta_n$"]
+  X2 --> DW["更新量 $\Delta w_n = \mu\, x^2\, \delta_n$"]
   DW -- "＋" --> ACC(("＋"))
-  ACC --> Z["$z^{-1}$（暫存器）<br/>輸出 $w_n$"]
+  ACC --> Z["$z^{-1}$（暫存器）輸出 $w_n$"]
   Z -- "＋" --> ACC
   Z -- "−" --> D
 ${STYLE}
@@ -268,7 +272,7 @@ export const CHART_SIGN_TIE = String.raw`flowchart TB
   E["誤差 $e$"] --> Q{"$e$ 和 0 比"}
   Q -- "$e$ 大於 0" --> P["$\operatorname{sign}(e) = +1$"]
   Q -- "$e$ 小於 0" --> N["$\operatorname{sign}(e) = -1$"]
-  Q -- "$e$ 剛好等於 0（尖點）" --> T{"用哪個 tie 慣例？<br/>次梯度可以是 $[-1, 1]$ 裡任何值"}
+  Q -- "$e$ 剛好等於 0（尖點）" --> T{"用哪個 tie 慣例？<br/>次梯度可以是<br/>$[-1, 1]$ 裡任何值"}
   T -- "zero：數學次梯度" --> T0["$\operatorname{sign}(0) = 0$<br/>這一步不動"]
   T -- "plus：comparator" --> T1["$\operatorname{sign}(0) = +1$"]
   T -- "minus：comparator" --> T2["$\operatorname{sign}(0) = -1$"]
@@ -395,9 +399,9 @@ ${STYLE}
 export const CHART_HC8_FLOW = String.raw`flowchart LR
   subgraph HS["Sign-Error LMS：追中位數"]
     direction LR
-    S1["⑦⑧ 查常態表<br/>$q = 1 / (2 (1 - \varepsilon)) = 0.55556$<br/>$z = \Phi^{-1}(q) = 0.13971$"] --> S2["⑨⑩ 偏移<br/>$m = \sigma_v\, z = 0.13971$<br/>時間平均約 $a + m = 3.1397$"]
-    S2 --> S3["⑪⑫ 中位數處的密度<br/>$\varphi(z) = 0.39507$<br/>$f = (1 - \varepsilon)\, \varphi(z) / \sigma_v = 0.35556$"]
-    S3 --> S4["⑬⑭ 抖動<br/>$\operatorname{Var} = \mu / (4 f) = 0.035156$<br/>$\operatorname{std} = 0.1875$"]
+    S1["⑦⑧ 查常態表<br/>$q = 1 / (2 (1 - \varepsilon))$<br/>$= 0.55556$<br/>$z = \Phi^{-1}(q) = 0.13971$"] --> S2["⑨⑩ 偏移<br/>$m = \sigma_v\, z = 0.13971$<br/>時間平均約<br/>$a + m = 3.1397$"]
+    S2 --> S3["⑪⑫ 中位數處的密度<br/>$\varphi(z) = 0.39507$<br/>$f = (1 - \varepsilon)\, \varphi(z) / \sigma_v$<br/>$= 0.35556$"]
+    S3 --> S4["⑬⑭ 抖動<br/>$\operatorname{Var} = \mu / (4 f)$<br/>$= 0.035156$<br/>$\operatorname{std} = 0.1875$"]
   end
   subgraph HL["Conventional LMS：追平均"]
     direction LR

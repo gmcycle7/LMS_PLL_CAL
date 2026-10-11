@@ -68,6 +68,9 @@ const hasEdge = (g: Graph, start: string, end: string) => g.edges.some((e) => e.
 /** 比對用：拿掉換行標籤與空白，並還原 mermaid 在含 HTML 的標籤裡做的 entity 編碼。 */
 const plain = (s: string) => decode(s.replace(/<br\s*\/?>/g, '')).replace(/\s+/g, '')
 
+/** 一個公式為了讓圖窄一點被 `<br/>` 拆成兩行（`$A$<br/>$= B$`）時，接回同一個 `$A = B$` 再比對（公式本身沒有變）。 */
+const joined = (s: string) => s.replace(/\$<br\s*\/?>\$/g, ' ')
+
 /** 與共用 Mermaid 前處理（mermaidSource.ts）相同的行內公式規則：`$...$` 或 `$$...$$`，`\$` 是字面的美元符號。 */
 const MATH = /\$\$((?:[^$\\]|\\.)+?)\$\$|(?<!\\)\$((?:[^$\\]|\\.)+?)(?<!\\)\$/g
 
@@ -229,13 +232,13 @@ describe('手算練習簿的 Mermaid 圖（真正的 mermaid parser）', () => {
     // （標籤原始碼就是 LaTeX；正負號放在進入加法點的那條線的數學裡）
     expect(edgeText(g, 'Y', 'S1')).toBe('$+\\,y$')
     expect(edgeText(g, 'PRED', 'S1')).toBe(String.raw`$-\,\hat y_n$`)
-    expect(edgeText(g, 'S1', 'FIX')).toBe(String.raw`② $e_n = y - \hat y_n$`)
+    expect(joined(edgeText(g, 'S1', 'FIX'))).toBe(String.raw`② $e_n = y - \hat y_n$`)
     // ③ 修正量要乘上 x，④ 加回 w_n
     expect(hasEdge(g, 'X', 'FIX')).toBe(true)
     expect(nodeText(g, 'FIX')).toContain(String.raw`$\Delta w_n = \mu\,e_n\,x$`)
     expect(edgeText(g, 'FIX', 'S2')).toBe(String.raw`$+\,\Delta w_n$`)
     expect(edgeText(g, 'W', 'S2')).toBe(String.raw`$+\,w_n$`)
-    expect(edgeText(g, 'S2', 'NEXT')).toBe(String.raw`④ $w_{n+1} = w_n + \Delta w_n$`)
+    expect(joined(edgeText(g, 'S2', 'NEXT'))).toBe(String.raw`④ $w_{n+1} = w_n + \Delta w_n$`)
     expect(nodeText(g, 'NEXT')).toContain('$w_{n+1}$')
     expect(nodeText(g, 'NEXT')).toContain('回到 ① 再做一次')
     expect(nodeText(g, 'NEXT')).toContain('同一組 $x$、$y$')

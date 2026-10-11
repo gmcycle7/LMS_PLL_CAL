@@ -192,7 +192,7 @@ export function HardwareSection() {
         ariaLabel="GMAC RTL 資料流"
       />
       <p>
-        <strong>先看</strong>左欄最上面的兩個輸入：對齊後的有號 code <Tex>{R`x_\mathrm{ref}[n]`}</Tex>（<Tex>{R`B_x`}</Tex> bits）和 comparator 的位元 <Tex>{R`b[n]`}</Tex>。因為 <Tex>{R`q=2b-1`}</Tex> 只有{' '}
+        <strong>先看</strong>左欄上半部的兩個輸入（上下錯開排列，只是為了讓圖窄一點）：對齊後的有號 code <Tex>{R`x_\mathrm{ref}[n]`}</Tex>（<Tex>{R`B_x`}</Tex> bits）和 comparator 的位元 <Tex>{R`b[n]`}</Tex>。因為 <Tex>{R`q=2b-1`}</Tex> 只有{' '}
         <Tex>{R`\pm1`}</Tex>，「乘」只是照抄或取負（§4 的 F-04.8）。<strong>再看</strong>左欄最下面的 GMAC 累加器：它把 <Tex>N</Tex> 筆乘積加成總和 <Tex>{R`S_k`}</Tex>，需要 <Tex>{R`B_\mathrm{acc}`}</Tex> bits（方塊裡的 <Tex>{R`M_x`}</Tex>{' '}
         是單筆乘積的最大絕對值，§5.1）。<strong>接著</strong>順著中間的箭頭到右欄，第一格是 normalize：「<Tex>{R`\div N`}</Tex>」做成算術右移，方塊裡的 <Tex>{R`F_G`}</Tex> 是右移後保留的小數位元數（§5.2）。<strong>最後</strong>乘上 <Tex>{R`\mu`}</Tex>、
         加進高解析累加器 <Tex>W</Tex>、經過飽和保護後成為 gain register 的 <Tex>{R`w_k`}</Tex>。
@@ -292,12 +292,12 @@ export function HardwareSection() {
       </p>
       <MermaidFig
         chart={LATENCY_TIMELINE}
-        caption={R`一個 block 的時序：累加 $N$ 個 sample → $S_k$ 完成並清除 → commit → 在 block $k+1+d$ 套用。看最後兩個箭頭之間隔了多久：那就是更新延遲。`}
+        caption={R`一個 block 的時序（先左欄、再右欄，箭頭依 (1)–(5) 編號）：累加 $N$ 個 sample → $S_k$ 完成並清除 → commit → 在 block $k+1+d$ 套用。看右欄的兩個箭頭之間隔了多久：那就是更新延遲。`}
         ariaLabel="clock domain 與 latency 時序圖"
       />
       <p>
-        <strong>由上往下讀</strong>（時間往下走）：前兩個箭頭每個 sample 重複一次，共 <Tex>N</Tex> 次——comparator 每拍送出一個位元，GMAC 把它和對齊的 code 累加。<strong>再看</strong>第三個箭頭：block 的最後一個 sample
-        （<Tex>{R`n=kN+N-1`}</Tex>）之後 <Tex>{R`S_k`}</Tex> 才完成，交給 update logic 並把累加器清為 0。<strong>最後看</strong>下面兩個箭頭：算出新 gain 寫進 register 要花 <Tex>{R`P_c`}</Tex> 個 sample（commit pipeline），
+        <strong>先看左欄、由上往下讀</strong>（時間往下走）：箭頭 (1)(2) 每個 sample 重複一次，共 <Tex>N</Tex> 次——comparator 每拍送出一個位元，GMAC 把它和對齊的 code 累加。<strong>再看</strong>兩欄之間的箭頭 (3)：block 的最後一個 sample
+        （<Tex>{R`n=kN+N-1`}</Tex>）之後 <Tex>{R`S_k`}</Tex> 才完成，交給 update logic 並把累加器清為 0。<strong>最後看右欄</strong>（同樣由上往下）的箭頭 (4)(5)：算出新 gain 寫進 register 要花 <Tex>{R`P_c`}</Tex> 個 sample（commit pipeline），
         DTC 真正開始用它是在 block <Tex>{R`k+1+d`}</Tex> 的開頭。<Tex>d</Tex> 就是「block <Tex>k</Tex> 量到的資訊，晚幾個 block 才反映在 PD 看到的誤差上」。
       </p>
       <div className="table-wrap">

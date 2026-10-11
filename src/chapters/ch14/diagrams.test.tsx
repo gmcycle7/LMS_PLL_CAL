@@ -4,7 +4,7 @@ import { render } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import mermaid from 'mermaid'
 import { SettingsProvider } from '@/app/settings'
-import { defaultValues, systemMapChart } from '@/components'
+import { SYSTEM_BLOCK_LABEL, defaultValues, systemMapModel } from '@/components'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import type { PresetEntry } from '@/data/types'
 import {
@@ -33,7 +33,8 @@ const P = vi.hoisted(() => ({
 }))
 vi.mock('plotly.js-dist-min', () => ({ default: P }))
 // 頁面測試用的 Mermaid 元件替身：把原始碼放在 data-chart，方便核對「頁面上到底畫了哪些圖、順序為何」。
-// （SystemMap 也是透過同一個元件畫圖，所以章首的系統地圖同樣會出現在清單裡。真正的 mermaid 套件沒有被 mock，下面照樣用它解析與渲染。）
+// （章首的 SystemMap 是手排的 SVG、不經過 Mermaid 元件，所以它不是替身畫的，而是真的元件：figure.c-sysmap，沒有 data-chart。
+//  真正的 mermaid 套件沒有被 mock，下面照樣用它解析與渲染。）
 vi.mock('@/components/Mermaid', async () => {
   const { createElement } = await import('react')
   return {
@@ -77,6 +78,16 @@ function edgeText(g: { edges: Edge[] }, start: string, end: string): string {
   const e = g.edges.find((x) => x.start === start && x.end === end)
   if (!e) throw new Error(`沒有 ${start} → ${end} 這條邊`)
   return e.text ?? ''
+}
+
+/** 子圖（subgraph）裡有哪些節點：{ 子圖 id: 排序後的節點 id }。 */
+async function subgraphNodes(chart: string): Promise<Record<string, string[]>> {
+  await mermaid.parse(chart)
+  const diagram = await mermaid.mermaidAPI.getDiagramFromText(chart)
+  const db = diagram.db as unknown as { getSubGraphs?: () => { id: string; nodes: string[] }[] }
+  const out: Record<string, string[]> = {}
+  for (const sg of db.getSubGraphs?.() ?? []) out[sg.id] = [...sg.nodes].sort()
+  return out
 }
 
 /** 比對用：拿掉換行標籤與空白，並還原 mermaid 在含 HTML 的標籤裡做的 entity 編碼（&gt; 等）。 */
@@ -128,14 +139,12 @@ describe('Ch14 Mermaid 圖：清單', () => {
 })
 
 describe('Ch14 Mermaid 圖（真正的 mermaid parser）', () => {
-  it('每一張都能解析；章首系統地圖也能解析', async () => {
+  it('每一張都能解析（章首系統地圖是手排的 SVG，不經過 Mermaid，見下面的頁面測試）', async () => {
     for (const c of CH14_CHARTS) {
       const r = await mermaid.parse(c.chart)
       const type = r && typeof r === 'object' ? (r as { diagramType: string }).diagramType : ''
       expect(type, c.name).toMatch(c.name === 'CHART_ALARM_HYSTERESIS' ? /^stateDiagram/ : /^flowchart/)
     }
-    const map = await mermaid.parse(systemMapChart(CH14_SYSTEM_FOCUS))
-    expect(map && typeof map === 'object' ? (map as { diagramType: string }).diagramType : '').toMatch(/^flowchart/)
   }, 60000)
 
   it('每張 flowchart 不超過 14 個節點；標籤沒有會被 Markdown／HTML 吃掉的寫法；加法點的每條輸入都標了正負號', async () => {
@@ -160,6 +169,44 @@ describe('Ch14 Mermaid 圖（真正的 mermaid parser）', () => {
         for (const e of incoming) expect(e.text ?? '', `${c.name}：${e.start} → ${s.id} 要標正負號`).toMatch(/^(?:[＋−]|\$[+-]\$)/)
       }
     }
+  }, 60000)
+
+  it('桌機版面（teaching-style §8）：橫向（LR）的圖最多 5 個 rank，由上往下的圖每一排最多 5 個方塊；太長的橫向流程已改成直向或折成列', async () => {
+    // jsdom 量不到真正的像素寬度，但「最長路徑有幾個 rank」「同一個 rank 有幾個方塊」不受字體影響（長邊先分層，回授邊略過）。
+    // 實際的像素寬度以 `node scripts/diagram-audit.mjs --routes /ch/14` 為準（1280px 桌機上每張圖的「超出」都要是 0）。
+    const layers = (g: { vertices: Vertex[]; edges: Edge[] }) => {
+      const out = new Map<string, string[]>()
+      for (const e of g.edges) out.set(e.start, [...(out.get(e.start) ?? []), e.end])
+      const rank = new Map<string, number>()
+      const onPath = new Set<string>()
+      const visit = (v: string): number => {
+        if (rank.has(v)) return rank.get(v)!
+        onPath.add(v)
+        let best = 0
+        for (const w of out.get(v) ?? []) if (!onPath.has(w)) best = Math.max(best, 1 + visit(w))
+        onPath.delete(v)
+        rank.set(v, best) // 離終點最遠的距離（回授邊跳過，所以不會無窮遞迴）
+        return best
+      }
+      for (const v of g.vertices) visit(v.id)
+      const widest = new Map<number, number>()
+      for (const r of rank.values()) widest.set(r, (widest.get(r) ?? 0) + 1)
+      return { ranks: Math.max(...rank.values()) + 1, widest: Math.max(...widest.values()) }
+    }
+    const bad: string[] = []
+    for (const c of CH14_CHARTS) {
+      const g = await flow(c.chart)
+      if (!g) continue // stateDiagram：只有 3 個狀態，另行檢查方向
+      const { ranks, widest } = layers(g)
+      if (/^flowchart LR/.test(c.chart) && ranks > 5) bad.push(`${c.name}：LR 有 ${ranks} 個 rank，桌機放不下，請改成 TB 或折成列`)
+      if (/^flowchart T[BD]/.test(c.chart) && widest > 5) bad.push(`${c.name}：同一排有 ${widest} 個方塊，桌機放不下，請拆成兩排`)
+    }
+    expect(bad).toEqual([])
+    // 這次改成直向（或折成列）的圖：方向寫在原始碼第一行，圖說與導讀的「由上到下」要跟著對
+    for (const name of ['CHART_CAL_LOOP', 'CHART_MSD_SPLIT', 'CHART_POLE_REGIMES', 'CHART_SCHEDULE_TIMELINE', 'SPEC_CHART']) expect(chartOf(name), name).toMatch(/^flowchart TB/)
+    expect(D.CHART_ALARM_HYSTERESIS).toMatch(/^stateDiagram-v2\s+direction TB/)
+    // 折成兩排的 pole 圖：兩個列子圖各自是 LR（而且列內的節點沒有和列外的節點直接連線，否則 direction 會被忽略）
+    expect((D.CHART_POLE_REGIMES.match(/^\s+direction LR$/gm) ?? []).length).toBe(2)
   }, 60000)
 
   it('訊號極性與公式一致：δ = a − w、δ_B = p^B·δ₀ − μΣp^(B−1−k)η_k、H(z) = μ/(z − p)、1/P 累加、K̂ 的差分方向（標籤是 `$...$` 的 LaTeX 原始碼）', async () => {
@@ -241,8 +288,12 @@ describe('Ch14 Mermaid 圖（真正的 mermaid parser）', () => {
 
     // §14.1：g = μK 從 0 往上加，p = 1 − g 依序經過 1、(0,1)、0、(−1,0)、−1、< −1；每個方塊的 PM = 90° − arcsin(g/2)
     const pole = (await flow(D.CHART_POLE_REGIMES))!
-    const chain = ['R0', 'R1', 'R2', 'R3', 'R4', 'R5']
-    for (let i = 0; i + 1 < chain.length; i++) expect(edgeText(pole, chain[i], chain[i + 1]), `${chain[i]}→${chain[i + 1]}`).toBe('$g$ 增加')
+    // 六個區段折成兩排（上排 R0→R1→R2、下排 R3→R4→R5）；排與排之間用子圖層級的箭頭（ROW1 → ROW2）相接，等於 R2 → R3，每一步都標「g 增加」
+    const rows = await subgraphNodes(D.CHART_POLE_REGIMES)
+    expect(rows.ROW1, '上排').toEqual(['R0', 'R1', 'R2'])
+    expect(rows.ROW2, '下排').toEqual(['R3', 'R4', 'R5'])
+    for (const [a, b] of [['R0', 'R1'], ['R1', 'R2'], ['ROW1', 'ROW2'], ['R3', 'R4'], ['R4', 'R5']]) expect(edgeText(pole, a, b), `${a}→${b}`).toBe('$g$ 增加')
+    expect(pole.edges.length, '只有這五條箭頭（沒有跨排的節點對節點連線，否則子圖的 direction LR 會失效）').toBe(5)
     const poleTxt = (id: string) => pole.vertices.find((v) => v.id === id)?.text ?? ''
     expect(poleTxt('R0')).toContain(String.raw`$g = 0 \Rightarrow p = 1$`)
     expect(poleTxt('R2')).toContain(String.raw`$g = 1 \Rightarrow p = 0$`)
@@ -345,6 +396,11 @@ describe('Ch14 Mermaid 圖（真正的 mermaid parser）', () => {
         'COARSE → FAULT',
       ].sort(),
     )
+    // 兩條為了排版而改過標籤的邊：clip 的虛線（註解「以 COARSE 為例」改放圖說）仍標明條件；暫停 guard 的條件在「是」那條邊上
+    expect(edgeText(g, 'COARSE', 'RESTART')).toMatch(/clip.*連續 \$n\$ 個 block 卡在邊界.*LKG/)
+    const guard = (await flow(D.CHART_GUARD_ORDER))!
+    expect(edgeText(guard, 'G2', 'FZ')).toMatch(/^是：低雜訊模式，或.*bad-FCW 且 policy = freeze$/)
+    expect(guard.vertices.find((v) => v.id === 'G2')?.text).toContain('有人要求暫停嗎')
     // 程式實際走過的轉移（state 事件的訊息是「A → B」）：預設情境與每個 optimizer-sm-* preset
     const dir = resolve(process.cwd(), 'src/data/presets')
     const presets = readdirSync(dir)
@@ -418,7 +474,7 @@ describe('Ch14 Mermaid 圖（真正的 mermaid parser）', () => {
   })
 
   it('實際渲染（共用的 renderMermaidForTest）：沒有「Unsupported markdown」、畫面沒有殘留的 $、KaTeX 以外沒有 Unicode 數學、節點數不超過 14；含公式的標籤都由 KaTeX 排版，其餘標籤原樣出現', async () => {
-    type SubGraph = { title?: string }
+    type SubGraph = { id: string; title?: string }
     // 含公式的標籤中，公式以外的文字片段（以 <br> 與公式切開）
     const words = (label: string) => label.split(/<br\s*\/?>/).flatMap((line) => line.split(/\$[^$]*\$/)).map(plain).filter(Boolean)
     for (const c of CH14_CHARTS) {
@@ -441,8 +497,11 @@ describe('Ch14 Mermaid 圖（真正的 mermaid parser）', () => {
         continue
       }
       const db = (await mermaid.mermaidAPI.getDiagramFromText(c.chart)).db as unknown as { getSubGraphs?: () => SubGraph[] }
-      const titles = (db.getSubGraphs?.() ?? []).map((sg) => sg.title ?? '')
-      const labels = [...g.vertices.map((v) => v.text ?? ''), ...g.edges.map((e) => e.text ?? ''), ...titles].filter(Boolean)
+      const subgraphs = db.getSubGraphs?.() ?? []
+      const titles = subgraphs.map((sg) => sg.title ?? '')
+      // 被箭頭連到的子圖（例如 ROW1 --> ROW2）在 parser 裡也算一個 vertex，但它畫成群組框、標籤是子圖標題，不是節點文字
+      const subIds = new Set(subgraphs.map((sg) => sg.id))
+      const labels = [...g.vertices.filter((v) => !subIds.has(v.id)).map((v) => v.text ?? ''), ...g.edges.map((e) => e.text ?? ''), ...titles].filter(Boolean)
       const mathLabels = labels.filter((t) => t.includes('$'))
       expect(mathCount, `${c.name}：含公式的標籤數與 KaTeX 排版出來的公式數不同`).toBe(mathLabels.length)
       for (const t of labels) {
@@ -456,13 +515,6 @@ describe('Ch14 Mermaid 圖（真正的 mermaid parser）', () => {
     // 規格原圖沒有公式；其餘 23 張都有
     expect((await renderMermaidForTest(D.SPEC_CHART)).mathCount).toBe(0)
     for (const c of CH14_CHARTS.filter((x) => x.name !== 'SPEC_CHART')) expect((await renderMermaidForTest(c.chart)).mathCount, c.name).toBeGreaterThan(0)
-    // 章首的共用系統地圖（節點比單張章內圖多，所以不套 14 個節點的上限，只確認畫得出來，公式也由 KaTeX 排版）
-    const map = await renderMermaidForTest(systemMapChart(CH14_SYSTEM_FOCUS))
-    expect(map.text).not.toMatch(/Unsupported markdown/)
-    expect(map.text).not.toContain('$')
-    expect(unicodeMathIn(map.plainText)).toEqual([])
-    expect(map.nodeCount).toBeGreaterThan(0)
-    expect(map.mathCount).toBeGreaterThan(0)
   }, 300000)
 })
 
@@ -477,13 +529,22 @@ describe('Ch14 頁面上的方塊圖（teaching-style §8）', () => {
       </MemoryRouter>,
     )
     const figs = Array.from(container.querySelectorAll('figure.c-mermaid')) as HTMLElement[]
-    const charts = figs.map((f) => f.getAttribute('data-chart'))
-    // ① 系統地圖：第一張圖、在 14.0 之前、焦點是本章的三個方塊
-    const mapChart = systemMapChart(CH14_SYSTEM_FOCUS)
+    // ① 系統地圖：第一張圖、在 14.0 之前，是手排的 SVG（figure.c-sysmap，不經過 Mermaid，所以沒有 data-chart）；藍色（is-focus）的是本章的三個方塊
     expect(CH14_SYSTEM_FOCUS).toEqual(['gmac', 'scale', 'acc'])
-    expect(mapChart).toContain('class GMAC,SCALE,ACC focus')
-    expect(charts[0]).toBe(mapChart)
-    expect(charts.filter((c) => c === mapChart).length).toBe(1)
+    expect(figs[0].classList.contains('c-sysmap')).toBe(true)
+    expect(figs[0].hasAttribute('data-chart')).toBe(false)
+    expect(container.querySelectorAll('figure.c-sysmap').length).toBe(1)
+    const domFocus = Array.from(figs[0].querySelectorAll('g.c-sysmap-block.is-focus')).map((g) => g.getAttribute('data-block'))
+    expect(domFocus.sort()).toEqual([...CH14_SYSTEM_FOCUS].sort())
+    expect(figs[0].querySelectorAll('g.c-sysmap-block[data-focus="true"]').length).toBe(CH14_SYSTEM_FOCUS.length)
+    expect(figs[0].querySelectorAll('g.c-sysmap-block').length).toBeGreaterThan(CH14_SYSTEM_FOCUS.length) // 其餘方塊照畫，只是沒有標藍
+    // 同一組主角用純資料的 systemMapModel 核對：每個主角都是地圖上有名稱、有接線的方塊
+    const model = systemMapModel(CH14_SYSTEM_FOCUS)
+    expect(model.blocks.filter((b) => b.focused).map((b) => b.id).sort()).toEqual([...CH14_SYSTEM_FOCUS].sort())
+    for (const b of CH14_SYSTEM_FOCUS) {
+      expect(SYSTEM_BLOCK_LABEL[b], b).toBeTruthy()
+      expect(model.wires.some((w) => w.from === b || w.to === b), `${b} 沒有接線`).toBe(true)
+    }
     const before = (a: Element | null, b: Element | null, msg: string) => {
       expect(a, msg).toBeTruthy()
       expect(b, msg).toBeTruthy()
@@ -495,8 +556,9 @@ describe('Ch14 頁面上的方塊圖（teaching-style §8）', () => {
     expect(figs[0].nextElementSibling?.textContent).toContain('本章新增的是')
 
     // ② 其餘 24 張：與清單同序、各一次（Beginner 模式也全部看得到）
-    expect(charts.length).toBe(1 + CH14_CHARTS.length)
-    expect(charts.slice(1)).toEqual(CH14_CHARTS.map((c) => c.chart))
+    const charts = figs.slice(1).map((f) => f.getAttribute('data-chart'))
+    expect(charts.length).toBe(CH14_CHARTS.length)
+    expect(charts).toEqual(CH14_CHARTS.map((c) => c.chart))
 
     // ③ 圖說（數學一律用 $...$ 的 LaTeX、不用 Unicode 拼湊）＋導讀（先看…；除規格原圖外都有「圖上的 X 就是…」的對照，且含 KaTeX）
     const BAD = /[Ͱ-Ͽ²³¹⁰-₟≤≥≈≠≪≫⇒⇔√∑∝∞∂∠±∓]/
@@ -519,6 +581,22 @@ describe('Ch14 頁面上的方塊圖（teaching-style §8）', () => {
         expect(walk?.querySelector('.katex'), c.name).toBeTruthy()
       }
     }
+
+    // 方向字眼要跟著圖的方向走：由上到下的圖（flowchart TB／TD、stateDiagram TB）的圖說與導讀不說「由左到右」，橫向（LR）的圖不說「由上到下」。
+    // pole 圖是折成兩排的 TB 圖，圖說明寫「上排由左到右，再接到下排」。
+    for (const c of CH14_CHARTS) {
+      const txt = el(c.name).closest('.ch14-diagram')?.textContent ?? ''
+      if (c.name === 'CHART_POLE_REGIMES') {
+        expect(txt, c.name).toMatch(/上排[^。]*下排/)
+        continue
+      }
+      if (/^(flowchart T[BD]|stateDiagram-v2\s+direction TB)/.test(c.chart)) expect(txt, `${c.name} 是由上到下的圖，圖說與導讀不該說「由左到右」`).not.toMatch(/[由從]左到右/)
+      else expect(txt, `${c.name} 是橫向的圖，圖說與導讀不該說「由上到下」`).not.toMatch(/[由從]上到下/)
+    }
+    // 為了排版從圖上挪走的字，要還留在頁面上（圖說或導讀）：clip 虛線「以 COARSE 為例，任何更新中的狀態都適用」；
+    // 暫停 guard 的條件（低雜訊模式、bad-FCW 且 policy = freeze）現在寫在「是」那條邊上，導讀也有說明。
+    expect(el('IMPL_CHART').closest('.ch14-diagram')?.textContent, 'clip 虛線的註解').toMatch(/clip[^。]*以 COARSE 為例，任何更新中的狀態都適用/)
+    expect(el('CHART_GUARD_ORDER').closest('.ch14-diagram')?.querySelector('.ch14-diagram-walk')?.textContent, '暫停 guard 的條件').toMatch(/低雜訊模式[^。]*bad-FCW[^。]*freeze/)
 
     // ④ 位置：文字說明 → 圖 → 推導／公式
     const id = (x: string) => container.querySelector(`[id="${x}"]`)

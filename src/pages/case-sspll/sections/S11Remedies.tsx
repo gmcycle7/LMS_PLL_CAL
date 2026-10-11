@@ -182,7 +182,7 @@ export function S11Remedies() {
       </p>
       <Diagram id="onediff" />
       <p>
-        先看 raw 那一列：kernel 就是 <Tex>{r`H_{PD}`}</Tex> 本身，低頻時實部是負的（紅色）。再看一階差分那一列：藍色那一格是關鍵——把 regressor 的差分 <Tex>{r`(1-z^{-1})`}</Tex> 併到 <Tex>{'L_2'}</Tex> 上，剛好消掉一個積分器，剩下「比例項 + 一個積分器」，這就是下面推導的第 3 步。後面兩格是第 4 步的{' '}
+        先看左邊 raw 那一欄（由上往下讀）：kernel 就是 <Tex>{r`H_{PD}`}</Tex> 本身，低頻時實部是負的（紅色）。再看右邊一階差分那一欄：藍色那一格是關鍵——把 regressor 的差分 <Tex>{r`(1-z^{-1})`}</Tex> 併到 <Tex>{'L_2'}</Tex> 上，剛好消掉一個積分器，剩下「比例項 + 一個積分器」，這就是下面推導的第 3 步。下面兩格是第 4 步的{' '}
         <Tex>{r`g(\Omega)`}</Tex> 與第 5 步的安全條件：只要積分增益相對比例增益不要太大（<Tex>{r`K_i\le2K_p`}</Tex>），<Tex>{r`g(\Omega)`}</Tex> 就不會變負。
       </p>
       <StepDerivation
@@ -289,8 +289,8 @@ export function S11Remedies() {
       </p>
       <Diagram id="onediff-delay" />
       <p>
-        兩列的第一格都是「regressor 的差分併到 <Tex>{'L'}</Tex> 上」：差分把迴路的積分器消掉，剩下增益與延遲（下面推導的第 1 步）。先看第一列：只有 1 拍延遲時 <Tex>{r`g(\Omega)=1-(1-K)\cos\Omega`}</Tex>，最小值是 <Tex>{r`\min(K,\,2-K)`}</Tex>，恆正。再看第二列的紅色方塊：多出來的延遲消不掉，
-        <Tex>{r`K\cos(d\Omega)`}</Tex> 在 <Tex>{r`\Omega=\pi/d`}</Tex> 變成 <Tex>{'-K'}</Tex>，而同一個頻率上的 <Tex>{r`1-\cos\Omega`}</Tex> 只有 <Tex>{r`1-\cos(\pi/d)`}</Tex>，<Tex>{'d'}</Tex> 越大越小。圖上第二、三格就是推導的第 3、4 步。
+        兩欄最上面的一格都是「regressor 的差分併到 <Tex>{'L'}</Tex> 上」：差分把迴路的積分器消掉，剩下增益與延遲（下面推導的第 1 步）。先看左邊那一欄：只有 1 拍延遲時 <Tex>{r`g(\Omega)=1-(1-K)\cos\Omega`}</Tex>，最小值是 <Tex>{r`\min(K,\,2-K)`}</Tex>，恆正。再看右邊那一欄的紅色方塊：多出來的延遲消不掉，
+        <Tex>{r`K\cos(d\Omega)`}</Tex> 在 <Tex>{r`\Omega=\pi/d`}</Tex> 變成 <Tex>{'-K'}</Tex>，而同一個頻率上的 <Tex>{r`1-\cos\Omega`}</Tex> 只有 <Tex>{r`1-\cos(\pi/d)`}</Tex>，<Tex>{'d'}</Tex> 越大越小。圖上每一欄的第二、三格就是推導的第 3、4 步。
       </p>
       <StepDerivation
         title={mathText(r`一步一步：Type-I、延遲 $d$ 拍的 $g(\Omega)$`)}

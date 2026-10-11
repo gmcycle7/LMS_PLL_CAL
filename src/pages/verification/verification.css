@@ -52,10 +52,32 @@
   font-size: 0.92em;
 }
 .ver-table .ver-wide {
-  min-width: 190px;
+  min-width: 170px;
 }
 .ver-table .ver-mid {
-  min-width: 130px;
+  min-width: 110px;
+}
+/* 儲存格裡的行內公式可以在等號、運算符號後面換行（KaTeX 預設整段不換行，會把欄撐到 380px 以上） */
+.ver-table .katex {
+  white-space: normal;
+}
+/*
+ * 驗收表有 9 欄，在 900px 的正文欄裡放不下（強制塞進去會讓公式互相壓到），所以保留左右捲動，
+ * 但把第一欄（T-id 與題目）釘在左邊：捲到右邊看「即時判定」「測試狀態」時還知道這一列是哪一題。
+ */
+.ver-table[data-testid='acceptance-table'] tr[data-row] > :first-child,
+.ver-table[data-testid='acceptance-table'] thead th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface);
+  box-shadow: 1px 0 0 var(--border);
+}
+.ver-table[data-testid='acceptance-table'] thead th:first-child {
+  background: var(--surface-2);
+}
+.ver-table[data-testid='acceptance-table'] tr.ver-row-target > :first-child {
+  background: var(--accent-soft);
 }
 .ver-row-target td {
   background: var(--accent-soft);

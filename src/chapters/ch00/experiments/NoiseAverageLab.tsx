@@ -46,7 +46,8 @@ const N_MAX_OPTIONS = [256, 512, 1024]
 /** 固定的版面物件（模組層級）：參數改變時只有 data 會變，Plot 不會因為新的 layout 參照而重設縮放 */
 const STD_LAYOUT: Partial<Layout> = {
   xaxis: { title: { text: '$N$（平均的樣本數）' } },
-  yaxis: { title: { text: String.raw`$\operatorname{std}(\bar G_N)$` } },
+  // 縱軸的範圍不到一個 decade：Plotly 預設會把 2–9 全部標出來，擠成一團；只標 1、2、5
+  yaxis: { title: { text: String.raw`$\operatorname{std}(\bar G_N)$` }, dtick: 'D2' },
 }
 const TRACE_LAYOUT: Partial<Layout> = {
   xaxis: { title: { text: '$n$' } },

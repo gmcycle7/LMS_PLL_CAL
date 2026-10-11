@@ -620,7 +620,7 @@ export function PolarityExplorer() {
     >
       <CaseSelector cases={cases} label="比較 Case（同一 seed）" />
       <div className="table-wrap">
-        <table className="ch06-table">
+        <table className="ch06-table ch06-case-table">
           <thead>
             <tr>
               <th>Case</th>

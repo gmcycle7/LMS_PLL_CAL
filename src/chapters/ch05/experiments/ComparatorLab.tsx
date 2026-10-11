@@ -671,9 +671,10 @@ export function ComparatorLab() {
               xaxis: { title: { text: '$e$（fs）' } },
               yaxis: { title: { text: 'PDF（1/fs）' } },
               shapes: [vline(c.theta, tokens.series[1]), vline(c.s, tokens.textMuted, 'dot')],
+              // θ 與 s 常常只差幾 fs（圖上幾乎同一條線）：兩個標籤放在圖框中間的高度，分別靠在各自那條線的左右兩側，不疊在一起，也不碰到上方的圖例
               annotations: [
-                { x: c.theta, y: 1, yref: 'paper', text: String.raw`$\theta$`, showarrow: false, yanchor: 'bottom' },
-                { x: c.s, y: 0.92, yref: 'paper', text: '$s$', showarrow: false, yanchor: 'bottom' },
+                { x: c.theta, y: 0.5, yref: 'paper', text: String.raw`$\theta$`, showarrow: false, yanchor: 'middle', xanchor: c.s >= c.theta ? 'right' : 'left', xshift: c.s >= c.theta ? -3 : 3 },
+                { x: c.s, y: 0.5, yref: 'paper', text: '$s$', showarrow: false, yanchor: 'middle', xanchor: c.s >= c.theta ? 'left' : 'right', xshift: c.s >= c.theta ? 3 : -3 },
               ],
             }}
             height={280}

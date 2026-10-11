@@ -338,7 +338,7 @@ export function UpdateDelay() {
       />
       <p className="small">
         {rich(
-          String.raw`讀圖：先看上面那一排由左到右——GMAC 斜率 $K>0$ 不改變相位；積分器 $\frac{\mu}{z-1}$ 落後 $90^\circ+\frac{\omega_c}{2}$（§8.2 用弦長公式推過）；紅色的延遲 $z^{-d}$ 再落後 $d\,\omega_c$。線上寫的是每過一格還剩多少，最後剩下的 $90^\circ-\frac{\omega_c}{2}-d\,\omega_c$ 就是下面 F-08.9 的 $PM_d$。再看用虛線連上來的那一格——交越頻率 $\omega_c=2\arcsin\frac g2$ 和 §8.2 完全一樣，因為延遲只改相位、不改大小；把它代進去就是 $PM_d=90^\circ-(2d+1)\arcsin\frac g2$。最後看最右邊紅色的那格：$PM_d$ 剛好扣到 $0$ 時的 $g$，正是 F-08.8 的臨界增益 $g^{*}(d)$；而 $GM_d=g^{*}(d)/g$ 量的是現在的 $g$ 離它還差幾倍。`,
+          String.raw`讀圖：先看由上往下的主線——GMAC 斜率 $K>0$ 不改變相位；積分器 $\frac{\mu}{z-1}$ 落後 $90^\circ+\frac{\omega_c}{2}$（§8.2 用弦長公式推過）；紅色的延遲 $z^{-d}$ 再落後 $d\,\omega_c$。線上寫的是每過一格還剩多少，最後剩下的 $90^\circ-\frac{\omega_c}{2}-d\,\omega_c$ 就是下面 F-08.9 的 $PM_d$。再看用虛線連上來的那一格——交越頻率 $\omega_c=2\arcsin\frac g2$ 和 §8.2 完全一樣，因為延遲只改相位、不改大小；把它代進去就是 $PM_d=90^\circ-(2d+1)\arcsin\frac g2$。最後看最下面紅色的那格：$PM_d$ 剛好扣到 $0$ 時的 $g$，正是 F-08.8 的臨界增益 $g^{*}(d)$；而 $GM_d=g^{*}(d)/g$ 量的是現在的 $g$ 離它還差幾倍。`,
         )}
       </p>
 

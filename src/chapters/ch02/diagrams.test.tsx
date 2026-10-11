@@ -4,7 +4,7 @@ import { cleanup, render } from '@testing-library/react'
 import mermaid from 'mermaid'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
-import { SYSTEM_BLOCK_LABEL, systemMapChart } from '@/components'
+import { SYSTEM_BLOCK_LABEL, stripMathDelimiters, systemMapModel } from '@/components'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { conventionalStep, signErrorStep, signSignStep, type TieRule } from '@/simulation/models/lms'
 import {
@@ -224,7 +224,10 @@ describe('Ch02 方塊圖：原始碼（真正的 mermaid parser）', () => {
       const m = await stateMachine(d.chart)
       expect(m.states.length, d.id).toBeGreaterThanOrEqual(3)
       expect(m.states.length, d.id).toBeLessThanOrEqual(6)
-      expect(m.relations.length, d.id).toBeGreaterThanOrEqual(4)
+      // 起點 → 第一個狀態，加上每個狀態之間的轉移：limit-cycle 是 4 條（含 P1 ⇄ P2），gear-shift 是 3 條（粗調 → 換檔 → 追蹤）
+      expect(m.relations.length, d.id).toBe(d.id === 'limit-cycle' ? 4 : 3)
+      // 沒有自己指向自己的轉移：Mermaid 會把它畫成一條又長又尖的怪迴圈，「每步做什麼」寫在狀態的說明裡
+      expect(m.relations.filter((r) => r.from === r.to), d.id).toEqual([])
       for (const s of m.states) expect(s.descriptions.length, `${d.id}/${s.id} 沒有說明文字`).toBeGreaterThanOrEqual(2)
       expect(m.states.some((s) => s.classes.length > 0), `${d.id} 沒有上色的狀態`).toBe(true)
     }
@@ -236,12 +239,20 @@ describe('Ch02 方塊圖：原始碼（真正的 mermaid parser）', () => {
     }
   }, 120_000)
 
-  it('SystemMap：本章標示 regressor、comparator、GMAC、÷N×μ、accumulator 五格，原始碼可解析', async () => {
+  it('SystemMap：本章標示 regressor、comparator、GMAC、÷N×μ、accumulator 五格（手排 SVG，不經過 Mermaid；用 systemMapModel 核對主角）', () => {
     expect(SYSTEM_FOCUS).toEqual(['res', 'cmp', 'gmac', 'scale', 'acc'])
-    const chart = systemMapChart(SYSTEM_FOCUS)
-    expect(chart).toContain('class RES,CMP,GMAC,SCALE,ACC focus')
-    const r = await mermaid.parse(chart, { suppressErrors: false })
-    expect(r && typeof r === 'object' ? r.diagramType : r).toBe('flowchart-v2')
+    const model = systemMapModel(SYSTEM_FOCUS)
+    // 被標成主角的剛好是這五格（依地圖上的方塊順序），其餘方塊都不是
+    expect(model.blocks.filter((b) => b.focused).map((b) => b.id).sort()).toEqual([...SYSTEM_FOCUS].sort())
+    expect(model.blocks.filter((b) => !b.focused)).toHaveLength(model.blocks.length - SYSTEM_FOCUS.length)
+    // 五格的標題就是正文講的東西：regressor x[n]、1-bit comparator、GMAC Σq·x、÷N×μ、w_k
+    const byId = Object.fromEntries(model.blocks.map((b) => [b.id, b]))
+    expect(byId.res.sub).toContain('x[n]')
+    expect(byId.cmp.title).toBe('1-bit comparator')
+    expect(byId.gmac.sub).toContain(String.raw`\sum q[n]\,x[n]`)
+    expect(byId.scale.sub).toContain(String.raw`\div N`)
+    expect(byId.scale.sub).toContain(String.raw`\times\,\mu`)
+    expect(byId.acc.sub).toContain('w_k')
   })
 })
 
@@ -284,12 +295,6 @@ describe('Ch02 方塊圖：真的畫一次（共用的 renderMermaidForTest）',
       120_000,
     )
   }
-
-  it('章首的 SystemMap（共用元件）也能畫出來，沒有 Unsupported markdown（它有 17 個方塊，不受本章 14 個節點的限制）', async () => {
-    const { text, nodeCount } = await renderMermaidForTest(systemMapChart(SYSTEM_FOCUS))
-    expect(text).not.toMatch(/Unsupported markdown/)
-    expect(nodeCount).toBeGreaterThan(14)
-  }, 120_000)
 })
 
 describe('Ch02 方塊圖：和公式、模型一致（正負號、極性、圖上的式子）', () => {
@@ -367,6 +372,13 @@ describe('Ch02 方塊圖：和公式、模型一致（正負號、極性、圖�
     const g = await flow(chartOf('batch-vs-sgd'))
     expect(g.node('B3').text).toBe(String.raw`$\div N$`)
     expect(g.node('M3').text).toBe(String.raw`$\div B$`)
+    // subgraph 標題不放數學（共用主題會把標題裡的 KaTeX 縮到 5–8px）：N、B 與 GMAC 都還在方塊上
+    expect(g.node('B2').text).toBe(String.raw`累加 $N$ 筆`)
+    expect(g.node('B5').text).toContain(String.raw`每 $N$ 筆一次`)
+    expect(g.node('M2').text).toContain(String.raw`累加 $B$ 筆`)
+    expect(g.node('M2').text).toContain('GMAC')
+    expect(g.node('M5').text).toContain(String.raw`每 $B$ 筆一次`)
+    expect(g.node('G5').text).toContain('每筆一次')
     expect(g.vertices.filter((v) => v.classes.includes('focus')).map((v) => v.id).sort()).toEqual(['B2', 'B3', 'M2', 'M3'])
     expect(g.into('G4').map((e) => e.start)).toEqual(['G1']) // SGD：e·x 直接乘 μ
     const [w, x, y, mu] = [1, 2, 6.5, 0.1]
@@ -404,6 +416,13 @@ describe('Ch02 方塊圖：和公式、模型一致（正負號、極性、圖�
 
   it('路線圖：每個箭頭丟掉一種資訊；每一格的 Δw 和 stepper 的更新量相同', async () => {
     const g = await flow(chartOf('roadmap'))
+    // 由上往下畫（橫排會寬到約 1250px、字縮到 0.72 倍）：圖說與看圖說明也寫「由上」，不是「由左到右」
+    expect(chartOf('roadmap')).toMatch(/^flowchart TB\n/)
+    expect(DIAGRAM_BY_ID.roadmap.caption).toContain('由上到下')
+    expect(DIAGRAM_BY_ID.roadmap.caption).not.toContain('左')
+    expect(g.edge('SE', 'PLL').text).toBe('硬體實作')
+    expect(g.node('PLL').text).toContain('comparator 與 GMAC')
+    expect(g.vertices).toHaveLength(6)
     expect(g.edge('GD', 'LMS').text).toBe('平均換成一筆資料')
     expect(g.edge('LMS', 'SE').text).toBe(String.raw`$e$ 換成 $\operatorname{sign}(e)$`)
     expect(g.edge('SE', 'SS').text).toBe(String.raw`$x$ 換成 $\operatorname{sign}(x)$`)
@@ -531,7 +550,10 @@ describe('Ch02 方塊圖：和公式、模型一致（正負號、極性、圖�
     const m = await stateMachine(chartOf('limit-cycle'))
     expect(m.states.map((s) => s.id).sort()).toEqual(['FAR', 'P1', 'P2'])
     // state 圖的文字不經 mermaidMathDelimiters：直接寫 Mermaid 原生的單一 $$...$$（用 \text{} 包文字）
-    expect(m.label('FAR', 'FAR')).toBe(String.raw`$$\text{每步靠近 }h = \mu\,|x|$$`)
+    // 「等速接近」每步靠近 h = μ|x| 寫在狀態的說明裡（Mermaid 把自己指向自己的轉移畫成一條又長又尖的怪迴圈，所以不畫成 FAR → FAR）
+    expect(m.relations.some((r) => r.from === 'FAR' && r.to === 'FAR')).toBe(false)
+    expect(m.states.find((s) => s.id === 'FAR')!.descriptions.join('\n')).toContain(String.raw`\text{每步靠近 }h = \mu\,|x|`)
+    expect(m.states.find((s) => s.id === 'FAR')!.descriptions.join('\n')).toContain(String.raw`\text{離 }a\text{ 還有一步以上}`)
     expect(m.label('FAR', 'P1')).toBe(String.raw`$$\text{走完 }n_c\text{ 步}$$`)
     expect(m.states.find((s) => s.id === 'P1')!.descriptions).toContain(String.raw`$$w = a - \operatorname{sgn}(\delta_0)\,\rho$$`)
     expect(m.states.find((s) => s.id === 'P2')!.descriptions).toContain(String.raw`$$w = a + \operatorname{sgn}(\delta_0)\,(h - \rho)$$`)
@@ -618,7 +640,10 @@ describe('Ch02 方塊圖：和公式、模型一致（正負號、極性、圖�
     const gear = await stateMachine(chartOf('gear-shift'))
     expect(gear.states.map((s) => s.id)).toEqual(['COARSE', 'SHIFT', 'TRACK'])
     expect(gear.label('COARSE', 'SHIFT')).toBe(String.raw`$$\text{過了 }n_0\text{ 步}$$`)
-    expect(gear.label('SHIFT', 'SHIFT')).toBe(String.raw`$$\text{每 }n_0\text{ 步再右移一位}$$`)
+    // 「每 n₀ 步再右移一位」寫在「換檔」的說明裡，不畫成 SHIFT → SHIFT 的自我轉移
+    expect(gear.relations.some((r) => r.from === 'SHIFT' && r.to === 'SHIFT')).toBe(false)
+    expect(gear.states.find((s) => s.id === 'SHIFT')!.descriptions.join('\n')).toContain(String.raw`\text{每 }n_0\text{ 步再右移一位}`)
+    expect(gear.states.find((s) => s.id === 'SHIFT')!.descriptions.join('\n')).toContain('步長右移一位（減半）')
     expect(gear.label('SHIFT', 'TRACK')).toBe(String.raw`$$\text{降到下限 }\mu_{\min}$$`)
     expect(gear.relations.some((r) => r.from === 'TRACK' && r.to !== 'TRACK')).toBe(false) // 到了下限就不再變
     expect(GEAR_FLOOR_RATIO).toBe(1 / 64)
@@ -707,10 +732,24 @@ describe('Ch02 方塊圖：和公式、模型一致（正負號、極性、圖�
     const m = await flow(chartOf('info-map'))
     expect(m.edge('A', 'C').text).toBe('丟掉 $e$ 的大小')
     expect(m.edge('C', 'D').text).toBe('再丟掉 $x$ 的大小')
-    expect(m.node('A').text).toMatch(/LMS.*error 多位元、regressor 多位元/)
-    expect(m.node('C').text).toMatch(/Sign-Error.*error 1 bit、regressor 多位元/)
-    expect(m.node('D').text).toMatch(/Sign-Sign.*error 1 bit、regressor 1 bit/)
+    // 每個方塊的長句用 <br/> 斷在「、」之後（單行超過約 200px 會被 Mermaid 從字中間折行）
+    expect(m.node('A').text).toMatch(/LMS.*error 多位元、<br\/?>regressor 多位元/)
+    expect(m.node('A').text).toContain('NLMS、Huber 也在這一格')
+    expect(m.node('C').text).toMatch(/Sign-Error.*error 1 bit、<br\/?>regressor 多位元/)
+    expect(m.node('D').text).toMatch(/Sign-Sign.*error 1 bit、<br\/?>regressor 1 bit/)
     expect(m.node('B').text).toContain('本章不討論')
+    expect(m.node('B').text).toMatch(/Signed-regressor LMS.*error 多位元、<br\/?>regressor 1 bit/)
+    // 斷行只是換行：每一格最後一行的「硬體成本」與虛線那一條路都還在
+    expect(m.node('A').text).toContain('TDC 或 ADC，加上乘法器')
+    expect(m.node('C').text).toContain('comparator，加上條件取負')
+    expect(m.node('D').text).toMatch(/XOR，加上<br\/?>up \/ down counter/)
+    expect(m.edge('A', 'B').text).toBe('丟掉 $x$ 的大小')
+    expect(m.edge('B', 'D').text).toBe('再丟掉 $e$ 的大小')
+    expect(m.vertices).toHaveLength(4)
+    expect(m.edges).toHaveLength(4)
+    expect(m.node('A').classes).toEqual(['warn']) // 最貴：多位元乘法器
+    expect(m.node('C').classes).toEqual(['focus']) // 本章走的路
+    expect(m.node('D').classes).toEqual(['ok']) // 最省
 
     const d = await flow(chartOf('datapath'))
     expect(d.node('M1').classes).toEqual(['warn']) // 乘法器
@@ -824,13 +863,27 @@ describe('Ch02 方塊圖：頁面（SystemMap、位置、看圖說明）', () =>
     () => {
       const { container } = renderChapter()
 
-      // ── SystemMap：緊跟在開場問題後面、在 §1 之前，後面有一句說明藍色方塊與本章新增的內容 ──
+      // ── SystemMap：手排的 SVG（不經過 Mermaid，所以不是 [data-chart] 替身），緊跟在開場問題後面、在 §1 之前，
+      //    後面有一句說明藍色方塊與本章新增的內容 ──
       const figures = Array.from(container.querySelectorAll('figure.c-mermaid'))
       expect(figures).toHaveLength(N_DIAGRAMS + 1)
-      const map = container.querySelector('figure.c-mermaid[aria-label^="DTC-based Fractional-N PLL"]')!
+      const map = container.querySelector('figure.c-mermaid.c-sysmap')!
       expect(map).toBeTruthy()
+      expect(map.getAttribute('aria-label')).toMatch(/^DTC-based Fractional-N PLL/)
       expect(figures[0]).toBe(map)
-      for (const b of SYSTEM_FOCUS) expect(map.getAttribute('aria-label')).toContain(SYSTEM_BLOCK_LABEL[b])
+      expect(map.hasAttribute('data-chart')).toBe(false)
+      expect(container.querySelectorAll('figure.c-sysmap')).toHaveLength(1)
+      // 圖說與替代文字都列出本章的五個主角（數學的 $ 去掉後的文字）
+      const caption = map.querySelector('figcaption')!.textContent!
+      for (const b of SYSTEM_FOCUS) expect(map.getAttribute('aria-label')).toContain(stripMathDelimiters(SYSTEM_BLOCK_LABEL[b]))
+      expect(caption).toContain('藍色是本章的主角')
+      // 圖上被標成藍色的方塊（g.c-sysmap-block.is-focus）剛好就是 systemMapModel(SYSTEM_FOCUS) 的主角，其餘方塊都沒有標
+      const focusedInDom = Array.from(map.querySelectorAll('g.c-sysmap-block.is-focus')).map((g) => g.getAttribute('data-block'))
+      const focusedInModel = systemMapModel(SYSTEM_FOCUS).blocks.filter((b) => b.focused).map((b) => b.id)
+      expect(focusedInDom.sort()).toEqual([...focusedInModel].sort())
+      expect(focusedInDom.sort()).toEqual([...SYSTEM_FOCUS].sort())
+      expect(map.querySelectorAll('g.c-sysmap-block')).toHaveLength(systemMapModel(SYSTEM_FOCUS).blocks.length)
+      expect(map.querySelectorAll('g.c-sysmap-block[data-focus="true"]')).toHaveLength(SYSTEM_FOCUS.length)
       const question = container.querySelector('.ch02-question')!
       expect(question.nextElementSibling).toBe(map)
       const note = container.querySelector('[data-system-map-note]')!

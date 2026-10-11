@@ -1,7 +1,7 @@
 import { configure, render } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
-import { systemMapChart } from '@/components'
+import { systemMapModel } from '@/components'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { normCdf, normInv, binomPmf } from '@/simulation/core'
 import {
@@ -222,19 +222,28 @@ describe('Ch05 方塊圖：登錄表與張數', () => {
     }
   })
 
-  it('系統地圖標出本章的主角：雜訊、1-bit comparator、GMAC；而且真的畫得出來', async () => {
+  it('系統地圖標出本章的主角：雜訊、1-bit comparator、GMAC（系統地圖是手排的 SVG，不經過 Mermaid；以 systemMapModel 核對）', () => {
     expect(CH05_SYSTEM_FOCUS).toEqual(['noise', 'cmp', 'gmac'])
-    const chart = systemMapChart(CH05_SYSTEM_FOCUS)
-    expect(chart).toContain('class NOISE,CMP,GMAC focus')
-    expect((await parse(chart)).type).toBe('flowchart-v2')
-    const { text, plainText, mathCount } = await renderOnce('systemMap', chart)
-    expect(text).not.toMatch(/Unsupported markdown/)
-    expect(text).not.toContain('$')
-    expect(mathCount).toBeGreaterThan(0)
-    expect(unicodeMathIn(plainText)).toEqual([])
-    // 含公式的標籤把文字包在 KaTeX 的 \text 裡：空白畫成不換行空白，所以先 flat() 再比
-    expect(flat(text)).toContain('1-bit comparator')
-  }, SLOW)
+    const focused = systemMapModel(CH05_SYSTEM_FOCUS).blocks.filter((b) => b.focused)
+    expect(focused.map((b) => b.id).sort()).toEqual([...CH05_SYSTEM_FOCUS].sort())
+    // 三個主角的方塊文字：comparator 前的雜訊 v[n]、1-bit comparator、GMAC
+    const text = (id: string) => {
+      const b = focused.find((x) => x.id === id)!
+      return flat(`${b.title} ${b.sub ?? ''}`)
+    }
+    expect(text('cmp')).toContain('1-bit comparator')
+    expect(text('gmac')).toContain('GMAC')
+    expect(text('noise')).toContain('v[n]')
+    // 主角方塊上的數學一律是 LaTeX（不用 Unicode 拼的 ∑、下標、希臘字母），也沒有沒配對的 $
+    for (const id of CH05_SYSTEM_FOCUS) {
+      expect(unicodeMathIn(text(id)), `系統地圖的 ${id} 方塊`).toEqual([])
+      expect((text(id).match(/(?<!\\)\$/g) ?? []).length % 2, `系統地圖的 ${id} 方塊的 $ 要成對`).toBe(0)
+    }
+    // 其餘的方塊都不是主角
+    const others = systemMapModel(CH05_SYSTEM_FOCUS).blocks.filter((b) => !b.focused).map((b) => b.id)
+    expect(others.length).toBeGreaterThan(0)
+    for (const id of CH05_SYSTEM_FOCUS) expect(others).not.toContain(id)
+  })
 })
 
 describe('Ch05 方塊圖：真正的 mermaid parser 與真實渲染', () => {
@@ -298,10 +307,14 @@ describe('Ch05 方塊圖：真正的 mermaid parser 與真實渲染', () => {
   )
 })
 
-describe('Ch05 方塊圖：版面（上下／左右的位置用語要和實際排版一致）', () => {
-  it('圖說與導讀裡的「上框／下框」「從左到右」「最上面的菱形」由實際排版核對', async () => {
+describe('Ch05 方塊圖：版面（上下／左右的位置用語要和實際排版一致；太寬的橫排改成直式）', () => {
+  it('圖說與導讀裡的「上框／下框」「左框／右框」「從左到右」「最上面的菱形」「由上往下」由實際排版核對', async () => {
     // 節點大小是 jsdom 的替身，但 dagre 的上下／左右順序只由圖的結構決定
-    const keys = ['exactVsClt', 'analogVs1bit', 'smallSignal', 'l1Model', 'decision', 'sampleLoop', 'linearizedLoop', 'blockLoop', 'hwMap', 'roadmap', 'tieRules', 'sCurveRegions', 'ditherRegimes', 'methodChoice', 'signBlockLoop', 'ar1'] as const
+    const keys = [
+      'exactVsClt', 'analogVs1bit', 'smallSignal', 'l1Model', 'singleCompare', 'sampleLoop', 'linearizedLoop', 'blockLoop', 'lastSample',
+      'hwMap', 'tieRules', 'sCurveRegions', 'ditherRegimes', 'methodChoice', 'signBlockLoop', 'ar1',
+      'roadmap', 'firstCalc', 'qStats', 'bitMapping', 'signalVsNoise', 'sumVsAvg', 'decision', 'designFlow', 'mcCheck',
+    ] as const
     const svgs = new Map<string, string>()
     for (const key of keys) svgs.set(key, (await renderOnce(key, chartOf(key))).svg)
     const shift = (el: Element | null) => {
@@ -331,7 +344,6 @@ describe('Ch05 方塊圖：版面（上下／左右的位置用語要和實際�
     // 對照組：拿掉那條看不見的連線（A ~~~ B）兩個框就會同一高度、左右並排，所以那條連線是必要的
     for (const [key, topNode, bottomNode] of [
       ['exactVsClt', 'E1', 'C1'],
-      ['analogVs1bit', 'A1', 'B1'],
       ['smallSignal', 'S1', 'S2'],
     ] as const) {
       const host = dom(key)
@@ -341,25 +353,39 @@ describe('Ch05 方塊圖：版面（上下／左右的位置用語要和實際�
       control.innerHTML = (await renderMermaidForTest(chartOf(key).replace(/^ {2}\w+ ~~~ \w+$/m, ''))).svg
       expect(rootOf(control, topNode).y, `${key}（沒有看不見的連線）：兩個框會並排在同一高度`).toBe(rootOf(control, bottomNode).y)
     }
+    // 「左框／右框」（類比 vs 1-bit）：兩個直式的框左右並排，理想（類比）在左、實際硬體（1-bit）在右；框內是由上往下
+    {
+      const host = dom('analogVs1bit')
+      expect(rootOf(host, 'A1').x, '類比（左框）應在 1-bit（右框）左邊').toBeLessThan(rootOf(host, 'B1').x)
+      expect(chartOf('analogVs1bit')).toMatch(/^ {2}AN ~~~ OB$/m)
+      // 對照組：拿掉那條看不見的連線，兩個框的左右順序就不受控制（類比框不再在 1-bit 框左邊），所以那條連線是必要的
+      const control = document.createElement('div')
+      control.innerHTML = (await renderMermaidForTest(chartOf('analogVs1bit').replace(/^ {2}AN ~~~ OB$/m, ''))).svg
+      expect(rootOf(control, 'A1').x, 'analogVs1bit（沒有看不見的連線）：類比框不再在 1-bit 框左邊').toBeGreaterThanOrEqual(rootOf(control, 'B1').x)
+      for (const [first, last] of [['A1', 'A4'], ['B1', 'B5']] as const) {
+        expect(node(host, first).y, `analogVs1bit：${first} 應在 ${last} 上面`).toBeLessThan(node(host, last).y)
+      }
+      // 框內的方塊是直式排列（同一直行），不是橫排
+      expect(node(host, 'B1').x).toBeCloseTo(node(host, 'B5').x, 0)
+    }
     // subgraph 內仍是由左到右（direction LR 沒有被看不見的連線取消）
     const ex = dom('exactVsClt')
     expect(node(ex, 'E1').x).toBeLessThan(node(ex, 'E2').x)
     expect(node(ex, 'C1').x).toBeLessThan(node(ex, 'C2').x)
     expect(node(ex, 'C2').x).toBeLessThan(node(ex, 'C3').x)
-    // LR 的鏈：起點在左、終點在右（「先看左邊…最後看右邊」「從左邊的 a 出發」）
+    // LR 的鏈：起點在左、終點在右（「先看左邊…最後看右邊」「從左邊的 a 出發」）；長的迴路與流程改成直式（下一組）
     for (const [key, first, last] of [
       ['l1Model', 'S', 'DEC'],
-      ['decision', 'QS', 'TIE'],
+      ['singleCompare', 'S', 'SGN'],
       ['sampleLoop', 'A', 'D'],
       ['linearizedLoop', 'A', 'D'],
       ['blockLoop', 'A', 'INT'],
-      ['signBlockLoop', 'A', 'INT'],
-      ['roadmap', 'Q0', 'P9'],
+      ['lastSample', 'A3', 'DP'],
     ] as const) {
       const host = dom(key)
       expect(node(host, first).x, `${key}：${first} 應在 ${last} 左邊`).toBeLessThan(node(host, last).x)
     }
-    // TB 的決策樹：根在最上面（「先看最上面的菱形」）
+    // TB 的決策樹與流程：根在最上面（「先看最上面的菱形」「由上往下」）
     for (const [key, root, leaf] of [
       ['tieRules', 'T0', 'B3'],
       ['sCurveRegions', 'R0', 'SAT'],
@@ -367,9 +393,26 @@ describe('Ch05 方塊圖：版面（上下／左右的位置用語要和實際�
       ['methodChoice', 'Q1', 'CC'],
       ['hwMap', 'DTC', 'ACC'], // 七個階段橫排會寬到字縮得太小，所以硬體路徑圖是直式：由上往下是訊號的流向
       ['ar1', 'ZI', 'VAR'],
+      ['signBlockLoop', 'A', 'INT'], // 八個方塊的迴路橫排會寬到 1,500 px，改成直式：由上往下是訊號的流向，回授線走旁邊
+      ['decision', 'QS', 'TIE'], // 「先看上面三格」
+      ['roadmap', 'Q0', 'P9'],
+      ['firstCalc', 'IN', 'SNR'],
+      ['qStats', 'Q', 'VAR'],
+      ['bitMapping', 'CMP', 'GOOD'],
+      ['signalVsNoise', 'Q', 'SNR'],
+      ['sumVsAvg', 'QS', 'SNR'],
+      ['designFlow', 'PT', 'TT'],
+      ['mcCheck', 'M1', 'PASS'],
     ] as const) {
       const host = dom(key)
       expect(node(host, root).y, `${key}：${root} 應在 ${leaf} 上面`).toBeLessThan(node(host, leaf).y)
+    }
+    // 直式的流程圖不是橫排：起點與終點大致在同一直行附近，而且終點比起點低很多（排版是細長的直式，不是寬扁的橫排）
+    for (const [key, first, last] of [['signalVsNoise', 'Q', 'SNR'], ['designFlow', 'NN', 'TT'], ['decision', 'QS', 'SN']] as const) {
+      const host = dom(key)
+      const a = node(host, first)
+      const b = node(host, last)
+      expect(b.y - a.y, `${key}：${first} → ${last} 應主要是往下`).toBeGreaterThan(Math.abs(b.x - a.x))
     }
   }, SLOW)
 })
@@ -411,7 +454,7 @@ describe('Ch05 方塊圖：與正文公式一致', () => {
       expect(g.edges.filter((e) => e.start === 'D').map((e) => `${e.end}:${e.text}`).sort()).toEqual(['S1:$- w_n$', 'S3:$+ w_n$'])
     }
     const blk = chartOf('blockLoop')
-    for (const t of ['\\delta_k = a - w_k', 'G_k \\approx K_q \\cdot \\delta_k + \\eta_k', 'w_{k+1} = w_k + \\mu \\cdot G_k', '1/(z-1)', '\\operatorname{Var} \\approx 1/N']) expect(blk).toContain(t)
+    for (const t of ['\\delta_k = a - w_k', 'G_k \\approx K_q \\cdot \\delta_k$<br/>$+ \\eta_k', 'w_{k+1} = w_k + \\mu \\cdot G_k', '1/(z-1)', '\\operatorname{Var} \\approx 1/N']) expect(blk).toContain(t)
     expect(blk).not.toMatch(/_n\b|\[n\]/)
     // block 迴路：S2 收到 ＋ K_q·δ_k 與 ＋ η_k，輸出 G_k 乘 μ 再進累加器
     const gb = await parse(blk)
@@ -806,14 +849,22 @@ describe('Ch05 方塊圖：整頁渲染', () => {
     )
   }
   const follows = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+  /** 系統地圖是手排的 SVG（figure.c-mermaid.c-sysmap），被標成主角的方塊帶有 is-focus；不經過 Mermaid，所以沒有 data-chart。 */
+  const focusedBlocks = (map: Element) => Array.from(map.querySelectorAll('g.c-sysmap-block.is-focus')).map((g) => g.getAttribute('data-block'))
 
   it('Research 模式：章首有 <SystemMap>，27 張圖依登錄順序全部出現，各有圖說與「先看…再看…」的導讀，並排在對應公式之前；符號表是最後一個區塊', () => {
     const { container, unmount } = renderChapter('research')
     const figs = Array.from(container.querySelectorAll<HTMLElement>('figure.c-mermaid'))
     // 第一張是章首的系統地圖：緊接在開場問題之後、第一個章節標題之前
     const map = figs[0]
-    expect(map.dataset.chart).toBe(systemMapChart(CH05_SYSTEM_FOCUS))
+    expect(map.classList.contains('c-sysmap')).toBe(true)
+    expect(map.dataset.chart, '系統地圖不經過 Mermaid').toBeUndefined()
+    expect(container.querySelectorAll('figure.c-sysmap')).toHaveLength(1)
+    // 標出的主角就是本章的三個方塊（雜訊、1-bit comparator、GMAC）
+    expect(focusedBlocks(map).sort()).toEqual([...CH05_SYSTEM_FOCUS].sort())
+    expect(focusedBlocks(map).sort()).toEqual(systemMapModel(CH05_SYSTEM_FOCUS).blocks.filter((b) => b.focused).map((b) => b.id).sort())
     expect(map.getAttribute('aria-label')).toContain('系統方塊圖')
+    expect(map.querySelector('figcaption')?.textContent).toContain('系統地圖：藍色是本章的主角')
     expect(map.closest('.ch05-fig')).toBeNull()
     const question = container.querySelector('.ch05-question') as HTMLElement
     const firstH2 = container.querySelector('h2') as HTMLElement
@@ -893,7 +944,10 @@ describe('Ch05 方塊圖：整頁渲染', () => {
       const expected = CH05_DIAGRAMS.filter((d) => !d.minMode || (mode === 'engineer' && d.minMode === 'engineer')).map((d) => d.key)
       const shown = Array.from(container.querySelectorAll<HTMLElement>('.ch05-fig')).map((w) => w.dataset.diagram)
       expect(shown, mode).toEqual(expected)
-      expect(container.querySelector<HTMLElement>('figure.c-mermaid')!.dataset.chart, mode).toBe(systemMapChart(CH05_SYSTEM_FOCUS))
+      // 系統地圖永遠是第一張，而且標出同樣的三個主角
+      const map = container.querySelector<HTMLElement>('figure.c-mermaid')!
+      expect(map.classList.contains('c-sysmap'), mode).toBe(true)
+      expect(focusedBlocks(map).sort(), mode).toEqual([...CH05_SYSTEM_FOCUS].sort())
       unmount()
     }
     expect(CH05_DIAGRAMS.filter((d) => d.minMode === 'engineer').map((d) => d.key)).toEqual(['signBlockLoop', 'birthDeath'])

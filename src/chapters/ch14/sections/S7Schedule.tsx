@@ -128,13 +128,13 @@ export function S7Schedule() {
         </p>
       </Diagram>
       <h3>兩段式的精確公式</h3>
-      <Diagram chart={CHART_SCHEDULE_TIMELINE} caption="兩段式的時間軸：由左到右是時間；兩段之間唯一要交接的量，是 COARSE 段結束時的均方誤差。">
+      <Diagram chart={CHART_SCHEDULE_TIMELINE} caption="兩段式的時間軸：由上到下是時間；兩段之間唯一要交接的量，是 COARSE 段結束時的均方誤差。">
         <p>
           <strong>先看</strong>棕色的 COARSE 段：步長 <Tex>{'\\mu_1'}</Tex> 大、pole <Tex>{'p_1=1-\\mu_1K'}</Tex> 小，{BIAS2} 很快掉下來，但雜訊底高。<strong>再看</strong>交棒的那條線：第一段結束（<Tex>{'k=B_1'}</Tex>）時的均方誤差{' '}
           <Tex>{'m_{B_1}'}</Tex>。<strong>然後看</strong>藍色的 FINE 段：步長換成小的 <Tex>{'\\mu_2'}</Tex>，把 <Tex>{'m_{B_1}'}</Tex> 當成新的「初始誤差平方」，再跑 <Tex>{'B_2'}</Tex> 個 block 把雜訊底壓低。虛線之後是 TRACK：步長不再縮小，保留追蹤漂移的能力（§14.7）。
         </p>
         <p>
-          圖上交棒線上的 <Tex>{'m_{B_1}'}</Tex> 就是公式 F-14.20 裡的 <Tex>{'m_{B_1}'}</Tex>（<Tex>{'m_k\\equiv E[\\delta_k^2]'}</Tex>）；最右邊方塊裡的式子就是 F-14.20 本身，下面三步說明為什麼可以這樣「接力」。
+          圖上交棒線上的 <Tex>{'m_{B_1}'}</Tex> 就是公式 F-14.20 裡的 <Tex>{'m_{B_1}'}</Tex>（<Tex>{'m_k\\equiv E[\\delta_k^2]'}</Tex>）；寫著 <Tex>{'k=B_1+B_2'}</Tex> 的那個方塊（兩段都跑完的終點）裡的式子就是 F-14.20 本身，下面三步說明為什麼可以這樣「接力」。
         </p>
       </Diagram>
       <Steps

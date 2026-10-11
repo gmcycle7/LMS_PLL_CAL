@@ -138,6 +138,24 @@
   color: var(--ok);
   font-weight: 600;
 }
+/* Polarity Explorer 的 Case 比較表：「判定」與「閉迴路」是整句話，欄寬不能被數字欄擠成一個字一行；放不下時由 .table-wrap 橫向捲動 */
+.ch06-case-table th,
+.ch06-case-table td {
+  padding: 6px 7px;
+}
+.ch06-case-table td {
+  vertical-align: top;
+}
+.ch06-case-table th:nth-child(2),
+.ch06-case-table td:nth-child(2) {
+  min-width: 6.5em;
+}
+.ch06-case-table th:nth-child(5),
+.ch06-case-table td:nth-child(5),
+.ch06-case-table th:nth-child(6),
+.ch06-case-table td:nth-child(6) {
+  min-width: 7em;
+}
 .ch06-table caption {
   caption-side: bottom;
   text-align: left;

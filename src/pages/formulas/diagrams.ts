@@ -4,10 +4,12 @@
  * 原始碼用 String.raw：TeX 的反斜線只寫一次。標籤裡不要用雙反斜線（Mermaid 會收成一個），換行用 <br/>。
  * 圖說寫在使用處，數學同樣用 `$...$`。
  * 每張圖都在 diagrams.test.tsx 以真正的 Mermaid 畫過一次，並和 refValues()／registry 的內容核對。
+ * 版面：三張都用 flowchart TB（LR 會寬到 1300–2000 px，超出桌機正文欄）。時間軸圖的 sample 軸先宣告 u[n]：
+ * dagre 從第一個節點開始找環，這樣被反轉的是「δ_k 虛線回到 e[n]」這條回授邊，主流程 u → e → q → q·x → G → w → δ 才由上往下讀。
  */
 
 /** §4 公式登錄：一個公式 ID 從章節的 formulas.ts 走到本頁、錨點與勘誤的路徑 */
-export const CHART_FORMULA_LINKS = String.raw`flowchart LR
+export const CHART_FORMULA_LINKS = String.raw`flowchart TB
   CH["章節 formulas.ts<br/>export const FORMULAS：<br/>id、title、tex、conditions、<br/>claim、level、page、erratumId"]
   GLOB["registry.ts<br/>import.meta.glob（eager）"]
   ALL["$\mathtt{ALL\_FORMULAS}$<br/>依側欄順序＋ID 自然排序"]
@@ -32,7 +34,7 @@ export const CHART_FORMULA_LINKS = String.raw`flowchart LR
 `
 
 /** §2.3 單位鏈：σ_v [fs] → K_q → K → g（無因次）→ p → 頻寬 [Hz]；sum mode 多一個 N */
-export const CHART_UNIT_CHAIN = String.raw`flowchart LR
+export const CHART_UNIT_CHAIN = String.raw`flowchart TB
   SV["$\sigma_v$<br/>[fs]"]
   KQ["$K_q = \sqrt{2/\pi} / \sigma_v$<br/>[$\mathrm{fs^{-1}}$]"]
   CC["$C = E[x \cdot u]$<br/>[1]"]
@@ -62,13 +64,13 @@ export const CHART_UNIT_CHAIN = String.raw`flowchart LR
 `
 
 /** §2.1 兩條時間軸：sample rate（n）與 block rate（k）之間的三個轉換點 */
-export const CHART_RATE_DOMAINS = String.raw`flowchart LR
+export const CHART_RATE_DOMAINS = String.raw`flowchart TB
   subgraph FS["sample rate：索引 $n$，速率 $f_s$"]
-    X["$x[n]$：原始 code"]
     U["$u[n]$：經 PD 路徑的 code"]
     E["$e[n] = \delta_k \cdot u[n] + v[n]$"]
     Q["$q[n] = \operatorname{sign}(e[n])$"]
     P["$q[n] \cdot x[n]$"]
+    X["$x[n]$：原始 code"]
   end
   subgraph FU["block rate：索引 $k$，速率 $f_u = f_s / N$"]
     G["$G_k = \frac{1}{N} \sum q[n] \cdot x[n]$<br/>$n$ 屬於 block $k$"]

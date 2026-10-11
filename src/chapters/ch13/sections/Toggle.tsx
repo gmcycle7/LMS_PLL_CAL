@@ -66,7 +66,7 @@ export function ToggleSection() {
       </p>
       <Mermaid
         chart={CHART_TOGGLE}
-        caption="方法 B 的方塊圖。先看左邊：$w_H$ 被拆成整數 32 與小數 $p$，$p$ 決定一個週期裡要進位幾次；再看藍色兩塊：一個計數器加一個固定的 pattern。整張圖沒有從輸出拉回來的線（開迴路）。"
+        caption="方法 B 的方塊圖。先看最上面：$w_H$ 被拆成整數 32 與小數 $p$，$p$ 決定一個週期裡要進位幾次；再看藍色兩塊：一個計數器加一個固定的 pattern。整張圖沒有從輸出拉回來的線（開迴路）。"
       />
       <p className="small ch13-figwalk">
         圖上的 <Tex>{'L_t'}</Tex> 是 pattern 的週期（本例 5）、<Tex>{'h'}</Tex> 是一個週期裡「進位」（輸出 33）的次數、<Tex>{String.raw`n'=n\bmod L_t`}</Tex> 是這一拍在 pattern 裡的位置（計數器的值）、<Tex>{'s[n]'}</Tex> 是每一拍的進位指示（0 或 1）。圖中把 <Tex>{'w_H'}</Tex> 當成常數 <Tex>{String.raw`w^*=32.4`}</Tex>。圖上 pattern 方塊裡的式子就是下面公式 F-13.3 的{' '}
@@ -147,11 +147,11 @@ export function ToggleSection() {
       </p>
       <Mermaid
         chart={CHART_TOGGLE_SPECTRUM}
-        caption={String.raw`週期 5 的誤差怎麼變成兩條譜線。先看中間三個分支：$k=0$ 是平均（0），$k=1$ 與 $4$、$k=2$ 與 $3$ 各自合成一條實頻率的譜線；再看右邊：兩條線的功率相加剛好是時域的 $0.24\,\mathrm{LSB}^2$，紅色那條（$2f_u/5$）才是主 spur。`}
+        caption={String.raw`週期 5 的誤差怎麼變成兩條譜線。先看中間三個分支：$k=0$ 是平均（0），$k=1$ 與 $4$、$k=2$ 與 $3$ 各自合成一條實頻率的譜線；再看最下面：兩條線的功率相加剛好是時域的 $0.24\,\mathrm{LSB}^2$，紅色那條（$2f_u/5$）才是主 spur。`}
       />
       <p className="small ch13-figwalk">
         圖上的 <Tex>{'c_k'}</Tex> 是誤差在頻率 <Tex>{String.raw`kf_u/5`}</Tex> 的成分（傅立葉係數，定義見下面的先備知識），就是公式裡的 <Tex>{String.raw`c_k=\tfrac15\sum_n e[n]e^{-j2\pi kn/5}`}</Tex>；圖上的 <Tex>{String.raw`\times2`}</Tex> 就是線功率{' '}
-        <Tex>{String.raw`P_k=2|c_k|^2`}</Tex> 裡的 2（正、負頻率各一份）。下面的推導就是照著圖由左到右算一次。
+        <Tex>{String.raw`P_k=2|c_k|^2`}</Tex> 裡的 2（正、負頻率各一份）。下面的推導就是照著圖由上往下算一次。
       </p>
       <Prereq title="複數指數、週期序列的 DFT 與 Parseval">
         <p>
@@ -211,7 +211,7 @@ export function ToggleSection() {
         </p>
         <Mermaid
           chart={CHART_ZOH}
-          caption="code 更新得比 DTC 取樣慢時。先看藍色的 ZOH：同一個 code 被重複 $N_h$ 次；再看右邊：譜線被複製到所有 $k f_u/5$，每一條乘上離散 sinc 的平方，$k$ 是 5 的倍數時剛好落在零點。"
+          caption="code 更新得比 DTC 取樣慢時。先看藍色的 ZOH：同一個 code 被重複 $N_h$ 次；再看下面兩支：左支是譜線被複製到所有 $k f_u/5$，右支是每一條乘上離散 sinc 的平方，$k$ 是 5 的倍數時剛好落在零點。"
         />
         <p className="small ch13-figwalk">
           注意兩個索引：圖上的 <Tex>{'e[n]'}</Tex> 以「第幾次 code 更新」<Tex>{'n'}</Tex> 為索引（取樣率 <Tex>{'f_u'}</Tex>），<Tex>{'z[m]'}</Tex> 以「第幾個 reference cycle」<Tex>{'m'}</Tex> 為索引（取樣率 <Tex>{'f_s'}</Tex>）。圖上的{' '}

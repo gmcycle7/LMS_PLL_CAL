@@ -1,16 +1,11 @@
-import { fireEvent, render, waitFor, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { PAGES } from '@/app/registry'
-import { SettingsProvider } from '@/app/settings'
-import DashboardPage from './index'
+import { fireEvent, waitFor, within } from '@testing-library/react'
 import { ROUTES, QUESTIONS, SIX_CONDITIONS } from './data'
-import { FORMULAS } from './formulas'
-import { HANDCALCS } from './handcalcs'
-import { UNICODE_MATH } from './mathTextTestUtils'
 import { galleryPresets } from './sections/Gallery'
 import { DASH_SYMBOLS } from './sections/Symbols'
-import { DASH_CHARTS } from './diagrams'
+import { DASH_CHARTS, DASH_SYSTEM_FOCUS } from './diagrams'
+import { precedes, plainText, renderPage, texIn } from './indexTestUtils'
 import { summarizeErrata } from './summaries'
+import { systemMapModel } from '@/components'
 
 const P = vi.hoisted(() => ({
   react: vi.fn(async () => undefined),
@@ -23,40 +18,17 @@ const P = vi.hoisted(() => ({
 vi.mock('plotly.js-dist-min', () => ({ default: P }))
 vi.mock('mermaid', () => ({ default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: '<svg></svg>' })) } }))
 
-// 整頁約 2 萬個 DOM 節點（KaTeX），jsdom 首次渲染需數秒；其他 agent 同時跑測試時更慢
+// vi.fn() 會把每次呼叫的引數整份留在 mock.calls 裡；Plot 每次都把整張圖的資料（上千點的陣列）交給 P.react，所以每個測試之後清掉呼叫紀錄
+afterEach(() => {
+  P.react.mockClear()
+  P.purge.mockClear()
+  P.toImage.mockClear()
+  P.downloadImage.mockClear()
+})
+
+// 整頁約 5 萬個 DOM 節點（KaTeX），jsdom 首次渲染需數秒；其他 agent 同時跑測試時更慢
 vi.setConfig({ testTimeout: 60_000 })
 
-const PAGE_PATHS = new Set(PAGES.map((p) => p.path))
-
-function renderPage(mode: 'beginner' | 'engineer' | 'research' = 'engineer', url = '/') {
-  try {
-    localStorage.setItem('lmspll.mode', mode)
-    localStorage.removeItem('lmspll.dashboard.done')
-  } catch {
-    /* jsdom storage 不可用時沿用預設 */
-  }
-  return render(
-    <SettingsProvider>
-      <MemoryRouter initialEntries={[url]}>
-        <DashboardPage />
-      </MemoryRouter>
-    </SettingsProvider>,
-  )
-}
-
-/** 區塊內所有 KaTeX 公式的 TeX 原始碼（MathML annotation） */
-const texIn = (el: Element | null): string[] => Array.from(el?.querySelectorAll('annotation[encoding="application/x-tex"]') ?? [], (a) => a.textContent ?? '')
-/**
- * 拿掉 KaTeX 與程式碼之後的純文字。
- * 也拿掉 .c-tip：TestBadge 的 tooltip 逐條列出全站測試名稱（來自 verify 產生的 JSON），其他頁的測試標題可能合法地含有「NaN」「$…$」。
- */
-function plainText(el: Element): string {
-  const clone = el.cloneNode(true) as HTMLElement
-  clone.querySelectorAll('.katex, pre, code, .c-code, .c-tip, script, style').forEach((x) => x.remove())
-  return clone.textContent ?? ''
-}
-
-const precedes = (x: Element | null, y: Element | null) => !!x && !!y && !!(x.compareDocumentPosition(y) & Node.DOCUMENT_POSITION_FOLLOWING)
 
 /**
  * 符號表在頁末（docs/teaching-style.md §5）：全頁只有一張，包在 id="symbols" 裡，是頁面的最後一個區塊（在頁尾說明之後）；
@@ -105,6 +77,15 @@ function expectDiagrams(container: HTMLElement) {
     expect((f.getAttribute('aria-label') ?? '').length).toBeGreaterThan(20)
   }
   const [map, flowFig, loopFig, eqFig] = figs
+  // 第一張是共用的系統地圖：手排的 SVG（figure.c-sysmap），不是 Mermaid；首頁談整個系統，所以所有方塊都是主角（is-focus）
+  expect(map.classList.contains('c-sysmap')).toBe(true)
+  const expected = systemMapModel(DASH_SYSTEM_FOCUS).blocks
+  const drawn = Array.from(map.querySelectorAll('g.c-sysmap-block'))
+  expect(drawn.map((b) => b.getAttribute('data-block')).sort()).toEqual(expected.map((b) => b.id).sort())
+  expect(map.querySelectorAll('g.c-sysmap-block.is-focus')).toHaveLength(expected.length)
+  expect(drawn.every((b) => b.getAttribute('data-focus') === 'true')).toBe(true)
+  // 另外三張是 Mermaid（這個測試把 mermaid mock 掉了，所以只有外框與圖說）：外框裡沒有 .c-mermaid-svg 是正常的
+  for (const f of [flowFig, loopFig, eqFig]) expect(f.classList.contains('c-sysmap'), f.getAttribute('aria-label') ?? '').toBe(false)
   // 順序：系統地圖（#dash-map）→ 六個條件的檢查流程（#dash-thesis）→ 條件在迴路上的位置、block 方程式（#dash-spine）
   expect((container.querySelector('#dash-map') as HTMLElement).contains(map)).toBe(true)
   expect((container.querySelector('#dash-thesis') as HTMLElement).contains(flowFig)).toBe(true)
@@ -142,7 +123,7 @@ describe('DashboardPage（jsdom smoke）', () => {
     // 「勘誤 Exx」深連結到驗證頁的那一條；T-id 深連結到驗收列
     expect(container.querySelector('a.dash-erratum[href="/verification?e=E01"]')).toBeTruthy()
     expect(container.querySelector('#dash-verify a[href="/verification?t=T13"]')).toBeTruthy()
-    // 系統圖（Mermaid）與六個條件的圖例
+    // 條件在迴路上的位置圖（Mermaid）與六個條件的圖例
     const spine = container.querySelector('#dash-spine') as HTMLElement
     expect(spine.querySelector('.c-mermaid')).toBeTruthy()
     expect(spine.querySelectorAll('.dash-legend-table tbody tr')).toHaveLength(6)
@@ -264,135 +245,5 @@ describe('DashboardPage（jsdom smoke）', () => {
     fireEvent.click(toggle)
     await waitFor(() => expect(check.querySelector('.dash-mc')?.textContent).toMatch(/只有一個校正係數/))
     expect(check.querySelector('.dash-mc-bar')).toBeNull()
-  })
-
-  it('URL preset 參數會先經 sanitizeParams 檢查（不存在的 preset 不影響頁面）', () => {
-    const { container } = renderPage('engineer', '/?preset=does-not-exist')
-    expect(container.querySelectorAll('#dash-check .dash-check-table .dash-state-ok').length).toBe(6)
-  })
-
-  it('內建 preset 可由網址載入（#/?preset=thesis-phase120 ⇒ 極性未通過）', async () => {
-    const { container } = renderPage('engineer', '/?preset=thesis-phase120')
-    const polarityCard = container.querySelector('#dash-cond-polarity') as HTMLElement
-    await waitFor(() => expect(within(polarityCard).getByRole('img', { name: '未通過' })).toBeTruthy())
-  })
-
-  it('條件卡片的「載入反例」：按下後該條件的燈號變成未通過，其他無關條件仍通過', async () => {
-    const { container } = renderPage('engineer')
-    const card = (id: string) => container.querySelector(`#dash-cond-${id}`) as HTMLElement
-    // system-level 的反例（T15 spur）：前五個條件都過，只有第六個不過
-    fireEvent.click(card('system').querySelector('.dash-cond-example') as HTMLButtonElement)
-    await waitFor(() => expect(within(card('system')).getByRole('img', { name: '未通過' })).toBeTruthy())
-    for (const id of ['identifiability', 'polarity', 'stability', 'variance', 'bias']) expect(within(card(id)).getByRole('img', { name: '通過' })).toBeTruthy()
-    // 原因：spur ≈ 20 log10(π f_out |T| A_t) = −93.8 dBc，超過這個 preset 設的 −95 dBc 上限
-    expect(texIn(container.querySelector('#dash-check'))).toContain(String.raw`\approx20\log_{10}(\pi f_{\mathrm{out}}|T|A_t)=-93.8\,\mathrm{dBc}>-95\,\mathrm{dBc}`)
-    // 每張卡片都有反例按鈕
-    expect(container.querySelectorAll('.dash-cond-example')).toHaveLength(SIX_CONDITIONS.length)
-  })
-
-  it('Research 模式（全部展開）：沒有 KaTeX 解析錯誤，文字中沒有 undefined / NaN / 未配對的 $', () => {
-    const { container } = renderPage('research')
-    expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
-    // 只檢查非數學的文字節點（KaTeX 的 MathML annotation 會含原始 TeX）
-    const clone = container.cloneNode(true) as HTMLElement
-    clone.querySelectorAll('.katex, pre, code, .c-code, .c-tip, script, style').forEach((el) => el.remove())
-    const text = clone.textContent ?? ''
-    expect(text).not.toMatch(/undefined/)
-    expect(text).not.toMatch(/NaN/)
-    expect(text).not.toMatch(/\$/)
-    // 公式登錄（formulas.ts）的每個 ID 在頁面上都有錨點（Formula & Unit Reference 頁會跳到 #formula-<id>）
-    for (const fm of FORMULAS) expect(container.querySelector(`[id="formula-${fm.id}"]`), fm.id).toBeTruthy()
-    // TeX 原始碼不得出現「兩個反斜線接字母」（JSX 屬性字串不處理跳脫字元，寫成 "\\tilde" 會被 KaTeX 當成換行 + 文字）
-    const tex = Array.from(container.querySelectorAll('annotation[encoding="application/x-tex"]')).map((el) => el.textContent ?? '')
-    expect(tex.length).toBeGreaterThan(100)
-    for (const src of tex) expect(src, src).not.toMatch(/(^|[^\\])\\\\[a-zA-Z]/)
-  })
-
-  it('帶入手算：六題在三種模式下都顯示在頁面上（HandCalc），各自放在對應推導的正後方、綜合題在思考題之前', () => {
-    for (const mode of ['beginner', 'engineer', 'research'] as const) {
-      const { container, unmount } = renderPage(mode)
-      for (const h of HANDCALCS) expect(container.querySelector(`section.c-handcalc[id="handcalc-${h.id}"]`), `${mode} ${h.id}`).toBeTruthy()
-      expect(container.querySelectorAll('section.c-handcalc')).toHaveLength(HANDCALCS.length)
-      // 頁面上的順序：推導 1 → HC-DB.1、推導 2 → HC-DB.2、推導 3 → HC-DB.3、推導 4 → HC-DB.5、（Research：推導 5–7）→ HC-DB.4，最後是綜合題 HC-DB.6
-      const order = Array.from(container.querySelectorAll('[data-handcalc]'), (el) => el.getAttribute('data-handcalc'))
-      expect(order).toEqual(['HC-DB.1', 'HC-DB.2', 'HC-DB.3', 'HC-DB.5', 'HC-DB.4', 'HC-DB.6'])
-      const spine = container.querySelector('#dash-spine') as HTMLElement
-      const blocks = Array.from(spine.querySelectorAll(':scope > details.dash-details > summary, :scope > [data-handcalc]'), (el) =>
-        el.hasAttribute('data-handcalc') ? (el.getAttribute('data-handcalc') as string) : (/推導 \d/.exec(el.textContent ?? '')?.[0] ?? '?'),
-      )
-      // Research 模式多出推導 5–7：HC-DB.4 緊接在推導 7 之後；其他模式沒有這三段推導，但題目仍然顯示
-      expect(blocks).toEqual([
-        '推導 1',
-        'HC-DB.1',
-        '推導 2',
-        'HC-DB.2',
-        '推導 3',
-        'HC-DB.3',
-        '推導 4',
-        'HC-DB.5',
-        ...(mode === 'research' ? ['推導 5', '推導 6', '推導 7'] : []),
-        'HC-DB.4',
-      ])
-      // 綜合題在「本頁必記」區塊、思考題之前
-      const recap = container.querySelector('#dash-recap') as HTMLElement
-      const hc6 = recap.querySelector('[data-handcalc="HC-DB.6"]') as HTMLElement
-      const quiz = recap.querySelector('.c-quiz') as HTMLElement
-      expect(hc6.compareDocumentPosition(quiz) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-      expect(recap.querySelector('a[href="/workbook"]')).toBeTruthy()
-      // 預設值算出的答案就是文中的數字：HC-DB.2 的 E[δ_1] = 4.5931 fs（體檢預設圖的第一點）、HC-DB.3 的 σ_w = 0.39919 fs（T13）、HC-DB.5 的 spur = −93.799 dBc（T15）
-      expect(texIn(container.querySelector('[id="handcalc-HC-DB.2"]')).some((t) => t.includes(String.raw`\boxed{E[\delta_1] = 4.5931\ \mathrm{fs}}`))).toBe(true)
-      expect(texIn(container.querySelector('[id="handcalc-HC-DB.3"]')).some((t) => t.includes(String.raw`\boxed{\sigma_w\big|_{d=0} = 0.39919\ \mathrm{fs}}`))).toBe(true)
-      expect(texIn(container.querySelector('[id="handcalc-HC-DB.5"]')).some((t) => t.includes(String.raw`\boxed{\mathrm{Spur} = -93.799\ \mathrm{dBc}}`))).toBe(true)
-      expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
-      unmount()
-    }
-  })
-
-  it('數學一律 LaTeX：頁面文字（KaTeX 之外）沒有 Unicode 拼的公式；title / aria-label 這類純文字屬性沒有殘留的 $', () => {
-    const { container } = renderPage('research')
-    // 純文字情境不在檢查範圍：<option>（下拉選單）、共用元件的 tooltip（測試名稱、模型層級說明）、指標表表頭、
-    // registry 的章節名稱（例如「ΔΣ」）、src/data/presets 的 Gallery 文字——它們不屬於這一頁，或本來就只能放純文字
-    const clone = container.cloneNode(true) as HTMLElement
-    clone
-      .querySelectorAll('.katex, pre, code, .c-code, script, style, option, .c-tip, .c-metric-table thead, .dash-ch-nav, .dash-ch-title, #dash-gallery')
-      .forEach((el) => el.remove())
-    const walker = document.createTreeWalker(clone, NodeFilter.SHOW_TEXT)
-    const hits: string[] = []
-    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-      const t = n.textContent ?? ''
-      if (UNICODE_MATH.test(t)) hits.push(t.trim().slice(0, 80))
-    }
-    expect(hits).toEqual([])
-    // 本頁自己產生的 title / aria-label（勘誤連結、圖表、燈號、按鈕）不得含 $
-    const own = Array.from(container.querySelectorAll('[class*="dash-"][title], [class*="dash-"][aria-label], figure.c-plot[aria-label], .c-handcalc [aria-label]'))
-    expect(own.length).toBeGreaterThan(20)
-    for (const el of own) for (const a of ['title', 'aria-label']) expect(el.getAttribute(a) ?? '', `${a} on .${el.getAttribute('class')}`).not.toMatch(/\$/)
-    expect(container.querySelector('a.dash-erratum[href="/verification?e=E20"]')?.getAttribute('title')).toContain(String.raw`M_{\mathrm{polarity}}=90^\circ`)
-  })
-
-  it('版面與無障礙：每張表格都在可水平捲動的 .table-wrap 內；每個輸入框與按鈕都有可讀的名稱；渲染過程沒有 console.error', () => {
-    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    try {
-      const { container } = renderPage('research')
-      const tables = Array.from(container.querySelectorAll('table'))
-      expect(tables.length).toBeGreaterThan(8)
-      for (const t of tables) expect(t.closest('.table-wrap'), `table.${t.getAttribute('class') ?? ''}：${(t.textContent ?? '').slice(0, 30)}`).toBeTruthy()
-      for (const el of Array.from(container.querySelectorAll('input, select'))) {
-        const id = el.getAttribute('id')
-        const named = !!el.getAttribute('aria-label') || !!el.closest('label') || (!!id && !!container.querySelector(`label[for="${id}"]`))
-        expect(named, `${el.tagName} ${el.getAttribute('type') ?? ''} 缺少標籤`).toBe(true)
-      }
-      for (const b of Array.from(container.querySelectorAll('button'))) expect(((b.textContent ?? '').trim() || b.getAttribute('aria-label') || '').length, b.outerHTML.slice(0, 80)).toBeGreaterThan(0)
-      // 頁內連結都是 HashRouter 的路徑（不以 # 開頭，否則會被當成路由），而且都對應 registry 裡存在的頁面
-      const hrefs = new Set(Array.from(container.querySelectorAll('a[href]'), (a) => a.getAttribute('href') ?? ''))
-      expect(hrefs.size).toBeGreaterThan(20)
-      for (const h of hrefs) {
-        expect(h.startsWith('/'), h).toBe(true)
-        expect(PAGE_PATHS.has(h.split('?')[0]), h).toBe(true)
-      }
-      expect(errors.mock.calls.map((c) => String(c[0]).slice(0, 200))).toEqual([])
-    } finally {
-      errors.mockRestore()
-    }
   })
 })

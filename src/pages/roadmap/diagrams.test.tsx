@@ -169,6 +169,24 @@ describe('Roadmap 的 Mermaid 圖（真正的 mermaid parser）', () => {
     }
   }, 60000)
 
+  it('版面：兩個迴路／依賴圖都是直向（TB），橫向（LR）的圖都很淺（最長一條路 ≤ 6 個節點），桌機的正文欄放得下（teaching-style §8「版面寬度」）', async () => {
+    expect(CHART_R1_LOOP).toMatch(/^flowchart TB\n/)
+    expect(DEPENDENCY_CHART).toMatch(/^flowchart TB\n/)
+    for (const c of ROADMAP_CHARTS.filter((x) => /^flowchart LR\n/.test(x.chart))) {
+      const g = await flow(c.chart)
+      // 沒有環的圖：最長一條路上的節點數
+      const depth = new Map<string, number>()
+      const longest = (id: string): number => {
+        const known = depth.get(id)
+        if (known !== undefined) return known
+        const d = 1 + Math.max(0, ...g.edges.filter((e) => e.start === id).map((e) => longest(e.end)))
+        depth.set(id, d)
+        return d
+      }
+      expect(Math.max(...g.vertices.map((v) => longest(v.id))), `${c.name} 最長一條路的節點數`).toBeLessThanOrEqual(6)
+    }
+  })
+
   it('六個條件：每個方塊的名稱、判斷式與「延伸研究」清單都和 data.ts 一致；六個都接到同一個結果', async () => {
     const g = await flow(CHART_SIX_CONDITIONS)
     expect(Object.keys(CONDITION_CHECK).sort()).toEqual(CONDITIONS.map((c) => c.id).sort())

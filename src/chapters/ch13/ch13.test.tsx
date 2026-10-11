@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
 import { presetsForExperiment } from '@/app/presets'
-import { extractRegion, listRegions, systemMapChart } from '@/components'
+import { extractRegion, listRegions, systemMapModel } from '@/components'
 import { plotMath } from '@/components/plotMath'
 import { sanitizeMermaidSource } from '@/components/mermaidSource'
 import quantSrc from '@/simulation/models/quantizer.ts?raw'
@@ -131,6 +131,12 @@ describe('Chapter 13（jsdom smoke）', () => {
         const figs = Array.from(container.querySelectorAll('figure.c-mermaid'))
         expect(figs).toHaveLength(DIAGRAMS.length + 1)
         expect(figs[0].getAttribute('aria-label')).toContain('系統方塊圖')
+        // 章首的系統地圖是手排的 SVG（不經 Mermaid）：藍色（is-focus）的方塊就是本章的主角，其餘的圖都是 Mermaid
+        expect(figs[0].classList.contains('c-sysmap')).toBe(true)
+        expect(container.querySelectorAll('figure.c-sysmap')).toHaveLength(1)
+        const focusedIds = Array.from(figs[0].querySelectorAll('.c-sysmap-block.is-focus')).map((g) => g.getAttribute('data-block'))
+        expect(focusedIds.sort(), mode).toEqual(systemMapModel(SYSTEM_MAP_FOCUS).blocks.filter((b) => b.focused).map((b) => b.id).sort())
+        expect(focusedIds.sort(), mode).toEqual([...SYSTEM_MAP_FOCUS].sort())
         expect((container.querySelector('#ch13-question') as HTMLElement).compareDocumentPosition(figs[0]) & FOLLOWING).toBeTruthy()
         expect(figs[0].compareDocumentPosition(symLink) & FOLLOWING).toBeTruthy()
         for (const f of figs) expect(f.querySelector('figcaption')?.textContent?.length ?? 0, mode).toBeGreaterThan(10)
@@ -201,9 +207,10 @@ describe('Chapter 13（jsdom smoke）', () => {
     expect(crit.textContent).toContain('本例最差的是週期性的 limit cycle')
     // 非同步結果出現後，整頁仍然沒有 KaTeX 解析錯誤
     expect(Array.from(container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.textContent)).toEqual([])
-    // 每一張圖的原始碼都真的交給 mermaid.render（含章首的 SystemMap），沒有任何一張顯示成解析失敗
-    // （Mermaid 元件先經 sanitizeMermaidSource 把 `$...$` 標籤合併成 KaTeX 的 `$$...$$`，所以比對前處理後的原始碼）
-    const wanted = [systemMapChart(SYSTEM_MAP_FOCUS), ...DIAGRAMS.map((d) => d.chart)].map(sanitizeMermaidSource)
+    // diagrams.ts 的每一張圖的原始碼都真的交給 mermaid.render，沒有任何一張顯示成解析失敗
+    // （Mermaid 元件先經 sanitizeMermaidSource 把 `$...$` 標籤合併成 KaTeX 的 `$$...$$`，所以比對前處理後的原始碼）；
+    // 章首的系統地圖是手排的 SVG，不會交給 Mermaid
+    const wanted = DIAGRAMS.map((d) => d.chart).map(sanitizeMermaidSource)
     await waitFor(
       () => {
         const sent = new Set(M.render.mock.calls.map((c) => c[1]))
@@ -211,7 +218,8 @@ describe('Chapter 13（jsdom smoke）', () => {
       },
       { timeout: WAIT_MS, interval: 250 },
     )
-    await waitFor(() => expect(container.querySelectorAll('.c-mermaid-svg svg')).toHaveLength(wanted.length), { timeout: WAIT_MS, interval: 250 })
+    await waitFor(() => expect(container.querySelectorAll('figure.c-mermaid:not(.c-sysmap) .c-mermaid-svg > svg')).toHaveLength(wanted.length), { timeout: WAIT_MS, interval: 250 })
+    expect(container.querySelectorAll('figure.c-sysmap .c-mermaid-svg svg.c-sysmap-svg')).toHaveLength(1)
     expect(screen.queryByText('Mermaid 圖解析失敗')).toBeNull()
     // 互動圖表（Plotly）圖內的文字：軸標題、圖例名稱、tick 文字、hover 文字裡的數學都寫成 `$...$`，
     // 而且每一段 `$...$` 經 plotMath 轉換後不殘留反斜線、大括號或 `$`（不支援的 TeX 指令會原樣顯示指令名稱）

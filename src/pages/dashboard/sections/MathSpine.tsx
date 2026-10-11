@@ -91,7 +91,7 @@ export const MathSpine = memo(function MathSpine() {
       <Mermaid
         chart={CONDITION_MAP_CHART}
         ariaLabel="校正迴路方塊圖：DSM code 經 DTC、PLL error path、1-bit comparator、GMAC、係數更新回到 DTC；六個條件分別標在 DSM、PLL error path、係數更新、comparator、DTC 與 PLL 輸出"
-        caption="實線是訊號流（一圈就是一次校正更新），虛線圓角框標出每個條件主要取決於哪一塊。下面的方程式只是把這張圖寫成數學。"
+        caption="實線是訊號流（一圈就是一次校正更新），虛線把每個條件（圓角膠囊）接到它主要取決的那一塊。下面的方程式只是把這張圖寫成數學。"
       />
       <div className="table-wrap">
         <table className="dash-legend-table">

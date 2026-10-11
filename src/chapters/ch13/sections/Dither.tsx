@@ -105,7 +105,7 @@ export function DitherSection() {
       </p>
       <Mermaid
         chart={CHART_DITHER_LOOP}
-        caption="方法 E 的迴圈。和方法 D 的圖比，只多了藍色的兩塊：dither 在量化器前面加進來。再看下排：相減點拿的是還沒加 dither 的 $v$，所以存回去的 $r$ 不含 $d$ 本身。"
+        caption="方法 E 的迴圈。和方法 D 的圖比，只多了藍色的兩塊：dither 在量化器前面加進來。再看下半：相減點拿的是還沒加 dither 的 $v$，所以存回去的 $r$ 不含 $d$ 本身。"
       />
       <p className="small ch13-figwalk">
         圖上的 <Tex>{'d[n]'}</Tex> 是 dither：零平均、每拍獨立的亂數，峰對峰寬度 <Tex>{'A'}</Tex>（LSB）、變異數 <Tex>{String.raw`\sigma_d^2`}</Tex>；均勻分布（RPDF）時 <Tex>{String.raw`\sigma_d^2=A^2/12`}</Tex>，兩個均勻亂數相加的三角分布（TPDF）時{' '}

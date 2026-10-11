@@ -192,7 +192,7 @@ export function RandomMeanSection() {
           ariaLabel="一框是一條路徑的迴圈，增益 f n 每步不同；另一框是取期望值後的迴圈，E delta n 每步乘上固定增益 1 減 mu P x"
         />
         <p>
-          先看「一條路徑」那一框：乘法點的增益 <Tex>{T`f[n]`}</Tex> 每一步不同（褐色）。再看「兩邊取 <Tex>{T`E[\cdot]`}</Tex>」那一框：因為 <Tex>{T`x[n]`}</Tex> 與 <Tex>{T`\delta[n]`}</Tex> 獨立，
+          先看「一條路徑」那一框：乘法點的增益 <Tex>{T`f[n]`}</Tex> 每一步不同（褐色）。再看「兩邊取期望值」那一框（線上的 <Tex>{T`E[\delta[n]]`}</Tex>、<Tex>{T`E[\delta[n+1]]`}</Tex> 就是兩邊取期望值之後的誤差）：因為 <Tex>{T`x[n]`}</Tex> 與 <Tex>{T`\delta[n]`}</Tex> 獨立，
           <Tex>{T`E[f\cdot\delta]=E[f]\cdot E[\delta]`}</Tex>，隨機增益被換成固定增益 <Tex>{T`E[f]=1-\mu P_x`}</Tex>（藍色），迴圈又回到第 1 節那種等比數列。圖上的「
           <Tex>{T`\times\,(1-\mu P_x)`}</Tex>」就是下面推導的最後一行，也是 F-03.5 的 mean pole。
         </p>

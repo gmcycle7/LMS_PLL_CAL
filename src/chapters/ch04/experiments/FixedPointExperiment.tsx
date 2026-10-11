@@ -661,7 +661,7 @@ export function FixedPointExperiment() {
         <Tex>{R`-(-2^{B_x-1})=+2^{B_x-1}`}</Tex>。
       </p>
       <Plot
-        title={R`一個 block（$N=${N}$）內的累加器：exact vs ${ac.accBits}-bit wrap / saturate（Case ${cases.activeId}）`}
+        title={R`累加器：exact vs ${ac.accBits}-bit wrap / saturate（$N=${N}$，Case ${cases.activeId}）`}
         data={traceData}
         layout={layoutTrace}
         height={280}

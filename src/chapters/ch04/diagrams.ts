@@ -15,11 +15,14 @@
  *    （parser 不會報錯，只有實際渲染才看得到——diagrams.test.tsx 有這項檢查）。含公式的標籤會被整個交給 KaTeX，不受這個限制。
  *    共用的 Mermaid 元件會先用 sanitizeMermaidSource 把這類標籤換掉當作保險，但本章的原始碼直接寫對，不依賴它。
  *    同理，一個純文字標籤裡不要出現成對的 * 或 _（會被當成斜體而吃掉符號）。
- *  - 版面：Mermaid 會把圖縮到容器寬度（正文欄約 1000 px），所以超過 4–5 級的串接一律畫成由上往下（TB），
- *    或拆成左右兩欄的 subgraph；每個節點的文字超過約 200 px 會自動換行（含公式的標籤不會自動換行，要用 <br/> 自己斷）。
- *    單張不超過 14 個節點（subgraph 標題不算），放不下就拆成兩張。
- *  - 時序圖：Mermaid 的 sequenceDiagram 不支援標籤裡的公式（`$` 會原樣畫出來），所以 LATENCY_TIMELINE 改畫成由上往下的 flowchart：
- *    箭頭依時間順序編號 (1)–(5)，subgraph 標題標出 block 的範圍。
+ *  - 版面：圖要完整放進正文欄（桌機約 890 px，不橫向捲動；寬於欄寬時整張圖會被縮小，字就變小），所以超過 4–5 級的串接一律畫成由上往下（TB），
+ *    或拆成左右兩欄的 subgraph（subgraph 內 direction TB、圖本身 LR）；每個節點的文字超過約 200 px 會自動換行（含公式的標籤不會自動換行，要用 <br/> 自己斷，
+ *    並盡量把每個節點斷成 3 行以內，圖才會窄）。單張不超過 14 個節點（subgraph 標題不算），放不下就拆成兩張。
+ *    Mermaid 的限制：subgraph 內的節點只要連到 subgraph 外面，它自己的 direction 就失效，所以兩欄之間的連線畫在 subgraph 與 subgraph 之間。
+ *  - subgraph 標題只寫文字、只有一行：共用主題把 cluster 標題縮成節點文字的 0.86 倍，含公式的標題（KaTeX 的每一層 span 又各縮一次）會小到看不見；
+ *    需要的符號與範圍寫在框內的節點上（例如 LATENCY_TIMELINE 的 block k 涵蓋的 sample）。
+ *  - 時序圖：Mermaid 的 sequenceDiagram 不支援標籤裡的公式（`$` 會原樣畫出來），所以 LATENCY_TIMELINE 改畫成 flowchart：
+ *    箭頭依時間順序編號 (1)–(5)，左欄 (1)(2)、右欄 (4)(5)，(3) 在兩欄之間。
  *  - 取樣率：x[n]、e[n]、q[n] 是 sample rate（索引 n）；S_k、G_k、w_k、δ_k 是 block rate（索引 k，每 N 個 sample 一拍）。
  *  - 極性一律 δ = a − w（全站約定）；總和寫 S_k、平均寫 G_k = S_k / N（勘誤 E07 / E18）；q = 2b − 1（E07）；
  *    x、u 無因次，時間單位由 a、w、μ 承載（E13）；code 對齊延遲用 D、更新延遲用 d（E34）。
@@ -71,7 +74,7 @@ ${CLASSES}
 export const CONCEPT_LMS_LOOP = String.raw`flowchart TB
   PD["Phase detector / BBPD<br/>（和上一張圖同一個）"]
   RES["Fractional residue<br/>code $x[n]$（無因次）"]
-  subgraph LMSLOOP["LMS 校正迴路（每 $N$ 拍）"]
+  subgraph LMSLOOP["LMS 校正迴路（每個 block 更新一次）"]
     NOISE["comparator 前雜訊 $v[n]$<br/>RMS $\sigma_v$"] -- "＋ $v[n]$" --> SUM(("＋"))
     SUM -- "$e[n]$（fs）" --> CMP["1-bit comparator<br/>$b[n] = 1$ 若 $e[n] \ge 0$<br/>$q[n] = 2b[n] - 1$"]
     ALIGN["Code alignment<br/>$x[n-D]$ 或 filtered-x<br/>$u_f[n-D]$"] -- "$x_\mathrm{ref}[n]$" --> GMAC["GMAC<br/>$S_k = \sum q[n]\,x_\mathrm{ref}[n]$"]
@@ -120,16 +123,20 @@ ${CLASSES}
 // §3 硬體對應、RTL 資料流與時序
 // ───────────────────────────────────────────────────────────────────────────
 
-/** 規格 §4.2 的 RTL 級資料流（補上 clear、位元數、commit）；左欄每個 sample 動一次，右欄每個 block 動一次。 */
+/**
+ * 規格 §4.2 的 RTL 級資料流（補上 clear、位元數、commit）；左欄每個 sample 動一次，右欄每個 block 動一次。
+ * `X ~~~ Q` 是看不見的連線：把兩個輸入上下錯開，左欄才不會是兩個方塊並排的寬度（圖自然寬度約 880 px，剛好放進正文欄、不必縮小）。
+ */
 export const RTL_DATAFLOW = String.raw`flowchart LR
-  subgraph FAST["sample rate（索引 $n$）"]
+  subgraph FAST["sample rate（每個 sample 一次）"]
     direction TB
-    X["對齊後的有號 code<br/>$x_\mathrm{ref}[n]$，$B_x$ bits"] --> NEG["條件取負<br/>$b = 1$：$x$ 原樣<br/>$b = 0$：$\overline{x} + 1$"]
-    Q["comparator bit $b[n]$<br/>$q = 2b - 1$"] --> NEG
+    X["對齊後的<br/>有號 code<br/>$x_\mathrm{ref}[n]$，$B_x$ bits"] --> NEG["條件取負<br/>$b = 1$：$x$ 原樣<br/>$b = 0$：$\overline{x} + 1$"]
+    Q["comparator<br/>bit $b[n]$<br/>$q = 2b - 1$"] --> NEG
+    X ~~~ Q
     NEG --> SUM["GMAC 累加器 $S$<br/>$B_\mathrm{acc}$ bits，$B_\mathrm{acc} =$<br/>$1 + \lceil \log_2 (N M_x + 1) \rceil$"]
-    CLR["block 邊界：每 $N$ 個<br/>sample 清除 $S$"] -.-> SUM
+    CLR["block 邊界：<br/>每 $N$ 個 sample<br/>清除 $S$"] -.-> SUM
   end
-  subgraph SLOW["block rate（索引 $k$）"]
+  subgraph SLOW["block rate（每個 block 一次）"]
     direction TB
     AVG["normalize：算術右移<br/>$\log_2 N - F_G$ bits<br/>並做 rounding"] --> STEP["step size $\mu$<br/>shift 或乘法"]
     STEP --> ADD["加進高解析累加器 $W$"]
@@ -137,7 +144,7 @@ export const RTL_DATAFLOW = String.raw`flowchart LR
     SAT --> W["校正 gain register $w_k$"]
     W --> APPLY["實體 DTC code 映射<br/>commit（$P_c$ 個 sample）後<br/>block $k+1+d$ 才套用"]
   end
-  FAST -- "總和 $S_k$<br/>每 $N$ 個 sample 一次" --> SLOW`
+  FAST -- "總和 $S_k$<br/>每 $N$ 個<br/>sample 一次" --> SLOW`
 
 /** 系統圖 C：雜訊／回授等效模型（含 H_PD）。上半段是 sample rate，「(1/N)·Σ」以下是 block rate。 */
 export const NOISE_FEEDBACK = String.raw`flowchart TB
@@ -158,19 +165,26 @@ export const NOISE_FEEDBACK = String.raw`flowchart TB
 
 /**
  * Clock domain / latency 時序（sample n、block k、commit、apply）。
- * 原本是 sequenceDiagram，但 Mermaid 的時序圖不支援標籤裡的公式，所以改畫成由上往下的 flowchart：
- * 六個參與者是六個方塊，五個箭頭依時間順序編號 (1)–(5)（時間往下走），subgraph 標題標出 block k 涵蓋的 sample。
+ * 原本是 sequenceDiagram，但 Mermaid 的時序圖不支援標籤裡的公式，所以改畫成 flowchart：
+ * 六個參與者是六個方塊，五個箭頭依時間順序編號 (1)–(5)。
+ * 由左往右分成兩欄、每欄由上往下（時間先走完左欄，再經過中間的 (3) 到右欄）：左欄是「一個 block 內、每個 sample 一次」的 (1)(2)，
+ * 右欄是「block 結束之後、每個 block 一次」的 (4)(5)；(3) 是兩欄之間的箭頭。
+ * （Mermaid 的限制：subgraph 內的節點只要連到 subgraph 外面，它自己的 direction 就失效，所以兩欄之間的箭頭畫在 subgraph 與 subgraph 之間。）
+ * subgraph 標題只寫文字（含公式的標題會被縮得看不見）；block k 涵蓋的 sample 範圍寫在 GMAC 方塊上。
  */
-export const LATENCY_TIMELINE = String.raw`flowchart TB
-  subgraph BLK["block $k$ ＝<br/>sample $n = kN \ldots kN+N-1$"]
+export const LATENCY_TIMELINE = String.raw`flowchart LR
+  subgraph BLK["一個 block 之內：每個 sample 一次"]
     direction TB
     S["Sample clock $f_s$"] -- "(1) sample $n$<br/>code $x[n-D]$ 已對齊" --> C["Comparator"]
-    C -- "(2) $b[n]$<br/>累加 $S \leftarrow S + q\,x_\mathrm{ref}$" --> G["GMAC（block $k$）"]
+    C -- "(2) $b[n]$<br/>累加 $S \leftarrow S + q\,x_\mathrm{ref}$" --> G["GMAC（block $k$）<br/>sample $n = kN \ldots kN+N-1$"]
   end
-  G -- "(3) sample $kN+N-1$ 之後，<br/>總和 $S_k$ 完成<br/>交出 $S_k$，然後清除 $S$<br/>（給 block $k+1$）" --> U["Update logic"]
-  U -- "(4) commit<br/>$w_{k+1} = w_k + \mu\,G_k$<br/>（pipeline $P_c$ 個 sample）" --> R["Gain register"]
-  R -- "(5) 在 block $k+1+d$<br/>的開頭 apply" --> D["DTC control"]
-  D -.-> NOTE["PD 要到 block $k+1+d$<br/>才看到新的 gain"]`
+  subgraph NEXT["block 結束之後：每個 block 一次"]
+    direction TB
+    U["Update logic"] -- "(4) commit<br/>$w_{k+1} = w_k + \mu\,G_k$<br/>（pipeline $P_c$ 個 sample）" --> R["Gain register"]
+    R -- "(5) 在 block $k+1+d$<br/>的開頭 apply" --> D["DTC control"]
+    D -.-> NOTE["PD 要到 block $k+1+d$<br/>才看到新的 gain"]
+  end
+  BLK -- "(3) sample $kN+N-1$ 之後，<br/>總和 $S_k$ 完成<br/>交出 $S_k$，然後清除 $S$<br/>（給 block $k+1$）" --> NEXT`
 
 /** 一階平均模型的迴路（block rate）：δ → ×K → ×μ → z^(−d) → 1/(z−1) → w（F-04.14）。 */
 export const AVERAGE_LOOP = String.raw`flowchart TB
@@ -238,19 +252,19 @@ ${CLASSES}
 
 /** 條件取負的 GMAC datapath（XOR + carry-in，一個加法器）與各級位元寬度（F-04.8）。 */
 export const NEGATE_DATAPATH = String.raw`flowchart LR
-  subgraph FAST["sample rate（索引 $n$）"]
+  subgraph FAST["sample rate（每個 sample 一次）"]
     direction TB
-    X["對齊後的 code $x_\mathrm{int}[n]$<br/>二補數 $B_x$ bits"] --> SE["符號延伸<br/>$B_x \to B_\mathrm{acc}$ bits"]
-    B["comparator bit $b[n]$<br/>1 bit，$q = 2b - 1$"] --> CTL["$\mathrm{neg} = \mathrm{NOT}\,b$<br/>$b = 1$ 時 $\mathrm{neg} = 0$<br/>$b = 0$ 時 $\mathrm{neg} = 1$<br/>（$\mathrm{neg} = 1$ 即 $q = -1$）"]
+    X["對齊後的 code<br/>$x_\mathrm{int}[n]$<br/>二補數 $B_x$ bits"] --> SE["符號延伸<br/>$B_x \to B_\mathrm{acc}$ bits"]
+    B["comparator<br/>bit $b[n]$<br/>1 bit，$q = 2b - 1$"] --> CTL["$\mathrm{neg} = \mathrm{NOT}\,b$<br/>$b = 1$ 時 $\mathrm{neg} = 0$<br/>$b = 0$ 時 $\mathrm{neg} = 1$<br/>（$\mathrm{neg} = 1$ 即 $q = -1$）"]
     SE --> XOR["逐位元 XOR<br/>$\mathrm{neg} = 0$：$x$ 原樣<br/>$\mathrm{neg} = 1$：反相<br/>$\overline{x} = -x - 1$"]
     CTL -- "mask：$B_\mathrm{acc}$ 個 $\mathrm{neg}$" --> XOR
     XOR -- "＋ $x$ 或 $\overline{x}$" --> ADD(("＋"))
-    CTL -- "＋ carry-in $c_\mathrm{in} = \mathrm{neg}$" --> ADD
-    REG["GMAC 累加器 $S$<br/>$B_\mathrm{acc}$ bits 暫存器"] -- "＋ $S$（目前的累加值）" --> ADD
+    CTL -- "＋ carry-in<br/>$c_\mathrm{in} = \mathrm{neg}$" --> ADD
+    REG["GMAC 累加器 $S$<br/>$B_\mathrm{acc}$ bits 暫存器"] -- "＋ $S$<br/>（目前的累加值）" --> ADD
     ADD -- "$S + q\,x_\mathrm{int}$" --> REG
     CLR["block 邊界<br/>清除 $S$"] -.-> REG
   end
-  subgraph SLOW["block rate（索引 $k$）"]
+  subgraph SLOW["block rate（每個 block 一次）"]
     direction TB
     SH["右移 $\ell$ bits 並 rounding<br/>$\ell = \log_2 N - F_G$"] -- "$G_k$<br/>保留 $F_G$ 個小數位元" --> STEP["$\times \mu$<br/>shift 或乘法"]
     STEP -- "$\mu\,G_k$" --> W["gain register $W$<br/>$w_{k+1} = w_k + \mu\,G_k$"]
@@ -330,9 +344,9 @@ ${CLASSES}
 export const ROUNDING_MODES = String.raw`flowchart TB
   S["GMAC 總和 $S_k$（整數）<br/>例：$S = -300$，$\ell = 8$<br/>$S / 2^\ell = -1.17$"] --> SPLIT["右移 $\ell$ bits：拆成兩段<br/>$S = 2^\ell\,j + \rho$<br/>$j$：留下的高位元<br/>$\rho$：丟掉的低 $\ell$ bits<br/>例：$j = -2$，$\rho = 212$"]
   SPLIT --> FL["floor（直接右移）<br/>$Q = j$<br/>例：$-2$"]
-  SPLIT --> HU["half-up<br/>$\rho \ge 2^{\ell-1}$ 時 $Q = j + 1$<br/>否則 $Q = j$<br/>例：$212 \ge 128$，得 $-1$"]
-  SPLIT --> HE["half-even<br/>同 half-up；$\rho$ 恰好一半<br/>時取偶數<br/>例：$-1$"]
-  SPLIT --> TZ["toward-0<br/>$S$ 為負且 $\rho \ne 0$ 時<br/>$Q = j + 1$，否則 $Q = j$<br/>例：$-1$"]
+  SPLIT --> HU["half-up<br/>$\rho \ge 2^{\ell-1}$ 時<br/>$Q = j + 1$<br/>否則 $Q = j$<br/>例：$212 \ge 128$，得 $-1$"]
+  SPLIT --> HE["half-even<br/>同 half-up；$\rho$ 恰好<br/>一半時取偶數<br/>例：$-1$"]
+  SPLIT --> TZ["toward-0<br/>$S$ 為負且 $\rho \ne 0$ 時<br/>$Q = j + 1$<br/>否則 $Q = j$<br/>例：$-1$"]
   FL --> EF["平均誤差 $\bar\varepsilon =$<br/>$-(1 - 2^{-\ell}) / 2$<br/>約 $-\tfrac12$ 個 LSB"]
   HU --> EH["$\bar\varepsilon = 2^{-\ell-1}$<br/>很小的正偏差"]
   HE --> EE["$\bar\varepsilon = 0$"]
@@ -396,7 +410,7 @@ ${CLASSES}
 
 /** 忘了在 block 邊界清除 S：迴路多一個積分器，一階變二階、pole 落在單位圓上（F-04.13）。 */
 export const CLEAR_BUG = String.raw`flowchart LR
-  subgraph GOOD["正確：每個 block 清除 $S$"]
+  subgraph GOOD["正確：每個 block 清除累加器"]
     direction TB
     D1["$\delta_k$"] --> K1["$\times K$<br/>GMAC：$E[S_k] / N$<br/>$= K\,\delta_k$"]
     K1 --> MU1["$\times \mu$"]

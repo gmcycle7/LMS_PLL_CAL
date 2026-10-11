@@ -106,6 +106,13 @@ describe('Formula & Unit Reference 的 Mermaid 圖：清單與解析', () => {
     for (const [k, v] of exported) expect(FR_CHARTS.find((c) => c.name === k)?.chart).toBe(v)
   })
 
+  it('版面：三張都是直向（flowchart TB）；時間軸圖的 sample 軸先宣告 u[n]，這樣 dagre 把「δ_k 虛線回到 e[n]」當成回授邊，主流程才會由上往下讀（teaching-style §8「版面寬度」）', () => {
+    for (const c of FR_CHARTS) expect(c.chart, c.name).toMatch(/^flowchart TB\n/)
+    const fs = CHART_RATE_DOMAINS.match(/subgraph FS\[[^\n]*\n([\s\S]*?)\n {2}end/)![1]
+    const order = Array.from(fs.matchAll(/^\s*(\w+)\[/gm), (m) => m[1])
+    expect(order).toEqual(['U', 'E', 'Q', 'P', 'X'])
+  })
+
   it('每一張都能被真正的 mermaid parser 解析成 flowchart', async () => {
     for (const c of FR_CHARTS) {
       const r = await mermaid.parse(c.chart)

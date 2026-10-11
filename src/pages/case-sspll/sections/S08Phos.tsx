@@ -56,7 +56,7 @@ export function S08Phos() {
       </p>
       <Diagram id="phos-modes" />
       <p>
-        先由左往右看前四格：PMUX 的相位索引 <Tex>{'p[n]'}</Tex> 產生 8 條 one-hot，它們的矩陣只依賴兩個相位的差，所以特徵向量就是 DFT 向量。再看分出來的五格，每一格是一個（或一對共軛的）模態，裡面寫的是它最強那條譜線的頻率與權重：mode 1（藍色）的基波就是 PMUX 繞一圈的頻率{' '}
+        先由上往下看前四格：PMUX 的相位索引 <Tex>{'p[n]'}</Tex> 產生 8 條 one-hot，它們的矩陣只依賴兩個相位的差，所以特徵向量就是 DFT 向量。再看分出來的五格，每一格是一個（或一對共軛的）模態，裡面寫的是它最強那條譜線的頻率與權重：mode 1（藍色）的基波就是 PMUX 繞一圈的頻率{' '}
         <Tex>{r`\alpha f_{ref}`}</Tex>，權重 <Tex>{'W_1'}</Tex> 高達 {fx(W1 * 100, 0)}%；mode 2、3、4 的基波在 2、3、4 倍的頻率，權重是 {fx(64 * indicatorLineWeight(2) * 100, 0)}%、{fx(64 * indicatorLineWeight(3) * 100, 0)}%、{fx(W_SQUARE * 100, 0)}%（mode 4 是 <Tex>{r`\ell=\pm4`}</Tex> 兩條線合計）。共模（<Tex>{'m=0'}</Tex>）只有 DC，被迴路完全吸收。圖上每一格的「權重」就是下面推導第 4 步的{' '}
         <Tex>{r`w_\ell=64\sin^2(\pi\ell/8)/(\pi^2\ell^2)`}</Tex>（<Tex>{r`\ell`}</Tex> 是譜線編號，第 <Tex>{r`\ell`}</Tex> 條線的頻率是 <Tex>{r`\ell\alpha f_{ref}`}</Tex>），「基波」是 <Tex>{r`\ell=m`}</Tex> 的那一條。
       </p>
@@ -130,8 +130,8 @@ export function S08Phos() {
       </p>
       <Diagram id="mode1-bounds" />
       <p>
-        先看最上面一格：算出 PMUX 旋轉頻率 <Tex>{'f_{rot}'}</Tex>（折回 <Tex>{r`[0,f_{ref}/2]`}</Tex> 之後）上的 <Tex>{r`h=\mathrm{Re}\,H_{PD}`}</Tex>。再看兩個菱形：第一個問「就算其餘權重全放在 <Tex>{r`\mathrm{Re}\,H_{PD}`}</Tex> 最大的頻率，總和還是負的嗎？」是的話一定反號；第二個問「就算其餘權重全放在{' '}
-        <Tex>{r`\mathrm{Re}\,H_{PD}`}</Tex> 最小的頻率，總和還是不為負嗎？」是的話不可能反號。兩個菱形裡的式子就是下面推導第 2 步的上界與下界（raw regressor 時 <Tex>{r`\Gamma=H_{PD}`}</Tex>）；第一個菱形移項之後就是第 3 步。
+        先看最上面一格：算出 PMUX 旋轉頻率 <Tex>{'f_{rot}'}</Tex>（折回 <Tex>{r`[0,f_{ref}/2]`}</Tex> 之後）上的 <Tex>{r`h=\mathrm{Re}\,H_{PD}`}</Tex>。再看兩個六角形的判斷框：第一個問「就算其餘權重全放在 <Tex>{r`\mathrm{Re}\,H_{PD}`}</Tex> 最大的頻率，總和還是負的嗎？」是的話一定反號；第二個問「就算其餘權重全放在{' '}
+        <Tex>{r`\mathrm{Re}\,H_{PD}`}</Tex> 最小的頻率，總和還是不為負嗎？」是的話不可能反號。兩個判斷框裡的式子就是下面推導第 2 步的上界與下界（raw regressor 時 <Tex>{r`\Gamma=H_{PD}`}</Tex>）；第一個判斷框移項之後就是第 3 步。
       </p>
       <StepDerivation
         steps={[
@@ -254,7 +254,7 @@ export function S08Phos() {
       <p>
         先看前三格：mode 4 的 regressor 是 <Tex>{r`(-1)^{p[n]}`}</Tex>（奇偶相交替）。<Tex>{'p[n]'}</Tex> 是奇數還是偶數，只看 <Tex>{r`4\varphi[n]`}</Tex> 的小數部分落在前半還是後半；而 <Tex>{r`4\varphi`}</Tex> 每拍前進 <Tex>{r`4\alpha`}</Tex>，<Tex>{r`\alpha=\tfrac14`}</Tex>{' '}
         時剛好前進一整圈，看起來完全不動。<Tex>{r`\alpha`}</Tex> 稍微偏離 <Tex>{r`\tfrac14`}</Tex>，每拍只多走 <Tex>{r`4(\alpha-\tfrac14)`}</Tex> 圈，這條 regressor 就變成一個很慢的方波，頻率是 <Tex>{r`4\lvert\alpha-\tfrac14\rvert f_{ref}`}</Tex>——PMUX 明明轉得很快，mode 4 卻落在低頻，這就是
-        alias。再看菱形與紅色那一格：方波的基波權重是 <Tex>{`8/\\pi^2\\approx${tx(W_SQUARE, 2)}`}</Tex>，比 mode-1 的 <Tex>{`W_1\\approx${tx(W1, 2)}`}</Tex> 小；就算基波落在 <Tex>{r`\mathrm{Re}\,H_{PD}`}</Tex> 最負的頻率，其餘權重全放在最有利的頻率時 <Tex>{r`\kappa`}</Tex>{' '}
+        alias。再看六角形的判斷框與紅色那一格：方波的基波權重是 <Tex>{`8/\\pi^2\\approx${tx(W_SQUARE, 2)}`}</Tex>，比 mode-1 的 <Tex>{`W_1\\approx${tx(W1, 2)}`}</Tex> 小；就算基波落在 <Tex>{r`\mathrm{Re}\,H_{PD}`}</Tex> 最負的頻率，其餘權重全放在最有利的頻率時 <Tex>{r`\kappa`}</Tex>{' '}
         的上界仍然是正的，所以不能保證反號，實際上是正負近乎抵消的 dead zone。圖上的 <Tex>{r`4\lvert\alpha-\tfrac14\rvert f_{ref}`}</Tex> 就是下面第一點的 <Tex>{r`4\delta`}</Tex>（乘上 <Tex>{r`f_{ref}`}</Tex>），紅色那一格的不等式就是清單後面那一句。
       </p>
       <p>

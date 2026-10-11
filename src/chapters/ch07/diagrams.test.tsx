@@ -1,7 +1,7 @@
 import { render, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import mermaid from 'mermaid'
-import { defaultValues, renderTex, systemMapChart } from '@/components'
+import { defaultValues, renderTex, systemMapModel } from '@/components'
 import { mermaidMathDelimiters, sanitizeMermaidSource } from '@/components/mermaidSource'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { SettingsProvider } from '@/app/settings'
@@ -17,9 +17,9 @@ import { kq } from './util'
  *   2. renderer（jsdom + getBBox 墊片；共用的 renderMermaidForTest）：標籤沒有被 Mermaid 11 的 Markdown 解析吃掉（「Unsupported markdown: list」）；
  *      圖內數學一律 LaTeX（docs/teaching-style.md §3）：每個含 `$...$` 的標籤都由 KaTeX 排版（mathCount）、畫出來的文字沒有殘留的 `$`、
  *      KaTeX 以外的文字沒有 Unicode 拼的數學（unicodeMathIn）；
- *   3. 排版：長的圖用上下排列（不會縮到看不清楚）、並排比較的框上下疊且順序正確；
+ *   3. 排版：長的圖用上下排列（桌機上不需要橫向捲動，字不會縮到看不清楚）、並排比較的框上下疊且順序正確；
  *   4. 與公式一致：加法點的正負號、δ = a − w、φ ± ΩD、取樣率（n／k），以及圖上的例子數字（由模型重算）；
- *   5. 頁面：章首有 SystemMap、全章圖數、每張圖都在對應的公式之前、圖後有一段「先看…再看…」的走圖說明。
+ *   5. 頁面：章首的 SystemMap（手排的 SVG，不經過 Mermaid；用 systemMapModel／is-focus 檢查主角）、全章圖數、每張圖都在對應的公式之前、圖後有一段「先看…再看…」的走圖說明。
  */
 
 // Plotly 在 jsdom 裡跑不起來；頁面測試只關心方塊圖，照 ch07.test.tsx 的方式 mock 掉
@@ -159,11 +159,13 @@ describe('Ch07 Mermaid 圖：真正的 parser', () => {
     }
   })
 
-  it('章首的系統地圖：藍色標出 RES、ALIGN、GMAC，也能解析', async () => {
-    const chart = systemMapChart(CH07_SYSTEM_FOCUS)
-    expect(chart).toContain('class RES,ALIGN,GMAC focus')
-    const r = await mermaid.parse(chart)
-    expect(r && typeof r === 'object' ? r.diagramType : r).toBe('flowchart-v2')
+  it('章首的系統地圖：本章主角是 RES、ALIGN、GMAC（systemMapModel），其餘方塊不上色', () => {
+    const model = systemMapModel(CH07_SYSTEM_FOCUS)
+    expect(CH07_SYSTEM_FOCUS).toEqual(['res', 'align', 'gmac'])
+    expect(model.blocks.filter((b) => b.focused).map((b) => b.id).sort()).toEqual(['align', 'gmac', 'res'])
+    // 沒有被標成主角的方塊裡，不會有 RES、ALIGN、GMAC
+    expect(model.blocks.filter((b) => !b.focused && CH07_SYSTEM_FOCUS.includes(b.id)).map((b) => b.id)).toEqual([])
+    expect(model.blocks.filter((b) => !b.focused).length).toBe(model.blocks.length - 3)
   })
 })
 
@@ -182,22 +184,12 @@ describe('Ch07 Mermaid 圖：用共用工具真的畫一次', () => {
     // 原始碼本身就寫成 ＋／−（不靠 sanitize 換字）：sanitizeMermaidSource 只做「`$...$` 合併成 `$$...$$`」這一步
     expect(sanitizeMermaidSource(chart)).toBe(mermaidMathDelimiters(chart))
   })
-
-  it('章首的系統地圖也畫得出來，同樣沒有殘留的 $ 與 Unicode 數學', async () => {
-    installMermaidSvgShim()
-    const chart = systemMapChart(CH07_SYSTEM_FOCUS)
-    const { text, plainText, mathCount } = await renderMermaidForTest(chart)
-    expect(text).not.toMatch(/Unsupported markdown/)
-    expect(text).not.toContain('$')
-    expect(unicodeMathIn(plainText)).toEqual([])
-    expect(mathCount).toBe(mathLabels(chart).length)
-  })
 })
 
 describe('Ch07 Mermaid 圖：真正的 renderer（jsdom）', () => {
   it('每張圖都畫得出來；每個節點、每條線、每個 subgraph 標題的文字（公式經 KaTeX 排版後）都原樣出現，沒有「Unsupported markdown」，也沒有被 Markdown 變成粗體／斜體', async () => {
     fakeSvgMetrics()
-    for (const [name, chart] of [...CASES, ['SYSTEM_MAP', systemMapChart(CH07_SYSTEM_FOCUS)] as const]) {
+    for (const [name, chart] of CASES) {
       const { svg, text } = await renderMermaidForTest(chart)
       expect(svg, name).not.toMatch(/Unsupported markdown/)
       expect(svg, name).not.toMatch(/<(?:em|strong)>/)
@@ -219,25 +211,107 @@ describe('Ch07 Mermaid 圖：真正的 renderer（jsdom）', () => {
   })
 })
 
+/** 上下排列（TB）的圖：流程類、兩路相乘、含回授迴圈、或是橫向會超過 1260 px 的圖。其餘維持左右排列（硬體結構圖的慣例）。 */
+const TB_CHARTS: Ch07ChartName[] = [
+  'CHART_SIGNAL_MODEL',
+  'CHART_PHASE_BOOKKEEPING',
+  'CHART_MEAN_LOOP',
+  'CHART_MIXER_AVERAGE',
+  'CHART_BLOCK_AVERAGE',
+  'CHART_TWO_TONES',
+  'CHART_VOTING',
+  'CHART_GRADIENT',
+  'CHART_FX_LOOP',
+  'CHART_MISMATCH',
+  'CHART_LATENCY_MISMATCH',
+  'CHART_RTL_REGRESSORS',
+  'CHART_DECISION',
+  'CHART_HANDCALC_FLOW',
+  'CHART_BRINGUP',
+]
+
+/**
+ * 用 Mermaid（dagre）真的排一次，估計圖的形狀。jsdom 沒有字型量測，節點大小都是墊片給的固定值，所以座標本身沒有意義，
+ * 但「分成幾層（rank）、每一層有幾個節點」只取決於連線與宣告順序，和瀏覽器裡相同。
+ * TB：層 ＝ 同一個 y 的節點（層數 ＝ 高度，最寬那一層的節點數 ＝ 寬度）；LR：層 ＝ 同一個 x（層數 ＝ 寬度）。
+ */
+async function layoutOf(name: Ch07ChartName) {
+  fakeSvgMetrics()
+  const { svg } = await renderMermaidForTest(CH07_CHARTS[name])
+  const host = document.createElement('div')
+  host.innerHTML = svg
+  // 節點在巢狀的 g.root（subgraph）裡時，座標要把每一層的 translate 加起來
+  const position = (el: Element) => {
+    let x = 0
+    let y = 0
+    for (let e: Element | null = el; e && e !== host; e = e.parentElement) {
+      const t = /translate\(([-\d.]+)[,\s]+([-\d.]+)\)/.exec(e.getAttribute('transform') ?? '')
+      if (t) {
+        x += Number(t[1])
+        y += Number(t[2])
+      }
+    }
+    return { x: Math.round(x), y: Math.round(y) }
+  }
+  return { host, position }
+}
+
+async function layerShape(name: Ch07ChartName) {
+  const { host, position } = await layoutOf(name)
+  const nodes = Array.from(host.querySelectorAll('g.node')).map(position)
+  const tb = CH07_CHARTS[name].startsWith('flowchart TB')
+  const layers = new Map<number, number>()
+  for (const p of nodes) layers.set(tb ? p.y : p.x, (layers.get(tb ? p.y : p.x) ?? 0) + 1)
+  return { tb, nodes: nodes.length, layerCount: layers.size, widest: Math.max(...layers.values()) }
+}
+
 describe('Ch07 Mermaid 圖：排版（寬度）', () => {
-  it('「兩路相乘」與流程類的圖用上下排列（TB）：左右排列時估計超過 1400 px 寬，縮進約 1000 px 的內文欄位後字太小', () => {
-    const tb: Ch07ChartName[] = [
-      'CHART_SIGNAL_MODEL',
-      'CHART_PHASE_BOOKKEEPING',
-      'CHART_MIXER_AVERAGE',
-      'CHART_BLOCK_AVERAGE',
-      'CHART_TWO_TONES',
-      'CHART_VOTING',
-      'CHART_FX_LOOP',
-      'CHART_MISMATCH',
-      'CHART_LATENCY_MISMATCH',
-      'CHART_DECISION',
-      'CHART_HANDCALC_FLOW',
-      'CHART_BRINGUP',
-    ]
-    for (const name of NAMES) expect(CH07_CHARTS[name].split('\n')[0], name).toBe(tb.includes(name) ? 'flowchart TB' : 'flowchart LR')
+  it('流程類、含回授迴圈與「兩路相乘」的圖用上下排列（TB），硬體結構圖維持左右排列（LR）；全章沒有菱形判斷節點', () => {
+    for (const name of NAMES) expect(CH07_CHARTS[name].split('\n')[0], name).toBe(TB_CHARTS.includes(name) ? 'flowchart TB' : 'flowchart LR')
     // 判斷用六角形（比菱形省空間）：全章沒有菱形節點
     for (const chart of Object.values(CH07_CHARTS)) expect(chart).not.toMatch(/[A-Za-z0-9]\{"/)
+  })
+
+  it('桌機上不需要橫向捲動：估計寬度不超過約 5 個節點並排（TB 看最寬的一層）、約 7 層（LR 看層數）；高度不超過約 10 層', async () => {
+    // 自然寬度要在約 1260 px 以內：一個節點加間距約 200–250 px，所以 TB 一層最多 5 個、LR 最多 7 層。
+    // 第 7.6 節 RTL 位置圖原本是 LR（8 層以上，自然寬度 1776 px，桌機要橫向捲動），改成 TB 之後最寬的一層是 5 個並排的支路。
+    const noGroups = NAMES.filter((n) => !/\bsubgraph\b/.test(CH07_CHARTS[n]))
+    for (const name of noGroups) {
+      const s = await layerShape(name)
+      if (s.tb) {
+        expect(s.widest, `${name} 最寬的一層`).toBeLessThanOrEqual(5)
+        expect(s.layerCount, `${name} 層數`).toBeLessThanOrEqual(10)
+      } else {
+        expect(s.layerCount, `${name} 層數`).toBeLessThanOrEqual(7)
+        expect(s.widest, `${name} 最高的一欄`).toBeLessThanOrEqual(4)
+      }
+    }
+    // RTL 位置圖：code 一次分出五條支路（DTC 一條、四種 regressor 四條）並排，再收進 REG_GMAC_XSEL 與 GMAC
+    const rtl = await layerShape('CHART_RTL_REGRESSORS')
+    expect(rtl.tb).toBe(true)
+    expect(rtl.widest).toBe(5)
+  })
+
+  it('宣告順序決定左右次序（diagrams.ts 的註解）：梯度圖的 u 在左、x 在右，e_PD 的兩條線不交叉；filtered-x 迴圈的模型那一支在左、w_k 回授線走最右側', async () => {
+    // 節點的 DOM id 是 flowchart-<id>-<序號>
+    const xOf = async (name: Ch07ChartName) => {
+      const { host, position } = await layoutOf(name)
+      return (id: string) => {
+        const el = host.querySelector(`g.node[id^="flowchart-${id}-"]`)
+        expect(el, `${name} 的 ${id}`).toBeTruthy()
+        return position(el as Element).x
+      }
+    }
+    const g = await xOf('CHART_GRADIENT')
+    // 乘 u 的乘法器與結果（綠）在左，乘 x 的（紅）在右；(a − w) 與雜訊那一串夾在 H → MU 與 X → MX 兩條長線之間
+    expect(g('MU')).toBeLessThan(g('MX'))
+    expect(g('RU')).toBeLessThan(g('RX'))
+    expect(g('MU')).toBeLessThanOrEqual(g('S'))
+    expect(g('S')).toBeLessThanOrEqual(g('MX'))
+    const f = await xOf('CHART_FX_LOOP')
+    // 模型 Ĥ 與 z⁻ᴰ 在左，真實路徑 P、comparator 在右：回授線（ACC → P）從右側繞回 P，不穿過模型那一支
+    expect(f('HAT')).toBeLessThan(f('P'))
+    expect(f('DL')).toBeLessThan(f('CMP'))
   })
 
   it('並排比較的框上下疊、由上到下是 A → B（→ C），框內由左到右', async () => {
@@ -660,10 +734,8 @@ describe('Ch07 Mermaid 圖：與本章公式一致', () => {
 })
 
 describe('Ch07 頁面上的方塊圖', () => {
-  it('章首有 SystemMap；全章 23 張圖（系統地圖 + 22 張）都送進 mermaid.render；每張圖在對應公式之前，圖說用 LaTeX，圖後緊接「先看…再看…」的走圖說明', async () => {
+  it('章首有 SystemMap（手排的 SVG，標出 RES、ALIGN、GMAC）；全章 23 張圖（系統地圖 + 22 張）裡，22 張 Mermaid 圖都送進 mermaid.render；每張圖在對應公式之前，圖說用 LaTeX，圖後緊接「先看…再看…」的走圖說明', async () => {
     const byChart = new Map<string, string>(NAMES.map((n) => [sanitizeMermaidSource(CH07_CHARTS[n]), n]))
-    const systemChart = sanitizeMermaidSource(systemMapChart(CH07_SYSTEM_FOCUS))
-    byChart.set(systemChart, 'SYSTEM_MAP')
     const seen: string[] = []
     const spy = vi.spyOn(mermaid, 'render').mockImplementation(async (id: string, text: string) => {
       seen.push(text)
@@ -679,11 +751,12 @@ describe('Ch07 頁面上的方塊圖', () => {
       )
       const figures = Array.from(container.querySelectorAll('figure.c-mermaid'))
       expect(figures).toHaveLength(23)
-      // 等所有圖都渲染完（render 依序排隊）
-      await waitFor(() => expect(container.querySelectorAll('.c-mermaid-svg svg[data-chart]')).toHaveLength(23), { timeout: 60_000, interval: 50 })
-      // 頁面實際送去畫的原始碼＝系統地圖 + diagrams.ts 的 22 張，沒有漏網的手寫圖
+      // 等 22 張 Mermaid 圖都渲染完（render 依序排隊）；系統地圖不經過 Mermaid，一開始就是完整的 SVG
+      await waitFor(() => expect(container.querySelectorAll('.c-mermaid-svg svg[data-chart]')).toHaveLength(22), { timeout: 60_000, interval: 50 })
+      // 頁面實際送去畫的原始碼＝diagrams.ts 的 22 張（系統地圖是手排的 SVG，不送進 mermaid.render），沒有漏網的手寫圖
       expect(container.querySelector('svg[data-chart="UNKNOWN"]')).toBeNull()
-      expect([...new Set(seen)].sort()).toEqual([systemChart, ...Object.values(CH07_CHARTS).map(sanitizeMermaidSource)].sort())
+      expect([...new Set(seen)].sort()).toEqual(Object.values(CH07_CHARTS).map(sanitizeMermaidSource).sort())
+      expect(seen).toHaveLength(22)
 
       const fig = (name: string) => {
         const el = container.querySelector(`svg[data-chart="${name}"]`)?.closest('figure')
@@ -692,10 +765,21 @@ describe('Ch07 頁面上的方塊圖', () => {
       }
       const follows = (a: Element, b: Element) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
 
-      // 系統地圖：全章第一張圖，在 7.1 節之前，標出本章的三個方塊；後面一句話說明藍色方塊與本章新增的東西
-      const map = fig('SYSTEM_MAP')
+      // 系統地圖：全章第一張圖（手排的 SVG：figure.c-sysmap > svg.c-sysmap-svg，沒有 data-chart），在 7.1 節之前，
+      // 標出本章的三個方塊（is-focus）；後面一句話說明藍色方塊與本章新增的東西
+      const map = container.querySelector('figure.c-sysmap') as HTMLElement
+      expect(map).toBeTruthy()
       expect(figures[0]).toBe(map)
+      expect(map.querySelector('.c-mermaid-svg svg.c-sysmap-svg')).toBeTruthy()
+      expect(map.querySelector('svg[data-chart]')).toBeNull()
       expect(map.getAttribute('aria-label')).toContain('系統方塊圖')
+      // 畫面上被標成主角的方塊（g.c-sysmap-block.is-focus）＝ systemMapModel(CH07_SYSTEM_FOCUS) 的主角＝ RES、ALIGN、GMAC，其餘方塊沒有 is-focus
+      const focusedInDom = Array.from(map.querySelectorAll('g.c-sysmap-block.is-focus')).map((g) => g.getAttribute('data-block'))
+      const focusedInModel = systemMapModel(CH07_SYSTEM_FOCUS).blocks.filter((b) => b.focused).map((b) => b.id)
+      expect(focusedInDom.sort()).toEqual(['align', 'gmac', 'res'])
+      expect(focusedInDom).toEqual([...focusedInModel].sort())
+      expect(map.querySelectorAll('g.c-sysmap-block[data-focus="true"]')).toHaveLength(3)
+      expect(map.querySelectorAll('g.c-sysmap-block').length).toBe(systemMapModel(CH07_SYSTEM_FOCUS).blocks.length)
       for (const block of ['Fractional residue x[n]', 'Code alignment / delay / filtered-x', 'GMAC']) expect(map.querySelector('figcaption')?.textContent).toContain(block)
       expect(follows(map, container.querySelector('#ch07-problem') as Element)).toBe(true)
       expect(map.nextElementSibling?.tagName).toBe('P')
@@ -746,8 +830,8 @@ describe('Ch07 頁面上的方塊圖', () => {
         expect(walk?.textContent ?? '', name).toMatch(/再看/)
         expect(walk?.querySelectorAll('.katex').length ?? 0, name).toBeGreaterThan(0)
       }
-      // 圖在頁面上的先後順序與 diagrams.ts 的排列一致（跟著章節走）
-      const order = Array.from(container.querySelectorAll('svg[data-chart]')).map((s) => s.getAttribute('data-chart'))
+      // 圖在頁面上的先後順序與 diagrams.ts 的排列一致（跟著章節走）：章首的系統地圖，再來是 22 張 Mermaid 圖
+      const order = figures.map((f) => f.querySelector('svg[data-chart]')?.getAttribute('data-chart') ?? (f.classList.contains('c-sysmap') ? 'SYSTEM_MAP' : null))
       expect(order).toEqual(['SYSTEM_MAP', ...NAMES])
       // 幾個「圖在後、公式在前」的關係：延遲方向的圖在 F-07.2 之後；latency 失效例子在 F-07.12 之後；手算流程圖在 Lab 之後
       expect(follows(container.querySelector('[id="formula-F-07.2"]') as Element, fig('CHART_DELAY_SIDE'))).toBe(true)

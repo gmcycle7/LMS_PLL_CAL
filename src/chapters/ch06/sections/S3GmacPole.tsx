@@ -223,7 +223,7 @@ export function S3GmacPole() {
               <td className="pos">
                 <Tex>{'C>0'}</Tex>
               </td>
-              <td>
+              <td className="nowrap">
                 <Tex>{'p=1-\\mu K_qC<1'}</Tex>
               </td>
               <td>
@@ -237,7 +237,7 @@ export function S3GmacPole() {
               <td>
                 <Tex>{'C=0'}</Tex>
               </td>
-              <td>
+              <td className="nowrap">
                 <Tex>{'p=1'}</Tex>
               </td>
               <td>
@@ -251,7 +251,7 @@ export function S3GmacPole() {
               <td className="neg">
                 <Tex>{'C<0'}</Tex>
               </td>
-              <td>
+              <td className="nowrap">
                 <Tex>{'p=1+\\mu K_q|C|>1'}</Tex>
               </td>
               <td>

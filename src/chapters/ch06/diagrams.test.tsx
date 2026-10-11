@@ -3,7 +3,7 @@ import { marked, type Token } from 'marked'
 import mermaid from 'mermaid'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
-import { defaultValues, renderTex, systemMapChart } from '@/components'
+import { defaultValues, renderTex, systemMapModel } from '@/components'
 import { mermaidMathDelimiters, sanitizeMermaidSource } from '@/components/mermaidSource'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { c, cAdd, cDiv, cMul, type Complex } from '@/simulation/core/complex'
@@ -41,7 +41,8 @@ import { CH06_SYMBOLS } from './symbols'
  * - 圖裡的數學一律是 LaTeX（標籤裡的 `$...$`；時序圖的訊息是 `$$...$$`）：每張圖畫出來之後不可殘留 `$`、KaTeX 以外的文字與 `$...$` 以外的原始碼
  *   都不可有 Unicode 拼的數學；parser 看到的標籤文字就是原始碼裡的 TeX，所以結構性的斷言（正負號、箭頭、數字）直接比對 TeX 原文，
  *   「每個標籤都真的畫在圖上」則拿 KaTeX 排版後的文字來比。
- * - 頁面測試把共用的 <Mermaid> 元件換成替身（把原始碼與圖說放在 data-chart／data-caption），核對「頁面上實際畫了哪些圖、順序為何、放在哪裡」。
+ * - 頁面測試把共用的 <Mermaid> 元件換成替身（把原始碼與圖說放在 data-chart／data-caption），核對「頁面上實際畫了哪些圖、順序為何、放在哪裡」；
+ *   章首的系統地圖不是 Mermaid 畫的（手排 SVG），改用 systemMapModel() 與 DOM 的 is-focus 檢查本章標出哪些方塊。
  *   真正的 <Mermaid> 元件在整章 smoke test（ch06.test.tsx）裡跑。
  */
 
@@ -55,7 +56,8 @@ const plotlyMock = vi.hoisted(() => ({
 }))
 vi.mock('plotly.js-dist-min', () => ({ default: plotlyMock }))
 
-// <Mermaid> 的替身（SystemMap 也透過同一個元件畫圖，所以章首的系統地圖同樣會出現）。mermaid 套件本身沒有被 mock。
+// <Mermaid> 的替身。章首的系統地圖（<SystemMap>）是手排的 SVG、不經過 <Mermaid>，所以不會有 data-chart，用它的 DOM 與 systemMapModel() 檢查。
+// mermaid 套件本身沒有被 mock。
 vi.mock('@/components/Mermaid', async () => {
   const { createElement } = await import('react')
   const { mathText, stripMathDelimiters } = await import('@/components/Tex')
@@ -97,7 +99,7 @@ interface FlowEdge {
 interface FlowDb {
   getVertices(): Map<string, FlowVertex>
   getEdges(): FlowEdge[]
-  getSubGraphs(): { title?: string }[]
+  getSubGraphs(): { id?: string; title?: string }[]
   getClasses(): Map<string, unknown>
 }
 /** sequenceDiagram db 中本測試用到的部分 */
@@ -128,8 +130,10 @@ interface Flow {
 async function parseChart(chart: string): Promise<Flow> {
   const diagram = await mermaid.mermaidAPI.getDiagramFromText(chart)
   const db = diagram.db as unknown as FlowDb
+  // 以 subgraph 的 id 當連線端點（`T1 ~~~ T2`、`ROW1 --> ROW2`）時，Mermaid 會把它也記成一個 vertex；它畫出來是群組，不是節點，所以不算
+  const groupIds = new Set(db.getSubGraphs().map((g) => g.id))
   return {
-    vertices: [...db.getVertices().values()],
+    vertices: [...db.getVertices().values()].filter((v) => !groupIds.has(v.id)),
     edges: db.getEdges(),
     subgraphs: db.getSubGraphs().map((s) => s.title ?? ''),
     classes: [...db.getClasses().keys()],
@@ -357,18 +361,17 @@ describe('第 06 章方塊圖：真的畫出來（共用的 renderMermaidForTest
     },
   )
 
-  it('系統地圖（本章的 focus）也畫得出來：17 個方塊、7 個標成藍色、公式都是 KaTeX', async () => {
-    const chart = systemMapChart([...SYSTEM_FOCUS])
-    expect(await diagramType(chart)).toBe('flowchart-v2')
-    const { text, plainText, nodeCount, mathCount, svg } = await renderMermaidForTest(chart)
-    expect(text).not.toMatch(/Unsupported markdown/)
-    expect(text).not.toContain('$')
-    expect(unicodeMathIn(plainText)).toEqual([])
-    expect(mathCount).toBeGreaterThanOrEqual(8)
-    expect(nodeCount).toBe(17)
-    const { vertices } = await parseChart(chart)
-    expect(vertices.filter((v) => (v.classes ?? []).includes('focus')).map((v) => v.id).sort()).toEqual(['CMP', 'DIV', 'DTC', 'GMAC', 'LF', 'PD', 'VCO'])
-    expect(svg.toLowerCase()).toContain(COLOR.focus)
+  it('系統地圖（本章的 focus）：17 個方塊、7 個標成藍色（主 PLL 迴路五塊 + comparator 與 GMAC）、其餘不標色；地圖本身（排版、連線）由共用元件的測試負責', () => {
+    const { blocks } = systemMapModel([...SYSTEM_FOCUS])
+    expect(blocks).toHaveLength(17)
+    expect(blocks.filter((b) => b.focused).map((b) => b.id).sort()).toEqual([...SYSTEM_FOCUS].sort())
+    // 藍色的方塊分在兩條泳道：主 PLL 迴路（DTC、PD、LF、VCO、divider）與 LMS 校正迴路（comparator、GMAC）；小數除頻與補償那一條本章不是主角
+    const lane = (l: string) => blocks.filter((b) => b.focused && b.lane === l).map((b) => b.id).sort()
+    expect(lane('pll')).toEqual(['div', 'dtc', 'lf', 'pd', 'vco'])
+    expect(lane('lms')).toEqual(['cmp', 'gmac'])
+    expect(lane('frac')).toEqual([])
+    // 沒標色的方塊：regressor 的來源（FCW、DSM、residue、gain correction）與 w 的累加／量化、雜訊，本章把它們當成背景
+    expect(blocks.filter((b) => !b.focused).map((b) => b.id).sort()).toEqual(['acc', 'align', 'dsm', 'fcw', 'gc', 'noise', 'qnt', 'ref', 'res', 'scale'])
   })
 })
 
@@ -582,6 +585,15 @@ describe('第 06 章方塊圖：與正文公式一致（極性、取樣率、延
   it('圖 6.10／6.11（Type-I vs Type-II）：回授都以−進入加法點；一個積分器 Re H 恆正，兩個積分器在 ω < ω_n 為負', async () => {
     const types = await parseChart(diagrams.CHART_LOOP_TYPES)
     expect(types.subgraphs).toHaveLength(2)
+    // 版面：兩個 subgraph 上下疊成兩列（Type-I 在上），中間只有 subgraph 層級的隱形連線 T1 ~~~ T2；
+    // 兩列之間不能有節點對節點的連線（Mermaid 會因此忽略 subgraph 內的 direction LR，圖又會變回左右並排、寬約 1260px）
+    expect(edge(types.edges, 'T1', 'T2').stroke).toBe('invisible')
+    const row1 = new Set(['E1', 'S1', 'K1', 'I1', 'R1'])
+    const row2 = new Set(['E2', 'S2', 'PI', 'I2', 'R2'])
+    expect(new Set([...row1, ...row2])).toEqual(new Set(types.vertices.map((v) => v.id)))
+    for (const e of types.edges.filter((x) => !(x.start === 'T1' && x.end === 'T2'))) {
+      expect(row1.has(e.start) === row1.has(e.end), `${e.start} → ${e.end} 不可跨列`).toBe(true)
+    }
     expect(edge(types.edges, 'I1', 'S1').text).toBe(String.raw`$-\varphi_{\mathrm{fb}}$`)
     expect(edge(types.edges, 'I2', 'S2').text).toBe(String.raw`$-\varphi_{\mathrm{fb}}$`)
     expect(signOf(edge(types.edges, 'I1', 'S1').text)).toBe(-1)
@@ -687,11 +699,13 @@ describe('第 06 章方塊圖：與正文公式一致（極性、取樣率、延
     const nu = [0, 1].flatMap((d) => [0.01, 0.1, 0.3].map((w) => compareCtDt({ type: 'typeII', zeta: 0.7, wLTs: w, loopDelay: d }).dtBoundaryNu))
     expect(nu.every((v) => v !== null && Number.isFinite(v))).toBe(true)
     const values = nu as number[]
-    expect(diagrams.CHART_CT_DT_MAP).toContain(`約 ${Math.min(...values).toFixed(2)} 到 ${Math.max(...values).toFixed(2)} 倍 $\\omega_n$`)
-    expect(diagrams.CHART_CT_DT_MAP).toContain(String.raw`K_p = 2\zeta\omega_nT_s$，$K_i = (\omega_nT_s)^2`)
-    expect(diagrams.CHART_CT_DT_MAP).toContain(String.raw`1 - z^{-1} \approx s\,T_s`)
-    expect(diagrams.CHART_CT_DT_MAP).toContain(String.raw`\Omega = \omega T_s`)
-    expect(diagrams.CHART_CT_DT_MAP).toContain('z^{-(1+d)}')
+    // 標籤為了不撐寬圖會用 <br/> 換行；內容用「換行當空白」之後的文字比對
+    const ctDt = diagrams.CHART_CT_DT_MAP.replace(/<br\/>/g, ' ')
+    expect(ctDt).toContain(`約 ${Math.min(...values).toFixed(2)} 到 ${Math.max(...values).toFixed(2)} 倍 $\\omega_n$`)
+    expect(ctDt).toContain(String.raw`K_p = 2\zeta\omega_nT_s$ $K_i = (\omega_nT_s)^2`)
+    expect(ctDt).toContain(String.raw`1 - z^{-1} \approx s\,T_s`)
+    expect(ctDt).toContain(String.raw`\Omega = \omega T_s`)
+    expect(ctDt).toContain('z^{-(1+d)}')
     // 1 − z⁻¹ ≈ s·T_s：Ω = 0.01 時相對誤差約 Ω/2
     const omega = 0.01
     const diff = cAdd(c(1), cMul(c(-1), expj(-omega)))
@@ -918,18 +932,21 @@ describe('第 06 章方塊圖：與正文公式一致（極性、取樣率、延
     // loop 標題不支援公式，只用文字：每個 sample 做一次、做滿一個 block（索引 n、次數 N 寫在圖說與圖下方的說明）
     expect(msgs[1].message).toMatch(/^sample rate，每個 sample 做一次，做滿一個 block 的 sample 數$/)
     expect(msgs.slice(2, 6).map(route)).toEqual(['DTC>PLL', 'PLL>CMP', 'CMP>GMAC', 'GMAC>GMAC'])
-    expect(msgs[2].message).toBe(String.raw`$$\text{DTC 誤差 }\varepsilon[n] = (a - w_k)\,x[n]$$`)
-    expect(msgs[3].message).toBe(String.raw`$$e_{\mathrm{PD}}[n] = (h \ast \varepsilon)[n] + v[n]$$`)
-    expect(msgs[4].message).toBe(String.raw`$$q[n] = \operatorname{sign}(e_{\mathrm{PD}}[n])$$`)
-    expect(msgs[5].message).toBe(String.raw`$$\mathrm{acc} \leftarrow \mathrm{acc} + q[n]\,x[n-D]$$`)
+    // 訊息為了不撐寬圖，在 `$$...$$` 裡用 gathered 環境分行（\cr）；拿掉換行之後就是原來的式子
+    const oneLine = (m?: string) => (m ?? '').replace(/\\begin\{gathered\}|\\end\{gathered\}/g, '').replace(/\\cr\s*/g, ' ')
+    expect(oneLine(msgs[2].message)).toBe(String.raw`$$\text{DTC 誤差 }\varepsilon[n] = (a - w_k)\,x[n]$$`)
+    expect(oneLine(msgs[3].message)).toBe(String.raw`$$e_{\mathrm{PD}}[n] = (h \ast \varepsilon)[n] + v[n]$$`)
+    expect(oneLine(msgs[4].message)).toBe(String.raw`$$q[n] = \operatorname{sign}(e_{\mathrm{PD}}[n])$$`)
+    expect(oneLine(msgs[5].message)).toBe(String.raw`$$\mathrm{acc} \leftarrow \mathrm{acc} + q[n]\,x[n-D]$$`)
     // 框外（每個 block k）：平均成 G_k、更新 w、下一個 block 才改用新的 w
     expect(msgs.slice(7).map(route)).toEqual(['GMAC>W', 'W>W', 'W>DTC'])
-    expect(msgs[7].message).toBe(String.raw`$$\text{block rate，每個 block 一次，}G_k = \mathrm{acc}/N$$`)
-    expect(msgs[8].message).toBe(String.raw`$$w_{k+1} = w_k + \mu\,G_k$$`)
+    expect(oneLine(msgs[7].message)).toBe(String.raw`$$\text{block rate，} \text{每個 block 一次，} G_k = \mathrm{acc}/N$$`)
+    // 單一 participant 上方的 Note，寬度是照原始碼的字數算的（Mermaid 的限制），所以這一行的 TeX 不留空白、不換行
+    expect(msgs[8].message).toBe(String.raw`$$w_{k+1}=w_k+\mu G_k$$`)
     expect(msgs[9].message).toBe(String.raw`$$\text{block }k+1\text{ 改用 }w_{k+1}$$`)
     expect(msgs[0].message).toMatch(/w_k\\text\{ 固定.*acc 歸零/)
     // 時序圖的 participant 只用文字（名稱裡不放符號）
-    expect([...db.getActors().values()].map((a) => a.description)).toEqual(['DTC（gain 由校正值決定）', '主 PLL 的誤差路徑', '1-bit comparator', 'GMAC 累加器', '校正值的暫存器'])
+    expect([...db.getActors().values()].map((a) => a.description)).toEqual(['DTC（gain<br/>由校正值決定）', '主 PLL 的誤差路徑', '1-bit comparator', 'GMAC 累加器', '校正值的暫存器'])
 
     // 照圖做一次（FIR 路徑 h = [1, −√3]、D = 2、決定性的「雜訊」），和核心程式逐 block 比較
     const N = 12
@@ -1112,6 +1129,7 @@ describe('第 06 章頁面：系統地圖、方塊圖的位置、符號表在章
 
     // 系統地圖：在開場白之後、目錄與 §1 之前；圖說沒有 Unicode 拼的數學；旁邊有一句「你在這裡」
     const map = figures[0]
+    expect(map.classList.contains('c-sysmap')).toBe(true)
     expect(map.getAttribute('aria-label')).toMatch(/^DTC-based Fractional-N PLL 與 Sign-LMS 校正迴路的系統方塊圖/)
     expect(map.getAttribute('aria-label')).toMatch(/本章重點：DTC、Phase detector/)
     const lead = container.querySelector('.ch06-lead')!
@@ -1128,11 +1146,16 @@ describe('第 06 章頁面：系統地圖、方塊圖的位置、符號表在章
     expect(note.textContent).toMatch(/你在這裡：[\s\S]*主 PLL 迴路[\s\S]*這一章補上/)
     expect(texSources(note)).toContain('H_{\\mathrm{PD}}=1/(1+L)')
 
-    // 頁面上的 Mermaid 原始碼 = 系統地圖 + 登錄的每一張（各恰好一次，順序就是圖號）：頁面上沒有未經測試的圖
-    const rendered = figures.map((f) => f.getAttribute('data-chart'))
-    expect(rendered[0]).toBe(systemMapChart([...SYSTEM_FOCUS]))
-    expect(rendered[0]).toContain('class DTC,PD,LF,VCO,DIV,CMP,GMAC focus')
-    expect(rendered.slice(1)).toEqual(CH06_DIAGRAMS.map((d) => d.chart))
+    // 系統地圖是手排的 SVG（不經過 Mermaid）：標成藍色（is-focus）的方塊就是本章的主角，其餘不標色
+    expect(map.hasAttribute('data-chart')).toBe(false)
+    const blockIds = (sel: string) => Array.from(map.querySelectorAll(sel)).map((g) => g.getAttribute('data-block')).sort()
+    expect(blockIds('g.c-sysmap-block')).toHaveLength(17)
+    expect(blockIds('g.c-sysmap-block.is-focus')).toEqual([...SYSTEM_FOCUS].sort())
+    expect(blockIds('g.c-sysmap-block[data-focus="true"]')).toEqual([...SYSTEM_FOCUS].sort())
+    expect(blockIds('g.c-sysmap-block:not(.is-focus)')).toHaveLength(17 - SYSTEM_FOCUS.length)
+    // 頁面上的 Mermaid 原始碼 = 登錄的每一張（各恰好一次，順序就是圖號，系統地圖之後）：頁面上沒有未經測試的圖
+    const rendered = figures.slice(1).map((f) => f.getAttribute('data-chart'))
+    expect(rendered).toEqual(CH06_DIAGRAMS.map((d) => d.chart))
 
     for (const d of CH06_DIAGRAMS) {
       const el = container.querySelector(`[id="diagram-${d.id}"]`)

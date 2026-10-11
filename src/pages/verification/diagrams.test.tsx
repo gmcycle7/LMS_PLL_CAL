@@ -171,6 +171,21 @@ describe('Verification 的 Mermaid 圖（真正的 mermaid parser）', () => {
     expect((await flow(CHART_TOLERANCE)).vertices.filter((v) => v.type === 'circle' && v.text === '＋')).toHaveLength(2)
   }, 60000)
 
+  it('版面：桌機正文欄（約 900px）放得下、不用橫向捲動——四張圖都由上到下（TB／TD），長標籤用 <br/> 換行；沒有過長的單行（實際尺寸由 scripts/diagram-audit.mjs 量）', () => {
+    for (const c of VERIFICATION_CHARTS) {
+      expect(c.chart, c.name).toMatch(/^flowchart (TB|TD)\b/)
+      expect(c.chart, c.name).not.toMatch(/subgraph/)
+      // 每行（去掉 $...$ 後）的寬度估計：中文字算 1、其他字元算 0.55；超過 16 會把節點撐寬
+      for (const label of quotedLabels(c.chart)) {
+        for (const line of label.split(/<br\s*\/?>/)) {
+          let units = 0
+          for (const ch of line.replace(MATH, '')) units += /[\u2e80-\u9fff\uff00-\uffef]/.test(ch) ? 1 : 0.55
+          expect(units, `${c.name}：「${line.trim()}」這一行太長`).toBeLessThanOrEqual(16)
+        }
+      }
+    }
+  })
+
   it('容忍度判定：極性與 F-VF.1 一致（Δ = a_k − e_k、b_k = ε_abs + ε_rel·|e_k|、通過 ⇔ |Δ| ≤ b_k）；照著圖算，結果就是 toleranceBound／diffNumeric，也就是頁面上每個 key 的判定', async () => {
     const g = await flow(CHART_TOLERANCE)
     // 誤差這條路：網站為正、golden 為負

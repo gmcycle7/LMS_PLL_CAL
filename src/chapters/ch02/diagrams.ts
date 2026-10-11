@@ -13,8 +13,14 @@
  *  - 參數誤差極性一律 δ = a − w（勘誤 E39）；誤差 e = y − ŷ（量測減預測）。
  *  - `stateDiagram-v2` 與 `sequenceDiagram` 的文字不會經過 `mermaidMathDelimiters`（它只處理雙引號標籤），所以那兩種圖直接寫成
  *    Mermaid 原生的單一 `$$\text{文字}數學\text{文字}$$`（一個標籤只能有一段 `$$`）。sequence 的 participant 名稱與 loop 標題放公式會畫壞
- *    （上下兩份只有一份排版成功），所以那兩處只寫文字。flowchart 的 subgraph 標題可以直接寫 `$...$`。
+ *    （上下兩份只有一份排版成功），所以那兩處只寫文字。
+ *    flowchart 的 subgraph 標題不要放公式：共用主題把標題縮成 0.86em，KaTeX 內層的 span 會一層層再縮，畫出來只剩 5–8px；
+ *    標題只寫文字，式子放在群組裡的方塊上。
  *  - 比較用的圖（並排的方塊群）每個 subgraph 內用 `direction LR`，整體由上往下疊；subgraph 之間不連線（否則 Mermaid 會忽略內部的 direction）。
+ *  - 版面（桌機 1280px 的正文欄約 880px 寬；自然寬度超過約 1260px 就要橫向捲動）：長鏈改成由上往下；含回授的迴圈圖（LMS 家族）先宣告
+ *    `X --> PR`（乘 w 的那一格），Mermaid 才會把「w 回授」畫成靠邊的一條線、乘 w 的方塊和黑盒子並排，圖比較矮也沒有交叉。
+ *  - 狀態圖不要用自己指向自己的轉移：Mermaid 會把它畫成一條又長又尖的怪迴圈；「停留在這個狀態時每步做什麼」寫進狀態的說明
+ *    （多行數學用同一個 `$$\begin{gathered}…\cr …\end{gathered}$$`，因為一個狀態的多段 `$$` 說明會被併成同一行）。
  *
  * 顏色（深淺主題都看得清楚）：藍 focus = 這張圖要看的那一格；紅 warn = 貴／非線性／會出問題的那一格；綠 ok = 最省或沒問題的那一格。
  */
@@ -25,8 +31,8 @@ const CLASS_OK = 'classDef ok fill:#1d7a46,stroke:#0f4d2b,color:#ffffff'
 
 /* ───────────── 章首 ───────────── */
 
-/** 本章路線圖：每一個箭頭丟掉一種資訊。 */
-export const CHART_ROADMAP = String.raw`flowchart LR
+/** 本章路線圖：每一個箭頭丟掉一種資訊（由上往下：橫排會寬到 1250px、字縮到 0.72 倍）。 */
+export const CHART_ROADMAP = String.raw`flowchart TB
   GD["$\S 1$ Gradient Descent<br/>$\Delta w = -\mu J'(w)$<br/>要知道真正的平均坡度"]
   GD -- "平均換成一筆資料" --> LMS["$\S 2$ SGD = LMS<br/>$\Delta w = \mu\,e\,x$<br/>要量誤差的大小"]
   LMS -- "$e$ 換成 $\operatorname{sign}(e)$" --> SE["$\S 3$ Sign-Error<br/>$\Delta w = \mu\operatorname{sign}(e)\,x$<br/>只要 1-bit comparator"]
@@ -51,8 +57,8 @@ export const CHART_GD_LOOP = String.raw`flowchart LR
 
 /** 「量坡度」打開來看：固定 x、無雜訊時 −J'(w) = e·x（預測 → 比較 → 乘上 x）。 */
 export const CHART_GD_MODEL = String.raw`flowchart TB
-  X["輸入 $x[n]$"] --> BB["黑盒子<br/>$\times a$（未知）"]
-  X --> PR["我們的預測<br/>$\times w[n]$"]
+  X["輸入 $x[n]$"] --> PR["我們的預測<br/>$\times w[n]$"]
+  X --> BB["黑盒子<br/>$\times a$（未知）"]
   BB -- "＋ $y[n] = a\,x[n]$" --> S1(("＋"))
   PR -- "$-$ $\hat y[n] = w[n]\,x[n]$" --> S1
   S1 -- "$e[n] = y[n] - \hat y[n]$" --> MX["$\times x[n]$"]
@@ -95,13 +101,13 @@ export const CHART_COST_GRADIENT = String.raw`flowchart TB
 
 /** Batch GD／Mini-batch／SGD：只差「累加幾筆、除以幾」。 */
 export const CHART_BATCH_VS_SGD = String.raw`flowchart TB
-  subgraph BG["Batch GD：$N$ 筆全部看完才更新一次"]
+  subgraph BG["Batch GD：全部看完才更新一次"]
     direction LR
     B1["$e[i]\,x[i]$<br/>$i = 1 \ldots N$"] --> B2["累加 $N$ 筆"] --> B3["$\div N$"] --> B4["$\times \mu$"] --> B5["$w$ 加上更新量<br/>每 $N$ 筆一次"]
   end
-  subgraph MB["Mini-batch：每 $B$ 筆更新一次（GMAC 的 block）"]
+  subgraph MB["Mini-batch：每個 block 更新一次"]
     direction LR
-    M1["$e[i]\,x[i]$"] --> M2["累加 $B$ 筆"] --> M3["$\div B$"] --> M4["$\times \mu$"] --> M5["$w$ 加上更新量<br/>每 $B$ 筆一次"]
+    M1["$e[i]\,x[i]$"] --> M2["累加 $B$ 筆<br/>（GMAC）"] --> M3["$\div B$"] --> M4["$\times \mu$"] --> M5["$w$ 加上更新量<br/>每 $B$ 筆一次"]
   end
   subgraph SG["SGD = LMS：每一筆都更新"]
     direction LR
@@ -139,10 +145,10 @@ export const CHART_BLOCK_TIMING = String.raw`sequenceDiagram
 
 /** F-02.5：完整的 LMS（= SGD）迴圈，含雜訊；§3、§4 的 Sign 類都是在這張圖上動手術。 */
 export const CHART_LMS_LOOP = String.raw`flowchart TB
-  X["$x[n]$"] --> BB["$\times a$"]
+  X["$x[n]$"] --> PR["$\times w[n]$"]
+  X --> BB["$\times a$"]
   BB -- "＋" --> SY(("＋"))
   V(["雜訊 $v[n]$"]) -- "＋" --> SY
-  X --> PR["$\times w[n]$"]
   SY -- "＋ $y[n]$" --> SUM(("＋"))
   PR -- "$-$ $\hat y[n]$" --> SUM
   SUM -- "$e[n]$" --> MX["$\times x[n]$<br/>相關器"]
@@ -159,10 +165,10 @@ export const CHART_LMS_LOOP = String.raw`flowchart TB
 
 /** F-02.6：Sign-Error 的迴圈；和 LMS 只差 sign(·) 這一格。 */
 export const CHART_SIGN_ERROR_LOOP = String.raw`flowchart TB
-  X["$x[n]$"] --> BB["$\times a$"]
+  X["$x[n]$"] --> PR["$\times w[n]$"]
+  X --> BB["$\times a$"]
   BB -- "＋" --> SY(("＋"))
   V(["雜訊 $v[n]$"]) -- "＋" --> SY
-  X --> PR["$\times w[n]$"]
   SY -- "＋ $y[n]$" --> SUM(("＋"))
   PR -- "$-$ $\hat y[n]$" --> SUM
   SUM -- "$e[n]$" --> SGN["$\operatorname{sign}(\cdot)$<br/>1-bit comparator"]
@@ -181,8 +187,7 @@ export const CHART_LIMIT_CYCLE = String.raw`stateDiagram-v2
   direction LR
   [*] --> FAR
   FAR: 等速接近
-  FAR: $$\text{離 }a\text{ 還有一步以上}$$
-  FAR --> FAR: $$\text{每步靠近 }h = \mu\,|x|$$
+  FAR: $$\begin{gathered}\text{離 }a\text{ 還有一步以上}\cr \text{每步靠近 }h = \mu\,|x|\end{gathered}$$
   FAR --> P1: $$\text{走完 }n_c\text{ 步}$$
   P1: $$\text{還沒越過 }a$$
   P1: $$w = a - \operatorname{sgn}(\delta_0)\,\rho$$
@@ -254,8 +259,7 @@ export const CHART_GEAR_SHIFT = String.raw`stateDiagram-v2
   COARSE: $$\text{步長 }\mu_0\text{，大步走得快}$$
   COARSE --> SHIFT: $$\text{過了 }n_0\text{ 步}$$
   SHIFT: 換檔
-  SHIFT: 步長右移一位（減半）
-  SHIFT --> SHIFT: $$\text{每 }n_0\text{ 步再右移一位}$$
+  SHIFT: $$\begin{gathered}\text{步長右移一位（減半）}\cr \text{每 }n_0\text{ 步再右移一位}\end{gathered}$$
   SHIFT --> TRACK: $$\text{降到下限 }\mu_{\min}$$
   TRACK: 追蹤
   TRACK: $$\text{步長停在 }\mu_{\min}\text{，不再變小}$$
@@ -268,10 +272,10 @@ export const CHART_GEAR_SHIFT = String.raw`stateDiagram-v2
 
 /** F-02.7：Sign-Sign 的迴圈；和 Sign-Error 只差 x 路徑上的 sign(·)。 */
 export const CHART_SIGN_SIGN_LOOP = String.raw`flowchart TB
-  X["$x[n]$"] --> BB["$\times a$"]
+  X["$x[n]$"] --> PR["$\times w[n]$"]
+  X --> BB["$\times a$"]
   BB -- "＋" --> SY(("＋"))
   V(["雜訊 $v[n]$"]) -- "＋" --> SY
-  X --> PR["$\times w[n]$"]
   SY -- "＋ $y[n]$" --> SUM(("＋"))
   PR -- "$-$ $\hat y[n]$" --> SUM
   SUM -- "$e[n]$" --> SGE["$\operatorname{sign}(\cdot)$<br/>1-bit comparator"]
@@ -330,10 +334,10 @@ export const CHART_PSI_AT_A = String.raw`flowchart TB
 
 /** 資訊量 vs 硬體成本：error 與 regressor 各用幾個位元。 */
 export const CHART_INFO_MAP = String.raw`flowchart TB
-  A["LMS（NLMS、Huber 也在這一格）<br/>error 多位元、regressor 多位元<br/>TDC 或 ADC，加上乘法器"]
-  A -- "丟掉 $e$ 的大小" --> C["Sign-Error<br/>error 1 bit、regressor 多位元<br/>comparator，加上條件取負"]
-  A -. "丟掉 $x$ 的大小" .-> B["Signed-regressor LMS<br/>error 多位元、regressor 1 bit<br/>本章不討論"]
-  C -- "再丟掉 $x$ 的大小" --> D["Sign-Sign<br/>error 1 bit、regressor 1 bit<br/>XOR，加上 up / down counter"]
+  A["LMS<br/>NLMS、Huber 也在這一格<br/>error 多位元、<br/>regressor 多位元<br/>TDC 或 ADC，加上乘法器"]
+  A -- "丟掉 $e$ 的大小" --> C["Sign-Error<br/>error 1 bit、<br/>regressor 多位元<br/>comparator，加上條件取負"]
+  A -. "丟掉 $x$ 的大小" .-> B["Signed-regressor LMS<br/>error 多位元、<br/>regressor 1 bit<br/>本章不討論"]
+  C -- "再丟掉 $x$ 的大小" --> D["Sign-Sign<br/>error 1 bit、<br/>regressor 1 bit<br/>XOR，加上<br/>up / down counter"]
   B -. "再丟掉 $e$ 的大小" .-> D
   ${CLASS_WARN}
   ${CLASS_FOCUS}
@@ -407,8 +411,8 @@ export const CHART_NLMS_DATAPATH = String.raw`flowchart TB
  * 極性沿用本章約定 e = y − ŷ（PD 實際看到的是 e 還是 −e，是 Ch06 的主題）。
  */
 export const CHART_PLL_LOOP = String.raw`flowchart TB
-  X["DSM 殘差 code<br/>$x[n]$"] --> TRUE["小數除頻造成的<br/>時間誤差 $y = a\,x[n]$"]
-  X --> GC["DTC 補償<br/>$\hat y = w_k\,x[n]$"]
+  X["DSM 殘差 code<br/>$x[n]$"] --> GC["DTC 補償<br/>$\hat y = w_k\,x[n]$"]
+  X --> TRUE["小數除頻造成的<br/>時間誤差 $y = a\,x[n]$"]
   TRUE -- "＋ $y[n]$" --> S(("＋"))
   GC -- "$-$ $\hat y[n]$" --> S
   V(["comparator 前雜訊<br/>$v[n]$"]) -- "＋" --> S
@@ -474,7 +478,7 @@ export const DIAGRAMS = [
     id: 'roadmap',
     kind: 'flowchart',
     chart: CHART_ROADMAP,
-    caption: '本章路線圖：由左到右，每一個箭頭丟掉一種資訊、省掉一種硬體。藍色的 Sign-Error 就是 PLL 校正實際使用的更新式。',
+    caption: '本章路線圖：由上到下，每一個箭頭丟掉一種資訊、省掉一種硬體。藍色的 Sign-Error 就是 PLL 校正實際使用的更新式。',
     added: true,
   },
   {

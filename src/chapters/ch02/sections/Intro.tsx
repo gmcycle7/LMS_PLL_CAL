@@ -39,7 +39,7 @@ export function Intro() {
       <Diagram id="roadmap">
         <p>
           {tm(
-            String.raw`先看最左邊：§1 的 gradient descent 需要知道真正的平均坡度。再由左往右看每個箭頭上的字——每一步都把一樣東西換成更便宜的：平均換成單筆資料、誤差 $e$ 換成它的正負號 $\operatorname{sign}(e)$、輸入 $x$ 也換成正負號。圖上每一格的 $\Delta w$ 是「這一步要把 $w$ 加上多少」（更新量），$\mu$ 是步長；它們就是後面每一個更新式 $w_{n+1}=w_n+\Delta w_n$ 裡的那一項，各節會逐一定義。`,
+            String.raw`先看最上面：§1 的 gradient descent 需要知道真正的平均坡度。再由上往下看每個箭頭上的字——每一步都把一樣東西換成更便宜的：平均換成單筆資料、誤差 $e$ 換成它的正負號 $\operatorname{sign}(e)$、輸入 $x$ 也換成正負號。圖上每一格的 $\Delta w$ 是「這一步要把 $w$ 加上多少」（更新量），$\mu$ 是步長；它們就是後面每一個更新式 $w_{n+1}=w_n+\Delta w_n$ 裡的那一項，各節會逐一定義。`,
           )}
         </p>
         <p>

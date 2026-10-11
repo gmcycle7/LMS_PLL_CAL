@@ -4,7 +4,7 @@ import { render, waitFor } from '@testing-library/react'
 import mermaid from 'mermaid'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
-import { SYSTEM_BLOCK_LABEL, stripMathDelimiters, systemMapChart } from '@/components'
+import { SYSTEM_BLOCK_LABEL, SYSTEM_MAP_BLOCKS, stripMathDelimiters, systemMapModel } from '@/components'
 import { sanitizeMermaidSource } from '@/components/mermaidSource'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import {
@@ -77,7 +77,7 @@ import { CH04_SYSTEM_FOCUS } from './sections/Intro'
  *  1. parser：每一張圖的語法；
  *  2. 實際渲染（jsdom + 估計字寬）：標籤文字沒有被 Markdown 吃掉（「Unsupported markdown」）、顏色有套上、圖沒有寬到看不清楚；
  *  3. 內容：加法點的正負號、δ = a − w 的極性、延遲與積分器的位置、圖上寫死的數字，逐一和本章公式與 gmac.ts / latency.ts / residue.ts 比對；
- *  4. 頁面：章首有 SystemMap、全部的圖依登錄表的順序出現、每一張都真的畫成了 SVG。
+ *  4. 頁面：章首有 SystemMap（手排的 SVG，不經過 mermaid）、全部的圖依登錄表的順序出現、每一張都真的畫成了 SVG。
  * （ch04.test.tsx 為了速度把 mermaid mock 掉了；這裡沒有。）
  *
  * 圖上的數學都寫成 `$...$`（LaTeX，由共用 Mermaid 以 KaTeX 排版；docs/teaching-style.md §3、§8），所以這裡的內容斷言比對的是「圖原始碼的標籤」（用 String.raw 的 R`...` 寫，反斜線只寫一次）；
@@ -106,7 +106,6 @@ const ORIGINAL = ['CONCEPT_FAST_LOOP', 'CONCEPT_LMS_LOOP', 'RTL_DATAFLOW', 'NOIS
 /** 單張圖的節點數上限（subgraph 標題不算；docs/teaching-style.md §8） */
 const MAX_NODES = 14
 const FLOWCHARTS = CH04_DIAGRAMS.filter((d) => d.type === 'flowchart-v2')
-const SYSTEM_MAP = systemMapChart(CH04_SYSTEM_FOCUS)
 
 interface FlowVertex {
   id: string
@@ -162,6 +161,10 @@ async function flow(chart: string): Promise<FlowInfo> {
 /** 一張 flowchart 的全部標籤（節點、連線、subgraph 標題） */
 function allLabels(f: FlowInfo): string[] {
   return [...f.nodes.map((v) => v.text ?? ''), ...f.edges.map((e) => e.text ?? ''), ...f.subGraphs.map((s) => s.title)].filter((t) => t.trim().length > 0)
+}
+/** subgraph 標題以外的標籤（節點、連線）：會在約 200 px 自動換行，所以每一行要自己控制寬度 */
+function wrappedLabels(f: FlowInfo): string[] {
+  return [...f.nodes.map((v) => v.text ?? ''), ...f.edges.map((e) => e.text ?? '')].filter((t) => t.trim().length > 0)
 }
 
 const oneLine = (label: string | undefined): string => labelLines(label ?? '').join(' ')
@@ -225,12 +228,16 @@ describe('Ch04 方塊圖：真正的 mermaid parser', () => {
     expect(r && typeof r === 'object' ? r.diagramType : r).toBe(d.type)
   })
 
-  it('章首的系統地圖（本章的 focus）可以解析，12 個方塊標成 focus', async () => {
-    const r = await mermaid.parse(SYSTEM_MAP, { suppressErrors: false })
-    expect(r && typeof r === 'object' ? r.diagramType : r).toBe('flowchart-v2')
+  it('章首的系統地圖（SystemMap 是手排的 SVG，不經過 mermaid）：本章的 12 個方塊標成主角，其餘 5 個（reference、loop filter、VCO、quantizer、雜訊源）不亮', () => {
     expect(new Set(CH04_SYSTEM_FOCUS).size).toBe(CH04_SYSTEM_FOCUS.length)
     expect(CH04_SYSTEM_FOCUS).toEqual(['fcw', 'dsm', 'div', 'res', 'gc', 'dtc', 'pd', 'cmp', 'align', 'gmac', 'scale', 'acc'])
-    expect(SYSTEM_MAP).toContain('class FCW,DSM,DIV,RES,GC,DTC,PD,CMP,ALIGN,GMAC,SCALE,ACC focus')
+    const model = systemMapModel(CH04_SYSTEM_FOCUS)
+    expect(model.blocks).toHaveLength(Object.keys(SYSTEM_BLOCK_LABEL).length) // 全站 17 個方塊都在
+    const focused = model.blocks.filter((b) => b.focused).map((b) => b.id)
+    expect([...focused].sort()).toEqual([...CH04_SYSTEM_FOCUS].sort())
+    expect(focused).toHaveLength(12)
+    expect(model.blocks.filter((b) => !b.focused).map((b) => b.id).sort()).toEqual(['lf', 'noise', 'qnt', 'ref', 'vco'])
+    expect(CH04_SYSTEM_FOCUS.every((id) => SYSTEM_MAP_BLOCKS.some((b) => b.id === id))).toBe(true)
   })
 })
 
@@ -246,14 +253,22 @@ describe('Ch04 方塊圖：寫法規則（逐張檢查）', () => {
     expect(d.chart).not.toMatch(/(?<!\\)\b(mu|delta|sigma|eps|sum of)\b/)
     // 數學一律在 $...$ 裡：標籤其餘的文字沒有 Unicode 拼的數學（希臘字母、上下標、≤、×、·、w_k、z⁻¹ …）
     expect(unicodeMathInSource(d.chart), `${name}：還有沒改成 $...$ 的 Unicode 數學`).toEqual([])
+    const wrapped = new Set(wrappedLabels(f))
+    // subgraph 標題：只寫文字（共用主題把 cluster 標題縮成節點文字的 0.86 倍，而 KaTeX 的每一層 span 又各縮一次，含公式的標題會小到看不見）、
+    // 只有一行（Mermaid 只替標題留一行的高度）、不要長到比框還寬
+    for (const g of f.subGraphs) {
+      expect(g.title, `${name} 的 subgraph「${g.id}」標題只寫文字`).not.toContain('$')
+      expect(g.title, `${name} 的 subgraph「${g.id}」標題只有一行`).not.toContain('<br/>')
+      expect(textWidth(displayText(g.title)), `${name} 的 subgraph「${g.id}」標題太長`).toBeLessThanOrEqual(300)
+    }
     for (const label of allLabels(f)) {
       // `$` 成對（跳脫的 \$ 不算）
       expect((label.match(/(?<!\\)\$/g) ?? []).length % 2, `「${label}」的 $ 沒有成對`).toBe(0)
       for (const line of labelLines(label)) {
         // Mermaid 11 把純文字標籤當 Markdown：行首的 +、-、*、#、>、「1.」會變成清單／標題／引用
         expect(line, `「${line}」不可以用 Markdown 區塊符號開頭`).not.toMatch(/^([+\-*#>]|\d+[.)]\s)/)
-        // 每一行不超過自動換行寬度，換行位置才會是我們自己選的（公式以排版後的大致寬度估計）
-        expect(textWidth(displayText(line)), `「${line}」太長，請用 <br/> 斷行`).toBeLessThanOrEqual(WRAP_WIDTH)
+        // 每一行不超過自動換行寬度，換行位置才會是我們自己選的（公式以排版後的大致寬度估計）；subgraph 標題不換行，下面另外檢查
+        if (wrapped.has(label)) expect(textWidth(displayText(line)), `「${line}」太長，請用 <br/> 斷行`).toBeLessThanOrEqual(WRAP_WIDTH)
       }
       // 純文字標籤裡成對的 * 或獨立的 _…_ 會被當成斜體（含公式的標籤整個交給 KaTeX，不經 Markdown）
       if (!hasMath(label)) {
@@ -273,15 +288,29 @@ describe('Ch04 方塊圖：寫法規則（逐張檢查）', () => {
     expect(f.nodes.filter((v) => v.text === '+' || v.text === '-')).toEqual([])
   })
 
-  it('時序圖（Mermaid 的 sequenceDiagram 不支援標籤裡的公式，改畫成由上往下的 flowchart）：六個參與者，箭頭依「取樣 → 累加 → 交出 S_k → commit → apply」編號 (1)–(5)', async () => {
+  it('時序圖（Mermaid 的 sequenceDiagram 不支援標籤裡的公式，改畫成 flowchart）：六個參與者，箭頭依「取樣 → 累加 → 交出 S_k → commit → apply」編號 (1)–(5)；左欄 (1)(2)、中間 (3)、右欄 (4)(5)', async () => {
     const f = await flow(LATENCY_TIMELINE)
-    expect(['S', 'C', 'G', 'U', 'R', 'D'].map((id) => oneLine(f.node(id).text))).toEqual([R`Sample clock $f_s$`, 'Comparator', R`GMAC（block $k$）`, 'Update logic', 'Gain register', 'DTC control'])
-    // 實線箭頭依時間順序（時間往下走）；虛線只接最後一格的註解
-    const arrows = f.edges.filter((e) => e.stroke !== 'dotted')
-    expect(arrows.map((e) => `${e.start}>${e.end}`)).toEqual(['S>C', 'C>G', 'G>U', 'U>R', 'R>D'])
-    arrows.forEach((e, i) => expect(e.text, `${e.start} → ${e.end}`).toMatch(new RegExp(`^\\(${i + 1}\\) `)))
-    // block k 涵蓋的 sample 是 subgraph 標題；前兩個箭頭（每個 sample 一次）在它裡面
-    expect(f.subGraphs.map((s) => [oneLine(s.title), [...s.nodes].sort()])).toEqual([[R`block $k$ ＝ sample $n = kN \ldots kN+N-1$`, ['C', 'G', 'S']]])
+    expect(['S', 'C', 'G', 'U', 'R', 'D'].map((id) => oneLine(f.node(id).text))).toEqual([
+      R`Sample clock $f_s$`,
+      'Comparator',
+      R`GMAC（block $k$） sample $n = kN \ldots kN+N-1$`,
+      'Update logic',
+      'Gain register',
+      'DTC control',
+    ])
+    // 實線箭頭依時間順序：(1)(2) 在左欄（每個 sample 一次）、(3) 是左右兩欄之間（block 結束時一次）、(4)(5) 在右欄；虛線只接最後一格的註解
+    // （Mermaid 的限制：subgraph 內的節點只要連到外面，subgraph 自己的 direction 就失效，所以 (3) 畫在 subgraph 與 subgraph 之間，不是 G → U）
+    // （(3) 是最後宣告的線，所以先依標籤上的編號排序再逐一比對）
+    const number = (e: FlowEdge) => Number(/^\((\d)\) /.exec(e.text ?? '')?.[1])
+    const arrows = f.edges.filter((e) => e.stroke !== 'dotted').sort((a, b) => number(a) - number(b))
+    expect(arrows.map((e) => `${e.start}>${e.end}`)).toEqual(['S>C', 'C>G', 'BLK>NEXT', 'U>R', 'R>D'])
+    arrows.forEach((e, i) => expect(number(e), `${e.start} → ${e.end}`).toBe(i + 1))
+    // 兩欄各是一個 subgraph（標題只寫文字，含公式的標題會被縮得看不見）；block k 涵蓋的 sample 寫在 GMAC 方塊上；兩欄都是由上往下
+    expect(f.subGraphs.map((s) => [s.id, s.title, [...s.nodes].sort(), s.dir])).toEqual([
+      ['BLK', '一個 block 之內：每個 sample 一次', ['C', 'G', 'S'], 'TB'],
+      ['NEXT', 'block 結束之後：每個 block 一次', ['D', 'NOTE', 'R', 'U'], 'TB'],
+    ])
+    expect(LATENCY_TIMELINE.split('\n')[0]).toBe('flowchart LR')
     const text = oneLine(f.edges.map((e) => e.text).join('<br/>'))
     for (const s of [
       R`code $x[n-D]$ 已對齊`,
@@ -300,7 +329,7 @@ describe('Ch04 方塊圖：寫法規則（逐張檢查）', () => {
 })
 
 describe('Ch04 方塊圖：實際渲染（jsdom + 估計字寬）', () => {
-  it.each([...CH04_DIAGRAMS.map((d) => [d.name, d.chart] as const), ['SYSTEM_MAP', SYSTEM_MAP] as const])(
+  it.each(CH04_DIAGRAMS.map((d) => [d.name, d.chart] as const))(
     '%s：畫得出來，標籤文字原封不動（沒有 Unsupported markdown、沒有殘留的 $），公式都由 KaTeX 排版',
     async (name, chart) => {
       const svg = await renderSvg(name, chart)
@@ -330,23 +359,22 @@ describe('Ch04 方塊圖：實際渲染（jsdom + 估計字寬）', () => {
         const expected = f.nodes.filter((v) => v.classes.includes(cls)).length
         expect(doc.querySelectorAll(`g.node.${cls}`).length, `${name} 的 ${cls}`).toBe(expected)
       }
-      if (name === 'SYSTEM_MAP') expect(doc.querySelectorAll('g.node.focus').length).toBe(CH04_SYSTEM_FOCUS.length)
     },
     30_000,
   )
 
-  it('圖不會寬到縮得看不清楚：自然寬度 ≤ 1300 px（正文欄約 1000 px）', async () => {
+  it('圖不會寬到要橫向捲動或縮得看不清楚：自然寬度 ≤ 1260 px、高度 ≤ 1500 px（桌機正文欄約 890 px，docs/teaching-style.md §8 的版面寬度規則）', async () => {
     const sizes: Record<string, number> = {}
     for (const d of CH04_DIAGRAMS) {
       const { width, height } = svgNaturalSize(await renderSvg(d.name, d.chart))
       sizes[d.name] = Math.round(width)
-      expect(width, `${d.name} 寬度`).toBeLessThanOrEqual(1300)
-      // （含公式的方塊比純文字方塊高一些，所以上限比純文字時代的 1400 放寬到 1500）
+      expect(width, `${d.name} 寬度`).toBeLessThanOrEqual(1260)
+      // （jsdom 的估計值比瀏覽器高一些：含公式的方塊估得比較高；真實瀏覽器量到的最高是 CONCEPT_LMS_LOOP 的 1276 px，見 scripts/diagram-audit.mjs，規範的目標是 1400 px）
       expect(height, `${d.name} 高度`).toBeLessThanOrEqual(1500)
       expect(width).toBeGreaterThan(200)
     }
     // 兩欄版面的圖（subgraph 內 direction TB、圖本身 LR）真的排成左右兩欄：寬度明顯大於單欄（公式的估計寬度比純文字窄一點，單欄約 300–400 px）
-    for (const name of ['RTL_DATAFLOW', 'GMAC_MEAN_MODEL', 'NEGATE_DATAPATH', 'FIXED_DATAPATH', 'CLEAR_BUG']) expect(sizes[name], name).toBeGreaterThan(600)
+    for (const name of ['RTL_DATAFLOW', 'GMAC_MEAN_MODEL', 'NEGATE_DATAPATH', 'FIXED_DATAPATH', 'CLEAR_BUG', 'LATENCY_TIMELINE']) expect(sizes[name], name).toBeGreaterThan(600)
   }, 60_000)
 
   it('反面測試：以 ASCII「+」當加法點或標籤開頭時，畫面上會變成 Unsupported markdown（所以本章一律用全形「＋」）', async () => {
@@ -415,7 +443,7 @@ describe('Ch04 方塊圖：內容與公式、模型一致', () => {
     expect(f.edge('ACC', 'GC').text).toBe(R`$w_k$`)
     expect(f.edge('DTC', 'PD')).toMatchObject({ stroke: 'dotted' })
     for (const [a, b] of [['RES', 'GC'], ['RES', 'ALIGN'], ['GC', 'DTC']]) expect(() => f.edge(a, b), `${a} → ${b}`).not.toThrow()
-    expect(f.subGraphs.map((s) => s.title)).toEqual([R`LMS 校正迴路（每 $N$ 拍）`])
+    expect(f.subGraphs.map((s) => s.title)).toEqual(['LMS 校正迴路（每個 block 更新一次）'])
     expect([...f.nodes.filter((v) => v.classes.includes('focus')).map((v) => v.id)].sort()).toEqual(['ACC', 'GMAC', 'SCALE'])
     // 兩張圖共用的方塊：快迴路圖的 PD、RES、GC、DTC 在慢迴路圖裡再出現一次，名稱相同
     for (const id of ['PD', 'RES', 'GC', 'DTC']) expect(() => fast.node(id) && f.node(id), id).not.toThrow()
@@ -466,13 +494,16 @@ describe('Ch04 方塊圖：內容與公式、模型一致', () => {
   it('RTL_DATAFLOW / NEGATE_DATAPATH：條件取負、位元寬度與兩種速率', async () => {
     const rtl = await flow(RTL_DATAFLOW)
     expect(rtl.subGraphs.map((s) => [s.title, s.dir])).toEqual([
-      [R`sample rate（索引 $n$）`, 'TB'],
-      [R`block rate（索引 $k$）`, 'TB'],
+      ['sample rate（每個 sample 一次）', 'TB'],
+      ['block rate（每個 block 一次）', 'TB'],
     ])
     expect(rtl.subGraphs[0].nodes.sort()).toEqual(['CLR', 'NEG', 'Q', 'SUM', 'X'])
     expect(rtl.subGraphs[1].nodes.sort()).toEqual(['ADD', 'APPLY', 'AVG', 'SAT', 'STEP', 'W'])
     expect(oneLine(rtl.edge('FAST', 'SLOW').text)).toBe(R`總和 $S_k$ 每 $N$ 個 sample 一次`)
     expect(rtl.edge('CLR', 'SUM').stroke).toBe('dotted')
+    // 看不見的連線 X ~~~ Q 只負責把兩個輸入上下錯開（左欄才不會太寬，圖不必縮小）；其餘的線都看得見，沒有多出任何箭頭
+    expect(rtl.edges.filter((e) => e.stroke === 'invisible').map((e) => `${e.start}~${e.end}`)).toEqual(['X~Q'])
+    expect(rtl.edges.filter((e) => e.stroke !== 'invisible')).toHaveLength(10)
     expect(oneLine(rtl.node('NEG').text)).toBe(R`條件取負 $b = 1$：$x$ 原樣 $b = 0$：$\overline{x} + 1$`)
     expect(oneLine(rtl.node('SUM').text)).toContain(R`$1 + \lceil \log_2 (N M_x + 1) \rceil$`)
     expect(oneLine(rtl.node('AVG').text)).toContain(R`$\log_2 N - F_G$ bits`)
@@ -487,7 +518,7 @@ describe('Ch04 方塊圖：內容與公式、模型一致', () => {
     expect(() => neg.edge('SE', 'XOR')).not.toThrow() // ……再取負
     expect(oneLine(neg.node('CTL').text)).toBe(R`$\mathrm{neg} = \mathrm{NOT}\,b$ $b = 1$ 時 $\mathrm{neg} = 0$ $b = 0$ 時 $\mathrm{neg} = 1$ （$\mathrm{neg} = 1$ 即 $q = -1$）`)
     expect(oneLine(neg.node('XOR').text)).toBe(R`逐位元 XOR $\mathrm{neg} = 0$：$x$ 原樣 $\mathrm{neg} = 1$：反相 $\overline{x} = -x - 1$`)
-    expect(neg.edge('CTL', 'ADD').text).toBe(R`＋ carry-in $c_\mathrm{in} = \mathrm{neg}$`)
+    expect(oneLine(neg.edge('CTL', 'ADD').text)).toBe(R`＋ carry-in $c_\mathrm{in} = \mathrm{neg}$`)
     expect(neg.edge('ADD', 'REG').text).toBe(R`$S + q\,x_\mathrm{int}$`)
     expect(oneLine(neg.node('SH').text)).toContain(R`$\ell = \log_2 N - F_G$`)
     // 圖上的做法（neg = NOT b；~x = −x − 1；carry-in = neg）對 6-bit 的每個 code 都等於 S + q·x，也等於 gmac.ts 的 xorCarryAccumulate
@@ -780,7 +811,7 @@ describe('Ch04 方塊圖：內容與公式、模型一致', () => {
 
   it('CLEAR_BUG：多串一個 1/(1 − z⁻¹) 就是 z² − (2 − g)z + 1 = 0（F-04.13），和 clearVsNoClear 的遞迴相同', async () => {
     const f = await flow(CLEAR_BUG)
-    expect(f.subGraphs.map((s) => s.title)).toEqual([R`正確：每個 block 清除 $S$`, '忘了清除：多一個積分器'])
+    expect(f.subGraphs.map((s) => s.title)).toEqual(['正確：每個 block 清除累加器', '忘了清除：多一個積分器'])
     for (const [a, b] of [['D1', 'K1'], ['K1', 'MU1'], ['MU1', 'I1'], ['I1', 'W1'], ['D2', 'K2'], ['K2', 'I0'], ['I0', 'MU2'], ['MU2', 'I2'], ['I2', 'W2'], ['GOOD', 'BAD']]) expect(() => f.edge(a, b)).not.toThrow()
     expect(oneLine(f.node('I0').text)).toBe(R`$1/(1 - z^{-1})$ 沒清除的 $S$ $S_0 + S_1 + \dots + S_k$`)
     expect(oneLine(f.node('W1').text)).toBe(R`$w_k$ $\delta_{k+1} = (1 - g)\,\delta_k$`)
@@ -851,9 +882,9 @@ describe('Ch04 頁面上的方塊圖（整頁渲染）', () => {
   // 斷言失敗時也要還原 mermaid.render 的 spy，免得後面的真實渲染測試拿到假的 SVG
   afterEach(() => vi.restoreAllMocks())
 
-  it('章首有 SystemMap（藍色 = 本章的訊號路徑），接著 22 張圖依登錄表的順序出現，每一張都交給 mermaid 畫、圖說說明要看什麼', async () => {
+  it('章首有 SystemMap（手排的 SVG，藍色 = 本章的訊號路徑，不經過 mermaid），接著 22 張圖依登錄表的順序出現，每一張都交給 mermaid 畫、圖說說明要看什麼', async () => {
     // 整頁約 10 萬個 DOM 節點，在 jsdom 裡對這麼大的文件做真正的 mermaid 排版要一分多鐘；
-    // 每一張圖的實際渲染已經在上面逐張測過，這裡只確認「頁面送給 mermaid 的原始碼就是登錄表裡的那 22 + 1 張」。
+    // 每一張圖的實際渲染已經在上面逐張測過，這裡只確認「頁面送給 mermaid 的原始碼就是登錄表裡的那 22 張」（系統地圖不在其中）。
     const renderSpy = vi.spyOn(mermaid, 'render').mockImplementation(async (id: string) => ({ svg: `<svg id="${id}"></svg>`, diagramType: 'flowchart-v2' }))
     const { container } = render(
       <SettingsProvider>
@@ -862,14 +893,17 @@ describe('Ch04 頁面上的方塊圖（整頁渲染）', () => {
         </MemoryRouter>
       </SettingsProvider>,
     )
-    const total = CH04_DIAGRAMS.length + 1
+    const total = CH04_DIAGRAMS.length + 1 // 22 張編號的圖 + 章首的系統地圖
     expect(container.querySelectorAll('figure.c-mermaid').length).toBe(total)
     await waitFor(() => expect(container.querySelectorAll('figure.c-mermaid .c-mermaid-svg > svg').length).toBe(total), { timeout: 120_000 })
     expect(container.textContent).not.toContain('Mermaid 圖解析失敗')
 
-    // 1) 系統地圖：在「這一課要回答的問題」裡、§1 之前；focus 就是 CH04_SYSTEM_FOCUS
+    // 1) 系統地圖：在「這一課要回答的問題」裡、§1 之前；藍色（is-focus）的方塊就是 CH04_SYSTEM_FOCUS
     const figures = Array.from(container.querySelectorAll('figure.c-mermaid'))
-    const map = figures[0]
+    const maps = container.querySelectorAll('figure.c-sysmap')
+    expect(maps).toHaveLength(1)
+    const map = maps[0]
+    expect(figures[0]).toBe(map) // 頁面上的第一張圖
     const question = container.querySelector('#ch04-question')!
     const system = container.querySelector('#ch04-system')!
     expect(question.contains(map)).toBe(true)
@@ -878,6 +912,17 @@ describe('Ch04 頁面上的方塊圖（整頁渲染）', () => {
     // （aria-label 是純文字：方塊名稱裡的 `$...$` 已拿掉分隔符號）
     for (const b of CH04_SYSTEM_FOCUS) expect(map.getAttribute('aria-label'), b).toContain(stripMathDelimiters(SYSTEM_BLOCK_LABEL[b]))
     expect(map.querySelector('figcaption')!.textContent).toMatch(/藍色是這一課從頭走到尾的訊號路徑/)
+    // 手排的 SVG：17 個方塊都在，亮藍色（is-focus、data-focus）的剛好是本章的 12 個，其餘 5 個不亮
+    const blocks = Array.from(map.querySelectorAll('g.c-sysmap-block'))
+    expect(blocks).toHaveLength(Object.keys(SYSTEM_BLOCK_LABEL).length)
+    const lit = Array.from(map.querySelectorAll('g.c-sysmap-block.is-focus')).map((g) => g.getAttribute('data-block'))
+    expect([...lit].sort()).toEqual([...CH04_SYSTEM_FOCUS].sort())
+    expect(map.querySelectorAll('g.c-sysmap-block[data-focus="true"]')).toHaveLength(CH04_SYSTEM_FOCUS.length)
+    expect(blocks.filter((g) => !g.classList.contains('is-focus')).map((g) => g.getAttribute('data-block')).sort()).toEqual(['lf', 'noise', 'qnt', 'ref', 'vco'])
+    // 方塊與連線上的字是 KaTeX／HTML：公式由 KaTeX 排版、沒有殘留的 `$`
+    const mapSvg = map.querySelector('svg.c-sysmap-svg')!
+    expect(mapSvg.querySelectorAll('.katex').length).toBeGreaterThanOrEqual(8)
+    expect(mapSvg.textContent).not.toContain('$')
     // 系統地圖前面有一句話說明藍色方塊是什麼、這一課新增什麼
     const lead = map.previousElementSibling!
     expect(lead.tagName).toBe('P')
@@ -895,9 +940,9 @@ describe('Ch04 頁面上的方塊圖（整頁渲染）', () => {
       expect(el.querySelector('figure.c-mermaid')!.getAttribute('aria-label')!.length).toBeGreaterThan(8)
       expect(el.querySelector('.c-mermaid-svg svg')).not.toBeNull()
     })
-    // 送進 mermaid.render 的原始碼就是登錄表裡的字串（先系統地圖，再依序 22 張）：SystemMap 的 focus 也因此就是 CH04_SYSTEM_FOCUS
+    // 送進 mermaid.render 的原始碼就是登錄表裡的字串（依序 22 張；系統地圖是手排的 SVG，不經過 mermaid）
     // （共用 Mermaid 先過 sanitizeMermaidSource：含公式的標籤合併成 KaTeX 的 `$$...$$`）
-    expect(renderSpy.mock.calls.map((c) => c[1])).toEqual([SYSTEM_MAP, ...CH04_DIAGRAMS.map((d) => d.chart)].map(sanitizeMermaidSource))
+    expect(renderSpy.mock.calls.map((c) => c[1])).toEqual(CH04_DIAGRAMS.map((d) => d.chart).map(sanitizeMermaidSource))
 
     // 3) 圖放在推導之前：每張圖後面最近的推導摺疊框或公式都在它之後、且同一個 section 內有「先看」的讀圖說明
     for (const el of figs) {
@@ -920,7 +965,7 @@ describe('Ch04 頁面上的方塊圖（整頁渲染）', () => {
 })
 
 /**
- * 共用的真實渲染檢查（docs/teaching-style.md §8）：每一張圖（含章首的系統地圖）都用 `@/components/mermaidTestUtils`
+ * 共用的真實渲染檢查（docs/teaching-style.md §8）：登錄表的每一張圖（章首的系統地圖是手排的 SVG，不經過 mermaid）都用 `@/components/mermaidTestUtils`
  * 以與網站相同的前處理真的畫一次——畫出來的文字不能含「Unsupported markdown」、不能殘留 `$`，KaTeX 以外沒有 Unicode 拼的數學，
  * 每個含公式的標籤都排成一個 KaTeX 區塊（mathCount），節點數不超過 14。
  * 放在檔案最後：renderMermaidForTest 會重設 mermaid 設定、installMermaidSvgShim 會換掉量測函式，
@@ -936,14 +981,15 @@ describe('Ch04 方塊圖：共用的真實渲染檢查（renderMermaidForTest）
   })
   afterAll(() => restore())
 
-  const ALL: (readonly [string, string])[] = [['SYSTEM_MAP', SYSTEM_MAP], ...CH04_DIAGRAMS.map((d) => [d.name, d.chart] as const)]
+  // 章首的系統地圖是全站共用、手排的 SVG（不經過 mermaid，版面與節點數由 src/components/SystemMap.test.tsx 負責），不在這份清單裡
+  const ALL: (readonly [string, string])[] = CH04_DIAGRAMS.map((d) => [d.name, d.chart] as const)
 
-  it('登錄表加上系統地圖共 23 張，全部都會被檢查', () => {
-    expect(ALL).toHaveLength(23)
-    expect(new Set(ALL.map(([name]) => name)).size).toBe(23)
+  it('登錄表的 22 張全部都會被檢查', () => {
+    expect(ALL).toHaveLength(22)
+    expect(new Set(ALL.map(([name]) => name)).size).toBe(22)
   })
 
-  it.each(ALL)('%s：畫得出來，沒有 Unsupported markdown、沒有殘留的 $、KaTeX 以外沒有 Unicode 數學，節點數不超過 14（共用系統地圖是全站的 17 個方塊）', async (name, chart) => {
+  it.each(ALL)('%s：畫得出來，沒有 Unsupported markdown、沒有殘留的 $、KaTeX 以外沒有 Unicode 數學，節點數不超過 14', async (name, chart) => {
     // KaTeX 的警告（文字模式沒有的字元、只能在文字模式用的指令……）不算錯誤，但代表那個字元量不到寬度、字型也可能不對：不容許
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     let warnings: string[]
@@ -966,7 +1012,7 @@ describe('Ch04 方塊圖：共用的真實渲染檢查（renderMermaidForTest）
     // 每個含 `$...$` 的標籤剛好排成一個 KaTeX 區塊
     expect(mathCount, `${name} 的 KaTeX 區塊數`).toBe(mathLabelCount(chart))
     expect(mathCount, `${name} 至少有一個公式`).toBeGreaterThan(0)
-    expect(nodeCount, `${name} 的節點數`).toBeLessThanOrEqual(name === 'SYSTEM_MAP' ? 17 : MAX_NODES)
+    expect(nodeCount, `${name} 的節點數`).toBeLessThanOrEqual(MAX_NODES)
   }, 30_000)
 
   it('TeX 寫錯會讓圖畫不出來（拿來確認上面的檢查不是空轉）', async () => {

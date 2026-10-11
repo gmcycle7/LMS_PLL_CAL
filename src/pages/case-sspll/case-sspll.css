@@ -49,6 +49,16 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* 數字表：表頭可以折行（欄寬由數字決定）、左右留白收一點，11 欄的表在桌面正文欄（約 910px）放得下，不必橫向捲動 */
+.case-sspll .cs-num th:not(:first-child) {
+  white-space: normal;
+}
+
+.case-sspll .cs-num td,
+.case-sspll .cs-num th {
+  padding-inline: 8px;
+}
+
 /* 正＝restoring（藍）、負＝反號（紅）、近 0＝dead zone（灰）；同時用粗體／斜體，不只靠顏色 */
 .case-sspll .cs-pos {
   color: var(--ok, #1d6fa5);
@@ -91,7 +101,9 @@
   gap: 0.75rem;
 }
 
-@media (min-width: 1100px) {
+/* 兩張圖並排：看的是「實驗框」的寬度，不是視窗寬度——桌面側欄開著時實驗框只有約 900px，
+   結果欄只剩約 530px，兩張圖各 250px 太窄（標題折行、圖例擠成一堆），所以要實驗框 ≥ 1040px 才並排 */
+@container exp (min-width: 1040px) {
   .case-sspll .cs-plots.cs-plots-2 {
     grid-template-columns: 1fr 1fr;
   }

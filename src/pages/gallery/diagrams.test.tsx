@@ -69,6 +69,9 @@ const plain = (s: string) =>
     .replace(/&amp;/g, '&')
     .replace(/\s+/g, '')
 
+/** 一個公式為了讓圖窄一點被 `<br/>` 拆成兩行（`$A$<br/>$= B$`）時，接回同一個 `$A = B$` 再比對（公式本身沒有變）。 */
+const joined = (s: string) => s.replace(/\$<br\s*\/?>\$/g, ' ')
+
 /** 與共用 Mermaid 前處理（mermaidSource.ts）相同的行內公式規則：`$...$` 或 `$$...$$`，`\$` 是字面的美元符號。 */
 const MATH = /\$\$((?:[^$\\]|\\.)+?)\$\$|(?<!\\)\$((?:[^$\\]|\\.)+?)(?<!\\)\$/g
 
@@ -183,10 +186,10 @@ describe('Gallery 的 Mermaid 圖（真正的 mermaid parser）', () => {
     // 標籤原始碼就是 LaTeX：正負號放在進入加法點的那條線的數學裡
     expect(edgeText(g, 'BOX', 'S1')).toBe(String.raw`$+\,y_n = a\,x$`) // 量測為正
     expect(edgeText(g, 'PRED', 'S1')).toBe(String.raw`$-\,w_n\,x$`) // 預測為負
-    expect(edgeText(g, 'S1', 'GAIN')).toBe(String.raw`$e_n = y_n - w_n\,x$`)
+    expect(joined(edgeText(g, 'S1', 'GAIN'))).toBe(String.raw`$e_n = y_n - w_n\,x$`)
     expect(edgeText(g, 'GAIN', 'S2')).toBe(String.raw`$+\,\mu\,e_n\,x$`)
     expect(edgeText(g, 'Z', 'S2')).toBe(String.raw`$+\,w_n$`)
-    expect(edgeText(g, 'S2', 'Z')).toBe(String.raw`$w_{n+1} = w_n + \mu\,e_n\,x$`)
+    expect(joined(edgeText(g, 'S2', 'Z'))).toBe(String.raw`$w_{n+1} = w_n + \mu\,e_n\,x$`)
     expect(nodeText(g, 'Z')).toContain('$z^{-1}$')
     expect(nodeText(g, 'GAIN')).toContain(String.raw`$\times\,\mu\,x$`)
     // 回授：z⁻¹ 的輸出（w_n）回到預測方塊
@@ -251,7 +254,7 @@ describe('Gallery 的 Mermaid 圖（真正的 mermaid parser）', () => {
     expect(edgeText(g, 'KB', 'S2')).toMatch(/^\$\+/)
     expect(edgeText(g, 'B', 'S2')).toBe('＋')
     expect(edgeText(g, 'ETA', 'S2')).toBe('＋')
-    expect(edgeText(g, 'S2', 'MU')).toBe(String.raw`$G_k = K\,\delta_k + B + \eta_k$`)
+    expect(joined(edgeText(g, 'S2', 'MU'))).toBe(String.raw`$G_k = K\,\delta_k + B + \eta_k$`)
     expect(nodeText(g, 'ACC')).toContain(String.raw`$\frac{1}{z-1}$`)
     expect(nodeText(g, 'ACC')).toContain(String.raw`$w_{k+1} = w_k + \mu\,G_k$`)
     // 三個問題各一種顏色
@@ -350,6 +353,14 @@ describe('Gallery 頁面上的方塊圖與符號表（teaching-style §5、§8�
       expect(cap.length, f.getAttribute('data-chart')?.slice(0, 40)).toBeGreaterThan(15)
       expect(BAD.test(cap), cap).toBe(false)
     }
+    // 圖說用連線標籤稱呼 preset 的兩條路，不寫左右（哪一條排在左邊由排版決定）；判定流程圖的導讀不指圖上的角落
+    const flowCap = el('PRESET_FLOW').querySelector('figcaption')?.textContent ?? ''
+    expect(PRESET_FLOW).toContain('"載入並執行"')
+    expect(PRESET_FLOW).toContain('"即時預覽"')
+    expect(flowCap).toContain('載入並執行')
+    expect(flowCap).toContain('即時預覽')
+    expect(flowCap).not.toMatch(/左邊|右邊/)
+    expect(el('CHART_MATCH_DECISION').closest('.gal-diagram')?.querySelector('.gal-diagram-walk')?.textContent ?? '').not.toContain('左上角')
     // ③ 新的三張：導讀「先看…再看…」含 KaTeX，並對照圖上的方塊
     for (const name of ['CHART_LMS_LOOP', 'CHART_MATCH_DECISION', 'CHART_UNIFIED_LOOP']) {
       const walk = el(name).closest('.gal-diagram')?.querySelector('.gal-diagram-walk')

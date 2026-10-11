@@ -373,6 +373,15 @@ tr.fr-focus > td:first-child {
 .fr-chain-table td:nth-child(2) {
   white-space: nowrap;
 }
+/* 結果欄只有 ~440 px：第一欄（量的名稱）不要被 overflow-wrap: anywhere 擠到一個字一行（Compa/rator） */
+.fr-chain-table td:first-child {
+  min-width: 6.5em;
+  overflow-wrap: break-word;
+}
+.fr-chain-table td:nth-child(4) {
+  min-width: 8em;
+  overflow-wrap: break-word;
+}
 
 /* ───────────── 公式登錄 ───────────── */
 .fr-filters {

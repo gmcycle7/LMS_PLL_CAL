@@ -11,6 +11,9 @@
  *  - 數學裡的小於／大於一律寫 `\lt`、`\gt`（Mermaid 會把標籤中的「<」「>」跳脫成 `&lt;`，KaTeX 讀不懂）；
  *    ✓／✗ 寫成 `$\checkmark$`／`$\times$`（KaTeX 的文字模式沒有這兩個字元）；標籤內的「−」也不要放在 `\text` 裡（改成數學的 `$-$`）。
  *  - 含公式的標籤不會自動換行（Mermaid 只對純文字標籤換行），所以長的標籤用 `<br/>` 手動分行。
+ *  - 子圖（subgraph）的標題只寫文字、不放 `$...$`：共用的 Mermaid 主題會把含公式的子圖標題縮到看不清楚（約 9px），
+ *    所以標題裡要出現的公式改放在框內的節點或連線上。標題也只寫一行、不超過約 15 個字：Mermaid 只替標題留一行的高度，
+ *    而且約 200px 就換行，太長會蓋到框裡的節點，或被進出這一框的連線穿過。
  *  - 單張不超過 14 個節點。
  */
 
@@ -57,8 +60,8 @@ ${CLASSDEFS}
 /** 圖 3-2｜LMS 迴圈（固定 x）：預測 → 比較 → 修正 → 延遲一步 */
 export const CHART_LMS_LOOP = T`${INIT}
 flowchart TB
-  X["輸入 $x$<br/>（本節固定，例 $x = 2$）"] --> SYS["未知系統<br/>$\times\, a$"]
-  X --> MOD["你的模型<br/>$\times\, w[n]$"]
+  X["輸入 $x$<br/>（本節固定，例 $x = 2$）"] --> MOD["你的模型<br/>$\times\, w[n]$"]
+  X --> SYS["未知系統<br/>$\times\, a$"]
   SYS -- "$+\,y = a \cdot x$" --> CMP(("＋"))
   MOD -- "$-\,w[n] \cdot x$" --> CMP
   CMP -- "$e[n] = y - w[n] \cdot x$" --> GAIN["$\times\, \mu \cdot x$"]
@@ -68,20 +71,23 @@ flowchart TB
 ${CLASSDEFS}
   class GAIN,ACC focus`
 
-/** 圖 3-3｜誤差遞迴 δ[n+1] = (1 − μx²)·δ[n]：一階回授迴圈（上：展開；下：合併成增益 p） */
+/**
+ * 圖 3-3｜誤差遞迴 δ[n+1] = (1 − μx²)·δ[n]：一階回授迴圈（上：展開；下：合併成增益 p）。
+ * Mermaid 會把互不相連的 subgraph 依宣告的相反順序排，所以先宣告下面那一框（MERGE），再宣告上面那一框（EXPAND）。
+ */
 export const CHART_ERROR_RECURSION = T`${INIT}
 flowchart LR
-  subgraph EXPAND["展開來看：每一步修掉 $\mu x^2 \cdot \delta[n]$"]
+  subgraph MERGE["合併之後：繞一圈就乘一次增益"]
+    direction LR
+    Z2["$z^{-1}$<br/>延遲一步"] -- "$\delta[n]$" --> P2["$\times\, p$<br/>$p = 1 - \mu x^2$"]
+    P2 -- "$\delta[n+1] = p \cdot \delta[n]$" --> Z2
+  end
+  subgraph EXPAND["展開來看：每一步修掉誤差的一部分"]
     direction LR
     Z1["$z^{-1}$<br/>延遲一步"] -- "$+\,\delta[n]$" --> S1(("＋"))
     Z1 -- "$\delta[n]$" --> G1["$\times\, \mu x^2$"]
     G1 -- "$-\,\mu x^2 \cdot \delta[n]$" --> S1
     S1 -- "$\delta[n+1]$" --> Z1
-  end
-  subgraph MERGE["合併之後：繞一圈就乘一次 $p$"]
-    direction LR
-    Z2["$z^{-1}$<br/>延遲一步"] -- "$\delta[n]$" --> P2["$\times\, p$<br/>$p = 1 - \mu x^2$"]
-    P2 -- "$\delta[n+1] = p \cdot \delta[n]$" --> Z2
   end
 ${CLASSDEFS}
   class G1,P2 focus`
@@ -129,19 +135,22 @@ flowchart LR
 ${CLASSDEFS}
   class F,M focus`
 
-/** 圖 3-7｜取期望值：隨機增益的迴圈 → 固定增益 (1 − μP_x) 的迴圈 */
+/**
+ * 圖 3-7｜取期望值：隨機增益的迴圈 → 固定增益 (1 − μP_x) 的迴圈（上：一條路徑；下：取期望值之後）。
+ * 互不相連的 subgraph 依宣告的相反順序排，所以先宣告 MEAN（下），再宣告 PATH（上）。
+ */
 export const CHART_MEAN_PATH = T`${INIT}
 flowchart LR
+  subgraph MEAN["兩邊取期望值：增益變成固定的"]
+    direction LR
+    Z2["$z^{-1}$"] -- "$E[\delta[n]]$" --> G2["$\times\, (1 - \mu P_x)$<br/>$P_x = E[x^2]$<br/>（$x[n]$ 與 $\delta[n]$ 獨立，可以拆開）"]
+    G2 -- "$E[\delta[n+1]]$" --> Z2
+  end
   subgraph PATH["一條路徑：增益是隨機的"]
     direction LR
     Z1["$z^{-1}$"] -- "$\delta[n]$" --> M1(("$\times$"))
     F1["$f[n] = 1 - \mu \cdot x[n]^2$<br/>每步不同"] --> M1
     M1 -- "$\delta[n+1]$" --> Z1
-  end
-  subgraph MEAN["兩邊取 $E[\,\cdot\,]$<br/>（$x[n]$ 與 $\delta[n]$ 獨立，可以拆開）：<br/>增益變成固定的"]
-    direction LR
-    Z2["$z^{-1}$"] -- "$E[\delta[n]]$" --> G2["$\times\, (1 - \mu P_x)$<br/>$P_x = E[x^2]$"]
-    G2 -- "$E[\delta[n+1]]$" --> Z2
   end
 ${CLASSDEFS}
   class F1 mid
@@ -165,20 +174,23 @@ ${CLASSDEFS}
   class YES good
   class NO warn`
 
-/** 圖 3-9｜三種分布（功率都是 P_x = 1，mean 界都是 2）：κ 越大，MS 界越嚴 */
+/**
+ * 圖 3-9｜三種分布（功率都是 P_x = 1，mean 界都是 2）：κ 越大，MS 界越嚴（由上到下：±1 → Uniform → Gaussian）。
+ * 互不相連的 subgraph 依宣告的相反順序排，所以由下往上宣告：Gaussian、Uniform、±1。
+ */
 export const CHART_KURTOSIS_COMPARE = T`${INIT}
 flowchart LR
-  subgraph PM["$\pm1$ code"]
+  subgraph GA["Gaussian 分布"]
     direction LR
-    P1["$|x|$ 恆為 1<br/>$x^2$ 完全不起伏"] --> P2["$\kappa = 1$"] --> P3["MS 界 $= 2 \div 1 = 2$<br/>和 mean 界相同"]
+    G1["$\mathcal N(0, 1)$<br/>$|x|$ 沒有上限<br/>偶爾出現很大的 $x^2$"] --> G2["$\kappa = 3$"] --> G3["MS 界 $= 2 \div 3 = 2/3$"]
   end
-  subgraph UN["Uniform $U(-\sqrt{3}, \sqrt{3})$"]
+  subgraph UN["Uniform 分布"]
     direction LR
-    U1["$|x| \le \sqrt{3}$<br/>$x^2$ 有上限"] --> U2["$\kappa = 9/5$"] --> U3["MS 界 $= 2 \div 1.8 = 10/9$"]
+    U1["$U(-\sqrt{3}, \sqrt{3})$<br/>$|x| \le \sqrt{3}$<br/>$x^2$ 有上限"] --> U2["$\kappa = 9/5$"] --> U3["MS 界 $= 2 \div 1.8 = 10/9$"]
   end
-  subgraph GA["Gaussian $\mathcal N(0, 1)$"]
+  subgraph PM["正負 1 的 code"]
     direction LR
-    G1["$|x|$ 沒有上限<br/>偶爾出現很大的 $x^2$"] --> G2["$\kappa = 3$"] --> G3["MS 界 $= 2 \div 3 = 2/3$"]
+    P1["$x = \pm 1$<br/>$|x|$ 恆為 1<br/>$x^2$ 完全不起伏"] --> P2["$\kappa = 1$"] --> P3["MS 界 $= 2 \div 1 = 2$<br/>和 mean 界相同"]
   end
 ${CLASSDEFS}
   class P3 good
@@ -187,9 +199,9 @@ ${CLASSDEFS}
 
 /** 圖 3-10｜量測雜訊 v[n] 從哪裡進來：加在誤差 e[n] 上，再被 × μ·x[n] 帶進 δ */
 export const CHART_NOISE_INJECTION = T`${INIT}
-flowchart LR
-  Z["$z^{-1}$<br/>延遲一步"] -- "$\delta[n]$" --> M1(("$\times$"))
-  X["$x[n]$"] --> M1
+flowchart TB
+  X["$x[n]$"] --> M1(("$\times$"))
+  Z["$z^{-1}$<br/>延遲一步"] -- "$\delta[n]$" --> M1
   M1 -- "$+\,\delta[n] \cdot x[n]$" --> A(("＋"))
   V(["雜訊 $v[n]$<br/>標準差 $\sigma_v$"]) -- "$+\,v[n]$" --> A
   A -- "$e[n] = \delta[n] \cdot x[n] + v[n]$" --> G["$\times\, \mu \cdot x[n]$"]
@@ -297,16 +309,19 @@ flowchart TB
 ${CLASSDEFS}
   class Z,PHI focus`
 
-/** 圖 3-17｜比較：天真 Monte Carlo（跑 n 步再平均 δ²）vs 單步 Monte Carlo（只估 g） */
+/**
+ * 圖 3-17｜比較：天真 Monte Carlo（跑 n 步再平均 δ²）vs 單步 Monte Carlo（只估 g）（左：天真；右：單步）。
+ * 互不相連的 subgraph 依宣告的相反順序排，所以先宣告 ONE（右），再宣告 NAIVE（左）。
+ */
 export const CHART_NAIVE_VS_ONESTEP = T`${INIT}
 flowchart TB
-  subgraph NAIVE["天真做法：走完 $n$ 步再平均"]
-    direction TB
-    N1["$M$ 條路徑各走 $n$ 步"] --> N2["每條取 $\delta[n]^2$"] --> N3["樣本平均<br/>想估 $E[\delta[n]^2]$"] --> N4["真實 $\mathrm{SE} = \sqrt{(h^n - g^{2n}) \cdot \delta[0]^4 \div M}$<br/>$h$ 遠大於 $g^2$ 時比答案還大，<br/>樣本 SE 卻看不到"]
-  end
   subgraph ONE["本站做法：只抽一步，再用封閉式"]
     direction TB
     O1["抽 $M$ 個 $x$"] --> O2["每個算 $f^2 = (1 - \mu x^2)^2$"] --> O3["樣本平均 $\approx g$"] --> O4["$\mathrm{SE} = \sqrt{(h - g^2) \div M}$<br/>有限且小，$\pm 4$ SE 可信"] --> O5["$E[\delta[n]^2] = g^n \cdot \delta[0]^2$"]
+  end
+  subgraph NAIVE["天真做法：走完全程再平均"]
+    direction TB
+    N1["$M$ 條路徑各走 $n$ 步"] --> N2["每條取 $\delta[n]^2$"] --> N3["樣本平均<br/>想估 $E[\delta[n]^2]$"] --> N4["真實 $\mathrm{SE} = \sqrt{(h^n - g^{2n}) \cdot \delta[0]^4 \div M}$<br/>$h$ 遠大於 $g^2$ 時比答案還大，<br/>樣本 SE 卻看不到"]
   end
 ${CLASSDEFS}
   class N4 warn
@@ -362,10 +377,10 @@ ${CLASSDEFS}
  * （N = 1 時就是第 1–7 節的 w[n+1] = w[n] + μ·e[n]·x[n]）。sample 索引 i、block 索引 k。
  */
 export const CHART_PLL_MAPPING = T`${INIT}
-flowchart LR
+flowchart TB
   X["DSM／DTC code<br/>$x[i]$（sample rate）"]
-  X --> A["要被抵消的時間誤差<br/>$\times\, a$（未知）"]
   X --> W["DTC 實際補掉的量<br/>$\times\, w[k]$（gain correction）"]
+  X --> A["要被抵消的時間誤差<br/>$\times\, a$（未知）"]
   A -- "$+\,a \cdot x[i]$" --> PD(("＋"))
   W -- "$-\,w[k] \cdot x[i]$" --> PD
   V(["PD／reference 雜訊<br/>$v[i]$"]) -- "$+\,v[i]$" --> PD
@@ -384,10 +399,10 @@ ${CLASSDEFS}
 /** 圖 3-22｜GMAC 先累加 N 筆再更新：sample rate（i）與 block rate（k）的分工；sum mode 少了 ÷N */
 export const CHART_BLOCK_GMAC = T`${INIT}
 flowchart TB
-  subgraph FAST["sample rate：block 內的每一筆，$i = 1 \ldots N$"]
-    PROD["每一筆 $x[i]$ 做一次相乘<br/>$e[i] \cdot x[i] = \delta[k] \cdot x[i]^2$"] --> ACC["GMAC 累加 $N$ 筆<br/>$\sum$"]
+  subgraph FAST["sample rate：block 內的每一筆"]
+    PROD["每一筆 $x[i]$（$i = 1 \ldots N$）做一次相乘<br/>$e[i] \cdot x[i] = \delta[k] \cdot x[i]^2$"] --> ACC["GMAC 累加 $N$ 筆<br/>$\sum$"]
   end
-  subgraph SLOW["block rate：每 $N$ 筆更新一次，索引 $k$"]
+  subgraph SLOW["block rate：每 N 筆一次"]
     SCALE["$\div N$（average mode）、$\times\, \mu$<br/>$S[k] = (1/N) \cdot \sum x[i]^2$"] -- "$-\,\mu \cdot S[k] \cdot \delta[k]$" --> SUM(("＋"))
     Z["$z^{-1}$<br/>延遲一個 block"] -- "$+\,\delta[k]$" --> SUM
     SUM -- "$\delta[k+1] = (1 - \mu \cdot S[k]) \cdot \delta[k]$" --> Z

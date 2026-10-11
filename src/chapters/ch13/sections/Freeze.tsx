@@ -64,7 +64,7 @@ export function FreezeSection() {
       </p>
       <Mermaid
         chart={CHART_FREEZE}
-        caption="方法 A 的方塊圖。先看藍色的 latch：只在凍結的瞬間取樣一次，之後 $w_H$ 怎麼變都不看（虛線）；再看右邊：輸出是常數，所以誤差也是常數，全部功率都在 DC。"
+        caption="方法 A 的方塊圖。先看藍色的 latch：只在凍結的瞬間取樣一次，之後 $w_H$ 怎麼變都不看（虛線）；再看最下面：輸出是常數，所以誤差也是常數，全部功率都在 DC。"
       />
       <p className="small ch13-figwalk">
         圖上的 latch 就是程式碼裡的 <code>s.wFreeze</code>；圖上相減點的輸出就是下面公式的 <Tex>{String.raw`e[n]=y-w^*`}</Tex>（也就是 <Tex>{String.raw`\delta w`}</Tex>）。注意整張圖<strong>沒有任何會動的東西</strong>：沒有計數器、沒有亂數、沒有回授——這是它和後面四種方法最大的不同。

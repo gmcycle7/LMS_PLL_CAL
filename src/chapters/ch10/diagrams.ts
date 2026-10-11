@@ -12,6 +12,9 @@
  *    畫面上變成「Unsupported markdown: list」（共用的 <Mermaid> 會先用 sanitizeMermaidSource 轉換，但本章的原始碼直接寫全形，不依賴它）。減號用 U+2212「−」。
  *  - 極性：δ = a − w（全站約定）；T18 與 Jacobian 的圖改用 ε = w − w*（= −δ），因為 J 是對 w 的斜率，圖說會註明。
  *  - 取樣率：帶 [n] 的訊號每個 comparator sample 一次；帶 _k 的訊號每個 GMAC block 一次。
+ *  - 版面寬度（docs/teaching-style.md §8）：桌機（1280px）上圖要完整放進正文欄、不必橫向捲動（node scripts/diagram-audit.mjs --routes /ch/10 的「超出」要是 0）。
+ *    長的橫向流程一律改成 `flowchart TB`（扇出／扇入的節點會並排）；兩個框要接起來時用「框對框」的連線（`FAST --> SLOW`），箭頭會停在框的邊緣，不會穿過框的標題；
+ *    只有迴路（更新迴路、雜訊路徑、Lyapunov）保留 `flowchart LR`，因為橫向的回授才是課本裡熟悉的樣子，寬度都在 1260px 以內。
  *  - 圖內的數字一律由 numbers.ts（模型函式）算出，不手寫；`d()` 輸出的是 TeX 數字，一定要放在 `$...$` 裡。
  */
 import type { SystemBlock } from '@/components'
@@ -46,7 +49,7 @@ const fdRow = (ratio: number) => NUM.fd.rows.find((row) => row.r === ratio) ?? N
  * P 個 GMAC 共用一個 comparator 的整體架構（P = 3）：comparator 之前每個 sample n 一次，GMAC 之後每個 block k 一次。
  * 藍色 = 三個 GMAC 共用的那一個 comparator。
  */
-export const CHART_MIMO_SYSTEM = String.raw`flowchart LR
+export const CHART_MIMO_SYSTEM = String.raw`flowchart TB
   subgraph PLL["PLL + DTC 的誤差路徑（每個 sample $n$）"]
     E["$e[n] = u_1[n]\,\delta_1 + u_2[n]\,\delta_2 + u_3[n]\,\delta_3 + v[n]$"]
   end
@@ -83,7 +86,7 @@ export const CHART_COUPLING_PATHS = String.raw`flowchart LR
   class G1 focus`
 
 /** 從 comparator 到 GMAC（sample 速率 n → block 速率 k）；兩個 GMAC 共用同一個 q[n] */
-export const CHART_SAMPLE_TO_BLOCK = String.raw`flowchart LR
+export const CHART_SAMPLE_TO_BLOCK = String.raw`flowchart TB
   subgraph FAST["sample 速率：每個 $n$ 做一次（block $k$ 之內 $\mathbf w$ 不變）"]
     direction LR
     U1["$u_1[n] \times \delta_1$"] -- "＋" --> SE(("＋"))
@@ -106,7 +109,7 @@ export const CHART_SAMPLE_TO_BLOCK = String.raw`flowchart LR
  * 1-bit comparator 的平均輸出是一條 S 曲線（erf）；訊號遠小於雜訊時可以換成一個增益 K_q（F-10.1 推導的第 5–7 步）。
  * 例子取 §10.1 的 δ = (0, 10) fs、這個 sample 的 u₂ = +1：s = 10 fs。
  */
-export const CHART_COMPARATOR_GAIN = String.raw`flowchart LR
+export const CHART_COMPARATOR_GAIN = String.raw`flowchart TB
   S["這個 sample 的訊號<br/>$s = u_1\,\delta_1 + u_2\,\delta_2$<br/>例：$\delta_1 = ${d(c.delta[0])}$、$\delta_2 = ${d(c.delta[1])}\ \mathrm{fs}$、$u_2 = +1$，$s = ${d(c.delta[1])}\ \mathrm{fs}$"] -- "＋" --> ADD(("＋"))
   V(["雜訊 $v$<br/>Gaussian，RMS $\sigma_v = ${d(NUM.sigmaV)}\ \mathrm{fs}$"]) -- "＋" --> ADD
   ADD -- "$e = s + v$" --> CMP["1-bit comparator<br/>$q = \operatorname{sign}(e)$，只有 $\pm1$"]
@@ -120,18 +123,18 @@ export const CHART_COMPARATOR_GAIN = String.raw`flowchart LR
  * GMAC 雜訊 η_k 的來源（§10.2 的 Cov(η) ≈ R / N）：每個 sample 的乘積 q·x 的共變異 ≈ R（q² = 1），平均 N 個獨立 sample 後 ÷ N。
  * 畫的是匹配模型（x = u，R_x = R）；例子的數字與正文同一個來源（N = 4096、§10.1 的 G₁）。
  */
-export const CHART_GMAC_NOISE = String.raw`flowchart LR
+export const CHART_GMAC_NOISE = String.raw`flowchart TB
   subgraph FAST["sample 速率：每個 $n$ 一個乘積"]
-    direction LR
+    direction TB
     Q["$q[n] = \pm1$<br/>近平衡時幾乎只由雜訊 $v[n]$ 決定"] --> P["乘積 $q[n]\,\mathbf x[n]$（$P$ 個數）<br/>平均 $\approx K_q\mathbf R\boldsymbol\delta_k$：很小<br/>共變異 $\approx \mathbf R$（因為 $q^2 = 1$）"]
     X["GMAC 的 code $\mathbf x[n]$<br/>匹配時 $\mathbf x = \mathbf u$，$E[\mathbf x\mathbf x^T] = \mathbf R$"] --> P
   end
   subgraph SLOW["block 速率：每 $N$ 個 sample 一個 $\mathbf G_k$"]
-    direction LR
+    direction TB
     AVG["平均 $N$ 個獨立的乘積<br/>平均不變，共變異 $\div N$"] --> G["$\mathbf G_k = K_q\mathbf R\boldsymbol\delta_k + \boldsymbol\eta_k$<br/>$\boldsymbol\eta_k$ 的平均是 $0$，$\operatorname{Cov}(\boldsymbol\eta_k) \approx \mathbf R / N$"]
     G --> EX["例：$N = ${z.N}$、$R_{ii} = 1$<br/>每個 GMAC 的雜訊 RMS $= 1 \div ${Math.sqrt(z.N)} = ${d(etaRms, 3)}$<br/>§10.1 的訊號 $G_1 = ${d(c.G1lin, 3)}$，只有它的 $${d(c.G1lin / etaRms, 2)}$ 倍"]
   end
-  P --> AVG${STYLE}
+  FAST --> SLOW${STYLE}
   class G focus
   class EX warn`
 
@@ -212,10 +215,10 @@ export const CHART_K95_FLOW = String.raw`flowchart LR
 /** 完整反矩陣在一個 eigen-mode 上的迴路；訊號繞一圈增益 γ，雜訊只經過 M（紅色） */
 export const CHART_NOISE_PATH = String.raw`flowchart LR
   ACC(("＋")) -- "$\xi_i$（下一個 block）" --> Z["$z^{-1}$"]
-  Z -- "$\xi_i$（第 $k$ 個 block）" --> S["$\times K_q\lambda_i$<br/>GMAC 沿這個方向看到的訊號<br/>慢模式 $\lambda_2 = ${d(r.eig[1])}$：很小"]
+  Z -- "$\xi_i$（第 $k$ 個 block）" --> S["$\times K_q\lambda_i$<br/>GMAC 沿這個方向<br/>看到的訊號<br/>慢模式 $\lambda_2 = ${d(r.eig[1])}$：很小"]
   S -- "＋" --> SUM(("＋"))
   N(["GMAC 雜訊 $\zeta_i$<br/>$\operatorname{Var} = \lambda_i / N$"]) -- "＋" --> SUM
-  SUM --> M["$\times \gamma / (K_q\lambda_i)$<br/>反矩陣沿這個方向的增益<br/>$\gamma = 0.5$ 時：慢模式 $${d(r.eigMn[0])} / K_q$、快模式 $${d(r.eigMn[1])} / K_q$"]
+  SUM --> M["$\times \gamma / (K_q\lambda_i)$<br/>反矩陣沿這個方向的增益<br/>$\gamma = 0.5$ 時：<br/>慢模式 $${d(r.eigMn[0])} / K_q$、<br/>快模式 $${d(r.eigMn[1])} / K_q$"]
   M -- "−" --> ACC
   Z -- "＋" --> ACC${STYLE}
   class N,M warn`
@@ -289,15 +292,16 @@ export const CHART_ACAL_CHECK = String.raw`flowchart TB
 
 /**
  * regularized pseudoinverse 的 SVD 分解（F-10.10）；U 與 Uᵀ 相消後每個模式只剩一個純量增益。
- * 九個方塊排成一列太寬，所以拆成兩框：① 的輸出 E[G_k]（綠）就是 ② 的輸入 G_k（綠，多了量測雜訊）。PLANT 後宣告，畫面上排在前面。
+ * 十一個方塊排成一列太寬（> 1300px），所以拆成兩個框、框內由上往下，兩框並排：① 的輸出 E[G_k]（綠）就是 ② 的輸入 G_k（綠，多了量測雜訊）。
+ * 兩框之間沒有連線；PLANT 後宣告，畫面上排在左邊（頂層 TB 時 Mermaid 依宣告的相反順序由左到右排沒有連線的框，由 diagrams.test.tsx 鎖住）。
  */
-export const CHART_PINV_SVD = String.raw`flowchart LR
+export const CHART_PINV_SVD = String.raw`flowchart TB
   subgraph UPD["② 更新矩陣：$\mathbf M = -\gamma\,(\mathbf J^T\mathbf J + \lambda_{\mathrm{reg}}\mathbf I)^{-1}\mathbf J^T$"]
-    direction LR
+    direction TB
     GK["GMAC 量到的 $\mathbf G_k$"] --> UT["$\times \mathbf U^T$"] --> INV["$\times \sigma_i / (\sigma_i^2 + \lambda_{\mathrm{reg}})$<br/>加了 $\lambda_{\mathrm{reg}}$ 的除法"] --> V["$\times \mathbf V$"] --> GM["$\times (-\gamma)$"] --> OUT["$\boldsymbol\epsilon_{k+1} = \boldsymbol\epsilon_k + \mathbf M\,\mathbf G_k$<br/>模式 $i$ 乘上 $1 - \gamma\sigma_i^2 / (\sigma_i^2 + \lambda_{\mathrm{reg}})$"]
   end
   subgraph PLANT["① 晶片：$\mathbf J = \mathbf U\boldsymbol\Sigma\mathbf V^T$"]
-    direction LR
+    direction TB
     E["$\boldsymbol\epsilon_k = \mathbf w_k - \mathbf w^*$"] --> VT["$\times \mathbf V^T$<br/>拆成模式"] --> SG["$\times \sigma_i$<br/>模式 $i$ 的斜率"] --> U["$\times \mathbf U$"] --> EG["$E[\mathbf G_k] = \mathbf J\,\boldsymbol\epsilon_k$"]
   end${STYLE}
   class INV focus
@@ -375,7 +379,7 @@ export const CHART_SEQ_TRAP = String.raw`flowchart TB
  * Gauss–Seidel 的一輪（P = 2、γ = 1、每階段一個 block）：階段 1 把 G₁ 歸零 ⇒ δ₁′ = −ρ·δ₂；階段 2 把 G₂ 歸零 ⇒ δ₂′ = −ρ·δ₁′ = ρ²·δ₂。
  * G₁ ∝ δ₁ + ρ·δ₂、G₂ ∝ ρ·δ₁ + δ₂ 就是 F-10.1（R = [[1, ρ], [ρ, 1]]）。
  */
-export const CHART_GS_SWEEP = String.raw`flowchart LR
+export const CHART_GS_SWEEP = String.raw`flowchart TB
   S0["一輪開始<br/>誤差 $\delta_1$、$\delta_2$"] --> P1["階段 1：只動 $w_1$（$\gamma = 1$）<br/>一步把 $G_1 \propto \delta_1 + \rho\,\delta_2$ 推到 $0$"]
   P1 -- "$\delta_1' = -\rho\,\delta_2$" --> P2["階段 2：只動 $w_2$（$\gamma = 1$）<br/>一步把 $G_2 \propto \rho\,\delta_1' + \delta_2$ 推到 $0$"]
   P2 -- "$\delta_2' = -\rho\,\delta_1' = \rho^2\delta_2$" --> E["一輪結束<br/>$\delta_2$ 只乘了 $\rho^2$<br/>$\rho = 0.99$：$\rho^2 = ${d(s.gsSweep)}$"]
@@ -396,8 +400,8 @@ export const CHART_CHOOSE_M = String.raw`flowchart TB
   class N3,N4 ok`
 
 /** 程式碼的資料流（六個規則函式 → M_n → blockUpdate） */
-export const CHART_CODE_FLOW = String.raw`flowchart LR
-  JH["$\hat{\mathbf J}_n = \hat{\mathbf J} / K_q$<br/>匹配模型時 $= -\mathbf R$"] --> RULE["mScalar / mDiagonal / mNlms<br/>mFull / mRegularized / mSequential"]
+export const CHART_CODE_FLOW = String.raw`flowchart TB
+  JH["$\hat{\mathbf J}_n = \hat{\mathbf J} / K_q$<br/>匹配模型時 $= -\mathbf R$"] --> RULE["mScalar / mDiagonal<br/>mNlms / mFull<br/>mRegularized / mSequential"]
   D["$\boldsymbol\delta_k$"] --> GM["gmacLinear 或 gmacSample<br/>$\mathbf G_k = K_q\mathbf C\boldsymbol\delta_k + \boldsymbol\eta_k$"]
   RULE -- "$\mathbf M_n = K_q\mathbf M$（無因次）" --> BU["blockUpdate<br/>$\boldsymbol\delta_{k+1} = \boldsymbol\delta_k - (\mathbf M_n / K_q)\,\mathbf G_k$"]
   GM -- "$\mathbf G_k$" --> BU
@@ -418,7 +422,7 @@ export const CHART_HANDCALC_FLOW = String.raw`flowchart TB
   class M focus`
 
 /** 硬體對應（藍色 = 本章新增的 P×P 混合矩陣；虛線 = 韌體／測試機的慢速路徑） */
-export const CHART_HW_MAP = String.raw`flowchart LR
+export const CHART_HW_MAP = String.raw`flowchart TB
   CMP["BBPD / 1-bit comparator<br/>$q[n] = \pm1$"] --> G1["GMAC accumulator 1<br/>GOS"]
   CMP --> G2["GMAC accumulator 2<br/>PHOS"]
   CMP --> G3["GMAC accumulator 3<br/>DTC gain"]
@@ -463,7 +467,7 @@ export const CH10_DIAGRAMS: readonly Ch10Diagram[] = [
     kind: '系統圖',
     section: 'ch10-system',
     chart: CHART_MIMO_SYSTEM,
-    caption: String.raw`多參數 Block Sign-LMS 的整體架構（$P=3$）。要看藍色方塊：三個 GMAC 各用自己的 code $x_i[n]$ 去相關「同一個」comparator 輸出 $q[n]$；右邊的更新矩陣 $\mathbf M$ 決定各 GMAC 的輸出如何分配到各校正係數。`,
+    caption: String.raw`多參數 Block Sign-LMS 的整體架構（$P=3$）。要看藍色方塊：三個 GMAC 各用自己的 code $x_i[n]$ 去相關「同一個」comparator 輸出 $q[n]$；下面的更新矩陣 $\mathbf M$ 決定各 GMAC 的輸出如何分配到各校正係數。`,
     alt: '多參數 Block Sign-LMS 架構：三個 GMAC 共用一個 1-bit comparator，輸出經更新矩陣 M 回到校正係數，再以 δ = a − w 回到誤差',
   },
   {
@@ -485,7 +489,7 @@ export const CH10_DIAGRAMS: readonly Ch10Diagram[] = [
     formula: 'F-10.1',
     before: 'formula-F-10.1',
     chart: CHART_SAMPLE_TO_BLOCK,
-    caption: String.raw`從 comparator 到 GMAC：左框每個 sample $n$ 做一次，右框每 $N$ 個 sample 才輸出一個 $G_{i,k}$。要看的是藍色方塊：兩個 GMAC 吃的是同一個 $q[n]$。`,
+    caption: String.raw`從 comparator 到 GMAC（由上往下）：上框每個 sample $n$ 做一次，下框每 $N$ 個 sample 才輸出一個 $G_{i,k}$。要看的是藍色方塊：兩個 GMAC 吃的是同一個 $q[n]$。`,
     alt: '誤差在加法點相加成 e[n]，經 1-bit comparator 得到 q[n]，分別乘上 x₁、x₂ 後累加 N 次得到 G₁、G₂',
   },
   {
@@ -505,7 +509,7 @@ export const CH10_DIAGRAMS: readonly Ch10Diagram[] = [
     kind: '路徑圖',
     section: 'ch10-derive-G',
     chart: CHART_GMAC_NOISE,
-    caption: String.raw`GMAC 雜訊 $\boldsymbol\eta_k$ 從哪裡來：左框每個 sample 的乘積 $q[n]\,\mathbf x[n]$ 平均很小、抖動卻有 $\mathbf R$ 那麼大；右框平均 $N$ 個之後，抖動的共變異剩下 $\mathbf R/N$（藍）。紅色那一格是 §10.1 的數字。`,
+    caption: String.raw`GMAC 雜訊 $\boldsymbol\eta_k$ 從哪裡來（由上往下）：上框每個 sample 的乘積 $q[n]\,\mathbf x[n]$ 平均很小、抖動卻有 $\mathbf R$ 那麼大；下框平均 $N$ 個之後，抖動的共變異剩下 $\mathbf R/N$（藍）。紅色那一格是 §10.1 的數字。`,
     alt: '每個 sample 的乘積 q 乘 code 的共變異約為 R，GMAC 平均 N 個 sample 後得到 G_k 等於平均加上雜訊 η_k，雜訊共變異約為 R 除以 N',
   },
   {

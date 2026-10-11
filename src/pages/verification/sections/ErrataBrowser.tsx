@@ -240,9 +240,9 @@ export function ErrataBrowser({ focusEid }: { focusEid: string | null }) {
       >
         <p>
           <strong>先看</strong>
-          左邊兩個菱形：稽核 agent 的 Python 重算結果和規格書<strong>不一致</strong>，還要再過一關——獨立的懷疑者嘗試反駁；反駁成功的意見放進「被反駁」清單（本節最後），<strong>反駁失敗</strong>
+          上半的兩個菱形：稽核 agent 的 Python 重算結果和規格書<strong>不一致</strong>，還要再過一關——獨立的懷疑者嘗試反駁；反駁成功的意見放進「被反駁」清單（本節最後），<strong>反駁失敗</strong>
           才成為藍色的勘誤 Exx。<strong>再看</strong>
-          右邊：勘誤寫進 <code>errata.json</code> 之後分兩條路——網站各章一律採用修正後的版本，並放上連到本頁的「勘誤 Exx」標記；另外，有數字可以重算的勘誤，由{' '}
+          下半：勘誤寫進 <code>errata.json</code> 之後分兩條路——網站各章一律採用修正後的版本，並放上連到本頁的「勘誤 Exx」標記；另外，有數字可以重算的勘誤，由{' '}
           <code>computeErrataEvidence()</code> 在你的瀏覽器裡重算文件引用的數字。兩條路在本頁的勘誤卡片會合。
         </p>
       </Diagram>

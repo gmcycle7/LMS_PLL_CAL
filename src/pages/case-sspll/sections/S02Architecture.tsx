@@ -29,7 +29,7 @@ export function S02Architecture() {
       </p>
       <Diagram id="phase-split" />
       <p>
-        先看左邊的迴圈：<Tex>{r`z^{-1}`}</Tex> 表示延遲一拍，所以加法點的輸出是「上一拍的 <Tex>{r`\varphi`}</Tex> 加上 <Tex>{r`\alpha`}</Tex>」，取小數（<Tex>{r`\mathrm{frac}(x)=x-\lfloor x\rfloor`}</Tex>）之後就是這一拍的 <Tex>{r`\varphi[n]`}</Tex>。再看右邊：乘以 8 之後，floor
+        先看上半部的迴圈：<Tex>{r`z^{-1}`}</Tex> 表示延遲一拍，所以加法點的輸出是「上一拍的 <Tex>{r`\varphi`}</Tex> 加上 <Tex>{r`\alpha`}</Tex>」，取小數（<Tex>{r`\mathrm{frac}(x)=x-\lfloor x\rfloor`}</Tex>）之後就是這一拍的 <Tex>{r`\varphi[n]`}</Tex>。再看下半部：乘以 8 之後，floor
         方塊的輸出就是公式裡的 <Tex>{'p[n]'}</Tex>；第二個加法點把 <Tex>{r`8\varphi[n]`}</Tex> 減掉 <Tex>{'p[n]'}</Tex>，輸出就是公式裡的 <Tex>{r`\rho[n]`}</Tex>。
       </p>
       <TexBlock>{r`\varphi[n]=\mathrm{frac}(n\alpha),\qquad p[n]=\lfloor 8\,\varphi[n]\rfloor\in\{0,\dots,7\},\qquad \rho[n]=8\,\varphi[n]-p[n]\in[0,1)`}</TexBlock>
@@ -51,7 +51,7 @@ export function S02Architecture() {
       </ul>
       <Diagram id="injection" />
       <p>
-        先看左邊兩個乘法點：每個誤差都是「還沒校掉的量」乘上它的 regressor。本章把「真值 − 估計」記為 <Tex>{r`\delta`}</Tex>，也就是 <Tex>{r`\delta_g=a-w_g`}</Tex>、<Tex>{r`\delta_k=\varepsilon_k-w_k`}</Tex>；權重校準好的時候 <Tex>{r`\delta=0`}</Tex>，誤差就消失。再看右邊：兩個誤差在比較點相加成{' '}
+        先看最上面的兩個乘法點（左邊是 GOS、右邊是 PHOS）：每個誤差都是「還沒校掉的量」乘上它的 regressor。本章把「真值 − 估計」記為 <Tex>{r`\delta`}</Tex>，也就是 <Tex>{r`\delta_g=a-w_g`}</Tex>、<Tex>{r`\delta_k=\varepsilon_k-w_k`}</Tex>；權重校準好的時候 <Tex>{r`\delta=0`}</Tex>，誤差就消失。再看下面：兩個誤差在比較點相加成{' '}
         <Tex>{'u[n]'}</Tex>，但 PD 看到的不是 <Tex>{'u[n]'}</Tex>，而是它通過藍色方塊之後的 <Tex>{r`e_{PD}[n]`}</Tex>。圖上加法點的輸出就是下面公式裡的 <Tex>{'u[n]'}</Tex>：
       </p>
       <TexBlock>{r`u[n]=\underbrace{(a-w_g)\,\Delta\;\rho[n]}_{e_{GOS}[n]}+\underbrace{\sum_{k=0}^{7}(\varepsilon_k-w_k)\,\mathbf 1\{p[n]=k\}}_{e_{PHOS}[n]}=\sum_j\delta_j\,x_j[n]`}</TexBlock>

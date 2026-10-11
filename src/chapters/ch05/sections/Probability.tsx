@@ -161,7 +161,7 @@ export function ProbabilitySection() {
           xaxis: { title: { text: String.raw`$z = v/\sigma_v$` } },
           yaxis: { title: { text: String.raw`$\varphi(z)$` } },
           shapes: [vline(-T.rDemo, tokens.series[1])],
-          annotations: [{ x: -T.rDemo, y: 0.42, text: String.raw`$z = -r = (\theta - s)/\sigma_v$`, showarrow: false, xanchor: 'right' }],
+          annotations: [{ x: -T.rDemo, y: 0.42, text: String.raw`$z = -r = (\theta - s)/\sigma_v$`, showarrow: false, xanchor: 'right', xshift: -4 }],
         }}
         height={260}
         csvName="ch05-pdf-shade"

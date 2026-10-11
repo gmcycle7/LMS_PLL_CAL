@@ -257,7 +257,34 @@ export function LrOptimizerExperiment() {
   )
 
   // Plot 的 layout 也要 memo（每個新物件都會觸發一次 Plotly.react）
-  const decompLayout = useMemo(() => ({ shapes, xaxis: { title: { text: String.raw`$\mu$（fs，log）` } }, yaxis: { title: { text: String.raw`$\mathrm{fs}^2$（log）` } } }), [shapes])
+  // y 軸範圍（log10）：bias² 在 p = 0（μ = 1/K）附近會掉到 10^-100 以下，交給 Plotly 自動範圍會把真正有意義的曲線壓成一條線。
+  // 下界取 variance／總和的最小值再低半個 decade（有 MC 點就一併納入），上界取 g ≤ 1.5 這一段的最大值再高半個 decade；發散區的曲線衝出上緣即可。
+  const decompYRange = useMemo<[number, number] | undefined>(() => {
+    const lows: number[] = []
+    const highs: number[] = []
+    curves.mus.forEach((mu, i) => {
+      const t = curves.total[i]
+      const v = curves.variance[i]
+      if (t !== null && t > 0 && (m.K <= 0 || mu * m.K <= 1.5)) highs.push(t)
+      for (const y of [t, v]) if (y !== null && y > 0) lows.push(y)
+    })
+    if (mcRes) {
+      for (const y of Array.from(mcRes.lo)) if (y > 0) lows.push(y)
+      for (const y of Array.from(mcRes.hi)) if (y > 0) highs.push(y)
+    }
+    if (!lows.length || !highs.length) return undefined
+    const lo = Math.log10(Math.min(...lows)) - 0.5
+    const hi = Math.log10(Math.max(...highs)) + 0.5
+    return hi - lo >= 1 ? [lo, hi] : [lo, lo + 1]
+  }, [curves, mcRes, m.K])
+  const decompLayout = useMemo(
+    () => ({
+      shapes,
+      xaxis: { title: { text: String.raw`$\mu$（fs，log）` } },
+      yaxis: { title: { text: String.raw`$\mathrm{fs}^2$（log）` }, ...(decompYRange ? { range: decompYRange } : {}) },
+    }),
+    [shapes, decompYRange],
+  )
   const objLayout = useMemo(
     () => ({ shapes, xaxis: { title: { text: String.raw`$\mu$（fs，log）` } }, yaxis: { title: { text: String.raw`$J$（${UNIT_TEXT[dp.objective]}）` } } }),
     [shapes, dp.objective],

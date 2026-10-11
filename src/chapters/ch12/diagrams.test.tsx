@@ -2,7 +2,7 @@ import { cleanup, render } from '@testing-library/react'
 import mermaid from 'mermaid'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
-import { defaultValues, systemMapChart } from '@/components'
+import { defaultValues, systemMapModel } from '@/components'
 import { mermaidMathDelimiters, sanitizeMermaidSource } from '@/components/mermaidSource'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { calLoop, spurBeta, spurDbcSmallAngle } from '@/simulation/models/calNoise'
@@ -63,7 +63,7 @@ interface Edge {
 interface Flow {
   vertices: Vertex[]
   edges: Edge[]
-  subgraphs: { id: string; title: string }[]
+  subgraphs: { id: string; title: string; nodes: string[] }[]
 }
 
 /** 用真正的 mermaid parser 取出 flowchart 的節點、連線與 subgraph（sequenceDiagram 回傳 null）。 */
@@ -72,10 +72,10 @@ async function flow(chart: string): Promise<Flow | null> {
   const db = diagram.db as unknown as {
     getVertices?: () => Map<string, Vertex>
     getEdges?: () => Edge[]
-    getSubGraphs?: () => { id: string; title: string }[]
+    getSubGraphs?: () => { id: string; title: string; nodes: string[] }[]
   }
   if (typeof db.getVertices !== 'function' || typeof db.getEdges !== 'function') return null
-  const subgraphs = (db.getSubGraphs?.() ?? []).map((s) => ({ id: s.id, title: s.title }))
+  const subgraphs = (db.getSubGraphs?.() ?? []).map((s) => ({ id: s.id, title: s.title, nodes: [...s.nodes] }))
   const groupIds = new Set(subgraphs.map((s) => s.id))
   // 「框 → 框」的連線會讓 parser 替 subgraph 的 id 也建一個同名節點；它不是真的節點，畫圖時也不會出現
   return { vertices: [...db.getVertices().values()].filter((v) => !groupIds.has(v.id)), edges: db.getEdges(), subgraphs }
@@ -148,6 +148,18 @@ function hasLoop(g: Flow): boolean {
   return hasDelayFreeLoop({ ...g, vertices: g.vertices.map((v) => ({ ...v, text: '' })) })
 }
 
+/** 有向圖上最長的簡單路徑有幾個節點（圖很小，直接 DFS）：橫向（LR）的圖就是排成幾欄。 */
+function longestPath(g: Flow): number {
+  const next = new Map<string, string[]>()
+  for (const e of g.edges) next.set(e.start, [...(next.get(e.start) ?? []), e.end])
+  const walk = (id: string, seen: Set<string>): number => {
+    let best = 1
+    for (const n of next.get(id) ?? []) if (!seen.has(n)) best = Math.max(best, 1 + walk(n, new Set([...seen, n])))
+    return best
+  }
+  return Math.max(...g.vertices.map((v) => walk(v.id, new Set([v.id]))))
+}
+
 /** 原始碼裡所有雙引號標籤（節點、連線、subgraph 標題）。 */
 const labelsOf = (chart: string): string[] => chart.match(/"[^"\n]*"/g)?.map((l) => l.slice(1, -1)) ?? []
 /** 含 `$...$` 公式的標籤數：每一個都要由 KaTeX 排版出一個 `.katex`。 */
@@ -206,7 +218,6 @@ describe('第 12 章方塊圖：清單', () => {
 describe('第 12 章方塊圖：真的畫一次（mermaid.render）', () => {
   const drawn = new Map<string, { text: string; plainText: string; nodeCount: number; mathCount: number }>()
   const flows = new Map<string, Flow | null>()
-  let mapDrawn: { text: string; plainText: string; mathCount: number } = { text: '', plainText: '', mathCount: 0 }
   beforeAll(async () => {
     installMermaidSvgShim()
     for (const { name, chart } of CH12_CHARTS) {
@@ -218,7 +229,6 @@ describe('第 12 章方塊圖：真的畫一次（mermaid.render）', () => {
       }
       flows.set(name, await flow(chart))
     }
-    mapDrawn = await renderMermaidForTest(systemMapChart(CH12_SYSTEM_FOCUS))
   }, T_SLOW)
 
   it('每一張都畫得出來：沒有「Unsupported markdown」、沒有殘留的 `$`、KaTeX 以外的文字沒有 Unicode 拼的數學，節點數不超過 14（subgraph 的標題不算節點）', () => {
@@ -236,6 +246,18 @@ describe('第 12 章方塊圖：真的畫一次（mermaid.render）', () => {
       // parser 看到幾個節點，圖上就畫出幾個
       expect(nodeCount, `${name}: 畫出 ${nodeCount} 個、parser 有 ${g.vertices.length} 個`).toBe(g.vertices.length)
       expect(g.vertices.length, `${name}: ${g.vertices.length} 個節點`).toBeGreaterThanOrEqual(5)
+    }
+  })
+
+  it('桌機版面：原本比正文欄寬、要橫向捲動的 8 張圖都改成直向（flowchart TB）；仍是橫向（LR）的圖最多排 6 欄（再長就要折行或改直向，1280px 的桌機放不下）', () => {
+    // 這 8 張在 LR 時自然寬度 1356–2061px（scripts/diagram-audit.mjs 的「超出」），改成 TB 之後只有 450–1000px
+    for (const name of ['NOISE_CHAIN_CHART', 'CHART_PSD_FILTER', 'CHART_LEVEL_WIDTH', 'CHART_DC_FEEDTHROUGH', 'CHART_BLOCK_TIMING', 'CHART_ZOH_TWO_STEP', 'CHART_PSD_UNITS', 'CHART_HW_KNOBS']) {
+      expect(chartOf(name), name).toMatch(/^flowchart TB\n/)
+    }
+    for (const { name, chart } of CH12_CHARTS) {
+      if (!chart.startsWith('flowchart LR')) continue
+      const g = flows.get(name) as Flow
+      expect(longestPath(g), `${name} 排成 ${longestPath(g)} 欄`).toBeLessThanOrEqual(6)
     }
   })
 
@@ -416,6 +438,10 @@ describe('第 12 章方塊圖：真的畫一次（mermaid.render）', () => {
     expect(tim.subgraphs.find((s) => s.id === 'CG')?.title).toBe('Comparator 與 GMAC（每個 sample）')
     expect(tim.subgraphs.find((s) => s.id === 'LA')?.title).toBe('LMS 累加器（每個 block）')
     expect(tim.subgraphs.find((s) => s.id === 'DG')?.title).toBe('DTC 的 gain（每個 sample）')
+    // 每條泳道（橫帶）兩個時間點：block k 在左、block k+1 在右（宣告順序就是由左到右的順序）；mermaid 的 nodes 由後往前列，所以排序後比對
+    for (const [lane, ids] of [['CG', ['A1', 'A2']], ['LA', ['B1', 'B2']], ['DG', ['D1', 'D2']]] as const) {
+      expect([...(tim.subgraphs.find((s) => s.id === lane)?.nodes ?? [])].sort(), lane).toEqual(ids)
+    }
     expect(vertexText(tim, 'A1')).toContain('$q[n]\\,x[n]$')
     expect(vertexText(tim, 'B1')).toContain('$w_{k+1} = w_k + \\mu G_k$')
     expect(vertexText(tim, 'D1')).toContain('ZOH')
@@ -491,13 +517,32 @@ describe('第 12 章方塊圖：真的畫一次（mermaid.render）', () => {
     expect(vertexText(g, 'OK')).toContain('\\Omega_{3\\mathrm{dB}} = 2\\arcsin\\frac{1 - p}{2\\sqrt{p}}')
   })
 
-  it('章首的系統地圖（真正的 SystemMap 原始碼）也畫得出來，藍色方塊是雜訊走的路；公式由 KaTeX 排版', () => {
-    expect(mapDrawn.text).not.toMatch(/Unsupported markdown/)
-    expect(mapDrawn.text).not.toContain('$')
-    expect(unicodeMathIn(mapDrawn.plainText)).toEqual([])
-    expect(mapDrawn.mathCount).toBeGreaterThanOrEqual(8)
-    expect(systemMapChart(CH12_SYSTEM_FOCUS)).toContain('class NOISE,CMP,GMAC,SCALE,ACC,GC,DTC,PD,VCO focus')
-    expect(systemMapChart(CH12_SYSTEM_FOCUS)).toContain('$q[n] = \\mathrm{sign}(e[n])$')
+  it('章首的系統地圖（手排的 SVG，不經過 Mermaid；版面本身由 SystemMap.test.tsx 測）：藍色（focused）方塊就是雜訊走的路，其餘方塊本章不碰；方塊上的公式寫成 `$...$`', () => {
+    const { blocks } = systemMapModel(CH12_SYSTEM_FOCUS)
+    const focused = blocks.filter((b) => b.focused).map((b) => b.id)
+    // 雜訊 → comparator → GMAC → ÷N、×μ → accumulator → gain correction → DTC，再到兩個出口：PD 與 VCO 輸出
+    expect([...focused].sort()).toEqual([...CH12_SYSTEM_FOCUS].sort())
+    expect(focused.length).toBe(CH12_SYSTEM_FOCUS.length)
+    expect(blocks.filter((b) => !b.focused).map((b) => b.id).sort()).toEqual(['align', 'div', 'dsm', 'fcw', 'lf', 'qnt', 'ref', 'res'])
+    const byId = (id: string) => {
+      const b = blocks.find((x) => x.id === id)
+      if (!b) throw new Error(`系統地圖沒有方塊 ${id}`)
+      return b
+    }
+    expect(byId('cmp').sub).toBe('$q[n] = \\mathrm{sign}(e[n])$')
+    expect(byId('gmac').sub).toContain('\\sum q[n]\\,x[n]')
+    expect(byId('noise').title).toContain('$v[n]$')
+    // 地圖上的公式要由 KaTeX 排版：全圖至少 8 段 `$...$`（原本畫出來後數 `.katex` 的下限），本章主角的 cmp／gmac／noise／scale／acc 一定在內
+    const mathSegments = (b: { title: string; sub?: string }) => `${b.title} ${b.sub ?? ''}`.match(/\$[^$]+\$/g)?.length ?? 0
+    expect(blocks.reduce((n, b) => n + mathSegments(b), 0)).toBeGreaterThanOrEqual(8)
+    for (const id of ['noise', 'cmp', 'gmac', 'scale', 'acc']) expect(mathSegments(byId(id)), id).toBeGreaterThan(0)
+    // 方塊文字裡的數學一律 `$...$`、成對，沒有 Unicode 拼的數學
+    for (const b of blocks) {
+      for (const t of [b.title, b.sub ?? '']) {
+        expect((t.match(/\$/g) ?? []).length % 2, `${b.id}：${t}`).toBe(0)
+        expect(unicodeMathIn(t.replace(/\$[^$]*\$/g, '')), `${b.id}：${t}`).toEqual([])
+      }
+    }
   })
 
   it('T13/T14/T15: 圖上的範例數字就是模型算出來的數字（不是手打的）', () => {

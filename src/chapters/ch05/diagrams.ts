@@ -18,10 +18,19 @@ import type { SystemBlock } from '@/components'
  * - Mermaid 11 把沒有公式的標籤當成 markdown：單獨的半形「+」「-」或以「+ 」「- 」「* 」「1. 」「# 」「> 」開頭的標籤（含 <br/> 之後的每一行）
  *   會被畫成「Unsupported markdown: list」，而 parser 不會報錯。所以加法點的圓圈直接寫全形「＋」，連線上的正負號放進 `$...$`；
  *   共用的 <Mermaid> 另有 sanitizeMermaidSource 當第二道保險，測試會把每張圖真的渲染一次來檢查。
- * - 兩個不相連的 subgraph 之間加一條看不見的連線（`A ~~~ B`）讓它們上下排；否則 TB 圖會把它們左右並排，整張圖太寬。
- *   圖說與導讀裡的「上框／下框」「上面那條路／下面那條路」由測試用實際排版結果核對。
- * - 版面最寬約 1,080 px，Mermaid 會把太寬的圖等比例縮小（字就變小）：單張橫排（LR）的階段數控制在 7 格左右、
- *   長的說明放進節點（用 <br/> 換行）而不是邊的標籤；階段更多的流程（硬體路徑、AR(1) 產生器）改成直式（TB）。
+ * - 兩個不相連的 subgraph 之間加一條看不見的連線（`A ~~~ B`）固定它們的相對位置（TB 圖上下排；LR 圖的 `analogVs1bit` 左右排，
+ *   類比在左）；否則兩個框的位置不受控制。圖說與導讀裡的「上框／下框」「左框／右框」由測試用實際排版結果核對。
+ * - 版面（teaching-style §8）：桌機的正文欄只有約 880 px，圖的自然寬度要在約 1,250 px 以內（`node scripts/diagram-audit.mjs` 的「超出」要是 0），
+ *   超過就會出現橫向捲軸；寬到 1,100 px 以上字也會被縮到 75% 以下。所以橫排（LR）只用在階段不多的鏈與迴路（邊的標籤太長就用 <br/> 拆成兩行）；
+ *   階段多的流程與判斷樹（路線圖、先算一次、設計流程、決策、硬體路徑、AR(1) 產生器、判號式 block 迴路…）改成直式（TB）；
+ *   兩條平行的路（累加路徑、Monte Carlo 與解析）也用 TB 讓兩條路上下並行、在底部會合。
+ * - Mermaid（dagre）的排版會受「節點與連線的宣告順序」影響：連線要不要交叉、回授線走哪一邊，都取決於順序。
+ *   `hwMap`（regressor 的兩條虛線先宣告，才會分別走左右兩側、不和 w_k 回授線交叉）、`handcalcFlow`、`lastSample`
+ *   的順序是挑過的（用 `node scripts/diagram-audit.mjs` 與截圖確認沒有連線交叉）；改動這幾張圖時請重新看一次排版。
+ *   `qStats` 的兩個分支各連到兩個目的地（K2,2），在兩層的排版裡一定會交叉一次，無法避免。
+ * - subgraph 的標題不要放公式（共用主題的 `.cluster-label span` 對每一層巢狀的 <span> 都縮一次字，KaTeX 裡的公式會縮到看不見），
+ *   標題一行不超過約 14 個中日文字（Mermaid 的標籤最寬 200 px，超過會斷行，最後一個字會單獨掉到下一行），需要時用 <br/> 拆成兩行。
+ * - 並排的 subgraph 要「直式排列」時，要在 subgraph 裡明寫 `direction TB`：不寫的話，Mermaid 會把巢狀的 subgraph 方向和上一層反過來。
  */
 
 /** 本章主角：藍色方塊（comparator 前的雜訊、1-bit comparator、GMAC 累加）。 */
@@ -37,12 +46,12 @@ export const CHART_L1_MODEL = String.raw`flowchart LR
   VN(["雜訊 $v \sim \mathcal{N}(0, \sigma_v^2)$"]) -- "$+ v$" --> ADD
   ADD -- "$e = s + v$" --> CMP["Comparator<br/>threshold $\theta$"]
   CMP -- "$q = \pm 1$" --> ACC["累加器<br/>$S_N = \sum q_i$"]
-  ACC -- "$\operatorname{sign}(S_N)$，$S_N = 0$ 時依 tie rule" --> DEC["方向判斷"]
+  ACC -- "$\operatorname{sign}(S_N)$<br/>$S_N = 0$ 時依 tie rule" --> DEC["方向判斷"]
   ${FOCUS}
   class CMP,ACC focus`
 
 /** 直覺段：本章路線圖（每一節回答哪個問題、結果往哪裡用）。 */
-export const CHART_ROADMAP = String.raw`flowchart LR
+export const CHART_ROADMAP = String.raw`flowchart TB
   Q0["問題<br/>$s = 1$ fs 藏在<br/>$\sigma_v = 100$ fs 的雜訊裡"] --> P2["§2 單次比較<br/>$p = P(q = +1)$、$m = E[q]$"]
   P2 --> P3["§3 累加 $N$ 次<br/>訊號 $\propto N$、雜訊 $\propto \sqrt{N}$"]
   P3 --> P4["§4 要累加幾次<br/>$N \approx (z \cdot \sigma_v/s)^2 \cdot \pi/2$"]
@@ -56,14 +65,14 @@ export const CHART_ROADMAP = String.raw`flowchart LR
   class P2,P3,P5 focus`
 
 /** §1：「先算一次」的手算順序（數字是 s = 1 fs、σ_v = 100 fs；測試以模擬核心重算）。 */
-export const CHART_FIRST_CALC = String.raw`flowchart LR
+export const CHART_FIRST_CALC = String.raw`flowchart TB
   IN["已知<br/>$s = 1$ fs<br/>$\sigma_v = 100$ fs"] --> R["① 標準化<br/>$r = s/\sigma_v = 0.01$"]
   R --> P["② $p = \Phi(r)$<br/>$\approx \tfrac{1}{2} + r \cdot \varphi(0)$<br/>$\approx 0.50399$"]
-  P --> PM["③ $1 - p \approx 0.49601$"]
   P --> M["④ $m = 2p - 1$<br/>$\approx 0.00798$"]
+  P --> PM["③ $1 - p \approx 0.49601$"]
+  M --> SIG["訊號<br/>$E[S_N] = N \cdot m$"]
   M --> VQ["⑤ $\operatorname{Var}(q) = 1 - m^2$<br/>$\approx 0.99994$"]
-  NN["再給樣本數 $N$"] --> SIG["訊號<br/>$E[S_N] = N \cdot m$"]
-  M --> SIG
+  NN["再給樣本數 $N$"] --> SIG
   NN --> NOI["雜訊<br/>$\mathrm{SD}(S_N) = \sqrt{N \cdot (1 - m^2)}$"]
   VQ --> NOI
   SIG --> SNR["$\mathrm{SNR}_{\mathrm{stat}}$<br/>$=$ 訊號 $\div$ 雜訊"]
@@ -84,7 +93,7 @@ export const CHART_SINGLE_COMPARE = String.raw`flowchart LR
   class SGN focus`
 
 /** §2：由 p 得到平均 m = E[q] 與 Var(q)（q 只有 ±1 兩個值）。 */
-export const CHART_Q_STATS = String.raw`flowchart LR
+export const CHART_Q_STATS = String.raw`flowchart TB
   Q["$q$ 只有兩個值"] -- "機率 $p$" --> QP["$q = +1$"]
   Q -- "機率 $1 - p$" --> QM["$q = -1$"]
   QP -- "$+ p$" --> E(("＋"))
@@ -98,7 +107,7 @@ export const CHART_Q_STATS = String.raw`flowchart LR
   class M,VAR focus`
 
 /** §2：硬體 0/1 位元一定要先映射成 q = 2b − 1（正確路徑 vs 忘了映射）。 */
-export const CHART_BIT_MAPPING = String.raw`flowchart LR
+export const CHART_BIT_MAPPING = String.raw`flowchart TB
   CMP["Comparator<br/>輸出位元 $b \in \{0, 1\}$"] --> MAP["映射 $q = 2b - 1$"]
   MAP -- "$q \in \{-1, +1\}$" --> G1["GMAC：$\sum q \cdot x$"]
   G1 --> GOOD["$w = a$ 時 $E[q \cdot x] = 0$<br/>固定點就在真值 $a$"]
@@ -110,7 +119,7 @@ export const CHART_BIT_MAPPING = String.raw`flowchart LR
   class G2,BAD warn`
 
 /** §3：把每個 q 拆成平均 + 零均值雜訊——訊號 ∝ N、雜訊 ∝ √N 的兩條平行累加路徑。 */
-export const CHART_SIGNAL_VS_NOISE = String.raw`flowchart LR
+export const CHART_SIGNAL_VS_NOISE = String.raw`flowchart TB
   Q["每個樣本<br/>$q_i = m + \eta_i$"] --> MEAN["平均部分 $m$<br/>每次都一樣"]
   Q --> NOISE["零均值部分 $\eta_i$<br/>$\mathrm{SD} = \sqrt{1 - m^2}$、彼此獨立"]
   MEAN --> SUMM["累加 $N$ 次<br/>同號，直接相加"]
@@ -122,7 +131,7 @@ export const CHART_SIGNAL_VS_NOISE = String.raw`flowchart LR
   class SUMM,SUMN,SNR focus`
 
 /** §3：sum（S_N）與 average（G）只差一個 ÷ N，SNR 相同（勘誤 E18）。 */
-export const CHART_SUM_VS_AVG = String.raw`flowchart LR
+export const CHART_SUM_VS_AVG = String.raw`flowchart TB
   QS["$N$ 個樣本<br/>$q_1 \ldots q_N$"] --> SUM["總和 $S_N = \sum q_i$<br/>$E = N \cdot m$<br/>$\mathrm{SD} = \sqrt{N \cdot (1 - m^2)}$"]
   SUM -- "$\div N$" --> AVG["平均 $G = S_N / N$<br/>$E = m$<br/>$\mathrm{SD} = \sqrt{(1 - m^2)/N}$"]
   SUM --> SNR["$E \div \mathrm{SD}$ 兩者相同<br/>$m \cdot \sqrt{N} / \sqrt{1 - m^2}$"]
@@ -133,13 +142,13 @@ export const CHART_SUM_VS_AVG = String.raw`flowchart LR
   class SUM,AVG focus`
 
 /** §3.1：從 N 次比較到一個方向判斷（含 tie 分支）。 */
-export const CHART_DECISION = String.raw`flowchart LR
+export const CHART_DECISION = String.raw`flowchart TB
   QS["$N$ 次比較<br/>$q_1 \ldots q_N$"] --> CNT["數 $+1$ 的個數 $K$<br/>$K \sim \mathrm{Bin}(N, p)$"]
   CNT --> SN["$S_N = K - (N - K)$<br/>$= 2K - N$"]
   SN --> DEC{"$S_N$ 的正負號？"}
-  DEC -- "$S_N > 0$（$K > N/2$）" --> POS["判 $+1$"]
-  DEC -- "$S_N$ 為負（$K$ 不到 $N/2$）" --> NEG["判 $-1$"]
-  DEC -- "$S_N = 0$（$K = N/2$，只有偶數 $N$）" --> TIE["tie：依 tie rule 處理"]
+  DEC -- "$S_N > 0$<br/>（$K > N/2$）" --> POS["判 $+1$"]
+  DEC -- "$S_N$ 為負<br/>（$K$ 不到 $N/2$）" --> NEG["判 $-1$"]
+  DEC -- "$S_N = 0$<br/>（$K = N/2$，只有偶數 $N$）" --> TIE["tie：依 tie rule 處理"]
   ${FOCUS}
   ${WARN}
   class SN focus
@@ -157,8 +166,8 @@ export const CHART_EXACT_VS_CLT = String.raw`flowchart TB
     direction LR
     C1["$m$、$N$"] --> C2["$S_N \approx$ Gaussian<br/>平均 $N \cdot m$<br/>標準差 $\sigma_S = \sqrt{N \cdot (1 - m^2)}$"]
     C2 --> C3{"$N$ 奇數或偶數？"}
-    C3 -- "奇數，或偶數但 tie 平分" --> C4["$\Phi(N \cdot m/\sigma_S)$"]
-    C3 -- "偶數，嚴格的 $S_N > 0$" --> C5["$\Phi((N \cdot m - 1)/\sigma_S)$<br/>連續性修正"]
+    C3 -- "奇數，或偶數<br/>但 tie 平分" --> C4["$\Phi(N \cdot m/\sigma_S)$"]
+    C3 -- "偶數，<br/>嚴格的 $S_N > 0$" --> C5["$\Phi((N \cdot m - 1)/\sigma_S)$<br/>連續性修正"]
   end
   EX ~~~ CL
   ${FOCUS}
@@ -185,7 +194,7 @@ export const CHART_TIE_RULES = String.raw`flowchart TB
   class B1,B3 warn`
 
 /** §3.4（Engineer）：只取 S_N 正負號的 block 迴路——tie rule 進入迴路的位置。 */
-export const CHART_SIGN_BLOCK_LOOP = String.raw`flowchart LR
+export const CHART_SIGN_BLOCK_LOOP = String.raw`flowchart TB
   A["理想係數 $a$"] -- "$+ a$" --> S1(("＋"))
   S1 -- "$+ (s = a - w_k)$" --> S2(("＋"))
   VN(["雜訊 $v[n]$"]) -- "$+ v[n]$" --> S2
@@ -203,24 +212,34 @@ export const CHART_SIGN_BLOCK_LOOP = String.raw`flowchart LR
  * 所以 tie 平分後 P(判 +1) = P(S_(N−1) ≥ 3) + P(S_(N−1) = +1) = P(S_(N−1) > 0)。
  */
 export const CHART_LAST_SAMPLE = String.raw`flowchart LR
-  A3["$S_{N-1} \ge 3$"] -- "$q_N$ 是 $+1$ 或 $-1$ 都一樣" --> P2["$S_N \ge 2$"]
-  A1["$S_{N-1} = +1$"] -- "$q_N = +1$：機率 $p$" --> P2
-  A1 -- "$q_N = -1$：機率 $1 - p$" --> TIE{"$S_N = 0$<br/>tie"}
-  M1["$S_{N-1} = -1$"] -- "$q_N = +1$：機率 $p$" --> TIE
-  M1 -- "$q_N = -1$：機率 $1 - p$" --> N2["$S_N \le -2$"]
-  M3["$S_{N-1} \le -3$"] -- "$q_N$ 是 $+1$ 或 $-1$ 都一樣" --> N2
-  P2 --> DP["判 $+1$"]
+  A3["$S_{N-1} \ge 3$"]
+  A1["$S_{N-1} = +1$"]
+  M1["$S_{N-1} = -1$"]
+  M3["$S_{N-1} \le -3$"]
+  P2["$S_N \ge 2$"]
+  TIE{"$S_N = 0$<br/>tie"}
+  N2["$S_N \le -2$"]
+  DP["判 $+1$"]
+  DN["判 $-1$"]
+  BAL["進 tie 的兩條流量相等<br/>$(1 - p) \cdot P(S_{N-1} = +1) = p \cdot P(S_{N-1} = -1)$"]
+  A3 -- "$q_N$ 是 $+1$ 或 $-1$ 都一樣" --> P2
+  A1 -- "$q_N = +1$：機率 $p$" --> P2
+  A1 -- "$q_N = -1$：機率 $1 - p$" --> TIE
+  M1 -- "$q_N = +1$：機率 $p$" --> TIE
+  M1 -- "$q_N = -1$：機率 $1 - p$" --> N2
+  M3 -- "$q_N$ 是 $+1$ 或 $-1$ 都一樣" --> N2
+  P2 --> DP
+  TIE -.- BAL
   TIE -- "擲硬幣：機率 $\tfrac{1}{2}$" --> DP
-  TIE -- "擲硬幣：機率 $\tfrac{1}{2}$" --> DN["判 $-1$"]
+  TIE -- "擲硬幣：機率 $\tfrac{1}{2}$" --> DN
   N2 --> DN
-  TIE -.- BAL["進 tie 的兩條流量相等<br/>$(1 - p) \cdot P(S_{N-1} = +1) = p \cdot P(S_{N-1} = -1)$"]
   ${FOCUS}
   ${WARN}
   class BAL focus
   class TIE warn`
 
 /** §4：設計流程「目標信心 → z → m → N」（數字是 95%、s = 1 fs、σ_v = 100 fs）。 */
-export const CHART_DESIGN_FLOW = String.raw`flowchart LR
+export const CHART_DESIGN_FLOW = String.raw`flowchart TB
   PT["目標正確率 $P_{\mathrm{target}}$<br/>例：95%"] --> Z["反查常態表<br/>$z = \Phi^{-1}(P_{\mathrm{target}}) \approx 1.645$"]
   SS["誤差 $s$ 與雜訊 $\sigma_v$<br/>例：1 fs、100 fs"] --> RR["$r = s/\sigma_v = 0.01$"]
   RR --> MM["$m = \operatorname{erf}(r/\sqrt{2})$<br/>$\approx \sqrt{2/\pi} \cdot r \approx 0.00798$"]
@@ -232,15 +251,15 @@ export const CHART_DESIGN_FLOW = String.raw`flowchart LR
   class Z,MM,NN focus`
 
 /** §4：π/2 的來源——直接平均類比誤差 vs 先過 1-bit comparator 再平均。 */
-export const CHART_ANALOG_VS_1BIT = String.raw`flowchart TB
-  subgraph AN["直接平均類比的 $e$（理想，硬體拿不到）"]
-    direction LR
+export const CHART_ANALOG_VS_1BIT = String.raw`flowchart LR
+  subgraph AN["直接平均類比誤差<br/>（理想，硬體拿不到）"]
+    direction TB
     A1["$e_i = s + v_i$"] --> A2["平均 $N$ 次<br/>$s +$（$v$ 的平均）"]
     A2 --> A3["$\mathrm{SNR} = s \cdot \sqrt{N} / \sigma_v$"]
     A3 --> A4["$N = (z \cdot \sigma_v/s)^2$"]
   end
-  subgraph OB["先過 1-bit comparator 再平均（實際硬體）"]
-    direction LR
+  subgraph OB["先過 1-bit comparator<br/>再平均（實際硬體）"]
+    direction TB
     B1["$e_i = s + v_i$"] --> B2["sign<br/>$q_i = \pm 1$"]
     B2 --> B3["平均 $N$ 次<br/>$G = S_N / N$"]
     B3 --> B4["$\mathrm{SNR} \approx \sqrt{2/\pi} \cdot s \cdot \sqrt{N} / \sigma_v$"]
@@ -254,16 +273,16 @@ export const CHART_ANALOG_VS_1BIT = String.raw`flowchart TB
 
 /** §5：小訊號等效模型——hard limiter 換成增益 K_q 加上零均值雜訊 η。 */
 export const CHART_SMALL_SIGNAL = String.raw`flowchart TB
-  subgraph NL["真實的 comparator（非線性，逐 sample）"]
+  subgraph NL["真實的 comparator<br/>（非線性，逐 sample）"]
     direction LR
     S1["誤差 $s$"] -- "$+ s$" --> AD1(("＋"))
     V1(["雜訊 $v$"]) -- "$+ v$" --> AD1
     AD1 -- "$e = s + v$" --> SG["sign（hard limiter）"]
     SG --> O1["輸出 $q = \pm 1$"]
   end
-  subgraph LIN["小訊號等效模型（$|s| \ll \sigma_v$ 才成立）"]
+  subgraph LIN["小訊號等效模型<br/>（誤差遠小於雜訊才成立）"]
     direction LR
-    S2["誤差 $s$"] --> KQ["增益 $\times K_q$<br/>$K_q = \sqrt{2/\pi}/\sigma_v$"]
+    S2["誤差 $s$<br/>$|s| \ll \sigma_v$"] --> KQ["增益 $\times K_q$<br/>$K_q = \sqrt{2/\pi}/\sigma_v$"]
     KQ -- "$+ K_q \cdot s \approx E[q]$" --> AD2(("＋"))
     ETA(["零均值雜訊 $\eta$<br/>$\operatorname{Var}(\eta) = 1 - m^2 \approx 1$"]) -- "$+ \eta$" --> AD2
     AD2 --> O2["輸出 $q \approx K_q \cdot s + \eta$"]
@@ -285,7 +304,7 @@ export const CHART_S_CURVE_REGIONS = String.raw`flowchart TB
   class SAT warn`
 
 /** §6：Monte Carlo 與解析值怎麼交叉比對（Wilson 區間與精確 Binomial 接受域）。 */
-export const CHART_MC_CHECK = String.raw`flowchart LR
+export const CHART_MC_CHECK = String.raw`flowchart TB
   M1["Monte Carlo<br/>$T$ 次獨立 trial<br/>每次累加 $N$ 個 $q$"] --> M2["數判對的次數 $k$"]
   M2 --> M3["估計 $\hat P = k / T$<br/>誤差棒：Wilson 95% 區間"]
   A1["解析<br/>精確 Binomial 的判對機率 $P$"] --> A2["若 $P$ 是對的<br/>$k \sim \mathrm{Bin}(T, P)$"]
@@ -302,10 +321,10 @@ export const CHART_MC_CHECK = String.raw`flowchart LR
 /** §7：逐 sample Sign-LMS 迴路（實際硬體做的事；x ≡ 1）。 */
 export const CHART_SAMPLE_LOOP = String.raw`flowchart LR
   A["真值 $a$"] -- "$+ a$" --> S1(("＋"))
-  S1 -- "$+ (\delta_n = a - w_n)$" --> S2(("＋"))
+  S1 -- "$+ \delta_n$<br/>$(= a - w_n)$" --> S2(("＋"))
   VN(["雜訊 $v_n$"]) -- "$+ v_n$" --> S2
-  TH["offset $\theta$"] -- "$- \theta$" --> S2
-  S2 -- "$\delta_n + v_n - \theta$" --> SGN["sign<br/>1-bit comparator"]
+  TH["offset<br/>$\theta$"] -- "$- \theta$" --> S2
+  S2 -- "$\delta_n + v_n$<br/>$- \theta$" --> SGN["sign<br/>1-bit<br/>comparator"]
   SGN -- "$q_n = \pm 1$" --> MU["$\times \mu$"]
   MU -- "$+ \mu \cdot q_n$" --> S3(("＋"))
   S3 -- "$w_{n+1}$" --> D["$z^{-1}$"]
@@ -316,7 +335,7 @@ export const CHART_SAMPLE_LOOP = String.raw`flowchart LR
 
 /** §7：雜訊大小決定迴路的三種行為（沒有雜訊／適度／太多）。 */
 export const CHART_DITHER_REGIMES = String.raw`flowchart TB
-  Q0{"雜訊 $\sigma_v$ 相對於步長 $\mu$ ？<br/>（取 offset $\theta = 0$）"}
+  Q0{"雜訊 $\sigma_v$ 相對於<br/>步長 $\mu$ ？<br/>（取 offset $\theta = 0$）"}
   Q0 -- "$\sigma_v = 0$" --> Z1["hard limiter<br/>$E[q]$ 是階梯"]
   Z1 --> Z2["$w$ 在 $a$ 兩側來回跳<br/>period-2 limit cycle<br/>時間平均偏差最多 $\mu/2$"]
   Q0 -- "$\sigma_v \approx \mu$ 到幾倍 $\mu$" --> M1["平滑的 S 曲線<br/>斜率 $K_q$"]
@@ -333,8 +352,8 @@ export const CHART_LINEARIZED_LOOP = String.raw`flowchart LR
   A["真值 $a$"] -- "$+ a$" --> S1(("＋"))
   S1 -- "$\delta_n = a - w_n$" --> KQ["$\times K_q$<br/>（取代 sign）"]
   KQ -- "$+ K_q \cdot \delta_n$" --> S2(("＋"))
-  ETA(["量化雜訊 $\eta_n$<br/>零均值、$\operatorname{Var} \approx 1$"]) -- "$+ \eta_n$" --> S2
-  S2 -- "$q_n \approx K_q \cdot \delta_n + \eta_n$" --> MU["$\times \mu$"]
+  ETA(["量化雜訊 $\eta_n$<br/>零均值、<br/>$\operatorname{Var} \approx 1$"]) -- "$+ \eta_n$" --> S2
+  S2 -- "$q_n \approx K_q \cdot \delta_n$<br/>$+ \eta_n$" --> MU["$\times \mu$"]
   MU -- "$+ \mu \cdot q_n$" --> S3(("＋"))
   S3 -- "$w_{n+1}$" --> D["$z^{-1}$"]
   D -- "$+ w_n$" --> S3
@@ -354,8 +373,8 @@ export const CHART_BIRTH_DEATH = String.raw`flowchart LR
 
 /** §8.1：該用哪一種方法算「判對機率」。 */
 export const CHART_METHOD_CHOICE = String.raw`flowchart TB
-  Q1{"雜訊樣本彼此獨立（iid）嗎？"}
-  Q1 -- "否，有時間相關" --> MCS["Monte Carlo：sample-level<br/>逐個產生 $v$、比較、累加<br/>成本 $O(N \cdot T)$"]
+  Q1{"雜訊樣本彼此<br/>獨立（iid）嗎？"}
+  Q1 -- "否，有時間相關" --> MCS["Monte Carlo：sample-level<br/>逐個產生 $v$、比較、累加，成本 $O(N \cdot T)$"]
   Q1 -- "是" --> Q2{"要的是什麼？"}
   Q2 -- "驗收數字、門檻 $N$、偶數 $N$" --> EX["Exact binomial<br/>逐項加總，tie 單獨算"]
   Q2 -- "設計方程、手算" --> Q3{"$N$ 奇數或偶數？"}
@@ -369,26 +388,35 @@ export const CHART_METHOD_CHOICE = String.raw`flowchart TB
 
 /** §9：本章符號對應的硬體路徑（sample n 的 comparator 與 block k 的更新）。 */
 export const CHART_HW_MAP = String.raw`flowchart TB
-  DTC["DTC gain 誤差在 PD 處<br/>造成的時間誤差<br/>$s = (a - w_k) \cdot x[n]$"] -- "$+ s$" --> ADD(("＋"))
-  JIT(["jitter、量化殘差<br/>$v[n]$，RMS $\sigma_v$"]) -- "$+ v[n]$" --> ADD
-  ADD -- "$e[n] = s + v[n]$" --> BB["BBPD（1-bit TDC）<br/>offset $\theta$"]
-  BB -- "位元 $b[n] \in \{0, 1\}$" --> MAP["映射 $q = 2b - 1$"]
-  MAP -- "$q[n] = \pm 1$，每個 sample $n$" --> GM["GMAC 累加器<br/>$S_N = \sum q[n] \cdot x[n]$<br/>$N$ 個 sample"]
-  GM -- "每個 block $k$" --> SCL["$\div N$、$\times \mu$<br/>$G_k = S_N / N$"]
-  SCL -- "$\mu \cdot G_k$" --> ACC["Gain accumulator<br/>$w_{k+1} = w_k + \mu \cdot G_k$"]
-  ACC -- "$w_k$ 回到 DTC" --> DTC
-  X(["regressor $x[n]$<br/>本章固定 $x \equiv 1$"]) -. "乘在誤差上" .-> DTC
+  X(["regressor $x[n]$<br/>本章固定 $x \equiv 1$"])
+  DTC["DTC gain 誤差在 PD 處<br/>造成的時間誤差<br/>$s = (a - w_k) \cdot x[n]$"]
+  JIT(["jitter、量化殘差<br/>$v[n]$，RMS $\sigma_v$"])
+  ADD(("＋"))
+  BB["BBPD（1-bit TDC）<br/>offset $\theta$"]
+  MAP["映射 $q = 2b - 1$"]
+  GM["GMAC 累加器<br/>$S_N = \sum q[n] \cdot x[n]$<br/>$N$ 個 sample"]
+  SCL["$\div N$、$\times \mu$<br/>$G_k = S_N / N$"]
+  ACC["Gain accumulator<br/>$w_{k+1} = w_k + \mu \cdot G_k$"]
+  X -. "乘在誤差上" .-> DTC
   X -. "乘在 $q[n]$ 上" .-> GM
+  JIT -- "$+ v[n]$" --> ADD
+  DTC -- "$+ s$" --> ADD
+  ADD -- "$e[n] = s + v[n]$" --> BB
+  BB -- "位元 $b[n] \in \{0, 1\}$" --> MAP
+  MAP -- "$q[n] = \pm 1$，每個 sample $n$" --> GM
+  GM -- "每個 block $k$" --> SCL
+  SCL -- "$\mu \cdot G_k$" --> ACC
+  ACC -- "$w_k$ 回到 DTC" --> DTC
   ${FOCUS}
   class BB,MAP,GM focus`
 
 /** §9：線性化的 block 校正迴路——K_q 在迴路裡的位置（block 速率 k；累加器寫成 1/(z−1)）。 */
 export const CHART_BLOCK_LOOP = String.raw`flowchart LR
   A["理想係數 $a$"] -- "$+ a$" --> S1(("＋"))
-  S1 -- "$\delta_k = a - w_k$" --> KQ["Comparator + 平均 $N$ 次<br/>等效增益 $\times K_q$"]
+  S1 -- "$\delta_k = a - w_k$" --> KQ["Comparator +<br/>平均 $N$ 次<br/>等效增益 $\times K_q$"]
   KQ -- "$+ K_q \cdot \delta_k$" --> S2(("＋"))
-  ETA(["GMAC 雜訊 $\eta_k$<br/>零均值、$\operatorname{Var} \approx 1/N$"]) -- "$+ \eta_k$" --> S2
-  S2 -- "$G_k \approx K_q \cdot \delta_k + \eta_k$" --> MU["$\times \mu$"]
+  ETA(["GMAC 雜訊 $\eta_k$<br/>零均值、<br/>$\operatorname{Var} \approx 1/N$"]) -- "$+ \eta_k$" --> S2
+  S2 -- "$G_k \approx K_q \cdot \delta_k$<br/>$+ \eta_k$" --> MU["$\times \mu$"]
   MU -- "$\mu \cdot G_k$" --> INT["累加器 $1/(z-1)$<br/>$w_{k+1} = w_k + \mu \cdot G_k$"]
   INT -- "$- w_k$" --> S1
   ${FOCUS}
@@ -396,18 +424,29 @@ export const CHART_BLOCK_LOOP = String.raw`flowchart LR
 
 /** 綜合手算 HC-05.8 的計算順序。 */
 export const CHART_HANDCALC_FLOW = String.raw`flowchart TB
-  SV["量到的 $\sigma_v$"] --> KQ["① $K_q = \sqrt{2/\pi}/\sigma_v$"]
-  KQ --> MMAX["② 穩定上限 $\mu_{\max} = 2/K_q$"]
-  MUIN["選定的 $\mu$"] --> G["③ loop gain $g = \mu \cdot K_q$"]
+  SV["量到的 $\sigma_v$"]
+  MUIN["選定的 $\mu$"]
+  NF["$N$ 與 $f_s$"]
+  KQ["① $K_q = \sqrt{2/\pi}/\sigma_v$"]
+  MMAX["② 穩定上限 $\mu_{\max} = 2/K_q$"]
+  G["③ loop gain $g = \mu \cdot K_q$"]
+  P["④ pole $p_{\mathrm{cal}} = 1 - g$"]
+  TAU["⑤ $\tau = -1/\ln|p_{\mathrm{cal}}|$（blocks）"]
+  TBLK["⑥ 一個 block 的時間<br/>$T_{\mathrm{blk}} = N/f_s$"]
+  TT["⑦ 收斂時間常數<br/>$t_\tau = \tau \cdot T_{\mathrm{blk}}$"]
+  SW["⑧ 係數雜訊<br/>$\sigma_w = \mu/\sqrt{N \cdot (1 - p_{\mathrm{cal}}^2)}$"]
+  SV --> KQ
+  KQ --> MMAX
   KQ --> G
-  G --> P["④ pole $p_{\mathrm{cal}} = 1 - g$"]
-  P --> TAU["⑤ $\tau = -1/\ln|p_{\mathrm{cal}}|$（blocks）"]
-  NF["$N$ 與 $f_s$"] --> TBLK["⑥ 一個 block 的時間<br/>$T_{\mathrm{blk}} = N/f_s$"]
-  TAU --> TT["⑦ 收斂時間常數<br/>$t_\tau = \tau \cdot T_{\mathrm{blk}}$"]
-  TBLK --> TT
-  P --> SW["⑧ 係數雜訊<br/>$\sigma_w = \mu/\sqrt{N \cdot (1 - p_{\mathrm{cal}}^2)}$"]
-  NF --> SW
+  MUIN --> G
+  G --> P
+  P --> TAU
+  P --> SW
   MUIN --> SW
+  NF --> SW
+  NF --> TBLK
+  TAU --> TT
+  TBLK --> TT
   ${FOCUS}
   class KQ,P,SW focus`
 
@@ -482,7 +521,7 @@ const DEFS: Omit<DiagramDef, 'no'>[] = [
     key: 'roadmap',
     section: '直覺',
     chart: CHART_ROADMAP,
-    caption: '本章路線圖：藍色三格是三個核心結果（$p$ 與 $m$、訊號對雜訊、$K_q$），右邊是它們被用到的地方。',
+    caption: '本章路線圖：藍色三格是三個核心結果（$p$ 與 $m$、訊號對雜訊、$K_q$），往下是它們被用到的地方。',
     alt: '本章路線圖：從問題出發，經過單次比較、累加、所需樣本數、小訊號增益，到實驗、dither 與 block 校正迴路',
     isNew: true,
   },

@@ -314,7 +314,7 @@ export function HpdExplorer() {
   const reLayout: Partial<Layout> = useMemo(
     () => ({
       shapes: [{ type: 'line', xref: 'paper', yref: 'y', x0: 0, x1: 1, y0: 0, y1: 0, line: { color: tokens.textMuted, width: 1 } }],
-      xaxis: { title: { text: '$f$ [MHz]（取樣率 $f_{\\mathrm{ref}}=4$ GHz；右端 $=f_{\\mathrm{ref}}/2$）' } },
+      xaxis: { title: { text: '$f$ [MHz]<br>（取樣率 $f_{\\mathrm{ref}}=4$ GHz；右端 $=f_{\\mathrm{ref}}/2$）' } },
       yaxis: { title: { text: '$\\mathrm{Re}\\,H_{\\mathrm{PD}}$、$\\mathrm{Re}\\,\\Gamma_{\\mathrm{eff}}$' }, range: [yLo, 1.4] },
     }),
     [tokens, yLo],

@@ -13,13 +13,16 @@
  *   diagrams.test.ts 以真正的 mermaid parser 解析每一張，並逐條核對極性與節點數（≤ 14）。
  * - 顏色（深淺主題都看得清楚）：藍 = 校正迴路看到的那條路／這一段的主角；棕 = 與它對照的另一條路。
  * - 九級的編號對應 unifiedLab.ts 的 StageId 與 Lab 裡的 stage 卡片。
+ * - 版面（docs/teaching-style.md §8）：桌機上每張圖都要放進正文欄、不用橫向捲動（node scripts/diagram-audit.mjs --routes /lab 的「超出」為 0）。
+ *   很長的鏈（九級訊號鏈、更新迴路）用 flowchart TB 由上往下流；較短的圖用 `<br/>` 把長公式與節點文字排成兩三行。
+ *   公式為了窄一點被 `<br/>` 拆成兩行時寫成 `$A =$<br/>$B$`（每一行各自是完整的 `$...$`）。
  */
 
 const FOCUS = 'classDef focus fill:#1f5fa8,stroke:#0d3b6e,color:#ffffff,stroke-width:2px'
 const ALT = 'classDef alt fill:#8a4b08,stroke:#5c3205,color:#ffffff,stroke-width:2px'
 
 /** §2：FCW 到輸出端的九級訊號鏈。同一個 $e_{\mathrm{DTC}}$ 分兩條路：$H_{\mathrm{PD}}$（藍，到 comparator）與 $T$（棕，到輸出）。 */
-export const PIPELINE_CHART = String.raw`flowchart LR
+export const PIPELINE_CHART = String.raw`flowchart TB
   FCW["FCW $= N_{\mathrm{int}} + \alpha$"] --> DSM["1 DSM<br/>first-order / MASH 1-1-1"]
   DSM -->|"residue $r[n]$"| NORM["2 code 正規化<br/>$x = (r - o)\cdot s$"]
   NORM -->|"$x[n]$"| DTC["3 DTC<br/>gain / offset / INL"]
@@ -57,7 +60,7 @@ export const CHART_TWO_PATHS = String.raw`flowchart LR
  * §4.7：block rate（索引 $k$）的校正迴路，含更新延遲 $d$。
  * $G_k = K\,\delta_{k-d} + \eta_k$、$w_{k+1} = w_k + \mu\,G_k$、$\delta = a - w$ ⇒ $\delta_{k+1} = \delta_k - g\,\delta_{k-d} - \mu\,\eta_k$，$g = \mu K$。
  */
-export const CHART_UPDATE_LOOP = String.raw`flowchart LR
+export const CHART_UPDATE_LOOP = String.raw`flowchart TB
   A(["$a$<br/>真實的 DTC gain"]) -- "＋" --> S1(("＋"))
   S1 -- "$\delta_{k-d} = a - w_{k-d}$" --> KB["$\times K$<br/>GMAC 斜率 $K = K_q\cdot C$"]
   KB -- "＋" --> S2(("＋"))
@@ -83,8 +86,8 @@ export const CHART_OUTPUT_SPLIT = String.raw`flowchart LR
   DX -- "＋" --> S
   M2 -- "−" --> S
   S -- "$e_{\mathrm{DTC}}[n]$" --> T["$T(z) = \frac{L}{1+L}$<br/>output transfer，low-pass"]
-  T -- "靜態殘差那一份" --> SPUR["fractional spur<br/>$A_{\mathrm{spur}} = \lvert a - \bar w\rvert\cdot s\cdot A_1\cdot\lvert T(f_1)\rvert$"]
-  T -- "gain noise 那一份" --> JIT["隨機 jitter<br/>$\mathrm{Var} \approx \sigma_w^2\cdot(\bar x^2 + \mathrm{Var}(T\{\tilde x\}))$"]
+  T -- "靜態殘差那一份" --> SPUR["fractional spur<br/>$A_{\mathrm{spur}} =$<br/>$\lvert a - \bar w\rvert\cdot s\cdot A_1\cdot\lvert T(f_1)\rvert$"]
+  T -- "gain noise 那一份" --> JIT["隨機 jitter<br/>$\mathrm{Var} \approx$<br/>$\sigma_w^2\cdot(\bar x^2 + \mathrm{Var}(T\{\tilde x\}))$"]
   ${FOCUS}
   ${ALT}
   class M1,SPUR focus
@@ -93,11 +96,11 @@ export const CHART_OUTPUT_SPLIT = String.raw`flowchart LR
 /** §7：五個分頁各自跑什麼。Pipeline／FCW sweep／Monte Carlo 共用基準參數；全部呼叫同一份模擬核心。 */
 export const CHART_TAB_MAP = String.raw`flowchart TB
   BASE(["基準參數（三個分頁共用）<br/>FCW、DSM、PLL、$\sigma_v$、$\mu$、$N$、$d$、定點"])
-  BASE --> PIPE["Pipeline<br/>1 組參數 $\times$ 1 個 seed<br/>九級中間訊號、jitter / spur"]
-  BASE --> SWEEP["FCW sweep<br/>只換 $\alpha$，其他不動<br/>$C$、bias、spur 對 $\alpha$ 的曲線"]
-  BASE --> MC["Monte Carlo<br/>1 組參數 $\times$ 很多 seed<br/>信賴區間、對照 mean-field"]
-  OWN1(["Training 自己的設定<br/>code 來源、$\alpha$、正規化"]) --> TRAIN["Training<br/>不跑迴路，只分析 code<br/>PSD、相關、Jacobian 的秩"]
-  OWN2(["Compare 自己的設定<br/>最多三組完整參數"]) --> CMPR["Compare A / B / C<br/>同一個 seed 成對比較"]
+  BASE --> PIPE["Pipeline<br/>1 組參數 $\times$ 1 個 seed<br/>九級中間訊號、<br/>jitter / spur"]
+  BASE --> SWEEP["FCW sweep<br/>只換 $\alpha$，其他不動<br/>$C$、bias、spur<br/>對 $\alpha$ 的曲線"]
+  BASE --> MC["Monte Carlo<br/>1 組參數 $\times$ 很多 seed<br/>信賴區間、<br/>對照 mean-field"]
+  OWN1(["Training 自己的設定<br/>code 來源、$\alpha$、<br/>正規化"]) --> TRAIN["Training<br/>不跑迴路，只分析 code<br/>PSD、相關、<br/>Jacobian 的秩"]
+  OWN2(["Compare 自己的設定<br/>最多三組<br/>完整參數"]) --> CMPR["Compare A / B / C<br/>同一個 seed<br/>成對比較"]
   PIPE --> CORE["同一份模擬核心<br/>unifiedLab.ts（Web Worker）"]
   SWEEP --> CORE
   MC --> CORE

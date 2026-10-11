@@ -10,7 +10,7 @@ import { calLoop, codeSpectraAnalytic, mixingCrossCheck, runNoiseLab, simulateMi
 import Chapter12 from './index'
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
-import { CH12_CHARTS } from './diagrams'
+import { CH12_CHARTS, CH12_SYSTEM_FOCUS } from './diagrams'
 import { CH12_SYMBOLS } from './symbols'
 import { CODE_SPECTRA_DEFAULTS } from './experiments/CodeSpectraLab'
 import { MIX_DEFAULTS } from './experiments/CodeMixingLab'
@@ -101,6 +101,13 @@ describe('第 12 章（jsdom smoke）', () => {
     // 方塊圖（docs/teaching-style.md §8）：章首的系統地圖 + 本章的 Mermaid 圖（預設 Engineer 模式看不到 Research 專屬的那一張）
     expect(container.querySelectorAll('figure.c-mermaid').length).toBe(1 + CH12_CHARTS.filter((c) => !c.mode).length)
     expect(container.querySelectorAll('.ch12-diagram').length).toBe(CH12_CHARTS.filter((c) => !c.mode).length)
+    // 章首的系統地圖是手排的 SVG（figure.c-sysmap，不經過 Mermaid）：被標成藍色（is-focus）的方塊就是本章追蹤的雜訊路徑
+    const sysmaps = container.querySelectorAll('figure.c-mermaid.c-sysmap')
+    expect(sysmaps.length).toBe(1)
+    expect(container.querySelector('figure.c-mermaid')).toBe(sysmaps[0])
+    const focused = Array.from(sysmaps[0].querySelectorAll('g.c-sysmap-block.is-focus')).map((g) => g.getAttribute('data-block'))
+    expect([...focused].sort()).toEqual([...CH12_SYSTEM_FOCUS].sort())
+    expect(sysmaps[0].querySelectorAll('g.c-sysmap-block[data-focus="true"]').length).toBe(CH12_SYSTEM_FOCUS.length)
     // 標題現在含 `$...$`（KaTeX 的 MathML 節點）：getAllByRole(…, { name }) 計算 accessible name 時 jsdom 的 getComputedStyle
     // 會對 MathML 元素丟例外，所以直接比對標題元素的文字（Section 標題 + ExperimentShell 標題，各實驗至少兩個）
     const headings = Array.from(container.querySelectorAll('h2, h3, h4')).map((h) => h.textContent ?? '')

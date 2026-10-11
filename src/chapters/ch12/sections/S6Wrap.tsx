@@ -256,7 +256,7 @@ export function S6Wrap() {
         <Diagram chart={CHART_HW_KNOBS} caption="每個可以調的旋鈕動到雜訊鏈的哪一格：實線是雜訊走的路，虛線是旋鈕，藍色是硬體上可以調的東西。">
           <p>
             {md(
-              String.raw`先由左到右看實線：comparator 前的雜訊經過 1-bit 判斷與平均變成 GMAC 雜訊 $\eta_k$，被校正迴路累積成係數雜訊 $\delta w_k$，乘上 code 變成 timing error $\delta t[n]$，最後經過 PLL 到輸出。再看五條藍色方塊拉出來的虛線：$N$ 決定 $\sigma_\eta^2$ 與 block rate $f_u$；$\mu$ 決定 pole $p$，也直接出現在 $\sigma_w^2$ 的分子；gain register 的位寬決定 $\delta w$ 是隨機雜訊還是量化的 limit cycle；code 的設計決定 $\delta t$ 的頻譜落在哪裡；PLL 頻寬決定 $T$ 放過哪些頻率。最後看由 $\sigma_v$ 拉到係數雜訊的那條虛線：1-bit 判斷之後，$\sigma_\eta^2\approx1/N$ 已經和 $\sigma_v$ 無關，$\sigma_v$ 是經由斜率 $K=K_qC=\sqrt{2/\pi}\,C/\sigma_v$ 進到 $p$，才影響 $\sigma_w$——雜訊越大、斜率越小、迴路拉回得越慢。`,
+              String.raw`先由上往下看實線：comparator 前的雜訊經過 1-bit 判斷與平均變成 GMAC 雜訊 $\eta_k$，被校正迴路累積成係數雜訊 $\delta w_k$，乘上 code 變成 timing error $\delta t[n]$，最後經過 PLL 到輸出。再看五條藍色方塊拉出來的虛線：$N$ 決定 $\sigma_\eta^2$ 與 block rate $f_u$；$\mu$ 決定 pole $p$，也直接出現在 $\sigma_w^2$ 的分子；gain register 的位寬決定 $\delta w$ 是隨機雜訊還是量化的 limit cycle；code 的設計決定 $\delta t$ 的頻譜落在哪裡；PLL 頻寬決定 $T$ 放過哪些頻率。最後看由 $\sigma_v$ 拉到係數雜訊的那條虛線：1-bit 判斷之後，$\sigma_\eta^2\approx1/N$ 已經和 $\sigma_v$ 無關，$\sigma_v$ 是經由斜率 $K=K_qC=\sqrt{2/\pi}\,C/\sigma_v$ 進到 $p$，才影響 $\sigma_w$——雜訊越大、斜率越小、迴路拉回得越慢。`,
             )}
           </p>
           <p>

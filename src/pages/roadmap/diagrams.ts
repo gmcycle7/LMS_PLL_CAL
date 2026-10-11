@@ -8,6 +8,7 @@
  *   含括號、等號的文字一律用雙引號包住。
  * - 加法點是圓形節點，文字寫全形「＋」；每條進來的邊以「＋」或「−」（U+2212）開頭，標籤裡還有公式時把正負號放進數學（`$+\,\rho\,\eta_k$`）。
  *   Mermaid 11 把標籤當 Markdown：單獨的 ASCII「+」「-」會被當成清單，畫面上變成「Unsupported markdown: list」。
+ * - 版面（teaching-style §8「版面寬度」）：R1 迴路與研究依賴圖用 flowchart TB（LR 分別寬 1415／1222 px）；其餘 LR 的圖都很淺，放得下。
  * - 「六個條件」與「狀態怎麼決定」兩張圖由 data.ts 的資料產生（CONDITIONS、ITEMS、itemStatus 的規則），
  *   資料改了圖就跟著改；測試再核對一次。
  * - R1 的迴路圖與 model.ts 的 sigmaW2Lyapunov 是同一個狀態空間：δw_(k+1) = p·δw_k + μ·η_k、
@@ -50,7 +51,7 @@ export const CHART_SIX_CONDITIONS = conditionsChart()
  * §0「先算一次」：有色（AR(1)）GMAC 雜訊推動的係數誤差（R1；F-R1.1、F-R1.2）。
  * 上半部產生相鄰 block 相關的雜訊 η_k（block rate，索引 k），下半部是第 12 章的一階校正迴路。
  */
-export const CHART_R1_LOOP = String.raw`flowchart LR
+export const CHART_R1_LOOP = String.raw`flowchart TB
   XI(["$\xi_k$<br/>白雜訊：各 block 獨立<br/>變異數 1"]) --> DRV["$\times\,\sqrt{1 - \rho^2}\,\sigma_\eta$"]
   DRV -- "＋" --> S1(("＋"))
   S1 -- "$\eta_{k+1}$" --> Z1["$z^{-1}$"]
@@ -75,7 +76,7 @@ export function statusFlowChart(): string {
   Q0 -- "是：目前只有 ${explicit}" --> INA["${ITEM_STATUS_LABEL['in-analysis']}"]
   Q0 -- "否" --> Q1{"有任何子目標是<br/>「${SUB_STATUS_LABEL['on-site']}」？"}
   Q1 -- "有" --> PART["${ITEM_STATUS_LABEL.partial}"]
-  Q1 -- "沒有" --> Q2{"有子目標是「${SUB_STATUS_LABEL.preview}」<br/>或「${SUB_STATUS_LABEL.pending}」？"}
+  Q1 -- "沒有" --> Q2{"有子目標是<br/>「${SUB_STATUS_LABEL.preview}」<br/>或「${SUB_STATUS_LABEL.pending}」？"}
   Q2 -- "有" --> PEND["${ITEM_STATUS_LABEL.pending}"]
   Q2 -- "沒有" --> NS["${ITEM_STATUS_LABEL['not-started']}"]
   INA --> NOV["四種狀態都不是 verified<br/>研究項目沒有 T-id"]
@@ -89,20 +90,20 @@ export function statusFlowChart(): string {
 export const CHART_STATUS_FLOW = statusFlowChart()
 
 /** §1：研究題目之間的依賴（R6 → R1 表示「R6 的結果是 R1 的輸入」；規劃用，非驗證結果）。 */
-export const DEPENDENCY_CHART = `flowchart LR
-  R6["R6 Comparator 非理想"] --> R1["R1 有色 GMAC 雜訊"]
-  R1 --> R2["R2 Cyclostationary"]
-  R2 --> R10["R10 規格反推"]
-  R3["R3 量化 / limit cycle"] --> R10
-  R5["R5 Training sequence"] --> R4["R4 MIMO 更新矩陣"]
-  R4 --> R8["R8 NLMS / RLS / Kalman"]
-  R8 --> R3
-  R7["R7 事件級 PLL"] --> SS["SSPLL GOS / PHOS 極性"]
-  R7 --> R2
-  R5 --> SS
-  R9["R9 RTL bit-true / AMS"] --> R10
+export const DEPENDENCY_CHART = `flowchart TB
+  R6["R6<br/>Comparator 非理想"] --> R1["R1<br/>有色 GMAC 雜訊"]
+  R1 --> R2["R2<br/>Cyclostationary"]
+  R7["R7<br/>事件級 PLL"] --> R2
+  R7 --> SS["SSPLL<br/>GOS / PHOS 極性"]
+  R5["R5<br/>Training sequence"] --> SS
+  R5 --> R4["R4<br/>MIMO 更新矩陣"]
+  R4 --> R8["R8<br/>NLMS / RLS / Kalman"]
+  R8 --> R3["R3<br/>量化 / limit cycle"]
+  R2 --> R10["R10<br/>規格反推"]
   R1 --> R10
-  SS --> R10`
+  SS --> R10
+  R9["R9<br/>RTL bit-true / AMS"] --> R10
+  R3 --> R10`
 
 /** §4：實作階段 P0–P5 的依賴（docs/implementation_plan.md；只畫直接依賴，P0 → P2 這類由 P1 轉達的不重複畫）。 */
 export const PHASE_CHART = `flowchart LR

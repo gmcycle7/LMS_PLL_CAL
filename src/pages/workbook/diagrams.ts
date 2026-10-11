@@ -46,33 +46,34 @@ export const CHART_HOWTO = String.raw`flowchart TD
  * e_n = y − ŷ_n（量測為正、預測為負）；w_(n+1) = w_n + μ·e_n·x。
  */
 export const CHART_DEMO_ORDER = String.raw`flowchart LR
-  W(["$w_n$<br/>目前的猜測"]) --> PRED["① 預測<br/>$\hat y_n = w_n\,x$"]
-  X(["$x$<br/>輸入"]) --> PRED
+  X(["$x$<br/>輸入"]) --> PRED["① 預測<br/>$\hat y_n = w_n\,x$"]
+  W(["$w_n$<br/>目前的猜測"]) --> PRED
   X --> FIX["③ 修正量<br/>$\Delta w_n = \mu\,e_n\,x$"]
   PRED -- "$-\,\hat y_n$" --> S1(("＋"))
   Y(["$y$<br/>量到的輸出"]) -- "$+\,y$" --> S1
-  S1 -- "② $e_n = y - \hat y_n$" --> FIX
+  S1 -- "② $e_n$<br/>$= y - \hat y_n$" --> FIX
   FIX -- "$+\,\Delta w_n$" --> S2(("＋"))
   W -- "$+\,w_n$" --> S2
-  S2 -- "④ $w_{n+1} = w_n + \Delta w_n$" --> NEXT(["$w_{n+1}$<br/>回到 ① 再做一次<br/>（同一組 $x$、$y$）"])
+  S2 -- "④ $w_{n+1}$<br/>$= w_n + \Delta w_n$" --> NEXT(["$w_{n+1}$<br/>回到 ① 再做一次<br/>（同一組 $x$、$y$）"])
   ${FOCUS}
   class FIX focus`
 
 /**
  * §4：題庫的三種用法。題目全部來自各章的 handcalcs.ts（本頁不新增公式）；題庫瀏覽與隨機練習吃同一組篩選，
  * 練習卷自己選章節、難度與題數（切到練習卷時沿用目前的篩選當起點）。三者的詳解都由 def.solve() 當場算出。
+ * 節點文字用 <br/> 排成窄窄的幾行：圖才放得進桌機的正文欄（不用橫向捲動）。
  */
 export const CHART_BANK = `flowchart LR
-  SRC["各章與各頁的 handcalcs.ts<br/>ALL_HANDCALCS"] --> FIL["篩選<br/>?ch 章節, ?level 難度, ?q 關鍵字"]
-  FIL --> BR["題庫瀏覽<br/>依章節分組, 點開是完整的 HandCalc"]
-  FIL --> RP["隨機練習<br/>seed 可見, 作答統計存在 localStorage"]
+  SRC["各章與各頁的<br/>handcalcs.ts<br/>ALL_HANDCALCS"] --> FIL["篩選<br/>?ch 章節,<br/>?level 難度,<br/>?q 關鍵字"]
+  FIL --> BR["題庫瀏覽<br/>依章節分組,<br/>點開是完整的 HandCalc"]
+  FIL --> RP["隨機練習<br/>seed 可見,<br/>作答統計存在 localStorage"]
   SRC --> SH["練習卷<br/>自選章節, 難度, 題數"]
-  FIL -. "切到練習卷時沿用" .-> SH
-  SH --> PR["列印 / 存成 PDF<br/>空白作答區, 後面附逐步解答"]
+  FIL -. "切到練習卷<br/>時沿用" .-> SH
+  SH --> PR["列印 / 存成 PDF<br/>空白作答區,<br/>後面附逐步解答"]
   BR --> SV["def.solve()<br/>詳解當場算出"]
   RP --> SV
   SH --> SV
-  SIM["src/simulation 的模型函式"] --> SV
+  SIM["src/simulation<br/>的模型函式"] --> SV
   ${FOCUS}
   class SV focus`
 

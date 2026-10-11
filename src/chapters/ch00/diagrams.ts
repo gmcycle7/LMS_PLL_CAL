@@ -64,11 +64,11 @@ ${CLASS_DEFS}
 
 /** §0.2 預測 → 比較 → 修正（每一條線都標出訊號名稱）。 */
 export const CHART_LOOP = String.raw`flowchart LR
-  X["輸入 $x[n]$"] -- "$x[n]$" --> P["① 預測<br/>$\hat y[n] = w[n]\,x[n]$"]
-  Y["黑盒子輸出 $y[n]$"] -- "$y[n]$" --> C["② 比較<br/>$e[n] = y[n] - \hat y[n]$"]
-  P -- "$\hat y[n]$" --> C
-  C -- "$e[n]$" --> U["③ 修正<br/>$w[n+1] =$<br/>$w[n] + \mu\,e[n]\,x[n]$"]
-  X -- "$x[n]$" --> U
+  X["輸入 $x[n]$"] -- "$x[n]$" --> U["③ 修正<br/>$w[n+1] =$<br/>$w[n] + \mu\,e[n]\,x[n]$"]
+  X -- "$x[n]$" --> P["① 預測<br/>$\hat y[n] = w[n]\,x[n]$"]
+  P -- "$\hat y[n]$" --> C["② 比較<br/>$e[n] = y[n] - \hat y[n]$"]
+  Y["黑盒子輸出 $y[n]$"] -- "$y[n]$" --> C
+  C -- "$e[n]$" --> U
   U -- "$w[n+1]$<br/>下一筆資料用" --> P
 ${CLASS_DEFS}
   class P,C,U focus`
@@ -169,10 +169,10 @@ ${CLASS_DEFS}
 /** §0.8 一般化的 LMS 自適應迴圈。 */
 export const CHART_ADAPTIVE_LOOP = String.raw`flowchart LR
   X["參考輸入 $x$<br/>regressor"] --> F["可調係數 $w$<br/>濾波器或增益"]
-  F -- "$(-)$ 預測 $\hat y$" --> S(("$+$"))
-  D["期望／量到的 $y$"] -- "$(+)$ $y$" --> S
-  S -- "誤差 $e = y - \hat y$" --> M(("$\times$"))
-  X --> M
+  D["期望／量到的 $y$"] -- "$(+)$ $y$" --> S(("$+$"))
+  F -- "$(-)$ 預測 $\hat y$" --> S
+  X --> M(("$\times$"))
+  S -- "誤差 $e = y - \hat y$" --> M
   M -- "相關 $e\,x$" --> A["$\times\,\mu$，再累加"]
   A -- "修正後的 $w$" --> F
 ${CLASS_DEFS}
@@ -192,17 +192,17 @@ ${CLASS_DEFS}
   class V warn`
 
 /** §0.8 PLL 的 DTC gain 校正迴圈（簡化）：sample 速率的比較器、block 速率的更新。 */
-export const CHART_PLL_LOOP = String.raw`flowchart TB
+export const CHART_PLL_LOOP = String.raw`flowchart LR
+  subgraph CAL["LMS 校正迴路（慢）"]
+    direction TB
+    CMP["1-bit 比較器<br/>$q[n] = \mathrm{sign}(e[n])$"] -- "$q[n]$" --> G["GMAC：平均 $N$ 筆<br/>$G[k] =$<br/>$(1/N)\sum q[n]\,x[n]$"]
+    G -- "$G[k]$" --> U["更新 gain register<br/>$w[k+1] =$<br/>$w[k] + \mu\,G[k]$"]
+  end
   subgraph MAIN["主 PLL 路徑（快）"]
-    direction LR
+    direction TB
     DSM["DSM 殘差<br/>$x[n]$"] --> DTC["DTC<br/>補償 $w\,x[n]$"]
     DTC --> PD["PD 量到的誤差<br/>$e[n] =$<br/>$(a - w)\,x[n] + v[n]$"]
     REF["參考時脈"] --> PD
-  end
-  subgraph CAL["LMS 校正迴路（慢）"]
-    direction LR
-    CMP["1-bit 比較器<br/>$q[n] = \mathrm{sign}(e[n])$"] -- "$q[n]$" --> G["GMAC：平均 $N$ 筆<br/>$G[k] =$<br/>$(1/N)\sum q[n]\,x[n]$"]
-    G -- "$G[k]$" --> U["更新 gain register<br/>$w[k+1] =$<br/>$w[k] + \mu\,G[k]$"]
   end
   MAIN -- "$e[n]$ 給比較器<br/>$x[n]$ 給 GMAC" --> CAL
   CAL -- "$w$ 給 DTC<br/>每 $N$ 筆才更新一次" --> MAIN
@@ -211,18 +211,18 @@ ${CLASS_DEFS}
 
 /** §0.9 Conventional LMS 與 Sign-Error LMS 的資料路徑並排：乘法器 vs 比較器 + 條件變號。 */
 export const CHART_LMS_VS_SIGN = String.raw`flowchart LR
-  subgraph LMS["Conventional LMS"]
-    direction LR
-    E1["誤差 $e[n]$<br/>多位元：要知道大小"] --> M1(("$\times$"))
-    X1["$x[n]$"] --> M1
-    M1 -- "$e[n]\,x[n]$" --> G1["$\times\,\mu$<br/>再累加到 $w$"]
-  end
   subgraph SGN["Sign-Error LMS"]
     direction LR
     E2["誤差 $e[n]$<br/>只用到正負號"] --> C2["1-bit 比較器<br/>$q[n] = \mathrm{sign}(e[n])$"]
     C2 -- "$q[n]$" --> N2["條件變號<br/>$+1$ 送 $x[n]$<br/>$-1$ 送 $-x[n]$"]
     X2["$x[n]$"] --> N2
     N2 -- "$q[n]\,x[n]$" --> G2["$\times\,\mu$<br/>再累加到 $w$"]
+  end
+  subgraph LMS["Conventional LMS"]
+    direction LR
+    E1["誤差 $e[n]$<br/>多位元：要知道大小"] --> M1(("$\times$"))
+    X1["$x[n]$"] --> M1
+    M1 -- "$e[n]\,x[n]$" --> G1["$\times\,\mu$<br/>再累加到 $w$"]
   end
 ${CLASS_DEFS}
   class M1 warn
@@ -497,7 +497,7 @@ const DRAFTS = [
     section: 'ch00-why-matters',
     sectionLabel: '§0.8',
     before: 'ch00-pll-walk',
-    shows: 'DTC gain 校正迴圈分成兩排：主 PLL 路徑（DSM → DTC → PD）與 LMS 校正迴路（比較器 → GMAC → 更新）',
+    shows: 'DTC gain 校正迴圈分成左右兩個框：主 PLL 路徑（DSM → DTC → PD）與 LMS 校正迴路（比較器 → GMAC → 更新）',
     chart: CHART_PLL_LOOP,
     caption: 'DTC gain 校正迴圈（簡化示意；完整版還有 PLL 的 error transfer，見 Ch04、Ch06）。兩個框就是系統地圖的「主 PLL 迴路（快）」與「LMS 校正迴路（慢）」；藍色三格是校正迴路的主角。',
     ariaLabel: '主路徑：DSM 殘差驅動 DTC，PD 量到誤差；校正迴路：比較器取正負號，GMAC 平均 N 筆，每個 block 更新一次 gain register，再把 w 送回 DTC',

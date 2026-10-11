@@ -19,6 +19,14 @@
  *  - 圖內極性一律 δ = a − w；sample 索引 n、block 索引 k；e_PD 已含雜訊 v（q = sign(e_PD)）。
  *  - 圖說與正文不描述「左邊／右邊」這類由自動排版決定的位置（除非連線方向保證它），改用方塊的名稱或顏色指認。
  *
+ * 版面（docs/teaching-style.md §8）：桌機（1280px）上每張圖要放進正文欄、不橫向捲動，自然寬度約 1260px 以內（`node scripts/diagram-audit.mjs --routes /ch/06`）。
+ *  - 太寬的圖用 `<br/>` 把長標籤換行（含公式的標籤不會自動換行；沒有公式的標籤超過約 200px 才自動換行）；圖 6.10 是兩個 subgraph 各排成一列、上下疊
+ *    （`T1 ~~~ T2` 是 subgraph 層級的隱形連線；subgraph 裡只要有節點連到外面，它自己的 direction 就會失效，所以列與列之間不能有節點對節點的連線）。
+ *  - 有回授的圖（圖 6.4）把回授的終點節點放在最前面宣告：Mermaid（dagre）會把「走回頭」的那條連線找出來反轉，宣告順序決定它選哪一條，
+ *    先宣告回授的終點，回授線就會沿著旁邊繞回上面，不會穿過別的方塊。
+ *  - 時序圖（圖 6.24）的寬度由 participant 之間的訊息寬度決定：訊息在 `$$...$$` 裡用 `\begin{gathered}…\cr…\end{gathered}` 分行；
+ *    `Note over 單一 participant` 的寬度是照原始碼的字數算的（和公式畫出來多寬無關），所以那一行的 TeX 要寫短、不換行；`Note right of` 則照畫出來的寬度算。
+ *
  * 圖說（caption）同樣支援 `$...$`；逐項的「圖上的 X 就是公式裡的 x」對照寫在圖下方的正文（<ChapterDiagram> 的 children）。
  */
 
@@ -77,8 +85,10 @@ ${STYLE}
  * 對應 F-06.1 e_PD[n] ≈ (a − w_k)·u[n] + v[n] 與 §3 的 G_k = (1/N) Σ q[n]·x[n−D]、w_(k+1) = w_k + μ·G_k。
  */
 export const CHART_ERROR_PATH = String.raw`flowchart TB
-  A["真實 gain $a$"] -- "＋" --> DS(("＋"))
-  W["校正值 $w_k$<br/>每個 block 更新一次"] -- "−" --> DS
+  W["校正值 $w_k$<br/>每個 block 更新一次"]
+  A["真實 gain $a$"]
+  A -- "＋" --> DS(("＋"))
+  W -- "−" --> DS
   DS -- "$\delta_k = a - w_k$" --> MUL(("$\times$"))
   X["code $x[n]$"] --> MUL
   MUL -- "DTC 誤差 $\varepsilon[n] = \delta_k\,x[n]$" --> HPD["主 PLL 的誤差路徑<br/>$H_{\mathrm{PD}} = 1/(1+L)$"]
@@ -166,10 +176,14 @@ ${STYLE}
 
 /* ───────────────────────────── §5 ───────────────────────────── */
 
-/** 圖 6.10：Type-I 與 Type-II 並排（CT 原型）——一個積分器 vs 兩個；低頻看到一次微分 vs 二次微分。 */
+/**
+ * 圖 6.10：Type-I 與 Type-II 的比較（CT 原型）——一個積分器 vs 兩個；低頻看到一次微分 vs 二次微分。
+ * 版面：兩個 subgraph 上下疊（Type-I 在上），各自 direction LR 排成一列；`T1 ~~~ T2` 是 subgraph 層級的隱形連線，只負責叫 Mermaid 把兩列上下排，
+ * 而不是節點對節點的連線（那樣會讓 subgraph 內的 direction 失效）。左右並排的話整張圖寬約 1260px，字會被縮到 70%。
+ */
 export const CHART_LOOP_TYPES = String.raw`flowchart TB
   subgraph T1["Type-I：迴路裡一個積分器"]
-    direction TB
+    direction LR
     E1["DTC 誤差 $\varepsilon$"] -- "＋" --> S1(("＋"))
     S1 -- "$e_{\mathrm{PD}}$" --> K1["比例增益 $\omega_c$"]
     K1 --> I1["DCO：積分 $1/s$"]
@@ -177,13 +191,14 @@ export const CHART_LOOP_TYPES = String.raw`flowchart TB
     S1 -. "從 $e_{\mathrm{PD}}$ 看" .-> R1["$H_{\mathrm{PD}} = s/(s + \omega_c)$<br/>低頻約 $s/\omega_c$：一次微分<br/>$\operatorname{Re}H$ 恆正：只會變慢"]
   end
   subgraph T2["Type-II：迴路裡兩個積分器"]
-    direction TB
+    direction LR
     E2["DTC 誤差 $\varepsilon$"] -- "＋" --> S2(("＋"))
     S2 -- "$e_{\mathrm{PD}}$" --> PI["PI 濾波器：比例 + 積分<br/>$2\zeta\omega_n + \omega_n^2/s$"]
     PI --> I2["DCO：積分 $1/s$"]
     I2 -- "$-\varphi_{\mathrm{fb}}$" --> S2
     S2 -. "從 $e_{\mathrm{PD}}$ 看" .-> R2["$H_{\mathrm{PD}} = s^2/(s^2 + 2\zeta\omega_n s + \omega_n^2)$<br/>低頻約 $s^2/\omega_n^2$：二次微分<br/>$\omega \lt \omega_n$ 時 $\operatorname{Re}H$ 為負：會變號"]
   end
+  T1 ~~~ T2
 ${STYLE}
   class PI focus
   class R1 ok
@@ -220,15 +235,15 @@ ${STYLE}
 /** 圖 6.13：CT 原型 ↔ DT 迴路的對應（E44）——積分器、PI 係數、頻率軸、延遲，以及什麼時候 CT 夠準。 */
 export const CHART_CT_DT_MAP = String.raw`flowchart LR
   C1["CT：積分器 $1/s$"] -- "$1 - z^{-1} \approx s\,T_s$" --> D1["DT：累加器 $1/(1 - z^{-1})$"]
-  C2["CT：PI 濾波器<br/>$2\zeta\omega_n + \omega_n^2/s$"] -- "係數乘 $T_s$、$T_s^2$" --> D2["DT：$K_p + K_i/(1 - z^{-1})$<br/>$K_p = 2\zeta\omega_nT_s$，$K_i = (\omega_nT_s)^2$"]
-  C3["CT：頻率 $\omega$，單位 rad/s"] -- "$\Omega = \omega T_s$" --> D3["DT：$\Omega$，單位 rad/sample<br/>在單位圓 $z = e^{j\Omega}$ 上求值"]
+  C2["CT：PI 濾波器<br/>$2\zeta\omega_n + \omega_n^2/s$"] -- "係數乘 $T_s$、$T_s^2$" --> D2["DT：$K_p + K_i/(1 - z^{-1})$<br/>$K_p = 2\zeta\omega_nT_s$<br/>$K_i = (\omega_nT_s)^2$"]
+  C3["CT：頻率 $\omega$<br/>單位 rad/s"] -- "$\Omega = \omega T_s$" --> D3["DT：$\Omega$，單位 rad/sample<br/>在單位圓 $z = e^{j\Omega}$ 上求值"]
   C4["CT：迴路沒有延遲"] -- "真實迴路多出" --> D4["DT：$z^{-(1+d)}$<br/>DCO 一拍，再加 latency $d$ 拍"]
   D1 --> V{"$\omega_nT_s$ 遠小於 1<br/>而且 $d = 0$？"}
   D2 --> V
   D3 --> V
   D4 --> V
-  V -- "是" --> Y["CT 原型夠準<br/>Type-II 的變號邊界在 $\omega_n$"]
-  V -- "否" --> N["DT 的相位多轉一些<br/>邊界移到約 1.00 到 1.49 倍 $\omega_n$（E44）"]
+  V -- "是" --> Y["CT 原型夠準<br/>Type-II 的變號邊界<br/>在 $\omega_n$"]
+  V -- "否" --> N["DT 的相位多轉一些<br/>邊界移到<br/>約 1.00 到 1.49 倍 $\omega_n$（E44）"]
 ${STYLE}
   class D1,D2,D3,D4 focus
   class Y ok
@@ -284,17 +299,26 @@ ${STYLE}
 
 /** 圖 6.17：時域路線（F-06.12）與頻域路線（F-06.11）算的是同一個 C_D。 */
 export const CHART_TWO_ROUTES = String.raw`flowchart TB
-  X["code $x[n]$"] --> RX["自相關 $R_x[\ell]$"]
-  X --> SXX["功率頻譜 $S_{xx}$"]
-  RX <-. "Wiener–Khinchin" .-> SXX
-  P["主 PLL 的誤差路徑 $H_{\mathrm{PD}}$"] --> HK["脈衝響應 $h[k]$"]
-  P --> HW["頻率響應 $H(e^{j\Omega})$"]
+  P["主 PLL 的誤差路徑 $H_{\mathrm{PD}}$"]
+  X["code $x[n]$"]
+  HK["脈衝響應 $h[k]$"]
+  RX["自相關 $R_x[\ell]$"]
+  HW["頻率響應 $H(e^{j\Omega})$"]
+  TD["時域路線<br/>$\sum_k h[k]\,R_x[k-D]$"]
+  SXX["功率頻譜 $S_{xx}$"]
+  FD["頻域路線<br/>$\frac{1}{2\pi}\int S_{xx}\operatorname{Re}\big(H e^{j\Omega D}\big)\,d\Omega$"]
+  C["同一個 $C_D$"]
+  P --> HW
+  P --> HK
+  X --> SXX
+  X --> RX
   HK <-. "DTFT" .-> HW
-  RX --> TD["時域路線<br/>$\sum_k h[k]\,R_x[k-D]$"]
+  RX <-. "Wiener–Khinchin" .-> SXX
   HK --> TD
-  SXX --> FD["頻域路線<br/>$\frac{1}{2\pi}\int S_{xx}\operatorname{Re}\big(H e^{j\Omega D}\big)\,d\Omega$"]
+  RX --> TD
+  SXX --> FD
   HW --> FD
-  TD --> C["同一個 $C_D$"]
+  TD --> C
   FD --> C
 ${STYLE}
   class C focus`
@@ -315,12 +339,12 @@ ${STYLE}
 
 /** 圖 6.19：近整數時的三層結論——D = 0 小訊號不變號、誤差超過 δ_c 變號、D > frac/K_i 小訊號就變號。 */
 export const CHART_NEAR_INTEGER_TREE = String.raw`flowchart TB
-  S0["近整數 FCW + Type-II 主迴路 + 一階 DSM 鋸齒"] --> Q1{"GMAC 的 code delay $D$？"}
-  Q1 -- "$D = 0$：完全對齊" --> Q2{"誤差 $|\delta|$ 和 basin 半徑 $\delta_c$ 比"}
-  Q1 -- "$1 \le D \le d+1$：regressor 落後" --> Q3{"$D$ 和門檻 $\mathrm{frac}/K_i$ 比"}
-  Q2 -- "$|\delta|$ 小於 $\delta_c$" --> A1["小訊號：$C/\sigma_x^2 \approx 12\,\mathrm{frac}^2/K_i$<br/>正的但趨近 0：不變號，恢復力消失"]
+  S0["近整數 FCW + Type-II<br/>主迴路 + 一階 DSM 鋸齒"] --> Q1{"GMAC 的 code delay $D$？"}
+  Q1 -- "$D = 0$：完全對齊" --> Q2{"誤差 $|\delta|$ 和<br/>basin 半徑 $\delta_c$ 比"}
+  Q1 -- "$1 \le D \le d+1$：<br/>regressor 落後" --> Q3{"$D$ 和門檻<br/>$\mathrm{frac}/K_i$ 比"}
+  Q2 -- "$|\delta|$ 小於 $\delta_c$" --> A1["小訊號：<br/>$C/\sigma_x^2 \approx 12\,\mathrm{frac}^2/K_i$<br/>正的但趨近 0：不變號<br/>恢復力消失"]
   Q2 -- "$|\delta|$ 大於 $\delta_c$" --> A2["但書 1：comparator 飽和<br/>平均更新反向，離開 basin"]
-  Q3 -- "$D$ 大於 $\mathrm{frac}/K_i$" --> A3["但書 2：$C_D/\sigma_x^2 \approx -12\,\mathrm{frac}\,D + 12\,\mathrm{frac}^2/K_i$<br/>負的：小訊號就變號"]
+  Q3 -- "$D$ 大於 $\mathrm{frac}/K_i$" --> A3["但書 2：<br/>$C_D/\sigma_x^2 \approx -12\,\mathrm{frac}\,D + 12\,\mathrm{frac}^2/K_i$<br/>負的：小訊號就變號"]
   Q3 -- "$D$ 小於 $\mathrm{frac}/K_i$" --> A4["$C_D$ 仍是正的：還沒翻"]
 ${STYLE}
   class A1 zero
@@ -390,20 +414,20 @@ ${STYLE}
  * 訊息與 Note 的公式是完整的 `$$...$$`（文字用 \text{}）；participant 名稱與 loop 標題不支援公式，只用文字。
  */
 export const CHART_BLOCK_TIMING = String.raw`sequenceDiagram
-  participant DTC as DTC（gain 由校正值決定）
+  participant DTC as DTC（gain<br/>由校正值決定）
   participant PLL as 主 PLL 的誤差路徑
   participant CMP as 1-bit comparator
   participant GMAC as GMAC 累加器
   participant W as 校正值的暫存器
   Note over DTC,W: $$\text{block }k\text{ 開始，這個 block 內 }w_k\text{ 固定，累加器 acc 歸零}$$
   loop sample rate，每個 sample 做一次，做滿一個 block 的 sample 數
-    DTC->>PLL: $$\text{DTC 誤差 }\varepsilon[n] = (a - w_k)\,x[n]$$
-    PLL->>CMP: $$e_{\mathrm{PD}}[n] = (h \ast \varepsilon)[n] + v[n]$$
-    CMP->>GMAC: $$q[n] = \operatorname{sign}(e_{\mathrm{PD}}[n])$$
-    Note right of GMAC: $$\mathrm{acc} \leftarrow \mathrm{acc} + q[n]\,x[n-D]$$
+    DTC->>PLL: $$\begin{gathered}\text{DTC 誤差 }\varepsilon[n]\cr = (a - w_k)\,x[n]\end{gathered}$$
+    PLL->>CMP: $$\begin{gathered}e_{\mathrm{PD}}[n] =\cr (h \ast \varepsilon)[n] + v[n]\end{gathered}$$
+    CMP->>GMAC: $$\begin{gathered}q[n] =\cr \operatorname{sign}(e_{\mathrm{PD}}[n])\end{gathered}$$
+    Note right of GMAC: $$\begin{gathered}\mathrm{acc} \leftarrow\cr \mathrm{acc} + q[n]\,x[n-D]\end{gathered}$$
   end
-  GMAC->>W: $$\text{block rate，每個 block 一次，}G_k = \mathrm{acc}/N$$
-  Note over W: $$w_{k+1} = w_k + \mu\,G_k$$
+  GMAC->>W: $$\begin{gathered}\text{block rate，}\cr \text{每個 block 一次，}\cr G_k = \mathrm{acc}/N\end{gathered}$$
+  Note over W: $$w_{k+1}=w_k+\mu G_k$$
   W-->>DTC: $$\text{block }k+1\text{ 改用 }w_{k+1}$$`
 
 /* ───────────────────────────── §8 ───────────────────────────── */
@@ -418,9 +442,9 @@ export const CHART_REGRESSORS = String.raw`flowchart TB
   Q["comparator 的 $q[n]$<br/>誤差裡的 code 是 $u = h \ast x$"] --> M1
   Q --> M2
   Q --> M3
-  M1 -- "block 平均" --> C1["raw-x（本章）<br/>相關 $C = x\,u$ 的平均：可正可負"]
-  M2 -- "block 平均" --> C2["delayed-x<br/>相關 $C_D = x[n-D]\,u[n]$ 的平均：只對準一個頻率"]
-  M3 -- "block 平均" --> C3["filtered-x<br/>相關 = $u\,u_f$ 的平均：模型準時等於 $u^2$ 的平均，不會是負的"]
+  M1 -- "block 平均" --> C1["raw-x（本章）<br/>相關 $C = x\,u$ 的平均：<br/>可正可負"]
+  M2 -- "block 平均" --> C2["delayed-x<br/>相關 $C_D = x[n-D]\,u[n]$ 的平均：<br/>只對準一個頻率"]
+  M3 -- "block 平均" --> C3["filtered-x<br/>相關 = $u\,u_f$ 的平均：<br/>模型準時等於 $u^2$ 的平均，<br/>不會是負的"]
 ${STYLE}
   class DL,HH focus
   class C1 warn
@@ -535,7 +559,7 @@ const DEFS: Def[] = [
   {
     section: 'ch06-s5',
     kind: 'compare',
-    title: 'Type-I 與 Type-II 並排',
+    title: 'Type-I 與 Type-II 的比較',
     caption: String.raw`比較兩個迴路裡的積分器數量：Type-I 只有 DCO 一個，Type-II 多了 PI 濾波器的積分（藍色）；所以低頻時 Type-I 的 PD 看到 code 的一次微分，Type-II 看到二次微分。`,
     chart: CHART_LOOP_TYPES,
   },

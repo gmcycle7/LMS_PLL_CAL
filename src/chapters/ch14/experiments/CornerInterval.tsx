@@ -175,7 +175,16 @@ export function CornerIntervalExperiment() {
     return s
   }, [res, dp.eps, tokens, plotRange])
 
-  const contractionLayout = useMemo(() => ({ shapes, xaxis: { title: { text: String.raw`$\mu$（fs，log）` } }, yaxis: { title: { text: String.raw`$|E[\delta_B]/\delta_0|$` } } }), [shapes])
+  // y 軸範圍（log10）：曲線在 μ = 1/K_i 掉到 0（deadbeat），交給 Plotly 自動範圍會一路伸到 10^-30 以下，把 ε 線附近壓成一條線；
+  // 這裡只看 ε 下面三個 decade 到 10^1.5，掉到 0 的尖角會從下緣衝出去（圖說已寫明）。
+  const contractionLayout = useMemo(
+    () => ({
+      shapes,
+      xaxis: { title: { text: String.raw`$\mu$（fs，log）` } },
+      yaxis: { title: { text: String.raw`$|E[\delta_B]/\delta_0|$` }, range: [Math.log10(dp.eps) - 3, 1.5] },
+    }),
+    [shapes, dp.eps],
+  )
   const bminData = useMemo<Data[]>(() => {
     const rs = linspace(0.02, 1, 200)
     const g = gMaxForPm(dp.pmTargetDeg)

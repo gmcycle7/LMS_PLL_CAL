@@ -2,7 +2,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import mermaid from 'mermaid'
 import { SettingsProvider } from '@/app/settings'
-import { SYSTEM_BLOCK_LABEL, stripMathDelimiters, systemMapChart } from '@/components'
+import { SYSTEM_BLOCK_LABEL, stripMathDelimiters, systemMapModel } from '@/components'
 import { mermaidMathDelimiters, sanitizeMermaidSource } from '@/components/mermaidSource'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { eigSym, matVec } from '@/simulation/core'
@@ -203,13 +203,15 @@ describe('Ch09 方塊圖：Mermaid 原始碼（真正的 mermaid parser）', () 
     await mermaid.parse(sanitizeMermaidSource(chart), { suppressErrors: false })
   })
 
-  it('章首系統地圖：本章標示的四個方塊可以解析，且真的被標成 focus', async () => {
-    const chart = systemMapChart(SYSTEM_FOCUS)
+  it('章首系統地圖：本章標示的四個方塊（regressor、code alignment、GMAC、gain accumulator）真的被標成主角', () => {
+    // 系統地圖是共用的手排 SVG（<SystemMap>），不經過 Mermaid：用資料模型 systemMapModel 檢查主角；
+    // 版面本身（泳道、連線、不交叉）由 src/components/SystemMap.test.tsx 負責
     expect(SYSTEM_FOCUS).toEqual(['res', 'align', 'gmac', 'acc'])
-    expect(chart).toContain('class RES,ALIGN,GMAC,ACC focus')
-    const { v } = await flow(chart)
-    const focused = [...v.values()].filter((x) => x.classes?.includes('focus')).map((x) => x.id)
-    expect(focused.sort()).toEqual(['ACC', 'ALIGN', 'GMAC', 'RES'])
+    const { blocks } = systemMapModel(SYSTEM_FOCUS)
+    expect(blocks).toHaveLength(Object.keys(SYSTEM_BLOCK_LABEL).length)
+    expect(blocks.filter((b) => b.focused).map((b) => b.id).sort()).toEqual(['acc', 'align', 'gmac', 'res'])
+    // 其餘的方塊都不是主角
+    expect(blocks.filter((b) => !b.focused)).toHaveLength(Object.keys(SYSTEM_BLOCK_LABEL).length - SYSTEM_FOCUS.length)
   })
 
   it('每張圖：節點不超過 14 個、強調色只用 focus／warn／ok、每個節點都有連線、原始碼沒有會被吃掉的字元', async () => {
@@ -780,6 +782,53 @@ describe('Ch09 頁面與版面：系統地圖、方塊圖的位置、章末符�
     for (const fn of [P.react, P.purge, P.toImage, P.downloadImage, P.Plots.resize]) fn.mockClear()
   })
 
+  it('桌機寬度（1280px 不必橫向捲動）：原本橫向過寬（或被縮得太小）的 6 張圖已改成直向（TB）', async () => {
+    // 量測用 scripts/diagram-audit.mjs（真瀏覽器）：改版前 圖 9.10 寬 1361px、圖 9.13 寬 1326px，超出正文欄；
+    // 圖 9.6、9.8、9.15、9.16 雖然放得下，但被縮到 0.8 倍以下。jsdom 量不到像素，所以守住「方向」這個原因
+    const reshaped = ['CHART_EIGEN_MODES', 'CHART_SCALAR_GAIN', 'CHART_PE_CONTRACTION', 'CHART_GAUGE_SHIFT', 'CHART_DC_NULL']
+    for (const name of reshaped) expect((await flow(ALL_CHARTS.find(([n]) => n === name)![1])).dir, name).toBe('TB')
+    // 狀態圖 9.10：兩個狀態各有一個標籤很長的自環，直向排列才放得進正文欄
+    expect(CHART_PM1_STAIRCASE).toMatch(/^stateDiagram-v2\n {2}direction TB\n/)
+    // 改成 TB 之後的列數也不超過 11（外層沒有巢狀 root 的圖：不同的 y 座標數）
+    mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', suppressErrorRendering: true, forceLegacyMathML: true })
+    for (const name of reshaped) {
+      const chart = ALL_CHARTS.find(([n]) => n === name)![1]
+      const { svg } = await mermaid.render(`ch09-tb-${name}`, sanitizeMermaidSource(chart))
+      const host = document.createElement('div')
+      host.innerHTML = svg
+      const ys = new Set(Array.from(host.querySelectorAll('g.node')).map((g) => /translate\(\s*-?[\d.]+[ ,]+(-?[\d.]+)\s*\)/.exec(g.getAttribute('transform') ?? '')?.[1]))
+      expect(ys.size, `${name}：列數`).toBeGreaterThanOrEqual(3)
+      expect(ys.size, `${name}：列數`).toBeLessThanOrEqual(11)
+    }
+  }, 120000)
+
+  it('圖 9.4／圖 9.12 的版面（真正的 renderer）：迴圈沒有被翻面、regressor 不橫跨回授線、「否」排在「合格」的左邊', async () => {
+    // 這兩張圖只靠「宣告順序」與一條拉長的連線（SD ---> DOT）排版；dagre 的結果若改變（例如把 U 提前宣告會讓整個迴圈翻面），這裡會先發現
+    mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', suppressErrorRendering: true, forceLegacyMathML: true })
+    const place = async (name: string, chart: string) => {
+      const { svg } = await mermaid.render(`ch09-order-${name}`, sanitizeMermaidSource(chart))
+      const host = document.createElement('div')
+      host.innerHTML = svg
+      return (id: string): [number, number] => {
+        const g = host.querySelector(`g.node[id^="flowchart-${id}-"]`)
+        const m = /translate\(\s*(-?[\d.]+)[ ,]+(-?[\d.]+)\s*\)/.exec(g?.getAttribute('transform') ?? '')
+        expect(m, `${name}：找不到 ${id} 的位置`).toBeTruthy()
+        return [Number(m![1]), Number(m![2])]
+      }
+    }
+    // 圖 9.4：真值在最上、延遲 z⁻¹ 在最下（沒有翻面）；U 排在 δ 那條線旁邊（在第一個加法點與內積之間的那一列），而且在內積的右邊、回授線的左邊
+    const at = await place('block-loop', CHART_BLOCK_LOOP)
+    expect(at('A')[1]).toBeLessThan(at('SD')[1])
+    expect(at('SD')[1]).toBeLessThan(at('U')[1])
+    expect(at('U')[1]).toBeLessThan(at('DOT')[1])
+    expect(at('DOT')[1]).toBeLessThan(at('Z')[1])
+    expect(at('U')[0]).toBeGreaterThan(at('DOT')[0])
+    // 圖 9.12：「否」（退化窗口）在「是」（這個窗口合格）的左邊，回授的虛線（合格 → 滑動窗口）才不會橫過「否」的那一條
+    const win = await place('pe-window', CHART_PE_WINDOW)
+    expect(win('BAD')[0]).toBeLessThan(win('NEXT')[0])
+    expect(win('BAD')[1]).toBe(win('NEXT')[1]) // 兩個結論在同一列
+  }, 120000)
+
   it('版面（真正的 renderer）：LR 的圖不超過 6 欄、TB 的圖不超過 11 列，節點一個都沒少', async () => {
     // 守住兩個實際踩過的陷阱：交叉的回授迴圈被 dagre 排成一條 10 欄的長鏈、沒有連線的兩個 subgraph 被排成左右並列——
     // 兩者都會讓圖被縮到看不清楚。jsdom 的文字大小是替身，但「排在第幾欄／第幾列」（rank）與真實瀏覽器相同。
@@ -814,14 +863,6 @@ describe('Ch09 頁面與版面：系統地圖、方塊圖的位置、章末符�
         expect(offsets, name).toHaveLength(2)
         expect(Math.abs(offsets[0][1] - offsets[1][1]), `${name}：兩個框應上下並排`).toBeGreaterThanOrEqual(40)
       }
-    }
-    // 章首系統地圖（共用元件）用本章的 focus 也畫得出來：17 個方塊都在，恰好 4 個被標成藍色
-    {
-      const { svg } = await mermaid.render('ch09-layout-system-map', sanitizeMermaidSource(systemMapChart(SYSTEM_FOCUS)))
-      const host = document.createElement('div')
-      host.innerHTML = svg
-      expect(host.querySelectorAll('g.node')).toHaveLength(Object.keys(SYSTEM_BLOCK_LABEL).length)
-      expect(Array.from(host.querySelectorAll('g.node.focus')).map((g) => g.id.replace(/^flowchart-/, '').replace(/-\d+$/, '')).sort()).toEqual(['ACC', 'ALIGN', 'GMAC', 'RES'])
     }
     // 耦合圖：兩個參數各一列、5 欄（輸入 → 加法點 → × g → 加法點 → 輸出）
     const { svg } = await mermaid.render('ch09-layout-coupled', sanitizeMermaidSource(CHART_COUPLED_MEAN))
@@ -861,12 +902,21 @@ describe('Ch09 頁面與版面：系統地圖、方塊圖的位置、章末符�
     const figures = Array.from(container.querySelectorAll('figure.c-mermaid'))
     expect(figures).toHaveLength(DIAGRAM_COUNT + 1)
     for (const f of figures) expect(f.querySelector('.c-mermaid-svg svg'), f.getAttribute('aria-label') ?? '').toBeTruthy()
-    // 送進 Mermaid 的原始碼（Mermaid 元件先經 sanitizeMermaidSource：含公式的標籤合併成 `$$…$$`），依頁面順序：系統地圖（本章的 focus）→ 清單裡的 20 張
-    expect([...new Set(fast.charts)]).toEqual([systemMapChart(SYSTEM_FOCUS), ...CH09_DIAGRAMS.map((d) => d.chart)].map(sanitizeMermaidSource))
+    // 送進 Mermaid 的原始碼（Mermaid 元件先經 sanitizeMermaidSource：含公式的標籤合併成 `$$…$$`），依頁面順序：清單裡的 20 張。
+    // 系統地圖（figures[0]）是手排的 SVG，不經過 Mermaid，所以不在這個清單裡
+    expect([...new Set(fast.charts)]).toEqual(CH09_DIAGRAMS.map((d) => d.chart).map(sanitizeMermaidSource))
 
     // ── 章首的系統地圖：緊跟在「這一課要回答的問題」之後、第一節之前，後面接一句「你在這裡」──
     const map = figures[0]
     expect(map.closest('.ch09-diagram')).toBeNull() // 它是共用的 <SystemMap>，不是本章清單裡的圖
+    expect(map.classList.contains('c-sysmap')).toBe(true)
+    // 本章的四個主角（regressor、code alignment、GMAC、gain accumulator）在頁面上真的是藍色（is-focus），其餘方塊不是
+    expect(
+      Array.from(map.querySelectorAll('g.c-sysmap-block.is-focus'))
+        .map((g) => g.getAttribute('data-block'))
+        .sort(),
+    ).toEqual([...SYSTEM_FOCUS].sort())
+    expect(map.querySelectorAll('g.c-sysmap-block')).toHaveLength(Object.keys(SYSTEM_BLOCK_LABEL).length)
     expect(map.getAttribute('aria-label')).toContain('DTC-based Fractional-N PLL 與 Sign-LMS 校正迴路的系統方塊圖')
     for (const b of SYSTEM_FOCUS) {
       // 方塊名稱可含 `$…$`：aria-label 是去掉 `$` 的純文字；圖說以 KaTeX 排版（文字部分照原樣，公式的 TeX 原始碼在 annotation 裡）

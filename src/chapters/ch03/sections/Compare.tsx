@@ -214,12 +214,12 @@ export function CompareSection() {
           ariaLabel="DSM 或 DTC 的 code x 同時乘上未知的 a 與校正值 w，兩者在 phase detector 相減並加上雜訊 v，得到誤差 e 等於 delta 乘 x 加 v。本章把 error path 當成 1、沒有延遲、comparator 當成線性。誤差與同一個 x 相乘後由 GMAC 累加 N 筆，每個 block 除以 N 乘 mu，加到 gain accumulator 的 w 上，再回到 gain correction"
         />
         <p>
-          先看左半：同一個 code <Tex>{T`x[i]`}</Tex>（<Tex>i</Tex> 是 sample 索引）走兩條路。上面那條是「要被抵消的量」——DSM 量化誤差在 phase detector（PD）輸入端造成的時間誤差 <Tex>{T`a\,x[i]`}</Tex>，
-          <Tex>a</Tex> 就是能把它完全抵消的理想校正 gain（未知）；下面那條是 DTC 依目前的校正值實際補掉的 <Tex>{T`w[k]\,x[i]`}</Tex>（<Tex>k</Tex> 是 block 索引，block 內 <Tex>w</Tex> 不變）。兩者在加法點相減，再加上 PD／reference
+          先看上半：同一個 code <Tex>{T`x[i]`}</Tex>（最上面的藍色方塊，<Tex>i</Tex> 是 sample 索引）走兩條路。中間那格是「要被抵消的量」——DSM 量化誤差在 phase detector（PD）輸入端造成的時間誤差 <Tex>{T`a\,x[i]`}</Tex>，
+          <Tex>a</Tex> 就是能把它完全抵消的理想校正 gain（未知）；左邊那格是 DTC 依目前的校正值實際補掉的 <Tex>{T`w[k]\,x[i]`}</Tex>（<Tex>k</Tex> 是 block 索引，block 內 <Tex>w</Tex> 不變）。兩者在加法點相減，再加上右邊紅色那格 PD／reference
           的雜訊 <Tex>{T`v[i]`}</Tex>，就是 <Tex>{T`e[i]=\delta[k]\,x[i]+v[i]`}</Tex>——和第 3 節的 <Tex>{T`e_n=\delta_nx_n+v_n`}</Tex> 是同一條式子。再看褐色那一格：真實硬體裡 <Tex>e</Tex> 還要經過 PLL 的 error
-          path（第 6–7 章）、更新延遲（第 8 章）和 1-bit comparator（第 5 章），accumulator 的輸出還有位元數限制（第 13 章）；本章把它們全部理想化，才得到乾淨的 <Tex>{T`1-\mu x^2`}</Tex>。最後看右半的藍色方塊：
+          path（第 6–7 章）、更新延遲（第 8 章）和 1-bit comparator（第 5 章），accumulator 的輸出還有位元數限制（第 13 章）；本章把它們全部理想化，才得到乾淨的 <Tex>{T`1-\mu x^2`}</Tex>。最後往下看藍色方塊：
           <Tex>{T`e[i]\,x[i]`}</Tex> 由 GMAC 累加 <Tex>N</Tex> 筆，每個 block 做一次「<Tex>{T`\div N`}</Tex>、<Tex>{T`\times\mu`}</Tex>」，加進 gain accumulator：
-          <Tex>{T`w[k+1]=w[k]+\mu\cdot\tfrac1N\sum_i e[i]\,x[i]`}</Tex>。<Tex>{T`N=1`}</Tex> 時 <Tex>{T`k=n`}</Tex>，這就是第 1–7 節的 <Tex>{T`w_{n+1}=w_n+\mu e_nx_n`}</Tex>；<Tex>{T`N>1`}</Tex> 的情況在本節後半（F-03.14）。下表把每個符號逐一對回硬體：
+          <Tex>{T`w[k+1]=w[k]+\mu\cdot\tfrac1N\sum_i e[i]\,x[i]`}</Tex>，新的 <Tex>{T`w[k]`}</Tex> 再沿著左邊那條長線回到「DTC 實際補掉的量」。<Tex>{T`N=1`}</Tex> 時 <Tex>{T`k=n`}</Tex>，這就是第 1–7 節的 <Tex>{T`w_{n+1}=w_n+\mu e_nx_n`}</Tex>；<Tex>{T`N>1`}</Tex> 的情況在本節後半（F-03.14）。下表把每個符號逐一對回硬體：
         </p>
         <div className="table-wrap">
           <table>
@@ -280,7 +280,7 @@ export function CompareSection() {
         <p>
           實際硬體不是每個 sample 更新，而是 GMAC 累加 <Tex>N</Tex> 筆後才更新一次（block LMS）。以 conventional LMS 的 block 平均梯度為例，每個 block 的乘法因子是{' '}
           <Tex>{T`1-\mu S_k`}</Tex>，<Tex>{T`S_k=\frac1N\sum_{i=1}^Nx_i^2`}</Tex>（<Tex>k</Tex> 是 block 索引，<Tex>i</Tex> 是 block 內的 sample 索引，<Tex>{T`S_k`}</Tex> 是第 <Tex>k</Tex> 個 block 內{' '}
-          <Tex>{T`x^2`}</Tex> 的平均）。下圖是{figRef(CHART_PLL_MAPPING)} 右半那一段（GMAC → <Tex>{T`\div N`}</Tex>、<Tex>{T`\times\mu`}</Tex> → accumulator），改用「還差多少」<Tex>{T`\delta[k]=a-w[k]`}</Tex>{' '}
+          <Tex>{T`x^2`}</Tex> 的平均）。下圖是{figRef(CHART_PLL_MAPPING)} 下半那一段（GMAC → <Tex>{T`\div N`}</Tex>、<Tex>{T`\times\mu`}</Tex> → accumulator），改用「還差多少」<Tex>{T`\delta[k]=a-w[k]`}</Tex>{' '}
           來畫——和第 1 節把 LMS 迴圈改畫成誤差遞迴是同一招，所以修正量進加法點時是<strong>減號</strong>：
         </p>
         <Fig

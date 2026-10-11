@@ -440,7 +440,7 @@ export function S8Hardware() {
         ariaLabel="GMAC datapath 的方塊圖：comparator bit 映射成正負一，code 對齊延遲後條件取負，累加 N 筆，右移，乘上 learning rate，寫入 gain register，再送到 DTC"
       >
         <p>
-          先看左邊的兩個輸入：comparator 給的是 0/1 的 bit <Tex>{'b[n]'}</Tex>，要先映射成 <Tex>{'q=2b-1'}</Tex>；code 是 <Tex>{'B_x'}</Tex>-bit 的有號整數 <Tex>{'x_\\mathrm{int}'}</Tex>，要延遲 <Tex>{'D'}</Tex> 個 sample 與誤差對齊。乘上 <Tex>{'q=\\pm1'}</Tex>{' '}
+          先看最上面一列左邊的兩個輸入：comparator 給的是 0/1 的 bit <Tex>{'b[n]'}</Tex>，要先映射成 <Tex>{'q=2b-1'}</Tex>；code 是 <Tex>{'B_x'}</Tex>-bit 的有號整數 <Tex>{'x_\\mathrm{int}'}</Tex>，要延遲 <Tex>{'D'}</Tex> 個 sample 與誤差對齊。乘上 <Tex>{'q=\\pm1'}</Tex>{' '}
           在硬體裡是「條件取負」。
         </p>
         <p>

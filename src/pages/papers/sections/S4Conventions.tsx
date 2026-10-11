@@ -130,11 +130,11 @@ export function S4Conventions() {
         ariaLabel="步長寫法換算圖：本站 Part A、Widrow 型、NLMS、block sign-GMAC 四種更新式換成每單位 eigenvalue 的平均 loop gain，再算每個 eigen-mode 的 loop gain 與 pole"
       >
         <p>
-          <strong>先看</strong>左邊四個方塊：四種寫法的更新式長得不一樣，但都可以換算成同一個量 <Tex>{'s'}</Tex>（每單位 eigenvalue 的平均 loop gain）。箭頭上寫的就是換算式；Widrow 型的{' '}
+          <strong>先看</strong>最上面一排四個方塊：四種寫法的更新式長得不一樣，但都可以換算成同一個量 <Tex>{'s'}</Tex>（每單位 eigenvalue 的平均 loop gain）。箭頭上寫的就是換算式；Widrow 型的{' '}
           <Tex>{r`s=2\mu_W`}</Tex> 就是「差 2 倍」的來源，下面馬上推導。
         </p>
         <p>
-          <strong>再看</strong>右邊：有了 <Tex>{'s'}</Tex>，第 <Tex>{'i'}</Tex> 個 eigen-mode 的 loop gain 是 <Tex>{r`g_i=s\lambda_i`}</Tex>（<Tex>{r`\lambda_i`}</Tex> 是 regressor 自相關矩陣的特徵值），pole 是{' '}
+          <strong>再看</strong>往下：有了 <Tex>{'s'}</Tex>，第 <Tex>{'i'}</Tex> 個 eigen-mode 的 loop gain 是 <Tex>{r`g_i=s\lambda_i`}</Tex>（<Tex>{r`\lambda_i`}</Tex> 是 regressor 自相關矩陣的特徵值），pole 是{' '}
           <Tex>{'p_i=1-g_i'}</Tex>，穩定條件對四種寫法都一樣。圖上藍色的 <Tex>{'s'}</Tex> 就是本節後面 <code>gainScale</code> 那段程式回傳的數。
         </p>
       </Diagram>

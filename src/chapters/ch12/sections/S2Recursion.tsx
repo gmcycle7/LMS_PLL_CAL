@@ -256,7 +256,7 @@ export function S2Recursion() {
         <Diagram chart={CHART_PSD_FILTER} caption={String.raw`白雜訊通過一階 low-pass，$S_w=|H|^2S_\eta$：輸入是平的，輸出低頻高、高頻低，曲線下的面積就是係數雜訊的變異數 $\sigma_w^2$。`}>
           <p>
             {md(
-              String.raw`先由左到右看主線：平的 $S_\eta$ 乘上 $|H|^2$ 得到 $S_w$。再看掛在濾波器旁邊的兩個註記：$0<p<1$ 時 DC 的增益 $\mu^2/(1-p)^2$ 比 Nyquist 的 $\mu^2/(1+p)^2$ 大，所以輸出是 low-pass。最後看主線的最後兩格：把 $S_w$ 對 $\Omega$ 由 $-\pi$ 積到 $\pi$ 再除以 $2\pi$，就是下一小節的 $\sigma_w^2$。`,
+              String.raw`先由上往下看主線：平的 $S_\eta$ 乘上 $|H|^2$ 得到 $S_w$。再看掛在濾波器旁邊的兩個註記：$0<p<1$ 時 DC 的增益 $\mu^2/(1-p)^2$ 比 Nyquist 的 $\mu^2/(1+p)^2$ 大，所以輸出是 low-pass。最後看主線的最後兩格：把 $S_w$ 對 $\Omega$ 由 $-\pi$ 積到 $\pi$ 再除以 $2\pi$，就是下一小節的 $\sigma_w^2$。`,
             )}
           </p>
           <p>{md(String.raw`和公式的對照：圖上的「$\times|H|^2$」就是 F-12.4 的分式 $\mu^2/|1-pe^{-j\Omega}|^2$；主線終點的 $\sigma_w^2$ 是 F-12.5。`)}</p>

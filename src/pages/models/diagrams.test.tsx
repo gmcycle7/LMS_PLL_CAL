@@ -21,12 +21,23 @@ interface Edge {
   end: string
   text?: string
 }
+interface Subgraph {
+  id: string
+  title: string
+  nodes: string[]
+  dir?: string
+}
 
-/** 用真正的 mermaid parser 取出 flowchart 的節點與邊。 */
-async function flow(chart: string): Promise<{ vertices: Vertex[]; edges: Edge[] }> {
+/**
+ * 用真正的 mermaid parser 取出 flowchart 的節點、邊與 subgraph。
+ * 連線可以接在 subgraph 上（`R1 --> R2`），Mermaid 會同時把 R1、R2 登錄成「節點」；它們是群組不是方塊，所以從 vertices 裡拿掉，另外放進 subgraphs。
+ */
+async function flow(chart: string): Promise<{ vertices: Vertex[]; edges: Edge[]; subgraphs: Subgraph[] }> {
   const diagram = await mermaid.mermaidAPI.getDiagramFromText(chart)
-  const db = diagram.db as unknown as { getVertices: () => Map<string, Vertex>; getEdges: () => Edge[] }
-  return { vertices: [...db.getVertices().values()], edges: db.getEdges() }
+  const db = diagram.db as unknown as { getVertices: () => Map<string, Vertex>; getEdges: () => Edge[]; getSubGraphs: () => Subgraph[] }
+  const subgraphs = db.getSubGraphs()
+  const groupIds = new Set(subgraphs.map((s) => s.id))
+  return { vertices: [...db.getVertices().values()].filter((v) => !groupIds.has(v.id)), edges: db.getEdges(), subgraphs }
 }
 
 function edgeText(g: { edges: Edge[] }, start: string, end: string): string {
@@ -69,6 +80,24 @@ function labelHazard(text: string): string | null {
   return null
 }
 
+/**
+ * 標籤裡每一行（以 <br/> 分隔）去掉 `$...$` 之後的寬度估計：中文字算 1、其他字元算 0.55。
+ * 太長的行會把節點撐寬，整張圖就放不進桌機的正文欄（約 900px）；含數學的標籤不會自動換行，所以要自己用 <br/> 斷行。
+ */
+function overlongLines(chart: string, maxUnits = 16): string[] {
+  const hits: string[] = []
+  // subgraph 的標題不算：群組永遠比它的標題寬
+  for (const label of chart.replace(/^\s*subgraph .*$/gm, '').match(/"[^"\n]*"/g) ?? []) {
+    for (const line of label.slice(1, -1).split(/<br\s*\/?>/)) {
+      const text = line.replace(/\$[^$]*\$/g, '')
+      let units = 0
+      for (const ch of text) units += /[\u2e80-\u9fff\uff00-\uffef]/.test(ch) ? 1 : 0.55
+      if (units > maxUnits) hits.push(line.trim())
+    }
+  }
+  return hits
+}
+
 describe('Models 頁的方塊圖（真正的 mermaid parser）', () => {
   beforeAll(() => {
     installMermaidSvgShim()
@@ -107,6 +136,15 @@ describe('Models 頁的方塊圖（真正的 mermaid parser）', () => {
     for (const id of levels) expect(node(g, id).startsWith(id), id).toBe(true)
     for (const [a, b] of [['L0', 'L1'], ['L1', 'L2'], ['L2', 'L3'], ['L2', 'L4'], ['L2', 'L5'], ['L3', 'L6'], ['L4', 'L6'], ['L5', 'L6']]) expect(hasEdge(g, a, b), `${a} → ${b}`).toBe(true)
     expect(g.edges).toHaveLength(8)
+    // 標籤為了放進桌機正文欄而用 <br/> 斷行，但文字本身一個符號都不能少（曾經把「L6 進階 PLL / DSM / FCW」的斜線吃掉）
+    const labels: Record<string, string> = {
+      L0: 'L0純量LMS每sample',
+      L1: 'L1BlockGMAC＋Gaussiancomparator',
+      L4: 'L4NoisePSD→outputjitter/spur',
+      L5: 'L5定點/RTL-like',
+      L6: 'L6進階PLL/DSM/FCW',
+    }
+    for (const [id, text] of Object.entries(labels)) expect(plain(node(g, id)), id).toBe(text)
     // 綠 = 已實作、紅 = Not implemented；簡化版（partial）不上色
     const cls = (name: string) => (new RegExp(`class ([A-Z0-9,]+) ${name}\\b`).exec(D.LEVEL_CHART)?.[1] ?? '').split(',').filter(Boolean).sort()
     expect(cls('ok')).toEqual(LEVEL_ROWS.filter((r) => r.status === 'full').map((r) => r.level).sort())
@@ -155,15 +193,27 @@ describe('Models 頁的方塊圖（真正的 mermaid parser）', () => {
 
   it('GMAC datapath：b → q = 2b − 1、對齊 D、條件取負、累加、右移、× μ、gain register；位元數公式與 accBitsExact 相同', async () => {
     const g = await flow(D.CHART_GMAC_DATAPATH)
-    for (const [a, b] of [['B', 'MAP'], ['X', 'DLY'], ['MAP', 'NEG'], ['DLY', 'NEG'], ['NEG', 'ACC'], ['ACC', 'SHIFT'], ['SHIFT', 'MU'], ['MU', 'REG'], ['REG', 'DTC']]) {
+    // 同一列之內的箭頭：b → 映射、x → 對齊、兩條都進「條件取負」；累加 → 右移；× μ → gain register → DTC
+    for (const [a, b] of [['B', 'MAP'], ['X', 'DLY'], ['MAP', 'NEG'], ['DLY', 'NEG'], ['ACC', 'SHIFT'], ['MU', 'REG'], ['REG', 'DTC']]) {
       expect(hasEdge(g, a, b), `${a} → ${b}`).toBe(true)
     }
+    // 版面：折成三列（桌機放不下一整排）。Mermaid 只要 subgraph 裡有節點連到外面就會忽略它的 direction，所以列與列之間的箭頭畫在 subgraph 之間：
+    // 「條件取負 → 累加」變成 R1 → R2、「右移 → × μ」變成 R2 → R3。下面確認這兩個箭頭真的等於原來的節點對節點：
+    // 每一列的出口方塊（NEG、SHIFT）沒有列內的輸出箭頭，入口方塊（ACC、MU）沒有列內的輸入箭頭
+    expect(g.subgraphs.map((s) => s.id)).toEqual(['R1', 'R2', 'R3'])
+    const rows = Object.fromEntries(g.subgraphs.map((s) => [s.id, [...s.nodes].sort()]))
+    expect(rows).toEqual({ R1: ['B', 'DLY', 'MAP', 'NEG', 'X'], R2: ['ACC', 'SHIFT'], R3: ['DTC', 'MU', 'REG'] })
+    for (const s of g.subgraphs) expect(s.dir, s.id).toBe('LR')
+    for (const out of ['NEG', 'SHIFT']) expect(g.edges.filter((e) => e.start === out), `${out} 是這一列的出口`).toHaveLength(0)
+    for (const inn of ['ACC', 'MU']) expect(g.edges.filter((e) => e.end === inn), `${inn} 是這一列的入口`).toHaveLength(0)
+    expect(edgeText(g, 'R1', 'R2')).toBe(R`$q\cdot x_{\mathrm{int}}$`) // NEG 的輸出
+    expect(edgeText(g, 'R2', 'R3')).toBe(R`$\hat G_k$`) // SHIFT 的輸出，也就是 × μ 的輸入
     expect(g.edges).toHaveLength(9)
     expect(node(g, 'MAP')).toContain(R`$q = 2b - 1$`)
     expect(node(g, 'DLY')).toContain(R`$z^{-D}$`)
     expect(edgeText(g, 'DLY', 'NEG')).toBe(R`$x_{\mathrm{int}}[n-D]$`)
     expect(edgeText(g, 'ACC', 'SHIFT')).toBe(R`$S_k$`)
-    expect(edgeText(g, 'SHIFT', 'MU')).toBe(R`$\hat G_k$`)
+    expect(edgeText(g, 'MU', 'REG')).toBe(R`$\mu\cdot\hat G_k$`)
     expect(node(g, 'ACC')).toContain(R`$S_k = \sum q\cdot x_{\mathrm{int}}$`)
     expect(node(g, 'ACC')).toContain(R`$B_{\mathrm{acc}} = 1 + \lceil \log_2(N\cdot M_x + 1)\rceil$`)
     expect(node(g, 'SHIFT')).toContain(R`$\ell = \log_2 N - F_G$`)
@@ -197,8 +247,20 @@ describe('Models 頁的方塊圖（真正的 mermaid parser）', () => {
       const g = await flow(c.chart)
       for (const v of g.vertices) if (!hasMath(v.text ?? '')) expect(plain(r.text).includes(plain(v.text ?? '')), `${c.name} 節點 ${v.id}：「${v.text}」沒有原樣出現在圖上`).toBe(true)
       for (const e of g.edges) if (e.text && !hasMath(e.text)) expect(plain(r.text).includes(plain(e.text)), `${c.name} 邊 ${e.start}→${e.end}：「${e.text}」沒有原樣出現在圖上`).toBe(true)
+      // subgraph（列、迴圈）的標題也要畫出來：不含公式的原樣出現
+      for (const sg of g.subgraphs) if (!hasMath(sg.title)) expect(plain(r.text).includes(plain(sg.title)), `${c.name} 群組 ${sg.id}：「${sg.title}」沒有原樣出現在圖上`).toBe(true)
     }
   }, 120_000)
+
+  it('版面：桌機正文欄（約 900px）放得下、不用橫向捲動——兩層迴圈由上到下、datapath 折成三列、階梯圖的長標籤換行；沒有過長的單行（實際尺寸由 scripts/diagram-audit.mjs 量）', async () => {
+    expect(D.LEVEL_CHART).toMatch(/^flowchart LR/)
+    expect(D.CHART_BLOCK_SIGN_LMS).toMatch(/^flowchart TB/)
+    expect(D.CHART_GMAC_DATAPATH).toMatch(/^flowchart TB/)
+    // 兩層迴圈：內層（FS）在上、外層（FU）在下，兩個 subgraph 並列，沒有巢狀
+    const loop = await flow(D.CHART_BLOCK_SIGN_LMS)
+    expect(loop.subgraphs.map((s) => s.id)).toEqual(['FS', 'FU'])
+    for (const c of MODEL_CHARTS) expect(overlongLines(c.chart), c.name).toEqual([])
+  }, 60_000)
 
   it('圖內的數學都是 LaTeX：兩層迴圈與 datapath 的變數標籤都含 `$...$`，且成對；subgraph 標題的公式也由 KaTeX 排版', async () => {
     for (const c of MODEL_CHARTS) {

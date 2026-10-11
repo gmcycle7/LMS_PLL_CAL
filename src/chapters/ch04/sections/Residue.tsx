@@ -41,10 +41,14 @@ interface ResidueParams {
   fvcoGHz: number
 }
 
+/**
+ * 上下兩個子圖共用同一條 x 軸：x 軸要錨定在「下面那個」y 軸（y2），刻度與軸標題才會出現在整張圖的最底下；
+ * 預設錨在上面的 y 軸，軸標題會落在兩個子圖中間、壓到下面子圖的曲線。
+ */
 const RESIDUE_LAYOUT = {
-  xaxis: { title: { text: R`$n$（reference cycle）` } },
-  yaxis: { title: { text: R`$y[n]$` }, domain: [0.74, 1] },
-  yaxis2: { title: { text: 'fs' }, domain: [0, 0.64], anchor: 'x' as const },
+  xaxis: { title: { text: R`$n$（reference cycle）` }, anchor: 'y2' as const },
+  yaxis: { title: { text: R`$y[n]$` }, domain: [0.78, 1], anchor: 'x' as const },
+  yaxis2: { title: { text: 'fs' }, domain: [0, 0.68], anchor: 'x' as const },
 }
 const RESID_LAYOUT = { xaxis: { title: { text: R`$n$` } }, yaxis: { title: { text: 'fs' } } }
 

@@ -16,6 +16,11 @@
  *   所以每則訊息整句寫成一段 `$$\text{文字 } 公式 \text{ 文字}$$`，participant 的名稱不支援公式（寫成不含符號的文字）。
  * - 極性一律是 δ = a − w（全站約定 §0）。
  * - 標色：藍（focus）＝這張圖的主角；紅（warn）＝會出事的地方；綠（ok）＝通過。三種顏色在深淺主題都讀得清楚。
+ * - 版面（docs/teaching-style.md §8）：桌機 1280px 要放進正文欄（自然寬約 1260px 以內，`node scripts/diagram-audit.mjs --routes /ch/08` 的「超出」要是 0）。
+ *   太長的橫向流程改成 `flowchart TB`；連線標籤太寬時用 <br/> 分成兩行；含公式的節點要自己用 <br/> 換行（不會自動換行）。
+ *   兩個互不相連的 subgraph，dagre 會把後宣告的放在上面（DUAL_SIGNAL_FLOW_CHART 因此先宣告 QS、再宣告 FULL）。
+ * - 文字後面緊接的正負號（「在 $-1$ 與」「得到 $+60^\circ$」）KaTeX 會當成二元運算子而多出一格空白：寫 `\mathord{-}1`、`\mathord{+}60`。
+ *   不要寫 `${-}1$`：樣板字串裡的 `${` 是插值。
  */
 import type { SystemBlock } from '@/components'
 
@@ -30,15 +35,15 @@ const CLASS_DEFS = [
  * 每一格的遞迴式與穩定條件和 F-08.2／F-08.3、F-08.7／F-08.8、F-08.10／F-08.11、F-08.13／F-08.14 逐字相同（下標 k 是 GMAC block）。
  */
 export const ROADMAP_CHART = String.raw`flowchart LR
-  A["$\S 8.2$ 一階<br/>$\delta_{k+1} = (1-g)\,\delta_k$<br/>$0 \lt g \lt 2$"] -- "加上更新延遲 $d$" --> B["$\S 8.3$ 更新延遲<br/>$\delta_{k+1} = \delta_k - g\,\delta_{k-d}$<br/>$0 \lt g \lt 2\sin\frac{\pi}{4d+2}$"]
-  B -- "加上觀測狀態 $s$" --> C["$\S 8.4$ 雙迴路<br/>$s_{k+1} = r_s\,s_k + b_s\,\delta_k$<br/>$\delta_{k+1} = \delta_k - \mu\,c_s\,s_k$<br/>$0 \lt \mu\,b_s\,c_s \lt 1 - r_s$"]
-  C -- "$s$ 變成向量" --> D["一般化<br/>$\rho(\mathbf A_{\mathrm{comb}}) \lt 1$<br/>$L_{\mathrm{cal}} = \mu F(z)/(z-1)$"]`
+  A["$\S 8.2$ 一階<br/>$\delta_{k+1} = (1-g)\,\delta_k$<br/>$0 \lt g \lt 2$"] -- "加上<br/>更新延遲 $d$" --> B["$\S 8.3$ 更新延遲<br/>$\delta_{k+1} = \delta_k - g\,\delta_{k-d}$<br/>$0 \lt g \lt 2\sin\frac{\pi}{4d+2}$"]
+  B -- "加上<br/>觀測狀態 $s$" --> C["$\S 8.4$ 雙迴路<br/>$s_{k+1} = r_s\,s_k + b_s\,\delta_k$<br/>$\delta_{k+1} = \delta_k - \mu\,c_s\,s_k$<br/>$0 \lt \mu\,b_s\,c_s \lt 1 - r_s$"]
+  C -- "$s$ 變成<br/>向量" --> D["一般化<br/>$\rho(\mathbf A_{\mathrm{comb}}) \lt 1$<br/>$L_{\mathrm{cal}} = \mu F(z)/(z-1)$"]`
 
 /**
  * §8.1 單頻相關的兩條路徑：θ = φ + ΩD 從哪裡來（comparator rate，索引 n）。
  * E[x[n−D]·u[n]] = (A²/2)·|H|·cos θ；cos θ 的正負決定更新方向。
  */
-export const POLARITY_PATH_CHART = String.raw`flowchart LR
+export const POLARITY_PATH_CHART = String.raw`flowchart TB
   X(["單頻 code<br/>$x[n] = A\cos(\Omega n)$"]) --> H["PLL error path $H$<br/>增益 $|H|$、相位 $\phi$"]
   X --> DLY["code delay<br/>延遲 $D$ 個 sample"]
   H -- "$u[n]$" --> M(("$\times$"))
@@ -55,10 +60,10 @@ ${CLASS_DEFS}
 
 /**
  * §8.1 F-08.1 的手算順序（HC-08.1 的步驟）：ψ = wrap₁₈₀(θ) = ((θ + 180°) mod 360°) − 180°，M = 90° − |ψ| = arcsin(cos θ)。
- * 上排＝先折回再量距離；綠色＝免折回的封閉式（結果相同）；紅色＝勘誤 E20 的反面教材（把週期錯當成 180°：M_錯 = 90° − (θ mod 180°)）。
+ * 左邊那一條（由上往下）＝先折回再量距離；右邊綠色＝免折回的封閉式（結果相同）；中間紅色＝勘誤 E20 的反面教材（把週期錯當成 180°：M_錯 = 90° − (θ mod 180°)）。
  * 例：θ = −150° → 30° → 30° → ψ = −150° → M = −60°；錯誤寫法 −150° mod 180° = 30° → +60°。
  */
-export const POLARITY_WRAP_CHART = String.raw`flowchart LR
+export const POLARITY_WRAP_CHART = String.raw`flowchart TB
   T(["相位 $\theta$（度）"]) --> A1["加 $180^\circ$"]
   A1 --> A2["除以 $360^\circ$<br/>取非負餘數"]
   A2 --> A3["減 $180^\circ$<br/>得到 $\psi = \mathrm{wrap}_{180}(\theta)$<br/>$-180^\circ \le \psi \lt 180^\circ$"]
@@ -67,7 +72,7 @@ export const POLARITY_WRAP_CHART = String.raw`flowchart LR
   T -- "免折回的捷徑" --> S["$\arcsin(\cos\theta)$"]
   S -- "結果相同" --> M
   T -. "錯誤寫法（E20）" .-> B1["$\theta$ 除以 $180^\circ$ 取餘數<br/>週期錯當成 $180^\circ$"]
-  B1 -.-> B2["$90^\circ$ 減掉餘數<br/>$\theta = -150^\circ$ 得到 $+60^\circ$<br/>正確是 $-60^\circ$"]
+  B1 -.-> B2["$90^\circ$ 減掉餘數<br/>$\theta = -150^\circ$ 得到 $\mathord{+}60^\circ$<br/>正確是 $\mathord{-}60^\circ$"]
 ${CLASS_DEFS}
   class M focus
   class S ok
@@ -104,7 +109,7 @@ export const LOOP_CUT_CHART = String.raw`flowchart LR
     MU --> INT["$1/(z-1)$<br/>積分器"]
   end
   INT -- "$w$" --> OUT(["回到 $\Sigma$ 的 $-$ 端<br/>$\delta_{\mathrm{out}} = -L_{\mathrm{cal}}(z)\,\delta_{\mathrm{in}}$"])
-  OUT -.-> RD["$L_{\mathrm{cal}} = -1$ 時 $\delta_{\mathrm{out}} = \delta_{\mathrm{in}}$：自己振盪<br/>PM、GM 量的是 $L_{\mathrm{cal}}$ 離 $-1$ 多遠"]
+  OUT -.-> RD["$L_{\mathrm{cal}} = -1$ 時<br/>$\delta_{\mathrm{out}} = \delta_{\mathrm{in}}$：自己振盪<br/>PM、GM 量的是<br/>$L_{\mathrm{cal}}$ 離 $\mathord{-}1$ 多遠"]
 ${CLASS_DEFS}
   class INT focus`
 
@@ -125,7 +130,7 @@ export const DELAY_LOOP_CHART = String.raw`flowchart LR
   A(["目標 $a$"]) -- "$+$" --> S(("$\Sigma$"))
   S -- "$\delta_{k-d} = a - w_{k-d}$" --> K["GMAC 平均斜率<br/>$K = K_q\,C$"]
   K -- "$G_k = K\,\delta_{k-d}$" --> I["暫存器 = 積分器<br/>$\mu/(z-1)$"]
-  I -- "$w_k$" --> D["更新延遲 $z^{-d}$<br/>shadow register $\to$ commit $\to$ DTC"]
+  I -- "$w_k$" --> D["更新延遲 $z^{-d}$<br/>shadow register<br/>$\to$ commit $\to$ DTC"]
   D -- "$w_{k-d}\,(-)$" --> S
 ${CLASS_DEFS}
   class D warn`
@@ -152,8 +157,8 @@ export const PIPELINE_SEQ_CHART = String.raw`sequenceDiagram
 /** §8.3 g 由小變大時，特徵式 z^(d+1) − z^d + g 的主導根怎麼走（狀態流程） */
 export const ROOT_STATES_CHART = String.raw`flowchart LR
   S0(["$g \to 0^+$<br/>慢根 $z \approx 1 - g$<br/>快根在 $z \approx 0$ 附近"]) -- "$g$ 變大" --> S1(["主導根是正實根<br/>$\delta_k$ 不變號<br/>不 overshoot"])
-  S1 -- "過 overshoot 門檻" --> S2(["主導根是共軛複數對<br/>會 overshoot<br/>仍收斂，$\rho \lt 1$"])
-  S2 -- "$g = g^*(d)$" --> S3(["根踩在單位圓上<br/>角度 $\omega^* = \pi/(2d+1)$<br/>$PM_d = 0$，臨界"])
+  S1 -- "過 overshoot<br/>門檻" --> S2(["主導根是<br/>共軛複數對<br/>會 overshoot<br/>仍收斂，$\rho \lt 1$"])
+  S2 -- "$g = g^*(d)$" --> S3(["根踩在單位圓上<br/>角度<br/>$\omega^* = \pi/(2d+1)$<br/>$PM_d = 0$，臨界"])
   S3 -- "$g \gt g^*(d)$" --> S4(["根跑到圓外<br/>振盪發散<br/>$\rho \gt 1$"])
 ${CLASS_DEFS}
   class S1 ok
@@ -165,7 +170,7 @@ ${CLASS_DEFS}
  * 方塊依 DELAY_LOOP_CHART 繞一圈的順序排列，線上寫的是「還剩多少相位」；ω_c = 2·arcsin(g/2) 與 d 無關（延遲不改 |L|）。
  * 所以 PM_d = 90° − ω_c/2 − d·ω_c = 90° − (2d+1)·arcsin(g/2)；PM_d = 0 ⇔ g = g*(d)。
  */
-export const PHASE_BUDGET_CHART = String.raw`flowchart LR
+export const PHASE_BUDGET_CHART = String.raw`flowchart TB
   B0(["相位預算 $180^\circ$<br/>$PM = 180^\circ + \angle L(\omega_c)$"]) --> KK["GMAC 斜率 $K \gt 0$<br/>不吃相位"]
   KK -- "剩 $180^\circ$" --> INT["積分器 $\mu/(z-1)$<br/>落後 $90^\circ + \omega_c/2$"]
   INT -- "剩 $90^\circ - \omega_c/2$" --> DLY["更新延遲 $z^{-d}$<br/>落後 $d\,\omega_c$"]
@@ -192,6 +197,14 @@ ${CLASS_DEFS}
  * 兩者的暫存器（δ_{k+1} = δ_k − μ·G_k）完全相同。
  */
 export const DUAL_SIGNAL_FLOW_CHART = String.raw`flowchart LR
+  subgraph QS["Quasi-static 近似：$s$ 那一圈換成常數增益，沒有記憶"]
+    direction LR
+    QZD["$z^{-1}$"] -- "$\delta_k$" --> QF["$\times F(1) = b_s\,c_s/(1-r_s)$"]
+    QF -- "$G_k$" --> QM["$\times \mu$"]
+    QM -- "$\mu\,G_k\,(-)$" --> QI(("$\Sigma$"))
+    QZD -- "$\delta_k\,(+)$" --> QI
+    QI -- "$\delta_{k+1}$" --> QZD
+  end
   subgraph FULL["完整二狀態模型：觀測狀態 $s$ 有記憶（pole $r_s$）"]
     direction LR
     FZD["$z^{-1}$"] -- "$\delta_k$" --> FB["$\times b_s$"]
@@ -204,14 +217,6 @@ export const DUAL_SIGNAL_FLOW_CHART = String.raw`flowchart LR
     FM -- "$\mu\,G_k\,(-)$" --> FI(("$\Sigma$"))
     FZD -- "$\delta_k\,(+)$" --> FI
     FI -- "$\delta_{k+1}$" --> FZD
-  end
-  subgraph QS["Quasi-static 近似：$s$ 那一圈換成常數增益，沒有記憶"]
-    direction LR
-    QZD["$z^{-1}$"] -- "$\delta_k$" --> QF["$\times F(1) = b_s\,c_s/(1-r_s)$"]
-    QF -- "$G_k$" --> QM["$\times \mu$"]
-    QM -- "$\mu\,G_k\,(-)$" --> QI(("$\Sigma$"))
-    QZD -- "$\delta_k\,(+)$" --> QI
-    QI -- "$\delta_{k+1}$" --> QZD
   end
 ${CLASS_DEFS}
   class FB,FS,FZ,FR focus
@@ -241,9 +246,9 @@ ${CLASS_DEFS}
  *   … ＞ 2(1−r_s)                  兩個模型都不穩定
  * 「本例」＝ Gallery #5 的 r_s = 0.8、b_s·c_s = 0.2：三個門檻是 μ = 0.05、1、2（測試用 analyzeDualLoop 驗證）。
  */
-export const DUAL_REGIMES_CHART = String.raw`flowchart LR
-  R1(["完整：兩個實根（一快一慢）<br/>quasi-static：pole $= 1 - g_{\mathrm{eff}}$<br/>$\mu$ 遠小於門檻時兩者一致"]) -- "$\mu\,b_s\,c_s$ 超過 $(1-r_s)^2/4$<br/>本例 $\mu = 0.05$" --> R2(["完整：共軛複數根<br/>模數 $|z| = \sqrt{r_s + \mu\,b_s\,c_s}$，$\mu$ 越大越慢<br/>quasi-static：以為越來越快"])
-  R2 -- "超過 $1 - r_s$<br/>本例 $\mu = 1$" --> R3(["完整：$|z| \gt 1$，振盪發散<br/>quasi-static：還以為穩定<br/>（pole 在 $-1$ 與 $0$ 之間）"])
+export const DUAL_REGIMES_CHART = String.raw`flowchart TB
+  R1(["完整：兩個實根（一快一慢）<br/>quasi-static：pole $= 1 - g_{\mathrm{eff}}$<br/>$\mu$ 遠小於門檻時兩者一致"]) -- "$\mu\,b_s\,c_s$ 超過 $(1-r_s)^2/4$<br/>本例 $\mu = 0.05$" --> R2(["完整：共軛複數根<br/>模數 $|z| = \sqrt{r_s + \mu\,b_s\,c_s}$<br/>$\mu$ 越大越慢<br/>quasi-static：以為越來越快"])
+  R2 -- "超過 $1 - r_s$<br/>本例 $\mu = 1$" --> R3(["完整：$|z| \gt 1$，振盪發散<br/>quasi-static：還以為穩定<br/>（pole 在 $\mathord{-}1$ 與 $0$ 之間）"])
   R3 -- "超過 $2(1 - r_s)$<br/>本例 $\mu = 2$" --> R4(["兩個模型都不穩定"])
 ${CLASS_DEFS}
   class R1 ok
@@ -254,7 +259,7 @@ ${CLASS_DEFS}
  * §8.4 一般化 state-space：觀測（A_s、b_s、c_sᵀ、d_s）＝ F(z)，暫存器＝積分器（δ 座標：δ_{k+1} = δ_k − μ·G_k）。
  * 兩個框串成一圈就是 L_cal(z) = μ·F(z)/(z−1)。
  */
-export const STATE_SPACE_CHART = String.raw`flowchart LR
+export const STATE_SPACE_CHART = String.raw`flowchart TB
   DK(["$\delta_k$"]) --> BS
   DK --> DS
   subgraph OBS["觀測動態 $F(z) = d_s + \mathbf c_s^{\mathsf T}(z\mathbf I - \mathbf A_s)^{-1}\mathbf b_s$"]
@@ -278,7 +283,7 @@ ${CLASS_DEFS}
 
 /** §8.4 穩定性檢查流程：組 A_comb → 求 eigenvalue → 是否都在單位圓內（與 combinedMatrix／analyzeGeneral 的步驟相同） */
 export const STABILITY_CHECK_CHART = String.raw`flowchart TB
-  IN(["輸入：$\mathbf A_s$、$\mathbf b_s$、$\mathbf c_s^{\mathsf T}$、$d_s$ 與 $\mu$"]) --> BUILD["組合併矩陣 $\mathbf A_{\mathrm{comb}}$<br/>上列：$\mathbf A_s$、$\mathbf b_s$<br/>下列：$-\mu\,\mathbf c_s^{\mathsf T}$、$1 - \mu\,d_s$"]
+  IN(["輸入：$\mathbf A_s$、$\mathbf b_s$、$\mathbf c_s^{\mathsf T}$、$d_s$ 與 $\mu$"]) --> BUILD["組合併矩陣 $\mathbf A_{\mathrm{comb}}$<br/>上列：$\mathbf A_s$、$\mathbf b_s$<br/>下列：$\mathord{-}\mu\,\mathbf c_s^{\mathsf T}$、$1 - \mu\,d_s$"]
   BUILD --> EIG["求全部 eigenvalue $\lambda_i$<br/>（也就是閉迴路 poles）"]
   EIG --> RHO["$\rho = \max_i |\lambda_i|$"]
   RHO --> Q{"$\rho$ 和 $1$ 比？"}
@@ -315,19 +320,19 @@ ${CLASS_DEFS}
   class M4 warn`
 
 /** 綜合手算（HC-08.8）的計算順序：σ_v、μ、C、d → K_q → K → g → p、g*(d)、μ_max、GM_d、PM_d */
-export const SYNTHESIS_FLOW_CHART = String.raw`flowchart LR
+export const SYNTHESIS_FLOW_CHART = String.raw`flowchart TB
   SV(["$\sigma_v$ [fs]"]) --> KQ["$K_q = \sqrt{2/\pi}\,/\,\sigma_v$<br/>$[\mathrm{fs}^{-1}]$"]
   KQ --> KK["$K = K_q\,C$<br/>$[\mathrm{fs}^{-1}]$"]
   CC(["$C$"]) --> KK
   KK --> G["$g = \mu K$<br/>（無因次）"]
   MU(["$\mu$ [fs]"]) --> G
   G --> P["$p = 1 - g$"]
-  DD(["$d$ [blocks]"]) --> GS["$g^*(d) = 2\sin\frac{\pi}{4d+2}$"]
-  GS --> MM["$\mu_{\max} = g^*(d)/K$<br/>[fs]"]
-  KK --> MM
-  GS --> GM["$GM_d = g^*(d)/g$"]
-  G --> GM
+  G --> GM["$GM_d = g^*(d)/g$"]
   G --> PM["$PM_d = 90^\circ - (2d+1)\arcsin\frac{g}{2}$"]
+  KK --> MM["$\mu_{\max} = g^*(d)/K$<br/>[fs]"]
+  DD(["$d$ [blocks]"]) --> GS["$g^*(d) = 2\sin\frac{\pi}{4d+2}$"]
+  GS --> MM
+  GS --> GM
   DD --> PM
 ${CLASS_DEFS}
   class G focus`

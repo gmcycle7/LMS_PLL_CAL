@@ -52,6 +52,9 @@ const plain = (s: string) =>
     .replace(/&amp;/g, '&')
     .replace(/\s+/g, '')
 
+/** 一個公式為了讓圖窄一點被 `<br/>` 拆成兩行（`$A =$<br/>$B$`）時，接回同一個 `$A = B$` 再比對（公式本身沒有變）。 */
+const joined = (s: string) => s.replace(/\$<br\s*\/?>\$/g, ' ')
+
 /** Mermaid 11 把標籤當 Markdown：這些寫法會被畫成「Unsupported markdown: …」或被 HTML 解析吃掉。 */
 function labelHazard(text: string): string | null {
   for (const line of text.split(/<br\s*\/?>/)) {
@@ -167,8 +170,8 @@ describe('Lab 頁的方塊圖（真正的 mermaid parser）', () => {
     expect(node(out, 'M1')).toContain(R`$\times (a - \bar w)$`)
     expect(node(out, 'M2')).toContain(R`$\times \delta w_k$`)
     expect(node(out, 'T')).toContain(R`$T(z) = \frac{L}{1+L}$`)
-    expect(node(out, 'SPUR')).toContain(R`$A_{\mathrm{spur}} = \lvert a - \bar w\rvert\cdot s\cdot A_1\cdot\lvert T(f_1)\rvert$`)
-    expect(node(out, 'JIT')).toContain(R`$\mathrm{Var} \approx \sigma_w^2\cdot(\bar x^2 + \mathrm{Var}(T\{\tilde x\}))$`)
+    expect(joined(node(out, 'SPUR'))).toContain(R`$A_{\mathrm{spur}} = \lvert a - \bar w\rvert\cdot s\cdot A_1\cdot\lvert T(f_1)\rvert$`)
+    expect(joined(node(out, 'JIT'))).toContain(R`$\mathrm{Var} \approx \sigma_w^2\cdot(\bar x^2 + \mathrm{Var}(T\{\tilde x\}))$`)
     // 輸出端不經過 H_PD
     expect(D.CHART_OUTPUT_SPLIT).not.toContain('H_{\\mathrm{PD}}')
   })

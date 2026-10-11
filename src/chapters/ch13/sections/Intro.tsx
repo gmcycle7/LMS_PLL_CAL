@@ -68,12 +68,12 @@ export function Intro() {
         </p>
         <Mermaid
           chart={CHART_SIGNAL_FLOW}
-          caption="6-bit gain code 的訊號流。先看藍色菱形：五種策略都是「高解析 $w_H$ 進、整數 $y$ 出」的同一個位置；再看虛線：code 誤差乘上 $x$ 之後才到 PLL 輸出。"
+          caption="6-bit gain code 的訊號流。先看藍色方塊：五種策略都是「高解析 $w_H$ 進、整數 $y$ 出」的同一個位置；再看虛線：code 誤差乘上 $x$ 之後才到 PLL 輸出。"
           ariaLabel="GMAC 平均進入 LMS accumulator，經量化策略成為 6-bit gain register，再與 DSM residue 一起控制 DTC；code 誤差乘上 DSM residue 後經 PLL 到輸出"
         />
         <p className="small ch13-figwalk">
-          先看上排由左到右：GMAC 平均 <Tex>{'G_k'}</Tex>（第 4 章：一個 block 內 comparator 輸出乘上 code 的平均）更新 accumulator <Tex>{String.raw`\to`}</Tex> 藍色的量化策略 <Tex>{String.raw`\to`}</Tex> 6-bit register{' '}
-          <Tex>{String.raw`\to`}</Tex> DTC，再經 PD / comparator 回到 GMAC，這是校正迴路。再看虛線：code 誤差 <Tex>{String.raw`e=y-w^*`}</Tex> 不是直接加到輸出，而是與 DSM residue <Tex>{'x[n]'}</Tex> <strong>相乘</strong>（§12.2：乘號不是加號），得到 DTC
+          先看由上往下的主幹：GMAC 平均 <Tex>{'G_k'}</Tex>（第 4 章：一個 block 內 comparator 輸出乘上 code 的平均）更新 accumulator <Tex>{String.raw`\to`}</Tex> 藍色的量化策略 <Tex>{String.raw`\to`}</Tex> 6-bit register{' '}
+          <Tex>{String.raw`\to`}</Tex> DTC，再經 PD / comparator 回到 GMAC（圖左邊往上的那條線），這是校正迴路。再看虛線：code 誤差 <Tex>{String.raw`e=y-w^*`}</Tex> 不是直接加到輸出，而是與 DSM residue <Tex>{'x[n]'}</Tex> <strong>相乘</strong>（§12.2：乘號不是加號），得到 DTC
           注入的 timing error <Tex>{String.raw`\delta t[n]=\Delta_\mathrm{LSB}\,e[n]\,x[n]`}</Tex>，再經 PLL 的 <Tex>{'T(f)'}</Tex> 到輸出。圖上 DTC 方塊裡的延遲 <Tex>{String.raw`\Delta_\mathrm{LSB}\cdot y\cdot x[n]`}</Tex> 中，<Tex>{String.raw`\Delta_\mathrm{LSB}`}</Tex> 是 1 個 gain LSB 對應多少 fs（下一段就算它）。
         </p>
         <ModeGate min="engineer">
@@ -92,11 +92,11 @@ export function Intro() {
         </p>
         <Mermaid
           chart={CHART_ERROR_PATH}
-          caption={String.raw`誤差的定義與單位。先看上面一條：$y$ 減 $w^*$ 得到 code 誤差（$\mathrm{LSB}$），乘 $\Delta_\mathrm{LSB}$ 變成 $\mathrm{fs}$，再乘 DSM residue 才是 timing error；再看下面一條：§0 的約定把減法反過來，同一個誤差正負號相反。`}
+          caption={String.raw`誤差的定義與單位。先看左邊一條：$y$ 減 $w^*$ 得到 code 誤差（$\mathrm{LSB}$），乘 $\Delta_\mathrm{LSB}$ 變成 $\mathrm{fs}$，再乘 DSM residue 才是 timing error；再看右邊一條：§0 的約定把減法反過來，同一個誤差正負號相反。`}
         />
         <p className="small ch13-figwalk">
           圖上藍色加法點的輸出 <Tex>{String.raw`e=\delta w=y-w^*`}</Tex> 就是本章所有表格顯示的<strong>係數誤差</strong>（code 比理想值大就是正的）；圖上的 <Tex>{String.raw`\times\Delta_\mathrm{LSB}`}</Tex> 方塊就是下面公式 F-13.1 的{' '}
-          <Tex>{String.raw`w\,[\mathrm{fs}]=\Delta_\mathrm{LSB}\cdot w\,[\mathrm{LSB}]`}</Tex>。下面的手算照著圖由左到右走一次：先算 <Tex>{'y'}</Tex>，再算 <Tex>{String.raw`\delta w`}</Tex>，最後乘 <Tex>{String.raw`\Delta_\mathrm{LSB}`}</Tex>。其中{' '}
+          <Tex>{String.raw`w\,[\mathrm{fs}]=\Delta_\mathrm{LSB}\cdot w\,[\mathrm{LSB}]`}</Tex>。下面的手算照著圖由上往下走一次：先算 <Tex>{'y'}</Tex>，再算 <Tex>{String.raw`\delta w`}</Tex>，最後乘 <Tex>{String.raw`\Delta_\mathrm{LSB}`}</Tex>。其中{' '}
           <Tex>{String.raw`Q_6(\cdot)`}</Tex> 表示「四捨五入成 6-bit 整數 code」的量化器（一般寫成 <Tex>{String.raw`Q_B`}</Tex>，<Tex>{'B'}</Tex> 是位元數）。
         </p>
         <StepDerivation

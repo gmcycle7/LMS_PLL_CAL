@@ -16,9 +16,18 @@ import type { SystemBlock } from '@/components'
  * - 加法點是圓形節點 (("＋"))，每條進入的線都標上全形「＋」或減號「−」（U+2212）：不寫半形 + / -，Mermaid 11 會把它當成 Markdown 清單，
  *   畫出「Unsupported markdown: list」；延遲是 z⁻¹（寫成 `$z^{-1}$`；本章的延遲都是「一個 block」）。
  * - 單張不超過 14 個節點；鏈比較長的圖用 TB（直向），手機上才不會被縮得太小。
- * - 版面的兩個陷阱（都用實際的 layout 驗過）：
+ * - 版面寬度（docs/teaching-style.md §8）：桌機 1280px 上自然寬度要在約 1260px 以內（`node scripts/diagram-audit.mjs --routes /ch/09` 的「超出」為 0）。
+ *   長橫鏈（圖 9.6、9.8、9.10、9.13、9.15、9.16）都改成 TB；圖上的每個節點、連線、正負號、數字與 `classDef` 標色和改版前相同。
+ *   狀態圖 9.10 的轉移標籤很長，LR 時寬 1361px（兩個自環的標籤被擠出外框），TB 下是 612×385。
+ *   圖 9.9、9.19 原本被縮到 0.89／0.83 倍：只在最寬的幾個標籤加 `<br/>`（文字不變），現在是 1 倍／0.89 倍。
+ * - 版面的三個陷阱（都用實際的 layout 驗過）：
  *   (1) 兩個互相交叉的回授迴圈會被 dagre 排成一條很長的鏈，所以耦合圖只畫「一個 block」（展開成 k → k+1，沒有迴圈）；
- *   (2) 兩個沒有連線的 subgraph 會被排成左右並列，上下並排要加一條看不見的連線（LIN ~~~ SGN）。
+ *   (2) 兩個沒有連線的 subgraph 會被排成左右並列，上下並排要加一條看不見的連線（LIN ~~~ SGN）；
+ *   (3) 圖 9.4 的 regressor U 若沒有限制，會排在第一個加法點旁邊，U → 內積 的線橫跨回授線；
+ *       把 SD → DOT 那條線拉長一格（連線寫成 `--->`，minlen = 2），U 就被壓低一列、排在 δ 那條線的旁邊
+ *       （U → 內積 變成短短一條，U → 相關器 也不再跨過回授線）。
+ *       若把 U 提前宣告來改變順序，dagre 會把整個迴圈翻面（真值跑到最下面），所以不要那樣做。
+ *   圖 9.12 的「是／否」分支先宣告「否」，這樣「合格」排在右邊、回授的虛線不會橫過「否」的那一條。
  */
 
 /** 章首系統地圖要標成藍色的方塊：regressor x[n]、code alignment（filtered-x）、GMAC、gain accumulator w_k */
@@ -87,7 +96,7 @@ export const CHART_ERROR_MODEL = String.raw`flowchart LR
  */
 export const CHART_BLOCK_LOOP = String.raw`flowchart TB
   A(["真值 $\mathbf a$（未知）"]) -- "＋" --> SD(("＋"))
-  SD -- "$\boldsymbol\delta_k = \mathbf a - \mathbf w_k$" --> DOT["內積 $\mathbf u[n]^T \boldsymbol\delta_k$"]
+  SD -- "$\boldsymbol\delta_k = \mathbf a - \mathbf w_k$" ---> DOT["內積 $\mathbf u[n]^T \boldsymbol\delta_k$"]
   U(["$\mathbf u[n]$：$M$ 個 regressor"]) --> DOT
   DOT -- "＋" --> SE(("＋"))
   V(["雜訊 $v[n]$"]) -- "＋" --> SE
@@ -128,7 +137,7 @@ export const CHART_COUPLED_MEAN = String.raw`flowchart LR
 /**
  * 圖 9.6（數學模型，F-09.4）：eigen-mode 分解。旋轉 Qᵀ → 兩條互不相干的一階迴路（pole p_i = 1 − gλ_i）→ 轉回 Q。
  */
-export const CHART_EIGEN_MODES = String.raw`flowchart LR
+export const CHART_EIGEN_MODES = String.raw`flowchart TB
   D["$E[\boldsymbol\delta_k]$<br/>原座標 $(\delta_1, \delta_2)$"] --> QT["旋轉：$\mathbf c_k = \mathbf Q^T \cdot E[\boldsymbol\delta_k]$<br/>投影到兩個 eigenvector"]
   QT -- "$c_1$：沿 $\mathbf v_1$（共模）" --> P1["快模式：$c_1 \leftarrow p_1 \cdot c_1$<br/>$p_1 = 1 - g \cdot \lambda_1$"]
   QT -- "$c_2$：沿 $\mathbf v_2$（差模）" --> P2["慢模式：$c_2 \leftarrow p_2 \cdot c_2$<br/>$p_2 = 1 - g \cdot \lambda_2$"]
@@ -156,7 +165,7 @@ export const CHART_K95_FLOW = String.raw`flowchart TB
 /**
  * 圖 9.8（比較，F-09.7）：同一個 g 要同時服務快、慢兩個模式——快模式限制 g 的上限，慢模式決定速度。
  */
-export const CHART_SCALAR_GAIN = String.raw`flowchart LR
+export const CHART_SCALAR_GAIN = String.raw`flowchart TB
   G(["同一個 $g$<br/>所有模式共用"]) --> F["快模式每個 block 的倍數 $|1 - g \cdot \lambda_{\max}|$<br/>$g$ 到 $2 / \lambda_{\max}$ 就不再小於 1"]
   G --> S["慢模式每個 block 的倍數 $|1 - g \cdot \lambda_{\min}|$<br/>$g$ 越大越小（越快），直到 $g = 1 / \lambda_{\min}$"]
   F --> MAX["整體收斂率<br/>= 兩者之中較大的那個"]
@@ -169,8 +178,8 @@ export const CHART_SCALAR_GAIN = String.raw`flowchart LR
  * 圖 9.9（比較，F-09.8，勘誤 E23）：同一個隨機更新，問「平均」與問「均方」得到不同的答案。
  */
 export const CHART_MEAN_VS_MS = String.raw`flowchart LR
-  UPD["同一個隨機更新（linear、無雜訊）<br/>$\boldsymbol\delta_{k+1} = (\mathbf I - g \cdot \hat{\mathbf R}_k) \cdot \boldsymbol\delta_k$"] --> M["問法 1：平均 $E[\boldsymbol\delta]$<br/>只用到 $E[\hat{\mathbf R}_k] = \mathbf R$"]
-  UPD --> MS["問法 2：均方 $\mathbf P = E[\boldsymbol\delta \boldsymbol\delta^T]$<br/>用到 $E[\hat{\mathbf R}_k \cdot \mathbf P \cdot \hat{\mathbf R}_k]$（四階動差）"]
+  UPD["同一個隨機更新<br/>（linear、無雜訊）<br/>$\boldsymbol\delta_{k+1} = (\mathbf I - g \cdot \hat{\mathbf R}_k) \cdot \boldsymbol\delta_k$"] --> M["問法 1：平均 $E[\boldsymbol\delta]$<br/>只用到 $E[\hat{\mathbf R}_k] = \mathbf R$"]
+  UPD --> MS["問法 2：均方 $\mathbf P = E[\boldsymbol\delta \boldsymbol\delta^T]$<br/>用到 $E[\hat{\mathbf R}_k \cdot \mathbf P \cdot \hat{\mathbf R}_k]$<br/>（四階動差）"]
   M --> MR["mean：每個 block $\times p = 1 - g \cdot \lambda$<br/>慢 pole 0.995 $\to$ 598 blocks"]
   MS --> MSR["mean-square：每個 block $\times \rho_{\mathrm{MS}}$<br/>$N = 1$、Gaussian：$1.98 \gt 1$（發散）"]
   MS --> MSN["block 加長：$\rho_{\mathrm{MS}} \to$ 最大的 $p^2$<br/>$N = 2$ 就回到 1 以下"]${CLASSES}
@@ -186,7 +195,7 @@ export const CHART_MEAN_VS_MS = String.raw`flowchart LR
  * 公式的寫法（real-render 測試驗證過）：`state "…" as X` 的標籤支援 `$...$`；轉移的文字沒有引號，要整句寫成單一的 `$$\text{…}…$$`。
  */
 export const CHART_PM1_STAIRCASE = String.raw`stateDiagram-v2
-  direction LR
+  direction TB
   state "平台：差模 $c_2$ 還是初值 $c_{2,0}$" as PLATEAU
   state "歸零：差模 $c_2 = 0$，之後不再變" as ZERO
   [*] --> PLATEAU
@@ -223,8 +232,8 @@ export const CHART_PE_WINDOW = String.raw`flowchart TB
   NORM --> EIG["eigenvalues<br/>$\lambda_{\max}(\mathbf R_k)$、$\lambda_{\min}(\mathbf R_k)$"]
   EIG --> KAP["$\kappa(\mathbf R_k) = \lambda_{\max} / \lambda_{\min}$<br/>$\sigma_i(\mathbf U_k) = \sqrt{N_0 \cdot \lambda_i(\mathbf R_k)}$"]
   EIG --> CHK{"$N_0 \cdot \lambda_{\min}(\mathbf R_k) \ge \alpha$ 且<br/>$N_0 \cdot \lambda_{\max}(\mathbf R_k) \le \beta$ ？"}
-  CHK -- "是" --> NEXT["這個窗口合格<br/>$k \to k + 1$，檢查下一個"]
   CHK -- "否" --> BAD["退化窗口：某個方向<br/>在這 $N_0$ 筆裡沒有能量"]
+  CHK -- "是" --> NEXT["這個窗口合格<br/>$k \to k + 1$，檢查下一個"]
   NEXT -. "每一個 $k$ 都要合格" .-> WIN${CLASSES}
   class CHK focus
   class BAD warn`
@@ -232,7 +241,7 @@ export const CHART_PE_WINDOW = String.raw`flowchart TB
 /**
  * 圖 9.13（數學模型，F-09.17）：一個 block = 一個 PE 窗口時，每個窗口至少把 ‖δ‖ 縮小同一個比例。
  */
-export const CHART_PE_CONTRACTION = String.raw`flowchart LR
+export const CHART_PE_CONTRACTION = String.raw`flowchart TB
   D0["$\|\boldsymbol\delta_0\|$"] -- "窗口 0：$\times$ 至多 $1 - \mu \cdot \lambda_{\min}(\mathbf R_0)$" --> D1["$\|\boldsymbol\delta_1\|$"]
   D1 -- "窗口 1：$\times$ 至多 $1 - \mu \cdot \lambda_{\min}(\mathbf R_1)$" --> D2["$\|\boldsymbol\delta_2\|$"]
   D2 -- "… 每個窗口都一樣 …" --> DK["$\|\boldsymbol\delta_K\| \le (1 - \mu\alpha/N_0)^K \cdot \|\boldsymbol\delta_0\|$"]
@@ -260,7 +269,7 @@ export const CHART_PM1_DEGENERATE = String.raw`flowchart TB
  * 圖 9.15（比較，F-09.13）：gauge freedom。同一筆 one-hot 輸入送進兩組參數（b 加 c、每個 a_i 減 c），
  * 輸出相減是 c·(Σx_i − 1) = 0。
  */
-export const CHART_GAUGE_SHIFT = String.raw`flowchart LR
+export const CHART_GAUGE_SHIFT = String.raw`flowchart TB
   X(["同一筆輸入 $\tilde{\mathbf x}[n] = (1, x_0, x_1, x_2, x_3)$<br/>one-hot：$x_0 + x_1 + x_2 + x_3 = 1$"])
   subgraph T1["第一組參數：$b$、$a_0 \dots a_3$"]
     B1["$b \times 1$"] -- "＋" --> S1(("＋"))
@@ -283,7 +292,7 @@ export const CHART_GAUGE_SHIFT = String.raw`flowchart LR
  * 圖 9.16（路徑／轉移函數，F-09.15，勘誤 E04）：PLL 的 DC null。
  * b 的 regressor 是常數 1（純 DC），經 H_PD(1) = 0 之後 → 0；one-hot 的 DC 部分也被濾掉，所以 Σũ_i = ũ_b → 0。
  */
-export const CHART_DC_NULL = String.raw`flowchart LR
+export const CHART_DC_NULL = String.raw`flowchart TB
   ONE(["$b$ 的 regressor：常數 1<br/>純 DC"]) --> H1["$H_{\mathrm{PD}}(z) = 1 / (1 + L(z))$<br/>$H_{\mathrm{PD}}(1) = 0$"]
   XI(["one-hot $x_i[n]$<br/>$=$ 平均 $1/4$（DC）+ 變動部分"]) --> H2["同一個 $H_{\mathrm{PD}}(z)$<br/>$H_{\mathrm{PD}}(1) = 0$"]
   H1 --> UB["$\tilde u_b[n] \to 0$<br/>穩態完全消失"]
@@ -342,15 +351,15 @@ export const CHART_RESTORING_FORCE = String.raw`flowchart TB
  * 圖 9.19（決策樹）：「這個參數方向學得到嗎？」——依序檢查結構性 null（gauge）、每個窗口的 PE、κ。
  */
 export const CHART_IDENTIFIABLE_TREE = String.raw`flowchart TD
-  START(["挑一個參數方向 $\mathbf v$<br/>單一參數，或共模、差模這類組合"]) --> Q1{"① PD 端的 regressor 在 $\mathbf v$ 上<br/>有投影嗎？（$\mathbf v^T \mathbf u[n]$ 不恆為 0）"}
-  Q1 -- "沒有：$\lambda = 0$" --> NO["不可辨識：pole $= 1$<br/>加大 $\mu$、加長 $N$、跑更久都沒用"]
-  NO --> FIX1["改參數化：固定 $a_0$ 或 $\sum a_i = 0$、<br/>不更新 $b$；或另找獨立觀測路徑"]
-  Q1 -- "有" --> Q2{"② 每一個長度 $N_0$ 的窗口<br/>都有能量嗎？ $\lambda_{\min}(\mathbf S_k) \ge \alpha \gt 0$"}
+  START(["挑一個參數方向 $\mathbf v$<br/>單一參數，或共模、差模這類組合"]) --> Q1{"① PD 端的 regressor<br/>在 $\mathbf v$ 上有投影嗎？<br/>（$\mathbf v^T \mathbf u[n]$ 不恆為 0）"}
+  Q1 -- "沒有：$\lambda = 0$" --> NO["不可辨識：pole $= 1$<br/>加大 $\mu$、加長 $N$、<br/>跑更久都沒用"]
+  NO --> FIX1["改參數化：固定 $a_0$<br/>或 $\sum a_i = 0$、不更新 $b$；<br/>或另找獨立觀測路徑"]
+  Q1 -- "有" --> Q2{"② 每一個長度 $N_0$ 的窗口<br/>都有能量嗎？<br/>$\lambda_{\min}(\mathbf S_k) \ge \alpha \gt 0$"}
   Q2 -- "有些窗口是 0" --> STEP["只有好窗口才學得到<br/>軌跡：平台 → 突然下降"]
-  STEP --> FIX2["改善激發：code randomization、<br/>dither、training sequence"]
+  STEP --> FIX2["改善激發：<br/>code randomization、<br/>dither、training sequence"]
   Q2 -- "是：PE 成立" --> Q3{"③ $\kappa = \lambda_{\max} / \lambda_{\min}$<br/>很大嗎？"}
   Q3 -- "是" --> SLOW["學得到但很慢<br/>$k_{95} \approx \ln 20 / (g \cdot \lambda_{\min})$"]
-  SLOW --> FIX3["改善激發，或第 10 章的<br/>preconditioner（代價是雜訊）"]
+  SLOW --> FIX3["改善激發，或第 10 章的<br/>preconditioner<br/>（代價是雜訊）"]
   Q3 -- "否" --> FAST["學得到而且快<br/>只要 $0 \lt g \lt 2 / \lambda_{\max}$"]${CLASSES}
   class Q1,Q2,Q3 focus
   class NO warn

@@ -401,7 +401,7 @@ export function DualLoop() {
       />
       <p className="small">
         {rich(
-          String.raw`讀圖（由左到右就是 $\mu$ 變大）：先看綠色那格——$\mu b_sc_s$ 還小於 $\frac{(1-r_s)^2}{4}$ 時，完整模型是兩個實根，慢的那個接近 quasi-static 的 $1-g_{\mathrm{eff}}$，近似可信。再看藍色那格——過了這個門檻（本例 $\mu=${sig(ex.muComplex, 3)}$），兩個根變成共軛複數，模數 $|z|=\sqrt{r_s+\mu b_sc_s}$ 隨 $\mu$ 變大，也就是收斂越來越慢；quasi-static 的 pole $1-g_{\mathrm{eff}}$ 卻繼續往 $0$ 靠近，以為越來越快。這時還沒有不穩定，但速度已經估錯了。最後看兩個紅色的格子——$\mu b_sc_s$ 超過 $1-r_s$（本例 $\mu=${sig(ex.fullRange.hi, 3)}$）時 $|z|>1$，完整模型振盪發散，quasi-static 的 pole 卻還在 $-1$ 與 $0$ 之間（上面「先算一次」的 $\mu=1.2$ 就落在這一格）；要到 $2(1-r_s)$（本例 $\mu=${sig(ex.simplifiedRange.hi, 3)}$）以上，兩個模型才都說不穩定。圖上第一個門檻與模數就是下面的 F-08.12，後兩個門檻是 F-08.11 的兩個上界。`,
+          String.raw`讀圖（由上往下就是 $\mu$ 變大）：先看綠色那格——$\mu b_sc_s$ 還小於 $\frac{(1-r_s)^2}{4}$ 時，完整模型是兩個實根，慢的那個接近 quasi-static 的 $1-g_{\mathrm{eff}}$，近似可信。再看藍色那格——過了這個門檻（本例 $\mu=${sig(ex.muComplex, 3)}$），兩個根變成共軛複數，模數 $|z|=\sqrt{r_s+\mu b_sc_s}$ 隨 $\mu$ 變大，也就是收斂越來越慢；quasi-static 的 pole $1-g_{\mathrm{eff}}$ 卻繼續往 $0$ 靠近，以為越來越快。這時還沒有不穩定，但速度已經估錯了。最後看兩個紅色的格子——$\mu b_sc_s$ 超過 $1-r_s$（本例 $\mu=${sig(ex.fullRange.hi, 3)}$）時 $|z|>1$，完整模型振盪發散，quasi-static 的 pole 卻還在 $-1$ 與 $0$ 之間（上面「先算一次」的 $\mu=1.2$ 就落在這一格）；要到 $2(1-r_s)$（本例 $\mu=${sig(ex.simplifiedRange.hi, 3)}$）以上，兩個模型才都說不穩定。圖上第一個門檻與模數就是下面的 F-08.12，後兩個門檻是 F-08.11 的兩個上界。`,
         )}
       </p>
 

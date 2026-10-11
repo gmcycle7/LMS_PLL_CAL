@@ -328,7 +328,7 @@ export function HealthCheck({ cases, evaluated }: { cases: UseCasesResult<Thesis
           <Rich text={`Case ${cases.activeId} 的 eigen-mode（$\\tilde{\\mathbf R}$ 的特徵方向）`} />
         </h4>
         <div className="table-wrap">
-          <table>
+          <table className="dash-eigen-table">
             <thead>
               <tr>
                 <th>mode</th>

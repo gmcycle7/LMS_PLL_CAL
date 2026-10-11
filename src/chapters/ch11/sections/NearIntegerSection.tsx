@@ -301,10 +301,10 @@ export function NearIntegerSection() {
       </p>
       <p>
         同時，若有干擾直接耦合到 PD 而不經過 <Tex>{String.raw`H_\mathrm{PD}`}</Tex>，<Tex>{'B'}</Tex> 並不會跟著變小，於是 bias <Tex>{'B/C'}</Tex> 爆增。下面用真實的 DSM 序列與 DPLL
-        以兩種獨立算法計算 <Tex>{'C'}</Tex>（並把頻寬內的負貢獻單獨畫出來）。<FigRef id="near-integer-check" /> 是實驗的計算流程：先看左邊，FCW 的小數部分 <Tex>{String.raw`\mathrm{frac}`}</Tex> 乘上 <Tex>{'2^{16}'}</Tex> 是 16-bit 累加器的整數碼{' '}
+        以兩種獨立算法計算 <Tex>{'C'}</Tex>（並把頻寬內的負貢獻單獨畫出來）。<FigRef id="near-integer-check" /> 是實驗的計算流程：先看最上面三個方塊，FCW 的小數部分 <Tex>{String.raw`\mathrm{frac}`}</Tex> 乘上 <Tex>{'2^{16}'}</Tex> 是 16-bit 累加器的整數碼{' '}
         <Tex>{'K'}</Tex>，first-order DSM 的 residue 每 <Tex>{String.raw`P=2^{16}/\gcd(K,2^{16})`}</Tex> 個 sample 重複一次；兩支都從同一個標準化的 residue{' '}
-        <Tex>{'x[n]'}</Tex>（<Tex>{'E[x]=0,\\ E[x^2]=1'}</Tex>）出發。再看中間兩支：時域那一支讓序列真的通過 <Tex>{String.raw`H_\mathrm{PD}`}</Tex>{' '}
-        再取整數個週期平均，頻域那一支只取一個週期做 DFT，把 <Tex>{String.raw`|X_k|^2`}</Tex> 乘上 <Tex>{String.raw`\mathrm{Re}\,H_\mathrm{PD}`}</Tex> 相加（就是上面 Parseval 的那一行）。最後看右邊的六角形：兩個{' '}
+        <Tex>{'x[n]'}</Tex>（<Tex>{'E[x]=0,\\ E[x^2]=1'}</Tex>）出發。再看中間分成左右的兩支：時域那一支讓序列真的通過 <Tex>{String.raw`H_\mathrm{PD}`}</Tex>{' '}
+        再取整數個週期平均，頻域那一支只取一個週期做 DFT，把 <Tex>{String.raw`|X_k|^2`}</Tex> 乘上 <Tex>{String.raw`\mathrm{Re}\,H_\mathrm{PD}`}</Tex> 相加（就是上面 Parseval 的那一行）。最後看下面的六角形：兩個{' '}
         <Tex>{'C'}</Tex> 的相對差夠小才採用，這是下面實驗「Analytic」欄的交叉檢查。
       </p>
       <Fig id="near-integer-check" />

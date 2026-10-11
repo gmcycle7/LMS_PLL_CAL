@@ -65,7 +65,6 @@ export function zPlaneLayout(range = 1.6): Partial<Layout> {
   return {
     xaxis: { title: { text: String.raw`$\mathrm{Re}\,z$` }, range: [-range, range], zeroline: true },
     yaxis: { title: { text: String.raw`$\mathrm{Im}\,z$` }, range: [-range, range], scaleanchor: 'x', scaleratio: 1, zeroline: true },
-    legend: { orientation: 'h', y: -0.22 },
   }
 }
 

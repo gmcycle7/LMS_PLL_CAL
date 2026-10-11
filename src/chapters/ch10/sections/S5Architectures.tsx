@@ -268,7 +268,7 @@ export function S5Architectures() {
           <Tex>{String.raw`\rho\,\delta_1'+\delta_2'=0`}</Tex>，得到 <Tex>{String.raw`\delta_2'=-\rho\,\delta_1'=\rho^2\delta_2`}</Tex>。一輪走完，<Tex>{String.raw`\delta_2`}</Tex> 只乘了{' '}
           <Tex>{String.raw`\rho^2=${tn(s.gsSweep, 5)}`}</Tex>（紅色）；虛線表示下一輪從同樣的地方再來一次。圖上的 <Tex>{String.raw`G_1\propto\delta_1+\rho\,\delta_2`}</Tex>、<Tex>{String.raw`G_2\propto\rho\,\delta_1'+\delta_2`}</Tex>{' '}
           就是 F-10.1 代入 <Tex>{String.raw`\mathbf R=\begin{bmatrix}1&\rho\\\rho&1\end{bmatrix}`}</Tex> 的兩列（輪到階段 2 時 <Tex>{String.raw`\delta_1`}</Tex> 已經變成 <Tex>{String.raw`\delta_1'`}</Tex>）；兩條有標籤的實線箭頭是下面推導（Engineer
-          模式）的第 1、2 步，最右邊那一格是第 3 步。
+          模式）的第 1、2 步，最下面那一格是第 3 步。
         </Fig>
         <p className="small muted">
           以「最壞初始方向的誤差範數降到 5%」（<Tex>{String.raw`\|\boldsymbol\Phi_k\|_2\le0.05`}</Tex>，<Tex>{String.raw`\boldsymbol\Phi_k`}</Tex> 是前 k 個 block 的轉移矩陣乘積）計算，需要{' '}
@@ -430,9 +430,9 @@ export function S5Architectures() {
           <code>blockUpdate</code> 處理（勘誤 E05 / E08：<Tex>{'K_q'}</Tex> 只在這裡出現一次）。
         </p>
         <Fig id="code-flow">
-          先看從 <Tex>{String.raw`\hat{\mathbf J}_n`}</Tex> 出發的那一路：每個規則函式吃進正規化的 Jacobian 估計，吐出正規化更新矩陣 <Tex>{String.raw`\mathbf M_n`}</Tex>——六個函式只差在這一步（藍色）。再看從{' '}
+          先看左邊從 <Tex>{String.raw`\hat{\mathbf J}_n`}</Tex> 出發的那一路：每個規則函式吃進正規化的 Jacobian 估計，吐出正規化更新矩陣 <Tex>{String.raw`\mathbf M_n`}</Tex>——六個函式只差在這一步（藍色）。再看右邊從{' '}
           <Tex>{String.raw`\boldsymbol\delta_k`}</Tex> 出發的那一路：<code>gmacLinear</code>（線性模型）或 <code>gmacSample</code>（逐 sample 的 1-bit comparator）算出 <Tex>{String.raw`\mathbf G_k`}</Tex>。兩路在{' '}
-          <code>blockUpdate</code> 會合：它把 <Tex>{String.raw`\mathbf M_n`}</Tex> 除以 <Tex>{'K_q'}</Tex> 之後更新 <Tex>{String.raw`\boldsymbol\delta`}</Tex>，最右邊的 <Tex>{String.raw`\boldsymbol\delta_{k+1}`}</Tex> 就是下一個 block 的輸入。圖上的 <code>blockUpdate</code> 就是 F-10.2 取平均之前的式子{' '}
+          <code>blockUpdate</code> 會合：它把 <Tex>{String.raw`\mathbf M_n`}</Tex> 除以 <Tex>{'K_q'}</Tex> 之後更新 <Tex>{String.raw`\boldsymbol\delta`}</Tex>，最下面的 <Tex>{String.raw`\boldsymbol\delta_{k+1}`}</Tex> 就是下一個 block 的輸入。圖上的 <code>blockUpdate</code> 就是 F-10.2 取平均之前的式子{' '}
           <Tex>{String.raw`\boldsymbol\delta_{k+1}=\boldsymbol\delta_k-\mathbf M\mathbf G_k`}</Tex>（<Tex>{String.raw`\mathbf M=\mathbf M_n/K_q`}</Tex>）；圖上的 <Tex>{String.raw`\mathbf C`}</Tex> 是 §10.5 的交叉相關矩陣，匹配模型時等於{' '}
           <Tex>{String.raw`\mathbf R`}</Tex>。
         </Fig>

@@ -88,7 +88,7 @@ export function SamplesSection() {
         的 SNR 損失）。<ClaimTag kind="approx" />（這是小訊號 <Tex>{'|s|\\ll\\sigma_v'}</Tex> 的結論，也正是校正收斂後的工作區）
       </p>
       <Fig name="analogVs1bit">
-        先比較兩個框的方塊：下框只比上框多了藍色的 sign。再比較兩框的 SNR：類比路徑每個樣本的訊號是 <Tex>{'s'}</Tex>、雜訊是 <Tex>{'\\sigma_v'}</Tex>；過了 sign 之後，訊號變成{' '}
+        先比較兩個框的方塊：右框只比左框多了藍色的 sign。再比較兩框的 SNR：類比路徑每個樣本的訊號是 <Tex>{'s'}</Tex>、雜訊是 <Tex>{'\\sigma_v'}</Tex>；過了 sign 之後，訊號變成{' '}
         <Tex>{'m\\approx\\sqrt{2/\\pi}\\,s/\\sigma_v'}</Tex>、雜訊變成 <Tex>{'\\sqrt{1-m^2}\\approx1'}</Tex>，所以 SNR 乘上 <Tex>{'\\sqrt{2/\\pi}'}</Tex>。要回到同樣的{' '}
         <Tex>{'z'}</Tex>，<Tex>{'N'}</Tex> 就得乘上它平方的倒數 <Tex>{'\\pi/2'}</Tex>（紅色）。圖上兩個 <Tex>{'N'}</Tex> 的式子相除，就是公式 F-05.9 裡的那個 <Tex>{'\\pi/2'}</Tex>。
       </Fig>

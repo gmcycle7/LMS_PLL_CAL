@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
 import { presetById, presetsForExperiment } from '@/app/presets'
-import { MathText, extractRegion, listRegions, plotMath, sanitizeMermaidSource, systemMapChart } from '@/components'
+import { MathText, extractRegion, listRegions, plotMath, sanitizeMermaidSource } from '@/components'
 import { unicodeMathIn } from '@/components/mermaidTestUtils'
 import { analyseAlpha, eqOffset, inversionBands, kappaInfWorst, kappaRational, kernelMin, largeSignalPeriodic, loopF3dB, loopMargins, makeL1, oneDiffMargin, runSspllLms } from '@/simulation/models/sspll'
 import CaseSspllPage from './index'
@@ -276,11 +276,15 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
     expect(text).toContain('32.68–125.33 MHz')
     expect(text).toContain('27.72–105.09 MHz')
     expect(text).toContain('0.388836')
-    // 方塊圖（mermaid：系統地圖 + 每一張登錄的圖都送去畫）與圖表（plotly）
-    await waitFor(() => expect(M.render.mock.calls.length).toBeGreaterThanOrEqual(DIAGRAMS.length + 1))
+    // 系統地圖是手排的 SVG（不經過 Mermaid）：本章標成藍色的方塊恰好是 MAP_FOCUS
+    const mapFigure = container.querySelector('figure.c-mermaid.c-sysmap') as HTMLElement
+    expect(mapFigure).not.toBeNull()
+    expect(Array.from(mapFigure.querySelectorAll('g.c-sysmap-block.is-focus')).map((g) => g.getAttribute('data-block')).sort()).toEqual([...MAP_FOCUS].sort())
+    // 方塊圖（mermaid：每一張登錄的圖都送去畫，系統地圖除外）與圖表（plotly）
+    await waitFor(() => expect(M.render.mock.calls.length).toBeGreaterThanOrEqual(DIAGRAMS.length))
     // 元件送進 mermaid 的是前處理過的原始碼（`$...$` 標籤合併成 Mermaid 的 `$$...$$`）
     const drawn = (M.render.mock.calls as unknown as [string, string][]).map((c) => c[1])
-    expect(drawn[0]).toBe(sanitizeMermaidSource(systemMapChart(MAP_FOCUS)))
+    expect(drawn[0]).toBe(sanitizeMermaidSource(DIAGRAMS[0].chart))
     for (const d of DIAGRAMS) expect(drawn, d.id).toContain(sanitizeMermaidSource(d.chart))
     await waitFor(() => {
       const names = traceNames()

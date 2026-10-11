@@ -77,14 +77,14 @@ export function S0Intro() {
           把系統地圖下半部的校正迴路放大，並把一個 GMAC 換成三個（<Tex>{'P=3'}</Tex>：GOS、PHOS、DTC gain）。接下來每一節都有自己的方塊圖，編號從這一張開始：
         </p>
         <Fig id="system">
-          先看最左邊：<Tex>{'e[n]'}</Tex> 是<strong>所有</strong>參數誤差的加總——第 <Tex>{'i'}</Tex> 個參數的誤差 <Tex>{String.raw`\delta_i`}</Tex> 乘上它的<strong>有效 regressor</strong>{' '}
+          先看最上面：<Tex>{'e[n]'}</Tex> 是<strong>所有</strong>參數誤差的加總——第 <Tex>{'i'}</Tex> 個參數的誤差 <Tex>{String.raw`\delta_i`}</Tex> 乘上它的<strong>有效 regressor</strong>{' '}
           <Tex>{'u_i[n]'}</Tex>（這個參數的誤差經 PLL 路徑到 comparator 前的權重，已正規化成 unit RMS），全部相加後再加上 comparator 前的雜訊 <Tex>{'v[n]'}</Tex>（RMS 為{' '}
-          <Tex>{String.raw`\sigma_v`}</Tex>）。再看中間：comparator 只輸出正負號 <Tex>{'q[n]'}</Tex>，三個 GMAC 各自拿自己的 code <Tex>{'x_i[n]'}</Tex>（理想匹配時{' '}
-          <Tex>{'x_i=u_i'}</Tex>）去乘<strong>同一個</strong> <Tex>{'q[n]'}</Tex>，每 <Tex>{'N'}</Tex> 個 sample 平均一次，得到第 <Tex>{'k'}</Tex> 個 block 的輸出（<Tex>{'k'}</Tex> 是 block 編號）。最後看右邊：更新矩陣{' '}
-          <Tex>{String.raw`\mathbf M`}</Tex> 決定每個 GMAC 的輸出加到哪些係數，再經 <Tex>{String.raw`\boldsymbol\delta=\mathbf a-\mathbf w`}</Tex> 回到最左邊。重點：GMAC<sub>1</sub> 看到的是{' '}
+          <Tex>{String.raw`\sigma_v`}</Tex>）。再往下看：comparator 只輸出正負號 <Tex>{'q[n]'}</Tex>，下面並排的三個 GMAC 各自拿自己的 code <Tex>{'x_i[n]'}</Tex>（理想匹配時{' '}
+          <Tex>{'x_i=u_i'}</Tex>）去乘<strong>同一個</strong> <Tex>{'q[n]'}</Tex>，每 <Tex>{'N'}</Tex> 個 sample 平均一次，得到第 <Tex>{'k'}</Tex> 個 block 的輸出（<Tex>{'k'}</Tex> 是 block 編號）。最後看下面兩格：更新矩陣{' '}
+          <Tex>{String.raw`\mathbf M`}</Tex> 決定每個 GMAC 的輸出加到哪些係數，再經 <Tex>{String.raw`\boldsymbol\delta=\mathbf a-\mathbf w`}</Tex>（圖右側往上的那條線）回到最上面的 <Tex>{'e[n]'}</Tex>。重點：GMAC<sub>1</sub> 看到的是{' '}
           <Tex>{String.raw`E[q\,x_1]`}</Tex>（<Tex>{String.raw`E[\cdot]`}</Tex> 是長期平均），只要 <Tex>{String.raw`x_1`}</Tex> 與 <Tex>{String.raw`u_2`}</Tex> 相關，<Tex>{String.raw`\delta_2`}</Tex> 就會漏進{' '}
-          <Tex>{String.raw`G_1`}</Tex>。圖上最左邊那一格的 <Tex>{String.raw`e[n]=u_1[n]\delta_1+u_2[n]\delta_2+u_3[n]\delta_3+v[n]`}</Tex> 就是 §10.2 推導第 1 步的{' '}
-          <Tex>{String.raw`e[n]=\mathbf u^T[n]\boldsymbol\delta_k+v[n]`}</Tex>（把內積攤開寫），最右邊那一格就是 §10.3 的更新式 <Tex>{String.raw`\mathbf w_{k+1}=\mathbf w_k+\mathbf M\mathbf G_k`}</Tex>；帶{' '}
+          <Tex>{String.raw`G_1`}</Tex>。圖上最上面那一格的 <Tex>{String.raw`e[n]=u_1[n]\delta_1+u_2[n]\delta_2+u_3[n]\delta_3+v[n]`}</Tex> 就是 §10.2 推導第 1 步的{' '}
+          <Tex>{String.raw`e[n]=\mathbf u^T[n]\boldsymbol\delta_k+v[n]`}</Tex>（把內積攤開寫），最下面那一格就是 §10.3 的更新式 <Tex>{String.raw`\mathbf w_{k+1}=\mathbf w_k+\mathbf M\mathbf G_k`}</Tex>；帶{' '}
           <Tex>{'[n]'}</Tex> 的訊號每個 sample 一個值，<Tex>{String.raw`\mathbf G_k`}</Tex>、<Tex>{String.raw`\mathbf w_k`}</Tex> 每個 block 才有一個值。
         </Fig>
       </Section>

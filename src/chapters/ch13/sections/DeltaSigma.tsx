@@ -118,7 +118,7 @@ export function DeltaSigmaSection() {
       </p>
       <Mermaid
         chart={CHART_EFB_LOOP}
-        caption="一階 error-feedback ΔΣ 的迴圈。先看上排：$w_H$ 加上「上次欠的」$r[n-1]$ 得到 $v$，量化成整數 $y$；再看藍色的下排：$v$ 減 $y$ 就是這次欠的 $r$，存進暫存器（$z^{-1}$），下一拍加回去。"
+        caption="一階 error-feedback ΔΣ 的迴圈。先看上半：$w_H$ 加上「上次欠的」$r[n-1]$ 得到 $v$，量化成整數 $y$；再看藍色的下半：$v$ 減 $y$ 就是這次欠的 $r$，存進暫存器（$z^{-1}$），下一拍加回去。"
       />
       <p className="small ch13-figwalk">
         圖上三條線上的式子就是下面的三行方程式：<Tex>{'v[n]'}</Tex> 是量化器的輸入（高解析值加上上次的欠帳）、<Tex>{'y[n]'}</Tex> 是輸出的 6-bit code、<Tex>{'r[n]'}</Tex> 是這一拍的量化誤差（residual）。圖上的{' '}
@@ -200,7 +200,7 @@ export function DeltaSigmaSection() {
       </Prereq>
       <Mermaid
         chart={CHART_NTF_PATHS}
-        caption="同一個迴圈在 $z$ 域的樣子。先看上面一條：$w_H$ 原封不動到輸出（增益 1）；再看藍色的一條：量化誤差 $r$ 要先經過 $1-z^{-1}$（現在的減掉上一次的）才到輸出，所以慢慢變的誤差幾乎被消掉、快速變的被放大。"
+        caption="同一個迴圈在 $z$ 域的樣子。先看左邊一條：$w_H$ 原封不動到輸出（增益 1）；再看上面藍色的一條：量化誤差 $r$ 要先經過 $1-z^{-1}$（現在的減掉上一次的）才到輸出，所以慢慢變的誤差幾乎被消掉、快速變的被放大。"
       />
       <p className="small ch13-figwalk">
         圖上的 <Tex>{'W_H(z)'}</Tex>、<Tex>{'R(z)'}</Tex>、<Tex>{'Y(z)'}</Tex> 是 <Tex>{'w_H[n]'}</Tex>、<Tex>{'r[n]'}</Tex>、<Tex>{'y[n]'}</Tex> 的 Z transform。圖上藍色方塊就是公式裡的{' '}
@@ -254,7 +254,7 @@ export function DeltaSigmaSection() {
       <Fold title="ΔΣ 的「平均追蹤」：telescoping（伸縮相消）" openFrom="beginner">
         <Mermaid
           chart={CHART_TELESCOPING}
-          caption="同一個迴圈換個畫法。先看藍色方塊：$r$ 其實是「$w_H$ 減 $y$」的累加器；再看右邊：累加器的內容永遠有界，所以 $N$ 次的總誤差只剩頭尾兩個 $r$，平均誤差隨 $1/N$ 變小。"
+          caption="同一個迴圈換個畫法。先看藍色方塊：$r$ 其實是「$w_H$ 減 $y$」的累加器；再看下面：累加器的內容永遠有界，所以 $N$ 次的總誤差只剩頭尾兩個 $r$，平均誤差隨 $1/N$ 變小。"
         />
         <p className="small ch13-figwalk">
           圖上累加器的式子 <Tex>{String.raw`r[n]=r[n-1]+(w_H[n]-y[n])`}</Tex> 只是把 <Tex>{'r=v-y'}</Tex> 與 <Tex>{'v=w_H+r[n-1]'}</Tex> 合成一行；圖上的{' '}

@@ -9,6 +9,8 @@
  *   正負號後面還有說明文字時，負號寫成 `$-$`（KaTeX 的文字模式不認得 U+2212，會在主控台警告）。
  *   Mermaid 11 把標籤當 Markdown：單獨的 ASCII「+」「-」會被當成清單，畫面上變成「Unsupported markdown: list」。
  * - 圖上的訊號名稱、正負號與箭頭方向都和「一條方程式」那一節的推導一致（$\delta = a - w$；$G_k = K_q\,(C\,\delta_k + B) + \eta_k$）。
+ * - 版面（docs/teaching-style.md §8）：桌機正文欄約 900px，三張圖都畫成由上到下（`flowchart TB`），自然寬度不超過 930px、不需要橫向捲動；
+ *   檢查流程的紅色方塊與菱形的長文字用 <br/> 換行，才不會被菱形撐寬。
  */
 import { SYSTEM_BLOCK_LABEL, type SystemBlock } from '@/components'
 
@@ -35,11 +37,12 @@ const N = CONDITION_MAP_NAMES
 export const CIRC: readonly string[] = [1, 2, 3, 4, 5, 6].map((n) => String.raw`$\text{\textcircled{${n}}}$`)
 
 /**
- * 校正迴路的訊號流（實線）與六個條件各自「住在哪裡」（虛線圓角框）。
+ * 校正迴路的訊號流（實線）與六個條件各自「住在哪裡」（圓角膠囊，用虛線接到那一塊）。由上到下：DSM → DTC → PLL error path → comparator → GMAC → 係數更新，
+ * 回授的 $w$ 從左側繞回 DTC；每個條件的膠囊放在它所屬方塊的上方（⑥ 接在「PLL 輸出」的下面，才不會和回授的 $w$ 交叉）。
  * 對應線性化方程式 $e[n] = (a - w)\,u[n] + \varepsilon_{\mathrm{det}}[n] + v[n]$：
  *   $(a - w)$ 來自 DTC / PMUX 的係數誤差、$u = h * x$ 來自 PLL error path、$\varepsilon_{\mathrm{det}}$ 來自 offset / INL、$v$ 是 comparator 前的雜訊。
  */
-export const CONDITION_MAP_CHART = String.raw`flowchart LR
+export const CONDITION_MAP_CHART = String.raw`flowchart TB
   DSM["DSM / FCW<br/>code $x[n]$"]
   DTC["DTC / PMUX<br/>延遲 $= w\cdot x$<br/>真值 $a$（GOS / PHOS）"]
   PLL["PLL error path<br/>$u = h * x$<br/>$\lvert H\rvert$、$\phi$"]
@@ -56,7 +59,7 @@ export const CONDITION_MAP_CHART = String.raw`flowchart LR
   C3(["${CIRC[2]} ${N[2]}<br/>$0 \lt g \lt g^*$"]) -.- UPD
   C4(["${CIRC[3]} ${N[3]}<br/>$\sigma_w$ 夠小"]) -.- CMP
   C5(["${CIRC[4]} ${N[4]}<br/>$w^* = a + B/C$"]) -.- DTC
-  C6(["${CIRC[5]} ${N[5]}<br/>jitter、spur"]) -.- OUT`
+  OUT -.- C6(["${CIRC[5]} ${N[5]}<br/>jitter、spur"])`
 
 /**
  * 六個條件的檢查流程（由上到下就是 thesisModel.ts 的 CONDITION_ORDER）。
@@ -68,8 +71,8 @@ export const CONDITION_FLOW_CHART = String.raw`flowchart TB
   Q2{"${CIRC[1]} ${N[1]}？<br/>$C = E[x\cdot u] \gt 0$"}
   Q3{"${CIRC[2]} ${N[2]}？<br/>$0 \lt g \lt g^*(d)$，<br/>$g = \mu\cdot K_q\cdot C$"}
   Q4{"${CIRC[3]} ${N[3]}？<br/>$\sigma_w$ 在預算內"}
-  Q5{"${CIRC[4]} ${N[4]}？<br/>$w^* - a = B/C$ 在預算內"}
-  Q6{"${CIRC[5]} ${N[5]}？<br/>$\sigma_{\delta t}$ 與 spur 在預算內"}
+  Q5{"${CIRC[4]} ${N[4]}？<br/>$w^* - a = B/C$<br/>在預算內"}
+  Q6{"${CIRC[5]} ${N[5]}？<br/>$\sigma_{\delta t}$ 與 spur<br/>在預算內"}
   OK(["六個都通過<br/>才是成功的 calibration"])
   Q1 -- "是" --> Q2
   Q2 -- "是：有了 $C$ 才能算 $g$" --> Q3
@@ -77,12 +80,12 @@ export const CONDITION_FLOW_CHART = String.raw`flowchart TB
   Q4 -- "是" --> Q5
   Q5 -- "是：$\sigma_w$ 與 $B/C$ 都有了" --> Q6
   Q6 -- "是" --> OK
-  Q1 -- "否" --> F1["看不見：某個方向學不到<br/>換 code／FCW，或少校正幾個參數"]
-  Q2 -- "否" --> F2["$C \le 0$：越修越遠，或隨雜訊亂走<br/>調 code delay $D$，或改用 filtered-$x$"]
-  Q3 -- "否" --> F3["$g$ 太大：震盪發散<br/>減小 $\mu$、縮短延遲 $d$、檢查 sum／average"]
+  Q1 -- "否" --> F1["看不見：某個方向學不到<br/>換 code／FCW，<br/>或少校正幾個參數"]
+  Q2 -- "否" --> F2["$C \le 0$：越修越遠，<br/>或隨雜訊亂走<br/>調 code delay $D$，<br/>或改用 filtered-$x$"]
+  Q3 -- "否" --> F3["$g$ 太大：震盪發散<br/>減小 $\mu$、縮短延遲 $d$、<br/>檢查 sum／average"]
   Q4 -- "否" --> F4["係數抖動太大<br/>減小 $\mu$ 或增加 $N$"]
-  Q5 -- "否" --> F5["GMAC 歸零，但 $w \ne a$<br/>降低 $B$（offset、INL），或提高 $C$"]
-  Q6 -- "否" --> F6["jitter／spur 超標<br/>bias 與雜訊合起來重新分配預算"]
+  Q5 -- "否" --> F5["GMAC 歸零，但 $w \ne a$<br/>降低 $B$（offset、INL），<br/>或提高 $C$"]
+  Q6 -- "否" --> F6["jitter／spur 超標<br/>bias 與雜訊合起來<br/>重新分配預算"]
   ${PASS}
   ${WARN}
   class OK ok
@@ -93,8 +96,9 @@ export const CONDITION_FLOW_CHART = String.raw`flowchart TB
  *   $\delta_k = a - w_k$ → $\times C$ → $+B$ → $\times K_q$ → $+\eta_k = G_k$ → $\times \mu$ → 累加器 → $w_k$（負回授）
  * 也就是 $G_k = K_q\,(C\,\delta_k + B) + \eta_k$、$w_{k+1} = w_k + \mu\,G_k$ ⇒ $\delta_{k+1} = (1 - \mu K_q C)\,\delta_k - \mu K_q B - \mu\,\eta_k$。
  * 三個藍色方塊相乘 = loop gain $g = \mu K_q C$；棕色的 $B$ 決定固定點 $\delta^* = -B/C$。
+ * 畫成由上到下（8 個串接的方塊，橫著排會超過 1700px）：兩個干擾（$B$、$\eta_k$）從旁邊加進來，$w_k$ 的負回授沿右側回到最上面的加法點。
  */
-export const BLOCK_EQUATION_CHART = String.raw`flowchart LR
+export const BLOCK_EQUATION_CHART = String.raw`flowchart TB
   A(["$a$<br/>真值"]) -- "＋" --> S1(("＋"))
   S1 -- "$\delta_k = a - w_k$" --> CC["$\times C$<br/>$C = E[x\cdot u]$<br/>條件 ${CIRC[1]}：看它的正負"]
   CC -- "＋" --> S2(("＋"))

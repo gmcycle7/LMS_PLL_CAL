@@ -142,6 +142,10 @@ describe('Papers 的 Mermaid 圖（真正的 mermaid parser）', () => {
     }
   }, 60000)
 
+  it('版面：四張都是直向（TB／TD）。文獻對照圖是一圈迴路、換算圖有四條並排的輸入，橫向（LR）會寬到 1800–1900 px 而要橫向捲動（teaching-style §8「版面寬度」）', () => {
+    for (const c of PAPERS_CHARTS) expect(c.chart, c.name).toMatch(/^flowchart (TB|TD)\n/)
+  })
+
   it('數字來源圖：三種來源各一條路；只有「已發表主張」與「本站推導」會走到「能不能比」；例子與文獻資料一致', async () => {
     const g = await flow(CHART_NUMBER_SOURCES)
     expect(g.edges.filter((e) => e.start === 'Q').map((e) => e.end)).toEqual(['LIT', 'SPEC', 'DER'])

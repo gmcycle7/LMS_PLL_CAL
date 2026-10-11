@@ -969,7 +969,7 @@ export function BiasInlLab() {
         />
       </div>
       <div className="table-wrap">
-        <table className="ch11-table">
+        <table className="ch11-table ch11-case-table">
           <caption className="small muted">
             Case 並列比較（共用誤差模型、code 與 seed）。「MC 參考值」在 DC null 模式是 servo-aware 固定點；容許量 = <Tex>{String.raw`4\,\mathrm{SE}`}</Tex> + 有限步長 + servo 修正的 25%。尚未執行的 Case 按「執行 Run」會依序補跑。
           </caption>

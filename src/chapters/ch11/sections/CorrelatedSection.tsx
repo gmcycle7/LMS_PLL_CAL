@@ -32,8 +32,8 @@ export function CorrelatedSection() {
         phase 耦合到 PD，形成與 code 成正比的 deterministic jitter, DJ）。隨機、零均值的 jitter 不會造成 bias（§11.0 的類別 ① 與 ④）。
       </p>
       <p>
-        先看 <FigRef id="identifiability" /> 的左邊：同一個 code <Tex>{'x[n]'}</Tex> 同時乘上 <Tex>{'(a-w)'}</Tex>（DTC 的 gain 誤差，藍色）與{' '}
-        <Tex>{'\\kappa'}</Tex>（耦合係數，紅色；單位和 gain 一樣是 t.u.），兩者在 comparator 前直接相加。再看右邊：comparator 只看得到它們的和{' '}
+        先看 <FigRef id="identifiability" /> 的上半部：同一個 code <Tex>{'x[n]'}</Tex> 同時乘上 <Tex>{'(a-w)'}</Tex>（DTC 的 gain 誤差，藍色）與{' '}
+        <Tex>{'\\kappa'}</Tex>（耦合係數，紅色；單位和 gain 一樣是 t.u.），兩者在 comparator 前直接相加。再看下半部：comparator 只看得到它們的和{' '}
         <Tex>{String.raw`((a+\kappa)-w)\,x`}</Tex>，所以 LMS 要把 <Tex>{'w'}</Tex> 調到 <Tex>{'a+\\kappa'}</Tex> 才會停。圖上紅色的「
         <Tex>{'\\times\\kappa'}</Tex>」就是公式裡的 <Tex>{String.raw`\varepsilon_{cc}=\kappa x`}</Tex>；comparator 方塊裡的 <Tex>{'e[n]'}</Tex>{' '}
         就是下面「兩個世界」推導的第一行。

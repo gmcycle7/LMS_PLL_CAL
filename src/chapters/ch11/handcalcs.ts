@@ -126,7 +126,7 @@ export const HANDCALCS: HandCalcDef[] = [
             why: '只有 $x$ 與 $x^3$ 兩個奇次項，所以殘差是奇函數：負的 code 只要變號，$x=0$ 的殘差是 0。',
           },
           {
-            tex: String.raw`x\,e(x;w):\quad ${xs.map((x, i) => String.raw`${texNumP(x)}\times${texNumP(es[i])}`).join(String.raw`,\ `)}\;=\;${list(xe)}`,
+            tex: String.raw`x\,e(x;w):\; ${xs.map((x, i) => String.raw`${texNumP(x)}\times${texNumP(es[i])}`).join(String.raw`,\ `)}\;=\;${list(xe)}`,
             why: '逐項把 code 乘上它的殘差（這就是 MSE-LMS 的 GMAC 在每個 sample 累加的量）。',
           },
           {
@@ -134,7 +134,7 @@ export const HANDCALCS: HandCalcDef[] = [
             why: '期望值 = 機率加權和；5 個 code 各 $1/5$。這就是平均 GMAC $E[G](w)$。',
           },
           {
-            tex: String.raw`E[e^2]=\tfrac15\big(${es.map((e) => `${texNumP(e)}^2`).join('+')}\big)=\tfrac15\big(${plus(e2s)}\big)=\tfrac{${texNum(chop(total(e2s)))}}{5}=${texNum(mse)}`,
+            tex: String.raw`E[e^2]=\tfrac15\big(${es.map((e) => `${texNumP(e)}^2`).join('+')}\big)\\ \qquad=\tfrac15\big(${plus(e2s)}\big)=\tfrac{${texNum(chop(total(e2s)))}}{5}=${texNum(mse)}`,
             why: '殘差的均方值（MSE 成本）：先把每個殘差平方，加起來，再除以 5。它量的是「還剩多少 timing error」，和 GMAC 是否歸零是兩回事。',
           },
         ],
@@ -435,7 +435,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: 'Sign-LMS 的 $\\sigma_v$ 二階修正：離 MSE 解多遠？需要多少雜訊？',
     page: PAGE,
     formulaId: 'F-11.9',
-    formulaTex: String.raw`w^*_\mathrm{sign}\approx w_1+\Delta,\qquad \Delta=-\frac{E[x\,e_0^3]}{6\,\sigma_v^2\,E[x^2]},\qquad e_0(x)=(a-w_1)\,x+c_3x^3,\qquad |\Delta|\le\varepsilon\iff\sigma_v\ge\sigma_{v,\min}=\sqrt{\frac{|\Delta|\,\sigma_v^2}{\varepsilon}}`,
+    formulaTex: String.raw`w^*_\mathrm{sign}\approx w_1+\Delta,\qquad \Delta=-\frac{E[x\,e_0^3]}{6\,\sigma_v^2\,E[x^2]},\qquad e_0(x)=(a-w_1)\,x+c_3x^3,\\[0.4em] |\Delta|\le\varepsilon\iff\sigma_v\ge\sigma_{v,\min}=\sqrt{\frac{|\Delta|\,\sigma_v^2}{\varepsilon}}`,
     level: 'engineer',
     claim: 'approx',
     inputs: [
@@ -520,7 +520,7 @@ export const HANDCALCS: HandCalcDef[] = [
             why: '三次方：連乘三次（負數的三次方仍為負）。',
           },
           {
-            tex: String.raw`E[x\,e_0^3]=\tfrac25\big[1\cdot e_0(1)^3+2\cdot e_0(2)^3\big]=\tfrac25\big(${texNum(c13, 6)}+2\times${texNumP(c23, 6)}\big)=\tfrac25\big(${texNum(c13, 6)}+${texNumP(2 * c23, 6)}\big)=\tfrac25\times${texNumP(inner, 6)}=${texNum(exe3, 6)}`,
+            tex: String.raw`E[x\,e_0^3]=\tfrac25\big[1\cdot e_0(1)^3+2\cdot e_0(2)^3\big]\\ \qquad=\tfrac25\big(${texNum(c13, 6)}+2\times${texNumP(c23, 6)}\big)=\tfrac25\big(${texNum(c13, 6)}+${texNumP(2 * c23, 6)}\big)=\tfrac25\times${texNumP(inner, 6)}=${texNum(exe3, 6)}`,
             why: '$x\\,e_0^3$ 是偶函數（奇函數乘奇函數），$\\pm x$ 兩項相同，所以 5 個 code 的平均 = $\\tfrac25\\times$（$x=1$ 與 $x=2$ 兩項之和）；$\\tfrac25$ 就是乘 0.4。',
           },
           {
@@ -559,7 +559,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: '無雜訊 Sign-LMS：$|x|$ 加權中位數（對照 MSE 的 $x^2$ 加權平均）',
     page: PAGE,
     formulaId: 'F-11.10',
-    formulaTex: String.raw`t(x)=a+\frac{b}{x}+c_3x^2,\qquad E[G](w)=\sum_{x\neq0}p\,|x|\operatorname{sign}\big(t(x)-w\big)=0\ \ (\text{加權中位數}),\qquad w^*_\mathrm{MSE}=\frac{\sum p\,x^2\,t(x)}{\sum p\,x^2}\ \ (\text{加權平均})`,
+    formulaTex: String.raw`t(x)=a+\frac{b}{x}+c_3x^2,\qquad E[G](w)=\sum_{x\neq0}p\,|x|\operatorname{sign}\big(t(x)-w\big)=0\ \ (\text{加權中位數}),\\[0.4em] w^*_\mathrm{MSE}=\frac{\sum p\,x^2\,t(x)}{\sum p\,x^2}\ \ (\text{加權平均})`,
     level: 'beginner',
     claim: 'exact',
     inputs: [
@@ -754,7 +754,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: '綜合：gain-bias 預算（offset＋INL＋$\\kappa$）、線性化檢查與 $\\mu$',
     page: PAGE,
     formulaId: 'F-11.4',
-    formulaTex: String.raw`w^*=a+\underbrace{\frac{b\,E[x]}{E[x^2]}}_{\text{offset}}+\underbrace{\frac{c_2E[x^3]+c_3E[x^4]}{E[x^2]}}_{\text{INL}}+\underbrace{\kappa}_{\text{correlated}},\qquad \frac{\max_x|e_\mathrm{det}(x;w^*)|}{\sigma_v}\le0.3\ ?\qquad \mu=\frac{g}{K_q\,E[x^2]},\ g=0.02`,
+    formulaTex: String.raw`w^*=a+\underbrace{\frac{b\,E[x]}{E[x^2]}}_{\text{offset}}+\underbrace{\frac{c_2E[x^3]+c_3E[x^4]}{E[x^2]}}_{\text{INL}}+\underbrace{\kappa}_{\text{correlated}},\\[0.4em] \frac{\max_x|e_\mathrm{det}(x;w^*)|}{\sigma_v}\le0.3\ ?\qquad \mu=\frac{g}{K_q\,E[x^2]},\ g=0.02`,
     level: 'engineer',
     claim: 'approx',
     inputs: [

@@ -124,7 +124,7 @@ export function S0Intro() {
             </thead>
             <tbody>
               <tr>
-                <td>1 方向</td>
+                <td className="so-nowrap">1 方向</td>
                 <td>GMAC 說「往上調」時，真的該往上嗎？</td>
                 <td>
                   <Tex>{'z=K_qC\\,\\Delta\\sqrt{2MN}'}</Tex>（freeze <Tex>{`\\pm\\Delta`}</Tex>，<Tex>{`\\Delta=${walk.delta}\\,\\mathrm{fs}`}</Tex>、<Tex>{`M=${walk.M}`}</Tex>）
@@ -137,7 +137,7 @@ export function S0Intro() {
                 </td>
               </tr>
               <tr>
-                <td>2 增益</td>
+                <td className="so-nowrap">2 增益</td>
                 <td>每次修正會不會修過頭？</td>
                 <td>
                   <Tex>{'g=\\mu K_qC,\\ p=1-g,\\ PM=90^\\circ-\\arcsin(g/2)'}</Tex>
@@ -150,7 +150,7 @@ export function S0Intro() {
                 </td>
               </tr>
               <tr>
-                <td>3 雜訊</td>
+                <td className="so-nowrap">3 雜訊</td>
                 <td>收斂後係數抖多大？要等多久？</td>
                 <td>
                   <Tex>{'\\sigma_w=\\mu\\sigma_\\eta/\\sqrt{1-p^2},\\ \\tau=-1/\\ln p'}</Tex>
@@ -161,7 +161,7 @@ export function S0Intro() {
                 <td>約 {walk.k95} 個 block 收斂 95%；抖動是 gain-equivalent，不是 output jitter（§5）</td>
               </tr>
               <tr>
-                <td>4 非理想</td>
+                <td className="so-nowrap">4 非理想</td>
                 <td>它停下來的地方，是「正確答案」嗎？</td>
                 <td>
                   <Tex>{'w^*=a+c_3E[x^4]/E[x^2]'}</Tex>；6-bit code 的 limit cycle

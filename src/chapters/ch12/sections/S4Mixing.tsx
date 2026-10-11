@@ -324,10 +324,10 @@ S^{(1)}_{\delta t}(f)&=\underbrace{m^2\,S^{(1)}_{w,\mathrm{zoh}}(f)}_{\text{常�
           <Tex>{String.raw`\delta w_k`}</Tex> 每個 block 一個值（取樣率 <Tex>{'f_u'}</Tex>），code 每個 sample 一個值（取樣率 <Tex>{'f_s=Nf_u'}</Tex>）。
           先看誰在什麼時候動：
         </p>
-        <Diagram chart={CHART_BLOCK_TIMING} caption={String.raw`誰在什麼時候動：comparator 與 DTC 每個 sample 都在動，係數每個 block（$N$ 個 sample）才換一次。由上往下是時間。`}>
+        <Diagram chart={CHART_BLOCK_TIMING} caption={String.raw`誰在什麼時候動：comparator 與 DTC 每個 sample 都在動，係數每個 block（$N$ 個 sample）才換一次。三條橫帶由上到下是 comparator 與 GMAC、LMS、DTC，每條橫帶由左往右是時間。`}>
           <p>
             {md(
-              String.raw`先看左邊：GMAC 花 $N$ 個 sample 累加出一個 $G_k$。再看中間：block 結束時 LMS 才更新一次係數。最後看右邊：新係數延遲 $n_c$ 個 sample 後套用到 DTC，接下來 $N$ 個 sample 都是同一個值，這就是 zero-order hold（ZOH）。`,
+              String.raw`先看最上面那條橫帶：GMAC 花 $N$ 個 sample 累加出一個 $G_k$。再看中間那條：block 結束時 LMS 才更新一次係數。最後看最下面那條：新係數延遲 $n_c$ 個 sample 後套用到 DTC，接下來 $N$ 個 sample 都是同一個值，這就是 zero-order hold（ZOH）。`,
             )}
           </p>
           <p>
@@ -397,7 +397,7 @@ S^{(1)}_{\delta t}(f)&=\underbrace{m^2\,S^{(1)}_{w,\mathrm{zoh}}(f)}_{\text{常�
         <Diagram chart={CHART_PSD_UNITS} caption={String.raw`PSD 的三次換算：先換成單邊每赫茲（乘 $2/f_r$），再換成輸出相位，最後才是 phase noise $\mathcal L(f)$。注意每一格的單位。`}>
           <p>
             {md(
-              String.raw`先由左到右看主線：DTFT 形式的 PSD 乘上 $2/f_r$ 變成單邊 per-Hz；再乘上 $(2\pi f_{\mathrm{out}})^2|T|^2$ 變成輸出相位的 PSD（$f_{\mathrm{out}}$ 是 PLL 輸出頻率，$T$ 是下一節的 PLL 轉移函數）；除以 2 再取 dB 就是 $\mathcal L(f)$。再看前兩格裡各寫的一行積分：兩種形式算變異數的方式不同——DTFT 形式要對 $\Omega$ 積分再除以 $2\pi$，單邊 per-Hz 直接對 $f$ 積分。`,
+              String.raw`先由上往下看主線：DTFT 形式的 PSD 乘上 $2/f_r$ 變成單邊 per-Hz；再乘上 $(2\pi f_{\mathrm{out}})^2|T|^2$ 變成輸出相位的 PSD（$f_{\mathrm{out}}$ 是 PLL 輸出頻率，$T$ 是下一節的 PLL 轉移函數）；除以 2 再取 dB 就是 $\mathcal L(f)$。再看前兩格裡各寫的一行積分：兩種形式算變異數的方式不同——DTFT 形式要對 $\Omega$ 積分再除以 $2\pi$，單邊 per-Hz 直接對 $f$ 積分。`,
             )}
           </p>
           <p>

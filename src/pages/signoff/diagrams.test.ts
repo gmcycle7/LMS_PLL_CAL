@@ -92,6 +92,10 @@ describe('Sign-off 頁的方塊圖（真正的 mermaid）', () => {
     expect(new Set(SIGNOFF_CHARTS.map((c) => c.chart)).size).toBe(SIGNOFF_CHARTS.length)
   })
 
+  it('版面：七張都是直向（flowchart TB）。橫向（LR）的長鏈在桌機的正文欄（約 900 px）會寬出欄寬好幾倍、要橫向捲動（teaching-style §8「版面寬度」；diagram-audit 量過：TB 之後最寬 800 px）', () => {
+    for (const c of SIGNOFF_CHARTS) expect(c.chart, c.name).toMatch(/^flowchart TB\n/)
+  })
+
   it('每一張都能真的畫出來：沒有「Unsupported markdown」、畫出來的文字沒有 $、公式都由 KaTeX 排版、KaTeX 以外沒有 Unicode 拼的數學、節點不超過 14 個、標籤沒有會被 Markdown／HTML 吃掉的寫法、加法點的每條輸入都標了正負號', async () => {
     for (const c of SIGNOFF_CHARTS) {
       const parsed = await mermaid.parse(c.chart, { suppressErrors: false })

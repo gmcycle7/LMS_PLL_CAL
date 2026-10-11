@@ -49,13 +49,13 @@ const SIGMA_V = String(EX.input.sigmaV) // 100
  * 雜訊傳遞鏈（方塊層級；本章的第一張地圖）。
  * code x[n] 進兩個地方：GMAC 的相關（G_k = (1/N)·Σ q·x，虛線）與 DTC 的乘法（δt = x·δw，F-12.11）。
  */
-export const NOISE_CHAIN_CHART = String.raw`flowchart LR
+export const NOISE_CHAIN_CHART = String.raw`flowchart TB
   V["$v[n]$：comparator 前雜訊<br/>$\sigma_v = ${numUnit(SIGMA_V, 'fs')}$"] --> Q["1-bit comparator<br/>$q = \mathrm{sign}(e)$"]
   Q --> G["GMAC 平均<br/>$G_k = \frac{1}{N}\sum q\,x$<br/>雜訊 $\eta_k$"]
+  X["DSM code $x[n]$"] -. "GMAC 也用同一個 code<br/>做相關" .-> G
   G --> U["LMS 更新<br/>$w \leftarrow w + \mu G$"]
   U --> W["係數雜訊 $\delta w_k$<br/>（gain-equivalent）"]
-  X["DSM code $x[n]$"] --> M(("$\times$"))
-  X -. "GMAC 也用同一個 code 做相關" .-> G
+  X --> M(("$\times$"))
   W --> M
   M --> DT["$\delta t[n] = x\,\delta w$<br/>DTC 多出的延遲"]
   DT --> PD["$H_{\mathrm{PD}} = 1/(1+L)$<br/>PD residual：high-pass"]
@@ -123,9 +123,9 @@ export const CHART_UPDATE_LOOP = String.raw`flowchart LR
   MU -- "$+\mu G_k$" --> S2(("$+$"))
   S2 -- "$\delta w_{k+1}$" --> D["$z^{-1}$<br/>延遲一個 block"]
   D -- "$\delta w_k$" --> OUT["係數偏差 $\delta w_k$"]
-  D -- "$+\delta w_k$（累加器記住舊值）" --> S2
+  D -- "$+\delta w_k$<br/>（累加器記住舊值）" --> S2
   D --> KB["$\times K$"]
-  KB -- "$-K\,\delta w_k$（恢復力）" --> S1
+  KB -- "$-K\,\delta w_k$<br/>（恢復力）" --> S1
 ${CLASSES}
   class KB focus`
 
@@ -150,13 +150,13 @@ ${CLASSES}
   class P,HZ focus`
 
 /** 白色 GMAC 雜訊通過 |H|²：S_w = |H|²·S_η（F-12.4），面積就是 σ_w²（F-12.5） */
-export const CHART_PSD_FILTER = String.raw`flowchart LR
+export const CHART_PSD_FILTER = String.raw`flowchart TB
   IN["$S_\eta(e^{j\Omega}) = \sigma_\eta^2$<br/>白色：每個頻率一樣高"] --> H2["$\times\,|H(e^{j\Omega})|^2$<br/>$= \mu^2 / (1 - 2p\cos\Omega + p^2)$"]
-  H2 --> OUT["$S_w(e^{j\Omega})$<br/>$0 \lt p \lt 1$ 時：低頻高、高頻低（low-pass）"]
+  H2 --> OUT["$S_w(e^{j\Omega})$<br/>$0 \lt p \lt 1$ 時：<br/>低頻高、高頻低（low-pass）"]
   OUT --> AREA["面積：$\frac{1}{2\pi}\int S_w\,d\Omega$<br/>$\Omega$ 由 $-\pi$ 積到 $\pi$"]
   AREA --> VAR["$\sigma_w^2 = \mu^2\sigma_\eta^2 / (1 - p^2)$"]
-  H2 -.- DC["$\Omega = 0$（DC）的增益：$\mu^2/(1 - p)^2$"]
-  H2 -.- NY["$\Omega = \pi$（Nyquist）的增益：$\mu^2/(1 + p)^2$"]
+  H2 -.- DC["$\Omega = 0$（DC）的增益：<br/>$\mu^2/(1 - p)^2$"]
+  H2 -.- NY["$\Omega = \pi$（Nyquist）的增益：<br/>$\mu^2/(1 + p)^2$"]
 ${CLASSES}
   class H2 focus
   class VAR ok`
@@ -191,9 +191,9 @@ ${CLASSES}
 /** 同一個濾波器的四種讀法：三個 −3 dB（exact 與兩個近似）＋ ENBW（T14 的四個數字） */
 export const CHART_BW_READOUTS = String.raw`flowchart TB
   F["同一個濾波器 $H(z) = \mu/(z - p)$<br/>$|H|^2 = \mu^2 / (1 - 2p\cos\Omega + p^2)$"]
-  F --> QA["讀法 A：功率掉到 DC 一半的頻率<br/>（corner：迴路追得多快）"]
-  F --> QB["讀法 B：白雜訊通過後的總功率<br/>等於多寬的理想矩形"]
-  QA --> EX["exact $-3\ \mathrm{dB}$<br/>$\frac{f_u}{\pi}\arcsin\frac{1 - p}{2\sqrt{p}}$<br/>$= ${numUnit(kHz(EX.f3dbExact), 'kHz')}$"]
+  F --> QA["讀法 A：<br/>功率掉到 DC 一半的頻率<br/>（corner：迴路追得多快）"]
+  F --> QB["讀法 B：<br/>白雜訊通過後的總功率<br/>等於多寬的理想矩形"]
+  QA --> EX["exact $\mathord{-}3\ \mathrm{dB}$<br/>$\frac{f_u}{\pi}\arcsin\frac{1 - p}{2\sqrt{p}}$<br/>$= ${numUnit(kHz(EX.f3dbExact), 'kHz')}$"]
   QA --> LN["$-\ln p$ 近似<br/>$\frac{-\ln p}{2\pi}f_u$<br/>$= ${numUnit(kHz(EX.f3dbNegLnP), 'kHz')}$"]
   QA --> OMP["$(1 - p)$ 近似<br/>$\frac{1 - p}{2\pi}f_u$<br/>$= ${numUnit(kHz(EX.f3dbOneMinusP), 'kHz')}$"]
   QB --> EN["ENBW<br/>$\frac{f_u}{2}\cdot\frac{1 - p}{1 + p}$<br/>$= ${numUnit(kHz(EX.enbw), 'kHz')}$"]
@@ -209,20 +209,20 @@ export const CHART_BW_REGIME = String.raw`flowchart TB
   D1 -- "否" --> D2{"$p \ge 0$？<br/>（$\mu K \le 1$）"}
   D2 -- "否" --> HP["high-pass：雜訊集中在 $f_u/2$ 附近<br/>low-pass 的頻寬定義不適用"]
   D2 -- "是" --> D3{"$p = 0$？"}
-  D3 -- "是" --> FL["flat：係數雜訊是白色<br/>沒有 $-3\ \mathrm{dB}$ 點"]
+  D3 -- "是" --> FL["flat：係數雜訊是白色<br/>沒有 $\mathord{-}3\ \mathrm{dB}$ 點"]
   D3 -- "否" --> D4{"$p \ge 3 - 2\sqrt{2} \approx ${(3 - 2 * Math.SQRT2).toFixed(4)}$？<br/>（$\mu K \le ${(2 * Math.SQRT2 - 2).toFixed(4)}$）"}
   D4 -- "否" --> N3["low-pass，但衰減不足 $3\ \mathrm{dB}$<br/>$-3\ \mathrm{dB}$ 點不存在"]
-  D4 -- "是" --> OK["low-pass：exact $-3\ \mathrm{dB}$ 存在<br/>$\Omega_{3\mathrm{dB}} = 2\arcsin\frac{1 - p}{2\sqrt{p}}$"]
+  D4 -- "是" --> OK["low-pass：exact $\mathord{-}3\ \mathrm{dB}$ 存在<br/>$\Omega_{3\mathrm{dB}} = 2\arcsin\frac{1 - p}{2\sqrt{p}}$"]
 ${CLASSES}
   class OK ok
   class U,HP,FL,N3 warn`
 
 /** σ_w² = 位準 × 寬度：位準 S_w^(1)(0) = π·σ_v²/(C²·f_s)（F-12.19），寬度 ENBW（F-12.9） */
-export const CHART_LEVEL_WIDTH = String.raw`flowchart LR
-  SV["comparator 輸入雜訊的單邊 PSD<br/>$2\sigma_v^2 / f_s$"] --> ONEBIT["$\times\,\pi/2$<br/>1-bit comparator 的代價"]
+export const CHART_LEVEL_WIDTH = String.raw`flowchart TB
+  SV["comparator 輸入雜訊<br/>的單邊 PSD<br/>$2\sigma_v^2 / f_s$"] --> ONEBIT["$\times\,\pi/2$<br/>1-bit comparator 的代價"]
   ONEBIT --> DIVC["$\div\,C^2$<br/>有效 code 相關"]
-  DIVC --> LVL["位準 $S_w^{(1)}(0) = \pi\sigma_v^2 / (C^2 f_s)$<br/>與 $\mu$、$N$ 無關"]
-  MUK["$\mu K$ 與 $f_u = f_s/N$"] --> W["寬度 $\mathrm{ENBW} = \frac{f_u}{2}\cdot\frac{1 - p}{1 + p}$<br/>$p = 1 - \mu K$：$\mu$ 越大越寬"]
+  DIVC --> LVL["位準 $S_w^{(1)}(0)$<br/>$= \pi\sigma_v^2 / (C^2 f_s)$<br/>與 $\mu$、$N$ 無關"]
+  MUK["$\mu K$ 與 $f_u = f_s/N$"] --> W["寬度 $\mathrm{ENBW}$<br/>$= \frac{f_u}{2}\cdot\frac{1 - p}{1 + p}$<br/>$p = 1 - \mu K$：$\mu$ 越大越寬"]
   LVL --> X(("$\times$"))
   W --> X
   X --> VAR["面積 $\sigma_w^2$ = 位準 $\times$ 寬度"]
@@ -270,7 +270,7 @@ export const CHART_MIX_DOMAINS = String.raw`flowchart TB
     RW["$R_w[\ell]$"] --> M2
     M2 --> RT["$R_{\delta t}[\ell]$"]
   end
-  subgraph FREQ["頻域：卷積（一個頻譜拖著另一個掃過去）"]
+  subgraph FREQ["頻域：卷積<br/>（一個頻譜拖著另一個掃過去）"]
     direction LR
     SX["$S_x$"] --> CV(("$\ast$"))
     SW["$S_w$（sample-rate 版）"] --> CV
@@ -297,15 +297,15 @@ ${CLASSES}
  * code 有 DC 就有直通項：x = m + x̃ ⇒ δt = m·δw + x̃·δw（§12.6 的 callout、思考題 3）。
  * m·δw 留在低頻、落在 PLL 的 low-pass T 通帶內；x̃·δw 被搬到 x̃ 的頻率。code centering（m = 0）讓直通那一路消失。
  */
-export const CHART_DC_FEEDTHROUGH = String.raw`flowchart LR
+export const CHART_DC_FEEDTHROUGH = String.raw`flowchart TB
   X["code $x[n] = m + \tilde x[n]$"] --> DC["DC 成分 $m$<br/>code 的平均值"]
   X --> AC["零均值成分 $\tilde x[n]$<br/>例：DSM 的高頻抖動"]
-  DW["係數雜訊 $\delta w[n]$<br/>功率集中在低頻"] --> M1(("$\times$"))
-  DC --> M1
+  DC --> M1(("$\times$"))
+  DW["係數雜訊 $\delta w[n]$<br/>功率集中在低頻"] --> M1
   DW --> M2(("$\times$"))
   AC --> M2
-  M1 -- "$+m\,\delta w$：頻譜留在低頻" --> S(("$+$"))
-  M2 -- "$+\tilde x\,\delta w$：搬到 $\tilde x$ 的頻率" --> S
+  M1 -- "$+m\,\delta w$：<br/>頻譜留在低頻" --> S(("$+$"))
+  M2 -- "$+\tilde x\,\delta w$：<br/>搬到 $\tilde x$ 的頻率" --> S
   S -- "$\delta t[n]$" --> T["PLL 到輸出<br/>$|T|^2$ low-pass"]
   T --> OUT["output jitter<br/>$m\,\delta w$ 幾乎全部通過<br/>$\tilde x\,\delta w$ 只剩 PLL 頻寬內的部分"]
   DC -.- FIX["code centering：讓 $m = 0$<br/>直通這一路就消失"]
@@ -315,31 +315,32 @@ ${CLASSES}
 
 /**
  * block 邊界的時序：GMAC 累加 N 個 sample → LMS 更新一次 → DTC 保持同一個係數 N 個 sample（F-12.11 第二式）。
- * 三條泳道由左到右是 GMAC、LMS、DTC，每條泳道由上往下是時間（block k、block k+1）。
- * 原本是 sequenceDiagram，但它的文字不支援 KaTeX（`$...$` 會原樣顯示），所以改畫成 flowchart。
+ * 三條泳道由上到下是 GMAC、LMS、DTC，每條泳道由左往右是時間（block k、block k+1）。
+ * 原本是 sequenceDiagram，但它的文字不支援 KaTeX（`$...$` 會原樣顯示），所以改畫成 flowchart；
+ * 泳道之間有連線，所以各 subgraph 自己的方向被忽略，沿用整張圖的 TB：每條泳道是一個橫條，兩個時間點並排。
  */
-export const CHART_BLOCK_TIMING = String.raw`flowchart LR
+export const CHART_BLOCK_TIMING = String.raw`flowchart TB
   subgraph CG["Comparator 與 GMAC（每個 sample）"]
-    A1["block $k$：累加 $N$ 個 sample 的 $q[n]\,x[n]$"]
-    A2["block $k+1$：再累加 $N$ 個 sample"]
+    A1["block $k$：累加 $N$ 個 sample<br/>的 $q[n]\,x[n]$"]
+    A2["block $k+1$：<br/>再累加 $N$ 個 sample"]
   end
   subgraph LA["LMS 累加器（每個 block）"]
-    B1["更新一次：$w_{k+1} = w_k + \mu G_k$"]
-    B2["下一個 block 再更新一次"]
+    B1["更新一次：<br/>$w_{k+1} = w_k + \mu G_k$"]
+    B2["下一個 block<br/>再更新一次"]
   end
   subgraph DG["DTC 的 gain（每個 sample）"]
-    D1["接下來 $N$ 個 sample 都用同一個係數（ZOH）"]
-    D2["換成新的係數，再保持 $N$ 個 sample"]
+    D1["接下來 $N$ 個 sample<br/>都用同一個係數（ZOH）"]
+    D2["換成新的係數，<br/>再保持 $N$ 個 sample"]
   end
-  A1 -- "$G_k$（一個 block 只有一個值）" --> B1
-  B1 -- "新係數，延遲 $n_c$ 個 sample 後套用" --> D1
+  A1 -- "$G_k$<br/>（一個 block 只有一個值）" --> B1
+  B1 -- "新係數，延遲 $n_c$ 個 sample<br/>後套用" --> D1
   A2 -- "$G_{k+1}$" --> B2
   B2 -- "再換一次係數" --> D2
 ${CLASSES}
   class B1,B2 focus`
 
 /** ZOH 拆成兩步：插零上取樣 ↑N，再通過長度 N 的 boxcar；線上是每一步之後的 PSD（F-12.14） */
-export const CHART_ZOH_TWO_STEP = String.raw`flowchart LR
+export const CHART_ZOH_TWO_STEP = String.raw`flowchart TB
   A["$\delta w_k$<br/>block rate $f_u$<br/>PSD：$S_w(e^{j\Omega})$"] --> UP["步驟 1：插零上取樣 $\uparrow N$<br/>$n = kN$ 時放 $\delta w_k$，其餘放 $0$"]
   UP -- "PSD：$(1/N)\,S_w(e^{jN\theta})$" --> BOX["步驟 2：boxcar 濾波器 $B$<br/>連續 $N$ 個 $1$ 相加"]
   BOX -- "再乘 $\left(\frac{\sin(N\theta/2)}{\sin(\theta/2)}\right)^2$" --> OUT["$\delta w[n]$<br/>sample rate $f_s$<br/>每個值保持 $N$ 個 sample"]
@@ -350,9 +351,9 @@ ${CLASSES}
   class UP,BOX focus`
 
 /** PSD 的換算：DTFT 形式 → 單邊 per-Hz（F-12.10）→ 輸出相位 PSD（F-12.16）→ ℒ(f) */
-export const CHART_PSD_UNITS = String.raw`flowchart LR
-  A["DTFT 形式 $S(e^{j\Omega})$<br/>雙邊<br/>變異數 $\sigma^2 = \frac{1}{2\pi}\int S\,d\Omega$"] -- "$\times\,2/f_r$" --> B["單邊 per-Hz：$S^{(1)}(f)$<br/>變異數 $\sigma^2 = \int S^{(1)}\,df$，由 $0$ 積到 $f_r/2$<br/>單位：$\mathrm{fs}^2/\mathrm{Hz}$"]
-  B -- "$\delta t$ 的 PSD 才做這一步：$\times\,(2\pi f_{\mathrm{out}})^2|T|^2$（fs 換成秒）" --> C["輸出相位 PSD：$S_\phi^{(1)}(f)$<br/>單位：$\mathrm{rad}^2/\mathrm{Hz}$"]
+export const CHART_PSD_UNITS = String.raw`flowchart TB
+  A["DTFT 形式 $S(e^{j\Omega})$<br/>雙邊<br/>變異數 $\sigma^2 = \frac{1}{2\pi}\int S\,d\Omega$"] -- "$\times\,2/f_r$" --> B["單邊 per-Hz：$S^{(1)}(f)$<br/>變異數 $\sigma^2 = \int S^{(1)}\,df$，<br/>由 $0$ 積到 $f_r/2$<br/>單位：$\mathrm{fs}^2/\mathrm{Hz}$"]
+  B -- "$\delta t$ 的 PSD 才做這一步：<br/>$\times\,(2\pi f_{\mathrm{out}})^2|T|^2$（fs 換成秒）" --> C["輸出相位 PSD：$S_\phi^{(1)}(f)$<br/>單位：$\mathrm{rad}^2/\mathrm{Hz}$"]
   C -- "$\div\,2$，再取 $10\log_{10}$" --> D["$\mathcal L(f)$：單邊帶 phase noise<br/>單位：dBc/Hz"]
   A -.- NOTE["$f_r$ 是這個序列自己的取樣率<br/>block 量用 $f_u$，sample 量用 $f_s$"]
 ${CLASSES}
@@ -375,7 +376,7 @@ ${CLASSES}
  * 最簡化的平均線性 PLL：DTC 誤差在 feedback 比較路徑注入，e_PD = −(θ_out + φ_dtc)、θ_out = L·e_PD。
  * 兩個綠色方塊是解出來的結果（§12.7 推導第 3、4 行）：θ_out = −T·φ_dtc、e_PD = −H_PD·φ_dtc。
  */
-export const CHART_PLL_LOOP = String.raw`flowchart LR
+export const CHART_PLL_LOOP = String.raw`flowchart TB
   REF["reference 相位 $= 0$"] -- "$+$" --> S(("$+$"))
   S -- "$e_{\mathrm{PD}}$" --> L["開迴路增益 $L(s)$<br/>PD $\times$ loop filter $\times$ VCO $\div$ 除數"]
   L -- "$\theta_{\mathrm{out}}$" --> OUT["output 出口：PLL 輸出相位<br/>解出來 $\theta_{\mathrm{out}} = -T\,\phi_{\mathrm{dtc}}$"]
@@ -431,12 +432,12 @@ ${CLASSES}
 
 /** 隨機雜訊還是相干 spur：先判斷，再決定公式與單位（dBc/Hz 或 dBc） */
 export const CHART_SKIRT_OR_SPUR = String.raw`flowchart TB
-  START["FFT 上看到 $\delta t$ 或輸出相位的頻譜"] --> Q1{"這個成分是相干（週期性）的嗎？<br/>把紀錄長度加倍，看每個 bin 的功率讀數"}
+  START["FFT 上看到 $\delta t$ 或輸出相位的頻譜"] --> Q1{"這個成分是相干<br/>（週期性）的嗎？<br/>把紀錄長度加倍，<br/>看每個 bin 的功率讀數"}
   Q1 -- "讀數不變 → 相干" --> TONE["離散的 tone<br/>例：週期性干擾、量化的 limit cycle（第 13 章）"]
   Q1 -- "每個 bin 掉約 3 dB → 隨機" --> RAND["連續頻譜<br/>例：LMS 的係數雜訊 $\delta w$"]
   TONE --> SP["輸出是 spur，單位 dBc<br/>$20\log_{10}(\beta/2)$，F-12.18"]
   RAND --> SK["輸出是 noise skirt，單位 dBc/Hz<br/>$\mathcal L(f) = 10\log_{10}(S_\phi^{(1)}/2)$，F-12.10 與 F-12.16"]
-  SK --> J["要一個數字：對頻率積分成 jitter<br/>F-12.17"]
+  SK --> J["要一個數字：<br/>對頻率積分成 jitter<br/>F-12.17"]
 ${CLASSES}
   class SP warn
   class SK,J focus`
@@ -482,17 +483,17 @@ ${CLASSES}
  * 注意 σ_v 的兩個角色：1-bit 判斷之後 σ_η² ≈ 1/N 與 σ_v 無關（F-12.6），σ_v 是經由斜率 K = K_q·C = √(2/π)·C/σ_v
  * 進到 pole p = 1 − μK 才影響 σ_w（F-12.5 的第二種寫法 σ_w² = μ·σ_η²/(K·(2 − μK))）。
  */
-export const CHART_HW_KNOBS = String.raw`flowchart LR
-  V["comparator 前雜訊<br/>$\sigma_v$"] -- "1-bit 判斷，再平均 $N$ 筆" --> ETA["GMAC 雜訊 $\eta_k$<br/>$\sigma_\eta^2 \approx 1/N$（與 $\sigma_v$ 無關）<br/>每 $1/f_u$ 秒一個值"]
+export const CHART_HW_KNOBS = String.raw`flowchart TB
+  V["comparator 前雜訊<br/>$\sigma_v$"] -- "1-bit 判斷，<br/>再平均 $N$ 筆" --> ETA["GMAC 雜訊 $\eta_k$<br/>$\sigma_\eta^2 \approx 1/N$（與 $\sigma_v$ 無關）<br/>每 $1/f_u$ 秒一個值"]
   ETA --> DW["係數雜訊 $\delta w_k$<br/>$\sigma_w^2 = \mu^2\sigma_\eta^2 / (1 - p^2)$"]
   DW --> DT["timing error<br/>$\delta t[n] = x[n]\,\delta w[n]$"]
   DT --> OUT["output jitter 或 spur<br/>$\sigma_{t,\mathrm{out}}^2 = \int |T|^2\,S_{\delta t}\,df$"]
-  V -. "斜率 $K = \sqrt{2/\pi}\,C/\sigma_v$，進到 $p$" .-> DW
-  RN["$\mathtt{REG\_GMAC\_N}$<br/>$N$"] -. "$\sigma_\eta^2$ 與 $f_u = f_s/N$" .-> ETA
-  RMU["$\mathtt{REG\_GAIN\_STEP}$<br/>$\mu$"] -. "$\mu^2$ 與 $p = 1 - \mu K$" .-> DW
-  BITS["DTC gain register 位寬"] -. "LSB 遠大於 $\sigma_w$ 時由量化主導（第 13 章）" .-> DW
-  CODE["code 設計<br/>centering、白化"] -. "決定 $\delta t$ 的頻譜落在哪裡" .-> DT
-  BW["PLL 頻寬"] -. "決定 $T$ 放過哪些頻率" .-> OUT
+  V -. "斜率 $K = \sqrt{2/\pi}\,C/\sigma_v$，<br/>進到 $p$" .-> DW
+  RN["$\mathtt{REG\_GMAC\_N}$<br/>$N$"] -. "$\sigma_\eta^2$ 與<br/>$f_u = f_s/N$" .-> ETA
+  RMU["$\mathtt{REG\_GAIN\_STEP}$<br/>$\mu$"] -. "$\mu^2$ 與<br/>$p = 1 - \mu K$" .-> DW
+  BITS["DTC gain register 位寬"] -. "LSB 遠大於 $\sigma_w$ 時<br/>由量化主導（第 13 章）" .-> DW
+  CODE["code 設計<br/>centering、白化"] -. "決定 $\delta t$ 的<br/>頻譜落在哪裡" .-> DT
+  BW["PLL 頻寬"] -. "決定 $T$ 放過<br/>哪些頻率" .-> OUT
 ${CLASSES}
   class RN,RMU,BITS,CODE,BW focus`
 

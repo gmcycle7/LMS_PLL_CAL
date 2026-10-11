@@ -92,11 +92,11 @@ export function TimeVaryingSection() {
       </p>
       <Mermaid
         chart={CHART_TIME_VARYING}
-        caption={String.raw`$w_H$ 會動的時候。先看左半：白雜訊經過一階 low-pass（AR(1)）變成 LMS 更新雜訊 $\delta w$，加在 $w^*$ 上就是 $w_H$；再看右半：輸出 $y$ 減掉 $w_H$ 是量化器自己造成的誤差 $\epsilon$，再加回 $\delta w$ 才是相對於 $w^*$ 的總誤差 $e$。`}
+        caption={String.raw`$w_H$ 會動的時候。先看上半：白雜訊經過一階 low-pass（AR(1)）變成 LMS 更新雜訊 $\delta w$，加在 $w^*$ 上就是 $w_H$；再看下半：輸出 $y$ 減掉 $w_H$ 是量化器自己造成的誤差 $\epsilon$，再加回 $\delta w$ 才是相對於 $w^*$ 的總誤差 $e$。`}
       />
       <p className="small ch13-figwalk">
         圖上的 <Tex>{String.raw`\delta w[n]`}</Tex> 是 LMS 更新雜訊（第 12 章的係數雜訊，穩態 RMS 為 <Tex>{String.raw`\sigma_w`}</Tex>），<Tex>{String.raw`p_\mathrm{cal}`}</Tex> 是它的 pole，<Tex>{String.raw`\xi[n]`}</Tex> 是驅動它的白雜訊。圖上的{' '}
-        <Tex>{String.raw`\epsilon[n]=y[n]-w_H[n]`}</Tex> 是<strong>量化誤差</strong>（只看量化器，不含 LMS 雜訊），最右邊的 <Tex>{String.raw`e[n]=\epsilon[n]+\delta w[n]`}</Tex> 對應下表的三欄：「頻帶內 <Tex>{'e'}</Tex>」、「LMS 地板 <Tex>{String.raw`\delta w`}</Tex>」與「頻帶內量化誤差 <Tex>{String.raw`\epsilon`}</Tex>」（訊號是相加的；功率只有在{' '}
+        <Tex>{String.raw`\epsilon[n]=y[n]-w_H[n]`}</Tex> 是<strong>量化誤差</strong>（只看量化器，不含 LMS 雜訊），最下面的 <Tex>{String.raw`e[n]=\epsilon[n]+\delta w[n]`}</Tex> 對應下表的三欄：「頻帶內 <Tex>{'e'}</Tex>」、「LMS 地板 <Tex>{String.raw`\delta w`}</Tex>」與「頻帶內量化誤差 <Tex>{String.raw`\epsilon`}</Tex>」（訊號是相加的；功率只有在{' '}
         <Tex>{String.raw`\epsilon`}</Tex> 與 <Tex>{String.raw`\delta w`}</Tex> 不相關時才剛好相加，所以表中三欄各自量測）。方法 A（Freeze）不在圖上：它根本不看 <Tex>{'w_H'}</Tex>。
       </p>
       <Prereq title="AR(1) 隨機過程與高斯分布（第 12 章係數雜訊的模型）">
@@ -142,11 +142,11 @@ export function TimeVaryingSection() {
       </ul>
       <Mermaid
         chart={CHART_INBAND}
-        caption="頻帶內還剩多少量化誤差。先看上面一列（C）：白色誤差的 PSD 是平的，頻帶內就是高度乘寬度，和 $f_B$ 成正比；再看下面一列（D）：被塑形的 PSD 在低頻隨 $f^2$ 變小，積分後和 $f_B$ 的三次方成正比。數字是白色近似，只有數量級可信。"
+        caption="頻帶內還剩多少量化誤差。先看左邊一欄（C）：白色誤差的 PSD 是平的，頻帶內就是高度乘寬度，和 $f_B$ 成正比；再看右邊一欄（D）：被塑形的 PSD 在低頻隨 $f^2$ 變小，積分後和 $f_B$ 的三次方成正比。數字是白色近似，只有數量級可信。"
       />
       <p className="small ch13-figwalk">
-        圖上的 <Tex>{String.raw`P_\mathrm{in}`}</Tex> 是「頻帶內（<Tex>{'0<f<f_B'}</Tex>）的量化誤差功率」；<Tex>{'p_0'}</Tex> 是 <Tex>{'w^*'}</Tex> 的小數部分（0.4），<Tex>{'p'}</Tex> 是會跟著 <Tex>{'w_H[n]'}</Tex> 擺動的瞬時小數部分。圖上兩列最後一格就是下面公式 F-13.13 的{' '}
-        <Tex>{String.raw`P_\mathrm{in}^{(C)}`}</Tex> 與 <Tex>{String.raw`P_\mathrm{in}^{(D)}`}</Tex>；推導的前三步走下面一列、後三步走上面一列。
+        圖上的 <Tex>{String.raw`P_\mathrm{in}`}</Tex> 是「頻帶內（<Tex>{'0<f<f_B'}</Tex>）的量化誤差功率」；<Tex>{'p_0'}</Tex> 是 <Tex>{'w^*'}</Tex> 的小數部分（0.4），<Tex>{'p'}</Tex> 是會跟著 <Tex>{'w_H[n]'}</Tex> 擺動的瞬時小數部分。圖上兩欄最後一格就是下面公式 F-13.13 的{' '}
+        <Tex>{String.raw`P_\mathrm{in}^{(C)}`}</Tex> 與 <Tex>{String.raw`P_\mathrm{in}^{(D)}`}</Tex>；推導的前三步走右邊一欄（D）、後三步走左邊一欄（C）。
       </p>
       <StepDerivation
         title={<>頻帶內量化誤差有多大？（<Tex>{'f_B=f_u/64'}</Tex>）</>}

@@ -256,7 +256,7 @@ export function S3Bandwidth() {
         <Diagram chart={CHART_LEVEL_WIDTH} caption={String.raw`係數雜訊的變異數等於位準乘寬度，$\sigma_w^2=S_w^{(1)}(0)\cdot\mathrm{ENBW}$：位準由 comparator 的雜訊決定，寬度由學習率決定。`}>
           <p>
             {md(
-              String.raw`先看由 comparator 雜訊開始的那一排：輸入端雜訊的單邊 PSD $2\sigma_v^2/f_s$，乘上 1-bit 的代價 $\pi/2$、除以 $C^2$，就是係數雜訊在低頻的位準——裡面沒有 $\mu$，也沒有 $N$。再看另一排：$\mu$ 與 $N$ 只透過 $p=1-\mu K$ 和 $f_u=f_s/N$ 出現在寬度 ENBW 裡。最後看乘號：兩者相乘就是 $\sigma_w^2$。`,
+              String.raw`先看由 comparator 雜訊開始的那一條（圖的左半）：輸入端雜訊的單邊 PSD $2\sigma_v^2/f_s$，乘上 1-bit 的代價 $\pi/2$、除以 $C^2$，就是係數雜訊在低頻的位準——裡面沒有 $\mu$，也沒有 $N$。再看右半那一條：$\mu$ 與 $N$ 只透過 $p=1-\mu K$ 和 $f_u=f_s/N$ 出現在寬度 ENBW 裡。最後看乘號：兩者相乘就是 $\sigma_w^2$。`,
             )}
           </p>
           <p>

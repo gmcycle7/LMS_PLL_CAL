@@ -171,7 +171,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: '兩個旋鈕的 LMS 手算兩步：誤差歸零不代表參數學對',
     page: PAGE,
     formulaId: 'F-09.1',
-    formulaTex: String.raw`e_k=\mathbf u_k^T(\mathbf a-\mathbf w_k)=u_{1,k}(a_1-w_{1,k})+u_{2,k}(a_2-w_{2,k}),\qquad \mathbf w_{k+1}=\mathbf w_k+\mu\,e_k\,\mathbf u_k\qquad\big(\mathbf w_0=(0,0),\ \mathbf u_0=(1,1),\ \mathbf u_1=(1,s)\big)`,
+    formulaTex: String.raw`\begin{gathered}e_k=\mathbf u_k^T(\mathbf a-\mathbf w_k)=u_{1,k}(a_1-w_{1,k})+u_{2,k}(a_2-w_{2,k}),\qquad \mathbf w_{k+1}=\mathbf w_k+\mu\,e_k\,\mathbf u_k\\ \big(\mathbf w_0=(0,0),\ \mathbf u_0=(1,1),\ \mathbf u_1=(1,s)\big)\end{gathered}`,
     level: 'beginner',
     claim: 'exact',
     inputs: [
@@ -181,7 +181,7 @@ export const HANDCALCS: HandCalcDef[] = [
       {
         key: 's',
         symbol: 's',
-        label: '第 2 筆 regressor $\\mathbf u_1=(1,s)$ 的第二個分量（$s=1$ 同向、$s=-1$ 反向）',
+        label: '$\\mathbf u_1=(1,s)$ 的 $s$（$1$ 同向、$-1$ 反向）',
         default: 1,
         min: -3,
         max: 3,
@@ -288,7 +288,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: '平均遞迴走 $k$ 步：直接乘一步，再拆成快／慢模式',
     page: PAGE,
     formulaId: 'F-09.4',
-    formulaTex: String.raw`E[\boldsymbol\delta_{k+1}]=(\mathbf I-g\mathbf R)\,E[\boldsymbol\delta_k],\quad \mathbf R=\begin{bmatrix}1&\rho\\\rho&1\end{bmatrix},\ g=\mu K_q;\qquad c_{1}=\frac{\delta_1+\delta_2}{\sqrt2},\ \ c_{2}=\frac{\delta_1-\delta_2}{\sqrt2},\quad c_{i,k}=p_i^{\,k}\,c_{i,0},\quad p_{1,2}=1-g(1\pm\rho)`,
+    formulaTex: String.raw`\begin{gathered}E[\boldsymbol\delta_{k+1}]=(\mathbf I-g\mathbf R)\,E[\boldsymbol\delta_k],\quad \mathbf R=\begin{bmatrix}1&\rho\\\rho&1\end{bmatrix},\ g=\mu K_q;\\ c_{1}=\frac{\delta_1+\delta_2}{\sqrt2},\ \ c_{2}=\frac{\delta_1-\delta_2}{\sqrt2},\quad c_{i,k}=p_i^{\,k}\,c_{i,0},\quad p_{1,2}=1-g(1\pm\rho)\end{gathered}`,
     level: 'engineer',
     claim: 'exact',
     inputs: [
@@ -480,7 +480,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: '任意對稱 $2\\times2$：用 trace 與 determinant 求 $\\lambda$、$\\kappa$ 與最佳的單一 $g$',
     page: PAGE,
     formulaId: 'F-09.7',
-    formulaTex: String.raw`\mathbf R=\begin{bmatrix}a&b\\b&d\end{bmatrix}:\quad T=a+d,\ \ D=ad-b^2,\quad \lambda_{\max,\min}=\frac T2\pm\sqrt{\Big(\frac T2\Big)^2-D};\qquad g^\star=\frac{2}{\lambda_{\max}+\lambda_{\min}},\quad \max_i|1-g^\star\lambda_i|=\frac{\kappa-1}{\kappa+1}`,
+    formulaTex: String.raw`\begin{gathered}\mathbf R=\begin{bmatrix}a&b\\b&d\end{bmatrix}:\quad T=a+d,\ \ D=ad-b^2,\quad \lambda_{\max,\min}=\frac T2\pm\sqrt{\Big(\frac T2\Big)^2-D};\\ g^\star=\frac{2}{\lambda_{\max}+\lambda_{\min}},\quad \max_i|1-g^\star\lambda_i|=\frac{\kappa-1}{\kappa+1}\end{gathered}`,
     level: 'engineer',
     claim: 'exact',
     inputs: [
@@ -585,7 +585,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: 'Mean 收斂，mean-square 呢？手算 $\\rho_{\\mathrm{MS}}$（linear 與 1-bit）',
     page: PAGE,
     formulaId: 'F-09.8',
-    formulaTex: String.raw`x_i=g\lambda_i,\ \ p_i=1-x_i;\qquad \text{linear：}\ A_{ii}=p_i^2+\frac{2x_i^2}{N},\ \ A_{12}=\frac{x_1x_2}{N},\ \ \rho_{\mathrm{MS}}=\frac{A_{11}+A_{22}}{2}+\sqrt{\Big(\frac{A_{11}-A_{22}}{2}\Big)^2+A_{12}^2};\qquad \text{1-bit：}\ s_i=p_i^2-\frac{x_i^2}{N}`,
+    formulaTex: String.raw`\begin{gathered}x_i=g\lambda_i,\ \ p_i=1-x_i;\\ \text{linear：}\ A_{ii}=p_i^2+\frac{2x_i^2}{N},\ \ A_{12}=\frac{x_1x_2}{N},\ \ \rho_{\mathrm{MS}}=\frac{A_{11}+A_{22}}{2}+\sqrt{\Big(\frac{A_{11}-A_{22}}{2}\Big)^2+A_{12}^2};\\ \text{1-bit：}\ s_i=p_i^2-\frac{x_i^2}{N}\end{gathered}`,
     level: 'engineer',
     claim: 'exact',
     inputs: [
@@ -677,7 +677,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: '四筆 regressor 的窗口：$\\mathbf S_k$、$\\lambda_{\\min}$、$\\kappa$ 與 singular value',
     page: PAGE,
     formulaId: 'F-09.10',
-    formulaTex: String.raw`\mathbf S_k=\sum_{n=k}^{k+N_0-1}\mathbf u[n]\mathbf u^T[n]=\begin{bmatrix}S_{11}&S_{12}\\S_{12}&S_{22}\end{bmatrix},\quad \alpha\mathbf I\preceq\mathbf S_k\preceq\beta\mathbf I\iff\alpha\le\lambda_{\min}(\mathbf S_k),\ \lambda_{\max}(\mathbf S_k)\le\beta;\qquad \mathbf R_k=\frac{\mathbf S_k}{N_0},\quad \sigma_i(\mathbf U_k)=\sqrt{N_0\,\lambda_i(\mathbf R_k)}\qquad(N_0=4)`,
+    formulaTex: String.raw`\begin{gathered}\mathbf S_k=\sum_{n=k}^{k+N_0-1}\mathbf u[n]\mathbf u^T[n]=\begin{bmatrix}S_{11}&S_{12}\\S_{12}&S_{22}\end{bmatrix},\\ \alpha\mathbf I\preceq\mathbf S_k\preceq\beta\mathbf I\iff\alpha\le\lambda_{\min}(\mathbf S_k),\ \lambda_{\max}(\mathbf S_k)\le\beta;\\ \mathbf R_k=\frac{\mathbf S_k}{N_0},\quad \sigma_i(\mathbf U_k)=\sqrt{N_0\,\lambda_i(\mathbf R_k)}\qquad(N_0=4)\end{gathered}`,
     level: 'engineer',
     claim: 'exact',
     inputs: HAND_WINDOW_DEFAULT.flatMap(([d1, d2], n): HandCalcInput[] => [
@@ -837,7 +837,8 @@ export const HANDCALCS: HandCalcDef[] = [
       const steps: HandCalcStep[] = [
         { tex: String.raw`b'=b+c=${t(b)}+${tP(c)}=${t(shifted[0])}`, why: 'global offset 加上 $c$。' },
         {
-          tex: String.raw`(a_0',a_1',a_2',a_3')=(a_0-c,\ a_1-c,\ a_2-c,\ a_3-c)=(${theta
+          // 符號式的兩個向量用 \dots 省略中間（四個分量在後面的代入數字裡都寫出來了），預設數字下才放得進正文欄、不必橫向捲動
+          tex: String.raw`(a_0',\dots,a_3')=(a_0-c,\dots,a_3-c)=(${theta
             .slice(1)
             .map((a) => `${t(a)}-${tP(c)}`)
             .join(String.raw`,\ `)})=${txVec(shifted.slice(1), 7)}`,
@@ -881,7 +882,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: '綜合：物理單位的 $\\mu$——穩定嗎？要等幾個 blocks？窗口夠長嗎？',
     page: PAGE,
     formulaId: 'F-09.6',
-    formulaTex: String.raw`K_q=\frac{\sqrt{2/\pi}}{\sigma_v},\quad g=\mu K_q,\quad p_{\text{slow}}=1-g(1-\rho),\quad k_{95}=\left\lceil\frac{\ln 0.05}{\ln|p_{\text{slow}}|}\right\rceil;\qquad P_{\text{退化}}=\Big(\frac{1+\rho}{2}\Big)^{N_0}+\Big(\frac{1-\rho}{2}\Big)^{N_0},\quad \frac{\mathrm{std}[\lambda_i(\mathbf R_k)]}{\lambda_i}\approx\sqrt{\frac{2}{N_0}}`,
+    formulaTex: String.raw`\begin{gathered}K_q=\frac{\sqrt{2/\pi}}{\sigma_v},\quad g=\mu K_q,\quad p_{\text{slow}}=1-g(1-\rho),\quad k_{95}=\left\lceil\frac{\ln 0.05}{\ln|p_{\text{slow}}|}\right\rceil;\\ P_{\text{退化}}=\Big(\frac{1+\rho}{2}\Big)^{N_0}+\Big(\frac{1-\rho}{2}\Big)^{N_0},\quad \frac{\mathrm{std}[\lambda_i(\mathbf R_k)]}{\lambda_i}\approx\sqrt{\frac{2}{N_0}}\end{gathered}`,
     level: 'engineer',
     claim: 'approx',
     inputs: [

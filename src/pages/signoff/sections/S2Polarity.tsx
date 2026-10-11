@@ -51,11 +51,11 @@ export function S2Polarity() {
           ariaLabel="freeze 加減 Delta 量測極性的流程圖：把 w 凍結後分別推到 w0 加 Delta 與 w0 減 Delta，各量 M 個 block 得 G 正與 G 負，相減後除以 2 Delta 得斜率，取負號得恢復力，與標準誤比較後判決為 pass、reversed 或 inconclusive"
         >
           <p>
-            先看左邊的兩個方塊：<Tex>{'w'}</Tex> 被人為推到 <Tex>{'w_0\\pm\\Delta'}</Tex>，GMAC 的 block 平均 <Tex>{'\\bar G_\\pm'}</Tex> 是量到的東西（<Tex>{'k'}</Tex> 數的是 block）。加法點的兩條進線一正一負，輸出{' '}
+            先看最上面的兩個方塊：<Tex>{'w'}</Tex> 被人為推到 <Tex>{'w_0\\pm\\Delta'}</Tex>，GMAC 的 block 平均 <Tex>{'\\bar G_\\pm'}</Tex> 是量到的東西（<Tex>{'k'}</Tex> 數的是 block）。加法點的兩條進線一正一負，輸出{' '}
             <Tex>{'\\bar G_+-\\bar G_-'}</Tex>，除以 <Tex>{'2\\Delta'}</Tex> 就是斜率 <Tex>{'\\hat S'}</Tex>，加負號得到恢復力 <Tex>{'\\hat K=-\\hat S'}</Tex>（極性正確時 <Tex>{'\\hat K>0'}</Tex>）。
           </p>
           <p>
-            右邊的三個出口是三分法判決（<Tex>{'z'}</Tex> 是單邊信心倍數，標準誤 <Tex>{'\\mathrm{se}'}</Tex> 來自 F-SO.3）：顯著為正是 pass，顯著為負是 reversed，介於其間不能下結論——要加大 <Tex>{'M'}</Tex>、<Tex>{'\\Delta'}</Tex> 或換一個 FCW 再量。
+            最下面的三個出口是三分法判決（<Tex>{'z'}</Tex> 是單邊信心倍數，標準誤 <Tex>{'\\mathrm{se}'}</Tex> 來自 F-SO.3）：顯著為正是 pass，顯著為負是 reversed，介於其間不能下結論——要加大 <Tex>{'M'}</Tex>、<Tex>{'\\Delta'}</Tex> 或換一個 FCW 再量。
           </p>
         </Diagram>
       </Section>

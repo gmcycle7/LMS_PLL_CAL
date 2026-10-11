@@ -47,7 +47,7 @@ export default function Chapter13() {
         </p>
         <Mermaid
           chart={CHART_LAB_PIPELINE}
-          caption="實驗的資料流。先看上排：參數 → $w_H$ → 藍色的量化策略 → 6-bit code；再看三個分支：週期偵測、code 誤差的頻譜、以及乘上 DSM residue 後經 $T(f)$ 得到的 output jitter。"
+          caption="實驗的資料流。先看最上面一串：參數 → $w_H$ → 藍色的量化策略 → 6-bit code；再看三個分支：週期偵測、code 誤差的頻譜、以及乘上 DSM residue 後經 $T(f)$ 得到的 output jitter。"
         />
         <p className="small ch13-figwalk">
           圖上的 <Tex>{String.raw`e=y-w^*`}</Tex> 就是面板裡的「code 誤差」，<Tex>{String.raw`\sigma_\mathrm{out}`}</Tex> 就是 mixing 面板的 output jitter（§13.5b 的公式 F-13.11）。讀結果時照著圖走：先看週期與時間波形，再看頻譜，最後才看 mixing。

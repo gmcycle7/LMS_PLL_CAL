@@ -4,7 +4,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import mermaid from 'mermaid'
 import { SettingsProvider } from '@/app/settings'
-import { SYSTEM_BLOCK_LABEL, extractRegion, sanitizeMermaidSource, stripMathDelimiters, systemMapChart } from '@/components'
+import { SYSTEM_BLOCK_LABEL, extractRegion, sanitizeMermaidSource, stripMathDelimiters, systemMapModel } from '@/components'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { cAbs, cMul, type Complex } from '@/simulation/core/complex'
 import { erf } from '@/simulation/core/special'
@@ -162,9 +162,10 @@ describe('案例頁 /case/sspll 的方塊圖：語法、數量與位置（真正
       const { type } = await parsed(d.chart)
       expect(type, d.id).toBe(d.id === 'align' ? 'sequence' : 'flowchart-v2')
     }
-    // 章首的系統地圖（全站共用元件）本章標示的方塊也能解析
-    const { type } = await parsed(systemMapChart(MAP_FOCUS))
-    expect(type).toBe('flowchart-v2')
+    // 章首的系統地圖是全站共用的手排 SVG（不經過 Mermaid）：本章標示的 10 個方塊都真的在地圖的資料模型裡，而且恰好就是被標成主角的那幾個
+    expect(new Set(MAP_FOCUS).size).toBe(MAP_FOCUS.length)
+    const focused = systemMapModel(MAP_FOCUS).blocks.filter((b) => b.focused)
+    expect(focused.map((b) => b.id).sort()).toEqual([...MAP_FOCUS].sort())
   })
 
   it('SSPLL: 登錄表——id 唯一、圖說是一句完整的話、數學一律用成對的 `$...$`（不用 Unicode 拼數學）、種類合法；每張圖都是具名匯出的 Mermaid 原始碼', () => {
@@ -324,8 +325,9 @@ describe('案例頁 /case/sspll 的方塊圖：訊號名稱、正負號、取樣
     // sequenceDiagram 用 Mermaid 原生的 `$$...$$`（每行一段公式，文字包在 \text{} 裡）
     expect(msgs).toContain('$$r[n] = x[n - D]$$')
     expect(msgs).toContain(String.raw`$$q[n] = \mathrm{sign}(e_{PD}[n] + v[n])$$`)
-    expect(msgs.some((m) => m === String.raw`$$D = 0\text{ 時 }q[n]\text{ 乘上同一拍的 }x[n]\text{（正確）}$$`)).toBe(true)
-    expect(msgs.some((m) => m === String.raw`$$D = +1\text{ 時 }q[n]\text{ 乘上前一拍的 }x[n - 1]\text{（有害）}$$`)).toBe(true)
+    // 兩則註解各折成兩行（單一個 `$$...$$`，用 gathered 換行），讓 5 個 actor 的時序圖放得進正文欄
+    expect(msgs.some((m) => m === String.raw`$$\begin{gathered}D = 0\text{ 時 }q[n]\text{ 乘上同一拍的}\cr x[n]\text{（正確）}\end{gathered}$$`)).toBe(true)
+    expect(msgs.some((m) => m === String.raw`$$\begin{gathered}D = +1\text{ 時 }q[n]\text{ 乘上前一拍的}\cr x[n - 1]\text{（有害）}\end{gathered}$$`)).toBe(true)
   })
 
   it('SSPLL: 小數相位的拆法——圖上的運算（frac → ×8 → floor、相減）重現 sspll.ts 的 phaseSequence', async () => {
@@ -425,7 +427,9 @@ describe('案例頁 /case/sspll 的方塊圖：訊號名稱、正負號、取樣
     expect(re.edge('I', 'S').text).toContain(String.raw`-K_i/(4\sin^2(\Omega/2))`)
     expect(re.node('Q').text).toContain(String.raw`\mathrm{Re}\,L_2 \lt -1`)
     const od = await flow('onediff')
-    expect(od.node('B1').text).toContain(String.raw`(1 - z^{-1})\cdot L_2 = K_p\cdot z^{-1} + K_i\cdot z^{-1}/(1 - z^{-1})`)
+    // (1 − z⁻¹)·L₂ = K_p·z⁻¹ + K_i·z⁻¹/(1 − z⁻¹)：等號右邊的兩項分成兩行（第二行以 +  開頭），讓這一列放得進正文欄
+    expect(od.node('B1').text).toContain(String.raw`$(1 - z^{-1})\cdot L_2 = K_p\cdot z^{-1}$`)
+    expect(od.node('B1').text).toContain(String.raw`$+\,K_i\cdot z^{-1}/(1 - z^{-1})$`)
     expect(od.node('B2').text).toContain(String.raw`g(\Omega) = 1 - K_i/2 - (1 - K_p)\cdot\cos\Omega`)
     expect(od.node('B3').text).toContain(String.raw`K_i \le 2K_p$ 且 $K_p + K_i/2 \le 2`)
     const po = await flow('p-only')
@@ -508,7 +512,7 @@ describe('案例頁 /case/sspll 的方塊圖：訊號名稱、正負號、取樣
 
   it('SSPLL: 圖上的數字——PHOS 各模態的基波權重、鋸齒的諧波功率、玩具模型的 g、alias 的慢方波、offset 的 E[q]，都由 sspll.ts 重現', async () => {
     const pm = await flow('phos-modes')
-    expect(pm.node('M1').text).toContain(String.raw`W_1 \approx ${W1.toFixed(2)}`)
+    expect(pm.node('M1').text).toContain(String.raw`權重 $W_1 \approx ${W1.toFixed(2)}$`)
     expect(pm.node('M2').text).toContain(String.raw`權重 $\approx ${(64 * indicatorLineWeight(2)).toFixed(2)}$`)
     expect(pm.node('M3').text).toContain(String.raw`權重 $\approx ${(64 * indicatorLineWeight(3)).toFixed(2)}$`)
     expect(pm.node('M4').text).toContain(String.raw`權重 $\approx ${(64 * (indicatorLineWeight(4) + indicatorLineWeight(-4))).toFixed(2)}$`)
@@ -637,7 +641,7 @@ describe('案例頁 /case/sspll 的方塊圖：訊號名稱、正負號、取樣
       const beta = 1 / P
       // 照圖相加：(β/2)·(S∞ − 2·S_D) − β²·Σ m·s[m]
       const fig = (s: Float64Array, D: number) => (beta / 2) * (sum(s) - 2 * sum(s.subarray(0, D))) - beta * beta * sum(s, (m) => m)
-      // 圖上最右邊三格是它的首項：Type-I β/(2K)；Type-II、D = 0 β²/K_i；Type-II、D = 1 −β（β² 項是修正：1 − β/K_i 倍）
+      // 圖上最下面三格是它的首項：Type-I β/(2K)；Type-II、D = 0 β²/K_i；Type-II、D = 1 −β（β² 項是修正：1 − β/K_i 倍）
       expect(fig(s1, 0) / (beta / (2 * K)), `L1 β=1/${P}`).toBeGreaterThan(0.97)
       expect(fig(s1, 0) / (beta / (2 * K)), `L1 β=1/${P}`).toBeLessThan(1)
       expect(fig(s2, 0)).toBeCloseTo((beta * beta) / Ki, 12)
@@ -726,8 +730,9 @@ describe('案例頁 /case/sspll 的方塊圖：不只 parser——mermaid 真的
   // 再用共用的 renderMermaidForTest 逐張畫出來。版面的實際長相要在瀏覽器看，這裡確認畫得出來、文字沒有被跳脫壞、沒有 Unsupported markdown。
   beforeAll(installMermaidSvgShim)
 
-  it('SSPLL: 37 張圖與系統地圖都畫得出 SVG；沒有 Unsupported markdown、沒有殘留的 `$`、KaTeX 以外沒有 Unicode 拼的數學、節點數 ≤ 14；每個節點的文字都在圖上，「<」沒有被重複跳脫', async () => {
-    const all = [{ id: 'systemmap', chart: systemMapChart(MAP_FOCUS) }, ...DIAGRAMS]
+  it('SSPLL: 37 張圖都畫得出 SVG；沒有 Unsupported markdown、沒有殘留的 `$`、KaTeX 以外沒有 Unicode 拼的數學、節點數 ≤ 14；每個節點的文字都在圖上，「<」沒有被重複跳脫', async () => {
+    // 系統地圖是手排的 SVG，不經過 Mermaid，所以這裡只畫本章登錄的 37 張圖
+    const all = DIAGRAMS
     for (const d of all) {
       const { svg, text, nodeCount, mathCount, plainText } = await renderMermaidForTest(d.chart)
       expect(svg, d.id).toMatch(/^<svg/)
@@ -743,7 +748,7 @@ describe('案例頁 /case/sspll 的方塊圖：不只 parser——mermaid 真的
       expect(mathCount, d.id).toBeGreaterThan(0)
       // KaTeX 以外的文字沒有 Unicode 拼的數學（希臘字母、上下標、運算符號、w_k 這類底線下標）
       expect(unicodeMathIn(plainText), `${d.id}：KaTeX 以外的 Unicode 數學`).toEqual([])
-      if (d.id === 'systemmap' || d.id === 'align') continue
+      if (d.id === 'align') continue
       expect(nodeCount, d.id).toBeLessThanOrEqual(14)
       expect(nodeCount, d.id).toBeGreaterThanOrEqual(5)
       const drawn = text.replace(/\s+/g, '')
@@ -766,21 +771,28 @@ describe('案例頁 /case/sspll：頁面真的把圖畫出來，符號表在最�
     localStorage.clear()
   })
 
-  it('SSPLL: <PageMap> 渲染全站共用的 <SystemMap>，藍色標出本章的方塊', async () => {
+  it('SSPLL: <PageMap> 渲染全站共用的 <SystemMap>（手排 SVG、不經過 Mermaid），藍色標出本章的方塊', async () => {
     const spy = vi.spyOn(mermaid, 'render').mockImplementation(async (id: string) => ({ svg: `<svg id="${id}"><g></g></svg>`, diagramType: 'flowchart-v2' }))
     const { container } = render(<PageMap />)
-    const fig = container.querySelector('figure.c-mermaid') as HTMLElement
+    const fig = container.querySelector('figure.c-mermaid.c-sysmap') as HTMLElement
     expect(fig).not.toBeNull()
     expect(fig.getAttribute('aria-label')).toMatch(/系統方塊圖/)
     // aria-label 是純文字：方塊名稱裡的 `$...$` 只拿掉分隔符號
     for (const b of MAP_FOCUS) expect(fig.getAttribute('aria-label'), b).toContain(stripMathDelimiters(SYSTEM_BLOCK_LABEL[b]))
-    await waitFor(() => expect(spy).toHaveBeenCalled())
-    // 元件送進 mermaid 的是前處理過的原始碼（`$...$` 標籤合併成 Mermaid 的 `$$...$$`）
-    expect(spy.mock.calls[0][1]).toBe(sanitizeMermaidSource(systemMapChart(MAP_FOCUS)))
-    expect(systemMapChart(MAP_FOCUS)).toContain('class PD,LF,VCO,DIV,DTC,DSM,RES,CMP,ALIGN,GMAC focus')
-    await waitFor(() => expect(container.querySelector('.c-mermaid-svg svg')).not.toBeNull())
+    // 資料模型：被標成主角的方塊恰好是本章的 MAP_FOCUS（整個主 PLL 迴路 + 小數累加器與 regressor + 比較器、對齊、GMAC）
+    const model = systemMapModel(MAP_FOCUS)
+    expect(model.blocks.filter((b) => b.focused).map((b) => b.id).sort()).toEqual([...MAP_FOCUS].sort())
+    // DOM：手排的 SVG 立刻就在，主角方塊帶 is-focus／data-focus，其餘方塊沒有
+    expect(container.querySelector('.c-mermaid-svg svg.c-sysmap-svg')).not.toBeNull()
+    const focusDom = Array.from(container.querySelectorAll('g.c-sysmap-block.is-focus')).map((g) => g.getAttribute('data-block'))
+    expect([...focusDom].sort()).toEqual([...MAP_FOCUS].sort())
+    for (const g of Array.from(container.querySelectorAll('g.c-sysmap-block.is-focus'))) expect(g.getAttribute('data-focus')).toBe('true')
+    expect(container.querySelectorAll('g.c-sysmap-block:not(.is-focus)')).toHaveLength(model.blocks.length - MAP_FOCUS.length)
     expect(container.textContent).toMatch(/藍色方塊是本章的主角/)
     expect(container.textContent).toMatch(/input DTC/)
+    // 系統地圖不再交給 Mermaid 畫
+    await new Promise((r) => setTimeout(r, 50))
+    expect(spy).not.toHaveBeenCalled()
   })
 
   it('SSPLL: 整頁——系統地圖在開場問題之後；37 張圖依登錄順序出現、各有圖號與圖說；符號表是最後一塊，章首只留一行連結', async () => {
@@ -827,10 +839,12 @@ describe('案例頁 /case/sspll：頁面真的把圖畫出來，符號表在最�
     })
     // 每個 H2 段落（§0–§18，除了純清單的 §16、§17）至少有一張圖
     for (const n of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 18]) expect(page.querySelectorAll(`#cs-${n} [data-diagram]`).length, `§${n}`).toBeGreaterThanOrEqual(1)
-    // mermaid 真的被要求畫出每一張（含系統地圖），順序與頁面一致
-    await waitFor(() => expect(spy.mock.calls.length).toBeGreaterThanOrEqual(DIAGRAMS.length + 1), { timeout: 30000 })
+    // 系統地圖是手排的 SVG（不經過 Mermaid）：本章標示的 10 個方塊都帶 is-focus
+    expect(Array.from(map.querySelectorAll('g.c-sysmap-block.is-focus')).map((g) => g.getAttribute('data-block')).sort()).toEqual([...MAP_FOCUS].sort())
+    // mermaid 真的被要求畫出每一張登錄的圖（不含系統地圖），順序與頁面一致
+    await waitFor(() => expect(spy.mock.calls.length).toBeGreaterThanOrEqual(DIAGRAMS.length), { timeout: 30000 })
     const drawn = spy.mock.calls.map((c) => c[1])
-    expect(drawn.filter((c, i) => drawn.indexOf(c) === i)).toEqual([systemMapChart(MAP_FOCUS), ...DIAGRAMS.map((d) => d.chart)].map(sanitizeMermaidSource))
+    expect(drawn.filter((c, i) => drawn.indexOf(c) === i)).toEqual(DIAGRAMS.map((d) => d.chart).map(sanitizeMermaidSource))
     // 內文的圖號按鈕會捲到那張圖
     const ref = Array.from(page.querySelectorAll('button.cs-figref')).find((b) => b.textContent === diagramById('remedy-g').label) as HTMLButtonElement
     expect(ref).toBeTruthy()

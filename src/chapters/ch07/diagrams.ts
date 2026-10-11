@@ -18,8 +18,11 @@
  *   - 加法點與正號一律用全形「＋」，或寫在公式裡（`$+a$`）：Mermaid 11 會把每個標籤當 Markdown 解析，只有一個 ASCII「+」（或以「+ 」「- 」「1. 」開頭）的標籤
  *     會被當成清單，畫面上變成「Unsupported markdown: list」。diagrams.test.tsx 用真正的 render 檢查這件事。
  *   - 走圖的文字用顏色與方塊名稱指路（不用「上面／下面」）：方塊的實際位置由 Mermaid 的排版決定。
- *   - 排版：內文欄位約 1000 px。「兩路相乘」與流程類的圖（6 個以上的方塊串在一起）用 flowchart TB——左右排列會超過 1400 px，
- *     縮進欄位後字太小；硬體結構圖（delay line、二次差分、迴路）維持左右排列。判斷節點用六角形 {{ }}，菱形太佔空間。
+ *   - 排版：桌機（視窗 1280 px）的內文欄位約 900 px，圖會等比縮小放進欄位、最多縮到 0.7 倍，所以自然寬度要在約 1260 px 以內
+ *     （`node scripts/diagram-audit.mjs --routes /ch/07` 的「超出」為 0），越接近 900 px 字越大。
+ *     「兩路相乘」、流程類（6 個以上的方塊串在一起）、含回授迴圈與一個輸入分成很多支路的圖（平均迴路、梯度、RTL 位置圖）用 flowchart TB——
+ *     左右排列會超過 1260 px，縮進欄位後字太小；結構簡單的硬體圖（delay line、二次差分、Type-II 迴路、成本階梯）維持左右排列。
+ *     判斷節點用六角形 {{ }}，菱形太佔空間。diagrams.test.tsx 用 dagre 的層數估計形狀（TB 最寬一層 ≤ 5 個節點）。
  *   - 顏色：focus（藍）＝這張圖要看的方塊；ok（綠）＝極性正確的結果；warn（紅）＝會出錯的地方。三色在深淺主題都看得清楚。
  */
 
@@ -69,9 +72,10 @@ export const CHART_PHASE_BOOKKEEPING = chart([
 /**
  * §7.1：平均後的校正迴路（block rate k）——comparator、乘法器、平均器合起來平均而言是一個增益 K_q·C。
  * δ_k = a − w_k、E[G_k] ≈ K_q·C·δ_k、w_{k+1} = w_k + μ·G_k ⇒ δ_{k+1} = (1 − μ·K_q·C)·δ_k：一圈的增益 g = μ·K_q·C，pole p = 1 − g。
+ * 上下排列：左右排列時四段連線標籤把圖撐到約 1200 px 寬（桌機縮成 0.7 倍），改成直向之後回授線走右側，字級維持 15 px。
  */
 export const CHART_MEAN_LOOP = chart([
-  'flowchart LR',
+  'flowchart TB',
   r`  A(["DTC 真正的<br/>gain $a$"]) -- "$+a$" --> S(("＋"))`,
   r`  S -- "$\delta_k = a - w_k$" --> KC["comparator、乘法器、<br/>平均器<br/>平均而言：乘上<br/>$K_q\cdot C$"]`,
   r`  KC -- "$E[G_k] = K_q\cdot C\cdot\delta_k$" --> MU["乘上 learning rate<br/>$\mu$"]`,
@@ -178,15 +182,19 @@ export const CHART_VOTING = chart([
   '  class P2 warn',
 ])
 
-/** §7.4：同一個 e_PD 乘 u 還是乘 x——真正的梯度乘的是 u（E[u²] ≥ 0），raw-x 乘的是 x（C 可正可負）。 */
+/**
+ * §7.4：同一個 e_PD 乘 u 還是乘 x——真正的梯度乘的是 u（E[u²] ≥ 0），raw-x 乘的是 x（C 可正可負）。
+ * 上下排列：左右排列時 e_PD 到兩個乘法器的連線會交叉。宣告順序是排版的一部分：先宣告 H → MU（u 直接走到「乘 u」的乘法器），
+ * dagre 才會把這條長線排在最左、(a − w) 與雜訊的那一串在中間、x 的長線在最右，e_PD 分出的兩條線不會與任何線交叉。
+ */
 export const CHART_GRADIENT = chart([
-  'flowchart LR',
+  'flowchart TB',
   r`  X(["$x[n]$"]) --> H["誤差路徑 $h$"]`,
+  r`  H -- "$u[n]$" --> MU(("$\times$"))`,
   r`  H -- "$u[n]$" --> GE["乘上 $(a - w)$"]`,
   '  GE -- "＋" --> S(("＋"))',
   r`  V(["$v[n]$"]) -- "＋" --> S`,
-  r`  S -- "$e_{\mathrm{PD}}[n]$" --> MU(("$\times$"))`,
-  r`  H -- "$u[n]$" --> MU`,
+  r`  S -- "$e_{\mathrm{PD}}[n]$" --> MU`,
   r`  MU -- "$-dJ/dw$：真正的梯度" --> RU["平均：<br/>$(a - w)\cdot E[u^2]$<br/>$E[u^2] \ge 0$，<br/>方向永遠正確"]`,
   r`  S -- "$e_{\mathrm{PD}}[n]$" --> MX(("$\times$"))`,
   r`  X -- "$x[n]$" --> MX`,
@@ -222,11 +230,16 @@ export const CHART_THREE_REGRESSORS = chart([
   '  class DB,HC focus',
 ])
 
-/** §7.4：filtered-x 的閉迴路（F-07.10）——sample rate n 的相乘、block rate k 的平均與累加，w_k 回授到 DTC。 */
+/**
+ * §7.4：filtered-x 的閉迴路（F-07.10）——sample rate n 的相乘、block rate k 的平均與累加，w_k 回授到 DTC。
+ * 宣告順序是排版的一部分：P 先單獨宣告，dagre 打斷迴圈時才會反轉回授線（ACC → P）而不是 q[n] 那條；
+ * 再先連 X → HAT、後連 X → P，模型那一支排在左邊，w_k 回授線從最右側繞回 P，不會穿過模型那一支。
+ */
 export const CHART_FX_LOOP = chart([
   'flowchart TB',
-  r`  X(["code $x[n]$"]) --> P["真實路徑加雜訊<br/>$e_{\mathrm{PD}}[n] = (a - w_k)\cdot(h * x)[n] + v[n]$"]`,
-  r`  X --> HAT["模型 $\hat H$<br/>$u_f = \hat h * x$"]`,
+  r`  P["真實路徑加雜訊<br/>$e_{\mathrm{PD}}[n] = (a - w_k)\cdot(h * x)[n] + v[n]$"]`,
+  r`  X(["code $x[n]$"]) --> HAT["模型 $\hat H$<br/>$u_f = \hat h * x$"]`,
+  '  X --> P',
   r`  P -- "$e_{\mathrm{PD}}[n]$" --> CMP["comparator<br/>$q = \mathrm{sign}(e_{\mathrm{PD}})$"]`,
   r`  HAT --> DL["$z^{-D}$"]`,
   r`  CMP -- "$q[n]$" --> M(("$\times$"))`,
@@ -303,9 +316,10 @@ export const CHART_TYPE2_LOOP = chart([
 /**
  * §7.6：四種 regressor 在 RTL 中的位置（原有的圖；標籤改成與公式相同的寫法）。
  * 主路徑：DTC 留下 (a − w_k)·x[n]，經 H_PD 並加上 v[n] 成為 e_PD[n]（F-07.1）；GMAC 與更新式是 F-07.10。
+ * 上下排列：code 一次分出五條支路（DTC 一條、四種 regressor 四條）並排，再收進 REG_GMAC_XSEL 與 GMAC（左右排列的自然寬度 1776 px，桌機要橫向捲動）。
  */
 export const CHART_RTL_REGRESSORS = chart([
-  'flowchart LR',
+  'flowchart TB',
   r`  X(["code $x[n]$<br/>DSM 或 training tone"]) --> DTC["DTC：真正的 gain $a$<br/>校正係數 $w_k$"]`,
   r`  DTC -- "$(a - w_k)\cdot x[n]$" --> H["PLL 誤差路徑 $H_{\mathrm{PD}}$<br/>再加上雜訊 $v[n]$"]`,
   r`  H -- "$e_{\mathrm{PD}}[n]$" --> CMP["1-bit comparator<br/>$q = \mathrm{sign}(e_{\mathrm{PD}})$"]`,
@@ -358,7 +372,10 @@ export const CHART_DECISION = chart([
   '  class FIX warn',
 ])
 
-/** §7.7：綜合手算 HC-07.8 的計算順序（①…⑨ 與手算題的步驟順序相同）。 */
+/**
+ * §7.7：綜合手算 HC-07.8 的計算順序（①…⑨ 與手算題的步驟順序相同）。
+ * `C1 ---> P3` 的長連線（三個 `-`）只是排版提示：把 ④ 留在上一層，⑥ → ⑨ 的連線就不會從 ④ 的角落穿過去。
+ */
 export const CHART_HANDCALC_FLOW = chart([
   'flowchart TB',
   r`  IN(["已知：$|H|$、$\phi$、$\Omega$、$D$、$\mu$、$\sigma_v$<br/>（unit power：$A^2/2 = 1$）"])`,
@@ -370,7 +387,7 @@ export const CHART_HANDCALC_FLOW = chart([
   r`  K1 --> K2["⑥ $\mu\cdot K_q$"]`,
   r`  A1 --> P1["⑦ $p_{\mathrm{raw}} = 1 - \mu\cdot K_q\cdot C_{\mathrm{raw}}$"]`,
   r`  B2 --> P2["⑧ $p_D = 1 - \mu\cdot K_q\cdot C_D$"]`,
-  r`  C1 --> P3["⑨ $p_f = 1 - \mu\cdot K_q\cdot E[u^2]$"]`,
+  r`  C1 ---> P3["⑨ $p_f = 1 - \mu\cdot K_q\cdot E[u^2]$"]`,
   '  K2 --> P1',
   '  K2 --> P2',
   '  K2 --> P3',

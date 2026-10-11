@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import katex from 'katex'
 import mermaid from 'mermaid'
 import { SettingsProvider } from '@/app/settings'
-import { systemMapChart } from '@/components'
+import { systemMapModel } from '@/components'
 import { sanitizeMermaidSource } from '@/components/mermaidSource'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { classifyPole, fixedXPole, type PoleBehaviour } from '@/simulation/models/lms'
@@ -310,17 +310,18 @@ describe('ch00 方塊圖：真正的 mermaid parser 與 renderer', () => {
     }
   })
 
-  it('章首的系統地圖：本章標示的六個方塊都在圖上，且能解析、能畫出來', async () => {
-    const chart = systemMapChart(SYSTEM_MAP_FOCUS)
+  it('章首的系統地圖：本章標示的六個方塊（LMS 校正迴路本身）都在圖上，其餘方塊不是主角', () => {
+    // 系統地圖是手排的 SVG，不經過 Mermaid：用純資料的 systemMapModel 檢查哪些方塊被標成主角
+    // （圖上的版面與連線拓樸由 src/components/SystemMap.test.tsx 負責；頁面實際畫出來的 is-focus 在下面的整章渲染測試核對）
     expect(SYSTEM_MAP_FOCUS).toEqual(['res', 'gc', 'cmp', 'gmac', 'scale', 'acc'])
-    expect(chart).toContain('class RES,GC,CMP,GMAC,SCALE,ACC focus')
-    const r = await mermaid.parse(chart, { suppressErrors: false })
-    expect(r && typeof r === 'object' ? r.diagramType : r).toBe('flowchart-v2')
-    const { svg, text, mathCount } = await renderMermaidForTest(chart)
-    expect(svg).not.toContain('Unsupported markdown')
-    expect(text).not.toContain('$')
-    expect(mathCount).toBeGreaterThanOrEqual(8)
-    expect(new DOMParser().parseFromString(svg, 'text/html').querySelectorAll('g.node.focus')).toHaveLength(SYSTEM_MAP_FOCUS.length)
+    const { blocks } = systemMapModel(SYSTEM_MAP_FOCUS)
+    const focused = blocks.filter((b) => b.focused)
+    expect(focused.map((b) => b.id).sort()).toEqual([...SYSTEM_MAP_FOCUS].sort())
+    expect(focused).toHaveLength(SYSTEM_MAP_FOCUS.length)
+    // 六個主角全是「小數補償」與「LMS 校正迴路」兩條泳道的方塊；主 PLL 迴路（快）的方塊沒有一個被標成主角
+    expect(focused.every((b) => b.lane === 'frac' || b.lane === 'lms')).toBe(true)
+    expect(blocks.filter((b) => b.lane === 'pll').some((b) => b.focused)).toBe(false)
+    expect(blocks.filter((b) => !b.focused)).toHaveLength(blocks.length - SYSTEM_MAP_FOCUS.length)
   })
 })
 
@@ -347,12 +348,17 @@ describe('ch00 方塊圖：共用的 render 測試工具（@/components/mermaidT
     },
   )
 
-  it('章首的系統地圖（<SystemMap focus={SYSTEM_MAP_FOCUS} />）也用同一個工具畫一次', async () => {
-    const { text, plainText } = await renderMermaidForTest(systemMapChart(SYSTEM_MAP_FOCUS))
-    expect(text).not.toMatch(/Unsupported markdown/)
-    expect(text).not.toContain('$')
-    expect(unicodeMathIn(plainText)).toEqual([])
+  it('章首的系統地圖（<SystemMap focus={SYSTEM_MAP_FOCUS} />）的方塊文字：沒有 Unicode 拼的數學，公式都放在 $…$ 裡', () => {
+    // 系統地圖不經過 Mermaid，方塊文字（標題、第二行）由 SystemMap 自己用 KaTeX 排版
+    const focused = systemMapModel(SYSTEM_MAP_FOCUS).blocks.filter((b) => b.focused)
+    const text = focused.map((b) => `${b.title} ${b.sub ?? ''}`).join('\n')
     expect(squash(text)).toContain('Gainaccumulator')
+    expect(squash(text)).toContain('Fractionalresidue')
+    expect(squash(text)).toContain('1-bitcomparator')
+    expect(squash(text)).toContain('GMAC')
+    const outside = text.split('$').filter((_, i) => i % 2 === 0).join(' ')
+    expect(unicodeMathIn(outside), '方塊文字 $…$ 以外').toEqual([])
+    expect(text).toContain(String.raw`q[n] = \mathrm{sign}(e[n])`)
   })
 })
 
@@ -406,7 +412,8 @@ describe('ch00 方塊圖：和本章公式一致', () => {
 
   it('§0.2 迴圈：x[n] 同時送到「預測」與「修正」；w[n+1] 回授到「預測」；每一條線都有訊號名稱', async () => {
     const s = await structure(chartOf('CHART_LOOP'))
-    expect(s.edges.filter((e) => e.from === 'X').map((e) => [e.to, e.label])).toEqual([
+    // 與宣告順序無關（版面要把迴圈畫成沒有交叉的一圈，所以兩條 x[n] 的先後可以換）：恰好兩條，分別送到「預測」與「修正」，標籤都是 x[n]
+    expect(s.edges.filter((e) => e.from === 'X').map((e) => [e.to, e.label]).sort()).toEqual([
       ['P', '$x[n]$'],
       ['U', '$x[n]$'],
     ])
@@ -644,6 +651,38 @@ describe('ch00 方塊圖：和本章公式一致', () => {
     for (const e of s.edges) expect(box(s, 'LMS').nodes.includes(e.from)).toBe(box(s, 'LMS').nodes.includes(e.to))
   })
 
+  /** 畫出來的節點中心（dagre 排版的結果；jsdom 用估計的字寬，但誰在誰的上面／左邊只由排版規則決定）。 */
+  async function positions(chart: string): Promise<Record<string, { x: number; y: number }>> {
+    const { svg } = await renderMermaidForTest(chart)
+    const doc = new DOMParser().parseFromString(svg, 'text/html')
+    const out: Record<string, { x: number; y: number }> = {}
+    doc.querySelectorAll('g.node').forEach((g) => {
+      const id = /^flowchart-(.+)-\d+$/.exec(g.id)?.[1]
+      const m = /translate\(\s*([-\d.e]+)[ ,]+([-\d.e]+)\s*\)/.exec(g.getAttribute('transform') ?? '')
+      if (id && m) out[id] = { x: Number(m[1]), y: Number(m[2]) }
+    })
+    return out
+  }
+
+  it('版面和說明文字一致（圖 0.3、0.12、0.14、0.15：宣告順序決定畫在哪裡，順序被改掉時這裡會提醒）', async () => {
+    // 圖 0.3：「① 預測」在上、「② 比較」在右、「③ 修正」在左下——順時針一圈，說明文字就是這樣寫的（x[n] 輸入在最左）
+    const loop = await positions(chartOf('CHART_LOOP'))
+    expect(loop.P.y, '① 預測在上').toBeLessThan(loop.C.y)
+    expect(loop.P.x, '② 比較在 ① 預測的右邊').toBeLessThan(loop.C.x)
+    expect(loop.U.x, '③ 修正在 ① 預測的左邊').toBeLessThan(loop.P.x)
+    expect(loop.U.y, '③ 修正在 ① 預測的下面').toBeGreaterThan(loop.P.y)
+    expect(loop.X.x, '輸入 x[n] 在最左').toBeLessThan(loop.U.x)
+    // 圖 0.12：y（+）從上方、預測 ŷ（−）從下方進相加點，兩條輸入線不交纏
+    const adaptive = await positions(chartOf('CHART_ADAPTIVE_LOOP'))
+    expect(adaptive.D.y, 'y（+）在相加點上方').toBeLessThan(adaptive.S.y)
+    expect(adaptive.F.y, '預測（−）來自相加點下方的 w').toBeGreaterThan(adaptive.S.y)
+    // 圖 0.14、0.15：Mermaid 把後宣告的子圖畫在前面（左邊／上面）。
+    // 說明文字：「主 PLL 路徑（快）」在左、「LMS 校正迴路（慢）」在右；Conventional LMS 在上、Sign-Error LMS 在下
+    expect((await structure(chartOf('CHART_PLL_LOOP'))).subgraphs.map((g) => g.id)).toEqual(['CAL', 'MAIN'])
+    expect((await structure(chartOf('CHART_LMS_VS_SIGN'))).subgraphs.map((g) => g.id)).toEqual(['SGN', 'LMS'])
+    expect(chartOf('CHART_PLL_LOOP').startsWith('flowchart LR')).toBe(true) // 兩個框左右並排
+  })
+
   it('§0.9 比較器 + 累加：統計量的寫法和推導一致（總和 S_N，不是平均；勘誤 E18）', async () => {
     const s = await structure(chartOf('CHART_COMPARATOR_AVERAGE'))
     expect([...box(s, 'ONE').nodes].sort()).toEqual(['ADD', 'CMP', 'S0', 'V'])
@@ -786,12 +825,11 @@ describe('ch00 方塊圖：頁面上的位置', () => {
       expect(container.querySelector('.c-mermaid-error')).toBeNull()
       expect(container.textContent).not.toContain('Mermaid 圖解析失敗')
 
-      // 頁面實際送給 mermaid 的原始碼 = 系統地圖 + 登錄清單（每張圖都有 parser／renderer 測試，沒有漏網的圖）；
+      // 頁面實際送給 mermaid 的原始碼 = 登錄清單（每張圖都有 parser／renderer 測試，沒有漏網的圖）；
+      // 章首的系統地圖是手排的 SVG，不經過 mermaid；
       // Mermaid 元件送出的是 sanitizeMermaidSource 處理過的版本（含公式的標籤已合併成 $$…$$）
       const rendered = renderSpy.mock.calls.map((c) => c[1])
-      const systemMap = sanitizeMermaidSource(systemMapChart(SYSTEM_MAP_FOCUS))
-      expect([...new Set(rendered)].sort()).toEqual([systemMap, ...DIAGRAMS.map((d) => sanitizeMermaidSource(d.chart))].sort())
-      expect(rendered[0]).toBe(systemMap)
+      expect([...new Set(rendered)].sort()).toEqual(DIAGRAMS.map((d) => sanitizeMermaidSource(d.chart)).sort())
 
       // ── 系統地圖：緊接在「這一課要回答的問題」之後、§0.1 之前，後面有一句說明藍色方塊與本章範圍 ──
       const first = figures()[0]
@@ -800,6 +838,17 @@ describe('ch00 方塊圖：頁面上的位置', () => {
       expect(first.getAttribute('aria-label')).toContain('DTC-based Fractional-N PLL 與 Sign-LMS 校正迴路的系統方塊圖')
       for (const name of ['Fractional residue x[n]', 'Gain correction', '1-bit comparator', 'GMAC', 'Normalize + learning rate', 'Gain accumulator'])
         expect(first.getAttribute('aria-label'), name).toContain(name)
+      // 手排的 SVG（不是 Mermaid 畫的）：本章標示的六個方塊就是 is-focus 的那六個，其餘方塊都不是主角
+      expect(first.classList.contains('c-sysmap')).toBe(true)
+      expect(first.querySelector('.c-mermaid-svg > svg.c-sysmap-svg')).not.toBeNull()
+      const drawnBlocks = Array.from(first.querySelectorAll('g.c-sysmap-block'))
+      expect(drawnBlocks).toHaveLength(systemMapModel(SYSTEM_MAP_FOCUS).blocks.length)
+      const drawnFocus = drawnBlocks.filter((g) => g.classList.contains('is-focus'))
+      expect(drawnFocus.map((g) => g.getAttribute('data-block')).sort()).toEqual([...SYSTEM_MAP_FOCUS].sort())
+      expect(drawnFocus.every((g) => g.getAttribute('data-focus') === 'true')).toBe(true)
+      expect(drawnBlocks.filter((g) => !g.classList.contains('is-focus')).every((g) => !g.hasAttribute('data-focus'))).toBe(true)
+      expect(first.querySelector('.katex-error')).toBeNull()
+      expect(squash(drawnFocus.map((g) => g.textContent).join(''))).toContain('Gainaccumulator')
       const note = first.nextElementSibling!
       expect(note.className).toBe('ch00-map-note')
       expect(note.textContent).toContain('藍色的六個方塊就是 LMS 校正迴路本身')

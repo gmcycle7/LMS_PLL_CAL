@@ -53,7 +53,7 @@ export const CHART_COMPARATOR_GAIN = String.raw`flowchart TB
 // ───────────────────────────── §14.0 ─────────────────────────────
 
 /** §14.0：block-rate 校正迴路。δ_{k+1} = a − w_{k+1} = (1 − μK)δ_k − μη_k。 */
-export const CHART_CAL_LOOP = String.raw`flowchart LR
+export const CHART_CAL_LOOP = String.raw`flowchart TB
   A(["$a$<br/>真正需要的 gain"]) -- "＋" --> S1(("＋"))
   S1 -- "$\delta_k = a - w_k$" --> KB["$\times K$<br/>GMAC 平均斜率<br/>$K = K_q C$"]
   KB -- "＋" --> S2(("＋"))
@@ -75,8 +75,8 @@ export const CHART_SAMPLE_TO_BLOCK = String.raw`flowchart TB
     direction LR
     XC(["code $x[n]$"]) --> PATH["PLL 誤差路徑<br/>$u[n] = c\,x[n] + s\,x[n-1]$"]
     PATH -- "$u[n]$" --> PROD["$\delta_k\,u[n]$<br/>（誤差 $\delta_k$ 乘上 $u[n]$）"]
-    PROD -- "＋" --> SUMV(("＋"))
-    VN(["$v[n]$：雜訊，RMS $= \sigma_v$"]) -- "＋" --> SUMV
+    VN(["$v[n]$：雜訊，RMS $= \sigma_v$"]) -- "＋" --> SUMV(("＋"))
+    PROD -- "＋" --> SUMV
     SUMV -- "$e[n] = \delta_k\,u[n] + v[n]$" --> CMP["1-bit comparator<br/>$q[n] = \mathrm{sign}(e[n])$"]
     CMP -- "$q[n] = \pm 1$" --> MUL(("$\times$"))
     XC -- "$x[n]$" --> MUL
@@ -86,14 +86,14 @@ export const CHART_SAMPLE_TO_BLOCK = String.raw`flowchart TB
     AVG["GMAC 平均<br/>$G_k = (1/N)\sum q[n]\,x[n]$"] -- "$G_k \approx K\,\delta_k + \eta_k$" --> UPD["乘 $\mu$ 後累加<br/>$w_{k+1} = w_k + \mu\,G_k$"]
   end
   MUL -- "$q[n]\,x[n]$，共 $N$ 個" --> AVG
-  UPD -. "$\delta_k = a - w_k$（整個 block 內不變，block 結束才更新 $w$）" .-> PROD
+  UPD -. "$\delta_k = a - w_k$<br/>整個 block 內不變，<br/>block 結束才更新 $w$" .-> PROD
   ${FOCUS}
   class AVG focus`
 
 /** §14.1：把 δ_B = p^B·δ₀ − μ·Σ p^(B−1−k)·η_k 畫成兩條路；平方取期望後就是 bias² + variance（F-14.3）。 */
-export const CHART_MSD_SPLIT = String.raw`flowchart LR
-  D0(["$\delta_0$<br/>初始誤差（確定值）"]) --> PB["$\times\,p^B$<br/>每個 block 乘一次 $p = 1 - \mu K$"]
-  ETA(["$\eta_0, \ldots, \eta_{B-1}$<br/>各 block 獨立、平均 $0$<br/>變異數 $\sigma_\eta^2$"]) --> WGT["$\times\,\mu\,p^{B-1-k}$，再全部相加<br/>越早進來的雜訊被 $p$ 乘越多次"]
+export const CHART_MSD_SPLIT = String.raw`flowchart TB
+  D0(["$\delta_0$<br/>初始誤差（確定值）"]) --> PB["$\times\,p^B$<br/>每個 block 乘一次<br/>$p = 1 - \mu K$"]
+  ETA(["$\eta_0, \ldots, \eta_{B-1}$<br/>各 block 獨立、平均 $0$<br/>變異數 $\sigma_\eta^2$"]) --> WGT["$\times\,\mu\,p^{B-1-k}$<br/>再全部相加<br/>越早進來的雜訊<br/>被 $p$ 乘越多次"]
   PB -- "＋" --> SUM(("＋"))
   WGT -- "−" --> SUM
   SUM -- "$\delta_B$" --> SQ["平方後取期望值<br/>交叉項平均為 $0$"]
@@ -109,11 +109,17 @@ export const CHART_MSD_SPLIT = String.raw`flowchart LR
  * PM = 90° − arcsin(g/2)：g = 1 → 60°、g = 2 → 0°。
  */
 export const CHART_POLE_REGIMES = String.raw`flowchart TB
-  R0["$g = 0 \Rightarrow p = 1$<br/>$K = 0$（$C = 0$）：沒有恢復力<br/>係數做 random walk"] -- "$g$ 增加" --> R1["$g$ 在 $0$ 與 $1$ 之間<br/>$p$ 在 $0$ 與 $1$ 之間<br/>平均誤差單調衰減<br/>$PM$ 大於 $60^\circ$"]
-  R1 -- "$g$ 增加" --> R2["$g = 1 \Rightarrow p = 0$<br/>deadbeat：一步到位<br/>$\mu = 1/K$，$PM = 60^\circ$"]
-  R2 -- "$g$ 增加" --> R3["$g$ 在 $1$ 與 $2$ 之間<br/>$p$ 在 $-1$ 與 $0$ 之間<br/>正負交替但仍衰減<br/>$PM$ 小於 $60^\circ$"]
-  R3 -- "$g$ 增加" --> R4["$g = 2 \Rightarrow p = -1$<br/>正負翻轉、幅度不衰減<br/>$PM = 0^\circ$"]
-  R4 -- "$g$ 增加" --> R5["$g$ 大於 $2 \Rightarrow$ $p$ 小於 $-1$<br/>指數發散"]
+  subgraph ROW1[" "]
+    direction LR
+    R0["$g = 0 \Rightarrow p = 1$<br/>$K = 0$（$C = 0$）：<br/>沒有恢復力<br/>係數做 random walk"] -- "$g$ 增加" --> R1["$g$ 在 $0$ 與 $1$ 之間<br/>$p$ 在 $0$ 與 $1$ 之間<br/>平均誤差單調衰減<br/>$PM$ 大於 $60^\circ$"]
+    R1 -- "$g$ 增加" --> R2["$g = 1 \Rightarrow p = 0$<br/>deadbeat：一步到位<br/>$\mu = 1/K$，$PM = 60^\circ$"]
+  end
+  subgraph ROW2[" "]
+    direction LR
+    R3["$g$ 在 $1$ 與 $2$ 之間<br/>$p$ 在 $-1$ 與 $0$ 之間<br/>正負交替但仍衰減<br/>$PM$ 小於 $60^\circ$"] -- "$g$ 增加" --> R4["$g = 2 \Rightarrow p = -1$<br/>正負翻轉、幅度不衰減<br/>$PM = 0^\circ$"]
+    R4 -- "$g$ 增加" --> R5["$g$ 大於 $2 \Rightarrow$ $p$ 小於 $-1$<br/>指數發散"]
+  end
+  ROW1 -- "$g$ 增加" --> ROW2
   ${FOCUS}
   ${ALT}
   ${PASS}
@@ -254,7 +260,7 @@ export const CHART_CALC_VERIFY = String.raw`flowchart TD
   PRE --> GP
   GP --> RMS["F-14.3<br/>$E[\delta_B^2]$ 開根號得 RMS"]
   GP --> PMN["F-14.14<br/>$PM = 90^\circ - \arcsin(g/2)$"]
-  RMS --> CHK{"和課程的 $0.449\,\mathrm{fs}$、$0.9106$、$87.4^\circ$<br/>一樣嗎？"}
+  RMS --> CHK{"和課程的<br/>$0.449\,\mathrm{fs}$、$0.9106$、$87.4^\circ$<br/>一樣嗎？"}
   PMN --> CHK
   CHK -- "一樣：三個數字算對了" --> DER["再問：$11.20$ 是最低點嗎？<br/>代入 F-14.7，$dJ/d\mu$ 是正的"]
   DER -- "正的：$\mu$ 再小一點成本更低" --> BEST["數值求根 $dJ/d\mu = 0$<br/>得到真正的 $\mu^*$（比 $11.20$ 略小）"]
@@ -319,7 +325,7 @@ export const CHART_SCHEDULE_COMPARE = String.raw`flowchart LR
   class INV pass`
 
 /** §14.6：兩段式的時間軸（F-14.20）。m_{B₁+B₂} = m_{B₁}·p₂^(2B₂) + μ₂²σ_η²(1 − p₂^(2B₂))/(1 − p₂²)。 */
-export const CHART_SCHEDULE_TIMELINE = String.raw`flowchart LR
+export const CHART_SCHEDULE_TIMELINE = String.raw`flowchart TB
   T0(["$k = 0$<br/>均方誤差 $= \delta_0^2$"]) --> CO["COARSE 段：$B_1$ 個 block<br/>步長 $\mu_1$ 大，$p_1 = 1 - \mu_1 K$ 小<br/>$\text{bias}^2$ 掉得快、雜訊底高"]
   CO -- "交棒：$m_{B_1} = E[\delta^2]$（$k = B_1$）" --> FI["FINE 段：$B_2$ 個 block<br/>步長 $\mu_2$ 小，$p_2 = 1 - \mu_2 K$ 接近 $1$<br/>把 $m_{B_1}$ 當成新的初始誤差平方"]
   FI -- "F-14.20" --> T2(["$k = B_1 + B_2$<br/>$m_{B_1}\,p_2^{2B_2} + \mu_2^2\sigma_\eta^2\,(1 - p_2^{2B_2})/(1 - p_2^2)$<br/>接近下界 $P_B$"])
@@ -341,8 +347,8 @@ export const CHART_KALMAN_INFO = String.raw`flowchart LR
 
 // ───────────────────────────── §14.7 ─────────────────────────────
 
-/** 規格 §14.2 原圖（逐字） */
-export const SPEC_CHART = `flowchart LR
+/** 規格 §14.2 原圖：節點與連線逐字照抄；只有方向由規格的 LR 改成 TB（一排 8 個節點、含兩個迴圈，桌機放不下橫排）。 */
+export const SPEC_CHART = `flowchart TB
   RESET[Reset / Initialize] --> LOCK[PLL Lock Check]
   LOCK --> COARSE[Coarse Calibration: larger step]
   COARSE --> VERIFY[Convergence + Bias Test]
@@ -363,7 +369,7 @@ export const IMPL_CHART = String.raw`flowchart TD
   COARSE -- "$B_c$ blocks" --> VERIFY["VERIFY: $w \pm \Delta$ 量 $\hat K$ 與 $\hat\delta$"]
   VERIFY -- "$\hat K$ 顯著大於 $0$ 且 $\hat\delta$ 在容許內" --> FINE["FINE: $\mu_\text{fine} \times B_f$"]
   VERIFY -- "$\hat\delta$ 太大，重試" --> COARSE
-  VERIFY -- "$\hat K$ 不顯著 / 重試用盡" --> FAULT["FAULT: 保持 last-known-good"]
+  VERIFY -- "$\hat K$ 不顯著 / 重試用盡" --> FAULT["FAULT: 保持<br/>last-known-good"]
   FINE -- "$B_f$ blocks" --> TRACK["TRACK: $\mu_\text{track}$"]
   TRACK -- "低雜訊模式 / bad-FCW" --> FREEZE["FREEZE: 不更新"]
   FREEZE -- "請求結束：回到被打斷的狀態" --> TRACK
@@ -371,21 +377,21 @@ export const IMPL_CHART = String.raw`flowchart TD
   RESTART --> COARSE
   TRACK -. "失鎖" .-> LOCK
   LOCK -. "重新鎖定：先驗證" .-> VERIFY
-  COARSE -. "clip：連續 $n$ 個 block 卡在邊界，退回 LKG（以 COARSE 為例，任何更新中的狀態都適用）" .-> RESTART
+  COARSE -. "clip：連續 $n$ 個 block 卡在邊界，退回 LKG" .-> RESTART
   COARSE -. "clip 且重試用盡" .-> FAULT`
 
 /** §14.7：calStep 一個 block 內的先後順序（① guards → ② μ 與 w_applied → ③ 量 G → ④ 更新 → ⑤ 轉移）。 */
 export const CHART_GUARD_ORDER = String.raw`flowchart TD
-  IN(["這個 block 的旗標<br/>locked、bad-FCW、低雜訊模式"]) --> G1{"${step(1)} lock detect<br/>失鎖了嗎？"}
-  G1 -- "是" --> LK["進 LOCK：不更新、保持 $w$<br/>重新鎖定後先 VERIFY<br/>（COARSE 中失鎖則重跑 COARSE）"]
-  G1 -- "否" --> G2{"${step(1)} 有人要求暫停嗎？<br/>低雜訊模式，或 bad-FCW 且 policy = freeze"}
-  G2 -- "是" --> FZ["進 FREEZE：不更新<br/>請求結束後回到被打斷的狀態"]
+  IN(["這個 block 的旗標<br/>locked、bad-FCW、<br/>低雜訊模式"]) --> G1{"${step(1)} lock detect<br/>失鎖了嗎？"}
+  G1 -- "是" --> LK["進 LOCK：不更新、保持 $w$<br/>重新鎖定後先 VERIFY<br/>（COARSE 中失鎖則<br/>重跑 COARSE）"]
+  G1 -- "否" --> G2{"${step(1)} 有人要求暫停嗎？"}
+  G2 -- "是：低雜訊模式，或<br/>bad-FCW 且 policy = freeze" --> FZ["進 FREEZE：不更新<br/>請求結束後回到被打斷的狀態"]
   G2 -- "否" --> ST["${step(2)} 依狀態決定 $\mu$ 與 DTC 實際使用的 $w$<br/>（VERIFY 用 $w \pm \Delta$，$\mu = 0$）"]
   ST --> ME["${step(3)} 量這個 block 的 $G_k$"]
   ME --> UP["${step(4)} 更新量 $\mu\,G_k$<br/>max-step 限幅 $\to$ LSB 量化 $\to$ 夾在 $w_{\min}$ 與 $w_{\max}$ 之間"]
-  UP --> G3{"${step(5)} clip detect<br/>連續 $n$ 個 block 卡在邊界？"}
+  UP --> G3{"${step(5)} clip detect<br/>連續 $n$ 個 block<br/>卡在邊界？"}
   G3 -- "是" --> CL["退回 last-known-good<br/>RESTART（重試用盡則 FAULT）"]
-  G3 -- "否" --> TR["${step(5)} 一般狀態轉移<br/>計數到了、VERIFY 判定、TRACK 警報"]
+  G3 -- "否" --> TR["${step(5)} 一般狀態轉移<br/>計數到了、VERIFY 判定、<br/>TRACK 警報"]
   ${FOCUS}
   ${WARN}
   class ST,ME,UP focus
@@ -412,7 +418,7 @@ export const CHART_VERIFY_DECISION = String.raw`flowchart TD
  * 所以要放公式的轉移直接寫 Mermaid 原生的 `$$\text{…}n\text{…}$$`（其他轉移全是文字）。
  */
 export const CHART_ALARM_HYSTERESIS = String.raw`stateDiagram-v2
-  direction LR
+  direction TB
   state "安靜（計數 $= 0$）" as QUIET
   state "累計中（計數 $\ge 1$）" as COUNTING
   state "RESTART，回 COARSE" as RESTART

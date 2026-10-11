@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import mermaid from 'mermaid'
-import { systemMapChart } from '@/components'
+import { SYSTEM_BLOCK_LABEL, systemMapModel } from '@/components'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import * as D from './diagrams'
 import { CIRC, CONDITION_MAP_CHART, CONDITION_MAP_LEGEND, CONDITION_MAP_NAMES, DASH_CHARTS, DASH_SYSTEM_FOCUS } from './diagrams'
@@ -56,6 +56,23 @@ const plain = (s: string) =>
     .replace(/&amp;/g, '&')
     .replace(/\s+/g, '')
 
+/**
+ * 標籤裡每一行（以 <br/> 分隔）去掉 `$...$` 之後的寬度估計：中文字算 1、其他字元算 0.55。
+ * 太長的行會把節點（尤其是菱形）撐寬，整張圖就放不進桌機的正文欄（約 900px）；含數學的標籤不會自動換行，所以要自己用 <br/> 斷行。
+ */
+function overlongLines(chart: string, maxUnits = 16): string[] {
+  const hits: string[] = []
+  for (const label of chart.match(/"[^"\n]*"/g) ?? []) {
+    for (const line of label.slice(1, -1).split(/<br\s*\/?>/)) {
+      const text = line.replace(/\$[^$]*\$/g, '')
+      let units = 0
+      for (const ch of text) units += /[\u2e80-\u9fff\uff00-\uffef]/.test(ch) ? 1 : 0.55
+      if (units > maxUnits) hits.push(line.trim())
+    }
+  }
+  return hits
+}
+
 describe('Dashboard 的方塊圖（真正的 mermaid）', () => {
   beforeAll(() => {
     installMermaidSvgShim()
@@ -102,15 +119,26 @@ describe('Dashboard 的方塊圖（真正的 mermaid）', () => {
     }
   }, 120_000)
 
-  it('首頁的系統地圖（全部方塊都標示）也能畫出來', async () => {
-    const chart = systemMapChart(DASH_SYSTEM_FOCUS)
-    const { text, nodeCount } = await renderMermaidForTest(chart)
-    expect(text).not.toMatch(/Unsupported markdown/)
-    expect(nodeCount).toBeGreaterThanOrEqual(15)
-    // 17 個方塊都在 class 清單裡
-    const cls = /class ([A-Z,]+) focus/.exec(chart)
-    expect(cls?.[1].split(',')).toHaveLength(DASH_SYSTEM_FOCUS.length)
-  }, 60_000)
+  it('首頁的系統地圖（共用的手排 SVG，不經過 Mermaid）：全部 17 個方塊都標成主角；標的是 DASH_SYSTEM_FOCUS，不多不少', () => {
+    // 系統地圖不再由 Mermaid 畫（拓撲與版面由 src/components/SystemMap.test.tsx 檢查）；這裡只確認「首頁要標哪些方塊」
+    const { blocks } = systemMapModel(DASH_SYSTEM_FOCUS)
+    expect(blocks.length).toBeGreaterThanOrEqual(17)
+    expect(blocks.filter((b) => b.focused).map((b) => b.id).sort()).toEqual([...DASH_SYSTEM_FOCUS].sort())
+    expect(blocks.every((b) => b.focused)).toBe(true)
+    expect([...DASH_SYSTEM_FOCUS].sort()).toEqual(Object.keys(SYSTEM_BLOCK_LABEL).sort())
+  })
+
+  it('版面：桌機正文欄（約 900px）放得下、不用橫向捲動——三張圖都由上到下，長標籤與菱形裡的字用 <br/> 換行；沒有過長的單行（實際尺寸由 scripts/diagram-audit.mjs 量）', async () => {
+    for (const c of DASH_CHARTS) {
+      expect(c.chart, c.name).toMatch(/^flowchart TB/)
+      expect(overlongLines(c.chart), c.name).toEqual([])
+    }
+    // 條件地圖：⑥ 的膠囊接在「PLL 輸出」的下面（OUT -.- C6），不和回授的 w 交叉；其餘五個膠囊在各自方塊的上方或旁邊
+    expect(CONDITION_MAP_CHART).toMatch(/OUT -\.- C6\(/)
+    for (const [c, block] of [['C1', 'DSM'], ['C2', 'PLL'], ['C3', 'UPD'], ['C4', 'CMP'], ['C5', 'DTC']]) expect(CONDITION_MAP_CHART, c).toMatch(new RegExp(`${c}\\(.*\\) -\\.- ${block}`))
+    // 沒有 subgraph（直向的鏈不需要折列），所以不會有「subgraph 的 direction 被忽略」的問題
+    for (const c of DASH_CHARTS) expect(c.chart, c.name).not.toMatch(/subgraph/)
+  })
 
   it('六個條件都標在圖上，圖例與 SIX_CONDITIONS 一一對應；訊號流一圈回到 DTC，GMAC 用延遲後的 code', () => {
     // 圈圈數字在含公式的標籤裡寫成 \textcircled（KaTeX 的文字模式沒有 U+2460…）

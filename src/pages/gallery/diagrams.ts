@@ -9,6 +9,11 @@
  *   Mermaid 11 把標籤當 Markdown：單獨的 ASCII「+」「-」會被當成清單，畫面上變成「Unsupported markdown: list」。
  * - 延遲寫 `$z^{-1}$`、累加器寫 `$\frac{1}{z-1}$`；含括號、等號、絕對值符號的文字一律用雙引號包住。
  * - 顏色在深淺主題下都看得清楚：藍 = 主角、棕 = 第二個重點、紫 = 第三個重點、綠 = 通過、紅 = 不通過。
+ * - 版面（docs/teaching-style.md §8）：桌機上每張圖都要放進正文欄、不用橫向捲動。長的連線標籤把公式用 `<br/>` 拆成兩行
+ *   （`$e_n$<br/>$= y_n - w_n\,x$`，每一行各自是完整的 `$...$`）。
+ * - 迴路圖的排法取決於邊的宣告順序：排版時 dagre 沿著先宣告的邊往下走，最後走回頭的那條邊會被當成「回授」畫在下方。
+ *   CHART_LMS_LOOP 先宣告 `X --> PRED` 再宣告 `X --> BOX`，「你的預測」才排在迴路的前端、由 $z^{-1}$ 的虛線回授；
+ *   反過來宣告時它會被排到整排的最右邊，圖變得很寬。
  */
 
 const FOCUS = 'classDef focus fill:#1f5fa8,stroke:#0d3b6e,color:#ffffff,stroke-width:2px'
@@ -17,7 +22,7 @@ const THIRD = 'classDef third fill:#6b3fa0,stroke:#44286b,color:#ffffff,stroke-w
 const PASS = 'classDef pass fill:#1d7a46,stroke:#0f4d2b,color:#ffffff,stroke-width:2px'
 const WARN = 'classDef warn fill:#b42318,stroke:#7a160f,color:#ffffff,stroke-width:2px'
 
-/** 一個 preset 的兩條路：左邊到原頁面「載入並執行」，右邊在 Gallery 內用同一組模型函式重算並與預期文字比對 */
+/** 一個 preset 的兩條路：「載入並執行」到原頁面，「即時預覽」在 Gallery 內用同一組模型函式重算並與預期文字比對（圖說用連線標籤稱呼兩條路、不寫左右：哪一條排在左邊由排版決定） */
 export const PRESET_FLOW = `flowchart TD
   J["src/data/presets/id.json<br/>page, experiment, params, expected, tests"] --> A["ALL_PRESETS<br/>import.meta.glob 自動收集"]
   A --> C["Gallery 卡片<br/>標題, 說明, 預期結果, T-id"]
@@ -48,15 +53,15 @@ export const THREE_QUESTIONS = `flowchart LR
  * e_n = y_n − w_n·x（量測為正、預測為負），w_(n+1) = w_n + μ·e_n·x。
  */
 export const CHART_LMS_LOOP = String.raw`flowchart LR
-  X(["輸入 $x$"]) --> BOX["黑盒子<br/>$\times\,a$（$a$ 未知）"]
-  X --> PRED["你的預測<br/>$\times\,w_n$"]
+  X(["輸入 $x$"]) --> PRED["你的預測<br/>$\times\,w_n$"]
+  X --> BOX["黑盒子<br/>$\times\,a$（$a$ 未知）"]
   BOX -- "$+\,y_n = a\,x$" --> S1(("＋"))
   PRED -- "$-\,w_n\,x$" --> S1
-  S1 -- "$e_n = y_n - w_n\,x$" --> GAIN["修正量<br/>$\times\,\mu\,x$"]
+  S1 -- "$e_n$<br/>$= y_n - w_n\,x$" --> GAIN["修正量<br/>$\times\,\mu\,x$"]
   GAIN -- "$+\,\mu\,e_n\,x$" --> S2(("＋"))
-  S2 -- "$w_{n+1} = w_n + \mu\,e_n\,x$" --> Z["$z^{-1}$<br/>留到下一步"]
+  S2 -- "$w_{n+1}$<br/>$= w_n + \mu\,e_n\,x$" --> Z["$z^{-1}$<br/>留到下一步"]
   Z -- "$+\,w_n$" --> S2
-  Z -. "$w_n$（下一步拿去預測）" .-> PRED
+  Z -. "$w_n$<br/>（下一步拿去預測）" .-> PRED
   ${FOCUS}
   class GAIN focus`
 
@@ -91,7 +96,7 @@ export const CHART_UNIFIED_LOOP = String.raw`flowchart LR
   KB -- "$+\,K\,\delta_k$" --> S2(("＋"))
   B(["$B$<br/>與 $\delta$ 無關的固定項<br/>offset、INL 造成"]) -- "＋" --> S2
   ETA(["$\eta_k$<br/>零均值雜訊<br/>每個 block 獨立"]) -- "＋" --> S2
-  S2 -- "$G_k = K\,\delta_k + B + \eta_k$" --> MU["$\times\,\mu$<br/>步長"]
+  S2 -- "$G_k$<br/>$= K\,\delta_k + B + \eta_k$" --> MU["$\times\,\mu$<br/>步長"]
   MU -- "$\mu\,G_k$" --> ACC["累加器 $\frac{1}{z-1}$<br/>$w_{k+1} = w_k + \mu\,G_k$"]
   ACC -- "$-$（回授 $w_k$）" --> S1
   ${FOCUS}

@@ -419,14 +419,19 @@ export function LossesSection() {
           <Tex>{String.raw`\mu\operatorname{clip}(e,\pm\delta_H)\,x`}</Tex>、<Tex>{String.raw`\mu\operatorname{sign}(e)\operatorname{sign}(x)`}</Tex>。頁面顯示的就是網站實際執行的{' '}
           <code>lms.ts</code>：
         </p>
+        {/* 四欄並排在桌機只剩約 220px 一欄：兩兩並排，每一欄約 440px（差異行尾的註解在這個寬度由 chapter.css 讓程式碼換行，不用橫向捲動） */}
         <CodeCompare
           items={[
             { label: 'Conventional（MSE）', source: lmsSrc, region: 'conventionalStep', path: 'src/simulation/models/lms.ts', note: '更新量用到誤差的大小：需要多位元的誤差' },
             { label: 'Sign-Error（MAE）', source: lmsSrc, region: 'signErrorStep', path: 'src/simulation/models/lms.ts', note: '更新量只用誤差的正負號：1-bit 誤差就夠' },
+          ]}
+          caption="標黃的行就是差異（行內註解 ← 差異）。"
+        />
+        <CodeCompare
+          items={[
             { label: 'Huber', source: lmsSrc, region: 'huberStep', path: 'src/simulation/models/lms.ts', note: '誤差先經過截斷（clip）再用' },
             { label: 'Sign-Sign', source: lmsSrc, region: 'signSignStep', path: 'src/simulation/models/lms.ts', note: '誤差與輸入都只剩正負號' },
           ]}
-          caption="標黃的行就是差異（行內註解 ← 差異）。"
         />
         <p>
           同一個起點（<Tex>{String.raw`a=${CMP.a},\ x=${CMP.x},\ w=${CMP.w},\ \mu=${CMP.mu}`}</Tex>，所以{' '}

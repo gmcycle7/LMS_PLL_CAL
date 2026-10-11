@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider, type LearningMode } from '@/app/settings'
 import { presetById, presetsForExperiment } from '@/app/presets'
-import { MathText, listRegions, systemMapChart } from '@/components'
+import { MathText, listRegions, systemMapModel } from '@/components'
 import { sanitizeMermaidSource } from '@/components/mermaidSource'
 import peSrc from '@/simulation/models/pe.ts?raw'
 import mimoPy from '../../../golden/lms_pll_golden/mimo.py?raw'
@@ -135,11 +135,18 @@ describe('Ch09 smoke test（jsdom）', () => {
     await waitFor(() => expect(container.textContent).toContain('的輸出逐點重合'), WAIT)
     expect(container.textContent).toContain(String.raw`\boldsymbol\theta'`)
     expect(screen.queryByText(/執行失敗|計算失敗/)).toBeNull()
-    // 送進 Mermaid 的原始碼：系統地圖（本章的 focus）與清單裡的每一張圖（語法由 diagrams.test.tsx 以真正的 parser 檢查）。
+    // 送進 Mermaid 的原始碼：清單裡的每一張圖（語法由 diagrams.test.tsx 以真正的 parser 檢查）。
     // Mermaid 元件先經 sanitizeMermaidSource：含公式（`$...$`）的標籤合併成單一的 `$$...$$`，所以比對前處理後的字串
     const rendered = (mermaidMock.render.mock.calls as unknown as unknown[][]).map((c) => c[1])
-    expect(rendered).toContain(sanitizeMermaidSource(systemMapChart(SYSTEM_FOCUS)))
     for (const d of CH09_DIAGRAMS) expect(rendered, d.id).toContain(sanitizeMermaidSource(d.chart))
+    // 系統地圖是手排的 SVG（<SystemMap>），不經過 Mermaid：送進 Mermaid 的恰好是本章清單裡的圖，一張不多
+    expect(new Set(rendered).size).toBe(CH09_DIAGRAMS.length)
+    // 章首系統地圖標成主角（is-focus）的方塊，恰好是本章的 SYSTEM_FOCUS：regressor、code alignment、GMAC、gain accumulator
+    const focusIds = systemMapModel(SYSTEM_FOCUS).blocks.filter((b) => b.focused).map((b) => b.id).sort()
+    expect(focusIds).toEqual([...SYSTEM_FOCUS].sort())
+    const sysmap = container.querySelector('figure.c-mermaid.c-sysmap') as HTMLElement
+    expect(sysmap.querySelectorAll('svg.c-sysmap-svg')).toHaveLength(1)
+    expect(Array.from(sysmap.querySelectorAll('g.c-sysmap-block.is-focus')).map((g) => g.getAttribute('data-block')).sort()).toEqual(focusIds)
     expect(container.querySelectorAll('.c-mermaid-error')).toHaveLength(0)
     expect(reactWarnings()).toEqual([])
     // 各模式（含 ModeGate 才顯示的內容）都沒有 KaTeX 解析錯誤

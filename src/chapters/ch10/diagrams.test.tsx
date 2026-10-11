@@ -1,7 +1,7 @@
 import { act, cleanup, render, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
-import { SYSTEM_BLOCK_LABEL, stripMathDelimiters, systemMapChart } from '@/components'
+import { SYSTEM_BLOCK_LABEL, stripMathDelimiters, systemMapModel } from '@/components'
 import { sanitizeMermaidSource } from '@/components/mermaidSource'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { DEFAULT_RULE, buildPlant, corrMatrix, propagateLinearMoments } from '@/simulation/models/mimo'
@@ -16,9 +16,11 @@ import {
   CHART_GMAC_NOISE,
   CHART_GS_SWEEP,
   CHART_HANDCALC_FLOW,
+  CHART_HW_MAP,
   CHART_JACOBIAN_FSM,
   CHART_K95_FLOW,
   CHART_LYAPUNOV,
+  CHART_MIMO_SYSTEM,
   CHART_MODE_GAIN,
   CHART_M_VARIANTS,
   CHART_NLMS,
@@ -45,7 +47,7 @@ import { S0Intro } from './sections/S0Intro'
  *     檢查畫面上不會出現 Mermaid 的「Unsupported markdown」（Mermaid 11 把每個標籤當 Markdown：單獨一個半形 + 會被當成清單）、
  *     沒有意外的粗體／斜體，畫出來的節點不超過 14 個；圖裡的數學都是 LaTeX（`$...$` 由 KaTeX 排版）：畫出來的文字沒有殘留的 `$`、
  *     KaTeX 以外沒有 Unicode 拼的數學（unicodeMathIn；原始碼裡 `$...$` 以外的文字也檢查一次，因為含公式的標籤會整個變成 KaTeX）；
- *  3. 圖的數量、頁面上的順序與位置（先看圖、再看推導）、章首的 <SystemMap>；
+ *  3. 圖的數量、頁面上的順序與位置（先看圖、再看推導）、章首的 <SystemMap>（手排的 SVG，不經過 Mermaid：主角用 systemMapModel／is-focus 檢查）；
  *  4. 圖上的數字、正負號與正文公式（numbers.ts／模型函式）一致。
  * mermaid 的 parser 與 render 都是真的：只在 render 外面包一層記錄；唯一的例外是「整章」那個測試（見 seen.stub 的說明）。
  */
@@ -98,7 +100,11 @@ beforeAll(async () => {
 })
 
 const NEW_DIAGRAMS = CH10_DIAGRAMS.filter((d) => d.id !== 'system')
-const SYSTEM_MAP_CHART = systemMapChart(SYSTEM_MAP_FOCUS)
+/** 章首系統地圖裡被標成主角的方塊 id（排序後）：由純資料模型 systemMapModel 取得，不經過 Mermaid */
+const FOCUSED_BLOCKS = systemMapModel(SYSTEM_MAP_FOCUS)
+  .blocks.filter((b) => b.focused)
+  .map((b) => b.id)
+  .sort()
 
 /**
  * SVG 裡每個標籤（foreignObject）畫出來的純文字。KaTeX 排版的標籤：拿掉 MathML 複本、零寬空白（\text 裡的空格是 nbsp，換回一般空格）後，
@@ -219,12 +225,15 @@ describe('Ch10 方塊圖：登錄表', () => {
 
   it('SystemMap 標出 GMAC、「÷ N、× μ」與 gain accumulator（本章把它們變成 P 個 GMAC、更新矩陣 M 與向量 w_k）', () => {
     expect(SYSTEM_MAP_FOCUS).toEqual(['gmac', 'scale', 'acc'])
-    expect(SYSTEM_MAP_CHART).toContain('class GMAC,SCALE,ACC focus')
+    // 系統地圖是手排的 SVG：被標成藍色的方塊由 systemMapModel（純資料）決定，其餘方塊不是主角
+    const model = systemMapModel(SYSTEM_MAP_FOCUS)
+    expect(FOCUSED_BLOCKS).toEqual(['acc', 'gmac', 'scale'])
+    expect(model.blocks.filter((b) => !b.focused).length).toBe(model.blocks.length - 3)
   })
 })
 
 describe('Ch10 方塊圖：真正的 mermaid parser 與 render', () => {
-  it('每張圖（含章首的 SystemMap）都能被 mermaid.parse 解析：25 張 flowchart、2 張 stateDiagram-v2', async () => {
+  it('每張圖都能被 mermaid.parse 解析：25 張 flowchart、2 張 stateDiagram-v2', async () => {
     const types: string[] = []
     for (const d of CH10_DIAGRAMS) {
       const r = await mermaid.parse(d.chart)
@@ -234,8 +243,6 @@ describe('Ch10 方塊圖：真正的 mermaid parser 與 render', () => {
     }
     expect(types.filter((t) => t === 'stateDiagram').length).toBe(2)
     expect(types.filter((t) => t === 'flowchart-v2').length).toBe(25)
-    const r = await mermaid.parse(SYSTEM_MAP_CHART)
-    expect(r && typeof r === 'object' ? (r as { diagramType: string }).diagramType : '').toBe('flowchart-v2')
   })
 
   it('負面：parser 真的在檢查——把一張圖的引號拿掉就解析失敗', async () => {
@@ -256,7 +263,7 @@ describe('Ch10 方塊圖：真正的 mermaid parser 與 render', () => {
   })
 
   it('每張圖都用 renderMermaidForTest 在 jsdom 下真的 render：沒有「Unsupported markdown」、沒有被當成 Markdown 的粗體／斜體／刪除線，畫出來的節點不超過 14 個', async () => {
-    for (const d of [...CH10_DIAGRAMS.map((x) => ({ name: x.name, chart: x.chart })), { name: 'SystemMap', chart: SYSTEM_MAP_CHART }]) {
+    for (const d of CH10_DIAGRAMS) {
       const { svg, text, nodeCount } = await rendered(d.chart)
       expect(svg, d.name).toContain('<svg')
       expect(text, d.name).not.toMatch(/Unsupported markdown/)
@@ -264,8 +271,8 @@ describe('Ch10 方塊圖：真正的 mermaid parser 與 render', () => {
       expect(svg, d.name).not.toMatch(/<(em|strong|del|code|h[1-6]|ul|ol|li|blockquote)[\s>]/)
       expect(labelsOf(svg).length, d.name).toBeGreaterThanOrEqual(4)
       expect(nodeCount, d.name).toBeGreaterThanOrEqual(3)
-      // 全站共用的 SystemMap 有 17 個方塊（不屬於本章，上限由 SystemMap.test.tsx 管）；本章自己的圖一律 ≤ 14（subgraph 的標題不算節點）
-      if (d.name !== 'SystemMap') expect(nodeCount, d.name).toBeLessThanOrEqual(14)
+      // 本章自己的圖一律 ≤ 14 個節點（subgraph 的標題不算節點）；全站共用的 SystemMap 不經過 Mermaid，版面由 SystemMap.test.tsx 管
+      expect(nodeCount, d.name).toBeLessThanOrEqual(14)
     }
     // 畫出來的標籤就是原始碼裡寫的訊號名稱（抽查幾張：迴路、比較、狀態機）；公式是 KaTeX 排版後的可見字元
     expect(labelsOf(await renderChart(CHART_UPDATE_LOOP))).toEqual(expect.arrayContaining(['δk=a−wk', 'Gk', 'wk+1', '−wk', '×M更新矩陣']))
@@ -277,8 +284,8 @@ describe('Ch10 方塊圖：真正的 mermaid parser 與 render', () => {
     expect(labelsOf(await renderChart(CHART_GMAC_NOISE))).toEqual(expect.arrayContaining(['Gk=KqRδk+ηkηk 的平均是 0，Cov(ηk)≈R/N']))
   })
 
-  it('圖裡的數學都是 LaTeX：每張圖（含 SystemMap）都有 KaTeX 排版的公式，畫出來的文字沒有殘留的 `$`，KaTeX 以外（畫出來的文字與原始碼）沒有 Unicode 拼的數學', async () => {
-    for (const d of [...CH10_DIAGRAMS.map((x) => ({ name: x.name, chart: x.chart })), { name: 'SystemMap', chart: SYSTEM_MAP_CHART }]) {
+  it('圖裡的數學都是 LaTeX：每張圖都有 KaTeX 排版的公式，畫出來的文字沒有殘留的 `$`，KaTeX 以外（畫出來的文字與原始碼）沒有 Unicode 拼的數學', async () => {
+    for (const d of CH10_DIAGRAMS) {
       const { text, plainText, mathCount } = await rendered(d.chart)
       expect(mathCount, `${d.name}：KaTeX 公式數`).toBeGreaterThanOrEqual(3)
       expect(text, `${d.name}：畫出來的文字不可殘留 $`).not.toContain('$')
@@ -331,15 +338,12 @@ describe('Ch10 方塊圖：真正的 mermaid parser 與 render', () => {
 })
 
 describe('Ch10 方塊圖：導讀與圖說裡的方位詞（左／右／上／下、哪一框在前）與實際排出來的版面一致', () => {
-  it('訊號由左到右：系統圖、耦合、取樣率、更新迴路、eigen 分解、雜訊路徑、Lyapunov、SVD、程式碼資料流', async () => {
-    let L = await layoutOf(diagram('system').chart)
-    expectIncreasing([L.node.E.x, L.node.Q.x, L.node.G1.x, L.node.M.x, L.node.W.x], '系統圖：e[n] 在最左、comparator 與 GMAC 在中間、M 與 w 在右邊')
-    L = await layoutOf(CHART_COUPLING_PATHS)
+  it('訊號由左到右（flowchart LR）：耦合、更新迴路、eigen 分解、雜訊路徑、Lyapunov、NLMS', async () => {
+    for (const chart of [CHART_COUPLING_PATHS, CHART_UPDATE_LOOP, diagram('eigen-modes').chart, CHART_NOISE_PATH, CHART_LYAPUNOV, CHART_NLMS]) expect(chart).toMatch(/^flowchart LR\n/)
+    let L = await layoutOf(CHART_COUPLING_PATHS)
     expectIncreasing([L.node.D1.x, L.node.R11.x, L.node.S1.x, L.node.K1.x, L.node.G1.x], '耦合圖：δ → ×R → 加法點 → ×K_q → G')
     expect(L.node.S1.y, '耦合圖：GMAC₁ 的加法點在上面').toBeLessThan(L.node.S2.y)
     expect(L.node.G1.y).toBeLessThan(L.node.G2.y)
-    L = await layoutOf(CHART_SAMPLE_TO_BLOCK)
-    expectIncreasing([L.node.U1.x, L.node.SE.x, L.node.CMP.x, L.node.X1.x, L.node.A1.x, L.node.G1.x], '取樣率圖：左框（sample）→ 右框（block）')
     L = await layoutOf(CHART_UPDATE_LOOP)
     expectIncreasing([L.node.A.x, L.node.SD.x, L.node.KR.x, L.node.SG.x, L.node.M.x, L.node.SW.x, L.node.Z.x], '更新迴路：左邊的加法點 … 右邊的累加器')
     L = await layoutOf(diagram('eigen-modes').chart)
@@ -348,23 +352,47 @@ describe('Ch10 方塊圖：導讀與圖說裡的方位詞（左／右／上／�
     expectIncreasing([L.node.S.x, L.node.SUM.x, L.node.M.x], '雜訊路徑：雜訊從中間的加法點進來，只經過後面的 M')
     L = await layoutOf(CHART_LYAPUNOV)
     expectIncreasing([L.node.Q.x, L.node.MQ.x, L.node.S.x, L.node.Z.x, L.node.AX.x], 'Lyapunov：左邊進來的新雜訊、右邊繞圈的 A·X·Aᵀ')
-    L = await layoutOf(CHART_PINV_SVD)
-    expectIncreasing([L.node.E.x, L.node.VT.x, L.node.SG.x, L.node.U.x, L.node.EG.x], 'SVD ①（晶片）：ε → ×Vᵀ → ×σ → ×U → E[G]')
-    expectIncreasing([L.node.GK.x, L.node.UT.x, L.node.INV.x, L.node.V.x, L.node.GM.x, L.node.OUT.x], 'SVD ②（更新矩陣）：G → ×Uᵀ → 除法 → ×V → ×(−γ) → 更新')
-    L = await layoutOf(CHART_CODE_FLOW)
-    expectIncreasing([L.node.JH.x, L.node.RULE.x, L.node.BU.x, L.node.NX.x], '程式碼資料流：Ĵ_n → 規則 → blockUpdate → 下一個 block')
-    expectIncreasing([L.node.D.x, L.node.GM.x, L.node.BU.x], '程式碼資料流：δ_k → GMAC → blockUpdate')
     L = await layoutOf(CHART_NLMS)
     expectIncreasing([L.node.X.x, L.node.EN.x, L.node.DIV.x, L.node.RES.x], 'NLMS：code → 能量估計 → 正規化 → 更新')
     expect(L.node.G.x).toBeLessThan(L.node.DIV.x)
+  })
+
+  it('太寬的橫向流程改成由上往下（flowchart TB，桌機不必橫向捲動）：系統圖、取樣率、comparator 增益、GMAC 雜訊、SVD、Gauss–Seidel、程式碼資料流、硬體對應', async () => {
+    for (const chart of [CHART_MIMO_SYSTEM, CHART_SAMPLE_TO_BLOCK, CHART_COMPARATOR_GAIN, CHART_GMAC_NOISE, CHART_PINV_SVD, CHART_GS_SWEEP, CHART_CODE_FLOW, CHART_HW_MAP]) expect(chart).toMatch(/^flowchart TB\n/)
+    let L = await layoutOf(CHART_MIMO_SYSTEM)
+    expectIncreasing([L.node.E.y, L.node.Q.y, L.node.G1.y, L.node.M.y, L.node.W.y], '系統圖：e[n] 在最上面、comparator 與 GMAC 在中間、M 與 w 在最下面')
+    expectIncreasing([L.node.G1.x, L.node.G2.x, L.node.G3.x], '系統圖：三個 GMAC 並排，GMAC₁ 在最左')
+    L = await layoutOf(CHART_SAMPLE_TO_BLOCK)
+    expectIncreasing([L.node.U2.y, L.node.SE.y, L.node.CMP.y, L.node.X1.y, L.node.A1.y, L.node.G1.y], '取樣率圖：上框（sample）→ 下框（block）')
+    expectIncreasing([L.node.U1.x, L.node.U2.x, L.node.V.x], '取樣率圖：u₁δ₁、u₂δ₂、雜訊由左到右')
+    expectIncreasing([L.node.X1.x, L.node.X2.x], '取樣率圖：兩個 GMAC 並排，第 1 個在左')
+    expect(L.node.A1.y).toBe(L.node.A2.y)
     L = await layoutOf(CHART_COMPARATOR_GAIN)
-    expectIncreasing([L.node.S.x, L.node.ADD.x, L.node.CMP.x, L.node.AVG.x, L.node.LIN.x], 'comparator 增益：左邊的加法點 → comparator → 取平均 → 右邊分出兩條路')
-    expect(L.node.SAT.x).toBeGreaterThan(L.node.AVG.x)
+    expectIncreasing([L.node.S.y, L.node.ADD.y, L.node.CMP.y, L.node.AVG.y, L.node.LIN.y], 'comparator 增益：上面的加法點 → comparator → 取平均 → 下面分出兩條路')
+    expect(L.node.SAT.y, '飽和那一路與線性那一路同一層').toBe(L.node.LIN.y)
+    expect(L.node.LIN.x, '線性（藍）在左、飽和（紅）在右').toBeLessThan(L.node.SAT.x)
+    expectIncreasing([L.node.S.x, L.node.V.x], 'comparator 增益：訊號 s 在左、雜訊 v 在右，兩路都進同一個加法點')
+    // GMAC 雜訊：兩個框用「框對框」的連線（框 → 框，不是節點 → 節點），這樣箭頭停在框的邊緣、不會穿過框的標題；框內各自由上往下
     L = await layoutOf(CHART_GMAC_NOISE)
-    expectIncreasing([L.node.Q.x, L.node.P.x, L.node.AVG.x, L.node.G.x, L.node.EX.x], 'GMAC 雜訊：左框（sample）→ 右框（block）')
-    expect(L.node.X.x).toBeLessThan(L.node.P.x)
+    expect(CHART_GMAC_NOISE).toContain('FAST --> SLOW')
+    expect(L.frame.FAST.y, 'sample 速率的框在上面').toBeLessThan(L.frame.SLOW.y)
+    expect(Math.max(L.node.Q.y, L.node.X.y), '框內：q 與 code 先進乘積').toBeLessThan(L.node.P.y)
+    expectIncreasing([L.node.Q.x, L.node.X.x], 'GMAC 雜訊：q 在左、code 在右')
+    expectIncreasing([L.node.AVG.y, L.node.G.y, L.node.EX.y], 'GMAC 雜訊：block 框內 平均 → G_k → 例子')
+    // SVD：兩個框並排，框內各自由上往下；① 晶片在左、② 更新矩陣在右（後宣告的框排在前面）
+    L = await layoutOf(CHART_PINV_SVD)
+    expectIncreasing([L.node.E.y, L.node.VT.y, L.node.SG.y, L.node.U.y, L.node.EG.y], 'SVD ①（晶片）：ε → ×Vᵀ → ×σ → ×U → E[G]')
+    expectIncreasing([L.node.GK.y, L.node.UT.y, L.node.INV.y, L.node.V.y, L.node.GM.y, L.node.OUT.y], 'SVD ②（更新矩陣）：G → ×Uᵀ → 除法 → ×V → ×(−γ) → 更新')
     L = await layoutOf(CHART_GS_SWEEP)
-    expectIncreasing([L.node.S0.x, L.node.P1.x, L.node.P2.x, L.node.E.x], 'Gauss–Seidel：階段 1 → 階段 2 → 最右邊是一輪的結果')
+    expectIncreasing([L.node.S0.y, L.node.P1.y, L.node.P2.y, L.node.E.y], 'Gauss–Seidel：階段 1 → 階段 2 → 最下面是一輪的結果')
+    L = await layoutOf(CHART_CODE_FLOW)
+    expectIncreasing([L.node.JH.y, L.node.RULE.y, L.node.BU.y, L.node.NX.y], '程式碼資料流：Ĵ_n → 規則 → blockUpdate → 下一個 block')
+    expectIncreasing([L.node.D.y, L.node.GM.y, L.node.BU.y], '程式碼資料流：δ_k → GMAC → blockUpdate')
+    expectIncreasing([L.node.RULE.x, L.node.GM.x], '程式碼資料流：左邊一路是規則（M_n），右邊一路是 GMAC（G_k），兩路在 blockUpdate 會合')
+    L = await layoutOf(CHART_HW_MAP)
+    expectIncreasing([L.node.CMP.y, L.node.G1.y, L.node.MIX.y, L.node.ACC.y, L.node.DTC.y], '硬體對應：comparator → GMAC → 混合矩陣 → 係數暫存器 → DTC／PMUX')
+    expectIncreasing([L.node.G1.x, L.node.G2.x, L.node.G3.x], '硬體對應：三個 GMAC accumulator 並排')
+    expect(L.node.G1.y).toBe(L.node.G3.y)
   })
 
   it('並排比較由上到下：五種更新矩陣（scalar 在最上面）、598 的兩條路、regularized 三選一、Δ 的三種大小、T18 的訊號流', async () => {
@@ -394,7 +422,7 @@ describe('Ch10 方塊圖：導讀與圖說裡的方位詞（左／右／上／�
     expect(L.frame.ONE.y, '「只開一個 loop」框在上').toBeLessThan(L.frame.BOTH.y)
     expect(L.node.B1.y, '框內：共模在上、差模在下').toBeLessThan(L.node.C1.y)
     L = await layoutOf(CHART_PINV_SVD)
-    expect(L.frame.PLANT.y, '① 晶片 在 ② 更新矩陣 之前').toBeLessThan(L.frame.UPD.y)
+    expect(L.frame.PLANT.x, '① 晶片 在 ② 更新矩陣 之前（兩框並排，左邊是 ①）').toBeLessThan(L.frame.UPD.x)
     // 框的標題自己帶 ①／②：就算版面不同，閱讀順序也不會錯
     for (const [chart, first, second] of [
       [CHART_MODE_GAIN, 'SC["① Scalar', 'FU["② Full inverse'],
@@ -529,7 +557,7 @@ describe('Ch10 方塊圖：訊號名稱、正負號、取樣率與數字和正�
     expect(CHART_NOISE_PATH).toContain(String.raw`SUM --> M["$\times \gamma / (K_q\lambda_i)$`)
     expect(CHART_NOISE_PATH).toContain('M -- "−" --> ACC')
     expect(CHART_NOISE_PATH).toContain('Z -- "＋" --> ACC')
-    expect(CHART_NOISE_PATH).toContain(String.raw`慢模式 $50 / K_q$、快模式 $0.2513 / K_q$`)
+    expect(CHART_NOISE_PATH).toContain(String.raw`$\gamma = 0.5$ 時：<br/>慢模式 $50 / K_q$、<br/>快模式 $0.2513 / K_q$`)
     // Lyapunov：X ← A X Aᵀ + M (R_x/N) Mᵀ
     expect(CHART_LYAPUNOV).toContain(String.raw`$\mathbf A\,\mathbf X_k\,\mathbf A^T$`)
     expect(CHART_LYAPUNOV).toContain(String.raw`$\mathbf M\,(\mathbf R_x / N)\,\mathbf M^T$`)
@@ -712,7 +740,8 @@ describe('Ch10 方塊圖：新增的三張圖（comparator 增益、GMAC 雜訊�
     // 兩個輸入（q 與 code）都進乘積，乘積才進平均
     expect(CHART_GMAC_NOISE).toMatch(/Q\[.*\] --> P\[/)
     expect(CHART_GMAC_NOISE).toMatch(/X\[.*\] --> P\n/)
-    expect(CHART_GMAC_NOISE).toContain('P --> AVG')
+    // 乘積 P（sample 框）進平均 AVG（block 框）：兩個框各只有一個出口／入口，所以用框對框的一條連線
+    expect(CHART_GMAC_NOISE).toContain('FAST --> SLOW')
     // 與更新迴路圖、Lyapunov 圖用的是同一個雜訊模型
     expect(CHART_UPDATE_LOOP).toContain(String.raw`GMAC 雜訊 $\boldsymbol\eta_k$<br/>$\operatorname{Cov} \approx \mathbf R / N$`)
     expect(CHART_LYAPUNOV).toContain(String.raw`\operatorname{Cov}(\boldsymbol\eta_k) \approx \mathbf R_x / N`)
@@ -758,7 +787,7 @@ describe('Ch10 方塊圖：頁面', () => {
     localStorage.clear()
   })
 
-  it('整章渲染 <SystemMap>（緊接在開場問題之後）與 27 張圖：順序、所在段落、圖說、導讀、「先看圖再看公式」，每張圖的原始碼都送進 mermaid.render', async () => {
+  it('整章渲染 <SystemMap>（緊接在開場問題之後）與 27 張圖：順序、所在段落、圖說、導讀、「先看圖再看公式」，27 張圖的原始碼都送進 mermaid.render（系統地圖是手排的 SVG，不經過 mermaid）', async () => {
     seen.rendered.length = 0
     seen.stub = true
     localStorage.setItem('lmspll.mode', 'engineer')
@@ -770,6 +799,7 @@ describe('Ch10 方塊圖：頁面', () => {
         </MemoryRouter>
       </SettingsProvider>,
     )
+    // 頁面上的 figure.c-mermaid：27 張 Mermaid 圖 + 章首那張手排的系統地圖
     const total = CH10_DIAGRAMS.length + 1
     expect(container.querySelectorAll('figure.c-mermaid').length).toBe(total)
 
@@ -779,6 +809,13 @@ describe('Ch10 方塊圖：頁面', () => {
     const map = maps[0]
     // aria-label 是純文字：方塊名稱裡的 `$...$` 只拿掉分隔符號
     for (const b of SYSTEM_MAP_FOCUS) expect(map.getAttribute('aria-label')).toContain(stripMathDelimiters(SYSTEM_BLOCK_LABEL[b]))
+    // 系統地圖是手排的 SVG（figure.c-sysmap）：藍色的方塊 = g.c-sysmap-block.is-focus，恰好是本章的三個方塊（GMAC、÷N×μ、gain accumulator），其他方塊都不是主角
+    expect(map.classList.contains('c-sysmap')).toBe(true)
+    expect(map.querySelector('svg.c-sysmap-svg')).toBeTruthy()
+    const focusedBlocks = (root: Element) => Array.from(root.querySelectorAll('g.c-sysmap-block.is-focus')).map((g) => g.getAttribute('data-block'))
+    expect(focusedBlocks(map).sort()).toEqual(FOCUSED_BLOCKS)
+    expect(Array.from(map.querySelectorAll('g.c-sysmap-block[data-focus="true"]')).length).toBe(FOCUSED_BLOCKS.length)
+    expect(map.querySelectorAll('g.c-sysmap-block').length).toBeGreaterThan(FOCUSED_BLOCKS.length)
     const question = container.querySelector('#ch10-question') as HTMLElement
     const figs = Array.from(container.querySelectorAll<HTMLElement>('.ch10-fig'))
     expect(question.compareDocumentPosition(map) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -840,15 +877,16 @@ describe('Ch10 方塊圖：頁面', () => {
     const prose = container.cloneNode(true) as HTMLElement
     prose.querySelectorAll('.ch10-fig-caption, .ch10-figref').forEach((el) => el.remove())
     expect(prose.textContent).not.toMatch(/圖\s*10-\d/)
+    // sample／block 兩個框改成上下堆疊之後，正文與導讀不能再說「左框／右框」；唯一並排的兩框（SVD）寫成「左邊的框 ①／右邊的框 ②」
+    expect(container.textContent).not.toMatch(/[左右]框/)
 
     // ── 每張圖的原始碼都送進了 mermaid.render，而且每個 <Mermaid> 都離開「載入中」（沒有解析失敗的提示） ──
     await waitFor(() => expect(container.querySelectorAll('figure.c-mermaid .c-mermaid-svg svg').length).toBe(total), { timeout: 60_000 })
     expect(container.textContent).not.toMatch(/Mermaid 圖解析失敗/)
     expect(container.querySelectorAll('.c-mermaid-error').length).toBe(0)
+    // 送進 mermaid.render 的恰好是 27 張章內圖（系統地圖不經過 mermaid），而且是前處理（sanitizeMermaidSource：每個含 `$...$` 的標籤合併成單一 `$$...$$`）之後的原始碼
     const charts = seen.rendered.map((r) => r.chart)
-    expect(charts.length).toBe(total)
-    // 送進 mermaid.render 的是前處理（sanitizeMermaidSource：每個含 `$...$` 的標籤合併成單一 `$$...$$`）之後的原始碼
-    expect(charts).toContain(sanitizeMermaidSource(SYSTEM_MAP_CHART))
+    expect(charts.length).toBe(CH10_DIAGRAMS.length)
     for (const d of CH10_DIAGRAMS) expect(charts, d.name).toContain(sanitizeMermaidSource(d.chart))
 
     // 圖與導讀沒有引入 KaTeX 錯誤或 React 警告
@@ -858,7 +896,7 @@ describe('Ch10 方塊圖：頁面', () => {
     errorSpy.mockRestore()
   })
 
-  it('章首（S0Intro）以真正的 mermaid 畫出 SystemMap 與圖 10-1：<Mermaid> 元件拿到的是可以顯示的 SVG，藍色方塊是 GMAC / SCALE / ACC', async () => {
+  it('章首（S0Intro）：手排的 SystemMap（藍色方塊是 gmac / scale / acc）與用真正的 mermaid 畫出的圖 10-1：<Mermaid> 元件拿到的是可以顯示的 SVG', async () => {
     seen.rendered.length = 0
     localStorage.setItem('lmspll.mode', 'beginner')
     const { container } = render(
@@ -871,15 +909,19 @@ describe('Ch10 方塊圖：頁面', () => {
     expect(container.querySelectorAll('figure.c-mermaid').length).toBe(2)
     await waitFor(() => expect(container.querySelectorAll('figure.c-mermaid .c-mermaid-svg svg').length).toBe(2), { timeout: 60_000 })
     expect(container.textContent).not.toMatch(/Mermaid 圖解析失敗|Unsupported markdown/)
-    expect(seen.rendered.map((r) => r.chart)).toEqual([sanitizeMermaidSource(SYSTEM_MAP_CHART), sanitizeMermaidSource(CH10_DIAGRAMS[0].chart)])
-    // 兩張圖的公式都由 KaTeX 排版（圖 10-1 有 $e[n]$、$q[n]$、$\mathbf M$…），畫面上沒有殘留的 `$`
-    for (const svgHost of Array.from(container.querySelectorAll('figure.c-mermaid .c-mermaid-svg'))) {
-      expect(svgHost.querySelectorAll('.katex').length).toBeGreaterThanOrEqual(8)
-      expect(svgHost.textContent).not.toContain('$')
-    }
-    const mapSvg = container.querySelector('figure.c-mermaid .c-mermaid-svg svg') as SVGElement
-    const focused = Array.from(mapSvg.querySelectorAll('g.node.focus')).map((g) => g.id.replace(/^.*flowchart-/, '').replace(/-\d+$/, ''))
-    expect(focused.sort()).toEqual(['ACC', 'GMAC', 'SCALE'])
+    // 只有圖 10-1 送進 mermaid.render；系統地圖是手排的 SVG
+    expect(seen.rendered.map((r) => r.chart)).toEqual([sanitizeMermaidSource(CH10_DIAGRAMS[0].chart)])
+    const [mapHost, chartHost] = Array.from(container.querySelectorAll('figure.c-mermaid .c-mermaid-svg'))
+    expect(mapHost.closest('figure')?.classList.contains('c-sysmap')).toBe(true)
+    expect(chartHost.closest('figure')?.classList.contains('c-sysmap')).toBe(false)
+    // 兩張圖的公式都由 KaTeX 排版（圖 10-1 有 $e[n]$、$q[n]$、$\mathbf M$…；系統地圖的方塊也有 $x[n]$、$w_k$…），畫面上沒有殘留的 `$`
+    expect(chartHost.querySelectorAll('.katex').length).toBeGreaterThanOrEqual(8)
+    expect(mapHost.querySelectorAll('.katex').length).toBeGreaterThanOrEqual(1)
+    for (const svgHost of [mapHost, chartHost]) expect(svgHost.textContent).not.toContain('$')
+    // 藍色方塊是 gmac / scale / acc
+    const focused = Array.from(mapHost.querySelectorAll('g.c-sysmap-block.is-focus')).map((g) => g.getAttribute('data-block'))
+    expect(focused.sort()).toEqual(['acc', 'gmac', 'scale'])
+    expect(focused.sort()).toEqual(FOCUSED_BLOCKS)
     // 章首只有一行符號表連結，沒有符號表本身
     expect(container.querySelector('.c-symbols')).toBeNull()
     expect(container.querySelector('.ch10-symbols-link button')?.textContent).toMatch(/本章符號表在最後/)

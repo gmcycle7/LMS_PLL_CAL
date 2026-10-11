@@ -4,7 +4,7 @@ import { render, waitFor } from '@testing-library/react'
 import mermaid from 'mermaid'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
-import { renderTex, stripMathDelimiters, systemMapChart, SYSTEM_BLOCK_LABEL } from '@/components'
+import { renderTex, stripMathDelimiters, systemMapModel, SYSTEM_BLOCK_LABEL } from '@/components'
 import { mermaidMathDelimiters, sanitizeMermaidSource } from '@/components/mermaidSource'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import {
@@ -138,7 +138,7 @@ async function layout(chart: string) {
       expect(v[i], `${JSON.stringify(groups[i - 1])} 應在 ${JSON.stringify(groups[i])} 的${k === 'x' ? '左邊' : '上面'}`).toBeGreaterThan(v[i - 1])
     }
   }
-  return { at, increasing }
+  return { at, increasing, positions: pos }
 }
 
 /** 圖上數字的寫法：負號用 U+2212；signed 時正數帶 '+'；0 不帶號（純文字標籤，例如連線上單獨的「−」） */
@@ -344,6 +344,37 @@ describe('Ch11 方塊圖：真正的 mermaid parser 與 renderer', () => {
     expect(host.querySelectorAll('g.node.focus, g.node.warn, g.node.ok').length).toBe(classed)
   })
 
+  it('桌機版面：橫向（LR）的圖最多 5 個 rank，由上往下的圖每一排最多 5 個方塊 —— 太長的橫向流程要改成直向或折成列（teaching-style §8）', async () => {
+    // jsdom 量不到真正的像素寬度，但 dagre 的 rank 數與「同一排有幾個方塊」不受字體影響；
+    // 以 diagram-audit 的結果為準：7 個 rank 以上的橫向流程在 1280px 桌機上會超出正文欄（error-sources、jitter-weight、near-integer-check、mc-gaps、finite-step-loop 就是這樣被改成直向的）
+    const cluster = (values: number[], tol = 1.5) => {
+      const groups: number[][] = []
+      for (const v of [...values].sort((a, b) => a - b)) {
+        const g = groups.find((x) => Math.abs(x[0] - v) <= tol)
+        if (g) g.push(v)
+        else groups.push([v])
+      }
+      return groups
+    }
+    const bad: string[] = []
+    for (const d of CHARTS) {
+      const lay = await layout(d.chart)
+      const pts = [...lay.positions.values()]
+      if (/^flowchart LR/.test(d.chart)) {
+        const ranks = cluster(pts.map((p) => p.x)).length
+        if (ranks > 5) bad.push(`${d.name}：LR 有 ${ranks} 個 rank，桌機放不下，請改成 TB 或折成列`)
+      } else {
+        const widest = Math.max(...cluster(pts.map((p) => p.y)).map((g) => g.length))
+        if (widest > 5) bad.push(`${d.name}：同一排有 ${widest} 個方塊，桌機放不下，請拆成兩排`)
+      }
+    }
+    expect(bad).toEqual([])
+    // 這次改成直向的圖：頁面上每一張的流程方向都寫在原始碼第一行
+    for (const id of ['gmac-zero', 'error-sources', 'best-fit', 'identifiability', 'jitter-weight', 'near-integer-check', 'mc-gaps', 'finite-step-loop'] as const) {
+      expect(CHARTS.find((d) => d.id === id)?.chart, id).toMatch(/^flowchart TB/)
+    }
+  })
+
   it('classDef 的顏色在淺色與深色主題都讀得到：白字配深色底，對比 ≥ 4.5，而且每張圖都有標色的方塊', () => {
     const lum = (hex: string) => {
       const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
@@ -361,20 +392,16 @@ describe('Ch11 方塊圖：真正的 mermaid parser 與 renderer', () => {
     }
   })
 
-  it('章首系統地圖：本章標示的方塊可解析、可畫出，藍色的就是 SYSTEM_MAP_FOCUS', async () => {
+  it('章首系統地圖：本章標示的藍色方塊（systemMapModel 的 focused）就是 SYSTEM_MAP_FOCUS，每個都是地圖上有名稱、有接線的方塊', () => {
+    // 系統地圖是手排的 SVG（不經過 Mermaid），所以用 pure-data 的 systemMapModel 核對主角
     expect(SYSTEM_MAP_FOCUS).toEqual(['dtc', 'pd', 'noise', 'cmp', 'gmac', 'acc'])
-    const chart = systemMapChart(SYSTEM_MAP_FOCUS)
-    expect(chart).toContain('class DTC,PD,NOISE,CMP,GMAC,ACC focus')
-    await mermaid.parse(chart, { suppressErrors: false })
-    const { svg, text, plainText, mathCount } = await renderMermaidForTest(chart)
-    expect(text).not.toMatch(/Unsupported markdown/)
-    // 共用系統地圖的公式也是 KaTeX：沒有殘留的 `$`，KaTeX 以外沒有 Unicode 拼的數學
-    expect(mathCount).toBeGreaterThanOrEqual(8)
-    expect(text).not.toContain('$')
-    expect(unicodeMathIn(plainText)).toEqual([])
-    const host = document.createElement('div')
-    host.innerHTML = svg
-    expect(host.querySelectorAll('g.node.focus').length).toBe(SYSTEM_MAP_FOCUS.length)
+    const model = systemMapModel(SYSTEM_MAP_FOCUS)
+    expect(model.blocks.filter((b) => b.focused).map((b) => b.id).sort()).toEqual([...SYSTEM_MAP_FOCUS].sort())
+    expect(model.blocks.filter((b) => !b.focused).length).toBe(model.blocks.length - SYSTEM_MAP_FOCUS.length)
+    for (const id of SYSTEM_MAP_FOCUS) {
+      expect(SYSTEM_BLOCK_LABEL[id], id).toBeTruthy()
+      expect(model.wires.some((w) => w.from === id || w.to === id), `${id} 沒有接線`).toBe(true)
+    }
   })
 })
 
@@ -398,15 +425,16 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     // 「四個 code 的 e 都不是 0」
     expect(five.values.filter((x) => Math.abs(eDet(x, 1.34, CUBIC)) > 0.1)).toHaveLength(4)
     expect(g.node('LEFT').text).toContain(String.raw`$\pm 0.24$ 與 $\pm 0.12$`)
-    // 圖說「由左到右」：w → 五個 code → 平均 → 結論
+    // 圖說「由上到下」：w → 五個 code → 平均 → 結論；中間那一排的五個 code 由左到右依 x = −2 … +2 排列
     const lay = await layout(D.CHART_GMAC_ZERO)
-    lay.increasing('x', 'W', ['M2', 'M1', 'Z0', 'P1', 'P2'], 'AVG', ['ZERO', 'LEFT'])
+    lay.increasing('y', 'W', ['M2', 'M1', 'Z0', 'P1', 'P2'], 'AVG', ['ZERO', 'LEFT'])
+    lay.increasing('x', 'M2', 'M1', 'Z0', 'P1', 'P2')
   })
 
   it('error-sources（硬體視角）：DTC 的 delay 以「＋」、補償 w·x 以「−」進加法點；主迴路以虛線回到加法點；w ← w + μ·G', async () => {
     const g = await parseFlow(D.CHART_ERROR_SOURCES)
-    expect(g.node('COMP').text).toBe('校正電路的補償量\n$w \\cdot x$')
-    expect(g.node('DTC').text).toContain(String.raw`delay $= a \cdot x + d(x)$`)
+    expect(g.node('COMP').text).toBe('校正電路的\n補償量 $w \\cdot x$')
+    expect(g.node('DTC').text).toBe(String.raw`DTC 的 delay` + '\n' + String.raw`$= a \cdot x + d(x)$`)
     expect(g.into('COMP').map((e) => e.from).sort()).toEqual(['DSM', 'W']) // 補償量 = w × x
     // 加法點：DTC 的真實 delay ＋、補償量 −、其餘（b、ε_cc、v、主迴路的 φ）都是 ＋
     const into = Object.fromEntries(g.into('SUM').map((e) => [e.from, e.text]))
@@ -430,11 +458,13 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     const w = 0.8
     const dtcDelay = m.a * x + (m.c2 * x * x + m.c3 * x ** 3)
     expect(dtcDelay - w * x + m.b + m.kappa * x).toBeCloseTo(eDet(x, w, m), 14)
-    // 版面：(DSM、w) → (DTC、補償) → 加法點 → comparator → GMAC → 更新。
+    // 版面（由上往下）：(DSM、w) → (DTC、補償) → 加法點 → comparator → GMAC → 更新。
     // 迴圈 UPD → W → COMP → SUM → Q → GMAC → UPD 要由 w 開頭宣告，Mermaid 才會把「UPD → W」當成回授線；
-    // 否則 dagre 會把 COMP → SUM 反轉，補償量跑到圖的最右邊
+    // 否則 dagre 會把 COMP → SUM 反轉，補償量跑到圖的最下面
+    // 隱形連線 DSM ~~~ W 把 W 排在 DSM 的下一排（否則 W → COMP 會從 DSM 的方塊後面穿過去）；它不是訊號，所以流進 W 的真實連線只有 UPD → W
+    expect(D.CHART_ERROR_SOURCES).toMatch(/^\s*DSM ~~~ W$/m)
     const lay = await layout(D.CHART_ERROR_SOURCES)
-    lay.increasing('x', ['W', 'DSM'], ['DTC', 'COMP'], 'SUM', 'Q', 'GMAC', 'UPD')
+    lay.increasing('y', 'DSM', 'W', ['DTC', 'COMP', 'B', 'ECC', 'V'], 'SUM', 'Q', 'GMAC', 'UPD')
   })
 
   it('error-budget（誤差預算）：五項都以「＋」進加法點，和 F-11.1 的五項一一對應', async () => {
@@ -723,8 +753,10 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     expect(g.node('KV').classes).toContain('focus')
     expect(g.node('WC').classes).toContain('ok')
     expect(g.node('WV').classes).toContain('warn')
+    // 由上往下：同一個起點 → 分叉 → 加權平均 → 結論；左邊是常數 σ_v 的路、右邊是 σ_v(x) 的路
     const lay = await layout(D.CHART_JITTER_WEIGHT)
-    lay.increasing('x', 'OFF', ['KC', 'KV'], ['SC', 'SV'], ['WC', 'WV'])
+    lay.increasing('y', 'OFF', ['KC', 'KV'], ['SC', 'SV'], ['WC', 'WV'])
+    for (const [constant, varying] of [['KC', 'KV'], ['SC', 'SV'], ['WC', 'WV']]) lay.increasing('x', constant, varying)
   })
 
   it('dead-zone（dead zone）：邊界 1.3333／1.5 與三個區域的 E[G] 來自模型', async () => {
@@ -763,8 +795,11 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     expect(g.node('RES').text).toContain(String.raw`$x = \pm 1$：$\mp ${fmt(Math.abs(e1))}$；$x = \pm 2$：$\pm ${fmt(e2)}$`)
     expect(g.node('ORT').text).toContain(String.raw`$E[x \cdot e_0] = 0$`)
     expect(expectation(five, (x) => x * eDet(x, 1.34, CUBIC))).toBeCloseTo(0, 12)
+    // 由上往下：INL → 投影 → 共線／正交兩支（左藍右紅）→ 各自的結論
     const lay = await layout(D.CHART_BEST_FIT)
-    lay.increasing('x', 'D', 'SPLIT', ['PAR', 'ORT'], ['ABS', 'RES'])
+    lay.increasing('y', 'D', 'SPLIT', ['PAR', 'ORT'], ['ABS', 'RES'])
+    lay.increasing('x', 'PAR', 'ORT')
+    lay.increasing('x', 'ABS', 'RES')
   })
 
   it('mean-vs-median（平均 vs 中位數）：權重、票重與三個答案來自模型', async () => {
@@ -806,8 +841,9 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     expect(fixedPoint('sign', A, five).w).toBeCloseTo(1.1, 9)
     expect(g.node('OBS').text).toContain(String.raw`$w^* = a + \kappa = 1.1$`)
     expect(g.into('OBS').map((e) => e.from).sort()).toEqual(['CMP', 'WA', 'WB'])
+    // 由上往下：code → 兩條並聯的乘法路徑（＋雜訊）→ 加法點 → comparator → 觀測資料
     const lay = await layout(D.CHART_IDENTIFIABILITY)
-    lay.increasing('x', 'X', ['GA', 'GK'], 'S', 'CMP', 'OBS')
+    lay.increasing('y', 'X', ['GA', 'GK', 'V'], 'S', 'CMP', 'OBS')
     const c = await parseFlow(D.CHART_COUPLING_NODE)
     expect(c.node('A2').classes).toContain('ok')
     expect(c.node('B2').classes).toContain('warn')
@@ -874,8 +910,11 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     expect(r.period).toEqual([2 ** 16 / 4096, 2 ** 16 / 16384]) // K = 4096、16384
     expect(r.maxRelDiff).toBeLessThan(1e-6)
     expect(r.bias[0]).toBeCloseTo(0.01 / r.Cfreq[0], 12) // w* − a = B/C
+    // 由上往下：frac → residue → 標準化 → 時域／頻域兩支（時域在左）→ 兩個 C 的比對 → 結論
     const lay = await layout(D.CHART_NEAR_INTEGER_CHECK)
-    lay.increasing('x', 'FRAC', 'DSM', 'NORM', ['T1', 'F1'], ['T2', 'F2'], 'CHK', ['OUT', 'BAD'])
+    lay.increasing('y', 'FRAC', 'DSM', 'NORM', ['T1', 'F1'], ['T2', 'F2'], 'CHK', ['OUT', 'BAD'])
+    lay.increasing('x', 'T1', 'F1')
+    lay.increasing('x', 'T2', 'F2')
   })
 
   it('slope-measure：Ŝ = (G₋ − G₊)/(2Δ) 就是 bias.ts 的 slopeProbe；Ŝ ≤ 0 極性錯誤、Ŝ 很小 bias 被放大', async () => {
@@ -919,8 +958,10 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     expect(g.node('CHK').text).toContain(String.raw`$\le 4 \cdot \mathrm{SE} + \text{①③ 的估計} + ${SERVO_SHAPE_FRACTION} \cdot \text{②}$`)
     const src = readFileSync(join(process.cwd(), 'src/simulation/models/bias.ts'), 'utf8')
     expect(src).toContain('stat: 4 * mc.se')
+    // 由上往下：mean-field 與三個差距（同一排）→ 加法點 → Monte Carlo 的平均 → 判定式 → 結論
     const lay = await layout(D.CHART_MC_GAPS)
-    lay.increasing('x', ['MF', 'G1', 'G2', 'G3'], 'S', 'MC', 'CHK', ['OKN', 'BAD'])
+    lay.increasing('y', ['MF', 'G1', 'G2', 'G3'], 'S', 'MC', 'CHK', ['OKN', 'BAD'])
+    lay.increasing('x', 'MF', 'G1', 'G2', 'G3')
   })
 
   it('finite-step-loop：G_k = η − S·δw + ½G″·δw²、δw_(k+1) = δw_k + μ·G_k；pole 1 − g 與 Var(w) 和 finiteStepBias 一致', async () => {
@@ -956,9 +997,10 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     const curv = (meanGmacSign(wStar + h, fp.model, five) - 2 * meanGmacSign(wStar, fp.model, five) + meanGmacSign(wStar - h, fp.model, five)) / (h * h)
     expect(est.bias).toBeCloseTo((curv * v) / (2 * est.slope), 10)
     expect(finiteStepBias({ ...fp, algorithm: 'mse' }).bias).toBe(0)
-    // 版面：全部是 block rate，由左到右：雜訊 → 加法點 → ×μ → 累加器 → 延遲
+    // 版面：全部是 block rate，由上往下：雜訊 → 加法點 → ×μ → 累加器 → 延遲 → 恢復力／曲率 → 各自的結論
     const lay = await layout(D.CHART_FINITE_STEP_LOOP)
-    lay.increasing('x', 'ETA', 'SG', 'MU', 'ADD', 'DLY')
+    lay.increasing('y', 'ETA', 'SG', 'MU', 'ADD', 'DLY', ['REST', 'CURV'], ['POLE', 'SHIFT'])
+    lay.increasing('x', 'REST', 'CURV')
   })
 
   it('verdict-tree／handcalc-flow（判斷樹與手算流程）：門檻 0.3、g = 0.02 與手算題、Lab 相同', async () => {
@@ -1031,13 +1073,18 @@ describe('Ch11 方塊圖：頁面元件（真正的 mermaid）', () => {
     expect(map.compareDocumentPosition(intuition) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     // 地圖後面有一句話說明藍色方塊與本章新增的內容
     expect(map.nextElementSibling?.textContent).toMatch(/藍色[\s\S]*這一課/)
-    // 真的畫出來，而且藍色方塊數 = 本章標示的方塊數
-    await waitFor(() => expect(map.querySelectorAll('g.node.focus').length).toBe(SYSTEM_MAP_FOCUS.length), { timeout: 60000 })
+    // 系統地圖是手排的 SVG（不經過 Mermaid）：藍色方塊（is-focus）就是本章標示的方塊，不多也不少
+    expect(map.classList.contains('c-sysmap')).toBe(true)
+    const focused = Array.from(map.querySelectorAll('g.c-sysmap-block.is-focus'), (g) => g.getAttribute('data-block'))
+    expect([...focused].sort()).toEqual([...SYSTEM_MAP_FOCUS].sort())
+    expect(map.querySelectorAll('g.c-sysmap-block[data-focus="true"]')).toHaveLength(SYSTEM_MAP_FOCUS.length)
+    expect(map.querySelectorAll('g.c-sysmap-block:not(.is-focus)').length).toBe(systemMapModel(SYSTEM_MAP_FOCUS).blocks.length - SYSTEM_MAP_FOCUS.length)
+    // 系統地圖 + 兩張 Mermaid 圖都畫好了
     await waitFor(() => expect(container.querySelectorAll('.c-mermaid-svg svg').length).toBe(3), { timeout: 60000 })
     expect(container.textContent).not.toContain('Mermaid 圖解析失敗')
-    // 「誤差從哪裡進來」的導讀：先看加法點、再看右邊的 comparator／GMAC，並交代圖上的虛線（主 PLL 的 DC null）
+    // 「誤差從哪裡進來」的導讀：先看加法點、再看加法點下面的 comparator／GMAC，並交代圖上的虛線（主 PLL 的 DC null）
     const diagramText = container.querySelector('#ch11-diagram')?.textContent ?? ''
-    expect(diagramText).toMatch(/先看[\s\S]*中間的加法點[\s\S]*再看右邊/)
+    expect(diagramText).toMatch(/先看[\s\S]*中間的加法點[\s\S]*再看加法點下面/)
     expect(diagramText).toMatch(/虛線是主 PLL[\s\S]*BBPD[\s\S]*DC\s*null/)
     expect(container.querySelector('#ch11-fig-gmac-zero')?.closest('section')?.id).toBe('ch11-hand')
     expect(container.querySelector('#ch11-fig-error-sources')?.closest('section')?.id).toBe('ch11-diagram')

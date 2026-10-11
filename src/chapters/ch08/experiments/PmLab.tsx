@@ -84,11 +84,10 @@ const NYQ_OMEGAS = logOmegaGrid(700, 1e-4, Math.PI)
 const finiteOrNull = (x: number): number | null => (Number.isFinite(x) ? x : null)
 
 // 固定的 Plot layout 放在模組層級（物件參考不變 ⇒ 重新渲染時不會多打一次 Plotly.react、也不會重設使用者的縮放）
-const BODE_MAG_LAYOUT: Partial<Layout> = { xaxis: { title: { text: String.raw`$\omega$ [rad/block]` } }, yaxis: { title: { text: String.raw`$|L|$ [dB]` }, range: [-20, 50] } }
+const BODE_MAG_LAYOUT: Partial<Layout> = { xaxis: { title: { text: String.raw`$\omega$ [rad/block]` }, dtick: 1 }, yaxis: { title: { text: String.raw`$|L|$ [dB]` }, range: [-20, 50] } }
 const NYQUIST_LAYOUT: Partial<Layout> = {
   xaxis: { title: { text: String.raw`$\mathrm{Re}\,L$` }, range: [-NYQ_R, NYQ_R * 0.7], zeroline: true },
   yaxis: { title: { text: String.raw`$\mathrm{Im}\,L$` }, range: [-NYQ_R, NYQ_R], scaleanchor: 'x', scaleratio: 1, zeroline: true },
-  legend: { orientation: 'h', y: -0.25 },
 }
 const Z_PLANE_LAYOUT = zPlaneLayout(1.6)
 const ABS_LAYOUT: Partial<Layout> = { xaxis: { title: { text: '$k$ [block]' } }, yaxis: { title: { text: String.raw`$|\delta_k| / \delta_0$` } } }
@@ -352,7 +351,7 @@ export function PmLab() {
       nyquist.push({ x: xs, y: ys, name: String.raw`Case ${cs.id}：$\omega \in (0, \pi]$`, mode: 'lines', line: { color, width: 2 } })
       nyquist.push({ x: xs, y: ys.map((v) => -v), name: String.raw`Case ${cs.id}：$\omega \in [-\pi, 0)$（共軛）`, mode: 'lines', line: { color, width: 1, dash: 'dash' } })
     }
-    nyquist.push(arcTrace(NYQ_R, 90, -90, tokens.textMuted, String.raw`$z = 1$ 的 indentation（示意：半徑實際 $\to \infty$，順時針）`))
+    nyquist.push(arcTrace(NYQ_R, 90, -90, tokens.textMuted, String.raw`$z = 1$ 的 indentation（示意，順時針）`))
     nyquist.push(unitCircleTrace(tokens.textMuted, String.raw`$|L| = 1$`))
     nyquist.push({ x: [-1], y: [0], name: String.raw`$-1$ 點`, mode: 'markers', marker: { symbol: 'x', size: 12, color: tokens.danger } })
     if (Number.isFinite(pm.omegaC)) {
@@ -418,7 +417,7 @@ export function PmLab() {
   }, [responses, runs, locus, cases.cases, cases.activeId, tokens, pm, stab, g, d, steps, kAxis, mcCurrent])
   const { bodeMag, bodePhase, phaseMin, nyquist, zPlane, stepTraces, clipped, absTraces } = plots
   const bodePhaseLayout = useMemo<Partial<Layout>>(
-    () => ({ xaxis: { title: { text: String.raw`$\omega$ [rad/block]` } }, yaxis: { title: { text: String.raw`$\angle L$ [deg]` }, range: [Math.min(-200, phaseMin - 20), -60] } }),
+    () => ({ xaxis: { title: { text: String.raw`$\omega$ [rad/block]` }, dtick: 1 }, yaxis: { title: { text: String.raw`$\angle L$ [deg]` }, range: [Math.min(-200, phaseMin - 20), -60] } }),
     [phaseMin],
   )
   const stepLayout = useMemo<Partial<Layout>>(
@@ -576,18 +575,18 @@ export function PmLab() {
           title={String.raw`Nyquist：$L(e^{j\omega})$，$\omega\in[-\pi,\pi]$`}
           ariaLabel="Nyquist 圖：開迴路增益的複數平面軌跡"
           data={nyquist}
-          height={340}
+          height={440}
           csvName="pm-lab-nyquist"
           layout={NYQUIST_LAYOUT}
           caption={rich(
-            String.raw`$|L|>${NYQ_R}$ 的部分已裁切；$z=1$ 的積分器 pole 以向外的小半圓繞過（對應 $L$ 平面右側的大半圓，圖上以半徑 $${NYQ_R}$ 示意）。$d=0$ 時曲線是直線 $\mathrm{Re}\,L=-g/2$；曲線不包圍 $-1$ 點 $\iff$ 穩定。`,
+            String.raw`$|L|>${NYQ_R}$ 的部分已裁切；$z=1$ 的積分器 pole 以向外的小半圓繞過（對應 $L$ 平面右側的大半圓，實際半徑 $\to\infty$，圖上以半徑 $${NYQ_R}$ 示意）。$d=0$ 時曲線是直線 $\mathrm{Re}\,L=-g/2$；曲線不包圍 $-1$ 點 $\iff$ 穩定。`,
           )}
         />
         <Plot
           title={String.raw`$z$ 平面：閉迴路 poles 與根軌跡`}
           ariaLabel="z 平面：閉迴路 poles 與根軌跡"
           data={zPlane}
-          height={340}
+          height={440}
           csvName="pm-lab-poles"
           layout={Z_PLANE_LAYOUT}
           caption={rich(String.raw`灰點：$g$ 由 $0$ 增加時的根軌跡；從 $z=1$ 與 $z=0$ 出發，$g=g^*$ 時穿越單位圓（角度 $\omega^*=\frac{\pi}{2d+1}$）。`)}
@@ -598,7 +597,7 @@ export function PmLab() {
           title={String.raw`Step response：$w_k/a$（目標在 $k=0$ 跳一步）`}
           ariaLabel="Step response：係數對目標的比值"
           data={stepTraces}
-          height={300}
+          height={340}
           csvName="pm-lab-step"
           layout={stepLayout}
           caption={clipped ? rich(String.raw`發散的曲線已裁切到 $[-2.5,\,4]$，右圖用 log 軸看完整成長。`) : rich(String.raw`點線：解析包絡 $1\pm\rho^k$（$\rho=\max|z|$）。`)}
@@ -608,7 +607,7 @@ export function PmLab() {
           ariaLabel="誤差大小對 block（log 軸）"
           data={absTraces}
           yLog
-          height={300}
+          height={340}
           csvName="pm-lab-abs-delta"
           layout={ABS_LAYOUT}
           caption={rich(String.raw`log 軸上 $|\delta_k|\sim\rho^k$ 是直線，斜率 $\log_{10}\rho$：往下＝收斂、水平＝臨界、往上＝發散。`)}

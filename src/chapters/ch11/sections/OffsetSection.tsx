@@ -176,7 +176,7 @@ export function OffsetSection() {
         <Tex>{String.raw`\operatorname{Cov}`}</Tex> 與 <Tex>{String.raw`\operatorname{Var}`}</Tex> 是共變異數與變異數（§11.0 的先備知識框）。
       </p>
       <Fig id="dc-null" />
-      <div className="grid-3">
+      <div className="grid-3 ch11-arch-grid">
         <div className="card">
           <strong>(A) none：DC 沒被消除</strong>
           <p className="small">{m('校正期間主迴路 frozen、迴路沒有積分路徑、或 $x$ 已零均值。')}</p>
@@ -399,10 +399,10 @@ export function OffsetSection() {
         </li>
       </ol>
       <p>
-        <FigRef id="jitter-weight" /> 用勘誤 E17 的數字（置中的 5-level code、<Tex>{'b=0.2'}</Tex>、<Tex>{String.raw`\sigma_v(x)=\sqrt{1+0.25(x+2)^2}`}</Tex>）走一次。先看左邊的分叉：{' '}
+        <FigRef id="jitter-weight" /> 用勘誤 E17 的數字（置中的 5-level code、<Tex>{'b=0.2'}</Tex>、<Tex>{String.raw`\sigma_v(x)=\sqrt{1+0.25(x+2)^2}`}</Tex>）走一次。先看最上面的分叉：{' '}
         <Tex>{String.raw`\sigma_v`}</Tex> 是常數時，每個 code 的 <Tex>{'K_q'}</Tex> 一樣大，五個 code 的權重相同；<Tex>{String.raw`\sigma_v(x)`}</Tex> 隨 code 變大時，權重變成{' '}
-        <Tex>{String.raw`1/\sigma_v(x)`}</Tex>（藍色）。再看中間：加權後取平均，常數 <Tex>{String.raw`\sigma_v`}</Tex> 的正負兩邊剛好抵銷；<Tex>{'x<0'}</Tex> 的 code 雜訊較小、
-        權重較大，抵銷不了。右邊就是下面推導的最後兩行。
+        <Tex>{String.raw`1/\sigma_v(x)`}</Tex>（藍色）。再看中間那一排：加權後取平均，常數 <Tex>{String.raw`\sigma_v`}</Tex> 的正負兩邊剛好抵銷；<Tex>{'x<0'}</Tex> 的 code 雜訊較小、
+        權重較大，抵銷不了。最下面一排就是下面推導的最後兩行。
       </p>
       <Fig id="jitter-weight" />
       <ModeDetails title={m('推導：code-dependent $\\sigma_v(x)$ 下的 Sign-LMS 固定點（$1/\\sigma_v$ 加權）')}>

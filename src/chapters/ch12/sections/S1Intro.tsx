@@ -102,7 +102,7 @@ export function S1Intro() {
         >
           <p>
             {md(
-              String.raw`先由左往右沿著主線看：雜訊 $v[n]$ 進 comparator，1-bit 的 $q$ 被 GMAC 平均成 $G_k$，LMS 用它更新 $w$，於是係數帶著雜訊 $\delta w_k$。再看藍色的乘號：$\delta w$ 不是直接加到輸出，而是先乘上 code $x[n]$ 才變成 DTC 多出的延遲 $\delta t$。最後看乘號之後的分岔：同一個 $\delta t$ 往 PD 走是 high-pass，往 PLL output 走是 low-pass。圖上的方塊對應後面的小節：主線上乘號之前的五格是 §12.1–12.5，乘號是 §12.6，分岔之後是 §12.7–12.8。`,
+              String.raw`先由上往下沿著主線看：雜訊 $v[n]$ 進 comparator，1-bit 的 $q$ 被 GMAC 平均成 $G_k$，LMS 用它更新 $w$，於是係數帶著雜訊 $\delta w_k$。再看藍色的乘號：$\delta w$ 不是直接加到輸出，而是先乘上 code $x[n]$ 才變成 DTC 多出的延遲 $\delta t$。最後看乘號之後的分岔：同一個 $\delta t$ 往 PD 走是 high-pass，往 PLL output 走是 low-pass。圖上的方塊對應後面的小節：主線上乘號之前的五格是 §12.1–12.5，乘號是 §12.6，分岔之後是 §12.7–12.8。`,
             )}
           </p>
           <p>

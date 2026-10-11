@@ -124,6 +124,8 @@ describe('Ch01 頁面（jsdom smoke）', () => {
     expect(screen.getAllByText('9/5').length).toBeGreaterThan(0)
     // CodeCompare 的四個分頁
     for (const label of ['Conventional（MSE）', 'Sign-Error（MAE）', 'Huber', 'Sign-Sign']) expect(screen.getAllByText(label).length).toBeGreaterThan(0)
+    // 桌機一欄太窄：四個版本分成兩個並排的 CodeCompare（Conventional／Sign-Error、Huber／Sign-Sign），四個都還在
+    expect(Array.from(container.querySelectorAll('.c-code-compare')).map((c) => c.querySelectorAll('.c-code-compare-item').length)).toEqual([2, 2])
     // 差異行被標出
     expect(container.querySelectorAll('.c-code-mark').length).toBeGreaterThan(0)
     // 思考題與必記

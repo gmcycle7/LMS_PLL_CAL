@@ -99,10 +99,10 @@ export function S5LoopTypes() {
       </p>
       <ChapterDiagram id="D-06.10">
         <p>
-          先比較兩邊迴路裡的方塊。Type-I 的迴路濾波器只是一個比例增益 <Tex>{'\\omega_c'}</Tex>（開迴路交越頻率：<Tex>{'|L(j\\omega_c)|=1'}</Tex>），後面接 DCO 的積分{' '}
+          先比較兩個迴路（各在自己的虛線框裡）的方塊。Type-I 的迴路濾波器只是一個比例增益 <Tex>{'\\omega_c'}</Tex>（開迴路交越頻率：<Tex>{'|L(j\\omega_c)|=1'}</Tex>），後面接 DCO 的積分{' '}
           <Tex>{'1/s'}</Tex>（乘上 <Tex>{'1/s'}</Tex> 就是對時間積分，見下面的先備知識），所以開迴路是 <Tex>{'L(s)=\\omega_c/s'}</Tex>。Type-II 把比例增益換成藍色的 PI
           濾波器（比例 + 積分），開迴路是 <Tex>{'L(s)=(2\\zeta\\omega_ns+\\omega_n^2)/s^2'}</Tex>，其中 <Tex>{'\\omega_n'}</Tex> 是自然頻率、<Tex>{'\\zeta'}</Tex>{' '}
-          是阻尼比。再看兩邊從加法點用虛線拉出去的結果（綠色與紅色）——它們寫的是「從 <Tex>{'e_{\\mathrm{PD}}'}</Tex> 看」的轉移函數，和圖 6.3 的輸出 1
+          是阻尼比。再看兩個迴路各自從加法點用虛線拉出去的結果（綠色與紅色）——它們寫的是「從 <Tex>{'e_{\\mathrm{PD}}'}</Tex> 看」的轉移函數，和圖 6.3 的輸出 1
           是同一個位置：低頻時 Type-I 的 PD 看到 code 的<strong>一次微分</strong>，Type-II 看到<strong>二次微分</strong>。
         </p>
         <p>

@@ -80,12 +80,12 @@ const BODE_OMEGAS = logOmegaGrid(400, 1e-3, Math.PI)
 
 // 固定的 Plot layout 放在模組層級（物件參考不變 ⇒ 重新渲染時不會多打一次 Plotly.react、也不會重設使用者的縮放）
 const Z_PLANE_LAYOUT = zPlaneLayout(1.6)
-const BODE_MAG_LAYOUT: Partial<Layout> = { xaxis: { title: { text: String.raw`$\omega$ [rad/block]` } }, yaxis: { title: { text: 'dB' }, range: [-30, 50] } }
+const BODE_MAG_LAYOUT: Partial<Layout> = { xaxis: { title: { text: String.raw`$\omega$ [rad/block]` }, dtick: 1 }, yaxis: { title: { text: 'dB' }, range: [-30, 50] } }
 /** Bode 圖兩個模式共用的 trace 名稱（數學寫 `$...$`，Plot 會轉成斜體符號） */
 const BODE_FULL_NAME = String.raw`完整 $L = \mu F(z)/(z - 1)$`
 const BODE_QS_NAME = String.raw`quasi-static $\mu F(1)/(z - 1)$`
 const BODE_MINUS_180_NAME = String.raw`$-180^\circ$`
-const BODE_PHASE_LAYOUT: Partial<Layout> = { xaxis: { title: { text: String.raw`$\omega$ [rad/block]` } }, yaxis: { title: { text: 'deg' } } }
+const BODE_PHASE_LAYOUT: Partial<Layout> = { xaxis: { title: { text: String.raw`$\omega$ [rad/block]` }, dtick: 1 }, yaxis: { title: { text: 'deg' } } }
 
 /** 「試試看」提示用到的數字：全部由模型計算（不手寫） */
 const TRY = (() => {
@@ -570,7 +570,7 @@ export function DualLoopLab() {
 
   const n = gen.A.length
   const sweepLayout = useMemo<Partial<Layout>>(
-    () => ({ xaxis: { title: { text: String.raw`$\mu$（正規化）` }, range: [0, vm.sweepRange] }, yaxis: { title: { text: String.raw`$\rho$` }, range: [0, 1.6] }, legend: { orientation: 'h', y: -0.25 } }),
+    () => ({ xaxis: { title: { text: String.raw`$\mu$（正規化）` }, range: [0, vm.sweepRange] }, yaxis: { title: { text: String.raw`$\rho$` }, range: [0, 1.6] } }),
     [vm.sweepRange],
   )
   const timeLayout = useMemo<Partial<Layout>>(
@@ -664,12 +664,12 @@ export function DualLoopLab() {
       }
     >
       <div className="grid-2">
-        <Plot title={String.raw`$z$ 平面：完整 poles（●）vs quasi-static pole（◇）`} ariaLabel="z 平面：完整模型與 quasi-static 的 poles" data={vm.plots.zPlane} height={340} csvName="dual-loop-poles" layout={Z_PLANE_LAYOUT} caption={rich(String.raw`$\mu$ 增加時，完整模型的兩個根先在實軸上靠近，超過複數門檻後變成共軛對，沿 $|z|^2=r_s+\mu b_sc_s$ 的圓往外走；quasi-static pole 只在實軸上往 $-1$ 走。`)} />
+        <Plot title={String.raw`$z$ 平面：完整 poles（●）vs quasi-static pole（◇）`} ariaLabel="z 平面：完整模型與 quasi-static 的 poles" data={vm.plots.zPlane} height={440} csvName="dual-loop-poles" layout={Z_PLANE_LAYOUT} caption={rich(String.raw`$\mu$ 增加時，完整模型的兩個根先在實軸上靠近，超過複數門檻後變成共軛對，沿 $|z|^2=r_s+\mu b_sc_s$ 的圓往外走；quasi-static pole 只在實軸上往 $-1$ 走。`)} />
         <Plot
           title={String.raw`穩定性 vs $\mu$：完整模型的 $\rho$ 與 quasi-static 的 $|\text{pole}|$`}
           ariaLabel="spectral radius 對 μ 的掃描"
           data={vm.plots.sweep}
-          height={340}
+          height={440}
           csvName="dual-loop-rho-sweep"
           layout={sweepLayout}
           caption={rich(
@@ -688,8 +688,8 @@ export function DualLoopLab() {
         caption={rich(String.raw`實線：完整模型；虛線：quasi-static；點線：$\rho^k$ 包絡（log 軸上斜率 $=\log_{10}\rho$）。複數 pole 時 $|\delta_k|$ 會週期性地掉到接近 0（零交越）——判斷收斂要看包絡或每個週期的峰值，不要看單一時間點。`)}
       />
       <div className="grid-2">
-        <Plot title={String.raw`Bode：$|L_{\mathrm{cal}}(e^{j\omega})|$（完整 vs quasi-static）`} ariaLabel="Bode 大小圖：完整與 quasi-static" data={vm.plots.bodeMag} xLog height={260} csvName="dual-loop-bode-mag" layout={BODE_MAG_LAYOUT} caption={rich(String.raw`完整模型多一個 pole：高頻增益比 quasi-static 低，但那裡的相位更差（右圖）。`)} />
-        <Plot title={String.raw`Bode：$\angle L_{\mathrm{cal}}(e^{j\omega})$（展開相位）`} ariaLabel="Bode 相位圖：完整與 quasi-static" data={vm.plots.bodePhase} xLog height={260} csvName="dual-loop-bode-phase" layout={BODE_PHASE_LAYOUT} caption={rich(String.raw`quasi-static 把 $F(z)$ 換成 $F(1)$：相位永遠是 $-90^\circ-\omega/2$，看不到觀測路徑額外的相位延遲 $\angle F(e^{j\omega})$。二狀態模式的灰色點線是完整模型的 $\omega_{180}=\arccos\frac{1+r_s}{2}$（F-08.16）。`)} />
+        <Plot title={String.raw`Bode：$|L_{\mathrm{cal}}(e^{j\omega})|$（完整 vs quasi-static）`} ariaLabel="Bode 大小圖：完整與 quasi-static" data={vm.plots.bodeMag} xLog height={300} csvName="dual-loop-bode-mag" layout={BODE_MAG_LAYOUT} caption={rich(String.raw`完整模型多一個 pole：高頻增益比 quasi-static 低，但那裡的相位更差（右圖）。`)} />
+        <Plot title={String.raw`Bode：$\angle L_{\mathrm{cal}}(e^{j\omega})$（展開相位）`} ariaLabel="Bode 相位圖：完整與 quasi-static" data={vm.plots.bodePhase} xLog height={300} csvName="dual-loop-bode-phase" layout={BODE_PHASE_LAYOUT} caption={rich(String.raw`quasi-static 把 $F(z)$ 換成 $F(1)$：相位永遠是 $-90^\circ-\omega/2$，看不到觀測路徑額外的相位延遲 $\angle F(e^{j\omega})$。二狀態模式的灰色點線是完整模型的 $\omega_{180}=\arccos\frac{1+r_s}{2}$（F-08.16）。`)} />
       </div>
       <Callout kind={vm.summary.fullStable ? 'ok' : vm.summary.simplifiedStable ? 'danger' : 'warn'} title="判定">
         完整模型{vm.summary.fullStable ? '穩定' : '不穩定'}（<Tex>{`\\rho=${tx(vm.summary.rho, 5)}`}</Tex>）；quasi-static {vm.summary.simplifiedStable ? '預測穩定' : '預測不穩定'}（pole{' '}

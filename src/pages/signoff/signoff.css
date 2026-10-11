@@ -540,3 +540,8 @@
 #so-top {
   scroll-margin-top: calc(var(--topbar-h, 52px) + 16px);
 }
+
+/* 表格第一欄的短標籤（「1 方向」）不要被擠成一字一行 */
+.so-page td.so-nowrap {
+  white-space: nowrap;
+}
