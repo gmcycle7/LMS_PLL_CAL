@@ -41,6 +41,12 @@ function pick(v: Record<string, unknown>): Partial<FcwSweepParams> {
   return out
 }
 
+/** 近整數放大圖裡「漸近線」那條線的圖例名稱（`$...$` 是 LaTeX，Plot 會轉成斜體符號與上下標；f = frac） */
+export function fcwZoomAsymptoteName(delay: number, typeII: boolean): string {
+  if (delay > 0) return '|動差展開|（F-06.18）'
+  return typeII ? String.raw`動差展開 $= \frac{3}{\pi^2}\Delta^2$` : String.raw`動差展開 $m_0 - 6f\,m_1 + 6f^2m_2$`
+}
+
 function minOf(a: ArrayLike<number>): number {
   let m = Infinity
   for (let i = 0; i < a.length; i++) if (Number.isFinite(a[i])) m = Math.min(m, a[i])
@@ -93,7 +99,7 @@ export function FcwSweepExperiment() {
       { x, y: Array.from(res.mash), name: 'MASH 1-1-1 residue（模擬）', mode: 'lines+markers', line: { color: tokens.series[2] } },
       { x, y: Array.from(res.triangle), name: '三角波（平滑慢變 code，模擬）', mode: 'lines+markers', line: { color: tokens.series[1] } },
       { x, y: Array.from(res.triTheory), name: '三角波譜線和', mode: 'lines', line: { color: tokens.series[1], dash: 'dash' } },
-      { x, y: Array.from(res.sine), name: '正弦：Re{H(e^{jΩ0})e^{jΩ0D}}', mode: 'lines', line: { color: tokens.series[4], dash: 'dot' } },
+      { x, y: Array.from(res.sine), name: String.raw`正弦：$\operatorname{Re}\big(H(e^{j\Omega_0})\,e^{j\Omega_0D}\big)$`, mode: 'lines', line: { color: tokens.series[4], dash: 'dot' } },
     ]
     // log–log 放大圖：畫絕對值（D ≥ 1 時鋸齒的 C_D 會變號，|C_D| 在變號點有一個凹口）
     const zoomX: number[] = []
@@ -111,16 +117,16 @@ export function FcwSweepExperiment() {
     }
     const typeII = res.design.type === 'typeII'
     const zoom: Data[] = [
-      { x: zoomX, y: zoomSaw, name: 'DSM residue |C_D|/σ²', mode: 'markers', marker: { color: tokens.series[0] } },
+      { x: zoomX, y: zoomSaw, name: String.raw`DSM residue $|C_D|/\sigma_x^2$`, mode: 'markers', marker: { color: tokens.series[0] } },
       {
         x: zoomX,
         y: zoomAsym,
-        name: res.delay > 0 ? '|動差展開|（F-06.18）' : typeII ? '動差展開 = (3/π²)Δ²' : '動差展開 m₀ − 6f·m₁ + 6f²·m₂',
+        name: fcwZoomAsymptoteName(res.delay, typeII),
         mode: 'lines',
         line: { color: tokens.series[0], dash: 'dash' },
       },
-      { x: zoomX, y: zoomTri, name: '三角波 |C_D|/σ²', mode: 'markers', marker: { color: tokens.series[1], symbol: 'diamond' } },
-      { x: zoomX, y: zoomTriAsym, name: '|m₀ − 24f²·Σh(k − D)²|', mode: 'lines', line: { color: tokens.series[1], dash: 'dot' } },
+      { x: zoomX, y: zoomTri, name: String.raw`三角波 $|C_D|/\sigma_x^2$`, mode: 'markers', marker: { color: tokens.series[1], symbol: 'diamond' } },
+      { x: zoomX, y: zoomTriAsym, name: String.raw`$|m_0 - 24f^2\sum h(k-D)^2|$`, mode: 'lines', line: { color: tokens.series[1], dash: 'dot' } },
     ]
     // basin：mean-field 變號點 δ_c/σ_v（只有部分 frac 有）
     const bx: number[] = []
@@ -131,7 +137,7 @@ export function FcwSweepExperiment() {
         by.push(res.basin[i])
       }
     }
-    const basin: Data[] = [{ x: bx, y: by, name: '一階 DSM：δ_c/σ_v（C_D > 0 的點）', mode: 'lines+markers', line: { color: tokens.series[3] } }]
+    const basin: Data[] = [{ x: bx, y: by, name: String.raw`一階 DSM：$\delta_c/\sigma_v$（$C_D > 0$ 的點）`, mode: 'lines+markers', line: { color: tokens.series[3] } }]
     return { main, zoom, basin, hasBasin: bx.length > 0 }
   }, [res, tokens])
 
@@ -260,9 +266,9 @@ export function FcwSweepExperiment() {
             : []),
         ]
       : []
-    const main: Partial<Layout> = { xaxis: { title: { text: 'frac' } }, yaxis: { title: { text: 'C_D / σ_x²' } }, shapes: [zeroLine, ...fracLine] }
-    const zoom: Partial<Layout> = { xaxis: { title: { text: 'Δ = Ω0/(ω_L T_s)' } }, yaxis: { title: { text: '|C_D| / σ_x²' } } }
-    const basin: Partial<Layout> = { xaxis: { title: { text: 'frac' } }, yaxis: { title: { text: 'δ_c / σ_v' } } }
+    const main: Partial<Layout> = { xaxis: { title: { text: String.raw`$\mathrm{frac}$` } }, yaxis: { title: { text: String.raw`$C_D/\sigma_x^2$` } }, shapes: [zeroLine, ...fracLine] }
+    const zoom: Partial<Layout> = { xaxis: { title: { text: String.raw`$\Delta = \Omega_0/(\omega_L T_s)$` } }, yaxis: { title: { text: String.raw`$|C_D|/\sigma_x^2$` } } }
+    const basin: Partial<Layout> = { xaxis: { title: { text: String.raw`$\mathrm{frac}$` } }, yaxis: { title: { text: String.raw`$\delta_c/\sigma_v$` } } }
     return { main, zoom, basin }
   }, [res, tokens])
 

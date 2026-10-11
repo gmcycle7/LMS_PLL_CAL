@@ -83,9 +83,9 @@ export function MedianExampleSection() {
   const costPlot = useMemo<Data[]>(() => {
     const grid = Array.from({ length: 261 }, (_, i) => -2 + (14 * i) / 260)
     return [
-      { x: grid, y: grid.map((w) => ex.J('mse', w)), name: 'J_MSE(w) = ¼Σ½(yᵢ − w)²', mode: 'lines', line: { color: tokens.series[0] } },
-      { x: grid, y: grid.map((w) => ex.J('mae', w)), name: 'J_MAE(w) = ¼Σ|yᵢ − w|', mode: 'lines', line: { color: tokens.series[1] } },
-      { x: grid, y: grid.map((w) => ex.J('huber', w)), name: 'J_Huber(w)（δₕ = 1）', mode: 'lines', line: { color: tokens.series[2] } },
+      { x: grid, y: grid.map((w) => ex.J('mse', w)), name: String.raw`$J_{\mathrm{MSE}}(w)=\tfrac14\,\sum\,\tfrac12(y_i-w)^2$`, mode: 'lines', line: { color: tokens.series[0] } },
+      { x: grid, y: grid.map((w) => ex.J('mae', w)), name: String.raw`$J_{\mathrm{MAE}}(w)=\tfrac14\,\sum|y_i-w|$`, mode: 'lines', line: { color: tokens.series[1] } },
+      { x: grid, y: grid.map((w) => ex.J('huber', w)), name: String.raw`$J_{\mathrm{Huber}}(w)$（$\delta_H=1$）`, mode: 'lines', line: { color: tokens.series[2] } },
       { x: [ex.bo.mse], y: [ex.J('mse', ex.bo.mse)], name: `平均 ${f(ex.bo.mse)}`, mode: 'markers', marker: { size: 11, color: tokens.series[0] } },
       { x: [ex.bo.maeLow], y: [ex.J('mae', ex.bo.maeLow)], name: `中位數 ${f(ex.bo.maeLow)}`, mode: 'markers', marker: { size: 11, color: tokens.series[1] } },
       { x: [ex.hub], y: [ex.J('huber', ex.hub)], name: `Huber ${f(ex.hub, 4)}`, mode: 'markers', marker: { size: 11, color: tokens.series[2] } },
@@ -127,9 +127,9 @@ export function MedianExampleSection() {
     // 連續近似：π_k ≈ 格點間距 × N(w_k; 0, μ/(4f))
     const gauss = keep.map((q) => (lat.h * Math.exp((-q.g * q.g) / (2 * v))) / Math.sqrt(2 * Math.PI * v))
     return [
-      { x: keep.map((q) => q.g), y: keep.map((q) => q.pk), type: 'bar', name: `精確 π(w)（格點鏈，μ = ${mu}）`, marker: { color: tokens.series[1] } },
-      { x: keep.map((q) => q.g), y: gauss, mode: 'lines', name: `擴散近似 N(0, μ/(4f))，std = ${f(Math.sqrt(v), 3)}`, line: { color: tokens.series[3], dash: 'dash' } },
-      { x: [-mu, -mu, null, mu, mu], y: [0, lat.piMax, null, 0, lat.piMax], mode: 'lines', name: `±μ|x| = ±${mu}（單步步長）`, line: { color: tokens.textMuted, dash: 'dot' } },
+      { x: keep.map((q) => q.g), y: keep.map((q) => q.pk), type: 'bar', name: String.raw`精確 $\pi(w)$（格點鏈，$\mu=${mu}$）`, marker: { color: tokens.series[1] } },
+      { x: keep.map((q) => q.g), y: gauss, mode: 'lines', name: String.raw`擴散近似 $\mathcal N(0,\ \mu/(4f))$，$\operatorname{std}=${texNum(Math.sqrt(v), 3)}$`, line: { color: tokens.series[3], dash: 'dash' } },
+      { x: [-mu, -mu, null, mu, mu], y: [0, lat.piMax, null, 0, lat.piMax], mode: 'lines', name: String.raw`$\pm\mu|x|=\pm${mu}$（單步步長）`, line: { color: tokens.textMuted, dash: 'dot' } },
     ]
   }, [tokens])
 
@@ -546,7 +546,7 @@ export function MedianExampleSection() {
           title="同一組資料的三種成本 $J(w)$"
           ariaLabel="同一組資料的三種成本 J(w)：MSE、MAE、Huber"
           data={costPlot}
-          layout={{ xaxis: { title: { text: 'w' } }, yaxis: { title: { text: 'J(w)' } } }}
+          layout={{ xaxis: { title: { text: '$w$' } }, yaxis: { title: { text: '$J(w)$' } } }}
           height={300}
           csvName="ch01-four-point-cost"
           caption={
@@ -828,7 +828,7 @@ export function MedianExampleSection() {
           title="Gaussian 雜訊（$\sigma_v=1$）下 Sign-Error 的精確穩態分布：遠比 $\pm\mu$ 寬"
           ariaLabel="Gaussian 雜訊下 Sign-Error 的精確穩態分布：遠比單步步長寬"
           data={jitPlot}
-          layout={{ xaxis: { title: { text: 'w − 中位數' } }, yaxis: { title: { text: 'π（待在該格點的時間比例）' } }, bargap: 0.15 }}
+          layout={{ xaxis: { title: { text: String.raw`$w-\text{中位數}$` } }, yaxis: { title: { text: String.raw`$\pi$（待在該格點的時間比例）` } }, bargap: 0.15 }}
           height={270}
           csvName="ch01-sign-error-jitter"
           caption={

@@ -18,7 +18,7 @@ import {
 } from '@/components'
 import { presetsForExperiment, useUrlPreset } from '@/app/presets'
 import { isWorkerCancelled, useWorkerTask } from '@/workers'
-import { gaugeNullVector, type GaugeConstraintRow, type GaugeParams, type GaugeResult } from '@/simulation/models/pe'
+import { gaugeNullVector, type GaugeConstraintRow, type GaugeLmsRun, type GaugeParams, type GaugeResult } from '@/simulation/models/pe'
 import { Erratum, m, mt, num, texMatrix, texNum } from '../shared'
 import { GAUGE_DEFAULT, GAUGE_LIMITS, W0_A, W0_B, gaugeTfTex, gaugeWarningTex, sanitizeGaugeState, toGaugeParams, type GaugeLabState } from './gaugeLabState'
 
@@ -39,12 +39,37 @@ const CONSTRAINT_LABEL: Record<GaugeConstraintRow['id'], string> = {
   dropb_ref: String.raw`不更新 $b$ ＋ 固定 $a_0:=0$`,
 }
 
-const OUT_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'sample n' } }, yaxis: { title: { text: 'y[n]（fs）' } } }
-const PD_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'sample n − skip' } }, yaxis: { title: { text: 'e_PD[n]（fs）' } } }
-const EIG_LAYOUT: Partial<Layout> = { barmode: 'group', xaxis: { title: { text: '由大到小' } }, yaxis: { title: { text: 'λ' } } }
-const WB_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'block k' } }, yaxis: { title: { text: 'w_b（fs）' } } }
-const NULL_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'block k' } }, yaxis: { title: { text: '投影（fs）' } } }
-const ERR_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'block k' } }, yaxis: { title: { text: 'RMS(e)（fs）' } } }
+// 圖內文字的數學一律寫 `$...$`（Plot 元件經 plotMath.ts 轉成斜體符號與上下標；docs/teaching-style.md §3）。
+// plotMath 的限制：\boldsymbol／\mathbf／\hat／\tilde 的參數要加大括號（`\boldsymbol{\theta}`），不然只會吃到一個字元。
+const OUT_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'sample $n$' } }, yaxis: { title: { text: '$y[n]$（fs）' } } }
+const PD_LAYOUT: Partial<Layout> = { xaxis: { title: { text: String.raw`sample $n-\text{skip}$` } }, yaxis: { title: { text: String.raw`$e_{\mathrm{PD}}[n]$（fs）` } } }
+/** eigenvalue 的長條圖：x 用序號 1…5，刻度文字用 `ticktext`（分類軸的字串不會經過 plotMath） */
+const EIG_INDEX = [1, 2, 3, 4, 5]
+const EIG_LAYOUT: Partial<Layout> = {
+  barmode: 'group',
+  xaxis: { title: { text: '由大到小' }, tickmode: 'array', tickvals: EIG_INDEX, ticktext: EIG_INDEX.map((i) => String.raw`$\lambda_${i}$`) },
+  yaxis: { title: { text: String.raw`$\lambda$` } },
+}
+const WB_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'block $k$' } }, yaxis: { title: { text: '$w_b$（fs）' } } }
+const NULL_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'block $k$' } }, yaxis: { title: { text: '投影（fs）' } } }
+const ERR_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'block $k$' } }, yaxis: { title: { text: String.raw`$\mathrm{RMS}(e)$（fs）` } } }
+
+/**
+ * LMS demo 各 run 的名稱（模型 GaugeLmsRun.label 是純文字、含 Unicode 數學，匯出／報告用；畫面上依 run 的代號 A／B／C 改用 LaTeX 版本，
+ * 意思與模型的 label 逐項相同：A、B 是 raw-x 的兩組初值，C 是 u-domain（raw 或 filtered GMAC regressor），初值 w₀ᴬ）。
+ */
+function lmsRunTex(label: string, gmacReg: GaugeParams['gmacReg'] | undefined): string {
+  switch (label[0]) {
+    case 'A':
+      return String.raw`A：raw-x，初值 $\mathbf w_0^A$`
+    case 'B':
+      return String.raw`B：raw-x，初值 $\mathbf w_0^B$`
+    case 'C':
+      return String.raw`C：u-domain（${gmacReg === 'filtered' ? String.raw`filtered $\tilde{\mathbf u}$` : String.raw`raw $\tilde{\mathbf x}$`} GMAC），初值 $\mathbf w_0^A$`
+    default:
+      return label
+  }
+}
 
 interface GaugeMc {
   params: GaugeParams
@@ -231,45 +256,51 @@ export function GaugeOneHotLab() {
   const outData = useMemo<Data[]>(() => {
     if (!res) return []
     return [
-      { x: res.previewN, y: res.yRaw, mode: 'markers', name: 'y_θ', marker: { size: 8, color: tokens.series[0] } },
-      { x: res.previewN, y: res.yRawGauge, mode: 'lines', name: "y_θ'（θ + c·n）", line: { color: tokens.series[1] } },
-      { x: res.previewN, y: res.yRawB, mode: 'lines', name: "y_θ''（只動 b）", line: { color: tokens.series[3], dash: 'dash' } },
+      { x: res.previewN, y: res.yRaw, mode: 'markers', name: String.raw`$y_{\theta}$`, marker: { size: 8, color: tokens.series[0] } },
+      { x: res.previewN, y: res.yRawGauge, mode: 'lines', name: String.raw`$y_{\theta'}$（$\boldsymbol{\theta}+c\,\mathbf n$）`, line: { color: tokens.series[1] } },
+      { x: res.previewN, y: res.yRawB, mode: 'lines', name: String.raw`$y_{\theta''}$（只動 $b$）`, line: { color: tokens.series[3], dash: 'dash' } },
     ]
   }, [res, tokens])
   const pdData = useMemo<Data[]>(() => {
     if (!res || !pd) return []
     return [
-      { x: res.previewN, y: res.yPd, mode: 'markers', name: 'e_θ（經 H_PD）', marker: { size: 8, color: tokens.series[0] } },
-      { x: res.previewN, y: res.yPdGauge, mode: 'lines', name: "e_θ'（θ + c·n）", line: { color: tokens.series[1] } },
-      { x: res.previewN, y: res.yPdB, mode: 'lines', name: "e_θ''（只動 b）", line: { color: tokens.series[3], dash: 'dash' } },
+      { x: res.previewN, y: res.yPd, mode: 'markers', name: String.raw`$e_{\theta}$（經 $H_{\mathrm{PD}}$）`, marker: { size: 8, color: tokens.series[0] } },
+      { x: res.previewN, y: res.yPdGauge, mode: 'lines', name: String.raw`$e_{\theta'}$（$\boldsymbol{\theta}+c\,\mathbf n$）`, line: { color: tokens.series[1] } },
+      { x: res.previewN, y: res.yPdB, mode: 'lines', name: String.raw`$e_{\theta''}$（只動 $b$）`, line: { color: tokens.series[3], dash: 'dash' } },
     ]
   }, [res, pd, tokens])
   const eigData = useMemo<Data[]>(() => {
     if (!res) return []
-    const labels = ['λ₁', 'λ₂', 'λ₃', 'λ₄', 'λ₅']
-    const fmtE = (v: number) => (Math.abs(v) < 1e-9 ? num(v, 2) : num(v, 4))
+    const labels = EIG_INDEX
+    // 長條上的數值標籤：科學記號（例如浮點捨入的 -3.7e-18）寫成 TeX 的 $-3.7\times10^{-18}$，其餘照常
+    const fmtE = (v: number) => {
+      const d = Math.abs(v) < 1e-9 ? 2 : 4
+      const t = num(v, d)
+      return /e[+-]?\d/.test(t) ? `$${texNum(v, d)}$` : t
+    }
     const traces: Data[] = [
-      { type: 'bar', x: labels, y: res.eigRx, name: 'raw-x（樣本 R_x）', text: res.eigRx.map(fmtE), textposition: 'outside', marker: { color: tokens.series[0] } },
+      { type: 'bar', x: labels, y: res.eigRx, name: String.raw`raw-x（樣本 $\mathbf R_x$）`, text: res.eigRx.map(fmtE), textposition: 'outside', marker: { color: tokens.series[0] } },
     ]
-    if (pd) traces.push({ type: 'bar', x: labels, y: res.eigRu, name: 'u-domain（樣本 R_u）', text: res.eigRu.map(fmtE), textposition: 'outside', marker: { color: tokens.series[2] } })
-    traces.push({ type: 'scatter', x: labels, y: res.eigRxAnalytic, mode: 'markers', name: 'raw-x 解析 {5/4, 1/4, 1/4, 1/4, 0}', marker: { symbol: 'x', size: 10, color: tokens.text } })
+    if (pd) traces.push({ type: 'bar', x: labels, y: res.eigRu, name: String.raw`u-domain（樣本 $\mathbf R_u$）`, text: res.eigRu.map(fmtE), textposition: 'outside', marker: { color: tokens.series[2] } })
+    traces.push({ type: 'scatter', x: labels, y: res.eigRxAnalytic, mode: 'markers', name: String.raw`raw-x 解析 $\lambda=5/4,\ 1/4,\ 1/4,\ 1/4,\ 0$`, marker: { symbol: 'x', size: 10, color: tokens.text } })
     if (pd && res.eigRuAnalytic)
-      traces.push({ type: 'scatter', x: labels, y: res.eigRuAnalytic, mode: 'markers', name: 'u-domain 解析 ‖h‖²/4 ×3, 0, 0', marker: { symbol: 'diamond-open', size: 10, color: tokens.text } })
+      traces.push({ type: 'scatter', x: labels, y: res.eigRuAnalytic, mode: 'markers', name: String.raw`u-domain 解析 $\|h\|^2/4\ (\times3),\ 0,\ 0$`, marker: { symbol: 'diamond-open', size: 10, color: tokens.text } })
     return traces
   }, [res, pd, tokens])
   const lmsData = useMemo(() => {
     if (!res) return null
     const k = res.lms.k
     const colors = [tokens.series[0], tokens.series[1], tokens.series[3]]
-    const wb: Data[] = res.lms.runs.map((r, i) => ({ x: k, y: r.wb, mode: 'lines', name: `w_b ${r.label}`, line: { color: colors[i] } }))
-    wb.push({ x: [0, k[k.length - 1]], y: [used?.b ?? 0, used?.b ?? 0], mode: 'lines', name: '真值 b', line: { color: tokens.textMuted, dash: 'dash' } })
+    const tag = (r: GaugeLmsRun) => lmsRunTex(r.label, used?.gmacReg)
+    const wb: Data[] = res.lms.runs.map((r, i) => ({ x: k, y: r.wb, mode: 'lines', name: String.raw`$w_b$ ${tag(r)}`, line: { color: colors[i] } }))
+    wb.push({ x: [0, k[k.length - 1]], y: [used?.b ?? 0, used?.b ?? 0], mode: 'lines', name: '真值 $b$', line: { color: tokens.textMuted, dash: 'dash' } })
     const nul: Data[] = res.lms.runs
       .filter((r) => r.domain === 'raw')
-      .map((r, i) => ({ x: k, y: r.nullProj, mode: 'lines', name: `n̂ᵀw ${r.label}`, line: { color: colors[i] } }))
+      .map((r, i) => ({ x: k, y: r.nullProj, mode: 'lines', name: String.raw`$\hat{\mathbf n}^T\mathbf w$ ${tag(r)}`, line: { color: colors[i] } }))
     res.lms.runs
       .filter((r) => r.domain === 'pd')
-      .forEach((r) => nul.push({ x: k, y: r.cm, mode: 'lines', name: `aᵢ 共模 (1/4)Σaᵢ ${r.label}`, line: { color: colors[2], dash: 'dot' } }))
-    const err: Data[] = res.lms.runs.map((r, i) => ({ x: k, y: r.errRms, mode: 'lines', name: `RMS(e) ${r.label}`, line: { color: colors[i] } }))
+      .forEach((r) => nul.push({ x: k, y: r.cm, mode: 'lines', name: String.raw`$a_i$ 共模 $(1/4)\sum_ia_i$ ${tag(r)}`, line: { color: colors[2], dash: 'dot' } }))
+    const err: Data[] = res.lms.runs.map((r, i) => ({ x: k, y: r.errRms, mode: 'lines', name: String.raw`$\mathrm{RMS}(e)$ ${tag(r)}`, line: { color: colors[i] } }))
     return { wb, nul, err }
   }, [res, used, tokens])
 
@@ -475,7 +506,7 @@ export function GaugeOneHotLab() {
             data={eigData}
             layout={EIG_LAYOUT}
             height={320}
-            caption="長條為樣本相關矩陣的 eigenvalue（標註數值），× / ◇ 為 iid one-hot 的解析值。零 eigenvalue 的長條高度為 0。"
+            caption={String.raw`長條為樣本相關矩陣的 eigenvalue（標註數值），$\times$ / $\diamond$ 為 iid one-hot 的解析值。零 eigenvalue 的長條高度為 0。`}
           />
           <h4>Null space（數值上 {m`\lambda\approx0`} 的 eigenvectors）</h4>
           <div className="table-wrap">
@@ -603,7 +634,7 @@ export function GaugeOneHotLab() {
                     </tr>
                     {res.lms.runs.map((r) => (
                       <tr key={r.label}>
-                        <td className="ch09-left">{r.label}</td>
+                        <td className="ch09-left">{mathText(lmsRunTex(r.label, used?.gmacReg))}</td>
                         {r.final.map((v, i) => (
                           <td key={i}>{num(v, 4)}</td>
                         ))}

@@ -8,12 +8,16 @@
  * jsdom 沒有版面引擎（getBBox / getBoundingClientRect 都回傳 0），所以這裡用「估計的字寬」補上量測函式：
  * 版面不是像素級精確，但節點大小、欄數、整張圖的寬高都在正確的量級，足以檢查
  *  (1) 每個標籤的文字原封不動出現在 SVG 裡；(2) classDef 的顏色有套到節點；(3) 圖的自然寬度沒有超過正文欄太多。
+ *
+ * 標籤裡的數學寫成 `$...$`（共用 Mermaid 元件以 KaTeX 排版）：這裡的量測函式會略過 KaTeX 的 MathML 複本、
+ * 把 `\cr` 分行的公式當成多行來估計尺寸；另外提供「圖原始碼裡 `$...$` 以外還有沒有 Unicode 拼的數學」的檢查。
  */
+import { unicodeMathIn } from '@/components/mermaidTestUtils'
 
 /** 一個字元在 16 px 無襯線字型下的估計寬度（px）。CJK／全形字固定 16 px。 */
 export function charWidth(ch: string): number {
   const c = ch.codePointAt(0) ?? 0
-  if (c === 0x0304) return 0 // 組合用上橫線（x̄、ε̄）
+  if (c === 0x0304 || c === 0x200b) return 0 // 組合用上橫線（x̄、ε̄）、KaTeX 在上下標之間放的零寬空白
   if (c >= 0x2e80 || (c >= 0x2460 && c <= 0x24ff)) return 16 // CJK、全形符號、①②
   if (" ijltfr.,;:|!'()[]{}·/".includes(ch)) return 4.8
   if (ch >= '0' && ch <= '9') return 9
@@ -122,8 +126,24 @@ function bboxOf(el: Element): Box | null {
   return out
 }
 
-/** HTML 標籤（foreignObject 內的 div）的估計大小：依 <br> 分行，超過 WRAP_WIDTH 的行再自動折行。 */
+/**
+ * KaTeX 標籤的各行文字（拿掉 MathML 複本；`\\cr` 分行的 gathered 環境每一列算一行）。不含公式的元素回傳 null。
+ */
+function katexRows(el: Element): string[] | null {
+  if (!el.querySelector('.katex')) return null
+  const copy = el.cloneNode(true) as Element
+  copy.querySelectorAll('.katex-mathml').forEach((e) => e.remove())
+  const rows = Array.from(copy.querySelectorAll('.mtable > .col-align-c > .vlist-t > .vlist-r > .vlist > span'))
+  return rows.length ? rows.map((r) => r.textContent ?? '') : [copy.textContent ?? '']
+}
+
+/** HTML 標籤（foreignObject 內的 div）的估計大小：依 <br> 分行，超過 WRAP_WIDTH 的行再自動折行；KaTeX 公式不會自動折行。 */
 function htmlLabelSize(el: Element): { width: number; height: number } {
+  const math = katexRows(el)
+  if (math) {
+    const widths = math.map((t) => textWidth(t))
+    return { width: Math.max(0, ...widths), height: Math.max(1, math.length) * 24 }
+  }
   const lines = labelLines(el.innerHTML.replace(/&[a-z]+;/g, 'x'))
   if (!lines.length) return { width: 0, height: 0 }
   let width = 0
@@ -182,9 +202,68 @@ export function renderedLabels(svg: string): string[] {
   const out: string[] = []
   doc.querySelectorAll('span.nodeLabel, span.edgeLabel, text.messageText, text.noteText, text.actor').forEach((el) => {
     const copy = el.cloneNode(true) as Element
+    copy.querySelectorAll('.katex-mathml').forEach((m) => m.remove())
     copy.querySelectorAll('br').forEach((br) => br.replaceWith('\n'))
     const t = (copy.textContent ?? '').trim()
     if (t) out.push(t)
   })
   return out
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// 圖原始碼裡的 `$...$`（LaTeX）
+// ───────────────────────────────────────────────────────────────────────────
+
+/** 與共用 Mermaid 前處理（mermaidSource.ts）相同的行內公式規則：`$...$` 或 `$$...$$`，`\$` 是字面的美元符號。 */
+const MATH_SEGMENT = /\$\$((?:[^$\\]|\\.)+?)\$\$|(?<!\\)\$((?:[^$\\]|\\.)+?)(?<!\\)\$/g
+
+/** 圖原始碼裡所有雙引號標籤（節點、連線、subgraph 標題）。 */
+export function quotedLabels(chart: string): string[] {
+  return Array.from(chart.matchAll(/"([^"\n]*)"/g), (m) => m[1])
+}
+
+/** 標籤裡有沒有 `$...$`。 */
+export function hasMath(label: string): boolean {
+  MATH_SEGMENT.lastIndex = 0
+  const found = MATH_SEGMENT.test(label)
+  MATH_SEGMENT.lastIndex = 0
+  return found
+}
+
+/**
+ * 含 `$...$` 的標籤個數。共用 Mermaid 會把每個含公式的標籤合併成一個 KaTeX 區塊，
+ * 所以 renderMermaidForTest 回傳的 mathCount 必須剛好等於它（少了就是有公式沒排成功，多了就是別處多出公式）。
+ */
+export function mathLabelCount(chart: string): number {
+  return quotedLabels(chart).filter(hasMath).length
+}
+
+/** 標籤去掉 `$...$` 之後留下的文字片段（依出現順序；<br/> 當成分隔）。 */
+export function textFragments(label: string): string[] {
+  return label
+    .replace(MATH_SEGMENT, '\uE000')
+    .split(/<br\s*\/?>|\uE000/i)
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0)
+}
+
+/**
+ * 圖原始碼裡「`$...$` 以外」的文字若還有 Unicode 拼的數學（μ、≤、×、w_k、z⁻¹ …），回傳找到的片段。
+ * 和 unicodeMathIn(plainText) 互補：含公式的標籤整個交給 KaTeX（文字變成 \text{}），畫出來的 plainText 看不到它的文字部分，所以要在原始碼層級檢查。
+ */
+export function unicodeMathInSource(chart: string): string[] {
+  const hits = quotedLabels(chart).flatMap((label) => unicodeMathIn(textFragments(label).join(' ')))
+  return [...new Set(hits)]
+}
+
+/** 一行標籤排版後大約的樣子（量寬度用）：`$...$` 內的 TeX 指令當成一個字元、不佔寬度的指令與括號拿掉。 */
+export function displayText(line: string): string {
+  return line
+    .replace(MATH_SEGMENT, (_all, a: string | undefined, b: string | undefined) =>
+      (a ?? b ?? '')
+        .replace(/\\(?:mathrm|mathbf|text|textcircled|left|right|displaystyle|frac|tfrac|dfrac|hat|bar|tilde|overline)\b|\\[,;!]/g, '')
+        .replace(/\\[a-zA-Z]+/g, '\u2588')
+        .replace(/[{}_^\s]/g, ''),
+    )
+    .replace(/<[^>]+>/g, '')
 }

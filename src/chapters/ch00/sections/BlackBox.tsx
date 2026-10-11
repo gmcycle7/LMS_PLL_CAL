@@ -87,10 +87,10 @@ export function BlackBoxSection() {
         <p>
           先看經過深灰色黑盒子的那條路：<Tex>{'x'}</Tex> 乘上未知的 <Tex>{'a'}</Tex>，在第一個相加點加上雜訊 <Tex>{'v'}</Tex>（紅色），得到我們量得到的 <Tex>{'y'}</Tex>。再看經過藍色方塊的那條路：
           <strong>同一個</strong> <Tex>{'x'}</Tex> 乘上我們的猜測 <Tex>{'w'}</Tex>（藍色），得到預測 <Tex>{'\\hat y'}</Tex>。最後看最右邊的相加點：<Tex>{'y'}</Tex> 以{' '}
-          <code>(+)</code> 進入、<Tex>{'\\hat y'}</Tex> 以 <code>(−)</code> 進入，所以輸出是 <Tex>{'e=y-\\hat y'}</Tex>。
+          <Tex>{'(+)'}</Tex> 進入、<Tex>{'\\hat y'}</Tex> 以 <Tex>{'(-)'}</Tex> 進入，所以輸出是 <Tex>{'e=y-\\hat y'}</Tex>。
         </p>
         <p>
-          圖上的三條線 <code>y = a·x + v</code>、<code>ŷ = w·x</code>、<code>e = y − ŷ</code> 就是下面 F-00.1 的三個等式。整個網站的目標只有一個：調 <Tex>{'w'}</Tex>
+          圖上的三條線 <Tex>{'y = a\\,x + v'}</Tex>、<Tex>{'\\hat y = w\\,x'}</Tex>、<Tex>{'e = y - \\hat y'}</Tex> 就是下面 F-00.1 的三個等式。整個網站的目標只有一個：調 <Tex>{'w'}</Tex>
           （我們唯一碰得到的旋鈕），讓藍色方塊變得和深灰色的黑盒子一樣。
         </p>
       </ChapterDiagram>
@@ -288,7 +288,7 @@ export function BlackBoxSection() {
 function RatioTable({ rows, caption }: { rows: { x: number; y: number; ratio: number }[]; caption: ReactNode }) {
   return (
     <div className="table-wrap">
-      <table className="ch00-num-table">
+      <table className="ch00-num-table ch00-ratio-table">
         <caption className="small muted">{caption}</caption>
         <thead>
           <tr>
@@ -352,12 +352,12 @@ export function LoopSection() {
       </ol>
       <ChapterDiagram name="CHART_LOOP">
         <p>
-          先由左到右看主線：<code>x[n]</code> 進「① 預測」變成 <code>ŷ[n]</code>，和黑盒子送來的 <code>y[n]</code> 在「② 比較」相減得到 <code>e[n]</code>，再進「③ 修正」。
-          再看兩條容易漏掉的線：<code>x[n]</code> 有<strong>第二條</strong>線直接接到「③ 修正」（修正量要用到它，下面馬上說明為什麼）；而「③ 修正」的輸出{' '}
-          <code>w[n+1]</code> 繞回「① 預測」——這條回授線讓它成為一個迴圈。
+          先從上方的「① 預測」開始，順著箭頭（順時針）看主線：<Tex>{'x[n]'}</Tex> 進「① 預測」變成 <Tex>{'\\hat y[n]'}</Tex>，和黑盒子送來的 <Tex>{'y[n]'}</Tex> 在右邊的「② 比較」相減得到 <Tex>{'e[n]'}</Tex>，再往左下進「③ 修正」。
+          再看兩條容易漏掉的線：<Tex>{'x[n]'}</Tex> 有<strong>第二條</strong>線直接接到「③ 修正」（修正量要用到它，下面馬上說明為什麼）；而「③ 修正」的輸出{' '}
+          <Tex>{'w[n+1]'}</Tex> 繞回「① 預測」——這條回授線讓它成為一個迴圈。
         </p>
         <p>
-          圖上的 <code>x[n]、y[n]、ŷ[n]、e[n]、w[n]</code> 就是公式裡的 <Tex>{'x_n,\\ y_n,\\ \\hat y_n,\\ e_n,\\ w_n'}</Tex>；「③ 修正」那一格寫的式子，就是 §0.3 的 LMS 更新式。
+          圖上的 <Tex>{'x[n],\\ y[n],\\ \\hat y[n],\\ e[n],\\ w[n]'}</Tex> 就是公式裡的 <Tex>{'x_n,\\ y_n,\\ \\hat y_n,\\ e_n,\\ w_n'}</Tex>；「③ 修正」那一格寫的式子，就是 §0.3 的 LMS 更新式。
         </p>
       </ChapterDiagram>
 
@@ -439,13 +439,13 @@ export function UpdateFormulaSection() {
       </p>
       <ChapterDiagram name="CHART_LMS_ACCUMULATOR">
         <p>
-          先看左邊：<code>e[n]</code> 與 <code>x[n]</code> 進乘法器（圓圈 ×），再乘上常數 <Tex>{'\\mu'}</Tex>（硬體上常做成右移 <Tex>{'k'}</Tex> 位元），得到這一筆的更新量{' '}
-          <code>μ·e[n]·x[n]</code>。再看右邊的迴圈：藍色暫存器現在存著 <code>w[n]</code>（同時也送去做這一筆的預測），它的輸出繞回相加點和更新量相加，得到 <code>w[n+1]</code>，
+          先看左邊：<Tex>{'e[n]'}</Tex> 與 <Tex>{'x[n]'}</Tex> 進乘法器（圓圈 <Tex>{'\\times'}</Tex>），再乘上常數 <Tex>{'\\mu'}</Tex>（硬體上常做成右移 <Tex>{'k'}</Tex> 位元），得到這一筆的更新量{' '}
+          <Tex>{'\\mu\\,e[n]\\,x[n]'}</Tex>。再看右邊的迴圈：藍色暫存器現在存著 <Tex>{'w[n]'}</Tex>（同時也送去做這一筆的預測），它的輸出繞回相加點和更新量相加，得到 <Tex>{'w[n+1]'}</Tex>，
           下一拍再寫回暫存器——「暫存器 + 相加點 + 回授線」就是累加器。
         </p>
         <p>
-          圖上相加點的兩個輸入 <code>(+) w[n]</code> 與 <code>(+) μ·e[n]·x[n]</code>，就是下面公式等號右邊的兩項；相加點的輸出 <code>w[n+1]</code> 是等號左邊。
-          <code>z⁻¹</code> 表示「<Tex>{'w_{n+1}'}</Tex> 要到下一筆資料才用得到」。
+          圖上相加點的兩個輸入 <Tex>{'(+)\\ w[n]'}</Tex> 與 <Tex>{'(+)\\ \\mu\\,e[n]\\,x[n]'}</Tex>，就是下面公式等號右邊的兩項；相加點的輸出 <Tex>{'w[n+1]'}</Tex> 是等號左邊。
+          <Tex>{'z^{-1}'}</Tex> 表示「<Tex>{'w_{n+1}'}</Tex> 要到下一筆資料才用得到」。
         </p>
       </ChapterDiagram>
       <p>寫成一行，就是整個網站最重要的公式：</p>

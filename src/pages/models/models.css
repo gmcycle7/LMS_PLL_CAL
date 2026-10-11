@@ -51,8 +51,13 @@
 .models-num th:first-child {
   text-align: left;
 }
+/* 7 欄的層級表要放進約 900px 的正文欄：欄距縮小一點，「本站實作」那欄不要撐到 14rem，才不會把最後一欄（不能用它宣稱的事）擠到捲動區外 */
+.models-levels td,
+.models-levels th {
+  padding: 6px 6px;
+}
 .models-levels td:nth-child(5) {
-  min-width: 14rem;
+  min-width: 12rem;
 }
 .models-params td:nth-child(2) {
   min-width: 12rem;
@@ -66,7 +71,15 @@
   font-size: 0.8rem;
 }
 .models-formula-cell {
-  min-width: 10rem;
+  min-width: 7rem;
+}
+/* JSON Lab 的「解析區塊」表在約 550px 的結果欄裡：字小一點、欄距窄一點，5 欄才放得下（不用橫向捲動） */
+.models-analytic .models-table {
+  font-size: 0.84rem;
+}
+.models-analytic .models-table th,
+.models-analytic .models-table td {
+  padding: 6px 5px;
 }
 .models-sumrow td {
   font-weight: 600;
@@ -127,10 +140,9 @@
 }
 
 /* 勘誤標記與章節連結 */
+/* 行內顯示：放在窄表格儲存格裡時，說明文字照一般文字換行（inline-flex 會把說明壓成一個字一行） */
 .models-erratum {
-  display: inline-flex;
-  gap: 4px;
-  align-items: baseline;
+  display: inline;
   margin: 0 2px;
 }
 .models-erratum a {
@@ -142,6 +154,9 @@
   color: var(--warn);
   text-decoration: none;
   white-space: nowrap;
+}
+.models-erratum a {
+  margin-right: 4px;
 }
 .models-erratum-text {
   font-size: 0.8rem;

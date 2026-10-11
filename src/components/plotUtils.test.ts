@@ -97,6 +97,15 @@ describe('buildThemedLayout', () => {
     expect(l.height as unknown).toBe(280)
   })
 
+  it('圖例：預設貼在繪圖區上方；呼叫端只把 y 設成 ≤ 0（放到 x 軸下方）時錨點自動換成 top，自己指定 yanchor 則照用', () => {
+    const legend = (layout?: Record<string, unknown>) => buildThemedLayout(tokens, { height: 300, layout }).legend as { y: number; yanchor: string; orientation: string }
+    expect(legend()).toMatchObject({ orientation: 'h', y: 1.02, yanchor: 'bottom' })
+    expect(legend({ legend: { y: -0.25 } })).toMatchObject({ orientation: 'h', y: -0.25, yanchor: 'top' })
+    expect(legend({ legend: { y: -0.25, yanchor: 'middle' } }).yanchor).toBe('middle')
+    expect(legend({ legend: { y: 1.1 } }).yanchor).toBe('bottom')
+    expect(legend({ legend: { orientation: 'v' } })).toMatchObject({ orientation: 'v', y: 1.02, yanchor: 'bottom' })
+  })
+
   it('buildExportLayout：不透明背景並把標題放進圖內', () => {
     const l = buildExportLayout({ margin: { t: 16 } }, tokens, 'PSD') as Record<string, unknown>
     expect(l.paper_bgcolor).toBe(tokens.surface)

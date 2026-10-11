@@ -41,6 +41,9 @@ const LOCAL_PRESETS: ExperimentPreset[] = [
 
 const MAX_CORNERS = 6
 
+/** 使用者輸入的 corner 名稱放進圖例：其中的 `$` 不可被當成公式的分隔符號（`\$` 是字面的美元符號） */
+const texSafe = (s: string): string => s.replace(/\$/g, '\\$')
+
 function isCornerParams(v: unknown): v is Partial<CornerJudgeParams> {
   return typeof v === 'object' && v !== null
 }
@@ -93,19 +96,19 @@ export function CornerJudgeExperiment() {
       x: scan.mu,
       y: r.map((v) => (Number.isFinite(v) && v < 3 ? v : null)),
       mode: 'lines',
-      name: `${dp.corners[c].name}：ρ(μ)`,
+      name: `${texSafe(dp.corners[c].name)}：$\\rho(\\mu)$`,
       line: { color: tokens.series[c % tokens.series.length] },
     }))
-    out.push({ x: [scan.mu[0], scan.mu[scan.mu.length - 1]], y: [Math.pow(0.05, 1 / opts.B), Math.pow(0.05, 1 / opts.B)], mode: 'lines', name: `ρ = 0.05^{1/B}（B = ${opts.B} 內衰減 95%）`, line: { color: tokens.textMuted, dash: 'dash' } })
-    out.push({ x: [scan.mu[0], scan.mu[scan.mu.length - 1]], y: [1, 1], mode: 'lines', name: 'ρ = 1（穩定邊界）', line: { color: tokens.text, dash: 'dot' } })
-    out.push({ x: [dp.mu, dp.mu], y: [0, 1.6], mode: 'lines', name: `目前 μ = ${nf(dp.mu, 4)} fs`, line: { color: tokens.series[4], width: 2 } })
+    out.push({ x: [scan.mu[0], scan.mu[scan.mu.length - 1]], y: [Math.pow(0.05, 1 / opts.B), Math.pow(0.05, 1 / opts.B)], mode: 'lines', name: `$\\rho = 0.05^{1/B}$（$B = ${opts.B}$ 內衰減 95%）`, line: { color: tokens.textMuted, dash: 'dash' } })
+    out.push({ x: [scan.mu[0], scan.mu[scan.mu.length - 1]], y: [1, 1], mode: 'lines', name: '$\\rho = 1$（穩定邊界）', line: { color: tokens.text, dash: 'dot' } })
+    out.push({ x: [dp.mu, dp.mu], y: [0, 1.6], mode: 'lines', name: `目前 $\\mu = ${nf(dp.mu, 4)}$ fs`, line: { color: tokens.series[4], width: 2 } })
     return out
   }, [scan, dp.corners, dp.mu, tokens, opts.B])
 
   const scanLayout = useMemo(
     () => ({
-      xaxis: { title: { text: 'μ [fs]' } },
-      yaxis: { title: { text: 'ρ' }, range: [0, 1.6] },
+      xaxis: { title: { text: '$\\mu$ [fs]' } },
+      yaxis: { title: { text: '$\\rho$' }, range: [0, 1.6] },
       shapes: Number.isNaN(scan.lo) ? [] : [{ type: 'rect' as const, xref: 'x' as const, yref: 'paper' as const, x0: scan.lo, x1: scan.hi, y0: 0, y1: 1, fillcolor: withAlpha(tokens.series[2], 0.15), line: { width: 0 } }],
     }),
     [scan.lo, scan.hi, tokens],

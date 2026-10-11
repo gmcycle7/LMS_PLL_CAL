@@ -73,7 +73,7 @@ export function S4Cases() {
           ariaLabel="Corner 判準流程圖：corner 清單與同一組 mu、d、N 算出每個 corner 的恢復力 K 與迴路增益 g，依序檢查極性、穩定、相位裕度，穩定之後才檢查收斂時間與雜訊，所有 corner 的五項判準都通過才算這個 mu 可行"
         >
           <p>
-            先看左邊兩個圓角框：硬體只有<strong>一組</strong> <Tex>{'(\\mu,d,N)'}</Tex>，corner 卻有很多個，每個 corner 的 <Tex>{'\\sigma_{v,c}'}</Tex>、<Tex>{'\\theta_c'}</Tex> 不同，所以 <Tex>{'K_c'}</Tex> 與 <Tex>{'g_c=\\mu K_c'}</Tex> 也不同。
+            先看最上面兩個圓角框：硬體只有<strong>一組</strong> <Tex>{'(\\mu,d,N)'}</Tex>，corner 卻有很多個，每個 corner 的 <Tex>{'\\sigma_{v,c}'}</Tex>、<Tex>{'\\theta_c'}</Tex> 不同，所以 <Tex>{'K_c'}</Tex> 與 <Tex>{'g_c=\\mu K_c'}</Tex> 也不同。
             通常<strong>最快</strong>的 corner（<Tex>{'K_{\\max}'}</Tex>）先卡住穩定與 PM，<strong>最慢</strong>的（<Tex>{'K_{\\min}'}</Tex>）先卡住收斂時間與 bias。
           </p>
           <p>
@@ -311,11 +311,11 @@ export function S4Cases() {
           ariaLabel="從 gain code 偏差到輸出 spur 與 jitter 的方塊圖：block 速率的係數偏差經零階保持展開到 sample 速率，乘上 code 得到 DTC 的延遲誤差，經過輸出 transfer T 並乘上負的 2 pi f_out 得到輸出相位，單一 tone 時換算調變指數與 spur，隨機分量換算成輸出相位雜訊與 jitter"
         >
           <p>
-            先看左邊：<Tex>{'\\delta w_k'}</Tex> 是 block 速率（索引 <Tex>{'k'}</Tex>）的係數偏差，每 <Tex>{'N'}</Tex> 個 sample 才換一次，所以要先以 ZOH 展開到 sample 速率（索引 <Tex>{'n'}</Tex>，含 commit latency <Tex>{'n_c'}</Tex>）才能乘上 code <Tex>{'x[n]'}</Tex>。
+            先看最上面：<Tex>{'\\delta w_k'}</Tex> 是 block 速率（索引 <Tex>{'k'}</Tex>）的係數偏差，每 <Tex>{'N'}</Tex> 個 sample 才換一次，所以要先以 ZOH 展開到 sample 速率（索引 <Tex>{'n'}</Tex>，含 commit latency <Tex>{'n_c'}</Tex>）才能乘上 code <Tex>{'x[n]'}</Tex>。
             藍色的 <Tex>{'T=L/(1+L)'}</Tex> 是<strong>輸出路徑</strong>的 transfer——不是校正迴路看到的 <Tex>{'H_\\mathrm{PD}'}</Tex>；兩者混淆是 §9 反面測試的一項（PLL 誤差路徑與輸出路徑混淆）。
           </p>
           <p>
-            右邊分兩條：單一 tone 的 <Tex>{'\\delta t'}</Tex> 變成相位調變，spur 看 <Tex>{'\\beta'}</Tex>；隨機的部分變成輸出相位雜訊。GMAC 歸零只是定義了 <Tex>{'w^*'}</Tex>，這兩個輸出指標才是最後的驗收。
+            最下面分兩條：單一 tone 的 <Tex>{'\\delta t'}</Tex> 變成相位調變，spur 看 <Tex>{'\\beta'}</Tex>；隨機的部分變成輸出相位雜訊。GMAC 歸零只是定義了 <Tex>{'w^*'}</Tex>，這兩個輸出指標才是最後的驗收。
           </p>
         </Diagram>
         <Steps

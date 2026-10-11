@@ -106,8 +106,8 @@ function DecompositionPlot() {
     const ks = Array.from({ length: 81 }, (_, k) => k)
     const parts = ks.map((k) => msdSplit(3, p, mu, s2, k))
     return [
-      { x: ks, y: parts.map((q) => q.total), name: 'E[δ_k²]（總和）', line: { color: tokens.series[0], width: 2.5 } },
-      { x: ks, y: parts.map((q) => q.bias2), name: 'bias² = p²ᵏ·δ0²', line: { color: tokens.series[1], dash: 'dash' } },
+      { x: ks, y: parts.map((q) => q.total), name: String.raw`$E[\delta_k^2]$（總和）`, line: { color: tokens.series[0], width: 2.5 } },
+      { x: ks, y: parts.map((q) => q.bias2), name: String.raw`$\text{bias}^2 = p^{2k}\delta_0^2$`, line: { color: tokens.series[1], dash: 'dash' } },
       { x: ks, y: parts.map((q) => q.variance), name: 'variance', line: { color: tokens.series[2], dash: 'dot' } },
     ]
   }, [K, mu, s2, tokens])
@@ -118,7 +118,7 @@ function DecompositionPlot() {
       yLog
       height={300}
       csvName="ch14-bias-variance-vs-k"
-      layout={{ xaxis: { title: { text: '更新次數 k（blocks）' } }, yaxis: { title: { text: 'fs²' } } }}
+      layout={{ xaxis: { title: { text: String.raw`更新次數 $k$（blocks）` } }, yaxis: { title: { text: String.raw`$\mathrm{fs}^2$` } } }}
       caption={md(String.raw`$\mu$ 是 $B=32$ 時的最佳點（§14.2 (a)）。交點附近就是「再多跑也不會更好」的地方；$B=32$ 時 $\text{bias}^2$ 已低於 variance。`)}
     />
   )
@@ -134,7 +134,7 @@ export function S2Msd() {
       </p>
       <Diagram chart={CHART_SAMPLE_TO_BLOCK} caption="從 sample rate 到 block rate：標著 sample rate 的框每個 comparator 樣本做一次，標著 block rate 的框每 $N$ 個樣本才做一次；虛線表示誤差在一個 block 內不變。">
         <p>
-          <strong>先看</strong>標著 sample rate 的框（索引 <Tex>{'n'}</Tex>），由左到右：code <Tex>{'x[n]'}</Tex> 經過 PLL 誤差路徑變成 <Tex>{'u[n]'}</Tex>，乘上這個 block 的誤差 <Tex>{'\\delta_k'}</Tex>，再和 RMS 為 <Tex>{'\\sigma_v'}</Tex> 的雜訊 <Tex>{'v[n]'}</Tex> 在加法點相加（兩條線都是正號），
+          <strong>先看</strong>標著 sample rate 的框（索引 <Tex>{'n'}</Tex>），由上到下：code <Tex>{'x[n]'}</Tex> 經過 PLL 誤差路徑變成 <Tex>{'u[n]'}</Tex>，乘上這個 block 的誤差 <Tex>{'\\delta_k'}</Tex>，再和 RMS 為 <Tex>{'\\sigma_v'}</Tex> 的雜訊 <Tex>{'v[n]'}</Tex> 在加法點相加（兩條線都是正號），
           得到 comparator 看到的 <Tex>{'e[n]=\\delta_k\\,u[n]+v[n]'}</Tex>。comparator 只輸出正負號 <Tex>{'q[n]=\\pm1'}</Tex>，再乘上 code <Tex>{'x[n]'}</Tex>。<strong>再看</strong>標著 block rate 的框（索引 <Tex>{'k'}</Tex>，更新率 <Tex>{'f_u=f_s/N'}</Tex>）：GMAC 把 <Tex>{'N'}</Tex> 個{' '}
           <Tex>{'q[n]x[n]'}</Tex> 平均成一個數 <Tex>{'G_k'}</Tex>，乘 <Tex>{'\\mu'}</Tex> 加進暫存器。虛線是回授：整個 block 內 <Tex>{'w_k'}</Tex> 不變（新的 <Tex>{'w_{k+1}'}</Tex> 要到下個 block 才生效，這就是「無更新延遲 <Tex>{'d=0'}</Tex>」的意思），所以 <Tex>{'\\delta_k'}</Tex> 在 <Tex>{'N'}</Tex> 個樣本內也不變。
         </p>
@@ -252,10 +252,10 @@ export function S2Msd() {
       <p>
         F-14.3 的分母 <Tex>{'1-p^2'}</Tex> 在 <Tex>{'p=\\pm1'}</Tex> 時是 0。先看 <Tex>{'g=\\mu K'}</Tex> 從 0 一路加大時，pole <Tex>{'p=1-g'}</Tex> 會經過哪些區段，就知道哪兩個點要特別處理：
       </p>
-      <Diagram chart={CHART_POLE_REGIMES} caption={String.raw`迴路增益 $g=\mu K$ 從上到下加大時 pole $p=1-g$ 的走向：綠色是安全區，藍色是一步到位，棕色仍收斂但會正負交替，紅色是 $|p|\ge1$ 的不收斂區。`}>
+      <Diagram chart={CHART_POLE_REGIMES} caption={String.raw`迴路增益 $g=\mu K$ 一路加大（上排由左到右，再接到下排）時 pole $p=1-g$ 的走向：綠色是安全區，藍色是一步到位，棕色仍收斂但會正負交替，紅色是 $|p|\ge1$ 的不收斂區。`}>
         <p>
-          <strong>先看</strong>最上面的紅色方塊：<Tex>{'g=0'}</Tex> 代表 <Tex>{'K=0'}</Tex>（<Tex>{'C=0'}</Tex>，GMAC 對誤差沒有反應），<Tex>{'p=1'}</Tex>，誤差既不增也不減，雜訊一直累積。<strong>再看</strong>往下的主線：<Tex>{'g'}</Tex> 加大，<Tex>{'p'}</Tex> 從 1 掉到 0（藍色，<Tex>{'g=1'}</Tex>，一步到位）、再變成負的（棕色，
-          平均誤差每個 block 正負交替，但幅度仍衰減）。<strong>最後看</strong>最下面兩個紅色方塊：<Tex>{'g=2'}</Tex> 時 <Tex>{'p=-1'}</Tex>，幅度不再衰減；<Tex>{'g>2'}</Tex> 時 <Tex>{'|p|>1'}</Tex>，指數發散。
+          <strong>先看</strong>上排最左邊的紅色方塊：<Tex>{'g=0'}</Tex> 代表 <Tex>{'K=0'}</Tex>（<Tex>{'C=0'}</Tex>，GMAC 對誤差沒有反應），<Tex>{'p=1'}</Tex>，誤差既不增也不減，雜訊一直累積。<strong>再看</strong>往右的主線（上排走完，接到下排最左邊的棕色方塊）：<Tex>{'g'}</Tex> 加大，<Tex>{'p'}</Tex> 從 1 掉到 0（藍色，<Tex>{'g=1'}</Tex>，一步到位）、再變成負的（棕色，
+          平均誤差每個 block 正負交替，但幅度仍衰減）。<strong>最後看</strong>下排右邊兩個紅色方塊：<Tex>{'g=2'}</Tex> 時 <Tex>{'p=-1'}</Tex>，幅度不再衰減；<Tex>{'g>2'}</Tex> 時 <Tex>{'|p|>1'}</Tex>，指數發散。
         </p>
         <p>
           圖上的 <Tex>{'p=1-g'}</Tex> 就是 F-14.1 的 pole；兩個 <Tex>{'|p|=1'}</Tex> 的端點（<Tex>{'g=0'}</Tex> 與 <Tex>{'g=2'}</Tex>）就是下面 F-14.4 要處理的邊界情況；藍色的 <Tex>{'g=1'}</Tex> 就是 §14.2 (b) 的 F-14.10；每個方塊的 phase margin 來自{' '}

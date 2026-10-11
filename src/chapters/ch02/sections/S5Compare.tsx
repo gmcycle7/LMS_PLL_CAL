@@ -35,7 +35,7 @@ export function S5Compare() {
               String.raw`先看最上面一格：LMS 的誤差 $e$ 和輸入 $x$ 都用多位元——要 TDC 或 ADC 把誤差的大小量出來，還要一個乘法器。再沿著實線往下看：先丟掉誤差的大小、只留 1 bit，就是 Sign-Error（TDC 換成一顆 comparator，乘法器換成條件取負）；再丟掉輸入的大小，就是 Sign-Sign（只剩 XOR 和計數器）。越往下硬體越省，但每丟掉一種資訊，收斂到的點與穩態的抖動都會跟著改變——下面的總比較表逐欄列出。虛線那條路（先丟掉輸入的大小、保留多位元誤差，叫做 signed-regressor LMS）本章不討論。`,
             )}
           </p>
-          <p>圖上每一格的第二行，就是下面總比較表裡「需要的 error 位元」與「需要的 regressor 位元」兩欄；第三行是「硬體成本」那一欄。</p>
+          <p>圖上每一格的名稱底下，先寫 error 與 regressor 各用幾個位元，就是下面總比較表裡「需要的 error 位元」與「需要的 regressor 位元」兩欄；最後一行是「硬體成本」那一欄。</p>
         </Diagram>
       </Section>
 

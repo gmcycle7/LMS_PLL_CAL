@@ -230,6 +230,15 @@
   margin: 0.4rem 0;
 }
 
+/* 實驗結果欄不寬（控制面板佔掉一半），共用的指標表不要把名稱欄壓成一兩個字一行；放不下就在表格自己的外框裡左右捲動 */
+.ch14 .c-metric-table td:first-child {
+  min-width: 11em;
+}
+.ch14 .c-metric-table th,
+.ch14 .c-metric-table td a {
+  white-space: nowrap;
+}
+
 @media (max-width: 480px) {
   .ch14-table {
     font-size: 0.8rem;

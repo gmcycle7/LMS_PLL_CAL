@@ -102,6 +102,18 @@
 .gal-num-table td {
   white-space: nowrap;
 }
+/* 欄位名稱（galleryIndex、experiment、description…）不要在單字中間斷開；表太窄時整張表在 .table-wrap 內橫向捲動 */
+.gal-fields-table td:first-child {
+  white-space: nowrap;
+}
+.gal-fields-table td:first-child code {
+  overflow-wrap: normal;
+}
+/* 可靠度表：欄位標題不要被擠成一字一行（CJK 預設可在任何字之間斷行）；窄時整張表橫向捲動 */
+.gal-reliability thead th {
+  word-break: keep-all;
+  min-width: 5.5em;
+}
 .gal-json-cell {
   max-width: 22rem;
   overflow-wrap: anywhere;
@@ -455,6 +467,24 @@
 .gal-cov-table td:nth-child(2),
 .gal-cov-table td:nth-child(3) {
   min-width: 11rem;
+}
+/* 稽核表／覆蓋表：欄位標題（T-id、preset 數）不斷行；preset 識別字只在連字號處斷，不在單字中間斷（窄時整張表在 .table-wrap 內橫向捲動） */
+.gal-audit-table thead th,
+.gal-cov-table thead th {
+  white-space: nowrap;
+}
+.gal-audit-table td:nth-child(3) {
+  min-width: 10rem;
+}
+.gal-audit-table td:nth-child(3) .gal-id {
+  overflow-wrap: normal;
+}
+/* Preset Inspector 的指標表（共用的 MetricTable）：第一欄附有長備註，欄寬會被擠到一個字寬；給最小寬度、標題不斷行，表在 .table-wrap 內橫向捲動 */
+[data-experiment='gallery-inspector'] .c-metric-table td:first-child {
+  min-width: 14rem;
+}
+[data-experiment='gallery-inspector'] .c-metric-table thead th {
+  white-space: nowrap;
 }
 
 /* 篩選列 */

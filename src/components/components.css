@@ -239,25 +239,342 @@
 
 /* ===== Mermaid ===== */
 .c-mermaid {
-  margin: 16px 0;
+  margin: 18px 0;
   min-width: 0;
+}
+/* 圖紙：白底＋細點格線，和正文區隔開 */
+.c-mermaid-frame {
+  position: relative;
+  background-color: var(--surface);
+  background-image: radial-gradient(circle at 1px 1px, var(--diagram-dot) 1px, transparent 0);
+  background-size: 18px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }
 .c-mermaid-svg {
   overflow-x: auto;
+  padding: 16px 14px;
   text-align: center;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
-.c-mermaid-svg svg {
+.c-mermaid-svg:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: var(--radius);
+}
+/* 只管圖本身那一層 <svg>：KaTeX 的根號、括號也是內嵌 <svg>，不能被這裡的尺寸規則波及 */
+.c-mermaid-svg > svg {
   height: auto;
+}
+/* 圖比版面寬：邊緣的漸層提示「這邊還有」 */
+.c-mermaid-frame::before,
+.c-mermaid-frame::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 44px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 1;
+}
+.c-mermaid-frame::before {
+  left: 0;
+  border-radius: var(--radius) 0 0 var(--radius);
+  background: linear-gradient(to right, var(--surface) 15%, transparent);
+}
+.c-mermaid-frame::after {
+  right: 0;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: linear-gradient(to left, var(--surface) 15%, transparent);
+}
+.c-mermaid-frame.can-left::before,
+.c-mermaid-frame.can-right::after {
+  opacity: 1;
+}
+.c-mermaid-zoom {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  transition:
+    opacity 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+.c-mermaid-frame:hover .c-mermaid-zoom,
+.c-mermaid-frame.is-scrollable .c-mermaid-zoom,
+.c-mermaid-zoom:focus-visible {
+  opacity: 1;
+}
+.c-mermaid-zoom:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+@media (hover: none) {
+  .c-mermaid-zoom {
+    opacity: 1;
+  }
+}
+/* 「放大」鈕一直顯示的情況（圖可橫向捲動、觸控裝置）：上方留一列給它，免得蓋住圖的右上角 */
+.c-mermaid-frame.is-scrollable .c-mermaid-svg {
+  padding-top: 42px;
+}
+@media (hover: none) {
+  .c-mermaid-svg {
+    padding-top: 42px;
+  }
+}
+@media print {
+  .c-mermaid-zoom,
+  .c-mermaid-frame::before,
+  .c-mermaid-frame::after {
+    display: none;
+  }
+  .c-mermaid-frame {
+    background-image: none;
+  }
+}
+
+/* ===== 系統地圖（手排 SVG；配色與 Mermaid 圖共用 --diagram-* token） ===== */
+.c-sysmap .c-mermaid-svg {
+  padding: 12px 10px;
+}
+.c-sysmap-svg {
+  display: inline-block;
+  min-width: 700px;
+  vertical-align: top;
+  font-family: var(--font-sans);
+}
+.c-sysmap-lane rect {
+  fill: var(--diagram-group);
+  stroke: var(--diagram-group-border);
+  stroke-width: 1.1;
+  stroke-dasharray: 6 4;
+}
+.c-sysmap-lane text {
+  fill: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+.c-sysmap-wire {
+  fill: none;
+  stroke: var(--diagram-line);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.c-sysmap-wire.is-dashed {
+  stroke-dasharray: 5 4;
+}
+.c-sysmap-arrowhead {
+  fill: var(--diagram-line);
+  stroke: var(--diagram-line);
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+.c-sysmap-block rect {
+  fill: var(--diagram-node);
+  stroke: var(--diagram-node-border);
+  stroke-width: 1.3;
+  filter: drop-shadow(0 1px 1.5px var(--diagram-shadow));
+}
+.c-sysmap-block.is-focus rect {
+  fill: var(--diagram-focus);
+  stroke: var(--diagram-focus-border);
+  stroke-width: 2;
+  filter: drop-shadow(0 2px 5px rgba(31, 95, 168, 0.4));
+}
+.c-sysmap-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0 6px;
+  box-sizing: border-box;
+  color: var(--text);
+  text-align: center;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.c-sysmap-title {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.c-sysmap-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.c-sysmap-block.is-focus .c-sysmap-label,
+.c-sysmap-block.is-focus .c-sysmap-sub {
+  color: #ffffff;
+}
+.c-sysmap-wirelabel {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  line-height: 1.3;
+}
+.c-sysmap-wirelabel.is-left {
+  justify-content: flex-start;
+}
+.c-sysmap-wirelabel.is-right {
+  justify-content: flex-end;
+}
+.c-sysmap-wirelabel.is-center {
+  justify-content: center;
+}
+.c-sysmap-wirelabel > span {
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+}
+.c-sysmap-legend text {
+  fill: var(--text-muted);
+  font-size: 11.5px;
+}
+.c-sysmap-legend-focus {
+  fill: var(--diagram-focus);
+  stroke: var(--diagram-focus-border);
+  stroke-width: 1.2;
+}
+
+/* 放大檢視（全螢幕） */
+.c-zoom {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+.c-zoom-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.c-zoom-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+.c-zoom-tools {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+}
+.c-zoom-btn {
+  min-width: 34px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.c-zoom-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.c-zoom-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.c-zoom-pct {
+  min-width: 58px;
+}
+.c-zoom-close {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.c-zoom-close:hover:not(:disabled) {
+  color: var(--accent-text);
+  filter: brightness(1.08);
+}
+.c-zoom-canvas {
+  flex: 1 1 auto;
+  display: flex;
+  overflow: auto;
+  cursor: grab;
+  background-color: var(--surface);
+  background-image: radial-gradient(circle at 1px 1px, var(--diagram-dot) 1px, transparent 0);
+  background-size: 18px 18px;
+}
+.c-zoom-canvas:active {
+  cursor: grabbing;
+}
+.c-zoom-canvas:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.c-zoom-inner {
+  flex: 0 0 auto;
+  margin: auto;
+  padding: 24px;
+}
+.c-zoom-inner > svg {
+  display: block;
+  width: var(--c-zoom-width, auto) !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  height: auto !important;
+}
+@media (max-width: 640px) {
+  .c-zoom-bar {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .c-zoom-title {
+    flex-basis: 100%;
+  }
+}
+@media print {
+  .c-zoom {
+    display: none;
+  }
+}
+.c-mermaid-pending {
+  padding: 12px;
 }
 .c-mermaid-loading {
   min-height: 120px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--surface-2);
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-sm);
 }
 .c-mermaid-error {
   margin: 6px 0 0;
@@ -279,6 +596,24 @@
   position: relative;
   width: 100%;
   min-width: 0;
+  /* 上方留一列給 Plotly 的工具列，免得它蓋住圖例 */
+  margin-top: 24px;
+}
+.c-plot-gd .modebar-container {
+  top: -24px !important;
+}
+.c-plot-gd .modebar {
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+.c-plot-frame:hover .modebar,
+.c-plot-gd .modebar:focus-within {
+  opacity: 1;
+}
+@media (hover: none) {
+  .c-plot-gd .modebar {
+    opacity: 0.85;
+  }
 }
 .c-plot-gd {
   width: 100%;
@@ -596,6 +931,85 @@
 .c-metric-table td.num,
 .c-metric-table th.num {
   white-space: nowrap;
+}
+/*
+ * 指標表最多有 8 欄，放進實驗右欄（約 530px）會擠到每個字一行、後面幾欄還要橫向捲動。
+ * 容器窄的時候改成「一個指標一張小卡」：第一列是名稱，第二列是數值＋單位＋公式＋標籤，
+ * 第三列是解析值／Δ／檢查（欄名由 data-label 補在數字前面）。DOM 還是同一張 <table>。
+ */
+.c-metric-wrap {
+  container-type: inline-size;
+  container-name: metric;
+}
+@container metric (max-width: 700px) {
+  .c-metric-table,
+  .c-metric-table tbody {
+    display: block;
+    width: 100%;
+  }
+  .c-metric-table caption {
+    display: block;
+  }
+  .c-metric-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+  .c-metric-table tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 12px;
+    padding: 8px 2px;
+    border-bottom: 1px solid var(--border);
+    background: none;
+  }
+  .c-metric-table tbody tr:first-child {
+    border-top: 1px solid var(--border);
+  }
+  /* 第二列與第三列之間的換行 */
+  .c-metric-table tr::after {
+    content: '';
+    order: 2;
+    flex: 0 0 100%;
+    height: 0;
+  }
+  .c-metric-table td {
+    display: block;
+    order: 1;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  .c-metric-table td:empty {
+    display: none;
+  }
+  .c-metric-table td:first-child {
+    order: 0;
+    flex: 0 0 100%;
+    font-weight: 600;
+  }
+  .c-metric-table td:first-child .small {
+    font-weight: 400;
+  }
+  .c-metric-table td:nth-child(2) {
+    font-size: 0.98rem;
+    font-weight: 600;
+  }
+  .c-metric-table td[data-label],
+  .c-metric-table td[data-col='check'] {
+    order: 3;
+    font-size: 0.84rem;
+  }
+  .c-metric-table td[data-label]::before {
+    content: attr(data-label) ' ';
+    color: var(--text-muted);
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+  }
 }
 
 /* ===== ExperimentShell ===== */

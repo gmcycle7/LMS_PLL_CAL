@@ -26,9 +26,9 @@ export function S4SignSign() {
     const jE = ws.map((w) => XS.reduce((s, x, i) => s + Math.abs(YS[i] - w * x), 0))
     const jS = ws.map((w) => XS.reduce((s, x, i) => s + Math.abs(YS[i] / x - w), 0))
     return [
-      { x: ws, y: norm(jL), name: 'LMS：Σ½(y − wx)²', mode: 'lines', line: { color: tokens.series[ALGO_SERIES.lms] } },
-      { x: ws, y: norm(jE), name: 'Sign-Error：Σ|y − wx|', mode: 'lines', line: { color: tokens.series[ALGO_SERIES.sign_error] } },
-      { x: ws, y: norm(jS), name: 'Sign-Sign：Σ|y/x − w|', mode: 'lines', line: { color: tokens.series[ALGO_SERIES.sign_sign] } },
+      { x: ws, y: norm(jL), name: String.raw`LMS：$\sum\tfrac{1}{2}\,(y-wx)^2$`, mode: 'lines', line: { color: tokens.series[ALGO_SERIES.lms] } },
+      { x: ws, y: norm(jE), name: String.raw`Sign-Error：$\sum|y-wx|$`, mode: 'lines', line: { color: tokens.series[ALGO_SERIES.sign_error] } },
+      { x: ws, y: norm(jS), name: String.raw`Sign-Sign：$\sum|y/x-w|$`, mode: 'lines', line: { color: tokens.series[ALGO_SERIES.sign_sign] } },
       {
         x: [rf.lms, rf.signError[0], rf.signSign[0]],
         y: [0, 0, 0],
@@ -190,7 +190,7 @@ export function S4SignSign() {
           data={costPlot}
           height={260}
           csvName="ratio-view-costs"
-          layout={{ xaxis: { title: { text: 'w' } }, yaxis: { title: { text: '正規化成本' } } }}
+          layout={{ xaxis: { title: { text: '$w$' } }, yaxis: { title: { text: '正規化成本' } } }}
           caption={String.raw`同樣三筆資料，三個不同的谷底：中位數類（$\sum|\cdot|$）成本是折線，谷底落在某一筆資料的比值 $r_i$ 上。`}
         />
         <p>

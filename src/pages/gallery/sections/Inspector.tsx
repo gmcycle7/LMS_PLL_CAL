@@ -67,7 +67,7 @@ export default function Inspector({ selected, onSelect }: { selected: string; on
       return {
         name: m ? `$${m.label}$` : r.key,
         value: typeof m?.value === 'number' ? m.value : (m?.value ?? null),
-        unit: m?.unit ? texToPlain(`$${m.unit}$`) : undefined,
+        unit: m?.unit ? `$${m.unit}$` : undefined, // MetricRow.unit 支援 `$...$`（KaTeX）；匯出檔的 unit 欄才用 texToPlain 轉成純文字
         claim: m?.claim,
         analytic: r.hit?.value,
         tolerance: r.hit ? acceptHalfWidth(r.hit, tolK * 1.001, r.required) : undefined,
@@ -128,7 +128,7 @@ export default function Inspector({ selected, onSelect }: { selected: string; on
             max={20}
             step={0.1}
             digits={3}
-            unit="× 捨入半寬"
+            unit={String.raw`$\times$ 捨入半寬`}
             reg="BEH_EXPECTED_TOL_K"
             hint="1 = 文字就是重算值的正確捨入；小於 1 更嚴格"
           />

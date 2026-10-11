@@ -44,9 +44,9 @@ export function S5LoopTypes() {
     const x = Array.from({ length: n }, (_, i) => 0.01 * Math.pow(1e4, i / (n - 1)))
     const curves: { name: string; type: 'typeI' | 'typeII'; zeta: number; color: string; dash?: 'dash' | 'dot' }[] = [
       { name: 'Type-I', type: 'typeI', zeta: 0.7, color: tokens.series[2] },
-      { name: 'Type-II ζ = 0.5', type: 'typeII', zeta: 0.5, color: tokens.series[3], dash: 'dot' },
-      { name: 'Type-II ζ = 0.7', type: 'typeII', zeta: 0.7, color: tokens.series[1] },
-      { name: 'Type-II ζ = 1.0', type: 'typeII', zeta: 1.0, color: tokens.series[4], dash: 'dash' },
+      { name: String.raw`Type-II $\zeta = 0.5$`, type: 'typeII', zeta: 0.5, color: tokens.series[3], dash: 'dot' },
+      { name: String.raw`Type-II $\zeta = 0.7$`, type: 'typeII', zeta: 0.7, color: tokens.series[1] },
+      { name: String.raw`Type-II $\zeta = 1.0$`, type: 'typeII', zeta: 1.0, color: tokens.series[4], dash: 'dash' },
     ]
     const re: Data[] = curves.map((c) => ({
       x,
@@ -99,10 +99,10 @@ export function S5LoopTypes() {
       </p>
       <ChapterDiagram id="D-06.10">
         <p>
-          先比較兩邊迴路裡的方塊。Type-I 的迴路濾波器只是一個比例增益 <Tex>{'\\omega_c'}</Tex>（開迴路交越頻率：<Tex>{'|L(j\\omega_c)|=1'}</Tex>），後面接 DCO 的積分{' '}
+          先比較兩個迴路（各在自己的虛線框裡）的方塊。Type-I 的迴路濾波器只是一個比例增益 <Tex>{'\\omega_c'}</Tex>（開迴路交越頻率：<Tex>{'|L(j\\omega_c)|=1'}</Tex>），後面接 DCO 的積分{' '}
           <Tex>{'1/s'}</Tex>（乘上 <Tex>{'1/s'}</Tex> 就是對時間積分，見下面的先備知識），所以開迴路是 <Tex>{'L(s)=\\omega_c/s'}</Tex>。Type-II 把比例增益換成藍色的 PI
           濾波器（比例 + 積分），開迴路是 <Tex>{'L(s)=(2\\zeta\\omega_ns+\\omega_n^2)/s^2'}</Tex>，其中 <Tex>{'\\omega_n'}</Tex> 是自然頻率、<Tex>{'\\zeta'}</Tex>{' '}
-          是阻尼比。再看兩邊從加法點用虛線拉出去的結果（綠色與紅色）——它們寫的是「從 <Tex>{'e_{\\mathrm{PD}}'}</Tex> 看」的轉移函數，和圖 6.3 的輸出 1
+          是阻尼比。再看兩個迴路各自從加法點用虛線拉出去的結果（綠色與紅色）——它們寫的是「從 <Tex>{'e_{\\mathrm{PD}}'}</Tex> 看」的轉移函數，和圖 6.3 的輸出 1
           是同一個位置：低頻時 Type-I 的 PD 看到 code 的<strong>一次微分</strong>，Type-II 看到<strong>二次微分</strong>。
         </p>
         <p>
@@ -267,7 +267,7 @@ export function S5LoopTypes() {
           xLog
           height={280}
           csvName="ch06-ct-re"
-          layout={{ xaxis: { title: { text: 'ν = ω/ω_L' } }, yaxis: { title: { text: 'Re{H_PD}' } }, shapes: [zeroLine] }}
+          layout={{ xaxis: { title: { text: String.raw`$\nu = \omega/\omega_L$` } }, yaxis: { title: { text: String.raw`$\operatorname{Re}\,H_{\mathrm{PD}}$` } }, shapes: [zeroLine] }}
           caption={String.raw`由封閉式 ctHpd() 計算。Type-I 恆正；Type-II 在 $\nu<1$ 為負，與 $\zeta$ 無關。`}
         />
         <Plot
@@ -278,7 +278,7 @@ export function S5LoopTypes() {
           height={280}
           csvName="ch06-ct-phase"
           layout={{
-            xaxis: { title: { text: 'ν = ω/ω_L' } },
+            xaxis: { title: { text: String.raw`$\nu = \omega/\omega_L$` } },
             yaxis: { title: { text: '相位 [deg]' } },
             shapes: [{ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: 90, y1: 90, line: { color: tokens.danger, dash: 'dot', width: 1 } }],
           }}

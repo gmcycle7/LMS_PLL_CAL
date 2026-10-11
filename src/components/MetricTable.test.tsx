@@ -30,6 +30,16 @@ describe('MetricTable', () => {
     expect(screen.getByText('精確｜指定模型')).toBeTruthy()
   })
 
+  it('窄容器的小卡排版靠 CSS：解析值／Δ 的儲存格帶 data-label（補欄名用），檢查欄帶 data-col', () => {
+    const { container } = render(<MetricTable rows={[{ name: 'gain', value: 3.2, analytic: 3, tolerance: 0.05, toleranceMode: 'rel' }]} />)
+    expect(container.querySelector('.table-wrap.c-metric-wrap > table.c-metric-table')).toBeTruthy()
+    const cells = [...container.querySelectorAll('tbody tr td')]
+    expect(cells.map((c) => c.getAttribute('data-label'))).toEqual([null, null, null, '解析值', 'Δ', null])
+    expect(cells[5].getAttribute('data-col')).toBe('check')
+    // 表頭仍在 DOM 裡（寬容器照常顯示；窄容器只是視覺上隱藏）
+    expect([...container.querySelectorAll('th')].map((h) => h.textContent)).toEqual(['指標', '數值', '單位', '解析值', 'Δ（模擬 − 解析）', '檢查'])
+  })
+
   it('沒有 analytic 時不顯示比較欄', () => {
     const { container } = render(<MetricTable rows={[{ name: 'x', value: 1 }]} />)
     expect(container.querySelectorAll('th')).toHaveLength(3)

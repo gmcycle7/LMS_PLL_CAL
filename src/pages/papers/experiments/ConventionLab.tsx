@@ -80,21 +80,21 @@ export function ConventionLab() {
     }
     const env = (rad: number) => trim(k.map((i) => rad ** i))
     return [
-      { ...trim(res.trajFast), name: `快模式（λ_max，g = ${num(res.gFast, 4)}）`, mode: 'lines', line: { color: tokens.series[0] } },
-      { ...trim(res.trajSlow), name: `慢模式（λ_min，g = ${num(res.gSlow, 4)}）`, mode: 'lines', line: { color: tokens.series[1] } },
-      { ...env(res.radiusFast), name: '快模式包絡 |z|max^k', mode: 'lines', line: { color: tokens.series[0], dash: 'dot', width: 1 } },
-      { ...env(res.radiusSlow), name: '慢模式包絡 |z|max^k', mode: 'lines', line: { color: tokens.series[1], dash: 'dot', width: 1 } },
+      { ...trim(res.trajFast), name: `快模式（$\\lambda_{\\max}$，$g = ${num(res.gFast, 4)}$）`, mode: 'lines', line: { color: tokens.series[0] } },
+      { ...trim(res.trajSlow), name: `慢模式（$\\lambda_{\\min}$，$g = ${num(res.gSlow, 4)}$）`, mode: 'lines', line: { color: tokens.series[1] } },
+      { ...env(res.radiusFast), name: '快模式包絡 $|z|_{\\max}^k$', mode: 'lines', line: { color: tokens.series[0], dash: 'dot', width: 1 } },
+      { ...env(res.radiusSlow), name: '慢模式包絡 $|z|_{\\max}^k$', mode: 'lines', line: { color: tokens.series[1], dash: 'dot', width: 1 } },
     ]
   }, [k, res, tokens])
 
   const curveData: Data[] = useMemo(() => {
     const out: Data[] = [
-      { x: curve.g, y: curve.rD, name: `d = ${deferred.d}`, mode: 'lines', line: { color: tokens.series[2] } },
-      { x: curve.g, y: curve.r0, name: 'd = 0（無延遲）', mode: 'lines', line: { color: tokens.series[3], dash: 'dash' } },
+      { x: curve.g, y: curve.rD, name: `$d = ${deferred.d}$`, mode: 'lines', line: { color: tokens.series[2] } },
+      { x: curve.g, y: curve.r0, name: '$d = 0$（無延遲）', mode: 'lines', line: { color: tokens.series[3], dash: 'dash' } },
       {
         x: [curve.g[0], curve.g[curve.g.length - 1]],
         y: [1, 1],
-        name: '|z| = 1（穩定邊界）',
+        name: '$|z| = 1$（穩定邊界）',
         mode: 'lines',
         line: { color: tokens.textMuted, dash: 'dot', width: 1 },
       },
@@ -446,7 +446,7 @@ export function ConventionLab() {
         yLog
         height={300}
         csvName="papers-convention-trajectory"
-        layout={{ xaxis: { title: { text: 'k（step / block）' } }, yaxis: { title: { text: '|c_i,k|' } } }}
+        layout={{ xaxis: { title: { text: '$k$（step / block）' } }, yaxis: { title: { text: '$|c_{i,k}|$' } } }}
       />
       <Plot
         title={r`最大根的模 $|z|_{\max}$ 對 $g$：延遲把穩定區從 $g<2$ 縮到 $g<g^*(d)$`}
@@ -455,7 +455,7 @@ export function ConventionLab() {
         xLog
         height={300}
         csvName="papers-convention-radius"
-        layout={{ xaxis: { title: { text: 'g = s·λ' } }, yaxis: { title: { text: '|z|max' }, range: [0, 2] } }}
+        layout={{ xaxis: { title: { text: '$g = s\\lambda$' } }, yaxis: { title: { text: '$|z|_{\\max}$' }, range: [0, 2] } }}
       />
       <p className="small muted">
         試試看：(1) 載入「延遲 d = 2、g = 0.7：極性正確仍發散」preset，把 <Tex>{'d'}</Tex> 改成 <Tex>{'0'}</Tex>，快模式就收斂了；(2) 把{' '}

@@ -116,9 +116,10 @@ export function smWarnings(cfg: CalSmParams): string[] {
   return w
 }
 
+// Plot 的軸標題、圖例名稱裡的數學寫 `$...$`（Plot 元件會轉成斜體符號與上下標，見 src/components/plotMath.ts）
 const MU_LAYOUT: Partial<Layout> = {
-  xaxis: { title: { text: 'block k' } },
-  yaxis: { title: { text: 'μ_k (fs)' }, type: 'log' },
+  xaxis: { title: { text: String.raw`block $k$` } },
+  yaxis: { title: { text: String.raw`$\mu_k$ (fs)` }, type: 'log' },
   yaxis2: { overlaying: 'y', side: 'right', tickvals: CAL_STATES.map((_, i) => i), ticktext: [...CAL_STATES], range: [-0.5, CAL_STATES.length - 0.5], showgrid: false },
 }
 
@@ -181,15 +182,15 @@ export function CalStateMachineExperiment() {
   const absData = useMemo<Data[]>(() => {
     const abs = (a: Float64Array) => Array.from(a, (v) => Math.max(Math.abs(v), 1e-4))
     return [
-      { x: ks, y: abs(res.deltaApplied), name: '狀態機：DTC 實際誤差 |a − w_applied|（VERIFY 含 ±Δ）', line: { color: tokens.text, width: 2 } },
-      { x: ks, y: abs(res.delta), name: '狀態機：暫存器誤差 |a − w|', line: { color: tokens.text, width: 1, dash: 'dot' }, opacity: 0.7 },
-      { x: ks, y: abs(res.deltaBase), name: `固定快 μ = ${dcfg.baselineMu} fs`, line: { color: tokens.series[1], width: 1.2 }, opacity: 0.85 },
-      { x: ks, y: abs(res.deltaBase2), name: `固定安靜 μ = ${dcfg.baselineMu2} fs`, line: { color: tokens.series[4], width: 1.2 }, opacity: 0.85 },
+      { x: ks, y: abs(res.deltaApplied), name: String.raw`狀態機：DTC 實際誤差 $|a - w_\text{applied}|$（VERIFY 含 $\pm\Delta$）`, line: { color: tokens.text, width: 2 } },
+      { x: ks, y: abs(res.delta), name: String.raw`狀態機：暫存器誤差 $|a - w|$`, line: { color: tokens.text, width: 1, dash: 'dot' }, opacity: 0.7 },
+      { x: ks, y: abs(res.deltaBase), name: String.raw`固定快 $\mu = ${tx(dcfg.baselineMu, 4)}\,\mathrm{fs}$`, line: { color: tokens.series[1], width: 1.2 }, opacity: 0.85 },
+      { x: ks, y: abs(res.deltaBase2), name: String.raw`固定安靜 $\mu = ${tx(dcfg.baselineMu2, 4)}\,\mathrm{fs}$`, line: { color: tokens.series[4], width: 1.2 }, opacity: 0.85 },
     ]
   }, [ks, res, dcfg.baselineMu, dcfg.baselineMu2, tokens])
   const muData = useMemo<Data[]>(
     () => [
-      { x: ks.slice(0, Bk), y: Array.from(res.mu, (v) => (v > 0 ? v : null)), name: '狀態機 μ_k（0 = 不更新）', line: { color: tokens.text, shape: 'hv' } },
+      { x: ks.slice(0, Bk), y: Array.from(res.mu, (v) => (v > 0 ? v : null)), name: String.raw`狀態機 $\mu_k$（$\mu_k = 0$：不更新）`, line: { color: tokens.text, shape: 'hv' } },
       { x: ks.slice(0, Bk), y: Array.from(res.state), name: '狀態', yaxis: 'y2', line: { color: tokens.series[0], shape: 'hv', width: 1 } },
     ],
     [ks, Bk, res, tokens],
@@ -198,14 +199,14 @@ export function CalStateMachineExperiment() {
     if (!mcRes) return []
     return [
       { x: ks, y: Array.from(mcRes.rms), name: `狀態機 RMS（${mcRes.runs} runs）`, line: { color: tokens.text, width: 2.4 } },
-      { x: ks, y: Array.from(mcRes.rmsBase), name: '固定快 μ', line: { color: tokens.series[1] } },
-      { x: ks, y: Array.from(mcRes.rmsBase2), name: '固定安靜 μ', line: { color: tokens.series[4] } },
+      { x: ks, y: Array.from(mcRes.rmsBase), name: String.raw`固定快 $\mu$`, line: { color: tokens.series[1] } },
+      { x: ks, y: Array.from(mcRes.rmsBase2), name: String.raw`固定安靜 $\mu$`, line: { color: tokens.series[4] } },
     ]
   }, [mcRes, ks, tokens])
 
-  const deltaLayout = useMemo(() => ({ shapes: bandShapes, xaxis: { title: { text: 'block k' } }, yaxis: { title: { text: '|δ| (fs，log)' } } }), [bandShapes])
+  const deltaLayout = useMemo(() => ({ shapes: bandShapes, xaxis: { title: { text: String.raw`block $k$` } }, yaxis: { title: { text: String.raw`$|\delta|$ (fs，log)` } } }), [bandShapes])
   const mcLayout = useMemo(
-    () => ({ shapes: [vBand(dcfg.evalStart, Bk, withAlpha(tokens.series[2], 1), 0.06)], xaxis: { title: { text: 'block k' } }, yaxis: { title: { text: 'RMS δ (fs，log)' } } }),
+    () => ({ shapes: [vBand(dcfg.evalStart, Bk, withAlpha(tokens.series[2], 1), 0.06)], xaxis: { title: { text: String.raw`block $k$` } }, yaxis: { title: { text: String.raw`RMS $\delta$ (fs，log)` } } }),
     [dcfg.evalStart, Bk, tokens],
   )
   const pred = trackRmsPrediction(dcfg)

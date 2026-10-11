@@ -60,15 +60,15 @@ function DtLoopPanel() {
   }, [fr])
   const data = useMemo(
     () => [
-      { x: OMEGA_GRID, y: magDb, name: '|H_PD| [dB]', mode: 'lines' as const, line: { color: tokens.series[0] } },
-      { x: OMEGA_GRID, y: phaseDeg, name: '∠H_PD [deg]', mode: 'lines' as const, yaxis: 'y2', line: { color: tokens.series[1], dash: 'dot' as const } },
+      { x: OMEGA_GRID, y: magDb, name: '$|H_{\\mathrm{PD}}|$ [dB]', mode: 'lines' as const, line: { color: tokens.series[0] } },
+      { x: OMEGA_GRID, y: phaseDeg, name: '$\\angle H_{\\mathrm{PD}}$ [deg]', mode: 'lines' as const, yaxis: 'y2', line: { color: tokens.series[1], dash: 'dot' as const } },
     ],
     [magDb, phaseDeg, tokens],
   )
   const layout = useMemo(
     () => ({
-      xaxis: { title: { text: 'Ω [rad/sample]' }, type: 'log' as const },
-      yaxis: { title: { text: '|H_PD| [dB]' } },
+      xaxis: { title: { text: '$\\Omega$ [rad/sample]' }, type: 'log' as const },
+      yaxis: { title: { text: '$|H_{\\mathrm{PD}}|$ [dB]' } },
       yaxis2: { title: { text: '相位 [deg]' }, overlaying: 'y' as const, side: 'right' as const, range: [-180, 180] },
       shapes: Number.isFinite(boundary)
         ? [{ type: 'line' as const, x0: boundary, x1: boundary, y0: 0, y1: 1, yref: 'paper' as const, line: { color: tokens.series[2], dash: 'dash' as const, width: 1.5 } }]

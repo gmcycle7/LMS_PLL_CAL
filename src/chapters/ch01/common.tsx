@@ -127,11 +127,6 @@ export function PllLink({ title = '連結到 PLL', children }: { title?: string;
   )
 }
 
-/** 整數轉 Unicode 下標（給 Plotly 圖例、metric 名稱這類只能放純文字的地方）：12 → ₁₂ */
-export function sub(n: number): string {
-  return String(n).replace(/[0-9-]/g, (d) => (d === '-' ? '₋' : '₀₁₂₃₄₅₆₇₈₉'[Number(d)]))
-}
-
 /** lms.ts 的 POLE_BEHAVIOUR_LABEL 是純文字（給 metric 表）；正文表格用這份 LaTeX 版本。 */
 export const BEHAVIOUR_TEX: Record<PoleBehaviour, [string, string]> = {
   monotone: ['0<p<1', '不變號、單調收斂'],

@@ -58,7 +58,7 @@ export function S2ReadingPath() {
         原則只有一個：<strong>先在本站把對應章節的推導走過一次，再去讀文獻</strong>。這樣讀論文時，你只需要做「符號對照」與「條件對照」，不必同時學新數學。
         下圖的箭頭表示「建議先讀」。
       </p>
-      <Mermaid chart={READING_PATH_CHART} caption="建議閱讀順序（D1–D7 為規格書附錄 D 的編號；左側方塊是本站的預備章節）" ariaLabel="文獻閱讀路線圖" />
+      <Mermaid chart={READING_PATH_CHART} caption="建議閱讀順序（D1–D7 為規格書附錄 D 的編號；標「本站」的方塊是本站的預備章節）" ariaLabel="文獻閱讀路線圖" />
       {mode === 'beginner' && (
         <Callout kind="info" title="入門模式：只讀一份的話">
           先讀 <strong>D7 講義</strong>，同時打開本站 Ch03 對照；講義裡的 <Tex>{r`1-\mu\lambda_i`}</Tex> 就是本站的 pole。其他論文等你讀完 Part B 再回來。

@@ -5,6 +5,9 @@
  * 才能算出每個方塊的大小、交給 dagre 排版。這裡用「每個字大約多寬」的簡單字寬模型代替真正的字型量測：
  *   - 中日韓文字、全形標點、圈號數字：16 px；大寫拉丁字母：10.5 px；空白：4.5 px；其餘（小寫、數字、希臘字母、符號）：8.8 px；
  *   - 一行 24 px 高；超過 200 px 的標籤會被 mermaid 折行（和瀏覽器裡的行為相同：max-width 200 px）。
+ * 含公式（`$...$`）的標籤由 KaTeX 排版：KaTeX 不折行（white-space: nowrap），字體是外層的 1.21 倍，
+ * `<br/>` 分行的標籤是 gathered 環境的逐列排列；所以這裡把 KaTeX 的 HTML 輸出（去掉 MathML 複本）逐列量，字寬乘 1.21、
+ * 運算符號兩側再加間距，且不套用 200 px 的折行上限——超過 200 px 的列要由測試明確擋下來（否則在瀏覽器裡會被裁掉）。
  * 這是估計值（實際字型通常再窄一點），足以分辨「一張 900 px 的圖」和「一張 1800 px、在頁面上被縮到六成的圖」。
  */
 
@@ -38,7 +41,33 @@ export function lineWidths(labelHtml: string): number[] {
   return labelHtml.split(/<br\s*\/?>/i).map((l) => textWidth(plain(l)))
 }
 
+/** KaTeX 的字體是外層字體的 1.21 倍（`.katex { font-size: 1.21em }`）。 */
+const KATEX_SCALE = 1.21
+/** KaTeX 一列（gathered 的一行）的估計高度：行高 1.2 × 1.21 × 16 px 再加列距。 */
+const KATEX_ROW_HEIGHT_PX = 28
+/** 二元運算子與關係符號：KaTeX 在兩側各加約 0.22–0.28em 的間距。 */
+const SPACED_OPERATOR = /[=+−×÷±≤≥≠≈∝→←⇒⇐↔·]/g
+
+/** KaTeX 排版的一列文字（HTML 輸出的文字內容，不含 MathML 複本）的估計寬度（px）。 */
+export function katexTextWidth(text: string): number {
+  const t = text.replace(/\u200b/g, '').replace(/\u00a0/g, ' ')
+  const operators = (t.match(SPACED_OPERATOR) ?? []).length
+  return (textWidth(t) + operators * 0.5 * 8.8) * KATEX_SCALE
+}
+
+/** KaTeX HTML 輸出的每一列文字：`gathered`（<br/> 分行）有幾列就回傳幾項，否則整個公式是一列。 */
+function katexRows(html: Element): string[] {
+  const column = html.querySelector('.mtable > .col-align-c > .vlist-t > .vlist-r > .vlist')
+  const rows = column ? [...column.children].map((r) => r.textContent ?? '') : []
+  return rows.length > 0 ? rows : [html.textContent ?? '']
+}
+
 function measureHtml(el: Element): { width: number; height: number } {
+  const katex = el.querySelector('.katex-html')
+  if (katex) {
+    const rows = katexRows(katex)
+    return { width: Math.max(0, ...rows.map(katexTextWidth)), height: rows.length * KATEX_ROW_HEIGHT_PX }
+  }
   const widths = lineWidths(el.innerHTML)
   // mermaid 先以 nowrap + max-width 量一次；量到剛好等於 max-width 時，改成固定寬度並允許折行，再量一次
   const wrapped = new RegExp(`(?<![-\\w])width:\\s*${LABEL_WRAP_PX}px`).test(el.getAttribute('style') ?? '')

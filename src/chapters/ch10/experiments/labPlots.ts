@@ -65,7 +65,7 @@ export function trajectoryTraces(
           const v = c.meanAnalytic![i][k] + 2 * c.stdAnalytic![i][k]
           return Number.isFinite(v) ? v : null
         })
-        out.push({ x: idx, y: lo, mode: 'lines', line: { width: 0, color }, hoverinfo: 'skip', showlegend: false, name: `±2σ δ${i + 1}` })
+        out.push({ x: idx, y: lo, mode: 'lines', line: { width: 0, color }, hoverinfo: 'skip', showlegend: false, name: String.raw`$\pm2\sigma$ $\delta_${i + 1}$` })
         out.push({
           x: idx,
           y: hi,
@@ -74,7 +74,7 @@ export function trajectoryTraces(
           fill: 'tonexty',
           fillcolor: hexAlpha(color, 0.15),
           hoverinfo: 'skip',
-          name: i === 0 ? `Case ${ids[ci]} 解析 ±2σ` : `±2σ δ${i + 1}`,
+          name: i === 0 ? String.raw`Case ${ids[ci]} 解析 $\pm2\sigma$` : String.raw`$\pm2\sigma$ $\delta_${i + 1}$`,
           showlegend: i === 0,
         })
       }
@@ -84,7 +84,7 @@ export function trajectoryTraces(
         x: idx,
         y: pick(c.delta[i], idx),
         mode: 'lines',
-        name: `${caseName(ids[ci], cfgs[ci])} δ${i + 1}`,
+        name: String.raw`${caseName(ids[ci], cfgs[ci])} $\delta_${i + 1}$`,
         line: { color, width: 1.6, dash: DASHES[i % DASHES.length] },
       })
       if (c.meanAnalytic) {
@@ -92,7 +92,7 @@ export function trajectoryTraces(
           x: idx,
           y: pick(c.meanAnalytic[i], idx),
           mode: 'lines',
-          name: `Case ${ids[ci]} E[δ${i + 1}]（線性解析）`,
+          name: String.raw`Case ${ids[ci]} $E[\delta_${i + 1}]$（線性解析）`,
           line: { color, width: 1, dash: 'dash' },
           opacity: 0.8,
           showlegend: i === 0,
@@ -103,7 +103,7 @@ export function trajectoryTraces(
           x: idx,
           y: pick(c.meanField[i], idx),
           mode: 'lines',
-          name: `Case ${ids[ci]} mean-field δ${i + 1}（精確 erf 增益）`,
+          name: String.raw`Case ${ids[ci]} mean-field $\delta_${i + 1}$（精確 erf 增益）`,
           line: { color, width: 1, dash: 'longdashdot' },
           opacity: 0.7,
           showlegend: i === 0,
@@ -142,7 +142,7 @@ function hexAlpha(color: string, a: number): string {
 export function poleTraces(analyses: (RuleAnalysis | null)[], ids: string[], tokens: PlotTokens): Data[] {
   const th = Array.from({ length: 181 }, (_, i) => (2 * Math.PI * i) / 180)
   const out: Data[] = [
-    { x: th.map(Math.cos), y: th.map(Math.sin), mode: 'lines', name: '單位圓 |z| = 1', line: { color: tokens.textMuted, width: 1, dash: 'dot' }, hoverinfo: 'skip' },
+    { x: th.map(Math.cos), y: th.map(Math.sin), mode: 'lines', name: String.raw`單位圓 $|z| = 1$`, line: { color: tokens.textMuted, width: 1, dash: 'dot' }, hoverinfo: 'skip' },
   ]
   analyses.forEach((a, i) => {
     if (!a || !a.ok) return
@@ -151,7 +151,7 @@ export function poleTraces(analyses: (RuleAnalysis | null)[], ids: string[], tok
       x: poles.map((z) => z.re),
       y: poles.map((z) => z.im),
       mode: 'markers',
-      name: `Case ${ids[i]}：${RULE_SHORT[a.rule]}${a.rule === 'sequential' ? '（sweep Φ）' : ''}`,
+      name: String.raw`Case ${ids[i]}：${RULE_SHORT[a.rule]}${a.rule === 'sequential' ? String.raw`（sweep $\Phi$）` : ''}`,
       marker: { size: 11 - i * 2, color: tokens.series[i % tokens.series.length], symbol: ['x', 'circle-open', 'diamond-open'][i % 3], line: { width: 2 } },
     })
   })
@@ -207,7 +207,7 @@ export function phasePlaneTraces(opts: {
         ys.push(p.y, ty, null, ty, ty - h * (s * ux + c * uy), null, ty, ty - h * (-s * ux + c * uy), null)
       }
     }
-    out.push({ x: xs, y: ys, mode: 'lines', name: '平均更新方向 −MG（active case）', line: { color: tokens.textMuted, width: 1 }, hoverinfo: 'skip' })
+    out.push({ x: xs, y: ys, mode: 'lines', name: String.raw`平均更新方向 $-\mathbf M\mathbf G$（active case）`, line: { color: tokens.textMuted, width: 1 }, hoverinfo: 'skip' })
   }
   traj.forEach((c, i) => {
     if (!c.ok || c.delta.length < 2) return
@@ -224,7 +224,7 @@ export function phasePlaneTraces(opts: {
       x: [c.delta[0][k]],
       y: [c.delta[1][k]],
       mode: 'markers',
-      name: `Case ${ids[i]} 目前 k = ${k}`,
+      name: String.raw`Case ${ids[i]} 目前 $k = ${k}$`,
       marker: { color: tokens.series[i % tokens.series.length], size: 8, line: { width: 1, color: tokens.text } },
       showlegend: false,
     })
@@ -257,7 +257,7 @@ export function phasePlaneTraces(opts: {
       line: { color: tokens.series[i % tokens.series.length], width: 1, dash: 'dot' },
     })
   })
-  out.push({ x: [0], y: [0], mode: 'markers', name: 'δ = 0（w = a）', marker: { symbol: 'cross', size: 10, color: tokens.text } })
+  out.push({ x: [0], y: [0], mode: 'markers', name: String.raw`$\delta = 0$（$w = a$）`, marker: { symbol: 'cross', size: 10, color: tokens.text } })
   return out
 }
 

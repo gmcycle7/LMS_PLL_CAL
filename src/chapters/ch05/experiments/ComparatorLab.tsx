@@ -179,11 +179,11 @@ export function ComparatorLab() {
     const a1 = Math.max(c.theta, c.s)
     const sliver = linspace(a0, a1, 60)
     const traces: Data[] = [
-      { x: xs, y: xs.map(f), name: 'e = s + v 的 PDF', mode: 'lines', line: { color: tokens.series[0] } },
+      { x: xs, y: xs.map(f), name: '$e = s + v$ 的 PDF', mode: 'lines', line: { color: tokens.series[0] } },
       {
         x: [c.theta, ...shade],
         y: [0, ...shade.map(f)],
-        name: `e ≥ θ 的面積 = P(q=+1) = ${fx(a.p, 6)}`,
+        name: String.raw`$e \ge \theta$ 的面積 $= P(q=+1) =$ ${fx(a.p, 6)}`,
         mode: 'lines',
         fill: 'tozeroy',
         line: { color: tokens.series[2], width: 0 },
@@ -193,7 +193,7 @@ export function ComparatorLab() {
       traces.push({
         x: sliver,
         y: sliver.map(f),
-        name: `θ 與 s 之間：|P(+1) − ½| = ${sig(Math.abs(a.p - 0.5), 4)}`,
+        name: String.raw`$\theta$ 與 $s$ 之間：$|P(+1) - \tfrac{1}{2}| =$ ${sig(Math.abs(a.p - 0.5), 4)}`,
         mode: 'lines',
         fill: 'tozeroy',
         line: { color: tokens.series[3], width: 0 },
@@ -211,15 +211,15 @@ export function ComparatorLab() {
     const near = c.sigma > 0 ? linspace(c.theta - 3 * c.sigma, c.theta + 3 * c.sigma, 181) : [c.theta - 1e-9 * Math.max(1, Math.abs(c.theta)), c.theta]
     const xs = mergeGrid(linspace(lo, hi, 401), near, [c.s])
     const traces: Data[] = [
-      { x: xs, y: xs.map((x) => meanQ(x, c.sigma, c.theta)), name: 'E[q] vs s（精確 erf）', mode: 'lines', line: { color: tokens.series[0], width: 2.5 } },
+      { x: xs, y: xs.map((x) => meanQ(x, c.sigma, c.theta)), name: String.raw`$E[q]$ vs $s$（精確 $\operatorname{erf}$）`, mode: 'lines', line: { color: tokens.series[0], width: 2.5 } },
     ]
     if (c.sigma > 0) {
       const tx = xs.filter((x) => Math.abs(x - c.theta) <= 1.9 * c.sigma)
-      traces.push({ x: tx, y: tx.map((x) => a.Kq * (x - c.theta)), name: `K_q 切線（K_q = ${sig(a.Kq, 5)} fs⁻¹）`, mode: 'lines', line: { color: tokens.series[1], dash: 'dash' } })
+      traces.push({ x: tx, y: tx.map((x) => a.Kq * (x - c.theta)), name: String.raw`$K_q$ 切線（$K_q =$ ${sig(a.Kq, 5)} $\mathrm{fs}^{-1}$）`, mode: 'lines', line: { color: tokens.series[1], dash: 'dash' } })
       const lx = xs.filter((x) => Math.abs(x - c.s) <= 1.2 * c.sigma)
       traces.push({ x: lx, y: lx.map((x) => a.m + a.kLocal * (x - c.s)), name: '操作點的局部切線', mode: 'lines', line: { color: tokens.series[3], dash: 'dot' } })
     }
-    traces.push({ x: [c.s], y: [a.m], name: `操作點 (s, E[q]) = (${c.s}, ${sig(a.m, 5)})`, mode: 'markers', marker: { size: 10, color: tokens.series[2] } })
+    traces.push({ x: [c.s], y: [a.m], name: String.raw`操作點 $(s,\,E[q]) =$ (${c.s}, ${sig(a.m, 5)})`, mode: 'markers', marker: { size: 10, color: tokens.series[2] } })
     return traces
   }, [c, a, tokens])
 
@@ -245,9 +245,9 @@ export function ComparatorLab() {
     for (const k of curves) {
       const col = tokens.series[k.seriesIndex]
       const tag = `${k.id}`
-      traces.push({ x: k.curve.oddN, y: k.curve.oddExact, name: `${tag} 精確（奇數 N）`, mode: 'lines', line: { color: col, width: 2 } })
-      traces.push({ x: k.curve.evenN, y: k.curve.evenExact, name: `${tag} 精確（偶數 N，${k.params.tieRule}）`, mode: 'lines', line: { color: col, width: 1, dash: 'dot' } })
-      traces.push({ x: k.curve.allN, y: k.curve.cltPlain, name: `${tag} CLT Φ(m√N/√(1−m²))`, mode: 'lines', line: { color: col, width: 1, dash: 'dash' }, opacity: 0.8 })
+      traces.push({ x: k.curve.oddN, y: k.curve.oddExact, name: `${tag} 精確（奇數 $N$）`, mode: 'lines', line: { color: col, width: 2 } })
+      traces.push({ x: k.curve.evenN, y: k.curve.evenExact, name: `${tag} 精確（偶數 $N$，${k.params.tieRule}）`, mode: 'lines', line: { color: col, width: 1, dash: 'dot' } })
+      traces.push({ x: k.curve.allN, y: k.curve.cltPlain, name: String.raw`${tag} CLT $\Phi(m\sqrt{N}/\sqrt{1-m^2})$`, mode: 'lines', line: { color: col, width: 1, dash: 'dash' }, opacity: 0.8 })
     }
     if (sweep) {
       const r = sweep.res
@@ -268,7 +268,7 @@ export function ComparatorLab() {
     const k = curves.find((x) => x.id === cases.activeId)
     if (!k) return []
     return [
-      { x: k.curve.evenN, y: k.curve.evenExact, name: '精確（偶數 N）', mode: 'lines', line: { color: tokens.series[k.seriesIndex] } },
+      { x: k.curve.evenN, y: k.curve.evenExact, name: '精確（偶數 $N$）', mode: 'lines', line: { color: tokens.series[k.seriesIndex] } },
       { x: k.curve.evenN, y: k.curve.evenCltCorrected, name: 'CLT + 連續性修正（同一 tie rule）', mode: 'lines', line: { color: tokens.series[4], dash: 'dash' } },
       { x: k.curve.allN.filter((n) => n % 2 === 0), y: k.curve.cltPlain.filter((_, i) => k.curve.allN[i] % 2 === 0), name: '規格式（無修正）', mode: 'lines', line: { color: tokens.textMuted, dash: 'dot' } },
     ]
@@ -305,10 +305,10 @@ export function ComparatorLab() {
     const mean = n.map((k) => (avg ? mcM : k * mcM))
     const half = n.map((k) => (avg ? z * Math.sqrt(v / k) : z * Math.sqrt(k * v)))
     return [
-      { x: n, y: mean.map((mu, i) => mu - half[i]), name: `−${fx(z, 3)}·SD`, mode: 'lines', line: { color: tokens.series[2], width: 0 }, showlegend: false },
-      { x: n, y: mean.map((mu, i) => mu + half[i]), name: `${Math.round(shared.level * 100)}% 帶：E ± z·SD`, mode: 'lines', fill: 'tonexty', line: { color: tokens.series[2], width: 0 }, opacity: 0.3 },
-      { x: n, y: mean, name: avg ? 'E[G] = m' : 'E[S_n] = n·m', mode: 'lines', line: { color: tokens.series[1], dash: 'dash' } },
-      { x: n.slice(0, shown), y, name: avg ? '第 1 個 trial 的 G_n = S_n/n' : '第 1 個 trial 的 S_n', mode: 'lines', line: { color: tokens.series[0] } },
+      { x: n, y: mean.map((mu, i) => mu - half[i]), name: String.raw`$-${fx(z, 3)}\cdot\mathrm{SD}$`, mode: 'lines', line: { color: tokens.series[2], width: 0 }, showlegend: false },
+      { x: n, y: mean.map((mu, i) => mu + half[i]), name: String.raw`${Math.round(shared.level * 100)}% 帶：$E \pm z\cdot\mathrm{SD}$`, mode: 'lines', fill: 'tonexty', line: { color: tokens.series[2], width: 0 }, opacity: 0.3 },
+      { x: n, y: mean, name: avg ? '$E[G] = m$' : String.raw`$E[S_n] = n\cdot m$`, mode: 'lines', line: { color: tokens.series[1], dash: 'dash' } },
+      { x: n.slice(0, shown), y, name: avg ? '第 1 個 trial 的 $G_n = S_n/n$' : '第 1 個 trial 的 $S_n$', mode: 'lines', line: { color: tokens.series[0] } },
     ]
   }, [path, revealed, L, mcM, z, shared.axis, shared.level, tokens])
 
@@ -319,7 +319,7 @@ export function ComparatorLab() {
     const rows: MetricRow[] = [
       { name: '$P(q=+1)$（理論）', value: a.p, formulaId: 'F-05.1', claim: 'exact', digits: 8 },
       { name: '$E[q]=m$（理論）', value: a.m, formulaId: 'F-05.2', claim: 'exact', digits: 8 },
-      { name: String.raw`$K_q=\sqrt{2/\pi}/\sigma_v$`, value: c.sigma > 0 ? a.Kq : '不存在（無雜訊）', unit: 'fs⁻¹', formulaId: 'F-05.10', claim: 'approx', digits: 6 },
+      { name: String.raw`$K_q=\sqrt{2/\pi}/\sigma_v$`, value: c.sigma > 0 ? a.Kq : '不存在（無雜訊）', unit: String.raw`$\mathrm{fs}^{-1}$`, formulaId: 'F-05.10', claim: 'approx', digits: 6 },
       { name: String.raw`線性化高估 $K_q(s-\theta)/E[q]-1$`, value: c.sigma > 0 && c.s !== c.theta ? a.linErr : null, formulaId: 'F-05.11', claim: 'approx', digits: 4 },
       { name: `$E[S_N]$（$N=${texInt(N)}$）`, value: a.mo.meanSum, formulaId: 'F-05.4', claim: 'exact' },
       { name: String.raw`$\mathrm{SD}(S_N)$`, value: a.mo.sdSum, formulaId: 'F-05.4', claim: 'exact' },
@@ -519,7 +519,7 @@ export function ComparatorLab() {
       onLoadPreset={(p) => applyPreset(p.params)}
       controls={
         <div className="ch05-controls">
-          <CaseSelector cases={cases} label="比較組（各自的 s、σ_v、θ、tie rule）" />
+          <CaseSelector cases={cases} label="比較組（各自的固定誤差、雜訊 RMS、門檻與 tie rule）" />
           <ParamControl label={mathText(`$s$（固定誤差）— Case ${cases.activeId}`)} ariaLabel={`s（固定誤差）— Case ${cases.activeId}`} value={c.s} onChange={(s) => setCase({ s })} min={-100} max={100} step={0.01} unit="fs" reg="Behavioral: s = DTC residual (a − w)" hint="要辨識正負號的誤差" />
           <ParamControl
             label={mathText(String.raw`$\sigma_v$（雜訊 RMS）— Case ${cases.activeId}`)}
@@ -668,12 +668,13 @@ export function ComparatorLab() {
             title="① $e=s+v$ 的 PDF；陰影 = $P(q=+1)$"
             data={pdfData}
             layout={{
-              xaxis: { title: { text: 'e（fs）' } },
+              xaxis: { title: { text: '$e$（fs）' } },
               yaxis: { title: { text: 'PDF（1/fs）' } },
               shapes: [vline(c.theta, tokens.series[1]), vline(c.s, tokens.textMuted, 'dot')],
+              // θ 與 s 常常只差幾 fs（圖上幾乎同一條線）：兩個標籤放在圖框中間的高度，分別靠在各自那條線的左右兩側，不疊在一起，也不碰到上方的圖例
               annotations: [
-                { x: c.theta, y: 1, yref: 'paper', text: 'θ', showarrow: false, yanchor: 'bottom' },
-                { x: c.s, y: 0.92, yref: 'paper', text: 's', showarrow: false, yanchor: 'bottom' },
+                { x: c.theta, y: 0.5, yref: 'paper', text: String.raw`$\theta$`, showarrow: false, yanchor: 'middle', xanchor: c.s >= c.theta ? 'right' : 'left', xshift: c.s >= c.theta ? -3 : 3 },
+                { x: c.s, y: 0.5, yref: 'paper', text: '$s$', showarrow: false, yanchor: 'middle', xanchor: c.s >= c.theta ? 'left' : 'right', xshift: c.s >= c.theta ? 3 : -3 },
               ],
             }}
             height={280}
@@ -696,7 +697,7 @@ export function ComparatorLab() {
         <Plot
           title="② S 曲線 $E[q]$ vs $s$、$K_q$ 切線與操作點"
           data={sCurve}
-          layout={{ xaxis: { title: { text: 's（fs）' } }, yaxis: { title: { text: 'E[q]' }, range: [-1.15, 1.15] }, shapes: [vline(c.theta, tokens.series[1])] }}
+          layout={{ xaxis: { title: { text: '$s$（fs）' } }, yaxis: { title: { text: '$E[q]$' }, range: [-1.15, 1.15] }, shapes: [vline(c.theta, tokens.series[1])] }}
           height={280}
           csvName="ch05-lab-scurve"
           caption={
@@ -718,7 +719,7 @@ export function ComparatorLab() {
           title={`③ ${shared.axis === 'sum' ? '$S_N$' : '$G=S_N/N$'} 的 histogram：Monte Carlo vs 精確 Binomial vs CLT（$N=${texInt(mcN)}$${mcFresh ? '' : '，更新中'}）`}
           data={histData}
           layout={{
-            xaxis: { title: { text: shared.axis === 'sum' ? 'S_N = Σ q_i' : 'G = S_N / N' } },
+            xaxis: { title: { text: shared.axis === 'sum' ? String.raw`$S_N = \sum q_i$` : '$G = S_N / N$' } },
             yaxis: { title: { text: '個數（每個 bin）' } },
             bargap: 0.05,
             shapes: [vline(0, tokens.series[1]), vline((mcMo?.meanSum ?? 0) * scale, tokens.series[2], 'dot')],
@@ -745,8 +746,8 @@ export function ComparatorLab() {
         title={String.raw`④ $P(\text{判對})$ vs $N$：精確（奇／偶）、CLT 與 Monte Carlo（Wilson 區間）`}
         data={pnData}
         layout={{
-          xaxis: { title: { text: 'N（樣本數）' } },
-          yaxis: { title: { text: 'P(判對)' } },
+          xaxis: { title: { text: '$N$（樣本數）' } },
+          yaxis: { title: { text: String.raw`$P(\text{判對})$` } },
           shapes: [vline(N, tokens.textMuted, 'dot'), hline(0.95, tokens.series[1]), hline(0.99, tokens.series[1])],
         }}
         xLog
@@ -763,7 +764,7 @@ export function ComparatorLab() {
         <Plot
           title={String.raw`⑤ 偶數 $N$：連續性修正 $\Phi((Nm\mp1)/\sigma_S)$ 對上精確值（Case ${cases.activeId}，${c.tieRule}）`}
           data={pnCorrected}
-          layout={{ xaxis: { title: { text: 'N（偶數）' } }, yaxis: { title: { text: 'P(判對)' } } }}
+          layout={{ xaxis: { title: { text: '$N$（偶數）' } }, yaxis: { title: { text: String.raw`$P(\text{判對})$` } } }}
           xLog
           height={280}
           csvName="ch05-lab-continuity"
@@ -798,8 +799,8 @@ export function ComparatorLab() {
             title={`⑥ 逐樣本累加${shared.axis === 'sum' ? ' $S_n$' : '平均 $G_n=S_n/n$'} 與 ${Math.round(shared.level * 100)}% 信賴帶`}
             data={pathData}
             layout={{
-              xaxis: { title: { text: 'n（comparator sample）' } },
-              yaxis: { title: { text: shared.axis === 'sum' ? 'S_n' : 'G_n' } },
+              xaxis: { title: { text: '$n$（comparator sample）' } },
+              yaxis: { title: { text: shared.axis === 'sum' ? '$S_n$' : '$G_n$' } },
               shapes: [{ type: 'line', x0: 0, x1: 1, xref: 'paper', y0: 0, y1: 0, line: { color: tokens.series[1], width: 1 } }],
             }}
             height={300}

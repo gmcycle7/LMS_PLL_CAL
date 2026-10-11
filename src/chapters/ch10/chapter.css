@@ -274,3 +274,10 @@
 .ch10-symbols-back {
   margin: 0;
 }
+
+/* 實驗結果欄不寬（約 440px）：兩張並排的圖在窄欄裡會被圖例擠扁，所以每張至少 340px 寬，放不下就上下堆疊 */
+.ch10-plot-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 16px;
+}

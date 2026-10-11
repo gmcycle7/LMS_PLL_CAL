@@ -5,12 +5,16 @@ import type { SystemBlock } from '@/components'
  * diagrams.test.tsx 以真正的 mermaid parser 解析、再以真正的 renderer（jsdom）畫一次，並逐張核對
  * 圖上的數字與正負號是否和 bias.ts 的模型一致。
  *
+ * 圖裡面的數學一律寫 LaTeX（teaching-style §3）：節點與連線的雙引號標籤裡寫 `$…$`，由共用 `Mermaid` 元件用 KaTeX 排版；
+ * 圖的原始碼用 `String.raw` 樣板字串，所以 TeX 的反斜線只要寫一次（不可在標籤裡寫 `\\\\`，換行用 `<br/>`）。
+ *
  * 寫 Mermaid 標籤時要注意（Mermaid 11 會把「所有」節點／連線／subgraph 標籤當成 Markdown 處理）：
  *  - 單獨的 ASCII「+」「-」，或以「+ 」「- 」「1. 」「#」「>」開頭的標籤會被當成 list／heading／blockquote，
- *    圖上會直接印出「Unsupported markdown: list」。所以加法點與正號一律用全形「＋」，負號用「−」（U+2212）。
- *  - 「E[G](w*)」會被當成 Markdown link：']' 後面不可以緊接 '('。
- *  - 成對的 ASCII '*' 會變成斜體：卷積寫成「∗」（U+2217）；「w*」後面接空白或標點則沒有問題。
- *  - Mermaid 不渲染 KaTeX：節點文字用 Unicode 數學符號；圖說（caption）另外以 KaTeX 顯示。
+ *    圖上會直接印出「Unsupported markdown: list」。所以純粹的正負號標籤一律用全形「＋」與減號「−」（U+2212）；
+ *    在 `$…$` 裡的正負號則照 TeX 寫 `+`、`-`。
+ *  - 含 `$…$` 的標籤整個交給 KaTeX（`mermaidMathDelimiters` 會合併成單一的 `$$…$$`），Markdown 的規則不再適用：
+ *    `w^*`、`h * x`、`E[G](w^*)` 都可以直接寫。
+ *  - 標籤裡的數學都在 `$…$` 內；公式外只放文字、全形標點與步驟記號（①–⑦），不用 Unicode 拼公式。
  * 訊號名稱、箭頭方向、加法點的正負號、取樣率（sample n／block k）都和正文公式一致；δ 的極性是 a − w（全站約定）。
  */
 
@@ -22,27 +26,23 @@ const STYLE = `  classDef focus fill:#1f5fa8,stroke:#0d3b6e,color:#ffffff,stroke
   classDef warn fill:#b42318,stroke:#7a160f,color:#ffffff
   classDef ok fill:#1d7a46,stroke:#0f4d2b,color:#ffffff`
 
-/** φ 的平均值與抖動（組合用附加符號；圖上另外用文字說明） */
-const PHI_BAR = 'φ\u0304'
-const PHI_TILDE = 'φ\u0303'
-
 /* ───────────────────────── 開場 ───────────────────────── */
 
 /** 手算流程 —— w = 1.34 時五個 code 的殘差、x·e 與平均（5-level、a = 1、c₃ = 0.1）。 */
-export const CHART_GMAC_ZERO = `flowchart LR
-  W["目前的校正 gain w = 1.34<br/>殘差 e(x) = (a − w)·x + c₃·x³<br/>= −0.34·x + 0.1·x³"]
-  W --> M2["x = −2：e = −0.12<br/>x·e = +0.24"]
-  W --> M1["x = −1：e = +0.24<br/>x·e = −0.24"]
-  W --> Z0["x = 0：e = 0<br/>x·e = 0"]
-  W --> P1["x = +1：e = −0.24<br/>x·e = −0.24"]
-  W --> P2["x = +2：e = +0.12<br/>x·e = +0.24"]
-  M2 --> AVG["GMAC：把 x·e 取平均<br/>E[x·e] = ( 0.24 − 0.24 + 0 − 0.24 + 0.24 ) / 5"]
+export const CHART_GMAC_ZERO = String.raw`flowchart TB
+  W["目前的校正 gain $w = 1.34$<br/>殘差 $e(x) = (a - w) \cdot x + c_3 \cdot x^3$<br/>$= -0.34 \cdot x + 0.1 \cdot x^3$"]
+  W --> M2["$x = -2$：$e = -0.12$<br/>$x \cdot e = +0.24$"]
+  W --> M1["$x = -1$：$e = +0.24$<br/>$x \cdot e = -0.24$"]
+  W --> Z0["$x = 0$：$e = 0$<br/>$x \cdot e = 0$"]
+  W --> P1["$x = +1$：$e = -0.24$<br/>$x \cdot e = -0.24$"]
+  W --> P2["$x = +2$：$e = +0.12$<br/>$x \cdot e = +0.24$"]
+  M2 --> AVG["GMAC：把 $x \cdot e$ 取平均<br/>$E[x \cdot e] = (0.24 - 0.24 + 0 - 0.24 + 0.24) / 5$"]
   M1 --> AVG
   Z0 --> AVG
   P1 --> AVG
   P2 --> AVG
-  AVG --> ZERO["E[x·e] = 0<br/>GMAC 歸零，LMS 停在這裡"]
-  AVG -.-> LEFT["但是四個 code 的 e 都不是 0<br/>±0.24 與 ±0.12 還留在輸出"]
+  AVG --> ZERO["$E[x \cdot e] = 0$<br/>GMAC 歸零，LMS 停在這裡"]
+  AVG -.-> LEFT["但是四個 code 的 $e$ 都不是 0<br/>$\pm 0.24$ 與 $\pm 0.12$ 還留在輸出"]
 ${STYLE}
   class AVG focus
   class ZERO ok
@@ -52,22 +52,26 @@ ${STYLE}
  * 誤差從哪些硬體進來（硬體視角，含 LMS 迴圈與主迴路的 DC null）。
  * 加法點的正負號：DTC 的真實 delay 以「＋」進、校正電路的補償量 w·x 以「−」進（合起來是 (a − w)·x，即 e = y − ŷ、δ = a − w），
  * 其餘來源（b、ε_cc、v，以及主迴路加回來的 φ）都以「＋」進 —— 和 F-11.1、§11.1 的 q = sign(e_det + φ + v) 一致。
+ * 由上往下排（TB）：左右展開的話連線標籤會讓圖寬到 1600px 以上，桌機放不下；W 要由第一行宣告，Mermaid 才會把
+ * 「UPD → W」當成回授線（否則 COMP → SUM 會被反轉）。
+ * 「DSM ~~~ W」是隱形連線（圖上看不到、不代表訊號）：把 W 排在 DSM 的下一排，W → COMP 才不會從 DSM 的方塊後面穿過去。
  */
-export const CHART_ERROR_SOURCES = `flowchart LR
-  W["gain 暫存器 w"] --> COMP["校正電路的補償量<br/>w·x"]
-  DSM["DSM residue<br/>code x[n]"] --> COMP
-  DSM --> DTC["DTC<br/>delay = a·x + d(x)"]
-  DTC -- "＋" --> SUM(("Σ"))
+export const CHART_ERROR_SOURCES = String.raw`flowchart TB
+  W["gain 暫存器 $w$"] --> COMP["校正電路的<br/>補償量 $w \cdot x$"]
+  DSM["DSM residue<br/>code $x[n]$"] --> COMP
+  DSM --> DTC["DTC 的 delay<br/>$= a \cdot x + d(x)$"]
+  DSM ~~~ W
+  DTC -- "＋" --> SUM(("$\Sigma$"))
   COMP -- "−" --> SUM
-  B["PD / comparator offset b"] -- "＋" --> SUM
-  ECC["code-correlated 干擾<br/>ε_cc = κ·x"] -- "＋" --> SUM
-  V["隨機雜訊 v"] -- "＋" --> SUM
-  SUM -- "e[n]" --> Q["1-bit comparator<br/>q = sign(e)"]
-  Q -. "q（若 comparator 就是主 PLL 的 BBPD）" .-> LF["主 PLL loop filter<br/>（積分路徑：DC null）"]
-  LF -. "＋ φ（static phase offset）" .-> SUM
-  Q -- "q[n]" --> GMAC["GMAC<br/>G = (1/N)·Σ q·x"]
-  DSM -. "x[n] 當 regressor" .-> GMAC
-  GMAC -- "G" --> UPD["w ← w + μ·G<br/>每 N 個 sample 更新一次"]
+  B["PD / comparator<br/>offset $b$"] -- "＋" --> SUM
+  ECC["code-correlated<br/>干擾 $\varepsilon_{cc}$<br/>$= \kappa \cdot x$"] -- "＋" --> SUM
+  V["隨機雜訊 $v$"] -- "＋" --> SUM
+  SUM -- "$e[n]$" --> Q["1-bit comparator<br/>$q = \operatorname{sign}(e)$"]
+  Q -. "$q$（若 comparator 就是主 PLL 的 BBPD）" .-> LF["主 PLL loop filter<br/>（積分路徑：DC null）"]
+  LF -. "＋ $\varphi$（static phase offset）" .-> SUM
+  Q -- "$q[n]$" --> GMAC["GMAC<br/>$G = (1/N) \cdot \sum q \cdot x$"]
+  DSM -. "$x[n]$ 當 regressor" .-> GMAC
+  GMAC -- "$G$" --> UPD["$w \leftarrow w + \mu \cdot G$<br/>每 $N$ 個 sample 更新一次"]
   UPD --> W
 ${STYLE}
   class GMAC focus`
@@ -75,20 +79,20 @@ ${STYLE}
 /* ───────────────────────── §11.0 誤差模型 ───────────────────────── */
 
 /** 誤差預算 e[n] = (a − w)x + b + d(x) + ε_cc + v（F-11.1）；五項都以「＋」進加法點。 */
-export const CHART_ERROR_BUDGET = `flowchart LR
-  X["code x[n]<br/>無因次"] --> GAIN["gain 誤差<br/>(a − w)·x[n]"]
-  X --> INL["DTC INL<br/>d(x) = c₂·x² + c₃·x³"]
-  X --> ECC["code-correlated 干擾<br/>ε_cc[n] = κ·x[n]"]
-  OFF["靜態 offset b<br/>與 x 無關的常數"]
-  V["隨機雜訊 v[n]<br/>零均值、標準差 σ_v"]
+export const CHART_ERROR_BUDGET = String.raw`flowchart LR
+  X["code $x[n]$<br/>無因次"] --> GAIN["gain 誤差<br/>$(a - w) \cdot x[n]$"]
+  X --> INL["DTC INL<br/>$d(x) = c_2 \cdot x^2 + c_3 \cdot x^3$"]
+  X --> ECC["code-correlated 干擾<br/>$\varepsilon_{cc}[n] = \kappa \cdot x[n]$"]
+  OFF["靜態 offset $b$<br/>與 $x$ 無關的常數"]
+  V["隨機雜訊 $v[n]$<br/>零均值、標準差 $\sigma_v$"]
   GAIN -- "＋" --> SUM(("＋"))
   OFF -- "＋" --> SUM
   INL -- "＋" --> SUM
   ECC -- "＋" --> SUM
   V -- "＋" --> SUM
-  SUM -- "e[n]" --> CMP["1-bit comparator<br/>q[n] = sign(e[n])"]
-  CMP -- "q[n]" --> GMAC["GMAC<br/>G_k = (1/N)·Σ q[n]·x[n]"]
-  X -. "x[n] 當 regressor" .-> GMAC
+  SUM -- "$e[n]$" --> CMP["1-bit comparator<br/>$q[n] = \operatorname{sign}(e[n])$"]
+  CMP -- "$q[n]$" --> GMAC["GMAC<br/>$G_k = (1/N) \cdot \sum q[n] \cdot x[n]$"]
+  X -. "$x[n]$ 當 regressor" .-> GMAC
 ${STYLE}
   class GAIN focus
   class INL,ECC warn
@@ -102,62 +106,62 @@ ${STYLE}
  * SLOW 寫在 FAST 前面是故意的：Mermaid 以相反的順序建立 subgraph，這樣排版時才會把 FAST（sample 那一列）放在上面
  * （diagrams.test.tsx 會檢查實際排出來的上下順序）。
  */
-export const CHART_LMS_LOOP = `flowchart TB
-  subgraph SLOW["每個 block k 才跑一次（慢）"]
+export const CHART_LMS_LOOP = String.raw`flowchart TB
+  subgraph SLOW["每個 block $k$ 才跑一次（慢）"]
     direction LR
-    AVG["GMAC：N 個乘積取平均<br/>G_k = (1/N)·Σ q[n]·x[n]"] -- "G_k" --> MU["× μ"]
-    MU -- "＋ μ·G_k" --> ADD(("＋"))
-    ADD -- "w_(k+1)" --> DLY["z⁻¹<br/>延遲 1 個 block"]
-    DLY -- "＋ w_k" --> ADD
+    AVG["GMAC：$N$ 個乘積取平均<br/>$G_k = (1/N) \cdot \sum q[n] \cdot x[n]$"] -- "$G_k$" --> MU["$\times \mu$"]
+    MU -- "＋ $\mu \cdot G_k$" --> ADD(("＋"))
+    ADD -- "$w_{k+1}$" --> DLY["$z^{-1}$<br/>延遲 1 個 block"]
+    DLY -- "＋ $w_k$" --> ADD
   end
-  subgraph FAST["每個 sample n 跑一次（快）"]
+  subgraph FAST["每個 sample $n$ 跑一次（快）"]
     direction LR
-    X["code x[n]"] --> ERR["誤差模型（圖 11-3）<br/>e[n] = (a − w_k)·x[n] + b + d(x) + ε_cc + v"]
-    ERR -- "e[n]" --> CMP["comparator<br/>q[n] = sign(e[n])"]
-    CMP -- "q[n]" --> MUL(("×"))
-    X -- "x[n]" --> MUL
+    X["code $x[n]$"] --> ERR["誤差模型（圖 11-3）<br/>$e[n] = (a - w_k) \cdot x[n] + b + d(x) + \varepsilon_{cc} + v$"]
+    ERR -- "$e[n]$" --> CMP["comparator<br/>$q[n] = \operatorname{sign}(e[n])$"]
+    CMP -- "$q[n]$" --> MUL(("$\times$"))
+    X -- "$x[n]$" --> MUL
   end
-  FAST -- "乘積 q[n]·x[n]，每 N 個一組" --> SLOW
-  SLOW -- "w_k 回授：整個 block 內不變" --> FAST
-  SLOW -.-> FP["固定點 w*：平均 E[G] = 0<br/>w 不再有淨移動"]
+  FAST -- "乘積 $q[n] \cdot x[n]$，每 $N$ 個一組" --> SLOW
+  SLOW -- "$w_k$ 回授：整個 block 內不變" --> FAST
+  SLOW -.-> FP["固定點 $w^*$：平均 $E[G] = 0$<br/>$w$ 不再有淨移動"]
 ${STYLE}
   class AVG focus
   class FP ok`
 
 /** 同一個誤差、兩種 GMAC（MSE：直線；Sign：erf 曲線）與三個出口。 */
-export const CHART_MSE_VS_SIGN = `flowchart TB
-  E["comparator 前的誤差<br/>e = e_det(x; w) + v"]
-  E --> MSE["MSE-LMS<br/>多位元的 e 直接乘 x"]
-  E --> SGN["Sign-LMS<br/>只留 1 bit：q = sign(e)"]
-  MSE --> GM["E[G] = E[x·e]<br/>對 w 是一條直線"]
-  SGN --> ERF["先對雜訊平均<br/>E[q | x] = erf( e_det / (√2·σ_v) )"]
-  ERF --> GS["E[G] = E[ x·erf( e_det / (√2·σ_v) ) ]<br/>對 w 是一條曲線"]
-  GM --> FM["一次方程的精確解<br/>w* = a + ( b·E[x] + E[x·d] + E[x·ε_cc] ) / E[x²]"]
-  GS -- "σ_v 遠大於殘差：erf ≈ K_q·e_det" --> FM
-  GS -- "σ_v 與殘差同量級" --> FR["mean-field 根（數值求解）<br/>§11.2 的例子落在 1.34 與 1.4 之間"]
-  GS -- "σ_v = 0：erf 變成 sign" --> FMED["|x| 加權中位數<br/>§11.2 的例子是 1.4"]
+export const CHART_MSE_VS_SIGN = String.raw`flowchart TB
+  E["comparator 前的誤差<br/>$e = e_\mathrm{det}(x; w) + v$"]
+  E --> MSE["MSE-LMS<br/>多位元的 $e$ 直接乘 $x$"]
+  E --> SGN["Sign-LMS<br/>只留 1 bit：$q = \operatorname{sign}(e)$"]
+  MSE --> GM["$E[G] = E[x \cdot e]$<br/>對 $w$ 是一條直線"]
+  SGN --> ERF["先對雜訊平均<br/>$E[q \mid x] = \operatorname{erf}(e_\mathrm{det} / (\sqrt{2} \cdot \sigma_v))$"]
+  ERF --> GS["$E[G] = E[x \cdot \operatorname{erf}(e_\mathrm{det} / (\sqrt{2} \cdot \sigma_v))]$<br/>對 $w$ 是一條曲線"]
+  GM --> FM["一次方程的精確解<br/>$w^* = a + (b \cdot E[x] + E[x \cdot d] + E[x \cdot \varepsilon_{cc}]) / E[x^2]$"]
+  GS -- "$\sigma_v$ 遠大於殘差：$\operatorname{erf} \approx K_q \cdot e_\mathrm{det}$" --> FM
+  GS -- "$\sigma_v$ 與殘差同量級" --> FR["mean-field 根（數值求解）<br/>§11.2 的例子落在 1.34 與 1.4 之間"]
+  GS -- "$\sigma_v = 0$：$\operatorname{erf}$ 變成 $\operatorname{sign}$" --> FMED["$|x|$ 加權中位數<br/>§11.2 的例子是 1.4"]
 ${STYLE}
   class SGN,ERF,GS focus
   class FM ok
   class FR,FMED warn`
 
 /** GMAC = 五個平行的相關器；E[x·e] 逐項拆開（F-11.4 的推導）。 */
-export const CHART_BIAS_CORRELATORS = `flowchart LR
-  subgraph TERMS["e[n] 的五項"]
+export const CHART_BIAS_CORRELATORS = String.raw`flowchart LR
+  subgraph TERMS["$e[n]$ 的五項"]
     direction TB
-    T1["(a − w)·x"]
-    T2["offset b"]
-    T3["INL d(x)"]
-    T4["ε_cc"]
-    T5["雜訊 v"]
+    T1["$(a - w) \cdot x$"]
+    T2["offset $b$"]
+    T3["INL $d(x)$"]
+    T4["$\varepsilon_{cc}$"]
+    T5["雜訊 $v$"]
   end
-  subgraph CORR["各自乘上 x 再取平均"]
+  subgraph CORR["各自乘上 $x$ 再取平均"]
     direction TB
-    C1["(a − w)·E[x²]"]
-    C2["b·E[x]"]
-    C3["E[x·d(x)]"]
-    C4["E[x·ε_cc]"]
-    C5["E[x·v] = 0"]
+    C1["$(a - w) \cdot E[x^2]$"]
+    C2["$b \cdot E[x]$"]
+    C3["$E[x \cdot d(x)]$"]
+    C4["$E[x \cdot \varepsilon_{cc}]$"]
+    C5["$E[x \cdot v] = 0$"]
   end
   T1 --> C1
   T2 --> C2
@@ -169,7 +173,7 @@ export const CHART_BIAS_CORRELATORS = `flowchart LR
   C3 -- "＋" --> S
   C4 -- "＋" --> S
   C5 -- "＋" --> S
-  S -- "E[G] = E[x·e]" --> FP["令 E[G] = 0，解出 w<br/>w* = a + ( b·E[x] + E[x·d] + E[x·ε_cc] ) / E[x²]"]
+  S -- "$E[G] = E[x \cdot e]$" --> FP["令 $E[G] = 0$，解出 $w$<br/>$w^* = a + (b \cdot E[x] + E[x \cdot d] + E[x \cdot \varepsilon_{cc}]) / E[x^2]$"]
 ${STYLE}
   class T1,C1 focus
   class T3,T4,C3,C4 warn
@@ -182,67 +186,67 @@ ${STYLE}
  *  ③ 再線性化（近似，需 |e_det| ≪ σ_v）：E[q | x] ≈ K_q·e_det，K_q = √(2/π)/σ_v。
  * 三列只有 comparator 那一塊不同（藍色）；後面的「乘上 x 再平均」完全一樣。
  */
-export const CHART_COMPARATOR_MODEL = `flowchart TB
-  subgraph REAL["① 實際的 comparator：每個 sample 只輸出 ±1"]
+export const CHART_COMPARATOR_MODEL = String.raw`flowchart TB
+  subgraph REAL["① 實際的 comparator：每個 sample 只輸出 $\pm 1$"]
     direction LR
-    R0["確定性殘差<br/>e_det(x; w)"] -- "＋" --> R1(("＋"))
-    R2["雜訊 v[n]<br/>Gaussian，標準差 σ_v"] -- "＋" --> R1
-    R1 -- "e[n]" --> R3["只留正負號<br/>sign(·)"]
-    R3 -- "q[n] = ±1" --> R4["乘上 x[n]<br/>N 個取平均：G_k"]
+    R0["確定性殘差<br/>$e_\mathrm{det}(x; w)$"] -- "＋" --> R1(("＋"))
+    R2["雜訊 $v[n]$<br/>Gaussian，標準差 $\sigma_v$"] -- "＋" --> R1
+    R1 -- "$e[n]$" --> R3["只留正負號<br/>$\operatorname{sign}(\cdot)$"]
+    R3 -- "$q[n] = \pm 1$" --> R4["乘上 $x[n]$<br/>$N$ 個取平均：$G_k$"]
   end
-  subgraph MEAN["② 固定 x、對雜訊取平均：S 形曲線（精確，F-11.2）"]
+  subgraph MEAN["② 固定 $x$、對雜訊取平均：S 形曲線（精確，F-11.2）"]
     direction LR
-    M0["e_det(x; w)"] --> M1["S 形曲線<br/>erf( e_det / (√2·σ_v) )"]
-    M1 -- "E[q | x]" --> M2["乘上 x<br/>對 code 取平均"]
-    M2 --> M3["E[G] = E[ x·erf( e_det / (√2·σ_v) ) ]"]
+    M0["$e_\mathrm{det}(x; w)$"] --> M1["S 形曲線<br/>$\operatorname{erf}(e_\mathrm{det} / (\sqrt{2} \cdot \sigma_v))$"]
+    M1 -- "$E[q \mid x]$" --> M2["乘上 $x$<br/>對 code 取平均"]
+    M2 --> M3["$E[G] = E[x \cdot \operatorname{erf}(e_\mathrm{det} / (\sqrt{2} \cdot \sigma_v))]$"]
   end
   subgraph LIN["③ 再線性化：一個增益（近似，F-11.3）"]
     direction LR
-    L0["e_det(x; w)"] --> L1["× K_q<br/>K_q = √(2/π) / σ_v"]
-    L1 -- "K_q·e_det" --> L2["乘上 x<br/>對 code 取平均"]
-    L2 --> L3["E[G] ≈ K_q·E[x·e]"]
+    L0["$e_\mathrm{det}(x; w)$"] --> L1["$\times K_q$<br/>$K_q = \sqrt{2/\pi} / \sigma_v$"]
+    L1 -- "$K_q \cdot e_\mathrm{det}$" --> L2["乘上 $x$<br/>對 code 取平均"]
+    L2 --> L3["$E[G] \approx K_q \cdot E[x \cdot e]$"]
   end
-  REAL -- "固定 x，對 v 取平均" --> MEAN
-  MEAN -- "每個 code 的 |e_det| 都遠小於 σ_v" --> LIN
+  REAL -- "固定 $x$，對 $v$ 取平均" --> MEAN
+  MEAN -- "每個 code 的 $|e_\mathrm{det}|$ 都遠小於 $\sigma_v$" --> LIN
 ${STYLE}
   class R3,M1,L1 focus`
 
 /* ───────────────────────── §11.1 offset ───────────────────────── */
 
 /** offset 怎麼變成假的 gain 誤差（uniform [0, 1) code、b = 0.1 ⇒ w* − a = 0.15）。 */
-export const CHART_OFFSET_PATH = `flowchart LR
-  OFF["offset b = 0.1<br/>永遠同一個正負號"] --> MUL(("×"))
-  X["code x 在 0 與 1 之間均勻分布<br/>E[x] = 1/2，E[x²] = 1/3"] --> MUL
-  MUL --> AVG["GMAC 取平均<br/>b·E[x] = 0.05，不是 0"]
-  AVG --> BIAS["GMAC 分不出它和 gain 誤差<br/>LMS 把 w 多調 0.05 ÷ (1/3) = 0.15<br/>w* − a = b·E[x] / E[x²]"]
-  AVG -. "若 code 置中" .-> ZERO["E[x] = 0，所以 b·E[x] = 0<br/>offset 不再變成 gain bias"]
+export const CHART_OFFSET_PATH = String.raw`flowchart LR
+  OFF["offset $b = 0.1$<br/>永遠同一個正負號"] --> MUL(("$\times$"))
+  X["code $x$ 在 0 與 1 之間均勻分布<br/>$E[x] = 1/2$，$E[x^2] = 1/3$"] --> MUL
+  MUL --> AVG["GMAC 取平均<br/>$b \cdot E[x] = 0.05$，不是 0"]
+  AVG --> BIAS["GMAC 分不出它和 gain 誤差<br/>LMS 把 $w$ 多調 $0.05 \div (1/3) = 0.15$<br/>$w^* - a = b \cdot E[x] / E[x^2]$"]
+  AVG -. "若 code 置中" .-> ZERO["$E[x] = 0$，所以 $b \cdot E[x] = 0$<br/>offset 不再變成 gain bias"]
 ${STYLE}
   class OFF focus
   class BIAS warn
   class ZERO ok`
 
 /** 三種主迴路架構並排（勘誤 E03）；差別只在積分路徑接在哪裡、強制哪個平均為 0。 */
-export const CHART_DC_NULL = `flowchart TB
-  subgraph ARCH_A["(A) none：主迴路不碰 comparator 的 DC，φ = 0"]
+export const CHART_DC_NULL = String.raw`flowchart TB
+  subgraph ARCH_A["(A) none：主迴路不碰 comparator 的 DC，$\varphi = 0$"]
     direction LR
-    A0["e_det + v"] --> A1["comparator<br/>q = sign(e_det + v)"]
-    A1 --> A2["GMAC 的固定點<br/>w* − a = ( b·E[x] + E[x·d] + E[x·ε_cc] ) / E[x²]"]
+    A0["$e_\mathrm{det} + v$"] --> A1["comparator<br/>$q = \operatorname{sign}(e_\mathrm{det} + v)$"]
+    A1 --> A2["GMAC 的固定點<br/>$w^* - a = (b \cdot E[x] + E[x \cdot d] + E[x \cdot \varepsilon_{cc}]) / E[x^2]$"]
   end
-  subgraph ARCH_B["(B) shared BBPD：積分路徑強制 E[q] = 0"]
+  subgraph ARCH_B["(B) shared BBPD：積分路徑強制 $E[q] = 0$"]
     direction LR
-    B0["e_det + v"] -- "＋" --> B1(("＋"))
-    B1 --> B2["BBPD 就是 comparator<br/>q = sign(e_det + φ + v)"]
-    B2 --> B3["GMAC 的固定點<br/>w* − a ≈ Cov(x, d + ε_cc) / Var(x)<br/>offset b 消失"]
-    B2 -- "q" --> B4["主迴路積分路徑<br/>φ ← φ − k_φ·q"]
-    B4 -- "＋ φ" --> B1
+    B0["$e_\mathrm{det} + v$"] -- "＋" --> B1(("＋"))
+    B1 --> B2["BBPD 就是 comparator<br/>$q = \operatorname{sign}(e_\mathrm{det} + \varphi + v)$"]
+    B2 --> B3["GMAC 的固定點<br/>$w^* - a \approx \operatorname{Cov}(x, d + \varepsilon_{cc}) / \operatorname{Var}(x)$<br/>offset $b$ 消失"]
+    B2 -- "$q$" --> B4["主迴路積分路徑<br/>$\varphi \leftarrow \varphi - k_\varphi \cdot q$"]
+    B4 -- "＋ $\varphi$" --> B1
   end
-  subgraph ARCH_C["(C) linear PD + 獨立 comparator：積分路徑強制 E[e_PD] = 0"]
+  subgraph ARCH_C["(C) linear PD + 獨立 comparator：積分路徑強制 $E[e_\mathrm{PD}] = 0$"]
     direction LR
-    C0["e_det − b"] -- "＋" --> C1(("＋"))
-    C1 -- "e_PD" --> C2["獨立 comparator，自帶 offset b<br/>q = sign(e_PD + b + v)"]
-    C2 --> C3["GMAC 的固定點<br/>w* − a ≈ ( b·E[x] + Cov(x, d + ε_cc) ) / Var(x)<br/>offset 項留下，分母變小"]
-    C1 -- "e_PD" --> C4["主迴路積分路徑<br/>φ ← φ − k_φ·e_PD"]
-    C4 -- "＋ φ" --> C1
+    C0["$e_\mathrm{det} - b$"] -- "＋" --> C1(("＋"))
+    C1 -- "$e_\mathrm{PD}$" --> C2["獨立 comparator，自帶 offset $b$<br/>$q = \operatorname{sign}(e_\mathrm{PD} + b + v)$"]
+    C2 --> C3["GMAC 的固定點<br/>$w^* - a \approx (b \cdot E[x] + \operatorname{Cov}(x, d + \varepsilon_{cc})) / \operatorname{Var}(x)$<br/>offset 項留下，分母變小"]
+    C1 -- "$e_\mathrm{PD}$" --> C4["主迴路積分路徑<br/>$\varphi \leftarrow \varphi - k_\varphi \cdot e_\mathrm{PD}$"]
+    C4 -- "＋ $\varphi$" --> C1
   end
   ARCH_A ~~~ ARCH_B
   ARCH_B ~~~ ARCH_C
@@ -252,35 +256,35 @@ ${STYLE}
   class C3 warn`
 
 /** servo 的抖動等效於更大的 comparator 雜訊（F-11.17：σ_eff² = σ_v² + σ_φ²）。 */
-export const CHART_SERVO_DITHER = `flowchart TB
+export const CHART_SERVO_DITHER = String.raw`flowchart TB
   subgraph REAL["實際：comparator 輸入端有兩個獨立的隨機量"]
     direction LR
-    R0["確定性部分<br/>e_det(x; w) + ${PHI_BAR}（φ 的平均）"] -- "＋" --> R3(("＋"))
-    R1["servo 的抖動 ${PHI_TILDE}[n]<br/>變異數 σ_φ²"] -- "＋" --> R3
-    R2["雜訊 v[n]<br/>變異數 σ_v²"] -- "＋" --> R3
-    R3 --> R4["comparator<br/>q = sign(·)"]
+    R0["確定性部分<br/>$e_\mathrm{det}(x; w) + \bar\varphi$（$\varphi$ 的平均）"] -- "＋" --> R3(("＋"))
+    R1["servo 的抖動 $\tilde\varphi[n]$<br/>變異數 $\sigma_\varphi^2$"] -- "＋" --> R3
+    R2["雜訊 $v[n]$<br/>變異數 $\sigma_v^2$"] -- "＋" --> R3
+    R3 --> R4["comparator<br/>$q = \operatorname{sign}(\cdot)$"]
   end
   subgraph EQUIV["等效：一個比較大的雜訊"]
     direction LR
-    Q0["確定性部分<br/>e_det(x; w) + ${PHI_BAR}"] -- "＋" --> Q2(("＋"))
-    Q1["等效雜訊<br/>σ_eff² = σ_v² + σ_φ²"] -- "＋" --> Q2
-    Q2 --> Q3["comparator 的平均輸出<br/>E[q | x] ≈ erf( (e_det + ${PHI_BAR}) / (√2·σ_eff) )"]
+    Q0["確定性部分<br/>$e_\mathrm{det}(x; w) + \bar\varphi$"] -- "＋" --> Q2(("＋"))
+    Q1["等效雜訊<br/>$\sigma_\mathrm{eff}^2 = \sigma_v^2 + \sigma_\varphi^2$"] -- "＋" --> Q2
+    Q2 --> Q3["comparator 的平均輸出<br/>$E[q \mid x] \approx \operatorname{erf}((e_\mathrm{det} + \bar\varphi) / (\sqrt{2} \cdot \sigma_\mathrm{eff}))$"]
   end
   REAL -- "兩個獨立的隨機量：變異數相加" --> EQUIV
 ${STYLE}
   class R1,Q1 focus`
 
 /** code centering 什麼時候真的讓 offset 不造成 gain bias（判斷樹）。 */
-export const CHART_CENTERING_TREE = `flowchart TB
-  Q1{{"code 已置中？<br/>E[x] = 0"}}
-  Q1 -- "否" --> N1["offset 變成假 gain bias<br/>b·E[x] / E[x²]（架構 A）"]
-  Q1 -- "是" --> Q2{{"comparator 前有雜訊？<br/>σ_v > 0"}}
-  Q2 -- "否，σ_v = 0" --> N2["dead zone：一整段 w 都讓 E[G] = 0<br/>w = a 是解，但不唯一"]
-  Q2 -- "是" --> Q3{{"σ_v 與 code 無關？"}}
-  Q3 -- "否，σ_v 隨 x 改變" --> N3["Sign-LMS 變成 1/σ_v(x) 加權<br/>offset 又造成 bias（勘誤 E17）"]
-  Q3 -- "是" --> Q4{{"還有 INL 或 ε_cc？"}}
-  Q4 -- "沒有" --> Y1["w* = a<br/>精確，任意 b 都成立"]
-  Q4 -- "有" --> Y2["offset 本身不造成 bias<br/>但 |b| 與 σ_v 同量級時<br/>會經 erf 改變 INL 的 bias"]
+export const CHART_CENTERING_TREE = String.raw`flowchart TB
+  Q1{{"code 已置中？<br/>$E[x] = 0$"}}
+  Q1 -- "否" --> N1["offset 變成假 gain bias<br/>$b \cdot E[x] / E[x^2]$（架構 A）"]
+  Q1 -- "是" --> Q2{{"comparator 前有雜訊？<br/>$\sigma_v > 0$"}}
+  Q2 -- "否，$\sigma_v = 0$" --> N2["dead zone：一整段 $w$ 都讓 $E[G] = 0$<br/>$w = a$ 是解，但不唯一"]
+  Q2 -- "是" --> Q3{{"$\sigma_v$ 與 code 無關？"}}
+  Q3 -- "否，$\sigma_v$ 隨 $x$ 改變" --> N3["Sign-LMS 變成 $1/\sigma_v(x)$ 加權<br/>offset 又造成 bias（勘誤 E17）"]
+  Q3 -- "是" --> Q4{{"還有 INL 或 $\varepsilon_{cc}$？"}}
+  Q4 -- "沒有" --> Y1["$w^* = a$<br/>精確，任意 $b$ 都成立"]
+  Q4 -- "有" --> Y2["offset 本身不造成 bias<br/>但 $|b|$ 與 $\sigma_v$ 同量級時<br/>會經 $\operatorname{erf}$ 改變 INL 的 bias"]
 ${STYLE}
   class N1,N2,N3 warn
   class Y1 ok`
@@ -292,25 +296,25 @@ ${STYLE}
  *   σ_v(x)  ：b·E[x/σ_v(x)] = −0.0578、E[x²/σ_v(x)] = 1.4476 ⇒ w* ≈ 1 − 0.0578/1.4476 = 0.9601。
  * 圖上的數字由 diagrams.test.tsx 以 bias.ts 的 sigmaAt／linearizedFixedPoint 重算核對。
  */
-export const CHART_JITTER_WEIGHT = `flowchart LR
-  OFF["置中的 5-level code，offset b = 0.2<br/>五個 code 的 x·b：−0.4、−0.2、0、+0.2、+0.4"]
-  OFF --> KC["σ_v 是常數<br/>每個 code 的 K_q 一樣大<br/>五個 code 的權重相同"]
-  OFF --> KV["σ_v(x) 隨 code 變大<br/>K_q(x) = √(2/π) / σ_v(x)<br/>權重 1/σ_v(x)：1、0.894、0.707、0.555、0.447"]
-  KC --> SC["加權後取平均：b·E[x] = 0<br/>正負兩邊剛好抵銷"]
-  KV --> SV["加權後取平均：b·E[x / σ_v(x)] = −0.0578<br/>雜訊小的負 code 比較重，抵銷不了"]
-  SC --> WC["w* = a<br/>offset 不造成 gain bias"]
-  SV --> WV["w* ≈ a + ( −0.0578 ) / E[x² / σ_v(x)]<br/>= 1 − 0.0578 / 1.4476 = 0.9601"]
+export const CHART_JITTER_WEIGHT = String.raw`flowchart TB
+  OFF["置中的 5-level code，offset $b = 0.2$<br/>五個 code 的 $x \cdot b$：$-0.4,\ -0.2,\ 0,\ +0.2,\ +0.4$"]
+  OFF --> KC["$\sigma_v$ 是常數<br/>每個 code 的 $K_q$ 一樣大<br/>五個 code 的權重相同"]
+  OFF --> KV["$\sigma_v(x)$ 隨 code 變大<br/>$K_q(x) = \sqrt{2/\pi} / \sigma_v(x)$<br/>權重 $1/\sigma_v(x)$：$1,\ 0.894,\ 0.707,\ 0.555,\ 0.447$"]
+  KC --> SC["加權後取平均：$b \cdot E[x] = 0$<br/>正負兩邊剛好抵銷"]
+  KV --> SV["加權後取平均：$b \cdot E[x / \sigma_v(x)] = -0.0578$<br/>雜訊小的負 code 比較重，抵銷不了"]
+  SC --> WC["$w^* = a$<br/>offset 不造成 gain bias"]
+  SV --> WV["$w^* \approx a + (-0.0578) / E[x^2 / \sigma_v(x)]$<br/>$= 1 - 0.0578 / 1.4476 = 0.9601$"]
 ${STYLE}
   class KV focus
   class WC ok
   class SV,WV warn`
 
 /** 無雜訊 + offset 的 dead zone（x ∈ {0,1,2,3}、a = 1、b = 1、σ_v = 0）。 */
-export const CHART_DEAD_ZONE = `flowchart LR
-  LO["w 太小：小於 1.3333<br/>E[G] = +1.5<br/>w 被往上推"] --> DZ["w 在 1.3333 與 1.5 之間<br/>E[G] = 0<br/>dead zone：沒有推力"]
-  HI["w 太大：大於 1.5<br/>E[G] = −1 或 −1.5<br/>w 被往下推"] --> DZ
-  DZ --> STOP["w 停在進來的那一側<br/>由初值 w₀ 與 μ 決定"]
-  DZ -. "加入雜訊 σ_v > 0，等於 dither" .-> UNI["零交越變成唯一的一點"]
+export const CHART_DEAD_ZONE = String.raw`flowchart LR
+  LO["$w$ 太小：小於 1.3333<br/>$E[G] = +1.5$<br/>$w$ 被往上推"] --> DZ["$w$ 在 1.3333 與 1.5 之間<br/>$E[G] = 0$<br/>dead zone：沒有推力"]
+  HI["$w$ 太大：大於 1.5<br/>$E[G] = -1$ 或 $-1.5$<br/>$w$ 被往下推"] --> DZ
+  DZ --> STOP["$w$ 停在進來的那一側<br/>由初值 $w_0$ 與 $\mu$ 決定"]
+  DZ -. "加入雜訊 $\sigma_v > 0$，等於 dither" .-> UNI["零交越變成唯一的一點"]
 ${STYLE}
   class DZ warn
   class UNI ok`
@@ -318,24 +322,24 @@ ${STYLE}
 /* ───────────────────────── §11.2 INL ───────────────────────── */
 
 /** 最佳直線（MSE 觀點）—— INL 對 x 投影：共線的 0.34·x 被 gain 吸收，正交的殘差留下。 */
-export const CHART_BEST_FIT = `flowchart LR
-  D["DTC 的 INL<br/>d(x) = c₃·x³ = 0.1·x³"] --> SPLIT{"對 x 做投影<br/>拆成兩部分"}
-  SPLIT -- "與 x 共線的部分" --> PAR["( E[x·d] / E[x²] )·x<br/>= ( 0.68 / 2 )·x = 0.34·x"]
-  SPLIT -- "與 x 正交的部分" --> ORT["e₀(x) = 0.1·x³ − 0.34·x<br/>E[x·e₀] = 0"]
-  PAR --> ABS["被單一 gain 吸收<br/>w* = a + 0.34 = 1.34"]
-  ORT --> RES["GMAC 看不到，留在每個 code 上<br/>x = ±1：∓0.24；x = ±2：±0.12"]
+export const CHART_BEST_FIT = String.raw`flowchart TB
+  D["DTC 的 INL<br/>$d(x) = c_3 \cdot x^3 = 0.1 \cdot x^3$"] --> SPLIT{"對 $x$ 做投影<br/>拆成兩部分"}
+  SPLIT -- "與 $x$ 共線的部分" --> PAR["$(E[x \cdot d] / E[x^2]) \cdot x$<br/>$= (0.68 / 2) \cdot x = 0.34 \cdot x$"]
+  SPLIT -- "與 $x$ 正交的部分" --> ORT["$e_0(x) = 0.1 \cdot x^3 - 0.34 \cdot x$<br/>$E[x \cdot e_0] = 0$"]
+  PAR --> ABS["被單一 gain 吸收<br/>$w^* = a + 0.34 = 1.34$"]
+  ORT --> RES["GMAC 看不到，留在每個 code 上<br/>$x = \pm 1$：$\mp 0.24$；$x = \pm 2$：$\pm 0.12$"]
 ${STYLE}
   class PAR,ABS focus
   class ORT,RES warn`
 
 /** 同樣的兩個意見（1.1 與 1.4），三種計票方式 ⇒ 1.34／介於兩者之間／1.4。 */
-export const CHART_MEAN_VS_MEDIAN = `flowchart TB
-  T["每個 code 想要的 gain：t(x) = a + c₃·x²<br/>t(±1) = 1.1；t(±2) = 1.4"]
-  T --> M1["MSE-LMS：拔河<br/>拉力 = 權重 × 距離<br/>權重 p·x²：0.4 與 1.6"]
-  T --> M2["Sign-LMS + Gaussian 雜訊<br/>erf 把票變回部分拉力"]
-  T --> M3["無雜訊 Sign-LMS：投票<br/>只看往上或往下<br/>票重 p·|x|：0.4 與 0.8"]
-  M1 --> R1["加權平均<br/>( 0.4·1.1 + 1.6·1.4 ) / 2 = 1.34"]
-  M2 --> R2["介於 1.34 與 1.4 之間<br/>σ_v 夠大時約 1.34 + 3.456×10⁻⁴ / σ_v²"]
+export const CHART_MEAN_VS_MEDIAN = String.raw`flowchart TB
+  T["每個 code 想要的 gain：$t(x) = a + c_3 \cdot x^2$<br/>$t(\pm 1) = 1.1$；$t(\pm 2) = 1.4$"]
+  T --> M1["MSE-LMS：拔河<br/>拉力 $=$ 權重 $\times$ 距離<br/>權重 $p \cdot x^2$：0.4 與 1.6"]
+  T --> M2["Sign-LMS + Gaussian 雜訊<br/>$\operatorname{erf}$ 把票變回部分拉力"]
+  T --> M3["無雜訊 Sign-LMS：投票<br/>只看往上或往下<br/>票重 $p \cdot |x|$：0.4 與 0.8"]
+  M1 --> R1["加權平均<br/>$(0.4 \cdot 1.1 + 1.6 \cdot 1.4) / 2 = 1.34$"]
+  M2 --> R2["介於 1.34 與 1.4 之間<br/>$\sigma_v$ 夠大時約 $1.34 + 3.456 \times 10^{-4} / \sigma_v^2$"]
   M3 --> R3["加權中位數<br/>1.4 的票重 0.8 超過總重 1.2 的一半<br/>答案 1.4"]
 ${STYLE}
   class M1,R1 focus
@@ -344,27 +348,27 @@ ${STYLE}
 /* ───────────────────────── §11.3 identifiability ───────────────────────── */
 
 /** gain 誤差 (a − w)·x 與耦合 κ·x 並聯相加 ⇒ comparator 只看得到 a + κ（F-11.13）。 */
-export const CHART_IDENTIFIABILITY = `flowchart LR
-  X["code x[n]"] --> GA["DTC gain 誤差<br/>× (a − w)"]
-  X --> GK["code-correlated 耦合<br/>× κ"]
+export const CHART_IDENTIFIABILITY = String.raw`flowchart TB
+  X["code $x[n]$"] --> GA["DTC gain 誤差<br/>$\times (a - w)$"]
+  X --> GK["code-correlated 耦合<br/>$\times \kappa$"]
   GA -- "＋" --> S(("＋"))
   GK -- "＋" --> S
-  V["雜訊 v[n]"] -- "＋" --> S
-  S --> CMP["comparator 只看得到總和<br/>e[n] = ( (a + κ) − w )·x[n] + v[n]<br/>q[n] = sign(e[n])"]
-  CMP --> OBS["觀測資料 x[n]、q[n] 只依賴 a + κ<br/>w* = a + κ = 1.1"]
-  WA["世界 A<br/>a = 1，κ = 0.1"] -.-> OBS
-  WB["世界 B<br/>a = 1.1，κ = 0"] -.-> OBS
+  V["雜訊 $v[n]$"] -- "＋" --> S
+  S --> CMP["comparator 只看得到總和<br/>$e[n] = ((a + \kappa) - w) \cdot x[n] + v[n]$<br/>$q[n] = \operatorname{sign}(e[n])$"]
+  CMP --> OBS["觀測資料 $x[n]$、$q[n]$ 只依賴 $a + \kappa$<br/>$w^* = a + \kappa = 1.1$"]
+  WA["世界 A<br/>$a = 1$，$\kappa = 0.1$"] -.-> OBS
+  WB["世界 B<br/>$a = 1.1$，$\kappa = 0$"] -.-> OBS
 ${STYLE}
   class GA focus
   class GK,OBS warn`
 
 /** w* = a + κ 是好是壞，取決於耦合發生在哪個節點（研究假說）。 */
-export const CHART_COUPLING_NODE = `flowchart TB
-  Q{{"ε_cc = κ·x 出現在哪個節點？"}}
-  Q -- "DTC／相位路徑：PLL 輸出也有" --> A1["w = a + κ 把它一起抵消"]
+export const CHART_COUPLING_NODE = String.raw`flowchart TB
+  Q{{"$\varepsilon_{cc} = \kappa \cdot x$ 出現在哪個節點？"}}
+  Q -- "DTC／相位路徑：PLL 輸出也有" --> A1["$w = a + \kappa$ 把它一起抵消"]
   A1 --> A2["輸出的 timing error 變小"]
-  Q -- "只在觀測路徑，例如 comparator threshold" --> B1["w = a + κ 把不存在的誤差寫進 DTC"]
-  B1 --> B2["輸出多出 κ·x 的 timing error"]
+  Q -- "只在觀測路徑，例如 comparator threshold" --> B1["$w = a + \kappa$ 把不存在的誤差寫進 DTC"]
+  B1 --> B2["輸出多出 $\kappa \cdot x$ 的 timing error"]
 ${STYLE}
   class A2 ok
   class B2 warn`
@@ -372,37 +376,37 @@ ${STYLE}
 /* ───────────────────────── §11.4 near-integer ───────────────────────── */
 
 /** e_PD = (a − w)·(h ∗ x) + β + v；gain 誤差經過 H_PD（決定 C），β 不經過（決定 B）。上列是誤差路徑，下列是 GMAC 的相關器。 */
-export const CHART_NEAR_INTEGER_PATH = `flowchart TB
+export const CHART_NEAR_INTEGER_PATH = String.raw`flowchart TB
   subgraph PATH["誤差怎麼到達 PD"]
     direction LR
-    X["code x[n]"] --> G["DTC gain 誤差<br/>× (a − w)"]
-    G --> H["主 PLL 誤差路徑 H_PD(z)<br/>脈衝響應 h"]
-    H -- "＋ (a − w)·(h ∗ x)[n]" --> S(("＋"))
-    BETA["其他確定性誤差 β[n]<br/>直接到 PD，不經過 H_PD"] -- "＋" --> S
-    V["雜訊 v[n]"] -- "＋" --> S
+    X["code $x[n]$"] --> G["DTC gain 誤差<br/>$\times (a - w)$"]
+    G --> H["主 PLL 誤差路徑 $H_\mathrm{PD}(z)$<br/>脈衝響應 $h$"]
+    H -- "＋ $(a - w) \cdot (h * x)[n]$" --> S(("＋"))
+    BETA["其他確定性誤差 $\beta[n]$<br/>直接到 PD，不經過 $H_\mathrm{PD}$"] -- "＋" --> S
+    V["雜訊 $v[n]$"] -- "＋" --> S
   end
   subgraph CORR["GMAC 怎麼看它"]
     direction LR
-    CMP["comparator<br/>q[n] = sign(e_PD[n])"] -- "q[n]" --> M(("×"))
-    XR["同一個 code x[n]<br/>當 regressor"] --> M
-    M --> AVG["GMAC 的平均<br/>E[G] ≈ K_q·( (a − w)·C + B )"]
-    AVG --> FP["令 E[G] = 0<br/>w* = a + B / C"]
+    CMP["comparator<br/>$q[n] = \operatorname{sign}(e_\mathrm{PD}[n])$"] -- "$q[n]$" --> M(("$\times$"))
+    XR["同一個 code $x[n]$<br/>當 regressor"] --> M
+    M --> AVG["GMAC 的平均<br/>$E[G] \approx K_q \cdot ((a - w) \cdot C + B)$"]
+    AVG --> FP["令 $E[G] = 0$<br/>$w^* = a + B / C$"]
   end
-  PATH -- "e_PD[n]" --> CORR
+  PATH -- "$e_\mathrm{PD}[n]$" --> CORR
 ${STYLE}
   class H focus
   class BETA warn`
 
 /** near-integer 的敏感度鏈 —— frac → 0 ⇒ C ∝ frac² ⇒ S 變小、B/C 放大、C ≤ 0 時極性錯誤。 */
-export const CHART_NEAR_INTEGER_WHY = `flowchart TB
-  F["FCW 的小數部分 frac 趨近 0"] --> SAW["DSM residue 變成很慢的 sawtooth<br/>基頻 Ω₁ = 2π·frac，第 k 條諧波功率 ∝ 1/k²"]
-  SAW --> IN["落在迴路頻寬內的諧波：Ω_k 小於 Ω_n<br/>Re H_PD 為負，對 C 的貢獻是負的"]
-  SAW --> OUT["頻寬外的諧波：Ω_k 不小於 Ω_n<br/>Re H_PD 為正，對 C 的貢獻是正的"]
-  IN --> CS["C = Σ |X_k|²·Re H_PD(Ω_k)<br/>正負幾乎抵銷，C ∝ frac²"]
+export const CHART_NEAR_INTEGER_WHY = String.raw`flowchart TB
+  F["FCW 的小數部分 $\mathrm{frac}$ 趨近 0"] --> SAW["DSM residue 變成很慢的 sawtooth<br/>基頻 $\Omega_1 = 2\pi \cdot \mathrm{frac}$，第 $k$ 條諧波功率 $\propto 1/k^2$"]
+  SAW --> IN["落在迴路頻寬內的諧波：$\Omega_k$ 小於 $\Omega_n$<br/>$\mathrm{Re}\,H_\mathrm{PD}$ 為負，對 $C$ 的貢獻是負的"]
+  SAW --> OUT["頻寬外的諧波：$\Omega_k$ 不小於 $\Omega_n$<br/>$\mathrm{Re}\,H_\mathrm{PD}$ 為正，對 $C$ 的貢獻是正的"]
+  IN --> CS["$C = \sum |X_k|^2 \cdot \mathrm{Re}\,H_\mathrm{PD}(\Omega_k)$<br/>正負幾乎抵銷，$C \propto \mathrm{frac}^2$"]
   OUT --> CS
-  CS --> SL["恢復斜率 S = K_q·C 變小<br/>收斂時間 ∝ 1 / (μ·S) 變長"]
-  CS --> BI["直接耦合的 B 不變<br/>bias = B / C 被放大"]
-  CS --> NG["C ≤ 0 時極性錯誤<br/>a + B / C 變成 repelling"]
+  CS --> SL["恢復斜率 $S = K_q \cdot C$ 變小<br/>收斂時間 $\propto 1 / (\mu \cdot S)$ 變長"]
+  CS --> BI["直接耦合的 $B$ 不變<br/>bias $= B / C$ 被放大"]
+  CS --> NG["$C \le 0$ 時極性錯誤<br/>$a + B / C$ 變成 repelling"]
 ${STYLE}
   class CS focus
   class SL,BI,NG warn`
@@ -413,16 +417,16 @@ ${STYLE}
  *   頻域：取一個週期做 DFT，C = Σ_k |X_k|²·Re H_PD(e^{jΩ_k})，Ω_k = 2πk/P（Parseval，只有實部進來）。
  * 兩條路互為交叉檢查：相對差小於 10⁻⁶ 才標「一致」（experiment 的 freqCheck）。
  */
-export const CHART_NEAR_INTEGER_CHECK = `flowchart LR
-  FRAC["FCW 的小數部分 frac<br/>16-bit DSM：K = frac·2¹⁶"] --> DSM["first-order DSM 的 residue x[n]<br/>週期 P = 2¹⁶ / gcd(K, 2¹⁶)"]
-  DSM --> NORM["標準化<br/>E[x] = 0，E[x²] = 1"]
-  NORM --> T1["時域：x[n] 通過 H_PD(z)<br/>u[n] = (h ∗ x)[n]"]
-  T1 --> T2["略過暫態，取整數個週期<br/>C = 平均( x[n]·u[n] )"]
-  NORM --> F1["頻域：取一個週期做 DFT<br/>得到各條諧波 X_k"]
-  F1 --> F2["C = Σ_k |X_k|²·Re H_PD(e^{jΩ_k})<br/>Ω_k = 2πk / P"]
-  T2 --> CHK{{"兩個 C 的相對差<br/>小於 10⁻⁶ ？"}}
+export const CHART_NEAR_INTEGER_CHECK = String.raw`flowchart TB
+  FRAC["FCW 的小數部分 $\mathrm{frac}$<br/>16-bit DSM：$K = \mathrm{frac} \cdot 2^{16}$"] --> DSM["first-order DSM 的 residue $x[n]$<br/>週期 $P = 2^{16} / \gcd(K, 2^{16})$"]
+  DSM --> NORM["標準化<br/>$E[x] = 0$，$E[x^2] = 1$"]
+  NORM --> T1["時域：$x[n]$ 通過 $H_\mathrm{PD}(z)$<br/>$u[n] = (h * x)[n]$"]
+  T1 --> T2["略過暫態，取整數個週期<br/>$C = \text{平均}(x[n] \cdot u[n])$"]
+  NORM --> F1["頻域：取一個週期做 DFT<br/>得到各條諧波 $X_k$"]
+  F1 --> F2["$C = \sum_k |X_k|^2 \cdot \mathrm{Re}\,H_\mathrm{PD}(e^{j\Omega_k})$<br/>$\Omega_k = 2\pi k / P$"]
+  T2 --> CHK{{"兩個 $C$ 的相對差<br/>小於 $10^{-6}$ ？"}}
   F2 --> CHK
-  CHK -- "是" --> OUT["採用 C(frac)<br/>再算 bias：w* − a = B / C"]
+  CHK -- "是" --> OUT["採用 $C(\mathrm{frac})$<br/>再算 bias：$w^* - a = B / C$"]
   CHK -- "否" --> BAD["標示 mismatch<br/>多半是暫態還沒衰減完"]
 ${STYLE}
   class T1,F2 focus
@@ -434,16 +438,16 @@ ${STYLE}
  * 本章的斜率估計 Ŝ = (G₋ − G₊)/(2Δ)（= −Ŝ_GMAC，勘誤 E13；bias.ts 的 SlopeProbeResult.slope 就是這個式子）。
  * Ŝ ≤ 0 ⇒ 極性錯誤；Ŝ 為正但遠小於靜態值 K_q·E[x²] ⇒ C 很小，bias B/C 被放大、收斂變慢。
  */
-export const CHART_SLOPE_MEASURE = `flowchart TB
-  F0["選一個 FCW<br/>等 LMS 收斂，記下 w"] --> F1["凍結 gain 在 w + Δ<br/>量平均 GMAC：G₊"]
-  F0 --> F2["凍結 gain 在 w − Δ<br/>量平均 GMAC：G₋"]
-  F1 --> F3["恢復斜率的估計<br/>Ŝ = ( G₋ − G₊ ) / (2·Δ)<br/>附信賴區間"]
+export const CHART_SLOPE_MEASURE = String.raw`flowchart TB
+  F0["選一個 FCW<br/>等 LMS 收斂，記下 $w$"] --> F1["凍結 gain 在 $w + \Delta$<br/>量平均 GMAC：$G_+$"]
+  F0 --> F2["凍結 gain 在 $w - \Delta$<br/>量平均 GMAC：$G_-$"]
+  F1 --> F3["恢復斜率的估計<br/>$\hat S = (G_- - G_+) / (2 \cdot \Delta)$<br/>附信賴區間"]
   F2 --> F3
-  F3 --> Q1{{"Ŝ 大於 0？"}}
-  Q1 -- "否" --> BAD["極性錯誤：C ≤ 0<br/>正的 μ 會讓 w 遠離 a + B / C"]
-  Q1 -- "是" --> Q2{{"Ŝ 遠小於靜態值 K_q·E[x²]？"}}
-  Q2 -- "是" --> SMALL["C 很小：bias = B / C 被放大<br/>收斂時間 ∝ 1 / (μ·Ŝ) 變長"]
-  Q2 -- "否" --> GOOD["斜率正常<br/>C 接近 E[x²]，bias 約 B / E[x²]"]
+  F3 --> Q1{{"$\hat S$ 大於 0？"}}
+  Q1 -- "否" --> BAD["極性錯誤：$C \le 0$<br/>正的 $\mu$ 會讓 $w$ 遠離 $a + B / C$"]
+  Q1 -- "是" --> Q2{{"$\hat S$ 遠小於靜態值 $K_q \cdot E[x^2]$？"}}
+  Q2 -- "是" --> SMALL["$C$ 很小：bias $= B / C$ 被放大<br/>收斂時間 $\propto 1 / (\mu \cdot \hat S)$ 變長"]
+  Q2 -- "否" --> GOOD["斜率正常<br/>$C$ 接近 $E[x^2]$，bias 約 $B / E[x^2]$"]
   BAD --> NEXT["換下一個 FCW<br/>最後用真實閉迴路確認"]
   SMALL --> NEXT
   GOOD --> NEXT
@@ -455,13 +459,13 @@ ${STYLE}
 /* ───────────────────────── §11.B Lab ───────────────────────── */
 
 /** Monte Carlo 與 mean-field 之間的三個可預期差距，以及 Lab 的判定式。 */
-export const CHART_MC_GAPS = `flowchart LR
-  MF["mean-field 固定點 w*<br/>μ 趨近 0、φ 為常數的極限"] -- "＋" --> S(("＋"))
-  G1["① 有限步長：曲率把抖動整流成偏移<br/>G''(w*)·Var(w) / (2·S)"] -- "＋" --> S
-  G2["② servo 抖動是額外的 dither<br/>把 σ_v 換成 σ_eff 後固定點的移動"] -- "＋" --> S
-  G3["③ servo 落後<br/>N 遠大於 τ 時可忽略"] -- "＋" --> S
+export const CHART_MC_GAPS = String.raw`flowchart TB
+  MF["mean-field 固定點 $w^*$<br/>$\mu \to 0$、$\varphi$ 為常數的極限"] -- "＋" --> S(("＋"))
+  G1["① 有限步長：曲率把抖動<br/>整流成偏移<br/>$G''(w^*) \cdot \operatorname{Var}(w) / (2 \cdot S)$"] -- "＋" --> S
+  G2["② servo 抖動是額外的 dither<br/>把 $\sigma_v$ 換成 $\sigma_\mathrm{eff}$<br/>後固定點的移動"] -- "＋" --> S
+  G3["③ servo 落後<br/>$N$ 遠大於 $\tau$ 時可忽略"] -- "＋" --> S
   S --> MC["Monte Carlo 量到的時間平均"]
-  MC --> CHK{{"與 servo-aware 固定點的差<br/>≤ 4·SE + ①③ 的估計 + 0.25·②？"}}
+  MC --> CHK{{"與 servo-aware 固定點的差<br/>$\le 4 \cdot \mathrm{SE} + \text{①③ 的估計} + 0.25 \cdot \text{②}$？"}}
   CHK -- "是" --> OKN["✓ Analytic 與 MC 一致"]
   CHK -- "否" --> BAD["✗ mismatch，並說明最可能的原因"]
 ${STYLE}
@@ -476,18 +480,18 @@ ${STYLE}
  * 只留「− S」那條負回授：δw_(k+1) = (1 − g)·δw_k + μ·η_k，g = μ·S（pole 1 − g），Var(w) = μ²·Var(η)/(1 − (1 − g)²)；
  * 再加上曲率那條：穩態 E[G] = 0 ⇒ E[δw] = G''·Var(w)/(2·S)。
  */
-export const CHART_FINITE_STEP_LOOP = `flowchart LR
-  ETA["GMAC 的抽樣雜訊 η_k<br/>零均值，變異數約 E[x²] / N"] -- "＋" --> SG(("＋"))
-  SG -- "G_k" --> MU["× μ"]
-  MU -- "＋ μ·G_k" --> ADD(("＋"))
-  ADD -- "δw_(k+1)" --> DLY["z⁻¹<br/>延遲 1 個 block"]
-  DLY -- "＋ δw_k" --> ADD
-  DLY -- "δw_k" --> REST["恢復力<br/>× S"]
+export const CHART_FINITE_STEP_LOOP = String.raw`flowchart TB
+  ETA["GMAC 的抽樣雜訊 $\eta_k$<br/>零均值，變異數約 $E[x^2] / N$"] -- "＋" --> SG(("＋"))
+  SG -- "$G_k$" --> MU["$\times \mu$"]
+  MU -- "＋ $\mu \cdot G_k$" --> ADD(("＋"))
+  ADD -- "$\delta w_{k+1}$" --> DLY["$z^{-1}$<br/>延遲 1 個 block"]
+  DLY -- "＋ $\delta w_k$" --> ADD
+  DLY -- "$\delta w_k$" --> REST["恢復力<br/>$\times S$"]
   REST -- "−" --> SG
-  DLY -- "δw_k" --> CURV["erf 的曲率<br/>½·G''(w*)·δw_k²"]
+  DLY -- "$\delta w_k$" --> CURV["$\operatorname{erf}$ 的曲率<br/>$\tfrac{1}{2} \cdot G''(w^*) \cdot \delta w_k^2$"]
   CURV -- "＋" --> SG
-  REST -.-> POLE["只看這條負回授<br/>δw_(k+1) = (1 − g)·δw_k + μ·η_k<br/>g = μ·S，pole = 1 − g"]
-  CURV -.-> SHIFT["δw_k² 不會是負的，平均不是 0<br/>抖動被整流成偏移<br/>E[δw] ≈ G''(w*)·Var(w) / (2·S)"]
+  REST -.-> POLE["只看這條負回授<br/>$\delta w_{k+1} = (1 - g) \cdot \delta w_k + \mu \cdot \eta_k$<br/>$g = \mu \cdot S$，pole $= 1 - g$"]
+  CURV -.-> SHIFT["$\delta w_k^2$ 不會是負的，平均不是 0<br/>抖動被整流成偏移<br/>$E[\delta w] \approx G''(w^*) \cdot \operatorname{Var}(w) / (2 \cdot S)$"]
 ${STYLE}
   class REST,POLE focus
   class CURV,SHIFT warn`
@@ -495,20 +499,20 @@ ${STYLE}
 /* ───────────────────────── 收尾 ───────────────────────── */
 
 /** 「GMAC 歸零了——DTC error 是零嗎？」判斷樹（整章的總結）。 */
-export const CHART_VERDICT_TREE = `flowchart TB
-  R["GMAC 的平均 = 0<br/>LMS 看起來收斂了"] --> Q1{{"恢復斜率為正？<br/>S = K_q·C > 0"}}
-  Q1 -- "否" --> N1["極性錯誤：a + B / C 是 repelling 的點<br/>不是真的收斂（§11.4、Ch06）"]
-  Q1 -- "是" --> Q2{{"comparator 前除了 (a − w)·x<br/>只剩與 x 無關的零均值雜訊？"}}
-  Q2 -- "是" --> OKN["w* = a<br/>每個 code 的 e_det 都是 0"]
+export const CHART_VERDICT_TREE = String.raw`flowchart TB
+  R["GMAC 的平均 $= 0$<br/>LMS 看起來收斂了"] --> Q1{{"恢復斜率為正？<br/>$S = K_q \cdot C > 0$"}}
+  Q1 -- "否" --> N1["極性錯誤：$a + B / C$ 是 repelling 的點<br/>不是真的收斂（§11.4、Ch06）"]
+  Q1 -- "是" --> Q2{{"comparator 前除了 $(a - w) \cdot x$<br/>只剩與 $x$ 無關的零均值雜訊？"}}
   Q2 -- "否" --> Q3{{"多出來的是哪一項？"}}
-  Q3 -- "offset b" --> B1["E[x] ≠ 0 且 DC 未被主迴路消除時<br/>bias = b·E[x] / E[x²]（§11.1）"]
-  Q3 -- "INL d(x)" --> B2["bias = E[x·d] / E[x²]<br/>每個 code 仍留下殘差（§11.2）"]
-  Q3 -- "ε_cc = κ·x" --> B3["w* = a + κ<br/>與 gain 不可辨識（§11.3）"]
-  B1 --> Q4{{"Sign-LMS 的線性化檢查<br/>max|e_det(x; w*)| / σ_v ≤ 0.3？"}}
+  Q2 -- "是" --> OKN["$w^* = a$<br/>每個 code 的 $e_\mathrm{det}$ 都是 0"]
+  Q3 -- "offset $b$" --> B1["$E[x] \ne 0$ 且 DC 未被主迴路消除時<br/>bias $= b \cdot E[x] / E[x^2]$（§11.1）"]
+  Q3 -- "INL $d(x)$" --> B2["bias $= E[x \cdot d] / E[x^2]$<br/>每個 code 仍留下殘差（§11.2）"]
+  Q3 -- "$\varepsilon_{cc} = \kappa \cdot x$" --> B3["$w^* = a + \kappa$<br/>與 gain 不可辨識（§11.3）"]
+  B1 --> Q4{{"Sign-LMS 的線性化檢查<br/>$\max|e_\mathrm{det}(x; w^*)| / \sigma_v \le 0.3$？"}}
   B2 --> Q4
   B3 --> Q4
   Q4 -- "是" --> L1["一階公式 F-11.4 可以當驗收值"]
-  Q4 -- "否" --> L2["改用 mean-field 根或 Monte Carlo<br/>例：σ_v = 0 時 1.34 變成 1.4"]
+  Q4 -- "否" --> L2["改用 mean-field 根或 Monte Carlo<br/>例：$\sigma_v = 0$ 時 1.34 變成 1.4"]
 ${STYLE}
   class OKN ok
   class N1,B1,B2,B3 warn
@@ -518,15 +522,15 @@ ${STYLE}
  * 綜合手算 HC-11.8 的計算順序（①→⑦）。兩條線都從 ① 的動差出發：
  * ①→②→③→④→⑤ 算「停在哪裡、可不可信」；⑥⑦ 只需要 ① 的 E[x²] 與 σ_v（S ≈ K_q·E[x²] 不需要 w*），算「走多快」。
  */
-export const CHART_HANDCALC_FLOW = `flowchart TB
-  S1["① code 的動差<br/>E[x]、E[x²]、E[x³]、E[x⁴]"] --> S2["② 三個 bias 項<br/>offset：b·E[x] / E[x²]<br/>INL：( c₂·E[x³] + c₃·E[x⁴] ) / E[x²]<br/>correlated：κ"]
-  S2 --> S3["③ 固定點<br/>w* = a + offset + INL + κ"]
-  S3 --> S4["④ 每個 code 的殘差<br/>e_det(x; w*)"]
-  S4 --> S5{{"⑤ 線性化指標<br/>max|e_det| / σ_v ≤ 0.3？"}}
-  S5 -- "是" --> S6["w* 可當 Sign-LMS 的驗收值"]
+export const CHART_HANDCALC_FLOW = String.raw`flowchart TB
+  S1["① code 的動差<br/>$E[x]$、$E[x^2]$、$E[x^3]$、$E[x^4]$"] --> S2["② 三個 bias 項<br/>offset：$b \cdot E[x] / E[x^2]$<br/>INL：$(c_2 \cdot E[x^3] + c_3 \cdot E[x^4]) / E[x^2]$<br/>correlated：$\kappa$"]
+  S2 --> S3["③ 固定點<br/>$w^* = a + \text{offset} + \text{INL} + \kappa$"]
+  S3 --> S4["④ 每個 code 的殘差<br/>$e_\mathrm{det}(x; w^*)$"]
+  S4 --> S5{{"⑤ 線性化指標<br/>$\max|e_\mathrm{det}| / \sigma_v \le 0.3$？"}}
+  S5 -- "是" --> S6["$w^*$ 可當 Sign-LMS 的驗收值"]
   S5 -- "否" --> S7["改用 mean-field 根或 MC"]
-  S1 -- "只用 E[x²]" --> S8["⑥ K_q = √(2/π) / σ_v<br/>S ≈ K_q·E[x²]"]
-  S8 --> S9["⑦ μ = g / S<br/>g = 0.02 時平均 pole = 0.98"]
+  S1 -- "只用 $E[x^2]$" --> S8["⑥ $K_q = \sqrt{2/\pi} / \sigma_v$<br/>$S \approx K_q \cdot E[x^2]$"]
+  S8 --> S9["⑦ $\mu = g / S$<br/>$g = 0.02$ 時平均 pole $= 0.98$"]
 ${STYLE}
   class S3 focus
   class S6 ok
@@ -556,7 +560,7 @@ export const CH11_DIAGRAMS = [
     title: '手算流程：GMAC 歸零 ≠ 每個 code 的誤差歸零',
     section: 'ch11-hand',
     chart: CHART_GMAC_ZERO,
-    caption: String.raw`由左到右：五個 code 各自的殘差 $e$ → 乘上自己的 $x$ → 取平均。先看綠色方塊：平均是 0；再看紅色方塊：四個非零 code 的 $e$ 都還在。`,
+    caption: String.raw`由上到下：五個 code 各自的殘差 $e$ → 乘上自己的 $x$ → 取平均。先看綠色方塊：平均是 0；再看紅色方塊：四個非零 code 的 $e$ 都還在。`,
   },
   {
     id: 'error-sources',
@@ -724,7 +728,7 @@ export const CH11_DIAGRAMS = [
     title: 'Monte Carlo 與 mean-field 之間的三個差距',
     section: 'ch11-lab',
     chart: CHART_MC_GAPS,
-    caption: String.raw`左邊四個方塊相加才是 Monte Carlo 量到的平均；六角形是 Lab 的判定式（$\mathrm{SE}$ = 平均值的標準誤）。`,
+    caption: String.raw`上面四個方塊相加才是 Monte Carlo 量到的平均；下面的六角形是 Lab 的判定式（$\mathrm{SE}$ = 平均值的標準誤）。`,
   },
   {
     id: 'finite-step-loop',

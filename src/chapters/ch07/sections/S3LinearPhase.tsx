@@ -32,9 +32,9 @@ export function S3LinearPhase() {
     const real = om.map((o, i) => Math.cos(cArg(H[i]) + o * 4))
     const omDeg = om.map((o) => o * DEG)
     const data: Data[] = [
-      { x: omDeg, y: ideal, name: 'φ(Ω) ≡ −120°（理想化）', mode: 'lines' },
-      { x: omDeg, y: real, name: '真實 2-tap FIR（只在 30° 是 −120°）', mode: 'lines' },
-      { x: [30], y: [Math.cos(cArg(freqz(fir.b, fir.a, [Math.PI / 6])[0]) + (Math.PI / 6) * 4)], name: '設計點 Ω₀ = 30°/sample', mode: 'markers', marker: { size: 10, symbol: 'star' } },
+      { x: omDeg, y: ideal, name: r`$\phi(\Omega) \equiv -120^\circ$（理想化）`, mode: 'lines' },
+      { x: omDeg, y: real, name: r`真實 2-tap FIR（只在 $30^\circ$ 是 $-120^\circ$）`, mode: 'lines' },
+      { x: [30], y: [Math.cos(cArg(freqz(fir.b, fir.a, [Math.PI / 6])[0]) + (Math.PI / 6) * 4)], name: r`設計點 $\Omega_0 = 30^\circ$/sample`, mode: 'markers', marker: { size: 10, symbol: 'star' } },
     ]
     return { data }
   }, [])
@@ -50,9 +50,9 @@ export function S3LinearPhase() {
     const cosD = om.map((o, i) => Math.cos(cArg(Hs[i]) + o * best.D))
     const cos0 = om.map((_, i) => Math.cos(cArg(Hs[i])))
     const data: Data[] = [
-      { x: om, y: cos0, name: 'raw-x（D = 0）：cos ∠H', mode: 'lines' },
-      { x: om, y: cosD, name: `delayed-x（D = ${best.D}）`, mode: 'lines' },
-      { x: [0.03], y: [Math.cos(cArg(z) + 0.03 * best.D)], name: '對齊點 Ω = 0.03', mode: 'markers', marker: { size: 10, symbol: 'star' } },
+      { x: om, y: cos0, name: r`raw-x（$D = 0$）：$\cos\angle H$`, mode: 'lines' },
+      { x: om, y: cosD, name: r`delayed-x（$D = ${best.D}$）`, mode: 'lines' },
+      { x: [0.03], y: [Math.cos(cArg(z) + 0.03 * best.D)], name: r`對齊點 $\Omega = 0.03$`, mode: 'markers', marker: { size: 10, symbol: 'star' } },
     ]
     return { data, phaseDeg: cArg(z) * DEG, mag: cAbs(z), best }
   }, [])
@@ -112,7 +112,7 @@ export function S3LinearPhase() {
     for (const rho of [0.5, 0.9, 0.99]) {
       const code = { kind: 'ar1' as const, rho }
       const c = analyticCorrSweep({ code, h: H, g: null, Ds }) as Float64Array
-      out.push({ x: Ds, y: Array.from(c), name: `delayed-x，AR(1) ρ = ${rho}`, mode: 'lines' })
+      out.push({ x: Ds, y: Array.from(c), name: r`delayed-x，AR(1) $\rho = ${rho}$`, mode: 'lines' })
       let bestD = 0
       let minD = 0
       c.forEach((v, i) => {
@@ -233,8 +233,8 @@ export function S3LinearPhase() {
         title={r`$D=4$ 固定時的 $\cos\theta(\Omega)$：只有一段頻率是正的`}
         data={fig1.data}
         layout={{
-          xaxis: { title: { text: 'Ω [deg/sample]' }, range: [0, 180] },
-          yaxis: { title: { text: 'C_D(Ω) / (A²|H|/2) = cos θ' }, range: [-1.05, 1.05] },
+          xaxis: { title: { text: r`$\Omega$ [deg/sample]` }, range: [0, 180] },
+          yaxis: { title: { text: r`$C_D(\Omega) / (A^2|H|/2) = \cos\theta$` }, range: [-1.05, 1.05] },
           shapes: [{ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: 0, y1: 0, line: { dash: 'dot', width: 1 } }],
         }}
         height={300}
@@ -264,8 +264,8 @@ export function S3LinearPhase() {
         title={r`Type-II $H_{\mathrm{PD}}$：$D=${t2.best.D}$ 只在 $\Omega=0.03$ 附近一小段有效`}
         data={t2.data}
         layout={{
-          xaxis: { title: { text: 'Ω [rad/sample]（log）' } },
-          yaxis: { title: { text: 'cos θ(Ω)' }, range: [-1.05, 1.05] },
+          xaxis: { title: { text: r`$\Omega$ [rad/sample]（log）` } },
+          yaxis: { title: { text: r`$\cos\theta(\Omega)$` }, range: [-1.05, 1.05] },
         }}
         xLog
         height={300}
@@ -439,8 +439,8 @@ export function S3LinearPhase() {
           title={r`寬頻 code 的 $C_D$ vs $D$（Type-II，$\omega_nT_s=0.1$）：延遲大多只讓相關變小`}
           data={wide.data}
           layout={{
-            xaxis: { title: { text: 'D [samples]' } },
-            yaxis: { title: { text: 'C_D = E[x[n−D]·u[n]]' } },
+            xaxis: { title: { text: r`$D$ [samples]` } },
+            yaxis: { title: { text: r`$C_D = E[x[n-D]\cdot u[n]]$` } },
             shapes: [{ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: 0, y1: 0, line: { dash: 'dot', width: 1 } }],
           }}
           height={300}

@@ -104,7 +104,7 @@ export function IntroSection() {
           <Tex>{String.raw`E[G]=E[x\,e]`}</Tex>；只用正負號 <Tex>{'q'}</Tex> 的 Sign-LMS 留到 §11.A）。
         </p>
         <p>
-          先看 <FigRef id="gmac-zero" /> 的左邊：<Tex>{'w=1.34'}</Tex> 時，五個 code 各有自己的殘差 <Tex>{'e'}</Tex>，各自乘上自己的 <Tex>{'x'}</Tex>；再看右邊：GMAC
+          先看 <FigRef id="gmac-zero" /> 上半部：<Tex>{'w=1.34'}</Tex> 時，五個 code 各有自己的殘差 <Tex>{'e'}</Tex>，各自乘上自己的 <Tex>{'x'}</Tex>；再看下半部：GMAC
           把五個乘積取平均，正負剛好抵銷成 0。圖上每個方塊裡的 <Tex>{String.raw`x\cdot e`}</Tex>，就是下面第三行推導方括號裡的五個乘積；綠色方塊就是該行等號右邊的 0。
         </p>
         <Fig id="gmac-zero" />
@@ -148,7 +148,7 @@ export function IntroSection() {
         <p>
           剛才的例子只有 INL 一種誤差。實際的電路裡，comparator 前的誤差有好幾個來源。先看 <FigRef id="error-sources" /> 中間的加法點{' '}
           <Tex>{'\\Sigma'}</Tex>：DTC 的 delay、補償量 <Tex>{'-w\\,x'}</Tex>、PD／comparator 的 offset <Tex>{'b'}</Tex>、與 code 成正比的干擾{' '}
-          <Tex>{String.raw`\varepsilon_{cc}=\kappa x`}</Tex>、隨機雜訊 <Tex>{'v'}</Tex>，全部在這裡相加成 <Tex>{'e[n]'}</Tex>；再看右邊：comparator 只留下正負號{' '}
+          <Tex>{String.raw`\varepsilon_{cc}=\kappa x`}</Tex>、隨機雜訊 <Tex>{'v'}</Tex>，全部在這裡相加成 <Tex>{'e[n]'}</Tex>；再看加法點下面：comparator 只留下正負號{' '}
           <Tex>{'q'}</Tex>，GMAC 把 <Tex>{'q'}</Tex> 乘上 <Tex>{'x'}</Tex> 後累加成 <Tex>{'G'}</Tex>，最後回頭去改 <Tex>{'w'}</Tex>（<Tex>{'\\mu'}</Tex>{' '}
           是學習率，<Tex>{'N'}</Tex> 是每次更新所平均的 sample 數）。把圖上 DTC 的 <Tex>{'a\\,x'}</Tex> 與補償的 <Tex>{'-w\\,x'}</Tex> 合併成{' '}
           <Tex>{'(a-w)\\,x'}</Tex>，加法點的輸入就是下一節公式 F-11.1 的五項。圖上的虛線是主 PLL：如果 comparator 就是主 PLL 的 BBPD，它的輸出{' '}

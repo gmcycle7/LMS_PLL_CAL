@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Config, Data, Icon, Layout, ModeBarButtonAny, PlotlyHTMLElement } from 'plotly.js-dist-min'
 import { downloadText, toCsv } from './download'
+import { applyPlotMath, plotMath } from './plotMath'
 import { safeFileName } from './format'
 import { usePlotRegistry } from './plotRegistry'
 import { buildExportLayout, buildThemedLayout, filterLogData, tracesToColumns } from './plotUtils'
@@ -90,6 +91,8 @@ export function Plot({
     () => buildThemedLayout(tokens, { height, xLog, yLog, layout }),
     [tokens, height, xLog, yLog, layout],
   )
+  // 圖內文字（軸標題、圖例、註記、hover）裡的 `$...$` LaTeX → 斜體符號與上下標（見 plotMath.ts）
+  const typeset = useMemo(() => applyPlotMath(filtered.data, themedLayout), [filtered.data, themedLayout])
 
   // 載入 Plotly
   useEffect(() => {
@@ -127,7 +130,7 @@ export function Plot({
 
     const exportFigure = (gdEl: PlotlyHTMLElement, t: ThemeTokens, ttl?: string) => ({
       data: gdEl.data,
-      layout: buildExportLayout(gdEl.layout, t, ttl),
+      layout: buildExportLayout(gdEl.layout, t, ttl ? plotMath(ttl) : ttl),
     })
     const size = (gdEl: HTMLElement) => ({
       width: Math.max(320, Math.round(gdEl.clientWidth || 640)),
@@ -167,8 +170,8 @@ export function Plot({
       ...config,
       modeBarButtons: buttons,
     }
-    void P.react(gd, filtered.data, themedLayout, fullConfig)
-  }, [status, filtered, themedLayout, config])
+    void P.react(gd, typeset.data, typeset.layout, fullConfig)
+  }, [status, typeset, config])
 
   // 容器大小改變 → Plots.resize（以 rAF 節流）
   useEffect(() => {
@@ -200,7 +203,7 @@ export function Plot({
         if (!P || !gd || !gd.data) return null
         const cur = latest.current
         return P.toImage(
-          { data: gd.data, layout: buildExportLayout(gd.layout, cur.tokens, cur.title) },
+          { data: gd.data, layout: buildExportLayout(gd.layout, cur.tokens, cur.title ? plotMath(cur.title) : cur.title) },
           { format: 'png', width: Math.max(320, Math.round(gd.clientWidth || 640)), height: cur.height, scale: 1 },
         )
       },

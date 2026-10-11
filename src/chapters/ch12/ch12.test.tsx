@@ -3,14 +3,14 @@ import { resolve } from 'node:path'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
-import { extractRegion } from '@/components'
+import { extractRegion, plotMath } from '@/components'
 import type { PresetEntry } from '@/data/types'
 import calNoiseSrc from '@/simulation/models/calNoise.ts?raw'
 import { calLoop, codeSpectraAnalytic, mixingCrossCheck, runNoiseLab, simulateMixing } from '@/simulation/models/calNoise'
 import Chapter12 from './index'
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
-import { CH12_CHARTS } from './diagrams'
+import { CH12_CHARTS, CH12_SYSTEM_FOCUS } from './diagrams'
 import { CH12_SYMBOLS } from './symbols'
 import { CODE_SPECTRA_DEFAULTS } from './experiments/CodeSpectraLab'
 import { MIX_DEFAULTS } from './experiments/CodeMixingLab'
@@ -25,6 +25,18 @@ const P = vi.hoisted(() => ({
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
 vi.mock('plotly.js-dist-min', () => ({ default: P }))
+/** 每個 <Plot> 在轉成 Plotly 之前的原始 data / layout（含 `$...$`）：用來檢查圖內文字的數學都寫成 LaTeX */
+const PM = vi.hoisted(() => ({ calls: [] as { data: unknown; layout: unknown }[] }))
+vi.mock('@/components/plotMath', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/plotMath')>()
+  return {
+    ...actual,
+    applyPlotMath: (data: unknown, layout: unknown) => {
+      PM.calls.push({ data, layout })
+      return actual.applyPlotMath(data, layout)
+    },
+  }
+})
 vi.mock('mermaid', () => ({
   default: {
     initialize: vi.fn(),
@@ -89,6 +101,13 @@ describe('第 12 章（jsdom smoke）', () => {
     // 方塊圖（docs/teaching-style.md §8）：章首的系統地圖 + 本章的 Mermaid 圖（預設 Engineer 模式看不到 Research 專屬的那一張）
     expect(container.querySelectorAll('figure.c-mermaid').length).toBe(1 + CH12_CHARTS.filter((c) => !c.mode).length)
     expect(container.querySelectorAll('.ch12-diagram').length).toBe(CH12_CHARTS.filter((c) => !c.mode).length)
+    // 章首的系統地圖是手排的 SVG（figure.c-sysmap，不經過 Mermaid）：被標成藍色（is-focus）的方塊就是本章追蹤的雜訊路徑
+    const sysmaps = container.querySelectorAll('figure.c-mermaid.c-sysmap')
+    expect(sysmaps.length).toBe(1)
+    expect(container.querySelector('figure.c-mermaid')).toBe(sysmaps[0])
+    const focused = Array.from(sysmaps[0].querySelectorAll('g.c-sysmap-block.is-focus')).map((g) => g.getAttribute('data-block'))
+    expect([...focused].sort()).toEqual([...CH12_SYSTEM_FOCUS].sort())
+    expect(sysmaps[0].querySelectorAll('g.c-sysmap-block[data-focus="true"]').length).toBe(CH12_SYSTEM_FOCUS.length)
     // 標題現在含 `$...$`（KaTeX 的 MathML 節點）：getAllByRole(…, { name }) 計算 accessible name 時 jsdom 的 getComputedStyle
     // 會對 MathML 元素丟例外，所以直接比對標題元素的文字（Section 標題 + ExperimentShell 標題，各實驗至少兩個）
     const headings = Array.from(container.querySelectorAll('h2, h3, h4')).map((h) => h.textContent ?? '')
@@ -215,6 +234,56 @@ describe('第 12 章（jsdom smoke）', () => {
     expect(container.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
     expect(container.querySelectorAll('.c-metric-table .katex').length).toBeGreaterThan(40)
     expect(container.querySelectorAll('.c-exp-assumptions .katex').length).toBeGreaterThan(10)
+  }, T_TEST)
+
+  it('Plotly 圖內文字（軸標題、圖例名稱、hover 名稱）的數學都寫成 $...$：沒有 Unicode 拼的數學，轉換後沒有殘留的反斜線、大括號或 $', async () => {
+    localStorage.setItem('lmspll.mode', 'research')
+    PM.calls.length = 0
+    const { container } = renderChapter()
+    // 等 LMS Noise Lab 的 Monte Carlo 跑完（trace／PSD 兩張圖的資料都齊了）
+    await waitFor(() => expect(container.textContent).toMatch(/（Monte Carlo，Binomial）/), { timeout: T_WAIT })
+    // 會顯示在圖上的字串欄位（與 plotMath.ts 的 TEXT_KEYS 相同）
+    const TEXT_KEYS = new Set(['name', 'text', 'title', 'ticktext', 'hovertemplate', 'texttemplate', 'hovertext', 'label', 'ticksuffix', 'tickprefix', 'legendgrouptitle'])
+    const strings = new Set<string>()
+    const walk = (value: unknown, key: string | null, depth: number) => {
+      if (typeof value === 'string') {
+        if (key !== null && TEXT_KEYS.has(key)) strings.add(value)
+        return
+      }
+      if (depth > 6 || value === null || typeof value !== 'object' || ArrayBuffer.isView(value)) return
+      if (Array.isArray(value)) {
+        for (const v of value.slice(0, 5000)) walk(v, key, depth + 1)
+        return
+      }
+      for (const [k, v] of Object.entries(value)) walk(v, k, depth + 1)
+    }
+    for (const c of PM.calls) {
+      walk(c.data, null, 0)
+      walk(c.layout, null, 0)
+    }
+    const all = [...strings]
+    const withMath = all.filter((t) => t.includes('$'))
+    // 本章 10 張互動圖（變異數累積、acf、頻率響應、ZOH PSD、noise trace、noise PSD、mixing 時域／頻譜、code PSD、code ℒ(f)）的軸標題與圖例都有公式
+    expect(withMath.length).toBeGreaterThan(30)
+    // 這些字串轉成 Plotly 的 pseudo-HTML 之後：不得殘留 TeX 的反斜線、大括號、$（不認得的指令會原樣露出指令名稱）
+    for (const t of withMath) expect(plotMath(t), t).not.toMatch(/[\\{}$]/)
+    // `$...$` 以外的文字不得有 Unicode／底線拼的數學（希臘字母、上下標、運算符號、w_k、f^2…）；單位 μs 也寫成 $\mathrm{\mu s}$
+    const UNICODE_MATH = /[\u0370-\u03ff\u2070-\u209f\u00b2\u00b3\u00b9\u2212∑∏√∞≤≥≠≈±∓·×÷∂∇∈∝⌊⌋⌈⌉ℒ𝒩]|(?<![A-Za-z0-9])[A-Za-z]{1,3}_[A-Za-z0-9{(]|\^[-0-9{(]/u
+    const offenders = all.filter((t) => UNICODE_MATH.test(t.replace(/(?<!\\)\$(?:[^$\\]|\\.)+?(?<!\\)\$/g, '')))
+    expect(offenders).toEqual([])
+    // 幾個代表性的字串確實寫成 LaTeX（而不是被改成別的）
+    for (const want of [
+      '$\\delta w_k = w_k - w^*$ [fs]',
+      '$V_k$ [$\\mathrm{fs}^2$]',
+      '$R_w[\\ell]$',
+      '$|H(f)|^2/|H(0)|^2$ [dB]',
+      '$S_w^{(1)}$ [$\\mathrm{fs}^2/\\mathrm{Hz}$]（one-sided）',
+      '$S_{\\delta t}^{(1)}$ [$\\mathrm{fs}^2/\\mathrm{Hz}$]',
+      '$\\mathcal{L}(f)$ [dBc/Hz]',
+      '$10\\log_{10}(P_{\\phi,\\mathrm{bin}}/2)$ [dBc]',
+      '$t$ [$\\mathrm{\\mu s}$]',
+    ]) expect(all, want).toContain(want)
+    expect(plotMath('$S_w^{(1)}$ [$\\mathrm{fs}^2/\\mathrm{Hz}$]')).toBe('<i>S</i><sub><i>w</i></sub><sup>(1)</sup> [fs<sup>2</sup>/Hz]')
   }, T_TEST)
 
   it('URL preset（?preset=noise-sum-mode-bug）套用到 LMS Noise Lab 並顯示 sum-mode 警告', async () => {

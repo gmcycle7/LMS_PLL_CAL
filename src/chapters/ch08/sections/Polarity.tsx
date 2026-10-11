@@ -47,7 +47,7 @@ export function Polarity() {
       />
       <p className="small">
         {rich(
-          String.raw`讀圖：先看經過「PLL error path H」的那條線——code 帶著相位 $\phi$ 到乘法器；再看經過「code delay」的那條線——同一個 code 晚了 $D$ 個 sample，相當於在頻率 $\Omega$ 上轉了 $\Omega D$。兩條線相乘再平均，只剩下「相位差的 $\cos$」（圖上乘的是 comparator 前的 $u[n]$；實際的 GMAC 乘的是 comparator 的 1-bit 輸出，小誤差時平均起來是 $K_q\,\delta\cdot C$（$\delta=a-w$ 是還沒修掉的誤差，$K_q>0$ 是 Ch05 的 comparator 統計增益）——多出來的 $K_q\delta$ 與相位無關，所以不影響這裡要看的 $\cos\theta$ 正負）。圖上藍色方塊裡的 $\theta=\phi+\Omega D$ 就是下面公式裡的 $\theta$，$C$ 就是公式左邊的平均相關；最右邊三個分支對應 $\cos\theta$ 大於、等於、小於 $0$。`,
+          String.raw`讀圖：先看經過「PLL error path H」的那條線——code 帶著相位 $\phi$ 到乘法器；再看經過「code delay」的那條線——同一個 code 晚了 $D$ 個 sample，相當於在頻率 $\Omega$ 上轉了 $\Omega D$。兩條線相乘再平均，只剩下「相位差的 $\cos$」（圖上乘的是 comparator 前的 $u[n]$；實際的 GMAC 乘的是 comparator 的 1-bit 輸出，小誤差時平均起來是 $K_q\,\delta\cdot C$（$\delta=a-w$ 是還沒修掉的誤差，$K_q>0$ 是 Ch05 的 comparator 統計增益）——多出來的 $K_q\delta$ 與相位無關，所以不影響這裡要看的 $\cos\theta$ 正負）。圖上藍色方塊裡的 $\theta=\phi+\Omega D$ 就是下面公式裡的 $\theta$，$C$ 就是公式左邊的平均相關；最下面三個分支對應 $\cos\theta$ 大於、等於、小於 $0$。`,
         )}
       </p>
       <p>把圖寫成公式，GMAC 量到的平均相關是</p>
@@ -69,12 +69,12 @@ export function Polarity() {
         )}
       </p>
       <Mermaid
-        caption={String.raw`Polarity margin 的手算順序：上面那一排是「先折回、再量距離」，綠色是免折回的捷徑，紅色是把週期錯當成 $180^\circ$ 的寫法（勘誤 E20）`}
+        caption={String.raw`Polarity margin 的手算順序：左邊那一條由上往下是「先折回、再量距離」，右邊綠色是免折回的捷徑，中間紅色是把週期錯當成 $180^\circ$ 的寫法（勘誤 E20）`}
         chart={POLARITY_WRAP_CHART}
       />
       <p className="small">
         {rich(
-          String.raw`讀圖：先看最上面那一排——$\theta$ 加 $180^\circ$、除以 $360^\circ$ 取非負餘數、再減 $180^\circ$，得到落在 $[-180^\circ,180^\circ)$ 的 $\psi$；取絕對值後用 $90^\circ$ 去減，就是藍色的 $M$。這幾步合起來就是下面 F-08.1 的第一個等號加上 $\mathrm{wrap}_{180}$ 的定義。再看綠色的捷徑——直接按 $\arcsin(\cos\theta)$，答案一樣，這是 F-08.1 的第二個等號（下面的推導框證明兩者相等）。最後看紅色的那一條——只要把「除以 $360^\circ$」寫成「除以 $180^\circ$」，$\theta=-150^\circ$ 就會算出 $+60^\circ$（正確是 $-60^\circ$）：極性錯誤被顯示成正的 margin。`,
+          String.raw`讀圖：先看左邊那一條由上往下的步驟——$\theta$ 加 $180^\circ$、除以 $360^\circ$ 取非負餘數、再減 $180^\circ$，得到落在 $[-180^\circ,180^\circ)$ 的 $\psi$；取絕對值後用 $90^\circ$ 去減，就是藍色的 $M$。這幾步合起來就是下面 F-08.1 的第一個等號加上 $\mathrm{wrap}_{180}$ 的定義。再看右邊綠色的捷徑——直接按 $\arcsin(\cos\theta)$，答案一樣，這是 F-08.1 的第二個等號（下面的推導框證明兩者相等）。最後看中間紅色的那一條——只要把「除以 $360^\circ$」寫成「除以 $180^\circ$」，$\theta=-150^\circ$ 就會算出 $+60^\circ$（正確是 $-60^\circ$）：極性錯誤被顯示成正的 margin。`,
         )}
       </p>
       <TexBlock id="F-08.1" label={rich(String.raw`Polarity margin 與 $\mathrm{wrap}_{180}$ 的精確定義（E20）`)}>

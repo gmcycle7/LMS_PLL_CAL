@@ -26,23 +26,23 @@ export function S4Budget() {
   const kalman = Math.sqrt((deferred.delta0 * deferred.delta0) / (1 + deferred.T * deferred.delta0 * deferred.delta0 * K * K))
   const data = useMemo<Data[]>(
     () => [
-      { x: rows.map((r) => r.N), y: rows.map((r) => r.rmsNominal), name: 'K 已知：最佳 μ 下的 RMS', mode: 'lines+markers', line: { color: tokens.series[0], width: 2.5 } },
+      { x: rows.map((r) => r.N), y: rows.map((r) => r.rmsNominal), name: String.raw`$K$ 已知：最佳 $\mu$ 下的 RMS`, mode: 'lines+markers', line: { color: tokens.series[0], width: 2.5 } },
       {
         x: rows.map((r) => r.N),
         y: rows.map((r) => r.rmsRobust),
-        name: `K ∈ [K/√ρ, K√ρ]（ρ = ${deferred.spread}）：最差情況 RMS`,
+        name: String.raw`$K \in [K/\sqrt{\rho},\, K\sqrt{\rho}]$（$\rho = ${tx(deferred.spread, 3)}$）：最差情況 RMS`,
         mode: 'lines+markers',
         line: { color: tokens.series[1], width: 2 },
       },
-      { x: rows.map((r) => r.N), y: rows.map((r) => r.rmsFirstOrder), name: '一階預測（只依賴 T）', line: { color: tokens.series[2], dash: 'dash' } },
-      { x: rows.map((r) => r.N), y: rows.map(() => kalman), name: 'Kalman 下界 √P_B（只依賴 T；F-14.18）', line: { color: tokens.series[4], dash: 'dot' } },
+      { x: rows.map((r) => r.N), y: rows.map((r) => r.rmsFirstOrder), name: String.raw`一階預測（只依賴 $T$）`, line: { color: tokens.series[2], dash: 'dash' } },
+      { x: rows.map((r) => r.N), y: rows.map(() => kalman), name: String.raw`Kalman 下界 $\sqrt{P_B}$（只依賴 $T$；F-14.18）`, line: { color: tokens.series[4], dash: 'dot' } },
     ],
     [rows, tokens, deferred.spread, kalman],
   )
   const muData = useMemo<Data[]>(
     () => [
-      { x: rows.map((r) => r.N), y: rows.map((r) => r.muNominal), name: 'μ*（K 已知）', mode: 'lines+markers', line: { color: tokens.series[0] } },
-      { x: rows.map((r) => r.N), y: rows.map((r) => r.muRobust), name: 'μ*（最差情況）', mode: 'lines+markers', line: { color: tokens.series[1] } },
+      { x: rows.map((r) => r.N), y: rows.map((r) => r.muNominal), name: String.raw`$\mu^*$（$K$ 已知）`, mode: 'lines+markers', line: { color: tokens.series[0] } },
+      { x: rows.map((r) => r.N), y: rows.map((r) => r.muRobust), name: String.raw`$\mu^*$（最差情況）`, mode: 'lines+markers', line: { color: tokens.series[1] } },
     ],
     [rows, tokens],
   )
@@ -96,7 +96,7 @@ export function S4Budget() {
         xLog
         height={320}
         csvName="ch14-budget-split"
-        layout={{ xaxis: { title: { text: 'N（每 block 樣本數，log）' } }, yaxis: { title: { text: 'RMS δ_B (fs)' } } }}
+        layout={{ xaxis: { title: { text: String.raw`$N$（每 block 樣本數，log）` } }, yaxis: { title: { text: String.raw`RMS $\delta_B$ (fs)` } } }}
         caption={md(
           String.raw`一階預測 ${nf(fo, 4)} fs。$K$ 已知時曲線在 $B$ 夠大時幾乎平坦；$B$ 很小（右端）反而下降，$B=1$ 時恰好等於 Kalman 下界 $\sqrt{\delta_0^2/(1+T\delta_0^2K^2)}=${tx(kalman, 4)}\,\mathrm{fs}$（前提是 $K$ 精確已知）。$K$ 有 corner 不確定時，$B$ 太小的最差情況急劇惡化：少數幾次更新沒有機會修正 $K$ 的誤差。`,
         )}
@@ -108,7 +108,7 @@ export function S4Budget() {
         yLog
         height={260}
         csvName="ch14-budget-mu"
-        layout={{ xaxis: { title: { text: 'N（log）' } }, yaxis: { title: { text: 'μ* (fs)' } } }}
+        layout={{ xaxis: { title: { text: String.raw`$N$（log）` } }, yaxis: { title: { text: String.raw`$\mu^*$ (fs)` } } }}
         caption={md(String.raw`$\mu^*$ 大致與 $N$ 成正比（$g^*\approx\ln A/(2B)$，$B=T/N$）：換 $N$ 時 $\mu$ 要跟著換，否則就不是同一個設計。`)}
       />
       <div className="table-wrap">

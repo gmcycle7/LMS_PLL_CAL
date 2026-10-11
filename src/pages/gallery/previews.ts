@@ -223,6 +223,19 @@ const RULE_TEX: Record<MimoRule, string> = {
   sequential: 'Sequential（分階段）',
 }
 const CASE_IDS = ['A', 'B', 'C'] as const
+
+/**
+ * 圖例用的名稱（`$...$` 由 <Plot> 轉成斜體符號與上下標）。共用模型檔的標籤（STRATEGY_LABEL、gaugeAnalysis 的 run.label）
+ * 是給下拉選單與報告用的純文字（ΔΣ、w₀ᴬ、ũ…），所以圖例在這裡改寫成 LaTeX。
+ */
+const strategyLegend = (s: QuantStrategy): string => STRATEGY_LABEL[s].replace('ΔΣ', () => String.raw`$\Delta\Sigma$`)
+
+/** gaugeAnalysis 的三組 LMS run（A、B：raw domain；C：u-domain）的圖例與說明，內容與 pe.ts 的 run.label 相同。 */
+function gaugeRunLabel(id: string, gmacReg: 'raw' | 'filtered'): string {
+  if (id === 'A') return String.raw`A：raw-$x$，初值 $\mathbf w_0^A$`
+  if (id === 'B') return String.raw`B：raw-$x$，初值 $\mathbf w_0^B$`
+  return String.raw`C：u-domain（${gmacReg === 'raw' ? String.raw`raw $\tilde x$` : String.raw`filtered $\tilde u$`} GMAC），初值 $\mathbf w_0^A$`
+}
 const RAD2DEG = 180 / Math.PI
 const SQRT_2_OVER_PI = Math.sqrt(2 / Math.PI)
 /**
@@ -388,7 +401,7 @@ function scalarPreview(experiment: string, base: { a: number; w0: number; x: num
 
   const series: PreviewSeries[] = cases.map((c) => {
     const th = thin(c.w)
-    return { name: multi ? `${c.id}: μ = ${c.mu}` : 'w_n', x: th.x, y: th.y, mode: c.w.length <= 41 ? 'lines+markers' : 'lines' }
+    return { name: multi ? `${c.id}: $\\mu = ${c.mu}$` : '$w_n$', x: th.x, y: th.y, mode: c.w.length <= 41 ? 'lines+markers' : 'lines' }
   })
   return {
     experiment,
@@ -399,7 +412,7 @@ function scalarPreview(experiment: string, base: { a: number; w0: number; x: num
     metrics,
     steps,
     stepsTitle: multi ? `手算：把 Case ${c0.id}（$\\mu=${t(c0.mu)}$）的數字代進 LMS 更新式` : '手算：把 preset 的數字代進 LMS 更新式',
-    chart: { title: '係數軌跡（runScalarLms）', xLabel: 'n（sample）', yLabel: 'w_n', series, hLines: [{ y: a, name: `a = ${a}` }] },
+    chart: { title: '係數軌跡（runScalarLms）', xLabel: '$n$（sample）', yLabel: '$w_n$', series, hLines: [{ y: a, name: `$a = ${a}$` }] },
     verdicts,
     notes: [
       'L0 模型：每個 sample 更新一次、$x$ 固定、量測雜訊 $v$ 為白色 Gaussian（若 $\\sigma_v>0$）。',
@@ -528,7 +541,7 @@ const previewComparator: Previewer = (p) => {
     metrics,
     steps,
     stepsTitle: '手算：從單一 comparator 樣本到 $N$ 個樣本的方向判斷',
-    chart: { title: '方向判斷正確率對 $N$（exact binomial、奇數 $N$）', xLabel: 'N（樣本數；取點在 log 尺度上等距）', yLabel: 'P(S_N 與 s 同號)', series: [{ name: 'exact（strict, odd N）', x: xs, y: ys, mode: 'lines+markers' }], hLines: [{ y: 0.95, name: '95%' }] },
+    chart: { title: '方向判斷正確率對 $N$（exact binomial、奇數 $N$）', xLabel: '$N$（樣本數；取點在 log 尺度上等距）', yLabel: '$P$（$S_N$ 與 $s$ 同號）', series: [{ name: 'exact（strict, odd $N$）', x: xs, y: ys, mode: 'lines+markers' }], hLines: [{ y: 0.95, name: '95%' }] },
     verdicts,
     notes: ['L1 模型：$v$ 為 iid Gaussian、$q=\\operatorname{sign}(s+v-\\theta)$、$S_N=\\sum q_i$（sum 尺度，勘誤 E18）。', 'Monte Carlo 與 histogram 在原頁面（worker）。'],
   }
@@ -674,7 +687,7 @@ const previewPolarity: Previewer = (raw) => {
   const Ds = range(dMax + 1)
   const sweep = (d: number) => (fx ? toneCorrelation({ A: aRef, mag: 1, phiRad: 0, omega: p.omega, delay: d }) : toneCorrelation({ ...spec, delay: d }))
   const verdicts: Verdict[] = []
-  if (cls === 'negative') verdicts.push({ kind: 'danger', text: `C ≤ 0：更新極性錯誤，正 learning rate 會使平均誤差發散（$C=${t(Ceff, 4)}$${kqOk ? `、$p=${t(pole)}$` : ''}）。` })
+  if (cls === 'negative') verdicts.push({ kind: 'danger', text: `$C\\le0$：更新極性錯誤，正 learning rate 會使平均誤差發散（$C=${t(Ceff, 4)}$${kqOk ? `、$p=${t(pole)}$` : ''}）。` })
   else if (cls === 'zero') verdicts.push({ kind: 'warn', text: `$C\\approx0$：$\\theta\\approx\\pm90^\\circ$，GMAC 沒有恢復力，$w$ 只做 random walk。` })
   else if (!kqOk) verdicts.push({ kind: 'warn', text: '極性正確（$C>0$），但 $\\sigma_v=0$：comparator 是 hard limiter，$K_q$ 與平均 pole 沒有定義；$w$ 以固定步幅靠近 $a$，之後在 $\\pm\\mu$ 的帶內跳動（limit cycle）。' })
   else if (Math.abs(pole) >= 1) verdicts.push({ kind: 'danger', text: `極性正確但 $g=\\mu K_qC=${t(1 - pole)}\\ge2$：振盪發散，降低 $\\mu$ 即可。` })
@@ -692,10 +705,10 @@ const previewPolarity: Previewer = (raw) => {
     stepsTitle: '手算：從 PLL error path 的相位到 LMS 的 pole',
     chart: {
       title: fx ? '$C$ 對 code delay $D$（filtered-x regressor；toneCorrelation）' : '$C_D$ 對 code delay $D$（toneCorrelation）',
-      xLabel: 'D（sample）',
-      yLabel: 'C_D',
-      series: [{ name: fx ? 'C（filtered-x）' : 'C_D（raw/delayed x）', x: Ds, y: Ds.map(sweep), mode: 'lines+markers' }],
-      hLines: [{ y: 0, name: 'C = 0' }],
+      xLabel: '$D$（sample）',
+      yLabel: '$C_D$',
+      series: [{ name: fx ? '$C$（filtered-$x$）' : '$C_D$（raw/delayed $x$）', x: Ds, y: Ds.map(sweep), mode: 'lines+markers' }],
+      hLines: [{ y: 0, name: '$C = 0$' }],
     },
     verdicts,
     notes: ['L2 模型：單頻 code $x=A\\cos\\Omega n$、PLL error path 在該頻率為 $|H|e^{j\\varphi}$、average-mode GMAC。', '閉迴路 Monte Carlo（8 chains）在原頁面的 worker 執行。'],
@@ -819,7 +832,7 @@ const previewDelayFx: Previewer = (prm) => {
   const verdicts: Verdict[] = analyses.map((r) => {
     const who = `Case ${r.c.id}（${r.c.mode}${r.c.mode === 'raw' ? '' : `、$D=${r.c.D}$`}）`
     if (r.C === 0) return { kind: 'warn' as const, text: `${who}：$C\\approx0$（殘餘相位 $\\pm90^\\circ$ 或寬頻抵銷）：GMAC 沒有恢復力，$w$ 只做 random walk。` }
-    if (r.C < 0) return { kind: 'danger' as const, text: `${who}：C ≤ 0：更新極性錯誤，正 learning rate 會使平均誤差發散（$C=${t(r.C, 4)}$${kqOk ? `、$p=${t(r.pole)}$` : ''}）。` }
+    if (r.C < 0) return { kind: 'danger' as const, text: `${who}：$C\\le0$：更新極性錯誤，正 learning rate 會使平均誤差發散（$C=${t(r.C, 4)}$${kqOk ? `、$p=${t(r.pole)}$` : ''}）。` }
     if (!kqOk) return { kind: 'warn' as const, text: `${who}：$C=${t(r.C, 4)}>0$（極性正確），但 $\\sigma_v=0$：$K_q$ 與平均 pole 沒有定義（hard limiter），$w$ 以固定步幅靠近 $a$ 後在 $\\pm\\mu$ 的帶內跳動。` }
     if (Math.abs(r.pole) >= 1) return { kind: 'danger' as const, text: `${who}：$g=\\mu K_qC=${t(1 - r.pole)}\\ge2$，振盪發散（降低 $\\mu$）。` }
     return { kind: 'ok' as const, text: `${who}：$C=${t(r.C, 4)}>0$，$p=${t(r.pole)}$。` }
@@ -834,7 +847,7 @@ const previewDelayFx: Previewer = (prm) => {
     metrics,
     steps,
     stepsTitle: '手算：三種 regressor 的有效相關與 pole',
-    chart: { title: '$C_D$ 對 code delay $D$（Case A 的路徑與 code）', xLabel: 'D（sample）', yLabel: 'C_D', series: [{ name: sw.analytic ? 'C_D（封閉式）' : 'C_D（時間平均）', x: Array.from(analyses[0].an.sweep.D), y: swY, mode: 'lines+markers' }], hLines: [{ y: 0, name: 'C = 0' }] },
+    chart: { title: '$C_D$ 對 code delay $D$（Case A 的路徑與 code）', xLabel: '$D$（sample）', yLabel: '$C_D$', series: [{ name: sw.analytic ? '$C_D$（封閉式）' : '$C_D$（時間平均）', x: Array.from(analyses[0].an.sweep.D), y: swY, mode: 'lines+markers' }], hLines: [{ y: 0, name: '$C = 0$' }] },
     verdicts,
     notes: ['code 正規化為 $E[x^2]=1$；$K_q$ 用小訊號近似（$|\\delta|\\ll\\sigma_v$）。', '閉迴路 Block Sign-LMS（paired seed）在原頁面的 worker 執行；這裡只算平均 pole。'],
     seed,
@@ -907,7 +920,7 @@ const previewPmLab: Previewer = (p) => {
       { tex: `g^*(d)=2\\sin\\frac{\\pi}{4d+2}=${t(gStar)}`, why: `把 $z=e^{j\\omega}$ 代入特徵式，取大小與角度兩條條件；$0<g<g^*$ 才穩定${g > 0 && Number.isFinite(gmDb) ? `（本例 GM $=20\\log_{10}(g^*/g)=${t(gmDb, 4)}$ dB）` : ''}。` },
     ],
     stepsTitle: '手算：一階校正迴路的 PM 與更新延遲',
-    chart: { title: '$\\delta_k/\\delta_0$ 時域（simulateDelayRecursion）', xLabel: 'k（block）', yLabel: 'δ_k / δ_0', series: [{ name: 'δ_k', x: range(steps + 1), y: Array.from(run.delta), mode: steps <= 60 ? 'lines+markers' : 'lines' }], hLines: [{ y: 0, name: '0' }] },
+    chart: { title: '$\\delta_k/\\delta_0$ 時域（simulateDelayRecursion）', xLabel: '$k$（block）', yLabel: '$\\delta_k / \\delta_0$', series: [{ name: '$\\delta_k$', x: range(steps + 1), y: Array.from(run.delta), mode: steps <= 60 ? 'lines+markers' : 'lines' }], hLines: [{ y: 0, name: '0' }] },
     verdicts,
     notes: ['L1 模型：$K$ 已併入 $g=\\mu K$；$\\delta_{k+1}=\\delta_k-g\\,\\delta_{k-d}$。', 'Monte Carlo（真正的 block sign-LMS）在原頁面。'],
   }
@@ -949,7 +962,7 @@ const previewDualLoop: Previewer = (p) => {
         { tex: `F(1)=${t(ga.dcGain)}\\Rightarrow 1-\\mu F(1)=${t(ga.simplifiedPole)}`, why: '若觀測瞬間到穩態，校正迴路只看到 DC 增益。' },
       ],
       stepsTitle: '手算：完整模型對 quasi-static',
-      chart: { title: '$\\delta_k$（完整模型）', xLabel: 'k（block）', yLabel: 'δ_k', series: [{ name: '完整模型', ...thin(sim.delta) }] },
+      chart: { title: '$\\delta_k$（完整模型）', xLabel: '$k$（block）', yLabel: '$\\delta_k$', series: [{ name: '完整模型', ...thin(sim.delta) }] },
       verdicts,
       notes: ['L2 模型：觀測路徑以 state-space $(A_s,b_s,c_s,d_s)$ 表示，平均（無雜訊）動態。'],
     }
@@ -1019,8 +1032,8 @@ const previewDualLoop: Previewer = (p) => {
     stepsTitle: '手算：完整二狀態模型對 quasi-static',
     chart: {
       title: '$|\\delta_k|$：完整模型對 quasi-static（同一組參數）',
-      xLabel: 'k（block）',
-      yLabel: '|δ_k|',
+      xLabel: '$k$（block）',
+      yLabel: '$|\\delta_k|$',
       yLog: true,
       series: [
         { name: '完整模型', ...thin(absDelta) },
@@ -1070,7 +1083,7 @@ const previewPeEigen: Previewer = (p) => {
   if (dist === 'pm1') metrics.push({ key: 'degenerate', label: `P(\\lambda_{\\min}(R_k)=0),\\ N_0=${N0}`, value: an.degenerateProb, claim: 'exact', note: '±1 code 的退化窗口機率' })
   const lamMinZero = Math.abs(rho) >= 1
   const verdicts: Verdict[] = []
-  if (lamMinZero) verdicts.push({ kind: 'danger', text: `λ_min = 0：不可辨識——$\\rho=${t(rho)}$ 時兩個 regressor 完全相同（或相反），$(1,${rho > 0 ? '-1' : '1'})$ 方向永遠學不到，停在初值。` })
+  if (lamMinZero) verdicts.push({ kind: 'danger', text: `$\\lambda_{\\min}=0$：不可辨識——$\\rho=${t(rho)}$ 時兩個 regressor 完全相同（或相反），$(1,${rho > 0 ? '-1' : '1'})$ 方向永遠學不到，停在初值。` })
   else if (an.meanRadius >= 1) verdicts.push({ kind: 'danger', text: `$\\max|p_i|=${t(an.meanRadius)}\\ge1$：$g$ 太大，快模式發散。` })
   else verdicts.push({ kind: 'ok', text: `平均遞迴穩定；慢模式要 $${t(an.k95Slow)}$ 個 block 才衰減 95%（$\\kappa=${t(an.modes.kappa, 4)}$）。` })
   if (Math.abs(rho) < 1 && an.meanRadius < 1 && an.msRadius > 1 + 1e-9) verdicts.push({ kind: 'warn', text: `mean-square 半徑 $${t(an.msRadius, 5)}\\ge1$：平均收斂但均方發散（勘誤 E23；把 $N$ 加大）。` })
@@ -1102,11 +1115,11 @@ const previewPeEigen: Previewer = (p) => {
     stepsTitle: '手算：eigenvalue、pole 與 95% 衰減步數',
     chart: {
       title: '平均軌跡 $E[\\boldsymbol\\delta_k]$（meanTrajectory）',
-      xLabel: 'k（block）',
-      yLabel: 'E[δ_i]',
+      xLabel: '$k$（block）',
+      yLabel: '$E[\\delta_i]$',
       series: [
-        { name: 'E[δ_1]', ...thin(traj[0]) },
-        { name: 'E[δ_2]', ...thin(traj[1]) },
+        { name: '$E[\\delta_1]$', ...thin(traj[0]) },
+        { name: '$E[\\delta_2]$', ...thin(traj[1]) },
       ],
       hLines: [{ y: 0, name: '0' }],
     },
@@ -1167,13 +1180,13 @@ const previewGauge: Previewer = (p) => {
       label: `\\max_k|\\hat n^T w_k-\\hat n^T w_0|\\ (\\text{run ${id}})`,
       value: Math.max(...Array.from(np, (v) => Math.abs(v - np[0]))),
       claim: run.domain === 'raw' ? 'exact' : 'approx',
-      note: `${run.label}——${run.domain === 'raw' ? 'raw domain：null 分量凍結在初值' : 'u-domain'}`,
+      note: `${gaugeRunLabel(id, prm.gmacReg)}——${run.domain === 'raw' ? 'raw domain：null 分量凍結在初值' : 'u-domain'}`,
     })
   })
   const verdicts: Verdict[] = []
   const nullCount = res.nullRx[0]?.length ?? 0
   if (nullCount > 0)
-    verdicts.push({ kind: 'warn', text: `λ_min = 0：不可辨識——$R_x$ 有 ${nullCount} 個零 eigenvalue，null vector $\\hat n\\approx(${nHat.map((v) => t(v, 3)).join(',')})$；LMS 只會把這個方向凍結在初值。` })
+    verdicts.push({ kind: 'warn', text: `$\\lambda_{\\min}=0$：不可辨識——$R_x$ 有 ${nullCount} 個零 eigenvalue，null vector $\\hat n\\approx(${nHat.map((v) => t(v, 3)).join(',')})$；LMS 只會把這個方向凍結在初值。` })
   else verdicts.push({ kind: 'ok', text: '$R_x$ 沒有零 eigenvalue：這組設定下參數可辨識。' })
   if (dcNull) verdicts.push({ kind: 'warn', text: `經過 $H_{PD}(1)=0$ 的 u-domain：$R_u$ 有 ${zerosRu} 個零 eigenvalue（勘誤 E04）。` })
   for (const w of res.warnings.slice(0, 2)) verdicts.push({ kind: 'info', text: w })
@@ -1204,9 +1217,9 @@ const previewGauge: Previewer = (p) => {
     chart: first
       ? {
           title: '$\\hat{\\mathbf n}^T\\mathbf w_k$：LMS 的 null 分量（gaugeAnalysis 的 demo）',
-          xLabel: 'k（block）',
-          yLabel: 'n̂ᵀw',
-          series: res.lms.runs.map((r) => ({ name: r.label, ...thin(r.nullProj) })),
+          xLabel: '$k$（block）',
+          yLabel: '$\\hat{\\mathbf n}^T\\mathbf w$',
+          series: res.lms.runs.map((r, i) => ({ name: gaugeRunLabel(CASE_IDS[i] ?? String(i), prm.gmacReg), ...thin(r.nullProj) })),
         }
       : undefined,
     verdicts,
@@ -1355,7 +1368,7 @@ const previewMimo: Previewer = (p) => {
     steps,
     stepsTitle: '手算：單一 loop 的 pole 對一起更新的 $\\operatorname{eig}(\\mathbf I+\\mathbf M\\mathbf J)$',
     chart: trajSeries.length
-      ? { title: '$\\|E[\\boldsymbol\\delta_k]\\|$：平均遞迴 $\\boldsymbol\\delta_{k+1}=(\\mathbf I+\\mathbf M\\mathbf J)\\boldsymbol\\delta_k$', xLabel: 'k（block）', yLabel: '‖δ_k‖（fs）', yLog: true, series: trajSeries }
+      ? { title: '$\\|E[\\boldsymbol\\delta_k]\\|$：平均遞迴 $\\boldsymbol\\delta_{k+1}=(\\mathbf I+\\mathbf M\\mathbf J)\\boldsymbol\\delta_k$', xLabel: '$k$（block）', yLabel: '$\\|\\boldsymbol\\delta_k\\|$（fs）', yLog: true, series: trajSeries }
       : undefined,
     verdicts,
     notes: ['L3 模型：$K_q$ 正規化為 1（$M_n=K_qM$）；平均遞迴不含 GMAC 雜訊。', 'Monte Carlo 軌跡與穩態共變異（Lyapunov）在原頁面。'],
@@ -1505,7 +1518,7 @@ const previewBias: Previewer = (p) => {
   const residual = an.residual
   const verdicts: Verdict[] = []
   const gainBias = an.wStar - model.a
-  if (an.status === 'unidentifiable') verdicts.push({ kind: 'danger', text: 'λ_min = 0：不可辨識——$E[x^2]=0$（或 GMAC 對 $w$ 的斜率為 0），固定點不存在唯一解。' })
+  if (an.status === 'unidentifiable') verdicts.push({ kind: 'danger', text: '$\\lambda_{\\min}=0$：不可辨識——$E[x^2]=0$（或 GMAC 對 $w$ 的斜率為 0），固定點不存在唯一解。' })
   else if (an.status === 'no-root') verdicts.push({ kind: 'danger', text: '$E[G](w)$ 在搜尋範圍內沒有零點：GMAC 永遠推向同一邊（例如 offset 大過所有 code 的 gain 誤差）。' })
   else if (deadZone) verdicts.push({ kind: 'warn', text: `$\\sigma_v=0$：$E[G](w)=0$ 的解是整段區間 $${dzTex}$（dead zone），固定點不唯一——$w$ 停在哪裡取決於初值與 $\\mu$；加入雜訊（dither）才有唯一的零交越。` })
   else if (Math.abs(gainBias) <= 1e-9 * (1 + Math.abs(model.a)))
@@ -1534,7 +1547,7 @@ const previewBias: Previewer = (p) => {
           rows: residual.map((r) => [r.x, r.p, r.eStar, r.xe]),
         }
       : undefined,
-    chart: { title: '平均 GMAC $E[G](w)$（零點就是固定點）', xLabel: 'w', yLabel: 'E[G]', series: [{ name: 'E[G](w)', x: an.curve.w, y: an.curve.G }], hLines: [{ y: 0, name: '0' }] },
+    chart: { title: '平均 GMAC $E[G](w)$（零點就是固定點）', xLabel: '$w$', yLabel: '$E[G]$', series: [{ name: '$E[G](w)$', x: an.curve.w, y: an.curve.G }], hLines: [{ y: 0, name: '0' }] },
     verdicts,
     notes: ['L1（mode none）／L2（DC null）模型；$x$ 依指定分布、identity path、Gaussian comparator noise。', 'Monte Carlo（多 chains、95% CI）在原頁面的 worker 執行。'],
   }
@@ -1597,7 +1610,7 @@ const previewNoise: Previewer = (p) => {
   )
   if (colored && stable) metrics.push({ key: 'enbwEff', label: '\\sigma_w^2/S_w^{(1)}(0)', value: kHz(cl.enbwEff), unit: '\\mathrm{kHz}', claim: 'exact', note: 'colored $\\eta$ 時實際 $S_w$ 的等效雜訊頻寬（與上一列不同）' })
   const verdicts: Verdict[] = []
-  if (cl.regime === 'polarity') verdicts.push({ kind: 'danger', text: 'C ≤ 0：更新極性錯誤，正 learning rate 會使平均誤差發散。' })
+  if (cl.regime === 'polarity') verdicts.push({ kind: 'danger', text: '$C\\le0$：更新極性錯誤，正 learning rate 會使平均誤差發散。' })
   else if (cl.regime === 'unstable') verdicts.push({ kind: 'danger', text: `$|p|=${t(Math.abs(cl.p))}\\ge1$：$g\\ge2$，迴路不穩定${inp.gmMode === 'sum' ? '（sum 模式沿用 average 的 $\\mu$，$g$ 放大 $N$ 倍）' : ''}。` })
   else if (cl.regime === 'undefined') verdicts.push({ kind: 'warn', text: '$\\sigma_v=0$：$K_q$ 無定義（hard limiter）。' })
   else if (!rOk) verdicts.push({ kind: 'danger', text: `colored $\\eta$ 的 lag-1 相關 $|r|=${t(Math.abs(r))}\\ge1$：AR(1) 雜訊沒有有限變異數，$\\sigma_w$ 沒有定義（合法範圍 $|r|<1$）。` })
@@ -1702,10 +1715,10 @@ const previewNoise: Previewer = (p) => {
     chart: fx.length
       ? {
           title: '係數雜訊 PSD 的形狀 $S_w(f)/S_w(0)$（解析式 swDtft，對 DC 正規化；不是由資料估計的 PSD）',
-          xLabel: 'f（kHz，block rate f_u 的頻率軸）',
-          yLabel: colored ? 'S_w(f)/S_w(0)（含 colored S_η）' : '|H_{η→w}|² 正規化',
-          series: [{ name: 'S_w(f)/S_w(0)', x: fx, y: fy }],
-          hLines: [{ y: 0.5, name: '−3 dB' }],
+          xLabel: '$f$（kHz，block rate $f_u$ 的頻率軸）',
+          yLabel: colored ? '$S_w(f)/S_w(0)$（含 colored $S_\\eta$）' : '$|H_{\\eta\\to w}|^2$ 正規化',
+          series: [{ name: '$S_w(f)/S_w(0)$', x: fx, y: fy }],
+          hLines: [{ y: 0.5, name: '$-3$ dB' }],
         }
       : undefined,
     verdicts,
@@ -1807,7 +1820,7 @@ const previewMixing: Previewer = (p) => {
     metrics,
     steps,
     stepsTitle: '手算：code 乘上係數擾動，變成 spur',
-    chart: { title: '$\\delta t[n]$ 時域（simulateMixing）', xLabel: 't（μs）', yLabel: 'δt（fs）', series: [{ name: 'δt', x: Array.from(tr.tUs), y: Array.from(tr.dt) }] },
+    chart: { title: '$\\delta t[n]$ 時域（simulateMixing）', xLabel: '$t$（$\\mu\\mathrm{s}$）', yLabel: '$\\delta t$（fs）', series: [{ name: '$\\delta t$', x: Array.from(tr.tUs), y: Array.from(tr.dt) }] },
     verdicts,
     notes: ['L4 模型：coherent sampling（tone 落在整數 bin）、$|T|$ 在 tone 頻率視為常數。', `完整頻譜與 dBc 圖在原頁面；隨機成分使用 seed ${prm.seed}。`],
     seed: prm.seed,
@@ -1928,7 +1941,7 @@ const previewQuant: Previewer = (p) => {
     if (Number.isFinite(r.line2)) metrics.push({ key: `line2:${s}`, label: `P\\big(\\tfrac{2f_u}{${r.period}}\\big)\\ (\\text{${s}})`, value: r.line2, unit: '\\mathrm{LSB^2}', claim: 'exact' })
   }
   metrics.push({ key: 'bernVar', label: 'p(1-p),\\ p=\\mathrm{frac}(w^*)', value: bern.variance, unit: '\\mathrm{LSB^2}', claim: 'exact', note: 'T17：任何無偏的兩階方案的總誤差功率' })
-  if (rot >= 0) metrics.push({ key: 'rotation', label: '\\text{ΔΣ 循環} = \\text{toggle 循環移位}', value: rot, claim: 'exact', note: '常數輸入時 (D) ≡ (B)（勘誤 E15）' })
+  if (rot >= 0) metrics.push({ key: 'rotation', label: '\\Delta\\Sigma\\text{ 循環} = \\text{toggle 循環移位}', value: rot, claim: 'exact', note: '常數輸入時 (D) ≡ (B)（勘誤 E15）' })
   const pattern = toggleCycle(target, setup.togglePeriod, setup.toggleOrder)
   const steps: PreviewStep[] = [
     { tex: `\\text{(A) Freeze: } y=\\operatorname{round}(${t(target)})=${by('freeze').y[0]},\\quad y-w^*=${t(by('freeze').dc)}\\ \\mathrm{LSB}`, why: '只量化一次；誤差全部在 DC（$\\delta=a-w$ 的約定下為正號，勘誤 E49）。' },
@@ -1950,8 +1963,8 @@ const previewQuant: Previewer = (p) => {
     })
   steps.push(
     {
-      tex: `\\text{(D) ΔΣ: } v[n]=w^*+r[n-1],\\ y=Q(v),\\ r[n]=v-y:\\ r=${Array.from(Dr.r.slice(0, 5), (v) => t(v, 4)).join(',\\ ')},\\dots`,
-      why: `誤差回授讓 $y[n]=w^*+r[n-1]-r[n]$；${Dr.period > 0 ? `常數輸入時 $r$ 也是週期 ${Dr.period} 的循環` : '這組設定在 1024 次更新內沒有偵測到週期'}${rot >= 0 ? `，輸出與 (B) 是同一個循環、只差 ${rot} 個 sample 的相位（勘誤 E15：靜態目標下 ΔΣ 並不比 toggle 少 tone）` : ''}。`,
+      tex: `\\text{(D) }\\Delta\\Sigma\\text{: } v[n]=w^*+r[n-1],\\ y=Q(v),\\ r[n]=v-y:\\ r=${Array.from(Dr.r.slice(0, 5), (v) => t(v, 4)).join(',\\ ')},\\dots`,
+      why: `誤差回授讓 $y[n]=w^*+r[n-1]-r[n]$；${Dr.period > 0 ? `常數輸入時 $r$ 也是週期 ${Dr.period} 的循環` : '這組設定在 1024 次更新內沒有偵測到週期'}${rot >= 0 ? `，輸出與 (B) 是同一個循環、只差 ${rot} 個 sample 的相位（勘誤 E15：靜態目標下 $\\Delta\\Sigma$ 並不比 toggle 少 tone）` : ''}。`,
     },
     {
       tex: `\\text{(C) Stochastic: }p=\\mathrm{frac}(w^*)=${t(snap(frac, 1, 1e-9))},\\ E[y]=${lo}+p,\\ \\mathrm{Var}(y)=p(1-p)=${t(bern.variance)}`,
@@ -1966,7 +1979,7 @@ const previewQuant: Previewer = (p) => {
   const F = by('freeze')
   verdicts.push({
     kind: 'info',
-    text: `誤差功率：freeze $${t(F.power, 4)}$（DC 項 $${t(F.dc * F.dc, 4)}$）、toggle $${t(B.power, 4)}$、ΔΣ $${t(Dr.power, 4)}$、stochastic $${t(by('stochastic').power, 4)}$；無偏兩階方案的理論值 $p(1-p)=${t(bern.variance, 4)}$。`,
+    text: `誤差功率：freeze $${t(F.power, 4)}$（DC 項 $${t(F.dc * F.dc, 4)}$）、toggle $${t(B.power, 4)}$、$\\Delta\\Sigma$ $${t(Dr.power, 4)}$、stochastic $${t(by('stochastic').power, 4)}$；無偏兩階方案的理論值 $p(1-p)=${t(bern.variance, 4)}$。`,
   })
   if (Math.abs(B.dc) > 1e-6 && B.period > 0 && B.overflow > 0)
     verdicts.push({ kind: 'warn', text: `toggle 的 DC 誤差 $${t(B.dc, 4)}$ LSB 來自 overflow：pattern 中超出 code 範圍的值被 ${setup.overflow === 'wrap' ? 'wrap 成另一端的 code' : 'saturate 在端點'}，平均值不再是 $w^*$。` })
@@ -1988,7 +2001,7 @@ const previewQuant: Previewer = (p) => {
     modelFns: ['quantizer.makeGrid', 'quantizer.makeCtx', 'quantizer.simulateStrategy', 'quantizer.lineSpectrum', 'quantizer.isRotation', 'quantizer.toggleCycle', 'quantizer.bernoulliMoments'],
     level: 'L5',
     claim: 'exact',
-    summary: `常數 $w^*=${t(target)}$、${setup.bits}-bit、${arithmetic} 算術：freeze 誤差 $${t(F.dc, 4)}$ LSB；toggle 週期 ${B.period || '—'}、ΔΣ 週期 ${Dr.period || '（>1024 或非週期）'}。`,
+    summary: `常數 $w^*=${t(target)}$、${setup.bits}-bit、${arithmetic} 算術：freeze 誤差 $${t(F.dc, 4)}$ LSB；toggle 週期 ${B.period || '—'}、$\\Delta\\Sigma$ 週期 ${Dr.period || '（>1024 或非週期）'}。`,
     metrics,
     steps,
     stepsTitle: '手算：五種量化策略對常數目標的輸出',
@@ -1999,10 +2012,10 @@ const previewQuant: Previewer = (p) => {
     },
     chart: {
       title: `code 時間序列（前 ${show} 次更新）`,
-      xLabel: 'n（code update）',
-      yLabel: 'y[n]（LSB）',
-      series: (['toggle', 'deltaSigma', 'deltaSigmaDither'] as QuantStrategy[]).map((s) => ({ name: STRATEGY_LABEL[s], x: range(show), y: Array.from(by(s).y.slice(0, show)), mode: 'lines+markers' as const })),
-      hLines: [{ y: target, name: `w* = ${target}` }],
+      xLabel: '$n$（code update）',
+      yLabel: '$y[n]$（LSB）',
+      series: (['toggle', 'deltaSigma', 'deltaSigmaDither'] as QuantStrategy[]).map((s) => ({ name: strategyLegend(s), x: range(show), y: Array.from(by(s).y.slice(0, show)), mode: 'lines+markers' as const })),
+      hLines: [{ y: target, name: `$w^* = ${target}$` }],
     },
     verdicts,
     notes: ['L5 模型：整數（rational / fixed）運算，tie 不會被浮點誤差翻轉；以 code 更新率 $f_u$ 為時基。', 'PSD、ZOH 到 $f_s$ 與 DSM mixing 在原頁面。'],

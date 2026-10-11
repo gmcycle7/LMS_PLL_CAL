@@ -94,8 +94,8 @@ export function DeltaSigmaSection() {
   }, [])
   const ntfData = useMemo<Data[]>(
     () => [
-      { x: ntf.f, y: ntf.mag, name: '|1 − e^{−jΩ}|² = 4sin²(πf/f_u)', line: { color: tokens.series[1], width: 2 } },
-      { x: ntf.f, y: ntf.approx, name: '低頻近似 (2πf/f_u)²：+20 dB/dec', line: { color: tokens.textMuted, dash: 'dash', width: 1 } },
+      { x: ntf.f, y: ntf.mag, name: String.raw`$|1 - e^{-j\Omega}|^2 = 4\sin^2(\pi f/f_u)$`, line: { color: tokens.series[1], width: 2 } },
+      { x: ntf.f, y: ntf.approx, name: String.raw`低頻近似 $(2\pi f/f_u)^2$：+20 dB/dec`, line: { color: tokens.textMuted, dash: 'dash', width: 1 } },
     ],
     [ntf, tokens],
   )
@@ -103,10 +103,10 @@ export function DeltaSigmaSection() {
     const o = efbConstant({ target: 32.4, steps: 20 })
     const x = o.y.map((_, i) => i)
     return [
-      { x, y: o.v, name: 'v[n] = w_H + r[n−1]', mode: 'lines+markers', line: { color: tokens.series[2], width: 1 } },
-      { x, y: o.y, name: 'y[n]（6-bit code）', mode: 'lines+markers', line: { shape: 'hv', color: tokens.series[1], width: 2 } },
-      { x, y: x.map(() => 32.4), name: 'w_H = 32.4', line: { color: tokens.textMuted, dash: 'dot' } },
-      { x, y: o.r.map((v) => 32 + v), name: '32 + r[n]', mode: 'markers', marker: { color: tokens.series[4], symbol: 'diamond' } },
+      { x, y: o.v, name: String.raw`$v[n] = w_H + r[n-1]$`, mode: 'lines+markers', line: { color: tokens.series[2], width: 1 } },
+      { x, y: o.y, name: String.raw`$y[n]$（6-bit code）`, mode: 'lines+markers', line: { shape: 'hv', color: tokens.series[1], width: 2 } },
+      { x, y: x.map(() => 32.4), name: String.raw`$w_H = 32.4$`, line: { color: tokens.textMuted, dash: 'dot' } },
+      { x, y: o.r.map((v) => 32 + v), name: String.raw`$32 + r[n]$`, mode: 'markers', marker: { color: tokens.series[4], symbol: 'diamond' } },
     ]
   }, [tokens])
 
@@ -118,7 +118,7 @@ export function DeltaSigmaSection() {
       </p>
       <Mermaid
         chart={CHART_EFB_LOOP}
-        caption="一階 error-feedback ΔΣ 的迴圈。先看上排：$w_H$ 加上「上次欠的」$r[n-1]$ 得到 $v$，量化成整數 $y$；再看藍色的下排：$v$ 減 $y$ 就是這次欠的 $r$，存進暫存器（$z^{-1}$），下一拍加回去。"
+        caption="一階 error-feedback ΔΣ 的迴圈。先看上半：$w_H$ 加上「上次欠的」$r[n-1]$ 得到 $v$，量化成整數 $y$；再看藍色的下半：$v$ 減 $y$ 就是這次欠的 $r$，存進暫存器（$z^{-1}$），下一拍加回去。"
       />
       <p className="small ch13-figwalk">
         圖上三條線上的式子就是下面的三行方程式：<Tex>{'v[n]'}</Tex> 是量化器的輸入（高解析值加上上次的欠帳）、<Tex>{'y[n]'}</Tex> 是輸出的 6-bit code、<Tex>{'r[n]'}</Tex> 是這一拍的量化誤差（residual）。圖上的{' '}
@@ -177,12 +177,12 @@ export function DeltaSigmaSection() {
         <Tex>{String.raw`r[n]\equiv r[-1]+(n+1)\cdot0.4\pmod 1`}</Tex>（取在 <Tex>{String.raw`[-\tfrac12,\tfrac12)`}</Tex> 內的那個值）：狀態只有 5 個，所以一定繞回來。
       </p>
       <Plot
-        title={String.raw`ΔΣ 內部 accumulator：$v$、$y$ 與 $r$（前 20 個更新）`}
+        title={String.raw`$\Delta\Sigma$ 內部 accumulator：$v$、$y$ 與 $r$（前 20 個更新）`}
         ariaLabel="ΔΣ 內部 accumulator：v、y 與 r（前 20 個更新）"
         data={timeline}
         height={260}
         csvName="ch13-efb-timeline"
-        layout={{ xaxis: { title: { text: 'n（code 更新）' } }, yaxis: { title: { text: 'LSB' } } }}
+        layout={{ xaxis: { title: { text: String.raw`$n$（code 更新）` } }, yaxis: { title: { text: 'LSB' } } }}
         caption={
           <>
             由 <code>efbConstant()</code>（精確有理數）計算；<Tex>{String.raw`r[0..4]=${r.near.r.slice(0, 5).map((v) => fx(v, 1)).join(',\\ ')}`}</Tex>，然後重複。菱形畫的是 <Tex>{'32+r[n]'}</Tex>，方便和 code 放在同一張圖。
@@ -200,7 +200,7 @@ export function DeltaSigmaSection() {
       </Prereq>
       <Mermaid
         chart={CHART_NTF_PATHS}
-        caption="同一個迴圈在 $z$ 域的樣子。先看上面一條：$w_H$ 原封不動到輸出（增益 1）；再看藍色的一條：量化誤差 $r$ 要先經過 $1-z^{-1}$（現在的減掉上一次的）才到輸出，所以慢慢變的誤差幾乎被消掉、快速變的被放大。"
+        caption="同一個迴圈在 $z$ 域的樣子。先看左邊一條：$w_H$ 原封不動到輸出（增益 1）；再看上面藍色的一條：量化誤差 $r$ 要先經過 $1-z^{-1}$（現在的減掉上一次的）才到輸出，所以慢慢變的誤差幾乎被消掉、快速變的被放大。"
       />
       <p className="small ch13-figwalk">
         圖上的 <Tex>{'W_H(z)'}</Tex>、<Tex>{'R(z)'}</Tex>、<Tex>{'Y(z)'}</Tex> 是 <Tex>{'w_H[n]'}</Tex>、<Tex>{'r[n]'}</Tex>、<Tex>{'y[n]'}</Tex> 的 Z transform。圖上藍色方塊就是公式裡的{' '}
@@ -238,7 +238,7 @@ export function DeltaSigmaSection() {
           height={250}
           xLog
           csvName="ch13-ntf"
-          layout={{ xaxis: { title: { text: 'f / f_u' } }, yaxis: { title: { text: '|NTF|² [dB]' } } }}
+          layout={{ xaxis: { title: { text: String.raw`$f / f_u$` } }, yaxis: { title: { text: String.raw`$|\mathrm{NTF}|^2$ [dB]` } } }}
           caption={
             <>
               實線 <Tex>{String.raw`|1-e^{-j\Omega}|^2=4\sin^2(\pi f/f_u)`}</Tex>；虛線是低頻近似 <Tex>{String.raw`(2\pi f/f_u)^2`}</Tex>（每 decade <Tex>{String.raw`+20\,\mathrm{dB}`}</Tex>）。
@@ -254,7 +254,7 @@ export function DeltaSigmaSection() {
       <Fold title="ΔΣ 的「平均追蹤」：telescoping（伸縮相消）" openFrom="beginner">
         <Mermaid
           chart={CHART_TELESCOPING}
-          caption="同一個迴圈換個畫法。先看藍色方塊：$r$ 其實是「$w_H$ 減 $y$」的累加器；再看右邊：累加器的內容永遠有界，所以 $N$ 次的總誤差只剩頭尾兩個 $r$，平均誤差隨 $1/N$ 變小。"
+          caption="同一個迴圈換個畫法。先看藍色方塊：$r$ 其實是「$w_H$ 減 $y$」的累加器；再看下面：累加器的內容永遠有界，所以 $N$ 次的總誤差只剩頭尾兩個 $r$，平均誤差隨 $1/N$ 變小。"
         />
         <p className="small ch13-figwalk">
           圖上累加器的式子 <Tex>{String.raw`r[n]=r[n-1]+(w_H[n]-y[n])`}</Tex> 只是把 <Tex>{'r=v-y'}</Tex> 與 <Tex>{'v=w_H+r[n-1]'}</Tex> 合成一行；圖上的{' '}

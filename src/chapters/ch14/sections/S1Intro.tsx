@@ -167,7 +167,7 @@ PM&=\pi+\angle L(e^{j\omega_c})=\tfrac{\pi}{2}-\tfrac{\omega_c}{2}=90^\circ-\arc
         <p>把這個迴路畫成方塊圖，就看得出為什麼同一個旋鈕會同時造成這兩件事（圖上所有訊號都是每個 block 一個值，索引 <Tex>{'k'}</Tex>）：</p>
         <Diagram chart={CHART_CAL_LOOP} caption="校正迴路的 block-rate 模型：藍色的 learning rate 方塊同時決定「修多快」與「放進多少雜訊」。">
           <p>
-            <strong>先看</strong>由左到右的主線：正確答案 <Tex>{'a'}</Tex> 減掉暫存器的 <Tex>{'w_k'}</Tex> 得到誤差 <Tex>{'\\delta_k=a-w_k'}</Tex>。GMAC 的平均輸出對誤差的斜率是 <Tex>{'K'}</Tex>（誤差每多 1 fs，<Tex>{'G_k'}</Tex> 平均增加{' '}
+            <strong>先看</strong>由上到下的主線：正確答案 <Tex>{'a'}</Tex> 減掉暫存器的 <Tex>{'w_k'}</Tex> 得到誤差 <Tex>{'\\delta_k=a-w_k'}</Tex>。GMAC 的平均輸出對誤差的斜率是 <Tex>{'K'}</Tex>（誤差每多 1 fs，<Tex>{'G_k'}</Tex> 平均增加{' '}
             <Tex>{'K'}</Tex>，單位 <Tex>{'\\mathrm{fs^{-1}}'}</Tex>；<Tex>{'K=K_qC'}</Tex> 由 comparator 增益 <Tex>{'K_q'}</Tex> 與有效相關 <Tex>{'C'}</Tex> 決定），再加上這個 block 平均不掉的雜訊 <Tex>{'\\eta_k'}</Tex>，就是{' '}
             <Tex>{'G_k=K\\delta_k+\\eta_k'}</Tex>。<strong>再看</strong>藍色方塊與回授：<Tex>{'G_k'}</Tex> 乘上 <Tex>{'\\mu'}</Tex> 進累加器（<Tex>{'w_{k+1}=w_k+\\mu G_k'}</Tex>），新的 <Tex>{'w'}</Tex> 回到第一個加法點被減掉（邊上標著負號）。
           </p>
@@ -177,7 +177,7 @@ PM&=\pi+\angle L(e^{j\omega_c})=\tfrac{\pi}{2}-\tfrac{\omega_c}{2}=90^\circ-\arc
             <Tex>{'\\eta_k'}</Tex> 的變異數；<Tex>{'N'}</Tex> 個 <Tex>{'\\pm1'}</Tex> 取平均時約為 <Tex>{'1/N'}</Tex>）。
           </p>
           <p className="small muted">
-            本章方塊圖的顏色：藍色是這一段的主角，棕色是和它互相拉扯的另一項，綠色是通過或可用，紅色是失敗或不適用。圖裡的數學用一般文字書寫（方塊圖不渲染公式），下面的導讀會把它對回公式。
+            本章方塊圖的顏色：藍色是這一段的主角，棕色是和它互相拉扯的另一項，綠色是通過或可用，紅色是失敗或不適用。圖裡的數學和正文一樣用 LaTeX 排版，下面的導讀會把它對回公式。
           </p>
         </Diagram>
         <p>中間一定有個最佳點。我們先用數字感受，再推公式。</p>

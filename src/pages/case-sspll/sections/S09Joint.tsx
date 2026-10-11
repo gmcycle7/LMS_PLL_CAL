@@ -64,7 +64,7 @@ export function S09Joint() {
         <strong>
           (d) <Tex>{r`f_{vco}`}</Tex> 不影響符號
         </strong>
-        ：理想模型裡所有誤差都對 <Tex>{r`\Delta=T_{vco}/8`}</Tex> 正規化，所以 <Tex>{r`f_{vco}`}</Tex> 不出現在線性分析中。sim 的物理模型有一個 <Tex>{r`\varepsilon/\Delta`}</Tex> 耦合項（GOS 欄），joint 9×9 的 min Re eig 在三個{' '}
+        ：理想模型裡所有誤差都對 <Tex>{r`\Delta=T_{vco}/8`}</Tex> 正規化，所以 <Tex>{r`f_{vco}`}</Tex> 不出現在線性分析中。sim 的物理模型有一個 <Tex>{r`\varepsilon/\Delta`}</Tex> 耦合項（GOS 欄），joint <Tex>{r`9\times9`}</Tex> 的 <Tex>{r`\min\mathrm{Re}\,\mathrm{eig}`}</Tex> 在三個{' '}
         <Tex>{r`f_{vco}`}</Tex> 下：
       </p>
       <DataTable

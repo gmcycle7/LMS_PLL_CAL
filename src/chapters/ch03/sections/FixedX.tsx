@@ -125,7 +125,7 @@ function FiveMuPlots() {
       .map((s) => ({
         x: n,
         y: Array.from(s.r.delta),
-        name: `μ = ${s.mu}（p = ${num(fixedXPole(s.mu, X), 3)}）`,
+        name: T`$\mu = ${s.mu}$（$p = ${tnum(fixedXPole(s.mu, X), 3)}$）`,
         mode: 'lines+markers',
         line: { color: tokens.series[FIVE_MUS.indexOf(s.mu)], width: 2 },
         marker: { size: 6 },
@@ -133,7 +133,7 @@ function FiveMuPlots() {
     const lg: Data[] = sims.map((s) => ({
       x: n,
       y: Array.from(s.r.delta, (d) => Math.abs(d)),
-      name: `μ = ${s.mu}`,
+      name: T`$\mu = ${s.mu}$`,
       mode: 'lines+markers',
       line: { color: tokens.series[FIVE_MUS.indexOf(s.mu)], width: 2 },
       marker: { size: 6 },
@@ -141,10 +141,10 @@ function FiveMuPlots() {
     return { linData: lin, logData: lg }
   }, [tokens])
   const layoutLin = useMemo<Partial<Layout>>(
-    () => ({ xaxis: { title: { text: 'n（sample）' } }, yaxis: { title: { text: 'δ_n = a − w_n' }, zeroline: true } }),
+    () => ({ xaxis: { title: { text: T`$n$（sample）` } }, yaxis: { title: { text: T`$\delta_n = a - w_n$` }, zeroline: true } }),
     [],
   )
-  const layoutLog = useMemo<Partial<Layout>>(() => ({ xaxis: { title: { text: 'n（sample）' } }, yaxis: { title: { text: '|δ_n|（log）' } } }), [])
+  const layoutLog = useMemo<Partial<Layout>>(() => ({ xaxis: { title: { text: T`$n$（sample）` } }, yaxis: { title: { text: T`$|\delta_n|$（log）` } } }), [])
   return (
     <div className="ch03-plots">
       <Plot
@@ -178,7 +178,7 @@ function UnitCirclePlot() {
       x: th.map(Math.cos),
       y: th.map(Math.sin),
       mode: 'lines',
-      name: '單位圓 |z| = 1',
+      name: T`單位圓 $|z| = 1$`,
       line: { color: tokens.textMuted, width: 1.5, dash: 'dot' },
       hoverinfo: 'skip',
     }
@@ -186,8 +186,8 @@ function UnitCirclePlot() {
       x: [fixedXPole(mu, X)],
       y: [0],
       mode: 'text+markers',
-      name: `μ = ${mu}：p = ${num(fixedXPole(mu, X), 3)}`,
-      text: [`μ=${mu}`],
+      name: T`$\mu = ${mu}$：$p = ${tnum(fixedXPole(mu, X), 3)}$`,
+      text: [T`$\mu=${mu}$`],
       textposition: i % 2 ? 'bottom center' : 'top center',
       marker: { size: 12, symbol: 'x', color: tokens.series[i], line: { width: 2, color: tokens.series[i] } },
       textfont: { color: tokens.text, size: 11 },
@@ -196,8 +196,8 @@ function UnitCirclePlot() {
   }, [tokens])
   const layout = useMemo<Partial<Layout>>(
     () => ({
-      xaxis: { title: { text: 'Re z' }, range: [-1.6, 1.3], zeroline: true },
-      yaxis: { title: { text: 'Im z' }, range: [-1.2, 1.2], scaleanchor: 'x', zeroline: true },
+      xaxis: { title: { text: T`$\mathrm{Re}\,z$` }, range: [-1.6, 1.3], zeroline: true },
+      yaxis: { title: { text: T`$\mathrm{Im}\,z$` }, range: [-1.2, 1.2], scaleanchor: 'x', zeroline: true },
     }),
     [],
   )
@@ -219,8 +219,8 @@ function PoleVsMuPlot() {
   const data = useMemo<Data[]>(() => {
     const mu = Array.from({ length: 321 }, (_, i) => -0.1 + (0.8 * i) / 320)
     return [
-      { x: mu, y: mu.map((m) => Math.abs(fixedXPole(m, X))), name: '|p| = |1 − μx²|', mode: 'lines', line: { color: tokens.series[0], width: 2 } },
-      { x: [-0.1, 0.7], y: [1, 1], name: '穩定門檻 |p| = 1', mode: 'lines', line: { color: tokens.textMuted, width: 1.5, dash: 'dash' } },
+      { x: mu, y: mu.map((m) => Math.abs(fixedXPole(m, X))), name: T`$|p| = |1 - \mu x^2|$`, mode: 'lines', line: { color: tokens.series[0], width: 2 } },
+      { x: [-0.1, 0.7], y: [1, 1], name: T`穩定門檻 $|p| = 1$`, mode: 'lines', line: { color: tokens.textMuted, width: 1.5, dash: 'dash' } },
       {
         x: FIVE_MUS.slice(),
         y: FIVE_MUS.map((m) => Math.abs(fixedXPole(m, X))),
@@ -232,8 +232,8 @@ function PoleVsMuPlot() {
   }, [tokens])
   const layout = useMemo<Partial<Layout>>(
     () => ({
-      xaxis: { title: { text: 'μ' } },
-      yaxis: { title: { text: '|p|' }, range: [0, 1.8] },
+      xaxis: { title: { text: T`$\mu$` } },
+      yaxis: { title: { text: T`$|p|$` }, range: [0, 1.8] },
       shapes: [
         { type: 'rect', xref: 'x', yref: 'paper', x0: 0, x1: 0.5, y0: 0, y1: 1, fillcolor: tokens.series[2], opacity: 0.08, line: { width: 0 } },
       ],
@@ -305,7 +305,7 @@ export function FixedXSection() {
         />
         <p>
           先看上半：同一個 <Tex>x</Tex> 同時送進未知系統（<Tex>{T`\times\,a`}</Tex>）與你的模型（<Tex>{T`\times\,w[n]`}</Tex>），兩個輸出在加法點相減（<Tex>y</Tex> 標 ＋、<Tex>{T`w[n]x`}</Tex> 標 −）得到{' '}
-          <Tex>{T`e[n]`}</Tex>。再看下半的藍色方塊：<Tex>{T`e[n]`}</Tex> 乘上 <Tex>{T`\mu x`}</Tex> 變成修正量（虛線提醒你：這裡的 <Tex>x</Tex> 就是最上面那個輸入，所以修正量 = 步長 × 誤差 × 輸入），累加器把它加到 <Tex>{T`w[n]`}</Tex> 上得到 <Tex>{T`w[n+1]`}</Tex>；延遲一步之後它就是新的{' '}
+          <Tex>{T`e[n]`}</Tex>。再看下半的藍色方塊：<Tex>{T`e[n]`}</Tex> 乘上 <Tex>{T`\mu x`}</Tex> 變成修正量（虛線提醒你：這裡的 <Tex>x</Tex> 就是最上面那個輸入，所以 <Tex>{T`\text{修正量}=\text{步長}\times\text{誤差}\times\text{輸入}`}</Tex>），累加器把它加到 <Tex>{T`w[n]`}</Tex> 上得到 <Tex>{T`w[n+1]`}</Tex>；延遲一步之後它就是新的{' '}
           <Tex>{T`w[n]`}</Tex>，沿著回授線回到模型。圖上的 <Tex>{T`e[n]`}</Tex>、<Tex>{T`w[n]`}</Tex> 就是公式裡的 <Tex>{T`e_n`}</Tex>、<Tex>{T`w_n`}</Tex>；藍色兩格加上回授線，就是更新式{' '}
           <Tex>{T`w_{n+1}=w_n+\mu e_nx`}</Tex>（對照章首的系統地圖：「<Tex>{T`\times\,\mu x`}</Tex>」是 learning rate 那一格、累加器就是 gain accumulator）。
         </p>

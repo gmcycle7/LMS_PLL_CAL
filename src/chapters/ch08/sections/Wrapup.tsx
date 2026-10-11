@@ -194,7 +194,9 @@ export function Wrapup() {
                 <td>
                   <Tex>{'g=\\mu K_qC'}</Tex>
                 </td>
-                <td>REG_CAL_MU（或 shift 量）× comparator 統計增益 × 相關</td>
+                <td>
+                  REG_CAL_MU（或 shift 量） <Tex>{'\\times'}</Tex> comparator 統計增益 <Tex>{'\\times'}</Tex> 相關
+                </td>
                 <td>
                   <Tex>{'K_q=\\sqrt{2/\\pi}/\\sigma_v'}</Tex>（Ch05）；<Tex>{'C'}</Tex> 由 Ch06 或量測斜率 <Tex>{'S_{\\mathrm{GMAC}}'}</Tex>
                 </td>
@@ -384,7 +386,15 @@ export function Wrapup() {
       />
 
       <ModeGate min="research">
-        <Expand title="對照：Python golden model（獨立實作，產生 T08 / T09 / delay_bounds 的 golden vectors）" badge="研究" openFrom="research">
+        <Expand
+          title={
+            <>
+              對照：Python golden model（獨立實作，產生 T08 / T09 / <code>delay_bounds</code> 的 golden vectors）
+            </>
+          }
+          badge="研究"
+          openFrom="research"
+        >
           <p className="small">
             TypeScript 的 <code>stability.ts</code> 與這份 NumPy/SciPy 實作互不共用程式碼；單元測試逐項比對 <code>golden/vectors/T08.json</code>、<code>T09.json</code>、
             <code>delay_bounds.json</code>（容忍度 1e-9 至 1e-12）。

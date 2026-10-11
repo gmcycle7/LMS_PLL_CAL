@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import type { Data } from 'plotly.js-dist-min'
 import { ClaimTag, Plot, Tex, type ThemeTokens } from '@/components'
 import { isRotation, pllT2, STRATEGY_LABEL, type QuantLabResult, type StrategyRun } from '@/simulation/models/quantizer'
-import { Erratum, STRATEGY_COLOR, SpurAt, Unit, db, fx, n, ntex, num } from '../common'
+import { Erratum, STRATEGY_COLOR, SpurAt, Unit, db, fx, n, ntex, num, texLabel } from '../common'
 
 export interface CaseView {
   id: string
@@ -10,8 +10,28 @@ export interface CaseView {
   run: StrategyRun
 }
 
-function caseName(c: CaseView): string {
-  return `Case ${c.id}：${STRATEGY_LABEL[c.run.strategy]}${c.run.lmsNoise ? '（LMS 雜訊）' : ''}${c.run.nUpd > 1 ? `，N_upd=${c.run.nUpd}` : ''}`
+/** Case 名稱的文字部分（策略名稱、LMS 雜訊）；$N_\mathrm{upd}$ 另外處理（圖例用 caseTex，表格用 CaseName）。 */
+function caseHead(c: CaseView): string {
+  return `Case ${c.id}：${STRATEGY_LABEL[c.run.strategy]}${c.run.lmsNoise ? '（LMS 雜訊）' : ''}`
+}
+
+/** 圖例用的 Case 名稱：數學寫成 `$...$`，由 Plot 轉成斜體符號與上下標。 */
+function caseTex(c: CaseView): string {
+  return `${texLabel(caseHead(c))}${c.run.nUpd > 1 ? String.raw`，$N_\mathrm{upd}=${c.run.nUpd}$` : ''}`
+}
+
+/** 表格裡的 Case 名稱（$N_\mathrm{upd}$ 用 KaTeX 排版）。 */
+function CaseName({ c }: { c: CaseView }) {
+  return (
+    <>
+      {caseHead(c)}
+      {c.run.nUpd > 1 && (
+        <>
+          ，<Tex>{String.raw`N_\mathrm{upd}=${c.run.nUpd}`}</Tex>
+        </>
+      )}
+    </>
+  )
 }
 
 /** code 時間軸：6-bit code、內部 w_H、ΔΣ 量化器輸入 v 與 r。 */
@@ -20,25 +40,26 @@ export function TimelinePanel({ run, tokens }: { run: StrategyRun; tokens: Theme
   const data = useMemo<Data[]>(() => {
     const t = run.trace
     const out: Data[] = [
-      { x: t.n, y: t.y, name: 'y[n]（6-bit code）', mode: 'lines', line: { shape: 'hv', color: tokens.series[STRATEGY_COLOR[run.strategy]], width: 2 } },
-      { x: t.n, y: t.wH, name: 'w_H[n]（內部高解析）', mode: 'lines', line: { color: tokens.textMuted, width: 1 } },
-      { x: t.n, y: t.wStar, name: 'w*[n]', mode: 'lines', line: { color: tokens.text, width: 1, dash: 'dot' } },
+      { x: t.n, y: t.y, name: String.raw`$y[n]$（6-bit code）`, mode: 'lines', line: { shape: 'hv', color: tokens.series[STRATEGY_COLOR[run.strategy]], width: 2 } },
+      { x: t.n, y: t.wH, name: String.raw`$w_H[n]$（內部高解析）`, mode: 'lines', line: { color: tokens.textMuted, width: 1 } },
+      { x: t.n, y: t.wStar, name: String.raw`$w^*[n]$`, mode: 'lines', line: { color: tokens.text, width: 1, dash: 'dot' } },
     ]
-    if (isDs) out.push({ x: t.n, y: t.v, name: 'v[n] = w_H + r[n−1]（accumulator）', mode: 'markers', marker: { size: 4, color: tokens.series[2] } })
+    if (isDs) out.push({ x: t.n, y: t.v, name: String.raw`$v[n] = w_H + r[n-1]$（accumulator）`, mode: 'markers', marker: { size: 4, color: tokens.series[2] } })
     return out
   }, [run, tokens, isDs])
   const rData = useMemo<Data[]>(
-    () => [{ x: run.trace.n, y: run.trace.r, name: 'r[n]', mode: 'lines+markers', marker: { size: 3 }, line: { color: tokens.series[4], width: 1 } }],
+    () => [{ x: run.trace.n, y: run.trace.r, name: String.raw`$r[n]$`, mode: 'lines+markers', marker: { size: 3 }, line: { color: tokens.series[4], width: 1 } }],
     [run, tokens],
   )
   return (
     <>
       <Plot
-        title={`Code timeline（${STRATEGY_LABEL[run.strategy]}，前 ${run.trace.n.length} 次更新）`}
+        title={`Code timeline（${texLabel(STRATEGY_LABEL[run.strategy])}，前 ${run.trace.n.length} 次更新）`}
+        ariaLabel={`Code timeline（${STRATEGY_LABEL[run.strategy]}，前 ${run.trace.n.length} 次更新）`}
         data={data}
         height={280}
         csvName="ch13-lab-timeline"
-        layout={{ xaxis: { title: { text: 'n（code 更新）' } }, yaxis: { title: { text: 'LSB' } } }}
+        layout={{ xaxis: { title: { text: String.raw`$n$（code 更新）` } }, yaxis: { title: { text: 'LSB' } } }}
       />
       {isDs && (
         <Plot
@@ -47,7 +68,7 @@ export function TimelinePanel({ run, tokens }: { run: StrategyRun; tokens: Theme
           data={rData}
           height={200}
           csvName="ch13-lab-residual"
-          layout={{ xaxis: { title: { text: 'n' } }, yaxis: { title: { text: 'r [LSB]' } } }}
+          layout={{ xaxis: { title: { text: String.raw`$n$` } }, yaxis: { title: { text: String.raw`$r$ [LSB]` } } }}
         />
       )}
     </>
@@ -64,7 +85,7 @@ export function HistogramPanel({ cases, tokens }: { cases: CaseView[]; tokens: T
           type: 'bar',
           x: c.run.hist.codes,
           y: c.run.hist.counts.map((k) => k / total),
-          name: caseName(c),
+          name: caseTex(c),
           marker: { color: tokens.series[c.seriesIndex] },
         }
       }),
@@ -76,7 +97,7 @@ export function HistogramPanel({ cases, tokens }: { cases: CaseView[]; tokens: T
       data={data}
       height={240}
       csvName="ch13-lab-histogram"
-      layout={{ barmode: 'group', xaxis: { title: { text: 'code y' }, dtick: 1 }, yaxis: { title: { text: '比例' } } }}
+      layout={{ barmode: 'group', xaxis: { title: { text: String.raw`code $y$` }, dtick: 1 }, yaxis: { title: { text: '比例' } } }}
     />
   )
 }
@@ -87,9 +108,9 @@ export function PsdPanel({ cases, tokens, active }: { cases: CaseView[]; tokens:
     const out: Data[] = []
     for (const c of cases) {
       const ps = c.run.psd
-      out.push({ x: ps.f, y: ps.psd, name: caseName(c), line: { color: tokens.series[c.seriesIndex], width: 1.2 } })
+      out.push({ x: ps.f, y: ps.psd, name: caseTex(c), line: { color: tokens.series[c.seriesIndex], width: 1.2 } })
       if (ps.theory) out.push({ x: ps.f, y: ps.theory, name: `Case ${c.id} 理論`, line: { color: tokens.series[c.seriesIndex], width: 1, dash: 'dash' } })
-      if (ps.lmsRef) out.push({ x: ps.f, y: ps.lmsRef, name: `Case ${c.id} LMS 地板 S_δw`, line: { color: tokens.textMuted, width: 1, dash: 'dot' } })
+      if (ps.lmsRef) out.push({ x: ps.f, y: ps.lmsRef, name: String.raw`Case ${c.id} LMS 地板 $S_{\delta w}$`, line: { color: tokens.textMuted, width: 1, dash: 'dot' } })
     }
     // Spur 標記（規格 §13.6 的互動項目）：把目前 Case 譜線表的每條線標在 Welch 曲線上（取該頻率附近 ±2 bins 的最大值）
     if (active && active.run.lines.length) {
@@ -105,7 +126,7 @@ export function PsdPanel({ cases, tokens, active }: { cases: CaseView[]; tokens:
         if (!(peak > 0)) continue
         xs.push(l.f)
         ys.push(peak)
-        labels.push(`${l.k !== null ? `k = ${l.k}，` : ''}線功率 ${n(l.power, 4)} LSB²`)
+        labels.push(String.raw`${l.k !== null ? `$k = ${l.k}$，` : ''}線功率 $${ntex(l.power, 4)}\,\mathrm{LSB}^2$`)
       }
       if (xs.length)
         out.push({
@@ -132,7 +153,7 @@ export function PsdPanel({ cases, tokens, active }: { cases: CaseView[]; tokens:
         xLog
         yLog
         csvName="ch13-lab-psd"
-        layout={{ xaxis: { title: { text: 'f [Hz]（以 f_u 取樣）' } }, yaxis: { title: { text: 'PSD [LSB²/Hz]' } } }}
+        layout={{ xaxis: { title: { text: String.raw`$f$ [Hz]（以 $f_u$ 取樣）` } }, yaxis: { title: { text: String.raw`PSD [$\mathrm{LSB}^2/\mathrm{Hz}$]` } } }}
         caption={
           ps
             ? (
@@ -301,13 +322,13 @@ export function MixingPanel({ cases, tokens, bwHz, zeta }: { cases: CaseView[]; 
     const out: Data[] = withMix.map((c) => ({
       x: c.run.mixing!.f,
       y: c.run.mixing!.psd,
-      name: `${caseName(c)}：σ_out = ${n(c.run.mixing!.sigmaOutFs, 3)} fs`,
+      name: String.raw`${caseTex(c)}：$\sigma_\mathrm{out}=${ntex(c.run.mixing!.sigmaOutFs, 3)}\,\mathrm{fs}$`,
       line: { color: tokens.series[c.seriesIndex], width: 1.1 },
     }))
     if (withMix.length) {
       const f = withMix[0].run.mixing!.f
       const t2 = pllT2(f, bwHz, zeta)
-      out.push({ x: f, y: Array.from(t2, (v) => 10 * Math.log10(Math.max(v, 1e-30))), name: '|T(f)|² [dB]（右軸）', yaxis: 'y2', line: { color: tokens.textMuted, dash: 'dash', width: 1 } })
+      out.push({ x: f, y: Array.from(t2, (v) => 10 * Math.log10(Math.max(v, 1e-30))), name: String.raw`$|T(f)|^2$ [dB]（右軸）`, yaxis: 'y2', line: { color: tokens.textMuted, dash: 'dash', width: 1 } })
     }
     return out
   }, [withMix, tokens, bwHz, zeta])
@@ -324,9 +345,9 @@ export function MixingPanel({ cases, tokens, bwHz, zeta }: { cases: CaseView[]; 
         yLog
         csvName="ch13-lab-mixing"
         layout={{
-          xaxis: { title: { text: 'f [Hz]（以 f_s 取樣）' } },
-          yaxis: { title: { text: 'S_δt [fs²/Hz]' } },
-          yaxis2: { title: { text: '|T|² [dB]' }, overlaying: 'y', side: 'right', showgrid: false, range: [-80, 5] },
+          xaxis: { title: { text: String.raw`$f$ [Hz]（以 $f_s$ 取樣）` } },
+          yaxis: { title: { text: String.raw`$S_{\delta t}$ [$\mathrm{fs}^2/\mathrm{Hz}$]` } },
+          yaxis2: { title: { text: String.raw`$|T|^2$ [dB]` }, overlaying: 'y', side: 'right', showgrid: false, range: [-80, 5] },
         }}
         caption={
           <>
@@ -367,7 +388,9 @@ export function MixingPanel({ cases, tokens, bwHz, zeta }: { cases: CaseView[]; 
           <tbody>
             {withMix.map((c) => (
               <tr key={c.id}>
-                <td>{caseName(c)}</td>
+                <td>
+                  <CaseName c={c} />
+                </td>
                 <td>{num(c.run.mixing!.sigmaRawFs, 4)}</td>
                 <td>{num(c.run.mixing!.sigmaOutFs, 4)}</td>
                 <td>{num(c.run.mixing!.fLowHz, 4)}</td>
@@ -399,7 +422,7 @@ export function ComparePanel({ result, tokens, lsbFs }: { result: QuantLabResult
     () =>
       result.compare
         .filter((r) => r.metrics.errVar > 1e-18)
-        .map((r) => ({ x: r.psd.f, y: r.psd.psd, name: STRATEGY_LABEL[r.strategy], line: { color: tokens.series[STRATEGY_COLOR[r.strategy]], width: 1.1 } })),
+        .map((r) => ({ x: r.psd.f, y: r.psd.psd, name: texLabel(STRATEGY_LABEL[r.strategy]), line: { color: tokens.series[STRATEGY_COLOR[r.strategy]], width: 1.1 } })),
     [result, tokens],
   )
   const scen = result.compareScenario
@@ -498,7 +521,7 @@ export function ComparePanel({ result, tokens, lsbFs }: { result: QuantLabResult
         xLog
         yLog
         csvName="ch13-lab-compare-psd"
-        layout={{ xaxis: { title: { text: 'f [Hz]' } }, yaxis: { title: { text: 'PSD [LSB²/Hz]' } } }}
+        layout={{ xaxis: { title: { text: String.raw`$f$ [Hz]` } }, yaxis: { title: { text: String.raw`PSD [$\mathrm{LSB}^2/\mathrm{Hz}$]` } } }}
         caption={
           <>
             Welch、Hann、one-sided、<Tex>{String.raw`\mathrm{LSB}^2/\mathrm{Hz}`}</Tex>、每段去平均（設定同上方 PSD 圖）。Freeze 的誤差為常數（去平均後 PSD 恆為 0）不畫；常數情境下若 acceptance check 通過，B 與 D 的曲線完全重疊（<Erratum id="E15" />）。

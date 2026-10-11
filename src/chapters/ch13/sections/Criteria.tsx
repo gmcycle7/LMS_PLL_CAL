@@ -194,7 +194,7 @@ export function CriteriaSection() {
       {
         x: Array.from(trap.blockMeans, (_, i) => i * stepMs),
         y: Array.from(trap.blockMeans),
-        name: '區塊平均 δt（toggle × DSM residue，frac = 0.1）',
+        name: String.raw`區塊平均 $\delta t$（toggle $\times$ DSM residue，$\mathrm{frac}=0.1$）`,
         mode: 'lines',
         line: { shape: 'hv', color: tokens.series[0], width: 2 },
       },
@@ -217,7 +217,7 @@ export function CriteriaSection() {
       </p>
       <Mermaid
         chart={CHART_MIXING_PATH}
-        caption="code 誤差怎麼變成 output jitter。先看左邊：code 每 $N_\mathrm{upd}$ 個 cycle 才更新一次，ZOH 把同一個誤差重複 $N_\mathrm{upd}$ 次；再看藍色的乘法點：誤差乘上每個 cycle 都在變的 DSM residue，頻譜因此被搬移；最後才經過 PLL 的 low-pass。"
+        caption="code 誤差怎麼變成 output jitter。先看最上面：code 每 $N_\mathrm{upd}$ 個 cycle 才更新一次，ZOH 把同一個誤差重複 $N_\mathrm{upd}$ 次；再看藍色的乘法點：誤差乘上每個 cycle 都在變的 DSM residue，頻譜因此被搬移；最後才經過 PLL 的 low-pass。"
       />
       <p className="small ch13-figwalk">
         注意兩個時間索引：圖上的 <Tex>{'k'}</Tex> 是「第幾次 code 更新」（更新率 <Tex>{String.raw`f_u=f_s/N_\mathrm{upd}`}</Tex>），<Tex>{'n'}</Tex> 是「第幾個 reference cycle」（取樣率 <Tex>{'f_s'}</Tex>），兩者的關係是{' '}
@@ -374,7 +374,7 @@ export function CriteriaSection() {
             data={trapData}
             height={240}
             csvName="ch13-fcw-trap-staircase"
-            layout={{ xaxis: { title: { text: '時間 [ms]' } }, yaxis: { title: { text: '區塊平均 δt [fs]' } } }}
+            layout={{ xaxis: { title: { text: '時間 [ms]' } }, yaxis: { title: { text: String.raw`區塊平均 $\delta t$ [fs]` } } }}
             caption={
               <>
                 由 <code>slowProductStaircase()</code> 計算：<Tex>{String.raw`\delta t[n]=\Delta_\mathrm{LSB}\,e[n]\,x[n]`}</Tex> 每 {trap.blockLen} 個 cycle 的平均（比 <Tex>{String.raw`f_L`}</Tex>{' '}
@@ -435,10 +435,10 @@ export function CriteriaSection() {
       </Callout>
       <Mermaid
         chart={CHART_DECISION}
-        caption="沿著六個準則的選擇流程（教學用的思考順序，不是 sign-off 規則）。先看第一個菱形：能接受 static error、又不必追漂移，就不需要任何切換；再往下：$w_H$ 會不會動、tone 會不會被混回通帶、能不能接受較大的 code 擺幅。每一條路最後都回到藍色方塊：用實際的 FCW 與 $T(f)$ 模擬確認。"
+        caption="沿著六個準則的選擇流程（教學用的思考順序，不是 sign-off 規則）。先看第一個六角形的問題：能接受 static error、又不必追漂移，就不需要任何切換；再往下：$w_H$ 會不會動、tone 會不會被混回通帶、能不能接受較大的 code 擺幅。每一條路最後都回到藍色方塊：用實際的 FCW 與 $T(f)$ 模擬確認。"
       />
       <p className="small ch13-figwalk">
-        這張圖只是把上面「怎麼讀這張表」的四點排成先後順序：每個菱形上標的準則編號就是表中的那一列。它是本例（這一組 FCW、<Tex>{'T(f)'}</Tex> 與 <Tex>{String.raw`\Delta_\mathrm{LSB}`}</Tex>）下的歸納，不是定理；換一組參數時，分支的答案要重新用模擬回答（準則 5、6）。{' '}
+        這張圖只是把上面「怎麼讀這張表」的四點排成先後順序：每個六角形上標的準則編號就是表中的那一列。它是本例（這一組 FCW、<Tex>{'T(f)'}</Tex> 與 <Tex>{String.raw`\Delta_\mathrm{LSB}`}</Tex>）下的歸納，不是定理；換一組參數時，分支的答案要重新用模擬回答（準則 5、6）。{' '}
         <ClaimTag kind="approx" />
       </p>
       <ModeGate min="research">

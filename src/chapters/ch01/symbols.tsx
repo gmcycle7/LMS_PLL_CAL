@@ -128,7 +128,11 @@ export const SYMBOLS: SymbolEntry[] = [
   { symbol: 'P_x=E[x^2]', meaning: '輸入功率', unit: String.raw`[x]^2`, firstSeen: '§1.2', note: '拋物線的曲率' },
   {
     symbol: String.raw`q_n=\operatorname{sign}(e_n)`,
-    meaning: '1-bit comparator（BBPD）輸出的誤差正負號；硬體上 sign(0) 只能是 ±1',
+    meaning: (
+      <>
+        1-bit comparator（BBPD）輸出的誤差正負號；硬體上 <Tex>{String.raw`\operatorname{sign}(0)`}</Tex> 只能是 <Tex>{String.raw`\pm1`}</Tex>
+      </>
+    ),
     unit: '-',
     firstSeen: '§1.2.1',
     note: (

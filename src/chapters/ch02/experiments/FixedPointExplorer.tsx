@@ -127,18 +127,18 @@ export function FixedPointExplorer() {
     const out: Data[] = curves.map((c) => ({
       x: Array.from(c.w),
       y: Array.from(c.y),
-      name: `ψ/K：${ALGO_LABEL[c.algo]}`,
+      name: String.raw`$\psi/K$：${ALGO_LABEL[c.algo]}`,
       mode: 'lines',
       line: { color: tokens.series[ALGO_SERIES[c.algo]], width: 2 },
     }))
     const xs = curves[0] ? [curves[0].w[0], curves[0].w[curves[0].w.length - 1]] : [inp.a - 1, inp.a + 1]
-    out.push({ x: xs, y: [0, 0], name: 'ψ = 0', mode: 'lines', line: { color: tokens.textFaint, width: 1 }, showlegend: false })
+    out.push({ x: xs, y: [0, 0], name: String.raw`$\psi=0$`, mode: 'lines', line: { color: tokens.textFaint, width: 1 }, showlegend: false })
     mf.forEach((r) => {
       if (r.identifiable)
         out.push({
           x: [r.wStar],
           y: [0],
-          name: `w*（${ALGO_LABEL[r.algo]}）= ${f4(r.wStar, 5)}`,
+          name: String.raw`$w^*$（${ALGO_LABEL[r.algo]}）$=${tn(r.wStar, 5)}$`,
           mode: 'markers',
           marker: { size: 11, symbol: 'diamond', color: tokens.series[ALGO_SERIES[r.algo]], line: { width: 1, color: tokens.text } },
         })
@@ -278,19 +278,19 @@ export function FixedPointExplorer() {
           <SelectControl {...lab(String.raw`$x$ 的分布`, 'x 的分布')} value={p.xKind} onChange={(v) => set('xKind', v)} options={X_KINDS.map((k) => ({ value: k, label: X_KIND_LABEL[k] }))} reg="behavioural: code distribution" />
           <ParamControl {...lab(String.raw`$x$ 的幅度 $A$`, 'x 幅度 A')} unit="無因次" value={p.xAmp} onChange={(v) => set('xAmp', v)} min={0} max={4} step={0.01} reg="behavioural: code scale" />
           <SelectControl label="雜訊形狀" value={p.noiseKind} onChange={(v) => set('noiseKind', v)} options={NOISE_KINDS.map((k) => ({ value: k, label: NOISE_KIND_LABEL[k] }))} reg="behavioural: comparator-input noise pdf" />
-          <ParamControl {...lab(String.raw`$\sigma_v$（雜訊標準差）`, 'σ（雜訊標準差）')} unit="同 y" value={p.sigma} onChange={(v) => set('sigma', v)} min={0} max={5} step={0.01} reg="behavioural: sigma_v" />
+          <ParamControl {...lab(String.raw`$\sigma_v$（雜訊標準差）`, 'σ（雜訊標準差）')} unit="同 $y$" value={p.sigma} onChange={(v) => set('sigma', v)} min={0} max={5} step={0.01} reg="behavioural: sigma_v" />
           <ParamControl {...lab(String.raw`outlier 機率 $p_{\rm out}$`, 'outlier 機率 p_out')} unit="機率" value={p.outlierProb} onChange={(v) => set('outlierProb', v)} min={0} max={0.5} step={0.001} reg="behavioural: impulsive disturbance rate" />
-          <ParamControl {...lab(String.raw`outlier 大小 $s$（單邊，加在 $v$ 上）`, 'outlier 大小 s（單邊，加在 v 上）')} unit="同 y" value={p.outlierSize} onChange={(v) => set('outlierSize', v)} min={-50} max={50} step={0.1} reg="behavioural: disturbance size" />
-          <ParamControl {...lab(String.raw`$a$（真實係數）`, 'a（真實係數）')} unit="同 y/x" value={p.a} onChange={(v) => set('a', v)} min={-10} max={10} step={0.01} reg="behavioural: true gain a" />
+          <ParamControl {...lab(String.raw`outlier 大小 $s$（單邊，加在 $v$ 上）`, 'outlier 大小 s（單邊，加在 v 上）')} unit="同 $y$" value={p.outlierSize} onChange={(v) => set('outlierSize', v)} min={-50} max={50} step={0.1} reg="behavioural: disturbance size" />
+          <ParamControl {...lab(String.raw`$a$（真實係數）`, 'a（真實係數）')} unit="同 $y/x$" value={p.a} onChange={(v) => set('a', v)} min={-10} max={10} step={0.01} reg="behavioural: true gain a" />
           <ParamControl {...lab(String.raw`MC：$\mu$`, 'MC：μ')} unit="依演算法" value={p.mu} onChange={(v) => set('mu', v)} min={1e-4} max={0.2} log reg="REG_LMS_MU" hint={tm(String.raw`小 $\mu$ 讓 $O(\mu)$ 偏移可忽略`)} />
           <ParamControl label="MC：步數" unit="samples" value={p.steps} onChange={(v) => set('steps', v)} min={500} max={20000} integer clampOnBlur reg="sim length" />
           <ParamControl label="MC：seeds 數" unit="seeds" value={p.runs} onChange={(v) => set('runs', v)} min={4} max={128} integer clampOnBlur reg="Monte Carlo runs" />
-          <ParamControl {...lab(String.raw`$\delta_{\rm H}$（Huber 門檻）`, 'δₕ（Huber 門檻）')} unit="同 y" value={p.huberDelta} onChange={(v) => set('huberDelta', v)} min={0.01} max={10} log reg="REG_ERR_CLIP" />
-          <ParamControl {...lab(String.raw`NLMS 的 $\varepsilon$`, 'NLMS ε')} unit="[x]^2" value={p.nlmsEps} onChange={(v) => set('nlmsEps', v)} min={0} max={10} step={0.001} reg="behavioural: nlms_eps" />
+          <ParamControl {...lab(String.raw`$\delta_{\rm H}$（Huber 門檻）`, 'δₕ（Huber 門檻）')} unit="同 $y$" value={p.huberDelta} onChange={(v) => set('huberDelta', v)} min={0.01} max={10} log reg="REG_ERR_CLIP" />
+          <ParamControl {...lab(String.raw`NLMS 的 $\varepsilon$`, 'NLMS ε')} unit="$[x]^2$" value={p.nlmsEps} onChange={(v) => set('nlmsEps', v)} min={0} max={10} step={0.001} reg="behavioural: nlms_eps" />
         </>
       }
     >
-      <Plot title={String.raw`$\psi(w)/K$：零交越 = 固定點 $w^*$`} data={plotData} height={320} csvName="psi-curves" layout={{ xaxis: { title: { text: 'w' } }, yaxis: { title: { text: 'ψ(w)/K（正 → w 往上走）' } } }} />
+      <Plot title={String.raw`$\psi(w)/K$：零交越 = 固定點 $w^*$`} data={plotData} height={320} csvName="psi-curves" layout={{ xaxis: { title: { text: '$w$' } }, yaxis: { title: { text: String.raw`$\psi(w)/K$（正 → $w$ 往上走）` } } }} />
       <div className="table-wrap">
         <table className="ch02-table">
           <thead>

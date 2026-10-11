@@ -171,10 +171,12 @@
 }
 .ch05-fig .c-mermaid {
   margin: 8px 0 6px;
-  padding: 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
+}
+/* KaTeX 的大根號是 inline <svg><path>；Mermaid 內建的 `#id .node .katex path { fill:#000; stroke:#000 }` 會把它塗成黑色，
+   在藍／紅／綠的 classDef 方塊（白字）上就是一個黑色的根號。讓它跟著文字顏色走（共用主題修好之前，本章先自己處理）。 */
+.ch05-fig .c-mermaid-svg .node .katex path {
+  fill: currentColor !important;
+  stroke: currentColor !important;
 }
 .ch05-fig-walk {
   margin: 0;

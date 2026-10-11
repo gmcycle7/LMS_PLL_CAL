@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
 import { renderTex } from '@/components'
+import { plotMath } from '@/components/plotMath'
 import type { PresetEntry } from '@/data/types'
 import {
   analyzePllPolarity,
@@ -18,6 +19,7 @@ import {
   type PolarityParams,
 } from '@/simulation/models/polarity'
 import Chapter06 from './index'
+import { fcwZoomAsymptoteName } from './experiments/FcwSweepExperiment'
 import { CH06_DIAGRAMS } from './diagrams'
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
@@ -32,6 +34,17 @@ const plotlyMock = vi.hoisted(() => ({
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
 vi.mock('plotly.js-dist-min', () => ({ default: plotlyMock }))
+
+// 記錄 <Plot> 交給 applyPlotMath 的原始 data／layout（還是 `$...$` 的 LaTeX，尚未轉成 Plotly 的 pseudo-HTML）：用來檢查圖內字串都是 LaTeX
+const plotCalls = vi.hoisted(() => ({ list: [] as { data: unknown; layout: unknown }[] }))
+vi.mock('@/components/plotMath', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('@/components/plotMath')>()
+  const applyPlotMath = ((data: unknown, layout: unknown) => {
+    plotCalls.list.push({ data, layout })
+    return mod.applyPlotMath(data, layout)
+  }) as typeof mod.applyPlotMath
+  return { ...mod, applyPlotMath }
+})
 
 const mermaidMock = vi.hoisted(() => ({
   initialize: vi.fn(),
@@ -88,6 +101,26 @@ function expectNoUnicodeMath(el: Element, where: string, pattern: RegExp = UNICO
   expect(clone.textContent ?? '', where).not.toMatch(pattern)
 }
 
+/** Plotly 圖內會顯示的字串欄位（與 plotMath.ts 的 TEXT_KEYS 相同）；其餘欄位（資料陣列、顏色、id）不碰 */
+const PLOT_TEXT_KEYS = new Set(['name', 'text', 'title', 'ticktext', 'hovertemplate', 'texttemplate', 'hovertext', 'label', 'ticksuffix', 'tickprefix', 'legendgrouptitle'])
+function plotStrings(value: unknown, key: string | null = null, out: string[] = [], depth = 0): string[] {
+  if (typeof value === 'string') {
+    if (key !== null && PLOT_TEXT_KEYS.has(key)) out.push(value)
+    return out
+  }
+  if (depth > 8 || value === null || typeof value !== 'object' || ArrayBuffer.isView(value)) return out
+  if (Array.isArray(value)) {
+    for (const v of value) plotStrings(v, key, out, depth + 1)
+    return out
+  }
+  for (const [k, v] of Object.entries(value)) plotStrings(v, k, out, depth + 1)
+  return out
+}
+/** 到目前為止 <Plot> 收到的圖內字串（去重） */
+function plotStringsSince(start = 0): string[] {
+  return [...new Set(plotStrings(plotCalls.list.slice(start).map((c) => [c.data, c.layout])))]
+}
+
 /**
  * 共用元件裡「由字串屬性渲染」的元素（docs/teaching-style.md §3 列出的那些屬性）。
  * 這些元素的文字可能含程式識別字（REG_GMAC_N、gain_step …），所以整頁掃描時不檢查底線，只檢查希臘字母、上下標與數學運算符號。
@@ -120,6 +153,11 @@ const STRING_PROP_SELECTORS = [
   '.ch06-handcalc-lead',
   '.ch06-handcalc-index li',
   '.ch06-stepbox > summary',
+  // 控制項的 label／hint／unit（ParamControl、SelectControl）與指標表的單位欄（第 3 欄）
+  '.c-param-label',
+  '.c-param-hint',
+  '.c-param-unit',
+  '.c-metric-table tbody td:nth-child(3)',
 ]
 const UNICODE_MATH_DOM = /[α-ωΑ-Ω≤≥≈≪≫√∫Σ∏²³₀-₉·±−⟨⟩∠Ĉ]/
 /** 掃描 root 內所有由字串屬性渲染的元素；回傳掃描的元素個數 */
@@ -143,6 +181,7 @@ describe('第 06 章頁面（jsdom smoke test）', () => {
       const msg = args.map(String).join(' ')
       if (!/not wrapped in act/.test(msg)) errors.push(msg)
     })
+    const plotStart = plotCalls.list.length
     const { container } = renderChapter()
     expect(screen.getByText('本章目錄')).toBeTruthy()
     for (let i = 1; i <= 8; i++) expect(container.querySelector(`#ch06-s${i}`), `§${i}`).not.toBeNull()
@@ -240,6 +279,33 @@ describe('第 06 章頁面（jsdom smoke test）', () => {
       el.querySelectorAll('figure.c-plot').forEach((fig) => expect(fig.getAttribute('aria-label') ?? '').not.toMatch(/[$\\]/))
     }
     expectNoRawDollar(container, '整章')
+    // Plotly 圖內的字串（軸標題、圖例名稱…）：數學都在 `$...$` 裡，每段都能被 KaTeX 解析，plotMath 轉出來沒有殘留的 TeX
+    const plotted = plotStringsSince(plotStart)
+    expect(plotted.length).toBeGreaterThan(40)
+    expectPlotStringsLatex(plotted, '整章的圖')
+    expect(plotted).toEqual(
+      expect.arrayContaining([
+        String.raw`$\nu = \omega/\omega_L$`, // §5 的 CT 原型圖
+        String.raw`Type-II $\zeta = 0.7$`,
+        String.raw`$\nu = \Omega/(\omega_L T_s)$`, // CT ↔ DT 對照
+        String.raw`DT 模型 $\operatorname{Re}\,H(e^{j\Omega})$（$d = 1$）`,
+        String.raw`$\operatorname{Re}\,H_{\mathrm{PD}}$`,
+        String.raw`$C_D/\sigma_x^2$`, // FCW 掃描
+        String.raw`$\Delta = \Omega_0/(\omega_L T_s)$`,
+        String.raw`$x[n]$（原始 code）`, // Polarity Explorer
+        String.raw`$\phi$ [deg]`,
+        String.raw`$\mu$ [fs]`,
+        String.raw`block $k$`,
+        String.raw`$\delta_k$ [fs]`,
+        String.raw`$|\delta|$ [fs]`,
+      ]),
+    )
+    // 改 GMAC code delay 與 regressor：波形上的 x[n−D] 與 filtered-x 的圖例名稱也是 LaTeX
+    const before = plotCalls.list.length
+    fireEvent.change(within(exp).getByLabelText('GMAC code delay D', { selector: 'input[type="text"]' }), { target: { value: '3' } })
+    fireEvent.change(within(exp).getByLabelText('GMAC regressor'), { target: { value: '1' } })
+    await waitFor(() => expect(plotStringsSince(before)).toEqual(expect.arrayContaining([String.raw`$x[n-3]$（GMAC 用）`, String.raw`A：filtered-x $E[u_D\,u]$`, String.raw`A：目前 $D$`])), WAIT)
+    expectPlotStringsLatex(plotStringsSince(before), 'D = 3、filtered-x')
     // 字串屬性渲染出來的元素：扣掉 KaTeX 後不再有 Unicode 拼的數學
     expect(scanStringProps(container)).toBeGreaterThan(200)
     expect(Array.from(container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.getAttribute('title') ?? e.textContent)).toEqual([])
@@ -280,6 +346,7 @@ describe('第 06 章頁面（jsdom smoke test）', () => {
   }, RENDER_TIMEOUT)
 
   it('URL preset ?preset=polarity-near-integer-basin：C > 0、線性 pole 穩定，但閉迴路離開 basin；警告解釋原因', async () => {
+    const plotStart = plotCalls.list.length
     const { container } = renderChapter('/ch/06?preset=polarity-near-integer-basin')
     const exp = container.querySelector('#exp-polarity-explorer') as HTMLElement
     await waitFor(() => expect(exp.querySelectorAll('td[data-loop-state="left-basin"]').length).toBeGreaterThan(0), WAIT)
@@ -299,6 +366,24 @@ describe('第 06 章頁面（jsdom smoke test）', () => {
       expectNoUnicodeMath(el, 'Monte Carlo 說明')
     }
     expect(exp.querySelectorAll('.c-check-mismatch').length).toBe(0)
+    // PLL 模式的 Re{H} + PSD 與 Bode 圖：圖例與軸標題都是 LaTeX
+    await waitFor(
+      () =>
+        expect(plotStringsSince(plotStart)).toEqual(
+          expect.arrayContaining([
+            String.raw`$\operatorname{Re}\,H_{\mathrm{PD}}(e^{j\Omega})$（DT）`,
+            String.raw`$|H_{\mathrm{PD}}|$ [dB]`,
+            String.raw`$\angle H_{\mathrm{PD}}$ [deg]`,
+            String.raw`$\angle H$ CT 原型`,
+            String.raw`$\Omega/(\omega_L T_s)$`,
+            String.raw`A：線性 $\delta_0p^k$`,
+            String.raw`A：mean-field $E[G](\delta)$`,
+            String.raw`A：線性 $K_qC\,\delta$`,
+          ]),
+        ),
+      WAIT,
+    )
+    expectPlotStringsLatex(plotStringsSince(plotStart), 'PLL 模式的圖')
     // PLL 模式的指標表（封閉式標籤、Monte Carlo 說明…）、警告、圖說：都沒有 Unicode 拼的數學
     expect(scanStringProps(exp)).toBeGreaterThan(30)
     expect(texSources(exp)).toEqual(expect.arrayContaining(['\\sigma_x^2\\sum_kh[k]\\,\\big(1-6t(1-t)\\big)']))
@@ -470,6 +555,54 @@ describe('modelTextTex：polarity.ts 的純文字警告／說明／標籤 → `$
     expect(modelTextTex('$H_PD$ 與 H_PD、$N = 64$ 與 N = 64')).toBe('$H_PD$ 與 $H_{\\mathrm{PD}}$、$N = 64$ 與 $N=64$')
     // 變數名稱結尾剛好是 N 的識別字不算（例如 REG_GMAC_N = 4）
     expect(modelTextTex('REG_GMAC_N = 4')).toBe('REG_GMAC_N = 4')
+  })
+})
+
+/** 圖內字串與控制項字串的 LaTeX（2026-10-11）：整份原始碼掃描，不依賴畫面上剛好走到哪個分支 */
+function expectPlotStringsLatex(strings: string[], where: string): void {
+  for (const text of strings) {
+    expectMathString(text, `${where}：${text}`)
+    expect(text.replace(INLINE_MATH, ''), `${where}：還有沒轉成 LaTeX 的數學：${text}`).not.toMatch(UNICODE_MATH)
+    expect(plotMath(text), `${where}：plotMath 沒轉乾淨：${text}`).not.toMatch(/[\\${}]/)
+  }
+}
+
+describe('圖內與控制項字串的 LaTeX（原始碼掃描）', () => {
+  const FILES = [
+    'experiments/ExplorerPlots.tsx',
+    'experiments/CtDtExperiment.tsx',
+    'experiments/FcwSweepExperiment.tsx',
+    'experiments/PolarityExplorer.tsx',
+    'sections/S5LoopTypes.tsx',
+  ]
+  // Plot 的 trace name、軸標題 title.text、annotation text、ticktext…，MetricRow 的 name／unit，ExperimentShell／Plot 的 title，ParamControl 的 unit
+  const LITERAL = /\b(name|text|title|unit|ticktext|hovertemplate|texttemplate|hovertext)\s*[:=]\s*\{?\s*(?:String\.raw)?(`(?:[^`\\]|\\.)*`|'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")/g
+
+  it('Plot 與指標的 name／text／title／unit 字串：原始碼裡的數學都寫成 $...$（沒有 Unicode 拼的 σ_v、δ²、Re{H}、fs⁻¹、x[n − D] …）', () => {
+    let scanned = 0
+    let withMath = 0
+    for (const file of FILES) {
+      const src = readFileSync(resolve(process.cwd(), 'src/chapters/ch06', file), 'utf8')
+      for (const m of src.matchAll(LITERAL)) {
+        // 樣板字串裡的 ${…}（case id、D、loopDelay 等）換成一個數字
+        const text = m[2].slice(1, -1).replace(/\$\{[^}]*\}/g, '1')
+        scanned++
+        if (text.includes('$')) withMath++
+        const where = `${file}：${m[1]}`
+        expectMathString(text, `${where}：${text}`)
+        expect(text.replace(INLINE_MATH, ''), `${where}：還有沒轉成 LaTeX 的數學：${text}`).not.toMatch(UNICODE_MATH)
+        expect(text.replace(INLINE_MATH, ''), `${where}：還有沒轉成 LaTeX 的數學：${text}`).not.toMatch(/[ℓĥ∞∠⇒]/)
+      }
+    }
+    expect(scanned).toBeGreaterThan(100)
+    expect(withMath).toBeGreaterThan(60)
+  })
+
+  it('動態產生的圖例名稱（FCW 放大圖的漸近線）也是 LaTeX，而且 plotMath 轉得乾淨', () => {
+    const names = [fcwZoomAsymptoteName(0, true), fcwZoomAsymptoteName(0, false), fcwZoomAsymptoteName(2, true)]
+    expect(new Set(names).size).toBe(3)
+    expectPlotStringsLatex(names, 'fcwZoomAsymptoteName')
+    expect(plotMath(names[0])).toBe('動差展開 = 3/<i>π</i><sup>2</sup>Δ<sup>2</sup>')
   })
 })
 

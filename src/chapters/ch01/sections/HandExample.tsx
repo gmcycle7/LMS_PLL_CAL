@@ -257,7 +257,7 @@ export function HandExampleSection() {
           ）。這裡的 <Tex>{String.raw`\delta_n=a-w_n`}</Tex> 是剩餘參數誤差：真值減去目前的猜測，也就是「還差多少」。每步乘上同一個數不是巧合，把迴路畫出來就看得到原因：
         </p>
         <BlockDiagram id="D-01.11">
-          從左邊的加法點出發：真值 <Tex>{'a'}</Tex> 進「＋」、暫存器裡的 <Tex>{'w_n'}</Tex> 進「−」，得到 <Tex>{String.raw`\delta_n`}</Tex>。沿著迴路繞一圈，會先後經過兩個藍色的乘法：
+          從最上面的加法點出發：真值 <Tex>{'a'}</Tex> 進「＋」、暫存器（最下面）裡的 <Tex>{'w_n'}</Tex> 沿著旁邊那條長長的回授線繞回來，進「−」，得到 <Tex>{String.raw`\delta_n`}</Tex>。由上往下繞一圈，會先後經過兩個藍色的乘法：
           <Tex>{String.raw`\times x`}</Tex>（參數誤差變成量測誤差 <Tex>{'e_n'}</Tex>）與 <Tex>{String.raw`\times\mu x`}</Tex>（LMS 的修正），乘起來是{' '}
           <Tex>{String.raw`\mu x^2`}</Tex>。也就是說，每一步都修掉 <Tex>{String.raw`\delta_n`}</Tex> 的 <Tex>{String.raw`\mu x^2`}</Tex> 倍，剩下 <Tex>{String.raw`1-\mu x^2`}</Tex> 倍。
           這個「每步剩下的倍數」記作 <Tex>{'p'}</Tex>，稱為這個迴路的 pole（極點）：圖上的 <Tex>{String.raw`\Delta w_n=\mu x^2\delta_n`}</Tex> 就是下面推導第 3 行的{' '}
@@ -471,7 +471,7 @@ export function HandExampleSection() {
           title={String.raw`思考題 2（$\tfrac12$ 的陷阱，勘誤 E41）`}
           question={
             <>
-              某人用沒有 ½ 的 <Tex>{'J_2'}</Tex> 的曲率 <Tex>{'2x^2'}</Tex> 推出「<Tex>{'x=2'}</Tex> 時 LMS 必須{' '}
+              某人用沒有 <Tex>{String.raw`\tfrac12`}</Tex> 的 <Tex>{'J_2'}</Tex> 的曲率 <Tex>{'2x^2'}</Tex> 推出「<Tex>{'x=2'}</Tex> 時 LMS 必須{' '}
               <Tex>{String.raw`\mu<0.25`}</Tex>」。那 <Tex>{String.raw`\mu=0.4`}</Tex> 的 LMS 會怎樣？
             </>
           }

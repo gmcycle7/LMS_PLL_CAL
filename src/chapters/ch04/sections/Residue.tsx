@@ -41,12 +41,16 @@ interface ResidueParams {
   fvcoGHz: number
 }
 
+/**
+ * 上下兩個子圖共用同一條 x 軸：x 軸要錨定在「下面那個」y 軸（y2），刻度與軸標題才會出現在整張圖的最底下；
+ * 預設錨在上面的 y 軸，軸標題會落在兩個子圖中間、壓到下面子圖的曲線。
+ */
 const RESIDUE_LAYOUT = {
-  xaxis: { title: { text: 'n（reference cycle）' } },
-  yaxis: { title: { text: 'y[n]' }, domain: [0.74, 1] },
-  yaxis2: { title: { text: 'fs' }, domain: [0, 0.64], anchor: 'x' as const },
+  xaxis: { title: { text: R`$n$（reference cycle）` }, anchor: 'y2' as const },
+  yaxis: { title: { text: R`$y[n]$` }, domain: [0.78, 1], anchor: 'x' as const },
+  yaxis2: { title: { text: 'fs' }, domain: [0, 0.68], anchor: 'x' as const },
 }
-const RESID_LAYOUT = { xaxis: { title: { text: 'n' } }, yaxis: { title: { text: 'fs' } } }
+const RESID_LAYOUT = { xaxis: { title: { text: R`$n$` } }, yaxis: { title: { text: 'fs' } } }
 
 export const RESIDUE_ID = 'gmac-residue'
 export const DEFAULT_RESIDUE: ResidueParams = { kind: 'first_order', frac: 0.3125, bits: 4, length: 64, gainErrPct: 1, fvcoGHz: FVCO_GHZ }
@@ -91,7 +95,7 @@ function ResidueExplorer() {
         { name: R`$\mathrm{frac}_\mathrm{eff}=K_\mathrm{F}/M$`, value: sig.fracEff, digits: 8, formulaId: 'F-04.1' },
         { name: R`$T_\mathrm{vco}$`, value: sig.tvcoFs, unit: 'fs', digits: 6 },
         { name: 'residue 週期', value: sig.period > 0 ? sig.period : '未偵測到（> length/2）', unit: 'cycles' },
-        { name: R`$r[n]$ 範圍`, value: `[${f(sig.residueRange[0])}, ${f(sig.residueRange[1])}]`, unit: 'T_vco', claim: 'exact' },
+        { name: R`$r[n]$ 範圍`, value: `[${f(sig.residueRange[0])}, ${f(sig.residueRange[1])}]`, unit: R`$T_\mathrm{vco}$`, claim: 'exact' },
         { name: R`$\max|e_\mathrm{det}|$（PD 殘差）`, value: maxResid, unit: 'fs', formulaId: 'F-04.2', note: R`DTC gain 相對誤差 $\varepsilon$ 時 $=|\varepsilon|\cdot\max|\tau_\mathrm{DTC}|$` },
       ]
     : []
@@ -100,9 +104,9 @@ function ResidueExplorer() {
     () =>
       sig
         ? [
-            { x: sig.n, y: sig.y, name: 'y[n]（carry）', mode: 'lines', line: { shape: 'hv', color: tokens.series[0] }, yaxis: 'y' },
-            { x: sig.n, y: sig.edgeErrFs, name: 'divider edge 誤差 r[n]·T_vco', mode: 'lines+markers', marker: { size: 4 }, line: { color: tokens.series[1] }, yaxis: 'y2' },
-            { x: sig.n, y: sig.dtcNeedFs, name: 'DTC 需插入的延遲 τ_DTC', mode: 'lines', line: { dash: 'dot', color: tokens.series[2] }, yaxis: 'y2' },
+            { x: sig.n, y: sig.y, name: R`$y[n]$（carry）`, mode: 'lines', line: { shape: 'hv', color: tokens.series[0] }, yaxis: 'y' },
+            { x: sig.n, y: sig.edgeErrFs, name: R`divider edge 誤差 $r[n]\,T_\mathrm{vco}$`, mode: 'lines+markers', marker: { size: 4 }, line: { color: tokens.series[1] }, yaxis: 'y2' },
+            { x: sig.n, y: sig.dtcNeedFs, name: R`DTC 需插入的延遲 $\tau_\mathrm{DTC}$`, mode: 'lines', line: { dash: 'dot', color: tokens.series[2] }, yaxis: 'y2' },
           ]
         : [],
     [sig, tokens],

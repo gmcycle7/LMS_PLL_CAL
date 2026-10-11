@@ -121,7 +121,7 @@ export function NoiseAverageSection() {
           <Tex>{'a-w'}</Tex> 同號），以及紅色的雜訊部分 <Tex>{'v\\,x'}</Tex>（時正時負）。最後看兩條進「取平均」的線：綠色那一份平均之後還在，紅色那一份平均之後是 0。
         </p>
         <p>
-          圖上的「<code>E[·]</code>」就是上面先備知識框介紹的期望值 <Tex>{'E[\\cdot]'}</Tex>；藍色那格「<code>E[e·x] = (a − w)·E[x²] + 0</code>」就是 F-00.7，其中的{' '}
+          圖上的「<Tex>{'E[\\cdot]'}</Tex>」就是上面先備知識框介紹的期望值 <Tex>{'E[\\cdot]'}</Tex>；藍色那格「<Tex>{'E[e\\,x] = (a - w)\\,E[x^2] + 0'}</Tex>」就是 F-00.7，其中的{' '}
           <Tex>{'0'}</Tex> 是紅色那一份的平均 <Tex>{'E[v\\,x]'}</Tex>——它是 0 的條件寫在那條線上：<Tex>{'v'}</Tex> 的平均是 0，而且和 <Tex>{'x'}</Tex> 無關。
         </p>
       </ChapterDiagram>
@@ -281,7 +281,7 @@ export function NoiseAverageSection() {
           <Tex>{'s_1/\\sqrt N'}</Tex>。
         </p>
         <p>
-          圖上的「N 筆的平均」就是公式裡的 <Tex>{'\\bar G_N'}</Tex>；綠色那格「<code>s₁ / √N</code>」就是下面的 F-00.8。這個「先累加、再除以 <Tex>{'N'}</Tex>」的方塊，到了 §0.9 會換個名字叫
+          圖上的「N 筆的平均」就是公式裡的 <Tex>{'\\bar G_N'}</Tex>；綠色那格「<Tex>{'s_1 / \\sqrt{N}'}</Tex>」就是下面的 F-00.8。這個「先累加、再除以 <Tex>{'N'}</Tex>」的方塊，到了 §0.9 會換個名字叫
           GMAC。
         </p>
       </ChapterDiagram>
@@ -391,8 +391,8 @@ export function NoiseAverageSection() {
       </p>
       <ChapterDiagram name="CHART_STEADY_STATE_NOISE">
         <p>
-          先看迴圈（暫存器 → 藍色的「× <Tex>{'p'}</Tex>」→ 相加點 → 暫存器）：它就是 §0.6 的 <FigRef name="CHART_ERROR_RECURSION" />，只是把繞一圈的效果合成一格。再看紅色的入口：雜訊{' '}
-          <code>v[n]</code> 乘上 <Tex>{'\\mu x'}</Tex> 之後以 <code>(−)</code> 進入相加點——因為雜訊讓 <Tex>{'e'}</Tex> 多了 <Tex>{'v'}</Tex>，<Tex>{'w'}</Tex> 就多修了{' '}
+          先看迴圈（暫存器 → 藍色的「<Tex>{'\\times\\,p'}</Tex>」→ 相加點 → 暫存器）：它就是 §0.6 的 <FigRef name="CHART_ERROR_RECURSION" />，只是把繞一圈的效果合成一格。再看紅色的入口：雜訊{' '}
+          <Tex>{'v[n]'}</Tex> 乘上 <Tex>{'\\mu x'}</Tex> 之後以 <Tex>{'(-)'}</Tex> 進入相加點——因為雜訊讓 <Tex>{'e'}</Tex> 多了 <Tex>{'v'}</Tex>，<Tex>{'w'}</Tex> 就多修了{' '}
           <Tex>{'\\mu x v'}</Tex>，「還差多少」<Tex>{'\\delta'}</Tex> 也就少了這麼多。
         </p>
         <p>

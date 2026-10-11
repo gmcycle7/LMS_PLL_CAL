@@ -371,7 +371,7 @@ describe('小工具', () => {
     expect(texNumber(Infinity)).toBe('\\text{∞}')
     const cfg = validateConfigText(SPEC_EXAMPLE_TEXT).config!
     expect(shortLabel(cfg)).toBe('μ=10 · N=4096 · average · raw')
-    expect(shortLabelTex(cfg)).toBe('$\\mu=10$ · $N=4096$ · average · raw')
+    expect(shortLabelTex(cfg)).toBe('$\\mu=10$ / $N=4096$ / average / raw')
     const d = validateConfigText(presetConfigText(PRESETS.find((x) => x.id === 'block-lms-json-update-delay')!.params) as string).config!
     expect(shortLabelTex(d)).toContain('$d=2$')
     // 所有指標名稱與說明裡的 $ 都成對

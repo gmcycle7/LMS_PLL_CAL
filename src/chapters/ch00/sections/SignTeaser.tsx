@@ -23,7 +23,7 @@ import { ChapterDiagram, ChapterHandCalc, ErratumNote, ErratumRef, FigRef, Obser
 
 const COMPARE_SEED = 20261010
 /** 固定的版面物件（模組層級，避免每次 render 產生新參照而讓 Plot 重畫） */
-const COMPARE_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'n' } }, yaxis: { title: { text: 'w_n' } } }
+const COMPARE_LAYOUT: Partial<Layout> = { xaxis: { title: { text: '$n$' } }, yaxis: { title: { text: '$w_n$' } } }
 const VARIANTS: LmsVariant[] = ['conventional', 'sign_error', 'sign_sign']
 /** 同一組資料的三種更新比較（ChatGPT 入門課第 3 課的設定） */
 const CMP = { a: 3, w0: 1, mu: 0.05, steps: 300, sigmaV: 0.3 }
@@ -100,7 +100,7 @@ export function SignTeaserSection() {
     const n = Array.from({ length: CMP.steps + 1 }, (_, i) => i)
     return [
       ...runs.map(({ variant, r }, i) => ({ x: n, y: Array.from(r.w), name: VARIANT_LABEL[variant], mode: 'lines' as const, line: { color: tokens.series[i] } })),
-      { x: [0, CMP.steps], y: [CMP.a, CMP.a], name: `真實 a = ${num(CMP.a)}`, mode: 'lines' as const, line: { dash: 'dash' as const, color: tokens.textMuted } },
+      { x: [0, CMP.steps], y: [CMP.a, CMP.a], name: String.raw`真實 $a = ${texRes(CMP.a)}$`, mode: 'lines' as const, line: { dash: 'dash' as const, color: tokens.textMuted } },
     ]
   }, [runs, tokens])
 
@@ -132,12 +132,12 @@ export function SignTeaserSection() {
       </p>
       <ChapterDiagram name="CHART_LMS_VS_SIGN">
         <p>
-          先看「Conventional LMS」那一框：要算 <code>e[n]·x[n]</code>，誤差必須是多位元的數字（前面要有 ADC 或 TDC），而且要一個真正的乘法器（紅色）。再看「Sign-Error
-          LMS」那一框：誤差先進 1-bit 比較器變成 <code>q[n]</code>，「乘法」就退化成藍色的<strong>條件變號</strong>——<Tex>{'q_n=+1'}</Tex> 時原封不動送出 <Tex>{'x_n'}</Tex>，
-          <Tex>{'q_n=-1'}</Tex> 時送出 <Tex>{'-x_n'}</Tex>。兩框從「× μ」開始完全相同。
+          先看「Conventional LMS」那一框：要算 <Tex>{'e[n]\\,x[n]'}</Tex>，誤差必須是多位元的數字（前面要有 ADC 或 TDC），而且要一個真正的乘法器（紅色）。再看「Sign-Error
+          LMS」那一框：誤差先進 1-bit 比較器變成 <Tex>{'q[n]'}</Tex>，「乘法」就退化成藍色的<strong>條件變號</strong>——<Tex>{'q_n=+1'}</Tex> 時原封不動送出 <Tex>{'x_n'}</Tex>，
+          <Tex>{'q_n=-1'}</Tex> 時送出 <Tex>{'-x_n'}</Tex>。兩框從「<Tex>{'\\times\\,\\mu'}</Tex>」開始完全相同。
         </p>
         <p>
-          圖上兩條送進「× μ」的線 <code>e[n]·x[n]</code> 與 <code>q[n]·x[n]</code>，就是下面兩條更新式裡唯一不同的那個因子：<Tex>{'e_n\\,x_n'}</Tex> 與{' '}
+          圖上兩條送進「<Tex>{'\\times\\,\\mu'}</Tex>」的線 <Tex>{'e[n]\\,x[n]'}</Tex> 與 <Tex>{'q[n]\\,x[n]'}</Tex>，就是下面兩條更新式裡唯一不同的那個因子：<Tex>{'e_n\\,x_n'}</Tex> 與{' '}
           <Tex>{'\\mathrm{sign}(e_n)\\,x_n'}</Tex>。
         </p>
       </ChapterDiagram>
@@ -322,7 +322,7 @@ export function SignTeaserSection() {
           最後看綠色那一格：只要 <Tex>{'S_N'}</Tex> 的平均 <Tex>{'Nm_q'}</Tex> 比它的標準差大得多，<Tex>{'S_N'}</Tex> 的正負號就幾乎一定和 <Tex>{'s'}</Tex> 相同。
         </p>
         <p>
-          圖上寫的每一個統計量，就是下面推導的一行：比較器那格的「<code>Φ(s/σ_v)</code>」是第 1 步、兩框之間的「平均 <code>m_q</code>」是第 2 步、累加那格的「<code>S_N</code>{' '}
+          圖上寫的每一個統計量，就是下面推導的一行：比較器那格的「<Tex>{'\\Phi(s/\\sigma_v)'}</Tex>」是第 1 步、兩框之間的「平均 <Tex>{'m_q'}</Tex>」是第 2 步、累加那格的「<Tex>{'S_N'}</Tex>{' '}
           的平均與標準差」是第 4 步、綠色那格是第 5 步的結果。<Tex>{'\\Phi'}</Tex> 是標準常態的累積分布函數（上面的先備知識框）。
         </p>
       </ChapterDiagram>
@@ -345,7 +345,11 @@ export function SignTeaserSection() {
             },
             {
               tex: String.raw`m_q\equiv E[q]=(+1)\,\Phi+(-1)\,(1-\Phi)=2\Phi\!\left(\frac{s}{\sigma_v}\right)-1=${num(comp.meanQ, 5)}`,
-              why: '期望值的定義（離散：值 × 機率再相加）。這一點點正的平均，就是 1-bit 輸出裡保留的「方向資訊」。',
+              why: (
+                <>
+                  期望值的定義（離散：值 <Tex>{'\\times'}</Tex> 機率再相加）。這一點點正的平均，就是 1-bit 輸出裡保留的「方向資訊」。
+                </>
+              ),
             },
             {
               tex: String.raw`\operatorname{Var}(q)=E[q^2]-m_q^2=1-m_q^2`,
@@ -427,21 +431,21 @@ export function SignTeaserSection() {
       </p>
       <ChapterDiagram name="CHART_GMAC_BLOCK">
         <p>
-          先看「每個 sample」那一框：比較器輸出 <code>q[n]</code> 和 <code>x[n]</code> 相乘（硬體上就是 <FigRef name="CHART_LMS_VS_SIGN" /> 的條件變號），一筆一筆加進累加器。
-          再看兩框之間的那條線與「每個 block」那一框：累加器每 <Tex>{'N'}</Tex> 筆才把總和交出來一次，除以 <Tex>{'N'}</Tex> 得到 <code>G[k]</code>，乘上 <Tex>{'\\mu'}</Tex>{' '}
-          後加進 gain register——這一框裡的「相加點 + <code>z⁻¹</code>」和 §0.3 的 <FigRef name="CHART_LMS_ACCUMULATOR" /> 是同一個累加器，只是這裡的 <code>z⁻¹</code>{' '}
+          先看「每個 sample」那一框：比較器輸出 <Tex>{'q[n]'}</Tex> 和 <Tex>{'x[n]'}</Tex> 相乘（硬體上就是 <FigRef name="CHART_LMS_VS_SIGN" /> 的條件變號），一筆一筆加進累加器。
+          再看兩框之間的那條線與「每個 block」那一框：累加器每 <Tex>{'N'}</Tex> 筆才把總和交出來一次，除以 <Tex>{'N'}</Tex> 得到 <Tex>{'G[k]'}</Tex>，乘上 <Tex>{'\\mu'}</Tex>{' '}
+          後加進 gain register——這一框裡的「相加點加上 <Tex>{'z^{-1}'}</Tex>」和 §0.3 的 <FigRef name="CHART_LMS_ACCUMULATOR" /> 是同一個累加器，只是這裡的 <Tex>{'z^{-1}'}</Tex>{' '}
           延遲的是一個 block，不是一筆取樣。
         </p>
         <p>
-          圖上藍色的「Σ 累加 N 筆」與「總和 ÷ N」合起來就是下面第一條式子 <Tex>{'G_k=\\frac1N\\sum q_nx_n'}</Tex>（也就是 §0.7{' '}
-          <FigRef name="CHART_NOISE_AVERAGING" /> 的平均器）；相加點的兩個輸入 <code>(+) w[k]</code>、<code>(+) μ·G[k]</code> 就是第二條式子 <Tex>{'w_{k+1}=w_k+\\mu G_k'}</Tex>。
+          圖上藍色的「<Tex>{'\\sum'}</Tex> 累加 <Tex>{'N'}</Tex> 筆」與「總和 <Tex>{'\\div N'}</Tex>」合起來就是下面第一條式子 <Tex>{'G_k=\\frac1N\\sum q_nx_n'}</Tex>（也就是 §0.7{' '}
+          <FigRef name="CHART_NOISE_AVERAGING" /> 的平均器）；相加點的兩個輸入 <Tex>{'(+)\\ w[k]'}</Tex>、<Tex>{'(+)\\ \\mu\\,G[k]'}</Tex> 就是第二條式子 <Tex>{'w_{k+1}=w_k+\\mu G_k'}</Tex>。
         </p>
       </ChapterDiagram>
       <div id="ch00-gmac-formula">
         <TexBlock>{String.raw`G_k=\frac1N\sum_{n\in\text{block }k}q_n\,x_n,\qquad w_{k+1}=w_k+\mu\,G_k`}</TexBlock>
       </div>
       <Observe>
-        這就是 PLL 校正的核心：<strong>1-bit 誤差 × regressor，累加 <Tex>{'N'}</Tex> 筆，乘上 <Tex>{'\\mu'}</Tex>，更新 gain</strong>。它和本章的 LMS 只有兩個差別——誤差只剩正負號、
+        這就是 PLL 校正的核心：<strong>1-bit 誤差 <Tex>{'\\times'}</Tex> regressor，累加 <Tex>{'N'}</Tex> 筆，乘上 <Tex>{'\\mu'}</Tex>，更新 gain</strong>。它和本章的 LMS 只有兩個差別——誤差只剩正負號、
         更新前先平均。<PageLink id="ch02" /> 會推導 Sign-Error LMS，<PageLink id="ch04" /> 畫出完整的 DSM → DTC → PD → GMAC 訊號流，
         <PageLink id="ch05" /> 計算 1-bit 比較器的等效增益 <Tex>{'K_q=\\sqrt{2/\\pi}/\\sigma_v'}</Tex>。
       </Observe>

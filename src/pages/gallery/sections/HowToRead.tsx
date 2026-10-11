@@ -202,7 +202,7 @@ export function HowToRead() {
         ariaLabel="相符判據流程圖：捨入半寬、是否夠精確、是否必備數值、接受半寬、重算值與文字數字的差距是否在接受半寬內"
       >
         <p>
-          <strong>先看</strong>左上角：文字數字 <Tex>{'y_{\\mathrm t}'}</Tex> 寫到小數 <Tex>{'n_{\\mathrm d}'}</Tex> 位（科學記號的指數是 <Tex>{'e'}</Tex>），最後一位的半個單位就是
+          <strong>先看</strong>最上面：文字數字 <Tex>{'y_{\\mathrm t}'}</Tex> 寫到小數 <Tex>{'n_{\\mathrm d}'}</Tex> 位（科學記號的指數是 <Tex>{'e'}</Tex>），最後一位的半個單位就是
           <strong>捨入半寬</strong> <Tex>{'\\Delta_{\\mathrm t}'}</Tex>。<strong>再看</strong>第一個菱形：<Tex>{'\\Delta_{\\mathrm t}'}</Tex> 不超過 <Tex>{'|y_{\\mathrm t}|'}</Tex> 的{' '}
           <Tex>{`${texNum(100 * PRECISE_REL)}\\%`}</Tex> 才算「夠精確」，這時<strong>接受半寬</strong> <Tex>{'W=k_{\\mathrm{tol}}\\Delta_{\\mathrm t}'}</Tex>（<Tex>{'k_{\\mathrm{tol}}'}</Tex>{' '}
           是容差倍數，原意是 1）；不夠精確的短數字只在「必備數值」時才比，而且要求重算值就等於它。

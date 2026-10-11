@@ -61,11 +61,11 @@ export function HowItWorks() {
       >
         <p>
           <strong>先看</strong>
-          左邊：規格的 T01–T18 先經過 <code>docs/validation.md</code> 的勘誤修正，再交給 Python golden。Python 這一側產生兩樣東西——<code>golden/vectors/Txx.json</code>（期望值與容忍度）和 pytest 測試。
+          最上面三格：規格的 T01–T18 先經過 <code>docs/validation.md</code> 的勘誤修正，再交給 Python golden。Python 這一側往下分成兩樣東西——<code>golden/vectors/Txx.json</code>（期望值與容忍度）和 pytest 測試。
         </p>
         <p>
           <strong>再看</strong>
-          中間到右邊：網站各章的 TypeScript 模型有兩個去處——被 Vitest 的 <code>it(&apos;Txx: …&apos;)</code> 拿去對照同一份 vector，以及在本頁 <code>acceptance.ts</code> 即時重算。兩邊的測試結果由藍色的{' '}
+          往下的幾層：網站各章的 TypeScript 模型有兩個去處——被 Vitest 的 <code>it(&apos;Txx: …&apos;)</code> 拿去對照同一份 vector，以及在本頁 <code>acceptance.ts</code> 即時重算。兩邊的測試結果由藍色的{' '}
           <code>verify.mjs</code> 彙整成 <code>verification-status.json</code>，最後只有綠色的 TestBadge 讀這個檔——所以「本頁即時重算」那個方塊<strong>沒有</strong>箭頭接到徽章（圖上對照下面的誠實聲明）。
         </p>
       </Diagram>

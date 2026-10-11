@@ -21,7 +21,7 @@ import {
   type SspllLoop,
 } from '@/simulation/models/sspll'
 import { FREF_MHZ, HPD, HPD_GRID_MHZ, LOOPS, LOOP_LABEL, type LoopKey } from '../data'
-import { fp, fx, r } from '../common'
+import { fp, fx, loopTex, r } from '../common'
 
 export const HPD_EXPERIMENT_ID = 'sspll-hpd'
 
@@ -221,12 +221,12 @@ export function HpdExplorer() {
         : `(${fp(Number(loop.params.b), 5)}, ${fp(Number(loop.params.wc), 6)}, ${fp(Number(loop.params.K), 5)})`
   const metrics: MetricRow[] = [
     { name: designName, value: designText },
-    { name: '$\\lvert T\\rvert$ 的 −3 dB', value: an.sum.f3dBMHz, unit: 'MHz', digits: 7, ...(dP.gainScale === 1 && !dP.manual && built.ok ? { analytic: dP.bwMHz, tolerance: 1e-5, toleranceMode: 'abs' as const } : {}), note: dP.gainScale !== 1 || dP.manual ? '已不是設計目標（gain 被改動）' : '設計目標' },
+    { name: '$\\lvert T\\rvert$ 的 $-3$ dB', value: an.sum.f3dBMHz, unit: 'MHz', digits: 7, ...(dP.gainScale === 1 && !dP.manual && built.ok ? { analytic: dP.bwMHz, tolerance: 1e-5, toleranceMode: 'abs' as const } : {}), note: dP.gainScale !== 1 || dP.manual ? '已不是設計目標（gain 被改動）' : '設計目標' },
     { name: 'phase margin（sampled-data）', value: Number.isFinite(an.sum.pmDeg) ? an.sum.pmDeg : null, unit: 'deg', digits: 5, note: Number.isFinite(an.sum.pmDeg) ? undefined : '找不到 $\\lvert L\\rvert=1$ 的交越（迴路增益太小或不穩定）' },
     { name: '$\\lvert T\\rvert$ peaking', value: Number.isFinite(an.sum.tPeakDb) ? an.sum.tPeakDb : null, unit: 'dB', digits: 4, note: '反號帶一定落在 $\\lvert T\\rvert>1$ 的 peaking 區內' },
     {
       name: '反號帶 $\\mathrm{Re}\\,H_{PD}<0$',
-      value: an.bands.length ? an.bands.map((b) => `${b.fLo === 0 ? '0' : fx(b.fLo * FREF_MHZ, 2)}–${fx(b.fHi * FREF_MHZ, 3)} MHz`).join('；') : '無（整個頻帶 Re H_PD ≥ 0）',
+      value: an.bands.length ? an.bands.map((b) => `${b.fLo === 0 ? '0' : fx(b.fLo * FREF_MHZ, 2)}–${fx(b.fHi * FREF_MHZ, 3)} MHz`).join('；') : '無（整個頻帶的實部都不是負的）',
       formulaId: 'F-CS.4',
       claim: 'exact',
     },
@@ -276,7 +276,7 @@ export function HpdExplorer() {
         ({
           x: [Math.max(b.fLo * FREF_MHZ, fLo), b.fHi * FREF_MHZ, b.fHi * FREF_MHZ, Math.max(b.fLo * FREF_MHZ, fLo), Math.max(b.fLo * FREF_MHZ, fLo)],
           y: [yLo, yLo, 1.4, 1.4, yLo],
-          name: '反號帶 Re H_PD < 0',
+          name: '反號帶 $\\mathrm{Re}\\,H_{\\mathrm{PD}}<0$',
           mode: 'lines',
           fill: 'toself',
           fillcolor: 'rgba(200, 60, 40, 0.14)',
@@ -285,8 +285,8 @@ export function HpdExplorer() {
           showlegend: i === 0,
         }) as Data,
     )
-    traces.push({ x: grid, y: an.sw.reH, name: 'Re H_PD（TS port，即時）', mode: 'lines', line: { color: tokens.series[0], width: 2.2 } })
-    traces.push({ x: grid, y: golden.ReH, name: `Re H_PD（golden JSON，標稱 ${dP.loop}）`, mode: 'lines', line: { color: tokens.textMuted, dash: 'dot', width: 1.6 } })
+    traces.push({ x: grid, y: an.sw.reH, name: '$\\mathrm{Re}\\,H_{\\mathrm{PD}}$（TS port，即時）', mode: 'lines', line: { color: tokens.series[0], width: 2.2 } })
+    traces.push({ x: grid, y: golden.ReH, name: `$\\mathrm{Re}\\,H_{\\mathrm{PD}}$（golden JSON，標稱 ${loopTex(dP.loop)}）`, mode: 'lines', line: { color: tokens.textMuted, dash: 'dot', width: 1.6 } })
     // 低頻漸近式
     const asym: (number | null)[] = []
     let hasAsym = false
@@ -303,8 +303,8 @@ export function HpdExplorer() {
         hasAsym = true
       } else asym.push(null)
     }
-    if (hasAsym) traces.push({ x: grid, y: asym, name: loop.type === 2 ? (dP.loop === 'L3' ? '低頻漸近式 −Ω²/K_d' : '低頻漸近式 −Ω²/K_i') : '低頻漸近式 (Ω²/K²)[1 − K(d − ½)]', mode: 'lines', line: { color: tokens.series[3], dash: 'dash', width: 1.4 } })
-    if (dP.showRemedy) traces.push({ x: grid, y: an.sw.reGamma['1diff'], name: 'Re Γ_eff（一階差分 regressor）', mode: 'lines', line: { color: tokens.series[2], dash: 'dashdot', width: 1.6 } })
+    if (hasAsym) traces.push({ x: grid, y: asym, name: loop.type === 2 ? (dP.loop === 'L3' ? '低頻漸近式 $-\\Omega^2/K_d$' : '低頻漸近式 $-\\Omega^2/K_i$') : '低頻漸近式 $(\\Omega^2/K^2)[1-K(d-\\tfrac12)]$', mode: 'lines', line: { color: tokens.series[3], dash: 'dash', width: 1.4 } })
+    if (dP.showRemedy) traces.push({ x: grid, y: an.sw.reGamma['1diff'], name: '$\\mathrm{Re}\\,\\Gamma_{\\mathrm{eff}}$（一階差分 regressor）', mode: 'lines', line: { color: tokens.series[2], dash: 'dashdot', width: 1.6 } })
     // closed form 的帶緣：用 trace 畫垂直線（log 軸上 shape／annotation 的座標約定不同，trace 最不容易出錯）
     if (edgeClosed !== null)
       traces.push({ x: [edgeClosed, edgeClosed], y: [yLo, 1.4], name: `closed form 帶緣 ${edgeClosed.toFixed(2)} MHz`, mode: 'lines', line: { color: tokens.series[1], dash: 'dash', width: 1.5 } })
@@ -314,27 +314,27 @@ export function HpdExplorer() {
   const reLayout: Partial<Layout> = useMemo(
     () => ({
       shapes: [{ type: 'line', xref: 'paper', yref: 'y', x0: 0, x1: 1, y0: 0, y1: 0, line: { color: tokens.textMuted, width: 1 } }],
-      xaxis: { title: { text: 'f [MHz]（取樣率 f_ref = 4 GHz；右端 = f_ref/2）' } },
-      yaxis: { title: { text: 'Re H_PD、Re Γ_eff' }, range: [yLo, 1.4] },
+      xaxis: { title: { text: '$f$ [MHz]<br>（取樣率 $f_{\\mathrm{ref}}=4$ GHz；右端 $=f_{\\mathrm{ref}}/2$）' } },
+      yaxis: { title: { text: '$\\mathrm{Re}\\,H_{\\mathrm{PD}}$、$\\mathrm{Re}\\,\\Gamma_{\\mathrm{eff}}$' }, range: [yLo, 1.4] },
     }),
     [tokens, yLo],
   )
 
   const magData: Data[] = useMemo(
     () => [
-      { x: grid, y: an.sw.absH, name: '|H_PD|', mode: 'lines', line: { color: tokens.series[0], width: 2 } },
-      { x: grid, y: an.sw.absT, name: '|T|（−3 dB = 設計頻寬）', mode: 'lines', line: { color: tokens.series[1], width: 2 } },
-      { x: grid, y: golden.absH, name: `|H_PD|（golden JSON，標稱 ${dP.loop}）`, mode: 'lines', line: { color: tokens.textMuted, dash: 'dot' } },
-      { x: [grid[0], grid[grid.length - 1]], y: [1, 1], name: '1（|T| > 1 = peaking）', mode: 'lines', line: { color: tokens.textMuted, dash: 'dash', width: 1 } },
-      { x: [grid[0], grid[grid.length - 1]], y: [Math.SQRT1_2, Math.SQRT1_2], name: '1/√2（−3 dB）', mode: 'lines', line: { color: tokens.textMuted, dash: 'dashdot', width: 1 } },
+      { x: grid, y: an.sw.absH, name: '$|H_{\\mathrm{PD}}|$', mode: 'lines', line: { color: tokens.series[0], width: 2 } },
+      { x: grid, y: an.sw.absT, name: '$|T|$（$-3$ dB = 設計頻寬）', mode: 'lines', line: { color: tokens.series[1], width: 2 } },
+      { x: grid, y: golden.absH, name: `$|H_{\\mathrm{PD}}|$（golden JSON，標稱 ${loopTex(dP.loop)}）`, mode: 'lines', line: { color: tokens.textMuted, dash: 'dot' } },
+      { x: [grid[0], grid[grid.length - 1]], y: [1, 1], name: '1（$|T|>1$ = peaking）', mode: 'lines', line: { color: tokens.textMuted, dash: 'dash', width: 1 } },
+      { x: [grid[0], grid[grid.length - 1]], y: [Math.SQRT1_2, Math.SQRT1_2], name: '$1/\\sqrt{2}$（$-3$ dB）', mode: 'lines', line: { color: tokens.textMuted, dash: 'dashdot', width: 1 } },
     ],
     [an, grid, golden, tokens, dP.loop],
   )
   const phData: Data[] = useMemo(
     () => [
-      { x: grid, y: an.sw.phaseDeg, name: '∠H_PD [deg]（TS port，即時）', mode: 'lines', line: { color: tokens.series[4] ?? tokens.series[0], width: 2 } },
-      { x: grid, y: golden.ReH.map((re, i) => (Math.atan2(golden.ImH[i], re) * 180) / Math.PI), name: `∠H_PD（golden JSON，標稱 ${dP.loop}）`, mode: 'lines', line: { color: tokens.textMuted, dash: 'dot' } },
-      { x: [grid[0], grid[grid.length - 1]], y: [90, 90], name: '±90°（Re H_PD = 0）', mode: 'lines', line: { color: tokens.textMuted, dash: 'dash' } },
+      { x: grid, y: an.sw.phaseDeg, name: '$\\angle H_{\\mathrm{PD}}$ [deg]（TS port，即時）', mode: 'lines', line: { color: tokens.series[4] ?? tokens.series[0], width: 2 } },
+      { x: grid, y: golden.ReH.map((re, i) => (Math.atan2(golden.ImH[i], re) * 180) / Math.PI), name: `$\\angle H_{\\mathrm{PD}}$（golden JSON，標稱 ${loopTex(dP.loop)}）`, mode: 'lines', line: { color: tokens.textMuted, dash: 'dot' } },
+      { x: [grid[0], grid[grid.length - 1]], y: [90, 90], name: '$\\pm90^\\circ$（$\\mathrm{Re}\\,H_{\\mathrm{PD}}=0$）', mode: 'lines', line: { color: tokens.textMuted, dash: 'dash' } },
       { x: [grid[0], grid[grid.length - 1]], y: [-90, -90], showlegend: false, mode: 'lines', line: { color: tokens.textMuted, dash: 'dash' } },
     ],
     [an, grid, tokens, golden, dP.loop],
@@ -456,7 +456,7 @@ export function HpdExplorer() {
               />
             </>
           )}
-          <ParamControl label="loop gain 倍率（PVT，不重新設計）" value={P.gainScale} onChange={(gainScale) => set({ gainScale })} min={0.3} max={3} step={0.05} unit="×" reg="K_vco × SSPD 斜率的 PVT 變化" />
+          <ParamControl label="loop gain 倍率（PVT，不重新設計）" value={P.gainScale} onChange={(gainScale) => set({ gainScale })} min={0.3} max={3} step={0.05} unit={'$\\times$'} reg="K_vco × SSPD 斜率的 PVT 變化" />
           <ToggleControl label={mathText('疊上一階差分的 $\\mathrm{Re}\\,\\Gamma_{\\rm eff}$')} ariaLabel="疊上一階差分的 Re Γ_eff" value={P.showRemedy} onChange={(showRemedy) => set({ showRemedy })} />
         </>
       }
@@ -471,14 +471,14 @@ export function HpdExplorer() {
         caption={r`負值代表 PD 看到的殘差與誤差「反相」；sign-error LMS 的符號由 regressor 功率對這條曲線的加權平均決定（不是 $\lvert H_{PD}\rvert$）。`}
       />
       <div className="cs-plots cs-plots-2">
-        <Plot title="$\lvert H_{PD}\rvert$ 與 $\lvert T\rvert$" data={magData} xLog height={300} csvName="sspll-abs-hpd" layout={{ xaxis: { title: { text: 'f [MHz]' } }, yaxis: { title: { text: '大小（線性）' }, range: [0, 1.5] } }} />
+        <Plot title="$\lvert H_{PD}\rvert$ 與 $\lvert T\rvert$" data={magData} xLog height={300} csvName="sspll-abs-hpd" layout={{ xaxis: { title: { text: '$f$ [MHz]' } }, yaxis: { title: { text: '大小（線性）' }, range: [0, 1.5] } }} />
         <Plot
           title="$\angle H_{PD}(f)$：$\lvert\angle\rvert>90^\circ\iff\mathrm{Re}\,H_{PD}<0$"
           data={phData}
           xLog
           height={300}
           csvName="sspll-phase-hpd"
-          layout={{ xaxis: { title: { text: 'f [MHz]' } }, yaxis: { title: { text: 'deg' }, range: [-100, 190] } }}
+          layout={{ xaxis: { title: { text: '$f$ [MHz]' } }, yaxis: { title: { text: 'deg' }, range: [-100, 190] } }}
         />
       </div>
     </ExperimentShell>

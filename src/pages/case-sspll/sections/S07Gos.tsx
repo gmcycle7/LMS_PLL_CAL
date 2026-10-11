@@ -133,9 +133,9 @@ export function S07Gos() {
       </p>
       <Diagram id="near-grid" />
       <p>
-        先看上面那條路（斜坡）：<Tex>{r`H_{PD}`}</Tex> 對斜率 <Tex>{r`\beta`}</Tex> 的斜坡，穩態響應是一個常數 <Tex>{r`\beta S_\infty`}</Tex>（斜坡是步階的累加，所以響應是步階響應 <Tex>{'s[n]'}</Tex> 的累加）；它乘上 regressor 的平均值 <Tex>{r`\tfrac12`}</Tex>，貢獻{' '}
-        <Tex>{r`+\beta S_\infty/2`}</Tex>。再看藍色那條路（wrap）：每次跳變在 PD 產生 <Tex>{'-s[m]'}</Tex>（<Tex>{'m'}</Tex> 是跳變之後第幾拍），它乘到的是跳變附近的 regressor。對齊（<Tex>{'D=0'}</Tex>）時乘到的是剛歸零、還很小的 <Tex>{r`\rho\approx\beta m`}</Tex>，只留下 <Tex>{r`\beta^2`}</Tex> 階的小量；晚{' '}
-        <Tex>{'D'}</Tex> 拍時，前 <Tex>{'D'}</Tex> 拍乘到的還是跳之前的 <Tex>{r`\rho\approx1`}</Tex>，每次 wrap 多出 <Tex>{r`-S_D`}</Tex>，而 wrap 每拍發生 <Tex>{r`\beta`}</Tex> 次。圖上加法點的輸出就是下面的公式；最右邊三格是公式後面列的三種情況。
+        先看左邊那條路（斜坡）：<Tex>{r`H_{PD}`}</Tex> 對斜率 <Tex>{r`\beta`}</Tex> 的斜坡，穩態響應是一個常數 <Tex>{r`\beta S_\infty`}</Tex>（斜坡是步階的累加，所以響應是步階響應 <Tex>{'s[n]'}</Tex> 的累加）；它乘上 regressor 的平均值 <Tex>{r`\tfrac12`}</Tex>，貢獻{' '}
+        <Tex>{r`+\beta S_\infty/2`}</Tex>。再看右邊藍色那條路（wrap）：每次跳變在 PD 產生 <Tex>{'-s[m]'}</Tex>（<Tex>{'m'}</Tex> 是跳變之後第幾拍），它乘到的是跳變附近的 regressor。對齊（<Tex>{'D=0'}</Tex>）時乘到的是剛歸零、還很小的 <Tex>{r`\rho\approx\beta m`}</Tex>，只留下 <Tex>{r`\beta^2`}</Tex> 階的小量；晚{' '}
+        <Tex>{'D'}</Tex> 拍時，前 <Tex>{'D'}</Tex> 拍乘到的還是跳之前的 <Tex>{r`\rho\approx1`}</Tex>，每次 wrap 多出 <Tex>{r`-S_D`}</Tex>，而 wrap 每拍發生 <Tex>{r`\beta`}</Tex> 次。圖上加法點的輸出就是下面的公式；最下面三格是公式後面列的三種情況。
       </p>
       <Formula id="F-CS.12" />
       <ul>

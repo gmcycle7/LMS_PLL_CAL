@@ -44,9 +44,19 @@ export const NOISE_LAB_DEFAULTS: Readonly<NoiseParams> = DEFAULTS
 const SEED_DEFAULT = 20261010
 const N_MAX_OPTIONS = [256, 512, 1024]
 /** 固定的版面物件（模組層級）：參數改變時只有 data 會變，Plot 不會因為新的 layout 參照而重設縮放 */
-const STD_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'N（平均的樣本數）' } }, yaxis: { title: { text: 'std(Ḡ_N)' } } }
-const TRACE_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'n' } }, yaxis: { title: { text: 'Ḡ_n = (1/n)Σ e·x' } } }
-const CORRECT_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'N' } }, yaxis: { title: { text: 'P(sign 正確)' }, range: [0.4, 1.02] } }
+const STD_LAYOUT: Partial<Layout> = {
+  xaxis: { title: { text: '$N$（平均的樣本數）' } },
+  // 縱軸的範圍不到一個 decade：Plotly 預設會把 2–9 全部標出來，擠成一團；只標 1、2、5
+  yaxis: { title: { text: String.raw`$\operatorname{std}(\bar G_N)$` }, dtick: 'D2' },
+}
+const TRACE_LAYOUT: Partial<Layout> = {
+  xaxis: { title: { text: '$n$' } },
+  yaxis: { title: { text: String.raw`$\bar G_n = (1/n)\sum e\,x$` } },
+}
+const CORRECT_LAYOUT: Partial<Layout> = {
+  xaxis: { title: { text: '$N$' } },
+  yaxis: { title: { text: String.raw`$P(\mathrm{sign}\ \text{正確})$` }, range: [0.4, 1.02] },
+}
 
 function fromPreset(params: Record<string, unknown> | undefined): NoiseParams {
   const p = { ...DEFAULTS }
@@ -98,14 +108,14 @@ export function NoiseAverageLab() {
       {
         x: res.checkpoints,
         y: res.mcStd,
-        name: `Monte Carlo：${dp.trials} 次試驗的 std(Ḡ_N)`,
+        name: String.raw`Monte Carlo：${dp.trials} 次試驗的 $\operatorname{std}(\bar G_N)$`,
         mode: 'markers',
         marker: { size: 8, color: tokens.series[0] },
       },
       {
         x: res.checkpoints,
         y: res.theoryStd,
-        name: '理論 s₁/√N',
+        name: String.raw`理論 $s_1/\sqrt{N}$`,
         mode: 'lines',
         line: { color: tokens.series[1], dash: 'dash' },
       },
@@ -131,17 +141,17 @@ export function NoiseAverageLab() {
       legendgroup: 'traces',
     }))
     traces.push(
-      { x: nx, y: nx.map(() => res.theoryMean), name: `E[e·x] = (a − w)E[x²] = ${num(res.theoryMean)}`, mode: 'lines', line: { color: tokens.text, width: 2 } },
-      { x: nx, y: env(1), name: '±2s₁/√N 包絡', mode: 'lines', line: { color: tokens.textMuted, dash: 'dot' }, legendgroup: 'env' },
-      { x: nx, y: env(-1), name: '−2s₁/√N', mode: 'lines', line: { color: tokens.textMuted, dash: 'dot' }, showlegend: false, legendgroup: 'env' },
+      { x: nx, y: nx.map(() => res.theoryMean), name: String.raw`$E[e\,x] = (a - w)E[x^2] = ${texRes(res.theoryMean)}$`, mode: 'lines', line: { color: tokens.text, width: 2 } },
+      { x: nx, y: env(1), name: String.raw`$\pm 2 s_1/\sqrt{N}$ 包絡`, mode: 'lines', line: { color: tokens.textMuted, dash: 'dot' }, legendgroup: 'env' },
+      { x: nx, y: env(-1), name: String.raw`$-2 s_1/\sqrt{N}$`, mode: 'lines', line: { color: tokens.textMuted, dash: 'dot' }, showlegend: false, legendgroup: 'env' },
     )
     return traces
   }, [res, dp.nMax, tokens])
 
   const correctData: Data[] = useMemo(
     () => [
-      { x: res.checkpoints, y: res.mcCorrect, name: 'Monte Carlo：sign(Ḡ_N) 正確的比例', mode: 'markers', marker: { size: 8, color: tokens.series[2] } },
-      { x: res.checkpoints, y: res.cltCorrect, name: 'CLT 近似 Φ(√N·|E[z]|/s₁)', mode: 'lines', line: { color: tokens.series[3], dash: 'dash' } },
+      { x: res.checkpoints, y: res.mcCorrect, name: String.raw`Monte Carlo：$\mathrm{sign}(\bar G_N)$ 正確的比例`, mode: 'markers', marker: { size: 8, color: tokens.series[2] } },
+      { x: res.checkpoints, y: res.cltCorrect, name: String.raw`CLT 近似 $\Phi(\sqrt{N}\,|E[z]|/s_1)$`, mode: 'lines', line: { color: tokens.series[3], dash: 'dash' } },
     ],
     [res, tokens],
   )
@@ -310,7 +320,7 @@ export function NoiseAverageLab() {
             min={0}
             max={10}
             step={0.1}
-            unit="同 y"
+            unit="同 $y$"
             reg="Behavioral: sigma_v"
           />
           <SelectControl

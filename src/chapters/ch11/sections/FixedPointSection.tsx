@@ -23,7 +23,7 @@ import { Fig, FigRef } from '../Fig'
 import { Hand } from '../Hand'
 
 const PATH = 'src/simulation/models/bias.ts'
-const S_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'e（t.u.）' } }, yaxis: { title: { text: 'E[q | e]' }, range: [-1.15, 1.15] } }
+const S_LAYOUT: Partial<Layout> = { xaxis: { title: { text: '$e$（t.u.）' } }, yaxis: { title: { text: String.raw`$E[q \mid e]$` }, range: [-1.15, 1.15] } }
 
 /** 從 GMAC 歸零推出固定點 w*（MSE 精確、Sign 線性化），並畫出 comparator S 曲線上的殘差位置。 */
 export function FixedPointSection() {
@@ -49,15 +49,15 @@ export function FixedPointSection() {
     const es = Array.from({ length: 241 }, (_, i) => -span + (2 * span * i) / 240)
     const kq = KQ_FACTOR / sigma
     return [
-      { x: es, y: es.map((e) => comparatorMean(e, sigma)), mode: 'lines', name: 'E[q|e] = erf(e/(√2σ_v))', line: { color: tokens.series[0], width: 2 } },
-      { x: es, y: es.map((e) => Math.max(-1.5, Math.min(1.5, kq * e))), mode: 'lines', name: '切線 K_q·e（線性化）', line: { color: tokens.series[1], dash: 'dash' } },
+      { x: es, y: es.map((e) => comparatorMean(e, sigma)), mode: 'lines', name: String.raw`$E[q \mid e] = \operatorname{erf}(e / (\sqrt{2}\,\sigma_v))$`, line: { color: tokens.series[0], width: 2 } },
+      { x: es, y: es.map((e) => Math.max(-1.5, Math.min(1.5, kq * e))), mode: 'lines', name: String.raw`切線 $K_q \cdot e$（線性化）`, line: { color: tokens.series[1], dash: 'dash' } },
       {
         x: res.map((r) => r.e),
         y: res.map((r) => comparatorMean(r.e, sigma)),
         mode: 'text+markers',
-        text: res.map((r) => `x=${r.x}`),
+        text: res.map((r) => `$x=${r.x}$`),
         textposition: 'top center',
-        name: '5 個 code 在 w* 的殘差',
+        name: String.raw`5 個 code 在 $w^*$ 的殘差`,
         marker: { color: tokens.series[2], size: 9 },
       },
     ]
@@ -232,14 +232,14 @@ export function FixedPointSection() {
         <Tex>{'K_q'}</Tex> 近似失效，固定點離開 1.34。
       </p>
       <ParamControl
-        label="σ_v（comparator 前雜訊）"
+        label={String.raw`$\sigma_v$（comparator 前雜訊）`}
         value={sigma}
         onChange={setSigma}
         min={0.01}
         max={3}
         log
         unit="t.u."
-        reg="Behavioral：comparator input noise σ_v"
+        reg="Behavioral：comparator input noise sigma_v"
         hint={m('試試 0.05（$x=\\pm1$ 飽和、$x=\\pm2$ 停在 $E[q\\mid x]\\approx\\pm0.5$）、0.3、1')}
       />
       <Plot

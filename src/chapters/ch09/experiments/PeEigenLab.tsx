@@ -61,13 +61,15 @@ function squareLayout(xTitle: string, yTitle: string): Partial<Layout> {
 }
 
 // 靜態 layout 放在模組層級：避免每次 render 產生新物件而觸發多餘的 Plotly.react
-const ELLIPSE_LAYOUT = squareLayout('u₁', 'u₂')
-const PLANE_LAYOUT = squareLayout('δ₁', 'δ₂')
-const MS_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'block k' } }, yaxis: { title: { text: '平方誤差（log）' } } }
-const PE_LAMBDA_LAYOUT: Partial<Layout> = { xaxis: { title: { text: '窗口起點 k（sample）' } }, yaxis: { title: { text: 'λ_min(R_k)' } } }
-const PE_KAPPA_LAYOUT: Partial<Layout> = { xaxis: { title: { text: '窗口起點 k（sample）' } }, yaxis: { title: { text: 'κ(R_k)' } } }
-const PE_SV_LAYOUT: Partial<Layout> = { xaxis: { title: { text: '窗口起點 k（sample）' } }, yaxis: { title: { text: 'σ_i(U_k)' } } }
-const CASE_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'block k' } }, yaxis: { title: { text: '|p_slow|^k（log）' } } }
+// 圖內文字的數學一律寫 `$...$`（Plot 元件經 plotMath.ts 轉成斜體符號與上下標；docs/teaching-style.md §3）。
+// plotMath 的限制：\boldsymbol／\mathbf／\hat 的參數要加大括號（`\boldsymbol{\delta}`），不然只會吃到一個字元。
+const ELLIPSE_LAYOUT = squareLayout('$u_1$', '$u_2$')
+const PLANE_LAYOUT = squareLayout(String.raw`$\delta_1$`, String.raw`$\delta_2$`)
+const MS_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'block $k$' } }, yaxis: { title: { text: '平方誤差（log）' } } }
+const PE_LAMBDA_LAYOUT: Partial<Layout> = { xaxis: { title: { text: '窗口起點 $k$（sample）' } }, yaxis: { title: { text: String.raw`$\lambda_{\min}(\mathbf R_k)$` } } }
+const PE_KAPPA_LAYOUT: Partial<Layout> = { xaxis: { title: { text: '窗口起點 $k$（sample）' } }, yaxis: { title: { text: String.raw`$\kappa(\mathbf R_k)$` } } }
+const PE_SV_LAYOUT: Partial<Layout> = { xaxis: { title: { text: '窗口起點 $k$（sample）' } }, yaxis: { title: { text: String.raw`$\sigma_i(\mathbf U_k)$` } } }
+const CASE_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'block $k$' } }, yaxis: { title: { text: String.raw`$|p_{\mathrm{slow}}|^k$（log）` } } }
 
 interface McState {
   params: PeLabParams
@@ -273,7 +275,7 @@ export function PeEigenLab() {
     {
       name: '$K_q$',
       value: Number.isFinite(gain.Kq) ? gain.Kq : '∞',
-      unit: gain.kqUnit,
+      unit: gain.kqUnitTex,
       note:
         state.detector === 'linear'
           ? String.raw`linear detector：$K_q\equiv1$`
@@ -381,7 +383,7 @@ export function PeEigenLab() {
           y: res.scatterU2,
           mode: 'markers',
           type: 'scatter',
-          name: `u 樣本（${res.scatterU1.length} 點）`,
+          name: String.raw`$\mathbf u$ 樣本（${res.scatterU1.length} 點）`,
           marker: { size: 3, opacity: 0.35, color: tokens.textMuted },
         } as Data)
       } else {
@@ -397,8 +399,8 @@ export function PeEigenLab() {
           y: keys.map((k) => Number(k.split(',')[1])),
           mode: 'text+markers',
           type: 'scatter',
-          name: `±1 code 的 4 個點（共 ${total} 樣本）`,
-          text: keys.map((k) => `n=${counts.get(k)}`),
+          name: String.raw`$\pm1$ code 的 4 個點（共 ${total} 樣本）`,
+          text: keys.map((k) => String.raw`$n=${counts.get(k)}$`),
           textposition: 'top center',
           marker: { size: keys.map((k) => 8 + 30 * Math.sqrt((counts.get(k) ?? 0) / total)), color: tokens.textMuted, opacity: 0.6 },
         })
@@ -406,20 +408,20 @@ export function PeEigenLab() {
     }
     const e1 = ell(1)
     const e2 = ell(2)
-    traces.push({ x: e1.xs, y: e1.ys, mode: 'lines', name: '1σ 等高線 uᵀR⁻¹u = 1', line: { color: tokens.series[0] } })
-    traces.push({ x: e2.xs, y: e2.ys, mode: 'lines', name: '2σ 等高線', line: { color: tokens.series[0], dash: 'dot' } })
+    traces.push({ x: e1.xs, y: e1.ys, mode: 'lines', name: String.raw`$1\sigma$ 等高線 $\mathbf u^T\mathbf R^{-1}\mathbf u=1$`, line: { color: tokens.series[0] } })
+    traces.push({ x: e2.xs, y: e2.ys, mode: 'lines', name: String.raw`$2\sigma$ 等高線`, line: { color: tokens.series[0], dash: 'dot' } })
     traces.push({
       x: [-2 * s1 * v1[0], 2 * s1 * v1[0]],
       y: [-2 * s1 * v1[1], 2 * s1 * v1[1]],
       mode: 'lines',
-      name: `v₁（λ_max = ${num(l1)}）`,
+      name: String.raw`$\mathbf v_1$（$\lambda_{\max}=${tn(l1)}$）`,
       line: { color: tokens.series[1], width: 3 },
     })
     traces.push({
       x: [-2 * s2 * v2[0], 2 * s2 * v2[0]],
       y: [-2 * s2 * v2[1], 2 * s2 * v2[1]],
       mode: 'lines',
-      name: `v₂（λ_min = ${num(l2)}）`,
+      name: String.raw`$\mathbf v_2$（$\lambda_{\min}=${tn(l2)}$）`,
       line: { color: tokens.series[2], width: 3 },
     })
     return traces
@@ -436,34 +438,34 @@ export function PeEigenLab() {
     const nf = cut(ana.cFast)
     const ns = cut(ana.cSlow)
     const traces: Data[] = [
-      { x: ana.k.slice(0, nf), y: ana.cFast.slice(0, nf), mode: 'lines', name: `|c_fast| 解析 = |p_fast|^k·|c₀|（p = ${num(ana.p[0])}）`, line: { color: tokens.series[1] } },
-      { x: ana.k.slice(0, ns), y: ana.cSlow.slice(0, ns), mode: 'lines', name: `|c_slow| 解析（p = ${num(ana.p[1])}）`, line: { color: tokens.series[2] } },
+      { x: ana.k.slice(0, nf), y: ana.cFast.slice(0, nf), mode: 'lines', name: String.raw`$|c_{\mathrm{fast}}|$ 解析 $=|p_{\mathrm{fast}}|^k\,|c_0|$（$p=${tn(ana.p[0])}$）`, line: { color: tokens.series[1] } },
+      { x: ana.k.slice(0, ns), y: ana.cSlow.slice(0, ns), mode: 'lines', name: String.raw`$|c_{\mathrm{slow}}|$ 解析（$p=${tn(ana.p[1])}$）`, line: { color: tokens.series[2] } },
       { x: [0, state.blocks], y: [DECAY * Math.abs(ana.c0[1]), DECAY * Math.abs(ana.c0[1])], mode: 'lines', name: '5% 門檻', line: { color: tokens.textMuted, dash: 'dash' } },
     ]
     if (ana.mf) {
       const Q = an.closed.vectors
       const c = ana.k.map((kk) => modalCoords(Q, [ana.mf![0][kk], ana.mf![1][kk]]))
-      traces.push({ x: ana.k, y: c.map((v) => Math.abs(v[1])), mode: 'lines', name: '|c_slow| mean-field（Bussgang）', line: { color: tokens.series[2], dash: 'dot' } })
+      traces.push({ x: ana.k, y: c.map((v) => Math.abs(v[1])), mode: 'lines', name: String.raw`$|c_{\mathrm{slow}}|$ mean-field（Bussgang）`, line: { color: tokens.series[2], dash: 'dot' } })
     }
     if (res && !stale) {
       const kk = range(res.blocksUsed + 1)
-      traces.push({ x: kk, y: Array.from(res.cMean[0], Math.abs), mode: 'markers', name: '|E[c_fast]| MC', marker: { size: 3, color: tokens.series[1] } })
-      traces.push({ x: kk, y: Array.from(res.cMean[1], Math.abs), mode: 'markers', name: '|E[c_slow]| MC', marker: { size: 3, color: tokens.series[2] } })
+      traces.push({ x: kk, y: Array.from(res.cMean[0], Math.abs), mode: 'markers', name: String.raw`$|E[c_{\mathrm{fast}}]|$ MC`, marker: { size: 3, color: tokens.series[1] } })
+      traces.push({ x: kk, y: Array.from(res.cMean[1], Math.abs), mode: 'markers', name: String.raw`$|E[c_{\mathrm{slow}}]|$ MC`, marker: { size: 3, color: tokens.series[2] } })
     }
     return traces
   }, [ana, an, res, stale, state.blocks, tokens])
   const k95 = an.k95Slow
   const modeLayout = useMemo<Partial<Layout>>(
     () => ({
-      xaxis: { title: { text: 'block k' } },
-      yaxis: { title: { text: '|模態座標|（log）' } },
+      xaxis: { title: { text: 'block $k$' } },
+      yaxis: { title: { text: String.raw`模態座標絕對值 $|c_i|$（log）` } },
       shapes:
         Number.isFinite(k95) && k95 <= state.blocks
           ? [{ type: 'line', x0: k95, x1: k95, yref: 'paper', y0: 0, y1: 1, line: { color: tokens.danger, dash: 'dot', width: 1 } }]
           : [],
       annotations:
         Number.isFinite(k95) && k95 <= state.blocks
-          ? [{ x: k95, yref: 'paper', y: 1, text: `k₉₅ = ${k95}`, showarrow: false, yanchor: 'bottom', font: { color: tokens.danger } }]
+          ? [{ x: k95, yref: 'paper', y: 1, text: String.raw`$k_{95}=${k95}$`, showarrow: false, yanchor: 'bottom', font: { color: tokens.danger } }]
           : [],
     }),
     [k95, state.blocks, tokens],
@@ -472,21 +474,21 @@ export function PeEigenLab() {
   // ── 圖：mean vs mean-square ──
   const msData = useMemo<Data[]>(() => {
     const traces: Data[] = [
-      { x: ana.k, y: ana.meanNorm2, mode: 'lines', name: '‖E[δ_k]‖²（mean，解析）', line: { color: tokens.series[0] } },
+      { x: ana.k, y: ana.meanNorm2, mode: 'lines', name: String.raw`$\|E[\boldsymbol{\delta}_k]\|^2$（mean，解析）`, line: { color: tokens.series[0] } },
       {
         x: ana.k,
         y: nullIfNonFinite(ana.ms),
         mode: 'lines',
-        name: `E‖δ_k‖²（mean-square，${state.detector === 'linear' ? '解析' : '線性化近似'}）`,
+        name: String.raw`$E\|\boldsymbol{\delta}_k\|^2$（mean-square，${state.detector === 'linear' ? '解析' : '線性化近似'}）`,
         line: { color: tokens.series[3], dash: 'dash' },
       },
     ]
     if (res && !stale) {
-      traces.push({ x: range(res.blocksUsed + 1), y: nullIfNonFinite(res.msNorm), mode: 'lines', name: 'E‖δ_k‖² MC 樣本平均', line: { color: tokens.series[3] } })
+      traces.push({ x: range(res.blocksUsed + 1), y: nullIfNonFinite(res.msNorm), mode: 'lines', name: String.raw`$E\|\boldsymbol{\delta}_k\|^2$ MC 樣本平均`, line: { color: tokens.series[3] } })
       const kq = Array.from(res.qIndex)
-      traces.push({ x: kq, y: Array.from(res.q50, (v) => v * v), mode: 'markers', name: '中位數 ‖δ_k‖² MC', marker: { size: 4, color: tokens.series[4] } })
-      traces.push({ x: kq, y: Array.from(res.q90, (v) => v * v), mode: 'lines', name: '90% 分位 ‖δ_k‖² MC', line: { color: tokens.series[4], dash: 'dot', width: 1 } })
-      traces.push({ x: kq, y: Array.from(res.q10, (v) => v * v), mode: 'lines', name: '10% 分位 ‖δ_k‖² MC', line: { color: tokens.series[4], dash: 'dot', width: 1 } })
+      traces.push({ x: kq, y: Array.from(res.q50, (v) => v * v), mode: 'markers', name: String.raw`中位數 $\|\boldsymbol{\delta}_k\|^2$ MC`, marker: { size: 4, color: tokens.series[4] } })
+      traces.push({ x: kq, y: Array.from(res.q90, (v) => v * v), mode: 'lines', name: String.raw`90% 分位 $\|\boldsymbol{\delta}_k\|^2$ MC`, line: { color: tokens.series[4], dash: 'dot', width: 1 } })
+      traces.push({ x: kq, y: Array.from(res.q10, (v) => v * v), mode: 'lines', name: String.raw`10% 分位 $\|\boldsymbol{\delta}_k\|^2$ MC`, line: { color: tokens.series[4], dash: 'dot', width: 1 } })
     }
     return traces
   }, [ana, res, stale, state.detector, tokens])
@@ -496,13 +498,13 @@ export function PeEigenLab() {
     const Q = an.closed.vectors
     const L = 1.2 * Math.max(Math.hypot(state.d10, state.d20), 1e-9)
     const traces: Data[] = [
-      { x: [-L * Q[0][0], L * Q[0][0]], y: [-L * Q[1][0], L * Q[1][0]], mode: 'lines', name: 'v₁ 方向（快）', line: { color: tokens.series[1], dash: 'dash', width: 1 } },
-      { x: [-L * Q[0][1], L * Q[0][1]], y: [-L * Q[1][1], L * Q[1][1]], mode: 'lines', name: 'v₂ 方向（慢）', line: { color: tokens.series[2], dash: 'dash', width: 1 } },
-      { x: ana.m1, y: ana.m2, mode: 'lines+markers', name: 'E[δ_k] 平均遞迴', marker: { size: 3 }, line: { color: tokens.series[0] } },
+      { x: [-L * Q[0][0], L * Q[0][0]], y: [-L * Q[1][0], L * Q[1][0]], mode: 'lines', name: String.raw`$\mathbf v_1$ 方向（快）`, line: { color: tokens.series[1], dash: 'dash', width: 1 } },
+      { x: [-L * Q[0][1], L * Q[0][1]], y: [-L * Q[1][1], L * Q[1][1]], mode: 'lines', name: String.raw`$\mathbf v_2$ 方向（慢）`, line: { color: tokens.series[2], dash: 'dash', width: 1 } },
+      { x: ana.m1, y: ana.m2, mode: 'lines+markers', name: String.raw`$E[\boldsymbol{\delta}_k]$ 平均遞迴`, marker: { size: 3 }, line: { color: tokens.series[0] } },
     ]
     if (ana.mf) traces.push({ x: ana.mf[0], y: ana.mf[1], mode: 'lines', name: 'mean-field（Bussgang）', line: { color: tokens.series[5], dash: 'dot' } })
     if (res && !stale) {
-      traces.push({ x: res.meanD1, y: res.meanD2, mode: 'lines', name: `E[δ_k] MC（${res.chainsUsed} chains）`, line: { color: tokens.series[3], width: 2 } })
+      traces.push({ x: res.meanD1, y: res.meanD2, mode: 'lines', name: String.raw`$E[\boldsymbol{\delta}_k]$ MC（${res.chainsUsed} chains）`, line: { color: tokens.series[3], width: 2 } })
       res.paths.forEach((p, i) =>
         traces.push({ x: p.d1, y: p.d2, mode: 'lines', name: `單一軌跡 #${i + 1}`, line: { color: tokens.textMuted, width: 1 }, opacity: 0.7 }),
       )
@@ -516,27 +518,27 @@ export function PeEigenLab() {
     const k = Array.from(res.pe.k)
     const lmin = an.closed.values[1]
     const lam: Data[] = [
-      { x: k, y: Array.from(res.pe.lmin), mode: 'lines', name: 'λ_min(R_k)', line: { color: tokens.series[2] } },
-      { x: [k[0] ?? 0, k[k.length - 1] ?? 0], y: [lmin, lmin], mode: 'lines', name: `λ_min(R) = ${num(lmin)}`, line: { color: tokens.text, dash: 'dash' } },
+      { x: k, y: Array.from(res.pe.lmin), mode: 'lines', name: String.raw`$\lambda_{\min}(\mathbf R_k)$`, line: { color: tokens.series[2] } },
+      { x: [k[0] ?? 0, k[k.length - 1] ?? 0], y: [lmin, lmin], mode: 'lines', name: String.raw`$\lambda_{\min}(\mathbf R)=${tn(lmin)}$`, line: { color: tokens.text, dash: 'dash' } },
     ]
     if (state.dist === 'gaussian' && lmin > 0) {
       const s = an.sampleEigRelStd
-      lam.push({ x: [k[0] ?? 0, k[k.length - 1] ?? 0], y: [lmin * (1 + s), lmin * (1 + s)], mode: 'lines', name: '±√(2/N₀) 預測帶', line: { color: tokens.textMuted, dash: 'dot', width: 1 } })
+      lam.push({ x: [k[0] ?? 0, k[k.length - 1] ?? 0], y: [lmin * (1 + s), lmin * (1 + s)], mode: 'lines', name: String.raw`$\pm\sqrt{2/N_0}$ 預測帶`, line: { color: tokens.textMuted, dash: 'dot', width: 1 } })
       lam.push({ x: [k[0] ?? 0, k[k.length - 1] ?? 0], y: [Math.max(lmin * (1 - s), 1e-300), Math.max(lmin * (1 - s), 1e-300)], mode: 'lines', showlegend: false, line: { color: tokens.textMuted, dash: 'dot', width: 1 } })
     }
     const kap: Data[] = [
-      { x: k, y: nullIfNonFinite(res.pe.kappa), mode: 'lines', name: 'κ(R_k)', line: { color: tokens.series[3] } },
+      { x: k, y: nullIfNonFinite(res.pe.kappa), mode: 'lines', name: String.raw`$\kappa(\mathbf R_k)$`, line: { color: tokens.series[3] } },
       {
         x: [k[0] ?? 0, k[k.length - 1] ?? 0],
         y: [an.modes.kappa, an.modes.kappa].map((v) => (Number.isFinite(v) ? v : null)),
         mode: 'lines',
-        name: `κ(R) = ${num(an.modes.kappa)}`,
+        name: String.raw`$\kappa(\mathbf R)=${tn(an.modes.kappa)}$`,
         line: { color: tokens.text, dash: 'dash' },
       },
     ]
     const sv: Data[] = [
-      { x: k, y: Array.from(res.pe.svMax), mode: 'lines', name: 'σ_max(U_k)', line: { color: tokens.series[1] } },
-      { x: k, y: Array.from(res.pe.svMin), mode: 'lines', name: 'σ_min(U_k)', line: { color: tokens.series[2] } },
+      { x: k, y: Array.from(res.pe.svMax), mode: 'lines', name: String.raw`$\sigma_{\max}(\mathbf U_k)$`, line: { color: tokens.series[1] } },
+      { x: k, y: Array.from(res.pe.svMin), mode: 'lines', name: String.raw`$\sigma_{\min}(\mathbf U_k)$`, line: { color: tokens.series[2] } },
     ]
     const infCount = Array.from(res.pe.kappa).filter((v) => !Number.isFinite(v)).length
     return { lam, kap, sv, infCount, windows: k.length }
@@ -560,7 +562,7 @@ export function PeEigenLab() {
       x: k,
       y: k.map((kk) => Math.pow(Math.abs(a.pSlow), kk)),
       mode: 'lines',
-      name: `Case ${c.id}：ρ = ${c.params.rho}、g = ${c.params.g} → k₉₅ = ${Number.isFinite(a.k95Slow) ? a.k95Slow : '∞'}`,
+      name: String.raw`Case ${c.id}：$\rho=${tn(c.params.rho)}$、$g=${tn(c.params.g)}\to k_{95}=${Number.isFinite(a.k95Slow) ? a.k95Slow : String.raw`\infty`}$`,
       line: { color: tokens.series[c.seriesIndex] },
     }))
   }, [caseInfo, tokens])
@@ -861,9 +863,9 @@ export function PeEigenLab() {
                 <td>{num(c.params.rho)}</td>
                 <td>{num(c.params.g)}</td>
                 <td>{num(a.closed.values[1])}</td>
-                <td>{num(a.modes.kappa)}</td>
+                <td>{Number.isFinite(a.modes.kappa) ? num(a.modes.kappa) : m`\infty`}</td>
                 <td>{num(a.pSlow, 6)}</td>
-                <td>{Number.isFinite(a.k95Slow) ? a.k95Slow : '∞'}</td>
+                <td>{Number.isFinite(a.k95Slow) ? a.k95Slow : m`\infty`}</td>
               </tr>
             ))}
           </tbody>

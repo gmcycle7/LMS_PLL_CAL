@@ -89,8 +89,8 @@ export function IndexTopic() {
         </table>
       </div>
       <p>
-        <strong>先看圖：</strong>上面的表格說「哪個量用哪個索引」；下圖把同一件事畫成訊號流。左邊的 sample rate 每個 <Tex>{'n'}</Tex> 都有一筆 <Tex>{'e[n]'}</Tex>、<Tex>{'q[n]'}</Tex>；
-        累加 <Tex>{'N'}</Tex> 筆之後才得到右邊 block rate 的一筆 <Tex>{'G_k'}</Tex>，更新 <Tex>{'w_k'}</Tex>；要回到 sample rate 就得用 ZOH 把 <Tex>{'w_k'}</Tex> 重複 <Tex>{'N'}</Tex> 次。
+        <strong>先看圖：</strong>上面的表格說「哪個量用哪個索引」；下圖把同一件事畫成訊號流。上面那個 sample rate 區塊，每個 <Tex>{'n'}</Tex> 都有一筆 <Tex>{'e[n]'}</Tex>、<Tex>{'q[n]'}</Tex>；
+        累加 <Tex>{'N'}</Tex> 筆之後才得到下面 block rate 區塊的一筆 <Tex>{'G_k'}</Tex>，更新 <Tex>{'w_k'}</Tex>；要回到 sample rate 就得用 ZOH 把 <Tex>{'w_k'}</Tex> 重複 <Tex>{'N'}</Tex> 次。
       </p>
       <Mermaid
         chart={CHART_RATE_DOMAINS}

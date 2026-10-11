@@ -115,6 +115,10 @@
 .lab-formula-cell {
   min-width: 13rem;
 }
+/* 共用的 MetricTable：「公式」欄很窄時 F-LAB.1 會在連字號斷成兩行；公式編號不拆開（表在 .table-wrap 內捲動） */
+.lab-page .c-metric-table td a[href^='#formula-'] {
+  white-space: nowrap;
+}
 .lab-row-bad td {
   background: var(--danger-soft);
 }

@@ -42,8 +42,8 @@ const INLINE_PRESETS: ExperimentPreset[] = [
 ]
 
 // Plot 的 layout 是靜態的：放在模組層，避免每次 render 產生新物件而觸發 Plotly.react
-const LAYOUT_AC: Partial<Layout> = { xaxis: { title: { text: 'lag m [samples]' } }, yaxis: { title: { text: 'R̄[m] / σ_w²' } } }
-const LAYOUT_VAR: Partial<Layout> = { xaxis: { title: { text: 'n [samples]（一個 L 週期，最多 512 點）' } }, yaxis: { title: { text: 'x[n]²' } } }
+const LAYOUT_AC: Partial<Layout> = { xaxis: { title: { text: 'lag $m$ [samples]' } }, yaxis: { title: { text: '$\\bar R[m] / \\sigma_w^2$' } } }
+const LAYOUT_VAR: Partial<Layout> = { xaxis: { title: { text: '$n$ [samples]（一個 $L$ 週期，最多 512 點）' } }, yaxis: { title: { text: '$x[n]^2$' } } }
 
 function R2Experiment() {
   const [P, setP] = useState<R2Params>(DEFAULTS)
@@ -92,21 +92,21 @@ function R2Experiment() {
 
   const acData: Data[] = useMemo(
     () => [
-      { x: res.lags, y: res.exact, name: '精確時間平均 R̄_δt[m]', mode: 'lines+markers', marker: { size: 4 }, line: { color: tokens.series[0] } },
-      { x: res.lags, y: res.factorized, name: '獨立平穩近似 R̄_x·R̄_w', mode: 'lines', line: { color: tokens.series[1], dash: 'dash' } },
+      { x: res.lags, y: res.exact, name: '精確時間平均 $\\bar R_{\\delta t}[m]$', mode: 'lines+markers', marker: { size: 4 }, line: { color: tokens.series[0] } },
+      { x: res.lags, y: res.factorized, name: '獨立平穩近似 $\\bar R_x\\,\\bar R_w$', mode: 'lines', line: { color: tokens.series[1], dash: 'dash' } },
       { x: mc.lags, y: mc.empirical, name: 'Monte Carlo', mode: 'markers', marker: { color: tokens.series[2], size: 5, symbol: 'x' } },
     ],
     [res, mc, tokens],
   )
   const varData: Data[] = useMemo(() => {
     const n = res.instVar.map((_, i) => i)
-    return [{ x: n, y: res.instVar, name: 'E[δt[n]²]/σ_w² = x[n]²', mode: 'lines', line: { shape: 'hv', color: tokens.series[3] } }]
+    return [{ x: n, y: res.instVar, name: '$E[\\delta t[n]^2]/\\sigma_w^2 = x[n]^2$', mode: 'lines', line: { shape: 'hv', color: tokens.series[3] } }]
   }, [res, tokens])
 
   return (
     <ExperimentShell
       id={EXP_ID}
-      title="R2 預覽：ZOH 係數 × DSM residue 的時間平均自相關"
+      title={String.raw`R2 預覽：ZOH 係數 $\times$ DSM residue 的時間平均自相關`}
       level="L4"
       claim="exact"
       source="simulation"

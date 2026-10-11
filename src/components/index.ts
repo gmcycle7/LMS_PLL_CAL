@@ -116,4 +116,21 @@ export { HandCalc, type HandCalcProps } from './HandCalc'
 export { texNum, texNumP, checkAnswer, defaultValues, randomValues, inputError } from './handcalcMath'
 
 // 系統地圖（每章開頭的「你在這裡」方塊圖）
-export { SystemMap, systemMapChart, SYSTEM_BLOCK_LABEL, type SystemBlock, type SystemMapProps } from './SystemMap'
+export {
+  SystemMap,
+  systemMapModel,
+  SYSTEM_BLOCK_LABEL,
+  SYSTEM_MAP_BLOCKS,
+  SYSTEM_MAP_WIRES,
+  SYSTEM_MAP_SIZE,
+  type SystemBlock,
+  type SystemMapBlock,
+  type SystemMapModel,
+  type SystemMapProps,
+  type SystemMapWire,
+} from './SystemMap'
+export { DiagramFrame, type DiagramFrameProps, type DiagramSize } from './DiagramFrame'
+
+// 圖內數學（Plotly 的 pseudo-HTML 轉換；Mermaid 的 KaTeX 前處理）
+export { plotMath, texToPlotly, applyPlotMath } from './plotMath'
+export { sanitizeMermaidSource, mermaidMathDelimiters, hasUnsupportedMarkdown, withReadableMinWidth } from './mermaidSource'

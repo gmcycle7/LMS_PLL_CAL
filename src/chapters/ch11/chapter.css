@@ -85,6 +85,20 @@
 .ch11-table tr.ch11-hl td {
   background: var(--accent-soft);
 }
+/* Lab 的 Case 並列比較表有 8 欄，而實驗的結果欄在桌機只有約 530px 寬：縮小字級與欄間距，讓整張表不必左右捲動 */
+.ch11-table.ch11-case-table {
+  font-size: 0.82rem;
+}
+.ch11-table.ch11-case-table td,
+.ch11-table.ch11-case-table th {
+  padding: 5px 5px;
+}
+
+/* 三種主迴路架構的卡片：每張卡片有一條寬公式（F-11.6、F-11.7），三欄並排每欄不到 300px 放不下，所以直向堆疊 */
+.ch11 .ch11-arch-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
 
 .ch11-plot-grid {
   display: grid;

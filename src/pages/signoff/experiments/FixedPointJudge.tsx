@@ -47,8 +47,8 @@ const LOCAL_PRESETS: ExperimentPreset[] = [
   { name: 'floor 量化：與 periodic toggle [32,32,33,32,33] 相同', params: { ...FIXED_DEFAULT, Bacc: 18, rounding: 'floor' } },
 ]
 
-const SEQ_LAYOUT = { xaxis: { title: { text: 'k（code 更新）' } }, yaxis: { title: { text: 'LSB' } } }
-const SPEC_LAYOUT = { xaxis: { title: { text: 'f / f_u' }, range: [0, 0.5] }, yaxis: { title: { text: '|X_k|/T [LSB]' } } }
+const SEQ_LAYOUT = { xaxis: { title: { text: '$k$（code 更新）' } }, yaxis: { title: { text: 'LSB' } } }
+const SPEC_LAYOUT = { xaxis: { title: { text: '$f / f_u$' }, range: [0, 0.5] }, yaxis: { title: { text: '$|X_k|/T$ [LSB]' } } }
 
 /** 把十進位目標轉成最簡分數 P/q（最多 6 位小數）。 */
 export function decimalToFraction(x: number): { P: number; q: number } {
@@ -127,13 +127,13 @@ export function FixedPointJudgeExperiment() {
 
   const seqPlot: Data[] = useMemo(
     () => [
-      { x: efb.seq.map((_, i) => i), y: efb.seq, mode: 'lines+markers', line: { shape: 'hv', color: tokens.series[0] }, name: '6-bit 輸出 y_Q[k]' },
+      { x: efb.seq.map((_, i) => i), y: efb.seq, mode: 'lines+markers', line: { shape: 'hv', color: tokens.series[0] }, name: '6-bit 輸出 $y_Q[k]$' },
       { x: [0, Math.max(efb.seq.length - 1, 1)], y: [efb.tgt, efb.tgt], mode: 'lines', line: { dash: 'dash', color: tokens.series[1] }, name: `目標 ${nf(efb.tgt, 8)}` },
     ],
     [efb, tokens],
   )
   const specPlot: Data[] = useMemo(
-    () => [{ x: efb.spec.map((_, k) => (efb.spec.length ? k / efb.spec.length : 0)), y: efb.spec, type: 'bar', name: '|X_k|/T（誤差 y − c 的一個週期）', marker: { color: tokens.series[2] } }],
+    () => [{ x: efb.spec.map((_, k) => (efb.spec.length ? k / efb.spec.length : 0)), y: efb.spec, type: 'bar', name: '$|X_k|/T$（誤差 $y - c$ 的一個週期）', marker: { color: tokens.series[2] } }],
     [efb, tokens],
   )
 
@@ -145,7 +145,7 @@ export function FixedPointJudgeExperiment() {
     { name: 'shift scaling $N/2^s$', value: scale },
     { name: '量化目標的最簡分數 $c=P/q$', value: `${efb.P}/${efb.q}` },
     { name: 'EFB 週期（模擬偵測）', value: efb.period, analytic: efb.periodFormula, tolerance: 0, formulaId: 'F-SO.11', claim: 'exact', note: dp.F > 0 ? String.raw`公式 $T_\text{lc}=2^F/\gcd(K_F,2^F)$` : String.raw`公式 $T_\text{lc}=q$（最簡分母）` },
-    { name: String.raw`一個週期的誤差功率 $\overline{(y-c)^2}$`, value: efb.power, unit: 'LSB²', claim: 'exact', note: `白雜訊一階 NTF 模型會預測 $2/12=${tx(2 / 12, 4)}\\,\\mathrm{LSB}^2$` },
+    { name: String.raw`一個週期的誤差功率 $\overline{(y-c)^2}$`, value: efb.power, unit: '$\\mathrm{LSB}^2$', claim: 'exact', note: `白雜訊一階 NTF 模型會預測 $2/12=${tx(2 / 12, 4)}\\,\\mathrm{LSB}^2$` },
   ]
 
   return (

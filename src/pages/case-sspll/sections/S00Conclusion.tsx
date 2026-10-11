@@ -94,7 +94,7 @@ export function S00Conclusion() {
       </p>
       <Diagram id="answer" />
       <p>
-        先由左往右看主線：誤差 <Tex>{'u[n]'}</Tex> 要先經過藍色的主迴路才到比較器，所以比較器的輸出 <Tex>{r`q[n]=\pm1`}</Tex> 反映的是殘差 <Tex>{r`e_{PD}`}</Tex>，不是 <Tex>{'u'}</Tex>（<Tex>{'v'}</Tex> 是比較器輸入端的雜訊）。再看乘法點：GMAC 把 <Tex>{'q[n]'}</Tex> 和{' '}
+        先由上往下看主線：誤差 <Tex>{'u[n]'}</Tex> 要先經過藍色的主迴路才到比較器，所以比較器的輸出 <Tex>{r`q[n]=\pm1`}</Tex> 反映的是殘差 <Tex>{r`e_{PD}`}</Tex>，不是 <Tex>{'u'}</Tex>（<Tex>{'v'}</Tex> 是比較器輸入端的雜訊）。再看乘法點：GMAC 把 <Tex>{'q[n]'}</Tex> 和{' '}
         <strong>regressor</strong> <Tex>{'r_i[n]'}</Tex> 相乘再取平均，得到「權重該往哪邊修」的平均梯度。regressor 是 LMS 拿來相乘的已知數位序列，這裡是 DTC 的 code 與 PMUX 的 one-hot（選到哪一相）。圖上的藍色方塊就是下面公式裡的 <Tex>{r`H_{PD}`}</Tex>，它輸出箭頭上的{' '}
         <Tex>{r`e_{PD}=h_{PD}*u`}</Tex> 就是公式的第一式：<Tex>{r`h_{PD}`}</Tex> 是迴路對一個脈衝誤差的響應，<Tex>{'*'}</Tex> 是卷積，<Tex>{'L'}</Tex> 是開迴路增益，<Tex>{'T'}</Tex> 是閉迴路響應。
       </p>

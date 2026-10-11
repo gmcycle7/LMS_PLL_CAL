@@ -162,8 +162,8 @@ export function buildThemedLayout(t: ThemeTokens, opts: ThemedLayoutOptions): Pa
     plot_bgcolor: 'rgba(0,0,0,0)',
     font: { family: t.fontSans, color: t.text, size: 12 },
     colorway: t.series,
-    // t = 32：讓 modebar 落在上邊界內，不遮住資料
-    margin: { l: 56, r: 16, t: 32, b: 44, pad: 0 },
+    // 工具列（modebar）由 CSS 移到圖的上方自己一列，上邊界只需要放得下一列圖例
+    margin: { l: 56, r: 16, t: 30, b: 44, pad: 0 },
     hovermode: 'closest',
     hoverlabel: { bgcolor: t.surface, bordercolor: t.border, font: { color: t.text, family: t.fontSans } },
     legend: { orientation: 'h', x: 0, xanchor: 'left', y: 1.02, yanchor: 'bottom', bgcolor: 'rgba(0,0,0,0)', font: { color: t.text } },
@@ -176,6 +176,12 @@ export function buildThemedLayout(t: ThemeTokens, opts: ThemedLayoutOptions): Pa
     if (/^[xy]axis\d+$/.test(k)) base[k] = axisStyle(t)
   }
   const merged = mergeDeep(base, user)
+  // 預設圖例貼在繪圖區上方（yanchor: 'bottom'）。呼叫端只改 y 想把圖例放到 x 軸下方時，
+  // 錨點要跟著換成 'top'，否則圖例會往上長、蓋住座標軸與資料。
+  const userLegend = isPlainObject(user.legend) ? user.legend : null
+  if (userLegend && typeof userLegend.y === 'number' && userLegend.yanchor === undefined && userLegend.y <= 0) {
+    merged.legend = { ...(merged.legend as Obj), yanchor: 'top' }
+  }
   if (opts.xLog) merged.xaxis = { ...(merged.xaxis as Obj), type: 'log', exponentformat: (merged.xaxis as Obj).exponentformat ?? 'power' }
   if (opts.yLog) merged.yaxis = { ...(merged.yaxis as Obj), type: 'log', exponentformat: (merged.yaxis as Obj).exponentformat ?? 'power' }
   merged.height = opts.height

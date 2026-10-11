@@ -105,7 +105,7 @@ export const HANDCALCS: HandCalcDef[] = [
           },
           {
             tex: String.raw`\Delta w_0 = \mu\,e_0\,x = ${txF(MU)}\times${txF(e0, kW1)}\times${txF(X)} = ${tx(dw0, kW1)}`,
-            why: '③修正量：學習率 × 誤差 × 輸入（連乘兩次）。乘上 $x$ 自動決定方向。',
+            why: String.raw`③修正量：學習率 $\times$ 誤差 $\times$ 輸入（連乘兩次）。乘上 $x$ 自動決定方向。`,
           },
           {
             tex: String.raw`w_1 = w_0 + \Delta w_0 = ${tx(W0)} + ${txP(dw0, kW1)} = ${tx(w1, kNext)}`,

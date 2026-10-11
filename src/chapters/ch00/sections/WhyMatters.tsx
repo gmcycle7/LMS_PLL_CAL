@@ -10,13 +10,13 @@ export function WhyMattersSection() {
       </p>
       <ChapterDiagram name="CHART_ADAPTIVE_LOOP">
         <p>
-          先看藍色的可調係數 <Tex>{'w'}</Tex>：輸入 <Tex>{'x'}</Tex> 經過它變成預測 <Tex>{'\\hat y'}</Tex>，在相加點以 <code>(−)</code> 進入，和以 <code>(+)</code> 進入的{' '}
+          先看藍色的可調係數 <Tex>{'w'}</Tex>：輸入 <Tex>{'x'}</Tex> 經過它變成預測 <Tex>{'\\hat y'}</Tex>，在相加點以 <Tex>{'(-)'}</Tex> 進入，和以 <Tex>{'(+)'}</Tex> 進入的{' '}
           <Tex>{'y'}</Tex> 相減得到誤差 <Tex>{'e'}</Tex>。再看回授的那半圈：<Tex>{'e'}</Tex> 和 <Tex>{'x'}</Tex> 進乘法器（把兩個訊號相乘再累加，工程上叫做「相關」correlation），乘上{' '}
           <Tex>{'\\mu'}</Tex> 累加之後回去修正 <Tex>{'w'}</Tex>。
         </p>
         <p>
           這張圖只是把 §0.1 的 <FigRef name="CHART_BLACKBOX_MODEL" />（相減得到 <Tex>{'e'}</Tex>）和 §0.3 的 <FigRef name="CHART_LMS_ACCUMULATOR" />（<Tex>{'\\mu e x'}</Tex>{' '}
-          累加）接成一圈；圖上的「相關 <code>e·x</code>」「× μ，再累加」合起來就是 <Tex>{'w_{n+1}=w_n+\\mu e_nx_n'}</Tex>。下面四個應用只是把 <Tex>{'x'}</Tex>、<Tex>{'e'}</Tex>、
+          累加）接成一圈；圖上的「相關 <Tex>{'e\\,x'}</Tex>」「<Tex>{'\\times\\,\\mu'}</Tex>，再累加」合起來就是 <Tex>{'w_{n+1}=w_n+\\mu e_nx_n'}</Tex>。下面四個應用只是把 <Tex>{'x'}</Tex>、<Tex>{'e'}</Tex>、
           <Tex>{'w'}</Tex> 換成不同的實體訊號。
         </p>
       </ChapterDiagram>
@@ -40,7 +40,7 @@ export function WhyMattersSection() {
         <div className="card ch00-app-card">
           <h4>PLL / DTC 校正（本網站主角）</h4>
           <p>
-            Fractional-N PLL 用 DTC 抵消 ΔΣ 調變器的量化相位誤差；DTC 的增益 <Tex>{'w'}</Tex>（fs／code）必須和真實值{' '}
+            Fractional-N PLL 用 DTC 抵消 <Tex>{'\\Delta\\Sigma'}</Tex> 調變器的量化相位誤差；DTC 的增益 <Tex>{'w'}</Tex>（fs／code）必須和真實值{' '}
             <Tex>{'a'}</Tex> 一致。量化殘差是 <Tex>{'x'}</Tex>，相位偵測器後的 1-bit 比較器給出 <Tex>{'\\mathrm{sign}(e)'}</Tex>，
             GMAC 把 <Tex>{'\\mathrm{sign}(e)\\cdot x'}</Tex> 累加後更新 <Tex>{'w'}</Tex>（<PageLink id="ch04" />、<PageLink id="ch05" />）。
           </p>
@@ -118,27 +118,27 @@ export function WhyMattersSection() {
       </p>
       <ChapterDiagram name="CHART_BLACKBOX_TO_PLL">
         <p>
-          先看最左邊：輸入 <Tex>{'x'}</Tex> 是 ΔΣ 調變器（DSM）每個週期留下的量化殘差，也就是送給 DTC 的 code <code>x[n]</code>。它分成兩條路：深灰色那條乘上未知的{' '}
+          先看最左邊：輸入 <Tex>{'x'}</Tex> 是 <Tex>{'\\Delta\\Sigma'}</Tex> 調變器（DSM）每個週期留下的量化殘差，也就是送給 DTC 的 code <Tex>{'x[n]'}</Tex>。它分成兩條路：深灰色那條乘上未知的{' '}
           <Tex>{'a'}</Tex>——把這個 code 完全抵消所需要的「正確的 DTC gain」（單位 fs/code），<Tex>{'a\\,x_n'}</Tex> 就是量化造成、該被抵消掉的時間誤差；藍色那條乘上我們的猜測{' '}
-          <Tex>{'w'}</Tex>——gain register 裡的值，<Tex>{'w\\,x_n'}</Tex> 是 DTC 實際補償掉的量。再看相加點：前者以 <code>(+)</code>、後者以 <code>(−)</code> 進入，再加上
+          <Tex>{'w'}</Tex>——gain register 裡的值，<Tex>{'w\\,x_n'}</Tex> 是 DTC 實際補償掉的量。再看相加點：前者以 <Tex>{'(+)'}</Tex>、後者以 <Tex>{'(-)'}</Tex> 進入，再加上
           phase detector（PD）與比較器前的雜訊 <Tex>{'v'}</Tex>（紅色），輸出就是 PD 量到的殘留誤差。
         </p>
         <p>
-          圖上的 <code>e[n] = (a − w)·x[n] + v[n]</code> 就是本章一直在用的 <Tex>{'e=(a-w)x+v'}</Tex>。和 <FigRef name="CHART_BLACKBOX_MODEL" /> 只有一個差別：那裡有兩個相加點，
+          圖上的 <Tex>{'e[n] = (a - w)\\,x[n] + v[n]'}</Tex> 就是本章一直在用的 <Tex>{'e=(a-w)x+v'}</Tex>。和 <FigRef name="CHART_BLACKBOX_MODEL" /> 只有一個差別：那裡有兩個相加點，
           <Tex>{'y'}</Tex> 和 <Tex>{'\\hat y'}</Tex> 都看得到；PLL 裡「相減」是 DTC 在時間軸上直接做掉的，所以 <Tex>{'y'}</Tex> 與 <Tex>{'\\hat y'}</Tex> 都不會單獨出現，我們只量得到{' '}
           <Tex>{'e'}</Tex>。幸好 LMS 的修正量 <Tex>{'\\mu e x'}</Tex> 本來就只需要 <Tex>{'e'}</Tex> 和 <Tex>{'x'}</Tex>。
         </p>
       </ChapterDiagram>
       <ChapterDiagram name="CHART_PLL_LOOP">
         <p>
-          先看「主 PLL 路徑」那一框：DSM 的殘差 <code>x[n]</code> 進 DTC，DTC 依 <Tex>{'w\\cdot x'}</Tex> 產生補償延遲；PD 量到補償後剩下的誤差 <code>e[n]</code>
+          先看「主 PLL 路徑」那一框：DSM 的殘差 <Tex>{'x[n]'}</Tex> 進 DTC，DTC 依 <Tex>{'w\\cdot x'}</Tex> 產生補償延遲；PD 量到補償後剩下的誤差 <Tex>{'e[n]'}</Tex>
           （就是上一張圖的輸出）。再看「LMS 校正迴路」那一框的藍色三格：比較器只留下正負號，記為 <Tex>{'q_n=\\mathrm{sign}(e_n)'}</Tex>（<Tex>{'+1'}</Tex> 或{' '}
           <Tex>{'-1'}</Tex>）；GMAC 把 <Tex>{'N'}</Tex> 筆 <Tex>{'q_nx_n'}</Tex> 取平均，記為 <Tex>{'G_k'}</Tex>；最後每 <Tex>{'N'}</Tex> 筆更新一次 <Tex>{'w'}</Tex>。
-          最後看兩框之間的兩條線：主路徑把 <code>e[n]</code>、<code>x[n]</code> 交給校正迴路，校正迴路把 <Tex>{'w'}</Tex> 交回 DTC——這就是「預測 → 比較 → 修正」那一圈。
+          最後看兩框之間的兩條線：主路徑把 <Tex>{'e[n]'}</Tex>、<Tex>{'x[n]'}</Tex> 交給校正迴路，校正迴路把 <Tex>{'w'}</Tex> 交回 DTC——這就是「預測 → 比較 → 修正」那一圈。
         </p>
         <p>
-          注意圖上有兩種索引：<code>[n]</code> 是每一筆取樣（sample），<code>[k]</code> 是每 <Tex>{'N'}</Tex> 筆組成的一個 block——<code>x[n]、e[n]、q[n]</code> 每筆都在變，
-          <code>G[k]、w[k]</code> 每個 block 才變一次。圖上的「<code>w[k+1] = w[k] + μ·G[k]</code>」就是本章的 <Tex>{'w_{n+1}=w_n+\\mu e_nx_n'}</Tex> 做了兩個替換：
+          注意圖上有兩種索引：<Tex>{'[n]'}</Tex> 是每一筆取樣（sample），<Tex>{'[k]'}</Tex> 是每 <Tex>{'N'}</Tex> 筆組成的一個 block——<Tex>{'x[n],\\ e[n],\\ q[n]'}</Tex> 每筆都在變，
+          <Tex>{'G[k],\\ w[k]'}</Tex> 每個 block 才變一次。圖上的「<Tex>{'w[k+1] = w[k] + \\mu\\,G[k]'}</Tex>」就是本章的 <Tex>{'w_{n+1}=w_n+\\mu e_nx_n'}</Tex> 做了兩個替換：
           <Tex>{'e_n'}</Tex> 只留下正負號 <Tex>{'q_n'}</Tex>，而且先平均 <Tex>{'N'}</Tex> 筆（<Tex>{'G_k'}</Tex>）才更新一次。§0.9 會解釋這兩件事。
         </p>
       </ChapterDiagram>

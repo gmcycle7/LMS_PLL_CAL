@@ -180,7 +180,7 @@ const ROWS: SymbolEntry[] = [
   { symbol: 'f_r', meaning: md(String.raw`某個序列自己的取樣率（block 量用 $f_u$、sample 量用 $f_s$）`), unit: String.raw`\mathrm{Hz}`, firstSeen: '§12.6' },
   { symbol: String.raw`\delta t[n]=x[n]\delta w[n]`, meaning: 'DTC 實際多施加的延遲（gain noise 造成）', unit: String.raw`\mathrm{fs}`, firstSeen: '§12.0 → §12.6', note: <Erratum id="E33" /> },
   { symbol: String.raw`H_{\mathrm{PD}},\ T`, meaning: 'DTC 誤差到 PD residual（high-pass）與到 output（low-pass）的轉移', unit: '1', firstSeen: '§12.0 → §12.7' },
-  { symbol: 'L(s)', meaning: 'PLL 的開迴路增益（PD 增益 × loop filter × VCO 積分 ÷ 除數）', unit: '1', firstSeen: '§12.0 → §12.7' },
+  { symbol: 'L(s)', meaning: md(String.raw`PLL 的開迴路增益（PD 增益 $\times$ loop filter $\times$ VCO 積分 $\div$ 除數）`), unit: '1', firstSeen: '§12.0 → §12.7' },
   {
     symbol: String.raw`\phi_{\mathrm{dtc}},\ e_{\mathrm{PD}},\ \theta_{\mathrm{out}}`,
     meaning: md(String.raw`§12.7 推導用的相位：DTC 誤差的等效相位 $2\pi f_{\mathrm{out}}\delta t$、PD 看到的誤差、PLL 輸出相位`),

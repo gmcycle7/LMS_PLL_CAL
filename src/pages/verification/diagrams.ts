@@ -2,10 +2,14 @@
  * Verification 頁的方塊圖原始碼（docs/teaching-style.md §8；diagrams.test.tsx 以真正的 mermaid 解析並「畫出來」逐一檢查）。
  *
  * 規則：
- * - 節點文字用 Unicode 數學符號（Mermaid 不渲染 KaTeX）；含括號、等號、絕對值符號、斜線的文字一律用雙引號包住。
- * - 加法點是圓形節點，文字寫全形「＋」；每條進來的邊以「＋」或「−」（U+2212）開頭。
+ * - 節點與連線標籤裡的數學一律寫 `$...$`（LaTeX），共用的 <Mermaid> 元件用 KaTeX 排版（和正文同一套樣式）；文字、方塊名稱、程式碼名稱照常寫。
+ *   原始碼用 String.raw 樣板字串，TeX 的反斜線只寫一次；換行用 `<br/>`，標籤內不用雙反斜線；
+ *   標籤的數學裡不用 ASCII 的 < >（Mermaid 會先把它們轉成 HTML 實體），不等式寫 `\lt` `\gt` `\le` `\ge`。
+ *   含括號、等號、絕對值符號、斜線的文字一律用雙引號包住。
+ * - 加法點是圓形節點，文字寫全形「＋」；每條進來的邊以「＋」或「−」（U+2212）開頭，標籤裡還有公式時把正負號放進數學（`$+\,\varepsilon_{\mathrm{rel}}\,|e_k|$`）。
  *   Mermaid 11 把標籤當 Markdown：單獨的 ASCII「+」「-」會被當成清單，畫面上變成「Unsupported markdown: list」。
  * - 顏色在深淺主題下都看得清楚：藍 = 本張圖的主角、綠 = 通過、紅 = 不通過／出錯、棕 = 需要小心的分支。
+ * - 版面（docs/teaching-style.md §8）：桌機正文欄約 900px，圖要完整放進去、不需要橫向捲動，所以四張圖都由上到下（`flowchart TB`／`TD`，自然寬度 450–650px）。
  * - 四張圖各對應程式裡的一個函式或一份資料，測試會逐一核對：
  *     CHART_TOLERANCE   ↔ src/simulation/models/acceptance.ts 的 toleranceBound／diffNumeric（F-VF.1）
  *     CHART_PIPELINE    ↔ golden/、src/simulation/models/、scripts/verify.mjs、src/data/verification-status.json
@@ -22,18 +26,18 @@ const WARN = 'classDef warn fill:#b42318,stroke:#7a160f,color:#ffffff,stroke-wid
 /**
  * §V.1：一個元素怎麼判定通過（F-VF.1；與 numpy.isclose 同一條規則）。
  * Δ = a_k − e_k（網站為正、golden 為負）；b_k = ε_abs + ε_rel·|e_k|；通過 ⇔ |Δ| ≤ b_k。
- * 上排是誤差，下排是容許量；e_k 同時進入兩條路，這就是「接近 0 靠絕對項、很大靠相對項」的原因。
+ * 左邊那條路是誤差，右邊那條路是容許量；e_k 同時進入兩條路，這就是「接近 0 靠絕對項、很大靠相對項」的原因。
  */
-export const CHART_TOLERANCE = `flowchart LR
-  A(["a_k<br/>網站即時算出<br/>（actual）"]) -- "＋" --> D(("＋"))
-  E(["e_k<br/>golden 的期望值<br/>（expected）"]) -- "−" --> D
-  D -- "a_k − e_k" --> ABS["取絕對值<br/>|Δ| = |a_k − e_k|"]
-  ABS --> CMP{"|Δ| ≤ b_k ？"}
-  E --> AE["|e_k|"]
-  AE --> REL["× ε_rel<br/>相對項"]
-  REL -- "＋ ε_rel·|e_k|" --> B(("＋"))
-  EA(["ε_abs<br/>絕對項"]) -- "＋" --> B
-  B -- "b_k = ε_abs + ε_rel·|e_k|" --> CMP
+export const CHART_TOLERANCE = String.raw`flowchart TB
+  A(["$a_k$<br/>網站即時算出<br/>（actual）"]) -- "＋" --> D(("＋"))
+  E(["$e_k$<br/>golden 的期望值<br/>（expected）"]) -- "−" --> D
+  D -- "$a_k - e_k$" --> ABS["取絕對值<br/>$|\Delta| = |a_k - e_k|$"]
+  ABS --> CMP{"$|\Delta| \le b_k$ ？"}
+  E --> AE["$|e_k|$"]
+  AE --> REL["$\times\,\varepsilon_{\mathrm{rel}}$<br/>相對項"]
+  REL -- "$+\,\varepsilon_{\mathrm{rel}}\,|e_k|$" --> B(("＋"))
+  EA(["$\varepsilon_{\mathrm{abs}}$<br/>絕對項"]) -- "＋" --> B
+  B -- "$b_k = \varepsilon_{\mathrm{abs}} + \varepsilon_{\mathrm{rel}}\,|e_k|$" --> CMP
   CMP -- "是" --> OK["通過"]
   CMP -- "否" --> BAD["不一致"]
   ${FOCUS}
@@ -44,7 +48,7 @@ export const CHART_TOLERANCE = `flowchart LR
   class BAD warn`
 
 /** §V.5：一個 T-id 從「寫測試」到「顯示 verified」要走過的路（只有 TestBadge 讀 verification-status.json）。 */
-export const CHART_PIPELINE = `flowchart LR
+export const CHART_PIPELINE = `flowchart TB
   S["規格 §17<br/>T01–T18"] --> V["docs/validation.md<br/>${ERRATA.length} 項勘誤"]
   V --> PY["Python golden<br/>NumPy / SciPy"]
   PY --> J["golden/vectors<br/>Txx.json"]
@@ -86,7 +90,7 @@ export const CHART_STATUS = `flowchart TD
  * §V.6：規格書的一項聲明怎麼變成網站上的一張勘誤卡片，以及「即時重算證據」只有部分勘誤才有。
  * 上半是 docs/validation.md 的稽核流程（稽核者重算 → 懷疑者反駁），下半是網站怎麼用它（errata.json → 各章標記與本頁卡片）。
  */
-export const CHART_ERRATA_FLOW = `flowchart LR
+export const CHART_ERRATA_FLOW = `flowchart TB
   SPEC["規格書的一項聲明<br/>公式、數值或穩定性"] --> AUD["稽核 agent<br/>用 Python 重算"]
   AUD --> Q1{"重算結果<br/>與規格一致？"}
   Q1 -- "一致" --> OK["不需要勘誤"]
@@ -94,8 +98,8 @@ export const CHART_ERRATA_FLOW = `flowchart LR
   SK -- "能反駁" --> REF["已反駁<br/>不列為勘誤"]
   SK -- "反駁失敗" --> E["勘誤 Exx<br/>docs/validation.md"]
   E --> J["src/data/errata.json"]
-  J --> SITE["網站一律採用修正後版本<br/>各章的「勘誤 Exx」標記連到本頁"]
-  J --> EV["computeErrataEvidence()<br/>部分勘誤：重算文件引用的數字"]
+  J --> SITE["網站一律採用修正後版本<br/>各章的「勘誤 Exx」標記<br/>連到本頁"]
+  J --> EV["computeErrataEvidence()<br/>部分勘誤：<br/>重算文件引用的數字"]
   EV --> CARD["本頁的勘誤卡片<br/>#/verification?e=Exx"]
   SITE --> CARD
   ${FOCUS}

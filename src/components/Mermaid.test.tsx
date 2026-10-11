@@ -33,7 +33,7 @@ describe('Mermaid', () => {
     expect(screen.getByText('訊號流')).toBeTruthy()
   })
 
-  it('深色主題使用 mermaid 的 dark theme', async () => {
+  it('深色主題：用同一套 base 主題，配色換成深色（darkMode）', async () => {
     localStorage.setItem('lmspll.theme', 'dark')
     const { container } = render(
       <SettingsProvider>
@@ -41,7 +41,9 @@ describe('Mermaid', () => {
       </SettingsProvider>,
     )
     await waitFor(() => expect(container.querySelector('.c-mermaid-svg svg')).toBeTruthy())
-    expect(mermaidMock.initialize).toHaveBeenLastCalledWith(expect.objectContaining({ theme: 'dark' }))
+    expect(mermaidMock.initialize).toHaveBeenLastCalledWith(
+      expect.objectContaining({ theme: 'base', themeVariables: expect.objectContaining({ darkMode: true, primaryTextColor: '#e6ebf1' }) }),
+    )
   })
 
   it('語法錯誤時以 callout 顯示錯誤訊息', async () => {

@@ -22,7 +22,7 @@ export function WrapUp() {
         </p>
         <Mermaid
           chart={CHART_SYNTHESIS_FLOW}
-          caption={String.raw`綜合手算的計算順序（預設數字）。先看左支（藍色）：Freeze 與兩階切換的「總 RMS」，Freeze 比較小；再看右邊兩支（綠色）：只算「頻帶內」時，Stochastic 剩 $0.0099\,\mathrm{fs}$、ΔΣ 只剩 $0.00036\,\mathrm{fs}$，排序反過來。`}
+          caption={String.raw`綜合手算的計算順序（預設數字）。先看藍色的兩格：Freeze 與兩階切換各自的「總 RMS」，Freeze 比較小；再看綠色的兩格（最下面右邊）：只算「頻帶內」時，Stochastic 剩 $0.0099\,\mathrm{fs}$、ΔΣ 只剩 $0.00036\,\mathrm{fs}$，排序反過來。`}
         />
         <p className="small ch13-figwalk">
           圖上每一格對應下面手算題的一到三個步驟：<Tex>{String.raw`\Delta_\mathrm{LSB}\,|\delta w|\,x_\mathrm{rms}`}</Tex> 是公式裡的 <Tex>{String.raw`\sigma_{\delta t}^{(A)}`}</Tex>，<Tex>{String.raw`e_\mathrm{rms}`}</Tex> 是兩階切換的 RMS code 誤差{' '}
@@ -142,7 +142,7 @@ export function WrapUp() {
       <Section kind="diagram" title="連結到 PLL：這些數學在硬體的哪裡？" level={2} id="ch13-pll">
         <Mermaid
           chart={CHART_HARDWARE_MAP}
-          caption="校正邏輯（code 更新率的 clock domain）到 DTC 與 PLL 輸出的路徑。先看左邊的框：LMS accumulator 與量化策略都在 $f_u$ domain；再看跨到右邊的那條線：6-bit code 要經過 CDC 才到 $f_s$ domain 的 gain register。"
+          caption="校正邏輯（code 更新率的 clock domain）到 DTC 與 PLL 輸出的路徑。先看上面的框：LMS accumulator 與量化策略都在 $f_u$ domain；再看跨出框的那條線：6-bit code 要經過 CDC 才到 $f_s$ domain 的 gain register。"
           ariaLabel="LMS accumulator 經量化策略產生 6-bit code，跨 clock domain 到 DTC gain register，與 DSM residue 一起決定 DTC 延遲，再經 PLL 的 low-pass 到輸出"
         />
         <p className="small">

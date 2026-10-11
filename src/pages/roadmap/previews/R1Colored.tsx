@@ -45,8 +45,8 @@ const INLINE_PRESETS: ExperimentPreset[] = [
 ]
 
 // Plot 的 layout 是靜態的：放在模組層，避免每次 render 產生新物件而觸發 Plotly.react
-const LAYOUT_CURVE: Partial<Layout> = { xaxis: { title: { text: 'ρ（η 的 AR(1) 係數）' } }, yaxis: { title: { text: 'σ_w [fs]' } } }
-const LAYOUT_PSD: Partial<Layout> = { xaxis: { title: { text: 'f [Hz]（block rate f_u）' } }, yaxis: { title: { text: 'fs²/Hz' } } }
+const LAYOUT_CURVE: Partial<Layout> = { xaxis: { title: { text: '$\\rho$（$\\eta$ 的 AR(1) 係數）' } }, yaxis: { title: { text: '$\\sigma_w$ [fs]' } } }
+const LAYOUT_PSD: Partial<Layout> = { xaxis: { title: { text: '$f$ [Hz]（block rate $f_u$）' } }, yaxis: { title: { text: '$\\mathrm{fs}^2/\\mathrm{Hz}$' } } }
 
 /** 先算一次：T13 條件下 ρ = 0、0.5、−0.5 的 σ_w（全部由 model 計算） */
 export function useR1HandCalc() {
@@ -121,7 +121,7 @@ function R1Experiment() {
   const mcUsable = !!active?.mc && active.mc.burnInAdequate
 
   const metrics: MetricRow[] = [
-    { name: '$K=K_qC$', value: K, unit: 'fs⁻¹', claim: 'approx', note: 'Gaussian 小訊號增益（第 5 章）' },
+    { name: '$K=K_qC$', value: K, unit: String.raw`$\mathrm{fs}^{-1}$`, claim: 'approx', note: 'Gaussian 小訊號增益（第 5 章）' },
     { name: String.raw`$g=\mu K$`, value: g, unit: '—' },
     { name: '$p=1-g$', value: p, unit: '—', analytic: 1 - dP.mu * K, tolerance: 1e-15 },
     { name: String.raw`$\sigma_\eta^2=1/N$`, value: sigmaEta2, unit: '—', note: String.raw`$x=\pm1$ 時精確值為 $(1-m^2)/N$（勘誤 E30）` },
@@ -129,12 +129,12 @@ function R1Experiment() {
   ]
   if (active && stable) {
     metrics.push(
-      { name: String.raw`Case ${active.id}：$\sigma_w^2$ 封閉式（$\rho=${active.rho}$）`, value: active.closed, unit: 'fs²', formulaId: 'F-R1.1', claim: 'exact' },
-      { name: String.raw`Case ${active.id}：$\sigma_w^2$ Lyapunov`, value: active.lyap, unit: 'fs²', formulaId: 'F-R1.2', analytic: active.closed, tolerance: 1e-9, toleranceMode: 'rel', claim: 'exact' },
+      { name: String.raw`Case ${active.id}：$\sigma_w^2$ 封閉式（$\rho=${active.rho}$）`, value: active.closed, unit: String.raw`$\mathrm{fs}^2$`, formulaId: 'F-R1.1', claim: 'exact' },
+      { name: String.raw`Case ${active.id}：$\sigma_w^2$ Lyapunov`, value: active.lyap, unit: String.raw`$\mathrm{fs}^2$`, formulaId: 'F-R1.2', analytic: active.closed, tolerance: 1e-9, toleranceMode: 'rel', claim: 'exact' },
       {
         name: String.raw`Case ${active.id}：$\sigma_w^2$ Monte Carlo`,
         value: active.mc?.meanSq ?? null,
-        unit: 'fs²',
+        unit: String.raw`$\mathrm{fs}^2$`,
         analytic: mcUsable ? active.closed : undefined,
         tolerance: mcUsable && active.mc ? Math.max(active.mc.hi - active.mc.meanSq, active.mc.meanSq - active.mc.lo) + 0.02 * active.closed : undefined,
         claim: 'approx',
@@ -142,7 +142,7 @@ function R1Experiment() {
           ? String.raw`95% CI $[${n4(active.mc.lo)},\ ${n4(active.mc.hi)}]$（${active.mc.chains} chains，每條 ${active.mc.blocks} blocks，burn-in ${active.mc.burnIn}${active.mc.burnInAdequate ? '' : '：不足，不判定'}）`
           : undefined,
       },
-      { name: String.raw`Case ${active.id}：$\int S_w^{(1)}(f)\,df$（Parseval）`, value: active.psd?.integral ?? null, unit: 'fs²', analytic: active.closed, tolerance: 0.01, toleranceMode: 'rel', note: '4001 點梯形法' },
+      { name: String.raw`Case ${active.id}：$\int S_w^{(1)}(f)\,df$（Parseval）`, value: active.psd?.integral ?? null, unit: String.raw`$\mathrm{fs}^2$`, analytic: active.closed, tolerance: 0.01, toleranceMode: 'rel', note: '4001 點梯形法' },
       {
         name: String.raw`Case ${active.id}：$\sigma_w/\sigma_{w,\mathrm{white}}$`,
         value: Math.sqrt(active.closed / white),
@@ -155,7 +155,7 @@ function R1Experiment() {
   }
 
   const curveData: Data[] = useMemo(() => {
-    const d: Data[] = [{ x: rhoGrid, y: curve, name: 'σ_w(ρ) 封閉式', mode: 'lines', line: { color: tokens.textMuted } }]
+    const d: Data[] = [{ x: rhoGrid, y: curve, name: '$\\sigma_w(\\rho)$ 封閉式', mode: 'lines', line: { color: tokens.textMuted } }]
     for (const r of results) {
       if (!r.mc) continue
       const m = Math.sqrt(r.mc.meanSq)
@@ -175,7 +175,7 @@ function R1Experiment() {
     () =>
       results
         .filter((r) => r.psd)
-        .map((r) => ({ x: r.psd!.f, y: r.psd!.s1, name: `Case ${r.id}（ρ = ${r.rho}）`, mode: 'lines', line: { color: tokens.series[r.seriesIndex] } })),
+        .map((r) => ({ x: r.psd!.f, y: r.psd!.s1, name: `Case ${r.id}（$\\rho = ${r.rho}$）`, mode: 'lines', line: { color: tokens.series[r.seriesIndex] } })),
     [results, tokens],
   )
 

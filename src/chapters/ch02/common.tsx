@@ -135,7 +135,7 @@ export function HandCalcSlot({ id, children }: { id: string; children?: ReactNod
 /**
  * 方塊圖（docs/teaching-style.md §8）：依 ID 從 diagrams.ts 取出 Mermaid 原始碼與圖說。
  * children 是緊跟在圖後面的「看圖說明」：先看哪裡、再看哪裡，以及圖上的訊號對應公式裡的哪個符號
- * （圖內的節點文字不渲染 KaTeX，用 Unicode 數學符號；這段說明與圖說裡的數學都用 `$...$`）。
+ * （圖內的標籤、圖說與這段說明裡的數學都用 `$...$`，由 KaTeX 排版）。
  */
 export function Diagram({ id, children }: { id: DiagramId; children?: ReactNode }) {
   const d = DIAGRAM_BY_ID[id]

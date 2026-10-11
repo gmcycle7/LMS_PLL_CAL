@@ -75,7 +75,7 @@ export function Intro() {
 
       <h3>1.1 一個 preset 長什麼樣子</h3>
       <div className="table-wrap">
-        <table className="gal-table">
+        <table className="gal-table gal-fields-table">
           <thead>
             <tr>
               <th>欄位</th>
@@ -98,7 +98,7 @@ export function Intro() {
           </tbody>
         </table>
       </div>
-      <Mermaid chart={PRESET_FLOW} caption="一個 preset 的兩條路：左邊到原頁面做完整實驗；右邊在 Gallery 內用同一組模型函式重算，並與預期文字比對。" ariaLabel="preset 從 JSON 到卡片、到原頁面或即時預覽的流程圖" />
+      <Mermaid chart={PRESET_FLOW} caption="一個 preset 的兩條路：按「載入並執行」到原頁面做完整實驗；「即時預覽」在 Gallery 內用同一組模型函式重算，並與預期文字比對。" ariaLabel="preset 從 JSON 到卡片、到原頁面或即時預覽的流程圖" />
       <ModeGate min="engineer">
         <p className="small">
           為什麼要「重算再比對」？因為 preset 的預期文字是人寫的，模型程式之後可能被修改。規格 §17 末段要求一種反面測試：<strong>「模型公式有錯，UI 卻顯示成功」</strong>。如果 Gallery

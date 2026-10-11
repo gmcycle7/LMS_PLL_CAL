@@ -27,7 +27,8 @@ const INLINE_PRESETS = [
   { name: '無雜訊 σ = 0：三者都收斂到同一個 a', params: { ...DEFAULT, sigma: 0 } },
 ]
 
-const METHOD_LABEL: Record<BatchMethod, string> = { batch: 'Batch GD（B = N）', minibatch: 'Mini-batch', sgd: 'SGD / LMS（B = 1）' }
+/** 圖例名稱（Plot 會把 `$...$` 轉成斜體符號） */
+const METHOD_LABEL: Record<BatchMethod, string> = { batch: 'Batch GD（$B=N$）', minibatch: 'Mini-batch', sgd: 'SGD / LMS（$B=1$）' }
 const METHOD_SERIES: Record<BatchMethod, number> = { batch: 0, minibatch: 2, sgd: 1 }
 
 function sanitize(p: Record<string, unknown>): P {
@@ -63,8 +64,8 @@ export function BatchVsSgd() {
           line: { color: tokens.series[METHOD_SERIES[t.method]], width: t.method === 'sgd' ? 1 : 2 },
         }),
       ),
-      { x: [0, total], y: [res.wLs, res.wLs], name: 'w_LS = Σxy/Σx²', mode: 'lines', line: { dash: 'dash', color: tokens.textMuted } },
-      { x: [0, total], y: [dp.a, dp.a], name: 'a', mode: 'lines', line: { dash: 'dot', color: tokens.textFaint } },
+      { x: [0, total], y: [res.wLs, res.wLs], name: String.raw`$w_{LS}=\sum x_iy_i/\sum x_i^2$`, mode: 'lines', line: { dash: 'dash', color: tokens.textMuted } },
+      { x: [0, total], y: [dp.a, dp.a], name: '$a$', mode: 'lines', line: { dash: 'dot', color: tokens.textFaint } },
     ],
     [res, tokens, total, dp.a],
   )
@@ -145,23 +146,23 @@ export function BatchVsSgd() {
         <>
           <ParamControl {...lab(String.raw`資料筆數 $N$`, '資料筆數 N')} unit="samples" value={p.nData} onChange={(v) => set('nData', v)} min={10} max={2000} integer clampOnBlur reg="GMAC block length（類比）" />
           <ParamControl {...lab(String.raw`mini-batch 大小 $B$`, 'mini-batch 大小 B')} unit="samples" value={p.batch} onChange={(v) => set('batch', v)} min={2} max={1000} integer clampOnBlur reg="REG_GMAC_N（類比）" hint={tm('$B=N$ 就是 batch；$B=1$ 就是 SGD')} />
-          <ParamControl {...lab(String.raw`$\mu$（步長）`, 'μ（步長）')} unit="1/[x]^2" value={p.mu} onChange={(v) => set('mu', v)} min={1e-4} max={3} log reg="REG_LMS_MU" />
+          <ParamControl {...lab(String.raw`$\mu$（步長）`, 'μ（步長）')} unit="$1/[x]^2$" value={p.mu} onChange={(v) => set('mu', v)} min={1e-4} max={3} log reg="REG_LMS_MU" />
           <ParamControl label="epochs" unit="epochs" value={p.epochs} onChange={(v) => set('epochs', v)} min={1} max={50} integer clampOnBlur reg="sim length" />
-          <ParamControl {...lab(String.raw`$\sigma_v$（雜訊標準差）`, 'σ（雜訊標準差）')} unit="同 y" value={p.sigma} onChange={(v) => set('sigma', v)} min={0} max={5} step={0.01} reg="behavioural: sigma_v" />
+          <ParamControl {...lab(String.raw`$\sigma_v$（雜訊標準差）`, 'σ（雜訊標準差）')} unit="同 $y$" value={p.sigma} onChange={(v) => set('sigma', v)} min={0} max={5} step={0.01} reg="behavioural: sigma_v" />
           <ParamControl {...lab(String.raw`$\sigma_x$（$x$ 的標準差）`, 'σₓ（x 標準差）')} unit="無因次" value={p.xSigma} onChange={(v) => set('xSigma', v)} min={0} max={3} step={0.01} reg="behavioural: code scale" />
-          <ParamControl {...lab(String.raw`$a$（真實係數）`, 'a（真實係數）')} unit="同 y/x" value={p.a} onChange={(v) => set('a', v)} min={-10} max={10} step={0.1} reg="behavioural: true gain a" />
-          <ParamControl {...lab(String.raw`$w_0$（初值）`, 'w₀（初值）')} unit="同 a" value={p.w0} onChange={(v) => set('w0', v)} min={-10} max={10} step={0.1} reg="REG_W_INIT" />
+          <ParamControl {...lab(String.raw`$a$（真實係數）`, 'a（真實係數）')} unit="同 $y/x$" value={p.a} onChange={(v) => set('a', v)} min={-10} max={10} step={0.1} reg="behavioural: true gain a" />
+          <ParamControl {...lab(String.raw`$w_0$（初值）`, 'w₀（初值）')} unit="同 $a$" value={p.w0} onChange={(v) => set('w0', v)} min={-10} max={10} step={0.1} reg="REG_W_INIT" />
         </>
       }
     >
-      <Plot title="$w$ vs 已使用樣本數" data={wData} height={300} csvName="batch-vs-sgd-w" layout={{ xaxis: { title: { text: '已使用樣本數（梯度計算次數）' } }, yaxis: { title: { text: 'w' } } }} />
+      <Plot title="$w$ vs 已使用樣本數" data={wData} height={300} csvName="batch-vs-sgd-w" layout={{ xaxis: { title: { text: '已使用樣本數（梯度計算次數）' } }, yaxis: { title: { text: '$w$' } } }} />
       <Plot
         title={String.raw`經驗成本差 $\hat J(w)-\hat J(w_{LS})$（log）`}
         data={cData}
         yLog
         height={260}
         csvName="batch-vs-sgd-cost"
-        layout={{ xaxis: { title: { text: '已使用樣本數' } }, yaxis: { title: { text: 'Ĵ(w) − Ĵ_min' } } }}
+        layout={{ xaxis: { title: { text: '已使用樣本數' } }, yaxis: { title: { text: String.raw`$\hat J(w)-\hat J_{\min}$` } } }}
         caption={String.raw`$\hat J(w)-\hat J_{\min}=\tfrac12\hat P_x\,(w-w_{LS})^2$：曲線就是 $(w-w_{LS})^2$ 乘上常數`}
       />
       <ul className="ch02-try">

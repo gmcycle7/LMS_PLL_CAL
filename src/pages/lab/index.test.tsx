@@ -6,6 +6,7 @@ import { SettingsProvider } from '@/app/settings'
 import { extractRegion, listRegions } from '@/components'
 import blockSrc from '@/simulation/models/blockLms.ts?raw'
 import labSrc from '@/simulation/models/unifiedLab.ts?raw'
+import { unicodeMathIn } from '@/components/mermaidTestUtils'
 import { LAB_CHARTS } from './diagrams'
 import { FORMULAS } from './formulas'
 import LabPage from './index'
@@ -444,8 +445,27 @@ describe('Pipeline 分頁：實際執行（jsdom 下 worker 以 inline 模式跑
     const lin = traces.find((tr) => (tr.name ?? '').includes('線性時不變模型'))
     expect(lin).toBeDefined()
     expect(lin?.visible).toBe(true)
-    // 圖例與軸標題是純文字（Plotly 不渲染 KaTeX）：不可以出現 $…$
-    for (const tr of traces) expect(tr.name ?? '').not.toMatch(/\$/)
+    // 圖例與軸標題：作者寫 `$...$`（LaTeX），<Plot> 先用 plotMath 轉成 Plotly 的 pseudo-HTML（斜體符號與上下標）——送進 Plotly 的字串不可殘留 `$`、反斜線或大括號
+    const shown = P.react.mock.calls.flatMap((c) => {
+      const [, data, layout] = c as unknown as [unknown, { name?: string }[], { xaxis?: { title?: { text?: string } }; yaxis?: { title?: { text?: string } } }?]
+      return [...data.map((t) => t.name ?? ''), layout?.xaxis?.title?.text ?? '', layout?.yaxis?.title?.text ?? '']
+    })
+    expect(shown.filter(Boolean).length).toBeGreaterThan(8)
+    for (const t of shown) expect(t, t).not.toMatch(/[$\\{}]/)
+    // 斜體符號與下標：w_k 的圖例是 <i>w</i><sub><i>k</i></sub>，a 的圖例是 <i>a</i>，軸標題 block <i>k</i>
+    expect(shown).toContain('<i>w</i><sub><i>k</i></sub>（內部暫存器）')
+    expect(shown.some((t) => t.startsWith('<i>a</i>（真實 gain 誤差）'))).toBe(true)
+    expect(shown).toContain('block <i>k</i>')
+    expect(shown.some((t) => t.includes('<i>w</i><sup>∗</sup>'))).toBe(true)
+    // 控制項的 label／unit／hint 與指標表：KaTeX 以外的文字沒有 Unicode 拼的數學（只有 Plotly 與 <option> 是純文字例外）
+    const plainOf = (el: Element) => {
+      const copy = el.cloneNode(true) as Element
+      copy.querySelectorAll('.katex').forEach((k) => k.remove())
+      return (copy.textContent ?? '').replace(/\b[A-Za-z]+(?:_[A-Za-z0-9]+)+\b/g, ' ')
+    }
+    for (const el of Array.from(sh().querySelectorAll('.c-param-label, .c-param-unit, .c-param-hint, .c-metric-table tbody th, .c-metric-table tbody td'))) {
+      expect(unicodeMathIn(plainOf(el)), `「${el.textContent}」（${el.className}）`).toEqual([])
+    }
   }, 90_000)
 
   it('T13 錨點 preset：輸出是白雜訊，tone 表不列任何譜線，並寫出偵測的判據（prominence 與「高於鄰近中位數」）', async () => {

@@ -178,7 +178,7 @@ function SspllExperiment() {
           ({
             x: [Math.max(lo, scan.f[0]), hi, hi, Math.max(lo, scan.f[0]), Math.max(lo, scan.f[0])],
             y: [yLo, yLo, 2.2, 2.2, yLo],
-            name: '反號帶 Re{H_PD} < 0',
+            name: '反號帶 $\\mathrm{Re}\\,H_{\\mathrm{PD}} \\lt 0$',
             mode: 'lines',
             fill: 'toself',
             fillcolor: 'rgba(200, 60, 40, 0.14)',
@@ -187,36 +187,36 @@ function SspllExperiment() {
             showlegend: i === 0,
           }) as Data,
       ),
-      { x: scan.f, y: scan.reH, name: 'Re{H_PD}（freqz）', mode: 'lines', line: { color: tokens.series[0], width: 2 } },
-      { x: scan.f, y: scan.reHIdentity, name: '(1 + Re L)/|1 + L|²', mode: 'lines', line: { color: tokens.series[1], dash: 'dot' } },
+      { x: scan.f, y: scan.reH, name: '$\\mathrm{Re}\\,H_{\\mathrm{PD}}$（freqz）', mode: 'lines', line: { color: tokens.series[0], width: 2 } },
+      { x: scan.f, y: scan.reHIdentity, name: '$(1 + \\mathrm{Re}\\,L)/|1 + L|^2$', mode: 'lines', line: { color: tokens.series[1], dash: 'dot' } },
       { x: scan.f, y: Array.from(scan.asym).map((v) => (Math.abs(v) <= 2.2 ? v : null)), name: '低頻漸近式', mode: 'lines', line: { color: tokens.textMuted, dash: 'dash' } },
       { x: [scan.f[0], scan.f[scan.f.length - 1]], y: [sure.threshold, sure.threshold], name: 'mode-1「一定反號」門檻', mode: 'lines', line: { color: tokens.series[4], dash: 'dashdot', width: 1 } },
-      { x: [fRot], y: [reRot], name: 'PMUX 旋轉頻率 αf_ref', mode: 'markers', marker: { size: 11, symbol: 'diamond', color: tokens.series[3] } },
+      { x: [fRot], y: [reRot], name: 'PMUX 旋轉頻率 $\\alpha f_{\\mathrm{ref}}$', mode: 'markers', marker: { size: 11, symbol: 'diamond', color: tokens.series[3] } },
     ],
     [scan, sure.threshold, fRot, reRot, tokens, yLo],
   )
   const bandShapes: Partial<Layout> = useMemo(
     () => ({
       shapes: [{ type: 'line' as const, xref: 'paper' as const, yref: 'y' as const, x0: 0, x1: 1, y0: 0, y1: 0, line: { color: tokens.textMuted, width: 1 } }],
-      xaxis: { title: { text: 'f [Hz]（PD 取樣率 f_ref）' } },
-      yaxis: { title: { text: 'Re{H_PD}' }, range: [yLo, 2.2] },
+      xaxis: { title: { text: '$f$ [Hz]（PD 取樣率 $f_{\\mathrm{ref}}$）' } },
+      yaxis: { title: { text: '$\\mathrm{Re}\\,H_{\\mathrm{PD}}$' }, range: [yLo, 2.2] },
     }),
     [tokens, yLo],
   )
   const mapData: Data[] = useMemo(
     () => [
-      { x: sweep.map((s) => s.f), y: sweep.map((s) => s.r.kappaPhos1), name: 'PHOS mode-1：κ₁（DFT，exact）', mode: 'lines+markers', marker: { size: 4 }, line: { color: tokens.series[0] } },
-      { x: sweep.map((s) => s.f), y: sweep.map((s) => PMUX_W1 * s.re), name: 'W₁·Re{H_PD(αf_ref)}（基波近似）', mode: 'lines', line: { color: tokens.series[1], dash: 'dash' } },
-      { x: sweep.map((s) => s.f), y: sweep.map((s) => s.r.twelveCGos), name: 'GOS：12C', mode: 'lines+markers', marker: { size: 4, symbol: 'square' }, line: { color: tokens.series[2] } },
-      { x: [fRot], y: [pm.kappaPhos1], name: '目前 α', mode: 'markers', marker: { size: 11, symbol: 'diamond', color: tokens.series[3] } },
+      { x: sweep.map((s) => s.f), y: sweep.map((s) => s.r.kappaPhos1), name: 'PHOS mode-1：$\\kappa_1$（DFT，exact）', mode: 'lines+markers', marker: { size: 4 }, line: { color: tokens.series[0] } },
+      { x: sweep.map((s) => s.f), y: sweep.map((s) => PMUX_W1 * s.re), name: '$W_1\\,\\mathrm{Re}\\,H_{\\mathrm{PD}}(\\alpha f_{\\mathrm{ref}})$（基波近似）', mode: 'lines', line: { color: tokens.series[1], dash: 'dash' } },
+      { x: sweep.map((s) => s.f), y: sweep.map((s) => s.r.twelveCGos), name: 'GOS：$12C$', mode: 'lines+markers', marker: { size: 4, symbol: 'square' }, line: { color: tokens.series[2] } },
+      { x: [fRot], y: [pm.kappaPhos1], name: '目前 $\\alpha$', mode: 'markers', marker: { size: 11, symbol: 'diamond', color: tokens.series[3] } },
     ],
     [sweep, fRot, pm.kappaPhos1, tokens],
   )
   const mapLayout: Partial<Layout> = useMemo(
     () => ({
       shapes: [{ type: 'line' as const, xref: 'paper' as const, yref: 'y' as const, x0: 0, x1: 1, y0: 0, y1: 0, line: { color: tokens.textMuted, width: 1 } }],
-      xaxis: { title: { text: 'αf_ref [Hz]（PMUX 旋轉頻率）' } },
-      yaxis: { title: { text: '正規化斜率（> 0：極性正確）' } },
+      xaxis: { title: { text: '$\\alpha f_{\\mathrm{ref}}$ [Hz]（PMUX 旋轉頻率）' } },
+      yaxis: { title: { text: '正規化斜率（$\\gt 0$：極性正確）' } },
     }),
     [tokens],
   )

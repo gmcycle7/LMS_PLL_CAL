@@ -590,16 +590,16 @@ export const BOOK_TOPICS: BookTopic[] = [
 
 /** 閱讀路線圖（Mermaid flowchart；diagram 測試以真正的 mermaid parser 驗證語法）。 */
 export const READING_PATH_CHART = `flowchart TD
-  S0["本站 Ch00–Ch03：LMS、mean / mean-square"] --> D7["D7 Mandic 講義：eigenvalue 與收斂"]
-  D7 --> TB["教科書的 LMS 章節：Widrow & Stearns / Haykin / Sayed"]
-  TB --> D1["D1 Vo 2019：DTC PLL 的 LMS gain variation"]
+  S0["本站 Ch00–Ch03：<br/>LMS、mean / mean-square"] --> D7["D7 Mandic 講義：<br/>eigenvalue 與收斂"]
+  D7 --> TB["教科書的 LMS 章節：<br/>Widrow & Stearns / Haykin / Sayed"]
+  TB --> D1["D1 Vo 2019：<br/>DTC PLL 的 LMS gain variation"]
   S1["本站 Ch04、Ch05、Ch12"] --> D1
-  TB --> D3["D3 Vaudrey et al. 2003：回授 LMS 的穩定性"]
+  TB --> D3["D3 Vaudrey et al. 2003：<br/>回授 LMS 的穩定性"]
   S2["本站 Ch06–Ch08"] --> D3
-  D3 --> D2["D2 Fraanje et al. 2007：FxLMS 收斂必要條件"]
+  D3 --> D2["D2 Fraanje et al. 2007：<br/>FxLMS 收斂必要條件"]
   S3["本站 Ch09–Ch10"] --> D2
-  S4["本站 Ch13"] --> D5["D5 Kennedy et al. 2015：PRBS dither 的 spurs"]
-  D5 --> D6["D6 Tan et al. 2017：subtractive dither"]
-  D1 --> D4["D4 Gurbaxani et al. 2026：DTC DPLL 晶片實例"]
+  S4["本站 Ch13"] --> D5["D5 Kennedy et al. 2015：<br/>PRBS dither 的 spurs"]
+  D5 --> D6["D6 Tan et al. 2017：<br/>subtractive dither"]
+  D1 --> D4["D4 Gurbaxani et al. 2026：<br/>DTC DPLL 晶片實例"]
   D2 --> D4
   D6 --> D4`

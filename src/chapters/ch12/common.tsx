@@ -101,7 +101,7 @@ export function Hand({ id, children }: { id: string; children: ReactNode }) {
 
 /**
  * 方塊圖 + 導讀（docs/teaching-style.md §8）：圖放在白話說明之後、推導之前。
- *  - chart：diagrams.ts 匯出的 Mermaid 原始碼（Mermaid 不渲染 KaTeX，圖內用 Unicode 數學符號）；
+ *  - chart：diagrams.ts 匯出的 Mermaid 原始碼（圖內標籤的數學寫 `$...$`，由共用的 Mermaid 元件以 KaTeX 排版）；
  *  - caption：一句話說明要看什麼；圖說支援 `$...$` 行內 KaTeX，所以圖對應的那條方程式直接寫在圖說裡（不用 Unicode 拼公式）；
  *  - children：「先看…再看…」的導讀，以及「圖上的 X 就是公式裡的 x」的對照（這裡的數學照常用 KaTeX）。
  */

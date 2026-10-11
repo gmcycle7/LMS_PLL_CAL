@@ -96,7 +96,7 @@ const CHECK_ROWS: { key: keyof PipelineChecks; name: string; what: string }[] = 
   { key: 'code', name: 'code 統計', what: '$E[x]$、$E[x^2]$ vs 一階 DSM 封閉式' },
   { key: 'meanW', name: 'mean $w$', what: '後半段平均 vs mean-field 平均軌跡的同段預測（F-LAB.18）' },
   { key: 'sigmaW', name: '$\\sigma_w$', what: '後半段 $w$ 對平均軌跡的殘差 RMS vs $\\sigma_{w,\\mathrm{pred}}$（單一 seed）' },
-  { key: 'noiseMix', name: 'gain noise × code', what: '$T\\{-\\delta w\\,x\\}$ 的 RMS vs $\\sigma_w\\sqrt{\\bar x^2+\\mathrm{Var}(T\\{\\tilde x\\})}$' },
+  { key: 'noiseMix', name: 'gain noise $\\times$ code', what: '$T\\{-\\delta w\\,x\\}$ 的 RMS vs $\\sigma_w\\sqrt{\\bar x^2+\\mathrm{Var}(T\\{\\tilde x\\})}$' },
   { key: 'spur', name: 'fractional spur', what: 'toneFit vs 封閉式 $|a-\\bar w|sA_1|T(f_1)|$' },
   { key: 'fixedPoint', name: '定點 vs 浮點', what: '同 seed 的浮點對照' },
 ]

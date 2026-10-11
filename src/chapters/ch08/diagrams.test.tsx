@@ -3,9 +3,9 @@ import { act, fireEvent, render, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import mermaid from 'mermaid'
 import { SettingsProvider, type LearningMode } from '@/app/settings'
-import { systemMapChart } from '@/components'
-import { sanitizeMermaidSource } from '@/components/mermaidSource'
-import { installMermaidSvgShim, renderMermaidForTest } from '@/components/mermaidTestUtils'
+import { systemMapModel } from '@/components'
+import { mermaidMathDelimiters, sanitizeMermaidSource } from '@/components/mermaidSource'
+import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { eigvals } from '@/simulation/core'
 import {
   analyzeDualLoop,
@@ -147,6 +147,39 @@ async function flow(chart: string) {
   return { vertices, edges, text, into, edge, classesOf }
 }
 
+/**
+ * 方塊圖的「層數」：沿著箭頭最長的一條路徑上有幾個方塊（回授線不算），以及同一層最多有幾個方塊。
+ * LR 圖的寬度大約是層數 × 一個方塊的寬、TB 圖的高度大約是層數 × 一個方塊的高；真正的像素由瀏覽器量
+ * （`node scripts/diagram-audit.mjs --routes /ch/08`，jsdom 沒有版面），這裡只防止圖又被改回「一整排」的超寬形狀。
+ */
+function shapeOf(g: Awaited<ReturnType<typeof flow>>): { depth: number; widest: number } {
+  const next = new Map<string, string[]>()
+  for (const e of g.edges) next.set(e.start, [...(next.get(e.start) ?? []), e.end])
+  const state = new Map<string, 'open' | 'done'>()
+  const preds = new Map<string, string[]>()
+  const visit = (v: string) => {
+    state.set(v, 'open')
+    for (const w of next.get(v) ?? []) {
+      if (state.get(w) === 'open') continue // 回授線（走回自己的祖先）不算
+      preds.set(w, [...(preds.get(w) ?? []), v])
+      if (!state.has(w)) visit(w)
+    }
+    state.set(v, 'done')
+  }
+  for (const id of g.vertices.keys()) if (!state.has(id)) visit(id)
+  const level = new Map<string, number>()
+  const levelOf = (v: string): number => {
+    if (!level.has(v)) level.set(v, Math.max(-1, ...(preds.get(v) ?? []).map(levelOf)) + 1)
+    return level.get(v)!
+  }
+  const perLevel = new Map<number, number>()
+  for (const id of g.vertices.keys()) perLevel.set(levelOf(id), (perLevel.get(levelOf(id)) ?? 0) + 1)
+  return { depth: Math.max(...perLevel.keys()) + 1, widest: Math.max(...perLevel.values()) }
+}
+
+/** 標籤拿掉 <br/> 與空白之後的字（版面為了寬度會在連線標籤裡加 <br/> 換行；比對內容時不看換行與空白） */
+const flat = (t: string | undefined) => (t ?? '').replace(/<br\s*\/?>/gi, '').replace(/\s+/g, '')
+
 /** 所有會顯示出來的標籤文字（節點、連線、sequence 訊息），依 <br/> 拆成一行一行 */
 async function labelLines(chart: string): Promise<string[]> {
   const { db } = await parsed(chart)
@@ -158,6 +191,24 @@ async function labelLines(chart: string): Promise<string[]> {
     .flatMap((t) => t.split(/<br\s*\/?>/))
     .map((t) => t.trim())
     .filter(Boolean)
+}
+
+/** 一段 `$...$`（flowchart 標籤）或 `$$...$$`（sequence 訊息）的 TeX */
+const MATH = /\$\$(?:[^$\\]|\\.)+?\$\$|(?<!\\)\$(?:[^$\\]|\\.)+?(?<!\\)\$/g
+/** 拿掉所有 TeX 之後剩下的文字（原始碼層級：用來確認文字裡沒有 Unicode 拼的數學） */
+const withoutMath = (src: string) => src.replace(MATH, ' ')
+/**
+ * 一行標籤裡「公式以外的文字片段」（畫出來的圖上一定要看得到）。
+ * flowchart：`$...$` 以外的部分；sequence 訊息：整句是一段 `$$\text{文字 } 公式 \text{ 文字}$$`，文字在 \text{} 裡。
+ */
+function textPieces(line: string): string[] {
+  const parts = line.includes('$$') ? [...line.matchAll(/\\text\{([^}]*)\}/g)].map((m) => m[1]) : line.replace(MATH, '\n').split('\n')
+  return parts.map((t) => t.trim()).filter(Boolean)
+}
+/** 原始碼裡含公式的標籤數：flowchart 看雙引號字串（節點、連線、subgraph 標題），sequence 看有 `$$` 的訊息行 */
+function mathLabelCount(chart: string): number {
+  if (chart.startsWith('sequenceDiagram')) return chart.split('\n').filter((l) => l.includes('$$')).length
+  return [...chart.matchAll(/"([^"\n]*)"/g)].filter((m) => m[1].includes('$')).length
 }
 
 beforeAll(() => {
@@ -188,13 +239,19 @@ describe('Ch08 Mermaid 圖：語法、大小與標籤（真正的 mermaid parser
     const nodes = db.getVertices ? db.getVertices().size : db.getActors!().size
     expect(nodes, name).toBeGreaterThanOrEqual(3)
     expect(nodes, name).toBeLessThanOrEqual(14)
-    // 標籤內沒有裸的 '<'（只允許 <br/> 與箭頭）、沒有 ';'、沒有 TeX 的 '$'
+    // 標籤內沒有裸的 '<'（只允許 <br/> 與箭頭；數學裡的小於寫 \lt）、沒有 ';'（數學裡的間距寫 \,）
     expect(chart).not.toMatch(/[^-]<[^b/]/)
     expect(chart).not.toContain(';')
-    expect(chart).not.toContain('$')
-    // 原始碼直接寫全形「＋」與減號「−」：共用元件的前處理（sanitizeMermaidSource）不需要改任何字
-    expect(sanitizeMermaidSource(chart)).toBe(chart)
-    expect(chart).not.toMatch(/（\+）|（-）/)
+    // 數學都寫在成對的 `$...$` 裡（sequence 是 `$$...$$`）；String.raw 沒有把 TeX 的反斜線吃掉（\times、\theta 不會變成 tab 等控制字元），也沒有 Mermaid 會收掉的 `\\`
+    expect(chart.match(/\$/g)?.length ?? 0, name).toBeGreaterThan(0)
+    expect((chart.match(/\$/g) ?? []).length % 2, name).toBe(0)
+    expect(chart).not.toMatch(/[\t\v\f\b\0]/)
+    expect(chart).not.toContain('\\\\')
+    // 公式以外的文字沒有 Unicode 拼的數學（希臘字母、上下標、w_k、·、×、≤…）
+    expect(unicodeMathIn(withoutMath(chart)), name).toEqual([])
+    // 共用元件的前處理只做一件事：把含公式的標籤合併成單一的 `$$...$$`（加法點的符號都在公式裡，不需要再換字）
+    expect(sanitizeMermaidSource(chart)).toBe(mermaidMathDelimiters(chart))
+    expect(chart).not.toMatch(/（\+）|（-）|（＋）|（−）/)
   })
 
   it.each(CHARTS)('%s 的標籤不會被 Mermaid 11 當成 markdown（清單、標題、引用）', async (_name, chart) => {
@@ -215,27 +272,30 @@ describe('Ch08 Mermaid 圖：語法、大小與標籤（真正的 mermaid parser
       if (name === 'PIPELINE_SEQ_CHART') continue
       const g = await flow(chart)
       for (const v of g.vertices.values()) {
-        if (v.text !== 'Σ') continue
+        if (v.text !== String.raw`$\Sigma$`) continue
         expect(v.type, `${name}.${v.id}`).toBe('circle')
         const incoming = g.into(v.id)
         expect(incoming.length, `${name}.${v.id}`).toBeGreaterThanOrEqual(2)
-        for (const e of incoming) expect(e.text ?? '', `${name}：${e.start} → ${v.id} 要標正負號`).toMatch(/^＋$|（＋）$|（−）$/)
-        const minus = incoming.filter((e) => /（−）$/.test(e.text ?? '')).length
+        for (const e of incoming) expect(e.text ?? '', `${name}：${e.start} → ${v.id} 要標正負號`).toMatch(/^\$\+\$$|\(\+\)\$$|\(-\)\$$/)
+        const minus = incoming.filter((e) => /\(-\)\$$/.test(e.text ?? '')).length
         found.push(`${name}.${v.id}:${incoming.length - minus}+${minus}-`)
       }
     }
     // δ = a − w（＋a、−w）與 δ_{k+1} = δ_k − μ·G_k（＋δ_k、−μ·G_k）各一個負號；觀測狀態 s 與輸出 G 的加法點全是正號
-    expect(found).toEqual([
-      'FIRST_ORDER_CHART.S:1+1-',
-      'DELAY_LOOP_CHART.S:1+1-',
-      'DUAL_SIGNAL_FLOW_CHART.FS:2+0-',
-      'DUAL_SIGNAL_FLOW_CHART.FI:1+1-',
-      'DUAL_SIGNAL_FLOW_CHART.QI:1+1-',
-      'STATE_SPACE_CHART.SS:2+0-',
-      'STATE_SPACE_CHART.SG:2+0-',
-      'STATE_SPACE_CHART.SD:1+1-',
-      'UNIFIED_LOOP_CHART.S:1+1-',
-    ])
+    // （DUAL_SIGNAL_FLOW 為了版面先宣告 QS 框，所以只比對集合，不看宣告順序）
+    expect([...found].sort()).toEqual(
+      [
+        'FIRST_ORDER_CHART.S:1+1-',
+        'DELAY_LOOP_CHART.S:1+1-',
+        'DUAL_SIGNAL_FLOW_CHART.FS:2+0-',
+        'DUAL_SIGNAL_FLOW_CHART.FI:1+1-',
+        'DUAL_SIGNAL_FLOW_CHART.QI:1+1-',
+        'STATE_SPACE_CHART.SS:2+0-',
+        'STATE_SPACE_CHART.SG:2+0-',
+        'STATE_SPACE_CHART.SD:1+1-',
+        'UNIFIED_LOOP_CHART.S:1+1-',
+      ].sort(),
+    )
   })
 
   it('標色（classDef）在深淺主題都讀得清楚：白字配深色底，對比度 ≥ 4.5；每張圖只用 focus／warn／ok 三種', () => {
@@ -260,28 +320,62 @@ describe('Ch08 Mermaid 圖：語法、大小與標籤（真正的 mermaid parser
     }
     expect([...defs.keys()].sort()).toEqual(['focus', 'ok', 'warn'])
   })
+
+  it('版面（桌機正文欄放得下，docs/teaching-style.md §8）：橫向流程（LR）最多 7 層，再長的改成直向（TB）；直向的圖最多 9 層、同一層最多 4 個方塊', async () => {
+    // 原本橫向太長、改成直向的圖；其餘的 flowchart 都是 LR
+    const topDown: Ch08ChartName[] = [
+      'POLARITY_PATH_CHART',
+      'POLARITY_WRAP_CHART',
+      'TWO_MARGINS_CHART',
+      'PHASE_BUDGET_CHART',
+      'DUAL_REGIMES_CHART',
+      'STATE_SPACE_CHART',
+      'STABILITY_CHECK_CHART',
+      'SYNTHESIS_FLOW_CHART',
+    ]
+    for (const [name, chart] of CHARTS) {
+      if (name === 'PIPELINE_SEQ_CHART') continue
+      const direction = /^flowchart (TB|LR)\n/.exec(chart)?.[1]
+      expect(direction, name).toBe(topDown.includes(name) ? 'TB' : 'LR')
+      const { depth, widest } = shapeOf(await flow(chart))
+      if (direction === 'LR') {
+        expect(depth, `${name} 的 LR 層數`).toBeLessThanOrEqual(7)
+      } else {
+        expect(depth, `${name} 的 TB 層數`).toBeLessThanOrEqual(9)
+        expect(widest, `${name} 同一層的方塊數`).toBeLessThanOrEqual(4)
+      }
+    }
+    // 估計方法本身：回授線不算層數（FIRST_ORDER 繞一圈有 4 個方塊 → 4 層）；POLARITY_WRAP 的三條路在最後會合
+    expect(shapeOf(await flow(FIRST_ORDER_CHART))).toEqual({ depth: 4, widest: 1 })
+    expect(shapeOf(await flow(POLARITY_WRAP_CHART))).toEqual({ depth: 6, widest: 3 })
+  })
 })
 
 describe('Ch08 Mermaid 圖：真的畫一次（@/components/mermaidTestUtils；parser 抓不到的問題在這裡抓）', () => {
   beforeAll(installMermaidSvgShim)
 
-  it.each([...CHARTS, ['SystemMap', systemMapChart(SYSTEM_MAP_FOCUS)] as [string, string]])(
-    '%s 畫得出來：沒有「Unsupported markdown」、標籤一字不漏、節點數不超過上限',
+  it.each(CHARTS)(
+    '%s 畫得出來：沒有「Unsupported markdown」與殘留的 $、每個含公式的標籤都由 KaTeX 排版、文字一字不漏、節點數不超過上限',
     async (name, chart) => {
       const lines = await labelLines(chart)
-      const { svg, text, nodeCount } = await renderMermaidForTest(chart)
+      const { svg, text, plainText, nodeCount, mathCount } = await renderMermaidForTest(chart)
       expect(svg).toContain('<svg')
       expect(text).not.toMatch(/Unsupported markdown/)
       expect(text).not.toMatch(/Syntax error/)
-      // 全站共用的系統地圖（方塊比較多）不受本章「單張 14 個節點」的限制，但同樣要畫得出來
-      if (name !== 'SystemMap') expect(nodeCount).toBeLessThanOrEqual(14)
+      // 公式：畫出來的字裡沒有殘留的 `$`（包括 subgraph 標題與 sequence 訊息）；每個含公式的標籤（節點、連線、subgraph 標題、訊息）剛好排成一段 KaTeX
+      expect(text, name).not.toContain('$')
+      expect(mathCount, name).toBeGreaterThan(0)
+      expect(mathCount, name).toBe(mathLabelCount(chart))
+      // KaTeX 以外的文字沒有 Unicode 拼的數學
+      expect(unicodeMathIn(plainText), name).toEqual([])
+      expect(nodeCount).toBeLessThanOrEqual(14)
       // 畫出來的節點數與 parser 看到的相同（subgraph 的標題不算節點；sequence 圖沒有 flowchart 節點）
       const { db } = await parsed(chart)
       expect(nodeCount).toBe(db.getVertices ? db.getVertices().size : 0)
       expect(nodeCount > 0).toBe(name !== 'PIPELINE_SEQ_CHART')
-      // 每一行標籤文字都真的出現在畫出來的圖上（沒有被 markdown／HTML 解析吃掉）
+      // 每一行標籤裡公式以外的文字都真的出現在畫出來的圖上（沒有被 markdown／HTML 解析吃掉）；公式本身由上面的 mathCount 與 KaTeX（TeX 寫錯會丟例外）把關
       const shown = text.replace(/\xa0/g, ' ')
-      for (const line of lines) expect(shown, `${name} 少了標籤「${line}」`).toContain(line)
+      for (const line of lines) for (const piece of textPieces(line)) expect(shown, `${name} 少了標籤「${line}」裡的「${piece}」`).toContain(piece)
     },
   )
 })
@@ -290,24 +384,25 @@ describe('Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一
   it('FIRST_ORDER：Σ 的兩個輸入一正一負、輸出 δ_k = a − w_k，繞一圈是 K 與 μ/(z−1)', async () => {
     const g = await flow(FIRST_ORDER_CHART)
     expect(g.into('S').map((e) => [e.start, e.text])).toEqual([
-      ['A', '＋'],
-      ['I', 'w_k（−）'],
+      ['A', '$+$'],
+      ['I', String.raw`$w_k\,(-)$`],
     ])
-    expect(g.edge('S', 'K').text).toBe('δ_k = a − w_k')
-    expect(g.edge('K', 'I').text).toBe('G_k = K·δ_k')
-    expect(g.text('K')).toContain('K = K_q·C')
-    expect(g.text('I')).toContain('μ/(z−1)')
+    expect(g.text('S')).toBe(String.raw`$\Sigma$`)
+    expect(g.edge('S', 'K').text).toBe(String.raw`$\delta_k = a - w_k$`)
+    expect(g.edge('K', 'I').text).toBe(String.raw`$G_k = K\,\delta_k$`)
+    expect(g.text('K')).toContain(String.raw`$K = K_q\,C$`)
+    expect(g.text('I')).toContain(String.raw`$\mu/(z-1)$`)
     expect(g.classesOf('I')).toContain('focus')
   }, SLOW)
 
   it('DELAY_LOOP：延遲 z⁻ᵈ 在暫存器輸出到 Σ 的那條線上（紅色），Σ 輸出的是舊的 δ_{k−d}', async () => {
     const g = await flow(DELAY_LOOP_CHART)
-    expect(g.edge('I', 'D').text).toBe('w_k')
-    expect(g.edge('D', 'S').text).toBe('w_{k−d}（−）')
-    expect(g.edge('A', 'S').text).toBe('＋')
-    expect(g.edge('S', 'K').text).toBe('δ_{k−d} = a − w_{k−d}')
-    expect(g.edge('K', 'I').text).toBe('G_k = K·δ_{k−d}')
-    expect(g.text('D')).toContain('z⁻ᵈ')
+    expect(g.edge('I', 'D').text).toBe('$w_k$')
+    expect(g.edge('D', 'S').text).toBe(String.raw`$w_{k-d}\,(-)$`)
+    expect(g.edge('A', 'S').text).toBe('$+$')
+    expect(g.edge('S', 'K').text).toBe(String.raw`$\delta_{k-d} = a - w_{k-d}$`)
+    expect(g.edge('K', 'I').text).toBe(String.raw`$G_k = K\,\delta_{k-d}$`)
+    expect(g.text('D')).toContain('$z^{-d}$')
     expect(g.classesOf('D')).toContain('warn')
     // 和無延遲的圖只差這一格：其餘節點文字相同
     const g0 = await flow(FIRST_ORDER_CHART)
@@ -348,17 +443,19 @@ describe('Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一
     const { db } = await parsed(PIPELINE_SEQ_CHART)
     expect(db.getActors!().size).toBe(3)
     const msgs = db.getMessages!().map((m) => m.message ?? '')
+    // sequence 圖的每則訊息整句是一段 `$$...$$`（文字在 \text{} 裡）
+    for (const m of msgs) expect(m).toMatch(/^\$\$.+\$\$$/)
     const order = [
-      'block k 開始',
-      'w_{k−1}（晚 d = 1 個 block）',
-      'δ_{k−1} = a − w_{k−1}',
-      'G_k = K·δ_{k−1}',
-      'w_{k+1} = w_k + μ·G_k',
-      'block k+1 開始',
-      'DTC 拿到 w_k',
-      'δ_k = a − w_k',
-      'G_{k+1} = K·δ_k',
-      'w_{k+2} = w_{k+1} + μ·G_{k+1}',
+      String.raw`\text{block } k \text{ 開始，暫存器最新值是 } w_k`,
+      String.raw`w_{k-1} \text{（晚 } d = 1 \text{ 個 block）}`,
+      String.raw`\delta_{k-1} = a - w_{k-1}`,
+      String.raw`G_k = K\,\delta_{k-1}`,
+      String.raw`w_{k+1} = w_k + \mu\,G_k`,
+      String.raw`\text{block } k+1 \text{ 開始，暫存器最新值是 } w_{k+1}`,
+      String.raw`\text{DTC 拿到 } w_k`,
+      String.raw`\delta_k = a - w_k`,
+      String.raw`G_{k+1} = K\,\delta_k`,
+      String.raw`w_{k+2} = w_{k+1} + \mu\,G_{k+1}`,
     ]
     let at = -1
     for (const piece of order) {
@@ -372,11 +469,13 @@ describe('Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一
 
   it('LOOP_CUT：三個方塊相乘是 g/(z−1)；回到 Σ 的負端所以 δ_out = −L·δ_in，L = −1 時自己振盪', async () => {
     const g = await flow(LOOP_CUT_CHART)
-    expect([g.text('K'), g.text('MU'), g.text('INT')].map((t) => t.split(/<br\s*\/?>/)[0])).toEqual(['× K', '× μ', '1/(z−1)'])
+    expect([g.text('K'), g.text('MU'), g.text('INT')].map((t) => t.split(/<br\s*\/?>/)[0])).toEqual([String.raw`$\times K$`, String.raw`$\times \mu$`, '$1/(z-1)$'])
     expect(g.edge('IN', 'K')).toBeTruthy()
-    expect(g.edge('K', 'MU').text).toBe('G')
-    expect(g.edge('INT', 'OUT').text).toBe('w')
-    expect(g.text('OUT')).toContain('δ_out = −L_cal(z)·δ_in')
+    expect(g.edge('K', 'MU').text).toBe('$G$')
+    expect(g.edge('INT', 'OUT').text).toBe('$w$')
+    expect(g.text('OUT')).toContain(String.raw`$\delta_{\mathrm{out}} = -L_{\mathrm{cal}}(z)\,\delta_{\mathrm{in}}$`)
+    // 框起來的 subgraph 標題也是公式：三個方塊相乘 = g/(z−1)，g = μK
+    expect(LOOP_CUT_CHART).toContain(String.raw`subgraph LG["開迴路增益 $L_{\mathrm{cal}}(z) = g/(z-1)$，$g = \mu K$"]`)
     // K·μ·1/(e^{jω} − 1) 與 calLoopGain 相同
     const K = 0.4
     const mu = 3
@@ -397,10 +496,11 @@ describe('Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一
   it('T08: PM_FLOW 的每一格照著算，與 pmFirstOrder／calLoopGain 一致', async () => {
     const g = await flow(PM_FLOW_CHART)
     expect(g.edges.map((e) => `${e.start}>${e.end}`).sort()).toEqual(['ANG>PM', 'G>GM', 'G>P', 'G>WC', 'PM>DM', 'WC>ANG', 'WC>DM'])
-    expect(g.text('WC')).toContain('ω_c = 2·arcsin(g/2)')
-    expect(g.text('ANG')).toBe('∠L(ω_c) = −90° − ω_c/2')
-    expect(g.text('PM')).toContain('= 90° − arcsin(g/2)')
-    expect(g.text('GM')).toContain('GM = 2/g')
+    expect(g.text('WC')).toContain(String.raw`$\omega_c = 2\arcsin\frac{g}{2}$`)
+    expect(g.text('ANG')).toBe(String.raw`$\angle L(\omega_c) = -90^\circ - \omega_c/2$`)
+    expect(g.text('PM')).toContain(String.raw`$PM = 180^\circ + \angle L(\omega_c)$`)
+    expect(g.text('PM')).toContain(String.raw`$= 90^\circ - \arcsin\frac{g}{2}$`)
+    expect(g.text('GM')).toContain('$GM = 2/g$')
     for (const gain of [0.079788, 0.3, 1, 1.2, 1.5]) {
       const ref = pmFirstOrder(gain)
       const pole = 1 - gain
@@ -426,13 +526,15 @@ describe('Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一
 
   it('ROOT_STATES：五個階段的敘述與 delayStable 的根一致（d = 1、2；d = 0 是負實根）', async () => {
     const g = await flow(ROOT_STATES_CHART)
-    expect(g.edges.map((e) => [e.start, e.end, e.text])).toEqual([
-      ['S0', 'S1', 'g 變大'],
-      ['S1', 'S2', '過 overshoot 門檻'],
-      ['S2', 'S3', 'g = g*(d)'],
-      ['S3', 'S4', 'g ＞ g*(d)'],
+    expect(g.edges.map((e) => [e.start, e.end, flat(e.text)])).toEqual([
+      ['S0', 'S1', flat('$g$ 變大')],
+      ['S1', 'S2', flat('過 overshoot 門檻')],
+      ['S2', 'S3', flat(String.raw`$g = g^*(d)$`)],
+      ['S3', 'S4', flat(String.raw`$g \gt g^*(d)$`)],
     ])
-    expect(g.text('S3')).toContain('ω* = π/(2d+1)')
+    expect(g.text('S0')).toContain(String.raw`$g \to 0^+$`)
+    expect(g.text('S3')).toContain(String.raw`$\omega^* = \pi/(2d+1)$`)
+    expect(g.text('S3')).toContain('角度')
     const signChanges = (x: ArrayLike<number>) => Array.from(x).filter((v, i, arr) => i > 0 && v * arr[i - 1] < 0).length
     expect([0, 1, 2].map(delayNoOvershootGain)).toEqual([1, 1 / 4, 4 / 27])
     for (const d of [1, 2]) {
@@ -469,12 +571,14 @@ describe('Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一
 
   it('POLARITY_PATH：兩條路徑相乘取平均 = (A²/2)|H|cos(φ + ΩD)，M = arcsin(cos θ) 的正負與相關的正負相同', async () => {
     const g = await flow(POLARITY_PATH_CHART)
-    expect(g.edge('H', 'M').text).toBe('u[n]')
-    expect(g.edge('DLY', 'M').text).toBe('x[n−D]')
+    expect(g.text('M')).toBe(String.raw`$\times$`)
+    expect(g.edge('H', 'M').text).toBe('$u[n]$')
+    expect(g.edge('DLY', 'M').text).toBe('$x[n-D]$')
     expect(g.edge('M', 'C').text).toBe('取平均')
-    expect(g.text('C')).toContain('C = (A²/2)·|H|·cos θ')
-    expect(g.text('C')).toContain('θ = φ + ΩD')
-    expect([g.edge('Q', 'POS').text, g.edge('Q', 'ZERO').text, g.edge('Q', 'NEG').text]).toEqual(['＞ 0', '= 0', '＜ 0'])
+    expect(g.text('C')).toContain(String.raw`$C = \frac{A^2}{2}\,|H|\cos\theta$`)
+    expect(g.text('C')).toContain(String.raw`$\theta = \phi + \Omega D$`)
+    expect(g.text('Q')).toContain(String.raw`$M = \arcsin(\cos\theta)$`)
+    expect([g.edge('Q', 'POS').text, g.edge('Q', 'ZERO').text, g.edge('Q', 'NEG').text]).toEqual([String.raw`$\gt 0$`, '$= 0$', String.raw`$\lt 0$`])
     expect(g.classesOf('POS')).toContain('ok')
     expect(g.classesOf('NEG')).toContain('warn')
     // 時域直接算：x[n] = A cos(Ωn)，u[n] = A|H| cos(Ωn + φ)，參考 code 延遲 D 個 sample
@@ -513,34 +617,42 @@ describe('Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一
       ['Q2', 'F2', '否'],
       ['Q2', 'PASS', '是'],
     ])
-    expect(g.text('C1')).toContain('Ω（rad/sample）')
-    expect(g.text('C2')).toContain('ω（rad/block）')
-    expect(g.text('F1')).toContain('調小 μ 沒有用')
-    expect(g.text('F2')).toContain('調小 μ 有用')
+    expect(g.text('C1')).toContain(String.raw`$\Omega$（rad/sample）`)
+    expect(g.text('C2')).toContain(String.raw`$\omega$（rad/block）`)
+    expect(g.text('Q1')).toContain(String.raw`$M = \arcsin(\cos\theta) \gt 0$`)
+    expect(g.text('F1')).toContain(String.raw`調小 $\mu$ 沒有用`)
+    expect(g.text('F2')).toContain(String.raw`調小 $\mu$ 有用`)
+    expect(g.text('F2')).toContain(String.raw`$g = \mu K$`)
     for (const id of ['F1', 'F2']) expect(g.classesOf(id)).toContain('warn')
     expect(g.classesOf('PASS')).toContain('ok')
   }, SLOW)
 
   it('DUAL_LOOP 與 ROADMAP：記號依勘誤 E31（r_s、b_s、c_s），極性是 δ ← δ − μ·G', async () => {
     const g = await flow(DUAL_LOOP_CHART)
-    expect(g.text('O')).toContain('s_{k+1} = r_s·s_k + b_s·δ_k')
-    expect(g.text('C')).toContain('G_k = c_s·s_k')
-    expect(g.text('U')).toContain('δ_{k+1} = δ_k − μ·G_k')
+    expect(g.text('O')).toContain(String.raw`$s_{k+1} = r_s\,s_k + b_s\,\delta_k$`)
+    expect(g.text('C')).toContain(String.raw`$G_k = c_s\,s_k$`)
+    expect(g.text('U')).toContain(String.raw`$\delta_{k+1} = \delta_k - \mu\,G_k$`)
     expect(g.edges.map((e) => `${e.start}>${e.end}`)).toEqual(['D>O', 'O>C', 'C>U', 'U>D'])
     expect(g.classesOf('O')).toContain('focus')
     // 路線圖的四格：遞迴式與穩定條件和 F-08.2／F-08.3、F-08.7／F-08.8、F-08.10／F-08.11、F-08.13／F-08.14 相同
     const r = await flow(ROADMAP_CHART)
-    expect(r.edges.map((e) => [e.start, e.end, e.text])).toEqual([
-      ['A', 'B', '加上更新延遲 d'],
-      ['B', 'C', '加上觀測狀態 s'],
-      ['C', 'D', 's 變成向量'],
+    expect(r.edges.map((e) => [e.start, e.end, flat(e.text)])).toEqual([
+      ['A', 'B', flat('加上更新延遲 $d$')],
+      ['B', 'C', flat('加上觀測狀態 $s$')],
+      ['C', 'D', flat('$s$ 變成向量')],
     ])
     const rows = (id: string) => r.text(id).split(/<br\s*\/?>/)
-    expect(rows('A')).toEqual(['§8.2 一階', 'δ_{k+1} = (1−g)·δ_k', '0 ＜ g ＜ 2'])
-    expect(rows('B')).toEqual(['§8.3 更新延遲', 'δ_{k+1} = δ_k − g·δ_{k−d}', '0 ＜ g ＜ 2·sin(π/(4d+2))'])
-    expect(rows('C')).toEqual(['§8.4 雙迴路', 's_{k+1} = r_s·s_k + b_s·δ_k', 'δ_{k+1} = δ_k − μ·c_s·s_k', '0 ＜ μ·b_s·c_s ＜ 1 − r_s'])
-    expect(rows('D')).toEqual(['一般化', 'ρ(A_comb) ＜ 1', 'L_cal = μ·F(z)/(z−1)'])
-    expect(ROADMAP_CHART).not.toMatch(/μbc|r·s/)
+    expect(rows('A')).toEqual([String.raw`$\S 8.2$ 一階`, String.raw`$\delta_{k+1} = (1-g)\,\delta_k$`, String.raw`$0 \lt g \lt 2$`])
+    expect(rows('B')).toEqual([String.raw`$\S 8.3$ 更新延遲`, String.raw`$\delta_{k+1} = \delta_k - g\,\delta_{k-d}$`, String.raw`$0 \lt g \lt 2\sin\frac{\pi}{4d+2}$`])
+    expect(rows('C')).toEqual([
+      String.raw`$\S 8.4$ 雙迴路`,
+      String.raw`$s_{k+1} = r_s\,s_k + b_s\,\delta_k$`,
+      String.raw`$\delta_{k+1} = \delta_k - \mu\,c_s\,s_k$`,
+      String.raw`$0 \lt \mu\,b_s\,c_s \lt 1 - r_s$`,
+    ])
+    expect(rows('D')).toEqual(['一般化', String.raw`$\rho(\mathbf A_{\mathrm{comb}}) \lt 1$`, String.raw`$L_{\mathrm{cal}} = \mu F(z)/(z-1)$`])
+    // 勘誤 E31：不是舊記號 μbc、r·s（沒有下標 s）
+    expect(ROADMAP_CHART).not.toMatch(/μbc|r·s|\\mu\s*b\s*c\b|\br\s*\\cdot\s*s\b/)
     // 四格的條件照著算：g 剛好在上界內／外時，對應的模型穩定／不穩定
     for (const d of [0, 1, 2, 3]) {
       const bound = 2 * Math.sin(Math.PI / (4 * d + 2))
@@ -562,21 +674,24 @@ describe('Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一
     const g = await flow(DUAL_SIGNAL_FLOW_CHART)
     // 完整模型：Σ_s 的兩個輸入都是正的；Σ_δ 是 δ_k（＋）與 μ·G_k（−）
     expect(g.into('FS').map((e) => [e.start, e.text])).toEqual([
-      ['FB', '＋'],
-      ['FR', '＋'],
+      ['FB', '$+$'],
+      ['FR', '$+$'],
     ])
     expect(g.into('FI').map((e) => [e.start, e.text])).toEqual([
-      ['FM', 'μ·G_k（−）'],
-      ['FZD', 'δ_k（＋）'],
+      ['FM', String.raw`$\mu\,G_k\,(-)$`],
+      ['FZD', String.raw`$\delta_k\,(+)$`],
     ])
-    expect(g.edge('FS', 'FZ').text).toBe('s_{k+1}')
-    expect(g.edge('FZ', 'FC').text).toBe('s_k')
-    expect(g.edge('FI', 'FZD').text).toBe('δ_{k+1}')
+    expect(g.edge('FS', 'FZ').text).toBe('$s_{k+1}$')
+    expect(g.edge('FZ', 'FC').text).toBe('$s_k$')
+    expect(g.edge('FI', 'FZD').text).toBe(String.raw`$\delta_{k+1}$`)
     expect(g.into('QI').map((e) => [e.start, e.text])).toEqual([
-      ['QM', 'μ·G_k（−）'],
-      ['QZD', 'δ_k（＋）'],
+      ['QM', String.raw`$\mu\,G_k\,(-)$`],
+      ['QZD', String.raw`$\delta_k\,(+)$`],
     ])
-    expect(g.text('QF')).toBe('× F(1) = b_s·c_s/(1−r_s)')
+    expect(g.text('QF')).toBe(String.raw`$\times F(1) = b_s\,c_s/(1-r_s)$`)
+    // 版面：兩個互不相連的框，dagre 把「後宣告」的放在上面；先宣告 Quasi-static、再宣告完整模型，畫出來才是上＝完整、下＝近似（圖說與「讀圖」的順序）
+    expect(DUAL_SIGNAL_FLOW_CHART.indexOf('subgraph QS[')).toBeGreaterThan(-1)
+    expect(DUAL_SIGNAL_FLOW_CHART.indexOf('subgraph QS[')).toBeLessThan(DUAL_SIGNAL_FLOW_CHART.indexOf('subgraph FULL['))
     for (const id of ['FB', 'FS', 'FZ', 'FR']) expect(g.classesOf(id)).toContain('focus')
     expect(g.classesOf('QF')).toContain('warn')
 
@@ -626,12 +741,12 @@ describe('Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一
 
   it('T09: LATENCY_SPLIT 的三個上界與數值掃描一致；F(z) = z⁻¹ × 低通', async () => {
     const g = await flow(LATENCY_SPLIT_CHART)
-    expect(g.text('A2')).toContain('μ·b_s·c_s ＜ 2(1−r_s)')
-    expect(g.text('B2')).toContain('μ·b_s·c_s ＜ 2(1+r_s)')
-    expect(g.text('C2')).toContain('μ·b_s·c_s ＜ 1−r_s')
-    expect(g.text('CZ')).toContain('z⁻¹')
-    expect(g.text('B1')).toContain('b_s·c_s/(1 − r_s·z⁻¹)')
-    expect(g.text('C1')).toContain('b_s·c_s/(1 − r_s·z⁻¹)')
+    expect(g.text('A2')).toContain(String.raw`$\mu\,b_s\,c_s \lt 2(1-r_s)$`)
+    expect(g.text('B2')).toContain(String.raw`$\mu\,b_s\,c_s \lt 2(1+r_s)$`)
+    expect(g.text('C2')).toContain(String.raw`$\mu\,b_s\,c_s \lt 1-r_s$`)
+    expect(g.text('CZ')).toContain('$z^{-1}$')
+    expect(g.text('B1')).toContain(String.raw`$b_s\,c_s/(1 - r_s\,z^{-1})$`)
+    expect(g.text('C1')).toContain(String.raw`$b_s\,c_s/(1 - r_s\,z^{-1})$`)
     expect(g.edges.map((e) => `${e.start}>${e.end}`)).toEqual(['D>A1', 'A1>A2', 'D>B1', 'B1>B2', 'D>CZ', 'CZ>C1', 'C1>C2'])
     const b = 0.2
     const c = 1
@@ -663,19 +778,23 @@ describe('Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一
   it('STATE_SPACE：照圖逐格計算（含直通 d_s）等於 simulateGeneral；四個藍色方塊是 A_s、b_s、c_sᵀ、d_s', async () => {
     const g = await flow(STATE_SPACE_CHART)
     expect(g.into('SS').map((e) => [e.start, e.text])).toEqual([
-      ['BS', '＋'],
-      ['AS', '＋'],
+      ['BS', '$+$'],
+      ['AS', '$+$'],
     ])
     expect(g.into('SG').map((e) => [e.start, e.text])).toEqual([
-      ['CT', '＋'],
-      ['DS', '＋'],
+      ['CT', '$+$'],
+      ['DS', '$+$'],
     ])
     expect(g.into('SD').map((e) => [e.start, e.text])).toEqual([
-      ['MU', 'μ·G_k（−）'],
-      ['ZD', 'δ_k（＋）'],
+      ['MU', String.raw`$\mu\,G_k\,(-)$`],
+      ['ZD', String.raw`$\delta_k\,(+)$`],
     ])
-    expect(g.edge('SG', 'MU').text).toBe('G_k')
-    expect(g.edge('SD', 'ZD').text).toBe('δ_{k+1}')
+    expect(g.edge('SG', 'MU').text).toBe('$G_k$')
+    expect(g.edge('SD', 'ZD').text).toBe(String.raw`$\delta_{k+1}$`)
+    // 四個藍色方塊的符號：A_s、b_s、c_sᵀ、d_s；觀測動態框的標題是 F(z) 的 state-space 式
+    expect([g.text('AS'), g.text('BS'), g.text('CT')]).toEqual([String.raw`$\mathbf A_s$`, String.raw`$\mathbf b_s$`, String.raw`$\mathbf c_s^{\mathsf T}$`])
+    expect(g.text('DS')).toContain('$d_s$')
+    expect(STATE_SPACE_CHART).toContain(String.raw`subgraph OBS["觀測動態 $F(z) = d_s + \mathbf c_s^{\mathsf T}(z\mathbf I - \mathbf A_s)^{-1}\mathbf b_s$"]`)
     expect(g.edge('ZD', 'DK')).toBeTruthy()
     expect(g.edges.filter((e) => e.start === 'DK').map((e) => e.end)).toEqual(['BS', 'DS'])
     for (const id of ['AS', 'BS', 'CT', 'DS']) expect(g.classesOf(id)).toContain('focus')
@@ -715,13 +834,14 @@ describe('Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一
       ['BUILD', 'EIG', ''],
       ['EIG', 'RHO', ''],
       ['RHO', 'Q', ''],
-      ['Q', 'PASS', 'ρ ＜ 1'],
-      ['Q', 'MARG', 'ρ = 1'],
-      ['Q', 'FAIL', 'ρ ＞ 1'],
+      ['Q', 'PASS', String.raw`$\rho \lt 1$`],
+      ['Q', 'MARG', String.raw`$\rho = 1$`],
+      ['Q', 'FAIL', String.raw`$\rho \gt 1$`],
       ['PASS', 'TD', ''],
     ])
-    expect(g.text('BUILD')).toContain('上列：A_s、b_s')
-    expect(g.text('BUILD')).toContain('下列：−μ·c_sᵀ、1 − μ·d_s')
+    expect(g.text('BUILD')).toContain(String.raw`上列：$\mathbf A_s$、$\mathbf b_s$`)
+    expect(g.text('BUILD')).toContain(String.raw`下列：$\mathord{-}\mu\,\mathbf c_s^{\mathsf T}$、$1 - \mu\,d_s$`)
+    expect(g.text('RHO')).toBe(String.raw`$\rho = \max_i |\lambda_i|$`)
     expect(g.classesOf('PASS')).toContain('ok')
     for (const id of ['MARG', 'FAIL']) expect(g.classesOf(id)).toContain('warn')
 
@@ -743,7 +863,7 @@ describe('Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一
     expect(two(1.2).stable).toBe(false)
   }, SLOW)
 
-  it('POLARITY_WRAP：照圖上那一排逐步計算 = F-08.1 的 M = 90° − |wrap₁₈₀(θ)| = arcsin(cos θ)；紅色那條 = mod-180 的錯誤寫法（E20）', async () => {
+  it('POLARITY_WRAP：照圖上左邊那一條逐步計算 = F-08.1 的 M = 90° − |wrap₁₈₀(θ)| = arcsin(cos θ)；紅色那條 = mod-180 的錯誤寫法（E20）', async () => {
     const g = await flow(POLARITY_WRAP_CHART)
     expect(g.edges.map((e) => [e.start, e.end, e.text ?? ''])).toEqual([
       ['T', 'A1', ''],
@@ -756,24 +876,26 @@ describe('Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一
       ['T', 'B1', '錯誤寫法（E20）'],
       ['B1', 'B2', ''],
     ])
-    expect(g.text('A1')).toBe('加 180°')
-    expect(g.text('A2')).toContain('除以 360°')
+    expect(g.text('A1')).toBe(String.raw`加 $180^\circ$`)
+    expect(g.text('A2')).toContain(String.raw`除以 $360^\circ$`)
     expect(g.text('A2')).toContain('取非負餘數')
-    expect(g.text('A3')).toContain('減 180°')
-    expect(g.text('A3')).toContain('ψ = wrap₁₈₀(θ)')
-    expect(g.text('A3')).toContain('−180° ≤ ψ ＜ 180°')
-    expect(g.text('M')).toContain('M = 90° − |ψ|')
-    expect(g.text('S')).toBe('arcsin(cos θ)')
-    expect(g.text('B1')).toContain('θ 除以 180° 取餘數')
-    expect(g.text('B2')).toContain('θ = −150° 得到 +60°')
-    expect(g.text('B2')).toContain('正確是 −60°')
+    expect(g.text('A3')).toContain(String.raw`減 $180^\circ$`)
+    expect(g.text('A3')).toContain(String.raw`$\psi = \mathrm{wrap}_{180}(\theta)$`)
+    expect(g.text('A3')).toContain(String.raw`$-180^\circ \le \psi \lt 180^\circ$`)
+    expect(g.text('A4')).toBe(String.raw`取絕對值 $|\psi|$`)
+    expect(g.text('M')).toContain(String.raw`$M = 90^\circ - |\psi|$`)
+    expect(g.text('S')).toBe(String.raw`$\arcsin(\cos\theta)$`)
+    expect(g.text('B1')).toContain(String.raw`$\theta$ 除以 $180^\circ$ 取餘數`)
+    // 文字後面緊接的正負號寫成 \mathord{±}：KaTeX 才不會把它當成二元運算子而多出一格空白（「得到 + 60°」）
+    expect(g.text('B2')).toContain(String.raw`$\theta = -150^\circ$ 得到 $\mathord{+}60^\circ$`)
+    expect(g.text('B2')).toContain(String.raw`正確是 $\mathord{-}60^\circ$`)
     expect(g.classesOf('M')).toContain('focus')
     expect(g.classesOf('S')).toContain('ok')
     for (const id of ['B1', 'B2']) expect(g.classesOf(id)).toContain('warn')
 
     const thetas = [0, 45, 60, 89, 90, 120, 150, 180, 200, -150, 270, -300, -180, 359.5, -720.25, 1234.5, -89.999]
     for (const theta of thetas) {
-      // 上面那一排：加 180° → 除以 360° 取非負餘數 → 減 180° → 取絕對值 → 90° − |ψ|
+      // 左邊那一條（由上往下）：加 180° → 除以 360° 取非負餘數 → 減 180° → 取絕對值 → 90° − |ψ|
       const a1 = theta + 180
       const a2 = posMod(a1, 360)
       const psi = a2 - 180
@@ -802,28 +924,28 @@ describe('Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一
     const g = await flow(PHASE_BUDGET_CHART)
     expect(g.edges.map((e) => [e.start, e.end, e.text ?? ''])).toEqual([
       ['B0', 'KK', ''],
-      ['KK', 'INT', '剩 180°'],
-      ['INT', 'DLY', '剩 90° − ω_c/2'],
-      ['DLY', 'PM', '剩 90° − ω_c/2 − d·ω_c'],
+      ['KK', 'INT', String.raw`剩 $180^\circ$`],
+      ['INT', 'DLY', String.raw`剩 $90^\circ - \omega_c/2$`],
+      ['DLY', 'PM', String.raw`剩 $90^\circ - \omega_c/2 - d\,\omega_c$`],
       ['WC', 'INT', ''],
       ['WC', 'DLY', ''],
-      ['PM', 'CR', 'PM_d = 0 時的 g'],
+      ['PM', 'CR', String.raw`$PM_d = 0$ 時的 $g$`],
     ])
-    expect(g.text('B0')).toContain('PM = 180° + ∠L(ω_c)')
-    expect(g.text('KK')).toContain('K ＞ 0')
-    expect(g.text('INT')).toContain('μ/(z−1)')
-    expect(g.text('INT')).toContain('落後 90° + ω_c/2')
-    expect(g.text('DLY')).toContain('z⁻ᵈ')
-    expect(g.text('DLY')).toContain('落後 d·ω_c')
-    expect(g.text('PM')).toBe('PM_d = 90° − (2d+1)·arcsin(g/2)')
-    expect(g.text('WC')).toContain('ω_c = 2·arcsin(g/2)')
-    expect(g.text('CR')).toContain('g*(d) = 2·sin(π/(4d+2))')
-    expect(g.text('CR')).toContain('GM_d = g*(d)/g')
+    expect(g.text('B0')).toContain(String.raw`$PM = 180^\circ + \angle L(\omega_c)$`)
+    expect(g.text('KK')).toContain(String.raw`$K \gt 0$`)
+    expect(g.text('INT')).toContain(String.raw`$\mu/(z-1)$`)
+    expect(g.text('INT')).toContain(String.raw`落後 $90^\circ + \omega_c/2$`)
+    expect(g.text('DLY')).toContain('$z^{-d}$')
+    expect(g.text('DLY')).toContain(String.raw`落後 $d\,\omega_c$`)
+    expect(g.text('PM')).toBe(String.raw`$PM_d = 90^\circ - (2d+1)\arcsin\frac{g}{2}$`)
+    expect(g.text('WC')).toContain(String.raw`$\omega_c = 2\arcsin\frac{g}{2}$`)
+    expect(g.text('CR')).toContain(String.raw`$g^*(d) = 2\sin\frac{\pi}{4d+2}$`)
+    expect(g.text('CR')).toContain(String.raw`$GM_d = g^*(d)/g$`)
     expect(g.classesOf('PM')).toContain('focus')
     for (const id of ['DLY', 'CR']) expect(g.classesOf(id)).toContain('warn')
     // 方塊的順序與 DELAY_LOOP 繞一圈的順序相同：K → 積分器 → 延遲
     const loop = await flow(DELAY_LOOP_CHART)
-    expect(['K', 'I', 'D'].map((id) => loop.text(id).split(/<br\s*\/?>/)[1])).toEqual(['K = K_q·C', 'μ/(z−1)', 'shadow register → commit → DTC'])
+    expect(['K', 'I', 'D'].map((id) => loop.text(id).split(/<br\s*\/?>/).slice(1).join(' '))).toEqual([String.raw`$K = K_q\,C$`, String.raw`$\mu/(z-1)$`, String.raw`shadow register $\to$ commit $\to$ DTC`])
 
     const K = 0.4
     for (const d of [0, 1, 2, 3]) {
@@ -878,15 +1000,15 @@ describe('Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一
       ['R3', 'R4'],
     ])
     const label = (a: string, b: string) => (g.edge(a, b).text ?? '').split(/<br\s*\/?>/)
-    expect(label('R1', 'R2')).toEqual(['μ·b_s·c_s 超過 (1−r_s)²/4', '本例 μ = 0.05'])
-    expect(label('R2', 'R3')).toEqual(['超過 1 − r_s', '本例 μ = 1'])
-    expect(label('R3', 'R4')).toEqual(['超過 2(1 − r_s)', '本例 μ = 2'])
+    expect(label('R1', 'R2')).toEqual([String.raw`$\mu\,b_s\,c_s$ 超過 $(1-r_s)^2/4$`, String.raw`本例 $\mu = 0.05$`])
+    expect(label('R2', 'R3')).toEqual([String.raw`超過 $1 - r_s$`, String.raw`本例 $\mu = 1$`])
+    expect(label('R3', 'R4')).toEqual([String.raw`超過 $2(1 - r_s)$`, String.raw`本例 $\mu = 2$`])
     expect(g.text('R1')).toContain('兩個實根')
-    expect(g.text('R1')).toContain('pole = 1 − g_eff')
+    expect(g.text('R1')).toContain(String.raw`pole $= 1 - g_{\mathrm{eff}}$`)
     expect(g.text('R2')).toContain('共軛複數根')
-    expect(g.text('R2')).toContain('|z| = √(r_s + μ·b_s·c_s)')
-    expect(g.text('R3')).toContain('|z| ＞ 1')
-    expect(g.text('R3')).toContain('pole 在 −1 與 0 之間')
+    expect(g.text('R2')).toContain(String.raw`$|z| = \sqrt{r_s + \mu\,b_s\,c_s}$`)
+    expect(g.text('R3')).toContain(String.raw`$|z| \gt 1$`)
+    expect(g.text('R3')).toContain(String.raw`pole 在 $\mathord{-}1$ 與 $0$ 之間`)
     expect(g.text('R4')).toBe('兩個模型都不穩定')
     expect(g.classesOf('R1')).toContain('ok')
     expect(g.classesOf('R2')).toContain('focus')
@@ -963,18 +1085,18 @@ describe('Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一
   it('T08, T09: UNIFIED_LOOP 同一個迴路換四種 F(z)，照圖逐格計算分別等於 §8.2、§8.3、§8.4 與 quasi-static 的模型；繞一圈 = μ·F(z)/(z−1)', async () => {
     const g = await flow(UNIFIED_LOOP_CHART)
     expect(g.into('S').map((e) => [e.start, e.text])).toEqual([
-      ['A', '＋'],
-      ['I', 'w_k（−）'],
+      ['A', '$+$'],
+      ['I', String.raw`$w_k\,(-)$`],
     ])
-    expect(g.edge('S', 'F').text).toBe('δ_k = a − w_k')
-    expect(g.edge('F', 'I').text).toBe('G_k')
-    expect(g.text('I')).toContain('μ/(z−1)')
+    expect(g.edge('S', 'F').text).toBe(String.raw`$\delta_k = a - w_k$`)
+    expect(g.edge('F', 'I').text).toBe('$G_k$')
+    expect(g.text('I')).toContain(String.raw`$\mu/(z-1)$`)
     expect(g.into('F').map((e) => e.start)).toEqual(['S', 'M1', 'M2', 'M3', 'M4'])
-    expect(g.text('M1').split(/<br\s*\/?>/)).toEqual(['§8.2 一階', 'F(z) = K'])
-    expect(g.text('M2').split(/<br\s*\/?>/)).toEqual(['§8.3 更新延遲 d', 'F(z) = K·z⁻ᵈ'])
-    expect(g.text('M3').split(/<br\s*\/?>/)).toEqual(['§8.4 雙迴路', 'F(z) = b_s·c_s/(z − r_s)'])
-    expect(g.text('M4')).toContain('F(1)')
-    expect(UNIFIED_LOOP_CHART).toContain('L_cal(z) = μ·F(z)/(z−1)')
+    expect(g.text('M1').split(/<br\s*\/?>/)).toEqual([String.raw`$\S 8.2$ 一階`, '$F(z) = K$'])
+    expect(g.text('M2').split(/<br\s*\/?>/)).toEqual([String.raw`$\S 8.3$ 更新延遲 $d$`, String.raw`$F(z) = K\,z^{-d}$`])
+    expect(g.text('M3').split(/<br\s*\/?>/)).toEqual([String.raw`$\S 8.4$ 雙迴路`, String.raw`$F(z) = b_s\,c_s/(z - r_s)$`])
+    expect(g.text('M4')).toContain('$F(1)$')
+    expect(UNIFIED_LOOP_CHART).toContain(String.raw`$L_{\mathrm{cal}}(z) = \mu F(z)/(z-1)$`)
     expect(g.classesOf('F')).toContain('focus')
     expect(g.classesOf('M4')).toContain('warn')
     // 實線那一圈和 §8.2 的圖是同一個：目標、加法點、暫存器的文字相同，只有 K 換成 F(z)
@@ -1070,9 +1192,10 @@ describe('Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一
     expect(g.edges.map((e) => `${e.start}>${e.end}`).sort()).toEqual(
       ['SV>KQ', 'KQ>KK', 'CC>KK', 'KK>G', 'MU>G', 'G>P', 'DD>GS', 'GS>MM', 'KK>MM', 'GS>GM', 'G>GM', 'G>PM', 'DD>PM'].sort(),
     )
-    expect(g.text('KQ')).toContain('K_q = √(2/π) / σ_v')
-    expect(g.text('GS')).toBe('g*(d) = 2·sin(π/(4d+2))')
-    expect(g.text('PM')).toBe('PM_d = 90° − (2d+1)·arcsin(g/2)')
+    expect(g.text('KQ')).toContain(String.raw`$K_q = \sqrt{2/\pi}\,/\,\sigma_v$`)
+    expect(g.text('KQ')).toContain(String.raw`$[\mathrm{fs}^{-1}]$`)
+    expect(g.text('GS')).toBe(String.raw`$g^*(d) = 2\sin\frac{\pi}{4d+2}$`)
+    expect(g.text('PM')).toBe(String.raw`$PM_d = 90^\circ - (2d+1)\arcsin\frac{g}{2}$`)
     const sigmaV = 100
     const mu = 10
     const C = 1
@@ -1096,7 +1219,7 @@ describe('Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一
 
 describe('Ch08 頁面：系統地圖、所有方塊圖與章末符號表', () => {
   let errorSpy: ReturnType<typeof vi.spyOn>
-  /** 頁面送去 mermaid.render 的每一張圖的原始碼（依呼叫順序） */
+  /** 頁面送去 mermaid.render 的每一張圖的原始碼（依呼叫順序）；章首的系統地圖是手排的 SVG，不經過 Mermaid */
   let sent: string[] = []
   beforeEach(() => {
     errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
@@ -1128,21 +1251,26 @@ describe('Ch08 頁面：系統地圖、所有方塊圖與章末符號表', () =>
     const figures = Array.from(container.querySelectorAll('figure.c-mermaid'))
     expect(figures).toHaveLength(CHARTS.length + 1)
     expect(figures).toHaveLength(20)
-    await waitFor(() => expect(new Set(sentCharts()).size).toBe(CHARTS.length + 1), { timeout: 120_000 })
-    // 第一張就是系統地圖（藍色：GMAC、÷N × μ、gain accumulator），其餘依 CH08_CHARTS 的順序出現
-    const map = systemMapChart(SYSTEM_MAP_FOCUS)
-    expect(map).toContain('class GMAC,SCALE,ACC focus')
+    // 第一張是章首的系統地圖（手排的 SVG，不經過 Mermaid）；其餘 19 張依 CH08_CHARTS 的順序各送一次 mermaid.render
+    await waitFor(() => expect(new Set(sentCharts()).size).toBe(CHARTS.length), { timeout: 120_000 })
     const firstSeen = [...new Set(sentCharts())]
-    expect(firstSeen[0]).toBe(sanitizeMermaidSource(map))
-    expect(firstSeen.slice(1)).toEqual(CHARTS.map(([, c]) => c))
+    expect(firstSeen).toEqual(CHARTS.map(([, c]) => sanitizeMermaidSource(c)))
     // 頁面送去 render 的每一張圖都能被真正的 parser 解析
     for (const chart of firstSeen) await mermaid.parse(chart)
 
     const text = container.textContent ?? ''
     // 系統地圖在開場問題之後、第一個小節之前，前面有一句說明藍色方塊與本章新增的觀點
     const mapFigure = figures[0]
+    expect(mapFigure.classList.contains('c-sysmap')).toBe(true)
     expect(mapFigure.getAttribute('aria-label') ?? '').toContain('系統方塊圖')
     expect(mapFigure.querySelector('figcaption')?.textContent ?? '').toContain('GMAC')
+    // 藍色（is-focus）的方塊正好是 GMAC、÷N × μ、gain accumulator：資料（systemMapModel）與畫出來的 SVG 相同，其他方塊都不是藍色
+    const model = systemMapModel(SYSTEM_MAP_FOCUS)
+    expect(model.blocks.filter((b) => b.focused).map((b) => b.id).sort()).toEqual(['acc', 'gmac', 'scale'])
+    const drawn = Array.from(mapFigure.querySelectorAll('g.c-sysmap-block'))
+    expect(drawn.map((g) => g.getAttribute('data-block')).sort()).toEqual(model.blocks.map((b) => b.id).sort())
+    expect(drawn.filter((g) => g.classList.contains('is-focus')).map((g) => g.getAttribute('data-block')).sort()).toEqual(['acc', 'gmac', 'scale'])
+    expect(drawn.filter((g) => g.getAttribute('data-focus') === 'true')).toHaveLength(3)
     expect(mapFigure.previousElementSibling?.textContent ?? '').toMatch(/系統地圖.*藍色的三個方塊.*回授迴路/)
     expect(text.indexOf('這一章要回答的問題')).toBeLessThan(text.indexOf('先看系統地圖'))
     expect(text.indexOf('先看系統地圖')).toBeLessThan(text.indexOf('先用一個生活例子'))

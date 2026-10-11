@@ -17,7 +17,7 @@ export const F = {
   linearPd: String.raw`w^*\approx a+\frac{b\,E[x]+\operatorname{Cov}(x,\,d+\varepsilon_{cc})}{\operatorname{Var}(x)}\quad(\text{線性 PD 鎖定＋獨立 comparator})`,
   cubicMse: String.raw`w^*_\mathrm{MSE}=a+c_3\frac{E[x^4]}{E[x^2]}=1+0.1\cdot\frac{6.8}{2}=1.34`,
   secondOrder: String.raw`w^*_\mathrm{sign}\approx w_1-\frac{E[x\,e_0^3]}{6\sigma_v^2E[x^2]}=1.34+\frac{3.456\times10^{-4}}{\sigma_v^2}`,
-  weightedMedian: String.raw`E\big[x\operatorname{sign}(e)\big]=E\big[|x|\operatorname{sign}(t(x)-w)\big]=0\;\Rightarrow\;w^*=\operatorname{med}_{|x|}\,t(x)=1.4`,
+  weightedMedian: String.raw`\begin{gathered}E\big[x\operatorname{sign}(e)\big]=E\big[|x|\operatorname{sign}(t(x)-w)\big]=0\\[0.4em]\Rightarrow\;w^*=\operatorname{med}_{|x|}\,t(x)=1.4\end{gathered}`,
   weightedMean: String.raw`t(x)=a+\kappa+\frac{b+d(x)}{x},\qquad w^*_\mathrm{MSE}=\frac{E[x^2\,t(x)]}{E[x^2]}`,
   jitterWeighted: String.raw`w^*\approx a+\frac{E\big[x\,B(x)/\sigma_v(x)\big]}{E\big[x^2/\sigma_v(x)\big]},\qquad B(x)=b+d(x)+\varepsilon_{cc}(x)`,
   kappa: String.raw`\varepsilon_{cc}=\kappa x\;\Rightarrow\;E[x\varepsilon_{cc}]=\kappa E[x^2]\;\Rightarrow\;w^*=a+\kappa`,

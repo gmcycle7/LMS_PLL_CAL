@@ -41,15 +41,15 @@ export function GainSection() {
 
   const sData = useMemo<Data[]>(
     () => [
-      { x: d.rs, y: d.rs.map((r) => meanQ(r, 1)), name: 'E[q] = erf(r/√2)（精確）', mode: 'lines', line: { color: tokens.series[0], width: 2.5 } },
+      { x: d.rs, y: d.rs.map((r) => meanQ(r, 1)), name: String.raw`$E[q] = \operatorname{erf}(r/\sqrt{2})$（精確）`, mode: 'lines', line: { color: tokens.series[0], width: 2.5 } },
       {
         x: d.rs.filter((r) => Math.abs(r) <= 1.9),
         y: d.rs.filter((r) => Math.abs(r) <= 1.9).map((r) => Math.sqrt(2 / Math.PI) * r),
-        name: '切線 K_q·s = √(2/π)·r（小訊號）',
+        name: String.raw`切線 $K_q\cdot s = \sqrt{2/\pi}\cdot r$（小訊號）`,
         mode: 'lines',
         line: { color: tokens.series[1], dash: 'dash' },
       },
-      { x: d.rs, y: d.rs.map((r) => kqLocal(r, 1) / kq(1)), name: '局部斜率 / K_q = e^{−r²/2}', mode: 'lines', line: { color: tokens.series[2], dash: 'dot' } },
+      { x: d.rs, y: d.rs.map((r) => kqLocal(r, 1) / kq(1)), name: String.raw`局部斜率 / $K_q = e^{-r^2/2}$`, mode: 'lines', line: { color: tokens.series[2], dash: 'dot' } },
     ],
     [d, tokens],
   )
@@ -152,8 +152,8 @@ export function GainSection() {
         title="Comparator 的平均輸出（S 曲線）、$K_q$ 切線與局部斜率"
         data={sData}
         layout={{
-          xaxis: { title: { text: 'r = (s − θ)/σ_v' } },
-          yaxis: { title: { text: 'E[q]　/　斜率比' }, range: [-1.6, 1.6] },
+          xaxis: { title: { text: String.raw`$r = (s - \theta)/\sigma_v$` } },
+          yaxis: { title: { text: '$E[q]$　/　斜率比' }, range: [-1.6, 1.6] },
           shapes: [hline(1, tokens.textMuted), hline(-1, tokens.textMuted)],
         }}
         height={300}

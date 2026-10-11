@@ -49,9 +49,9 @@ export function FreezeSection() {
   }, [])
   const data = useMemo<Data[]>(
     () => [
-      { x: curves.w, y: curves.a, name: '(A) Freeze：Q(w*) − w*', line: { color: tokens.series[4], width: 2 } },
-      { x: curves.w, y: curves.b, name: '(B) Toggle L_t = 5：平均 − w*', line: { color: tokens.series[0], width: 1.5, dash: 'dot' } },
-      { x: curves.w, y: curves.d, name: '(D) ΔΣ：平均 − w*', line: { color: tokens.series[1], width: 1.5 } },
+      { x: curves.w, y: curves.a, name: String.raw`(A) Freeze：$Q(w^*) - w^*$`, line: { color: tokens.series[4], width: 2 } },
+      { x: curves.w, y: curves.b, name: String.raw`(B) Toggle $L_t = 5$：平均 $- w^*$`, line: { color: tokens.series[0], width: 1.5, dash: 'dot' } },
+      { x: curves.w, y: curves.d, name: String.raw`(D) $\Delta\Sigma$：平均 $- w^*$`, line: { color: tokens.series[1], width: 1.5 } },
     ],
     [curves, tokens],
   )
@@ -64,7 +64,7 @@ export function FreezeSection() {
       </p>
       <Mermaid
         chart={CHART_FREEZE}
-        caption="方法 A 的方塊圖。先看藍色的 latch：只在凍結的瞬間取樣一次，之後 $w_H$ 怎麼變都不看（虛線）；再看右邊：輸出是常數，所以誤差也是常數，全部功率都在 DC。"
+        caption="方法 A 的方塊圖。先看藍色的 latch：只在凍結的瞬間取樣一次，之後 $w_H$ 怎麼變都不看（虛線）；再看最下面：輸出是常數，所以誤差也是常數，全部功率都在 DC。"
       />
       <p className="small ch13-figwalk">
         圖上的 latch 就是程式碼裡的 <code>s.wFreeze</code>；圖上相減點的輸出就是下面公式的 <Tex>{String.raw`e[n]=y-w^*`}</Tex>（也就是 <Tex>{String.raw`\delta w`}</Tex>）。注意整張圖<strong>沒有任何會動的東西</strong>：沒有計數器、沒有亂數、沒有回授——這是它和後面四種方法最大的不同。
@@ -139,7 +139,7 @@ export function FreezeSection() {
           data={data}
           height={280}
           csvName="ch13-static-error-vs-target"
-          layout={{ xaxis: { title: { text: 'w* [LSB]' } }, yaxis: { title: { text: '平均 code − w* [LSB]' } } }}
+          layout={{ xaxis: { title: { text: String.raw`$w^*$ [LSB]` } }, yaxis: { title: { text: String.raw`平均 code $- w^*$ [LSB]` } } }}
           caption={
             <>
               由 <code>quantize()</code> 與 <code>toggleK()</code> 逐點計算（<Tex>{'w_H'}</Tex> 用 <Tex>{'F=16'}</Tex> 個小數 bit 的定點格點；<Tex>{'F'}</Tex> 是小數位元數，§13.4）；縱軸採 <Tex>{String.raw`\delta w=w-w^*`}</Tex> 約定（<Tex>{String.raw`\delta=a-w`}</Tex> 則上下顛倒）。

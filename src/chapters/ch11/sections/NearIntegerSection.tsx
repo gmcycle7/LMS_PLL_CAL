@@ -43,9 +43,9 @@ interface P {
 const DEFAULT: P = { wnTs: 0.02, zeta: 0.707, loopDelay: 1, kappaDirect: 0.01, sigmaV: 1 }
 
 const NI_LAYOUT: Partial<Layout> = {
-  xaxis: { title: { text: 'FCW frac（越小越接近整數）' } },
-  yaxis: { title: { text: 'C' }, type: 'log' },
-  yaxis2: { title: { text: '|w* − a|（t.u.）' }, overlaying: 'y', side: 'right', type: 'log', showgrid: false },
+  xaxis: { title: { text: String.raw`FCW $\mathrm{frac}$（越小越接近整數）` } },
+  yaxis: { title: { text: '$C$' }, type: 'log' },
+  yaxis2: { title: { text: String.raw`$|w^*-a|$（t.u.）` }, overlaying: 'y', side: 'right', type: 'log', showgrid: false },
 }
 
 function NearIntegerExperiment() {
@@ -70,16 +70,16 @@ function NearIntegerExperiment() {
   const data: Data[] = useMemo(() => {
     if (!res) return []
     return [
-      { x: res.frac, y: res.Cfreq, mode: 'lines', name: 'C（頻域：Σ|X_k|²·Re H_PD）', line: { color: tokens.series[0], width: 2 } },
-      { x: res.frac, y: res.C, mode: 'markers', name: 'C（時域：序列通過 H_PD）', marker: { color: tokens.series[0], size: 6, symbol: 'circle-open' } },
+      { x: res.frac, y: res.Cfreq, mode: 'lines', name: String.raw`$C$（頻域：$\sum_k |X_k|^2 \cdot \mathrm{Re}\,H_\mathrm{PD}$）`, line: { color: tokens.series[0], width: 2 } },
+      { x: res.frac, y: res.C, mode: 'markers', name: String.raw`$C$（時域：序列通過 $H_\mathrm{PD}$）`, marker: { color: tokens.series[0], size: 6, symbol: 'circle-open' } },
       {
         x: res.frac,
         y: res.CinBand.map((v) => -v),
         mode: 'lines',
-        name: '−C_in-band（頻寬內諧波，Re H_PD < 0）',
+        name: String.raw`$-C_\mathrm{in\text{-}band}$（頻寬內諧波，$\mathrm{Re}\,H_\mathrm{PD} \lt 0$）`,
         line: { color: tokens.series[3], dash: 'dot' },
       },
-      { x: res.frac, y: res.bias.map((v) => Math.abs(v)), mode: 'lines+markers', name: '|w* − a| = |B/C|（右軸）', yaxis: 'y2', line: { color: tokens.series[2] }, marker: { size: 4 } },
+      { x: res.frac, y: res.bias.map((v) => Math.abs(v)), mode: 'lines+markers', name: String.raw`$|w^*-a| = |B/C|$（右軸）`, yaxis: 'y2', line: { color: tokens.series[2] }, marker: { size: 4 } },
     ]
   }, [res, tokens])
 
@@ -94,7 +94,7 @@ function NearIntegerExperiment() {
       { name: `$w^*-a$（frac $=${texNum(res.frac[i0], 3)}$）`, value: res.bias[i0], unit: 't.u.', claim: 'approx' },
       { name: `$C$（frac $=${texNum(res.frac[iLast], 3)}$）`, value: res.Cfreq[iLast] },
       { name: `$w^*-a$（frac $=${texNum(res.frac[iLast], 3)}$）`, value: res.bias[iLast], unit: 't.u.' },
-      { name: String.raw`GMAC 斜率 $S=K_q\,C$（frac 最小處）`, value: res.slope[i0], unit: 't.u.⁻¹', formulaId: 'F-11.15', note: '越小 ⇒ 收斂越慢、對 bias 越敏感' },
+      { name: String.raw`GMAC 斜率 $S=K_q\,C$（frac 最小處）`, value: res.slope[i0], unit: String.raw`$\mathrm{t.u.}^{-1}$`, formulaId: 'F-11.15', note: String.raw`越小 $\Rightarrow$ 收斂越慢、對 bias 越敏感` },
       { name: String.raw`低 frac 冪次 $d\ln C/d\ln\mathrm{frac}$（最小 6 點擬合）`, value: res.lowFracExponent, note: String.raw`$\mathrm{frac}\ll\omega_nT_s/2\pi$ 時 $\to2$` },
       { name: '時域 vs 頻域最大相對差', value: res.maxRelDiff, note: `時域略過 ${res.skip} 個暫態 sample，取整數個週期` },
     )
@@ -146,11 +146,11 @@ function NearIntegerExperiment() {
       actions={{ onReset: () => setP(DEFAULT), running }}
       controls={
         <>
-          <ParamControl label="ω_nT_s（主 PLL 頻寬）" value={p.wnTs} onChange={set('wnTs')} min={0.002} max={0.3} log unit="rad/sample" reg="Behavioral：主 PLL ω_n/f_s" />
-          <ParamControl label="ζ（阻尼）" value={p.zeta} onChange={set('zeta')} min={0.3} max={2} step={0.01} unit="—" reg="Behavioral：主 PLL damping" />
+          <ParamControl label={String.raw`$\omega_n T_s$（主 PLL 頻寬）`} value={p.wnTs} onChange={set('wnTs')} min={0.002} max={0.3} log unit="rad/sample" reg="Behavioral：主 PLL omega_n/f_s" />
+          <ParamControl label={String.raw`$\zeta$（阻尼）`} value={p.zeta} onChange={set('zeta')} min={0.3} max={2} step={0.01} unit="—" reg="Behavioral：主 PLL damping" />
           <ParamControl label="loop delay" value={p.loopDelay} onChange={set('loopDelay')} min={0} max={4} integer clampOnBlur unit="samples" reg="Behavioral：PLL loop latency" />
-          <ParamControl label="κ_d（直接耦合係數）" value={p.kappaDirect} onChange={set('kappaDirect')} min={-0.2} max={0.2} step={0.001} unit="t.u." reg="Behavioral：PD 端 code-correlated 耦合" />
-          <ParamControl label="σ_v" value={p.sigmaV} onChange={set('sigmaV')} min={0.01} max={10} log unit="t.u." reg="Behavioral：comparator noise（給 K_q）" />
+          <ParamControl label={String.raw`$\kappa_d$（直接耦合係數）`} value={p.kappaDirect} onChange={set('kappaDirect')} min={-0.2} max={0.2} step={0.001} unit="t.u." reg="Behavioral：PD 端 code-correlated 耦合" />
+          <ParamControl label="$\sigma_v$" value={p.sigmaV} onChange={set('sigmaV')} min={0.01} max={10} log unit="t.u." reg="Behavioral：comparator noise（給 K_q）" />
         </>
       }
     >
@@ -301,10 +301,10 @@ export function NearIntegerSection() {
       </p>
       <p>
         同時，若有干擾直接耦合到 PD 而不經過 <Tex>{String.raw`H_\mathrm{PD}`}</Tex>，<Tex>{'B'}</Tex> 並不會跟著變小，於是 bias <Tex>{'B/C'}</Tex> 爆增。下面用真實的 DSM 序列與 DPLL
-        以兩種獨立算法計算 <Tex>{'C'}</Tex>（並把頻寬內的負貢獻單獨畫出來）。<FigRef id="near-integer-check" /> 是實驗的計算流程：先看左邊，FCW 的小數部分 <Tex>{String.raw`\mathrm{frac}`}</Tex> 乘上 <Tex>{'2^{16}'}</Tex> 是 16-bit 累加器的整數碼{' '}
+        以兩種獨立算法計算 <Tex>{'C'}</Tex>（並把頻寬內的負貢獻單獨畫出來）。<FigRef id="near-integer-check" /> 是實驗的計算流程：先看最上面三個方塊，FCW 的小數部分 <Tex>{String.raw`\mathrm{frac}`}</Tex> 乘上 <Tex>{'2^{16}'}</Tex> 是 16-bit 累加器的整數碼{' '}
         <Tex>{'K'}</Tex>，first-order DSM 的 residue 每 <Tex>{String.raw`P=2^{16}/\gcd(K,2^{16})`}</Tex> 個 sample 重複一次；兩支都從同一個標準化的 residue{' '}
-        <Tex>{'x[n]'}</Tex>（<Tex>{'E[x]=0,\\ E[x^2]=1'}</Tex>）出發。再看中間兩支：時域那一支讓序列真的通過 <Tex>{String.raw`H_\mathrm{PD}`}</Tex>{' '}
-        再取整數個週期平均，頻域那一支只取一個週期做 DFT，把 <Tex>{String.raw`|X_k|^2`}</Tex> 乘上 <Tex>{String.raw`\mathrm{Re}\,H_\mathrm{PD}`}</Tex> 相加（就是上面 Parseval 的那一行）。最後看右邊的六角形：兩個{' '}
+        <Tex>{'x[n]'}</Tex>（<Tex>{'E[x]=0,\\ E[x^2]=1'}</Tex>）出發。再看中間分成左右的兩支：時域那一支讓序列真的通過 <Tex>{String.raw`H_\mathrm{PD}`}</Tex>{' '}
+        再取整數個週期平均，頻域那一支只取一個週期做 DFT，把 <Tex>{String.raw`|X_k|^2`}</Tex> 乘上 <Tex>{String.raw`\mathrm{Re}\,H_\mathrm{PD}`}</Tex> 相加（就是上面 Parseval 的那一行）。最後看下面的六角形：兩個{' '}
         <Tex>{'C'}</Tex> 的相對差夠小才採用，這是下面實驗「Analytic」欄的交叉檢查。
       </p>
       <Fig id="near-integer-check" />

@@ -86,24 +86,24 @@ export function S7Schedule() {
       return twoPhaseMsd(delta0, K, s2, design.two.mu1, b1, design.two.mu2, k - b1)
     })
     const d: Data[] = [
-      { x: ks, y: linFixed, name: `固定 μ* = ${nf(design.fixed.mu, 4)} fs（解析）`, line: { color: tokens.series[0], width: 2.2 } },
-      { x: ks, y: linTwo, name: `兩段式 ${nf(design.two.mu1, 3)} → ${nf(design.two.mu2, 3)} fs @ k = ${design.two.B1}（解析）`, line: { color: tokens.series[1], width: 2.2 } },
-      { x: ks, y: Array.from(design.opt.P), name: '1/k 最佳排程 P_k（解析下界）', line: { color: tokens.series[2], width: 2.2 } },
+      { x: ks, y: linFixed, name: String.raw`固定 $\mu^* = ${tx(design.fixed.mu, 4)}\,\mathrm{fs}$（解析）`, line: { color: tokens.series[0], width: 2.2 } },
+      { x: ks, y: linTwo, name: String.raw`兩段式 $${tx(design.two.mu1, 3)} \to ${tx(design.two.mu2, 3)}\,\mathrm{fs}$ @ $k = ${design.two.B1}$（解析）`, line: { color: tokens.series[1], width: 2.2 } },
+      { x: ks, y: Array.from(design.opt.P), name: String.raw`$1/k$ 最佳排程 $P_k$（解析下界）`, line: { color: tokens.series[2], width: 2.2 } },
     ]
     if (mcRes) {
       d.push(
-        { x: ks, y: Array.from(mcRes.fixed), name: 'MC 固定 μ', mode: 'markers', marker: { color: tokens.series[0], size: 5 } },
+        { x: ks, y: Array.from(mcRes.fixed), name: String.raw`MC 固定 $\mu$`, mode: 'markers', marker: { color: tokens.series[0], size: 5 } },
         { x: ks, y: Array.from(mcRes.twoPhase), name: 'MC 兩段式', mode: 'markers', marker: { color: tokens.series[1], size: 5, symbol: 'square' } },
-        { x: ks, y: Array.from(mcRes.inverseK), name: 'MC 1/k', mode: 'markers', marker: { color: tokens.series[2], size: 5, symbol: 'diamond' } },
+        { x: ks, y: Array.from(mcRes.inverseK), name: String.raw`MC $1/k$`, mode: 'markers', marker: { color: tokens.series[2], size: 5, symbol: 'diamond' } },
       )
     }
     return d
   }, [ks, delta0, design, K, s2, mcRes, tokens])
   const muData = useMemo<Data[]>(
     () => [
-      { x: ks.slice(0, B), y: ks.slice(0, B).map(() => design.fixed.mu), name: '固定 μ*', line: { color: tokens.series[0], shape: 'hv' } },
+      { x: ks.slice(0, B), y: ks.slice(0, B).map(() => design.fixed.mu), name: String.raw`固定 $\mu^*$`, line: { color: tokens.series[0], shape: 'hv' } },
       { x: ks.slice(0, B), y: ks.slice(0, B).map((k) => (k < design.two.B1 ? design.two.mu1 : design.two.mu2)), name: '兩段式', line: { color: tokens.series[1], shape: 'hv' } },
-      { x: ks.slice(0, B), y: Array.from(design.opt.mu), name: 'μ_k = 1/(K(k+1+k₀))', line: { color: tokens.series[2] } },
+      { x: ks.slice(0, B), y: Array.from(design.opt.mu), name: String.raw`$\mu_k = 1/(K(k+1+k_0))$`, line: { color: tokens.series[2] } },
     ],
     [ks, B, design, tokens],
   )
@@ -128,13 +128,13 @@ export function S7Schedule() {
         </p>
       </Diagram>
       <h3>兩段式的精確公式</h3>
-      <Diagram chart={CHART_SCHEDULE_TIMELINE} caption="兩段式的時間軸：由左到右是時間；兩段之間唯一要交接的量，是 COARSE 段結束時的均方誤差。">
+      <Diagram chart={CHART_SCHEDULE_TIMELINE} caption="兩段式的時間軸：由上到下是時間；兩段之間唯一要交接的量，是 COARSE 段結束時的均方誤差。">
         <p>
           <strong>先看</strong>棕色的 COARSE 段：步長 <Tex>{'\\mu_1'}</Tex> 大、pole <Tex>{'p_1=1-\\mu_1K'}</Tex> 小，{BIAS2} 很快掉下來，但雜訊底高。<strong>再看</strong>交棒的那條線：第一段結束（<Tex>{'k=B_1'}</Tex>）時的均方誤差{' '}
           <Tex>{'m_{B_1}'}</Tex>。<strong>然後看</strong>藍色的 FINE 段：步長換成小的 <Tex>{'\\mu_2'}</Tex>，把 <Tex>{'m_{B_1}'}</Tex> 當成新的「初始誤差平方」，再跑 <Tex>{'B_2'}</Tex> 個 block 把雜訊底壓低。虛線之後是 TRACK：步長不再縮小，保留追蹤漂移的能力（§14.7）。
         </p>
         <p>
-          圖上交棒線上的 <Tex>{'m_{B_1}'}</Tex> 就是公式 F-14.20 裡的 <Tex>{'m_{B_1}'}</Tex>（<Tex>{'m_k\\equiv E[\\delta_k^2]'}</Tex>）；最右邊方塊裡的式子就是 F-14.20 本身，下面三步說明為什麼可以這樣「接力」。
+          圖上交棒線上的 <Tex>{'m_{B_1}'}</Tex> 就是公式 F-14.20 裡的 <Tex>{'m_{B_1}'}</Tex>（<Tex>{'m_k\\equiv E[\\delta_k^2]'}</Tex>）；寫著 <Tex>{'k=B_1+B_2'}</Tex> 的那個方塊（兩段都跑完的終點）裡的式子就是 F-14.20 本身，下面三步說明為什麼可以這樣「接力」。
         </p>
       </Diagram>
       <Steps
@@ -268,7 +268,7 @@ export function S7Schedule() {
         yLog
         height={320}
         csvName="ch14-schedules"
-        layout={{ xaxis: { title: { text: 'k（blocks）' } }, yaxis: { title: { text: 'fs²' } } }}
+        layout={{ xaxis: { title: { text: String.raw`$k$（blocks）` } }, yaxis: { title: { text: String.raw`$\mathrm{fs}^2$` } } }}
         caption={md(
           String.raw`線為線性解析（F-14.3、F-14.20、F-14.18），點為 Monte Carlo。條件：$\sigma_v=${tx(sigmaV, 6)}\,\mathrm{fs}$、$N=${N}$、$\delta_0=${tx(delta0, 6)}\,\mathrm{fs}$、$\theta=0$、$K=${tx(K, 4)}\,\mathrm{fs^{-1}}$。`,
         )}
@@ -279,7 +279,7 @@ export function S7Schedule() {
         yLog
         height={240}
         csvName="ch14-schedule-mu"
-        layout={{ xaxis: { title: { text: 'k（blocks）' } }, yaxis: { title: { text: 'μ_k (fs)' } } }}
+        layout={{ xaxis: { title: { text: String.raw`$k$（blocks）` } }, yaxis: { title: { text: String.raw`$\mu_k$ (fs)` } } }}
         caption={md('兩段式就是用兩個「台階」去逼近 $1/k$ 曲線；台階越多（coarse、fine、track 三段）越接近。')}
       />
       <h3>核心程式碼：只差一行</h3>

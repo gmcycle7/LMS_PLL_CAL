@@ -14,7 +14,7 @@ import {
   useThemeTokens,
 } from '@/components'
 import { runQuantLab, type DitherPdf } from '@/simulation/models/quantizer'
-import { DEFAULT_LAB_PARAMS, Erratum, Fold, Hand, STRATEGY_COLOR, SpurAt, Unit, fx, n, tx } from '../common'
+import { DEFAULT_LAB_PARAMS, Erratum, Fold, Hand, STRATEGY_COLOR, SpurAt, Unit, fx, n, texLabel, tx } from '../common'
 import { CHART_DITHER_LOOP } from '../diagrams'
 
 const SWEEP: { A: number; pdf: DitherPdf }[] = [
@@ -60,14 +60,14 @@ export function DitherSection() {
       out.push({
         x: run.psd.f,
         y: run.psd.psd,
-        name: run.label,
+        name: texLabel(run.label),
         line: { color: tokens.series[STRATEGY_COLOR[run.strategy]], width: 1.2 },
       })
       if (run.psd.theory)
         out.push({
           x: run.psd.f,
           y: run.psd.theory,
-          name: `${run.label} 理論`,
+          name: `${texLabel(run.label)} 理論`,
           line: { color: tokens.series[STRATEGY_COLOR[run.strategy]], width: 1, dash: 'dash' },
         })
     }
@@ -105,7 +105,7 @@ export function DitherSection() {
       </p>
       <Mermaid
         chart={CHART_DITHER_LOOP}
-        caption="方法 E 的迴圈。和方法 D 的圖比，只多了藍色的兩塊：dither 在量化器前面加進來。再看下排：相減點拿的是還沒加 dither 的 $v$，所以存回去的 $r$ 不含 $d$ 本身。"
+        caption="方法 E 的迴圈。和方法 D 的圖比，只多了藍色的兩塊：dither 在量化器前面加進來。再看下半：相減點拿的是還沒加 dither 的 $v$，所以存回去的 $r$ 不含 $d$ 本身。"
       />
       <p className="small ch13-figwalk">
         圖上的 <Tex>{'d[n]'}</Tex> 是 dither：零平均、每拍獨立的亂數，峰對峰寬度 <Tex>{'A'}</Tex>（LSB）、變異數 <Tex>{String.raw`\sigma_d^2`}</Tex>；均勻分布（RPDF）時 <Tex>{String.raw`\sigma_d^2=A^2/12`}</Tex>，兩個均勻亂數相加的三角分布（TPDF）時{' '}
@@ -220,7 +220,7 @@ export function DitherSection() {
         xLog
         yLog
         csvName="ch13-cde-psd"
-        layout={{ xaxis: { title: { text: 'f [Hz]' } }, yaxis: { title: { text: 'PSD [LSB²/Hz]' }, range: [-13, -3] } }}
+        layout={{ xaxis: { title: { text: String.raw`$f$ [Hz]` } }, yaxis: { title: { text: String.raw`PSD [$\mathrm{LSB}^2/\mathrm{Hz}$]` }, range: [-13, -3] } }}
         caption={
           <>
             Welch：Hann、nperseg {ps0.nperseg}、{ps0.nSegments} 段、ENBW {n(ps0.enbwHz, 4)} Hz、one-sided、<Tex>{String.raw`\mathrm{LSB}^2/\mathrm{Hz}`}</Tex>、去平均。D 只有{' '}

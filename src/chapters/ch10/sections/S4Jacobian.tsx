@@ -226,7 +226,7 @@ export function S4Jacobian() {
           </p>
         </Callout>
         <Hand id="HC-10.6">
-          假裝你在量產測試機前：把第 <Tex>{'j'}</Tex> 個係數 <Tex>{String.raw`\pm\Delta`}</Tex>，各讀一次 GMAC。預設的兩個讀數（<Tex>{String.raw`\mp${tn(fd.erf03, 4)}`}</Tex>）是 <Tex>{String.raw`\Delta=0.3\sigma_v`}</Tex> 時 ±1 碼的理論值，對應上表{' '}
+          假裝你在量產測試機前：把第 <Tex>{'j'}</Tex> 個係數 <Tex>{String.raw`\pm\Delta`}</Tex>，各讀一次 GMAC。預設的兩個讀數（<Tex>{String.raw`\mp${tn(fd.erf03, 4)}`}</Tex>）是 <Tex>{String.raw`\Delta=0.3\sigma_v`}</Tex> 時 <Tex>{String.raw`\pm1`}</Tex> 碼的理論值，對應上表{' '}
           <Tex>{String.raw`\Delta/\sigma_v=0.3`}</Tex> 那一列。換成你自己的讀數與 <Tex>{String.raw`\Delta`}</Tex>、<Tex>{'N_J'}</Tex>，先用紙筆算出 <Tex>{String.raw`\hat J_{ij}`}</Tex>、截斷係數與雜訊（<Tex>{String.raw`\operatorname{erf}`}</Tex>{' '}
           要查表或用題目裡的級數近似），再展開步驟對答案。讀數要和 <Tex>{String.raw`\Delta`}</Tex> 相稱：unit-RMS 的 regressor 滿足 <Tex>{String.raw`|J_{ij}|\le K_q`}</Tex>，所以兩個讀數的差不會比{' '}
           <Tex>{String.raw`2K_q\Delta`}</Tex> 大出量測雜訊——差太多時題目會告訴你這組數字為什麼量不到。
@@ -278,7 +278,7 @@ export function S4Jacobian() {
             result={String.raw`\mathbf A_{\mathrm{cal}}=\mathbf I+\mathbf M\mathbf J`}
           />
         </Deriv>
-        <Prereq title="SVD（singular value decomposition）：任何矩陣都能拆成「旋轉 × 拉伸 × 旋轉」">
+        <Prereq title={String.raw`SVD（singular value decomposition）：任何矩陣都能拆成「旋轉 $\times$ 拉伸 $\times$ 旋轉」`}>
           <p>
             任何實矩陣 <Tex>{String.raw`\mathbf J=\mathbf U\boldsymbol\Sigma\mathbf V^T`}</Tex>：<Tex>{String.raw`\mathbf U,\mathbf V`}</Tex> 的欄互相垂直（<Tex>{String.raw`\mathbf U^T\mathbf U=\mathbf V^T\mathbf V=\mathbf I`}</Tex>），
             <Tex>{String.raw`\boldsymbol\Sigma=\operatorname{diag}(\sigma_1\ge\sigma_2\ge\dots\ge0)`}</Tex>。<Tex>{String.raw`\sigma_i`}</Tex> 是 <Tex>{String.raw`\mathbf J`}</Tex> 沿{' '}
@@ -298,8 +298,8 @@ export function S4Jacobian() {
           方向，各做一次「分母加了 <Tex>{String.raw`\lambda_{\mathrm{reg}}`}</Tex> 的除法」。用上面的 SVD 把它畫出來：
         </p>
         <Fig id="pinv-svd">
-          先看 ①（晶片）：誤差 <Tex>{String.raw`\boldsymbol\epsilon`}</Tex> 被 <Tex>{String.raw`\mathbf V^T`}</Tex> 拆成模式，每個模式乘上自己的 singular value <Tex>{String.raw`\sigma_i`}</Tex>，再被{' '}
-          <Tex>{String.raw`\mathbf U`}</Tex> 轉成 GMAC 看到的方向，得到綠色的 <Tex>{String.raw`E[\mathbf G_k]=\mathbf J\boldsymbol\epsilon_k`}</Tex>。再看 ②（更新矩陣），它從同一個 <Tex>{String.raw`\mathbf G_k`}</Tex>（綠色）接下去：先用{' '}
+          先看左邊的框 ①（晶片）：誤差 <Tex>{String.raw`\boldsymbol\epsilon`}</Tex> 被 <Tex>{String.raw`\mathbf V^T`}</Tex> 拆成模式，每個模式乘上自己的 singular value <Tex>{String.raw`\sigma_i`}</Tex>，再被{' '}
+          <Tex>{String.raw`\mathbf U`}</Tex> 轉成 GMAC 看到的方向，得到綠色的 <Tex>{String.raw`E[\mathbf G_k]=\mathbf J\boldsymbol\epsilon_k`}</Tex>。再看右邊的框 ②（更新矩陣），它從同一個 <Tex>{String.raw`\mathbf G_k`}</Tex>（綠色）接下去：先用{' '}
           <Tex>{String.raw`\mathbf U^T`}</Tex> 轉回來，乘上藍色的 <Tex>{String.raw`\sigma_i/(\sigma_i^2+\lambda_{\mathrm{reg}})`}</Tex>，再用{' '}
           <Tex>{String.raw`\mathbf V`}</Tex> 轉回參數座標並乘 <Tex>{String.raw`-\gamma`}</Tex>。<Tex>{String.raw`\mathbf U`}</Tex> 與 <Tex>{String.raw`\mathbf U^T`}</Tex> 相消（<Tex>{String.raw`\mathbf U^T\mathbf U=\mathbf I`}</Tex>），所以模式{' '}
           <Tex>{'i'}</Tex> 繞一圈只乘了 <Tex>{String.raw`\sigma_i\times\sigma_i/(\sigma_i^2+\lambda_{\mathrm{reg}})\times(-\gamma)`}</Tex>：加上原來的 1 就是下面 F-10.10 的{' '}
@@ -510,7 +510,7 @@ export function S4Jacobian() {
           {String.raw`\mathbf J=\begin{bmatrix}-1&2\\2&-1\end{bmatrix},\ \mathbf M=0.2\mathbf I\ \Rightarrow\ \boxed{\operatorname{eig}(\mathbf I+\mathbf M\mathbf J)=\{${tn(t.poles[0])},\ ${tn(t.poles[1])}\}}`}
         </TexBlock>
         <Hand id="HC-10.7">
-          上面用「對稱矩陣的 eigenvalue 是 <Tex>{String.raw`a\pm b`}</Tex>」的捷徑；這一題改用對任何 2×2 都適用的 trace／determinant 公式。預設數字就是 T18，答案應該是{' '}
+          上面用「對稱矩陣的 eigenvalue 是 <Tex>{String.raw`a\pm b`}</Tex>」的捷徑；這一題改用對任何 <Tex>{String.raw`2\times2`}</Tex> 都適用的 trace／determinant 公式。預設數字就是 T18，答案應該是{' '}
           <Tex>{String.raw`${tn(t.poles[0])}`}</Tex> 與 <Tex>{String.raw`${tn(t.poles[1])}`}</Tex>。把 <Tex>{'J_{12}'}</Tex>、<Tex>{'J_{21}'}</Tex> 改成 0.5（弱耦合）或把其中一個改成負的（會出現複數 pole），先用紙筆算，再展開步驟對答案。
         </Hand>
         <ul>

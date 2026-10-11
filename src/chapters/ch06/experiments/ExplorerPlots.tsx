@@ -39,17 +39,17 @@ export const ExplorerPlots = memo(function ExplorerPlots({ summaries, activeId, 
     const w = active.tone ? active.tone.wave : active.pll ? active.pll.wave : null
     if (!w) return null
     const traces: Data[] = [
-      { x: Array.from(w.n), y: Array.from(w.x), name: 'x[n]（原始 code）', mode: 'lines+markers', marker: { size: 4 }, line: { color: tokens.series[0] } },
-      { x: Array.from(w.n), y: Array.from(w.u), name: 'u[n] = (h*x)[n]（PD 看到的）', mode: 'lines+markers', marker: { size: 4 }, line: { color: tokens.series[1] } },
+      { x: Array.from(w.n), y: Array.from(w.x), name: String.raw`$x[n]$（原始 code）`, mode: 'lines+markers', marker: { size: 4 }, line: { color: tokens.series[0] } },
+      { x: Array.from(w.n), y: Array.from(w.u), name: String.raw`$u[n] = (h \ast x)[n]$（PD 看到的）`, mode: 'lines+markers', marker: { size: 4 }, line: { color: tokens.series[1] } },
     ]
     const D = Math.round(active.params.D)
     if (active.tone && D > 0) {
-      traces.push({ x: w.n, y: active.tone.wave.xD, name: `x[n − ${D}]（GMAC 用）`, mode: 'lines', line: { color: tokens.series[2], dash: 'dash' } })
+      traces.push({ x: w.n, y: active.tone.wave.xD, name: String.raw`$x[n-${D}]$（GMAC 用）`, mode: 'lines', line: { color: tokens.series[2], dash: 'dash' } })
     } else if (active.pll && D > 0 && D < w.n.length) {
       // PLL 模式：x[n − D] 就是同一段 x 往右平移 D 個 sample
       const n = Array.from(w.n)
       const x = Array.from(w.x)
-      traces.push({ x: n.slice(D), y: x.slice(0, x.length - D), name: `x[n − ${D}]（GMAC 用）`, mode: 'lines', line: { color: tokens.series[2], dash: 'dash' } })
+      traces.push({ x: n.slice(D), y: x.slice(0, x.length - D), name: String.raw`$x[n-${D}]$（GMAC 用）`, mode: 'lines', line: { color: tokens.series[2], dash: 'dash' } })
     }
     return traces
   }, [active, tokens])
@@ -62,13 +62,13 @@ export const ExplorerPlots = memo(function ExplorerPlots({ summaries, activeId, 
       if (s.tone) {
         traces.push({ x: s.tone.CD.D, y: s.tone.CD.analytic, name: `${s.id}：解析`, mode: 'lines', line: { color: s.color } })
         traces.push({ x: s.tone.CD.D, y: s.tone.CD.empirical, name: `${s.id}：時域`, mode: 'markers', marker: { color: s.color, size: 6, symbol: 'circle-open' } })
-        if (curD < s.tone.CD.D.length) traces.push({ x: [curD], y: [s.tone.CD.analytic[curD]], name: `${s.id}：目前 D`, mode: 'markers', marker: { color: s.color, size: 13, symbol: 'star' } })
+        if (curD < s.tone.CD.D.length) traces.push({ x: [curD], y: [s.tone.CD.analytic[curD]], name: String.raw`${s.id}：目前 $D$`, mode: 'markers', marker: { color: s.color, size: 13, symbol: 'star' } })
         if (s.params.regressor === 'u') {
           const A2 = s.params.A * s.params.mag
           traces.push({
             x: s.tone.CD.D,
             y: s.tone.CD.D.map((d) => toneCorrelation({ A: A2, mag: 1, phiRad: 0, omega: s.params.omega, delay: d })),
-            name: `${s.id}：filtered-x E[u_D·u]`,
+            name: String.raw`${s.id}：filtered-x $E[u_D\,u]$`,
             mode: 'lines',
             line: { color: s.color, dash: 'dashdot' },
           })
@@ -78,8 +78,8 @@ export const ExplorerPlots = memo(function ExplorerPlots({ summaries, activeId, 
         traces.push({ x: D, y: Array.from(s.pll.CD.empirical), name: `${s.id}：時域`, mode: 'lines+markers', marker: { size: 5 }, line: { color: s.color } })
         traces.push({ x: D, y: Array.from(s.pll.CD.periodogram), name: `${s.id}：譜線和`, mode: 'lines', line: { color: s.color, dash: 'dash' } })
         if (s.pll.CD.theory) traces.push({ x: D, y: Array.from(s.pll.CD.theory), name: `${s.id}：封閉式`, mode: 'lines', line: { color: s.color, dash: 'dot' } })
-        if (s.params.regressor === 'u') traces.push({ x: D, y: Array.from(s.pll.CD.filtered), name: `${s.id}：filtered-x E[u_D·u]`, mode: 'lines', line: { color: s.color, dash: 'dashdot' } })
-        if (curD < D.length) traces.push({ x: [curD], y: [s.pll.CD.empirical[curD]], name: `${s.id}：目前 D`, mode: 'markers', marker: { color: s.color, size: 13, symbol: 'star' } })
+        if (s.params.regressor === 'u') traces.push({ x: D, y: Array.from(s.pll.CD.filtered), name: String.raw`${s.id}：filtered-x $E[u_D\,u]$`, mode: 'lines', line: { color: s.color, dash: 'dashdot' } })
+        if (curD < D.length) traces.push({ x: [curD], y: [s.pll.CD.empirical[curD]], name: String.raw`${s.id}：目前 $D$`, mode: 'markers', marker: { color: s.color, size: 13, symbol: 'star' } })
       }
     }
     return traces
@@ -97,11 +97,11 @@ export const ExplorerPlots = memo(function ExplorerPlots({ summaries, activeId, 
       traces.push({
         x: phis,
         y: phis.map((p) => toneCorrelation({ A: s.params.A, mag: s.params.mag, phiRad: edge ? (Math.cos((p * Math.PI) / 180) >= 0 ? 0 : Math.PI) : (p * Math.PI) / 180, omega: s.params.omega, delay: D })),
-        name: `${s.id}：C_D(φ)`,
+        name: String.raw`${s.id}：$C_D(\phi)$`,
         mode: 'lines',
         line: { color: s.color },
       })
-      traces.push({ x: [s.params.phiDeg], y: [s.tone!.C], name: `${s.id}：目前 φ`, mode: 'markers', marker: { color: s.color, size: 12, symbol: 'star' } })
+      traces.push({ x: [s.params.phiDeg], y: [s.tone!.C], name: String.raw`${s.id}：目前 $\phi$`, mode: 'markers', marker: { color: s.color, size: 12, symbol: 'star' } })
     }
     return traces
   }, [summaries])
@@ -138,24 +138,24 @@ export const ExplorerPlots = memo(function ExplorerPlots({ summaries, activeId, 
       py.push(10 * Math.log10(Math.max(r.psd.sxx[i] / pmax, 1e-16)))
     }
     const reData: Data[] = [
-      { x: nu, y: Array.from(r.grid.re), name: 'Re{H_PD(e^{jΩ})}（DT）', mode: 'lines', line: { color: tokens.series[1], width: 2 } },
+      { x: nu, y: Array.from(r.grid.re), name: String.raw`$\operatorname{Re}\,H_{\mathrm{PD}}(e^{j\Omega})$（DT）`, mode: 'lines', line: { color: tokens.series[1], width: 2 } },
       { x: nu, y: Array.from(r.grid.ctRe), name: 'CT 原型（僅供對照，E44）', mode: 'lines', line: { color: tokens.series[1], dash: 'dash', width: 1 } },
       { x: px, y: py, name: 'code PSD [dB，峰值 = 0]', mode: 'lines', line: { color: tokens.series[0], width: 1 }, yaxis: 'y2', opacity: 0.8 },
     ]
     const reLayout: Partial<Layout> = {
-      xaxis: { title: { text: 'Ω/(ω_L T_s)' } },
-      yaxis: { title: { text: 'Re{H_PD}' } },
+      xaxis: { title: { text: String.raw`$\Omega/(\omega_L T_s)$` } },
+      yaxis: { title: { text: String.raw`$\operatorname{Re}\,H_{\mathrm{PD}}$` } },
       yaxis2: { title: { text: 'PSD [dB]' }, overlaying: 'y', side: 'right', showgrid: false, range: [-80, 5] },
       shapes,
     }
     const bode: Data[] = [
-      { x: nu, y: Array.from(r.grid.magDb), name: '|H_PD| [dB]', mode: 'lines', line: { color: tokens.series[0] } },
-      { x: nu, y: Array.from(r.grid.phaseDeg), name: '∠H_PD [deg]', mode: 'lines', line: { color: tokens.series[1] }, yaxis: 'y2' },
-      { x: nu, y: Array.from(r.grid.ctPhaseDeg), name: '∠H CT 原型', mode: 'lines', line: { color: tokens.series[1], dash: 'dash', width: 1 }, yaxis: 'y2' },
+      { x: nu, y: Array.from(r.grid.magDb), name: String.raw`$|H_{\mathrm{PD}}|$ [dB]`, mode: 'lines', line: { color: tokens.series[0] } },
+      { x: nu, y: Array.from(r.grid.phaseDeg), name: String.raw`$\angle H_{\mathrm{PD}}$ [deg]`, mode: 'lines', line: { color: tokens.series[1] }, yaxis: 'y2' },
+      { x: nu, y: Array.from(r.grid.ctPhaseDeg), name: String.raw`$\angle H$ CT 原型`, mode: 'lines', line: { color: tokens.series[1], dash: 'dash', width: 1 }, yaxis: 'y2' },
     ]
     const bodeLayout: Partial<Layout> = {
-      xaxis: { title: { text: 'Ω/(ω_L T_s)' } },
-      yaxis: { title: { text: '|H| [dB]' } },
+      xaxis: { title: { text: String.raw`$\Omega/(\omega_L T_s)$` } },
+      yaxis: { title: { text: String.raw`$|H|$ [dB]` } },
       yaxis2: { title: { text: '相位 [deg]' }, overlaying: 'y', side: 'right', showgrid: false },
       shapes: [{ type: 'line', xref: 'paper', x0: 0, x1: 1, yref: 'y2', y0: 90, y1: 90, line: { color: tokens.danger, dash: 'dot', width: 1 } }],
     }
@@ -176,8 +176,8 @@ export const ExplorerPlots = memo(function ExplorerPlots({ summaries, activeId, 
       const ps = mus.map((m) => 1 - m * s.Kq * s.C)
       ymin = Math.min(ymin, ...ps)
       ymax = Math.max(ymax, ...ps)
-      traces.push({ x: mus, y: ps, name: `${s.id}：p(μ)`, mode: 'lines', line: { color: s.color } })
-      traces.push({ x: [s.params.mu], y: [s.pole], name: `${s.id}：目前 μ`, mode: 'markers', marker: { color: s.color, size: 11, symbol: 'star' } })
+      traces.push({ x: mus, y: ps, name: String.raw`${s.id}：$p(\mu)$`, mode: 'lines', line: { color: s.color } })
+      traces.push({ x: [s.params.mu], y: [s.pole], name: String.raw`${s.id}：目前 $\mu$`, mode: 'markers', marker: { color: s.color, size: 11, symbol: 'star' } })
     }
     const shapes: Partial<Shape>[] = [
       { type: 'rect', xref: 'paper', x0: 0, x1: 1, y0: -1, y1: 1, fillcolor: alpha(tokens.series[2], 0.08), line: { width: 0 }, layer: 'below' },
@@ -196,12 +196,12 @@ export const ExplorerPlots = memo(function ExplorerPlots({ summaries, activeId, 
       r.deltaChains.slice(0, 3).forEach((ch, i) => {
         traces.push({ x: k, y: Array.from(ch), name: `${s.id}：chain ${i}`, mode: 'lines', line: { color: alpha(s.color, 0.3), width: 1 }, showlegend: i === 0 })
       })
-      traces.push({ x: k, y: Array.from(r.deltaMean), name: `${s.id}：MC 平均 δ_k`, mode: 'lines', line: { color: s.color, width: 2.5 } })
+      traces.push({ x: k, y: Array.from(r.deltaMean), name: String.raw`${s.id}：MC 平均 $\delta_k$`, mode: 'lines', line: { color: s.color, width: 2.5 } })
       // 線性預測只畫到 |δ| ≤ 4·max|MC| 以免撐爆座標
       let lim = 0
       for (const v of r.deltaMean) lim = Math.max(lim, Math.abs(v))
       const pred = Array.from(r.predLinear, (v) => (Math.abs(v) <= 4 * lim + 1 ? v : Number.NaN))
-      traces.push({ x: k, y: pred, name: `${s.id}：線性 δ₀p^k`, mode: 'lines', line: { color: s.color, dash: 'dash', width: 1.5 } })
+      traces.push({ x: k, y: pred, name: String.raw`${s.id}：線性 $\delta_0p^k$`, mode: 'lines', line: { color: s.color, dash: 'dash', width: 1.5 } })
       if (r.reference) traces.push({ x: k, y: Array.from(r.reference.delta), name: `${s.id}：blockLms 參考（seed 同 chain 0）`, mode: 'lines', line: { color: s.color, dash: 'dot', width: 1 } })
     }
     return traces
@@ -215,13 +215,13 @@ export const ExplorerPlots = memo(function ExplorerPlots({ summaries, activeId, 
       const r = loopRes.get(s.id)
       if (!r || r.sCurve.delta.length === 0) continue
       const d = Array.from(r.sCurve.delta)
-      traces.push({ x: d, y: Array.from(r.sCurve.G), name: `${s.id}：mean-field E[G](δ)`, mode: 'lines+markers', marker: { size: 4 }, line: { color: s.color, width: 2 } })
+      traces.push({ x: d, y: Array.from(r.sCurve.G), name: String.raw`${s.id}：mean-field $E[G](\delta)$`, mode: 'lines+markers', marker: { size: 4 }, line: { color: s.color, width: 2 } })
       // 小訊號切線 K_q·C·δ 只畫到線性區的幾倍，之後它與真實特性無關
       const lim = r.uMax > 0 ? (3 * s.params.sigmaV) / r.uMax : Infinity
       traces.push({
         x: d,
         y: d.map((v) => (v <= lim ? r.Kq * r.C * v : Number.NaN)),
-        name: `${s.id}：線性 K_q·C·δ`,
+        name: String.raw`${s.id}：線性 $K_qC\,\delta$`,
         mode: 'lines',
         line: { color: s.color, dash: 'dash', width: 1 },
       })
@@ -237,18 +237,18 @@ export const ExplorerPlots = memo(function ExplorerPlots({ summaries, activeId, 
     const zero = zeroLine(tokens.textMuted)
     const vline = (x: number): Partial<Shape> => ({ type: 'line', yref: 'paper', y0: 0, y1: 1, x0: x, x1: x, line: { color: tokens.danger, dash: 'dot', width: 1 } })
     return {
-      wave: { xaxis: { title: { text: 'n [sample]' } }, yaxis: { title: { text: 'code（無因次）' } }, shapes: [zero] } as Partial<Layout>,
-      cd: { xaxis: { title: { text: 'D [samples]' } }, yaxis: { title: { text: 'C_D' } }, shapes: [zero] } as Partial<Layout>,
-      cphi: { xaxis: { title: { text: 'φ [deg]' }, dtick: 30 }, yaxis: { title: { text: 'C_D' } }, shapes: [zero, vline(90), vline(-90)] } as Partial<Layout>,
-      loop: { xaxis: { title: { text: 'block k' } }, yaxis: { title: { text: 'δ_k [fs]' } }, shapes: [zero] } as Partial<Layout>,
+      wave: { xaxis: { title: { text: '$n$ [sample]' } }, yaxis: { title: { text: 'code（無因次）' } }, shapes: [zero] } as Partial<Layout>,
+      cd: { xaxis: { title: { text: '$D$ [samples]' } }, yaxis: { title: { text: '$C_D$' } }, shapes: [zero] } as Partial<Layout>,
+      cphi: { xaxis: { title: { text: String.raw`$\phi$ [deg]` }, dtick: 30 }, yaxis: { title: { text: '$C_D$' } }, shapes: [zero, vline(90), vline(-90)] } as Partial<Layout>,
+      loop: { xaxis: { title: { text: 'block $k$' } }, yaxis: { title: { text: String.raw`$\delta_k$ [fs]` } }, shapes: [zero] } as Partial<Layout>,
     }
   }, [tokens])
   const poleLayout = useMemo<Partial<Layout> | null>(
-    () => (pole ? { xaxis: { title: { text: 'μ [fs]' } }, yaxis: { title: { text: 'p' }, range: pole.range }, shapes: pole.shapes } : null),
+    () => (pole ? { xaxis: { title: { text: String.raw`$\mu$ [fs]` } }, yaxis: { title: { text: '$p$' }, range: pole.range }, shapes: pole.shapes } : null),
     [pole],
   )
   const sCurveLayout = useMemo<Partial<Layout>>(
-    () => ({ xaxis: { title: { text: '|δ| [fs]' } }, yaxis: { title: { text: 'E[G]（無因次）' } }, shapes: sCurve.shapes }),
+    () => ({ xaxis: { title: { text: String.raw`$|\delta|$ [fs]` } }, yaxis: { title: { text: '$E[G]$（無因次）' } }, shapes: sCurve.shapes }),
     [sCurve],
   )
 

@@ -1,9 +1,10 @@
 import { render, waitFor } from '@testing-library/react'
+import katex from 'katex'
 import mermaid from 'mermaid'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
-import { defaultValues, systemMapChart } from '@/components'
-import { installMermaidSvgShim, renderMermaidForTest } from '@/components/mermaidTestUtils'
+import { SYSTEM_BLOCK_LABEL, SYSTEM_MAP_BLOCKS, defaultValues, sanitizeMermaidSource, systemMapModel, type SystemBlock } from '@/components'
+import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { mean, normPdf } from '@/simulation/core'
 import { STEP, batchOptima, conventionalStep, huberPsi, sgn } from '@/simulation/models/lms'
 import {
@@ -26,11 +27,13 @@ import { HANDCALCS } from './handcalcs'
 
 /**
  * Ch01 的方塊圖（docs/teaching-style.md §8）。ch01.test.tsx 為了速度把 mermaid mock 掉了；這裡用真正的 mermaid：
- *   1. parser 解析每一張圖；
+ *   1. parser 解析每一張圖（解析的是網站實際交給 mermaid 的原始碼：先經過 sanitizeMermaidSource）；
  *   2. 真的 render 一次（共用的 installMermaidSvgShim 給 jsdom 一個固定大小的 getBBox 墊片；renderMermaidForTest 與網站用同一個前處理）——
  *      parser 抓不到的問題只有 render 才看得到，例如 Mermaid 11 把單獨一個半形「+」當成 Markdown 清單，畫成「Unsupported markdown: list」；
- *   3. 圖上的數字、正負號與 src/simulation 的實際函式逐一核對；
- *   4. 頁面：章首有 <SystemMap>，每張圖都在自己的小節內、排在對應公式之前，頁面交給 mermaid 的就是登錄的那些原始碼。
+ *      圖內的數學一律是 `$...$`：畫出來的文字沒有殘留的 `$`、含公式的標籤都由 KaTeX 排版（mathCount）、KaTeX 以外沒有 Unicode 拼的數學；
+ *   3. 圖上的數字、正負號與 src/simulation 的實際函式逐一核對（比對原始碼裡的 TeX 字串）；
+ *   4. 頁面：章首有 <SystemMap>（手排的 SVG，不經過 mermaid；主角用 systemMapModel／is-focus 核對），每張圖都在自己的小節內、
+ *      排在對應公式之前，頁面交給 mermaid 的就是登錄的那 22 張原始碼。
  */
 
 const P = vi.hoisted(() => ({
@@ -58,11 +61,45 @@ function sourceLabels(chart: string): string[] {
   return [...quoted, ...transitions]
 }
 
-/** 去掉所有空白（含全形空白），方便比對「圖上的文字」 */
-const squash = (t: string) => t.replace(/\s+/g, '')
+/** 去掉所有空白（含全形空白、不換行空白與零寬空白），方便比對「圖上的文字」 */
+const squash = (t: string) => t.replace(/[\s\u00a0\u200b]+/g, '')
 
-/** 需要 DOM 節點（量位置、查 class）的測試用：不經 sanitizeMermaidSource，所以畫出來的就是原始碼本身的樣子。 */
-async function renderChart(id: string, chart: string): Promise<HTMLElement> {
+/**
+ * 為了讓節點不要太寬，一條長公式會在等號或加號前用 `$…$<br/>$…$` 分成兩行；核對公式內容時先把分行接回來
+ * （`$a$<br/>$= b$` → `$a = b$`），所以「公式寫什麼」與「怎麼斷行」是兩件事，斷行不會讓內容檢查失效。
+ */
+const joined = (chart: string) => chart.replace(/\$<br\/>\$/g, ' ')
+
+/** 配對的 `$$...$$` 或 `$...$`（與 components/mermaidSource.ts 相同的規則） */
+const MATH = /\$\$((?:[^$\\]|\\.)+?)\$\$|(?<!\\)\$((?:[^$\\]|\\.)+?)(?<!\\)\$/g
+
+/** 含公式的標籤：Mermaid 會把每個這樣的標籤排版成「一段」KaTeX */
+const mathLabels = (chart: string): string[] => sourceLabels(chart).filter((l) => l.includes('$'))
+
+/** 一行標籤裡「不是公式」的文字片段（這些要原封不動出現在圖上）；stateDiagram 連線說明已併成 `$$\text{…}…$$`，取其中的 \text{…} */
+function plainPieces(line: string): string[] {
+  if (line.includes('$$')) return Array.from(line.matchAll(/\\text\{([^{}]*)\}/g), (m) => m[1])
+  return line.split(MATH).filter((_, i) => i % 3 === 0)
+}
+
+/** 圖說：拿掉公式後的純文字（`$...$` 以外的部分） */
+const captionPlain = (caption: string) => caption.replace(MATH, '')
+
+/**
+ * 需要 DOM 節點（量位置、查 class）的測試用：與網站相同的前處理與 KaTeX 設定（renderMermaidForTest），
+ * 並拿掉 KaTeX 的 MathML 複本，所以標籤的文字只出現一次。
+ */
+async function renderChart(_id: string, chart: string): Promise<HTMLElement> {
+  const { svg } = await renderMermaidForTest(chart)
+  const host = document.createElement('div')
+  host.innerHTML = svg
+  host.querySelector('style')?.remove()
+  host.querySelectorAll('.katex-mathml').forEach((e) => e.remove())
+  return host
+}
+
+/** 不經 sanitizeMermaidSource、也不排版公式：畫出來的就是原始碼本身的樣子（只給「Unsupported markdown」的回歸測試用）。 */
+async function renderRaw(id: string, chart: string): Promise<HTMLElement> {
   mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', suppressErrorRendering: true })
   const { svg } = await mermaid.render(`t-${id.replace(/\W/g, '')}`, chart)
   const host = document.createElement('div')
@@ -71,7 +108,23 @@ async function renderChart(id: string, chart: string): Promise<HTMLElement> {
   return host
 }
 
-/** 與 ch01.test.tsx 相同的規則：純文字字串（不經 KaTeX）裡不可有 Unicode 拼的數學 */
+/** 圖說（文字，可含 `$...$`）的檢查：每段 $...$ 可被 KaTeX 嚴格解析、$ 成對、$...$ 之外沒有 Unicode 拼的數學 */
+function captionErrors(caption: string): string[] {
+  const out: string[] = []
+  for (const m of caption.matchAll(MATH)) {
+    try {
+      katex.renderToString(m[1] ?? m[2], { throwOnError: true, strict: 'ignore' })
+    } catch (e) {
+      out.push(`${m[1] ?? m[2]} ⇒ ${(e as Error).message}`)
+    }
+  }
+  const rest = captionPlain(caption).replace(/\\\$/g, '')
+  if (rest.includes('$')) out.push(`未配對的 $：${caption}`)
+  if (UNICODE_MATH.test(rest)) out.push(`$...$ 之外有 Unicode 數學：${rest}`)
+  return out
+}
+
+/** 與 ch01.test.tsx 相同的規則：KaTeX 以外的純文字裡不可有 Unicode 拼的數學 */
 const UNICODE_MATH = /[₀-₉ₐ-ₜ⁰-⁹²³⁴σμδεψρπλτφΔΣΦ≡≤≥≪√±ṽ]|[A-Za-z]_[A-Za-z0-9{(]|[A-Za-z)\]]\^/
 
 describe('Ch01 方塊圖：清單與原始碼規則', () => {
@@ -90,15 +143,22 @@ describe('Ch01 方塊圖：清單與原始碼規則', () => {
     expect(() => diagramOf('D-01.99')).toThrow(/找不到方塊圖/)
   })
 
-  it('每張圖（含系統地圖）都能被真正的 mermaid parser 解析', async () => {
+  it('每張圖都能被真正的 mermaid parser 解析（解析網站實際交給 mermaid 的原始碼）', async () => {
     for (const d of DIAGRAMS) {
-      const r = await mermaid.parse(d.chart)
+      const r = await mermaid.parse(sanitizeMermaidSource(d.chart))
       const type = r && typeof r === 'object' ? (r as { diagramType: string }).diagramType : ''
       expect(type, d.id).toMatch(d.kind === '狀態機' ? /^stateDiagram/ : /^flowchart/)
     }
-    const sys = await mermaid.parse(systemMapChart(SYSTEM_MAP_FOCUS))
-    expect(sys && typeof sys === 'object' ? (sys as { diagramType: string }).diagramType : '').toMatch(/^flowchart/)
-    expect(systemMapChart(SYSTEM_MAP_FOCUS)).toContain('class CMP,GMAC,SCALE,ACC focus')
+  })
+
+  it('章首的系統地圖是手排的 SVG（不經過 mermaid）：本章主角 = comparator、GMAC、步長、累加器，共 4 個藍色方塊', () => {
+    expect([...SYSTEM_MAP_FOCUS].sort()).toEqual(['acc', 'cmp', 'gmac', 'scale'])
+    const model = systemMapModel(SYSTEM_MAP_FOCUS)
+    expect(model.blocks).toHaveLength(Object.keys(SYSTEM_BLOCK_LABEL).length) // 17 個方塊都在
+    expect(model.blocks.filter((b) => b.focused).map((b) => b.id).sort()).toEqual(['acc', 'cmp', 'gmac', 'scale'])
+    // 主角在「LMS 校正迴路」那條泳道（慢迴路），不是主 PLL 迴路
+    for (const b of model.blocks.filter((x) => x.focused)) expect(b.lane, b.id).toBe('lms')
+    expect(SYSTEM_MAP_FOCUS.every((id: SystemBlock) => SYSTEM_MAP_BLOCKS.some((b) => b.id === id))).toBe(true)
   })
 
   it('圖上的文字：沒有會被 Markdown／HTML 處理吃掉的寫法（單獨的半形 +、小於大於符號、以清單符號開頭）', () => {
@@ -111,6 +171,24 @@ describe('Ch01 方塊圖：清單與原始碼規則', () => {
           expect(line, `${d.id}：${label}`).not.toMatch(/^\s*([-*+#]\s|\d+\.\s)/)
           expect(line, `${d.id}：${label}`).not.toMatch(/[<>]/)
         }
+      }
+    }
+  })
+
+  it('圖內的數學一律是 `$...$` LaTeX：每個標籤的 $ 成對、每段 TeX 可被 KaTeX 嚴格解析、不用雙反斜線（Mermaid 會收成一個）、沒有 Unicode 拼的數學', () => {
+    for (const d of DIAGRAMS) {
+      expect(d.chart, d.id).not.toContain('\\\\')
+      expect(mathLabels(d.chart).length, d.id).toBeGreaterThanOrEqual(5)
+      for (const label of sourceLabels(d.chart)) {
+        // 標籤文字（不含 <br/>）：$ 成對
+        const dollars = label.replace(/\\\$/g, '').split('$').length - 1
+        expect(dollars % 2, `${d.id}：${label}`).toBe(0)
+        // 每段 TeX 都能被 KaTeX 嚴格解析（stateDiagram 的連線說明已是併好的 `$$...$$`）
+        for (const m of label.matchAll(MATH)) {
+          expect(() => katex.renderToString(m[1] ?? m[2], { throwOnError: true, strict: 'ignore' }), `${d.id}：${m[0]}`).not.toThrow()
+        }
+        // 標籤裡不是公式的文字：沒有 Unicode 拼的數學（圈號 ①–⑭、全形的「＋」「−」是文字與符號本身，不算）
+        for (const piece of label.split('<br/>').flatMap(plainPieces)) expect(unicodeMathIn(piece), `${d.id}：${piece}`).toEqual([])
       }
     }
   })
@@ -130,66 +208,125 @@ describe('Ch01 方塊圖：清單與原始碼規則', () => {
   })
 
   it('極性與公式一致：e = y − ŷ（量測進＋、預測進−）、δ = a − w（真值進＋、w 進−，勘誤 E39）', () => {
-    // 圖 1-2：yₙ 進「＋」、ŷₙ 進「−」
+    // 圖 1-2：y_n 進「＋」、ŷ_n 進「−」
     expect(D.CHART_LMS_LOOP).toMatch(/Y -- "＋" --> SUB/)
     expect(D.CHART_LMS_LOOP).toMatch(/YH -- "−" --> SUB/)
-    expect(D.CHART_LMS_LOOP).toContain('eₙ = yₙ − ŷₙ')
-    expect(D.CHART_LMS_LOOP).toContain('wₙ₊₁ = wₙ + μ·eₙ·xₙ')
+    expect(D.CHART_LMS_LOOP).toContain(String.raw`$e_n = y_n - \hat y_n$`)
+    expect(joined(D.CHART_LMS_LOOP)).toContain(String.raw`$w_{n+1} = w_n + \mu\, e_n\, x_n$`)
     // 圖 1-3：y 進「＋」、預測進「−」
-    expect(D.CHART_DATA_TO_COST).toMatch(/Y\["量測 y"\] -- "＋" --> S/)
+    expect(D.CHART_DATA_TO_COST).toMatch(/Y\["量測 \$y\$"\] -- "＋" --> S/)
     expect(D.CHART_DATA_TO_COST).toMatch(/P -- "−" --> S/)
-    // 圖 1-11：a 進「＋」、暫存器輸出 wₙ 進「−」；累加器是 wₙ + Δwₙ
-    expect(D.CHART_DELTA_LOOP).toMatch(/A\["真值 a"\] -- "＋" --> D/)
+    expect(D.CHART_DATA_TO_COST).toContain(String.raw`$e = y - w\, x$`)
+    // 圖 1-11：a 進「＋」、暫存器輸出 w_n 進「−」；累加器是 w_n + Δw_n
+    expect(D.CHART_DELTA_LOOP).toMatch(/A\["真值 \$a\$"\] -- "＋" --> D/)
     expect(D.CHART_DELTA_LOOP).toMatch(/Z -- "−" --> D/)
     expect(D.CHART_DELTA_LOOP).toMatch(/Z -- "＋" --> ACC/)
-    expect(D.CHART_DELTA_LOOP).toContain('δₙ = a − wₙ')
-    expect(D.CHART_DELTA_LOOP).not.toMatch(/w[ₙ]? − a/)
+    expect(D.CHART_DELTA_LOOP).toContain(String.raw`$\delta_n = a - w_n$`)
+    expect(D.CHART_DELTA_LOOP).not.toMatch(/w_n - a/)
     // 圖 1-9：目標 w* 進「＋」、目前的 w 進「−」
-    expect(D.CHART_MEAN_UPDATE).toMatch(/WS\["目標 w\*"\] -- "＋" --> D/)
+    expect(D.CHART_MEAN_UPDATE).toMatch(/WS\["目標 \$w\^\*\$"\] -- "＋" --> D/)
     expect(D.CHART_MEAN_UPDATE).toMatch(/W -- "−" --> D/)
-    // 圖 2-5：兩個迴路都是 yₙ 進「＋」、wₙ 進「−」
+    // 圖 2-5：兩個迴路都是 y_n 進「＋」、w_n 進「−」
     for (const [y, s, z] of [
       ['LY', 'LS', 'LZ'],
       ['SY', 'SS', 'SZ'],
     ]) {
-      expect(D.CHART_ONLINE_LOOPS).toMatch(new RegExp(`${y}\\["yₙ"\\] -- "＋" --> ${s}`))
+      expect(D.CHART_ONLINE_LOOPS).toMatch(new RegExp(`${y}\\["\\$y_n\\$"\\] -- "＋" --> ${s}`))
       expect(D.CHART_ONLINE_LOOPS).toMatch(new RegExp(`${z} -- "−" --> ${s}`))
     }
     // 本章沒有 block rate（k）的訊號：圖上不出現 w_k、G_k 這類標記
-    for (const d of DIAGRAMS) expect(d.chart, d.id).not.toMatch(/[wGδ]_k|ₖ/)
+    for (const d of DIAGRAMS) expect(d.chart, d.id).not.toMatch(/[wG\\]\w*_k\b|[wG]_\{k/)
   })
 
-  it('圖說：一句話說明要看什麼；純文字、不含 Unicode 數學（圖說不經 KaTeX）', () => {
-    for (const d of DIAGRAMS) {
-      expect(d.caption.length, d.id).toBeGreaterThanOrEqual(25)
-      expect(d.caption.length, d.id).toBeLessThanOrEqual(110)
-      expect(d.caption.endsWith('。'), d.id).toBe(true)
-      expect(UNICODE_MATH.test(`${d.label}｜${d.caption}`), `${d.id}：${d.caption}`).toBe(false)
-      expect(d.caption, d.id).not.toContain('$')
+  it('為了排版（換行、分組、改方向）調整過的圖，內容仍在：圖 1-2 的 DSM code、圖 1-4 兩個模型都進三種計分、圖 1-6 的是／否分支、圖 1-11 的每一條連線', () => {
+    // 圖 1-2：輸入節點仍寫明「輸入」與「DSM code」（圖說也提到它）
+    expect(D.CHART_LMS_LOOP).toContain(String.raw`X["$x_n$<br/>（輸入 /<br/>DSM code）"]`)
+    expect(diagramOf('D-01.2').caption).toContain('DSM code')
+    // 圖 1-4：A、B 同在一個 subgraph 裡，三條線從這一組出發（每種計分都吃到兩個模型），結果各接一格
+    const group = /subgraph ERRS\[[^\n]*\n([\s\S]*?)\n {2}end/.exec(D.CHART_SCORE_COMPARE)?.[1] ?? ''
+    expect(group).toMatch(/^\s+A\["模型 A 的誤差/m)
+    expect(group).toMatch(/^\s+B\["模型 B 的誤差/m)
+    for (const k of ['1', '2', '3']) {
+      expect(D.CHART_SCORE_COMPARE).toMatch(new RegExp(`ERRS --> M${k}\\["`))
+      expect(D.CHART_SCORE_COMPARE).toMatch(new RegExp(`M${k} --> R${k}\\["`))
     }
-    expect(UNICODE_MATH.test(SYSTEM_MAP_CAPTION)).toBe(false)
+    // 圖 1-6：相關是 0 → 到達最佳解；不是 0 → 再調 w（誤差還跟著 x 動），新的誤差再繞回去
+    expect(D.CHART_NORMAL_EQ).toMatch(/Q -- "是" --> DONE\[/)
+    expect(D.CHART_NORMAL_EQ).toMatch(/Q -- "否" --> ADJ\["再調 \$w\$（誤差還跟著 \$x\$ 動）<br\/>/)
+    expect(D.CHART_NORMAL_EQ).toMatch(/ADJ -->\|"新的誤差"\| E\b/)
+    // 圖 1-11：改成由上往下之後，九個節點與十條連線（含兩條回授線）一條都沒少，符號沒換
+    const edges = [
+      /A\["真值 \$a\$"\] -- "＋" --> D\(\("＋"\)\)/,
+      /D --> DL\[/,
+      /DL --> X1\[/,
+      /X1 --> E\[/,
+      /E --> X2\[/,
+      /X2 --> DW\[/,
+      /DW -- "＋" --> ACC\(\("＋"\)\)/,
+      /ACC --> Z\[/,
+      /Z -- "＋" --> ACC\b/,
+      /Z -- "−" --> D\b/,
+    ]
+    for (const re of edges) expect(D.CHART_DELTA_LOOP).toMatch(re)
+    expect(D.CHART_DELTA_LOOP).toContain(String.raw`$\times\, x$`)
+    expect(D.CHART_DELTA_LOOP).toContain(String.raw`$\times\, \mu\, x$`)
+    expect(D.CHART_DELTA_LOOP).toContain(String.raw`$e_n = \delta_n\, x$`)
+    expect(D.CHART_DELTA_LOOP).toContain(String.raw`$\Delta w_n = \mu\, x^2\, \delta_n$`)
+    expect(D.CHART_DELTA_LOOP).toMatch(/class X1,X2 focus/)
+  })
+
+  it('圖說：一句話說明要看什麼；文字加上 `$...$` 變數，KaTeX 以外沒有 Unicode 拼的數學', () => {
+    for (const d of DIAGRAMS) {
+      const plain = d.caption.replace(/\$/g, '') // 長度以顯示的字數計（拿掉 $ 分隔符）
+      expect(plain.length, d.id).toBeGreaterThanOrEqual(25)
+      expect(plain.length, d.id).toBeLessThanOrEqual(110)
+      expect(d.caption.endsWith('。'), d.id).toBe(true)
+      expect(UNICODE_MATH.test(d.label), `${d.id}：${d.label}`).toBe(false)
+      expect(captionErrors(d.caption), `${d.id}：${d.caption}`).toEqual([])
+    }
+    // 圖說裡的變數 $w$ 真的寫成 LaTeX（至少 6 張圖有）
+    expect(DIAGRAMS.filter((d) => d.caption.includes('$w$')).map((d) => d.id)).toEqual(['D-01.1', 'D-01.3', 'D-01.6', 'D-01.7', 'D-01.9', 'D-01.12'])
+    expect(captionErrors(SYSTEM_MAP_CAPTION)).toEqual([])
     expect(SYSTEM_MAP_CAPTION).toContain('藍色')
   })
 })
 
 describe('Ch01 方塊圖：真的 render 一次（parser 抓不到的問題）', () => {
-  it('每張圖都畫得出來：沒有「Unsupported markdown」、原始碼的每一段文字都出現在圖上、單張不超過 14 個節點', async () => {
+  it('每張圖都畫得出來：沒有「Unsupported markdown」、沒有殘留的 $、含公式的標籤都由 KaTeX 排版、KaTeX 以外沒有 Unicode 數學、文字片段都在圖上、單張不超過 14 個節點', async () => {
     for (const d of DIAGRAMS) {
-      const { text: raw, nodeCount } = await renderMermaidForTest(d.chart)
+      const { text: raw, plainText, nodeCount, mathCount } = await renderMermaidForTest(d.chart)
       expect(raw, d.id).not.toMatch(/Unsupported markdown/)
+      expect(raw, d.id).not.toContain('$')
+      // 圖上「KaTeX 以外」的文字沒有 Unicode 拼的數學（希臘字母、上下標、運算符號、w_k 這類寫法）
+      expect(unicodeMathIn(plainText), d.id).toEqual([])
+      // 每個含公式的標籤（節點、連線、subgraph 標題、state 說明）恰好排版成一段 KaTeX
+      expect(mathCount, d.id).toBe(mathLabels(d.chart).length)
+      // 標籤裡不是公式的文字，原封不動出現在圖上
       const text = squash(raw)
       for (const label of sourceLabels(d.chart)) {
-        for (const line of label.split('<br/>')) expect(text, `${d.id}：${line}`).toContain(squash(line))
+        for (const line of label.split('<br/>')) {
+          for (const piece of plainPieces(line)) expect(text, `${d.id}：${piece}`).toContain(squash(piece))
+        }
       }
       expect(nodeCount, d.id).toBeGreaterThanOrEqual(4)
       expect(nodeCount, d.id).toBeLessThanOrEqual(14)
     }
   }, HEAVY)
 
+  it('TeX 寫錯會讓圖畫不出來（不是默默顯示原始碼）；stateDiagram 的連線說明不用 stateText() 就不會排版', async () => {
+    await expect(renderMermaidForTest('flowchart LR\n  A["$\\frac{1}{$"] --> B')).rejects.toThrow()
+    const raw = await renderMermaidForTest('stateDiagram-v2\n  S0 --> S1: 抽到 $e = 0$\n  state "$w = 0$" as S0')
+    expect(raw.text).toContain('$e = 0$') // 連線說明沒有雙引號、前處理不會轉換
+    expect(raw.mathCount).toBe(1) // 只有 state 的說明排版成 KaTeX
+    const fixed = await renderMermaidForTest(D.CHART_LATTICE_CHAIN)
+    expect(fixed.text).not.toContain('$')
+    expect(fixed.mathCount).toBe(4 + 7) // 4 個 state + 7 條連線
+  })
+
   it('回歸：單獨一個半形「+」的標籤會被 Mermaid 11 畫成「Unsupported markdown: list」——所以本章一律用全形「＋」', async () => {
-    const bad = await renderChart('bad', 'flowchart LR\n  A["a"] -- "+" --> S(("+"))\n  B["b"] -- "−" --> S')
+    const bad = await renderRaw('bad', 'flowchart LR\n  A["a"] -- "+" --> S(("+"))\n  B["b"] -- "−" --> S')
     expect(squash(bad.textContent ?? '')).toContain('Unsupportedmarkdown')
-    const good = await renderChart('good', 'flowchart LR\n  A["a"] -- "＋" --> S(("＋"))\n  B["b"] -- "−" --> S')
+    const good = await renderRaw('good', 'flowchart LR\n  A["a"] -- "＋" --> S(("＋"))\n  B["b"] -- "−" --> S')
     expect(squash(good.textContent ?? '')).not.toContain('Unsupportedmarkdown')
     expect(good.textContent).toContain('＋')
     // 網站的 <Mermaid> 會先套 sanitizeMermaidSource：即使照舊寫半形「+」也畫得出來（這是保險，本章的原始碼仍直接寫全形）
@@ -244,11 +381,13 @@ describe('Ch01 方塊圖：排版與導讀一致（導讀說的上／下／左�
   it('並排比較圖：各列由上到下的順序 = DIAGRAMS 的 rows（Mermaid 會把不相連的 subgraph 依宣告的相反順序排）', async () => {
     const withRows = DIAGRAMS.filter((d) => d.rows)
     expect(withRows.map((d) => d.id)).toEqual(['D-01.1', 'D-01.3', 'D-01.8', 'D-01.10', 'D-01.13', 'D-01.17', 'D-01.22'])
-    expect(DIAGRAMS.filter((d) => d.chart.includes('subgraph')).map((d) => d.id)).toEqual(withRows.map((d) => d.id))
+    // 有 subgraph 的圖：這七張並排比較圖（一列一個 subgraph），加上圖 1-4（兩個模型的誤差框成一組、三條線從這一組分出去，免得 2×3 條線交叉）
+    expect(new Set(DIAGRAMS.filter((d) => d.chart.includes('subgraph')).map((d) => d.id))).toEqual(new Set([...withRows.map((d) => d.id), 'D-01.4']))
     for (const d of withRows) {
       const L = await layout(d.id)
       expect(L.rows, d.id).toHaveLength(d.rows!.length)
-      d.rows!.forEach((title, i) => expect(L.rows[i].startsWith(title), `${d.id} 第 ${i + 1} 列應是「${title}」，實際是「${L.rows[i]}」`).toBe(true))
+      // 標題可含公式（例如「第 0 筆（$n = 0$）」）：KaTeX 排版後的空白不同，所以去掉空白再比
+      d.rows!.forEach((title, i) => expect(squash(L.rows[i]).startsWith(squash(title)), `${d.id} 第 ${i + 1} 列應是「${title}」，實際是「${L.rows[i]}」`).toBe(true))
     }
   }, HEAVY)
 
@@ -264,7 +403,11 @@ describe('Ch01 方塊圖：排版與導讀一致（導讀說的上／下／左�
     ]
     for (const [id, rows] of chains) {
       const L = await layout(id)
-      for (const row of rows) leftToRight(L, ...row)
+      for (const row of rows) {
+        leftToRight(L, ...row)
+        // 一列最多 6 個方塊：再長的一列在桌機放不進正文欄（方塊裡的字要斷成兩三行，節點才窄得下）
+        expect(row.length, `${id} 的一列有 ${row.length} 個方塊`).toBeLessThanOrEqual(6)
+      }
     }
   }, HEAVY)
 
@@ -281,15 +424,24 @@ describe('Ch01 方塊圖：排版與導讀一致（導讀說的上／下／左�
     leftToRight(ne, 'X', 'M')
     expect(ne.at('DONE').x).toBe(ne.at('ADJ').x)
     topToBottom(ne, 'DONE', 'ADJ')
-    // 圖 1-9、1-11、1-12、2-7：加法點在左、暫存器（z⁻¹）在右
+    // 圖 1-9、1-12、2-7：加法點在左、暫存器（z⁻¹）在右
     leftToRight(await layout('D-01.9'), 'WS', 'D', 'G', 'DW', 'ACC', 'Z', 'W')
-    leftToRight(await layout('D-01.11'), 'A', 'D', 'DL', 'X1', 'E', 'X2', 'DW', 'ACC', 'Z')
     leftToRight(await layout('D-01.12'), 'V', 'G', 'S', 'Z', 'WT', 'P')
     leftToRight(await layout('D-01.19'), 'K', 'S', 'SN', 'MU', 'ACC', 'Z')
+    // 圖 1-11：九格串成一長條橫的會比版面寬，所以改成由上往下——真值與第一個加法點在最上面，暫存器（z⁻¹）在最下面，回授線沿著旁邊往回畫
+    topToBottom(await layout('D-01.11'), 'A', 'D', 'DL', 'X1', 'E', 'X2', 'DW', 'ACC', 'Z')
   }, HEAVY)
 
   it('其餘圖的位置敘述：左邊／右邊／上面／下面與排版相符', async () => {
-    leftToRight(await layout('D-01.4'), 'A', 'M1', 'R1')
+    // 圖 1-4：兩個模型的誤差（同一組）在左邊、上下疊起來；三種計分方式由上到下，各自接一格結果
+    const score = await layout('D-01.4')
+    leftToRight(score, 'A', 'M1', 'R1')
+    leftToRight(score, 'B', 'M3', 'R3')
+    topToBottom(score, 'A', 'B')
+    topToBottom(score, 'M1', 'M2', 'M3')
+    topToBottom(score, 'R1', 'R2', 'R3')
+    expect(score.at('A').x).toBeCloseTo(score.at('B').x, 6)
+    for (const k of ['1', '2', '3']) expect(score.at(`M${k}`).y).toBeCloseTo(score.at(`R${k}`).y, 6)
     const calc = await layout('D-01.5')
     leftToRight(calc, 'T', 'C1', 'S1', 'DIV', 'WS')
     topToBottom(calc, 'S2', 'S1') // 分子（Σxy）畫在分母（Σx²）上面
@@ -322,6 +474,33 @@ describe('Ch01 方塊圖：排版與導讀一致（導讀說的上／下／左�
   }, HEAVY)
 })
 
+describe('Ch01 方塊圖：版面預算（桌機的正文欄約 900px，圖不能要橫向捲動）', () => {
+  // 沿主方向串了幾格：LR 看不同的 x、TB 看不同的 y（同一層的方塊中心在同一條線上）；層數與字多寬無關，所以 jsdom 排出來的層數與瀏覽器相同。
+  // 一條橫向流程每多一層，圖就多 100–200px：九層以上的 LR（圖 1-11 原本是 9 層、1362px 寬）一定比欄寬，要改成 TB 或折成列。
+  const LR_LAYERS_MAX = 8
+  const TB_LAYERS_MAX = 10
+
+  it('沒有分列的流程圖：LR 最多 8 層、TB 最多 10 層', async () => {
+    const seen: Record<string, number> = {}
+    for (const d of DIAGRAMS.filter((x) => x.kind !== '狀態機' && !x.chart.includes('subgraph'))) {
+      const host = await renderChart(`b-${d.id}`, d.chart)
+      const horizontal = /^flowchart LR/.test(d.chart)
+      const coords = new Set(
+        Array.from(host.querySelectorAll('g.node')).map((el) => {
+          const m = /translate\(\s*([-\d.]+)[ ,]+([-\d.]+)\s*\)/.exec(el.getAttribute('transform') ?? '')
+          return Math.round(Number(m?.[horizontal ? 1 : 2]))
+        }),
+      )
+      seen[d.id] = coords.size
+      expect(coords.size, `${d.id}（${horizontal ? 'LR' : 'TB'}）有 ${coords.size} 層`).toBeLessThanOrEqual(horizontal ? LR_LAYERS_MAX : TB_LAYERS_MAX)
+    }
+    // 圖 1-2 是最長的橫向流程（7 層）；圖 1-11 是九格的迴路，改成 TB
+    expect(seen['D-01.2']).toBe(7)
+    expect(D.CHART_DELTA_LOOP).toMatch(/^flowchart TB/)
+    expect(seen['D-01.11']).toBe(9)
+  }, HEAVY)
+})
+
 describe('Ch01 方塊圖：圖上的數字與模型一致（錯的圖比沒有圖更糟）', () => {
   const X3 = [1, 2, 4]
   const Y3 = [3.2, 5.7, 12.5]
@@ -336,6 +515,9 @@ describe('Ch01 方塊圖：圖上的數字與模型一致（錯的圖比沒有�
     expect(score(A)).toEqual([0, 10, 100])
     expect(score(B)).toEqual([0, 1, 1])
     for (const t of ['A = 0、B = 0', 'A = 10、B = 1', 'A = 100、B = 1']) expect(D.CHART_SCORE_COMPARE).toContain(t)
+    // 兩組誤差本身（正負號是公式的一部分，寫在 $...$ 裡）
+    expect(D.CHART_SCORE_COMPARE).toContain(String.raw`$+10$、$-10$、$+10$、$-10$`)
+    expect(D.CHART_SCORE_COMPARE).toContain(String.raw`$+1$、$-1$、$+1$、$-1$`)
   })
 
   it('圖 1-1／圖 1-5：批次解 w* = Σxy/Σx²；圖上的 21、64.6、7、21.5333、3.07619 都來自三筆資料', () => {
@@ -346,16 +528,16 @@ describe('Ch01 方塊圖：圖上的數字與模型一致（錯的圖比沒有�
     const wStar = batchL2(X3, Y3)
     expect(wStar).toBeCloseTo(sxy / sxx, 12)
     const c = D.CHART_WSTAR_CALC
-    expect(c).toContain(`x：${X3.join('、')}`)
-    expect(c).toContain(`y：${Y3.join('、')}`)
+    expect(c).toContain(`$x$：${X3.join('、')}`)
+    expect(c).toContain(`$y$：${Y3.join('、')}`)
     expect(c).toContain(xx.join('、'))
     expect(c).toContain(xy.map((v) => sig(v)).join('、'))
-    expect(c).toContain(`Σxᵢ² = ${sig(sxx)}`)
-    expect(c).toContain(`E[x²] = ${sig(sxx / 3)}`)
-    expect(c).toContain(`Σxᵢyᵢ = ${sig(sxy)}`)
-    expect(c).toContain(`E[xy] = ${sig(sxy / 3)}`)
-    expect(c).toContain(`w* = ${sig(sxy)} / ${sig(sxx)} = ${sig(wStar)}`)
-    expect(D.CHART_BATCH_VS_ONLINE).toContain('w* = Σxᵢyᵢ / Σxᵢ²')
+    expect(c).toContain(String.raw`\sum x_i^2 = ${sig(sxx)}`)
+    expect(c).toContain(String.raw`E[x^2] = ${sig(sxx / 3)}`)
+    expect(c).toContain(String.raw`\sum x_i y_i = ${sig(sxy)}`)
+    expect(c).toContain(String.raw`E[xy] = ${sig(sxy / 3)}`)
+    expect(c).toContain(String.raw`w^* = ${sig(sxy)} / ${sig(sxx)} = ${sig(wStar)}`)
+    expect(D.CHART_BATCH_VS_ONLINE).toContain(String.raw`w^* = \sum x_i y_i / \sum x_i^2`)
   })
 
   it('圖 1-6／圖 1-7：在 w* 處 Σe*·x = 0（normal equation），且 J(w) = J(w*) + ½E[x²](w − w*)²', () => {
@@ -372,8 +554,8 @@ describe('Ch01 方塊圖：圖上的數字與模型一致（錯的圖比沒有�
       expect(par.J).toBeCloseTo(par.jMin + 0.5 * Ex2 * (w - wStar) ** 2, 12) // 圖 1-7 的兩條路相加
       expect(par.slope).toBeCloseTo(-corr(w), 12) // dJ/dw = −E[e·x]（圖 1-6 的相關器）
     }
-    expect(D.CHART_COST_SPLIT).toContain('× ½·E[x²]')
-    expect(D.CHART_NORMAL_EQ).toContain('平均更新量 = μ·E[e·x]')
+    expect(D.CHART_COST_SPLIT).toContain(String.raw`$\times\, \tfrac12\, E[x^2]$`)
+    expect(D.CHART_NORMAL_EQ).toContain(String.raw`平均更新量 $= \mu\, E[e\, x]$`)
   })
 
   it('圖 1-8：½·e² 的斜率是 −e·x、e² 的斜率是 −2·e·x；LMS 的 Δw = μ·e·x 等於「對 ½·e² 走步長 μ」或「對 e² 走步長 μ/2」', () => {
@@ -389,8 +571,12 @@ describe('Ch01 方塊圖：圖上的數字與模型一致（錯的圖比沒有�
     expect(-(s.mu / 2) * slopeFull).toBeCloseTo(dw, 6) // 第二列
     expect(-s.mu * slopeFull).toBeCloseTo(2 * dw, 6) // 第三列：步伐大 2 倍
     const c = D.CHART_HALF_FACTOR
-    expect(c.match(/Δw = μ·e·x"/g)).toHaveLength(2)
-    expect(c).toContain('Δw = 2·μ·e·x')
+    const count = (hay: string, needle: string) => hay.split(needle).length - 1
+    expect(count(c, String.raw`$\Delta w = \mu\, e\, x$"`)).toBe(2)
+    expect(c).toContain(String.raw`\Delta w = 2\mu\, e\, x`)
+    // 微分：e² 的斜率是 −2 e x（第二、三列），½e² 的斜率是 −e x（第一列）
+    expect(count(c, String.raw`$-2\, e\, x$"`)).toBe(2)
+    expect(count(c, String.raw`$-e\, x$"`)).toBe(1)
     expect(c).toMatch(/class A4,B4 ok/)
     expect(c).toMatch(/class C4 warn/)
   })
@@ -407,21 +593,19 @@ describe('Ch01 方塊圖：圖上的數字與模型一致（錯的圖比沒有�
     }
     expect(err[1] / err[0]).toBeCloseTo(1 - mu * Ex2, 12)
     expect(w).toBeCloseTo(wStar, 10)
-    expect(D.CHART_MEAN_UPDATE).toContain('E[Δw] = μ·E[x²]·(w* − w)')
+    expect(D.CHART_MEAN_UPDATE).toContain(String.raw`E[\Delta w] = \mu\, E[x^2]\, (w^* - w)`)
   })
 
   it('圖 1-10 的每個數字都等於 playgroundTrace（lms.ts 的 conventionalStep）：ŷ、e、Δw、w₁ = 1.8、w₂ = 2.28', () => {
     const hand = { a: 3, w0: 1, x: 2, mu: 0.1 }
     const tr = playgroundTrace({ ...hand, steps: 3, noiseSigma: 0, seed: 1 })
     const y = hand.a * hand.x
-    const c = D.CHART_HAND_FLOW
+    const c = joined(D.CHART_HAND_FLOW) // 方塊裡的長公式分成兩三行，內容照舊逐字核對
     for (const n of [0, 1]) {
-      const sub = '₀₁₂'[n]
-      const next = '₀₁₂'[n + 1]
-      expect(c).toContain(`ŷ${sub} = ${sig(tr.w[n])} × ${hand.x} = ${sig(tr.w[n] * hand.x)}`)
-      expect(c).toContain(`e${sub} = ${y} − ${sig(tr.w[n] * hand.x)} = ${sig(tr.e[n])}`)
-      expect(c).toContain(`Δw${sub} = ${hand.mu} × ${sig(tr.e[n])} × ${hand.x} = ${sig(tr.dw[n])}`)
-      expect(c).toContain(`w${next} = ${sig(tr.w[n])} + ${sig(tr.dw[n])} = ${sig(tr.w[n + 1])}`)
+      expect(c).toContain(String.raw`\hat y_${n} = ${sig(tr.w[n])} \times ${hand.x} = ${sig(tr.w[n] * hand.x)}`)
+      expect(c).toContain(String.raw`e_${n} = ${y} - ${sig(tr.w[n] * hand.x)} = ${sig(tr.e[n])}`)
+      expect(c).toContain(String.raw`\Delta w_${n} = ${hand.mu} \times ${sig(tr.e[n])} \times ${hand.x} = ${sig(tr.dw[n])}`)
+      expect(c).toContain(String.raw`w_${n + 1} = ${sig(tr.w[n])} + ${sig(tr.dw[n])} = ${sig(tr.w[n + 1])}`)
     }
     expect(tr.w[1]).toBeCloseTo(1.8, 12)
     expect(tr.w[2]).toBeCloseTo(2.28, 12)
@@ -450,7 +634,7 @@ describe('Ch01 方塊圖：圖上的數字與模型一致（錯的圖比沒有�
     for (let n = 0; n < 500; n++) s2 = p * p * s2 + (mu * x * sigma) ** 2
     expect(s2).toBeCloseTo(playgroundVarWStationary(mu, x, sigma), 12)
     expect(s2).toBeCloseTo((mu * sigma ** 2) / (2 - mu * x * x), 12)
-    expect(D.CHART_NOISE_LOOP).toContain('p = 1 − μ·x²')
+    expect(D.CHART_NOISE_LOOP).toContain(String.raw`p = 1 - \mu\, x^2`)
   })
 
   it('圖 2-1／圖 2-2：三個 ψ 方塊就是 lms.ts 的 e／sgn／huberPsi；tie 慣例 zero／plus／minus 給 0／+1／−1', () => {
@@ -458,8 +642,17 @@ describe('Ch01 方塊圖：圖上的數字與模型一致（錯的圖比沒有�
     expect([sgn(0, 'zero'), sgn(0, 'plus'), sgn(0, 'minus')]).toEqual([0, 1, -1])
     expect([huberPsi(0.4, 1), huberPsi(20, 1), huberPsi(-7, 1)]).toEqual([0.4, 1, -1])
     const c = D.CHART_SIGN_TIE
-    for (const t of ['zero：數學次梯度', 'plus：comparator', 'minus：comparator', 'sign(0) = 0', 'sign(0) = +1', 'sign(0) = −1']) expect(c).toContain(t)
-    for (const t of ['ψ = e', 'ψ = sign(e)', 'ψ = clip(e, −δₕ, δₕ)', 'Δw = μ·e·x', 'Δw = μ·sign(e)·x', 'Δw = μ·clip(e)·x']) expect(D.CHART_PSI_PIPELINES).toContain(t)
+    const tieTex = ['0', '+1', '-1'].map((v) => String.raw`\operatorname{sign}(0) = ${v}$`)
+    for (const t of ['zero：數學次梯度', 'plus：comparator', 'minus：comparator', ...tieTex]) expect(c).toContain(t)
+    for (const t of [
+      String.raw`\psi = e$`,
+      String.raw`\psi = \operatorname{sign}(e)$`,
+      String.raw`\psi = \operatorname{clip}(e, -\delta_H, \delta_H)$`,
+      String.raw`\Delta w = \mu\, e\, x$`,
+      String.raw`\Delta w = \mu\, \operatorname{sign}(e)\, x$`,
+      String.raw`\Delta w = \mu\, \operatorname{clip}(e)\, x$`,
+    ])
+      expect(D.CHART_PSI_PIPELINES).toContain(t)
     expect(D.CHART_PSI_PIPELINES).toMatch(/class M2,A2,H2 focus/)
   })
 
@@ -468,11 +661,13 @@ describe('Ch01 方塊圖：圖上的數字與模型一致（錯的圖比沒有�
     const run = (v: 'conventional' | 'sign_error' | 'huber') => STEP[v]({ w: o.w, x: o.x, y: o.y, mu: o.mu, tie: 'zero', huberDelta: o.huberDelta })
     const [lms, se, hub] = [run('conventional'), run('sign_error'), run('huber')]
     const c = D.CHART_OUTLIER_FLOW
-    expect(c).toContain(`y = ${o.y}（正常是 ${o.yNormal}）`)
-    expect(c).toContain(`e = ${o.y} − ${o.w} × ${o.x} = ${sig(lms.e)}`)
-    expect(c).toContain(`ψ₂ = e = ${sig(lms.e)}`)
-    expect(c).toContain(`Δw = ${o.mu} × ${sig(lms.e)} × ${o.x} = ${sig(lms.dw)}<br/>w 從 ${o.w} 跳到 ${sig(lms.w)}`)
-    for (const r of [se, hub]) expect(c).toContain(`Δw = ${o.mu} × 1 × ${o.x} = ${sig(r.dw)}<br/>w 從 ${o.w} 到 ${sig(r.w)}`)
+    expect(c).toContain(String.raw`$y = ${o.y}$（正常是 ${o.yNormal}）`)
+    expect(c).toContain(String.raw`e = ${o.y} - ${o.w} \times ${o.x} = ${sig(lms.e)}`)
+    expect(c).toContain(String.raw`\psi_2 = e = ${sig(lms.e)}`)
+    expect(c).toContain(String.raw`\psi_1 = \operatorname{sign}(e) = +1`)
+    expect(c).toContain(String.raw`\psi_H = \operatorname{clip}(e, -${o.huberDelta}, ${o.huberDelta}) = +1`)
+    expect(c).toContain(String.raw`\Delta w = ${o.mu} \times ${sig(lms.e)} \times ${o.x} = ${sig(lms.dw)}$<br/>$w$ 從 ${o.w} 跳到 ${sig(lms.w)}`)
+    for (const r of [se, hub]) expect(c).toContain(String.raw`\Delta w = ${o.mu} \times 1 \times ${o.x} = ${sig(r.dw)}$<br/>$w$ 從 ${o.w} 到 ${sig(r.w)}`)
     expect([sgn(lms.e), huberPsi(lms.e, o.huberDelta)]).toEqual([1, 1]) // 圖上兩個「+1」
     expect(lms.dw / se.dw).toBeCloseTo(20, 12)
   })
@@ -482,9 +677,10 @@ describe('Ch01 方塊圖：圖上的數字與模型一致（錯的圖比沒有�
     const bo = batchOptima(y)
     expect([bo.mse, bo.maeLow, bo.maeHigh]).toEqual([2.5, 0, 0])
     const c = D.CHART_MEAN_VS_MEDIAN
-    expect(c).toContain(`w* = 平均 = ${bo.mse}`)
-    expect(c).toContain(`w* = 中位數 = ${bo.maeLow}`)
-    expect(c).toContain('斜率 =（下面的筆數 − 上面的筆數）/ 4')
+    expect(c).toContain(String.raw`w^* = \text{平均} = ${bo.mse}`)
+    expect(c).toContain(String.raw`w^* = \text{中位數} = ${bo.maeLow}`)
+    expect(c).toContain(String.raw`= w - ${bo.mse}`)
+    expect(c).toContain(String.raw`\text{斜率} = (\text{下面的筆數} - \text{上面的筆數}) / ${y.length}`)
     const jMae = (w: number) => mean(y.map((v) => Math.abs(v - w)))
     const slope = (w: number) => (y.filter((v) => v < w).length - y.filter((v) => v > w).length) / y.length
     for (const w of [-1, 5, 11]) expect((jMae(w + 1e-6) - jMae(w - 1e-6)) / 2e-6).toBeCloseTo(slope(w), 6)
@@ -501,7 +697,8 @@ describe('Ch01 方塊圖：圖上的數字與模型一致（錯的圖比沒有�
     expect(lat.pi[0]).toBeCloseTo(2 / 3, 10)
     for (let k = 0; k < 5; k++) expect(lat.pi[k + 1] / lat.pi[k]).toBeCloseTo((1 / 4) / (3 / 4), 9)
     expect(lat.mean).toBeCloseTo(mu / 2, 10)
-    const c = D.CHART_LATTICE_CHAIN
+    // 連線說明在原始碼裡是併好的 `$$\text{…}…$$`（見 diagrams.ts 檔頭）：把 \text{…} 還原成文字來讀
+    const c = D.CHART_LATTICE_CHAIN.replace(/\$\$/g, '').replace(/\\text\{([^{}]*)\}/g, '$1')
     expect(c).toMatch(/S0 --> S0: 抽到 0（機率 3\/4），e = 0，不動/)
     expect(c).toMatch(/S0 --> S1: 抽到 10（機率 1\/4），往上/)
     expect(c).toMatch(/S1 --> S0: 抽到 0（3\/4），往下/)
@@ -527,7 +724,7 @@ describe('Ch01 方塊圖：圖上的數字與模型一致（錯的圖比沒有�
       expect(Math.sqrt(v) / lat.std - 1).toBeGreaterThan(-0.03)
       expect(Math.sqrt(v) / lat.std - 1).toBeLessThan(0.03)
     }
-    expect(D.CHART_SIGN_LINEARIZED).toContain('× (−K_q)，K_q = 2·f(m)')
+    expect(D.CHART_SIGN_LINEARIZED).toContain(String.raw`$\times\, (-K_q)$，$K_q = 2\, f(m)$`)
     expect(D.CHART_SIGN_LINEARIZED).toMatch(/D -- "＋" --> ACC/)
   })
 
@@ -539,7 +736,7 @@ describe('Ch01 方塊圖：圖上的數字與模型一致（錯的圖比沒有�
     expect(o2.l2 - base.a).toBeCloseTo(0.1 * 40, 12)
     expect(o1.l1.lo - base.a).toBeCloseTo(contaminatedMedianApprox(1, 0.1), 9)
     expect(o2.l1.lo).toBeCloseTo(o1.l1.lo, 9)
-    expect(D.CHART_CONTAM_MODEL).toContain('量測 y = a + v + o')
+    expect(D.CHART_CONTAM_MODEL).toContain(String.raw`量測 $y = a + v + o$`)
   })
 
   it('圖 2-9：四個方塊裡的更新式 = lms.ts 的四個 step 函數', () => {
@@ -549,7 +746,13 @@ describe('Ch01 方塊圖：圖上的數字與模型一致（錯的圖比沒有�
     expect(STEP.huber(s).dw).toBeCloseTo(s.mu * huberPsi(e, 1) * s.x, 12)
     expect(STEP.sign_error(s).dw).toBeCloseTo(s.mu * sgn(e) * s.x, 12)
     expect(STEP.sign_sign(s).dw).toBeCloseTo(s.mu * sgn(e) * sgn(s.x), 12)
-    for (const t of ['Δw = μ·e·x', 'Δw = μ·clip(e)·x', 'Δw = μ·sign(e)·x', 'Δw = μ·sign(e)·sign(x)']) expect(D.CHART_ALGO_CHOICE).toContain(t)
+    for (const t of [
+      String.raw`\Delta w = \mu\, e\, x$`,
+      String.raw`\Delta w = \mu\, \operatorname{clip}(e)\, x$`,
+      String.raw`\Delta w = \mu\, \operatorname{sign}(e)\, x$`,
+      String.raw`\Delta w = \mu\, \operatorname{sign}(e)\, \operatorname{sign}(x)$`,
+    ])
+      expect(D.CHART_ALGO_CHOICE).toContain(t)
     expect(D.CHART_ALGO_CHOICE).toMatch(/class A3 focus/) // PLL 校正迴路＝Sign-Error
   })
 
@@ -560,25 +763,27 @@ describe('Ch01 方塊圖：圖上的數字與模型一致（錯的圖比沒有�
     const sol = hc.solve(v)
     expect(sol.steps).toHaveLength(14)
     const c = D.CHART_HC8_FLOW
+    const cj = joined(c) // 長公式在方塊裡分成兩三行（`$…$<br/>$= …$`）：用接回來的版本核對公式
     for (const ch of '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭') expect(c).toContain(ch)
     // 每一步 TeX 最後一個等號後面的數字（題目上顯示的答案）
     const answers = sol.steps.map((st) => st.tex.slice(st.tex.lastIndexOf('=') + 1).trim())
     for (const a of answers) {
       expect(a).toMatch(/^[0-9.]+$/)
-      expect(c, `步驟答案 ${a}`).toMatch(new RegExp(`(= |約 a \\+ m = )${a.replace('.', '\\.')}(?![0-9])`))
+      expect(cj, `步驟答案 ${a}`).toMatch(new RegExp(`= ${a.replace('.', '\\.')}(?![0-9])`))
     }
     // 與模型直接比對（不只比字串）
     const p: LossDataParams = { ...FOUR, model: 'contaminated', a: v.a, sigma: v.sigma, outlierProb: v.eps, outlierSize: v.s }
     const ss = lmsSteadyState(p, v.mu)
     const jit = signErrorJitterApprox(p, v.mu)
     const z = contaminatedMedianApprox(1, v.eps)
-    expect(c).toContain(`E[w∞] = a + ε·s = ${sig(ss.mean, 5)}`)
-    expect(c).toContain(`= ${sig(ss.variance, 5)}<br/>std = ${sig(Math.sqrt(ss.variance), 5)}`)
-    expect(c).toContain(`z = Φ⁻¹(q) = ${sig(z, 5)}`)
-    expect(c).toContain(`φ(z) = ${sig(normPdf(z), 5)}`)
-    expect(c).toContain(`σᵥ = ${sig(jit.density, 5)}`)
-    expect(c).toContain(`= ${sig(jit.variance, 5)}<br/>std = ${sig(Math.sqrt(jit.variance), 5)}`)
-    expect(c).toContain(`a + m = ${sig(populationOptima(p, 1).l1.lo, 5)}`)
+    expect(c).toContain(String.raw`E[w_\infty] = a + \varepsilon\, s = ${sig(ss.mean, 5)}`)
+    expect(c).toContain(String.raw`= ${sig(ss.variance, 5)}$<br/>$\operatorname{std} = ${sig(Math.sqrt(ss.variance), 5)}`)
+    expect(cj).toContain(String.raw`q = 1 / (2 (1 - \varepsilon)) = ${sig(1 / (2 * (1 - v.eps)), 5)}`)
+    expect(cj).toContain(String.raw`z = \Phi^{-1}(q) = ${sig(z, 5)}`)
+    expect(cj).toContain(String.raw`\varphi(z) = ${sig(normPdf(z), 5)}`)
+    expect(cj).toContain(String.raw`\sigma_v = ${sig(jit.density, 5)}`)
+    expect(c).toContain(String.raw`= ${sig(jit.variance, 5)}$<br/>$\operatorname{std} = ${sig(Math.sqrt(jit.variance), 5)}`)
+    expect(cj).toContain(String.raw`a + m = ${sig(populationOptima(p, 1).l1.lo, 5)}`)
   })
 })
 
@@ -597,18 +802,34 @@ describe('Ch01 頁面上的方塊圖', () => {
   }
   const follows = (a: Element, b: Element) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
 
-  it('§1.0–§1.1 用真正的 <Mermaid> 元件與真正的 mermaid 畫出來：系統地圖有 4 個藍色方塊，沒有解析失敗', async () => {
+  it('§1.0–§1.1 用真正的 <Mermaid> 元件與真正的 mermaid 畫出來（系統地圖是手排的 SVG，立刻就有）：系統地圖有 4 個藍色方塊，沒有解析失敗', async () => {
     const { container } = renderAt(<IntroSection />, 'engineer')
     const figures = Array.from(container.querySelectorAll('figure.c-mermaid'))
     expect(figures).toHaveLength(5) // 系統地圖 + 圖 1-1 ～ 1-4
-    await waitFor(() => expect(container.querySelectorAll('figure.c-mermaid .c-mermaid-svg svg').length).toBe(5), { timeout: 120_000, interval: 250 })
+    // 畫好的圖在 .c-mermaid-svg > svg（KaTeX 的根號等內嵌 svg 不算）；畫好之前沒有 .c-mermaid-svg，只有載入中的佔位
+    await waitFor(() => expect(container.querySelectorAll('figure.c-mermaid .c-mermaid-svg > svg').length).toBe(5), { timeout: 120_000, interval: 250 })
     expect(container.querySelector('.c-mermaid-error')).toBeNull()
     expect(container.textContent).not.toContain('Mermaid 圖解析失敗')
     expect(squash(container.textContent ?? '')).not.toContain('Unsupportedmarkdown')
+    // 圖內的數學由 KaTeX 排版：每張圖都有公式，畫出來的文字沒有殘留的 `$`
+    for (const fig of figures) {
+      const drawn = fig.querySelector('.c-mermaid-svg')!
+      expect(drawn.textContent).not.toContain('$')
+      expect(drawn.querySelectorAll('.katex').length).toBeGreaterThan(0)
+    }
     const sys = figures[0]
     expect(sys.getAttribute('aria-label')).toContain('DTC-based Fractional-N PLL')
-    expect(sys.querySelectorAll('svg g.node.focus')).toHaveLength(SYSTEM_MAP_FOCUS.length)
-    expect(sys.querySelectorAll('svg g.node').length).toBeGreaterThan(14) // 全站共用的大圖（不受單張 14 個節點的限制）
+    expect(sys.classList.contains('c-sysmap')).toBe(true)
+    expect(sys.querySelector('svg.c-sysmap-svg')).not.toBeNull()
+    expect(sys.querySelector('svg g.node')).toBeNull() // 手排的 SVG，不是 mermaid 畫的
+    // 4 個藍色方塊：is-focus（與 data-focus）標在 comparator、GMAC、步長、累加器上，其餘 13 個不是
+    const blocks = Array.from(sys.querySelectorAll('g.c-sysmap-block'))
+    expect(blocks.length).toBeGreaterThan(14) // 全站共用的大圖（不受單張 14 個節點的限制）
+    expect(blocks).toHaveLength(SYSTEM_MAP_BLOCKS.length)
+    const focused = blocks.filter((g) => g.classList.contains('is-focus'))
+    expect(focused.map((g) => g.getAttribute('data-block')).sort()).toEqual([...SYSTEM_MAP_FOCUS].sort())
+    expect(focused).toHaveLength(SYSTEM_MAP_FOCUS.length)
+    for (const g of blocks) expect(g.getAttribute('data-focus') === 'true', g.getAttribute('data-block') ?? '').toBe(g.classList.contains('is-focus'))
     for (const box of Array.from(container.querySelectorAll('[data-diagram]'))) expect(box.querySelectorAll('svg g.node').length).toBeGreaterThanOrEqual(8)
   }, HEAVY)
 
@@ -633,11 +854,14 @@ describe('Ch01 頁面上的方塊圖', () => {
       const { container } = renderAt(<Chapter01 />, 'research')
       const figures = () => Array.from(container.querySelectorAll('figure.c-mermaid'))
       expect(figures()).toHaveLength(23) // 系統地圖 + 22
-      await waitFor(() => expect(container.querySelectorAll('figure.c-mermaid .c-mermaid-svg svg[data-parsed]').length).toBe(23), { timeout: 120_000, interval: 250 })
+      // 22 張交給 mermaid（上面的 mock 回傳 <svg data-parsed>）；系統地圖是手排的 SVG，不經過 mermaid，所以 23 張都有 svg、其中 22 張是 mermaid 的
+      await waitFor(() => expect(container.querySelectorAll('figure.c-mermaid .c-mermaid-svg > svg').length).toBe(23), { timeout: 120_000, interval: 250 })
+      expect(container.querySelectorAll('figure.c-mermaid .c-mermaid-svg > svg[data-parsed]')).toHaveLength(22)
       expect(container.textContent).not.toContain('Mermaid 圖解析失敗')
       expect(container.querySelector('.c-mermaid-error')).toBeNull()
-      // 頁面交給 mermaid 的就是登錄的那 22 張＋系統地圖（依頁面順序），沒有多也沒有少
-      expect(rendered).toEqual([systemMapChart(SYSTEM_MAP_FOCUS), ...DIAGRAMS.map((d) => d.chart)])
+      // 頁面交給 mermaid 的就是登錄的那 22 張（依頁面順序），沒有多也沒有少；系統地圖不在其中
+      // （<Mermaid> 先經過 sanitizeMermaidSource 才交給 mermaid：圖內的 `$...$` 在這裡已併成 `$$...$$`）
+      expect(rendered).toEqual(DIAGRAMS.map((d) => d.chart).map(sanitizeMermaidSource))
 
       // 系統地圖：在 §1.0 開場問題之後、黑盒子模型（F-01.1）之前；下一段說明藍色方塊是什麼、本章加了什麼
       const s10 = document.getElementById('ch01-s10')!
@@ -646,6 +870,9 @@ describe('Ch01 頁面上的方塊圖', () => {
       expect(sys.getAttribute('aria-label')).toContain('DTC-based Fractional-N PLL')
       expect(sys.querySelector('figcaption')?.textContent).toBe(SYSTEM_MAP_CAPTION)
       expect(sys.closest('[data-diagram]')).toBeNull()
+      expect(sys.classList.contains('c-sysmap')).toBe(true)
+      // 本章的主角：被標成 is-focus 的方塊正好是 SYSTEM_MAP_FOCUS（comparator、GMAC、步長、累加器）
+      expect(Array.from(sys.querySelectorAll('g.c-sysmap-block.is-focus'), (g) => g.getAttribute('data-block')).sort()).toEqual([...SYSTEM_MAP_FOCUS].sort())
       expect(follows(s10.querySelector('.ch01-lead')!, sys)).toBe(true)
       expect(follows(sys, document.getElementById('formula-F-01.1')!)).toBe(true)
       expect(sys.nextElementSibling?.textContent).toMatch(/你在這裡.*藍色方塊是本章的主角.*這條修正規則到底在最小化什麼/)
@@ -657,7 +884,12 @@ describe('Ch01 頁面上的方塊圖', () => {
         const box = container.querySelector(`[data-diagram="${d.id}"]`)!
         expect(box.closest('section.c-section')?.id, d.id).toBe(d.section)
         expect(box.getAttribute('data-diagram-kind'), d.id).toBe(d.kind)
-        expect(box.querySelector('figcaption')?.textContent, d.id).toBe(`${d.label}｜${d.caption}`)
+        // 圖說：文字原樣顯示，變數（$...$）由 KaTeX 排版
+        const cap = box.querySelector('figcaption')!.cloneNode(true) as HTMLElement
+        const capMath = cap.querySelectorAll('.katex').length
+        cap.querySelectorAll('.katex').forEach((e) => e.remove())
+        expect(cap.textContent, d.id).toBe(captionPlain(`${d.label}｜${d.caption}`))
+        expect(capMath, d.id).toBe(Array.from(d.caption.matchAll(MATH)).length)
         // 導讀：圖的正下方，帶讀者走一遍（先看…再看…），並把圖接回公式（「圖上…就是…」），數學用 KaTeX
         const read = box.querySelector('.ch01-diagram-read')!
         expect(read.previousElementSibling?.matches('figure.c-mermaid'), d.id).toBe(true)
@@ -695,10 +927,12 @@ describe('Ch01 頁面上的方塊圖', () => {
       const { container } = renderAt(<Chapter01 />, 'beginner')
       const shown = DIAGRAMS.filter((d) => !d.researchOnly)
       expect(Array.from(container.querySelectorAll('[data-diagram]')).map((b) => b.getAttribute('data-diagram'))).toEqual(shown.map((d) => d.id))
-      expect(container.querySelectorAll('figure.c-mermaid')).toHaveLength(22)
+      expect(container.querySelectorAll('figure.c-mermaid')).toHaveLength(22) // 系統地圖 + 21
       expect(container.querySelector('[data-diagram="D-01.20"]')).toBeNull()
-      await waitFor(() => expect(container.querySelectorAll('figure.c-mermaid .c-mermaid-svg svg[data-parsed]').length).toBe(22), { timeout: 120_000, interval: 250 })
-      expect(rendered).toEqual([systemMapChart(SYSTEM_MAP_FOCUS), ...shown.map((d) => d.chart)])
+      await waitFor(() => expect(container.querySelectorAll('figure.c-mermaid .c-mermaid-svg > svg').length).toBe(22), { timeout: 120_000, interval: 250 })
+      expect(container.querySelectorAll('figure.c-mermaid .c-mermaid-svg > svg[data-parsed]')).toHaveLength(21) // 系統地圖不經過 mermaid
+      expect(container.querySelectorAll('g.c-sysmap-block.is-focus')).toHaveLength(SYSTEM_MAP_FOCUS.length) // 系統地圖在 Beginner 模式也看得到
+      expect(rendered).toEqual(shown.map((d) => d.chart).map(sanitizeMermaidSource))
       // 沒有任何一張圖被包在可收合的推導或先備知識框裡
       for (const box of Array.from(container.querySelectorAll('[data-diagram]'))) expect(box.closest('.c-derivation, .c-prereq, details')).toBeNull()
       // 先看圖、再看推導：圖排在它的公式之前；同一小節裡排在圖前面的推導，都屬於更前面的另一條公式（中間隔著那條公式）

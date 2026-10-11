@@ -177,13 +177,6 @@
   margin: 0 0 0.4rem;
 }
 
-/* 窄螢幕：Mermaid 的 SVG 預設會一直縮到容器寬度，字會小到看不清楚；設最小寬度，超出的部分在圖自己的容器內水平捲動 */
-@media (max-width: 760px) {
-  .ch02 .c-mermaid-svg svg {
-    min-width: 520px;
-  }
-}
-
 .ch02-diagram-walk {
   border-left: 3px solid var(--accent);
   padding: 0.1rem 0 0.1rem 0.75rem;

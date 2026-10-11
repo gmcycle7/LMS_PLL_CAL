@@ -67,8 +67,12 @@ export const NOISE_LAB_DEFAULTS: NoiseLabParams = {
 
 const EXP_ID = 'lms-noise-lab'
 // Plot 的 layout 放在模組層：參考不變 ⇒ 重新 render（例如 worker 狀態改變）時不會重畫、也不會重設使用者的 zoom
-const TRACE_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'block k' } }, yaxis: { title: { text: 'δw_k = w_k − w* [fs]' } } }
-const PSD_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'f [Hz]（block rate f_u）' } }, yaxis: { title: { text: 'S_w^(1) [fs²/Hz]（one-sided）' } } }
+// 圖內的數學寫 `$...$`（Plot 元件轉成斜體符號與上下標；plotMath.ts）
+const TRACE_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'block $k$' } }, yaxis: { title: { text: String.raw`$\delta w_k = w_k - w^*$ [fs]` } } }
+const PSD_LAYOUT: Partial<Layout> = {
+  xaxis: { title: { text: String.raw`$f$ [Hz]（block rate $f_u$）` } },
+  yaxis: { title: { text: String.raw`$S_w^{(1)}$ [$\mathrm{fs}^2/\mathrm{Hz}$]（one-sided）` } },
+}
 /** 自動重跑的工作量上限（所有 case 的 block × chain 總和）；超過或含 sample 引擎時改為手動 Run */
 const AUTO_LIMIT = 400_000
 
@@ -139,7 +143,7 @@ export function LmsNoiseLab() {
 
   const metrics: MetricRow[] = useMemo(() => {
     const rows: MetricRow[] = [
-      { name: String.raw`$K=K_qC$`, value: lp.K, unit: 'fs⁻¹', formulaId: 'F-12.1', claim: 'approx', digits: 6 },
+      { name: String.raw`$K=K_qC$`, value: lp.K, unit: String.raw`$\mathrm{fs}^{-1}$`, formulaId: 'F-12.1', claim: 'approx', digits: 6 },
       { name: String.raw`$g=\mu K$（sum 模式再乘 $N$）`, value: lp.g, unit: '—', formulaId: 'F-12.2', claim: 'exact', digits: 6 },
       { name: String.raw`$p=1-g$`, value: lp.p, unit: '—', formulaId: 'F-12.2', claim: 'exact', digits: 8 },
       { name: String.raw`$f_u=f_s/N$`, value: lp.fu, unit: 'Hz', claim: 'exact', digits: 8 },
@@ -178,7 +182,7 @@ export function LmsNoiseLab() {
       {
         name: String.raw`$S_w^{(1)}(0)$`,
         value: lp.sw1Dc,
-        unit: 'fs²/Hz',
+        unit: String.raw`$\mathrm{fs}^2/\mathrm{Hz}$`,
         formulaId: 'F-12.10',
         claim: 'exact',
         digits: 5,
@@ -191,7 +195,7 @@ export function LmsNoiseLab() {
         unit: 'fs',
         analytic: lp.sigmaW,
         digits: 5,
-        note: String.raw`反面示範：把 $f_{3\mathrm{dB}}$ 當 Noise BW 會低估 $\sigma_w$（E06 / E10）；Δ 欄就是低估的量`,
+        note: String.raw`反面示範：把 $f_{3\mathrm{dB}}$ 當 Noise BW 會低估 $\sigma_w$（E06 / E10）；$\Delta$ 欄就是低估的量`,
       },
     ]
     if (colored) {
@@ -281,17 +285,17 @@ export function LmsNoiseLab() {
       const r = itemOf(c.id)?.result
       if (!r) continue
       const active = c.id === cases.activeId
-      out.push({ x: r.trace.k, y: r.trace.dw, name: `δw_k（Case ${c.id}，chain 0）`, mode: 'lines', line: { width: active ? 1.2 : 0.8, color: tokens.series[c.idx] }, opacity: active ? 1 : 0.6 })
+      out.push({ x: r.trace.k, y: r.trace.dw, name: String.raw`$\delta w_k$（Case ${c.id}，chain 0）`, mode: 'lines', line: { width: active ? 1.2 : 0.8, color: tokens.series[c.idx] }, opacity: active ? 1 : 0.6 })
     }
     if (current && Number.isFinite(lp.sigmaW)) {
       const k = current.trace.k
       const kk = [k[0], k[k.length - 1]]
       out.push(
-        { x: kk, y: [lp.sigmaW, lp.sigmaW], name: `±σ_w（解析，Case ${cases.activeId}）`, mode: 'lines', line: { dash: 'dash', color: tokens.textMuted } },
-        { x: kk, y: [-lp.sigmaW, -lp.sigmaW], name: '−σ_w', mode: 'lines', line: { dash: 'dash', color: tokens.textMuted }, showlegend: false },
+        { x: kk, y: [lp.sigmaW, lp.sigmaW], name: String.raw`$\pm\sigma_w$（解析，Case ${cases.activeId}）`, mode: 'lines', line: { dash: 'dash', color: tokens.textMuted } },
+        { x: kk, y: [-lp.sigmaW, -lp.sigmaW], name: String.raw`$-\sigma_w$`, mode: 'lines', line: { dash: 'dash', color: tokens.textMuted }, showlegend: false },
       )
       const env = Array.from(k, (kv) => prm.dw0 * Math.pow(lp.p, kv))
-      out.push({ x: k, y: env, name: 'E[δw_k] = δw_0·p^k', mode: 'lines', line: { dash: 'dot', color: tokens.textMuted } })
+      out.push({ x: k, y: env, name: String.raw`$E[\delta w_k] = \delta w_0\,p^k$`, mode: 'lines', line: { dash: 'dot', color: tokens.textMuted } })
     }
     return out
   }, [loops, itemOf, current, lp, prm.dw0, tokens, cases.activeId])
@@ -318,13 +322,13 @@ export function LmsNoiseLab() {
       out.push({
         x: f,
         y: f.map((ff) => swOneSided(ff, c.lp.input.mu, c.lp.p, c.lp.sigmaEta2, c.lp.fu, c.lp.input.etaR)),
-        name: `解析 S_w^(1)（Case ${c.id}）`,
+        name: String.raw`解析 $S_w^{(1)}$（Case ${c.id}）`,
         mode: 'lines',
         line: { dash: 'dash', color: active ? tokens.text : tokens.series[c.idx], width: 1.4 },
       })
     }
     if (Number.isFinite(lp.f3dbExact)) {
-      out.push({ x: [lp.f3dbExact, lp.f3dbExact], y: [lp.sw1Dc * 1e-4, lp.sw1Dc * 2], name: 'exact f_3dB', mode: 'lines', line: { dash: 'dot', color: tokens.series[3] } })
+      out.push({ x: [lp.f3dbExact, lp.f3dbExact], y: [lp.sw1Dc * 1e-4, lp.sw1Dc * 2], name: String.raw`exact $f_{3\mathrm{dB}}$`, mode: 'lines', line: { dash: 'dot', color: tokens.series[3] } })
     }
     if (Number.isFinite(lp.enbw)) {
       out.push({ x: [lp.enbw, lp.enbw], y: [lp.sw1Dc * 1e-4, lp.sw1Dc * 2], name: 'ENBW', mode: 'lines', line: { dash: 'dashdot', color: tokens.series[4] } })
@@ -526,7 +530,7 @@ export function LmsNoiseLab() {
         layout={TRACE_LAYOUT}
         caption={
           current
-            ? md(`目前 Case 的引擎：${ENGINE_LABEL[current.engine]}；burn-in 後的 ${prm.blocks} blocks × ${prm.chains} chains 用於統計。點線是平均軌跡 $E[\\delta w_k]=\\delta w_0p^k$，虛線是 $\\pm\\sigma_w$。`)
+            ? md(`目前 Case 的引擎：${ENGINE_LABEL[current.engine]}；burn-in 後的 ${prm.blocks} blocks $\\times$ ${prm.chains} chains 用於統計。點線是平均軌跡 $E[\\delta w_k]=\\delta w_0p^k$，虛線是 $\\pm\\sigma_w$。`)
             : '尚無模擬結果。'
         }
       />

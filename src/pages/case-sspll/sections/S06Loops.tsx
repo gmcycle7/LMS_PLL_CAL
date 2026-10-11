@@ -171,7 +171,7 @@ export function S06Loops() {
       </p>
       <Diagram id="re-l3" />
       <p>
-        先看左邊兩格：charge pump 打進一個電荷包之後，VCO 的相位照 <Tex>{'l(t)'}</Tex> 走（<Tex>{'K'}</Tex> 是斜坡的斜率，<Tex>{'B'}</Tex> 是步階的高度，<Tex>{r`\omega_p`}</Tex> 是 loop filter 的極點頻率）；PD 每拍只看一次，所以離散的開迴路增益是 <Tex>{r`L_3(z)=\sum_{n\ge1}l(n)z^{-n}`}</Tex>。再看分出來的三條路徑：
+        先看最上面兩格：charge pump 打進一個電荷包之後，VCO 的相位照 <Tex>{'l(t)'}</Tex> 走（<Tex>{'K'}</Tex> 是斜坡的斜率，<Tex>{'B'}</Tex> 是步階的高度，<Tex>{r`\omega_p`}</Tex> 是 loop filter 的極點頻率）；PD 每拍只看一次，所以離散的開迴路增益是 <Tex>{r`L_3(z)=\sum_{n\ge1}l(n)z^{-n}`}</Tex>。再看分出來的三條路徑：
         <Tex>{'l(t)'}</Tex> 的斜坡取樣後是雙積分（藍色，和 <FigRef id="re-l2" /> 的積分路徑同型，實部越低頻越負），步階取樣後是單積分（實部固定 <Tex>{'-B/2'}</Tex>，相當於 L2 的比例路徑），指數衰減取樣後是一個位在 <Tex>{r`p=e^{-\omega_p}`}</Tex> 的極點。圖上三條路徑的式子就是下面推導第 3
         步的三項；加法點的輸出取負號就是第 4 步的 <Tex>{r`-\mathrm{Re}\,L`}</Tex>：第一項直接對上，後兩條路徑的實部通分相加就是第二項 <Tex>{r`B(1-p^2)/(2\lvert1-pe^{-j\Omega}\rvert^2)`}</Tex>（其中 <Tex>{r`\lvert1-pe^{-j\Omega}\rvert^2=1-2p\cos\Omega+p^2`}</Tex>）。
       </p>

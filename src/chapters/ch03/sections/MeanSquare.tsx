@@ -129,7 +129,7 @@ function GParabolaPlot() {
       return {
         x: mus,
         y: mus.map((mu) => meanSquareFactor(mu, m.Px, m.M4)),
-        name: `g(μ)：${label}`,
+        name: T`$g(\mu)$：${label}`,
         mode: 'lines',
         line: { color: tokens.series[i], width: 2 },
       } as Data
@@ -137,14 +137,14 @@ function GParabolaPlot() {
     const opt: Data = {
       x: EXAMPLE_DISTS.slice(0, 3).map(({ dist }) => stabilityBounds(dist).msOpt),
       y: EXAMPLE_DISTS.slice(0, 3).map(({ dist }) => stabilityBounds(dist).msOptFactor),
-      name: '最小值 μ* = P_x/M_4',
+      name: T`最小值 $\mu^\ast = P_x/M_4$`,
       mode: 'markers',
       marker: { size: 9, color: tokens.text, symbol: 'diamond' },
     }
-    const one: Data = { x: [0, 2.4], y: [1, 1], name: '門檻 g = 1', mode: 'lines', line: { color: tokens.textMuted, dash: 'dash', width: 1.5 } }
+    const one: Data = { x: [0, 2.4], y: [1, 1], name: '門檻 $g = 1$', mode: 'lines', line: { color: tokens.textMuted, dash: 'dash', width: 1.5 } }
     return [...traces, opt, one]
   }, [tokens])
-  const layout = useMemo<Partial<Layout>>(() => ({ xaxis: { title: { text: 'μ（單位功率 P_x = 1）' } }, yaxis: { title: { text: 'g(μ) = E[(1 − μx²)²]' }, range: [0, 3] } }), [])
+  const layout = useMemo<Partial<Layout>>(() => ({ xaxis: { title: { text: T`$\mu$（單位功率 $P_x = 1$）` } }, yaxis: { title: { text: T`$g(\mu) = E[(1 - \mu x^2)^2]$` }, range: [0, 3] } }), [])
   return (
     <Plot
       title={T`MSD 每步因子 $g(\mu)$：開口向上的拋物線`}
@@ -174,7 +174,7 @@ function StationaryRmsPlot() {
       line: { color: tokens.series[i], width: 2 },
     }))
   }, [tokens])
-  const layout = useMemo<Partial<Layout>>(() => ({ xaxis: { title: { text: 'μ' } }, yaxis: { title: { text: '√MSD∞（σ_v = 0.1）' } } }), [])
+  const layout = useMemo<Partial<Layout>>(() => ({ xaxis: { title: { text: T`$\mu$` } }, yaxis: { title: { text: T`$\sqrt{\text{MSD}_\infty}$（$\sigma_v = 0.1$）` } } }), [])
   return (
     <Plot
       title={T`有雜訊時的穩態 RMS 係數誤差 $\sqrt{\text{MSD}_\infty}$`}
@@ -331,7 +331,7 @@ E[t^{k+1}]&=\int_{-\infty}^{\infty}t^{k}\,\big(t\varphi(t)\big)\,dt=\int_{-\inft
           ariaLabel="delta n 乘 x n 後與雜訊 v n 相加得到誤差 e n；e n 乘 mu x n 後從 delta n 中減掉得到 delta n 加 1，延遲一步回授"
         />
         <p>
-          先看紅色的加法點：<Tex>{T`v[n]`}</Tex> 加在 <Tex>{T`\delta[n]\,x[n]`}</Tex> 上，成為誤差 <Tex>{T`e[n]=\delta[n]\,x[n]+v[n]`}</Tex>。再跟著 <Tex>{T`e[n]`}</Tex> 往右：它乘上 <Tex>{T`\mu\,x[n]`}</Tex>（虛線：和前面乘法點用的是同一個 <Tex>{T`x[n]`}</Tex>）後從{' '}
+          先看紅色的加法點：<Tex>{T`v[n]`}</Tex> 加在 <Tex>{T`\delta[n]\,x[n]`}</Tex> 上，成為誤差 <Tex>{T`e[n]=\delta[n]\,x[n]+v[n]`}</Tex>。再跟著 <Tex>{T`e[n]`}</Tex> 往下：它乘上 <Tex>{T`\mu\,x[n]`}</Tex>（虛線：和前面乘法點用的是同一個 <Tex>{T`x[n]`}</Tex>）後從{' '}
           <Tex>{T`\delta[n]`}</Tex> 裡被<strong>減掉</strong>（−），雜訊也就一起被帶進 <Tex>{T`\delta[n+1]`}</Tex>——多出來的那一項是 <Tex>{T`-\mu\,x[n]\,v[n]`}</Tex>。這張圖就是下面推導的第 1 步。
         </p>
         <Fig

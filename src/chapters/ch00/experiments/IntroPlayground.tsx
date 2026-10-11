@@ -251,14 +251,14 @@ export function IntroPlayground() {
     const traces: Data[] = runs.map((r) => ({
       x: nAxis,
       y: Array.from(r.run.w.subarray(0, shown + 1)),
-      name: `Case ${r.id}（μ = ${num(r.run.mu)}）`,
+      name: String.raw`Case ${r.id}（$\mu = ${texRes(r.run.mu)}$）`,
       mode: 'lines+markers',
       marker: { size: 5 },
       line: { color: tokens.series[r.seriesIndex] },
     }))
-    traces.push({ x: [0, shown], y: [dBase.a, dBase.a], name: `真實 a = ${num(dBase.a)}`, mode: 'lines', line: { dash: 'dash', color: tokens.textMuted } })
+    traces.push({ x: [0, shown], y: [dBase.a, dBase.a], name: String.raw`真實 $a = ${texRes(dBase.a)}$`, mode: 'lines', line: { dash: 'dash', color: tokens.textMuted } })
     if (freezeAt !== null && freezeAt < steps) {
-      traces.push({ x: [freezeAt, freezeAt], y: wRange, name: `Freeze（n = ${freezeAt}）`, mode: 'lines', line: { dash: 'dot', color: tokens.textMuted } })
+      traces.push({ x: [freezeAt, freezeAt], y: wRange, name: String.raw`Freeze（$n = ${freezeAt}$）`, mode: 'lines', line: { dash: 'dot', color: tokens.textMuted } })
     }
     return traces
   }, [runs, nAxis, shown, tokens, dBase.a, freezeAt, steps, wRange])
@@ -267,8 +267,8 @@ export function IntroPlayground() {
   const deltaScale = useMemo(() => deltaPlotScale(dBase, runs.map((r) => r.run)), [dBase, runs])
   const deltaLayout: Partial<Layout> = useMemo(
     () => ({
-      xaxis: { title: { text: 'n' } },
-      yaxis: { title: { text: '|δ_n|' }, range: [Math.log10(deltaScale.floor), Math.log10(deltaScale.top) + 0.3] },
+      xaxis: { title: { text: '$n$' } },
+      yaxis: { title: { text: String.raw`$|\delta_n|$` }, range: [Math.log10(deltaScale.floor), Math.log10(deltaScale.top) + 0.3] },
     }),
     [deltaScale],
   )
@@ -279,7 +279,7 @@ export function IntroPlayground() {
       traces.push({
         x: nAxis,
         y: Array.from(r.run.delta.subarray(0, shown + 1), Math.abs),
-        name: `Case ${r.id} |δ_n|（模擬）`,
+        name: String.raw`Case ${r.id} $|\delta_n|$（模擬）`,
         mode: 'lines+markers',
         marker: { size: 4 },
         line: { color },
@@ -291,13 +291,13 @@ export function IntroPlayground() {
       traces.push({
         x: decay.n,
         y: decay.y,
-        name: `Case ${r.id} 解析 |δ₀||p|ⁿ`,
+        name: String.raw`Case ${r.id} 解析 $|\delta_0|\,|p|^n$`,
         mode: 'lines',
         line: { color, dash: 'dash', width: 1 },
       })
       if (!noiseFree && Number.isFinite(r.run.varTheory) && r.run.varTheory > 0) {
         const sd = Math.sqrt(r.run.varTheory)
-        traces.push({ x: [0, shown], y: [sd, sd], name: `Case ${r.id} 穩態 std(w)`, mode: 'lines', line: { color, dash: 'dot', width: 1 } })
+        traces.push({ x: [0, shown], y: [sd, sd], name: String.raw`Case ${r.id} 穩態 $\operatorname{std}(w)$`, mode: 'lines', line: { color, dash: 'dot', width: 1 } })
       }
     }
     return traces
@@ -312,14 +312,14 @@ export function IntroPlayground() {
       {
         x: ws,
         y: ws.map((w) => expectedCost(dBase.a, w, dBase.x, dBase.sigmaV)),
-        name: 'J(w) = ½E[(y − wx)²]',
+        name: String.raw`$J(w) = \tfrac12\,E[(y - w\,x)^2]$`,
         mode: 'lines',
         line: { color: tokens.textMuted },
       },
       {
         x: path,
         y: path.map((w) => expectedCost(dBase.a, w, dBase.x, dBase.sigmaV)),
-        name: `Case ${active.id} 的 w_n 路徑`,
+        name: String.raw`Case ${active.id} 的 $w_n$ 路徑`,
         mode: 'lines+markers',
         marker: { size: 7 },
         line: { color: tokens.series[active.seriesIndex] },
@@ -338,7 +338,7 @@ export function IntroPlayground() {
       traces.push({
         x: idx,
         y: Array.from(r.run.e.subarray(0, nE)),
-        name: `Case ${r.id} e_n（模擬）`,
+        name: String.raw`Case ${r.id} $e_n$（模擬）`,
         mode: 'lines+markers',
         marker: { size: 4 },
         line: { color },
@@ -352,7 +352,7 @@ export function IntroPlayground() {
       traces.push({
         x: idx.slice(0, nKeep),
         y: eTheory.slice(0, nKeep),
-        name: `Case ${r.id} 解析 E[e_n] = x(a − w₀)pⁿ`,
+        name: String.raw`Case ${r.id} 解析 $E[e_n] = x\,(a - w_0)\,p^n$`,
         mode: 'lines',
         line: { color, dash: 'dash', width: 1 },
       })
@@ -362,14 +362,14 @@ export function IntroPlayground() {
 
   // 版面物件要 memo：只有縱軸／橫軸範圍真的改變時才換新參照（否則 Plot 每次 render 都會重畫並重設縮放）
   const wLayout: Partial<Layout> = useMemo(
-    () => ({ xaxis: { title: { text: 'n（第幾筆資料）' } }, yaxis: { title: { text: 'w_n' }, range: wRange } }),
+    () => ({ xaxis: { title: { text: '$n$（第幾筆資料）' } }, yaxis: { title: { text: '$w_n$' }, range: wRange } }),
     [wRange],
   )
   const eLayout: Partial<Layout> = useMemo(
-    () => ({ xaxis: { title: { text: 'n' } }, yaxis: { title: { text: 'e_n = y_n − w_n x' }, range: eRange } }),
+    () => ({ xaxis: { title: { text: '$n$' } }, yaxis: { title: { text: '$e_n = y_n - w_n\\,x$' }, range: eRange } }),
     [eRange],
   )
-  const costLayout: Partial<Layout> = useMemo(() => ({ xaxis: { title: { text: 'w' }, range: wRange }, yaxis: { title: { text: 'J(w)' } } }), [wRange])
+  const costLayout: Partial<Layout> = useMemo(() => ({ xaxis: { title: { text: '$w$' }, range: wRange }, yaxis: { title: { text: '$J(w)$' } } }), [wRange])
 
   // 目前這一步的更新公式（代入數字）：完整模式顯示 n = 0，單步模式顯示剛剛執行的那一步
   const live = useMemo(() => {
@@ -528,7 +528,7 @@ export function IntroPlayground() {
             min={0}
             max={2}
             step={0.01}
-            unit="同 y"
+            unit="同 $y$"
             reg="Behavioral: sigma_v（PD / comparator 前雜訊）"
             hint={
               <>

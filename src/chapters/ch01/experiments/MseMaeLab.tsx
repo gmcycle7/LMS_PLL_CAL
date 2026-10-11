@@ -184,8 +184,7 @@ function toPresetList(): ExperimentPreset[] {
 /** IEEE double：0.2 + 0.2 + 0.2 − 0.2 − 0.2 − 0.2 的實際結果（不是 0；即時計算） */
 const IEEE_RESIDUE_02 = [0.2, 0.2, 0.2, -0.2, -0.2, -0.2].reduce((w, d) => w + d, 0)
 
-/** 純文字版（Plotly 圖例、下拉選單）與 TeX 版（指標名稱、假設、表格） */
-const TIE_LABEL: Record<TieRule, string> = { zero: 'sign(0) = 0', plus: 'sign(0) = +1', minus: 'sign(0) = −1' }
+/** tie 慣例的 TeX（指標名稱、假設、表格、Plotly 圖例；下拉選單的 option 是純文字，直接寫在 options 裡） */
 const TIE_TEX: Record<TieRule, string> = {
   zero: String.raw`\operatorname{sign}(0)=0`,
   plus: String.raw`\operatorname{sign}(0)=+1`,
@@ -459,19 +458,19 @@ export function MseMaeLab() {
     const R = Math.max(3, 3 * P.huberDelta)
     const es = Array.from({ length: 241 }, (_, i) => -R + (2 * R * i) / 240)
     const rho: Data[] = [
-      { x: es, y: es.map((e) => lossValue('mse', e)), name: 'MSE ½e²', mode: 'lines', line: { color: tokens.series[0] }, opacity: focusOpacity(focus, 0) },
-      { x: es, y: es.map((e) => lossValue('mae', e)), name: 'MAE |e|', mode: 'lines', line: { color: tokens.series[1] }, opacity: focusOpacity(focus, 1) },
-      { x: es, y: es.map((e) => lossValue('huber', e, P.huberDelta)), name: `Huber（δₕ = ${f(P.huberDelta, 3)}）`, mode: 'lines', line: { color: tokens.series[2] }, opacity: focusOpacity(focus, 2) },
+      { x: es, y: es.map((e) => lossValue('mse', e)), name: String.raw`MSE $\tfrac12 e^2$`, mode: 'lines', line: { color: tokens.series[0] }, opacity: focusOpacity(focus, 0) },
+      { x: es, y: es.map((e) => lossValue('mae', e)), name: 'MAE $|e|$', mode: 'lines', line: { color: tokens.series[1] }, opacity: focusOpacity(focus, 1) },
+      { x: es, y: es.map((e) => lossValue('huber', e, P.huberDelta)), name: String.raw`Huber（$\delta_H=${texNum(P.huberDelta, 3)}$）`, mode: 'lines', line: { color: tokens.series[2] }, opacity: focusOpacity(focus, 2) },
     ]
     const neg = es.filter((e) => e < 0)
     const pos = es.filter((e) => e > 0)
     const tieVal = sgn(0, P.tie)
     const psi: Data[] = [
-      { x: es, y: es, name: 'ψ = e（MSE）', mode: 'lines', line: { color: tokens.series[0] }, opacity: focusOpacity(focus, 0) },
-      { x: [...neg, null, ...pos], y: [...neg.map(() => -1), null, ...pos.map(() => 1)], name: 'ψ = sign(e)（MAE）', mode: 'lines', line: { color: tokens.series[1] }, connectgaps: false, opacity: focusOpacity(focus, 1) },
-      { x: [0, 0], y: [-1, 1], name: '次梯度集合 [−1, 1]（e = 0）', mode: 'lines', line: { color: tokens.series[1], dash: 'dot' } },
-      { x: [0], y: [tieVal], name: `本實驗 tie：${TIE_LABEL[P.tie]}`, mode: 'markers', marker: { size: 11, color: tokens.series[1] } },
-      { x: es, y: es.map((e) => huberPsi(e, P.huberDelta)), name: 'ψ = clip(e)（Huber）', mode: 'lines', line: { color: tokens.series[2] }, opacity: focusOpacity(focus, 2) },
+      { x: es, y: es, name: String.raw`$\psi=e$（MSE）`, mode: 'lines', line: { color: tokens.series[0] }, opacity: focusOpacity(focus, 0) },
+      { x: [...neg, null, ...pos], y: [...neg.map(() => -1), null, ...pos.map(() => 1)], name: String.raw`$\psi=\operatorname{sign}(e)$（MAE）`, mode: 'lines', line: { color: tokens.series[1] }, connectgaps: false, opacity: focusOpacity(focus, 1) },
+      { x: [0, 0], y: [-1, 1], name: String.raw`次梯度集合 $[-1,1]$（$e=0$）`, mode: 'lines', line: { color: tokens.series[1], dash: 'dot' } },
+      { x: [0], y: [tieVal], name: `本實驗 tie：$${TIE_TEX[P.tie]}$`, mode: 'markers', marker: { size: 11, color: tokens.series[1] } },
+      { x: es, y: es.map((e) => huberPsi(e, P.huberDelta)), name: String.raw`$\psi=\operatorname{clip}(e)$（Huber）`, mode: 'lines', line: { color: tokens.series[2] }, opacity: focusOpacity(focus, 2) },
     ]
     return { rho, psi }
   }, [P.huberDelta, P.tie, tokens, focus])
@@ -480,7 +479,7 @@ export function MseMaeLab() {
   const histPlot = useMemo<Data[]>(() => {
     const vals = new Float64Array(data.y.length)
     for (let i = 0; i < vals.length; i++) vals[i] = four ? data.y[i] : data.y[i] - P.a * data.x[i]
-    return [{ x: Array.from(vals), type: 'histogram', nbinsx: 80, name: four ? 'y' : 'ṽ = y − a·x', marker: { color: tokens.series[4] } }]
+    return [{ x: Array.from(vals), type: 'histogram', nbinsx: 80, name: four ? '$y$' : String.raw`$\tilde v=y-a\,x$`, marker: { color: tokens.series[4] } }]
   }, [data, four, P.a, tokens])
 
   // ───── 圖：J(w)（各自正規化） ─────
@@ -501,9 +500,9 @@ export function MseMaeLab() {
       return Array.from(v, (q) => (mx > mn ? (q - mn) / (mx - mn) : 0))
     }
     return [
-      { x: grid, y: norm(c.mse), name: 'J_MSE(w)', mode: 'lines', line: { color: tokens.series[0] }, opacity: focusOpacity(focus, 0) },
-      { x: grid, y: norm(c.mae), name: 'J_MAE(w)', mode: 'lines', line: { color: tokens.series[1] }, opacity: focusOpacity(focus, 1) },
-      { x: grid, y: norm(c.huber), name: 'J_Huber(w)', mode: 'lines', line: { color: tokens.series[2] }, opacity: focusOpacity(focus, 2) },
+      { x: grid, y: norm(c.mse), name: String.raw`$J_{\mathrm{MSE}}(w)$`, mode: 'lines', line: { color: tokens.series[0] }, opacity: focusOpacity(focus, 0) },
+      { x: grid, y: norm(c.mae), name: String.raw`$J_{\mathrm{MAE}}(w)$`, mode: 'lines', line: { color: tokens.series[1] }, opacity: focusOpacity(focus, 1) },
+      { x: grid, y: norm(c.huber), name: String.raw`$J_{\mathrm{Huber}}(w)$`, mode: 'lines', line: { color: tokens.series[2] }, opacity: focusOpacity(focus, 2) },
       { x: [batch.l2], y: [0], name: `L2 最佳 ${f(batch.l2, 4)}`, mode: 'markers', marker: { size: 12, color: tokens.series[0], symbol: 'diamond' } },
       { x: [l1Mid], y: [0], name: `L1 最佳 ${f(l1Mid, 4)}`, mode: 'markers', marker: { size: 12, color: tokens.series[1], symbol: 'diamond' } },
       { x: [batch.huber], y: [0], name: `Huber 最佳 ${f(batch.huber, 4)}`, mode: 'markers', marker: { size: 12, color: tokens.series[2], symbol: 'diamond' } },
@@ -523,7 +522,7 @@ export function MseMaeLab() {
       line: { width: 0 },
       fill: 'tonexty',
       fillcolor: 'rgba(127,127,127,0.18)',
-      name: `母體中位數 ± μ|x|：時間平均的容忍帶（±${f(band, 3)}）`,
+      name: String.raw`母體中位數 $\pm\mu|x|$：時間平均的容忍帶（$\pm${texNum(band, 3)}$）`,
     })
     VARIANTS.forEach(({ label }, i) => {
       const d = decimate(runs[i].w, 2500)
@@ -540,8 +539,8 @@ export function MseMaeLab() {
     const d = decimateLattice(lattice)
     const dist: Data =
       d.stride === 1 && d.x.length <= 120
-        ? { x: d.x, y: d.y, type: 'bar', name: `π(w)（${TIE_LABEL[P.tie]}）`, marker: { color: tokens.series[1] } }
-        : { x: d.x, y: d.y, mode: 'lines', fill: 'tozeroy', name: `π(w)（${TIE_LABEL[P.tie]}；${lattice.states} 個格點${d.stride > 1 ? `，每 ${d.stride} 點畫 1 點` : ''}）`, line: { color: tokens.series[1] } }
+        ? { x: d.x, y: d.y, type: 'bar', name: String.raw`$\pi(w)$（$${TIE_TEX[P.tie]}$）`, marker: { color: tokens.series[1] } }
+        : { x: d.x, y: d.y, mode: 'lines', fill: 'tozeroy', name: String.raw`$\pi(w)$（$${TIE_TEX[P.tie]}$；${lattice.states} 個格點${d.stride > 1 ? `，每 ${d.stride} 點畫 1 點` : ''}）`, line: { color: tokens.series[1] } }
     return [
       dist,
       { x: [lattice.mean, lattice.mean], y: [0, lattice.piMax], mode: 'lines', name: `精確時間平均 ${f(lattice.mean, 5)}`, line: { dash: 'dash', color: tokens.text } },
@@ -549,7 +548,7 @@ export function MseMaeLab() {
         x: [lattice.mean - lattice.std, lattice.mean + lattice.std],
         y: [lattice.piMax / 2, lattice.piMax / 2],
         mode: 'lines+markers',
-        name: `精確 ±1 std（${f(lattice.std, 4)}）`,
+        name: String.raw`精確 $\pm1$ std（${f(lattice.std, 4)}）`,
         line: { color: tokens.series[3] },
       },
     ]
@@ -671,11 +670,11 @@ export function MseMaeLab() {
               </>
             }
             ariaLabel="A（x 的大小）"
-            value={params.xScale} onChange={set('xScale')} min={0} max={5} step={0.01} unit="[x]" reg="Behavioral: code_amplitude" disabled={params.model === 'four_point'} hint={disabledHint} />
-          <ParamControl label={symLabel('a', '真實係數')} ariaLabel="a（真實係數）" value={params.a} onChange={set('a')} min={-10} max={10} step={0.01} unit="[y]/[x]" reg="Behavioral: true_gain_a" disabled={params.model === 'four_point'} />
-          <ParamControl label={symLabel('\\sigma_v', 'Gaussian 雜訊')} ariaLabel="σᵥ（Gaussian 雜訊）" value={params.sigma} onChange={set('sigma')} min={0} max={5} step={0.01} unit="[y]" reg="Behavioral: noise_rms_v" disabled={params.model === 'four_point'} />
+            value={params.xScale} onChange={set('xScale')} min={0} max={5} step={0.01} unit="$[x]$" reg="Behavioral: code_amplitude" disabled={params.model === 'four_point'} hint={disabledHint} />
+          <ParamControl label={symLabel('a', '真實係數')} ariaLabel="a（真實係數）" value={params.a} onChange={set('a')} min={-10} max={10} step={0.01} unit="$[y]/[x]$" reg="Behavioral: true_gain_a" disabled={params.model === 'four_point'} />
+          <ParamControl label={symLabel('\\sigma_v', 'Gaussian 雜訊')} ariaLabel="σᵥ（Gaussian 雜訊）" value={params.sigma} onChange={set('sigma')} min={0} max={5} step={0.01} unit="$[y]$" reg="Behavioral: noise_rms_v" disabled={params.model === 'four_point'} />
           <ParamControl label={symLabel('\\varepsilon', 'outlier 比例')} ariaLabel="ε（outlier 比例）" value={params.outlierProb} onChange={set('outlierProb')} min={0} max={0.6} step={0.005} unit="機率" reg="Behavioral: outlier_prob" disabled={params.model === 'four_point'} />
-          <ParamControl label={symLabel('s', 'outlier 大小')} ariaLabel="s（outlier 大小）" value={params.outlierSize} onChange={set('outlierSize')} min={0} max={100} step={0.1} unit="[y]" reg="Behavioral: outlier_size" disabled={params.model === 'four_point'} />
+          <ParamControl label={symLabel('s', 'outlier 大小')} ariaLabel="s（outlier 大小）" value={params.outlierSize} onChange={set('outlierSize')} min={0} max={100} step={0.1} unit="$[y]$" reg="Behavioral: outlier_size" disabled={params.model === 'four_point'} />
           <SelectControl
             label="outlier 方向"
             value={params.outlierSign}
@@ -696,16 +695,16 @@ export function MseMaeLab() {
             max={2}
             log
             digits={6}
-            unit="1/[x]²"
+            unit="$1/[x]^2$"
             reg="REG_LMS_MU"
             hint={
               <>
-                固定步長；Sign-Error 每步走 <Tex>{String.raw`\mu|x|`}</Tex>；const／±A 時 LMS 需 <Tex>{String.raw`\mu A^2<2`}</Tex>。同一個數值在 Sign-Error 的單位是{' '}
+                固定步長；Sign-Error 每步走 <Tex>{String.raw`\mu|x|`}</Tex>；const／<Tex>{String.raw`\pm A`}</Tex> 時 LMS 需 <Tex>{String.raw`\mu A^2<2`}</Tex>。同一個數值在 Sign-Error 的單位是{' '}
                 <Tex>{String.raw`[y]/[x]^2`}</Tex>（<Tex>{String.raw`\operatorname{sign}(e)`}</Tex> 無因次）
               </>
             }
           />
-          <ParamControl label={symLabel('w_0', '初始值')} ariaLabel="w₀（初始值）" value={params.w0} onChange={set('w0')} min={-20} max={20} step={0.01} unit="[y]/[x]" reg="REG_LMS_W_INIT" />
+          <ParamControl label={symLabel('w_0', '初始值')} ariaLabel="w₀（初始值）" value={params.w0} onChange={set('w0')} min={-20} max={20} step={0.01} unit="$[y]/[x]$" reg="REG_LMS_W_INIT" />
           <ParamControl label={symLabel('N', '樣本數')} ariaLabel="N（樣本數）" value={params.n} onChange={set('n')} min={100} max={20000} step={100} integer clampOnBlur unit="samples" reg="Behavioral: num_updates" />
           <SelectControl
             label={
@@ -731,7 +730,7 @@ export function MseMaeLab() {
             min={0.01}
             max={20}
             step={0.01}
-            unit="[y]"
+            unit="$[y]$"
             reg="Behavioral: huber_threshold"
             hint={
               <>
@@ -743,12 +742,12 @@ export function MseMaeLab() {
       }
     >
       <div className="ch01-two">
-        <Plot title="損失 $\rho(e)$" ariaLabel="三種損失函數 ρ(e)" data={lossPlots.rho} layout={{ xaxis: { title: { text: 'e' } }, yaxis: { title: { text: 'ρ(e)' } } }} height={260} csvName="loss-rho" />
+        <Plot title="損失 $\rho(e)$" ariaLabel="三種損失函數 ρ(e)" data={lossPlots.rho} layout={{ xaxis: { title: { text: '$e$' } }, yaxis: { title: { text: String.raw`$\rho(e)$` } } }} height={260} csvName="loss-rho" />
         <Plot
           title="導數 $\psi(e)=d\rho/de$（$\Delta w=\mu\,\psi(e)\,x$）"
           ariaLabel="三種損失的導數 ψ(e)"
           data={lossPlots.psi}
-          layout={{ xaxis: { title: { text: 'e' } }, yaxis: { title: { text: 'ψ(e)' } } }}
+          layout={{ xaxis: { title: { text: '$e$' } }, yaxis: { title: { text: String.raw`$\psi(e)$` } } }}
           height={260}
           csvName="loss-psi"
         />
@@ -757,7 +756,7 @@ export function MseMaeLab() {
         title="$w_n$：三種演算法吃同一組資料"
         ariaLabel="三種演算法在同一組資料上的 w 軌跡"
         data={wPlot}
-        layout={{ xaxis: { title: { text: 'n（sample）' } }, yaxis: { title: { text: 'w_n' } } }}
+        layout={{ xaxis: { title: { text: '$n$（sample）' } }, yaxis: { title: { text: '$w_n$' } } }}
         height={320}
         csvName="mse-mae-w"
         caption={
@@ -772,7 +771,7 @@ export function MseMaeLab() {
           title={four ? '資料分布 $y$' : String.raw`總雜訊 $\tilde v=y-ax$ 的分布`}
           ariaLabel={four ? '資料 y 的分布' : '總雜訊（y 減去 a 乘 x）的分布'}
           data={histPlot}
-          layout={{ xaxis: { title: { text: four ? 'y' : 'ṽ' } }, yaxis: { title: { text: '筆數' } }, bargap: 0.02 }}
+          layout={{ xaxis: { title: { text: four ? '$y$' : String.raw`$\tilde v$` } }, yaxis: { title: { text: '筆數' } }, bargap: 0.02 }}
           height={260}
           csvName="mse-mae-hist"
         />
@@ -780,7 +779,7 @@ export function MseMaeLab() {
           title="平均成本 $J(w)$（各自正規化到 $[0,1]$）"
           ariaLabel="三種平均成本 J(w)（各自正規化到 0 與 1 之間）"
           data={costPlot}
-          layout={{ xaxis: { title: { text: 'w' } }, yaxis: { title: { text: '(J − min)/(max − min)' } } }}
+          layout={{ xaxis: { title: { text: '$w$' } }, yaxis: { title: { text: String.raw`$(J-\min)/(\max-\min)$` } } }}
           height={260}
           csvName="mse-mae-cost"
         />
@@ -790,7 +789,7 @@ export function MseMaeLab() {
           title="Sign-Error 的精確穩態分布 $\pi(w)$（lattice Markov 鏈）"
           ariaLabel="Sign-Error 的精確穩態分布（lattice Markov 鏈）"
           data={latticePlot}
-          layout={{ xaxis: { title: { text: 'w（格點 w₀ + μ|x|·k）' } }, yaxis: { title: { text: 'π' } }, bargap: 0.1 }}
+          layout={{ xaxis: { title: { text: String.raw`$w$（格點 $w_0+\mu|x|\,k$）` } }, yaxis: { title: { text: String.raw`$\pi$` } }, bargap: 0.1 }}
           height={240}
           csvName="mse-mae-lattice"
           caption={
@@ -803,7 +802,7 @@ export function MseMaeLab() {
 
       <Callout kind="info" title="長時間 tie 慣例研究（Worker，$4\times10^5$ 步）">
         <p className="small">
-          按上方「執行 Run」：用同一組資料，分別以三種 <Tex>{String.raw`\operatorname{sign}(0)`}</Tex> 慣例 × 兩種算術（IEEE double 連加 / 定點整數
+          按上方「執行 Run」：用同一組資料，分別以三種 <Tex>{String.raw`\operatorname{sign}(0)`}</Tex> 慣例 <Tex>{String.raw`\times`}</Tex> 兩種算術（IEEE double 連加 / 定點整數
           code）跑 <Tex>{String.raw`4\times10^5`}</Tex> 步，比較時間平均與 lattice 精確值。
           {!canStudy && (
             <>
@@ -821,7 +820,9 @@ export function MseMaeLab() {
                 <tr>
                   <th>tie 慣例</th>
                   <th>算術</th>
-                  <th className="num">時間平均 ± SE</th>
+                  <th className="num">
+                    時間平均 <Tex>{String.raw`\pm`}</Tex> SE
+                  </th>
                   <th className="num">lattice 精確平均</th>
                   <th className="num">std（lattice 精確）</th>
                   <th className="num">
@@ -837,7 +838,7 @@ export function MseMaeLab() {
                     </td>
                     <td>{r.arithmetic === 'ieee' ? 'IEEE double（lms.ts）' : '定點整數 code'}</td>
                     <td className="num">
-                      {f(r.timeAvg, 5)} ± {Number.isFinite(r.se) ? f(r.se, 2) : '—（相關時間太長，估不出 SE）'}
+                      {f(r.timeAvg, 5)} <Tex>{String.raw`\pm`}</Tex> {Number.isFinite(r.se) ? f(r.se, 2) : '—（相關時間太長，估不出 SE）'}
                     </td>
                     <td className="num">{r.latticeMean === null ? '—' : f(r.latticeMean, 5)}</td>
                     <td className="num">

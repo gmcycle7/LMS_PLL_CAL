@@ -142,7 +142,7 @@ export function S5Wrap() {
             { tex: T`E[G_k]\approx K_q\,C\,\delta_k,\qquad C=E[x_{\mathrm{ref}}\,u_x],\quad u_x=H_{\mathrm{PD}}\{x\}`, label: '$C$ 的正負決定更新極性；$\\mu$、$N$、$\\sigma_v$ 改不了它的符號' },
             { tex: T`g=\mu K_qC,\qquad z^{d+1}-z^d+g=0,\qquad \sigma_w^2=\frac{\mu^2\sigma_\eta^2}{1-p^2}`, label: '迴路增益、含延遲的 pole、係數的穩態抖動' },
             { tex: T`\operatorname{Var}\bigl(T\{\delta w\,x\}\bigr)\approx\sigma_w^2\bigl(\bar x^{\,2}+\operatorname{Var}(T\{\tilde x\})\bigr)`, label: 'gain 抖動「乘上」code 才是輸出 jitter；code 的 DC 讓它直接穿過 $T$' },
-            { tex: T`A_{\mathrm{spur}}=|a-\bar w|\,s\,A_1\,|T(f_1)|,\qquad \mathrm{SSB}\approx20\log_{10}(\pi f_{\mathrm{out}}A_{\mathrm{spur}})`, label: '一階 DSM 的 fractional spur：殘留的 gain 誤差 × 鋸齒的基頻 × PLL 的 output transfer' },
+            { tex: T`A_{\mathrm{spur}}=|a-\bar w|\,s\,A_1\,|T(f_1)|,\qquad \mathrm{SSB}\approx20\log_{10}(\pi f_{\mathrm{out}}A_{\mathrm{spur}})`, label: '一階 DSM 的 fractional spur：殘留的 gain 誤差 $\\times$ 鋸齒的基頻 $\\times$ PLL 的 output transfer' },
             { tex: T`\operatorname{Var}(\bar w_m)\approx\frac{\sigma_w^2}{m}\cdot\frac{1+\rho}{1-\rho}`, label: '單一 seed 的平均沒有想像中準：有效樣本數是 $m(1-\\rho)/(1+\\rho)$' },
           ]}
           points={[

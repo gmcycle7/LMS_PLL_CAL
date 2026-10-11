@@ -77,19 +77,19 @@ export function LimitCycleBand() {
 
   const wData = useMemo<Data[]>(
     () => [
-      { x: n, y: n.map((k) => p.a + band[k]), name: 'a ± μ_n|x|（跳動帶）', mode: 'lines', line: { color: tokens.textFaint, dash: 'dot', width: 1 }, legendgroup: 'band' },
-      { x: n, y: n.map((k) => p.a - band[k]), name: 'a − μ_n|x|', showlegend: false, mode: 'lines', line: { color: tokens.textFaint, dash: 'dot', width: 1 }, legendgroup: 'band' },
-      { x: [0, p.steps], y: [p.a, p.a], name: 'a', mode: 'lines', line: { color: tokens.textMuted, dash: 'dash' } },
-      { x: n, y: Array.from(lms), name: 'LMS（μ e x）', mode: 'lines+markers', marker: { size: 4 }, line: { color: tokens.series[0] } },
-      { x: n, y: Array.from(se), name: 'Sign-Error（μ sign(e) x）', mode: 'lines+markers', marker: { size: 5 }, line: { color: tokens.series[1], shape: 'linear' } },
+      { x: n, y: n.map((k) => p.a + band[k]), name: String.raw`$a\pm\mu_n|x|$（跳動帶）`, mode: 'lines', line: { color: tokens.textFaint, dash: 'dot', width: 1 }, legendgroup: 'band' },
+      { x: n, y: n.map((k) => p.a - band[k]), name: String.raw`$a-\mu_n|x|$`, showlegend: false, mode: 'lines', line: { color: tokens.textFaint, dash: 'dot', width: 1 }, legendgroup: 'band' },
+      { x: [0, p.steps], y: [p.a, p.a], name: '$a$', mode: 'lines', line: { color: tokens.textMuted, dash: 'dash' } },
+      { x: n, y: Array.from(lms), name: String.raw`LMS（$\mu\,e\,x$）`, mode: 'lines+markers', marker: { size: 4 }, line: { color: tokens.series[0] } },
+      { x: n, y: Array.from(se), name: String.raw`Sign-Error（$\mu\,\operatorname{sign}(e)\,x$）`, mode: 'lines+markers', marker: { size: 5 }, line: { color: tokens.series[1], shape: 'linear' } },
     ],
     [n, band, p, lms, se, tokens],
   )
   const dData = useMemo<Data[]>(
     () => [
-      { x: n, y: n.map((k) => Math.abs(p.a - lms[k])), name: '|δ_n| LMS', mode: 'lines', line: { color: tokens.series[0] } },
-      { x: n, y: n.map((k) => Math.abs(p.a - se[k])), name: '|δ_n| Sign-Error', mode: 'lines+markers', marker: { size: 4 }, line: { color: tokens.series[1] } },
-      { x: n, y: band, name: 'μ_n|x|', mode: 'lines', line: { color: tokens.textFaint, dash: 'dot' } },
+      { x: n, y: n.map((k) => Math.abs(p.a - lms[k])), name: String.raw`$|\delta_n|$ LMS`, mode: 'lines', line: { color: tokens.series[0] } },
+      { x: n, y: n.map((k) => Math.abs(p.a - se[k])), name: String.raw`$|\delta_n|$ Sign-Error`, mode: 'lines+markers', marker: { size: 4 }, line: { color: tokens.series[1] } },
+      { x: n, y: band, name: String.raw`$\mu_n|x|$`, mode: 'lines', line: { color: tokens.textFaint, dash: 'dot' } },
     ],
     [n, p.a, lms, se, band, tokens],
   )
@@ -182,10 +182,10 @@ export function LimitCycleBand() {
       onLoadPreset={(pr) => setP(sanitize(pr.params))}
       controls={
         <>
-          <ParamControl {...lab(String.raw`$\mu_0$（初始步長）`, 'μ₀（初始步長）')} unit="[w]/[x]" value={p.mu} onChange={(v) => set('mu', v)} min={1e-4} max={2} log reg="REG_LMS_MU" />
+          <ParamControl {...lab(String.raw`$\mu_0$（初始步長）`, 'μ₀（初始步長）')} unit="$[w]/[x]$" value={p.mu} onChange={(v) => set('mu', v)} min={1e-4} max={2} log reg="REG_LMS_MU" />
           <ParamControl {...lab(String.raw`$x$（固定輸入）`, 'x（固定輸入）')} unit="無因次" value={p.x} onChange={(v) => set('x', v)} min={-4} max={4} step={0.01} reg="behavioural: regressor x" />
-          <ParamControl {...lab(String.raw`$a$（真實係數）`, 'a（真實係數）')} unit="同 y/x" value={p.a} onChange={(v) => set('a', v)} min={-10} max={10} step={0.01} reg="behavioural: true gain a" />
-          <ParamControl {...lab(String.raw`$w_0$（初值）`, 'w₀（初值）')} unit="同 a" value={p.w0} onChange={(v) => set('w0', v)} min={-10} max={10} step={0.01} reg="REG_W_INIT" />
+          <ParamControl {...lab(String.raw`$a$（真實係數）`, 'a（真實係數）')} unit="同 $y/x$" value={p.a} onChange={(v) => set('a', v)} min={-10} max={10} step={0.01} reg="behavioural: true gain a" />
+          <ParamControl {...lab(String.raw`$w_0$（初值）`, 'w₀（初值）')} unit="同 $a$" value={p.w0} onChange={(v) => set('w0', v)} min={-10} max={10} step={0.01} reg="REG_W_INIT" />
           <ParamControl {...lab(String.raw`步數 $N$`, '步數 N')} unit="samples" value={p.steps} onChange={(v) => set('steps', v)} min={2} max={MAX_STEPS} integer clampOnBlur reg="sim length" />
           <SelectControl
             {...lab(String.raw`$\operatorname{sign}(0)$ 慣例`, 'sign(0) 慣例')}
@@ -205,8 +205,8 @@ export function LimitCycleBand() {
         </>
       }
     >
-      <Plot title="$w_n$：LMS vs Sign-Error" data={wData} height={300} csvName="sign-lms-band-w" layout={{ xaxis: { title: { text: 'n' } }, yaxis: { title: { text: 'w_n' } } }} />
-      <Plot title={String.raw`$|\delta_n|=|a-w_n|$（log）`} data={dData} yLog height={240} csvName="sign-lms-band-delta" layout={{ xaxis: { title: { text: 'n' } }, yaxis: { title: { text: '|δ_n|' } } }} />
+      <Plot title="$w_n$：LMS vs Sign-Error" data={wData} height={300} csvName="sign-lms-band-w" layout={{ xaxis: { title: { text: '$n$' } }, yaxis: { title: { text: '$w_n$' } } }} />
+      <Plot title={String.raw`$|\delta_n|=|a-w_n|$（log）`} data={dData} yLog height={240} csvName="sign-lms-band-delta" layout={{ xaxis: { title: { text: '$n$' } }, yaxis: { title: { text: String.raw`$|\delta_n|$` } } }} />
       {landed && (
         <Callout kind="warn" title={<>剛好踩到 <Tex>{'w=a'}</Tex>：<Tex>{'\\operatorname{sign}(0)'}</Tex> 的慣例決定結果</>}>
           <Tex>{String.raw`|a-w_0|/h=${f4(Math.abs(p.a - p.w0) / (p.mu * Math.abs(p.x)))}`}</Tex> 是整數：精確算術下第 {lc.entryStep} 步剛好 <Tex>{'e=0'}</Tex>。

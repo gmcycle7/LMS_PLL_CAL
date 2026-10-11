@@ -139,11 +139,11 @@ export function AccumulationSection() {
 
   const snrData = useMemo<Data[]>(
     () => [
-      { x: base.Ns, y: base.Ns.map((N) => N * base.m), name: '訊號 E[S_N] = N m（斜率 1）', mode: 'lines', line: { color: tokens.series[0] } },
+      { x: base.Ns, y: base.Ns.map((N) => N * base.m), name: '訊號 $E[S_N] = N m$（斜率 1）', mode: 'lines', line: { color: tokens.series[0] } },
       {
         x: base.Ns,
         y: base.Ns.map((N) => Math.sqrt(N * (1 - base.m * base.m))),
-        name: '雜訊 SD(S_N) = √(N(1−m²))（斜率 ½）',
+        name: String.raw`雜訊 $\mathrm{SD}(S_N) = \sqrt{N(1-m^2)}$（斜率 $\tfrac{1}{2}$）`,
         mode: 'lines',
         line: { color: tokens.series[1], dash: 'dash' },
       },
@@ -249,10 +249,10 @@ export function AccumulationSection() {
         title="訊號線與雜訊線（log–log）：兩者在 $N=(1-m^2)/m^2$ 交叉"
         data={snrData}
         layout={{
-          xaxis: { title: { text: 'N（樣本數）' } },
-          yaxis: { title: { text: 'S_N 的尺度' } },
+          xaxis: { title: { text: '$N$（樣本數）' } },
+          yaxis: { title: { text: '$S_N$ 的尺度' } },
           shapes: [vline(base.cross, tokens.series[2])],
-          annotations: [{ x: Math.log10(base.cross), y: Math.log10(base.cross * base.m), text: `SNR = 1 @ N ≈ ${int(base.cross)}`, showarrow: true, ax: -60, ay: -30 }],
+          annotations: [{ x: Math.log10(base.cross), y: Math.log10(base.cross * base.m), text: String.raw`$\mathrm{SNR} = 1$ @ $N \approx$ ${int(base.cross)}`, showarrow: true, ax: -60, ay: -30 }],
         }}
         xLog
         yLog
@@ -277,7 +277,7 @@ export function AccumulationSection() {
         <Tex>{'K=K_qC'}</Tex> 無關）。
       </p>
       <Fig name="decision">
-        先看左邊三格：<Tex>{'N'}</Tex> 個 <Tex>{'q'}</Tex> 裡有 <Tex>{'K'}</Tex> 個 <Tex>{'+1'}</Tex>、<Tex>{'N-K'}</Tex> 個 <Tex>{'-1'}</Tex>，所以{' '}
+        先看上面三格：<Tex>{'N'}</Tex> 個 <Tex>{'q'}</Tex> 裡有 <Tex>{'K'}</Tex> 個 <Tex>{'+1'}</Tex>、<Tex>{'N-K'}</Tex> 個 <Tex>{'-1'}</Tex>，所以{' '}
         <Tex>{'S_N=2K-N'}</Tex>。再看菱形的三個出口：<Tex>{'K'}</Tex> 過半就判 <Tex>{'+1'}</Tex>，不到一半就判 <Tex>{'-1'}</Tex>；紅色的第三個出口{' '}
         <Tex>{'S_N=0'}</Tex> 是平手（tie），只有 <Tex>{'N'}</Tex> 是偶數、而且 <Tex>{'K'}</Tex> 剛好等於 <Tex>{'N/2'}</Tex> 時才會走到。下面的推導就是把這三個出口的機率各自寫出來。
       </Fig>

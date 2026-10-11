@@ -8,7 +8,7 @@ import { CH12_SYSTEM_FOCUS, CHART_TF_CHAIN, NOISE_CHAIN_CHART } from '../diagram
 /** 示意用的 η 序列（±σ_η 的固定圖樣，只為了手算；不是模擬結果） */
 const ETA_PATTERN = [1, -1, 1, 1, -1, -1, 1, -1]
 
-const V_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'block k' } }, yaxis: { title: { text: 'V_k [fs²]' } } }
+const V_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'block $k$' } }, yaxis: { title: { text: String.raw`$V_k$ [$\mathrm{fs}^2$]` } } }
 
 export function S1Intro() {
   // 手算表：δw_{k+1} = p δw_k + μ η_k，η_k = ±σ_η（示意圖樣）
@@ -38,8 +38,8 @@ export function S1Intro() {
     const curve = kk.map((k) => EX.sigmaW2 * (1 - EX.p ** (2 * k)))
     // Plot 的 data 必須是穩定的參考（否則每次 render 都觸發 Plotly.react）
     const plot: Data[] = [
-      { x: kk, y: curve, name: 'V_k（解析）', mode: 'lines' },
-      { x: [0, 80], y: [EX.sigmaW2, EX.sigmaW2], name: 'σ_w²', mode: 'lines', line: { dash: 'dash' } },
+      { x: kk, y: curve, name: '$V_k$（解析）', mode: 'lines' },
+      { x: [0, 80], y: [EX.sigmaW2, EX.sigmaW2], name: String.raw`$\sigma_w^2$`, mode: 'lines', line: { dash: 'dash' } },
     ]
     return { q, out, plot }
   }, [])
@@ -102,7 +102,7 @@ export function S1Intro() {
         >
           <p>
             {md(
-              String.raw`先由左往右沿著主線看：雜訊 $v[n]$ 進 comparator，1-bit 的 $q$ 被 GMAC 平均成 $G_k$，LMS 用它更新 $w$，於是係數帶著雜訊 $\delta w_k$。再看藍色的乘號：$\delta w$ 不是直接加到輸出，而是先乘上 code $x[n]$ 才變成 DTC 多出的延遲 $\delta t$。最後看乘號之後的分岔：同一個 $\delta t$ 往 PD 走是 high-pass，往 PLL output 走是 low-pass。圖上的方塊對應後面的小節：主線上乘號之前的五格是 §12.1–12.5，乘號是 §12.6，分岔之後是 §12.7–12.8。`,
+              String.raw`先由上往下沿著主線看：雜訊 $v[n]$ 進 comparator，1-bit 的 $q$ 被 GMAC 平均成 $G_k$，LMS 用它更新 $w$，於是係數帶著雜訊 $\delta w_k$。再看藍色的乘號：$\delta w$ 不是直接加到輸出，而是先乘上 code $x[n]$ 才變成 DTC 多出的延遲 $\delta t$。最後看乘號之後的分岔：同一個 $\delta t$ 往 PD 走是 high-pass，往 PLL output 走是 low-pass。圖上的方塊對應後面的小節：主線上乘號之前的五格是 §12.1–12.5，乘號是 §12.6，分岔之後是 §12.7–12.8。`,
             )}
           </p>
           <p>
@@ -125,7 +125,7 @@ export function S1Intro() {
         >
           <p>
             {md(
-              String.raw`先看三個框的標題：①、③ 是每個 sample 都在動的量（索引 $n$，取樣率 $f_s$），② 是每個 block 才有一個值的量（索引 $k$，取樣率 $f_u=f_s/N$）。再看框與框之間的線，線上標的是那一點的訊號與它的大小：進入 ② 之前先平均 $N$ 筆，平均之後剩下的起伏記作 $\eta_k$（GMAC 雜訊），它的變異數 $\sigma_\eta^2$ 降成約 $1/N$；離開 ② 時每個 $\delta w_k$ 要保持 $N$ 個 sample（zero-order hold，ZOH）才能和 code 相乘。最後沿著 ③ 往下：乘上 code、經過 PLL 的 low-pass 才到輸出。`,
+              String.raw`先看三個框的標題：(1)、(3) 是每個 sample 都在動的量（索引 $n$，取樣率 $f_s$），(2) 是每個 block 才有一個值的量（索引 $k$，取樣率 $f_u=f_s/N$）。再看框與框之間的線，線上標的是那一點的訊號與它的大小：進入 (2) 之前先平均 $N$ 筆，平均之後剩下的起伏記作 $\eta_k$（GMAC 雜訊），它的變異數 $\sigma_\eta^2$ 降成約 $1/N$；離開 (2) 時每個 $\delta w_k$ 要保持 $N$ 個 sample（zero-order hold，ZOH）才能和 code 相乘。最後沿著 (3) 往下：乘上 code、經過 PLL 的 low-pass 才到輸出。`,
             )}
           </p>
           <p>

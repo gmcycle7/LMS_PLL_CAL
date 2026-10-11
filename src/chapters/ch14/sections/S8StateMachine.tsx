@@ -17,13 +17,13 @@ export function S8StateMachine() {
       <p>
         §14.6 告訴我們「先大後小」幾乎拿到 <Tex>{'1/k'}</Tex> 排程的好處；§14.2 告訴我們追蹤要另一個 <Tex>{'\\mu'}</Tex>。把它們串起來，再加上「什麼時候不能相信 GMAC」的保護，就是規格 §14.2 的狀態機。
       </p>
-      <Diagram chart={SPEC_CHART} caption="規格 §14.2 的建議狀態機（原圖）：由左到右是開機後的主線，右邊兩個迴圈是背景追蹤時的暫停與重來。">
+      <Diagram chart={SPEC_CHART} caption="規格 §14.2 的建議狀態機（原圖）：由上到下是開機後的主線，最下面兩個分支是背景追蹤時的暫停（FREEZE）與重來（RESTART，箭頭繞回 COARSE）。">
         <p>
           <strong>先看</strong>主線：RESET → LOCK（等 PLL 鎖定）→ COARSE（大步長）→ VERIFY（檢查收斂與偏差）→ FINE（小步長）→ TRACK（低頻寬背景追蹤）——這就是 §14.6 的「先大後小」加上 §14.2 (e) 的追蹤步長。
           <strong>再看</strong>TRACK 的兩個迴圈：低雜訊模式時可以 FREEZE 不動係數；mode 或 PVT 大變化時 RESTART，回到 COARSE 重新收斂。
         </p>
       </Diagram>
-      <Diagram chart={IMPL_CHART} caption="本站實作的版本：每條箭頭都是 runCalStateMachine 裡真正的轉移條件（虛線為 guard 觸發的例外路徑）">
+      <Diagram chart={IMPL_CHART} caption="本站實作的版本：每條箭頭都是 runCalStateMachine 裡真正的轉移條件（虛線為 guard 觸發的例外路徑；clip 的虛線以 COARSE 為例，任何更新中的狀態都適用）">
         <p>
           <strong>先看</strong>實線：和上圖同一條主線，但每條箭頭都寫上條件——COARSE 跑滿 <Tex>{'B_c'}</Tex> 個 block、FINE 跑滿 <Tex>{'B_f'}</Tex> 個 block（<Tex>{'\\mu_\\text{coarse}'}</Tex>、<Tex>{'\\mu_\\text{fine}'}</Tex>、<Tex>{'\\mu_\\text{track}'}</Tex>{' '}
           是三個狀態各自的步長）。VERIFY 有三個出口：通過進 FINE、殘差太大回 COARSE、斜率看不到就進 FAULT。<strong>再看</strong>虛線：失鎖時從任何更新中的狀態退回 LOCK，重新鎖定後先 VERIFY（如果失鎖時還在 COARSE，就回 COARSE 重跑）；暫存器卡在邊界（clip）時退回 last-known-good（LKG，上次確認過的好係數）再 RESTART（圖上以 COARSE 為例，任何更新中的狀態都適用；重試次數用完則進 FAULT）。
@@ -153,8 +153,8 @@ export function S8StateMachine() {
       </Diagram>
       <Diagram chart={CHART_ALARM_HYSTERESIS} caption="TRACK 警報的 hysteresis：要連續高於高門檻才重來，要低於低門檻才解除；兩個門檻之間什麼都不做。">
         <p>
-          <strong>先看</strong>左邊的「安靜」：TRACK 時持續計算 <Tex>{'G'}</Tex> 的 <Tex>{'W'}</Tex>-block 移動平均 <Tex>{'\\bar G_W'}</Tex>（收斂後它應該在零附近）。<strong>再看</strong>中間的「累計中」：<Tex>{'|\\bar G_W|'}</Tex>{' '}
-          高於高門檻才開始計數，夾在兩個門檻之間時計數保持不動，低於低門檻才歸零——這就是 Schmitt trigger。<strong>最後看</strong>右邊：計數達到 <Tex>{'n'}</Tex> 個 block 才 RESTART。
+          <strong>先看</strong>最上面的「安靜」：TRACK 時持續計算 <Tex>{'G'}</Tex> 的 <Tex>{'W'}</Tex>-block 移動平均 <Tex>{'\\bar G_W'}</Tex>（收斂後它應該在零附近）。<strong>再看</strong>它下面的「累計中」：<Tex>{'|\\bar G_W|'}</Tex>{' '}
+          高於高門檻才開始計數，夾在兩個門檻之間時計數保持不動，低於低門檻才歸零——這就是 Schmitt trigger。<strong>最後看</strong>再往下：計數達到 <Tex>{'n'}</Tex> 個 block 才 RESTART。
         </p>
         <p>
           圖上的高、低門檻就是程式裡的 <code>alarmHiZ</code>、<code>alarmLoZ</code>（以 <Tex>{'\\bar G_W'}</Tex> 的標準差 <Tex>{'1/\\sqrt{NW}'}</Tex> 為單位；預設 6 與 3），<Tex>{'n'}</Tex> 是 <code>alarmHold</code>。只有單一門檻時，雜訊一碰到就重來（上表的「無 hysteresis」）。

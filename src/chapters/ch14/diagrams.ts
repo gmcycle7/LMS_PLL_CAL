@@ -4,16 +4,25 @@ import type { SystemBlock } from '@/components'
  * Ch14 的方塊圖原始碼（docs/teaching-style.md §8）。
  *
  * 規則：
- * - 節點文字用 Unicode 數學符號（Mermaid 不渲染 KaTeX）；含括號、冒號、等號等特殊字元的文字一律用雙引號包住。
- * - 加法點用圓形節點、邊上標正負號；延遲寫 z⁻¹、累加器寫 1/(z−1)。
- * - 正號一律寫全形「＋」、負號寫「−」（U+2212）：Mermaid 11 把標籤當 Markdown 解讀，單獨的 ASCII「+」「-」
+ * - 節點與連線的雙引號標籤裡，數學一律寫 `$...$`（LaTeX），由共用的 `Mermaid` 元件用 KaTeX 排版；文字、單位與方塊名稱照常寫。
+ *   原始碼用 `String.raw` 樣板字串，所以 TeX 的反斜線只寫一次；標籤內不要用 `\\`（Mermaid 會收成一個），換行用 `<br/>`。
+ *   TeX 語法錯誤會讓圖畫不出來（diagrams.test.tsx 的真實渲染會丟出例外）。含括號、冒號、等號等特殊字元的標籤一律用雙引號包住。
+ * - 加法點用圓形節點、邊上標正負號；延遲寫 `$z^{-1}$`、累加器寫 `$1/(z-1)$`。
+ * - 純正負號的標籤照舊寫全形「＋」與減號「−」（U+2212），不含公式所以不經 KaTeX；和文字、公式混在同一個標籤時寫 `$+$`、`$-$`
+ *   （KaTeX 的 \text 不認得 U+2212）。Mermaid 11 把標籤當 Markdown 解讀，單獨的 ASCII「+」「-」
  *   （或以「+ 」「- 」「1. 」「# 」開頭的標籤）會被當成清單／標題，畫面上顯示成「Unsupported markdown: list」。
- *   同理，標籤裡不寫緊接字母的「<」（會被當成 HTML 標籤吃掉），改用 ≤、≪ 或文字。
+ *   同理，標籤裡不寫緊接字母的「<」（會被當成 HTML 標籤吃掉），改用 `\lt`、`\le`、`\ll` 或文字。
+ * - stateDiagram-v2：`state "…" as X` 的雙引號標籤支援 `$...$`；轉移（`A --> B : 文字`）的文字沒有引號，
+ *   前處理不會處理，要寫公式時整段手寫成 `$$\text{文字 }n\text{ 文字}$$`（Mermaid 原生語法）。subgraph 標題支援 `$...$`。
  * - 每張圖的訊號名稱、正負號、箭頭方向、取樣率（sample n／block k）都要和頁面上的公式一致；
- *   diagrams.test.tsx 以真正的 mermaid parser 解析每一張、用共用的 renderMermaidForTest 真的畫一次（抓「Unsupported markdown」），
- *   並檢查加法點的極性與節點數（≤ 14）。圖說（caption）另寫在各小節的 <Diagram>，支援 `$...$` 行內公式。
+ *   diagrams.test.tsx 以真正的 mermaid parser 解析每一張、用共用的 renderMermaidForTest 真的畫一次
+ *   （抓「Unsupported markdown」、殘留的 `$`、KaTeX 以外的 Unicode 數學），並檢查加法點的極性與節點數（≤ 14）。
+ *   圖說（caption）另寫在各小節的 <Diagram>，同樣支援 `$...$` 行內公式。
  * - 顏色（深淺主題都看得清楚）：藍 = 這一段的主角、棕 = 與它互相拉扯的另一項、綠 = 通過／可用、紅 = 失敗／不適用。
  */
+
+/** 圖上的步驟編號 ①–⑨：KaTeX 的文字模式沒有圓圈數字的字型，用 \textcircled 畫（和正文的 ①–⑨ 對得上）。 */
+const step = (n: number): string => `$\\text{\\textcircled{${n}}}$`
 
 const FOCUS = 'classDef focus fill:#1f5fa8,stroke:#0d3b6e,color:#ffffff,stroke-width:2px'
 const ALT = 'classDef alt fill:#8a4b08,stroke:#5c3205,color:#ffffff,stroke-width:2px'
@@ -29,13 +38,13 @@ export const CH14_SYSTEM_FOCUS: SystemBlock[] = ['gmac', 'scale', 'acc']
  * 先備知識「高斯、erf 與 comparator 增益」：e = δ + v → sign → 取平均 → E[q] = erf(δ/(√2σ_v)) = 2Φ(δ/σ_v) − 1，
  * 小訊號斜率 K_q = √(2/π)/σ_v（線性區），δ 大時 erf 飽和（勘誤 E48 的 slew-limited 區）。
  */
-export const CHART_COMPARATOR_GAIN = `flowchart TB
-  D(["δ：要偵測的誤差"]) -- "＋" --> S(("＋"))
-  V(["v：comparator 前的雜訊<br/>高斯，RMS = σ_v"]) -- "＋" --> S
-  S -- "e = δ + v" --> Q["1-bit comparator<br/>q = sign(e) = ±1"]
-  Q -- "同一個 δ 重複很多次，取平均" --> M["E[q] = erf(δ/(√2·σ_v)) = 2Φ(δ/σ_v) − 1"]
-  M -- "|δ| ≪ σ_v（≲ 0.2·σ_v）" --> LIN["線性區：E[q] ≈ K_q·δ<br/>K_q = √(2/π)/σ_v"]
-  M -- "|δ| 大（≳ σ_v）" --> SAT["erf 彎曲後頂到 ±1<br/>slew-limited（勘誤 E48）"]
+export const CHART_COMPARATOR_GAIN = String.raw`flowchart TB
+  D(["$\delta$：要偵測的誤差"]) -- "＋" --> S(("＋"))
+  V(["$v$：comparator 前的雜訊<br/>高斯，RMS $= \sigma_v$"]) -- "＋" --> S
+  S -- "$e = \delta + v$" --> Q["1-bit comparator<br/>$q = \mathrm{sign}(e) = \pm 1$"]
+  Q -- "同一個 $\delta$ 重複很多次，取平均" --> M["$E[q] = \mathrm{erf}(\delta/(\sqrt{2}\,\sigma_v)) = 2\Phi(\delta/\sigma_v) - 1$"]
+  M -- "$|\delta| \ll \sigma_v$（$\lesssim 0.2\,\sigma_v$）" --> LIN["線性區：$E[q] \approx K_q\,\delta$<br/>$K_q = \sqrt{2/\pi}/\sigma_v$"]
+  M -- "$|\delta|$ 大（$\gtrsim \sigma_v$）" --> SAT["erf 彎曲後頂到 $\pm 1$<br/>slew-limited（勘誤 E48）"]
   ${FOCUS}
   ${WARN}
   class LIN focus
@@ -44,14 +53,14 @@ export const CHART_COMPARATOR_GAIN = `flowchart TB
 // ───────────────────────────── §14.0 ─────────────────────────────
 
 /** §14.0：block-rate 校正迴路。δ_{k+1} = a − w_{k+1} = (1 − μK)δ_k − μη_k。 */
-export const CHART_CAL_LOOP = `flowchart LR
-  A(["a<br/>真正需要的 gain"]) -- "＋" --> S1(("＋"))
-  S1 -- "δ_k = a − w_k" --> KB["× K<br/>GMAC 平均斜率<br/>K = K_q·C"]
+export const CHART_CAL_LOOP = String.raw`flowchart TB
+  A(["$a$<br/>真正需要的 gain"]) -- "＋" --> S1(("＋"))
+  S1 -- "$\delta_k = a - w_k$" --> KB["$\times K$<br/>GMAC 平均斜率<br/>$K = K_q C$"]
   KB -- "＋" --> S2(("＋"))
-  ETA(["η_k：這個 block 的雜訊<br/>變異數 σ_η² ≈ 1/N"]) -- "＋" --> S2
-  S2 -- "G_k = K·δ_k + η_k" --> MU["× μ<br/>learning rate"]
-  MU -- "μ·G_k" --> ACC["累加器 1/(z−1)<br/>w_(k+1) = w_k + μ·G_k"]
-  ACC -- "−（回授 w_k）" --> S1
+  ETA(["$\eta_k$：這個 block 的雜訊<br/>變異數 $\sigma_\eta^2 \approx 1/N$"]) -- "＋" --> S2
+  S2 -- "$G_k = K\,\delta_k + \eta_k$" --> MU["$\times \mu$<br/>learning rate"]
+  MU -- "$\mu\,G_k$" --> ACC["累加器 $1/(z-1)$<br/>$w_{k+1} = w_k + \mu\,G_k$"]
+  ACC -- "$-$（回授 $w_k$）" --> S1
   ${FOCUS}
   class MU focus`
 
@@ -61,35 +70,35 @@ export const CHART_CAL_LOOP = `flowchart LR
  * §14.1：sample rate（n）→ block rate（k）。
  * e[n] = δ_k·u[n] + v[n]（u[n] = c·x[n] + s·x[n−1]），q[n] = sign(e[n])，G_k = (1/N)Σ q[n]x[n]，w_(k+1) = w_k + μ·G_k。
  */
-export const CHART_SAMPLE_TO_BLOCK = `flowchart TB
-  subgraph FS["sample rate：每個 comparator 樣本做一次（索引 n，頻率 f_s）"]
+export const CHART_SAMPLE_TO_BLOCK = String.raw`flowchart TB
+  subgraph FS["sample rate：每個 comparator 樣本做一次（索引 $n$，頻率 $f_s$）"]
     direction LR
-    XC(["code x[n]"]) --> PATH["PLL 誤差路徑<br/>u[n] = c·x[n] + s·x[n−1]"]
-    PATH -- "u[n]" --> PROD["δ_k·u[n]<br/>（誤差 δ_k 乘上 u[n]）"]
-    PROD -- "＋" --> SUMV(("＋"))
-    VN(["v[n]：雜訊，RMS = σ_v"]) -- "＋" --> SUMV
-    SUMV -- "e[n] = δ_k·u[n] + v[n]" --> CMP["1-bit comparator<br/>q[n] = sign(e[n])"]
-    CMP -- "q[n] = ±1" --> MUL(("×"))
-    XC -- "x[n]" --> MUL
+    XC(["code $x[n]$"]) --> PATH["PLL 誤差路徑<br/>$u[n] = c\,x[n] + s\,x[n-1]$"]
+    PATH -- "$u[n]$" --> PROD["$\delta_k\,u[n]$<br/>（誤差 $\delta_k$ 乘上 $u[n]$）"]
+    VN(["$v[n]$：雜訊，RMS $= \sigma_v$"]) -- "＋" --> SUMV(("＋"))
+    PROD -- "＋" --> SUMV
+    SUMV -- "$e[n] = \delta_k\,u[n] + v[n]$" --> CMP["1-bit comparator<br/>$q[n] = \mathrm{sign}(e[n])$"]
+    CMP -- "$q[n] = \pm 1$" --> MUL(("$\times$"))
+    XC -- "$x[n]$" --> MUL
   end
-  subgraph FU["block rate：每 N 個樣本做一次（索引 k，頻率 f_u = f_s/N）"]
+  subgraph FU["block rate：每 $N$ 個樣本做一次（索引 $k$，頻率 $f_u = f_s/N$）"]
     direction LR
-    AVG["GMAC 平均<br/>G_k = (1/N)·Σ q[n]·x[n]"] -- "G_k ≈ K·δ_k + η_k" --> UPD["乘 μ 後累加<br/>w_(k+1) = w_k + μ·G_k"]
+    AVG["GMAC 平均<br/>$G_k = (1/N)\sum q[n]\,x[n]$"] -- "$G_k \approx K\,\delta_k + \eta_k$" --> UPD["乘 $\mu$ 後累加<br/>$w_{k+1} = w_k + \mu\,G_k$"]
   end
-  MUL -- "q[n]·x[n]，共 N 個" --> AVG
-  UPD -. "δ_k = a − w_k（整個 block 內不變，block 結束才更新 w）" .-> PROD
+  MUL -- "$q[n]\,x[n]$，共 $N$ 個" --> AVG
+  UPD -. "$\delta_k = a - w_k$<br/>整個 block 內不變，<br/>block 結束才更新 $w$" .-> PROD
   ${FOCUS}
   class AVG focus`
 
 /** §14.1：把 δ_B = p^B·δ₀ − μ·Σ p^(B−1−k)·η_k 畫成兩條路；平方取期望後就是 bias² + variance（F-14.3）。 */
-export const CHART_MSD_SPLIT = `flowchart LR
-  D0(["δ₀<br/>初始誤差（確定值）"]) --> PB["× p^B<br/>每個 block 乘一次 p = 1 − μK"]
-  ETA(["η₀ … η_(B−1)<br/>各 block 獨立、平均 0<br/>變異數 σ_η²"]) --> WGT["× μ·p^(B−1−k)，再全部相加<br/>越早進來的雜訊被 p 乘越多次"]
+export const CHART_MSD_SPLIT = String.raw`flowchart TB
+  D0(["$\delta_0$<br/>初始誤差（確定值）"]) --> PB["$\times\,p^B$<br/>每個 block 乘一次<br/>$p = 1 - \mu K$"]
+  ETA(["$\eta_0, \ldots, \eta_{B-1}$<br/>各 block 獨立、平均 $0$<br/>變異數 $\sigma_\eta^2$"]) --> WGT["$\times\,\mu\,p^{B-1-k}$<br/>再全部相加<br/>越早進來的雜訊<br/>被 $p$ 乘越多次"]
   PB -- "＋" --> SUM(("＋"))
   WGT -- "−" --> SUM
-  SUM -- "δ_B" --> SQ["平方後取期望值<br/>交叉項平均為 0"]
-  SQ --> BIAS["bias² = δ₀²·p^(2B)<br/>初始誤差那條路的平方"]
-  SQ --> VAR["variance = μ²·σ_η²·(1 − p^(2B))/(1 − p²)<br/>雜訊那條路的變異數"]
+  SUM -- "$\delta_B$" --> SQ["平方後取期望值<br/>交叉項平均為 $0$"]
+  SQ --> BIAS["$\text{bias}^2 = \delta_0^2\,p^{2B}$<br/>初始誤差那條路的平方"]
+  SQ --> VAR["$\text{variance} = \mu^2\sigma_\eta^2\,(1 - p^{2B})/(1 - p^2)$<br/>雜訊那條路的變異數"]
   ${FOCUS}
   ${ALT}
   class BIAS focus
@@ -99,12 +108,18 @@ export const CHART_MSD_SPLIT = `flowchart LR
  * §14.1 邊界情況：迴路增益 g = μK 從 0 往上加時，pole p = 1 − g 的走向（F-14.1、F-14.4、F-14.10、F-14.14）。
  * PM = 90° − arcsin(g/2)：g = 1 → 60°、g = 2 → 0°。
  */
-export const CHART_POLE_REGIMES = `flowchart TB
-  R0["g = 0 ⇒ p = 1<br/>K = 0（C = 0）：沒有恢復力<br/>係數做 random walk"] -- "g 增加" --> R1["g 在 0 與 1 之間<br/>p 在 0 與 1 之間<br/>平均誤差單調衰減<br/>PM 大於 60°"]
-  R1 -- "g 增加" --> R2["g = 1 ⇒ p = 0<br/>deadbeat：一步到位<br/>μ = 1/K，PM = 60°"]
-  R2 -- "g 增加" --> R3["g 在 1 與 2 之間<br/>p 在 −1 與 0 之間<br/>正負交替但仍衰減<br/>PM 小於 60°"]
-  R3 -- "g 增加" --> R4["g = 2 ⇒ p = −1<br/>正負翻轉、幅度不衰減<br/>PM = 0°"]
-  R4 -- "g 增加" --> R5["g 大於 2 ⇒ p 小於 −1<br/>指數發散"]
+export const CHART_POLE_REGIMES = String.raw`flowchart TB
+  subgraph ROW1[" "]
+    direction LR
+    R0["$g = 0 \Rightarrow p = 1$<br/>$K = 0$（$C = 0$）：<br/>沒有恢復力<br/>係數做 random walk"] -- "$g$ 增加" --> R1["$g$ 在 $0$ 與 $1$ 之間<br/>$p$ 在 $0$ 與 $1$ 之間<br/>平均誤差單調衰減<br/>$PM$ 大於 $60^\circ$"]
+    R1 -- "$g$ 增加" --> R2["$g = 1 \Rightarrow p = 0$<br/>deadbeat：一步到位<br/>$\mu = 1/K$，$PM = 60^\circ$"]
+  end
+  subgraph ROW2[" "]
+    direction LR
+    R3["$g$ 在 $1$ 與 $2$ 之間<br/>$p$ 在 $-1$ 與 $0$ 之間<br/>正負交替但仍衰減<br/>$PM$ 小於 $60^\circ$"] -- "$g$ 增加" --> R4["$g = 2 \Rightarrow p = -1$<br/>正負翻轉、幅度不衰減<br/>$PM = 0^\circ$"]
+    R4 -- "$g$ 增加" --> R5["$g$ 大於 $2 \Rightarrow$ $p$ 小於 $-1$<br/>指數發散"]
+  end
+  ROW1 -- "$g$ 增加" --> ROW2
   ${FOCUS}
   ${ALT}
   ${PASS}
@@ -115,15 +130,15 @@ export const CHART_POLE_REGIMES = `flowchart TB
   class R3 alt`
 
 /** §14.1（勘誤 E48）：線性公式 F-14.3 與 slew-limited 估計 F-14.5 各自的適用區。 */
-export const CHART_E48_REGIMES = `flowchart TD
-  Q{"誤差 |δ| 和 comparator 雜訊 σ_v<br/>比起來多大？"}
-  Q -- "|δ| ≲ 0.2·σ_v" --> LIN["線性區<br/>G_k ≈ K·δ_k + η_k 成立"]
-  Q -- "介於兩者之間" --> MID["過渡區<br/>F-14.3 開始低估<br/>（0.5·σ_v 時約 5%）"]
-  Q -- "|δ| ≳ 0.5·σ_v" --> SLEW["slew-limited 區<br/>comparator 飽和<br/>|G_k| 最大只有 max|x|"]
-  LIN --> F3["用 F-14.3<br/>E[δ_B²] = bias² + variance<br/>（Fine、Track 階段）"]
+export const CHART_E48_REGIMES = String.raw`flowchart TD
+  Q{"誤差 $|\delta|$ 和 comparator 雜訊 $\sigma_v$<br/>比起來多大？"}
+  Q -- "$|\delta| \lesssim 0.2\,\sigma_v$" --> LIN["線性區<br/>$G_k \approx K\,\delta_k + \eta_k$ 成立"]
+  Q -- "介於兩者之間" --> MID["過渡區<br/>F-14.3 開始低估<br/>（$0.5\,\sigma_v$ 時約 $5\%$）"]
+  Q -- "$|\delta| \gtrsim 0.5\,\sigma_v$" --> SLEW["slew-limited 區<br/>comparator 飽和<br/>$|G_k|$ 最大只有 $\max|x|$"]
+  LIN --> F3["用 F-14.3<br/>$E[\delta_B^2] = \text{bias}^2 + \text{variance}$<br/>（Fine、Track 階段）"]
   MID --> MC["用 Monte Carlo 確認"]
-  SLEW --> F5["用 F-14.5 或 Monte Carlo<br/>B ≳ (|δ₀| − δ_target)/(μ·max|x|)<br/>（Coarse 階段）"]
-  F5 -. "誤差被拉到 |δ| ≪ σ_v 之後" .-> LIN
+  SLEW --> F5["用 F-14.5 或 Monte Carlo<br/>$B \gtrsim (|\delta_0| - \delta_\text{target})/(\mu\max|x|)$<br/>（Coarse 階段）"]
+  F5 -. "誤差被拉到 $|\delta| \ll \sigma_v$ 之後" .-> LIN
   ${PASS}
   ${WARN}
   class LIN,F3 pass
@@ -132,15 +147,15 @@ export const CHART_E48_REGIMES = `flowchart TD
 // ───────────────────────────── §14.2 ─────────────────────────────
 
 /** §14.2：目標不同 ⇒ 決定 μ 的方式不同（F-14.8、F-14.10、F-14.9、F-14.11、F-14.12、F-14.13、F-14.14）。 */
-export const CHART_OBJECTIVE_FLOW = `flowchart LR
+export const CHART_OBJECTIVE_FLOW = String.raw`flowchart LR
   Q{"你要最佳化什麼？"}
-  Q --> FIN["(a) 終點 RMS<br/>解 dJ/dμ = 0<br/>μ* ≈ ln A/(2·B·K)"]
-  Q --> FAST["(b) 最快收斂<br/>讓 pole p = 0<br/>μ = 1/K"]
-  Q --> INTG["(c) 全程積分誤差<br/>數值解，μ 比 (a) 大"]
-  Q --> SPUR["(d) 最小 spur<br/>成本隨 μ 單調遞增<br/>取收斂下限 μ = (1 − ε^(1/B))/K"]
-  Q --> RAMP["(e) 追蹤 ramp 漂移<br/>μ* ≈ (4r²/(K·σ_η²))^(1/3)"]
-  Q --> RWK["(e) 追蹤 random-walk 漂移<br/>μ* ≈ σ_ζ/σ_η"]
-  FIN --> CAP["(f) 共同上限：PM ≥ PM_t<br/>μ·K ≤ 2·cos PM_t<br/>（PM_t = 60° 時 μ ≤ 1/K）"]
+  Q --> FIN["(a) 終點 RMS<br/>解 $dJ/d\mu = 0$<br/>$\mu^* \approx \ln A/(2BK)$"]
+  Q --> FAST["(b) 最快收斂<br/>讓 pole $p = 0$<br/>$\mu = 1/K$"]
+  Q --> INTG["(c) 全程積分誤差<br/>數值解，$\mu$ 比 (a) 大"]
+  Q --> SPUR["(d) 最小 spur<br/>成本隨 $\mu$ 單調遞增<br/>取收斂下限 $\mu = (1 - \epsilon^{1/B})/K$"]
+  Q --> RAMP["(e) 追蹤 ramp 漂移<br/>$\mu^* \approx (4r^2/(K\sigma_\eta^2))^{1/3}$"]
+  Q --> RWK["(e) 追蹤 random-walk 漂移<br/>$\mu^* \approx \sigma_\zeta/\sigma_\eta$"]
+  FIN --> CAP["(f) 共同上限：$PM \ge PM_t$<br/>$\mu K \le 2\cos PM_t$<br/>（$PM_t = 60^\circ$ 時 $\mu \le 1/K$）"]
   FAST --> CAP
   INTG --> CAP
   SPUR --> CAP
@@ -152,45 +167,45 @@ export const CHART_OBJECTIVE_FLOW = `flowchart LR
   class CAP warn`
 
 /** §14.2 (a)：σ_v → K_q → K → g、p → bias² + variance → J(μ) → μ*（F-14.3、F-14.7、F-14.8）。 */
-export const CHART_DESIGN_FLOW = `flowchart TD
-  SV(["σ_v<br/>comparator 前的雜訊"]) --> KQ["K_q = √(2/π)/σ_v"]
-  TH(["|H|、θ<br/>誤差路徑的增益與相位"]) --> CC["C = |H|·cos θ"]
-  KQ --> KK["K = K_q·C"]
+export const CHART_DESIGN_FLOW = String.raw`flowchart TD
+  SV(["$\sigma_v$<br/>comparator 前的雜訊"]) --> KQ["$K_q = \sqrt{2/\pi}/\sigma_v$"]
+  TH(["$|H|$、$\theta$<br/>誤差路徑的增益與相位"]) --> CC["$C = |H|\cos\theta$"]
+  KQ --> KK["$K = K_q C$"]
   CC --> KK
-  MU(["候選的 μ"]) --> GP["g = μ·K<br/>p = 1 − g"]
+  MU(["候選的 $\mu$"]) --> GP["$g = \mu K$<br/>$p = 1 - g$"]
   KK --> GP
-  NB(["δ₀、B、N（σ_η² ≈ 1/N）"]) --> BIAS["bias² = δ₀²·p^(2B)<br/>μ 越大越小"]
-  NB --> VAR["variance = μ²·σ_η²·(1 − p^(2B))/(1 − p²)<br/>μ 越大越大"]
+  NB(["$\delta_0$、$B$、$N$（$\sigma_\eta^2 \approx 1/N$）"]) --> BIAS["$\text{bias}^2 = \delta_0^2\,p^{2B}$<br/>$\mu$ 越大越小"]
+  NB --> VAR["$\text{variance} = \mu^2\sigma_\eta^2\,(1 - p^{2B})/(1 - p^2)$<br/>$\mu$ 越大越大"]
   GP --> BIAS
   GP --> VAR
   BIAS -- "＋" --> JS(("＋"))
   VAR -- "＋" --> JS
-  JS -- "J(μ) = E[δ_B²]" --> BEST["掃 μ 找最低點（dJ/dμ = 0）<br/>大 B 時 μ* ≈ ln A/(2·B·K)"]
+  JS -- "$J(\mu) = E[\delta_B^2]$" --> BEST["掃 $\mu$ 找最低點（$dJ/d\mu = 0$）<br/>大 $B$ 時 $\mu^* \approx \ln A/(2BK)$"]
   ${FOCUS}
   ${ALT}
   class BIAS focus
   class VAR alt`
 
 /** §14.2 (d)：係數雜訊 w_k − a = p·(w_{k−1} − a) + μ·η_{k−1}，也就是 H(z) = μ·z⁻¹/(1 − p·z⁻¹) = μ/(z − p)。 */
-export const CHART_NOISE_SHAPING = `flowchart LR
-  ETA(["η_k：白雜訊<br/>每個頻率一樣大，PSD = σ_η²"]) --> MU["× μ"]
+export const CHART_NOISE_SHAPING = String.raw`flowchart LR
+  ETA(["$\eta_k$：白雜訊<br/>每個頻率一樣大，PSD $= \sigma_\eta^2$"]) --> MU["$\times\,\mu$"]
   MU -- "＋" --> SUM(("＋"))
-  SUM --> ZD["z⁻¹<br/>延遲一個 block"]
-  ZD -- "係數雜訊 w_k − a" --> PSD(["S_w = |H|²·σ_η²<br/>H(z) = μ/(z − p)"])
-  ZD --> PP["× p<br/>p = 1 − μK"]
+  SUM --> ZD["$z^{-1}$<br/>延遲一個 block"]
+  ZD -- "係數雜訊 $w_k - a$" --> PSD(["$S_w = |H|^2\sigma_\eta^2$<br/>$H(z) = \mu/(z - p)$"])
+  ZD --> PP["$\times\,p$<br/>$p = 1 - \mu K$"]
   PP -- "＋" --> SUM
   ${FOCUS}
   class MU,PP focus`
 
 /** §14.2 (e)：追蹤漂移時 J = lag² + 雜訊；ramp：(r/(μK))² + μσ_η²/(2K)，random walk：σ_ζ²/(2μK) + μσ_η²/(2K)。 */
-export const CHART_TRACKING_TRADEOFF = `flowchart LR
-  DR(["a 會漂移<br/>ramp：每個 block 增加 r<br/>random walk：每個 block 走一步 ζ_k"]) --> LAG["追不上造成的誤差<br/>ramp：(r/(μ·K))²<br/>random walk：σ_ζ²/(2·μ·K)<br/>μ 越大越小"]
-  NS(["GMAC 雜訊 η_k"]) --> JIT["雜訊造成的抖動<br/>μ·σ_η²/(2·K)<br/>μ 越大越大"]
-  MU["TRACK 階段的 μ"] --> LAG
+export const CHART_TRACKING_TRADEOFF = String.raw`flowchart LR
+  DR(["$a$ 會漂移<br/>ramp：每個 block 增加 $r$<br/>random walk：每個 block 走一步 $\zeta_k$"]) --> LAG["追不上造成的誤差<br/>ramp：$(r/(\mu K))^2$<br/>random walk：$\sigma_\zeta^2/(2\mu K)$<br/>$\mu$ 越大越小"]
+  NS(["GMAC 雜訊 $\eta_k$"]) --> JIT["雜訊造成的抖動<br/>$\mu\,\sigma_\eta^2/(2K)$<br/>$\mu$ 越大越大"]
+  MU["TRACK 階段的 $\mu$"] --> LAG
   MU --> JIT
   LAG -- "＋" --> JS(("＋"))
   JIT -- "＋" --> JS
-  JS -- "J(μ)" --> BEST["最低點<br/>ramp：μ* ≈ (4r²/(K·σ_η²))^(1/3)<br/>random walk：μ* ≈ σ_ζ/σ_η"]
+  JS -- "$J(\mu)$" --> BEST["最低點<br/>ramp：$\mu^* \approx (4r^2/(K\sigma_\eta^2))^{1/3}$<br/>random walk：$\mu^* \approx \sigma_\zeta/\sigma_\eta$"]
   ${FOCUS}
   ${ALT}
   class LAG focus
@@ -200,18 +215,18 @@ export const CHART_TRACKING_TRADEOFF = `flowchart LR
  * §14.2 (f)：把回授線剪開得到開迴路 L(z) = g/(z−1)；|L(e^(jω_c))| = 1 ⇒ sin(ω_c/2) = g/2；
  * PM = 180° + ∠L = 90° − arcsin(g/2) ≥ PM_t ⇔ g ≤ 2·cos PM_t（F-14.14）。
  */
-export const CHART_PM_LOOP = `flowchart TB
-  A(["a"]) -- "＋" --> S(("＋"))
-  S -- "δ_k = a − w_k" --> GK["× g<br/>g = μ·K"]
-  GK --> INT["累加器 1/(z−1)"]
-  INT -- "−（回授 w_k）" --> S
-  GK -. "剪開回授線" .-> LZ(["開迴路 L(z) = g/(z−1)"])
+export const CHART_PM_LOOP = String.raw`flowchart TB
+  A(["$a$"]) -- "＋" --> S(("＋"))
+  S -- "$\delta_k = a - w_k$" --> GK["$\times\,g$<br/>$g = \mu K$"]
+  GK --> INT["累加器 $1/(z-1)$"]
+  INT -- "$-$（回授 $w_k$）" --> S
+  GK -. "剪開回授線" .-> LZ(["開迴路 $L(z) = g/(z-1)$"])
   INT -.-> LZ
-  LZ --> WC["找出 |L| = 1 的頻率 ω_c<br/>⇒ sin(ω_c/2) = g/2"]
-  WC --> PMN["PM = 180° + ∠L = 90° − arcsin(g/2)"]
-  PMN --> LIM["要求 PM ≥ PM_t<br/>⇔ g ≤ g_max = 2·cos PM_t"]
-  LIM --> MAXMU["PM_t = 60° ⇒ g_max = 1<br/>⇔ μ ≤ 1/K"]
-  PMN -. "g 再大" .-> EDGE["g = 2：PM = 0°<br/>p = −1，等幅振盪"]
+  LZ --> WC["找出 $|L| = 1$ 的頻率 $\omega_c$<br/>$\Rightarrow \sin(\omega_c/2) = g/2$"]
+  WC --> PMN["$PM = 180^\circ + \angle L = 90^\circ - \arcsin(g/2)$"]
+  PMN --> LIM["要求 $PM \ge PM_t$<br/>$\Leftrightarrow g \le g_{\max} = 2\cos PM_t$"]
+  LIM --> MAXMU["$PM_t = 60^\circ \Rightarrow g_{\max} = 1$<br/>$\Leftrightarrow \mu \le 1/K$"]
+  PMN -. "$g$ 再大" .-> EDGE["$g = 2$：$PM = 0^\circ$<br/>$p = -1$，等幅振盪"]
   ${FOCUS}
   ${WARN}
   class PMN,LIM focus
@@ -220,35 +235,35 @@ export const CHART_PM_LOOP = `flowchart TB
 // ───────────────────────────── §14.3 ─────────────────────────────
 
 /** §14.3：固定 T = N·B 的兩條路線；σ_η²/B = 1/T、A = 4TK²δ₀² ⇒ 一階只依賴 T（F-14.17）。 */
-export const CHART_BUDGET_SPLIT = `flowchart TD
-  TT(["固定預算：T = N × B 次比較"]) --> BIG["路線一：N 大（block 長）"]
-  TT --> SML["路線二：N 小（block 短）"]
-  BIG --> B1["每次更新比較乾淨<br/>σ_η² = 1/N 變小"]
-  BIG --> B2["但更新次數少<br/>B = T/N 變小"]
-  SML --> S1["每次更新比較吵<br/>σ_η² = 1/N 變大"]
-  SML --> S2["但更新次數多<br/>B = T/N 變大"]
-  B1 --> EQ["兩條路線匯合<br/>σ_η²/B = 1/T<br/>A = 4·T·K²·δ₀²"]
+export const CHART_BUDGET_SPLIT = String.raw`flowchart TD
+  TT(["固定預算：$T = N \times B$ 次比較"]) --> BIG["路線一：$N$ 大（block 長）"]
+  TT --> SML["路線二：$N$ 小（block 短）"]
+  BIG --> B1["每次更新比較乾淨<br/>$\sigma_\eta^2 = 1/N$ 變小"]
+  BIG --> B2["但更新次數少<br/>$B = T/N$ 變小"]
+  SML --> S1["每次更新比較吵<br/>$\sigma_\eta^2 = 1/N$ 變大"]
+  SML --> S2["但更新次數多<br/>$B = T/N$ 變大"]
+  B1 --> EQ["兩條路線匯合<br/>$\sigma_\eta^2/B = 1/T$<br/>$A = 4TK^2\delta_0^2$"]
   B2 --> EQ
   S1 --> EQ
   S2 --> EQ
-  EQ --> RES["重新最佳化 μ 之後<br/>最佳 RMS 一階只看 T（F-14.17）"]
-  RES --> HW["所以 N 由別的事決定<br/>K 的不確定、更新延遲 d<br/>累加器位元數、追蹤頻寬"]
+  EQ --> RES["重新最佳化 $\mu$ 之後<br/>最佳 RMS 一階只看 $T$（F-14.17）"]
+  RES --> HW["所以 $N$ 由別的事決定<br/>$K$ 的不確定、更新延遲 $d$<br/>累加器位元數、追蹤頻寬"]
   ${FOCUS}
   class EQ,RES focus`
 
 // ───────────────────────────── §14.4 ─────────────────────────────
 
 /** §14.4：驗算第 10 課計算器的順序（F-14.3、F-14.14、F-14.7）。 */
-export const CHART_CALC_VERIFY = `flowchart TD
-  IN(["課程的輸入<br/>δ₀ = 3 fs、σ_v = 100 fs、N = 4096<br/>T = 131072、θ = 0"]) --> PRE["K = √(2/π)/σ_v<br/>σ_η² = 1/N<br/>B = T/N = 32"]
-  ALPHA(["課程建議的步長<br/>α = 11.20 fs"]) --> GP["g = μ·K<br/>p = 1 − g"]
+export const CHART_CALC_VERIFY = String.raw`flowchart TD
+  IN(["課程的輸入<br/>$\delta_0 = 3\,\mathrm{fs}$、$\sigma_v = 100\,\mathrm{fs}$、$N = 4096$<br/>$T = 131072$、$\theta = 0$"]) --> PRE["$K = \sqrt{2/\pi}/\sigma_v$<br/>$\sigma_\eta^2 = 1/N$<br/>$B = T/N = 32$"]
+  ALPHA(["課程建議的步長<br/>$\alpha = 11.20\,\mathrm{fs}$"]) --> GP["$g = \mu K$<br/>$p = 1 - g$"]
   PRE --> GP
-  GP --> RMS["F-14.3<br/>E[δ_B²] 開根號得 RMS"]
-  GP --> PMN["F-14.14<br/>PM = 90° − arcsin(g/2)"]
-  RMS --> CHK{"和課程的 0.449 fs、0.9106、87.4°<br/>一樣嗎？"}
+  GP --> RMS["F-14.3<br/>$E[\delta_B^2]$ 開根號得 RMS"]
+  GP --> PMN["F-14.14<br/>$PM = 90^\circ - \arcsin(g/2)$"]
+  RMS --> CHK{"和課程的<br/>$0.449\,\mathrm{fs}$、$0.9106$、$87.4^\circ$<br/>一樣嗎？"}
   PMN --> CHK
-  CHK -- "一樣：三個數字算對了" --> DER["再問：11.20 是最低點嗎？<br/>代入 F-14.7，dJ/dμ 是正的"]
-  DER -- "正的：μ 再小一點成本更低" --> BEST["數值求根 dJ/dμ = 0<br/>得到真正的 μ*（比 11.20 略小）"]
+  CHK -- "一樣：三個數字算對了" --> DER["再問：$11.20$ 是最低點嗎？<br/>代入 F-14.7，$dJ/d\mu$ 是正的"]
+  DER -- "正的：$\mu$ 再小一點成本更低" --> BEST["數值求根 $dJ/d\mu = 0$<br/>得到真正的 $\mu^*$（比 $11.20$ 略小）"]
   ${FOCUS}
   ${PASS}
   class DER focus
@@ -257,17 +272,17 @@ export const CHART_CALC_VERIFY = `flowchart TD
 // ───────────────────────────── §14.5 ─────────────────────────────
 
 /** §14.5：corner-based 區間（F-14.15）與非空條件（F-14.16）。 */
-export const CHART_CORNER_FLOW = `flowchart TD
-  KI(["每個 corner 的斜率 K_i"]) --> POL{"所有 K_i > 0 ？"}
-  POL -- "否" --> BAD["極性錯誤（C ≤ 0）<br/>任何正的 μ 都會發散<br/>區間沒有定義"]
-  POL -- "是" --> KMIN["K_min<br/>最慢的 corner"]
-  POL -- "是" --> KMAX["K_max<br/>最快的 corner"]
-  KMIN --> LO["速度給下限<br/>μ_min = (1 − ε^(1/B))/K_min"]
-  KMAX --> HI["PM 給上限<br/>μ_max = 1/K_max（PM ≥ 60°）"]
-  LO --> CMP{"μ_min ≤ μ_max ？<br/>等價於 B ≥ ln ε / ln(1 − K_min/K_max)"}
+export const CHART_CORNER_FLOW = String.raw`flowchart TD
+  KI(["每個 corner 的斜率 $K_i$"]) --> POL{"所有 $K_i \gt 0$ ？"}
+  POL -- "否" --> BAD["極性錯誤（$C \le 0$）<br/>任何正的 $\mu$ 都會發散<br/>區間沒有定義"]
+  POL -- "是" --> KMIN["$K_{\min}$<br/>最慢的 corner"]
+  POL -- "是" --> KMAX["$K_{\max}$<br/>最快的 corner"]
+  KMIN --> LO["速度給下限<br/>$\mu_{\min} = (1 - \epsilon^{1/B})/K_{\min}$"]
+  KMAX --> HI["PM 給上限<br/>$\mu_{\max} = 1/K_{\max}$（$PM \ge 60^\circ$）"]
+  LO --> CMP{"$\mu_{\min} \le \mu_{\max}$ ？<br/>等價於 $B \ge \ln\epsilon / \ln(1 - K_{\min}/K_{\max})$"}
   HI --> CMP
-  CMP -- "是：區間非空" --> PICK["在區間內選 μ<br/>再用 F-14.3 檢查每個 corner 的 RMS"]
-  CMP -- "否：區間是空的" --> FIX["不是再找一個 μ<br/>加大 B、量 K̂_i 做正規化、提高 K_min<br/>放寬 ε 或 PM、改用步長排程"]
+  CMP -- "是：區間非空" --> PICK["在區間內選 $\mu$<br/>再用 F-14.3 檢查每個 corner 的 RMS"]
+  CMP -- "否：區間是空的" --> FIX["不是再找一個 $\mu$<br/>加大 $B$、量 $\hat K_i$ 做正規化、提高 $K_{\min}$<br/>放寬 $\epsilon$ 或 PM、改用步長排程"]
   FIX -. "改完再算一次" .-> KI
   ${FOCUS}
   ${PASS}
@@ -277,14 +292,14 @@ export const CHART_CORNER_FLOW = `flowchart TD
   class BAD,FIX warn`
 
 /** §14.5：量測 GMAC 斜率的 6 步流程（F-14.21）。w↑ ⇒ δ = a − w↓ ⇒ G↓，所以 K̂ = (Ḡ(−Δ) − Ḡ(+Δ))/(2Δ)。 */
-export const CHART_SLOPE_MEASURE = `flowchart TD
-  M1["① 鎖定 PLL、固定 FCW 與 corner<br/>凍結 LMS（μ = 0），w 停在 w̄"] --> M2["② DTC 改用 w̄ + Δ<br/>平均 M 個 block，得到 Ḡ(+Δ)"]
-  M2 --> M3["③ DTC 改用 w̄ − Δ<br/>平均 M 個 block，得到 Ḡ(−Δ)"]
-  M3 --> M4["④ K̂ = (Ḡ(−Δ) − Ḡ(+Δ))/(2Δ)<br/>se = σ_η/(Δ·√(2M))"]
-  M4 --> SIG{"⑤ K̂ > z·se ？"}
+export const CHART_SLOPE_MEASURE = String.raw`flowchart TD
+  M1["${step(1)} 鎖定 PLL、固定 FCW 與 corner<br/>凍結 LMS（$\mu = 0$），$w$ 停在 $\bar w$"] --> M2["${step(2)} DTC 改用 $\bar w + \Delta$<br/>平均 $M$ 個 block，得到 $\bar G(+\Delta)$"]
+  M2 --> M3["${step(3)} DTC 改用 $\bar w - \Delta$<br/>平均 $M$ 個 block，得到 $\bar G(-\Delta)$"]
+  M3 --> M4["${step(4)} $\hat K = (\bar G(-\Delta) - \bar G(+\Delta))/(2\Delta)$<br/>$\mathrm{se} = \sigma_\eta/(\Delta\sqrt{2M})$"]
+  M4 --> SIG{"${step(5)} $\hat K \gt z\,\mathrm{se}$ ？"}
   SIG -- "否" --> BAD["極性錯誤或看不到訊號<br/>這個 corner 不能校正"]
-  SIG -- "是" --> M6["⑥ 每個 corner 都做一次<br/>K_min = min(K̂_i − z·se_i)<br/>K_max = max(K̂_i + z·se_i)"]
-  M6 --> USE["代入 F-14.15<br/>得到 μ 的可行區間"]
+  SIG -- "是" --> M6["${step(6)} 每個 corner 都做一次<br/>$K_{\min} = \min(\hat K_i - z\,\mathrm{se}_i)$<br/>$K_{\max} = \max(\hat K_i + z\,\mathrm{se}_i)$"]
+  M6 --> USE["代入 F-14.15<br/>得到 $\mu$ 的可行區間"]
   ${FOCUS}
   ${PASS}
   ${WARN}
@@ -295,13 +310,13 @@ export const CHART_SLOPE_MEASURE = `flowchart TD
 // ───────────────────────────── §14.6 ─────────────────────────────
 
 /** §14.6：三種步長排程並排（F-14.8、F-14.20、F-14.18）。 */
-export const CHART_SCHEDULE_COMPARE = `flowchart LR
-  GK(["G_k<br/>同一個 GMAC 輸出"]) --> FIX["固定步長<br/>× μ*（整段同一個值）"]
-  GK --> TWO["兩段式<br/>前 B₁ 個 block × μ₁<br/>之後 × μ₂"]
-  GK --> INV["1/k 排程<br/>× μ_k = 1/(K·(k + 1 + k₀))"]
-  FIX --> RF["終點均方誤差<br/>≈ σ_η²·(1 + ln A)/(4·B·K²)"]
+export const CHART_SCHEDULE_COMPARE = String.raw`flowchart LR
+  GK(["$G_k$<br/>同一個 GMAC 輸出"]) --> FIX["固定步長<br/>$\times\,\mu^*$（整段同一個值）"]
+  GK --> TWO["兩段式<br/>前 $B_1$ 個 block $\times\,\mu_1$<br/>之後 $\times\,\mu_2$"]
+  GK --> INV["$1/k$ 排程<br/>$\times\,\mu_k = 1/(K(k + 1 + k_0))$"]
+  FIX --> RF["終點均方誤差<br/>$\approx \sigma_\eta^2(1 + \ln A)/(4BK^2)$"]
   TWO --> RT["F-14.20<br/>介於兩者之間"]
-  INV --> RK["下界<br/>P_B ≈ σ_η²/(B·K²)"]
+  INV --> RK["下界<br/>$P_B \approx \sigma_\eta^2/(BK^2)$"]
   ${FOCUS}
   ${ALT}
   ${PASS}
@@ -310,30 +325,30 @@ export const CHART_SCHEDULE_COMPARE = `flowchart LR
   class INV pass`
 
 /** §14.6：兩段式的時間軸（F-14.20）。m_{B₁+B₂} = m_{B₁}·p₂^(2B₂) + μ₂²σ_η²(1 − p₂^(2B₂))/(1 − p₂²)。 */
-export const CHART_SCHEDULE_TIMELINE = `flowchart LR
-  T0(["k = 0<br/>均方誤差 = δ₀²"]) --> CO["COARSE 段：B₁ 個 block<br/>步長 μ₁ 大，p₁ = 1 − μ₁·K 小<br/>bias² 掉得快、雜訊底高"]
-  CO -- "交棒：m_B₁ = E[δ²]（k = B₁）" --> FI["FINE 段：B₂ 個 block<br/>步長 μ₂ 小，p₂ = 1 − μ₂·K 接近 1<br/>把 m_B₁ 當成新的初始誤差平方"]
-  FI -- "F-14.20" --> T2(["k = B₁ + B₂<br/>m_B₁·p₂^(2B₂) + μ₂²·σ_η²·(1 − p₂^(2B₂))/(1 − p₂²)<br/>接近下界 P_B"])
-  T2 -.-> TR["之後 TRACK<br/>μ_track 當地板，保留追蹤能力"]
+export const CHART_SCHEDULE_TIMELINE = String.raw`flowchart TB
+  T0(["$k = 0$<br/>均方誤差 $= \delta_0^2$"]) --> CO["COARSE 段：$B_1$ 個 block<br/>步長 $\mu_1$ 大，$p_1 = 1 - \mu_1 K$ 小<br/>$\text{bias}^2$ 掉得快、雜訊底高"]
+  CO -- "交棒：$m_{B_1} = E[\delta^2]$（$k = B_1$）" --> FI["FINE 段：$B_2$ 個 block<br/>步長 $\mu_2$ 小，$p_2 = 1 - \mu_2 K$ 接近 $1$<br/>把 $m_{B_1}$ 當成新的初始誤差平方"]
+  FI -- "F-14.20" --> T2(["$k = B_1 + B_2$<br/>$m_{B_1}\,p_2^{2B_2} + \mu_2^2\sigma_\eta^2\,(1 - p_2^{2B_2})/(1 - p_2^2)$<br/>接近下界 $P_B$"])
+  T2 -.-> TR["之後 TRACK<br/>$\mu_\text{track}$ 當地板，保留追蹤能力"]
   ${FOCUS}
   ${ALT}
   class CO alt
   class FI focus`
 
 /** §14.6：最佳排程的資訊累加器。1/P_{k+1} = 1/P_k + K²/σ_η²，μ_k = K·P_k/(K²·P_k + σ_η²)（F-14.18）。 */
-export const CHART_KALMAN_INFO = `flowchart LR
-  INF(["每個 block 帶來的資訊<br/>K²/σ_η²"]) -- "＋" --> SUM(("＋"))
-  SUM -- "1/P_(k+1) = 1/P_k + K²/σ_η²" --> ZD["z⁻¹<br/>存到下一個 block<br/>起點 1/P₀ = 1/δ₀²"]
-  ZD -- "＋（1/P_k）" --> SUM
-  ZD -- "1/P_k" --> GAIN["這個 block 的最佳步長<br/>μ_k = K·P_k/(K²·P_k + σ_η²)<br/>= 1/(K·(k + 1 + k₀))"]
-  ZD --> FIN["跑完 B 個 block<br/>1/P_B = 1/δ₀² + B·K²/σ_η²"]
+export const CHART_KALMAN_INFO = String.raw`flowchart LR
+  INF(["每個 block 帶來的資訊<br/>$K^2/\sigma_\eta^2$"]) -- "＋" --> SUM(("＋"))
+  SUM -- "$1/P_{k+1} = 1/P_k + K^2/\sigma_\eta^2$" --> ZD["$z^{-1}$<br/>存到下一個 block<br/>起點 $1/P_0 = 1/\delta_0^2$"]
+  ZD -- "$+$（$1/P_k$）" --> SUM
+  ZD -- "$1/P_k$" --> GAIN["這個 block 的最佳步長<br/>$\mu_k = K\,P_k/(K^2 P_k + \sigma_\eta^2)$<br/>$= 1/(K(k + 1 + k_0))$"]
+  ZD --> FIN["跑完 $B$ 個 block<br/>$1/P_B = 1/\delta_0^2 + B\,K^2/\sigma_\eta^2$"]
   ${FOCUS}
   class GAIN focus`
 
 // ───────────────────────────── §14.7 ─────────────────────────────
 
-/** 規格 §14.2 原圖（逐字） */
-export const SPEC_CHART = `flowchart LR
+/** 規格 §14.2 原圖：節點與連線逐字照抄；只有方向由規格的 LR 改成 TB（一排 8 個節點、含兩個迴圈，桌機放不下橫排）。 */
+export const SPEC_CHART = `flowchart TB
   RESET[Reset / Initialize] --> LOCK[PLL Lock Check]
   LOCK --> COARSE[Coarse Calibration: larger step]
   COARSE --> VERIFY[Convergence + Bias Test]
@@ -346,49 +361,49 @@ export const SPEC_CHART = `flowchart LR
 
 /**
  * 本站實作（含 guards 與失敗路徑）；每條邊對應 optimizer.ts 的 calStep。
- * 標籤一律用雙引號包住（含冒號、等號、×、± 等特殊字元）。
+ * 標籤一律用雙引號包住（含冒號、等號、公式等特殊字元）；數學寫 `$...$`。
  */
-export const IMPL_CHART = `flowchart TD
-  RESET["RESET: w = w0"] --> LOCK["LOCK: 暫停更新"]
-  LOCK -- "lock detect = 1" --> COARSE["COARSE: μ_coarse × B_c"]
-  COARSE -- "B_c blocks" --> VERIFY["VERIFY: w ± Δ 量 K̂ 與 δ̂"]
-  VERIFY -- "K̂ 顯著大於 0 且 δ̂ 在容許內" --> FINE["FINE: μ_fine × B_f"]
-  VERIFY -- "δ̂ 太大，重試" --> COARSE
-  VERIFY -- "K̂ 不顯著 / 重試用盡" --> FAULT["FAULT: 保持 last-known-good"]
-  FINE -- "B_f blocks" --> TRACK["TRACK: μ_track"]
+export const IMPL_CHART = String.raw`flowchart TD
+  RESET["RESET: $w = w_0$"] --> LOCK["LOCK: 暫停更新"]
+  LOCK -- "lock detect = 1" --> COARSE["COARSE: $\mu_\text{coarse} \times B_c$"]
+  COARSE -- "$B_c$ blocks" --> VERIFY["VERIFY: $w \pm \Delta$ 量 $\hat K$ 與 $\hat\delta$"]
+  VERIFY -- "$\hat K$ 顯著大於 $0$ 且 $\hat\delta$ 在容許內" --> FINE["FINE: $\mu_\text{fine} \times B_f$"]
+  VERIFY -- "$\hat\delta$ 太大，重試" --> COARSE
+  VERIFY -- "$\hat K$ 不顯著 / 重試用盡" --> FAULT["FAULT: 保持<br/>last-known-good"]
+  FINE -- "$B_f$ blocks" --> TRACK["TRACK: $\mu_\text{track}$"]
   TRACK -- "低雜訊模式 / bad-FCW" --> FREEZE["FREEZE: 不更新"]
   FREEZE -- "請求結束：回到被打斷的狀態" --> TRACK
-  TRACK -- "G 移動平均警報（hysteresis）" --> RESTART["RESTART"]
+  TRACK -- "$G$ 移動平均警報（hysteresis）" --> RESTART["RESTART"]
   RESTART --> COARSE
   TRACK -. "失鎖" .-> LOCK
   LOCK -. "重新鎖定：先驗證" .-> VERIFY
-  COARSE -. "clip：連續 n 個 block 卡在邊界，退回 LKG（以 COARSE 為例，任何更新中的狀態都適用）" .-> RESTART
+  COARSE -. "clip：連續 $n$ 個 block 卡在邊界，退回 LKG" .-> RESTART
   COARSE -. "clip 且重試用盡" .-> FAULT`
 
 /** §14.7：calStep 一個 block 內的先後順序（① guards → ② μ 與 w_applied → ③ 量 G → ④ 更新 → ⑤ 轉移）。 */
-export const CHART_GUARD_ORDER = `flowchart TD
-  IN(["這個 block 的旗標<br/>locked、bad-FCW、低雜訊模式"]) --> G1{"① lock detect<br/>失鎖了嗎？"}
-  G1 -- "是" --> LK["進 LOCK：不更新、保持 w<br/>重新鎖定後先 VERIFY<br/>（COARSE 中失鎖則重跑 COARSE）"]
-  G1 -- "否" --> G2{"① 有人要求暫停嗎？<br/>低雜訊模式，或 bad-FCW 且 policy = freeze"}
-  G2 -- "是" --> FZ["進 FREEZE：不更新<br/>請求結束後回到被打斷的狀態"]
-  G2 -- "否" --> ST["② 依狀態決定 μ 與 DTC 實際使用的 w<br/>（VERIFY 用 w ± Δ，μ = 0）"]
-  ST --> ME["③ 量這個 block 的 G_k"]
-  ME --> UP["④ 更新量 μ·G_k<br/>max-step 限幅 → LSB 量化 → 夾在 w_min 與 w_max 之間"]
-  UP --> G3{"⑤ clip detect<br/>連續 n 個 block 卡在邊界？"}
+export const CHART_GUARD_ORDER = String.raw`flowchart TD
+  IN(["這個 block 的旗標<br/>locked、bad-FCW、<br/>低雜訊模式"]) --> G1{"${step(1)} lock detect<br/>失鎖了嗎？"}
+  G1 -- "是" --> LK["進 LOCK：不更新、保持 $w$<br/>重新鎖定後先 VERIFY<br/>（COARSE 中失鎖則<br/>重跑 COARSE）"]
+  G1 -- "否" --> G2{"${step(1)} 有人要求暫停嗎？"}
+  G2 -- "是：低雜訊模式，或<br/>bad-FCW 且 policy = freeze" --> FZ["進 FREEZE：不更新<br/>請求結束後回到被打斷的狀態"]
+  G2 -- "否" --> ST["${step(2)} 依狀態決定 $\mu$ 與 DTC 實際使用的 $w$<br/>（VERIFY 用 $w \pm \Delta$，$\mu = 0$）"]
+  ST --> ME["${step(3)} 量這個 block 的 $G_k$"]
+  ME --> UP["${step(4)} 更新量 $\mu\,G_k$<br/>max-step 限幅 $\to$ LSB 量化 $\to$ 夾在 $w_{\min}$ 與 $w_{\max}$ 之間"]
+  UP --> G3{"${step(5)} clip detect<br/>連續 $n$ 個 block<br/>卡在邊界？"}
   G3 -- "是" --> CL["退回 last-known-good<br/>RESTART（重試用盡則 FAULT）"]
-  G3 -- "否" --> TR["⑤ 一般狀態轉移<br/>計數到了、VERIFY 判定、TRACK 警報"]
+  G3 -- "否" --> TR["${step(5)} 一般狀態轉移<br/>計數到了、VERIFY 判定、<br/>TRACK 警報"]
   ${FOCUS}
   ${WARN}
   class ST,ME,UP focus
   class LK,FZ,CL warn`
 
 /** §14.7：VERIFY 的判定（F-14.21）。K̂ = (Ḡ(−Δ) − Ḡ(+Δ))/(2Δ)，δ̂ = ½(Ḡ(+Δ) + Ḡ(−Δ))/K̂。 */
-export const CHART_VERIFY_DECISION = `flowchart TD
-  VF["VERIFY：暫存器 w 不動<br/>前半視窗 DTC 用 w + Δ，後半用 w − Δ"] --> EST["K̂ = (Ḡ(−Δ) − Ḡ(+Δ))/(2Δ)<br/>δ̂ = ½·(Ḡ(+Δ) + Ḡ(−Δ))/K̂"]
-  EST --> Q1{"K̂ > z·se ？<br/>極性正確、看得到訊號"}
+export const CHART_VERIFY_DECISION = String.raw`flowchart TD
+  VF["VERIFY：暫存器 $w$ 不動<br/>前半視窗 DTC 用 $w + \Delta$，後半用 $w - \Delta$"] --> EST["$\hat K = (\bar G(-\Delta) - \bar G(+\Delta))/(2\Delta)$<br/>$\hat\delta = \tfrac{1}{2}(\bar G(+\Delta) + \bar G(-\Delta))/\hat K$"]
+  EST --> Q1{"$\hat K \gt z\,\mathrm{se}$ ？<br/>極性正確、看得到訊號"}
   Q1 -- "否：有 LKG 就先還原" --> FAULT["FAULT<br/>不再更新"]
-  Q1 -- "是" --> Q2{"|δ̂| ≤ 容許值 ？"}
-  Q2 -- "是" --> FINE["把 w 記成 last-known-good<br/>進 FINE"]
+  Q1 -- "是" --> Q2{"$|\hat\delta| \le$ 容許值 ？"}
+  Q2 -- "是" --> FINE["把 $w$ 記成 last-known-good<br/>進 FINE"]
   Q2 -- "否" --> Q3{"重試次數用完了嗎？"}
   Q3 -- "還沒" --> COARSE["回 COARSE 再收一次"]
   Q3 -- "用完了" --> FAULT
@@ -397,34 +412,38 @@ export const CHART_VERIFY_DECISION = `flowchart TD
   class FINE pass
   class FAULT warn`
 
-/** §14.7：TRACK 警報的 hysteresis（Schmitt trigger）。高門檻累計、低門檻歸零、兩者之間保持。 */
-export const CHART_ALARM_HYSTERESIS = `stateDiagram-v2
-  direction LR
-  state "安靜（計數 = 0）" as QUIET
-  state "累計中（計數 ≥ 1）" as COUNTING
+/**
+ * §14.7：TRACK 警報的 hysteresis（Schmitt trigger）。高門檻累計、低門檻歸零、兩者之間保持。
+ * stateDiagram 的公式：`state "…" as X` 的雙引號標籤支援 `$...$`；轉移文字沒有引號、前處理不會處理，
+ * 所以要放公式的轉移直接寫 Mermaid 原生的 `$$\text{…}n\text{…}$$`（其他轉移全是文字）。
+ */
+export const CHART_ALARM_HYSTERESIS = String.raw`stateDiagram-v2
+  direction TB
+  state "安靜（計數 $= 0$）" as QUIET
+  state "累計中（計數 $\ge 1$）" as COUNTING
   state "RESTART，回 COARSE" as RESTART
   [*] --> QUIET
   QUIET --> COUNTING : 移動平均高於高門檻
   COUNTING --> COUNTING : 仍高於高門檻則計數加 1，夾在兩個門檻之間則不變
   COUNTING --> QUIET : 低於低門檻，計數歸零並記下 last-known-good
-  COUNTING --> RESTART : 計數達到 n 個 block
+  COUNTING --> RESTART : $$\text{計數達到 }n\text{ 個 block}$$
   RESTART --> [*]`
 
 // ───────────────────────────── 綜合手算 ─────────────────────────────
 
 /** 綜合手算 HC-14.8 的計算順序（與該題的步驟一致）。 */
-export const CHART_HAND_FLOW = `flowchart TD
-  IN(["規格：σ_v、N、T、δ₀、ε、θ"]) --> H1["① B = T/N"]
-  IN --> H2["② C = cos θ<br/>K = √(2/π)·C/σ_v"]
-  H1 --> H3["③ ε^(1/B)<br/>每個 block 平均誤差要縮到的倍數"]
-  H3 --> H4["④ μ = (1 − ε^(1/B))/K"]
+export const CHART_HAND_FLOW = String.raw`flowchart TD
+  IN(["規格：$\sigma_v$、$N$、$T$、$\delta_0$、$\epsilon$、$\theta$"]) --> H1["${step(1)} $B = T/N$"]
+  IN --> H2["${step(2)} $C = \cos\theta$<br/>$K = \sqrt{2/\pi}\,C/\sigma_v$"]
+  H1 --> H3["${step(3)} $\epsilon^{1/B}$<br/>每個 block 平均誤差要縮到的倍數"]
+  H3 --> H4["${step(4)} $\mu = (1 - \epsilon^{1/B})/K$"]
   H2 --> H4
-  H4 --> H5["⑤ p = 1 − μ·K<br/>應該等於 ③（現成的驗算）"]
-  H5 --> H6["⑥ PM = 90° − arcsin(μ·K/2)"]
-  H5 --> H7["⑦ τ = −1/ln p"]
-  H5 --> H8["⑧ bias² = δ₀²·p^(2B)<br/>variance = μ²·σ_η²·(1 − p^(2B))/(1 − p²)<br/>σ_η² = 1/N"]
-  H8 --> H9["⑨ RMS = √(bias² + variance)"]
-  H6 --> ANS(["預設值的答案<br/>μ = 11.20 fs、p = 0.9106、PM = 87.4°<br/>τ = 10.68 blocks、RMS = 0.449 fs"])
+  H4 --> H5["${step(5)} $p = 1 - \mu K$<br/>應該等於 ${step(3)}（現成的驗算）"]
+  H5 --> H6["${step(6)} $PM = 90^\circ - \arcsin(\mu K/2)$"]
+  H5 --> H7["${step(7)} $\tau = -1/\ln p$"]
+  H5 --> H8["${step(8)} $\text{bias}^2 = \delta_0^2\,p^{2B}$<br/>$\text{variance} = \mu^2\sigma_\eta^2\,(1 - p^{2B})/(1 - p^2)$<br/>$\sigma_\eta^2 = 1/N$"]
+  H8 --> H9["${step(9)} $\mathrm{RMS} = \sqrt{\text{bias}^2 + \text{variance}}$"]
+  H6 --> ANS(["預設值的答案<br/>$\mu = 11.20\,\mathrm{fs}$、$p = 0.9106$、$PM = 87.4^\circ$<br/>$\tau = 10.68$ blocks、$\mathrm{RMS} = 0.449\,\mathrm{fs}$"])
   H7 --> ANS
   H9 --> ANS
   ${FOCUS}

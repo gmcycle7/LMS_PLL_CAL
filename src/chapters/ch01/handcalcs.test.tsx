@@ -390,10 +390,12 @@ describe('Ch01 帶入手算 (a)：預設數字 = 模型函式 = 本章 worked ex
 
   it('HC-01.1 的 normal equation 驗算（F-01.5）：殘差 (0.1238095, −0.452381, 0.1952381) 與 x 正交，Σe*x = 0；步驟顯示 7 位，照著顯示的數字相加也是 0；= mseParabola 在 w* 的斜率；換題 20 次也都是 0', () => {
     const def = handcalcOf('HC-01.1')
-    const neStep = (sol: HandCalcSolution) => sol.steps.find((s) => s.tex.startsWith(String.raw`\sum_i e^*_ix_i=`))!
+    const neStep = (sol: HandCalcSolution) => sol.steps.find((s) => s.tex.startsWith(String.raw`\begin{aligned}\sum_i e^*_ix_i&=`))!
     const sol = solveDefault('HC-01.1')
     expect(sol.steps.some((s) => s.tex.includes('3.2-3.07619\\times1=0.1238095') && s.tex.includes('=-0.452381') && s.tex.includes('=0.1952381'))).toBe(true)
-    expect(neStep(sol).tex.endsWith('=0.1238095+(-0.9047619)+0.7809524=0')).toBe(true)
+    expect(neStep(sol).tex.endsWith(String.raw`=0.1238095+(-0.9047619)+0.7809524=0\end{aligned}`)).toBe(true)
+    // 兩行：第一行是三個乘積，第二行從「=」接下去（一行寫完會比欄寬）
+    expect(neStep(sol).tex).toContain(String.raw`\times1+(-0.452381)\times2+0.1952381\times4\\&=0.1238095+`)
     // 讀者照著顯示的數字手算：三個乘積相加的尾數 < 10⁻⁶（舊版只顯示 5 位時，換題後會剩下 10⁻³）
     expect(Math.abs(0.1238095 - 0.9047619 + 0.7809524)).toBeLessThan(1e-6)
     expect(Math.abs(0.1238095 * 1 + -0.452381 * 2 + 0.1952381 * 4)).toBeLessThan(1e-6)
@@ -410,7 +412,7 @@ describe('Ch01 帶入手算 (a)：預設數字 = 模型函式 = 本章 worked ex
     for (let seed = 1; seed <= 20; seed++) {
       const v = randomValues(def, seed)
       const s = def.solve(v)
-      expect(neStep(s).tex.endsWith('=0'), `seed ${seed} ${neStep(s).tex}`).toBe(true)
+      expect(neStep(s).tex.endsWith(String.raw`=0\end{aligned}`), `seed ${seed} ${neStep(s).tex}`).toBe(true)
       // 顯示出來的三個乘積（7 位有效數字）相加，尾數必須小到看得出是 0
       const shown = neStep(s).tex.split('=').at(-2)!
       const total = evalTex(shown)!

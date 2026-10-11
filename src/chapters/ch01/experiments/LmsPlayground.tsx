@@ -26,7 +26,7 @@ import {
   type PlaygroundEnsembleResult,
   type PlaygroundTrace,
 } from '@/simulation/models/lossCompare'
-import { BEHAVIOUR_TEX, BehaviourLabel, Erratum, f, sub, symLabel, texNum, TryIt } from '../common'
+import { BEHAVIOUR_TEX, BehaviourLabel, Erratum, f, symLabel, texNum, TryIt } from '../common'
 
 export const PLAYGROUND_ID = 'lms-playground'
 
@@ -311,19 +311,19 @@ export function LmsPlayground() {
   const wPlot = useMemo<Data[]>(() => {
     const cf = nAxis.map((n) => playgroundClosedForm(params.a, params.w0, params.x, params.mu, n))
     return [
-      { x: nAxis, y: Array.from(tr.w), name: 'wₙ（模擬）', mode: 'lines+markers', line: { color: tokens.series[0] } },
+      { x: nAxis, y: Array.from(tr.w), name: '$w_n$（模擬）', mode: 'lines+markers', line: { color: tokens.series[0] } },
       {
         x: nAxis,
         y: cf.map((v) => (Number.isFinite(v) && Math.abs(v) < 1e12 ? v : null)),
-        name: '無雜訊封閉解 a − (a − w₀)pⁿ',
+        name: String.raw`無雜訊封閉解 $a-(a-w_0)\,p^n$`,
         mode: 'lines',
         line: { dash: 'dot', color: tokens.series[2] },
       },
-      { x: [0, N], y: [params.a, params.a], name: 'a（真值）', mode: 'lines', line: { dash: 'dash', color: tokens.textMuted } },
+      { x: [0, N], y: [params.a, params.a], name: '$a$（真值）', mode: 'lines', line: { dash: 'dash', color: tokens.textMuted } },
       {
         x: [cur],
         y: [tr.w[cur]],
-        name: `目前 n = ${cur}`,
+        name: `目前 $n=${cur}$`,
         mode: 'markers',
         marker: { size: 13, color: tokens.series[1], symbol: 'circle-open', line: { width: 3 } },
       },
@@ -333,7 +333,7 @@ export function LmsPlayground() {
   // ───── 圖 2：e_n ─────
   const ePlot = useMemo<Data[]>(
     () => [
-      { x: nAxis.slice(0, N), y: Array.from(tr.e), name: 'eₙ = yₙ − wₙx', mode: 'lines+markers', line: { color: tokens.series[3] } },
+      { x: nAxis.slice(0, N), y: Array.from(tr.e), name: '$e_n=y_n-w_n x$', mode: 'lines+markers', line: { color: tokens.series[3] } },
       { x: [0, N], y: [0, 0], name: '0', mode: 'lines', line: { dash: 'dash', color: tokens.textMuted }, showlegend: false },
     ],
     [nAxis, tr, N, tokens],
@@ -350,8 +350,8 @@ export function LmsPlayground() {
     const grid = Array.from({ length: 201 }, (_, i) => lo + ((hi - lo) * i) / 200)
     const wc = tr.w[cur]
     const data: Data[] = [
-      { x: grid, y: grid.map(J), name: 'J(w) = ½E[(y − wx)²]', mode: 'lines', line: { color: tokens.series[0] } },
-      { x: path, y: path.map(J), name: `w₀…w${sub(cur)}`, mode: 'lines+markers', line: { color: tokens.series[1], width: 1 }, marker: { size: 7 } },
+      { x: grid, y: grid.map(J), name: String.raw`$J(w)=\tfrac12E[(y-wx)^2]$`, mode: 'lines', line: { color: tokens.series[0] } },
+      { x: path, y: path.map(J), name: String.raw`$w_0\ldots w_{${cur}}$`, mode: 'lines+markers', line: { color: tokens.series[1], width: 1 }, marker: { size: 7 } },
     ]
     const annotations: Partial<Layout>['annotations'] = []
     if (Number.isFinite(wc) && Math.abs(wc - params.a) <= 6 * span) {
@@ -360,11 +360,11 @@ export function LmsPlayground() {
       data.push({
         x: [wc - half, wc + half],
         y: [J(wc) - slope * half, J(wc) + slope * half],
-        name: `切線：斜率 dJ/dw = ${f(slope, 4)}`,
+        name: String.raw`切線：斜率 $dJ/dw=${texNum(slope, 4)}$`,
         mode: 'lines',
         line: { dash: 'dot', color: tokens.series[3] },
       })
-      data.push({ x: [wc], y: [J(wc)], name: `目前 w${sub(cur)}`, mode: 'markers', marker: { size: 14, color: tokens.series[1] } })
+      data.push({ x: [wc], y: [J(wc)], name: `目前 $w_{${cur}}$`, mode: 'markers', marker: { size: 14, color: tokens.series[1] } })
       const wn = tr.w[cur + 1]
       if (cur < N && Number.isFinite(wn) && Math.abs(wn - params.a) <= 6 * span && wn !== wc) {
         annotations.push({
@@ -404,7 +404,7 @@ export function LmsPlayground() {
         return {
           x: nAxis,
           y: Array.from(t.delta).map((d) => (Number.isFinite(d) ? Math.abs(d) : null)),
-          name: `Case ${c.id}：μ = ${f(c.params.mu, 4)}（p = ${f(p, 4)}）`,
+          name: String.raw`Case ${c.id}：$\mu=${texNum(c.params.mu, 4)}$（$p=${texNum(p, 4)}$）`,
           mode: 'lines+markers',
           line: { color: tokens.series[c.seriesIndex] },
         }
@@ -487,7 +487,7 @@ export function LmsPlayground() {
       onLoadPreset={(p) => applyParams(p.params)}
       controls={
         <>
-          <ParamControl label={symLabel('a', '真實係數')} ariaLabel="a（真實係數）" value={params.a} onChange={set('a')} min={-10} max={10} step={0.01} unit="[y]/[x]" reg="Behavioral: true_gain_a" hint="黑盒子裡我們不知道的數" />
+          <ParamControl label={symLabel('a', '真實係數')} ariaLabel="a（真實係數）" value={params.a} onChange={set('a')} min={-10} max={10} step={0.01} unit="$[y]/[x]$" reg="Behavioral: true_gain_a" hint="黑盒子裡我們不知道的數" />
           <ParamControl
             label={symLabel('x', '固定輸入')}
             ariaLabel="x（固定輸入）"
@@ -496,7 +496,7 @@ export function LmsPlayground() {
             min={-4}
             max={4}
             step={0.01}
-            unit="[x]"
+            unit="$[x]$"
             reg="Behavioral: regressor_x（正規化 DSM code）"
             hint={
               <>
@@ -504,7 +504,7 @@ export function LmsPlayground() {
               </>
             }
           />
-          <ParamControl label={symLabel('w_0', '初始值')} ariaLabel="w₀（初始值）" value={params.w0} onChange={set('w0')} min={-10} max={10} step={0.01} unit="[y]/[x]" reg="REG_LMS_W_INIT" />
+          <ParamControl label={symLabel('w_0', '初始值')} ariaLabel="w₀（初始值）" value={params.w0} onChange={set('w0')} min={-10} max={10} step={0.01} unit="$[y]/[x]$" reg="REG_LMS_W_INIT" />
           <ParamControl
             label={symLabel('\\mu', '學習率')}
             ariaLabel="μ（學習率）"
@@ -514,7 +514,7 @@ export function LmsPlayground() {
             max={1.5}
             step={0.001}
             digits={6}
-            unit="1/[x]²"
+            unit="$1/[x]^2$"
             reg="REG_LMS_MU"
             hint={
               Number.isFinite(st.muMax) ? (
@@ -528,7 +528,7 @@ export function LmsPlayground() {
               )
             }
           />
-          <ParamControl label={symLabel('\\sigma_v', '量測雜訊 RMS')} ariaLabel="σᵥ（量測雜訊 RMS）" value={params.noiseSigma} onChange={set('noiseSigma')} min={0} max={5} step={0.01} unit="[y]" reg="Behavioral: noise_rms_v" hint="0 = 規格 §1.2 的無雜訊例" />
+          <ParamControl label={symLabel('\\sigma_v', '量測雜訊 RMS')} ariaLabel="σᵥ（量測雜訊 RMS）" value={params.noiseSigma} onChange={set('noiseSigma')} min={0} max={5} step={0.01} unit="$[y]$" reg="Behavioral: noise_rms_v" hint="0 = 規格 §1.2 的無雜訊例" />
           <ParamControl
             label={
               <>
@@ -587,7 +587,7 @@ export function LmsPlayground() {
           title="$w_n$ 隨步數 $n$"
           ariaLabel="w 隨步數 n 的軌跡"
           data={wPlot}
-          layout={{ xaxis: { title: { text: 'n（sample）' } }, yaxis: { title: { text: 'wₙ' } } }}
+          layout={{ xaxis: { title: { text: '$n$（sample）' } }, yaxis: { title: { text: '$w_n$' } } }}
           height={280}
           csvName="lms-playground-w"
         />
@@ -595,7 +595,7 @@ export function LmsPlayground() {
           title="誤差 $e_n$"
           ariaLabel="誤差 e 隨步數 n 的變化"
           data={ePlot}
-          layout={{ xaxis: { title: { text: 'n（sample）' } }, yaxis: { title: { text: 'eₙ' } } }}
+          layout={{ xaxis: { title: { text: '$n$（sample）' } }, yaxis: { title: { text: '$e_n$' } } }}
           height={280}
           csvName="lms-playground-e"
         />
@@ -604,7 +604,7 @@ export function LmsPlayground() {
         title="成本拋物線 $J(w)$：目前點、切線與下一步（箭頭）"
         ariaLabel="成本拋物線 J(w)：目前點、切線與下一步"
         data={jView.data}
-        layout={{ xaxis: { title: { text: 'w' } }, yaxis: { title: { text: 'J(w)' } }, annotations: jView.annotations }}
+        layout={{ xaxis: { title: { text: '$w$' } }, yaxis: { title: { text: '$J(w)$' } }, annotations: jView.annotations }}
         height={300}
         csvName="lms-playground-cost"
         caption={
@@ -702,7 +702,7 @@ export function LmsPlayground() {
           max={1.5}
           step={0.001}
           digits={6}
-          unit="1/[x]²"
+          unit="$1/[x]^2$"
           reg="REG_LMS_MU"
         />
         <button type="button" className="btn" onClick={loadCaseExample}>
@@ -714,7 +714,7 @@ export function LmsPlayground() {
         ariaLabel="各比較組的參數誤差絕對值（log 軸）"
         data={casePlot}
         yLog
-        layout={{ xaxis: { title: { text: 'n' } }, yaxis: { title: { text: '|δₙ|' } } }}
+        layout={{ xaxis: { title: { text: '$n$' } }, yaxis: { title: { text: String.raw`$|\delta_n|$` } } }}
         height={280}
         csvName="lms-playground-cases"
       />

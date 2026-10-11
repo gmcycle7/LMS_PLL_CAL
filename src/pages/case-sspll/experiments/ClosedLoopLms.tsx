@@ -28,8 +28,8 @@ export const LMS_CASE_LABEL: Record<LmsCaseKind, string> = {
 }
 
 /**
- * 同一組標籤的 `$...$` 版本：用在會經過 mathText 的地方（警告、指標名稱、表格）。
- * 下拉選單的 <option> 與 Plotly 圖例不渲染 KaTeX，仍用上面的純文字版。
+ * 同一組標籤的 `$...$` 版本：用在會經過 mathText 的地方（警告、指標名稱、表格）與 Plotly 圖例（`Plot` 會把 `$...$` 轉成斜體符號與上下標）。
+ * 只有下拉選單的 <option> 不渲染公式，仍用上面的純文字版。
  */
 export const LMS_CASE_TEX: Record<LmsCaseKind, string> = {
   ...LMS_CASE_LABEL,
@@ -477,7 +477,7 @@ export function ClosedLoopLms() {
     for (const c of cases) {
       const color = tokens.series[c.colorIndex]
       const res = fresh ? (run.result.cases.find((x) => x.id === c.slot)?.result ?? null) : null
-      const name = `Case ${c.slot}：${LMS_CASE_LABEL[c.kind]}`
+      const name = `Case ${c.slot}：${LMS_CASE_TEX[c.kind]}` // 圖例支援 `$...$`（Plot 會轉成斜體符號與上下標）
       if (res) {
         phos.push({ x: res.block, y: res.phosRmsFs, name: `${name}（TS，即時）`, mode: 'lines', line: { color, width: 2.2 } })
         gos.push({ x: res.block, y: res.gosAbsFs, name: `${name}（TS，即時）`, mode: 'lines', line: { color, width: 2.2 } })
@@ -490,7 +490,7 @@ export function ClosedLoopLms() {
     if (phos.length) {
       const xs = phos.flatMap((t) => Array.from((t as { x: ArrayLike<number> }).x))
       const xMax = Math.max(...xs)
-      phos.push({ x: [0, xMax], y: [deltaFs, deltaFs], name: 'Δ = T_vco/8（DTC 範圍；之上為飽和／失鎖）', mode: 'lines', line: { color: tokens.textMuted, dash: 'dash', width: 1 } })
+      phos.push({ x: [0, xMax], y: [deltaFs, deltaFs], name: '$\\Delta=T_{\\mathrm{vco}}/8$（DTC 範圍；之上為飽和／失鎖）', mode: 'lines', line: { color: tokens.textMuted, dash: 'dash', width: 1 } })
     }
     return { phos, gos }
   }, [cases, fresh, run, tokens, deltaFs])
@@ -518,7 +518,7 @@ export function ClosedLoopLms() {
         '步長以開迴路（$H\\equiv1$）時間常數 $N_\\tau$ 決定，並對 regressor 功率做 NLMS 式正規化；權重初值為 0',
         '線性、無界的 SSPD 與無限的 DTC range：ps 級的「發散值」在硬體上是飽和／cycle slip／失鎖',
         '比較器除指定的 $u_{os}$ 外沒有 offset；沒有 DTC INL、字長、FLL 等效應；沒有 fixed-point 模型（Fixed-Point 交叉比對未實作）',
-        `golden 存檔的條件：$N=${GOLDEN_LMS_COND.nBlk}$、$N_\\tau=${GOLDEN_LMS_COND.tauBlocks}$、無 offset、6000 blocks × 2 lanes；設定不同時不疊圖、不比對`,
+        `golden 存檔的條件：$N=${GOLDEN_LMS_COND.nBlk}$、$N_\\tau=${GOLDEN_LMS_COND.tauBlocks}$、無 offset、6000 blocks $\\times$ 2 lanes；設定不同時不疊圖、不比對`,
         'TS 與 golden 使用不同的隨機數產生器（xoshiro128** vs numpy PCG64）：逐點數值不會相同',
       ]}
       params={{ ...P, alpha }}
@@ -606,14 +606,14 @@ export function ClosedLoopLms() {
         </Callout>
       )}
       <div className="cs-plots cs-plots-2">
-        <Plot title="PHOS 誤差 rms（去掉共模）對 block" data={traces.phos} yLog height={340} csvName="sspll-lms-phos" layout={{ xaxis: { title: { text: 'block k（每 block N 個 sample）' } }, yaxis: { title: { text: 'fs（log）' } } }} />
-        <Plot title="$\lvert$GOS 誤差$\rvert$（code = 1 時）對 block" data={traces.gos} yLog height={340} csvName="sspll-lms-gos" layout={{ xaxis: { title: { text: 'block k' } }, yaxis: { title: { text: 'fs（log）' } } }} />
+        <Plot title="PHOS 誤差 rms（去掉共模）對 block" data={traces.phos} yLog height={340} csvName="sspll-lms-phos" layout={{ xaxis: { title: { text: 'block $k$（每 block $N$ 個 sample）' } }, yaxis: { title: { text: 'fs（log）' } } }} />
+        <Plot title="$\lvert$GOS 誤差$\rvert$（code = 1 時）對 block" data={traces.gos} yLog height={340} csvName="sspll-lms-gos" layout={{ xaxis: { title: { text: 'block $k$' } }, yaxis: { title: { text: 'fs（log）' } } }} />
       </div>
       {goldenRows.length > 0 && (
         <DataTable
           className="cs-num"
           caption={`golden 存檔（pred_vs_sim.json）。${LMS_NOTE_ZH}`}
-          head={['Case', 'golden key', '初始 PHOS rms', '最終 PHOS rms', '最大 PHOS rms', '最終 |GOS 誤差|']}
+          head={['Case', 'golden key', '初始 PHOS rms', '最終 PHOS rms', '最大 PHOS rms', '最終 $\\lvert$GOS 誤差$\\rvert$']}
           rows={goldenRows.map((c) => [
             mathText(`${c.slot}：${LMS_CASE_TEX[c.kind]}`),
             <code key="k">{c.golden!.key}</code>,

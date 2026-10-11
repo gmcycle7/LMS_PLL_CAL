@@ -132,11 +132,12 @@ export function NonIdealSection() {
         圖上藍色的 clamp 就是程式碼 <code>residual()</code> 裡 <code>antiWindup</code> 的那一段（把 <Tex>{'r'}</Tex> 夾在 <code>rLo</code> 與 <code>rHi</code> 之間，round-half-up 且沒有 dither 時是 <Tex>{String.raw`\pm\tfrac12`}</Tex>）。下圖的兩條線就是這張圖有、沒有藍色方塊的差別。
       </p>
       <Plot
-        title="Overload 後的恢復：ΔΣ windup"
+        title={String.raw`Overload 後的恢復：$\Delta\Sigma$ windup`}
+        ariaLabel="Overload 後的恢復：ΔΣ windup"
         data={wdData}
         height={240}
         csvName="ch13-windup"
-        layout={{ xaxis: { title: { text: 'n' } }, yaxis: { title: { text: 'code y' } } }}
+        layout={{ xaxis: { title: { text: String.raw`$n$` } }, yaxis: { title: { text: String.raw`code $y$` } } }}
         caption={
           <>
             由 <code>simulateStrategy('deltaSigma')</code> 計算（定點 <Tex>{'F=16'}</Tex>、saturate）：前 1000 次 <Tex>{'w_H=63.3'}</Tex>，之後 <Tex>{'w_H=62.0'}</Tex>。

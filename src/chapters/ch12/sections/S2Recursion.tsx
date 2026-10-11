@@ -6,7 +6,7 @@ import { calLoop, sigmaW2Colored, swDtft } from '@/simulation/models/calNoise'
 import { Diagram, EX, EX_INPUT, Erratum, Hand, Steps, md, sig } from '../common'
 import { CHART_COEF_LOOP, CHART_COLORED_ETA, CHART_GMAC_LINEAR, CHART_PSD_FILTER, CHART_UPDATE_LOOP, CHART_VAR_LOOP } from '../diagrams'
 
-const ACF_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'lag ℓ [blocks]' } }, yaxis: { title: { text: 'R_w [fs²]' } } }
+const ACF_LAYOUT: Partial<Layout> = { xaxis: { title: { text: String.raw`lag $\ell$ [blocks]` } }, yaxis: { title: { text: String.raw`$R_w$ [$\mathrm{fs}^2$]` } } }
 
 export function S2Recursion() {
   const tradeoff = useMemo(
@@ -38,7 +38,7 @@ export function S2Recursion() {
   )
   const acf = useMemo<Data[]>(() => {
     const l = Array.from({ length: 61 }, (_, i) => i - 30)
-    return [{ x: l, y: l.map((x) => EX.sigmaW2 * EX.p ** Math.abs(x)), name: 'R_w[ℓ]', mode: 'lines+markers', marker: { size: 4 } }]
+    return [{ x: l, y: l.map((x) => EX.sigmaW2 * EX.p ** Math.abs(x)), name: String.raw`$R_w[\ell]$`, mode: 'lines+markers', marker: { size: 4 } }]
   }, [])
   // 入門課第 4 課的例子：同樣的 μ、σ_v，但 N = 10,000
   const lesson4 = useMemo(() => calLoop({ ...EX_INPUT, N: 10000 }), [])
@@ -256,7 +256,7 @@ export function S2Recursion() {
         <Diagram chart={CHART_PSD_FILTER} caption={String.raw`白雜訊通過一階 low-pass，$S_w=|H|^2S_\eta$：輸入是平的，輸出低頻高、高頻低，曲線下的面積就是係數雜訊的變異數 $\sigma_w^2$。`}>
           <p>
             {md(
-              String.raw`先由左到右看主線：平的 $S_\eta$ 乘上 $|H|^2$ 得到 $S_w$。再看掛在濾波器旁邊的兩個註記：$0<p<1$ 時 DC 的增益 $\mu^2/(1-p)^2$ 比 Nyquist 的 $\mu^2/(1+p)^2$ 大，所以輸出是 low-pass。最後看主線的最後兩格：把 $S_w$ 對 $\Omega$ 由 $-\pi$ 積到 $\pi$ 再除以 $2\pi$，就是下一小節的 $\sigma_w^2$。`,
+              String.raw`先由上往下看主線：平的 $S_\eta$ 乘上 $|H|^2$ 得到 $S_w$。再看掛在濾波器旁邊的兩個註記：$0<p<1$ 時 DC 的增益 $\mu^2/(1-p)^2$ 比 Nyquist 的 $\mu^2/(1+p)^2$ 大，所以輸出是 low-pass。最後看主線的最後兩格：把 $S_w$ 對 $\Omega$ 由 $-\pi$ 積到 $\pi$ 再除以 $2\pi$，就是下一小節的 $\sigma_w^2$。`,
             )}
           </p>
           <p>{md(String.raw`和公式的對照：圖上的「$\times|H|^2$」就是 F-12.4 的分式 $\mu^2/|1-pe^{-j\Omega}|^2$；主線終點的 $\sigma_w^2$ 是 F-12.5。`)}</p>
@@ -321,7 +321,7 @@ export function S2Recursion() {
         <Steps
           title="推導 B（Parseval / 脈衝響應能量）"
           steps={[
-            { tex: String.raw`\sigma_w^2=\sigma_\eta^2\sum_{k\ge1}h_k^2`, why: '白雜訊通過濾波器：輸出變異數 = 輸入變異數 × 脈衝響應能量（各項獨立，變異數相加）。' },
+            { tex: String.raw`\sigma_w^2=\sigma_\eta^2\sum_{k\ge1}h_k^2`, why: md(String.raw`白雜訊通過濾波器：輸出變異數 $=$ 輸入變異數 $\times$ 脈衝響應能量（各項獨立，變異數相加）。`) },
             { tex: String.raw`=\sigma_\eta^2\mu^2\sum_{k\ge1}p^{2(k-1)}`, why: md(String.raw`代入 $h_k=\mu p^{k-1}$。`) },
             { tex: String.raw`=\sigma_\eta^2\mu^2\cdot\frac{1}{1-p^2}`, why: md(String.raw`公比 $p^2$ 的等比級數（$|p|<1$）。`) },
             {

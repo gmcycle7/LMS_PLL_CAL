@@ -98,12 +98,12 @@ function DistributionPrereq() {
   )
 }
 
-/** 本章反覆使用的四個例子；label 給圖例（純文字），tex 給表格（KaTeX） */
+/** 本章反覆使用的四個例子；label 給圖例（字串中的數學寫 `$…$`，Plot 轉成斜體符號），tex 給表格（KaTeX） */
 export const EXAMPLE_DISTS: { label: string; tex: string; dist: XDist }[] = [
-  { label: 'Gaussian N(0,1)', tex: T`\text{Gaussian }\mathcal N(0,1)`, dist: { kind: 'gaussian', sigma: 1 } },
-  { label: 'Uniform U(−√3, √3)', tex: T`\text{Uniform }U(-\sqrt3,\sqrt3)`, dist: { kind: 'uniform', halfWidth: Math.sqrt(3) } },
-  { label: '±1（bipolar code）', tex: T`\pm1\ \text{(bipolar code)}`, dist: { kind: 'pm_one', amplitude: 1 } },
-  { label: '稀疏 code {0×9, 3}', tex: T`\text{稀疏 code }\{0\times9,\ 3\}`, dist: { kind: 'list', values: [0, 0, 0, 0, 0, 0, 0, 0, 0, 3] } },
+  { label: T`Gaussian $\mathcal N(0,1)$`, tex: T`\text{Gaussian }\mathcal N(0,1)`, dist: { kind: 'gaussian', sigma: 1 } },
+  { label: T`Uniform $U(-\sqrt{3},\ \sqrt{3})$`, tex: T`\text{Uniform }U(-\sqrt3,\sqrt3)`, dist: { kind: 'uniform', halfWidth: Math.sqrt(3) } },
+  { label: T`$\pm1$（bipolar code）`, tex: T`\pm1\ \text{(bipolar code)}`, dist: { kind: 'pm_one', amplitude: 1 } },
+  { label: T`稀疏 code $\{0\times9,\ 3\}$`, tex: T`\text{稀疏 code }\{0\times9,\ 3\}`, dist: { kind: 'list', values: [0, 0, 0, 0, 0, 0, 0, 0, 0, 3] } },
 ]
 
 export function RandomMeanSection() {
@@ -192,7 +192,7 @@ export function RandomMeanSection() {
           ariaLabel="一框是一條路徑的迴圈，增益 f n 每步不同；另一框是取期望值後的迴圈，E delta n 每步乘上固定增益 1 減 mu P x"
         />
         <p>
-          先看「一條路徑」那一框：乘法點的增益 <Tex>{T`f[n]`}</Tex> 每一步不同（褐色）。再看「兩邊取 <Tex>{T`E[\cdot]`}</Tex>」那一框：因為 <Tex>{T`x[n]`}</Tex> 與 <Tex>{T`\delta[n]`}</Tex> 獨立，
+          先看「一條路徑」那一框：乘法點的增益 <Tex>{T`f[n]`}</Tex> 每一步不同（褐色）。再看「兩邊取期望值」那一框（線上的 <Tex>{T`E[\delta[n]]`}</Tex>、<Tex>{T`E[\delta[n+1]]`}</Tex> 就是兩邊取期望值之後的誤差）：因為 <Tex>{T`x[n]`}</Tex> 與 <Tex>{T`\delta[n]`}</Tex> 獨立，
           <Tex>{T`E[f\cdot\delta]=E[f]\cdot E[\delta]`}</Tex>，隨機增益被換成固定增益 <Tex>{T`E[f]=1-\mu P_x`}</Tex>（藍色），迴圈又回到第 1 節那種等比數列。圖上的「
           <Tex>{T`\times\,(1-\mu P_x)`}</Tex>」就是下面推導的最後一行，也是 F-03.5 的 mean pole。
         </p>

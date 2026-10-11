@@ -180,6 +180,13 @@
   border-color: var(--accent);
   color: var(--accent);
 }
+/* 桌機放得下就換行顯示，不要讓最後幾顆被切在卡片邊緣；手機維持單列橫向捲動 */
+@media (min-width: 720px) {
+  .dash-toc {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+}
 
 /* ---------- 共用 chip / 狀態 ---------- */
 .dash-chips {
@@ -1092,4 +1099,11 @@ button.dash-chip {
   margin-top: 28px;
   padding-top: 12px;
   border-top: 1px solid var(--border);
+}
+
+/* 體檢旁的 eigen-mode 表有 8 欄，放在約 550px 的結果欄裡：欄距縮小一點，才不會多出幾 px 的橫向捲動 */
+.dash-eigen-table th,
+.dash-eigen-table td {
+  padding-left: 6px;
+  padding-right: 6px;
 }

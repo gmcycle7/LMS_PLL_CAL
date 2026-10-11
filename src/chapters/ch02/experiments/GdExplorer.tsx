@@ -71,7 +71,7 @@ export function GdExplorer() {
     const ws = range(201).map((i) => span[0] + ((span[1] - span[0]) * i) / 200)
     const J = (w: number) => c * (p.a * p.x - w * p.x) ** 2
     const traces: Data[] = [
-      { x: ws, y: ws.map(J), name: p.cost === 'half' ? 'J(w) = ½(y − wx)²' : 'J₂(w) = (y − wx)²', mode: 'lines', line: { color: tokens.series[0], width: 2 } },
+      { x: ws, y: ws.map(J), name: p.cost === 'half' ? String.raw`$J(w)=\tfrac{1}{2}\,(y-wx)^2$` : String.raw`$J_2(w)=(y-wx)^2$`, mode: 'lines', line: { color: tokens.series[0], width: 2 } },
     ]
     for (let n = 0; n < shown && Number.isFinite(tr.w[n + 1]); n++) {
       const w0 = tr.w[n]
@@ -89,7 +89,7 @@ export function GdExplorer() {
       traces.push({
         x: [w1, w1],
         y: [pred, J(w1)],
-        name: n === 0 ? '二次項 ½J″Δ²（預測 vs 真實）' : undefined,
+        name: n === 0 ? String.raw`二次項 $\tfrac{1}{2}\,J''\,\Delta^2$（預測 vs 真實）` : undefined,
         showlegend: n === 0,
         legendgroup: 'curv',
         mode: 'lines',
@@ -99,9 +99,10 @@ export function GdExplorer() {
     traces.push({
       x: Array.from(tr.w.slice(0, shown + 1)),
       y: Array.from(tr.J.slice(0, shown + 1)),
-      name: 'w_n',
+      name: '$w_n$',
       mode: 'text+markers',
-      text: range(shown + 1).map((n) => `w${n}`),
+      // 越往後點越擠在谷底（w₄ w₅ w₆ 的標籤會疊在一起，放到下面又會被 x 軸切掉）：第 4 步之後只標偶數步，其餘的點在下方的逐步數值表裡
+      text: range(shown + 1).map((n) => (n >= 4 && n % 2 === 1 ? '' : `$w_{${n}}$`)),
       textposition: 'top right',
       marker: { size: 8, color: tokens.series[1] },
     })
@@ -110,9 +111,9 @@ export function GdExplorer() {
 
   const wPlot = useMemo<Data[]>(
     () => [
-      { x: range(p.steps + 1), y: Array.from(tr.w), name: 'w_n（遞迴）', mode: 'lines+markers', line: { color: tokens.series[0] } },
-      { x: range(p.steps + 1), y: closed, name: '封閉解 a − (a−w₀)pⁿ', mode: 'markers', marker: { symbol: 'circle-open', size: 10, color: tokens.series[2] } },
-      { x: [0, p.steps], y: [p.a, p.a], name: 'a', mode: 'lines', line: { dash: 'dash', color: tokens.textMuted } },
+      { x: range(p.steps + 1), y: Array.from(tr.w), name: '$w_n$（遞迴）', mode: 'lines+markers', line: { color: tokens.series[0] } },
+      { x: range(p.steps + 1), y: closed, name: String.raw`封閉解 $a-(a-w_0)\,p^n$`, mode: 'markers', marker: { symbol: 'circle-open', size: 10, color: tokens.series[2] } },
+      { x: [0, p.steps], y: [p.a, p.a], name: '$a$', mode: 'lines', line: { dash: 'dash', color: tokens.textMuted } },
     ],
     [p, tr, closed, tokens],
   )
@@ -174,10 +175,10 @@ export function GdExplorer() {
       onLoadPreset={(pr) => setP(sanitize(pr.params))}
       controls={
         <>
-          <ParamControl {...lab(String.raw`$a$（真實係數）`, 'a（真實係數）')} unit="同 y/x" value={p.a} onChange={(v) => set('a', v)} min={-10} max={10} step={0.1} reg="behavioural: true gain a" />
+          <ParamControl {...lab(String.raw`$a$（真實係數）`, 'a（真實係數）')} unit="同 $y/x$" value={p.a} onChange={(v) => set('a', v)} min={-10} max={10} step={0.1} reg="behavioural: true gain a" />
           <ParamControl {...lab(String.raw`$x$（固定輸入）`, 'x（固定輸入）')} unit="無因次" value={p.x} onChange={(v) => set('x', v)} min={-4} max={4} step={0.01} reg="behavioural: regressor x" />
-          <ParamControl {...lab(String.raw`$w_0$（初值）`, 'w₀（初值）')} unit="同 a" value={p.w0} onChange={(v) => set('w0', v)} min={-10} max={10} step={0.1} reg="REG_W_INIT" />
-          <ParamControl {...lab(String.raw`$\mu$（步長）`, 'μ（步長）')} unit="1/[x]^2" value={p.mu} onChange={(v) => set('mu', v)} min={1e-4} max={2} log reg="REG_LMS_MU" hint={tm(String.raw`穩定：$0<\mu<2/J''=${tn(curv > 0 ? 2 / curv : Infinity)}$`)} />
+          <ParamControl {...lab(String.raw`$w_0$（初值）`, 'w₀（初值）')} unit="同 $a$" value={p.w0} onChange={(v) => set('w0', v)} min={-10} max={10} step={0.1} reg="REG_W_INIT" />
+          <ParamControl {...lab(String.raw`$\mu$（步長）`, 'μ（步長）')} unit="$1/[x]^2$" value={p.mu} onChange={(v) => set('mu', v)} min={1e-4} max={2} log reg="REG_LMS_MU" hint={tm(String.raw`穩定：$0<\mu<2/J''=${tn(curv > 0 ? 2 / curv : Infinity)}$`)} />
           <ParamControl label="步數" unit="samples" value={p.steps} onChange={(v) => set('steps', v)} min={1} max={MAX_STEPS} integer clampOnBlur reg="sim length" hint={tm(String.raw`「單步」每按一次多走一步；「執行至收斂」設成 $|\delta_n|\le10^{-6}|\delta_0|$ 所需的步數`)} />
           <SelectControl
             label="成本的 scaling"
@@ -192,8 +193,8 @@ export function GdExplorer() {
         </>
       }
     >
-      <Plot title="$J(w)$ 與每一步的切線" data={data} height={320} csvName="gd-tangent" layout={{ xaxis: { title: { text: 'w' } }, yaxis: { title: { text: 'J(w)' } } }} />
-      <Plot title="$w_n$：遞迴 vs 封閉解" data={wPlot} height={260} csvName="gd-w" layout={{ xaxis: { title: { text: 'n' } }, yaxis: { title: { text: 'w_n' } } }} />
+      <Plot title="$J(w)$ 與每一步的切線" data={data} height={320} csvName="gd-tangent" layout={{ xaxis: { title: { text: '$w$' } }, yaxis: { title: { text: '$J(w)$' } } }} />
+      <Plot title="$w_n$：遞迴 vs 封閉解" data={wPlot} height={260} csvName="gd-w" layout={{ xaxis: { title: { text: '$n$' } }, yaxis: { title: { text: '$w_n$' } } }} />
       <div className="table-wrap">
         <table className="ch02-table">
           <caption className="ch02-note">逐步數值（由上方同一個 gradientDescent() 計算）</caption>

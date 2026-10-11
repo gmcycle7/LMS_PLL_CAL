@@ -98,11 +98,11 @@ export function ProbabilitySection() {
   const pdfData = useMemo<Data[]>(() => {
     const shadeX = T.z.filter((x) => x >= -T.rDemo)
     return [
-      { x: T.z, y: T.z.map(normPdf), name: 'φ(z)：v/σ_v 的 PDF', mode: 'lines', line: { color: tokens.series[0] } },
+      { x: T.z, y: T.z.map(normPdf), name: String.raw`$\varphi(z)$：$v/\sigma_v$ 的 PDF`, mode: 'lines', line: { color: tokens.series[0] } },
       {
         x: shadeX,
         y: shadeX.map(normPdf),
-        name: `面積 = P(q=+1) = Φ(r) = ${fx(T.pDemo, 4)}`,
+        name: String.raw`面積 $= P(q=+1) = \Phi(r) =$ ${fx(T.pDemo, 4)}`,
         mode: 'lines',
         fill: 'tozeroy',
         line: { color: tokens.series[2], width: 0 },
@@ -158,10 +158,10 @@ export function ProbabilitySection() {
         title={String.raw`標準化後的雜訊 PDF：陰影面積就是 $P(q=+1)$（示意 $r=0.6$）`}
         data={pdfData}
         layout={{
-          xaxis: { title: { text: 'z = v/σ_v' } },
-          yaxis: { title: { text: 'φ(z)' } },
+          xaxis: { title: { text: String.raw`$z = v/\sigma_v$` } },
+          yaxis: { title: { text: String.raw`$\varphi(z)$` } },
           shapes: [vline(-T.rDemo, tokens.series[1])],
-          annotations: [{ x: -T.rDemo, y: 0.42, text: 'z = −r = (θ − s)/σ_v', showarrow: false, xanchor: 'right' }],
+          annotations: [{ x: -T.rDemo, y: 0.42, text: String.raw`$z = -r = (\theta - s)/\sigma_v$`, showarrow: false, xanchor: 'right', xshift: -4 }],
         }}
         height={260}
         csvName="ch05-pdf-shade"

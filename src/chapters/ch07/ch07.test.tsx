@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { renderTex } from '@/components'
+import * as plotMathModule from '@/components/plotMath'
+import { unicodeMathIn } from '@/components/mermaidTestUtils'
 import { SettingsProvider } from '@/app/settings'
 import { presetById, presetsForExperiment } from '@/app/presets'
 import { analyzeFxLab, closedLoopConsistent, runFxComparison } from '@/simulation/models/filteredX'
@@ -56,6 +58,32 @@ function plainMathText(container: HTMLElement): string[] {
     const el = n.parentElement
     const t = (n.textContent ?? '').trim().replace(/C (?:≤|≈) 0/g, '')
     if (el && t && PLAIN_MATH.test(t) && !el.closest(SKIP)) out.push(`<${el.tagName.toLowerCase()} class="${el.getAttribute('class') ?? ''}"> ${t}`)
+  }
+  return out
+}
+
+/**
+ * Plot 元件送進 Plotly 之前的圖內文字（trace 名稱、軸標題、標註、ticktext、hovertemplate…）：
+ * 以 spy 截下 Plot 呼叫 applyPlotMath 時的原始 data／layout（docs/teaching-style.md §3：圖裡面的數學也要用 LaTeX）。
+ */
+function plotStringsOf(calls: unknown[][]): string[] {
+  const KEYS = new Set(['name', 'text', 'title', 'ticktext', 'hovertemplate', 'texttemplate', 'hovertext'])
+  const out: string[] = []
+  const walk = (v: unknown, key: string | null, depth: number): void => {
+    if (depth > 6 || v === null || v === undefined) return
+    if (typeof v === 'string') {
+      if (key !== null && KEYS.has(key)) out.push(v)
+      return
+    }
+    if (Array.isArray(v)) {
+      v.forEach((x) => walk(x, key, depth + 1))
+      return
+    }
+    if (typeof v === 'object' && !ArrayBuffer.isView(v)) for (const [k, x] of Object.entries(v)) walk(x, k, depth + 1)
+  }
+  for (const [data, layout] of calls) {
+    walk(data, null, 0)
+    walk(layout, null, 0)
   }
   return out
 }
@@ -192,6 +220,7 @@ describe('Chapter 07（jsdom smoke）', () => {
   }, 240000)
 
   it('T07: Gallery #4 以 ?preset= 載入 Lab，閉迴路（inline worker）顯示 A/B/C 三組結果', async () => {
+    const plotSpy = vi.spyOn(plotMathModule, 'applyPlotMath')
     const { container } = renderChapter('/ch/07?preset=delay-phi-m120-d4')
     expect(await screen.findByText(/Case C：後半段 mean/, undefined, { timeout: 120000 })).toBeTruthy()
     expect(screen.getByText(/Case A：後半段 mean/)).toBeTruthy()
@@ -218,8 +247,24 @@ describe('Chapter 07（jsdom smoke）', () => {
     await waitFor(() => {
       const names = P.react.mock.calls.flatMap((c) => ((c as unknown as [unknown, { name?: string }[]])[1] ?? []).map((d) => d.name ?? ''))
       expect(names.some((n) => n.startsWith('Case A：raw-x'))).toBe(true)
-      expect(names.some((n) => n.startsWith('Case B：delayed-x，D = 4'))).toBe(true)
+      // 圖例名稱裡的 $D=4$ 由 plotMath 轉成斜體的 D（Plotly 收到的是 pseudo-HTML）
+      expect(names.some((n) => n.startsWith('Case B：delayed-x，<i>D</i> = 4'))).toBe(true)
     }, { timeout: 60000 })
+    // 整章所有 Plotly 圖（3.3 節的三張、3.5 節的一張、Lab 的波形／相關 vs D／逐頻率相位／閉迴路）的圖內文字：數學一律是 `$...$`
+    const strings = plotStringsOf(plotSpy.mock.calls as unknown[][])
+    plotSpy.mockRestore()
+    expect(strings.length).toBeGreaterThan(40)
+    expect(strings.filter((s) => s.includes('$')).length).toBeGreaterThanOrEqual(30)
+    const INLINE = /(?<!\\)\$((?:[^$\\]|\\.)+?)(?<!\\)\$/g
+    for (const str of strings) {
+      expect((str.match(/(?<!\\)\$/g) ?? []).length % 2, str).toBe(0)
+      // 文字部分沒有 Unicode 拼的數學（希臘字母、∠、帶帽子的 Ĥ、上下標字元、x_ref 這類底線下標、E[…]）
+      const rest = str.replace(INLINE, '')
+      expect(unicodeMathIn(rest), `圖內文字：${str}`).toEqual([])
+      expect(rest, `圖內文字：${str}`).not.toMatch(/[ĤĥŷΔ∠]|\u0302|\bE\[|[A-Za-z]\[n[-−]/u)
+      // 轉成 Plotly pseudo-HTML 之後沒有殘留的 TeX（反斜線、大括號、$）；不支援的指令會原樣顯示指令名稱，所以也不能有 \ 開頭的字樣
+      expect(plotMathModule.plotMath(str), `圖內文字：${str}`).not.toMatch(/[\\${}]/)
+    }
   }, 240000)
 
   it('三模式切換：點 filtered-x 後目前 Case 改為 filtered（aria-checked），並顯示 Ĥ 誤差控制', async () => {

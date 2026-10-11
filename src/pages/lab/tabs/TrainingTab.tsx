@@ -172,9 +172,9 @@ export function TrainingTab() {
       ]
       if (p.closedForm) {
         rows.push(
-          { name: `Case ${id}：$E[r]$`, value: p.closedForm.meanSim, unit: 'T_vco', analytic: p.closedForm.mean, tolerance: 0.01, claim: 'exact', formulaId: 'F-LAB.2' },
-          { name: `Case ${id}：$E[r^2]$`, value: p.closedForm.meanSquareSim, unit: 'T_vco²', analytic: p.closedForm.meanSquare, tolerance: 0.01, claim: 'exact', formulaId: 'F-LAB.2' },
-          { name: `Case ${id}：基頻振幅 $A_1$`, value: p.closedForm.line1Sim, unit: 'T_vco', analytic: p.closedForm.line1, tolerance: 0.05, toleranceMode: 'rel', claim: 'exact', formulaId: 'F-LAB.3' },
+          { name: `Case ${id}：$E[r]$`, value: p.closedForm.meanSim, unit: '$T_{\\mathrm{vco}}$', analytic: p.closedForm.mean, tolerance: 0.01, claim: 'exact', formulaId: 'F-LAB.2' },
+          { name: `Case ${id}：$E[r^2]$`, value: p.closedForm.meanSquareSim, unit: '$T_{\\mathrm{vco}}^2$', analytic: p.closedForm.meanSquare, tolerance: 0.01, claim: 'exact', formulaId: 'F-LAB.2' },
+          { name: `Case ${id}：基頻振幅 $A_1$`, value: p.closedForm.line1Sim, unit: '$T_{\\mathrm{vco}}$', analytic: p.closedForm.line1, tolerance: 0.05, toleranceMode: 'rel', claim: 'exact', formulaId: 'F-LAB.3' },
         )
       }
       return rows

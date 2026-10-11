@@ -1,6 +1,8 @@
 import { act, configure, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
+import { plotMath } from '@/components'
+import { allChartStrings, chartStringProblems } from '../chartStrings.testutil'
 import { ComparatorLab } from './ComparatorLab'
 
 // 多個 agent／開發者同時跑測試時 CPU 會嚴重超額（load average 曾達數百），jsdom 渲染與 Monte Carlo 比平常慢一到兩個數量級：
@@ -26,6 +28,20 @@ const P = vi.hoisted(() => ({
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
 vi.mock('plotly.js-dist-min', () => ({ default: P }))
+
+// 圖內文字（軸標題、圖例名稱、註記）的數學一律寫 `$...$`：<Plot> 先套用 applyPlotMath 再交給 Plotly，
+// 所以在轉換前記下作者寫的字串（chartStrings.testutil.ts），Plotly.react 看到的則是轉換後的 pseudo-HTML。
+const plotCalls = vi.hoisted(() => [] as { data: unknown; layout: unknown }[])
+vi.mock('@/components/plotMath', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/plotMath')>()
+  return {
+    ...actual,
+    applyPlotMath: (data: unknown, layout: unknown) => {
+      plotCalls.push({ data, layout })
+      return actual.applyPlotMath(data, layout)
+    },
+  }
+})
 
 /** 最近一次送進 Plotly.react、且含有符合條件的 trace 的那張圖。 */
 function lastPlotWith(pred: (t: Trace) => boolean): Trace[] | undefined {
@@ -54,7 +70,10 @@ function renderLab(url = '/ch/05') {
 const done = (container: HTMLElement) => waitFor(() => expect(container.textContent).toContain('Monte Carlo 完成'))
 
 describe('Comparator Lab（互動）', () => {
-  beforeEach(() => P.react.mockClear())
+  beforeEach(() => {
+    P.react.mockClear()
+    plotCalls.length = 0
+  })
 
   it('T05: histogram 的三條資料（MC／精確 Binomial／CLT）來自同一組參數；切到 average 尺度後橫軸縮小 N 倍（E18）', async () => {
     const errSpy = vi.spyOn(console, 'error')
@@ -86,6 +105,20 @@ describe('Comparator Lab（互動）', () => {
     const avg = lastPlotWith((t) => t.type === 'bar')!
     const ratio = Math.max(...xs) / Math.max(...Array.from(avg[0].x!))
     expect(ratio).toBeCloseTo(10001, 6) // 差 N 倍
+    // 圖內數學：sum／average 兩種橫軸標題都是 LaTeX，轉成斜體符號與真正的上下標後交給 Plotly（沒有殘留的 $、反斜線、大括號）
+    const strings = allChartStrings(plotCalls)
+    expect(strings).toContain(String.raw`$S_N = \sum q_i$`)
+    expect(strings).toContain('$G = S_N / N$')
+    expect(plotMath(String.raw`$S_N = \sum q_i$`)).toBe('<i>S</i><sub><i>N</i></sub> = Σ<i>q</i><sub><i>i</i></sub>')
+    expect(plotMath('$G = S_N / N$')).toBe('<i>G</i> = <i>S</i><sub><i>N</i></sub>/<i>N</i>')
+    const axisTitles = P.react.mock.calls.map((c) => ((c[2] as { xaxis?: { title?: { text?: string } } } | undefined)?.xaxis?.title?.text ?? ''))
+    expect(axisTitles).toContain(plotMath('$G = S_N / N$'))
+    expect(axisTitles.filter((t) => /[$\\{}]/.test(t))).toEqual([])
+    // 六張圖的軸標題、圖例名稱、註記：數學都在成對的 $...$ 裡，公式以外沒有 Unicode 拼的數學
+    expect(chartStringProblems(plotCalls)).toEqual([])
+    for (const s of ['$e = s + v$ 的 PDF', '$E[q]$ vs $s$', '$K_q$ 切線', '精確（奇數 $N$）', '$E[G] = m$', '$P(\\text{判對})$']) {
+      expect(strings.some((t) => t.includes(s)), s).toBe(true)
+    }
     const real = errSpy.mock.calls.map((c) => String(c[0])).filter((m) => !/not wrapped in act/.test(m))
     expect(real).toEqual([])
     errSpy.mockRestore()
@@ -121,19 +154,23 @@ describe('Comparator Lab（互動）', () => {
     const rule = await screen.findByLabelText(/tie rule（S_N = 0）— Case B/)
     fireEvent.change(rule, { target: { value: '2' } }) // 選項索引：strict / half / plus / skip
     await waitFor(() => expect(container.textContent).toContain(' 精確（plus）'))
+    // 圖例名稱的數學是 LaTeX（`$N$`）：Plotly 看到的是轉換後的斜體 N
+    const nameB = plotMath('B 精確（偶數 $N$，plus）')
+    const nameA = plotMath('A 精確（偶數 $N$，strict）')
+    expect(nameB).toBe('B 精確（偶數 <i>N</i>，plus）')
     await waitFor(() => {
-      const pn = lastPlotWith((t) => (t.name ?? '').startsWith('B 精確（偶數 N，plus）'))
+      const pn = lastPlotWith((t) => (t.name ?? '').startsWith(nameB))
       expect(pn).toBeTruthy()
-      expect(pn!.some((t) => (t.name ?? '').startsWith('A 精確（偶數 N，strict）'))).toBe(true)
+      expect(pn!.some((t) => (t.name ?? '').startsWith(nameA))).toBe(true)
     })
     // N = 100：Case B（plus）的偶數曲線在 N = 100 的值 = 57.14%，Case A（strict）= 49.20%
-    const pn = lastPlotWith((t) => (t.name ?? '').startsWith('B 精確（偶數 N，plus）'))!
+    const pn = lastPlotWith((t) => (t.name ?? '').startsWith(nameB))!
     const at100 = (name: string) => {
       const t = pn.find((x) => (x.name ?? '').startsWith(name))!
       return Array.from(t.y!)[Array.from(t.x!).indexOf(100)]
     }
-    expect(at100('B 精確（偶數 N，plus）')).toBeCloseTo(0.5714, 4)
-    expect(at100('A 精確（偶數 N，strict）')).toBeCloseTo(0.4920, 4)
+    expect(at100(nameB)).toBeCloseTo(0.5714, 4)
+    expect(at100(nameA)).toBeCloseTo(0.4920, 4)
     await waitFor(() => expect(container.textContent).toMatch(/依 sign\(0\) = \+1：tie 判 \+1：判對 57\.139%/))
     await done(container)
     expect(container.textContent).not.toContain('Monte Carlo 與精確值不一致')

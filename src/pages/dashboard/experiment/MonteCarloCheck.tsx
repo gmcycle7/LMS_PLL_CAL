@@ -129,13 +129,13 @@ export function MonteCarloPanel({ mc, r, caseId, seriesIndex, seed }: { mc: Mont
     return [
       { x: xs, y: aUp, type: 'scatter', mode: 'lines', line: { width: 0, color: cA }, hoverinfo: 'skip', showlegend: false },
       { x: xs, y: aLo, type: 'scatter', mode: 'lines', line: { width: 0, color: cA }, fill: 'tonexty', fillcolor: withAlpha(cA, 0.16), hoverinfo: 'skip', showlegend: false },
-      { x: xs, y: aMean, type: 'scatter', mode: 'lines', line: { width: 2, color: cA }, name: '解析：E[w_k − a]（陰影 ±1σ）' },
+      { x: xs, y: aMean, type: 'scatter', mode: 'lines', line: { width: 2, color: cA }, name: '解析：$E[w_k - a]$（陰影 $\\pm1\\sigma$）' },
       { x: xs, y: mMean, type: 'scatter', mode: 'lines', line: { width: 1.5, color: cM }, name: `Monte Carlo：${outcome.runs} seeds 平均` },
-      { x: xs, y: mUp, type: 'scatter', mode: 'lines', line: { width: 1, dash: 'dot', color: cM }, name: 'Monte Carlo：平均 ± 跨 seed 標準差' },
+      { x: xs, y: mUp, type: 'scatter', mode: 'lines', line: { width: 1, dash: 'dot', color: cM }, name: 'Monte Carlo：平均 $\\pm$ 跨 seed 標準差' },
       { x: xs, y: mLo, type: 'scatter', mode: 'lines', line: { width: 1, dash: 'dot', color: cM }, showlegend: false },
     ]
   }, [outcome, r, tokens, seriesIndex])
-  const layout = useMemo(() => ({ xaxis: { title: { text: 'GMAC block k' } }, yaxis: { title: { text: 'w_k − a  [fs]' } } }), [])
+  const layout = useMemo(() => ({ xaxis: { title: { text: 'GMAC block $k$' } }, yaxis: { title: { text: '$w_k - a$ [fs]' } } }), [])
 
   return (
     <section className="dash-mc" aria-labelledby="dash-mc-h">

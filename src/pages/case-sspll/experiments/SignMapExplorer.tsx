@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import type { Data, Layout } from 'plotly.js-dist-min'
-import { ExperimentShell, ParamControl, Plot, SelectControl, ToggleControl, mathText, useThemeTokens, type ExperimentPreset, type MetricRow } from '@/components'
+import { ExperimentShell, ParamControl, Plot, SelectControl, ToggleControl, mathText, plotMath, useThemeTokens, type ExperimentPreset, type MetricRow } from '@/components'
 import { presetsForExperiment, useUrlPreset } from '@/app/presets'
 import {
   analyseAlpha,
@@ -118,16 +118,16 @@ export function classify(kappa: number, tau: number): SignClass {
 const CLASS_TEXT: Record<SignClass, string> = { inverted: '反號（不收斂）', dead: 'dead zone（幾乎沒有恢復力）', restoring: 'restoring（收斂）' }
 
 const HEAT_ROWS: { key: keyof SignMapJson; label: string }[] = [
-  { key: 'LSinf_Ponly_ac', label: '大訊號 κ∞：P-only + ac' },
+  { key: 'LSinf_Ponly_ac', label: '大訊號 $\\kappa_\\infty$：P-only + ac' },
   { key: 'kP_Ponly', label: 'PHOS：P-only' },
   { key: 'kP_2diff', label: 'PHOS：2diff' },
-  { key: 'kG_D1', label: 'GOS：D = +1' },
-  { key: 'kP_D1', label: 'PHOS：D = +1' },
+  { key: 'kG_D1', label: 'GOS：$D=+1$' },
+  { key: 'kP_D1', label: 'PHOS：$D=+1$' },
   { key: 'kP_fx', label: 'PHOS：filtered-x' },
   { key: 'kG_1diff', label: 'GOS：1diff' },
   { key: 'kP_1diff', label: 'PHOS：1diff' },
-  { key: 'LSinf_ac', label: '大訊號 κ∞：ac' },
-  { key: 'LSinf', label: '大訊號 κ∞：raw' },
+  { key: 'LSinf_ac', label: '大訊號 $\\kappa_\\infty$：ac' },
+  { key: 'LSinf', label: '大訊號 $\\kappa_\\infty$：raw' },
   { key: 'km4_re', label: 'raw：mode 4' },
   { key: 'km3_re', label: 'raw：mode 3' },
   { key: 'km2_re', label: 'raw：mode 2' },
@@ -271,7 +271,7 @@ export function SignMapExplorer() {
     { name: 'mode-1 嚴格界限 [下, 上]', value: `[${fs(an.m1Lower, 4)}, ${fs(an.m1Upper, 4)}]`, formulaId: 'F-CS.14', claim: 'exact', note: an.m1Upper < 0 ? '上界 $<0$：一定反號' : an.m1Lower >= 0 ? '下界 $\\ge0$：mode-1 不可能反號' : '界限跨過 0：要看實際的和' },
     {
       name: '$\\kappa_{GOS}=12\\,C_{GOS}$（ergodic）',
-      value: an.beta === 0 ? '不可觀測（ρ ≡ 0）' : an.kappaGos,
+      value: an.beta === 0 ? '不可觀測（鋸齒 regressor 恆為 0）' : an.kappaGos,
       digits: 5,
       formulaId: 'F-CS.11',
       claim: 'exact',
@@ -281,7 +281,7 @@ export function SignMapExplorer() {
   ]
   if (exact) {
     metrics.push(
-      { name: `精確週期（$\\alpha=${exact.P}/${exact.Q}$）：$\\kappa_{PHOS}$`, value: Number.isFinite(exact.kr.kP) ? exact.kr.kP : null, digits: 5, claim: 'exact', note: `$\\min\\mathrm{Re}\\,\\mathrm{eig}$ ÷ 開迴路參考（${fp(exact.kr.refP, 4)}）；可觀測 PHOS 方向 ${exact.kr.phosNObs} 個` },
+      { name: `精確週期（$\\alpha=${exact.P}/${exact.Q}$）：$\\kappa_{PHOS}$`, value: Number.isFinite(exact.kr.kP) ? exact.kr.kP : null, digits: 5, claim: 'exact', note: `$\\min\\mathrm{Re}\\,\\mathrm{eig}$ $\\div$ 開迴路參考（${fp(exact.kr.refP, 4)}）；可觀測 PHOS 方向 ${exact.kr.phosNObs} 個` },
       { name: '精確週期：$\\kappa_{GOS}=C_{GOS}/\\mathrm{var}(\\rho)$', value: Number.isFinite(exact.kr.kG) ? exact.kr.kG : '不可觀測', digits: 5, claim: 'exact' },
       { name: '精確週期：joint $9\\times9$ 的 $\\min\\mathrm{Re}\\,\\mathrm{eig}$（同一正規化）', value: Number.isFinite(exact.kr.kJ) ? exact.kr.kJ : null, digits: 5, formulaId: 'F-CS.15', claim: 'exact', note: `GOS–PHOS 耦合 $\\max\\lvert C_{0k}\\rvert=${exact.kr.coupling < 1e-15 ? '0' : txs(exact.kr.coupling, 2)}$` },
       {
@@ -319,14 +319,14 @@ export function SignMapExplorer() {
     const re = [...an.kappaM.map((k) => k.re), an.beta === 0 ? 0 : an.kappaGos]
     const colors = re.map((v) => (v < -dP.tau ? COL_NEG : v > dP.tau ? COL_POS : COL_DEAD))
     const traces: Data[] = [
-      { type: 'bar', x: names, y: re, name: 'Re κ（ergodic 諧波和）', marker: { color: colors } },
-      { x: names.slice(0, 7), y: an.kappaM.map((k) => k.im), name: 'Im κ_m', mode: 'markers', marker: { symbol: 'diamond-open', size: 9, color: tokens.textMuted } },
+      { type: 'bar', x: names, y: re, name: '$\\mathrm{Re}\\,\\kappa$（ergodic 諧波和）', marker: { color: colors } },
+      { x: names.slice(0, 7), y: an.kappaM.map((k) => k.im), name: '$\\mathrm{Im}\\,\\kappa_m$', mode: 'markers', marker: { symbol: 'diamond-open', size: 9, color: tokens.textMuted } },
     ]
     if (exact)
       traces.push({
         x: names,
         y: [...exact.kr.km.map((k) => k.re), Number.isFinite(exact.kr.kG) ? exact.kr.kG : null],
-        name: `精確週期（α = ${exact.P}/${exact.Q}）`,
+        name: `精確週期（$\\alpha=${exact.P}/${exact.Q}$）`,
         mode: 'markers',
         marker: { symbol: 'x', size: 10, color: tokens.text },
       })
@@ -341,14 +341,14 @@ export function SignMapExplorer() {
       const y = column(map, key)
       if (y) t.push({ x: f, y, name, mode: 'lines', line: { color, dash, width: dash ? 1.3 : 2 } })
     }
-    add(setup.colP, `PHOS κ_P（${dP.mode}，golden signmap）`, tokens.series[0])
-    add(setup.colG, `GOS κ_G（${dP.mode}）`, tokens.series[1])
+    add(setup.colP, `PHOS $\\kappa_P$（${dP.mode}，golden signmap）`, tokens.series[0])
+    add(setup.colG, `GOS $\\kappa_G$（${dP.mode}）`, tokens.series[1])
     if (dP.mode === 'raw' || dP.mode === 'ac') {
       add('km1_re', 'mode 1', tokens.series[2], 'dot')
       add('km2_re', 'mode 2', tokens.series[3], 'dot')
       add('km4_re', 'mode 4', tokens.series[4] ?? tokens.textMuted, 'dot')
     }
-    add(setup.colLS, '大訊號 κ∞', tokens.textMuted, 'dashdot')
+    add(setup.colLS, '大訊號 $\\kappa_\\infty$', tokens.textMuted, 'dashdot')
     // 目前 α 的垂直標線：用 trace 畫（log 軸上 shape 的座標約定容易出錯）
     let lo = 0
     let hi = 0
@@ -362,24 +362,24 @@ export function SignMapExplorer() {
         }
       }
     }
-    t.push({ x: [fFold, fFold], y: [lo, hi], name: '目前的 α', mode: 'lines', line: { color: tokens.textMuted, dash: 'dot', width: 1 }, hoverinfo: 'skip', showlegend: false })
-    t.push({ x: [fFold], y: [an.kappaPhos], name: '目前的 α：κ_PHOS（TS port）', mode: 'markers', marker: { size: 13, symbol: 'star', color: tokens.series[0], line: { color: tokens.text, width: 1 } } })
-    if (an.beta !== 0) t.push({ x: [fFold], y: [an.kappaGos], name: '目前的 α：κ_GOS（TS port）', mode: 'markers', marker: { size: 11, symbol: 'diamond', color: tokens.series[1], line: { color: tokens.text, width: 1 } } })
+    t.push({ x: [fFold, fFold], y: [lo, hi], name: '目前的 $\\alpha$', mode: 'lines', line: { color: tokens.textMuted, dash: 'dot', width: 1 }, hoverinfo: 'skip', showlegend: false })
+    t.push({ x: [fFold], y: [an.kappaPhos], name: '目前的 $\\alpha$：$\\kappa_{\\mathrm{PHOS}}$（TS port）', mode: 'markers', marker: { size: 13, symbol: 'star', color: tokens.series[0], line: { color: tokens.text, width: 1 } } })
+    if (an.beta !== 0) t.push({ x: [fFold], y: [an.kappaGos], name: '目前的 $\\alpha$：$\\kappa_{\\mathrm{GOS}}$（TS port）', mode: 'markers', marker: { size: 11, symbol: 'diamond', color: tokens.series[1], line: { color: tokens.text, width: 1 } } })
     return t
   }, [map, setup, dP.mode, tokens, fFold, an])
 
   const lineLayout: Partial<Layout> = useMemo(
     () => ({
       shapes: [{ type: 'line', xref: 'paper', yref: 'y', x0: 0, x1: 1, y0: 0, y1: 0, line: { color: tokens.textMuted, width: 1 } }],
-      xaxis: { title: { text: 'min(α, 1−α)·f_ref [MHz]' } },
-      yaxis: { title: { text: 'κ（> 0 restoring；< 0 反號）' } },
+      xaxis: { title: { text: '$\\min(\\alpha,\\,1-\\alpha)\\cdot f_{\\mathrm{ref}}$ [MHz]' } },
+      yaxis: { title: { text: '$\\kappa$（$>0$ restoring；$<0$ 反號）' } },
     }),
     [tokens],
   )
 
   // ── 圖 3：sign map 熱圖 ──
   const heat = useMemo(() => {
-    const rows = HEAT_ROWS.filter((row) => Array.isArray(map[row.key]))
+    const rows = HEAT_ROWS.filter((row) => Array.isArray(map[row.key])).map((row) => ({ ...row, label: plotMath(row.label) })) // y 軸的類別名稱不經 applyPlotMath，這裡先轉
     const z = rows.map((row) => (map[row.key] as number[]).map((v) => (v < -dP.tau ? -1 : v > dP.tau ? 1 : 0)))
     const data: Data[] = [
       {
@@ -402,12 +402,12 @@ export function SignMapExplorer() {
       } as Data,
     ]
     if (rows.length > 1)
-      data.push({ x: [fFold, fFold], y: [rows[0].label, rows[rows.length - 1].label], name: '目前的 α', mode: 'lines', line: { color: tokens.text, width: 2 }, hoverinfo: 'skip', showlegend: false })
+      data.push({ x: [fFold, fFold], y: [rows[0].label, rows[rows.length - 1].label], name: '目前的 $\\alpha$', mode: 'lines', line: { color: tokens.text, width: 2 }, hoverinfo: 'skip', showlegend: false })
     return { data, n: rows.length }
   }, [map, dP.tau, fFold, tokens])
   const heatLayout: Partial<Layout> = useMemo(
     () => ({
-      xaxis: { title: { text: 'min(α, 1−α)·f_ref [MHz]（直線 = 目前的 α）' }, type: dP.logX ? 'log' : 'linear' },
+      xaxis: { title: { text: '$\\min(\\alpha,\\,1-\\alpha)\\cdot f_{\\mathrm{ref}}$ [MHz]<br>（直線 = 目前的 $\\alpha$）' }, type: dP.logX ? 'log' : 'linear' },
       yaxis: { automargin: true },
       margin: { l: 170 },
     }),
@@ -520,7 +520,7 @@ export function SignMapExplorer() {
         data={barData}
         height={300}
         csvName="sspll-kappa-modes"
-        layout={{ yaxis: { title: { text: 'κ' } }, barmode: 'overlay' }}
+        layout={{ yaxis: { title: { text: '$\\kappa$' } }, barmode: 'overlay' }}
         caption="藍＝restoring、紅＝反號、灰＝dead zone；菱形是虛部（有限步長判據用）；✕ 是有理數 $\alpha$ 的精確週期值（$8\nmid Q$ 時是 Rayleigh quotient，不是特徵值）。"
       />
       <Plot

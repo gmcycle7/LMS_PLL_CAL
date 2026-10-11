@@ -119,8 +119,8 @@
   }
   .c-code-compare-columns .c-code-compare-body {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
-    grid-auto-flow: column;
+    /* 每欄至少 400px：兩份並排、三四份自動折成兩欄多列，不會擠成四條窄欄 */
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr));
     gap: 10px;
   }
   .c-code-compare-columns .c-code-compare-item {
@@ -357,6 +357,29 @@
 .c-handcalc-label {
   color: var(--text-muted);
   font-size: 0.84rem;
+}
+/* 每個輸入固定兩列：上面是符號＋說明（說明太長就在自己的格子裡換行），下面是輸入框＋單位。
+   不這樣固定的話，說明短的會和輸入框擠在同一列、長的會掉到下一列，整排看起來高低不齊。 */
+.c-handcalc-input {
+  align-items: baseline;
+  align-content: start;
+}
+.c-handcalc-input .c-handcalc-label {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.c-handcalc-input::before {
+  content: '';
+  order: 1;
+  flex: 0 0 100%;
+  height: 0;
+}
+.c-handcalc-input input,
+.c-handcalc-input .c-handcalc-unit {
+  order: 2;
+}
+.c-handcalc-input .c-handcalc-err {
+  order: 3;
 }
 .c-handcalc-unit {
   color: var(--text-muted);

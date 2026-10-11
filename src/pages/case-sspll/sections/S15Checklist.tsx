@@ -55,11 +55,11 @@ export function S15Checklist() {
         15.2 <Tex>{r`\alpha`}</Tex> keep-out 配方（給 raw 或 <code>ac</code> regressor 用）
       </h3>
       <p>
-        keep-out 的意思是：列出一張「不要在這些頻道更新權重」的清單。要不要把某個頻道 <Tex>{r`\alpha`}</Tex> 列進去，照下面的流程問四個問題；每個菱形的細節（門檻怎麼算、PVT 怎麼留 margin）在流程圖後面的清單裡。
+        keep-out 的意思是：列出一張「不要在這些頻道更新權重」的清單。要不要把某個頻道 <Tex>{r`\alpha`}</Tex> 列進去，照下面的流程問四個問題；每個六角形判斷框的細節（門檻怎麼算、PVT 怎麼留 margin）在流程圖後面的清單裡。
       </p>
       <Diagram id="keepout" />
       <p>
-        先看第一個菱形：regressor 若已經換成一階差分（延遲對齊 <Tex>{'D=0'}</Tex>、margin <Tex>{r`\min_\Omega g\ge0`}</Tex>，§11.1）或 filtered-x（模型與迴路的相位差不超過 90°，§11.2），直接結束，不需要 keep-out。再看 ①②③ 三個檢查，它們對應三種不同的機制：① 是 PMUX 的旋轉頻率 <Tex>{'f_{rot}'}</Tex> 落在 mode-1 的反號帶（清單第 1–3
+        先看第一個判斷框（六角形）：regressor 若已經換成一階差分（延遲對齊 <Tex>{'D=0'}</Tex>、margin <Tex>{r`\min_\Omega g\ge0`}</Tex>，§11.1）或 filtered-x（模型與迴路的相位差不超過 90°，§11.2），直接結束，不需要 keep-out。再看 ①②③ 三個檢查，它們對應三種不同的機制：① 是 PMUX 的旋轉頻率 <Tex>{'f_{rot}'}</Tex> 落在 mode-1 的反號帶（清單第 1–3
         步；<Tex>{'h'}</Tex> 是 <Tex>{r`\mathrm{Re}\,H_{PD}`}</Tex>）；② 是 <Tex>{r`\alpha`}</Tex> 靠近 <Tex>{r`\tfrac14`}</Tex> 或 <Tex>{r`\tfrac12`}</Tex> 時，mode 4 或 mode 2 的基波被 alias 回反號帶（第 4 步）；③ 是 <Tex>{r`\alpha`}</Tex> 靠近 <Tex>{'k/8'}</Tex> 時 GOS 的鋸齒變得很慢，遇到 offset
         或大訊號就會反向（第 5 步）。任何一個答「是」，這個頻道就不更新（沿用在安全頻道校準好的權重），或換對策。
       </p>
@@ -90,7 +90,7 @@ export function S15Checklist() {
           點；改用 <code>ac</code> 後剩 {web.L1.n_large_signal_inverted_ac} 點）。
         </li>
         <li>
-          <strong>查網站資料核對。</strong> <code>signmap_L*.json</code> 的 <code>LSinf</code>、<code>LSinf_ac</code> 欄（<Tex>{r`<-10^{-3}`}</Tex> 即列入），以及 <code>summary.large_signal_inverted_MHz</code>——也就是實驗 B 熱圖的「大訊號 κ∞」那兩列。
+          <strong>查網站資料核對。</strong> <code>signmap_L*.json</code> 的 <code>LSinf</code>、<code>LSinf_ac</code> 欄（<Tex>{r`<-10^{-3}`}</Tex> 即列入），以及 <code>summary.large_signal_inverted_MHz</code>——也就是實驗 B 熱圖的「大訊號 <Tex>{r`\kappa_\infty`}</Tex>」那兩列。
         </li>
       </ol>
       <p>本設計（raw，大訊號 <Tex>{r`A\to\infty`}</Tex>，網站的 1 MHz midpoint 網格，<strong>未加 PVT margin</strong>）的 keep-out 總結：</p>

@@ -39,9 +39,9 @@ const PRESETS_A: ExperimentPreset[] = [
   { name: 'offset 以 0.1 為單位（s = 0.1）', params: { ...DEF_A, scale: 0.1 }, description: '換單位：E-optimal 的排名翻轉' },
 ]
 // Plot 的 layout 是靜態的：放在模組層，避免每次 render 產生新物件而觸發 Plotly.react
-const LAYOUT_MEAN: Partial<Layout> = { xaxis: { title: { text: 'm（code 平均）' } }, yaxis: { title: { text: '指標' } } }
-const LAYOUT_SCALE: Partial<Layout> = { xaxis: { title: { text: 's（offset 單位尺度）' } }, yaxis: { title: { text: 'A / B' } } }
-const LAYOUT_NEAR: Partial<Layout> = { xaxis: { title: { text: 'α（FCW 小數，離整數的距離）' } }, yaxis: { title: { text: 'λ_min' } } }
+const LAYOUT_MEAN: Partial<Layout> = { xaxis: { title: { text: '$m$（code 平均）' } }, yaxis: { title: { text: '指標' } } }
+const LAYOUT_SCALE: Partial<Layout> = { xaxis: { title: { text: '$s$（offset 單位尺度）' } }, yaxis: { title: { text: 'A / B' } } }
+const LAYOUT_NEAR: Partial<Layout> = { xaxis: { title: { text: '$\\alpha$（FCW 小數，離整數的距離）' } }, yaxis: { title: { text: '$\\lambda_{\\min}$' } } }
 
 const DESIGN_A = { mean: 0, half: 0.5 }
 const DESIGN_B = { mean: 0.3, half: 0.6 }
@@ -68,14 +68,14 @@ function DesignExperiment() {
   const vsMean: Data[] = useMemo(() => {
     const ms = msGrid
     return [
-      { x: meanGrid, y: ms.map((d) => d.lambdaMin), name: 'λ_min（E-optimal）', mode: 'lines', line: { color: tokens.series[0] } },
-      { x: meanGrid, y: ms.map((d) => d.det), name: 'det R（D-optimal）', mode: 'lines', line: { color: tokens.series[1], dash: 'dash' } },
+      { x: meanGrid, y: ms.map((d) => d.lambdaMin), name: '$\\lambda_{\\min}$（E-optimal）', mode: 'lines', line: { color: tokens.series[0] } },
+      { x: meanGrid, y: ms.map((d) => d.det), name: '$\\det R$（D-optimal）', mode: 'lines', line: { color: tokens.series[1], dash: 'dash' } },
     ]
   }, [meanGrid, msGrid, tokens])
   const flip: Data[] = useMemo(() => {
     return [
-      { x: sGrid, y: ratios.lam, name: 'λ_min(A)/λ_min(B)', mode: 'lines', line: { color: tokens.series[0] } },
-      { x: sGrid, y: ratios.det, name: 'det(A)/det(B)', mode: 'lines', line: { color: tokens.series[1], dash: 'dash' } },
+      { x: sGrid, y: ratios.lam, name: '$\\lambda_{\\min}(A)/\\lambda_{\\min}(B)$', mode: 'lines', line: { color: tokens.series[0] } },
+      { x: sGrid, y: ratios.det, name: '$\\det(A)/\\det(B)$', mode: 'lines', line: { color: tokens.series[1], dash: 'dash' } },
       { x: [sGrid[0], sGrid[sGrid.length - 1]], y: [1, 1], name: '比值 = 1', mode: 'lines', line: { color: tokens.textMuted, dash: 'dot' } },
     ]
   }, [sGrid, ratios, tokens])
@@ -178,9 +178,9 @@ function NearIntExperiment() {
   ]
   const data: Data[] = useMemo(
     () => [
-      { x: ALPHAS, y: sweep, name: '最差窗口 λ_min（數值）', mode: 'lines+markers', marker: { size: 4 }, line: { color: tokens.series[0] } },
-      { x: ALPHAS, y: asym, name: 'α²(N0² − 1)/15', mode: 'lines', line: { color: tokens.series[1], dash: 'dash' } },
-      { x: [ALPHAS[0], ALPHAS[ALPHAS.length - 1]], y: [dP.lambdaT, dP.lambdaT], name: 'λ_t（PE 門檻）', mode: 'lines', line: { color: tokens.textMuted, dash: 'dot' } },
+      { x: ALPHAS, y: sweep, name: '最差窗口 $\\lambda_{\\min}$（數值）', mode: 'lines+markers', marker: { size: 4 }, line: { color: tokens.series[0] } },
+      { x: ALPHAS, y: asym, name: '$\\alpha^2(N_0^2 - 1)/15$', mode: 'lines', line: { color: tokens.series[1], dash: 'dash' } },
+      { x: [ALPHAS[0], ALPHAS[ALPHAS.length - 1]], y: [dP.lambdaT, dP.lambdaT], name: '$\\lambda_t$（PE 門檻）', mode: 'lines', line: { color: tokens.textMuted, dash: 'dot' } },
     ],
     [sweep, asym, dP.lambdaT, tokens],
   )

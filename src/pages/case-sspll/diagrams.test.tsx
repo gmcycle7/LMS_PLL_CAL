@@ -4,8 +4,8 @@ import { fireEvent, render, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import mermaid from 'mermaid'
 import { SettingsProvider } from '@/app/settings'
-import { SYSTEM_BLOCK_LABEL, extractRegion, systemMapChart } from '@/components'
-import { installMermaidSvgShim, renderMermaidForTest } from '@/components/mermaidTestUtils'
+import { SYSTEM_BLOCK_LABEL, extractRegion, sanitizeMermaidSource, stripMathDelimiters, systemMapModel } from '@/components'
+import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { cAbs, cMul, type Complex } from '@/simulation/core/complex'
 import { erf } from '@/simulation/core/special'
 import {
@@ -130,9 +130,20 @@ async function flow(id: string): Promise<{ nodes: FlowVertex[]; edges: FlowEdge[
   }
 }
 
+/** 連線標籤開頭的正負號（可能寫在 `$+\,x$`、`$-\,y$` 裡）：統一成全形「＋」與減號「−」（U+2212） */
+function leadingSign(text: string): string {
+  const c = text.trim().replace(/^\$/, '').charAt(0)
+  return c === '+' ? '＋' : c === '-' ? '−' : c
+}
+
 /** 加法點的輸入必須標正負號：回傳「來源 → 符號」 */
 function signsInto(edges: FlowEdge[], sum: string): Record<string, string> {
-  return Object.fromEntries(edges.filter((e) => e.end === sum).map((e) => [e.start, e.text.trim().charAt(0)]))
+  return Object.fromEntries(edges.filter((e) => e.end === sum).map((e) => [e.start, leadingSign(e.text)]))
+}
+
+/** 雙引號標籤裡含 `$` 的個數（sequenceDiagram 則數 `$$...$$` 的段數）＝ KaTeX 應該排出幾個公式 */
+function mathLabelCount(chart: string): number {
+  return chart.startsWith('sequenceDiagram') ? (chart.match(/\$\$/g) ?? []).length / 2 : (chart.match(/"[^"\n]*\$[^"\n]*"/g) ?? []).length
 }
 
 const cdiv = (a: Complex, b: Complex): Complex => {
@@ -151,9 +162,10 @@ describe('案例頁 /case/sspll 的方塊圖：語法、數量與位置（真正
       const { type } = await parsed(d.chart)
       expect(type, d.id).toBe(d.id === 'align' ? 'sequence' : 'flowchart-v2')
     }
-    // 章首的系統地圖（全站共用元件）本章標示的方塊也能解析
-    const { type } = await parsed(systemMapChart(MAP_FOCUS))
-    expect(type).toBe('flowchart-v2')
+    // 章首的系統地圖是全站共用的手排 SVG（不經過 Mermaid）：本章標示的 10 個方塊都真的在地圖的資料模型裡，而且恰好就是被標成主角的那幾個
+    expect(new Set(MAP_FOCUS).size).toBe(MAP_FOCUS.length)
+    const focused = systemMapModel(MAP_FOCUS).blocks.filter((b) => b.focused)
+    expect(focused.map((b) => b.id).sort()).toEqual([...MAP_FOCUS].sort())
   })
 
   it('SSPLL: 登錄表——id 唯一、圖說是一句完整的話、數學一律用成對的 `$...$`（不用 Unicode 拼數學）、種類合法；每張圖都是具名匯出的 Mermaid 原始碼', () => {
@@ -250,57 +262,57 @@ describe('案例頁 /case/sspll 的方塊圖：訊號名稱、正負號、取樣
   it('SSPLL: 極性——δ = 真值 − 估計；加法點的正負號與 e_PD = u − y、δ[k+1] = δ[k] − μ·K_q·C·δ[k] 相符', async () => {
     // §2 注入點：δ_g = a − w_g、δ_k = ε_k − w_k；兩個誤差都以「+」進入比較點（極性約定已吸收）
     const inj = await flow('injection')
-    expect(inj.node('DG').text).toContain('δ_g·Δ = (a − w_g)·Δ')
-    expect(inj.node('DK').text).toContain('δ_k = ε_k − w_k')
+    expect(inj.node('DG').text).toContain(String.raw`\delta_g\cdot\Delta = (a - w_g)\cdot\Delta`)
+    expect(inj.node('DK').text).toContain(String.raw`\delta_k = \varepsilon_k - w_k`)
     expect(signsInto(inj.edges, 'SU')).toEqual({ MG: '＋', MP: '＋' })
     expect(inj.edge('MG', 'SU').text).toContain('reference 端')
     expect(inj.edge('MP', 'SU').text).toContain('feedback 端')
     expect(inj.edge('SU', 'H').text).toContain('u[n]')
-    expect(inj.edge('H', 'OUT').text).toContain('e_PD[n] = (h_PD * u)[n]')
+    expect(inj.edge('H', 'OUT').text).toContain(String.raw`e_{PD}[n] = (h_{PD} * u)[n]`)
     // §3 主迴路：u 以「+」、y 以「−」進入加法點；加法點的輸出（e_PD）同時送往迴路與比較器
     const hpd = await flow('hpd-loop')
     expect(signsInto(hpd.edges, 'S')).toEqual({ U: '＋', VCO: '−' })
     expect(hpd.edge('VCO', 'S').text).toContain('y[n]')
-    expect(hpd.edge('S', 'LF').text).toBe('e_PD[n]')
-    expect(hpd.edge('S', 'CMP').text).toBe('e_PD[n]')
-    expect(hpd.subs[0].title).toContain('L(z)')
+    expect(hpd.edge('S', 'LF').text).toBe('$e_{PD}[n]$')
+    expect(hpd.edge('S', 'CMP').text).toBe('$e_{PD}[n]$')
+    expect(hpd.subs[0].title).toContain('$L(z)$')
     expect([...hpd.subs[0].nodes].sort()).toEqual(['LF', 'VCO'])
     // §4 平均迴路：δ[k] 以「+」、μ·K_q·C·δ[k] 以「−」
     const mean = await flow('mean-loop')
     expect(signsInto(mean.edges, 'S')).toEqual({ Z: '＋', MU: '−' })
-    expect(mean.edge('S', 'Z').text).toBe('δ[k+1]')
-    expect(mean.edge('KQ', 'MU').text).toContain('K_q·C·δ[k]')
+    expect(mean.edge('S', 'Z').text).toBe(String.raw`$\delta[k+1]$`)
+    expect(mean.edge('KQ', 'MU').text).toContain(String.raw`K_q\cdot C\cdot\delta[k]`)
     // §12 有限步長：θ[k+1] = θ[k] − (κ/N_τ)·θ[k]
     const fin = await flow('finite-step')
     expect(signsInto(fin.edges, 'S')).toEqual({ Z: '＋', K: '−' })
     // §13 offset：殘差、雜訊、offset 三者都以「+」進比較器；forcing 與恢復項分開
     const off = await flow('offset')
     expect(signsInto(off.edges, 'A')).toEqual({ E: '＋', V: '＋', OS: '＋' })
-    expect(off.node('F').text).toContain('E[q]·⟨r_i⟩')
-    expect(off.node('RS').text).toContain('K_q(u_os)·(C·δ)_i')
+    expect(off.node('F').text).toContain(String.raw`E[q]\cdot\langle r_i\rangle`)
+    expect(off.node('RS').text).toContain(String.raw`K_q(u_{os})\cdot(C\cdot\delta)_i`)
     expect(off.edge('ZM', 'F').stroke).toBe('dotted')
     // §14 模擬迴圈：u = (ρΔ + ε_p) − (1 − a)(1 + w_g)(ρΔ + w_p)
     const sim = await flow('sim-loop')
     expect(signsInto(sim.edges, 'S')).toEqual({ ID: '＋', DT: '−' })
-    expect(sim.node('ID').text).toContain('ρ·Δ + ε_p')
-    expect(sim.node('DT').text).toContain('(1 − a)(1 + w_g)·(ρ·Δ + w_p)')
-    expect(sim.node('CMP').text).toContain('sign(e_PD + v + u_os)')
+    expect(sim.node('ID').text).toContain(String.raw`\rho\cdot\Delta + \varepsilon_p`)
+    expect(sim.node('DT').text).toContain(String.raw`(1 - a)(1 + w_g)\cdot(\rho\cdot\Delta + w_p)`)
+    expect(sim.node('CMP').text).toContain(String.raw`\mathrm{sign}(e_{PD} + v + u_{os})`)
   })
 
   it('SSPLL: 取樣率——校正迴路的圖把 sample rate（n）與 block rate（k）分在兩個框；LMS 更新式的符號是「+」', async () => {
     const lms = await flow('lms-loop')
     const fast = lms.subs.find((s) => s.id === 'FAST')!
     const slow = lms.subs.find((s) => s.id === 'SLOW')!
-    expect(fast.title).toMatch(/每個 sample n/)
-    expect(slow.title).toMatch(/每個 block k（N 個 sample）/)
+    expect(fast.title).toContain('每個 sample $n$')
+    expect(slow.title).toContain('每個 block $k$（$N$ 個 sample）')
     expect([...fast.nodes].sort()).toEqual(['AD', 'GZ', 'H', 'M1', 'M2', 'SG'])
     expect([...slow.nodes].sort()).toEqual(['ACC', 'AVG', 'MU'])
-    expect(lms.node('ACC').text).toContain('w_i[k+1] = w_i[k] + μ·G_i[k]')
-    expect(lms.node('DEL').text).toContain('δ_j[k] = 真值 − w_j[k]')
-    expect(lms.edge('M1', 'H').text).toContain('u[n] = Σ_j δ_j·x_j[n]')
+    expect(lms.node('ACC').text).toContain(String.raw`w_i[k+1] = w_i[k] + \mu\cdot G_i[k]`)
+    expect(lms.node('DEL').text).toContain(String.raw`$\delta_j[k]$ = 真值 $- w_j[k]$`)
+    expect(lms.edge('M1', 'H').text).toContain(String.raw`u[n] = \textstyle\sum_j \delta_j\cdot x_j[n]`)
     expect(lms.edge('SG', 'M2').text).toContain('q[n]')
-    expect(lms.edge('GZ', 'M2').text).toBe('r_i[n]')
-    expect(lms.edge('AVG', 'MU').text).toBe('G_i[k]')
+    expect(lms.edge('GZ', 'M2').text).toBe('$r_i[n]$')
+    expect(lms.edge('AVG', 'MU').text).toBe('$G_i[k]$')
     expect(signsInto(lms.edges, 'AD')).toEqual({ H: '＋', V: '＋' })
     // 迴圈是封閉的：累加器 → δ → 乘法點 → H_PD → … → 累加器
     for (const [a, b] of [['ACC', 'DEL'], ['DEL', 'M1'], ['M1', 'H'], ['H', 'AD'], ['AD', 'SG'], ['SG', 'M2'], ['M2', 'AVG'], ['AVG', 'MU'], ['MU', 'ACC']]) expect(lms.edge(a, b)).toBeTruthy()
@@ -310,21 +322,23 @@ describe('案例頁 /case/sspll 的方塊圖：訊號名稱、正負號、取樣
     const seq = db as SeqDb
     expect([...seq.getActors().values()].map((a) => a.description)).toEqual(['分數累加器', 'DTC／PMUX 與 SSPD', '1-bit 比較器', 'regressor 暫存器', 'GMAC'])
     const msgs = seq.getMessages().map((m) => m.message ?? '')
-    expect(msgs).toContain('r[n] = x[n − D]')
-    expect(msgs).toContain('q[n] = sign(e_PD[n] + v[n])')
-    expect(msgs.some((m) => /^D = 0 時 q\[n\] 乘上同一拍的 x\[n\]（正確）$/.test(m))).toBe(true)
-    expect(msgs.some((m) => /^D = \+1 時 q\[n\] 乘上前一拍的 x\[n − 1\]（有害）$/.test(m))).toBe(true)
+    // sequenceDiagram 用 Mermaid 原生的 `$$...$$`（每行一段公式，文字包在 \text{} 裡）
+    expect(msgs).toContain('$$r[n] = x[n - D]$$')
+    expect(msgs).toContain(String.raw`$$q[n] = \mathrm{sign}(e_{PD}[n] + v[n])$$`)
+    // 兩則註解各折成兩行（單一個 `$$...$$`，用 gathered 換行），讓 5 個 actor 的時序圖放得進正文欄
+    expect(msgs.some((m) => m === String.raw`$$\begin{gathered}D = 0\text{ 時 }q[n]\text{ 乘上同一拍的}\cr x[n]\text{（正確）}\end{gathered}$$`)).toBe(true)
+    expect(msgs.some((m) => m === String.raw`$$\begin{gathered}D = +1\text{ 時 }q[n]\text{ 乘上前一拍的}\cr x[n - 1]\text{（有害）}\end{gathered}$$`)).toBe(true)
   })
 
   it('SSPLL: 小數相位的拆法——圖上的運算（frac → ×8 → floor、相減）重現 sspll.ts 的 phaseSequence', async () => {
     const ps = await flow('phase-split')
     expect(signsInto(ps.edges, 'S')).toEqual({ A: '＋', Z: '＋' })
     expect(signsInto(ps.edges, 'D')).toEqual({ X8: '＋', FL: '−' })
-    expect(ps.edge('F', 'X8').text).toBe('φ[n] = frac(nα)')
+    expect(ps.edge('F', 'X8').text).toBe(String.raw`$\varphi[n] = \mathrm{frac}(n\alpha)$`)
     expect(ps.edge('FL', 'PM').text).toContain('p[n]')
-    expect(ps.edge('D', 'DTC').text).toContain('ρ[n] = 8φ[n] − p[n]')
-    expect(ps.node('OH').text).toContain('1{p[n] = k}')
-    expect(ps.node('X0').text).toContain('x₀[n] = ρ[n]')
+    expect(ps.edge('D', 'DTC').text).toContain(String.raw`\rho[n] = 8\varphi[n] - p[n]`)
+    expect(ps.node('OH').text).toContain(String.raw`\mathbf{1}\{p[n] = k\}`)
+    expect(ps.node('X0').text).toContain(String.raw`x_0[n] = \rho[n]`)
     // 照圖做一次（α = P/Q，用整數運算避免浮點累加誤差）：φ[n] = frac(φ[n−1] + α)，p = floor(8φ)，ρ = 8φ − p
     for (const [P, Q] of [[137, 1000], [21, 1000], [3, 10], [1, 50]] as const) {
       const ref = phaseSequence(P / Q, 60, 'right')
@@ -349,7 +363,7 @@ describe('案例頁 /case/sspll 的方塊圖：訊號名稱、正負號、取樣
     expect(blue('LOOP1')).toBe(LOOPS.L1.type)
     expect(blue('LOOP2')).toBe(LOOPS.L2.type)
     expect(blue('LOOP3')).toBe(LOOPS.L3.type)
-    expect(tl.subs.map((s) => s.title)).toEqual(['L1：SSPLL Type-I（1 個積分器）', 'L2：SSPLL Type-II（2 個積分器）', 'L3：傳統 CPPLL（2 個積分器 + 1 個極點）'])
+    expect(tl.subs.map((s) => s.title)).toEqual(['$L_1$：SSPLL Type-I（1 個積分器）', '$L_2$：SSPLL Type-II（2 個積分器）', '$L_3$：傳統 CPPLL（2 個積分器 + 1 個極點）'])
     const Kp = Number(LOOPS.L2.params.Kp)
     const Ki = Number(LOOPS.L2.params.Ki)
     const K = Number(LOOPS.L1.params.K)
@@ -388,9 +402,9 @@ describe('案例頁 /case/sspll 的方塊圖：訊號名稱、正負號、取樣
     // 圖 type1-variants：三個框標題裡的下限就是 F-CS.10 的判據；數值上 Re L 確實不低於它，而且在低頻逼近它
     const tv = await flow('type1-variants')
     expect(tv.subs.map((s) => s.title)).toEqual([
-      '標稱 L1（d = 1）：Re L = −K/2，不會低於 −1（K < 2）',
-      '迴路共延遲 d 拍：Re L 最低到 −K·(d − 1/2)',
-      '多一個寄生極點 p：Re L 最低到 −K·(1/2 + p/(1 − p))',
+      String.raw`標稱 $L_1$（$d = 1$）：$\mathrm{Re}\,L = -K/2$，不會低於 $-1$（$K \lt 2$）`,
+      String.raw`迴路共延遲 $d$ 拍：$\mathrm{Re}\,L$ 最低到 $-K\cdot(d - 1/2)$`,
+      String.raw`多一個寄生極點 $p$：$\mathrm{Re}\,L$ 最低到 $-K\cdot(1/2 + p/(1 - p))$`,
     ])
     expect(tv.nodes.filter((v) => (v.classes ?? []).includes('warn')).map((v) => v.id).sort()).toEqual(['A4', 'B4'])
     for (const f of [1e-4, 0.01, 0.1, 0.3, 0.5]) {
@@ -409,24 +423,26 @@ describe('案例頁 /case/sspll 的方塊圖：訊號名稱、正負號、取樣
       expect(loopL(lpP, 1e-4).re).toBeCloseTo(-typeIPoleCriterion(Number(lpP.params.K), Number(lpP.params.p)), 4)
     }
     const re = await flow('re-l2')
-    expect(re.edge('P', 'S').text).toContain('−K_p/2')
-    expect(re.edge('I', 'S').text).toContain('−K_i/(4·sin²(Ω/2))')
-    expect(re.node('Q').text).toContain('Re L₂ < −1')
+    expect(re.edge('P', 'S').text).toContain('-K_p/2')
+    expect(re.edge('I', 'S').text).toContain(String.raw`-K_i/(4\sin^2(\Omega/2))`)
+    expect(re.node('Q').text).toContain(String.raw`\mathrm{Re}\,L_2 \lt -1`)
     const od = await flow('onediff')
-    expect(od.node('B1').text).toContain('(1 − z⁻¹)·L₂ = K_p·z⁻¹ + K_i·z⁻¹/(1 − z⁻¹)')
-    expect(od.node('B2').text).toContain('g(Ω) = 1 − K_i/2 − (1 − K_p)·cos Ω')
-    expect(od.node('B3').text).toContain('K_i ≤ 2K_p 且 K_p + K_i/2 ≤ 2')
+    // (1 − z⁻¹)·L₂ = K_p·z⁻¹ + K_i·z⁻¹/(1 − z⁻¹)：等號右邊的兩項分成兩行（第二行以 +  開頭），讓這一列放得進正文欄
+    expect(od.node('B1').text).toContain(String.raw`$(1 - z^{-1})\cdot L_2 = K_p\cdot z^{-1}$`)
+    expect(od.node('B1').text).toContain(String.raw`$+\,K_i\cdot z^{-1}/(1 - z^{-1})$`)
+    expect(od.node('B2').text).toContain(String.raw`g(\Omega) = 1 - K_i/2 - (1 - K_p)\cdot\cos\Omega`)
+    expect(od.node('B3').text).toContain(String.raw`K_i \le 2K_p$ 且 $K_p + K_i/2 \le 2`)
     const po = await flow('p-only')
-    expect(po.node('N').text).toContain('L = K_p/(z−1)')
+    expect(po.node('N').text).toContain('L = K_p/(z-1)')
     expect(signsInto(po.edges, 'S')).toEqual({ KP: '＋', KI: '＋' })
     // 低頻的差分次數：Type-II 兩次、Type-I 一次
     const lf = await flow('lowfreq')
-    const diffs = (sub: string) => lf.subs.find((s) => s.id === sub)!.nodes.filter((n) => (lf.node(n).text ?? '').includes('1 − z⁻¹')).length
+    const diffs = (sub: string) => lf.subs.find((s) => s.id === sub)!.nodes.filter((n) => (lf.node(n).text ?? '').includes('1 - z^{-1}')).length
     expect(diffs('TYPE2')).toBe(2)
     expect(diffs('TYPE1')).toBe(1)
     // 圖 lowfreq 的最後一格除法含迴路的 1 拍延遲：1/L₂ ≈ (1 − z⁻¹)²/(K_i·z⁻¹)、1/L₁ = (1 − z⁻¹)/(K·z⁻¹)
-    expect(lf.node('C2').text).toContain('÷ (K_i·z⁻¹)')
-    expect(lf.node('C1').text).toContain('÷ (K·z⁻¹)')
+    expect(lf.node('C2').text).toContain(String.raw`\div\,(K_i\cdot z^{-1})`)
+    expect(lf.node('C1').text).toContain(String.raw`\div\,(K\cdot z^{-1})`)
     expect(lf.node('E2').text).toContain('中心二次差分')
     for (const f of [1e-4, 3e-4]) {
       const W = 2 * Math.PI * f
@@ -447,14 +463,14 @@ describe('案例頁 /case/sspll 的方塊圖：訊號名稱、正負號、取樣
     }
     // 圖 re-l3：l(t) = K·t + B·(1 − e^(−ω_p·t)) 每拍讀一次 ⇒ 三條路徑；實部相加取負號 = F-CS.9 的 −Re L₃（sspll.ts 的 cppllMinusReL）
     const r3 = await flow('re-l3')
-    expect(r3.node('LT').text).toContain('l(t) = K·t + B·(1 − e^(−ω_p·t))')
-    expect(r3.node('R').text).toContain('K·z⁻¹/(1 − z⁻¹)²')
-    expect(r3.node('ST').text).toContain('B·z⁻¹/(1 − z⁻¹)')
-    expect(r3.node('EX').text).toContain('−B·p·z⁻¹/(1 − p·z⁻¹)')
-    expect(r3.edge('R', 'S').text).toContain('−K/(4·sin²(Ω/2))')
-    expect(r3.edge('ST', 'S').text).toContain('−B/2')
-    expect(r3.edge('EX', 'S').text).toContain('−B·p·(cos Ω − p)/(1 − 2p·cos Ω + p²)')
-    expect(r3.node('Q').text).toContain('Re L₃ < −1')
+    expect(r3.node('LT').text).toContain(String.raw`l(t) = K\cdot t + B\cdot(1 - e^{-\omega_p t})`)
+    expect(r3.node('R').text).toContain(String.raw`K\cdot z^{-1}/(1 - z^{-1})^2`)
+    expect(r3.node('ST').text).toContain(String.raw`B\cdot z^{-1}/(1 - z^{-1})`)
+    expect(r3.node('EX').text).toContain(String.raw`-B\cdot p\cdot z^{-1}/(1 - p\cdot z^{-1})`)
+    expect(r3.edge('R', 'S').text).toContain(String.raw`-K/(4\sin^2(\Omega/2))`)
+    expect(r3.edge('ST', 'S').text).toContain('-B/2')
+    expect(r3.edge('EX', 'S').text).toContain(String.raw`-B\cdot p\cdot(\cos\Omega - p)/(1 - 2p\cdot\cos\Omega + p^2)`)
+    expect(r3.node('Q').text).toContain(String.raw`\mathrm{Re}\,L_3 \lt -1`)
     expect((r3.node('R').classes ?? []).includes('focus')).toBe(true)
     const p3 = LOOPS.L3.params
     const K3 = Number(p3.K)
@@ -496,40 +512,40 @@ describe('案例頁 /case/sspll 的方塊圖：訊號名稱、正負號、取樣
 
   it('SSPLL: 圖上的數字——PHOS 各模態的基波權重、鋸齒的諧波功率、玩具模型的 g、alias 的慢方波、offset 的 E[q]，都由 sspll.ts 重現', async () => {
     const pm = await flow('phos-modes')
-    expect(pm.node('M1').text).toContain(`W₁ ≈ ${W1.toFixed(2)}`)
-    expect(pm.node('M2').text).toContain(`權重 ≈ ${(64 * indicatorLineWeight(2)).toFixed(2)}`)
-    expect(pm.node('M3').text).toContain(`權重 ≈ ${(64 * indicatorLineWeight(3)).toFixed(2)}`)
-    expect(pm.node('M4').text).toContain(`權重 ≈ ${(64 * (indicatorLineWeight(4) + indicatorLineWeight(-4))).toFixed(2)}`)
+    expect(pm.node('M1').text).toContain(String.raw`權重 $W_1 \approx ${W1.toFixed(2)}$`)
+    expect(pm.node('M2').text).toContain(String.raw`權重 $\approx ${(64 * indicatorLineWeight(2)).toFixed(2)}$`)
+    expect(pm.node('M3').text).toContain(String.raw`權重 $\approx ${(64 * indicatorLineWeight(3)).toFixed(2)}$`)
+    expect(pm.node('M4').text).toContain(String.raw`權重 $\approx ${(64 * (indicatorLineWeight(4) + indicatorLineWeight(-4))).toFixed(2)}$`)
     expect(64 * (indicatorLineWeight(4) + indicatorLineWeight(-4))).toBeCloseTo(W_SQUARE, 12)
     expect(64 * indicatorLineWeight(1)).toBeCloseTo(W1, 12)
-    expect(pm.node('M0').text).toContain('λ₀ = 0')
+    expect(pm.node('M0').text).toContain(String.raw`\lambda_0 = 0`)
     expect(pm.edges.filter((e) => e.start === 'F')).toHaveLength(5) // 共模 + mode 1…4（5、6、7 是 3、2、1 的共軛）
     // 鋸齒：第 m 次諧波（±mβ 兩條線合計）的功率 1/(2π²m²)；全部加起來是 var(ρ) = 1/12 ⇒ κ_GOS = 12·C_GOS
     const gos = await flow('gos')
-    expect(gos.node('M1').text).toContain('功率 1/(2π²)')
-    expect(gos.node('M2').text).toContain('功率 1/(8π²)')
+    expect(gos.node('M1').text).toContain(String.raw`功率 $1/(2\pi^2)$`)
+    expect(gos.node('M2').text).toContain(String.raw`功率 $1/(8\pi^2)$`)
     expect(sawtoothLinePower(1)).toBeCloseTo(1 / (2 * Math.PI ** 2), 15)
     expect(sawtoothLinePower(2)).toBeCloseTo(1 / (8 * Math.PI ** 2), 15)
     let sum = 0
     for (let m = 1; m <= 200000; m++) sum += sawtoothLinePower(m)
     expect(12 * sum).toBeCloseTo(1, 4)
-    expect(gos.node('C').text).toContain('κ_GOS = 12·C_GOS')
-    expect(gos.edge('D0', 'S').text).toContain('Γ_eff(0) = 0')
+    expect(gos.node('C').text).toContain(String.raw`\kappa_{GOS} = 12\cdot C_{GOS}`)
+    expect(gos.edge('D0', 'S').text).toContain(String.raw`\Gamma_{\rm eff}(0) = 0`)
     // 玩具模型：g = +1 往 a 走，g = −0.2 每一步都遠離 a
     const toy = await flow('toy')
     expect(toy.node('A2').text).toContain('g = +1')
-    expect(toy.node('B2').text).toContain('g = −0.2')
+    expect(toy.node('B2').text).toContain('g = -0.2')
     const a = 1
     expect(Math.abs(a - toySignLmsStep(0, a, 1, 0.1, +1).w)).toBeLessThan(Math.abs(a - 0))
     expect(Math.abs(a - toySignLmsStep(0, a, 1, 0.1, -0.2).w)).toBeGreaterThan(Math.abs(a - 0))
     // 圖上寫的是 e = g·δ·x：q 與 δ·x 同號（g > 0）或反號（g < 0），x 是正是負都一樣；更新 μ·q·x 的方向只看 g 的符號
     for (const row of ['A', 'B']) {
-      expect(toy.node(`${row}1`).text).toContain('δ = a − w')
-      expect(toy.node(`${row}3`).text).toContain('e = g·δ·x')
-      expect(toy.node(`${row}4`).text).toContain('w ← w + μ·q·x')
+      expect(toy.node(`${row}1`).text).toContain(String.raw`\delta = a - w`)
+      expect(toy.node(`${row}3`).text).toContain(String.raw`e = g\cdot\delta\cdot x`)
+      expect(toy.node(`${row}4`).text).toContain(String.raw`w \leftarrow w + \mu\cdot q\cdot x`)
     }
-    expect(toy.node('A3').text).toContain('與 δ·x 同號')
-    expect(toy.node('B3').text).toContain('與 δ·x 反號')
+    expect(toy.node('A3').text).toContain(String.raw`與 $\delta\cdot x$ 同號`)
+    expect(toy.node('B3').text).toContain(String.raw`與 $\delta\cdot x$ 反號`)
     for (const x of [1, -1, 2]) {
       for (const g of [1, -0.2]) {
         const s = toySignLmsStep(0, a, x, 0.1, g)
@@ -540,12 +556,12 @@ describe('案例頁 /case/sspll 的方塊圖：訊號名稱、正負號、取樣
     }
     // 圖 alias：α 靠近 1/4 時，mode 4 的 regressor (−1)^p[n] 是 frac(4φ[n]) 的方波，而 frac(4φ[n]) = frac(4·(α − 1/4)·n)——頻率 4·|α − 1/4|
     const al = await flow('alias')
-    expect(al.node('M4').text).toContain('(−1)^p[n]')
-    expect(al.node('M4').text).toContain('frac(4φ[n]) < 1/2 時是 +1，否則 −1')
-    expect(al.node('SQ').text).toContain(`基波權重 8/π² ≈ ${W_SQUARE.toFixed(2)}`)
-    expect(al.node('SQ').text).toContain('4·|α − 1/4|·f_ref')
-    expect(al.node('Q').text).toContain('|α − 1/4|·f_ref < f_inv/4')
-    expect(al.node('DZ').text).toContain(`${W_SQUARE.toFixed(2)}·min Re H_PD + ${(1 - W_SQUARE).toFixed(2)}·max Re H_PD > 0`)
+    expect(al.node('M4').text).toContain(String.raw`(-1)^{p[n]}`)
+    expect(al.node('M4').text).toContain(String.raw`\mathrm{frac}(4\varphi[n]) \lt 1/2$ 時是 $+1$，否則 $-1`)
+    expect(al.node('SQ').text).toContain(String.raw`基波權重 $8/\pi^2 \approx ${W_SQUARE.toFixed(2)}$`)
+    expect(al.node('SQ').text).toContain(String.raw`4\cdot\lvert\alpha - 1/4\rvert\cdot f_{ref}`)
+    expect(al.node('Q').text).toContain(String.raw`\lvert\alpha - 1/4\rvert\cdot f_{ref} \lt f_{inv}/4`)
+    expect(al.node('DZ').text).toContain(String.raw`${W_SQUARE.toFixed(2)}\cdot\min\mathrm{Re}\,H_{PD} + ${(1 - W_SQUARE).toFixed(2)}\cdot\max\mathrm{Re}\,H_{PD} \gt 0`)
     expect((al.node('DZ').classes ?? []).includes('warn')).toBe(true)
     for (const [P, Q] of [[101, 400], [99, 400], [251, 1000], [63, 256]] as const) {
       const ref = phaseSequence(P / Q, Q, 'right')
@@ -564,8 +580,8 @@ describe('案例頁 /case/sspll 的方塊圖：訊號名稱、正負號、取樣
       expect((2 * (cr * cr + ci * ci)) / (Q * Q), `α=${P}/${Q}`).toBeCloseTo(W_SQUARE, 2)
     }
     // α 靠近 1/2：mode 2 的 regressor (−j)^p[n] 只看 p mod 4 = floor(4·frac(2φ))，frac(2φ[n]) = frac(2·(α − 1/2)·n)——頻率 2·|α − 1/2|
-    expect(al.node('HALF').text).toContain('2·|α − 1/2|·f_ref')
-    expect(al.node('HALF').text).toContain('4·|α − 1/2|·f_ref')
+    expect(al.node('HALF').text).toContain(String.raw`2\cdot\lvert\alpha - 1/2\rvert\cdot f_{ref}`)
+    expect(al.node('HALF').text).toContain(String.raw`4\cdot\lvert\alpha - 1/2\rvert\cdot f_{ref}`)
     for (const [P, Q] of [[201, 400], [199, 400]] as const) {
       const ref = phaseSequence(P / Q, Q, 'right')
       for (let n = 0; n < Q; n++) {
@@ -581,7 +597,7 @@ describe('案例頁 /case/sspll 的方塊圖：訊號名稱、正負號、取樣
     }
     // offset：E[q] = erf(u_os/(√2·σ_v))
     const off = await flow('offset')
-    expect(off.edge('SG', 'M').text).toContain('E[q] = erf(u_os/(√2·σ_v))')
+    expect(off.edge('SG', 'M').text).toContain(String.raw`E[q] = \mathrm{erf}(u_{os}/(\sqrt{2}\cdot\sigma_v))`)
     expect(eqOffset(25, 200)).toBeCloseTo(erf(25 / (Math.SQRT2 * 200)), 12)
     // 有限步長：|1 − κ/N_τ| < 1 ⟺ Re κ > |κ|²/(2 N_τ)（圖上菱形的兩種寫法是同一件事）
     for (const [kr, ki, tau] of [[0.02, 0.9, 25], [0.02, 0.9, 5], [0.3, 0.2, 5], [-0.1, 0, 25], [1.9, 0, 1]] as const) {
@@ -600,17 +616,17 @@ describe('案例頁 /case/sspll 的方塊圖：訊號名稱、正負號、取樣
     // 圖 near-grid：兩條路都以「＋」進加法點，相加就是 F-CS.12
     const ng = await flow('near-grid')
     expect(signsInto(ng.edges, 'S')).toEqual({ T1: '＋', T2: '＋' })
-    expect(ng.edge('RAMP', 'T1').text).toContain('β·S∞')
-    expect(ng.edge('WRAP', 'T2').text).toContain('−s[m]')
-    expect(ng.edge('T1', 'S').text).toContain('β·S∞/2')
-    expect(ng.edge('T2', 'S').text).toContain('−β·S_D − β²·Σ m·s[m]')
-    expect(ng.node('T2').text).toContain('x[n − D]')
-    expect(ng.node('C').text).toContain('C_GOS ≈ (β/2)·(S∞ − 2·S_D) − β²·Σ m·s[m]')
-    expect(ng.node('I1').text).toContain('S∞ = 1/K')
-    expect(ng.node('I1').text).toContain('+β/(2K)')
-    expect(ng.node('I2').text).toContain('+β²/K_i')
+    expect(ng.edge('RAMP', 'T1').text).toContain(String.raw`\beta\cdot S_\infty`)
+    expect(ng.edge('WRAP', 'T2').text).toContain('-s[m]')
+    expect(ng.edge('T1', 'S').text).toContain(String.raw`\beta\cdot S_\infty/2`)
+    expect(ng.edge('T2', 'S').text).toContain(String.raw`-\beta\cdot S_D - \beta^2\cdot\textstyle\sum m\cdot s[m]`)
+    expect(ng.node('T2').text).toContain('x[n - D]')
+    expect(ng.node('C').text).toContain(String.raw`C_{GOS} \approx (\beta/2)\cdot(S_\infty - 2\cdot S_D) - \beta^2\cdot\textstyle\sum m\cdot s[m]`)
+    expect(ng.node('I1').text).toContain(String.raw`S_\infty = 1/K`)
+    expect(ng.node('I1').text).toContain(String.raw`+\beta/(2K)`)
+    expect(ng.node('I2').text).toContain(String.raw`+\beta^2/K_i`)
     expect(ng.node('I3').text).toContain('S_D = s[0] = 1')
-    expect(ng.node('I3').text).toContain('−β')
+    expect(ng.node('I3').text).toContain(String.raw`-\beta`)
     expect((ng.node('I3').classes ?? []).includes('warn')).toBe(true)
     // 步階響應 s[n] 的三個總和：Type-I 的 S∞ = 1/K；Type-II 的 S∞ = 0、Σ m·s[m] = −1/K_i；s[0] = h_PD[0] = 1
     const sum = (v: Float64Array, w: (m: number) => number = () => 1) => v.reduce((acc, x, m) => acc + w(m) * x, 0)
@@ -625,7 +641,7 @@ describe('案例頁 /case/sspll 的方塊圖：訊號名稱、正負號、取樣
       const beta = 1 / P
       // 照圖相加：(β/2)·(S∞ − 2·S_D) − β²·Σ m·s[m]
       const fig = (s: Float64Array, D: number) => (beta / 2) * (sum(s) - 2 * sum(s.subarray(0, D))) - beta * beta * sum(s, (m) => m)
-      // 圖上最右邊三格是它的首項：Type-I β/(2K)；Type-II、D = 0 β²/K_i；Type-II、D = 1 −β（β² 項是修正：1 − β/K_i 倍）
+      // 圖上最下面三格是它的首項：Type-I β/(2K)；Type-II、D = 0 β²/K_i；Type-II、D = 1 −β（β² 項是修正：1 − β/K_i 倍）
       expect(fig(s1, 0) / (beta / (2 * K)), `L1 β=1/${P}`).toBeGreaterThan(0.97)
       expect(fig(s1, 0) / (beta / (2 * K)), `L1 β=1/${P}`).toBeLessThan(1)
       expect(fig(s2, 0)).toBeCloseTo((beta * beta) / Ki, 12)
@@ -648,13 +664,13 @@ describe('案例頁 /case/sspll 的方塊圖：訊號名稱、正負號、取樣
 
     // 圖 onediff-delay：(1 − z⁻¹)·L = K·z^(−d) ⇒ g(Ω) = 1 − cos Ω + K·cos(d·Ω)
     const odd = await flow('onediff-delay')
-    expect(odd.subs.map((s) => s.title)).toEqual(['Type-I、延遲 1 拍（標稱 L1）', 'Type-I、延遲 d 拍（d ≥ 2）'])
-    expect(odd.node('P1').text).toContain('(1 − z⁻¹)·L = K·z⁻¹')
-    expect(odd.node('G1').text).toContain('1 − (1 − K)·cos Ω')
-    expect(odd.node('R1').text).toContain('min(K, 2 − K) > 0')
-    expect(odd.node('P2').text).toContain('(1 − z⁻¹)·L = K·z^(−d)')
-    expect(odd.node('G2').text).toContain('g(Ω) = 1 − cos Ω + K·cos(d·Ω)')
-    expect(odd.node('R2').text).toContain('g = 1 − cos(π/d) − K')
+    expect(odd.subs.map((s) => s.title)).toEqual(['Type-I、延遲 1 拍（標稱 $L_1$）', String.raw`Type-I、延遲 $d$ 拍（$d \ge 2$）`])
+    expect(odd.node('P1').text).toContain(String.raw`(1 - z^{-1})\cdot L = K\cdot z^{-1}`)
+    expect(odd.node('G1').text).toContain(String.raw`1 - (1 - K)\cdot\cos\Omega`)
+    expect(odd.node('R1').text).toContain(String.raw`\min(K, 2 - K) \gt 0`)
+    expect(odd.node('P2').text).toContain(String.raw`(1 - z^{-1})\cdot L = K\cdot z^{-d}`)
+    expect(odd.node('G2').text).toContain(String.raw`g(\Omega) = 1 - \cos\Omega + K\cdot\cos(d\cdot\Omega)`)
+    expect(odd.node('R2').text).toContain(String.raw`g = 1 - \cos(\pi/d) - K`)
     expect(odd.nodes.filter((v) => (v.classes ?? []).includes('warn')).map((v) => v.id).sort()).toEqual(['P2', 'R2'])
     for (const d of [1, 2, 3, 4, 5]) {
       const lp = makeL1({ lat: d })
@@ -688,11 +704,11 @@ describe('案例頁 /case/sspll 的方塊圖：訊號名稱、正負號、取樣
     const rg = await flow('remedy-g')
     const cls = (id: string) => (rg.node(id).classes ?? []).join(',')
     expect(rg.node('RAW').text).toContain('G = 1')
-    expect(rg.node('D1').text).toContain('G = 1 − z⁻¹')
-    expect(rg.node('D1').text).toContain('r[n] = x[n] − x[n−1]')
-    expect(rg.node('FX').text).toContain('G = Ĥ_PD(z)')
-    expect(rg.node('DK').text).toContain('r[n] = x[n − D]')
-    expect(rg.node('D2').text).toContain('G = (1 − z⁻¹)²')
+    expect(rg.node('D1').text).toContain(String.raw`G = 1 - z^{-1}`)
+    expect(rg.node('D1').text).toContain('r[n] = x[n] - x[n-1]')
+    expect(rg.node('FX').text).toContain(String.raw`G = \hat H_{PD}(z)`)
+    expect(rg.node('DK').text).toContain('r[n] = x[n - D]')
+    expect(rg.node('D2').text).toContain(String.raw`G = (1 - z^{-1})^2`)
     expect([cls('RAW'), cls('ZM'), cls('D1'), cls('FX'), cls('DK'), cls('D2')]).toEqual(['', 'focus', 'ok', 'ok', 'warn', 'warn'])
     // 六個變體共用同一個輸入與同一個 GMAC
     expect(rg.edges.filter((e) => e.start === 'X').map((e) => e.end).sort()).toEqual(['D1', 'D2', 'DK', 'FX', 'RAW', 'ZM'])
@@ -714,25 +730,36 @@ describe('案例頁 /case/sspll 的方塊圖：不只 parser——mermaid 真的
   // 再用共用的 renderMermaidForTest 逐張畫出來。版面的實際長相要在瀏覽器看，這裡確認畫得出來、文字沒有被跳脫壞、沒有 Unsupported markdown。
   beforeAll(installMermaidSvgShim)
 
-  it('SSPLL: 37 張圖與系統地圖都畫得出 SVG；沒有 Unsupported markdown、節點數 ≤ 14；每個節點的文字都在圖上，「<」沒有被重複跳脫', async () => {
-    const all = [{ id: 'systemmap', chart: systemMapChart(MAP_FOCUS) }, ...DIAGRAMS]
+  it('SSPLL: 37 張圖都畫得出 SVG；沒有 Unsupported markdown、沒有殘留的 `$`、KaTeX 以外沒有 Unicode 拼的數學、節點數 ≤ 14；每個節點的文字都在圖上，「<」沒有被重複跳脫', async () => {
+    // 系統地圖是手排的 SVG，不經過 Mermaid，所以這裡只畫本章登錄的 37 張圖
+    const all = DIAGRAMS
     for (const d of all) {
-      const { svg, text, nodeCount } = await renderMermaidForTest(d.chart)
+      const { svg, text, nodeCount, mathCount, plainText } = await renderMermaidForTest(d.chart)
       expect(svg, d.id).toMatch(/^<svg/)
       expect(svg, d.id).not.toMatch(/Syntax error|&amp;lt;|&amp;gt;/)
       // Mermaid 11 把標籤當 Markdown：以「+ 」「- 」「1. 」開頭會變成「Unsupported markdown: list」；底線、星號不可被當成強調
       expect(text, d.id).not.toMatch(/Unsupported markdown/)
       expect(svg, d.id).not.toMatch(/<em>|<strong>|<code>/)
-      if (d.id === 'systemmap' || d.id === 'align') continue
+      // 圖內的數學都由 KaTeX 排版：畫出來的文字沒有殘留 `$`、TeX 指令名稱或 HTML entity（`<` 要寫 \lt，否則 strict 模式的跳脫會讓 KaTeX 讀到 &lt;）
+      expect(text, d.id).not.toContain('$')
+      expect(text, d.id).not.toMatch(/\\[A-Za-z]|&lt;|&gt;|&amp;/)
+      // 每個含 `$` 的標籤（節點、連線、subgraph 標題）都排成一個 KaTeX 公式——標題與連線標籤也不例外
+      expect(mathCount, `${d.id}：含公式的標籤數 = KaTeX 公式數`).toBe(mathLabelCount(d.chart))
+      expect(mathCount, d.id).toBeGreaterThan(0)
+      // KaTeX 以外的文字沒有 Unicode 拼的數學（希臘字母、上下標、運算符號、w_k 這類底線下標）
+      expect(unicodeMathIn(plainText), `${d.id}：KaTeX 以外的 Unicode 數學`).toEqual([])
+      if (d.id === 'align') continue
       expect(nodeCount, d.id).toBeLessThanOrEqual(14)
       expect(nodeCount, d.id).toBeGreaterThanOrEqual(5)
       const drawn = text.replace(/\s+/g, '')
-      // 每個節點、每條有標籤的連線、每個 subgraph 標題的文字都出現在 SVG 上
+      // 每個節點、每條有標籤的連線、每個 subgraph 標題的文字都出現在 SVG 上；含公式的標籤檢查 `$...$` 以外的文字部分
       const f = await flow(d.id)
       expect(nodeCount, `${d.id}：畫出來的節點數 = 解析出來的節點數`).toBe(f.nodes.length)
       for (const t of [...f.nodes.map((v) => v.text ?? ''), ...f.edges.map((e) => e.text), ...f.subs.map((s) => s.title)]) {
-        const want = t.replace(/<br\s*\/?>/gi, '').replace(/\s+/g, '')
-        if (want) expect(drawn, `${d.id}：${t}`).toContain(want)
+        for (const piece of t.split(/\$[^$]*\$/)) {
+          const want = piece.replace(/<br\s*\/?>/gi, '').replace(/\s+/g, '')
+          if (want) expect(drawn, `${d.id}：${t}`).toContain(want)
+        }
       }
     }
   }, 600000)
@@ -744,19 +771,28 @@ describe('案例頁 /case/sspll：頁面真的把圖畫出來，符號表在最�
     localStorage.clear()
   })
 
-  it('SSPLL: <PageMap> 渲染全站共用的 <SystemMap>，藍色標出本章的方塊', async () => {
+  it('SSPLL: <PageMap> 渲染全站共用的 <SystemMap>（手排 SVG、不經過 Mermaid），藍色標出本章的方塊', async () => {
     const spy = vi.spyOn(mermaid, 'render').mockImplementation(async (id: string) => ({ svg: `<svg id="${id}"><g></g></svg>`, diagramType: 'flowchart-v2' }))
     const { container } = render(<PageMap />)
-    const fig = container.querySelector('figure.c-mermaid') as HTMLElement
+    const fig = container.querySelector('figure.c-mermaid.c-sysmap') as HTMLElement
     expect(fig).not.toBeNull()
     expect(fig.getAttribute('aria-label')).toMatch(/系統方塊圖/)
-    for (const b of MAP_FOCUS) expect(fig.getAttribute('aria-label'), b).toContain(SYSTEM_BLOCK_LABEL[b])
-    await waitFor(() => expect(spy).toHaveBeenCalled())
-    expect(spy.mock.calls[0][1]).toBe(systemMapChart(MAP_FOCUS))
-    expect(systemMapChart(MAP_FOCUS)).toContain('class PD,LF,VCO,DIV,DTC,DSM,RES,CMP,ALIGN,GMAC focus')
-    await waitFor(() => expect(container.querySelector('.c-mermaid-svg svg')).not.toBeNull())
+    // aria-label 是純文字：方塊名稱裡的 `$...$` 只拿掉分隔符號
+    for (const b of MAP_FOCUS) expect(fig.getAttribute('aria-label'), b).toContain(stripMathDelimiters(SYSTEM_BLOCK_LABEL[b]))
+    // 資料模型：被標成主角的方塊恰好是本章的 MAP_FOCUS（整個主 PLL 迴路 + 小數累加器與 regressor + 比較器、對齊、GMAC）
+    const model = systemMapModel(MAP_FOCUS)
+    expect(model.blocks.filter((b) => b.focused).map((b) => b.id).sort()).toEqual([...MAP_FOCUS].sort())
+    // DOM：手排的 SVG 立刻就在，主角方塊帶 is-focus／data-focus，其餘方塊沒有
+    expect(container.querySelector('.c-mermaid-svg svg.c-sysmap-svg')).not.toBeNull()
+    const focusDom = Array.from(container.querySelectorAll('g.c-sysmap-block.is-focus')).map((g) => g.getAttribute('data-block'))
+    expect([...focusDom].sort()).toEqual([...MAP_FOCUS].sort())
+    for (const g of Array.from(container.querySelectorAll('g.c-sysmap-block.is-focus'))) expect(g.getAttribute('data-focus')).toBe('true')
+    expect(container.querySelectorAll('g.c-sysmap-block:not(.is-focus)')).toHaveLength(model.blocks.length - MAP_FOCUS.length)
     expect(container.textContent).toMatch(/藍色方塊是本章的主角/)
     expect(container.textContent).toMatch(/input DTC/)
+    // 系統地圖不再交給 Mermaid 畫
+    await new Promise((r) => setTimeout(r, 50))
+    expect(spy).not.toHaveBeenCalled()
   })
 
   it('SSPLL: 整頁——系統地圖在開場問題之後；37 張圖依登錄順序出現、各有圖號與圖說；符號表是最後一塊，章首只留一行連結', async () => {
@@ -803,10 +839,12 @@ describe('案例頁 /case/sspll：頁面真的把圖畫出來，符號表在最�
     })
     // 每個 H2 段落（§0–§18，除了純清單的 §16、§17）至少有一張圖
     for (const n of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 18]) expect(page.querySelectorAll(`#cs-${n} [data-diagram]`).length, `§${n}`).toBeGreaterThanOrEqual(1)
-    // mermaid 真的被要求畫出每一張（含系統地圖），順序與頁面一致
-    await waitFor(() => expect(spy.mock.calls.length).toBeGreaterThanOrEqual(DIAGRAMS.length + 1), { timeout: 30000 })
+    // 系統地圖是手排的 SVG（不經過 Mermaid）：本章標示的 10 個方塊都帶 is-focus
+    expect(Array.from(map.querySelectorAll('g.c-sysmap-block.is-focus')).map((g) => g.getAttribute('data-block')).sort()).toEqual([...MAP_FOCUS].sort())
+    // mermaid 真的被要求畫出每一張登錄的圖（不含系統地圖），順序與頁面一致
+    await waitFor(() => expect(spy.mock.calls.length).toBeGreaterThanOrEqual(DIAGRAMS.length), { timeout: 30000 })
     const drawn = spy.mock.calls.map((c) => c[1])
-    expect(drawn.filter((c, i) => drawn.indexOf(c) === i)).toEqual([systemMapChart(MAP_FOCUS), ...DIAGRAMS.map((d) => d.chart)])
+    expect(drawn.filter((c, i) => drawn.indexOf(c) === i)).toEqual(DIAGRAMS.map((d) => d.chart).map(sanitizeMermaidSource))
     // 內文的圖號按鈕會捲到那張圖
     const ref = Array.from(page.querySelectorAll('button.cs-figref')).find((b) => b.textContent === diagramById('remedy-g').label) as HTMLButtonElement
     expect(ref).toBeTruthy()

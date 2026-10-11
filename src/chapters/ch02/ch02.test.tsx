@@ -78,7 +78,7 @@ function bareMacros(root: ParentNode): string[] {
 
 /**
  * teaching-style §3：字串屬性（警告、指標、假設、圖標題…）裡的數學也要是 KaTeX。
- * 找出 KaTeX 以外、仍用 Unicode 拼公式的文字節點（下拉選單 <option>、程式碼、Plotly 圖內文字與單位欄除外）。
+ * 找出 KaTeX 以外、仍用 Unicode 拼公式的文字節點（下拉選單 <option>、程式碼、Plotly 圖內文字除外；控制項的單位欄也要是 KaTeX）。
  */
 const UNICODE_MATH = /[μσδψεηλτρ²³⁴₀₁₂ₙ″≤≥≈∝]|E\[/
 function unicodeMath(root: ParentNode): string[] {
@@ -90,7 +90,7 @@ function unicodeMath(root: ParentNode): string[] {
     const el = n.parentElement
     if (!t || !el || !UNICODE_MATH.test(t)) continue
     if (/個 ≤0 的點/.test(t)) continue // 共用 Plot 元件的 log 軸提示（不屬於本章）
-    if (el.closest('.katex, pre, code, svg, select, option, input, .c-param-unit, .c-param-reg, .c-tip, .c-exp-summary')) continue
+    if (el.closest('.katex, pre, code, svg, select, option, input, .c-param-reg, .c-tip, .c-exp-summary')) continue
     out.push(t.slice(0, 80))
   }
   return out

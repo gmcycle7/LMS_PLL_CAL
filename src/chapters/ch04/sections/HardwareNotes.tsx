@@ -31,7 +31,7 @@ export function clearVsNoClear(g: number, blocks: number): { k: number[]; clear:
   return { k, clear, noClear, radius }
 }
 
-const NOCLEAR_LAYOUT = { xaxis: { title: { text: 'block k' } }, yaxis: { title: { text: 'E[δ_k]/δ₀' } } }
+const NOCLEAR_LAYOUT = { xaxis: { title: { text: R`block $k$` } }, yaxis: { title: { text: R`$E[\delta_k]/\delta_0$` } } }
 
 const ITEMS: { n: number; title: ReactNode; wrong: ReactNode; check: ReactNode; here: string }[] = [
   {
@@ -130,8 +130,8 @@ export function HardwareNotesSection() {
   const r = useMemo(() => clearVsNoClear(g, 80), [g])
   const data = useMemo<Data[]>(
     () => [
-      { x: r.k, y: r.clear, name: '每個 block 清除 S（正確）', mode: 'lines+markers', marker: { size: 3 }, line: { color: tokens.series[0] } },
-      { x: r.k, y: r.noClear, name: '忘了清除 S', mode: 'lines+markers', marker: { size: 3 }, line: { color: tokens.series[1] } },
+      { x: r.k, y: r.clear, name: R`每個 block 清除 $S$（正確）`, mode: 'lines+markers', marker: { size: 3 }, line: { color: tokens.series[0] } },
+      { x: r.k, y: r.noClear, name: R`忘了清除 $S$`, mode: 'lines+markers', marker: { size: 3 }, line: { color: tokens.series[1] } },
     ],
     [r, tokens],
   )

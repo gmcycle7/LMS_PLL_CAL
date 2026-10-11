@@ -2,8 +2,8 @@ import { Callout, ClaimTag, CodeBlock, CodeCompare, Prereq, SourceTag, StepDeriv
 import calNoiseSrc from '@/simulation/models/calNoise.ts?raw'
 import { calLoop, REGIME_LABEL } from '@/simulation/models/calNoise'
 import { refValues, T13_SETUP } from '../../refValues'
-import { texHz, texNum, texPct } from '../../format'
-import { Collapsible, ErratumTag, FormulaLinks, Gate, PageLinks } from '../../common'
+import { regimeLabelTex, texHz, texNum, texPct } from '../../format'
+import { Collapsible, ErratumTag, FormulaLinks, Gate, PageLinks, Rich } from '../../common'
 import { Topic } from './Topic'
 
 /**
@@ -452,7 +452,9 @@ export function BandwidthTopic() {
                 <td data-label="p">
                   <Tex>{texNum(loop.p)}</Tex>
                 </td>
-                <td data-label="型態">{REGIME_LABEL[loop.regime]}</td>
+                <td data-label="型態">
+                  <Rich text={regimeLabelTex(REGIME_LABEL[loop.regime])} />
+                </td>
                 <td data-label="f_3dB">{Number.isFinite(loop.f3dbExact) ? <Tex>{texHz(loop.f3dbExact)}</Tex> : <span className="fr-none">不存在</span>}</td>
                 <td data-label="(1−p) 近似">
                   {Number.isFinite(loop.f3dbOneMinusP) ? (

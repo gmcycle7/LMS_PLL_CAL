@@ -33,7 +33,7 @@ export function CodeComparison() {
       </p>
       <Mermaid
         chart={CHART_FIVE_STRATEGIES}
-        caption="五種策略並排。先看中間一欄：五個方塊的差別只在「送進共用量化器的 $v$ 是什麼」；再看藍色的 D、E：只有它們有從輸出拉回來的虛線（誤差回授）。計數器只給 B，亂數只給 C 與 E。"
+        caption="五種策略並排。先看 $w_H$ 分給五個方塊：它們的差別只在「送進共用量化器的 $v$ 是什麼」（A、B、C 在量化器上面）；再看藍色的 D、E：只有它們有從共用量化器拉回來的虛線（誤差回授），所以畫在量化器的下面。計數器只給 B，亂數只給 C 與 E。"
       />
       <p className="small ch13-figwalk">
         圖上每個方塊裡的 <Tex>{'v'}</Tex> 就是程式碼裡送進 <code>quantize()</code> 的那個值（A 的 <code>s.wFreeze</code>、B / C 的 <code>(lo + bit) * c.D</code>、D 的 <code>W + s.r</code>、E 的 <code>V + d</code>）；圖上回授線的{' '}

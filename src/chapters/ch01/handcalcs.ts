@@ -188,7 +188,8 @@ export const HANDCALCS: HandCalcDef[] = [
             why: '把 $w^*$ 代回去，算每一筆剩下的誤差（殘差）。這是兩個接近的數相減，$w^*$ 至少留 6 位有效數字。',
           },
           {
-            tex: String.raw`\sum_i e^*_ix_i=${dot(eStar, x, S)}=${plus(ex, S)}=${texNum(sex)}`,
+            // 三個乘積各帶 7 位有效數字，一行寫完會比欄寬（要橫向捲動）：第一個等號後換行，第二行從「=」接下去
+            tex: String.raw`\begin{aligned}\sum_i e^*_ix_i&=${dot(eStar, x, S)}\\&=${plus(ex, S)}=${texNum(sex)}\end{aligned}`,
             why: 'Normal equation（F-01.5，§1.2.1 會推導）：在最佳解處，殘差與輸入「正交」——再也沒有任何跟著 $x$ 走的成分可以靠調 $w$ 消掉。手算時 $w^*$ 與殘差都四捨五入過，總和會剩下一點尾數（只留 5 位有效數字時大約 $10^{-4}$ 到 $10^{-3}$），不是算錯。',
           },
           {

@@ -38,7 +38,7 @@ function MatrixTex({ A }: { A: Matrix }) {
   return <Tex>{`\\begin{bmatrix}${A.map((r) => r.map((v) => tx(v, 4)).join('&')).join('\\\\')}\\end{bmatrix}`}</Tex>
 }
 
-const POLE_LAYOUT = { xaxis: { title: { text: 'Re z' }, scaleanchor: 'y' as const, range: [-1.8, 1.8] }, yaxis: { title: { text: 'Im z' }, range: [-1.3, 1.3] } }
+const POLE_LAYOUT = { xaxis: { title: { text: '$\\mathrm{Re}\\,z$' }, scaleanchor: 'y' as const, range: [-1.8, 1.8] }, yaxis: { title: { text: '$\\mathrm{Im}\\,z$' }, range: [-1.3, 1.3] } }
 
 /** 複數 eigenvalue 的文字：共軛對的兩個成員各自帶正負號（a + jb、a − jb），不重複寫成兩次「a ± jb」。 */
 const zText = (z: { re: number; im: number }) => (Math.abs(z.im) > 1e-12 ? `${nf(z.re, 4)} ${z.im < 0 ? '−' : '+'} j${nf(Math.abs(z.im), 4)}` : nf(z.re, 6))
@@ -120,16 +120,16 @@ export function MimoJudgeExperiment() {
     const th = Array.from({ length: 181 }, (_, i) => (2 * Math.PI * i) / 180)
     const d: Data[] = [{ x: th.map(Math.cos), y: th.map(Math.sin), mode: 'lines', name: 'unit circle', line: { color: tokens.textMuted, width: 1 }, hoverinfo: 'skip' }]
     if (out.j) {
-      d.push({ x: out.j.eigA.map((z) => z.re), y: out.j.eigA.map((z) => z.im), mode: 'markers', name: 'eig(I + MJ)（聯合）', marker: { size: 12, symbol: 'x', color: tokens.series[1] } })
-      d.push({ x: out.j.diagPoles, y: out.j.diagPoles.map(() => 0), mode: 'markers', name: '單獨 1 + M_iiJ_ii', marker: { size: 10, symbol: 'circle-open', color: tokens.series[0], line: { width: 2 } } })
-      if (out.formulaPoles.length) d.push({ x: out.formulaPoles, y: out.formulaPoles.map(() => 0), mode: 'markers', name: '公式 1 − γσ²/(σ² + ε)（假設 Ĵ = J）', marker: { size: 9, symbol: 'diamond-open', color: tokens.series[2] } })
+      d.push({ x: out.j.eigA.map((z) => z.re), y: out.j.eigA.map((z) => z.im), mode: 'markers', name: '$\\mathrm{eig}(\\mathbf I + \\mathbf M\\mathbf J)$（聯合）', marker: { size: 12, symbol: 'x', color: tokens.series[1] } })
+      d.push({ x: out.j.diagPoles, y: out.j.diagPoles.map(() => 0), mode: 'markers', name: '單獨 $1 + M_{ii}J_{ii}$', marker: { size: 10, symbol: 'circle-open', color: tokens.series[0], line: { width: 2 } } })
+      if (out.formulaPoles.length) d.push({ x: out.formulaPoles, y: out.formulaPoles.map(() => 0), mode: 'markers', name: '公式 $1 - \\gamma\\sigma^2/(\\sigma^2 + \\varepsilon)$（假設 $\\hat{\\mathbf J} = \\mathbf J$）', marker: { size: 9, symbol: 'diamond-open', color: tokens.series[2] } })
     }
     return d
   }, [out, tokens])
 
   const metrics: MetricRow[] = j
     ? [
-        { name: String.raw`$\rho(\mathbf I+\mathbf M\mathbf J)$`, value: j.rho, formulaId: 'F-SO.7', claim: 'exact', note: String.raw`$<1$ ⇔ 局部線性穩定` },
+        { name: String.raw`$\rho(\mathbf I+\mathbf M\mathbf J)$`, value: j.rho, formulaId: 'F-SO.7', claim: 'exact', note: String.raw`$<1$ $\Leftrightarrow$ 局部線性穩定` },
         { name: String.raw`$\kappa(\mathbf J)=\sigma_{\max}/\sigma_{\min}$`, value: j.cond, claim: 'exact' },
         ...j.eigA.map((z, i) => ({ name: `$\\lambda_{${i + 1}}(\\mathbf I+\\mathbf M\\mathbf J)$`, value: zText(z), claim: 'exact' as const })),
         ...j.diagPoles.map((x, i) => ({ name: `單獨 loop ${i + 1} 的 pole $1+M_{${i + 1}${i + 1}}J_{${i + 1}${i + 1}}$`, value: x, claim: 'exact' as const })),
@@ -190,10 +190,10 @@ export function MimoJudgeExperiment() {
       controls={
         <>
           <div className="so-matrix-input">
-            <ParamControl label={<Tex>{'J_{11}'}</Tex>} ariaLabel="J₁₁" value={p.J11} onChange={(v) => set('J11', v)} min={-10} max={10} step={0.001} unit="fs⁻¹" reg="measured Ĵ" />
-            <ParamControl label={<Tex>{'J_{12}'}</Tex>} ariaLabel="J₁₂" value={p.J12} onChange={(v) => set('J12', v)} min={-10} max={10} step={0.001} unit="fs⁻¹" reg="measured Ĵ" />
-            <ParamControl label={<Tex>{'J_{21}'}</Tex>} ariaLabel="J₂₁" value={p.J21} onChange={(v) => set('J21', v)} min={-10} max={10} step={0.001} unit="fs⁻¹" reg="measured Ĵ" />
-            <ParamControl label={<Tex>{'J_{22}'}</Tex>} ariaLabel="J₂₂" value={p.J22} onChange={(v) => set('J22', v)} min={-10} max={10} step={0.001} unit="fs⁻¹" reg="measured Ĵ" />
+            <ParamControl label={<Tex>{'J_{11}'}</Tex>} ariaLabel="J₁₁" value={p.J11} onChange={(v) => set('J11', v)} min={-10} max={10} step={0.001} unit="$\mathrm{fs}^{-1}$" reg="measured Ĵ" />
+            <ParamControl label={<Tex>{'J_{12}'}</Tex>} ariaLabel="J₁₂" value={p.J12} onChange={(v) => set('J12', v)} min={-10} max={10} step={0.001} unit="$\mathrm{fs}^{-1}$" reg="measured Ĵ" />
+            <ParamControl label={<Tex>{'J_{21}'}</Tex>} ariaLabel="J₂₁" value={p.J21} onChange={(v) => set('J21', v)} min={-10} max={10} step={0.001} unit="$\mathrm{fs}^{-1}$" reg="measured Ĵ" />
+            <ParamControl label={<Tex>{'J_{22}'}</Tex>} ariaLabel="J₂₂" value={p.J22} onChange={(v) => set('J22', v)} min={-10} max={10} step={0.001} unit="$\mathrm{fs}^{-1}$" reg="measured Ĵ" />
           </div>
           <SelectControl
             label={rich(String.raw`$\mathbf M$ 的形式`)}
@@ -214,7 +214,7 @@ export function MimoJudgeExperiment() {
           ) : (
             <>
               <ParamControl label={rich(String.raw`$\gamma$（正規化步長）`)} ariaLabel="γ（正規化步長）" value={p.gamma} onChange={(v) => set('gamma', v)} min={0} max={2} step={0.001} reg="behav: gamma" />
-              <ParamControl label={rich(String.raw`$\varepsilon_J$（regularization）`)} ariaLabel="ε_J（regularization）" value={p.epsJ} onChange={(v) => set('epsJ', v)} min={0} max={10} step={0.0001} unit="fs⁻²" reg="behav: eps_J" />
+              <ParamControl label={rich(String.raw`$\varepsilon_J$（regularization）`)} ariaLabel="ε_J（regularization）" value={p.epsJ} onChange={(v) => set('epsJ', v)} min={0} max={10} step={0.0001} unit="$\mathrm{fs}^{-2}$" reg="behav: eps_J" />
               <ParamControl label={rich(String.raw`$\hat{\mathbf J}$ 非對角相對誤差 $e_\text{off}$`)} ariaLabel="Ĵ 非對角相對誤差 e_off" value={p.eOff} onChange={(v) => set('eOff', v)} min={-0.5} max={0.5} step={0.0001} reg="behav: jacobian_error" />
             </>
           )}
@@ -278,7 +278,7 @@ export function MimoJudgeExperiment() {
         </>
       )}
       <Plot
-        title={String.raw`Poles：單獨（○）、聯合（×）、公式預測（◇，只在 $\hat{\mathbf J}=\mathbf J$ 時成立）`}
+        title={String.raw`Poles：單獨（○）、聯合（$\times$）、公式預測（◇，只在 $\hat{\mathbf J}=\mathbf J$ 時成立）`}
         data={plot}
         layout={POLE_LAYOUT}
         height={320}

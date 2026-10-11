@@ -44,8 +44,8 @@ const INLINE_PRESETS: ExperimentPreset[] = [
 ]
 
 // Plot 的 layout 是靜態的：放在模組層，避免每次 render 產生新物件而觸發 Plotly.react
-const LAYOUT_CODE: Partial<Layout> = { xaxis: { title: { text: 'n（code 更新）' } }, yaxis: { title: { text: 'code [LSB]' } } }
-const LAYOUT_LINES: Partial<Layout> = { xaxis: { title: { text: 'f / f_u' }, range: [0, 0.5] }, yaxis: { title: { text: '|Y_k|/P [LSB]（k ≠ P/2 時 peak 振幅是 2 倍）' } } }
+const LAYOUT_CODE: Partial<Layout> = { xaxis: { title: { text: '$n$（code 更新）' } }, yaxis: { title: { text: 'code [LSB]' } } }
+const LAYOUT_LINES: Partial<Layout> = { xaxis: { title: { text: '$f / f_u$' }, range: [0, 0.5] }, yaxis: { title: { text: '$|Y_k|/P$ [LSB]（$k \\ne P/2$ 時 peak 振幅是 2 倍）' } } }
 
 function R3Experiment() {
   const [P, setP] = useState<R3Params>(DEFAULTS)
@@ -73,8 +73,8 @@ function R3Experiment() {
     { name: '表示的目標 $w_H=W/S$', value: res.represented, unit: 'LSB', note: `$W=${res.W}$、$S=${S}$` },
     { name: String.raw`週期 $P$（量測：狀態第一次回到起點）`, value: res.period, unit: 'updates', analytic: res.periodTheory, tolerance: 0, formulaId: 'F-R3.1', claim: 'exact' },
     { name: '一個週期的平均', value: res.cycleMean, unit: 'LSB', analytic: res.represented, tolerance: 1e-12, formulaId: 'F-R3.1', claim: 'exact' },
-    { name: String.raw`總量化誤差功率 $\overline{(y-w_H)^2}$`, value: res.errorPower, unit: 'LSB²', note: '全部是譜線（沒有連續雜訊）' },
-    { name: String.raw`非 DC 譜線的功率和 $\sum_{k=1}^{P-1}|Y_k|^2/P^2$（Parseval）`, value: res.linePower, unit: 'LSB²', analytic: res.errorPower, tolerance: 1e-9, claim: 'exact' },
+    { name: String.raw`總量化誤差功率 $\overline{(y-w_H)^2}$`, value: res.errorPower, unit: String.raw`$\mathrm{LSB}^2$`, note: '全部是譜線（沒有連續雜訊）' },
+    { name: String.raw`非 DC 譜線的功率和 $\sum_{k=1}^{P-1}|Y_k|^2/P^2$（Parseval）`, value: res.linePower, unit: String.raw`$\mathrm{LSB}^2$`, analytic: res.errorPower, tolerance: 1e-9, claim: 'exact' },
     { name: '最大譜線 $|Y_k|/P$', value: top?.mag ?? 0, unit: 'LSB', note: top ? `在 $${n4(top.fracFu)}\\,f_u$` : '' },
     {
       name: '最大譜線合成的實數 tone：peak 振幅',
@@ -85,7 +85,7 @@ function R3Experiment() {
     {
       name: '最大譜線合成的實數 tone：功率',
       value: top ? topFold * top.mag * top.mag : '無（輸出為常數）',
-      unit: 'LSB²',
+      unit: String.raw`$\mathrm{LSB}^2$`,
       note: String.raw`$2|Y_k|^2/P^2$（$k=P/2$ 時不乘 2）；第 13 章與勘誤 E47 列的是 peak 與這個功率`,
     },
   ]
@@ -94,13 +94,13 @@ function R3Experiment() {
   const timeline: Data[] = useMemo(() => {
     const y = Array.from({ length: n }, (_, i) => res.cycle[i % res.cycle.length])
     return [
-      { x: y.map((_, i) => i), y, name: 'y[n]（6-bit code）', mode: 'lines+markers', line: { shape: 'hv', color: tokens.series[0] }, marker: { size: 4 } },
-      { x: [0, n - 1], y: [res.represented, res.represented], name: 'w_H', mode: 'lines', line: { dash: 'dash', color: tokens.textMuted } },
+      { x: y.map((_, i) => i), y, name: '$y[n]$（6-bit code）', mode: 'lines+markers', line: { shape: 'hv', color: tokens.series[0] }, marker: { size: 4 } },
+      { x: [0, n - 1], y: [res.represented, res.represented], name: '$w_H$', mode: 'lines', line: { dash: 'dash', color: tokens.textMuted } },
     ]
   }, [res, n, tokens])
   const lines = useMemo(() => (res.lines.length ? res.lines : res.topLines.map(({ fracFu, mag }) => ({ fracFu, mag }))), [res])
   const spec: Data[] = useMemo(
-    () => [{ x: lines.map((l) => l.fracFu), y: lines.map((l) => l.mag), type: 'bar', name: '|Y_k|/P', marker: { color: tokens.series[1] }, width: lines.map(() => Math.max(0.004, 0.6 / res.period)) }],
+    () => [{ x: lines.map((l) => l.fracFu), y: lines.map((l) => l.mag), type: 'bar', name: '$|Y_k|/P$', marker: { color: tokens.series[1] }, width: lines.map(() => Math.max(0.004, 0.6 / res.period)) }],
     [lines, res.period, tokens],
   )
 

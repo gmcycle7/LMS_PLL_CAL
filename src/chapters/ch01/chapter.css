@@ -64,6 +64,10 @@
 .ch01-table th {
   vertical-align: top;
 }
+/* 表頭是短詞（例如「精確分數」）：窄欄也不要一個字一行地折 */
+.ch01-table th {
+  white-space: nowrap;
+}
 .ch01-table td.num,
 .ch01-table th.num {
   text-align: right;
@@ -188,12 +192,6 @@
 .ch01-diagram .c-mermaid {
   margin: 0 0 6px;
 }
-/* 窄螢幕：Mermaid 的 SVG 預設會一直縮到容器寬度，字會小到看不清楚；改成最小 560px，由圖自己的容器（overflow-x: auto）水平捲動 */
-@media (max-width: 760px) {
-  .ch01-chapter .c-mermaid-svg svg {
-    min-width: 560px;
-  }
-}
 .ch01-diagram-badge {
   display: inline-block;
   font-weight: 700;
@@ -253,4 +251,18 @@
 .ch01-symbols-back {
   margin: 4px 0 0;
   font-size: 0.88rem;
+}
+
+/* §2.2.1 的程式碼並排（兩欄、每欄約 440px）：差異行尾的「// ← 差異：…」註解比欄寬長，不換行的話要橫向捲動才看得到。
+   寬螢幕（CodeCompare 並排的那個斷點）讓程式碼自己換行：續行縮排到行號之後，標黃的差異行整行都看得到。 */
+@media (min-width: 1200px) {
+  .ch01-chapter .c-code-compare-columns .c-code-pre code {
+    min-width: 0;
+  }
+  .ch01-chapter .c-code-compare-columns .c-code-line {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    padding-left: 4.1em;
+    text-indent: -4.1em;
+  }
 }

@@ -28,12 +28,11 @@ const HAND_GAINS = [0.5, 1, 1.5, 2.2]
 const SPEC_GAINS = [0.2, 0.5, 1, 1.5, 1.8, 2]
 // Plot 的 layout 放在模組層級：物件參考固定，重新渲染時不會觸發多餘的 Plotly.react（也不會重設使用者的縮放）
 const PM_LAYOUT: Partial<Layout> = {
-  xaxis: { title: { text: 'g' } },
-  yaxis: { title: { text: 'PM [deg]' }, range: [0, 95] },
-  yaxis2: { title: { text: 'DM [blocks]' }, overlaying: 'y', side: 'right', range: [0, 3], showgrid: false },
-  legend: { orientation: 'h', y: -0.3 },
+  xaxis: { title: { text: '$g$' } },
+  yaxis: { title: { text: '$PM$ [deg]' }, range: [0, 95] },
+  yaxis2: { title: { text: '$DM$ [blocks]' }, overlaying: 'y', side: 'right', range: [0, 3], showgrid: false },
 }
-const POLE_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'g' } }, yaxis: { title: { text: 'pole' }, range: [-1.3, 1.1] } }
+const POLE_LAYOUT: Partial<Layout> = { xaxis: { title: { text: '$g$' } }, yaxis: { title: { text: 'pole' }, range: [-1.3, 1.1] } }
 
 function behaviour(g: number): ReactNode {
   if (g <= 0) return '極性錯誤：發散'
@@ -55,15 +54,15 @@ export function FirstOrderPm() {
     const gs = Array.from({ length: 221 }, (_, i) => 0.01 * i)
     const rows = gs.map((g) => pmFirstOrder(g))
     const pm: Data[] = [
-      { x: gs, y: rows.map((r) => (Number.isFinite(r.pmDeg) ? r.pmDeg : null)), name: 'PM = 90° − asin(g/2)', mode: 'lines', line: { color: tokens.series[0], width: 2 } },
-      { x: gs, y: rows.map((r) => (Number.isFinite(r.delayMarginBlocks) ? r.delayMarginBlocks : null)), name: 'Delay margin DM [blocks]（右軸）', yaxis: 'y2', mode: 'lines', line: { color: tokens.series[2], width: 1.5, dash: 'dash' } },
-      { x: [1], y: [pmFirstOrder(1).pmDeg], name: `g = 1：PM ${fx(pmFirstOrder(1).pmDeg, 0)}°（T08）`, mode: 'markers', marker: { size: 10, color: tokens.danger } },
+      { x: gs, y: rows.map((r) => (Number.isFinite(r.pmDeg) ? r.pmDeg : null)), name: String.raw`$PM = 90^\circ - \arcsin(g/2)$`, mode: 'lines', line: { color: tokens.series[0], width: 2 } },
+      { x: gs, y: rows.map((r) => (Number.isFinite(r.delayMarginBlocks) ? r.delayMarginBlocks : null)), name: String.raw`Delay margin $DM$ [blocks]（右軸）`, yaxis: 'y2', mode: 'lines', line: { color: tokens.series[2], width: 1.5, dash: 'dash' } },
+      { x: [1], y: [pmFirstOrder(1).pmDeg], name: String.raw`$g = 1$：$PM = ${fx(pmFirstOrder(1).pmDeg, 0)}^\circ$（T08）`, mode: 'markers', marker: { size: 10, color: tokens.danger } },
     ]
     const pole: Data[] = [
-      { x: gs, y: rows.map((r) => r.pole), name: '閉迴路 pole 1 − g', mode: 'lines', line: { color: tokens.series[1], width: 2 } },
-      { x: gs, y: rows.map((r) => Math.abs(r.pole)), name: '|pole|', mode: 'lines', line: { color: tokens.series[3], width: 1.5, dash: 'dot' } },
-      { x: [0, 2.2], y: [1, 1], name: '|z| = 1', mode: 'lines', line: { color: tokens.textMuted, dash: 'dash', width: 1 } },
-      { x: [0, 2.2], y: [-1, -1], name: 'z = −1', mode: 'lines', line: { color: tokens.textMuted, dash: 'dash', width: 1 }, showlegend: false },
+      { x: gs, y: rows.map((r) => r.pole), name: String.raw`閉迴路 pole $1 - g$`, mode: 'lines', line: { color: tokens.series[1], width: 2 } },
+      { x: gs, y: rows.map((r) => Math.abs(r.pole)), name: String.raw`$|\mathrm{pole}|$`, mode: 'lines', line: { color: tokens.series[3], width: 1.5, dash: 'dot' } },
+      { x: [0, 2.2], y: [1, 1], name: String.raw`$|z| = 1$`, mode: 'lines', line: { color: tokens.textMuted, dash: 'dash', width: 1 } },
+      { x: [0, 2.2], y: [-1, -1], name: String.raw`$z = -1$`, mode: 'lines', line: { color: tokens.textMuted, dash: 'dash', width: 1 }, showlegend: false },
     ]
     return { pm, pole }
   }, [tokens])

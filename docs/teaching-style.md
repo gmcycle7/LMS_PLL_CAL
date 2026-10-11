@@ -27,7 +27,11 @@
 ## 3. 數學呈現
 
 - **所有數學一律 KaTeX/LaTeX**（`Tex` 行內、`TexBlock` 獨立），內文不得用純文字或 Unicode 拼湊公式（例如不要寫「w(n+1)=w(n)+μex」）。
-- **字串屬性也要用 LaTeX**：共用元件的字串屬性（`ExperimentShell` 的 title／description／warnings／assumptions、`MetricRow.name`／`note`、`Plot` 的 title／caption、`Section`／`Derivation`／`Callout`／`Prereq`／`Quiz`／`Recap` 的標題、`CodeBlock`／`CodeCompare` 的 title／caption／label／note）支援 `$...$` 行內公式，例如 `'C ≤ 0：$p = 1-\\mu K_q C > 1$，更新極性錯誤'`。不要在這些字串裡用 Unicode 拼公式（`σ_w`、`μK_q`、`δ²`…），一律改寫成 `$\\sigma_w$`。例外：Plotly 圖內的軸標題與圖例（Plotly 不渲染 KaTeX）可保留 Unicode。
+- **字串屬性也要用 LaTeX**：共用元件的字串屬性（`ExperimentShell` 的 title／description／warnings／assumptions、`MetricRow.name`／`note`／`unit`、`Plot` 的 title／caption、`Section`／`Derivation`／`Callout`／`Prereq`／`Quiz`／`Recap` 的標題、`CodeBlock`／`CodeCompare` 的 title／caption／label／note、`ParamControl`／`SelectControl`／`ToggleControl` 的 label／hint／unit、`Mermaid` 的 caption）支援 `$...$` 行內公式，例如 `'C ≤ 0：$p = 1-\\mu K_q C > 1$，更新極性錯誤'`。不要在這些字串裡用 Unicode 拼公式（`σ_w`、`μK_q`、`δ²`…），一律改寫成 `$\\sigma_w$`。
+- **圖裡面的數學也要用 LaTeX**（使用者要求，2026-10-11：「數學公式包含圖片裡面的數學公式都要用類似 latex 的格式」）：
+  - **方塊圖（Mermaid）**：節點與連線的雙引號標籤裡，數學一律寫 `$...$`，文字照常寫，例如 `A["誤差 $e[n] = y[n] - \\hat y[n]$"]`、`X -- "$\\mu$" --> Y`。共用的 `Mermaid` 元件會用 KaTeX 排版（和正文同一套樣式）。圖的原始碼用 `String.raw` 樣板字串，反斜線就不用寫兩次。限制：標籤內不要用 `\\\\`（Mermaid 會把它收成一個反斜線；換行用 `<br/>`）；`stateDiagram`／`sequenceDiagram` 的文字與 subgraph 標題是否支援公式，以 `renderMermaidForTest` 的結果為準（`mathCount`、文字中不可殘留 `$`），不支援就改用文字敘述或改畫成 flowchart。
+  - **互動圖表（Plotly）**：軸標題、圖例名稱（trace `name`）、annotation、`ticktext`、`hovertemplate` 裡的數學也寫 `$...$`，例如 `'學習率 $\\mu$'`、`'$\\sigma_w$ (fs)'`、`'$|H_{\\mathrm{PD}}|$ (dB)'`。`Plot` 元件會轉成斜體符號與真正的上下標（`plotMath.ts`；分數以行內 `a/b` 顯示）。不支援的 TeX 指令會原樣顯示指令名稱，所以圖表字串只用基本指令（希臘字母、上下標、`\\frac`、`\\sqrt`、`\\hat`／`\\bar`、`\\mathrm`、`\\text`、常見運算符號）。
+  - 下拉選單的 `<option>` 文字、匯出檔的欄名、aria-label 是純文字，不放公式。
 - 重要結果用 `\boxed{}`；推導用 `\begin{aligned} … \end{aligned}`。
 - 有單位的量要寫單位（\(\mathrm{fs}\)、\(\mathrm{fs}^{-1}\)、\(\mathrm{Hz}\)），並註明時間索引 \(n\)（sample）／\(k\)（block）。
 - 盡量多數學分析：除了規格書的公式，補上中間推導、邊界情況、數值驗算，以及「如果假設不成立會怎樣」。
@@ -67,8 +71,8 @@
 ## 8. 方塊圖（使用者要求：「多加一些方塊圖讓我好理解」）
 
 - **每個主要概念都要有一張方塊圖**，放在文字說明之後、公式推導之前（先看圖知道訊號怎麼流，再看數學）。每章至少 5 張（含章首的系統地圖），重要章節 8 張以上。
-- 圖的種類（依內容選用，使用 `Mermaid` 元件的 flowchart；節點文字可用 Unicode 數學符號，因為 Mermaid 不渲染 KaTeX）：
-  1. **系統地圖**（章首）：`<SystemMap focus={['cmp','gmac']} />`，全站同一張圖、藍色標出本章主角。
+- 圖的種類（依內容選用，使用 `Mermaid` 元件的 flowchart；節點與連線標籤裡的數學一律寫 `$...$`，由 KaTeX 排版）：
+  1. **系統地圖**（章首）：`<SystemMap focus={['cmp','gmac']} />`，全站同一張圖、藍色標出本章主角。這張圖是手排的 SVG（三條泳道、連線只走水平／垂直、沒有交叉），不經過 Mermaid；測試要檢查主角時用 `systemMapModel(focus)`。
   2. **數學模型方塊圖**：把方程式畫成訊號流，例如 `x → [× a] → (+) ← v`、`e = y − ŷ`；加法點用圓形節點，正負號寫全形「＋」與減號「−」（U+2212），例如 `S(("＋"))`、連線標籤 `-- "−" -->`；延遲用 `["z⁻¹"]`，積分器用 `["1/(z−1)"]`。**不要用單獨的半形 `+`／`-` 當標籤**：Mermaid 11 會把它當成 Markdown 清單，畫出「Unsupported markdown: list」（共用的 `Mermaid` 元件會自動替換，但原始碼仍應直接寫對）。
   3. **演算法迴圈圖**：更新式畫成迴圈（預測 → 比較 → 修正 → 延遲回授），標出每條線上的訊號名稱與極性（+／−）。
   4. **路徑／轉移函數圖**：誤差注入點、`H_PD`、`T`、comparator、GMAC 的串接，標出取樣率（`n`／`k`）。
@@ -77,5 +81,15 @@
   7. **狀態機／時序圖**：校正流程、clock domain、block 邊界（可用 `stateDiagram-v2` 或 `sequenceDiagram`）。
 - 每張圖要有圖說（一句話說明要看什麼），且圖上的訊號名稱、正負號、箭頭方向必須和正文公式一致（審查時逐一核對）。
 - 每張圖都要在測試裡**真的畫一次**，不能只過 parser（parser 抓不到「Unsupported markdown」這類問題）：各章的 `diagrams.test.tsx`（jsdom 環境）用 `@/components/mermaidTestUtils` 的 `installMermaidSvgShim` 與 `renderMermaidForTest(chart)`，逐張斷言畫出來的文字不含 `Unsupported markdown`、節點數不超過上限。節點文字含括號、冒號、引號等特殊字元時用雙引號包住。
-- 圖說（`caption`）支援 `$...$` 行內公式，圖說裡的數學一律用 LaTeX；圖內節點文字才用 Unicode。
-- 圖不要過大：單張不超過約 14 個節點；太大就拆成兩張。手機上圖會在自己的容器內縮放或捲動。
+- 圖說（`caption`）與圖內標籤的數學一律用 `$...$` LaTeX；測試要斷言畫出來的文字裡沒有殘留的 `$`，而且 KaTeX 以外的文字沒有 Unicode 拼的數學。
+- 圖不要過大：單張不超過約 14 個節點；太大就拆成兩張。
+- **版面寬度**：桌機（視窗 1280px）上圖要完整放進正文欄，不需要橫向捲動——自然寬度約 1260px 以內（`node scripts/diagram-audit.mjs --routes /ch/NN` 的「超出」要是 0），高度盡量不超過 1400px。太寬的橫向流程改成直向（`flowchart TB`）、用上下兩個 `direction LR` 的 subgraph 折成兩列，或把長標籤用 `<br/>` 換行（含數學的標籤不會自動換行）。手機上圖會在自己的外框內橫向捲動，右上角有「放大」可以全螢幕檢視。
+- **外觀**由共用元件統一處理（`mermaidTheme.ts`：白底圓角節點、虛線圓角群組、連線標籤是小膠囊；外框是有細點格線的圖紙），各圖**不要**自己指定節點底色或字型；要強調時只用規範的 `classDef`（`focus` 藍、`warn` 紅、`ok` 綠…，白字配深色底）。
+- **Mermaid 排版的幾個眉角**（這一輪整理時實際踩到的）：
+  - subgraph 裡只要有一個節點連到框外，這個 subgraph 自己的 `direction` 就會被忽略。要把長鏈折成上下兩列，列與列之間要連 subgraph 本身（`ROW1 --> ROW2`），或用看不見的連線 `ROW1 ~~~ ROW2` 只決定上下順序；跨列的訊號線若必須是節點對節點，就改用整張 `flowchart TB`。
+  - subgraph 的標題只有一行的高度（約 200px 就換行），所以標題只寫一行文字；公式與條件放進框內的節點。
+  - 兩個來源各自接到兩個加法點（正負號不同）時，直向排版會交叉、正負號標籤會相撞：用 `A ~~~ B` 把其中一個往下推一層可以解開。測試數連線時要略過這種看不見的線。
+  - `stateDiagram-v2` 的自我轉移（`A --> A`）會畫成又長又細的尖角，盡量把那句話寫進狀態的說明文字裡。
+  - 沒有「反向箭頭」的連線語法（`A <-- B` 不是合法的邊），回授要寫成來源 → 目的。
+  - 很大的菱形（判斷式太長）改用六角形 `{{"…"}}`，比較不佔高度。
+- 改完圖要**實際看一次**：`node scripts/screenshots.mjs --routes /ch/NN --shots all-mermaid` 截圖逐張檢查（文字有沒有被切掉或重疊、連線有沒有不必要的交叉、字會不會太小）。
