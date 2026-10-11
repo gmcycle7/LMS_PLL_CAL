@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Callout, ClaimTag, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock, TestBadge, mathText } from '@/components'
-import { Deriv, Erratum, Hand, TagRow, n, texMat, tn } from '../common'
+import { Deriv, Erratum, Fig, Hand, TagRow, n, texMat, tn } from '../common'
 import { NUM } from '../numbers'
 
 /** 點 preset 連結後捲到實驗（HashRouter 不能用 #anchor） */
@@ -36,7 +36,8 @@ export function S4Jacobian() {
         <ul>
           <li>
             有效 regressor 經過 PLL 的 <Tex>{String.raw`H_{\mathrm{PD}}`}</Tex>、延遲、相位旋轉（第 6–7 章），GMAC 的 code 卻是原始的 DSM / PHOS code，所以{' '}
-            <Tex>{String.raw`\mathbf C=E[\mathbf x\mathbf u^T]`}</Tex> 不一定對稱，甚至可能不定號。
+            <Tex>{String.raw`\mathbf C=E[\mathbf x\mathbf u^T]`}</Tex>（GMAC code <Tex>{String.raw`\mathbf x`}</Tex> 與有效 regressor <Tex>{String.raw`\mathbf u`}</Tex> 的交叉相關矩陣；匹配時就是{' '}
+            <Tex>{String.raw`\mathbf R`}</Tex>）不一定對稱，甚至可能不定號。
           </li>
           <li>
             <Tex>{String.raw`\mathbf R`}</Tex> 隨 FCW、PVT 改變；設計時算的 <Tex>{String.raw`\mathbf R`}</Tex> 到了量產可能不準。
@@ -49,8 +50,17 @@ export function S4Jacobian() {
 
         <h3 className="ch10-sub">中央差分：Freeze、擾動、各量一次 GMAC</h3>
         <p>
-          先 Freeze gain，在相同 operating condition 下分別把第 j 個參數 <Tex>{String.raw`\pm\Delta_j`}</Tex>：
+          先 Freeze gain（所有係數停止更新），在相同 operating condition 下分別把第 j 個參數 <Tex>{String.raw`\pm\Delta_j`}</Tex>（<Tex>{String.raw`\Delta_j`}</Tex> 是刻意加上去的小擾動，單位 fs），每次都讓 GMAC 累加{' '}
+          <Tex>{'N_J'}</Tex> 個 sample 再讀值（<Tex>{'N_J'}</Tex> 是量測 Jacobian 專用的累加長度，可以和平常更新用的 <Tex>{'N'}</Tex> 不同）。量出來的估計值記成 <Tex>{String.raw`\hat{\mathbf J}`}</Tex>（戴帽子），晶片真正的斜率是{' '}
+          <Tex>{String.raw`\mathbf J`}</Tex>。整個流程是一個小狀態機：
         </p>
+        <Fig id="jacobian-fsm">
+          先由上往下沿著箭頭走：FREEZE 讓所有係數停止更新（否則 <Tex>{String.raw`\mathbf w`}</Tex> 一邊量一邊動，量到的不是同一個點的斜率）→ PLUS 把 <Tex>{'w_j'}</Tex> 加上 <Tex>{String.raw`\Delta_j`}</Tex>，等{' '}
+          <Tex>{'N_J'}</Tex> 個 sample，記下所有 GMAC 的平均 <Tex>{String.raw`\mathbf G^{+}`}</Tex> → MINUS 改成減 <Tex>{String.raw`\Delta_j`}</Tex>，記下 <Tex>{String.raw`\mathbf G^{-}`}</Tex> → SLOPE 相減再除以{' '}
+          <Tex>{String.raw`2\Delta_j`}</Tex>，得到 <Tex>{String.raw`\hat{\mathbf J}`}</Tex> 的第 <Tex>{'j'}</Tex> 欄，並把 <Tex>{'w_j'}</Tex> 放回原值。再看回頭的那條箭頭：對每個參數重複一次，<Tex>{'P'}</Tex> 個參數一共{' '}
+          <Tex>{'2P'}</Tex> 次量測。圖上 SLOPE 那一格就是下面的 F-10.9：<Tex>{String.raw`\mathbf G^{+}=\mathbf G(\mathbf w+\Delta_j\mathbf e_j)`}</Tex>、<Tex>{String.raw`\mathbf G^{-}=\mathbf G(\mathbf w-\Delta_j\mathbf e_j)`}</Tex>，其中{' '}
+          <Tex>{String.raw`\mathbf e_j`}</Tex> 是第 <Tex>{'j'}</Tex> 個分量為 1、其餘為 0 的單位向量，所以 <Tex>{String.raw`\mathbf w+\Delta_j\mathbf e_j`}</Tex> 就是「只把 <Tex>{'w_j'}</Tex> 加上 <Tex>{String.raw`\Delta_j`}</Tex>」。
+        </Fig>
         <TexBlock id="F-10.9" label={mathText('第 $j$ 欄 = 只擾動第 $j$ 個參數時，所有 GMAC 的變化率')}>
           {String.raw`\boxed{J_{ij}\approx\frac{G_i(\mathbf w+\Delta_j\mathbf e_j)-G_i(\mathbf w-\Delta_j\mathbf e_j)}{2\Delta_j}}`}
         </TexBlock>
@@ -85,6 +95,15 @@ export function S4Jacobian() {
             ]}
           />
         </Deriv>
+        <p>
+          <Tex>{String.raw`\Delta`}</Tex> 要選多大？有兩個互相拉扯的誤差來源：太小，兩次讀數的差被 GMAC 雜訊淹沒；太大，comparator 開始飽和，量到的斜率偏小。
+        </p>
+        <Fig id="fd-tradeoff">
+          先看上面一路（<Tex>{String.raw`\Delta`}</Tex> 太小）：<Tex>{String.raw`\mathbf G^{+}-\mathbf G^{-}`}</Tex> 比 GMAC 自己的雜訊還小，<Tex>{String.raw`\hat{\mathbf J}`}</Tex> 的標準差與{' '}
+          <Tex>{String.raw`1/\Delta`}</Tex> 成正比。再看下面一路（<Tex>{String.raw`\Delta`}</Tex> 太大）：<Tex>{String.raw`\pm\Delta`}</Tex> 已經把 comparator 推到 erf 變平的地方，量到的斜率絕對值比真實的小。中間一路是折衷。圖上的「截斷係數」就是下面
+          F-10.14 的 <Tex>{String.raw`\hat J_{ij}/J_{ij}`}</Tex>（1 代表沒有偏差），「std」就是再下面的雜訊公式 <Tex>{String.raw`\sqrt{2R_{x,ii}/N_J}/(2\Delta)`}</Tex> 除以 <Tex>{'K_q'}</Tex>；三路的數字都在後面的表裡（
+          <Tex>{String.raw`\Delta/\sigma_v=0.1,\ 0.3,\ 1`}</Tex> 三列）。
+        </Fig>
         <p>
           1-bit comparator 的 GMAC 是 erf 形狀的 S 曲線，在 <Tex>{String.raw`\pm\Delta`}</Tex> 處已經開始飽和（上面的 <Tex>{String.raw`\tfrac16G'''\Delta^2`}</Tex> 項與 <Tex>{String.raw`G'`}</Tex> 反號），所以量到的斜率<strong>絕對值偏小</strong>。在{' '}
           <Tex>{String.raw`\boldsymbol\delta=0`}</Tex> 量測、樣本無限多時，第 j 欄的截斷係數：
@@ -154,7 +173,8 @@ export function S4Jacobian() {
         </ModeGate>
         <p>
           反過來，<Tex>{String.raw`\Delta`}</Tex> 太小則雜訊大：兩次獨立的 <Tex>{'N_J'}</Tex>-sample GMAC 相減，
-          <Tex>{String.raw`\operatorname{std}(\hat J_{ij})\approx\sqrt{2R_{x,ii}/N_J}/(2\Delta)`}</Tex>（每次量測的變異約 <Tex>{String.raw`R_{x,ii}/N_J`}</Tex>，兩次相加）。下表（正規化{' '}
+          <Tex>{String.raw`\operatorname{std}(\hat J_{ij})\approx\sqrt{2R_{x,ii}/N_J}/(2\Delta)`}</Tex>（<Tex>{String.raw`R_{x,ii}=E[x_i^2]`}</Tex> 是第 <Tex>{'i'}</Tex> 個 GMAC code 的功率，§10.2；每次量測的變異約{' '}
+          <Tex>{String.raw`R_{x,ii}/N_J`}</Tex>，兩次相加）。下表（正規化{' '}
           <Tex>{String.raw`\hat J/K_q`}</Tex>、<Tex>{String.raw`N_J=4096`}</Tex>、<Tex>{String.raw`R_{x,ii}=1`}</Tex>）顯示這個 bias–variance trade-off：
         </p>
         <div className="table-wrap">
@@ -215,6 +235,17 @@ export function S4Jacobian() {
         <h3 className="ch10-sub">
           線性化：<Tex>{String.raw`\mathbf A_{\mathrm{cal}}=\mathbf I+\mathbf M\mathbf J`}</Tex>
         </h3>
+        <p>
+          量到 <Tex>{String.raw`\hat{\mathbf J}`}</Tex> 之後，怎麼知道用它建構出來的 <Tex>{String.raw`\mathbf M`}</Tex> 穩不穩定？答案和 §10.3 一樣：看迴路矩陣的 eigenvalue。差別只有一個，卻很要緊：
+          <Tex>{String.raw`\mathbf M`}</Tex> 是用「量到的」<Tex>{String.raw`\hat{\mathbf J}`}</Tex> 算的，晶片上轉的卻是「真正的」<Tex>{String.raw`\mathbf J`}</Tex>。
+        </p>
+        <Fig id="acal-check">
+          先看藍色方塊的兩個輸入：一路從量到的 <Tex>{String.raw`\hat{\mathbf J}`}</Tex> 出發，經過「建構 <Tex>{String.raw`\mathbf M(\hat{\mathbf J})`}</Tex>」；另一路直接來自晶片真正的 <Tex>{String.raw`\mathbf J`}</Tex>；兩者相乘再加{' '}
+          <Tex>{String.raw`\mathbf I`}</Tex> 才是 <Tex>{String.raw`\mathbf A_{\mathrm{cal}}`}</Tex>。再往下：算它的 eigenvalue（poles），最大的絕對值就是 spectral radius{' '}
+          <Tex>{String.raw`\rho(\mathbf A_{\mathrm{cal}})`}</Tex>，小於 1 平均誤差才收斂。圖上的 <Tex>{String.raw`\mathbf A_{\mathrm{cal}}`}</Tex> 就是 F-10.2 與下面推導的{' '}
+          <Tex>{String.raw`\mathbf I+\mathbf M\mathbf J`}</Tex>；如果把 <Tex>{String.raw`\hat{\mathbf J}`}</Tex> 也拿來當成 <Tex>{String.raw`\mathbf J`}</Tex> 代進去，算出來的 pole 只是紙上的值（勘誤
+          E24，本節最後的表就是兩者不同時發生的事）。
+        </Fig>
         <Deriv title="從 Jacobian 推迴路矩陣">
           <StepDerivation
             steps={[
@@ -262,6 +293,19 @@ export function S4Jacobian() {
         <h3 className="ch10-sub">
           Regularized pseudoinverse：<Tex>{String.raw`\mathbf M=-\gamma(\mathbf J^T\mathbf J+\lambda_{\mathrm{reg}}\mathbf I)^{-1}\mathbf J^T`}</Tex>
         </h3>
+        <p>
+          <Tex>{String.raw`\mathbf J`}</Tex> 可能不對稱、甚至接近奇異，直接求 <Tex>{String.raw`\mathbf J^{-1}`}</Tex> 很危險。Regularized pseudoinverse 的做法是：沿著 <Tex>{String.raw`\mathbf J`}</Tex> 的每一個 singular
+          方向，各做一次「分母加了 <Tex>{String.raw`\lambda_{\mathrm{reg}}`}</Tex> 的除法」。用上面的 SVD 把它畫出來：
+        </p>
+        <Fig id="pinv-svd">
+          先看 ①（晶片）：誤差 <Tex>{String.raw`\boldsymbol\epsilon`}</Tex> 被 <Tex>{String.raw`\mathbf V^T`}</Tex> 拆成模式，每個模式乘上自己的 singular value <Tex>{String.raw`\sigma_i`}</Tex>，再被{' '}
+          <Tex>{String.raw`\mathbf U`}</Tex> 轉成 GMAC 看到的方向，得到綠色的 <Tex>{String.raw`E[\mathbf G_k]=\mathbf J\boldsymbol\epsilon_k`}</Tex>。再看 ②（更新矩陣），它從同一個 <Tex>{String.raw`\mathbf G_k`}</Tex>（綠色）接下去：先用{' '}
+          <Tex>{String.raw`\mathbf U^T`}</Tex> 轉回來，乘上藍色的 <Tex>{String.raw`\sigma_i/(\sigma_i^2+\lambda_{\mathrm{reg}})`}</Tex>，再用{' '}
+          <Tex>{String.raw`\mathbf V`}</Tex> 轉回參數座標並乘 <Tex>{String.raw`-\gamma`}</Tex>。<Tex>{String.raw`\mathbf U`}</Tex> 與 <Tex>{String.raw`\mathbf U^T`}</Tex> 相消（<Tex>{String.raw`\mathbf U^T\mathbf U=\mathbf I`}</Tex>），所以模式{' '}
+          <Tex>{'i'}</Tex> 繞一圈只乘了 <Tex>{String.raw`\sigma_i\times\sigma_i/(\sigma_i^2+\lambda_{\mathrm{reg}})\times(-\gamma)`}</Tex>：加上原來的 1 就是下面 F-10.10 的{' '}
+          <Tex>{String.raw`p_i=1-\gamma\sigma_i^2/(\sigma_i^2+\lambda_{\mathrm{reg}})`}</Tex>。圖上用的是上一段推導的座標 <Tex>{String.raw`\boldsymbol\epsilon=\mathbf w-\mathbf w^*`}</Tex>（<Tex>{String.raw`\mathbf w^*=\mathbf a`}</Tex> 時{' '}
+          <Tex>{String.raw`\boldsymbol\epsilon=-\boldsymbol\delta`}</Tex>，pole 相同）；<Tex>{String.raw`\lambda_{\mathrm{reg}}=0`}</Tex> 時藍色方塊變成 <Tex>{String.raw`1/\sigma_i`}</Tex>，就是完整反矩陣。
+        </Fig>
         <Deriv title="用 SVD 推出每個模式的 pole">
           <StepDerivation
             steps={[
@@ -327,7 +371,8 @@ export function S4Jacobian() {
           <p>
             實務上 <Tex>{String.raw`\mathbf M`}</Tex> 是用<strong>量測的</strong> <Tex>{String.raw`\hat{\mathbf J}`}</Tex>（有雜訊、PVT drift）建構的，poles 必須用{' '}
             <Tex>{String.raw`\operatorname{eig}\big(\mathbf I+\mathbf M(\hat{\mathbf J})\,\mathbf J_{\text{true}}\big)`}</Tex> 計算。近奇異的 <Tex>{String.raw`\mathbf J`}</Tex> 對{' '}
-            <Tex>{String.raw`\hat{\mathbf J}`}</Tex> 誤差極端敏感：
+            <Tex>{String.raw`\hat{\mathbf J}`}</Tex> 誤差極端敏感。下表的 <Tex>{String.raw`\mathbf J_n=\mathbf J/K_q`}</Tex> 是除掉 <Tex>{'K_q'}</Tex> 的正規化 Jacobian（匹配模型下{' '}
+            <Tex>{String.raw`=-\mathbf R`}</Tex>），<Tex>{String.raw`\hat\rho`}</Tex> 是建構 <Tex>{String.raw`\hat{\mathbf J}`}</Tex> 時「以為的」相關係數，真實值是 0.99：
           </p>
           <div className="table-wrap">
             <table>
@@ -394,8 +439,23 @@ export function S4Jacobian() {
         </TagRow>
         <p>
           兩個 GMAC，量到的 Jacobian 是 <Tex>{String.raw`\mathbf J=\begin{bmatrix}-1&2\\2&-1\end{bmatrix}`}</Tex>（<Tex>{'K_q'}</Tex> 正規化為 1）。對角都是 −1：每個 loop 單獨看，極性正確、斜率正確。用 scalar{' '}
-          <Tex>{String.raw`\mathbf M=0.2\mathbf I`}</Tex>：
+          <Tex>{String.raw`\mathbf M=0.2\mathbf I`}</Tex>。先把這個 <Tex>{String.raw`\mathbf J`}</Tex> 畫成訊號流，再從三個角度看它：
         </p>
+        <Fig id="t18-coupling">
+          先看輸出是 <Tex>{'G_1'}</Tex> 的那個加法點（上面那一個）：<Tex>{'w_1'}</Tex> 自己偏高 1 fs（<Tex>{String.raw`\epsilon_1=1`}</Tex>）時，<Tex>{String.raw`J_{11}=-1`}</Tex> 讓 <Tex>{'G_1'}</Tex> 變負，更新後把{' '}
+          <Tex>{'w_1'}</Tex> 拉回去——單獨看是對的。再看紅色路徑：<Tex>{'w_2'}</Tex> 偏高 1 fs 時，<Tex>{String.raw`J_{12}=+2`}</Tex> 讓 <Tex>{'G_1'}</Tex> 變正 2，把 <Tex>{'w_1'}</Tex> 往外推，力道是自己修正的兩倍。圖上的「
+          <Tex>{String.raw`\times J_{ij}`}</Tex>」就是 <Tex>{String.raw`\mathbf J`}</Tex> 的第 <Tex>{'(i,j)'}</Tex> 格，右邊的「<Tex>{String.raw`\times\mu`}</Tex>」與最右邊那一格就是{' '}
+          <Tex>{String.raw`\mathbf w\leftarrow\mathbf w+\mu\mathbf G`}</Tex>（更新後的 <Tex>{String.raw`\mathbf w`}</Tex> 就是下一個 block 的誤差，回到最左邊再走一次）；整張圖寫成式子是 <Tex>{String.raw`\boldsymbol\epsilon_{k+1}=(\mathbf I+0.2\mathbf J)\boldsymbol\epsilon_k`}</Tex>。這裡用{' '}
+          <Tex>{String.raw`\boldsymbol\epsilon=\mathbf w-\mathbf w^*`}</Tex> 而不是 <Tex>{String.raw`\boldsymbol\delta`}</Tex>，因為 <Tex>{String.raw`\mathbf J`}</Tex> 是對 <Tex>{String.raw`\mathbf w`}</Tex> 的斜率（<Tex>{String.raw`\mathbf w^*=\mathbf a`}</Tex> 時{' '}
+          <Tex>{String.raw`\boldsymbol\epsilon=-\boldsymbol\delta`}</Tex>，兩者差一個負號，pole 不變）。
+        </Fig>
+        <Fig id="t18-modes">
+          先看 ①「只開一個 loop」那一框：把 loop 2 凍結（<Tex>{String.raw`\epsilon_2`}</Tex> 不動）時，loop 1 只看得到 <Tex>{String.raw`J_{11}`}</Tex>，pole 是 <Tex>{String.raw`1+0.2\times(-1)=0.8`}</Tex>。再看 ②「兩個 loop 一起更新」那一框：兩個一起動時要看「方向」。兩個係數往同一邊偏（共模）時，自己的{' '}
+          <Tex>{'-1'}</Tex> 與耦合的 <Tex>{'+2'}</Tex> 相加成 <Tex>{'+1'}</Tex>，pole 變成 <Tex>{String.raw`${tn(t.poles[0])}`}</Tex>，誤差每個 block 放大 {n(t.poles[0])} 倍（紅色）；往相反方向偏（差模）時耦合項跟著變號，<Tex>{'-1-2'}</Tex> 成為{' '}
+          <Tex>{'-3'}</Tex>，pole 是 <Tex>{String.raw`${tn(t.poles[1])}`}</Tex>。圖上的兩個「斜率」就是 <Tex>{String.raw`\mathbf J`}</Tex> 的 eigenvalue（<Tex>{String.raw`${tn(t.eigJ[0])}`}</Tex> 與{' '}
+          <Tex>{String.raw`${tn(t.eigJ[1])}`}</Tex>），三個 pole 就是下面 F-10.11 的 <Tex>{String.raw`\operatorname{eig}(\mathbf I+\mathbf M\mathbf J)=1+0.2\operatorname{eig}(\mathbf J)`}</Tex> 與單一 loop 的{' '}
+          <Tex>{String.raw`1+0.2J_{ii}`}</Tex>。
+        </Fig>
         <Deriv title="一步一步算 poles" min="beginner">
           <StepDerivation
             steps={[

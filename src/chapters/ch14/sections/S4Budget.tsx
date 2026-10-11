@@ -3,6 +3,8 @@ import type { Data } from 'plotly.js-dist-min'
 import { Callout, ClaimTag, CodeBlock, ModeGate, ParamControl, Plot, Section, SourceTag, Tex, TexBlock, useThemeTokens } from '@/components'
 import optimizerSrc from '@/simulation/models/optimizer.ts?raw'
 import { budgetSplit, loopGainK } from '@/simulation/models/optimizer'
+import { Diagram } from '../Diagram'
+import { CHART_BUDGET_SPLIT } from '../diagrams'
 import { HandLink } from '../Hand'
 import { md, nf, Steps, tx } from '../shared'
 
@@ -50,6 +52,15 @@ export function S4Budget() {
       <p>
         開機校正的時間是固定的：<Tex>{'T=N\\cdot B'}</Tex> 次比較。<Tex>{'N'}</Tex> 加倍，每次更新的雜訊 <Tex>{'\\sigma_\\eta^2=1/N'}</Tex> 減半，但更新次數 <Tex>{'B'}</Tex> 也減半。哪個好？
       </p>
+      <Diagram chart={CHART_BUDGET_SPLIT} caption="同一筆預算的兩種花法：兩條路線最後匯到同一個藍色方塊，表示一階結果相同。">
+        <p>
+          <strong>先看</strong>最上面：總比較次數 <Tex>{'T'}</Tex> 固定。一條路線是「<Tex>{'N'}</Tex> 大」：每次更新比較乾淨，但更新次數少；另一條是「<Tex>{'N'}</Tex> 小」：每次更新比較吵，但更新次數多。<strong>再看</strong>兩條路線匯合的藍色方塊：只要{' '}
+          <Tex>{'\\mu'}</Tex> 跟著重新最佳化，「每次的雜訊 ÷ 更新次數」永遠等於 <Tex>{'1/T'}</Tex>。<strong>最後看</strong>最下面：既然雜訊分不出高下，<Tex>{'N'}</Tex> 就交給硬體與穩健性決定（本節後半的表格）。
+        </p>
+        <p>
+          圖上藍色方塊裡的 <Tex>{'\\sigma_\\eta^2/B=1/T'}</Tex> 與 <Tex>{'A=4TK^2\\delta_0^2'}</Tex> 就是下面推導的第 1、2 步；把它們代回 F-14.8，就是只剩 <Tex>{'T'}</Tex> 的 F-14.17。
+        </p>
+      </Diagram>
       <Steps
         title={
           <>
@@ -173,9 +184,11 @@ export function S4Budget() {
               <td>少</td>
             </tr>
             <tr>
-              <td>追蹤頻寬 <Tex>{'f_u g/(2\\pi)'}</Tex></td>
               <td>
-                低：<Tex>{'f_u=f_s/N'}</Tex> 小
+                追蹤頻寬 <Tex>{'f_u g/(2\\pi)'}</Tex>（<Tex>{'f_u'}</Tex> 是每秒更新幾次）
+              </td>
+              <td>
+                低：更新率 <Tex>{'f_u=f_s/N'}</Tex> 小
               </td>
               <td>高</td>
             </tr>

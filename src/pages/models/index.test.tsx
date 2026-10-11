@@ -11,6 +11,7 @@ import pllSrc from '@/simulation/models/pll.ts?raw'
 import fftSrc from './experiments/fftPitfalls.ts?raw'
 import jsonLabSrc from './experiments/jsonLabModel.ts?raw'
 import { UNICODE_MATH } from './experiments/modelText'
+import { MODEL_CHARTS } from './diagrams'
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
 import ModelsPage from './index'
@@ -211,6 +212,60 @@ describe('Models 頁面（jsdom smoke）', () => {
     }
     expect(container.querySelector('.c-symbols')).toBeTruthy()
     for (const f of FORMULAS) expect(container.querySelector(`[id="formula-${f.id}"]`), f.id).toBeTruthy()
+    // 符號表放在頁末（docs/teaching-style.md §5）：全頁只有一張，包在 id="symbols" 裡，是頁面的最後一個區塊（在 §11「本頁必記」之後）
+    const precedes = (x: Element | null, y: Element | null) => !!x && !!y && !!(x.compareDocumentPosition(y) & Node.DOCUMENT_POSITION_FOLLOWING)
+    const symbols = container.querySelector('#symbols') as HTMLElement
+    expect(symbols).toBeTruthy()
+    expect(container.querySelectorAll('.c-symbols')).toHaveLength(1)
+    expect(symbols.querySelectorAll('.c-symbols tbody tr').length).toBe(MODEL_SYMBOLS.length)
+    expect(container.querySelector('.models-page')?.lastElementChild).toBe(symbols)
+    expect(symbols.lastElementChild?.classList.contains('c-symbols')).toBe(true)
+    expect(precedes(container.querySelector('#models-s11'), symbols)).toBe(true)
+    expect(precedes(container.querySelector('.c-recap'), symbols)).toBe(true)
+    expect(symbols.querySelector('h2')?.textContent).toBe('本頁符號表')
+    expect(container.querySelector('section[aria-labelledby="models-s1"] .c-symbols')).toBeNull()
+    // 頁首只留一行「本頁符號表在最後 ↓」：是按鈕（HashRouter 下 href="#symbols" 會被當成路由），而且在第 1 節之前
+    const jump = container.querySelector('.models-symbols-jump button') as HTMLButtonElement
+    expect(jump.textContent).toBe('本頁符號表在最後 ↓')
+    expect(container.querySelectorAll('.models-symbols-jump')).toHaveLength(1)
+    expect(jump.closest('a')).toBeNull()
+    expect(container.querySelector('a[href*="#symbols"]')).toBeNull()
+    expect(precedes(jump, container.querySelector('#models-s1'))).toBe(true)
+    const down = vi.fn()
+    const up = vi.fn()
+    symbols.scrollIntoView = down
+    ;(container.querySelector('#models-top') as HTMLElement).scrollIntoView = up
+    fireEvent.click(jump)
+    expect(down).toHaveBeenCalledTimes(1)
+    fireEvent.click(buttonByText(symbols, '↑ 回到頁首'))
+    expect(up).toHaveBeenCalledTimes(1)
+    // 方塊圖（docs/teaching-style.md §8）：三張圖各一次、依 MODEL_CHARTS 的順序；圖說是純文字（不用 Unicode 拼數學）；
+    // 每張都有「先看…／圖上…」的導讀（含 KaTeX），並放在對應的表格、程式碼與推導之前
+    const figs = Array.from(container.querySelectorAll('figure.c-mermaid')) as HTMLElement[]
+    expect(figs).toHaveLength(MODEL_CHARTS.length)
+    for (const f of figs) {
+      const cap = f.querySelector('figcaption')?.textContent ?? ''
+      expect(cap.length, cap).toBeGreaterThan(20)
+      expect(UNICODE_MATH.test(cap), cap).toBe(false)
+      expect(cap).not.toContain('$')
+      const walk = f.closest('.models-diagram')?.querySelector('.models-diagram-walk')
+      expect(walk?.textContent, cap).toContain('先看')
+      expect(walk?.textContent, cap).toContain('圖上')
+      expect(walk?.querySelector('.katex'), cap).toBeTruthy()
+    }
+    const [figLevels, figLoop, figPath] = figs
+    expect(figLevels.getAttribute('aria-label')).toContain('模型層級')
+    expect(figLoop.getAttribute('aria-label')).toContain('兩層迴圈')
+    expect(figPath.getAttribute('aria-label')).toContain('GMAC datapath')
+    const sec = (n: number) => container.querySelector(`section[aria-labelledby="models-s${n}"]`) as HTMLElement
+    expect(figLevels.closest('section[aria-labelledby="models-s2"]')).toBeTruthy()
+    expect(precedes(figLevels, sec(2).querySelector('table.models-levels'))).toBe(true)
+    expect(figLoop.closest('section[aria-labelledby="models-s3"]')).toBeTruthy()
+    expect(precedes(figLoop, sec(3).querySelector('.c-code, figure.c-code-block, pre'))).toBe(true)
+    expect(precedes(figLoop, container.querySelector('[id="formula-F-15.1"]'))).toBe(true)
+    expect(figPath.closest('section[aria-labelledby="models-s9"]')).toBeTruthy()
+    expect(precedes(figPath, sec(9).querySelector('.models-checks'))).toBe(true)
+    expect(precedes(figPath, container.querySelector('[id="formula-F-16.1"]'))).toBe(true)
     const errata = Array.from(container.querySelectorAll('.models-erratum a'))
     expect(errata.every((a) => a.getAttribute('href') === '#/verification')).toBe(true)
     const ids = new Set(errata.map((a) => a.textContent))
@@ -277,7 +332,8 @@ describe('Models 頁面（jsdom smoke）', () => {
     expect(assumptions.some((li) => /F-15\.12/.test(li.textContent ?? ''))).toBe(true)
     // 沒有「沒被渲染的 $...$」：程式碼、JSON 文字框與 KaTeX 的 MathML 註解以外不應出現 $
     const clone = container.cloneNode(true) as HTMLElement
-    clone.querySelectorAll('pre, code, textarea, annotation, .katex-mathml').forEach((e) => e.remove())
+    // .c-tip：TestBadge 的 tooltip 逐字列出測試名稱（src/data/verification-status.json），名稱裡可以有字面的 `$...$`；它不是本頁的內文
+    clone.querySelectorAll('pre, code, textarea, annotation, .katex-mathml, .c-tip').forEach((e) => e.remove())
     const plain = clone.textContent ?? ''
     const at = plain.indexOf('$')
     expect(at === -1 ? '' : plain.slice(Math.max(0, at - 30), at + 30)).toBe('')

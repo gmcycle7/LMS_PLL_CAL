@@ -10,11 +10,15 @@ import {
   biasFixedPoint,
   floorRestoringSlope,
   incrementMeanError,
+  negateExtended,
+  negateInplace,
   roundingMeanError,
+  saturateTwos,
   wrapTwos,
 } from '@/simulation/models/gmac'
 import { FixedPointExperiment } from '../experiments/FixedPointExperiment'
-import { DerivationFold, Erratum, f, HandCalcBox, tx, mt } from '../common'
+import { ACCUMULATOR_SIZING, ANTI_WINDUP, AVERAGE_LOOP, BIAS_LOOP, FIXED_DATAPATH, NEGATE_BUG, ROUNDING_MODES, SHIFT_BITS } from '../diagrams'
+import { DerivationFold, Erratum, f, FigRef, HandCalcBox, MermaidFig, tx, mt } from '../common'
 
 const R = String.raw
 const GMAC_PATH = 'src/simulation/models/gmac.ts'
@@ -109,19 +113,51 @@ export function FixedPointSection() {
   const wu = useMemo(() => windupNumbers(), [])
   const g6full = accumulatorSizing(6, 4096, 'full')
   const wrapped = wrapTwos(31 * 4096, 17)
+  const saturated = saturateTwos(31 * 4096, 17)
   const biasRows = useMemo(() => [0, 2, 4, 8].map((F) => ({ F, ...defaultBiasNumbers(F) })), [])
   const b2 = biasRows[1]
   const golden = useMemo(() => sliceGoldenGmac(goldenQuantSrc), [])
   const wt = useMemo(() => wTruncNumbers(), [])
   const rhoRows = useMemo(() => [1, 0.5, DITHER_MIN, 0.142].map((sv) => ({ s: sv, rho: floorRestoringSlope(sv) })), [])
+  // §5.2 位元切法的例子（B_x = 6、N = 1024、F_G = 4）與 §5.4 最負 code（6-bit 的 −32）：數字由 gmac.ts 計算
+  const shift = { sizing: accumulatorSizing(6, 1024, 'symmetric'), ...biasRows[2] }
+  const negOk = negateExtended(-(2 ** 5), 0)
+  const negBug = negateInplace(-(2 ** 5), 0, 6)
   return (
     <Section kind="formula" title="§5 定點 GMAC：位元數、右移、rounding 與飽和" level={2} id="ch04-fixed">
       <p>
         浮點模型裡 <Tex>{R`G_k=S_k/N`}</Tex> 是一個精確的實數。RTL 裡每一步都有位元寬度：code 有 <Tex>{R`B_x`}</Tex> bits、累加器有 <Tex>{R`B_\mathrm{acc}`}</Tex>{' '}
         bits、「<Tex>{R`\div N`}</Tex>」是右移、右移要取整、gain accumulator 有上下限。這一節逐一推導它們會造成什麼誤差（規格 §16.1 第 3–8 項）。
       </p>
+      <MermaidFig
+        chart={FIXED_DATAPATH}
+        caption={R`§5 的地圖：定點 datapath 上每一級的位元寬度，以及 §5.1–§5.6 各在講哪一格。看兩個紅色方塊：它們是整條路上僅有的兩個會丟掉低位元的截斷點——① 「$\div N$」的右移，② 更新量對齊 $W$ 的 LSB。`}
+        ariaLabel="定點 GMAC datapath：條件取負、累加器、右移取整、乘 mu、對齊 W 的 LSB、飽和、gain accumulator"
+      />
+      <p>
+        <strong>先看</strong>左欄上面兩格的位元寬度：乘積 <Tex>{R`q\cdot x_\mathrm{int}`}</Tex> 要 <Tex>{R`B_x+1`}</Tex> bits（最負的 code 取負後會多出一個值，§5.4），累加 <Tex>N</Tex> 筆之後長成{' '}
+        <Tex>{R`B_\mathrm{acc}`}</Tex> bits（§5.1）。<strong>再看</strong>兩個紅色方塊：截斷點 ① 把 <Tex>{R`S_k`}</Tex> 右移 <Tex>{R`\ell`}</Tex> bits，輸出 <Tex>{R`Q(G_k)`}</Tex> 的最小刻度（LSB）記成{' '}
+        <Tex>{R`\Delta_G`}</Tex>（§5.2、§5.3）；截斷點 ② 把更新量 <Tex>{R`\mu\,Q(G_k)`}</Tex> 對齊到 gain accumulator <Tex>W</Tex> 的最小刻度 <Tex>{R`\Delta_W`}</Tex>（§5.6）。每丟一次低位元，平均起來就少掉（或多出）一點，
+        這個平均取整誤差記成 <Tex>{R`\bar\varepsilon`}</Tex>（截斷點 ①，以 <Tex>{R`\Delta_G`}</Tex> 為單位）與 <Tex>{R`\bar\varepsilon_W`}</Tex>（截斷點 ②，以 <Tex>{R`\Delta_W`}</Tex> 為單位）——它們最後都會變成 gain 的固定偏差。
+        <strong>最後看</strong>右欄下半的加法點與飽和方塊：這是高解析 gain accumulator <Tex>W</Tex> 自己的回授，<Tex>W</Tex> 被限制在 DTC 做得出來的範圍 <Tex>{R`[w_\mathrm{min},w_\mathrm{max}]`}</Tex> 內（§5.5）。
+      </p>
 
       <h3>1. 累加器要幾個 bit？</h3>
+      <p>
+        累加器要裝得下「最壞情況的總和」。最壞情況發生在剛開機或 PVT 突變、gain 誤差遠大於雜訊的時候：每一筆 <Tex>{R`q\cdot x_\mathrm{int}`}</Tex> 都同號，<Tex>N</Tex> 筆一路往同一個方向加。
+        下圖用規格 golden 的例子（6-bit 對稱 code、<Tex>{R`N=4096`}</Tex>）把這件事算一遍，並比較少給 1 bit 時兩種 overflow 行為：
+      </p>
+      <MermaidFig
+        chart={ACCUMULATOR_SIZING}
+        caption={R`累加器位元數的最壞情況（6-bit 對稱 code、$N=4096$）。看最下面的分岔：同樣是 17 bits 裝不下，wrap 讓總和變號（紅色），saturate 只是停在上限。`}
+        ariaLabel="累加器最壞情況總和、需要的位元數，以及少一個 bit 時 wrap 與 saturate 的結果"
+      />
+      <p>
+        <strong>先看</strong>最上面兩格：單筆乘積的最大絕對值記成 <Tex>{R`M_x`}</Tex>（6-bit 對稱 code 是 31；若包含最負的 <Tex>{R`-32`}</Tex> 則是 32），開機時（<Tex>{R`|\delta|\gg\sigma_v`}</Tex>）<Tex>N</Tex> 筆同號相加最多到{' '}
+        <Tex>{R`N\,M_x=${g6.maxPosSum}`}</Tex>。<strong>再看</strong>綠色方塊：<Tex>{R`B_\mathrm{acc}`}</Tex>-bit 的二補數暫存器正的一邊只能到 <Tex>{R`2^{B_\mathrm{acc}-1}-1`}</Tex>，要裝得下{' '}
+        <Tex>{R`N\,M_x`}</Tex> 就得到下面的 F-04.9（這個例子是 <Tex>{R`${g6.bitsExact}`}</Tex> bits）。<strong>最後看</strong>分岔：只給 17 bits 時，wrap 把 <Tex>{R`${g6.maxPosSum}`}</Tex> 變成{' '}
+        <Tex>{R`${wrapped}`}</Tex>——不只是數字變小，連正負號都反了；saturate 則停在上限 <Tex>{R`${saturated}`}</Tex>，方向還是對的。
+      </p>
       <DerivationFold title="最壞情況的位元數">
         <StepDerivation
           steps={[
@@ -189,7 +225,17 @@ export function FixedPointSection() {
       </h3>
       <p>
         <Tex>N</Tex> 取 2 的冪時，<Tex>{R`S/N`}</Tex> 就是算術右移 <Tex>{R`\log_2N`}</Tex> bits，不需要除法器。但完全右移會把 <Tex>G</Tex> 截成整數個 code LSB——
-        收斂附近 <Tex>{R`|E[G]|`}</Tex> 遠小於 1 LSB，全部變成 <Tex>0</Tex> 或 <Tex>-1</Tex>。所以要保留 <Tex>{R`F_G`}</Tex> 個小數位元，實際右移 <Tex>{R`\ell=\log_2N-F_G`}</Tex>，
+        收斂附近 <Tex>{R`|E[G]|`}</Tex> 遠小於 1 LSB，全部變成 <Tex>0</Tex> 或 <Tex>-1</Tex>。所以要保留 <Tex>{R`F_G`}</Tex> 個小數位元，實際右移 <Tex>{R`\ell=\log_2N-F_G`}</Tex>。下圖把累加器 <Tex>{R`S_k`}</Tex> 的位元切成兩段（例：<Tex>{R`B_x=${shift.bx},\;N=${shift.N},\;F_G=4`}</Tex>，與 §5.3 的表相同）：
+      </p>
+      <MermaidFig
+        chart={SHIFT_BITS}
+        caption={R`「$\div N$」的位元切法。看最上面的累加器分出去的兩條路：低 $\ell=\log_2N-F_G$ bits 被丟掉（紅色），高 $B_x+F_G$ bits 留下（綠色）；最下面的 $\Delta_G$ 是留下來的最低位元代表多大。`}
+        ariaLabel="累加器右移時的位元切法：留下高位元、丟掉低位元的餘數，以及輸出的最小刻度"
+      />
+      <p>
+        <strong>先看</strong>最上面的累加器：對稱 code 且 <Tex>{R`N=2^m`}</Tex> 時有 <Tex>{R`B_\mathrm{acc}=B_x+\log_2N=${shift.sizing.bitsExact}`}</Tex> bits（F-04.9）。<strong>再看</strong>它分出去的兩條路：低 <Tex>{R`\ell=${shift.ell}`}</Tex> bits 被右移丟掉，
+        它們代表的數字叫<strong>餘數</strong> <Tex>{R`\rho`}</Tex>（紅色）；高 <Tex>{R`B_\mathrm{acc}-\ell=${shift.sizing.bitsExact - shift.ell}`}</Tex> bits 留下，其中最低的 <Tex>{R`F_G=4`}</Tex> bits 是小數部分，所以輸出 <Tex>{R`Q(G_k)`}</Tex> 有{' '}
+        <Tex>{R`B_x`}</Tex> 個整數位元和 <Tex>{R`F_G`}</Tex> 個小數位元（綠色）。<strong>最後看</strong>中間的 rounding 方塊：<Tex>{R`\rho`}</Tex> 不是白白丟掉，怎麼處理它決定了 <Tex>{R`Q`}</Tex> 平均比 <Tex>{R`S/2^\ell`}</Tex> 多或少多少（§5.3 的主題）。
         <Tex>G</Tex> 的解析度為 <Tex>{R`2^{-F_G}`}</Tex> code LSB，換成正規化單位是
       </p>
       <TexBlock>{R`\Delta_G=\frac{2^{-F_G}}{2^{B_x-1}}`}</TexBlock>
@@ -201,6 +247,20 @@ export function FixedPointSection() {
       <h3>
         3. Rounding：<Tex>{R`G\approx0`}</Tex> 附近的系統偏差
       </h3>
+      <p>
+        右移丟掉的低位元怎麼處理，有四種常見做法。先用一個具體的數字看它們差在哪裡（和下面「帶入手算」HC-04.7 的引言是同一個例子）：
+      </p>
+      <MermaidFig
+        chart={ROUNDING_MODES}
+        caption={R`右移 $\ell$ bits 的四種取整（例：$S=-300$、$\ell=8$）。先看第二排：四種做法的差別只在怎麼處理被丟掉的餘數 $\rho$；再看最下面一排的平均誤差 $\bar\varepsilon$：floor 偏負（紅色），half-even 為 0（綠色）。`}
+        ariaLabel="右移取整的四種模式：floor、half-up、half-even、toward-0，以及各自的平均誤差"
+      />
+      <p>
+        <strong>先看</strong>最上面兩格：累加器內容 <Tex>S</Tex> 拆成「留下來的高位元」<Tex>j</Tex> 與「被右移丟掉的低 <Tex>{R`\ell`}</Tex> bits」<Tex>{R`\rho`}</Tex>，即 <Tex>{R`S=2^\ell j+\rho`}</Tex>；例子 <Tex>{R`S=-300`}</Tex>、<Tex>{R`\ell=8`}</Tex> 得到{' '}
+        <Tex>{R`j=-2`}</Tex>、<Tex>{R`\rho=212`}</Tex>。<strong>再看</strong>第二排四個方塊：floor 直接丟掉 <Tex>{R`\rho`}</Tex>（得 <Tex>{R`-2`}</Tex>），其餘三種看 <Tex>{R`\rho`}</Tex> 有沒有超過一半（<Tex>{R`2^{\ell-1}=128`}</Tex>）再決定進位（得 <Tex>{R`-1`}</Tex>）。
+        <strong>最後看</strong>最下面一排：<Tex>{R`\bar\varepsilon`}</Tex> 是「取整後的值 <Tex>{R`Q`}</Tex> 減掉取整前的 <Tex>{R`S/2^\ell`}</Tex>」在餘數均勻時的平均（單位：輸出 LSB）；floor 平均少半個 LSB，所以標紅色，half-even 平均為 0，所以標綠色。
+        圖上的 <Tex>j</Tex>、<Tex>{R`\rho`}</Tex>、<Tex>Q</Tex>、<Tex>{R`\bar\varepsilon`}</Tex> 就是下面推導的 <Tex>{R`S=2^\ell j+\rho`}</Tex>、<Tex>{R`Q(S)`}</Tex> 與 <Tex>{R`\bar\varepsilon`}</Tex>（F-04.10）。
+      </p>
       <DerivationFold title="四種 rounding 的平均誤差">
         <StepDerivation
           steps={[
@@ -220,6 +280,25 @@ export function FixedPointSection() {
       <TexBlock id="F-04.10" label="右移 rounding 的平均誤差（輸出 LSB，均勻餘數）">
         {R`\bar\varepsilon_\mathrm{floor}=-\frac{1-2^{-\ell}}{2},\quad\bar\varepsilon_\mathrm{half\,up}=2^{-\ell-1},\quad\bar\varepsilon_\mathrm{half\,even}=0,\quad\bar\varepsilon_\mathrm{toward\,0}=-\mathrm{sign}(S)\frac{1-2^{-\ell}}{2}`}
       </TexBlock>
+      <p>
+        平均誤差 <Tex>{R`\bar\varepsilon`}</Tex> 和雜訊不一樣：雜訊每個 block 有正有負，會被迴路平均掉；<Tex>{R`\bar\varepsilon`}</Tex> 每個 block 都往同一個方向推。把它畫進 §3 的平均迴路（
+        <FigRef chart={AVERAGE_LOOP} />，<Tex>{R`d=0`}</Tex>），它就是一個注入在積分器前面的 DC offset：
+      </p>
+      <MermaidFig
+        chart={BIAS_LOOP}
+        caption={R`兩個截斷點的平均誤差（紅色）像兩個 DC offset 注入平均迴路。看它們注入的位置：① 在「$\times\mu$」之前，② 在「$\times\mu$」之後——所以換算成 gain 偏差時，一個除以 $K$，一個除以 $g=\mu K$。`}
+        ariaLabel="平均迴路上兩個截斷點的平均誤差注入位置"
+      />
+      <p>
+        <strong>先看</strong>主迴路：<Tex>{R`\delta=a-w`}</Tex> 乘 <Tex>K</Tex>、乘 <Tex>{R`\mu`}</Tex>、進積分器、回授成 <Tex>w</Tex>。<strong>再看</strong>兩個紅色的注入點。積分器只有在輸入平均為 0 時才會停住（否則 <Tex>w</Tex>{' '}
+        會一直漂），所以固定點 <Tex>{R`w^*`}</Tex> 的條件是最後一個加法點的輸出 <Tex>{R`E[\Delta W]=0`}</Tex>。把此時的 gain 誤差記成 <Tex>{R`\delta^*=a-w^*`}</Tex>，照著圖把三項加起來：
+      </p>
+      <TexBlock>{R`\mu\bigl(K\,\delta^*+\bar\varepsilon\,\Delta_G\bigr)+\bar\varepsilon_W\,\Delta_W=0`}</TexBlock>
+      <p>
+        迴路只能靠一個不為 0 的 <Tex>{R`\delta^*`}</Tex> 產生反方向的 <Tex>{R`K\delta^*`}</Tex> 去抵消注入的 offset——這個 <Tex>{R`\delta^*`}</Tex> 就是 gain 的固定偏差。只有截斷點 ① 時（
+        <Tex>{R`\bar\varepsilon_W=0`}</Tex>）解出 <Tex>{R`\delta^*=-\bar\varepsilon\Delta_G/K`}</Tex>，<Tex>{R`\mu`}</Tex> 被約掉了，這是下面的 F-04.11；只有截斷點 ② 時解出{' '}
+        <Tex>{R`\delta^*=-\bar\varepsilon_W\Delta_W/(\mu K)`}</Tex>，<Tex>{R`\mu`}</Tex> 留在分母，這是 §5.6 的 F-04.18。
+      </p>
       <DerivationFold title="閉迴路：平均誤差變成係數偏差">
         <StepDerivation
           steps={[
@@ -286,7 +365,7 @@ export function FixedPointSection() {
         表中 <Tex>{R`\delta^*>0`}</Tex>：<Tex>w</Tex> 停在 <Tex>a</Tex> <strong>下方</strong>。gmac.test.ts 以 12 個 seeds、每個 3000 blocks 驗證（量的是{' '}
         <Tex>{R`w^*-a=-\delta^*`}</Tex>，以定點 − 浮點的 paired 差估計）：<Tex>{R`F_G=2`}</Tex> 時 <Tex>{R`-1.516\pm0.010\,\mathrm{fs}`}</Tex> vs 預測{' '}
         <Tex>{R`${tx(-b2.deltaStar, 4)}\,\mathrm{fs}`}</Tex>；<Tex>{R`F_G=4`}</Tex> 時 <Tex>{R`-0.370\pm0.004`}</Tex> vs <Tex>{R`${tx(-biasRows[2].deltaStar, 4)}\,\mathrm{fs}`}</Tex>。對照：同條件下{' '}
-        <Tex>{R`\sigma_w=\mu\sqrt{\sigma_\eta^2/(1-p^2)}\approx${tx(b2.sigmaW, 3)}\,\mathrm{fs}`}</Tex>，所以 <Tex>{R`F_G=2`}</Tex> 的 floor 偏差比穩態抖動還大。
+        <Tex>{R`\sigma_w=\mu\sqrt{\sigma_\eta^2/(1-p^2)}\approx${tx(b2.sigmaW, 3)}\,\mathrm{fs}`}</Tex>（<Tex>{R`\sigma_w`}</Tex> 是 <Tex>w</Tex> 在穩態的標準差，<Tex>{R`\sigma_\eta`}</Tex> 是單一個 block 的 <Tex>G</Tex> 的標準差；Ch12 推導），所以 <Tex>{R`F_G=2`}</Tex> 的 floor 偏差比穩態抖動還大。
       </p>
       <p className="small">
         <ClaimTag kind="approx" /> 表的最後兩欄：<Tex>{R`\sigma_S/2^\ell`}</Tex> 是「雜訊有幾個輸出 LSB 大」。它不必大於 1——平衡點 <Tex>{R`E[G]=\tfrac12\Delta_G`}</Tex> 靠的是對稱性而不是均勻餘數（下方 Research 說明）；
@@ -329,8 +408,19 @@ export function FixedPointSection() {
 
       <h3>4. 最負 code 的取負 bug：偏差有多大？</h3>
       <p>
-        §4 證明了「在 <Tex>{R`B_x`}</Tex> bits 內取負」只有最負 code <Tex>{R`-2^{B_x-1}`}</Tex> 會錯。它出現的機率很小（uniform 6-bit code 為 <Tex>{R`1/64`}</Tex>），但錯的方向永遠相同，
-        所以平均起來是一個<strong>固定的偏差</strong>，和 rounding 偏差一樣不會被 <Tex>{R`\mu`}</Tex> 或 <Tex>N</Tex> 平均掉。
+        §4 證明了「在 <Tex>{R`B_x`}</Tex> bits 內取負」只有最負 code <Tex>{R`-2^{B_x-1}`}</Tex> 會錯。它出現的機率很小（記成 <Tex>{R`p_\mathrm{min}`}</Tex>；uniform 6-bit code 為 <Tex>{R`1/64`}</Tex>），但錯的方向永遠相同，
+        所以平均起來是一個<strong>固定的偏差</strong>，和 rounding 偏差一樣不會被 <Tex>{R`\mu`}</Tex> 或 <Tex>N</Tex> 平均掉。在 <FigRef chart={BIAS_LOOP} /> 上，它等於在截斷點 ① 的那個加法點再多注入一項負的 offset
+        （每次出錯讓正規化的乘積少 2，出錯的機率是 <Tex>{R`p_\mathrm{min}\Phi(\delta/\sigma_v)`}</Tex>），固定點的求法完全一樣。
+      </p>
+      <MermaidFig
+        chart={NEGATE_BUG}
+        caption={R`最負 code 的取負 bug。看分岔：延伸到 $B_x+1$ bits 再取負（綠色）得到 $+2^{B_x-1}$，在 $B_x$ bits 內取負（紅色）卻 wrap 回 $-2^{B_x-1}$；紅色那條的平均誤差 $-2\,p_\mathrm{min}\Phi(\delta/\sigma_v)$ 注入平均迴路，把固定點推到 $a$ 的下方。`}
+        ariaLabel="最負 code 取負：先延伸再取負得到正確的加數，在原寬度內取負 wrap 成錯誤的加數，平均誤差變成固定點偏差"
+      />
+      <p>
+        <strong>先看</strong>最上面兩格：只有同時滿足「code 剛好是最負值」（機率 <Tex>{R`p_\mathrm{min}`}</Tex>）和「comparator 輸出 <Tex>{R`b=0`}</Tex>」（<Tex>{R`q=-1`}</Tex>，要取負；機率 <Tex>{R`\Phi(\delta/\sigma_v)`}</Tex>）才會走到分岔。<strong>再看</strong>分岔：
+        6-bit 的 <Tex>{R`-32`}</Tex> 取負應該加 <Tex>{R`${negOk > 0 ? '+' : ''}${negOk}`}</Tex>，在 6 bits 內取負卻加了 <Tex>{R`${negBug}`}</Tex>，一次差 <Tex>{R`${negOk - negBug}`}</Tex> LSB，除以 full scale <Tex>{R`2^{B_x-1}=32`}</Tex> 就是正規化的 <Tex>{R`-2`}</Tex>。
+        <strong>最後看</strong>下面兩格：這個平均誤差 <Tex>{R`-2\,p_\mathrm{min}\Phi(\delta/\sigma_v)`}</Tex> 就是下面推導第 3 步多出來的那一項，令平均更新為 0 就得到 F-04.15。
       </p>
       <DerivationFold title="取負 bug 的平均誤差與固定點">
         <StepDerivation
@@ -357,6 +447,17 @@ export function FixedPointSection() {
       <p>
         DTC 的 gain trim 有範圍 <Tex>{R`[w_\mathrm{min},w_\mathrm{max}]`}</Tex>。若某個 PVT corner 的真實 <Tex>a</Tex> 超出範圍，gain 只能停在 rail。問題在於高解析的內部累加器{' '}
         <Tex>W</Tex> 通常比實體範圍寬：如果只在<strong>輸出</strong>端 clamp，<Tex>W</Tex> 會繼續往外積分（windup）。
+      </p>
+      <MermaidFig
+        chart={ANTI_WINDUP}
+        caption={R`Gain accumulator 超出範圍時的三種處理。看菱形之後的三條路：綠色（anti-windup）把積分器本身夾住；紅色兩條讓 $W$ 跑到實體範圍之外。不管哪一種，送給 DTC 的 gain 都會被最下面的輸出 clamp 限制在 $[w_\mathrm{min},w_\mathrm{max}]$。`}
+        ariaLabel="gain accumulator 的 anti-windup、只 clamp 輸出、wrap 三種溢位處理"
+      />
+      <p>
+        <strong>先看</strong>最上面的加法點與繞回來的回授：<Tex>{R`W_{k+1}=W_k+\Delta W`}</Tex>，這就是積分器。<strong>再看</strong>菱形之後的三條路，差別在「存回暫存器的是什麼」：anti-windup 存的是夾住之後的值，
+        <Tex>W</Tex> 的峰值 <Tex>{R`W_\mathrm{peak}`}</Tex> 最多到 <Tex>{R`w_\mathrm{max}`}</Tex>；只 clamp 輸出時存回去的是沒夾的值，<Tex>W</Tex> 在 rail 外面越積越深；wrap 則是暫存器本身溢位，<Tex>W</Tex> 直接跳到另一端。
+        <strong>最後看</strong>最下面的輸出 clamp：DTC 實際用的 gain 永遠是夾過的。真實 gain 回到範圍內（由 <Tex>a</Tex> 變成 <Tex>{R`a'`}</Tex>）、誤差反向之後，DTC 要等 <Tex>W</Tex> 從 <Tex>{R`W_\mathrm{peak}`}</Tex> 走回{' '}
+        <Tex>{R`w_\mathrm{max}`}</Tex> 才離得開 rail——這段時間就是下面 F-04.12 的 <Tex>{R`T_\mathrm{unwind}`}</Tex>；綠色方塊裡 <Tex>{R`W_\mathrm{peak}=w_\mathrm{max}`}</Tex>，所以 <Tex>{R`T_\mathrm{unwind}=0`}</Tex>。
       </p>
       <DerivationFold title="沒有 anti-windup 的回復時間">
         <StepDerivation
@@ -390,6 +491,11 @@ export function FixedPointSection() {
         <strong>一個問題：</strong>為了壓低 <Tex>{R`\sigma_w`}</Tex>，把 <Tex>{R`\mu`}</Tex> 調成一半。浮點模型說偏差不變、雜訊變小；RTL 裡卻可能看到 <Tex>w</Tex> 離 <Tex>a</Tex>{' '}
         <strong>更遠</strong>。原因是第二個截斷點：更新量 <Tex>{R`\mu\,Q(G_k)`}</Tex> 加進 <Tex>W</Tex> 之前，要先對齊 <Tex>W</Tex> 的 LSB <Tex>{R`\Delta_W`}</Tex>
         （RTL 把「<Tex>{R`\times\mu`}</Tex>」做成再右移 <Tex>{R`\ell_W`}</Tex> bits，或 <Tex>W</Tex> 的小數位元不夠）。
+      </p>
+      <p>
+        這就是 <FigRef chart={FIXED_DATAPATH} /> 右欄的那個紅色方塊，也是 <FigRef chart={BIAS_LOOP} /> 的截斷點 ②：offset 注入在「<Tex>{R`\times\mu`}</Tex>」<strong>之後</strong>，迴路要用{' '}
+        <Tex>{R`\mu K\delta^*`}</Tex> 去抵消它，所以 <Tex>{R`\mu`}</Tex> 越小、需要的 <Tex>{R`\delta^*`}</Tex> 越大。兩個新符號：<Tex>{R`R=\Delta_W/(\mu\Delta_G)`}</Tex> 是「<Tex>W</Tex> 的格點比更新量的格點粗幾倍」
+        （再右移 <Tex>{R`\ell_W`}</Tex> bits 時 <Tex>{R`R=2^{\ell_W}`}</Tex>）；<Tex>{R`\bar\varepsilon_W`}</Tex> 是這一次取整的平均誤差（以 <Tex>{R`\Delta_W`}</Tex> 為單位，floor 時約 <Tex>{R`-\tfrac12`}</Tex>）。
       </p>
       <DerivationFold title={mt(R`第二個截斷點：$w^*-a=\bar\varepsilon_W\Delta_W/g$`)}>
         <StepDerivation

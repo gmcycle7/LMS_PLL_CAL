@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, ModeGate, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, Mermaid, ModeGate, StepDerivation, Tex, TexBlock } from '@/components'
 import { cArg } from '@/simulation/core'
 import { freqz } from '@/simulation/signal'
 import {
@@ -17,6 +17,7 @@ import {
   truncatedImpulse,
   type FxPathSpec,
 } from '@/simulation/models/filteredX'
+import { CHART_SECOND_DIFF, CHART_TYPE2_LOOP } from '../diagrams'
 import { FoldSteps } from '../FoldSteps'
 import { Hand } from '../Hand'
 import { DEG, fp, fx, signClass, tx } from '../util'
@@ -98,7 +99,17 @@ export function S5SecondDiff() {
         最便宜的 <Tex>{r`\hat H`}</Tex>：Type-II 的二次差分 regressor
       </h3>
       <p>
-        Filtered-x 需要在 code 路徑上放一個 <Tex>{r`\hat H`}</Tex>（FIR 或 IIR，含乘法器）。對 Type-II 主 PLL，有一個幾乎免費的近似。先用連續時間原型看它從哪裡來：
+        Filtered-x 需要在 code 路徑上放一個 <Tex>{r`\hat H`}</Tex>（FIR 或 IIR，含乘法器）。對 Type-II 主 PLL，有一個幾乎免費的近似：把 code 做兩次「現在減上一拍」（二次差分）。先看它的硬體：
+      </p>
+      <Mermaid
+        chart={CHART_SECOND_DIFF}
+        caption={String.raw`二次差分 regressor 的硬體（藍色）：兩個暫存器、一個左移（乘 2）、一個三輸入的加減法，沒有乘法器；最後的增益 $K_2$ 可以併進 learning rate。`}
+      />
+      <p>
+        先看兩個串接的 register：它們存著 <Tex>{'x[n-1]'}</Tex> 與 <Tex>{'x[n-2]'}</Tex>。再看進加法點的三條線：<Tex>{'x[n]'}</Tex> 與 <Tex>{'x[n-2]'}</Tex> 是加，<Tex>{'x[n-1]'}</Tex>
+        先左移一位（乘 2）再減。加法點的輸出再乘上一個正的增益 <Tex>{'K_2'}</Tex>（下面 F-07.14 會給出它的值），就是 <Tex>{r`\hat H_2(z)=K_2\,(1-z^{-1})^2`}</Tex>：把
+        <Tex>{r`(1-z^{-1})^2`}</Tex> 乘開是 <Tex>{r`1-2z^{-1}+z^{-2}`}</Tex>，三個係數 <Tex>{r`+1,\,-2,\,+1`}</Tex> 正好是圖上三條線的正負號與倍數。<Tex>{r`(1-z^{-1})`}</Tex>
+        是「現在減上一拍」，也就是微分的離散近似；平方代表微分兩次。為什麼是微分兩次？先用連續時間原型看它從哪裡來：
       </p>
       <FoldSteps
         steps={[
@@ -135,7 +146,17 @@ export function S5SecondDiff() {
 
       <p>
         但真正要比的是 E44 的<strong>離散時間</strong> <Tex>{r`H_{\mathrm{PD}}(e^{j\Omega})`}</Tex>（含額外 loop latency <Tex>{'d'}</Tex>），不是 CT 原型。
-        令 <Tex>{r`\nabla\equiv1-z^{-1}`}</Tex>（一階差分，backward difference），<Tex>{r`K_p=2\zeta\omega_nT_s`}</Tex>、<Tex>{r`K_i=(\omega_nT_s)^2`}</Tex>：
+        令 <Tex>{r`\nabla\equiv1-z^{-1}`}</Tex>（一階差分，backward difference），<Tex>{r`K_p=2\zeta\omega_nT_s`}</Tex>、<Tex>{r`K_i=(\omega_nT_s)^2`}</Tex>
+        （PI loop filter 的比例係數與積分係數）。先看迴路的方塊圖：
+      </p>
+      <Mermaid
+        chart={CHART_TYPE2_LOOP}
+        caption={String.raw`E44 的離散時間 Type-II DPLL：開迴路 $L(z)$ 是三個藍色方塊（PI loop filter、DCO 積分器、迴路延遲）的乘積；DTC 的 gain 誤差從加法點的正端進來，回授從負端進來，加法點的輸出就是到達 PD 的誤差。`}
+      />
+      <p>
+        先看加法點：DTC 的 gain 誤差 <Tex>{r`(a-w)\,x[n]`}</Tex> 從正端進來，迴路的回授從負端進來，輸出是到達 PD 的 <Tex>{r`(a-w)\,u[n]`}</Tex>（再加上雜訊 <Tex>{'v[n]'}</Tex> 才是 comparator 看到的 <Tex>{r`e_{\mathrm{PD}}[n]`}</Tex>）。再看三個藍色方塊，沿著迴路繞一圈：PI loop
+        filter <Tex>{r`K_p+K_i/\nabla`}</Tex>、DCO 積分器 <Tex>{r`1/\nabla`}</Tex>、<Tex>{'1+d'}</Tex> 個 sample 的延遲 <Tex>{r`z^{-(1+d)}`}</Tex>——三個相乘就是下面第一行的
+        <Tex>{'L(z)'}</Tex>。負回授繞一圈的意思是「輸出等於輸入減掉 <Tex>{'L'}</Tex> 乘輸出」，解出來輸出除以輸入是 <Tex>{r`H_{\mathrm{PD}}=1/(1+L)`}</Tex>，也就是下面第二行。
       </p>
       <FoldSteps
         steps={[

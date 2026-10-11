@@ -1,5 +1,5 @@
 import { Callout, ClaimTag, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock } from '@/components'
-import { Deriv, Hand, TagRow, n, tn } from '../common'
+import { Deriv, Fig, FigRef, Hand, TagRow, n, tn } from '../common'
 import { NUM } from '../numbers'
 
 export function S1Coupling() {
@@ -28,6 +28,15 @@ export function S1Coupling() {
           假設 <Tex>{String.raw`w_1`}</Tex> 已經完全正確（<Tex>{String.raw`\delta_1=0`}</Tex>），只有 <Tex>{String.raw`w_2`}</Tex> 差了{' '}
           <Tex>{String.raw`\delta_2=${c.delta[1]}\ \mathrm{fs}`}</Tex>。Comparator 雜訊 <Tex>{String.raw`\sigma_v=${NUM.sigmaV}\ \mathrm{fs}`}</Tex>。
         </p>
+        <p>
+          兩個 GMAC 看的是同一個 comparator，所以平均起來，每個參數的誤差都會流到<strong>每一個</strong> GMAC，只是走的路不一樣。先看圖，再把數字一格一格算出來：
+        </p>
+        <Fig id="coupling">
+          先看上面那個加法點（GMAC<sub>1</sub>）：它有兩個輸入，一個是自己的誤差 <Tex>{String.raw`\delta_1`}</Tex> 乘上 <Tex>{String.raw`R_{11}=1`}</Tex>，另一個是別人的誤差{' '}
+          <Tex>{String.raw`\delta_2`}</Tex> 乘上 <Tex>{String.raw`R_{12}=0.8`}</Tex>（紅色）。再把例子的數字放上去：<Tex>{String.raw`\delta_1=0`}</Tex>，自己的路徑沒有訊號；紅色路徑卻送進{' '}
+          <Tex>{String.raw`0.8\times10`}</Tex>，所以 <Tex>{'G_1'}</Tex> 不是 0。圖上的「<Tex>{String.raw`\times R_{ij}`}</Tex>」就是 §10.2 的 F-10.1 裡的 <Tex>{String.raw`R_{ij}`}</Tex>，加法點就是對{' '}
+          <Tex>{'j'}</Tex> 求和，「<Tex>{String.raw`\times K_q`}</Tex>」是 comparator 把「差幾 fs」變成「<Tex>{String.raw`\pm1`}</Tex> 的平均」的斜率（單位 <Tex>{String.raw`\mathrm{fs}^{-1}`}</Tex>）。下面四個步驟只是把這張圖由左到右算一遍。
+        </Fig>
         <ol>
           <li>
             Comparator 增益（第 5 章）：<Tex>{String.raw`K_q=\sqrt{2/\pi}/\sigma_v=0.79788/100=${tn(Kq, 6)}\ \mathrm{fs}^{-1}`}</Tex>。
@@ -40,7 +49,8 @@ export function S1Coupling() {
             GMAC<sub>2</sub>：<Tex>{String.raw`G_2\approx K_q(0.8\times0+1\times${c.delta[1]})=${tn(c.G2lin, 4)}`}</Tex>。
           </li>
           <li>
-            若用 scalar LMS <Tex>{String.raw`\mu=${c.muFs}\ \mathrm{fs}`}</Tex> 更新一次：<Tex>{String.raw`\Delta w_1=\mu G_1=${c.muFs}\times${tn(c.G1lin, 4)}=${tn(c.w1Shift, 4)}\ \mathrm{fs}`}</Tex>。
+            若用 scalar LMS（每個係數只用自己的 GMAC：<Tex>{String.raw`\Delta w_i=\mu G_i`}</Tex>；<Tex>{String.raw`\mu`}</Tex> 是 learning rate，也叫步長，單位 fs）、取{' '}
+            <Tex>{String.raw`\mu=${c.muFs}\ \mathrm{fs}`}</Tex> 更新一次：<Tex>{String.raw`\Delta w_1=\mu G_1=${c.muFs}\times${tn(c.G1lin, 4)}=${tn(c.w1Shift, 4)}\ \mathrm{fs}`}</Tex>。
             <strong>原本正確的 <Tex>{'w_1'}</Tex> 被推離了 {n(c.w1Shift, 3)} fs。</strong>
           </li>
         </ol>
@@ -110,6 +120,29 @@ export function S1Coupling() {
         }
         id="ch10-derive-G"
       >
+        <p>
+          <FigRef id="coupling" /> 畫的是「平均之後」的結果。這一節回到每一個 sample，看這個平均是怎麼來的：誤差先相加、comparator 取正負號、每個 GMAC 再各自做相關。
+        </p>
+        <Fig id="sample-to-block">
+          先看左框的加法點：兩個參數的誤差各自乘上自己的 regressor（<Tex>{String.raw`u_j[n]\,\delta_j`}</Tex>），和雜訊 <Tex>{'v[n]'}</Tex> 加在一起成為 <Tex>{'e[n]'}</Tex>；comparator 只留下正負號{' '}
+          <Tex>{'q[n]'}</Tex>。再看 <Tex>{'q[n]'}</Tex> 分成兩條：各自乘上自己的 code <Tex>{'x_i[n]'}</Tex>，進到右框累加 <Tex>{'N'}</Tex> 次、除以 <Tex>{'N'}</Tex>，每個 block 輸出一個{' '}
+          <Tex>{String.raw`G_{i,k}`}</Tex>（下標 <Tex>{'k'}</Tex> 是 block 編號）。圖上的加法點就是下面推導第 1 步的 <Tex>{String.raw`e[n]=\mathbf u^T[n]\boldsymbol\delta_k+v[n]`}</Tex>，「累加{' '}
+          <Tex>{'N'}</Tex> 次再 <Tex>{String.raw`\div N`}</Tex>」就是第 3 步的 <Tex>{String.raw`\tfrac1N\sum_n`}</Tex>；因為一個 block 之內 <Tex>{String.raw`\mathbf w`}</Tex> 不變，左框裡的{' '}
+          <Tex>{String.raw`\delta_j`}</Tex> 是常數。
+        </Fig>
+        <p>
+          這條路上只有一個方塊不是線性的：comparator。推導最關鍵的一步，就是把「只會回答正或負」的它換成一個普通的增益 <Tex>{'K_q'}</Tex>。先只看<strong>一個</strong> sample（把{' '}
+          <Tex>{String.raw`\mathbf u`}</Tex> 當成固定的數），把這一步單獨畫出來：
+        </p>
+        <Fig id="comparator-gain">
+          先看左邊的加法點：這個 sample 的訊號 <Tex>{String.raw`s=\mathbf u^T\boldsymbol\delta`}</Tex>（§10.1 的例子裡 <Tex>{String.raw`\delta_1=0`}</Tex>、<Tex>{String.raw`\delta_2=${c.delta[1]}\ \mathrm{fs}`}</Tex>，碰到{' '}
+          <Tex>{'u_2=+1'}</Tex> 的 sample 時 <Tex>{String.raw`s=${c.delta[1]}\ \mathrm{fs}`}</Tex>）和雜訊 <Tex>{'v'}</Tex>（RMS <Tex>{String.raw`\sigma_v=${NUM.sigmaV}\ \mathrm{fs}`}</Tex>）相加，comparator 只回答正或負——單看一次，
+          <Tex>{'q'}</Tex> 幾乎是擲硬幣。再看「對雜訊取平均」那一格：同一個 <Tex>{'s'}</Tex> 重複很多次，<Tex>{'+1'}</Tex> 會比 <Tex>{'-1'}</Tex> 多出現一點點，<Tex>{String.raw`\pm1`}</Tex> 的平均是{' '}
+          <Tex>{String.raw`\operatorname{erf}\big(s/(\sqrt2\,\sigma_v)\big)=${tn(c.erfOne, 4)}`}</Tex>。最後看右邊分出的兩條路：<Tex>{String.raw`|s|\ll\sigma_v`}</Tex> 時 erf 幾乎是一條通過原點的直線，斜率就是{' '}
+          <Tex>{'K_q'}</Tex>（藍色；<Tex>{String.raw`K_q s=${tn(c.G2lin, 4)}`}</Tex>，只比 erf 的值大 {n(100 * (c.G2lin / c.erfOne - 1), 2)}%）；<Tex>{'|s|'}</Tex> 大到和 <Tex>{String.raw`\sigma_v`}</Tex>{' '}
+          差不多時曲線變平（紅色），「增益 = <Tex>{'K_q'}</Tex>」就不成立了。圖上「對雜訊取平均」那一格就是下面推導第 6 步的 <Tex>{String.raw`E[q\mid\mathbf u]`}</Tex>，藍色那一格就是第 7 步的{' '}
+          <Tex>{String.raw`K_q\,\mathbf u^T\boldsymbol\delta`}</Tex>；這條 erf 是怎麼來的，在緊接著的先備知識框（第 5 章的結果）。
+        </Fig>
         <Prereq title="回顧第 5 章：Gaussian 雜訊下 sign 的平均與 comparator 小訊號增益">
           <p>
             Gaussian（常態）雜訊 <Tex>{String.raw`v\sim\mathcal N(0,\sigma_v^2)`}</Tex> 的機率密度是{' '}
@@ -246,15 +279,27 @@ export function S1Coupling() {
           </ul>
         </Prereq>
         <p>
-          F-10.1 只是<strong>平均</strong>。每個 block 實際量到的 GMAC 還帶著雜訊，記成{' '}
-          <Tex>{String.raw`\mathbf G_k=E[\mathbf G_k]+\boldsymbol\eta_k`}</Tex>：<Tex>{String.raw`\boldsymbol\eta_k`}</Tex> 的平均是 0，近平衡（
+          F-10.1 只是<strong>平均</strong>。每個 block 實際量到的 GMAC 會在這個平均附近抖動，因為它只是 <Tex>{'N'}</Tex> 個「<Tex>{String.raw`\pm1`}</Tex> 乘上 code」的平均。先看這個抖動從哪裡來、有多大：
+        </p>
+        <Fig id="gmac-noise">
+          先看左框：每個 sample 的乘積 <Tex>{String.raw`q[n]\,x_i[n]`}</Tex> 只有正或負兩種值。近平衡（<Tex>{String.raw`\boldsymbol\delta\approx\mathbf 0`}</Tex>）時 <Tex>{'q'}</Tex> 幾乎只由雜訊{' '}
+          <Tex>{'v'}</Tex> 決定、和 code 無關，所以乘積的<strong>平均</strong>很小（就是 F-10.1 的 <Tex>{String.raw`K_q\mathbf R\boldsymbol\delta`}</Tex>），但它的<strong>抖動</strong>一點也不小：因為{' '}
+          <Tex>{'q^2=1'}</Tex>，乘積的共變異就是 code 自己的 <Tex>{String.raw`\mathbf R`}</Tex>。再看右框：GMAC 把 <Tex>{'N'}</Tex> 個獨立的乘積平均起來，平均不變，共變異除以 <Tex>{'N'}</Tex>（RMS 降為{' '}
+          <Tex>{String.raw`1/\sqrt N`}</Tex>）。圖上的 <Tex>{String.raw`\boldsymbol\eta_k`}</Tex> 就是下面式子裡的 <Tex>{String.raw`\boldsymbol\eta_k=\mathbf G_k-E[\mathbf G_k]`}</Tex>；紅色那一格代的是 §10.1 的數字：訊號{' '}
+          <Tex>{String.raw`G_1\approx${tn(c.G1lin, 3)}`}</Tex> 只比單一 block 的雜訊 RMS <Tex>{String.raw`1/${Math.sqrt(NUM.noise.N)}=${tn(etaRms, 3)}`}</Tex> 大 {n(c.G1lin / etaRms, 2)} 倍——單看一個 block 的 GMAC
+          只能大致相信它的方向，要靠很多個 block 慢慢累積（這就是 loop gain 不能太大的原因，§10.4 會算代價）。
+        </Fig>
+        <p>
+          把抖動記成 <Tex>{String.raw`\boldsymbol\eta_k`}</Tex>：<Tex>{String.raw`\mathbf G_k=E[\mathbf G_k]+\boldsymbol\eta_k`}</Tex>。<Tex>{String.raw`\boldsymbol\eta_k`}</Tex> 的平均是 0，近平衡（
           <Tex>{String.raw`\boldsymbol\delta\approx\mathbf 0`}</Tex>）時共變異是
         </p>
         <TexBlock>{String.raw`\operatorname{Cov}(\boldsymbol\eta_k)\approx\frac{\mathbf R}{N}\qquad\Big(\text{每個 GMAC 的雜訊 RMS}\approx\sqrt{R_{ii}/N};\ N=${NUM.noise.N},\ R_{ii}=1\Rightarrow1/${Math.sqrt(NUM.noise.N)}=${tn(etaRms, 3)}\Big)`}</TexBlock>
         <p className="small muted">
-          直覺：近平衡時 <Tex>{'q'}</Tex> 幾乎只由雜訊 <Tex>{'v'}</Tex> 決定，是與 <Tex>{String.raw`\mathbf u`}</Tex> 無關的 <Tex>{String.raw`\pm1`}</Tex>，所以{' '}
-          <Tex>{String.raw`q\,\mathbf u`}</Tex> 的共變異就是 <Tex>{String.raw`\mathbf u`}</Tex> 自己的 <Tex>{String.raw`\mathbf R`}</Tex>；平均 <Tex>{'N'}</Tex> 次再除以{' '}
-          <Tex>{'N'}</Tex>。對照 §10.1 的訊號 <Tex>{String.raw`G_1\approx${tn(c.G1lin, 3)}`}</Tex>：只比單一 block 的雜訊 RMS {n(etaRms, 3)} 大 {n(c.G1lin / etaRms, 2)} 倍。Engineer 模式有逐步推導。
+          （<Tex>{'N'}</Tex> 是每個 block 累加的 sample 數。若 GMAC 用的 code <Tex>{String.raw`\mathbf x`}</Tex> 與有效 regressor <Tex>{String.raw`\mathbf u`}</Tex> 不同，上式的{' '}
+          <Tex>{String.raw`\mathbf R`}</Tex> 要換成 code 自己的自相關矩陣 <Tex>{String.raw`\mathbf R_x=E[\mathbf x\mathbf x^T]`}</Tex>；匹配時兩者相同。）
+        </p>
+        <p className="small muted">
+          這是近似：需要近平衡，而且 block 內的 sample 彼此獨立。Engineer 模式有逐步推導（把上圖左框的「共變異 <Tex>{String.raw`\approx\mathbf R`}</Tex>」與右框的「<Tex>{String.raw`\div N`}</Tex>」各寫成一行式子）。
           <ClaimTag kind="approx" />
         </p>
 
@@ -300,7 +345,8 @@ export function S1Coupling() {
             />
             <p>
               所以 GMAC 雜訊本身就帶有 <Tex>{String.raw`\mathbf R`}</Tex> 的形狀：沿第 i 個 eigenvector 的雜訊 RMS 是{' '}
-              <Tex>{String.raw`\sqrt{\lambda_i/N}`}</Tex>，小 eigenvalue 的方向雜訊確實比較小——但那個方向的「訊號」<Tex>{String.raw`K_q\lambda_i\xi_i`}</Tex>{' '}
+              <Tex>{String.raw`\sqrt{\lambda_i/N}`}</Tex>，小 eigenvalue 的方向雜訊確實比較小——但那個方向的「訊號」<Tex>{String.raw`K_q\lambda_i\xi_i`}</Tex>（<Tex>{String.raw`\xi_i`}</Tex> 是誤差{' '}
+              <Tex>{String.raw`\boldsymbol\delta`}</Tex> 沿第 i 個 eigenvector 的分量，§10.3 會正式定義）{' '}
               縮小得更快（<Tex>{String.raw`\propto\lambda_i`}</Tex>，雜訊只 <Tex>{String.raw`\propto\sqrt{\lambda_i}`}</Tex>），所以訊雜比{' '}
               <Tex>{String.raw`\propto\sqrt{\lambda_i}`}</Tex>：越弱的方向越難量。這個事實在 §10.4（雜訊放大）會決定一切。若 GMAC 的 code{' '}
               <Tex>{String.raw`\mathbf x`}</Tex> 與有效 regressor <Tex>{String.raw`\mathbf u`}</Tex> 不同，則 <Tex>{String.raw`\operatorname{Cov}(\boldsymbol\eta)\approx\mathbf R_x/N`}</Tex>、

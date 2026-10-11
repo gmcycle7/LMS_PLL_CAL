@@ -43,7 +43,16 @@ function Harness() {
 
 const text = (root: ParentNode, sel: string) => q(root, sel).textContent ?? ''
 /** 換算器整塊的文字（含警告、指標表與交叉比對三欄） */
-const crossText = (root: HTMLElement) => root.textContent ?? ''
+/**
+ * 區塊內看得見的文字。TestBadge 的 tooltip（.c-tip-list）逐字列出測試標題——包括本檔自己的標題（例如「…Monte Carlo 尚未執行…」）——
+ * 它們不是換算器顯示的內容，所以不能算進去（否則「不應出現『尚未執行』」這類斷言會因為標題而誤報）。
+ */
+const crossText = (root: HTMLElement) => {
+  const parts: string[] = []
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) if (!n.parentElement?.closest('.c-tip-list')) parts.push(n.nodeValue ?? '')
+  return parts.join('')
+}
 
 /** 依標籤找 ParamControl 的數字輸入框（aria-label 或 label 文字） */
 function numberInput(root: ParentNode, label: RegExp): HTMLInputElement {

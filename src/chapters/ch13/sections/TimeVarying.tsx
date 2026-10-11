@@ -4,6 +4,7 @@ import {
   Callout,
   ClaimTag,
   CodeBlock,
+  Mermaid,
   ModeGate,
   Plot,
   Prereq,
@@ -28,6 +29,7 @@ import {
   stochasticQuantVarApprox,
 } from '@/simulation/models/quantizer'
 import { DEFAULT_LAB_PARAMS, Erratum, Fold, STRATEGY_COLOR, SpurAt, Unit, fx, n, ntex, num, tx } from '../common'
+import { CHART_INBAND, CHART_TIME_VARYING } from '../diagrams'
 
 const L = 1 << 14
 const FU = 1e6
@@ -88,6 +90,15 @@ export function TimeVaryingSection() {
         前面幾節都假設 <Tex>{String.raw`w_H`}</Tex> 是常數 32.4。真正的晶片裡 LMS 一直在更新，<Tex>{String.raw`w_H[n]=w^*+\delta w[n]`}</Tex> 會在 <Tex>{String.raw`w^*`}</Tex> 附近以 <Tex>{String.raw`\sigma_w`}</Tex> 的 RMS 隨機擺動（第 12 章）。
         <Erratum id="E15" /> 要求 §13.5 的五策略比較必須同時跑「<Tex>{String.raw`w_H`}</Tex> 常數」與「<Tex>{String.raw`w_H`}</Tex> 含 LMS 雜訊」兩種情境。
       </p>
+      <Mermaid
+        chart={CHART_TIME_VARYING}
+        caption={String.raw`$w_H$ 會動的時候。先看左半：白雜訊經過一階 low-pass（AR(1)）變成 LMS 更新雜訊 $\delta w$，加在 $w^*$ 上就是 $w_H$；再看右半：輸出 $y$ 減掉 $w_H$ 是量化器自己造成的誤差 $\epsilon$，再加回 $\delta w$ 才是相對於 $w^*$ 的總誤差 $e$。`}
+      />
+      <p className="small ch13-figwalk">
+        圖上的 <Tex>{String.raw`\delta w[n]`}</Tex> 是 LMS 更新雜訊（第 12 章的係數雜訊，穩態 RMS 為 <Tex>{String.raw`\sigma_w`}</Tex>），<Tex>{String.raw`p_\mathrm{cal}`}</Tex> 是它的 pole，<Tex>{String.raw`\xi[n]`}</Tex> 是驅動它的白雜訊。圖上的{' '}
+        <Tex>{String.raw`\epsilon[n]=y[n]-w_H[n]`}</Tex> 是<strong>量化誤差</strong>（只看量化器，不含 LMS 雜訊），最右邊的 <Tex>{String.raw`e[n]=\epsilon[n]+\delta w[n]`}</Tex> 對應下表的三欄：「頻帶內 <Tex>{'e'}</Tex>」、「LMS 地板 <Tex>{String.raw`\delta w`}</Tex>」與「頻帶內量化誤差 <Tex>{String.raw`\epsilon`}</Tex>」（訊號是相加的；功率只有在{' '}
+        <Tex>{String.raw`\epsilon`}</Tex> 與 <Tex>{String.raw`\delta w`}</Tex> 不相關時才剛好相加，所以表中三欄各自量測）。方法 A（Freeze）不在圖上：它根本不看 <Tex>{'w_H'}</Tex>。
+      </p>
       <Prereq title="AR(1) 隨機過程與高斯分布（第 12 章係數雜訊的模型）">
         <p className="small">
           高斯（常態）分布 <Tex>{String.raw`\mathcal N(m,\sigma^2)`}</Tex> 的機率密度是 <Tex>{String.raw`f(x)=\frac{1}{\sigma\sqrt{2\pi}}e^{-(x-m)^2/(2\sigma^2)}`}</Tex>：平均 <Tex>{'m'}</Tex>、變異數 <Tex>{String.raw`\sigma^2`}</Tex> 的鐘形曲線。
@@ -120,7 +131,7 @@ export function TimeVaryingSection() {
         </li>
         <li>
           <strong>C Stochastic</strong>：<Tex>{String.raw`E[y\,|\,w_H]=w_H`}</Tex>（無偏），但每一刻多了一個變異數 <Tex>{String.raw`p[n](1-p[n])`}</Tex> 的白色誤差，平均起來是{' '}
-          <Tex>{String.raw`E[p(1-p)]`}</Tex>，其中 <Tex>{String.raw`f_B/(f_u/2)`}</Tex> 的比例落在頻帶內。
+          <Tex>{String.raw`E[p(1-p)]`}</Tex>，其中 <Tex>{String.raw`f_B/(f_u/2)`}</Tex> 的比例落在頻帶內（<Tex>{String.raw`f_B=f_u/64`}</Tex> 是本章「頻帶內」的上緣：比它慢的誤差會被當成 static / 慢變的 gain error）。
         </li>
         <li>
           <strong>D ΔΣ</strong>：<Tex>{String.raw`e[n]=y[n]-w^*=\delta w[n]+r[n-1]-r[n]`}</Tex>（F-13.7 兩邊減 <Tex>{'w^*'}</Tex>）。輸入一直在變（LMS 雜訊本身就像 dither），<Tex>{'r'}</Tex> 不再週期，limit cycle 消失；量化誤差被推到高頻，頻帶內幾乎只剩 LMS 地板。
@@ -129,6 +140,14 @@ export function TimeVaryingSection() {
           <strong>E ΔΣ + dither</strong>：與 D 相同的頻帶內表現，高頻多出 dither 的功率。
         </li>
       </ul>
+      <Mermaid
+        chart={CHART_INBAND}
+        caption="頻帶內還剩多少量化誤差。先看上面一列（C）：白色誤差的 PSD 是平的，頻帶內就是高度乘寬度，和 $f_B$ 成正比；再看下面一列（D）：被塑形的 PSD 在低頻隨 $f^2$ 變小，積分後和 $f_B$ 的三次方成正比。數字是白色近似，只有數量級可信。"
+      />
+      <p className="small ch13-figwalk">
+        圖上的 <Tex>{String.raw`P_\mathrm{in}`}</Tex> 是「頻帶內（<Tex>{'0<f<f_B'}</Tex>）的量化誤差功率」；<Tex>{'p_0'}</Tex> 是 <Tex>{'w^*'}</Tex> 的小數部分（0.4），<Tex>{'p'}</Tex> 是會跟著 <Tex>{'w_H[n]'}</Tex> 擺動的瞬時小數部分。圖上兩列最後一格就是下面公式 F-13.13 的{' '}
+        <Tex>{String.raw`P_\mathrm{in}^{(C)}`}</Tex> 與 <Tex>{String.raw`P_\mathrm{in}^{(D)}`}</Tex>；推導的前三步走下面一列、後三步走上面一列。
+      </p>
       <StepDerivation
         title={<>頻帶內量化誤差有多大？（<Tex>{'f_B=f_u/64'}</Tex>）</>}
         steps={[

@@ -3,6 +3,8 @@ import { Callout, ClaimTag, CodeBlock, ModeGate, Section, Tex, TexBlock } from '
 import optimizerSrc from '@/simulation/models/optimizer.ts?raw'
 import { comparatorKq, cornerInterval, gmacMeanField, gmacModel, slopeTruncationBias } from '@/simulation/models/optimizer'
 import { CornerIntervalExperiment } from '../experiments/CornerInterval'
+import { Diagram } from '../Diagram'
+import { CHART_CORNER_FLOW, CHART_SLOPE_MEASURE } from '../diagrams'
 import { Hand } from '../Hand'
 import { ErratumNote, md, nf, Steps, tx } from '../shared'
 
@@ -33,6 +35,18 @@ export function S6Corner() {
         <Tex>{'|E[\\delta_B]|\\le\\epsilon|\\delta_0|'}</Tex>，<Tex>{'\\epsilon'}</Tex> 是<strong>無因次相對縮減比</strong>（<Tex>{'0<\\epsilon<1'}</Tex>；絕對規格請換算 <Tex>{'\\epsilon=e_\\text{abs}/|\\delta_0|'}</Tex>），輸入欄拒絕 <Tex>{'\\epsilon\\ge1'}</Tex>；
         並補上非空條件與「只約束平均、不約束 RMS」的提醒。
       </ErratumNote>
+      <p>
+        記號：<Tex>{'K_{\\min}'}</Tex>、<Tex>{'K_{\\max}'}</Tex> 是所有 corner 中最小、最大的 <Tex>{'K_i'}</Tex>；<Tex>{'\\epsilon'}</Tex> 是收斂要求的相對縮減比（<Tex>{'B'}</Tex> 次更新後平均誤差要縮到初始值的 <Tex>{'\\epsilon'}</Tex> 倍以內）。整個判斷流程如下圖，推導緊接在後。
+      </p>
+      <Diagram chart={CHART_CORNER_FLOW} caption="Corner 區間的判斷流程：一條路由最慢的 corner 給下限，另一條由最快的 corner 給上限，下面的菱形比較兩者；紅色是「不是換一個步長就能解決」的情況。">
+        <p>
+          <strong>先看</strong>最上面的菱形：只要有一個 corner 的斜率不是正的，就是極性錯誤，後面都不用算。<strong>再看</strong>兩條平行的路：一條取最小的斜率 <Tex>{'K_{\\min}'}</Tex>（最慢的 corner），它決定 <Tex>{'\\mu'}</Tex>{' '}
+          至少要多大才來得及收斂；另一條取最大的斜率 <Tex>{'K_{\\max}'}</Tex>（最快的 corner），它決定 <Tex>{'\\mu'}</Tex> 最多能多大才保得住 phase margin。<strong>最後看</strong>下面的菱形：下限不超過上限，區間才存在；否則要回頭改規格或架構（紅色方塊），再重算一次。
+        </p>
+        <p>
+          圖上兩個藍色方塊就是公式 F-14.15 的左右兩端（<Tex>{'\\mu_{\\min}=(1-\\epsilon^{1/B})/K_{\\min}'}</Tex>、<Tex>{'\\mu_{\\max}=1/K_{\\max}'}</Tex>），下面菱形裡的條件就是 F-14.16；綠色方塊提醒的是 F-14.15 只管平均誤差，RMS 要另外用 F-14.3 檢查。
+        </p>
+      </Diagram>
       <Steps
         title="下限：最慢的 corner 決定"
         steps={[
@@ -64,7 +78,7 @@ export function S6Corner() {
         steps={[
           {
             tex: String.raw`\frac{1-\epsilon^{1/B}}{K_{\min}}\le\frac1{K_{\max}}\iff1-\epsilon^{1/B}\le\frac{K_{\min}}{K_{\max}}\equiv r`,
-            why: <>非空的意思是下限不超過上限；兩邊乘 <Tex>{'K_{\\min}>0'}</Tex>。</>,
+            why: <>非空的意思是下限不超過上限；兩邊乘 <Tex>{'K_{\\min}>0'}</Tex>。<Tex>{'r=K_{\\min}/K_{\\max}'}</Tex> 稱為 corner 散佈比（<Tex>{'0<r\\le1'}</Tex>，越小表示各 corner 差越多）。</>,
           },
           { tex: String.raw`\iff\epsilon^{1/B}\ge1-r`, why: '移項。' },
           { tex: String.raw`\iff\frac{\ln\epsilon}{B}\ge\ln(1-r)`, why: <>兩邊都是正數（<Tex>{'0<r<1'}</Tex>），<Tex>{'\\ln'}</Tex> 是遞增函數。</> },
@@ -167,6 +181,10 @@ B=12:\ \epsilon^{1/12}&=0.01^{1/12}=${tx(root, 5)}\\
       </div>
 
       <h3>{md('$K_i$ 從哪裡來？量測 GMAC 斜率的 6 步流程')}</h3>
+      <p>
+        斜率不必靠猜，可以在晶片上直接量：把係數刻意往上、往下各推一小步，看 GMAC 的平均輸出變了多少。下面用到三個新符號：<Tex>{'\\Delta'}</Tex> 是刻意加上的擾動大小（fs），<Tex>{'M'}</Tex> 是每一側累積的 block 數，<Tex>{'\\hat K'}</Tex>{' '}
+        是量出來的斜率估計值（帽號代表「估計」）；<Tex>{'\\bar w'}</Tex> 是凍結時暫存器的值，<Tex>{'\\bar G_\\pm'}</Tex> 是兩側各自的 GMAC 平均。
+      </p>
       <ol className="ch14-steps-ol">
         <li>
           鎖定 PLL、固定 FCW 與 PVT corner，凍結 LMS（<Tex>{'\\mu=0'}</Tex>），暫存器停在 <Tex>{'w=\\bar w'}</Tex>。
@@ -187,6 +205,15 @@ B=12:\ \epsilon^{1/12}&=0.01^{1/12}=${tx(root, 5)}\\
           對所有 corner 重複，用 <Tex>{'\\min_i(\\hat K_i-z\\,\\mathrm{se}_i)'}</Tex>、<Tex>{'\\max_i(\\hat K_i+z\\,\\mathrm{se}_i)'}</Tex> 當保守的 <Tex>{'K_{\\min}'}</Tex>、<Tex>{'K_{\\max}'}</Tex> 代入 F-14.15。
         </li>
       </ol>
+      <Diagram chart={CHART_SLOPE_MEASURE} caption="量測斜率的流程：先凍結，再往兩邊各推一步，相減得到斜率；通過顯著性檢查（菱形）才能拿去算區間。">
+        <p>
+          <strong>先看</strong>①到③：凍結更新後，DTC 先用偏大的係數、再用偏小的係數，各平均 <Tex>{'M'}</Tex> 個 block。<strong>再看</strong>藍色的④：兩個平均值相減、除以 <Tex>{'2\\Delta'}</Tex> 就是斜率。注意相減的順序——係數往上推，誤差{' '}
+          <Tex>{'\\delta=a-w'}</Tex> 變小，GMAC 輸出跟著變小，所以要用「減號那一側減加號那一側」，斜率才是正的。<strong>最後看</strong>菱形⑤：估計值要明顯大於自己的標準誤 se（<Tex>{'z'}</Tex> 是要求的倍數，例如 4），否則代表極性錯誤或根本看不到訊號。
+        </p>
+        <p>
+          圖上的 <Tex>{'\\bar G(+\\Delta)'}</Tex>、<Tex>{'\\bar G(-\\Delta)'}</Tex> 就是公式裡的 <Tex>{'\\bar G_+'}</Tex>、<Tex>{'\\bar G_-'}</Tex>；④裡的兩個式子就是下面 F-14.21 的前兩項，接下來的推導說明 se 與截斷偏差從哪裡來。
+        </p>
+      </Diagram>
       <Steps
         title="量測誤差：變異數與截斷偏差"
         steps={[

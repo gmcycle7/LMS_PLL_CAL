@@ -3,7 +3,7 @@ import { ClaimTag, CodeBlock, CodeCompare, ModeGate, Section, SourceTag, Tex } f
 import comparatorSrc from '@/simulation/models/comparator.ts?raw'
 import goldenPy from '../../../../golden/lms_pll_golden/comparator.py?raw'
 import { TIE_RULES, directionOutcomeClt, directionOutcomeExact, meanQ, pPlus, tieRuleEquilibrium, type TieRule } from '@/simulation/models/comparator'
-import { fx, pct } from '../common'
+import { Fig, fx, pct } from '../common'
 
 const SRC_PATH = 'src/simulation/models/comparator.ts'
 
@@ -72,6 +72,15 @@ export function CompareSection() {
   return (
     <Section kind="example" level={2} title="8. 方法與演算法比較：精確 vs 近似 vs Monte Carlo，以及四種 tie rule">
       <h3>8.1 計算「判對機率」的方法</h3>
+      <p>
+        同一個「判對機率」，本章前面用了五種算法。該用哪一種，取決於三個問題：雜訊樣本是不是彼此獨立、你要的是驗收數字還是設計方程、<Tex>{'N'}</Tex> 是奇數還是偶數。
+      </p>
+      <Fig name="methodChoice">
+        從最上面的菱形開始回答：雜訊有時間相關時，只有逐 sample 的 Monte Carlo 還成立（Binomial 的前提是樣本獨立）；它也是唯一能直接換成別種雜訊分布、用來驗證模型本身的方法。樣本獨立時再看你要什麼：要驗收數字就用精確的 Binomial（綠色）；
+        要手算或設計方程就用 CLT（藍色），偶數 <Tex>{'N'}</Tex> 而且 tie rule 是確定性的，要加連續性修正；想用模擬交叉檢查或掃很大的 <Tex>{'N'}</Tex>，直接抽{' '}
+        <Tex>{'K\\sim\\mathrm{Bin}(N,p)'}</Tex> 最快。圖上的五個葉子就是下表的五列；<Tex>{'T'}</Tex> 是 Monte Carlo 的 trial 數，<Tex>{'\\sigma_S=\\sqrt{N(1-m^2)}'}</Tex> 是{' '}
+        <Tex>{'S_N'}</Tex> 的標準差。
+      </Fig>
       <div className="table-wrap">
         <table className="ch05-table">
           <thead>

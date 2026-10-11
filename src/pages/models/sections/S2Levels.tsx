@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
-import { Callout, ClaimTag, Mermaid, ModelLevel, Section, Tex, type ModelLevelId } from '@/components'
-import { ChLink, ErratumNote, md } from '../common'
+import { Callout, ClaimTag, ModelLevel, Section, Tex, type ModelLevelId } from '@/components'
+import { ChLink, Diagram, ErratumNote, md } from '../common'
+import { LEVEL_CHART } from '../diagrams'
 
 interface LevelRow {
   level: ModelLevelId
@@ -14,7 +15,8 @@ interface LevelRow {
   cannot: ReactNode
 }
 
-const ROWS: LevelRow[] = [
+/** 七個層級與本站的實作程度（diagrams.test.tsx 用它核對階梯圖的顏色）。 */
+export const LEVEL_ROWS: LevelRow[] = [
   {
     level: 'L0',
     model: 'Scalar exact LMS / Sign-Error LMS',
@@ -121,16 +123,6 @@ const STATUS_LABEL: Record<LevelRow['status'], string> = {
   none: '✗ Not implemented（僅部分元件）',
 }
 
-const LEVEL_CHART = `flowchart LR
-  L0["L0 純量 LMS<br/>每 sample"] --> L1["L1 Block GMAC<br/>+ Gaussian comparator"]
-  L1 --> L2["L2 DTC residue<br/>+ H_PD / T"]
-  L2 --> L3["L3 多參數<br/>+ Jacobian"]
-  L2 --> L4["L4 Noise PSD<br/>→ output jitter / spur"]
-  L2 --> L5["L5 定點 / RTL-like"]
-  L3 --> L6["L6 進階 PLL / DSM / FCW"]
-  L4 --> L6
-  L5 --> L6`
-
 /** §2 模型層級 L0–L6（規格 §15.1）與本站實作程度 */
 export function S2Levels() {
   return (
@@ -140,7 +132,19 @@ export function S2Levels() {
         「模型層級」回答的是：<strong>這個模擬裡有哪些物理效應，所以它的結論可以推廣到哪裡</strong>。越高層的模型包含越多效應，但也越慢、越難推導；低層模型則可以寫出封閉式（例如{' '}
         <Tex>{'p=1-\\mu K_qC'}</Tex>），適合建立直覺與 sanity check。
       </p>
-      <Mermaid chart={LEVEL_CHART} caption="模型層級的包含關係：L0–L2 為教學模型，L4–L6 才接近架構 sign-off（本站皆為簡化版）" ariaLabel="模型層級 L0 到 L6 的包含關係圖" />
+      <Diagram
+        chart={LEVEL_CHART}
+        caption="模型層級的階梯：每個箭頭代表在前一層之上再加一種效應。L0–L2 為教學模型，L4–L6 才接近架構 sign-off。綠色是本站已完整實作的層級，紅色是未實作，其餘是簡化版。"
+        ariaLabel="模型層級 L0 到 L6 的包含關係圖"
+      >
+        <p>
+          先看最長的那條主線：L0（一個係數、每個 sample 更新）→ L1（加上 1-bit comparator 與 block 平均）→ L2（加上主 PLL 的兩條路）。到 L2 之後分成三個方向，各自回答不同的問題：L3 問「好幾個參數一起學會不會互相干擾」，L4 問「輸出的
+          jitter / spur 是多少」，L5 問「定點之後還對不對」。
+        </p>
+        <p>
+          圖上的 <Tex>{'H_\\mathrm{PD}'}</Tex> 是 DTC 誤差到 phase detector 的轉移函數、<Tex>{'T'}</Tex> 是到 PLL 輸出的轉移函數（§4.1）。下面的表逐列說明每一層驗證什麼、本站做到哪裡。
+        </p>
+      </Diagram>
       <div className="table-wrap">
         <table className="models-table models-levels">
           <thead>
@@ -155,7 +159,7 @@ export function S2Levels() {
             </tr>
           </thead>
           <tbody>
-            {ROWS.map((r) => (
+            {LEVEL_ROWS.map((r) => (
               <tr key={r.level} className={`models-level-${r.status}`}>
                 <td>
                   <ModelLevel level={r.level} />

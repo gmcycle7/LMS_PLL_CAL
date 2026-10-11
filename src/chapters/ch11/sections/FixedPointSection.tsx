@@ -19,6 +19,7 @@ import biasSrc from '@/simulation/models/bias.ts?raw'
 import { KQ_FACTOR, buildCodeDistribution, comparatorMean, eDet, signFixedPoint, type ErrorModel } from '@/simulation/models/bias'
 import { F } from '../formulas'
 import { Erratum, ModeDetails, m, texNum } from '../common'
+import { Fig, FigRef } from '../Fig'
 import { Hand } from '../Hand'
 
 const PATH = 'src/simulation/models/bias.ts'
@@ -65,9 +66,22 @@ export function FixedPointSection() {
   return (
     <Section kind="formula" title="11.A 固定點從哪裡來：GMAC 歸零的條件" level={2} id="ch11-fixed-point">
       <p>
-        Block LMS 每收集 <Tex>{'N'}</Tex> 個 comparator sample 更新一次（<Tex>{'n'}</Tex> = sample、<Tex>{'k'}</Tex> = block）：
+        Block LMS 每收集 <Tex>{'N'}</Tex> 個 comparator sample 才更新一次 gain（<Tex>{'n'}</Tex> 是 sample 的索引、<Tex>{'k'}</Tex> 是 block 的索引、
+        <Tex>{'N'}</Tex> 是每個 block 的 sample 數）。先看 <FigRef id="lms-loop" /> 上面那一列（每個 sample 跑一次）：code <Tex>{'x[n]'}</Tex> 產生誤差{' '}
+        <Tex>{'e[n]'}</Tex>，comparator 取正負號 <Tex>{'q[n]'}</Tex>，再乘回 <Tex>{'x[n]'}</Tex>；再看下面那一列（每個 block 才跑一次）：<Tex>{'N'}</Tex>{' '}
+        個乘積在藍色方塊平均成 <Tex>{'G_k'}</Tex>，乘上學習率 <Tex>{'\\mu'}</Tex>，加到上一個 block 的 <Tex>{'w_k'}</Tex> 上；新的值延遲一個 block
+        後，沿著回授線回到上面一列去改誤差。
+      </p>
+      <Fig id="lms-loop" />
+      <p>
+        把這個迴圈寫成公式（圖上的「<Tex>{'\\times\\mu'}</Tex>」與加法點是第一式，藍色方塊是第二式，<Tex>{'z^{-1}'}</Tex> 表示新的{' '}
+        <Tex>{'w'}</Tex> 要到下一個 block 才生效）：
       </p>
       <TexBlock>{String.raw`w_{k+1}=w_k+\mu\,G_k,\qquad G_k=\frac1N\sum_{n\in\text{block }k}q[n]\,x[n]`}</TexBlock>
+      <p className="small">
+        <Tex>{'w_k'}</Tex> 是第 <Tex>{'k'}</Tex> 個 block 使用的校正 gain；<Tex>{'G_k'}</Tex> 是這個 block 的 GMAC 平均輸出（<Tex>{'q\\,x'}</Tex> 的平均，無因次）；
+        <Tex>{'\\mu'}</Tex> 是學習率（step size；Sign-LMS 時它把無因次的 <Tex>{'G_k'}</Tex> 換算成 gain 的單位 t.u.）。
+      </p>
       <p>
         <Tex>{'\\mu'}</Tex> 很小時，<Tex>{'w'}</Tex> 跟著「平均更新量」<Tex>{'\\mu\\,E[G](w)'}</Tex> 慢慢走（Ch12 再處理它在平均值附近的抖動）。所以 LMS 最後停下來的地方，就是
         <strong>平均 GMAC 等於 0 的 w</strong>：
@@ -78,11 +92,32 @@ export function FixedPointSection() {
       </p>
       <p className="small">
         這裡的「穩定／吸引」是<strong>平均動態（mean-field）的局部吸引</strong>：另外還需要離散更新本身不發散，也就是{' '}
-        <Tex>{String.raw`0<g=\mu S<2`}</Tex>（<Tex>{String.raw`S=-dE[G]/dw`}</Tex>，Ch03、Ch08），而有限的 <Tex>{'\\mu'}</Tex> 會讓 <Tex>{'w'}</Tex> 在{' '}
+        <Tex>{String.raw`0<g=\mu S<2`}</Tex>（<Tex>{String.raw`S=-dE[G]/dw`}</Tex> 是平均 GMAC 對 <Tex>{'w'}</Tex> 的恢復斜率，<Tex>{'g'}</Tex> 是正規化的 loop
+        gain；Ch03、Ch08），而有限的 <Tex>{'\\mu'}</Tex> 會讓 <Tex>{'w'}</Tex> 在{' '}
         <Tex>{'w^*'}</Tex> 附近隨機抖動（Ch12）。本章只回答「平均停在哪裡」。
       </p>
 
+      <p>
+        先看全貌（<FigRef id="mse-vs-sign" />）。先看沒有上色的 MSE-LMS 那一支：多位元的 <Tex>{'e'}</Tex> 直接乘 <Tex>{'x'}</Tex>，平均 GMAC 對{' '}
+        <Tex>{'w'}</Tex> 是一條直線，所以固定點是一次方程的解。再看藍色的 Sign-LMS 那一支：多了「只留正負號」與「對雜訊平均」兩步，comparator 的平均輸出變成 S 形的{' '}
+        <Tex>{String.raw`\operatorname{erf}`}</Tex>（error function，§11.0 的先備知識框），平均 GMAC 對 <Tex>{'w'}</Tex> 變成曲線；它最後落在哪裡，要看雜訊{' '}
+        <Tex>{'\\sigma_v'}</Tex> 相對於殘差有多大（最下面三個出口）。
+      </p>
+      <Fig id="mse-vs-sign" />
+      <p className="small">
+        圖上的 <Tex>{String.raw`E[q\mid x]=\operatorname{erf}(\cdot)`}</Tex> 就是下面的公式 F-11.2（<Tex>{String.raw`E[q\mid x]`}</Tex>：code 固定為{' '}
+        <Tex>{'x'}</Tex> 時 <Tex>{'q'}</Tex> 對雜訊的平均）；綠色方塊裡的 <Tex>{'w^*'}</Tex> 就是 F-11.4；<Tex>{'K_q'}</Tex> 是 erf 在原點的斜率（comparator
+        的小訊號增益）。
+      </p>
+
       <h3>情境 1：MSE-LMS（GMAC 用多位元的 e）</h3>
+      <p>
+        <FigRef id="bias-correlators" /> 把下面的推導畫成五個平行的相關器。先看左欄：<Tex>{'e[n]'}</Tex> 的五項；各自乘上 <Tex>{'x'}</Tex>{' '}
+        取平均後變成右欄。再看加法點：五個平均以正號相加就是 <Tex>{'E[G]'}</Tex>。藍色那一項含有 <Tex>{'w'}</Tex>（對 <Tex>{'w'}</Tex> 的斜率是{' '}
+        <Tex>{'-E[x^2]'}</Tex>），是把 <Tex>{'w'}</Tex> 拉回來的恢復力；其餘各項不含 <Tex>{'w'}</Tex>，令總和為 0 之後，它們除以 <Tex>{'E[x^2]'}</Tex>{' '}
+        就是 <Tex>{'w^*-a'}</Tex> 的 bias。圖上右欄的五個方塊，就是推導第三行的五項。
+      </p>
+      <Fig id="bias-correlators" />
       <ModeDetails title={m('一步一步推導：$E[x\\,e]=0\\Rightarrow w^*$')}>
         <StepDerivation
           steps={[
@@ -123,6 +158,15 @@ export function FixedPointSection() {
       </p>
 
       <h3>情境 2：Sign-LMS（GMAC 只用 1-bit 的 q）</h3>
+      <p>
+        Sign-LMS 與 MSE-LMS 唯一的差別就是 comparator，所以先把 comparator 的三種寫法並排看（<FigRef id="comparator-model" />）。先看第一排（實際電路）：確定性殘差{' '}
+        <Tex>{String.raw`e_\mathrm{det}`}</Tex> 加上雜訊 <Tex>{'v'}</Tex> 得到 <Tex>{'e'}</Tex>，comparator 只留下正負號 <Tex>{'q=\\pm1'}</Tex>，乘上{' '}
+        <Tex>{'x'}</Tex> 後 <Tex>{'N'}</Tex> 個取平均。再看第二排：固定 code <Tex>{'x'}</Tex>、把雜訊 <Tex>{'v'}</Tex> 平均掉，comparator 就變成一條 S 形曲線{' '}
+        <Tex>{String.raw`\operatorname{erf}`}</Tex>（精確）—— 對應下面推導的第 1–4 行（先對雜訊平均、再對 code 平均）。最後看第三排：只要每個 code 的{' '}
+        <Tex>{String.raw`|e_\mathrm{det}|`}</Tex> 都遠小於 <Tex>{String.raw`\sigma_v`}</Tex>，S 形曲線在原點附近就可以用斜率 <Tex>{'K_q'}</Tex> 的直線取代（近似）—— 對應推導的第
+        5–7 行。三排只有藍色的 comparator 那一塊不同，後面「乘上 <Tex>{'x'}</Tex> 再平均」完全一樣。
+      </p>
+      <Fig id="comparator-model" />
       <ModeDetails title={m('一步一步推導：$E[x\\,q]$ 與 erf，以及線性化在什麼條件下成立')}>
         <StepDerivation
           steps={[
@@ -132,7 +176,7 @@ export function FixedPointSection() {
             },
             {
               tex: String.raw`P(q=+1\mid x)=P\big(v>-e_\mathrm{det}\big)=\Phi\!\Big(\frac{e_\mathrm{det}}{\sigma_v}\Big)`,
-              why: m('$q=+1\\Leftrightarrow v>-e_\\mathrm{det}$；Gaussian 對稱，$P(v>-s)=P(v<s)=\\Phi(s/\\sigma_v)$。'),
+              why: m('$q=+1\\Leftrightarrow v>-e_\\mathrm{det}$；Gaussian 對稱，$P(v>-s)=P(v<s)=\\Phi(s/\\sigma_v)$（$\\Phi$ 是標準常態分布的累積機率，§11.0 的先備知識框）。'),
             },
             {
               tex: String.raw`E[q\mid x]=(+1)\Phi+(-1)(1-\Phi)=2\Phi\!\Big(\frac{e_\mathrm{det}}{\sigma_v}\Big)-1=\operatorname{erf}\!\Big(\frac{e_\mathrm{det}}{\sqrt2\,\sigma_v}\Big)`,

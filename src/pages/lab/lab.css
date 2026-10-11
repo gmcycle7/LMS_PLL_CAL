@@ -445,3 +445,63 @@
     min-width: 9rem;
   }
 }
+
+/* 方塊圖與它的導讀（common.tsx 的 Diagram；docs/teaching-style.md §8） */
+.lab-diagram {
+  margin: 1rem 0 1.1rem;
+  min-width: 0;
+}
+.lab-diagram .c-mermaid {
+  margin-bottom: 0.4rem;
+}
+.lab-diagram-walk {
+  border-left: 3px solid var(--accent);
+  padding: 0.1rem 0 0.1rem 0.75rem;
+  font-size: 0.93rem;
+}
+.lab-diagram-walk > p {
+  margin: 0.35rem 0;
+}
+
+/* 頁首「本頁符號表在最後」那一行，與頁末的符號表（sections/S6Symbols.tsx；docs/teaching-style.md §5） */
+.lab-symbols-jump {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin: 0.5rem 0 1rem;
+  font-size: 0.92rem;
+}
+.lab-symbols-jump-note {
+  color: var(--text-muted);
+}
+.lab-linkbtn {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.lab-linkbtn:hover {
+  text-decoration-thickness: 2px;
+}
+.lab-linkbtn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+.lab-symbols {
+  margin-top: 1.8rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--border);
+  /* 固定的 topbar 不要蓋住捲動目標 */
+  scroll-margin-top: calc(var(--topbar-h, 52px) + 16px);
+}
+#lab-top {
+  scroll-margin-top: calc(var(--topbar-h, 52px) + 16px);
+}

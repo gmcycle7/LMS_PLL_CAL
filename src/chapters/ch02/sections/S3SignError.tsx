@@ -3,8 +3,8 @@ import { Callout, ClaimTag, CodeBlock, Derivation, ModeGate, Prereq, Quiz, Secti
 import lmsSrc from '@/simulation/models/lms.ts?raw'
 import sgdSrc from '@/simulation/models/sgd.ts?raw'
 import { conventionalStep, signErrorStep, type TieRule } from '@/simulation/models/lms'
-import { IMPULSIVE_EPS, IMPULSIVE_K, noiseMedian, noiseOps, noisePdfAt, runSignErrorFixedX, signErrorLimitCycle, stepsToTravel, type NoiseKind } from '@/simulation/models/sgd'
-import { ChapterLink, ErrataNote, HandCalcSlot, TieLabel, f4, DerivFold, tm } from '../common'
+import { GEAR_FLOOR_RATIO, IMPULSIVE_EPS, IMPULSIVE_K, noiseMedian, noiseOps, noisePdfAt, runSignErrorFixedX, signErrorLimitCycle, stepsToTravel, type NoiseKind } from '@/simulation/models/sgd'
+import { ChapterLink, Diagram, ErrataNote, HandCalcSlot, TieLabel, f4, DerivFold, tm } from '../common'
 import { LimitCycleBand } from '../experiments/LimitCycleBand'
 
 const TIES: TieRule[] = ['zero', 'plus', 'minus']
@@ -95,7 +95,8 @@ export function S3SignError() {
       <Section kind="intuition" title="硬體只告訴你「太高」或「太低」">
         <p>
           PLL 校正裡，誤差 <Tex>{'e'}</Tex> 是一個幾 fs 的時間差，量它的大小需要 TDC；但一顆 comparator / bang-bang PD 只輸出
-          <Tex>{'q=\\operatorname{sign}(e)\\in\\{+1,-1\\}'}</Tex>。如果更新只能用 <Tex>{'q'}</Tex>，等於在最小化什麼？答案是絕對誤差 <Tex>{'|e|'}</Tex>（MAE，Ch01）。
+          <Tex>{'q=\\operatorname{sign}(e)\\in\\{+1,-1\\}'}</Tex>（<Tex>{'\\operatorname{sign}'}</Tex> 取正負號：正數給 <Tex>{'+1'}</Tex>、負數給 <Tex>{'-1'}</Tex>；<Tex>{'q'}</Tex> 就是這顆 comparator 的 1-bit 輸出）。
+          如果更新只能用 <Tex>{'q'}</Tex>，等於在最小化什麼？答案是絕對誤差 <Tex>{'|e|'}</Tex>（MAE，Ch01）。
         </p>
       </Section>
 
@@ -111,6 +112,15 @@ export function S3SignError() {
       </Prereq>
 
       <Section kind="formula" title="推導：MAE 的隨機次梯度">
+        <p>先看結果長什麼樣子：把 §2 的 LMS 迴圈拿來，只在誤差後面插進一顆 comparator。</p>
+        <Diagram id="sign-error-loop">
+          <p>
+            {tm(
+              String.raw`先看藍色的方塊：誤差 $e[n]$ 進入更新器之前先通過 $\operatorname{sign}(\cdot)$，只剩下 $+1$ 或 $-1$——這就是 1-bit comparator，輸出叫做 $q[n]$。再看它後面的「$\times\,x[n]$」：因為 $q[n]$ 只有 $\pm1$，這個乘法不需要乘法器，只是「$q=+1$ 時加 $x$、$q=-1$ 時減 $x$」（條件取負，conditional negation）。其餘的方塊——黑盒子、預測、$\times\mu$、累加、$z^{-1}$——和 §2 那張 LMS 迴圈圖完全相同，兩張圖可以對照著看。`,
+            )}
+          </p>
+          <p>{tm(String.raw`圖上的 $q[n]=\operatorname{sign}(e[n])$ 與 $\Delta w[n]$，就是下面 F-02.6 裡的 $\operatorname{sign}(e_n)$ 與 $\mu\operatorname{sign}(e_n)\,x_n$。下面的推導說明：這個迴圈其實是在對絕對誤差 $|e|$ 做梯度下降。`)}</p>
+        </Diagram>
         <DerivFold>
           <StepDerivation
             steps={[
@@ -171,6 +181,21 @@ export function S3SignError() {
       </Section>
 
       <Section kind="formula" title="固定步長停不下來：limit cycle 的精確解">
+        <p>
+          每一步都走固定的距離，靠近目標時一定會衝過頭、再被拉回來。固定 <Tex>{'x'}</Tex>、沒有雜訊時，這個「來回跳」可以畫成一張只有三個狀態的圖：
+        </p>
+        <Diagram id="limit-cycle">
+          <p>
+            {tm(
+              String.raw`先看「等速接近」這個狀態：離 $a$ 還遠時，每一步都朝 $a$ 靠近同樣的距離 $h=\mu|x|$（步長乘上輸入的大小，和誤差多大無關）。走了 $n_c$ 步之後（$n_c$：還沒越過 $a$ 之前能走的整步數），剩下的距離 $\rho$ 已經不到一步，進入紅色的兩個狀態。再看紅色的兩格：從「還沒越過 $a$」再走一步 $h$ 就會越過 $a$；越過之後誤差變號，下一步往回走同樣的 $h$，剛好回到原來的點——所以永遠在這兩點之間來回跳（週期 2）。若起點離 $a$ 本來就不到一步（$n_c=0$），就直接從紅色的狀態開始。`,
+            )}
+          </p>
+          <p>
+            {tm(
+              String.raw`圖上的 $\delta_0=a-w_0$ 是起點的參數誤差，$\operatorname{sgn}(\delta_0)$ 是它的正負號（起點在 $a$ 的哪一邊）；兩個紅色狀態裡的 $w$ 值，就是下面 F-02.10 大括號裡的兩個點。這張圖假設 $0<\rho<h$；$\rho=0$（剛好踩到 $a$）的情況在後面另外畫。`,
+            )}
+          </p>
+        </Diagram>
         <DerivFold>
           <StepDerivation
             title={tm('固定 $x$、無雜訊（精確算術）')}
@@ -196,7 +221,17 @@ export function S3SignError() {
           算完可以把同一組數字填進下方「動手觀察」的實驗，看模擬是不是停在同樣的兩點。
         </HandCalcSlot>
         <p>
-          若 <Tex>{'\\rho=0'}</Tex>（剛好踩到 <Tex>{'a'}</Tex>），下一步的 <Tex>{'e=0'}</Tex>——結果由 <Tex>{'\\operatorname{sign}(0)'}</Tex> 決定。
+          若 <Tex>{'\\rho=0'}</Tex>（剛好踩到 <Tex>{'a'}</Tex>），下一步的 <Tex>{'e=0'}</Tex>——結果由 <Tex>{'\\operatorname{sign}(0)'}</Tex> 決定：
+        </p>
+        <Diagram id="tie-rule">
+          <p>
+            {tm(
+              String.raw`先看菱形：誤差剛好是 0 時，$\operatorname{sign}(0)$ 沒有唯一的答案（上面的先備知識框說過，它可以是 $[-1,1]$ 裡的任何值），必須自己規定。再看三條分支：規定成 $0$（數學慣例），更新量是 0，$w$ 永遠停在 $a$；規定成 $+1$ 或 $-1$（comparator 一定要輸出其中一個），$w$ 會被推離 $a$ 一步，下一步誤差不再是 0、又被拉回 $a$，於是在兩點之間跳。`,
+            )}
+          </p>
+          <p>{tm(String.raw`圖上的 $\Delta w=\pm\mu\,x$ 就是把 $\operatorname{sign}(e_n)=\pm1$ 代進 F-02.6 的結果；兩個跳動點的間距仍然是 $h=\mu|x|$。`)}</p>
+        </Diagram>
+        <p>
           上面手算的例子（<Tex>{'a=3,\\ x=1,\\ w_0=1,\\ \\mu=0.2'}</Tex>）繼續走下去就是這種情況：<Tex>{String.raw`|\delta_0|/h=2/0.2=10`}</Tex> 是整數，
           精確算術下第 {handOn.ex.entryStep} 步 <Tex>{'w=3'}</Tex>；comparator 慣例（tie 輸出 <Tex>{'+1'}</Tex>）會在 <Tex>{String.raw`\{${f4(handOn.ex.lo)},\ ${f4(handOn.ex.hi)}\}`}</Tex> 之間跳。
           但實際用 IEEE double 跑，<Tex>{'w_{10}'}</Tex> = <code>{String(handOn.w10)}</code>，最後在 <code>{`{${handOn.tail.map((v) => String(v)).join(', ')}}`}</code> 之間跳——
@@ -313,6 +348,18 @@ export function S3SignError() {
             <strong>平均與中位數不同</strong>，這正是 §4 用來分辨 LMS 與 sign 類演算法的工具。實驗裡另外可以加「單邊 outlier」：每筆以機率 <Tex>{'p_{\\rm out}'}</Tex> 在 <Tex>{'v'}</Tex> 上加一個固定的 <Tex>{'s'}</Tex>（平均變成 <Tex>{'p_{\\rm out}s'}</Tex>，中位數幾乎不動）。
           </p>
         </Prereq>
+        <p>
+          有雜訊時，單獨一步往哪邊走是隨機的，所以改問「平均」：站在某個 <Tex>{'w'}</Tex> 上，平均來說會往哪邊走、走多快？把它記成
+          <Tex>{String.raw`\psi(w)=E[\Delta w]/\mu`}</Tex>（平均更新方向）；<Tex>{String.raw`\psi(w^*)=0`}</Tex> 的點 <Tex>{'w^*'}</Tex> 就是固定點（平均來說不再移動的地方）。
+        </p>
+        <Diagram id="mean-field">
+          <p>
+            {tm(
+              String.raw`先看「真實的迴路」那一框：參數誤差 $d=a-w$（就是 $\delta$，只是取平均時把它當成一個固定的數；和 Ch08 的 update delay 無關）乘上 $x$、加上雜訊 $v$ 得到誤差 $e$，通過紅色的 $\operatorname{sign}(\cdot)$ 只剩 $\pm1$，再乘上 $x$（兩個「$\times x$」用的是同一筆 $x$，所以圖上從同一個來源接出去）、取平均，得到 $\psi_{\rm SE}(w)$（下標 SE：Sign-Error）。紅色那一格是硬的非線性，不能直接用線性系統的工具分析。再看「等效」那一框：只要 $|d\,x|$ 遠小於雜訊的大小 $\sigma_v$，「加雜訊、取 sign、取平均」這一串合起來就像一個線性增益——藍色的 $K_q=2f_v(0)$（$f_v(0)$ 是雜訊在 0 的機率密度，見上面的先備知識框）；再乘上 $E[x^2]$ 就是整條路徑的增益。`,
+            )}
+          </p>
+          <p>{tm(String.raw`圖上兩個框的輸入與輸出相同（前者精確、後者是小誤差時的近似）；等效那一框裡兩格的乘積 $K_q\,E[x^2]$ 就是 F-02.12 的 $K_{\rm SE}$。`)}</p>
+        </Diagram>
         <DerivFold>
           <StepDerivation
             title="Sign-Error 的平均更新方向（mean-field）"
@@ -339,8 +386,17 @@ export function S3SignError() {
 
       <Section kind="formula" title={tm('修正方法：遞減步長 $\\mu_n=\\mu_0/(1+n/n_0)$')}>
         <p>
-          固定步長的兩個「停不下來」：無雜訊時帶寬 <Tex>{'h=\\mu|x|'}</Tex>；有雜訊時穩態變異 <Tex>{'\\propto\\mu'}</Tex>。兩者都正比於 <Tex>{'\\mu'}</Tex>，所以讓 <Tex>{'\\mu_n\\to0'}</Tex>。但不能太快：
+          固定步長的兩個「停不下來」：無雜訊時帶寬 <Tex>{'h=\\mu|x|'}</Tex>；有雜訊時穩態變異 <Tex>{'\\propto\\mu'}</Tex>。兩者都正比於 <Tex>{'\\mu'}</Tex>，所以讓 <Tex>{'\\mu_n\\to0'}</Tex>。
+          這裡 <Tex>{'\\mu_n'}</Tex> 是第 <Tex>{'n'}</Tex> 步用的步長，<Tex>{'\\mu_0'}</Tex> 是起始步長，<Tex>{'n_0'}</Tex> 是時間常數（走到第 <Tex>{'n_0'}</Tex> 步時步長剛好減半）。但不能降得太快：
         </p>
+        <Diagram id="step-schedule">
+          <p>
+            {tm(
+              String.raw`先看藍色的排程器：它只看步數 $n$，輸出這一步要用的步長 $\mu[n]$；$n$ 越大、$\mu[n]$ 越小。中間的乘法與累加和 Sign-Error 的迴圈相同，只是固定的 $\mu$ 換成了 $\mu[n]$。再看綠色與紅色的兩格，它們是排程必須同時滿足的兩筆帳。綠色：每一步最多走 $\mu[n]\,|x|$，全部加起來就是「最遠能走到哪裡」——這個總和必須是無限大，不然起點太遠就永遠走不到。紅色：每一步都把一筆變異為 $\mu[n]^2\sigma_\eta^2$ 的雜訊加進 $w$（$\sigma_\eta^2$：單步更新方向的變異，叫做梯度雜訊變異），這個總和必須有限，抖動才會停下來。`,
+            )}
+          </p>
+          <p>{tm(String.raw`圖上的兩筆帳就是 F-02.11 的 $\sum\mu_n=\infty$ 與 $\sum\mu_n^2<\infty$；排程器裡的式子就是 F-02.11 的第一項。`)}</p>
+        </Diagram>
         <DerivFold>
           <StepDerivation
             title="Robbins–Monro 條件從哪來"
@@ -360,6 +416,18 @@ export function S3SignError() {
           但 <Tex>{'\\mu_0=0.01,\\ n_0=10'}</Tex>：<Tex>{'D/(\\mu_0n_0)=30'}</Tex>，需要 <Tex>{'\\approx10\\,\\mathrm{e}^{30}'}</Tex> 步（程式在 <Tex>{'5\\times10^6'}</Tex> 步內{Number.isFinite(reach.slow) ? `需要 ${reach.slow} 步` : '走不到'}）。
           工程規則：<strong>先用固定的 <Tex>{'\\mu'}</Tex> 粗調到 <Tex>{'w^*'}</Tex> 附近，再開始衰減</strong>（gear-shift：每 <Tex>{'n_0'}</Tex> 步右移一位，並設下限 <Tex>{'\\mu_{\\min}'}</Tex> 以保留追蹤 PVT 漂移的能力，Ch14）。
         </p>
+        <Diagram id="gear-shift">
+          <p>
+            {tm(
+              String.raw`先看「粗調」：前 $n_0$ 步用最大的步長 $\mu_0$，等速趕路。再看「換檔」：每過 $n_0$ 步把步長右移一位（除以 2）——硬體上只是改變 shift 的位數，不需要除法器。最後停在「追蹤」：步長降到下限 $\mu_{\min}$ 就不再變小，保留追蹤溫度與電壓漂移的能力。`,
+            )}
+          </p>
+          <p>
+            {tm(
+              String.raw`圖上的三個狀態就是本站模擬用的 gear 排程（sgd.ts 裡 stepSize() 的 gear 分支）：$\mu_n=\max\!\big(\mu_0\,2^{-\lfloor n/n_0\rfloor},\ \mu_{\min}\big)$，本站取 $\mu_{\min}=\mu_0/${1 / GEAR_FLOOR_RATIO}$（最多右移 ${Math.log2(1 / GEAR_FLOOR_RATIO)} 位）。和上一張圖的排程 $\mu_0/(1+n/n_0)$ 相比，它是階梯狀地變小，而且有下限——所以它不滿足「總和有限」那筆帳，穩態仍有一點抖動，換來的是追蹤能力。`,
+            )}
+          </p>
+        </Diagram>
         <HandCalcSlot id="HC-02.3">
           這一題需要工程計算機的 <Tex>{'\\ln'}</Tex> 與 <Tex>{'\\mathrm{e}^x'}</Tex>。換成你自己的 <Tex>{'\\mu_0,\\ n_0,\\ D'}</Tex>，先算第 <Tex>{'n'}</Tex> 步的步長與帶寬，再算走完距離 <Tex>{'D'}</Tex> 要幾步；
           把 <Tex>{'D'}</Tex> 加倍再算一次，親手感受「指數代價」。

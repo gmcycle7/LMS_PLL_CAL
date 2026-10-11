@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { ClaimTag, Prereq, Section, StepDerivation, Tex, TexBlock } from '@/components'
 import { matVec } from '@/simulation/core'
 import { corr2, eig2x2 } from '@/simulation/models/pe'
-import { HandCalcLink, m, texNum, texVec } from '../shared'
+import { Diagram, FigRef, HandCalcLink, m, texNum, texVec } from '../shared'
 
 /** 先備知識：期望值／相關、矩陣乘向量、對稱矩陣、eigen、正定、condition number、singular value。 */
 export function MatrixPrereq() {
@@ -25,6 +25,11 @@ export function MatrixPrereq() {
       [1, 0],
     ].map((v) => ({ v, Rv: matVec(R, v) }))
   }, [])
+  // 圖 9.2（R 這台機器）圖說與說明裡的數字：與上面的 probes 是同一組計算
+  const machine = useMemo(() => {
+    const out = probes.map((pr) => Array.from(pr.Rv))
+    return { out, ratio: out[0][0] / out[1][0] }
+  }, [probes])
   const general = eig2x2(2, 0.6, 1)
   // singular value 驗算：R² 的 eigenvalues 開根號 = R 的 eigenvalues（R 對稱半正定）
   const sv = useMemo(() => {
@@ -45,6 +50,22 @@ export function MatrixPrereq() {
     <Section kind="formula" title="先備知識：把兩個旋鈕寫成矩陣" level={2} id="ch09-prereq">
       <p>
         這一課需要一點線性代數。只要會微積分就夠了——下面每一個框都從頭講，已經熟悉的人可以跳過。
+      </p>
+      <p>
+        整節其實只要記住一個畫面：<strong>矩陣 {m`\mathbf R`} 是一台「丟一個向量進去、吐一個向量出來」的機器</strong>。這裡的 {m`\mathbf R`} 是
+        <strong>相關矩陣</strong>（correlation matrix）{m`\begin{bmatrix}1&\rho\\\rho&1\end{bmatrix}`}：對角線的 1 是每個 regressor 自己的功率，
+        {m`\rho`}（相關係數，correlation coefficient）是兩個 regressor「同進同出」的程度，{m`\rho=1`} 表示完全一樣、{m`\rho=0`} 表示互不相干。
+        下圖取 {m`\rho=0.99`}，把三個不同的向量丟進去：
+      </p>
+      <Diagram id="matrix-machine">
+        比較三列的輸出：綠色與紅色那兩列「方向不變、只被縮放」，縮放的倍數差了 {m`${texNum(machine.ratio)}`} 倍。
+      </Diagram>
+      <p>
+        <FigRef id="matrix-machine" /> 怎麼看：先看輸入是 {m`(1,1)`} 與 {m`(1,-1)`} 的那兩列——{m`(1,1)`} 進去變成 {m`${texNum(machine.out[0][0])}\times(1,1)`}，{m`(1,-1)`} 進去變成
+        {m`${texNum(machine.out[1][0])}\times(1,-1)`}，方向都沒變。這種「只被縮放」的向量叫 <strong>eigenvector</strong>，縮放的倍數叫
+        <strong>eigenvalue</strong>，記成 {m`\lambda`}。再看輸入是 {m`(1,0)`} 的那一列——進去之後變成 {m`(${texNum(machine.out[2][0])},\,${texNum(machine.out[2][1])})`}，
+        方向變了，所以它不是 eigenvector。圖上的「{m`\times\mathbf R`}」就是下面要講的矩陣乘向量 {m`\mathbf R\mathbf x`}；圖上的 1.99 與 0.01 就是後面公式裡的
+        {m`\lambda_{\max}=1+\rho`} 與 {m`\lambda_{\min}=1-\rho`}。這一章的結論幾乎都來自這張圖：LMS 沿著 {m`\lambda`} 大的方向學得快，沿著 {m`\lambda`} 小的方向學得慢。
       </p>
 
       <Prereq title={String.raw`期望值 $E[\cdot]$、相關（correlation）與相關矩陣 $\mathbf R$`}>

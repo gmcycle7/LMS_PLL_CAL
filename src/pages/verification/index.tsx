@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ACCEPTANCE_IDS, type AcceptanceId } from '@/simulation/models/acceptance'
-import { AcceptanceProvider } from './common'
+import { AcceptanceProvider, SymbolsLink } from './common'
 import { erratumById } from './errata'
 import { Intro } from './sections/Intro'
 import { AcceptanceTable } from './sections/AcceptanceTable'
@@ -10,6 +10,7 @@ import { NegativeTests } from './sections/NegativeTests'
 import { HowItWorks } from './sections/HowItWorks'
 import { ErrataBrowser } from './sections/ErrataBrowser'
 import { Wrapup } from './sections/Wrapup'
+import { SymbolsSection } from './sections/Symbols'
 import './verification.css'
 
 /** 深連結參數：?e=E05（勘誤）或 ?t=T05（驗收列）。大小寫不拘；不合法時回傳 null。 */
@@ -49,6 +50,8 @@ function useScrollToId(domId: string | null) {
  *   §V.1 先算一次（浮點與容忍度） §V.2 T01–T18 即時驗收（瀏覽器內呼叫各章模型 vs golden vectors）
  *   §V.3 Monte Carlo（Web Worker）與多 seed 校準 §V.4 反面測試與 mutation §V.5 驗證管線
  *   §V.6 勘誤瀏覽器（#/verification?e=E05 深連結；KaTeX 公式 + 即時重算的證據） §V.7 必記與思考題
+ *   §V.8 本頁符號表（頁尾，id="symbols"；docs/teaching-style.md §5，頁首只留一行連結）
+ * 方塊圖的原始碼在 ./diagrams.ts（容忍度判定、驗證管線、四種狀態、勘誤流程）。
  * 公式登錄在 ./formulas.ts（F-VF.n）；所有數值由 @/simulation/models/acceptance 即時計算。
  */
 export default function VerificationPage() {
@@ -59,6 +62,7 @@ export default function VerificationPage() {
   return (
     <AcceptanceProvider>
       <div className="ver" data-testid="verification-page">
+        <SymbolsLink />
         <Intro />
         <AcceptanceTable focusId={tid} />
         <MonteCarloLab />
@@ -66,6 +70,7 @@ export default function VerificationPage() {
         <HowItWorks />
         <ErrataBrowser focusEid={eid} />
         <Wrapup />
+        <SymbolsSection />
       </div>
     </AcceptanceProvider>
   )

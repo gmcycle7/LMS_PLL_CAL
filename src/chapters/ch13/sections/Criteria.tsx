@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { Data } from 'plotly.js-dist-min'
-import { Callout, ClaimTag, CodeBlock, ModeGate, Plot, Prereq, Section, SourceTag, StepDerivation, Tex, TexBlock, useThemeTokens } from '@/components'
+import { Callout, ClaimTag, CodeBlock, Mermaid, ModeGate, Plot, Prereq, Section, SourceTag, StepDerivation, Tex, TexBlock, useThemeTokens } from '@/components'
 import { isWorkerCancelled, useWorkerTask } from '@/workers'
 import quantSrc from '@/simulation/models/quantizer.ts?raw'
 import { firstOrderPeriod, quantizeFcw } from '@/simulation/models/dsm'
@@ -14,6 +14,7 @@ import {
   type QuantStrategy,
 } from '@/simulation/models/quantizer'
 import { DEFAULT_LAB_PARAMS, Erratum, Fold, fx, n, ntex, num, tx } from '../common'
+import { CHART_DECISION, CHART_MIXING_PATH, CHART_RECORD_CHECK, CHART_TONE_MIXING } from '../diagrams'
 
 const DRIFT = 0.2
 const N_SLOW = 1024
@@ -214,6 +215,15 @@ export function CriteriaSection() {
         <Tex>{String.raw`\mathrm{frac}=13/128=${DEFAULT_LAB_PARAMS.dsmFrac}`}</Tex>、PLL 頻寬 <Tex>{String.raw`f_\mathrm{BW}=${ntex(DEFAULT_LAB_PARAMS.pllBwHz, 3)}\,\mathrm{Hz}`}</Tex>、<Tex>{String.raw`\zeta=${DEFAULT_LAB_PARAMS.pllZeta}`}</Tex>、
         <Tex>{String.raw`\sigma_w=${DEFAULT_LAB_PARAMS.sigmaW}\,\mathrm{LSB}`}</Tex>）。<SourceTag kind="illustrative" />
       </p>
+      <Mermaid
+        chart={CHART_MIXING_PATH}
+        caption="code 誤差怎麼變成 output jitter。先看左邊：code 每 $N_\mathrm{upd}$ 個 cycle 才更新一次，ZOH 把同一個誤差重複 $N_\mathrm{upd}$ 次；再看藍色的乘法點：誤差乘上每個 cycle 都在變的 DSM residue，頻譜因此被搬移；最後才經過 PLL 的 low-pass。"
+      />
+      <p className="small ch13-figwalk">
+        注意兩個時間索引：圖上的 <Tex>{'k'}</Tex> 是「第幾次 code 更新」（更新率 <Tex>{String.raw`f_u=f_s/N_\mathrm{upd}`}</Tex>），<Tex>{'n'}</Tex> 是「第幾個 reference cycle」（取樣率 <Tex>{'f_s'}</Tex>），兩者的關係是{' '}
+        <Tex>{String.raw`k=\lfloor n/N_\mathrm{upd}\rfloor`}</Tex>。圖上的 <Tex>{'e_s[n]'}</Tex> 是保持（ZOH）之後的 code 誤差；<Tex>{String.raw`\delta t[n]=\Delta_\mathrm{LSB}\,e_s[n]\,x[n]`}</Tex> 就是後面公式 F-13.11 的前半，
+        <Tex>{String.raw`|T(f)|^2`}</Tex> 之後的積分就是後半的 <Tex>{String.raw`\sigma_{t,\mathrm{out}}^2`}</Tex>（表中的 <Tex>{String.raw`\sigma_\mathrm{out}`}</Tex>：經過 PLL 之後的 output jitter）。
+      </p>
       <Prereq title="捲積（convolution）：為什麼「時域相乘」會把頻譜搬來搬去？">
         <p>先看兩個 tone 相乘（三角恆等式：積化和差）：</p>
         <TexBlock>{String.raw`\cos(\Omega_e n)\cdot\cos(\Omega_x n)=\tfrac12\cos\big((\Omega_x-\Omega_e)n\big)+\tfrac12\cos\big((\Omega_x+\Omega_e)n\big)`}</TexBlock>
@@ -231,6 +241,15 @@ export function CriteriaSection() {
           週期性改變（例如 code 以 ZOH 保持時，每 <Tex>{String.raw`N_\mathrm{upd}`}</Tex> 個 sample 重複一次），此時說的 PSD 是「時間平均」的 PSD。
         </p>
       </Prereq>
+      <Mermaid
+        chart={CHART_TONE_MIXING}
+        caption={String.raw`一個具體的差頻（本章實驗的預設參數：$f_s=100\,\mathrm{MHz}$、DSM $\mathrm{frac}=13/128$、PLL 頻寬 $1\,\mathrm{MHz}$、code 每個 cycle 更新）。先看左邊兩個 tone：都在 $40\,\mathrm{MHz}$ 附近、遠在通帶外；再看紅色的差頻：只有 $156\,\mathrm{kHz}$，落進 PLL 通帶，而綠色的和頻被 $T(f)$ 濾掉。`}
+      />
+      <p className="small ch13-figwalk">
+        這是上面「積化和差」的數字版：圖上的 <Tex>{'f_e'}</Tex> 是 code 誤差的主線 <Tex>{String.raw`2f_u/5`}</Tex>（<Tex>{String.raw`N_\mathrm{upd}=1`}</Tex> 時 <Tex>{'f_u=f_s'}</Tex>），<Tex>{'f_x'}</Tex> 是週期 128 的 DSM residue 的第 51 次諧波，差頻{' '}
+        <Tex>{String.raw`\big(\tfrac25-\tfrac{51}{128}\big)f_s=\tfrac{f_s}{640}`}</Tex>。換成第 50、52 次諧波會得到 <Tex>{String.raw`6f_s/640`}</Tex>、<Tex>{String.raw`4f_s/640`}</Tex>，所以通帶內不只一條——這就是 limit cycle（B、D）的 tone 明明在通帶外、卻能回到通帶的機制；它在{' '}
+        <Tex>{String.raw`\sigma_\mathrm{out}`}</Tex> 裡佔多少，由下表的模擬數字判斷（準則 3、6）。
+      </p>
       <Fold title="準則 3、5、6 的數學：code 誤差怎麼變成 output jitter？">
         <StepDerivation
           steps={[
@@ -291,6 +310,16 @@ export function CriteriaSection() {
       <p className="small muted">
         欄位 A = Freeze、B = Toggle、C = Stochastic、D = ΔΣ、E = ΔΣ + dither（dither 寬度 <Tex>{String.raw`${DEFAULT_LAB_PARAMS.ditherLsb}\,\mathrm{LSB}`}</Tex> 峰對峰、RPDF）。由 <code>runQuantCriteria()</code> 在 Web Worker 計算；
         DC 誤差依 <Tex>{String.raw`\delta w=w-w^*`}</Tex> 約定。
+      </p>
+      <p>讀表之前先確認一件事：紀錄夠不夠長，表中的數字「解析得出來」嗎？</p>
+      <Mermaid
+        chart={CHART_RECORD_CHECK}
+        caption="紀錄長度的檢查（sign-off 前先做）。先看上面：code 的週期與 DSM residue 的週期取最小公倍數，就是混頻產物的週期；再看菱形：紀錄比它長（綠色）結果才可信，比它短（紅色）時最大的產物會被看成靜態偏移。"
+      />
+      <p className="small ch13-figwalk">
+        圖上的 <Tex>{String.raw`P_\mathrm{code}`}</Tex> 是 code 的 limit-cycle 週期（以更新次數計），<Tex>{String.raw`P_\mathrm{DSM}`}</Tex> 是 DSM residue 的週期（以 reference cycle 計；這裡的 <Tex>{'K'}</Tex> 是 DSM 的 FCW 整數{' '}
+        <Tex>{String.raw`\mathrm{frac}\cdot2^{20}`}</Tex>），<Tex>{String.raw`P_\mathrm{mix}=\mathrm{lcm}(P_\mathrm{code}N_\mathrm{upd},\,P_\mathrm{DSM})`}</Tex> 是兩者相乘後的週期。<Tex>{'f_L'}</Tex> 是 Welch PSD 分辨得出來的最低頻率（<Tex>{String.raw`\sigma_\mathrm{out}`}</Tex> 的積分下限），比它慢的成分另外列為{' '}
+        <Tex>{String.raw`\sigma_\mathrm{slow}`}</Tex>。下面的說明與「FCW 陷阱」就是圖上綠、紅兩個分支的模擬結果。
       </p>
       {c0 && c0.fLowHz !== null && (
         <p className="small muted">
@@ -404,6 +433,14 @@ export function CriteriaSection() {
           </li>
         </ul>
       </Callout>
+      <Mermaid
+        chart={CHART_DECISION}
+        caption="沿著六個準則的選擇流程（教學用的思考順序，不是 sign-off 規則）。先看第一個菱形：能接受 static error、又不必追漂移，就不需要任何切換；再往下：$w_H$ 會不會動、tone 會不會被混回通帶、能不能接受較大的 code 擺幅。每一條路最後都回到藍色方塊：用實際的 FCW 與 $T(f)$ 模擬確認。"
+      />
+      <p className="small ch13-figwalk">
+        這張圖只是把上面「怎麼讀這張表」的四點排成先後順序：每個菱形上標的準則編號就是表中的那一列。它是本例（這一組 FCW、<Tex>{'T(f)'}</Tex> 與 <Tex>{String.raw`\Delta_\mathrm{LSB}`}</Tex>）下的歸納，不是定理；換一組參數時，分支的答案要重新用模擬回答（準則 5、6）。{' '}
+        <ClaimTag kind="approx" />
+      </p>
       <ModeGate min="research">
         <p className="small">
           研究延伸（規格附錄 C R3）：二階 / MASH ΔΣ、PRBS 長度與 seed、FCW 與 code 更新率的 limit cycle 交互作用、Freeze vs Background Tracking 的 jitter–spur–drift

@@ -2,8 +2,8 @@ import { lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
 import { Callout, ClaimTag, Mermaid, ModeGate, Prereq, Tex, TexBlock } from '@/components'
 import { QUESTION_LABEL, type QuestionId, type SlotAudit } from '../data'
-import { THREE_QUESTIONS } from '../diagrams'
-import { ErratumChip, LevelBadges, PageLink, Rich, Steps } from '../common'
+import { CHART_UNIFIED_LOOP, THREE_QUESTIONS } from '../diagrams'
+import { Diagram, ErratumChip, LevelBadges, PageLink, Rich, Steps } from '../common'
 import { JumpButton } from './SlotAudit'
 
 const QUESTION_ORDER: QuestionId[] = ['converge', 'where', 'noise']
@@ -20,8 +20,24 @@ export function UnifiedView({ audit }: { audit: SlotAudit[] }) {
     <>
       <p>
         12 個 preset 橫跨第 1 章到第 13 章，看起來各講各的；其實它們都在回答同一個校正迴路的三個問題。把係數誤差寫成 <Tex>{'\\delta=a-w'}</Tex>，在收斂點附近把 GMAC 的平均輸出對{' '}
-        <Tex>{'\\delta'}</Tex> 做一階泰勒展開，每一個例子都可以整理成同一種遞迴：
+        <Tex>{'\\delta'}</Tex> 做一階泰勒展開，每一個例子都可以整理成同一種遞迴。先看這個迴路長什麼樣子：
       </p>
+      <Diagram
+        chart={CHART_UNIFIED_LOOP}
+        caption="12 個例子共用的校正迴路（純量情形）：真值減去係數得到誤差，乘上斜率後加上固定項與雜訊，再乘步長累加回係數。三個有顏色的方塊各對應一個問題。"
+        ariaLabel="統一觀點的校正迴路方塊圖：誤差乘上斜率，加上固定項與雜訊得到 GMAC 輸出，乘上步長後由累加器更新係數並回授"
+      >
+        <p>
+          <strong>先看</strong>迴路本身：左邊的加法點算出 <Tex>{'\\delta_k=a-w_k'}</Tex>（真值為正、回授的 <Tex>{'w_k'}</Tex> 為負）。GMAC 的平均輸出 <Tex>{'G_k'}</Tex> 在收斂點附近是「斜率{' '}
+          <Tex>{'K'}</Tex> 乘上 <Tex>{'\\delta_k'}</Tex>」，再加上兩個與 <Tex>{'\\delta_k'}</Tex> 無關的東西：固定項 <Tex>{'B'}</Tex> 與零均值雜訊 <Tex>{'\\eta_k'}</Tex>。最後乘上步長{' '}
+          <Tex>{'\\mu'}</Tex>，由累加器加回 <Tex>{'w_k'}</Tex>。
+        </p>
+        <p>
+          <strong>再看</strong>顏色：圖上藍色的斜率 <Tex>{'K'}</Tex> 決定每一步誤差剩下多少（pole <Tex>{'p=1-\\mu K'}</Tex>，問題 (1)）；棕色的 <Tex>{'B'}</Tex> 把停下來的位置從 <Tex>{'a'}</Tex> 推到{' '}
+          <Tex>{'w^*=a+B/K'}</Tex>（問題 (2)）；紫色的 <Tex>{'\\eta_k'}</Tex> 讓係數在停下來的位置附近抖動，RMS 是 <Tex>{'\\sigma_w'}</Tex>（問題 (3)）。把這張圖改用 <Tex>{'\\delta'}</Tex>{' '}
+          寫成一條式子，就是下面的 F-GA.4：
+        </p>
+      </Diagram>
       <TexBlock id="F-GA.4">{String.raw`\boldsymbol\delta_{k+1}=\mathbf A\,\boldsymbol\delta_k+\mathbf b+\mu\,\boldsymbol\eta_k:\quad \underbrace{\rho(\mathbf A)<1}_{\text{(1) 走不走得回來}},\quad \underbrace{\boldsymbol\delta_\infty=(\mathbf I-\mathbf A)^{-1}\mathbf b}_{\text{(2) 停在哪裡}},\quad \underbrace{\sigma_w^2=\frac{\mu^2\sigma_\eta^2}{1-p^2}}_{\text{(3) 停下來後抖多大（純量）}}`}</TexBlock>
       <div className="c-tag-row">
         <ClaimTag kind="approx" />

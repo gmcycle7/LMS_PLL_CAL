@@ -10,6 +10,8 @@ import { calLoop, codeSpectraAnalytic, mixingCrossCheck, runNoiseLab, simulateMi
 import Chapter12 from './index'
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
+import { CH12_CHARTS } from './diagrams'
+import { CH12_SYMBOLS } from './symbols'
 import { CODE_SPECTRA_DEFAULTS } from './experiments/CodeSpectraLab'
 import { MIX_DEFAULTS } from './experiments/CodeMixingLab'
 import { NOISE_LAB_DEFAULTS } from './experiments/LmsNoiseLab'
@@ -54,14 +56,39 @@ function renderChapter(path = '/ch/12') {
  */
 const T_TEST = 300000
 const T_WAIT = 120000
+/**
+ * 每個測試結束時 testing-library 的自動 cleanup（afterEach hook）要卸載整章；機器滿載時 10 s 的預設 hook 逾時不夠
+ *（曾出現「Hook timed out in 10000ms」）。hook 的逾時在註冊當下決定，所以要在 import 之前設定（vi.hoisted）。
+ */
+vi.hoisted(() => vi.setConfig({ hookTimeout: 120000 }))
 
 afterEach(() => localStorage.clear())
 
 describe('第 12 章（jsdom smoke）', () => {
-  it('整章可渲染：符號表、三個實驗、勘誤連結、T13–T15 badge；沒有 React console error（act() 提示除外）', async () => {
+  it('整章可渲染：章末的符號表、三個實驗、勘誤連結、T13–T15 badge；沒有 React console error（act() 提示除外）', async () => {
     const errSpy = vi.spyOn(console, 'error')
     const { container } = renderChapter()
-    expect(screen.getByText('本章符號')).toBeTruthy()
+    const follows = (a: Element, b: Element) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0 // b 在 a 之後
+    // 符號表在章末（docs/teaching-style.md §5）：整頁最後一個區塊、id="symbols"，在「本課必記」與所有小節、實驗之後；全頁只有一張
+    expect(screen.getByText('本章符號表')).toBeTruthy()
+    const article = container.querySelector('article.ch12') as HTMLElement
+    const symbols = container.querySelector('#symbols') as HTMLElement
+    expect(symbols).toBeTruthy()
+    expect(article.lastElementChild).toBe(symbols)
+    expect(container.querySelectorAll('.c-symbols').length).toBe(1)
+    expect(symbols.querySelector('.c-symbols')).toBeTruthy()
+    expect(symbols.querySelectorAll('.c-symbols tbody tr').length).toBe(CH12_SYMBOLS.length)
+    expect(follows(container.querySelector('.c-recap') as HTMLElement, symbols)).toBe(true)
+    for (const el of Array.from(container.querySelectorAll('section.c-section, [data-experiment], .c-quiz, section.c-handcalc'))) expect(follows(el, symbols)).toBe(true)
+    // 章首只留一行「本章符號表在最後」的按鈕（HashRouter：不用 href，改用 scrollIntoView），位在第一個小節之前
+    const jumps = Array.from(container.querySelectorAll('button.ch12-jump')) as HTMLButtonElement[]
+    expect(jumps.length).toBe(1)
+    expect(jumps[0].textContent).toMatch(/^本章符號表在最後/)
+    expect(follows(jumps[0], container.querySelector('#ch12-start') as HTMLElement)).toBe(true)
+    expect(container.querySelector('a[href="#symbols"]')).toBeNull()
+    // 方塊圖（docs/teaching-style.md §8）：章首的系統地圖 + 本章的 Mermaid 圖（預設 Engineer 模式看不到 Research 專屬的那一張）
+    expect(container.querySelectorAll('figure.c-mermaid').length).toBe(1 + CH12_CHARTS.filter((c) => !c.mode).length)
+    expect(container.querySelectorAll('.ch12-diagram').length).toBe(CH12_CHARTS.filter((c) => !c.mode).length)
     // 標題現在含 `$...$`（KaTeX 的 MathML 節點）：getAllByRole(…, { name }) 計算 accessible name 時 jsdom 的 getComputedStyle
     // 會對 MathML 元素丟例外，所以直接比對標題元素的文字（Section 標題 + ExperimentShell 標題，各實驗至少兩個）
     const headings = Array.from(container.querySelectorAll('h2, h3, h4')).map((h) => h.textContent ?? '')
@@ -81,7 +108,6 @@ describe('第 12 章（jsdom smoke）', () => {
     const hands = Array.from(container.querySelectorAll('section.c-handcalc')) as HTMLElement[]
     expect(hands.map((e) => e.id)).toEqual(HANDCALCS.map((h) => `handcalc-${h.id}`))
     expect(container.querySelectorAll('.ch12-hand > .ch12-hand-invite').length).toBe(HANDCALCS.length)
-    const follows = (a: Element, b: Element) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0 // b 在 a 之後
     // 每一題都放在它對應的公式（推導）之後；HC-12.1 例外：它緊接章首的「先算一次」表格（遞迴式在下一節才推導）
     for (const h of HANDCALCS) {
       if (!h.formulaId || h.id === 'HC-12.1') continue
@@ -107,6 +133,40 @@ describe('第 12 章（jsdom smoke）', () => {
     const errs = errSpy.mock.calls.map((c) => String(c[0])).filter((m) => !/not wrapped in act/.test(m))
     errSpy.mockRestore()
     expect(errs).toEqual([])
+  }, T_TEST)
+
+  it('符號表：章首的按鈕捲到章末的 #symbols，之後可以回到原本的位置；表格依首次出現的小節排列', () => {
+    const scrolled: string[] = []
+    const proto = Element.prototype as unknown as { scrollIntoView?: () => void }
+    const original = proto.scrollIntoView
+    proto.scrollIntoView = function (this: Element) {
+      scrolled.push(this.id)
+    }
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined)
+    Object.defineProperty(window, 'scrollY', { value: 321, configurable: true })
+    try {
+      const { container } = renderChapter()
+      expect(container.querySelector('.ch12-symbols-back')).toBeNull()
+      fireEvent.click(container.querySelector('button.ch12-jump') as HTMLElement)
+      expect(scrolled).toEqual(['symbols'])
+      // 跳過去之後，符號表旁出現「回到剛才閱讀的位置」
+      const back = container.querySelector('#symbols .ch12-symbols-back button') as HTMLButtonElement
+      expect(back.textContent).toMatch(/回到剛才閱讀的位置/)
+      fireEvent.click(back)
+      expect(scrollTo).toHaveBeenCalledWith({ top: 321, behavior: 'smooth' })
+      expect(container.querySelector('.ch12-symbols-back')).toBeNull()
+      // 「首次出現」欄由小到大（§12.0 … §12.9；「§12.0 → §12.7」這種寫法以箭頭前的小節排序），而且每一列都有標示
+      const seen = Array.from(container.querySelectorAll('#symbols .c-symbols tbody tr')).map((tr) => /§12\.(\d+)/.exec(tr.textContent ?? '')?.[1])
+      expect(seen.every((x) => x !== undefined)).toBe(true)
+      const order = CH12_SYMBOLS.map((r) => Number(/§12\.(\d+)/.exec(r.firstSeen ?? '')?.[1]))
+      expect(order).toEqual([...order].sort((a, b) => a - b))
+      expect(new Set(CH12_SYMBOLS.map((r) => r.symbol)).size).toBe(CH12_SYMBOLS.length)
+    } finally {
+      scrollTo.mockRestore()
+      Reflect.deleteProperty(window, 'scrollY')
+      if (original) proto.scrollIntoView = original
+      else delete proto.scrollIntoView
+    }
   }, T_TEST)
 
   it('LMS Noise Lab：新增 Case B 後兩個 case 一起（paired）跑 Monte Carlo，表格顯示各自的 σ_w 與 CI', async () => {
@@ -167,6 +227,8 @@ describe('第 12 章（jsdom smoke）', () => {
     const { container } = renderChapter()
     const bad = Array.from(container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.getAttribute('title') ?? e.textContent)
     expect(bad).toEqual([])
+    // Research 模式：全部的方塊圖（含 colored η 那一張）+ 系統地圖
+    expect(container.querySelectorAll('figure.c-mermaid').length).toBe(1 + CH12_CHARTS.length)
     expect(container.querySelectorAll('.katex').length).toBeGreaterThan(300)
   }, T_TEST)
 
@@ -175,6 +237,10 @@ describe('第 12 章（jsdom smoke）', () => {
     const { container } = renderChapter()
     const folds = container.querySelectorAll('details.ch12-fold')
     expect(folds.length).toBeGreaterThan(5)
+    // 方塊圖不收進推導的折疊框：Beginner 模式也直接看得到（系統地圖 + 非 Research 的圖）
+    const figs = Array.from(container.querySelectorAll('figure.c-mermaid'))
+    expect(figs.length).toBe(1 + CH12_CHARTS.filter((c) => !c.mode).length)
+    expect(figs.every((f) => !f.closest('details'))).toBe(true)
     const first = folds[0] as HTMLDetailsElement
     expect(first.open).toBe(false)
     fireEvent.click(first.querySelector('summary') as HTMLElement)

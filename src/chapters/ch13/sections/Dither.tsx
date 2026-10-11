@@ -3,6 +3,7 @@ import type { Data } from 'plotly.js-dist-min'
 import {
   Callout,
   ClaimTag,
+  Mermaid,
   ModeGate,
   Plot,
   Section,
@@ -14,6 +15,7 @@ import {
 } from '@/components'
 import { runQuantLab, type DitherPdf } from '@/simulation/models/quantizer'
 import { DEFAULT_LAB_PARAMS, Erratum, Fold, Hand, STRATEGY_COLOR, SpurAt, Unit, fx, n, tx } from '../common'
+import { CHART_DITHER_LOOP } from '../diagrams'
 
 const SWEEP: { A: number; pdf: DitherPdf }[] = [
   { A: 0, pdf: 'uniform' },
@@ -100,6 +102,15 @@ export function DitherSection() {
     <Section kind="formula" title="§13.4E 方法 E：ΔΣ + Dither" level={2} id="ch13-dither">
       <p>
         limit cycle 的根源是「<Tex>{'r'}</Tex> 的遞迴完全確定」。在量化器輸入加一點零平均的亂數 <Tex>{'d[n]'}</Tex>（dither），每次 rounding 的決定就不再只由 <Tex>{'r'}</Tex> 決定，週期性被打散。
+      </p>
+      <Mermaid
+        chart={CHART_DITHER_LOOP}
+        caption="方法 E 的迴圈。和方法 D 的圖比，只多了藍色的兩塊：dither 在量化器前面加進來。再看下排：相減點拿的是還沒加 dither 的 $v$，所以存回去的 $r$ 不含 $d$ 本身。"
+      />
+      <p className="small ch13-figwalk">
+        圖上的 <Tex>{'d[n]'}</Tex> 是 dither：零平均、每拍獨立的亂數，峰對峰寬度 <Tex>{'A'}</Tex>（LSB）、變異數 <Tex>{String.raw`\sigma_d^2`}</Tex>；均勻分布（RPDF）時 <Tex>{String.raw`\sigma_d^2=A^2/12`}</Tex>，兩個均勻亂數相加的三角分布（TPDF）時{' '}
+        <Tex>{String.raw`A^2/24`}</Tex>。圖上的 <Tex>{'u[n]=v[n]+d[n]'}</Tex> 是真正進量化器的值，就是下面推導第一行的 <Tex>{'u[n]'}</Tex>；相減點的 <Tex>{'r[n]=v[n]-y[n]'}</Tex> 是第二行。因為 <Tex>{'y'}</Tex> 已經被 <Tex>{'d'}</Tex> 影響，
+        <Tex>{'r'}</Tex> 裡仍然帶著 <Tex>{'d'}</Tex> 的效果——推導的第 4、5 行會算出它和量化誤差一樣被 <Tex>{String.raw`1-z^{-1}`}</Tex> 塑形。
       </p>
       <StepDerivation
         title="推導：dither 加在哪裡、會不會被塑形？"

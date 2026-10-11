@@ -1,21 +1,191 @@
 /** @vitest-environment jsdom */
 import mermaid from 'mermaid'
-import { PIPELINE_CHART } from './diagrams'
+import { installMermaidSvgShim, renderMermaidForTest } from '@/components/mermaidTestUtils'
+import * as D from './diagrams'
+import { LAB_CHARTS } from './diagrams'
 
-describe('Lab 頁的 Mermaid 圖（真正的 mermaid parser）', () => {
-  beforeAll(() => mermaid.initialize({ startOnLoad: false, securityLevel: 'strict' }))
+interface Vertex {
+  id: string
+  text?: string
+  type?: string
+}
+interface Edge {
+  start: string
+  end: string
+  text?: string
+}
 
-  it('九級訊號鏈可以解析（flowchart）', async () => {
-    const r = await mermaid.parse(PIPELINE_CHART, { suppressErrors: false })
-    expect(r && typeof r === 'object' ? r.diagramType : r).toBe('flowchart-v2')
+/** 用真正的 mermaid parser 取出 flowchart 的節點與邊。 */
+async function flow(chart: string): Promise<{ vertices: Vertex[]; edges: Edge[] }> {
+  const diagram = await mermaid.mermaidAPI.getDiagramFromText(chart)
+  const db = diagram.db as unknown as { getVertices: () => Map<string, Vertex>; getEdges: () => Edge[] }
+  return { vertices: [...db.getVertices().values()], edges: db.getEdges() }
+}
+
+/** 某條邊的標籤（找不到就丟錯，讓測試訊息指出是哪一條）。 */
+function edgeText(g: { edges: Edge[] }, start: string, end: string): string {
+  const e = g.edges.find((x) => x.start === start && x.end === end)
+  if (!e) throw new Error(`沒有 ${start} → ${end} 這條邊`)
+  return e.text ?? ''
+}
+const node = (g: { vertices: Vertex[] }, id: string): string => {
+  const v = g.vertices.find((x) => x.id === id)
+  if (!v) throw new Error(`沒有節點 ${id}`)
+  return v.text ?? ''
+}
+
+/** 比對用：拿掉換行標籤與空白，並還原 mermaid 在含 HTML 的標籤裡做的 entity 編碼。 */
+const plain = (s: string) =>
+  s
+    .replace(/<br\s*\/?>/g, '')
+    .replace(/&gt;/g, '>')
+    .replace(/&lt;/g, '<')
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, '')
+
+/** Mermaid 11 把標籤當 Markdown：這些寫法會被畫成「Unsupported markdown: …」或被 HTML 解析吃掉。 */
+function labelHazard(text: string): string | null {
+  for (const line of text.split(/<br\s*\/?>/)) {
+    const t = line.trim()
+    if (t === '+' || t === '-' || t === '*') return `單獨的「${t}」會被當成清單`
+    if (/^[+\-*] /.test(t)) return `「${t.slice(0, 8)}」以清單符號開頭`
+    if (/^\d+[.)] /.test(t)) return `「${t.slice(0, 8)}」以編號清單開頭`
+    if (/^#{1,6} /.test(t)) return `「${t.slice(0, 8)}」以標題符號開頭`
+    if (/`/.test(t)) return '反引號會被當成 code span'
+  }
+  if (/<(?!br\s*\/?>)[A-Za-z/!]/.test(text)) return '「<」後面緊接字母，會被當成 HTML 標籤'
+  return null
+}
+
+describe('Lab 頁的方塊圖（真正的 mermaid parser）', () => {
+  beforeAll(() => {
+    installMermaidSvgShim()
+    mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'default', suppressErrorRendering: true })
   })
 
-  it('圖上有九級與兩條路徑（H_PD 到 comparator、T 到輸出），回授由 gain register 回到 DTC', () => {
+  it('清單：五張圖（九級訊號鏈、兩條路、更新迴路、輸出端的兩個成分、五個分頁），diagrams.ts 匯出的每張圖都在清單裡', () => {
+    expect(LAB_CHARTS.map((c) => c.name)).toEqual(['PIPELINE_CHART', 'CHART_TWO_PATHS', 'CHART_UPDATE_LOOP', 'CHART_OUTPUT_SPLIT', 'CHART_TAB_MAP'])
+    const exported = Object.entries(D).filter(([, v]) => typeof v === 'string' && /^(flowchart|stateDiagram|sequenceDiagram)/.test(v as string))
+    expect(exported.map(([k]) => k).sort()).toEqual(LAB_CHARTS.map((c) => c.name).sort())
+    for (const [k, v] of exported) expect(LAB_CHARTS.find((c) => c.name === k)?.chart).toBe(v)
+    expect(new Set(LAB_CHARTS.map((c) => c.chart)).size).toBe(LAB_CHARTS.length)
+  })
+
+  it('每一張都能解析成 flowchart；不超過 14 個節點；標籤沒有會被 Markdown／HTML 吃掉的寫法；加法點的每條輸入都標了正負號', async () => {
+    for (const c of LAB_CHARTS) {
+      const r = await mermaid.parse(c.chart, { suppressErrors: false })
+      expect(r && typeof r === 'object' ? r.diagramType : r, c.name).toBe('flowchart-v2')
+      const g = await flow(c.chart)
+      expect(g.vertices.length, `${c.name} 節點數`).toBeLessThanOrEqual(14)
+      expect(g.vertices.length, `${c.name} 節點數`).toBeGreaterThanOrEqual(5)
+      for (const v of g.vertices) expect(labelHazard(v.text ?? ''), `${c.name} 節點 ${v.id}`).toBeNull()
+      for (const e of g.edges) expect(labelHazard(e.text ?? ''), `${c.name} 邊 ${e.start}→${e.end}`).toBeNull()
+      // 加法點 = 圓形節點、文字是全形「＋」；每條進來的邊都要以「＋」或「−」開頭
+      for (const s of g.vertices.filter((v) => v.type === 'circle' && v.text === '＋')) {
+        const incoming = g.edges.filter((e) => e.end === s.id)
+        expect(incoming.length, `${c.name} 加法點 ${s.id}`).toBeGreaterThanOrEqual(2)
+        for (const e of incoming) expect(e.text ?? '', `${c.name}：${e.start} → ${s.id} 要標正負號`).toMatch(/^[＋−]/)
+      }
+    }
+  }, 60_000)
+
+  it('九級訊號鏈：圖上有九級與兩條路徑（H_PD 到 comparator、T 到輸出），回授由 gain register 回到 DTC', async () => {
+    const { PIPELINE_CHART } = D
     for (const n of [1, 2, 3, 4, 5, 6, 7, 8, 9]) expect(PIPELINE_CHART).toMatch(new RegExp(`"${n} `))
     expect(PIPELINE_CHART).toMatch(/DTC -->\|"e_DTC\[n\]"\| HPD/)
     expect(PIPELINE_CHART).toMatch(/DTC -->\|"e_DTC\[n\]"\| TOUT/)
     expect(PIPELINE_CHART).toMatch(/REG -->\|"w_app"\| DTC/)
     expect(PIPELINE_CHART).toContain('H_PD = 1/(1+L)')
     expect(PIPELINE_CHART).toContain('T = L/(1+L)')
+    const g = await flow(PIPELINE_CHART)
+    // 一圈：DSM → 正規化 → DTC → H_PD → comparator → GMAC → 更新 → gain register → DTC
+    const loop = ['DSM', 'NORM', 'DTC', 'HPD', 'CMP', 'GMAC', 'UPD', 'REG', 'DTC']
+    for (let i = 0; i + 1 < loop.length; i++) expect(g.edges.some((e) => e.start === loop[i] && e.end === loop[i + 1]), `${loop[i]} → ${loop[i + 1]}`).toBe(true)
+    // 取樣率寫在訊號名稱上：sample（[n]）與 block（_k）
+    expect(edgeText(g, 'NORM', 'DTC')).toBe('x[n]')
+    expect(edgeText(g, 'CMP', 'GMAC')).toBe('q[n]')
+    expect(edgeText(g, 'GMAC', 'UPD')).toBe('G_k')
+    expect(node(g, 'UPD')).toContain('w_(k+1) = w_k + μ·G_k')
+    expect(node(g, 'REG')).toContain('w_app = phys(w_(k−d))')
+    expect(node(g, 'NORM')).toContain('x = (r − o)·s')
+    // regressor 走另一條線進 GMAC；輸出端不在校正迴路裡
+    expect(edgeText(g, 'NORM', 'GMAC')).toContain('x_ref')
+    expect(g.edges.some((e) => e.start === 'TOUT' && e.end !== 'OUT')).toBe(false)
+    expect(PIPELINE_CHART).toMatch(/class HPD focus/)
+    expect(PIPELINE_CHART).toMatch(/class TOUT alt/)
   })
+
+  it('訊號極性與公式一致：u_pd = e_DTC − θ_fb、δ = a − w、G_k = K·δ_(k−d) + η_k、e_DTC = (a − w̄)·x + d(x) − δw·x', async () => {
+    // §4.4：e_DTC 進加法點為正、回授 θ_fb 為負；加法點的輸出（u_pd）送去 comparator，回授量（θ_fb）就是輸出端
+    const two = await flow(D.CHART_TWO_PATHS)
+    expect(edgeText(two, 'E', 'S')).toBe('＋')
+    expect(edgeText(two, 'L', 'S')).toMatch(/^−.*θ_fb = L·u_pd/)
+    expect(edgeText(two, 'S', 'L')).toBe('u_pd = e_DTC − θ_fb')
+    expect(edgeText(two, 'S', 'CMP')).toBe('u_pd[n]')
+    expect(edgeText(two, 'L', 'OUT')).toBe('θ_fb[n]')
+    expect(node(two, 'CMP')).toContain('H_PD = 1/(1+L)')
+    expect(node(two, 'CMP')).toContain('high-pass')
+    expect(node(two, 'OUT')).toContain('t_out = θ_fb = T·e_DTC')
+    expect(node(two, 'OUT')).toContain('T = L/(1+L)')
+    expect(node(two, 'OUT')).toContain('low-pass')
+
+    // §4.7：a 為正、延遲後的 w 為負；GMAC 斜率與雜訊相加；累加器之後才是延遲
+    const loop = await flow(D.CHART_UPDATE_LOOP)
+    expect(edgeText(loop, 'A', 'S1')).toBe('＋')
+    expect(edgeText(loop, 'DLY', 'S1')).toMatch(/^−.*w_app = w_\(k−d\)/)
+    expect(edgeText(loop, 'S1', 'KB')).toBe('δ_(k−d) = a − w_(k−d)')
+    expect(edgeText(loop, 'KB', 'S2')).toBe('＋')
+    expect(edgeText(loop, 'ETA', 'S2')).toBe('＋')
+    expect(edgeText(loop, 'S2', 'MU')).toBe('G_k = K·δ_(k−d) + η_k')
+    expect(edgeText(loop, 'MU', 'ACC')).toBe('μ·G_k')
+    expect(node(loop, 'ACC')).toContain('1/(z−1)')
+    expect(node(loop, 'ACC')).toContain('w_(k+1) = w_k + μ·G_k')
+    expect(edgeText(loop, 'ACC', 'DLY')).toBe('w_k')
+    expect(node(loop, 'DLY')).toContain('z^(−d)')
+    expect(node(loop, 'KB')).toContain('K = K_q·C')
+    // 整圈只有一個累加器、一個延遲：sample-rate 的訊號（[n]）不出現在這張 block-rate 的圖上
+    expect(D.CHART_UPDATE_LOOP).not.toMatch(/\[n\]/)
+
+    // §4.9：靜態殘差與 d(x) 為正、gain 抖動為負；三項相加後才經過 T
+    const out = await flow(D.CHART_OUTPUT_SPLIT)
+    expect(edgeText(out, 'M1', 'S')).toBe('＋')
+    expect(edgeText(out, 'DX', 'S')).toBe('＋')
+    expect(edgeText(out, 'M2', 'S')).toBe('−')
+    expect(edgeText(out, 'S', 'T')).toBe('e_DTC[n]')
+    for (const id of ['M1', 'DX', 'M2']) expect(out.edges.some((e) => e.start === 'X' && e.end === id), `x → ${id}`).toBe(true)
+    expect(node(out, 'M1')).toContain('(a − w̄)')
+    expect(node(out, 'M2')).toContain('δw_k')
+    expect(node(out, 'T')).toContain('T(z) = L/(1+L)')
+    expect(node(out, 'SPUR')).toContain('A_spur = |a − w̄|·s·A₁·|T(f₁)|')
+    expect(node(out, 'JIT')).toContain('Var ≈ σ_w²·(x̄² + Var(T{x̃}))')
+    // 輸出端不經過 H_PD
+    expect(D.CHART_OUTPUT_SPLIT).not.toContain('H_PD')
+  })
+
+  it('五個分頁：Pipeline／FCW sweep／Monte Carlo 共用基準參數，Training 與 Compare 各有設定；五個都接到同一份核心', async () => {
+    const g = await flow(D.CHART_TAB_MAP)
+    for (const id of ['PIPE', 'SWEEP', 'MC']) expect(g.edges.some((e) => e.start === 'BASE' && e.end === id), id).toBe(true)
+    expect(g.edges.some((e) => e.start === 'BASE' && (e.end === 'TRAIN' || e.end === 'CMPR'))).toBe(false)
+    expect(g.edges.some((e) => e.start === 'OWN1' && e.end === 'TRAIN')).toBe(true)
+    expect(g.edges.some((e) => e.start === 'OWN2' && e.end === 'CMPR')).toBe(true)
+    const tabs = ['PIPE', 'SWEEP', 'MC', 'TRAIN', 'CMPR']
+    for (const id of tabs) expect(g.edges.some((e) => e.start === id && e.end === 'CORE'), `${id} → CORE`).toBe(true)
+    expect(node(g, 'CORE')).toContain('unifiedLab.ts')
+    expect(node(g, 'TRAIN')).toContain('不跑迴路')
+  })
+
+  it('實際渲染（共用的 renderMermaidForTest）：沒有「Unsupported markdown」、節點數不超過 14，畫面上的每個標籤都和原始碼相同', async () => {
+    for (const c of LAB_CHARTS) {
+      const { svg, text, nodeCount } = await renderMermaidForTest(c.chart)
+      expect(text, c.name).not.toMatch(/Unsupported markdown/)
+      expect(nodeCount, `${c.name} 節點數`).toBeLessThanOrEqual(14)
+      expect(nodeCount, `${c.name} 節點數`).toBeGreaterThanOrEqual(5)
+      const host = document.createElement('div')
+      host.innerHTML = svg
+      const shown = new Set(Array.from(host.querySelectorAll('.nodeLabel, .edgeLabel')).map((e) => plain(e.textContent ?? '')))
+      const g = await flow(c.chart)
+      for (const v of g.vertices) expect(shown.has(plain(v.text ?? '')), `${c.name} 節點 ${v.id}：「${v.text}」沒有原樣出現在圖上`).toBe(true)
+      for (const e of g.edges) if (e.text) expect(shown.has(plain(e.text)), `${c.name} 邊 ${e.start}→${e.end}：「${e.text}」沒有原樣出現在圖上`).toBe(true)
+    }
+  }, 120_000)
 })

@@ -20,7 +20,8 @@ import {
 import type { DsmKind } from '@/simulation/models/dsm'
 import residueSrc from '../residue.ts?raw'
 import { firstOrderAccumulator, residueSignals } from '../residue'
-import { DerivationFold, Erratum, f, HandCalcBox, KpiRow, tx, mt } from '../common'
+import { GAIN_ERROR_MODEL, RESIDUE_ACCUMULATOR } from '../diagrams'
+import { DerivationFold, Erratum, f, FigRef, HandCalcBox, KpiRow, MermaidFig, tx, mt } from '../common'
 import { texifyModelText } from '../modelText'
 import { useCasePresets } from '../experiments/presetHooks'
 
@@ -194,16 +195,39 @@ export function ResidueSection() {
   return (
     <Section kind="formula" title="§2 Fractional residue：DTC 到底要補償什麼？" level={2} id="ch04-residue">
       <p>
-        <strong>一個問題：</strong>divider 只能數整數個 VCO 週期，但我們要它平均除 <Tex>{R`N_\mathrm{int}+\mathrm{frac}`}</Tex>。
-        DSM 的做法是「這一拍除 <Tex>{R`N_\mathrm{int}`}</Tex>，下一拍除 <Tex>{R`N_\mathrm{int}+1`}</Tex>」輪流切換，讓平均剛好對。
+        <strong>一個問題：</strong>divider 只能數整數個 VCO 週期，但我們要它平均除 <Tex>{R`N_\mathrm{int}+\mathrm{frac}`}</Tex>（<Tex>{R`N_\mathrm{int}`}</Tex> 是 FCW 的整數部分，
+        <Tex>{R`\mathrm{frac}\in[0,1)`}</Tex> 是小數部分）。 DSM 的做法是「這一拍除 <Tex>{R`N_\mathrm{int}`}</Tex>，下一拍除 <Tex>{R`N_\mathrm{int}+1`}</Tex>」輪流切換，讓平均剛好對。
         代價是：每一拍 divider 的 edge 都比理想時刻早一點或晚一點。這個時間誤差是<strong>確定的、可以算出來的</strong>——它就在 DSM 累加器裡。
         DTC 的工作就是把它補回去。
+      </p>
+
+      <h3>先看方塊圖：一階累加器就是 residue generator</h3>
+      <p>
+        最簡單的 DSM 只有一個加法器和一個暫存器。小數 <Tex>{R`\mathrm{frac}`}</Tex> 先寫成整數：<Tex>{R`\mathrm{frac}=K_\mathrm{F}/M`}</Tex>，其中 <Tex>{R`M=2^{B_\mathrm{dsm}}`}</Tex> 是{' '}
+        <Tex>{R`B_\mathrm{dsm}`}</Tex>-bit 累加器的模數（數到 <Tex>M</Tex> 就溢位），<Tex>{R`K_\mathrm{F}`}</Tex> 是每一拍加進去的整數（FCW 小數字）。
+      </p>
+      <MermaidFig
+        chart={RESIDUE_ACCUMULATOR}
+        caption={R`一階累加器（藍色的加法點、溢位判斷、暫存器）＝ fractional residue generator。看溢位判斷的兩個輸出：carry $y[n]$ 去控制 divider，餘數 $s[n]$ 一邊存回暫存器、一邊除以 $M$ 變成 DTC 的 code $x[n]$。`}
+        ariaLabel="一階 DSM 累加器：加法器、暫存器、carry 到 divider、餘數到 DTC code"
+      />
+      <p>
+        <strong>先看</strong>最上面的加法點：每個 reference cycle（索引 <Tex>n</Tex>）把暫存器裡上一拍的內容 <Tex>{R`s[n-1]`}</Tex> 加上 <Tex>{R`K_\mathrm{F}`}</Tex>，得到 <Tex>{R`t[n]`}</Tex>。
+        <strong>再看</strong>中間的溢位判斷：<Tex>{R`t[n]\ge M`}</Tex> 就輸出進位 <Tex>{R`y[n]=1`}</Tex>（divider 這一拍多除一個 VCO 週期）並減掉 <Tex>M</Tex>；留下的餘數 <Tex>{R`s[n]`}</Tex> 存回暫存器（圖上的{' '}
+        <Tex>{R`z^{-1}`}</Tex> 就是「延遲一拍」）。<strong>最後看</strong>下半部：divider 的 edge 比理想時刻早到 <Tex>{R`s[n]/M`}</Tex> 個 VCO 週期（一個 VCO 週期是 <Tex>{R`T_\mathrm{vco}=1/f_\mathrm{vco}`}</Tex>），所以把同一個{' '}
+        <Tex>{R`s[n]`}</Tex> 除以 <Tex>M</Tex> 當成 code <Tex>{R`x[n]`}</Tex> 交給 DTC，DTC 插入延遲 <Tex>{R`x[n]\,T_\mathrm{vco}`}</Tex> 把 edge 推回理想時刻。
+      </p>
+      <p className="small">
+        圖和公式的對應：加法點輸出線上的 <Tex>{R`t[n]=s[n-1]+K_\mathrm{F}`}</Tex> 是下面推導的第 1 步；溢位判斷方塊裡的三行是第 2 步；divider 到 DTC 那條線上的{' '}
+        <Tex>{R`r[n]=-s[n]/M`}</Tex> 就是 F-04.1 的 residue（divider edge 的累積時間誤差，單位 <Tex>{R`T_\mathrm{vco}`}</Tex>，負值 = 早到）；DTC 方塊裡的{' '}
+        <Tex>{R`\tau_\mathrm{DTC}[n]=x[n]\,T_\mathrm{vco}`}</Tex> 是 F-04.2 的前半。
       </p>
 
       <h3>先算一次（手算表）</h3>
       <p>
         取 4-bit 累加器 <Tex>{R`M=2^4=16`}</Tex>，FCW 小數字 <Tex>{R`K_\mathrm{F}=${HAND.KF}`}</Tex>，所以 <Tex>{R`\mathrm{frac}=${HAND.KF}/16=${frac}`}</Tex>{' '}
-        <SourceTag kind="illustrative" />。每一拍：先加 <Tex>{R`K_\mathrm{F}`}</Tex>，滿 16 就進位（carry <Tex>{R`y=1`}</Tex>）並減 16。
+        <SourceTag kind="illustrative" />。每一拍：先加 <Tex>{R`K_\mathrm{F}`}</Tex>，滿 16 就進位（carry <Tex>{R`y=1`}</Tex>）並減 16。表格由左到右就是 <FigRef chart={RESIDUE_ACCUMULATOR} /> 由上到下的訊號：
+        暫存器輸出 <Tex>{R`s[n-1]`}</Tex> → 加法點輸出 <Tex>{R`t`}</Tex> → carry <Tex>{R`y[n]`}</Tex> → 餘數 <Tex>{R`s[n]`}</Tex>。
       </p>
       <div className="table-wrap">
         <table>
@@ -297,7 +321,17 @@ export function ResidueSection() {
       <p>
         DTC 把數位 code 變成延遲。設 code 為 <Tex>{R`x[n]=s[n]/M`}</Tex>（無因次），DTC 實際插入 <Tex>{R`w\,x[n]`}</Tex>，而真正需要 <Tex>{R`a\,x[n]`}</Tex>（理想時{' '}
         <Tex>{R`a=T_\mathrm{vco}`}</Tex>，單位 fs per unit code <Erratum id="E13" />）。divider edge 早到 <Tex>{R`a\,x[n]`}</Tex>、DTC 補回 <Tex>{R`w\,x[n]`}</Tex>，
-        淨時間誤差是 <Tex>{R`-(a-w)x[n]`}</Tex>（早到為負）。本站取 PD 極性「補償不足（<Tex>{R`w<a`}</Tex>）時誤差為正」，與規格 §6 的 <Tex>{R`e_\mathrm{DTC}=(a-w)x`}</Tex> 一致，所以 PD 看到的確定性殘差就是
+        淨時間誤差是 <Tex>{R`-(a-w)x[n]`}</Tex>（早到為負）。本站取 PD 極性「補償不足（<Tex>{R`w<a`}</Tex>）時誤差為正」，與規格 §6 的 <Tex>{R`e_\mathrm{DTC}=(a-w)x`}</Tex> 一致。
+      </p>
+      <MermaidFig
+        chart={GAIN_ERROR_MODEL}
+        caption={R`DTC gain 誤差的數學模型：同一個 code $x[n]$ 走兩條路，一條乘未知的 $a$（需要補的量），一條乘可調的 $w$（藍色，實際補的量）；看加法點兩條線的正負號——PD 只看得到兩者的差 $(a-w)\,x[n]$。`}
+        ariaLabel="code 乘 a 減去 code 乘 w，得到 PD 看到的殘差 delta 乘 x"
+      />
+      <p>
+        <strong>先看</strong>最上面：兩條路的輸入是同一個已知的 code <Tex>{R`x[n]`}</Tex>。<strong>再看</strong>加法點：乘 <Tex>a</Tex> 的那條標「<Tex>{R`+`}</Tex>」（divider edge 早到的時間 <Tex>{R`a\,x[n]`}</Tex>），乘{' '}
+        <Tex>w</Tex> 的那條標「<Tex>{R`-`}</Tex>」（DTC 補回的 <Tex>{R`w\,x[n]`}</Tex>）。兩者相減剩下 <Tex>{R`(a-w)\,x[n]`}</Tex>；把係數記成 <Tex>{R`\delta=a-w`}</Tex>（<strong>剩餘的 gain 誤差</strong>，全站約定的極性：
+        <Tex>{R`\delta>0`}</Tex> 表示 <Tex>w</Tex> 還太小）。圖上加法點的輸出 <Tex>{R`e_\mathrm{det}[n]`}</Tex>（下標 det = deterministic，不含雜訊的確定性殘差）就是下面公式框起來的那一項：
       </p>
       <TexBlock id="F-04.2" label={mt(R`DTC 必須補償的延遲與 gain 誤差造成的殘差（$\delta=a-w$）`)}>
         {R`\tau_\mathrm{DTC}[n]=\frac{s[n]}{M}T_\mathrm{vco},\qquad \boxed{e_\mathrm{det}[n]=(a-w)\,x[n]=\delta\,x[n]}`}

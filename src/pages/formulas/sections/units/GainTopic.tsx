@@ -1,9 +1,10 @@
-import { Callout, ClaimTag, CodeBlock, Prereq, SourceTag, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeBlock, Mermaid, Prereq, SourceTag, StepDerivation, Tex, TexBlock } from '@/components'
 import calNoiseSrc from '@/simulation/models/calNoise.ts?raw'
 import comparatorSrc from '@/simulation/models/comparator.ts?raw'
 import { refValues, T13_SETUP } from '../../refValues'
 import { texNum, texPct } from '../../format'
 import { Collapsible, ErratumTag, FormulaLinks, Gate, PageLinks } from '../../common'
+import { CHART_UNIT_CHAIN } from '../../diagrams'
 import { Topic } from './Topic'
 
 /**
@@ -26,6 +27,14 @@ export function MuUnitsTopic() {
           <Tex>{String.raw`\mathrm{(m/s)\times s=m}`}</Tex>。只要某一步的單位對不上，式子一定寫錯了。
         </p>
       </Prereq>
+      <p>
+        <strong>先看圖：</strong>下圖把單位一路追到頻寬。<Tex>{String.raw`\sigma_v`}</Tex> 的單位是 fs，經過 <Tex>{'K_q'}</Tex>、<Tex>{'K'}</Tex> 變成 <Tex>{String.raw`\mathrm{fs^{-1}}`}</Tex>；再乘上單位為 fs 的{' '}
+        <Tex>{String.raw`\mu`}</Tex>，fs 與 fs<sup>−1</sup> 互相抵消，才得到無因次的 <Tex>{'g'}</Tex>，之後的 <Tex>{'p'}</Tex> 才能和 1 相減。紅色的 <Tex>{'N'}</Tex> 只在 GMAC 輸出總和（sum mode）時出現。
+      </p>
+      <Mermaid
+        chart={CHART_UNIT_CHAIN}
+        caption="單位鏈：$[\sigma_v]=\mathrm{fs}\to[K_q]=[K]=\mathrm{fs^{-1}}$，$[\mu]=\mathrm{fs}$，所以 $g=\mu K$ 與 $p=1-g$ 無因次；頻寬 $f_{3\mathrm{dB}}$、$\mathrm{ENBW}$ 的單位 Hz 來自 $f_u=f_s/N$。藍色的 $g$ 是整條鏈的樞紐，紅色的 $N$ 是 sum mode 才有的額外因子。"
+      />
       <StepDerivation
         title={
           <>

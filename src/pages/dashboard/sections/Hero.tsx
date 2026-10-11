@@ -8,6 +8,7 @@ import { summarizeErrata, summarizeTests } from '../summaries'
 import { scrollToId } from '../ui'
 
 const TOC: { id: string; label: string }[] = [
+  { id: 'dash-map', label: '系統地圖' },
   { id: 'dash-routes', label: '三條學習路線' },
   { id: 'dash-thesis', label: '六個條件' },
   { id: 'dash-spine', label: '一條方程式' },
@@ -18,6 +19,7 @@ const TOC: { id: string; label: string }[] = [
   { id: 'dash-modes', label: '學習模式' },
   { id: 'dash-verify', label: '驗證與勘誤' },
   { id: 'dash-recap', label: '本頁必記' },
+  { id: 'symbols', label: '符號表' },
 ]
 
 const fmt = (x: number, d = 4) => Number(x.toPrecision(d)).toString()

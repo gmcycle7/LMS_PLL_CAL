@@ -1,5 +1,6 @@
-import { Callout, ClaimTag, ModelLevel, Section, TestBadge, Tex } from '@/components'
+import { Callout, ClaimTag, Mermaid, ModelLevel, Section, TestBadge, Tex } from '@/components'
 import { Erratum } from './common'
+import { CHART_LAB_PIPELINE } from './diagrams'
 import { QuantizedGainLab } from './experiments/QuantizedGainLab'
 import { CodeComparison } from './sections/CodeComparison'
 import { CriteriaSection } from './sections/Criteria'
@@ -9,6 +10,7 @@ import { FreezeSection } from './sections/Freeze'
 import { Intro } from './sections/Intro'
 import { NonIdealSection } from './sections/NonIdeal'
 import { StochasticSection } from './sections/Stochastic'
+import { SymbolsSection } from './sections/Symbols'
 import { TimeVaryingSection } from './sections/TimeVarying'
 import { ToggleSection } from './sections/Toggle'
 import { WrapUp } from './sections/WrapUp'
@@ -43,6 +45,13 @@ export default function Chapter13() {
           同一 seed、同一 DSM 序列下比較五種策略（規格 §13.5 的「完整推薦實驗」與 Gallery #10）。每個結論旁的標籤：<ClaimTag kind="exact" /> 為指定模型下的代數 / 精確數值，
           <ClaimTag kind="approx" /> 為白色近似或有限樣本估計。
         </p>
+        <Mermaid
+          chart={CHART_LAB_PIPELINE}
+          caption="實驗的資料流。先看上排：參數 → $w_H$ → 藍色的量化策略 → 6-bit code；再看三個分支：週期偵測、code 誤差的頻譜、以及乘上 DSM residue 後經 $T(f)$ 得到的 output jitter。"
+        />
+        <p className="small ch13-figwalk">
+          圖上的 <Tex>{String.raw`e=y-w^*`}</Tex> 就是面板裡的「code 誤差」，<Tex>{String.raw`\sigma_\mathrm{out}`}</Tex> 就是 mixing 面板的 output jitter（§13.5b 的公式 F-13.11）。讀結果時照著圖走：先看週期與時間波形，再看頻譜，最後才看 mixing。
+        </p>
         <QuantizedGainLab />
         <Callout kind="info" title="驗收測試（T16 / T17）">
           T16：常數 32.4 的 toggle 平均 32.4、週期 5、Freeze code 32 / <Tex>{String.raw`\delta w=-0.4\,\mathrm{LSB}`}</Tex>、譜線 <Tex>{String.raw`|c_{1,2}|=(\sqrt5\mp1)/10`}</Tex>，並加上 E15 的 D ≡ B
@@ -54,6 +63,8 @@ export default function Chapter13() {
       <CriteriaSection />
       <NonIdealSection />
       <WrapUp />
+      {/* 符號表放在章末（docs/teaching-style.md §5）；章首只留一行「本章符號表在最後 ↓」 */}
+      <SymbolsSection />
     </div>
   )
 }

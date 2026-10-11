@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { useSettings, type LearningMode } from '@/app/settings'
-import { HandCalc, mathText } from '@/components'
+import { HandCalc, mathText, Mermaid } from '@/components'
+import { diagramById } from './diagrams'
 import { HANDCALCS } from './handcalcs'
 
 /**
@@ -86,6 +87,25 @@ export function ChapterHandCalc({ id, lead }: { id: string; lead?: ReactNode }) 
         {mathText(lead ?? '把下面的數字換成你自己的，先用紙筆和計算機算一次，再和網站逐步對答案。')}
       </p>
       <HandCalc def={def} />
+    </div>
+  )
+}
+
+/**
+ * 本章的方塊圖（docs/teaching-style.md §8）：依 id 取用 diagrams.ts 的登錄（Mermaid 原始碼 + 圖號 + 圖說）。
+ * children 是圖下方的「怎麼看這張圖」：先看…再看…，以及「圖上的 X 就是公式裡的 x」的對照（用 <Tex>，因為 Mermaid 不渲染 KaTeX）。
+ */
+export function ChapterDiagram({ id, children }: { id: string; children?: ReactNode }) {
+  const d = diagramById(id)
+  return (
+    <div className="ch06-diagram" id={`diagram-${d.id}`} data-diagram-kind={d.kind}>
+      <Mermaid chart={d.chart} caption={`圖 ${d.no}：${d.title}。${d.caption}`} />
+      {children ? (
+        <div className="ch06-diagram-read">
+          <span className="ch06-diagram-badge">怎麼看圖 {d.no}</span>
+          {children}
+        </div>
+      ) : null}
     </div>
   )
 }

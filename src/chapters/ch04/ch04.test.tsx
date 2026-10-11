@@ -7,6 +7,7 @@ import { renderTex } from '@/components'
 import { SettingsProvider } from '@/app/settings'
 import type { PresetEntry } from '@/data/types'
 import Chapter04 from './index'
+import { CH04_DIAGRAMS } from './diagrams'
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
 import { DEFAULT_FLOW_CASE, DEFAULT_FLOW_SHARED, FLOW_MC_RUNS, flowAnalyticCheck, flowConfig, flowMonteCarlo } from './experiments/SignalFlowExperiment'
@@ -18,6 +19,7 @@ import { handGmac } from './sections/GmacMath'
 import { sliceGoldenGmac, defaultBiasNumbers, negateBugNumbers, windupNumbers, wTruncNumbers } from './sections/FixedPoint'
 import { clearVsNoClear } from './sections/HardwareNotes'
 import { DEFAULT_RESIDUE } from './sections/Residue'
+import { CH04_SYMBOLS } from './sections/Symbols'
 import { residueSignals } from './residue'
 
 const P = vi.hoisted(() => ({
@@ -64,10 +66,14 @@ function texText(el: Element): string {
   return c.textContent ?? ''
 }
 
-/** 程式碼區塊以外的文字（程式碼裡的 template literal 本來就有 $） */
+/**
+ * 程式碼區塊以外的文字（程式碼裡的 template literal 本來就有 $）。
+ * TestBadge 的提示框（.c-tip-list）逐字列出測試名稱，名稱本身可能含有「`$...$`」這種字樣（例如別頁的顯示層測試），
+ * 那是原文照錄、不是沒轉成 KaTeX 的公式，所以和程式碼一樣排除。
+ */
 function proseText(el: Element): string {
   const c = el.cloneNode(true) as Element
-  c.querySelectorAll('pre, code, .c-code').forEach((k) => k.remove())
+  c.querySelectorAll('pre, code, .c-code, .c-tip-list').forEach((k) => k.remove())
   return c.textContent ?? ''
 }
 
@@ -90,10 +96,56 @@ function caseButtons(root: ParentNode, experimentId: string): HTMLButtonElement[
 }
 
 describe('Ch04 頁面（jsdom smoke test）', () => {
-  it('渲染不丟錯：符號表、所有段落、三個實驗、勘誤連結、公式錨點與 FORMULAS 一致', async () => {
+  it('渲染不丟錯：章末的符號表、所有段落、三個實驗、勘誤連結、公式錨點與 FORMULAS 一致', async () => {
     const errSpy = vi.spyOn(console, 'error')
     const { container } = renderAt()
-    expect(container.textContent).toContain('本章符號')
+    // 符號表在整頁最後（Recap 與「連結到 PLL」之後），外層 id="symbols"；章首不放符號表，只留一行捲到它的連結（teaching-style §5）
+    const page = container.querySelector('.ch04')!
+    const symbols = container.querySelector('#symbols')!
+    expect(page.lastElementChild).toBe(symbols)
+    expect(container.querySelectorAll('.c-symbols').length).toBe(1)
+    expect(symbols.lastElementChild!.classList.contains('c-symbols')).toBe(true)
+    expect(symbols.querySelector('.c-symbols-title')!.textContent).toBe('本章符號表')
+    expect(symbols.querySelectorAll('tbody tr').length).toBe(CH04_SYMBOLS.length)
+    expect(new Set(CH04_SYMBOLS.map((r) => r.symbol)).size).toBe(CH04_SYMBOLS.length)
+    for (const after of ['.c-recap', '#ch04-wrap', '.c-quiz']) {
+      const all = container.querySelectorAll(after)
+      expect(all[all.length - 1].compareDocumentPosition(symbols) & Node.DOCUMENT_POSITION_FOLLOWING, after).toBeTruthy()
+    }
+    const question = container.querySelector<HTMLElement>('#ch04-question')!
+    expect(question.querySelector('.c-symbols')).toBeNull()
+    expect(question.querySelectorAll('.ch04-symbols-link').length).toBe(1)
+    // （這一頁很大：按鈕直接用 selector 找，不用 getByRole——後者要對整個子樹算 accessibility，很慢）
+    const toSymbols = question.querySelector<HTMLButtonElement>('.ch04-symbols-link button')!
+    expect(toSymbols.textContent).toBe('本章符號表在最後 ↓')
+    expect(toSymbols.type).toBe('button')
+    // HashRouter 下 href="#symbols" 會改到路由：連結是按鈕，以 scrollIntoView 捲動（jsdom 沒有這個方法，這裡補一個來記錄）
+    const proto = Element.prototype as unknown as { scrollIntoView?: (this: Element) => void }
+    const scrolled: string[] = []
+    proto.scrollIntoView = function () {
+      scrolled.push(this.id)
+    }
+    const scrollTo = vi.fn()
+    const origScrollTo = window.scrollTo
+    window.scrollTo = scrollTo as unknown as typeof window.scrollTo
+    act(() => toSymbols.click())
+    expect(scrolled).toEqual(['symbols'])
+    // 符號表上方的「回到剛才讀到的地方」捲回按下連結時的位置
+    const back = symbols.querySelector<HTMLButtonElement>('.ch04-symbols-back button')!
+    expect(back.textContent).toContain('回到剛才讀到的地方')
+    act(() => back.click())
+    expect(scrollTo).toHaveBeenCalledWith({ top: window.scrollY, behavior: 'smooth' })
+    // 章首目錄同樣是按鈕：第一個捲到 §1
+    const toc = Array.from(question.querySelectorAll<HTMLButtonElement>('.ch04-toc button'))
+    expect(toc.map((b) => b.textContent)).toEqual(['§1 系統全貌', '§2 Fractional residue', '§3 硬體對應與時序', '§4 GMAC 數學', '§5 定點 GMAC', '§6 RTL 檢查清單', '§7 思考題與本課必記'])
+    act(() => toc[0].click())
+    expect(scrolled).toEqual(['symbols', 'ch04-system'])
+    delete proto.scrollIntoView
+    window.scrollTo = origScrollTo
+    // 本章自己寫的內容沒有會改到路由的 href="#xxx"（「#/…」是 HashRouter 的路由連結，不算；
+    // 實驗框內共用 MetricTable 的「#formula-…」連結不屬於本章，另行回報）
+    const hashAnchors = Array.from(container.querySelectorAll('a[href^="#"]')).filter((a) => !a.getAttribute('href')!.startsWith('#/'))
+    expect(hashAnchors.filter((a) => !a.closest('[id^="exp-"]')).map((a) => a.getAttribute('href'))).toEqual([])
     const hs = headings(container)
     for (const t of ['§1 完整概念系統', '§2 Fractional residue', '§3 硬體對應', '§4 GMAC 的數學', '§5 定點 GMAC', '§6 RTL 檢查清單', '§7 比較表']) {
       expect(hs.some((h) => h.startsWith(t))).toBe(true)
@@ -112,12 +164,19 @@ describe('Ch04 頁面（jsdom smoke test）', () => {
     const firstQuiz = container.querySelector('.c-quiz')!
     expect(lastHc.compareDocumentPosition(firstQuiz) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     for (const s of Array.from(container.querySelectorAll('section.c-handcalc'))) expect(s.querySelectorAll('.c-step').length, s.id).toBeGreaterThan(0)
-    // 四張 Mermaid 圖的圖說由 MermaidFig 顯示：符號是 KaTeX（共用 Mermaid 的 caption 只能放純文字）
+    // 22 張 Mermaid 圖的圖說由 MermaidFig 顯示：符號是 KaTeX（共用 Mermaid 的 caption 只能放純文字）；
+    // 圖的內容、順序與實際渲染由 diagrams.test.tsx 檢查
     const figCaptions = Array.from(container.querySelectorAll('.ch04-mermaid-fig .ch04-mermaid-caption'))
-    expect(figCaptions.length).toBe(4)
+    expect(figCaptions.length).toBe(CH04_DIAGRAMS.length)
+    expect(figCaptions.length).toBe(22)
     for (const c of figCaptions) expect(c.querySelector('.katex'), c.textContent ?? '').not.toBeNull()
     expect(figCaptions.map((c) => texText(c)).join('\n')).toContain('乘 \\mu')
-    expect(container.querySelectorAll('.c-mermaid figcaption').length).toBe(0)
+    // 共用 Mermaid 自己的 figcaption 只有章首的系統地圖（SystemMap）那一個
+    const ownCaptions = Array.from(container.querySelectorAll('.c-mermaid figcaption'))
+    expect(ownCaptions.length).toBe(1)
+    expect(ownCaptions[0].textContent).toMatch(/^系統地圖：藍色是這一課從頭走到尾的訊號路徑/)
+    expect(ownCaptions[0].querySelector('.katex')).not.toBeNull() // 圖說裡的符號是 KaTeX
+    expect(question.contains(ownCaptions[0])).toBe(true)
     // 勘誤標籤連到驗證頁
     const errata = Array.from(container.querySelectorAll('a.ch04-erratum'))
     for (const id of ['E07', 'E13', 'E18']) expect(errata.some((a) => a.textContent === `勘誤 ${id}` && a.getAttribute('href') === '#/verification')).toBe(true)
@@ -175,7 +234,8 @@ describe('Ch04 頁面（jsdom smoke test）', () => {
     // 假設清單（blockLms 的 assumptions）也轉成 LaTeX；sum 模式的總和寫成 S_k（勘誤 E07 / E18）
     expect(texText(shell)).toContain('K_q=\\sqrt{2/\\pi}/\\sigma_v 為小訊號近似')
     expect(texText(shell)).toContain('GMAC（sum 模式）：S_k=\\sum q\\,x_\\mathrm{ref}（N=16）')
-    expect(shell.textContent).not.toMatch(/σ_v|x_ref|w\* − a/) // 模型原本的 Unicode 寫法不再出現
+    // 模型原本的 Unicode 寫法不再出現（TestBadge 提示框逐字列出的測試名稱不算，見 proseText）
+    expect(proseText(shell)).not.toMatch(/σ_v|x_ref|w\* − a/)
   }, PAGE_TIMEOUT)
 })
 

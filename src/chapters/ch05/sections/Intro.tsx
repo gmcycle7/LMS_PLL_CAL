@@ -1,174 +1,13 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, Mermaid, Section, SourceTag, SymbolTable, Tex, type SymbolEntry } from '@/components'
+import { Callout, ClaimTag, Section, SourceTag, SystemMap, Tex } from '@/components'
 import { normPdf } from '@/simulation/core'
 import { directionOutcomeExact, meanQ, pPlus, sumMoments, varQ } from '@/simulation/models/comparator'
-import { Erratum, fx, int, sig } from '../common'
+import { Erratum, Fig, fx, int, sig } from '../common'
+import { CH05_SYSTEM_FOCUS } from '../diagrams'
+import { SymbolsLink } from '../symbols'
 import { ExpectationPrereq, GaussianPrereq } from './Probability'
 
-const T = (tex: string) => <Tex>{tex}</Tex>
-
-const SYMBOLS: SymbolEntry[] = [
-  {
-    symbol: 's',
-    meaning: '要辨識正負號的固定誤差（PLL 中是 DTC residual 在 PD 處的時間誤差）',
-    unit: '\\mathrm{fs}',
-    firstSeen: '§2',
-    note: <>本章 regressor {T('x\\equiv1')}，所以 {T('s=\\delta=a-w')}（全站約定 {T('\\delta=a-w')}）</>,
-  },
-  {
-    symbol: 'v,\\;\\sigma_v',
-    meaning: 'comparator 前的 Gaussian 雜訊與其 RMS',
-    unit: '\\mathrm{fs}',
-    firstSeen: '§2',
-    note: <>{T('v\\sim\\mathcal N(0,\\sigma_v^2)')}，iid（時間相關的情形見章末 Research 延伸）</>,
-  },
-  {
-    symbol: '\\theta',
-    meaning: 'comparator threshold／offset',
-    unit: '\\mathrm{fs}',
-    firstSeen: '§2',
-    note: <>硬體慣例 {T('e\\ge\\theta\\Rightarrow q=+1')}（規格 §15.2）；理想 {T('\\theta=0')}</>,
-  },
-  { symbol: 'e=s+v', meaning: 'comparator 輸入', unit: '\\mathrm{fs}', firstSeen: '§2' },
-  {
-    symbol: 'x',
-    meaning: 'regressor（DTC code／相位選擇等，乘在誤差上的已知訊號）',
-    firstSeen: '§0',
-    note: <>本章固定 {T('x\\equiv1')}；一般情形留到 Ch06–Ch11</>,
-  },
-  { symbol: 'b', meaning: '硬體 comparator 輸出的 0/1 位元', unit: '0/1', firstSeen: '§2', note: <>{T('q=2b-1')}</> },
-  {
-    symbol: 'q',
-    meaning: '1-bit comparator 的雙極性輸出',
-    unit: '\\pm1',
-    firstSeen: '§2',
-    note: <>硬體 0/1 位元 {T('b')} 必須先映射 {T('q=2b-1')}（規格 §0）</>,
-  },
-  { symbol: 'p', meaning: T('P(q=+1)'), firstSeen: '§2', note: <>本章 {T('p')} 專指機率；Ch12/Ch14 的迴路 pole 本章改寫 {T('p_{\\mathrm{cal}}')}</> },
-  {
-    symbol: 'm\\;(\\equiv m_q)',
-    meaning: <>{T('E[q]')}，單一樣本的平均（「訊號」）</>,
-    firstSeen: '§2',
-    note: (
-      <>
-        全站符號表寫作 {T('m_q')}，以免與 §12 的 code DC 衝突；本章只有這一個 {T('m')}，公式中簡寫成 {T('m')}，兩者是同一個量 <Erratum id="E34" />
-      </>
-    ),
-  },
-  { symbol: 'r', meaning: <>標準化誤差 {T('(s-\\theta)/\\sigma_v')}</>, firstSeen: '§2' },
-  { symbol: '\\Phi,\\;\\varphi', meaning: '標準常態分布的 CDF 與 PDF', firstSeen: '§2' },
-  { symbol: '\\operatorname{erf}', meaning: 'error function', firstSeen: '§2' },
-  { symbol: 'N', meaning: '累加的樣本數（comparator 決策次數）', unit: '\\text{samples}', firstSeen: '§3', note: <>時間索引 {T('n')} = comparator sample</> },
-  {
-    symbol: 'K',
-    meaning: <>{T('N')} 個樣本中 {T('q=+1')} 的個數，{T('K\\sim\\mathrm{Bin}(N,p)')}</>,
-    firstSeen: '§3',
-    note: <>本章 {T('K')} 只代表計數（勘誤 E02 的寫法），與 §8/§12 的迴路增益 {T('K=K_qC')} 無關</>,
-  },
-  {
-    symbol: 'S_N',
-    meaning: <>comparator 輸出的總和 {T('\\sum_i q_i=2K-N')}</>,
-    firstSeen: '§3',
-    note: (
-      <>
-        規格 §5 原寫 {T('G_N')}；本章改用 {T('S_N')}，保留 {T('G')} 給 §0 的 block 平均 <Erratum id="E07" /> <Erratum id="E18" />
-      </>
-    ),
-  },
-  {
-    symbol: 'G=S_N/N',
-    meaning: <>平均（§0 的 {T('G_k=\\frac1N\\sum qx')} 在 {T('x\\equiv1')} 時）</>,
-    firstSeen: '§3',
-    note: <>sum 與 average 差 {T('N')} 倍</>,
-  },
-  { symbol: '\\sigma_S', meaning: <>{T('S_N')} 的標準差 {T('\\mathrm{SD}(S_N)=\\sqrt{N(1-m^2)}')}</>, firstSeen: '§3.2' },
-  { symbol: '\\mathrm{SNR}_{\\mathrm{stat}}', meaning: <>統計 SNR {T('=E[S_N]/\\mathrm{SD}(S_N)')}</>, firstSeen: '§3' },
-  { symbol: 'z', meaning: <>{T('\\Phi^{-1}(P_{\\text{target}})')}，例如 95% → 1.645</>, firstSeen: '§4' },
-  { symbol: 'K_q', meaning: <>comparator 的小訊號統計增益 {T('dE[q]/ds')}</>, unit: '\\mathrm{fs}^{-1}', firstSeen: '§5' },
-  {
-    symbol: 'd_k,\\;s^*',
-    meaning: <>只取 {T('S_N')} 正負號的硬體決策 {T('d_k\\in\\{+1,-1,0\\}')}，與其迴路平衡點 {T('s^*')}</>,
-    unit: '\\mathrm{fs}',
-    firstSeen: '§3.4（Engineer）',
-    note: <>{T('s^*')} 的單位是 fs；{T('d_k')} 無因次</>,
-  },
-  { symbol: 'T', meaning: 'Monte Carlo 的獨立 trials 數', firstSeen: '§6（實驗）', note: <>與全站的 closed-loop {T('T=L/(1+L)')} 無關</> },
-  {
-    symbol: 'k,\\;\\hat P',
-    meaning: <>Monte Carlo 中判對的次數，與估計的判對率 {T('\\hat P=k/T')}</>,
-    firstSeen: '§6（實驗）',
-    note: <>{T('k')} 在 §9 另作 GMAC block 索引、在 §7 作格點編號，依上下文區分</>,
-  },
-  {
-    symbol: 'k_{\\mathrm{lo}},\\;k_{\\mathrm{hi}}',
-    meaning: <>MC 計數的接受域（精確 Binomial 每側尾機率 {T('<\\Phi(-4)')}）</>,
-    firstSeen: '§6（實驗）',
-    note: 'Analytic ↔ Monte Carlo 交叉比對的判準',
-  },
-  { symbol: 'a,\\;w', meaning: '理想係數與目前的校正係數', unit: '\\mathrm{fs}', firstSeen: '§7', note: <>{T('x\\equiv1')} 時 {T('s=a-w')}</> },
-  {
-    symbol: '\\delta=a-w',
-    meaning: '剩餘參數誤差',
-    unit: '\\mathrm{fs}',
-    firstSeen: '§7',
-    note: <>全站約定 {T('\\delta=a-w')}（不是 {T('w-a')}）</>,
-  },
-  {
-    symbol: '\\mu',
-    meaning: '學習率（每次更新的步長）',
-    unit: '\\mathrm{fs}',
-    firstSeen: '§7',
-    note: (
-      <>
-        §7 為逐 sample 更新（等於 {T('N=1')} 的 block）；§9 為 average-mode GMAC 的 block 更新，單位同為 fs。規格／ChatGPT 課程中的 {T('\\alpha')} 本站一律寫{' '}
-        {T('\\mu')} <Erratum id="E13" /> <Erratum id="E34" />
-      </>
-    ),
-  },
-  {
-    symbol: 'g=\\mu K_q',
-    meaning: <>無因次的 normalized loop gain（{T('x\\equiv1')} 時 {T('C=1')}，所以 {T('K=K_q')}）</>,
-    firstSeen: '§7',
-    note: <>一般情形 {T('g=\\mu K_qC')}</>,
-  },
-  { symbol: 'p_{\\mathrm{cal}}=1-g', meaning: '校正迴路的（線性化）pole', firstSeen: '§9', note: <>Ch12/Ch14 寫作 {T('p')}</> },
-  { symbol: '\\eta', meaning: <>{T('q')} 或 {T('G_k')} 扣掉平均後的零均值「量化雜訊」</>, firstSeen: '§7' },
-  {
-    symbol: '\\tau',
-    meaning: <>迴路的時間常數 {T('\\approx1/g')}（精確 {T('-1/\\ln|1-g|')}）</>,
-    unit: '\\text{samples / blocks}',
-    firstSeen: '§7',
-    note: '§7 逐 sample 更新時單位是 samples；§9 block 更新時是 blocks',
-  },
-  {
-    symbol: 'w_k,\\;u_k,\\;\\bar u_k,\\;\\pi_k',
-    meaning: <>§7 的格點 {T('w_k=w_0+k\\mu')}、往上／往下一步的機率、穩態（時間平均）機率</>,
-    firstSeen: '§7（Engineer）',
-    note: <>{T('E_\\pi[\\cdot]')} 表示以 {T('\\pi_k')} 加權的平均</>,
-  },
-  { symbol: '\\sigma_w', meaning: '收斂後係數的穩態 RMS（coefficient noise）', unit: '\\mathrm{fs}', firstSeen: '§9' },
-  {
-    symbol: 'C',
-    meaning: <>regressor 與誤差路徑輸出的相關量（一般情形 {T('K=K_qC')}）</>,
-    firstSeen: '§9',
-    note: <>本章 {T('x\\equiv1')}，所以 {T('C=1')}；Ch06 詳述</>,
-  },
-  {
-    symbol: 'f_s,\\;f_u',
-    meaning: <>comparator 取樣率與 GMAC 更新率 {T('f_u=f_s/N')}</>,
-    unit: '\\mathrm{Hz}',
-    firstSeen: '§9',
-    note: <>{T('f_s')} 不保證等於 {T('f_{\\mathrm{ref}}')}（規格 §0）</>,
-  },
-  {
-    symbol: '\\rho,\\;N_{\\mathrm{eff}}',
-    meaning: <>雜訊相鄰樣本的相關係數，與等效獨立樣本數</>,
-    firstSeen: '章末延伸（Research）',
-    note: '只在 Research 模式出現',
-  },
-]
-
-/** 開場：問題、方塊圖、符號表、先算一次。 */
+/** 開場：問題、系統地圖（你在這裡）、直覺與路線圖、L1 模型方塊圖、先算一次。符號表在章末（../symbols.tsx）。 */
 export function IntroSection() {
   const ex = useMemo(() => {
     const s = 1
@@ -185,6 +24,8 @@ export function IntroSection() {
 
   return (
     <>
+      <SymbolsLink />
+
       <Callout kind="info" title="這次我們要回答的問題">
         <p className="ch05-question">
           PLL 裡的 DTC gain 還差一點點，造成 <Tex>{String.raw`s=1\,\mathrm{fs}`}</Tex> 的時間誤差；但 PD 前面的雜訊有{' '}
@@ -193,15 +34,12 @@ export function IntroSection() {
         </p>
       </Callout>
 
-      <SymbolTable
-        rows={SYMBOLS}
-        caption={
-          <>
-            時間索引：<Tex>{'n'}</Tex> = comparator sample；<Tex>{'k'}</Tex> = GMAC block（本章只用到 <Tex>{'n'}</Tex>）。所有時間量預設{' '}
-            <Tex>{'\\mathrm{fs}'}</Tex>。
-          </>
-        }
-      />
+      <SystemMap focus={CH05_SYSTEM_FOCUS} />
+      <p className="ch05-system-map-note">
+        <strong>你在這裡：</strong>藍色的三個方塊——comparator 前的雜訊 <Tex>{'v[n]'}</Tex>、1-bit comparator、GMAC 累加器——是本章的主角。前幾章把 comparator
+        當成理想的 <Tex>{'\\operatorname{sign}(\\cdot)'}</Tex>；這一章補上「有雜訊時，一個 bit 還剩多少資訊」：輸出 <Tex>{'+1'}</Tex> 的機率、平均輸出、累加{' '}
+        <Tex>{'N'}</Tex> 次之後的訊號雜訊比，以及之後所有迴路分析都會用到的等效增益 <Tex>{'K_q'}</Tex>。
+      </p>
 
       <Section kind="intuition" level={2} title="直覺：一枚只偏一點點的硬幣">
         <p>
@@ -217,27 +55,53 @@ export function IntroSection() {
           <strong>③ 這個「偏」和誤差成正比的比例常數</strong>（<Tex>{'K_q'}</Tex>，§5）。上面這些數字就是用{' '}
           <Tex>{String.raw`s=1\,\mathrm{fs},\ \sigma_v=100\,\mathrm{fs}`}</Tex> 由本站模擬核心算出來的。<SourceTag kind="illustrative" />
         </p>
+        <p>這三件事和後面幾節的關係，先用一張路線圖看一遍，再開始算：</p>
+        <Fig name="roadmap">
+          先跟著「§2 → §3 → §4」這條線走：§2 算出單一次比較的機率 <Tex>{'p'}</Tex> 與平均 <Tex>{'m'}</Tex>，§3 把 <Tex>{'N'}</Tex> 次加起來，§4 反過來問「要幾次」，
+          §6、§8 用實驗與不同算法互相驗證。再看從 §2 分出去的另一條線「§5 → §7 → §9」：同一個 <Tex>{'m'}</Tex> 對誤差的斜率就是 §5 的 <Tex>{'K_q'}</Tex>，§7
+          把它放進逐 sample 的迴路，最後 §9 得到 block 校正迴路的 pole <Tex>{'p_{\\mathrm{cal}}'}</Tex> 與收斂後係數的抖動 <Tex>{'\\sigma_w'}</Tex>。圖上的{' '}
+          <Tex>{'\\mu'}</Tex> 是學習率（每次更新的步長）、<Tex>{'z'}</Tex> 是由目標正確率查常態表得到的倍數，兩者分別在 §7 與 §4 正式登場。
+        </Fig>
       </Section>
 
       <Section kind="diagram" level={2} title="0. 模型：一個固定誤差 + 雜訊 → 1-bit → 累加">
-        <Mermaid
-          chart={[
-            'flowchart LR',
-            '  S["固定誤差 s（fs）"] --> ADD(("+"))',
-            '  V["雜訊 v ~ N(0, σ_v²)"] --> ADD',
-            '  ADD -->|"e = s + v"| CMP["Comparator（threshold θ）"]',
-            '  CMP -->|"q = ±1"| ACC["累加器 S_N = Σ q_i"]',
-            '  ACC -->|"sign(S_N)，S_N = 0 時依 tie rule"| DEC["方向判斷"]',
-          ].join('\n')}
-          caption="本章的 L1 模型：s 固定、v iid Gaussian、x ≡ 1（regressor 的效果留到 Ch06–Ch11）"
-          ariaLabel="固定誤差加雜訊經過 comparator 輸出正負一，累加後判斷方向"
-        />
         <p>
-          這是 PLL 校正迴路（Ch04）裡「PD → GMAC」那一段的最小模型：把 regressor 固定成 <Tex>{'x\\equiv1'}</Tex>，問題就只剩下「
-          <strong>一個很小的偏移，經過 1-bit 量化之後，平均還保留多少？</strong>」。之後章節的 <Tex>{'K_q'}</Tex>、loop gain、
-          noise 全部從這裡出發。方塊圖中的 <Tex>{'s'}</Tex>、<Tex>{'v\\sim\\mathcal N(0,\\sigma_v^2)'}</Tex>、<Tex>{'e=s+v'}</Tex>、
-          <Tex>{'q=\\pm1'}</Tex>、<Tex>{'S_N=\\sum_{i=1}^{N}q_i'}</Tex> 的定義見章首的符號表。
+          把章首系統地圖裡藍色的那一段單獨拿出來，就是下面這張圖。它是 PLL 校正迴路（Ch04）裡「PD → GMAC」的最小模型：把 regressor{' '}
+          <Tex>{'x'}</Tex>（乘在誤差上的已知訊號，例如 DTC code）固定成 <Tex>{'x\\equiv1'}</Tex>，問題就只剩下「
+          <strong>一個很小的偏移，經過 1-bit 量化之後，平均還保留多少？</strong>」。之後章節的 <Tex>{'K_q'}</Tex>、loop gain、noise 全部從這裡出發。
         </p>
+        <Fig name="l1Model">
+          先看左邊：固定誤差 <Tex>{'s'}</Tex> 與雜訊 <Tex>{'v'}</Tex> 在加法點相加，成為 comparator 的輸入 <Tex>{'e=s+v'}</Tex>。再看中間：comparator 把{' '}
+          <Tex>{'e'}</Tex> 和門檻 <Tex>{'\\theta'}</Tex> 比較，只輸出一個 bit <Tex>{'q=\\pm1'}</Tex>。最後看右邊：累加器把 <Tex>{'N'}</Tex> 個 <Tex>{'q'}</Tex>{' '}
+          加成 <Tex>{'S_N'}</Tex>，取它的正負號當作「誤差是正還是負」的判斷。
+        </Fig>
+        <p>圖上每個名字的意思（符號第一次出現，先在這裡說清楚；完整的表在章末）：</p>
+        <ul>
+          <li>
+            <Tex>{'s'}</Tex>：要辨識正負號的固定誤差，單位 <Tex>{'\\mathrm{fs}'}</Tex>。因為 <Tex>{'x\\equiv1'}</Tex>，它就是剩餘的參數誤差{' '}
+            <Tex>{'\\delta=a-w'}</Tex>，其中 <Tex>{'a'}</Tex> 是理想係數（真值）、<Tex>{'w'}</Tex> 是目前的校正係數（全站約定 <Tex>{'\\delta=a-w'}</Tex>，不是{' '}
+            <Tex>{'w-a'}</Tex>）。
+          </li>
+          <li>
+            <Tex>{'v'}</Tex>：comparator 前的雜訊。本章假設它是平均為 0 的 Gaussian、RMS 為 <Tex>{'\\sigma_v'}</Tex>、每個樣本彼此獨立（iid），寫成{' '}
+            <Tex>{'v\\sim\\mathcal N(0,\\sigma_v^2)'}</Tex>。
+          </li>
+          <li>
+            <Tex>{'e=s+v'}</Tex>：comparator 的輸入；<Tex>{'\\theta'}</Tex>：comparator 的 threshold／offset（理想是 0，單位 <Tex>{'\\mathrm{fs}'}</Tex>）。
+          </li>
+          <li>
+            <Tex>{'q=\\pm1'}</Tex>：comparator 的輸出（<Tex>{'e\\ge\\theta'}</Tex> 時是 <Tex>{'+1'}</Tex>）。硬體給的其實是 0/1 位元 <Tex>{'b'}</Tex>，要先映射成{' '}
+            <Tex>{'q=2b-1'}</Tex>（§2 會說明為什麼）。
+          </li>
+          <li>
+            <Tex>{'S_N=\\sum_{i=1}^{N}q_i'}</Tex>：<Tex>{'N'}</Tex> 個 <Tex>{'q'}</Tex> 的總和，<Tex>{'N'}</Tex> 是累加的樣本數；<Tex>{'S_N=0'}</Tex>{' '}
+            的平手情況叫 tie，怎麼處理（tie rule）留到 §3。
+          </li>
+          <li>
+            時間索引：<Tex>{'n'}</Tex> 數 comparator 的 sample，<Tex>{'k'}</Tex> 數 GMAC 的 block（每 <Tex>{'N'}</Tex> 個 sample 一個 block）；本章大部分只用到{' '}
+            <Tex>{'n'}</Tex>。
+          </li>
+        </ul>
       </Section>
 
       <Section
@@ -251,8 +115,15 @@ export function IntroSection() {
       >
         <p>
           先不推導，直接用數字感受一下（所有數字都由本站的模擬核心即時計算）。<SourceTag kind="illustrative" /> 表中用到的{' '}
-          <Tex>{'\\Phi,\\ \\varphi'}</Tex>、期望值 <Tex>{'E[\\cdot]'}</Tex> 與變異數 <Tex>{'\\operatorname{Var}(\\cdot)'}</Tex> 若不熟，先展開下面兩個先備知識框（§2 會再一步一步推導每一列）。
+          <Tex>{'\\Phi'}</Tex>（標準常態分布的累積機率 CDF）、<Tex>{'\\varphi'}</Tex>（它的機率密度 PDF）、期望值 <Tex>{'E[\\cdot]'}</Tex>（做很多次的平均）與變異數{' '}
+          <Tex>{'\\operatorname{Var}(\\cdot)'}</Tex>（離平均有多散）若不熟，先展開下面兩個先備知識框（§2 會再一步一步推導每一列）。
         </p>
+        <Fig name="firstCalc">
+          先看編號 ①–⑤ 的五格：由 <Tex>{'s'}</Tex> 與 <Tex>{'\\sigma_v'}</Tex> 算出標準化誤差 <Tex>{'r=s/\\sigma_v'}</Tex>，再得到輸出 <Tex>{'+1'}</Tex> 的機率{' '}
+          <Tex>{'p'}</Tex>、平均輸出 <Tex>{'m=E[q]'}</Tex> 與單次的雜訊功率 <Tex>{'\\operatorname{Var}(q)'}</Tex>——這五格就是下面第一張表的五列。再看「訊號」「雜訊」兩格：給定樣本數{' '}
+          <Tex>{'N'}</Tex>，訊號是 <Tex>{'E[S_N]=Nm'}</Tex>、雜訊是標準差 <Tex>{'\\mathrm{SD}(S_N)'}</Tex>，兩者相除叫統計 SNR（
+          <Tex>{'\\mathrm{SNR}_{\\mathrm{stat}}'}</Tex>）——這是第二張表的每一欄。
+        </Fig>
         <GaussianPrereq />
         <ExpectationPrereq />
         <div className="table-wrap">
@@ -318,12 +189,12 @@ export function IntroSection() {
           </table>
         </div>
         <p>
-          單一樣本的訊號雜訊比只有 <Tex>{`m/\\sqrt{1-m^2}\\approx${fx(ex.m / Math.sqrt(ex.v), 5)}`}</Tex>：雜訊大約是訊號的{' '}
+          單一樣本的訊號雜訊比（平均除以標準差）只有 <Tex>{`m/\\sqrt{1-m^2}\\approx${fx(ex.m / Math.sqrt(ex.v), 5)}`}</Tex>：雜訊大約是訊號的{' '}
           {int(Math.sqrt(ex.v) / ex.m)} 倍。可是把 <Tex>{'N'}</Tex> 個 <Tex>{'q'}</Tex> 加起來，
           <strong>
             訊號 <Tex>{'Nm'}</Tex> 隨 <Tex>{'N'}</Tex> 線性成長，雜訊只隨 <Tex>{'\\sqrt N'}</Tex> 成長
           </strong>
-          ：
+          。下表的 <Tex>{'\\mathrm{SNR}_{\\mathrm{stat}}=E[S_N]/\\mathrm{SD}(S_N)'}</Tex> 就是兩者的比值（<Tex>{'\\mathrm{SD}'}</Tex> 是標準差）：
         </p>
         <div className="table-wrap">
           <table className="ch05-table">

@@ -1,0 +1,314 @@
+import { fireEvent, render } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import mermaid from 'mermaid'
+import { installMermaidSvgShim, renderMermaidForTest } from '@/components/mermaidTestUtils'
+import { SettingsProvider } from '@/app/settings'
+import { kq } from '@/simulation/models/comparator'
+import { blockSignGmacStep, gainScale, type ConventionInput } from './bridge'
+import * as D from './diagrams'
+import { CHART_CONVENTION_BRIDGE, CHART_NUMBER_SOURCES, CHART_PAPER_MAP, PAPER_MAP, PAPERS_CHARTS } from './diagrams'
+import PapersPage, { SYMBOLS } from './index'
+import { PAPERS, READING_PATH_CHART } from './references'
+
+const P = vi.hoisted(() => ({
+  react: vi.fn(async () => undefined),
+  purge: vi.fn(),
+  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
+  downloadImage: vi.fn(async () => ''),
+  Plots: { resize: vi.fn() },
+  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
+}))
+vi.mock('plotly.js-dist-min', () => ({ default: P }))
+// 頁面測試用的 Mermaid 元件替身：把原始碼放在 data-chart，方便核對「頁面上畫了哪些圖、順序為何」。
+// 真正的 mermaid 套件沒有被 mock，下面照樣用它解析與渲染每一張圖。
+vi.mock('@/components/Mermaid', async () => {
+  const { createElement } = await import('react')
+  return {
+    Mermaid: ({ chart, caption }: { chart: string; caption?: string }) =>
+      createElement('figure', { className: 'c-mermaid', 'data-chart': chart }, caption ? createElement('figcaption', { className: 'c-figcaption' }, caption) : null),
+    renderMermaid: async () => '<svg></svg>',
+  }
+})
+
+afterEach(() => {
+  localStorage.clear()
+  P.react.mockClear()
+})
+
+interface Vertex {
+  id: string
+  text?: string
+  type?: string
+}
+interface Edge {
+  start: string
+  end: string
+  text?: string
+}
+
+/** 用真正的 mermaid parser 取出 flowchart 的節點與邊。 */
+async function flow(chart: string): Promise<{ vertices: Vertex[]; edges: Edge[] }> {
+  const diagram = await mermaid.mermaidAPI.getDiagramFromText(chart)
+  const db = diagram.db as unknown as { getVertices: () => Map<string, Vertex>; getEdges: () => Edge[] }
+  return { vertices: [...db.getVertices().values()], edges: db.getEdges() }
+}
+
+function edgeText(g: { edges: Edge[] }, start: string, end: string): string {
+  const e = g.edges.find((x) => x.start === start && x.end === end)
+  if (!e) throw new Error(`沒有 ${start} → ${end} 這條邊`)
+  return e.text ?? ''
+}
+
+const nodeText = (g: { vertices: Vertex[] }, id: string): string => g.vertices.find((v) => v.id === id)?.text ?? ''
+const hasEdge = (g: { edges: Edge[] }, start: string, end: string) => g.edges.some((e) => e.start === start && e.end === end)
+
+/** 比對用：拿掉換行標籤與空白，並還原 mermaid 在含 HTML 的標籤裡做的 entity 編碼。 */
+const plain = (s: string) =>
+  s
+    .replace(/<br\s*\/?>/g, '')
+    .replace(/&gt;/g, '>')
+    .replace(/&lt;/g, '<')
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, '')
+
+/** Mermaid 11 把標籤當 Markdown：這些寫法會被畫成「Unsupported markdown: …」或被 HTML 解析吃掉。 */
+function labelHazard(text: string): string | null {
+  for (const line of text.split(/<br\s*\/?>/)) {
+    const t = line.trim()
+    if (t === '+' || t === '-' || t === '*') return `單獨的「${t}」會被當成清單`
+    if (/^[+\-*] /.test(t)) return `「${t.slice(0, 8)}」以清單符號開頭`
+    if (/^\d+[.)] /.test(t)) return `「${t.slice(0, 8)}」以編號清單開頭`
+    if (/^#{1,6} /.test(t)) return `「${t.slice(0, 8)}」以標題符號開頭`
+    if (/[`*]/.test(t)) return '反引號／星號會被當成 code span 或強調'
+  }
+  if (/<(?!br\s*\/?>)[A-Za-z/!]/.test(text)) return '「<」後面緊接字母，會被當成 HTML 標籤'
+  return null
+}
+
+describe('Papers 的 Mermaid 圖：清單', () => {
+  it('共 4 張（閱讀路線圖 + 3 張新圖）；diagrams.ts 匯出的每一張都在清單裡', () => {
+    expect(PAPERS_CHARTS.map((c) => c.name)).toEqual(['CHART_NUMBER_SOURCES', 'READING_PATH_CHART', 'CHART_PAPER_MAP', 'CHART_CONVENTION_BRIDGE'])
+    expect(PAPERS_CHARTS.map((c) => c.section)).toEqual(['§1', '§2', '§3', '§4'])
+    const exported = Object.entries(D).filter(([, v]) => typeof v === 'string' && /^(flowchart|stateDiagram|sequenceDiagram)/.test(v as string))
+    expect(exported.map(([k]) => k).sort()).toEqual(['CHART_CONVENTION_BRIDGE', 'CHART_NUMBER_SOURCES', 'CHART_PAPER_MAP'])
+    for (const [k, v] of exported) expect(PAPERS_CHARTS.find((c) => c.name === k)?.chart).toBe(v)
+    expect(PAPERS_CHARTS.find((c) => c.name === 'READING_PATH_CHART')?.chart).toBe(READING_PATH_CHART)
+  })
+})
+
+describe('Papers 的 Mermaid 圖（真正的 mermaid parser）', () => {
+  beforeAll(() => {
+    mermaid.initialize({ startOnLoad: false, securityLevel: 'strict' })
+    installMermaidSvgShim()
+  })
+
+  it('每一張都能解析成 flowchart；不超過 14 個節點；標籤沒有會被 Markdown／HTML 吃掉的寫法', async () => {
+    for (const c of PAPERS_CHARTS) {
+      const r = await mermaid.parse(c.chart, { suppressErrors: false })
+      expect(r && typeof r === 'object' ? r.diagramType : r, c.name).toBe('flowchart-v2')
+      const g = await flow(c.chart)
+      expect(g.vertices.length, `${c.name} 節點數`).toBeLessThanOrEqual(14)
+      expect(g.vertices.length, `${c.name} 節點數`).toBeGreaterThanOrEqual(4)
+      for (const v of g.vertices) expect(labelHazard(v.text ?? ''), `${c.name} 節點 ${v.id}`).toBeNull()
+      for (const e of g.edges) expect(labelHazard(e.text ?? ''), `${c.name} 邊 ${e.start}→${e.end}`).toBeNull()
+    }
+  }, 60000)
+
+  it('數字來源圖：三種來源各一條路；只有「已發表主張」與「本站推導」會走到「能不能比」；例子與文獻資料一致', async () => {
+    const g = await flow(CHART_NUMBER_SOURCES)
+    expect(g.edges.filter((e) => e.start === 'Q').map((e) => e.end)).toEqual(['LIT', 'SPEC', 'DER'])
+    expect(hasEdge(g, 'LIT', 'X')).toBe(true)
+    expect(hasEdge(g, 'DER', 'X')).toBe(true)
+    expect(g.edges.some((e) => e.start === 'SPEC')).toBe(false) // 規格書的描述不當作數值證據：沒有往下的邊
+    expect(nodeText(g, 'SPEC')).toContain('未經本站核對')
+    expect(g.edges.filter((e) => e.start === 'X').map((e) => e.end)).toEqual(['OKC', 'NO'])
+    expect(edgeText(g, 'X', 'OKC')).toBe('物理量、模型、條件都相同')
+    // 例子：D4 的題名確實寫了 74 fs jitter（題名層級的主張）
+    const d4 = PAPERS.find((p) => p.id === 'D4')!
+    expect(d4.title).toMatch(/74\s?fs-Jitter/)
+    expect(d4.titleClaim).toContain('74 fs jitter')
+    expect(nodeText(g, 'LIT')).toContain('D4 題名的 74 fs jitter')
+    expect(nodeText(g, 'DER')).toContain('σ_w')
+    expect(CHART_NUMBER_SOURCES).toContain('class DER focus')
+    expect(CHART_NUMBER_SOURCES).toContain('class NO warn')
+  })
+
+  it('文獻對照圖：D1–D7 各出現一次；每個方塊標的章節都在該文獻的「本站相關頁面」裡；迴路首尾相接', async () => {
+    const g = await flow(CHART_PAPER_MAP)
+    // 每份文獻恰好掛在一個方塊上
+    expect(PAPER_MAP.flatMap((m) => m.papers).sort()).toEqual(PAPERS.map((p) => p.id).sort())
+    for (const p of PAPERS) expect((CHART_PAPER_MAP.match(new RegExp(`\\b${p.id}\\b`, 'g')) ?? []).length, p.id).toBe(1)
+    for (const m of PAPER_MAP) {
+      const text = nodeText(g, m.node)
+      expect(text, m.node).not.toBe('')
+      for (const id of m.papers) {
+        expect(text, `${m.node} 應標出 ${id}`).toContain(id)
+        const paper = PAPERS.find((p) => p.id === id)!
+        for (const page of m.pages) expect(paper.pages_, `${id} 的相關頁面應含 ${page}`).toContain(page)
+      }
+      for (const page of m.pages) expect(text, `${m.node} 應標出 ${page}`).toContain(`Ch${page.slice(2)}`)
+    }
+    // 沒有文獻的方塊（殘差、comparator）不標 D 編號
+    for (const id of ['RES', 'CMP']) expect(nodeText(g, id)).not.toMatch(/D\d/)
+    // 迴路：code → 殘差 → H_PD → comparator → GMAC → 累加 → 延遲 → 量化 → 回到殘差；regressor 另有一條到 GMAC
+    const loop = ['X', 'RES', 'HPD', 'CMP', 'GMAC', 'UPD', 'DLY', 'QNT', 'RES']
+    for (let i = 0; i + 1 < loop.length; i++) expect(hasEdge(g, loop[i], loop[i + 1]), `${loop[i]} → ${loop[i + 1]}`).toBe(true)
+    expect(edgeText(g, 'X', 'GMAC')).toBe('regressor x[n]')
+    expect(edgeText(g, 'HPD', 'CMP')).toBe('e[n]')
+    expect(edgeText(g, 'CMP', 'GMAC')).toBe('q[n]')
+    expect(edgeText(g, 'GMAC', 'UPD')).toBe('G_k')
+    expect(edgeText(g, 'QNT', 'RES')).toBe('w')
+    // 公式與極性：殘差 (a − w)·x[n]（δ = a − w）、q = sign(e)、G_k 是平均、w_(k+1) = w_k + μ·G_k
+    expect(nodeText(g, 'RES')).toContain('(a − w)·x[n]')
+    expect(nodeText(g, 'CMP')).toContain('q[n] = sign(e[n])')
+    expect(nodeText(g, 'GMAC')).toContain('G_k = (1/N)·Σ q[n]·x[n]')
+    expect(nodeText(g, 'UPD')).toContain('w_(k+1) = w_k + μ·G_k')
+  })
+
+  it('文獻對照圖上的運算就是 bridge.ts 的 blockSignGmacStep：照著圖算一個 block，G 與新的 w 完全相同', () => {
+    const xs = [1, -1, 1, 1, -1, 1, -1, -1]
+    const vs = [0.3, -0.2, 0.1, -0.4, 0.2, 0.05, -0.1, 0.25]
+    const [a, w, mu] = [3, 2.5, 0.2]
+    let acc = 0
+    for (let n = 0; n < xs.length; n++) {
+      const e = (a - w) * xs[n] + vs[n] // 殘差 (a − w)·x[n]，加上 comparator 前的雜訊
+      const q = e >= 0 ? 1 : -1 // q[n] = sign(e[n])
+      acc += q * xs[n] // Σ q[n]·x[n]
+    }
+    const G = acc / xs.length // G_k = (1/N)·Σ
+    const step = blockSignGmacStep({ w, a, xs, vs, mu })
+    expect(step.G).toBe(G)
+    expect(step.w).toBe(w + mu * G) // w_(k+1) = w_k + μ·G_k
+    expect(G).toBeGreaterThan(0) // w 比 a 小（δ > 0）時 G 為正，w 往上修
+  })
+
+  it('步長換算圖：四條箭頭上的換算式就是 gainScale 算的 s；右半邊是 g_i = s·λ_i、p_i = 1 − g_i', async () => {
+    const g = await flow(CHART_CONVENTION_BRIDGE)
+    expect(edgeText(g, 'H', 'S')).toBe('s = μ')
+    expect(edgeText(g, 'W', 'S')).toBe('s = 2·μ_W')
+    expect(edgeText(g, 'N', 'S')).toBe('s ≈ μ̃/(ε_reg + tr R)')
+    expect(edgeText(g, 'G', 'S')).toBe('s = μ·K_q（誤用 sum 模式再 ×N）')
+    expect(nodeText(g, 'H')).toContain('w ← w + μ·e·x')
+    expect(nodeText(g, 'W')).toContain('w ← w + 2·μ_W·ε·x')
+    expect(nodeText(g, 'G')).toContain('w ← w + μ·(1/N)·Σ q·x')
+    expect(nodeText(g, 'GI')).toContain('g_i = s·λ_i')
+    expect(nodeText(g, 'P')).toContain('p_i = 1 − g_i')
+    for (const [a, b] of [['S', 'GI'], ['GI', 'P'], ['P', 'Q'], ['Q', 'OK'], ['Q', 'BAD']]) expect(hasEdge(g, a, b), `${a} → ${b}`).toBe(true)
+    expect(edgeText(g, 'Q', 'OK')).toBe('是')
+    expect(edgeText(g, 'Q', 'BAD')).toBe('否')
+    // 與 bridge.ts 的 gainScale 逐一比對
+    const base: Omit<ConventionInput, 'convention'> = { mu: 0.1, traceR: 4, epsReg: 0.5, sigmaV: 100, N: 4096, sumMode: false, polarity: 1 }
+    expect(gainScale({ ...base, convention: 'half' })).toBe(0.1) // s = μ
+    expect(gainScale({ ...base, convention: 'widrow' })).toBe(2 * 0.1) // s = 2·μ_W
+    expect(gainScale({ ...base, convention: 'nlms' })).toBe(0.1 / (0.5 + 4)) // s ≈ μ̃/(ε_reg + tr R)
+    expect(gainScale({ ...base, convention: 'signBlock' })).toBeCloseTo(0.1 * kq(100), 15) // s = μ·K_q
+    expect(gainScale({ ...base, convention: 'signBlock', sumMode: true })).toBeCloseTo(0.1 * kq(100) * 4096, 12) // 誤用 sum 模式再 ×N
+    // 判定：|p_i| = |1 − s·λ_i| < 1 ⇔ 0 < s·λ_i < 2
+    const stable = (s: number, lambdas: number[]) => lambdas.every((l) => Math.abs(1 - s * l) < 1)
+    expect(stable(0.1, [1.9, 0.1])).toBe(true)
+    expect(stable(1.2, [1.9, 0.1])).toBe(false) // s·λ_max = 2.28 > 2
+    expect(stable(-0.1, [1.9, 0.1])).toBe(false) // 極性接反
+  })
+
+  it('實際渲染（共用的 renderMermaidForTest）：每張圖都畫得出來，沒有「Unsupported markdown」、節點數 ≤ 14，畫面上的每個標籤都和原始碼相同', async () => {
+    for (const c of PAPERS_CHARTS) {
+      const { svg, text, nodeCount } = await renderMermaidForTest(c.chart)
+      expect(text, c.name).not.toMatch(/Unsupported markdown/)
+      expect(nodeCount, c.name).toBeLessThanOrEqual(14)
+      expect(nodeCount, c.name).toBeGreaterThanOrEqual(4)
+      const host = document.createElement('div')
+      host.innerHTML = svg
+      const shown = new Set(Array.from(host.querySelectorAll('.nodeLabel, .edgeLabel')).map((e) => plain(e.textContent ?? '')))
+      const g = await flow(c.chart)
+      expect(nodeCount, `${c.name}：畫出來的節點數 = 解析出來的節點數`).toBe(g.vertices.length)
+      for (const v of g.vertices) expect(shown.has(plain(v.text ?? '')), `${c.name} 節點 ${v.id}：「${v.text}」沒有原樣出現在圖上`).toBe(true)
+      for (const e of g.edges) if (e.text) expect(shown.has(plain(e.text)), `${c.name} 邊 ${e.start}→${e.end}：「${e.text}」沒有原樣出現在圖上`).toBe(true)
+    }
+  }, 120000)
+})
+
+describe('Papers 頁面上的方塊圖與符號表（teaching-style §5、§8）', () => {
+  it('4 張圖各出現一次、順序與清單相同、都有圖說；新的三張有「先看…再看…」導讀並放在對應的表格／推導之前；符號表在頁尾（id="symbols"），頁首只留一行按鈕', () => {
+    localStorage.setItem('lmspll.mode', 'beginner')
+    const { container } = render(
+      <SettingsProvider>
+        <MemoryRouter initialEntries={['/papers']}>
+          <PapersPage />
+        </MemoryRouter>
+      </SettingsProvider>,
+    )
+    const before = (a: Element | null, b: Element | null, msg: string) => {
+      expect(a, msg).toBeTruthy()
+      expect(b, msg).toBeTruthy()
+      expect(a!.compareDocumentPosition(b!) & Node.DOCUMENT_POSITION_FOLLOWING, msg).toBeTruthy()
+    }
+
+    // ① 圖：與清單同序、各一次（Beginner 模式也全部看得到）
+    const figs = Array.from(container.querySelectorAll('figure.c-mermaid')) as HTMLElement[]
+    expect(figs.map((f) => f.getAttribute('data-chart'))).toEqual(PAPERS_CHARTS.map((c) => c.chart))
+    const el = (name: string) => figs[PAPERS_CHARTS.findIndex((c) => c.name === name)]
+    // ② 圖說是純文字（不用 Unicode 拼數學、不留 $）
+    const BAD = /[Ͱ-Ͽ²³¹⁰-₟≤≥≈≠≪≫⇒⇔√∑∝∞∂∠±∓$]/
+    for (const f of figs) {
+      const cap = f.querySelector('figcaption')?.textContent ?? ''
+      expect(cap.length, f.getAttribute('data-chart')?.slice(0, 40)).toBeGreaterThan(15)
+      expect(BAD.test(cap), cap).toBe(false)
+    }
+    // ③ 新的三張：導讀「先看…再看…」含 KaTeX，並對照圖上的方塊
+    for (const name of ['CHART_NUMBER_SOURCES', 'CHART_PAPER_MAP', 'CHART_CONVENTION_BRIDGE']) {
+      const walk = el(name).closest('.papers-diagram')?.querySelector('.papers-diagram-walk')
+      expect(walk?.textContent, name).toContain('先看')
+      expect(walk?.textContent, name).toContain('再看')
+      expect(walk?.textContent, name).toContain('圖上')
+      expect(walk?.querySelector('.katex'), name).toBeTruthy()
+    }
+    // ④ 位置：各在自己的段落內；文字說明 → 圖 → 表格／卡片／推導
+    const inside: [string, string][] = [
+      ['CHART_NUMBER_SOURCES', 'papers-policy'],
+      ['READING_PATH_CHART', 'papers-path'],
+      ['CHART_PAPER_MAP', 'papers-list'],
+      ['CHART_CONVENTION_BRIDGE', 'papers-conventions'],
+    ]
+    for (const [name, section] of inside) expect(el(name).closest(`#${section}`), `${name} 應在 #${section} 內`).toBeTruthy()
+    before(el('CHART_NUMBER_SOURCES'), container.querySelector('#papers-policy table'), '數字來源圖在三種類別的表格之前')
+    before(el('CHART_PAPER_MAP'), container.querySelector('#papers-D1'), '文獻對照圖在第一張文獻卡之前')
+    before(el('CHART_CONVENTION_BRIDGE'), container.querySelector('[id="formula-F-PR.1"]'), '步長換算圖在「差 2 倍」的推導之前')
+    before(container.querySelector('#papers-conventions table'), el('CHART_CONVENTION_BRIDGE'), '步長換算圖在手算例的表格之後')
+
+    // ⑤ 符號表：全頁只有一張，在 #symbols 裡；#symbols 是整頁最後一個區塊（§9 本頁必記之後）
+    const page = container.querySelector('.papers')!
+    const symbols = container.querySelector('#symbols') as HTMLElement
+    expect(page.lastElementChild).toBe(symbols)
+    expect(symbols.querySelector('h2')?.textContent).toBe('10. 本頁符號表')
+    before(container.querySelector('#papers-recap'), symbols, '符號表在「本頁必記」之後')
+    before(container.querySelector('.c-recap'), symbols, '符號表在 Recap 之後')
+    const tables = Array.from(container.querySelectorAll('.c-symbols'))
+    expect(tables).toHaveLength(1)
+    expect(symbols.contains(tables[0])).toBe(true)
+    expect(tables[0].querySelectorAll('tbody tr').length).toBe(SYMBOLS.length)
+    // ⑥ 頁首只留一行：是按鈕（HashRouter 下 href="#symbols" 會被當成路由），在 §1 之前
+    const link = Array.from(container.querySelectorAll('.papers-symbols-link button')).find((b) => b.textContent === '本頁符號表在最後 ↓') as HTMLButtonElement
+    expect(link).toBeTruthy()
+    before(link, container.querySelector('#papers-policy'), '連結在 §1 之前')
+    before(container.querySelector('.papers-lead'), link, '連結在導言之後')
+    expect(container.querySelectorAll('a[href="#symbols"], a[href$="#symbols"]')).toHaveLength(0)
+    expect((container.textContent ?? '').split('本頁符號表在最後').length).toBe(2)
+    // 按下去捲到 #symbols（jsdom 沒有 scrollIntoView，這裡裝一個替身）；符號表旁的「回到頁首」捲回導言
+    const scrolled: Element[] = []
+    const proto = Element.prototype as unknown as { scrollIntoView?: () => void }
+    const original = proto.scrollIntoView
+    proto.scrollIntoView = function (this: Element) {
+      scrolled.push(this)
+    }
+    try {
+      fireEvent.click(link)
+      expect(scrolled).toEqual([symbols])
+      const back = Array.from(symbols.querySelectorAll('button')).find((b) => b.textContent?.includes('回到頁首')) as HTMLButtonElement
+      fireEvent.click(back)
+      expect(scrolled[1]).toBe(container.querySelector('.papers-lead'))
+    } finally {
+      if (original) proto.scrollIntoView = original
+      else delete proto.scrollIntoView
+    }
+  }, 120000)
+})

@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Callout, ClaimTag, Prereq, Section, SourceTag, Tex, TexBlock } from '@/components'
 import { calPole, kqFromSigma, toneCorrelation, toneHandTable } from '@/simulation/models/polarity'
-import { ChapterSection, f, fx, JumpTo, radOf } from '../shared'
+import { ChapterDiagram, ChapterSection, f, fx, JumpTo, radOf } from '../shared'
 
 /** §1 一個問題 + 先算一次（數字先於公式）。表格中的每個數都由 toneHandTable 即時計算。 */
 export function S1Intro() {
@@ -22,7 +22,8 @@ export function S1Intro() {
           PLL：PLL 會反應、會追蹤、會延遲。<strong>PLL 的 error transfer 會不會讓 LMS 越校越歪？</strong>
         </p>
         <p className="ch06-keypoint">
-          答案：會。在正規化的慢速單參數模型中，只要相關 <Tex>{'C=E[x\\,u]<0'}</Tex>，任何正的 learning rate 都使平均誤差發散，而且
+          答案：會。把 DTC 的 code 叫做 <Tex>{'x'}</Tex>、PD 實際看到的（被主 PLL 濾過的）code 叫做 <Tex>{'u'}</Tex>，兩者逐拍相乘再平均就是<strong>相關</strong>{' '}
+          <Tex>{'C=E[x\\,u]'}</Tex>。在正規化的慢速單參數模型中，只要 <Tex>{'C<0'}</Tex>，任何正的 learning rate <Tex>{'\\mu'}</Tex>（每次更新的步長）都使平均誤差發散，而且
           <strong>
             把 <Tex>{'\\mu'}</Tex> 調小也救不回來
           </strong>
@@ -39,9 +40,21 @@ export function S1Intro() {
         </p>
         <p>
           GMAC 就是這樣做的：它把 comparator 的正負號 <Tex>{'q[n]'}</Tex> 乘上<strong>原始</strong> code <Tex>{'x[n]'}</Tex>。
-          但誤差在到達 comparator 之前已經被主 PLL「濾過」了，comparator 看到的是 <Tex>{'u=h*x'}</Tex>，不是 <Tex>{'x'}</Tex>。
+          但誤差在到達 comparator 之前已經被主 PLL「濾過」了，comparator 看到的是 <Tex>{'u=h*x'}</Tex>，不是 <Tex>{'x'}</Tex>（<Tex>{'h'}</Tex> 是主 PLL 對 DTC
+          誤差的脈衝響應，<Tex>{'*'}</Tex> 是卷積：<Tex>{'u[n]'}</Tex> 是現在與過去幾拍的 <Tex>{'x'}</Tex> 的加權和；§2 會從頭解釋）。
         </p>
       </Section>
+
+      <ChapterDiagram id="D-06.1">
+        <p>
+          先看兩條路：同一個 code <Tex>{'x[n]'}</Tex> 一份直接送到乘法器，另一份先穿過藍色的主 PLL 才變成回音 <Tex>{'u[n]'}</Tex>。再看下面的菱形：兩者逐拍相乘、平均之後只剩一個數{' '}
+          <Tex>{'C'}</Tex>，校正往哪個方向走，就看它的正負號。
+        </p>
+        <p>
+          對照下面的手算表：圖上藍色方塊的輸出就是表中 <Tex>{'u[n]=x[n]-\\sqrt3\\,x[n-1]'}</Tex> 那一欄，「×」就是最後一欄 <Tex>{'x[n]\\,u[n]'}</Tex>，「取平均」就是表下方的{' '}
+          <Tex>{'C=\\tfrac{1}{12}\\sum_n x[n]\\,u[n]'}</Tex>。
+        </p>
+      </ChapterDiagram>
 
       <Section kind="example" title="先算一次：12 個 sample 的手算">
         <p>
@@ -93,7 +106,10 @@ export function S1Intro() {
         <TexBlock>{String.raw`C=\frac{1}{12}\sum_{n=0}^{11}x[n]\,u[n]=\frac{${fx(sum, 4)}}{12}=${fx(t.mean, 4)}`}</TexBlock>
         <p>
           12 個乘積裡負的遠多於正的，平均是 <strong>負的</strong>。下一節會證明：GMAC 的平均輸出正比於這個 <Tex>{'C'}</Tex>，
-          而更新的「方向」取決於它的正負號。代入第 05 章的數字（<Tex>{'\\mu=10\\,\\mathrm{fs}'}</Tex>、<Tex>{'\\sigma_v=100\\,\\mathrm{fs}'}</Tex>{' '}
+          而更新的「方向」取決於它的正負號。先認識下表用到的幾個量：<Tex>{'\\delta=a-w'}</Tex> 是參數誤差（真實 gain <Tex>{'a'}</Tex> 減掉校正迴路目前的估計{' '}
+          <Tex>{'w'}</Tex>）；<Tex>{'\\mu'}</Tex> 是 learning rate；<Tex>{'\\sigma_v'}</Tex> 是 comparator 前雜訊的 RMS，<Tex>{'K_q=\\sqrt{2/\\pi}/\\sigma_v'}</Tex>{' '}
+          是第 05 章推導的 comparator 小訊號增益；<Tex>{'p=1-\\mu K_qC'}</Tex> 是平均誤差每過一個 GMAC block 被乘上的倍數（pole）——<Tex>{'p<1'}</Tex> 誤差縮小，
+          <Tex>{'p>1'}</Tex> 誤差放大。代入第 05 章的數字（<Tex>{'\\mu=10\\,\\mathrm{fs}'}</Tex>、<Tex>{'\\sigma_v=100\\,\\mathrm{fs}'}</Tex>{' '}
           ⇒ <Tex>{`K_q=${f(Kq, 6)}\\,\\mathrm{fs}^{-1}`}</Tex>）：
         </p>
         <div className="table-wrap">

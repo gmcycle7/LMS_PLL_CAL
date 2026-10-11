@@ -75,10 +75,10 @@ function pickOption(select: HTMLSelectElement, label: string) {
   fireEvent.change(select, { target: { value: opt.value } })
 }
 
-/** 去掉程式碼區塊後的可見文字（程式碼裡本來就有 $ 與 template literal） */
+/** 去掉程式碼區塊後的可見文字（程式碼裡本來就有 $ 與 template literal；TestBadge 提示框列的是別人測試的原始標題，不是 prose） */
 function proseText(c: HTMLElement): string {
   const clone = c.cloneNode(true) as HTMLElement
-  clone.querySelectorAll('pre, code, .katex, annotation').forEach((n) => n.remove())
+  clone.querySelectorAll('pre, code, .katex, annotation, .c-tip').forEach((n) => n.remove())
   return clone.textContent ?? ''
 }
 

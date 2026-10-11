@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import type { Data } from 'plotly.js-dist-min'
 import { Callout, ClaimTag, ModeGate, ParamControl, Plot, Prereq, Section, StepDerivation, Tex, TexBlock, mathText, useThemeTokens } from '@/components'
 import { DEFAULT_RULE, buildPlant, corrMatrix, logspace, tradeoffSweep, type RuleConfig } from '@/simulation/models/mimo'
-import { Advanced, Deriv, Erratum, Hand, TagRow, TryIt, n, tn } from '../common'
+import { Advanced, Deriv, Erratum, Fig, FigRef, Hand, TagRow, TryIt, n, tn } from '../common'
 import { NUM } from '../numbers'
 
 const rule = (r: Partial<RuleConfig>): RuleConfig => ({ ...DEFAULT_RULE, ...r })
@@ -111,10 +111,21 @@ export function S3Noise() {
         </TagRow>
         <Callout kind="info" title="直覺">
           <p>
-            慢方向之所以慢，是因為 GMAC 在那個方向「看到的訊號」只有 <Tex>{String.raw`K_q\lambda_{\min}\xi`}</Tex> 那麼小。反矩陣把這個方向的增益放大{' '}
+            慢方向之所以慢，是因為 GMAC 在那個方向「看到的訊號」只有 <Tex>{String.raw`K_q\lambda_{\min}\xi`}</Tex> 那麼小（<Tex>{String.raw`\xi`}</Tex> 是誤差沿慢 eigenvector 的分量，§10.3 的模式座標）。反矩陣把這個方向的增益放大{' '}
             <Tex>{String.raw`1/\lambda_{\min}`}</Tex> 倍——<strong>但 GMAC 雜訊在同一個方向也一起被放大</strong>。Preconditioner 可以加速，但不能製造缺失的資訊。
           </p>
         </Callout>
+        <p>
+          把 <FigRef id="eigen-modes" /> 的其中一條模式迴路單獨拿出來（這次用完整反矩陣），補上 GMAC 雜訊進來的位置，就能看出訊號和雜訊走的路不一樣長：
+        </p>
+        <Fig id="noise-path">
+          先跟著訊號走一圈：模式誤差 <Tex>{String.raw`\xi_i`}</Tex> 先乘 <Tex>{String.raw`K_q\lambda_i`}</Tex>（GMAC 沿這個方向看到的斜率，慢模式只有 <Tex>{String.raw`${tn(r.eig[1])}K_q`}</Tex>），再乘{' '}
+          <Tex>{String.raw`\gamma/(K_q\lambda_i)`}</Tex>，兩者相乘剛好是 <Tex>{String.raw`\gamma`}</Tex>，與 <Tex>{String.raw`\lambda_i`}</Tex> 無關——這就是「每個模式一樣快」。再跟著雜訊走：紅色的{' '}
+          <Tex>{String.raw`\zeta_i`}</Tex> 從中間的加法點進來，只經過後面那一塊，被乘上 <Tex>{String.raw`\gamma/(K_q\lambda_i)`}</Tex>：慢模式是 <Tex>{String.raw`${tn(r.eigMn[0])}/K_q`}</Tex>，快模式只有{' '}
+          <Tex>{String.raw`${tn(r.eigMn[1])}/K_q`}</Tex>。圖上的 <Tex>{String.raw`\zeta_i`}</Tex> 是 GMAC 雜訊 <Tex>{String.raw`\boldsymbol\eta`}</Tex> 沿第 <Tex>{'i'}</Tex> 個 eigenvector 的分量（下面推導第 3 步的{' '}
+          <Tex>{String.raw`\boldsymbol\zeta=\mathbf V^T\boldsymbol\eta`}</Tex>），它的變異 <Tex>{String.raw`\lambda_i/N`}</Tex> 是第 5 步；整個迴路寫成式子就是第 6 步的{' '}
+          <Tex>{String.raw`\xi_{i,k+1}=(1-\gamma)\xi_{i,k}-\tfrac{\gamma}{K_q\lambda_i}\zeta_{i,k}`}</Tex>，穩態變異就是 F-10.6。
+        </Fig>
         <Prereq title="變異數的兩條規則與 AR(1) 的穩態變異">
           <p>
             (1) <Tex>{String.raw`\operatorname{Var}(aX)=a^2\operatorname{Var}(X)`}</Tex>；(2) <Tex>{'X'}</Tex>、<Tex>{'Y'}</Tex> 獨立時{' '}
@@ -350,8 +361,15 @@ export function S3Noise() {
           <p>
             代入 scalar 的 <Tex>{String.raw`m_i=\mu K_q`}</Tex>：<Tex>{String.raw`1-p_i^2=\mu K_q\lambda_i(2-\mu K_q\lambda_i)\Rightarrow\operatorname{Var}(\xi_i)=\mu/\big(K_qN(2-\mu K_q\lambda_i)\big)`}</Tex>
             ——慢模式的雜訊幾乎與 <Tex>{String.raw`\lambda_i`}</Tex> 無關，因為增益沒有被放大。代入 full 的 <Tex>{String.raw`m_i=\gamma/\lambda_i`}</Tex> 就回到 F-10.6。對不共用 eigenvectors 的{' '}
-            <Tex>{String.raw`\mathbf M`}</Tex>（diagonal 遇到不等功率、<Tex>{String.raw`\hat{\mathbf J}\ne\mathbf J`}</Tex>、sequential），改用離散 Lyapunov 方程：
+            <Tex>{String.raw`\mathbf M`}</Tex>（diagonal 遇到不等功率、<Tex>{String.raw`\hat{\mathbf J}\ne\mathbf J`}</Tex>、sequential），不能再一個模式一個模式分開算，要直接追蹤整個共變異矩陣{' '}
+            <Tex>{String.raw`\mathbf X_k=\operatorname{Cov}(\boldsymbol\delta_k)`}</Tex> 每個 block 怎麼變：
           </p>
+          <Fig id="lyapunov">
+            先看右邊繞圈的那一路（綠色）：這個 block 的共變異 <Tex>{String.raw`\mathbf X_k`}</Tex> 被迴路矩陣夾成 <Tex>{String.raw`\mathbf A\mathbf X_k\mathbf A^T`}</Tex>（<Tex>{String.raw`\rho(\mathbf A)<1`}</Tex> 時是縮小）。再看左邊進來的那一路（紅色）：新的
+            GMAC 雜訊（共變異 <Tex>{String.raw`\mathbf R_x/N`}</Tex>）經過更新矩陣之後變成 <Tex>{String.raw`\mathbf M(\mathbf R_x/N)\mathbf M^T`}</Tex>，加進來。穩態就是「縮掉的」剛好等於「加進來的」：令{' '}
+            <Tex>{String.raw`\mathbf X_{k+1}=\mathbf X_k=\mathbf X`}</Tex> 就是下面的 F-10.15（離散 Lyapunov 方程）。它是本節先備知識裡 <Tex>{String.raw`V=p^2V+b^2s^2`}</Tex> 的矩陣版：圖上的{' '}
+            <Tex>{String.raw`\mathbf A`}</Tex> 對應 <Tex>{'p'}</Tex>、<Tex>{String.raw`\mathbf M`}</Tex> 對應 <Tex>{'b'}</Tex>、<Tex>{String.raw`\mathbf R_x/N`}</Tex> 對應 <Tex>{'s^2'}</Tex>。
+          </Fig>
           <TexBlock
             id="F-10.15"
             label={
@@ -385,7 +403,14 @@ export function S3Noise() {
         </TagRow>
         <p>
           折衷辦法：在求逆之前先加一個小常數 <Tex>{String.raw`\lambda_{\mathrm{reg}}`}</Tex>（規格寫 <Tex>{String.raw`\lambda`}</Tex>，與 eigenvalue 撞名，本章改名 <Erratum id="E22" />）。
+          效果是：大的 eigenvalue 幾乎不受影響，小的 eigenvalue 不再被放大成 <Tex>{String.raw`1/\lambda_i`}</Tex>，最多只放大到 <Tex>{String.raw`1/\lambda_{\mathrm{reg}}`}</Tex>。
         </p>
+        <Fig id="reg-compare">
+          先看中間三格的增益 <Tex>{'m'}</Tex>：一般 LMS 是 0.5；完整反矩陣把它放大到 <Tex>{String.raw`\gamma/\lambda_{\min}=${tn(r.eigMn[0])}`}</Tex>；regularized（藍色）在分母多加{' '}
+          <Tex>{String.raw`\lambda_{\mathrm{reg}}=0.1`}</Tex>，只放大到 <Tex>{String.raw`${tn(0.5 / (r.eig[1] + 0.1))}`}</Tex>。再看右邊的結果：<Tex>{'m'}</Tex> 越大，pole 離 1 越遠（越快），但每個參數的 RMS 也越大。圖上的{' '}
+          <Tex>{'m'}</Tex> 就是 F-10.7 的 <Tex>{'m_i'}</Tex>（更新矩陣沿慢 eigenvector 的增益），三個 pole 都是 <Tex>{String.raw`p=1-m\lambda_{\min}`}</Tex>；把 <Tex>{String.raw`m=\gamma/(\lambda_{\min}+\lambda_{\mathrm{reg}})`}</Tex> 代進去就是下面的
+          F-10.8。右邊的 RMS 是 §10.4 表格最後一欄（每個參數，不是每個模式）。
+        </Fig>
         <Deriv title="poles 與雜訊">
           <StepDerivation
             steps={[

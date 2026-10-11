@@ -21,6 +21,7 @@ import {
 import Chapter02 from './index'
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
+import { SYMBOLS } from './sections/Symbols'
 import { DEFAULT_CASE, DEFAULT_SHARED, caseWarnings, limitCycleLabel, sanitizeCase, sanitizeShared, stepsToSettle, unstableLabel } from './experiments/SignLmsCompare'
 import { tn } from './common'
 import { fixedPointConsistency, summarizeConsistency, texSig } from './experiments/consistency'
@@ -135,10 +136,87 @@ function caseFromPreset(id: string, which = 0): CaseConfig {
 }
 
 describe('Ch02 頁面（jsdom smoke）', () => {
-  it('完整章節可渲染：符號表、勘誤連結、五個實驗、程式碼比較、思考題與必記；TeX 全部可解析', async () => {
+  it('完整章節可渲染：章末符號表、勘誤連結、五個實驗、程式碼比較、思考題與必記；TeX 全部可解析', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
     const { container } = renderAt(<Chapter02 />)
-    expect(screen.getAllByText('本章符號').length).toBeGreaterThan(0)
+    // 符號表在章末（teaching-style §5）：只有一份，是頁面最後一個區塊（在「本課必記」與「下一個值得研究的問題」之後），外層 id="symbols"
+    expect(Array.from(container.querySelectorAll('.c-symbols-title')).map((e) => e.textContent)).toEqual(['本章符號'])
+    const FOLLOWING = Node.DOCUMENT_POSITION_FOLLOWING
+    const chapter = container.querySelector('.ch02')!
+    const symbols = document.getElementById('symbols')!
+    expect(symbols).toBeTruthy()
+    expect(chapter.lastElementChild).toBe(symbols)
+    expect(container.querySelectorAll('.c-symbols')).toHaveLength(1)
+    expect(symbols.querySelector('.c-symbols')).toBeTruthy()
+    expect(symbols.querySelectorAll('.c-symbols tbody tr')).toHaveLength(SYMBOLS.length)
+    expect(new Set(SYMBOLS.map((r) => r.symbol)).size).toBe(SYMBOLS.length)
+    expect(SYMBOLS.length).toBeGreaterThanOrEqual(30) // 原有的 30 列都還在（另外補上方塊圖用到的 q、G_k、ŷ…）
+    for (const before of ['.c-recap', '#ch02-s6', '[data-experiment="sign-lms-compare"]', '.c-section-assumptions:last-of-type'])
+      expect(container.querySelector(before)!.compareDocumentPosition(symbols) & FOLLOWING, `${before} 應在符號表之前`).toBeTruthy()
+    for (const el of Array.from(container.querySelectorAll('h2, .c-quiz, .c-handcalc, .c-recap, [data-diagram], [data-experiment]')).filter((e) => !symbols.contains(e)))
+      expect(el.compareDocumentPosition(symbols) & FOLLOWING).toBeTruthy()
+    // 章首只留一行：按鈕（不是會改變路由的 href）捲到 #symbols，並把焦點移過去；位置在 §1 之前
+    const jump = container.querySelector('.ch02-symbols-link button[data-jump="symbols"]') as HTMLButtonElement
+    expect(jump.textContent).toContain('本章符號表在最後')
+    expect(jump.compareDocumentPosition(container.querySelector('#ch02-s1')!) & FOLLOWING).toBeTruthy()
+    expect(container.querySelectorAll('.ch02-symbols-link')).toHaveLength(1)
+    expect(container.querySelector('.ch02 a[href="#symbols"], .ch02 a[href$="/symbols"]')).toBeNull()
+    const scrollSpy = vi.fn()
+    symbols.scrollIntoView = scrollSpy
+    act(() => {
+      fireEvent.click(jump)
+    })
+    expect(scrollSpy).toHaveBeenCalledTimes(1)
+    expect(document.activeElement).toBe(symbols)
+    // 章末有「回到章首」：捲回開場問題
+    const top = document.getElementById('ch02-top')!
+    expect(top.classList.contains('ch02-question')).toBe(true)
+    const topSpy = vi.fn()
+    top.scrollIntoView = topSpy
+    act(() => {
+      fireEvent.click(symbols.querySelector('button[data-jump="ch02-top"]')!)
+    })
+    expect(topSpy).toHaveBeenCalledTimes(1)
+    // 符號表不在章首了：每個符號第一次出現時，正文要就地用一句話說明（teaching-style §5）
+    const body = Array.from(chapter.children)
+      .filter((e) => e !== symbols)
+      .map((e) => e.textContent ?? '')
+      .join('\n')
+    for (const phrase of [
+      '是我們能調的係數（旋鈕）', // w（章首）
+      '是成本（cost）', // J(w)
+      '是藏在盒子裡、我們不知道的真實係數', // a
+      '（又叫 regressor）', // x
+      '（量到的減掉預測的）', // e = y − ŷ
+      '一個我們自己選的正數，決定每一步走多大', // μ
+      '（離谷底還差多少；全站一律是「真值減估計」）', // δ = a − w
+      '成本的二階導數：坡度隨位置變化得多快', // J''
+      '（量測時混進來、我們控制不了的隨機擾動）', // v
+      '是輸入功率（', // P_x
+      '（坡度為零的點，也叫固定點）', // w*
+      '（只用第', // ĝ_n
+      '資料的總筆數', // N
+      'batch 大小', // B
+      '是 block 的編號', // k
+      '的標準差，', // σ_v
+      '取正負號：正數給', // sign
+      '就是這顆 comparator 的 1-bit 輸出', // q
+      '（步長乘上輸入的大小，和誤差多大無關）', // h
+      '還沒越過', // n_c
+      '剩下的距離', // ρ
+      '（平均更新方向）', // ψ(w)
+      '只是取平均時把它當成一個固定的數', // d
+      '是雜訊在 0 的機率密度', // f_v(0)
+      '是起始步長', // μ₀
+      '是時間常數（走到第', // n₀
+      '叫做梯度雜訊變異', // σ_η²
+      '是避免除以零的小常數', // ε
+      '是除過之後的步長，沒有單位', // μ̃
+      '是誤差與輸入的位元數', // B_e、B_x
+      '每單位步長的 loop gain', // K
+      '（正規化 loop gain）', // g
+    ])
+      expect(body, `正文缺少就地說明：${phrase}`).toContain(phrase)
     const errata = Array.from(container.querySelectorAll('a.ch02-erratum'))
     const ids = new Set(errata.map((a) => /E\d\d/.exec(a.textContent ?? '')?.[0]))
     for (const id of ['E40', 'E41', 'E43']) expect(ids.has(id), id).toBe(true)

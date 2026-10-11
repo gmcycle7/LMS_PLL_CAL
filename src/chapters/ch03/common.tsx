@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
-import { ClaimTag, HandCalc, mathText, StepDerivation, Tex, TexBlock, type Step } from '@/components'
+import { ClaimTag, HandCalc, mathText, Mermaid, StepDerivation, Tex, TexBlock, type Step } from '@/components'
 import { useSettings } from '@/app/settings'
 import type { ClaimKind } from '@/data/types'
+import { figNo, figRef } from './diagrams'
 import { formulaById } from './formulas'
 import { handcalcById } from './handcalcs'
 
@@ -22,6 +23,26 @@ export function texText(src: string): ReactNode {
   const parts = src.split('$')
   if (parts.length % 2 === 0) throw new Error(`ch03 tx：$ 不成對：${src}`)
   return <>{parts.map((p, i) => (i % 2 ? <Tex key={i}>{p}</Tex> : p))}</>
+}
+
+/**
+ * 方塊圖（Mermaid）＋ 圖號 ＋ 圖說（docs/teaching-style.md §8）。
+ * 圖說交給共用 Mermaid 元件的 caption（放在 <figure> 裡的 <figcaption>；`$…$` 會以 KaTeX 排版，規範 §3），前面自動加上圖號。
+ * chart 必須登錄在 diagrams.ts 的 DIAGRAMS（圖號由登錄順序決定；diagrams.test.tsx 檢查頁面順序與登錄順序一致）。
+ * `$` 不成對時丟出錯誤（和 tx 一樣，由單元測試抓到），避免圖說裡留下沒有排版的 TeX。
+ */
+export function Fig({ chart, caption, ariaLabel }: { chart: string; caption: string; ariaLabel: string }) {
+  if (caption.split('$').length % 2 === 0) throw new Error(`ch03 Fig：圖說的 $ 不成對：${caption}`)
+  return (
+    <div className="ch03-fig" data-fig={figNo(chart)}>
+      <Mermaid chart={chart} caption={`${figRef(chart)}｜${caption}`} ariaLabel={ariaLabel} />
+    </div>
+  )
+}
+
+/** 捲到本頁的某個錨點（HashRouter：不可用 href="#id"，那會被當成路由） */
+export function scrollToId(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 /** 驗證頁上某一條勘誤的連結（HashRouter；驗證頁以 `?e=Exx` 捲到並標示該條勘誤） */

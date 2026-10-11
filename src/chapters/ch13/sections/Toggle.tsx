@@ -3,6 +3,7 @@ import type { Data } from 'plotly.js-dist-min'
 import {
   Callout,
   ClaimTag,
+  Mermaid,
   Plot,
   Prereq,
   Section,
@@ -13,6 +14,7 @@ import {
 } from '@/components'
 import { lineSpectrum, toggleCycle, zohGain2, zohLines } from '@/simulation/models/quantizer'
 import { Erratum, Fold, Hand, db, fx, tx } from '../common'
+import { CHART_TOGGLE, CHART_TOGGLE_SPECTRUM, CHART_ZOH } from '../diagrams'
 
 export function ToggleSection() {
   const tokens = useThemeTokens()
@@ -59,8 +61,18 @@ export function ToggleSection() {
   return (
     <Section kind="formula" title="§13.2 方法 B：在 32 與 33 之間週期切換" level={2} id="ch13-toggle">
       <p>
-        想要平均 32.4，就讓 5 次裡有 2 次輸出 33、3 次輸出 32。規格用的序列是 <Tex>{String.raw`[32,32,33,32,33]`}</Tex>。先手算平均：
+        想要平均 32.4，就讓 5 次裡有 2 次輸出 33、3 次輸出 32。規格用的序列是 <Tex>{String.raw`[32,32,33,32,33]`}</Tex>。把 <Tex>{'w^*'}</Tex> 拆成整數部分{' '}
+        <Tex>{String.raw`\lfloor w^*\rfloor=32`}</Tex> 與小數部分 <Tex>{String.raw`p=\mathrm{frac}(w^*)=0.4`}</Tex>：<Tex>{'p'}</Tex> 就是「有多少比例的時間要輸出上面那一階」。
       </p>
+      <Mermaid
+        chart={CHART_TOGGLE}
+        caption="方法 B 的方塊圖。先看左邊：$w_H$ 被拆成整數 32 與小數 $p$，$p$ 決定一個週期裡要進位幾次；再看藍色兩塊：一個計數器加一個固定的 pattern。整張圖沒有從輸出拉回來的線（開迴路）。"
+      />
+      <p className="small ch13-figwalk">
+        圖上的 <Tex>{'L_t'}</Tex> 是 pattern 的週期（本例 5）、<Tex>{'h'}</Tex> 是一個週期裡「進位」（輸出 33）的次數、<Tex>{String.raw`n'=n\bmod L_t`}</Tex> 是這一拍在 pattern 裡的位置（計數器的值）、<Tex>{'s[n]'}</Tex> 是每一拍的進位指示（0 或 1）。圖中把 <Tex>{'w_H'}</Tex> 當成常數 <Tex>{String.raw`w^*=32.4`}</Tex>。圖上 pattern 方塊裡的式子就是下面公式 F-13.3 的{' '}
+        <Tex>{String.raw`\lfloor(n'+1)h/L_t\rfloor-\lfloor n'h/L_t\rfloor`}</Tex>，輸出 <Tex>{String.raw`y[n]=\lfloor w^*\rfloor+s[n]`}</Tex>。因為沒有回授，這個電路不知道自己的平均對不對：<Tex>{'pL_t'}</Tex> 不是整數時就會留下 static error。
+      </p>
+      <p>先手算平均：</p>
       <div className="table-wrap">
         <table className="ch13-table" aria-label="toggle pattern 的逐點手算：code、誤差、累積和與到目前的平均">
           <thead>
@@ -133,6 +145,14 @@ export function ToggleSection() {
         <strong>6-bit code 的更新率</strong>（
         <Erratum id="E47" />）。
       </p>
+      <Mermaid
+        chart={CHART_TOGGLE_SPECTRUM}
+        caption={String.raw`週期 5 的誤差怎麼變成兩條譜線。先看中間三個分支：$k=0$ 是平均（0），$k=1$ 與 $4$、$k=2$ 與 $3$ 各自合成一條實頻率的譜線；再看右邊：兩條線的功率相加剛好是時域的 $0.24\,\mathrm{LSB}^2$，紅色那條（$2f_u/5$）才是主 spur。`}
+      />
+      <p className="small ch13-figwalk">
+        圖上的 <Tex>{'c_k'}</Tex> 是誤差在頻率 <Tex>{String.raw`kf_u/5`}</Tex> 的成分（傅立葉係數，定義見下面的先備知識），就是公式裡的 <Tex>{String.raw`c_k=\tfrac15\sum_n e[n]e^{-j2\pi kn/5}`}</Tex>；圖上的 <Tex>{String.raw`\times2`}</Tex> 就是線功率{' '}
+        <Tex>{String.raw`P_k=2|c_k|^2`}</Tex> 裡的 2（正、負頻率各一份）。下面的推導就是照著圖由左到右算一次。
+      </p>
       <Prereq title="複數指數、週期序列的 DFT 與 Parseval">
         <p>
           Euler 公式：<Tex>{String.raw`e^{j\theta}=\cos\theta+j\sin\theta`}</Tex>，所以 <Tex>{String.raw`\cos\theta=\frac{e^{j\theta}+e^{-j\theta}}2`}</Tex>、
@@ -188,6 +208,14 @@ export function ToggleSection() {
         <p>
           若 code 以 <Tex>{'f_u'}</Tex> 更新，但 DTC 以 <Tex>{String.raw`f_s=N_hf_u`}</Tex> 取樣（每個 code 保持 <Tex>{'N_h'}</Tex> 個 reference cycle；<Tex>{'N_h'}</Tex> 就是實驗裡的 <Tex>{String.raw`N_\mathrm{upd}`}</Tex>），
           保持（zero-order hold）會把譜線複製到所有 <Tex>{String.raw`k f_u/5`}</Tex>（<Tex>{String.raw`k\ne5m`}</Tex>），並乘上離散 <Tex>{String.raw`\mathrm{sinc}^2`}</Tex> 權重：
+        </p>
+        <Mermaid
+          chart={CHART_ZOH}
+          caption="code 更新得比 DTC 取樣慢時。先看藍色的 ZOH：同一個 code 被重複 $N_h$ 次；再看右邊：譜線被複製到所有 $k f_u/5$，每一條乘上離散 sinc 的平方，$k$ 是 5 的倍數時剛好落在零點。"
+        />
+        <p className="small ch13-figwalk">
+          注意兩個索引：圖上的 <Tex>{'e[n]'}</Tex> 以「第幾次 code 更新」<Tex>{'n'}</Tex> 為索引（取樣率 <Tex>{'f_u'}</Tex>），<Tex>{'z[m]'}</Tex> 以「第幾個 reference cycle」<Tex>{'m'}</Tex> 為索引（取樣率 <Tex>{'f_s'}</Tex>）。圖上的{' '}
+          <Tex>{'G_k'}</Tex> 就是下面公式的權重，圖上的 <Tex>{'P_k'}</Tex> 就是 <Tex>{String.raw`P_k^{\mathrm{ZOH}}`}</Tex>。
         </p>
         <TexBlock id="F-13.5">{String.raw`P_k^{\mathrm{ZOH}}=2|c_{k\bmod 5}|^2\,G_k^2,\qquad G_k=\frac{\sin(\pi k/5)}{N_h\sin(\pi k/(5N_h))}`}</TexBlock>
         <StepDerivation

@@ -1,6 +1,6 @@
 import { useMemo, type ReactNode } from 'react'
 import type { Data } from 'plotly.js-dist-min'
-import { Callout, ClaimTag, ModeGate, Plot, Prereq, Section, SourceTag, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, Mermaid, ModeGate, Plot, Prereq, Section, SourceTag, Tex, TexBlock } from '@/components'
 import { cAbs, cArg } from '@/simulation/core'
 import { freqz } from '@/simulation/signal'
 import {
@@ -11,6 +11,7 @@ import {
   pathTransfer,
   type FxPathSpec,
 } from '@/simulation/models/filteredX'
+import { CHART_DELAY_LINE, CHART_TWO_TONES, CHART_VOTING } from '../diagrams'
 import { FoldSteps } from '../FoldSteps'
 import { ErratumNote } from '../ErratumNote'
 import { Hand } from '../Hand'
@@ -135,6 +136,20 @@ export function S3LinearPhase() {
       <p>
         上一節的修正之所以成功，是因為 code 只有<strong>一個頻率</strong>。延遲 <Tex>{'D'}</Tex> 個 sample 在頻率域是什麼？
       </p>
+      <p>
+        先看硬體長什麼樣子。延遲就是一條 shift register（delay line）：code 每個 sample 往後移一格，GMAC 用一個 MUX 選要讀第幾格（tap）。讀第 <Tex>{'D'}</Tex> 格，拿到的就是
+        <Tex>{'D'}</Tex> 個 sample 以前的 code。
+      </p>
+      <Mermaid
+        chart={CHART_DELAY_LINE}
+        caption={r`Delay line + tap MUX（圖上畫 4 級）：每多經過一個藍色的 register，同一個頻率的相位就多落後 $\Omega$（線上標的是每個 tap 的相位），所以落後量與 $D$ 成正比；暫存器 REG_GMAC_DLY（名稱為示意）決定 MUX 讀哪一個 tap。`}
+      />
+      <p>
+        先看串在一起的藍色 register：每一格是一級 <Tex>{'B'}</Tex>-bit 的暫存器（<Tex>{'B'}</Tex> 是 code 的位元數），圖上畫了 4 級，T07 的例子讀的是第 4 格。再看每一格接到 MUX 的線：線上標的
+        <Tex>{r`0,\,-\Omega,\,-2\Omega,\dots`}</Tex> 是頻率 <Tex>{r`\Omega`}</Tex> 的 tone 在那一格的相位——每多一格固定多落後 <Tex>{r`\Omega`}</Tex>，所以落後量和
+        <Tex>{'D'}</Tex> 成正比，也和頻率成正比。MUX 的輸出就是公式裡的 <Tex>{'x[n-D]'}</Tex>；下面的推導把「第 <Tex>{'D'}</Tex> 格的相位是 <Tex>{r`-\Omega D`}</Tex>」用 DTFT 寫出來，結果就是
+        <Tex>{r`z^{-D}\leftrightarrow e^{-j\Omega D}`}</Tex>。
+      </p>
       <Prereq title="Z 轉換（Z-transform）：用一個符號代表「延遲一個 sample」">
         <p>
           Z 轉換把序列寫成冪級數：<Tex>{r`X(z)=\sum_n x[n]\,z^{-n}`}</Tex>（<Tex>{'z'}</Tex> 是複數變數）。延遲一個 sample 的序列
@@ -177,10 +192,27 @@ export function S3LinearPhase() {
         <Tex>{r`180^\circ`}</Tex>（<Tex>{r`H_{\mathrm{PD}}\approx-(\Omega/\omega_nT_s)^2`}</Tex>），在高頻趨近 <Tex>{r`0^\circ`}</Tex>，中間是一條彎曲的相位曲線，
         不可能用一條直線 <Tex>{r`-\Omega D`}</Tex> 抵消。 <ClaimTag kind="exact" />
       </p>
+      <p className="small muted">
+        這裡與後面會用到的三個 PLL 參數：<Tex>{r`\omega_nT_s`}</Tex> 是主迴路的自然頻率（natural frequency）換算成每個 sample 轉幾 rad（大約是迴路頻寬的位置）；
+        <Tex>{r`\zeta`}</Tex> 是阻尼（damping，決定頻率響應的峰有多高）；<Tex>{'d'}</Tex> 是迴路裡額外的 pipeline latency，單位是 sample（<Tex>{'d=0'}</Tex> 表示只有最基本的一拍）。
+      </p>
 
       <h3 className="ch07-subhead">
         頻率容忍度：對準 <Tex>{'\\Omega_0'}</Tex> 之後，偏離多少就失效？
       </h3>
+      <p>
+        先用一張圖看「同一個 <Tex>{'D'}</Tex> 給兩個頻率用」會發生什麼事：
+      </p>
+      <Mermaid
+        chart={CHART_TWO_TONES}
+        caption={r`同一條 delay line（藍色，$D=4$）對兩個 tone：對準的 tone 1 投正票（綠），頻率兩倍的 tone 2 多轉了 $120^\circ$，投負票（紅）。這裡假設兩個頻率的 $\phi$ 相同，是最樂觀的情況。`}
+      />
+      <p>
+        先看 tone 1 那一框：<Tex>{'D=4'}</Tex> 是為它選的，<Tex>{r`\theta_1=-120^\circ+4\times30^\circ=0^\circ`}</Tex>。再看 tone 2 那一框：delay line 只有一條，<Tex>{'D'}</Tex> 還是 4，但
+        tone 2 每個 sample 轉 <Tex>{r`60^\circ`}</Tex>，同樣 4 格就轉了 <Tex>{r`240^\circ`}</Tex>，<Tex>{r`\theta_2=+120^\circ`}</Tex>、<Tex>{r`\cos\theta_2=-0.5`}</Tex>。圖上 tone 2 的
+        <Tex>{r`\theta_2`}</Tex> 就是下面公式的 <Tex>{r`(\Omega-\Omega_0)D=(60^\circ-30^\circ)\times4`}</Tex>。兩票最後依各自的權重
+        <Tex>{r`\tfrac{A_i^2}{2}|H_i|`}</Tex>（<Tex>{'A_i'}</Tex>、<Tex>{'|H_i|'}</Tex> 是第 <Tex>{'i'}</Tex> 個 tone 的振幅與誤差路徑增益）加總，總和是正是負要看誰的票比較重——稍後的 F-07.7。
+      </p>
       <p>
         假設誤差路徑在附近的相位近似常數（最樂觀的情況），在 <Tex>{'\\Omega_0'}</Tex> 對齊（<Tex>{r`\phi+\Omega_0D=0`}</Tex>）後，換到 <Tex>{'\\Omega'}</Tex>：
       </p>
@@ -256,6 +288,18 @@ export function S3LinearPhase() {
       </Hand>
 
       <h3 className="ch07-subhead">多頻 code：把每個頻率的貢獻加起來</h3>
+      <p>
+        code 不只一個頻率時，GMAC 的相關是「每個頻率各投一票」的總和。先看計算流程，再推導：
+      </p>
+      <Mermaid
+        chart={CHART_VOTING}
+        caption={r`$C_D$ 的計算流程：每個頻率的票有多重，看「code 功率乘上 $|H|$」；這一票是正是負，看藍色方塊的 $\cos(\phi+\Omega D)$。兩者相乘、全部加總後的符號，決定 pole 在 1 的哪一邊。`}
+      />
+      <p>
+        先看標著「這一票有多重」的方塊：code 在這個頻率的功率（單一 tone 是 <Tex>{r`A_i^2/2`}</Tex>；寬頻 code 是功率譜密度 <Tex>{r`S_{xx}`}</Tex>，本節後面的先備知識會解釋），乘上誤差路徑的增益
+        <Tex>{'|H|'}</Tex>。再看藍色方塊，它決定這一票是贊成還是反對，就是上一張圖每個 tone 的 <Tex>{r`\cos\theta`}</Tex>。兩者相乘是一個頻率的票，最後把所有頻率加起來：只有幾個 tone 時是求和（下面的 F-07.7），頻譜連續時是積分（再下面的
+        F-07.8）——兩個公式是同一張圖，只是「加總」那一格的寫法不同。
+      </p>
       <FoldSteps
         steps={[
           { tex: r`x[n]=\sum_i A_i\cos(\Omega_i n+\vartheta_i)`, why: <>幾個 tone 疊加（頻率互異、都在 <Tex>{r`(0,\pi)`}</Tex>）。</> },

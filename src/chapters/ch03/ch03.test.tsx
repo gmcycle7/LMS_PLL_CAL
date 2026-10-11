@@ -75,7 +75,17 @@ describe('Chapter 03 smoke test（jsdom）', () => {
     for (const id of ['fixed-x', 'random-mean', 'mean-square', 'almost-sure', 'heavy-tail', 'lab', 'compare', 'pll', 'quiz']) {
       expect(container.querySelector(`#${id}`), id).not.toBeNull()
     }
-    expect(container.querySelector('.c-symbols tbody tr')).not.toBeNull()
+    // 符號表改放章末（教學規範 §5）：整章只有一張，在 #symbols 裡，而且是頁面的最後一塊；章首只留一行按鈕
+    expect(container.querySelectorAll('.c-symbols')).toHaveLength(1)
+    expect(container.querySelector('#symbols .c-symbols tbody tr')).not.toBeNull()
+    expect(container.querySelector('.ch03')!.lastElementChild).toBe(container.querySelector('#symbols'))
+    expect(Array.from(container.querySelectorAll('button')).filter((b) => b.textContent?.includes('本章符號表在最後'))).toHaveLength(1)
+    // 方塊圖（教學規範 §8）：章首的系統地圖 + 23 張有圖號的圖（語法與內容由 diagrams.test.tsx 以真正的 mermaid 檢查）
+    expect(container.querySelectorAll('figure.c-mermaid')).toHaveLength(24)
+    expect(container.querySelectorAll('.ch03-fig figure.c-mermaid')).toHaveLength(23)
+    // 每張圖的圖說都是共用 Mermaid 元件的 <figcaption>，以圖號開頭（圖 3-1 … 圖 3-23）
+    const figcaps = Array.from(container.querySelectorAll('.ch03-fig figure.c-mermaid > figcaption.c-figcaption'))
+    expect(figcaps.map((c) => (c.textContent ?? '').split('｜')[0])).toEqual(Array.from({ length: 23 }, (_, i) => `圖 3-${i + 1}`))
     for (const f of ['F-03.1', 'F-03.3', 'F-03.5', 'F-03.6', 'F-03.7', 'F-03.9', 'F-03.11', 'F-03.12', 'F-03.14', 'F-03.16', 'F-03.18']) {
       expect(container.querySelector(`[id="formula-${f}"]`), f).not.toBeNull()
     }
@@ -134,6 +144,8 @@ describe('Chapter 03 smoke test（jsdom）', () => {
     expect(inOrder(fm('F-03.5'), hc(3), '#mean-square', fm('F-03.7'), hc(4), fm('F-03.11'), hc(5), '#almost-sure')).toBe(true)
     expect(inOrder(fm('F-03.10'), hc(6), '#heavy-tail', fm('F-03.18'), hc(7), fm('F-03.16'))).toBe(true)
     expect(inOrder('#pll', '#synthesis', hc(8), '#quiz')).toBe(true)
+    // 頁面骨架：開場問題 → 符號表連結 → 系統地圖 → 各節 → 思考題 → 本課必記 → 符號表
+    expect(inOrder('#ch03-top', '.ch03-symbols-link', 'figure.c-mermaid', '#fixed-x', '#quiz', '.c-recap', '#symbols')).toBe(true)
     expect(container.querySelectorAll('.c-handcalc .c-step').length).toBeGreaterThanOrEqual(8 * 7)
     // HC-03.3 的預設值（五階 code）就是它正前方內文的數字例；每個等號只做一種運算（1 − μx²：先乘、再減）
     const meanSec = srcText(at(hc(3)).closest('.c-section') as HTMLElement)
@@ -273,8 +285,8 @@ describe('Chapter 03 smoke test（jsdom）', () => {
     expect(srcText(prereq.querySelector('summary')!)).toContain(String.raw`／$\pm A$ 三種分布`)
     expect(text).toMatch(/用「對原點」的動差/)
     expect(text).toMatch(/heavy tail（厚尾）/)
-    const rows = Array.from(container.querySelectorAll('.c-symbols tbody tr')).map((tr) => tr.textContent ?? '')
-    expect(rows.length).toBeGreaterThanOrEqual(20)
+    const rows = Array.from(container.querySelectorAll('#symbols .c-symbols tbody tr')).map((tr) => tr.textContent ?? '')
+    expect(rows.length).toBeGreaterThanOrEqual(26)
     // a、w_n、δ_n 的單位是 [y]/[x]（由 y = a·x 推得），MSD 是其平方
     expect(rows.filter((r) => r.includes('[y]/[x]')).length).toBeGreaterThanOrEqual(4)
     expect(container.querySelector('a[href="#/case/sspll"]')).not.toBeNull()

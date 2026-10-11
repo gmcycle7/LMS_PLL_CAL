@@ -4,7 +4,8 @@ import judgesSrc from '../judges.ts?raw'
 import { kq, requiredBlocks, secantRatio, slopeStdErr } from '../judges'
 import { PolarityPerturbExperiment } from '../experiments/PolarityPerturb'
 import { SspllJacobianExperiment } from '../experiments/SspllJacobian'
-import { ErratumNote, HandCalcSlot, Steps, nf, tx } from '../shared'
+import { CHART_FREEZE_MEASURE } from '../diagrams'
+import { Diagram, ErratumNote, HandCalcSlot, Steps, nf, tx } from '../shared'
 
 const PATH = 'src/pages/signoff/judges.ts'
 
@@ -44,6 +45,19 @@ export function S2Polarity() {
           若量測期間 <Tex>{'w'}</Tex> 還在更新，<Tex>{'w'}</Tex> 會被 LMS 自己拉回固定點，「<Tex>{'+\\Delta'}</Tex>」與「<Tex>{'-\\Delta'}</Tex>」兩個工作點就混在一起，量到的斜率被稀釋（甚至看起來為 0）。
           另外每次改變 <Tex>{'w'}</Tex> 後要丟掉主 PLL settling 期間的 block，並<strong>交錯</strong>量測 <Tex>{'+\\Delta'}</Tex>／<Tex>{'-\\Delta'}</Tex>，讓慢漂移（PVT、<Tex>{'1/f'}</Tex>）在兩側相同而被差分抵消。
         </Callout>
+        <Diagram
+          chart={CHART_FREEZE_MEASURE}
+          caption="freeze ±Δ 的量測流程：兩個工作點各量 M 個 block 取平均，相減除以 2Δ 得斜率，取負號得恢復力，再與標準誤比較做三分法判決。"
+          ariaLabel="freeze 加減 Delta 量測極性的流程圖：把 w 凍結後分別推到 w0 加 Delta 與 w0 減 Delta，各量 M 個 block 得 G 正與 G 負，相減後除以 2 Delta 得斜率，取負號得恢復力，與標準誤比較後判決為 pass、reversed 或 inconclusive"
+        >
+          <p>
+            先看左邊的兩個方塊：<Tex>{'w'}</Tex> 被人為推到 <Tex>{'w_0\\pm\\Delta'}</Tex>，GMAC 的 block 平均 <Tex>{'\\bar G_\\pm'}</Tex> 是量到的東西（<Tex>{'k'}</Tex> 數的是 block）。加法點的兩條進線一正一負，輸出{' '}
+            <Tex>{'\\bar G_+-\\bar G_-'}</Tex>，除以 <Tex>{'2\\Delta'}</Tex> 就是斜率 <Tex>{'\\hat S'}</Tex>，加負號得到恢復力 <Tex>{'\\hat K=-\\hat S'}</Tex>（極性正確時 <Tex>{'\\hat K>0'}</Tex>）。
+          </p>
+          <p>
+            右邊的三個出口是三分法判決（<Tex>{'z'}</Tex> 是單邊信心倍數，標準誤 <Tex>{'\\mathrm{se}'}</Tex> 來自 F-SO.3）：顯著為正是 pass，顯著為負是 reversed，介於其間不能下結論——要加大 <Tex>{'M'}</Tex>、<Tex>{'\\Delta'}</Tex> 或換一個 FCW 再量。
+          </p>
+        </Diagram>
       </Section>
 
       <Section kind="example" title={String.raw`2.1 先算一次（$\sigma_v=100$ fs、$C=1$、$\Delta=20$ fs、$N=4096$、$M=8$）`}>

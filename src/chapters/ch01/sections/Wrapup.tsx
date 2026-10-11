@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { ClaimTag, ModelLevel, Quiz, Recap, Section, StepDerivation, Tex } from '@/components'
 import { batchOptima } from '@/simulation/models/lms'
 import { generateLossData, runVariantOnData, signErrorLatticeStationary, type LossDataParams } from '@/simulation/models/lossCompare'
-import { ChapterHandCalc, Erratum, PllLink, texNum } from '../common'
+import { BlockDiagram, ChapterHandCalc, Erratum, PllLink, texNum } from '../common'
 
 const SPEED = { a: 3, mu: 0.05, tol: 0.1, delta0: [1, 10, 100] }
 /** 思考題 3 的資料與兩個步長（用 lattice Markov 鏈精確算 Sign-Error 的穩態） */
@@ -69,6 +69,15 @@ export function WrapupSection() {
   return (
     <>
       <Section kind="assumptions" title="2.6 演算法比較總表與適用條件" level={2} id="ch01-s26">
+        <p>
+          四種演算法怎麼選？實務上不是「哪個數學比較漂亮」，而是「硬體給你什麼」。先用一張判斷流程圖抓住主幹，再看下面的總表：
+        </p>
+        <BlockDiagram id="D-01.21">
+          先看最上面的菱形：誤差是多位元（知道大小）還是只有 1 bit（只知道正負）。多位元時走左邊，再問資料有沒有 outlier；只有 1 bit 時走右邊，再問 regressor{' '}
+          <Tex>{'x'}</Tex> 的大小有沒有留著。藍色方塊是 PLL 校正迴路的位置：comparator 只給 <Tex>{String.raw`\operatorname{sign}(e)`}</Tex>、DSM code 是多位元，所以是 Sign-Error LMS。
+          圖上四個方塊裡的更新量 <Tex>{String.raw`\Delta w`}</Tex> 取平均、令它為 0，就是下表的「固定點條件」；方塊裡的「目標」對應下表「最小化的成本」與「
+          <Tex>{String.raw`x\equiv1`}</Tex> 時的目標」兩列。
+        </BlockDiagram>
         <div className="table-wrap">
           <table className="ch01-table">
             <thead>
@@ -259,7 +268,10 @@ export function WrapupSection() {
           校正迴路中，PD 後面的 1-bit comparator（BBPD）只給 <Tex>{String.raw`q=\operatorname{sign}(e)`}</Tex>，所以硬體 LMS 天生就是
           Sign-Error LMS，它追的是 <Tex>{String.raw`E[q\,x]=0`}</Tex>（MAE 型、加權中位數）的固定點：
           <ul>
-            <li>DSM code <Tex>{'x'}</Tex> 是 regressor，GMAC 計算 <Tex>{String.raw`\sum q\,x`}</Tex>，gain update 就是 <Tex>{String.raw`w\leftarrow w+\mu G`}</Tex>。</li>
+            <li>
+              DSM code <Tex>{'x'}</Tex> 是 regressor，GMAC 計算 <Tex>{String.raw`\sum q\,x`}</Tex>，gain update 就是 <Tex>{String.raw`w\leftarrow w+\mu G`}</Tex>（
+              <Tex>{'G'}</Tex> 是 GMAC 的輸出，也就是那個總和，或它除以筆數的平均）。
+            </li>
             <li>
               comparator 的 tie（<Tex>{'e'}</Tex> 恰好在門檻上）在硬體只能是 <Tex>{'+1'}</Tex> 或 <Tex>{'-1'}</Tex>：這就是本章的{' '}
               <Tex>{String.raw`\operatorname{sign}(0)`}</Tex> 慣例 <Erratum id="E40" />；定點 accumulator 正是本章的「整數 code」模型。
@@ -283,6 +295,14 @@ export function WrapupSection() {
           Sign-Error 追<strong>中位數</strong>（§2.3）；兩者的抖動分別來自 F-01.15 與 F-01.18。中位數那一步要查常態表（或用題目提示裡的手算近似），
           公式是 §2.4（Research 模式才顯示）的 F-01.17——不用切換模式，步驟會直接帶你算。
         </p>
+        <BlockDiagram id="D-01.22">
+          題目有 14 個步驟，但只有兩條線：上面一列是 Conventional LMS，下面一列是 Sign-Error。每一列都是「先算偏移（目標被 outlier 拉走多少），再算抖動（在目標附近晃多大）」。
+          先看上面：偏移 <Tex>{String.raw`\varepsilon s`}</Tex> 與變異數裡的 <Tex>{String.raw`\varepsilon(1-\varepsilon)s^2`}</Tex> 都含有 outlier 的大小 <Tex>{'s'}</Tex>，
+          所以偏移與抖動這兩個答案（紅色）都跟著 <Tex>{'s'}</Tex> 變大。再看下面：四格裡完全沒有 <Tex>{'s'}</Tex>，只有 outlier 出現的機率 <Tex>{'\\varepsilon'}</Tex> 與雜訊的標準差{' '}
+          <Tex>{String.raw`\sigma_v`}</Tex>，偏移與抖動（綠色）都和 outlier 多大無關。
+          圈號對應下面題目的步驟；圖上的 <Tex>{String.raw`\Phi^{-1}`}</Tex> 是標準常態分布的反函數（查表）、<Tex>{String.raw`\varphi(z)`}</Tex> 是標準常態密度，
+          <Tex>{String.raw`\tilde v`}</Tex> 是含 outlier 的總雜訊，最後兩個 std 分別來自 F-01.15 與 F-01.18。
+        </BlockDiagram>
         <ChapterHandCalc id="HC-01.8">
           先猜猜看：outlier 大小加倍時，哪一個演算法的偏移與抖動會跟著（幾乎）加倍，哪一個完全不變？用紙筆、計算機（<Tex>{String.raw`\sqrt{\ }`}</Tex>、<Tex>{'e^x'}</Tex>）和常態表算完後，到 §2.5 的
           MSE vs MAE Lab 載入 preset「DC 估計 + 10% outlier（s = 20）」，對照指標表的「母體最佳解」「LMS 穩態標準差」「擴散近似」三列。

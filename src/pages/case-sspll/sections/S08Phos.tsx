@@ -1,8 +1,8 @@
 import { Callout, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock } from '@/components'
 import { useMemo } from 'react'
-import { W1, W_SQUARE, analyseAlpha, kappaInfWorst, kappaRational, largeSignalPeriodic, makeL1 } from '@/simulation/models/sspll'
+import { W1, W_SQUARE, analyseAlpha, indicatorLineWeight, kappaInfWorst, kappaRational, largeSignalPeriodic, makeL1 } from '@/simulation/models/sspll'
 import { DOC_PHOS, FREF_MHZ, LOOPS, PARAMS, PRED, SIM_CFG, SURE, SURE_GOLDEN, WORKED, type LoopKey } from '../data'
-import { Claim, DataTable, Formula, HandLink, Kappa, ModelCode, Sci, Src, TryIt, fs, fx, intervalsText, r, tx } from '../common'
+import { Claim, DataTable, Diagram, Formula, HandLink, Kappa, ModelCode, Sci, Src, TryIt, fs, fx, intervalsText, r, tx } from '../common'
 import { SignMapExplorer } from '../experiments/SignMapExplorer'
 
 const fold = (fMHz: number): number => Math.min(fMHz, FREF_MHZ - fMHz)
@@ -50,6 +50,16 @@ export function S08Phos() {
           </li>
         </ul>
       </Prereq>
+      <p>
+        PHOS 有 8 個權重、8 條 one-hot regressor，平均梯度是一個 <Tex>{r`8\times8`}</Tex> 矩陣。它不用硬算：8 個相位排成一圈、地位相同，所以矩陣是 circulant，可以換到「模態」的座標，一個模態一個模態分開看，每個模態只剩一個數 <Tex>{r`\lambda_m`}</Tex>（模態 <Tex>{'m'}</Tex> 的特徵值；正規化成{' '}
+        <Tex>{r`\kappa_m=8\lambda_m`}</Tex>，沒有迴路時等於 1）。
+      </p>
+      <Diagram id="phos-modes" />
+      <p>
+        先由左往右看前四格：PMUX 的相位索引 <Tex>{'p[n]'}</Tex> 產生 8 條 one-hot，它們的矩陣只依賴兩個相位的差，所以特徵向量就是 DFT 向量。再看分出來的五格，每一格是一個（或一對共軛的）模態，裡面寫的是它最強那條譜線的頻率與權重：mode 1（藍色）的基波就是 PMUX 繞一圈的頻率{' '}
+        <Tex>{r`\alpha f_{ref}`}</Tex>，權重 <Tex>{'W_1'}</Tex> 高達 {fx(W1 * 100, 0)}%；mode 2、3、4 的基波在 2、3、4 倍的頻率，權重是 {fx(64 * indicatorLineWeight(2) * 100, 0)}%、{fx(64 * indicatorLineWeight(3) * 100, 0)}%、{fx(W_SQUARE * 100, 0)}%（mode 4 是 <Tex>{r`\ell=\pm4`}</Tex> 兩條線合計）。共模（<Tex>{'m=0'}</Tex>）只有 DC，被迴路完全吸收。圖上每一格的「權重」就是下面推導第 4 步的{' '}
+        <Tex>{r`w_\ell=64\sin^2(\pi\ell/8)/(\pi^2\ell^2)`}</Tex>（<Tex>{r`\ell`}</Tex> 是譜線編號，第 <Tex>{r`\ell`}</Tex> 條線的頻率是 <Tex>{r`\ell\alpha f_{ref}`}</Tex>），「基波」是 <Tex>{r`\ell=m`}</Tex> 的那一條。
+      </p>
       <StepDerivation
         steps={[
           {
@@ -115,6 +125,14 @@ export function S08Phos() {
       </p>
 
       <h3>8.2 嚴格的 mode-1 界限：「一定反號」與「不可能反號」</h3>
+      <p>
+        mode-1 有 95% 的權重在基波，但還有 5% 散在別的頻率。只看基波會不會誤判？把剩下的 5% 想成「不知道落在哪裡」，分別放在對你最有利與最不利的頻率，就得到 <Tex>{r`\kappa_1`}</Tex> 的上下界：
+      </p>
+      <Diagram id="mode1-bounds" />
+      <p>
+        先看最上面一格：算出 PMUX 旋轉頻率 <Tex>{'f_{rot}'}</Tex>（折回 <Tex>{r`[0,f_{ref}/2]`}</Tex> 之後）上的 <Tex>{r`h=\mathrm{Re}\,H_{PD}`}</Tex>。再看兩個菱形：第一個問「就算其餘權重全放在 <Tex>{r`\mathrm{Re}\,H_{PD}`}</Tex> 最大的頻率，總和還是負的嗎？」是的話一定反號；第二個問「就算其餘權重全放在{' '}
+        <Tex>{r`\mathrm{Re}\,H_{PD}`}</Tex> 最小的頻率，總和還是不為負嗎？」是的話不可能反號。兩個菱形裡的式子就是下面推導第 2 步的上界與下界（raw regressor 時 <Tex>{r`\Gamma=H_{PD}`}</Tex>）；第一個菱形移項之後就是第 3 步。
+      </p>
       <StepDerivation
         steps={[
           { tex: r`\kappa_1=W_1\,\mathrm{Re}\Gamma(\alpha)+\textstyle\sum_{\ell\ne1}w_\ell\,\mathrm{Re}\Gamma(\ell\alpha)`, why: '把基波從和裡拿出來。' },
@@ -230,7 +248,17 @@ export function S08Phos() {
         <strong>
           (c) <Tex>{r`\alpha\approx\tfrac14,\tfrac12`}</Tex> 的 alias 區。
         </strong>{' '}
-        設 <Tex>{r`\alpha=\tfrac14+\delta`}</Tex>，每拍 <Tex>{'p'}</Tex> 前進 <Tex>{r`2+8\delta`}</Tex>：
+        這兩個頻道的 <Tex>{r`\alpha f_{ref}`}</Tex> 是 {fx(FREF_MHZ / 4, 0)}、{fx(FREF_MHZ / 2, 0)} MHz，mode-1 的基波離反號帶很遠。但別的模態的基波會被取樣「折回」低頻，還是可能掉進反號帶。先看圖：
+      </p>
+      <Diagram id="alias" />
+      <p>
+        先看前三格：mode 4 的 regressor 是 <Tex>{r`(-1)^{p[n]}`}</Tex>（奇偶相交替）。<Tex>{'p[n]'}</Tex> 是奇數還是偶數，只看 <Tex>{r`4\varphi[n]`}</Tex> 的小數部分落在前半還是後半；而 <Tex>{r`4\varphi`}</Tex> 每拍前進 <Tex>{r`4\alpha`}</Tex>，<Tex>{r`\alpha=\tfrac14`}</Tex>{' '}
+        時剛好前進一整圈，看起來完全不動。<Tex>{r`\alpha`}</Tex> 稍微偏離 <Tex>{r`\tfrac14`}</Tex>，每拍只多走 <Tex>{r`4(\alpha-\tfrac14)`}</Tex> 圈，這條 regressor 就變成一個很慢的方波，頻率是 <Tex>{r`4\lvert\alpha-\tfrac14\rvert f_{ref}`}</Tex>——PMUX 明明轉得很快，mode 4 卻落在低頻，這就是
+        alias。再看菱形與紅色那一格：方波的基波權重是 <Tex>{`8/\\pi^2\\approx${tx(W_SQUARE, 2)}`}</Tex>，比 mode-1 的 <Tex>{`W_1\\approx${tx(W1, 2)}`}</Tex> 小；就算基波落在 <Tex>{r`\mathrm{Re}\,H_{PD}`}</Tex> 最負的頻率，其餘權重全放在最有利的頻率時 <Tex>{r`\kappa`}</Tex>{' '}
+        的上界仍然是正的，所以不能保證反號，實際上是正負近乎抵消的 dead zone。圖上的 <Tex>{r`4\lvert\alpha-\tfrac14\rvert f_{ref}`}</Tex> 就是下面第一點的 <Tex>{r`4\delta`}</Tex>（乘上 <Tex>{r`f_{ref}`}</Tex>），紅色那一格的不等式就是清單後面那一句。
+      </p>
+      <p>
+        把式子寫出來：設 <Tex>{r`\alpha=\tfrac14+\delta`}</Tex>（<strong>只在這一小段</strong>，<Tex>{r`\delta`}</Tex> 是頻道偏移 <Tex>{r`\alpha-\tfrac14`}</Tex>，不是權重誤差），每拍 <Tex>{'p'}</Tex> 前進 <Tex>{r`2+8\delta`}</Tex>：
       </p>
       <ul>
         <li>
@@ -272,7 +300,7 @@ export function S08Phos() {
             <Tex>{`\\kappa_{PHOS}=${tx(tryNums.fx01, 4)}`}</Tex> 仍為正；降到 0.05 才真的反號（<Tex>{`\\kappa_{PHOS}=${tx(tryNums.fx005, 4)}`}</Tex>）。臨界值是「對任何 <Tex>{r`\alpha`}</Tex> 都保證安全」的界線，不是「一低於就反號」的界線。
           </>,
           <>
-            把 <Tex>{r`\alpha f_{ref}`}</Tex> 設為 127 MHz、<Tex>{r`N_\tau=25`}</Tex>：<Tex>{`\\kappa_1=${tx(tryNums.edge.re, 4)}+${tx(tryNums.edge.im, 4)}j`}</Tex>，<Tex>{r`\mathrm{Re}\,\kappa>0`}</Tex> 但{' '}
+            把 <Tex>{r`\alpha f_{ref}`}</Tex> 設為 127 MHz、<Tex>{r`N_\tau=25`}</Tex>（<Tex>{r`N_\tau`}</Tex> 是沒有迴路時 LMS 的時間常數，單位是 block；它越小，步長越大）：<Tex>{`\\kappa_1=${tx(tryNums.edge.re, 4)}+${tx(tryNums.edge.im, 4)}j`}</Tex>，<Tex>{r`\mathrm{Re}\,\kappa>0`}</Tex> 但{' '}
             <Tex>{`\\lvert\\kappa\\rvert^2/(2N_\\tau)=${tx((tryNums.edge.re ** 2 + tryNums.edge.im ** 2) / 50, 4)}`}</Tex> 更大，有限步長判據顯示不穩定；把 <Tex>{r`N_\tau`}</Tex> 加大到 50 就穩定了（§12）。
           </>,
         ]}

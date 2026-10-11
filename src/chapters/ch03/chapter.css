@@ -233,3 +233,31 @@
   margin: 0 0 -8px;
   font-size: 0.92rem;
 }
+
+/* 方塊圖（Fig）：外框負責上下間距；圖說是共用 Mermaid 元件的 <figcaption>（圖號在最前面） */
+.ch03-fig {
+  margin: 16px 0;
+  min-width: 0;
+}
+.ch03-fig .c-mermaid {
+  margin: 0;
+}
+
+/* 章首：「本章符號表在最後」那一行 */
+.ch03-symbols-link {
+  margin: 4px 0 12px;
+  font-size: 0.92rem;
+}
+
+/* 章末的符號表（#symbols）：捲過去時不被頂端列蓋住 */
+.ch03-symbols {
+  margin-top: 2.2rem;
+  scroll-margin-top: calc(var(--topbar-h) + 12px);
+}
+.ch03-symbols-back {
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+}
+.ch03-lead {
+  scroll-margin-top: calc(var(--topbar-h) + 12px);
+}

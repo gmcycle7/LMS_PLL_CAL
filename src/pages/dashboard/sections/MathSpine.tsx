@@ -1,8 +1,8 @@
 import { memo, useMemo } from 'react'
-import { ClaimTag, HandCalc, Mermaid, ModeGate, Prereq, StepDerivation, SymbolTable, Tex, TexBlock, type SymbolEntry } from '@/components'
+import { ClaimTag, HandCalc, Mermaid, ModeGate, Prereq, StepDerivation, Tex, TexBlock } from '@/components'
 import { useSettings } from '@/app/settings'
 import { SIX_CONDITIONS } from '../data'
-import { CONDITION_MAP_CHART, CONDITION_MAP_LEGEND } from '../diagrams'
+import { BLOCK_EQUATION_CHART, CONDITION_MAP_CHART, CONDITION_MAP_LEGEND } from '../diagrams'
 import {
   DEFAULT_PARAMS,
   blocksTo95,
@@ -15,7 +15,7 @@ import {
   polarityOf,
 } from '../thesisModel'
 import { handcalc } from '../handcalcs'
-import { ErratumLink, Rich, scrollToId } from '../ui'
+import { DiagramWalk, ErratumLink, Rich, scrollToId } from '../ui'
 
 const R = (t: string) => <Rich text={t} />
 
@@ -38,50 +38,6 @@ const texSci = (x: number, d = 4) => {
   const [m, e] = x.toExponential(d - 1).split('e')
   return `${Number(m)}\\times10^{${Number(e)}}`
 }
-
-const SYMBOLS: SymbolEntry[] = [
-  { symbol: 'a', meaning: '理想（真實）校正係數，例如 DTC gain', unit: '\\mathrm{fs}', firstSeen: '§0', note: <>單位 = [PD error]/[code]（<ErratumLink eid="E13" />）</> },
-  { symbol: 'w_k', meaning: R('第 $k$ 個 GMAC block 使用的係數'), unit: '\\mathrm{fs}', firstSeen: '§0' },
-  { symbol: '\\delta_k=a-w_k', meaning: '剩餘參數誤差', unit: '\\mathrm{fs}', firstSeen: '§0', note: <>全站極性（規格 §3 原寫 <Rich text="$w-a$" />，<ErratumLink eid="E32" />）</> },
-  { symbol: 'w^*,\\ \\Delta w=w^*-a', meaning: 'LMS 的平均固定點，與它相對真值的偏移（gain bias）', unit: '\\mathrm{fs}', firstSeen: '§11', note: R('推導 2：$\\Delta w=B/C$') },
-  { symbol: '\\delta w_k=w_k-w^*', meaning: R('相對固定點的係數雜訊（極性與 $\\delta$ 相反）'), unit: '\\mathrm{fs}', firstSeen: '§12', note: <ErratumLink eid="E33" /> },
-  { symbol: 'x[n]', meaning: R('DSM / DTC code（regressor），$n$ 為 comparator sample'), firstSeen: '§0', note: '正規化、無因次' },
-  { symbol: 'P_x=E[x^2]', meaning: R('code 功率；單頻 $x=A\\cos\\Omega n$ 時 $P_x=A^2/2$'), firstSeen: '§6.1', note: <>僅 <Rich text="$0<\Omega<\pi$" />（<ErratumLink eid="E46" />）</> },
-  { symbol: 'u[n]=(h*x)[n]', meaning: '經 PLL error path 到 PD 的有效 regressor', firstSeen: '§0', note: <>與 <Rich text="$x$" /> 同單位（<ErratumLink eid="E13" />）</> },
-  { symbol: '|H|,\\ \\phi', meaning: R('error path $H(e^{j\\Omega})$ 在 code 頻率的幅度與相位'), unit: '1,\\ {}^\\circ', firstSeen: '§6.1', note: R('離散時間響應，不可代入 $H(j\\Omega)$（勘誤 E44）') },
-  { symbol: '\\Omega', meaning: 'code 的離散角頻率', unit: '\\mathrm{rad/sample}', firstSeen: '§6.1' },
-  { symbol: 'D', meaning: 'GMAC 的 code delay', unit: '\\mathrm{samples}', firstSeen: '§7', note: R('與 $d$（blocks）不同') },
-  { symbol: '\\theta=\\phi+\\Omega D', meaning: '補償後的殘餘相位', unit: '{}^\\circ', firstSeen: '§7' },
-  { symbol: 'M_{\\mathrm{pol}}=\\arcsin(\\cos\\theta)', meaning: '極性裕度（polarity margin）', unit: '{}^\\circ', firstSeen: '§8.1', note: <>規格寫 <Rich text="$90^\circ-|\mathrm{wrap}_{180}(\theta)|$" />（<ErratumLink eid="E20" />）；加下標以免和更新矩陣 <Rich text="$\mathbf M$" /> 混淆</> },
-  {
-    symbol: '\\varepsilon_{\\mathrm{det}}[n]',
-    meaning: R('與 code 相關的 deterministic 干擾總和：$\\varepsilon_{\\mathrm{det}}=b+d(x)+\\varepsilon_{\\mathrm{cc}}$（offset、INL、code-correlated deterministic error）'),
-    unit: '\\mathrm{fs}',
-    firstSeen: '§11',
-    note: <>規格原以 <Rich text="$u$" /> 表示其中一項，與上面的 <Rich text="$u$" /> 衝突，改名（<ErratumLink eid="E12" />）</>,
-  },
-  { symbol: 'v[n]', meaning: R('comparator 前的隨機雜訊，RMS 為 $\\sigma_v$'), unit: '\\mathrm{fs}', firstSeen: '§0' },
-  { symbol: 'e[n]=e_{\\mathrm{det}}[n]+v[n]', meaning: R('comparator 的輸入；$e_{\\mathrm{det}}=(a-w)\\,u+\\varepsilon_{\\mathrm{det}}$ 是其中不含隨機雜訊的部分'), unit: '\\mathrm{fs}', firstSeen: '§5、§11' },
-  { symbol: 'q[n]=\\mathrm{sign}(e[n])', meaning: '1-bit comparator 輸出', unit: '\\pm1', firstSeen: '§0', note: R('硬體 0/1 先映射 $q=2b-1$') },
-  { symbol: 'K_q=\\sqrt{2/\\pi}/\\sigma_v', meaning: 'comparator 的統計小訊號增益', unit: '\\mathrm{fs}^{-1}', firstSeen: '§5.1' },
-  { symbol: 'C=E[x\\,u]', meaning: 'code 與有效 regressor 的相關（決定極性）', firstSeen: '§6', note: R('單頻：$C=P_x|H|\\cos\\theta$') },
-  { symbol: 'B=E[x\\,\\varepsilon_{\\mathrm{det}}]', meaning: '干擾與 code 的相關（決定 bias）', unit: '\\mathrm{fs}', firstSeen: '§11.4' },
-  { symbol: 'G_k', meaning: R('GMAC block 平均 $\\tfrac1N\\sum_n q[n]\\,x[n-D]$，$k$ 為 block 索引'), firstSeen: '§0', note: <>sum 模式要再乘 <Rich text="$s=N$" />（average 時 <Rich text="$s=1$" />；<ErratumLink eid="E18" />）</> },
-  { symbol: '\\eta_k,\\ \\sigma_\\eta^2', meaning: R('$G_k$ 的零均值隨機部分（GMAC 雜訊）與它的變異數，$\\sigma_\\eta^2\\approx P_x/N$'), firstSeen: '§12', note: <ErratumLink eid="E30" /> },
-  { symbol: '\\mu', meaning: '學習率（average-mode GMAC）', unit: '\\mathrm{fs}', firstSeen: '§0' },
-  { symbol: 'g=\\mu K_qC,\\ p=1-g', meaning: '正規化 loop gain 與 calibration pole（無因次）', firstSeen: '§8.2' },
-  { symbol: 'd,\\ g^*(d)', meaning: R('係數 commit 延遲，與該延遲下的臨界 loop gain $g^*=2\\sin\\frac{\\pi}{4d+2}$'), unit: '\\mathrm{blocks},\\ 1', firstSeen: '§8.3' },
-  { symbol: 'y_m', meaning: R('校正迴路的脈衝響應（第 $m$ 個 block 還剩多少），$\\sum_m y_m^2$ 是白雜訊的功率增益'), firstSeen: '推導 6' },
-  { symbol: '\\sigma_w', meaning: R('係數 $w_k$ 在固定點附近的穩態 RMS（gain-equivalent，不是輸出 jitter）'), unit: '\\mathrm{fs}', firstSeen: '§12.1' },
-  { symbol: '\\mathbf R,\\ \\tilde{\\mathbf R},\\ \\lambda_{\\min}', meaning: R('有效 regressor 的自相關矩陣 $\\mathbf R=E[\\mathbf u\\mathbf u^T]=|H|^2P_x\\tilde{\\mathbf R}$、正規化後的 $\\tilde{\\mathbf R}$（特徵值 $\\tilde\\lambda_i$）與最小特徵值'), firstSeen: '§9' },
-  { symbol: '\\rho,\\ \\kappa', meaning: R('兩個 regressor 的相關係數，與 condition number $\\kappa=\\lambda_{\\max}/\\lambda_{\\min}$'), firstSeen: '§9、§10.1' },
-  { symbol: '\\mathbf M', meaning: R('多參數的更新矩陣：$\\mathbf w_{k+1}=\\mathbf w_k+\\mathbf M\\,\\mathbf G_k$；一般 LMS $\\mathbf M=\\mu\\mathbf I$，preconditioned $\\mathbf M=\\mu\\tilde{\\mathbf R}^{-1}$'), unit: '\\mathrm{fs}', firstSeen: '§10' },
-  { symbol: '\\boldsymbol\\xi=\\mathbf V^T\\boldsymbol\\delta', meaning: R('eigen-mode 座標下的參數誤差（$\\mathbf V$ 的欄是 $\\tilde{\\mathbf R}$ 的特徵向量）'), unit: '\\mathrm{fs}', firstSeen: '§10.1', note: <ErratumLink eid="E05" /> },
-  { symbol: 'N,\\ f_s,\\ f_u=f_s/N', meaning: 'block 長度、comparator 取樣率、block 更新率', unit: '\\mathrm{samples},\\ \\mathrm{Hz},\\ \\mathrm{Hz}', firstSeen: '§0' },
-  { symbol: '\\delta t[n],\\ \\sigma_{\\delta t}', meaning: R('DTC 實際延遲與理想延遲的差 $(w_k-a)\\,x[n]$，與它的 RMS（DTC-referred）'), unit: '\\mathrm{fs}', firstSeen: '§12.2', note: <>同一個 block 內 <Rich text="$w_k$" /> 不變（block rate 的係數以 ZOH 展開到每個 sample，<ErratumLink eid="E09" />）</> },
-  { symbol: 'A_t,\\ \\beta', meaning: R('code tone 的 timing 幅度（peak）與對應的輸出相位調變指數 $\\beta=2\\pi f_{\\mathrm{out}}|T|A_t$'), unit: '\\mathrm{fs},\\ \\mathrm{rad}', firstSeen: '§12.4' },
-  { symbol: 'f_{\\mathrm{out}},\\ |T|', meaning: 'PLL 輸出頻率，與 output transfer 在 tone 頻率偏移處的幅度', unit: '\\mathrm{Hz},\\ 1', firstSeen: '§12.3' },
-]
 
 /** 用同一條線性化方程式推出六個條件中的 2–5 號（極性、穩定、variance、bias），並補上延遲與多參數。 */
 export const MathSpine = memo(function MathSpine() {
@@ -127,7 +83,9 @@ export const MathSpine = memo(function MathSpine() {
         DTC 輸出，第一個（identifiability）是它的多參數版本。先把它推出來，你就知道每一章在放大哪一個項。
       </p>
 
-      <SymbolTable title="本頁符號（$n$ 為 comparator sample、$k$ 為 GMAC block）" rows={SYMBOLS} />
+      <p className="small muted">
+        兩個時間索引：<Tex>{'n'}</Tex> 數的是 comparator sample，<Tex>{'k'}</Tex> 數的是 GMAC block（每 <Tex>{'N'}</Tex> 個 sample 一個）。其餘符號在第一次出現時說明；完整的符號表在本頁最後。
+      </p>
 
       <h3 className="dash-h3">先看圖：校正迴路與六個條件的位置</h3>
       <Mermaid
@@ -240,6 +198,27 @@ export const MathSpine = memo(function MathSpine() {
           <ErratumLink eid="E06" />）。
         </p>
       </Prereq>
+
+      <h3 className="dash-h3">再看一張圖：把那一圈畫成一條方程式</h3>
+      <p>
+        上面那張圖畫的是硬體方塊。現在把每個方塊換成它在「平均」意義下做的事——乘一個數，或加一個數——整個校正迴路就變成一張可以直接寫成方程式的訊號流圖。先認得四個符號：
+        <Tex>{'\\delta_k=a-w_k'}</Tex> 是第 <Tex>{'k'}</Tex> 個 block 還剩多少參數誤差（真值 <Tex>{'a'}</Tex> 減目前的係數 <Tex>{'w_k'}</Tex>）；<Tex>{'C'}</Tex> 是 code 與它造成的誤差之間的相關；<Tex>{'B'}</Tex> 是 code
+        與「不是 gain 誤差造成的」干擾之間的相關；<Tex>{'\\eta_k'}</Tex> 是這個 block 的 GMAC 雜訊。
+      </p>
+      <DiagramWalk
+        chart={BLOCK_EQUATION_CHART}
+        caption="線性化的 block 方程式畫成訊號流：三個藍色方塊相乘就是 loop gain，棕色的干擾決定 bias，雜訊每個 block 都重新加進來一次。下面的推導 1 到 3 只是把這張圖一段一段寫成數學。"
+        ariaLabel="線性化 block 方程式的訊號流圖：真值減去係數得到參數誤差，乘上相關 C、加上干擾 B、乘上 comparator 增益、加上 GMAC 雜訊得到 GMAC 輸出，乘上學習率後進累加器，累加器的輸出以負號回授"
+      >
+        <p>
+          先看 <Tex>{'a'}</Tex> 進去的那個加法點：真值是「＋」，回授的係數 <Tex>{'w_k'}</Tex> 是「−」，所以它的輸出是 <Tex>{'\\delta_k=a-w_k'}</Tex>（全站極性）。順著箭頭走到底，就是推導 1 的第四行{' '}
+          <Tex>{'G_k=K_q(C\\,\\delta_k+B)+\\eta_k'}</Tex>；再乘 <Tex>{'\\mu'}</Tex> 進累加器，就是更新律 <Tex>{'w_{k+1}=w_k+\\mu G_k'}</Tex>。
+        </p>
+        <p>
+          圖上三個藍色方塊相乘是 loop gain <Tex>{'g=\\mu K_qC'}</Tex>：<Tex>{'C'}</Tex> 的正負決定這一圈是負回授還是正回授（條件 2），<Tex>{'g'}</Tex> 的大小決定會不會修過頭（條件 3）。棕色的 <Tex>{'B'}</Tex> 從旁邊加進來，迴路只會把{' '}
+          <Tex>{'C\\,\\delta+B'}</Tex> 修到 0，所以停在 <Tex>{'\\delta^*=-B/C'}</Tex> 而不是 0（條件 5）。<Tex>{'\\eta_k'}</Tex> 每個 block 重新抽一次，迴路只能把它平均、不能消掉（條件 4）。
+        </p>
+      </DiagramWalk>
 
       <details className="dash-details" open={atLeast('engineer')} key={`spine-1-${mode}`}>
         <summary>推導 1：線性化 block 方程式 → pole（條件 2、3）</summary>

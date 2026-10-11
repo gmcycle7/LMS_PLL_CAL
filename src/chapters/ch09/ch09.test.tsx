@@ -2,12 +2,13 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider, type LearningMode } from '@/app/settings'
 import { presetById, presetsForExperiment } from '@/app/presets'
-import { MathText, listRegions } from '@/components'
+import { MathText, listRegions, systemMapChart } from '@/components'
 import peSrc from '@/simulation/models/pe.ts?raw'
 import mimoPy from '../../../golden/lms_pll_golden/mimo.py?raw'
 import { gaugeAnalysis, gaugeDriftStd, peAnalytic, simulatePeLab } from '@/simulation/models/pe'
 import { designDtLoop } from '@/simulation/models/pll'
 import Chapter09 from './index'
+import { CH09_DIAGRAMS, SYSTEM_FOCUS } from './diagrams'
 import { FORMULAS } from './formulas'
 import { PE_DEFAULT, PE_LIMITS, blocksForConvergence, derivedGain, mcModalCheck, sanitizePeState, switchDetector, switchKqMode } from './experiments/peLabState'
 import { GAUGE_DEFAULT, gaugeTfTex, gaugeWarningTex, sanitizeGaugeState, toGaugeParams } from './experiments/gaugeLabState'
@@ -93,7 +94,22 @@ describe('Ch09 smoke test（jsdom）', () => {
   it.each(['beginner', 'engineer', 'research'] as const)('以 %s 模式渲染整章不拋錯、沒有 React 警告', async (mode) => {
     const { container } = renderChapter('/ch/09', mode)
     expect(screen.getByText('這一課要回答的問題')).toBeTruthy()
-    expect(container.querySelector('.c-symbols')).toBeTruthy()
+    // 符號表移到章末（docs/teaching-style.md §5）：只有一張，是整章最後一個區塊（id="symbols"），在「本課必記」之後；
+    // 章首（第一節之前）只留一行「本章符號表在最後」的按鈕
+    const root = container.querySelector('.ch09') as HTMLElement
+    const symbols = root.lastElementChild as HTMLElement
+    expect(symbols.id).toBe('symbols')
+    expect(container.querySelectorAll('.c-symbols')).toHaveLength(1)
+    expect(symbols.querySelector('.c-symbols')).toBeTruthy()
+    const follows = (a: Element, b: Element) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+    expect(follows(container.querySelector('.c-recap') as Element, symbols)).toBe(true)
+    expect(follows(container.querySelector('#ch09-pll') as Element, symbols)).toBe(true)
+    const symbolsLink = Array.from(container.querySelectorAll('button')).find((b) => b.textContent?.includes('本章符號表在最後'))
+    expect(symbolsLink).toBeTruthy()
+    expect(follows(symbolsLink as Element, container.querySelector('#ch09-intro') as Element)).toBe(true)
+    // 方塊圖（docs/teaching-style.md §8）：章首系統地圖＋本章清單的每一張，三種模式都顯示（不藏在 ModeGate 裡）
+    expect(container.querySelectorAll('figure.c-mermaid')).toHaveLength(CH09_DIAGRAMS.length + 1)
+    expect(Array.from(container.querySelectorAll('.ch09-diagram')).map((el) => el.getAttribute('data-diagram'))).toEqual(CH09_DIAGRAMS.map((d) => d.id))
     expect(container.querySelectorAll('.c-quiz').length).toBeGreaterThanOrEqual(3)
     expect(container.querySelector('.c-recap')).toBeTruthy()
     expect(container.querySelectorAll('.c-prereq').length).toBeGreaterThanOrEqual(6)
@@ -118,6 +134,11 @@ describe('Ch09 smoke test（jsdom）', () => {
     await waitFor(() => expect(container.textContent).toContain('的輸出逐點重合'), WAIT)
     expect(container.textContent).toContain(String.raw`\boldsymbol\theta'`)
     expect(screen.queryByText(/執行失敗|計算失敗/)).toBeNull()
+    // 送進 Mermaid 的原始碼：系統地圖（本章的 focus）與清單裡的每一張圖（語法由 diagrams.test.tsx 以真正的 parser 檢查）
+    const rendered = (mermaidMock.render.mock.calls as unknown as unknown[][]).map((c) => c[1])
+    expect(rendered).toContain(systemMapChart(SYSTEM_FOCUS))
+    for (const d of CH09_DIAGRAMS) expect(rendered, d.id).toContain(d.chart)
+    expect(container.querySelectorAll('.c-mermaid-error')).toHaveLength(0)
     expect(reactWarnings()).toEqual([])
     // 各模式（含 ModeGate 才顯示的內容）都沒有 KaTeX 解析錯誤
     expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)

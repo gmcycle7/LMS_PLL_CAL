@@ -51,8 +51,15 @@ describe('FormulasPage（jsdom smoke：三種學習模式）', () => {
   it('Engineer：六個段落 + 思考題都渲染；KaTeX、程式碼區塊、算出來的數字都沒有錯誤；勘誤與頁面連結正確', () => {
     const { container } = mountAt(<FormulasPage />, { mode: 'engineer' })
     for (const id of ['fr-intro', 'fr-symbols', 'fr-units', 'fr-quick', 'fr-registry', 'fr-limits', 'fr-glossary', 'fr-wrapup']) expect(container.querySelector(`#${id}`), id).toBeTruthy()
-    // 本頁符號（SymbolTable）在頁首
-    expect(container.querySelector('#fr-intro .c-symbols')).toBeTruthy()
+    // 本頁新增的符號（SymbolTable）在頁面最底端（teaching-style §5），外層 id="symbols"；頁首只留一行連結。全站符號總表（§1）是本頁的主要內容，位置不變。
+    const symbols = q(container, '#symbols')
+    expect(symbols.querySelector('.c-symbols')).toBeTruthy()
+    expect(container.querySelectorAll('#symbols').length).toBe(1)
+    expect(container.querySelector('#fr-intro .c-symbols')).toBeNull()
+    expect(q(container, '[data-testid="formulas-page"]').lastElementChild).toBe(symbols)
+    expect(q(container, '#fr-wrapup').compareDocumentPosition(symbols) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(q(container, '#fr-intro .fr-symbols-link').textContent).toContain('本頁新增的記號表在最後 ↓')
+    expect(q(container, '#fr-symbols .fr-sym-table')).toBeTruthy()
     // 1 符號：全部列出（含規格原文欄）＋ 符號衝突表
     expect(count(container, '.fr-sym-table tr[data-symbol]')).toBe(GLOBAL_SYMBOLS.length)
     expect(count(container, '.fr-coll-table tbody tr')).toBe(SYMBOL_COLLISIONS.length)
@@ -147,6 +154,9 @@ describe('FormulasPage（jsdom smoke：三種學習模式）', () => {
     expect(container.querySelector('#fr-coverage')).toBeTruthy()
     expect(count(container, '#fr-coverage tr[data-cov]')).toBe(ERRATA.length)
     expect(count(container, '#fr-coverage tr.fr-cov-missing')).toBe(0)
+    // Research 多了一個「勘誤覆蓋」段落，但符號表仍然是頁面最後一個區塊（在它之後）
+    expect(q(container, '[data-testid="formulas-page"]').lastElementChild).toBe(q(container, '#symbols'))
+    expect(q(container, '#fr-coverage').compareDocumentPosition(q(container, '#symbols')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(renderProblems(container)).toEqual([])
     // 版面約定：所有 fr-table 都在 .table-wrap 內，且每個資料格都有 data-label（≤ 640 px 的卡片排版用）
     const tables = Array.from(container.querySelectorAll('table.fr-table'))

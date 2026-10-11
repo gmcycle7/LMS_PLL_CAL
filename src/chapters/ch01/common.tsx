@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react'
 import { useSettings, type LearningMode } from '@/app/settings'
-import { HandCalc, Tex } from '@/components'
+import { HandCalc, Mermaid, Tex } from '@/components'
 import { fmt } from '@/simulation/core'
 import type { PoleBehaviour } from '@/simulation/models/lms'
 import errata from '@/data/errata.json'
+import { diagramOf } from './diagrams'
 import { handcalcOf } from './handcalcs'
 
 /**
@@ -94,6 +95,24 @@ export function ChapterHandCalc({ id, children }: { id: string; children?: React
         {children ?? '把下面的數字換成你自己的，先用紙筆（和計算機）算一次，再對照網站一步一步代入的結果。'}
       </p>
       <HandCalc def={handcalcOf(id)} />
+    </div>
+  )
+}
+
+/**
+ * 方塊圖（docs/teaching-style.md §8）：依 id 從 diagrams.ts 取出 Mermaid 原始碼與圖說，圖的正下方放「怎麼看這張圖」。
+ * children 是一兩句導讀（先看…再看…）加上「圖上的 X 就是公式裡的 x」的對應；數學一律用 <Tex>（圖說是純文字，不放公式）。
+ * 放在白話說明之後、推導之前。
+ */
+export function BlockDiagram({ id, children }: { id: string; children: ReactNode }) {
+  const d = diagramOf(id)
+  return (
+    <div className="ch01-diagram" data-diagram={d.id} data-diagram-kind={d.kind}>
+      <Mermaid chart={d.chart} caption={`${d.label}｜${d.caption}`} />
+      <p className="ch01-diagram-read">
+        <span className="ch01-diagram-badge">怎麼看這張圖</span>
+        {children}
+      </p>
     </div>
   )
 }

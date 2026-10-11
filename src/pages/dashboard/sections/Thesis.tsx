@@ -1,10 +1,11 @@
 import { memo, type CSSProperties } from 'react'
-import { ClaimTag, TestBadge, TexBlock } from '@/components'
+import { ClaimTag, TestBadge, Tex, TexBlock } from '@/components'
 import type { CaseId } from '@/components'
 import { CLAIM_EXAMPLES, SIX_CONDITIONS } from '../data'
+import { CONDITION_FLOW_CHART } from '../diagrams'
 import { builtinPreset } from '../presets'
 import type { ConditionCheck, ConditionId } from '../thesisModel'
-import { ErratumLink, PageChip, Rich, STATE_LABEL, StateIcon, plainTip, scrollToId } from '../ui'
+import { DiagramWalk, ErratumLink, PageChip, Rich, STATE_LABEL, StateIcon, plainTip, scrollToId } from '../ui'
 
 /** 最終教學主旨：六個條件的視覺化檢查表；右上角的燈號來自下方「動手體檢」目前選取的 case。 */
 export const ThesisSection = memo(function ThesisSection({
@@ -31,6 +32,19 @@ export const ThesisSection = memo(function ThesisSection({
         </button>
         Case {caseId} 的即時結果，卡片中間那一行是它的關鍵數值與原因。想看某個條件<strong>不滿足</strong>時長什麼樣子，按卡片下方的「載入反例」。
       </p>
+      <DiagramWalk
+        chart={CONDITION_FLOW_CHART}
+        caption="六個條件的檢查流程：由上到下逐一問，六個「是」才算成功；任何一個「否」就停在那一格，紅色方塊寫的是會看到的現象與該修哪裡。"
+        ariaLabel="六個條件的檢查流程圖：依序檢查資訊足夠、更新方向正確、動態穩定、統計精度足夠、正確的物理參數、改善 PLL 輸出；每一個不通過都對應一種現象與修正方向，六個都通過才是成功的 calibration"
+      >
+        <p>
+          先看中間那一串菱形：順序就是卡片的編號。它們互相獨立（通過前五個不保證第六個），但<strong>計算上有先後</strong>——後面的判據要用到前面算出來的量。
+        </p>
+        <p>
+          圖上的 <Tex>{'C'}</Tex> 是 code 與它造成的誤差之間的相關（條件 2）；有了它才能算 loop gain <Tex>{'g=\\mu K_qC'}</Tex>（條件 3，<Tex>{'g^*(d)'}</Tex> 是更新晚 <Tex>{'d'}</Tex> 個 block 時的臨界值）；迴路收斂了，才有穩態的係數抖動{' '}
+          <Tex>{'\\sigma_w'}</Tex>（條件 4）與固定點偏移 <Tex>{'w^*-a=B/C'}</Tex>（條件 5）；最後把兩者一起換算到 DTC 的時間誤差 <Tex>{'\\sigma_{\\delta t}'}</Tex> 與 spur（條件 6）。每個符號的定義在下面的卡片與「一條方程式」那一節。
+        </p>
+      </DiagramWalk>
       <div className="dash-cond-grid">
         {SIX_CONDITIONS.map((c) => {
           const live = checks.find((k) => k.id === c.id)

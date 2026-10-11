@@ -1,13 +1,14 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
 import { presetsForExperiment } from '@/app/presets'
-import { extractRegion, listRegions } from '@/components'
+import { extractRegion, listRegions, systemMapChart } from '@/components'
 import quantSrc from '@/simulation/models/quantizer.ts?raw'
 import { STRATEGIES, runQuantCriteria, runQuantLab } from '@/simulation/models/quantizer'
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
 import { DEFAULT_LAB_PARAMS } from './common'
+import { DIAGRAMS, SYSTEM_MAP_FOCUS } from './diagrams'
 import Chapter13 from './index'
 import { EXPERIMENT_ID } from './experiments/QuantizedGainLab'
 import { bernoulliVarSe, crossChecks, metricRows } from './experiments/labChecks'
@@ -24,7 +25,7 @@ vi.mock('plotly.js-dist-min', () => ({ default: P }))
 
 const M = vi.hoisted(() => ({
   initialize: vi.fn(),
-  render: vi.fn(async (id: string) => ({ svg: `<svg id="${id}"></svg>`, diagramType: 'flowchart-v2' })),
+  render: vi.fn(async (id: string, _chart: string) => ({ svg: `<svg id="${id}"></svg>`, diagramType: 'flowchart-v2' })),
 }))
 vi.mock('mermaid', () => ({ default: M }))
 
@@ -52,12 +53,50 @@ describe('Chapter 13（jsdom smoke）', () => {
   // 每種學習模式各一個測試（各有自己的時間上限）：整章渲染一次要跑 8 題手算與所有章內模擬，
   // 多個測試程序同時執行、CPU 超額時，三種模式串在同一個測試裡會先撞到逾時而不是真正的斷言。
   it.each(['beginner', 'engineer', 'research'] as const)(
-    '%s 模式能渲染不丟錯，包含符號表、五策略段落、勘誤標記、帶入手算與實驗',
+    '%s 模式能渲染不丟錯，包含章首系統地圖、全部方塊圖、章末符號表、五策略段落、勘誤標記、帶入手算與實驗',
     async (mode) => {
       const errSpy = vi.spyOn(console, 'error')
       try {
         const { unmount, container } = renderChapter(mode)
+        // 符號表在章末（docs/teaching-style.md §5）：整頁最後一塊、外層 id="symbols"，排在思考題、本課必記與「連結到 PLL」之後
+        const FOLLOWING = Node.DOCUMENT_POSITION_FOLLOWING
         expect(screen.getByText('本章符號')).toBeTruthy()
+        const page = container.querySelector('.ch13') as HTMLElement
+        const symbols = container.querySelector('#symbols') as HTMLElement
+        expect(page.lastElementChild).toBe(symbols)
+        expect(container.querySelectorAll('.c-symbols')).toHaveLength(1)
+        expect(symbols.querySelector('.c-symbols')).not.toBeNull()
+        expect(symbols.querySelectorAll('tbody tr').length).toBeGreaterThanOrEqual(30)
+        for (const sel of ['#ch13-quiz', '.c-recap', '#ch13-pll'])
+          expect((container.querySelector(sel) as HTMLElement).compareDocumentPosition(symbols) & FOLLOWING, `${mode}: ${sel}`).toBeTruthy()
+        // 章首只留一行按鈕（不是會改掉 HashRouter 路由的 href）：在開場問題與系統地圖之後、§13.1 之前；按下去捲到符號表
+        const symLink = container.querySelector('[data-testid="ch13-symbols-link"]') as HTMLButtonElement
+        expect(symLink.tagName).toBe('BUTTON')
+        expect(symLink.textContent).toContain('本章符號表在最後')
+        expect((container.querySelector('#ch13-question') as HTMLElement).compareDocumentPosition(symLink) & FOLLOWING).toBeTruthy()
+        expect(symLink.compareDocumentPosition(container.querySelector('#ch13-freeze') as HTMLElement) & FOLLOWING).toBeTruthy()
+        const scrolled: Element[] = []
+        const proto = Element.prototype as unknown as { scrollIntoView?: (this: Element) => void }
+        const savedScroll = proto.scrollIntoView
+        proto.scrollIntoView = function (this: Element) {
+          scrolled.push(this)
+        }
+        try {
+          fireEvent.click(symLink)
+          expect(scrolled).toEqual([symbols])
+          expect(document.activeElement).toBe(symbols)
+          fireEvent.click(container.querySelector('[data-testid="ch13-symbols-top"]') as HTMLButtonElement)
+          expect(scrolled[1]).toBe(container.querySelector('#ch13-question'))
+        } finally {
+          proto.scrollIntoView = savedScroll
+        }
+        // 方塊圖：章首的系統地圖 + diagrams.ts 的每一張，三種學習模式都一樣多（不藏在 ModeGate 或等待模擬結果的區塊裡）
+        const figs = Array.from(container.querySelectorAll('figure.c-mermaid'))
+        expect(figs).toHaveLength(DIAGRAMS.length + 1)
+        expect(figs[0].getAttribute('aria-label')).toContain('系統方塊圖')
+        expect((container.querySelector('#ch13-question') as HTMLElement).compareDocumentPosition(figs[0]) & FOLLOWING).toBeTruthy()
+        expect(figs[0].compareDocumentPosition(symLink) & FOLLOWING).toBeTruthy()
+        for (const f of figs) expect(f.querySelector('figcaption')?.textContent?.length ?? 0, mode).toBeGreaterThan(10)
         expect(screen.getAllByText(/方法 A：Freeze/).length).toBeGreaterThan(0)
         expect(screen.getAllByText(/方法 D：高解析 accumulator/).length).toBeGreaterThan(0)
         expect(container.querySelectorAll('.ch13-erratum').length).toBeGreaterThan(5)
@@ -125,6 +164,17 @@ describe('Chapter 13（jsdom smoke）', () => {
     expect(crit.textContent).toContain('本例最差的是週期性的 limit cycle')
     // 非同步結果出現後，整頁仍然沒有 KaTeX 解析錯誤
     expect(Array.from(container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.textContent)).toEqual([])
+    // 每一張圖的原始碼都真的交給 mermaid.render（含章首的 SystemMap），沒有任何一張顯示成解析失敗
+    const wanted = [systemMapChart(SYSTEM_MAP_FOCUS), ...DIAGRAMS.map((d) => d.chart)]
+    await waitFor(
+      () => {
+        const sent = new Set(M.render.mock.calls.map((c) => c[1]))
+        for (const chart of wanted) expect(sent.has(chart), chart.slice(0, 60)).toBe(true)
+      },
+      { timeout: WAIT_MS, interval: 250 },
+    )
+    await waitFor(() => expect(container.querySelectorAll('.c-mermaid-svg svg')).toHaveLength(wanted.length), { timeout: WAIT_MS, interval: 250 })
+    expect(screen.queryByText('Mermaid 圖解析失敗')).toBeNull()
   }, TEST_MS)
 
   it('?preset=quant-fixed-point-period-512 會套用 preset（偵測週期 512、定點格點）', async () => {

@@ -21,7 +21,9 @@ import {
 } from './logic'
 import { Browse, FilterBar } from './sections/Browse'
 import { HandTools, ToolsDock } from './sections/HandTools'
+import { CHART_BANK } from './diagrams'
 import { Intro } from './sections/Intro'
+import { Diagram } from './sections/common'
 import { RandomPractice } from './sections/RandomPractice'
 import { WorksheetBuilder } from './sections/Worksheet'
 import './workbook.css'
@@ -159,6 +161,24 @@ export default function WorkbookPage() {
       <section aria-labelledby="wb-s4" className="wb-section wb-bank">
         <div className="wb-noprint">
           <h2 id="wb-s4">4｜題庫：瀏覽、隨機練習、練習卷</h2>
+          <p>
+            題庫有三種用法：逐章<strong>瀏覽</strong>、<strong>隨機練習</strong>（連題目一起隨機抽、記下作答統計），或自己選範圍印成<strong>練習卷</strong>。三者用的是同一批題目，詳解也都由同一個 <code>solve()</code> 當場算出。
+          </p>
+          <Diagram
+            chart={CHART_BANK}
+            caption="題目從各章的 handcalcs.ts 進來；瀏覽與隨機練習共用同一組篩選，練習卷自己選範圍；三種用法的詳解都由 solve() 算出（藍色）。"
+            ariaLabel="題庫的結構圖：各章的手算題經過篩選後進入題庫瀏覽與隨機練習，練習卷自己選章節、難度與題數並可列印；三者的詳解都由 solve 呼叫模擬函式算出"
+          >
+            <p>
+              <strong>先看</strong>
+              左邊：題目只有一個來源（各章與各頁的 <code>handcalcs.ts</code>），本頁不新增公式。<code>?ch</code>、<code>?level</code>、<code>?q</code> 這三個網址參數就是篩選條件，所以篩好的畫面可以直接貼給別人。
+            </p>
+            <p>
+              <strong>再看</strong>
+              右邊：題庫瀏覽和隨機練習吃同一組篩選；練習卷則由你自己勾章節、難度與題數（虛線表示切到練習卷的那一刻會沿用目前的篩選當起點），印出來有空白作答區和逐步解答。
+              三條路最後都接到藍色的 <code>def.solve()</code>，它呼叫 <code>src/simulation</code> 的模型函式，所以詳解的數字和各章的互動實驗是同一份計算。
+            </p>
+          </Diagram>
           <div className="wb-tabs" role="tablist" aria-label="題庫的使用方式">
             {TAB_ORDER.map((t) => (
               <button

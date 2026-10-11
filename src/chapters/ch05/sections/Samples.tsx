@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Callout, ClaimTag, ParamControl, Section, Tex, TexBlock, mathText } from '@/components'
 import { normCdf, normInv } from '@/simulation/core'
 import { meanQ, minNForTarget, pPlus, samplesForConfidence, samplesSmallSignal } from '@/simulation/models/comparator'
-import { HandCalcBlock, Steps, fx, int, pct, texInt } from '../common'
+import { Fig, HandCalcBlock, Steps, fx, int, pct, texInt } from '../common'
 
 const TARGETS = [0.8413447460685429, 0.9, 0.95, 0.99, 0.999]
 
@@ -53,6 +53,14 @@ export function SamplesSection() {
         這裡 <Tex>{'\\Phi^{-1}'}</Tex> 是 <Tex>{'\\Phi'}</Tex> 的<strong>反函數</strong>（把同一張常態表反過來查：給機率、回傳對應的 <Tex>{'z'}</Tex>）；
         <Tex>{'\\Phi'}</Tex> 嚴格遞增，所以反函數存在且唯一。驗算：<Tex>{`\\Phi(${fx(z95, 4)})=${fx(normCdf(z95), 4)}`}</Tex>。
       </p>
+      <p>
+        整個設計流程只有四步，先看圖再推導。<Tex>{'P_{\\text{target}}'}</Tex> 是你想要的判對機率（目標信心），<Tex>{'f_s'}</Tex> 是 comparator 的取樣率（每秒做幾次比較）：
+      </p>
+      <Fig name="designFlow">
+        先看從「目標正確率」出發的那條線：由 <Tex>{'P_{\\text{target}}'}</Tex> 反查常態表得到 <Tex>{'z'}</Tex>。再看從「誤差與雜訊」出發的那條線：由 <Tex>{'s'}</Tex> 與{' '}
+        <Tex>{'\\sigma_v'}</Tex> 得到單一樣本的平均 <Tex>{'m'}</Tex>。兩者合成 <Tex>{'N'}</Tex>；最後取奇數（避開 §3 的 tie），再除以 <Tex>{'f_s'}</Tex> 換成時間。圖上寫著 <Tex>{'N'}</Tex> 的那一格有兩個式子，就是下面要推導的 F-05.9：前一個是 CLT
+        的連續解，後一個是小訊號近似。
+      </Fig>
       <Steps
         title="反解 $N$"
         steps={[
@@ -79,6 +87,11 @@ export function SamplesSection() {
         <Tex>{`\\pi/2-1\\approx${fx(100 * (Math.PI / 2 - 1), 1)}\\%`}</Tex> 的樣本（<Tex>{`10\\log_{10}(\\pi/2)\\approx${fx(10 * Math.log10(Math.PI / 2), 2)}\\,\\mathrm{dB}`}</Tex>{' '}
         的 SNR 損失）。<ClaimTag kind="approx" />（這是小訊號 <Tex>{'|s|\\ll\\sigma_v'}</Tex> 的結論，也正是校正收斂後的工作區）
       </p>
+      <Fig name="analogVs1bit">
+        先比較兩個框的方塊：下框只比上框多了藍色的 sign。再比較兩框的 SNR：類比路徑每個樣本的訊號是 <Tex>{'s'}</Tex>、雜訊是 <Tex>{'\\sigma_v'}</Tex>；過了 sign 之後，訊號變成{' '}
+        <Tex>{'m\\approx\\sqrt{2/\\pi}\\,s/\\sigma_v'}</Tex>、雜訊變成 <Tex>{'\\sqrt{1-m^2}\\approx1'}</Tex>，所以 SNR 乘上 <Tex>{'\\sqrt{2/\\pi}'}</Tex>。要回到同樣的{' '}
+        <Tex>{'z'}</Tex>，<Tex>{'N'}</Tex> 就得乘上它平方的倒數 <Tex>{'\\pi/2'}</Tex>（紅色）。圖上兩個 <Tex>{'N'}</Tex> 的式子相除，就是公式 F-05.9 裡的那個 <Tex>{'\\pi/2'}</Tex>。
+      </Fig>
       <div className="table-wrap">
         <table className="ch05-table">
           <caption>

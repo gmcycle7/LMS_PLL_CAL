@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ClaimTag, CodeBlock, CodeCompare, HandCalc, ModeGate, Prereq, Tex, TexBlock, mathText } from '@/components'
+import { ClaimTag, CodeBlock, CodeCompare, HandCalc, Mermaid, ModeGate, Prereq, Tex, TexBlock, mathText } from '@/components'
 import bridgeSrc from './bridge.ts?raw'
 import { formulaById } from './formulas'
 import { handcalc } from './handcalcs'
@@ -142,6 +142,48 @@ export function JumpLink({ to, children }: { to: string; children: ReactNode }) 
     >
       {children}
     </a>
+  )
+}
+
+/** 頁尾符號表外層的 DOM id（docs/teaching-style.md §5：符號表放在最後，頁首只留一行連結） */
+export const SYMBOLS_ANCHOR = 'symbols'
+/** 頁首（導言段落）的 DOM id：符號表旁的「回到頁首」用 */
+export const TOP_ANCHOR = 'papers-top'
+
+/** 頁內捲動（不改網址）：HashRouter 下 href="#id" 會被當成路由；jsdom 沒有 scrollIntoView，用可選呼叫。 */
+export function scrollToId(id: string) {
+  document.getElementById(id)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+}
+
+/** 連結樣式的按鈕：按了捲到本頁的某個區塊。 */
+export function JumpButton({ to, children }: { to: string; children: ReactNode }) {
+  return (
+    <button type="button" className="papers-linkbtn" onClick={() => scrollToId(to)}>
+      {children}
+    </button>
+  )
+}
+
+/** 頁首只留這一行：按了捲到頁尾的符號表。 */
+export function SymbolsLink() {
+  return (
+    <p className="papers-symbols-link">
+      <JumpButton to={SYMBOLS_ANCHOR}>本頁符號表在最後 ↓</JumpButton>
+      <span className="small muted">每個符號第一次出現時，正文會先用一句話說明；頁尾的表是查閱用的總整理。</span>
+    </p>
+  )
+}
+
+/**
+ * 方塊圖版位（docs/teaching-style.md §8）：一張 Mermaid 圖、一句圖說（要看什麼），下面緊接「先看…再看…」的導讀。
+ * 圖說是純文字（Mermaid 的 caption 不渲染 KaTeX），數學符號留給 children 用 <Tex> 寫。
+ */
+export function Diagram({ chart, caption, ariaLabel, children }: { chart: string; caption: string; ariaLabel?: string; children?: ReactNode }) {
+  return (
+    <div className="papers-diagram">
+      <Mermaid chart={chart} caption={caption} ariaLabel={ariaLabel} />
+      {children && <div className="papers-diagram-walk">{children}</div>}
+    </div>
   )
 }
 

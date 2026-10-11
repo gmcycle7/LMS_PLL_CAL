@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ClaimTag, mathText, ModelLevel, StepDerivation, stripMathDelimiters, type CheckStatus, type ClaimKind, type ModelLevelId, type Step } from '@/components'
+import { ClaimTag, mathText, Mermaid, ModelLevel, StepDerivation, stripMathDelimiters, type CheckStatus, type ClaimKind, type ModelLevelId, type Step } from '@/components'
 import { useSettings, type LearningMode } from '@/app/settings'
 import { texNum } from '@/simulation/models/unifiedLab'
 
@@ -51,6 +51,19 @@ export function Steps({ title, steps, result, open }: { title: string; steps: { 
       </summary>
       <StepDerivation steps={rendered} result={result} />
     </details>
+  )
+}
+
+/**
+ * 方塊圖 + 「怎麼讀這張圖」導讀（docs/teaching-style.md §8）。
+ * Mermaid 不渲染 KaTeX，圖上的符號是 Unicode；導讀用 KaTeX 把圖上的名字對回正文的公式。圖說（caption）是純文字。
+ */
+export function Diagram({ chart, caption, ariaLabel, children }: { chart: string; caption: string; ariaLabel?: string; children?: ReactNode }) {
+  return (
+    <div className="lab-diagram">
+      <Mermaid chart={chart} caption={caption} ariaLabel={ariaLabel ?? caption} />
+      {children && <div className="lab-diagram-walk">{children}</div>}
+    </div>
   )
 }
 

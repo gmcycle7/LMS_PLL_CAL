@@ -3,7 +3,7 @@ import { Callout, ModeGate, Prereq, Section, StepDerivation, Tex, mathText } fro
 import { cAbs } from '@/simulation/core/complex'
 import { loopH, loopT, makeL1, mode1SureBand } from '@/simulation/models/sspll'
 import { BAND, FREF_MHZ, LOOP_KEYS, LOOPS, PARAMS, SUMMARY, WORKED, type BandRow } from '../data'
-import { Claim, DataTable, Formula, Hand, Kappa, ModelCompare, Sci, Src, TryIt, fx, r, tx } from '../common'
+import { Claim, DataTable, Diagram, FigRef, Formula, Hand, Kappa, ModelCompare, Sci, Src, TryIt, fx, r, tx } from '../common'
 import { HpdExplorer } from '../experiments/HpdExplorer'
 
 const TABLE_F_MHZ = [10, 20, 40, 60, 83.8, 100, 120, 134.82, 200, 320, 1000, 2000]
@@ -37,7 +37,13 @@ export function S06Loops() {
   return (
     <Section kind="formula" level={2} title="6. 三個迴路：設計與精確的反號帶" id="cs-6">
       <p>
-        所有迴路都以「<Tex>{r`\lvert T\rvert`}</Tex> 的 −3 dB = 320 MHz」為設計目標（TS port 設計出來的三個迴路：{LOOP_KEYS.map((k) => `${k} ${fx(SUMMARY[k].f3dBMHz, 6)} MHz`).join('、')}）。
+        所有迴路都以「<Tex>{r`\lvert T\rvert`}</Tex> 的 −3 dB = 320 MHz」為設計目標（TS port 設計出來的三個迴路：{LOOP_KEYS.map((k) => `${k} ${fx(SUMMARY[k].f3dBMHz, 6)} MHz`).join('、')}）。三者的差別在 §3 <FigRef id="hpd-loop" /> 的 <Tex>{'L(z)'}</Tex> 外框裡放了什麼：
+      </p>
+      <Diagram id="three-loops" />
+      <p>
+        先數藍色方塊（每個藍色方塊含一個積分器）：L1 只有 VCO 那一個，所以是 Type-I；L2 的 loop filter 多一條積分路徑、L3 的 charge pump 把電荷存在電容上，各多一個積分器，所以是 Type-II。再看每一列方塊裡的式子：把同一列的方塊相乘就是該迴路的 <Tex>{'L'}</Tex>，例如 L1 是{' '}
+        <Tex>{r`K\cdot\tfrac{1}{z-1}=\tfrac{Kz^{-1}}{1-z^{-1}}`}</Tex>（<Tex>{r`\tfrac{1}{z-1}`}</Tex> 就是「積分器加 1 拍延遲」<Tex>{r`\tfrac{z^{-1}}{1-z^{-1}}`}</Tex>），L2 是 <Tex>{r`\big(K_p+\tfrac{K_i}{1-z^{-1}}\big)\tfrac{1}{z-1}`}</Tex>。L3 是連續時間電路（<Tex>{'s'}</Tex> 是 Laplace
+        變數，<Tex>{r`\omega_z`}</Tex>、<Tex>{r`\omega_p`}</Tex> 是 loop filter 的零點與極點頻率），要多一步「每拍取樣一次」才變成 <Tex>{'L_3(z)'}</Tex>，§6.3 會推。依 §5.2 的直覺，兩個積分器的 L2、L3 在低頻一定反號，一個積分器的 L1 不一定。
       </p>
 
       <h3>6.1 L1：SSPLL Type-I</h3>
@@ -61,6 +67,15 @@ export function S06Loops() {
         <Claim kind="exact" />
       </p>
       <Callout kind="warn" title="但 Type-I 不是天生免疫（對抗審查的修正）">
+        <p>
+          標稱的 L1 沒有反號帶，是因為它剛好只有 1 拍延遲、也沒有別的極點。實際電路在 SSPD 之後常有額外的 pipeline 延遲，或 loop filter 上的寄生極點：
+        </p>
+        <Diagram id="type1-variants" />
+        <p>
+          先看第一列（標稱）：依 §5.1，只要看 <Tex>{r`\mathrm{Re}\,L`}</Tex>。一個積分器加 1 拍延遲的實部固定是 <Tex>{r`-\tfrac12`}</Tex>，所以 <Tex>{r`\mathrm{Re}\,L=-K/2`}</Tex>，<Tex>{'K<2'}</Tex> 時不可能低於 <Tex>{'-1'}</Tex>。再看下面兩列的紅色方塊：多出來的延遲（迴路總共 <Tex>{'d'}</Tex> 拍）或寄生極點（
+          <Tex>{'p'}</Tex> 是它在 <Tex>{'z'}</Tex> 平面上的位置，<Tex>{r`p=e^{-2\pi f_{pole}/f_{ref}}`}</Tex>，極點頻率越低 <Tex>{'p'}</Tex> 越接近 1）都會在低頻把 <Tex>{r`\mathrm{Re}\,L`}</Tex> 再往下拉。圖上每個框標題寫的下限，取絕對值就是下表的「判據」與下面公式的兩個不等式：判據值大於 1，
+          <Tex>{r`\mathrm{Re}\,L`}</Tex> 就會低於 <Tex>{'-1'}</Tex>，出現反號帶。
+        </p>
         <p>把延遲或寄生極點加進去、再重新調到 320 MHz：</p>
         <DataTable
           className="cs-num"
@@ -90,7 +105,16 @@ export function S06Loops() {
       <h3>6.2 L2：SSPLL Type-II（P + I）</h3>
       <p>
         <Tex>{r`L_2=\Big(K_p+\dfrac{K_i}{1-z^{-1}}\Big)\dfrac{z^{-1}}{1-z^{-1}}`}</Tex>，<Tex>{r`K_i=\omega_n^2`}</Tex>、<Tex>{r`K_p=2\zeta\omega_n`}</Tex>。<Tex>{`\\zeta=${fx(Number(LOOPS.L2.params.zeta), 4)}`}</Tex> 對應 sampled-data 的 PM{' '}
-        {fx(SUMMARY.L2.pmDeg, 2)}°，<Tex>{r`\omega_n`}</Tex> 讓 BW 為 320 MHz：<Tex>{`K_p=${fx(Kp, 6)}`}</Tex>、<Tex>{`K_i=${fx(Ki, 7)}`}</Tex>。
+        {fx(SUMMARY.L2.pmDeg, 2)}°，<Tex>{r`\omega_n`}</Tex> 讓 BW 為 320 MHz：<Tex>{`K_p=${fx(Kp, 6)}`}</Tex>、<Tex>{`K_i=${fx(Ki, 7)}`}</Tex>（<Tex>{'K_p'}</Tex> 是比例路徑的增益，<Tex>{'K_i'}</Tex> 是積分路徑的增益，都以「每拍」為單位；<Tex>{r`\zeta`}</Tex> 與{' '}
+        <Tex>{r`\omega_n`}</Tex> 是二階系統的阻尼比與自然頻率）。
+      </p>
+      <p>
+        要找反號帶，依 §5.1 只要算 <Tex>{r`\mathrm{Re}\,L_2`}</Tex>。把 <Tex>{'L_2'}</Tex> 的括號乘開，它是兩條路徑的和，可以分開看：
+      </p>
+      <Diagram id="re-l2" />
+      <p>
+        先看比例路徑：它是一個積分器，實部固定是 <Tex>{r`-K_p/2`}</Tex>，不隨頻率變（下面推導的第 2 步）。再看藍色的積分路徑：它是兩個積分器串接，結果是純實數而且為負，頻率越低越負（第 3 步）。圖上加法點的輸出就是第 4 步的 <Tex>{r`\mathrm{Re}\,L_2`}</Tex>；菱形的判斷{' '}
+        <Tex>{r`\mathrm{Re}\,L_2<-1`}</Tex> 解出來的邊界（反號帶的上緣），就是第 6 步的 <Tex>{'f_{inv}'}</Tex>。因為積分路徑在 DC 趨向 <Tex>{r`-\infty`}</Tex>，反號帶一定從 DC 開始。
       </p>
       <StepDerivation
         title={mathText(r`一步一步：$\mathrm{Re}\,L_2$ 的精確式與帶緣`)}
@@ -142,6 +166,15 @@ export function S06Loops() {
           </li>
         </ul>
       </Prereq>
+      <p>
+        做法和 §6.2 一樣：把 <Tex>{'L_3'}</Tex> 拆成幾條路徑，各自取實部再相加。差別只在這些路徑要先從連續時間「取樣」過來：
+      </p>
+      <Diagram id="re-l3" />
+      <p>
+        先看左邊兩格：charge pump 打進一個電荷包之後，VCO 的相位照 <Tex>{'l(t)'}</Tex> 走（<Tex>{'K'}</Tex> 是斜坡的斜率，<Tex>{'B'}</Tex> 是步階的高度，<Tex>{r`\omega_p`}</Tex> 是 loop filter 的極點頻率）；PD 每拍只看一次，所以離散的開迴路增益是 <Tex>{r`L_3(z)=\sum_{n\ge1}l(n)z^{-n}`}</Tex>。再看分出來的三條路徑：
+        <Tex>{'l(t)'}</Tex> 的斜坡取樣後是雙積分（藍色，和 <FigRef id="re-l2" /> 的積分路徑同型，實部越低頻越負），步階取樣後是單積分（實部固定 <Tex>{'-B/2'}</Tex>，相當於 L2 的比例路徑），指數衰減取樣後是一個位在 <Tex>{r`p=e^{-\omega_p}`}</Tex> 的極點。圖上三條路徑的式子就是下面推導第 3
+        步的三項；加法點的輸出取負號就是第 4 步的 <Tex>{r`-\mathrm{Re}\,L`}</Tex>：第一項直接對上，後兩條路徑的實部通分相加就是第二項 <Tex>{r`B(1-p^2)/(2\lvert1-pe^{-j\Omega}\rvert^2)`}</Tex>（其中 <Tex>{r`\lvert1-pe^{-j\Omega}\rvert^2=1-2p\cos\Omega+p^2`}</Tex>）。
+      </p>
       <StepDerivation
         title={mathText(r`一步一步：CP 的電荷包在 $nT$ 注入、$(n+1)T$ 比較（impulse-invariant）`)}
         steps={[

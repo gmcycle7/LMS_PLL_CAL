@@ -1,8 +1,9 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, ModelLevel, Prereq, Section, SourceTag, StepDerivation, SymbolTable, Tex, TexBlock, type SymbolEntry } from '@/components'
+import { Callout, ClaimTag, ModelLevel, Prereq, Section, SourceTag, StepDerivation, Tex, TexBlock } from '@/components'
 import { runScalarLms, fixedXPole } from '@/simulation/models/lms'
 import { ACCEPTANCE_INPUTS, MC_PLAN, toleranceBound } from '@/simulation/models/acceptance'
-import { Expand, FBlock, M, steps, useAcceptance } from '../common'
+import { Diagram, Expand, FBlock, M, steps, useAcceptance } from '../common'
+import { CHART_TOLERANCE } from '../diagrams'
 import validationMd from '../../../../docs/validation.md?raw'
 import { ERRATA, parseValidationStats } from '../errata'
 import { GOLDEN } from '../golden'
@@ -11,47 +12,7 @@ import { exactDiffToFraction, fmtFull, fmtNum, texNum } from '../format'
 const r = String.raw
 const STATS = parseValidationStats(validationMd)
 
-const SYMBOLS: SymbolEntry[] = [
-  { symbol: 'a_k', meaning: '網站即時算出的第 k 個數值（actual；瀏覽器內呼叫各章模型）', firstSeen: '§V.1' },
-  { symbol: 'e_k', meaning: 'golden vector 的期望值（expected；Python / NumPy / SciPy 獨立重算）', firstSeen: '§V.1' },
-  { symbol: r`\varepsilon_{\rm abs},\ \varepsilon_{\rm rel}`, meaning: '容忍度的絕對項與相對項（golden 檔的 tolerance.abs / rel）', unit: r`\text{同 }e_k\ /\ 1`, firstSeen: '§V.1' },
-  { symbol: r`b_k=\varepsilon_{\rm abs}+\varepsilon_{\rm rel}|e_k|`, meaning: '第 k 個元素的容許誤差（bound）', unit: r`\text{同 }e_k`, firstSeen: '§V.1' },
-  { symbol: r`r_k=|a_k-e_k|/b_k`, meaning: M(r`誤差佔容許量的比例；$r_k\le1$ 為通過（表中的 $|\Delta|/b$）`), unit: '1', firstSeen: '§V.2' },
-  { symbol: r`\varepsilon_{\rm mach}=2^{-52}`, meaning: M(r`IEEE double 的機器精度（$\approx2.22\times10^{-16}$）`), unit: '1', firstSeen: '§V.1' },
-  { symbol: r`d_n=\tilde w_n-w_n`, meaning: '浮點算出的值與精確值的差（捨入誤差的累積）', firstSeen: '§V.1' },
-  { symbol: 'n', meaning: 'Monte Carlo 的獨立樣本數（comparator 決策數、block 數…）', firstSeen: '§V.3', note: '在 T01 的手算表中 n 是 LMS 的步數（依上下文）' },
-  { symbol: r`\hat\theta,\ \theta`, meaning: 'Monte Carlo 的估計值，與它要比對的期望值（解析或 golden）', firstSeen: '§V.3' },
-  { symbol: r`\mathrm{SE}`, meaning: M(r`標準誤 $\sqrt{\operatorname{Var}(\hat\theta)}$：估計值本身的標準差`), unit: r`\text{同 }\theta`, firstSeen: '§V.3' },
-  { symbol: r`z=(\hat\theta-\theta)/\mathrm{SE}`, meaning: '估計值距離期望值幾個標準誤', unit: '1', firstSeen: '§V.3' },
-  { symbol: r`z_{\rm crit}`, meaning: M(r`$z$ 的判定門檻（預設 4）`), unit: '1', firstSeen: '§V.3' },
-  { symbol: r`\alpha=2[1-\Phi(z_{\rm crit})]`, meaning: '單一 MC 檢查「明明正確卻被判失敗」的機率（誤報率）', unit: '1', firstSeen: '§V.3' },
-  { symbol: r`\nu,\ t,\ z_{\rm eq}`, meaning: M(r`SE 由 $\nu+1$ 個樣本估計時的自由度、Student-$t$ 統計量、尾機率相同的等效 $z$`), unit: '1', firstSeen: '§V.3' },
-  { symbol: r`R,\ K`, meaning: M(r`獨立 chain 的條數 $R$；多 seed 校準的 seed 個數 $K$`), unit: '1', firstSeen: '§V.3', note: M(r`$K$ 在 Ch12 是 GMAC 斜率 $K_qC$；本頁只當「個數」用`) },
-  { symbol: 'p', meaning: M(r`一階校正迴路的 pole（Ch12）；$\delta w_k$ 的 lag-$k$ 自相關是 $p^{k}$`), unit: '1', firstSeen: '§V.3', note: M(r`也用作 Bernoulli 機率（T04、T17）；兩者都在該式旁註明`) },
-  { symbol: r`\Delta`, meaning: M(r`絕對差 $|a_k-e_k|$（表格欄位 $|\Delta|$）`), unit: r`\text{同 }e_k`, firstSeen: '§V.2' },
-  { symbol: r`\eta_n,\ c`, meaning: M(r`第 $n$ 步所有浮點運算的捨入誤差總和，與「每步運算次數」等級的小常數（約 3–4）`), firstSeen: '§V.1', note: M(r`$\eta$ 在 Ch12 是 GMAC 雜訊、$c$ 在 Ch08 / Ch11 另有用途；本頁只在 §V.1 用這個意思`) },
-  { symbol: r`\sigma,\ \sigma^2`, meaning: M(r`單一樣本 $X_i$ 的標準差與變異數（不是 comparator 的 $\sigma_v$，也不是係數雜訊 $\sigma_w$）`), unit: r`\text{同 }X_i`, firstSeen: '§V.3' },
-  { symbol: r`\Phi(z),\ \varphi(z)`, meaning: '標準常態分布的累積分布函數（CDF）與機率密度（PDF）', unit: '1', firstSeen: '§V.3' },
-  { symbol: r`\hat p`, meaning: M(r`由樣本數出來的比例（T04、T05、T17）`), unit: '1', firstSeen: '§V.3', note: M(r`T14 中 $\hat p$ 指 lag-1 自相關的估計值 $r_1$（pole 的估計）`) },
-  { symbol: r`\bar x,\ c_i,\ s^2`, meaning: M(r`樣本平均、去掉平均的樣本 $c_i=x_i-\bar x$、樣本變異數 $s^2=\tfrac{1}{n-1}\sum c_i^2$`), firstSeen: '§V.3' },
-  { symbol: r`\rho_k,\ r_1`, meaning: M(r`lag-$k$ 自相關係數（AR(1) 時 $\rho_k=p^k$）；$r_1=\sum c_ic_{i+1}/\sum c_i^2$ 是 lag-1 的樣本估計量`), unit: '1', firstSeen: '§V.3' },
-  { symbol: r`S_1`, meaning: M(r`AR(1) 自相關的三角加權和 $\sum_{k=1}^{n-1}(n-k)p^k$（F-VF.6）`), unit: '1', firstSeen: '§V.3' },
-  { symbol: r`\mu_4`, meaning: M(r`四階中央動差 $E[(X-E[X])^4]$（F-VF.9）`), firstSeen: '§V.3', note: M(r`與步長 $\mu$ 無關，只是統計學的慣用記號`) },
-  { symbol: r`\bar z,\ s_z,\ Z_{\rm mean},\ Z_{\rm sd}`, meaning: M(r`$K$ 個 seed 的 $z$ 的平均與樣本標準差，以及由它們算出的兩個校準分數（F-VF.10）`), unit: '1', firstSeen: '§V.3' },
-  { symbol: r`F_n(z),\ D`, meaning: M(r`$n$ 個 $z$ 的經驗分布函數，與 Kolmogorov–Smirnov 統計量 $D=\sup_z|F_n(z)-\Phi(z)|$`), unit: '1', firstSeen: '§V.3' },
-  { symbol: r`g(\mu),\ \lambda(\mu)`, meaning: M(r`T03 的均方因子 $E[(1-\mu x^2)^2]$ 與樣本路徑的平均對數成長率 $E[\ln|1-\mu x^2|]$（Lyapunov exponent）`), unit: '1', firstSeen: '§V.3', note: M(r`$g$ 在 Ch08 是 loop gain $\mu K$；$\lambda$ 在 Ch09 是 eigenvalue——本頁寫成函數 $g(\mu)$、$\lambda(\mu)$ 以區別`) },
-  { symbol: r`\mathrm{T01}\ldots\mathrm{T18}`, meaning: '規格 §17 的 Acceptance Reference Values（驗收項目）', firstSeen: '§V.2' },
-  { symbol: r`\mathrm{E01}\ldots\mathrm{E49}`, meaning: 'docs/validation.md 的勘誤編號（網站一律採用修正後版本）', firstSeen: '§V.6' },
-  {
-    symbol: r`\delta=a-w`,
-    meaning: '參數誤差的極性（全站約定）',
-    unit: r`\mathrm{fs}`,
-    note: M(r`規格 §3 寫 $\delta=w-a$；本站採 $a-w$（勘誤 E32 / E39），pole 不受影響`),
-    firstSeen: '§V.2',
-  },
-]
-
-/** 頁首：這一頁要回答的問題、三個獨立證人、符號表、先算一次（T01 的浮點誤差） */
+/** 頁首：這一頁要回答的問題、三個獨立證人、先算一次（T01 的浮點誤差）、容忍度規則（符號表在頁尾，見 sections/Symbols.tsx） */
 export function Intro() {
   const st = useAcceptance()
   const t01 = useMemo(() => {
@@ -113,9 +74,9 @@ export function Intro() {
             <li>§V.5 驗證管線怎麼運作（TS + Python golden + verify 腳本；四種狀態）</li>
             <li>§V.6 勘誤瀏覽器（E01–E49；可篩選、可用 ?e=E05 直接連結；附 KaTeX 公式與即時重算的證據）</li>
             <li>§V.7 五種驗證手段比較、本頁必記與思考題</li>
+            <li>§V.8 本頁符號表（在最後；頁首的連結一鍵跳過去）</li>
           </ol>
         </Callout>
-        <SymbolTable rows={SYMBOLS} title="本頁符號" caption="§V.n 指本頁的段落編號（V = Verification）。本頁的符號多半是「統計與數值分析」的符號；LMS / PLL 的符號沿用各章符號表。" />
         <p className="small muted">
           <ClaimTag kind="exact" /> 確定性比對（§V.1–§V.2）在指定模型下是精確的；<ClaimTag kind="approx" /> Monte Carlo 判定（§V.3）依賴中央極限定理，是近似。
           模型層級：<ModelLevel level="L0" /> 到 <ModelLevel level="L5" />（各列自己標示）。
@@ -214,6 +175,21 @@ export function Intro() {
           <Tex>{`\\mathrm{ENBW}\\approx${fmtNum(enbw ?? Number.NaN, 6)}\\,\\mathrm{Hz}`}</Tex>，絕對 <Tex>{r`10^{-12}\,\mathrm{Hz}`}</Tex> 又太嚴苛，所以用相對項{' '}
           <Tex>{r`10^{-10}`}</Tex>（容許 <Tex>{`${texNum(toleranceBound(enbw ?? 0, { rel: 1e-10 }), 3)}\\,\\mathrm{Hz}`}</Tex>）。
         </p>
+        <Diagram
+          chart={CHART_TOLERANCE}
+          caption="一個元素的判定：一條路算誤差 $|a_k-e_k|$，另一條路算容許量 $b_k$（藍色），最後比大小。"
+          ariaLabel="容忍度判定的方塊圖：網站的值減去 golden 的期望值取絕對值，與絕對項加上相對項乘期望值絕對值所得的容許量比較，不大於容許量即通過"
+        >
+          <p>
+            <strong>先看</strong>誤差這條路：
+            {M(r`網站即時算出的 $a_k$ 進加法點取正、golden 的期望值 $e_k$ 取負，得到誤差 $\Delta=a_k-e_k$，再取絕對值 $|\Delta|$；這就是表格裡 $|\Delta|$ 那一欄。`)}
+          </p>
+          <p>
+            <strong>再看</strong>容許量這條路（終點是藍色的加法點）：
+            {M(r`容許量 $b_k$ 是兩項相加——固定的絕對項 $\varepsilon_{\rm abs}$，以及跟著 $|e_k|$ 變大的相對項 $\varepsilon_{\rm rel}|e_k|$。$e_k$ 同時走進誤差與容許量兩條路，所以 $e_k\approx0$ 時 $b_k\approx\varepsilon_{\rm abs}$，$|e_k|$ 很大時由相對項主導。最後的菱形比 $|\Delta|\le b_k$：是就通過，否就是不一致。`)}
+            圖上每個方塊就是下面推導的一行。
+          </p>
+        </Diagram>
         <StepDerivation
           title="容忍度規則：一個式子同時處理「接近 0」與「很大」的量"
           steps={steps([

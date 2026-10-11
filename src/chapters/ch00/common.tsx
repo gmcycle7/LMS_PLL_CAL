@@ -3,9 +3,10 @@ import { Link, useLocation } from 'react-router-dom'
 import { useUrlPreset } from '@/app/presets'
 import { pageById } from '@/app/registry'
 import type { PresetEntry } from '@/data/types'
-import { HandCalc, Tex } from '@/components'
+import { HandCalc, Mermaid, Tex } from '@/components'
 import errataData from '@/data/errata.json'
 import { HANDCALCS } from './handcalcs'
+import { diagramByName, figureLabel, type DiagramName } from './diagrams'
 
 interface ErratumRecord {
   eid: string
@@ -84,6 +85,42 @@ export function ChapterHandCalc({ id, children }: { id: string; children?: React
       </p>
       <HandCalc def={def} />
     </div>
+  )
+}
+
+/**
+ * 捲動到本頁的某個元素。HashRouter 下 `href="#id"` 會被當成路由，所以頁內跳轉一律用按鈕 + scrollIntoView。
+ * jsdom 沒有 scrollIntoView，所以用可選呼叫。
+ */
+export function scrollToId(id: string) {
+  document.getElementById(id)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+}
+
+/**
+ * 章內的方塊圖（docs/teaching-style.md §8）：依名稱從 diagrams.ts 取出 Mermaid 原始碼與圖說，圖說前自動加上圖號。
+ * children 是「怎麼看這張圖」的導讀：先看哪裡、再看哪裡，以及「圖上的 X 就是公式裡的 x」的對應（可以放 KaTeX；
+ * Mermaid 的圖說只能是純文字）。名稱打錯時 TypeScript 與 diagramByName 都會擋下來，不會默默少一張圖。
+ */
+export function ChapterDiagram({ name, children }: { name: DiagramName; children: ReactNode }) {
+  const d = diagramByName(name)
+  const label = figureLabel(name)
+  return (
+    <div className="ch00-diagram" id={`fig-${d.id}`} data-diagram={d.name}>
+      <Mermaid chart={d.chart} caption={`${label}｜${d.caption}`} ariaLabel={`${label}：${d.ariaLabel}`} />
+      <div className="ch00-diagram-walk">
+        <span className="ch00-diagram-walk-label">怎麼看{label}</span>
+        <div>{children}</div>
+      </div>
+    </div>
+  )
+}
+
+/** 內文裡提到某張圖（例如「圖 0.8」）：點了會捲到那張圖。 */
+export function FigRef({ name }: { name: DiagramName }) {
+  return (
+    <button type="button" className="ch00-link-button" onClick={() => scrollToId(`fig-${diagramByName(name).id}`)}>
+      {figureLabel(name)}
+    </button>
   )
 }
 

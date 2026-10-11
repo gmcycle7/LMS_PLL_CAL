@@ -61,17 +61,18 @@ npm run lint
 | 11–14（Part C） | Calibration bias 與 DTC INL、係數雜訊 → PLL jitter/spur、6-bit 量化／limit cycle／ΔΣ、learning rate 與 N 最佳化 |
 | 工具頁 | Calibration Lab（整合模擬）、手算練習簿、Experiment Gallery、Sign-off Checklist、Formula & Unit Reference、Papers、Research Backlog、T01–T18 驗證與勘誤 |
 
-每一章的固定結構（見 [docs/teaching-style.md](docs/teaching-style.md)）：符號表 → 一個問題 → 先用數字手算 → 一步一步推導（每步附理由，全部 LaTeX）→ 互動實驗 → **帶入手算**（輸入自己的數字，逐步代入；或先自己算再對答案）→ 演算法比較（並排顯示實際執行的程式碼，標出差異行）→ 思考題 → 本課必記。
+每一章的固定結構（見 [docs/teaching-style.md](docs/teaching-style.md)）：系統地圖（標出本章在整個 PLL 校正系統的位置）→ 一個問題 → 先用數字手算 → **方塊圖**（先看訊號怎麼流）→ 一步一步推導（每步附理由，全部 LaTeX）→ 互動實驗 → **帶入手算**（輸入自己的數字，逐步代入；或先自己算再對答案）→ 演算法比較（並排顯示實際執行的程式碼，標出差異行）→ 思考題 → 本課必記 → 本章符號表（放在最後）。
 
+- **方塊圖**：16 個章節頁共 407 張（參考頁另有 24 張），每張都對照該章公式審查過訊號名稱、箭頭方向與加法點的正負號，並在測試中以真正的 Mermaid 渲染。
 - **帶入手算**：161 題，每題的數值來自實際的模擬函式，並由獨立的 Python 重算驗證過每一步；「手算練習簿」可隨機出題、統計答對率、列印附詳解的練習卷。
 - **學習模式**：Beginner／Engineer／Research 共用同一計算核心，只改變呈現深度。
 - **可追溯性**：383 條公式有 ID 並彙整在 Formula 頁；218 個 preset 可由 Gallery 載入；每個實驗可下載 JSON／CSV／HTML 報告（含 seed、版本、假設）。
 
-## 驗證狀態（2026-10-10）
+## 驗證狀態（2026-10-11）
 
 | 項目 | 結果 |
 |---|---|
-| TypeScript 測試（Vitest） | 172 個檔案、3,954 項，全部通過 |
+| TypeScript 測試（Vitest） | 192 個檔案、4,976 項，全部通過 |
 | Python golden（pytest） | `golden/` 147 項 + `analysis/sspll/golden/` 64 項，全部通過 |
 | T01–T18（TS 與 Python 兩邊都要過才算 verified） | 18／18 pass |
 | 規格書驗算 | 237 項聲明重算，確認 49 項勘誤（[docs/validation.md](docs/validation.md)），網站一律採用修正版本 |

@@ -5,6 +5,7 @@ import {
   ClaimTag,
   CodeBlock,
   CodeCompare,
+  Mermaid,
   ModeGate,
   Plot,
   Prereq,
@@ -22,6 +23,7 @@ import {
   delayBoundTable,
   delayCharPoly,
   delayCriticalGain,
+  delayNoOvershootGain,
   delayStable,
   pmWithDelay,
   simulateDelayRecursion,
@@ -29,6 +31,7 @@ import {
 import { ctx, Expand, fx, HandCalcSlot, rich, sig, tx } from '../common'
 import { formula } from '../formulas'
 import { HAND_BLOCKS } from '../handcalcs'
+import { DELAY_LOOP_CHART, PHASE_BUDGET_CHART, PIPELINE_SEQ_CHART, ROOT_STATES_CHART } from '../diagrams'
 
 const SRC_PATH = 'src/simulation/models/stability.ts'
 // Plot 的 layout 放在模組層級：物件參考固定，重新渲染時不會觸發多餘的 Plotly.react
@@ -72,6 +75,20 @@ export function UpdateDelay() {
       <p>
         真實的 GMAC 不會在累加完的瞬間就把新係數送進 DTC：先要等 <Tex>{'N'}</Tex> 個 sample 累加完、做除法或 shift、寫入 shadow register，再在某個 block 邊界 commit 到 DTC。
         如果第 <Tex>{'k'}</Tex> 個 block 量到的 <Tex>{'G_k'}</Tex> 其實是 <Tex>{'d'}</Tex> 個 block 前的係數造成的，迴路就多了 <Tex>{'d'}</Tex> 個 block 的純延遲。
+      </p>
+      <p>
+        {rich(
+          String.raw`這個 $d$ 叫更新延遲（update delay，單位：block）：$d=0$ 是前一節的理想情形，$d=1$ 表示 DTC 永遠用著「上一版」的係數。先用時序圖看 $d=1$ 時一個 block 裡發生什麼事：`,
+        )}
+      </p>
+      <Mermaid
+        caption={String.raw`更新延遲 $d=1$ 的時序：注意每個 block 一開始，暫存器的最新值和 DTC 實際拿到的值差了一版`}
+        chart={PIPELINE_SEQ_CHART}
+      />
+      <p className="small">
+        {rich(
+          String.raw`讀圖（由上往下是時間）：先看 block $k$ 的第一個箭頭——暫存器裡已經是 $w_k$，DTC 拿到的卻是 $w_{k-1}$。所以這個 block 的誤差是 $\delta_{k-1}=a-w_{k-1}$，GMAC 累加出來的是 $G_k=K\delta_{k-1}$，暫存器用它算出 $w_{k+1}$。再看 block $k+1$：同樣的事重複一次，所有下標加 $1$。下面的表是同一件事的表格版（多列了前一個 block $k-1$），每一欄是一個 block。`,
+        )}
       </p>
       <div className="table-wrap">
         <table className="ch08-table">
@@ -131,6 +148,26 @@ export function UpdateDelay() {
         </table>
       </div>
 
+      <p>
+        {rich(
+          String.raw`把這個延遲畫回 §8.2 的方塊圖，只多了一個方塊：暫存器的輸出 $w_k$ 要先經過 $z^{-d}$（延遲 $d$ 個 block）才到 DTC。`,
+        )}
+      </p>
+      <Mermaid
+        caption={String.raw`加了更新延遲的 calibration loop：和 §8.2 的圖只差紅色那一格；注意 $\Sigma$ 輸出的誤差下標變成 $k-d$`}
+        chart={DELAY_LOOP_CHART}
+      />
+      <p className="small">
+        {rich(
+          String.raw`讀圖：先看紅色的延遲方塊——進去的是 $w_k$，出來的是 $w_{k-d}$。再看 $\Sigma$：它減掉的是舊的 $w_{k-d}$，所以輸出是舊的誤差 $\delta_{k-d}=a-w_{k-d}$，GMAC 算出的是 $G_k=K\delta_{k-d}$。圖上繞一圈的三個方塊相乘，$K\cdot\frac{\mu}{z-1}\cdot z^{-d}$，就是下面 F-08.7 的 $L(z)=\frac{g\,z^{-d}}{z-1}$；$\Sigma$ 輸出的 $\delta_{k-d}$ 就是遞迴式 $\delta_{k+1}=\delta_k-g\,\delta_{k-d}$ 裡那個「舊的」誤差。`,
+        )}
+      </p>
+      <p className="small">
+        {rich(
+          String.raw`F-08.7 裡的 $P(z)$ 是閉迴路的特徵多項式：它的根就是閉迴路 poles。後面常用到 spectral radius $\rho$——所有根的絕對值裡最大的那一個；$\rho<1$（所有根都在單位圓內）誤差才會衰減。`,
+        )}
+      </p>
+
       <Expand title="一步一步推導特徵式">
         <StepDerivation
           steps={[
@@ -188,6 +225,22 @@ export function UpdateDelay() {
       <HandCalcSlot id="HC-08.4">
         {rich(String.raw`上面的表只有兩個 $g$。換成你自己的 $g$、$d$、$\delta_0$，在紙上一格一格往右算 ${HAND_BLOCKS} 個 block——親手算過一次 overshoot，比看十張圖有感覺。`)}
       </HandCalcSlot>
+
+      <h4>{rich(String.raw`$g$ 加大時，根怎麼走？`)}</h4>
+      <p>
+        {rich(
+          String.raw`接下來三段推導（$d=1$ 的 Jury 判據、$d=2$、一般的 $d$）其實都在回答同一個問題：$g$ 從 $0$ 慢慢加大時，$P(z)$ 的根怎麼移動、什麼時候踩到單位圓。踩到的那個 $g$ 叫臨界增益，記成 $g^{*}(d)$。先看整個過程的五個階段：`,
+        )}
+      </p>
+      <Mermaid
+        caption={String.raw`$g$ 由小到大，主導根經過的五個階段（畫的是 $d\ge1$）：綠色＝不 overshoot，藍色＝會 overshoot 但收斂，紅色＝臨界與發散`}
+        chart={ROOT_STATES_CHART}
+      />
+      <p className="small">
+        {rich(
+          String.raw`讀圖（由左到右就是 $g$ 變大）：先看前兩格——$g$ 很小時，最慢的根在 $z\approx1-g$，和沒有延遲時一樣，$\delta_k$ 單調衰減、不變號。再看中間藍色那格——$g$ 超過門檻（$d=1$ 是 $${fx(delayNoOvershootGain(1), 2)}$，$d=2$ 是 $${fx(delayNoOvershootGain(2), 4)}$；$d=0$ 是 $1$，這時根變成負實數而不是複數）之後，$\delta_k$ 開始正負振盪，但振幅仍然越來越小。最後看紅色兩格——$g=g^{*}(d)$ 時根剛好在單位圓上，圖上的角度 $\omega^{*}=\frac{\pi}{2d+1}$（臨界時那個根在單位圓上的角度）與 $PM_d=0$（$PM_d$ 是含延遲的 phase margin，本節後半會算）就是 F-08.8、F-08.9 的結果（$d=0,1,2$ 時 $g^{*}=${fx(delayCriticalGain(0), 0)},\ ${fx(delayCriticalGain(1), 0)},\ ${fx(delayCriticalGain(2), 3)}$）；再大就發散。`,
+        )}
+      </p>
 
       <Prereq title="Jury 穩定判據（二次式）：不用解根就知道根在不在單位圓內">
         <p>
@@ -272,6 +325,22 @@ export function UpdateDelay() {
       <TexBlock id="F-08.8" label="臨界增益（只對這個特徵方程成立）">
         {formula('F-08.8').tex}
       </TexBlock>
+
+      <h4>換成頻域再看一次：延遲吃掉多少相位？</h4>
+      <p>
+        {rich(
+          String.raw`根軌跡回答的是「$g$ 最大可以到多少」。設計時更常問的是「現在這個 $g$ 離不穩定還有多遠」——這要用 §8.2 的 phase margin 來量。含 $d$ 個 block 延遲時的 phase margin 記成 $PM_d$，gain margin 記成 $GM_d$。算法像記帳：$PM=180^\circ+\angle L(e^{j\omega_c})$，所以一開始有 $180^\circ$ 的相位預算；沿著迴路每經過一個方塊，就扣掉它在交越頻率 $\omega_c$ 的相位落後，扣完剩下的就是 $PM_d$。`,
+        )}
+      </p>
+      <Mermaid
+        caption={String.raw`相位預算：從 $180^\circ$ 出發，沿著迴路的方塊一格一格扣；紅色的延遲每多一個 block 就多扣一個 $\omega_c$，藍色是扣完剩下的 $PM_d$`}
+        chart={PHASE_BUDGET_CHART}
+      />
+      <p className="small">
+        {rich(
+          String.raw`讀圖：先看上面那一排由左到右——GMAC 斜率 $K>0$ 不改變相位；積分器 $\frac{\mu}{z-1}$ 落後 $90^\circ+\frac{\omega_c}{2}$（§8.2 用弦長公式推過）；紅色的延遲 $z^{-d}$ 再落後 $d\,\omega_c$。線上寫的是每過一格還剩多少，最後剩下的 $90^\circ-\frac{\omega_c}{2}-d\,\omega_c$ 就是下面 F-08.9 的 $PM_d$。再看用虛線連上來的那一格——交越頻率 $\omega_c=2\arcsin\frac g2$ 和 §8.2 完全一樣，因為延遲只改相位、不改大小；把它代進去就是 $PM_d=90^\circ-(2d+1)\arcsin\frac g2$。最後看最右邊紅色的那格：$PM_d$ 剛好扣到 $0$ 時的 $g$，正是 F-08.8 的臨界增益 $g^{*}(d)$；而 $GM_d=g^{*}(d)/g$ 量的是現在的 $g$ 離它還差幾倍。`,
+        )}
+      </p>
 
       <Expand title={rich(String.raw`同一個答案的頻域版本：$PM_d=0\iff g=g^*$`)}>
         <StepDerivation

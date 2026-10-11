@@ -3,7 +3,7 @@ import type { Data } from 'plotly.js-dist-min'
 import { Callout, ClaimTag, ModeGate, Plot, Prereq, Section, Tex, TexBlock, useThemeTokens } from '@/components'
 import { erf, normCdf, normPdf } from '@/simulation/core'
 import { meanGmacEncoding, meanQ, pPlus, signLmsFixedPointEncoding } from '@/simulation/models/comparator'
-import { Erratum, HandCalcBlock, Steps, fx, linspace, texNum, vline } from '../common'
+import { Erratum, Fig, HandCalcBlock, Steps, fx, linspace, texNum, vline } from '../common'
 
 /** 先備知識：Gaussian、Φ、erf。 */
 export function GaussianPrereq() {
@@ -130,6 +130,11 @@ export function ProbabilitySection() {
         </Erratum>
         。
       </p>
+      <Fig name="singleCompare">
+        先看左邊兩個加法點：第一個把 <Tex>{'s'}</Tex> 和 <Tex>{'v'}</Tex> 加成 <Tex>{'e'}</Tex>，第二個減掉門檻得到 <Tex>{'e-\\theta'}</Tex>。再看菱形：
+        <Tex>{'e-\\theta\\ge0'}</Tex> 就輸出 <Tex>{'q=+1'}</Tex>，否則 <Tex>{'q=-1'}</Tex>。因為 <Tex>{'v'}</Tex> 是隨機的，走哪個出口也是隨機的；「是」那條線上的機率{' '}
+        <Tex>{'p'}</Tex> 就是下面要推導的 <Tex>{'P(q=+1)'}</Tex>，圖上的 <Tex>{'(s-\\theta)/\\sigma_v'}</Tex> 就是公式裡的標準化誤差 <Tex>{'r'}</Tex>。
+      </Fig>
       <Steps
         title={<Tex>{String.raw`P(q=+1)=\Phi\big((s-\theta)/\sigma_v\big)`}</Tex>}
         steps={[
@@ -168,6 +173,17 @@ export function ProbabilitySection() {
         }
       />
 
+      <p>
+        知道了 <Tex>{'p'}</Tex>，接著問兩件事：<Tex>{'q'}</Tex> 的<strong>平均</strong>是多少（這就是藏在雜訊裡的「訊號」），以及它每次<strong>起伏</strong>多大（「雜訊」）。
+        <Tex>{'q'}</Tex> 只有 <Tex>{'\\pm1'}</Tex> 兩個值，所以算法和算一枚硬幣的平均輸贏一樣：
+      </p>
+      <Fig name="qStats">
+        先看通往加法點的兩條線：<Tex>{'q=+1'}</Tex> 以機率 <Tex>{'p'}</Tex> 出現、<Tex>{'q=-1'}</Tex> 以機率 <Tex>{'1-p'}</Tex> 出現，加法點把「<Tex>{'+p'}</Tex>」和「
+        <Tex>{'-(1-p)'}</Tex>」相加，得到平均 <Tex>{'m=2p-1'}</Tex>。再看標著「<Tex>{'q^2=1'}</Tex>」的兩條線：不管 <Tex>{'q'}</Tex> 是哪一個值，<Tex>{'q^2'}</Tex> 都是 1，所以{' '}
+        <Tex>{'E[q^2]=1'}</Tex>，變異數就是 <Tex>{'1-m^2'}</Tex>。圖上的 <Tex>{'\\operatorname{erf}'}</Tex> 是 error function（和 <Tex>{'\\Phi'}</Tex>{' '}
+        只差一個尺度與平移，見 §1 的先備知識框）；它讓 <Tex>{'m'}</Tex> 直接寫成 <Tex>{'s'}</Tex> 的函數。圖上加法點的兩條輸入，就是下面推導第二行的{' '}
+        <Tex>{'p-(1-p)'}</Tex>。
+      </Fig>
       <Steps
         title={<Tex>{String.raw`E[q]=2\Phi-1=\operatorname{erf}`}</Tex>}
         steps={[
@@ -181,6 +197,10 @@ export function ProbabilitySection() {
       <TexBlock id="F-05.2" label={<>單一樣本的平均輸出（訊號）<ClaimTag kind="exact" /></>}>
         {String.raw`\boxed{m\equiv m_q\equiv E[q]=2\Phi\!\left(\frac{s-\theta}{\sigma_v}\right)-1=\operatorname{erf}\!\left(\frac{s-\theta}{\sqrt2\,\sigma_v}\right)}\;\xrightarrow{\;\theta=0\;}\;\operatorname{erf}\!\left(\frac{s}{\sqrt2\,\sigma_v}\right)`}
       </TexBlock>
+      <p className="ch05-note">
+        全站符號表把這個平均寫成 <Tex>{'m_q'}</Tex>（避免和 Ch12 的 code DC 混淆）；本章只有這一個平均值，公式裡簡寫成 <Tex>{'m'}</Tex>，兩者是同一個量。
+        <Erratum id="E34" />
+      </p>
       <Steps
         title={<Tex>{String.raw`\operatorname{Var}(q)=1-m^2`}</Tex>}
         steps={[
@@ -212,8 +232,13 @@ export function ProbabilitySection() {
       >
         <p>
           若把 comparator 的 0/1 位元 <Tex>{'b'}</Tex> 直接當成 <Tex>{'q'}</Tex> 送進 GMAC，<Tex>{'E[b]=p'}</Tex> 在 <Tex>{'s=0'}</Tex> 時是{' '}
-          <Tex>{'\\tfrac12'}</Tex> 而不是 0：
+          <Tex>{'\\tfrac12'}</Tex> 而不是 0。這裡要暫時離開 <Tex>{'x\\equiv1'}</Tex>：真正的 GMAC 累加的是 <Tex>{'q\\,x'}</Tex>（<Tex>{'x'}</Tex> 是 regressor，例如 DTC
+          code），誤差是 <Tex>{'s=(a-w)\\,x'}</Tex>；<Tex>{'w=a'}</Tex> 表示係數 <Tex>{'w'}</Tex> 已經等於真值 <Tex>{'a'}</Tex>，這時平均更新量應該是 0，迴路才會停在這裡。
         </p>
+        <Fig name="bitMapping">
+          先看綠色的路徑：位元 <Tex>{'b'}</Tex> 先映射成 <Tex>{'q=2b-1'}</Tex> 再進 GMAC，在 <Tex>{'w=a'}</Tex> 時 <Tex>{'E[q\\,x]=0'}</Tex>，固定點正確。再看紅色的路徑：直接累加{' '}
+          <Tex>{'b\\,x'}</Tex>，因為 <Tex>{'E[b]=\\tfrac12'}</Tex>，平均更新量是 <Tex>{'\\tfrac12E[x]'}</Tex>；只要 code 有直流成分（<Tex>{'E[x]\\ne0'}</Tex>），迴路就會被推到別的地方才平衡。圖上紅、綠兩個結果，就是下面 F-05.16 的左右兩邊。
+        </Fig>
         <TexBlock id="F-05.16" label={<>反面測試（T04）<ClaimTag kind="exact" /></>}>
           {String.raw`E[b\,x]\big|_{w=a}=\tfrac12E[x]\neq0\qquad(\text{正確：}q=2b-1\Rightarrow E[q\,x]\big|_{w=a}=0)`}
         </TexBlock>

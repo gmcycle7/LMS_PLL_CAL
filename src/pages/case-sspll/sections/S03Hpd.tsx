@@ -1,6 +1,6 @@
 import { ModeGate, Prereq, Section, StepDerivation, Tex } from '@/components'
 import { H_IMPULSE, LOOP_KEYS } from '../data'
-import { DataTable, ModelCode, Src, fx, r } from '../common'
+import { DataTable, Diagram, FigRef, ModelCode, Src, fx, r } from '../common'
 
 /** §3 從比較點到 PD：H_PD = 1/(1 + L) 的逐步推導與脈衝響應。 */
 export function S03Hpd() {
@@ -34,8 +34,14 @@ export function S03Hpd() {
         </ul>
       </Prereq>
       <p>
-        設比較點收到的「外加誤差」是 <Tex>{'u[n]'}</Tex>（DTC 加 PMUX 的誤差），迴路產生的修正是 <Tex>{'y[n]'}</Tex>。PD 看到的殘差一步一步推：
+        設比較點收到的「外加誤差」是 <Tex>{'u[n]'}</Tex>（DTC 加 PMUX 的誤差，§2 的 <FigRef id="injection" />），迴路產生的修正是 <Tex>{'y[n]'}</Tex>。主迴路是一個負回授：PD 量到殘差，loop filter 與 VCO 把它變成修正量，下一拍再從誤差裡扣掉。
       </p>
+      <Diagram id="hpd-loop" />
+      <p>
+        先看藍色的加法點：它的輸出 <Tex>{r`e_{PD}[n]`}</Tex> 同時送到兩個地方——一路進主迴路（外框標著 <Tex>{'L(z)'}</Tex> 的那一塊），一路給 1-bit 比較器。再看 <Tex>{'L(z)'}</Tex> 的外框：殘差經過 loop filter、VCO（把頻率積分成相位）和 1 拍延遲之後，變成修正量 <Tex>{'y[n]'}</Tex>，以負號回到加法點。圖上的加法點就是下面推導的第 1 步{' '}
+        <Tex>{r`e_{PD}=u-y`}</Tex>；整個外框就是第 2 步的 <Tex>{'L(z)'}</Tex>（開迴路增益：從 <Tex>{r`e_{PD}`}</Tex> 繞一圈回到 <Tex>{'y'}</Tex> 的轉移函數）。三個迴路的外框裡各放什麼，見 §6 的 <FigRef id="three-loops" />。
+      </p>
+      <p>把圖寫成代數，PD 看到的殘差一步一步推：</p>
       <StepDerivation
         title="一步一步：誤差 → PD 的轉移函數"
         steps={[

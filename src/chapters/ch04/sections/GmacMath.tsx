@@ -19,7 +19,8 @@ import {
 } from '@/simulation/models/gmac'
 import { SignalFlowExperiment } from '../experiments/SignalFlowExperiment'
 import { BitEncodingExperiment } from '../experiments/BitEncodingExperiment'
-import { DerivationFold, Erratum, f, HandCalcBox, tx, mt } from '../common'
+import { BIT_MAPPING, GMAC_MEAN_MODEL, NEGATE_DATAPATH, SUM_VS_AVERAGE } from '../diagrams'
+import { DerivationFold, Erratum, f, FigRef, HandCalcBox, MermaidFig, tx, mt } from '../common'
 
 const R = String.raw
 const GMAC_PATH = 'src/simulation/models/gmac.ts'
@@ -99,6 +100,21 @@ export function GmacMathSection() {
         </strong>
         」。如果 DTC gain 太小（<Tex>{R`\delta>0`}</Tex>）， PD 殘差 <Tex>{R`\delta x`}</Tex> 和 code 同號，<Tex>q</Tex> 傾向和 <Tex>x</Tex> 同號，乘積平均為正，於是 <Tex>w</Tex> 往上加；反之往下減。
       </p>
+      <MermaidFig
+        chart={GMAC_MEAN_MODEL}
+        caption={R`GMAC 在估計什麼。左欄是真正發生的事（每個 sample 一次，最後平均成 $G_k$）；右欄是對雜訊取平均之後的等效。看右欄的兩個藍色方塊：整條路徑平均起來只剩兩個增益 $K_q$ 與 $C$。`}
+        ariaLabel="GMAC 的實際訊號路徑與取期望值後的小訊號等效"
+      />
+      <p>
+        <strong>先看左欄</strong>（實際訊號，由上往下）：gain 誤差 <Tex>{R`\delta_k=a-w_k`}</Tex> 乘上有效 regressor <Tex>{R`u[n]`}</Tex>（code 經過 PLL 誤差路徑後的樣子；PD 直接看到 DTC 誤差時{' '}
+        <Tex>{R`u=x`}</Tex>），加上雜訊 <Tex>{R`v[n]`}</Tex> 得到 comparator 的輸入 <Tex>{R`e[n]`}</Tex>；comparator 只留下正負號 <Tex>{R`q[n]`}</Tex>；再乘上對齊的 code <Tex>{R`x_\mathrm{ref}[n]`}</Tex>；最後把一個 block 的{' '}
+        <Tex>N</Tex> 筆平均起來成為 <Tex>{R`G_k`}</Tex>。下面「先算一次」的表格，每一欄就是左欄的一個方塊。
+      </p>
+      <p>
+        <strong>再看右欄</strong>：對雜訊取期望值之後，「加雜訊 + sign」這個非線性組合平均起來像一個線性增益 <Tex>{R`K_q=\sqrt{2/\pi}/\sigma_v`}</Tex>（雜訊越大，同樣的誤差越難看出來，增益越小），
+        「兩個乘法 + 平均」變成相關 <Tex>{R`C=E[x_\mathrm{ref}u]`}</Tex>。所以 GMAC 的平均正比於 gain 誤差：<Tex>{R`E[G_k]\approx K_qC\,\delta_k`}</Tex>，比例係數記成 <Tex>{R`K=K_qC`}</Tex>（GMAC 對{' '}
+        <Tex>{R`\delta`}</Tex> 的平均斜率，單位 <Tex>{R`\mathrm{fs}^{-1}`}</Tex>）。這就是後面 F-04.4 要一步一步推導的結果。
+      </p>
 
 
       <h3>
@@ -173,7 +189,8 @@ export function GmacMathSection() {
 
       <h3>GMAC 的平均：一步一步推導</h3>
       <p className="small muted">
-        先備知識：期望值、變異數、相關，以及 Gaussian、<Tex>{R`\Phi`}</Tex>、<Tex>{R`\mathrm{erf}`}</Tex> 的可展開說明框在 §3（第一次用到的地方）。
+        先備知識：期望值、變異數、相關，以及 Gaussian、<Tex>{R`\Phi`}</Tex>、<Tex>{R`\mathrm{erf}`}</Tex> 的可展開說明框在 §3（第一次用到的地方）。推導的每一步對應 <FigRef chart={GMAC_MEAN_MODEL} />{' '}
+        的方塊：第 3–5 步把左欄的「加雜訊 + sign」換成右欄的 <Tex>{R`K_q`}</Tex>，第 6 步把「乘 <Tex>{R`x_\mathrm{ref}`}</Tex> 再平均」換成 <Tex>C</Tex>。
       </p>
       <DerivationFold title={mt(R`$E[G_k]\approx K_qC\,\delta_k$`)}>
         <StepDerivation
@@ -221,6 +238,21 @@ export function GmacMathSection() {
       <h3>
         Sum vs average：同一個 <Tex>{R`\mu`}</Tex>，loop gain 差 <Tex>N</Tex> 倍
       </h3>
+      <p>
+        GMAC 累加器吐出來的是總和 <Tex>{R`S_k`}</Tex>，它的大小跟著 <Tex>N</Tex> 成長（累加越久數字越大）；更新式要的是平均 <Tex>{R`G_k=S_k/N`}</Tex>。RTL 上「<Tex>{R`\div N`}</Tex>」只是一個右移，
+        很容易被省掉，或在和「<Tex>{R`\times\mu`}</Tex>」合併時算錯位數。下圖把三種接法並排：
+      </p>
+      <MermaidFig
+        chart={SUM_VS_AVERAGE}
+        caption={R`Sum 與 average 的 scaling 路徑。三條路徑從同一個 $S_k$ 出發，差別只在有沒有「$\div N$」；看每條路徑最下面的 loop gain $g$：紅色那條（少了右移）是綠色的 $N$ 倍。`}
+        ariaLabel="GMAC 總和 S_k 經過除以 N 或不除，再乘 mu 的三種 scaling 路徑"
+      />
+      <p>
+        <strong>先看</strong>綠色路徑（average）：<Tex>{R`S_k`}</Tex> 先右移 <Tex>{R`\log_2N`}</Tex> bits 變成 <Tex>{R`G_k`}</Tex>，再乘 <Tex>{R`\mu`}</Tex>；每個 block 的修正量是{' '}
+        <Tex>{R`\Delta w=w_{k+1}-w_k=\mu G_k`}</Tex>，loop gain <Tex>{R`g=\mu K`}</Tex> 和 <Tex>N</Tex> 無關。<strong>再看</strong>紅色路徑（sum）：少了右移，同一個 <Tex>{R`\mu`}</Tex> 乘到的是{' '}
+        <Tex>{R`S_k=NG_k`}</Tex>，修正量變成 <Tex>N</Tex> 倍，loop gain 也變成 <Tex>{R`N\mu K`}</Tex>，合法的 <Tex>{R`\mu`}</Tex> 範圍縮小 <Tex>N</Tex> 倍。<strong>最後看</strong>沒上色的那條：如果是刻意省掉右移，
+        把學習率改成 <Tex>{R`\mu/N`}</Tex> 就和 average 完全一樣——重點是文件必須寫清楚暫存器裡的「<Tex>{R`\mu`}</Tex>」是哪一種意義。圖上三條路徑最下面的 <Tex>g</Tex> 就是下面的 F-04.5。
+      </p>
       <DerivationFold title={mt(R`為什麼 sum 模式的 $g$ 放大 $N$ 倍`)}>
         <StepDerivation
           steps={[
@@ -384,6 +416,20 @@ export function GmacMathSection() {
         因為 <Tex>q</Tex> 只有 <Tex>{R`\pm1`}</Tex>，<Tex>{R`q\cdot x`}</Tex> 只是「照抄 <Tex>x</Tex>」或「取負」。硬體上用一個 2 選 1 的 mux，或更省的 <strong>XOR + carry-in</strong>：把 <Tex>x</Tex>{' '}
         逐位元反相，再在累加器加法器的 carry-in 送 1。整個 GMAC 只要一個加法器和一個暫存器。
       </p>
+      <MermaidFig
+        chart={NEGATE_DATAPATH}
+        caption={R`條件取負的 GMAC datapath 與各級位元寬度：藍色三格（符號延伸、XOR、carry-in 控制）取代了乘法器。看位元寬度怎麼變：$B_x$ → $B_\mathrm{acc}$ → 右移後保留 $F_G$ 個小數位元。`}
+        ariaLabel="條件取負的 GMAC datapath：符號延伸、XOR、carry-in、累加器、右移、乘 mu、gain register"
+      />
+      <p>
+        <strong>先看</strong>左欄（sample rate）上方的第一個輸入：code 是 <Tex>{R`B_x`}</Tex>-bit 的二補數整數 <Tex>{R`x_\mathrm{int}[n]`}</Tex>（正規化的 code 是 <Tex>{R`x=x_\mathrm{int}/2^{B_x-1}`}</Tex>），它<strong>先</strong>符號延伸到累加器的寬度{' '}
+        <Tex>{R`B_\mathrm{acc}`}</Tex>。<strong>再看</strong>第二個輸入：comparator 的位元 <Tex>{R`b[n]`}</Tex> 反相後得到控制訊號 neg（<Tex>{R`q=-1`}</Tex> 時為 1）。neg 同時做兩件事：把 <Tex>x</Tex>{' '}
+        的每個位元反相（XOR），得到 <Tex>{R`\overline{x}=-x-1`}</Tex>；並當成加法器的 carry-in，補上那個 <Tex>{R`+1`}</Tex>。兩者合起來，加法器算的就是 <Tex>{R`S+q\cdot x_\mathrm{int}`}</Tex>。
+        <strong>最後</strong>順著箭頭到右欄（block rate）：block 結束時把 <Tex>{R`S_k`}</Tex> 右移 <Tex>{R`\ell=\log_2N-F_G`}</Tex> bits（<Tex>{R`F_G`}</Tex> 是保留的小數位元數，§5.2）、乘 <Tex>{R`\mu`}</Tex>、加進 gain register；虛線是 block 邊界的清除訊號。
+      </p>
+      <p className="small">
+        圖和公式的對應：XOR 方塊裡的兩種情形就是 F-04.8 的兩列；「符號延伸」畫在 XOR <strong>之前</strong>是關鍵——順序反過來（先在 <Tex>{R`B_x`}</Tex> bits 內取負、再延伸），最負的那個 code 會算錯，下面的推導說明原因。
+      </p>
       <Prereq title="二補數（two's complement）">
         <p>
           <Tex>B</Tex>-bit 二補數 <Tex>{R`b_{B-1}\dots b_1b_0`}</Tex> 代表的值是 <Tex>{R`-2^{B-1}b_{B-1}+\sum_{i=0}^{B-2}2^ib_i`}</Tex>
@@ -508,6 +554,16 @@ export function GmacMathSection() {
       <p>
         comparator 輸出的是一個 bit <Tex>{R`b\in\{0,1\}`}</Tex>。LMS 需要的是 <Tex>{R`q=\mathrm{sign}(e)\in\{-1,+1\}`}</Tex>：<Tex>{R`q=2b-1`}</Tex>
         （§16.1 第 1 項）。如果 RTL 直接拿 <Tex>b</Tex> 去控制「加 <Tex>x</Tex> 或不加」，就等於用 <Tex>{R`q_\mathrm{bug}=b`}</Tex>。
+      </p>
+      <MermaidFig
+        chart={BIT_MAPPING}
+        caption={R`0/1 → $\pm1$ 的映射方塊（綠色，正確路徑）與忘了映射的 bug 路徑（紅色）。看兩條路徑的第一格：只差一個映射方塊，最下面的結果卻差了「增益減半」和「一個和 code 平均成正比的偏差」。`}
+        ariaLabel="comparator 位元映射成正負一的正確路徑，與直接使用 0/1 的錯誤路徑"
+      />
+      <p>
+        <strong>先看</strong>綠色路徑：位元 <Tex>{R`b[n]`}</Tex> 經過 <Tex>{R`q=2b-1`}</Tex> 變成 <Tex>{R`\pm1`}</Tex> 再進 GMAC，平均是 <Tex>{R`K\delta`}</Tex>；<Tex>{R`\delta=0`}</Tex> 時平均更新為 0，所以迴路平均起來停住的地方——
+        <strong>固定點</strong> <Tex>{R`w^*`}</Tex>——就是真值 <Tex>a</Tex>。<strong>再看</strong>紅色路徑：<Tex>b</Tex> 直接當成 <Tex>q</Tex>，等於每一筆乘積都多加了 <Tex>{R`\tfrac12x_\mathrm{ref}`}</Tex>。圖上的{' '}
+        <Tex>{R`G_\mathrm{bug}=\tfrac12G+\tfrac12\bar x_\mathrm{ref}`}</Tex>（<Tex>{R`\bar x_\mathrm{ref}`}</Tex> 是這個 block 內 code 的平均）就是下面推導的第 3 步；最下面偏掉的固定點是第 6 步，也就是 F-04.7。
       </p>
       <DerivationFold title={mt(R`忘了映射：增益減半，再加一個 $E[x_\mathrm{ref}]/K$ 的偏差`)}>
         <StepDerivation

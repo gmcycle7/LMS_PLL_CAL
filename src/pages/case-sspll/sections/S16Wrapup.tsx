@@ -1,7 +1,7 @@
 import { Quiz, Recap, Section, Tex } from '@/components'
 import { W1, loopF3dB, typeIIFinv } from '@/simulation/models/sspll'
 import { BAND, FREF_MHZ, GOS_SCAN, LOOPS, PARAMS, PRED, P_ONLY, SIM_CFG } from '../data'
-import { Claim, DataTable, fx, intervalsText, r, tx } from '../common'
+import { Claim, DataTable, Diagram, fx, intervalsText, r, tx } from '../common'
 
 /** §16 思考題 */
 export function S16Quiz() {
@@ -138,6 +138,14 @@ export function S17Recap() {
       </Section>
 
       <Section kind="diagram" level={2} title="18. 連結到 PLL 硬體" id="cs-18">
+        <p>
+          前面的數學量在晶片上各是哪一塊電路？先看校正路徑上的數位硬體，再用下面的表逐項對照。
+        </p>
+        <Diagram id="hardware" />
+        <p>
+          先看 code 這一條路：分數累加器的高 3 位是 PMUX 的 select（<Tex>{'p[n]'}</Tex>，解碼成 8 條 one-hot 就是 PHOS 的 regressor），其餘低位是 DTC 的 code（<Tex>{r`\rho[n]`}</Tex>，GOS 的 regressor）；兩者要各自經過 pipeline 對齊到比較器的輸出（<Tex>{'D=0'}</Tex>），再各做一次「暫存器 + 減法器」的一階差分，才進 GMAC。再看比較器這一條路：它接在 SSPD 的
+          hold 節點，輸出的 1 bit 和 9 條 regressor 相乘累加；權重更新後要 clamp 在 DTC 的範圍內，再加回 DTC code。兩個藍色方塊就是採用一階差分時硬體上要做對的兩件事，其他方塊原本就有。
+        </p>
         <DataTable
           head={['數學量', '硬體']}
           rows={[

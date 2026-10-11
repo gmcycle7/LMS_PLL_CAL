@@ -1,27 +1,10 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, CodeBlock, CodeCompare, Mermaid, ModeGate, Prereq, Quiz, Section, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Prereq, Quiz, Section, StepDerivation, Tex, TexBlock } from '@/components'
 import lmsSrc from '@/simulation/models/lms.ts?raw'
 import sgdSrc from '@/simulation/models/sgd.ts?raw'
 import { equalSpeedVarianceRatio, noisePdfAt, type MeanFieldInput, type NoiseKind, type XKind } from '@/simulation/models/sgd'
-import { ChapterLink, ErrataNote, HandCalcSlot, f4, DerivFold, tm } from '../common'
+import { ChapterLink, Diagram, ErrataNote, HandCalcSlot, f4, DerivFold, tm } from '../common'
 import { SignLmsCompare } from '../experiments/SignLmsCompare'
-
-const DATAPATH = `flowchart LR
-  subgraph L["LMS：多位元乘法"]
-    E1["e：TDC / ADC（B_e bits）"] --> M1["乘法器 B_e × B_x"]
-    X1["x（B_x bits）"] --> M1
-    M1 --> S1["× μ（shift）"] --> A1["累加器 w"]
-  end
-  subgraph SE["Sign-Error：條件取負"]
-    Q2["q = sign(e)：comparator 1 bit"] --> N2["MUX：q ? x : −x"]
-    X2["x（B_x bits）"] --> N2
-    N2 --> S2["× μ（shift）"] --> A2["累加器 w"]
-  end
-  subgraph SS["Sign-Sign：XOR + 計數器"]
-    Q3["q：1 bit"] --> X3["XOR"]
-    B3["sign(x)：1 bit"] --> X3
-    X3 --> C3["up / down counter（步長 μ）"]
-  end`
 
 const NOISES: NoiseKind[] = ['gaussian', 'laplacian', 'impulsive']
 const NOISE_NAME: Record<string, string> = { gaussian: 'Gaussian', laplacian: 'Laplacian', impulsive: 'Impulsive（contaminated Gaussian）' }
@@ -44,6 +27,17 @@ export function S5Compare() {
   return (
     <section>
       <h2 id="ch02-s5">§5 演算法大比較：數學、硬體與程式碼</h2>
+
+      <Section kind="diagram" title="先看地圖：每個演算法用了多少資訊、花多少硬體">
+        <Diagram id="info-map">
+          <p>
+            {tm(
+              String.raw`先看最上面一格：LMS 的誤差 $e$ 和輸入 $x$ 都用多位元——要 TDC 或 ADC 把誤差的大小量出來，還要一個乘法器。再沿著實線往下看：先丟掉誤差的大小、只留 1 bit，就是 Sign-Error（TDC 換成一顆 comparator，乘法器換成條件取負）；再丟掉輸入的大小，就是 Sign-Sign（只剩 XOR 和計數器）。越往下硬體越省，但每丟掉一種資訊，收斂到的點與穩態的抖動都會跟著改變——下面的總比較表逐欄列出。虛線那條路（先丟掉輸入的大小、保留多位元誤差，叫做 signed-regressor LMS）本章不討論。`,
+            )}
+          </p>
+          <p>圖上每一格的第二行，就是下面總比較表裡「需要的 error 位元」與「需要的 regressor 位元」兩欄；第三行是「硬體成本」那一欄。</p>
+        </Diagram>
+      </Section>
 
       <Section kind="example" title="總比較表">
         <div className="table-wrap">
@@ -213,7 +207,14 @@ export function S5Compare() {
       </Section>
 
       <Section kind="diagram" title="硬體資料路徑：乘法器 vs 條件取負 vs XOR">
-        <Mermaid chart={DATAPATH} caption="示意：步長通常取 2 的冪（用右移實現），所以 Sign-Error 的每步更新只需要一個 MUX 選「加」或「減」regressor。" />
+        <Diagram id="datapath">
+          <p>
+            {tm(
+              String.raw`先看每一排上色的那一格：LMS 是紅色的多位元乘法器（$B_e$、$B_x$ 是誤差與輸入的位元數，乘法器的面積大約正比於 $B_e\times B_x$）；Sign-Error 是藍色的 MUX，只是在「加 $x$」與「減 $x$」之間二選一；Sign-Sign 是綠色的 XOR。再看每一排的最後一格：LMS 與 Sign-Error 都還要用多位元的加法器，把移位後的結果加進 $w$；Sign-Sign 只要一個上下數的計數器。`,
+            )}
+          </p>
+          <p>{tm(String.raw`圖上的三排（LMS、Sign-Error、Sign-Sign）各自對應上面並排的三段程式碼裡標「← 差異」的那一行：$\mu\,e\,x$、$\mu\operatorname{sign}(e)\,x$、$\mu\operatorname{sign}(e)\operatorname{sign}(x)$。`)}</p>
+        </Diagram>
         <p>
           Sign-Error 的 <Tex>{'\\operatorname{sign}(e)\\,x'}</Tex> 在硬體上是「<strong>conditional negation</strong>」：<Tex>{'q=+1'}</Tex> 時加 <Tex>{'x'}</Tex>、<Tex>{'q=-1'}</Tex> 時減 <Tex>{'x'}</Tex>
           （2&apos;s complement：XOR 每個位元再進位 1）。這就是 PLL 校正中 GMAC 的乘加單元（<ChapterLink ch="04">Ch04</ChapterLink>）。
@@ -222,6 +223,21 @@ export function S5Compare() {
       </Section>
 
       <Section kind="formula" title="精度效率：同收斂速度下誰比較準？">
+        <p>
+          收斂之後，<Tex>{'w'}</Tex> 並不會靜止，而是在固定點附近抖動。抖多大？靠近固定點時，四種演算法都可以畫成同一個一階迴路，只差兩個數字：
+        </p>
+        <Diagram id="noise-loop">
+          <p>
+            {tm(
+              String.raw`先看藍色的方塊：靠近固定點時，每一步參數誤差 $\delta[n]$ 都被乘上 pole $p=1-\mu K$，其中 $K$ 是平均更新方向在固定點的斜率（每單位步長的 loop gain；LMS 的 $K=E[x^2]$，Sign-Error 的 $K=K_{\rm SE}$）。再看紅色的輸入：每一步還有一筆隨機的梯度雜訊 $\eta[n]$（單步更新方向偏離平均的部分，變異 $\sigma_\eta^2$），乘上 $\mu$ 之後注入迴路。這是一個一階低通：$\mu K$ 越小，pole 越靠近 1，每筆雜訊進來得越少、被平均得越久，抖動越小——但修掉誤差也越慢（時間常數 $\tau\approx1/(\mu K)$ 步）。`,
+            )}
+          </p>
+          <p>
+            {tm(
+              String.raw`圖上加法點的兩個輸入，就是下面推導第一行等號右邊的兩項 $(1-\mu K)\,\delta_n$ 與 $\mu\,\eta_n$。$\eta_n$ 平均為 0，它的正負號怎麼定義不影響結果；進到 F-02.13 的只有它的變異 $\sigma_\eta^2$。兩個演算法要公平比較，就讓 $g=\mu K$（正規化 loop gain）相同，再比誰的 $\sigma_\eta^2/K^2$ 小——兩者相除就是 F-02.14 的變異比。`,
+            )}
+          </p>
+        </Diagram>
         <DerivFold>
           <StepDerivation
             steps={[
@@ -287,6 +303,14 @@ export function S5Compare() {
         <p>
           LMS 的穩定界 <Tex>{'\\mu<2/x^2'}</Tex> 依賴輸入幅度：code 幅度因 PVT 或 FCW 改變 10 倍時，同一個 <Tex>{'\\mu'}</Tex> 可能發散或慢 100 倍。§1 說最好的步長是 <Tex>{"1/J''=1/x^2"}</Tex>——那就每一步都除以 <Tex>{'x_n^2'}</Tex>：
         </p>
+        <Diagram id="nlms-datapath">
+          <p>
+            {tm(
+              String.raw`先看 LMS 那一框：更新量 $\mu\,e\,x$ 裡的 $e$ 本身也正比於 $x$，所以輸入變大 10 倍，每一步就大 100 倍。再看 NLMS 那一框裡藍色的兩格：它多算一個 $x[n]^2$，用它去除更新量（$\varepsilon$ 是避免除以零的小常數），於是每一步修掉的誤差比例和 $x$ 的大小無關。$\tilde\mu$ 是除過之後的步長，沒有單位。`,
+            )}
+          </p>
+          <p>{tm(String.raw`圖上的「$\div(\varepsilon+x[n]^2)$」就是 F-02.15 的分母，「$\times\tilde\mu$」就是分子上的 $\tilde\mu$；LMS 那一框和 §2 的迴圈相同。`)}</p>
+        </Diagram>
         <DerivFold>
           <StepDerivation
             steps={[

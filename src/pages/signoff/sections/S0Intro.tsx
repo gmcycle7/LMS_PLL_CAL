@@ -1,40 +1,11 @@
-import { Callout, ClaimTag, ModelLevel, Prereq, Section, SourceTag, SymbolTable, Tex, TexBlock, mathText, type SymbolEntry } from '@/components'
+import { Callout, ClaimTag, ModelLevel, Prereq, Section, SourceTag, Tex, TexBlock } from '@/components'
 import { normCdf, normInv, studentTInv } from '@/simulation/core'
 import { cornerJudge, efbPeriod, failureUpperBound, gCrit, inlMseFixedPoint, kq, pmDeg, slopeStdErr } from '../judges'
-import { ErratumTag, nf, scrollToAnchor, tx } from '../shared'
+import { CHART_SIGNOFF_FLOW } from '../diagrams'
+import { Diagram, ErratumTag, nf, scrollToAnchor, tx } from '../shared'
 
-const SYMBOLS: SymbolEntry[] = [
-  { symbol: '\\delta=a-w', meaning: '剩餘參數誤差（真值減校正係數）', unit: '\\mathrm{fs}', firstSeen: '§0', note: <>全站約定（規格 §3、§12 的反向極性見 <ErratumTag id="E32" /> <ErratumTag id="E33" />）</> },
-  { symbol: 'a,\\ w', meaning: '真實係數、GMAC block 使用的校正係數', unit: '\\mathrm{fs}/\\text{unit code}', firstSeen: '§0', note: 'code 正規化時 $w$ 的單位是「每單位 code 的 fs」（E13）' },
-  { symbol: 'w^*', meaning: 'LMS 的固定點：$E[G(w^*)]=0$（一般 $w^*\\ne a$）', unit: '\\mathrm{fs}', firstSeen: '§3' },
-  { symbol: 'G_k', meaning: '第 $k$ 個 GMAC block 的平均相關輸出 $\\frac1N\\sum_n q[n]\\,x[n-D]$', unit: '—', firstSeen: '§1', note: <>average 模式；sum 模式差 <Tex>{'N'}</Tex> 倍 <ErratumTag id="E18" /></> },
-  { symbol: '\\bar G(w)', meaning: '把 $w$ 凍結時 $G_k$ 的期望值（mean-field）', unit: '—', firstSeen: '§2' },
-  { symbol: '\\Delta\\ (\\Delta w)', meaning: 'freeze 量測時加在 $w$ 上的擾動', unit: '\\mathrm{fs}', firstSeen: '§2' },
-  { symbol: 'M', meaning: '每一側（$+\\Delta$ 或 $-\\Delta$）量測的 block 數', unit: '—', firstSeen: '§2', note: '粗體 $\\mathbf M$ 是多參數更新矩陣，兩者不同' },
-  { symbol: 'S=\\partial\\bar G/\\partial w', meaning: 'GMAC 對 $w$ 的斜率（$S_\\mathrm{GMAC}$）', unit: '\\mathrm{fs}^{-1}', firstSeen: '§2' },
-  { symbol: 'K=-S=K_qC', meaning: '恢復力（$K>0$ 才會往正確方向更新）', unit: '\\mathrm{fs}^{-1}', firstSeen: '§2', note: <>§0 未定義 <Tex>{'K'}</Tex>，本站採 E13 <ErratumTag id="E13" /></> },
-  { symbol: 'K_q=\\sqrt{2/\\pi}/\\sigma_v', meaning: '1-bit comparator 小訊號增益（$|s|\\ll\\sigma_v$）', unit: '\\mathrm{fs}^{-1}', firstSeen: '§2' },
-  { symbol: 'C=E[x[n-D]\\,u[n]]', meaning: '原始 code 與有效 regressor 的相關（含路徑相位與 code delay）', unit: '—', firstSeen: '§2' },
-  { symbol: 'D', meaning: 'GMAC code delay（sample）', unit: '\\text{samples}', firstSeen: '§2', note: '與更新延遲 $d$（block）不同（E34）' },
-  { symbol: 'd', meaning: '更新／commit 延遲', unit: '\\text{blocks}', firstSeen: '§4' },
-  { symbol: 'g=\\mu K,\\ p=1-g', meaning: '無因次迴路增益與一階 pole', unit: '—', firstSeen: '§3' },
-  { symbol: 'g_\\text{crit}(d)', meaning: '更新延遲 $d$ 時的臨界增益 $2\\sin\\frac{\\pi}{4d+2}$', unit: '—', firstSeen: '§4' },
-  { symbol: '\\sigma_\\eta^2', meaning: 'GMAC block 雜訊變異數（$\\pm1$ code、近平衡時 $\\approx1/N$）', unit: '—', firstSeen: '§2' },
-  { symbol: '\\mathrm{se},\\ z', meaning: '估計值的標準誤、判決用的信心倍數', unit: '—', firstSeen: '§0' },
-  { symbol: '\\mathbf J,\\ \\hat{\\mathbf J}', meaning: '多參數 Jacobian $\\partial E[\\mathbf G]/\\partial\\mathbf w$ 與其量測值', unit: '\\mathrm{fs}^{-1}', firstSeen: '§2.5' },
-  { symbol: '\\mathbf M,\\ \\mathbf A=\\mathbf I+\\mathbf M\\mathbf J', meaning: '更新矩陣與線性化閉迴路矩陣', unit: '—', firstSeen: '§7' },
-  { symbol: '\\rho(\\mathbf A)', meaning: 'spectral radius（$\\max_i|\\lambda_i|$）', unit: '—', firstSeen: '§7', note: 'regressor 相關係數另記 $\\rho_{GP}$' },
-  { symbol: '\\sigma_i,\\ \\kappa', meaning: '奇異值與 condition number $\\sigma_{\\max}/\\sigma_{\\min}$', unit: '—', firstSeen: '§7' },
-  { symbol: 'g_2(\\mu),\\ \\lambda(\\mu)', meaning: '均方係數 $E[(1-\\mu x^2)^2]$ 與 Lyapunov 指數 $E[\\log|1-\\mu x^2|]$', unit: '—', firstSeen: '§3', note: <>與迴路增益 <Tex>{'g'}</Tex> 區分；a.s. 界見 <ErratumTag id="E14" /></> },
-  { symbol: 'n,\\ k_f,\\ p_U', meaning: '獨立試驗數、觀察到的失效數、失效機率上界', unit: '—', firstSeen: '§3.5' },
-  { symbol: 'B_x,\\ B_\\text{acc},\\ F', meaning: 'GMAC 輸入位元、累加器位元、內部小數位元', unit: '\\text{bits}', firstSeen: '§6' },
-  { symbol: 'T_\\text{lc}', meaning: 'limit cycle 週期（與閉迴路 $T=L/(1+L)$ 不同）', unit: '\\text{updates}', firstSeen: '§6' },
-]
-
-/** 字串欄位中的 `$…$` 以 KaTeX 顯示（SymbolTable 的 meaning／note 是 ReactNode，不會自動轉）。 */
-const SYMBOL_ROWS: SymbolEntry[] = SYMBOLS.map((r) => ({ ...r, meaning: mathText(r.meaning), note: mathText(r.note) }))
-
-const PILLARS: { name: string; question: string; tex: string; rows: string }[] = [
+/** 六個條件（頁面表格與 diagrams.ts 的 CHART_SIGNOFF_FLOW 共用這個順序；diagrams.test.ts 核對）。 */
+export const PILLARS: { name: string; question: string; tex: string; rows: string }[] = [
   { name: 'Identifiability', question: '資訊夠不夠？每個參數方向都有恢復力嗎？', tex: '\\lambda_{\\min}(\\mathbf R)>0,\\ \\ \\sigma_{\\min}(\\mathbf J)>0', rows: 'FCW、多參數、SSPLL' },
   { name: 'Polarity', question: '更新方向對不對？', tex: 'K=K_qC>0,\\ \\ \\mathrm{diag}(\\hat{\\mathbf J})<0', rows: '基本正確性、Corner、FCW、SSPLL' },
   { name: 'Stability', question: '迴路動態會不會發散？', tex: '\\rho\\big(\\text{閉迴路矩陣}\\big)<1,\\ \\ g<g_\\text{crit}(d)', rows: 'Corner、多參數、策略' },
@@ -111,6 +82,24 @@ export function S0Intro() {
             </tbody>
           </table>
         </div>
+        <p className="small">
+          表中符號的白話意思（完整定義在頁末符號表）：<Tex>{'\\mathbf R'}</Tex> 是有效 regressor 的自相關矩陣（資訊矩陣），<Tex>{'\\mathbf J'}</Tex> 是 GMAC 平均輸出對係數的 Jacobian（斜率矩陣，<Tex>{'\\hat{\\mathbf J}'}</Tex> 是量到的版本）；
+          <Tex>{'K=K_qC'}</Tex> 是 GMAC 的恢復力（<Tex>{'K>0'}</Tex> 才會把係數 <Tex>{'w'}</Tex> 拉向真值 <Tex>{'a'}</Tex>），<Tex>{'g=\\mu K'}</Tex> 是無因次迴路增益，<Tex>{'g_\\text{crit}(d)'}</Tex> 是更新晚 <Tex>{'d'}</Tex> 個 block 時 <Tex>{'g'}</Tex> 的上限；
+          <Tex>{'\\sigma_w'}</Tex> 是係數在固定點附近的抖動 RMS，<Tex>{'w^*'}</Tex> 是 LMS 真正停下來的固定點；<Tex>{'\\delta t'}</Tex> 是 DTC 實際施加的延遲誤差，<Tex>{'T=L/(1+L)'}</Tex> 是主 PLL 對輸出的 transfer。
+        </p>
+        <Diagram
+          chart={CHART_SIGNOFF_FLOW}
+          caption="Sign-off 的六道關卡：由上到下逐一問，六個「是」才可簽名；任何一個「否」就回到 Matrix 記下理由、修正後重做。每個菱形裡的判準就是上表的「數學判準」欄。"
+          ariaLabel="Sign-off 流程圖：先確認量測前提，再依序檢查 Identifiability、Polarity、Stability、Variance、Bias、System-level 六個條件；每一個不通過都導向不可 sign-off，六個都通過才可 sign-off"
+        >
+          <p>
+            先看中間那一串菱形：順序就是上表的順序，也是計算上的先後——有了 <Tex>{'K'}</Tex>（極性）才能算 <Tex>{'g=\\mu K'}</Tex>（穩定）；迴路收斂了才有穩態的 <Tex>{'\\sigma_w'}</Tex> 與固定點 <Tex>{'w^*'}</Tex>（variance、bias）；最後把兩者一起換算到輸出的{' '}
+            <Tex>{'\\sigma_{\\delta t}'}</Tex> 與 spur。它們互相獨立：通過前五個不保證第六個。
+          </p>
+          <p>
+            最上面的圓角框是量測前提（Matrix 第 1 個 case）：0/1 沒有映射成 <Tex>{'\\pm1'}</Tex>、code delay <Tex>{'D'}</Tex> 沒對齊，或 sum／average 與 <Tex>{'\\mu'}</Tex> 的 scaling 不一致時，後面每一格量到的都是錯的，所以先檢查它們。
+          </p>
+        </Diagram>
         <p>
           這一頁的結構：先用 <a href="#/signoff" onClick={(e) => { e.preventDefault(); scrollToAnchor('so-matrix') }}>互動 Sign-off Matrix</a> 列出每一項要驗證什麼、怎麼判斷、本站哪個實驗能幫你，並記錄你的進度（存在你自己的瀏覽器，可匯出 Markdown／JSON）；
           接著逐列推導判準背後的數學（每一步都寫理由）；最後是規格 §17 的反面測試與附錄 B 的十項限制。
@@ -120,7 +109,7 @@ export function S0Intro() {
       <Section kind="example" title="0.1 入門版：先用一組數字走完四層檢查">
         <p>
           如果六個條件一次看太多，先把簽核想成<strong>體檢的四個問題</strong>（入門課的四層檢查表）：方向對嗎 → 迴路增益會不會太大 → 雜訊抖多大 → 非理想把答案帶到哪。
-          下面用全站最常用的一組數字（<Tex>{'\\sigma_v=100\\,\\mathrm{fs}'}</Tex>、<Tex>{`N=${walk.N}`}</Tex>、<Tex>{`\\mu=${walk.mu}\\,\\mathrm{fs}`}</Tex>、<Tex>{'C=1'}</Tex>，測試 T13 的條件）各算一個數字——每一列的算法在後面的段落都有一步一步的推導。
+          下面用全站最常用的一組數字（<Tex>{'\\sigma_v=100\\,\\mathrm{fs}'}</Tex>、<Tex>{`N=${walk.N}`}</Tex>、<Tex>{`\\mu=${walk.mu}\\,\\mathrm{fs}`}</Tex>、<Tex>{'C=1'}</Tex>，測試 T13 的條件）各算一個數字——每一列的算法在後面的段落都有一步一步的推導。表中 <Tex>{'z'}</Tex> 是「信心倍數」（量到的值是標準誤的幾倍）、<Tex>{'\\Delta'}</Tex> 是 freeze 時人為加在 <Tex>{'w'}</Tex> 上的擾動、<Tex>{'M'}</Tex> 是每一側量測的 block 數、<Tex>{'K_q'}</Tex> 是 comparator 的小訊號增益。
         </p>
         <div className="table-wrap">
           <table>
@@ -191,7 +180,6 @@ export function S0Intro() {
         </p>
       </Section>
 
-      <SymbolTable rows={SYMBOL_ROWS} caption={mathText(String.raw`本頁一律 $\delta=a-w$；$K$、$\mu$ 的單位依 average-mode GMAC（$G$ 無因次）。粗體為矩陣。`)} />
 
       <Prereq title="期望值、變異數與「平均的標準誤」">
         <p>

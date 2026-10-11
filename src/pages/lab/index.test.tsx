@@ -6,6 +6,7 @@ import { SettingsProvider } from '@/app/settings'
 import { extractRegion, listRegions } from '@/components'
 import blockSrc from '@/simulation/models/blockLms.ts?raw'
 import labSrc from '@/simulation/models/unifiedLab.ts?raw'
+import { LAB_CHARTS } from './diagrams'
 import { FORMULAS } from './formulas'
 import LabPage from './index'
 import { EXP, TAB_LABEL, TAB_ORDER } from './logic'
@@ -84,7 +85,8 @@ const buttonByText = (root: HTMLElement, text: string) => Array.from(root.queryS
 /** 把 KaTeX 的輸出拿掉後的可見文字（檢查有沒有漏網的 `$...$` 或 Unicode 公式） */
 function visibleText(root: HTMLElement): string {
   const clone = root.cloneNode(true) as HTMLElement
-  clone.querySelectorAll('.katex, pre, code, option, .c-param-reg, .c-code, figure.c-code-block').forEach((n) => n.remove())
+  // .c-tip：TestBadge 的 tooltip 逐字列出測試名稱（src/data/verification-status.json），名稱裡可以有字面的 `$...$`；它不是本頁的內文
+  clone.querySelectorAll('.katex, pre, code, option, .c-param-reg, .c-code, figure.c-code-block, .c-tip').forEach((n) => n.remove())
   return clone.textContent ?? ''
 }
 
@@ -151,7 +153,7 @@ describe('Lab 頁：三種學習模式都能渲染', () => {
     expect(s4.textContent).toContain('這張表有一個容易讀錯的地方')
   })
 
-  it('符號表：列出本頁所有符號（含三個不同的延遲、兩條路徑），符號的 TeX 可解析', async () => {
+  it('符號表：列出本頁所有符號（含三個不同的延遲、兩條路徑），符號的 TeX 可解析；表在頁末（id="symbols"），頁首只留一行按鈕', async () => {
     const katex = (await import('katex')).default
     expect(LAB_SYMBOLS.length).toBeGreaterThanOrEqual(30)
     for (const s of LAB_SYMBOLS) {
@@ -162,6 +164,78 @@ describe('Lab 頁：三種學習模式都能渲染', () => {
     for (const need of ['H_{\\mathrm{PD}}', 'T(z)', 'd,\\ D,\\ d_L', 'K_q', '\\lambda_{\\min}', 'x_{\\mathrm{ref}}']) expect(sym).toContain(need)
     const { container } = renderPage()
     expect(container.querySelector('.c-symbols table')?.querySelectorAll('tbody tr').length).toBe(LAB_SYMBOLS.length)
+    // 符號表放在頁末（docs/teaching-style.md §5）：全頁只有一張，包在 id="symbols" 裡，是頁面的最後一個區塊（在「本頁必記」之後）
+    const precedes = (x: Element | null, y: Element | null) => !!x && !!y && !!(x.compareDocumentPosition(y) & Node.DOCUMENT_POSITION_FOLLOWING)
+    const page = container.querySelector('.lab-page') as HTMLElement
+    const symbols = container.querySelector('#symbols') as HTMLElement
+    expect(symbols).not.toBeNull()
+    expect(container.querySelectorAll('.c-symbols')).toHaveLength(1)
+    expect(symbols.querySelector('.c-symbols')).not.toBeNull()
+    expect(page.lastElementChild).toBe(symbols)
+    expect(symbols.lastElementChild?.classList.contains('c-symbols')).toBe(true)
+    expect(precedes(container.querySelector('#lab-s9'), symbols)).toBe(true)
+    expect(precedes(container.querySelector('.c-recap'), symbols)).toBe(true)
+    expect(symbols.querySelector('h2')?.textContent).toBe('本頁符號表')
+    // 第 1 節裡不再有符號表
+    expect(container.querySelector('section[aria-labelledby="lab-s1"] .c-symbols')).toBeNull()
+    // 頁首只留一行「本頁符號表在最後 ↓」：是按鈕（HashRouter 下 href="#symbols" 會被當成路由），而且在第 1 節之前
+    const jump = container.querySelector('.lab-symbols-jump button') as HTMLButtonElement
+    expect(jump.textContent).toBe('本頁符號表在最後 ↓')
+    expect(container.querySelectorAll('.lab-symbols-jump')).toHaveLength(1)
+    expect(jump.closest('a')).toBeNull()
+    expect(container.querySelector('a[href*="#symbols"]')).toBeNull()
+    expect(precedes(jump, container.querySelector('#lab-s1'))).toBe(true)
+    // 按下去捲到頁末的 #symbols；符號表旁的「回到頁首」捲回頁首（jsdom 沒有 scrollIntoView，這裡裝一個假的）
+    const down = vi.fn()
+    const up = vi.fn()
+    symbols.scrollIntoView = down
+    ;(container.querySelector('#lab-top') as HTMLElement).scrollIntoView = up
+    fireEvent.click(jump)
+    expect(down).toHaveBeenCalledTimes(1)
+    fireEvent.click(buttonByText(symbols, '回到頁首') as HTMLButtonElement)
+    expect(up).toHaveBeenCalledTimes(1)
+  })
+
+  it('方塊圖：五張圖各出現一次，都有圖說與「先看…」導讀，並放在對應公式／實驗之前（docs/teaching-style.md §8）', () => {
+    const { container } = renderPage('/lab', 'beginner')
+    const precedes = (x: Element | null, y: Element | null) => !!x && !!y && !!(x.compareDocumentPosition(y) & Node.DOCUMENT_POSITION_FOLLOWING)
+    const figs = Array.from(container.querySelectorAll('figure.c-mermaid')) as HTMLElement[]
+    expect(figs).toHaveLength(LAB_CHARTS.length)
+    // 圖說是純文字（Mermaid 的 caption 不渲染 KaTeX）：不用 Unicode 拼數學、沒有 $；每張圖都包在 .lab-diagram 裡並附導讀
+    const BAD = /[Ͱ-Ͽ²³¹⁰-₟≤≥≈≠≪≫⇒⇔√∑∝∞∂∠±∓$]/
+    for (const f of figs) {
+      const cap = f.querySelector('figcaption')?.textContent ?? ''
+      expect(cap.length, cap).toBeGreaterThan(20)
+      expect(BAD.test(cap), cap).toBe(false)
+      expect((f.getAttribute('aria-label') ?? '').length).toBeGreaterThan(10)
+      const walk = f.closest('.lab-diagram')?.querySelector('.lab-diagram-walk')
+      expect(walk?.textContent, cap).toContain('先看')
+      expect(walk?.textContent, cap).toContain('圖上')
+      expect(walk?.querySelector('.katex'), cap).toBeTruthy()
+    }
+    // 位置：文字說明 → 圖 → 推導／公式（或實驗）
+    const fig = (label: string) => {
+      const f = figs.find((x) => (x.getAttribute('aria-label') ?? '').includes(label))
+      if (!f) throw new Error(`找不到圖：${label}`)
+      return f
+    }
+    const id = (x: string) => container.querySelector(`[id="${x}"]`)
+    const placed: [string, string, string][] = [
+      ['九級訊號流程圖', 'section[aria-labelledby="lab-s2"]', 'formula-F-LAB.1'],
+      ['主 PLL 負回授', '#lab-s44', 'formula-F-LAB.4'],
+      ['block rate 校正迴路', '#lab-s47', 'formula-F-LAB.7'],
+      ['輸出 timing error 的方塊圖', '#lab-s49', 'formula-F-LAB.10'],
+      ['五個分頁的關係圖', '#lab-experiments', 'lab-tabpanel'],
+    ]
+    expect(placed.map(([label]) => fig(label))).toEqual(figs) // 頁面上的順序與 LAB_CHARTS 相同
+    for (const [label, section, target] of placed) {
+      expect(fig(label).closest(section), `${label} 應在 ${section} 內`).toBeTruthy()
+      expect(precedes(fig(label), id(target)), `${label} 應在 ${target} 之前`).toBe(true)
+    }
+    // §4.4、§4.7、§4.9 的圖在各自的逐步推導之前（先看圖知道訊號怎麼流，再看數學）
+    for (const [label, section] of [placed[1], placed[2], placed[3]]) {
+      expect(precedes(fig(label), container.querySelector(`${section} details.lab-steps`)), label).toBe(true)
+    }
   })
 
   it('沒有「掉了反斜線」的 TeX 指令（一般字串裡寫單一反斜線會變成一串字母，KaTeX 不會報錯）', () => {

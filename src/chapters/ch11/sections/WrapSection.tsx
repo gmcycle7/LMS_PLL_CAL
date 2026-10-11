@@ -5,6 +5,7 @@ import goldenPy from '../../../../golden/lms_pll_golden/bias.py?raw'
 import { analyzeBias, buildCodeDistribution, codeMoments, fixedPoint, mseFixedPoint, signWeightedMedian, type ErrorModel } from '@/simulation/models/bias'
 import { F } from '../formulas'
 import { chop, num, m, texNum } from '../common'
+import { Fig, FigRef } from '../Fig'
 import { Hand } from '../Hand'
 
 /** 演算法比較表、三個驗證層次、連結到 PLL、思考題與本課必記。 */
@@ -155,6 +156,13 @@ export function WrapSection() {
       </Section>
 
       <Section kind="assumptions" title="收斂 ≠ 準確 ≠ PLL 效能：三個驗證層次" level={2} id="ch11-levels">
+        <p>
+          回到開場的問題：GMAC 歸零了，DTC error 是零嗎？<FigRef id="verdict-tree" /> 把整章濃縮成一棵判斷樹。先看最上面兩個問題：先確認恢復斜率{' '}
+          <Tex>{'S=K_qC'}</Tex> 是正的（真的收斂，而不是極性錯誤），再問 comparator 前是不是只有 gain 誤差與零均值雜訊 —— 兩題都答「是」才走到綠色的{' '}
+          <Tex>{'w^*=a'}</Tex>。再看下半：多出來的每一項各對應本章的一節；最後的藍色六角形是 Sign-LMS 專屬的線性化檢查（勘誤 E01）。樹的前兩層對應下表的
+          Convergence，其餘對應 Accuracy；PLL performance 要到 Ch12 之後才能回答。
+        </p>
+        <Fig id="verdict-tree" />
         <div className="table-wrap">
           <table className="ch11-table">
             <thead>
@@ -300,6 +308,11 @@ export function WrapSection() {
           <Tex>{'x_0'}</Tex>，(1) 三個來源各貢獻多少 gain bias（F-11.4）；(2) GMAC 歸零後每個 code 還剩多少殘差；(3) 這個 <Tex>{'w^*'}</Tex> 對 Sign-LMS
           可不可信（<Tex>{String.raw`\max|e_\mathrm{det}|/\sigma_v\le0.3`}</Tex>，勘誤 E01）；(4) 要讓平均 pole 為 0.98，<Tex>{'\\mu'}</Tex> 該設多少。
         </p>
+        <p>
+          <FigRef id="handcalc-flow" /> 是這一題的計算順序。先看 ①→③：code 的動差 → 三個 bias 項 → 固定點 <Tex>{'w^*'}</Tex>；再看 ③ 之後分出的兩條路 ——
+          一條（④⑤）檢查這個 <Tex>{'w^*'}</Tex> 對 Sign-LMS 可不可信，另一條（⑥⑦）算收斂速度需要的 <Tex>{'\\mu'}</Tex>。圖上每個編號對應下面手算題的一組步驟。
+        </p>
+        <Fig id="handcalc-flow" />
         <Hand id="HC-11.8">{m('預設值就是 Gallery #7（答案 1.34、0.24、$\\mu\\approx0.0125$），可以直接和 §11.B 的 Lab 指標表對照。')}</Hand>
       </Section>
 

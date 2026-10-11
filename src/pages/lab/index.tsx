@@ -1,12 +1,14 @@
 import { useRef, type KeyboardEvent, type MouseEvent } from 'react'
 import { Callout, ClaimTag, ModelLevel, SourceTag, TestBadge, Tex } from '@/components'
-import { ErratumNote } from './common'
+import { Diagram, ErratumNote } from './common'
+import { CHART_TAB_MAP } from './diagrams'
 import { TAB_LABEL, TAB_ORDER, type TabId } from './logic'
 import { S1Intro } from './sections/S1Intro'
 import { S2Chain } from './sections/S2Chain'
 import { S3Analysis } from './sections/S3Analysis'
 import { S4Code } from './sections/S4Code'
 import { S5Wrap } from './sections/S5Wrap'
+import { PAGE_TOP_ANCHOR, SymbolsJump, SymbolsSection } from './sections/S6Symbols'
 import { LabProvider, useLab } from './store'
 import { CompareTab } from './tabs/CompareTab'
 import { FcwSweepTab } from './tabs/FcwSweepTab'
@@ -72,6 +74,18 @@ function LabTabs() {
         五個分頁共用同一份模擬核心（<code>src/simulation/models/unifiedLab.ts</code>，在 Web Worker 執行）。Pipeline、FCW sweep、Monte Carlo 三個分頁共用同一組「基準參數」；Training 與 Compare
         各有自己的設定。切換分頁不會中斷正在跑的計算，也不會清掉結果。
       </p>
+      <Diagram
+        chart={CHART_TAB_MAP}
+        caption="五個分頁各自回答一個問題：跑一次看細節、只換 FCW、換很多個 seed、只分析 code、三組設定並排。它們讀的參數不同，但最後都呼叫同一份模擬核心。"
+        ariaLabel="五個分頁的關係圖：Pipeline、FCW sweep、Monte Carlo 共用基準參數，Training 與 Compare 各有自己的設定，五個分頁都呼叫同一份模擬核心"
+      >
+        <p>
+          先看「基準參數」那一框：Pipeline、FCW sweep、Monte Carlo 讀的是同一組，所以在其中一個分頁改了 <Tex>{'\\mu'}</Tex> 或 FCW，另外兩個分頁也跟著變。Training 與 Compare 各有自己的設定，不受影響。
+        </p>
+        <p>
+          圖上的 <Tex>{'\\alpha'}</Tex> 是 FCW 的小數部分，<Tex>C</Tex> 是 §4.6 的相關（它的正負決定更新極性）。五個分頁最後都接到藍色那一塊，所以各分頁的數字可以直接互相對照。
+        </p>
+      </Diagram>
       <div className="small lab-tryit">
         試試看：
         <ol>
@@ -117,9 +131,10 @@ function LabTabs() {
 /**
  * Unified Calibration Lab（route /lab；規格 §19「Unified Lab」「Training Sequence Lab」、§15.4 輸出、§20.6 P5）。
  *
- * 章節：1 開場與符號表 → 2 九級訊號鏈（方塊圖、每級的式子 / 模型層級 / 對應章節）→ 3 數字先行的手算例（DSM residue、T13 錨點）→
+ * 章節：1 開場 → 2 九級訊號鏈（方塊圖、每級的式子 / 模型層級 / 對應章節）→ 3 數字先行的手算例（DSM residue、T13 錨點）→
  *       4 九級的逐步推導（F-LAB.1–12）→ 5 判讀工具（跨級一致性、AR(1) 標準誤差、mean-field 平均軌跡、PE、斜率量測、信賴區間、Jacobian；F-LAB.13–18）→
- *       6 核心程式碼（?raw + #region）與比較表 → 7 Lab（五個分頁）→ 8 思考題 → 9 必記與可宣稱的語句。
+ *       6 核心程式碼（?raw + #region）與比較表 → 7 Lab（五個分頁）→ 8 思考題 → 9 必記與可宣稱的語句 → 頁末：本頁符號表（id="symbols"；頁首只留一行連結，docs/teaching-style.md §5）。
+ * 方塊圖（diagrams.ts，共 5 張）：§2 九級訊號鏈、§4.4 兩條路、§4.7 更新迴路、§4.9 輸出端的兩個成分、§7 五個分頁。
  * 實驗（ExperimentShell id）：unified-lab、unified-lab-fcw、unified-lab-mc、training-sequence-lab、unified-lab-compare。
  * 模擬核心：src/simulation/models/unifiedLab.ts（迴路本身由 blockLms.ts 的 runBlockLms 執行）。
  * 勘誤：E01（小訊號）、E03 / E04（DC null、offset 不可辨識）、E06 / E26 / E27（頻寬）、E07（tie）、E09 / E28 / E29（PSD 速率與正規化）、
@@ -146,7 +161,7 @@ export default function LabPage() {
   return (
     <LabProvider>
       <div className="lab-page" onClick={onAnchorClick}>
-        <div className="c-tag-row lab-head-tags">
+        <div className="c-tag-row lab-head-tags" id={PAGE_TOP_ANCHOR}>
           <ModelLevel level="L1" />
           <ModelLevel level="L2" />
           <ModelLevel level="L3" />
@@ -166,12 +181,14 @@ export default function LabPage() {
             <ErratumNote id="E13" />」這樣的小註標示，點了會到驗證頁。
           </p>
         </Callout>
+        <SymbolsJump />
         <S1Intro />
         <S2Chain />
         <S3Analysis />
         <S4Code />
         <LabTabs />
         <S5Wrap />
+        <SymbolsSection />
       </div>
     </LabProvider>
   )

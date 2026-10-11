@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react'
-import { mathText, TexBlock } from '@/components'
+import { mathText, Mermaid, TexBlock } from '@/components'
 import { useSettings, type LearningMode } from '@/app/settings'
 import {
   ACCEPTANCE_IDS,
@@ -215,4 +215,46 @@ export function FBlock({ id, label }: { id: string; label?: ReactNode }) {
 /** StepDerivation 的步驟：why 以 `$…$` 標記行內 TeX */
 export function steps(list: { tex: string; why: string }[]): { tex: string; why: ReactNode }[] {
   return list.map((s) => ({ tex: s.tex, why: M(s.why) }))
+}
+
+/* ───────────── 頁內跳轉、符號表連結與方塊圖版位 ───────────── */
+
+/** 頁尾符號表外層的 DOM id（docs/teaching-style.md §5：符號表放在最後，頁首只留一行連結） */
+export const SYMBOLS_ANCHOR = 'symbols'
+
+/** 頁內捲動（不改網址）：HashRouter 下 href="#id" 會被當成路由；jsdom 沒有 scrollIntoView，用可選呼叫。 */
+export function scrollToId(id: string) {
+  document.getElementById(id)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+}
+
+/** 連結樣式的按鈕：按了捲到本頁的某個區塊。 */
+export function JumpButton({ to, children }: { to: string; children: ReactNode }) {
+  return (
+    <button type="button" className="ver-linkbtn" onClick={() => scrollToId(to)}>
+      {children}
+    </button>
+  )
+}
+
+/** 頁首只留這一行：按了捲到頁尾的符號表。 */
+export function SymbolsLink() {
+  return (
+    <p className="ver-symbols-link">
+      <JumpButton to={SYMBOLS_ANCHOR}>本頁符號表在最後 ↓</JumpButton>
+      <span className="small muted">每個符號第一次出現時，正文會先用一句話說明；頁尾的表是查閱用的總整理。</span>
+    </p>
+  )
+}
+
+/**
+ * 方塊圖版位（docs/teaching-style.md §8）：一張 Mermaid 圖、一句圖說（要看什麼），下面緊接「先看…再看…」的導讀。
+ * 圖說支援 `$…$` 行內公式（Mermaid 元件會用 KaTeX 排版）；導讀用 `M(r\`…$…$…\`)` 或 <Tex> 寫數學。
+ */
+export function Diagram({ chart, caption, ariaLabel, children }: { chart: string; caption: string; ariaLabel?: string; children?: ReactNode }) {
+  return (
+    <div className="ver-diagram">
+      <Mermaid chart={chart} caption={caption} ariaLabel={ariaLabel} />
+      {children && <div className="ver-diagram-walk">{children}</div>}
+    </div>
+  )
 }

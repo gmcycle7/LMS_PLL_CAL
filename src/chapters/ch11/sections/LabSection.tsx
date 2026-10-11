@@ -3,6 +3,7 @@ import biasSrc from '@/simulation/models/bias.ts?raw'
 import { BiasInlLab } from '../experiments/BiasInlLab'
 import { F } from '../formulas'
 import { ModeDetails, m } from '../common'
+import { Fig, FigRef } from '../Fig'
 
 const PATH = 'src/simulation/models/bias.ts'
 
@@ -45,11 +46,26 @@ export function LabSection() {
         </ol>
       </Callout>
 
+      <p>
+        按 Run 之後，Monte Carlo 的平均不會剛好等於上方的 mean-field <Tex>{'w^*'}</Tex>。<FigRef id="mc-gaps" /> 說明差在哪裡：先看左邊四個方塊 ——
+        mean-field 固定點，加上三個可以事先估計的差距（① 有限步長、② servo 的抖動、③ servo 落後）—— 它們的和才是 Monte Carlo 量到的時間平均；再看右邊的六角形：Lab
+        就是用這個不等式判定「一致 ✓」或「mismatch ✗」（<Tex>{String.raw`\mathrm{SE}`}</Tex> 是 Monte Carlo 平均值的標準誤，也就是統計上的不確定度）。圖上 ① 的式子就是下面的 F-11.16（<Tex>{"G''"}</Tex> 是平均 GMAC 曲線的二階導數，
+        <Tex>{String.raw`\operatorname{Var}(w)`}</Tex> 是 <Tex>{'w'}</Tex> 抖動的變異數）；② 就是 §11.1 的 F-11.17。
+      </p>
+      <Fig id="mc-gaps" />
       <ModeDetails title={m('Monte Carlo 和 mean-field 為什麼不會「完全」一樣？三個差距與它們的估計式')}>
         <p>
           mean-field 的 <Tex>{'w^*'}</Tex> 是「<Tex>{'\\mu\\to0'}</Tex>、主迴路 <Tex>{'\\varphi'}</Tex> 為常數」的極限。真實的 block LMS（也就是 Lab 的 Monte Carlo）有三個可預期的差距；Lab
           不用經驗容許量去蓋掉它們，而是一個一個估出來：
         </p>
+        <p>
+          先看第 (1) 個差距的方塊圖（<FigRef id="finite-step-loop" />，全部是 block rate，索引 <Tex>{'k'}</Tex>）：<Tex>{String.raw`\delta w=w-w^*`}</Tex> 是 <Tex>{'w'}</Tex>{' '}
+          離固定點的距離（注意不是全站的 <Tex>{String.raw`\delta=a-w`}</Tex>）。右邊的累加器（<Tex>{'\\times\\mu'}</Tex>、加法點、<Tex>{'z^{-1}'}</Tex>）就是{' '}
+          <Tex>{String.raw`\delta w_{k+1}=\delta w_k+\mu G_k`}</Tex>；左邊的加法點把三個東西合成 <Tex>{'G_k'}</Tex>（推導第 1–2 行）：抽樣雜訊 <Tex>{String.raw`\eta_k`}</Tex>（<Tex>{'+'}</Tex>）、
+          藍色的恢復力 <Tex>{String.raw`S\,\delta w_k`}</Tex>（<Tex>{'-'}</Tex>），以及紅色的曲率項 <Tex>{String.raw`\tfrac12G''(w^*)\,\delta w_k^2`}</Tex>（<Tex>{'+'}</Tex>）。
+          只看藍色那條負回授，就是下面推導的第 3 行（pole <Tex>{'1-g'}</Tex>）；再加上紅色那條，就是第 4–5 行的偏移。
+        </p>
+        <Fig id="finite-step-loop" />
         <StepDerivation
           title={m('(1) 有限步長：erf 的曲率把 $w$ 的抖動「整流」成偏移')}
           steps={[

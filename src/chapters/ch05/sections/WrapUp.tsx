@@ -14,7 +14,7 @@ import {
   sumVarianceAr1,
   tieRuleEquilibrium,
 } from '@/simulation/models/comparator'
-import { Erratum, HandCalcBlock, Steps, fx, int, pct, texInt, texPct } from '../common'
+import { Erratum, Fig, HandCalcBlock, Steps, figNo, fx, int, pct, texInt, texPct } from '../common'
 
 /** §9：連結到 PLL、設計清單、思考題、本課必記、延伸。 */
 export function WrapUpSection() {
@@ -74,6 +74,18 @@ export function WrapUpSection() {
   return (
     <>
       <Section kind="diagram" level={2} title="9. 連結到 PLL：這些數學對應哪些硬體">
+        <p>
+          回到章首的系統地圖：本章的每個符號在硬體上都有位置。下圖把 comparator 到 gain accumulator 這一段畫出來，並標上本章的符號；
+          <Tex>{'x[n]'}</Tex> 是 regressor（本章取 <Tex>{'x\\equiv1'}</Tex>），<Tex>{'G_k'}</Tex> 是第 <Tex>{'k'}</Tex> 個 block 的平均，<Tex>{'\\mu'}</Tex> 是學習率。
+        </p>
+        <Fig name="hwMap">
+          這張圖是直式的，由上往下順著箭頭走。先看從 DTC 到 GMAC 的前半段（每個 sample <Tex>{'n'}</Tex> 動一次）：DTC gain 的誤差在 PD 處變成時間誤差 <Tex>{'s'}</Tex>，加上 jitter <Tex>{'v[n]'}</Tex>，BBPD 把它切成一個位元{' '}
+          <Tex>{'b[n]'}</Tex>，映射成 <Tex>{'q[n]=\\pm1'}</Tex> 後進 GMAC 累加。再看 GMAC 之後的後半段（每個 block <Tex>{'k'}</Tex> 才動一次）：累加滿 <Tex>{'N'}</Tex> 個 sample 得到{' '}
+          <Tex>{'S_N'}</Tex>，除以 <Tex>{'N'}</Tex>、乘 <Tex>{'\\mu'}</Tex>，加進 gain accumulator 得到新的 <Tex>{'w'}</Tex>，再回去修正 DTC。藍色三格（BBPD、位元映射、GMAC）就是本章分析的部分。
+          最後看兩條虛線：regressor <Tex>{'x[n]'}</Tex> 出現在兩個地方——它乘在誤差上（<Tex>{'s=(a-w_k)\\,x[n]'}</Tex>），GMAC 累加時又乘在 <Tex>{'q[n]'}</Tex> 上（
+          <Tex>{'S_N=\\sum q[n]\\,x[n]'}</Tex>）；本章固定 <Tex>{'x\\equiv1'}</Tex>，所以兩條虛線都只是乘 1。一般的 <Tex>{'x[n]'}</Tex> 到誤差之間還要經過 PLL 的 error
+          path（Ch06），這裡先不畫。下表逐列說明每個符號對應的硬體與注意事項。
+        </Fig>
         <div className="table-wrap">
           <table className="ch05-table">
             <thead>
@@ -223,8 +235,16 @@ export function WrapUpSection() {
         <p>
           <strong>預告：</strong>把本章的平均 <Tex>{'G_k=S_N/N\\approx K_q\\delta_k+\\eta_k'}</Tex> 放進 block 更新{' '}
           <Tex>{'w_{k+1}=w_k+\\mu G_k'}</Tex>（<Tex>{'k'}</Tex> = GMAC block；ChatGPT 課程寫作 <Tex>{'\\alpha'}</Tex>，本站統一寫 <Tex>{'\\mu'}</Tex>，
-          單位 fs <Erratum id="E13" />），馬上得到 Ch12 / Ch14 的設計數字：
+          單位 fs <Erratum id="E13" />），馬上得到 Ch12 / Ch14 的設計數字。這裡 <Tex>{'\\delta_k=a-w_k'}</Tex> 是第 <Tex>{'k'}</Tex> 個 block 的剩餘誤差，
+          <Tex>{'\\eta_k'}</Tex> 是 <Tex>{'G_k'}</Tex> 扣掉平均後的零均值雜訊，<Tex>{'\\sigma_w'}</Tex> 是收斂之後係數 <Tex>{'w'}</Tex> 還在抖動的 RMS（coefficient noise）。
         </p>
+        <Fig name="blockLoop">
+          這張圖是{figNo('hwMap')}的線性化版本：「BBPD + 位元映射 + GMAC 平均」整段換成藍色的等效增益 <Tex>{'K_q'}</Tex>，加上一個雜訊注入點 <Tex>{'\\eta_k'}</Tex>。先順著迴路繞一圈：
+          <Tex>{'\\delta_k'}</Tex> 乘 <Tex>{'K_q'}</Tex>、乘 <Tex>{'\\mu'}</Tex>、進累加器，再以<strong>負號</strong>回到第一個加法點——繞一圈的增益是{' '}
+          <Tex>{'g=\\mu K_q'}</Tex>，所以每個 block 誤差剩下 <Tex>{'p_{\\mathrm{cal}}=1-g'}</Tex> 倍。再看雜訊：<Tex>{'\\eta_k'}</Tex> 是平均 <Tex>{'N'}</Tex> 次之後的雜訊，變異數只有約{' '}
+          <Tex>{'1/N'}</Tex>，它被迴路濾過之後就是 <Tex>{'\\sigma_w'}</Tex>。圖上的累加器 <Tex>{'1/(z-1)'}</Tex> 是「把輸入一直加起來、下一個 block 才輸出」的簡寫，也就是更新式 <Tex>{'w_{k+1}=w_k+\\mu G_k'}</Tex>；所有的線都是 block 速率（
+          <Tex>{'k'}</Tex>）。
+        </Fig>
         <Steps
           title={
             <>
@@ -402,7 +422,7 @@ export function WrapUpSection() {
                   <Tex>{'\\operatorname{Var}(S_N)=N(1-m^2)'}</Tex>、Binomial、binomial MC 引擎
                 </td>
                 <td>
-                  正相關時 <Tex>{'\\operatorname{Var}(S_N)'}</Tex> 變大，等效樣本數 <Tex>{'N_{\\mathrm{eff}}<N'}</Tex>，表中正確率被高估（
+                  正相關時 <Tex>{'\\operatorname{Var}(S_N)'}</Tex> 變大，等效的獨立樣本數 <Tex>{'N_{\\mathrm{eff}}<N'}</Tex>，表中正確率被高估（相鄰樣本的相關係數{' '}
                   <Tex>{'\\rho=0.99'}</Tex>、<Tex>{'N=4096'}</Tex> 時 <Tex>{`N_{\\mathrm{eff}}\\approx${texInt(v.corr[3].nEff)}`}</Tex>）
                 </td>
                 <td>章末延伸（Research 模式）、Ch12</td>
@@ -481,6 +501,12 @@ export function WrapUpSection() {
           表格與 T13 的設定（<Tex>{String.raw`\sigma_v=100\,\mathrm{fs},\ \mu=10\,\mathrm{fs},\ N=4096`}</Tex>），取樣率用前面的{' '}
           <Tex>{String.raw`f_s=4\,\mathrm{GHz}`}</Tex>。
         </p>
+        <Fig name="handcalcFlow">
+          照編號 ①→⑧ 一格一格算：先由 <Tex>{'\\sigma_v'}</Tex> 得到 <Tex>{'K_q'}</Tex>（①），它同時決定學習率的上限 <Tex>{'\\mu_{\\max}'}</Tex>（②）與 loop gain{' '}
+          <Tex>{'g'}</Tex>（③）；由 <Tex>{'g'}</Tex> 得到 pole（④）與以 block 為單位的時間常數 <Tex>{'\\tau'}</Tex>（⑤）；另一邊由 <Tex>{'N'}</Tex> 與取樣率 <Tex>{'f_s'}</Tex>{' '}
+          得到一個 block 的時間 <Tex>{'T_{\\mathrm{blk}}'}</Tex>（⑥），兩者相乘就是換成秒的時間常數 <Tex>{'t_\\tau'}</Tex>（⑦）；最後 <Tex>{'\\mu'}</Tex>、<Tex>{'N'}</Tex>{' '}
+          與 pole 一起給出係數雜訊 <Tex>{'\\sigma_w'}</Tex>（⑧）。圖上的每一格對應下面手算題的一到兩個步驟，③④⑧ 合起來就是 F-05.20。
+        </Fig>
         <HandCalcBlock id="HC-05.8">
           把四個數字換成你自己的設計（<Tex>{'\\sigma_v'}</Tex>、<Tex>{'\\mu'}</Tex>、<Tex>{'N'}</Tex>、<Tex>{'f_s'}</Tex>），先用紙筆和計算機一路算到{' '}
           <Tex>{'\\sigma_w'}</Tex>，再對答案。算完後試試把 <Tex>{'\\mu'}</Tex> 加倍：收斂時間與 <Tex>{'\\sigma_w'}</Tex> 各變成幾倍？
@@ -632,6 +658,12 @@ export function WrapUpSection() {
               的變異數都保持 1。
             </p>
           </Prereq>
+          <Fig name="ar1">
+            先看 <Tex>{'\\times\\rho'}</Tex> 的回授迴圈：新的雜訊樣本 <Tex>{'v_{i+1}'}</Tex> 有 <Tex>{'\\rho'}</Tex> 倍來自上一個樣本 <Tex>{'v_i'}</Tex>，其餘來自新的白雜訊 <Tex>{'z_i'}</Tex>，所以相鄰的{' '}
+            <Tex>{'v'}</Tex> 很像。再看 sign 之後：相鄰的 <Tex>{'q'}</Tex> 也跟著相似（相關係數 <Tex>{'\\tfrac2\\pi\\arcsin\\rho'}</Tex>，下面推導），累加時雜訊不再互相抵消得那麼乾淨，
+            <Tex>{'\\operatorname{Var}(S_N)'}</Tex> 比獨立時的 <Tex>{'N'}</Tex> 大，等效的獨立樣本數 <Tex>{'N_{\\mathrm{eff}}'}</Tex> 就比 <Tex>{'N'}</Tex> 小。圖上的{' '}
+            <Tex>{'\\times\\rho'}</Tex> 與 <Tex>{'\\times\\sqrt{1-\\rho^2}'}</Tex> 就是先備知識框裡 AR(1) 式子的兩個係數。
+          </Fig>
           <Steps
             title={
               <>

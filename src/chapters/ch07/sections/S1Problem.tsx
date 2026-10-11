@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, Prereq, Section, SourceTag, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, Mermaid, Prereq, Section, SourceTag, StepDerivation, Tex, TexBlock } from '@/components'
 import { polarityMarginDeg } from '@/simulation/models/pll'
 import { residualPhaseDeg, toneCorrCodeDelay } from '@/simulation/models/filteredX'
+import { CHART_MEAN_LOOP, CHART_PHASE_BOOKKEEPING, CHART_SIGNAL_MODEL } from '../diagrams'
 import { Hand } from '../Hand'
 import { fx, kq, RAD, signClass, tx } from '../util'
 
@@ -51,6 +52,26 @@ export function S1Problem() {
         最簡單的方法是<strong>把自己的聲音也延遲同樣的時間</strong>再去比。GMAC 做的事情一模一樣：它把 comparator 的輸出
         <Tex>{'q[n]'}</Tex> 和 code <Tex>{'x[n]'}</Tex> 相乘再累加；如果 <Tex>{'x'}</Tex> 經過 PLL 之後「晚到」了，就把
         <Tex>{'x'}</Tex> 延遲 <Tex>{'D'}</Tex> 個 sample 再去乘。
+      </p>
+
+      <Mermaid
+        chart={CHART_SIGNAL_MODEL}
+        caption="問題出在哪裡：comparator 看到的 code 經過紅色的 PLL 誤差路徑，GMAC 拿來相乘的 code 沒有；本章在 GMAC 這一側加上藍色的延遲，讓兩路重新對齊。"
+      />
+      <p>
+        <strong>怎麼看這張圖：</strong>先看經過紅色方塊的那一路。code <Tex>{'x[n]'}</Tex> 先經過 PLL 的誤差路徑 <Tex>{'H'}</Tex>（PLL 迴路會去修正 DTC 的時間誤差，PD 看到的是修正後剩下的殘差；Ch06），
+        變成 comparator 實際看到的 code <Tex>{'u[n]'}</Tex>；再乘上還沒校正掉的 gain 誤差 <Tex>{String.raw`\delta=a-w`}</Tex>（<Tex>{'a'}</Tex> 是 DTC 真正的 gain、
+        <Tex>{'w'}</Tex> 是 LMS 目前的校正係數，單位都是 fs per unit code）；圓形的加法點把它和 comparator 前的雜訊 <Tex>{'v[n]'}</Tex>（標準差 <Tex>{String.raw`\sigma_v`}</Tex>）相加
+        （兩條輸入線都是正號），就是 PD 誤差 <Tex>{String.raw`e_{\mathrm{PD}}[n]`}</Tex>；1-bit comparator 只留下它的正負號 <Tex>{String.raw`q[n]=\pm1`}</Tex>。再看經過藍色方塊的那一路：同一個 code 只被延遲
+        <Tex>{'D'}</Tex> 個 sample，變成 <Tex>{'x[n-D]'}</Tex>。兩路在乘法器相遇，平均器每 <Tex>{'N'}</Tex> 個 sample 平均一次，輸出第 <Tex>{'k'}</Tex> 個 block 的
+        <Tex>{'G_k'}</Tex>（<Tex>{'n'}</Tex> 數 sample、<Tex>{'k'}</Tex> 數 block）。
+      </p>
+      <p>
+        <strong>圖和公式的對應：</strong>紅色那一路就是 <Tex>{String.raw`e_{\mathrm{PD}}[n]=(a-w)\,u[n]+v[n]`}</Tex>；紅色方塊在 code 的頻率上把振幅乘
+        <Tex>{'|H|'}</Tex>、相位加 <Tex>{String.raw`\phi`}</Tex>（<Tex>{String.raw`\phi<0`}</Tex> 表示落後）；藍色方塊加上乘法器、平均器就是
+        <Tex>{String.raw`G_k=\tfrac1N\sum_{n\in\text{block }k}q[n]\,x[n-D]`}</Tex>。問題就在兩路經過的方塊不一樣：一路有 <Tex>{'H'}</Tex>，另一路沒有。
+        （真實電路裡是 DTC 先產生 <Tex>{'(a-w)\\,x[n]'}</Tex> 的時間誤差、再經過 <Tex>{'H'}</Tex>；因為 <Tex>{'w'}</Tex> 每個 block 才更新一次、每次只動一點點，先乘後濾和先濾後乘幾乎沒有差別，
+        圖上畫成後者是為了直接看到 <Tex>{'u[n]'}</Tex>。）
       </p>
 
       <Prereq title="期望值（expectation）、時間平均與相關（correlation）">
@@ -126,7 +147,8 @@ export function S1Problem() {
         <p>
           你會發現：沒有延遲時，乘積有正有負，<strong>負的比較多</strong>，平均是 <Tex>{tx(avg('xu'), 2)}</Tex>（<Tex>{String.raw`=\tfrac12\cos(-120^\circ)`}</Tex>）——GMAC 會把 LMS 往錯的方向推；
           延遲 4 個 sample 之後，每一點都是 <Tex>{String.raw`\cos^2(\cdot)\ge0`}</Tex>，平均是 <Tex>{'+' + tx(avg('xDu'), 2)}</Tex>（<Tex>{String.raw`=\tfrac12\cos0^\circ`}</Tex>），
-          這是單頻能得到的<strong>最大值</strong> <Tex>{String.raw`A^2|H|/2`}</Tex>。 <ClaimTag kind="exact" /> <SourceTag />
+          這是單頻能得到的<strong>最大值</strong> <Tex>{String.raw`A^2|H|/2`}</Tex>（<Tex>{'A'}</Tex> 是 code 的振幅、<Tex>{'|H|'}</Tex> 是誤差路徑在 code 頻率的增益；這裡兩者都是 1）。{' '}
+          <ClaimTag kind="exact" /> <SourceTag />
         </p>
         <p className="small muted">
           這裡的手算用振幅 <Tex>{'A=1'}</Tex>（與 golden vector T07 相同）。後面的 Lab 把 code 正規化成 unit power（<Tex>{String.raw`A=\sqrt2`}</Tex>，
@@ -144,9 +166,19 @@ export function S1Problem() {
         }
       >
         <p>
-          每多延遲 1 個 sample，code 的相位就多落後 <Tex>{String.raw`\Omega=30^\circ`}</Tex>。殘餘相位
-          <Tex>{String.raw`\theta=\phi+\Omega D`}</Tex>，相關 <Tex>{String.raw`C_D=\tfrac{A^2}{2}|H|\cos\theta`}</Tex>（下一節推導），
-          polarity margin <Tex>{String.raw`M_{\mathrm{pol}}=90^\circ-|\mathrm{wrap}_{180}(\theta)|`}</Tex>（§8.1 的自訂指標）。
+          每多延遲 1 個 sample，code 的相位就多落後 <Tex>{String.raw`\Omega=30^\circ`}</Tex>。令 <Tex>{String.raw`\phi=\angle H`}</Tex> 為誤差路徑在 code 頻率的相位（這個例子是
+          <Tex>{String.raw`-120^\circ`}</Tex>）。殘餘相位 <Tex>{String.raw`\theta=\phi+\Omega D`}</Tex>，相關 <Tex>{String.raw`C_D=\tfrac{A^2}{2}|H|\cos\theta`}</Tex>（下一節推導），
+          polarity margin <Tex>{String.raw`M_{\mathrm{pol}}=90^\circ-|\mathrm{wrap}_{180}(\theta)|`}</Tex>（<Tex>{String.raw`\theta`}</Tex> 離變號的 <Tex>{String.raw`\pm90^\circ`}</Tex> 還有幾度；§8.1 的自訂指標）。
+        </p>
+        <Mermaid
+          chart={CHART_PHASE_BOOKKEEPING}
+          caption={String.raw`單頻的相位記帳：誤差路徑把相位加 $\phi$，藍色的延遲把相位減 $\Omega D$；相乘再平均之後只剩兩路的相位差 $\theta=\phi+\Omega D$；$|\theta|<90^\circ$ 時相關才是正的。`}
+        />
+        <p>
+          <strong>先看圖再看表：</strong>先看經過誤差路徑的那一路，code 的相位被加上 <Tex>{String.raw`\phi`}</Tex>（例子是 <Tex>{String.raw`-120^\circ`}</Tex>，也就是落後）。再看經過藍色延遲的那一路，
+          相位被減掉 <Tex>{String.raw`\Omega D`}</Tex>（<Tex>{'D=4'}</Tex> 時也是落後 <Tex>{String.raw`120^\circ`}</Tex>）。GMAC 把兩路相乘再平均，共同的 <Tex>{String.raw`\Omega n`}</Tex>
+          消掉，只剩相位差：圖上的「殘餘相位」就是公式裡的 <Tex>{String.raw`\theta=(\Omega n+\phi)-(\Omega n-\Omega D)=\phi+\Omega D`}</Tex>，六角形問的就是
+          <Tex>{String.raw`\cos\theta`}</Tex> 是正是負。下表把 <Tex>{String.raw`D=0,\dots,11`}</Tex> 每一格都照這張圖算一次。
         </p>
         <div className="table-wrap">
           <table className="ch07-table">
@@ -258,8 +290,21 @@ export function S1Problem() {
           }
         >
           <p>
-            Ch05 推導過 <Tex>{String.raw`K_q=\sqrt{2/\pi}/\sigma_v=${tx(Kq, 6)}\ \mathrm{fs^{-1}}`}</Tex>，平均 pole
-            <Tex>{String.raw`p=1-\mu K_qC`}</Tex>：
+            <Tex>{String.raw`\mu`}</Tex> 是 learning rate（每個 block 把 <Tex>{String.raw`\mu G_k`}</Tex> 加進 <Tex>{'w'}</Tex>），<Tex>{String.raw`\sigma_v`}</Tex> 是 comparator
+            前雜訊的標準差。Ch05 推導過 1-bit comparator 的小訊號增益 <Tex>{String.raw`K_q=\sqrt{2/\pi}/\sigma_v=${tx(Kq, 6)}\ \mathrm{fs^{-1}}`}</Tex>（輸入每偏 1 fs，
+            <Tex>{'q'}</Tex> 的平均值偏 <Tex>{'K_q'}</Tex>），所以平均 pole 是 <Tex>{String.raw`p=1-\mu K_qC`}</Tex>；其中 <Tex>{String.raw`g=\mu K_qC`}</Tex> 叫做校正迴路的 loop gain
+            （每個 block 修掉的誤差比例，<Tex>{'p=1-g'}</Tex>）。先看圖，再代數字：
+          </p>
+          <Mermaid
+            chart={CHART_MEAN_LOOP}
+            caption={String.raw`平均之後的校正迴路（block rate $k$）：comparator、乘法器、平均器合起來平均而言只是一個增益 $K_qC$（藍色）；圓形加法點算 $\delta_k=a-w_k$，累加器 $1/(z-1)$ 把 $\mu G_k$ 加進 $w$，再負回授回加法點。`}
+          />
+          <p>
+            先看圓形的加法點：DTC 真正的 gain <Tex>{'a'}</Tex> 從正端進來，累加器輸出的 <Tex>{'w_k'}</Tex> 從負端回來，輸出就是 <Tex>{String.raw`\delta_k=a-w_k`}</Tex>。再看藍色方塊：
+            comparator、乘法器、平均器合起來，平均而言把 <Tex>{String.raw`\delta_k`}</Tex> 乘上 <Tex>{'K_qC'}</Tex>，得到 <Tex>{String.raw`E[G_k]\approx K_qC\,\delta_k`}</Tex>。最後沿著迴圈走：乘上
+            <Tex>{String.raw`\mu`}</Tex>、進累加器，<Tex>{String.raw`w_{k+1}=w_k+\mu G_k`}</Tex>，新的 <Tex>{'w'}</Tex> 又回到加法點。把這一圈寫成式子：
+            <Tex>{String.raw`\delta_{k+1}=a-w_{k+1}=\delta_k-\mu K_qC\,\delta_k=(1-\mu K_qC)\,\delta_k`}</Tex>，繞一圈的增益就是 <Tex>{'g'}</Tex>，pole 是 <Tex>{String.raw`p=1-g`}</Tex>。下面把
+            T07 的數字代進去：
           </p>
           <TexBlock>{String.raw`\begin{aligned}
 p_{D=0}&=1-10\times${tx(Kq, 6)}\times(${tx(toneCorrCodeDelay(TONE, 0), 2)})=${tx(pRaw, 5)}>1&&\Rightarrow\ \text{平均誤差每個 block 放大}\\

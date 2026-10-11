@@ -44,6 +44,8 @@ function computeNumbers() {
   const G1lin = 0.8 * Kq * dCoupling[1]
   const G2lin = Kq * dCoupling[1]
   const Gexact = signGmacMean(p08, dCoupling)
+  // 單一 sample 的 comparator 平均（圖 comparator-gain）：u₂ = +1 時 s = δ₂ = 10 fs ⇒ E[q | u] = erf(s / (√2 σ_v))，線性近似 K_q s（= G2lin）
+  const erfOne = erf(dCoupling[1] / (Math.SQRT2 * sigmaV))
   const muFs = 10
   const w1Shift = muFs * G1lin // w₁ 被推離正確值的量（fs）
   // 手算表：K_q 正規化為 1、μK_q = 0.5 的平均遞迴，δ₀ = (0, 10)
@@ -163,7 +165,7 @@ function computeNumbers() {
   return {
     sigmaV,
     Kq,
-    coupling: { R: R08, eig: eig08, delta: dCoupling, G1lin, G2lin, Gexact, muFs, w1Shift, handRows },
+    coupling: { R: R08, eig: eig08, delta: dCoupling, G1lin, G2lin, Gexact, erfOne, muFs, w1Shift, handRows },
     rho099: {
       R: R099,
       eig: ins099.eigSym!.values,

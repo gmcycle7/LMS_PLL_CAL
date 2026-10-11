@@ -1,8 +1,77 @@
 import type { ReactNode } from 'react'
 import { useSettings, type LearningMode } from '@/app/settings'
-import { HandCalc, mathText } from '@/components'
+import { HandCalc, Mermaid, mathText } from '@/components'
 import { fmt } from '@/simulation/core'
+import { diagram } from './diagrams'
 import { handcalc } from './handcalcs'
+
+/**
+ * 方塊圖（docs/teaching-style.md §8）：圖 + 圖說（一句話說明要看什麼）+「怎麼看這張圖」的導讀。
+ * 圖的原始碼、圖說與圖號都登錄在 ./diagrams.ts（依 id 取出，打錯會丟錯）；children 是導讀：
+ * 先看哪裡、再看哪裡，以及「圖上的 X 就是公式裡的 x」的對應（可以用 <Tex>）。
+ * 圖說前面要加粗體的圖號與種類（「圖 10-N（比較圖）」），所以由這裡自己排（`$...$` 用 mathText 以 KaTeX 顯示），不經 Mermaid 元件的 caption 屬性。
+ */
+export function Fig({ id, children }: { id: string; children: ReactNode }) {
+  const dg = diagram(id)
+  return (
+    <div className="ch10-fig" data-diagram={dg.id} data-diagram-name={dg.name}>
+      <Mermaid chart={dg.chart} ariaLabel={`圖 ${dg.no}：${dg.alt}`} />
+      <p className="c-figcaption ch10-fig-caption">
+        <strong>圖 {dg.no}</strong>（{dg.kind}）{mathText(dg.caption)}
+      </p>
+      <p className="ch10-fig-walk">
+        <span className="ch10-fig-walk-badge">怎麼看這張圖</span> {children}
+      </p>
+    </div>
+  )
+}
+
+/**
+ * 正文裡提到別張圖時用它（「圖 10-N」）：圖號由登錄表的順序算出，中間插入或刪除一張圖時不會指錯。
+ * 不要在正文手寫圖號（diagrams.test.tsx 會檢查頁面上沒有手寫的「圖 10-N」）。
+ */
+export function FigRef({ id }: { id: string }) {
+  return (
+    <span className="ch10-figref" data-figref={id}>
+      圖 {diagram(id).no}
+    </span>
+  )
+}
+
+/** 按「本章符號表在最後」之前的捲動位置：章末的「回到剛才閱讀的位置」用它捲回去（沒按過就是 null）。 */
+let lastReadY: number | null = null
+
+function scrollBehavior(): ScrollBehavior {
+  const reduce = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  return reduce ? 'auto' : 'smooth'
+}
+
+/** 捲到章末的符號表（id="symbols"）。HashRouter 的 # 已經被路由用掉，不能用 href="#symbols"，所以用按鈕 + scrollIntoView。 */
+export function scrollToSymbols() {
+  if (typeof document === 'undefined') return
+  const el = document.getElementById('symbols')
+  if (!el) return
+  if (typeof window !== 'undefined' && Number.isFinite(window.scrollY)) lastReadY = window.scrollY
+  if (typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: scrollBehavior(), block: 'start' })
+}
+
+/** 從章末的符號表回到剛才閱讀的位置（沒有記錄時回到章首）。 */
+export function scrollBackFromSymbols() {
+  if (typeof window === 'undefined' || typeof window.scrollTo !== 'function') return
+  window.scrollTo({ top: lastReadY ?? 0, behavior: scrollBehavior() })
+}
+
+/** 章首只留一行：「本章符號表在最後」（docs/teaching-style.md §5）。 */
+export function SymbolsLink() {
+  return (
+    <p className="ch10-symbols-link small muted">
+      <button type="button" className="ch10-linklike" onClick={scrollToSymbols}>
+        本章符號表在最後 ↓
+      </button>
+      （每個符號第一次出現時，正文會先用一句話說明；忘了再到章末查）
+    </p>
+  )
+}
 
 /**
  * 「換你算」：放在對應推導／worked example 的正後方（docs/teaching-style.md §7）。

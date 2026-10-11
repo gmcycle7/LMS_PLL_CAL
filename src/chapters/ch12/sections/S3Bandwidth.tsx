@@ -4,7 +4,8 @@ import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Plot, Prereq, Sect
 import calNoiseSrc from '@/simulation/models/calNoise.ts?raw'
 import pyNoiseSrc from '../../../../golden/lms_pll_golden/noise.py?raw'
 import { bw3dbExact, bw3dbNegLnP, bw3dbOneMinusP, enbwOneSided, P_MIN_3DB, bwRegime } from '@/simulation/models/calNoise'
-import { EX, Erratum, Hand, Steps, md, regimeLabel, relPct, sig } from '../common'
+import { Diagram, EX, Erratum, Hand, Steps, md, regimeLabel, relPct, sig } from '../common'
+import { CHART_BW_READOUTS, CHART_BW_REGIME, CHART_LEVEL_WIDTH } from '../diagrams'
 
 const PATH = 'src/simulation/models/calNoise.ts'
 const HNORM_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'f / f_u' } }, yaxis: { title: { text: '|H(f)|²/|H(0)|² [dB]' }, range: [-45, 25] } }
@@ -54,8 +55,22 @@ export function S3Bandwidth() {
         <p>
           規格說「校正 Noise BW 約 12.9 kHz」。驗算後發現這句話把兩件事混在一起 <Erratum id="E06" />
           <Erratum id="E10" />：12.9 kHz 其實是 <Tex>{String.raw`|H_{\eta\to w}|^2`}</Tex> 的 <strong>−3 dB corner</strong>；
-          用來積分白雜訊的「noise bandwidth」（ENBW）是另一個數。先把四個數字並排：
+          用來積分白雜訊的「noise bandwidth」（ENBW，equivalent noise bandwidth，等效雜訊頻寬）是另一個數。這裡的{' '}
+          <Tex>{String.raw`f_{3\mathrm{dB}}`}</Tex> 指功率降到 DC 一半的頻率；兩者讀的是上一節同一條 <Tex>{String.raw`|H_{\eta\to w}|^2`}</Tex> 曲線，只是問的問題不同：
         </p>
+        <Diagram chart={CHART_BW_READOUTS} caption="同一個濾波器的四種讀法：其中三個都在回答功率掉一半的頻率，ENBW 回答的是另一個問題。">
+          <p>
+            {md(
+              String.raw`先看最上面：四個數字讀的是同一條 $|H|^2$ 曲線。再看分岔：讀法 A 問「功率掉到 DC 的一半是在哪個頻率」，藍色是精確解，另外兩個是它的近似；讀法 B 問「白雜訊通過之後的總功率，等於多寬的理想矩形」，答案是 ENBW。最後看綠色：只有 ENBW 可以乘上低頻位準 $S_w^{(1)}(0)$ 得到 $\sigma_w^2$。`,
+            )}
+          </p>
+          <p>
+            {md(
+              String.raw`和公式的對照：圖上四個帶數字的方塊就是下表的四列，分別對應後面的 F-12.7（exact）、F-12.8（兩個近似）與 F-12.9（ENBW）；圖中的 $f_u=f_s/N$ 是 block update rate，$p=1-\mu K$ 是 pole。`,
+            )}
+          </p>
+        </Diagram>
+        <p>把四個數字並排：</p>
         <div className="table-wrap">
           <table className="ch12-table">
             <thead>
@@ -147,6 +162,23 @@ export function S3Bandwidth() {
         <TexBlock id="F-12.7" label="exact −3 dB">
           {String.raw`\boxed{\Omega_{3\mathrm{dB}}=2\arcsin\frac{1-p}{2\sqrt p}=\arccos\!\Big(1-\frac{(1-p)^2}{2p}\Big),\qquad 3-2\sqrt2\le p<1}`}
         </TexBlock>
+        <p>
+          {md(
+            String.raw`F-12.7 後面的範圍 $3-2\sqrt2\le p<1$ 不是裝飾：pole 落在別的區域時，這個濾波器根本不是「會掉 3 dB 的 low-pass」。先用下面的流程判斷型態，再決定哪一種頻寬有意義（網站程式 bwRegime() 對 $p$ 的判斷就是這個順序）：`,
+          )}
+        </p>
+        <Diagram chart={CHART_BW_REGIME} caption={String.raw`先用 pole $p=1-\mu K$ 判斷濾波器的型態，再決定能不能報頻寬。只有最下面綠色那一格可以報精確的 $-3$ dB 頻率。`}>
+          <p>
+            {md(
+              String.raw`先由上往下問四個問題：是不是不穩定、是不是 high-pass、是不是完全平的、衰減夠不夠 3 dB。再看四個紅色出口：它們都不能報 $-3$ dB 頻寬，但近似公式在這些區域仍然會算出一個數字，這正是要小心的地方。`,
+            )}
+          </p>
+          <p>
+            {md(
+              String.raw`和公式的對照：圖上最後一個判斷 $p\ge3-2\sqrt2$ 就是 F-12.7 的存在範圍；括號裡用迴路增益 $\mu K=1-p$ 寫的條件是同一件事。下面的推導說明 $3-2\sqrt2$ 這個數怎麼來。`,
+            )}
+          </p>
+        </Diagram>
         <Steps
           title="它在什麼時候存在？"
           steps={[
@@ -213,6 +245,23 @@ export function S3Bandwidth() {
         <p>
           想像一個理想的矩形濾波器：通帶高度等於 <Tex>{'|H(1)|^2'}</Tex>、寬度為 ENBW，讓<strong>白雜訊通過後的總功率</strong>與真實濾波器相同。這個寬度才是「noise bandwidth」。
         </p>
+        <p>
+          {md(
+            String.raw`於是係數雜訊的變異數可以寫成「高度 × 寬度」：高度是 PSD 在低頻的位準 $S_w^{(1)}(0)$，寬度是 ENBW。把兩者各自由什麼決定畫出來，會發現一件重要的事——learning rate $\mu$ 只出現在寬度裡：`,
+          )}
+        </p>
+        <Diagram chart={CHART_LEVEL_WIDTH} caption={String.raw`係數雜訊的變異數等於位準乘寬度，$\sigma_w^2=S_w^{(1)}(0)\cdot\mathrm{ENBW}$：位準由 comparator 的雜訊決定，寬度由學習率決定。`}>
+          <p>
+            {md(
+              String.raw`先看由 comparator 雜訊開始的那一排：輸入端雜訊的單邊 PSD $2\sigma_v^2/f_s$，乘上 1-bit 的代價 $\pi/2$、除以 $C^2$，就是係數雜訊在低頻的位準——裡面沒有 $\mu$，也沒有 $N$。再看另一排：$\mu$ 與 $N$ 只透過 $p=1-\mu K$ 和 $f_u=f_s/N$ 出現在寬度 ENBW 裡。最後看乘號：兩者相乘就是 $\sigma_w^2$。`,
+            )}
+          </p>
+          <p>
+            {md(
+              String.raw`和公式的對照：圖上的「位準」是下面 F-12.19 的 $S_w^{(1)}(0)$，「寬度」是 F-12.9 的 ENBW，乘號之後的「面積」就是 F-12.9 後半的 $\sigma_w^2=S_w^{(1)}(0)\cdot\mathrm{ENBW}$。`,
+            )}
+          </p>
+        </Diagram>
         <Steps
           title="One-sided ENBW 的封閉式"
           steps={[

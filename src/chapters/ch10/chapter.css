@@ -211,3 +211,66 @@
 .ch10 .c-step-why {
   overflow-wrap: anywhere;
 }
+
+/* ===== 方塊圖（Fig）：圖 + 圖說 +「怎麼看這張圖」 ===== */
+.ch10-fig {
+  margin: 18px 0;
+  min-width: 0;
+}
+.ch10-fig .c-mermaid {
+  margin: 0 0 4px;
+}
+.ch10-fig-caption {
+  margin: 0 0 8px;
+}
+.ch10-fig-walk {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--surface-2);
+  font-size: 0.93rem;
+  overflow-wrap: anywhere;
+}
+.ch10-fig-walk-badge {
+  font-weight: 700;
+  color: var(--accent);
+  margin-right: 4px;
+}
+/* 正文裡提到別張圖（FigRef）：「圖 10-N」不要在中間斷行 */
+.ch10-figref {
+  white-space: nowrap;
+  font-weight: 600;
+}
+/* 章首系統地圖下面的一句話 */
+.ch10-map-note {
+  margin: 0 0 18px;
+}
+
+/* ===== 章末符號表（id="symbols"）與章首的一行連結 ===== */
+.ch10-linklike {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.ch10-linklike:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.ch10-symbols-link {
+  margin: 0 0 10px;
+}
+.ch10-symbols {
+  scroll-margin-top: calc(var(--topbar-h) + 12px);
+  margin-top: 32px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.ch10-symbols-back {
+  margin: 0;
+}

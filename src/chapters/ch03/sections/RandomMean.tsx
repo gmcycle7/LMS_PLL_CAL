@@ -3,7 +3,8 @@ import { Callout, ClaimTag, ModeGate, Prereq, Section, SourceTag, Tex, TexBlock 
 import { createRng, erf, normSf } from '@/simulation/core'
 import { meanPole } from '@/simulation/models/lms'
 import { drawX, stabilityBounds, xMoments, type XDist } from '@/simulation/models/scalarStability'
-import { Erratum, FBlock, HC, num, StepsBox, T, tnum, tx } from '../common'
+import { Erratum, FBlock, Fig, HC, num, StepsBox, T, tnum, tx } from '../common'
+import { CHART_ERROR_RECURSION, CHART_MEAN_PATH, CHART_RANDOM_GAIN, figRef } from '../diagrams'
 
 const HAND_SEED = 20261010
 const HAND_MU = 0.5
@@ -121,6 +122,18 @@ export function RandomMeanSection() {
           現在 <Tex>{T`\delta_n`}</Tex> 是<strong>隨機變數</strong>：同一個 <Tex>\mu</Tex>、同一個 <Tex>{T`\delta_0`}</Tex>，換一組 <Tex>{T`x_0,x_1,\dots`}</Tex> 就得到不同的路徑。要談「收斂」，就必須先說清楚是哪一種：
           本章會遇到三種——<strong>平均（mean）</strong>、<strong>均方（mean-square）</strong>、<strong>幾乎每條路徑（almost-sure）</strong>。
         </p>
+        <p>
+          畫成方塊圖：和{figRef(CHART_ERROR_RECURSION)} 的「合併之後」是同一個迴圈，只是固定的增益 <Tex>p</Tex> 換成了由 <Tex>{T`x[n]`}</Tex> 即時算出來的增益 <Tex>{T`f[n]`}</Tex>（time-varying gain，隨時間變的增益）。
+        </p>
+        <Fig
+          chart={CHART_RANDOM_GAIN}
+          caption={T`隨機輸入時，迴圈增益 $f_n=1-\mu x_n^2$ 每一步都不同。看乘法點（藍）的兩個輸入：一個來自「這一步」的 $x_n$，另一個只含「過去」的 $x$——兩者獨立。`}
+          ariaLabel="x n 進入算增益的方塊，輸出每步不同的增益 f n 等於 1 減 mu x n 平方；它與延遲一步回來的 delta n 相乘得到 delta n 加 1"
+        />
+        <p>
+          先看左邊：<Tex>{T`x[n]`}</Tex> 進到「算這一步的增益」方塊（平方、乘 <Tex>\mu</Tex>、再用 1 去減），輸出 <Tex>{T`f[n]`}</Tex>——就是上式的 <Tex>{T`f_n=1-\mu x_n^2`}</Tex>。再看乘法點的另一個輸入：
+          <Tex>{T`\delta[n]`}</Tex> 是從 <Tex>{T`z^{-1}`}</Tex> 出來的，只由過去的 <Tex>{T`x[0],\dots,x[n-1]`}</Tex> 決定。所以乘法點的兩個輸入<strong>互相獨立</strong>——下面能把期望值拆開，靠的就是這一點。
+        </p>
       </Section>
 
       <Section kind="example" title={tx`先算一次：Gaussian $x$、$\mu=0.5$、$\delta_0=1$`}>
@@ -131,7 +144,7 @@ export function RandomMeanSection() {
         <RandomHandTable />
         <p>
           大部分 <Tex>{T`|f_n|<1`}</Tex>（誤差縮小），但只要某一筆 <Tex>{T`x_n^2>2/\mu=4`}</Tex>（即 <Tex>{T`|x_n|>2`}</Tex>，機率{' '}
-          <Tex>{T`2\,(1-\Phi(2))\approx${tnum(200 * normSf(2), 3)}\%`}</Tex>），<Tex>{T`|f_n|>1`}</Tex> 就會把誤差放大。誤差是一連串<strong>隨機因子的乘積</strong>。
+          <Tex>{T`2\,(1-\Phi(2))\approx${tnum(200 * normSf(2), 3)}\%`}</Tex>；<Tex>{T`\Phi(z)`}</Tex> 是標準 Gaussian 落在 <Tex>z</Tex> 以下的機率，第 5 節的先備知識有完整說明），<Tex>{T`|f_n|>1`}</Tex> 就會把誤差放大。誤差是一連串<strong>隨機因子的乘積</strong>。
           <SourceTag kind="illustrative" />（seed {HAND_SEED}，由 <code>drawX</code> 實際抽樣）
         </p>
       </Section>
@@ -170,12 +183,25 @@ export function RandomMeanSection() {
       </Section>
 
       <Section kind="formula" title="一步一步推導 mean 遞迴（為什麼可以拆開期望值）">
+        <p>
+          每條路徑的增益都在亂跳，沒辦法直接套等比數列。但如果只問「很多條路徑的<strong>平均</strong>」，隨機增益就可以換成它自己的平均值。下圖一框是一條路徑，另一框是兩邊取期望值之後：
+        </p>
+        <Fig
+          chart={CHART_MEAN_PATH}
+          caption={T`取期望值，把隨機增益（褐）換成固定增益 $1-\mu P_x$（藍）：平均誤差 $E[\delta_n]$ 又是一個等比數列。`}
+          ariaLabel="一框是一條路徑的迴圈，增益 f n 每步不同；另一框是取期望值後的迴圈，E delta n 每步乘上固定增益 1 減 mu P x"
+        />
+        <p>
+          先看「一條路徑」那一框：乘法點的增益 <Tex>{T`f[n]`}</Tex> 每一步不同（褐色）。再看「兩邊取 <Tex>{T`E[\cdot]`}</Tex>」那一框：因為 <Tex>{T`x[n]`}</Tex> 與 <Tex>{T`\delta[n]`}</Tex> 獨立，
+          <Tex>{T`E[f\cdot\delta]=E[f]\cdot E[\delta]`}</Tex>，隨機增益被換成固定增益 <Tex>{T`E[f]=1-\mu P_x`}</Tex>（藍色），迴圈又回到第 1 節那種等比數列。圖上的「
+          <Tex>{T`\times\,(1-\mu P_x)`}</Tex>」就是下面推導的最後一行，也是 F-03.5 的 mean pole。
+        </p>
         <StepsBox
           title={tx`$E[\delta_{n+1}]=(1-\mu P_x)\,E[\delta_n]$`}
           steps={[
             { tex: T`\delta_{n+1}=(1-\mu x_n^2)\,\delta_n`, why: tx`第 1 節的推導每一步都只用到「這一筆」的 $x$，把 $x$ 換成 $x_n$ 照樣成立（無雜訊）。` },
             { tex: T`\delta_n=\delta_0\prod_{k=0}^{n-1}(1-\mu x_k^2)`, why: tx`反覆代入：$\delta_n$ 只由 $\delta_0$ 與「過去」的 $x_0,\dots,x_{n-1}$ 決定。` },
-            { tex: T`x_n\ \perp\!\!\!\perp\ (x_0,\dots,x_{n-1})\ \Rightarrow\ x_n\ \perp\!\!\!\perp\ \delta_n`, why: tx`iid：$x_n$ 與過去的樣本獨立；$\delta_n$ 是過去樣本的函數，所以也與 $x_n$ 獨立（勘誤 E38：這是自動成立的，不是額外假設）。` },
+            { tex: T`x_n\ \perp\!\!\!\perp\ (x_0,\dots,x_{n-1})\ \Rightarrow\ x_n\ \perp\!\!\!\perp\ \delta_n`, why: tx`符號 $\perp\!\!\!\perp$ 讀作「獨立於」。iid：$x_n$ 與過去的樣本獨立；$\delta_n$ 是過去樣本的函數，所以也與 $x_n$ 獨立（勘誤 E38：這是自動成立的，不是額外假設）。` },
             { tex: T`E[\delta_{n+1}]=E\big[(1-\mu x_n^2)\,\delta_n\big]`, why: '兩邊取期望值。' },
             { tex: T`=E\big[1-\mu x_n^2\big]\;E[\delta_n]`, why: '獨立變數乘積的期望值 = 期望值的乘積（先備知識）。' },
             { tex: T`=(1-\mu E[x_n^2])\,E[\delta_n]=(1-\mu P_x)\,E[\delta_n]`, why: tx`線性；同分布，所以每個 $n$ 的 $E[x_n^2]$ 都等於 $P_x$。` },
@@ -201,7 +227,7 @@ export function RandomMeanSection() {
         <Callout kind="info" title={<>精確式，不是 independence approximation <Erratum id="E38" /></>}>
           規格 §3.1 寫「假設 <Tex>{T`x_n`}</Tex> 為 iid、且和前一輪係數誤差獨立」。後半句其實是<strong>自動成立</strong>的（上面第 3 步），所以對 iid 純量 <Tex>x</Tex>（<Tex>{T`M_4`}</Tex> 有限、雜訊零均值且與 <Tex>x</Tex> 獨立），
           mean 與 mean-square 遞迴都是 <strong>[精確｜指定模型]</strong>。反過來，若 regressor 有時間相關——例如 tapped delay line，或第 6–7 章經過 PLL error path 的{' '}
-          <Tex>{T`u=h*x`}</Tex>——<Tex>{T`x_n`}</Tex> 與 <Tex>{T`\delta_n`}</Tex> 不再獨立，同樣的公式降為 <strong>[近似｜需驗證]</strong>。
+          <Tex>{T`u=h*x`}</Tex>（<Tex>h</Tex> 是 error path 的脈衝響應、<Tex>{T`*`}</Tex> 是卷積，也就是把 <Tex>x</Tex> 的過去幾筆加權相加；第 6 章從頭說明）——<Tex>{T`x_n`}</Tex> 與 <Tex>{T`\delta_n`}</Tex> 不再獨立，同樣的公式降為 <strong>[近似｜需驗證]</strong>。
           （<strong>相關</strong> correlation：相鄰 sample 彼此有關，例如 <Tex>{T`E[x_nx_{n-1}]\ne0`}</Tex>；此時 <Tex>{T`x_n`}</Tex> 透過 <Tex>{T`x_{n-1}`}</Tex> 與 <Tex>{T`\delta_n`}</Tex> 牽連在一起。）
         </Callout>
       </Section>

@@ -18,7 +18,7 @@ import {
   type SspllLoop,
 } from '@/simulation/models/sspll'
 import { DITHER, FREF_MHZ, LOOP_KEYS, LOOPS, PARAMS, PRED, P_ONLY, REMEDY, SIM_CFG, type LoopKey } from '../data'
-import { Claim, DataTable, Formula, GoldenCode, Hand, Kappa, MODEL_PATH, MODEL_SRC, ModelCompare, PY_SOURCES, Sci, Src, fmtFs, fs, fx, intervalsText, r, tx } from '../common'
+import { Claim, DataTable, Diagram, FigRef, Formula, GoldenCode, Hand, Kappa, MODEL_PATH, MODEL_SRC, ModelCompare, PY_SOURCES, Sci, Src, fmtFs, fs, fx, intervalsText, r, tx } from '../common'
 
 /** 比較器前級單極點（f_c）之後的一階差分 kernel：min_f Re{H_PD·H_c·(1 − e^{jΩ})}，H_c = (1 − p)/(1 − p z⁻¹) */
 function oneDiffWithComparatorPole(loop: SspllLoop, fcMHz: number): { hc0: number; min: number; fMinMHz: number; negLoMHz: number | null; negHiMHz: number | null } {
@@ -161,9 +161,30 @@ export function S11Remedies() {
   const lsInf = (k: LoopKey, v: string): number | undefined => (PRED.large_signal_counts[k] as Record<string, { 'A=inf': { periodic: number } } | undefined>)[v]?.['A=inf'].periodic
   return (
     <Section kind="formula" level={2} title="11. 對策：每一種都有代價與自己的失效模式" id="cs-11">
+      <p>
+        §9 的 PSD 定理指出方向：主迴路 <Tex>{r`H_{PD}`}</Tex> 是 PLL 規格決定的，動不了；能動的是 GMAC 前面那一格——regressor 的前置濾波 <Tex>{'G(z)'}</Tex>（<Tex>{r`r_i=g*x_i`}</Tex>）。大部分的對策，以及兩種常見的「錯誤對策」，都只是在這一格放不同的東西：
+      </p>
+      <Diagram id="remedy-g" />
+      <p>
+        先看中間那一欄的六個選擇，它們共用同一個輸入 <Tex>{'x_i[n]'}</Tex> 與同一個 GMAC。綠色兩格（一階差分、filtered-x）把 <Tex>{r`\mathrm{Re}\,\Gamma_{\rm eff}`}</Tex> 變成每個頻率都不為負，是推薦的對策（§11.1、§11.2）。藍色那一格（去平均）不改變線性分析的 <Tex>{'C'}</Tex>，但能擋住比較器 offset（§13）。紅色兩格（相關器晚{' '}
+        <Tex>{'D'}</Tex> 拍、二階差分）會把原本安全的頻道弄反（§11.6）。沒有上色的 raw 就是什麼都不做，Type-II 帶內會反號。再看最後的乘法點與 GMAC：不管選哪一格，後面的硬體完全一樣——這就是 §11.8 程式碼並排時「只差一兩行」的原因。圖上每一格寫的 <Tex>{'G'}</Tex> 就是 §4.3 的{' '}
+        <Tex>{r`\Gamma_{\rm eff}=H_{PD}\,\overline G`}</Tex> 裡的 <Tex>{'G'}</Tex>。
+      </p>
+      <p className="small muted">
+        不在這張圖上的對策有三種，因為它們改的不是 <Tex>{'G'}</Tex>：P-only 改的是主迴路本身（§11.3 的 <FigRef id="p-only" />）；PMUX 隨機旋轉／MASH 改的是 code 序列（§11.4）；keep-out／freeze 是乾脆不在危險的頻道更新（§11.5、§15 的 <FigRef id="keepout" />）。
+      </p>
+
       <h3>
         11.1 一階差分 regressor：<Tex>{r`r[n]=x[n]-x[n-1]`}</Tex>（推薦 ①）
       </h3>
+      <p>
+        為什麼只多做一次減法就能把符號救回來？§5.2 說 Type-II 的毛病是低頻的 <Tex>{r`H_{PD}`}</Tex> 像「兩次差分」，方向和誤差相反。如果 regressor 自己也先做一次差分，相關的時候兩邊各抵掉一次：
+      </p>
+      <Diagram id="onediff" />
+      <p>
+        先看 raw 那一列：kernel 就是 <Tex>{r`H_{PD}`}</Tex> 本身，低頻時實部是負的（紅色）。再看一階差分那一列：藍色那一格是關鍵——把 regressor 的差分 <Tex>{r`(1-z^{-1})`}</Tex> 併到 <Tex>{'L_2'}</Tex> 上，剛好消掉一個積分器，剩下「比例項 + 一個積分器」，這就是下面推導的第 3 步。後面兩格是第 4 步的{' '}
+        <Tex>{r`g(\Omega)`}</Tex> 與第 5 步的安全條件：只要積分增益相對比例增益不要太大（<Tex>{r`K_i\le2K_p`}</Tex>），<Tex>{r`g(\Omega)`}</Tex> 就不會變負。
+      </p>
       <StepDerivation
         title={mathText(r`一步一步：為什麼 $\mathrm{Re}\,\Gamma_{1d}\ge0$`)}
         steps={[
@@ -266,6 +287,11 @@ export function S11Remedies() {
       <p>
         「一階差分安全」的條件是 <Tex>{r`g(\Omega)\ge0`}</Tex>，它依賴迴路。以 Type-I、延遲 <Tex>{'d'}</Tex> 拍為例（<Tex>{r`L=Kz^{-d}/(1-z^{-1})`}</Tex>）：
       </p>
+      <Diagram id="onediff-delay" />
+      <p>
+        兩列的第一格都是「regressor 的差分併到 <Tex>{'L'}</Tex> 上」：差分把迴路的積分器消掉，剩下增益與延遲（下面推導的第 1 步）。先看第一列：只有 1 拍延遲時 <Tex>{r`g(\Omega)=1-(1-K)\cos\Omega`}</Tex>，最小值是 <Tex>{r`\min(K,\,2-K)`}</Tex>，恆正。再看第二列的紅色方塊：多出來的延遲消不掉，
+        <Tex>{r`K\cos(d\Omega)`}</Tex> 在 <Tex>{r`\Omega=\pi/d`}</Tex> 變成 <Tex>{'-K'}</Tex>，而同一個頻率上的 <Tex>{r`1-\cos\Omega`}</Tex> 只有 <Tex>{r`1-\cos(\pi/d)`}</Tex>，<Tex>{'d'}</Tex> 越大越小。圖上第二、三格就是推導的第 3、4 步。
+      </p>
       <StepDerivation
         title={mathText(r`一步一步：Type-I、延遲 $d$ 拍的 $g(\Omega)$`)}
         steps={[
@@ -273,7 +299,7 @@ export function S11Remedies() {
           { tex: r`\mathrm{Re}\{(1-e^{-j\Omega})L\}=\mathrm{Re}\{K\,e^{-jd\Omega}\}=K\cos(d\Omega)`, why: <>代入 <Tex>{r`z^{-1}=e^{-j\Omega}`}</Tex>，取實部。</> },
           { tex: r`g(\Omega)=1-\cos\Omega+K\cos(d\Omega)`, why: <>代入 <Tex>{r`g(\Omega)=1-\cos\Omega+\mathrm{Re}\{(1-e^{-j\Omega})L\}`}</Tex>。</> },
           {
-            tex: r`d=1:\ g=1-(1-K)\cos\Omega\ \ge\ K>0;\qquad d\ge2:\ g\Big(\tfrac{\pi}{d}\Big)=1-\cos\tfrac{\pi}{d}-K`,
+            tex: r`d=1:\ g=1-(1-K)\cos\Omega\ \ge\ \min(K,\,2-K)>0;\qquad d\ge2:\ g\Big(\tfrac{\pi}{d}\Big)=1-\cos\tfrac{\pi}{d}-K`,
             why: <><Tex>{'d=1'}</Tex> 時恆正（<Tex>{'0<K<2'}</Tex>）。<Tex>{r`d\ge2`}</Tex> 時，延遲讓 <Tex>{r`K\cos(d\Omega)`}</Tex> 在 <Tex>{r`\Omega=\pi/d`}</Tex> 變成 <Tex>{'-K'}</Tex>，而 <Tex>{r`1-\cos(\pi/d)`}</Tex> 隨 <Tex>{'d'}</Tex> 變小：只要 <Tex>{r`K>1-\cos(\pi/d)`}</Tex> 就有負值。</>,
           },
         ]}
@@ -300,6 +326,14 @@ export function S11Remedies() {
       <h3>
         11.2 filtered-x：<Tex>{r`r=\hat h_{PD}*x`}</Tex>（②）
       </h3>
+      <p>
+        另一個想法更直接：既然誤差在到達比較器之前被 <Tex>{r`H_{PD}`}</Tex> 改造過，那就讓 regressor 也通過一個一樣的濾波器再去相關。做法是在數位端放一個主迴路的模型 <Tex>{r`\hat H_{PD}`}</Tex>（帽子表示「估計的」），這就是主動噪音控制裡的 filtered-x LMS。
+      </p>
+      <Diagram id="fx" />
+      <p>
+        先看兩條平行的路：誤差那一條（權重誤差 <Tex>{r`\delta_j`}</Tex> 乘上 regressor <Tex>{'x_j'}</Tex>）通過真正的迴路 <Tex>{r`H_{PD}`}</Tex>，regressor 那一條通過藍色的數位模型 <Tex>{r`\hat H_{PD}`}</Tex>。兩條路在乘法點相遇時，各自帶著迴路給的相位；模型若和真的一樣，相位完全對齊，乘積的平均就是 <Tex>{r`\lvert H_{PD}\rvert^2\ge0`}</Tex>。再看最後一格：模型不準也沒關係，只要兩者的相位差不超過
+        90°，實部就不會變負。圖上最後一格的 <Tex>{r`\Gamma_{fx}`}</Tex> 就是下面公式的第一式。
+      </p>
       <Formula id="F-CS.17" />
       <p>
         模型精確時 <Tex>{r`\Gamma_{fx}=\lvert H\rvert^2\ge0`}</Tex>。模型不準時，看兩者相位差的 <Tex>{r`\min_f\cos\Delta\phi`}</Tex>（&gt; 0 才安全）：
@@ -350,6 +384,15 @@ export function S11Remedies() {
       </p>
 
       <h3>11.3 校準時 hold 住積分路徑（P-only）＋ zero-mean regressor（③）</h3>
+      <p>
+        前兩個對策改的是 regressor。第三個對策反過來改主迴路：反號的根源是 Type-II 的第二個積分器，那就在校準的時候讓它暫時不要動。
+      </p>
+      <Diagram id="p-only" />
+      <p>
+        先看藍色的兩格：校準時把 hold 開關斷開，積分路徑不再吃進新的 <Tex>{r`e_{PD}`}</Tex>，它的輸出停在斷開前的值（對 VCO 來說只是一個固定的頻率偏移，不影響誤差的動態）。再看剩下的路：只有比例路徑 <Tex>{'K_p'}</Tex> 與 VCO，所以校準期間的開迴路增益是{' '}
+        <Tex>{r`L=K_p/(z-1)`}</Tex>，一個積分器，Type-I。圖上綠色那一格的判據 <Tex>{r`K_p(d-\tfrac12)<1`}</Tex> 就是 §6.1 的 Type-I 判據把 <Tex>{'K'}</Tex> 換成 <Tex>{'K_p'}</Tex>（<Tex>{'d'}</Tex> 是迴路延遲的拍數，這裡是 1）；下表第一列的判據值就是它。圖畫的是 L2；L3（CPPLL）是 hold 住積分電容{' '}
+        <Tex>{'C_1'}</Tex>，剩下的迴路多一個極點，要用另一個判據（下表後兩列）。
+      </p>
       <DataTable
         className="cs-num"
         head={['hold 之後的迴路', '判據', '判據值（需 $<1$）', <Tex key="f">{r`f_{3dB}`}</Tex>, 'PM', <Tex key="r">{r`\min\mathrm{Re}H`}</Tex>]}

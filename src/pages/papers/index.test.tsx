@@ -100,10 +100,10 @@ describe('Papers / Reading 頁（jsdom smoke）', () => {
     const exp = container.querySelector('[data-experiment="papers-convention-bridge"]') as HTMLElement
     expect(exp).not.toBeNull()
     expect(within(exp).getAllByText(/Not implemented/).length).toBeGreaterThan(0)
-    // KaTeX 沒有語法錯誤；可見文字沒有 NaN / undefined（程式碼區塊與公式除外）
+    // KaTeX 沒有語法錯誤；可見文字沒有 NaN / undefined（程式碼區塊、公式與 TestBadge 提示框裡別人測試的原始標題除外）
     expect(container.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
     const clone = container.cloneNode(true) as HTMLElement
-    clone.querySelectorAll('.katex, pre').forEach((n) => n.remove())
+    clone.querySelectorAll('.katex, pre, .c-tip').forEach((n) => n.remove())
     expect(clone.textContent).not.toMatch(/NaN|undefined|\[object/)
     // log 軸的軌跡已截斷，不會出現「已略去 N 個 ≤0 的點」
     expect(within(exp).queryByText(/已略去 \d+ 個 ≤0 的點/)).toBeNull()

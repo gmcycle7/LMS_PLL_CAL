@@ -5,7 +5,8 @@ import { ALL_PRESETS, presetHref } from '@/app/presets'
 import { fixedXPole, runScalarLms } from '@/simulation/models/lms'
 import { detectionWindow, matchCoverage } from '../consistency'
 import { acceptHalfWidth, decimalsOf, EXACT_REL, extractNumbers, findExpectedMatch, PRECISE_REL, rawToTex, texArg, texNum, texRepr, type ExtractedNumber } from '../format'
-import { Steps } from '../common'
+import { Diagram, Steps } from '../common'
+import { CHART_LMS_LOOP, CHART_MATCH_DECISION } from '../diagrams'
 
 /** §2 可靠度示範用的假想誤差範圍 ε_max（10%） */
 export const DEMO_EPS_MAX = 0.1
@@ -83,6 +84,20 @@ export function HowToRead() {
         <SourceTag kind="illustrative" />
         <TestBadge id="T01" />
       </div>
+      <Diagram
+        chart={CHART_LMS_LOOP}
+        caption="preset #1 的 LMS 迴路：預測、比較、修正，再把新的猜測留到下一步。藍色方塊決定每次修正多少。"
+        ariaLabel="LMS 迴路方塊圖：輸入經黑盒子得到量測值、經目前的猜測得到預測值，兩者相減得到誤差，乘上步長與輸入後加回猜測"
+      >
+        <p>
+          <strong>先看</strong>左半邊的兩條路：同一個輸入 <Tex>{'x'}</Tex> 往上經過黑盒子，得到量測值 <Tex>{'y_n=ax'}</Tex>；往下乘上你目前的猜測 <Tex>{'w_n'}</Tex>，得到預測值 <Tex>{'w_nx'}</Tex>
+          。兩者在加法點相減（量測為正、預測為負），就是誤差 <Tex>{'e_n'}</Tex>。
+        </p>
+        <p>
+          <strong>再看</strong>右半邊：誤差乘上藍色方塊的 <Tex>{'\\mu x'}</Tex> 變成修正量，加回原本的 <Tex>{'w_n'}</Tex> 得到新的猜測 <Tex>{'w_{n+1}'}</Tex>；<Tex>{'z^{-1}'}</Tex>{' '}
+          是「延遲一步」，表示新的猜測留到下一步才拿去預測。<Tex>{'\\mu'}</Tex> 叫步長（learning rate）：每次只修正誤差的一部分。圖上的兩個加法點，就是下面這兩條式子。
+        </p>
+      </Diagram>
       <TexBlock>{String.raw`e_n=y_n-w_nx=(a-w_n)\,x,\qquad w_{n+1}=w_n+\mu\,e_n\,x`}</TexBlock>
       <div className="table-wrap">
         <table className="gal-table gal-num-table">
@@ -178,6 +193,24 @@ export function HowToRead() {
       <p>
         文字寫 <Tex>{`w_2=${w2Text}`}</Tex>，電腦算出 <Tex>{`\\hat y=${texRepr(hand.w[2])}`}</Tex>。兩者「一樣」嗎？要先講清楚文字的 <Tex>{w2Text}</Tex> 代表多大的範圍。
       </p>
+      <p>
+        以下把模型函式當場算出來的值記為 <Tex>{'\\hat y'}</Tex>（<strong>重算值</strong>），把預期文字裡寫的那個數字記為 <Tex>{'y_{\\mathrm t}'}</Tex>（t 代表 text）。判定分三步，先看流程，再看每一步的推導：
+      </p>
+      <Diagram
+        chart={CHART_MATCH_DECISION}
+        caption="相符判據的判定流程：先由文字的小數位數算出捨入半寬，再決定接受半寬，最後比較重算值與文字數字的差距。綠色是相符，紅色是對不上。"
+        ariaLabel="相符判據流程圖：捨入半寬、是否夠精確、是否必備數值、接受半寬、重算值與文字數字的差距是否在接受半寬內"
+      >
+        <p>
+          <strong>先看</strong>左上角：文字數字 <Tex>{'y_{\\mathrm t}'}</Tex> 寫到小數 <Tex>{'n_{\\mathrm d}'}</Tex> 位（科學記號的指數是 <Tex>{'e'}</Tex>），最後一位的半個單位就是
+          <strong>捨入半寬</strong> <Tex>{'\\Delta_{\\mathrm t}'}</Tex>。<strong>再看</strong>第一個菱形：<Tex>{'\\Delta_{\\mathrm t}'}</Tex> 不超過 <Tex>{'|y_{\\mathrm t}|'}</Tex> 的{' '}
+          <Tex>{`${texNum(100 * PRECISE_REL)}\\%`}</Tex> 才算「夠精確」，這時<strong>接受半寬</strong> <Tex>{'W=k_{\\mathrm{tol}}\\Delta_{\\mathrm t}'}</Tex>（<Tex>{'k_{\\mathrm{tol}}'}</Tex>{' '}
+          是容差倍數，原意是 1）；不夠精確的短數字只在「必備數值」時才比，而且要求重算值就等於它。
+        </p>
+        <p>
+          圖上最後一個菱形就是 F-GA.1 的不等式 <Tex>{'|\\hat y-y_{\\mathrm t}|\\le W'}</Tex>；兩條進入它的路徑只差在 <Tex>{'W'}</Tex> 取哪一個值。
+        </p>
+      </Diagram>
       <Steps
         title="從四捨五入的定義推出相符判據"
         open

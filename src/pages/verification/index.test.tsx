@@ -254,12 +254,13 @@ describe('verification 頁（jsdom smoke）', () => {
     const methods = screen.getByTestId('methods-table')
     expect(methods.querySelectorAll('tbody > tr')).toHaveLength(5)
     expect(methods.textContent).toMatch(/Mutation/)
-    // 符號表涵蓋統計符號（S₁、r₁、Z_mean …）：至少 30 列
-    const sym = container.querySelector('#ver-intro .c-symbols') as HTMLElement
+    // 符號表涵蓋統計符號（S₁、r₁、Z_mean …）：至少 30 列；放在頁尾（id="symbols"），頁首（#ver-intro）已經沒有符號表
+    const sym = container.querySelector('#symbols .c-symbols') as HTMLElement
     expect(sym.querySelectorAll('tbody > tr').length).toBeGreaterThanOrEqual(30)
-    // 整頁（不含程式碼與 KaTeX 的 annotation）都沒有殘留的 $
+    expect(container.querySelector('#ver-intro .c-symbols')).toBeNull()
+    // 整頁（不含程式碼、KaTeX 的 annotation，以及 TestBadge 提示框裡別人測試的原始標題）都沒有殘留的 $
     const clone = container.cloneNode(true) as HTMLElement
-    clone.querySelectorAll('pre, code, annotation').forEach((n) => n.remove())
+    clone.querySelectorAll('pre, code, annotation, .c-tip').forEach((n) => n.remove())
     expect(clone.textContent).not.toMatch(/\$/)
     await act(async () => undefined)
     expect(errorSpy).not.toHaveBeenCalled()

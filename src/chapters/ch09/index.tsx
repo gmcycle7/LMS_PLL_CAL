@@ -10,6 +10,7 @@ import { PeDefinition } from './sections/PeDefinition'
 import { Gauge } from './sections/Gauge'
 import { CodeTour } from './sections/CodeTour'
 import { Wrapup } from './sections/Wrapup'
+import { ChapterSymbols, SymbolsLink } from './sections/Symbols'
 import { PeEigenLab } from './experiments/PeEigenLab'
 import { GaugeOneHotLab } from './experiments/GaugeOneHotLab'
 import { Erratum, m, texNum } from './shared'
@@ -24,7 +25,8 @@ const TOC: { id: string; label: ReactNode }[] = [
   { id: 'ch09-gauge', label: '§9.2 GOS / PHOS gauge freedom（勘誤 E04）' },
   { id: 'ch09-lab-gauge', label: '實驗：四相 One-Hot ＋ Global Offset' },
   { id: 'ch09-code', label: '核心程式碼與演算法比較' },
-  { id: 'ch09-compare', label: '比較表、綜合手算、思考題、本課必記、連結到 PLL' },
+  { id: 'ch09-compare', label: '決策樹、比較表、綜合手算、思考題、本課必記、連結到 PLL' },
+  { id: 'symbols', label: '本章符號表（章末）' },
 ]
 
 function scrollTo(id: string) {
@@ -64,6 +66,7 @@ export default function Chapter09() {
           ))}
         </ol>
       </nav>
+      <SymbolsLink />
 
       <Intro />
       <MatrixPrereq />
@@ -128,6 +131,7 @@ export default function Chapter09() {
 
       <CodeTour />
       <Wrapup />
+      <ChapterSymbols />
     </div>
   )
 }

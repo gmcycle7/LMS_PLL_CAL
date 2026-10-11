@@ -9,6 +9,8 @@ import { ReviewMatrix } from './sections/S1Matrix'
 import { S3Claims } from './sections/S3Claims'
 import { STORAGE_KEY } from './review'
 import { FORMULAS } from './formulas'
+import { SIGNOFF_CHARTS } from './diagrams'
+import { SYMBOLS } from './symbols'
 
 const P = vi.hoisted(() => ({
   react: vi.fn(async () => undefined),
@@ -58,7 +60,6 @@ describe('Sign-off 頁（jsdom smoke）', () => {
     localStorage.setItem('lmspll.mode', 'research') // Research 模式顯示全部內容（ModeGate）
     const errSpy = vi.spyOn(console, 'error')
     const { container } = render(wrap(<SignoffPage />))
-    expect(screen.getByText('本章符號')).toBeTruthy()
     // 標題含 KaTeX 時 jsdom 無法計算 accessible name（getByRole 會丟例外），改以文字開頭比對
     const headings = Array.from(container.querySelectorAll('h2')).map((h) => h.textContent ?? '')
     for (const t of [
@@ -156,7 +157,104 @@ describe('Sign-off 頁（jsdom smoke）', () => {
     }
     // 渲染過程沒有 console.error（React key／prop 警告、KaTeX 例外…）
     expect(errSpy.mock.calls.map((c) => String(c[0]))).toEqual([])
-  }, 90000)
+  }, 240000)
+
+  it('符號表在頁末：全頁只有一張，包在 id="symbols" 裡，是頁面的最後一個區塊（在「本頁必記」之後）；頁首只留一行按鈕，符號表的 TeX 都能解析', async () => {
+    const katex = (await import('katex')).default
+    for (const r of SYMBOLS) {
+      expect(() => katex.renderToString(r.symbol, { throwOnError: true, strict: 'ignore' }), r.symbol).not.toThrow()
+      if (r.unit) expect(() => katex.renderToString(r.unit as string, { throwOnError: true, strict: 'ignore' }), r.unit).not.toThrow()
+    }
+    expect(new Set(SYMBOLS.map((r) => r.symbol)).size).toBe(SYMBOLS.length) // React key 不重複
+    const { container } = render(wrap(<SignoffPage />))
+    const precedes = (x: Element | null, y: Element | null) => !!x && !!y && !!(x.compareDocumentPosition(y) & Node.DOCUMENT_POSITION_FOLLOWING)
+    const page = container.querySelector('.so-page') as HTMLElement
+    const symbols = container.querySelector('#symbols') as HTMLElement
+    expect(symbols).not.toBeNull()
+    expect(container.querySelectorAll('.c-symbols')).toHaveLength(1)
+    expect(symbols.querySelectorAll('.c-symbols tbody tr')).toHaveLength(SYMBOLS.length)
+    expect(page.lastElementChild).toBe(symbols)
+    expect(symbols.lastElementChild?.classList.contains('c-symbols')).toBe(true)
+    expect(precedes(container.querySelector('#so-wrap'), symbols)).toBe(true)
+    expect(precedes(container.querySelector('.c-recap'), symbols)).toBe(true)
+    expect(symbols.querySelector('h2')?.textContent).toBe('本頁符號表')
+    // §0 裡不再有符號表
+    expect(container.querySelector('#so-intro .c-symbols')).toBeNull()
+    expect(container.querySelector('.c-symbols')?.closest('#symbols')).toBe(symbols)
+    // 頁首只留一行「本頁符號表在最後 ↓」：是按鈕（HashRouter 下 href="#symbols" 會被當成路由），而且在第 0 節之前
+    const jump = container.querySelector('.so-symbols-jump button') as HTMLButtonElement
+    expect(jump.textContent).toBe('本頁符號表在最後 ↓')
+    expect(container.querySelectorAll('.so-symbols-jump')).toHaveLength(1)
+    expect(jump.closest('a')).toBeNull()
+    expect(container.querySelector('a[href*="#symbols"]')).toBeNull()
+    expect(precedes(jump, container.querySelector('#so-intro'))).toBe(true)
+    // 按下去捲到頁末的 #symbols；符號表旁的「回到頁首」捲回頁首（jsdom 沒有 scrollIntoView，這裡裝一個假的）
+    const down = vi.fn()
+    const up = vi.fn()
+    symbols.scrollIntoView = down
+    page.scrollIntoView = up
+    fireEvent.click(jump)
+    expect(down).toHaveBeenCalledTimes(1)
+    const back = Array.from(symbols.querySelectorAll('button')).find((b) => (b.textContent ?? '').includes('回到頁首')) as HTMLButtonElement
+    fireEvent.click(back)
+    expect(up).toHaveBeenCalledTimes(1)
+    // TOC 最後一項是符號表
+    const tocLast = Array.from(container.querySelectorAll('.so-toc a')).at(-1) as HTMLAnchorElement
+    expect(tocLast.textContent).toBe('本頁符號表')
+  }, 120000)
+
+  it('方塊圖：七張圖各出現一次（依 SIGNOFF_CHARTS 的順序），都有圖說與導讀，並放在對應的公式／逐步推導之前（docs/teaching-style.md §8）', () => {
+    const { container } = render(wrap(<SignoffPage />))
+    const precedes = (x: Element | null, y: Element | null) => !!x && !!y && !!(x.compareDocumentPosition(y) & Node.DOCUMENT_POSITION_FOLLOWING)
+    const figs = Array.from(container.querySelectorAll('figure.c-mermaid')) as HTMLElement[]
+    expect(figs).toHaveLength(SIGNOFF_CHARTS.length)
+    // 圖說夠長、沒有 `$` 殘留（成對的 $…$ 已轉成 KaTeX）、有替代文字；每張圖都包在 .so-diagram 裡
+    for (const f of figs) {
+      const cap = f.querySelector('figcaption')?.textContent ?? ''
+      expect(cap.length, cap).toBeGreaterThan(20)
+      expect(cap, cap).not.toMatch(/\$/)
+      expect((f.getAttribute('aria-label') ?? '').length).toBeGreaterThan(30)
+      expect(f.closest('.so-diagram'), cap).toBeTruthy()
+    }
+    const fig = (label: string) => {
+      const f = figs.find((x) => (x.getAttribute('aria-label') ?? '').includes(label))
+      if (!f) throw new Error(`找不到圖：${label}`)
+      return f
+    }
+    const placed: [string, string, string][] = [
+      ['Sign-off 流程圖', '#so-intro', ''],
+      ['freeze 加減 Delta', '#so-polarity', '.c-steps'],
+      ['證據強度流程圖', '#so-evidence', '.c-steps'],
+      ['Corner 判準流程圖', '#so-corner', '.c-steps'],
+      ['多參數線性化迴路', '#so-mimo', '.c-steps'],
+      ['從 gain code 偏差到輸出', '#so-strategy', '.c-steps'],
+      ['反面測試的流程圖', '#so-negative', '.so-limits'],
+    ]
+    expect(placed.map(([label]) => fig(label))).toEqual(figs) // 頁面上的順序與 SIGNOFF_CHARTS 相同
+    for (const [label, section, next] of placed) {
+      const sec = container.querySelector(section) as HTMLElement
+      expect(sec, section).toBeTruthy()
+      expect(sec.contains(fig(label)), `${label} 應在 ${section} 內`).toBe(true)
+      // 先看圖，再看逐步推導（或下面的條目）
+      if (section === '#so-intro') continue // §0 的圖放在六個條件表之後、「0.1 入門版」之前（下面單獨檢查）
+      // 同一節裡的每一個逐步推導（或項目清單）都在圖之後；圖之前沒有任何推導
+      for (const t of Array.from(sec.querySelectorAll(next))) expect(precedes(fig(label), t), `${label} 應在 ${next} 之前`).toBe(true)
+    }
+    const h01 = Array.from(container.querySelectorAll('h2, h3')).find((h) => (h.textContent ?? '').startsWith('0.1 入門版'))
+    expect(precedes(container.querySelector('.so-pillars'), fig('Sign-off 流程圖'))).toBe(true)
+    expect(precedes(fig('Sign-off 流程圖'), h01 ?? null)).toBe(true)
+    // 導讀：圖旁有「先看…」的說明並用 KaTeX 把圖上的名字對回公式
+    for (const f of figs) {
+      const walk = f.closest('.so-diagram')?.querySelector('.so-diagram-walk')
+      expect(walk?.textContent, f.getAttribute('aria-label') ?? '').toContain('先看')
+      expect(walk?.querySelector('.katex')).toBeTruthy()
+    }
+    // §9 的圖在項目清單之前；§3.5、§4、§7、§8 的圖在各自的公式之前
+    expect(precedes(fig('證據強度流程圖'), container.querySelector('[id="formula-F-SO.8"]'))).toBe(true)
+    expect(precedes(fig('Corner 判準流程圖'), container.querySelector('[id="formula-F-SO.5"]'))).toBe(true)
+    expect(precedes(fig('多參數線性化迴路'), container.querySelector('[id="formula-F-SO.7"]'))).toBe(true)
+    expect(precedes(fig('freeze 加減 Delta'), container.querySelector('[id="formula-F-SO.1"]'))).toBe(true)
+  }, 120000)
 
   it('狀態改變會存進 localStorage（lmspll.signoff.*），判定與進度跟著更新', () => {
     render(wrap(<ReviewMatrix />))

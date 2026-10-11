@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { Callout, ClaimTag, ModeGate, ModelLevel, Prereq, Section, SourceTag, Tex, TexBlock } from '@/components'
-import { ChLink, ErratumNote, md, sig, Steps, texHz, texNum } from '../common'
+import { ChLink, Diagram, ErratumNote, md, sig, Steps, texHz, texNum } from '../common'
+import { CHART_OUTPUT_SPLIT, CHART_TWO_PATHS, CHART_UPDATE_LOOP } from '../diagrams'
 import { anchorNumbers, delayTable, dsmHandExample, pllNumbers, spurNumbers } from '../numbers'
 
 const T = String.raw
@@ -388,6 +389,24 @@ function Derivations() {
         <p>
           <ModelLevel level="L2" /> <ClaimTag kind="exact" /> PLL 是負回授：phase detector 看到誤差，迴路就去移動輸出相位把它補掉。
         </p>
+        <p>
+          所以同一個 DTC 誤差 <Tex>{'e_{\\mathrm{DTC}}'}</Tex> 會在兩個地方留下痕跡：phase detector 上「還沒被補掉的部分」（記作 <Tex>{'u_{\\mathrm{pd}}'}</Tex>，comparator 看到的就是它），以及輸出端「已經被迴路搬過去的部分」（記作{' '}
+          <Tex>{'\\theta_{\\mathrm{fb}}'}</Tex>，也就是輸出的 timing error <Tex>{'t_{\\mathrm{out}}'}</Tex>）。先看圖，再看推導。
+        </p>
+        <Diagram
+          chart={CHART_TWO_PATHS}
+          caption="主 PLL 的負回授：加法點的輸出送到 comparator（藍色，high-pass），回授量本身就是輸出端被移動的量（棕色，low-pass）。兩條路的轉移函數相加等於 1。"
+          ariaLabel="主 PLL 負回授的方塊圖：DTC 誤差減去回授相位得到 PD residual，PD residual 經 open loop 變成回授相位；PD residual 送到 comparator，回授相位就是輸出 timing error"
+        >
+          <p>
+            先看加法點：<Tex>{'e_{\\mathrm{DTC}}'}</Tex> 進來是「＋」，迴路已經補掉的 <Tex>{'\\theta_{\\mathrm{fb}}'}</Tex> 是「−」，所以加法點的輸出是 <Tex>{'u_{\\mathrm{pd}}=e_{\\mathrm{DTC}}-\\theta_{\\mathrm{fb}}'}</Tex>
+            ——下面推導的第一行。
+          </p>
+          <p>
+            圖上的 <Tex>{'L(z)'}</Tex> 是 open-loop transfer（loop filter 加 VCO 合起來）。藍色那條路從加法點<strong>之後</strong>拉出去，除以 <Tex>{'1+L'}</Tex>；棕色那條路是 <Tex>{'L(z)'}</Tex> 的輸出，乘上{' '}
+            <Tex>{'L/(1+L)'}</Tex>。PD 沒看到的，全部到了輸出。
+          </p>
+        </Diagram>
         <Prereq title="Z transform 與頻率響應（只需要兩件事）">
           <p>
             {md(
@@ -598,6 +617,24 @@ function Derivations() {
         <p>
           <ModelLevel level="L1" /> <ClaimTag kind="exact" />（平均模型本身）／<ClaimTag kind="approx" />（它對 sign-LMS 的適用性）
         </p>
+        <p>
+          前六級都在 sample rate（索引 <Tex>n</Tex>）運作；從這裡開始換成 block rate（索引 <Tex>k</Tex>）：每 <Tex>N</Tex> 個 sample，GMAC 交出一個數字 <Tex>{'G_k'}</Tex>，係數才動一次。把 §4.6 的結果（GMAC 的平均輸出正比於係數誤差）當成一個方塊{' '}
+          <Tex>{'\\times K'}</Tex>，整個校正迴路就是下面這一圈。
+        </p>
+        <Diagram
+          chart={CHART_UPDATE_LOOP}
+          caption="block rate 的校正迴路：係數誤差乘上 GMAC 斜率、加上雜訊、乘 learning rate、進累加器，再晚 d 個 block 才作用到 DTC。藍色兩塊相乘就是迴路增益，棕色是更新延遲。"
+          ariaLabel="block rate 校正迴路的方塊圖：真值減去延遲後的係數得到係數誤差，乘 K 加雜訊得到 GMAC 輸出，乘 learning rate 後進累加器，經 d 個 block 的延遲回授"
+        >
+          <p>
+            先看 <Tex>a</Tex> 進去的那個加法點：真值 <Tex>a</Tex> 進來是「＋」，實際作用在 DTC 上的係數是「−」，輸出就是係數誤差 <Tex>{'\\delta=a-w'}</Tex>（全站極性）。順著箭頭走一圈：乘 <Tex>K</Tex>、加上這個 block 的雜訊{' '}
+            <Tex>{'\\eta_k'}</Tex>、乘 <Tex>{'\\mu'}</Tex>、進累加器。
+          </p>
+          <p>
+            圖上藍色的 <Tex>{'\\times K'}</Tex> 與 <Tex>{'\\times\\mu'}</Tex> 相乘就是無因次的迴路增益 <Tex>{'g=\\mu K'}</Tex>。棕色的 <Tex>{'z^{-d}'}</Tex> 不改變 <Tex>g</Tex>，但迴路多繞了 <Tex>d</Tex> 個 block 才看到自己的修正，可以用的{' '}
+            <Tex>g</Tex> 範圍因此變小（下面的表）。
+          </p>
+        </Diagram>
         <Prereq title="差分方程、pole 與單位圓">
           <p>
             {md(
@@ -687,7 +724,7 @@ function Derivations() {
           漂移時，延遲越長越容易跨過邊界（<ChLink to="/ch/08">第 8 章</ChLink>）。
         </p>
         <Steps
-          title="穩態變異數 $\sigma_w^2$（$d=0$）\"
+          title="穩態變異數 $\sigma_w^2$（$d=0$）"
           steps={[
             { tex: T`\delta w_{k+1}=p\,\delta w_k+\mu\,\eta_k`, why: '相對固定點的擾動 $\\delta w=w-w^*$ 滿足同一個遞迴（極性與 $\\delta$ 相反，變異數不受影響）。' },
             { tex: T`\operatorname{Var}(\delta w_{k+1})=p^2\operatorname{Var}(\delta w_k)+\mu^2\sigma_\eta^2`, why: '$\\eta_k$ 與過去的 $\\delta w_k$ 獨立，兩項的變異數相加。' },
@@ -731,6 +768,20 @@ function Derivations() {
         <p>
           <ModelLevel level="L4" /> <ClaimTag kind="approx" /> 最後回到使用者在乎的量。把 <Tex>{'w_{\\mathrm{app}}'}</Tex> 拆成「視窗內的平均 <Tex>{'\\bar w'}</Tex>」加「抖動 <Tex>{'\\delta w'}</Tex>」：
         </p>
+        <Diagram
+          chart={CHART_OUTPUT_SPLIT}
+          caption="輸出端的兩個成分：靜態的 gain 殘差（藍色）留下固定的 fractional spur；gain 抖動（棕色）乘上 code 之後才是隨機 jitter。兩者都經過 output transfer，不是 PD 的 error path。"
+          ariaLabel="輸出 timing error 的方塊圖：code 分別乘上靜態 gain 殘差、經過 INL、乘上 gain 抖動，三項相加（抖動為負）得到 DTC 誤差，經 output transfer 後分成 fractional spur 與隨機 jitter"
+        >
+          <p>
+            先看加法點的三條輸入：靜態殘差 <Tex>{'(a-\\bar w)\\,x'}</Tex> 與 <Tex>{'d(x)'}</Tex> 是「＋」，gain 抖動 <Tex>{'\\delta w\\,x'}</Tex> 是「−」——因為 DTC 誤差裡的係數是 <Tex>{'a-w_{\\mathrm{app}}'}</Tex>，而{' '}
+            <Tex>{'w_{\\mathrm{app}}=\\bar w+\\delta w'}</Tex>。三項相加之後才經過 <Tex>T</Tex>。
+          </p>
+          <p>
+            圖上的 <Tex>{'\\bar x'}</Tex> 是 code 的平均（DC），<Tex>{'\\tilde x=x-\\bar x'}</Tex> 是扣掉平均之後的部分；<Tex>s</Tex>、<Tex>{'A_1'}</Tex>、<Tex>{'f_1'}</Tex> 是 §4.1–§4.2 的正規化倍率、鋸齒基頻的振幅與頻率。藍色的結果是
+            F-LAB.12，棕色的結果是 F-LAB.10。
+          </p>
+        </Diagram>
         <Steps
           title="輸出 timing error 的兩個成分"
           steps={[

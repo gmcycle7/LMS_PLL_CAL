@@ -673,3 +673,8 @@ SUGGESTED ADDITION TO SHARED CODE: a TS `compareToGolden(vector, key, actual)` h
 - 全域樣式已加 `.katex { position: relative }`：寬表格（`.table-wrap`）內的公式不會再把頁面撐出水平捲軸。
 
 - **帶入手算**：`HandCalc({ def, initialMode?, compact? })`、`texNum(x, sig)` / `texNumP(x, sig)`（負數加括號，代入用）、`checkAnswer`、`randomValues(def, seed)`、`defaultValues(def)`（`@/components`）；型別 `HandCalcDef / HandCalcInput / HandCalcStep / HandCalcResult / HandCalcSolution`（`@/data/types`）；彙整 `ALL_HANDCALCS / handcalcById / handcalcsForPage`（`@/app/handcalcs`，以 glob 收集 `src/chapters/*/handcalcs.ts` 與 `src/pages/*/handcalcs.ts` 的 `HANDCALCS`）。範本：`src/chapters/ch00/handcalcs.ts`。ID 格式 `HC-<章>.<序>`（案例頁用 `HC-CS.n`）。
+
+- **系統地圖**：`SystemMap({ focus: SystemBlock[], caption? })`（`@/components`）— 全站共用的 PLL + LMS 校正系統方塊圖，`focus` 的方塊標成藍色。`SystemBlock` = 'ref' | 'pd' | 'lf' | 'vco' | 'div' | 'fcw' | 'dsm' | 'res' | 'gc' | 'dtc' | 'cmp' | 'align' | 'gmac' | 'scale' | 'acc' | 'qnt' | 'noise'。`systemMapChart(focus)` 回傳 Mermaid 原始碼（測試用）。
+- **符號表位置**：改放章末（Recap 之後），外層 `id="symbols"`；章首只留一行連結。見 teaching-style.md §5、§8（方塊圖規範）。
+
+- **Mermaid 更新**：`Mermaid` 元件會先以 `sanitizeMermaidSource`（`src/components/mermaidSource.ts`）把單獨的 `+`／`-` 標籤換成「＋」「−」，避免 Mermaid 11 畫出「Unsupported markdown: list」；圖說支援 `$...$`；瀏覽器中接近可視範圍才 render（IntersectionObserver），jsdom 中立即 render。測試工具 `@/components/mermaidTestUtils`：`installMermaidSvgShim()`、`renderMermaidForTest(chart) → { svg, text, nodeCount }`（不從 `@/components` 匯出，只給測試用）。

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
-import { HandCalc, StepDerivation, mathText, type Step } from '@/components'
+import { HandCalc, Mermaid, StepDerivation, mathText, type Step } from '@/components'
 import { useSettings, type LearningMode } from '@/app/settings'
+import { diagramOf, type DiagramKey } from './diagrams'
 import { HANDCALCS } from './handcalcs'
 
 /**
@@ -49,6 +50,30 @@ export function HandCalcBlock({ id, children }: { id: string; children?: ReactNo
       <HandCalc def={def} />
     </div>
   )
+}
+
+/**
+ * 方塊圖（docs/teaching-style.md §8）：依 key 從 diagrams.ts 取 Mermaid 原始碼與圖說，圖號就是頁面上的順序。
+ * children 是「怎麼看這張圖」的一兩句導讀（先看…再看…），以及「圖上的 X 就是公式裡的 x」的對應；
+ * 圖一律放在白話說明之後、推導之前。
+ */
+export function Fig({ name, children }: { name: DiagramKey; children?: ReactNode }) {
+  const d = diagramOf(name)
+  return (
+    <div className="ch05-fig" data-diagram={d.key}>
+      <Mermaid chart={d.chart} caption={`圖 5-${d.no}：${d.caption}`} ariaLabel={`圖 5-${d.no}：${d.alt}`} />
+      {children && (
+        <p className="ch05-fig-walk">
+          <span className="ch05-fig-badge">怎麼看這張圖</span> {children}
+        </p>
+      )}
+    </div>
+  )
+}
+
+/** 正文中引用另一張圖時用的圖號（「圖 5-n」），與 Fig 的圖說同一個來源，圖的順序改了也不會對不上。 */
+export function figNo(name: DiagramKey): string {
+  return `圖 5-${diagramOf(name).no}`
 }
 
 /** 勘誤小註：連到驗證頁（勘誤以 id 列出）。 */

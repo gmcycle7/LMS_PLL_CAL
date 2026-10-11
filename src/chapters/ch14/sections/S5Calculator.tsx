@@ -2,6 +2,8 @@ import { useMemo } from 'react'
 import { Callout, ClaimTag, Section, SourceTag, Tex } from '@/components'
 import { asymptoticFinalOptimum, calPhaseMarginDeg, convergenceMuMin, finalCostDerivative, msdAfterBlocks, optimizeMu } from '@/simulation/models/optimizer'
 import { LrOptimizerExperiment } from '../experiments/LrOptimizer'
+import { Diagram } from '../Diagram'
+import { CHART_CALC_VERIFY } from '../diagrams'
 import { HandLink } from '../Hand'
 import { md, nf, Steps, tx } from '../shared'
 import { LESSON_MODEL } from './S3Objectives'
@@ -37,8 +39,17 @@ export function S5Calculator() {
       <p>
         第 10 課的計算器輸入：<Tex>{'\\delta_0=3\\,\\mathrm{fs}'}</Tex>、<Tex>{'\\sigma_v=100\\,\\mathrm{fs}'}</Tex>、<Tex>{'N=4096'}</Tex>、總比較次數 131072（
         <Tex>{'B=32'}</Tex> 次更新）、相位 <Tex>{'\\theta=0'}</Tex>，輸出「建議 <Tex>{'\\alpha=11.20\\,\\mathrm{fs}'}</Tex>、RMS 0.449 fs、pole 0.9106、PM <Tex>{'87.4^\\circ'}</Tex>」。
-        我們用同一條成本 F-14.3 重新計算：
+        （課程把 learning rate 寫成 <Tex>{'\\alpha'}</Tex>，就是本章的 <Tex>{'\\mu'}</Tex>。）我們用同一條成本 F-14.3 重新計算，順序如下圖：
       </p>
+      <Diagram chart={CHART_CALC_VERIFY} caption="驗算的順序：先重算課程的三個數字，再問「它真的是成本的最低點嗎」。">
+        <p>
+          <strong>先看</strong>上半部：由課程的輸入算出 <Tex>{'K'}</Tex>、<Tex>{'\\sigma_\\eta^2'}</Tex>、<Tex>{'B'}</Tex>，再把課程建議的步長代進去得到 <Tex>{'g'}</Tex> 與 <Tex>{'p'}</Tex>，分兩路算 RMS（F-14.3）與 PM（F-14.14），在菱形和課程的數字比對。
+          <strong>再看</strong>藍色方塊：數字對了不代表它是「最佳」，還要把同一個步長代入成本的導數 F-14.7 看正負號；導數是正的，表示步長再小一點成本更低。<strong>最後</strong>用數值求根找到導數為零的那一點（綠色）。
+        </p>
+        <p>
+          圖上的每個方塊對應下面逐步計算的一行：「<Tex>{'K'}</Tex>、<Tex>{'\\sigma_\\eta^2'}</Tex>、<Tex>{'B'}</Tex>」是第 1 步，RMS 與 PM 是第 2、3 步，藍色方塊是第 4 步的 <Tex>{'dE[\\delta_B^2]/d\\mu'}</Tex>，綠色方塊是第 5 步的 <Tex>{'\\mu^*'}</Tex>。
+        </p>
+      </Diagram>
       <Steps
         steps={[
           { tex: String.raw`K=K_q=\sqrt{2/\pi}/100=${tx(m.K, 6)}\ \mathrm{fs^{-1}},\quad \sigma_\eta^2=1/4096,\quad B=131072/4096=32`, why: '代入條件。' },

@@ -1,7 +1,7 @@
 import { Section, StepDerivation, Tex, TexBlock } from '@/components'
 import { loopH } from '@/simulation/models/sspll'
 import { FREF_MHZ, LOOPS, PARAMS, SUMMARY } from '../data'
-import { Claim, DataTable, Formula, Hand, HandLink, Src, fx, r, tx, txs } from '../common'
+import { Claim, DataTable, Diagram, Formula, Hand, HandLink, Src, fx, r, tx, txs } from '../common'
 
 const F_EX_MHZ = 20
 
@@ -22,6 +22,14 @@ export function S05Identity() {
   return (
     <Section kind="formula" level={2} title="5. 為什麼 $\mathrm{Re}\,H_{PD}$ 會變負：恆等式與「微分」直覺" id="cs-5">
       <h3>5.1 恆等式</h3>
+      <p>
+        §4 的結論是：每條譜線對梯度的貢獻，正負號看 <Tex>{r`\mathrm{Re}\,H_{PD}`}</Tex>（raw regressor 時 <Tex>{r`\Gamma_{\rm eff}=H_{PD}`}</Tex>）。<Tex>{r`H_{PD}=1/(1+L)`}</Tex> 的實部什麼時候是負的？不用真的去算 <Tex>{r`H_{PD}`}</Tex>，只要看開迴路增益 <Tex>{'L'}</Tex> 這個複數的實部：
+      </p>
+      <Diagram id="identity" />
+      <p>
+        先看菱形的判斷：在某個頻率上，<Tex>{'L'}</Tex> 的實部小於 <Tex>{'-1'}</Tex> 嗎？再看「是」那一條路：<Tex>{r`1+\mathrm{Re}\,L<0`}</Tex> 就是 <Tex>{r`\mathrm{Re}\,H_{PD}<0`}</Tex>（下面推導的第 2 步），接著 <Tex>{r`\mathrm{Re}\,T>1`}</Tex>（第 3 步），所以閉迴路增益{' '}
+        <Tex>{r`\lvert T\rvert`}</Tex> 一定大於 1。換句話說，圖上紅色那一格（反號）只會出現在閉迴路頻率響應有 peaking 的地方——這是可以直接在量測到的 <Tex>{r`\lvert T\rvert`}</Tex> 曲線上找的線索。
+      </p>
       <StepDerivation
         title="一步一步：反號的頻率條件"
         steps={[
@@ -46,6 +54,17 @@ export function S05Identity() {
       </p>
 
       <h3>5.2 低頻的「微分」直覺</h3>
+      <p>
+        為什麼 Type-II 一定有反號帶、Type-I 卻不一定？看低頻。低頻時開迴路增益很大（<Tex>{r`\lvert L\rvert\gg1`}</Tex>），所以 <Tex>{r`H_{PD}=1/(1+L)\approx1/L`}</Tex>：迴路裡有幾個積分器，<Tex>{'1/L'}</Tex> 就是幾次差分（積分器 <Tex>{r`1/(1-z^{-1})`}</Tex> 的倒數是差分{' '}
+        <Tex>{r`1-z^{-1}`}</Tex>）。
+      </p>
+      <Diagram id="lowfreq" />
+      <p>
+        先看 Type-II 那一列：兩個積分器的倒數是兩次差分，慢誤差 <Tex>{'u'}</Tex> 被做了「二次差分」再除以積分增益 <Tex>{'K_i'}</Tex>；一個訊號和自己的二次差分方向相反（弦波微分兩次會多一個負號），所以紅色那兩格讓 PD 看到的殘差與誤差反向。再看 Type-I 那一列：只有一次差分，弦波微分一次是轉
+        90°，與原訊號的相關是 0，符號要由更小的二階項決定（<Tex>{'K'}</Tex> 是 Type-I 的迴路增益）。圖上的兩個差分方塊相乘就是下面 Type-II 推導第 2 步分子的 <Tex>{r`(1-z^{-1})^2`}</Tex>，「÷ <Tex>{r`(K_i z^{-1})`}</Tex>」是分母。分母裡的 <Tex>{r`z^{-1}`}</Tex> 來自迴路的 1
+        拍延遲；除以 <Tex>{r`z^{-1}`}</Tex> 等於把訊號提前一拍，剛好把兩次差分對到中心，也就是第 2 步最後的 <Tex>{r`(z^{1/2}-z^{-1/2})^2`}</Tex>（中心二次差分 <Tex>{'u[n+1]-2u[n]+u[n-1]'}</Tex>）。它不改變「兩次差分 → 反向」的結論。這張圖是低頻近似 <Tex>{r`H_{PD}\approx1/L`}</Tex>{' '}
+        的訊號流，不是實際的電路（實際電路不能提前）。
+      </p>
       <p>
         <strong>
           先算一次（{F_EX_MHZ} MHz，<Tex>{`\\Omega=2\\pi\\cdot${F_EX_MHZ}/${FREF_MHZ}=${tx(W, 6)}`}</Tex>）

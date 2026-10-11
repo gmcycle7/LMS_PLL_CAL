@@ -10,6 +10,7 @@ import { S6Corner } from './sections/S6Corner'
 import { S7Schedule } from './sections/S7Schedule'
 import { S8StateMachine } from './sections/S8StateMachine'
 import { S9Wrap } from './sections/S9Wrap'
+import { S10Symbols, SymbolsLink } from './sections/S10Symbols'
 import './chapter.css'
 
 const TOC: { id: string; label: ReactNode }[] = [
@@ -28,11 +29,12 @@ const TOC: { id: string; label: ReactNode }[] = [
 
 /**
  * Ch14：Learning Rate、Accumulation Length 與 Tracking Schedule（規格 §14、§14.1、§14.2；第 10 課；勘誤 E16、E48）。
+ * 版面：章首系統地圖 → 各節（每個主要概念先放方塊圖，原始碼在 diagrams.ts）→ Recap → 章末符號表（id="symbols"）。
  * 所有數字與曲線由 src/simulation/models/optimizer.ts 即時計算（重的 Monte Carlo 走 Web Worker）。
  */
 export default function Chapter14() {
   return (
-    <div className="ch14">
+    <div className="ch14" id="ch14-top">
       <div className="c-tag-row">
         <ModelLevel level="L1" />
         <ClaimTag kind="exact" />
@@ -51,6 +53,8 @@ export default function Chapter14() {
             </a>
           </span>
         ))}
+        {' · '}
+        <SymbolsLink>符號表（章末）</SymbolsLink>
       </nav>
       <S1Intro />
       <S2Msd />
@@ -61,6 +65,8 @@ export default function Chapter14() {
       <S7Schedule />
       <S8StateMachine />
       <S9Wrap />
+      {/* 符號表一律放在章末（docs/teaching-style.md §5）：頁面的最後一個區塊，id="symbols" */}
+      <S10Symbols />
     </div>
   )
 }

@@ -4,6 +4,7 @@ import biasSrc from '@/simulation/models/bias.ts?raw'
 import { buildCodeDistribution, codeMoments, comparatorMean } from '@/simulation/models/bias'
 import { F } from '../formulas'
 import { Erratum, m, texNum } from '../common'
+import { Fig, FigRef } from '../Fig'
 
 /** §11 誤差模型、逐項表、三類雜訊、先備知識。 */
 export function ModelSection() {
@@ -13,11 +14,23 @@ export function ModelSection() {
   return (
     <Section kind="formula" title="11.0 總誤差模型：把每一項拆開看" level={2} id="ch11-model">
       <p>
-        把 comparator 前的誤差寫成五項的和（PLL 的動態先吸收進誤差路徑，用靜態式表達；§11.4 再把 PLL 濾波加回來）：
+        把 comparator 前的誤差寫成五項的和（PLL 的動態先吸收進誤差路徑，用靜態式表達；§11.4 再把 PLL 濾波加回來）。先看 <FigRef id="error-budget" />{' '}
+        的左邊：code <Tex>{'x[n]'}</Tex> 分出三條路 —— gain 誤差、INL、code-correlated 干擾 —— 這三項都是 <Tex>{'x'}</Tex> 的函數；另外兩個來源（offset
+        與雜訊）不經過 <Tex>{'x'}</Tex>。再看中間的加法點：五項全部以正號相加，和就是 <Tex>{'e[n]'}</Tex>，之後才進 comparator 與 GMAC。
+      </p>
+      <Fig id="error-budget" />
+      <p>
+        圖上進加法點的五個方塊，就是下面公式等號右邊的五項（公式由左到右：藍色的 gain 誤差、offset、紅色的 INL 與干擾、綠色的雜訊）：
       </p>
       <TexBlock id="F-11.1" label={m('總誤差模型（時間索引 $n$ = comparator sample）')}>
         {F.errorModel}
       </TexBlock>
+      <p>
+        逐項讀一次符號：<Tex>{'a-w'}</Tex> 是真實 gain 減去校正 gain（全站的 gain 誤差 <Tex>{'\\delta=a-w'}</Tex>）；<Tex>{'b'}</Tex> 是 PD／comparator
+        的靜態 offset；<Tex>{'d(x)'}</Tex> 是 DTC 的 INL，<Tex>{'c_2'}</Tex>、<Tex>{'c_3'}</Tex> 分別是它的二階與三階係數；
+        <Tex>{String.raw`\varepsilon_{cc}[n]=\kappa\,x[n]`}</Tex> 是與 code 成正比的確定性干擾，<Tex>{'\\kappa'}</Tex> 是耦合係數；<Tex>{'v[n]'}</Tex>{' '}
+        是與 code 獨立、零均值的隨機雜訊，它的標準差記作 <Tex>{'\\sigma_v'}</Tex>。
+      </p>
       <p className="small">
         <Erratum id="E12" note="§11 的 u[n] 與 §0 的 filtered regressor u = h*x 撞名" />
         規格書 §11 把干擾寫成 <Tex>{'u[n]'}</Tex>，但全站 §0 的 <Tex>{'u[n]=(h*x)[n]'}</Tex> 是經過 PLL 誤差路徑的有效 regressor，兩者不能混用。本章改名為{' '}
@@ -87,7 +100,8 @@ export function ModelSection() {
                 與 <Tex>{'x'}</Tex> 獨立、零均值
               </td>
               <td>
-                本身不會；只造成 <Tex>{'w'}</Tex> 的隨機抖動（Ch12），並決定 <Tex>{'K_q'}</Tex>。但 Sign-LMS 的 <Tex>{'\\sigma_v'}</Tex> 大小會改變其他 bias
+                本身不會；只造成 <Tex>{'w'}</Tex> 的隨機抖動（Ch12），並決定 comparator 的小訊號增益{' '}
+                <Tex>{String.raw`K_q=\sqrt{2/\pi}/\sigma_v`}</Tex>（平均輸出對輸入的斜率，§11.A 推導）。但 Sign-LMS 的 <Tex>{'\\sigma_v'}</Tex> 大小會改變其他 bias
                 最後落在哪裡（例如三階 INL 的 1.34 ↔ 1.4，§11.2、勘誤 E01）
               </td>
             </tr>

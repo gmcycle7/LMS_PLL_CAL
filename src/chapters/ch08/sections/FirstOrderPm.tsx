@@ -21,7 +21,7 @@ import stabilitySrc from '@/simulation/models/stability.ts?raw'
 import { calLoopGain, loopMargins, pmFirstOrder, simulateDelayRecursion } from '@/simulation/models/stability'
 import { Expand, fx, HandCalcSlot, rich, sig, tx } from '../common'
 import { formula } from '../formulas'
-import { FIRST_ORDER_CHART } from '../diagrams'
+import { FIRST_ORDER_CHART, LOOP_CUT_CHART, PM_FLOW_CHART } from '../diagrams'
 
 const SRC_PATH = 'src/simulation/models/stability.ts'
 const HAND_GAINS = [0.5, 1, 1.5, 2.2]
@@ -75,10 +75,36 @@ export function FirstOrderPm() {
         <strong>積分器</strong>。積分器的輸出 <Tex>{'w'}</Tex> 又決定下一個 block 的誤差 <Tex>{'\\delta=a-w'}</Tex>——這是一個完整的回授迴路，所以它有自己的 loop
         gain、pole 和 phase margin。
       </p>
+      <p>
+        {rich(
+          String.raw`先把符號講清楚（本節起時間都以 block 計）：$k$ 是 GMAC block 的編號（每 $N$ 個 sample 一個 block）；$a$ 是要學的真實增益，$w_k$ 是第 $k$ 個 block 的係數估計；$\delta_k=a-w_k$ 是還沒修掉的剩餘誤差（單位 fs）；$\mu$ 是學習率（每次修正的步長，單位 fs）。小誤差時 GMAC 的平均輸出正比於剩餘誤差，$G_k\approx K\delta_k$；斜率 $K=K_qC$（$K_q$ 是 Ch05 的 comparator 統計增益，$C$ 是 Ch06 的相關，$K$ 的單位是 $\mathrm{fs}^{-1}$）。兩者相乘的 $g=\mu K$ 沒有單位，叫正規化 loop gain——本章所有的穩定條件都只看這個數字。`,
+        )}
+      </p>
       <Mermaid
-        caption="一階 calibration loop 的方塊圖（block rate）"
+        caption={String.raw`一階 calibration loop（block rate）：沿著箭頭走一圈，注意加法點 $\Sigma$ 的兩個輸入一正一負，以及藍色的積分器`}
         chart={FIRST_ORDER_CHART}
       />
+      <p className="small">
+        {rich(
+          String.raw`讀圖：先看圓形的加法點 $\Sigma$——目標 $a$ 從「＋」進來，$w_k$ 從「−」回來，所以輸出是 $\delta_k=a-w_k$（全站的極性約定）。再順著箭頭走：$\delta_k$ 乘上 GMAC 斜率 $K$ 變成 $G_k$，進入藍色的暫存器累加成 $w_k$，回到 $\Sigma$。圖上的 $\mu/(z-1)$ 就是更新式 $w_{k+1}=w_k+\mu G_k$ 換一種寫法：$z$ 是 Z transform 的變數，乘一次 $z^{-1}$ 代表延遲一個 block（下面的先備知識會從等比級數推出來）。`,
+        )}
+      </p>
+
+      <h4>要量 phase margin，先把迴路剪開</h4>
+      <p>
+        {rich(
+          String.raw`做法和類比迴路一樣：在某一點把迴路剪開，從缺口注入一個測試弦波，看它繞一圈回來變成什麼。沿途所有方塊的乘積叫開迴路增益（loop gain），記成 $L_{\mathrm{cal}}(z)$。`,
+        )}
+      </p>
+      <Mermaid
+        caption={String.raw`在 $\delta$ 處把迴路剪開：框起來的三個方塊相乘就是開迴路增益；回到 $\Sigma$ 時走的是負端，所以回來的訊號多一個負號`}
+        chart={LOOP_CUT_CHART}
+      />
+      <p className="small">
+        {rich(
+          String.raw`讀圖：先看框起來的三個方塊——$\times K$、$\times\mu$、積分器 $\frac{1}{z-1}$，相乘就是下面 F-08.2 的 $L_{\mathrm{cal}}(z)=\frac{g}{z-1}$（圖上的 $\times K$ 與 $\times\mu$ 合起來就是公式裡的 $g=\mu K$）。再看最右邊：訊號回到 $\Sigma$ 時走的是「−」端，所以回來的是 $-L_{\mathrm{cal}}\,\delta_{\mathrm{in}}$。如果在某個頻率剛好 $L_{\mathrm{cal}}=-1$，回來的訊號和注入的一模一樣，迴路不需要外力就能一直振盪下去。Phase margin 與 gain margin 量的就是 $L_{\mathrm{cal}}$ 離 $-1$ 這一點還有多遠（差幾度、差幾倍）。`,
+        )}
+      </p>
 
       <Prereq title="Z transform：把「一串數字」變成「一個函數」（只需等比級數）">
         <p>
@@ -152,6 +178,22 @@ export function FirstOrderPm() {
       </div>
       <p className="small">
         例：<Tex>{String.raw`g=1.5`}</Tex> 時 <Tex>{String.raw`\delta_1=(1-1.5)\cdot1=-0.5,\;\delta_2=(-0.5)(-0.5)=0.25`}</Tex>——「穩定」不代表「不振盪」，pole 在負實軸上就會正負交替。
+      </p>
+
+      <h4>從 loop gain 讀出 PM、GM、DM</h4>
+      <p>
+        {rich(
+          String.raw`接下來要算三個「裕度」。名詞先講清楚：$\omega$ 是 block rate 上的離散頻率（單位 rad/block；$\omega=2\pi f/f_u$，$f_u=f_s/N$ 是每秒更新幾次）。$\omega_c$（gain crossover）是開迴路增益大小剛好等於 $1$ 的頻率。$PM$（phase margin）是在 $\omega_c$ 那一點，$L_{\mathrm{cal}}$ 的相位離 $-180^\circ$ 還剩幾度。$GM$（gain margin）是 loop gain 還能再放大幾倍才會不穩。$DM$（delay margin）是迴路還能再多塞幾個 block 的純延遲。`,
+        )}
+      </p>
+      <Mermaid
+        caption={String.raw`手算順序：從 $g$ 出發，一條線算 pole，一條線算交越頻率、相位、$PM$、$DM$，另一條線算 $GM$；藍色是本節的主角 $PM$`}
+        chart={PM_FLOW_CHART}
+      />
+      <p className="small">
+        {rich(
+          String.raw`讀圖：先看從 $g$ 直接分出去的兩格——pole $p=1-g$（F-08.3）和 $GM=2/g$（F-08.6），各只要一步。再看中間那條長的：$g\to\omega_c\to\angle L\to PM\to DM$，每一格只做一種運算（一次 $\sin^{-1}$、一次減法、一次除法）。圖上的四格依序就是 F-08.4（$\omega_c$）、推導裡的 $\angle L=-90^\circ-\omega/2$、F-08.5（$PM$）與 F-08.6（$DM$）。`,
+        )}
       </p>
 
       <Prereq title="Euler 公式與單位圓：單位圓上的弦長公式怎麼來的">

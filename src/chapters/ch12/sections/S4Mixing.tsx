@@ -3,7 +3,17 @@ import type { Data, Layout } from 'plotly.js-dist-min'
 import { Callout, ClaimTag, CodeBlock, ModeGate, Plot, Prereq, Section, Tex, TexBlock } from '@/components'
 import calNoiseSrc from '@/simulation/models/calNoise.ts?raw'
 import { swDtft, swOneSided, swZohOneSided } from '@/simulation/models/calNoise'
-import { EX, Erratum, Hand, Steps, md, sig } from '../common'
+import { Diagram, EX, Erratum, Hand, Steps, md, sig } from '../common'
+import {
+  CHART_BLOCK_TIMING,
+  CHART_DC_FEEDTHROUGH,
+  CHART_GAIN_MULT,
+  CHART_MIX_DOMAINS,
+  CHART_PSD_UNITS,
+  CHART_THREE_CODES,
+  CHART_TONE_MIXER,
+  CHART_ZOH_TWO_STEP,
+} from '../diagrams'
 
 const PATH = 'src/simulation/models/calNoise.ts'
 const ZOH_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'f [kHz]' } }, yaxis: { title: { text: 'PSD [dB re fs²/Hz]' }, range: [-140, -40] } }
@@ -52,6 +62,23 @@ export function S4Mixing() {
           係數 <Tex>{'w'}</Tex> 是 DTC 的 <strong>gain</strong>：DTC 實際延遲 = <Tex>{'w\\cdot x[n]'}</Tex>。所以 gain 的抖動不是「加」在輸出上，而是<strong>乘</strong>上當下的 code。
           就像一首歌的音量旋鈕以 10 Hz 輕輕抖動：你聽到的不是一個 10 Hz 的聲音，而是每個音符旁邊多出 ±10 Hz 的邊帶。
         </p>
+        <p>
+          {md(
+            String.raw`把這句話畫成方塊圖：$x[n]$ 是第 $n$ 個 sample 的 DTC code，$w[n]$ 是當下 DTC 實際使用的係數，它等於固定點 $w^*$ 加上抖動 $\delta w[n]$；多出來的延遲記作 $\delta t[n]$。`,
+          )}
+        </p>
+        <Diagram chart={CHART_GAIN_MULT} caption={String.raw`係數是 gain，所以它的抖動要先乘上 code 才變成延遲誤差：$\delta t[n]=x[n]\,\delta w[n]$。先找乘號，再看乘開之後的兩項。`}>
+          <p>
+            {md(
+              String.raw`先看加法點：DTC 用的係數是固定點 $w^*$ 加上抖動 $\delta w[n]$。再看乘號：整個係數乘上 code $x[n]$ 才是 DTC 的延遲。最後看乘號之後：乘開分成兩項，$w^*x[n]$ 是本來就要的延遲，$x[n]\,\delta w[n]$ 是多出來的。`,
+            )}
+          </p>
+          <p>
+            {md(
+              String.raw`和公式的對照：圖上紅色那一格就是下面 F-12.11 的 $\delta t[n]=x[n]\,\delta w[n]$；$\delta w[n]$ 那一格寫的「每 $N$ 個 sample 才換一次值」說的是 F-12.11 的第二式（block 與 sample 的關係，細節在本節後面的 multirate 小節）。`,
+            )}
+          </p>
+        </Diagram>
         <TexBlock id="F-12.11" label="gain noise → timing error">
           {String.raw`\boxed{\delta t[n]=x[n]\,\delta w[n]},\qquad \delta w[n]=\delta w_{\lfloor (n-n_c)/N\rfloor}`}
         </TexBlock>
@@ -65,9 +92,18 @@ export function S4Mixing() {
       <Section kind="example" title="先算一次：兩個 cos 相乘，逐點看" level={3}>
         <p>
           {md(
-            String.raw`規格 §12.4 的例子：code 是 100 kHz 的正弦 $x(t)=\cos(2\pi\cdot100\,\mathrm{kHz}\cdot t)$，係數被一個 10 kHz 的週期性干擾調變 $\delta w(t)=1\ \mathrm{fs}\cdot\cos(2\pi\cdot10\,\mathrm{kHz}\cdot t)$。直接在幾個時刻把兩者相乘，再和「一根 110 kHz 加一根 90 kHz、各 0.5 fs」的和比較：`,
+            String.raw`規格 §12.4 的例子：code 是 100 kHz 的正弦 $x(t)=\cos(2\pi\cdot100\,\mathrm{kHz}\cdot t)$，係數被一個 10 kHz 的週期性干擾調變 $\delta w(t)=1\ \mathrm{fs}\cdot\cos(2\pi\cdot10\,\mathrm{kHz}\cdot t)$。乘法器對這兩個頻率做的事，先用一張圖看結果：`,
           )}
         </p>
+        <Diagram chart={CHART_TONE_MIXER} caption={String.raw`乘法器把兩個頻率變成差頻與和頻：進去的是 100 kHz 和 10 kHz，出來的是 90 kHz 和 110 kHz，各拿到一半的振幅 $AB/2$。`}>
+          <p>
+            {md(
+              String.raw`先看乘號的兩個輸入：code 的頻率 $f_x$ 是 100 kHz、振幅 $A=1$；係數擾動的頻率 $f_w$ 是 10 kHz、振幅 $B=1$ fs。再看乘號的輸出：只有差頻 $f_x-f_w$ 與和頻 $f_x+f_w$ 兩個頻率，各拿到一半的振幅 $AB/2$；原本的 100 kHz 與 10 kHz 都不見了（紅色那一格）。`,
+            )}
+          </p>
+          <p>{md(String.raw`和公式的對照：圖上的 $A$、$B$、$f_x$、$f_w$ 就是後面 F-12.12 裡的同名符號，兩個輸出方塊就是 F-12.12 右邊的兩個 $\cos$ 項。`)}</p>
+        </Diagram>
+        <p>{md(String.raw`用數字驗證：直接在幾個時刻把兩者相乘，再和「一根 110 kHz 加一根 90 kHz、各 0.5 fs」的和比較：`)}</p>
         <div className="table-wrap">
           <table className="ch12-table">
             <thead>
@@ -154,6 +190,23 @@ export function S4Mixing() {
             <Tex>{String.raw`\nu_0`}</Tex>。（注意：這裡的 <Tex>{String.raw`\delta(\cdot)`}</Tex> 是函數，和本章的係數偏差 <Tex>{String.raw`\delta w`}</Tex>、timing error <Tex>{String.raw`\delta t`}</Tex> 無關。）
           </p>
         </Prereq>
+        <p>
+          {md(
+            String.raw`真正的係數雜訊不是單一頻率，而是隨機的。這時不能再一根一根 tone 相乘，要改用統計量：自相關 $R[\ell]$（相隔 $\ell$ 個 sample 的兩個值平均有多像）與它的 DTFT，也就是 PSD $S$。同一個乘法在這三種描述裡長得不一樣：`,
+          )}
+        </p>
+        <Diagram chart={CHART_MIX_DOMAINS} caption={String.raw`同一個乘法的三種看法：時域相乘，自相關也相乘（$R_{\delta t}=R_xR_w$），到了頻域變成卷積（$S_{\delta t}=\tfrac1{2\pi}S_x\circledast S_w$）。由上往下看三個框。`}>
+          <p>
+            {md(
+              String.raw`先看最上面的框：每個 sample 把 code 和係數抖動相乘。再看中間的框：取期望值之後，因為 $x$ 與 $\delta w$ 獨立，自相關也只是相乘。最後看最下面的框：自相關做 DTFT 變成 PSD，「相乘」就變成「卷積之後除以 $2\pi$」。`,
+            )}
+          </p>
+          <p>
+            {md(
+              String.raw`和公式的對照：最上面的框就是 F-12.11，也是下面推導第 1 行期望值裡的乘積；中間的框是第 1–2 行的結論 $R_{\delta t}=R_xR_w$（F-12.13 的前半）；最下面的框是第 3–6 行，輸出就是 F-12.13 的 $S_{\delta t}$，兩個輸入是 code 的 PSD $S_x$ 與已經換到 sample rate 的 $S_w^{(f_s)}$，圖上線旁的「除以 $2\pi$」就是積分前面的 $\tfrac1{2\pi}$。`,
+            )}
+          </p>
+        </Diagram>
         <Steps
           title={md(String.raw`$R_{\delta t}=R_xR_w$ ⇒ $S_{\delta t}=\frac1{2\pi}S_x\circledast S_w$`)}
           steps={[
@@ -168,12 +221,34 @@ export function S4Mixing() {
         <TexBlock id="F-12.13" label="獨立過程相乘">
           {String.raw`R_{\delta t}[\ell]=R_x[\ell]R_w[\ell],\qquad \boxed{S_{\delta t}(e^{j\theta})=\frac1{2\pi}\int_{-\pi}^{\pi}S_x(e^{j\nu})\,S_w^{(f_s)}(e^{j(\theta-\nu)})\,d\nu}`}
         </TexBlock>
+        <p>
+          {md(
+            String.raw`F-12.13 的頻率變數寫成 $\theta$：以 sample 為單位的離散頻率，$\theta=2\pi f/f_s$（rad/sample），用來和 block rate 的 $\Omega=2\pi f/f_u$ 區分——同一個 $f$，$\theta=\Omega/N$。上標 $(f_s)$ 表示這個 $S_w$ 已經換成 sample-rate 的版本（怎麼換見下面的 multirate 小節）。上面推導裡的 $\Omega$、$\nu$ 在這一小節也都是 sample-rate 的頻率。`,
+          )}
+        </p>
         <Callout kind="warn" title="兩個關鍵假設">
           (1) <Tex>{'x'}</Tex> 與 <Tex>{String.raw`\delta w`}</Tex> 獨立——真實 LMS 中 <Tex>{String.raw`\delta w`}</Tex> 是由同一個 code 算出來的，兩者有相關；
           (2) 卷積裡必須用 <strong>sample-rate</strong> 的 <Tex>{String.raw`S_w^{(f_s)}`}</Tex>（下一小節），不能直接放 block-rate 的 <Tex>{'S_w'}</Tex>。 <ClaimTag kind="approx" />
           <Erratum id="E09" />
           <Erratum id="E29" />
         </Callout>
+        <p>
+          {md(
+            String.raw`卷積的結果完全取決於 code 的頻譜 $S_x$ 長什麼樣子。三種最常見的 code——常數（平均值 $m$）、單頻（振幅 $A$、頻率 $f_x$）、白色（變異數 $\sigma_x^2$）——給出三種截然不同的結果：`,
+          )}
+        </p>
+        <Diagram chart={CHART_THREE_CODES} caption="同一份係數雜訊乘上三種 code：留在低頻、搬到 code 的頻率兩側，或攤平成寬頻。">
+          <p>
+            {md(
+              String.raw`先看乘號之前：係數雜訊的 PSD 集中在低頻。再看三條分支：常數 code 只把它乘上 $m^2$，頻譜原地不動；單頻 code 把它複製到 $f_x$ 的兩側，每一邊拿到 $A^2/4$；白色 code 把總功率 $\sigma_x^2\sigma_w^2$ 平均攤在 $0$ 到 $f_s/2$。`,
+            )}
+          </p>
+          <p>
+            {md(
+              String.raw`和公式的對照：三條分支末端的三格依序是下面三個特例的結論（寫成單邊 per-Hz 的形式），也就是後面程式碼裡的 dcTerm、toneTerm、whiteTerm 三行；格子裡的 $S_w$ 指 ZOH 之後的 $S^{(1)}_{w,\mathrm{zoh}}$。`,
+            )}
+          </p>
+        </Diagram>
         <Steps
           title="三種 code 的特例"
           steps={[
@@ -217,6 +292,23 @@ S^{(1)}_{\delta t}(f)&=\underbrace{m^2\,S^{(1)}_{w,\mathrm{zoh}}(f)}_{\text{常�
           title={String.raw`dtPsdOneSided：三種 code 的 $\delta t$ PSD（網站實際執行）`}
           caption="三行分別對應常數（DC）項、tone 項、白色項；Sw 已是 ZOH 後的 sample-rate PSD（swZohOneSided）。"
         />
+        <p>
+          {md(
+            String.raw`實際的 code 通常同時有平均值與變動的部分。把它拆成 $x[n]=m+\tilde x[n]$——$m$ 是 code 的平均（DC 成分），$\tilde x[n]$ 是扣掉平均之後零均值的部分——乘法就分成兩路，兩路的命運完全不同：`,
+          )}
+        </p>
+        <Diagram chart={CHART_DC_FEEDTHROUGH} caption={String.raw`code 拆成平均值與零均值兩部分，各自乘上係數雜訊，$\delta t=m\,\delta w+\tilde x\,\delta w$：紅色那一路留在低頻，會直接穿過 PLL 到輸出。`}>
+          <p>
+            {md(
+              String.raw`先看 code 被拆成的兩格：DC 成分 $m$ 與零均值成分 $\tilde x[n]$。再看兩個乘號：同一個係數雜訊 $\delta w[n]$ 分別乘上這兩部分——乘上常數 $m$ 的那一路（紅色）頻譜原地不動、留在低頻；乘上 $\tilde x$ 的那一路被搬到 $\tilde x$ 所在的頻率。最後看加法點之後：PLL 到輸出是 low-pass，低頻的 $m\,\delta w$ 幾乎全部通過，$\tilde x\,\delta w$ 只有落在 PLL 頻寬內的部分會留下。綠色那一格是對策：把 code 置中（$m=0$），紅色這一路就消失。`,
+            )}
+          </p>
+          <p>
+            {md(
+              String.raw`和公式的對照：加法點就是下面框裡的 $\delta t=m\,\delta w+\tilde x\,\delta w$；兩條進入加法點的線各自的 PSD 是 $m^2S_w$ 與 $\tfrac1{2\pi}S_{\tilde x}\circledast S_w$，前者就是上面程式碼的 dcTerm；圖上的 $|T|^2$ 是 §12.7 的 F-12.15 與 F-12.17。`,
+            )}
+          </p>
+        </Diagram>
         <Callout kind="info" title={md(String.raw`Code 有 DC 就有直通項 $m\,\delta w$`)}>
           若 <Tex>{String.raw`x=m+\tilde x`}</Tex>（例如非負的 DSM residue），則 <Tex>{String.raw`\delta t=m\,\delta w+\tilde x\,\delta w`}</Tex>，
           <Tex>{String.raw`S_{\delta t}=m^2S_w+\frac1{2\pi}S_{\tilde x}\circledast S_w`}</Tex>（交叉項因 <Tex>{String.raw`E[\tilde x]=0`}</Tex> 與獨立而消失）。
@@ -227,8 +319,35 @@ S^{(1)}_{\delta t}(f)&=\underbrace{m^2\,S^{(1)}_{w,\mathrm{zoh}}(f)}_{\text{常�
       <Section kind="formula" title="Multirate：block-rate 的係數雜訊怎麼放到 sample-rate 軸上" level={3} id="ch12-multirate">
         <p>
           <Tex>{String.raw`\delta w_k`}</Tex> 每個 block 一個值（取樣率 <Tex>{'f_u'}</Tex>），code 每個 sample 一個值（取樣率 <Tex>{'f_s=Nf_u'}</Tex>）。
+          先看誰在什麼時候動：
+        </p>
+        <Diagram chart={CHART_BLOCK_TIMING} caption={String.raw`誰在什麼時候動：comparator 與 DTC 每個 sample 都在動，係數每個 block（$N$ 個 sample）才換一次。由上往下是時間。`}>
+          <p>
+            {md(
+              String.raw`先看左邊：GMAC 花 $N$ 個 sample 累加出一個 $G_k$。再看中間：block 結束時 LMS 才更新一次係數。最後看右邊：新係數延遲 $n_c$ 個 sample 後套用到 DTC，接下來 $N$ 個 sample 都是同一個值，這就是 zero-order hold（ZOH）。`,
+            )}
+          </p>
+          <p>
+            {md(
+              String.raw`和公式的對照：圖上「延遲 $n_c$ 個 sample 後套用、保持 $N$ 個 sample」就是 F-12.11 第二式的 $\delta w[n]=\delta w_{\lfloor(n-n_c)/N\rfloor}$——sample 索引 $n$ 先減掉延遲，再除以 $N$ 取整數，得到它所屬的 block 索引 $k$。`,
+            )}
+          </p>
+        </Diagram>
+        <p>
           把 <Tex>{String.raw`\delta w_k`}</Tex> 保持 <Tex>N</Tex> 個 sample（ZOH）可以拆成兩步：先<strong>插零上取樣</strong>，再通過長度 <Tex>N</Tex> 的<strong>boxcar 濾波器</strong>。
         </p>
+        <Diagram chart={CHART_ZOH_TWO_STEP} caption={String.raw`把保持 $N$ 個 sample 拆成兩步：先插零，再用 boxcar 把零補成同一個值。線上標的是每一步之後的 PSD。`}>
+          <p>
+            {md(
+              String.raw`先看兩個藍色方塊：步驟 1 在兩個係數值之間插入 $N-1$ 個零，頻率軸被壓縮 $N$ 倍、功率除以 $N$；步驟 2 的 boxcar 把每個值重複 $N$ 次，PSD 再乘上它的頻率響應 $|B|^2$。再看乘號：換到 sample rate 之後，才能和同樣是 sample rate 的 code 相乘。`,
+            )}
+          </p>
+          <p>
+            {md(
+              String.raw`和公式的對照：兩條線上的因子相乘就是 F-12.14——$\tfrac1N S_w(e^{jN\theta})$ 來自步驟 1，$\big[\sin(N\theta/2)/\sin(\theta/2)\big]^2$ 來自步驟 2。圖上的 $\theta$ 是 rad/sample，$\Omega=N\theta$ 是 rad/block。`,
+            )}
+          </p>
+        </Diagram>
         <Steps
           title={md(String.raw`$S_w^{(f_s)}$ 的推導（block 相位隨機的時間平均）`)}
           steps={[
@@ -267,6 +386,23 @@ S^{(1)}_{\delta t}(f)&=\underbrace{m^2\,S^{(1)}_{w,\mathrm{zoh}}(f)}_{\text{常�
       </Section>
 
       <Section kind="formula" title="PSD 正規化：DTFT 形式 ↔ 單邊 per-Hz ↔ phase noise" level={3} id="ch12-psdnorm">
+        <p>
+          {md(
+            String.raw`到目前為止的 PSD 都寫成 DTFT 形式（對 $\Omega$ 或 $\theta$ 積分再除以 $2\pi$ 得到變異數）。量測儀器與 phase noise 規格用的卻是「單邊、每 Hz」的 PSD，以及 $\mathcal L(f)$——離載波 $f$ 處、每 1 Hz 頻寬內的單邊帶雜訊功率相對載波的比值，單位 dBc/Hz。三者之間各差一個固定的係數：`,
+          )}
+        </p>
+        <Diagram chart={CHART_PSD_UNITS} caption={String.raw`PSD 的三次換算：先換成單邊每赫茲（乘 $2/f_r$），再換成輸出相位，最後才是 phase noise $\mathcal L(f)$。注意每一格的單位。`}>
+          <p>
+            {md(
+              String.raw`先由左到右看主線：DTFT 形式的 PSD 乘上 $2/f_r$ 變成單邊 per-Hz；再乘上 $(2\pi f_{\mathrm{out}})^2|T|^2$ 變成輸出相位的 PSD（$f_{\mathrm{out}}$ 是 PLL 輸出頻率，$T$ 是下一節的 PLL 轉移函數）；除以 2 再取 dB 就是 $\mathcal L(f)$。再看前兩格裡各寫的一行積分：兩種形式算變異數的方式不同——DTFT 形式要對 $\Omega$ 積分再除以 $2\pi$，單邊 per-Hz 直接對 $f$ 積分。`,
+            )}
+          </p>
+          <p>
+            {md(
+              String.raw`和公式的對照：圖上第一個箭頭是 F-12.10 的前半，最後一個箭頭是後半；中間那個箭頭是下一節的 F-12.16。虛線註記的 $f_r$ 就是 F-12.10 裡的 $f_r$：這個序列自己的取樣率。`,
+            )}
+          </p>
+        </Diagram>
         <Steps
           title="換算一次就好，但一定要換"
           steps={[

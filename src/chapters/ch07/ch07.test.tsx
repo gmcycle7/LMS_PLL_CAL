@@ -45,11 +45,11 @@ vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 })
 const PLAIN_MATH = /[θΩωζφσμτρδ∠Ĥĥ√²³≤≥≈≠±∇λΔΣΦπ∞∈⇒⇔∝₀₁₂⁻]|\b[A-Za-z]_\{?[A-Za-z0-9]|\b[A-Za-z]\[[a-z]|\bE\[|\^[0-9{]|\b[A-Za-z] ?= ?[-−+]?\d/
 /**
  * 頁面上不在 KaTeX 裡、卻含有拼湊數學的文字節點（docs/teaching-style.md §3：數學一律 LaTeX）。
- * 不檢查：程式碼與暫存器名稱（code／pre／.mono）、<select> 選項與 SVG（Plotly、Mermaid 不渲染 KaTeX）、
+ * 不檢查：程式碼與暫存器名稱（code／pre／.mono）、<select> 選項與 SVG（Plotly、Mermaid 的圖本身不渲染 KaTeX；Mermaid 的圖說支援 $...$，所以本章自己的圖說要檢查；共用的系統地圖圖說不在本章範圍）、
  * 共用元件自帶的文字（模型層級標籤的說明、指標表的表頭、按鈕）；全站警告的固定標籤「C ≤ 0／C ≈ 0」視為文字。
  */
 function plainMathText(container: HTMLElement): string[] {
-  const SKIP = '.katex, code, pre, select, svg, .mono, .c-code, .c-mermaid, .c-tip, .c-metric-table th, button, script, style'
+  const SKIP = '.katex, code, pre, select, svg, .mono, .c-code, .c-mermaid-svg, figure[aria-label*="系統方塊圖"], .c-tip, .c-metric-table th, button, script, style'
   const out: string[] = []
   const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT)
   for (let n = walker.nextNode(); n; n = walker.nextNode()) {
@@ -76,9 +76,48 @@ afterEach(() => {
 })
 
 describe('Chapter 07（jsdom smoke）', () => {
-  it('完整渲染不丟錯：符號表、各節標題、公式錨點與 Lab 都在；沒有重複的公式 id', () => {
+  it('完整渲染不丟錯：各節標題、公式錨點與 Lab 都在；符號表在章末（id="symbols"），章首只留一行連結；沒有重複的公式 id', () => {
     const { container } = renderChapter()
-    expect(container.querySelector('.c-symbols tbody')?.querySelectorAll('tr').length).toBeGreaterThanOrEqual(20)
+    // 符號表放在章末（docs/teaching-style.md §5）：全頁只有一張，包在 id="symbols" 裡，是頁面的最後一個區塊（在「本課必記」與 7.10 之後）
+    const symbols = container.querySelector('#symbols') as HTMLElement
+    expect(symbols).not.toBeNull()
+    expect(container.querySelectorAll('.c-symbols')).toHaveLength(1)
+    expect(symbols.querySelector('.c-symbols tbody')?.querySelectorAll('tr').length).toBeGreaterThanOrEqual(20)
+    expect(container.querySelector('.ch07')?.lastElementChild).toBe(symbols)
+    const precedes = (a: Element | null, b: Element | null) => !!a && !!b && !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(precedes(container.querySelector('#ch07-recap'), symbols)).toBe(true)
+    expect(precedes(container.querySelector('#ch07-pll'), symbols)).toBe(true)
+    expect(symbols.querySelector('h2')?.textContent).toBe('本章符號表')
+    // 章首只留一行連結「本章符號表在最後 ↓」：在系統地圖與 7.1 節之前；是按鈕而不是會改變 HashRouter 路由的 href
+    const link = container.querySelector('.ch07-symlink button') as HTMLButtonElement
+    expect(link).not.toBeNull()
+    expect(link.textContent).toContain('本章符號表在最後')
+    expect(container.querySelectorAll('.ch07-symlink')).toHaveLength(1)
+    expect(link.closest('a')).toBeNull()
+    expect(container.querySelector('a[href="#symbols"]')).toBeNull()
+    expect(precedes(link, container.querySelector('figure.c-mermaid'))).toBe(true)
+    expect(precedes(link, container.querySelector('#ch07-problem'))).toBe(true)
+    const scrolled = vi.fn()
+    symbols.scrollIntoView = scrolled
+    fireEvent.click(link)
+    expect(scrolled).toHaveBeenCalledTimes(1)
+    // 章首的系統地圖 + 22 張方塊圖（原始碼的語法與內容由 diagrams.test.tsx 用真正的 mermaid 檢查）
+    const figures = container.querySelectorAll('figure.c-mermaid')
+    expect(figures).toHaveLength(23)
+    expect(figures[0].getAttribute('aria-label')).toContain('系統方塊圖')
+    expect(precedes(figures[0], container.querySelector('#ch07-problem'))).toBe(true)
+    // 符號表移到章末之後，每個符號第一次出現時要就地用一句話說明（不能只靠符號表）
+    const sec = (id: string) => container.querySelector(id) as HTMLElement
+    const texIn = (id: string) => Array.from(sec(id).querySelectorAll('annotation')).map((a) => a.textContent ?? '')
+    const s1 = sec('#ch07-problem').textContent ?? ''
+    for (const phrase of ['DTC 真正的 gain', '目前的校正係數', '雜訊', '標準差', '正負號', 'learning rate', '小訊號增益', 'loop gain', '是 code 的振幅', '誤差路徑在 code 頻率的相位', '離變號']) expect(s1, phrase).toContain(phrase)
+    for (const t of [String.raw`\delta=a-w`, String.raw`\sigma_v`, String.raw`e_{\mathrm{PD}}[n]=(a-w)\,u[n]+v[n]`, String.raw`\phi=\angle H`, String.raw`g=\mu K_qC`, 'G_k', 'N']) expect(texIn('#ch07-problem'), t).toContain(t)
+    expect(sec('#ch07-linear-phase').textContent).toMatch(/自然頻率（natural frequency）/)
+    expect(sec('#ch07-linear-phase').textContent).toMatch(/阻尼（damping/)
+    expect(sec('#ch07-linear-phase').textContent).toMatch(/pipeline latency/)
+    expect(sec('#ch07-gradient').textContent).toMatch(/GMAC 實際拿來相乘的訊號/)
+    expect(texIn('#ch07-gradient')).toContain(String.raw`x_{\mathrm{ref}}[n]`)
+    expect(sec('#ch07-mismatch').textContent).toMatch(/PI loop filter 的比例係數與積分係數/)
     for (const t of ['7.1 一個問題', '7.2 推導', '7.3 為什麼一個 delay', '7.4 Filtered-x', '7.5 模型不準', '7.6 硬體成本', '7.7 動手觀察', '7.8 思考題', '7.9 本課必記', '7.10 連結到 PLL']) {
       expect(screen.getAllByText((_, el) => !!el && el.tagName === 'H2' && (el.textContent ?? '').startsWith(t)).length).toBeGreaterThan(0)
     }
@@ -140,7 +179,6 @@ describe('Chapter 07（jsdom smoke）', () => {
     expect(container.querySelectorAll('.c-plot-title .katex').length).toBeGreaterThanOrEqual(5)
     expect(container.querySelectorAll('.c-assumption-list li .katex').length).toBeGreaterThanOrEqual(10)
     for (const el of titled) {
-      if (el.closest('.c-mermaid')) continue // Mermaid 圖說不經過 mathText
       expect(ownText(el), ownText(el)).not.toMatch(UNICODE_MATH)
     }
     // 指標表：名稱欄的純文字不含 Unicode 公式（數值與模型產生的診斷訊息除外）
@@ -225,6 +263,9 @@ describe('Chapter 07（jsdom smoke）', () => {
     expect(a.container.querySelector('[id="formula-F-07.13"]')).not.toBeNull()
     // Engineer 以上才顯示的內容不在 Beginner 出現
     expect(screen.queryByText(/代入一組寬頻 PLL 的數字/)).toBeNull()
+    // 方塊圖幾乎不分模式都顯示（入門模式最需要圖）：只有 Engineer 以上才有的「邊界情況 2：有限 N 的 block」少一張；符號表一樣在章末
+    expect(a.container.querySelectorAll('figure.c-mermaid')).toHaveLength(22)
+    expect(a.container.querySelector('.ch07')?.lastElementChild?.id).toBe('symbols')
     // 帶入手算：beginner／engineer 等級的題目都在；複數運算的 HC-07.7 放在 Engineer 模式以上
     const ids = Array.from(a.container.querySelectorAll('[id^="handcalc-HC-07"]')).map((e) => e.id)
     expect(ids).toEqual(HANDCALCS.filter((h) => h.id !== 'HC-07.7').map((h) => `handcalc-${h.id}`))
@@ -237,6 +278,8 @@ describe('Chapter 07（jsdom smoke）', () => {
     const b = renderChapter()
     expect(screen.queryByText('入門模式：先抓住三句話')).toBeNull()
     expect(b.container.querySelectorAll('.ch07-fold').length).toBe(0) // 推導直接展開
+    expect(b.container.querySelectorAll('figure.c-mermaid')).toHaveLength(23)
+    expect(b.container.querySelector('.ch07')?.lastElementChild?.id).toBe('symbols')
     expect(screen.getByText(/分析細節：經驗相關使用/)).toBeTruthy()
     // research 模式附上 Python golden model 對照（?raw 匯入 golden/lms_pll_golden/polarity.py）
     expect(screen.getByText('golden/lms_pll_golden/polarity.py（§6–§7）')).toBeTruthy()

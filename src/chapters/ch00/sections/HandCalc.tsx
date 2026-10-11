@@ -25,7 +25,7 @@ import {
   type HandCalcParams,
 } from '../model'
 import { num, signed, texNum, texRes } from '../format'
-import { ChapterHandCalc, ErratumNote, ErratumRef, Observe } from '../common'
+import { ChapterDiagram, ChapterHandCalc, ErratumNote, ErratumRef, Observe } from '../common'
 import modelSrc from '../model.ts?raw'
 
 /** 規格 §1.2 / T01 的手算例子。 */
@@ -140,34 +140,47 @@ export function HandCalcSection() {
         每次都餵 <Tex>{`x=${texNum(p.x)}`}</Tex>，盒子回答 <Tex>{`y=${texNum(y)}`}</Tex>（先不加雜訊），學習率{' '}
         <Tex>{`\\mu=${texNum(p.mu)}`}</Tex>。 <TestBadge id="T01" />
       </p>
+      <p>每一筆資料都照同一個順序算四個數——先看流程，再看每一格怎麼代數字：</p>
+      <ChapterDiagram name="CHART_HANDCALC_STEP">
+        <p>
+          先看最左邊「已知」的四個數。再看箭頭串起來的四格，每一格只做一種運算：① 一次乘法得到預測、② 一次減法得到誤差、③ 連乘得到修正量 <Tex>{'\\Delta w'}</Tex>、④ 一次加法得到新的{' '}
+          <Tex>{'w'}</Tex>。然後沿著回授線回到 ①：線上帶回去的是剛算出的新 <Tex>{'w'}</Tex>（<code>w[1]</code>），用它再算一圈。
+        </p>
+        <p>
+          圖上的 <code>w[0]、ŷ[0]、e[0]、Δw[0]、w[1]</code> 就是下面逐步推導裡的 <Tex>{'w_0,\\ \\hat y_0,\\ e_0,\\ \\Delta w_0,\\ w_1'}</Tex>，四格的數字和推導的四行一一對應；回授線上的{' '}
+          <code>w[2] = {num(r1.wNext)}</code> 是帶著 <code>w[1]</code> 再算一圈之後得到的結果。
+        </p>
+      </ChapterDiagram>
 
-      <StepDerivation
-        title={
-          <>
-            第 1 筆資料（<Tex>{'n=0'}</Tex>）
-          </>
-        }
-        steps={[
-          { tex: String.raw`\hat y_0=w_0x=${texNum(p.w0)}\times${texNum(p.x)}=${texNum(r0.yhat)}`, why: '① 預測：用目前的猜測乘上輸入。' },
-          { tex: String.raw`e_0=y-\hat y_0=${texNum(y)}-${texNum(r0.yhat)}=${texNum(r0.e)}`, why: '② 比較：誤差為正，表示預測太小。' },
-          {
-            tex: String.raw`\Delta w_0=\mu e_0x=${texNum(p.mu)}\times${texNum(r0.e)}\times${texNum(p.x)}=${texNum(r0.dw)}`,
-            why: (
-              <>
-                ③ 修正量：<Tex>{'e_0'}</Tex> 與 <Tex>{'x'}</Tex> 都是正的，所以 <Tex>{'w'}</Tex> 要變大。
-              </>
-            ),
-          },
-          {
-            tex: String.raw`w_1=w_0+\Delta w_0=${texNum(p.w0)}+${texNum(r0.dw)}=${texRes(r0.wNext)}`,
-            why: (
-              <>
-                更新：新的猜測離 <Tex>{`a=${texNum(p.a)}`}</Tex> 近了一些。
-              </>
-            ),
-          },
-        ]}
-      />
+      <div id="ch00-hand-first-step">
+        <StepDerivation
+          title={
+            <>
+              第 1 筆資料（<Tex>{'n=0'}</Tex>）
+            </>
+          }
+          steps={[
+            { tex: String.raw`\hat y_0=w_0x=${texNum(p.w0)}\times${texNum(p.x)}=${texNum(r0.yhat)}`, why: '① 預測：用目前的猜測乘上輸入。' },
+            { tex: String.raw`e_0=y-\hat y_0=${texNum(y)}-${texNum(r0.yhat)}=${texNum(r0.e)}`, why: '② 比較：誤差為正，表示預測太小。' },
+            {
+              tex: String.raw`\Delta w_0=\mu e_0x=${texNum(p.mu)}\times${texNum(r0.e)}\times${texNum(p.x)}=${texNum(r0.dw)}`,
+              why: (
+                <>
+                  ③ 修正量：<Tex>{'e_0'}</Tex> 與 <Tex>{'x'}</Tex> 都是正的，所以 <Tex>{'w'}</Tex> 要變大。
+                </>
+              ),
+            },
+            {
+              tex: String.raw`w_1=w_0+\Delta w_0=${texNum(p.w0)}+${texNum(r0.dw)}=${texRes(r0.wNext)}`,
+              why: (
+                <>
+                  更新：新的猜測離 <Tex>{`a=${texNum(p.a)}`}</Tex> 近了一些。
+                </>
+              ),
+            },
+          ]}
+        />
+      </div>
       <StepDerivation
         title={
           <>
@@ -192,7 +205,11 @@ export function HandCalcSection() {
         ]}
       />
 
-      <p>同樣的步驟重複下去，就得到下面的表（每一格都由程式即時算出）：</p>
+      <p>
+        同樣的步驟重複下去，就得到下面的表（每一格都由程式即時算出）。表的最後兩欄多記一個量：<strong>參數誤差</strong>{' '}
+        <Tex>{'\\delta_n=a-w_n'}</Tex>，也就是「猜測離真正的 <Tex>{'a'}</Tex> 還差多少」（正的表示 <Tex>{'w'}</Tex> 還太小），以及它每走一步縮小成原來的幾倍{' '}
+        <Tex>{'\\delta_{n+1}/\\delta_n'}</Tex>。
+      </p>
       <HandCalcTable />
       <ErratumNote eid="E39">
         表中的參數誤差一律用 <Tex>{'\\delta_n=a-w_n'}</Tex>（全站約定），所以是{' '}
@@ -213,7 +230,8 @@ export function HandCalcSection() {
           </li>
           <li>
             最後一欄是常數 <Tex>{`${texNum(pole)}`}</Tex>：每一步，剩下的誤差都只剩上一步的 <Tex>{`${num(pole * 100)}\\%`}</Tex>。這個數正是{' '}
-            <Tex>{`1-\\mu x^2=1-${texNum(p.mu)}\\times${texNum(p.x)}^2=${texNum(pole)}`}</Tex>，§0.6 會證明它。
+            <Tex>{`1-\\mu x^2=1-${texNum(p.mu)}\\times${texNum(p.x)}^2=${texNum(pole)}`}</Tex>。之後把這個倍數記為 <Tex>{'p'}</Tex>，稱為 <strong>pole</strong>（極點）；§0.6 會證明{' '}
+            <Tex>{'p=1-\\mu x^2'}</Tex>。
           </li>
           <li>
             <Tex>{'w_n'}</Tex> 越來越接近 <Tex>{texNum(p.a)}</Tex>，但（在這個 <Tex>{'\\mu'}</Tex> 下，<Tex>{'0<p<1'}</Tex>）任何有限步都不會剛好等於{' '}

@@ -1201,10 +1201,12 @@ describe('Ch14 頁面上的手算題位置', () => {
     const prereq = Array.from(container.querySelectorAll('.c-prereq summary, .c-prereq-title, .c-prereq')).find((e) => e.textContent?.includes('相關（correlation）'))
     expect(prereq?.querySelector('.katex')).toBeTruthy()
     // 字串屬性沒有漏出未轉換的 $
+    // （.c-tip：TestBadge 的 tooltip 逐字列出 src/data/verification-status.json 裡的測試名稱，那是共用資料、不是本章的字串屬性；
+    //   其中一個別頁的測試名稱本身就含有「`$...$`」字樣。ch14.test.tsx 的 unicodeMathLeaks 也同樣略過 .c-tip。）
     const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT)
     const dollars: string[] = []
     for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-      if (n.parentElement?.closest('.katex, pre, code, script, style')) continue
+      if (n.parentElement?.closest('.katex, pre, code, script, style, .c-tip')) continue
       if ((n.textContent ?? '').includes('$')) dollars.push((n.textContent ?? '').slice(0, 60))
     }
     expect(dollars).toEqual([])

@@ -17,6 +17,7 @@ import {
 } from '@/simulation/models/bias'
 import { F } from '../formulas'
 import { Erratum, ModeDetails, num, signed, m, texNum } from '../common'
+import { Fig, FigRef } from '../Fig'
 import { Hand } from '../Hand'
 
 const PATH = 'src/simulation/models/bias.ts'
@@ -100,6 +101,14 @@ export function InlSection() {
         <Tex>{String.raw`\{-2,-1,0,1,2\}`}</Tex>。<Erratum id="E11" note="1.34 只在這個 5 值等機率分布下成立；c 統一為 c₃" />
         <Erratum id="E01" note="1.34 是 MSE-LMS 的精確固定點，Sign-LMS 依 σ_v 而定" /> <TestBadge id="T12" />
       </p>
+      <p>
+        先看結論的圖，數字的來源在後面的推導。<FigRef id="best-fit" /> 是 MSE-LMS 的觀點：把 INL <Tex>{'c_3x^3'}</Tex> 對 <Tex>{'x'}</Tex>{' '}
+        做投影（找一個倍數，讓剩下的部分和 <Tex>{'x'}</Tex> 的相關為 0）。先看藍色的分支：與 <Tex>{'x'}</Tex> 成正比的那一部分 <Tex>{'0.34\\,x'}</Tex> 在 GMAC
+        眼裡就是 gain 誤差，被 <Tex>{'w'}</Tex> 吸收，所以 <Tex>{'w^*=a+0.34'}</Tex>。再看紅色的分支：剩下的 <Tex>{'e_0(x)'}</Tex> 與 <Tex>{'x'}</Tex> 正交（
+        <Tex>{String.raw`E[x\,e_0]=0`}</Tex>），GMAC 的平均看不到它，它卻留在每一個 code 上。圖上的 <Tex>{String.raw`E[x\,d]/E[x^2]`}</Tex> 就是 F-11.4 的 INL
+        項；<Tex>{'e_0'}</Tex> 就是下面殘差表的第三欄。
+      </p>
+      <Fig id="best-fit" />
       <StepDerivation
         title="先算 code 的動差（手算）"
         steps={[
@@ -109,8 +118,12 @@ export function InlSection() {
         ]}
       />
       <p>
-        同一個誤差模型，<strong>三種演算法情境給出三個不同的答案</strong>：
+        「最佳直線」只是其中一種標準。同一個誤差模型，<strong>三種演算法情境給出三個不同的答案</strong>。先看 <FigRef id="mean-vs-median" />{' '}
+        最上面：兩組 code 想要的 gain 不同（<Tex>{'\\pm1'}</Tex> 想要 1.1、<Tex>{'\\pm2'}</Tex> 想要 1.4）；再往下看三種演算法怎麼調停 —— MSE-LMS
+        用「拔河」（拉力等於權重乘上距離）、無雜訊的 Sign-LMS 用「投票」（只看方向、不看差多少）、有 Gaussian 雜訊的 Sign-LMS 介於兩者之間。圖上的{' '}
+        <Tex>{'t(x)'}</Tex> 就是 F-11.11 的 per-code gain；最下面三個方塊就是下面三張卡片的答案。
       </p>
+      <Fig id="mean-vs-median" />
       <div className="grid-3">
         <div className="card">
           <strong>(1) MSE-LMS</strong> <ClaimTag kind="exact" />

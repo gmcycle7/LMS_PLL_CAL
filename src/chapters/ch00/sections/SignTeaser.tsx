@@ -19,7 +19,7 @@ import { VARIANT_LABEL, conventionalStep, runScalarLms, signErrorStep, type LmsV
 import lmsSrc from '@/simulation/models/lms.ts?raw'
 import { comparatorTeaser, directionProbabilityClt, signTieDemo } from '../model'
 import { num, pct, texNum, texRes } from '../format'
-import { ChapterHandCalc, ErratumNote, ErratumRef, Observe, PageLink } from '../common'
+import { ChapterDiagram, ChapterHandCalc, ErratumNote, ErratumRef, FigRef, Observe, PageLink } from '../common'
 
 const COMPARE_SEED = 20261010
 /** 固定的版面物件（模組層級，避免每次 render 產生新參照而讓 Plot 重畫） */
@@ -127,9 +127,23 @@ export function SignTeaserSection() {
     <Section kind="intuition" level={2} id="ch00-sign" title="§0.9 預告：只知道誤差的「正負號」也能學嗎？">
       <p>
         在 PLL 裡，相位誤差 <Tex>{'e'}</Tex> 通常只被一顆 <strong>1-bit 比較器</strong>看見：它只告訴你「早了還是晚了」（<Tex>{'+1'}</Tex> 或{' '}
-        <Tex>{'-1'}</Tex>），不告訴你差多少。把更新式裡的 <Tex>{'e'}</Tex> 換成它的正負號，就是 <strong>Sign-Error LMS</strong>：
+        <Tex>{'-1'}</Tex>），不告訴你差多少。把比較器的輸出記為 <Tex>{'q_n=\\mathrm{sign}(e_n)'}</Tex>：<Tex>{'e_n>0'}</Tex> 時是 <Tex>{'+1'}</Tex>、
+        <Tex>{'e_n<0'}</Tex> 時是 <Tex>{'-1'}</Tex>。把更新式裡的 <Tex>{'e'}</Tex> 換成它的正負號，就是 <strong>Sign-Error LMS</strong>。先看兩者的硬體差在哪裡：
       </p>
-      <TexBlock>{String.raw`w_{n+1}=w_n+\mu\,\mathrm{sign}(e_n)\,x_n\qquad\text{vs.}\qquad w_{n+1}=w_n+\mu\,e_n\,x_n`}</TexBlock>
+      <ChapterDiagram name="CHART_LMS_VS_SIGN">
+        <p>
+          先看「Conventional LMS」那一框：要算 <code>e[n]·x[n]</code>，誤差必須是多位元的數字（前面要有 ADC 或 TDC），而且要一個真正的乘法器（紅色）。再看「Sign-Error
+          LMS」那一框：誤差先進 1-bit 比較器變成 <code>q[n]</code>，「乘法」就退化成藍色的<strong>條件變號</strong>——<Tex>{'q_n=+1'}</Tex> 時原封不動送出 <Tex>{'x_n'}</Tex>，
+          <Tex>{'q_n=-1'}</Tex> 時送出 <Tex>{'-x_n'}</Tex>。兩框從「× μ」開始完全相同。
+        </p>
+        <p>
+          圖上兩條送進「× μ」的線 <code>e[n]·x[n]</code> 與 <code>q[n]·x[n]</code>，就是下面兩條更新式裡唯一不同的那個因子：<Tex>{'e_n\\,x_n'}</Tex> 與{' '}
+          <Tex>{'\\mathrm{sign}(e_n)\\,x_n'}</Tex>。
+        </p>
+      </ChapterDiagram>
+      <div id="ch00-sign-formula">
+        <TexBlock>{String.raw`w_{n+1}=w_n+\mu\,\mathrm{sign}(e_n)\,x_n\qquad\text{vs.}\qquad w_{n+1}=w_n+\mu\,e_n\,x_n`}</TexBlock>
+      </div>
       <StepDerivation
         title={
           <>
@@ -297,61 +311,78 @@ export function SignTeaserSection() {
           精確值與平手（tie）規則在 <PageLink id="ch05" />。
         </p>
       </Prereq>
-      <StepDerivation
-        title={
-          <>
-            單一比較器輸出的統計，與累加 <Tex>{'N'}</Tex> 筆後判斷正負號的機率（<Tex>{'S_N'}</Tex> 是<strong>總和</strong>；它相當於 <Tex>{'x\\equiv1'}</Tex> 時 GMAC
-            的累加值，除以 <Tex>{'N'}</Tex> 才是全站定義的平均 <Tex>{'G=S_N/N'}</Tex>，兩者正負號相同）
-          </>
-        }
-        steps={[
-          {
-            tex: String.raw`P(q=+1)=P(s+v>0)=P(v>-s)=\Phi\!\left(\frac{s}{\sigma_v}\right)=\Phi\!\left(\frac{${texNum(COMP.sFs)}}{${texNum(COMP.sigmaFs)}}\right)=${num(comp.pPlus, 6)}`,
-            why: (
-              <>
-                比較器看到 <Tex>{'e=s+v'}</Tex>，<Tex>{'v\\sim\\mathcal N(0,\\sigma_v^2)'}</Tex>；用上面的對稱與縮放性質。幾乎是丟銅板。
-              </>
-            ),
-          },
-          {
-            tex: String.raw`m_q\equiv E[q]=(+1)\,\Phi+(-1)\,(1-\Phi)=2\Phi\!\left(\frac{s}{\sigma_v}\right)-1=${num(comp.meanQ, 5)}`,
-            why: '期望值的定義（離散：值 × 機率再相加）。這一點點正的平均，就是 1-bit 輸出裡保留的「方向資訊」。',
-          },
-          {
-            tex: String.raw`\operatorname{Var}(q)=E[q^2]-m_q^2=1-m_q^2`,
-            why: (
-              <>
-                <Tex>{'q^2\\equiv1'}</Tex>。
-              </>
-            ),
-          },
-          {
-            tex: String.raw`S_N=\sum_{i=1}^{N}q_i\;\approx\;\mathcal N\!\left(Nm_q,\;N(1-m_q^2)\right)`,
-            why: (
-              <>
-                <Tex>{'q_i'}</Tex> iid，用 CLT：平均相加、（獨立）變異數相加。
-              </>
-            ),
-          },
-          {
-            tex: String.raw`P(S_N>0)\approx P\!\left(Z>-\frac{Nm_q}{\sqrt{N(1-m_q^2)}}\right)=\Phi\!\left(\frac{m_q\sqrt N}{\sqrt{1-m_q^2}}\right)`,
-            why: (
-              <>
-                標準化 <Tex>{'Z=(S_N-Nm_q)/\\sqrt{N(1-m_q^2)}'}</Tex>，再用對稱性質。<Tex>{'N'}</Tex> 取奇數時 <Tex>{'S_N'}</Tex> 不可能為 0（沒有平手，<ErratumRef eid="E02" />）。
-              </>
-            ),
-          },
-          {
-            tex: String.raw`N=${cltN}:\quad \frac{m_q\sqrt N}{\sqrt{1-m_q^2}}=${texNum(cltZ, 4)}\;\Rightarrow\;P\approx\Phi(${texNum(cltZ, 4)})=${num(directionProbabilityClt(comp.meanQ, cltN), 4)}`,
-            why: (
-              <>
-                代入數字（由 <code>directionProbabilityClt</code> 計算）。訊號 <Tex>{'\\propto N'}</Tex>、雜訊 <Tex>{'\\propto\\sqrt N'}</Tex>，所以{' '}
-                <Tex>{'N'}</Tex> 越大越確定。
-              </>
-            ),
-          },
-        ]}
-      />
+      <p>
+        誤差比雜訊小 <Tex>{`${texNum(COMP.sigmaFs / COMP.sFs)}`}</Tex> 倍，比較器的每一個輸出幾乎都是雜訊決定的。那一點點方向資訊藏在哪裡、要怎麼拿出來？先看訊號怎麼流：
+      </p>
+      <ChapterDiagram name="CHART_COMPARATOR_AVERAGE">
+        <p>
+          先看「單獨一筆」那一框：很小的 <Tex>{'s'}</Tex>（圖上設 <Tex>{'s>0'}</Tex>；<Tex>{'s<0'}</Tex> 時左右對稱、方向相反）加上很大的雜訊 <Tex>{'v'}</Tex>（紅色）才是比較器真正看到的 <Tex>{'e'}</Tex>，所以單獨一個輸出 <Tex>{'q'}</Tex>{' '}
+          幾乎是丟銅板。但比較器輸出 <Tex>{'+1'}</Tex> 的機率比一半多一點點，所以 <Tex>{'q'}</Tex> 的平均不是 0，而是一個很小的正數，記為 <Tex>{'m_q=E[q]'}</Tex>
+          ——這就是兩框之間那條線上寫的東西。再看「累加 N 筆」那一框：把 <Tex>{'N'}</Tex> 筆 <Tex>{'q'}</Tex> 加起來的<strong>總和</strong>記為 <Tex>{'S_N'}</Tex>。
+          最後看綠色那一格：只要 <Tex>{'S_N'}</Tex> 的平均 <Tex>{'Nm_q'}</Tex> 比它的標準差大得多，<Tex>{'S_N'}</Tex> 的正負號就幾乎一定和 <Tex>{'s'}</Tex> 相同。
+        </p>
+        <p>
+          圖上寫的每一個統計量，就是下面推導的一行：比較器那格的「<code>Φ(s/σ_v)</code>」是第 1 步、兩框之間的「平均 <code>m_q</code>」是第 2 步、累加那格的「<code>S_N</code>{' '}
+          的平均與標準差」是第 4 步、綠色那格是第 5 步的結果。<Tex>{'\\Phi'}</Tex> 是標準常態的累積分布函數（上面的先備知識框）。
+        </p>
+      </ChapterDiagram>
+      <div id="ch00-comparator-steps">
+        <StepDerivation
+          title={
+            <>
+              單一比較器輸出的統計，與累加 <Tex>{'N'}</Tex> 筆後判斷正負號的機率（<Tex>{'S_N'}</Tex> 是<strong>總和</strong>；它相當於 <Tex>{'x\\equiv1'}</Tex> 時 GMAC
+              的累加值，除以 <Tex>{'N'}</Tex> 才是全站定義的平均 <Tex>{'G=S_N/N'}</Tex>，兩者正負號相同）
+            </>
+          }
+          steps={[
+            {
+              tex: String.raw`P(q=+1)=P(s+v>0)=P(v>-s)=\Phi\!\left(\frac{s}{\sigma_v}\right)=\Phi\!\left(\frac{${texNum(COMP.sFs)}}{${texNum(COMP.sigmaFs)}}\right)=${num(comp.pPlus, 6)}`,
+              why: (
+                <>
+                  比較器看到 <Tex>{'e=s+v'}</Tex>，<Tex>{'v\\sim\\mathcal N(0,\\sigma_v^2)'}</Tex>；用上面的對稱與縮放性質。幾乎是丟銅板。
+                </>
+              ),
+            },
+            {
+              tex: String.raw`m_q\equiv E[q]=(+1)\,\Phi+(-1)\,(1-\Phi)=2\Phi\!\left(\frac{s}{\sigma_v}\right)-1=${num(comp.meanQ, 5)}`,
+              why: '期望值的定義（離散：值 × 機率再相加）。這一點點正的平均，就是 1-bit 輸出裡保留的「方向資訊」。',
+            },
+            {
+              tex: String.raw`\operatorname{Var}(q)=E[q^2]-m_q^2=1-m_q^2`,
+              why: (
+                <>
+                  <Tex>{'q^2\\equiv1'}</Tex>。
+                </>
+              ),
+            },
+            {
+              tex: String.raw`S_N=\sum_{i=1}^{N}q_i\;\approx\;\mathcal N\!\left(Nm_q,\;N(1-m_q^2)\right)`,
+              why: (
+                <>
+                  <Tex>{'q_i'}</Tex> iid，用 CLT：平均相加、（獨立）變異數相加。
+                </>
+              ),
+            },
+            {
+              tex: String.raw`P(S_N>0)\approx P\!\left(Z>-\frac{Nm_q}{\sqrt{N(1-m_q^2)}}\right)=\Phi\!\left(\frac{m_q\sqrt N}{\sqrt{1-m_q^2}}\right)`,
+              why: (
+                <>
+                  標準化 <Tex>{'Z=(S_N-Nm_q)/\\sqrt{N(1-m_q^2)}'}</Tex>，再用對稱性質。<Tex>{'N'}</Tex> 取奇數時 <Tex>{'S_N'}</Tex> 不可能為 0（沒有平手，<ErratumRef eid="E02" />）。
+                </>
+              ),
+            },
+            {
+              tex: String.raw`N=${cltN}:\quad \frac{m_q\sqrt N}{\sqrt{1-m_q^2}}=${texNum(cltZ, 4)}\;\Rightarrow\;P\approx\Phi(${texNum(cltZ, 4)})=${num(directionProbabilityClt(comp.meanQ, cltN), 4)}`,
+              why: (
+                <>
+                  代入數字（由 <code>directionProbabilityClt</code> 計算）。訊號 <Tex>{'\\propto N'}</Tex>、雜訊 <Tex>{'\\propto\\sqrt N'}</Tex>，所以{' '}
+                  <Tex>{'N'}</Tex> 越大越確定。
+                </>
+              ),
+            },
+          ]}
+        />
+      </div>
       <p>
         累加筆數與「正負號判斷正確」機率的關係（CLT 近似，奇數 <Tex>{'N'}</Tex>）：
       </p>
@@ -392,9 +423,23 @@ export function SignTeaserSection() {
       </ErratumNote>
       <p>
         硬體上，先把 <Tex>{'N'}</Tex> 筆 <Tex>{'q_n x_n'}</Tex> 累加（GMAC），再更新一次係數。時間索引也跟著分開：<Tex>{'n'}</Tex> 是比較器取樣，
-        <Tex>{'k'}</Tex> 是 GMAC block：
+        <Tex>{'k'}</Tex> 是 GMAC block（每 <Tex>{'N'}</Tex> 筆取樣組成一個 block）；第 <Tex>{'k'}</Tex> 個 block 的平均記為 <Tex>{'G_k'}</Tex>：
       </p>
-      <TexBlock>{String.raw`G_k=\frac1N\sum_{n\in\text{block }k}q_n\,x_n,\qquad w_{k+1}=w_k+\mu\,G_k`}</TexBlock>
+      <ChapterDiagram name="CHART_GMAC_BLOCK">
+        <p>
+          先看「每個 sample」那一框：比較器輸出 <code>q[n]</code> 和 <code>x[n]</code> 相乘（硬體上就是 <FigRef name="CHART_LMS_VS_SIGN" /> 的條件變號），一筆一筆加進累加器。
+          再看兩框之間的那條線與「每個 block」那一框：累加器每 <Tex>{'N'}</Tex> 筆才把總和交出來一次，除以 <Tex>{'N'}</Tex> 得到 <code>G[k]</code>，乘上 <Tex>{'\\mu'}</Tex>{' '}
+          後加進 gain register——這一框裡的「相加點 + <code>z⁻¹</code>」和 §0.3 的 <FigRef name="CHART_LMS_ACCUMULATOR" /> 是同一個累加器，只是這裡的 <code>z⁻¹</code>{' '}
+          延遲的是一個 block，不是一筆取樣。
+        </p>
+        <p>
+          圖上藍色的「Σ 累加 N 筆」與「總和 ÷ N」合起來就是下面第一條式子 <Tex>{'G_k=\\frac1N\\sum q_nx_n'}</Tex>（也就是 §0.7{' '}
+          <FigRef name="CHART_NOISE_AVERAGING" /> 的平均器）；相加點的兩個輸入 <code>(+) w[k]</code>、<code>(+) μ·G[k]</code> 就是第二條式子 <Tex>{'w_{k+1}=w_k+\\mu G_k'}</Tex>。
+        </p>
+      </ChapterDiagram>
+      <div id="ch00-gmac-formula">
+        <TexBlock>{String.raw`G_k=\frac1N\sum_{n\in\text{block }k}q_n\,x_n,\qquad w_{k+1}=w_k+\mu\,G_k`}</TexBlock>
+      </div>
       <Observe>
         這就是 PLL 校正的核心：<strong>1-bit 誤差 × regressor，累加 <Tex>{'N'}</Tex> 筆，乘上 <Tex>{'\\mu'}</Tex>，更新 gain</strong>。它和本章的 LMS 只有兩個差別——誤差只剩正負號、
         更新前先平均。<PageLink id="ch02" /> 會推導 Sign-Error LMS，<PageLink id="ch04" /> 畫出完整的 DSM → DTC → PD → GMAC 訊號流，

@@ -1,6 +1,6 @@
 import { CodeCompare, ModeGate, Section, StepDerivation, Tex } from '@/components'
 import { DOC_JOINT, LOOP_KEYS } from '../data'
-import { Claim, DataTable, Formula, Kappa, MODEL_PATH, MODEL_SRC, PY_SOURCES, Sci, Src, r } from '../common'
+import { Claim, DataTable, Diagram, Formula, Kappa, MODEL_PATH, MODEL_SRC, PY_SOURCES, Sci, Src, r } from '../common'
 
 const FVCO_GHZ = [12, 16, 24]
 
@@ -11,6 +11,14 @@ export function S09Joint() {
   const fv = DOC_JOINT.fvco
   return (
     <Section kind="formula" level={2} title="9. GOS 與 PHOS 一起看：$9\times9$ 的耦合與 PSD 定理" id="cs-9">
+      <p>
+        §7 與 §8 把 GOS 和 PHOS 分開算。但 9 個權重是同時在學的：GOS 的鋸齒和 PHOS 的 one-hot 會不會互相干擾？答案取決於頻道 <Tex>{r`\alpha=P/Q`}</Tex>（最簡分數；<Tex>{'Q'}</Tex> 也就是 regressor 重複一次的拍數）：
+      </p>
+      <Diagram id="joint" />
+      <p>
+        先看菱形：<Tex>{'Q'}</Tex> 是 8 的倍數（或 <Tex>{r`\alpha`}</Tex> 是無理數）時，PMUX 的 8 個相位被選到的次數一樣多（佔用率均勻）。再看兩條出路：均勻時 <Tex>{r`9\times9`}</Tex> 矩陣裡 GOS 與 PHOS 之間的耦合項（<Tex>{r`C_{0k}`}</Tex>、<Tex>{r`C_{k0}`}</Tex>，索引 0 是 GOS、1 到 8 是 PHOS）全部是 0，矩陣拆成 GOS 的{' '}
+        <Tex>{r`1\times1`}</Tex> 與 PHOS 的 <Tex>{r`8\times8`}</Tex> 兩塊，§7、§8 的結果可以直接用；不均勻時有耦合，要直接算 <Tex>{r`9\times9`}</Tex> 的特徵值。圖上綠色那一格的 <Tex>{r`C_{0k}=C_{k0}=0`}</Tex> 就是下面 (a) 要說明的事。
+      </p>
       <p>
         <strong>(a) 精確解耦</strong>：<Tex>{r`\rho`}</Tex> 的譜線只在 <Tex>{r`\ell\equiv0\ (\mathrm{mod}\ 8)`}</Tex>（頻率 <Tex>{r`m\beta=8m\alpha`}</Tex>）。one-hot 在這些線上的權重除了 <Tex>{r`\ell=0`}</Tex> 以外都是 0，而{' '}
         <Tex>{r`\ell=0`}</Tex> 乘上 <Tex>{r`\Gamma(0)=0`}</Tex>。所以對無理數 <Tex>{r`\alpha`}</Tex> 與 <Tex>{r`8\mid Q`}</Tex>，<Tex>{r`C_{0k}=C_{k0}=0`}</Tex>，<Tex>{r`9\times9`}</Tex> 是 block-diagonal。只有 <Tex>{r`8\nmid Q`}</Tex> 會耦合：
@@ -29,7 +37,13 @@ export function S09Joint() {
         <Claim kind="approx">有限掃描</Claim>
       </p>
       <p>
-        <strong>(c) PSD 定理（充分條件）</strong>——所有對策的理論基礎：
+        <strong>(c) PSD 定理（充分條件）</strong>——所有對策的理論基礎。前面每一個反號的例子，都是「某條譜線剛好落在 <Tex>{r`\mathrm{Re}\,\Gamma_{\rm eff}<0`}</Tex> 的頻率」。譜線落在哪裡由頻道 <Tex>{r`\alpha`}</Tex> 決定，使用者會換頻道，管不了；但 kernel 的實部是可以設計的：
+      </p>
+      <Diagram id="psd" />
+      <p>
+        先看進入加總點的兩條路：一條是頻道決定的譜線位置與權重（權重是絕對值的平方，一定不為負）；另一條是 kernel <Tex>{r`\Gamma_{\rm eff}=H_{PD}\,\overline G`}</Tex> 在那些頻率上的實部。再看藍色方塊：迴路 <Tex>{r`H_{PD}`}</Tex> 改不了，但 regressor 的前置濾波{' '}
+        <Tex>{'G'}</Tex> 是你選的。只要把 <Tex>{r`\mathrm{Re}\,\Gamma_{\rm eff}`}</Tex> 做成每個頻率都不為負，不管譜線落在哪裡，加總都不會是負的。圖上加總點的輸出就是下面推導第 3 步的 <Tex>{r`\mathrm{Re}\,\lambda`}</Tex>（<Tex>{r`a_\nu`}</Tex> 是 9 條 regressor 在第{' '}
+        <Tex>{r`\nu`}</Tex> 條譜線上的係數排成的向量，<Tex>{'v'}</Tex> 是特徵向量）；菱形的「是」就是第 4 步的結論。
       </p>
       <StepDerivation
         steps={[

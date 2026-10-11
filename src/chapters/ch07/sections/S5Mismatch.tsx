@@ -1,6 +1,6 @@
 import { useMemo, type ReactNode } from 'react'
 import type { Data } from 'plotly.js-dist-min'
-import { Callout, ClaimTag, ModeGate, Plot, Section, SourceTag, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, Mermaid, ModeGate, Plot, Section, SourceTag, Tex, TexBlock } from '@/components'
 import {
   analyticCorr,
   buildHat,
@@ -14,6 +14,7 @@ import {
 } from '@/simulation/models/filteredX'
 import { cArg, wrap180 } from '@/simulation/core'
 import { freqz } from '@/simulation/signal'
+import { CHART_LATENCY_MISMATCH, CHART_MISMATCH } from '../diagrams'
 import { FoldSteps } from '../FoldSteps'
 import { ErratumNote } from '../ErratumNote'
 import { Hand } from '../Hand'
@@ -92,6 +93,16 @@ export function S5Mismatch() {
           規格只給了 <Tex>{r`\hat H=H`}</Tex> 的情形；有模型誤差時，analytic pole 必須用 <Tex>{r`E[u\,u_f]`}</Tex>。
         </ErratumNote>
       </p>
+      <Mermaid
+        chart={CHART_MISMATCH}
+        caption={r`模型誤差：同一個 code 走真實路徑 $H$ 與藍色的模型 $\hat H$，GMAC 等效在算兩者輸出的相關 $E[u\,u_f]$。每個頻率的票是正是負，看 $H$ 與 $\hat H$ 在那個頻率的相位差有沒有超過 $90^\circ$。`}
+      />
+      <p>
+        先看 code 分出去的兩路：一路是真實的誤差路徑 <Tex>{'H'}</Tex>，它的輸出 <Tex>{'u[n]'}</Tex> 藏在 comparator 的 <Tex>{'q[n]'}</Tex> 裡；另一路是藍色的模型
+        <Tex>{r`\hat H`}</Tex>，它的輸出 <Tex>{'u_f[n]'}</Tex> 是 GMAC 的 regressor。再看後半段：GMAC 的平均等效在算 <Tex>{r`E[u\,u_f]`}</Tex>，把它拆到每個頻率就是「每個頻率一票」——
+        圖上那個方塊裡的 <Tex>{r`S_{xx}|H||\hat H|\cos(\angle H-\angle\hat H)`}</Tex>，正是下面 F-07.12 的被積函數。振幅 <Tex>{r`|\hat H|`}</Tex> 只改變票的重量，
+        相位差 <Tex>{r`\angle H-\angle\hat H`}</Tex> 才決定票的正負；六角形問的就是下面定理的條件。
+      </p>
       <FoldSteps
         title={<>一般情形：<Tex>{r`E[u\,u_f]`}</Tex> 的時域與頻域形式</>}
         steps={[
@@ -145,6 +156,18 @@ export function S5Mismatch() {
       <h3 className="ch07-subhead">
         失效例子：<Tex>{r`\hat H`}</Tex> 多算了 <Tex>{'\\Delta'}</Tex> 個 sample 的 latency
       </h3>
+      <p>
+        模型最容易錯的地方是 latency：迴路裡的 pipeline 拍數多算或少算，模型的輸出就比真實路徑晚或早幾個 sample。先看多算的情形：
+      </p>
+      <Mermaid
+        chart={CHART_LATENCY_MISMATCH}
+        caption={r`失效例子：模型比真實路徑多了一個紅色的延遲（多算 $\Delta$ 個 sample 的 latency）。這和 7.1 節的相位記帳是同一件事，只是這次的延遲不是補償，而是誤差。`}
+      />
+      <p>
+        先看經過真實路徑的那一路：相位加 <Tex>{r`\phi`}</Tex>。再看模型那一路：模型裡的 <Tex>{'H'}</Tex> 也加 <Tex>{r`\phi`}</Tex>（這部分是對的），但後面多了紅色的
+        <Tex>{r`z^{-\Delta}`}</Tex>（<Tex>{r`\Delta`}</Tex> 是模型多算的 sample 數），相位又被減掉 <Tex>{r`\Omega\Delta`}</Tex>。相乘再平均之後共同的部分消掉，只剩
+        <Tex>{r`\angle H-\angle\hat H=\Omega\Delta`}</Tex>——圖上最後那個紅色方塊，就是下表每一列在算的 <Tex>{r`E[u\,u_f]=|H|^2\cos(\Omega\Delta)`}</Tex>。
+      </p>
       <p>
         回到 T07 的單頻例子（<Tex>{r`\Omega=30^\circ`}</Tex>，<Tex>{r`|H|=1`}</Tex>、<Tex>{r`\phi=-120^\circ`}</Tex>，unit-power code
         <Tex>{r`A^2/2=1`}</Tex>），用 <Tex>{r`\hat H=H\,z^{-\Delta}`}</Tex>：相位差 <Tex>{r`\angle H-\angle\hat H=\Omega\Delta`}</Tex>，所以

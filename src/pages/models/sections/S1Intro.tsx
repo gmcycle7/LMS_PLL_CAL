@@ -1,11 +1,10 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, ModelLevel, Section, SourceTag, SymbolTable, Tex } from '@/components'
+import { Callout, ClaimTag, ModelLevel, Section, SourceTag, Tex } from '@/components'
 import { truncationEquilibrium } from '../experiments/gmacMath'
-import { ChLink, md, sig } from '../common'
+import { ChLink, sig } from '../common'
 import { SPEC_NUMBERS } from '../refNumbers'
-import { MODEL_SYMBOLS } from '../symbols'
 
-/** §1 開場：一個問題 + 先算一次（數字由 gmacMath 的精確 mean-field 計算） */
+/** §1 開場：一個問題 + 先算一次（數字由 gmacMath 的精確 mean-field 計算）。符號表在頁末（sections/S11Symbols.tsx）。 */
 export function S1Intro() {
   // 同一個 L1 設定（σ_v = 100 fs、6-bit ±31 code、N = 4096）：理想浮點 vs RTL 的 floor 右移（F_G = 0）
   const ex = useMemo(() => truncationEquilibrium({ bx: 6, log2N: 12, gFracBits: 0, rounding: 'floor', sigmaV: 100 }), [])
@@ -101,8 +100,9 @@ export function S1Intro() {
         <code>src/simulation/models/blockLms.ts</code>、<code>pll.ts</code>、<code>dsm.ts</code>、<code>dtc.ts</code>）；所有表格與曲線的數字都由這些程式或解析式即時計算。需要先備知識時，請展開各段的「先備知識」框；想先看直覺版可回到{' '}
         <ChLink to="/ch/04">Ch04 系統訊號流</ChLink>。
       </Callout>
-
-      <SymbolTable rows={MODEL_SYMBOLS} title="本頁符號" caption={md('時間索引：$n$ = comparator sample、$k$ = GMAC block（附錄 B）。單位：時間一律 fs；code 正規化後無因次。')} />
+      <p className="small">
+        全頁共用的兩個時間索引：<Tex>{'n'}</Tex> 是 comparator sample（每個 reference 週期一次），<Tex>{'k'}</Tex> 是 GMAC block（每 <Tex>{'N'}</Tex> 個 sample 一次）。時間一律以 fs 計；code 正規化後無因次。其餘符號在第一次出現時說明，完整的表在頁末。
+      </p>
     </section>
   )
 }

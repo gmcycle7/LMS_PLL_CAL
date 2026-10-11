@@ -9,6 +9,16 @@ import WorkbookPage, { STATS_KEY } from './index'
 import { EMPTY_FILTERS, buildWorksheet, countByLevel, filterHandcalcs, groupByChapter, practiceItem, type PracticeItem, type WorksheetOptions } from './logic'
 import { PRINT_BODY_CLASS } from './sections/Worksheet'
 
+// 方塊圖在這個檔案裡不需要真的畫（diagrams.test.tsx 另外用真的 mermaid 畫過每一張）：用只放原始碼與圖說的替身，避免整頁測試等 mermaid 非同步渲染
+vi.mock('@/components/Mermaid', async () => {
+  const { createElement } = await import('react')
+  return {
+    Mermaid: ({ chart, caption }: { chart: string; caption?: string }) =>
+      createElement('figure', { className: 'c-mermaid', 'data-chart': chart }, caption ? createElement('figcaption', { className: 'c-figcaption' }, caption) : null),
+    renderMermaid: async () => '<svg></svg>',
+  }
+})
+
 // Vitest 預設不處理 CSS（匯入得到空字串），列印規則的測試直接讀檔
 const css = readFileSync(join(process.cwd(), 'src/pages/workbook/workbook.css'), 'utf8')
 

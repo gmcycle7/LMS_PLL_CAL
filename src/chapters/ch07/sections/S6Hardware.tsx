@@ -13,28 +13,10 @@ import {
   type FxHatSpec,
   type FxPathSpec,
 } from '@/simulation/models/filteredX'
+import { CHART_COST_LADDER, CHART_DECISION, CHART_RTL_REGRESSORS } from '../diagrams'
 import { fp, fx, signClass, tx } from '../util'
 
 const r = String.raw
-
-const DIAGRAM = `flowchart LR
-  X["DSM / training code x[n]"] --> DTC["DTC gain w"]
-  DTC --> H["PLL 誤差路徑 H_PD"]
-  H --> CMP["1-bit comparator q[n]"]
-  X --> R0["raw：x[n]"]
-  X --> SR["shift register z^-1 x Dmax"]
-  SR --> MUX["MUX REG_GMAC_DLY"]
-  X --> HF["模型 Ĥ：FIR / IIR"]
-  HF --> SR2["z^-D"]
-  X --> SD["二次差分 x - 2x1 + x2"]
-  R0 --> SEL["REG_GMAC_XSEL"]
-  MUX --> SEL
-  SR2 --> SEL
-  SD --> SEL
-  SEL -->|"x_ref[n]"| GMAC["GMAC：Σ q·x_ref"]
-  CMP --> GMAC
-  GMAC --> UPD["w ← w + μ·G_k"]
-  UPD --> DTC`
 
 interface Scenario {
   label: ReactNode
@@ -128,13 +110,32 @@ export function S6Hardware() {
 
   return (
     <Section kind="diagram" level={2} title="7.6 硬體成本與演算法比較：raw-x / delayed-x / filtered-x / 二次差分" id="ch07-hardware">
+      <p>
+        前面幾節各講一種 regressor。這一節把它們放回同一顆晶片裡：先看它們在 RTL 的位置，再比成本，最後用一張流程圖決定「我需要哪一種」。
+      </p>
       <Mermaid
-        chart={DIAGRAM}
-        caption="四種 regressor 在 RTL 中的位置：同一個 GMAC，只差 regressor 從哪裡來（REG_GMAC_XSEL 選擇；名稱為示意）"
+        chart={CHART_RTL_REGRESSORS}
+        caption="四種 regressor 在 RTL 中的位置：同一個 GMAC，只差 regressor 從哪裡來（藍色的 REG_GMAC_XSEL 選擇；暫存器名稱為示意）"
       />
+      <p>
+        先看 code 往 DTC 走的那一路（DTC、誤差路徑、comparator）：這部分四種做法完全相同，輸出是 <Tex>{'q[n]'}</Tex>。再看 code 分出去的四條支路：直接接線的 raw、shift register 加 tap
+        MUX（7.3 節的 delay line）、模型 <Tex>{r`\hat H`}</Tex>（後面可再接一個延遲）、二次差分（7.5 節）。藍色的選擇器從四者中選一個，圖上它的輸出就是公式裡的
+        <Tex>{r`x_{\mathrm{ref}}[n]`}</Tex>；GMAC 與更新式 <Tex>{r`w\leftarrow w+\mu G_k`}</Tex> 完全不用改。
+      </p>
       <h3 className="ch07-subhead">
         硬體成本表（<Tex>{'B'}</Tex> = code 位元數，<Tex>{r`D_{\max}`}</Tex> = 最大延遲，<Tex>{r`L_{\mathrm{FIR}}`}</Tex> = FIR tap 數）
       </h3>
+      <p>
+        四種做法的成本差很多。先用一張階梯圖看全貌，再看表格的細節：
+      </p>
+      <Mermaid
+        chart={CHART_COST_LADDER}
+        caption="硬體成本階梯：每往後一階，額外硬體與需要事先知道的東西都變多，能修好的 code 也變廣（低頻 tone → 任意單頻 → 寬頻）；藍色的 filtered-x 是唯一能在 raw-x 失效的寬頻 code 上修好極性的做法。"
+      />
+      <p>
+        順著箭頭一階一階看，每一格的四行依序是：做法、額外硬體、需要事先知道什麼、何時有效。先看第 0、1 階：raw-x 不花任何硬體；二次差分只多兩個暫存器，但只對 Type-II 迴路的低頻 tone
+        有效。再看第 2、3 階：delayed-x 的成本隨 <Tex>{r`D_{\max}`}</Tex> 成長——7.3 節的 Type-II 例子要一百多級的 code FIFO；filtered-x 要乘法器，也要知道整個 <Tex>{r`\hat H`}</Tex>。圖上每一格對應下表的一列，表裡多了「失效模式」。
+      </p>
       <div className="table-wrap">
         <table className="ch07-table">
           <thead>
@@ -269,6 +270,21 @@ export function S6Hardware() {
         <Tex>{r`\rho\ge\cos(\Omega/2)`}</Tex>（低頻 tone 幾乎是 1，但 <Tex>{'D'}</Tex> 要夠長；<Tex>{r`\Omega=\pi/6`}</Tex> 時至少 <Tex>{r`\cos15^\circ=0.966`}</Tex>）。
         寬頻時只有 filtered-x（<Tex>{r`\hat H=H`}</Tex>）恆為 1。二次差分只在低頻 tone 接近 1，
         在中頻 tone 變號，在寬頻 code 接近 0（7.5 節）。<ClaimTag kind="exact" /> <SourceTag />
+      </p>
+
+      <h3 className="ch07-subhead">決策流程：我需要哪一種修法？</h3>
+      <p>
+        把上面兩張表濃縮成一張流程圖：能用便宜的就不用貴的，但每走一步都要確認相關的符號。
+      </p>
+      <Mermaid
+        chart={CHART_DECISION}
+        caption={r`決策流程：先確認 raw-x 的相關 $C$ 的符號；不行的話看 code 是不是窄頻（窄頻才能用二次差分或 delayed-x）；寬頻 code 用 filtered-x（藍色），而且一定要回頭檢查 $E[u\,u_f]$ 的符號（紅色：模型不對就修模型）。`}
+      />
+      <p>
+        先看起點與第一個六角形：確認 raw-x 的 <Tex>{'C'}</Tex> 是正是負——可以用公式算，也可以在 bring-up 時量 GMAC 斜率（7.10 節）。<Tex>{r`C>0`}</Tex> 而且 <Tex>{r`\rho`}</Tex>
+        不太小，就什麼都不用加（例如高頻的 MASH code）。再看第二個六角形：code 是窄頻才輪得到便宜的做法——低頻 tone 配 Type-II 用二次差分，其他窄頻 code 用 delayed-x（<Tex>{'D'}</Tex> 由 F-07.4 的
+        <Tex>{r`D^\star`}</Tex> 取整數）。寬頻 code 直接走到藍色的 filtered-x，然後一定要過最後一個六角形：圖上問的 <Tex>{r`E[u\,u_f]>0`}</Tex> 就是 F-07.12 的積分；不成立就走到紅色方塊修模型，最常見的原因是
+        latency 算錯（E45）。綠色方塊是可以收工的終點；方向對了之後，還要到 Ch08 檢查 loop gain <Tex>{'g'}</Tex> 的穩定範圍。
       </p>
 
       <h3 className="ch07-subhead">核心程式碼並排：四種 regressor 只差一行</h3>

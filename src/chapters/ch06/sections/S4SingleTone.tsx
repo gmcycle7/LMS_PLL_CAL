@@ -11,7 +11,7 @@ import {
   toneFir,
   toneRippleBound,
 } from '@/simulation/models/polarity'
-import { ChapterHandCalc, ChapterSection, Erratum, f, fx, JumpTo, radOf, StepBox } from '../shared'
+import { ChapterDiagram, ChapterHandCalc, ChapterSection, Erratum, f, fx, JumpTo, radOf, StepBox } from '../shared'
 
 const PATH = 'src/simulation/models/polarity.ts'
 
@@ -55,7 +55,9 @@ export function S4SingleTone() {
     >
       <p>
         最簡單、也最能看清楚機制的情況：code 是單一頻率的正弦 <Tex>{'x[n]=A\\cos(\\Omega n)'}</Tex>，路徑在這個頻率的響應是{' '}
-        <Tex>{'H(e^{j\\Omega})=|H|e^{j\\phi}'}</Tex>。我們順便保留 GMAC 的 code delay <Tex>{'D'}</Tex>（第 07 章要用）。
+        <Tex>{'H(e^{j\\Omega})=|H|e^{j\\phi}'}</Tex>。這裡 <Tex>{'A'}</Tex> 是 code 的振幅，<Tex>{'\\Omega'}</Tex> 是離散角頻率（每個 sample 相位前進多少，單位{' '}
+        <Tex>{'\\mathrm{rad/sample}'}</Tex>），<Tex>{'|H|'}</Tex> 是主 PLL 路徑在這個頻率的增益，<Tex>{'\\phi'}</Tex> 是它加上的相位。我們順便保留 GMAC 的 code delay{' '}
+        <Tex>{'D'}</Tex>（第 07 章要用）。
       </p>
 
       <Prereq title="積化和差：兩個餘弦相乘">
@@ -122,6 +124,21 @@ export function S4SingleTone() {
         />
       </Prereq>
 
+      <p>
+        <strong>白話：正弦進、正弦出。</strong>PD 看到的 <Tex>{'u'}</Tex> 和原始的 <Tex>{'x'}</Tex> 是同一個頻率的兩個正弦，只差了振幅與相位。兩個同頻率的正弦相乘再平均，
+        結果只和它們的<strong>相位差</strong>有關：同相為正、相差 <Tex>{'90^\\circ'}</Tex> 為零、反相為負。
+      </p>
+      <ChapterDiagram id="D-06.8">
+        <p>
+          先看從 code 分出去的兩條支路：一條（藍色）是主 PLL 路徑，把 <Tex>{'x'}</Tex> 的振幅乘上 <Tex>{'|H|'}</Tex>、相位加上 <Tex>{'\\phi'}</Tex>，變成{' '}
+          <Tex>{'u[n]'}</Tex>；另一條是 GMAC 自己的 code delay，把 <Tex>{'x'}</Tex> 延遲 <Tex>{'D'}</Tex> 個 sample，相位減掉 <Tex>{'\\Omega D'}</Tex>。兩者在「×」相乘之後分成兩項：
+          一個不隨時間變的常數項，和一個兩倍頻項。再看 block 平均：兩倍頻項正負相消被平均掉，只有常數項留下來。
+        </p>
+        <p>
+          圖上兩條支路的相位一個是 <Tex>{'+\\phi'}</Tex>、一個是 <Tex>{'-\\Omega D'}</Tex>，兩者的差 <Tex>{'\\phi-(-\\Omega D)=\\phi+\\Omega D'}</Tex> 就是公式{' '}
+          <Tex>{'C_D=\\tfrac{A^2}{2}|H|\\cos(\\phi+\\Omega D)'}</Tex> 裡 <Tex>{'\\cos'}</Tex> 的引數；圖上的「常數項」與「兩倍頻項」就是下面推導第 4 步中括號裡的兩項。
+        </p>
+      </ChapterDiagram>
       <StepBox
         title={
           <>
@@ -301,6 +318,18 @@ export function S4SingleTone() {
         <Tex>{'\\cos(2\\Omega n+\\psi)=\\cos\\psi'}</Tex> 是常數，不會平均掉；而且實係數 <Tex>{'h'}</Tex> 在這兩個頻率的 <Tex>{'H'}</Tex> 必為實數
         （<Tex>{'\\phi\\in\\{0^\\circ,180^\\circ\\}'}</Tex>）：
       </p>
+      <ChapterDiagram id="D-06.9">
+        <p>
+          先看最上面：每個 sample 的乘積有一個常數項和一個兩倍頻項。再看菱形的三個出口，差別只在兩倍頻項的下場：一般情況它被平均掉（綠色），F-06.4 成立；
+          <Tex>{'\\Omega=0'}</Tex> 或 <Tex>{'\\pi'}</Tex> 時它自己變成常數，併進常數項（棕色），結果是一般式的 2 倍；<Tex>{'\\Omega'}</Tex> 靠近這兩個邊界而{' '}
+          <Tex>{'N'}</Tex> 有限時，它在一個 block 內還沒轉完一圈（紅色），單一 block 的相關會帶著 ripple。
+        </p>
+        <p>
+          圖上棕色那一格就是下面 F-06.5 的式子（<Tex>{'H'}</Tex> 在這兩個頻率是實數，可正可負）；紅色那一格的上界{' '}
+          <Tex>{'\\tfrac{A^2|H|}{2}\\min\\!\\big(1,\\tfrac{1}{N|\\sin\\Omega|}\\big)'}</Tex> 在後面「有限 <Tex>{'N'}</Tex>」的推導框裡，<Tex>{'N'}</Tex> 是 GMAC 一個 block 的
+          sample 數。
+        </p>
+      </ChapterDiagram>
       <TexBlock id="F-06.5">{String.raw`\Omega\in\{0,\pi\}:\;C_D=A^2\,H(e^{j\Omega})\cos(\Omega D)\quad(\text{一般公式的 2 倍})`}</TexBlock>
       <p>
         例：交替碼 <Tex>{'x=A(-1)^n'}</Tex>、<Tex>{'H(e^{j\\pi})=-1'}</Tex>：公式給 <Tex>{'-A^2'}</Tex>，時域平均 ={' '}

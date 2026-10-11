@@ -11,7 +11,8 @@ import {
   spurDbcSmallAngle,
   tMag2,
 } from '@/simulation/models/calNoise'
-import { CODE_TABLE_PRM, EX, Erratum, Hand, SPUR, Steps, codeLabel, codeTable, md, sig } from '../common'
+import { CODE_TABLE_PRM, Diagram, EX, Erratum, Hand, SPUR, Steps, codeLabel, codeTable, md, sig } from '../common'
+import { CHART_CODE_EXITS, CHART_PLL_LOOP, CHART_SKIRT_OR_SPUR, CHART_SPUR_FLOW, CHART_TWO_EXITS } from '../diagrams'
 
 const PATH = 'src/simulation/models/calNoise.ts'
 
@@ -33,8 +34,37 @@ export function S5Paths() {
     <>
       <Section kind="formula" title="§12.7 PD 看到 high-pass，PLL output 看到 low-pass" level={3} id="ch12-paths">
         <p>
-          同一份 DTC 擾動 <Tex>{String.raw`\delta t`}</Tex>，在 PD 和在 PLL 輸出看到的頻譜完全不同。用最簡化的平均線性 PLL（DTC 誤差在 feedback 比較路徑注入）：
+          同一份 DTC 擾動 <Tex>{String.raw`\delta t`}</Tex>，在 PD 和在 PLL 輸出看到的頻譜完全不同。先看結論：
         </p>
+        <Diagram chart={CHART_TWO_EXITS} caption={String.raw`同一個 DTC 誤差的兩個出口：往 PD 是 high-pass 的 $H_{\mathrm{PD}}$，往輸出是 low-pass 的 $T$，而且 $H_{\mathrm{PD}}+T=1$。先找分岔點。`}>
+          <p>
+            {md(
+              String.raw`先看分岔點：兩條路的輸入是同一個 $\delta t$。往 PD 的那一條要乘上 $H_{\mathrm{PD}}$，PLL 頻寬外的成分才看得到；往輸出的那一條要乘上 $T$，頻寬內的成分才跟著走——再乘上 $2\pi f_{\mathrm{out}}$ 就是輸出相位 $\phi_{\mathrm{out}}$（rad；$f_{\mathrm{out}}$ 是 PLL 的輸出頻率），或直接積分成輸出 jitter $\sigma_{t,\mathrm{out}}$。再看虛線註記：兩個轉移函數相加等於 1，所以一邊看得到的，另一邊就看不到。`,
+            )}
+          </p>
+          <p>
+            {md(
+              String.raw`和公式的對照：圖上的兩個藍色方塊就是下面的 F-12.15，$\phi_{\mathrm{out}}$ 那一格是 F-12.16，jitter 的積分是 F-12.17；PD residual 那一格的 $e_{\mathrm{PD}}=-2\pi f_{\mathrm{out}}H_{\mathrm{PD}}\,\delta t$ 是下面推導第四行（$e_{\mathrm{PD}}$ 是 PD 看到的相位誤差）。圖中的 $L$ 是 PLL 的開迴路增益。`,
+            )}
+          </p>
+        </Diagram>
+        <p>
+          {md(
+            String.raw`這兩個轉移函數從哪裡來？把 PLL 畫成最簡化的平均線性迴路，DTC 的 timing 誤差先換成相位 $\phi_{\mathrm{dtc}}=2\pi f_{\mathrm{out}}\,\delta t$，在 feedback 的比較路徑加進來：`,
+          )}
+        </p>
+        <Diagram chart={CHART_PLL_LOOP} caption={String.raw`最簡化的線性 PLL：DTC 誤差在 feedback 比較路徑加進來，$e_{\mathrm{PD}}=-(\theta_{\mathrm{out}}+\phi_{\mathrm{dtc}})$、$\theta_{\mathrm{out}}=L\,e_{\mathrm{PD}}$。先找兩個加法點，注意回到比較點的那條線帶負號；綠色兩格是解出來的兩個出口。`}>
+          <p>
+            {md(
+              String.raw`先看 $\theta_{\mathrm{out}}$ 與 $\phi_{\mathrm{dtc}}$ 相遇的加法點：輸出相位和 DTC 的等效相位相加之後，以負號回到 reference 進來的比較點，所以 PD 看到的誤差是 $e_{\mathrm{PD}}=-(\theta_{\mathrm{out}}+\phi_{\mathrm{dtc}})$。再看前向路徑：$e_{\mathrm{PD}}$ 乘上開迴路增益 $L(s)$ 得到 $\theta_{\mathrm{out}}$。最後看兩個綠色方塊：把這兩個關係聯立解出來，輸出相位是 $-T\phi_{\mathrm{dtc}}$，PD 看到的誤差是 $-H_{\mathrm{PD}}\phi_{\mathrm{dtc}}$——同一個迴路、兩個觀察點，就是上一張圖的兩個出口。`,
+            )}
+          </p>
+          <p>
+            {md(
+              String.raw`和公式的對照：兩個加法點寫成式子就是下面推導的第一、二行；兩個綠色方塊是第三、四行，也就是 F-12.15 的 $T$ 與 $H_{\mathrm{PD}}$。圖上的 $\theta_{\mathrm{out}}$ 和 F-12.16 的 $\phi_{\mathrm{out}}$ 是同一個量（$\delta t$ 在輸出造成的相位）；推導沿用規格的記號，在最後一行才改寫成 $\phi_{\mathrm{out}}$。`,
+            )}
+          </p>
+        </Diagram>
         <Steps
           title={md(String.raw`$H_{\mathrm{PD}}$ 與 $T$（相位以 output 為參考）`)}
           steps={[
@@ -61,6 +91,11 @@ export function S5Paths() {
           {String.raw`\boxed{\sigma_{t,\mathrm{out}}^2=\int_{f_L}^{f_H}|T(f)|^2S^{(1)}_{\delta t}(f)\,df}`}
         </TexBlock>
         <p>
+          {md(
+            String.raw`F-12.17 的 $\sigma_{t,\mathrm{out}}$ 是輸出 timing jitter 的 RMS（fs）；$f_L$、$f_H$ 是積分的下限與上限，也就是規格或量測指定的 offset 頻率範圍（下面三種 code 的例子用 1 kHz 到 100 MHz）。`,
+          )}
+        </p>
+        <p>
           <ClaimTag kind="approx" /> F-12.17 已經是 time-jitter PSD 的積分，相位尺度 <Tex>{String.raw`(2\pi f_{\mathrm{out}})^2`}</Tex> 在換回時間時抵消。
           直接 PD noise 路徑與 LMS 的 cross-spectrum 在此忽略（Research Backlog R1）。<strong>PD error 小，不代表 output noise 小。</strong>
         </p>
@@ -72,6 +107,18 @@ export function S5Paths() {
           的「PLL 頻寬」）內剩下多少？下表由 <code>codeSpectraAnalytic()</code> 以 F-12.13 + F-12.14 數值積分算出；最後兩欄改用 type-II PLL（<Tex>{String.raw`f_{3\mathrm{dB},T}=1\ \mathrm{MHz},\ \zeta=0.707`}</Tex>，
           積分 1 kHz–100 MHz）的 <Tex>{'|T|^2'}</Tex> 與 <Tex>{String.raw`|H_{\mathrm{PD}}|^2`}</Tex> 權重。
         </p>
+        <Diagram chart={CHART_CODE_EXITS} caption="三種 code 把功率放在不同的頻率，所以兩個出口看到的完全不同。一列一種 code，藍色是看到比較多的那個出口。">
+          <p>
+            {md(
+              String.raw`先看每一列最左邊的那一格：code 決定 $\delta t$ 的功率落在哪裡（§12.6 的三個特例），格子裡的總 RMS 是 $0$ 到 $f_s/2$ 全部加起來。再看它右邊的兩格：同一個 $\delta t$ 乘上 $|T|^2$ 是 output 看到的，乘上 $|H_{\mathrm{PD}}|^2$ 是 PD 看到的。常數 code 與 100 kHz 的單頻 code，功率都在 PLL 頻寬內，所以 output 幾乎全收、PD 只剩一點；白色 code 的功率大多在頻寬外，剛好相反。`,
+            )}
+          </p>
+          <p>
+            {md(
+              String.raw`和下表的對照：圖上每一列的三個數字，依序是下表同一列的「總 RMS」、「output」與「PD residual」三欄，由同一個函式算出。後兩欄只積分 1 kHz 到 100 MHz（圖上的虛線註記），所以白色 code 的 PD 讀數看起來比總 RMS 小很多——它的功率攤到 2 GHz，量測頻帶只涵蓋其中一小段。`,
+            )}
+          </p>
+        </Diagram>
         <div className="table-wrap">
           <table className="ch12-table">
             <thead>
@@ -162,6 +209,23 @@ export function S5Spur() {
   return (
     <>
       <Section kind="formula" title={String.raw`§12.8 Spur：13 GHz、0.5 fs peak ⇒ $-93.8$ dBc`} level={3} id="ch12-spur">
+        <p>
+          {md(
+            String.raw`如果 $\delta t$ 裡有一個單頻成分（例如 §12.6 那兩根 0.5 fs 的 tone），PLL 的輸出相位就被一個正弦波調變，載波兩側會各長出一根 spur。它有多高，只需要三個數：tone 在 DTC 端的 peak $A_t$（fs）、PLL 在該頻率的增益 $|T|$、輸出頻率 $f_{\mathrm{out}}$。三者相乘再乘 $2\pi$ 就是相位調變指數 $\beta$（rad，輸出相位擺動的 peak）。`,
+          )}
+        </p>
+        <Diagram chart={CHART_SPUR_FLOW} caption={String.raw`spur 的計算流程：timing tone 的 peak $A_t$ 換成調變指數 $\beta=2\pi f_{\mathrm{out}}|T|A_t$，再換成相對載波的分貝數 $20\log_{10}(\beta/2)$。格子裡的數字是本章的範例。`}>
+          <p>
+            {md(
+              String.raw`先由上往下沿著主線算：係數 tone 乘上 code tone，由 F-12.12 得到 DTC 端 tone 的 peak $A_t$；乘上 $|T|$ 是輸出端的 timing peak；乘上 $2\pi f_{\mathrm{out}}$（fs 要換成秒）得到調變指數 $\beta$；除以 2 是 sideband 對 carrier 的振幅比；取 $20\log_{10}$ 就是 dBc。再看旁邊那一格：輸出頻譜是載波加上兩側各一根 spur，離載波 $f_m$（tone 的頻率）。`,
+            )}
+          </p>
+          <p>
+            {md(
+              String.raw`和公式的對照：圖上藍色方塊的 $\beta$ 與下一格的 $\beta/2$ 就是 F-12.18 裡的同名量；格子裡的數字是規格 §12.4 的例子（T15），和下面推導最後兩行相同。`,
+            )}
+          </p>
+        </Diagram>
         <Prereq title="小角近似與 Bessel 展開">
           <p>
             <Tex>{String.raw`\beta\ll1`}</Tex> 時 <Tex>{String.raw`\cos\beta\approx1`}</Tex>、<Tex>{String.raw`\sin\beta\approx\beta`}</Tex>（泰勒一階）。
@@ -248,8 +312,20 @@ export function S5Spur() {
         <p>
           <strong>隨機</strong>的係數波動（LMS 的 <Tex>{String.raw`\delta w`}</Tex>）產生連續頻譜，在輸出是 phase-noise 的<strong>裙擺（skirt）</strong>，單位 dBc/Hz；
           只有<strong>相干 / 週期</strong>成分（例如 <Tex>{String.raw`\delta w`}</Tex> 被某個週期性干擾調變、或量化的 limit cycle，第 13 章）才會產生離散 spur，單位 dBc。
-          同樣的總功率，兩者讀數完全不同：
+          同樣的總功率，兩者讀數完全不同。看到頻譜上有東西時，先照下面的流程分類：
         </p>
+        <Diagram chart={CHART_SKIRT_OR_SPUR} caption="先分清楚是相干還是隨機，再決定用哪一個公式、報哪一種單位。">
+          <p>
+            {md(
+              String.raw`先看菱形：把 FFT 的紀錄長度加倍，以每個 bin 的功率（相對載波，也就是 dBc 讀數；不是除以 bin 寬之後的 PSD）來看——相干 tone 的讀數不變；隨機成分的讀數掉約 3 dB，因為 bin 的寬度變成一半，裝進去的雜訊功率也只剩一半。再看兩個出口：標著「相干」的那一邊是離散的 spur，報 dBc；標著「隨機」的那一邊是連續的裙擺，報 dBc/Hz，想要一個數字就再對頻率積分成 jitter。`,
+            )}
+          </p>
+          <p>
+            {md(
+              String.raw`和公式的對照：圖上相干的出口用 F-12.18；隨機的出口先用 F-12.16 算輸出相位的 PSD，再用 F-12.10 換成 $\mathcal L(f)$，要一個數字就用 F-12.17 積分。下表是同一個總功率分別走這兩個出口的讀數。`,
+            )}
+          </p>
+        </Diagram>
         <div className="table-wrap">
           <table className="ch12-table">
             <thead>

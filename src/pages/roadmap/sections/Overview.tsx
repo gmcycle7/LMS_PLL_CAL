@@ -2,25 +2,10 @@ import { useState } from 'react'
 import { Mermaid, ModelLevel } from '@/components'
 import { CONDITIONS, ITEMS, ITEM_STATUS_LABEL, itemStatus, statusCounts, subgoalCounts, SUB_STATUS_LABEL, type ItemId, type ItemStatus, type SubStatus } from '../data'
 import { StatusBadge } from '../common'
+import { DEPENDENCY_CHART } from '../diagrams'
 
 const SUB_ORDER: SubStatus[] = ['on-site', 'preview', 'in-analysis', 'pending', 'not-started']
 const FILTERS: (ItemStatus | 'all')[] = ['all', 'partial', 'pending', 'not-started', 'in-analysis']
-
-/** 研究題目之間的依賴（R6 → R1 表示「R6 的結果是 R1 的輸入」）。 */
-export const DEPENDENCY_CHART = `flowchart LR
-  R6["R6 Comparator 非理想"] --> R1["R1 有色 GMAC 雜訊"]
-  R1 --> R2["R2 Cyclostationary"]
-  R2 --> R10["R10 規格反推"]
-  R3["R3 量化 / limit cycle"] --> R10
-  R5["R5 Training sequence"] --> R4["R4 MIMO 更新矩陣"]
-  R4 --> R8["R8 NLMS / RLS / Kalman"]
-  R8 --> R3
-  R7["R7 事件級 PLL"] --> SS["SSPLL GOS / PHOS 極性"]
-  R7 --> R2
-  R5 --> SS
-  R9["R9 RTL bit-true / AMS"] --> R10
-  R1 --> R10
-  SS --> R10`
 
 function SubBar({ counts }: { counts: Record<SubStatus, number> }) {
   const total = SUB_ORDER.reduce((a, s) => a + counts[s], 0)

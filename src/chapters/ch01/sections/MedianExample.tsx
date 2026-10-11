@@ -33,7 +33,7 @@ import {
 import lmsSrc from '@/simulation/models/lms.ts?raw'
 import lossSrc from '@/simulation/models/lossCompare.ts?raw'
 import { Link } from 'react-router-dom'
-import { ChapterHandCalc, Erratum, f, PllLink, SpecNote, texNum, useChapterMode } from '../common'
+import { BlockDiagram, ChapterHandCalc, Erratum, f, PllLink, SpecNote, texNum, useChapterMode } from '../common'
 import { MseMaeLab } from '../experiments/MseMaeLab'
 
 const Y4 = [...FOUR_POINT_VALUES]
@@ -492,6 +492,17 @@ export function MedianExampleSection() {
           最小平方解是平均 <Tex>{texNum(ex.bo.mse)}</Tex>，最小絕對值解是中位數 <Tex>{texNum(ex.bo.maeLow)}</Tex>。
           <strong>Outlier 抵抗能力與統計最佳解都改變了。</strong> <SourceTag />
         </p>
+        <p>
+          下面把三種損失在這四筆資料上的平均成本分別記作 <Tex>{String.raw`J_{\text{MSE}}`}</Tex>、<Tex>{String.raw`J_{\text{MAE}}`}</Tex>、
+          <Tex>{String.raw`J_{\text{Huber}}`}</Tex>（也就是 <Tex>{String.raw`\rho_2`}</Tex>、<Tex>{String.raw`\rho_1`}</Tex>、<Tex>{String.raw`\rho_H`}</Tex> 的平均；
+          <Tex>{String.raw`J_{\text{MSE}}`}</Tex> 就是 §1.3 含 <Tex>{String.raw`\tfrac12`}</Tex> 的 <Tex>{'J'}</Tex>）。找最低點的方法都是「看斜率」，但兩種成本的斜率長得完全不一樣：
+        </p>
+        <BlockDiagram id="D-01.16">
+          先看左邊（MSE）：斜率是 <Tex>{'w'}</Tex> 減平均，解「斜率 = 0」就得到平均 <Tex>{texNum(ex.bo.mse)}</Tex>。再看右邊（MAE）：斜率只跟「<Tex>{'w'}</Tex>{' '}
+          下面有幾筆、上面有幾筆」有關，跟資料離多遠無關——上面多就往上移、下面多就往下移，移到斜率由負變正的地方停下來，那就是中位數{' '}
+          <Tex>{texNum(ex.bo.maeLow)}</Tex>。outlier <Tex>{'10'}</Tex> 在右邊只算「一筆」，在左邊卻用它的大小去拉平均。圖上右邊的斜率就是 F-01.13 的{' '}
+          <Tex>{String.raw`\big(\#\{y_i<w\}-\#\{y_i>w\}\big)/N`}</Tex>，其中 <Tex>{String.raw`\#\{\cdot\}`}</Tex> 表示「滿足括號內條件的資料筆數」、<Tex>{'N=4'}</Tex>。
+        </BlockDiagram>
         {atLeast('engineer') ? (
           <>
             {mseDeriv}
@@ -630,7 +641,17 @@ export function MedianExampleSection() {
       <Section kind="formula" title="2.3.1 逐筆更新會停在哪裡？LMS → 平均、Sign-Error → 中位數" level={3} id="ch01-s231">
         <p>
           LMS 與 Sign-Error 都是一筆一筆隨機抽資料（這裡從 <Tex>{String.raw`\{0,0,0,10\}`}</Tex> 等機率抽、<Tex>{String.raw`x\equiv1`}</Tex>）。
-          <strong>平均更新量由正轉負的地方</strong>就是它們的「目標」——左邊平均往上推、右邊平均往下推：
+          <strong>平均更新量由正轉負的地方</strong>就是它們的「目標」——左邊平均往上推、右邊平均往下推。先把兩個迴路畫出來：
+        </p>
+        <BlockDiagram id="D-01.17">
+          先看兩列共同的部分：量測 <Tex>{'y_n'}</Tex> 減掉暫存器裡的 <Tex>{'w_n'}</Tex> 得到誤差 <Tex>{'e_n'}</Tex>，乘上 <Tex>{'\\mu'}</Tex> 後累加回 <Tex>{'w'}</Tex>。再看唯一不同的藍色那一格：
+          上面讓 <Tex>{'e_n'}</Tex> 原樣通過，所以每步走 <Tex>{String.raw`\mu e_n`}</Tex>，離得遠走得多——它是一個會慢慢忘掉舊資料的平均器，停在平均。下面只留{' '}
+          <Tex>{String.raw`\operatorname{sign}(e_n)`}</Tex>，每步固定走 <Tex>{String.raw`\pm\mu`}</Tex>——它像一個上下數的計數器，往上與往下的次數一樣多時才不再漂移，那個位置是中位數。
+          圖上兩列的平均更新量就是下面兩條式子：上面是 <Tex>{String.raw`\mu E[y-w]`}</Tex>，下面是 <Tex>{String.raw`\mu E[\operatorname{sign}(y-w)]`}</Tex>。
+        </BlockDiagram>
+        <p className="small">
+          下面式子裡的 <Tex>{String.raw`P(\cdot)`}</Tex> 是事件的機率（重複很多次時該事件發生的比例）：從 <Tex>{String.raw`\{0,0,0,10\}`}</Tex> 等機率抽一筆，
+          <Tex>{String.raw`P(y=0)=\tfrac34`}</Tex>、<Tex>{String.raw`P(y=10)=\tfrac14`}</Tex>。
         </p>
         <TexBlock
           label={
@@ -683,8 +704,16 @@ export function MedianExampleSection() {
           <strong>
             約 <Tex>{String.raw`\pm\mu|x|`}</Tex> 的帶
           </strong>
-          內，時間平均與中位數的差是 <Tex>{String.raw`O(\mu|x|)`}</Tex> <Erratum id="E40" />：
+          內。把 <Tex>{'w_n'}</Tex> 長時間的平均記作 <Tex>{String.raw`\overline w`}</Tex>（時間平均），它與中位數的差是 <Tex>{String.raw`O(\mu|x|)`}</Tex>{' '}
+          <Erratum id="E40" />。把「在哪一格、下一步往哪走」畫成狀態圖最清楚（<Tex>{'w_0=0'}</Tex>、<Tex>{String.raw`\operatorname{sign}(0)=0`}</Tex>）：
         </p>
+        <BlockDiagram id="D-01.18">
+          每個圓角方塊是 <Tex>{'w'}</Tex> 可能待的一格（<Tex>{String.raw`0,\ \mu,\ 2\mu,\dots`}</Tex>），箭頭上是走那條路的機率。先看藍色的 <Tex>{'w=0'}</Tex>：抽到 0（機率{' '}
+          <Tex>{String.raw`\tfrac34`}</Tex>）時 <Tex>{'e=0'}</Tex>、原地不動，抽到 10（機率 <Tex>{String.raw`\tfrac14`}</Tex>）才往右一格。再看右邊每一格：往左回去的機率都是{' '}
+          <Tex>{String.raw`\tfrac34`}</Tex>、往右只有 <Tex>{String.raw`\tfrac14`}</Tex>，所以越右邊越少去，待在第 <Tex>{'k'}</Tex> 格的時間比例是 <Tex>{String.raw`\tfrac23\cdot3^{-k}`}</Tex>。
+          把圖上每一格的位置乘上待在那裡的比例再加起來，就是下式右邊 <Tex>{String.raw`\operatorname{sign}(0)=0`}</Tex> 那一列的 <Tex>{String.raw`\overline w=\mu/2`}</Tex>；
+          換成另外兩種 tie 慣例，只會改變 <Tex>{'w=0'}</Tex> 那一格的箭頭（Research 模式有完整推導）。
+        </BlockDiagram>
         <TexBlock
           id="F-01.16"
           label={
@@ -832,6 +861,17 @@ export function MedianExampleSection() {
             </li>
           </ul>
         </Prereq>
+        <p>
+          為什麼會變寬、寬多少？關鍵是把只會輸出 <Tex>{String.raw`\pm1`}</Tex> 的 <Tex>{String.raw`\operatorname{sign}`}</Tex> 拆成兩部分：「平均起來」它像一個固定增益，剩下的當成每一步注入的抖動。
+          令 <Tex>{'m'}</Tex> 是資料的中位數、<Tex>{'d_n=w_n-m'}</Tex> 是離中位數多遠，<Tex>{'f(m)'}</Tex> 是資料的機率密度在中位數的值（上面的先備知識框）：
+        </p>
+        <BlockDiagram id="D-01.19">
+          先看藍色方塊：<Tex>{'w'}</Tex> 比中位數高一點（<Tex>{'d_n>0'}</Tex>），往下走的機率就比往上多一點，平均方向是 <Tex>{'-K_qd_n'}</Tex>——
+          <Tex>{'K_q=2f(m)'}</Tex> 是 Sign-Error 的等效小訊號增益：雜訊的密度越高（雜訊越小），正負號對位置越敏感。再看另一條進加法點的 <Tex>{String.raw`\xi_n`}</Tex>：每一步的方向{' '}
+          <Tex>{'s_n'}</Tex> 終究只能是 <Tex>{'+1'}</Tex> 或 <Tex>{'-1'}</Tex>，扣掉平均後剩下的零均值部分就是它。最後乘上 <Tex>{'\\mu'}</Tex>、累加回去。
+          圖上的迴路就是下面推導的兩行：<Tex>{String.raw`d_{n+1}=d_n+\mu s_n`}</Tex> 與 <Tex>{String.raw`E[s_n\mid d_n]\approx-K_qd_n`}</Tex>；回授拉回的量和每步注入的{' '}
+          <Tex>{String.raw`\mu^2`}</Tex> 平衡，得到 F-01.18 的 <Tex>{String.raw`\mu/(2K_q)`}</Tex>。
+        </BlockDiagram>
         {atLeast('engineer') ? jitterDeriv : <Derivation title="連續雜訊下 Sign-Error 抖動的推導" derivation={jitterDeriv} level="L0" claim="approx" />}
         <TexBlock
           id="F-01.18"
@@ -849,7 +889,7 @@ export function MedianExampleSection() {
           <Tex>{String.raw`z=t^*/\sigma_v`}</Tex> 時，近似的 std 比精確值小約 <Tex>{String.raw`\kappa/4`}</Tex>，
           <Tex>{String.raw`\kappa=(1+z^2)\,x^2\operatorname{Var}(w_\infty)/\sigma_v^2`}</Tex>（<Tex>{String.raw`x\equiv A`}</Tex>；<code>signErrorDiffusionKappa</code>）。沒有 outlier 時{' '}
           <Tex>{String.raw`z=0`}</Tex>、<Tex>{String.raw`\kappa=\tfrac{\pi}{2}\mu x^2f_{\tilde v}`}</Tex>，和 (2) 是同一件事；但單邊 outlier 把中位數推到主體的尾巴時{' '}
-          <Tex>{String.raw`f_{\tilde v}`}</Tex> 變小，(2) 看起來更容易滿足，近似卻變差——例如 <Tex>{String.raw`\varepsilon=0.45,\ \mu=0.2`}</Tex> 時{' '}
+          <Tex>{String.raw`f_{\tilde v}`}</Tex> 變小，(2) 看起來更容易滿足，近似卻變差——例如 outlier 出現的機率 <Tex>{String.raw`\varepsilon=0.45`}</Tex>、<Tex>{String.raw`\mu=0.2`}</Tex> 時{' '}
           <Tex>{String.raw`\mu f_{\tilde v}\approx0.018`}</Tex>，近似的 std 卻比格點鏈小三成以上。污染資料要看 <Tex>{String.raw`\kappa`}</Tex>（§2.6.1 的綜合手算以{' '}
           <Tex>{String.raw`\kappa\le0.2`}</Tex> 為界）。一般的 <Tex>{'x'}</Tex>（<Tex>{String.raw`x\equiv A`}</Tex>、<Tex>{String.raw`\pm A`}</Tex>、Gaussian）代入同樣的推導，
           漂移與每步能量都多一個 <Tex>{'E[x^2]'}</Tex>，相除後消掉——結果與 <Tex>{'|x|'}</Tex> 無關（見 <code>core:signErrorJitter</code> 的註解；
@@ -934,6 +974,11 @@ export function MedianExampleSection() {
             <Tex>{'\\varepsilon'}</Tex> 出現 <Tex>{'o=+s'}</Tex>。平均被拉到 <Tex>{'a+\\varepsilon s'}</Tex>；中位數 <Tex>{'a+m'}</Tex> 滿足 CDF ={' '}
             <Tex>{String.raw`\tfrac12`}</Tex>：
           </p>
+          <BlockDiagram id="D-01.20">
+            先看左邊三個來源怎麼加成量測 <Tex>{'y'}</Tex>：真值 <Tex>{'a'}</Tex>、Gaussian 雜訊 <Tex>{'v'}</Tex>，以及偶爾出現的 outlier <Tex>{'o'}</Tex>（機率{' '}
+            <Tex>{'\\varepsilon'}</Tex> 是 <Tex>{'+s'}</Tex>，其餘時候是 0）。再看右邊兩種目標：平均（紅色）被拉走 <Tex>{String.raw`\varepsilon s`}</Tex>，outlier 多大就拉多遠；
+            中位數（綠色）只被拉走 <Tex>{'m'}</Tex>，因為它只在乎 outlier 佔了幾成、不在乎多大。圖上的 <Tex>{'m'}</Tex> 就是下式要解的未知數。
+          </BlockDiagram>
           <TexBlock id="F-01.17" label="單邊污染的中位數">
             {String.raw`(1-\varepsilon)\,\Phi\!\Big(\frac{m}{\sigma}\Big)+\varepsilon\,\Phi\!\Big(\frac{m-s}{\sigma}\Big)=\tfrac12\ \xrightarrow{s\gg\sigma}\ m\approx\sigma\,\Phi^{-1}\!\Big(\frac{1}{2(1-\varepsilon)}\Big)`}
           </TexBlock>

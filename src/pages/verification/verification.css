@@ -373,3 +373,50 @@ a.ver-chip:hover {
 .ver-plot-grid > * {
   min-width: 0;
 }
+
+/* ───── 方塊圖版位：圖 + 圖說，下面緊接「先看…再看…」的導讀（docs/teaching-style.md §8） ───── */
+.ver-diagram {
+  margin: 1rem 0 1.1rem;
+  min-width: 0;
+}
+.ver-diagram .c-mermaid {
+  margin-bottom: 0.4rem;
+}
+.ver-diagram-walk {
+  border-left: 3px solid var(--accent);
+  padding: 0.1rem 0 0.1rem 0.75rem;
+  font-size: 0.93rem;
+}
+.ver-diagram-walk > p {
+  margin: 0.35rem 0;
+}
+
+/* ───── 頁首「本頁符號表在最後」與頁尾符號表的頁內跳轉（docs/teaching-style.md §5） ───── */
+.ver-symbols-link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin: 10px 0;
+}
+.ver-linkbtn {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.ver-linkbtn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+.ver #symbols {
+  scroll-margin-top: 72px;
+}

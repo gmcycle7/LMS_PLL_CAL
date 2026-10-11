@@ -17,6 +17,8 @@ import {
 import { isWorkerCancelled, useWorkerTask } from '@/workers'
 import optimizerSrc from '@/simulation/models/optimizer.ts?raw'
 import { comparatorKq, msdSplit, optimizeMu, type LinearityCheckParams, type LinearityCheckResult } from '@/simulation/models/optimizer'
+import { Diagram } from '../Diagram'
+import { CHART_E48_REGIMES, CHART_MSD_SPLIT, CHART_POLE_REGIMES, CHART_SAMPLE_TO_BLOCK } from '../diagrams'
 import { Hand } from '../Hand'
 import { BIAS2, ErratumNote, md, nf, Steps, tx } from '../shared'
 
@@ -127,8 +129,31 @@ export function S2Msd() {
   return (
     <Section kind="formula" level={2} title={md(String.raw`14.1 一步一步推導 $E[\delta_B^2]$：$\text{bias}^2+\text{variance}$`)} id="ch14-msd">
       <p>
-        <ModelLevel level="L1" /> 單參數、近鎖定、每個 block 的 GMAC 雜訊 iid。我們要算 B 次更新後的均方誤差 <Tex>{'E[\\delta_B^2]'}</Tex>。
+        <ModelLevel level="L1" /> 單參數、近鎖定、每個 block 的 GMAC 雜訊 iid。我們要算 B 次更新後的均方誤差 <Tex>{'E[\\delta_B^2]'}</Tex>。推導之前先看兩張圖：第一張說明「每個 block 的一個數 <Tex>{'G_k'}</Tex>」是怎麼從{' '}
+        <Tex>{'N'}</Tex> 個 comparator 樣本來的，第二張說明 <Tex>{'B'}</Tex> 個 block 之後的誤差由哪兩部分組成。
       </p>
+      <Diagram chart={CHART_SAMPLE_TO_BLOCK} caption="從 sample rate 到 block rate：標著 sample rate 的框每個 comparator 樣本做一次，標著 block rate 的框每 $N$ 個樣本才做一次；虛線表示誤差在一個 block 內不變。">
+        <p>
+          <strong>先看</strong>標著 sample rate 的框（索引 <Tex>{'n'}</Tex>），由左到右：code <Tex>{'x[n]'}</Tex> 經過 PLL 誤差路徑變成 <Tex>{'u[n]'}</Tex>，乘上這個 block 的誤差 <Tex>{'\\delta_k'}</Tex>，再和 RMS 為 <Tex>{'\\sigma_v'}</Tex> 的雜訊 <Tex>{'v[n]'}</Tex> 在加法點相加（兩條線都是正號），
+          得到 comparator 看到的 <Tex>{'e[n]=\\delta_k\\,u[n]+v[n]'}</Tex>。comparator 只輸出正負號 <Tex>{'q[n]=\\pm1'}</Tex>，再乘上 code <Tex>{'x[n]'}</Tex>。<strong>再看</strong>標著 block rate 的框（索引 <Tex>{'k'}</Tex>，更新率 <Tex>{'f_u=f_s/N'}</Tex>）：GMAC 把 <Tex>{'N'}</Tex> 個{' '}
+          <Tex>{'q[n]x[n]'}</Tex> 平均成一個數 <Tex>{'G_k'}</Tex>，乘 <Tex>{'\\mu'}</Tex> 加進暫存器。虛線是回授：整個 block 內 <Tex>{'w_k'}</Tex> 不變（新的 <Tex>{'w_{k+1}'}</Tex> 要到下個 block 才生效，這就是「無更新延遲 <Tex>{'d=0'}</Tex>」的意思），所以 <Tex>{'\\delta_k'}</Tex> 在 <Tex>{'N'}</Tex> 個樣本內也不變。
+        </p>
+        <p>
+          圖上加法點輸出的「<Tex>{'e[n]=\\delta_k\\,u[n]+v[n]'}</Tex>」就是 comparator 的輸入；藍色方塊輸出的「<Tex>{'G_k\\approx K\\delta_k+\\eta_k'}</Tex>」是下面推導的第 1 步：平均值對誤差的斜率 <Tex>{'K=K_qC'}</Tex>（<Tex>{'K_q=\\sqrt{2/\\pi}/\\sigma_v'}</Tex> 是 comparator 的小訊號增益，<Tex>{'C=E[x\\,u]'}</Tex>{' '}
+          是 <Tex>{'x'}</Tex> 與 <Tex>{'u'}</Tex> 的有效相關），<Tex>{'\\eta_k'}</Tex> 是平均不掉的隨機部分；block rate 框裡的更新式則是第 2 步。
+        </p>
+      </Diagram>
+      <Diagram chart={CHART_MSD_SPLIT} caption="把遞迴展開後的兩條路：一條是初始誤差留下來的部分，另一條是累積的雜訊；兩條路互不干擾，平方後各自變成一塊。">
+        <p>
+          <strong>先看</strong>從 <Tex>{'\\delta_0'}</Tex> 出發的那條路：初始誤差每過一個 block 乘一次 pole <Tex>{'p=1-\\mu K'}</Tex>，<Tex>{'B'}</Tex> 個 block 後剩下 <Tex>{'p^B\\delta_0'}</Tex>，這就是平均誤差 <Tex>{'E[\\delta_B]'}</Tex>。
+          <strong>再看</strong>從雜訊出發的那條路：第 <Tex>{'k'}</Tex> 個 block 進來的雜訊 <Tex>{'\\eta_k'}</Tex> 先乘 <Tex>{'\\mu'}</Tex>，之後還要再被 <Tex>{'p'}</Tex> 乘 <Tex>{'B-1-k'}</Tex> 次，所以越早進來的雜訊留下的越少；全部加起來，在加法點以負號併入（來自{' '}
+          <Tex>{'\\delta=a-w'}</Tex> 的極性）。
+        </p>
+        <p>
+          圖上藍色方塊就是公式裡的 {BIAS2} <Tex>{'=\\delta_0^2p^{2B}'}</Tex>（初始誤差那條路的平方），棕色方塊就是 variance（雜訊那條路的變異數）；兩條路的交叉項因為 <Tex>{'E[\\eta_k]=0'}</Tex> 而消失，所以均方誤差就是兩塊相加——這正是推導最後得到的
+          F-14.3。進加法點的兩條線合起來，是推導第 4 步的 <Tex>{'\\delta_B=p^B\\delta_0-\\mu\\sum_k p^{B-1-k}\\eta_k'}</Tex>。
+        </p>
+      </Diagram>
       <Steps
         title="從 GMAC 線性化到封閉式"
         steps={[
@@ -214,7 +239,8 @@ export function S2Msd() {
         {String.raw`\frac{\mu^2}{1-p^2}=\frac{\mu}{K(2-\mu K)},\qquad \sigma_w^2=\frac{\mu\sigma_\eta^2}{K(2-\mu K)}\approx\frac{\mu\sigma_\eta^2}{2K}\ (g\ll1)`}
       </TexBlock>
       <p>
-        小 <Tex>{'g'}</Tex> 時 <Tex>{'\\sigma_w^2\\propto\\mu'}</Tex>：<strong><Tex>{'\\mu'}</Tex> 減半，穩態雜訊功率減半、RMS 只減 <Tex>{'\\sqrt2'}</Tex> 倍</strong>；但收斂時間 <Tex>{'\\tau\\approx1/g'}</Tex> 加倍。這就是整章的取捨。
+        這裡 <Tex>{'\\sigma_w^2'}</Tex> 是跑了很久之後係數誤差的變異數（穩態雜訊，§12）。小 <Tex>{'g'}</Tex> 時 <Tex>{'\\sigma_w^2\\propto\\mu'}</Tex>：<strong><Tex>{'\\mu'}</Tex> 減半，穩態雜訊功率減半、RMS 只減 <Tex>{'\\sqrt2'}</Tex> 倍</strong>；但收斂的時間常數{' '}
+        <Tex>{'\\tau\\approx1/g'}</Tex>（平均誤差縮到 <Tex>{'1/e'}</Tex> 所需的 block 數）加倍。這就是整章的取捨。
       </p>
       <Hand id="HC-14.3">
         「<Tex>{'\\mu'}</Tex> 減半，RMS 只減 <Tex>{'\\sqrt2'}</Tex> 倍、時間卻加倍」——不要只是相信，代兩個候選 <Tex>{'\\mu'}</Tex> 自己算算看（預設的候選 A 就是測試 T13 的條件；時間常數 <Tex>{'\\tau=-1/\\ln|p|'}</Tex> 在 §14.2 (b) 會再出現）。
@@ -223,6 +249,19 @@ export function S2Msd() {
       <h3>
         邊界情況：<Tex>{'|p|=1'}</Tex>（勘誤 E48）
       </h3>
+      <p>
+        F-14.3 的分母 <Tex>{'1-p^2'}</Tex> 在 <Tex>{'p=\\pm1'}</Tex> 時是 0。先看 <Tex>{'g=\\mu K'}</Tex> 從 0 一路加大時，pole <Tex>{'p=1-g'}</Tex> 會經過哪些區段，就知道哪兩個點要特別處理：
+      </p>
+      <Diagram chart={CHART_POLE_REGIMES} caption={String.raw`迴路增益 $g=\mu K$ 從上到下加大時 pole $p=1-g$ 的走向：綠色是安全區，藍色是一步到位，棕色仍收斂但會正負交替，紅色是 $|p|\ge1$ 的不收斂區。`}>
+        <p>
+          <strong>先看</strong>最上面的紅色方塊：<Tex>{'g=0'}</Tex> 代表 <Tex>{'K=0'}</Tex>（<Tex>{'C=0'}</Tex>，GMAC 對誤差沒有反應），<Tex>{'p=1'}</Tex>，誤差既不增也不減，雜訊一直累積。<strong>再看</strong>往下的主線：<Tex>{'g'}</Tex> 加大，<Tex>{'p'}</Tex> 從 1 掉到 0（藍色，<Tex>{'g=1'}</Tex>，一步到位）、再變成負的（棕色，
+          平均誤差每個 block 正負交替，但幅度仍衰減）。<strong>最後看</strong>最下面兩個紅色方塊：<Tex>{'g=2'}</Tex> 時 <Tex>{'p=-1'}</Tex>，幅度不再衰減；<Tex>{'g>2'}</Tex> 時 <Tex>{'|p|>1'}</Tex>，指數發散。
+        </p>
+        <p>
+          圖上的 <Tex>{'p=1-g'}</Tex> 就是 F-14.1 的 pole；兩個 <Tex>{'|p|=1'}</Tex> 的端點（<Tex>{'g=0'}</Tex> 與 <Tex>{'g=2'}</Tex>）就是下面 F-14.4 要處理的邊界情況；藍色的 <Tex>{'g=1'}</Tex> 就是 §14.2 (b) 的 F-14.10；每個方塊的 phase margin 來自{' '}
+          <Tex>{'PM=90^\\circ-\\arcsin(g/2)'}</Tex>（F-14.14）。
+        </p>
+      </Diagram>
       <Steps
         steps={[
           { tex: String.raw`p^2=1\ \Rightarrow\ \frac{1-p^{2B}}{1-p^2}=\frac00\ (\text{不能直接代})`, why: <><Tex>{'g=0'}</Tex> 或 <Tex>{'g=2'}</Tex> 時分子分母都是 0。</> },
@@ -245,6 +284,19 @@ export function S2Msd() {
       <h3>
         何時失效：<Tex>{'\\delta_0'}</Tex> 大時的 slew-limited 區（勘誤 E48）
       </h3>
+      <p>
+        線性化 <Tex>{'G_k\\approx K\\delta_k+\\eta_k'}</Tex> 只在誤差遠小於 comparator 雜訊時成立。誤差大時 comparator 幾乎每次都輸出同一個正負號，GMAC 的輸出頂到天花板（<Tex>{'|G_k|\\le\\max|x|'}</Tex>），誤差再大也不會修得更快——這叫
+        slew-limited。所以用公式之前，要先判斷自己在哪一區：
+      </p>
+      <Diagram chart={CHART_E48_REGIMES} caption="先判斷誤差落在哪一區，再決定用哪條公式：綠色可以用線性公式，紅色只能用 slew-limited 估計或 Monte Carlo。">
+        <p>
+          <strong>先看</strong>最上面的菱形：拿誤差 <Tex>{'|\\delta|'}</Tex> 和 comparator 雜訊 <Tex>{'\\sigma_v'}</Tex> 比。綠色的分支是線性區，F-14.3 可以直接用；紅色的分支是 slew-limited 區，每個 block 最多只能移動{' '}
+          <Tex>{'\\mu\\max|x|'}</Tex>，要改用 F-14.5 估 block 數；沒有著色的分支是兩者之間的過渡區，F-14.3 開始低估。<strong>再看</strong>虛線：coarse 階段把誤差拉下來之後，就回到綠色的線性區，Fine／Track 階段才用 F-14.3 設計。
+        </p>
+        <p>
+          圖上紅色方塊裡的「<Tex>{'|G_k|'}</Tex> 最大只有 <Tex>{'\\max|x|'}</Tex>」就是下面「Coarse 階段的粗估」第 1 步的不等式；兩個分界值（<Tex>{'0.2\\sigma_v'}</Tex>、<Tex>{'0.5\\sigma_v'}</Tex>）來自下表的 Monte Carlo。
+        </p>
+      </Diagram>
       <E48Table />
       <Steps
         title="Coarse 階段的粗估"

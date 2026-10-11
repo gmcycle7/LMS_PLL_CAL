@@ -2,6 +2,7 @@ import {
   Callout,
   ClaimTag,
   CodeCompare,
+  Mermaid,
   ModeGate,
   Quiz,
   Section,
@@ -18,6 +19,7 @@ import {
 } from '@/simulation/models/stability'
 import { ErratumNote, Expand, fx, HandCalcSlot, rich } from '../common'
 import { formula } from '../formulas'
+import { POLARITY_PATH_CHART, POLARITY_WRAP_CHART, TWO_MARGINS_CHART } from '../diagrams'
 
 const THETAS = [0, 45, 60, 89, 90, 120, 150, 180, 200, -150, 270, -300]
 const SRC_PATH = 'src/simulation/models/stability.ts'
@@ -27,14 +29,53 @@ export function Polarity() {
   return (
     <Section kind="formula" title="§8.1 Polarity margin：只看「更新方向」的工程指標" level={2} id="ch08-polarity">
       <p>
-        先回顧 Ch06：單頻 code <Tex>{'x[n]=A\\cos\\Omega n'}</Tex> 經過 PLL error path（增益 <Tex>{'|H|'}</Tex>、相位 <Tex>{'\\phi'}</Tex>）並加上 GMAC 的 code
-        delay <Tex>{'D'}</Tex> 之後，GMAC 量到的平均相關是
+        {rich(
+          String.raw`先回顧 Ch06：GMAC 把 comparator 前的誤差訊號和 code 相乘再平均，用這個「相關」的正負決定 $w$ 往哪邊修。拿單頻 code $x[n]=A\cos\Omega n$ 來看（$A$ 是振幅；$\Omega$ 是 code 在 comparator rate 上的離散頻率，單位 rad/sample；$n$ 是 sample 編號），它分兩條路走到乘法器：`,
+        )}
       </p>
+      <ul>
+        <li>
+          {rich(
+            String.raw`一條經過 PLL error path $H$，變成 comparator 前的訊號 $u[n]$：振幅乘上 $|H|$、相位多了 $\phi$。`,
+          )}
+        </li>
+        <li>{rich(String.raw`另一條是 GMAC 自己留著當參考的 code，只被延遲 $D$ 個 sample（code delay），變成 $x[n-D]$。`)}</li>
+      </ul>
+      <Mermaid
+        caption={String.raw`單頻 code 的兩條路徑：看兩條線在乘法器相遇時差了多少相位（藍色方塊裡的 $\theta$），以及 $\cos\theta$ 的正負怎麼決定更新方向`}
+        chart={POLARITY_PATH_CHART}
+      />
+      <p className="small">
+        {rich(
+          String.raw`讀圖：先看經過「PLL error path H」的那條線——code 帶著相位 $\phi$ 到乘法器；再看經過「code delay」的那條線——同一個 code 晚了 $D$ 個 sample，相當於在頻率 $\Omega$ 上轉了 $\Omega D$。兩條線相乘再平均，只剩下「相位差的 $\cos$」（圖上乘的是 comparator 前的 $u[n]$；實際的 GMAC 乘的是 comparator 的 1-bit 輸出，小誤差時平均起來是 $K_q\,\delta\cdot C$（$\delta=a-w$ 是還沒修掉的誤差，$K_q>0$ 是 Ch05 的 comparator 統計增益）——多出來的 $K_q\delta$ 與相位無關，所以不影響這裡要看的 $\cos\theta$ 正負）。圖上藍色方塊裡的 $\theta=\phi+\Omega D$ 就是下面公式裡的 $\theta$，$C$ 就是公式左邊的平均相關；最右邊三個分支對應 $\cos\theta$ 大於、等於、小於 $0$。`,
+        )}
+      </p>
+      <p>把圖寫成公式，GMAC 量到的平均相關是</p>
       <TexBlock>{String.raw`E\big[x[n-D]\,u[n]\big]=\frac{A^2}{2}\,|H|\cos\theta,\qquad \theta=\phi+\Omega D .`}</TexBlock>
       <p>
-        平均更新的「恢復力」正比於 <Tex>{'\\cos\\theta'}</Tex>：<Tex>{'\\cos\\theta>0'}</Tex> 時 <Tex>{'w'}</Tex> 被拉向 <Tex>{'a'}</Tex>，
+        {rich(
+          String.raw`這裡 $E[\cdot]$ 是「對很多個 sample 取平均」，$\theta$ 是兩條路徑的總相位差（單位：度）。`,
+        )}
+        平均更新的「恢復力」正比於 <Tex>{'\\cos\\theta'}</Tex>：<Tex>{'\\cos\\theta>0'}</Tex> 時 <Tex>{'w'}</Tex> 被拉向真實增益 <Tex>{'a'}</Tex>，
         <Tex>{'\\cos\\theta<0'}</Tex> 時被推離（極性錯誤），<Tex>{'\\cos\\theta=0'}</Tex> 時完全沒有恢復力。規格 §8.1 把「<Tex>{'\\theta'}</Tex> 離 <Tex>{'\\pm90^\\circ'}</Tex> 的邊界還有多遠」定義成
-        polarity margin。
+        polarity margin，記成 <Tex>{'M_{\\mathrm{polarity}}'}</Tex>（單位：度；正的代表方向正確）。
+        {rich(
+          String.raw`公式裡的 $\mathrm{wrap}_{180}(\theta)$ 是「把角度折回 $[-180^\circ,180^\circ)$」的函數——轉一整圈（$360^\circ$）不改變方向，所以先折回來再量距離。`,
+        )}
+      </p>
+      <p>
+        {rich(
+          String.raw`實際要算的時候照下面的順序做——折回後的角度記成 $\psi=\mathrm{wrap}_{180}(\theta)$；本節後面的手算題 HC-08.1 用的就是這幾步：`,
+        )}
+      </p>
+      <Mermaid
+        caption={String.raw`Polarity margin 的手算順序：上面那一排是「先折回、再量距離」，綠色是免折回的捷徑，紅色是把週期錯當成 $180^\circ$ 的寫法（勘誤 E20）`}
+        chart={POLARITY_WRAP_CHART}
+      />
+      <p className="small">
+        {rich(
+          String.raw`讀圖：先看最上面那一排——$\theta$ 加 $180^\circ$、除以 $360^\circ$ 取非負餘數、再減 $180^\circ$，得到落在 $[-180^\circ,180^\circ)$ 的 $\psi$；取絕對值後用 $90^\circ$ 去減，就是藍色的 $M$。這幾步合起來就是下面 F-08.1 的第一個等號加上 $\mathrm{wrap}_{180}$ 的定義。再看綠色的捷徑——直接按 $\arcsin(\cos\theta)$，答案一樣，這是 F-08.1 的第二個等號（下面的推導框證明兩者相等）。最後看紅色的那一條——只要把「除以 $360^\circ$」寫成「除以 $180^\circ$」，$\theta=-150^\circ$ 就會算出 $+60^\circ$（正確是 $-60^\circ$）：極性錯誤被顯示成正的 margin。`,
+        )}
       </p>
       <TexBlock id="F-08.1" label={rich(String.raw`Polarity margin 與 $\mathrm{wrap}_{180}$ 的精確定義（E20）`)}>
         {formula('F-08.1').tex}
@@ -117,6 +158,24 @@ export function Polarity() {
         ]}
         caption={String.raw`差異行以「← 差異」標出。單元測試在 2 萬個角度上確認前兩者差 $<10^{-9}$ 度，並與 pll.ts 的 polarityMarginDeg 一致。`}
       />
+
+      <h4>Polarity margin 過了，還有第二關</h4>
+      <p>
+        {rich(
+          String.raw`$M_{\mathrm{polarity}}>0$ 只代表「往對的方向修」。修的`,
+        )}
+        <strong>量</strong>
+        {rich(String.raw`太大、或用的資訊太舊，迴路照樣會振盪——那是另一個檢查，叫 calibration phase margin（§8.2 起）。設計審查時兩關要分開過：`)}
+      </p>
+      <Mermaid
+        caption="設計審查的兩關：第 1 關（polarity）看方向，第 2 關（phase margin）看動態；注意兩關的頻率軸、失敗的樣子與修法都不同"
+        chart={TWO_MARGINS_CHART}
+      />
+      <p className="small">
+        {rich(
+          String.raw`讀圖：先看第 1 關的菱形——它問的是本節的 $M=\arcsin(\cos\theta)$ 是不是正的；不過的話（紅色）誤差會單調漂走，而且把學習率 $\mu$ 調小也救不回來，因為 $\mu$ 不會改變 $\cos\theta$ 的符號。再看第 2 關的菱形——它問的是閉迴路 poles（閉迴路轉移函數分母為零的點，§8.2 會定義）是不是都在單位圓內；不過的話是振盪發散，這時調小 $\mu$ 才有用。圖上兩關各自標的頻率軸不同：$\Omega$ 以 comparator sample 計，$\omega$ 以 GMAC block 計。`,
+        )}
+      </p>
 
       <Callout kind="warn" title={String.raw`Polarity margin $\ne$ Phase margin`}>
         <p>

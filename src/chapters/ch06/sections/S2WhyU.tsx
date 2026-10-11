@@ -1,17 +1,5 @@
-import { ClaimTag, Mermaid, Prereq, Section, StepDerivation, Tex, TexBlock } from '@/components'
-import { ChapterSection, StepBox } from '../shared'
-
-const LOOP_CHART = `flowchart LR
-  X["原始 code x[n]"] --> DTC["DTC 誤差 ε = (a−w)·x"]
-  DTC --> SUM(("Σ"))
-  SUM --> PD["PD 誤差 e_PD"]
-  PD --> LF["Loop filter + DCO + divider：L"]
-  LF -->|"回授修正 φ_fb = L·e_PD"| SUM
-  PD --> CMP["comparator q = sign(e_PD + v)"]
-  CMP --> GMAC["GMAC：(1/N)Σ q·x[n−D]"]
-  X --> GMAC
-  GMAC --> W["w ← w + μ·G"]
-  W --> DTC`
+import { ClaimTag, Prereq, Section, StepDerivation, Tex, TexBlock } from '@/components'
+import { ChapterDiagram, ChapterSection, StepBox } from '../shared'
 
 /** §2 為什麼 PD 看到 u = h * x（LTI、卷積、Z 轉換、頻率響應的先備知識 + 1/(1+L) 推導） */
 export function S2WhyU() {
@@ -27,8 +15,21 @@ export function S2WhyU() {
     >
       <p>
         這一節要說清楚兩件事：（1）主 PLL 對 DTC 誤差的作用可以用一個<strong>線性非時變（LTI）</strong>系統描述；
-        （2）這個系統的轉移函數是 <Tex>{'H_{\\mathrm{PD}}=1/(1+L)'}</Tex>。以下四個先備知識框從微積分程度開始講。
+        （2）這個系統的轉移函數是 <Tex>{'H_{\\mathrm{PD}}=1/(1+L)'}</Tex>，其中 <Tex>{'L'}</Tex> 是主 PLL 的<strong>開迴路增益</strong>（訊號沿迴路繞一圈被乘上的倍數）。
+        先看一張圖，知道「濾波」在離散時間裡長什麼樣子；圖下面的四個先備知識框再從微積分程度開始講。
       </p>
+
+      <ChapterDiagram id="D-06.2">
+        <p>
+          先看藍色的 <Tex>{'z^{-1}'}</Tex> 方塊：每一個都把訊號延遲一個 sample，所以沿著延遲鏈依序拿到 <Tex>{'x[n]'}</Tex>、<Tex>{'x[n-1]'}</Tex>、<Tex>{'x[n-2]'}</Tex>。
+          再看每個「乘上 <Tex>{'h[k]'}</Tex>」的方塊：現在與過去的輸入各乘上一個固定的權重，全部加起來就是輸出 <Tex>{'u[n]'}</Tex>。
+        </p>
+        <p>
+          圖上的權重 <Tex>{'h[0],h[1],h[2],\\dots'}</Tex> 就是公式 <Tex>{'u[n]=\\sum_{k\\ge0}h[k]\\,x[n-k]'}</Tex> 裡的<strong>脈衝響應</strong>（這個運算叫卷積，記作{' '}
+          <Tex>{'u=h*x'}</Tex>）；圖上的 <Tex>{'z^{-1}'}</Tex> 就是 Z 轉換裡的 <Tex>{'z^{-1}'}</Tex>。§1 的例子只有兩個權重：<Tex>{'h[0]=1'}</Tex>、
+          <Tex>{'h[1]=-\\sqrt3'}</Tex>。
+        </p>
+      </ChapterDiagram>
 
       <Prereq title="離散時間訊號、系統與 LTI（線性 + 非時變）">
         <p>
@@ -166,7 +167,25 @@ export function S2WhyU() {
           </>
         }
       >
-        <Mermaid chart={LOOP_CHART} caption="DTC 誤差注入主 PLL，PD 看到的是被迴路修正後的殘差；GMAC 卻乘上原始 code x（示意，不是特定晶片 netlist）" />
+        <p>
+          先用白話說。DTC 的 gain 沒校準好時，它會在 PD 的比較點加進一個時間誤差，記作 <Tex>{'\\varepsilon'}</Tex>（單位 <Tex>{'\\mathrm{fs}'}</Tex>）。PD
+          一看到誤差，主 PLL 就透過 loop filter、DCO、divider 把輸出相位往回拉；這個「已經拉回來的量」記作回授修正 <Tex>{'\\varphi_{\\mathrm{fb}}'}</Tex>。PD
+          真正量到的<strong>殘差</strong> <Tex>{'e_{\\mathrm{PD}}'}</Tex> 是兩者相減。
+        </p>
+        <ChapterDiagram id="D-06.3">
+          <p>
+            先看加法點：「＋」進來的是 DTC 誤差 <Tex>{'\\varepsilon'}</Tex>，「−」進來的是回授 <Tex>{'\\varphi_{\\mathrm{fb}}'}</Tex>，所以出去的是{' '}
+            <Tex>{'e_{\\mathrm{PD}}=\\varepsilon-\\varphi_{\\mathrm{fb}}'}</Tex>。再沿著迴路走一圈：<Tex>{'e_{\\mathrm{PD}}'}</Tex> 乘上開迴路增益 <Tex>{'L'}</Tex> 變成{' '}
+            <Tex>{'\\varphi_{\\mathrm{fb}}'}</Tex>，又回到加法點。這個迴路有兩個可以「看」的地方：從加法點後面看到的是 PD 殘差（輸出 1），從迴路後面看到的是 PLL
+            已經追掉的部分（輸出 2）。
+          </p>
+          <p>
+            圖上的 <Tex>{'\\varepsilon,\\ e_{\\mathrm{PD}},\\ \\varphi_{\\mathrm{fb}}'}</Tex> 就是下面推導裡的{' '}
+            <Tex>{'\\mathcal E,\\ E_{\\mathrm{PD}},\\ \\Phi_{\\mathrm{fb}}'}</Tex>（大寫是做完 Z 轉換的寫法）；圖上兩條箭頭的標籤就是推導的第 1、2 步。輸出 2 的{' '}
+            <Tex>{'T=L/(1+L)'}</Tex> 就是平常說的 PLL closed-loop 轉移函數（低通）；本章要的是輸出 1 的 <Tex>{'H_{\\mathrm{PD}}=1/(1+L)'}</Tex>（高通）。兩者相加{' '}
+            <Tex>{'H_{\\mathrm{PD}}+T=\\tfrac{1}{1+L}+\\tfrac{L}{1+L}=1'}</Tex>：PLL 追掉多少，PD 就少看到多少。
+          </p>
+        </ChapterDiagram>
         <StepBox
           title={
             <>
@@ -203,6 +222,26 @@ export function S2WhyU() {
           </p>
         </StepBox>
 
+        <p>
+          現在把這個方塊接回校正迴路。DTC 這個 block 用的 gain 是校正值 <Tex>{'w_k'}</Tex>（<Tex>{'k'}</Tex> 是 GMAC block 的編號），真實的 gain 是{' '}
+          <Tex>{'a'}</Tex>，所以 DTC 誤差是 <Tex>{'\\varepsilon[n]=(a-w_k)\\,x[n]'}</Tex>（<Tex>{'n'}</Tex> 是 sample 的編號）。它經過 <Tex>{'H_{\\mathrm{PD}}'}</Tex>{' '}
+          變成 PD 殘差，加上 comparator 前的雜訊 <Tex>{'v[n]'}</Tex>；comparator 只留下正負號 <Tex>{'q[n]=\\pm1'}</Tex>，GMAC 再把它乘上原始 code 並平均。
+        </p>
+        <ChapterDiagram id="D-06.4">
+          <p>
+            先看 <Tex>{'a'}</Tex> 與 <Tex>{'w_k'}</Tex> 進去的那個加法點：<Tex>{'a'}</Tex> 接「＋」、<Tex>{'w_k'}</Tex> 接「−」，得到參數誤差{' '}
+            <Tex>{'\\delta_k=a-w_k'}</Tex>（全章都用這個極性），乘上 code 就是 DTC 誤差。再看藍色方塊：誤差要先經過主 PLL 才到 comparator，所以 comparator 看到的 code 不是{' '}
+            <Tex>{'x'}</Tex>，而是 <Tex>{'u=h*x'}</Tex>。最後看紅色的乘法器：GMAC 拿的卻是<strong>沒經過藍色方塊</strong>的原始 code——它只經過一個延遲方塊{' '}
+            <Tex>{'z^{-D}'}</Tex>，變成 <Tex>{'x[n-D]'}</Tex>（<Tex>{'D'}</Tex> 是 GMAC 把 code 延遲的 sample 數，<Tex>{'D=0'}</Tex> 就是直通）。兩條路徑的差別就是本章的主題。
+          </p>
+          <p>
+            取樣率：從 code 到紅色乘法器，每個 sample <Tex>{'n'}</Tex> 跑一次；GMAC 把 <Tex>{'N'}</Tex> 個 sample 平均成一個 <Tex>{'G_k'}</Tex> 之後，每個 block{' '}
+            <Tex>{'k'}</Tex> 才用 learning rate <Tex>{'\\mu'}</Tex> 更新一次 <Tex>{'w'}</Tex>（<Tex>{'w_{k+1}=w_k+\\mu G_k'}</Tex> 那一格；回到 <Tex>{'w_k'}</Tex> 的那條線標著「下一個 block
+            才生效」，也就是 §3 圖 6.6 裡「等一個 block」的那個 <Tex>{'z^{-1}'}</Tex>；§7 的圖 6.24 把這兩種速率的先後順序畫成時序圖）。圖上「約等於 <Tex>{'\\delta_k\\,u[n]'}</Tex>」再加上雜訊 <Tex>{'v[n]'}</Tex>{' '}
+            的那個加法點，就是下面 F-06.1 的 <Tex>{'e_{\\mathrm{PD}}[n]\\approx(a-w_k)\\,u[n]+v[n]'}</Tex>；「約等於」成立的條件（<Tex>{'w'}</Tex> 變得比主 PLL
+            慢很多）在推導的最後一步。
+          </p>
+        </ChapterDiagram>
         <StepBox
           title={
             <>

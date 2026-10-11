@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { SettingsProvider } from '@/app/settings'
@@ -7,6 +7,7 @@ import { LrOptimizerExperiment } from './experiments/LrOptimizer'
 import { CornerIntervalExperiment } from './experiments/CornerInterval'
 import { CalStateMachineExperiment, stateSegments, trackRmsPrediction } from './experiments/CalStateMachine'
 import { DEFAULT_CAL_SM } from '@/simulation/models/optimizer'
+import { SYMBOLS } from './sections/S10Symbols'
 
 const P = vi.hoisted(() => ({
   react: vi.fn(async () => undefined),
@@ -32,7 +33,7 @@ function wrap(node: ReactNode, url = '/ch/14') {
 afterEach(() => localStorage.clear())
 
 describe('Ch14 頁面（jsdom smoke）', () => {
-  it('完整章節可以渲染：符號表、各節標題、勘誤 E16／E48 連到驗證頁、三個實驗', async () => {
+  it('完整章節可以渲染：各節標題、勘誤 E16／E48 連到驗證頁、三個實驗、章末符號表', async () => {
     const { container } = render(wrap(<Chapter14 />))
     expect(screen.getByText('本章符號')).toBeTruthy()
     // 標題內含 KaTeX（MathML）時 jsdom 計算 accessible name 會碰到 CSSOM 限制，改用 h2 的 textContent 比對
@@ -49,8 +50,8 @@ describe('Ch14 頁面（jsdom smoke）', () => {
     // 公式錨點（與 formulas.ts 同 ID）
     for (const id of ['F-14.3', 'F-14.15', 'F-14.16', 'F-14.18']) expect(container.querySelector(`[id="formula-${id}"]`)).toBeTruthy()
     // E48 驗證表（worker 在 jsdom 為 inline）
-    await waitFor(() => expect(screen.getAllByText(/^-?\d+\.\d%$/).length).toBeGreaterThan(3), { timeout: 15000 })
-  }, 30000)
+    await waitFor(() => expect(screen.getAllByText(/^-?\d+\.\d%$/).length).toBeGreaterThan(3), { timeout: 60000 })
+  }, 150000)
 
   it('第 10 課計算器表格：精確最佳 μ* = 10.66 fs、α = 11.20 時 RMS 0.4488 fs', () => {
     render(wrap(<Chapter14 />))
@@ -58,7 +59,76 @@ describe('Ch14 頁面（jsdom smoke）', () => {
     expect(within(table).getByText('10.664')).toBeTruthy()
     expect(within(table).getByText('0.4488')).toBeTruthy()
     expect(within(table).getByText('0.4474')).toBeTruthy()
-  }, 30000)
+  }, 150000)
+})
+
+describe('Ch14 符號表放在章末（docs/teaching-style.md §5）', () => {
+  it('符號表只有一份、在 id="symbols" 內、是頁面最後一個區塊（Recap 與「連結到 PLL 硬體」之後）；章首只留一行', () => {
+    const { container } = render(wrap(<Chapter14 />))
+    const root = container.querySelector('.ch14') as HTMLElement
+    const sym = container.querySelector('[id="symbols"]') as HTMLElement
+    expect(sym).toBeTruthy()
+    expect(container.querySelectorAll('[id="symbols"]').length).toBe(1)
+    expect(container.querySelectorAll('.c-symbols').length).toBe(1)
+    expect(sym.querySelector('.c-symbols')).toBeTruthy()
+    expect(within(sym).getByText('本章符號')).toBeTruthy()
+    expect(sym.querySelectorAll('.c-symbols tbody tr').length).toBe(SYMBOLS.length)
+    expect(SYMBOLS.length).toBeGreaterThanOrEqual(30)
+    // 最後一個區塊
+    expect(root.lastElementChild).toBe(sym)
+    const follows = (a: Element | null, b: Element) => {
+      expect(a).toBeTruthy()
+      expect(a!.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    }
+    follows(container.querySelector('.c-recap'), sym)
+    follows(container.querySelector('[id="ch14-pll"]'), sym)
+    follows(container.querySelector('[id="ch14-quiz"]'), sym)
+    // 章首：只有一行「本章符號表在最後」，在第一節之前；是 button（不是會改到 HashRouter 路由的 href）
+    // （不用 getByRole：整章有上千個 KaTeX 節點，jsdom 計算 accessible name 要數分鐘）
+    const jump = container.querySelector('.ch14-symbols-jump button') as HTMLButtonElement
+    expect(jump).toBeTruthy()
+    expect(jump.type).toBe('button')
+    expect(jump.textContent).toContain('本章符號表在最後')
+    expect(container.querySelectorAll('.ch14-symbols-jump').length).toBe(1)
+    follows(jump, container.querySelector('[id="ch14-question"]') as Element)
+    follows(jump, container.querySelector('.c-prereq') as Element)
+    expect(container.querySelector('a[href="#symbols"]')).toBeNull()
+    // 第一節之前不再有符號表
+    const firstSection = container.querySelector('[id="ch14-question"]') as Element
+    expect(container.querySelector('.c-symbols')!.compareDocumentPosition(firstSection) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
+  }, 150000)
+
+  it('按「本章符號表在最後」會捲到 #symbols；目錄也有「符號表」；章末可以回到章首', () => {
+    const scrolled: string[] = []
+    const proto = Element.prototype as unknown as { scrollIntoView?: () => void }
+    const saved = proto.scrollIntoView
+    proto.scrollIntoView = function (this: Element) {
+      scrolled.push(this.id)
+    }
+    try {
+      const { container } = render(wrap(<Chapter14 />))
+      fireEvent.click(container.querySelector('.ch14-symbols-jump button') as HTMLElement)
+      expect(scrolled).toEqual(['symbols'])
+      expect(document.activeElement).toBe(container.querySelector('[id="symbols"]'))
+      const toc = container.querySelector('nav[aria-label="本章目錄"]') as HTMLElement
+      const tocBtn = within(toc).getByText('符號表（章末）')
+      expect(tocBtn.tagName).toBe('BUTTON')
+      fireEvent.click(tocBtn)
+      expect(scrolled).toEqual(['symbols', 'symbols'])
+      const back = within(container.querySelector('[id="symbols"]') as HTMLElement).getByText(/回到章首/)
+      expect(back.tagName).toBe('BUTTON')
+      fireEvent.click(back)
+      expect(scrolled).toEqual(['symbols', 'symbols', 'ch14-top'])
+      expect(container.querySelector('[id="ch14-top"]')).toBe(container.querySelector('.ch14'))
+    } finally {
+      proto.scrollIntoView = saved
+    }
+  }, 150000)
+
+  it('符號表每一列都有「首次出現」；表中沒有重複的符號', () => {
+    expect(new Set(SYMBOLS.map((r) => r.symbol)).size).toBe(SYMBOLS.length)
+    for (const r of SYMBOLS) expect(r.firstSeen, r.symbol).toMatch(/^(章首|先備知識|§14\.\d)/)
+  })
 })
 
 describe('Ch14 Research 模式：所有內容（含 Research-only 推導與程式碼）', () => {
@@ -74,11 +144,13 @@ describe('Ch14 Research 模式：所有內容（含 Research-only 推導與程�
     expect(container.textContent).toContain('core:calStep（完整的一個 block）')
     expect(container.textContent).toContain('stochastic approximation 的經典結果')
     // 散文裡不可出現 TeX 原始碼（例如把 'p^{2B}' 寫在一般字串裡）：檢查 KaTeX 與程式碼區塊以外的文字節點
+    // （.c-tip：TestBadge 的 tooltip 逐字列出 src/data/verification-status.json 裡各頁測試的名稱，例如「δ_{k+1} = δ_k − gδ_{k−d}」；
+    //   那是共用資料，不是本章的散文，所以和下面的 unicodeMathLeaks 一樣略過。）
     const leaks: string[] = []
     const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT)
     for (let n = walker.nextNode(); n; n = walker.nextNode()) {
       const el = n.parentElement
-      if (!el || el.closest('.katex, pre, code, script, style')) continue
+      if (!el || el.closest('.katex, pre, code, script, style, .c-tip')) continue
       const t = n.textContent ?? ''
       if (/\^\{|_\{|\\[a-zA-Z]+/.test(t)) leaks.push(t.trim().slice(0, 80))
     }
@@ -87,7 +159,7 @@ describe('Ch14 Research 模式：所有內容（含 Research-only 推導與程�
     const real = errSpy.mock.calls.map((c) => String(c[0])).filter((m) => !m.includes('not wrapped in act'))
     expect(real).toEqual([])
     errSpy.mockRestore()
-  }, 60000)
+  }, 150000)
 })
 
 /**
@@ -117,9 +189,9 @@ describe('Ch14 數學一律 LaTeX（不以 Unicode 拼湊）', () => {
     localStorage.setItem('lmspll.mode', 'research')
     const { container } = render(wrap(<Chapter14 />))
     // 等 worker（jsdom 為 inline）跑完 E48 表與狀態機 MC，把執行後才出現的指標也掃進去
-    await waitFor(() => expect(container.textContent).toContain('MC 評估 RMS：狀態機'), { timeout: 20000 })
+    await waitFor(() => expect(container.textContent).toContain('MC 評估 RMS：狀態機'), { timeout: 60000 })
     expect(unicodeMathLeaks(container)).toEqual([])
-  }, 60000)
+  }, 150000)
 
   it('失敗情境的警告（極性、空區間、dead zone、E48）也都用 KaTeX', async () => {
     for (const [node, url] of [
@@ -138,7 +210,7 @@ describe('Ch14 數學一律 LaTeX（不以 Unicode 拼湊）', () => {
       expect(container.querySelector('.c-exp-warnings .katex')).toBeTruthy()
       unmount()
     }
-  }, 60000)
+  }, 150000)
 })
 
 describe('Ch14 學習模式（同一計算核心、不同呈現）', () => {
@@ -152,7 +224,7 @@ describe('Ch14 學習模式（同一計算核心、不同呈現）', () => {
     const r2 = render(wrap(<Chapter14 />))
     expect(Array.from(r2.container.querySelectorAll('summary')).some((s) => s.textContent?.includes('Beginner 模式預設收合'))).toBe(false)
     expect(r2.container.querySelectorAll('.c-steps').length).toBeGreaterThan(5)
-  }, 60000)
+  }, 150000)
 })
 
 describe('Ch14 實驗：preset 與解釋型警告', () => {

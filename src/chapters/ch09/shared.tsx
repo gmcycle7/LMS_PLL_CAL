@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
-import { HandCalc, Tex, mathText } from '@/components'
+import { HandCalc, Mermaid, Tex, mathText } from '@/components'
 import { useSettings } from '@/app/settings'
 import { fmt } from '@/simulation/core'
+import { ch09Diagram } from './diagrams'
 import { FORMULAS } from './formulas'
 import { ch09HandCalc } from './handcalcs'
 
@@ -87,6 +88,33 @@ export function HandCalcLink({ id, children }: { id: string; children?: ReactNod
       {children ?? `帶入手算 ${id}`}
     </button>
   )
+}
+
+/**
+ * 方塊圖（docs/teaching-style.md §8）：依代號從 diagrams.ts 取出 Mermaid 原始碼，並自動編上圖號（圖 9.n）。
+ * children 是圖說（一句話說明要看什麼）。共用 Mermaid 元件的 caption 屬性是純文字，所以圖說另外排版，
+ * 裡面的符號才能用 KaTeX（{m`…`}）；圖本身的文字替代說明（aria-label）用 diagrams.ts 的 alt。
+ */
+export function Diagram({ id, children }: { id: string; children: ReactNode }) {
+  const { def, number } = ch09Diagram(id)
+  return (
+    <div className="ch09-diagram" data-diagram={id} data-kind={def.kind}>
+      <Mermaid chart={def.chart} ariaLabel={`圖 9.${number}：${def.alt}`} />
+      <p className="c-figcaption ch09-diagram-caption">
+        <strong>圖 9.{number}</strong>（{def.kind}）{children}
+      </p>
+    </div>
+  )
+}
+
+/** 正文裡引用圖號（「圖 9.3」）：由 diagrams.ts 的清單算出，圖的順序調整時不必手動改字 */
+export function FigRef({ id }: { id: string }) {
+  return <strong className="nowrap">圖 9.{ch09Diagram(id).number}</strong>
+}
+
+/** 捲到章末的符號表（id="symbols"）。用按鈕＋scrollIntoView，不改 URL：HashRouter 的路由不會被 #symbols 蓋掉 */
+export function scrollToSymbols(): void {
+  document.getElementById('symbols')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 /** 數字格式：有限值用 fmt，∞ 顯示為 ∞ */

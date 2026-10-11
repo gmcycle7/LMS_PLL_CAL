@@ -4,7 +4,7 @@ import { ClaimTag, CodeBlock, Derivation, Plot, Section, SourceTag, StepDerivati
 import { useSettings } from '@/app/settings'
 import { correlatedNoiseBias } from '../model'
 import { num, signed, texNum, texRes } from '../format'
-import { ChapterHandCalc, ErratumRef, Observe, PageLink } from '../common'
+import { ChapterDiagram, ChapterHandCalc, ErratumRef, FigRef, Observe, PageLink } from '../common'
 import modelSrc from '../model.ts?raw'
 
 /** 反例的設定：±1 碼、μ = 0.02、獨立雜訊 σ_v = 0.5；只改與 code 相關的干擾 ε_cc = κ·x 的係數 κ（全站符號，勘誤 E12）。 */
@@ -239,56 +239,69 @@ export function AssumptionsSection() {
         <Tex>{String(BIAS_DEMO.steps)}</Tex> 步（<Tex>{`\\mu=${texNum(BIAS_DEMO.mu)}`}</Tex>、<Tex>{'x=\\pm1'}</Tex>），後半段 <Tex>{'w'}</Tex> 的平均是{' '}
         <Tex>{texRes(biased.r.wMean, 5)}</Tex>——不是 <Tex>{texNum(BIAS_DEMO.a)}</Tex>，而是 <Tex>{`a+\\kappa=${texRes(biased.r.wStar)}`}</Tex>。為什麼？
       </p>
-      <StepDerivation
-        title={
-          <>
-            <Tex>{'E[v\\,x]\\ne0'}</Tex> 時，平均更新量在哪裡歸零？
-          </>
-        }
-        steps={[
-          {
-            tex: String.raw`e=y-wx=(a-w)\,x+v`,
-            why: (
-              <>
-                和 §0.7 相同：代入 <Tex>{'y=ax+v'}</Tex>。
-              </>
-            ),
-          },
-          {
-            tex: String.raw`E[e\,x]=(a-w)\,E[x^2]+E[v\,x]`,
-            why: (
-              <>
-                乘上 <Tex>{'x'}</Tex> 取期望值（線性）。這次<strong>不能</strong>把 <Tex>{'E[v\\,x]'}</Tex> 丟掉。
-              </>
-            ),
-          },
-          {
-            tex: String.raw`E[e\,x]=0\;\Longrightarrow\;(a-w^*)\,E[x^2]=-E[v\,x]`,
-            why: (
-              <>
-                LMS 平均來說停在「平均更新量為 0」的地方，記為 <Tex>{'w^*'}</Tex>。
-              </>
-            ),
-          },
-          {
-            tex: String.raw`w^*=a+\frac{E[v\,x]}{E[x^2]}`,
-            why: (
-              <>
-                兩邊除以 <Tex>{'E[x^2]>0'}</Tex> 再移項。
-              </>
-            ),
-          },
-          {
-            tex: String.raw`v=\kappa\,x+v'\;\Rightarrow\;E[v\,x]=\kappa\,E[x^2]+\underbrace{E[v'x]}_{=\,0}\;\Rightarrow\;w^*=a+\kappa`,
-            why: (
-              <>
-                代入這個例子：<Tex>{"v'"}</Tex> 與 <Tex>{'x'}</Tex> 不相關。其實 <Tex>{"y=ax+\\kappa x+v'=(a+\\kappa)\\,x+v'"}</Tex>——從資料看，黑盒子的係數「就是」{' '}
-                <Tex>{'a+\\kappa'}</Tex>，LMS 沒有做錯事，是我們想量的 <Tex>{'a'}</Tex> 和資料呈現的不一樣。
-              </>
-            ),
-          },
-        ]}
-      />
+      <ChapterDiagram name="CHART_CORRELATED_NOISE">
+        <p>
+          先看 <Tex>{'x'}</Tex> 分出去的兩條路：一條進深灰色的黑盒子乘上 <Tex>{'a'}</Tex>，另一條進紅色的干擾路徑乘上 <Tex>{'\\kappa'}</Tex>。兩條路的輸出在同一個相加點相加，再加上獨立雜訊{' '}
+          <Tex>{"v'"}</Tex>，才是量到的 <Tex>{'y'}</Tex>。再看 LMS 那一格：它手上只有 <Tex>{'x'}</Tex> 和 <Tex>{'y'}</Tex>，看不到相加點之前的兩條路，所以分不出哪一份來自 <Tex>{'a'}</Tex>、
+          哪一份來自 <Tex>{'\\kappa'}</Tex>。
+        </p>
+        <p>
+          和 §0.1 的 <FigRef name="CHART_BLACKBOX_MODEL" /> 比：唯一多出來的就是紅色那條並聯的路。圖上相加點的輸出「<code>y = (a + κ)·x + v′</code>」就是下面推導的最後一行；最後一格的{' '}
+          <code>w*</code> 是公式裡的 <Tex>{'w^*'}</Tex>——「平均更新量剛好是 0」的那個 <Tex>{'w'}</Tex>，也就是 LMS 平均來說會停下來的位置。
+        </p>
+      </ChapterDiagram>
+      <div id="ch00-bias-steps">
+        <StepDerivation
+          title={
+            <>
+              <Tex>{'E[v\\,x]\\ne0'}</Tex> 時，平均更新量在哪裡歸零？
+            </>
+          }
+          steps={[
+            {
+              tex: String.raw`e=y-wx=(a-w)\,x+v`,
+              why: (
+                <>
+                  和 §0.7 相同：代入 <Tex>{'y=ax+v'}</Tex>。
+                </>
+              ),
+            },
+            {
+              tex: String.raw`E[e\,x]=(a-w)\,E[x^2]+E[v\,x]`,
+              why: (
+                <>
+                  乘上 <Tex>{'x'}</Tex> 取期望值（線性）。這次<strong>不能</strong>把 <Tex>{'E[v\\,x]'}</Tex> 丟掉。
+                </>
+              ),
+            },
+            {
+              tex: String.raw`E[e\,x]=0\;\Longrightarrow\;(a-w^*)\,E[x^2]=-E[v\,x]`,
+              why: (
+                <>
+                  LMS 平均來說停在「平均更新量為 0」的地方，記為 <Tex>{'w^*'}</Tex>。
+                </>
+              ),
+            },
+            {
+              tex: String.raw`w^*=a+\frac{E[v\,x]}{E[x^2]}`,
+              why: (
+                <>
+                  兩邊除以 <Tex>{'E[x^2]>0'}</Tex> 再移項。
+                </>
+              ),
+            },
+            {
+              tex: String.raw`v=\kappa\,x+v'\;\Rightarrow\;E[v\,x]=\kappa\,E[x^2]+\underbrace{E[v'x]}_{=\,0}\;\Rightarrow\;w^*=a+\kappa`,
+              why: (
+                <>
+                  代入這個例子：<Tex>{"v'"}</Tex> 與 <Tex>{'x'}</Tex> 不相關。其實 <Tex>{"y=ax+\\kappa x+v'=(a+\\kappa)\\,x+v'"}</Tex>——從資料看，黑盒子的係數「就是」{' '}
+                  <Tex>{'a+\\kappa'}</Tex>，LMS 沒有做錯事，是我們想量的 <Tex>{'a'}</Tex> 和資料呈現的不一樣。
+                </>
+              ),
+            },
+          ]}
+        />
+      </div>
       <TexBlock
         id="F-00.11"
         label={
@@ -458,8 +471,19 @@ export function AssumptionsSection() {
       <h3>綜合手算：把這個反例從頭到尾算一次</h3>
       <p>
         進入思考題之前，用一題把本章的四條公式串起來：<Tex>{'w^*'}</Tex> 停在哪（F-00.11）、pole 與收斂步數（F-00.4）、收斂後抖多大（F-00.9）、再做時間平均後多準（
-        <Tex>{'1/\\sqrt N'}</Tex>，F-00.8）。
+        <Tex>{'1/\\sqrt N'}</Tex>，F-00.8）。先看計算順序：
       </p>
+      <ChapterDiagram name="CHART_SYNTHESIS_ORDER">
+        <p>
+          先看最上面的「已知」：五個輸入，加上 <Tex>{'x=\\pm1'}</Tex> 帶來的 <Tex>{'x^2=1'}</Tex>。再看分出去的四條支線 ①②③④：它們互不相依，各用一條公式，每一格只做一種運算（乘、加、
+          <Tex>{'\\ln'}</Tex>、除、開根號）。最後看最下面紅色那一格：把 ① 算出的偏移 <Tex>{'w^*-a=\\kappa'}</Tex> 和 ④ 算出的標準差放在一起比。
+        </p>
+        <p>
+          圖上的四條支線就是下面手算題的四組步驟：① 是 F-00.11、② 是 F-00.4（先算 <Tex>{'p'}</Tex> 再取對數，得到誤差降到 1% 所需的步數 <Tex>{'n_{1\\%}'}</Tex>）、③ 是
+          F-00.9（先算變異數再開根號）、④ 是 F-00.8 的 <Tex>{'1/\\sqrt N'}</Tex> 法則。圖上的 <code>σ_v′</code> 是獨立雜訊 <Tex>{"v'"}</Tex> 的標準差{' '}
+          <Tex>{"\\sigma_{v'}"}</Tex>，<code>w∞</code> 是收斂之後的 <Tex>{'w'}</Tex>（公式裡的 <Tex>{'w_\\infty'}</Tex>）。
+        </p>
+      </ChapterDiagram>
       <ChapterHandCalc id="HC-00.8">
         預設的數字就是上面表格 <Tex>{`\\kappa=${texNum(biased.kappa)}`}</Tex> 那一列（<Tex>{`n=${biased.r.used}`}</Tex>）。先用紙筆和計算機（要用到{' '}
         <Tex>{'\\ln'}</Tex> 與 <Tex>{'\\sqrt{\\ }'}</Tex>）算完五個答案，再對照表格的 <Tex>{'w^*'}</Tex> 與容忍度；接著把 <Tex>{'\\kappa'}</Tex>、<Tex>{'\\mu'}</Tex>{' '}

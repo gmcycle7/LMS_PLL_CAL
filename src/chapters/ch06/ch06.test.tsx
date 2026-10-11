@@ -18,6 +18,7 @@ import {
   type PolarityParams,
 } from '@/simulation/models/polarity'
 import Chapter06 from './index'
+import { CH06_DIAGRAMS } from './diagrams'
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
 import { modelTextTex, polarityWarnings, verdict, withDefaults } from './experiments/explorerModel'
@@ -158,8 +159,16 @@ describe('第 06 章頁面（jsdom smoke test）', () => {
     // 所有 CodeBlock 的 region 都存在（找不到會顯示「程式碼載入錯誤」）
     expect(container.textContent).not.toMatch(/程式碼載入錯誤/)
     expect(container.querySelectorAll('.c-code').length).toBeGreaterThan(10)
-    // 符號表
-    expect(container.querySelectorAll('.c-symbols tbody tr').length).toBeGreaterThanOrEqual(20)
+    // 符號表：放在章末（#symbols 是頁面最後一個區塊，在 §8 之後；docs/teaching-style.md §5），章首只留一行連結
+    const symbols = container.querySelector('#symbols') as HTMLElement
+    expect(symbols.querySelectorAll('.c-symbols tbody tr').length).toBeGreaterThanOrEqual(20)
+    expect(container.querySelectorAll('.c-symbols').length).toBe(1)
+    expect(container.querySelector('.ch06')!.lastElementChild).toBe(symbols)
+    expect(container.querySelector('#ch06-s8')!.compareDocumentPosition(symbols) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(container.querySelector('.ch06-symbols-link')!.textContent).toMatch(/^本章符號表在最後/)
+    // 方塊圖：章首的系統地圖 + 登錄的每一張（Research 模式；圖都不在模式限定的段落裡，三種模式張數相同）
+    expect(container.querySelectorAll('figure.c-mermaid').length).toBe(CH06_DIAGRAMS.length + 1)
+    for (const d of CH06_DIAGRAMS) expect(container.querySelector(`[id="diagram-${d.id}"] .ch06-diagram-read`), d.id).not.toBeNull()
     // 手算表：12 列 + C = −0.25
     expect(container.textContent).toMatch(/-0\.2500/)
     // 帶入手算：8 題都放進頁面（各自在對應推導之後），章首有索引；綜合題 HC-06.8 在 §8 的思考題之前
@@ -245,6 +254,11 @@ describe('第 06 章頁面（jsdom smoke test）', () => {
     expect(boxes.length).toBeGreaterThan(5)
     expect(boxes.every((b) => !b.open)).toBe(true)
     expect(container.querySelector('[id="formula-F-06.16"]')).toBeNull() // research 專屬
+    // 方塊圖不放在收合的推導框裡：Beginner 模式也看得到全部的圖（系統地圖 + 登錄的每一張），符號表仍在章末
+    const figures = Array.from(container.querySelectorAll('figure.c-mermaid'))
+    expect(figures.length).toBe(CH06_DIAGRAMS.length + 1)
+    expect(figures.every((fig) => fig.closest('details') === null)).toBe(true)
+    expect(container.querySelector('.ch06')!.lastElementChild!.id).toBe('symbols')
   }, RENDER_TIMEOUT)
 
   it('URL preset ?preset=polarity-omega-pi-edge 套用到 Polarity Explorer，並顯示 E46 警告', async () => {

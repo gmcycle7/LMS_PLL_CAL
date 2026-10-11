@@ -3,7 +3,7 @@ import type { Data } from 'plotly.js-dist-min'
 import { Callout, ClaimTag, ModeGate, Plot, Prereq, Section, Tex, TexBlock, useThemeTokens } from '@/components'
 import { normPdf } from '@/simulation/core'
 import { kq, kqLocal, linearizationRelError, meanQ, pPlus } from '@/simulation/models/comparator'
-import { HandCalcBlock, Steps, fx, hline, linspace, pct, texNum } from '../common'
+import { Fig, HandCalcBlock, Steps, fx, hline, linspace, pct, texNum } from '../common'
 
 /** 找出線性化誤差 = target 的 r（二分法；誤差在 r > 0 單調遞增）。 */
 function rForLinError(target: number): number {
@@ -65,13 +65,23 @@ export function GainSection() {
       }
     >
       <p>
-        後面所有的 LMS 迴路分析（pole <Tex>{'p_{\\mathrm{cal}}=1-\\mu K_qC'}</Tex>、noise、phase margin）都需要一個「comparator 的增益」。但 comparator 是不連續的階梯，
+        後面所有的 LMS 迴路分析（pole <Tex>{'p_{\\mathrm{cal}}=1-\\mu K_qC'}</Tex>、noise、phase margin）都需要一個「comparator 的增益」。式中 <Tex>{'\\mu'}</Tex>{' '}
+        是學習率（每次更新的步長），<Tex>{'C'}</Tex> 是 regressor 與誤差路徑輸出的相關量（Ch06 詳述；本章 <Tex>{'x\\equiv1'}</Tex>，所以 <Tex>{'C=1'}</Tex>）。但 comparator 是不連續的階梯，
         它的增益從哪來？答案：
         <strong>
           不是單一樣本的增益，而是平均輸出 <Tex>{'E[q]'}</Tex> 對 <Tex>{'s'}</Tex> 的斜率 <Tex>{'dE[q]/ds'}</Tex>
         </strong>
         。雜訊把階梯「抹平」成一條平滑的 S 曲線。
       </p>
+      <p>
+        有了這個斜率（記作 <Tex>{'K_q'}</Tex>，單位 <Tex>{'\\mathrm{fs}^{-1}'}</Tex>），就可以把不好分析的 sign 換成一個好分析的等效模型：
+      </p>
+      <Fig name="smallSignal">
+        先看上框：真實的 comparator 把 <Tex>{'e=s+v'}</Tex> 硬切成 <Tex>{'\\pm1'}</Tex>，是非線性的。再看下框：同一個輸出 <Tex>{'q'}</Tex> 拆成「平均」加「零均值的起伏」——平均{' '}
+        <Tex>{'E[q]'}</Tex> 在 <Tex>{'|s|\\ll\\sigma_v'}</Tex> 時和 <Tex>{'s'}</Tex> 成正比，畫成增益方塊 <Tex>{'K_q'}</Tex>；起伏 <Tex>{'\\eta\\equiv q-E[q]'}</Tex>{' '}
+        畫成從加法點注入的雜訊，功率 <Tex>{'\\operatorname{Var}(q)=1-m^2\\approx1'}</Tex>。原本的雜訊 <Tex>{'v'}</Tex> 沒有消失：它決定了 <Tex>{'K_q'}</Tex> 的大小。圖上的「
+        <Tex>{'K_q\\cdot s'}</Tex>」就是下面 F-05.10 的 <Tex>{'E[q]\\approx K_qs'}</Tex>。
+      </Fig>
       <Prereq title={String.raw`$\operatorname{erf}$ 的泰勒展開（只用到 $e^u$ 的展開與逐項積分）`}>
         <p>
           <Tex>{String.raw`e^{u}=1+u+\frac{u^2}{2!}+\frac{u^3}{3!}+\cdots`}</Tex>，代 <Tex>{'u=-t^2'}</Tex> 得{' '}
@@ -112,6 +122,14 @@ export function GainSection() {
         驗算：<Tex>{String.raw`K_q\cdot1\,\mathrm{fs}=${fx(d.k, 10)}`}</Tex>，精確 <Tex>{String.raw`E[q]=${fx(d.m, 10)}`}</Tex>，
         相對差 <Tex>{`${texNum(d.k / d.m - 1, 4)}\\approx(0.01)^2/6=${texNum(1e-4 / 6, 4)}`}</Tex>。<ClaimTag kind="exact" />
       </p>
+      <p>
+        這個線性模型不是到處都能用：誤差一大，S 曲線就彎下來、最後貼平。實務上先算標準化誤差 <Tex>{'r=|s-\\theta|/\\sigma_v'}</Tex>，再看自己落在哪一區：
+      </p>
+      <Fig name="sCurveRegions">
+        先算最上面的 <Tex>{'r'}</Tex>，再照兩個菱形往下走。綠色的線性區（<Tex>{'r\\le0.25'}</Tex>）可以放心用 <Tex>{'K_q'}</Tex> 與線性的 pole 公式；中間的壓縮區要改用局部斜率{' '}
+        <Tex>{'K_qe^{-r^2/2}'}</Tex>；紅色的飽和區 comparator 只剩方向、不剩大小，更新變成每次固定走一步（slew-limited）。圖上「高估約 1%、5%」就是 F-05.11 的線性化誤差，「
+        <Tex>{'K_q\\exp(-r^2/2)'}</Tex>」就是 F-05.12 的局部斜率。
+      </Fig>
       <TexBlock
         id="F-05.11"
         label={

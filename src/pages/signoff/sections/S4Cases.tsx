@@ -21,7 +21,8 @@ import {
 import { CornerJudgeExperiment } from '../experiments/CornerJudge'
 import { FixedPointJudgeExperiment } from '../experiments/FixedPointJudge'
 import { MimoJudgeExperiment } from '../experiments/MimoJudgeLab'
-import { ErratumNote, HandCalcSlot, Steps, nf, tx } from '../shared'
+import { CHART_CORNER_JUDGE, CHART_MIMO_LOOP, CHART_OUTPUT_PATH } from '../diagrams'
+import { Diagram, ErratumNote, HandCalcSlot, Steps, nf, tx } from '../shared'
 
 const PATH = 'src/pages/signoff/judges.ts'
 
@@ -66,6 +67,19 @@ export function S4Cases() {
           <strong>最快</strong>的 corner（<Tex>{'K_{\\max}'}</Tex>）決定穩定與 PM 的上限，<strong>最慢</strong>的 corner（<Tex>{'K_{\\min}'}</Tex>）決定收斂時間與 bias 的下限。
           再加上真實硬體的 commit latency <Tex>{'d'}</Tex>，一階模型的 <Tex>{'0<g<2'}</Tex> 就不再適用。
         </p>
+        <Diagram
+          chart={CHART_CORNER_JUDGE}
+          caption={String.raw`Corner 判準：同一組 $(\mu,d,N)$ 對每個 corner 各算一個 $K_c$ 和 $g_c$，五項判準全部通過，這個 $\mu$ 才可行；$\rho<1$ 才有收斂時間與穩態雜訊可談。`}
+          ariaLabel="Corner 判準流程圖：corner 清單與同一組 mu、d、N 算出每個 corner 的恢復力 K 與迴路增益 g，依序檢查極性、穩定、相位裕度，穩定之後才檢查收斂時間與雜訊，所有 corner 的五項判準都通過才算這個 mu 可行"
+        >
+          <p>
+            先看左邊兩個圓角框：硬體只有<strong>一組</strong> <Tex>{'(\\mu,d,N)'}</Tex>，corner 卻有很多個，每個 corner 的 <Tex>{'\\sigma_{v,c}'}</Tex>、<Tex>{'\\theta_c'}</Tex> 不同，所以 <Tex>{'K_c'}</Tex> 與 <Tex>{'g_c=\\mu K_c'}</Tex> 也不同。
+            通常<strong>最快</strong>的 corner（<Tex>{'K_{\\max}'}</Tex>）先卡住穩定與 PM，<strong>最慢</strong>的（<Tex>{'K_{\\min}'}</Tex>）先卡住收斂時間與 bias。
+          </p>
+          <p>
+            藍色的「穩定」是其他兩項的前提：<Tex>{'z^{d+1}-z^d+g_c=0'}</Tex> 的根都在單位圓內（<Tex>{'\\rho<1'}</Tex>），<Tex>{'k_{95}'}</Tex>（收斂 95% 需要的 block 數）與 <Tex>{'\\sigma_w'}</Tex> 才有有限的值；不穩定的 corner 這兩項直接是 <Tex>{'\\infty'}</Tex>。
+          </p>
+        </Diagram>
         <Steps
           title="更新延遲 $d$ 時的 PM 與臨界增益"
           steps={[
@@ -231,6 +245,19 @@ export function S4Cases() {
       </Section>
 
       <Section kind="formula" level={2} title="7. 多參數：各自穩定 ≠ 一起穩定" id="so-mimo">
+        <Diagram
+          chart={CHART_MIMO_LOOP}
+          caption={String.raw`多參數的線性化迴路：誤差向量 $\boldsymbol\delta\mathbf w_k$ 經過 $\mathbf J$ 與 $\mathbf M$ 再加回自己，整圈就是矩陣 $\mathbf I+\mathbf M\mathbf J$；只看對角元素會漏掉交叉項。`}
+          ariaLabel="多參數線性化迴路方塊圖：係數誤差向量一路直通加法點，另一路先乘 Jacobian J 得到 GMAC 平均輸出，再乘更新矩陣 M，與直通項相加後經過一個 block 的延遲回到誤差向量；整圈的矩陣是 I 加 M J，單獨看對角元素會漏掉交叉項"
+        >
+          <p>
+            先看加法點的兩條進線：直通的 <Tex>{'\\boldsymbol\\delta\\mathbf w_k'}</Tex>（正號）加上走過 <Tex>{'\\mathbf J'}</Tex>、<Tex>{'\\mathbf M'}</Tex> 的修正量 <Tex>{'\\mathbf M\\mathbf J\\,\\boldsymbol\\delta\\mathbf w_k'}</Tex>（正號；穩定時 <Tex>{'\\mathbf J'}</Tex> 的 eigenvalue 為負，所以修正量實際上是往回拉）。
+            輸出 <Tex>{'\\boldsymbol\\delta\\mathbf w_{k+1}=(\\mathbf I+\\mathbf M\\mathbf J)\\boldsymbol\\delta\\mathbf w_k'}</Tex>，經過一個 block 延遲 <Tex>{'z^{-1}'}</Tex> 回到起點。
+          </p>
+          <p>
+            棕紅色的「只看對角」是常見的漏洞：它假設其他參數凍結，只剩 <Tex>{'1+M_{ii}J_{ii}'}</Tex>；藍色的 <Tex>{'\\rho(\\mathbf I+\\mathbf M\\mathbf J)'}</Tex> 才是一起更新時真正的判準。
+          </p>
+        </Diagram>
         <Steps
           title="多參數更新的線性化"
           steps={[
@@ -278,6 +305,19 @@ export function S4Cases() {
         <p>
           GMAC 歸零只代表 LMS 停在 <Tex>{'w^*'}</Tex>。sign-off 最後要問：係數的殘差與抖動，經過 DTC 與主 PLL 之後，在<strong>輸出</strong>造成多少 PN、jitter 與 spur？
         </p>
+        <Diagram
+          chart={CHART_OUTPUT_PATH}
+          caption={String.raw`從係數偏差到輸出：block 速率的 $\delta w_k$ 展開到 sample 速率、乘上 code 得到 $\delta t[n]$，經輸出 transfer $T$ 換成相位，再分成確定性的 spur 與隨機的 PN／jitter。`}
+          ariaLabel="從 gain code 偏差到輸出 spur 與 jitter 的方塊圖：block 速率的係數偏差經零階保持展開到 sample 速率，乘上 code 得到 DTC 的延遲誤差，經過輸出 transfer T 並乘上負的 2 pi f_out 得到輸出相位，單一 tone 時換算調變指數與 spur，隨機分量換算成輸出相位雜訊與 jitter"
+        >
+          <p>
+            先看左邊：<Tex>{'\\delta w_k'}</Tex> 是 block 速率（索引 <Tex>{'k'}</Tex>）的係數偏差，每 <Tex>{'N'}</Tex> 個 sample 才換一次，所以要先以 ZOH 展開到 sample 速率（索引 <Tex>{'n'}</Tex>，含 commit latency <Tex>{'n_c'}</Tex>）才能乘上 code <Tex>{'x[n]'}</Tex>。
+            藍色的 <Tex>{'T=L/(1+L)'}</Tex> 是<strong>輸出路徑</strong>的 transfer——不是校正迴路看到的 <Tex>{'H_\\mathrm{PD}'}</Tex>；兩者混淆是 §9 反面測試的一項（PLL 誤差路徑與輸出路徑混淆）。
+          </p>
+          <p>
+            右邊分兩條：單一 tone 的 <Tex>{'\\delta t'}</Tex> 變成相位調變，spur 看 <Tex>{'\\beta'}</Tex>；隨機的部分變成輸出相位雜訊。GMAC 歸零只是定義了 <Tex>{'w^*'}</Tex>，這兩個輸出指標才是最後的驗收。
+          </p>
+        </Diagram>
         <Steps
           title="從 gain code 到輸出 spur（指定 feedback injection 模型）"
           steps={[

@@ -1,94 +1,9 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, CodeBlock, Section, SourceTag, SymbolTable, Tex, TexBlock, type SymbolEntry } from '@/components'
+import { Callout, ClaimTag, CodeBlock, Section, SourceTag, SystemMap, Tex, TexBlock } from '@/components'
 import peSrc from '@/simulation/models/pe.ts?raw'
 import { lmsHandSteps, type HandStepRow } from '@/simulation/models/pe'
-import { Erratum, HandCalcBox, m, num, texNum } from '../shared'
-
-const SYMBOLS: SymbolEntry[] = [
-  {
-    symbol: String.raw`\mathbf u[n]`,
-    meaning: <>有效 regressor 向量（{m`M`} 個參數各自的 regressor，經 PLL error path 到 PD）</>,
-    unit: String.raw`\text{無因次 code}`,
-    firstSeen: '§9',
-    note: (
-      <>
-        全站 §0：{m`u=h*x`}。§9.2 另用 {m`\tilde{\mathbf x}`} 表示含常數 1 的原始 one-hot regressor
-      </>
-    ),
-  },
-  { symbol: String.raw`\mathbf a,\ \mathbf w_k`, meaning: <>真實參數／第 {m`k`} 個 GMAC block 使用的校正係數</>, unit: String.raw`\text{依校正對象（例如 fs）}`, firstSeen: '§9' },
-  {
-    symbol: String.raw`\boldsymbol\delta_k=\mathbf a-\mathbf w_k`,
-    meaning: '參數誤差向量',
-    unit: String.raw`\text{同 }\mathbf a`,
-    firstSeen: '§9',
-    note: <>極性採全站約定 {m`\delta=a-w`}（<Erratum id="E32" />）</>,
-  },
-  { symbol: String.raw`e[n],\ v[n]`, meaning: 'comparator 前的誤差、雜訊', unit: String.raw`\mathrm{fs}`, firstSeen: '§9' },
-  { symbol: String.raw`t[n]`, meaning: <>GMAC 的乘數：linear 時 {m`t=e`}，1-bit 時 {m`t=\mathrm{sign}(e)`}</>, unit: String.raw`\mathrm{fs}\text{ 或 }\pm1`, firstSeen: '§9' },
-  { symbol: String.raw`\mathbf G_k`, meaning: <>GMAC 第 {m`k`} 個 block 的平均相關輸出</>, unit: String.raw`\text{同 }t\cdot u`, firstSeen: '§9', note: <>全站 §0：{m`\mathbf G`} 為平均；硬體若用總和要再除以 {m`N`}</> },
-  { symbol: String.raw`\mathbf R=E[\mathbf u\mathbf u^T]`, meaning: 'regressor 自相關矩陣（對稱、半正定）', unit: String.raw`\text{無因次}`, firstSeen: '§9' },
-  { symbol: String.raw`\rho`, meaning: '兩個 regressor 的相關係數', unit: String.raw`-1\le\rho\le1`, firstSeen: '§9 例子' },
-  {
-    symbol: String.raw`\lambda_i,\ \mathbf v_i`,
-    meaning: <>{m`\mathbf R`} 的第 {m`i`} 個 eigenvalue／單位 eigenvector（由大到小）</>,
-    unit: String.raw`\text{無因次}`,
-    firstSeen: '§9',
-    note: <>{m`\lambda`} 只代表 eigenvalue；正則化參數另用 {m`\varepsilon`}（<Erratum id="E22" />）</>,
-  },
-  { symbol: String.raw`\mathbf Q,\ \boldsymbol\Lambda`, meaning: <>eigenvector 矩陣（欄為 {m`\mathbf v_i`}）、eigenvalue 對角矩陣：{m`\mathbf R=\mathbf Q\boldsymbol\Lambda\mathbf Q^T`}</>, firstSeen: '§9' },
-  { symbol: String.raw`c_{i,k}`, meaning: <>模態座標 {m`\mathbf c_k=\mathbf Q^TE[\boldsymbol\delta_k]`}（誤差在第 {m`i`} 個 eigenvector 上的分量）</>, unit: String.raw`\text{同 }\mathbf a`, firstSeen: '§9' },
-  { symbol: String.raw`\kappa`, meaning: <>condition number {m`\lambda_{\max}/\lambda_{\min}`}（eigenvalue spread）</>, unit: String.raw`\ge1`, firstSeen: '§9' },
-  { symbol: String.raw`\mu`, meaning: 'learning rate（更新步長）', unit: String.raw`\text{linear: 無因次；1-bit: }\mathrm{fs}`, firstSeen: '§9' },
-  {
-    symbol: 'K_q',
-    meaning: (
-      <>
-        1-bit comparator 的統計小訊號增益 {m`\sqrt{2/\pi}/\sigma_v`}；linear detector 時 {m`K_q\equiv1`}
-      </>
-    ),
-    unit: String.raw`\mathrm{fs}^{-1}`,
-    firstSeen: '§9',
-    note: <>規格 §9 的 {m`\mathbf I-\mu\mathbf R`} 隱含 {m`K_q=1`}；本章一律明寫（<Erratum id="E05" />、<Erratum id="E08" />）</>,
-  },
-  { symbol: String.raw`g=\mu K_q`, meaning: <>無因次 loop gain（正規化後的「{m`\mu`}」）</>, unit: String.raw`\text{無因次}`, firstSeen: '§9' },
-  { symbol: 'p_i=1-g\\lambda_i', meaning: <>第 {m`i`} 個 eigen-mode 的平均 pole</>, unit: String.raw`\text{無因次}`, firstSeen: '§9' },
-  { symbol: 'k_{95}', meaning: '某模式衰減到 5% 所需的 block 數', unit: String.raw`\text{blocks}`, firstSeen: '§9' },
-  { symbol: 'N,\\ N_0', meaning: 'GMAC block 長度／PE 窗口長度', unit: String.raw`\text{samples}`, firstSeen: '§9、§9.1', note: <>兩者不同：{m`N`} 決定雜訊平均，{m`N_0`} 是檢查 PE 的窗口</> },
-  { symbol: String.raw`\mathbf R_k,\ \mathbf U_k`, meaning: <>滑動窗口相關矩陣、{m`N_0\times M`} 資料矩陣</>, firstSeen: '§9.1' },
-  { symbol: String.raw`\alpha,\ \beta`, meaning: 'PE 定義的下界／上界（窗口能量）', unit: String.raw`\text{同 }\textstyle\sum uu^T`, firstSeen: '§9.1' },
-  { symbol: String.raw`\sigma_i(\mathbf A)`, meaning: <>singular value {m`=\sqrt{\lambda_i(\mathbf A^T\mathbf A)}`}</>, firstSeen: '§9.1' },
-  { symbol: String.raw`\mathbf P_k=E[\boldsymbol\delta_k\boldsymbol\delta_k^T]`, meaning: <>誤差的二階動差矩陣（mean-square）；其遞迴的 spectral radius 記為 {m`\rho_{\mathrm{MS}}`}</>, firstSeen: '§9（E23）' },
-  { symbol: String.raw`\tilde{\mathbf x}[n]=(1,x_0,\dots,x_3)`, meaning: <>global offset {m`b`} 的 regressor（常數 1）＋四相 one-hot regressor</>, unit: String.raw`\{0,1\}`, firstSeen: '§9.2' },
-  {
-    symbol: String.raw`b,\ a_i`,
-    meaning: <>所有相位共用的 global offset（規格 §9.2 的 GOS）、第 {m`i`} 相的 phase offset（PHOS）</>,
-    unit: String.raw`\mathrm{fs}`,
-    firstSeen: '§9.2',
-    note: <>若你的架構把 GOS／PHOS 這些縮寫用在別的量，請用 regressor 的結構來對應：{m`b\leftrightarrow`} 常數 1，{m`a_i\leftrightarrow`} one-hot</>,
-  },
-  { symbol: String.raw`\mathbf n`, meaning: <>gauge null vector {m`(1,-1,-1,-1,-1)`}</>, firstSeen: '§9.2' },
-  {
-    symbol: 'P',
-    meaning: <>one-hot 的相數（本章與實驗室取 {m`P=4`}）</>,
-    unit: String.raw`\text{整數}`,
-    firstSeen: '§9.2',
-    note: <>細體 {m`P`}（相數）與粗體 {m`\mathbf P_k`}（二階動差矩陣）是不同的量</>,
-  },
-  {
-    symbol: String.raw`H_{\mathrm{PD}}(z),\ h[n]`,
-    meaning: <>DTC 誤差 → PD 的轉移函數與 impulse response；type-I/II PLL 有 {m`H_{\mathrm{PD}}(1)=0`}</>,
-    firstSeen: '§9.2',
-    note: <>u-domain：{m`\tilde{\mathbf u}=h*\tilde{\mathbf x}`}（<Erratum id="E04" />）</>,
-  },
-  {
-    symbol: String.raw`s[n],\ S`,
-    meaning: <>{m`H_{\mathrm{PD}}`} 的 step response {m`s[n]=\sum_{m\le n}h[m]`} 及其總和 {m`S=\sum_ns[n]`}（type-II 為 0）</>,
-    firstSeen: '§9.2',
-    note: <>只用在 {m`w_b`} 漂移的估計（F-09.19）</>,
-  },
-  { symbol: 'n,\\ k,\\ K', meaning: <>時間索引：{m`n`} = comparator sample，{m`k`} = GMAC block；{m`K`} = 已經跑過的 block 數</>, firstSeen: '全站 §0' },
-]
+import { SYSTEM_FOCUS } from '../diagrams'
+import { Diagram, FigRef, HandCalcBox, m, num, texNum } from '../shared'
 
 const A_TRUE: [number, number] = [3, 1]
 
@@ -181,21 +96,31 @@ export function Intro() {
         <strong>Persistent Excitation（PE，持續激發）</strong>。
       </Callout>
 
-      <SymbolTable
-        rows={SYMBOLS}
-        caption={
-          <>
-            本章所有平均遞迴都明寫 {m`K_q`}（<Erratum id="E05" />、<Erratum id="E08" />）；598 blocks 這類數字是 <strong>mean</strong> 的敘述（
-            <Erratum id="E23" />）；§9.2 的 DC-null 版本採修正文字（<Erratum id="E04" />）；{m`\lambda`} 只代表 eigenvalue（
-            <Erratum id="E22" />）。
-          </>
-        }
-      />
+      <SystemMap focus={SYSTEM_FOCUS} />
+      <p className="ch09-map-note">
+        <strong>你在這裡：</strong>藍色的四個方塊——regressor {m`x[n]`}、code alignment（filtered-x）、GMAC、gain accumulator {m`w_k`}——是 LMS 校正迴路裡
+        「每個參數各要一份」的部分。前面幾章只有一份（一個係數）；這一章把它們複製成 {m`M`} 份、全部共用同一個 comparator 輸出，然後問：
+        {m`M`} 個 accumulator 各自學得到自己的參數嗎？（§9.2 還會用到標著「主 PLL 迴路」的那一框：它會把 DC 誤差吃掉，讓其中一個參數完全看不到。）
+      </p>
 
       <Section kind="intuition" title="一個黑盒子：兩個旋鈕總是一起動" level={2} id="ch09-intro">
         <p>
-          想像一個黑盒子有兩個未知參數 {m`\mathbf a=(a_1,a_2)`}。你每次輸入一組 regressor {m`\mathbf u=(u_1,u_2)`}，只能看到
-          誤差 {m`e=u_1(a_1-w_1)+u_2(a_2-w_2)`}。如果<strong>每一次</strong> {m`u_1=u_2`}（兩個旋鈕總是被同一個 code 一起推），
+          想像一個黑盒子有兩個未知參數 {m`\mathbf a=(a_1,a_2)`}（真值）。你每次輸入一組 <strong>regressor</strong> {m`\mathbf u=(u_1,u_2)`}
+          ——regressor 就是「乘在某個參數上的那個已知輸入」，在 DTC 校正裡是 DSM 的 residue code。你手上有兩個旋鈕 {m`\mathbf w=(w_1,w_2)`}
+          （校正係數），目標是把它們調到等於 {m`\mathbf a`}；但你只能看到一個數，誤差 {m`e=u_1(a_1-w_1)+u_2(a_2-w_2)`}。
+          括號裡的 {m`a_i-w_i`}（真值減旋鈕）叫<strong>參數誤差</strong>，後面記成 {m`\delta_i`}。
+        </p>
+        <Diagram id="two-knob">
+          看藍色的方塊：不管黑盒子裡有幾個參數，你量得到的只有 {m`e`} 這<strong>一個數</strong>。
+        </Diagram>
+        <p>
+          <FigRef id="two-knob" /> 怎麼看：先看標著「黑盒子」的框——{m`u_1`}、{m`u_2`} 各自乘上未知的 {m`a_1`}、{m`a_2`}，相加成 {m`y`}。
+          再看標著「你的兩個旋鈕」的框——同樣的 {m`u_1`}、{m`u_2`} 乘上 {m`w_1`}、{m`w_2`}，相加成 {m`\hat y`}。最後一個加法點把兩者相減（{m`y`} 那條線標 {m`+`}、
+          {m`\hat y`} 那條線標 {m`-`}），得到藍色方塊裡的 {m`e`}。圖上「{m`\times a_1`}」與「{m`\times w_1`}」兩條路相減，就是公式裡的 {m`u_1(a_1-w_1)`} 這一項；
+          {m`u_2`} 的兩條路相減就是 {m`u_2(a_2-w_2)`}。
+        </p>
+        <p>
+          如果<strong>每一次</strong> {m`u_1=u_2`}（圖上的兩個輸入其實是同一個訊號：兩個旋鈕總是被同一個 code 一起推），
           你永遠只看得到 {m`(a_1-w_1)+(a_2-w_2)`}，也就是<strong>和</strong>；至於「差」是多少，資料裡根本沒有。
         </p>
         <p>
@@ -206,8 +131,9 @@ export function Intro() {
 
       <Section kind="example" title={<>先算一次：{m`\mathbf u`} 永遠是 {m`(1,1)`}</>} level={3}>
         <p>
-          設 {m`\mathbf a=(3,1)`}、{m`\mathbf w_0=(0,0)`}、{m`\mu=0.25`}、無雜訊，每一步 {m`\mathbf u=(1,1)`}。conventional LMS：
-          {m`\mathbf w\leftarrow\mathbf w+\mu e\,\mathbf u`}。下表每一列都由 <code>lmsHandSteps()</code> 算出：
+          設 {m`\mathbf a=(3,1)`}、起點 {m`\mathbf w_0=(0,0)`}、無雜訊，每一步 {m`\mathbf u=(1,1)`}。conventional LMS 每一步照「誤差 {m`\times`} regressor」
+          修正旋鈕：{m`\mathbf w\leftarrow\mathbf w+\mu e\,\mathbf u`}，其中 {m`\mu`} 是 <strong>learning rate</strong>（步長：每一步照誤差修正多少），這裡取
+          {m`\mu=0.25`}。下表的 {m`k`} 是第幾步，每一列都由 <code>lmsHandSteps()</code> 算出：
         </p>
         <HandTable rows={same} />
         <p>
@@ -217,6 +143,7 @@ export function Intro() {
         </p>
         <TexBlock>{String.raw`\mathbf w_\infty=(2,\,2),\qquad e_\infty=(3-2)+(1-2)=0,\qquad \boldsymbol\delta_\infty=\mathbf a-\mathbf w_\infty=(1,\,-1)`}</TexBlock>
         <p>
+          這裡的 {m`\boldsymbol\delta=\mathbf a-\mathbf w`} 就是把兩個參數誤差排成向量（真值減旋鈕；全站都用這個極性）。
           <strong>誤差歸零，但兩個參數都錯</strong>（{m`w_1=2`} vs {m`a_1=3`}、{m`w_2=2`} vs {m`a_2=1`}）。殘留的誤差 {m`(1,-1)`} 正好是 {m`\mathbf u=(1,1)`}「看不見」的方向：
           {m`(1,1)\cdot(1,-1)=0`}。這就是本章後面會叫做「{m`\lambda_{\min}=0`} 的 eigenvector」的方向。 <ClaimTag kind="exact" /> <SourceTag />
         </p>
@@ -236,6 +163,8 @@ export function Intro() {
         <Callout kind="ok" title="本課主線">
           LMS 的收斂速度由 {m`\mathbf R=E[\mathbf u\mathbf u^T]`} 的 eigenvalues 決定：最大的 {m`\lambda_{\max}`} 限制 {m`\mu`}（穩定），
           最小的 {m`\lambda_{\min}`} 決定最慢的模式；{m`\lambda_{\min}=0`} 的方向完全學不到。
+          （{m`\mathbf R`} 是「regressor 兩兩相乘、長期平均」排成的表；它的 eigenvalue {m`\lambda`} 可以想成輸入在某一個參數方向上的<strong>能量</strong>。
+          這兩個名詞下一節從頭講。）
         </Callout>
         <CodeBlock source={peSrc} region="handSteps" path="src/simulation/models/pe.ts" caption="上面兩張表就是由這段程式碼算出（無雜訊、逐筆更新）。" />
       </Section>

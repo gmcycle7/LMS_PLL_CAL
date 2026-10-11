@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import type { Data } from 'plotly.js-dist-min'
 import { Callout, ModeGate, Plot, Section, SelectControl, SourceTag, Tex, mathText, useThemeTokens } from '@/components'
 import { FREF_MHZ, LMS_NOTE_ZH, LOOP_KEYS, PARAMS, PRED, SIM_CFG, type LoopKey, type LsCount } from '../data'
-import { Claim, DataTable, Formula, Kappa, ModelCode, Src, fmtFs, fp, fx, intervalsText, r } from '../common'
+import { Claim, DataTable, Diagram, Formula, Kappa, ModelCode, Src, fmtFs, fp, fx, intervalsText, r } from '../common'
 
 const COUNT_VARIANTS: [string, string][] = [
   ['raw', 'raw'],
@@ -125,6 +125,11 @@ export function S10Sim() {
           正規化：除以同一段紀錄在 <Tex>{r`H\equiv1`}</Tex> 時的開迴路值。
         </li>
       </ul>
+      <Diagram id="sim-measure" />
+      <p>
+        由左往右就是量測的順序。先看前四格：LMS 不動，只把某一個權重推開一點點，看 GMAC 的平均跟著變多少，這個斜率就是「LMS 會用多大的力把它拉回來」。再看藍色那一格：同一段紀錄再用 <Tex>{r`H_{PD}\equiv1`}</Tex>（把主迴路拿掉）算一次，兩者相除。所以 sim 報出來的{' '}
+        <Tex>{r`\kappa`}</Tex> 和理論的 <Tex>{r`\kappa`}</Tex> 是同一個意思：1 表示和沒有迴路時一樣，負值表示主迴路把恢復力變成推力。
+      </p>
       <p>
         golden 有兩種對照：(1) <code>replica_S</code>：照同樣流程重算一次（deterministic），與 sim 存檔的 <Tex>{r`\kappa`}</Tex> 差在 <Tex>{r`10^{-5}`}</Tex> 以內。
         <Claim kind="exact" />
@@ -248,11 +253,7 @@ export function S10Sim() {
 
       <h3>10.4 大訊號：1-bit 比較器看的是「持續時間」而不是「面積」</h3>
       <p>
-        當誤差振幅 <Tex>{r`A\gg\sigma_v`}</Tex> 時，Bussgang 線性化失效。沿方向 <Tex>{'v'}</Tex> 的割線斜率：
-      </p>
-      <Formula id="F-CS.20" />
-      <p>
-        其中 <Tex>{r`y_v=h_{PD}*d_v`}</Tex> 是誤差方向 <Tex>{'v'}</Tex> 在 PD 的響應，<Tex>{'z_v'}</Tex> 是對應的 regressor。
+        前面的分析都假設誤差比比較器的雜訊小很多（<Tex>{r`\lvert e_{PD}\rvert\ll\sigma_v`}</Tex>），這時比較器的平均輸出和 <Tex>{r`e_{PD}`}</Tex> 成正比（§4.2 的 Bussgang 線性化）。當誤差振幅 <Tex>{r`A\gg\sigma_v`}</Tex> 時，比較器幾乎每一拍都飽和，這個線性化就失效了。
       </p>
       <Callout kind="info" title="白話：面積 vs 持續時間">
         <p>
@@ -260,6 +261,16 @@ export function S10Sim() {
           的地方，大訊號會穩健地反向。
         </p>
       </Callout>
+      <Diagram id="large-signal" />
+      <p>
+        先看菱形之前：只讓某一個方向 <Tex>{'v'}</Tex> 的權重有誤差（振幅 <Tex>{'A'}</Tex>，波形 <Tex>{'d_v[n]'}</Tex>），它通過主迴路之後在 PD 的響應是 <Tex>{'y_v[n]'}</Tex>。再看分岔：小訊號那一路，比較器的平均輸出保留了 <Tex>{'y_v'}</Tex> 的大小，和 regressor{' '}
+        <Tex>{'z_v'}</Tex> 相關得到的就是線性分析的 <Tex>{r`C_{vv}`}</Tex>；大訊號那一路（紅色），比較器只留下 <Tex>{'y_v'}</Tex> 的正負號，相關量變成「同號的時間比例」。圖上兩條路的終點，就是下面公式的兩個極限：<Tex>{r`A\to0`}</Tex> 時 <Tex>{r`g_v\to C_{vv}`}</Tex>，<Tex>{r`A\to\infty`}</Tex> 時得到{' '}
+        <Tex>{r`\kappa_\infty`}</Tex>。沿方向 <Tex>{'v'}</Tex> 的割線斜率（GMAC 平均除以誤差振幅）是：
+      </p>
+      <Formula id="F-CS.20" />
+      <p>
+        其中 <Tex>{r`y_v=h_{PD}*d_v`}</Tex> 是誤差方向 <Tex>{'v'}</Tex> 在 PD 的響應，<Tex>{'z_v'}</Tex> 是對應的 regressor。
+      </p>
       <p>
         <Claim kind="exact">極限推導</Claim>／<Claim kind="approx">只沿 6 個方向：GOS、m1c、m1s、m2c、m3c、m4，不是完整的非線性穩定域</Claim>
       </p>

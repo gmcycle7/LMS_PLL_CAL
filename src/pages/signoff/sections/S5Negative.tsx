@@ -4,7 +4,8 @@ import { meanCI } from '@/simulation/core'
 import judgesSrc from '../judges.ts?raw'
 import { NEGATIVE_TESTS } from '../data'
 import { kq, linearSigmaWMc, negativeSignatures } from '../judges'
-import { ErratumTag, RichText, SiteLink, nf } from '../shared'
+import { CHART_NEGATIVE_CHECKS } from '../diagrams'
+import { Diagram, ErratumTag, RichText, SiteLink, nf } from '../shared'
 
 const PATH = 'src/pages/signoff/judges.ts'
 
@@ -52,6 +53,19 @@ export function S5Negative() {
         <ClaimTag kind="exact" />
         <SourceTag kind="illustrative" />
       </div>
+      <Diagram
+        chart={CHART_NEGATIVE_CHECKS}
+        caption="反面測試的兩道防線：上面一排故意注入錯誤、確認它留下預期的數學特徵並跳出警告；下面一排用兩條獨立的計算路徑交叉比對，讓「公式寫錯、畫面卻成功」被抓出來。"
+        ariaLabel="反面測試的流程圖：注入錯誤後模擬、RTL 與介面照常執行，應該出現預期的數學特徵與解釋型警告；另一條線是解析公式與獨立的時域 Monte Carlo 兩條路徑交叉比對，差距在容許誤差內才通過，否則表示公式或模擬有錯"
+      >
+        <p>
+          先看藍色的「數學特徵」：每一種錯誤都會留下可以事先算出來的指紋——例如極性反轉時 pole 變成 <Tex>{'1+\\mu K'}</Tex>（大於 1），sum 模式忘記 <Tex>{'/N'}</Tex> 時 <Tex>{'g'}</Tex> 乘上 <Tex>{'N'}</Tex>。
+          下面各項列的就是這些指紋，以及該看到的警告。
+        </p>
+        <p>
+          下排是另一種防線：<Tex>{'\\sigma_w=\\mu\\sigma_\\eta/\\sqrt{1-p^2}'}</Tex> 對照獨立的時域模擬（<Tex>{'p=1-g'}</Tex> 是校正的 pole）。兩條路徑算的是同一個量；差距超過容許誤差，就代表其中一條寫錯了。
+        </p>
+      </Diagram>
       <div className="so-limits">
         {NEGATIVE_TESTS.map((t, i) => (
           <div className="so-limit" key={t.id} data-negative={t.id}>
