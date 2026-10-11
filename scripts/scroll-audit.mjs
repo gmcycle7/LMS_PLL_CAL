@@ -28,6 +28,23 @@ const vp = args.viewport === 'mobile' ? { width: 375, height: 812, deviceScaleFa
 const mode = args.mode ?? 'research'
 const chrome = args.chrome ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 
+/**
+ * 開發伺服器在別人改檔時會讓頁面整頁重新載入，量到一半的 evaluate 會丟出
+ * 「Execution context was destroyed」。遇到這類暫時性錯誤就整頁重來。
+ */
+async function withRetry(label, fn, tries = 5) {
+  for (let i = 1; ; i++) {
+    try {
+      return await fn()
+    } catch (e) {
+      const transient = /Execution context was destroyed|detached Frame|Target closed|Cannot find context|Session closed|Navigating frame was detached/i.test(String(e))
+      if (!transient || i >= tries) throw e
+      console.error(`（${label}：頁面在途中被重新載入，重試第 ${i} 次）`)
+      await new Promise((r) => setTimeout(r, 2000))
+    }
+  }
+}
+
 const profileDir = join(tmpdir(), `lmspll-scroll-${process.pid}`)
 const browser = await puppeteer.launch({
   executablePath: chrome,
@@ -38,62 +55,67 @@ const browser = await puppeteer.launch({
 const all = []
 try {
   for (const route of routes) {
-    const page = await browser.newPage()
-    await page.setViewport(vp)
-    await page.evaluateOnNewDocument((m) => localStorage.setItem('lmspll.mode', m), mode)
-    await page.goto(`${base}/#${route}`, { waitUntil: 'networkidle2', timeout: 120000 })
-    await page.waitForSelector('article.page', { timeout: 60000 })
-    const rows = await page.evaluate(async () => {
-      const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-      document.querySelectorAll('details').forEach((d) => (d.open = true))
-      await sleep(300)
-      // 讓延後渲染的圖與圖表都畫出來：整頁慢慢捲一遍
-      const step = Math.max(400, window.innerHeight * 0.8)
-      for (let y = 0; y < document.documentElement.scrollHeight; y += step) {
-        window.scrollTo(0, y)
-        await sleep(120)
+    const rows = await withRetry(route, async () => {
+      const page = await browser.newPage()
+      await page.setViewport(vp)
+      await page.evaluateOnNewDocument((m) => localStorage.setItem('lmspll.mode', m), mode)
+      await page.goto(`${base}/#${route}`, { waitUntil: 'networkidle2', timeout: 120000 })
+      await page.waitForSelector('article.page', { timeout: 60000 })
+      try {
+        return await page.evaluate(async () => {
+          const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+          document.querySelectorAll('details').forEach((d) => (d.open = true))
+          await sleep(300)
+          // 讓延後渲染的圖與圖表都畫出來：整頁慢慢捲一遍
+          const step = Math.max(400, window.innerHeight * 0.8)
+          for (let y = 0; y < document.documentElement.scrollHeight; y += step) {
+            window.scrollTo(0, y)
+            await sleep(120)
+          }
+          for (let t = 0; t < 150 && document.querySelector('.c-mermaid-loading'); t++) await sleep(100)
+          await sleep(400)
+          window.scrollTo(0, 0)
+    
+          const describe = (el) => {
+            const parts = []
+            for (let e = el, i = 0; e && e !== document.body && i < 4; e = e.parentElement, i++) {
+              const cls = typeof e.className === 'string' && e.className ? `.${e.className.trim().split(/\s+/).slice(0, 2).join('.')}` : ''
+              parts.unshift(`${e.tagName.toLowerCase()}${e.id ? `#${e.id}` : ''}${cls}`)
+            }
+            return parts.join(' > ')
+          }
+          const out = []
+          const main = document.querySelector('main.content') ?? document.body
+          for (const el of main.querySelectorAll('*')) {
+            const cs = getComputedStyle(el)
+            const sx = cs.overflowX === 'auto' || cs.overflowX === 'scroll'
+            const sy = cs.overflowY === 'auto' || cs.overflowY === 'scroll'
+            if (!sx && !sy) continue
+            const dx = sx ? el.scrollWidth - el.clientWidth : 0
+            const dy = sy ? el.scrollHeight - el.clientHeight : 0
+            const forced = (cs.overflowX === 'scroll' || cs.overflowY === 'scroll') && dx <= 0 && dy <= 0
+            if (dx <= 0 && dy <= 0 && !forced) continue
+            if (el.clientWidth === 0 || el.clientHeight === 0) continue
+            // 方塊圖的外框本身（.c-mermaid-svg）是刻意可橫向捲動的；要抓的是圖「裡面」的捲軸
+            const inDiagram = !!el.closest('figure.c-mermaid svg')
+            const text = (el.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 50)
+            let kind = 'ok'
+            if (inDiagram) kind = 'DIAGRAM'
+            else if (forced) kind = 'TINY'
+            else if (Math.max(dx, 0) <= 6 && Math.max(dy, 0) <= 6) kind = 'TINY'
+            else if (dy > 6 && dy <= 60 && dx <= 6) kind = 'VERT'
+            out.push({ kind, dx: Math.max(dx, 0), dy: Math.max(dy, 0), where: describe(el), text, overflow: `${cs.overflowX}/${cs.overflowY}`, w: el.clientWidth, h: el.clientHeight })
+          }
+          return out
+        })
+      } finally {
+        await page.close().catch(() => undefined)
       }
-      for (let t = 0; t < 150 && document.querySelector('.c-mermaid-loading'); t++) await sleep(100)
-      await sleep(400)
-      window.scrollTo(0, 0)
-
-      const describe = (el) => {
-        const parts = []
-        for (let e = el, i = 0; e && e !== document.body && i < 4; e = e.parentElement, i++) {
-          const cls = typeof e.className === 'string' && e.className ? `.${e.className.trim().split(/\s+/).slice(0, 2).join('.')}` : ''
-          parts.unshift(`${e.tagName.toLowerCase()}${e.id ? `#${e.id}` : ''}${cls}`)
-        }
-        return parts.join(' > ')
-      }
-      const out = []
-      const main = document.querySelector('main.content') ?? document.body
-      for (const el of main.querySelectorAll('*')) {
-        const cs = getComputedStyle(el)
-        const sx = cs.overflowX === 'auto' || cs.overflowX === 'scroll'
-        const sy = cs.overflowY === 'auto' || cs.overflowY === 'scroll'
-        if (!sx && !sy) continue
-        const dx = sx ? el.scrollWidth - el.clientWidth : 0
-        const dy = sy ? el.scrollHeight - el.clientHeight : 0
-        const forced = (cs.overflowX === 'scroll' || cs.overflowY === 'scroll') && dx <= 0 && dy <= 0
-        if (dx <= 0 && dy <= 0 && !forced) continue
-        if (el.clientWidth === 0 || el.clientHeight === 0) continue
-        // 方塊圖的外框本身（.c-mermaid-svg）是刻意可橫向捲動的；要抓的是圖「裡面」的捲軸
-        const inDiagram = !!el.closest('figure.c-mermaid svg')
-        const text = (el.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 50)
-        let kind = 'ok'
-        if (inDiagram) kind = 'DIAGRAM'
-        else if (forced) kind = 'TINY'
-        else if (Math.max(dx, 0) <= 6 && Math.max(dy, 0) <= 6) kind = 'TINY'
-        else if (dy > 6 && dy <= 60 && dx <= 6) kind = 'VERT'
-        out.push({ kind, dx: Math.max(dx, 0), dy: Math.max(dy, 0), where: describe(el), text, overflow: `${cs.overflowX}/${cs.overflowY}`, w: el.clientWidth, h: el.clientHeight })
-      }
-      return out
     })
     for (const r of rows) all.push({ route, ...r })
     const bad = rows.filter((r) => r.kind !== 'ok')
     console.log(`\n${route}：${rows.length} 個可捲動的區塊，其中 ${bad.length} 個需要看（DIAGRAM ${bad.filter((r) => r.kind === 'DIAGRAM').length}、TINY ${bad.filter((r) => r.kind === 'TINY').length}、VERT ${bad.filter((r) => r.kind === 'VERT').length}）`)
     for (const r of bad) console.log(`  ${r.kind.padEnd(7)} x+${r.dx} y+${r.dy}  ${r.w}x${r.h}  ${r.where}  「${r.text}」`)
-    await page.close()
   }
 } finally {
   await browser.close()

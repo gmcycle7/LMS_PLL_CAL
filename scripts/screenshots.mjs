@@ -56,6 +56,23 @@ const SELECTORS = {
 }
 
 mkdirSync(out, { recursive: true })
+/**
+ * 開發伺服器在別人改檔時會讓頁面整頁重新載入，量到一半的 evaluate 會丟出
+ * 「Execution context was destroyed」。遇到這類暫時性錯誤就整頁重來。
+ */
+async function withRetry(label, fn, tries = 5) {
+  for (let i = 1; ; i++) {
+    try {
+      return await fn()
+    } catch (e) {
+      const transient = /Execution context was destroyed|detached Frame|Target closed|Cannot find context|Session closed|Navigating frame was detached/i.test(String(e))
+      if (!transient || i >= tries) throw e
+      console.error(`（${label}：頁面在途中被重新載入，重試第 ${i} 次）`)
+      await new Promise((r) => setTimeout(r, 2000))
+    }
+  }
+}
+
 const profileDir = join(tmpdir(), `lmspll-shots-${process.pid}`)
 const browser = await puppeteer.launch({
   executablePath: chrome,
@@ -71,61 +88,66 @@ try {
   for (const vpName of viewports) {
     for (const theme of themes) {
       for (const route of routes) {
-        // 每一頁開新分頁：HashRouter 換 hash 不會重新載入
-        const page = await browser.newPage()
-        await page.setViewport(VIEWPORT[vpName] ?? VIEWPORT.desktop)
-        await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: theme }])
-        await page.evaluateOnNewDocument((m) => localStorage.setItem('lmspll.mode', m), mode)
-        await page.goto(`${base}/#${route}`, { waitUntil: 'networkidle2', timeout: 120000 })
-        // HashRouter：同一份文件換 hash 時 goto 不一定重新載入，保險起見等標題出現
-        await page.waitForSelector('article.page', { timeout: 60000 })
-        await sleep(1500)
-        page.__chromeHidden = false
-        const prefix = `${slug(route)}__${vpName}-${theme}`
-        for (const shot of shots) {
-          if (shot === 'top') {
-            await page.evaluate(() => window.scrollTo(0, 0))
-            await sleep(800)
-            const file = join(out, `${prefix}__top.png`)
-            await page.screenshot({ path: file })
-            written.push(file)
-            continue
-          }
-          // 元素截圖時藏起固定在上方的工具列，避免蓋住被截的元素
-          if (!page.__chromeHidden) {
-            await page.addStyleTag({ content: '.topbar{visibility:hidden!important}.fr-search{position:static!important}' })
-            await page.evaluate(() => document.querySelectorAll('details').forEach((d) => (d.open = true)))
-            await sleep(300)
-            page.__chromeHidden = true
-          }
-          const [kindRaw, nRaw] = shot.split(':')
-          const kind = kindRaw === 'all-mermaid' ? 'mermaid' : kindRaw
-          const sel = SELECTORS[kind]
-          if (!sel) continue
-          const handles = await page.$$(sel)
-          const limit = kindRaw === 'all-mermaid' || only ? handles.length : Math.min(handles.length, Number(nRaw ?? 1))
-          for (let i = 0; i < limit; i++) {
-            if (only && !only.has(i + 1)) continue
-            const h = handles[i]
-            await h.evaluate((el) => el.scrollIntoView({ block: 'center' }))
-            if (kind === 'mermaid') {
-              await page
-                .waitForFunction((el) => !!el.querySelector('.c-mermaid-svg svg') || !!el.querySelector('.c-mermaid-error'), { timeout: 30000 }, h)
-                .catch(() => undefined)
+        await withRetry(route, async () => {
+          // 每一頁開新分頁：HashRouter 換 hash 不會重新載入
+          const page = await browser.newPage()
+          try {
+            await page.setViewport(VIEWPORT[vpName] ?? VIEWPORT.desktop)
+            await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: theme }])
+            await page.evaluateOnNewDocument((m) => localStorage.setItem('lmspll.mode', m), mode)
+            await page.goto(`${base}/#${route}`, { waitUntil: 'networkidle2', timeout: 120000 })
+            // HashRouter：同一份文件換 hash 時 goto 不一定重新載入，保險起見等標題出現
+            await page.waitForSelector('article.page', { timeout: 60000 })
+            await sleep(1500)
+            page.__chromeHidden = false
+            const prefix = `${slug(route)}__${vpName}-${theme}`
+            for (const shot of shots) {
+              if (shot === 'top') {
+                await page.evaluate(() => window.scrollTo(0, 0))
+                await sleep(800)
+                const file = join(out, `${prefix}__top.png`)
+                await page.screenshot({ path: file })
+                written.push(file)
+                continue
+              }
+              // 元素截圖時藏起固定在上方的工具列，避免蓋住被截的元素
+              if (!page.__chromeHidden) {
+                await page.addStyleTag({ content: '.topbar{visibility:hidden!important}.fr-search{position:static!important}' })
+                await page.evaluate(() => document.querySelectorAll('details').forEach((d) => (d.open = true)))
+                await sleep(300)
+                page.__chromeHidden = true
+              }
+              const [kindRaw, nRaw] = shot.split(':')
+              const kind = kindRaw === 'all-mermaid' ? 'mermaid' : kindRaw
+              const sel = SELECTORS[kind]
+              if (!sel) continue
+              const handles = await page.$$(sel)
+              const limit = kindRaw === 'all-mermaid' || only ? handles.length : Math.min(handles.length, Number(nRaw ?? 1))
+              for (let i = 0; i < limit; i++) {
+                if (only && !only.has(i + 1)) continue
+                const h = handles[i]
+                await h.evaluate((el) => el.scrollIntoView({ block: 'center' }))
+                if (kind === 'mermaid') {
+                  await page
+                    .waitForFunction((el) => !!el.querySelector('.c-mermaid-svg svg') || !!el.querySelector('.c-mermaid-error'), { timeout: 30000 }, h)
+                    .catch(() => undefined)
+                }
+                if (kind === 'plot' || kind === 'exp') await sleep(2500)
+                await sleep(500)
+                const box = await h.boundingBox()
+                if (!box || box.width < 2 || box.height < 2) continue
+                const file = join(out, `${prefix}__${kind}-${String(i + 1).padStart(2, '0')}.png`)
+                // 元素太高時只截前 2400px，避免產生巨大的圖
+                await h.screenshot({ path: file, clip: box.height > 2400 ? { x: 0, y: 0, width: box.width, height: 2400 } : undefined }).catch(async () => {
+                  await page.screenshot({ path: file })
+                })
+                written.push(file)
+              }
             }
-            if (kind === 'plot' || kind === 'exp') await sleep(2500)
-            await sleep(500)
-            const box = await h.boundingBox()
-            if (!box || box.width < 2 || box.height < 2) continue
-            const file = join(out, `${prefix}__${kind}-${String(i + 1).padStart(2, '0')}.png`)
-            // 元素太高時只截前 2400px，避免產生巨大的圖
-            await h.screenshot({ path: file, clip: box.height > 2400 ? { x: 0, y: 0, width: box.width, height: 2400 } : undefined }).catch(async () => {
-              await page.screenshot({ path: file })
-            })
-            written.push(file)
+          } finally {
+            await page.close().catch(() => undefined)
           }
-        }
-        await page.close()
+        })
       }
     }
   }
