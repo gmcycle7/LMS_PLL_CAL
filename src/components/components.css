@@ -1197,6 +1197,9 @@
   margin: 6px 0 0;
   background: var(--surface);
 }
+.c-exp-json.is-full {
+  max-height: none;
+}
 .c-exp-export {
   display: flex;
   flex-wrap: wrap;
