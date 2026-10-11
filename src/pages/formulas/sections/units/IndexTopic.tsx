@@ -1,8 +1,9 @@
-import { Callout, ClaimTag, CodeBlock, Prereq, SourceTag, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeBlock, Mermaid, Prereq, SourceTag, StepDerivation, Tex, TexBlock } from '@/components'
 import calNoiseSrc from '@/simulation/models/calNoise.ts?raw'
 import { refValues, T13_SETUP } from '../../refValues'
 import { texHz, texNum } from '../../format'
 import { Collapsible, ErratumTag, FormulaLinks, Gate, PageLinks } from '../../common'
+import { CHART_RATE_DOMAINS } from '../../diagrams'
 import { TimelineDiagram } from './TimelineDiagram'
 import { Topic } from './Topic'
 
@@ -87,6 +88,14 @@ export function IndexTopic() {
           </tbody>
         </table>
       </div>
+      <p>
+        <strong>先看圖：</strong>上面的表格說「哪個量用哪個索引」；下圖把同一件事畫成訊號流。左邊的 sample rate 每個 <Tex>{'n'}</Tex> 都有一筆 <Tex>{'e[n]'}</Tex>、<Tex>{'q[n]'}</Tex>；
+        累加 <Tex>{'N'}</Tex> 筆之後才得到右邊 block rate 的一筆 <Tex>{'G_k'}</Tex>，更新 <Tex>{'w_k'}</Tex>；要回到 sample rate 就得用 ZOH 把 <Tex>{'w_k'}</Tex> 重複 <Tex>{'N'}</Tex> 次。
+      </p>
+      <Mermaid
+        chart={CHART_RATE_DOMAINS}
+        caption="兩條時間軸：$e[n]$、$q[n]$ 在 sample rate（索引 $n$，$f_s$）；$G_k$、$w_k$、$\delta_k$ 在 block rate（索引 $k$，$f_u=f_s/N$）。藍色的累加是 sample → block，綠色的 ZOH 是 block → sample；虛線的 $\delta_k$ 在整個 block 內保持不變，其實也是一次 ZOH。"
+      />
       <Prereq title="離散時間的角頻率：rad/sample 與 rad/block">
         <p>
           以取樣率 <Tex>{'f_r'}</Tex> 對頻率 <Tex>{'f'}</Tex> 的弦波取樣（第 <Tex>{'n'}</Tex> 個樣本的時間是 <Tex>{'t=n/f_r'}</Tex>）：

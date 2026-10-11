@@ -1,7 +1,8 @@
 import { Callout, ClaimTag, ModeGate, Section, SourceTag, Tex } from '@/components'
 import { PAPERS } from '../references'
 import { calNoise } from '../bridge'
-import { PageChips, Question, num, r } from '../common'
+import { Diagram, PageChips, Question, num, r } from '../common'
+import { CHART_NUMBER_SOURCES } from '../diagrams'
 import { D1_PARAMS } from '../panels/D1Noise'
 
 /** §1：這一頁的規則——已發表主張 vs 本站推導。 */
@@ -18,6 +19,19 @@ export function S1Policy() {
         參數下、用一階線性化模型算出的
         <em>gain-equivalent 係數雜訊</em>（推導值），單位雖然都是 fs，代表的物理量完全不同。這一頁的每一篇文獻都用同一套規則處理：
       </p>
+      <Diagram
+        chart={CHART_NUMBER_SOURCES}
+        caption="一個數字的三種來源與各自的標示方式；兩個數字要放在一起比，必須物理量、模型、條件都相同。藍色是本站推導，棕色是已發表主張。"
+        ariaLabel="數字來源流程圖：已發表主張、規格書的描述、本站推導，以及兩個數字能不能互相比較的判斷"
+      >
+        <p>
+          <strong>先看</strong>上半部：任何數字先問「它從哪裡來」——作者的晶片與量測（棕色）、規格書附錄 D 的一句話，或本站的模型與程式（藍色）。三種來源在本頁各有固定的標示方式，下表逐一說明。
+        </p>
+        <p>
+          <strong>再看</strong>下半部的菱形：兩個數字要放在一起比，物理量、模型、條件三者都要相同。圖上紅色方塊就是開頭那個問題的答案：題名的 <Tex>{r`74\ \mathrm{fs}`}</Tex> 是 output
+          jitter，本站的 <Tex>{r`\sigma_w`}</Tex>（校正係數在穩態附近抖動的 RMS）是係數雜訊，不能直接比。
+        </p>
+      </Diagram>
       <div className="table-wrap">
         <table className="papers-table">
           <thead>

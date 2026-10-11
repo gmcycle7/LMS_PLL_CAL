@@ -19,7 +19,7 @@ import {
   tieRuleEquilibriumApprox,
   type TieRule,
 } from '@/simulation/models/comparator'
-import { Erratum, HandCalcBlock, Steps, fx, int, logspace, pct, sig, texInt, texPct, useAtLeast, vline } from '../common'
+import { Erratum, Fig, HandCalcBlock, Steps, fx, int, logspace, pct, sig, texInt, texPct, useAtLeast, vline } from '../common'
 
 const S0 = 1
 const SIG0 = 100
@@ -188,6 +188,17 @@ export function AccumulationSection() {
       </Callout>
       <SumPrereqs />
 
+      <p>
+        為什麼累加有用？把每個樣本想成兩部分：<Tex>{'q_i=m+\\eta_i'}</Tex>，其中 <Tex>{'m=E[q]'}</Tex> 是每次都一樣的平均（訊號），
+        <Tex>{'\\eta_i\\equiv q_i-m'}</Tex> 是扣掉平均後剩下的零均值部分（雜訊，標準差 <Tex>{'\\sqrt{1-m^2}'}</Tex>）。相加時，這兩部分的長法不一樣：
+      </p>
+      <Fig name="signalVsNoise">
+        先看「平均」那條路：<Tex>{'N'}</Tex> 個一樣的 <Tex>{'m'}</Tex> 同號相加，得到 <Tex>{'Nm'}</Tex>，隨 <Tex>{'N'}</Tex> 線性成長。再看「零均值」那條路：
+        <Tex>{'\\eta_i'}</Tex> 有正有負、彼此獨立，會互相抵消一部分，相加的是變異數而不是大小，所以標準差只長到 <Tex>{'\\sqrt{N(1-m^2)}'}</Tex>。最後兩條路相除：比值{' '}
+        <Tex>{'\\mathrm{SNR}_{\\mathrm{stat}}'}</Tex> 隨 <Tex>{'\\sqrt N'}</Tex> 成長。圖上的「<Tex>{'N\\cdot m'}</Tex>」就是下面公式的 <Tex>{'E[S_N]'}</Tex>，「
+        <Tex>{'\\sqrt{N(1-m^2)}'}</Tex>」就是 <Tex>{'\\sqrt{\\operatorname{Var}(S_N)}'}</Tex>。
+      </Fig>
+
       <Steps
         title={
           <>
@@ -204,6 +215,14 @@ export function AccumulationSection() {
       <TexBlock id="F-05.4" label={<>總和與平均的矩 <ClaimTag kind="exact" /></>}>
         {String.raw`\boxed{E[S_N]=Nm,\quad \operatorname{Var}(S_N)=N(1-m^2)}\qquad G=\tfrac{S_N}{N}:\;E[G]=m,\;\operatorname{Var}(G)=\tfrac{1-m^2}{N}`}
       </TexBlock>
+      <p>
+        硬體的累加器多半輸出總和 <Tex>{'S_N'}</Tex>（sum），演算法卻多半寫平均 <Tex>{'G=S_N/N'}</Tex>（average）。兩者只差一個除以 <Tex>{'N'}</Tex>，但常常被搞混：
+      </p>
+      <Fig name="sumVsAvg">
+        先看「<Tex>{'\\div N'}</Tex>」那條線：平均和標準差同時縮小 <Tex>{'N'}</Tex> 倍，所以兩格都連過去的那一格——平均除以標準差——兩者完全相同，方向判斷也不受影響。再看虛線：之後把結果乘上學習率{' '}
+        <Tex>{'\\mu'}</Tex>（每次更新的步長，單位 <Tex>{'\\mathrm{fs}'}</Tex>）去更新係數 <Tex>{'w'}</Tex> 時，用 sum 的硬體要多除一個 <Tex>{'N'}</Tex>，否則迴路增益會大{' '}
+        <Tex>{'N'}</Tex> 倍。圖上兩格裡的 E 與 SD 就是 F-05.4 的四個式子。<Erratum id="E18" />
+      </Fig>
       <p>
         <Tex>{String.raw`N=10{,}000`}</Tex>（<Tex>{String.raw`s=1\,\mathrm{fs},\ \sigma_v=100\,\mathrm{fs}`}</Tex>）：sum 的 <Tex>{`E=${fx(base.mo.meanSum, 3)}`}</Tex>、<Tex>{`\\mathrm{SD}=${fx(base.mo.sdSum, 3)}`}</Tex>；
         average 的 <Tex>{`E=${fx(base.mo.meanAvg, 7)}`}</Tex>、<Tex>{`\\mathrm{SD}=${fx(base.mo.sdAvg, 7)}`}</Tex>——比值（SNR）完全一樣。
@@ -252,6 +271,16 @@ export function AccumulationSection() {
       </HandCalcBlock>
 
       <h3>3.1 精確答案：Binomial 加總</h3>
+      <p>
+        「判斷方向」到底是什麼動作？數一數 <Tex>{'N'}</Tex> 次比較裡有幾次是 <Tex>{'+1'}</Tex>，記作 <Tex>{'K'}</Tex>。每次比較獨立、輸出 <Tex>{'+1'}</Tex> 的機率都是{' '}
+        <Tex>{'p'}</Tex>，所以 <Tex>{'K'}</Tex> 服從 Binomial 分布 <Tex>{'K\\sim\\mathrm{Bin}(N,p)'}</Tex>（本章的 <Tex>{'K'}</Tex> 只是這個計數，和後面章節的迴路增益{' '}
+        <Tex>{'K=K_qC'}</Tex> 無關）。
+      </p>
+      <Fig name="decision">
+        先看左邊三格：<Tex>{'N'}</Tex> 個 <Tex>{'q'}</Tex> 裡有 <Tex>{'K'}</Tex> 個 <Tex>{'+1'}</Tex>、<Tex>{'N-K'}</Tex> 個 <Tex>{'-1'}</Tex>，所以{' '}
+        <Tex>{'S_N=2K-N'}</Tex>。再看菱形的三個出口：<Tex>{'K'}</Tex> 過半就判 <Tex>{'+1'}</Tex>，不到一半就判 <Tex>{'-1'}</Tex>；紅色的第三個出口{' '}
+        <Tex>{'S_N=0'}</Tex> 是平手（tie），只有 <Tex>{'N'}</Tex> 是偶數、而且 <Tex>{'K'}</Tex> 剛好等於 <Tex>{'N/2'}</Tex> 時才會走到。下面的推導就是把這三個出口的機率各自寫出來。
+      </Fig>
       <Steps
         title={<Tex>{'P(S_N>0),\\;P(S_N=0),\\;P(S_N<0)'}</Tex>}
         steps={[
@@ -270,6 +299,16 @@ export function AccumulationSection() {
       </HandCalcBlock>
 
       <h3>3.2 CLT 近似：規格 §5 的公式從哪來</h3>
+      <p>
+        Binomial 逐項加總是精確的，但不好手算，也看不出 <Tex>{'N'}</Tex> 要多大。<Tex>{'N'}</Tex> 大時可以把 <Tex>{'S_N'}</Tex> 當成 Gaussian（CLT），一次查表就得到答案。
+        兩條路線先並排看一次：
+      </p>
+      <Fig name="exactVsClt">
+        先看上框（精確）：由 <Tex>{'p'}</Tex> 與 <Tex>{'N'}</Tex> 得到 <Tex>{'K'}</Tex> 的分布，把 <Tex>{'K>N/2'}</Tex> 的機率逐項相加；偶數 <Tex>{'N'}</Tex> 的 tie
+        是單獨的一項。再看下框（近似）：只需要平均 <Tex>{'Nm'}</Tex> 和標準差 <Tex>{'\\sigma_S\\equiv\\mathrm{SD}(S_N)=\\sqrt{N(1-m^2)}'}</Tex>，查一次{' '}
+        <Tex>{'\\Phi'}</Tex>；菱形提醒你偶數 <Tex>{'N'}</Tex> 而且要嚴格的 <Tex>{'S_N>0'}</Tex> 時，要走紅色的連續性修正（切點從 0 移到 1）。圖上的 <Tex>{'N\\cdot m/\\sigma_S'}</Tex>{' '}
+        就是 §3 的 <Tex>{'\\mathrm{SNR}_{\\mathrm{stat}}'}</Tex>。
+      </Fig>
       <Steps
         title={<Tex>{String.raw`P(S_N>0)\approx\Phi\big(m\sqrt N/\sqrt{1-m^2}\big)`}</Tex>}
         steps={[
@@ -358,6 +397,17 @@ export function AccumulationSection() {
           </>
         }
       >
+        <p>
+          偶數 <Tex>{'N'}</Tex> 時 <Tex>{'S_N'}</Tex> 可能剛好是 0。這時硬體要怎麼辦，就是 tie rule；常見的有四種。下圖裡 <Tex>{'d_k'}</Tex> 表示第 <Tex>{'k'}</Tex> 個 block
+          最後採用的方向（<Tex>{'+1'}</Tex>、<Tex>{'-1'}</Tex>，或 0 表示不動），<Tex>{'s^*'}</Tex> 表示「只取正負號來更新」的迴路最後停下來的誤差值（平衡點，理想是 0），
+          <Tex>{'K_q'}</Tex> 是 §5 的小訊號增益：
+        </p>
+        <Fig name="tieRules">
+          先看最上面的菱形：<Tex>{'S_N\\ne0'}</Tex> 時四種 rule 完全一樣，只有平手時才分道揚鑣。再看四個分支的顏色：綠色的 half（擲硬幣）與 skip（不更新）對 <Tex>{'+1'}</Tex>、<Tex>{'-1'}</Tex> 兩邊一視同仁，不會把迴路推向任何一邊；
+          紅色的兩條——<Tex>{'\\operatorname{sign}(0)=+1'}</Tex>，以及 strict 在 <Tex>{'s>0'}</Tex> 時對應的硬體 <Tex>{'\\operatorname{sign}(0)=-1'}</Tex>——把平手一律判到同一邊，
+          等於把決策門檻偏了半格，平衡點因此偏移 <Tex>{'\\mp1/(NK_q)'}</Tex>（推導在 §3.4，Engineer 模式顯示）。
+          下表把每個分支的機率算出來。
+        </Fig>
         <div className="ch05-row">
           <SelectControl
             label="強調的 tie rule"
@@ -440,8 +490,16 @@ export function AccumulationSection() {
           有些硬體只取累加結果的<strong>正負號</strong>來更新：每個 block 的決策 <Tex>{'d_k=\\operatorname{sign}(S_N)\\in\\{+1,-1,0\\}'}</Tex>（tie 依 rule），
           <Tex>{'w\\leftarrow w+\\mu d_k'}</Tex>（<Tex>{'x\\equiv1'}</Tex>，所以 <Tex>{'s=a-w'}</Tex>）。迴路的平衡點 <Tex>{'s^*'}</Tex> 滿足{' '}
           <Tex>{'E[d](s^*)=0'}</Tex>。偶數 <Tex>{'N'}</Tex> 時 <Tex>{'\\operatorname{sign}(0)=+1'}</Tex> 讓 tie 一律推向 <Tex>{'+1'}</Tex>，等於把決策門檻偏了半格（
-          <Tex>{'S_N'}</Tex> 的格點間距是 2）：
+          <Tex>{'S_N'}</Tex> 的格點間距是 2）。這裡 <Tex>{'\\mu'}</Tex> 是學習率（每個 block 的步長，單位 <Tex>{'\\mathrm{fs}'}</Tex>），<Tex>{'a'}</Tex> 是理想係數、
+          <Tex>{'w_k'}</Tex> 是第 <Tex>{'k'}</Tex> 個 block 的校正係數。
         </p>
+        <Fig name="signBlockLoop">
+          先順著箭頭走一圈：<Tex>{'s=a-w_k'}</Tex> 加上雜訊 <Tex>{'v[n]'}</Tex>，每個 sample <Tex>{'n'}</Tex> 取一次 sign 得到 <Tex>{'q[n]'}</Tex>；累加 <Tex>{'N'}</Tex>{' '}
+          次得到 <Tex>{'S_N'}</Tex>；每個 block <Tex>{'k'}</Tex> 再取一次正負號得到 <Tex>{'d_k'}</Tex>，乘 <Tex>{'\\mu'}</Tex> 後加進累加器（方塊裡的{' '}
+          <Tex>{'\\mu/(z-1)'}</Tex> 是累加器的簡寫：每個 block 把 <Tex>{'\\mu\\,d_k'}</Tex> 加到暫存器上，新的值下一個 block 才生效）；累加器的輸出 <Tex>{'w_k'}</Tex> 以<strong>負號</strong>回到第一個加法點。再看紅色方塊：tie rule 只在這裡起作用——如果它把 <Tex>{'S_N=0'}</Tex> 一律判成{' '}
+          <Tex>{'+1'}</Tex>，迴路要到 <Tex>{'E[d_k]=0'}</Tex> 才停，而這發生在 <Tex>{'s'}</Tex> 略小於 0 的地方。圖上累加器方塊裡的式子，就是更新式{' '}
+          <Tex>{'w_{k+1}=w_k+\\mu\\,d_k'}</Tex>。
+        </Fig>
         <Steps
           title={
             <>
@@ -518,8 +576,15 @@ export function AccumulationSection() {
           <strong>
             (a) 偶數 <Tex>{'N'}</Tex> 平分 tie = 奇數 <Tex>{'N-1'}</Tex>。
           </strong>
-          表中 half 欄位和「<Tex>{'N-1'}</Tex>」的奇數結果完全相同，不是巧合：
+          表中 half 欄位和「<Tex>{'N-1'}</Tex>」的奇數結果完全相同，不是巧合。把最後一個樣本 <Tex>{'q_N'}</Tex> 單獨拿出來，看它能把前{' '}
+          <Tex>{'N-1'}</Tex> 個樣本的總和 <Tex>{'S_{N-1}'}</Tex> 推到哪裡：
         </p>
+        <Fig name="lastSample">
+          先看左邊四格：<Tex>{'N-1'}</Tex> 是奇數，所以 <Tex>{'S_{N-1}'}</Tex> 只能是奇數，離 0 最近的兩格是 <Tex>{'\\pm1'}</Tex>。再看最後一個樣本的效果：
+          <Tex>{'S_{N-1}\\ge3'}</Tex>（或 <Tex>{'\\le-3'}</Tex>）時，不管 <Tex>{'q_N'}</Tex> 是多少，正負號都不會變；只有 <Tex>{'S_{N-1}=\\pm1'}</Tex> 這兩格可能被推進紅色的 tie。藍色那一格是關鍵：從{' '}
+          <Tex>{'+1'}</Tex> 掉進 tie 的機率 <Tex>{'(1-p)\\,P(S_{N-1}=1)'}</Tex>，和從 <Tex>{'-1'}</Tex> 升進 tie 的機率 <Tex>{'p\\,P(S_{N-1}=-1)'}</Tex> 剛好相等。tie 再擲硬幣平分，分給「判{' '}
+          <Tex>{'+1'}</Tex>」的那一半，正好把從 <Tex>{'+1'}</Tex> 掉下來的那一份補回去——所以結果和沒有 <Tex>{'q_N'}</Tex> 一樣。圖上進入「<Tex>{'S_N\\ge2'}</Tex>」的兩條箭頭就是下面推導第 2 行的兩項，進入 tie 的兩條箭頭是第 3 行的兩項，藍色格子裡的等式是第 5 行。
+        </Fig>
         <Steps
           title={
             <>

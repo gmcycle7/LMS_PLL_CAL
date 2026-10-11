@@ -1,7 +1,7 @@
 import { Section, Tex } from '@/components'
 import { W1 } from '@/simulation/models/sspll'
 import { BAND, LOOP_KEYS, PARAMS, REMEDY, SIGNMAP, SURE_GOLDEN, mapIntervalsBelow } from '../data'
-import { DataTable, Hand, Src, fx, intervalsText, r, tx } from '../common'
+import { DataTable, Diagram, Hand, Src, fx, intervalsText, r, tx } from '../common'
 
 /** §15 設計 checklist 與 α keep-out 配方。 */
 export function S15Checklist() {
@@ -54,6 +54,15 @@ export function S15Checklist() {
       <h3>
         15.2 <Tex>{r`\alpha`}</Tex> keep-out 配方（給 raw 或 <code>ac</code> regressor 用）
       </h3>
+      <p>
+        keep-out 的意思是：列出一張「不要在這些頻道更新權重」的清單。要不要把某個頻道 <Tex>{r`\alpha`}</Tex> 列進去，照下面的流程問四個問題；每個菱形的細節（門檻怎麼算、PVT 怎麼留 margin）在流程圖後面的清單裡。
+      </p>
+      <Diagram id="keepout" />
+      <p>
+        先看第一個菱形：regressor 若已經換成一階差分（延遲對齊 <Tex>{'D=0'}</Tex>、margin <Tex>{r`\min_\Omega g\ge0`}</Tex>，§11.1）或 filtered-x（模型與迴路的相位差不超過 90°，§11.2），直接結束，不需要 keep-out。再看 ①②③ 三個檢查，它們對應三種不同的機制：① 是 PMUX 的旋轉頻率 <Tex>{'f_{rot}'}</Tex> 落在 mode-1 的反號帶（清單第 1–3
+        步；<Tex>{'h'}</Tex> 是 <Tex>{r`\mathrm{Re}\,H_{PD}`}</Tex>）；② 是 <Tex>{r`\alpha`}</Tex> 靠近 <Tex>{r`\tfrac14`}</Tex> 或 <Tex>{r`\tfrac12`}</Tex> 時，mode 4 或 mode 2 的基波被 alias 回反號帶（第 4 步）；③ 是 <Tex>{r`\alpha`}</Tex> 靠近 <Tex>{'k/8'}</Tex> 時 GOS 的鋸齒變得很慢，遇到 offset
+        或大訊號就會反向（第 5 步）。任何一個答「是」，這個頻道就不更新（沿用在安全頻道校準好的權重），或換對策。
+      </p>
       <ol className="cs-recipe">
         <li>
           <strong>mode-1 主帶。</strong> 計算 <Tex>{r`h(f)=\mathrm{Re}H_{PD}(f)`}</Tex> 與 <Tex>{r`M=\max_f h`}</Tex>。「一定反號」：<Tex>{r`h(\alpha f_{ref})<-(1-W_1)M/W_1`}</Tex>（<Tex>{`W_1=${tx(W1, 4)}`}</Tex>）；「mode-1 可能反號」：
@@ -99,6 +108,11 @@ export function S15Checklist() {
       <h3>15.3 綜合手算：拿一個頻道把流程走一次</h3>
       <p>
         做思考題之前，先把整章串起來算一次：給定 <Tex>{r`\alpha`}</Tex> 與迴路的 <Tex>{r`K_p,\ K_i`}</Tex>，算出 PMUX 的旋轉頻率、GOS 鋸齒的基頻、反號帶上緣，判斷這個頻道在不在帶內，最後檢查一階差分這個對策能不能用。
+      </p>
+      <Diagram id="handcalc" />
+      <p>
+        先看從輸入分出去的四條線：① 旋轉頻率、② 鋸齒基頻、③ 帶緣、⑤ margin 各自只用到輸入，可以分開算。再看藍色的 ④：把 ① 減掉 ③，負的就是在反號帶內。圖上 ①②③⑤ 的式子就是下面手算題開頭列出的公式，④ 是手算題裡 <Tex>{'f_{rot}-f_{inv}'}</Tex> 那一步；手算題把 ③ 拆成「先算比值、開根號、按{' '}
+        <Tex>{r`\arcsin`}</Tex>、乘上 <Tex>{r`f_{ref}/\pi`}</Tex>」四小步，把 ⑤ 拆成兩次減法。
       </p>
       <Hand id="HC-CS.8">{r`預設是 §8.1 的例子（L2、$\alpha=0.021$）。換成你晶片的頻道與增益，先用紙筆和計算機算出五個答案，再對照下面的結論。`}</Hand>
     </Section>

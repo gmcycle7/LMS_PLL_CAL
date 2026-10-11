@@ -3,6 +3,7 @@ import type { Data } from 'plotly.js-dist-min'
 import {
   Callout,
   ClaimTag,
+  Mermaid,
   ModeGate,
   Plot,
   Section,
@@ -20,6 +21,7 @@ import {
   simulateStrategy,
 } from '@/simulation/models/quantizer'
 import { DEFAULT_LAB_PARAMS, Fold, fx, ntex, num, tx } from '../common'
+import { CHART_ANTIWINDUP, CHART_CDC, CHART_SAT_WRAP } from '../diagrams'
 
 function hamming(a: number, b: number): number {
   let x = (a ^ b) >>> 0
@@ -100,6 +102,17 @@ export function NonIdealSection() {
     <Section kind="assumptions" title="§13.6 工程上必須額外處理的非理想" level={2} id="ch13-nonideal">
       <h3>1. Saturation vs wrap、anti-windup</h3>
       <p>
+        <Tex>{'w_H'}</Tex> 靠近或超出 code 範圍 <Tex>{String.raw`[0,\,2^B-1]=[0,63]`}</Tex> 時，量化器算出來的整數放不進 6 個 bit（overflow）。硬體有兩種處理方式：<strong>saturate</strong>（夾在邊界）或 <strong>wrap</strong>（只留低 6 bit，把進位丟掉）。
+      </p>
+      <Mermaid
+        chart={CHART_SAT_WRAP}
+        caption="超出 6-bit 範圍時的兩種行為（例：$w^*=63.4$ 的 ΔΣ）。先看紅色的 wrap 分支：64 被繞回 0，gain 瞬間消失；再看綠色的 saturate 分支：code 安全地停在 63，但誤差暫存器 $r$ 會一直累積（windup），需要 anti-windup。"
+      />
+      <p className="small ch13-figwalk">
+        圖上的 <Tex>{String.raw`64\bmod64=0`}</Tex> 就是下一段的「進位被丟掉」；圖上 saturate 分支的 <Tex>{'r[n]=v-63'}</Tex> 來自 ΔΣ 的 <Tex>{'r=v-y'}</Tex>（§13.4），<Tex>{'y'}</Tex> 被夾在 63 之後每一拍多出{' '}
+        <Tex>{String.raw`w_H-63`}</Tex>。下面兩段是這兩個分支的模擬數字。
+      </p>
+      <p>
         <Tex>{'w^*=63.4'}</Tex> 超出 6-bit 範圍時：saturate 讓 code 停在 63（code 範圍 {wrap.s.metrics.codeMin}–{wrap.s.metrics.codeMax}）；wrap（無號數模{' '}
         <Tex>{'2^B'}</Tex> 溢位，硬體把進位丟掉：<Tex>{String.raw`64\bmod64=0`}</Tex>）則讓 code 在 {wrap.w.metrics.codeMax} 與 {wrap.w.metrics.codeMin} 之間跳：{WRAP_LEN} 次更新中有{' '}
         {wrap.w.metrics.overflow} 次（{fx((100 * wrap.w.metrics.overflow) / WRAP_LEN, 1)}%，理論上是小數部分 <Tex>{String.raw`\mathrm{frac}(63.4)=40\%`}</Tex>）量化結果為 64 而被繞回 0，平均 code 只剩{' '}
@@ -110,6 +123,13 @@ export function NonIdealSection() {
         <Tex>{String.raw`r[n]=r[n-1]+(63.3-63)=r[n-1]+0.3`}</Tex>，每次多 0.3 LSB。下圖 <Tex>{String.raw`w_H`}</Tex> 先停在 63.3 一千次、再跳回 62.0：沒有 anti-windup 時{' '}
         <Tex>{String.raw`|r|`}</Tex> 最大 {fx(wd.off.rPeak, 1)} LSB（<Tex>{String.raw`\approx0.3\times1000`}</Tex>），跳回後 <Tex>{String.raw`r`}</Tex> 每次只減 1，code
         還卡在 63 長達 <strong>{wd.off.stuck}</strong> 次更新；有 anti-windup（<Tex>{String.raw`r`}</Tex> 夾回 <Tex>{String.raw`[-\tfrac12,\tfrac12]`}</Tex>）只卡 {wd.on.stuck} 次。
+      </p>
+      <Mermaid
+        chart={CHART_ANTIWINDUP}
+        caption="anti-windup 夾在哪裡。和 §13.4 的 ΔΣ 迴圈比，只多了藍色的一塊：$r$ 存回暫存器之前先夾回正常範圍，overload 結束後才不必花幾百拍把累積的 $r$ 消掉。"
+      />
+      <p className="small ch13-figwalk">
+        圖上藍色的 clamp 就是程式碼 <code>residual()</code> 裡 <code>antiWindup</code> 的那一段（把 <Tex>{'r'}</Tex> 夾在 <code>rLo</code> 與 <code>rHi</code> 之間，round-half-up 且沒有 dither 時是 <Tex>{String.raw`\pm\tfrac12`}</Tex>）。下圖的兩條線就是這張圖有、沒有藍色方塊的差別。
       </p>
       <Plot
         title="Overload 後的恢復：ΔΣ windup"
@@ -146,6 +166,13 @@ export function NonIdealSection() {
       <p>
         每次 code 改變都會產生一次 code-dependent 的 settling / kick；切換越多、跳越大，動態干擾越多。6-bit code 跨 clock domain 時還要注意<strong>多個 bit 同時翻轉</strong>：
         <Tex>{String.raw`31\to32`}</Tex> 是 <code>011111 → 100000</code>，6 個 bit 全翻（Hamming 距離 6），若在轉換瞬間被另一個 domain 取樣，可能讀到 0–63 的任何值。下表（<Tex>{'w_H'}</Tex> 含 LMS 雜訊，4096 次更新）：
+      </p>
+      <Mermaid
+        chart={CHART_CDC}
+        caption="6-bit code 跨 clock domain。先看上面的路：31 變 32 時 6 個 bit 同時翻，另一個 clock 若剛好在這瞬間取樣，可能讀到任何值（紅色）；再看下面的路：改用 gray 碼後一次只翻 1 個 bit，最壞只差 1 LSB（綠色）。"
+      />
+      <p className="small ch13-figwalk">
+        圖上的「幾個 bit 同時翻」就是下表的 Hamming 距離（兩個 code 的二進位表示有幾個 bit 不同）；表中「多 bit 翻轉的切換」數的是每次 code 改變時 Hamming 距離大於 1 的次數。
       </p>
       <div className="table-wrap">
         <table className="ch13-table" aria-label="各策略的 code 範圍、切換率、多 bit 翻轉次數與最大 Hamming 距離">

@@ -12,7 +12,8 @@ import {
   xMoments,
   type XDist,
 } from '@/simulation/models/scalarStability'
-import { HC, T, tnum, tx } from '../common'
+import { Fig, HC, T, tnum, tx } from '../common'
+import { CHART_SYNTHESIS_FLOW } from '../diagrams'
 
 const SPARSE: XDist = { kind: 'list', values: [0, 0, 0, 0, 0, 0, 0, 0, 0, 3] }
 const UNIF: XDist = { kind: 'uniform', halfWidth: Math.sqrt(3) }
@@ -26,6 +27,14 @@ export function SynthesisSection() {
       <Section kind="example" title="做思考題之前，先完整算一次">
         <p>
           {tx`這一題把本章的公式串成一次 sign-off 檢查：由 code 的 $\sigma$ 算出 $P_x$、$M_4$ 與三個界限，再看你想用的 $\mu$ 在 mean、mean-square、almost-sure 三種意義下各落在哪一區，最後看 GMAC 平均 $N$ 筆之後界限放寬多少。全部只需要四則運算（$2.4212$ 這個常數直接代入）。`}
+        </p>
+        <Fig
+          chart={CHART_SYNTHESIS_FLOW}
+          caption={T`綜合手算（HC-03.8）的計算順序 ①–⑤；⑤ 的三個出口（綠／褐／紅）對應 sign-off 的三種結論。`}
+          ariaLabel="計算順序：先算動差 P x 與 M 4；由它們算三個界限、你的 mu 的 mean 因子與 g、以及 GMAC 平均 N 筆後的 mean-square 界；最後判斷 mu 落在哪一區"
+        />
+        <p>
+          {tx`照圖上的 ① 到 ⑤ 做：先算 ① 的 $P_x$、$M_4$（只看 code），②③④ 都由它們算出——② 三個界限、③ 代入你的 $\mu$ 的兩個因子、④ GMAC 平均 $N$ 筆之後的界限（$E[S^2]$ 是 block 平均 $S=\tfrac1N\sum x_i^2$ 的二階動差，取代原本的 $M_4$）；最後 ⑤ 把 $\mu$ 和 ② 的界限比，三個出口就是三種 sign-off 結論。圖上的 ① 對應下面帶入過程的第 1–3 行、② 對應第 4–6 行、③ 對應第 7–10 行、④ 對應第 11–13 行，⑤ 對應最後的結論文字。Gaussian 時三個界限的大小順序固定是 $\mu_\text{MS}<\mu_\text{mean}<\mu_\text{as}$；落在 $\mu_\text{mean}$ 與 $\mu_\text{as}$ 之間時連 $E[\delta_n]$ 也不收斂。`}
         </p>
         <HC id="HC-03.8">
           {tx`把 $\sigma$、$\mu$、$N$ 換成你自己設計的數字，先在紙上把每一步算完，再和網站逐步對照；也可以按「換一題」讓網站隨機出數字。`}

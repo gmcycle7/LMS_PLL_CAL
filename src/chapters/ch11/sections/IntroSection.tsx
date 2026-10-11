@@ -1,28 +1,14 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, Mermaid, Section, SourceTag, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, Section, SourceTag, StepDerivation, SystemMap, Tex, TexBlock } from '@/components'
 import { buildCodeDistribution, eDet, meanGmacMse, perCodeGain, type ErrorModel } from '@/simulation/models/bias'
 import { chop, num, signed, m, texNum } from '../common'
+import { SYSTEM_MAP_FOCUS } from '../diagrams'
+import { Fig, FigRef } from '../Fig'
 import { Hand } from '../Hand'
 
 const CUBIC: ErrorModel = { a: 1, b: 0, c2: 0, c3: 0.1, kappa: 0, sigmaV: 0 }
 
-const SYSTEM = `flowchart LR
-  DSM["DSM residue<br/>code x[n]"] --> DTC["DTC<br/>delay = a·x + d(x)"]
-  W["gain 暫存器 w"] --> COMP["補償 −w·x"]
-  DTC --> SUM(("Σ"))
-  COMP --> SUM
-  B["PD / comparator offset b"] --> SUM
-  ECC["code-correlated 干擾 ε_cc = κ·x"] --> SUM
-  V["random noise v"] --> SUM
-  SUM -->|"e[n]"| Q["1-bit comparator<br/>q = sign(e)"]
-  SUM -.->|"同一個 PD"| LF["主 PLL loop filter<br/>（積分路徑：DC null）"]
-  LF -.->|"static phase offset φ"| SUM
-  Q --> GMAC["GMAC：G = (1/N)Σ q·x"]
-  DSM --> GMAC
-  GMAC --> UPD["w ← w + μ·G"]
-  UPD --> W`
-
-/** §11 開場：問題、先算一次、系統圖。 */
+/** §11 開場：問題、系統地圖、先算一次、誤差來源圖（方塊圖的 Mermaid 原始碼在 ../diagrams.ts）。 */
 export function IntroSection() {
   const five = useMemo(() => buildCodeDistribution({ kind: 'five_level' }), [])
   const rows = useMemo(
@@ -50,11 +36,24 @@ export function IntroSection() {
           ）歸零；它不知道誤差從哪裡來，也不保證每一個 code 的誤差都是 0。這一課要算清楚：LMS 最後停在哪裡（固定點{' '}
           <Tex>{'w^*'}</Tex>）、偏了多少（bias）、以及這個答案跟演算法（MSE / Sign）、雜訊大小、主 PLL 架構有什麼關係。
         </p>
+        <p className="small">
+          先認識這幾個符號（完整的符號表在本章最後）：<Tex>{'x[n]'}</Tex> 是第 <Tex>{'n'}</Tex> 個 comparator sample 的 DTC code（DSM 的 fractional
+          residue，已正規化、無因次），也是 GMAC 用來做相關的 regressor；<Tex>{'e[n]'}</Tex> 是 comparator 前的總 timing error；
+          <Tex>{String.raw`q[n]=\operatorname{sign}(e[n])`}</Tex> 是 1-bit comparator 的輸出（<Tex>{'\\pm1'}</Tex>）；<Tex>{'w'}</Tex> 是校正電路目前使用的 gain，
+          <Tex>{'w^*'}</Tex> 是它最後停下來的值；<Tex>{String.raw`E[\cdot]`}</Tex> 是期望值，也就是「很多次的平均」（§11.0 有先備知識框）。
+        </p>
       </Callout>
+      <SystemMap focus={SYSTEM_MAP_FOCUS} />
+      <p>
+        <strong>你在這裡：</strong>藍色方塊是這一課的主角 —— 誤差進來的三個地方（DTC 的 gain 與 INL、PD 的 offset 與耦合、comparator 前的雜訊{' '}
+        <Tex>{'v[n]'}</Tex>），以及只看得到「誤差與 code 的相關」的 1-bit comparator、GMAC 與 gain accumulator。前面幾課假設誤差只有「gain 不對」這一項；這一課把
+        offset、INL、code-correlated 干擾與雜訊全部加進來，算出 gain accumulator 的 <Tex>{'w'}</Tex> 最後停在哪裡，以及它離真實的 DTC gain 多遠。
+      </p>
 
       <Section kind="intuition" title="直覺：用一條直線去貼一條彎曲的 DTC 曲線" level={2} id="ch11-intuition">
         <p>
-          想像一顆 DTC，真實的 delay 不是完美的直線 <Tex>{'a\\,x'}</Tex>，而是稍微彎曲：<Tex>{String.raw`a\,x+c_3x^3`}</Tex>（三階 INL）。校正電路只能調
+          想像一顆 DTC，真實的 delay 不是完美的直線 <Tex>{'a\\,x'}</Tex>，而是稍微彎曲：<Tex>{String.raw`a\,x+c_3x^3`}</Tex>（<Tex>{'a'}</Tex> 是 DTC
+          真實的線性 gain；<Tex>{'c_3'}</Tex> 是三階 INL 的係數，INL 指 delay 偏離直線的部分）。校正電路只能調
           <strong>一個</strong>數字 —— 線性 gain <Tex>{'w'}</Tex>，用 <Tex>{'w\\,x'}</Tex> 去抵消 delay。一條直線不可能同時貼齊一條彎曲線上的所有點，所以
           LMS 只能找一個「最划算」的折衷斜率。問題是：<strong>「最划算」是用什麼標準？</strong> 這個標準由演算法決定，不由物理決定。
         </p>
@@ -100,8 +99,17 @@ export function IntroSection() {
           </table>
         </div>
         <p>
-          code <Tex>{'\\pm1'}</Tex> 想要 1.1，code <Tex>{'\\pm2'}</Tex> 想要 1.4 —— <strong>沒有任何一個 w 能讓所有誤差同時為 0</strong>。接著看 MSE-LMS 的平均 GMAC{' '}
-          <Tex>{String.raw`E[G]=E[x\,e]`}</Tex> 在不同 w 的值（表內數字由本站模型即時計算）：
+          code <Tex>{'\\pm1'}</Tex> 想要 1.1，code <Tex>{'\\pm2'}</Tex> 想要 1.4 —— <strong>沒有任何一個 w 能讓所有誤差同時為 0</strong>。那 LMS 會停在哪裡？它停在 GMAC
+          的平均輸出 <Tex>{'E[G]'}</Tex> 等於 0 的地方。這裡先用最單純的 MSE-LMS（GMAC 直接把多位元的 <Tex>{'e'}</Tex> 乘上 <Tex>{'x'}</Tex> 再平均，
+          <Tex>{String.raw`E[G]=E[x\,e]`}</Tex>；只用正負號 <Tex>{'q'}</Tex> 的 Sign-LMS 留到 §11.A）。
+        </p>
+        <p>
+          先看 <FigRef id="gmac-zero" /> 的左邊：<Tex>{'w=1.34'}</Tex> 時，五個 code 各有自己的殘差 <Tex>{'e'}</Tex>，各自乘上自己的 <Tex>{'x'}</Tex>；再看右邊：GMAC
+          把五個乘積取平均，正負剛好抵銷成 0。圖上每個方塊裡的 <Tex>{String.raw`x\cdot e`}</Tex>，就是下面第三行推導方括號裡的五個乘積；綠色方塊就是該行等號右邊的 0。
+        </p>
+        <Fig id="gmac-zero" />
+        <p>
+          同樣的算法換四個 <Tex>{'w'}</Tex> 各做一次，看 <Tex>{'E[G]'}</Tex> 的正負號怎麼變（數字由本站模型即時計算）：
         </p>
         <StepDerivation
           steps={[
@@ -137,10 +145,17 @@ export function IntroSection() {
       </Section>
 
       <Section kind="diagram" title="誤差從哪裡進來？" level={2} id="ch11-diagram">
-        <Mermaid
-          chart={SYSTEM}
-          caption="Comparator 前的誤差 e[n] 是多個來源的總和；GMAC 只看到 q 與 x 的相關，看不到來源。虛線：若 comparator 就是主 PLL 的 BBPD，主迴路的積分路徑會把 DC 消掉（勘誤 E03，§11.1）。"
-        />
+        <p>
+          剛才的例子只有 INL 一種誤差。實際的電路裡，comparator 前的誤差有好幾個來源。先看 <FigRef id="error-sources" /> 中間的加法點{' '}
+          <Tex>{'\\Sigma'}</Tex>：DTC 的 delay、補償量 <Tex>{'-w\\,x'}</Tex>、PD／comparator 的 offset <Tex>{'b'}</Tex>、與 code 成正比的干擾{' '}
+          <Tex>{String.raw`\varepsilon_{cc}=\kappa x`}</Tex>、隨機雜訊 <Tex>{'v'}</Tex>，全部在這裡相加成 <Tex>{'e[n]'}</Tex>；再看右邊：comparator 只留下正負號{' '}
+          <Tex>{'q'}</Tex>，GMAC 把 <Tex>{'q'}</Tex> 乘上 <Tex>{'x'}</Tex> 後累加成 <Tex>{'G'}</Tex>，最後回頭去改 <Tex>{'w'}</Tex>（<Tex>{'\\mu'}</Tex>{' '}
+          是學習率，<Tex>{'N'}</Tex> 是每次更新所平均的 sample 數）。把圖上 DTC 的 <Tex>{'a\\,x'}</Tex> 與補償的 <Tex>{'-w\\,x'}</Tex> 合併成{' '}
+          <Tex>{'(a-w)\\,x'}</Tex>，加法點的輸入就是下一節公式 F-11.1 的五項。圖上的虛線是主 PLL：如果 comparator 就是主 PLL 的 BBPD，它的輸出{' '}
+          <Tex>{'q'}</Tex> 也會送進 loop filter，積分後以 <Tex>{String.raw`\varphi`}</Tex>（static phase offset，單位 t.u.）加回加法點，這是 §11.1 的主迴路 DC
+          null。
+        </p>
+        <Fig id="error-sources" />
         <p>
           GMAC 的硬體只做一件事：把 comparator 輸出 <Tex>{'q'}</Tex> 乘上 code <Tex>{'x'}</Tex> 再累加（<Tex>{'q=\\pm1'}</Tex> 時就是「依 <Tex>{'q'}</Tex> 選{' '}
           <Tex>{'+x'}</Tex> 或 <Tex>{'-x'}</Tex>」的

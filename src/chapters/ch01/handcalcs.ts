@@ -62,7 +62,7 @@ const dot = (p: number[], q: number[], sig = 5): string => p.map((v, i) => `${te
 const squares = (t: number[], sig = 5): string => t.map((v) => `${texNumP(v, sig)}^2`).join('+')
 
 /**
- * 單位（docs/teaching-style.md §3）：本章是抽象的 L0 模型，沿用符號表（sections/Intro.tsx）的記號——
+ * 單位（docs/teaching-style.md §3）：本章是抽象的 L0 模型，沿用符號表（symbols.tsx）的記號——
  * 輸入的單位記作 [x]、量測的單位記作 [y]；例如 DTC gain 校正時 [x] = code、[y] = fs，w 的單位就是 fs/code。
  * 範例數字本身都是純數字。x ≡ 1（只估一個常數，HC-01.6～HC-01.8）時 [x] 無因次，w 的單位就是 [y]。
  */

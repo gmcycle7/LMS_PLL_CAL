@@ -42,6 +42,19 @@ describe('domTestUtils', () => {
     expect(visibleTextMatches(container, /不存在的字/)).toEqual([])
   })
 
+  it('renderProblems：TestBadge 的 tooltip 逐字列出測試標題（可含 NaN、`$...$`），不算排版問題', () => {
+    const { container } = render(
+      <div>
+        <span className="c-tip-list">
+          <span className="c-tip-item">calNoise.test.ts › 不產生 NaN、警告換成 `$...$`</span>
+        </span>
+        <p>σ_w = 0.399 fs</p>
+      </div>,
+    )
+    expect(renderProblems(container)).toEqual([])
+    expect(visibleTextMatches(container, /NaN/)).toEqual([])
+  })
+
   it('q／count／buttonByText／chooseOption：找不到時丟出說明清楚的錯誤', () => {
     let picked = ''
     const { container } = render(

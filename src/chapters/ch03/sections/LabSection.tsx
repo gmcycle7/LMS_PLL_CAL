@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
 import { Callout, ModeGate, Section, Tex } from '@/components'
 import { lyapunovExponent, stabilityFactors } from '@/simulation/models/scalarStability'
-import { Erratum, T, tnum } from '../common'
+import { Erratum, Fig, T, tnum } from '../common'
+import { CHART_MC_COMPARE, CHART_MC_FLOW } from '../diagrams'
 import { StabilityLab } from '../experiments/StabilityLab'
 
 export function LabSection() {
@@ -18,6 +19,28 @@ export function LabSection() {
           主圖的縱軸是 <Tex>{T`\log_{10}`}</Tex>，所以等比數列變成直線，斜率就是每步的對數縮放率：解析 MSD 的斜率是 <Tex>{T`\tfrac12\log_{10}g`}</Tex>、mean 是{' '}
           <Tex>{T`\log_{10}|1-\mu P_x|`}</Tex>、典型路徑是 <Tex>{T`\lambda/\ln10`}</Tex>。Monte Carlo 在 Web Worker 中執行，每條路徑有自己的亂數串流，同一個 seed 完全可重現。
           下面的「試試看」都有對應的 preset（實驗外框的 preset 下拉選單）。
+        </p>
+        <Fig
+          chart={CHART_MC_FLOW}
+          caption={T`Stability Lab 的 Monte Carlo 流程。看藍色的主幹（每一步在 log 域累加、記錄 $\log_{10}|\delta_n|$）與最下面的三個輸出：綠色兩個可信，紅色的天真平均只用來示範它會偏低。`}
+          ariaLabel="一個 seed 分出 M 條路徑，每條抽 x、在 log 域走 N 步並記錄 log10 delta；每個時間點取 10%、50%、90% 分位數與收斂比例，另外直接平均 delta 平方"
+        />
+        <p>
+          由上往下看：一個 seed 分出 <Tex>M</Tex> 條路徑（程式裡的變數叫 <code>paths</code>），每條路徑各自抽 <Tex>{T`x[n]`}</Tex>、走 <Tex>N</Tex> 步（<Tex>N</Tex> 是每條路徑的步數），並記下{' '}
+          <Tex>{T`\log_{10}|\delta[n]|`}</Tex>。「走一步」那一格就是第 4 節的累加器：無雜訊時在 log 域每步加上 <Tex>{T`\ln|1-\mu x[n]^2|`}</Tex>，所以 <Tex>{T`10^{-300}`}</Tex> 以下的數也不會 underflow。
+          最下面三個輸出：每個時間點把 <Tex>M</Tex> 條路徑排序，取 10%／50%／90% 分位數（主圖的色帶與中位數線）；低於 <Tex>{T`10^{-3}|\delta_0|`}</Tex> 的路徑比例（「收斂比例」圖）；以及直接平均{' '}
+          <Tex>{T`\delta[n]^2`}</Tex> 的「天真 MC」。
+        </p>
+        <Fig
+          chart={CHART_MC_COMPARE}
+          caption={T`量到的（左，藍）對上不靠這批路徑的預測（右，綠）。前四列對得上才算驗證；最後一列（紅）在 heavy tail 時對不上，正是第 5 節的重點。`}
+          ariaLabel="五組比對：MC 中位數對典型路徑 n lambda；MC 10% 與 90% 分位帶對 CLT 預測的分位；MC 收斂比例對 CLT 預測的比例；單步 MC 的樣本平均對封閉式或數值積分；天真 MC 對解析 MSD，heavy tail 時對不上"
+        />
+        <p>
+          每一列是一組比對：左邊是 Monte Carlo 量到的量，右邊是<strong>不靠這批路徑</strong>算出來的預測，線上的字是判定標準。先看前三列：中位數對典型路徑 <Tex>{T`n\lambda`}</Tex>、分位帶對 CLT 的{' '}
+          <Tex>{T`n\lambda\mp1.2816\,s\sqrt n`}</Tex>、收斂比例對 <Tex>{T`\Phi(z)`}</Tex>（圖上寫的是 <Tex>{T`\ln`}</Tex> 域的量；主圖的縱軸再除以 <Tex>{T`\ln10`}</Tex> 換成{' '}
+          <Tex>{T`\log_{10}`}</Tex>）。再看第四列：單步 MC 只平均一步的 <Tex>f</Tex>、<Tex>{T`f^2`}</Tex>、<Tex>{T`\ln|f|`}</Tex>，和封閉式的 <Tex>{T`1-\mu P_x`}</Tex>、<Tex>g</Tex>、<Tex>\lambda</Tex> 相差要在{' '}
+          <Tex>{T`\pm4`}</Tex> 個標準誤（SE）以內。最後一列是反面教材：天真平均在 heavy tail 時遠低於解析的 <Tex>{T`g^n\delta_0^2`}</Tex>。
         </p>
         <ul>
           <li>

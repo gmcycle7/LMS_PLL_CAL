@@ -20,6 +20,7 @@ import { quantizeFcw } from '@/simulation/models/dsm'
 import { DcNullExperiment } from '../experiments/DcNullExperiment'
 import { F } from '../formulas'
 import { Erratum, ModeDetails, chop, num, m, texNum } from '../common'
+import { Fig, FigRef } from '../Fig'
 import { Hand } from '../Hand'
 
 const DSM_FRAC = 0.3
@@ -100,6 +101,13 @@ export function OffsetSection() {
         <strong>直覺：</strong>offset <Tex>{'b'}</Tex> 永遠是同一個正負號。如果 code 大多是正的（<Tex>{'E[x]>0'}</Tex>），那 <Tex>{'b\\cdot x'}</Tex> 也大多是正的 —— 在
         GMAC 眼裡，這和「gain 太小、誤差跟著 <Tex>{'x'}</Tex> 變大」一模一樣，於是 LMS 把 <Tex>{'w'}</Tex> 調大去「修正」一個根本不存在的 gain 誤差。
       </p>
+      <p>
+        <FigRef id="offset-path" /> 用數字走一次（code 在 <Tex>{'[0,1)'}</Tex> 均勻分布、<Tex>{'b=0.1'}</Tex> t.u.）。先看左邊：offset 乘上平均為{' '}
+        <Tex>{String.raw`\tfrac12`}</Tex> 的 code，取平均後留下 <Tex>{String.raw`b\,E[x]=0.05`}</Tex>；再看右邊：GMAC 分不出這 0.05 來自 offset 還是 gain 誤差，LMS
+        只能把 <Tex>{'w'}</Tex> 多調 <Tex>{String.raw`0.05/E[x^2]=0.15`}</Tex> 才能讓平均歸零。圖上的 <Tex>{String.raw`b\,E[x]`}</Tex> 與「除以{' '}
+        <Tex>{'E[x^2]'}</Tex>」，就是下面推導第二行的 offset 項與第三行的分母。
+      </p>
+      <Fig id="offset-path" />
       <StepDerivation
         title="靜態式（主迴路不碰 comparator 的 DC）"
         steps={[
@@ -157,8 +165,17 @@ export function OffsetSection() {
       </h3>
       <p>
         靜態式偷偷假設了一件事：<Tex>{'b'}</Tex> 以及 <Tex>{'x'}</Tex> 相關項的 DC 分量原封不動地到達 comparator。可是在 §4 的架構裡，同一個 PD／BBPD 同時驅動主 PLL 的 loop
-        filter，而 <Tex>{String.raw`H_\mathrm{PD}=1/(1+L)`}</Tex> 在 DC 的增益是 0。type-II（有積分路徑）的 BBPD-PLL 在 lock 時會強制 <Tex>{'E[q]=0'}</Tex>。結果取決於架構：
+        filter，而 <Tex>{String.raw`H_\mathrm{PD}=1/(1+L)`}</Tex>（<Tex>{String.raw`H_\mathrm{PD}`}</Tex>：從 PD 輸入端的擾動到 PD 誤差的轉移函數；
+        <Tex>{'L'}</Tex>：主迴路的開迴路增益）在 DC 的增益是 0。type-II（有積分路徑）的 BBPD-PLL 在 lock 時會強制 <Tex>{'E[q]=0'}</Tex>。結果取決於架構：
       </p>
+      <p>
+        先看 <FigRef id="dc-null" /> 三個框共同的部分：誤差 → comparator → GMAC。再看藍色的積分路徑接在哪裡：(A) 根本沒有這條路；(B)
+        它累加的是 comparator 自己的輸出 <Tex>{'q'}</Tex>，穩態時 <Tex>{'E[q]=0'}</Tex>；(C) 它累加的是線性 PD 的誤差{' '}
+        <Tex>{String.raw`e_\mathrm{PD}`}</Tex>，而 comparator 的 offset <Tex>{'b'}</Tex> 落在這個迴路外面。這裡 <Tex>{'\\varphi'}</Tex> 是主迴路加回 PD
+        輸入的 static phase offset（單位 t.u.），<Tex>{'k_\\varphi'}</Tex> 是積分路徑每個 sample 的步長。圖上每個框裡「GMAC 的固定點」那一塊，就是下面三張卡片的公式；
+        <Tex>{String.raw`\operatorname{Cov}`}</Tex> 與 <Tex>{String.raw`\operatorname{Var}`}</Tex> 是共變異數與變異數（§11.0 的先備知識框）。
+      </p>
+      <Fig id="dc-null" />
       <div className="grid-3">
         <div className="card">
           <strong>(A) none：DC 沒被消除</strong>
@@ -239,7 +256,8 @@ export function OffsetSection() {
       </div>
       <p className="ch11-tags">
         三個公式都是 <ClaimTag kind="approx" />（需 comparator 線性化與時間尺度分離）<ModelLevel level="L2" />。另外注意：DC null 時分母是 <Tex>{'\\operatorname{Var}(x)'}</Tex> 而不是{' '}
-        <Tex>{'E[x^2]'}</Tex>，對 <Tex>{'x\\in[0,1)'}</Tex> 是 <Tex>{String.raw`\tfrac1{12}`}</Tex> 對 <Tex>{String.raw`\tfrac13`}</Tex> —— 有效 loop gain <Tex>{'K=K_qC'}</Tex>（此時{' '}
+        <Tex>{'E[x^2]'}</Tex>，對 <Tex>{'x\\in[0,1)'}</Tex> 是 <Tex>{String.raw`\tfrac1{12}`}</Tex> 對 <Tex>{String.raw`\tfrac13`}</Tex> —— 有效 loop gain <Tex>{'K=K_qC'}</Tex>（
+        <Tex>{'C'}</Tex> 是 regressor 與「到達 comparator 的 gain 誤差訊號」的有效相關，§11.4 詳述；此時{' '}
         <Tex>{'C=\\operatorname{Var}(x)'}</Tex>）也小 4 倍，同一個 <Tex>{'\\mu'}</Tex> 下收斂慢 4 倍。
       </p>
       <Hand id="HC-11.3">
@@ -283,6 +301,14 @@ export function OffsetSection() {
         <Tex>{'k_\\varphi'}</Tex>，所以 <Tex>{'\\varphi'}</Tex> 會在平均值附近不停抖動。對 comparator 而言，這個抖動和 <Tex>{'v'}</Tex> 沒有差別 —— 都是加在輸入端、與目前這個 code
         無關的隨機量。
       </p>
+      <p>
+        先看 <FigRef id="servo-dither" /> 的「實際」那個框：comparator 的輸入除了確定性的部分，還有兩個彼此獨立的隨機量 —— servo 的抖動{' '}
+        <Tex>{String.raw`\tilde\varphi[n]`}</Tex>（變異數 <Tex>{String.raw`\sigma_\varphi^2`}</Tex>）與雜訊 <Tex>{'v[n]'}</Tex>（變異數{' '}
+        <Tex>{'\\sigma_v^2'}</Tex>）。再看「等效」那個框：獨立的隨機量相加，變異數也相加，所以可以合併成一個標準差為{' '}
+        <Tex>{String.raw`\sigma_\mathrm{eff}`}</Tex> 的等效雜訊（<Tex>{String.raw`\sigma_\mathrm{eff}`}</Tex>：comparator 實際感受到的總雜訊）。圖上的{' '}
+        <Tex>{String.raw`\bar\varphi`}</Tex>、<Tex>{String.raw`\tilde\varphi`}</Tex>，就是下面推導第一行把 <Tex>{'\\varphi'}</Tex> 拆成的平均值與抖動；等效框裡的式子就是 F-11.17。
+      </p>
+      <Fig id="servo-dither" />
       <ModeDetails title={m('推導：$\\varphi$ 的抖動為什麼等於把 $\\sigma_v$ 換成 $\\sigma_\\mathrm{eff}$')}>
         <StepDerivation
           steps={[
@@ -328,6 +354,12 @@ export function OffsetSection() {
       </ModeGate>
 
       <h3>Code centering：有用，但有四個但書</h3>
+      <p>
+        Code centering 指的是把 GMAC 用的 code 減去它的平均，讓 <Tex>{'E[x]=0'}</Tex>，offset 項 <Tex>{String.raw`b\,E[x]`}</Tex> 就消失。它什麼時候真的有效？
+        <FigRef id="centering-tree" /> 把這一小節整理成一棵判斷樹：由上往下回答四個問題，只有一路答「是／沒有」才走到綠色的 <Tex>{'w^*=a'}</Tex>
+        ；每個紅色出口對應下面的一個反例。這棵樹只回答「offset 還會不會變成 gain bias」—— 下面第 1、4 兩個但書（DTC 參數要一起重新定義、有效激勵變小）是即使走到綠色出口也要付的代價。
+      </p>
+      <Fig id="centering-tree" />
       <ModeDetails title={m('精確結果：$\\sigma_v$ 與 code 無關、$d=\\varepsilon_{cc}=0$、$E[x]=0\\Rightarrow w=a$ 是精確固定點（任意 $b$）')} openFrom="beginner">
         <StepDerivation
           steps={[
@@ -342,7 +374,7 @@ export function OffsetSection() {
       </ModeDetails>
       <ol>
         <li>
-          <strong>DTC 參數要重新定義。</strong> 若 delay = <Tex>{'a\\,x+o'}</Tex>，改用置中的 <Tex>{'x_c=x-m'}</Tex>（<Tex>{'m=E[x]'}</Tex>）後變成{' '}
+          <strong>DTC 參數要重新定義。</strong> 若 delay = <Tex>{'a\\,x+o'}</Tex>（<Tex>{'o'}</Tex> 是 DTC 的固定 delay offset），改用置中的 <Tex>{'x_c=x-m'}</Tex>（<Tex>{'m=E[x]'}</Tex>）後變成{' '}
           <Tex>{String.raw`a\,x_c+(o+a\,m)`}</Tex>：offset 暫存器必須吸收 <Tex>{'a\\,m'}</Tex>，而且 <Tex>{'a'}</Tex> 一改，offset 也跟著改 —— gain 與 offset 的 parameterization
           必須一起變換，不能只在 GMAC 端減平均。
         </li>
@@ -366,6 +398,13 @@ export function OffsetSection() {
           <strong>非零均值的 residue 置中後，有效激勵變小。</strong> 分母從 <Tex>{'E[x^2]'}</Tex> 變成 <Tex>{'\\operatorname{Var}(x)'}</Tex>，GMAC 斜率與收斂速度一起下降（上面的 4 倍）。
         </li>
       </ol>
+      <p>
+        <FigRef id="jitter-weight" /> 用勘誤 E17 的數字（置中的 5-level code、<Tex>{'b=0.2'}</Tex>、<Tex>{String.raw`\sigma_v(x)=\sqrt{1+0.25(x+2)^2}`}</Tex>）走一次。先看左邊的分叉：{' '}
+        <Tex>{String.raw`\sigma_v`}</Tex> 是常數時，每個 code 的 <Tex>{'K_q'}</Tex> 一樣大，五個 code 的權重相同；<Tex>{String.raw`\sigma_v(x)`}</Tex> 隨 code 變大時，權重變成{' '}
+        <Tex>{String.raw`1/\sigma_v(x)`}</Tex>（藍色）。再看中間：加權後取平均，常數 <Tex>{String.raw`\sigma_v`}</Tex> 的正負兩邊剛好抵銷；<Tex>{'x<0'}</Tex> 的 code 雜訊較小、
+        權重較大，抵銷不了。右邊就是下面推導的最後兩行。
+      </p>
+      <Fig id="jitter-weight" />
       <ModeDetails title={m('推導：code-dependent $\\sigma_v(x)$ 下的 Sign-LMS 固定點（$1/\\sigma_v$ 加權）')}>
         <StepDerivation
           steps={[
@@ -452,6 +491,13 @@ export function OffsetSection() {
           </tbody>
         </table>
       </div>
+      <p>
+        <FigRef id="dead-zone" /> 把上表的票數畫成三個區域。先看左邊兩個方塊：<Tex>{'w'}</Tex> 小於 <Tex>{String.raw`t(3)=a+\tfrac13`}</Tex>{' '}
+        時三個 code 都投「往上」，<Tex>{'E[G]=+1.5'}</Tex>；<Tex>{'w'}</Tex> 大於 1.5 時至少兩個 code 投「往下」，<Tex>{'E[G]<0'}</Tex>。再看紅色的方塊：
+        <Tex>{'w'}</Tex> 落在兩者之間時，code 3 投「往下」的 <Tex>{'-0.75'}</Tex> 剛好抵銷 code 1、2 投「往上」的 <Tex>{'+0.25+0.5'}</Tex>，
+        <Tex>{'E[G]=0'}</Tex> —— 沒有任何推力。圖上的 <Tex>{'E[G]'}</Tex> 就是上表的權重乘上 <Tex>{String.raw`\operatorname{sign}(t(x)-w)`}</Tex> 再相加。
+      </p>
+      <Fig id="dead-zone" />
       <p>
         {m(
           `總權重 $${texNum(dead.totalWt)}$、一半 $${texNum(dead.totalWt / 2)}$；由小到大累加 $t$：$t(3)=a+1/3$ 的權重 $${texNum(dead.rows[dead.rows.length - 1].wt)}$ 剛好等於一半，所以在`,

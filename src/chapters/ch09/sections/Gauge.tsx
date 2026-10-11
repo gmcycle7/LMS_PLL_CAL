@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Callout, ClaimTag, ModeGate, Prereq, Section, SourceTag, StepDerivation, TexBlock } from '@/components'
 import { gaugeDriftStd, gaugeNullVector, gaugeRegressorsRaw } from '@/simulation/models/pe'
-import { DerivBox, Erratum, HandCalcBox, formulaTex, m, num, texNum } from '../shared'
+import { DerivBox, Diagram, Erratum, FigRef, HandCalcBox, formulaTex, m, num, texNum } from '../shared'
 
 /** 「先算一次」的例子：θ = (b, a₀…a₃) 與 gauge 平移量 c（輸入是例子；輸出由程式計算） */
 const HAND_THETA = [1, 2, 3, 4, 5]
@@ -31,6 +31,21 @@ export function Gauge() {
         四個人（四個 phase）都站在同一個看不見高度的箱子（global offset {m`b`}）上，你只量得到「人＋箱子」的總高度。
         箱子墊高 {m`c`}、每個人「自己的高度」都少算 {m`c`}，所有量測值完全一樣。<strong>不是量得不夠多，是這個組合根本不在資料裡。</strong>
       </Callout>
+
+      <p>
+        換成電路的語言：多相位 PMUX 每次只選一個 phase。選到第 {m`i`} 相時，輸出是「所有相位共用的 <strong>global offset</strong> {m`b`}」加上
+        「那一相自己的 <strong>phase offset</strong> {m`a_i`}」。用 one-hot 的 {m`x_i[n]`}（被選到的那一相是 1、其餘是 0，所以四個加起來永遠是 1）可以寫成一條式子
+        {m`y=b+\sum_ia_ix_i`}。現在把<strong>同一筆</strong>輸入同時送進兩組參數：
+      </p>
+      <Diagram id="gauge-shift">
+        看藍色方塊：{m`b`} 多出來的 {m`c`}，剛好被「被選到的那個 {m`a_i`}」少掉的 {m`c`} 抵銷——對每一筆輸入都成立。
+      </Diagram>
+      <p>
+        <FigRef id="gauge-shift" /> 怎麼看：先看第一組參數的框——{m`b`} 乘上常數 1，再加上被選到的 {m`a_i`}，得到 {m`y`}。再看第二組參數的框——{m`b`} 多了 {m`c`}，
+        但每個 {m`a_i`} 都少了 {m`c`}；one-hot 每次恰好選一個，被選到的那個 {m`a_i`} 一定帶著一個 {m`-c`}，於是 {m`y'`} 和 {m`y`} 一模一樣。
+        最後一個加法點把兩個輸出相減，永遠是 0。圖上的「{m`b`} 加 {m`c`}、每個 {m`a_i`} 減 {m`c`}」就是下面公式裡的
+        {m`\boldsymbol\theta'=\boldsymbol\theta+c\,\mathbf n`}、{m`\mathbf n=(1,-1,-1,-1,-1)`}；藍色方塊就是 F-09.13 的 {m`\tilde{\mathbf x}^T\mathbf n=0`}。
+      </p>
 
       <h3>先算一次：兩組不同的參數，四個 phase 的輸出一模一樣</h3>
       <p>
@@ -156,9 +171,20 @@ export function Gauge() {
         </p>
       </Prereq>
       <p>
-        PD／BBPD 看到的不是 {m`\tilde{\mathbf x}`}，而是經 PLL error transfer {m`H_{\mathrm{PD}}=1/(1+L)`} 之後的 {m`\tilde{\mathbf u}=h*\tilde{\mathbf x}`}。
+        PD／BBPD 看到的不是 {m`\tilde{\mathbf x}`}，而是經 PLL error transfer {m`H_{\mathrm{PD}}=1/(1+L)`} 之後的 {m`\tilde{\mathbf u}=h*\tilde{\mathbf x}`}
+        （{m`L(z)`} 是主 PLL 的開迴路增益，{m`h[n]`} 是 {m`H_{\mathrm{PD}}`} 的 impulse response，{m`*`} 是卷積；上面的先備知識框從頭講）。
         Type-I / Type-II PLL 的 {m`L(z)`} 至少有一個在 {m`z=1`} 的積分器（DCO/VCO 相位累加），所以 {m`L(1)=\infty`}、{m`H_{\mathrm{PD}}(1)=0`}：
         主迴路會把任何 DC 誤差吸收掉。
+      </p>
+      <Diagram id="dc-null">
+        看兩個紅色方塊：經過 {m`H_{\mathrm{PD}}(1)=0`} 之後，看不到的方向從 1 個變成 2 個；綠色方塊是僅剩看得到的東西。
+      </Diagram>
+      <p>
+        <FigRef id="dc-null" /> 怎麼看：先看 {m`b`} 那一路——{m`b`} 的 regressor 是常數 1（純 DC），經過 DC 增益為 0 的 {m`H_{\mathrm{PD}}`} 之後，穩態輸出
+        {m`\tilde u_b`} 是 0：PD 端完全看不到 {m`b`}。再看 one-hot 那一路——每個 {m`x_i`} 可以拆成平均值（四相、等機率時是 {m`\tfrac14`}）加上零均值的變動部分；
+        {m`H_{\mathrm{PD}}`} 把平均值濾掉、只留下變動部分，而四個 {m`\tilde u_i`} 加起來正好是「常數 1 經過 {m`H_{\mathrm{PD}}`}」，同樣趨近 0。
+        所以有兩個方向看不到（紅色）：只動 {m`b`}，以及四個 {m`a_i`} 一起動；看得到的只剩相位之間的差（綠色）。圖上的 {m`\tilde u_b`}、{m`\tilde u_i`} 就是
+        {m`\tilde{\mathbf u}=h*\tilde{\mathbf x}`} 的各個分量；兩個紅色方塊就是 F-09.15 的兩個零 eigenvalue，綠色方塊就是那三個 {m`\|h\|^2/4`}。
       </p>
       <DerivBox title="推導：兩個零 eigenvalue">
         <StepDerivation
@@ -182,6 +208,11 @@ export function Gauge() {
           />
         </ModeGate>
       </DerivBox>
+      <p>
+        把 PD 端的 regressor 兩兩相乘取平均，就是 u-domain 的相關矩陣 {m`\mathbf R_u=E[\tilde{\mathbf u}\tilde{\mathbf u}^T]`}（對照 raw-x 的
+        {m`\mathbf R_x=E[\tilde{\mathbf x}\tilde{\mathbf x}^T]`}）。下式中 {m`\|h\|^2=\sum_nh[n]^2`} 是 {m`H_{\mathrm{PD}}`} impulse response 的能量，
+        {m`\mathbf m=E[\tilde{\mathbf x}]`} 是 regressor 的平均值向量，{m`\mathrm{Cov}(\tilde{\mathbf x})=\mathbf R_x-\mathbf m\mathbf m^T`} 是去掉平均值之後的相關（共變異矩陣）：
+      </p>
       <TexBlock id="F-09.15">{formulaTex('F-09.15')}</TexBlock>
       <p>
         {m`\mathrm{Cov}(\tilde{\mathbf x})`} 的 {m`b`} 列與 {m`b`} 欄全為 0（常數沒有變異），{m`a_i`} 區塊是 {m`\tfrac14\mathbf I-\tfrac1{16}\mathbf 1\mathbf 1^T`}——
@@ -206,8 +237,28 @@ export function Gauge() {
         如果還是讓 {m`w_b`} 積分，它會漂多遠？
       </h3>
       <p>
-        硬體最常見的寫法是 GMAC 直接用原始 regressor（{m`b`} 的 regressor 是常數 1）。主迴路把 DC 吃掉之後，{m`e_{\mathrm{PD}}`} 裡與 {m`b`} 有關的部分是 0，
-        GMAC 累加到的只剩雜訊：
+        記 {m`w_b`} 為 {m`b`} 的校正係數（它自己的累加器）。硬體最常見的寫法是 GMAC 直接用原始 regressor（{m`b`} 的 regressor 是常數 1）。主迴路把 DC 吃掉之後，{m`e_{\mathrm{PD}}`}（PD 端的誤差）裡與 {m`b`}
+        有關的部分是 0，GMAC 累加到的只剩雜訊：
+      </p>
+      <Diagram id="gauge-lms-path">
+        看 GMAC 的兩種 regressor 接法：raw 接法下 {m`b`} 的 regressor 是常數 1，GMAC 讀到的就是 {m`e_{\mathrm{PD}}`} 的 block 平均。
+      </Diagram>
+      <p>
+        <FigRef id="gauge-lms-path" /> 怎麼看：先看主路徑——DTC 端的誤差 {m`d[n]=\tilde{\mathbf x}^T(\boldsymbol\theta-\mathbf w_k)`} 先經過主 PLL 的
+        {m`H_{\mathrm{PD}}`}（DC 被吃掉），加上雜訊 {m`v[n]`} 才是 PD 端的 {m`e_{\mathrm{PD}}[n]`}。再看 GMAC 的另一個輸入 {m`r[n]`}——它有兩種接法：
+        raw（直接用 {m`\tilde{\mathbf x}`}，{m`b`} 的 regressor 是常數 1）或 filtered（先經過同一個 {m`H_{\mathrm{PD}}`}，{m`b`} 的 regressor 趨近 0）。
+        raw 接法下，{m`b`} 那一路的 GMAC 是 {m`\tfrac1N\sum e_{\mathrm{PD}}\cdot1`}，也就是 {m`e_{\mathrm{PD}}`} 的 block 平均；而 {m`e_{\mathrm{PD}}`} 裡跟 {m`b`}
+        有關的 DC 已經被吃掉了，平均起來只剩雜訊。圖上 {m`G_k`} 的 {m`b`} 分量就是下面推導第一行的 {m`G_{b,k}`}；累加器方塊就是 {m`w_{b,k+1}=w_{b,k}+\mu G_{b,k}`}；
+        回授的虛線把累加器暫存器裡的 {m`\mathbf w_k`} 送回 DTC 端（每個 block 才更新一次，{m`d[n]`} 在一個 block 內用的是同一組 {m`\mathbf w_k`}）。
+      </p>
+      <Diagram id="restoring-force">
+        比較兩個迴圈裡的倍數方塊：綠色的 {m`1-g\lambda`}（小於 1，會把誤差拉回來）對上紅色的 {m`1`}（什麼都不拉）。
+      </Diagram>
+      <p>
+        <FigRef id="restoring-force" /> 怎麼看：先看「有恢復力」那一框——可辨識的方向每個 block 把自己的誤差乘上 {m`1-g\lambda`}，雜訊推出去的量會被拉回來，
+        所以誤差有界。再看「沒有恢復力」那一框——{m`\lambda=0`} 時倍數是 1，累加器只是把每個 block 的雜訊 {m`\mu\eta_k`} 一直加上去
+        （{m`\eta_k`} 是第 {m`k`} 個 block 內雜訊 {m`v[n]`} 的平均），{m`K`} 個 block 之後的標準差正比於 {m`\sqrt K`}。圖上紅色的「{m`\times1`}（pole = 1）」方塊所在的迴圈，就是
+        推導第三行的 {m`w_{b,K}=w_{b,0}+\mu\sum_k\eta_k`}；紅色方塊就是 F-09.19 的 {m`\mathrm{std}\propto\sqrt{K/N}`}。
       </p>
       <DerivBox title={<>推導 {m`w_b`} 的 random walk</>}>
         <StepDerivation
@@ -231,6 +282,11 @@ export function Gauge() {
         </ModeGate>
       </DerivBox>
       <TexBlock id="F-09.19">{formulaTex('F-09.19')}</TexBlock>
+      <p>
+        式中的 {m`K`} 是已經跑過的 block 數；{m`S`} 是 {m`H_{\mathrm{PD}}`} 的 step response {m`s[n]`}（輸入從 0 跳到 1 之後，PD 端看到的波形）從頭加到尾的總和：
+        type-II PLL 的 {m`S=0`}，分母等於 1，是純 random walk；type-I 的 {m`S=1/(1-r)`}（{m`r`} 是 {m`H_{\mathrm{PD}}`} 的 pole），每一步會被主迴路「回吐」一部分。
+        {m`\tfrac54`} 來自相數 {m`P=4`}（一般是 {m`1+\tfrac1P`}）。
+      </p>
       <p>
         例（由 <code>gaugeDriftStd</code> 計算）：{m`\mu=${texNum(drift.mu)}`}、{m`\sigma_v=${texNum(drift.sigmaV)}\,\mathrm{fs}`}、{m`N=${drift.N}`}、{m`K=${drift.blocks}`} blocks：
         type-II 為 {m`${texNum(drift.type2.std, 4)}\,\mathrm{fs}`}；type-I（{m`r=${texNum(drift.r)}`}，{m`S=${texNum(drift.S1, 3)}`}）為 {m`${texNum(drift.type1.std, 4)}\,\mathrm{fs}`}

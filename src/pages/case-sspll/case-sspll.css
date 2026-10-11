@@ -161,3 +161,57 @@
 .case-sspll .cs-hand .c-handcalc {
   margin-top: 0.3rem;
 }
+
+/* 方塊圖（Mermaid）外框：圖很寬時在自己的容器內捲動，不撐開頁面 */
+.case-sspll .cs-diagram {
+  margin: 0.9rem 0 0.6rem;
+  min-width: 0;
+  scroll-margin-top: 4.5rem;
+}
+
+.case-sspll .cs-diagram .c-mermaid {
+  margin: 0;
+}
+
+/* 章首的系統地圖 */
+.case-sspll .cs-map {
+  margin: 0.8rem 0 1rem;
+}
+
+/* 長得像連結的按鈕：捲到本頁的符號表／某張圖（HashRouter 下不用 href） */
+.case-sspll .cs-linkbtn {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: var(--accent, #2563eb);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.case-sspll .cs-linkbtn:hover {
+  text-decoration-thickness: 2px;
+}
+
+.case-sspll .cs-linkbtn:focus-visible {
+  outline: 2px solid var(--accent, #2563eb);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.case-sspll .cs-figref {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.case-sspll .cs-symbols-link {
+  margin: 0.6rem 0;
+}
+
+/* 章末符號表：從章首的連結捲過來時，標題不要被固定的頁首蓋住 */
+.case-sspll #symbols {
+  scroll-margin-top: 4.5rem;
+}

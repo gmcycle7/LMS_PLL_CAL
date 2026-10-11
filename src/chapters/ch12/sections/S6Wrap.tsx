@@ -2,7 +2,8 @@ import { useMemo } from 'react'
 import { Callout, ClaimTag, CodeCompare, ModeGate, Quiz, Recap, Section, Tex, TexBlock } from '@/components'
 import calNoiseSrc from '@/simulation/models/calNoise.ts?raw'
 import { calLoop, spurBeta, spurDbcSmallAngle } from '@/simulation/models/calNoise'
-import { EX, EX_INPUT, Hand, SPUR, codeTable, md, sig } from '../common'
+import { Diagram, EX, EX_INPUT, Hand, SPUR, codeTable, md, sig } from '../common'
+import { CHART_ENGINES, CHART_HAND_FLOW, CHART_HW_KNOBS } from '../diagrams'
 
 const PATH = 'src/simulation/models/calNoise.ts'
 
@@ -20,6 +21,23 @@ export function S6Wrap() {
   return (
     <>
       <Section kind="explore" title="比較表：三個模擬引擎" level={3} id="ch12-engines">
+        <p>
+          {md(
+            String.raw`LMS Noise Lab 用三個引擎模擬同一個校正迴路。它們的差別只有一個地方：每個 block 的 GMAC 輸出 $G$ 是怎麼產生的。`,
+          )}
+        </p>
+        <Diagram chart={CHART_ENGINES} caption="三個模擬引擎只差在怎麼產生每個 block 的 GMAC 輸出，之後的更新完全相同。先比較三個藍色方塊。">
+          <p>
+            {md(
+              String.raw`先看三欄各自的藍色方塊：(a) 用一條直線加上 Gaussian 雜訊 $\eta$；(b) 抽一次 Binomial 得到真的 1-bit 計數 $N_+$（$N$ 次判斷裡 $q\,x=+1$ 的次數；下面程式碼裡這個變數叫 k），所以 $G=(2N_+-N)/N$ 一定落在 $-1$ 到 $+1$ 之間；(c) 老老實實做 $N$ 個 sample。再看下面：三者都接到同一個更新 $\delta w\leftarrow\delta w+\mu G$，最後統計很多個 block 得到 $\sigma_w$ 與信賴區間。`,
+            )}
+          </p>
+          <p>
+            {md(
+              String.raw`和下表的對照：圖上三個藍色方塊對應下表「每 block 做什麼」那一欄；(a) 的 $G=-K\,\delta w+\eta$ 就是 F-12.1，(b) 的機率 $\Phi(-C\,\delta w/\sigma_v)$ 是 §12.1 推導第三行的 $\Phi\big(C(a-w)/\sigma_v\big)$ 代入 $a-w=-\delta w$。`,
+            )}
+          </p>
+        </Diagram>
         <div className="table-wrap">
           <table className="ch12-table">
             <thead>
@@ -126,6 +144,18 @@ export function S6Wrap() {
         <p>
           做思考題之前，先把本章的鏈從頭到尾親手算一次：comparator 雜訊 → pole → 係數雜訊 → 乘上三種 code 之後的 timing error。這一題把前面幾題串起來，每一步都是計算機按得出來的基本運算。
         </p>
+        <Diagram chart={CHART_HAND_FLOW} caption="綜合手算的順序：前四步算出係數雜訊，後三步各乘上一種 code。格子裡的數字是範例的答案。">
+          <p>
+            {md(
+              String.raw`先沿著直線由上往下算 ① 到 ④，得到係數雜訊 $\sigma_w$；再分三路，各算一種 code 的 $\delta t$ RMS。每一格只做計算機上的一兩個運算。`,
+            )}
+          </p>
+          <p>
+            {md(
+              String.raw`和手算題的對照：圖上的編號就是下面手算題的計算順序（題目把 ③ 拆成兩步、④ 先算 $\sigma_w^2$ 再開根號）；格子裡的數字是用預設值算出來的，可以拿來對答案。①、② 是 F-12.2 的 $p$，④ 是 F-12.5 加 F-12.6，⑤ 到 ⑦ 是 §12.6 的三個特例。`,
+            )}
+          </p>
+        </Diagram>
         <Hand id="HC-12.8">
           {md(
             String.raw`把 $\mu$、$\sigma_v$、$N$、$f_s$、$f_{BW}$ 換成你自己設計的數字，先用紙筆和計算機算出三個 RMS，再對答案。想驗證思考題 2，可以回到 HC-12.3 把 $\mu$ 改成 $5$ fs 或把 $N$ 改成 $16384$。`,
@@ -217,7 +247,24 @@ export function S6Wrap() {
         ]}
       />
 
-      <Section kind="diagram" title="連結到硬體" level={3}>
+      <Section kind="diagram" title="連結到硬體" level={3} id="ch12-hardware">
+        <p>
+          {md(
+            String.raw`把整章的雜訊鏈再畫一次，這次加上硬體上真正能調的東西：兩個暫存器（REG_GMAC_N 設定每個 block 累加的樣本數 $N$、REG_GAIN_STEP 設定 learning rate $\mu$）、DTC gain register 的位寬、code 的設計，以及 PLL 的頻寬。每個旋鈕只動到鏈上的某一格：`,
+          )}
+        </p>
+        <Diagram chart={CHART_HW_KNOBS} caption="每個可以調的旋鈕動到雜訊鏈的哪一格：實線是雜訊走的路，虛線是旋鈕，藍色是硬體上可以調的東西。">
+          <p>
+            {md(
+              String.raw`先由左到右看實線：comparator 前的雜訊經過 1-bit 判斷與平均變成 GMAC 雜訊 $\eta_k$，被校正迴路累積成係數雜訊 $\delta w_k$，乘上 code 變成 timing error $\delta t[n]$，最後經過 PLL 到輸出。再看五條藍色方塊拉出來的虛線：$N$ 決定 $\sigma_\eta^2$ 與 block rate $f_u$；$\mu$ 決定 pole $p$，也直接出現在 $\sigma_w^2$ 的分子；gain register 的位寬決定 $\delta w$ 是隨機雜訊還是量化的 limit cycle；code 的設計決定 $\delta t$ 的頻譜落在哪裡；PLL 頻寬決定 $T$ 放過哪些頻率。最後看由 $\sigma_v$ 拉到係數雜訊的那條虛線：1-bit 判斷之後，$\sigma_\eta^2\approx1/N$ 已經和 $\sigma_v$ 無關，$\sigma_v$ 是經由斜率 $K=K_qC=\sqrt{2/\pi}\,C/\sigma_v$ 進到 $p$，才影響 $\sigma_w$——雜訊越大、斜率越小、迴路拉回得越慢。`,
+            )}
+          </p>
+          <p>
+            {md(
+              String.raw`和公式的對照：圖上實線的四個箭頭依序是 F-12.6（$\sigma_\eta^2\approx1/N$）、F-12.5（$\sigma_w^2$）、F-12.11（$\delta t=x\,\delta w$）與 F-12.17（對 $|T|^2S_{\delta t}$ 積分）；五個藍色方塊對應下面四個說明框（PLL 頻寬與 code 設計合在最後一個）。把 $K$ 代進 F-12.5 的第二種寫法 $\sigma_w^2=\mu\sigma_\eta^2/\big(K(2-\mu K)\big)$，就看得到 $\sigma_v$ 那條虛線：$\mu K\ll2$ 時 $\sigma_w^2\approx\mu\,\sigma_v\sqrt{\pi/2}\,/(2NC)$，和 $\sigma_v$、$\mu$ 成正比，和 $N$ 成反比。`,
+            )}
+          </p>
+        </Diagram>
         <div className="ch12-hw">
           <Callout kind="info" title={md(String.raw`REG_GAIN_STEP（$\mu$）`)}>
             決定 <Tex>{'p'}</Tex> 與 <Tex>{String.raw`\sigma_w`}</Tex>：<Tex>{String.raw`\sigma_w\propto\sqrt\mu`}</Tex>、<Tex>{String.raw`\tau\propto1/\mu`}</Tex>。常見做法是 coarse（大 <Tex>{String.raw`\mu`}</Tex>）→ fine（小 <Tex>{String.raw`\mu`}</Tex>）的 gear-shifting（第 14 章）。

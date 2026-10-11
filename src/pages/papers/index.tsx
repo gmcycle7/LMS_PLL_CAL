@@ -1,6 +1,6 @@
 import { Callout, ClaimTag, ModelLevel, Section, SourceTag, SymbolTable, Tex, TestBadge, type SymbolEntry } from '@/components'
 import { useSettings } from '@/app/settings'
-import { ErratumNote, PageChip, r } from './common'
+import { ErratumNote, JumpButton, PageChip, SYMBOLS_ANCHOR, SymbolsLink, TOP_ANCHOR, r } from './common'
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
 import { PAPERS } from './references'
@@ -220,12 +220,15 @@ export const SYMBOLS: SymbolEntry[] = [
   },
 ]
 
-/** Papers / Reading（規格附錄 D）：七份文獻、閱讀路線、背景教科書，以及「文獻寫法 ↔ 本站」的換算。 */
+/**
+ * Papers / Reading（規格附錄 D）：七份文獻、閱讀路線、背景教科書，以及「文獻寫法 ↔ 本站」的換算。
+ * 符號表放在頁尾（§10，id="symbols"；docs/teaching-style.md §5），頁首只留一行連結；方塊圖的原始碼在 diagrams.ts。
+ */
 export default function PapersPage() {
   const { mode } = useSettings()
   return (
     <div className="papers">
-      <p className="papers-lead">
+      <p className="papers-lead" id={TOP_ANCHOR}>
         這一頁整理規格書附錄 D 的 {PAPERS.length} 份文獻與背景教科書。每一份都附上核對過的書目與 DOI 連結、為什麼讀、該搭配本站哪幾章，並把
         <strong>「論文說的（已發表主張）」</strong>與<strong>「本站自己推的（derived on this site）」</strong>分開標示。本站的數字都由網站程式即時計算，
         不是從任何文獻抄來的量測值。本頁自己推導的 {FORMULAS.length} 條換算／對照公式登錄為 {FORMULAS[0].id}–{FORMULAS[FORMULAS.length - 1].id}，可在{' '}
@@ -247,16 +250,7 @@ export default function PapersPage() {
           </ol>
         </Callout>
       )}
-      <SymbolTable
-        rows={SYMBOLS}
-        title="本頁符號"
-        caption={
-          <>
-            時間索引：<Tex>{'n'}</Tex> = comparator sample、<Tex>{'k'}</Tex> = GMAC block。所有例子皆為 illustrative；數字由{' '}
-            <code>src/pages/papers/bridge.ts</code> 即時計算，並以 <code>golden/vectors</code> 交叉驗算。
-          </>
-        }
-      />
+      <SymbolsLink />
       <S1Policy />
       <S2ReadingPath />
       <S3Papers />
@@ -271,6 +265,22 @@ export default function PapersPage() {
       <S6Vocabulary />
       <S7Books />
       <S8Wrapup />
+      <Section kind="formula" level={2} title="10. 本頁符號表" id={SYMBOLS_ANCHOR}>
+        <p className="small muted">
+          正文裡每個符號第一次出現時都已經就地說明；這裡把它們集中起來，方便回頭查單位、第一次出現的段落，以及和全站約定或勘誤的關係。{' '}
+          <JumpButton to={TOP_ANCHOR}>↑ 回到頁首</JumpButton>
+        </p>
+        <SymbolTable
+          rows={SYMBOLS}
+          title="本頁符號"
+          caption={
+            <>
+              時間索引：<Tex>{'n'}</Tex> = comparator sample、<Tex>{'k'}</Tex> = GMAC block。所有例子皆為 illustrative；數字由{' '}
+              <code>src/pages/papers/bridge.ts</code> 即時計算，並以 <code>golden/vectors</code> 交叉驗算。
+            </>
+          }
+        />
+      </Section>
     </div>
   )
 }

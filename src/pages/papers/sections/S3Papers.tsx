@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from 'react'
-import { ClaimTag, Section, SourceTag, TestBadge, type ClaimKind } from '@/components'
+import { ClaimTag, Section, SourceTag, TestBadge, Tex, type ClaimKind } from '@/components'
 import { KIND_LABEL, LEVEL_LABEL, PAPERS, doiUrl, formatCitation, pageCount, toBibtex, type PaperId, type PaperRef } from '../references'
-import { ErratumNote, Fold, PageChips, Question, RichText } from '../common'
+import { Diagram, ErratumNote, Fold, PageChips, Question, RichText, r } from '../common'
+import { CHART_PAPER_MAP } from '../diagrams'
 import { D1Noise } from '../panels/D1Noise'
 import { D2Polarity } from '../panels/D2Polarity'
 import { D3Delay } from '../panels/D3Delay'
@@ -209,6 +210,21 @@ export function S3Papers() {
         每張卡片分成三層：<strong>書目</strong>（有 DOI 者以 Crossref 紀錄核對，並附可複製的 BibTeX）、<strong>主張的分層</strong>（題名層級的已發表主張／規格書的描述／本站推導）、
         以及可展開的<strong>本站對應推導</strong>（公式一步一步推、數字由程式即時計算）。
       </p>
+      <Diagram
+        chart={CHART_PAPER_MAP}
+        caption="七份文獻各自對照校正迴路的哪一塊：每個方塊最下面一行是文獻編號與本站的章節。"
+        ariaLabel="校正迴路方塊圖：code、PLL 誤差路徑、comparator、GMAC、累加器、更新延遲、量化器，各方塊標出對應的文獻 D1 到 D7 與本站章節"
+      >
+        <p>
+          <strong>先看</strong>訊號怎麼繞一圈：DTC 的 code <Tex>{'x[n]'}</Tex> 乘上還沒校正掉的 gain 誤差 <Tex>{'a-w'}</Tex>（<Tex>{'a'}</Tex> 是真實 gain、<Tex>{'w'}</Tex> 是校正係數），經 PLL 誤差路徑{' '}
+          <Tex>{r`H_{\mathrm{PD}}`}</Tex> 變成 phase detector 看到的誤差 <Tex>{'e[n]'}</Tex>；comparator 只留下正負號 <Tex>{'q[n]'}</Tex>，GMAC 把一個 block 的 <Tex>{'N'}</Tex> 個{' '}
+          <Tex>{'q[n]\\,x[n]'}</Tex> 平均成 <Tex>{'G_k'}</Tex>，乘上步長 <Tex>{r`\mu`}</Tex> 後累加成新的 <Tex>{'w'}</Tex>，再經過更新延遲與有限位元量化回到 DTC。
+        </p>
+        <p>
+          <strong>再看</strong>每個方塊最下面一行：那一塊出問題時該讀哪一份文獻、先看本站哪一章。圖上的 GMAC 方塊就是 §4 的 <Tex>{r`G_k=\tfrac1N\sum q\,x`}</Tex>；D4
+          是晶片實例，放在最上游的 code，因為它最直接對照的是「激勵夠不夠」。
+        </p>
+      </Diagram>
       {PAPERS.map((p) => (
         <PaperCard key={p.id} p={p} />
       ))}

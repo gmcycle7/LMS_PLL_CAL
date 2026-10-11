@@ -3,6 +3,7 @@ import { Callout, ClaimTag, ModeGate, Prereq, Section, StepDerivation, Tex, TexB
 import { buildCodeDistribution, fixedPoint, meanGmacSign, mseFixedPoint, type ErrorModel } from '@/simulation/models/bias'
 import { F } from '../formulas'
 import { CODE_KIND_TEX, Erratum, chop, num, m, texNum } from '../common'
+import { Fig, FigRef } from '../Fig'
 
 /** §11.3：code-correlated deterministic error 與 identifiability（勘誤 E12、E17）。 */
 export function CorrelatedSection() {
@@ -30,6 +31,14 @@ export function CorrelatedSection() {
         規格書標題寫「Code-Correlated Jitter」，但內文處理的是<strong>確定性</strong>的 <Tex>{String.raw`\varepsilon_{cc}=\kappa x`}</Tex>（例如 DSM pattern 經 supply ripple 或 clock
         phase 耦合到 PD，形成與 code 成正比的 deterministic jitter, DJ）。隨機、零均值的 jitter 不會造成 bias（§11.0 的類別 ① 與 ④）。
       </p>
+      <p>
+        先看 <FigRef id="identifiability" /> 的左邊：同一個 code <Tex>{'x[n]'}</Tex> 同時乘上 <Tex>{'(a-w)'}</Tex>（DTC 的 gain 誤差，藍色）與{' '}
+        <Tex>{'\\kappa'}</Tex>（耦合係數，紅色；單位和 gain 一樣是 t.u.），兩者在 comparator 前直接相加。再看右邊：comparator 只看得到它們的和{' '}
+        <Tex>{String.raw`((a+\kappa)-w)\,x`}</Tex>，所以 LMS 要把 <Tex>{'w'}</Tex> 調到 <Tex>{'a+\\kappa'}</Tex> 才會停。圖上紅色的「
+        <Tex>{'\\times\\kappa'}</Tex>」就是公式裡的 <Tex>{String.raw`\varepsilon_{cc}=\kappa x`}</Tex>；comparator 方塊裡的 <Tex>{'e[n]'}</Tex>{' '}
+        就是下面「兩個世界」推導的第一行。
+      </p>
+      <Fig id="identifiability" />
       <StepDerivation
         steps={[
           { tex: String.raw`\varepsilon_{cc}[n]=\kappa\,x[n]`, why: '假設耦合到 PD 的誤差與 code 成正比（最簡單的 code-correlated DJ）。' },
@@ -89,6 +98,11 @@ export function CorrelatedSection() {
           { tex: String.raw`\Rightarrow\;\text{任何只用 }(x[n],q[n])\text{ 的演算法都無法分辨 A 與 B}`, why: '資料的機率分布相同，資訊上就不可能區分 —— 這叫不可辨識（unidentifiable）。' },
         ]}
       />
+      <p>
+        那麼 <Tex>{'w^*=a+\\kappa'}</Tex> 到底是好是壞？<FigRef id="coupling-node" /> 從最上面的問題出發：<Tex>{String.raw`\varepsilon_{cc}`}</Tex>{' '}
+        是真的出現在相位路徑上（PLL 的輸出也有），還是只出現在「觀測」的路徑上？走綠色出口時校正幫了忙，走紅色出口時校正反而把誤差寫進輸出。
+      </p>
+      <Fig id="coupling-node" />
       <Callout kind="warn" title={m('$w^*=a+\\kappa$ 是「錯」的嗎？要看你在乎哪個誤差')}>
         <p>
           若 <Tex>{String.raw`\varepsilon_{cc}`}</Tex> 也同樣出現在 PLL 輸出的相位誤差中（例如它本來就是 DTC 路徑上的 pattern-dependent delay），那麼 <Tex>{'w=a+\\kappa'}</Tex>{' '}

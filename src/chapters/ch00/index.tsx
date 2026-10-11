@@ -1,4 +1,4 @@
-import { Callout, ClaimTag, ModelLevel, Section, SourceTag, SymbolTable, TestBadge, Tex, type SymbolEntry } from '@/components'
+import { Callout, ClaimTag, ModelLevel, Section, SourceTag, SystemMap, TestBadge, Tex } from '@/components'
 import { MODE_LABEL, useSettings } from '@/app/settings'
 import { BlackBoxSection, LoopSection, UpdateFormulaSection } from './sections/BlackBox'
 import { HAND_CALC_PARAMS, HandCalcSection } from './sections/HandCalc'
@@ -8,233 +8,42 @@ import { WhyMattersSection } from './sections/WhyMatters'
 import { SignTeaserSection } from './sections/SignTeaser'
 import { AssumptionsSection } from './sections/Assumptions'
 import { LearningMapSection, QuizSection, RecapSection } from './sections/Wrapup'
+import { CHAPTER_TOP_ANCHOR, SymbolsJump, SymbolsSection } from './sections/Symbols'
 import { IntroPlayground } from './experiments/IntroPlayground'
 import { DEFAULT_BASE, DEFAULT_MUS } from './experiments/playgroundModel'
 import { fixedXMuMax, fixedXPole } from '@/simulation/models/lms'
 import { texNum } from './format'
-import { ErratumNote, ErratumRef, PageLink } from './common'
+import { ChapterDiagram, FigRef } from './common'
+import { SYSTEM_MAP_FOCUS } from './diagrams'
 import './chapter.css'
 
-/** 本章符號（docs/teaching-style.md §5）。 */
-const SYMBOLS: SymbolEntry[] = [
-  { symbol: 'x,\\ x_n', meaning: (
-      <>
-        輸入（regressor）：第 <Tex>{'n'}</Tex> 筆餵進黑盒子的值
-      </>
-    ), unit: '\\text{無因次（教學例）}', firstSeen: '§0.1', note: 'PLL 中為 DSM 殘差／DTC code' },
-  { symbol: 'y,\\ y_n', meaning: '黑盒子的輸出（量測值）', unit: '[y]', firstSeen: '§0.1' },
-  { symbol: 'a', meaning: '黑盒子內部的真實參數（未知）', unit: '[y]/[x]', firstSeen: '§0.1', note: 'PLL 中為真實 DTC gain（fs/code）' },
-  { symbol: 'v,\\ v_n', meaning: '量測雜訊，零均值', unit: '[y]', firstSeen: '§0.1' },
-  { symbol: 'w,\\ w_n', meaning: '我們目前的猜測（可調係數 / weight）', unit: '[y]/[x]', firstSeen: '§0.1', note: '硬體上的 gain register' },
-  { symbol: '\\hat y_n=w_nx_n', meaning: '預測', unit: '[y]', firstSeen: '§0.2' },
-  { symbol: 'e_n=y_n-\\hat y_n', meaning: '誤差：預測錯多少、往哪錯', unit: '[y]', firstSeen: '§0.2' },
-  {
-    symbol: '\\mu',
-    meaning: '學習率（learning rate / step size）',
-    unit: '[w]/([e][x])',
-    firstSeen: '§0.3',
-    note: (
-      <>
-        本章教學例無因次；硬體常為 <Tex>{'2^{-k}'}</Tex>（右移 <Tex>{'k'}</Tex> 位元）
-      </>
-    ),
-  },
-  {
-    symbol: 'n',
-    meaning: '第幾筆資料（sample index）',
-    firstSeen: '§0.3',
-    note: (
-      <>
-        全站：<Tex>{'n'}</Tex> = comparator sample、<Tex>{'k'}</Tex> = GMAC block（§0.9）
-      </>
-    ),
-  },
-  {
-    symbol: '\\delta_n=a-w_n',
-    meaning: '參數誤差：還差多少',
-    unit: '[w]',
-    firstSeen: '§0.4',
-    note: (
-      <>
-        全站極性 <Tex>{'a-w'}</Tex>（<ErratumRef eid="E39" />：規格 §3 原寫 <Tex>{'w-a'}</Tex>）
-      </>
-    ),
-  },
-  {
-    symbol: 'p=1-\\mu x^2',
-    meaning: (
-      <>
-        固定 <Tex>{'x'}</Tex> 時參數誤差每步乘上的倍數（pole）
-      </>
-    ),
-    unit: '\\text{無因次}',
-    firstSeen: '§0.6',
-  },
-  {
-    symbol: 'j_n=\\tfrac12e_n^2',
-    meaning: '單筆成本',
-    unit: '[y]^2',
-    firstSeen: '§0.6',
-    note: (
-      <>
-        含 <Tex>{'\\tfrac12'}</Tex>，微分後與更新量 <Tex>{'\\mu ex'}</Tex> 同 scaling（<ErratumRef eid="E41" />）
-      </>
-    ),
-  },
-  {
-    symbol: 'J(w)=\\tfrac12E[(y-wx)^2]',
-    meaning: '平均成本（MSE 的一半）',
-    unit: '[y]^2',
-    firstSeen: '§0.6',
-    note: (
-      <>
-        規格 §1 的 <Tex>{'J_2'}</Tex> 沒有 <Tex>{'\\tfrac12'}</Tex>；argmin 相同（<ErratumRef eid="E41" />）
-      </>
-    ),
-  },
-  { symbol: 'E[\\cdot]', meaning: '期望值：做很多次取平均會趨近的值', firstSeen: '§0.7', note: '先備知識框' },
-  { symbol: '\\operatorname{Var}(\\cdot),\\ \\sigma', meaning: '變異數／標準差：抖動有多大', firstSeen: '§0.7' },
-  {
-    symbol: '\\sigma_v',
-    meaning: (
-      <>
-        雜訊 <Tex>{'v'}</Tex> 的標準差（RMS）
-      </>
-    ),
-    unit: '[y]',
-    firstSeen: '§0.5',
-  },
-  {
-    symbol: 's_1',
-    meaning: (
-      <>
-        單筆 <Tex>{'e\\,x'}</Tex> 的標準差
-      </>
-    ),
-    unit: '[y][x]',
-    firstSeen: '§0.7',
-  },
-  {
-    symbol: 'N,\\ \\bar G_N',
-    meaning: (
-      <>
-        平均的筆數；<Tex>{'N'}</Tex> 筆 <Tex>{'e\\,x'}</Tex> 的平均 <Tex>{'\\bar G_N=\\frac1N\\sum e_ix_i'}</Tex>
-      </>
-    ),
-    firstSeen: '§0.7',
-  },
-  {
-    symbol: '\\mathrm{sign}(e),\\ q',
-    meaning: (
-      <>
-        誤差的正負號；1-bit 比較器輸出 <Tex>{'q\\in\\{+1,-1\\}'}</Tex>
-      </>
-    ),
-    firstSeen: '§0.9',
-    note: (
-      <>
-        <Tex>{'\\mathrm{sign}(0)'}</Tex> 慣例必須明定（<ErratumRef eid="E40" />）；硬體 0/1 先映射 <Tex>{'q=2b-1'}</Tex>
-      </>
-    ),
-  },
-  {
-    symbol: '\\Phi(z)',
-    meaning: (
-      <>
-        標準常態的累積分布函數 <Tex>{'P(Z\\le z)'}</Tex>
-      </>
-    ),
-    firstSeen: '§0.7',
-    note: '先備知識框（§0.7、§0.9）',
-  },
-  {
-    symbol: 'G_k',
-    meaning: (
-      <>
-        GMAC：第 <Tex>{'k'}</Tex> 個 block 的 <Tex>{'q\\,x'}</Tex> 平均 <Tex>{'\\frac1N\\sum q_nx_n'}</Tex>
-      </>
-    ),
-    firstSeen: '§0.9',
-    note: (
-      <>
-        若硬體用總和要再乘 <Tex>{'N'}</Tex>
-      </>
-    ),
-  },
-  {
-    symbol: 's,\\ m_q,\\ S_N',
-    meaning: (
-      <>
-        §0.9 比較器例子：比較器前真正的誤差 <Tex>{'s'}</Tex>；1-bit 輸出的平均 <Tex>{'m_q=E[q]'}</Tex>；<Tex>{'N'}</Tex> 筆輸出的<strong>總和</strong>{' '}
-        <Tex>{'S_N=\\sum_{i=1}^{N}q_i'}</Tex>
-      </>
-    ),
-    unit: '\\mathrm{fs},\\ \\text{無因次},\\ \\text{無因次}',
-    firstSeen: '§0.9',
-    note: (
-      <>
-        規格 §5 原寫 <Tex>{'G_N'}</Tex>、<Tex>{'m'}</Tex>（<ErratumRef eid="E18" />）；平均 <Tex>{'G=S_N/N'}</Tex>
-      </>
-    ),
-  },
-  {
-    symbol: 'M',
-    meaning: 'Monte Carlo 的獨立試驗次數',
-    firstSeen: '§0.7',
-  },
-  {
-    symbol: '\\tau,\\ N_{\\mathrm{eq}}',
-    meaning: (
-      <>
-        時間常數 <Tex>{'\\tau=-1/\\ln|p|'}</Tex>（暫態衰減到 <Tex>{'1/e'}</Tex> 的步數）；等效平均長度{' '}
-        <Tex>{'N_{\\mathrm{eq}}=\\frac{1+p}{1-p}'}</Tex>
-      </>
-    ),
-    unit: '\\text{samples}',
-    firstSeen: '§0.7',
-    note: 'Engineer 模式的推導',
-  },
-  {
-    symbol: "\\kappa,\\ \\varepsilon_{cc},\\ v'",
-    meaning: (
-      <>
-        §0.10 反例：與 code 相關的干擾 <Tex>{'\\varepsilon_{cc}=\\kappa x'}</Tex>（係數 <Tex>{'\\kappa'}</Tex>）；<Tex>{"v'"}</Tex> 是與 <Tex>{'x'}</Tex>{' '}
-        無關的雜訊，<Tex>{"v=\\varepsilon_{cc}+v'"}</Tex>
-      </>
-    ),
-    unit: '[y]/[x],\\ [y],\\ [y]',
-    firstSeen: '§0.10',
-    note: (
-      <>
-        規格 §11.3 原寫 <Tex>{'u=cx'}</Tex>，與 filtered regressor <Tex>{'u=h*x'}</Tex> 撞名（<ErratumRef eid="E12" />）
-      </>
-    ),
-  },
-  {
-    symbol: 'w^*',
-    meaning: (
-      <>
-        平均更新量為 0 的位置：LMS 平均收斂到的值（<Tex>{'E[v\\,x]=0'}</Tex> 時等於 <Tex>{'a'}</Tex>）
-      </>
-    ),
-    unit: '[y]/[x]',
-    firstSeen: '§0.10',
-    note: (
-      <>
-        <Tex>{'w^*-a'}</Tex> 就是 calibration bias（Ch11）
-      </>
-    ),
-  },
+/** 章首「方塊圖怎麼讀」的圖例：classDef 的四個顏色（與 diagrams.ts 的 CLASS_DEFS 相同）。 */
+const LEGEND_COLOURS = [
+  { colour: '#1f5fa8', meaning: '藍：這張圖的主角' },
+  { colour: '#b42318', meaning: '紅：雜訊，或會出問題的地方' },
+  { colour: '#1d7a46', meaning: '綠：結果' },
+  { colour: '#3d4450', meaning: '深灰：打不開的黑盒子' },
 ]
 
 export default function Chapter00() {
   const { mode } = useSettings()
+  const muMax = fixedXMuMax(DEFAULT_BASE.x)
   return (
-    <div className="ch00">
+    <div className="ch00" id={CHAPTER_TOP_ANCHOR}>
       <div className="ch00-question">
         <strong>這一課要回答的問題：</strong>你只能觀察一個黑盒子的輸入 <Tex>{'x'}</Tex> 和輸出 <Tex>{'y'}</Tex>，不知道裡面的係數{' '}
         <Tex>{'a'}</Tex>。資料還有雜訊。要怎麼<strong>一筆一筆地</strong>把 <Tex>{'a'}</Tex> 學出來？——答案就是 LMS。
       </div>
+
+      <SystemMap focus={SYSTEM_MAP_FOCUS} />
+      <p className="ch00-map-note">
+        <strong>你在這裡：</strong>藍色的六個方塊就是 LMS 校正迴路本身——拿來相乘的 code <Tex>{'x[n]'}</Tex>（regressor）、乘上目前猜測 <Tex>{'w'}</Tex> 的 gain
+        correction、1-bit comparator、把很多筆乘積加起來的 GMAC、「除以 <Tex>{'N'}</Tex>、乘上 <Tex>{'\\mu'}</Tex>」，以及存放 <Tex>{'w'}</Tex> 的 gain accumulator。
+        這一章先把圖上其餘的部分（PLL 主迴路、DTC、phase detector）縮成一個「黑盒子」<Tex>{'y=ax+v'}</Tex>，只學這條藍色迴路最簡單的版本：
+        <strong>預測 → 比較 → 修正</strong>。每個藍色方塊對應到哪一個動作，§0.8 會一格一格對回來。
+      </p>
+      <SymbolsJump />
+
       <div className="ch00-tags">
         <ModelLevel level="L0" />
         <ClaimTag kind="exact" />
@@ -259,20 +68,35 @@ export default function Chapter00() {
         目前學習模式：<strong>{MODE_LABEL[mode]}</strong>。Beginner 只看直覺、手算與圖（推導預設收合，一鍵展開）；Engineer 預設展開推導並顯示更多程式碼與指標；
         Research 另外顯示精確有理數驗算、隨機輸入的三種穩定界限等細節。三種模式用的是同一份計算程式。
       </Callout>
-
-      <SymbolTable
-        rows={SYMBOLS}
-        caption={
-          <>
-            <Tex>{'[y]'}</Tex>、<Tex>{'[x]'}</Tex> 表示 <Tex>{'y'}</Tex>、<Tex>{'x'}</Tex> 的單位；本章的數字例皆無因次（§0.9 的比較器例子用 fs）。全站符號總表見{' '}
-            <PageLink id="formulas">Formula &amp; Unit Reference</PageLink> 頁。
-          </>
-        }
-      />
-      <ErratumNote eid="E39">
-        本章所有 <Tex>{'\\delta'}</Tex> 一律為 <Tex>{'\\delta=a-w'}</Tex>（與規格 §0 一致；規格 §3 的 <Tex>{'w-a'}</Tex> 已更正）。
-      </ErratumNote>
-
+      <Callout kind="info" title="本章的方塊圖怎麼讀">
+        每個主要概念都先畫一張方塊圖、再寫公式；每張圖下面有一段「怎麼看圖」，告訴你先看哪裡、圖上的哪個訊號就是公式裡的哪個符號。圖上的寫法只有四條規則：
+        <ul className="ch00-legend">
+          <li>
+            <strong>方括號是時間索引</strong>：圖上的 <code>x[n]</code> 就是公式裡的 <Tex>{'x_n'}</Tex>（第 <Tex>{'n'}</Tex> 筆資料）；<code>w[n+1]</code> 就是{' '}
+            <Tex>{'w_{n+1}'}</Tex>。§0.8 之後出現的 <code>w[k]</code> 是 <Tex>{'w_k'}</Tex>（第 <Tex>{'k'}</Tex> 個 block，一個 block 有 <Tex>{'N'}</Tex> 筆）。
+          </li>
+          <li>
+            <strong>圓圈是運算</strong>：圓圈 ＋ 是相加點，進入它的線以 <code>(+)</code> 或 <code>(−)</code> 開頭，表示這條訊號是被加還是被減；圓圈 × 是乘法器；寫著「×{' '}
+            <Tex>{'\\mu'}</Tex>」的方塊是乘上一個常數（增益）。
+          </li>
+          <li>
+            <strong>
+              <code>z⁻¹</code> 是暫存器
+            </strong>
+            ：它的輸出是「上一拍寫進去的值」，也就是延遲一筆資料（Z transform 到 Ch03 才正式介紹，這裡把它當成一個暫存器就好）。
+          </li>
+          <li>
+            <strong>顏色</strong>：
+            {LEGEND_COLOURS.map((c, i) => (
+              <span key={c.colour}>
+                <span className="ch00-swatch" style={{ background: c.colour }} aria-hidden="true" />
+                {c.meaning}
+                {i < LEGEND_COLOURS.length - 1 ? '；' : '。'}
+              </span>
+            ))}
+          </li>
+        </ul>
+      </Callout>
       <BlackBoxSection />
       <LoopSection />
       <UpdateFormulaSection />
@@ -291,14 +115,27 @@ export default function Chapter00() {
         <p>
           手算表只示範了 <Tex>{`\\mu=${texNum(HAND_CALC_PARAMS.mu)}`}</Tex>。下面三組比較（Case A / B / C）預設為{' '}
           <Tex>{`\\mu=${texNum(DEFAULT_MUS[0])}`}</Tex>（慢）、<Tex>{texNum(DEFAULT_MUS[1])}</Tex>（穩）、<Tex>{texNum(DEFAULT_MUS[2])}</Tex>（發散），
-          <Tex>{`x=${texNum(DEFAULT_BASE.x)}`}</Tex> 時理論穩定區是 <Tex>{`0<\\mu<2/x^2=${texNum(fixedXMuMax(DEFAULT_BASE.x))}`}</Tex>（§0.6 推導）。
-          每個滑桿旁都能輸入精確數字，也可以從「Preset」選單載入其他情境（一步到位、邊界、雜訊、極性錯誤）。
+          <Tex>{`x=${texNum(DEFAULT_BASE.x)}`}</Tex> 時理論穩定區是 <Tex>{`0<\\mu<2/x^2=${texNum(muMax)}`}</Tex>（§0.6 推導）。
+          每個滑桿旁都能輸入精確數字，也可以從「Preset」選單載入其他情境（一步到位、邊界、雜訊、極性錯誤）；「雜訊」那一組會打開量測雜訊{' '}
+          <Tex>{'v'}</Tex>，它的標準差（RMS，抖動的典型大小）記為 <Tex>{'\\sigma_v'}</Tex>。
         </p>
         <p>
           指標表裡的 <strong>pole</strong> <Tex>{'p=1-\\mu x^2'}</Tex> 就是手算表最後一欄那個數：每走一步，參數誤差{' '}
           <Tex>{'\\delta_n=a-w_n'}</Tex> 剩下原來的 <Tex>{'p'}</Tex> 倍（手算例是 <Tex>{texNum(fixedXPole(HAND_CALC_PARAMS.mu, HAND_CALC_PARAMS.x))}</Tex>）。
-          <Tex>{'|p|<1'}</Tex> 誤差才會越來越小；先動手玩，§0.6 再證明它。
+          <Tex>{'|p|<1'}</Tex> 誤差才會越來越小。動手之前先看一張地圖，知道 <Tex>{'\\mu'}</Tex> 落在哪一段會看到什麼：
         </p>
+        <ChapterDiagram name="CHART_MU_REGIONS">
+          <p>
+            先看最上面兩格：選定 <Tex>{'\\mu'}</Tex> 之後，先算出 <Tex>{'p=1-\\mu x^2'}</Tex>。再看菱形分出去的五條線：每條線上寫著 <Tex>{'\\mu'}</Tex> 的範圍和對應的 <Tex>{'p'}</Tex>。<Tex>{'\\mu'}</Tex> 越大，<Tex>{'p'}</Tex> 越小，從{' '}
+            <Tex>{'1'}</Tex> 一路降到 <Tex>{'-1'}</Tex> 以下，行為也跟著換一格。
+          </p>
+          <p>
+            圖上的「<Tex>{'p'}</Tex>」就是指標表的 pole，「<Tex>{'1/x^2'}</Tex>」「<Tex>{'2/x^2'}</Tex>」在 <Tex>{`x=${texNum(DEFAULT_BASE.x)}`}</Tex> 時是{' '}
+            <Tex>{texNum(1 / (DEFAULT_BASE.x * DEFAULT_BASE.x))}</Tex> 與 <Tex>{texNum(muMax)}</Tex>。所以 Case A（<Tex>{texNum(DEFAULT_MUS[0])}</Tex>）與 Case B（
+            <Tex>{texNum(DEFAULT_MUS[1])}</Tex>）落在「單調收斂」，Case C（<Tex>{texNum(DEFAULT_MUS[2])}</Tex>）落在紅色的「不收斂」。為什麼分界剛好是這幾個數，§0.6 的{' '}
+            <FigRef name="CHART_ERROR_RECURSION" /> 與等比數列推導會證明。
+          </p>
+        </ChapterDiagram>
         <IntroPlayground />
       </Section>
 
@@ -310,6 +147,7 @@ export default function Chapter00() {
       <QuizSection />
       <RecapSection />
       <LearningMapSection />
+      <SymbolsSection />
     </div>
   )
 }

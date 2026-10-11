@@ -14,7 +14,8 @@ import {
   xMoments,
   type XDist,
 } from '@/simulation/models/scalarStability'
-import { Erratum, FBlock, HC, num, pyDef, StepsBox, T, tnum, tx } from '../common'
+import { Erratum, FBlock, Fig, HC, num, pyDef, StepsBox, T, tnum, tx } from '../common'
+import { CHART_CLT_FLOW, CHART_HEAVY_TAIL, CHART_NAIVE_VS_ONESTEP } from '../diagrams'
 import { HeavyTailDemo } from '../experiments/HeavyTailDemo'
 
 const GAUSS: XDist = { kind: 'gaussian', sigma: 1 }
@@ -128,6 +129,20 @@ export function HeavyTailSection() {
           通常根本抽不到那些「機率極小、數值極大」的路徑——於是樣本平均偏低，而且用同一批樣本算出的樣本 SE 也偏小，<strong>信賴區間既偏又窄</strong>。
           <Erratum id="E14" />
         </p>
+        <p>把上面這段話畫成一張圖（細節在後面的先備知識與兩段推導）：</p>
+        <Fig
+          chart={CHART_HEAVY_TAIL}
+          caption={T`Heavy tail 的機制。由上往下看：log 域是常態，回到線性域就是右尾很長的 lognormal（藍）；中位數（綠）與均方根（褐）相差 $e^{\,n(\frac12\ln g-\lambda)}$ 倍，而有限條路徑的 Monte Carlo 抽不到右尾（紅）。`}
+          ariaLabel="log 域的累積量 L n 是 n 個獨立增量的總和，依中央極限定理近似常態；取指數後 delta n 的大小近似 lognormal，右尾很長。中位數約為 e 的 n lambda 次方，均方根等於 g 的 n 除以 2 次方，兩者的倍數隨 n 指數拉開；M 條路徑的 Monte Carlo 幾乎抽不到右尾，所以樣本平均與樣本標準誤都偏低"
+        />
+        <p>
+          先看上面三格：<Tex>{T`L[n]=\ln(|\delta[n]|/|\delta[0]|)`}</Tex> 是第 4 節那個累加器的輸出，<Tex>n</Tex> 個 iid 增量加起來近似常態——中心 <Tex>{T`n\lambda`}</Tex>、標準差 <Tex>{T`s\sqrt n`}</Tex>（
+          <Tex>s</Tex> 是每一步增量 <Tex>{T`\ln|f|`}</Tex> 的<strong>標準差</strong>，下一段正式定義）；取 <Tex>{T`\exp`}</Tex> 回到線性域，<Tex>{T`|\delta[n]|`}</Tex> 就是 lognormal。再看中間兩格：
+          <strong>中位數</strong>（一半路徑比它小的那個值，也就是典型路徑）大約是 <Tex>{T`|\delta_0|e^{n\lambda}`}</Tex>；<strong>均方根</strong>（RMS）<Tex>{T`\sqrt{E[\delta_n^2]}=|\delta_0|\,g^{n/2}`}</Tex> 則是第 3 節的精確式（F-03.6）。
+          兩者的比值是 <Tex>{T`e^{\,n(\frac12\ln g-\lambda)}`}</Tex>：指數裡的 <Tex>{T`\tfrac12\ln g-\lambda\ge0`}</Tex> 正是第 4 節 Jensen 不等式（F-03.10）的差距，所以 <Tex>n</Tex> 越大，「平均」離「典型」越遠。
+          最後看最下面兩格：均方根是被右尾撐起來的，而 <Tex>M</Tex> 條路徑幾乎抽不到右尾，所以直接平均 <Tex>{T`\delta[n]^2`}</Tex> 會偏低——這就是本節後半 F-03.16 要算清楚的事。圖上的 <Tex>{T`L[n]`}</Tex> 就是下面推導第 1 步的{' '}
+          <Tex>{T`L_n`}</Tex>，「近似常態」那一格是 F-03.18。
+        </p>
         <Prereq title="中央極限定理與 lognormal：為什麼右尾這麼長">
           <p>
             <strong>中央極限定理</strong>（CLT）：<Tex>{T`Y_k`}</Tex> iid、平均 <Tex>m</Tex>、變異數 <Tex>{T`s^2`}</Tex>，則總和 <Tex>{T`\sum_{k=1}^nY_k`}</Tex> 近似常態{' '}
@@ -153,6 +168,17 @@ export function HeavyTailSection() {
         <p>
           Stability Lab 畫的 10–90% 分位帶與「收斂比例」不必只靠 Monte Carlo：<Tex>{T`\ln|\delta_n|`}</Tex> 是 iid 項的總和，它的平均與變異數可以<strong>精確</strong>算出，
           再用 CLT 近似分布的形狀，就能預測這兩個量。
+        </p>
+        <Fig
+          chart={CHART_CLT_FLOW}
+          caption={T`CLT 預測的手算順序（HC-03.7）。看藍色兩格：把門檻換成「離中心幾個標準差」$z$，再查 $\Phi(z)$。`}
+          ariaLabel="由 lambda、s、n、epsilon 算出中心 n lambda、寬度 s 根號 n 與門檻 ln epsilon；z 等於門檻減中心再除以寬度；查表得到已收斂的比例；另外可得 10% 與 90% 分位以及九成路徑低於起點所需步數"
+        />
+        <p>
+          先看第二列的三個量：中心 <Tex>{T`n\lambda`}</Tex>（隨 <Tex>n</Tex> 等速移動）、寬度 <Tex>{T`s\sqrt n`}</Tex>（只以 <Tex>{T`\sqrt n`}</Tex> 變寬）、門檻 <Tex>{T`\ln\varepsilon`}</Tex>。
+          其中 <Tex>s</Tex> 是 <Tex>{T`\ln|1-\mu x^2|`}</Tex> 的<strong>標準差</strong>（每一步在 log 域起伏多大），<Tex>\varepsilon</Tex> 是相對誤差門檻。再看藍色兩格：把門檻換算成 <Tex>z</Tex>，查{' '}
+          <Tex>{T`\Phi(z)`}</Tex> 就是已經低於門檻的路徑比例。另一支是分位帶 <Tex>{T`n\lambda\mp1.2816\,s\sqrt n`}</Tex>；令 90% 分位小於 0，就得到「九成路徑低於起點」要等的步數。
+          圖上每一格對應下面推導的一行（第 2、3、5、6、7 步），也是手算題 HC-03.7 的計算順序。
         </p>
         <StepsBox
           title={tx`$\ln|\delta_n/\delta_0|\approx\mathcal N(n\lambda,\ ns^2)$ 與它的兩個推論`}
@@ -196,6 +222,19 @@ export function HeavyTailSection() {
         </ModeGate>
       </Section>
       <Section kind="formula" title="天真估計量的真實標準誤（可以精確算出來）">
+        <p>
+          「天真」的做法是讓 <Tex>M</Tex> 條路徑各走完 <Tex>n</Tex> 步，再把 <Tex>{T`\delta_n^2`}</Tex> 平均起來。它和本站實際採用的「單步 Monte Carlo」差在哪裡，先用圖比一次：
+        </p>
+        <Fig
+          chart={CHART_NAIVE_VS_ONESTEP}
+          caption={T`兩種 Monte Carlo 並排：天真做法（紅 = 標準誤失控）與單步 Monte Carlo 加封閉式（綠 = 可信）。差別在「先走 $n$ 步再平均」還是「只平均一步」。`}
+          ariaLabel="天真做法：M 條路徑各走 n 步後取 delta 平方再平均，真實標準誤由 h 的 n 次方決定，可能比答案還大。本站做法：只抽一步估計 g，標準誤有限且小，再用封閉式 g 的 n 次方得到結果"
+        />
+        <p>
+          先看「天真做法」那一框：每條路徑走完 <Tex>n</Tex> 步才取 <Tex>{T`\delta[n]^2`}</Tex>，稀有的大因子被連乘了 <Tex>n</Tex> 次，樣本平均的真實標準誤（SE，紅色）由{' '}
+          <Tex>{T`h=E\big[(1-\mu x^2)^4\big]`}</Tex>（<Tex>{T`\delta^4`}</Tex> 的每步因子）決定，可以比答案本身還大。再看「本站做法」那一框：只抽一步估計 <Tex>g</Tex>，SE 有限且小（綠色），
+          <Tex>n</Tex> 步的結果交給封閉式 <Tex>{T`g^n\delta_0^2`}</Tex>。圖上紅色那一格就是下面要推導的 F-03.16。
+        </p>
         <StepsBox
           title={tx`天真估計 $\frac1M\sum_i\delta_{n,i}^2$ 的標準誤（SE）`}
           steps={[

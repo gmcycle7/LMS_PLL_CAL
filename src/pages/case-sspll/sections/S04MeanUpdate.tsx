@@ -1,7 +1,7 @@
 import { Callout, Prereq, Section, StepDerivation, Tex, TexBlock, mathText } from '@/components'
 import { kqGain, toySignLmsStep } from '@/simulation/models/sspll'
 import { SIM_CFG, WORKED } from '../data'
-import { Claim, DataTable, Formula, Hand, fx, r, txs } from '../common'
+import { Claim, DataTable, Diagram, FigRef, Formula, Hand, fx, r, txs } from '../common'
 
 /** 玩具模型：sign-error LMS，PD 看到 e = g·(a − w)·x（g = +1：沒有迴路；g = −0.2：反相縮小）。每一步都是 sspll.ts 的 toySignLmsStep（HC-CS.1 用同一個函式） */
 function toy(g: number, steps = 5, a = 1, mu = 0.1, x = 1): { w: number[]; q: number[] } {
@@ -38,6 +38,12 @@ export function S04MeanUpdate() {
           情況 B：PD 看到的是被迴路「反相縮小」的殘差 <Tex>{r`e=-0.2\,(a-w)x`}</Tex>。這是一個單 tap 的玩具模型，代表 <Tex>{r`\mathrm{Re}\,H<0`}</Tex>。
         </li>
       </ul>
+      <Diagram id="toy" />
+      <p>
+        兩列的方塊一模一樣，只有第二格不同：把兩種情況合寫成 <Tex>{r`e=g\,(a-w)\,x`}</Tex>。圖上第一格是還沒校掉的誤差 <Tex>{r`\delta\,x`}</Tex>（<Tex>{r`\delta=a-w`}</Tex> 是「真值 − 估計」），「× g」就是式子裡的 <Tex>{'g'}</Tex>（A 是 <Tex>{'+1'}</Tex>，B 是 <Tex>{'-0.2'}</Tex>），第三格的{' '}
+        <Tex>{r`e=g\,\delta\,x`}</Tex> 就是 PD 看到的殘差。先看 A 列：<Tex>{'q'}</Tex> 和 <Tex>{r`\delta\,x`}</Tex> 同號，所以更新量 <Tex>{r`\mu\,q\,x`}</Tex> 和 <Tex>{r`\delta`}</Tex> 同號，把 <Tex>{'w'}</Tex> 推向 <Tex>{'a'}</Tex>。再看 B 列：紅色那一格把符號翻過來，後面的 sign
+        與更新照做，結果每一步都走錯方向。下表就是照這兩列各走四步的結果。
+      </p>
       <DataTable
         className="cs-num"
         head={['步', <>A：<Tex>{'w'}</Tex></>, <>A：<Tex>{'q'}</Tex></>, <>B：<Tex>{'w'}</Tex></>, <>B：<Tex>{'q'}</Tex></>]}
@@ -74,6 +80,25 @@ export function S04MeanUpdate() {
           </li>
         </ul>
       </Prereq>
+      <p>
+        真正的校正迴路比玩具模型多三樣東西：誤差要先通過主迴路 <Tex>{r`H_{PD}`}</Tex>；比較器的輸入多了雜訊 <Tex>{'v[n]'}</Tex>（高斯，標準差 <Tex>{r`\sigma_v`}</Tex>）；而且權重不是每拍更新，是把 <Tex>{'N'}</Tex> 拍的 <Tex>{r`q\cdot r`}</Tex> 平均成一個數{' '}
+        <Tex>{'G_i[k]'}</Tex>（<strong>GMAC</strong> 的輸出，<Tex>{'k'}</Tex> 是 block 索引），再乘上步長 <Tex>{r`\mu`}</Tex> 累加進權重。
+      </p>
+      <Diagram id="lms-loop" />
+      <p>
+        先看標著「快」的框（每個 sample 做一次）：權重誤差 <Tex>{r`\delta_j`}</Tex> 乘上 regressor <Tex>{'x_j[n]'}</Tex> 成為注入的誤差 <Tex>{'u[n]'}</Tex>，通過 <Tex>{r`H_{PD}`}</Tex>、加上雜訊、取 sign 得到 <Tex>{'q[n]'}</Tex>，再乘上 GMAC 用的 regressor <Tex>{'r_i[n]'}</Tex>。
+        <Tex>{'r_i'}</Tex> 是 <Tex>{'x_i'}</Tex> 通過前置濾波 <Tex>{'G(z)'}</Tex> 的結果；不做任何處理（raw）時 <Tex>{'G=1'}</Tex>、<Tex>{'r_i=x_i'}</Tex>，§11 的對策就是換這一格。再看標著「慢」的框（每個 block 做一次）：平均、乘 <Tex>{r`\mu`}</Tex>、累加，新的權重回到最前面，形成迴圈。兩個藍色方塊（
+        <Tex>{r`H_{PD}`}</Tex> 與 <Tex>{'G'}</Tex>）一個在「誤差這一側」、一個在「regressor 這一側」，它們的相位差決定了相乘之後的平均是正是負。
+      </p>
+      <p>
+        下面的推導要做的事，就是把這個又有 sign、又有兩種速率的迴圈，平均成一個只在 block rate 運作的線性迴圈：
+      </p>
+      <Diagram id="mean-loop" />
+      <p>
+        先看迴圈本身：只剩一個延遲（一個 block）、一個矩陣 <Tex>{'C'}</Tex> 和兩個增益。圖上的 <Tex>{'C'}</Tex> 方塊就是推導第 6 步定義的 <Tex>{r`C_{ij}=\langle r_i\,(h_{PD}*x_j)\rangle`}</Tex>，它把 <FigRef id="lms-loop" /> 裡的 <Tex>{r`H_{PD}`}</Tex>、<Tex>{'G'}</Tex> 與 regressor
+        全部收進去；「× <Tex>{'K_q'}</Tex>」是第 3 步把比較器線性化之後的等效增益；加法點上的「−」就是第 7 步 <Tex>{r`\delta_{k+1}=\delta_k-\mu K_q C\,\delta_k`}</Tex> 的負號。再看虛線指到的說明：沿 <Tex>{'C'}</Tex> 的每個特徵方向，這個迴圈每個 block 把誤差乘上{' '}
+        <Tex>{r`1-\mu K_q\lambda`}</Tex>（<Tex>{r`\lambda`}</Tex> 是 <Tex>{'C'}</Tex> 在那個方向的特徵值，推導後面的先備知識框有說明），所以收不收斂只看 <Tex>{r`\lambda`}</Tex> 的實部是正是負。
+      </p>
       <StepDerivation
         title="一步一步：從 1-bit 比較器到平均更新"
         steps={[
@@ -140,6 +165,14 @@ export function S04MeanUpdate() {
           </li>
         </ul>
       </Prereq>
+      <p>
+        <Tex>{r`C_{ij}`}</Tex> 是兩個訊號相乘的平均：一個是 regressor <Tex>{'x_j'}</Tex> 通過主迴路之後的樣子，另一個是 GMAC 用的 <Tex>{'r_i'}</Tex>。兩個訊號都可以拆成譜線，而不同頻率的弦波相乘的平均是 0，所以只要一條一條頻率分開看：
+      </p>
+      <Diagram id="spectral" />
+      <p>
+        先看兩個藍色方塊：同一條頻率 <Tex>{r`f_\nu`}</Tex> 的譜線，在「誤差這一側」被乘上 <Tex>{r`H_{PD}(f_\nu)`}</Tex>，在「regressor 這一側」被乘上 <Tex>{r`G(f_\nu)`}</Tex>（<Tex>{r`c^i_\nu`}</Tex> 是第 <Tex>{'i'}</Tex> 條 regressor 在這條線上的複數係數）。再看相關之後：兩側的係數一個取共軛、一個不取，相乘後留下{' '}
+        <Tex>{r`H_{PD}\,\overline G`}</Tex>，這就是推導第 5 步定義的有效 kernel <Tex>{r`\Gamma_{\rm eff}`}</Tex>。圖上最後一格就是第 6 步的對角項：每條線的功率 <Tex>{r`\lvert c^i_\nu\rvert^2`}</Tex> 乘上該頻率的 <Tex>{r`\mathrm{Re}\,\Gamma_{\rm eff}`}</Tex>。
+      </p>
       <StepDerivation
         title={mathText(r`一步一步：把 $C$ 寫成譜線的加權和`)}
         steps={[

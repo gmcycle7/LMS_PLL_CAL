@@ -1,26 +1,14 @@
 import { useMemo } from 'react'
 import type { Data, Layout } from 'plotly.js-dist-min'
-import { Callout, ClaimTag, Mermaid, ModeGate, Plot, Prereq, Section, SourceTag, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, ModeGate, Plot, Prereq, Section, SourceTag, SystemMap, Tex, TexBlock } from '@/components'
 import { dwStep } from '@/simulation/models/calNoise'
-import { EX, Hand, md, sig } from '../common'
+import { Diagram, EX, Hand, md, sig } from '../common'
+import { CH12_SYSTEM_FOCUS, CHART_TF_CHAIN, NOISE_CHAIN_CHART } from '../diagrams'
 
 /** 示意用的 η 序列（±σ_η 的固定圖樣，只為了手算；不是模擬結果） */
 const ETA_PATTERN = [1, -1, 1, 1, -1, -1, 1, -1]
 
 const V_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'block k' } }, yaxis: { title: { text: 'V_k [fs²]' } } }
-
-/** 雜訊傳遞鏈（Mermaid flowchart；diagram.test.tsx 以真正的 mermaid parser 驗證語法） */
-export const NOISE_CHAIN_CHART = `flowchart LR
-  V["v[n]：comparator 前雜訊<br/>σ_v = 100 fs"] --> Q["1-bit comparator<br/>q = sign(e)"]
-  Q --> G["GMAC 平均<br/>G_k = (1/N)·Σ q·x<br/>雜訊 η_k"]
-  G --> U["LMS 更新<br/>w ← w + μ·G"]
-  U --> W["係數雜訊 δw_k<br/>（gain-equivalent）"]
-  X["DSM code x[n]"] --> M(("×"))
-  W --> M
-  M --> DT["δt[n] = x·δw<br/>DTC 多出的延遲"]
-  DT --> PD["H_PD = 1/(1+L)<br/>PD residual：high-pass"]
-  DT --> T["T = L/(1+L)<br/>PLL output：low-pass"]
-  T --> OUT["φ_out = −2π f_out·T·δt<br/>jitter skirt 或 spur"]`
 
 export function S1Intro() {
   // 手算表：δw_{k+1} = p δw_k + μ η_k，η_k = ±σ_η（示意圖樣）
@@ -63,6 +51,15 @@ export function S1Intro() {
         <Tex>{String.raw`\sigma_v=100\ \mathrm{fs}`}</Tex> 的雜訊，每個 block 的 1-bit 判斷都還是在亂跳。那麼校正係數{' '}
         <Tex>{'w'}</Tex> 本身會抖多少？這個抖動乘上 DSM code、穿過 PLL 之後，會在輸出變成多少 jitter，還是一根 spur？
       </div>
+      <SystemMap
+        focus={CH12_SYSTEM_FOCUS}
+        caption="系統地圖：藍色是本章追蹤的雜訊路徑，從 comparator 前的雜訊、1-bit comparator、GMAC、平均與學習率、gain accumulator、gain correction 到 DTC，最後分成兩個出口：phase detector 看到的 residual，以及 VCO 輸出。教學用概念架構，不是特定晶片的 netlist。"
+      />
+      <p>
+        {md(
+          String.raw`藍色方塊就是雜訊走的路：comparator 前的雜訊讓 1-bit 判斷亂跳，GMAC 把它平均、乘上學習率後累加成係數的抖動，這個抖動在 gain correction 乘上 code、由 DTC 變成多出來的延遲；這份多出來的延遲有兩個地方看得到——phase detector 的 residual，以及經過 PLL 迴路之後的 VCO 輸出。前面幾章只問這條校正迴路「平均」會不會收斂，本章新增的是沿著同一條路，把雜訊的大小（RMS）、頻寬與頻譜一路算到輸出的 jitter 或 spur。`,
+        )}
+      </p>
 
       <div className="ch12-goals">
         <div className="ch12-goal">
@@ -82,6 +79,11 @@ export function S1Intro() {
           PD 看 high-pass、output 看 low-pass；隨機 ⇒ skirt，週期 ⇒ spur
         </div>
       </div>
+      <p>
+        {md(
+          String.raw`四張卡片先用到幾個符號，各用一句話交代（完整的表在本章最後）：$\sigma_w$ 是係數抖動的 RMS；$\mu$ 是 learning rate，每個 block 走多大一步；$N$ 是每個 block 平均的 comparator 樣本數；$p$ 是 pole，每過一個 block 舊的偏差還留下的比例；$f_{3\mathrm{dB}}$ 與 ENBW 是兩種不同定義的頻寬；$x[n]$ 是 DTC／DSM code，也就是 LMS 的 regressor；$\delta w$ 是係數相對於收斂點的偏差；$\delta t$ 是 DTC 因此多出來的延遲。時間索引有兩個：$n$ 數的是 comparator 的每一個 sample（取樣率 $f_s$），$k$ 數的是 GMAC 的每一個 block（每 $N$ 個 sample 一個，取樣率 $f_u=f_s/N$）。`,
+        )}
+      </p>
 
       <Section kind="intuition" title="直覺：恆溫器讀到的溫度一直在跳" level={3}>
         <p>
@@ -93,7 +95,45 @@ export function S1Intro() {
           LMS 校正迴路就是這台恆溫器：<Tex>{'w'}</Tex> 是旋鈕、GMAC 是「平均後的讀數」、comparator noise 是溫度計的誤差。
           本章把「旋鈕亂動」精確算出來，然後追蹤它怎麼一路影響到 PLL 輸出。
         </p>
-        <Mermaid chart={NOISE_CHAIN_CHART} caption="雜訊傳遞鏈（本章的地圖）：注意 × 是乘法，不是加法。" ariaLabel="comparator noise 經 GMAC、LMS、code 相乘、PLL 傳遞到輸出的方塊圖" />
+        <Diagram
+          chart={NOISE_CHAIN_CHART}
+          caption={String.raw`雜訊傳遞鏈（本章的地圖）：藍色的圓圈是乘法，不是加法——係數雜訊要先乘上 code，才變成延遲誤差 $\delta t=x\,\delta w$。`}
+          ariaLabel="comparator noise 經 GMAC、LMS、code 相乘、PLL 傳遞到輸出的方塊圖"
+        >
+          <p>
+            {md(
+              String.raw`先由左往右沿著主線看：雜訊 $v[n]$ 進 comparator，1-bit 的 $q$ 被 GMAC 平均成 $G_k$，LMS 用它更新 $w$，於是係數帶著雜訊 $\delta w_k$。再看藍色的乘號：$\delta w$ 不是直接加到輸出，而是先乘上 code $x[n]$ 才變成 DTC 多出的延遲 $\delta t$。最後看乘號之後的分岔：同一個 $\delta t$ 往 PD 走是 high-pass，往 PLL output 走是 low-pass。圖上的方塊對應後面的小節：主線上乘號之前的五格是 §12.1–12.5，乘號是 §12.6，分岔之後是 §12.7–12.8。`,
+            )}
+          </p>
+          <p>
+            {md(
+              String.raw`圖上由 code 拉到 GMAC 的那條虛線提醒一件事：同一個 code $x[n]$ 用在兩個地方——GMAC 拿它和 $q$ 做相關（$G_k=\tfrac1N\sum q\,x$），DTC 拿它乘上係數。所以 $\delta w$ 其實是由同一個 code 算出來的；§12.6 把兩者當成獨立是一個近似，那裡會再提醒一次。`,
+            )}
+          </p>
+          <p>
+            {md(
+              String.raw`圖上最後三格先出現了幾個 §12.7 才會推導的符號，這裡各用一句話交代：$L$ 是 PLL 的開迴路增益；$H_{\mathrm{PD}}=1/(1+L)$ 與 $T=L/(1+L)$ 是 $\delta t$ 到 PD、到輸出的轉移函數（一個 high-pass、一個 low-pass）；$f_{\mathrm{out}}$ 是 PLL 的輸出頻率，乘上 $2\pi f_{\mathrm{out}}$ 是把時間換成相位；$\phi_{\mathrm{out}}$ 是 $\delta t$ 在輸出造成的相位（rad）。`,
+            )}
+          </p>
+        </Diagram>
+        <p>
+          把同一條鏈的每個方塊換成後面會推導出來的數學模型，並標出每個訊號「多久更新一次」，就是本章的路線圖：
+        </p>
+        <Diagram
+          chart={CHART_TF_CHAIN}
+          caption={String.raw`同一條雜訊鏈的數學模型：三個框是三段不同的取樣率（sample 索引 $n$、block 索引 $k$、再回到 $n$），線上寫的是那一段的雜訊大小。先看框的標題，再看框與框之間的線。`}
+        >
+          <p>
+            {md(
+              String.raw`先看三個框的標題：①、③ 是每個 sample 都在動的量（索引 $n$，取樣率 $f_s$），② 是每個 block 才有一個值的量（索引 $k$，取樣率 $f_u=f_s/N$）。再看框與框之間的線，線上標的是那一點的訊號與它的大小：進入 ② 之前先平均 $N$ 筆，平均之後剩下的起伏記作 $\eta_k$（GMAC 雜訊），它的變異數 $\sigma_\eta^2$ 降成約 $1/N$；離開 ② 時每個 $\delta w_k$ 要保持 $N$ 個 sample（zero-order hold，ZOH）才能和 code 相乘。最後沿著 ③ 往下：乘上 code、經過 PLL 的 low-pass 才到輸出。`,
+            )}
+          </p>
+          <p>
+            {md(
+              String.raw`和公式的對照：圖上的 $H(z)=\mu/(z-p)$ 是 §12.2 的 F-12.3；線上的 $\sigma_\eta^2\approx1/N$ 是 F-12.6、$\sigma_w$ 是 §12.4 的 F-12.5；ZOH 是 F-12.14；乘號是 §12.6 的 F-12.11；$T(f)$ 是 §12.7 的 F-12.15，最後一格就是 F-12.16。圖上兩個藍色方塊——閉迴路的 $H(z)$ 與乘號——是整章最重要的兩步。`,
+            )}
+          </p>
+        </Diagram>
       </Section>
 
       <Section kind="example" title="先算一次：用數字走五步" level={3}>
@@ -109,8 +149,14 @@ p&=1-g=${sig(EX.p, 6)}\\
 \end{aligned}`}
         </TexBlock>
         <p>
+          {md(
+            String.raw`這幾個常數各是什麼：$f_s$ 是 comparator 的取樣率；$K$ 是「GMAC 平均輸出對係數偏差的斜率」，等於 1-bit comparator 的小訊號統計增益 $K_q=\sqrt{2/\pi}/\sigma_v$（第 5 章）乘上有效 code 相關 $C$——code 和它在 comparator 前造成的訊號有多像，理想路徑、unit-RMS 的 $\pm1$ code 時 $C=1$；$g=\mu K$ 是無因次的迴路增益；$p=1-g$ 是 pole，每個 block 舊偏差留下的比例；$\sigma_\eta$ 是每個 block 的 GMAC 平均值自己的隨機起伏（RMS），$N$ 筆 $\pm1$ 平均之後約為 $1/\sqrt N$。`,
+          )}
+        </p>
+        <p>
           接著假裝前五個 block 的 GMAC 雜訊剛好是 <Tex>{String.raw`\eta_k=\pm\sigma_\eta`}</Tex>（只是為了手算的示意圖樣 <SourceTag kind="illustrative" />，真正的隨機模擬在下方 LMS Noise Lab），從{' '}
-          <Tex>{String.raw`\delta w_0=0`}</Tex>（已經在最佳點）出發，套用下一節會推導的遞迴 <Tex>{String.raw`\delta w_{k+1}=p\,\delta w_k+\mu\eta_k`}</Tex>：
+          <Tex>{String.raw`\delta w_0=0`}</Tex>（已經在最佳點）出發，套用下一節會推導的遞迴 <Tex>{String.raw`\delta w_{k+1}=p\,\delta w_k+\mu\eta_k`}</Tex>。其中{' '}
+          <Tex>{String.raw`\delta w_k=w_k-w^*`}</Tex> 是第 <Tex>{'k'}</Tex> 個 block 的係數相對於固定點 <Tex>{'w^*'}</Tex> 的偏差（<Tex>{'w^*'}</Tex> 是 LMS 平均起來不再移動的那個係數值）：
         </p>
         <div className="table-wrap">
           <table className="ch12-table">

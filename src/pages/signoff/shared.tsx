@@ -1,6 +1,6 @@
 import { Fragment, useMemo, type ComponentProps, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { HandCalc, StepDerivation, Tex, mathText, type ExperimentPreset } from '@/components'
+import { HandCalc, Mermaid, StepDerivation, Tex, mathText, type ExperimentPreset } from '@/components'
 import { presetsForExperiment } from '@/app/presets'
 import { useSettings, type LearningMode } from '@/app/settings'
 import { fmt } from '@/simulation/core'
@@ -132,6 +132,20 @@ export function HandCalcSlot({ id, children }: { id: string; children?: ReactNod
   )
 }
 
+/**
+ * 方塊圖 + 「怎麼讀這張圖」導讀（docs/teaching-style.md §8）。
+ * Mermaid 不渲染 KaTeX，圖上的符號是 Unicode；導讀與圖說（caption 支援 `$…$`）用 KaTeX 把圖上的名字對回正文的公式。
+ * 圖放在文字說明之後、逐步推導之前。
+ */
+export function Diagram({ chart, caption, ariaLabel, children }: { chart: string; caption: string; ariaLabel: string; children?: ReactNode }) {
+  return (
+    <div className="so-diagram">
+      <Mermaid chart={chart} caption={caption} ariaLabel={ariaLabel} />
+      {children && <div className="so-diagram-walk">{children}</div>}
+    </div>
+  )
+}
+
 /** 一般文字用的數字格式。 */
 export function nf(x: number, digits = 4): string {
   if (x === Infinity) return '∞'
@@ -184,4 +198,5 @@ export const TOC: { id: string; label: string }[] = [
   { id: 'so-negative', label: '9. 反面測試（§17）' },
   { id: 'so-limits', label: '10. 附錄 B 十項限制' },
   { id: 'so-wrap', label: '11. 思考題與必記' },
+  { id: 'symbols', label: '本頁符號表' },
 ]

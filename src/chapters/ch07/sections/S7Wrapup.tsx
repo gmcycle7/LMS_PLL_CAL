@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, ModeGate, Quiz, Recap, Section, SourceTag, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, Mermaid, ModeGate, Quiz, Recap, Section, SourceTag, StepDerivation, Tex, TexBlock } from '@/components'
 import { cArg } from '@/simulation/core'
 import { freqz } from '@/simulation/signal'
 import { designDtLoop } from '@/simulation/models/pll'
@@ -14,6 +14,7 @@ import {
   toneCorrCodeDelay,
   type FxCodeSpec,
 } from '@/simulation/models/filteredX'
+import { CHART_BRINGUP } from '../diagrams'
 import { DEG, fx, RAD, signClass, tx } from '../util'
 
 /** 「代入一組寬頻 PLL 的數字」的假設（illustrative）：reference = comparator 取樣率、T(s) 的 −3 dB 頻寬、阻尼、training tone */
@@ -242,6 +243,16 @@ export function S7Wrapup() {
             </tbody>
           </table>
         </div>
+        <p>表中「<Tex>{r`C`}</Tex> 的符號」那一列，在 bring-up 時可以直接量出來；流程如下：</p>
+        <Mermaid
+          chart={CHART_BRINGUP}
+          caption={r`bring-up 時量極性：把 $w$ 固定在 $w_0\pm\Delta w$，各讀一次 GMAC 的平均；斜率 $S\approx-K_qC$（藍色），$S<0$ 才是正確極性。`}
+        />
+        <p>
+          先看兩個起點：把 <Tex>{'w'}</Tex> 手動固定在 <Tex>{r`w_0+\Delta w`}</Tex> 與 <Tex>{r`w_0-\Delta w`}</Tex>，各讀一次 GMAC 的長時間平均。因為 <Tex>{r`E[G_k]\approx K_qC\,(a-w)`}</Tex>，所以
+          <Tex>{r`G_+=K_qC\,(a-w_0-\Delta w)`}</Tex>、<Tex>{r`G_-=K_qC\,(a-w_0+\Delta w)`}</Tex>。再看藍色方塊：兩者相減，<Tex>{r`a-w_0`}</Tex> 互相抵消，只剩 <Tex>{r`-2K_qC\,\Delta w`}</Tex>，
+          除以 <Tex>{r`2\Delta w`}</Tex> 就是斜率 <Tex>{r`S=-K_qC`}</Tex>。最後看六角形：<Tex>{r`K_q>0`}</Tex>，所以 <Tex>{r`S<0`}</Tex> 才表示 <Tex>{r`C>0`}</Tex>，可以閉迴路；否則回到 7.6 節的決策流程換一種 regressor。
+        </p>
         <p>
           本章只處理「方向對不對」（polarity）與「每單位雜訊的恢復力」（<Tex>{'\\rho'}</Tex>）。方向對了之後，校正迴路本身還有自己的 phase margin：GMAC
           更新延遲、filtered-x 的 <Tex>{'D'}</Tex> 或 <Tex>{r`\hat H`}</Tex> 造成的額外 latency，都會縮小 <Tex>{'g'}</Tex> 的穩定範圍——這是 Ch08 的主題

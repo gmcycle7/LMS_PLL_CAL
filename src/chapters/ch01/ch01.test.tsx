@@ -28,6 +28,7 @@ import {
 } from './experiments/MseMaeLab'
 import { MedianExampleSection } from './sections/MedianExample'
 import { WrapupSection } from './sections/Wrapup'
+import { SYMBOLS, SymbolsJump, SymbolsSection } from './symbols'
 
 const P = vi.hoisted(() => ({
   react: vi.fn(async () => undefined),
@@ -86,9 +87,30 @@ function strictTexErrors(root: HTMLElement): string[] {
 const texOf = (root: Element | null): string[] => Array.from(root?.querySelectorAll('.katex-mathml annotation') ?? []).map((a) => a.textContent ?? '')
 
 describe('Ch01 頁面（jsdom smoke）', () => {
-  it('完整章節可渲染：符號表、勘誤連結、兩個實驗、程式碼比較、思考題與必記', () => {
+  it('完整章節可渲染：章末符號表（章首只留一行）、勘誤連結、兩個實驗、程式碼比較、思考題與必記', () => {
     const { container } = renderAt(<Chapter01 />)
-    expect(screen.getByText('本章符號')).toBeTruthy()
+    // 符號表在章末（教學規範 §5）：整頁只有一張，包在 id="symbols" 裡，是頁面最後一個區塊，排在「本課必記」之後
+    const chapter = container.querySelector('.ch01-chapter') as HTMLElement
+    const symbols = document.getElementById('symbols') as HTMLElement
+    expect(container.querySelectorAll('.c-symbols')).toHaveLength(1)
+    expect(within(symbols).getByText('本章符號')).toBeTruthy()
+    expect(chapter.lastElementChild).toBe(symbols)
+    expect(symbols.querySelectorAll('.c-symbols tbody tr')).toHaveLength(SYMBOLS.length)
+    expect(SYMBOLS.length).toBeGreaterThanOrEqual(40) // 原有 34 列＋方塊圖用到的 Δw、z⁻¹、(m, d, s, ξ)、q、G、κ
+    const after = (a: Element, b: Element) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+    expect(after(container.querySelector('.c-recap')!, symbols)).toBe(true)
+    expect(after(document.getElementById('ch01-s27')!, symbols)).toBe(true)
+    // 符號表不再出現在 §1.0 之前，也不在任何小節裡
+    expect(after(document.getElementById('ch01-s10')!, container.querySelector('.c-symbols')!)).toBe(true)
+    expect(container.querySelector('section.c-section .c-symbols')).toBeNull()
+    // 章首只留一行「本章符號表在最後 ↓」，排在 §1.0 之前
+    // （整章的 DOM 很大：這裡用 selector，不用 getByRole——後者會對每個按鈕跑 getComputedStyle；按鈕的 role／行為在下面的小測試檢查）
+    const jumps = container.querySelectorAll('.ch01-symbols-jump')
+    expect(jumps).toHaveLength(1)
+    expect(jumps[0].textContent?.trim()).toBe('本章符號表在最後 ↓')
+    expect(jumps[0].querySelector('button')).toBeTruthy()
+    expect(after(jumps[0], document.getElementById('ch01-s10')!)).toBe(true)
+    expect(after(jumps[0], container.querySelector('.ch01-chapter > .callout')!)).toBe(true)
     // 勘誤標籤都連到驗證頁
     const errata = Array.from(container.querySelectorAll('a.ch01-erratum'))
     const ids = new Set(errata.map((a) => a.getAttribute('data-erratum')))
@@ -139,6 +161,121 @@ describe('Ch01 頁面（jsdom smoke）', () => {
     expect(screen.queryByText(/2\.4 （Research）/)).toBeNull()
     expect(r2.container.querySelectorAll('.c-steps').length).toBeLessThan(10)
     r2.unmount()
+  }, HEAVY)
+})
+
+describe('Ch01 符號表在章末（教學規範 §5）', () => {
+  it('章首那一行是按鈕（不是會改 HashRouter 路由的 href）：點了以後捲到 #symbols 並把焦點帶過去；章末的「回到章首」捲回 §1.0', () => {
+    const scrolled: Element[] = []
+    const proto = Element.prototype as unknown as { scrollIntoView?: (arg?: unknown) => void }
+    const original = proto.scrollIntoView
+    proto.scrollIntoView = function (this: Element) {
+      scrolled.push(this)
+    }
+    try {
+      const { container } = renderAt(
+        <>
+          <div id="ch01-s10" />
+          <SymbolsJump />
+          <SymbolsSection />
+        </>,
+      )
+      const hashBefore = window.location.hash
+      const jump = screen.getByRole('button', { name: /本章符號表在最後/ })
+      expect(jump.tagName).toBe('BUTTON')
+      expect(jump.getAttribute('type')).toBe('button')
+      expect(container.querySelector('a[href="#symbols"], a[href$="#symbols"]')).toBeNull()
+      const symbols = document.getElementById('symbols') as HTMLElement
+      expect(jump.getAttribute('aria-controls')).toBe('symbols')
+      act(() => {
+        fireEvent.click(jump)
+      })
+      expect(scrolled).toEqual([symbols])
+      expect(document.activeElement).toBe(symbols)
+      expect(window.location.hash).toBe(hashBefore)
+      act(() => {
+        fireEvent.click(within(symbols).getByRole('button', { name: /回到章首/ }))
+      })
+      expect(scrolled).toEqual([symbols, document.getElementById('ch01-s10')])
+      expect(window.location.hash).toBe(hashBefore)
+      // 表的內容不變：每列都有符號（KaTeX）與意義，沒有 KaTeX 錯誤
+      expect(symbols.querySelectorAll('tbody tr')).toHaveLength(SYMBOLS.length)
+      expect(new Set(SYMBOLS.map((r) => r.symbol)).size).toBe(SYMBOLS.length)
+      expect(symbols.querySelector('.katex-error, .c-tex-error')).toBeNull()
+      expect(strictTexErrors(symbols)).toEqual([])
+    } finally {
+      proto.scrollIntoView = original
+    }
+  })
+
+  it('沒有 scrollIntoView 的環境（jsdom、很舊的瀏覽器）點了也不會丟錯', () => {
+    renderAt(
+      <>
+        <SymbolsJump />
+        <SymbolsSection />
+      </>,
+    )
+    expect(() => {
+      act(() => {
+        fireEvent.click(screen.getByRole('button', { name: /本章符號表在最後/ }))
+      })
+    }).not.toThrow()
+  })
+
+  it('符號表移到最後之後，每個符號第一次出現的小節正文裡都有一句就地說明（Beginner 模式也看得到：不在收合的推導或先備知識框裡）', () => {
+    const { container } = renderAt(<Chapter01 />, '/ch/01', 'beginner')
+    /** 小節的正文：去掉可收合的推導、先備知識框、手算題、實驗與程式碼 */
+    const bodyText = (id: string): string => {
+      const clone = document.getElementById(id)!.cloneNode(true) as HTMLElement
+      for (const el of Array.from(clone.querySelectorAll('.c-derivation, .c-prereq, .c-handcalc, .c-code, pre, .katex-mathml, [data-experiment]'))) el.remove()
+      return clone.textContent ?? ''
+    }
+    const FIRST_USE: [string, string, RegExp][] = [
+      ['a、x、y', 'ch01-s10', /黑盒子裡真正的係數（未知）/],
+      ['v', 'ch01-s10', /量測雜訊/],
+      ['w', 'ch01-s10', /我們可以調的參數/],
+      ['ŷ', 'ch01-s10', /做的預測/],
+      ['e', 'ch01-s10', /誤差（error）＝量測減預測/],
+      ['n', 'ch01-s10', /sample 索引/],
+      ['μ', 'ch01-s10', /學習率（step size）/],
+      ['N', 'ch01-s10', /是資料筆數/],
+      ['N（平均）', 'ch01-s11', /拿來平均的資料筆數/],
+      ['Δw', 'ch01-s10', /修正量/],
+      ['z⁻¹', 'ch01-s13', /表示延遲一筆/],
+      ['E[·]', 'ch01-s11', /期望值/],
+      ['argmin', 'ch01-s11', /最小的那個/],
+      ['J', 'ch01-s11', /成本（cost）/],
+      ['w*', 'ch01-s11', /最佳解/],
+      ['P_x', 'ch01-s13', /輸入功率/],
+      ['q_n', 'ch01-s121', /1-bit comparator／BBPD/],
+      ['j_n', 'ch01-s13', /單筆成本/],
+      ['δ_n', 'ch01-s14', /剩餘參數誤差/],
+      ['p', 'ch01-s14', /pole/],
+      ['σ_v', 'ch01-s141', /標準差/],
+      ['ρ', 'ch01-s21', /損失函數（loss）/],
+      ['ψ', 'ch01-s21', /influence function/],
+      ['δ_H', 'ch01-s21', /Huber 的門檻/],
+      ['sign', 'ch01-s21', /只留正負號/],
+      ['clip', 'ch01-s21', /截在/],
+      ['∂|e|', 'ch01-s22', /次梯度（subgradient）/],
+      ['J_MSE…', 'ch01-s23', /平均成本分別記作/],
+      ['#{·}', 'ch01-s23', /滿足括號內條件的資料筆數/],
+      ['P(·)', 'ch01-s231', /事件的機率/],
+      ['w̄', 'ch01-s231', /時間平均/],
+      ['f、m、d_n', 'ch01-s232', /機率密度在中位數的值/],
+      ['s_n、ξ_n', 'ch01-s232', /扣掉平均後剩下的零均值部分/],
+      ['K_q', 'ch01-s232', /等效小訊號增益/],
+      ['ṽ', 'ch01-s232', /總雜訊/],
+      ['ε', 'ch01-s232', /outlier 出現的機率/],
+      ['κ', 'ch01-s232', /比精確值小約/],
+      ['G', 'ch01-s26', /是 GMAC 的輸出/],
+    ]
+    for (const [sym, id, re] of FIRST_USE) expect(bodyText(id), `${sym}（${id}）`).toMatch(re)
+    // 章首的勘誤框在 §1.0 之前就用到 δ、sign(0)、J₂：框內也各有一句說明
+    const errataBox = container.querySelector('.ch01-chapter > .callout') as HTMLElement
+    expect(errataBox.textContent).toMatch(/剩餘參數誤差採/)
+    expect(errataBox.textContent).toMatch(/誤差剛好是 0 時的「正負號」/)
+    expect(errataBox.textContent).toMatch(/沒有.*的平方誤差平均/)
   }, HEAVY)
 })
 

@@ -1,15 +1,19 @@
 {
-  "generatedAt": "2026-10-10T09:38:06.644Z",
-  "commit": "uncommitted",
+  "generatedAt": "2026-10-11T14:31:05.727Z",
+  "commit": "633c840",
   "note": "由 `npm run verify` 產生；status=pass 代表 TypeScript 與 Python golden 測試皆通過。",
   "tests": {
     "T01": {
       "status": "pass",
       "ts": {
-        "passed": 28,
+        "passed": 30,
         "failed": 0,
         "names": [
           "HandCalc.test.tsx › HandCalc T01: 範例數字的帶入過程得到 w1 = 1.8、w2 = 2.28",
+          "ch01.test.tsx › LMS Playground T01: 預設（Gallery #1）顯示 w₁ = 1.8、w₂ = 2.28，交叉比對解析 ok",
+          "handcalcs.test.tsx › Ch01 帶入手算 (a)：預設數字 = 模型函式 = 本章 worked example T01: HC-01.3 把 μ 改成 0.1 ⇒ w_LMS = 1.8（golden w1）；HC-01.4 預設 ⇒ E[w₂] = 2.28（golden w2）、p = 0.6（golden pole）",
+          "presets.test.ts › Ch01 presets 與公式登錄 T01: Gallery preset #1（w₀=1, a=3, x=2, μ=0.1）重現 w₁ = 1.8、w₂ = 2.28、p = 0.6",
+          "diagrams.test.tsx › ch00 方塊圖：和本章公式一致 T01: §0.4 手算流程圖上的每一個數字，都等於 handCalcRows（lms.ts 的 conventionalStep）算出來的值",
           "handcalcs.test.tsx › ch00 手算題：預設值 = 本章 worked example，答案 = 實際模擬函式 T01: HC-00.1 的預設值就是 golden T01；w1 = 1.8、w2 = 2.28，並與 §0.4 手算表（handCalcRows → conventionalStep）逐位元相同",
           "handcalcs.test.tsx › ch00 手算題：渲染 T01: HC-00.1 維持共用元件測試（HandCalc.test.tsx）依賴的介面：答案順序 w1、w2；「學習率」只有一欄；改成 0.2 ⇒ w1 = 2.6",
           "index.test.tsx › Ch00 手算表（T01 render-level） T01: 表格的每一格都由 lms.ts 的 conventionalStep 算出，且與 golden T01 一致（w1 = 1.8、w2 = 2.28）",
@@ -18,14 +22,12 @@
           "model.test.ts › ch00：手算表與 T01 T01: 精確有理數 w1 = 9/5、w2 = 57/25，double 版本與精確值相差 ≤ 1e-12",
           "model.test.ts › ch00：手算表與 T01 T01: δ 採全站極性 a − w（勘誤 E39）：+2、+1.2、+0.72",
           "model.test.ts › ch00：手算表與 T01 T01: double 的 w2 = 2.2800000000000002 比最接近 57/25 的 double 大 1 ulp；與精確值的真正差距為 7/28147497671065600 ≈ 2.4869e-16",
-          "ch01.test.tsx › LMS Playground T01: 預設（Gallery #1）顯示 w₁ = 1.8、w₂ = 2.28，交叉比對解析 ok",
-          "handcalcs.test.tsx › Ch01 帶入手算 (a)：預設數字 = 模型函式 = 本章 worked example T01: HC-01.3 把 μ 改成 0.1 ⇒ w_LMS = 1.8（golden w1）；HC-01.4 預設 ⇒ E[w₂] = 2.28（golden w2）、p = 0.6（golden pole）",
-          "presets.test.ts › Ch01 presets 與公式登錄 T01: Gallery preset #1（w₀=1, a=3, x=2, μ=0.1）重現 w₁ = 1.8、w₂ = 2.28、p = 0.6",
+          "handcalcs.test.tsx › ch03 帶入手算：(e) 每一步的 TeX 重新求值——畫面上的數字自己算得出下一個等號 T01: HC-03.1 的 δ₂、w₂ 就是 LMS 程式（runScalarLms）實際迭代兩步的結果：預設值、20 個隨機題與「自己的數字」都只差 double 的捨入誤差",
           "ch02.test.tsx › Ch02 頁面（jsdom smoke） T01: GdExplorer 預設（½ 成本）顯示 w₁ = 1.8、w₂ = 2.28，analytic cross-check ok",
+          "diagrams.test.tsx › Ch02 方塊圖：和公式、模型一致（正負號、極性、圖上的式子） T01: 「量坡度」展開圖：e = y − ŷ（+y、−ŷ）、e·x = −J′、Δw = μ·e·x；照圖走兩步得到 1.8、2.28",
           "handcalcs.test.tsx › (a) 預設值：結果 = 模型函式 = 內文 worked example = golden vector T01: HC-02.1（a=3、x=2、w₀=1、μ=0.1）w₁ = golden w1 = 1.8；切線預測 1.6；真實 J(w₁) = ½·e1² = 2.88",
           "handcalcs.test.tsx › (a) 預設值：結果 = 模型函式 = 內文 worked example = golden vector T01: HC-02.4（w=1、x=2、y=6、μ=0.1）LMS = golden w1 = 1.8、Sign-Error 1.2、Sign-Sign 1.1：等於 lms.ts 的三個 stepper",
           "handcalcs.test.tsx › (a) 預設值：結果 = 模型函式 = 內文 worked example = golden vector T01: HC-02.7（T01 的資料、μ̃ = μx² = 0.4、ε = 0）NLMS 與 LMS 相同：w₁ = golden w1、e⁺ = golden e1",
-          "handcalcs.test.tsx › ch03 帶入手算：(e) 每一步的 TeX 重新求值——畫面上的數字自己算得出下一個等號 T01: HC-03.1 的 δ₂、w₂ 就是 LMS 程式（runScalarLms）實際迭代兩步的結果：預設值、20 個隨機題與「自己的數字」都只差 double 的捨入誤差",
           "previews.test.ts › Dashboard 預覽數字（15 個問題） T01: Hero 手算 w₁ = 1.8、w₂ = 2.28（直接用 runScalarLms）",
           "refValues.test.ts › refValues × golden vectors（Python 獨立計算） T01: 手算 LMS w_1 = 1.8、w_2 = 2.28、pole 0.6；δ = a − w 為 2、1.2、0.72",
           "previews.test.ts › Gallery 預覽 vs golden vectors（T01–T18；每個數字都由真實模型函式算出） T01: #1 手算例 w₁ = 1.8、w₂ = 2.28、pole 0.6",
@@ -52,20 +54,20 @@
     "T02": {
       "status": "pass",
       "ts": {
-        "passed": 34,
+        "passed": 35,
         "failed": 0,
         "names": [
-          "handcalcs.test.tsx › ch00 手算題：預設值 = 本章 worked example，答案 = 實際模擬函式 T02: HC-00.2 在 x = 2 時 μ_max = 0.5；golden T02 的每個 μ 都得到相同的 pole 與收斂判定",
-          "model.test.ts › ch00：pole 與穩定性（T02） T02: x = 2 的 pole 與收斂判定符合 golden（0 < μ < 0.5；μ = 0.25 一步到位）",
-          "model.test.ts › ch00：反面測試（失敗模式要被偵測並解釋） T02: 反面測試——μ < 0（極性錯誤）：|δ| 每步放大 1 + |μ|x²，警告提到 polarity",
-          "model.test.ts › ch00：反面測試（失敗模式要被偵測並解釋） T02: 反面測試——μ = 0.65 > 2/x²：震盪發散，第 58 步 |w| 超過 1e12 後停止，警告解釋原因",
-          "model.test.ts › ch00：反面測試（失敗模式要被偵測並解釋） T02: 反面測試——μ = 0.5 邊界：|δ| 不變、正負交替（不收斂），標為 boundary",
           "ch01.test.tsx › LMS Playground T02: 網址 preset μ = 0.6 ⇒ 顯示「超過穩定上限 2/x² = 0.5」的解釋性警告",
           "ch01.test.tsx › Ch01 教學規範與審查修正 T02: 發散 preset 按「執行至收斂」直接走到最後一步（不會誤停在 n = 0）",
           "handcalcs.test.tsx › Ch01 帶入手算 (a)：預設數字 = 模型函式 = 本章 worked example T02: HC-01.3 預設（x = 2、μ = 0.4）⇒ LMS 的 p = −0.6（golden pole_list）、μ_max = 0.5（golden mu_max）；「J₂ 配 μ」的 p = −2.2 發散、w 走到 7.4",
           "handcalcs.test.tsx › Ch01 帶入手算 (c)：validate 擋掉模型不適用的輸入，並說明原因 T02: HC-01.4 只接受 golden 表中收斂的 μ（x = 2：0.1、0.25、0.4、0.49），拒絕 0.5（邊界）、0.51、−0.01；x = 0 也拒絕",
           "presets.test.ts › Ch01 presets 與公式登錄 T02: deadbeat / oscillating / boundary / divergent presets 的行為與 pole 一致",
-          "handcalcs.test.tsx › (a) 預設值：結果 = 模型函式 = 內文 worked example = golden vector T02: HC-02.1 備註的步長上限 = golden mu_max = 0.5、Newton 步長 = mu_one_step = 0.25（x = 2）",
+          "diagrams.test.tsx › ch00 方塊圖：和本章公式一致 T02: F-00.5 學習率地圖的五個區段，和 lms.ts 的 fixedXPole／classifyPole、golden T02 逐點一致",
+          "handcalcs.test.tsx › ch00 手算題：預設值 = 本章 worked example，答案 = 實際模擬函式 T02: HC-00.2 在 x = 2 時 μ_max = 0.5；golden T02 的每個 μ 都得到相同的 pole 與收斂判定",
+          "model.test.ts › ch00：pole 與穩定性（T02） T02: x = 2 的 pole 與收斂判定符合 golden（0 < μ < 0.5；μ = 0.25 一步到位）",
+          "model.test.ts › ch00：反面測試（失敗模式要被偵測並解釋） T02: 反面測試——μ < 0（極性錯誤）：|δ| 每步放大 1 + |μ|x²，警告提到 polarity",
+          "model.test.ts › ch00：反面測試（失敗模式要被偵測並解釋） T02: 反面測試——μ = 0.65 > 2/x²：震盪發散，第 58 步 |w| 超過 1e12 後停止，警告解釋原因",
+          "model.test.ts › ch00：反面測試（失敗模式要被偵測並解釋） T02: 反面測試——μ = 0.5 邊界：|δ| 不變、正負交替（不收斂），標為 boundary",
           "ch03.test.tsx › Chapter 03 smoke test（jsdom） T02/T03: Engineer 模式完整渲染：章節、符號表、公式錨點、程式碼 region、無 KaTeX 錯誤；Stability Lab 的 Monte Carlo（inline worker）完成並通過單步交叉比對",
           "ch03.test.tsx › Chapter 03 smoke test（jsdom） T02: ±1 code preset（|x| 常數、SE = 0 的退化情況）單步 MC 交叉比對仍為 ✓",
           "ch03.test.tsx › Chapter 03 smoke test（jsdom） T02: Fixed-x Explorer 的單步 / 執行 / 執行至收斂（規格 §19：Single Step、Run-to-Convergence）與逐步更新表",
@@ -78,6 +80,7 @@
           "handcalcs.test.tsx › ch03 帶入手算：(e) 每一步的 TeX 重新求值——畫面上的數字自己算得出下一個等號 T02: HC-03.2 比值 ln ε / ln|p| 恰為整數時不多算一步（舊版顯示「⌈2⌉ = 3」）；模擬在那一步也確實到達門檻",
           "logic.test.ts › ch03 presets T02: Fixed-x preset（手算例子）與 Explorer 的遞迴 / 封閉式一致",
           "logic.test.ts › ch03 Fixed-x：收斂步數與勘誤連結 T02: n_ε = ⌈ln ε / ln|p|⌉（F-03.4）：五個 μ 的收斂步數；邊界與發散回傳 NaN；模擬在第 n_ε 步確實降到 ε 以下",
+          "handcalcs.test.tsx › (a) 預設值：結果 = 模型函式 = 內文 worked example = golden vector T02: HC-02.1 備註的步長上限 = golden mu_max = 0.5、Newton 步長 = mu_one_step = 0.25（x = 2）",
           "previews.test.ts › Dashboard 預覽數字（15 個問題） T02: 固定 x = 2 ⇒ 0 < μ < 0.5，一步到位 μ = 0.25",
           "refValues.test.ts › refValues × golden vectors（Python 獨立計算） T02: 固定 x = 2 的穩定界 0 < μ < 0.5；μ = 0.1 的 pole 0.6",
           "previews.test.ts › Gallery 預覽 vs golden vectors（T01–T18；每個數字都由真實模型函式算出） T02: 固定 x = 2 的穩定範圍 0 < μ < 0.5；邊界與超過邊界的判定",
@@ -169,11 +172,11 @@
         "failed": 0,
         "names": [
           "handcalcs.test.tsx › Ch01 帶入手算 (a)：預設數字 = 模型函式 = 本章 worked example T04: HC-01.7 以 σ_v = 100 fs 代入 ⇒ K_q = 0.00797885 fs⁻¹（golden kq_per_fs）",
-          "handcalcs.test.tsx › Ch04 手算題：(a) 預設值 = 模型函式、文中 worked example、golden T04: HC-04.3 的 K_q 等於 golden T04 的 kq_per_fs（σ_v = 100 fs）",
-          "handcalcs.test.tsx › Ch04 手算題：(a) 預設值 = 模型函式、文中 worked example、golden T04: HC-04.5（反面測試：忘了映射）：線性化 53.13 fs；ξ = −0.6023 時 h ≈ 0、w = 63.23 fs = mean-field 固定點 63.2341 fs",
-          "ch05.test.tsx › Ch05 頁面（jsdom smoke） T04/T05: 整章可渲染：符號表、修正後的奇數 N 表格、tie 對照框（49.20% / 7.93% / 42.86%）與 Comparator Lab",
+          "ch05.test.tsx › Ch05 頁面（jsdom smoke） T04/T05: 整章可渲染：章末的符號表、修正後的奇數 N 表格、tie 對照框（49.20% / 7.93% / 42.86%）與 Comparator Lab",
           "handcalcs.test.tsx › Ch05 帶入手算：預設值對上模型、文中表格與 golden vector T04: HC-05.1 的 p、m 等於 golden 的 p_plus、mean_q，Var(q) = 1 − m²（s = 1 fs、σ_v = 100 fs）",
           "handcalcs.test.tsx › Ch05 帶入手算：預設值對上模型、文中表格與 golden vector T04: HC-05.7 的 K_q 與 K_q·s 等於 golden kq_per_fs、kq_times_s；高估量與局部斜率來自模型",
+          "handcalcs.test.tsx › Ch04 手算題：(a) 預設值 = 模型函式、文中 worked example、golden T04: HC-04.3 的 K_q 等於 golden T04 的 kq_per_fs（σ_v = 100 fs）",
+          "handcalcs.test.tsx › Ch04 手算題：(a) 預設值 = 模型函式、文中 worked example、golden T04: HC-04.5（反面測試：忘了映射）：線性化 53.13 fs；ξ = −0.6023 時 h ≈ 0、w = 63.23 fs = mean-field 固定點 63.2341 fs",
           "previews.test.ts › Dashboard 預覽數字（15 個問題） T04: P(q = +1) = Φ(0.01) = 0.503989、E[q] = erf(0.01/√2)",
           "thesisModel.test.ts › thesisModel：對 golden vectors T04: K_q = √(2/π)/σ_v（σ_v = 100 fs）",
           "refValues.test.ts › refValues × golden vectors（Python 獨立計算） T04: s = 1 fs、σ_v = 100 fs 的 P(q=+1)、E[q]、K_q",
@@ -217,7 +220,7 @@
         "passed": 24,
         "failed": 0,
         "names": [
-          "ch05.test.tsx › Ch05 頁面（jsdom smoke） T04/T05: 整章可渲染：符號表、修正後的奇數 N 表格、tie 對照框（49.20% / 7.93% / 42.86%）與 Comparator Lab",
+          "ch05.test.tsx › Ch05 頁面（jsdom smoke） T04/T05: 整章可渲染：章末的符號表、修正後的奇數 N 表格、tie 對照框（49.20% / 7.93% / 42.86%）與 Comparator Lab",
           "ch05.test.tsx › Ch05 Analytic ↔ Monte Carlo 交叉比對（labModel.mcConsistency） T05: 預設參數（N = 10001、T = 4000、half）：三個 MC 計數都落在精確 Binomial 的接受域內",
           "ch05.test.tsx › Ch05 Analytic ↔ Monte Carlo 交叉比對（labModel.mcConsistency） T05: 反面測試——MC 與解析用不同的 tie rule（E02 的錯誤）時必須判成 mismatch",
           "ch05.test.tsx › Ch05 presets 與公式登錄 T05: preset 文字中的數字由模型重算一致（不是手寫的假數字）",
@@ -305,8 +308,8 @@
           "polarity.test.ts › F-06.19 mean-field GMAC 特性 E[G](δ) = E[x_ref·erf(δu/√2σ_v)] T06: 近整數一階 DSM × Type-II：C > 0 但 E[G](δ) 在 δ_c 變號（frac = 0.002：δ_c ≈ 0.766σ_v；frac = 0.001：0.456σ_v）；Type-I 不變號",
           "polarity.test.ts › F-06.19 mean-field GMAC 特性 E[G](δ) = E[x_ref·erf(δu/√2σ_v)] T06: （反面）閉迴路證實 basin：frac = 0.002、C > 0、線性 pole < 1，但 |δ₀| = 150 fs > δ_c 遠離 a、|δ₀| = 50 fs < δ_c 收斂；漂移斜率 = μ|E[G](δ)|",
           "polarity.test.ts › Monte Carlo 交叉比對：linearMomentCheck（平均 + 均方） T06: （反面）pole 的符號弄反、GMAC 忘了除以 N、雜訊變異差 10 倍 ⇒ mismatch；線性區不足 ⇒ n/a 並說明原因",
-          "labModel.test.ts › 文獻寫法換算器（labModel） T06: 反面 preset「極性接反」⇒ pole = 1 + μK_q = 1.0798，警告寫出 C ≤ 0 的原因",
           "jsonLabModel.test.ts › 模擬指標、交叉比對與 preset 預期 T06: preset φ = 120° ⇒ C = −0.25、pole = 1.01995（golden），C ≤ 0 警告，w 單調遠離 a",
+          "labModel.test.ts › 文獻寫法換算器（labModel） T06: 反面 preset「極性接反」⇒ pole = 1 + μK_q = 1.0798，警告寫出 C ≤ 0 的原因",
           "experiments.test.tsx › Polarity Perturbation 實驗（A／B／C 同 seed 對照） T06/T07: 掛載後三組的參數都生效——A 對齊（通過）、B 未對齊（極性錯誤＋解釋）、C 接反（極性錯誤＋解釋）"
         ]
       },
@@ -373,12 +376,17 @@
     "T08": {
       "status": "pass",
       "ts": {
-        "passed": 30,
+        "passed": 35,
         "failed": 0,
         "names": [
           "ch08.test.tsx › Ch08 實驗元件（單獨渲染） T08: URL preset pm-d2-unstable → 警告說明 g > g*(d=2)",
           "ch08.test.tsx › Ch08 實驗元件（單獨渲染） T08: PM Lab 的 Monte Carlo（blockLms，jsdom 下 inline 執行）跑完後交叉比對顯示 ok",
           "ch08.test.tsx › Ch08 公式登錄與 presets T08: pm-lab presets 的 expected 文字與模型一致",
+          "diagrams.test.tsx › Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一致 T08: 照 FIRST_ORDER／DELAY_LOOP 的圖逐格計算，與 simulateDelayRecursion 逐點相同（d = 0…3）",
+          "diagrams.test.tsx › Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一致 T08: PM_FLOW 的每一格照著算，與 pmFirstOrder／calLoopGain 一致",
+          "diagrams.test.tsx › Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一致 T08: PHASE_BUDGET 的相位預算一格一格扣，剩下的就是 F-08.9 的 PM_d；每一格扣的量 = 該方塊頻率響應的相位",
+          "diagrams.test.tsx › Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一致 T08, T09: UNIFIED_LOOP 同一個迴路換四種 F(z)，照圖逐格計算分別等於 §8.2、§8.3、§8.4 與 quasi-static 的模型；繞一圈 = μ·F(z)/(z−1)",
+          "diagrams.test.tsx › Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一致 T08: SYNTHESIS_FLOW 的計算順序照著算，得到入門課的數字（μ_max = 125.33 fs、PM_1 = 83.14°）",
           "handcalcs.test.tsx › Ch08 handcalcs：(a) 預設值＝本章 worked example／golden vector／模型函式 T08: HC-08.2 預設 g = 1 ⇒ pole 0、PM 60°、ω_c = π/3（golden vector T08 與 pmFirstOrder）",
           "handcalcs.test.tsx › Ch08 handcalcs：(a) 預設值＝本章 worked example／golden vector／模型函式 T08: HC-08.3 預設（g = 1、f_s = 4 GHz、N = 4096）⇒ f_c = f_u/6 = 162.76 kHz、GM 6.02 dB、DM 1 block",
           "handcalcs.test.tsx › Ch08 handcalcs：(a) 預設值＝本章 worked example／golden vector／模型函式 T08: HC-08.5 預設 g = 0.5 ⇒ z = 0.5 ± j0.5、|z| = √0.5、45°；g = 1 ⇒ |z| = 1、角度 60° = ω*（golden delay_bounds）",
@@ -421,11 +429,15 @@
     "T09": {
       "status": "pass",
       "ts": {
-        "passed": 19,
+        "passed": 23,
         "failed": 0,
         "names": [
           "ch08.test.tsx › Ch08 實驗元件（單獨渲染） T09: URL preset dual-loop-gallery-5 → 顯示「完整模型發散、簡化預測穩定」並引用 E19",
           "ch08.test.tsx › Ch08 公式登錄與 presets T09: dual-loop presets 的 expected 文字與模型一致（含 Gallery #5）",
+          "diagrams.test.tsx › Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一致 T09: 照 DUAL_SIGNAL_FLOW 的兩個框逐格計算，分別等於 simulateFullModel 與 simulateQuasiStatic",
+          "diagrams.test.tsx › Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一致 T09: LATENCY_SPLIT 的三個上界與數值掃描一致；F(z) = z⁻¹ × 低通",
+          "diagrams.test.tsx › Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一致 T09: DUAL_REGIMES 的四個區間與三個門檻（F-08.11、F-08.12）和 analyzeDualLoop 一致；「本例」的 μ = 0.05、1、2",
+          "diagrams.test.tsx › Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一致 T08, T09: UNIFIED_LOOP 同一個迴路換四種 F(z)，照圖逐格計算分別等於 §8.2、§8.3、§8.4 與 quasi-static 的模型；繞一圈 = μ·F(z)/(z−1)",
           "handcalcs.test.tsx › Ch08 handcalcs：(a) 預設值＝本章 worked example／golden vector／模型函式 T09: HC-08.7 預設（r_s = 0.8、b_s = 0.2、c_s = 1、μ = 1.2）⇒ 0.9 ± j0.4796、|z| = 1.0198、μ_max = 1、quasi-static pole −0.2（golden vector T09）",
           "handcalcs.test.tsx › Ch08 handcalcs：(a) 預設值＝本章 worked example／golden vector／模型函式 T09: HC-08.7 的 E19 數值——μ = 0.5 ⇒ ρ = 0.9487（簡化 0.5）；μ = 0.05 ⇒ 重根 0.9；μ = 0.02 ⇒ 兩個實根；r_s = 0 ⇒ 就是 d = 1",
           "previews.test.ts › Dashboard 預覽數字（15 個問題） T09: 雙迴路 |z| = 1.0198 > 1；簡化界 2、完整界 1",
@@ -458,10 +470,11 @@
     "T10": {
       "status": "pass",
       "ts": {
-        "passed": 24,
+        "passed": 25,
         "failed": 0,
         "names": [
           "ch09.test.tsx › Ch09 smoke test（jsdom） T10: URL preset pe-rho-1-missing 顯示「λ_min = 0：不可辨識」的解釋性警告",
+          "diagrams.test.tsx › Ch09 方塊圖：正負號、箭頭方向、取樣率與正文公式一致 T10/T11: 圖 9.7 的數字（1.99、0.01、199、0.005、0.995、597.65、598）都由模型算得出來",
           "handcalcs.test.tsx › Ch09 帶入手算：(a) 預設值重現本章 worked example／模型函式／golden vector T10: HC-09.2 反面例子 ρ = 1（缺乏 PE）：30 步後和歸零、差模座標停在初值，E[δ₃₀] = (0.5, −0.5)",
           "handcalcs.test.tsx › Ch09 帶入手算：(a) 預設值重現本章 worked example／模型函式／golden vector T10: HC-09.3：ρ = .99 ⇒ λ = 1.99、0.01，κ = 199（golden T10）",
           "handcalcs.test.tsx › Ch09 帶入手算：(a) 預設值重現本章 worked example／模型函式／golden vector T10: HC-09.6：§9.1 的窗口 B ⇒ λ(S_k) = 6、2，λ_min(R_k) = 0.5，σ_min(U_k) = √2；窗口 A 退化（λ_min = 0、κ = ∞）",
@@ -500,17 +513,19 @@
     "T11": {
       "status": "pass",
       "ts": {
-        "passed": 29,
+        "passed": 31,
         "failed": 0,
         "names": [
           "ch09.test.tsx › Ch09 smoke test（jsdom） T11: URL preset pe-rho-099（Gallery #6）載入後顯示 k₉₅ = 598 與 MC 交叉比對",
           "ch09.test.tsx › Ch09 教學內容（數字都由模型算出） T11: 「執行至收斂」把 blocks 拉到 ⌈1.25·k₉₅⌉ = 748（看得到 598），MC 以新長度重跑",
           "ch09.test.tsx › Ch09 presets 與狀態 T11: 每個 pe-eigen-lab preset 的 MC 交叉比對（頁面同一個 mcModalCheck）都通過，含 ±1 code 快模式被精確投影成 0 的浮點地板情形",
           "ch09.test.tsx › Ch09 presets 與狀態 T11: 同樣 g = 0.5、N = 1：linear 均方發散（1.9801），1-bit 的小訊號均方半徑 0.99（實驗室依 detector 計算 ρ_MS）",
+          "diagrams.test.tsx › Ch09 方塊圖：正負號、箭頭方向、取樣率與正文公式一致 T10/T11: 圖 9.7 的數字（1.99、0.01、199、0.005、0.995、597.65、598）都由模型算得出來",
           "handcalcs.test.tsx › Ch09 帶入手算：(a) 預設值重現本章 worked example／模型函式／golden vector T11: HC-09.2：δ₀ = (1, 0)、ρ = .99、g = .5，k = 1 ⇒ E[δ₁] = (0.5, −0.495)、模態座標 (0.0035, 0.7036)；k = 4 與 meanTrajectory 一致",
           "handcalcs.test.tsx › Ch09 帶入手算：(a) 預設值重現本章 worked example／模型函式／golden vector T11: HC-09.3：g = μK_q = .5 ⇒ 慢 pole .995、快 pole .005、k₉₅ = ⌈597.647⌉ = 598（golden T11）",
           "handcalcs.test.tsx › Ch09 帶入手算：(a) 預設值重現本章 worked example／模型函式／golden vector T11: HC-09.5（勘誤 E23）：ρ = .99、g = .5 的均方半徑 N = 1 ⇒ 1.9801（發散）、N = 2 ⇒ 0.99254、N = 16 ⇒ 0.99003；1-bit N = 1 ⇒ 0.99",
           "handcalcs.test.tsx › Ch09 帶入手算：(a) 預設值重現本章 worked example／模型函式／golden vector T11: HC-09.8（勘誤 E05）：σ_v = 100 fs、μ = 0.5 fs、ρ = .99 ⇒ K_q = 0.00797885 fs⁻¹、k₉₅ = 75,091；N₀ = 100 ⇒ 退化窗口 60.6%、√(2/N₀) = 0.1414",
+          "diagrams.test.tsx › Ch10 方塊圖：訊號名稱、正負號、取樣率與數字和正文公式一致 T11：模式增益圖與 598 / 5 / 65——loop gain = m·λ = 1 − p；圖上的 0.995 / 0.005 / 50 / 0.2513 / 598 / 5 / 65 都等於 numbers.ts",
           "handcalcs.test.tsx › Ch10 帶入手算：(a) 預設值 = 模型函式 = 文中 worked example = golden vector T11: HC-10.2 的範例數字（ρ = .99、μK_q = .5）⇒ 慢 pole 0.995、快 pole 0.005、k₉₅ = 598（golden T11；NLMS μ̃ = 1 相同）",
           "handcalcs.test.tsx › Ch10 帶入手算：(a) 預設值 = 模型函式 = 文中 worked example = golden vector T11: HC-10.3 的範例數字 ⇒ det R = 0.0199、M_n = 0.5R⁻¹ ≈ [[25.13, −24.87], [−24.87, 25.13]]（golden T11 preconditioner_M）",
           "handcalcs.test.tsx › Ch10 帶入手算：(a) 預設值 = 模型函式 = 文中 worked example = golden vector T11: HC-10.8 的範例數字 ⇒ k₉₅ = 598 / 5 / 65（golden T11 與文中 598 / 5 / 65），慢模式變異 = §10.4 表格（Lyapunov 數值解）",
@@ -588,12 +603,13 @@
     "T13": {
       "status": "pass",
       "ts": {
-        "passed": 80,
+        "passed": 81,
         "failed": 0,
         "names": [
-          "handcalcs.test.tsx › Ch04 手算題：(a) 預設值 = 模型函式、文中 worked example、golden T13: HC-04.3 的 K_q、g、p 與 sum 模式的 g、pole 等於 golden T13（σ_v = 100 fs、N = 4096、μ = 10 fs、C = 1）",
           "handcalcs.test.tsx › Ch05 帶入手算：預設值對上模型、文中表格與 golden vector T13: HC-05.8（σ_v = 100 fs、μ = 10 fs、N = 4096）的 pole 與 σ_w 等於 golden；與 Ch12 的 calLoop 一致",
+          "handcalcs.test.tsx › Ch04 手算題：(a) 預設值 = 模型函式、文中 worked example、golden T13: HC-04.3 的 K_q、g、p 與 sum 模式的 g、pole 等於 golden T13（σ_v = 100 fs、N = 4096、μ = 10 fs、C = 1）",
           "ch12.test.tsx › 第 12 章：資料與程式碼一致性 T13/T15: 每個 preset 以預設 seed 實際執行後，行為與它宣稱的 expected 一致（型態、交叉比對狀態、關鍵數值）",
+          "diagrams.test.tsx › 第 12 章方塊圖：真的畫一次（mermaid.render） T13/T14/T15: 圖上的範例數字就是模型算出來的數字（不是手打的）",
           "handcalcs.test.tsx › (a) 預設值 = 本章 worked example：與模型函式、golden 向量、內文數字一致 T13: HC-12.1 的 p = 0.92021（golden）；三步遞迴 = dwStep = 章首「先算一次」表格的前三列",
           "handcalcs.test.tsx › (a) 預設值 = 本章 worked example：與模型函式、golden 向量、內文數字一致 T13: HC-12.3 的 σ_w = 0.3991861 fs（golden，1e-12）、τ = 12.03 blocks = 12.31 μs（= calLoop）",
           "handcalcs.test.tsx › (a) 預設值 = 本章 worked example：與模型函式、golden 向量、內文數字一致 T13: HC-12.8 的三個數 0.399 / 0.282 / 0.00893 fs = codeSpectraAnalytic 的總 RMS 與白色 code 的 in-band RMS",
@@ -615,14 +631,14 @@
           "unitsModel.test.ts › unitsModel：Monte Carlo（固定 seed） T13: 線性引擎與精確 1-bit 引擎的穩態 σ_w 都落在 0.399 fs（|z| ≤ 4，AR(1) 有效樣本數修正）",
           "unitsModel.test.ts › unitsModel：Monte Carlo（固定 seed） T13: 反面 —— sum mode 沿用 μ = 10 fs：線性理論不穩定，1-bit 迴路變成大幅 limit cycle，交叉比對標為不適用",
           "previews.test.ts › Gallery 預覽 vs golden vectors（T01–T18；每個數字都由真實模型函式算出） T13: #8 的 p ≈ 0.92021、σ_w ≈ 0.399 fs；sum 模式忘了 /N 時 g 放大 N 倍",
+          "index.test.tsx › Models 頁面（jsdom smoke） T13: 整頁可渲染：章節、符號表、公式錨點、勘誤連結、程式碼區塊，JSON Lab 跑完並顯示指標",
+          "index.test.tsx › Models 頁面（jsdom smoke） T13: URL preset ?preset=block-lms-json-sum-mode 套用 sum 模式並顯示 N 倍增益警告",
+          "refNumbers.test.ts › 頁面文字用的封閉式數字（refNumbers） T13: §15.3 範例的 K、g、p、σ_w、sum 模式增益與 golden T13 一致",
           "logic.test.ts › 教學段落的數字（numbers.ts）：全部由模型計算，並與 golden vectors 一致 T13: 例 B 的手算表（K_q、g、p、σ_w）等於 golden vector",
           "logic.test.ts › Monte Carlo 的摘要 T13: 8 個 seeds 的指標表與交叉比對（mean w、σ_w 都與線性模型一致；沒開定點 ⇒ Fixed-Point n/a）",
           "presets.test.ts › Pipeline presets：預期文字 vs 模型 T13: lab-t13-anchor 重現 K、g、p、σ_w（golden）；跨級一致性；mean w 與 σ_w 的檢查通過",
           "presets.test.ts › Pipeline presets：預期文字 vs 模型 T13: lab-negative-sum-mode（反面測試：N 改變卻忘記 scaling）——g × N、警告說明原因、交叉比對不硬給結論",
           "presets.test.ts › Monte Carlo preset T13: lab-mc-t13——16 個 seeds：σ_w 的 CI 涵蓋 0.3992 fs、mean w 的 CI 涵蓋 3 fs、沒有發散",
-          "index.test.tsx › Models 頁面（jsdom smoke） T13: 整頁可渲染：章節、符號表、公式錨點、勘誤連結、程式碼區塊，JSON Lab 跑完並顯示指標",
-          "index.test.tsx › Models 頁面（jsdom smoke） T13: URL preset ?preset=block-lms-json-sum-mode 套用 sum 模式並顯示 N 倍增益警告",
-          "refNumbers.test.ts › 頁面文字用的封閉式數字（refNumbers） T13: §15.3 範例的 K、g、p、σ_w、sum 模式增益與 golden T13 一致",
           "bridge.test.ts › D1 / Ch12：係數雜訊 T13: σ_v = 100 fs、N = 4096、μ = 10 fs、C = 1 ⇒ p ≈ 0.92021、σ_w ≈ 0.399 fs",
           "bridge.test.ts › D1 / Ch12：係數雜訊 T13: 反面測試：GMAC 用總和卻沿用 average 的 μ ⇒ g × N = 326.8、pole −325.8",
           "formulas.test.ts › F-PR.n 的獨立數值驗算 T13: F-PR.8：AR(1) 遞迴 δw_{k+1} = p·δw_k + μη_k 的樣本變異數落在 σ_w² 的 ±4 SE 內",
@@ -664,13 +680,13 @@
           "UnitsCalculator.test.tsx › UnitsCalculator（jsdom） T13: 按 Run：1-bit Monte Carlo 的 σ̂_w 與解析值一致（|z| ≤ 4），交叉比對變成 ok；改參數後結果標為過期",
           "UnitsCalculator.test.tsx › UnitsCalculator（jsdom） T13: 反面 —— 把 GMAC 改成 sum：警告解釋 g 放大 N 倍與 g ≥ 2，單位鏈沒有 σ_w／頻寬；Run 之後 Monte Carlo 標為不做判定",
           "UnitsCalculator.worker.test.tsx › UnitsCalculator × Web Worker（注入假的 worker） T13: worker 正常：Run 的結果經由 worker 回來（|z| ≤ 4），說明標示「Web Worker」；離開頁面時 terminate",
-          "labModel.test.ts › 文獻寫法換算器（labModel） T13: preset「block sign-GMAC μ = 10 fs、σ_v = 100 fs」⇒ g ≈ 0.0798、p ≈ 0.92021",
-          "labModel.test.ts › 文獻寫法換算器（labModel） T13: 反面 preset「sum 模式忘記 /N」⇒ g = 326.8、警告說明原因",
           "jsonLabModel.test.ts › 解析數字對 golden（§15.3 範例） T13: §15.3 原文的 K_q、g、p、σ_w 與 golden T13 一致（analyzeBlockLms 與頁面封閉式兩條路）",
           "jsonLabModel.test.ts › 模擬指標、交叉比對與 preset 預期 T13: §15.3 原文模擬：平均 w 在 w* 的 4×SE 內、σ_w 與 0.3992 fs 相符；交叉比對 analytic = ok",
           "jsonLabModel.test.ts › 模擬指標、交叉比對與 preset 預期 T13: 8-seed Monte Carlo 的平均 w 95% CI 涵蓋 w*（較短設定），交叉比對 monteCarlo = ok",
           "jsonLabModel.test.ts › 模擬指標、交叉比對與 preset 預期 T13: 反面測試 sum 模式沿用 μ：g = 326.8（golden），發出 N 倍警告，w 為大振幅 period-2 振盪",
-          "jsonLabModel.test.ts › 顯示層：模型的警告／假設換成 `$...$`（labWarnings / labAssumptions） T13: sum 模式沿用 μ：兩條模型警告都換成 LaTeX、數字不變（g = 326.8、pole = −325.8、μ/N = 0.002441）；不穩定時不加「已經縮放」的補充"
+          "jsonLabModel.test.ts › 顯示層：模型的警告／假設換成 `$...$`（labWarnings / labAssumptions） T13: sum 模式沿用 μ：兩條模型警告都換成 LaTeX、數字不變（g = 326.8、pole = −325.8、μ/N = 0.002441）；不穩定時不加「已經縮放」的補充",
+          "labModel.test.ts › 文獻寫法換算器（labModel） T13: preset「block sign-GMAC μ = 10 fs、σ_v = 100 fs」⇒ g ≈ 0.0798、p ≈ 0.92021",
+          "labModel.test.ts › 文獻寫法換算器（labModel） T13: 反面 preset「sum 模式忘記 /N」⇒ g = 326.8、警告說明原因"
         ]
       },
       "py": {
@@ -687,9 +703,10 @@
     "T14": {
       "status": "pass",
       "ts": {
-        "passed": 33,
+        "passed": 34,
         "failed": 0,
         "names": [
+          "diagrams.test.tsx › 第 12 章方塊圖：真的畫一次（mermaid.render） T13/T14/T15: 圖上的範例數字就是模型算出來的數字（不是手打的）",
           "handcalcs.test.tsx › (a) 預設值 = 本章 worked example：與模型函式、golden 向量、內文數字一致 T14: HC-12.4 代入 golden 的 p：(1 − p) 12.40、−ln p 12.92、exact 12.93 kHz（rel 1e-10）；預設 p（7 位）與內文同到 4 位有效數字",
           "handcalcs.test.tsx › (a) 預設值 = 本章 worked example：與模型函式、golden 向量、內文數字一致 T14: HC-12.5 的 ENBW = 20.29 kHz（golden）、S_w^(1)(0) = πσ_v²/f_s = calLoop().sw1Dc、√(S·ENBW) = σ_w = 0.3992 fs",
           "handcalcs.test.tsx › (a) 預設值 = 本章 worked example：與模型函式、golden 向量、內文數字一致 T14: HC-12.2 在 exact f_3dB 處得到 −3.0103 dB、S_w^(1)(f) = ½·S_w^(1)(0)；預設值 = swOneSided()",
@@ -699,10 +716,10 @@
           "unitsModel.test.ts › unitsModel：換算器（解析） T14: 四個「頻寬」數字與 golden 一致；封閉式的 f_3dB、ENBW 與數值解（二分法、積分）一致",
           "unitsModel.test.ts › unitsModel：換算器（解析） T14: f3dbBisection（不用封閉式的二分法）在整個 3 − 2√2 ≤ p < 1 都與封閉式一致到 10⁻¹²，包含很慢的迴路（1 − p 到 10⁻¹²）",
           "previews.test.ts › Gallery 預覽 vs golden vectors（T01–T18；每個數字都由真實模型函式算出） T14: #8 的 f_u = 976.5625 kHz；四種「頻寬」各自的值（勘誤 E06、E10、E26）",
-          "logic.test.ts › 教學段落的數字（numbers.ts）：全部由模型計算，並與 golden vectors 一致 T14: 例 B 的 f_u、exact −3 dB、ENBW 等於 golden vector",
-          "presets.test.ts › Pipeline presets：預期文字 vs 模型 T14: lab-t13-anchor 的 f_u、exact −3 dB、ENBW 等於 golden vector",
           "refNumbers.test.ts › 頁面文字用的封閉式數字（refNumbers） T14: f_u、exact −3 dB、兩種近似與 ENBW 和 golden T14 一致；ENBW/f_3dB 接近 π/2",
           "refNumbers.test.ts › 頁面文字用的封閉式數字（refNumbers） T14: §3.4 推導的中間式：半功率條件 1 − 2p cosΩ + p² = 2(1 − p)² 與 Ω ≈ (1 − p)/√p",
+          "logic.test.ts › 教學段落的數字（numbers.ts）：全部由模型計算，並與 golden vectors 一致 T14: 例 B 的 f_u、exact −3 dB、ENBW 等於 golden vector",
+          "presets.test.ts › Pipeline presets：預期文字 vs 模型 T14: lab-t13-anchor 的 f_u、exact −3 dB、ENBW 等於 golden vector",
           "bridge.test.ts › D1 / Ch12：係數雜訊 T14: f_u = 976.5625 kHz；−3 dB exact / −ln p / (1−p) / ENBW 四種定義分列（勘誤 E06/E10）",
           "bridge.test.ts › D1：反過來讀文獻——由「頻寬 B」換回 pole（F-PR.9 的反函數） T14: 來回驗算：p → calBandwidths → poleFromF3db / poleFromEnbw 回到同一個 p（含 golden 的 T14 數字）",
           "formulas.test.ts › F-PR.n 的獨立數值驗算 T14: F-PR.9：直接對 |μ/(e^{jΩ} − p)|² 數值積分得到 ENBW；二分法找 −3 dB 點",
@@ -742,10 +759,11 @@
     "T15": {
       "status": "pass",
       "ts": {
-        "passed": 27,
+        "passed": 28,
         "failed": 0,
         "names": [
           "ch12.test.tsx › 第 12 章：資料與程式碼一致性 T13/T15: 每個 preset 以預設 seed 實際執行後，行為與它宣稱的 expected 一致（型態、交叉比對狀態、關鍵數值）",
+          "diagrams.test.tsx › 第 12 章方塊圖：真的畫一次（mermaid.render） T13/T14/T15: 圖上的範例數字就是模型算出來的數字（不是手打的）",
           "handcalcs.test.tsx › (a) 預設值 = 本章 worked example：與模型函式、golden 向量、內文數字一致 T15: HC-12.6 的兩根 tone 在 90 / 110 kHz、各 0.5 fs（golden）；數值來自 simulateMixing 的時域乘積",
           "handcalcs.test.tsx › (a) 預設值 = 本章 worked example：與模型函式、golden 向量、內文數字一致 T15: HC-12.7 的 β = 4.0841e−5 rad、spur = −93.80 dBc（golden）；A_t 加倍 +6.02 dB、|T| = 0.1 −20 dB",
           "handcalcs.test.tsx › Dashboard handcalcs：預設值＝規格的 worked example／golden vector T15: HC-DB.5 預設（A_t = 0.5 fs peak、13 GHz、|T| = 1）⇒ β、spur 與 golden 相同；σ_δt 取自體檢",
@@ -875,10 +893,11 @@
     "T18": {
       "status": "pass",
       "ts": {
-        "passed": 21,
+        "passed": 22,
         "failed": 0,
         "names": [
           "ch10.test.tsx › Ch10 smoke test（jsdom） T18: ?preset=mimo-gallery12-offdiag-diverge ⇒ J 模式、Case A/B 的 ρ = 1.2 與發散警告，Case C 收斂",
+          "diagrams.test.tsx › Ch10 方塊圖：訊號名稱、正負號、取樣率與數字和正文公式一致 T18：訊號流圖用 J 的四個元素（−1、+2、+2、−1）與 μ = 0.2；模式圖的斜率 +1 / −3 與 pole 0.8 / 1.2 / 0.4 等於 numbers.ts",
           "handcalcs.test.tsx › Ch10 帶入手算：(a) 預設值 = 模型函式 = 文中 worked example = golden vector T18: HC-10.5 的 J 形式代入 σ = 1、3（γ = .5、λ_reg = .1）⇒ 0.5455 / 0.5055（golden T18 reg_poles_desc）",
           "handcalcs.test.tsx › Ch10 帶入手算：(a) 預設值 = 模型函式 = 文中 worked example = golden vector T18: HC-10.7 的範例數字（J = [[−1, 2], [2, −1]]、M = 0.2I）⇒ A = [[0.8, 0.4], [0.4, 0.8]]、eig 1.2 / 0.4、ρ(A) = 1.2（golden T18）",
           "presets.test.ts › Ch10 presets（src/data/presets/mimo*.json） T18: Gallery #12 的 expected 文字與計算一致（diagonal / scalar ρ = 1.2、full 0.5）",

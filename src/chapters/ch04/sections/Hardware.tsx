@@ -11,9 +11,9 @@ import {
   Tex,
   TexBlock,
 } from '@/components'
-import { LATENCY_TIMELINE, NOISE_FEEDBACK, RTL_DATAFLOW } from '../diagrams'
+import { APPLY_MODES, AVERAGE_LOOP, LATENCY_TIMELINE, NOISE_FEEDBACK, RTL_DATAFLOW } from '../diagrams'
 import { ROOT_MAX_DELAY, latencyCalc, type ApplyMode, type CriticalGainMethod, type LatencyParams } from '../latency'
-import { DerivationFold, Erratum, f, KpiRow, MermaidFig, mt } from '../common'
+import { DerivationFold, Erratum, f, FigRef, KpiRow, MermaidFig, mt } from '../common'
 
 const R = String.raw
 
@@ -148,6 +148,13 @@ export function HardwareSection() {
       <p>
         規格 §4.1 的硬體對應表，加上兩欄：本站哪個模型負責模擬它，以及設計時最常出錯的地方。每一列在後面的章節都有對應的實驗。
       </p>
+      <p>
+        表裡會用到幾個後面才正式推導的符號，先各用一句話說明：<Tex>{R`H_\mathrm{PD}`}</Tex> 是「DTC 的時間誤差 → PD 輸出」這條路徑的轉移函數（主 PLL 會把慢的誤差追掉，所以 PD 看到的不是原封不動的{' '}
+        <Tex>{R`\delta\,x[n]`}</Tex>）；<Tex>{R`u[n]`}</Tex> 是 code <Tex>{R`x[n]`}</Tex> 通過這條路徑之後的樣子，叫做<strong>有效 regressor</strong>（effective regressor，和 <Tex>x</Tex> 同樣無因次）；
+        <Tex>{R`b_\mathrm{off}`}</Tex> 是 comparator 的 offset，<Tex>{R`v[n]`}</Tex> 是 comparator 前的雜訊（RMS 為 <Tex>{R`\sigma_v`}</Tex>），三項相加就是 comparator 的輸入 <Tex>{R`e[n]`}</Tex>（單位都是 fs）；
+        <Tex>{R`C=E[x_\mathrm{ref}\,u]`}</Tex> 是 GMAC 用的對齊 code 與有效 regressor 的相關（correlation，無因次；它的正負號決定迴路極性，期望值 <Tex>{R`E[\cdot]`}</Tex> 的說明框在本節稍後）；
+        <Tex>D</Tex> 是 code 對齊延遲（單位 samples），<Tex>d</Tex> 是更新延遲（單位 blocks）；<Tex>{R`B_x`}</Tex> 是有號 code 的位元數。
+      </p>
       <div className="table-wrap">
         <table>
           <thead>
@@ -176,18 +183,45 @@ export function HardwareSection() {
       </div>
 
       <h3>RTL 級資料流（規格 §4.2）</h3>
-      <MermaidFig chart={RTL_DATAFLOW} caption={R`一個 block 內：條件取負 → 累加 → 右移 rounding → 乘 $\mu$ → 高解析累加器 → 飽和 / anti-windup → gain register → commit`} ariaLabel="GMAC RTL 資料流" />
+      <p>
+        把上表的後五列（code alignment → GMAC → normalize → gain accumulator → DTC）串起來，就是校正邏輯的 RTL 資料流。它分成兩段：前段每個 sample 進來一筆資料，後段每個 block 才吐出一個新的 gain。
+      </p>
+      <MermaidFig
+        chart={RTL_DATAFLOW}
+        caption={R`一個 block 內：條件取負 → 累加 → 右移 rounding → 乘 $\mu$ → 高解析累加器 → 飽和 / anti-windup → gain register → 映射成實體 DTC code，在 block $k+1+d$ 才套用。看兩欄之間的箭頭：左欄（sample rate）每個 sample 動一次，右欄（block rate）每 $N$ 個 sample 才動一次。`}
+        ariaLabel="GMAC RTL 資料流"
+      />
+      <p>
+        <strong>先看</strong>左欄最上面的兩個輸入：對齊後的有號 code <Tex>{R`x_\mathrm{ref}[n]`}</Tex>（<Tex>{R`B_x`}</Tex> bits）和 comparator 的位元 <Tex>{R`b[n]`}</Tex>。因為 <Tex>{R`q=2b-1`}</Tex> 只有{' '}
+        <Tex>{R`\pm1`}</Tex>，「乘」只是照抄或取負（§4 的 F-04.8）。<strong>再看</strong>左欄最下面的 GMAC 累加器：它把 <Tex>N</Tex> 筆乘積加成總和 <Tex>{R`S_k`}</Tex>，需要 <Tex>{R`B_\mathrm{acc}`}</Tex> bits（方塊裡的 <Tex>{R`M_x`}</Tex>{' '}
+        是單筆乘積的最大絕對值，§5.1）。<strong>接著</strong>順著中間的箭頭到右欄，第一格是 normalize：「<Tex>{R`\div N`}</Tex>」做成算術右移，方塊裡的 <Tex>{R`F_G`}</Tex> 是右移後保留的小數位元數（§5.2）。<strong>最後</strong>乘上 <Tex>{R`\mu`}</Tex>、
+        加進高解析累加器 <Tex>W</Tex>、經過飽和保護後成為 gain register 的 <Tex>{R`w_k`}</Tex>。
+      </p>
       <p>
         每一格在 §5 都有對應的位元級模型（<code>gmac.ts</code>）。注意兩個規格原圖沒有畫出、但 RTL 一定要有的控制訊號：
-        <strong>block 邊界清除 S</strong>（忘了清會讓迴路變成無阻尼振盪器，§6 第 7 項）與 <strong>commit 時間</strong>（決定更新延遲 <Tex>d</Tex>）。
+        <strong>block 邊界清除 S</strong>（圖上的虛線；忘了清會讓迴路變成無阻尼振盪器，§6 第 7 項）與 <strong>commit / 套用時間</strong>（右欄最下面那一格：新 gain 寫進 register 要經過 <Tex>{R`P_c`}</Tex> 個 sample 的 pipeline 延遲，block <Tex>k</Tex> 的結果在 block <Tex>{R`k+1+d`}</Tex> 才套用，<Tex>d</Tex> 就是更新延遲；時序見下面的圖）。
       </p>
 
       <h3>雜訊與回授的等效模型（系統圖 C）</h3>
-      <MermaidFig chart={NOISE_FEEDBACK} caption={R`把 PLL 吸收進 $H_\mathrm{PD}$ 後的單係數等效迴路：乘法（code $\times$ gain 誤差）→ $H_\mathrm{PD}$ → 加雜訊 → sign → 相關 → 平均 → 積分`} ariaLabel="LMS 雜訊與回授等效模型" />
       <p>
-        沿著這個迴路走一圈，就得到一階平均模型。圈上每個方塊對平均增益的貢獻：<Tex>{R`\times x`}</Tex> 與 <Tex>{R`\times x_\mathrm{ref}`}</Tex>、<Tex>{R`H_\mathrm{PD}`}</Tex>{' '}
-        合起來給出 <Tex>{R`C=E[x_\mathrm{ref}u]`}</Tex>；sign 加雜訊給出 <Tex>{R`K_q`}</Tex>；「平均再乘 <Tex>{R`\mu`}</Tex>」給出 <Tex>{R`\mu`}</Tex>（average），若 RTL 沒有除以 <Tex>N</Tex>
-        則給出 <Tex>{R`N\mu`}</Tex>（sum）；最後的累加器是 <Tex>{R`1/(1-z^{-1})`}</Tex>。
+        上面的資料流只畫了數位那一半。要分析迴路會不會收斂，必須把類比那一半也接起來：gain 誤差乘上 code 變成時間誤差，經過 PLL、加上雜訊，才到 comparator。把整顆 PLL 的作用收進一個方塊{' '}
+        <Tex>{R`H_\mathrm{PD}(z)`}</Tex>，整個校正迴路就剩下「一個未知數 <Tex>a</Tex>、一個可調係數 <Tex>w</Tex>」的單係數迴路：
+      </p>
+      <MermaidFig
+        chart={NOISE_FEEDBACK}
+        caption={R`把 PLL 吸收進 $H_\mathrm{PD}$ 後的單係數等效迴路：減法（$a-w_k$）→ 乘 code → $H_\mathrm{PD}$ → 加雜訊 → sign → 相關 → 平均 → 乘 $\mu$ → 積分。看最上面加法點的正負號（$\delta=a-w$），以及兩個乘法點各乘的是哪一個 code。`}
+        ariaLabel="LMS 雜訊與回授等效模型"
+      />
+      <p>
+        <strong>先看</strong>最上面的加法點：真實 gain <Tex>a</Tex> 標「<Tex>+</Tex>」，從最下面繞回來的 <Tex>{R`w_k`}</Tex> 標「<Tex>-</Tex>」，輸出就是 <Tex>{R`\delta_k=a-w_k`}</Tex>。<strong>再順著箭頭往下走</strong>：
+        第一個乘法點乘的是送進 DTC 的 code <Tex>{R`x[n]`}</Tex>，得到時間誤差 <Tex>{R`\delta_k\,x[n]`}</Tex>（fs）；經過 <Tex>{R`H_\mathrm{PD}`}</Tex> 變成 <Tex>{R`\delta_k\,u[n]`}</Tex>；加上雜訊 <Tex>{R`v[n]`}</Tex> 與 offset 得到{' '}
+        <Tex>{R`e[n]`}</Tex>；sign 之後只剩 <Tex>{R`q[n]=\pm1`}</Tex>；第二個乘法點乘的是對齊後的 <Tex>{R`x_\mathrm{ref}[n]`}</Tex>。到這裡為止每個 sample 動一次；從「<Tex>{R`(1/N)\sum`}</Tex>」開始每個 block 才動一次。
+      </p>
+      <p>
+        沿著這個迴路走一圈，就得到一階平均模型。圈上每個方塊對平均增益的貢獻：兩個乘法點（<Tex>{R`\times x`}</Tex> 與 <Tex>{R`\times x_\mathrm{ref}`}</Tex>）和 <Tex>{R`H_\mathrm{PD}`}</Tex>{' '}
+        合起來給出 <Tex>{R`C=E[x_\mathrm{ref}u]`}</Tex>；sign 加雜訊給出 <Tex>{R`K_q=\sqrt{2/\pi}/\sigma_v`}</Tex>（1-bit comparator 的小訊號增益：誤差每多 1 fs，<Tex>q</Tex> 的平均增加多少，單位{' '}
+        <Tex>{R`\mathrm{fs}^{-1}`}</Tex>；§4 推導）；「平均再乘 <Tex>{R`\mu`}</Tex>」給出 <Tex>{R`\mu`}</Tex>（average），若 RTL 沒有除以 <Tex>N</Tex> 則給出 <Tex>{R`N\mu`}</Tex>（sum）；最後的 gain accumulator{' '}
+        <Tex>{R`w_{k+1}=w_k+\mu G_k`}</Tex> 寫成轉移函數是 <Tex>{R`1/(z-1)=z^{-1}/(1-z^{-1})`}</Tex>：一個積分器，加上暫存器本身的一拍延遲（<Tex>{R`z^{-1}`}</Tex> = 延遲一個 block，見 §2 的說明框）。
       </p>
       <Prereq title={R`期望值 $E[\cdot]$、變異數、相關（correlation）`}>
         <p>
@@ -256,7 +290,16 @@ export function HardwareSection() {
         GMAC 的 <strong>block</strong>（<Tex>{R`f_u=f_s/N`}</Tex>，索引 <Tex>k</Tex>）、gain register 的 <strong>commit</strong>（有 pipeline 延遲 <Tex>{R`P_c`}</Tex>）、
         以及 DTC control 真正<strong>套用</strong>新 gain 的時刻。
       </p>
-      <MermaidFig chart={LATENCY_TIMELINE} caption={R`一個 block 的時序：累加 $N$ 個 sample → $S_k$ 完成並清除 → commit → 在 block $k+1+d$ 套用`} ariaLabel="clock domain 與 latency 時序圖" />
+      <MermaidFig
+        chart={LATENCY_TIMELINE}
+        caption={R`一個 block 的時序：累加 $N$ 個 sample → $S_k$ 完成並清除 → commit → 在 block $k+1+d$ 套用。看最後兩個箭頭之間隔了多久：那就是更新延遲。`}
+        ariaLabel="clock domain 與 latency 時序圖"
+      />
+      <p>
+        <strong>由上往下讀</strong>（時間往下走）：前兩個箭頭每個 sample 重複一次，共 <Tex>N</Tex> 次——comparator 每拍送出一個位元，GMAC 把它和對齊的 code 累加。<strong>再看</strong>第三個箭頭：block 的最後一個 sample
+        （<Tex>{R`n=kN+N-1`}</Tex>）之後 <Tex>{R`S_k`}</Tex> 才完成，交給 update logic 並把累加器清為 0。<strong>最後看</strong>下面兩個箭頭：算出新 gain 寫進 register 要花 <Tex>{R`P_c`}</Tex> 個 sample（commit pipeline），
+        DTC 真正開始用它是在 block <Tex>{R`k+1+d`}</Tex> 的開頭。<Tex>d</Tex> 就是「block <Tex>k</Tex> 量到的資訊，晚幾個 block 才反映在 PD 看到的誤差上」。
+      </p>
       <div className="table-wrap">
         <table>
           <thead>
@@ -305,10 +348,40 @@ export function HardwareSection() {
           </tbody>
         </table>
       </div>
+      <p>
+        延遲為什麼會影響穩定？把 <FigRef chart={NOISE_FEEDBACK} /> 走一圈的結果畫成 block rate 的迴路（每個 block 一拍）：comparator、相關與平均合成一個增益 <Tex>{R`K=K_qC`}</Tex>，學習率是 <Tex>{R`\mu`}</Tex>，gain accumulator 是積分器{' '}
+        <Tex>{R`1/(z-1)`}</Tex>；「新 gain 晚 <Tex>d</Tex> 個 block 才生效」就是在迴路裡多串一個延遲 <Tex>{R`z^{-d}`}</Tex>。
+      </p>
+      <MermaidFig
+        chart={AVERAGE_LOOP}
+        caption={R`一階平均模型的迴路（block rate，索引 $k$）。看藍色的延遲方塊：$d=0$ 時迴路只有一個積分器；每多等一個 block，回授就多晚一拍。`}
+        ariaLabel="平均模型迴路：a 減 w 得到 delta，乘 K、乘 mu、延遲 d 個 block、積分得到 w"
+      />
+      <p>
+        <strong>先看</strong>不含延遲的部分：迴路繞一圈的增益是 <Tex>{R`g=\mu K`}</Tex>（無因次的 loop gain：<Tex>{R`\mu`}</Tex> 的 fs 乘上 <Tex>K</Tex> 的 <Tex>{R`\mathrm{fs}^{-1}`}</Tex>）。<Tex>{R`d=0`}</Tex> 時積分器每拍把{' '}
+        <Tex>{R`\mu K\delta_k`}</Tex> 加進 <Tex>w</Tex>，所以 <Tex>{R`\delta_{k+1}=(1-g)\,\delta_k`}</Tex>；<Tex>{R`p=1-g`}</Tex> 叫做平均 pole（誤差每個 block 乘上 <Tex>p</Tex>）。<strong>再看</strong>藍色方塊：有延遲時，
+        這一拍加進 <Tex>w</Tex> 的修正量是 <Tex>d</Tex> 個 block 以前量到的，所以 <Tex>{R`\delta_{k+1}=\delta_k-g\,\delta_{k-d}`}</Tex>——圖上的 <Tex>{R`z^{-d}`}</Tex> 就是公式裡下標的 <Tex>{R`k-d`}</Tex>。
+        延遲越長，迴路越容易「修過頭才發現」，能用的 <Tex>g</Tex> 上限（臨界增益 <Tex>{R`g_\mathrm{crit}`}</Tex>）就越小：
+      </p>
       <TexBlock id="F-04.14" label={mt(R`更新延遲 $d$ 個 block 時，平均模型 $\delta_{k+1}=\delta_k-g\,\delta_{k-d}$ 的臨界增益（Ch08 詳述）`)}>
         {R`g_\mathrm{crit}(d)=2\sin\frac{\pi}{4d+2}\qquad(d=0:\,2;\;d=1:\,1;\;d=2:\,0.618)`}
       </TexBlock>
       <LatencyCalculator />
+      <p>
+        計算器裡「新 gain 何時生效」的選項，差別只在一件事：block <Tex>{R`k+1`}</Tex> 的那 <Tex>N</Tex> 個 sample，DTC 用的是舊 gain 還是新 gain。新 gain 要在 block <Tex>k</Tex> 結束後再過{' '}
+        <Tex>{R`P_c`}</Tex> 個 sample 才準備好，有三種處理方式：
+      </p>
+      <MermaidFig
+        chart={APPLY_MODES}
+        caption={R`新 gain 何時生效的三種做法（以 $0<P_c<N$ 為例）。看每一欄的第一格——block $k+1$ 裡用的是哪一個 gain——再看第二格它對應的遞迴式與臨界增益。`}
+        ariaLabel="等 block 邊界生效、立即生效、丟掉前 P_c 個 sample 三種做法的比較"
+      />
+      <p>
+        <strong>先看</strong>做法 A（藍色，建議的做法）：新 gain 等到下一個 block 邊界才生效，block <Tex>{R`k+1`}</Tex> 整段都還在用舊 gain，等效延遲是整數 <Tex>{R`d=\lceil P_c/N\rceil=1`}</Tex>，代入 F-04.14 得{' '}
+        <Tex>{R`g_\mathrm{crit}=1`}</Tex>。<strong>再看</strong>做法 B（紅色）：gain 一準備好就換，block <Tex>{R`k+1`}</Tex> 的前 <Tex>{R`P_c`}</Tex> 個 sample 用舊 gain、其餘用新 gain；把「還在用舊 gain 的比例」記成{' '}
+        <strong>分數延遲</strong> <Tex>{R`d_\mathrm{f}=P_c/N`}</Tex>（單位 block，介於 0 與 1 之間）。圖上做法 B 第二格的 <Tex>{R`G_{k+1}\approx K[d_\mathrm{f}\delta_k+(1-d_\mathrm{f})\delta_{k+1}]`}</Tex>{' '}
+        就是下面 F-04.17 推導的第 1 步。<strong>最後看</strong>做法 C：乾脆不累加那 <Tex>{R`P_c`}</Tex> 個 sample，延遲回到 <Tex>{R`d=0`}</Tex>，代價是每個 block 少用 <Tex>{R`P_c`}</Tex> 筆資料。
+      </p>
       <TexBlock id="F-04.17" label={mt(R`block 中途生效（$d=0$、分數延遲 $d_\mathrm{f}$）時平均模型的臨界增益`)}>
         {R`z^2-\bigl(1-g(1-d_\mathrm{f})\bigr)z+g\,d_\mathrm{f}=0\;\Rightarrow\;\boxed{g_\mathrm{crit}(d_\mathrm{f})=\min\Bigl(\frac{1}{d_\mathrm{f}},\;\frac{2}{1-2d_\mathrm{f}}\Bigr)\;(d_\mathrm{f}<\tfrac12),\qquad\frac{1}{d_\mathrm{f}}\;(d_\mathrm{f}\ge\tfrac12)}`}
       </TexBlock>

@@ -27,8 +27,10 @@ import {
   type ScheduleMcParams,
   type ScheduleMcResult,
 } from '@/simulation/models/optimizer'
+import { Diagram } from '../Diagram'
+import { CHART_KALMAN_INFO, CHART_SCHEDULE_COMPARE, CHART_SCHEDULE_TIMELINE } from '../diagrams'
 import { Hand } from '../Hand'
-import { md, nf, Steps, tx } from '../shared'
+import { BIAS2, md, nf, Steps, tx } from '../shared'
 
 /** §14.6：步長排程（fixed μ vs two-phase vs 1/k）— 推導、程式碼並排、Monte Carlo */
 export function S7Schedule() {
@@ -115,7 +117,26 @@ export function S7Schedule() {
         固定 <Tex>{'\\mu'}</Tex> 的兩難：大 <Tex>{'\\mu'}</Tex> 收斂快但雜訊大，小 <Tex>{'\\mu'}</Tex> 雜訊小但收斂慢。最自然的解法——<strong>開始時用大步長，接近答案後換小步長</strong>（gear shifting）。
         兩段式包含固定 <Tex>{'\\mu'}</Tex>（<Tex>{'\\mu_1=\\mu_2'}</Tex>）當特例，所以最佳化後<strong>不可能比固定 <Tex>{'\\mu'}</Tex> 差</strong>（線性模型內）。我們先算出「最好能好到哪裡」，再看兩段式能拿到多少。
       </p>
+      <Diagram chart={CHART_SCHEDULE_COMPARE} caption="三種步長排程並排：迴路其他部分完全相同，只有著色的那一塊「乘上多少」不同。">
+        <p>
+          <strong>先看</strong>左邊：三種作法吃的是同一個 GMAC 輸出 <Tex>{'G_k'}</Tex>。<strong>再看</strong>中間著色的三個方塊，差別只在步長怎麼隨 block 編號 <Tex>{'k'}</Tex> 變：整段不變（棕色）、分成兩個台階（藍色，前 <Tex>{'B_1'}</Tex> 個 block 用大的{' '}
+          <Tex>{'\\mu_1'}</Tex>、之後用小的 <Tex>{'\\mu_2'}</Tex>）、或每個 block 都再小一點（綠色）。<strong>最後看</strong>右邊：三者跑完 <Tex>{'B'}</Tex> 個 block 的均方誤差。
+        </p>
+        <p>
+          圖上的 <Tex>{'\\mu^*'}</Tex> 是 §14.2 (a) 的 F-14.8；兩段式的結果是下面的 F-14.20；綠色方塊的 <Tex>{'\\mu_k=1/(K(k+1+k_0))'}</Tex> 與下界 <Tex>{'P_B'}</Tex> 是 F-14.18（<Tex>{'P_k'}</Tex> 表示最佳排程下第 <Tex>{'k'}</Tex> 個 block 的均方誤差，
+          <Tex>{'k_0'}</Tex> 是由初始誤差決定的起點偏移，推導時會定義）。固定步長與 <Tex>{'1/k'}</Tex> 排程這兩個結果相除，就是 F-14.19。
+        </p>
+      </Diagram>
       <h3>兩段式的精確公式</h3>
+      <Diagram chart={CHART_SCHEDULE_TIMELINE} caption="兩段式的時間軸：由左到右是時間；兩段之間唯一要交接的量，是 COARSE 段結束時的均方誤差。">
+        <p>
+          <strong>先看</strong>棕色的 COARSE 段：步長 <Tex>{'\\mu_1'}</Tex> 大、pole <Tex>{'p_1=1-\\mu_1K'}</Tex> 小，{BIAS2} 很快掉下來，但雜訊底高。<strong>再看</strong>交棒的那條線：第一段結束（<Tex>{'k=B_1'}</Tex>）時的均方誤差{' '}
+          <Tex>{'m_{B_1}'}</Tex>。<strong>然後看</strong>藍色的 FINE 段：步長換成小的 <Tex>{'\\mu_2'}</Tex>，把 <Tex>{'m_{B_1}'}</Tex> 當成新的「初始誤差平方」，再跑 <Tex>{'B_2'}</Tex> 個 block 把雜訊底壓低。虛線之後是 TRACK：步長不再縮小，保留追蹤漂移的能力（§14.7）。
+        </p>
+        <p>
+          圖上交棒線上的 <Tex>{'m_{B_1}'}</Tex> 就是公式 F-14.20 裡的 <Tex>{'m_{B_1}'}</Tex>（<Tex>{'m_k\\equiv E[\\delta_k^2]'}</Tex>）；最右邊方塊裡的式子就是 F-14.20 本身，下面三步說明為什麼可以這樣「接力」。
+        </p>
+      </Diagram>
       <Steps
         steps={[
           { tex: String.raw`m_{k+1}\equiv E[\delta_{k+1}^2]=p^2m_k+\mu^2\sigma_\eta^2`, why: <>F-14.1 平方取期望；交叉項 <Tex>{'E[\\delta_k\\eta_k]=0'}</Tex>（<Tex>{'\\eta_k'}</Tex> 與過去獨立、平均為 0）。這條遞迴對 <Tex>{'m'}</Tex> 是線性的。</> },
@@ -129,6 +150,19 @@ export function S7Schedule() {
       <h3>
         最好能多好？每一步都最佳化 <Tex>{'\\mu_k'}</Tex>（scalar Kalman）
       </h3>
+      <p>
+        如果不限制只能有兩個台階，而是每個 block 都可以挑自己的步長 <Tex>{'\\mu_k'}</Tex>，最好能做到多好？答案可以用一個很簡單的圖像記住：每個 block 的量測都帶來等量的「資訊」，把它們存進一個累加器。
+      </p>
+      <Diagram chart={CHART_KALMAN_INFO} caption="最佳排程的另一種看法：每個 block 往累加器存入等量的資訊；存得越多，下一步的步長就越小。">
+        <p>
+          <strong>先看</strong>左邊：每個 block 帶來固定的資訊量 <Tex>{'K^2/\\sigma_\\eta^2'}</Tex>（斜率越大、雜訊越小，一次量測越有價值），加進累加器。累加器裡存的是 <Tex>{'1/P_k'}</Tex>——均方誤差 <Tex>{'P_k=E[\\delta_k^2]'}</Tex>{' '}
+          的倒數，可以想成「目前已經知道多少」，起點是 <Tex>{'1/\\delta_0^2'}</Tex>。<strong>再看</strong>藍色方塊：知道得越多（<Tex>{'P_k'}</Tex> 越小），新的一筆量測就越不值得大動作，所以步長隨 <Tex>{'k'}</Tex> 遞減。另一個輸出方塊是跑完 <Tex>{'B'}</Tex> 個 block 的總帳。
+        </p>
+        <p>
+          圖上加法點輸出的 <Tex>{'1/P_{k+1}=1/P_k+K^2/\\sigma_\\eta^2'}</Tex> 就是下面推導的第 5 步；藍色方塊的兩個寫法是第 3 步與第 6 步，其中 <Tex>{'k_0=\\sigma_\\eta^2/(K^2\\delta_0^2)'}</Tex>{' '}
+          是起點偏移（初始誤差越大，<Tex>{'k_0'}</Tex> 越小，一開始的步長越接近 <Tex>{'1/K'}</Tex>）。兩個輸出方塊合起來就是 F-14.18。
+        </p>
+      </Diagram>
       <Steps
         steps={[
           { tex: String.raw`P_{k+1}=(1-\mu_kK)^2P_k+\mu_k^2\sigma_\eta^2`, why: <>同上，但每個 block 可以用不同 <Tex>{'\\mu_k'}</Tex>；<Tex>{'P_k\\equiv E[\\delta_k^2]'}</Tex>。</> },

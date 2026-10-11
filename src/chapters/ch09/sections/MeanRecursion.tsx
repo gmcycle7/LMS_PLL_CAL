@@ -12,7 +12,7 @@ import {
   stepsToDecay,
   stepsToDecayReal,
 } from '@/simulation/models/pe'
-import { DerivBox, Erratum, HandCalcBox, formulaTex, m, num, texMatrix, texNum, texVec } from '../shared'
+import { DerivBox, Diagram, Erratum, FigRef, HandCalcBox, formulaTex, m, num, texMatrix, texNum, texVec } from '../shared'
 
 /** §9：e = uᵀδ + v → 平均遞迴 → 對角化 → p_i = 1 − μK_qλ_i → 598 → ρ = 1。 */
 export function MeanRecursion() {
@@ -50,6 +50,20 @@ export function MeanRecursion() {
       </p>
 
       <h3>1. 誤差：每個參數誤差乘上自己的 regressor 再相加</h3>
+      <p>
+        要校正的參數有 {m`M`} 個時，comparator 前面仍然只有<strong>一個</strong>誤差 {m`e[n]`}。先約定兩個時間索引：{m`n`} 是 comparator 的 sample 編號
+        （regressor {m`\mathbf u[n]`}、雜訊 {m`v[n]`}、誤差 {m`e[n]`} 每個 sample 都在變）；{m`k`} 是 GMAC block 的編號（一個 block 有 {m`N`} 個 sample，
+        校正係數 {m`\mathbf w_k`} 每個 block 才更新一次，所以參數誤差 {m`\boldsymbol\delta_k=\mathbf a-\mathbf w_k`} 在一個 block 內是固定的）。
+        {m`v[n]`} 是 comparator 前的雜訊，假設零均值。
+      </p>
+      <Diagram id="error-model">
+        看藍色方塊：{m`M`} 條路全部加成同一個 {m`e[n]`}——comparator 分不出哪一部分是哪一個參數造成的。
+      </Diagram>
+      <p>
+        <FigRef id="error-model" /> 怎麼看：先看每一條路——第 {m`i`} 個 regressor {m`u_i[n]`} 乘上「自己的」參數誤差 {m`\delta_i=a_i-w_i`}。再看加法點——
+        {m`M`} 條路加上雜訊 {m`v[n]`}，全部混成一個數。圖上的「{m`\times\delta_i`}」就是下面 F-09.1 裡內積
+        {m`\mathbf u^T\boldsymbol\delta_k=\sum_iu_i\delta_i`} 的第 {m`i`} 項，圖上的加法點就是那個 {m`\sum`}。下面一步一步把它從「真實輸出減預測輸出」推出來：
+      </p>
       <StepDerivation
         steps={[
           { tex: String.raw`y[n]=\mathbf a^T\mathbf u[n]+v[n]`, why: <>真實系統：{m`M`} 個參數各自乘上 regressor，再加雜訊（線性模型）。</> },
@@ -63,8 +77,26 @@ export function MeanRecursion() {
 
       <h3>2. GMAC、更新與平均</h3>
       <p>
-        GMAC 在一個 block（{m`N`} 個 sample）內累加 {m`t[n]\,\mathbf u[n]`}，其中 linear（conventional LMS）用 {m`t=e`}，1-bit comparator 用
-        {m`t=\mathrm{sign}(e)`}；block 結束時 {m`\mathbf w_{k+1}=\mathbf w_k+\mu\mathbf G_k`}。
+        GMAC 在一個 block（{m`N`} 個 sample）內累加 {m`t[n]\,\mathbf u[n]`}，其中 {m`t[n]`} 是偵測器的輸出：linear（conventional LMS）用 {m`t=e`}，
+        1-bit comparator 用 {m`t=\mathrm{sign}(e)`}。累加完除以 {m`N`} 得到的<strong>平均</strong>記為 {m`\mathbf G_k`}（{m`M`} 個參數各一個分量）；
+        block 結束時每個係數照自己的那個分量修正一次：{m`\mathbf w_{k+1}=\mathbf w_k+\mu\mathbf G_k`}。
+      </p>
+      <Diagram id="block-loop">
+        看藍色的 GMAC 方塊：它之前的內積、偵測器、相關器每個 sample（{m`n`}）跑一次；它之後的 {m`\mathbf G_k`}、累加器與回授的 {m`\boldsymbol\delta_k`} 每個 block（{m`k`}）才更新一次。
+      </Diagram>
+      <p>
+        <FigRef id="block-loop" /> 怎麼看：先看 sample rate 的那一段——{m`\boldsymbol\delta_k`} 與 {m`\mathbf u[n]`} 做內積、加上雜訊成為 {m`e[n]`}，
+        經過偵測器變成 {m`t[n]`}，再乘回 {m`\mathbf u[n]`}。再看藍色的 GMAC——它把 {m`N`} 個乘積平均成一筆 {m`\mathbf G_k`}；{m`\mathbf G_k`} 乘上 {m`\mu`}
+        加進累加器，{m`z^{-1}`} 表示新的係數要到下一個 block 才生效。最後看回授——{m`\mathbf w_k`} 以<strong>負號</strong>進入加法點（真值 {m`\mathbf a`}
+        以正號），得到 {m`\boldsymbol\delta_k=\mathbf a-\mathbf w_k`}，繞回起點。圖上的「{m`(1/N)\Sigma`}」就是 F-09.2 的 {m`\mathbf G_k`}；
+        「{m`\times\mu`} → 加法點 → {m`z^{-1}`}」就是更新式 {m`\mathbf w_{k+1}=\mathbf w_k+\mu\mathbf G_k`}；回授的那個負號，就是
+        {m`\boldsymbol\delta_{k+1}=\boldsymbol\delta_k-\mu\mathbf G_k`} 裡的負號。（注意：真值 {m`\mathbf a`} 與它進入的那個加法點是<strong>數學模型</strong>，
+        不是電路——硬體裡沒有「真值」這條線，{m`\boldsymbol\delta_k`} 只能透過 {m`e[n]`} 間接看到。）
+      </p>
+      <p>
+        這個迴圈裡有隨機的 {m`\mathbf u`} 與 {m`v`}，所以先問「平均來說」會怎麼走。結論是：{m`\mathbf G_k`} 的平均正比於
+        {m`\mathbf R\boldsymbol\delta_k`}，比例常數記為 {m`K_q`}——linear 時 {m`K_q=1`}；1-bit 時 {m`K_q=\sqrt{2/\pi}/\sigma_v`}，
+        是第 5 章 comparator 的統計小訊號增益（{m`\sigma_v`} 是雜訊 {m`v`} 的標準差）。
       </p>
       <DerivBox title={<>推導 {m`E[\boldsymbol\delta_{k+1}]=(\mathbf I-\mu K_q\mathbf R)E[\boldsymbol\delta_k]`}</>}>
         <StepDerivation
@@ -99,6 +131,20 @@ export function MeanRecursion() {
 
       <h4>先算一次：兩個 LMS loop 會互相干擾（{m`\rho=0.8`}）</h4>
       <p>
+        把上面框起來的平均遞迴，照兩個參數攤開來畫（{m`\mathbf R=\begin{bmatrix}1&\rho\\\rho&1\end{bmatrix}`}，{m`g=\mu K_q`}）：
+      </p>
+      <Diagram id="coupled-mean">
+        看紅色的兩條交叉線（係數是 {m`\rho`}）：每個 loop 的 GMAC 除了自己的誤差，還會讀到另一個參數的誤差。
+      </Diagram>
+      <p>
+        <FigRef id="coupled-mean" /> 怎麼看：先看不交叉的路——{m`E[\delta_1]`} 以係數 1 進第一個加法點，乘上 {m`g`} 之後從 {m`E[\delta_1]`} 自己身上扣掉
+        （標著 {m`-`} 的那條線），得到下一個 block 的 {m`E[\delta_1]`}；如果只有這條路，就是前幾章的單參數 LMS（每個 block 乘上 {m`1-g`}）。
+        再看紅色的交叉線——{m`E[\delta_2]`} 也以係數 {m`\rho`} 漏進同一個加法點，於是 loop 1 會去「修」其實是參數 2 造成的誤差，反過來也一樣。
+        圖只畫了一個 block：輸出延遲一個 block（{m`z^{-1}`}）之後，就是下一輪的輸入。圖上進入加法點的係數 {m`1`} 與 {m`\rho`} 就是 {m`\mathbf R`} 的對角與非對角元素；
+        兩個加法點的輸出就是 {m`\mathbf R\,E[\boldsymbol\delta]`} 的兩列 {m`\delta_1+\rho\delta_2`}、{m`\rho\delta_1+\delta_2`}
+        （也就是 {m`E[\mathbf G]/K_q`}）；「{m`\times g`}」之後的減號就是 {m`\mathbf I-g\mathbf R`} 的那個負號。
+      </p>
+      <p>
         {m`\mathbf R`} 的非對角元素就是「干擾」。設 {m`\mathbf R=\begin{bmatrix}1&0.8\\0.8&1\end{bmatrix}`}，第 1 個參數已經完全正確、只有第 2 個有誤差：
         {m`\boldsymbol\delta=(0,\,1)`}。兩個 GMAC 的平均輸出是（由 <code>matVec</code> 計算）
       </p>
@@ -107,11 +153,26 @@ export function MeanRecursion() {
         第 1 個 loop 明明沒有誤差（{m`\delta_1=0`}），它的 GMAC 卻讀到 {m`${texNum(G08[0])}K_q\delta_2`}——因為兩個 regressor 的相關係數是 {m`\rho=${texNum(G08[0])}`}，
         第 2 個參數造成的誤差有 {m`${texNum(100 * G08[0])}\%`} 看起來像第 1 個參數的錯。於是 {m`g=0.5`} 走一步之後
         {m`E[\boldsymbol\delta_1]=(${texNum(step08[0][1])},\ ${texNum(step08[1][1])})`}：<strong>原本正確的 {m`w_1`} 被拉離真值 {m`${texNum(Math.abs(step08[0][1]))}`}</strong>，
-        之後兩個 loop 才一起慢慢修回來（{m`\lambda=${texNum(modes08.lambdas[0])},\ ${texNum(modes08.lambdas[1])}`}，慢 pole {m`${texNum(modes08.poles[1])}`}，
-        {m`k_{95}=${modes08.k95[1]}`}）。要把這種耦合「解開」，就要換到 {m`\mathbf R`} 的 eigenvector 座標。 <ClaimTag kind="exact" /> <SourceTag />
+        之後兩個 loop 才一起慢慢修回來（{m`\mathbf R`} 的 eigenvalues {m`\lambda=${texNum(modes08.lambdas[0])},\ ${texNum(modes08.lambdas[1])}`}，
+        慢的那個模式每個 block 只乘上 {m`${texNum(modes08.poles[1])}`}，要 {m`k_{95}=${modes08.k95[1]}`} 個 block 才剩 5%——{m`k_{95}`} 的算法在下面第 4 小節）。要把這種耦合「解開」，就要換到 {m`\mathbf R`} 的 eigenvector 座標。 <ClaimTag kind="exact" /> <SourceTag />
       </p>
 
       <h3>3. 對角化：耦合的兩條遞迴變成兩條獨立的等比數列</h3>
+      <p>
+        交叉線讓兩條遞迴糾纏在一起，很難直接看出收斂有多快。解法是換一組座標：不看 {m`(\delta_1,\delta_2)`}，改看平均誤差在 {m`\mathbf R`} 的兩個
+        eigenvector 上的分量 {m`c_1`}、{m`c_2`}（<strong>模態座標</strong>，modal coordinates）。在這組座標裡 {m`\mathbf R`} 只做縮放，交叉線就消失了：
+      </p>
+      <Diagram id="eigen-modes">
+        比較綠色與紅色兩個方塊：同一個 {m`g`}，兩個模式的 pole 不一樣；紅色（{m`\lambda`} 小）那一條決定你要等多久。
+      </Diagram>
+      <p>
+        <FigRef id="eigen-modes" /> 怎麼看：先看「旋轉」——把平均誤差投影到兩個 eigenvector，得到 {m`c_1`}（沿 {m`\mathbf v_1`}）與 {m`c_2`}（沿 {m`\mathbf v_2`}）。
+        再看綠色與紅色兩個方塊——每個分量各走各的，每個 block 只乘上自己的倍數 {m`p_i`}，中間沒有任何交叉線；{m`p_i`} 叫這個模式的 <strong>pole</strong>
+        （等比數列的公比）。最後「轉回」原座標，下一個 block 再走一圈。圖上的「旋轉」就是公式裡的 {m`\mathbf c_k=\mathbf Q^TE[\boldsymbol\delta_k]`}，
+        「轉回」就是 {m`E[\boldsymbol\delta_k]=\mathbf Q\mathbf c_k`}，兩個方塊裡的 {m`p_1`}、{m`p_2`} 就是 F-09.4 的 {m`p_i=1-\mu K_q\lambda_i`}
+        （{m`g=\mu K_q`}）。公式裡的 {m`\mathbf Q`} 是把 eigenvector {m`\mathbf v_1`}、{m`\mathbf v_2`} 當成欄排成的矩陣，{m`\boldsymbol\Lambda`} 是對角線上放
+        {m`\lambda_1`}、{m`\lambda_2`} 的對角矩陣。本例的 {m`\mathbf v_1=(1,1)/\sqrt2`} 是共模、{m`\mathbf v_2=(1,-1)/\sqrt2`} 是差模。
+      </p>
       <DerivBox title={<>推導 {m`p_i=1-\mu K_q\lambda_i`}</>}>
         <StepDerivation
           steps={[
@@ -134,6 +195,18 @@ export function MeanRecursion() {
       <h3>
         4. 例子：{m`\rho=0.99`}、{m`g=\mu K_q=0.5`} <TestBadge id="T10" /> <TestBadge id="T11" />
       </h3>
+      <p>
+        把上面的結果代入規格的例子。手算的順序就是下面這張流程圖，每一格只做一種運算：
+      </p>
+      <Diagram id="k95-flow">
+        跟著 ① → ④ 走：{m`\rho`} 決定 eigenvalue，eigenvalue 乘上 {m`g`} 決定 pole，慢 pole 決定要等幾個 block。
+      </Diagram>
+      <p>
+        <FigRef id="k95-flow" /> 怎麼看：先看 ①——兩個 eigenvalue 是 {m`1\pm\rho`}；它們的比值 {m`\kappa=\lambda_{\max}/\lambda_{\min}`} 叫
+        <strong>condition number</strong>（eigenvalue spread），越大表示兩個方向差越多。再看 ②——同一個 {m`g`} 乘上不同的 {m`\lambda`}，得到快、慢兩個 pole。
+        ③ 檢查兩個 pole 的絕對值都小於 1。最後 ④——{m`k_{95}`} 是「慢模式衰減到只剩 5% 要幾個 block」。圖上 ① 的數字就是 F-09.5，④ 就是 F-09.6；
+        下面的表格與推導逐格驗算。
+      </p>
       <TexBlock id="F-09.5">{formulaTex('F-09.5')}</TexBlock>
       <div className="table-wrap">
         <table className="ch09-table">
@@ -245,6 +318,17 @@ export function MeanRecursion() {
       </Callout>
 
       <h3>5. 單一 {m`\mu`} 最多能多快？eigenvalue spread 的代價</h3>
+      <p>
+        {m`\mu`}（也就是 {m`g`}）只有一個，卻要同時服務快、慢兩個模式：
+      </p>
+      <Diagram id="scalar-gain">
+        看紅色方塊：快模式限制了 {m`g`} 能開多大（{m`g<2/\lambda_{\max}`}）；藍色方塊是兩邊拉扯之後的最佳點。
+      </Diagram>
+      <p>
+        <FigRef id="scalar-gain" /> 怎麼看：先看兩個分支——{m`g`} 加大時，慢模式每個 block 的倍數 {m`|1-g\lambda_{\min}|`} 一路變小（越來越快，直到
+        {m`g=1/\lambda_{\min}`}）；但快模式的 {m`|1-g\lambda_{\max}|`} 先變小，過了 {m`g=1/\lambda_{\max}`} 之後反而變大，到 {m`g=2/\lambda_{\max}`} 就等於 1（不再收斂）。
+        再看合流的地方——整體的收斂率是兩者之中較大的那個，所以兩者相等時最好。圖上藍色方塊的 {m`g^\star`} 與 {m`(\kappa-1)/(\kappa+1)`} 就是 F-09.7。
+      </p>
       <DerivBox title={<>推導最佳 scalar gain {m`g^\star`}</>}>
         <StepDerivation
           steps={[

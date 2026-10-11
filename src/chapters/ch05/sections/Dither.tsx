@@ -25,7 +25,7 @@ import { presetsForExperiment, useUrlPreset } from '@/app/presets'
 import { isWorkerCancelled, useWorkerTask } from '@/workers'
 import comparatorSrc from '@/simulation/models/comparator.ts?raw'
 import { kq, signLoopLinearRms, signLoopStationary, type SignLoopBatchParams, type SignLoopBatchResult } from '@/simulation/models/comparator'
-import { Steps, fx, hline, int, logspace, sig, sigOrZero, texInt, texNum, vline } from '../common'
+import { Fig, Steps, figNo, fx, hline, int, logspace, sig, sigOrZero, texInt, texNum, vline } from '../common'
 
 const EXP_ID = 'comparator-dither'
 const SRC_PATH = 'src/simulation/models/comparator.ts'
@@ -473,8 +473,26 @@ export function DitherSection() {
     <Section kind="explore" level={2} title="7. 雜訊像 dither：沒有雜訊不行，太多雜訊也不行">
       <p>
         §5 說 <Tex>{'K_q=\\sqrt{2/\\pi}/\\sigma_v'}</Tex>，好像雜訊越小、增益越大越好。但 <Tex>{'\\sigma_v\\to0'}</Tex> 時 S 曲線變成階梯：
-        原點斜率無限大、其他地方為 0。把 comparator 放進最簡單的逐 sample Sign-LMS 迴路（<Tex>{'x\\equiv1'}</Tex>、<Tex>{'w_{n+1}=w_n+\\mu q_n'}</Tex>），三種情況完全不同。
-        下表數字以 <Tex>{`a=${ex.a}\\,\\mathrm{fs},\\ w_0=${ex.w0},\\ \\mu=${ex.mu}\\,\\mathrm{fs}`}</Tex> 的精確穩態即時計算：
+        原點斜率無限大、其他地方為 0。把 comparator 放進最簡單的逐 sample Sign-LMS 迴路來看（<Tex>{'x\\equiv1'}</Tex>）：每來一個 sample，就把係數往 <Tex>{'q_n'}</Tex>{' '}
+        的方向推一小步，<Tex>{'w_{n+1}=w_n+\\mu q_n'}</Tex>。這裡 <Tex>{'\\mu'}</Tex> 是學習率（每一步的步長，單位 <Tex>{'\\mathrm{fs}'}</Tex>），<Tex>{'a'}</Tex> 是真值，
+        <Tex>{'w_n'}</Tex> 是第 <Tex>{'n'}</Tex> 個 sample 時的係數，<Tex>{'\\delta_n=a-w_n'}</Tex> 是剩餘誤差。
+      </p>
+      <Fig name="sampleLoop">
+        從左邊的 <Tex>{'a'}</Tex> 出發，順著箭頭走一圈：先比較（<Tex>{'a-w_n'}</Tex> 得到 <Tex>{'\\delta_n'}</Tex>），加上雜訊 <Tex>{'v_n'}</Tex>、減掉 offset{' '}
+        <Tex>{'\\theta'}</Tex>，取 sign 得到 <Tex>{'q_n=\\pm1'}</Tex>；乘 <Tex>{'\\mu'}</Tex> 後加到 <Tex>{'w_n'}</Tex> 上成為 <Tex>{'w_{n+1}'}</Tex>；經過一個 sample 的延遲（方塊{' '}
+        <Tex>{'z^{-1}'}</Tex>：輸出是上一個 sample 的輸入），再以<strong>負號</strong>回到第一個加法點。回授是負的：<Tex>{'w'}</Tex> 太小（<Tex>{'\\delta>0'}</Tex>）時 <Tex>{'q'}</Tex> 偏向{' '}
+        <Tex>{'+1'}</Tex>，<Tex>{'w'}</Tex> 就被往上推。圖上「<Tex>{'+\\mu q_n'}</Tex>」與「<Tex>{'+w_n'}</Tex>」兩條線進入的加法點，就是更新式{' '}
+        <Tex>{'w_{n+1}=w_n+\\mu q_n'}</Tex>。
+      </Fig>
+      <p>同一個迴路，雜訊大小不同，行為完全不同：</p>
+      <Fig name="ditherRegimes">
+        先看最上面的菱形：比的是雜訊 <Tex>{'\\sigma_v'}</Tex> 和步長 <Tex>{'\\mu'}</Tex> 的相對大小。再看三個分支的結尾：沒有雜訊時，<Tex>{'w'}</Tex>{' '}
+        永遠在兩個格點之間來回跳，時間平均卡在兩格的中點；適度的雜訊把階梯抹平，時間平均可以落在格點之間，幾乎無偏（綠色）；雜訊太大時仍然無偏，但 <Tex>{'K_q'}</Tex>{' '}
+        太小，收斂的時間常數 <Tex>{'\\tau'}</Tex>（誤差縮小到 <Tex>{'1/e'}</Tex> 所需的步數）與穩態 RMS 都變大。圖上的三個分支，就是下表的三列。
+      </Fig>
+      <p>
+        下表數字以 <Tex>{`a=${ex.a}\\,\\mathrm{fs},\\ w_0=${ex.w0},\\ \\mu=${ex.mu}\\,\\mathrm{fs}`}</Tex> 的精確穩態即時計算；<Tex>{'E_\\pi[\\cdot]'}</Tex>{' '}
+        表示穩態下的時間平均（<Tex>{'\\pi'}</Tex> 是穩態分布，Engineer 模式有推導）：
       </p>
       <div className="table-wrap">
         <table className="ch05-table">
@@ -534,7 +552,7 @@ export function DitherSection() {
                 很平的 S 曲線，<Tex>{'K_q'}</Tex> 很小
               </td>
               <td>
-                收斂很慢（<Tex>{'\\tau\\approx1/(\\mu K_q)\\propto\\sigma_v'}</Tex>；<Tex>{`\\sigma_v=${60 * ex.mu}\\,\\mathrm{fs}`}</Tex> 時約 {int(ex.bigTau)} 步）
+                收斂很慢（時間常數 <Tex>{'\\tau\\approx1/(\\mu K_q)\\propto\\sigma_v'}</Tex>；<Tex>{`\\sigma_v=${60 * ex.mu}\\,\\mathrm{fs}`}</Tex> 時約 {int(ex.bigTau)} 步）
               </td>
               <td>無偏（同上）</td>
               <td>
@@ -545,6 +563,18 @@ export function DitherSection() {
           </tbody>
         </table>
       </div>
+      <p>
+        要估計「又慢又吵」到底多慢、多吵，把迴路圖裡的 sign 換成 §5 的小訊號等效模型：<Tex>{'q_n\\approx K_q\\delta_n+\\eta_n'}</Tex>，其中{' '}
+        <Tex>{'\\eta_n'}</Tex> 是 <Tex>{'q_n'}</Tex> 扣掉平均後的零均值「量化雜訊」。
+      </p>
+      <Fig name="linearizedLoop">
+        先和{figNo('sampleLoop')}的迴路比：「加 <Tex>{'v_n'}</Tex>、取 sign」這一段換成藍色的 <Tex>{'\\times K_q'}</Tex>，後面多了一個雜訊注入點 <Tex>{'\\eta_n'}</Tex>；其餘（乘{' '}
+        <Tex>{'\\mu'}</Tex>、累加、<Tex>{'z^{-1}'}</Tex>、負回授）一模一樣。原本的雜訊 <Tex>{'v_n'}</Tex> 沒有消失：它的效果已經算進 <Tex>{'K_q'}</Tex> 的大小與 <Tex>{'\\eta_n'}</Tex>{' '}
+        裡了（這裡取 <Tex>{'\\theta=0'}</Tex>）。再順著迴路繞一圈：<Tex>{'\\delta_n'}</Tex> 先乘 <Tex>{'K_q'}</Tex>、再乘 <Tex>{'\\mu'}</Tex>，然後以負號回來，所以每一步誤差剩下{' '}
+        <Tex>{'(1-\\mu K_q)'}</Tex> 倍——這就是迴路的 pole <Tex>{'p_{\\mathrm{cal}}=1-g'}</Tex>，<Tex>{'g\\equiv\\mu K_q'}</Tex> 是繞一圈的無因次增益（loop gain）。
+        圖上第一個加法點是推導第一行的 <Tex>{'\\delta_n=a-w_n'}</Tex>，第二個是第二行的 <Tex>{'q_n\\approx K_q\\delta_n+\\eta_n'}</Tex>，第三個是更新式{' '}
+        <Tex>{'w_{n+1}=w_n+\\mu q_n'}</Tex>；把它們代在一起就是第三行。
+      </Fig>
       <Steps
         title={
           <>
@@ -568,6 +598,11 @@ export function DitherSection() {
           更好的是：這個迴路可以<strong>精確</strong>解。<Tex>{'w'}</Tex> 只會落在格點 <Tex>{'w_k=w_0+k\\mu'}</Tex> 上（這裡 <Tex>{'k'}</Tex> 是格點編號，不是 block），
           每步往上的機率 <Tex>{'u_k=\\Phi((a-\\theta-w_k)/\\sigma_v)'}</Tex>、往下 <Tex>{'\\bar u_k=1-u_k'}</Tex>——這是 birth–death Markov chain。
         </p>
+        <Fig name="birthDeath">
+          先看藍色的格點 <Tex>{'w_k'}</Tex>：下一步只有兩種可能，往上一格（機率 <Tex>{'u_k'}</Tex>）或往下一格（機率 <Tex>{'\\bar u_k'}</Tex>）；越靠近平衡點{' '}
+          <Tex>{'a-\\theta'}</Tex>，<Tex>{'u_k'}</Tex> 越接近 <Tex>{'\\tfrac12'}</Tex>。再看相鄰兩格之間的一對箭頭：走了很久之後，停在第 <Tex>{'k'}</Tex> 格的時間比例記作{' '}
+          <Tex>{'\\pi_k'}</Tex>；穩態時「從 <Tex>{'w_k'}</Tex> 往上」與「從 <Tex>{'w_{k+1}'}</Tex> 往下」的流量相等，這就是圖上的細緻平衡式，也是下面推導的第一行。
+        </Fig>
         <Prereq title="Markov chain 與穩態分布：「下一步只看現在」">
           <p>
             若下一步的機率只取決於現在的狀態（不需要記得更早的歷史），這串隨機狀態就是 <strong>Markov chain</strong>。本例的狀態是格點編號{' '}

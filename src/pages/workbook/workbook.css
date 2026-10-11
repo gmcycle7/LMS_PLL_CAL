@@ -848,3 +848,20 @@
     display: none !important;
   }
 }
+
+/* ── 方塊圖版位：圖 + 圖說，下面緊接「先看…再看…」的導讀（docs/teaching-style.md §8） ── */
+.wb-diagram {
+  margin: 1rem 0 1.1rem;
+  min-width: 0;
+}
+.wb-diagram .c-mermaid {
+  margin-bottom: 0.4rem;
+}
+.wb-diagram-walk {
+  border-left: 3px solid var(--accent);
+  padding: 0.1rem 0 0.1rem 0.75rem;
+  font-size: 0.93rem;
+}
+.wb-diagram-walk > p {
+  margin: 0.35rem 0;
+}

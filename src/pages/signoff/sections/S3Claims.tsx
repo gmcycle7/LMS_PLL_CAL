@@ -5,7 +5,8 @@ import judgesSrc from '../judges.ts?raw'
 import { STABILITY_KIND_LABEL, STABILITY_NOTIONS, STATEMENTS, type ClaimStatement } from '../data'
 import { chebyshevBound, failureUpperBound, kestenTailIndex, trialsForZeroFailure } from '../judges'
 import { EvidenceLabExperiment } from '../experiments/EvidenceLab'
-import { ErratumNote, HandCalcSlot, RichText, Steps, nf, tx, useMode } from '../shared'
+import { CHART_EVIDENCE } from '../diagrams'
+import { Diagram, ErratumNote, HandCalcSlot, RichText, Steps, nf, tx, useMode } from '../shared'
 
 type StmtFilter = 'all' | 'ok' | 'bad'
 
@@ -212,6 +213,19 @@ export function S3Claims() {
       </Section>
 
       <Section kind="explore" level={2} title="3.5 證據強度：「指定 sweep／seeds 未觀察到失效」能推出什麼" id="so-evidence">
+        <p>
+          <strong>問題</strong>：regression 掃了 <Tex>{'n'}</Tex> 個隨機條件（FCW、corner、mode…），一個都沒失效——報告上到底能寫什麼？先看圖，再看數學：圖上的 <Tex>{'k_f'}</Tex> 是觀察到的失效次數，<Tex>{'\\alpha'}</Tex> 是可以接受的錯判機率（信心 <Tex>{'1-\\alpha'}</Tex>），<Tex>{'p_U'}</Tex> 是失效機率 <Tex>{'p'}</Tex> 的上界。
+        </p>
+        <Diagram
+          chart={CHART_EVIDENCE}
+          caption="從「掃了 n 個點、全部沒失效」到報告裡那一句話：先數失效次數，換算成失效機率的上界，再寫清楚這個上界只對與 sweep 同分布的條件成立。"
+          ariaLabel="證據強度流程圖：指定 sweep 共 n 次獨立試驗，數失效次數；零次失效用 rule of three 得失效機率上界，有失效用 Clopper-Pearson；結論只對與 sweep 同分布的條件成立，不能寫成所有條件都穩定"
+        >
+          <p>
+            先看藍色的兩個方塊，它們是兩種算法：沒有失效時有封閉解 <Tex>{'p_U=1-\\alpha^{1/n}\\approx-\\ln\\alpha/n'}</Tex>（<Tex>{'\\alpha=0.05'}</Tex> 時約 <Tex>{'3/n'}</Tex>）；有失效時用二項分布的 CDF 數值求解。綠色是可以寫進報告的句子，
+            紅色是常見的過度宣稱。
+          </p>
+        </Diagram>
         <Steps
           title="0 次失效 ⇒ 失效機率上界（rule of three）"
           steps={[

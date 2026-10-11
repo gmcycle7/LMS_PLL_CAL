@@ -3,7 +3,7 @@ import type { Data } from 'plotly.js-dist-min'
 import { Callout, ClaimTag, CodeBlock, Derivation, ModeGate, Plot, Prereq, Quiz, Section, SourceTag, StepDerivation, Tex, TexBlock, useThemeTokens } from '@/components'
 import sgdSrc from '@/simulation/models/sgd.ts?raw'
 import { meanFieldAnalysis, meanFieldDrift, noiseOps, ratioFixedPoints, xMoments, type MeanFieldInput, type XKind } from '@/simulation/models/sgd'
-import { ALGO_SERIES, ChapterLink, ErrataNote, HandCalcSlot, f4, range, DerivFold, tm } from '../common'
+import { ALGO_SERIES, ChapterLink, Diagram, ErrataNote, HandCalcSlot, f4, range, DerivFold, tm } from '../common'
 import { FixedPointExplorer } from '../experiments/FixedPointExplorer'
 
 const XS = [1, 2, 4]
@@ -60,6 +60,17 @@ export function S4SignSign() {
       <h2 id="ch02-s4">§4 Sign-Sign LMS：連 regressor 的幅度也丟掉</h2>
 
       <Section kind="intuition" title="最便宜的硬體">
+        <p>
+          Sign-Error 已經把誤差壓成 1 bit，但每一步還是要加或減一個多位元的 <Tex>{'x'}</Tex>。能不能連 <Tex>{'x'}</Tex> 也只留正負號？先看迴路會變成什麼樣子：
+        </p>
+        <Diagram id="sign-sign-loop">
+          <p>
+            {tm(
+              String.raw`先看藍色的方塊：和 §3 的迴圈相比，輸入 $x[n]$ 進更新器之前也多通過一個 $\operatorname{sign}(\cdot)$，只剩正負號。再看 XOR：兩個 1-bit 的正負號相乘只有兩種結果（同號得 $+1$、異號得 $-1$），硬體上就是一個 XOR 閘。最後看計數器：每一步只會加 $\mu$ 或減 $\mu$，所以整個更新器只是一個上下數的計數器——它同時扮演了前面圖裡的「$\times\mu$」、累加與 $z^{-1}$。`,
+            )}
+          </p>
+          <p>{tm(String.raw`圖上 XOR 的兩個輸入 $\operatorname{sign}(e[n])$、$\operatorname{sign}(x[n])$ 就是下面 F-02.7 裡相乘的兩項；計數器裡的 $\pm\mu$ 就是 $\mu$ 乘上它們的乘積。`)}</p>
+        </Diagram>
         <TexBlock id="F-02.7">{String.raw`\boxed{w_{n+1}=w_n+\mu\,\operatorname{sign}(e_n)\,\operatorname{sign}(x_n)}`}</TexBlock>
         <p>
           每一步只有 <Tex>{'\\pm\\mu'}</Tex>：一個 XOR 決定往上或往下數，一個 up/down counter 就是整個更新器。規格 §2.3 寫「連 Regressor 幅度也丟掉，別和 Sign-Error 混淆」
@@ -91,6 +102,18 @@ export function S4SignSign() {
             中位數：比 <Tex>{'m=0'}</Tex> 大的只有 1 票、不比它大的有 3 票，所以 <Tex>{String.raw`m=${f4(dc.signSign[0])}`}</Tex>。把那個 10 換成 1000，平均變成 250，中位數還是 0。
           </p>
         </Prereq>
+        <p>
+          有了「平均」與「中位數」這兩種中心，就可以用同一張圖看懂四種演算法各自收斂到哪裡。這裡順便把 §5 才正式介紹的 NLMS（normalized LMS）也放進來：
+          它把 LMS 的更新量除以 <Tex>{'\\varepsilon+x^2'}</Tex>（<Tex>{'\\varepsilon'}</Tex> 是避免除以零的小常數，這裡先取 <Tex>{'\\varepsilon=0'}</Tex>）。
+        </p>
+        <Diagram id="ratio-view">
+          <p>
+            {tm(
+              String.raw`先看左邊兩格：每一筆資料自己就能給出一個 $a$ 的估計——比值 $r[i]=y[i]/x[i]$。因為 $y=a\,x+v$，這個估計等於 $a$ 加上被 $1/x$ 放大的雜訊：$|x|$ 越小的那一筆越不準。再看右邊四格：四種演算法收斂到的點，都是這一堆比值的某種「中心」——藍色兩格取平均（一個 outlier 就能把它拉走），綠色兩格取中位數（只看排序）。同一種顏色裡的差別只在每一筆的權重：$x^2$、$|x|$，或一律同權。`,
+            )}
+          </p>
+          <p>{tm(String.raw`圖上右邊的四格就是下面 F-02.9 方框裡的四列；$r[i]$ 就是公式裡的 $r=y/x$。`)}</p>
+        </Diagram>
         <DerivFold>
           <StepDerivation
             title={tm('純量時把更新方向改寫成 $r-w$ 的函數（$x\\neq0$）')}
@@ -179,10 +202,35 @@ export function S4SignSign() {
       </Section>
 
       <Section kind="formula" title={tm('固定點條件一般不同：$E[ex]=0$ vs $E[\\operatorname{sign}(e)x]=0$')}>
+        <p>
+          每個演算法都會停在「平均更新量為零」的地方。三種更新量分別是 <Tex>{'e\\,x'}</Tex>、<Tex>{'\\operatorname{sign}(e)\\,x'}</Tex>、<Tex>{'\\operatorname{sign}(e)\\operatorname{sign}(x)'}</Tex>，
+          所以三個演算法其實是三個不同的<strong>相關器</strong>（correlator：把兩個訊號相乘、再取平均）：
+        </p>
+        <Diagram id="fixed-points">
+          <p>
+            {tm(
+              String.raw`先看左邊的兩個輸入：三個相關器吃的是同一個誤差 $e$ 和同一個輸入 $x$。再看藍色的兩格 $\operatorname{sign}(\cdot)$：LMS 那條路徑兩個都不經過；Sign-Error 那條只有 $e$ 經過；Sign-Sign 那條 $e$ 和 $x$ 都經過。最後看右邊：每個演算法會一直調 $w$，直到自己那個相關器的平均輸出變成 0 才停。三個相關器量的是不同的東西，所以一般會停在不同的 $w$。`,
+            )}
+          </p>
+          <p>{tm(String.raw`圖上三個輸出（LMS、Sign-Error、Sign-Sign）依序就是下面 F-02.8 的三個條件。`)}</p>
+        </Diagram>
         <TexBlock id="F-02.8">{String.raw`\boxed{E[e\,x]=0\qquad E[\operatorname{sign}(e)\,x]=0\qquad E[\operatorname{sign}(e)\operatorname{sign}(x)]=0}`}</TexBlock>
         <p>
           什麼時候三個固定點剛好都等於真值 <Tex>{'a'}</Tex>？最快的判斷法：直接把 <Tex>{'w=a'}</Tex> 代進平均更新方向 <Tex>{'\\psi(w)'}</Tex>（§3）。
+          結論可以先畫成一張判斷流程：
         </p>
+        <Diagram id="psi-at-a">
+          <p>
+            {tm(
+              String.raw`先看最上面一格：把 $w=a$ 代進去之後，誤差只剩雜訊（$e=v$），問題變成「雜訊（或它的正負號）乘上 code（或它的正負號），平均是不是 0」。再看兩個菱形，它們是兩道各自獨立的保險：code 對稱（$x$ 與 $-x$ 一樣常出現），或是雜訊的平均與中位數都在 0——只要過其中一關，三個固定點就都是 $a$（綠色）。兩關都沒過（紅色）才需要逐一計算三個乘積：哪一個不是 0，那個演算法的固定點就偏離 $a$。`,
+            )}
+          </p>
+          <p>
+            {tm(
+              String.raw`圖上紅色格子裡的三個乘積就是下面 F-02.18 的 $\psi_{\rm LMS}(a)$、$\psi_{\rm SE}(a)$、$\psi_{\rm SS}(a)$；菱形裡的 $E[\operatorname{sign}v]=0$ 就是「雜訊的中位數為 0」（推導的第 6 行）。`,
+            )}
+          </p>
+        </Diagram>
         <DerivFold>
           <StepDerivation
             title={tm('在 $w=a$ 處計算 $\\psi$（F-02.18）')}

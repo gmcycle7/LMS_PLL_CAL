@@ -3,7 +3,7 @@ import { ClaimTag, CodeBlock, ModeGate, Prereq, Quiz, StepDerivation, Tex, TexBl
 import polaritySrc from '@/simulation/models/polarity.ts?raw'
 import { lfilter } from '@/simulation/signal'
 import { calPole, empiricalLargeErrorGain, kqFromSigma, toneCorrelation, toneLargeErrorGain, tonePath } from '@/simulation/models/polarity'
-import { ChapterHandCalc, ChapterSection, f, fx, radOf, StepBox } from '../shared'
+import { ChapterDiagram, ChapterHandCalc, ChapterSection, f, fx, radOf, StepBox } from '../shared'
 
 const PATH = 'src/simulation/models/polarity.ts'
 
@@ -42,6 +42,11 @@ export function S3GmacPole() {
       </p>
       <TexBlock>{String.raw`G_k=\frac1N\sum_{n\in\text{block }k}q[n]\,x[n-D],\qquad w_{k+1}=w_k+\mu\,G_k`}</TexBlock>
       <p>
+        式中 <Tex>{'G_k'}</Tex> 是第 <Tex>{'k'}</Tex> 個 block 的 GMAC 平均輸出，<Tex>{'N'}</Tex> 是每個 block 的 sample 數，<Tex>{'q[n]=\\pm1'}</Tex> 是 comparator
+        的正負號，<Tex>{'D'}</Tex> 是 GMAC 把 code 延遲的 sample 數（code delay），<Tex>{'w_k'}</Tex> 是第 <Tex>{'k'}</Tex> 個 block 使用的 gain 校正值，<Tex>{'\\mu'}</Tex>{' '}
+        是 learning rate。
+      </p>
+      <p>
         關鍵：它乘的是<strong>原始</strong>（或延遲 <Tex>{'D'}</Tex> 的）code <Tex>{'x'}</Tex>，但誤差裡出現的是 <Tex>{'u'}</Tex>。本節先取 <Tex>{'D=0'}</Tex>{' '}
         的 raw-x 情況，§4 起保留一般的 <Tex>{'D'}</Tex>。
       </p>
@@ -63,6 +68,22 @@ export function S3GmacPole() {
         </p>
       </Prereq>
 
+      <p>
+        <strong>平均來看，GMAC 輸出多少？</strong>白話：comparator 的輸出 <Tex>{'q'}</Tex> 雖然只有 <Tex>{'\\pm1'}</Tex>，但誤差越正，它出 <Tex>{'+1'}</Tex>{' '}
+        的機率越高，所以 <Tex>{'q'}</Tex> 的平均值 <Tex>{'E[q]'}</Tex> 會跟著誤差走。GMAC 把這個平均值乘上 code 再平均，結果就正比於「參數誤差 × 相關」。
+      </p>
+      <ChapterDiagram id="D-06.5">
+        <p>
+          先看 comparator 那一塊：輸入是誤差裡不含雜訊的確定部分 <Tex>{'e_{\\det}[n]=\\delta_k\\,u[n]'}</Tex>，輸出是 <Tex>{'q'}</Tex> 的平均值，它沿著一條 S 形曲線{' '}
+          <Tex>{'\\mathrm{erf}'}</Tex> 變化（<Tex>{'\\sigma_v'}</Tex> 是雜訊 <Tex>{'v'}</Tex> 的 RMS）。再沿實線往下看：誤差遠小於 <Tex>{'\\sigma_v'}</Tex> 時，S
+          形曲線在原點附近是一條斜率 <Tex>{'K_q'}</Tex> 的直線；乘上 regressor <Tex>{'x[n-D]'}</Tex>、對一個 block 平均，就得到藍色方塊。虛線是誤差很大的情況：
+          <Tex>{'\\mathrm{erf}'}</Tex> 飽和成 <Tex>{'\\pm1'}</Tex>，平均更新不再和 <Tex>{'\\delta'}</Tex> 成正比（Research 模式的推導與 §6.4 但書 1 會用到）。
+        </p>
+        <p>
+          圖上的「× 之後取 block 平均」就是公式裡的 <Tex>{'\\tfrac1N\\sum_n x[n-D]\\,(\\cdot)'}</Tex>；把常數 <Tex>{'K_q\\,\\delta_k'}</Tex> 提出來之後，剩下的{' '}
+          <Tex>{'\\tfrac1N\\sum_n x[n-D]\\,u[n]'}</Tex> 就是圖上的相關 <Tex>{'C_D'}</Tex>——對應下面推導的第 3、4 步。
+        </p>
+      </ChapterDiagram>
       <StepBox title="GMAC 的平均輸出">
         <StepDerivation
           steps={[
@@ -107,6 +128,22 @@ export function S3GmacPole() {
         </p>
       </StepBox>
 
+      <p>
+        <strong>誤差每個 block 變成幾倍？</strong>有了平均輸出，更新律 <Tex>{'w_{k+1}=w_k+\\mu G_k'}</Tex> 就變成參數誤差 <Tex>{'\\delta_k=a-w_k'}</Tex>{' '}
+        的一個一階迴圈：每過一個 block，平均誤差被減掉「<Tex>{'\\mu K_qC'}</Tex> 倍的自己」。
+      </p>
+      <ChapterDiagram id="D-06.6">
+        <p>
+          先看直接連到加法點的那條線：平均誤差 <Tex>{'E[\\delta_k]'}</Tex> 以「＋」號進入加法點。再看繞過去的支路：同一個誤差乘上藍色的 <Tex>{'K_qC'}</Tex> 變成 GMAC
+          的平均輸出 <Tex>{'E[G_k]'}</Tex>，再乘上 <Tex>{'\\mu'}</Tex>，以「−」號進入加法點；加法點的輸出等一個 block（<Tex>{'z^{-1}'}</Tex>）之後，成為下一個{' '}
+          <Tex>{'E[\\delta_k]'}</Tex>。關鍵是藍色方塊的正負：<Tex>{'C>0'}</Tex> 時這條支路是負回授，誤差一圈一圈縮小；<Tex>{'C<0'}</Tex>{' '}
+          時負負得正，變成<strong>正回授</strong>——不管 <Tex>{'\\mu'}</Tex> 多小，誤差都一圈一圈放大。
+        </p>
+        <p>
+          圖上的加法點就是公式 <Tex>{'E[\\delta_{k+1}]=E[\\delta_k]-\\mu K_qC\\,E[\\delta_k]'}</Tex>；把兩條路合起來，繞一圈的倍數{' '}
+          <Tex>{'p=1-\\mu K_qC'}</Tex> 就是 pole。這是 block rate 的迴圈（索引 <Tex>{'k'}</Tex>），和圖 6.4 裡 GMAC 之前的 sample rate（索引 <Tex>{'n'}</Tex>）不同。
+        </p>
+      </ChapterDiagram>
       <StepBox title="平均更新 pole">
         <StepDerivation
           steps={[
@@ -151,8 +188,22 @@ export function S3GmacPole() {
           <span className="small">在「線性化平均模型」中精確（指定模型：block rate、average-mode GMAC、無更新延遲；更新延遲見第 08 章）。</span>
         </p>
       </StepBox>
+      <p>
+        習慣上把 <Tex>{'g=\\mu K_qC'}</Tex> 叫做校正迴路的 normalized loop gain（無因次）：<Tex>{'p=1-g'}</Tex>，所以平均收斂的條件 <Tex>{'|p|<1'}</Tex> 就是{' '}
+        <Tex>{'0<g<2'}</Tex>。
+      </p>
 
       <h3>三種情況</h3>
+      <ChapterDiagram id="D-06.7">
+        <p>
+          從上往下讀：先問相關 <Tex>{'C'}</Tex> 的正負，再看 pole <Tex>{'p'}</Tex> 落在 1 的哪一邊，最後才輪到 <Tex>{'\\mu'}</Tex>。綠色那一格是唯一「<Tex>{'\\mu'}</Tex>{' '}
+          有得選」的情況；棕色那一格 GMAC 完全沒有關於 <Tex>{'\\delta'}</Tex> 的資訊；紅色那一格無論 <Tex>{'\\mu'}</Tex> 多小都發散，出口只有一個——改變{' '}
+          <Tex>{'C'}</Tex> 本身。
+        </p>
+        <p>
+          圖上的三個 pole 就是把 <Tex>{'C>0'}</Tex>、<Tex>{'C=0'}</Tex>、<Tex>{'C<0'}</Tex> 分別代入 <Tex>{'p=1-\\mu K_qC'}</Tex>；下表是同一件事的文字版。
+        </p>
+      </ChapterDiagram>
       <div className="table-wrap">
         <table className="ch06-table">
           <thead>
@@ -250,7 +301,8 @@ export function S3GmacPole() {
         </table>
       </div>
       <p>
-        修正極性的正確方法是改變 <Tex>{'C'}</Tex> 本身：把 code 延遲 <Tex>{'D'}</Tex> 讓 <Tex>{'\\cos(\\phi+\\Omega D)>0'}</Tex>（delay alignment），
+        修正極性的正確方法是改變 <Tex>{'C'}</Tex> 本身：把 code 延遲 <Tex>{'D'}</Tex> 讓 <Tex>{'\\cos(\\phi+\\Omega D)>0'}</Tex>（delay alignment；<Tex>{'\\phi'}</Tex>{' '}
+        是主 PLL 路徑在 code 頻率 <Tex>{'\\Omega'}</Tex> 的相位，§4 推導），
         或乘上模型化的 <Tex>{'u_f=\\hat h*x'}</Tex>（filtered-x）——第 07 章。直接把 <Tex>{'\\mu'}</Tex> 變號也能「修好」單一頻率，但{' '}
         <Tex>{'C'}</Tex> 的符號會隨 FCW、code 頻譜與迴路頻寬改變（§6.4），所以這不是可靠的設計。
       </p>

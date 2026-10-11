@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { Callout, ClaimTag, Quiz, Recap, Section, StepDerivation, Tex, TexBlock } from '@/components'
 import { DEFAULT_RULE, analyzeRule, buildPlant, corrMatrix, inspectMatrix, kqFromSigma, stepsToDecay, stepsToDecayReal } from '@/simulation/models/mimo'
 import { inv } from '@/simulation/core'
-import { Erratum, Hand, n, tn } from '../common'
+import { Erratum, Fig, Hand, n, tn } from '../common'
 import { NUM, SIGMA_KQ1 } from '../numbers'
 
 function quizNumbers() {
@@ -78,6 +78,11 @@ export function S6Wrapup() {
           進入思考題之前，用一題把本章的主線走一遍：同一個 <Tex>{String.raw`\mathbf R`}</Tex>、同一個慢模式，三種更新矩陣（一般 LMS／完整反矩陣／regularized）各算一次 pole（F-10.3、F-10.4、F-10.8）、
           <Tex>{'k_{95}'}</Tex>（F-10.5）與穩態變異（F-10.6、F-10.7）。你會親手得到 §10.3.1 的 598／5／65，以及 §10.4 表格裡的三個慢模式變異。
         </p>
+        <Fig id="handcalc-flow">
+          先做最上面三格（三種更新矩陣共用）：<Tex>{String.raw`\lambda_{\min}`}</Tex>、<Tex>{'K_q'}</Tex>、<Tex>{String.raw`K_q^2N`}</Tex>。再從藍色那一格開始，每種更新矩陣各走一次：選{' '}
+          <Tex>{'m'}</Tex> → <Tex>{String.raw`p=1-m\lambda_{\min}`}</Tex> → 左邊一路算 <Tex>{'k_{95}'}</Tex>，右邊一路先算 <Tex>{String.raw`1-p^2`}</Tex> 再算變異。圖上每一格就是 HC-10.8 展開後的一步；<Tex>{'m'}</Tex>{' '}
+          的三種寫法分別來自 F-10.3、F-10.4、F-10.8，變異那一格是 F-10.7，其中 <Tex>{String.raw`\xi_{\text{slow}}`}</Tex> 是誤差沿慢 eigenvector 的分量（模式座標，不是單一參數）。
+        </Fig>
         <Hand id="HC-10.8">
           建議先在紙上畫一張 3×4 的表（列：三種更新矩陣；欄：<Tex>{'m'}</Tex>、<Tex>{'p'}</Tex>、<Tex>{'k_{95}'}</Tex>、<Tex>{String.raw`\operatorname{Var}`}</Tex>），用預設數字填滿後切到「自己算算看」對答案；再把{' '}
           <Tex>{String.raw`\rho`}</Tex> 換成 0.9、<Tex>{String.raw`\lambda_{\mathrm{reg}}`}</Tex> 換成 0.05 重算一次，看速度與雜訊怎麼互換。
@@ -248,6 +253,15 @@ export function S6Wrapup() {
       />
 
       <Section kind="diagram" title="10.11 連結到 PLL：這些數學在晶片裡是什麼" level={2} id="ch10-pll">
+        <p>
+          最後把本章的數學放回硬體。和章首的系統地圖相比，多出來的只有兩樣東西：GMAC 從一個變成 <Tex>{'P'}</Tex> 個，以及 GMAC 與係數暫存器之間的混合矩陣。
+        </p>
+        <Fig id="hw-map">
+          先沿實線走：comparator 的 <Tex>{'q[n]'}</Tex> 同時送進每個參數自己的 GMAC accumulator；<Tex>{'P'}</Tex> 個 GMAC 輸出進到藍色的混合矩陣（scalar／diagonal 時它退化成 <Tex>{'P'}</Tex> 個 shift），再累加到係數暫存器，最後回到
+          DTC／PMUX 的補償，經 PLL 的 error path 回到 comparator。再看虛線：韌體或測試機偶爾凍結係數、加上 <Tex>{String.raw`\pm\Delta`}</Tex> 量 <Tex>{String.raw`\hat{\mathbf J}`}</Tex>，算好之後把{' '}
+          <Tex>{String.raw`\mathbf M`}</Tex>、<Tex>{String.raw`\gamma`}</Tex>、<Tex>{String.raw`\lambda_{\mathrm{reg}}`}</Tex> 寫進暫存器。圖上的混合矩陣就是公式裡的 <Tex>{String.raw`\mathbf M`}</Tex>，GMAC accumulator 就是{' '}
+          <Tex>{String.raw`G_i=\tfrac1N\sum q\,x_i`}</Tex>，係數暫存器就是 <Tex>{String.raw`\mathbf w`}</Tex>；每個方塊對應下表的一列。
+        </Fig>
         <div className="table-wrap">
           <table>
             <thead>

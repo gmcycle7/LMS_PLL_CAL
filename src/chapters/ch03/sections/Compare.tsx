@@ -6,7 +6,8 @@ import stabilitySrc from '@/simulation/models/scalarStability.ts?raw'
 import lmsPySrc from '../../../../golden/lms_pll_golden/lms.py?raw'
 import { meanPole, meanSquareFactor } from '@/simulation/models/lms'
 import { blockMeanSquareBound, stabilityBounds, xMoments } from '@/simulation/models/scalarStability'
-import { FBlock, logGrid, pyDef, StepsBox, T, tnum, tx } from '../common'
+import { FBlock, Fig, logGrid, pyDef, StepsBox, T, tnum, tx } from '../common'
+import { CHART_BLOCK_GMAC, CHART_PLL_MAPPING, CHART_WHICH_BOUND, figRef } from '../diagrams'
 import { EXAMPLE_DISTS } from './RandomMean'
 
 function SummaryTable() {
@@ -138,6 +139,17 @@ export function CompareSection() {
           規格 §0.1 的要求：<strong>不得寫「LMS 一定穩定」</strong>，必須說明是平均收斂、均方穩定、還是樣本路徑（機率 1）收斂。三者都是 <strong>[精確｜指定模型]</strong>——
           模型是「iid 純量 <Tex>x</Tex>、無量化、量測雜訊零均值且與 <Tex>x</Tex> 獨立」；超出這個模型（相關 regressor、1-bit comparator、更新延遲、PLL 動態）就要回到各自的章節重新推導。
         </p>
+        <p>實際設計時該看哪一個？照下圖由上往下問：</p>
+        <Fig
+          chart={CHART_WHICH_BOUND}
+          caption={T`設計者的決策流程。看藍色那一支：sign-off 用 mean-square（最嚴，成立時另外兩種自動成立）；紅色提醒 sum mode 的界限要再除以 $N$。`}
+          ariaLabel="決策流程：要保證偏差消失用 mean 判據；要做 RMS 預算或有雜訊時穩態有限用 mean-square 判據；要單次軌跡收斂用 almost-sure 判據。mean-square 成立時另外兩種自動成立；GMAC 平均 N 筆時 mean-square 界放寬，sum mode 要再除以 N"
+        />
+        <p>
+          先看最上面的菱形：你要保證的是「偏差會消失」、「RMS 有限」還是「單次軌跡會收斂」，三個答案各對應上表的一列。再看中間藍色那一支：mean-square 最嚴，成立時另外兩種自動成立（第 4 節的 F-03.10），所以
+          sign-off 寫它。最後看藍色下方那條路：GMAC 每個 block 先平均 <Tex>N</Tex> 筆（<Tex>N</Tex> 是每個 block 累加的筆數）時，MS 界會放寬到接近 mean 界（第 8 節 F-03.14）；但硬體若輸出總和（sum
+          mode），所有界限都要再除以 <Tex>N</Tex>。
+        </p>
       </Section>
 
       <Section kind="formula" title={tx`同一批 $f=1-\mu x^2$，三種平均法`}>
@@ -193,6 +205,22 @@ export function CompareSection() {
 
       <h2 id="pll">8｜連到 PLL：code 分布、GMAC 累加與 sign-off 用語</h2>
       <Section kind="diagram" title="本章的符號在硬體裡是什麼">
+        <p>
+          前七節的黑盒子 <Tex>{T`y=ax`}</Tex> 在 DTC-based fractional-N PLL 裡是什麼？把章首系統地圖裡和本章有關的方塊拉出來，並把本章「拿掉」的部分標成褐色，就是下面這張圖：
+        </p>
+        <Fig
+          chart={CHART_PLL_MAPPING}
+          caption={T`本章的理想模型（L0）畫回 PLL 硬體。看藍色三格（code $x$、$\div N\times\mu$、gain accumulator）就是章首系統地圖的主角；褐色那一格列出本章先拿掉、後面章節才放回來的東西。`}
+          ariaLabel="DSM 或 DTC 的 code x 同時乘上未知的 a 與校正值 w，兩者在 phase detector 相減並加上雜訊 v，得到誤差 e 等於 delta 乘 x 加 v。本章把 error path 當成 1、沒有延遲、comparator 當成線性。誤差與同一個 x 相乘後由 GMAC 累加 N 筆，每個 block 除以 N 乘 mu，加到 gain accumulator 的 w 上，再回到 gain correction"
+        />
+        <p>
+          先看左半：同一個 code <Tex>{T`x[i]`}</Tex>（<Tex>i</Tex> 是 sample 索引）走兩條路。上面那條是「要被抵消的量」——DSM 量化誤差在 phase detector（PD）輸入端造成的時間誤差 <Tex>{T`a\,x[i]`}</Tex>，
+          <Tex>a</Tex> 就是能把它完全抵消的理想校正 gain（未知）；下面那條是 DTC 依目前的校正值實際補掉的 <Tex>{T`w[k]\,x[i]`}</Tex>（<Tex>k</Tex> 是 block 索引，block 內 <Tex>w</Tex> 不變）。兩者在加法點相減，再加上 PD／reference
+          的雜訊 <Tex>{T`v[i]`}</Tex>，就是 <Tex>{T`e[i]=\delta[k]\,x[i]+v[i]`}</Tex>——和第 3 節的 <Tex>{T`e_n=\delta_nx_n+v_n`}</Tex> 是同一條式子。再看褐色那一格：真實硬體裡 <Tex>e</Tex> 還要經過 PLL 的 error
+          path（第 6–7 章）、更新延遲（第 8 章）和 1-bit comparator（第 5 章），accumulator 的輸出還有位元數限制（第 13 章）；本章把它們全部理想化，才得到乾淨的 <Tex>{T`1-\mu x^2`}</Tex>。最後看右半的藍色方塊：
+          <Tex>{T`e[i]\,x[i]`}</Tex> 由 GMAC 累加 <Tex>N</Tex> 筆，每個 block 做一次「<Tex>{T`\div N`}</Tex>、<Tex>{T`\times\mu`}</Tex>」，加進 gain accumulator：
+          <Tex>{T`w[k+1]=w[k]+\mu\cdot\tfrac1N\sum_i e[i]\,x[i]`}</Tex>。<Tex>{T`N=1`}</Tex> 時 <Tex>{T`k=n`}</Tex>，這就是第 1–7 節的 <Tex>{T`w_{n+1}=w_n+\mu e_nx_n`}</Tex>；<Tex>{T`N>1`}</Tex> 的情況在本節後半（F-03.14）。下表把每個符號逐一對回硬體：
+        </p>
         <div className="table-wrap">
           <table>
             <thead>
@@ -251,7 +279,20 @@ export function CompareSection() {
       <Section kind="formula" title={tx`GMAC 先累加 $N$ 筆再更新：隨機性被平均掉`}>
         <p>
           實際硬體不是每個 sample 更新，而是 GMAC 累加 <Tex>N</Tex> 筆後才更新一次（block LMS）。以 conventional LMS 的 block 平均梯度為例，每個 block 的乘法因子是{' '}
-          <Tex>{T`1-\mu S_k`}</Tex>，<Tex>{T`S_k=\frac1N\sum_{i=1}^Nx_i^2`}</Tex>：
+          <Tex>{T`1-\mu S_k`}</Tex>，<Tex>{T`S_k=\frac1N\sum_{i=1}^Nx_i^2`}</Tex>（<Tex>k</Tex> 是 block 索引，<Tex>i</Tex> 是 block 內的 sample 索引，<Tex>{T`S_k`}</Tex> 是第 <Tex>k</Tex> 個 block 內{' '}
+          <Tex>{T`x^2`}</Tex> 的平均）。下圖是{figRef(CHART_PLL_MAPPING)} 右半那一段（GMAC → <Tex>{T`\div N`}</Tex>、<Tex>{T`\times\mu`}</Tex> → accumulator），改用「還差多少」<Tex>{T`\delta[k]=a-w[k]`}</Tex>{' '}
+          來畫——和第 1 節把 LMS 迴圈改畫成誤差遞迴是同一招，所以修正量進加法點時是<strong>減號</strong>：
+        </p>
+        <Fig
+          chart={CHART_BLOCK_GMAC}
+          caption={T`GMAC 先累加 $N$ 筆再更新。「sample rate」那一框每一筆（$i$）做一次，「block rate」那一框每 $N$ 筆（$k$）才做一次；看藍色的累加與 $\div N$，以及紅色的 sum mode。`}
+          ariaLabel="sample rate 框：每一筆 x i 與 block 內不變的 delta k 得到 e i 乘 x i，由 GMAC 累加 N 筆。block rate 框：除以 N 再乘 mu，從 delta k 減掉得到 delta k 加 1，延遲一個 block。省掉除以 N 時等效步長變成 N 倍"
+        />
+        <p>
+          先看「sample rate」那一框（block 內的第 <Tex>i</Tex> 筆）：block 內 <Tex>w</Tex> 不變，所以 <Tex>{T`\delta[k]`}</Tex> 是常數；每一筆的 <Tex>{T`e[i]\,x[i]=\delta[k]\,x[i]^2`}</Tex> 送進 GMAC 累加，
+          <Tex>N</Tex> 筆加完是 <Tex>{T`\delta[k]\sum x[i]^2`}</Tex>。再看「block rate」那一框：累加結果除以 <Tex>N</Tex>、乘 <Tex>\mu</Tex>（就是系統地圖的「<Tex>{T`\div N`}</Tex>、<Tex>{T`\times\mu`}</Tex>」那一格），
+          得到 <Tex>{T`\mu\,S[k]\,\delta[k]`}</Tex>，再從 <Tex>{T`\delta[k]`}</Tex> 裡減掉——這個迴圈每個 block 才繞一圈，增益是 <Tex>{T`1-\mu S[k]`}</Tex>。圖上的 <Tex>{T`S[k]`}</Tex> 就是上式的{' '}
+          <Tex>{T`S_k`}</Tex>，block rate 的迴圈就是下面推導的第 1 步；紅色那一格是後面「Sum 還是 average」的警告：少了 <Tex>{T`\div N`}</Tex>，等效步長變成 <Tex>{T`N\mu`}</Tex>。
         </p>
         <StepsBox
           title="block 版本的 mean-square 界"

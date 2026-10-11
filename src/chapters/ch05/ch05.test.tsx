@@ -1,16 +1,19 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { listRegions, renderTex } from '@/components'
-import { configure, render, screen, waitFor, within } from '@testing-library/react'
+import { configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
 import type { PresetEntry } from '@/data/types'
 import { berryEsseenBound, directionOutcomeExact, pPlus, runComparatorMC } from '@/simulation/models/comparator'
 import { sigOrZero, texInt, texNum } from './common'
+import { CH05_DIAGRAMS } from './diagrams'
 import { DEFAULT_CASE, analyzeCase, labWarnings, mcConsistency, parsePresetParams, sweepNs } from './experiments/labModel'
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
 import Chapter05 from './index'
+import { IntroSection } from './sections/Intro'
+import { CH05_SYMBOLS, ChapterSymbols } from './symbols'
 
 // 多個 agent／開發者同時跑測試時 CPU 會嚴重超額（load average 曾達數百），jsdom 渲染與 Monte Carlo 比平常慢一到兩個數量級：
 // 放寬的只是「等待時間」（waitFor 與每個測試的上限），不是任何數值判準。
@@ -57,15 +60,33 @@ const presets: PresetEntry[] = readdirSync(presetDir)
   .map((f) => JSON.parse(readFileSync(resolve(presetDir, f), 'utf8')) as PresetEntry)
 
 describe('Ch05 頁面（jsdom smoke）', () => {
-  it('T04/T05: 整章可渲染：符號表、修正後的奇數 N 表格、tie 對照框（49.20% / 7.93% / 42.86%）與 Comparator Lab', async () => {
+  it('T04/T05: 整章可渲染：章末的符號表、修正後的奇數 N 表格、tie 對照框（49.20% / 7.93% / 42.86%）與 Comparator Lab', async () => {
     const errSpy = vi.spyOn(console, 'error')
     const { container } = renderChapter()
     expect(screen.getByText('這次我們要回答的問題')).toBeTruthy()
-    expect(container.querySelector('.c-symbols')).toBeTruthy()
-    // 符號表在章首：排在第一個章節標題之前（teaching-style §5）
+    // 符號表在章末（teaching-style §5）：只有一份，包在 id="symbols" 裡，是整頁最後一個區塊，排在「本課必記」（Recap）之後
+    expect(container.querySelectorAll('.c-symbols').length).toBe(1)
+    const symbolsEnd = container.querySelector('#symbols') as HTMLElement
+    expect(symbolsEnd).toBeTruthy()
+    expect(symbolsEnd.querySelector('.c-symbols')).toBeTruthy()
+    expect(symbolsEnd).toBe(container.querySelector('.ch05')!.lastElementChild)
+    expect(symbolsEnd.querySelectorAll('.c-symbols tbody tr').length).toBe(CH05_SYMBOLS.length)
+    const recap = container.querySelector('.c-recap') as HTMLElement
+    expect(recap.compareDocumentPosition(symbolsEnd) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const lastQuiz = Array.from(container.querySelectorAll<HTMLElement>('.c-quiz')).pop()!
+    expect(lastQuiz.compareDocumentPosition(symbolsEnd) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // 章首只留一行連結（按鈕），排在第一個章節標題之前；章首不再有符號表
     const firstHeading = container.querySelector('h2') as HTMLElement
-    const symbols = container.querySelector('.c-symbols') as HTMLElement
-    expect(symbols.compareDocumentPosition(firstHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const link = container.querySelector('.ch05-symbols-link button') as HTMLButtonElement
+    expect(link.textContent).toContain('本章符號表在最後')
+    expect(link.compareDocumentPosition(firstHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(firstHeading.compareDocumentPosition(symbolsEnd) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // 方塊圖（teaching-style §8）：章首的系統地圖 + 本章登錄的圖（Engineer 模式看不到 Research 才有的那一張）
+    const expectedFigs = 1 + CH05_DIAGRAMS.filter((d) => d.minMode !== 'research').length
+    expect(container.querySelectorAll('figure.c-mermaid').length).toBe(expectedFigs)
+    expect(container.querySelector('figure.c-mermaid')!.getAttribute('aria-label')).toContain('系統方塊圖')
+    await waitFor(() => expect(container.querySelectorAll('.c-mermaid-svg svg').length).toBe(expectedFigs))
+    expect(container.textContent).not.toContain('Mermaid 圖解析失敗')
     // 固定節奏：直覺（偏一點點的硬幣）與「注意假設」段落在所有模式都顯示
     expect(heading(container, /一枚只偏一點點的硬幣/)).toBeTruthy()
     expect(heading(container, /注意假設：本章的數字什麼時候不能直接用/)).toBeTruthy()
@@ -137,6 +158,94 @@ describe('Ch05 頁面（jsdom smoke）', () => {
     expect(real).toEqual([])
     errSpy.mockRestore()
   }, SLOW)
+
+  it('符號表移到章末：章首的「本章符號表在最後」是按鈕（HashRouter 下不改路由），按下去把 #symbols 捲進畫面並移動焦點', async () => {
+    const scrollSpy = vi.fn()
+    const proto = Element.prototype as unknown as { scrollIntoView?: unknown }
+    const original = proto.scrollIntoView
+    proto.scrollIntoView = scrollSpy // jsdom 沒有 scrollIntoView
+    try {
+      const { container } = render(
+        <SettingsProvider>
+          <MemoryRouter initialEntries={['/ch/05']}>
+            <IntroSection />
+            <ChapterSymbols />
+          </MemoryRouter>
+        </SettingsProvider>,
+      )
+      // 開場有 4 張圖（系統地圖 + 路線圖 + L1 模型 + 先算一次的流程）：等它們（mock 的 mermaid）畫完再操作
+      await waitFor(() => expect(container.querySelectorAll('.c-mermaid-svg svg').length).toBe(4))
+      const link = container.querySelector('.ch05-symbols-link button') as HTMLButtonElement
+      expect(link.getAttribute('type')).toBe('button')
+      // 不是 <a href="#symbols">：那在 HashRouter 下會被當成路由「/symbols」
+      expect(container.querySelector('a[href="#symbols"], a[href$="#symbols"]')).toBeNull()
+      const target = container.querySelector('#symbols') as HTMLElement
+      expect(target.querySelector('.c-symbols')).toBeTruthy()
+      // 開場（IntroSection）裡沒有符號表，只有這一行連結
+      expect(link.closest('#symbols')).toBeNull()
+      expect(container.querySelectorAll('.c-symbols').length).toBe(1)
+      vi.useFakeTimers()
+      fireEvent.click(link)
+      expect(scrollSpy).toHaveBeenCalledTimes(1)
+      expect(scrollSpy.mock.contexts[0]).toBe(target)
+      expect(document.activeElement).toBe(target)
+      // 上方的圖是延遲載入的（載入後版面會被推開）：稍後再對齊兩次
+      vi.advanceTimersByTime(2000)
+      expect(scrollSpy).toHaveBeenCalledTimes(3)
+      expect(scrollSpy.mock.contexts.every((c) => c === target)).toBe(true)
+      // 使用者一旦自己捲動（或點擊、按鍵），就不再把畫面拉回去
+      fireEvent.click(link)
+      expect(scrollSpy).toHaveBeenCalledTimes(4)
+      fireEvent.wheel(window)
+      vi.advanceTimersByTime(2000)
+      expect(scrollSpy).toHaveBeenCalledTimes(4)
+      // 符號表內容不變的欄位：符號、意義、單位、首次出現、備註
+      const head = Array.from(target.querySelectorAll('.c-symbols thead th')).map((th) => th.textContent)
+      expect(head).toEqual(['符號', '意義', '單位', '首次出現', '備註'])
+      // 極性註記仍在表內：δ = a − w（不是 w − a）
+      const rows = Array.from(target.querySelectorAll('.c-symbols tbody tr')).map((tr) => tr.textContent ?? '')
+      expect(rows.some((r) => r.includes('剩餘參數誤差') && r.includes('全站約定'))).toBe(true)
+    } finally {
+      vi.useRealTimers()
+      proto.scrollIntoView = original
+    }
+  })
+
+  it('符號不在章首列表了：開場與 §0 就地用一句話說明每個符號（s、v、σ_v、e、θ、q、b、x、a、w、δ、S_N、N、n、k）', async () => {
+    const { container } = render(
+      <SettingsProvider>
+        <MemoryRouter initialEntries={['/ch/05']}>
+          <IntroSection />
+        </MemoryRouter>
+      </SettingsProvider>,
+    )
+    await waitFor(() => expect(container.querySelectorAll('.c-mermaid-svg svg').length).toBe(4))
+    const model = heading(container, /^0\. 模型/)!.closest('section') as HTMLElement
+    const items = Array.from(model.querySelectorAll('li'))
+    const tex = (el: Element) => Array.from(el.querySelectorAll('annotation')).map((a) => a.textContent ?? '')
+    /** 找出以某個符號開頭的那一條說明。 */
+    const itemOf = (symbol: string) => items.find((li) => tex(li)[0] === symbol)
+    // 每個符號一條：開頭是符號，後面是一句白話說明
+    expect(itemOf('s')!.textContent).toContain('要辨識正負號的固定誤差')
+    expect(tex(itemOf('s')!)).toEqual(expect.arrayContaining(['x\\equiv1', '\\delta=a-w', 'a', 'w']))
+    expect(itemOf('s')!.textContent).toContain('理想係數')
+    expect(itemOf('s')!.textContent).toContain('目前的校正係數')
+    expect(itemOf('v')!.textContent).toContain('comparator 前的雜訊')
+    expect(tex(itemOf('v')!)).toEqual(expect.arrayContaining(['\\sigma_v', 'v\\sim\\mathcal N(0,\\sigma_v^2)']))
+    expect(itemOf('e=s+v')!.textContent).toContain('comparator 的輸入')
+    expect(tex(itemOf('e=s+v')!)).toContain('\\theta')
+    expect(itemOf('e=s+v')!.textContent).toContain('threshold')
+    expect(itemOf('q=\\pm1')!.textContent).toContain('comparator 的輸出')
+    expect(tex(itemOf('q=\\pm1')!)).toEqual(expect.arrayContaining(['b', 'q=2b-1']))
+    expect(itemOf('S_N=\\sum_{i=1}^{N}q_i')!.textContent).toContain('累加的樣本數')
+    const idx = items.find((li) => li.textContent?.startsWith('時間索引'))!
+    expect(tex(idx)).toEqual(expect.arrayContaining(['n', 'k']))
+    expect(idx.textContent).toContain('GMAC 的 block')
+    // regressor x 在 §0 第一段就說明
+    expect(model.textContent).toContain('乘在誤差上的已知訊號')
+    // 不再叫讀者去看「章首的符號表」
+    expect(container.textContent).not.toContain('章首的符號表')
+  })
 
   it('URL preset ?preset=comparator-even-n100-tie 會套用 N = 100、strict，並顯示偶數 N 的說明', async () => {
     const { container } = renderChapter('/ch/05?preset=comparator-even-n100-tie')

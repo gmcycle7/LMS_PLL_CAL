@@ -3,7 +3,8 @@ import { Callout, ClaimTag, Quiz, Recap, Section, Tex, TexBlock } from '@/compon
 import { accumulatorSizing, roundingMeanError, sumAverageTable } from '@/simulation/models/gmac'
 import { firstOrderAccumulator } from '../residue'
 import { wTruncNumbers } from './FixedPoint'
-import { f, HandCalcBox, mt, tx } from '../common'
+import { HANDCALC_FLOW } from '../diagrams'
+import { f, HandCalcBox, MermaidFig, mt, tx } from '../common'
 
 const R = String.raw
 
@@ -169,6 +170,16 @@ export function WrapupSection() {
       <p>
         做思考題之前，先把本章的公式串起來用一次：給定 comparator 雜訊、<Tex>{R`\mu`}</Tex>、code 位元數、block 長度和兩個右移量，依序算出 <Tex>K</Tex>、<Tex>g</Tex>、穩定餘裕、累加器位元數，以及兩個截斷點各讓{' '}
         <Tex>w</Tex> 偏多少。
+      </p>
+      <MermaidFig
+        chart={HANDCALC_FLOW}
+        caption={R`綜合手算 HC-04.8 的計算順序（由上往下算）。看藍色的 $K$ 與 $g$：它們是樞紐，後面的穩定檢查和兩個偏差都要用到；綠色是最後的答案 $w^*-a$。`}
+        ariaLabel="綜合手算的計算流程：增益、穩定、位元數、兩個截斷點的偏差"
+      />
+      <p>
+        <strong>先看</strong>從「七個輸入」往下的前兩條支線：由雜訊 <Tex>{R`\sigma_v`}</Tex> 算 comparator 增益 <Tex>{R`K_q`}</Tex>，由 code 位元數 <Tex>{R`B_x`}</Tex> 算 code 的均方 <Tex>{R`E[x^2]`}</Tex>，兩者相乘得到 <Tex>K</Tex>（這一題的{' '}
+        <Tex>{R`C=E[x^2]`}</Tex>），再乘 <Tex>{R`\mu`}</Tex> 得到 <Tex>g</Tex>，並且先拿 <Tex>g</Tex> 和臨界增益 <Tex>{R`g_\mathrm{crit}`}</Tex> 比一次，確認迴路穩定。<strong>再看</strong>另外兩條支線：一條直接給出累加器位元數 <Tex>{R`B_\mathrm{acc}`}</Tex>；另一條由 <Tex>{R`\log_2N`}</Tex> 與 <Tex>{R`F_G`}</Tex> 算右移量 <Tex>{R`\ell`}</Tex> 與刻度 <Tex>{R`\Delta_G`}</Tex>，接著分成兩個偏差——
+        偏差 ① 除以 <Tex>K</Tex>（F-04.11），偏差 ② 除以 <Tex>g</Tex>（F-04.18）。<strong>最後</strong>把兩個偏差相加。圖上每一格就是下面手算題的一到兩個步驟，可以邊算邊對照自己算到哪裡；虛線標出其餘幾個輸入用在哪裡（<Tex>{R`\mu`}</Tex> 接到 <Tex>g</Tex>、<Tex>{R`\mu`}</Tex> 與 <Tex>{R`\ell_W`}</Tex> 接到 <Tex>{R`\Delta_W`}</Tex>、<Tex>d</Tex> 接到穩定檢查）。
       </p>
       <HandCalcBox id="HC-04.8">
         把七個數字換成你自己的設計（或按「換一題」），拿紙筆和工程計算機從第一步算到最後一步，再切到「自己算算看」對答案；預設值是 §5.6「第二個截斷點」的例子。

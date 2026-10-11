@@ -13,7 +13,8 @@ import {
   TexBlock,
 } from '@/components'
 import { runBlockLms } from '@/simulation/models/blockLms'
-import { ChLink, ErratumNote, HandCalcPointer, Steps, fx, md, sig, texNum } from '../common'
+import { ChLink, Diagram, ErratumNote, HandCalcPointer, Steps, fx, md, sig, texNum } from '../common'
+import { CHART_BLOCK_SIGN_LMS } from '../diagrams'
 import { SPEC_NUMBERS, gCritical } from '../refNumbers'
 import { SPEC_PSEUDO, SPEC_PSEUDO_ANNOTATED } from '../specPseudo'
 
@@ -107,6 +108,24 @@ export function S3Reference() {
         規格 §15.2 給了一段十幾行的 Python 偽程式（12 行程式加 2 行註解）。它把整個校正迴路濃縮成兩層迴圈：外層每個 GMAC block 更新一次 gain，內層每個 comparator sample 累加一次 <Tex>{'q\\cdot x_\\mathrm{ref}'}</Tex>。
         本站的 <code>runBlockLms</code> 就是這段偽程式的「可執行版」，但多處理了幾件偽程式略過、而 RTL 一定會遇到的事。
       </p>
+      <p>
+        先看圖，再看程式。圖裡的每一個方塊，在 §3.1 的程式裡都找得到對應的那一行；符號的意思：<Tex>{'x[n]'}</Tex> 是正規化後的 code，<Tex>{'a'}</Tex> 是真實的 DTC gain、<Tex>{'w_k'}</Tex> 是第 <Tex>{'k'}</Tex> 個 block 的校正係數，
+        <Tex>{'e[n]'}</Tex> 是 comparator 的輸入、<Tex>{'q[n]=\\pm1'}</Tex> 是它的輸出，<Tex>{'G_k'}</Tex> 是一個 block 內 <Tex>{'q\\,x_\\mathrm{ref}'}</Tex> 的平均，<Tex>{'\\mu'}</Tex> 是 learning rate。
+      </p>
+      <Diagram
+        chart={CHART_BLOCK_SIGN_LMS}
+        caption="參考 Block Sign-LMS 的兩層迴圈：內層每個 comparator sample 做一次，外層每個 block 做一次。虛線是新的係數回到 DTC 的路，整個 block 內它不變。"
+        ariaLabel="Block Sign-LMS 兩層迴圈的方塊圖：內層由 code 經 DTC 誤差、PLL error path、加上 offset 與雜訊、1-bit comparator，再乘上 regressor；外層是 GMAC 平均、係數更新與 gain register，更新後的係數回到 DTC"
+      >
+        <p>
+          先看上面的內層：code 乘上還沒校正掉的 gain 誤差 <Tex>{'a-w_\\mathrm{app}'}</Tex>（加上 DTC 的非線性）得到時間誤差，經過 <Tex>{'H_\\mathrm{PD}'}</Tex>，在加法點加上 comparator offset <Tex>{'b'}</Tex> 與雜訊{' '}
+          <Tex>{'v[n]'}</Tex>，就是 <Tex>{'e[n]'}</Tex>（F-15.2）。comparator 只留下正負號，再乘上 regressor <Tex>{'x_\\mathrm{ref}[n]'}</Tex>。
+        </p>
+        <p>
+          再看外層：<Tex>{'N'}</Tex> 個乘積平均成 <Tex>{'G_k'}</Tex>，係數走一步 <Tex>{'\\mu G_k'}</Tex>（F-15.1）。圖上的 <Tex>{'w_\\mathrm{app}'}</Tex> 是「實際作用在 DTC 上」的係數：比 <Tex>{'w_k'}</Tex> 晚 <Tex>{'d'}</Tex> 個 block，開定點時還先量化成實體 code（
+          <Tex>{'\\mathrm{phys}'}</Tex>）。這三件事——濾波的是誤差、更新有延遲、係數會量化——就是偽程式沒寫的部分。
+        </p>
+      </Diagram>
 
       <Section kind="formula" title="3.1 規格原文與本站程式（並排）" level={3}>
         <CodeBlock source={SPEC_PSEUDO} lang="python" title="規格 §15.2 偽程式（原文）" caption="原文逐字照錄；pll_pd_error_path.filter() 只是示意，規格本身也提醒不可每個 block 重置濾波器。" />

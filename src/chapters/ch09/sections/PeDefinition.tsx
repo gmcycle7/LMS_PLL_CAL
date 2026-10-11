@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Callout, ClaimTag, Prereq, Section, StepDerivation, TexBlock } from '@/components'
 import { eig2x2, pm1DegenerateProb, sampleEigRelStd, slidingWindowPe } from '@/simulation/models/pe'
-import { DerivBox, HandCalcBox, formulaTex, m, num, texMatrix, texNum } from '../shared'
+import { DerivBox, Diagram, FigRef, HandCalcBox, formulaTex, m, num, texMatrix, texNum } from '../shared'
 
 /** 「先算一次」的兩個 N₀ = 4 窗口（±1 code；輸入是例子，S_k 與 eigenvalues 由程式計算） */
 const HAND_WINDOWS: { name: string; u: [number, number][] }[] = [
@@ -40,8 +40,21 @@ export function PeDefinition() {
     <Section kind="formula" title="§9.1 Persistent Excitation：每一個方向、每一段時間都要被推到" level={2} id="ch09-pe">
       <p>
         前兩節用的是 {m`\mathbf R=E[\mathbf u\mathbf u^T]`}——一個「無限長平均」。硬體只會看到有限長的資料，而且 DSM / FCW 產生的 code
-        常常是 deterministic、週期性的。所以 PE 的嚴格定義是對 <strong>每一個有限窗口</strong> 說話。先用兩個只有 4 筆資料的小窗口感覺一下：
+        常常是 deterministic、週期性的。所以 PE 的嚴格定義是對 <strong>每一個有限窗口</strong> 說話。檢查的流程如下圖：
       </p>
+      <Diagram id="pe-window">
+        看藍色的判斷：不是「平均起來有能量」就好，而是<strong>每一個</strong>起點 {m`k`} 的窗口都要通過。
+      </Diagram>
+      <p>
+        <FigRef id="pe-window" /> 怎麼看：先看前幾個方塊——取連續 {m`N_0`} 筆 regressor（{m`N_0`} 是<strong>窗口長度</strong>；它和 GMAC 的 block 長度 {m`N`}
+        是兩個不同的量），每一筆做外積 {m`\mathbf u\mathbf u^T`}，全部加起來得到<strong>窗口能量矩陣</strong> {m`\mathbf S_k`}（這裡的下標 {m`k`} 是窗口的起點）；
+        除以 {m`N_0`} 就是這個窗口自己的相關矩陣 {m`\mathbf R_k`}。再看 eigenvalues——{m`\lambda_{\min}(\mathbf R_k)`} 是這個窗口裡「最弱的方向」的能量，
+        {m`\lambda_{\max}(\mathbf R_k)`} 是最強的方向。最後看藍色的判斷——PE 要求存在兩個固定的正數 {m`\alpha`}（下界）與 {m`\beta`}（上界），讓每一個窗口最弱的方向
+        至少有 {m`\alpha`}、最強的方向不超過 {m`\beta`}；通過之後窗口往後滑一格再檢查，永遠都要通過。圖上的「滑動窗口相加」就是下面 F-09.9 中間那個
+        {m`\sum`}；藍色菱形就是 F-09.9 的兩個不等號（因為 {m`\lambda(\mathbf S_k)=N_0\lambda(\mathbf R_k)`}，圖上寫成 {m`N_0\lambda_{\min}(\mathbf R_k)\ge\alpha`}）；
+        圖上的 {m`R_k`}、{m`\kappa(R_k)`}、{m`\sigma_i(U_k)`} 就是 F-09.10 的三個量。
+      </p>
+      <p>先用兩個只有 4 筆資料的小窗口感覺一下：</p>
 
       <h3>先算一次：兩個 {m`N_0=4`} 的窗口</h3>
       <p>
@@ -131,6 +144,15 @@ export function PeDefinition() {
         最簡單的情形：GMAC block 剛好等於一個窗口（{m`N=N_0`}）、linear detector、無雜訊。一個 block 的更新是
         {m`\boldsymbol\delta_{k+1}=(\mathbf I-\mu\mathbf R_k)\boldsymbol\delta_k`}，{m`\mathbf R_k=\mathbf S_k/N_0`}：
       </p>
+      <Diagram id="pe-contraction">
+        看每一個箭頭上的倍數：只要每個窗口都滿足 PE，誤差的長度每個 block 都至少縮小同一個比例。
+      </Diagram>
+      <p>
+        <FigRef id="pe-contraction" /> 怎麼看：先看每一個箭頭——經過一個窗口（也就是一個 block），誤差向量的長度 {m`\|\boldsymbol\delta\|`}
+        至多乘上 {m`1-\mu\lambda_{\min}(\mathbf R_k)`}。再看藍色方塊——PE 保證每個窗口的 {m`\lambda_{\min}(\mathbf R_k)`} 都不小於 {m`\alpha/N_0`}，
+        所以每個箭頭都至少縮小同一個比例；{m`K`} 個窗口連乘（{m`K`} 是經過的窗口數），就是綠色方塊的指數收斂。圖上箭頭的倍數就是 F-09.17 的
+        {m`\big(1-\mu\lambda_{\min}(\mathbf R_k)\big)`}，綠色方塊就是下面推導的最後一行。
+      </p>
       <StepDerivation
         steps={[
           { tex: String.raw`\|\boldsymbol\delta_{k+1}\|\le\max_i|1-\mu\lambda_i(\mathbf R_k)|\cdot\|\boldsymbol\delta_k\|`, why: <>對稱矩陣作用在向量上，最多放大 {m`\max_i|\text{eigenvalue}_i|`} 倍；{m`\mathbf I-\mu\mathbf R_k`} 的 eigenvalues 是 {m`1-\mu\lambda_i(\mathbf R_k)`}。</> },
@@ -147,6 +169,11 @@ export function PeDefinition() {
       <h3>
         行為模型輸出：滑動窗口 {m`\mathbf R_k`}、{m`\lambda_{\min}`}、{m`\kappa`} 與 singular values
       </h3>
+      <p>
+        行為模型對每個窗口輸出三個數：{m`\lambda_{\min}(\mathbf R_k)`}、{m`\kappa(\mathbf R_k)`}，以及<strong>資料矩陣</strong> {m`\mathbf U_k`} 的 singular values
+        {m`\sigma_i(\mathbf U_k)`}。{m`\mathbf U_k`} 是把窗口內 {m`N_0`} 筆 regressor 一列一列疊起來的 {m`N_0\times M`} 矩陣；singular value 是它把向量
+        「放大幾倍」（先備知識框）。這三個數就是 <FigRef id="pe-window" /> 裡 eigenvalues 與 {m`\kappa`} 那兩個方塊的輸出：
+      </p>
       <TexBlock id="F-09.10">{formulaTex('F-09.10')}</TexBlock>
       <DerivBox title={<>為什麼 {m`\sigma_i(\mathbf U_k)^2=N_0\lambda_i(\mathbf R_k)`}</>}>
         <StepDerivation
@@ -173,7 +200,16 @@ export function PeDefinition() {
         <p>
           只量某一段時間的 {m`\lambda_{\min}(\mathbf R_k)`}，<strong>不能</strong>證明所有未來窗口都滿足 PE。對隨機 code 甚至一定會出現壞窗口。
           例：{m`\pm1`} sparse-flip code（{m`u_2=s\,u_1`}，{m`P(s=+1)=(1+\rho)/2`}）的窗口退化 {m`\iff`} 窗口內 {m`s`} 全同號（就像上面的窗口 A）；
-          {m`N_0`} 筆獨立樣本全為 {m`+1`} 的機率是 {m`\big(\tfrac{1+\rho}2\big)^{N_0}`}，全為 {m`-1`} 是 {m`\big(\tfrac{1-\rho}2\big)^{N_0}`}，兩者相加：
+          {m`N_0`} 筆獨立樣本全為 {m`+1`} 的機率是 {m`\big(\tfrac{1+\rho}2\big)^{N_0}`}，全為 {m`-1`} 是 {m`\big(\tfrac{1-\rho}2\big)^{N_0}`}，兩者相加。先看這個窗口的 {m`\mathbf S_k`} 長什麼樣子：
+        </p>
+        <Diagram id="pm1-degenerate">
+          看紅色與綠色兩個方塊：窗口只在 {m`s`} 全同號時退化，但 {m`\rho`} 越接近 1，全同號的機率就越高。
+        </Diagram>
+        <p>
+          <FigRef id="pm1-degenerate" /> 怎麼看：先看窗口的 {m`\mathbf S_k`}——{m`\pm1`} code 每一筆的 {m`\mathbf u\mathbf u^T`} 都是 {m`\begin{bmatrix}1&s\\s&1\end{bmatrix}`}，
+          所以整個窗口只由 {m`s=+1`} 的個數 {m`N_{+}`} 與 {m`s=-1`} 的個數 {m`N_{-}`}（{m`N_{+}+N_{-}=N_0`}）決定：對角線都是 {m`N_0`}，非對角線是 {m`N_{+}-N_{-}`}，eigenvalues 是 {m`N_0\pm|N_{+}-N_{-}|`}。
+          再看菱形——只有 {m`N_{+}=0`} 或 {m`N_{-}=0`}（{m`s`} 全同號）時 {m`\lambda_{\min}(\mathbf S_k)=N_0-|N_{+}-N_{-}|=2\min(N_{+},N_{-})`} 才是 0，這就是上面的窗口 A；
+          其他窗口至少有 2。圖上紅色方塊的機率就是下面 F-09.11：全為 {m`+1`} 加上全為 {m`-1`}。
         </p>
         <TexBlock id="F-09.11">{formulaTex('F-09.11')}</TexBlock>
         <div className="table-wrap">

@@ -3,7 +3,7 @@ import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Section, StepDeriv
 import mimoSrc from '@/simulation/models/mimo.ts?raw'
 import mimoPy from '../../../../golden/lms_pll_golden/mimo.py?raw'
 import { RULE_SHORT, type MimoRule } from '@/simulation/models/mimo'
-import { Deriv, Erratum, TagRow, goldenSection10, n, nint, tn } from '../common'
+import { Deriv, Erratum, Fig, TagRow, goldenSection10, n, nint, tn } from '../common'
 import { NUM } from '../numbers'
 
 const PATH = 'src/simulation/models/mimo.ts'
@@ -124,8 +124,14 @@ export function S5Architectures() {
         <h3>NLMS / Sign-NLMS：只正規化「總能量」</h3>
         <p>
           NLMS 把步長除以 regressor 的能量 <Tex>{String.raw`\|\mathbf u\|^2`}</Tex>，讓 loop gain 不受 code 振幅影響。Block 版本用平均能量{' '}
-          <Tex>{String.raw`E\|\mathbf u\|^2=\operatorname{tr}\mathbf R`}</Tex>：
+          <Tex>{String.raw`E\|\mathbf u\|^2=\operatorname{tr}\mathbf R`}</Tex>（<Tex>{String.raw`\|\mathbf u\|^2=u_1^2+\dots+u_P^2`}</Tex> 是這個 sample 所有 regressor 的平方和；它的平均等於{' '}
+          <Tex>{String.raw`\mathbf R`}</Tex> 對角線的和）：
         </p>
+        <Fig id="nlms">
+          先看從 code <Tex>{'x[n]'}</Tex> 出發的那一路：把 <Tex>{'P'}</Tex> 個 code 的平方加起來取平均，得到 regressor 的總能量 <Tex>{String.raw`\operatorname{tr}\mathbf R`}</Tex>（code 振幅變大，這個數就跟著變大）。再看藍色方塊：每個 GMAC 輸出都乘上<strong>同一個數</strong>{' '}
+          <Tex>{String.raw`\tilde\mu/(K_q\operatorname{tr}\mathbf R)`}</Tex>，所以 code 振幅改變時 loop gain 不變；但「同一個數」也表示各個方向之間的相對增益完全沒有變（紅色）。圖上的藍色方塊就是下面推導第 1 步的{' '}
+          <Tex>{String.raw`\mathbf M=\tilde\mu/(K_q\operatorname{tr}\mathbf R)\cdot\mathbf I`}</Tex>，<Tex>{String.raw`\tilde\mu`}</Tex> 是 NLMS 的無因次步長；最右邊的 pole 就是 F-10.12。
+        </Fig>
         <Deriv title="NLMS 的 poles">
           <StepDerivation
             steps={[
@@ -170,6 +176,21 @@ export function S5Architectures() {
           另一種常見做法是分階段：先校 GOS，再校 PHOS，再校 DTC gain。每一階段只有一個 loop 在動，其他凍結——所以每一階段都是穩定的純量 LMS。問題在於：
           被凍結的參數若還有誤差，正在校的那個參數會<strong>把別人的誤差吸收進來</strong>。
         </p>
+        <Fig id="seq-fsm">
+          先由上往下看兩個主要狀態：階段 1 只有 <Tex>{'w_1'}</Tex> 在更新（更新矩陣只剩 <Tex>{String.raw`M_{11}`}</Tex> 一個元素不是 0），階段 2 換成只有 <Tex>{'w_2'}</Tex>。再看三條箭頭：每個階段跑滿設定的 block
+          數就換下一個；一輪（sweep）走完可以再來一輪（round-robin），輪數用完就全部凍結。這就是 §10.8 程式碼 <code>mSequential</code> 的行為：第 <Tex>{'k'}</Tex> 個 block 屬於第{' '}
+          <Tex>{String.raw`\lfloor k/B\rfloor`}</Tex> 個階段（<Tex>{'B'}</Tex> 是每個階段的 block 數），那個階段只開第 <Tex>{String.raw`i=\lfloor k/B\rfloor\bmod P`}</Tex> 個 loop（從 0 數起）。圖上的「<Tex>{String.raw`\mathbf M=\mathbf 0`}</Tex>
+          」就是所有係數都不再更新。
+        </Fig>
+        <p>
+          每個階段都穩定，聽起來很安全。但把兩個 regressor 完全相同（<Tex>{String.raw`\rho=1`}</Tex>）的極端情況代進這個狀態機，會發生下面的事：
+        </p>
+        <Fig id="seq-trap">
+          由上往下看。第一格是問題的根源：兩個 regressor 完全一樣時，<Tex>{'e[n]'}</Tex> 裡只出現 <Tex>{String.raw`\delta_1+\delta_2`}</Tex>。階段 1 只動 <Tex>{'w_1'}</Tex>，它會一路走到{' '}
+          <Tex>{String.raw`\delta_1+\delta_2=0`}</Tex> 為止，也就是 <Tex>{String.raw`w_1=a_1+a_2=${s.a[0] + s.a[1]}`}</Tex>（正確值是 {s.a[0]}）。輪到階段 2 時 GMAC<sub>2</sub> 的平均已經是 0，<Tex>{'w_2'}</Tex> 留在 0（正確值是{' '}
+          {s.a[1]}）。最後兩格：輸出誤差是 0，看起來沒問題；直到 code 改變、<Tex>{String.raw`u_1\ne u_2`}</Tex>，藏起來的 <Tex>{String.raw`\boldsymbol\delta=(${-s.a[1]},\ +${s.a[1]})`}</Tex> 才出現。圖上的每一格對應下面
+          Callout 的步驟 1–3，以及表格的 block 0、40、80 三列。
+        </Fig>
         <Callout
           kind="danger"
           title={
@@ -241,6 +262,14 @@ export function S5Architectures() {
           <Tex>{String.raw`1-1\times0.01=${tn(s.scalarMu1Pole, 4)}`}</Tex>，<Tex>{String.raw`k_{95}=${nint(s.scalarMu1Blocks)}`}</Tex>）一模一樣。
           <strong>分階段並沒有解決慢模式</strong>，遠不如完整反矩陣的 {nint(r.blocksFull)} 個 block。
         </p>
+        <Fig id="gs-sweep">
+          先看階段 1：只有 <Tex>{'w_1'}</Tex> 在動，<Tex>{String.raw`\gamma=1`}</Tex> 代表一步就把 GMAC<sub>1</sub> 的平均推到 0，也就是 <Tex>{String.raw`\delta_1+\rho\,\delta_2=0`}</Tex>；所以新的{' '}
+          <Tex>{String.raw`\delta_1'=-\rho\,\delta_2`}</Tex>——<Tex>{'w_1'}</Tex> 並沒有變正確，而是把 <Tex>{String.raw`\delta_2`}</Tex> 的誤差「複製」了過來。再看階段 2：換 <Tex>{'w_2'}</Tex> 把 GMAC<sub>2</sub> 歸零，
+          <Tex>{String.raw`\rho\,\delta_1'+\delta_2'=0`}</Tex>，得到 <Tex>{String.raw`\delta_2'=-\rho\,\delta_1'=\rho^2\delta_2`}</Tex>。一輪走完，<Tex>{String.raw`\delta_2`}</Tex> 只乘了{' '}
+          <Tex>{String.raw`\rho^2=${tn(s.gsSweep, 5)}`}</Tex>（紅色）；虛線表示下一輪從同樣的地方再來一次。圖上的 <Tex>{String.raw`G_1\propto\delta_1+\rho\,\delta_2`}</Tex>、<Tex>{String.raw`G_2\propto\rho\,\delta_1'+\delta_2`}</Tex>{' '}
+          就是 F-10.1 代入 <Tex>{String.raw`\mathbf R=\begin{bmatrix}1&\rho\\\rho&1\end{bmatrix}`}</Tex> 的兩列（輪到階段 2 時 <Tex>{String.raw`\delta_1`}</Tex> 已經變成 <Tex>{String.raw`\delta_1'`}</Tex>）；兩條有標籤的實線箭頭是下面推導（Engineer
+          模式）的第 1、2 步，最右邊那一格是第 3 步。
+        </Fig>
         <p className="small muted">
           以「最壞初始方向的誤差範數降到 5%」（<Tex>{String.raw`\|\boldsymbol\Phi_k\|_2\le0.05`}</Tex>，<Tex>{String.raw`\boldsymbol\Phi_k`}</Tex> 是前 k 個 block 的轉移矩陣乘積）計算，需要{' '}
           {nint(s.gsBlocks)} 個 block（{nint((s.gsBlocks ?? 0) / 2)} 輪）。它比只看漸近收縮率的 <Tex>{String.raw`\ln0.05/\ln\rho^2=${tn(s.gsNaiveSweeps, 4)}`}</Tex> 輪多一些，因為第一步先把{' '}
@@ -344,6 +373,15 @@ export function S5Architectures() {
           </table>
         </div>
         <p>
+          把上表和前面幾節的結論排成一張流程，選更新矩陣時可以照著問：
+        </p>
+        <Fig id="choose-m">
+          由上往下問三個問題。第一：<Tex>{String.raw`\lambda_{\min}`}</Tex> 是不是接近 0？是的話兩個參數根本分不開，換哪一種更新矩陣都沒有用（§10.6 的陷阱；第 9 章的 PE 條件）。第二：
+          <Tex>{String.raw`\mathbf J`}</Tex> 的 eigenvalue 實部是不是全為負？不是的話（T18），scalar LMS 在某個方向的極性是反的，要靠反矩陣把它轉回來。第三：<Tex>{String.raw`\kappa`}</Tex> 大不大、等不等得起慢模式？等得起就用最簡單的；等不起才用
+          regularized preconditioner，並用 <Tex>{String.raw`\lambda_{\mathrm{reg}}`}</Tex> 在速度（F-10.8）、雜訊（F-10.7）與 <Tex>{String.raw`\hat{\mathbf J}`}</Tex> 誤差（勘誤 E24）之間取捨。圖上的 <Tex>{String.raw`\lambda_{\min}`}</Tex>、
+          <Tex>{String.raw`\kappa`}</Tex> 就是 §10.3 的最小 eigenvalue 與 condition number。Sequential 不在圖上：它省硬體，但不會讓慢模式變快，而且有上面的吸收陷阱。
+        </Fig>
+        <p>
           六種更新矩陣在 §10.1 例子（<Tex>{String.raw`\rho=0.99,\ \sigma_v=${NUM.sigmaV}\ \mathrm{fs},\ N=${NUM.noise.N}`}</Tex>、<Tex>{'K_q'}</Tex> 為實體值）下的數字：
         </p>
         <div className="table-wrap">
@@ -391,6 +429,13 @@ export function S5Architectures() {
           <Tex>{String.raw`\mathbf M_n=K_q\mathbf M`}</Tex>；差異只在標了 <code>← 差異</code> 的那一行。實體更新矩陣是 <Tex>{String.raw`\mathbf M=\mathbf M_n/K_q`}</Tex>（fs），由共用的{' '}
           <code>blockUpdate</code> 處理（勘誤 E05 / E08：<Tex>{'K_q'}</Tex> 只在這裡出現一次）。
         </p>
+        <Fig id="code-flow">
+          先看從 <Tex>{String.raw`\hat{\mathbf J}_n`}</Tex> 出發的那一路：每個規則函式吃進正規化的 Jacobian 估計，吐出正規化更新矩陣 <Tex>{String.raw`\mathbf M_n`}</Tex>——六個函式只差在這一步（藍色）。再看從{' '}
+          <Tex>{String.raw`\boldsymbol\delta_k`}</Tex> 出發的那一路：<code>gmacLinear</code>（線性模型）或 <code>gmacSample</code>（逐 sample 的 1-bit comparator）算出 <Tex>{String.raw`\mathbf G_k`}</Tex>。兩路在{' '}
+          <code>blockUpdate</code> 會合：它把 <Tex>{String.raw`\mathbf M_n`}</Tex> 除以 <Tex>{'K_q'}</Tex> 之後更新 <Tex>{String.raw`\boldsymbol\delta`}</Tex>，最右邊的 <Tex>{String.raw`\boldsymbol\delta_{k+1}`}</Tex> 就是下一個 block 的輸入。圖上的 <code>blockUpdate</code> 就是 F-10.2 取平均之前的式子{' '}
+          <Tex>{String.raw`\boldsymbol\delta_{k+1}=\boldsymbol\delta_k-\mathbf M\mathbf G_k`}</Tex>（<Tex>{String.raw`\mathbf M=\mathbf M_n/K_q`}</Tex>）；圖上的 <Tex>{String.raw`\mathbf C`}</Tex> 是 §10.5 的交叉相關矩陣，匹配模型時等於{' '}
+          <Tex>{String.raw`\mathbf R`}</Tex>。
+        </Fig>
         <div className="table-wrap">
           <table>
             <thead>

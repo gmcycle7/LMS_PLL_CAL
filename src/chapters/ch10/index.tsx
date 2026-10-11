@@ -8,11 +8,13 @@ import { S3Noise } from './sections/S3Noise'
 import { S4Jacobian } from './sections/S4Jacobian'
 import { S5Architectures } from './sections/S5Architectures'
 import { S6Wrapup } from './sections/S6Wrapup'
+import { S7Symbols } from './sections/S7Symbols'
 
 /**
  * 第 10 章：多參數 Sign-LMS、Jacobian 與 Preconditioner（規格 §10；ChatGPT 入門課第 11 課）。
  * 勘誤：E05、E08、E21、E22、E24、E25、E37（docs/validation.md）。驗證：T18（＋ T10 / T11 重用）。
  * 所有數字由 src/simulation/models/mimo.ts 計算（numbers.ts 彙整）。
+ * 方塊圖登錄在 diagrams.ts（章首另有共用的 SystemMap）；符號表在章末（S7Symbols，id="symbols"）。
  */
 export default function Chapter10() {
   return (
@@ -32,6 +34,8 @@ export default function Chapter10() {
         <MimoLab />
       </Section>
       <S6Wrapup />
+      {/* 符號表放在章末（docs/teaching-style.md §5）：整頁最後一個區塊，id="symbols" */}
+      <S7Symbols />
     </div>
   )
 }

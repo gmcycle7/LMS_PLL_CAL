@@ -24,7 +24,7 @@ import {
   playgroundVarWStationary,
 } from '@/simulation/models/lossCompare'
 import lossSrc from '@/simulation/models/lossCompare.ts?raw'
-import { BehaviourLabel, ChapterHandCalc, Erratum, f, texNum, useChapterMode } from '../common'
+import { BehaviourLabel, BlockDiagram, ChapterHandCalc, Erratum, f, texNum, useChapterMode } from '../common'
 import { LmsPlayground } from '../experiments/LmsPlayground'
 
 const HAND = { a: 3, w0: 1, x: 2, mu: 0.1 }
@@ -161,8 +161,13 @@ export function HandExampleSection() {
       <Section kind="example" title="1.4 一個手算例子（規格 §1.2）" level={2} id="ch01-s14">
         <p>
           真正 <Tex>{'y=3x'}</Tex>，初始 <Tex>{'w_0=1'}</Tex>，固定 <Tex>{'x=2'}</Tex>（所以 <Tex>{'y=6'}</Tex>），
-          <Tex>{String.raw`\mu=0.1`}</Tex>。先手算兩步 <SourceTag /> <TestBadge id="T01" />：
+          <Tex>{String.raw`\mu=0.1`}</Tex>。先手算兩步 <SourceTag /> <TestBadge id="T01" />。每一步都是同樣三個動作，照下圖的順序由左算到右：
         </p>
+        <BlockDiagram id="D-01.10">
+          先看上面那一列（第 0 筆）：從 <Tex>{'w_0=1'}</Tex> 出發，①預測 <Tex>{String.raw`\hat y_0`}</Tex>、②比較得到 <Tex>{'e_0'}</Tex>、③算修正量{' '}
+          <Tex>{String.raw`\Delta w_0`}</Tex>，加回去得到 <Tex>{'w_1'}</Tex>。再看下面那一列：把 <Tex>{'w_1'}</Tex> 當成新的起點，同樣三格再算一次。圖上的三格就是下面逐步推導與表格裡的三個量：
+          ①是 <Tex>{String.raw`\hat y_n=w_nx`}</Tex>、②是 <Tex>{String.raw`e_n=y-\hat y_n`}</Tex>、③是 <Tex>{String.raw`\Delta w_n=\mu e_nx`}</Tex>。注意第二列的誤差和修正量都比第一列小——越接近答案，步伐越小。
+        </BlockDiagram>
         <StepDerivation
           steps={[
             {
@@ -249,8 +254,15 @@ export function HandExampleSection() {
         <p>
           觀察：<Tex>{'\\delta_n'}</Tex> 每步都乘 <Tex>{texNum(st.pole, 6)}</Tex>（
           <Tex>{String.raw`${texNum(tr.delta[0], 6)}\to${texNum(tr.delta[1], 6)}\to${texNum(tr.delta[2], 6)}`}</Tex>
-          ）。這不是巧合：
+          ）。這裡的 <Tex>{String.raw`\delta_n=a-w_n`}</Tex> 是剩餘參數誤差：真值減去目前的猜測，也就是「還差多少」。每步乘上同一個數不是巧合，把迴路畫出來就看得到原因：
         </p>
+        <BlockDiagram id="D-01.11">
+          從左邊的加法點出發：真值 <Tex>{'a'}</Tex> 進「＋」、暫存器裡的 <Tex>{'w_n'}</Tex> 進「−」，得到 <Tex>{String.raw`\delta_n`}</Tex>。沿著迴路繞一圈，會先後經過兩個藍色的乘法：
+          <Tex>{String.raw`\times x`}</Tex>（參數誤差變成量測誤差 <Tex>{'e_n'}</Tex>）與 <Tex>{String.raw`\times\mu x`}</Tex>（LMS 的修正），乘起來是{' '}
+          <Tex>{String.raw`\mu x^2`}</Tex>。也就是說，每一步都修掉 <Tex>{String.raw`\delta_n`}</Tex> 的 <Tex>{String.raw`\mu x^2`}</Tex> 倍，剩下 <Tex>{String.raw`1-\mu x^2`}</Tex> 倍。
+          這個「每步剩下的倍數」記作 <Tex>{'p'}</Tex>，稱為這個迴路的 pole（極點）：圖上的 <Tex>{String.raw`\Delta w_n=\mu x^2\delta_n`}</Tex> 就是下面推導第 3 行的{' '}
+          <Tex>{String.raw`\delta_{n+1}=(1-\mu x^2)\delta_n`}</Tex>。本例 <Tex>{String.raw`p=1-0.1\times2^2=${texNum(st.pole, 6)}`}</Tex>。
+        </BlockDiagram>
         {atLeast('engineer') ? closedForm : <Derivation title="封閉解推導" derivation={closedForm} level="L0" claim="exact" />}
         <TexBlock
           id="F-01.8"
@@ -376,6 +388,14 @@ export function HandExampleSection() {
             <Tex>{String.raw`m\pm2\sigma`}</Tex>。Gaussian 的線性組合仍是 Gaussian，所以本節的 <Tex>{'w_n'}</Tex> 也是 Gaussian。
           </p>
         </Prereq>
+        <p>
+          直覺上，每一步都有一點新的雜訊被「寫進」<Tex>{'w'}</Tex>，而舊的偏離每一步又被迴路修掉一部分。把 <Tex>{'w_n'}</Tex> 偏離自己平均值的部分單獨拿出來看，它走的是一個很簡單的迴路：
+        </p>
+        <BlockDiagram id="D-01.12">
+          先看左邊：雜訊 <Tex>{'v_n'}</Tex> 乘上 <Tex>{String.raw`\mu x`}</Tex> 才進到加法點——步長越小，每步注入的雜訊越少。再看回授那一圈：上一步的偏離量乘上藍色的{' '}
+          <Tex>{'p'}</Tex> 後留下來，<Tex>{'|p|'}</Tex> 越接近 1，舊的雜訊忘得越慢。圖上的迴路就是下面推導第 3 行的 <Tex>{String.raw`\tilde w_{n+1}=p\,\tilde w_n+\mu x\,v_n`}</Tex>（
+          <Tex>{String.raw`\tilde w_n=w_n-E[w_n]`}</Tex> 是偏離平均的量）；「注入」與「遺忘」平衡時的大小，就是 F-01.9 的穩態變異數。
+        </BlockDiagram>
         {atLeast('engineer') ? noiseVar : <Derivation title="雜訊下 $w_n$ 的平均與變異數" derivation={noiseVar} level="L0" claim="exact" />}
         <TexBlock
           id="F-01.9"

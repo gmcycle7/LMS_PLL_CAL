@@ -3,7 +3,8 @@ import type { Data, Layout } from 'plotly.js-dist-min'
 import { Callout, ClaimTag, CodeBlock, ModeGate, Plot, Prereq, Section, Tex, TexBlock } from '@/components'
 import calNoiseSrc from '@/simulation/models/calNoise.ts?raw'
 import { calLoop, sigmaW2Colored, swDtft } from '@/simulation/models/calNoise'
-import { EX, EX_INPUT, Erratum, Hand, Steps, md, sig } from '../common'
+import { Diagram, EX, EX_INPUT, Erratum, Hand, Steps, md, sig } from '../common'
+import { CHART_COEF_LOOP, CHART_COLORED_ETA, CHART_GMAC_LINEAR, CHART_PSD_FILTER, CHART_UPDATE_LOOP, CHART_VAR_LOOP } from '../diagrams'
 
 const ACF_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'lag ℓ [blocks]' } }, yaxis: { title: { text: 'R_w [fs²]' } } }
 
@@ -47,8 +48,26 @@ export function S2Recursion() {
       <Section kind="formula" title="§12.1 線性化：GMAC 輸出 = 恢復力 + 雜訊" level={3} id="ch12-linearize">
         <p>
           第 5 章已經知道：1-bit comparator 在雜訊下的平均輸出是一條 S 曲線，小訊號時近似直線，斜率 <Tex>{String.raw`K_q=\sqrt{2/\pi}/\sigma_v`}</Tex>。
-          本章關心的是「收斂之後」：<Tex>{'w'}</Tex> 已經在固定點 <Tex>{'w^*'}</Tex> 附近，所以用相對固定點的偏差來寫：
+          本章關心的是「收斂之後」：<Tex>{'w'}</Tex> 已經在固定點 <Tex>{'w^*'}</Tex> 附近，所以用相對固定點的偏差{' '}
+          <Tex>{String.raw`\delta w_k=w_k-w^*`}</Tex> 來寫。
         </p>
+        <p>
+          {md(
+            String.raw`GMAC 在一個 block 裡做的事，是把 $N$ 個 sample 的 $q[n]\,x[n]$（1-bit 判斷乘上 code）平均成一個數 $G_k$。這個數可以拆成兩部分：一部分正比於係數偏差、方向永遠是把係數拉回固定點（恢復力，斜率 $K=K_qC$）；另一部分是每個 block 都不一樣、平均為零的起伏 $\eta_k$（GMAC 雜訊）。下圖的兩個框分別是實際電路與拆開之後的等效模型；圖中的 $a$ 是真實的 DTC gain，也就是 LMS 要學的目標。`,
+          )}
+        </p>
+        <Diagram chart={CHART_GMAC_LINEAR} caption={String.raw`線性化 GMAC 的兩個框：實際電路（每個 sample 做一次）與近最佳點時的等效模型（每個 block 一個值）。注意等效模型加法點上的負號：$G_k\approx-K\,\delta w_k+\eta_k$。`}>
+          <p>
+            {md(
+              String.raw`先看「實際電路」的框：gain 誤差 $a-w_k$ 乘上 code，加上雜訊 $v[n]$ 得到 comparator 的輸入 $e[n]$；comparator 只留下正負號 $q[n]$，再乘一次 code，平均 $N$ 筆得到 $G_k$。再看「等效模型」的框：整個實際電路被換成「$\delta w_k$ 乘上 $K$、以負號進入加法點，再加上雜訊 $\eta_k$」。最後看兩個框匯合的那一格：只有在小訊號、近最佳點時，兩個 $G_k$ 的平均與變異數才近似相同——這就是 F-12.1 裡那個 $\approx$ 的意思。`,
+            )}
+          </p>
+          <p>
+            {md(
+              String.raw`和公式的對照：圖上的「$\times K$」加上加法點的負號，就是下面 F-12.1 的 $-K\,\delta w_k$；圖上的 $\eta_k$ 就是公式裡的 $\eta_k$。實際電路第一格的 $a-w_k=-\delta w_k$ 說明負號的來源：$\delta w$ 的定義是 $w-w^*$，和誤差 $a-w$ 的方向相反。`,
+            )}
+          </p>
+        </Diagram>
         <TexBlock id="F-12.1" label="線性化 GMAC">
           {String.raw`\boxed{G_k\approx -K\,\delta w_k+\eta_k,\qquad K=K_qC,\qquad \delta w_k=w_k-w^*}`}
         </TexBlock>
@@ -93,7 +112,7 @@ export function S2Recursion() {
             },
             {
               tex: String.raw`\sigma_\eta^2=\operatorname{Var}\Big(\frac1N\sum_{n}q\,x\Big)=\frac{1-m^2}{N}\approx\frac1N`,
-              why: md(String.raw`$(qx)^2=1\Rightarrow\operatorname{Var}(qx)=1-m^2$；$N$ 個獨立樣本平均，變異數除以 $N$；近平衡 $m\approx0$。`),
+              why: md(String.raw`$m=E[q\,x\mid w_k]$ 是 $q\,x$ 的條件平均（上面第三行的結果）。$(qx)^2=1\Rightarrow\operatorname{Var}(qx)=1-m^2$；$N$ 個獨立樣本平均，變異數除以 $N$；近平衡 $m\approx0$。`),
             },
           ]}
         />
@@ -105,6 +124,23 @@ export function S2Recursion() {
       </Section>
 
       <Section kind="formula" title="§12.1 係數誤差的遞迴" level={3} id="ch12-recursion">
+        <p>
+          {md(
+            String.raw`LMS 的更新是一個累加器：每個 block 把 $\mu G_k$ 加到係數上。把上一張圖的等效模型接到累加器前面，就得到一個有回授的迴圈——係數偏差越大，GMAC 給出的修正越大，方向相反。`,
+          )}
+        </p>
+        <Diagram chart={CHART_UPDATE_LOOP} caption={String.raw`係數更新迴圈有兩個加法點：一個是累加器 $\delta w_{k+1}=\delta w_k+\mu G_k$，一個是 GMAC 的恢復力 $G_k=\eta_k-K\,\delta w_k$。先找到它們，再看兩條回授線各帶什麼符號。`}>
+          <p>
+            {md(
+              String.raw`先看輸出直接送進延遲方塊 $z^{-1}$ 的那個加法點：這是累加器，下一個 block 的偏差 $\delta w_{k+1}$ 等於舊的偏差 $\delta w_k$ 加上 $\mu G_k$；延遲方塊把 $\delta w_{k+1}$ 留到下一個 block 才變成 $\delta w_k$。再看 $\eta_k$ 進入的那個加法點：$G_k$ 由雜訊 $\eta_k$ 減去 $K\,\delta w_k$ 得到，這條帶負號的回授線就是恢復力。`,
+            )}
+          </p>
+          <p>
+            {md(
+              String.raw`和公式的對照：圖上的兩條回授線合起來就是下面推導最後一行的係數 $(1-\mu K)$——累加器那一條貢獻 $1$，恢復力那一條繞經 $\times K$、加法點的負號與 $\times\mu$，貢獻 $-\mu K$。圖上的 $\eta_k$ 經過加法點再乘上 $\mu$，就是公式裡的 $\mu\eta_k$。`,
+            )}
+          </p>
+        </Diagram>
         <Steps
           title={md(String.raw`由更新式推出 $\delta w$ 的遞迴`)}
           steps={[
@@ -148,6 +184,23 @@ export function S2Recursion() {
             </li>
           </ul>
         </Prereq>
+        <p>
+          {md(
+            String.raw`上一節的兩條回授線可以合併成一條「乘上 $p$」。這樣整個校正迴路就是一個最簡單的一階迴圈：輸入是 $\mu\eta_k$，輸出是係數偏差。把這個迴圈整個包成一個方塊，就是雜訊到係數的轉移函數 $H_{\eta\to w}(z)$。`,
+          )}
+        </p>
+        <Diagram chart={CHART_COEF_LOOP} caption={String.raw`一階係數雜訊迴圈 $\delta w_{k+1}=p\,\delta w_k+\mu\eta_k$：上面是時域的迴圈，下面是同一件事寫成一個方塊 $H(z)=\mu/(z-p)$。先看延遲方塊在迴圈的哪裡。`}>
+          <p>
+            {md(
+              String.raw`先看「時域」的框：輸入 $\eta_k$ 乘上 $\mu$ 後進加法點；加法點的輸出是 $\delta w_{k+1}$，要經過 $z^{-1}$（延遲一個 block）才變成 $\delta w_k$，所以 $\eta_k$ 最快也要下一個 block 才影響係數。回授線把 $\delta w_k$ 乘上 $p$ 送回加法點。再看「z 域」的框：整個迴圈被包成一個方塊 $H(z)$。`,
+            )}
+          </p>
+          <p>
+            {md(
+              String.raw`和公式的對照：加法點寫成式子就是 F-12.2 的 $\delta w_{k+1}=p\,\delta w_k+\mu\eta_k$。圖上從輸入到輸出的直線路徑（$\times\mu$ 再延遲）是 F-12.3 的分子 $\mu z^{-1}$；繞一圈的回授（$\times p$ 再延遲）是分母的 $1-pz^{-1}$。`,
+            )}
+          </p>
+        </Diagram>
         <Steps
           title={md(String.raw`$H_{\eta\to w}(z)$ 一步一步`)}
           steps={[
@@ -163,6 +216,11 @@ export function S2Recursion() {
         <TexBlock id="F-12.3" label="雜訊 → 係數">
           {String.raw`\boxed{H_{\eta\to w}(z)=\frac{\mu}{z-p}=\frac{\mu z^{-1}}{1-pz^{-1}}}`}
         </TexBlock>
+        <p>
+          {md(
+            String.raw`接下來把 $z$ 換成 $e^{j\Omega}$，看這個方塊對不同頻率的增益。$\Omega$ 是以 block 為單位的離散頻率（rad/block）：$\Omega=2\pi f/f_u$，其中 $f_u=f_s/N$ 是 block update rate；$\Omega=0$ 是 DC，$\Omega=\pi$ 是 block rate 的 Nyquist 頻率 $f_u/2$。`,
+          )}
+        </p>
         <Steps
           title={md(String.raw`在單位圓上的大小 $|H(e^{j\Omega})|^2$`)}
           steps={[
@@ -190,6 +248,19 @@ export function S2Recursion() {
             <strong>濾波</strong>：<Tex>{String.raw`y=h*x`}</Tex> ⇒ <Tex>{String.raw`R_y[\ell]=\sum_{i,j}h_ih_jR_x[\ell+i-j]`}</Tex>，取 DTFT 後 <Tex>{String.raw`S_y=|H(e^{j\Omega})|^2S_x`}</Tex>。
           </p>
         </Prereq>
+        <p>
+          {md(
+            String.raw`$S_w(e^{j\Omega})$ 是係數偏差 $\delta w$ 的功率頻譜密度（PSD）：它說明變異數在各個頻率上怎麼分布。GMAC 雜訊 $\eta$ 在 block 之間互相獨立，所以它的 PSD $S_\eta$ 是平的（白色）；通過上一節的方塊之後，每個頻率被乘上 $|H|^2$。`,
+          )}
+        </p>
+        <Diagram chart={CHART_PSD_FILTER} caption={String.raw`白雜訊通過一階 low-pass，$S_w=|H|^2S_\eta$：輸入是平的，輸出低頻高、高頻低，曲線下的面積就是係數雜訊的變異數 $\sigma_w^2$。`}>
+          <p>
+            {md(
+              String.raw`先由左到右看主線：平的 $S_\eta$ 乘上 $|H|^2$ 得到 $S_w$。再看掛在濾波器旁邊的兩個註記：$0<p<1$ 時 DC 的增益 $\mu^2/(1-p)^2$ 比 Nyquist 的 $\mu^2/(1+p)^2$ 大，所以輸出是 low-pass。最後看主線的最後兩格：把 $S_w$ 對 $\Omega$ 由 $-\pi$ 積到 $\pi$ 再除以 $2\pi$，就是下一小節的 $\sigma_w^2$。`,
+            )}
+          </p>
+          <p>{md(String.raw`和公式的對照：圖上的「$\times|H|^2$」就是 F-12.4 的分式 $\mu^2/|1-pe^{-j\Omega}|^2$；主線終點的 $\sigma_w^2$ 是 F-12.5。`)}</p>
+        </Diagram>
         <Steps
           title={md(String.raw`$S_w=|H|^2S_\eta$`)}
           steps={[
@@ -205,6 +276,9 @@ export function S2Recursion() {
         <Callout kind="info" title="注意取樣率">
           這個 PSD 定義在 <strong>block rate</strong> <Tex>{String.raw`f_u=f_s/N=${sig(EX.fu / 1e3, 7)}\ \mathrm{kHz}`}</Tex>，<Tex>{String.raw`\Omega`}</Tex> 的單位是 rad/block。
           之後要乘上 sample-rate 的 code 時，必須先轉換（§12.6、<Erratum id="E29" />）。
+          {md(
+            String.raw`下面的手算題與 §12.5 會用到「單邊、每 Hz」的版本 $S_w^{(1)}(f)=\tfrac{2}{f_u}S_w(e^{j2\pi f/f_u})$：上標 $(1)$ 表示 one-sided，單位是 $\mathrm{fs}^2/\mathrm{Hz}$，對 $f$ 從 $0$ 積到 $f_u/2$ 就是變異數（換算的推導在 §12.6 的 F-12.10）。`,
+          )}
         </Callout>
         <Hand id="HC-12.2">
           {md(
@@ -214,6 +288,23 @@ export function S2Recursion() {
       </Section>
 
       <Section kind="formula" title="§12.4 穩態變異：兩種推導" level={3} id="ch12-variance">
+        <p>
+          {md(
+            String.raw`係數抖動的大小 $\sigma_w^2$ 可以不經過頻域直接算：把「變異數」$V_k=E[\delta w_k^2]$ 自己當成一個訊號，它也繞著一個一階迴圈轉——每個 block 舊的變異只留下 $p^2$ 倍，同時被 GMAC 雜訊注入固定的一份 $\mu^2\sigma_\eta^2$。`,
+          )}
+        </p>
+        <Diagram chart={CHART_VAR_LOOP} caption={String.raw`變異數自己的迴圈 $V_{k+1}=p^2V_k+\mu^2\sigma_\eta^2$：每個 block 注入固定的量、留下固定的比例，穩態就是注入的等於漏掉的。`}>
+          <p>
+            {md(
+              String.raw`先看加法點的兩個輸入：一個是每個 block 新注入的 $\mu^2\sigma_\eta^2$，另一個是回授線帶回來的舊變異乘上 $p^2$。再看延遲方塊之後的兩格：穩態時 $V$ 不再變，把 $V_{k+1}=V_k=V$ 代進加法點的式子，就解出 $\sigma_w^2$。`,
+            )}
+          </p>
+          <p>
+            {md(
+              String.raw`和公式的對照：加法點就是推導 A 第五行的 $V_{k+1}=p^2V_k+\mu^2\sigma_\eta^2$（也是章首手算表用的式子）；圖上的「$\times p^2$」是 $p^2V_k$，注入量是第二項；綠色那一格就是 F-12.5。`,
+            )}
+          </p>
+        </Diagram>
         <Steps
           title="推導 A（時域）：變異數遞迴"
           steps={[
@@ -267,6 +358,11 @@ export function S2Recursion() {
         <TexBlock id="F-12.6" label="Sign-GMAC 雜訊">
           {String.raw`\sigma_\eta^2=\frac{1-m^2}{N}\approx\frac1N\quad\Rightarrow\quad\sigma_w=\frac{\mu}{\sqrt{N(1-p^2)}}`}
         </TexBlock>
+        <p>
+          {md(
+            String.raw`F-12.6 裡的 $m=E[q\,x\mid w]$ 是 $q\,x$ 的條件平均：係數剛好在固定點時 $m=0$，稍微偏離時也很小，所以 $\sigma_\eta^2\approx1/N$（$N$ 筆 $\pm1$ 的平均）。`,
+          )}
+        </p>
         <p>代入本例：</p>
         <TexBlock>
           {String.raw`\begin{aligned}
@@ -279,7 +375,8 @@ export function S2Recursion() {
           <ClaimTag kind="exact" />（在 F-12.1 的線性模型下）。<Tex>{String.raw`\mu`}</Tex> 小時 <Tex>{String.raw`2-\mu K\approx2`}</Tex>，所以{' '}
           <Tex>{String.raw`\sigma_w^2\approx\mu\sigma_\eta^2/(2K)`}</Tex>：<strong>
             <Tex>{String.raw`\sigma_w\propto\sqrt\mu`}</Tex>，收斂時間 <Tex>{String.raw`\tau\propto1/\mu`}</Tex>
-          </strong>——這就是 learning rate 的基本取捨（第 14 章會最佳化它）。
+          </strong>——這就是 learning rate 的基本取捨（第 14 章會最佳化它）。這裡的 <Tex>{String.raw`\tau=-1/\ln p`}</Tex> 是收斂時間常數：偏差衰減到{' '}
+          <Tex>{String.raw`1/e\approx37\%`}</Tex> 需要的 block 數（因為 <Tex>{String.raw`p^{\tau}=e^{-1}`}</Tex>）。
         </p>
         <div className="table-wrap">
           <table className="ch12-table">
@@ -356,6 +453,18 @@ export function S2Recursion() {
               )}{' '}
               <ClaimTag kind="research" />
             </p>
+            <Diagram chart={CHART_COLORED_ETA} caption={String.raw`有相關的 GMAC 雜訊：先用一個一階迴圈把白雜訊變成 AR(1)，$\eta_k=r\,\eta_{k-1}+\sqrt{1-r^2}\,\sigma_\eta\,\varepsilon_k$，再送進同一個 LMS 閉迴路。先找那條回授線。`}>
+              <p>
+                {md(
+                  String.raw`先看前半的小迴圈：白色的 $\varepsilon_k$ 進加法點，回授線把上一個 block 的 $\eta_{k-1}$ 乘上 $r$ 加回來，所以相鄰 block 的 $\eta$ 有相關（$r$ 就是 lag-1 相關係數）。再看後半：$\eta_k$ 進入和前面完全相同的 LMS 閉迴路 $H(z)$。兩個一階迴圈串在一起，$r>0$ 時雜訊的低頻比較多，剛好被 LMS 的 low-pass 放過，所以 $\sigma_w$ 變大。`,
+                )}
+              </p>
+              <p>
+                {md(
+                  String.raw`和公式的對照：圖上的小迴圈就是下面推導第一行的 $\eta_k=r\,\eta_{k-1}+\sqrt{1-r^2}\,\sigma_\eta\,\varepsilon_k$（前面乘上 $\sqrt{1-r^2}$ 是為了讓 $\eta$ 的變異數維持 $\sigma_\eta^2$）；綠色那一格是推導的結果，$r=0$ 時退回 F-12.5。`,
+                )}
+              </p>
+            </Diagram>
             <Steps
               title={md(String.raw`colored $\eta$ 下的 $\sigma_w^2$`)}
               steps={[

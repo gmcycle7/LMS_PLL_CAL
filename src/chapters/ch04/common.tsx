@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { useSettings, type LearningMode } from '@/app/settings'
 import { fmt } from '@/simulation/core'
 import { HandCalc, Mermaid, Tex } from '@/components'
+import { diagramNumber } from './diagrams'
 import { handcalc } from './handcalcs'
 
 /** 在 SettingsProvider 之外（例如單元測試）退回 'engineer'，不丟錯。useSettings 只呼叫一次 useContext。 */
@@ -93,16 +94,49 @@ export function mt(s: string): ReactNode {
 }
 
 /**
+ * 頁內跳轉。HashRouter 下 href="#id" 會被當成路由（整頁換掉），所以用按鈕 + scrollIntoView；
+ * jsdom 沒有實作 scrollIntoView，所以用可選呼叫。
+ */
+export function jumpTo(id: string): void {
+  document.getElementById(id)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+}
+
+/** 長得像連結的頁內跳轉按鈕（章首目錄、「本章符號表在最後」）。 */
+export function JumpTo({ target, children, onJump }: { target: string; children: ReactNode; onJump?: () => void }) {
+  return (
+    <button
+      type="button"
+      className="ch04-jump"
+      onClick={() => {
+        onJump?.()
+        jumpTo(target)
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+/**
  * Mermaid 圖 + 支援 `$...$` 的圖說。共用 Mermaid 的 caption 屬性是純文字（不經 mathText），
  * 圖說裡有符號（$\mu$、$H_\mathrm{PD}$、$S_k$ …）時改用這個包裝，就不必用 Unicode 拼公式（docs/teaching-style.md §3）。
+ * 圖號由 diagrams.ts 的登錄表（頁面順序）自動產生；沒有登錄（＝沒有經過 parser 測試）的圖會丟錯。
  */
 export function MermaidFig({ chart, caption, ariaLabel }: { chart: string; caption: string; ariaLabel: string }) {
+  const no = diagramNumber(chart)
   return (
-    <div className="ch04-mermaid-fig">
+    <div className="ch04-mermaid-fig" id={`ch04-fig-${no}`}>
       <Mermaid chart={chart} ariaLabel={ariaLabel} />
-      <p className="c-figcaption ch04-mermaid-caption">{mt(caption)}</p>
+      <p className="c-figcaption ch04-mermaid-caption">
+        <strong className="ch04-fig-no">圖 4-{no}</strong> {mt(caption)}
+      </p>
     </div>
   )
+}
+
+/** 正文裡引用某張圖的圖號（「圖 4-n」）：由登錄表查號，圖的順序調整時不會對不上。 */
+export function FigRef({ chart }: { chart: string }) {
+  return <strong className="ch04-figref">圖 4-{diagramNumber(chart)}</strong>
 }
 
 /**

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ClaimTag, mathText, ModelLevel, SourceTag, SymbolTable, Tex, TestBadge } from '@/components'
+import { ClaimTag, mathText, ModelLevel, SourceTag, SymbolTable, SystemMap, Tex, TestBadge, type SystemBlock } from '@/components'
 import './chapter.css'
 import { HANDCALCS } from './handcalcs'
 import { Erratum, JumpTo } from './shared'
@@ -23,7 +23,11 @@ const TOC: [string, ReactNode][] = [
   ['ch06-s6', '§6 多頻判據與近整數 FCW'],
   ['ch06-s7', '§7 動手：Polarity Explorer'],
   ['ch06-s8', '§8 比較、綜合手算、思考題與本課必記'],
+  ['symbols', '本章符號表（章末）'],
 ]
+
+/** 系統地圖上標成藍色的方塊：主 PLL 迴路（誤差要先繞過它）與校正迴路裡做相關的 comparator、GMAC。 */
+const SYSTEM_FOCUS: SystemBlock[] = ['dtc', 'pd', 'lf', 'vco', 'div', 'cmp', 'gmac']
 
 /** 第 06 章：PLL Error Transfer 的相位會讓 LMS 發散嗎？（規格 §6、§6.1、§6.2；入門課第 6 課） */
 export default function Chapter06() {
@@ -45,6 +49,19 @@ export default function Chapter06() {
         <Erratum id="E44" />
         <Erratum id="E46" />
       </div>
+      <p className="small ch06-symbols-link">
+        <JumpTo target="symbols">本章符號表在最後 ↓</JumpTo>（每個符號第一次出現時，正文會先用一句話說明；章末的表可以查單位與全站約定。）
+      </p>
+      <SystemMap
+        focus={SYSTEM_FOCUS}
+        caption="系統地圖：藍色是本章的主角——主 PLL 迴路（DTC、phase detector、loop filter、VCO、divider）與校正迴路的 1-bit comparator、GMAC。教學用概念架構，不是特定晶片的 netlist。"
+      />
+      <p className="ch06-map-note">
+        <strong>你在這裡：</strong>上面那一圈藍色方塊（DTC → phase detector → loop filter → VCO → divider）是主 PLL 迴路，DTC 的時間誤差一注入，它就開始追、開始修；
+        下面兩個藍色方塊（1-bit comparator、GMAC）則是校正迴路裡「拿誤差的正負號去和原始 code <Tex>{'x[n]'}</Tex> 做相關」的部分。前幾章把連接兩者的那條虛線（phase
+        error）當成直通線；<strong>這一章補上虛線上被省略的方塊</strong>——主 PLL 對 DTC 誤差的轉移函數 <Tex>{'H_{\\mathrm{PD}}=1/(1+L)'}</Tex>（<Tex>{'L'}</Tex>{' '}
+        是主 PLL 的開迴路增益）——並說明它把誤差的相位轉過 <Tex>{'90^\\circ'}</Tex> 之後，GMAC 的更新方向為什麼會反過來。
+      </p>
       <nav className="ch06-toc" aria-label="本章目錄">
         <strong>本章目錄</strong>
         <ol>
@@ -71,15 +88,6 @@ export default function Chapter06() {
           ))}
         </ol>
       </div>
-      <SymbolTable
-        rows={CH06_SYMBOLS}
-        caption={
-          <>
-            全站約定見 Formula &amp; Unit Reference。本章 <Tex>{'\\delta=a-w'}</Tex>；<Tex>{'C'}</Tex> 指 <Tex>{'E[x[n-D]\\,u[n]]'}</Tex>（§11 的
-            code-correlated disturbance 已改名 <Tex>{'\\varepsilon_{cc}'}</Tex>，<Erratum id="E12" />）。
-          </>
-        }
-      />
       <S1Intro />
       <S2WhyU />
       <S3GmacPole />
@@ -88,6 +96,21 @@ export default function Chapter06() {
       <S6MultiTone />
       <S7Lab />
       <S8Recap />
+      {/* 符號表放在章末（docs/teaching-style.md §5）；章首的「本章符號表在最後 ↓」與目錄最後一項會捲到這裡 */}
+      <div className="ch06-symbols" id="symbols">
+        <SymbolTable
+          rows={CH06_SYMBOLS}
+          caption={
+            <>
+              全站約定見 Formula &amp; Unit Reference。本章 <Tex>{'\\delta=a-w'}</Tex>；<Tex>{'C'}</Tex> 指 <Tex>{'E[x[n-D]\\,u[n]]'}</Tex>（§11 的
+              code-correlated disturbance 已改名 <Tex>{'\\varepsilon_{cc}'}</Tex>，<Erratum id="E12" />）。「首次出現」欄是正文第一次用到並就地解釋這個符號的小節。
+            </>
+          }
+        />
+        <p className="small">
+          <JumpTo target="ch06-s1">↑ 回到 §1</JumpTo>
+        </p>
+      </div>
     </div>
   )
 }

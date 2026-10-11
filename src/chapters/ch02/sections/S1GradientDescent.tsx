@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { Callout, ClaimTag, CodeBlock, Derivation, ModeGate, Prereq, Quiz, Section, StepDerivation, Tex, TexBlock } from '@/components'
 import sgdSrc from '@/simulation/models/sgd.ts?raw'
 import { gradientDescent } from '@/simulation/models/sgd'
-import { ErrataNote, HandCalcSlot, f4, DerivFold, tm } from '../common'
+import { Diagram, ErrataNote, HandCalcSlot, f4, DerivFold, tm } from '../common'
 import { GdExplorer } from '../experiments/GdExplorer'
 
 /** §1 從切線斜率到 Gradient Descent（只用微積分）。 */
@@ -18,9 +18,19 @@ export function S1GradientDescent() {
 
       <Section kind="intuition" title="矇眼下山：只看腳下的坡度">
         <p>
-          你不知道谷底在哪，但腳可以感覺坡度 <Tex>{"J'(w)"}</Tex>（切線斜率）。坡度為正代表「往右是上坡」，所以要往左走；坡度為負就往右走。
-          坡越陡、離谷底通常越遠，可以走大步一點。把這句話寫成公式就是：
+          把你站的位置叫做 <Tex>{'w'}</Tex>（之後它就是我們能調的係數），山的高度叫做 <Tex>{'J(w)'}</Tex>（成本：站在 <Tex>{'w'}</Tex> 時預測有多不準）。
+          你不知道谷底在哪，但腳可以感覺坡度 <Tex>{"J'(w)"}</Tex>（<Tex>{'J'}</Tex> 對 <Tex>{'w'}</Tex> 的導數，也就是切線斜率）。坡度為正代表「往右是上坡」，所以要往左走；坡度為負就往右走。
+          坡越陡、離谷底通常越遠，可以走大步一點。先把這句話畫成一個迴圈：
         </p>
+        <Diagram id="gd-loop">
+          <p>
+            {tm(
+              String.raw`先看藍色的兩格：「量坡度」讀出目前位置的斜率 $J'(w[n])$；「$\times(-\mu)$」把它反向、再乘上步長 $\mu$（一個我們自己選的正數，決定每一步走多大）。再看右邊的加法點：原來的位置 $w[n]$ 加上這一步的移動量 $\Delta w[n]$，就是新的位置 $w[n+1]$；$z^{-1}$ 表示「等到下一步」，新的位置繞回左邊，成為下一輪的 $w[n]$。`,
+            )}
+          </p>
+          <p>{tm(String.raw`圖上的 $w[n]$ 就是下面 F-02.1 裡的 $w_n$（下標 $n$：第 $n$ 步）；加法點的兩個輸入就是等號右邊的兩項 $w_n$ 與 $-\mu J'(w_n)$。`)}</p>
+        </Diagram>
+        <p>把這一圈寫成公式就是：</p>
         <TexBlock id="F-02.1">{String.raw`\boxed{w_{n+1}=w_n-\mu\,J'(w_n)}\qquad(\mu>0\text{：步長})`}</TexBlock>
         <p>
           這就是 <strong>Gradient Descent（梯度下降）</strong>。只有一個參數時「梯度」就是導數；多個參數時是偏導數排成的向量（Ch09–Ch10）。
@@ -29,8 +39,19 @@ export function S1GradientDescent() {
 
       <Section kind="example" title={tm('先算一次：$a=3,\\ x=2,\\ w_0=1,\\ \\mu=0.1$')}>
         <p>
-          黑盒子 <Tex>{'y=ax'}</Tex>、<Tex>{'a=3'}</Tex>，我們給 <Tex>{'x=2'}</Tex>、量到 <Tex>{'y=6'}</Tex>。用單筆成本 <Tex>{'J(w)=\\tfrac12(y-wx)^2=\\tfrac12(6-2w)^2'}</Tex>：
+          黑盒子 <Tex>{'y=ax'}</Tex>：<Tex>{'a'}</Tex> 是藏在盒子裡、我們不知道的真實係數（校正時就是理想的 DTC gain），這裡 <Tex>{'a=3'}</Tex>。
+          我們給輸入 <Tex>{'x=2'}</Tex>（又叫 regressor）、量到輸出 <Tex>{'y=6'}</Tex>。我們手上只有估計值 <Tex>{'w'}</Tex>：用它預測 <Tex>{'\\hat y=wx'}</Tex>，
+          再算預測誤差 <Tex>{'e=y-\\hat y=y-wx'}</Tex>（量到的減掉預測的）。單筆成本取 <Tex>{'J(w)=\\tfrac12e^2=\\tfrac12(y-wx)^2=\\tfrac12(6-2w)^2'}</Tex>。
+          「量坡度」在硬體上怎麼做？把上一張圖的那一格打開：
         </p>
+        <Diagram id="gd-model">
+          <p>
+            {tm(
+              String.raw`先看上半部：同一個輸入 $x[n]$ 同時送進黑盒子（乘上未知的 $a$，得到量測值 $y[n]$）和我們的預測器（乘上目前的 $w[n]$，得到預測值 $\hat y[n]$）；第一個加法點把兩者相減，得到誤差 $e[n]$。再看藍色的「$\times\,x[n]$」：誤差乘上輸入，得到的 $e[n]\,x[n]$ 剛好就是負的坡度 $-J'(w[n])$（下面第二步用連鎖律算給你看）。所以上一張圖的「量坡度」與「$\times(-\mu)$」兩格，在這裡變成「相減、$\times\,x$、$\times\,\mu$」三格。最下面的加法點與 $z^{-1}$ 和上一張圖完全相同。`,
+            )}
+          </p>
+          <p>{tm(String.raw`圖上的 $e[n]$、$\Delta w[n]$、$w[n+1]$ 就是下面手算步驟裡的 $e_0$、$\Delta w_0$、$w_1$（$n=0$）。`)}</p>
+        </Diagram>
         <StepDerivation
           title="第 0 步（每個數字都由下方實驗用的同一個函式計算）"
           steps={[
@@ -74,6 +95,17 @@ export function S1GradientDescent() {
       </Section>
 
       <Section kind="formula" title="步長上限：二次項（彎曲）把你推過頭">
+        <p>
+          先看圖，再看推導。把同一個迴圈改用<strong>參數誤差</strong> <Tex>{'\\delta_n=a-w_n'}</Tex>（離谷底還差多少；全站一律是「真值減估計」）來畫，步長的上限一眼就看得出來：
+        </p>
+        <Diagram id="gd-error-loop">
+          <p>
+            {tm(
+              String.raw`先看藍色的兩格：參數誤差 $\delta[n]$ 先乘上曲率 $J''$（成本的二階導數：坡度隨位置變化得多快；固定 $x$ 時 $J''=x^2$），再乘上步長 $\mu$。再看加法點：這個乘積帶著負號加回 $\delta[n]$，所以每繞一圈，誤差變成原來的 $(1-\mu J'')$ 倍。$\mu J''<1$：每圈只修掉一部分，單調靠近；$\mu J''=1$：一圈修完；$1<\mu J''<2$：修過頭、正負交替，但還是縮小；$\mu J''>2$：每圈放大，發散。`,
+            )}
+          </p>
+          <p>{tm(String.raw`圖上「$\times J''$」「$\times\mu$」兩格的乘積就是下面 F-02.2 裡的 $\mu J''$；加法點輸出的倍率 $1-\mu J''$ 就是稍後說的 pole $p$。`)}</p>
+        </Diagram>
         <DerivFold>
           <StepDerivation
             title={tm('二次成本的精確分析（固定 $x$、無雜訊）')}

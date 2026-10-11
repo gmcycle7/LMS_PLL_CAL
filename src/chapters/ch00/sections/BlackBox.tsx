@@ -3,7 +3,6 @@ import {
   ClaimTag,
   CodeBlock,
   Derivation,
-  Mermaid,
   ModeGate,
   Section,
   SourceTag,
@@ -15,7 +14,7 @@ import { useSettings } from '@/app/settings'
 import { conventionalStep } from '@/simulation/models/lms'
 import { CLEAN_DATA, NOISY_DATA, leastSquaresGain, lmsOnData, ratioTable } from '../model'
 import { num } from '../format'
-import { ChapterHandCalc, Observe } from '../common'
+import { ChapterDiagram, ChapterHandCalc, FigRef, Observe } from '../common'
 import modelSrc from '../model.ts?raw'
 
 /** §0.1 黑盒子：先看乾淨資料，再看含雜訊資料。 */
@@ -80,8 +79,22 @@ export function BlackBoxSection() {
 
       <h3>情況二：資料有雜訊（真實世界）</h3>
       <p>
-        真實量測一定有雜訊：比較器有熱雜訊、時脈有 jitter、ADC 有量化誤差。於是盒子的行為變成
+        真實量測一定有雜訊：比較器有熱雜訊、時脈有 jitter、ADC 有量化誤差。把這個雜訊記為 <Tex>{'v'}</Tex>（時正時負、平均是 0），盒子的輸出就變成「<Tex>{'a'}</Tex>{' '}
+        乘上 <Tex>{'x'}</Tex>，再加上 <Tex>{'v'}</Tex>」。同時把我們自己也畫進來：我們手上有一個可以調的數 <Tex>{'w'}</Tex>，代表「目前猜 <Tex>{'a'}</Tex> 是多少」；用它算出的{' '}
+        <Tex>{'\\hat y=wx'}</Tex> 叫<strong>預測</strong>，預測和真正輸出的差 <Tex>{'e=y-\\hat y'}</Tex> 叫<strong>誤差</strong>。
       </p>
+      <ChapterDiagram name="CHART_BLACKBOX_MODEL">
+        <p>
+          先看經過深灰色黑盒子的那條路：<Tex>{'x'}</Tex> 乘上未知的 <Tex>{'a'}</Tex>，在第一個相加點加上雜訊 <Tex>{'v'}</Tex>（紅色），得到我們量得到的 <Tex>{'y'}</Tex>。再看經過藍色方塊的那條路：
+          <strong>同一個</strong> <Tex>{'x'}</Tex> 乘上我們的猜測 <Tex>{'w'}</Tex>（藍色），得到預測 <Tex>{'\\hat y'}</Tex>。最後看最右邊的相加點：<Tex>{'y'}</Tex> 以{' '}
+          <code>(+)</code> 進入、<Tex>{'\\hat y'}</Tex> 以 <code>(−)</code> 進入，所以輸出是 <Tex>{'e=y-\\hat y'}</Tex>。
+        </p>
+        <p>
+          圖上的三條線 <code>y = a·x + v</code>、<code>ŷ = w·x</code>、<code>e = y − ŷ</code> 就是下面 F-00.1 的三個等式。整個網站的目標只有一個：調 <Tex>{'w'}</Tex>
+          （我們唯一碰得到的旋鈕），讓藍色方塊變得和深灰色的黑盒子一樣。
+        </p>
+      </ChapterDiagram>
+      <p>寫成式子：</p>
       <TexBlock
         id="F-00.1"
         label={
@@ -126,6 +139,16 @@ export function BlackBoxSection() {
           <strong>LMS</strong>（Least Mean Squares）。
         </li>
       </ol>
+      <ChapterDiagram name="CHART_BATCH_VS_ONLINE">
+        <p>
+          先看「批次」那個框：資料要先全部存進記憶體，再算兩個總和 <Tex>{'\\sum_i x_iy_i'}</Tex>、<Tex>{'\\sum_i x_i^2'}</Tex>，最後做一次除法才得到答案{' '}
+          <Tex>{'\\hat a_{\\mathrm{LS}}'}</Tex>（讀作「a hat」，下標 LS 是 least squares）。再看「線上」那個框：只有一個暫存器 <Tex>{'w'}</Tex>{' '}
+          在自己繞圈，每來一筆資料就改一點——其中 <Tex>{'\\mu'}</Tex> 是每次修正的步伐大小，§0.2、§0.3 會說明。
+        </p>
+        <p>
+          圖上的「分子」「分母」就是下面 F-00.10 分數線的上下兩邊；藍色的那一圈就是 §0.2 的 <FigRef name="CHART_LOOP" />。
+        </p>
+      </ChapterDiagram>
       <TexBlock
         id="F-00.10"
         label={
@@ -294,14 +317,6 @@ function RatioTable({ rows, caption }: { rows: { x: number; y: number; ratio: nu
   )
 }
 
-const LOOP_CHART = `flowchart LR
-  X["輸入 x"] --> P["① 預測 ŷ = w·x"]
-  P --> C["② 比較 e = y − ŷ"]
-  Y["黑盒子輸出 y"] --> C
-  C --> U["③ 修正 w ← w + μ·e·x"]
-  X --> U
-  U -->|"下一筆資料"| P`
-
 /** §0.2 三個動作：預測 → 比較 → 修正。 */
 export function LoopSection() {
   // 四種正負組合：直接呼叫 lms.ts 的 conventionalStep（w = 0 ⇒ e = y），看 Δw 的正負
@@ -319,7 +334,10 @@ export function LoopSection() {
   )
   return (
     <Section kind="diagram" level={2} id="ch00-loop" title="§0.2 三個動作：預測 → 比較 → 修正">
-      <p>LMS 每收到一筆資料，只做三件事：</p>
+      <p>
+        LMS 每收到一筆資料，只做三件事。下標 <Tex>{'n'}</Tex> 表示「第 <Tex>{'n'}</Tex> 筆資料」（sample index，從 0 開始數）：<Tex>{'x_n,\\ y_n'}</Tex> 是第{' '}
+        <Tex>{'n'}</Tex> 筆的輸入與輸出，<Tex>{'w_n'}</Tex> 是看到這一筆之前的猜測。
+      </p>
       <ol>
         <li>
           <strong>預測</strong>：用目前的猜測算出 <Tex>{'\\hat y_n=w_nx_n'}</Tex>。
@@ -328,17 +346,27 @@ export function LoopSection() {
           <strong>比較</strong>：和真正的輸出比，得到誤差 <Tex>{'e_n=y_n-\\hat y_n'}</Tex>。
         </li>
         <li>
-          <strong>修正</strong>：依照「錯多少、往哪錯」把 <Tex>{'w'}</Tex> 推一小步。
+          <strong>修正</strong>：依照「錯多少、往哪錯」把 <Tex>{'w'}</Tex> 推一小步，得到下一筆要用的 <Tex>{'w_{n+1}'}</Tex>。這一小步記為{' '}
+          <Tex>{'\\Delta w_n'}</Tex>（更新量）；步伐的大小由一個我們自己選的小正數 <Tex>{'\\mu'}</Tex> 控制，稱為<strong>學習率</strong>（learning rate / step size）。
         </li>
       </ol>
-      <Mermaid chart={LOOP_CHART} caption="LMS 的迴圈：每一筆資料走一圈（示意）" ariaLabel="預測、比較、修正三個步驟組成的迴圈" />
+      <ChapterDiagram name="CHART_LOOP">
+        <p>
+          先由左到右看主線：<code>x[n]</code> 進「① 預測」變成 <code>ŷ[n]</code>，和黑盒子送來的 <code>y[n]</code> 在「② 比較」相減得到 <code>e[n]</code>，再進「③ 修正」。
+          再看兩條容易漏掉的線：<code>x[n]</code> 有<strong>第二條</strong>線直接接到「③ 修正」（修正量要用到它，下面馬上說明為什麼）；而「③ 修正」的輸出{' '}
+          <code>w[n+1]</code> 繞回「① 預測」——這條回授線讓它成為一個迴圈。
+        </p>
+        <p>
+          圖上的 <code>x[n]、y[n]、ŷ[n]、e[n]、w[n]</code> 就是公式裡的 <Tex>{'x_n,\\ y_n,\\ \\hat y_n,\\ e_n,\\ w_n'}</Tex>；「③ 修正」那一格寫的式子，就是 §0.3 的 LMS 更新式。
+        </p>
+      </ChapterDiagram>
 
       <h3>修正的方向怎麼決定？</h3>
       <p>
         關鍵在於：要讓預測 <Tex>{'\\hat y=wx'}</Tex> 變大，<Tex>{'w'}</Tex> 該變大還是變小，取決於 <Tex>{'x'}</Tex> 的正負。
-        下表每一列都是用 <code>conventionalStep</code>（<Tex>{`\\mu=${mu}`}</Tex>）真正算出來的更新量：
+        下表每一列都是用 <code>conventionalStep</code>（學習率 <Tex>{`\\mu=${mu}`}</Tex>）真正算出來的更新量 <Tex>{'\\Delta w=\\mu e x'}</Tex>：
       </p>
-      <div className="table-wrap">
+      <div className="table-wrap" id="ch00-direction-table">
         <table className="ch00-num-table">
           <thead>
             <tr>
@@ -405,7 +433,22 @@ function directionText(e: number, x: number): ReactNode {
 export function UpdateFormulaSection() {
   return (
     <Section kind="formula" level={2} id="ch00-update" title="§0.3 LMS 更新公式">
-      <p>把三個動作寫成一行，就是整個網站最重要的公式：</p>
+      <p>
+        把三個動作合起來看，「修正」其實只是一個<strong>累加器</strong>：把每一筆的 <Tex>{'\\mu\\,e_n\\,x_n'}</Tex> 一直加到暫存器 <Tex>{'w'}</Tex>{' '}
+        上。先看它在硬體上長什麼樣子：
+      </p>
+      <ChapterDiagram name="CHART_LMS_ACCUMULATOR">
+        <p>
+          先看左邊：<code>e[n]</code> 與 <code>x[n]</code> 進乘法器（圓圈 ×），再乘上常數 <Tex>{'\\mu'}</Tex>（硬體上常做成右移 <Tex>{'k'}</Tex> 位元），得到這一筆的更新量{' '}
+          <code>μ·e[n]·x[n]</code>。再看右邊的迴圈：藍色暫存器現在存著 <code>w[n]</code>（同時也送去做這一筆的預測），它的輸出繞回相加點和更新量相加，得到 <code>w[n+1]</code>，
+          下一拍再寫回暫存器——「暫存器 + 相加點 + 回授線」就是累加器。
+        </p>
+        <p>
+          圖上相加點的兩個輸入 <code>(+) w[n]</code> 與 <code>(+) μ·e[n]·x[n]</code>，就是下面公式等號右邊的兩項；相加點的輸出 <code>w[n+1]</code> 是等號左邊。
+          <code>z⁻¹</code> 表示「<Tex>{'w_{n+1}'}</Tex> 要到下一筆資料才用得到」。
+        </p>
+      </ChapterDiagram>
+      <p>寫成一行，就是整個網站最重要的公式：</p>
       <TexBlock
         id="F-00.2"
         label={

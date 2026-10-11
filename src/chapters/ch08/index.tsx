@@ -5,6 +5,7 @@ import { FirstOrderPm } from './sections/FirstOrderPm'
 import { UpdateDelay } from './sections/UpdateDelay'
 import { DualLoop } from './sections/DualLoop'
 import { Wrapup } from './sections/Wrapup'
+import { ChapterSymbols } from './sections/Symbols'
 import { PmLab } from './experiments/PmLab'
 import { DualLoopLab } from './experiments/DualLoopLab'
 import './chapter.css'
@@ -36,6 +37,8 @@ export default function Chapter08() {
         <DualLoopLab />
       </Section>
       <Wrapup />
+      {/* 本章符號表放在最後（teaching-style §5）；章首只留一行連結（Intro 的 SymbolsLink） */}
+      <ChapterSymbols />
     </div>
   )
 }

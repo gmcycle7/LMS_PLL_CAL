@@ -12,6 +12,8 @@ import {
   type DesignModel,
   type Objective,
 } from '@/simulation/models/optimizer'
+import { Diagram } from '../Diagram'
+import { CHART_DESIGN_FLOW, CHART_NOISE_SHAPING, CHART_OBJECTIVE_FLOW, CHART_PM_LOOP, CHART_TRACKING_TRADEOFF } from '../diagrams'
 import { Hand } from '../Hand'
 import { BIAS2, logspace, md, nf, Steps, tx, vLine } from '../shared'
 
@@ -73,12 +75,35 @@ export function S3Objectives() {
     <Section kind="formula" level={2} title={md(String.raw`14.2 優化目標不同，最佳 $\mu$ 也不同`)} id="ch14-objectives">
       <p>
         「最佳 learning rate」不是一個數字，而是一個<strong>問題的答案</strong>。同一組硬體（第 10 課條件：<Tex>{'\\sigma_v=100\\,\\mathrm{fs}'}</Tex>、<Tex>{'N=4096'}</Tex>、
-        <Tex>{'B=32'}</Tex>、<Tex>{'\\delta_0=3\\,\\mathrm{fs}'}</Tex>），換一個目標，答案可以差十倍以上。下面逐一推導。
+        <Tex>{'B=32'}</Tex>、<Tex>{'\\delta_0=3\\,\\mathrm{fs}'}</Tex>），換一個目標，答案可以差十倍以上。先用一張圖看全貌，再逐一推導。
       </p>
+      <Diagram chart={CHART_OBJECTIVE_FLOW} caption="同一個迴路、六種目標：每條分支是一種「最佳」的定義；不管走哪一條，最後都要通過右邊紅色的 PM 上限。">
+        <p>
+          <strong>先看</strong>最左邊的菱形（你在最佳化什麼），<strong>再</strong>沿著每一條分支看它怎麼決定 <Tex>{'\\mu'}</Tex>：(a) 靠微分找成本的谷底、(b) 直接讓 pole 等於 0、(c) 只能數值解、(d) 由限制條件決定（不是由微分）、(e) 由 gain{' '}
+          漂移的快慢決定。<strong>最後看</strong>最右邊：任何目標選出來的 <Tex>{'\\mu'}</Tex> 都不能讓 phase margin 低於下限。
+        </p>
+        <p>
+          圖上每個方塊裡的式子，就是下面 (a)–(f) 各小節最後得到的公式：(a) 是 F-14.8、(b) 是 F-14.10、(d) 的下限是 F-14.15 的單一 corner 版、(e) 是 F-14.12 與 F-14.13、(f) 是 F-14.14。其中 <Tex>{'A'}</Tex>、<Tex>{'\\epsilon'}</Tex>、
+          <Tex>{'r'}</Tex>、<Tex>{'\\sigma_\\zeta'}</Tex>、<Tex>{'PM_t'}</Tex> 這幾個新符號，會在各自的小節第一次出現時說明。
+        </p>
+      </Diagram>
 
       <h3>
         (a) 最小終點 RMS：對 <Tex>{'\\mu'}</Tex> 微分
       </h3>
+      <p>
+        目標是讓第 <Tex>{'B'}</Tex> 次更新後的均方誤差最小。計算的路徑是：先由硬體得到斜率 <Tex>{'K'}</Tex>，再對每個候選的 <Tex>{'\\mu'}</Tex> 算出 {BIAS2} 與 variance，加起來就是成本 <Tex>{'J(\\mu)'}</Tex>。
+      </p>
+      <Diagram chart={CHART_DESIGN_FLOW} caption="從規格到最佳 learning rate 的計算路徑：藍色與棕色兩塊隨步長往相反方向變，相加後的谷底就是答案。">
+        <p>
+          <strong>先看</strong>上半部：comparator 雜訊 <Tex>{'\\sigma_v'}</Tex> 決定 <Tex>{'K_q'}</Tex>，誤差路徑的增益 <Tex>{'|H|'}</Tex> 與相位 <Tex>{'\\theta'}</Tex> 決定 <Tex>{'C'}</Tex>，兩者相乘是 <Tex>{'K'}</Tex>。<strong>再看</strong>中間：挑一個候選{' '}
+          <Tex>{'\\mu'}</Tex>，就得到 <Tex>{'g=\\mu K'}</Tex> 與 <Tex>{'p=1-g'}</Tex>。<strong>最後看</strong>下半部：同一個 <Tex>{'\\mu'}</Tex> 讓藍色的 {BIAS2} 變小、卻讓棕色的 variance 變大；兩者在加法點相加成為 <Tex>{'J(\\mu)'}</Tex>，掃過{' '}
+          <Tex>{'\\mu'}</Tex> 找最低點。
+        </p>
+        <p>
+          圖上加法點輸出的 <Tex>{'J(\\mu)=E[\\delta_B^2]'}</Tex> 就是下面第 1 步的 <Tex>{'J(\\mu)'}</Tex>（F-14.3 把雜訊項用 F-14.6 化簡後的寫法）；「找最低點」在數學上就是 <Tex>{'dJ/d\\mu=0'}</Tex>（F-14.7），<Tex>{'B'}</Tex> 大時近似成最下面方塊裡的 F-14.8。
+        </p>
+      </Diagram>
       <Steps
         steps={[
           {
@@ -165,7 +190,22 @@ export function S3Objectives() {
       </p>
 
       <h3>(d) 最小係數擾動／spur</h3>
-      <p>係數雜訊不是白的：它是 GMAC 白雜訊經過 <Tex>{'H(z)=\\mu/(z-p)'}</Tex> 的 low-pass（§12）。在 block-rate 頻率 <Tex>{'\\Omega'}</Tex> 的 PSD：</p>
+      <p>
+        係數的抖動乘上 code 之後會出現在 PLL 輸出，週期性的成分就是 spur（Ch12），所以這個目標關心的是係數雜訊<strong>在某個頻率有多大</strong>，而不是總量。係數雜訊不是白的：它是 GMAC 白雜訊經過 <Tex>{'H(z)=\\mu/(z-p)'}</Tex> 的 low-pass（§12）。先看訊號怎麼流：
+      </p>
+      <Diagram chart={CHART_NOISE_SHAPING} caption="係數雜訊的來源：白雜訊先乘步長，再進一個帶回授的一階迴路；回授的倍數就是 pole。">
+        <p>
+          <strong>先看</strong>左邊：每個 block 的白雜訊 <Tex>{'\\eta_k'}</Tex>（每個頻率一樣大）乘上 <Tex>{'\\mu'}</Tex> 進加法點。<strong>再看</strong>右邊的迴圈：加法點的輸出延遲一個 block（<Tex>{'z^{-1}'}</Tex>）成為係數雜訊{' '}
+          <Tex>{'w_k-a'}</Tex>（也就是 <Tex>{'-\\delta_k'}</Tex>；正負號不影響功率），同時乘 <Tex>{'p'}</Tex> 回到加法點。舊的雜訊每個 block 只衰減成 <Tex>{'p'}</Tex> 倍，所以變化慢的（低頻）成分會累積起來、變化快的成分互相抵消——這就是 low-pass。
+        </p>
+        <p>
+          圖上的「<Tex>{'\\times\\mu'}</Tex>」「<Tex>{'z^{-1}'}</Tex>」「<Tex>{'\\times p'}</Tex>」合起來就是公式裡的 <Tex>{'H(z)=\\mu z^{-1}/(1-pz^{-1})=\\mu/(z-p)'}</Tex>。在很低的頻率（<Tex>{'z\\to1'}</Tex>）增益是{' '}
+          <Tex>{'\\mu/(1-p)=\\mu/(\\mu K)=1/K'}</Tex>：<Tex>{'\\mu'}</Tex> 被約掉了，這就是下面「反直覺結論」的來源。
+        </p>
+      </Diagram>
+      <p>
+        把 <Tex>{'z=e^{j\\Omega}'}</Tex> 代入就得到係數雜訊的功率頻譜密度 <Tex>{'S_w(e^{j\\Omega})'}</Tex>（<Tex>{'\\Omega'}</Tex> 以 rad/block 計，對應的實際頻率以更新率 <Tex>{'f_u=f_s/N'}</Tex> 為準）：
+      </p>
       <Steps
         steps={[
           { tex: String.raw`S_w(e^{j\Omega})=|H|^2\sigma_\eta^2=\frac{\mu^2\sigma_\eta^2}{|e^{j\Omega}-p|^2}=\frac{\mu^2\sigma_\eta^2}{1-2p\cos\Omega+p^2}`, why: <><Tex>{'|e^{j\\Omega}-p|^2=(\\cos\\Omega-p)^2+\\sin^2\\Omega=1-2p\\cos\\Omega+p^2'}</Tex>。</> },
@@ -182,11 +222,26 @@ export function S3Objectives() {
         <strong>校正頻寬以外</strong>的偏移頻率有效；要壓低頻帶內的雜訊，只能加大 <Tex>{'N'}</Tex>（降 <Tex>{'\\sigma_\\eta^2'}</Tex>）或加大 <Tex>{'K'}</Tex>（降 <Tex>{'\\sigma_v'}</Tex>、改善 <Tex>{'C'}</Tex>）。
       </Callout>
       <p>
-        既然成本隨 <Tex>{'\\mu'}</Tex> 單調遞增，最佳解就是「滿足收斂要求的最小 <Tex>{'\\mu'}</Tex>」：<Tex>{'|E[\\delta_B]|=p^B|\\delta_0|\\le\\epsilon|\\delta_0|\\Rightarrow\\mu\\ge(1-\\epsilon^{1/B})/K'}</Tex>（§14.5 的單一 corner 版本）。
+        既然成本隨 <Tex>{'\\mu'}</Tex> 單調遞增，最佳解就是「滿足收斂要求的最小 <Tex>{'\\mu'}</Tex>」。收斂要求寫成：<Tex>{'B'}</Tex> 次更新後平均誤差要縮到初始值的 <Tex>{'\\epsilon'}</Tex> 倍以內（<Tex>{'\\epsilon'}</Tex> 是無因次的相對縮減比，
+        <Tex>{'0<\\epsilon<1'}</Tex>），也就是 <Tex>{'|E[\\delta_B]|=p^B|\\delta_0|\\le\\epsilon|\\delta_0|\\Rightarrow\\mu\\ge(1-\\epsilon^{1/B})/K'}</Tex>（§14.5 的單一 corner 版本）。
         答案由<strong>限制條件</strong>決定，不是由導數為零決定。
       </p>
 
       <h3>(e) 最佳 PVT 追蹤</h3>
+      <p>
+        開機校正結束後，正確答案 <Tex>{'a'}</Tex> 還會隨溫度、電壓慢慢漂移（PVT drift）。這時的取捨換了一組：<Tex>{'\\mu'}</Tex> 太小，係數追不上漂移，永遠落後一截（lag）；<Tex>{'\\mu'}</Tex> 太大，雜訊又被放大。漂移用兩種模型描述：ramp（每個 block
+        固定增加 <Tex>{'r'}</Tex>，單位 fs/block）與 random walk（每個 block 隨機走一步 <Tex>{'\\zeta_k'}</Tex>，標準差 <Tex>{'\\sigma_\\zeta'}</Tex>）。
+      </p>
+      <Diagram chart={CHART_TRACKING_TRADEOFF} caption="追蹤時的取捨：藍色的落後項隨步長變小，棕色的雜訊項隨步長變大，兩者相加找最低點。">
+        <p>
+          <strong>先看</strong>左邊的兩個來源：<Tex>{'a'}</Tex> 的漂移與 GMAC 雜訊 <Tex>{'\\eta_k'}</Tex>。<strong>再看</strong>中間：漂移造成藍色的「追不上」誤差、雜訊造成棕色的抖動，兩項都由同一個 <Tex>{'\\mu'}</Tex> 控制，但方向相反。
+          <strong>最後看</strong>右邊：兩項在加法點相加成為成本 <Tex>{'J(\\mu)'}</Tex>，最低點就是追蹤用的 <Tex>{'\\mu^*'}</Tex>。
+        </p>
+        <p>
+          圖上藍色方塊的 <Tex>{'(r/(\\mu K))^2'}</Tex> 就是下面 ramp 推導第 3 步 <Tex>{'J'}</Tex> 的第一項（穩態落後量 <Tex>{'\\bar\\delta=r/(\\mu K)'}</Tex> 的平方），棕色方塊的 <Tex>{'\\mu\\sigma_\\eta^2/(2K)'}</Tex> 是第二項（F-14.6 的小{' '}
+          <Tex>{'g'}</Tex> 近似）；random walk 那一行則對應第二個推導的 <Tex>{'J\\approx\\sigma_\\zeta^2/(2\\mu K)+\\mu\\sigma_\\eta^2/(2K)'}</Tex>。
+        </p>
+      </Diagram>
       <Steps
         title={
           <>
@@ -223,6 +278,21 @@ export function S3Objectives() {
       </p>
 
       <h3>(f) 共同的上限：PM</h3>
+      <p>
+        <Tex>{'PM'}</Tex> 是校正迴路的 phase margin（離振盪還有多少相位餘裕；推導見章首的先備知識），<Tex>{'PM_t'}</Tex> 是設計要求的下限。要把「<Tex>{'PM\\ge PM_t'}</Tex>」換算成對 <Tex>{'\\mu'}</Tex> 的限制，先把回授線剪開，看開迴路 <Tex>{'L(z)'}</Tex> 是怎麼組成的：
+      </p>
+      <Diagram chart={CHART_PM_LOOP} caption="PM 的來源：把校正迴路的回授線剪開，兩個方塊相乘就是開迴路；從 $|L|=1$ 的頻率算出 PM，再換算成迴路增益 $g$ 的上限。">
+        <p>
+          <strong>先看</strong>上面的迴圈：它就是 §14.0 的校正迴路，只是拿掉雜訊（雜訊不影響穩定性），並把「<Tex>{'\\times K'}</Tex>」與「<Tex>{'\\times\\mu'}</Tex>」合併成「<Tex>{'\\times g'}</Tex>」（<Tex>{'g=\\mu K'}</Tex>）；回授的 <Tex>{'w_k'}</Tex> 在加法點以負號相減。
+          <strong>再看</strong>虛線：把回授線剪開，從 <Tex>{'\\delta_k'}</Tex> 一路乘到 <Tex>{'w_k'}</Tex> 經過的就是「<Tex>{'\\times g'}</Tex>」與累加器 <Tex>{'1/(z-1)'}</Tex>，也就是開迴路 <Tex>{'L(z)=g/(z-1)'}</Tex>。<strong>最後看</strong>往下的那條鏈：先找 <Tex>{'|L|=1'}</Tex> 的頻率 <Tex>{'\\omega_c'}</Tex>，
+          再量那裡離 <Tex>{'-180^\\circ'}</Tex> 還有多遠就是 PM（藍色）；要求 <Tex>{'PM\\ge PM_t'}</Tex>，等於給 <Tex>{'g'}</Tex> 一個上限 <Tex>{'g_{\\max}'}</Tex>。
+        </p>
+        <p>
+          圖上藍色方塊的 <Tex>{'PM=90^\\circ-\\arcsin(g/2)'}</Tex> 就是章首先備知識推導出來的結果；下一個藍色方塊的 <Tex>{'g\\le2\\cos PM_t'}</Tex> 就是下面的 F-14.14，其中 <Tex>{'PM_t=60^\\circ'}</Tex> 給出 <Tex>{'g_{\\max}=1'}</Tex>、<Tex>{'\\mu\\le1/K'}</Tex>，也就是前面全貌圖最右邊的紅色方塊；
+          虛線連到的紅色方塊是 <Tex>{'g=2'}</Tex> 的極端：<Tex>{'PM=0^\\circ'}</Tex>、<Tex>{'p=-1'}</Tex>。
+        </p>
+      </Diagram>
+      <p>換算的結果就是前面全貌圖最右邊的紅色方塊：</p>
       <TexBlock id="F-14.14" label={md(String.raw`PM 與 $\mu$ 上限`)}>
         {String.raw`PM=90^\circ-\arcsin\frac{g}{2}\ \ge PM_t\iff g\le2\sin(90^\circ-PM_t)=2\cos PM_t\qquad(PM_t=60^\circ\Rightarrow\mu\le1/K)`}
       </TexBlock>

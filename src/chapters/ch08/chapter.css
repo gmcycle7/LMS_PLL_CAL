@@ -95,6 +95,54 @@
   font-size: 0.92rem;
 }
 
+/* 章首「本章符號表在最後 ↓」與章末「↑ 回到章首」：外觀是連結，實際是按鈕（HashRouter 下不能用 #hash） */
+.ch08-symbols-link {
+  margin: 10px 0 14px;
+}
+.ch08-link-button {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.ch08-symbols-hint {
+  margin-left: 0.8em;
+}
+.ch08-link-button:hover {
+  text-decoration-thickness: 2px;
+}
+.ch08-link-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* 章末符號表：捲動定位時避開固定的 topbar */
+.ch08-symbols,
+.ch08-symbols-link {
+  scroll-margin-top: calc(var(--topbar-h, 52px) + 12px);
+}
+.ch08-symbols {
+  margin-top: 32px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.ch08-symbols:focus,
+.ch08-symbols-link:focus {
+  outline: none;
+}
+.ch08-symbols:focus-visible,
+.ch08-symbols-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
 /* 「試試看」清單 */
 .ch08-try {
   margin: 4px 0 0;

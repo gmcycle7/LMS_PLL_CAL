@@ -2,7 +2,8 @@ import { useMemo } from 'react'
 import type { Data, Layout } from 'plotly.js-dist-min'
 import { Callout, ClaimTag, mathText, ModeGate, Plot, Prereq, Section, SourceTag, Tex, TexBlock, useThemeTokens } from '@/components'
 import { fixedXMuMax, fixedXPole, runScalarLms } from '@/simulation/models/lms'
-import { Erratum, FBlock, HC, num, StepsBox, T, tnum, tx, Verdict } from '../common'
+import { Erratum, FBlock, Fig, HC, num, StepsBox, T, tnum, tx, Verdict } from '../common'
+import { CHART_ERROR_RECURSION, CHART_LMS_LOOP, CHART_POLE_REGIME, CHART_TAU_FLOW, figRef } from '../diagrams'
 import { FixedXExplorer } from '../experiments/FixedXExplorer'
 import { poleLabelTex } from '../poleLabel'
 
@@ -292,12 +293,29 @@ export function FixedXSection() {
         <p>
           答案只需要高中的<strong>等比數列</strong>：每一步，剩下的誤差都被乘上同一個數 <Tex>{T`p=1-\mu x^2`}</Tex>。
         </p>
+        <p>
+          LMS 的每一步做三件事。<strong>預測</strong>：用目前的估計 <Tex>{T`w_n`}</Tex> 算出 <Tex>{T`w_nx`}</Tex>（<Tex>n</Tex> 是第幾次更新，也就是 sample 索引；<Tex>{T`w_n`}</Tex> 是第{' '}
+          <Tex>n</Tex> 次更新時你對 <Tex>a</Tex> 的估計）。<strong>比較</strong>：和真實輸出相減，得到<strong>預測誤差</strong> <Tex>{T`e_n=y-w_nx`}</Tex>。<strong>修正</strong>：
+          <Tex>{T`w_{n+1}=w_n+\mu\,e_n\,x`}</Tex>，<Tex>\mu</Tex> 是<strong>學習率</strong>（step size）。畫成方塊圖就是一個迴圈：
+        </p>
+        <Fig
+          chart={CHART_LMS_LOOP}
+          caption={T`LMS 的一步：預測 → 比較 → 修正。看藍色部分：修正量 $\mu e_nx$ 進累加器，更新後的 $w$ 延遲一步再回到模型，形成回授。`}
+          ariaLabel="輸入 x 同時送進未知系統與模型，兩者輸出相減得到誤差 e，誤差乘上 mu 與 x 成為修正量，累加器把它加到 w 上，延遲一步後回到模型"
+        />
+        <p>
+          先看上半：同一個 <Tex>x</Tex> 同時送進未知系統（<Tex>{T`\times\,a`}</Tex>）與你的模型（<Tex>{T`\times\,w[n]`}</Tex>），兩個輸出在加法點相減（<Tex>y</Tex> 標 ＋、<Tex>{T`w[n]x`}</Tex> 標 −）得到{' '}
+          <Tex>{T`e[n]`}</Tex>。再看下半的藍色方塊：<Tex>{T`e[n]`}</Tex> 乘上 <Tex>{T`\mu x`}</Tex> 變成修正量（虛線提醒你：這裡的 <Tex>x</Tex> 就是最上面那個輸入，所以修正量 = 步長 × 誤差 × 輸入），累加器把它加到 <Tex>{T`w[n]`}</Tex> 上得到 <Tex>{T`w[n+1]`}</Tex>；延遲一步之後它就是新的{' '}
+          <Tex>{T`w[n]`}</Tex>，沿著回授線回到模型。圖上的 <Tex>{T`e[n]`}</Tex>、<Tex>{T`w[n]`}</Tex> 就是公式裡的 <Tex>{T`e_n`}</Tex>、<Tex>{T`w_n`}</Tex>；藍色兩格加上回授線，就是更新式{' '}
+          <Tex>{T`w_{n+1}=w_n+\mu e_nx`}</Tex>（對照章首的系統地圖：「<Tex>{T`\times\,\mu x`}</Tex>」是 learning rate 那一格、累加器就是 gain accumulator）。
+        </p>
       </Section>
 
       <Section kind="example" title={tx`先算一次（$\mu=0.1$）`}>
         <p>
           <Tex>{T`a=3,\ w_0=1,\ x=2,\ \mu=0.1`}</Tex>。第一步：<Tex>{T`e_0=6-1\cdot2=4`}</Tex>，<Tex>{T`w_1=1+0.1\cdot4\cdot2=1.8`}</Tex>；
-          第二步：<Tex>{T`e_1=6-1.8\cdot2=2.4`}</Tex>，<Tex>{T`w_2=1.8+0.1\cdot2.4\cdot2=2.28`}</Tex>（T01）。下表由網站的 LMS 程式實際跑出：
+          第二步：<Tex>{T`e_1=6-1.8\cdot2=2.4`}</Tex>，<Tex>{T`w_2=1.8+0.1\cdot2.4\cdot2=2.28`}</Tex>（T01）。下表由網站的 LMS 程式實際跑出；第四欄{' '}
+          <Tex>{T`\delta_n=a-w_n`}</Tex> 是估計值離真實參數<strong>還差多少</strong>（剩餘參數誤差），最右欄是相鄰兩步誤差的比值：
         </p>
         <HandCalcTable />
         <p>
@@ -310,6 +328,20 @@ export function FixedXSection() {
       </Section>
 
       <Section kind="formula" title="一步一步推導">
+        <p>
+          推導之前先看圖。把{figRef(CHART_LMS_LOOP)} 的迴圈改用「還差多少」<Tex>{T`\delta_n=a-w_n`}</Tex> 來畫，未知的 <Tex>a</Tex> 和估計值 <Tex>{T`w_n`}</Tex> 都不見了，只剩一個很小的迴圈：
+        </p>
+        <Fig
+          chart={CHART_ERROR_RECURSION}
+          caption={T`誤差遞迴是一個一階回授迴圈。看兩個藍色方塊：「展開來看」每一步修掉 $\mu x^2\delta_n$；「合併之後」兩條路變成一個增益 $p=1-\mu x^2$。`}
+          ariaLabel="展開來看：誤差 delta 分兩路，一路直接進加法點，一路乘上 mu x 平方後被減掉，結果延遲一步再回來。合併之後：等效為誤差每繞一圈乘上 p 等於 1 減 mu x 平方"
+        />
+        <p>
+          先看「展開來看」那一框：從 <Tex>{T`z^{-1}`}</Tex>（延遲一步，就是上一張圖累加器裡「下一步才用到新值」的那個延遲）出來的 <Tex>{T`\delta[n]`}</Tex> 分成兩路，一路直接進加法點（＋），另一路乘上{' '}
+          <Tex>{T`\mu x^2`}</Tex> 後被<strong>減掉</strong>（−）——這一步修掉的量正比於誤差本身。再看「合併之後」那一框：兩條路合併成一個增益{' '}
+          <Tex>{T`p=1-\mu x^2`}</Tex>，每繞一圈（過一次 <Tex>{T`z^{-1}`}</Tex>）誤差就乘一次 <Tex>p</Tex>。圖上的「<Tex>{T`\times\,\mu x^2`}</Tex>」就是下面推導第 5 步的{' '}
+          <Tex>{T`\mu(\delta_nx)x`}</Tex>，合併後的「<Tex>{T`\times\,p`}</Tex>」就是 F-03.1 的 <Tex>{T`(1-\mu x^2)`}</Tex>。
+        </p>
         <StepsBox
           title="由 LMS 更新式推出誤差遞迴"
           steps={[
@@ -332,6 +364,10 @@ export function FixedXSection() {
           ]}
         />
         <FBlock id="F-03.2" />
+        <p>
+          這個每一步的乘法因子 <Tex>p</Tex> 在離散時間系統裡叫 <strong>pole（極點）</strong>（名稱的由來見本節後面的先備知識「Z transform、pole 與單位圓」）。對照{figRef(CHART_ERROR_RECURSION)} 的「合併之後」那一框：繞{' '}
+          <Tex>n</Tex> 圈就乘 <Tex>n</Tex> 次 <Tex>p</Tex>，所以 <Tex>{T`\delta_n=p^n\delta_0`}</Tex>；會不會收斂，只看 <Tex>{T`|p|`}</Tex> 比 1 大還是小。
+        </p>
         <Prereq title={T`等比數列：什麼時候 $r^n$ 會趨近 0？`}>
           <p>
             把 <Tex>{T`|r|^n`}</Tex> 寫成指數：<Tex>{T`|r|^n=e^{\,n\ln|r|}`}</Tex>。
@@ -380,6 +416,19 @@ export function FixedXSection() {
       </Section>
 
       <Section kind="diagram" title={tx`四種 pole 行為（$\mu=0.1,\,0.25,\,0.4,\,0.5,\,0.6$；$x=2$）`}>
+        <p>
+          <Tex>p</Tex> 一算出來，行為就定了。照下圖由左往右問兩個問題：先比 <Tex>{T`|p|`}</Tex> 和 1（決定收斂、邊界還是發散），再看 <Tex>p</Tex> 的正負（決定會不會每一步變號）。
+        </p>
+        <Fig
+          chart={CHART_POLE_REGIME}
+          caption={T`由 $p=1-\mu x^2$ 判斷行為的決策樹。綠 = 收斂（三種）、褐 = 邊界或不動、紅 = 發散；每個葉子同時寫出對應的 $\mu$ 範圍。`}
+          ariaLabel="決策樹：p 的絕對值小於 1 時依 p 的正負分成單調收斂、一步到位、震盪收斂；等於 1 時為邊界或不動；大於 1 時發散"
+        />
+        <p>
+          每個葉子的 <Tex>\mu</Tex> 範圍都是由 <Tex>{T`p=1-\mu x^2`}</Tex> 反解出來的（例如 <Tex>{T`-1<p<0\iff1/x^2<\mu<2/x^2`}</Tex>）；三個綠色葉子合起來就是 F-03.3 的{' '}
+          <Tex>{T`0<\mu<2/x^2`}</Tex>。下表用 <Tex>{T`x=2`}</Tex> 的五個 <Tex>\mu</Tex> 各走一條分支；表中的 <Tex>\tau</Tex> 是<strong>時間常數</strong>（誤差縮小到{' '}
+          <Tex>{T`1/e\approx37\%`}</Tex> 所需的步數，本節後半推導）。
+        </p>
         <FiveMuTable />
         <FiveMuPlots />
         <ul>
@@ -399,6 +448,19 @@ export function FixedXSection() {
             <Tex>{T`|p|>1`}</Tex>（<Tex>{T`\mu=0.6`}</Tex>，<Tex>{T`p=-1.4`}</Tex>）：每步放大 1.4 倍並變號——發散。
           </li>
         </ul>
+        <p>
+          「多快收斂」也只由 <Tex>{T`|p|`}</Tex> 決定。<Tex>\varepsilon</Tex> 是你要求的<strong>相對誤差門檻</strong>（例如 <Tex>{T`10^{-3}`}</Tex> 表示誤差降到起點的千分之一），
+          <Tex>{T`n_\varepsilon`}</Tex> 是降到門檻以下所需的步數。手算順序如下圖：
+        </p>
+        <Fig
+          chart={CHART_TAU_FLOW}
+          caption={T`手算順序（HC-03.2）：$\ln|p|$ 只算一次、用兩次；藍色兩格是要的答案 $\tau$ 與 $n_\varepsilon$。`}
+          ariaLabel="由 x 與 mu 算出 p，取絕對值再取自然對數；時間常數是負一除以它，收斂步數是 ln epsilon 除以它後無條件進位"
+        />
+        <p>
+          先看從「已知 <Tex>x</Tex>、<Tex>\mu</Tex>」往下的那條路：算出 <Tex>p</Tex>，取絕對值、按一次 <Tex>{T`\ln`}</Tex>，再做一次除法就是 <Tex>\tau</Tex>。再看從「門檻{' '}
+          <Tex>\varepsilon</Tex>」出發的那條路：門檻也取 <Tex>{T`\ln`}</Tex>，兩個負數相除、無條件進位就是 <Tex>{T`n_\varepsilon`}</Tex>。圖上兩個藍色方塊就是下面推導出來的 F-03.4。
+        </p>
         <StepsBox
           title={tx`工程量：時間常數與收斂到 $\varepsilon$ 所需的步數`}
           steps={[

@@ -3,6 +3,7 @@ import type { Data } from 'plotly.js-dist-min'
 import {
   Callout,
   ClaimTag,
+  Mermaid,
   ModeGate,
   Plot,
   Prereq,
@@ -24,6 +25,7 @@ import {
   ntfGain2,
 } from '@/simulation/models/quantizer'
 import { Erratum, Fold, Hand, fx, ntex, tx } from '../common'
+import { CHART_EFB_LOOP, CHART_LIMIT_CYCLE, CHART_NTF_PATHS, CHART_PERIOD_FLOW, CHART_TELESCOPING } from '../diagrams'
 
 const R_INITS = [0, 0.1, -0.3, 1 / 7, 0.49]
 
@@ -114,6 +116,14 @@ export function DeltaSigmaSection() {
         這和 Fractional-N PLL 的 DSM 是同一個想法：保留高解析的 <Tex>{String.raw`w_H`}</Tex>，每次輸出整數 code 時把「這次欠下的小數」記在
         <Tex>{'r'}</Tex> 裡，下次加回去。
       </p>
+      <Mermaid
+        chart={CHART_EFB_LOOP}
+        caption="一階 error-feedback ΔΣ 的迴圈。先看上排：$w_H$ 加上「上次欠的」$r[n-1]$ 得到 $v$，量化成整數 $y$；再看藍色的下排：$v$ 減 $y$ 就是這次欠的 $r$，存進暫存器（$z^{-1}$），下一拍加回去。"
+      />
+      <p className="small ch13-figwalk">
+        圖上三條線上的式子就是下面的三行方程式：<Tex>{'v[n]'}</Tex> 是量化器的輸入（高解析值加上上次的欠帳）、<Tex>{'y[n]'}</Tex> 是輸出的 6-bit code、<Tex>{'r[n]'}</Tex> 是這一拍的量化誤差（residual）。圖上的{' '}
+        <Tex>{String.raw`z^{-1}`}</Tex> 是「延遲一拍」的暫存器，也就是程式碼裡的 <code>s.r</code>：這一拍存進去的 <Tex>{'r[n]'}</Tex>，下一拍讀出來時就是 <Tex>{'r[n-1]'}</Tex>。和方法 B、C 的圖比，多出來的就是這條藍色的回授線。
+      </p>
       <TexBlock>{String.raw`\begin{aligned}v[n]&=w_H[n]+r[n-1]\\ y[n]&=Q_6\big(v[n]\big)\\ r[n]&=v[n]-y[n]\end{aligned}`}</TexBlock>
       <p>
         先不推公式，直接用數字跑一次（numbers first）：
@@ -157,6 +167,15 @@ export function DeltaSigmaSection() {
           </tbody>
         </table>
       </div>
+      <Mermaid
+        chart={CHART_LIMIT_CYCLE}
+        caption="把上表（round-half-up 的三欄）畫成狀態圖：每個方塊是暫存器裡的 $r$，箭頭上是這一拍的 $v$ 與輸出 $y$。從 $r=0$ 出發，走 5 步回到 $r=0$，之後永遠繞同一圈——這就是 limit cycle。"
+      />
+      <p className="small ch13-figwalk">
+        先看任何一個箭頭：<Tex>{'r'}</Tex> 每走一步就加上小數 0.4，只要 <Tex>{'v'}</Tex> 的小數部分達到 <Tex>{String.raw`\tfrac12`}</Tex> 就進位（<Tex>{'y=33'}</Tex>）並從 <Tex>{'r'}</Tex> 扣掉 1。再數一圈：五個箭頭裡兩個{' '}
+        <Tex>{'y=33'}</Tex>、三個 <Tex>{'y=32'}</Tex>，平均 32.4。圖上五個狀態的值 <Tex>{String.raw`0.4,\,-0.2,\,0.2,\,-0.4,\,0`}</Tex> 就是後面證明裡的{' '}
+        <Tex>{String.raw`r[n]\equiv r[-1]+(n+1)\cdot0.4\pmod 1`}</Tex>（取在 <Tex>{String.raw`[-\tfrac12,\tfrac12)`}</Tex> 內的那個值）：狀態只有 5 個，所以一定繞回來。
+      </p>
       <Plot
         title={String.raw`ΔΣ 內部 accumulator：$v$、$y$ 與 $r$（前 20 個更新）`}
         ariaLabel="ΔΣ 內部 accumulator：v、y 與 r（前 20 個更新）"
@@ -179,6 +198,14 @@ export function DeltaSigmaSection() {
           <Tex>{String.raw`|H(e^{j\Omega})|^2`}</Tex> 就是頻率 <Tex>{'f'}</Tex> 的功率放大倍數。
         </p>
       </Prereq>
+      <Mermaid
+        chart={CHART_NTF_PATHS}
+        caption="同一個迴圈在 $z$ 域的樣子。先看上面一條：$w_H$ 原封不動到輸出（增益 1）；再看藍色的一條：量化誤差 $r$ 要先經過 $1-z^{-1}$（現在的減掉上一次的）才到輸出，所以慢慢變的誤差幾乎被消掉、快速變的被放大。"
+      />
+      <p className="small ch13-figwalk">
+        圖上的 <Tex>{'W_H(z)'}</Tex>、<Tex>{'R(z)'}</Tex>、<Tex>{'Y(z)'}</Tex> 是 <Tex>{'w_H[n]'}</Tex>、<Tex>{'r[n]'}</Tex>、<Tex>{'y[n]'}</Tex> 的 Z transform。圖上藍色方塊就是公式裡的{' '}
+        <Tex>{String.raw`\mathrm{NTF}(z)=1-z^{-1}`}</Tex>（noise transfer function：誤差到輸出的轉移函數）；它進加法點的負號，就是公式 F-13.7 裡 <Tex>{String.raw`(1-z^{-1})R(z)`}</Tex> 前面的負號。下面四步推導就是在證明這張圖。
+      </p>
       <StepDerivation
         title={<>推導 <Tex>{'y=w_H+r[n-1]-r[n]'}</Tex></>}
         steps={[
@@ -220,11 +247,19 @@ export function DeltaSigmaSection() {
         />
         <TexBlock id="F-13.9">{String.raw`S_e^{(1)}(f)\overset{?}{\approx}4\sin^2\!\Big(\frac{\pi f}{f_u}\Big)\frac{2\sigma_r^2}{f_u},\qquad \sigma_r^2=\frac1{12}\;\Rightarrow\;\int_0^{f_u/2}S_e^{(1)}df=2\sigma_r^2=\frac16`}</TexBlock>
         <p className="small">
-          <ClaimTag kind="approx" /> 這是「<Tex>{'r'}</Tex> 為白色、均勻」的近似（打問號是因為對常數輸入它是錯的，下面就會看到實際是 <Tex>{String.raw`${fx(r.pow, 2)}\,\mathrm{LSB}^2`}</Tex>，<Erratum id="E15" />）。
+          其中 <Tex>{String.raw`\sigma_r^2`}</Tex> 是 <Tex>{'r'}</Tex> 的變異數，<Tex>{String.raw`S_e^{(1)}(f)`}</Tex> 是 code 誤差 <Tex>{'e'}</Tex> 的 one-sided PSD（每 Hz 的功率）。 <ClaimTag kind="approx" /> 這是「<Tex>{'r'}</Tex> 為白色、均勻」的近似（打問號是因為對常數輸入它是錯的，下面就會看到實際是 <Tex>{String.raw`${fx(r.pow, 2)}\,\mathrm{LSB}^2`}</Tex>，<Erratum id="E15" />）。
         </p>
       </Fold>
 
       <Fold title="ΔΣ 的「平均追蹤」：telescoping（伸縮相消）" openFrom="beginner">
+        <Mermaid
+          chart={CHART_TELESCOPING}
+          caption="同一個迴圈換個畫法。先看藍色方塊：$r$ 其實是「$w_H$ 減 $y$」的累加器；再看右邊：累加器的內容永遠有界，所以 $N$ 次的總誤差只剩頭尾兩個 $r$，平均誤差隨 $1/N$ 變小。"
+        />
+        <p className="small ch13-figwalk">
+          圖上累加器的式子 <Tex>{String.raw`r[n]=r[n-1]+(w_H[n]-y[n])`}</Tex> 只是把 <Tex>{'r=v-y'}</Tex> 與 <Tex>{'v=w_H+r[n-1]'}</Tex> 合成一行；圖上的{' '}
+          <Tex>{String.raw`\sum(y-w_H)=r[-1]-r[N-1]`}</Tex> 除以 <Tex>{'N'}</Tex> 就是下面的公式 F-13.12。這和 Fractional-N 的 DSM 是同一個道理：累加器不溢出，長期平均就一定對。
+        </p>
         <StepDerivation
           steps={[
             { tex: String.raw`\sum_{n=0}^{N-1}\big(y[n]-w_H[n]\big)=\sum_{n=0}^{N-1}\big(r[n-1]-r[n]\big)`, why: tx(String.raw`把 $y-w_H=r[n-1]-r[n]$ 加總。`) },
@@ -331,6 +366,14 @@ export function DeltaSigmaSection() {
       <h3>定點 <Tex>{String.raw`w_H`}</Tex>：週期變成 <Tex>{String.raw`2^F/\gcd`}</Tex>（勘誤 E15）</h3>
       <p>
         真實硬體的 <Tex>{'w_H'}</Tex> 是 <Tex>{'F'}</Tex> 個小數 bit 的定點數，32.4 無法精確表示：<Tex>{String.raw`w_H=K/2^F`}</Tex>，<Tex>{String.raw`K=\mathrm{round}(32.4\cdot2^F)`}</Tex>。套用上面的定理：<Tex>{String.raw`K/2^F`}</Tex> 約分後的分母就是 <Tex>{String.raw`q=2^F/\gcd(K\bmod2^F,2^F)`}</Tex>：
+      </p>
+      <Mermaid
+        chart={CHART_PERIOD_FLOW}
+        caption="limit cycle 的週期怎麼算。先看左支：精確的有理數約分後，分母就是週期；再看右支：定點數先取出小數部分對應的整數，和 $2^F$ 求最大公因數，週期是 $2^F$ 除以它。"
+      />
+      <p className="small ch13-figwalk">
+        圖上的 <Tex>{'m/q'}</Tex> 就是下面公式左半邊的 <Tex>{'w_H=m/q'}</Tex>；圖上的 <Tex>{'K'}</Tex>、<Tex>{'F'}</Tex>、<Tex>{'g'}</Tex> 就是右半邊的 <Tex>{'K'}</Tex>、<Tex>{'F'}</Tex> 與{' '}
+        <Tex>{String.raw`\gcd(K\bmod2^F,2^F)`}</Tex>。兩支其實是同一件事：<Tex>{String.raw`K/2^F`}</Tex> 約分後的分母就是 <Tex>{String.raw`2^F/g`}</Tex>（<Tex>{'F=10'}</Tex> 時 <Tex>{String.raw`\tfrac{33178}{1024}=\tfrac{16589}{512}`}</Tex>）。
       </p>
       <TexBlock id="F-13.8">{String.raw`w_H=\frac{m}{q}\Rightarrow\text{period}=q;\qquad w_H=\frac{K}{2^F}\Rightarrow\text{period}=\frac{2^F}{\gcd(K\bmod2^F,\;2^F)}`}</TexBlock>
       <div className="table-wrap">

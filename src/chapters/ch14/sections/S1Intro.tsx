@@ -1,168 +1,13 @@
 import { Fragment, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Callout, ClaimTag, Prereq, Section, SourceTag, SymbolTable, Tex, TexBlock, type SymbolEntry } from '@/components'
+import { Callout, ClaimTag, Prereq, Section, SourceTag, SystemMap, Tex, TexBlock } from '@/components'
 import { loopGainK, msdAfterBlocks, msdSplit } from '@/simulation/models/optimizer'
+import { Diagram } from '../Diagram'
+import { CH14_SYSTEM_FOCUS, CHART_CAL_LOOP, CHART_COMPARATOR_GAIN } from '../diagrams'
 import { Hand, HandLink } from '../Hand'
 import { HANDCALCS } from '../handcalcs'
 import { BIAS2, md, nf, tx } from '../shared'
-
-const SYMBOLS: SymbolEntry[] = [
-  {
-    symbol: '\\delta_k=a-w_k',
-    meaning: '第 k 次更新後的剩餘係數誤差（register error）',
-    unit: '\\mathrm{fs}',
-    firstSeen: '§14.0',
-    note: (
-      <>
-        全站約定 <Tex>{'\\delta=a-w'}</Tex>（§12 寫 <Tex>{'\\delta w=w-w^*'}</Tex>，差一個負號：雜訊項變號，二階矩相同）
-      </>
-    ),
-  },
-  { symbol: '\\delta_0', meaning: '開始校正時的初始誤差（確定值）', unit: '\\mathrm{fs}', firstSeen: '§14.0' },
-  { symbol: 'w_k', meaning: '第 k 個 block 使用的校正係數（gain register）', unit: '\\mathrm{fs}', firstSeen: '§14.0' },
-  {
-    symbol: '\\mu',
-    meaning: 'learning rate／gain_step（每 block 的更新倍率）',
-    unit: '\\mathrm{fs}',
-    firstSeen: '§14.0',
-    note: (
-      <>
-        average-mode GMAC（<Tex>{'G'}</Tex> 無因次）時 <Tex>{'\\mu'}</Tex> 與 <Tex>{'w'}</Tex> 同單位（勘誤 E13）
-      </>
-    ),
-  },
-  {
-    symbol: 'K=K_qC',
-    meaning: (
-      <>
-        GMAC 的平均斜率 <Tex>{'-\\partial E[G]/\\partial w'}</Tex>（<Tex>{'K>0'}</Tex> 才有恢復力）
-      </>
-    ),
-    unit: '\\mathrm{fs}^{-1}',
-    firstSeen: '§14.1',
-    note: (
-      <>
-        勘誤 E13：§0 未定義 <Tex>{'K'}</Tex>，本站定義 <Tex>{'K:=K_qC'}</Tex>
-      </>
-    ),
-  },
-  { symbol: 'K_q=\\sqrt{2/\\pi}/\\sigma_v', meaning: '1-bit comparator 的小訊號增益（§5.1）', unit: '\\mathrm{fs}^{-1}', firstSeen: '§14.1' },
-  {
-    symbol: 'C=E[x\\,u]=|H|\\cos\\theta',
-    meaning: '有效相關（誤差路徑在 code 頻帶的增益乘上相位的餘弦）',
-    unit: '—',
-    firstSeen: '§14.1',
-    note: (
-      <>
-        <Tex>{'|\\theta|\\ge90^\\circ\\Rightarrow C\\le0'}</Tex>：極性錯誤（Ch06）
-      </>
-    ),
-  },
-  { symbol: 'g=\\mu K', meaning: '無因次迴路增益', unit: '—', firstSeen: '§14.1' },
-  { symbol: 'p=1-g', meaning: '平均誤差的 pole（每 block 乘上的倍數）', unit: '—', firstSeen: '§14.1' },
-  {
-    symbol: '\\eta_k',
-    meaning: (
-      <>
-        第 k 個 block 的 GMAC 雜訊（<Tex>{'G_k'}</Tex> 減去平均值）
-      </>
-    ),
-    unit: '—',
-    firstSeen: '§14.1',
-    note: (
-      <>
-        <Tex>{'E[\\eta_k]=0'}</Tex>；不同 block 互相獨立
-      </>
-    ),
-  },
-  {
-    symbol: '\\sigma_\\eta^2',
-    meaning: (
-      <>
-        <Tex>{'\\eta'}</Tex> 的變異數；<Tex>{'x=\\pm1'}</Tex>、近鎖定時 <Tex>{'\\approx1/N'}</Tex>
-      </>
-    ),
-    unit: '—',
-    firstSeen: '§14.1',
-    note: (
-      <>
-        精確值 <Tex>{'(1-m^2)/N'}</Tex>，<Tex>{'m=E[q\\,x]'}</Tex>
-      </>
-    ),
-  },
-  { symbol: '\\sigma_v', meaning: 'comparator 前的雜訊 RMS', unit: '\\mathrm{fs}', firstSeen: '§14.0' },
-  { symbol: 'N', meaning: '每個 GMAC block 累加的 comparator 樣本數', unit: '—', firstSeen: '§14.0' },
-  { symbol: 'B', meaning: '更新次數（GMAC block 數）', unit: '—', firstSeen: '§14.0' },
-  { symbol: 'T=NB', meaning: '總比較次數（開機校正的時間預算乘上 comparator rate）', unit: '—', firstSeen: '§14.0' },
-  { symbol: 'f_s,\\ f_u=f_s/N', meaning: 'comparator 取樣率與 block（更新）率', unit: '\\mathrm{Hz}', firstSeen: '§14.3' },
-  { symbol: 'A=4BK^2\\delta_0^2/\\sigma_\\eta^2', meaning: '「初始誤差 ÷ 雜訊底」的無因次比', unit: '—', firstSeen: '§14.2' },
-  { symbol: '\\tau=-1/\\ln|p|', meaning: '平均誤差的時間常數', unit: '\\text{blocks}', firstSeen: '§14.2' },
-  {
-    symbol: '\\epsilon',
-    meaning: (
-      <>
-        相對縮減比：要求 <Tex>{'|E[\\delta_B]|\\le\\epsilon|\\delta_0|'}</Tex>，<Tex>{'0<\\epsilon<1'}</Tex>
-      </>
-    ),
-    unit: '—',
-    firstSeen: '§14.5',
-    note: '勘誤 E16：不是絕對誤差（fs）',
-  },
-  {
-    symbol: 'K_{\\min},K_{\\max}',
-    meaning: (
-      <>
-        所有 PVT／FCW corner 中最小、最大的 <Tex>{'K_i'}</Tex>（<Tex>{'i'}</Tex> = corner 編號）
-      </>
-    ),
-    unit: '\\mathrm{fs}^{-1}',
-    firstSeen: '§14.5',
-    note: (
-      <>
-        勘誤 E13：<Tex>{'K_i=-\\partial E[G]/\\partial w\\,|_{\\text{corner }i}'}</Tex>，不是參數索引
-      </>
-    ),
-  },
-  { symbol: 'r=K_{\\min}/K_{\\max}', meaning: 'corner 散佈比（§14.5）', unit: '—', firstSeen: '§14.5', note: '§14.2 另以 r 表示 ramp 漂移（fs/block），依上下文與單位區分' },
-  { symbol: 'PM,\\ PM_t,\\ g_{\\max}', meaning: '一階 calibration loop 的 phase margin、其下限，與對應的最大迴路增益', unit: '^\\circ,\\ —', firstSeen: '§14.2' },
-  {
-    symbol: 'r\\ (\\text{ramp})',
-    meaning: (
-      <>
-        PVT ramp 漂移：<Tex>{'a'}</Tex> 每 block 增加的量
-      </>
-    ),
-    unit: '\\mathrm{fs/block}',
-    firstSeen: '§14.2',
-  },
-  { symbol: '\\sigma_\\zeta', meaning: 'random-walk 漂移每 block 的標準差', unit: '\\mathrm{fs}', firstSeen: '§14.2' },
-  {
-    symbol: 'S_w(e^{j\\Omega})',
-    meaning: (
-      <>
-        係數雜訊 PSD（two-sided DTFT，<Tex>{'\\sigma_w^2=\\frac1{2\\pi}\\int_{-\\pi}^{\\pi}S_w\\,d\\Omega'}</Tex>）
-      </>
-    ),
-    unit: '\\mathrm{fs^2/(cycle/block)}',
-    firstSeen: '§14.2',
-    note: (
-      <>
-        <Tex>{'\\Omega'}</Tex>（rad/block）以 block rate <Tex>{'f_u=f_s/N'}</Tex> 為準，不是 <Tex>{'f_s'}</Tex>
-      </>
-    ),
-  },
-  {
-    symbol: 'P_k,\\ k_0',
-    meaning: (
-      <>
-        最佳排程下的 <Tex>{'E[\\delta_k^2]'}</Tex>（Kalman 變異數）與其起點偏移 <Tex>{'k_0=\\sigma_\\eta^2/(K^2\\delta_0^2)'}</Tex>
-      </>
-    ),
-    unit: '\\mathrm{fs}^2,\\ —',
-    firstSeen: '§14.6',
-  },
-  { symbol: '\\Delta,\\ M,\\ \\hat K', meaning: '量測斜率時的擾動大小、每側 block 數與斜率估計值', unit: '\\mathrm{fs},\\ —,\\ \\mathrm{fs^{-1}}', firstSeen: '§14.5' },
-]
+import { SymbolsJump } from './S10Symbols'
 
 /** 某個難度的手算題連結（以頓號相連）。 */
 function handLinks(level: (typeof HANDCALCS)[number]['level']) {
@@ -174,7 +19,7 @@ function handLinks(level: (typeof HANDCALCS)[number]['level']) {
   ))
 }
 
-/** §14.0：問題、先算一次、符號、先備知識 */
+/** §14.0：問題、系統地圖、先備知識、block-rate 迴路圖、先算一次（符號表移到章末：S10Symbols） */
 export function S1Intro() {
   const K = loopGainK(100, 0)
   const s2 = 1 / 4096
@@ -189,12 +34,27 @@ export function S1Intro() {
         <strong>晶片上的 learning rate <Tex>{'\\mu'}</Tex>、每次累加的樣本數 <Tex>{'N'}</Tex>、校正要跑幾次 <Tex>{'B'}</Tex>，到底該怎麼選？</strong>
         答案取決於你在最佳化「什麼」——最快收斂、最小終點 RMS、最小全程誤差、最少 spur、最佳 PVT 追蹤，各自的最佳 <Tex>{'\\mu'}</Tex> 都不同。
       </p>
+      <SystemMap
+        focus={CH14_SYSTEM_FOCUS}
+        caption="系統地圖：藍色的三塊（GMAC、normalize 與 learning rate、gain accumulator）是本章要選數字的地方。教學用概念架構，不是特定晶片的 netlist。"
+      />
+      <p>
+        <strong>你在這裡。</strong>藍色的三塊是本章的主角：GMAC（把 1-bit comparator 的輸出 <Tex>{'q[n]=\\pm1'}</Tex> 乘上 code <Tex>{'x[n]'}</Tex>，每 <Tex>{'N'}</Tex> 個樣本累加一次）、normalize 與 learning rate（<Tex>{'\\div N'}</Tex>、
+        <Tex>{'\\times\\mu'}</Tex>）、gain accumulator（存校正係數 <Tex>{'w_k'}</Tex> 的暫存器）。前面各章已經把這三塊的數學講完；本章新增的是<strong>裡面的數字怎麼選</strong>（<Tex>{'N'}</Tex>、<Tex>{'\\mu'}</Tex>、更新幾次
+        <Tex>{'B'}</Tex>），以及把選好的步長排程做成一個有保護機制的狀態機。comparator 與它前面的雜訊不是本章的主角，但它們決定了迴路的增益，所以會一直出現。
+      </p>
+      <SymbolsJump />
+      <p>
+        <strong>先認識本章反覆出現的幾個量。</strong>
+        <Tex>{'a'}</Tex> 是 DTC 真正需要的 gain（未知的正確答案，單位 fs）；<Tex>{'w_k'}</Tex> 是第 <Tex>{'k'}</Tex> 個 block 時 gain register 裡的校正係數；兩者的差 <Tex>{'\\delta_k=a-w_k'}</Tex> 是「還差多少」（本站極性一律{' '}
+        <Tex>{'a-w'}</Tex>），<Tex>{'\\delta_0'}</Tex> 是開始校正時的初始誤差。校正迴路每累加 <Tex>{'N'}</Tex> 個 comparator 樣本（稱為一個 GMAC block）得到一個平均輸出 <Tex>{'G_k'}</Tex>，乘上 learning rate <Tex>{'\\mu'}</Tex>{' '}
+        後加進暫存器：<Tex>{'w_{k+1}=w_k+\\mu G_k'}</Tex>（<Tex>{'G_k'}</Tex> 是平均值、沒有單位，所以 <Tex>{'\\mu'}</Tex> 和 <Tex>{'w'}</Tex> 一樣以 fs 計）。總共更新 <Tex>{'B'}</Tex> 次，用掉 <Tex>{'T=NB'}</Tex> 次比較；comparator
+        前的雜訊 RMS 記為 <Tex>{'\\sigma_v'}</Tex>。
+      </p>
       <p className="small">
         <strong>動手算會比較有感覺。</strong>本章有 {HANDCALCS.length} 題「帶入手算」，各自接在對應的推導或範例正後方：先看推導，馬上把數字換成你自己的，用紙筆和計算機算一次再對答案。只需四則運算：{handLinks('beginner')}；需要工程計算機的{' '}
         <Tex>{'\\ln'}</Tex>、開根號、<Tex>{'y^x'}</Tex>：{handLinks('engineer')}；需要查 <Tex>{'\\Phi'}</Tex> 表：{handLinks('research')}。全站的題目也收在 <Link to="/workbook">手算練習簿</Link>。
       </p>
-
-      <SymbolTable rows={SYMBOLS} caption={md(String.raw`本章極性一律 $\delta=a-w$；$K$、$\mu$ 的單位依 average-mode GMAC（$G$ 無因次）。`)} />
 
       <Prereq title="期望值、變異數，以及「均方等於偏差平方加變異數」">
         <p>
@@ -213,7 +73,10 @@ export function S1Intro() {
           若 <Tex>{'X'}</Tex>、<Tex>{'Y'}</Tex> 獨立，則 <Tex>{'E[XY]=E[X]E[Y]'}</Tex>。如果其中一個平均為 0，交叉項就是 0。例如兩個不同 block 的 GMAC 雜訊：
         </p>
         <TexBlock>{String.raw`E[\eta_k\eta_j]=E[\eta_k]E[\eta_j]=0\quad(k\ne j),\qquad E[\eta_k^2]=\sigma_\eta^2`}</TexBlock>
-        <p>所以「一堆獨立雜訊加權相加」的平方期望值，只剩每一項自己的平方：<Tex>{'E[(\\sum_k c_k\\eta_k)^2]=\\sigma_\\eta^2\\sum_k c_k^2'}</Tex>。</p>
+        <p>
+          這裡 <Tex>{'\\eta_k'}</Tex> 是第 <Tex>{'k'}</Tex> 個 block 的 GMAC 雜訊（<Tex>{'G_k'}</Tex> 減掉它的平均值），<Tex>{'\\sigma_\\eta^2'}</Tex> 是它的變異數。所以「一堆獨立雜訊加權相加」的平方期望值，只剩每一項自己的平方：
+          <Tex>{'E[(\\sum_k c_k\\eta_k)^2]=\\sigma_\\eta^2\\sum_k c_k^2'}</Tex>。
+        </p>
       </Prereq>
 
       <Prereq title="等比數列求和（geometric series）">
@@ -222,35 +85,49 @@ export function S1Intro() {
         </p>
         <TexBlock>{String.raw`S-rS=1-r^B\ \Rightarrow\ S=\frac{1-r^B}{1-r}\quad(r\ne1),\qquad S=B\quad(r=1)`}</TexBlock>
         <p>
-          <Tex>{'|r|<1'}</Tex> 時 <Tex>{'r^B\\to0'}</Tex>，<Tex>{'S\\to1/(1-r)'}</Tex>。本章的 <Tex>{'r=p^2'}</Tex>。
+          <Tex>{'|r|<1'}</Tex> 時 <Tex>{'r^B\\to0'}</Tex>，<Tex>{'S\\to1/(1-r)'}</Tex>。本章的 <Tex>{'r=p^2'}</Tex>，其中 <Tex>{'p'}</Tex> 是誤差每過一個 block 剩下的倍數（稱為 pole，§14.0 的方塊圖會定義）。
         </p>
       </Prereq>
 
       <Prereq title="高斯分布、標準常態 CDF、erf，以及 comparator 增益從哪裡來">
         <p>
-          comparator 看到 <Tex>{'e=\\delta+v'}</Tex>，<Tex>{'v\\sim\\mathcal N(0,\\sigma_v^2)'}</Tex>（高斯分布：鐘形曲線，68% 落在 <Tex>{'\\pm\\sigma_v'}</Tex> 內）。輸出 <Tex>{'q=+1'}</Tex> 的機率是
-          <Tex>{'P(v>-\\delta)=\\Phi(\\delta/\\sigma_v)'}</Tex>，<Tex>{'\\Phi'}</Tex> 是標準常態的累積分布。因此
+          comparator 看到 <Tex>{'e=\\delta+v'}</Tex>：<Tex>{'\\delta'}</Tex> 是要偵測的誤差，<Tex>{'v\\sim\\mathcal N(0,\\sigma_v^2)'}</Tex> 是雜訊（高斯分布：鐘形曲線，68% 落在 <Tex>{'\\pm\\sigma_v'}</Tex> 內）。它只輸出正負號{' '}
+          <Tex>{'q=\\mathrm{sign}(e)=\\pm1'}</Tex>；<Tex>{'q=+1'}</Tex> 的機率是
+          <Tex>{'P(v>-\\delta)=\\Phi(\\delta/\\sigma_v)'}</Tex>，<Tex>{'\\Phi'}</Tex> 是標準常態的累積分布。先看訊號怎麼流，再看數學：
         </p>
+        <Diagram chart={CHART_COMPARATOR_GAIN} caption="comparator 的平均輸入輸出關係：誤差與雜訊相加後只留下正負號；重複很多次取平均，誤差小時是一條斜率 $K_q$ 的直線，誤差大時彎曲飽和。">
+          <p>
+            <strong>先看</strong>最上面：要偵測的誤差 <Tex>{'\\delta'}</Tex> 與雜訊 <Tex>{'v'}</Tex> 在加法點相加（兩條線都是正號），得到 <Tex>{'e=\\delta+v'}</Tex>；comparator 只留下正負號 <Tex>{'q=\\pm1'}</Tex>。<strong>再看</strong>中間：同一個 <Tex>{'\\delta'}</Tex> 重複很多次，
+            每次的 <Tex>{'v'}</Tex> 不同，<Tex>{'q=+1'}</Tex> 的機率是 <Tex>{'\\Phi(\\delta/\\sigma_v)'}</Tex>，平均起來就是 <Tex>{'E[q]'}</Tex>。<strong>最後看</strong>最下面兩個出口：<Tex>{'|\\delta|\\ll\\sigma_v'}</Tex> 時是直線（藍色）；<Tex>{'|\\delta|'}</Tex> 大時 erf 彎曲後頂到 <Tex>{'\\pm1'}</Tex>（紅色，勘誤 E48 的 slew-limited 區）。
+          </p>
+          <p>
+            圖上的 <Tex>{'E[q]=\\mathrm{erf}(\\delta/(\\sqrt2\\sigma_v))'}</Tex> 就是下面公式的第一個等號；藍色方塊的 <Tex>{'K_q'}</Tex> 就是最後一個等號（泰勒一階展開）得到的斜率。
+          </p>
+        </Diagram>
+        <p>把上圖的中間方塊寫成式子，就是：</p>
         <TexBlock>{String.raw`E[q]=2\Phi(\delta/\sigma_v)-1=\mathrm{erf}\!\Big(\frac{\delta}{\sqrt2\sigma_v}\Big)\approx\frac{2}{\sqrt\pi}\cdot\frac{\delta}{\sqrt2\sigma_v}=\sqrt{\frac{2}{\pi}}\frac{\delta}{\sigma_v}=K_q\delta`}</TexBlock>
         <p>
-          最後一步是泰勒一階展開（erf 在 0 的斜率為 <Tex>{'2/\\sqrt\\pi'}</Tex>），所以只有 <Tex>{'|\\delta|\\ll\\sigma_v'}</Tex> 時線性。<Tex>{'|\\delta|'}</Tex> 大時 erf 飽和在 <Tex>{'\\pm1'}</Tex>——這就是勘誤 E48 的 slew-limited 區。
+          最後一步是泰勒一階展開（erf 在 0 的斜率為 <Tex>{'2/\\sqrt\\pi'}</Tex>），所以只有 <Tex>{'|\\delta|\\ll\\sigma_v'}</Tex> 時線性。斜率 <Tex>{'K_q=\\sqrt{2/\\pi}/\\sigma_v'}</Tex> 稱為 1-bit comparator 的小訊號增益（單位{' '}
+          <Tex>{'\\mathrm{fs^{-1}}'}</Tex>）：雜訊越小，同樣的誤差越容易讓輸出偏向一邊。<Tex>{'|\\delta|'}</Tex> 大時 erf 飽和在 <Tex>{'\\pm1'}</Tex>——這就是勘誤 E48 的 slew-limited 區。
         </p>
       </Prereq>
 
       <Prereq title="相關（correlation）：$C$ 是什麼">
         <p>
           兩個零均值訊號的相關 <Tex>{'E[x\\,u]'}</Tex> 衡量「<Tex>{'x'}</Tex> 大的時候 <Tex>{'u'}</Tex> 是不是也傾向大」。GMAC 把 comparator 輸出乘上原始 code <Tex>{'x'}</Tex> 再平均，所以它能看到的只有
-          「誤差 <Tex>{'\\delta u'}</Tex> 裡跟 <Tex>{'x'}</Tex> 相關的部分」。若 <Tex>{'x=\\pm1'}</Tex> 經過誤差路徑變成 <Tex>{'u=c\\,x[n]+s\\,x[n-1]'}</Tex>（本章的相位模型，<Tex>{'c=|H|\\cos\\theta,\\ s=|H|\\sin\\theta'}</Tex>）：
+          「誤差 <Tex>{'\\delta u'}</Tex> 裡跟 <Tex>{'x'}</Tex> 相關的部分」。若 <Tex>{'x=\\pm1'}</Tex> 經過誤差路徑變成 <Tex>{'u=c\\,x[n]+s\\,x[n-1]'}</Tex>（本章的相位模型，<Tex>{'c=|H|\\cos\\theta,\\ s=|H|\\sin\\theta'}</Tex>；
+          <Tex>{'|H|'}</Tex> 是誤差路徑在 code 頻帶的增益、<Tex>{'\\theta'}</Tex> 是它的相位）：
         </p>
         <TexBlock>{String.raw`C=E[x[n]\,u[n]]=c\,E[x[n]^2]+s\,E[x[n]x[n-1]]=c\cdot1+s\cdot0=|H|\cos\theta`}</TexBlock>
         <p>
-          延遲一拍的分量 <Tex>{'s'}</Tex> 與 <Tex>{'x[n]'}</Tex> 獨立、平均為 0，所以不提供恢復力；<Tex>{'\\theta>90^\\circ'}</Tex> 時 <Tex>{'C<0'}</Tex>，更新方向反了（Ch06）。
+          <Tex>{'C'}</Tex> 稱為有效相關。延遲一拍的分量 <Tex>{'s'}</Tex> 與 <Tex>{'x[n]'}</Tex> 獨立、平均為 0，所以不提供恢復力；<Tex>{'\\theta>90^\\circ'}</Tex> 時 <Tex>{'C<0'}</Tex>，更新方向反了（Ch06）。
         </p>
       </Prereq>
 
       <Prereq title="Pole、Z transform 與一階迴路的 phase margin">
         <p>
-          差分方程 <Tex>{'\\delta_{k+1}=p\\delta_k'}</Tex> 的解是 <Tex>{'\\delta_k=p^k\\delta_0'}</Tex>：<Tex>{'|p|<1'}</Tex> 收斂、<Tex>{'p<0'}</Tex> 正負交替。用 Z transform（把序列寫成 <Tex>{'z^{-k}'}</Tex> 的冪級數，延遲一拍 = 乘 <Tex>{'z^{-1}'}</Tex>）看，LMS 是一個積分器 <Tex>{'1/(z-1)'}</Tex> 乘上增益 <Tex>{'g'}</Tex>：
+          差分方程 <Tex>{'\\delta_{k+1}=p\\delta_k'}</Tex> 的解是 <Tex>{'\\delta_k=p^k\\delta_0'}</Tex>：<Tex>{'|p|<1'}</Tex> 收斂、<Tex>{'p<0'}</Tex> 正負交替。用 Z transform（把序列寫成 <Tex>{'z^{-k}'}</Tex> 的冪級數，延遲一拍 = 乘 <Tex>{'z^{-1}'}</Tex>）看，LMS 是一個積分器 <Tex>{'1/(z-1)'}</Tex> 乘上無因次的迴路增益 <Tex>{'g'}</Tex>（<Tex>{'g=\\mu K'}</Tex>，<Tex>{'p=1-g'}</Tex>；§14.0）。迴路轉移函數 <Tex>{'L(z)'}</Tex> 的大小降到 1 的頻率記為{' '}
+          <Tex>{'\\omega_c'}</Tex>，該處的相位離 <Tex>{'-180^\\circ'}</Tex> 還有多遠就是 phase margin（PM）：
         </p>
         <TexBlock>{String.raw`\begin{aligned}
 L(z)&=\frac{g}{z-1},\qquad z=e^{j\omega}\ (\omega\ \text{以 rad/block 計})\\
@@ -263,7 +140,7 @@ PM&=\pi+\angle L(e^{j\omega_c})=\tfrac{\pi}{2}-\tfrac{\omega_c}{2}=90^\circ-\arc
           第 2 行把 <Tex>{'e^{j\\omega/2}'}</Tex> 提出來（Euler：<Tex>{'e^{jx}-e^{-jx}=2j\\sin x'}</Tex>）；第 3 行的 <Tex>{'1/j=e^{-j\\pi/2}'}</Tex> 給出 <Tex>{'-90^\\circ'}</Tex>；最後把弧度換成度。
         </p>
         <p>
-          <Tex>{'g=1'}</Tex>（<Tex>{'p=0'}</Tex>）時 <Tex>{'PM=60^\\circ'}</Tex>；<Tex>{'g\\to2'}</Tex> 時 <Tex>{'PM\\to0^\\circ'}</Tex>。細節見 Ch08。
+          <Tex>{'g=1'}</Tex>（<Tex>{'p=0'}</Tex>）時 <Tex>{'PM=60^\\circ'}</Tex>；<Tex>{'g\\to2'}</Tex> 時 <Tex>{'PM\\to0^\\circ'}</Tex>。細節見 Ch08。§14.2 (f) 有這個開迴路的方塊圖（把回授線剪開、量出 <Tex>{'L(z)'}</Tex> 的位置）。
         </p>
       </Prereq>
 
@@ -277,7 +154,7 @@ PM&=\pi+\angle L(e^{j\omega_c})=\tfrac{\pi}{2}-\tfrac{\omega_c}{2}=90^\circ-\arc
       <Section kind="intuition" level={2} title={md(String.raw`14.0 一個問題：$\mu$ 大一點好，還是小一點好？`)} id="ch14-question">
         <p>
           你有一顆 DTC gain 校正：comparator 雜訊 <Tex>{'\\sigma_v=100\\,\\mathrm{fs}'}</Tex>、每個 GMAC block 累加 <Tex>{'N=4096'}</Tex> 次、開機只給
-          <Tex>{'T=131072'}</Tex> 次比較（<Tex>{'f_s=4\\,\\mathrm{GHz}'}</Tex> 時約 32.8 µs），也就是 <Tex>{'B=32'}</Tex> 次更新。初始誤差 <Tex>{'\\delta_0=3\\,\\mathrm{fs}'}</Tex>。
+          <Tex>{'T=131072'}</Tex> 次比較（comparator 取樣率 <Tex>{'f_s=4\\,\\mathrm{GHz}'}</Tex> 時約 32.8 µs），也就是 <Tex>{'B=32'}</Tex> 次更新。初始誤差 <Tex>{'\\delta_0=3\\,\\mathrm{fs}'}</Tex>。
         </p>
         <ul>
           <li>
@@ -287,12 +164,28 @@ PM&=\pi+\angle L(e^{j\omega_c})=\tfrac{\pi}{2}-\tfrac{\omega_c}{2}=90^\circ-\arc
             <strong><Tex>{'\\mu'}</Tex> 太大</strong>：每次更新都把 GMAC 雜訊乘上 <Tex>{'\\mu'}</Tex> 灌進係數（<strong>variance</strong> 大）。
           </li>
         </ul>
+        <p>把這個迴路畫成方塊圖，就看得出為什麼同一個旋鈕會同時造成這兩件事（圖上所有訊號都是每個 block 一個值，索引 <Tex>{'k'}</Tex>）：</p>
+        <Diagram chart={CHART_CAL_LOOP} caption="校正迴路的 block-rate 模型：藍色的 learning rate 方塊同時決定「修多快」與「放進多少雜訊」。">
+          <p>
+            <strong>先看</strong>由左到右的主線：正確答案 <Tex>{'a'}</Tex> 減掉暫存器的 <Tex>{'w_k'}</Tex> 得到誤差 <Tex>{'\\delta_k=a-w_k'}</Tex>。GMAC 的平均輸出對誤差的斜率是 <Tex>{'K'}</Tex>（誤差每多 1 fs，<Tex>{'G_k'}</Tex> 平均增加{' '}
+            <Tex>{'K'}</Tex>，單位 <Tex>{'\\mathrm{fs^{-1}}'}</Tex>；<Tex>{'K=K_qC'}</Tex> 由 comparator 增益 <Tex>{'K_q'}</Tex> 與有效相關 <Tex>{'C'}</Tex> 決定），再加上這個 block 平均不掉的雜訊 <Tex>{'\\eta_k'}</Tex>，就是{' '}
+            <Tex>{'G_k=K\\delta_k+\\eta_k'}</Tex>。<strong>再看</strong>藍色方塊與回授：<Tex>{'G_k'}</Tex> 乘上 <Tex>{'\\mu'}</Tex> 進累加器（<Tex>{'w_{k+1}=w_k+\\mu G_k'}</Tex>），新的 <Tex>{'w'}</Tex> 回到第一個加法點被減掉（邊上標著負號）。
+          </p>
+          <p>
+            圖上的「<Tex>{'\\times K'}</Tex>」和「<Tex>{'\\times\\mu'}</Tex>」串起來，就是公式裡的無因次迴路增益 <Tex>{'g=\\mu K'}</Tex>：繞一圈，誤差被修掉 <Tex>{'g'}</Tex> 倍、剩下 <Tex>{'p=1-g'}</Tex> 倍（<Tex>{'p'}</Tex> 稱為 pole）。雜訊{' '}
+            <Tex>{'\\eta_k'}</Tex> 也要經過「<Tex>{'\\times\\mu'}</Tex>」才進累加器，所以 <Tex>{'\\mu'}</Tex> 加倍時誤差收得快，但每次灌進係數的雜訊功率 <Tex>{'\\mu^2\\sigma_\\eta^2'}</Tex> 變成四倍（<Tex>{'\\sigma_\\eta^2'}</Tex> 是{' '}
+            <Tex>{'\\eta_k'}</Tex> 的變異數；<Tex>{'N'}</Tex> 個 <Tex>{'\\pm1'}</Tex> 取平均時約為 <Tex>{'1/N'}</Tex>）。
+          </p>
+          <p className="small muted">
+            本章方塊圖的顏色：藍色是這一段的主角，棕色是和它互相拉扯的另一項，綠色是通過或可用，紅色是失敗或不適用。圖裡的數學用一般文字書寫（方塊圖不渲染公式），下面的導讀會把它對回公式。
+          </p>
+        </Diagram>
         <p>中間一定有個最佳點。我們先用數字感受，再推公式。</p>
       </Section>
 
       <Section kind="example" level={2} title={md('14.0.1 先算一次：$g=0.1$ 的前三個 block')} id="ch14-hand">
         <p>
-          取 <Tex>{`K=K_q=\\sqrt{2/\\pi}/100=${tx(K, 6)}\\,\\mathrm{fs^{-1}}`}</Tex>，選 <Tex>{`\\mu=0.1/K=${tx(mu, 5)}\\,\\mathrm{fs}`}</Tex>，所以
+          誤差路徑的相位 <Tex>{'\\theta=0'}</Tex>、增益 <Tex>{'|H|=1'}</Tex>（也就是 code 與誤差完全對齊）時，有效相關 <Tex>{'C=|H|\\cos\\theta=1'}</Tex>，斜率就等於 comparator 的小訊號增益 <Tex>{'K_q=\\sqrt{2/\\pi}/\\sigma_v'}</Tex>。取 <Tex>{`K=K_q=\\sqrt{2/\\pi}/100=${tx(K, 6)}\\,\\mathrm{fs^{-1}}`}</Tex>，選 <Tex>{`\\mu=0.1/K=${tx(mu, 5)}\\,\\mathrm{fs}`}</Tex>，所以
           <Tex>{`g=0.1,\\ p=0.9`}</Tex>；<Tex>{`\\sigma_\\eta^2=1/4096`}</Tex>，每次更新注入的雜訊功率
           <Tex>{`\\mu^2\\sigma_\\eta^2=${tx(noise, 5)}\\,\\mathrm{fs^2}`}</Tex>。均方誤差每個 block 的規則只有一行（下一節會推導）：
         </p>

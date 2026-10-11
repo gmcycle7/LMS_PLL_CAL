@@ -1,10 +1,8 @@
-import { Callout, Mermaid, ModeGate, SourceTag, SymbolTable, Tex } from '@/components'
+import { Callout, Mermaid, ModeGate, SourceTag, Tex } from '@/components'
 import type { PresetEntry } from '@/data/types'
 import { ALL_PRESETS } from '@/app/presets'
 import { PREVIEWABLE_EXPERIMENTS } from '../data'
 import { PRESET_FLOW } from '../diagrams'
-import { CHECK_SYMBOLS, MODEL_SYMBOLS } from '../symbols'
-import { ErratumChip } from '../common'
 import { JumpButton } from './SlotAudit'
 
 /** preset JSON 的欄位說明（與 src/data/types.ts 的 PresetEntry 一致；index.test.tsx 檢查欄位齊全）。範例值直接讀 #1 的 JSON。 */
@@ -30,7 +28,7 @@ export function fieldExample(p: PresetEntry | undefined, field: keyof PresetEntr
   return s.length > max ? `${s.slice(0, max - 1)}…` : s
 }
 
-/** §1：這一頁在做什麼、一個 preset 是什麼、本頁符號 */
+/** §1：這一頁在做什麼、一個 preset 是什麼（本頁符號表在頁尾：sections/Symbols.tsx） */
 export function Intro() {
   const total = ALL_PRESETS.length
   const nExp = new Set(ALL_PRESETS.map((p) => p.experiment)).size
@@ -107,19 +105,6 @@ export function Intro() {
           只是把文字印出來，模型改壞了也看不出來；重算並比對之後，任何一個必備數值對不上，卡片就會顯示 mismatch（<JumpButton domId="gal-s6">§6 的 Inspector</JumpButton> 可以親手注入誤差來驗證這件事）。
         </p>
       </ModeGate>
-
-      <h3>1.2 本頁符號</h3>
-      <SymbolTable title="(1) 比對預期文字用的符號（本頁新增）" rows={CHECK_SYMBOLS} />
-      <SymbolTable
-        title="(2) 12 個例子共用的符號（定義與各章相同）"
-        rows={MODEL_SYMBOLS}
-        caption={
-          <>
-            極性與單位依全站約定（規格 §0）與 <code>docs/validation.md</code> 的勘誤：<Tex>{'\\delta=a-w'}</Tex> <ErratumChip eid="E39" />、<Tex>{'K=K_qC'}</Tex> 與 <Tex>{'g=\\mu K'}</Tex>{' '}
-            <ErratumChip eid="E13" />。時間誤差一律用 fs、相位用 rad；時間索引 <Tex>{'n'}</Tex> 是 comparator sample、<Tex>{'k'}</Tex> 是 GMAC block。
-          </>
-        }
-      />
     </section>
   )
 }

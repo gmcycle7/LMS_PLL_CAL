@@ -1,16 +1,8 @@
 import { useMemo } from 'react'
-import { Mermaid, Quiz, Recap, Section, Tex } from '@/components'
+import { Quiz, Recap, Section, Tex } from '@/components'
 import { conventionalStep, signErrorStep, signSignStep } from '@/simulation/models/lms'
-import { ChapterLink, ErrataNote, HandCalcSlot, f4, tm } from '../common'
+import { ChapterLink, Diagram, ErrataNote, HandCalcSlot, f4, tm } from '../common'
 import { HANDCALCS } from '../handcalcs'
-
-const PLL_LOOP = `flowchart LR
-  DSM["DSM 殘差 code x[n]"] --> DTC["DTC（gain 估計 w）"]
-  DTC --> PD["PD / comparator：q[n] = sign(e[n])"]
-  PD --> GMAC["GMAC：G_k = (1/N)·Σ q[n]·x[n]"]
-  DSM --> GMAC
-  GMAC --> UPD["w ← w + μ·G_k（shift）"]
-  UPD --> DTC`
 
 /** §6 連到 PLL、思考題、本課必記。 */
 export function S6Wrap() {
@@ -24,7 +16,19 @@ export function S6Wrap() {
       <h2 id="ch02-s6">§6 連到 PLL、思考題與本課必記</h2>
 
       <Section kind="diagram" title="這一章的數學在 DTC 校正裡是什麼">
-        <Mermaid chart={PLL_LOOP} caption="Block Sign-Error LMS（示意）：comparator 只給誤差的正負號，GMAC 做 conditional negation 累加，block 結束時更新一次。" />
+        <Diagram id="pll-loop">
+          <p>
+            {tm(
+              String.raw`先看最上面的 DSM 殘差 code $x[n]$：它分成兩路。一路是小數除頻真正造成的時間誤差 $y[n]=a\,x[n]$（$a$ 是理想的 DTC gain，未知）；另一路是 DTC 實際補償的量 $\hat y[n]=w_k\,x[n]$（目前的 gain 估計乘上同一個 code）。再看加法點：兩者相減，再加上 comparator 前的雜訊 $v[n]$，就是 DTC 沒修乾淨的時間誤差 $e[n]=(a-w_k)\,x[n]+v[n]$，由藍色的 comparator 判成正負號 $q[n]$。最後沿著下面那條路看：GMAC 把 $q[n]$ 和同一個 code $x[n]$ 相乘後累加 $N$ 筆、取平均得到 $G_k$，乘上 $\mu$ 後加到 $w_k$ 上，經過 $z^{-1}$ 變成下一個 block 的 $w_{k+1}$，送回 DTC。`,
+            )}
+          </p>
+          <p>
+            {tm(
+              String.raw`圖上的 $e[n]$、$q[n]=\operatorname{sign}(e[n])$、$x[n]$ 就是下表左欄前三列的符號；GMAC 那一格算的 $q[n]\,x[n]$ 就是第四列的 $\operatorname{sign}(e)\,x$。整張圖和 §3 的 Sign-Error 迴圈一一對應（$y=a\,x+v$、$\hat y=w\,x$、$e=y-\hat y$），差別只有速率：$x[n]$、$e[n]$、$q[n]$ 每個 sample 一筆（索引 $n$），$G_k$、$w_k$ 每個 block 一筆（索引 $k$，§2 的時間軸圖），所以整個 block 內 DTC 用的都是同一個 $w_k$。`,
+            )}
+            極性沿用本章的 <Tex>{'e=y-\\hat y'}</Tex>；實際 PD 看到的是 <Tex>{'e'}</Tex> 還是 <Tex>{'-e'}</Tex> 很重要——反了的話 pole 會從 <Tex>{'1-\\mu K'}</Tex> 變成 <Tex>{'1+\\mu K'}</Tex>，迴路發散（<ChapterLink ch="06">Ch06</ChapterLink>）。
+          </p>
+        </Diagram>
         <div className="table-wrap">
           <table className="ch02-table">
             <thead>
@@ -107,8 +111,16 @@ export function S6Wrap() {
       <Section kind="example" title="綜合手算：把這一章的公式串成一條設計流程">
         <p>
           真正設計 1-bit 校正迴路時，會把這一章的幾條公式連起來用：comparator 增益 <Tex>{'K_q'}</Tex>（§3）→ Sign-Error 的線性化增益 <Tex>{'K_{\\rm SE}'}</Tex>（F-02.12）→ pole 與時間常數
-          → 穩態抖動（F-02.13）→ 和多位元 LMS 比較（F-02.14、F-02.16）。
+          → 穩態抖動（F-02.13）→ 和多位元 LMS 比較（F-02.14、F-02.16）。先看整條流程的地圖，再動手算：
         </p>
+        <Diagram id="design-flow">
+          <p>
+            {tm(
+              String.raw`先看最上面的三個已知數：comparator 輸入端的雜訊 $\sigma_v$、code 的幅度 $A$（$x=\pm A$ 等機率）與步長 $\mu$。再由上往下看每一格怎麼算。一路是「增益」：comparator 增益 $K_q$ 乘上 code 功率 $E[x^2]$ 得到 $K_{\rm SE}$，再乘上步長得到正規化 loop gain $g$（藍色）；有了 $g$ 就有 pole $p$ 與時間常數 $\tau$。另一路是「雜訊」：梯度雜訊變異 $\sigma_\eta^2$ 和 $g$、$K_{\rm SE}$ 一起算出 Sign-Error 的穩態變異與抖動 $\sigma_w$。最後把同樣收斂速度的多位元 LMS 也算一次（它的步長記成 $\mu_{\rm L}$），兩個變異相除應該得到 $\pi/2$。`,
+            )}
+          </p>
+          <p>圖上每一格對應下面手算題的一到兩個步驟；箭頭的意思是「這一步要用到哪些前面算好的數」。綠色三格是最後要交出去的答案。</p>
+        </Diagram>
         <HandCalcSlot id="HC-02.8">
           給定 comparator 輸入端的雜訊 <Tex>{'\\sigma_v'}</Tex>、code 幅度 <Tex>{'A'}</Tex> 與步長 <Tex>{'\\mu'}</Tex>，先用紙筆和計算機走完整條流程（需要一次 <Tex>{'\\ln'}</Tex> 與兩次開根號），
           再對答案；然後把 <Tex>{'\\mu'}</Tex> 減半，看 <Tex>{'\\tau'}</Tex> 與 <Tex>{'\\sigma_w'}</Tex> 各變成幾倍。

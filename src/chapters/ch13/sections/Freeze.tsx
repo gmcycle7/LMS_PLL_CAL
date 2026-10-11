@@ -3,6 +3,7 @@ import type { Data } from 'plotly.js-dist-min'
 import {
   Callout,
   ClaimTag,
+  Mermaid,
   ModeGate,
   Plot,
   Prereq,
@@ -14,6 +15,7 @@ import {
 } from '@/components'
 import { makeCtx, makeGrid, quantize, toggleK } from '@/simulation/models/quantizer'
 import { DEFAULT_LAB_PARAMS, Erratum, Fold, Hand, LSB_FS_EXAMPLE, fx, tx } from '../common'
+import { CHART_FREEZE } from '../diagrams'
 
 /** 靜態（DC）誤差 vs w*：A（nearest）、B（L_t = 5 的 pattern 平均）、D（ΔΣ，精確有理數 → 0） */
 function staticErrorCurves() {
@@ -57,7 +59,15 @@ export function FreezeSection() {
   return (
     <Section kind="formula" title="§13.1 方法 A：Freeze 在最近的 code" level={2} id="ch13-freeze">
       <p>
-        最直覺的做法：LMS 收斂後，把 <Tex>{String.raw`w^*`}</Tex> 四捨五入成最近的整數 code，然後<strong>凍結</strong>（不再改變）。
+        最直覺的做法：LMS 收斂後，把 <Tex>{String.raw`w^*`}</Tex> 四捨五入成最近的整數 code，然後<strong>凍結</strong>（不再改變）。四捨五入這個動作記為{' '}
+        <Tex>{String.raw`Q_B(\cdot)`}</Tex>：<Tex>{'B'}</Tex>-bit 量化器，預設是 round-half-up <Tex>{String.raw`\lfloor v+\tfrac12\rfloor`}</Tex>，結果超出 <Tex>{String.raw`[0,\,2^B-1]`}</Tex> 時夾住（saturate）。
+      </p>
+      <Mermaid
+        chart={CHART_FREEZE}
+        caption="方法 A 的方塊圖。先看藍色的 latch：只在凍結的瞬間取樣一次，之後 $w_H$ 怎麼變都不看（虛線）；再看右邊：輸出是常數，所以誤差也是常數，全部功率都在 DC。"
+      />
+      <p className="small ch13-figwalk">
+        圖上的 latch 就是程式碼裡的 <code>s.wFreeze</code>；圖上相減點的輸出就是下面公式的 <Tex>{String.raw`e[n]=y-w^*`}</Tex>（也就是 <Tex>{String.raw`\delta w`}</Tex>）。注意整張圖<strong>沒有任何會動的東西</strong>：沒有計數器、沒有亂數、沒有回授——這是它和後面四種方法最大的不同。
       </p>
       <Prereq title="平均、期望值、平方平均與「功率」">
         <p>
@@ -121,7 +131,7 @@ export function FreezeSection() {
         />
         <p>
           PVT 漂移時，Freeze / dead zone 要等 <Tex>{'w^*'}</Tex> 越過 32.5 才會改變 code，所以追蹤能力（§13.5 第 4 點）最差。toggle 把解析度提升到
-          <Tex>{String.raw`1/L_t`}</Tex>（藍點線，誤差 <Tex>{String.raw`\le\frac1{2L_t}=0.1\,\mathrm{LSB}`}</Tex>），而 ΔΣ 的平均在精確算術下完全等於 <Tex>{'w^*'}</Tex>（紅線恆為 0，見 §13.4 的 telescoping）。
+          <Tex>{String.raw`1/L_t`}</Tex>（<Tex>{'L_t'}</Tex> 是 toggle pattern 的週期，§13.2，圖中取 5；藍點線，誤差 <Tex>{String.raw`\le\frac1{2L_t}=0.1\,\mathrm{LSB}`}</Tex>），而 ΔΣ 的平均在精確算術下完全等於 <Tex>{'w^*'}</Tex>（紅線恆為 0，見 §13.4 的 telescoping）。
         </p>
         <Plot
           title={String.raw`靜態（DC）誤差 vs $w^*$：Freeze 的鋸齒、Toggle 的 $1/L_t$ 階梯、ΔΣ 為 0`}
@@ -132,7 +142,7 @@ export function FreezeSection() {
           layout={{ xaxis: { title: { text: 'w* [LSB]' } }, yaxis: { title: { text: '平均 code − w* [LSB]' } } }}
           caption={
             <>
-              由 <code>quantize()</code> 與 <code>toggleK()</code> 逐點計算（定點 <Tex>{'F=16'}</Tex> 的格點）；縱軸採 <Tex>{String.raw`\delta w=w-w^*`}</Tex> 約定（<Tex>{String.raw`\delta=a-w`}</Tex> 則上下顛倒）。
+              由 <code>quantize()</code> 與 <code>toggleK()</code> 逐點計算（<Tex>{'w_H'}</Tex> 用 <Tex>{'F=16'}</Tex> 個小數 bit 的定點格點；<Tex>{'F'}</Tex> 是小數位元數，§13.4）；縱軸採 <Tex>{String.raw`\delta w=w-w^*`}</Tex> 約定（<Tex>{String.raw`\delta=a-w`}</Tex> 則上下顛倒）。
             </>
           }
         />

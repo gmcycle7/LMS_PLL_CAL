@@ -10,6 +10,7 @@ import { Intro } from './sections/Intro'
 import { RegressionBoard } from './sections/RegressionBoard'
 import { RequiredGallery } from './sections/RequiredGallery'
 import { JumpButton, scrollToId, SlotAudit, useSlotAudit } from './sections/SlotAudit'
+import { SymbolsLink, SymbolsSection } from './sections/Symbols'
 import { UnifiedView } from './sections/UnifiedView'
 import { Wrapup } from './sections/Wrapup'
 import './gallery.css'
@@ -29,6 +30,7 @@ const TOC: { id: string; label: string }[] = [
   { id: 'gal-s8', label: '8 全部 preset 與篩選' },
   { id: 'gal-s9', label: '9 T-id 覆蓋率' },
   { id: 'gal-s10', label: '10 思考題與必記' },
+  { id: 'symbols', label: '符號表（頁尾）' },
 ]
 
 /** Inspector 預設選的 preset：§19.2 中第一個可預覽的；沒有就取任何一個可預覽的 */
@@ -40,10 +42,12 @@ function defaultInspectId(): string {
 /**
  * Experiment Gallery（route /gallery；規格 §19.2）。
  *
- * 章節：1 這一頁在做什麼（preset 是什麼、符號表）→ 2 一張卡片怎麼讀（手算 #1、預期文字比對的數學 F-GA.1–3）→
+ * 章節：1 這一頁在做什麼（preset 是什麼）→ 2 一張卡片怎麼讀（手算 #1、預期文字比對的數學 F-GA.1–3）→
  *       3 §19.2 的 12 個必備 preset 稽核 → 4 統一觀點（F-GA.4；以 #1、#7、#8、#12 做數值驗算）與 12 個實驗逐一說明 → 5 一次重算 →
  *       6 Preset Inspector（ExperimentShell：重算、比對、注入誤差的反面測試、匯出）→ 7 核心程式碼 →
- *       8 全部 preset 與篩選（頁面／層級／T-id／來源／關鍵字）→ 9 T-id 覆蓋率與資料健康檢查 → 10 思考題與必記。
+ *       8 全部 preset 與篩選（頁面／層級／T-id／來源／關鍵字）→ 9 T-id 覆蓋率與資料健康檢查 → 10 思考題與必記 →
+ *       頁尾：本頁符號表（id="symbols"；docs/teaching-style.md §5，頁首只留一行連結）。
+ * 方塊圖：diagrams.ts 的 5 張（preset 的兩條路、#1 的 LMS 迴路、相符判據的判定流程、統一觀點的迴路、三個問題）。
  *
  * 資料：所有 preset 來自 ALL_PRESETS（src/data/presets/*.json），本頁不新增、不改寫；缺少的必備 preset 只標示「缺少」。
  * 數字：即時預覽、重算表與 Inspector 的每個數字都由 src/simulation/models 的函式當場算出（previews.ts）。
@@ -81,6 +85,7 @@ export default function GalleryPage() {
           </JumpButton>
         ))}
       </nav>
+      <SymbolsLink />
 
       <Intro />
       <HowToRead />
@@ -147,6 +152,7 @@ export default function GalleryPage() {
       </section>
 
       <Wrapup />
+      <SymbolsSection />
     </div>
   )
 }

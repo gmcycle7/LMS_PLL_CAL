@@ -1,16 +1,7 @@
 import { Mermaid, TestBadge } from '@/components'
 import { PHASES, PHASE_STATE_LABEL, phaseProgress } from '../data'
 import { ErratumTag, PageRef, Rich } from '../common'
-
-export const PHASE_CHART = `flowchart LR
-  P0["P0 基礎"] --> P1["P1 數學"]
-  P0 --> P3["P3 MIMO / Bias"]
-  P1 --> P2["P2 PLL / Stability"]
-  P2 --> P4["P4 Noise / Quantization"]
-  P1 --> P5["P5 Integrated Lab"]
-  P2 --> P5
-  P3 --> P5
-  P4 --> P5`
+import { PHASE_CHART } from '../diagrams'
 
 export function Phases() {
   return (

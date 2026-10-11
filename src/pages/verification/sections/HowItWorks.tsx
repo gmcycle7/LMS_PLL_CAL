@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, CodeBlock, CodeCompare, getTestStatus, Mermaid, Section, StepDerivation, TestBadge, Tex } from '@/components'
+import { Callout, ClaimTag, CodeBlock, CodeCompare, getTestStatus, Section, StepDerivation, TestBadge, Tex } from '@/components'
 import acceptanceSrc from '@/simulation/models/acceptance.ts?raw'
 import calNoiseSrc from '@/simulation/models/calNoise.ts?raw'
 import comparatorSrc from '@/simulation/models/comparator.ts?raw'
@@ -9,26 +9,12 @@ import verifyMjs from '../../../../scripts/verify.mjs?raw'
 import statusFile from '@/data/verification-status.json'
 import { meanSquareFactor } from '@/simulation/models/lms'
 import { lyapunovExponent } from '@/simulation/models/scalarStability'
-import { ALL_IDS, Expand, steps, useAcceptance } from '../common'
-import { ERRATA } from '../errata'
+import { ALL_IDS, Diagram, Expand, M, steps, useAcceptance } from '../common'
+import { CHART_PIPELINE, CHART_STATUS } from '../diagrams'
 import { GOLDEN_INDEX } from '../golden'
 import { extractJsConstLines, extractJsFunctions, extractPythonDefs, fmtNum } from '../format'
 
 const STATUS_FILE = statusFile as { generatedAt?: string; commit?: string; note?: string }
-
-const PIPELINE = `flowchart LR
-  S["規格 §17<br/>T01–T18"] --> V["docs/validation.md<br/>${ERRATA.length} 項勘誤"]
-  V --> PY["Python golden<br/>NumPy / SciPy"]
-  PY --> J["golden/vectors<br/>Txx.json"]
-  PY --> PT["pytest<br/>test_Txx_…"]
-  J --> TS["Vitest<br/>it('Txx: …')"]
-  M["各章 TS 模型<br/>lms / comparator / …"] --> TS
-  M --> PG["本頁即時重算<br/>acceptance.ts"]
-  J --> PG
-  TS --> VR["scripts/verify.mjs"]
-  PT --> VR
-  VR --> SJ["verification-status.json"]
-  SJ --> B["TestBadge<br/>只有 pass = verified"]`
 
 function pyDefs(src: string, names: string[]): string {
   try {
@@ -68,8 +54,35 @@ export function HowItWorks() {
         驗證不是「看起來對」，而是一條可以重跑的管線。規格的 18 個驗收值先經過 docs/validation.md 的勘誤修正，再由兩個<strong>互不共用程式碼</strong>的實作分別計算：Python golden model（
         <code>golden/lms_pll_golden/</code>）與網站各章的 TypeScript 模型（<code>src/simulation/models/</code>）。
       </p>
-      <Mermaid chart={PIPELINE} caption="驗證管線：只有兩邊的自動測試都通過，TestBadge 才會顯示 verified。" ariaLabel="驗證管線方塊圖" />
+      <Diagram
+        chart={CHART_PIPELINE}
+        caption="驗證管線：只有 TypeScript 與 Python 兩邊的自動測試都通過，TestBadge 才會顯示 verified。"
+        ariaLabel="驗證管線方塊圖：規格與勘誤進到 Python golden，產生 golden vector 與 pytest；TypeScript 的 Vitest 讀同一份 vector；兩邊的結果由 verify 腳本彙整成狀態檔，TestBadge 只讀這個檔"
+      >
+        <p>
+          <strong>先看</strong>
+          左邊：規格的 T01–T18 先經過 <code>docs/validation.md</code> 的勘誤修正，再交給 Python golden。Python 這一側產生兩樣東西——<code>golden/vectors/Txx.json</code>（期望值與容忍度）和 pytest 測試。
+        </p>
+        <p>
+          <strong>再看</strong>
+          中間到右邊：網站各章的 TypeScript 模型有兩個去處——被 Vitest 的 <code>it(&apos;Txx: …&apos;)</code> 拿去對照同一份 vector，以及在本頁 <code>acceptance.ts</code> 即時重算。兩邊的測試結果由藍色的{' '}
+          <code>verify.mjs</code> 彙整成 <code>verification-status.json</code>，最後只有綠色的 TestBadge 讀這個檔——所以「本頁即時重算」那個方塊<strong>沒有</strong>箭頭接到徽章（圖上對照下面的誠實聲明）。
+        </p>
+      </Diagram>
       <h3>四種狀態（scripts/verify.mjs 的判定）</h3>
+      <Diagram
+        chart={CHART_STATUS}
+        caption="verify.mjs 的 statusOf：先問有沒有失敗，再問兩邊是不是都有通過的測試；只有走到綠色那一格才算 verified。"
+        ariaLabel="四種狀態的判定流程：任何一邊有失敗是 fail；沒有失敗且兩邊都有通過的測試是 pass，也就是 verified；只有一邊有通過的測試是 partial；兩邊都沒有是 missing"
+      >
+        <p>
+          <strong>先看</strong>
+          最上面兩個方塊：TypeScript 端與 Python 端各自把「通過幾個、失敗幾個」交給 <code>statusOf</code>。<strong>再看</strong>
+          三個菱形的順序：
+          {M(r`先問失敗（有就是 fail，不管另一邊多漂亮），再問兩邊是不是都有通過的測試（才是 pass），最後問至少一邊有通過的測試（partial），都沒有就是 missing。`)}
+          圖上的四個結果，就是下面四張說明卡。
+        </p>
+      </Diagram>
       <div className="ver-status-grid">
         <div className="ver-status-card">
           <h4>✓ pass → verified</h4>

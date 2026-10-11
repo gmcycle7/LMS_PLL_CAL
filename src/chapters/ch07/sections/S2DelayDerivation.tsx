@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, Derivation, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, Derivation, Mermaid, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock } from '@/components'
 import { bestToneDelay, toneBlockCorr, toneCorrCodeDelay, toneCorrErrorDelay } from '@/simulation/models/filteredX'
+import { CHART_BLOCK_AVERAGE, CHART_DELAY_SIDE, CHART_MIXER_AVERAGE } from '../diagrams'
 import { FoldSteps } from '../FoldSteps'
 import { ErratumNote } from '../ErratumNote'
 import { Hand } from '../Hand'
@@ -97,6 +98,21 @@ export function S2DelayDerivation() {
           </ErratumNote>
         </p>
       </Prereq>
+
+      <h3 className="ch07-subhead">先看圖：GMAC 的「相乘再平均」是一個相位偵測器</h3>
+      <p>
+        推導之前先看訊號怎麼流。兩個<strong>同頻</strong>的 <Tex>{r`\cos`}</Tex> 相乘，會變成一個不隨時間變的常數，加上一個兩倍頻的 <Tex>{r`\cos`}</Tex>；平均器把兩倍頻的那一項平均掉，只留下常數——
+        而那個常數只和兩個訊號的<strong>相位差</strong>有關。這就是為什麼 GMAC 的輸出會隨 <Tex>{'D'}</Tex> 變號。
+      </p>
+      <Mermaid
+        chart={CHART_MIXER_AVERAGE}
+        caption={r`GMAC = 乘法器 + 平均器：相乘之後分成「不隨 $n$ 變的項」（藍色）與「兩倍頻的項」；長時間平均只留下藍色那一項，它就是 $C_D$。`}
+      />
+      <p>
+        先看進乘法器的兩個輸入：延遲過的 code <Tex>{'x[n-D]'}</Tex> 和 PD 端的 <Tex>{'u[n]'}</Tex>，頻率相同、相位不同。再看乘法器分出的兩項：藍色的那一項不隨
+        <Tex>{'n'}</Tex> 變，原封不動通過平均器；另一項以兩倍的頻率 <Tex>{r`2\Omega`}</Tex> 振盪，平均後正負抵消。圖上藍色方塊就是下面推導第 5 步括號裡的第一項
+        <Tex>{r`\cos(\phi+\Omega D)`}</Tex>，「兩倍頻的項」是第二項；平均器就是公式裡的 <Tex>{r`E[\cdot]`}</Tex>，最後的輸出就是推導最後框起來的 <Tex>{'C_D'}</Tex>。
+      </p>
 
       <h3 className="ch07-subhead">逐步推導（延遲 GMAC 的 code）</h3>
       <FoldSteps
@@ -198,7 +214,17 @@ export function S2DelayDerivation() {
       </h3>
       <p>
         硬體上有兩個地方可以放 delay：在 GMAC 的 <strong>code 輸入</strong>（本站的 <Tex>{'D'}</Tex>、JSON 的 <code>gm_code_delay_samples</code>），
-        或在 <strong>comparator 輸出</strong>（讓 <Tex>{'q'}</Tex> 晚一點進 GMAC，等效於延遲 PD 誤差）。推導只差一行：
+        或在 <strong>comparator 輸出</strong>（讓 <Tex>{'q'}</Tex> 晚一點進 GMAC，等效於延遲 PD 誤差）。先看圖，再看只差一行的推導：
+      </p>
+      <Mermaid
+        chart={CHART_DELAY_SIDE}
+        caption={r`同一個延遲方塊（藍色）放在乘法器的哪一側：做法 A 放在 code 側，殘餘相位是 $\phi+\Omega D$；做法 B 放在 comparator 輸出側，殘餘相位是 $\phi-\Omega D$。`}
+      />
+      <p>
+        先看做法 A：藍色的延遲在 code 這一側，乘法器算的是 <Tex>{r`q[n]\,x[n-D]`}</Tex>——code 被往後拉 <Tex>{r`\Omega D`}</Tex>，去追一個<strong>落後</strong>的誤差路徑。
+        再看做法 B：同一個延遲移到 comparator 輸出這一側，乘法器算的是 <Tex>{r`q[n-D]\,x[n]`}</Tex>——被往後拉的變成誤差，等於讓 code 相對<strong>提前</strong>了
+        <Tex>{r`\Omega D`}</Tex>，適合超前的誤差路徑。圖上兩個結果方塊裡的 <Tex>{r`\phi+\Omega D`}</Tex> 與 <Tex>{r`\phi-\Omega D`}</Tex>，就是 F-07.2 與下面 F-07.3 的
+        <Tex>{r`\cos`}</Tex> 裡面的角度。
       </p>
       <FoldSteps
         title="延遲 comparator 誤差（另一種做法）"
@@ -302,8 +328,8 @@ export function S2DelayDerivation() {
           邊界情況 1：<Tex>{r`\Omega=0`}</Tex> 或 <Tex>{'\\pi'}</Tex>
         </h3>
         <p>
-          當 <Tex>{r`\Omega=0`}</Tex> 或 <Tex>{r`\pi`}</Tex>，<Tex>{r`\cos(2\Omega n+\psi)=\cos\psi`}</Tex> 對每個 <Tex>{'n'}</Tex> 都一樣
-          （<Tex>{r`2\pi n`}</Tex> 是整圈），不會平均掉。另外實係數 <Tex>{'h'}</Tex> 在這兩個頻率的響應
+          回到本節開頭那張「乘法器 + 平均器」的圖：當 <Tex>{r`\Omega=0`}</Tex> 或 <Tex>{r`\pi`}</Tex>，「兩倍頻的項」
+          <Tex>{r`\cos(2\Omega n+\psi)=\cos\psi`}</Tex> 對每個 <Tex>{'n'}</Tex> 都一樣（<Tex>{r`2\pi n`}</Tex> 是整圈），它根本不振盪，平均器平均不掉。另外實係數 <Tex>{'h'}</Tex> 在這兩個頻率的響應
           <Tex>{r`H(e^{j0})=\sum_k h[k]`}</Tex>、<Tex>{r`H(e^{j\pi})=\sum_k(-1)^kh[k]`}</Tex> 都是實數，只能有
           <Tex>{r`\phi\in\{0^\circ,180^\circ\}`}</Tex>：{' '}
           <ErratumNote id="E46" />
@@ -341,7 +367,16 @@ export function S2DelayDerivation() {
           邊界情況 2：有限 <Tex>{'N'}</Tex> 的 GMAC block
         </h3>
         <p>
-          GMAC 只平均 <Tex>{'N'}</Tex> 個 sample。把上面的等比數列結果代入，單一 block（<Tex>{r`n=n_0,\dots,n_0+N-1`}</Tex>）的相關部分確切等於：
+          GMAC 只平均 <Tex>{'N'}</Tex> 個 sample（單一 block：<Tex>{r`n=n_0,\dots,n_0+N-1`}</Tex>）。先看圖：它和本節開頭「乘法器 + 平均器」那張圖只差在平均器。
+        </p>
+        <Mermaid
+          chart={CHART_BLOCK_AVERAGE}
+          caption={r`只平均一個 block 的 $N$ 個 sample：不隨 $n$ 變的項（藍色）照舊；兩倍頻的項（紅色）不再剛好抵消，變成一個乘上 $\sin(N\Omega)/(N\sin\Omega)$ 的 ripple。`}
+        />
+        <p>
+          先看藍色方塊：不隨 <Tex>{'n'}</Tex> 變的 <Tex>{r`\cos(\phi+\Omega D)`}</Tex> 不管平均幾個 sample 都原封不動。再看紅色方塊：兩倍頻的項這次只在 <Tex>{'N'}</Tex> 個 sample 上平均，
+          等比數列的和不再為零，結果等於「把 <Tex>{'n'}</Tex> 換成 block 的中點 <Tex>{r`n_0+(N-1)/2`}</Tex>」再乘上 <Tex>{r`\sin(N\Omega)/(N\sin\Omega)`}</Tex>。這兩項相加，就是下面 F-07.6 中括號裡的第一項與第二項；
+          <Tex>{'N'}</Tex> 越大、<Tex>{r`|\sin\Omega|`}</Tex> 越大，第二項（ripple）越小，長時間平均時趨近 0，回到 F-07.2。把上面的等比數列結果代入，單一 block 的相關部分確切等於：
         </p>
         <TexBlock id="F-07.6">{r`\bar G_k=\frac{A^2|H|}{2}\Big[\cos(\phi+\Omega D)+\cos\big(2\Omega n_0+\Omega(N-1)+\phi-\Omega D\big)\,\frac{\sin N\Omega}{N\sin\Omega}\Big]`}</TexBlock>
         <p>

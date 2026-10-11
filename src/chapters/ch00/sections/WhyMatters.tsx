@@ -1,26 +1,5 @@
-import { Mermaid, Section, SourceTag, Tex } from '@/components'
-import { PageLink } from '../common'
-
-const ADAPTIVE_LOOP = `flowchart LR
-  X["參考輸入 x（regressor）"] --> F["可調係數 w（濾波器 / 增益）"]
-  F --> P["預測 ŷ"]
-  D["期望 / 量到的 y"] --> S(("比較"))
-  P --> S
-  S --> E["誤差 e = y − ŷ"]
-  E --> M["相關 e·x（乘法）"]
-  X --> M
-  M --> A["× μ，累加"]
-  A -->|"修正"| F`
-
-const PLL_LOOP = `flowchart LR
-  DSM["DSM 量化殘差 x"] --> DTC["DTC：延遲 = w·x"]
-  DTC --> PD["相位偵測器 PD"]
-  REF["參考時脈"] --> PD
-  PD --> CMP["1-bit 比較器 q = sign(e)"]
-  CMP --> G["GMAC：G_k = (1/N)·Σ q·x（N 筆一個 block）"]
-  DSM --> G
-  G --> U["每個 block 更新：w ← w + μ·G_k"]
-  U --> DTC`
+import { Section, SourceTag, Tex } from '@/components'
+import { ChapterDiagram, FigRef, PageLink } from '../common'
 
 /** §0.8 為什麼 LMS 重要？ */
 export function WhyMattersSection() {
@@ -29,9 +8,20 @@ export function WhyMattersSection() {
       <p>
         同一個「預測 → 比較 → 修正」迴圈，幾乎出現在所有需要「邊用邊校正」的系統裡。抽象成方塊圖，結構永遠一樣：
       </p>
-      <Mermaid chart={ADAPTIVE_LOOP} caption="一般化的 LMS 自適應迴圈（示意）" ariaLabel="參考輸入經可調係數產生預測，與期望值比較得到誤差，誤差與輸入相關後累加修正係數" />
+      <ChapterDiagram name="CHART_ADAPTIVE_LOOP">
+        <p>
+          先看藍色的可調係數 <Tex>{'w'}</Tex>：輸入 <Tex>{'x'}</Tex> 經過它變成預測 <Tex>{'\\hat y'}</Tex>，在相加點以 <code>(−)</code> 進入，和以 <code>(+)</code> 進入的{' '}
+          <Tex>{'y'}</Tex> 相減得到誤差 <Tex>{'e'}</Tex>。再看回授的那半圈：<Tex>{'e'}</Tex> 和 <Tex>{'x'}</Tex> 進乘法器（把兩個訊號相乘再累加，工程上叫做「相關」correlation），乘上{' '}
+          <Tex>{'\\mu'}</Tex> 累加之後回去修正 <Tex>{'w'}</Tex>。
+        </p>
+        <p>
+          這張圖只是把 §0.1 的 <FigRef name="CHART_BLACKBOX_MODEL" />（相減得到 <Tex>{'e'}</Tex>）和 §0.3 的 <FigRef name="CHART_LMS_ACCUMULATOR" />（<Tex>{'\\mu e x'}</Tex>{' '}
+          累加）接成一圈；圖上的「相關 <code>e·x</code>」「× μ，再累加」合起來就是 <Tex>{'w_{n+1}=w_n+\\mu e_nx_n'}</Tex>。下面四個應用只是把 <Tex>{'x'}</Tex>、<Tex>{'e'}</Tex>、
+          <Tex>{'w'}</Tex> 換成不同的實體訊號。
+        </p>
+      </ChapterDiagram>
 
-      <div className="grid-2">
+      <div className="grid-2" id="ch00-app-cards">
         <div className="card ch00-app-card">
           <h4>主動降噪耳機（ANC）</h4>
           <p>
@@ -123,8 +113,36 @@ export function WhyMattersSection() {
       </p>
 
       <h3>連結到 PLL：本網站的主迴圈</h3>
-      <Mermaid chart={PLL_LOOP} caption="DTC gain 校正迴圈（簡化示意；完整版含 PLL error transfer，見 Ch04、Ch06）" ariaLabel="DSM 殘差驅動 DTC，PD 與比較器產生誤差正負號，GMAC 累加後更新 DTC 增益" />
       <p>
+        現在回到章首的系統地圖。本章的黑盒子，在 PLL 裡每一個符號都有實體的對應——先把 §0.1 的模型換上 PLL 的名字，再看它接成的迴圈：
+      </p>
+      <ChapterDiagram name="CHART_BLACKBOX_TO_PLL">
+        <p>
+          先看最左邊：輸入 <Tex>{'x'}</Tex> 是 ΔΣ 調變器（DSM）每個週期留下的量化殘差，也就是送給 DTC 的 code <code>x[n]</code>。它分成兩條路：深灰色那條乘上未知的{' '}
+          <Tex>{'a'}</Tex>——把這個 code 完全抵消所需要的「正確的 DTC gain」（單位 fs/code），<Tex>{'a\\,x_n'}</Tex> 就是量化造成、該被抵消掉的時間誤差；藍色那條乘上我們的猜測{' '}
+          <Tex>{'w'}</Tex>——gain register 裡的值，<Tex>{'w\\,x_n'}</Tex> 是 DTC 實際補償掉的量。再看相加點：前者以 <code>(+)</code>、後者以 <code>(−)</code> 進入，再加上
+          phase detector（PD）與比較器前的雜訊 <Tex>{'v'}</Tex>（紅色），輸出就是 PD 量到的殘留誤差。
+        </p>
+        <p>
+          圖上的 <code>e[n] = (a − w)·x[n] + v[n]</code> 就是本章一直在用的 <Tex>{'e=(a-w)x+v'}</Tex>。和 <FigRef name="CHART_BLACKBOX_MODEL" /> 只有一個差別：那裡有兩個相加點，
+          <Tex>{'y'}</Tex> 和 <Tex>{'\\hat y'}</Tex> 都看得到；PLL 裡「相減」是 DTC 在時間軸上直接做掉的，所以 <Tex>{'y'}</Tex> 與 <Tex>{'\\hat y'}</Tex> 都不會單獨出現，我們只量得到{' '}
+          <Tex>{'e'}</Tex>。幸好 LMS 的修正量 <Tex>{'\\mu e x'}</Tex> 本來就只需要 <Tex>{'e'}</Tex> 和 <Tex>{'x'}</Tex>。
+        </p>
+      </ChapterDiagram>
+      <ChapterDiagram name="CHART_PLL_LOOP">
+        <p>
+          先看「主 PLL 路徑」那一框：DSM 的殘差 <code>x[n]</code> 進 DTC，DTC 依 <Tex>{'w\\cdot x'}</Tex> 產生補償延遲；PD 量到補償後剩下的誤差 <code>e[n]</code>
+          （就是上一張圖的輸出）。再看「LMS 校正迴路」那一框的藍色三格：比較器只留下正負號，記為 <Tex>{'q_n=\\mathrm{sign}(e_n)'}</Tex>（<Tex>{'+1'}</Tex> 或{' '}
+          <Tex>{'-1'}</Tex>）；GMAC 把 <Tex>{'N'}</Tex> 筆 <Tex>{'q_nx_n'}</Tex> 取平均，記為 <Tex>{'G_k'}</Tex>；最後每 <Tex>{'N'}</Tex> 筆更新一次 <Tex>{'w'}</Tex>。
+          最後看兩框之間的兩條線：主路徑把 <code>e[n]</code>、<code>x[n]</code> 交給校正迴路，校正迴路把 <Tex>{'w'}</Tex> 交回 DTC——這就是「預測 → 比較 → 修正」那一圈。
+        </p>
+        <p>
+          注意圖上有兩種索引：<code>[n]</code> 是每一筆取樣（sample），<code>[k]</code> 是每 <Tex>{'N'}</Tex> 筆組成的一個 block——<code>x[n]、e[n]、q[n]</code> 每筆都在變，
+          <code>G[k]、w[k]</code> 每個 block 才變一次。圖上的「<code>w[k+1] = w[k] + μ·G[k]</code>」就是本章的 <Tex>{'w_{n+1}=w_n+\\mu e_nx_n'}</Tex> 做了兩個替換：
+          <Tex>{'e_n'}</Tex> 只留下正負號 <Tex>{'q_n'}</Tex>，而且先平均 <Tex>{'N'}</Tex> 筆（<Tex>{'G_k'}</Tex>）才更新一次。§0.9 會解釋這兩件事。
+        </p>
+      </ChapterDiagram>
+      <p id="ch00-pll-walk">
         和 §0.2 的三個動作逐一對照：<strong>預測</strong>＝DTC 依 <Tex>{'w\\cdot x'}</Tex> 產生補償延遲；<strong>比較</strong>＝PD 量到補償後殘留的相位誤差{' '}
         <Tex>{'e=(a-w)x+v'}</Tex>，比較器只回報 <Tex>{'\\mathrm{sign}(e)'}</Tex>；<strong>修正</strong>＝GMAC 累加{' '}
         <Tex>{'\\mathrm{sign}(e)\\cdot x'}</Tex>，再乘上 <Tex>{'\\mu'}</Tex>（通常是右移）更新 gain register。真正的難題在於：比較器只有 1 bit、

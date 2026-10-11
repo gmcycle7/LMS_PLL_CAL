@@ -1,5 +1,6 @@
-import { Callout, ClaimTag, CodeBlock, Derivation, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeBlock, Derivation, Mermaid, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock } from '@/components'
 import fxSrc from '@/simulation/models/filteredX.ts?raw'
+import { CHART_FX_LOOP, CHART_GRADIENT, CHART_RHO_READING, CHART_THREE_REGRESSORS } from '../diagrams'
 import { FoldSteps } from '../FoldSteps'
 import { ErratumNote } from '../ErratumNote'
 import { Hand } from '../Hand'
@@ -27,6 +28,19 @@ export function S4Gradient() {
         {r`e_{\mathrm{PD}}[n]=(a-w)\,u[n]+v[n],\qquad u[n]=(h*x)[n]`}
       </TexBlock>
       <h3 className="ch07-subhead">步驟 1：PD 端的均方誤差，對 <Tex>{'w'}</Tex> 微分</h3>
+      <p>
+        先用圖看結論：同一個 PD 誤差 <Tex>{r`e_{\mathrm{PD}}[n]`}</Tex>，拿去乘 <Tex>{'u[n]'}</Tex> 還是乘 <Tex>{'x[n]'}</Tex>，平均出來的東西不一樣。
+      </p>
+      <Mermaid
+        chart={CHART_GRADIENT}
+        caption={r`同一個 $e_{\mathrm{PD}}$ 接到兩個乘法器：乘 $u$（真正的梯度 $-dJ/dw$）平均後是 $(a-w)E[u^2]$，方向永遠正確（綠）；乘 $x$（raw-x）平均後是 $(a-w)C$，$C$ 可正可負（紅）。`}
+      />
+      <p>
+        先看圖的前半段：<Tex>{'x[n]'}</Tex> 經過誤差路徑 <Tex>{'h'}</Tex> 變成 <Tex>{'u[n]'}</Tex>，乘上 <Tex>{'(a-w)'}</Tex>、加上雜訊 <Tex>{'v[n]'}</Tex>，就是上面 F-07.1 的
+        <Tex>{r`e_{\mathrm{PD}}[n]`}</Tex>。再看兩個乘法器：標著「真正的梯度」的那一個把 <Tex>{r`e_{\mathrm{PD}}`}</Tex> 乘回 <Tex>{'u'}</Tex>——<Tex>{'u'}</Tex> 自己乘自己的平均是
+        <Tex>{r`E[u^2]`}</Tex>，不可能是負的；標著「raw-x」的那一個乘的是 <Tex>{'x'}</Tex>，平均出來是 Ch06 的 <Tex>{r`C=E[x\,u]`}</Tex>。下面的推導說明：對 PD 端的誤差功率 <Tex>{'J(w)'}</Tex>（推導第 2 步定義）微分，自然會得到綠色那一路——
+        圖上綠色方塊前面的乘法器算的 <Tex>{r`E[e_{\mathrm{PD}}\,u]`}</Tex>，就是 F-07.9 裡梯度 <Tex>{r`dJ/dw`}</Tex> 的負值。
+      </p>
       <FoldSteps
         steps={[
           { tex: r`e_{\mathrm{PD}}[n]=(a-w)\,u[n]+v[n],\qquad u=h*x`, why: <>Ch06 的模型：DTC gain 誤差 <Tex>{'(a-w)x'}</Tex> 經過誤差路徑 <Tex>{'h'}</Tex> 到達 PD，再加上雜訊 <Tex>{'v'}</Tex>。</> },
@@ -64,6 +78,18 @@ E[e_{\mathrm{PD}}\,u]&=(a-w)\,E[u^2]+E[v\,u]&&\text{代入 }e_{\mathrm{PD}}\\
         (2) <Tex>{'u'}</Tex> 是 PLL 內部的訊號，GMAC 拿不到。解法：用 PLL 誤差路徑的<strong>模型</strong> <Tex>{r`\hat H`}</Tex> 把 code 濾一次，
         <Tex>{r`u_f=\hat h*x`}</Tex>，當作 regressor——這就是 <strong>Filtered-x LMS</strong>（ANC 耳機的 FxLMS 用的是同一個想法：
         喇叭到麥克風的 secondary path 也要先建模）。
+      </p>
+      <Mermaid
+        chart={CHART_THREE_REGRESSORS}
+        caption={r`三種 regressor 並排：乘法器與 $q[n]$ 完全相同，只差 $x_{\mathrm{ref}}$ 從哪裡來。藍色是相對 raw-x 多出來的方塊——B 是一條延遲線，C 是誤差路徑的模型 $\hat H$。`}
+      />
+      <p>
+        先看 A（raw-x）：code 直接接到乘法器，誤差路徑的相位 <Tex>{r`\phi`}</Tex> 完全沒有補償。再看 B（delayed-x，7.1–7.3 節）：多一個藍色的
+        <Tex>{r`z^{-D}`}</Tex>，補上一條與頻率成正比的相位 <Tex>{r`\Omega D`}</Tex>，只能對準一個頻率。最後看 C（filtered-x）：把藍色方塊換成模型 <Tex>{r`\hat H`}</Tex>，輸出
+        <Tex>{r`u_f=\hat h*x`}</Tex> 在<strong>每一個</strong>頻率都帶著模型的振幅與相位。三種做法只差在「GMAC 實際拿來相乘的訊號」，之後統稱
+        <Tex>{r`x_{\mathrm{ref}}[n]`}</Tex>：A 是 <Tex>{'x[n]'}</Tex>、B 是 <Tex>{'x[n-D]'}</Tex>、C 是 <Tex>{'u_f[n]'}</Tex>。每個框最後的方塊是那種做法算出來的相關：
+        <Tex>{'C'}</Tex>、<Tex>{'C_D'}</Tex>、<Tex>{r`E[u\,u_f]`}</Tex>。（C 後面還可以再串一個 B 的延遲，變成稍後 F-07.10 的 <Tex>{'u_f[n-D]'}</Tex>，用來補
+        <Tex>{r`\hat H`}</Tex> 漏算的 latency；圖上畫的是 <Tex>{'D=0'}</Tex>。）
       </p>
       <Prereq title="高斯分布、累積分布函數與誤差函數 erf（Ch05 的 comparator 小訊號增益）">
         <p>
@@ -127,6 +153,17 @@ E[e_{\mathrm{PD}}\,u]&=(a-w)\,E[u^2]+E[v\,u]&&\text{代入 }e_{\mathrm{PD}}\\
           規格的期望值形式不可直接實作；本站改為 block 形式，並把 <Tex>{r`E[G_k]`}</Tex> 標成近似。
         </ErratumNote>
       </p>
+      <Mermaid
+        chart={CHART_FX_LOOP}
+        caption={r`Filtered-x 的閉迴路：乘法器之前每個 sample（$n$）動一次，平均器之後每個 block（$k$）動一次；累加器的輸出 $w_k$ 以負回授回到真實路徑，形成迴圈。藍色是 code 路徑上的模型 $\hat H$。`}
+      />
+      <p>
+        沿著迴圈走一圈。先看 code 往真實路徑走的那一路：還沒校正掉的 <Tex>{'(a-w_k)'}</Tex> 乘上 <Tex>{'(h*x)[n]'}</Tex>，加上 <Tex>{'v[n]'}</Tex> 得到
+        <Tex>{r`e_{\mathrm{PD}}[n]`}</Tex>，comparator 輸出 <Tex>{'q[n]'}</Tex>。再看 code 往藍色模型走的那一路：<Tex>{r`u_f=\hat h*x`}</Tex> 再延遲 <Tex>{'D'}</Tex>。兩路在乘法器相遇，這裡還是
+        sample rate（索引 <Tex>{'n'}</Tex>）；平均器每 <Tex>{'N'}</Tex> 個 sample 才吐出一個 <Tex>{'G_k'}</Tex>，之後都是 block rate（索引 <Tex>{'k'}</Tex>）：乘上
+        <Tex>{r`\mu`}</Tex> 進累加器，新的 <Tex>{'w_k'}</Tex> 回到真實路徑。圖上的平均器與累加器，分別就是下面 F-07.10 的前兩個式子。只要 <Tex>{r`E[u\,u_f]>0`}</Tex>，
+        <Tex>{r`w_k<a`}</Tex> 時 <Tex>{'G_k'}</Tex> 的平均是正的、<Tex>{'w'}</Tex> 被往上推，迴圈是負回授。
+      </p>
       <TexBlock id="F-07.10" label={<>Filtered-x 的 block 更新（<Tex>{'n'}</Tex>：comparator sample；<Tex>{'k'}</Tex>：GMAC block）</>}>
         {r`G_k=\frac1N\sum_{n\in\text{block }k}q[n]\,u_f[n-D],\qquad w_{k+1}=w_k+\mu\,G_k,\qquad u_f=\hat h*x`}
       </TexBlock>
@@ -142,6 +179,14 @@ E[e_{\mathrm{PD}}\,u]&=(a-w)\,E[u^2]+E[v\,u]&&\text{代入 }e_{\mathrm{PD}}\\
       <p>
         比較不同 regressor 不能只看 <Tex>{'C'}</Tex>：把 regressor 放大 10 倍，<Tex>{'C'}</Tex> 也放大 10 倍，但 GMAC 雜訊也放大 10 倍。
         公平的比法是<strong>每單位 regressor 功率</strong>的恢復力——正規化相關（Lab 與後面的比較表都用它）：
+      </p>
+      <Mermaid
+        chart={CHART_RHO_READING}
+        caption={r`正規化相關 $\rho$ 怎麼算、怎麼讀：分子除以分母，得到 $-1$ 到 $+1$ 之間的一個數（藍色）；它的符號是更新極性，大小是效率。`}
+      />
+      <p>
+        先看進藍色方塊的兩個量：分子是 regressor 與 <Tex>{'u'}</Tex> 的相關（就是決定 pole 的 <Tex>{'C'}</Tex>），分母是兩個訊號各自的大小（RMS）相乘——把 regressor 放大 10
+        倍，分子和分母同時放大 10 倍，<Tex>{r`\rho`}</Tex> 不變。再看藍色方塊出去的兩個讀法：符號告訴你更新方向對不對，大小告訴你雜訊要多平均幾倍。藍色方塊就是下面的 F-07.13。
       </p>
       <TexBlock id="F-07.13" label="正規化相關：1 = 最好（filtered-x）、0 = 沒有恢復力、負值 = 反向更新">
         {r`\rho_{\mathrm{ref}}=\frac{E[x_{\mathrm{ref}}\,u]}{\sqrt{E[x_{\mathrm{ref}}^2]\,E[u^2]}}\in[-1,1]`}

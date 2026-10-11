@@ -31,7 +31,14 @@ import {
 } from '@/simulation/models/stability'
 import { ctx, ErratumNote, Expand, fx, HandCalcSlot, rich, sig, tx } from '../common'
 import { formula } from '../formulas'
-import { DUAL_LOOP_CHART } from '../diagrams'
+import {
+  DUAL_LOOP_CHART,
+  DUAL_REGIMES_CHART,
+  DUAL_SIGNAL_FLOW_CHART,
+  LATENCY_SPLIT_CHART,
+  STABILITY_CHECK_CHART,
+  STATE_SPACE_CHART,
+} from '../diagrams'
 
 const SRC_PATH = 'src/simulation/models/stability.ts'
 const EX: DualLoopParams = { r: 0.8, b: 0.2, c: 1, mu: 1.2 }
@@ -81,10 +88,34 @@ export function DualLoop() {
         filter、VCO 相位），也就是有<strong>記憶</strong>。於是有兩個迴路疊在一起：快的主 PLL、慢的 calibration。工程上常說「calibration 比 PLL 慢很多，所以可以假設 PLL 已經穩態」——這就是
         <strong>時間尺度分離（quasi-static）</strong>。本節用最簡單的二維模型檢查這句話什麼時候會錯。
       </p>
+      <p>
+        {rich(
+          String.raw`最簡單的模型只要兩個會記憶的量（狀態）。一個是原本就有的剩餘誤差 $\delta_k$。另一個是新的「觀測狀態」$s_k$：主 PLL 對過去誤差的記憶（抽象量，單位 fs）。描述 $s$ 只要三個數字：$r_s$ 是它每個 block 保留下來的比例（觀測 pole，$|r_s|<1$；越接近 $1$ 記得越久）、$b_s$ 是 $\delta$ 灌進 $s$ 的耦合、$c_s$ 是 GMAC 從 $s$ 讀出 $G$ 的增益。本節把 GMAC 的斜率正規化成 $K\equiv1$，所以 $\mu$ 是沒有單位的步長（等同前面的 $g$），$G$ 和 $\delta$ 同單位。`,
+        )}
+      </p>
       <Mermaid
-        caption="二狀態模型：觀測狀態有記憶，GMAC 只看得到觀測狀態"
+        caption={String.raw`二狀態模型（方程式版）：沿著箭頭走一圈；藍色那格是有記憶的觀測狀態 $s$，重點是 GMAC 讀的是 $s$，而不是誤差 $\delta$ 本身`}
         chart={DUAL_LOOP_CHART}
       />
+      <p className="small">
+        {rich(
+          String.raw`讀圖：先看藍色的「觀測動態」那一格——$\delta_k$ 進去更新的是下一個 block 的 $s_{k+1}$。再看「GMAC」那一格——它用的是現在的 $s_k$，而 $s_k$ 是由 $\delta_{k-1},\delta_{k-2},\dots$ 累積成的，裡面沒有 $\delta_k$。最後「暫存器」用 $G_k$ 修正 $\delta$（$\delta=a-w$ 的極性，所以是減號），算出來的 $\delta_{k+1}$ 到下一個 block 就成了圖最左邊的 $\delta_k$。圖上三格裡的式子就是下面 F-08.10 的矩陣：第一格是矩陣的第一列，後兩格代在一起（$\delta_{k+1}=\delta_k-\mu c_ss_k$）是第二列。`,
+        )}
+      </p>
+      <p>
+        {rich(
+          String.raw`工程上常用的簡化是：既然 $\delta$ 變得很慢，就當 $s$ 每一刻都已經追到穩態值 $s=\frac{b_s}{1-r_s}\,\delta$，於是 GMAC 看到的只是 $\delta$ 乘上一個常數 $F(1)=\frac{b_sc_s}{1-r_s}$。這裡 $F(z)$ 是從 $\delta$ 到 $G$ 的「觀測轉移函數」，$F(1)$ 是它的 DC 增益。把兩個模型畫成訊號流並排，差別一眼就看得出來：`,
+        )}
+      </p>
+      <Mermaid
+        caption="完整模型與 quasi-static 近似的訊號流對照：藍色那一圈（有記憶的觀測狀態）在近似裡被換成紅色的常數增益；兩邊的暫存器完全相同"
+        chart={DUAL_SIGNAL_FLOW_CHART}
+      />
+      <p className="small">
+        {rich(
+          String.raw`讀圖：先看標題是「完整二狀態模型」的那一框裡藍色的一圈——$b_s\delta_k$ 和 $r_ss_k$ 在 $\Sigma$ 相加得到 $s_{k+1}$，要過一個 $z^{-1}$ 才變成 GMAC 讀得到的 $s_k$；這個 $z^{-1}$ 就是「$\delta_k$ 要到下一個 block 才被看到」的那一個 block latency。再看標題是「Quasi-static 近似」的那一框——整個藍色的圈被換成紅色的 $\times F(1)$，記憶和延遲都不見了。對照下面的 F-08.10：兩個 $z^{-1}$ 的輸出就是狀態向量的 $s_k$ 與 $\delta_k$；$\times r_s$、$\times b_s$ 是矩陣的第一列；「$\times c_s\to\times\mu\to\Sigma$ 的負端」是第二列的 $-\mu c_s$；$\delta_k$ 直接回到 $\Sigma$ 正端的那條線是右下角的 $1$。`,
+        )}
+      </p>
       <p className="small">
         <ErratumNote id="E31">
           {rich(String.raw`規格的 $r,b,c$ 與一般化的 $\mathbf A,\mathbf B,\mathbf C,D$ 在本站改名為 $r_s,b_s,c_s$ 與 $\mathbf A_s,\mathbf b_s,\mathbf c_s^{\mathsf T},d_s$`)}
@@ -172,7 +203,7 @@ export function DualLoop() {
       />
       <p>
         時域（由 simulateFullModel 計算，<Tex>{'s_0=0,\\ \\delta_0=1'}</Tex>）：因為 <Tex>{'|z|'}</Tex> 只比 1 大 2%，又是複數 pole（振盪週期{' '}
-        <Tex>{String.raw`2\pi/\arg z=${tx(periodBlocks, 1)}`}</Tex> blocks），發散非常慢，而且 <Tex>{'|\\delta_k|'}</Tex> 每半個週期就掉到接近 0 一次：
+        <Tex>{String.raw`2\pi/\arg z=${tx(periodBlocks, 1)}`}</Tex> blocks），發散非常慢，而且 <Tex>{'|\\delta_k|'}</Tex> 每半個週期就掉到接近 0 一次。{rich(String.raw`下表的 $N_{\mathrm{blk}}$ 是「觀察到第幾個 block 為止」（不用 $K$ 這個字母，因為 $K$ 已經是 GMAC 斜率）：`)}
       </p>
       <div className="table-wrap">
         <table className="ch08-table">
@@ -206,6 +237,22 @@ export function DualLoop() {
       <HandCalcSlot id="HC-08.7">
         {rich(String.raw`把 $r_s$、$b_s$、$c_s$、$\mu$ 換成你自己的數字（先試 $\mu=0.5$ 和 $\mu=1$），用二次公式解出完整模型的 poles，再和 quasi-static 的預測比一比。`)}
       </HandCalcSlot>
+
+      <h4>差的那 2 倍從哪裡來？把觀測路徑拆開看</h4>
+      <p>
+        {rich(
+          String.raw`完整模型的觀測轉移函數可以拆成兩段：$F(z)=\frac{b_sc_s}{z-r_s}=z^{-1}\cdot\frac{b_sc_s}{1-r_sz^{-1}}$——一個 block 的純延遲（latency），乘上一個沒有延遲的低通。把「只留 DC 增益」「只有低通」「延遲加低通」三種觀測並排，就知道是哪一段在作怪。圖上的 $g_{\mathrm{eff}}=\mu F(1)=\frac{\mu b_sc_s}{1-r_s}$ 是等效 loop gain：把雙迴路當成 §8.2 的一階迴路時的 $g$。`,
+        )}
+      </p>
+      <Mermaid
+        caption={String.raw`三種觀測模型並排：同一個 $\delta$ 進去，各自的 $G$ 接上同一個暫存器，看 (a)(b)(c) 的穩定上界；紅色是多出來的那一個 block latency 與它造成的上界`}
+        chart={LATENCY_SPLIT_CHART}
+      />
+      <p className="small">
+        {rich(
+          String.raw`讀圖：每一列左邊是觀測路徑（從 $\delta$ 到 $G$），最右邊那格是把 $G$ 接上同一個暫存器 $\delta_{k+1}=\delta_k-\mu G_k$ 之後算出來的穩定上界。先比 (a) 和 (b)——把常數增益換成真正的低通，上界由 $2(1-r_s)$ 變成 $2(1+r_s)$，在 $r_s\ge0$ 時反而更寬：只有低通的話，quasi-static 是保守的。再比 (b) 和 (c)——多串一個紅色的 $z^{-1}$，上界掉到 $1-r_s$，剛好是 (a) 的一半。所以讓 quasi-static 高估的不是低通的 pole $r_s$，而是那一個 block 的 latency。圖上三個上界依序就是 F-08.11 的 quasi-static 條件、下面「反事實驗證」推出的 $0<\mu b_sc_s<2(1+r_s)$，以及 F-08.11 的完整模型條件。`,
+        )}
+      </p>
 
       <Callout kind="warn" title="差 2 倍的原因不是「主 PLL 不夠快」">
         <p>
@@ -333,9 +380,30 @@ export function DualLoop() {
           </p>
         </ModeGate>
       </Expand>
+      <p className="small">
+        {rich(
+          String.raw`下式的 $\omega_{180}$ 是 phase crossover：開迴路相位剛好到 $-180^\circ$ 的那個頻率（rad/block）。在那一點看增益離 $1$ 還有幾倍，就是 gain margin。`,
+        )}
+      </p>
       <TexBlock id="F-08.16" label="完整二狀態模型的 phase crossover 與 GM（E19 的頻域版本）">
         {formula('F-08.16').tex}
       </TexBlock>
+
+      <h4>{rich(String.raw`$\mu$ 由小到大：quasi-static 是怎麼一步一步錯掉的`)}</h4>
+      <p>
+        {rich(
+          String.raw`「上界差 $2$ 倍」只是最後的結果。把 $\mu$ 從 $0$ 慢慢加大，完整模型的兩個 pole 會依序經過四個區間，quasi-static 在每個區間錯的方式都不一樣。門檻都用 $\mu b_sc_s$ 表示；圖上的「本例」是上面 Gallery #5 的 $r_s=${EX.r}$、$b_sc_s=${sig(EX.b * EX.c)}$。`,
+        )}
+      </p>
+      <Mermaid
+        caption={String.raw`$\mu$ 由小到大的四個區間：每一格上面一行是完整模型的 poles，下面是 quasi-static 的說法；綠色＝兩者一致，藍色＝都穩定但速度估錯，紅色＝完整模型已經發散`}
+        chart={DUAL_REGIMES_CHART}
+      />
+      <p className="small">
+        {rich(
+          String.raw`讀圖（由左到右就是 $\mu$ 變大）：先看綠色那格——$\mu b_sc_s$ 還小於 $\frac{(1-r_s)^2}{4}$ 時，完整模型是兩個實根，慢的那個接近 quasi-static 的 $1-g_{\mathrm{eff}}$，近似可信。再看藍色那格——過了這個門檻（本例 $\mu=${sig(ex.muComplex, 3)}$），兩個根變成共軛複數，模數 $|z|=\sqrt{r_s+\mu b_sc_s}$ 隨 $\mu$ 變大，也就是收斂越來越慢；quasi-static 的 pole $1-g_{\mathrm{eff}}$ 卻繼續往 $0$ 靠近，以為越來越快。這時還沒有不穩定，但速度已經估錯了。最後看兩個紅色的格子——$\mu b_sc_s$ 超過 $1-r_s$（本例 $\mu=${sig(ex.fullRange.hi, 3)}$）時 $|z|>1$，完整模型振盪發散，quasi-static 的 pole 卻還在 $-1$ 與 $0$ 之間（上面「先算一次」的 $\mu=1.2$ 就落在這一格）；要到 $2(1-r_s)$（本例 $\mu=${sig(ex.simplifiedRange.hi, 3)}$）以上，兩個模型才都說不穩定。圖上第一個門檻與模數就是下面的 F-08.12，後兩個門檻是 F-08.11 的兩個上界。`,
+        )}
+      </p>
 
       <Expand title="時間尺度分離何時可信：複數 pole 門檻">
         <StepDerivation
@@ -404,6 +472,35 @@ export function DualLoop() {
           />
         </Expand>
       </ModeGate>
+
+      <h4>一般化：主 PLL 不只一個狀態時怎麼檢查</h4>
+      <p>
+        {rich(
+          String.raw`真實的主 PLL 不會只有一個狀態。把觀測狀態換成 $n$ 維向量 $\mathbf s_k$，用四個量描述觀測路徑：$\mathbf A_s$（狀態矩陣：$\mathbf s$ 自己每個 block 怎麼演化）、$\mathbf b_s$（$\delta$ 怎麼灌進 $\mathbf s$）、$\mathbf c_s^{\mathsf T}$（GMAC 怎麼從 $\mathbf s$ 讀出 $G$）、$d_s$（直通項：$\delta$ 不經過任何狀態、當下就出現在 $G$ 的部分）。二狀態模型就是 $n=1$：$\mathbf A_s=r_s$、$\mathbf b_s=b_s$、$\mathbf c_s^{\mathsf T}=c_s$、$d_s=0$。`,
+        )}
+      </p>
+      <Mermaid
+        caption={String.raw`一般化 state-space 的訊號流：「觀測動態」那一框（藍色的四個量）整個就是觀測轉移函數 $F(z)$，「暫存器」那一框是積分器；兩框串成一圈就是 calibration loop`}
+        chart={STATE_SPACE_CHART}
+      />
+      <p className="small">
+        {rich(
+          String.raw`讀圖：先看「觀測動態」那一框——$\delta_k$ 分兩路進去：一路經 $\mathbf b_s$ 進入狀態（過 $z^{-1}$、被 $\mathbf A_s$ 回授、再由 $\mathbf c_s^{\mathsf T}$ 讀出），另一路經 $d_s$ 直接到輸出，兩路相加得到 $G_k$；這整框從 $\delta$ 到 $G$ 的轉移函數就是 F-08.14 的 $F(z)=d_s+\mathbf c_s^{\mathsf T}(z\mathbf I-\mathbf A_s)^{-1}\mathbf b_s$。再看「暫存器」那一框——$\delta_{k+1}=\delta_k-\mu G_k$：一個積分器 $\frac{\mu}{z-1}$，$\mu G_k$ 從 $\Sigma$ 的負端進去（負回授）。兩框繞一圈，方塊的乘積就是 F-08.14 的 $L_{\mathrm{cal}}(z)=\frac{\mu F(z)}{z-1}$。圖上四個藍色方塊加上 $\mu$，剛好填滿 F-08.13 的合併矩陣 $\mathbf A_{\mathrm{comb}}$：上列是 $\mathbf A_s$、$\mathbf b_s$，下列是 $-\mu\mathbf c_s^{\mathsf T}$、$1-\mu d_s$。`,
+        )}
+      </p>
+      <p>
+        {rich(String.raw`有了 $\mathbf A_{\mathrm{comb}}$（把觀測狀態和 $\delta$ 排在一起的閉迴路矩陣），穩定性檢查就是固定的幾個步驟——本站的`)} <code>combinedMatrix</code> 與{' '}
+        <code>analyzeGeneral</code> 就是照這個順序算的：
+      </p>
+      <Mermaid
+        caption={String.raw`穩定性檢查流程：組矩陣 → 求 eigenvalue → 取最大的絕對值 $\rho$ → 和 $1$ 比；注意 $\rho=1$ 是臨界，不算穩定`}
+        chart={STABILITY_CHECK_CHART}
+      />
+      <p className="small">
+        {rich(
+          String.raw`讀圖：先由上往下看到菱形——藍色那格組出的矩陣就是 F-08.13；eigenvalue 就是閉迴路 poles（F-08.14 最後一式：它們是 $z-1+\mu F(z)=0$ 的根，再加上 $\mathbf A_s$ 裡不受 $\delta$ 影響或 GMAC 看不到的模態）；$\rho$ 是其中絕對值最大的。再看菱形的三個出口：只有 $\rho<1$ 才往下走到時域驗證；$\rho=1$ 是臨界，$\rho>1$ 是發散。`,
+        )}
+      </p>
 
       <Expand title="一般化：任意線性觀測（state-space）">
         <StepDerivation

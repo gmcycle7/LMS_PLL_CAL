@@ -10,6 +10,7 @@ import { S7Spur } from './sections/S7Spur'
 import { S8Hardware } from './sections/S8Hardware'
 import { S9Statements } from './sections/S9Statements'
 import { S10Wrap } from './sections/S10Wrap'
+import { PAGE_TOP_ANCHOR, SymbolsJump, SymbolsSection } from './sections/S11Symbols'
 import { ErratumNote } from './common'
 import { SPEC_NUMBERS } from './refNumbers'
 import './models.css'
@@ -20,10 +21,11 @@ const f4 = (x: number): string => x.toPrecision(4)
 /**
  * Part D「Behavioral Models、RTL 與 Sign-off」（route /models；規格 §15、§16）。
  *
- * 章節：1 開場問題與符號表 → 2 模型層級 L0–L6（§15.1）→ 3 參考 Block Sign-LMS（§15.2：偽程式 vs 實際程式、手算、
+ * 章節：1 開場問題 → 2 模型層級 L0–L6（§15.1）→ 3 參考 Block Sign-LMS（§15.2：偽程式 vs 實際程式、手算、
  *       pole / σ_w / 頻寬 / 延遲臨界增益的逐步推導）→ 4 DT PLL、DSM residue、DTC mapping → 5 §15.3 參數表 →
  *       6 JSON Lab → 7 §15.4 標準輸出（7.1 AR(1) 有效樣本數）→ 8 §15.5 FFT 檢查表 → 9 §16.1 十二項硬體檢查、GMAC datapath、§16.2 矩陣 →
- *       10 §16.3 語句測驗 → 11 綜合手算、思考題與必記。
+ *       10 §16.3 語句測驗 → 11 綜合手算、思考題與必記 → 頁末：本頁符號表（id="symbols"；頁首只留一行連結，docs/teaching-style.md §5）。
+ * 方塊圖（diagrams.ts，共 3 張）：§2 模型層級階梯、§3 Block Sign-LMS 的兩層迴圈、§9 GMAC → gain register 的 RTL datapath。
  * 實驗：block-lms-json（L1 / L2 / L5）、fft-spur-pitfalls（L4）、gmac-datapath-sizing（L5）。
  * 帶入手算（handcalcs.ts，ID 前綴 HC-MD）：只出本頁獨有的六題——DT PLL 的 poles（§4.1）、DTC mapping（§4.3）、AR(1) 有效樣本數（§7.1）、
  *       FFT 雜訊底與洩漏（§8.1）、Welch 主瓣積分與 dBc/Hz（§8.2）、綜合題（§11）。K_q→g→p、σ_w、頻寬、延遲 PM、accumulator 位元數、
@@ -36,7 +38,7 @@ const f4 = (x: number): string => x.toPrecision(4)
 export default function ModelsPage() {
   return (
     <div className="models-page">
-      <div className="c-tag-row models-head-tags">
+      <div className="c-tag-row models-head-tags" id={PAGE_TOP_ANCHOR}>
         <ModelLevel level="L1" />
         <ModelLevel level="L2" />
         <ModelLevel level="L4" />
@@ -47,6 +49,7 @@ export default function ModelsPage() {
         <TestBadge id="T13" />
         <TestBadge id="T14" />
       </div>
+      <SymbolsJump />
       <S1Intro />
       <S2Levels />
       <S3Reference />
@@ -89,6 +92,7 @@ export default function ModelsPage() {
       <S8Hardware />
       <S9Statements />
       <S10Wrap />
+      <SymbolsSection />
     </div>
   )
 }

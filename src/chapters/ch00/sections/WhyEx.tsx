@@ -25,7 +25,7 @@ import {
 } from '@/simulation/models/lms'
 import { analyticGradient, centralDifference, costCurve, poleTable, sampleCost } from '../model'
 import { POLE_BEHAVIOUR_TEX, num, texNum, texRes } from '../format'
-import { ChapterHandCalc, ErratumNote, ErratumRef, Observe, PageLink } from '../common'
+import { ChapterDiagram, ChapterHandCalc, ErratumNote, ErratumRef, FigRef, Observe, PageLink } from '../common'
 import modelSrc from '../model.ts?raw'
 
 const X = 2
@@ -118,48 +118,64 @@ export function WhyExSection() {
         對第 <Tex>{'n'}</Tex> 筆資料，定義「這筆資料讓我們多不滿意」的分數 <Tex>{'j_n(w)=\\tfrac12e_n^2'}</Tex>。平方讓正負誤差都算成「不好」，
         前面的 <Tex>{'\\tfrac12'}</Tex> 只是為了讓微分後的 2 剛好約掉。
       </p>
-      <StepDerivation
-        title="一步一步微分"
-        steps={[
-          {
-            tex: String.raw`j_n(w)=\tfrac12\,e_n^2,\qquad e_n=y_n-w\,x_n`,
-            why: (
-              <>
-                定義：單筆成本是誤差平方的一半；誤差是 <Tex>{'w'}</Tex> 的函數。
-              </>
-            ),
-          },
-          {
-            tex: String.raw`\frac{dj_n}{dw}=\tfrac12\cdot 2e_n\cdot\frac{de_n}{dw}`,
-            why: (
-              <>
-                Chain rule：外層 <Tex>{'\\tfrac12u^2'}</Tex> 對 <Tex>{'u'}</Tex> 微分得 <Tex>{'u'}</Tex>，再乘上內層 <Tex>{'u=e_n'}</Tex> 對{' '}
-                <Tex>{'w'}</Tex> 的導數。
-              </>
-            ),
-          },
-          {
-            tex: String.raw`\frac{de_n}{dw}=\frac{d}{dw}\left(y_n-w\,x_n\right)=-x_n`,
-            why: (
-              <>
-                <Tex>{'y_n'}</Tex> 是量到的數字，和 <Tex>{'w'}</Tex> 無關（導數 0）；<Tex>{'w\\,x_n'}</Tex> 對 <Tex>{'w'}</Tex> 的導數是{' '}
-                <Tex>{'x_n'}</Tex>。
-              </>
-            ),
-          },
-          {
-            tex: String.raw`\frac{dj_n}{dw}=e_n\cdot(-x_n)=-e_n\,x_n`,
-            why: (
-              <>
-                代入上一步；<Tex>{'\\tfrac12'}</Tex> 和 2 約掉。
-              </>
-            ),
-          },
-          { tex: String.raw`w_{n+1}=w_n-\mu\,\frac{dj_n}{dw}`, why: 'Gradient descent：沿斜率的反方向走一小步。' },
-          { tex: String.raw`w_{n+1}=w_n-\mu\,(-e_nx_n)=w_n+\mu\,e_nx_n`, why: '代入第 4 步，負負得正。' },
-        ]}
-        result={String.raw`\frac{dj_n}{dw}=-e_nx_n\quad\Longrightarrow\quad w_{n+1}=w_n+\mu\,e_n\,x_n`}
-      />
+      <p>
+        有了分數，「學習」就變成一個幾何問題：把 <Tex>{'j_n'}</Tex> 想成一座山谷的高度，<Tex>{'w'}</Tex> 是我們站的位置，目標是走到谷底。下坡法每一步只做三件事——量腳下的斜率、
+        往斜率的反方向跨一步、站到新的位置：
+      </p>
+      <ChapterDiagram name="CHART_GRADIENT_DESCENT">
+        <p>
+          先由左到右看主線：在目前的 <code>w[n]</code> 量出單筆成本 <Tex>{'j=\\tfrac12e^2'}</Tex> 的斜率（藍色）；算斜率還要這一筆資料 <code>x[n]</code>、<code>y[n]</code>（圓角的輸入，因為 <Tex>{'e=y-wx'}</Tex>）。再乘上 <Tex>{'-\\mu'}</Tex>（負號表示「反方向」，<Tex>{'\\mu'}</Tex> 決定步伐大小），得到這一步要走的{' '}
+          <Tex>{'\\Delta w'}</Tex>。再看相加點：<code>w[n]</code> 另外拉一條線直接過來，和 <Tex>{'\\Delta w'}</Tex> 相加，得到新位置 <code>w[n+1]</code>；虛線表示下一筆資料來時再重複一次。
+        </p>
+        <p>
+          圖上的「斜率 <code>dj/dw = −e·x</code>」就是下面逐步微分要證明的結果；「<code>Δw = −μ·(dj/dw) = μ·e·x</code>」就是推導的最後兩行。把這張圖和 §0.3 的{' '}
+          <FigRef name="CHART_LMS_ACCUMULATOR" /> 疊在一起看：兩張圖最後都是「<code>w[n]</code> 加上 <code>μ·e·x</code>」，所以 LMS 就是下坡法。
+        </p>
+      </ChapterDiagram>
+      <div id="ch00-gradient-steps">
+        <StepDerivation
+          title="一步一步微分"
+          steps={[
+            {
+              tex: String.raw`j_n(w)=\tfrac12\,e_n^2,\qquad e_n=y_n-w\,x_n`,
+              why: (
+                <>
+                  定義：單筆成本是誤差平方的一半；誤差是 <Tex>{'w'}</Tex> 的函數。
+                </>
+              ),
+            },
+            {
+              tex: String.raw`\frac{dj_n}{dw}=\tfrac12\cdot 2e_n\cdot\frac{de_n}{dw}`,
+              why: (
+                <>
+                  Chain rule：外層 <Tex>{'\\tfrac12u^2'}</Tex> 對 <Tex>{'u'}</Tex> 微分得 <Tex>{'u'}</Tex>，再乘上內層 <Tex>{'u=e_n'}</Tex> 對{' '}
+                  <Tex>{'w'}</Tex> 的導數。
+                </>
+              ),
+            },
+            {
+              tex: String.raw`\frac{de_n}{dw}=\frac{d}{dw}\left(y_n-w\,x_n\right)=-x_n`,
+              why: (
+                <>
+                  <Tex>{'y_n'}</Tex> 是量到的數字，和 <Tex>{'w'}</Tex> 無關（導數 0）；<Tex>{'w\\,x_n'}</Tex> 對 <Tex>{'w'}</Tex> 的導數是{' '}
+                  <Tex>{'x_n'}</Tex>。
+                </>
+              ),
+            },
+            {
+              tex: String.raw`\frac{dj_n}{dw}=e_n\cdot(-x_n)=-e_n\,x_n`,
+              why: (
+                <>
+                  代入上一步；<Tex>{'\\tfrac12'}</Tex> 和 2 約掉。
+                </>
+              ),
+            },
+            { tex: String.raw`w_{n+1}=w_n-\mu\,\frac{dj_n}{dw}`, why: 'Gradient descent：沿斜率的反方向走一小步。' },
+            { tex: String.raw`w_{n+1}=w_n-\mu\,(-e_nx_n)=w_n+\mu\,e_nx_n`, why: '代入第 4 步，負負得正。' },
+          ]}
+          result={String.raw`\frac{dj_n}{dw}=-e_nx_n\quad\Longrightarrow\quad w_{n+1}=w_n+\mu\,e_n\,x_n`}
+        />
+      </div>
       <TexBlock
         id="F-00.3"
         label={
@@ -170,6 +186,11 @@ export function WhyExSection() {
       >
         {String.raw`j_n(w)=\tfrac12e_n^2,\qquad \frac{dj_n}{dw}=-e_nx_n,\qquad J(w)=\tfrac12E\!\left[(y-wx)^2\right]`}
       </TexBlock>
+      <p className="small">
+        最後一項 <Tex>{'J(w)'}</Tex> 是<strong>平均成本</strong>：把單筆成本 <Tex>{'j_n'}</Tex> 對非常多筆資料取平均。<Tex>{'E[\\cdot]'}</Tex>{' '}
+        讀作「期望值」，就是「做很多次、取平均會趨近的值」（§0.7 的先備知識框會從頭解釋）。LMS 每一步只看得到一筆資料的 <Tex>{'j_n'}</Tex>，卻是在替 <Tex>{'J(w)'}</Tex> 下坡——名字裡的
+        Mean Squares 就是指它。
+      </p>
       <ErratumNote eid="E41">
         規格 §1 寫 <Tex>{'J_2(w)=E[(y-wx)^2]'}</Tex>（沒有 ½），但 §1.1 的單筆成本有 ½，兩者梯度差 2 倍。本站統一用{' '}
         <Tex>{'J(w)=\\tfrac12E[(y-wx)^2]'}</Tex>：最小值的位置不變，但畫切線或推步長界時，斜率才會和實際更新量{' '}
@@ -286,98 +307,114 @@ export function WhyExSection() {
         手算表的最後一欄是常數 <Tex>{`${texNum(1 - MU * X * X)}`}</Tex>。下面證明：固定 <Tex>{'x'}</Tex>、沒有雜訊時，每一步的參數誤差都乘上同一個數{' '}
         <Tex>{'p=1-\\mu x^2'}</Tex>。
       </p>
-      <Derivation
-        title={
-          <>
-            參數誤差的遞迴（<Tex>{'\\delta=a-w'}</Tex>）
-          </>
-        }
-        formulaId="F-00.4"
-        level="L0"
-        claim="exact"
-        defaultOpen={atLeast('engineer')}
-        derivation={
-          <StepDerivation
-            steps={[
-              {
-                tex: String.raw`e_n=y-w_nx=ax-w_nx`,
-                why: (
-                  <>
-                    無雜訊：<Tex>{'y=ax'}</Tex>。
-                  </>
-                ),
-              },
-              {
-                tex: String.raw`e_n=(a-w_n)\,x=\delta_n\,x`,
-                why: (
-                  <>
-                    提出 <Tex>{'x'}</Tex>；<Tex>{'\\delta_n=a-w_n'}</Tex> 是「還差多少」（全站極性，<ErratumRef eid="E39" />）。
-                  </>
-                ),
-              },
-              { tex: String.raw`\delta_{n+1}=a-w_{n+1}=a-\left(w_n+\mu e_nx\right)`, why: '代入 LMS 更新式。' },
-              {
-                tex: String.raw`\delta_{n+1}=(a-w_n)-\mu\,(\delta_nx)\,x=\delta_n-\mu x^2\delta_n`,
-                why: (
-                  <>
-                    把 <Tex>{'e_n=\\delta_n x'}</Tex> 代進去。
-                  </>
-                ),
-              },
-              {
-                tex: String.raw`\delta_{n+1}=(1-\mu x^2)\,\delta_n\equiv p\,\delta_n`,
-                why: (
-                  <>
-                    提出 <Tex>{'\\delta_n'}</Tex>；<Tex>{'p'}</Tex> 稱為這個一階系統的 pole。
-                  </>
-                ),
-              },
-              {
-                tex: String.raw`\delta_n=p^n\,\delta_0`,
-                why: (
-                  <>
-                    重複代入 <Tex>{'n'}</Tex> 次：等比數列。
-                  </>
-                ),
-              },
-              {
-                tex: String.raw`\delta_n\to0\iff|p|<1\iff-1<1-\mu x^2<1`,
-                why: (
-                  <>
-                    等比數列 <Tex>{'p^n\\to0'}</Tex> 的充要條件是 <Tex>{'|p|<1'}</Tex>（<Tex>{'\\delta_0\\ne0'}</Tex> 時）。
-                  </>
-                ),
-              },
-              {
-                tex: String.raw`\iff 0<\mu x^2<2\iff 0<\mu<\frac{2}{x^2}`,
-                why: (
-                  <>
-                    三邊同減 1 再乘 <Tex>{'-1'}</Tex>（不等號反向），最後除以 <Tex>{'x^2>0'}</Tex>。
-                  </>
-                ),
-              },
-            ]}
-            result={String.raw`\delta_{n+1}=(1-\mu x^2)\,\delta_n,\qquad 0<\mu<\frac{2}{x^2}\;\overset{x=2}{=}\;0<\mu<${texNum(muMax)}`}
-          />
-        }
-        symbols={[
-          { symbol: '\\delta_n=a-w_n', meaning: '參數誤差（全站極性）' },
-          { symbol: 'p=1-\\mu x^2', meaning: '離散時間 pole' },
-        ]}
-        assumptions={
-          <ul>
-            <li>
-              固定非零 <Tex>{'x'}</Tex>
-            </li>
-            <li>
-              無雜訊 <Tex>{'v=0'}</Tex>
-            </li>
-            <li>
-              <Tex>{'\\mu'}</Tex> 為常數
-            </li>
-          </ul>
-        }
-      />
+      <p>
+        要看出原因，把 §0.2 的迴圈換一個變數來畫：不追蹤 <Tex>{'w_n'}</Tex>，改追蹤「還差多少」<Tex>{'\\delta_n=a-w_n'}</Tex>（§0.4 定義的參數誤差）。迴圈會變得非常簡單：
+      </p>
+      <ChapterDiagram name="CHART_ERROR_RECURSION">
+        <p>
+          先從暫存器出發順著箭頭走一圈：<code>δ[n]</code> 乘上 <Tex>{'x'}</Tex> 變成誤差 <code>e[n]</code>（沒有雜訊時 <Tex>{'e=\\delta x'}</Tex>），再乘上 <Tex>{'\\mu x'}</Tex>{' '}
+          變成 LMS 的修正量 <Tex>{'\\mu e x=\\mu x^2\\delta'}</Tex>。再看藍色的相加點：<code>δ[n]</code> 以 <code>(+)</code> 進入、修正量以 <code>(−)</code> 進入——<Tex>{'w'}</Tex>{' '}
+          往上修多少，「還差多少」就少多少。相加點的輸出寫回暫存器，成為 <code>δ[n+1]</code>。
+        </p>
+        <p>
+          圖上繞一圈的總效果「<code>δ[n+1] = (1 − μ·x²)·δ[n]</code>」就是下面的 F-00.4；括號裡那個數就是 <Tex>{'p'}</Tex>。繞 <Tex>{'n'}</Tex> 圈就乘 <Tex>{'n'}</Tex> 次{' '}
+          <Tex>{'p'}</Tex>，所以會不會收斂只看 <Tex>{'|p|<1'}</Tex>——這正是 §0.5 <FigRef name="CHART_MU_REGIONS" /> 五個區段的由來。
+        </p>
+      </ChapterDiagram>
+      <div id="ch00-pole-derivation">
+        <Derivation
+          title={
+            <>
+              參數誤差的遞迴（<Tex>{'\\delta=a-w'}</Tex>）
+            </>
+          }
+          formulaId="F-00.4"
+          level="L0"
+          claim="exact"
+          defaultOpen={atLeast('engineer')}
+          derivation={
+            <StepDerivation
+              steps={[
+                {
+                  tex: String.raw`e_n=y-w_nx=ax-w_nx`,
+                  why: (
+                    <>
+                      無雜訊：<Tex>{'y=ax'}</Tex>。
+                    </>
+                  ),
+                },
+                {
+                  tex: String.raw`e_n=(a-w_n)\,x=\delta_n\,x`,
+                  why: (
+                    <>
+                      提出 <Tex>{'x'}</Tex>；<Tex>{'\\delta_n=a-w_n'}</Tex> 是「還差多少」（全站極性，<ErratumRef eid="E39" />）。
+                    </>
+                  ),
+                },
+                { tex: String.raw`\delta_{n+1}=a-w_{n+1}=a-\left(w_n+\mu e_nx\right)`, why: '代入 LMS 更新式。' },
+                {
+                  tex: String.raw`\delta_{n+1}=(a-w_n)-\mu\,(\delta_nx)\,x=\delta_n-\mu x^2\delta_n`,
+                  why: (
+                    <>
+                      把 <Tex>{'e_n=\\delta_n x'}</Tex> 代進去。
+                    </>
+                  ),
+                },
+                {
+                  tex: String.raw`\delta_{n+1}=(1-\mu x^2)\,\delta_n\equiv p\,\delta_n`,
+                  why: (
+                    <>
+                      提出 <Tex>{'\\delta_n'}</Tex>；<Tex>{'p'}</Tex> 稱為這個一階系統的 pole。
+                    </>
+                  ),
+                },
+                {
+                  tex: String.raw`\delta_n=p^n\,\delta_0`,
+                  why: (
+                    <>
+                      重複代入 <Tex>{'n'}</Tex> 次：等比數列。
+                    </>
+                  ),
+                },
+                {
+                  tex: String.raw`\delta_n\to0\iff|p|<1\iff-1<1-\mu x^2<1`,
+                  why: (
+                    <>
+                      等比數列 <Tex>{'p^n\\to0'}</Tex> 的充要條件是 <Tex>{'|p|<1'}</Tex>（<Tex>{'\\delta_0\\ne0'}</Tex> 時）。
+                    </>
+                  ),
+                },
+                {
+                  tex: String.raw`\iff 0<\mu x^2<2\iff 0<\mu<\frac{2}{x^2}`,
+                  why: (
+                    <>
+                      三邊同減 1 再乘 <Tex>{'-1'}</Tex>（不等號反向），最後除以 <Tex>{'x^2>0'}</Tex>。
+                    </>
+                  ),
+                },
+              ]}
+              result={String.raw`\delta_{n+1}=(1-\mu x^2)\,\delta_n,\qquad 0<\mu<\frac{2}{x^2}\;\overset{x=2}{=}\;0<\mu<${texNum(muMax)}`}
+            />
+          }
+          symbols={[
+            { symbol: '\\delta_n=a-w_n', meaning: '參數誤差（全站極性）' },
+            { symbol: 'p=1-\\mu x^2', meaning: '離散時間 pole' },
+          ]}
+          assumptions={
+            <ul>
+              <li>
+                固定非零 <Tex>{'x'}</Tex>
+              </li>
+              <li>
+                無雜訊 <Tex>{'v=0'}</Tex>
+              </li>
+              <li>
+                <Tex>{'\\mu'}</Tex> 為常數
+              </li>
+            </ul>
+          }
+        />
+      </div>
       <TexBlock
         id="F-00.4"
         label={
@@ -484,8 +521,8 @@ export function WhyExSection() {
         。<strong>穩定不代表不震盪，快也不代表好。</strong>
       </Observe>
       <ChapterHandCalc id="HC-00.2">
-        換成你自己的 <Tex>{'x'}</Tex> 與 <Tex>{'\\mu'}</Tex>：先判斷它落在上表的哪一種行為（單調、一步到位、震盪、發散），再用紙筆算出{' '}
-        <Tex>{'\\mu_{\\max}'}</Tex>、<Tex>{'p'}</Tex> 與 <Tex>{'n'}</Tex> 步之後剩下的誤差，最後和網站比。
+        換成你自己的 <Tex>{'x'}</Tex> 與 <Tex>{'\\mu'}</Tex>：先判斷它落在上表的哪一種行為（單調、一步到位、震盪、發散），再用紙筆算出穩定上限{' '}
+        <Tex>{'\\mu_{\\max}=2/x^2'}</Tex>（F-00.5 的界）、<Tex>{'p'}</Tex> 與 <Tex>{'n'}</Tex> 步之後剩下的誤差，最後和網站比。
       </ChapterHandCalc>
       <p className="small">
         <ClaimTag kind="exact" /> 以上只在「固定 <Tex>{'x'}</Tex>、無雜訊」的模型成立。在 PLL 校正中，同樣的結構會變成{' '}

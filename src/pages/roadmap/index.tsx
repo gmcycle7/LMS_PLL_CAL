@@ -4,7 +4,7 @@ import { Callout, ClaimTag, ModelLevel, ModeGate, Section, SourceTag, SymbolTabl
 import './roadmap.css'
 import { ITEMS, itemById, type ItemId } from './data'
 import { ROADMAP_SYMBOLS } from './symbols'
-import { ErratumTag, mt, PageRef } from './common'
+import { ErratumTag, JumpButton, mt, PageRef, SYMBOLS_ANCHOR, SymbolsLink } from './common'
 import { Intro } from './sections/Intro'
 import { Overview } from './sections/Overview'
 import { cardDomId, ItemCard } from './sections/ItemCard'
@@ -18,6 +18,7 @@ import { FormulaList, Methods, Wrapup } from './sections/Wrapup'
  * 預覽的 Monte Carlo 都是固定 seed、在主執行緒執行（預設設定下每個實驗 ≤ ~2e5 個樣本；burn-in 不足時標示「不判定」）。
  * 深連結：`#/roadmap?item=R4` 會展開並捲到 R4。
  * 每個預覽（R3 與 SSPLL 除外）在推導之後有一題「帶入手算」（handcalcs.ts 的 HC-RM.n）。
+ * 符號表放在頁尾（§8，id="symbols"；docs/teaching-style.md §5），頁首只留一行連結；方塊圖的原始碼在 diagrams.ts。
  */
 export default function RoadmapPage() {
   const [params] = useSearchParams()
@@ -88,10 +89,7 @@ export default function RoadmapPage() {
         這一頁上的研究項目沒有任何一個是 verified；狀態只有 partial / pending / not started / in analysis。預覽中的公式在註明的簡化模型內推導，並以「封閉式 vs 數值 vs Monte Carlo」交叉驗算，
         但研究題目本身仍未完成。所有數值皆為 illustrative / simulation，不是量測。
       </Callout>
-      <SymbolTable
-        rows={ROADMAP_SYMBOLS}
-        caption={mt(String.raw`時間索引：$n$ 是 comparator sample（取樣率 $f_s$，SSPLL 中即 $f_{\mathrm{ref}}$），$k$ 是 GMAC block（更新率 $f_u=f_s/N$）。PSD 預設單邊 per-Hz。局部符號只在標示的項目內有效。`)}
-      />
+      <SymbolsLink />
       <ModeGate min="engineer">
         <Callout kind="info" title="本頁採用的全站勘誤">
           <ErratumTag eid="E13" /> {mt(String.raw`單位：$u$ 無因次、$w$ 與 $\mu$ 為 fs、$K=K_qC$；`)}
@@ -141,6 +139,18 @@ export default function RoadmapPage() {
           與 <code>src/pages/roadmap/formulas.ts</code> 同一份資料；每個 ID 只在這裡出現一次，作為 <PageRef id="formulas" /> 的錨點。
         </p>
         <FormulaList />
+      </Section>
+
+      <Section kind="formula" title="8. 本頁符號表" level={2} id={SYMBOLS_ANCHOR}>
+        <p className="small muted">
+          正文與各預覽裡每個符號第一次出現時都已經就地說明；這裡把它們集中起來，方便回頭查單位、第一次出現的項目，以及和全站約定或勘誤的關係。{' '}
+          <JumpButton to="rm-start">↑ 回到頁首</JumpButton>
+        </p>
+        <SymbolTable
+          rows={ROADMAP_SYMBOLS}
+          title="本頁符號"
+          caption={mt(String.raw`時間索引：$n$ 是 comparator sample（取樣率 $f_s$，SSPLL 中即 $f_{\mathrm{ref}}$），$k$ 是 GMAC block（更新率 $f_u=f_s/N$）。PSD 預設單邊 per-Hz。局部符號只在標示的項目內有效。`)}
+        />
       </Section>
     </article>
   )

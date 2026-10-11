@@ -2,11 +2,12 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
 import { presetById, presetsForExperiment } from '@/app/presets'
-import { MathText, extractRegion, listRegions } from '@/components'
+import { MathText, extractRegion, listRegions, systemMapChart } from '@/components'
 import { analyseAlpha, eqOffset, inversionBands, kappaInfWorst, kappaRational, kernelMin, largeSignalPeriodic, loopF3dB, loopMargins, makeL1, oneDiffMargin, runSspllLms } from '@/simulation/models/sspll'
 import CaseSspllPage from './index'
 import { FORMULAS } from './formulas'
 import { SYMBOLS } from './symbols'
+import { DIAGRAMS, MAP_FOCUS } from './diagrams'
 import { FREF_MHZ, HPD, LMS_NOTE_ZH, LOOPS, PRED, SIGNMAP, SIM_CFG, mapIndex, mapIntervalsBelow } from './data'
 import { MODEL_SRC, PY_SOURCES, fp, fs, fx, intervalsText, signClass, tx, txs } from './common'
 import { HANDCALCS } from './handcalcs'
@@ -139,17 +140,37 @@ afterEach(() => {
 })
 
 describe('案例頁 /case/sspll（jsdom smoke）', () => {
-  it('SSPLL: 完整渲染不丟錯——21 個段落、符號表、公式錨點、三個實驗、程式碼並排；沒有 KaTeX 錯誤或非有限數字', async () => {
+  it('SSPLL: 完整渲染不丟錯——22 個段落、章末的符號表、方塊圖、公式錨點、三個實驗、程式碼並排；沒有 KaTeX 錯誤或非有限數字', async () => {
     const { container } = renderPage('/case/sspll', 'engineer')
-    // 符號表
+    // 符號表：整頁一張，放在章末（§21，外層 id="symbols"，在「本課必記」§17 之後、頁面最後）；章首只留一行連結
+    expect(container.querySelectorAll('.c-symbols').length).toBe(1)
     expect(container.querySelectorAll('.c-symbols tbody tr').length).toBe(SYMBOLS.length)
     expect(SYMBOLS.length).toBeGreaterThanOrEqual(30)
     expect(new Set(SYMBOLS.map((s) => s.symbol)).size).toBe(SYMBOLS.length)
-    // 段落標題（H2）：0–20
+    const page = container.querySelector('.case-sspll') as HTMLElement
+    const symbols = container.querySelector('#symbols') as HTMLElement
+    expect(symbols.querySelector('.c-symbols')).not.toBeNull()
+    expect(page.lastElementChild).toBe(symbols)
+    expect((container.querySelector('#cs-17') as HTMLElement).compareDocumentPosition(symbols) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(container.querySelector('#cs-1 .c-symbols')).toBeNull()
+    const symbolsLink = Array.from(container.querySelectorAll('button')).find((b) => /^本章符號表在最後/.test(b.textContent ?? '')) as HTMLButtonElement
+    expect(symbolsLink).toBeTruthy()
+    expect(symbolsLink.compareDocumentPosition(container.querySelector('#cs-0') as HTMLElement) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // 「首次出現」欄只會是章首或 §n；每個符號都有意義欄
+    for (const sym of SYMBOLS) {
+      expect(sym.firstSeen ?? '', sym.symbol).toMatch(/^(章首|§\d+)$/)
+      expect(sym.meaning, sym.symbol).toBeTruthy()
+    }
+    // 方塊圖：章首的系統地圖 + 登錄表的每一張圖，各出現一次、依登錄順序
+    expect(container.querySelectorAll('figure.c-mermaid').length).toBe(DIAGRAMS.length + 1)
+    expect(Array.from(container.querySelectorAll('[data-diagram]')).map((e) => e.getAttribute('data-diagram'))).toEqual(DIAGRAMS.map((d) => d.id))
+    expect(DIAGRAMS.length).toBeGreaterThanOrEqual(8)
+    // 段落標題（H2）：0–21
     const h2 = Array.from(container.querySelectorAll('h2')).map((h) => h.textContent ?? '')
+    expect(h2).toHaveLength(22)
     for (const t of [
       '0. 先講結論',
-      '1. 本章符號',
+      '1. 本章路線圖',
       '2. 架構',
       '3. 從比較點到 PD',
       '4. LMS 的平均更新',
@@ -169,9 +190,11 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
       '18. 連結到 PLL 硬體',
       '19. 仍未驗證的部分',
       '20. 檔案與重現方式',
+      '21. 本章符號表',
     ]) {
       expect(h2.filter((x) => x.startsWith(t)).length, t).toBe(1)
     }
+    expect(h2[h2.length - 1]).toBe('21. 本章符號表')
     // 每個登錄的公式都有唯一的 TexBlock 錨點
     const ids = Array.from(container.querySelectorAll('[id^="formula-F-CS"]')).map((e) => e.id)
     expect(new Set(ids).size).toBe(ids.length)
@@ -225,8 +248,11 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
     expect(text).toContain('32.68–125.33 MHz')
     expect(text).toContain('27.72–105.09 MHz')
     expect(text).toContain('0.388836')
-    // 架構圖（mermaid）與圖表（plotly）
-    await waitFor(() => expect(M.render).toHaveBeenCalled())
+    // 方塊圖（mermaid：系統地圖 + 每一張登錄的圖都送去畫）與圖表（plotly）
+    await waitFor(() => expect(M.render.mock.calls.length).toBeGreaterThanOrEqual(DIAGRAMS.length + 1))
+    const drawn = (M.render.mock.calls as unknown as [string, string][]).map((c) => c[1])
+    expect(drawn[0]).toBe(systemMapChart(MAP_FOCUS))
+    for (const d of DIAGRAMS) expect(drawn, d.id).toContain(d.chart)
     await waitFor(() => {
       const names = traceNames()
       expect(names.some((n) => n.startsWith('Re H_PD（TS port'))).toBe(true)

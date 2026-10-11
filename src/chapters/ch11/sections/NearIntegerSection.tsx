@@ -22,6 +22,7 @@ import biasSrc from '@/simulation/models/bias.ts?raw'
 import { nearIntegerSensitivity, type NearIntegerParams, type NearIntegerResult } from '@/simulation/models/bias'
 import { F } from '../formulas'
 import { Erratum, ModeDetails, num, m, texNum } from '../common'
+import { Fig, FigRef } from '../Fig'
 import { Hand } from '../Hand'
 
 const NI_ID = 'bias-near-integer'
@@ -185,6 +186,16 @@ export function NearIntegerSection() {
   }, [])
   return (
     <Section kind="formula" title={m('11.4 Near-integer / near-grid：當 $C\\to0$')} level={2} id="ch11-near-integer">
+      <p>
+        到目前為止都假設 gain 誤差造成的 timing error 原封不動到達 comparator。實際上它要先經過主 PLL 的誤差路徑（主迴路會把低頻的相位誤差修掉）。這條路徑的轉移函數記作{' '}
+        <Tex>{String.raw`H_\mathrm{PD}(z)`}</Tex>、脈衝響應記作 <Tex>{'h'}</Tex>，「經過它」就是做卷積 <Tex>{'(h*x)[n]'}</Tex>。先看{' '}
+        <FigRef id="near-integer-path" /> 上面的框：code 乘上 <Tex>{'(a-w)'}</Tex> 後經過藍色的 <Tex>{String.raw`H_\mathrm{PD}`}</Tex>，變成{' '}
+        <Tex>{'(a-w)\\,(h*x)[n]'}</Tex>；紅色的 <Tex>{'\\beta[n]'}</Tex>（直接到達 PD 的其他確定性誤差，例如 §11.3 的耦合）不經過 <Tex>{String.raw`H_\mathrm{PD}`}</Tex>
+        。再看下面的框：GMAC 把 comparator 的輸出和同一個 <Tex>{'x[n]'}</Tex> 做相關 —— 經過 <Tex>{String.raw`H_\mathrm{PD}`}</Tex> 的那條路給出{' '}
+        <Tex>{'(a-w)\\,C'}</Tex>，沒經過的那條路給出 <Tex>{'B'}</Tex>。圖上的 <Tex>{'C'}</Tex>、<Tex>{'B'}</Tex> 就是下面公式 F-11.14 的{' '}
+        <Tex>{String.raw`C=E[x\,(h*x)]`}</Tex> 與 <Tex>{String.raw`B=E[x\,\beta]`}</Tex>。
+      </p>
+      <Fig id="near-integer-path" />
       <p className="small">
         <Erratum id="E12" note="此處 C = E[x(h*x)] 同 §6；B 為干擾 bias 項" />
         注意符號：這裡的 <Tex>{'C'}</Tex> 是 Ch06 的有效相關 <Tex>{String.raw`C=E[x\,(h*x)]`}</Tex>（code 經過主 PLL 誤差路徑 <Tex>{'h'}</Tex> 才到 PD），<Tex>{'B'}</Tex> 是 F-11.4
@@ -263,6 +274,14 @@ export function NearIntegerSection() {
         />
       </Prereq>
       <p>
+        <FigRef id="near-integer-why" /> 是這一節的因果鏈，先看圖再讀下面的推導。由上往下：FCW（frequency control word）的小數部分 frac 越小，DSM residue 的
+        sawtooth 越慢，越多諧波掉進迴路頻寬內；頻寬內的諧波對 <Tex>{'C'}</Tex> 的貢獻是負的、頻寬外是正的，兩者相加幾乎抵銷（藍色方塊）。最下面一列是{' '}
+        <Tex>{'C'}</Tex> 變小的三個後果：恢復斜率 <Tex>{'S=K_qC'}</Tex> 變小（收斂慢）、同樣的 <Tex>{'B'}</Tex> 被 <Tex>{'1/C'}</Tex> 放大、
+        <Tex>{'C\\le0'}</Tex> 時極性反轉。圖上的 <Tex>{String.raw`\Omega_k`}</Tex> 是第 <Tex>{'k'}</Tex> 條諧波的頻率（rad/sample），
+        <Tex>{String.raw`\Omega_n=\omega_nT_s`}</Tex> 是主迴路的自然頻率，<Tex>{String.raw`|X_k|^2`}</Tex> 是該諧波的功率。
+      </p>
+      <Fig id="near-integer-why" />
+      <p>
         為什麼 FCW 接近整數會讓 <Tex>{'C\\to0'}</Tex>？first-order DSM 的 residue 是基頻 <Tex>{String.raw`\Omega_1=2\pi\cdot\mathrm{frac}`}</Tex>（rad/sample）的 sawtooth，
         諧波功率約 <Tex>{String.raw`\propto1/k^2`}</Tex>。type-II PLL 的 <Tex>{String.raw`H_\mathrm{PD}=1/(1+L)`}</Tex> 在低頻是 high-pass（<Tex>{String.raw`|H_\mathrm{PD}|\propto\Omega^2`}</Tex>）。
         更關鍵的是<strong>相位</strong>：只有 <Tex>{String.raw`\mathrm{Re}\,H_\mathrm{PD}`}</Tex> 會進入 <Tex>{'C'}</Tex>，而在迴路頻寬內
@@ -282,8 +301,13 @@ export function NearIntegerSection() {
       </p>
       <p>
         同時，若有干擾直接耦合到 PD 而不經過 <Tex>{String.raw`H_\mathrm{PD}`}</Tex>，<Tex>{'B'}</Tex> 並不會跟著變小，於是 bias <Tex>{'B/C'}</Tex> 爆增。下面用真實的 DSM 序列與 DPLL
-        以兩種獨立算法計算 <Tex>{'C'}</Tex>（並把頻寬內的負貢獻單獨畫出來）：
+        以兩種獨立算法計算 <Tex>{'C'}</Tex>（並把頻寬內的負貢獻單獨畫出來）。<FigRef id="near-integer-check" /> 是實驗的計算流程：先看左邊，FCW 的小數部分 <Tex>{String.raw`\mathrm{frac}`}</Tex> 乘上 <Tex>{'2^{16}'}</Tex> 是 16-bit 累加器的整數碼{' '}
+        <Tex>{'K'}</Tex>，first-order DSM 的 residue 每 <Tex>{String.raw`P=2^{16}/\gcd(K,2^{16})`}</Tex> 個 sample 重複一次；兩支都從同一個標準化的 residue{' '}
+        <Tex>{'x[n]'}</Tex>（<Tex>{'E[x]=0,\\ E[x^2]=1'}</Tex>）出發。再看中間兩支：時域那一支讓序列真的通過 <Tex>{String.raw`H_\mathrm{PD}`}</Tex>{' '}
+        再取整數個週期平均，頻域那一支只取一個週期做 DFT，把 <Tex>{String.raw`|X_k|^2`}</Tex> 乘上 <Tex>{String.raw`\mathrm{Re}\,H_\mathrm{PD}`}</Tex> 相加（就是上面 Parseval 的那一行）。最後看右邊的六角形：兩個{' '}
+        <Tex>{'C'}</Tex> 的相對差夠小才採用，這是下面實驗「Analytic」欄的交叉檢查。
       </p>
+      <Fig id="near-integer-check" />
       <NearIntegerExperiment />
       <CodeBlock
         source={biasSrc}
@@ -304,6 +328,12 @@ export function NearIntegerSection() {
           </li>
           <li>Fractional spur / output jitter（Ch12、Ch13）。</li>
         </ol>
+        <p>
+          先看 <FigRef id="slope-measure" /> 的上半：選一個 FCW、等 LMS 收斂後把 gain 凍結在 <Tex>{'w+\\Delta'}</Tex> 與 <Tex>{'w-\\Delta'}</Tex>（<Tex>{String.raw`\Delta`}</Tex>{' '}
+          是一個小的 gain 偏移，單位 t.u.），各量一次平均 GMAC，分別記作 <Tex>{'G_+'}</Tex>、<Tex>{'G_-'}</Tex>；兩者相減再除以 <Tex>{'2\\Delta'}</Tex> 就是恢復斜率的估計{' '}
+          <Tex>{String.raw`\hat S`}</Tex>（藍色）。再看下半的兩個六角形：怎麼從 <Tex>{String.raw`\hat S`}</Tex> 判讀極性與 bias 放大。
+        </p>
+        <Fig id="slope-measure" />
         <p>
           <strong>建議的量測流程</strong>：FCW sweep → 每個 FCW freeze gain → 分別在 <Tex>{'w\\pm\\Delta'}</Tex> 量 GMAC 平均 <Tex>{'G_\\pm'}</Tex> → 規格書的{' '}
           <Tex>{String.raw`\hat S_\mathrm{GMAC}=\frac{G_+-G_-}{2\Delta}`}</Tex>，本章的 <Tex>{String.raw`\hat S=-\hat S_\mathrm{GMAC}=\frac{G_--G_+}{2\Delta}`}</Tex>，附信賴區間；<Tex>{'\\hat S\\le0'}</Tex> 的 FCW

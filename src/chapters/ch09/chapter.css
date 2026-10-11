@@ -193,3 +193,37 @@
 .ch09-handcalc-invite {
   margin: 0 0 0.4rem;
 }
+
+/* 方塊圖（docs/teaching-style.md §8）：圖號＋圖說緊貼在圖的下方 */
+.ch09-diagram {
+  margin: 1rem 0;
+  min-width: 0;
+}
+
+.ch09-diagram .c-mermaid {
+  margin: 0;
+}
+
+.ch09-diagram-caption {
+  margin: 0.35rem 0 0;
+  line-height: 1.6;
+}
+
+/* 章首系統地圖下面那一句「你在這裡」 */
+.ch09-map-note {
+  margin: 0.25rem 0 1rem;
+  padding: 0.5rem 0.8rem;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+/* 章首「本章符號表在最後」那一行，與章末的符號表 */
+.ch09-symbols-link {
+  margin: 0 0 0.75rem;
+}
+
+.ch09-symbols {
+  margin-top: 2rem;
+  scroll-margin-top: 1rem;
+}

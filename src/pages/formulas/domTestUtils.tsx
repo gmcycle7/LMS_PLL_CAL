@@ -77,7 +77,8 @@ export function chooseOption(select: HTMLSelectElement, label: string | RegExp) 
   })
 }
 
-const EXCLUDE = 'pre, code, .katex-mathml, select, [data-testid="loc"]'
+// .c-tip-list：TestBadge 的 tooltip 逐字列出測試標題（原始資料，標題裡可以出現 NaN、`$...$` 等字樣），不是排版出來的文字
+const EXCLUDE = 'pre, code, .katex-mathml, select, [data-testid="loc"], .c-tip-list'
 
 /**
  * 在「看得見的文字」中找 pattern（略過程式碼區塊、MathML 註解、下拉選單），回傳每個出現位置的前後文。

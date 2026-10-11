@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { ClaimTag, Mermaid, ModeGate, Quiz, Recap, Section, StepDerivation, Tex, TexBlock } from '@/components'
 import { bernoulliMoments, efbConstant, efbPeriod, lineSpectrum, makeGrid } from '@/simulation/models/quantizer'
 import { Erratum, Hand, fx, tx } from '../common'
+import { CHART_HARDWARE_MAP, CHART_SYNTHESIS_FLOW } from '../diagrams'
 
 export function WrapUp() {
   const q = useMemo(() => {
@@ -18,6 +19,14 @@ export function WrapUp() {
       <Section kind="example" title="綜合手算：把整章串起來" level={2} id="ch13-synthesis">
         <p>
           做思考題之前，先用一題把本章的公式串起來：同一個 <Tex>{'w^*=32.4'}</Tex>，Freeze、兩階切換（toggle / stochastic）與 ΔΣ 各留下多少 fs 的誤差？「總 RMS」與「頻帶內」是兩種不同的比法，答案的排序剛好相反。
+        </p>
+        <Mermaid
+          chart={CHART_SYNTHESIS_FLOW}
+          caption={String.raw`綜合手算的計算順序（預設數字）。先看左支（藍色）：Freeze 與兩階切換的「總 RMS」，Freeze 比較小；再看右邊兩支（綠色）：只算「頻帶內」時，Stochastic 剩 $0.0099\,\mathrm{fs}$、ΔΣ 只剩 $0.00036\,\mathrm{fs}$，排序反過來。`}
+        />
+        <p className="small ch13-figwalk">
+          圖上每一格對應下面手算題的一到三個步驟：<Tex>{String.raw`\Delta_\mathrm{LSB}\,|\delta w|\,x_\mathrm{rms}`}</Tex> 是公式裡的 <Tex>{String.raw`\sigma_{\delta t}^{(A)}`}</Tex>，<Tex>{String.raw`e_\mathrm{rms}`}</Tex> 是兩階切換的 RMS code 誤差{' '}
+          <Tex>{String.raw`\sqrt{p_0(1-p_0)}`}</Tex>，兩個 <Tex>{String.raw`P_\mathrm{in}`}</Tex> 是 §13.5a 公式 F-13.13 的頻帶內功率（<Tex>{String.raw`x_\mathrm{rms}`}</Tex> 是 DSM residue 的 RMS，<Tex>{'p_0'}</Tex> 是 <Tex>{'w^*'}</Tex> 的小數部分）。
         </p>
         <Hand id="HC-13.8">
           先照預設的數字（就是本章一路用的 worked example）用紙筆和計算機算出四個答案，再把 <Tex>{'w^*'}</Tex> 換成 32.5、<Tex>{String.raw`\Delta_\mathrm{LSB}`}</Tex> 換成你的 DTC 的 LSB，看結論會不會改變。
@@ -132,18 +141,8 @@ export function WrapUp() {
 
       <Section kind="diagram" title="連結到 PLL：這些數學在硬體的哪裡？" level={2} id="ch13-pll">
         <Mermaid
-          chart={[
-            'flowchart LR',
-            '  subgraph CAL["校正邏輯（f_u domain）"]',
-            '    LMS["LMS accumulator w_H<br/>（B+F bit）"] --> QS["量化策略<br/>Q_B / toggle / PRBS / ΔΣ / dither"]',
-            '  end',
-            '  QS -- "6-bit code（CDC：同步 / gray）" --> REG["DTC gain register<br/>（f_s domain，ZOH N_upd）"]',
-            '  REG --> DTC["DTC delay = Δ_LSB·y·x[n]"]',
-            '  DSM["DSM residue x[n]"] --> DTC',
-            '  DTC --> LOOP["PLL：PD → LF → VCO"]',
-            '  LOOP -- "T(f)：low-pass" --> OUT["Output phase noise / spur"]',
-          ].join('\n')}
-          caption="校正邏輯（code 更新率的 clock domain）到 DTC 與 PLL 輸出的路徑"
+          chart={CHART_HARDWARE_MAP}
+          caption="校正邏輯（code 更新率的 clock domain）到 DTC 與 PLL 輸出的路徑。先看左邊的框：LMS accumulator 與量化策略都在 $f_u$ domain；再看跨到右邊的那條線：6-bit code 要經過 CDC 才到 $f_s$ domain 的 gain register。"
           ariaLabel="LMS accumulator 經量化策略產生 6-bit code，跨 clock domain 到 DTC gain register，與 DSM residue 一起決定 DTC 延遲，再經 PLL 的 low-pass 到輸出"
         />
         <p className="small">

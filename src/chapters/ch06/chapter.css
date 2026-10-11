@@ -249,3 +249,44 @@
   break-inside: avoid;
   margin: 2px 0;
 }
+
+/* 方塊圖（docs/teaching-style.md §8）：圖 + 圖下方的「怎麼看這張圖」 */
+.ch06-diagram {
+  margin: 18px 0;
+  scroll-margin-top: calc(var(--topbar-h) + 12px);
+}
+.ch06-diagram .c-mermaid {
+  margin-bottom: 8px;
+}
+.ch06-diagram-read {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 8px 14px;
+  font-size: 0.95rem;
+}
+.ch06-diagram-read p {
+  margin: 4px 0;
+}
+.ch06-diagram-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 0 8px;
+  margin-bottom: 2px;
+}
+
+/* 章首的系統地圖說明、章末的符號表 */
+.ch06-map-note {
+  margin: 8px 0 16px;
+}
+.ch06-symbols-link {
+  margin: 8px 0;
+}
+.ch06-symbols {
+  margin: 40px 0 24px;
+  scroll-margin-top: calc(var(--topbar-h) + 12px);
+}

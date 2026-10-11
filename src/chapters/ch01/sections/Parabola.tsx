@@ -17,7 +17,7 @@ import {
 import { mean } from '@/simulation/core'
 import { batchL2, mseParabola } from '@/simulation/models/lossCompare'
 import lossSrc from '@/simulation/models/lossCompare.ts?raw'
-import { ChapterHandCalc, Erratum, f, PllLink, SpecNote, texNum, useChapterMode } from '../common'
+import { BlockDiagram, ChapterHandCalc, Erratum, f, PllLink, SpecNote, texNum, useChapterMode } from '../common'
 
 /** 與 §1.0 相同的三筆含雜訊資料：把「期望值」當成三筆等機率的平均 */
 const X = [1, 2, 4]
@@ -341,6 +341,15 @@ export function ParabolaSection() {
             </li>
           </ul>
         </Prereq>
+        <p>
+          先講結論，再看為什麼：這條拋物線的最低點 <Tex>{'w^*'}</Tex> 只需要兩個平均就算得出來——輸入平方的平均 <Tex>{'E[x^2]'}</Tex>，以及輸入乘量測的平均{' '}
+          <Tex>{'E[xy]'}</Tex>。用 §1.0 的三筆含雜訊資料走一次：
+        </p>
+        <BlockDiagram id="D-01.5">
+          先看左邊的資料表拆成兩欄：①每筆的 <Tex>{'x_i^2'}</Tex>、②每筆的 <Tex>{'x_iy_i'}</Tex>。再看 ③④ 各自加總，最後 ⑤ 相除——整題只有一次除法。圖上的{' '}
+          <Tex>{String.raw`\Sigma x_i^2`}</Tex> 除以筆數就是公式裡的 <Tex>{'E[x^2]'}</Tex>，<Tex>{String.raw`\Sigma x_iy_i`}</Tex> 除以筆數就是 <Tex>{'E[xy]'}</Tex>；
+          分子分母同除以 3 會消掉，所以 <Tex>{String.raw`w^*=E[xy]/E[x^2]=\Sigma x_iy_i/\Sigma x_i^2`}</Tex>（下面的 F-01.4）。
+        </BlockDiagram>
         <TexBlock
           id="F-01.3"
           label={
@@ -405,6 +414,16 @@ export function ParabolaSection() {
       </Section>
 
       <Section kind="formula" title="1.2.1 Normal equation：最佳解處「誤差與輸入不相關」" level={3} id="ch01-s121">
+        <p>
+          §1.2 用「斜率為 0」找到最低點。同一個條件還有另一種讀法，而且硬體更喜歡：不用算成本，只要檢查
+          <strong>誤差和輸入還有沒有「一起動」</strong>。做法是把每一筆的誤差乘上輸入、再取平均——這種「相乘再平均」的電路叫相關器（correlator）。
+        </p>
+        <BlockDiagram id="D-01.6">
+          先看藍色的三格：誤差 <Tex>{'e'}</Tex> 和輸入 <Tex>{'x'}</Tex> 相乘，很多筆取平均，得到相關 <Tex>{'E[e\\,x]'}</Tex>。再看菱形：不是 0 就走下面「否」那條路回去再調{' '}
+          <Tex>{'w'}</Tex>（調完得到新的誤差，再繞一圈），是 0 就停在綠色那一格。圖上綠色方塊裡的 <Tex>{String.raw`E[e^*x]=0`}</Tex> 就是下面的 normal equation（F-01.5），其中{' '}
+          <Tex>{'e^*=y-w^*x'}</Tex> 是最佳解的誤差；
+          「再調 <Tex>{'w'}</Tex>」那一格的 <Tex>{String.raw`\mu E[e\,x]`}</Tex> 是 §1.3 會算出來的 LMS 平均更新量。
+        </BlockDiagram>
         {atLeast('engineer') ? normalEq : <Derivation title="Normal equation" derivation={normalEq} level="L0" claim="exact" />}
         <TexBlock id="F-01.5" label="Normal equation（正交原理）">
           {String.raw`\boxed{E[e^*x]=0}`}
@@ -415,12 +434,21 @@ export function ParabolaSection() {
         </p>
         <PllLink>
           GMAC（gain multiply-accumulate）在硬體裡累加的就是 <Tex>{String.raw`\sum_n q_n x_n`}</Tex>，其中{' '}
-          <Tex>{String.raw`q_n=\operatorname{sign}(e_n)`}</Tex> 來自 1-bit comparator／BBPD。所以校正迴路的固定點是{' '}
+          <Tex>{String.raw`q_n=\operatorname{sign}(e_n)`}</Tex> 來自 1-bit comparator／BBPD（<Tex>{String.raw`\operatorname{sign}`}</Tex> 取正負號：正數給{' '}
+          <Tex>{'+1'}</Tex>、負數給 <Tex>{'-1'}</Tex>）。它正是上圖的相關器，只是誤差先被取了正負號。所以校正迴路的固定點是{' '}
           <Tex>{String.raw`E[\operatorname{sign}(e)\,x]=0`}</Tex>——那是 §2 的 MAE 版 normal equation，不是 MSE 版。兩者何時一致，見{' '}
           <Link to="/ch/05">
             Ch05（comparator 等效增益 <Tex>{'K_q'}</Tex>）
           </Link>與 <Link to="/ch/11">Ch11（1.34 vs 1.4）</Link>。
         </PllLink>
+        <p>
+          最後一個問題：到了 <Tex>{'w^*'}</Tex>，成本是不是 0？不是。成本可以拆成兩塊——一塊跟 <Tex>{'w'}</Tex> 有關（調得掉），一塊跟 <Tex>{'w'}</Tex> 無關（調不掉）：
+        </p>
+        <BlockDiagram id="D-01.7">
+          先看上面那條路：你選的 <Tex>{'w'}</Tex> 減掉 <Tex>{'w^*'}</Tex>、平方、再乘上藍色的 <Tex>{String.raw`\tfrac12E[x^2]`}</Tex>——這是一個碗，<Tex>{'w=w^*'}</Tex> 時剛好是 0。
+          再看下面紅色那一格：雜訊底 <Tex>{'J(w^*)'}</Tex> 不經過任何含 <Tex>{'w'}</Tex> 的方塊，直接加到輸出。圖上兩條路相加，就是下面的 F-01.6：
+          <Tex>{String.raw`J(w)=J(w^*)+\tfrac12E[x^2](w-w^*)^2`}</Tex>。
+        </BlockDiagram>
         {atLeast('engineer') ? square : <Derivation title="配方" derivation={square} level="L0" claim="exact" />}
         <TexBlock id="F-01.6" label="成本 = 雜訊底 + 二次碗">
           {String.raw`J(w)=J(w^*)+\tfrac12E[x^2]\,(w-w^*)^2`}
@@ -469,15 +497,37 @@ export function ParabolaSection() {
         >
           {String.raw`J(w)=\tfrac12E\big[(y-wx)^2\big]=\tfrac12J_2(w)`}
         </TexBlock>
+        <p>
+          為什麼要在意這個 <Tex>{String.raw`\tfrac12`}</Tex>？LMS 是「沿著成本的斜率往下走一步」（gradient descent）：算出單筆成本對 <Tex>{'w'}</Tex> 的斜率，往反方向走{' '}
+          <Tex>{'\\mu'}</Tex> 倍。成本前面有沒有 <Tex>{String.raw`\tfrac12`}</Tex>，斜率就差 2 倍，走出來的步伐也差 2 倍：
+        </p>
+        <BlockDiagram id="D-01.8">
+          每一列由左到右都是同樣四格：單筆成本 → 對 <Tex>{'w'}</Tex> 微分 → 乘上負的步長 → 更新量 <Tex>{String.raw`\Delta w`}</Tex>。先比第一列和第二列：成本差 2 倍、步長也差 2 倍，
+          互相抵消，更新量都是 <Tex>{String.raw`\mu e x`}</Tex>（綠色）。再看第三列：成本沒有 <Tex>{String.raw`\tfrac12`}</Tex>、步長卻沒有減半，更新量變成{' '}
+          <Tex>{String.raw`2\mu ex`}</Tex>（紅色）。圖上第一列的 <Tex>{String.raw`\tfrac12e^2`}</Tex> 就是下面推導的單筆成本 <Tex>{String.raw`j_n=\tfrac12e_n^2`}</Tex>，
+          最後一格就是 F-01.7 的 <Tex>{String.raw`\mu e_nx_n`}</Tex>。
+        </BlockDiagram>
         {atLeast('engineer') ? half : <Derivation title={String.raw`由 $j_n=\tfrac12e_n^2$ 推出 LMS`} derivation={half} level="L0" claim="exact" />}
         <TexBlock id="F-01.7" label="LMS 更新式（規格 §1.1）">
           {String.raw`\boxed{w_{n+1}=w_n+\mu\,e_nx_n}`}
         </TexBlock>
+        <p>
+          單筆的更新量 <Tex>{String.raw`\Delta w=\mu ex`}</Tex> 會被雜訊推來推去，但把很多筆平均起來，方向非常清楚：永遠朝著 <Tex>{'w^*'}</Tex>，而且離得越遠推得越用力。
+          畫成方塊圖，就是一個一階的負回授迴路：
+        </p>
+        <BlockDiagram id="D-01.9">
+          先看左邊的加法點：目標 <Tex>{'w^*'}</Tex> 進「＋」、目前的 <Tex>{'w'}</Tex> 進「−」，出來的是還差多遠 <Tex>{'w^*-w'}</Tex>。再看藍色方塊：乘上{' '}
+          <Tex>{String.raw`\mu E[x^2]`}</Tex> 就是這一步的平均更新量，加回 <Tex>{'w'}</Tex>、存進暫存器（<Tex>{'z^{-1}'}</Tex> 表示延遲一筆），下一筆再繞一圈。圖上「平均更新量」那一格就是下面推導的結果{' '}
+          <Tex>{String.raw`E[\Delta w]=\mu E[x^2](w^*-w)`}</Tex>；迴路增益 <Tex>{String.raw`\mu E[x^2]`}</Tex> 越大收斂越快，太大則會衝過頭（下表的收斂條件）。
+        </BlockDiagram>
         {atLeast('engineer') ? meanUpdate : <Derivation title="平均更新量指向 $w^*$（逐步）" derivation={meanUpdate} level="L0" claim="exact" />}
         <p className="small">
           <ClaimTag kind="exact" /> 這就是 §1.2.1 的 normal equation 的動態版本：<Tex>{'E[ex]'}</Tex> 不為 0 就繼續修正，修正方向總是朝{' '}
           <Tex>{'w^*'}</Tex>；到了 <Tex>{'w=w^*'}</Tex> 平均更新量才歸零。單筆更新還會被雜訊推來推去，要平均很多筆（誤差以{' '}
           <Tex>{String.raw`1/\sqrt N`}</Tex> 下降）才看得出這個方向——PLL 的 GMAC 累加器做的正是這件事。
+        </p>
+        <p>
+          把圖 1-8 的三種寫法整理成表。表中 <Tex>{'P_x=E[x^2]'}</Tex> 是輸入功率（輸入平方的平均），也就是成本拋物線 <Tex>{'J'}</Tex> 的曲率；「曲率」那一欄決定步長可以多大：
         </p>
         <div className="table-wrap">
           <table className="ch01-table">

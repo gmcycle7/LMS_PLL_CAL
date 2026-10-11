@@ -8,6 +8,8 @@ import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
 import { UNICODE_MATH } from './mathTextTestUtils'
 import { galleryPresets } from './sections/Gallery'
+import { DASH_SYMBOLS } from './sections/Symbols'
+import { DASH_CHARTS } from './diagrams'
 import { summarizeErrata } from './summaries'
 
 const P = vi.hoisted(() => ({
@@ -44,15 +46,83 @@ function renderPage(mode: 'beginner' | 'engineer' | 'research' = 'engineer', url
 
 /** 區塊內所有 KaTeX 公式的 TeX 原始碼（MathML annotation） */
 const texIn = (el: Element | null): string[] => Array.from(el?.querySelectorAll('annotation[encoding="application/x-tex"]') ?? [], (a) => a.textContent ?? '')
-/** 拿掉 KaTeX 與程式碼之後的純文字 */
+/**
+ * 拿掉 KaTeX 與程式碼之後的純文字。
+ * 也拿掉 .c-tip：TestBadge 的 tooltip 逐條列出全站測試名稱（來自 verify 產生的 JSON），其他頁的測試標題可能合法地含有「NaN」「$…$」。
+ */
 function plainText(el: Element): string {
   const clone = el.cloneNode(true) as HTMLElement
-  clone.querySelectorAll('.katex, pre, code, .c-code, script, style').forEach((x) => x.remove())
+  clone.querySelectorAll('.katex, pre, code, .c-code, .c-tip, script, style').forEach((x) => x.remove())
   return clone.textContent ?? ''
 }
 
+const precedes = (x: Element | null, y: Element | null) => !!x && !!y && !!(x.compareDocumentPosition(y) & Node.DOCUMENT_POSITION_FOLLOWING)
+
+/**
+ * 符號表在頁末（docs/teaching-style.md §5）：全頁只有一張，包在 id="symbols" 裡，是頁面的最後一個區塊（在頁尾說明之後）；
+ * 頁首（系統地圖那一節）只留一行按鈕。整頁約 2 萬個 DOM 節點，再多渲染一次會讓 jsdom 記憶體吃緊，所以和 smoke test 共用同一次渲染。
+ */
+function expectSymbolsAtEnd(container: HTMLElement) {
+  const page = container.querySelector('.dash') as HTMLElement
+  const symbols = container.querySelector('#symbols') as HTMLElement
+  expect(symbols).not.toBeNull()
+  expect(container.querySelectorAll('.c-symbols')).toHaveLength(1)
+  expect(symbols.querySelectorAll('.c-symbols tbody tr')).toHaveLength(DASH_SYMBOLS.length)
+  expect(page.lastElementChild).toBe(symbols)
+  expect(symbols.lastElementChild?.classList.contains('c-symbols')).toBe(true)
+  expect(precedes(container.querySelector('#dash-recap'), symbols)).toBe(true)
+  expect(precedes(container.querySelector('.dash-footnote'), symbols)).toBe(true)
+  expect(symbols.querySelector('h2')?.textContent).toBe('本頁符號表')
+  // 「一條方程式」那一節裡不再有符號表
+  expect(container.querySelector('#dash-spine .c-symbols')).toBeNull()
+  // 頁首只留一行「本頁符號表在最後 ↓」：是按鈕（HashRouter 下 href="#symbols" 會被當成路由），在第一個內容區塊（系統地圖）裡
+  const jump = container.querySelector('.dash-symbols-jump button') as HTMLButtonElement
+  expect(jump.textContent).toBe('本頁符號表在最後 ↓')
+  expect(container.querySelectorAll('.dash-symbols-jump')).toHaveLength(1)
+  expect(jump.closest('a')).toBeNull()
+  expect(container.querySelector('a[href*="#symbols"]')).toBeNull()
+  expect(jump.closest('#dash-map')).toBeTruthy()
+  expect(precedes(jump, container.querySelector('#dash-spine'))).toBe(true)
+  // 按下去捲到頁末的 #symbols；符號表旁的「回到頁首」捲回頁首（jsdom 沒有 scrollIntoView，這裡裝一個假的）
+  const down = vi.fn()
+  const up = vi.fn()
+  symbols.scrollIntoView = down
+  ;(container.querySelector('#dash-title') as HTMLElement).scrollIntoView = up
+  fireEvent.click(jump)
+  expect(down).toHaveBeenCalledTimes(1)
+  fireEvent.click(within(symbols).getByRole('button', { name: /回到頁首/ }))
+  expect(up).toHaveBeenCalledTimes(1)
+}
+
+/** 方塊圖（docs/teaching-style.md §8）：四張（系統地圖＋本頁的三張）依序出現，有圖說與替代文字，放在對應的文字說明之後、推導之前。 */
+function expectDiagrams(container: HTMLElement) {
+  const figs = Array.from(container.querySelectorAll('figure.c-mermaid')) as HTMLElement[]
+  expect(figs).toHaveLength(1 + DASH_CHARTS.length)
+  for (const f of figs) {
+    const cap = f.querySelector('figcaption')?.textContent ?? ''
+    expect(cap.length, cap).toBeGreaterThan(20)
+    expect(cap, cap).not.toMatch(/\$/)
+    expect((f.getAttribute('aria-label') ?? '').length).toBeGreaterThan(20)
+  }
+  const [map, flowFig, loopFig, eqFig] = figs
+  // 順序：系統地圖（#dash-map）→ 六個條件的檢查流程（#dash-thesis）→ 條件在迴路上的位置、block 方程式（#dash-spine）
+  expect((container.querySelector('#dash-map') as HTMLElement).contains(map)).toBe(true)
+  expect((container.querySelector('#dash-thesis') as HTMLElement).contains(flowFig)).toBe(true)
+  const spine = container.querySelector('#dash-spine') as HTMLElement
+  expect(spine.contains(loopFig) && spine.contains(eqFig)).toBe(true)
+  expect(map.getAttribute('aria-label')).toContain('系統方塊圖')
+  expect(flowFig.getAttribute('aria-label')).toContain('六個條件的檢查流程')
+  expect(loopFig.getAttribute('aria-label')).toContain('六個條件分別標在')
+  expect(eqFig.getAttribute('aria-label')).toContain('線性化 block 方程式')
+  // 圖在它的推導之前：檢查流程在六張條件卡片之前；位置圖與 block 方程式在第一個逐步推導（details）之前
+  expect(precedes(flowFig, container.querySelector('#dash-cond-identifiability'))).toBe(true)
+  expect(precedes(loopFig, eqFig) && precedes(eqFig, spine.querySelector('details.dash-details'))).toBe(true)
+  // 檢查流程與 block 方程式各有「怎麼讀」導讀，並用 KaTeX 把圖上的名字對回公式
+  for (const f of [flowFig, eqFig]) expect(f.closest('.dash-diagram')?.querySelector('.dash-diagram-walk .katex'), f.getAttribute('aria-label') ?? '').toBeTruthy()
+}
+
 describe('DashboardPage（jsdom smoke）', () => {
-  it('渲染不出錯：Hero、從這裡開始（/ch/00）、六個條件、三條路線、15 題、模式、勘誤', async () => {
+  it('渲染不出錯：Hero、從這裡開始（/ch/00）、六個條件、三條路線、15 題、模式、勘誤；四張方塊圖與頁末的符號表', async () => {
     const { container } = renderPage()
     const hero = container.querySelector('.dash-hero') as HTMLElement
     expect(within(hero).getByRole('heading', { level: 1, name: /LMS × Fractional-N PLL Calibration Lab/ })).toBeTruthy()
@@ -81,10 +151,22 @@ describe('DashboardPage（jsdom smoke）', () => {
     const presets = galleryPresets()
     expect(gal.querySelectorAll('.dash-gal-card')).toHaveLength(presets.length)
     if (presets.length > 0) expect(gal.querySelector('.dash-gal-link')?.getAttribute('href')).toBe(`${presets[0].page}?preset=${presets[0].id}`)
+    // 方塊圖與頁末的符號表（兩個 helper 見上）
+    expectDiagrams(container)
+    expectSymbolsAtEnd(container)
     // KaTeX 有渲染（數學一律 LaTeX）
     expect(container.querySelectorAll('.katex').length).toBeGreaterThan(50)
     // 圖表呼叫 Plotly
     await waitFor(() => expect(P.react).toHaveBeenCalled())
+  })
+
+  it('符號表的內容：每個符號與單位的 TeX 都能解析，符號不重複（React key）', async () => {
+    const katex = (await import('katex')).default
+    for (const r of DASH_SYMBOLS) {
+      expect(() => katex.renderToString(r.symbol, { throwOnError: true, strict: 'ignore' }), r.symbol).not.toThrow()
+      if (r.unit) expect(() => katex.renderToString(r.unit as string, { throwOnError: true, strict: 'ignore' }), r.unit).not.toThrow()
+    }
+    expect(new Set(DASH_SYMBOLS.map((r) => r.symbol)).size).toBe(DASH_SYMBOLS.length)
   })
 
   it('路線步驟由 registry 組成，每一步都是可點擊的章節連結', () => {
@@ -124,7 +206,7 @@ describe('DashboardPage（jsdom smoke）', () => {
     expect(spine()).not.toMatch(/推導 5（Research）/)
     // Beginner 模式的文字同樣不得出現 undefined / NaN / 未配對的 $
     const plain = container.cloneNode(true) as HTMLElement
-    plain.querySelectorAll('.katex, pre, code, .c-code, script, style').forEach((el) => el.remove())
+    plain.querySelectorAll('.katex, pre, code, .c-code, .c-tip, script, style').forEach((el) => el.remove())
     expect(plain.textContent ?? '').not.toMatch(/undefined|NaN|\$/)
     expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
     const modes = container.querySelector('#dash-modes') as HTMLElement
@@ -213,7 +295,7 @@ describe('DashboardPage（jsdom smoke）', () => {
     expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
     // 只檢查非數學的文字節點（KaTeX 的 MathML annotation 會含原始 TeX）
     const clone = container.cloneNode(true) as HTMLElement
-    clone.querySelectorAll('.katex, pre, code, .c-code, script, style').forEach((el) => el.remove())
+    clone.querySelectorAll('.katex, pre, code, .c-code, .c-tip, script, style').forEach((el) => el.remove())
     const text = clone.textContent ?? ''
     expect(text).not.toMatch(/undefined/)
     expect(text).not.toMatch(/NaN/)

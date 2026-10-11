@@ -1,6 +1,7 @@
+import { useState } from 'react'
 import { Callout, ClaimTag, ModeGate, ModelLevel, Prereq, Section, SourceTag, SymbolTable, Tex, TestBadge } from '@/components'
 import './chapter.css'
-import { Erratum, md } from './common'
+import { Erratum, SYMBOLS_ID, md, scrollToSymbols } from './common'
 import { CH12_SYMBOLS } from './symbols'
 import { S1Intro } from './sections/S1Intro'
 import { S2Recursion } from './sections/S2Recursion'
@@ -15,8 +16,20 @@ import { CodeMixingLab } from './experiments/CodeMixingLab'
 /**
  * 第 12 章：Comparator Noise 如何經 LMS 變成 PLL Jitter / Spurs（規格 §12；入門課第 12 課）。
  * 套用勘誤 E06、E09、E10、E26、E27、E28、E29、E30、E33。
+ * 版面（docs/teaching-style.md §2、§5、§8）：章首只留一行「本章符號表在最後」；系統地圖在 12.0 的開場問題之後；
+ * 符號表是整頁的最後一個區塊（id="symbols"，在「本課必記」與「連結到硬體」之後）。
  */
 export default function Chapter12() {
+  // 讀者從章首跳到符號表時記下原本的捲動位置，讓符號表旁的按鈕可以送他回去
+  const [backY, setBackY] = useState<number | null>(null)
+  const jumpToSymbols = () => {
+    setBackY(window.scrollY)
+    scrollToSymbols()
+  }
+  const jumpBack = () => {
+    if (backY !== null) window.scrollTo({ top: backY, behavior: 'smooth' })
+    setBackY(null)
+  }
   return (
     <article className="ch12">
       <div className="c-tag-row">
@@ -40,17 +53,19 @@ export default function Chapter12() {
         <Erratum id="E29" />（multirate：block rate → sample rate）
         <Erratum id="E28" />（PSD 正規化）
         <Erratum id="E30" />（T13 的完整條件）
-        <Erratum id="E33" />（<Tex>{String.raw`\delta w=w-w^*`}</Tex> 的極性）。點擊可到驗證頁看完整說明。
+        <Erratum id="E33" />（係數偏差 <Tex>{String.raw`\delta w=w-w^*`}</Tex> 的極性）。點擊可到驗證頁看完整說明。
       </Callout>
 
-      <SymbolTable
-        rows={CH12_SYMBOLS}
-        caption={md(String.raw`時間索引：$n$ = comparator sample（取樣率 $f_s$），$k$ = GMAC block（取樣率 $f_u=f_s/N$）。PSD 預設單邊 per-Hz。極性：$\delta w=w-w^*$（與 §0 的 $\delta=a-w$ 相反）。`)}
-      />
+      <p className="ch12-symjump">
+        <button type="button" className="ch12-jump" onClick={jumpToSymbols}>
+          本章符號表在最後 ↓
+        </button>
+        （正文裡每個符號第一次出現時都會就地用一句話說明）
+      </p>
 
       <ModeGate min="engineer">
         <Callout kind="info" title="先備章節">
-          <Tex>{String.raw`K_q=\sqrt{2/\pi}/\sigma_v`}</Tex>（第 5 章）、一階 pole <Tex>{'p=1-g'}</Tex> 與 PM（第 8 章）、固定點 <Tex>{'w^*'}</Tex> 與 bias（第 11 章）、
+          1-bit comparator 的小訊號統計增益 <Tex>{String.raw`K_q=\sqrt{2/\pi}/\sigma_v`}</Tex>（第 5 章；<Tex>{String.raw`\sigma_v`}</Tex> 是 comparator 前雜訊的 RMS）、一階 pole <Tex>{'p=1-g'}</Tex> 與 PM（第 8 章）、固定點 <Tex>{'w^*'}</Tex> 與 bias（第 11 章）、
           <Tex>{String.raw`H_{\mathrm{PD}}`}</Tex> 與 polarity（第 6 章）。本章所有先備數學（期望值、Z-transform、PSD、卷積、Bessel）都在可展開的「先備知識」框內從頭說明。
         </Callout>
       </ModeGate>
@@ -113,6 +128,22 @@ export default function Chapter12() {
       <Section kind="assumptions" title="12.9 比較、思考題與本課必記" level={2} id="ch12-wrap">
         <S6Wrap />
       </Section>
+
+      <section id={SYMBOLS_ID} className="ch12-symbols" aria-label="本章符號表">
+        <h2 className="ch12-symbols-title">本章符號表</h2>
+        {backY !== null && (
+          <p className="ch12-symbols-back">
+            <button type="button" className="ch12-jump" onClick={jumpBack}>
+              ↑ 回到剛才閱讀的位置
+            </button>
+          </p>
+        )}
+        <SymbolTable
+          rows={CH12_SYMBOLS}
+          title="依第一次出現的小節排列"
+          caption={md(String.raw`時間索引：$n$ = comparator sample（取樣率 $f_s$），$k$ = GMAC block（取樣率 $f_u=f_s/N$）。PSD 預設單邊 per-Hz。極性：$\delta w=w-w^*$（與 §0 的 $\delta=a-w$ 相反）。「首次出現」欄是正文第一次用到、並就地說明這個符號的小節；有箭頭的（例如 §12.0 → §12.7）表示章首的地圖先用一句話交代，正式的定義或推導在箭頭後面的小節。`)}
+        />
+      </section>
     </article>
   )
 }

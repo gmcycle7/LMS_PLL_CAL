@@ -1,6 +1,6 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { mathText, stripMathDelimiters, usePersistentState } from '@/components'
+import { Mermaid, mathText, stripMathDelimiters, usePersistentState } from '@/components'
 import { pageById } from '@/app/registry'
 import type { CheckState, ConditionId } from './thesisModel'
 import { conditionById, shortCode } from './data'
@@ -12,6 +12,19 @@ import { erratumById } from './summaries'
  */
 export function Rich({ text }: { text: string }) {
   return <>{mathText(text)}</>
+}
+
+/**
+ * 方塊圖 + 「怎麼讀這張圖」導讀（docs/teaching-style.md §8）。
+ * Mermaid 不渲染 KaTeX，圖上的符號是 Unicode；導讀用 KaTeX 把圖上的名字對回正文的公式。圖說（caption）是純文字，不放數學符號。
+ */
+export function DiagramWalk({ chart, caption, ariaLabel, children }: { chart: string; caption: string; ariaLabel?: string; children?: ReactNode }) {
+  return (
+    <div className="dash-diagram">
+      <Mermaid chart={chart} caption={caption} ariaLabel={ariaLabel ?? caption} />
+      {children && <div className="dash-diagram-walk">{children}</div>}
+    </div>
+  )
 }
 
 /** tooltip（title 屬性）等純文字情境：拿掉 `$`，保留 TeX 原始碼（與共用元件的做法一致）。 */

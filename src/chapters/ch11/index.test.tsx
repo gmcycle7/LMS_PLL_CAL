@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
 import Chapter11 from './index'
+import { CH11_DIAGRAMS } from './diagrams'
 import { BiasInlLab } from './experiments/BiasInlLab'
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
@@ -92,6 +93,85 @@ describe('Ch11 smoke tests（jsdom）', () => {
     // 思考題 3 題、本課必記
     expect(container.querySelectorAll('.c-quiz').length).toBe(3)
     expect(container.querySelectorAll('.c-recap').length).toBe(1)
+    // ── 方塊圖（teaching-style §8）：章首系統地圖 + 25 張圖，依登錄表的順序出現在各自的段落裡 ──
+    const figures = Array.from(container.querySelectorAll('figure.c-mermaid'))
+    expect(figures).toHaveLength(CH11_DIAGRAMS.length + 1)
+    expect(CH11_DIAGRAMS).toHaveLength(25)
+    const systemMap = figures[0]
+    expect(systemMap.getAttribute('aria-label')).toContain('系統方塊圖')
+    expect(systemMap.closest('.ch11-fig')).toBeNull()
+    const question = screen.getByText('這一課要回答的問題').closest('.c-callout') as HTMLElement
+    expect(question.nextElementSibling).toBe(systemMap) // 開場問題之後緊接系統地圖
+    expect(question.textContent).toContain('完整的符號表在本章最後') // 開場就先用一句話說明 x、e、q、w
+    const figs = Array.from(container.querySelectorAll('.ch11-fig'))
+    expect(figs.map((el) => el.id)).toEqual(CH11_DIAGRAMS.map((d) => `ch11-fig-${d.id}`))
+    expect(figs.map((el) => el.closest('section.c-section')?.id)).toEqual(CH11_DIAGRAMS.map((d) => d.section))
+    figs.forEach((el, i) => {
+      expect(el.querySelector('.ch11-figcap')?.textContent, el.id).toContain(`圖 11-${i + 1}：`)
+      expect(el.querySelector('figure.c-mermaid')?.getAttribute('aria-label'), el.id).toMatch(new RegExp(`^圖 11-${i + 1}：`))
+    })
+    // 正文引用的圖號（FigRef）都在圖的前面：先讀導讀再看圖
+    for (const el of figs) {
+      const label = el.querySelector('.ch11-figcap strong')?.textContent?.split('：')[0] ?? ''
+      const refs = Array.from(container.querySelectorAll('.ch11-figref')).filter((r) => r.textContent === label)
+      expect(refs.length, label).toBeGreaterThanOrEqual(1)
+      expect(refs[0].compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING, label).toBeTruthy()
+    }
+    // 每個主要段落至少一張圖
+    for (const id of ['ch11-hand', 'ch11-diagram', 'ch11-model', 'ch11-fixed-point', 'ch11-offset', 'ch11-inl', 'ch11-correlated', 'ch11-near-integer', 'ch11-lab', 'ch11-levels', 'ch11-synthesis'])
+      expect(container.querySelectorAll(`#${id} .ch11-fig`).length, id).toBeGreaterThanOrEqual(1)
+    // 圖放在推導之前：誤差模型的圖在 F-11.1 之前、三種架構的圖在 F-11.6 之前、near-integer 的路徑圖在 F-11.14 之前
+    const before = (a: Element | null, b: Element | null) => !!a && !!b && !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(before(document.getElementById('ch11-fig-error-budget'), document.getElementById('formula-F-11.1'))).toBe(true)
+    expect(before(document.getElementById('ch11-fig-bias-correlators'), document.getElementById('formula-F-11.4'))).toBe(true)
+    expect(before(document.getElementById('ch11-fig-offset-path'), document.getElementById('formula-F-11.5'))).toBe(true)
+    expect(before(document.getElementById('ch11-fig-dc-null'), document.getElementById('formula-F-11.6'))).toBe(true)
+    expect(before(document.getElementById('ch11-fig-servo-dither'), document.getElementById('formula-F-11.17'))).toBe(true)
+    expect(before(document.getElementById('ch11-fig-best-fit'), document.getElementById('formula-F-11.8'))).toBe(true)
+    expect(before(document.getElementById('ch11-fig-mean-vs-median'), document.getElementById('formula-F-11.10'))).toBe(true)
+    expect(before(document.getElementById('ch11-fig-identifiability'), document.getElementById('formula-F-11.13'))).toBe(true)
+    expect(before(document.getElementById('ch11-fig-near-integer-path'), document.getElementById('formula-F-11.14'))).toBe(true)
+    expect(before(document.getElementById('ch11-fig-mc-gaps'), document.getElementById('formula-F-11.16'))).toBe(true)
+    expect(before(document.getElementById('ch11-fig-comparator-model'), document.getElementById('formula-F-11.2'))).toBe(true)
+    expect(before(document.getElementById('ch11-fig-jitter-weight'), document.getElementById('formula-F-11.12'))).toBe(true)
+    expect(before(document.getElementById('ch11-fig-near-integer-why'), document.getElementById('ch11-fig-near-integer-check'))).toBe(true)
+    expect(before(document.getElementById('ch11-fig-slope-measure'), document.getElementById('ch11-fig-mc-gaps'))).toBe(true)
+    expect(before(document.getElementById('ch11-fig-finite-step-loop'), document.getElementById('formula-F-11.16'))).toBe(true)
+    // ── 符號表（teaching-style §5）：只有一份，在頁面最後（#symbols，本課必記之後）；章首只留一行跳轉 ──
+    const root = container.querySelector('.ch11') as HTMLElement
+    const symbols = document.getElementById('symbols') as HTMLElement
+    expect(container.querySelectorAll('.c-symbols')).toHaveLength(1)
+    expect(symbols.querySelector('.c-symbols')).toBeTruthy()
+    expect(root.lastElementChild).toBe(symbols)
+    expect(before(container.querySelector('.c-recap'), symbols)).toBe(true)
+    expect(before(quiz, symbols)).toBe(true)
+    expect(symbols.querySelectorAll('.c-symbols tbody tr').length).toBeGreaterThanOrEqual(25)
+    expect(symbols.textContent).toContain('本章符號表')
+    const jump = Array.from(container.querySelectorAll('button')).find((b) => (b.textContent ?? '').includes('本章符號表在最後')) as HTMLButtonElement
+    expect(jump).toBeTruthy()
+    expect(jump.closest('.ch11-symbols-link')?.textContent?.trim()).toBe('本章符號表在最後 ↓') // 章首只有這一行
+    expect(before(jump, question)).toBe(true)
+    expect(container.querySelector('a[href="#symbols"]')).toBeNull() // HashRouter：不能用會改變路由的 href
+    // 按下去會捲到章末的符號表（jsdom 沒有 scrollIntoView：先確認沒有也不會丟錯，再補上替身確認目標）
+    expect(() => fireEvent.click(jump)).not.toThrow()
+    const proto = Element.prototype as unknown as { scrollIntoView?: (arg?: unknown) => void }
+    const original = proto.scrollIntoView
+    const scrolled: Element[] = []
+    proto.scrollIntoView = function (this: Element) {
+      scrolled.push(this)
+    }
+    try {
+      fireEvent.click(jump)
+      expect(scrolled).toEqual([symbols])
+      expect(document.activeElement).toBe(symbols)
+      const back = Array.from(symbols.querySelectorAll('button')).find((b) => (b.textContent ?? '').includes('回到章首')) as HTMLButtonElement
+      fireEvent.click(back)
+      expect(scrolled).toEqual([symbols, root])
+      expect(document.activeElement).toBe(jump) // 回到章首後，焦點回到章首的那一行
+    } finally {
+      if (original) proto.scrollIntoView = original
+      else delete proto.scrollIntoView
+    }
     // Lab：Case 並列比較表與 Run to Convergence
     expect(screen.getByText(/Case 並列比較（共用誤差模型、code 與 seed）/)).toBeTruthy()
     // （getAllByRole 在整章的大 DOM 上很慢，直接比對按鈕文字）

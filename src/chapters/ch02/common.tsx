@@ -1,9 +1,10 @@
 import { Fragment, type ReactNode } from 'react'
 import { useSettings } from '@/app/settings'
-import { HandCalc, Tex, type ExperimentPreset } from '@/components'
+import { HandCalc, Mermaid, Tex, type ExperimentPreset } from '@/components'
 import type { PresetEntry } from '@/data/types'
 import { fmt } from '@/simulation/core'
 import type { AlgoId } from '@/simulation/models/sgd'
+import { DIAGRAM_BY_ID, type DiagramId } from './diagrams'
 import { HANDCALCS } from './handcalcs'
 
 /** 勘誤小標：連到驗證頁（驗證頁依 id 列出勘誤）。 */
@@ -128,6 +129,43 @@ export function HandCalcSlot({ id, children }: { id: string; children?: ReactNod
       </p>
       <HandCalc def={def} />
     </div>
+  )
+}
+
+/**
+ * 方塊圖（docs/teaching-style.md §8）：依 ID 從 diagrams.ts 取出 Mermaid 原始碼與圖說。
+ * children 是緊跟在圖後面的「看圖說明」：先看哪裡、再看哪裡，以及圖上的訊號對應公式裡的哪個符號
+ * （圖內的節點文字不渲染 KaTeX，用 Unicode 數學符號；這段說明與圖說裡的數學都用 `$...$`）。
+ */
+export function Diagram({ id, children }: { id: DiagramId; children?: ReactNode }) {
+  const d = DIAGRAM_BY_ID[id]
+  return (
+    <div className="ch02-diagram" data-diagram={id}>
+      <Mermaid chart={d.chart} caption={d.caption} />
+      {children ? <div className="ch02-diagram-walk">{children}</div> : null}
+    </div>
+  )
+}
+
+/**
+ * 頁內跳轉（HashRouter 下不能用 href="#id"：那會改變路由）。改用按鈕 + scrollIntoView；
+ * jsdom 沒有實作 scrollIntoView，所以先確認函式存在。捲過去之後把焦點移到目標，鍵盤與螢幕閱讀器才會跟著過去。
+ */
+export function JumpTo({ target, children }: { target: string; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      className="ch02-jump"
+      data-jump={target}
+      onClick={() => {
+        const el = document.getElementById(target)
+        if (!el) return
+        if (typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        el.focus({ preventScroll: true })
+      }}
+    >
+      {children}
+    </button>
   )
 }
 

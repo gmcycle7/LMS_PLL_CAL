@@ -14,6 +14,7 @@ import { RegistrySection } from './sections/RegistrySection'
 import { LimitsSection } from './sections/LimitsSection'
 import { GlossarySection } from './sections/GlossarySection'
 import { CoverageSection, WrapupSection } from './sections/WrapupSection'
+import { PageSymbolsSection } from './sections/PageSymbolsSection'
 
 /**
  * Formula & Unit Reference（/formulas；規格 §0、附錄 A、附錄 B、術語）。
@@ -22,6 +23,7 @@ import { CoverageSection, WrapupSection } from './sections/WrapupSection'
  *   2 單位與時間索引約定（含換算器）                5 附錄 B：關鍵限制
  *   3 附錄 A：一頁公式速查（修正版）                6 術語表      7 思考題與必記      8 勘誤覆蓋（Research）
  *
+ * 本頁自己新增的記號表（PageSymbolsSection，id="symbols"）放在頁面最底端，頁首只留一行連結（teaching-style §5）；全站符號總表是 §1。
  * 頁首的搜尋框同時過濾 1–6 段（AND 語意；中文／英文／TeX／Unicode 寫法互通，見 search.ts）。
  * 深連結：'#/formulas?q=ENBW'（搜尋）、'#/formulas?f=F-12.9'（定位到某條公式）、'#/formulas?preset=units-sum-vs-average'（換算器 preset）。
  * HashRouter 下不能用 <a href="#id"> 做頁內跳轉，所以目錄是按鈕（scrollToId）。
@@ -190,6 +192,7 @@ export default function FormulasPage() {
           <Gate min="research">
             <CoverageSection />
           </Gate>
+          <PageSymbolsSection />
         </>
       )}
     </div>

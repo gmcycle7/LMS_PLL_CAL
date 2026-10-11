@@ -15,7 +15,7 @@ import {
   type FcwSweepResult,
 } from '@/simulation/models/polarity'
 import { FcwSweepExperiment } from '../experiments/FcwSweepExperiment'
-import { ChapterHandCalc, ChapterSection, Erratum, f, JumpTo, StepBox } from '../shared'
+import { ChapterDiagram, ChapterHandCalc, ChapterSection, Erratum, f, JumpTo, StepBox } from '../shared'
 
 const PATH = 'src/simulation/models/polarity.ts'
 
@@ -143,6 +143,24 @@ export function S6MultiTone() {
         </strong>
         ——不是只看某一個頻率的相位。
       </p>
+      <p>
+        先認識兩個新的量（下面的先備知識框會從頭解釋）：<strong>功率頻譜密度</strong> <Tex>{'S_{xx}(e^{j\\Omega})'}</Tex> 告訴你 code 的功率分布在哪些頻率；
+        <strong>自相關</strong> <Tex>{'R_x[\\ell]=E\\big[x[n]\\,x[n+\\ell]\\big]'}</Tex> 是 code 和「自己平移 <Tex>{'\\ell'}</Tex> 個 sample」的相關。兩者是同一份資訊的頻域與時域寫法；
+        <Tex>{'\\sigma_x^2=E[x^2]'}</Tex> 是 code 的總功率。
+      </p>
+      <ChapterDiagram id="D-06.15">
+        <p>
+          圖上拿三條譜線當例子。先看每一列：一條頻率 <Tex>{'\\Omega_m'}</Tex> 的譜線有功率 <Tex>{'P_m'}</Tex>（單頻時 <Tex>{'P=A^2/2'}</Tex>，永遠是正的），乘上主 PLL
+          在那個頻率的 <Tex>{'\\operatorname{Re}H'}</Tex>——這就是 §4 的單頻結果（<Tex>{'D=0'}</Tex> 時 <Tex>{'\\tfrac{A^2}{2}|H|\\cos\\phi=\\tfrac{A^2}{2}\\operatorname{Re}H'}</Tex>）。
+          再看加法點：不同頻率的貢獻直接相加（不同頻率的正弦相乘後平均為 0，沒有交叉項）。對 Type-II，低頻那一列是負的（紅色）、高頻那一列是正的（綠色），
+          <Tex>{'C'}</Tex> 的正負就看誰的功率大。
+        </p>
+        <p>
+          圖上的 <Tex>{'P_m'}</Tex> 換成連續頻譜就是 <Tex>{'S_{xx}\\,d\\Omega/2\\pi'}</Tex>，「全部加起來」就變成積分——也就是下面 F-06.11 的{' '}
+          <Tex>{'C=\\tfrac{1}{2\\pi}\\int S_{xx}\\operatorname{Re}H\\,d\\Omega'}</Tex>（<Tex>{'D\\ne0'}</Tex> 時把 <Tex>{'\\operatorname{Re}H'}</Tex> 換成{' '}
+          <Tex>{'\\operatorname{Re}\\{He^{j\\Omega D}\\}'}</Tex>）。
+        </p>
+      </ChapterDiagram>
 
       <Prereq title={String.raw`自相關 $R_x[\ell]$`}>
         <p>
@@ -222,6 +240,17 @@ export function S6MultiTone() {
         </li>
       </ul>
       <h3>6.2 兩個精確的特例（用來驗證程式）</h3>
+      <ChapterDiagram id="D-06.16">
+        <p>
+          從最上面的一般式出發（時域與頻域兩種寫法，即 F-06.12 與 F-06.11）。先看白色 code 那一支：白色 code 相鄰的 sample 互不相關，<Tex>{'R_x[\\ell]'}</Tex> 只在{' '}
+          <Tex>{'\\ell=0'}</Tex> 不為零，所以求和只剩 <Tex>{'k=D'}</Tex> 那一項——<Tex>{'C_D'}</Tex> 就是脈衝響應在第 <Tex>{'D'}</Tex> 拍的值乘上 code 功率。再看單頻那一支：頻譜只有{' '}
+          <Tex>{'\\pm\\Omega_0'}</Tex> 兩條線，積分只取到這兩點，回到 §4 的公式。
+        </p>
+        <p>
+          圖上綠色那格的 <Tex>{'h[0]=1'}</Tex> 意思是：DT 迴路的 DCO 要到下一拍才反應，誤差出現的那一拍 PD 原封不動地看到它。所以白色 code 的 raw-x LMS 永遠有{' '}
+          <Tex>{'C=\\sigma_x^2>0'}</Tex>，就是下面的 F-06.13。
+        </p>
+      </ChapterDiagram>
       <ul>
         <li>
           單頻：把兩條線代入，得 <Tex>{'C_D=\\tfrac{A^2}{2}\\operatorname{Re}\\{H(e^{j\\Omega_0})e^{j\\Omega_0D}\\}=\\tfrac{A^2}{2}|H|\\cos(\\phi+\\Omega_0D)'}</Tex>——就是 §4 的 F-06.4。
@@ -247,6 +276,16 @@ export function S6MultiTone() {
         <JumpTo target="ch06-s7">§7 的 Polarity Explorer</JumpTo>（PLL 模式）對同一段 code 同時用下面四種數值方法算 <Tex>{'C'}</Tex>，並與封閉式（tone、iid、一階
         DSM 有）比較；單元測試另以 AR(1) × 隨機 FIR 的 Python 參考值驗證到 <Tex>{'10^{-10}'}</Tex>。
       </p>
+      <ChapterDiagram id="D-06.17">
+        <p>
+          先看時域路線：從 code 算出自相關 <Tex>{'R_x'}</Tex>，從主 PLL 路徑算出脈衝響應 <Tex>{'h'}</Tex>，兩者配對求和。再看頻域路線：code 的功率頻譜{' '}
+          <Tex>{'S_{xx}'}</Tex> 配上頻率響應 <Tex>{'H'}</Tex>，對頻率積分。兩條虛線表示每一對都是同一件東西的兩種表示（互為 DTFT），所以兩條路線一定得到同一個{' '}
+          <Tex>{'C_D'}</Tex>。
+        </p>
+        <p>
+          圖上的時域路線就是 F-06.12、頻域路線就是 F-06.11。下表的六種算法都是這兩條路線的變形：「鋸齒自相關」「自相關和」「時域經驗值」走時域，「單頻封閉式」「頻域積分」「譜線和」走頻域。
+        </p>
+      </ChapterDiagram>
       <div className="table-wrap">
         <table className="ch06-table">
           <thead>
@@ -356,9 +395,25 @@ export function S6MultiTone() {
 
       <h3>6.4 近整數 FCW：residue 的能量跑到低頻，會發生什麼？</h3>
       <p>
+        FCW（frequency control word）是 PLL 的除頻比，寫成「整數 + 小數」，小數部分記作 <Tex>{'\\mathrm{frac}'}</Tex>。
         一階 DSM 的 DTC phase residue 在 FCW 接近整數（<Tex>{'\\mathrm{frac}'}</Tex> 很小）時是一個很慢的鋸齒波：每 <Tex>{'1/\\mathrm{frac}'}</Tex> 個 reference
         cycle 線性地走完一趟、再跳回起點。它的基頻 <Tex>{'\\Omega_0=2\\pi\\,\\mathrm{frac}'}</Tex> 會掉到迴路頻寬以下——正是 Type-II{' '}
-        <Tex>{'\\operatorname{Re}H<0'}</Tex> 的頻帶。直覺會說「那 <Tex>{'C'}</Tex> 一定變負」。精確計算的答案比較細緻，分三層：
+        <Tex>{'\\operatorname{Re}H<0'}</Tex> 的頻帶。
+      </p>
+      <ChapterDiagram id="D-06.18">
+        <p>
+          從上往下：FCW 的小數 <Tex>{'\\mathrm{frac}'}</Tex> 越小，一階 DSM 的 residue 鋸齒折返得越慢，基頻 <Tex>{'\\Omega_0=2\\pi\\,\\mathrm{frac}'}</Tex> 越低。菱形比較的是{' '}
+          <Tex>{'\\Delta=\\Omega_0/(\\omega_nT_s)'}</Tex>：鋸齒基頻相對於迴路自然頻率的比值。<Tex>{'\\Delta\\gg1'}</Tex>（綠色）時所有諧波都在迴路頻寬外，PD
+          幾乎原封不動地看到 code；<Tex>{'\\Delta\\ll1'}</Tex>（紅色）時低次諧波掉進 Type-II <Tex>{'\\operatorname{Re}H<0'}</Tex> 的頻帶——regressor
+          的能量被搬進了反相頻帶。但鋸齒有折返的跳變，高次諧波拖著一條只以 <Tex>{'1/k^2'}</Tex> 衰減的尾巴，仍在頻寬外（<Tex>{'\\operatorname{Re}H\\approx+1'}</Tex>），兩邊幾乎抵消（棕色）。
+        </p>
+        <p>
+          把圖 6.15 的三條譜線換成鋸齒的無限多條諧波（第 <Tex>{'k'}</Tex> 條的功率 <Tex>{'P_k\\propto1/k^2'}</Tex>），就是這張圖；最後一格的{' '}
+          <Tex>{'\\tfrac{3}{\\pi^2}\\Delta^2'}</Tex> 就是後面 F-06.14 的結果。
+        </p>
+      </ChapterDiagram>
+      <p>
+        直覺會說「基頻掉進反相頻帶，那 <Tex>{'C'}</Tex> 一定變負」。精確計算的答案比較細緻，分三層（下面的圖 6.19 把它畫成一棵決策樹）：
       </p>
       <ol>
         <li>
@@ -377,6 +432,31 @@ export function S6MultiTone() {
       <p>
         所以「近整數 FCW 會讓 Type-II 的極性反轉」是對的，只是機制不是「基頻落在反相頻帶」這麼單純（那個論證對平滑 code 才成立，見本節最後）。
       </p>
+      <ChapterDiagram id="D-06.19">
+        <p>
+          先問 GMAC 的 code delay <Tex>{'D'}</Tex>：<Tex>{'D=0'}</Tex>（regressor 和 PD 誤差完全對齊）走一邊，<Tex>{'D\\ge1'}</Tex> 走另一邊。對齊的那一邊再問誤差大小：
+          <Tex>{'|\\delta|'}</Tex> 小於 basin 半徑 <Tex>{'\\delta_c'}</Tex> 時是小訊號結論（棕色：不變號，但恢復力趨近 0）；超過 <Tex>{'\\delta_c'}</Tex> 就是但書
+          1（紅色）。沒對齊的那一邊比較 <Tex>{'D'}</Tex> 和門檻 <Tex>{'\\mathrm{frac}/K_i'}</Tex>：超過門檻就是但書 2（紅色），連小訊號都變號。這裡{' '}
+          <Tex>{'K_i=(\\omega_nT_s)^2'}</Tex> 是 5.4 的積分增益，<Tex>{'d'}</Tex> 是主迴路的額外 latency。
+        </p>
+        <p>
+          圖上三個有公式的格子，依序對應本節的 F-06.14（小訊號）、F-06.19 的 mean-field 特性（但書 1；<Tex>{'\\delta_c'}</Tex> 是它的變號點）與 F-06.18（但書 2）；下面依這個順序推導。
+        </p>
+      </ChapterDiagram>
+      <p>
+        要算 <Tex>{'C'}</Tex>，先要知道鋸齒 code 的自相關。白話：相隔 <Tex>{'\\ell'}</Tex> 個 sample 的兩個鋸齒值，大部分時候只差一小段（一起沿著斜坡走）；但只要中間折返過一次，
+        兩個值就差了一整個峰對峰。折返的機率正比於間隔——這讓自相關多出一個<strong>一次項</strong>，是鋸齒和平滑 code 最大的不同。
+      </p>
+      <ChapterDiagram id="D-06.20">
+        <p>
+          先看最上面：把鋸齒寫成相位 <Tex>{'\\theta'}</Tex>（0 到 1 均勻分布），值是 <Tex>{'\\theta-\\tfrac12'}</Tex>。過了 <Tex>{'\\ell'}</Tex> 個 sample，相位前進{' '}
+          <Tex>{'t'}</Tex>（<Tex>{'\\ell\\cdot\\mathrm{frac}'}</Tex> 的小數部分）。再看菱形：<Tex>{'\\theta+t'}</Tex> 沒超過 1 就沒折返，兩個值只差 <Tex>{'t'}</Tex>；超過了（紅色，機率{' '}
+          <Tex>{'t'}</Tex>）就多扣 1。把兩種情況對 <Tex>{'\\theta'}</Tex> 平均，得到最下面的結果。
+        </p>
+        <p>
+          圖上的 <Tex>{'t'}</Tex> 就是 F-06.17 的 <Tex>{'t_\\ell'}</Tex>；下面先備知識框的第 2 步把積分拆成兩段，正是菱形的兩個出口。
+        </p>
+      </ChapterDiagram>
       <Prereq title="鋸齒波的自相關（直接積分）與 Fourier 級數">
         <p>
           峰對峰 1 的鋸齒 <Tex>{'s(\\theta)=\\theta-\\tfrac12'}</Tex>（<Tex>{'0\\le\\theta<1'}</Tex>，以週期 1 延伸；<Tex>{'\\theta'}</Tex> 以「週期」為單位）。相位等分布時，
@@ -468,6 +548,21 @@ export function S6MultiTone() {
           <CodeBlock source={polaritySrc} region="dsmPhaseGrid" path={PATH} title="DSM 在一段紀錄內實際走過的相位格點" />
         </StepBox>
       </ModeGate>
+      <p>
+        <strong>方法 1 的想法：</strong>把這個自相關代進時域公式 <Tex>{'C=\\sum_kh[k]\\,R_x[k]'}</Tex>。近整數時自相關是 <Tex>{'k'}</Tex> 的二次式，所以 <Tex>{'C'}</Tex>{' '}
+        只需要脈衝響應的三個加權和——<strong>動差</strong>（moment）<Tex>{'m_j=\\sum_kk^j\\,h[k]'}</Tex>，<Tex>{'j=0,1,2'}</Tex>。
+      </p>
+      <ChapterDiagram id="D-06.21">
+        <p>
+          先看第一格：近整數時，<Tex>{'h[k]'}</Tex> 衰減完之前鋸齒還沒折返，所以自相關是 <Tex>{'k'}</Tex> 的二次式（常數項、一次項、二次項）。再看中間三格：每一項乘上{' '}
+          <Tex>{'h[k]'}</Tex> 再對 <Tex>{'k'}</Tex> 求和，各得到一個動差。Type-II 的 <Tex>{'m_0=0'}</Tex>（DC 誤差被完全追掉）與 <Tex>{'m_1=0'}</Tex>（斜坡誤差也被完全追掉）讓前兩項消失（棕色），
+          只剩二次項。
+        </p>
+        <p>
+          圖上進加法點的三條線，就是公式 <Tex>{'C/\\sigma_x^2\\approx m_0-6\\,\\mathrm{frac}\\,m_1+6\\,\\mathrm{frac}^2m_2'}</Tex> 的三項；代入{' '}
+          <Tex>{'m_2=2/K_i'}</Tex> 就是 F-06.14。
+        </p>
+      </ChapterDiagram>
       <StepBox title="方法 1（DT 精確）：鋸齒自相關 + 脈衝響應的動差">
         <StepDerivation
           steps={[
@@ -645,6 +740,23 @@ export function S6MultiTone() {
         <Tex>{'C\\to0^+'}</Tex> 的後果是 LMS 停滯，而固定點 <Tex>{'w^*=a+B/C'}</Tex> 對任何 bias <Tex>{'B'}</Tex> 極度敏感（§11.4、第 11 章）。但這個結論有兩個重要的但書：
         誤差一大（下一個框）或 regressor 錯開一個 sample（再下一個框），符號還是會翻。
       </p>
+      <p>
+        <strong>但書 1 的白話：</strong>近整數時的 <Tex>{'C>0'}</Tex>，其實是「一個正數」和「一個幾乎一樣大的負數」相加剩下的。1-bit comparator 在誤差大時會飽和，而且
+        <strong>先壓扁大的那一個</strong>。這裡要用不做小訊號近似的 mean-field 特性 <Tex>{'E[G](\\delta)'}</Tex>：把參數誤差固定在 <Tex>{'\\delta'}</Tex> 時 GMAC
+        的平均輸出（圖 6.5 的 S 形曲線，不取切線）。
+      </p>
+      <ChapterDiagram id="D-06.22">
+        <p>
+          先看最上面：鋸齒每折返一次，等於在 PD 前加一個步階；PD 看到的是主迴路的步階響應 <Tex>{'s[k]=\\sum_{j\\le k}h[j]'}</Tex>。Type-II 的 <Tex>{'s[k]'}</Tex>{' '}
+          有兩瓣，面積剛好相消：高而窄的正瓣（綠色）與矮而長的負瓣（紅色）。再往下：<Tex>{'|\\delta u|'}</Tex> 大的正瓣先碰到 comparator 的飽和區，貢獻被壓扁；負瓣的{' '}
+          <Tex>{'|\\delta u|'}</Tex> 還小，貢獻繼續隨 <Tex>{'\\delta'}</Tex> 成長。最後看菱形：誤差小於 <Tex>{'\\delta_c'}</Tex> 時正瓣仍然略勝，<Tex>{'E[G]'}</Tex> 和{' '}
+          <Tex>{'\\delta'}</Tex> 同號，把誤差拉回 0；超過 <Tex>{'\\delta_c'}</Tex> 之後負瓣勝出，<Tex>{'E[G]'}</Tex> 和 <Tex>{'\\delta'}</Tex> 反號，把誤差往外推。
+        </p>
+        <p>
+          圖上的「同號／反號」就是下面推導最後一步的兩個情況；<Tex>{'\\delta_c'}</Tex> 是 <Tex>{'E[G](\\delta)'}</Tex> 第一次穿過 0 的位置（basin 半徑），推導框裡的 basin
+          表列出它的數值。
+        </p>
+      </ChapterDiagram>
       <StepBox
         title={
           <>
@@ -715,6 +827,21 @@ export function S6MultiTone() {
         </p>
         <CodeBlock source={polaritySrc} region="meanFieldCurve" path={PATH} title={String.raw`mean-field 特性與變號點 $\delta_c$`} />
       </StepBox>
+      <p>
+        <strong>但書 2 的白話：</strong>上面的抵消只在 regressor 和 PD 誤差「同一拍」相乘時才成立。GMAC 的 code 只要晚一個 sample，折返那一拍的尖峰就會乘到折返
+        <strong>之前</strong>的 code。
+      </p>
+      <ChapterDiagram id="D-06.23">
+        <p>
+          先看最上面：鋸齒折返時 <Tex>{'x'}</Tex> 從頂部跳到底部，PD 當拍看到一個尖峰（<Tex>{'h[0]=1'}</Tex>），之後是 PLL 追趕的尾巴（面積 <Tex>{'-1'}</Tex>）。再比較兩條支路：
+          <Tex>{'D=0'}</Tex> 時尖峰乘到折返之後的底部值，尾巴乘到的也差不多是同樣的值，兩者在一階抵消（棕色）；<Tex>{'D\\ge1'}</Tex>{' '}
+          時尖峰改乘到折返之前的頂部值，和尾巴乘到的底部值差了一整個峰對峰，抵消不掉（紅色）。
+        </p>
+        <p>
+          圖上棕色那格剩下的 <Tex>{'+12\\,\\mathrm{frac}^2/K_i'}</Tex> 就是 F-06.14；紅色那格多出的 <Tex>{'-12\\,\\mathrm{frac}\\,D'}</Tex> 就是下面 F-06.18 的一階項。
+          <Tex>{'D>\\mathrm{frac}/K_i'}</Tex> 時負的一階項蓋過正的二階項，<Tex>{'C_D'}</Tex> 變負。
+        </p>
+      </ChapterDiagram>
       <StepBox
         title={
           <>

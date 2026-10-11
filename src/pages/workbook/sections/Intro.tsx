@@ -5,7 +5,8 @@ import type { HandCalcDef } from '@/data/types'
 import { kq } from '@/simulation/models/comparator'
 import { fixedXPole } from '@/simulation/models/lms'
 import { LEVELS, LEVEL_LABEL, chapterOf, countByLevel, type ChapterGroup, type Level } from '../logic'
-import { LevelBadge } from './common'
+import { CHART_DEMO_ORDER, CHART_HOWTO } from '../diagrams'
+import { Diagram, LevelBadge } from './common'
 
 /** 「為什麼要手算」的兩個數字例：都呼叫模型函式，不在頁面上手打結果 */
 const SIGMA_V_EXAMPLE = 100 // fs（全站 T13 示例的 comparator 雜訊）
@@ -106,12 +107,42 @@ export function Intro({ all, groups, demo }: IntroProps) {
           </li>
         </ol>
 
+        <Diagram
+          chart={CHART_HOWTO}
+          caption="一題的練習流程：先改數字看代入，再自己算；菱形是「對答案」的判定，不對就看詳解找出哪一步錯。"
+          ariaLabel="練習流程圖：挑一題、改成自己的數字、切到自己算算看、填答案對答案；正確就換一題，不對就看詳解、對照每一步找出算錯的地方、改正後重填"
+        >
+          <p>
+            <strong>先看</strong>
+            前四個方塊：挑題、換成你自己的數字看代入、切到「自己算算看」用紙筆算、填答案。
+            <strong>再看</strong>
+            藍色菱形：它就是「對答案」背後的判定，答案落在 <Tex>{String.raw`1\%`}</Tex> 相對誤差內（或和詳解只差 <Tex>{String.raw`10^{-9}`}</Tex> 以內）就算對；對了可以「換一題（隨機數字）」繼續練。
+            不對（或卡住了）走棕色的「看詳解」，把你的每個中間結果和詳解逐步對照，找出哪一步算錯再改正重填。
+          </p>
+        </Diagram>
+
         {demo && (
           <div className="wb-demo">
             <h3>先試一題</h3>
             <p className="small muted">
               這是第 00 章的第一題。試著把 <Tex>{String.raw`\mu`}</Tex> 改成 <Tex>0.2</Tex> 看每一步怎麼變，再切到「自己算算看」。
             </p>
+            <Diagram
+              chart={CHART_DEMO_ORDER}
+              caption="這一題的計算順序：①預測、②比較、③修正量、④更新，然後用新的猜測再做一次。"
+              ariaLabel="LMS 更新的方塊圖：目前的猜測乘輸入得到預測；量到的輸出減預測得到誤差；誤差乘學習率和輸入得到修正量；修正量加回目前的猜測得到下一個猜測"
+            >
+              <p>
+                <strong>先看</strong>
+                <Tex>{String.raw`w_n`}</Tex> 是目前的猜測，<Tex>x</Tex> 是輸入：① 先預測 <Tex>{String.raw`\hat y_n = w_n x`}</Tex>。進加法點時預測帶負號、量到的輸出 <Tex>y</Tex> 帶正號，所以 ② 比較的結果是{' '}
+                <Tex>{String.raw`e_n = y - \hat y_n`}</Tex>（<Tex>{String.raw`e_n>0`}</Tex> 表示預測太小）。
+              </p>
+              <p>
+                <strong>再看</strong>
+                藍色方塊：③ 修正量 <Tex>{String.raw`\Delta w_n = \mu\,e_n\,x`}</Tex>（學習率 × 誤差 × 輸入，連乘兩次；乘上 <Tex>x</Tex> 自動決定方向）；④ 加回 <Tex>{String.raw`w_n`}</Tex> 得到{' '}
+                <Tex>{String.raw`w_{n+1} = w_n + \Delta w_n`}</Tex>。下面這一題就是把這張圖走兩圈（題目裡的下標 0 就是這裡的 <Tex>{String.raw`n=0`}</Tex>），詳解的前四步對應 ①②③④，後兩步是第二圈。
+              </p>
+            </Diagram>
             <HandCalc def={demo} compact />
           </div>
         )}

@@ -1,7 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import type { Data } from 'plotly.js-dist-min'
 import { ClaimTag, ParamControl, Plot, Section, StepDerivation, Tex, TexBlock, useThemeTokens } from '@/components'
-import { DerivationFold, mt, tx } from '../common'
+import { AVERAGE_LOOP, CLEAR_BUG } from '../diagrams'
+import { DerivationFold, FigRef, MermaidFig, mt, tx } from '../common'
 
 const R = String.raw
 
@@ -174,6 +175,17 @@ export function HardwareNotesSection() {
       <p>
         如果 <Tex>S</Tex> 沒有在每個 block 結束時清為 0，第 <Tex>k</Tex> 次更新用到的是 <Tex>{R`S_0+S_1+\dots+S_k`}</Tex>。看起來只是「多累加了一點」，
         其實把迴路從一階變成二階，而且<strong>對任何 <Tex>{R`\mu`}</Tex> 都不會收斂</strong>。
+      </p>
+      <MermaidFig
+        chart={CLEAR_BUG}
+        caption={R`忘了清除 $S$ 的後果：GMAC 累加器自己變成第二個積分器（紅色）。左欄是正確的一階迴路，右欄多串了一個 $1/(1-z^{-1})$；看兩欄最下面那一格的遞迴式差在哪裡。`}
+        ariaLabel="正確清除 S 的一階迴路，與忘了清除 S 時兩個積分器串接的二階迴路"
+      />
+      <p>
+        兩欄畫的都是 <FigRef chart={AVERAGE_LOOP} /> 的順向路徑（由 gain 誤差 <Tex>{R`\delta_k`}</Tex> 到 <Tex>{R`w_k`}</Tex>；回授同樣是 <Tex>{R`\delta=a-w`}</Tex>，沒有重畫）。<strong>先看左欄</strong>：<Tex>{R`\delta_k`}</Tex> 乘 <Tex>K</Tex>、乘{' '}
+        <Tex>{R`\mu`}</Tex>，經過 gain accumulator 這<strong>一個</strong>積分器，得到一階遞迴 <Tex>{R`\delta_{k+1}=(1-g)\,\delta_k`}</Tex>（<Tex>{R`g=\mu K`}</Tex>）。<strong>再看右欄</strong>的紅色方塊：<Tex>S</Tex>{' '}
+        沒清除，它輸出的是從開機到現在所有 block 的總和 <Tex>{R`S_0+S_1+\dots+S_k`}</Tex>——這正是一個累加器 <Tex>{R`1/(1-z^{-1})`}</Tex>。兩個積分器串在同一個迴路裡，相位落後加起來是 180°，
+        回授永遠來得太晚；右欄最下面的二階遞迴式就是下面的 F-04.13，它的特徵方程兩根都落在單位圓上（不衰減也不發散的邊界）。
       </p>
       <DerivationFold title="累積總和讓 pole 落在單位圓上">
         <StepDerivation

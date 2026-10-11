@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import type { Data } from 'plotly.js-dist-min'
 import { Callout, ClaimTag, ParamControl, Plot, Section, StepDerivation, Tex, TexBlock, TestBadge, mathText, useThemeTokens } from '@/components'
 import { DEFAULT_RULE, analyzeRule, buildPlant, corrMatrix, type RuleConfig } from '@/simulation/models/mimo'
-import { Deriv, Erratum, Hand, TagRow, TryIt, n, nint, texMat, tn } from '../common'
+import { Deriv, Erratum, Fig, FigRef, Hand, TagRow, TryIt, n, nint, texMat, tn } from '../common'
 import { NUM, SIGMA_KQ1 } from '../numbers'
 
 const rule = (r: Partial<RuleConfig>): RuleConfig => ({ ...DEFAULT_RULE, ...r })
@@ -93,7 +93,7 @@ function RhoWidget() {
         </strong>
         <ClaimTag kind="exact" />
         <span className="small muted">
-          mean recursion、<Tex>{String.raw`\hat{\mathbf J}=\mathbf J`}</Tex>
+          mean recursion（平均誤差的遞迴）、<Tex>{String.raw`\hat{\mathbf J}=\mathbf J`}</Tex>（建構 <Tex>{String.raw`\mathbf M`}</Tex> 用的 Jacobian 估計等於真實值，§10.5）
         </span>
       </TagRow>
       <div className="grid-2">
@@ -230,25 +230,44 @@ export function S2UpdateMatrix() {
         </p>
         <TexBlock>{String.raw`\mathbf w_{k+1}=\mathbf w_k+\mathbf M\,\mathbf G_k`}</TexBlock>
         <p>
-          <Tex>{String.raw`\mathbf M`}</Tex> 是 <Tex>{'P\\times P'}</Tex> 的「更新矩陣」：第 i 列告訴硬體「第 i 個係數要用哪些 GMAC 的輸出、各乘多少」。五種常見選擇：
+          <Tex>{String.raw`\mathbf M`}</Tex> 是 <Tex>{'P\\times P'}</Tex> 的「更新矩陣」：第 i 列告訴硬體「第 i 個係數要用哪些 GMAC 的輸出、各乘多少」。把上一節的結果和這條更新式接起來，就是一個每個 block 走一圈的迴路：
+        </p>
+        <Fig id="update-loop">
+          先從左邊的加法點看起：<Tex>{String.raw`\boldsymbol\delta_k=\mathbf a-\mathbf w_k`}</Tex>（<Tex>{String.raw`\mathbf w_k`}</Tex> 以負號進來）。往右經過「<Tex>{String.raw`\times K_q\mathbf R`}</Tex>」（上一節的
+          F-10.1），再加上 GMAC 雜訊 <Tex>{String.raw`\boldsymbol\eta_k`}</Tex>，得到 <Tex>{String.raw`\mathbf G_k`}</Tex>；乘上藍色的 <Tex>{String.raw`\mathbf M`}</Tex> 後進入右邊的累加器（加法點 +{' '}
+          <Tex>{String.raw`z^{-1}`}</Tex>，<Tex>{String.raw`z^{-1}`}</Tex> 代表延遲一個 block），變成 <Tex>{String.raw`\mathbf w_{k+1}`}</Tex>。再看回授：<Tex>{String.raw`\mathbf w`}</Tex> 回到左邊時帶負號，所以繞一圈的增益是{' '}
+          <Tex>{String.raw`-K_q\mathbf M\mathbf R`}</Tex>——這就是下面推導出來的 <Tex>{String.raw`\mathbf A_{\mathrm{cal}}=\mathbf I-K_q\mathbf M\mathbf R`}</Tex>。圖上的「<Tex>{String.raw`\times K_q\mathbf R`}</Tex>」就是公式裡的{' '}
+          <Tex>{String.raw`-\mathbf J`}</Tex>（<Tex>{String.raw`\mathbf J`}</Tex> 是 GMAC 對 <Tex>{String.raw`\mathbf w`}</Tex> 的斜率，<Tex>{String.raw`\mathbf w`}</Tex> 變大時 <Tex>{String.raw`\mathbf G`}</Tex> 變小，所以帶負號）。
+        </Fig>
+        <p>
+          迴路裡只有 <Tex>{String.raw`\mathbf M`}</Tex> 可以設計。五種常見選擇：
         </p>
         <ul>
           <li>
-            <strong>原始 LMS</strong>：<Tex>{String.raw`\mathbf M=\mu\mathbf I`}</Tex>（每個係數只看自己的 GMAC，大家同一個步長）。
+            <strong>原始 LMS</strong>：<Tex>{String.raw`\mathbf M=\mu\mathbf I`}</Tex>（每個係數只看自己的 GMAC，大家同一個步長 <Tex>{String.raw`\mu`}</Tex>）。
           </li>
           <li>
-            <strong>Diagonal</strong>：<Tex>{String.raw`\mathbf M=\operatorname{diag}(\mu_1,\dots,\mu_P)`}</Tex>（每個 loop 各自調步長）。
+            <strong>Diagonal</strong>：<Tex>{String.raw`\mathbf M=\operatorname{diag}(\mu_1,\dots,\mu_P)`}</Tex>（每個 loop 各自調步長 <Tex>{String.raw`\mu_i`}</Tex>）。
           </li>
           <li>
-            <strong>NLMS</strong>：<Tex>{String.raw`\mathbf M=\tilde\mu/(K_q\operatorname{tr}\mathbf R)\cdot\mathbf I`}</Tex>（用 regressor 總能量正規化，§10.6）。
+            <strong>NLMS</strong>：<Tex>{String.raw`\mathbf M=\tilde\mu/(K_q\operatorname{tr}\mathbf R)\cdot\mathbf I`}</Tex>（用 regressor 總能量 <Tex>{String.raw`\operatorname{tr}\mathbf R`}</Tex> 正規化；<Tex>{String.raw`\tilde\mu`}</Tex>{' '}
+            是正規化後的無因次步長，§10.6）。
           </li>
           <li>
-            <strong>理想 Preconditioning</strong>：<Tex>{String.raw`\mathbf M=\gamma(K_q\mathbf R)^{-1}`}</Tex>（每個係數用<strong>全部</strong> GMAC 的線性組合）。
+            <strong>理想 Preconditioning</strong>：<Tex>{String.raw`\mathbf M=\gamma(K_q\mathbf R)^{-1}`}</Tex>（每個係數用<strong>全部</strong> GMAC 的線性組合；<Tex>{String.raw`\gamma`}</Tex> 是無因次的
+            loop gain，意思是「每個 block 把誤差修掉的比例」）。
           </li>
           <li>
-            <strong>Noise-robust</strong>：<Tex>{String.raw`\mathbf M=\gamma\big(K_q(\mathbf R+\lambda_{\mathrm{reg}}\mathbf I)\big)^{-1}`}</Tex> 或對 Jacobian 用 regularized pseudoinverse（§10.5）。
+            <strong>Noise-robust</strong>：<Tex>{String.raw`\mathbf M=\gamma\big(K_q(\mathbf R+\lambda_{\mathrm{reg}}\mathbf I)\big)^{-1}`}</Tex>（求逆之前先加一個小常數{' '}
+            <Tex>{String.raw`\lambda_{\mathrm{reg}}`}</Tex>，叫 regularization 參數，§10.4.1），或對 Jacobian 用 regularized pseudoinverse（§10.5）。
           </li>
         </ul>
+        <Fig id="m-variants">
+          先看最上面一列（scalar，基準）；再往下逐列比較藍色方塊改了什麼：diagonal 只是把一個 <Tex>{String.raw`\mu`}</Tex> 換成 <Tex>{'P'}</Tex> 個；full inverse 與 regularized 才真的用到「別的」GMAC（
+          <Tex>{String.raw`\mathbf M`}</Tex> 有非對角元素）；sequential 則是每個 block 只留一個 <Tex>{String.raw`M_{ii}`}</Tex>，其餘係數凍結（§10.6）。右邊一欄是各自的 pole <Tex>{'p_i'}</Tex>（第{' '}
+          <Tex>{'i'}</Tex> 個模式的誤差每個 block 乘上的數）與代價：圖上的 <Tex>{String.raw`\lambda_i`}</Tex> 是 <Tex>{String.raw`\mathbf R`}</Tex> 的 eigenvalue，<Tex>{String.raw`\lambda_{\min}`}</Tex> 是最小的那個；這幾個式子就是本節的
+          F-10.3、F-10.4 與 §10.4.1 的 F-10.8。NLMS 沒有另外畫：它仍然是 <Tex>{String.raw`\mu\mathbf I`}</Tex>，只是 <Tex>{String.raw`\mu=\tilde\mu/(K_q\operatorname{tr}\mathbf R)`}</Tex>（§10.6 的 <FigRef id="nlms" />）。
+        </Fig>
         <Deriv title="把更新式改寫成誤差的遞迴">
           <StepDerivation
             steps={[
@@ -309,10 +328,24 @@ export function S2UpdateMatrix() {
           取平均（<Tex>{String.raw`E[\boldsymbol\eta]=0`}</Tex>）得到 <Tex>{String.raw`E[\boldsymbol\delta_{k+1}]=\mathbf A_{\mathrm{cal}}E[\boldsymbol\delta_k]`}</Tex>：
           平均誤差收斂 ⇔ <Tex>{String.raw`\mathbf A_{\mathrm{cal}}`}</Tex> 的所有 eigenvalue 在單位圓內。這是<strong>平均收斂（mean convergence）</strong>，不是「每條軌跡一定收斂」。
         </p>
+        <p className="small muted">
+          兩個名字：<Tex>{String.raw`\mathbf A_{\mathrm{cal}}`}</Tex> 叫<strong>校正迴路矩陣</strong>（誤差每個 block 被它乘一次）；<Tex>{String.raw`\mathbf J`}</Tex> 叫 <strong>Jacobian</strong>（斜率矩陣），第{' '}
+          <Tex>{'(i,j)'}</Tex> 格是「<Tex>{'w_j'}</Tex> 增加 1 fs 時，GMAC<sub>i</sub> 的平均變化多少」，單位 <Tex>{String.raw`\mathrm{fs}^{-1}`}</Tex>。§10.5 會直接量它。
+        </p>
 
         <h3 className="ch10-sub">
           原始 LMS：<Tex>{String.raw`\mathbf M=\mu\mathbf I`}</Tex> 的 poles
         </h3>
+        <p>
+          <Tex>{String.raw`\mathbf M=\mu\mathbf I`}</Tex> 時兩個係數仍然透過 <Tex>{String.raw`\mathbf R`}</Tex> 互相耦合，直接盯著 <Tex>{String.raw`\delta_1`}</Tex>、<Tex>{String.raw`\delta_2`}</Tex>{' '}
+          很難看出收斂有多快。訣竅是換一組座標：沿著 <Tex>{String.raw`\mathbf R`}</Tex> 的 eigenvector 看，耦合就不見了，剩下幾條各走各的一階迴路。
+        </p>
+        <Fig id="eigen-modes">
+          先看左邊的「<Tex>{String.raw`\times\mathbf V^T`}</Tex>」：它把 <Tex>{String.raw`(\delta_1,\delta_2)`}</Tex> 換成模式座標 <Tex>{String.raw`\boldsymbol\xi=\mathbf V^T\boldsymbol\delta`}</Tex>，也就是共模{' '}
+          <Tex>{String.raw`\xi_1=(\delta_1+\delta_2)/\sqrt2`}</Tex> 與差模 <Tex>{String.raw`\xi_2=(\delta_1-\delta_2)/\sqrt2`}</Tex>。再看中間：每個模式每個 block 只是乘上自己的 pole，兩條線不再交叉；最後「
+          <Tex>{String.raw`\times\mathbf V`}</Tex>」轉回原來的座標。圖上的「<Tex>{String.raw`\times p_i`}</Tex>」就是下面 F-10.3 的 <Tex>{String.raw`p_i=1-\mu K_q\lambda_i`}</Tex>：<Tex>{String.raw`\lambda_1=1+\rho`}</Tex> 大，共模很快消失；
+          <Tex>{String.raw`\lambda_2=1-\rho`}</Tex> 小，差模（紅色）拖很久。這張圖畫的是無雜訊的平均遞迴。
+        </Fig>
         <Deriv title="用 eigen 分解把耦合拆開">
           <StepDerivation
             steps={[
@@ -364,6 +397,17 @@ export function S2UpdateMatrix() {
         <h3 className="ch10-sub">
           理想 Preconditioner：<Tex>{String.raw`\mathbf M=\gamma(K_q\mathbf R)^{-1}\Rightarrow p_i=1-\gamma`}</Tex>
         </h3>
+        <p>
+          Scalar LMS 慢的原因可以用一句話說完：每個模式的 loop gain 等於「更新矩陣沿這個方向的增益」乘上「<Tex>{String.raw`\mathbf R`}</Tex> 沿這個方向的 eigenvalue」，而 scalar LMS 對所有方向都用同一個增益。
+          完整反矩陣的想法很直接：哪個方向的 eigenvalue 小，就把那個方向的增益調大，剛好補回來。
+        </p>
+        <Fig id="mode-gain">
+          先看 ① Scalar 那一框：兩個模式乘的是同一個 <Tex>{String.raw`m=\mu K_q=0.5`}</Tex>，loop gain 分別是 <Tex>{String.raw`0.5\times${tn(r.eig[0])}=${tn(1 - r.fast)}`}</Tex> 與{' '}
+          <Tex>{String.raw`0.5\times${tn(r.eig[1])}=${tn(1 - r.slow)}`}</Tex>，慢模式（紅色）的 pole 是 {n(r.slow)}。再看 ② Full inverse 那一框：藍色方塊把 <Tex>{'m_i'}</Tex> 改成 <Tex>{String.raw`\gamma/\lambda_i`}</Tex>（快模式{' '}
+          {n(r.eigMn[1])}、慢模式 {n(r.eigMn[0])}），乘回 <Tex>{String.raw`\lambda_i`}</Tex> 之後兩個模式的 loop gain 都是 <Tex>{String.raw`\gamma=0.5`}</Tex>。圖上的 <Tex>{'m_i'}</Tex> 是<strong>正規化更新矩陣</strong>{' '}
+          <Tex>{String.raw`\mathbf M_n=K_q\mathbf M`}</Tex>（把 <Tex>{'K_q'}</Tex> 乘進去，無因次）沿第 <Tex>{'i'}</Tex> 個 eigenvector 的增益（<Tex>{String.raw`\mathbf M_n\mathbf v_i=m_i\mathbf v_i`}</Tex>），「loop gain」就是{' '}
+          <Tex>{String.raw`1-p_i=m_i\lambda_i`}</Tex>；所以 F-10.3 是 <Tex>{String.raw`m_i=\mu K_q`}</Tex>，下面的 F-10.4 是 <Tex>{String.raw`m_i=\gamma/\lambda_i\Rightarrow p_i=1-\gamma`}</Tex>。
+        </Fig>
         <Deriv title="為什麼一個反矩陣就能讓所有模式一樣快">
           <StepDerivation
             steps={[
@@ -442,8 +486,15 @@ export function S2UpdateMatrix() {
         </Callout>
         <p>
           <Tex>{String.raw`\mathbf R=\begin{bmatrix}1&0.99\\0.99&1\end{bmatrix}`}</Tex>：<Tex>{String.raw`\lambda_{\max}=${tn(r.eig[0])}`}</Tex>、
-          <Tex>{String.raw`\lambda_{\min}=${tn(r.eig[1])}`}</Tex>、<Tex>{String.raw`\kappa=${tn(r.cond, 5)}`}</Tex>。
+          <Tex>{String.raw`\lambda_{\min}=${tn(r.eig[1])}`}</Tex>、<Tex>{String.raw`\kappa=${tn(r.cond, 5)}`}</Tex>。要算的只有一件事：誤差衰減到 5%（下降 95%）需要幾個 block，記為{' '}
+          <Tex>{'k_{95}'}</Tex>。計算順序如下圖：
         </p>
+        <Fig id="k95-flow">
+          先沿上面一路由左到右：<Tex>{String.raw`\rho`}</Tex> → eigenvalue → 慢 pole → 兩個 <Tex>{String.raw`\ln`}</Tex> 相除、無條件進位，得到 {nint(r.blocksScalar)}。再看下面一路：完整反矩陣的 pole 直接是{' '}
+          <Tex>{String.raw`1-\gamma`}</Tex>，不必看 <Tex>{String.raw`\lambda`}</Tex>，得到 {nint(r.blocksFull)}。藍色那一格是最常見的錯誤：圖上的「<Tex>{String.raw`\mu K_q`}</Tex>」是一個無因次的數；手上的{' '}
+          <Tex>{String.raw`\mu`}</Tex> 若是 fs，要先乘上 <Tex>{'K_q'}</Tex>（<Tex>{String.raw`\mathrm{fs}^{-1}`}</Tex>）才能代進去（下表第 3、4 列就是弄錯單位的後果，第 5 列是正確的寫法）。圖上每一格對應下面的步驟 1–3；
+          <Tex>{String.raw`k_{95}`}</Tex> 那一格就是 F-10.5。
+        </Fig>
         <ol>
           <li>
             一般 LMS，<Tex>{String.raw`\mu K_q=0.5`}</Tex>：慢 pole <Tex>{String.raw`p_{\min}=1-0.5\times${tn(r.eig[1])}=${tn(r.slow)}`}</Tex>，快 pole{' '}
@@ -534,7 +585,8 @@ export function S2UpdateMatrix() {
           {String.raw`\mathbf R^{-1}=\frac{1}{1-\rho^2}\begin{bmatrix}1&-\rho\\-\rho&1\end{bmatrix}=${texMat(r.Rinv, 5)},\qquad \mathbf M_n=K_q\mathbf M=0.5\mathbf R^{-1}=${texMat(r.Mn, 5)}`}
         </TexBlock>
         <p>
-          規格說「反矩陣元素約 ±25」：其實 <Tex>{String.raw`\mathbf R^{-1}`}</Tex> 本身是{' '}
+          （<Tex>{String.raw`\mathbf M_n=K_q\mathbf M`}</Tex> 是把 <Tex>{'K_q'}</Tex> 乘進去之後的無因次「正規化更新矩陣」；實體的 <Tex>{String.raw`\mathbf M=\mathbf M_n/K_q`}</Tex> 單位是 fs。）規格說「反矩陣元素約 ±25」：其實{' '}
+          <Tex>{String.raw`\mathbf R^{-1}`}</Tex> 本身是{' '}
           <strong>
             {n(r.Rinv[0][0], 4)} / {n(r.Rinv[0][1], 4)}
           </strong>

@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Callout, ClaimTag, ModeGate, Prereq, Section, StepDerivation, TexBlock } from '@/components'
 import { corr2, eigenModes, meanSquareRadius } from '@/simulation/models/pe'
-import { DerivBox, Erratum, HandCalcBox, formulaTex, m, num, texNum } from '../shared'
+import { DerivBox, Diagram, Erratum, FigRef, HandCalcBox, formulaTex, m, num, texNum } from '../shared'
 
 /** 勘誤 E23：598 是 mean recursion 的結論；mean-square 可能完全不同。 */
 export function MeanSquare() {
@@ -23,13 +23,31 @@ export function MeanSquare() {
       <Callout kind="warn" title={<>T11 的標籤是 [精確｜mean recursion]（<Erratum id="E23" />）</>}>
         「慢 pole 0.995、約 598 blocks」描述的是 <strong>許多次實驗的平均</strong> {m`E[\boldsymbol\delta_k]`}。GMAC 的 {m`N`} 足夠大時，單一軌跡也大致照這個走；
         但若 conventional（linear detector）LMS 以 per-sample（{m`N=1`}）更新、regressor 為 Gaussian，{m`g=0.5`} 在 <strong>mean-square</strong>
-        意義下是發散的（{m`\rho_{\mathrm{MS}}\approx${texNum(table[0].gauss, 3)}`}）；{m`\pm1`} sparse-flip code 的個別軌跡則呈<strong>階梯式</strong>歸零，只有 ensemble 平均依
+        意義下是發散的（均方每個 block 的放大倍數 {m`\rho_{\mathrm{MS}}\approx${texNum(table[0].gauss, 3)}>1`}）；{m`\pm1`} sparse-flip code 的個別軌跡則呈<strong>階梯式</strong>歸零，只有 ensemble 平均依
         {m`0.995^k`} 衰減。
       </Callout>
 
+      <p>
+        「平均」與「均方」是對<strong>同一個</strong>隨機更新問兩個不同的問題。平均 {m`E[\boldsymbol\delta_k]`} 問的是「很多次實驗的誤差平均起來是多少」——
+        正的和負的會互相抵銷；均方 {m`E\|\boldsymbol\delta_k\|^2`} 問的是「誤差的<strong>大小</strong>平均起來是多少」——平方之後不會抵銷。
+        均方每個 block 的放大倍數記為 {m`\rho_{\mathrm{MS}}`}（mean-square 遞迴的 spectral radius，也就是最大的 eigenvalue 絕對值）：
+        {m`\rho_{\mathrm{MS}}<1`} 才代表誤差的大小真的在縮小。
+      </p>
+      <Diagram id="mean-vs-ms">
+        比較綠色與紅色方塊：同樣的 {m`g=0.5`}，mean 說「收斂」，{m`N=1`} 的 mean-square 卻說「發散」。
+      </Diagram>
+      <p>
+        <FigRef id="mean-vs-ms" /> 怎麼看：先看出發點——每個 block 的更新矩陣 {m`\mathbf I-g\hat{\mathbf R}_k`} 是<strong>隨機</strong>的，
+        {m`\hat{\mathbf R}_k`} 是這個 block 內 {m`N`} 筆 {m`\mathbf u\mathbf u^T`} 的平均。再看兩個分支——問平均時只需要
+        {m`E[\hat{\mathbf R}_k]=\mathbf R`}，得到上一節的 pole；問均方時 {m`\hat{\mathbf R}_k`} 出現兩次，需要四階動差，結果是另一個數 {m`\rho_{\mathrm{MS}}`}。
+        最後看寫著「block 加長」的方塊——{m`N`} 越大，{m`\hat{\mathbf R}_k`} 越接近 {m`\mathbf R`}，均方就回到「平均的平方」{m`p^2`}。
+        圖上的 {m`P`} 就是公式裡的 {m`\mathbf P_k=E[\boldsymbol\delta_k\boldsymbol\delta_k^T]`}，圖上的 {m`\hat R_k`} 就是推導裡的 {m`\hat{\mathbf R}_k`}，
+        紅色方塊的 1.98 就是 F-09.8 在 {m`N=1`} 時的 {m`\rho_{\mathrm{MS}}`}。
+      </p>
+
       <h3>先算一次：{m`N=1`} 時共模分量每一步乘上什麼？</h3>
       <p>
-        {m`\rho\to1`} 時 {m`\mathbf u\approx(z,z)`}、{m`z\sim\mathcal N(0,1)`}。一步更新 {m`\boldsymbol\delta\leftarrow(\mathbf I-0.5\,\mathbf u\mathbf u^T)\boldsymbol\delta`}
+        {m`\rho\to1`} 時 {m`\mathbf u\approx(z,z)`}，其中 {m`z\sim\mathcal N(0,1)`} 是標準高斯亂數（平均 0、變異數 1）。一步更新 {m`\boldsymbol\delta\leftarrow(\mathbf I-0.5\,\mathbf u\mathbf u^T)\boldsymbol\delta`}
         在共模方向上乘的是 {m`1-0.5\cdot\|\mathbf u\|^2=1-0.5\cdot2z^2=1-z^2`}——一個<strong>隨機</strong>的倍數：
       </p>
       <div className="table-wrap">
@@ -80,6 +98,10 @@ export function MeanSquare() {
       </Prereq>
 
       <h3>一般式：block 長度 {m`N`} 的 mean-square 遞迴</h3>
+      <p>
+        要追蹤誤差的「大小」，就把誤差兩兩相乘再平均，排成矩陣 {m`\mathbf P_k=E[\boldsymbol\delta_k\boldsymbol\delta_k^T]`}：對角線是每個參數誤差的均方值
+        {m`E[\delta_i^2]`}，非對角線是兩個誤差的相關 {m`E[\delta_1\delta_2]`}。下面推導它每經過一個 block 怎麼變（就是 <FigRef id="mean-vs-ms" /> 的「問法 2」）：
+      </p>
       <DerivBox title={<>推導 {m`\mathbf P_{k+1}`}（linear detector、無雜訊、{m`\mathbf u`} 跨 sample 獨立）</>}>
         <StepDerivation
           steps={[
@@ -140,19 +162,29 @@ export function MeanSquare() {
 
       <h3>{m`\pm1`} code：階梯式歸零</h3>
       <p>
-        {m`\pm1`} sparse-flip code（{m`u_2=s\,u_1`}，{m`P(s=-1)=(1-\rho)/2=0.005`}）每個 sample 的 {m`\mathbf u\mathbf u^T`} 只有兩種：
+        {m`\pm1`} sparse-flip code（{m`u_2=s\,u_1`}，其中 {m`s=\pm1`} 是每個 sample 獨立抽的符號，{m`P(s=-1)=(1-\rho)/2=0.005`}）每個 sample 的 {m`\mathbf u\mathbf u^T`} 只有兩種：
         {m`\begin{bmatrix}1&1\\1&1\end{bmatrix}`} 或 {m`\begin{bmatrix}1&-1\\-1&1\end{bmatrix}`}，{m`\mathbf I-0.5\,\mathbf u\mathbf u^T`} 剛好是把共模或差模
         <strong>整個投影掉</strong>（{m`\boldsymbol\Pi_\pm=\tfrac12\begin{bmatrix}1&\pm1\\\pm1&1\end{bmatrix}`} 是投影矩陣：{m`\boldsymbol\Pi^2=\boldsymbol\Pi`}，
         它把向量在 {m`(1,\pm1)`} 方向的分量原封不動留下、垂直的分量變成 0；{m`\mathbf I-\boldsymbol\Pi_\pm`} 則反過來）。所以 {m`N=1`} 時差模座標要嘛還是初值、
         要嘛（第一次 flip 之後）精確為 0：
       </p>
-      <StepDerivation
-        steps={[
-          { tex: String.raw`c_{2,k}=c_{2,0}\cdot\mathbf 1\{\text{前 }k\text{ 個 sample 都沒有 flip}\}`, why: <>{m`g=0.5`} 時只有 flip（{m`s=-1`}）的 sample 會把差模一次消掉，其餘 sample 完全不動它。</> },
-          { tex: String.raw`P(\text{沒有 flip})=0.995^k`, why: <>每個 sample 獨立，{m`P(s=+1)=0.995`}，機率相乘。</> },
-          { tex: String.raw`E[c_{2,k}]=0.995^k\,c_{2,0},\qquad E[c_{2,k}^2]=0.995^k\,c_{2,0}^2`, why: <>指示函數的平方仍是自己 {m`\Rightarrow`} 均方也是 {m`0.995^k`}（不是 {m`0.995^{2k}`}）。</> },
-        ]}
-      />
+      <Diagram id="pm1-staircase">
+        看兩個狀態之間的箭頭：差模 {m`c_2`} 只會從「平台」掉到「歸零」一次，掉下去的時刻是隨機的，所以每一條軌跡都是階梯。
+      </Diagram>
+      <p>
+        <FigRef id="pm1-staircase" /> 怎麼看：先看「平台」——{m`s=+1`}（機率 {m`(1+\rho)/2=0.995`}）的 sample 只把共模消掉，完全不動差模，所以 {m`c_2`} 停在初值 {m`c_{2,0}`}
+        （自己指回自己的那個箭頭）。再看通往「歸零」的箭頭——第一次出現 flip（{m`s=-1`}，機率 {m`(1-\rho)/2=0.005`}）的那個 sample 把差模整個消掉，之後 {m`c_2=0`}，
+        不論後面抽到 {m`s=+1`} 或 {m`s=-1`} 都不會再變。圖上「平台」的 0.995 就是下面推導第二行 {m`P(\text{沒有 flip})=0.995^k`} 的底數；「歸零」就是第一行指示函數 {m`\mathbf 1\{\cdot\}`} 變成 0 的那一刻。
+      </p>
+      <div id="ch09-pm1-derivation">
+        <StepDerivation
+          steps={[
+            { tex: String.raw`c_{2,k}=c_{2,0}\cdot\mathbf 1\{\text{前 }k\text{ 個 sample 都沒有 flip}\}`, why: <>{m`g=0.5`} 時只有 flip（{m`s=-1`}）的 sample 會把差模一次消掉，其餘 sample 完全不動它。</> },
+            { tex: String.raw`P(\text{沒有 flip})=0.995^k`, why: <>每個 sample 獨立，{m`P(s=+1)=0.995`}，機率相乘。</> },
+            { tex: String.raw`E[c_{2,k}]=0.995^k\,c_{2,0},\qquad E[c_{2,k}^2]=0.995^k\,c_{2,0}^2`, why: <>指示函數的平方仍是自己 {m`\Rightarrow`} 均方也是 {m`0.995^k`}（不是 {m`0.995^{2k}`}）。</> },
+          ]}
+        />
+      </div>
       <p>
         平均照 {m`0.995^k`} 走，但<strong>沒有任何一條軌跡</strong>長得像平均：每一條都是「平台 → 突然歸零」。實驗室的「{m`\pm1`} code」preset 可以直接看到。
         <ClaimTag kind="exact" />
@@ -162,6 +194,15 @@ export function MeanSquare() {
       <p>
         上面的 {m`\mathcal K(\mathbf P)`} 來自 linear detector 的 {m`t=e=\mathbf u^T\boldsymbol\delta+v`}：同一個 sample 的 {m`\mathbf u`} 出現四次。
         1-bit 時 {m`t=q=\mathrm{sign}(e)`}，而 {m`q^2\equiv1`}，同一 sample 的二次項變成與 {m`\boldsymbol\delta`} 無關的常數：
+      </p>
+      <Diagram id="linear-vs-sign">
+        比較紅色與綠色方塊：linear 多出來的那一項會隨 {m`\mathbf P`} 放大（可以越滾越大），1-bit 多出來的只是一個固定的注入量。
+      </Diagram>
+      <p>
+        <FigRef id="linear-vs-sign" /> 怎麼看：先看 linear 那一框——{m`t\,\mathbf u`} 裡同一個 {m`\mathbf u`} 出現兩次，增量的大小正比於目前的誤差，
+        所以均方遞迴多出一項會跟著 {m`\mathbf P`} 變大的四階動差項。再看 1-bit 那一框——{m`q`} 只有 {m`\pm1`}，增量的大小與誤差無關，均方只多一個固定的雜訊注入。
+        圖上的 {m`K(P)`} 就是公式裡的 {m`\mathcal K(\mathbf P)=E[\mathbf u\mathbf u^T\mathbf P\mathbf u\mathbf u^T]`}；紅色方塊對應 F-09.8 中括號裡帶
+        {m`\tfrac1N`} 的那一項，綠色方塊對應 F-09.18 最後的 {m`\tfrac{\mu^2}{N}\mathbf R`}。
       </p>
       <DerivBox title={<>推導 1-bit 的均方遞迴（小訊號線性化）</>}>
         <StepDerivation

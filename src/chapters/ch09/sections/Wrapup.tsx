@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { Callout, ClaimTag, Quiz, Recap, Section, StepDerivation } from '@/components'
 import { eigSym } from '@/simulation/core'
 import { KQ_SIGMA100, eigenModes, corr2, gaugeNullVector, meanSquareRadius, pm1DegenerateProb, stepsToDecay } from '@/simulation/models/pe'
-import { Erratum, HandCalcBox, m, texNum } from '../shared'
+import { Diagram, Erratum, FigRef, HandCalcBox, m, texNum } from '../shared'
 
 /** P 相 one-hot ＋ 共用 offset 的解析 R_x = [[1, 1ᵀ/P], [1/P, I/P]]（iid 等機率） */
 function onehotRx(P: number): number[][] {
@@ -54,6 +54,19 @@ export function Wrapup() {
   return (
     <>
       <Section kind="assumptions" title="PE 不足時，哪些「調參」有用、哪些沒用？" level={2} id="ch09-compare">
+        <p>
+          先把整章收成一張決策樹：拿到一個校正架構，怎麼判斷「這個參數學得到嗎」？
+        </p>
+        <Diagram id="identifiable-tree">
+          從上往下回答三個藍色的問題；走到紅色方塊就表示任何「調參」都救不了，必須改激發或改參數化。
+        </Diagram>
+        <p>
+          <FigRef id="identifiable-tree" /> 怎麼用：挑一個你關心的參數方向 {m`\mathbf v`}（單一參數，或是「共模」「差模」這類組合）。先問 ①（結構）——PD 端的
+          regressor 在這個方向上有沒有投影？沒有的話（例如 gauge、{m`\rho=1`}），{m`\lambda=0`}，只能改參數化或另找觀測路徑。再問 ②（時間）——
+          是不是<strong>每一個</strong>窗口都有能量？有些窗口沒有的話，只有在好的窗口才學得到。最後問 ③（快慢）——{m`\kappa`} 很大時學得到，但要等很久。
+          圖上 ① 的「pole = 1」就是 F-09.4 在 {m`\lambda_i=0`} 時的 {m`p_i=1`}；② 就是 F-09.9 的 PE 定義；③ 的 {m`k_{95}\approx\ln20/(g\lambda_{\min})`}
+          就是 F-09.6 的近似式。下表把圖上每一種對策（以及兩種常見但沒用的做法）的效果列出來：
+        </p>
         <div className="table-wrap">
           <table className="ch09-table">
             <thead>
@@ -81,7 +94,7 @@ export function Wrapup() {
                 <td className="ch09-left">不能</td>
               </tr>
               <tr>
-                <td className="ch09-left">Preconditioner {m`\mathbf M=\gamma(K_q\mathbf R)^{-1}`}（第 10 章）</td>
+                <td className="ch09-left">Preconditioner {m`\mathbf M=\gamma(K_q\mathbf R)^{-1}`}（第 10 章：{m`\mathbf M`} 是矩陣步長、{m`\gamma`} 是無因次步長）</td>
                 <td className="ch09-left">等效 {m`\kappa\to1`}</td>
                 <td className="ch09-left">所有 pole {m`=1-\gamma`}</td>
                 <td className="ch09-left">慢方向雜訊被放大 {m`\propto1/\lambda_{\min}`}</td>
@@ -103,7 +116,7 @@ export function Wrapup() {
               </tr>
               <tr>
                 <td className="ch09-left">Leakage／regularization</td>
-                <td className="ch09-left">等效 {m`\lambda_i\to\lambda_i+\varepsilon`}（{m`\mathbf I-\mu(K_q\mathbf R+\varepsilon\mathbf I)`}）</td>
+                <td className="ch09-left">等效 {m`\lambda_i\to\lambda_i+\varepsilon`}（{m`\varepsilon`} 是 leakage 的強度；{m`\mathbf I-\mu(K_q\mathbf R+\varepsilon\mathbf I)`}）</td>
                 <td className="ch09-left">被拉向先驗值</td>
                 <td className="ch09-left">有界</td>
                 <td className="ch09-left">只能讓它「有界且有 bias」</td>
@@ -123,6 +136,14 @@ export function Wrapup() {
           做思考題之前，先把整章的三件事用同一組數字串起來：<strong>穩定</strong>看 {m`g\lambda_{\max}`}、<strong>速度</strong>看 {m`g\lambda_{\min}`}、
           <strong>PE</strong> 看每一個窗口。這一題用的是物理單位（1-bit comparator 的 {m`\sigma_v`} 與 {m`\mu`} 都以 {m`\mathrm{fs}`} 計），
           所以第一步就是把 {m`\mu`} 換成無因次的 {m`g=\mu K_q`}（<Erratum id="E05" />）。
+        </p>
+        <Diagram id="synthesis-flow">
+          跟著 ① → ⑧ 算：前兩格換單位，藍色菱形檢查穩定，接著算速度，最後兩格回到「每一個窗口」。
+        </Diagram>
+        <p>
+          <FigRef id="synthesis-flow" /> 怎麼看：先看 ①②——{m`\sigma_v`}（comparator 前雜訊的標準差）決定 {m`K_q`}，{m`K_q`} 把帶單位的 {m`\mu`} 換成無因次的 {m`g`}。
+          再看 ③④——穩定只看 {m`g\lambda_{\max}`}；⑤⑥——速度只看 {m`g\lambda_{\min}`}。最後 ⑦⑧——長期平均沒問題，不代表每一個長度 {m`N_0`} 的窗口都沒問題。
+          圖上 ①–⑧ 的每一格，就是下面手算題裡的一到兩個步驟（⑥ 是 F-09.6、⑦ 是 F-09.11、⑧ 是 F-09.12）。
         </p>
         <HandCalcBox id="HC-09.8">
           填入你的 {m`\sigma_v`}、{m`\mu`}、{m`\rho`} 與窗口長度 {m`N_0`}，用紙筆和工程計算機（{m`\sqrt{\ }`}、{m`\ln`}、{m`y^x`}）算出 {m`g`}、{m`k_{95}`}

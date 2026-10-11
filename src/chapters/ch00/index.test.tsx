@@ -7,6 +7,7 @@ import { conventionalStep } from '@/simulation/models/lms'
 import { num } from './format'
 import Chapter00 from './index'
 import { HAND_CALC_PARAMS, HandCalcSection, HandCalcTable } from './sections/HandCalc'
+import { SYMBOLS } from './sections/Symbols'
 import { IntroPlayground } from './experiments/IntroPlayground'
 import { NoiseAverageLab } from './experiments/NoiseAverageLab'
 
@@ -52,6 +53,44 @@ function texText(el: Element | null | undefined): string {
 function headingTexts(root: HTMLElement): string[] {
   return Array.from(root.querySelectorAll('h1, h2, h3, h4')).map((h) => texText(h).trim())
 }
+
+/**
+ * 符號表移到章末之後（teaching-style §5），正文裡每個符號第一次出現的段落都要有一句白話說明。
+ * [段落, 這一段必須出現的說明]；符號以 KaTeX 的 TeX 原始碼比對（見 texText）。
+ */
+const EXPLAINED_AT_FIRST_USE: [string, string][] = [
+  ['ch00-blackbox', '餵它一個輸入 $x$'], // x、y
+  ['ch00-blackbox', '乘上一個固定的數 $a$'], // a
+  ['ch00-blackbox', '把這個雜訊記為 $v$（時正時負、平均是 0）'], // v
+  ['ch00-blackbox', '一個可以調的數 $w$，代表「目前猜 $a$ 是多少」'], // w
+  ['ch00-blackbox', String.raw`$\hat y=wx$ 叫預測`], // ŷ
+  ['ch00-blackbox', String.raw`$e=y-\hat y$ 叫誤差`], // e
+  ['ch00-blackbox', '讀作「a hat」，下標 LS 是 least squares'], // â_LS
+  ['ch00-loop', '下標 $n$ 表示「第 $n$ 筆資料」'], // n
+  ['ch00-loop', String.raw`這一小步記為 $\Delta w_n$（更新量）`], // Δw
+  ['ch00-loop', String.raw`一個我們自己選的小正數 $\mu$ 控制，稱為學習率`], // μ
+  ['ch00-hand', String.raw`參數誤差 $\delta_n=a-w_n$，也就是「猜測離真正的 $a$ 還差多少」`], // δ
+  ['ch00-hand', '把這個倍數記為 $p$，稱為 pole（極點）'], // p
+  ['ch00-playground', String.raw`它的標準差（RMS，抖動的典型大小）記為 $\sigma_v$`], // σ_v
+  ['ch00-why-ex', String.raw`穩定上限 $\mu_{\max}=2/x^2$`], // μ_max
+  ['ch00-why-ex', String.raw`定義「這筆資料讓我們多不滿意」的分數 $j_n(w)=\tfrac12e_n^2$`], // j_n
+  ['ch00-why-ex', '$J(w)$ 是平均成本'], // J(w)
+  ['ch00-why-ex', String.raw`$E[\cdot]$ 讀作「期望值」`], // E[·]
+  ['ch00-noise', '變異數（variance）'], // Var
+  ['ch00-noise', String.raw`記為 $\bar G_N$（$G$ 上面一橫表示平均）`], // Ḡ_N
+  ['ch00-noise', String.raw`單獨一筆 $e\,x$ 的標準差記為 $s_1$`], // s_1
+  ['ch00-noise', String.raw`累積分布函數（CDF）記為 $\Phi(z)=P(Z\le z)`], // Φ
+  ['ch00-noise', '重複 $M$ 次獨立試驗'], // M
+  ['ch00-why-matters', String.raw`比較器只留下正負號，記為 $q_n=\mathrm{sign}(e_n)$`], // q
+  ['ch00-why-matters', '取平均，記為 $G_k$'], // G_k
+  ['ch00-why-matters', '是每 $N$ 筆組成的一個 block'], // k
+  ['ch00-sign', String.raw`$q$ 的平均不是 0，而是一個很小的正數，記為 $m_q=E[q]$`], // m_q
+  ['ch00-sign', '加起來的總和記為 $S_N$'], // S_N
+  ['ch00-assumptions', String.raw`記為 $\varepsilon_{cc}=\kappa\,x$`], // κ、ε_cc
+  ['ch00-assumptions', "其中 $v'$ 才是和 $x$ 無關的雜訊"], // v'
+  ['ch00-assumptions', '記為 $w^*$'], // w*
+  ['ch00-assumptions', String.raw`誤差降到 1% 所需的步數 $n_{1\%}$`], // n_{1%}
+]
 
 afterEach(() => {
   localStorage.clear()
@@ -133,12 +172,47 @@ describe('Ch00 整頁 smoke test', () => {
       '§0.11 思考題',
       '§0.12 本課必記',
       '§0.13 學習地圖：15 個問題在哪裡回答',
+      '§0.14 本章符號表',
     ]) {
       // 標題內含 KaTeX（MathML）時，jsdom 的 accessible-name 計算會出錯，所以直接比對標題文字
       expect(headingTexts(container)).toContain(t)
     }
-    // 符號表、勘誤標記（連到驗證頁）、程式碼區塊
-    expect(screen.getByText('本章符號')).toBeTruthy()
+    // 符號表在章末（teaching-style §5）：#symbols 是整章最後一個區塊（排在本課必記、學習地圖之後），SymbolTable 是它裡面最後一個元素
+    const following = (a: Element, b: Element) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+    const root = container.querySelector('.ch00')!
+    const symbols = container.querySelector('#symbols')!
+    expect(root.lastElementChild).toBe(symbols)
+    expect(symbols.previousElementSibling?.id).toBe('ch00-map')
+    expect(following(container.querySelector('#ch00-recap')!, symbols)).toBe(true)
+    expect(container.querySelectorAll('.c-symbols')).toHaveLength(1)
+    const table = symbols.querySelector('.c-symbols')!
+    expect(screen.getByText('本章符號')).toBe(table.querySelector('.c-symbols-title'))
+    expect(symbols.querySelector('.c-section-body')!.lastElementChild).toBe(table)
+    expect(table.querySelectorAll('tbody tr')).toHaveLength(SYMBOLS.length)
+    // 章首只留一行「本章符號表在最後」：是按鈕（HashRouter 下 href="#symbols" 會被當成路由），而且在 §0.1 之前
+    const jump = screen.getByText('本章符號表在最後 ↓')
+    expect(jump.tagName).toBe('BUTTON')
+    expect(jump.parentElement?.textContent).toBe('本章符號表在最後 ↓')
+    expect(following(jump, container.querySelector('#ch00-blackbox')!)).toBe(true)
+    expect(following(container.querySelector('.ch00-question')!, jump)).toBe(true)
+    expect(container.querySelector('a[href="#symbols"], a[href$="#symbols"]')).toBeNull()
+    // 按下去會捲到章末的 #symbols；符號表旁的「回到章首」捲回章首（jsdom 沒有 scrollIntoView，這裡裝一個假的）
+    const scroll = vi.fn()
+    Element.prototype.scrollIntoView = scroll
+    try {
+      fireEvent.click(jump)
+      expect(scroll.mock.contexts).toEqual([symbols])
+      fireEvent.click(within(symbols as HTMLElement).getByText('↑ 回到章首'))
+      expect(scroll.mock.contexts).toEqual([symbols, root])
+      expect(root.id).toBe('ch00-top')
+    } finally {
+      delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView
+    }
+    // 符號表不在章首了：每個符號第一次出現的段落都有一句白話說明（三種模式都看得到），「首次出現」欄也不留白
+    for (const [id, phrase] of EXPLAINED_AT_FIRST_USE)
+      expect(texText(container.querySelector(`#${id}`)).replace(/\s+/g, ' '), `${id}：${phrase}`).toContain(phrase)
+    for (const row of SYMBOLS) expect(row.firstSeen, row.symbol).toMatch(/^(§0\.\d+|章首圖例)$/)
+    // 勘誤標記（連到驗證頁）、程式碼區塊
     const errata = Array.from(container.querySelectorAll('.ch00-erratum-badge')).map((a) => a.textContent)
     expect(errata).toEqual(expect.arrayContaining(['勘誤 E39', '勘誤 E40', '勘誤 E41']))
     // 本章沿用全站更正後的符號：總和 S_N / m_q（E18）、code-correlated 干擾 κ（E12）

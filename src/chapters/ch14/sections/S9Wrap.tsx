@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
 import { ClaimTag, Quiz, Recap, Section, Tex, TexBlock } from '@/components'
 import { cornerInterval, loopGainK, msdAfterBlocks, optimizeMu } from '@/simulation/models/optimizer'
+import { Diagram } from '../Diagram'
+import { CHART_HAND_FLOW } from '../diagrams'
 import { Hand } from '../Hand'
 import { BIAS2, md, nf, tx } from '../shared'
 
@@ -119,6 +121,15 @@ export function S9Wrap() {
         <p>
           做思考題之前，先把整章串起來算一次：從規格（<Tex>{'\\sigma_v,\\ N,\\ T,\\ \\delta_0,\\ \\epsilon'}</Tex>）一路算到 <Tex>{'\\mu'}</Tex>、pole、PM 與 RMS，會用到 §14.1 的 F-14.3、§14.2 的 F-14.10／F-14.14 與 §14.5 的 F-14.15。
         </p>
+        <Diagram chart={CHART_HAND_FLOW} caption="綜合手算的計算順序：照編號一格一格算；最下面是預設數字的答案，用來對照課程的計算器。">
+          <p>
+            <strong>先看</strong>①②：由規格算出更新次數 <Tex>{'B'}</Tex> 與斜率 <Tex>{'K'}</Tex>。<strong>再看</strong>③④（藍色）：收斂要求決定每個 block 要縮到的倍數 <Tex>{'\\epsilon^{1/B}'}</Tex>，由它反推 <Tex>{'\\mu'}</Tex>；⑤是現成的驗算（pole{' '}
+            應該等於③）。<strong>最後</strong>三條分支各算一個指標：⑥ phase margin、⑦ 時間常數 <Tex>{'\\tau'}</Tex>、⑧⑨ 均方誤差與 RMS。
+          </p>
+          <p>
+            圖上每一格就是下面手算題的一步或幾步（⑧在題目裡拆成 {BIAS2}、每次注入的雜訊、等比和三小步）；④的 <Tex>{'\\mu=(1-\\epsilon^{1/B})/K'}</Tex> 是 F-14.15 的單一 corner 版，⑥是 F-14.14，⑧是 F-14.3。
+          </p>
+        </Diagram>
         <Hand id="HC-14.8">
           預設值就是 §14.4 的第 10 課條件：先不要看詳解，用紙筆和計算機算出課程宣稱的四個數字，再換成你自己的規格（也試試把 <Tex>{'\\theta'}</Tex> 改成 <Tex>{'60^\\circ'}</Tex> 或 <Tex>{'95^\\circ'}</Tex>）。
         </Hand>

@@ -27,7 +27,8 @@ import {
 } from '../errata'
 import { ERRATA_MATH } from '../errataMath'
 import { testsForErratum } from '../data'
-import { FBlock, M, PassMark, useAcceptance, type ErratumLiveCheck } from '../common'
+import { Diagram, FBlock, M, PassMark, useAcceptance, type ErratumLiveCheck } from '../common'
+import { CHART_ERRATA_FLOW } from '../diagrams'
 import type { ErratumEvidence } from '@/simulation/models/acceptance'
 import { texNum } from '../format'
 
@@ -232,6 +233,19 @@ export function ErrataBrowser({ focusEid }: { focusEid: string | null }) {
         <strong>{ERRATA.length} 項</strong>列為勘誤（high {counts.high}、medium {counts.medium}、low {counts.low}），另有 {REFUTED.length} 項被反駁而不列入。網站
         <strong>一律採用修正後的版本</strong>；各章出現「勘誤 Exx」標記的地方都連到這裡。
       </p>
+      <Diagram
+        chart={CHART_ERRATA_FLOW}
+        caption="一項聲明怎麼變成勘誤卡片：稽核者重算、懷疑者反駁，反駁失敗才列入；網站再用它修正各章，部分勘誤另有瀏覽器即時重算的證據。"
+        ariaLabel="勘誤的流程：規格書的聲明由稽核 agent 用 Python 重算；一致就不需要勘誤；不一致再交給獨立的懷疑者反駁，反駁成功不列為勘誤，反駁失敗才成為勘誤，寫進 errata.json，網站採用修正後版本並顯示勘誤卡片"
+      >
+        <p>
+          <strong>先看</strong>
+          左邊兩個菱形：稽核 agent 的 Python 重算結果和規格書<strong>不一致</strong>，還要再過一關——獨立的懷疑者嘗試反駁；反駁成功的意見放進「被反駁」清單（本節最後），<strong>反駁失敗</strong>
+          才成為藍色的勘誤 Exx。<strong>再看</strong>
+          右邊：勘誤寫進 <code>errata.json</code> 之後分兩條路——網站各章一律採用修正後的版本，並放上連到本頁的「勘誤 Exx」標記；另外，有數字可以重算的勘誤，由{' '}
+          <code>computeErrataEvidence()</code> 在你的瀏覽器裡重算文件引用的數字。兩條路在本頁的勘誤卡片會合。
+        </p>
+      </Diagram>
       <p>每張卡片由上而下：</p>
       <ol>
         <li>

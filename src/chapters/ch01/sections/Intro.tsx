@@ -1,306 +1,9 @@
 import { useMemo } from 'react'
-import { ClaimTag, Mermaid, Prereq, Section, SourceTag, StepDerivation, SymbolTable, Tex, TexBlock, type SymbolEntry } from '@/components'
+import { ClaimTag, Prereq, Section, SourceTag, StepDerivation, SystemMap, Tex, TexBlock } from '@/components'
 import { mean } from '@/simulation/core'
 import { batchL1, batchL2 } from '@/simulation/models/lossCompare'
-import { Erratum, f, texNum } from '../common'
-
-export const SYMBOLS: SymbolEntry[] = [
-  {
-    symbol: 'a',
-    meaning: '黑盒子裡真正的係數（未知）',
-    unit: String.raw`[y]/[x]`,
-    firstSeen: '§1.0',
-    note: 'PLL 中例如 DTC gain（fs / code）',
-  },
-  {
-    symbol: 'x,\\ x_n',
-    meaning: (
-      <>
-        輸入／regressor（第 <Tex>{'n'}</Tex> 筆）
-      </>
-    ),
-    unit: String.raw`[x]`,
-    firstSeen: '§1.0',
-    note: 'PLL 中為正規化 DSM code，通常無因次',
-  },
-  { symbol: 'y,\\ y_n', meaning: '量測到的輸出', unit: String.raw`[y]`, firstSeen: '§1.0' },
-  { symbol: 'v,\\ v_n', meaning: '量測雜訊', unit: String.raw`[y]`, firstSeen: '§1.0', note: <>本章（除思考題 4 的反例）假設零均值、與 <Tex>{'x'}</Tex> 獨立</> },
-  {
-    symbol: 'w,\\ w_n',
-    meaning: (
-      <>
-        我們可以調的參數（第 <Tex>{'n'}</Tex> 次更新前）
-      </>
-    ),
-    unit: String.raw`[y]/[x]`,
-    firstSeen: '§1.0',
-    note: 'PLL 中為 gain register 的內容',
-  },
-  {
-    symbol: '\\hat y=wx',
-    meaning: (
-      <>
-        用目前的 <Tex>{'w'}</Tex> 做的預測
-      </>
-    ),
-    unit: String.raw`[y]`,
-    firstSeen: '§1.0',
-  },
-  {
-    symbol: 'e=y-wx',
-    meaning: '誤差（error）＝量測 − 預測',
-    unit: String.raw`[y]`,
-    firstSeen: '§1.0',
-    note: (
-      <>
-        全站約定 <Tex>{String.raw`e=y-\hat y`}</Tex>（規格 §0）
-      </>
-    ),
-  },
-  {
-    symbol: 'n',
-    meaning: 'sample 索引（第幾筆資料／第幾次更新）',
-    firstSeen: '§1.0',
-    note: (
-      <>
-        <Tex>{'k'}</Tex> 保留給 GMAC block（Part B）；§1.3 的 GD 迭代也用 <Tex>{'k'}</Tex>
-      </>
-    ),
-  },
-  { symbol: 'N', meaning: '資料筆數／更新次數', firstSeen: '§1.1', note: <>GMAC 的累加長度也記作 <Tex>{'N'}</Tex>（Part B）</> },
-  { symbol: 'E[\\cdot]', meaning: '期望值（很多次的平均）', firstSeen: '§1.1', note: '見先備知識框' },
-  {
-    symbol: String.raw`\arg\min_w J(w)`,
-    meaning: (
-      <>
-        「讓 <Tex>{'J(w)'}</Tex> 最小的那個 <Tex>{'w'}</Tex>」（不是最小值本身）
-      </>
-    ),
-    firstSeen: '§1.1',
-  },
-  {
-    symbol: 'J(w)=\\tfrac12E[(y-wx)^2]',
-    meaning: (
-      <>
-        MSE 成本（本站含 <Tex>{String.raw`\tfrac12`}</Tex>）
-      </>
-    ),
-    unit: String.raw`[y]^2`,
-    firstSeen: '§1.2',
-    note: (
-      <>
-        規格寫 <Tex>{'J_2=E[(y-wx)^2]'}</Tex>，argmin 相同；<Erratum id="E41" />
-      </>
-    ),
-  },
-  { symbol: 'j_n=\\tfrac12e_n^2', meaning: '單筆成本', unit: String.raw`[y]^2`, firstSeen: '§1.3', note: <Tex>{'E[j_n]=J(w)'}</Tex> },
-  {
-    symbol: String.raw`J_{\text{MSE}},\ J_{\text{MAE}},\ J_{\text{Huber}}`,
-    meaning: (
-      <>
-        三種損失的平均成本 <Tex>{String.raw`E[\rho_2(e)]`}</Tex>、<Tex>{String.raw`E[\rho_1(e)]`}</Tex>、<Tex>{String.raw`E[\rho_H(e)]`}</Tex>
-      </>
-    ),
-    firstSeen: '§2.3',
-    note: (
-      <>
-        <Tex>{String.raw`J_{\text{MSE}}=J=\tfrac12J_2`}</Tex>（含 <Tex>{String.raw`\tfrac12`}</Tex>）；<Tex>{'J_2'}</Tex> 專指規格沒有{' '}
-        <Tex>{String.raw`\tfrac12`}</Tex> 的版本
-      </>
-    ),
-  },
-  {
-    symbol: 'w^*',
-    meaning: (
-      <>
-        讓成本最小的 <Tex>{'w'}</Tex>（最佳解）
-      </>
-    ),
-    unit: String.raw`[y]/[x]`,
-    firstSeen: '§1.2',
-    note: (
-      <>
-        MSE：<Tex>{'E[xy]/E[x^2]'}</Tex>；MAE：（加權）中位數
-      </>
-    ),
-  },
-  { symbol: 'P_x=E[x^2]', meaning: '輸入功率', unit: String.raw`[x]^2`, firstSeen: '§1.2', note: '拋物線的曲率' },
-  {
-    symbol: '\\mu',
-    meaning: '學習率（step size）',
-    unit: String.raw`1/[x]^2`,
-    firstSeen: '§1.3',
-    note: (
-      <>
-        Conventional／Huber LMS 的單位；Sign-Error 是 <Tex>{String.raw`[y]/[x]^2`}</Tex>、Sign-Sign 是 <Tex>{String.raw`[y]/[x]`}</Tex>（
-        <Tex>{String.raw`\operatorname{sign}(\cdot)`}</Tex> 無因次）。本章例題的 <Tex>{'x'}</Tex>、<Tex>{'y'}</Tex> 都是純數字；硬體暫存器{' '}
-        <code>REG_LMS_MU</code>
-      </>
-    ),
-  },
-  {
-    symbol: '\\delta_n=a-w_n',
-    meaning: '剩餘參數誤差',
-    unit: String.raw`[y]/[x]`,
-    firstSeen: '§1.4',
-    note: (
-      <>
-        本章採 <Tex>{'a-w'}</Tex>（規格 §3 寫 <Tex>{'w-a'}</Tex>）；<Erratum id="E39" />
-      </>
-    ),
-  },
-  {
-    symbol: 'p=1-\\mu x^2',
-    meaning: (
-      <>
-        固定 <Tex>{'x'}</Tex> 時的離散 pole（每步誤差乘上的倍數）
-      </>
-    ),
-    firstSeen: '§1.4',
-    note: (
-      <>
-        <Tex>{'|p|<1'}</Tex> ⇔ 收斂
-      </>
-    ),
-  },
-  { symbol: '\\sigma_v', meaning: 'Gaussian 雜訊標準差', unit: String.raw`[y]`, firstSeen: '§1.4.1' },
-  {
-    symbol: '\\rho(e),\\ \\psi(e)',
-    meaning: (
-      <>
-        損失函數與其導數 <Tex>{String.raw`\psi=d\rho/de`}</Tex>（influence function）
-      </>
-    ),
-    firstSeen: '§2.1',
-    note: (
-      <>
-        下標 <Tex>{'2,1,H'}</Tex> = MSE、MAE、Huber
-      </>
-    ),
-  },
-  {
-    symbol: '\\delta_H',
-    meaning: 'Huber 門檻',
-    unit: String.raw`[y]`,
-    firstSeen: '§2.1',
-    note: (
-      <>
-        下標 H：與參數誤差 <Tex>{String.raw`\delta_n`}</Tex> 不同
-      </>
-    ),
-  },
-  {
-    symbol: '\\operatorname{sign}(\\cdot)',
-    meaning: (
-      <>
-        取正負號；<Tex>{String.raw`\operatorname{sign}(0)`}</Tex> 的慣例必須明定
-      </>
-    ),
-    firstSeen: '§2.2',
-    note: (
-      <>
-        <Tex>{String.raw`0\ /\ {+1}\ /\ {-1}`}</Tex>；<Erratum id="E40" />
-      </>
-    ),
-  },
-  { symbol: '\\partial f(e_0)', meaning: '次梯度（subgradient）集合', firstSeen: '§2.2', note: '見先備知識框' },
-  {
-    symbol: String.raw`\operatorname{clip}(e,-\delta_H,\delta_H)`,
-    meaning: (
-      <>
-        把 <Tex>{'e'}</Tex> 截在 <Tex>{String.raw`[-\delta_H,\delta_H]`}</Tex> 之內（超出就取端點）
-      </>
-    ),
-    unit: String.raw`[y]`,
-    firstSeen: '§2.1',
-    note: (
-      <>
-        Huber 的 <Tex>{'\\psi_H'}</Tex>
-      </>
-    ),
-  },
-  { symbol: String.raw`\#\{\cdot\}`, meaning: '滿足括號內條件的資料筆數', firstSeen: '§2.3', note: 'MAE 的導數 = 計數差' },
-  {
-    symbol: 'P(\\cdot)',
-    meaning: '事件的機率（重複很多次時，該事件發生的比例）',
-    firstSeen: '§2.3.1',
-    note: (
-      <>
-        例：從 <Tex>{String.raw`\{0,0,0,10\}`}</Tex> 等機率抽，<Tex>{String.raw`P(y=0)=\tfrac34`}</Tex>
-      </>
-    ),
-  },
-  {
-    symbol: '\\overline w',
-    meaning: (
-      <>
-        <Tex>{'w_n'}</Tex> 的長時間平均（穩態時間平均）
-      </>
-    ),
-    unit: String.raw`[y]/[x]`,
-    firstSeen: '§2.3.1',
-  },
-  {
-    symbol: '\\pi_k,\\ u_k,\\ d_k',
-    meaning: '格點 Markov 鏈的穩態機率、往上／往下的機率',
-    firstSeen: '§2.3.1',
-    note: 'Research 模式',
-  },
-  {
-    symbol: String.raw`\tilde v=y-ax`,
-    meaning: (
-      <>
-        §2 的總雜訊：Gaussian 雜訊 <Tex>{'v'}</Tex> 加上 outlier <Tex>{'o'}</Tex>（沒有 outlier 時就是 <Tex>{'v'}</Tex>）
-      </>
-    ),
-    unit: String.raw`[y]`,
-    firstSeen: '§2.3.2',
-    note: (
-      <>
-        程式碼中的變數名是 <code>n</code>（noise）
-      </>
-    ),
-  },
-  {
-    symbol: 'F(t),\\ f(t)',
-    meaning: '累積分布函數（CDF）與機率密度（PDF）',
-    unit: String.raw`-,\ 1/[y]`,
-    firstSeen: '§2.3.2',
-    note: (
-      <>
-        <Tex>{"f=F'"}</Tex>；<Tex>{String.raw`f_{\tilde v}`}</Tex> 是總雜訊 <Tex>{String.raw`\tilde v`}</Tex> 的密度；見先備知識框
-      </>
-    ),
-  },
-  {
-    symbol: String.raw`K_q=2f_{\tilde v}(t^*)`,
-    meaning: 'Sign-Error 在連續雜訊下的等效小訊號增益',
-    unit: String.raw`1/[y]`,
-    firstSeen: '§2.3.2',
-    note: (
-      <>
-        Gaussian：<Tex>{String.raw`\sqrt{2/\pi}/\sigma_v`}</Tex>，即規格 §0、§5.1 的 comparator 增益（Ch05）
-      </>
-    ),
-  },
-  { symbol: '\\varepsilon,\\ s', meaning: 'outlier 機率與大小', unit: String.raw`-,\ [y]`, firstSeen: '§2.4', note: 'MSE vs MAE Lab 的控制項' },
-  { symbol: '\\Phi(\\cdot)', meaning: '標準常態 CDF', firstSeen: '§2.4', note: 'Research 模式；見先備知識框' },
-]
-
-// Mermaid 標籤無法排 KaTeX：用 Unicode 下標（wₙ₊₁），避免「w_n+1」被誤讀成 wₙ + 1
-const LMS_FLOW = `flowchart LR
-  X["xₙ（輸入 / DSM code）"] --> BOX["黑盒子：a·xₙ"]
-  BOX --> ADD(("+"))
-  V["vₙ（雜訊）"] --> ADD
-  ADD --> Y["yₙ"]
-  X --> MUL["× wₙ（預測）"]
-  MUL --> YH["ŷₙ = wₙ·xₙ"]
-  Y --> SUB(("−"))
-  YH --> SUB
-  SUB --> E["eₙ = yₙ − ŷₙ"]
-  E --> UPD["wₙ₊₁ = wₙ + μ·eₙ·xₙ"]
-  X --> UPD
-  UPD -->|"下一筆"| MUL`
+import { BlockDiagram, Erratum, f, texNum } from '../common'
+import { SYSTEM_MAP_CAPTION, SYSTEM_MAP_FOCUS } from '../diagrams'
 
 /** 黑盒子：乾淨資料與含雜訊資料（規格 §1、入門課 Lesson 1） */
 const CLEAN = { x: [1, 2, 4], y: [3, 6, 12] }
@@ -330,25 +33,28 @@ export function IntroSection() {
 
   return (
     <>
-      <SymbolTable
-        rows={SYMBOLS}
-        caption={
-          <>
-            首次出現的段落編號對應本頁的小節。<Tex>{'\\delta'}</Tex> 的極性、<Tex>{'J'}</Tex> 的 <Tex>{String.raw`\tfrac12`}</Tex>、
-            <Tex>{String.raw`\operatorname{sign}(0)`}</Tex> 皆依 docs/validation.md 勘誤。
-          </>
-        }
-      />
-
       <Section kind="intuition" title="1.0 這一課要回答的問題" level={2} id="ch01-s10">
         <p className="ch01-lead">
           你面前有一個黑盒子：放進 <Tex>{'x'}</Tex>，出來 <Tex>{'y'}</Tex>。你知道它大概是{' '}
           <Tex>{'y=ax'}</Tex>，但不知道 <Tex>{'a'}</Tex>。<strong>LMS（Least Mean Squares）就是「一邊看資料、一邊修正猜測」的方法</strong>
           。這一課回答兩個問題：(1) 名字裡的 Least、Mean、Squares 各是什麼意思、數學上怎麼來的？(2) 一定要用平方嗎？用絕對值會怎樣？
         </p>
+        <SystemMap focus={SYSTEM_MAP_FOCUS} caption={SYSTEM_MAP_CAPTION} />
+        <p>
+          <strong>你在這裡</strong>：上圖是整個 PLL 加上 LMS 校正迴路，每一章開頭都是同一張。藍色方塊是本章的主角——GMAC（gain multiply-accumulate：把誤差乘上輸入再累加）、
+          步長（<Tex>{String.raw`\div N`}</Tex>、<Tex>{String.raw`\times\mu`}</Tex>）與 gain accumulator（存係數 <Tex>{'w'}</Tex> 的暫存器）合起來就是「修正猜測」這個動作，
+          1-bit comparator 則決定修正時用的是誤差本身，還是只有它的正負號。本章把這四塊從 PLL 裡拿出來，放進一個沒有 PLL 動態的最簡單模型（一個輸入、一個係數），
+          回答一件事：這條修正規則到底在最小化什麼？§1 用誤差本身，§2 換成只有正負號（comparator 的情況）。
+        </p>
         <TexBlock id="F-01.1" label="黑盒子模型（規格 §1）">
           {String.raw`y=ax+v,\qquad \hat y=wx,\qquad e=y-\hat y=y-wx`}
         </TexBlock>
+        <p>
+          式中 <Tex>{'x'}</Tex> 是輸入、<Tex>{'y'}</Tex> 是量測到的輸出、<Tex>{'a'}</Tex> 是黑盒子裡真正的係數（未知）；<Tex>{'v'}</Tex>{' '}
+          是量測雜訊（每次量測多出來、我們控制不了的隨機誤差）；<Tex>{'w'}</Tex> 是我們可以調的參數，也就是對 <Tex>{'a'}</Tex> 的目前猜測；
+          <Tex>{String.raw`\hat y=wx`}</Tex>（讀作 y hat）是用目前的 <Tex>{'w'}</Tex> 做的預測；<Tex>{String.raw`e=y-\hat y`}</Tex>{' '}
+          是誤差（error）＝量測減預測，全站都用這個正負號。先看兩組資料：
+        </p>
         <div className="ch01-two">
           <div>
             <p>
@@ -421,7 +127,8 @@ export function IntroSection() {
           </div>
         </div>
         <p>
-          那要相信哪一個？「最小平方」的答案是把三筆合起來，使平方誤差總和最小（§1.2 會推導）：
+          那要相信哪一個？「最小平方」的答案是把三筆合起來，使平方誤差總和最小（§1.2 會推導；<Tex>{String.raw`\sum_i`}</Tex> 表示把每一筆加起來，下標{' '}
+          <Tex>{'i'}</Tex> 是第幾筆，<Tex>{String.raw`\hat a_{\text{LS}}`}</Tex> 是用最小平方（least squares）得到的 <Tex>{'a'}</Tex> 的估計）：
         </p>
         <TexBlock>
           {String.raw`\hat a_{\text{LS}}=\frac{\sum_i x_iy_i}{\sum_i x_i^2}=\frac{${texNum(est.sxy, 6)}}{${texNum(est.sxx, 6)}}=${texNum(est.ls, 6)}`}
@@ -431,7 +138,16 @@ export function IntroSection() {
           <Tex>{texNum(est.l1.lo, 6)}</Tex>——§2 會解釋為什麼。兩個數都由 <code>lossCompare.ts</code> 的 <code>batchL2</code> /{' '}
           <code>batchL1</code> 即時計算。）
         </p>
-        <p>LMS 不一次解完，而是每來一筆就做三個動作：</p>
+        <p>
+          上面的做法要先把資料全部收齊（批次，batch）。LMS 走另一條路：不存資料、不一次解完，而是每來一筆就把手上的猜測修一點（線上，online）。
+          硬體喜歡後者——只要一個暫存器記住 <Tex>{'w'}</Tex>。
+        </p>
+        <BlockDiagram id="D-01.1">
+          先看上面那一列：<Tex>{'N'}</Tex> 筆資料（<Tex>{'N'}</Tex> 是資料筆數，下標 <Tex>{'i'}</Tex> 是第幾筆）全部進記憶體，算出兩個總和再相除一次，就是剛才的{' '}
+          <Tex>{String.raw`\hat a_{\text{LS}}`}</Tex>。再看下面那一列：每來一筆就繞一圈 ①→②→③，繞完只留下新的 <Tex>{'w'}</Tex>。圖上的{' '}
+          <Tex>{String.raw`\Sigma x_iy_i/\Sigma x_i^2`}</Tex> 就是上式的 <Tex>{String.raw`\sum_i x_iy_i\big/\sum_i x_i^2`}</Tex>；下面一列的 ③ 就是 §1.3 要推導的 LMS 更新式。
+        </BlockDiagram>
+        <p>LMS 每來一筆做的三個動作，寫成式子是：</p>
         <div className="ch01-flow" aria-label="LMS 三個動作">
           <span className="ch01-flow-box">① 預測 <Tex>{String.raw`\hat y_n=w_nx_n`}</Tex></span>
           <span className="ch01-flow-arrow">→</span>
@@ -440,14 +156,22 @@ export function IntroSection() {
           <span className="ch01-flow-box">③ 修正 <Tex>{String.raw`w_{n+1}=w_n+\mu e_nx_n`}</Tex></span>
           <span className="ch01-flow-arrow">↺</span>
         </div>
+        <p className="small">
+          下標 <Tex>{'n'}</Tex> 是 sample 索引：第 <Tex>{'n'}</Tex> 筆資料，也是第 <Tex>{'n'}</Tex> 次更新（<Tex>{'w_n'}</Tex> 是第 <Tex>{'n'}</Tex>{' '}
+          次更新前的值）。<Tex>{'\\mu'}</Tex>（mu）是學習率（step size）：一個正的小數，決定每次修正走多大步。修正量{' '}
+          <Tex>{String.raw`\Delta w_n=\mu e_nx_n`}</Tex> 同時正比於誤差 <Tex>{'e_n'}</Tex> 與輸入 <Tex>{'x_n'}</Tex>——為什麼是這個形式，§1.3 會從微分推出來。
+        </p>
       </Section>
 
       <Section kind="diagram" title="1.0.1 資料流：LMS 迴圈長什麼樣子" level={3} id="ch01-s101">
-        <Mermaid
-          chart={LMS_FLOW}
-          caption="純量 LMS 的訊號流（L0 模型）。PLL 對應：輸入是 DSM code、黑盒子的係數是 DTC gain 所在的誤差路徑、相減的是 PD／comparator、更新的是 GMAC + gain register。"
-          ariaLabel="LMS 迴圈方塊圖：x 進入黑盒子與預測器，誤差 e 回授更新 w"
-        />
+        <p>
+          把三個動作和黑盒子畫在同一張圖上。上半部是我們看不到內部的「真實世界」，下半部是我們自己做的「模型」；兩者吃同一個輸入，輸出相減就是誤差。
+        </p>
+        <BlockDiagram id="D-01.2">
+          先看上面那條路：<Tex>{'x_n'}</Tex> 進黑盒子變成 <Tex>{'ax_n'}</Tex>，加上雜訊 <Tex>{'v_n'}</Tex> 得到量測 <Tex>{'y_n'}</Tex>。再看下面那條路：同一個{' '}
+          <Tex>{'x_n'}</Tex> 乘上 <Tex>{'w_n'}</Tex> 得到預測 <Tex>{String.raw`\hat y_n`}</Tex>。兩條路在右邊的加法點相遇，量測進「＋」、預測進「−」：圖上的這個加法點就是 F-01.1 的{' '}
+          <Tex>{String.raw`e_n=y_n-\hat y_n`}</Tex>。最後看藍色方塊：它拿 <Tex>{'e_n'}</Tex> 和 <Tex>{'x_n'}</Tex> 算出新的 <Tex>{'w_{n+1}'}</Tex>，沿著「下一筆」那條線送回乘法器——這條回授線讓它成為一個迴路。
+        </BlockDiagram>
       </Section>
 
       <Section kind="intuition" title="1.1 Least／Mean／Squares 逐字拆解" level={2} id="ch01-s11">
@@ -495,9 +219,21 @@ export function IntroSection() {
             </tbody>
           </table>
         </div>
+        <p>
+          表裡出現三個新記號。<Tex>{'J(w)'}</Tex> 叫成本（cost）：把「模型有多不準」濃縮成一個只跟 <Tex>{'w'}</Tex> 有關的數，越小越好。
+          <Tex>{String.raw`\arg\min_w J(w)`}</Tex> 讀作「讓 <Tex>{'J(w)'}</Tex> 最小的那個 <Tex>{'w'}</Tex>」——它是谷底的位置，不是谷底的高度；這個位置記作{' '}
+          <Tex>{'w^*'}</Tex>（最佳解）。<Tex>{String.raw`E[\cdot]`}</Tex> 是期望值，可以先當成「<Tex>{'N'}</Tex> 筆資料的平均」，其中 <Tex>{'N'}</Tex>{' '}
+          是拿來平均的資料筆數（下面的先備知識框有完整說明）。把三個字照計算順序串起來：
+        </p>
+        <BlockDiagram id="D-01.3">
+          先看上面那一列：輸入 <Tex>{'x'}</Tex> 乘上你選的 <Tex>{'w'}</Tex> 得到預測，量測 <Tex>{'y'}</Tex> 減掉它就是這一筆資料的誤差 <Tex>{'e'}</Tex>。再看下面那一列，沿著三個藍色方塊往右：
+          平方（Squares）→ 很多筆取平均（Mean）→ 換不同的 <Tex>{'w'}</Tex> 找最小（Least）。注意名字的順序和計算的順序剛好相反。圖上「成本」那一格就是下面公式的{' '}
+          <Tex>{String.raw`J_2(w)=E[(y-wx)^2]`}</Tex>，最右邊的 <Tex>{'w^*'}</Tex> 就是 <Tex>{String.raw`\arg\min_wJ_2(w)`}</Tex>。
+        </BlockDiagram>
         <TexBlock>{String.raw`\boxed{J_2(w)=E\big[(y-wx)^2\big],\qquad w^*=\arg\min_w J_2(w)}`}</TexBlock>
         <p className="small">
-          規格 §1 原式。本站從 §1.3 起改用 <Tex>{String.raw`J=\tfrac12J_2`}</Tex>，最小值位置不變 <Erratum id="E41" />。
+          規格 §1 原式（下標 2 表示「平方」、沒有 <Tex>{String.raw`\tfrac12`}</Tex>）。本站從 §1.3 起改用 <Tex>{String.raw`J=\tfrac12J_2`}</Tex>，最小值位置不變{' '}
+          <Erratum id="E41" />。
         </p>
 
         <Prereq title="期望值 $E[\cdot]$：「很多次的平均」">
@@ -572,6 +308,11 @@ export function IntroSection() {
             </caption>
           </table>
         </div>
+        <BlockDiagram id="D-01.4">
+          先看左邊兩個方塊：同樣四筆誤差，A 是 <Tex>{String.raw`\pm10`}</Tex>、B 是 <Tex>{String.raw`\pm1`}</Tex>。再看中間三種計分方式各自吐出什麼：
+          直接平均的那一條，兩個模型都得到 0（紅色，分不出來）；先取絕對值或先平方的兩條才分得出 B 比較好。圖上的 <Tex>{String.raw`\text{mean}(e^2)`}</Tex>{' '}
+          就是 §1.1 的「Mean Squares」<Tex>{'E[e^2]'}</Tex>；<Tex>{String.raw`\text{mean}(|e|)`}</Tex> 是 §2 才會用到的 <Tex>{'E|e|'}</Tex>。
+        </BlockDiagram>
         <StepDerivation
           title="用數學說同一件事"
           steps={[

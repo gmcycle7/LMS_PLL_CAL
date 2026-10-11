@@ -1,8 +1,8 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import { Callout, ModeGate, ParamControl, Section, SelectControl, StepDerivation, Tex, mathText } from '@/components'
-import { gammaEff, gosConjectureScan } from '@/simulation/models/sspll'
+import { gammaEff, gosConjectureScan, sawtoothLinePower } from '@/simulation/models/sspll'
 import { FREF_MHZ, GOS_SCAN, LOOP_KEYS, LOOPS, PARAMS, PRED, WORKED, type LoopKey } from '../data'
-import { Claim, DataTable, Formula, Kappa, ModelCompare, Sci, Src, fx, r, tx } from '../common'
+import { Claim, DataTable, Diagram, Formula, Kappa, ModelCompare, Sci, Src, fx, r, tx } from '../common'
 
 const SCAN_LABEL: Record<string, string> = {
   L1: 'L1',
@@ -63,6 +63,15 @@ export function S07Gos() {
   return (
     <Section kind="formula" level={2} title="7. GOS：鋸齒 regressor" id="cs-7">
       <h3>7.1 Fourier 級數（一步一步）</h3>
+      <p>
+        GOS 的 regressor 是 DTC 的細調 code <Tex>{r`\rho[n]`}</Tex>：每拍增加 <Tex>{r`\beta=\mathrm{frac}(8\alpha)`}</Tex>，超過 1 就折回來，是一個鋸齒波。鋸齒不是單一頻率，它有基波和無限多條高次諧波；§4.3 說每條譜線各自乘上該頻率的 <Tex>{r`\mathrm{Re}\,\Gamma_{\rm eff}`}</Tex>，所以要先知道鋸齒的功率怎麼分給各條線。
+      </p>
+      <Diagram id="gos" />
+      <p>
+        先看 Fourier 級數拆出來的四格：DC、基波（<Tex>{'m=1'}</Tex>，藍色）與高次諧波。第 <Tex>{'m'}</Tex> 次諧波的功率按 <Tex>{'1/m^2'}</Tex> 遞減，頻率是 <Tex>{r`m\beta`}</Tex> 取小數——取樣後超過 <Tex>{r`f_{ref}`}</Tex> 的頻率會折回來，所以高次諧波散在整個頻帶。再看每一格到加總點的箭頭：各自乘上該頻率的{' '}
+        <Tex>{r`\mathrm{Re}\,\Gamma_{\rm eff}`}</Tex>；DC 那一條乘上 0（迴路把 DC 完全吸收）。圖上的加總點就是下面推導第 4 步的 <Tex>{r`C_{GOS}=\sum_m\cdots`}</Tex>，每一格寫的功率 <Tex>{r`1/(2\pi^2m^2)`}</Tex> 就是那個和的權重。鋸齒的基波只占總功率的{' '}
+        {fx(100 * sawtoothLinePower(1) * 12, 0)}%（<Tex>{r`6/\pi^2`}</Tex>），其餘分給高次諧波；所以就算基波落在反號帶，只要其他諧波落在帶外，總和仍可能是正的——這就是 GOS 和 PHOS（基波占 95%）命運不同的原因。
+      </p>
       <StepDerivation
         steps={[
           {
@@ -84,6 +93,9 @@ export function S07Gos() {
           <Tex>{r`\alpha`}</Tex> 為無理數時精確；有理數且 <Tex>{r`8\mid Q`}</Tex> 時，golden 的 exact periodic 與諧波和誤差 <Tex>{r`\le8.3\times10^{-10}`}</Tex>
         </Claim>
         正規化 <Tex>{r`\kappa_{GOS}=12C_{GOS}`}</Tex>，<Tex>{r`H\equiv1`}</Tex> 時為 1。另外 <Tex>{r`C(\beta)=C(1-\beta)`}</Tex>（譜線對稱），所以 <Tex>{'k/8'}</Tex> 兩側的<strong>線性</strong>行為相同。
+      </p>
+      <p className="small muted">
+        記號：<Tex>{r`\alpha`}</Tex> 是有理數時寫成最簡分數 <Tex>{r`\alpha=P/Q`}</Tex>，regressor 每 <Tex>{'Q'}</Tex> 拍重複一次；<Tex>{r`8\mid Q`}</Tex> 表示 <Tex>{'Q'}</Tex> 是 8 的倍數（這時 PMUX 的 8 個相位被選到的次數一樣多），<Tex>{r`8\nmid Q`}</Tex> 表示不是。後面幾節會一直用到這個區分。
       </p>
       <p>
         <strong>
@@ -109,7 +121,21 @@ export function S07Gos() {
       </h3>
       <p>
         <strong>Near-grid</strong>（<Tex>{r`\alpha\approx k/8`}</Tex>，<Tex>{r`\beta\to0`}</Tex>）：<Tex>{r`\rho`}</Tex> 變成一個很慢的斜坡，每 <Tex>{r`1/\beta`}</Tex> 拍跳回 0 一次。時域推導（<Tex>{'s'}</Tex> = <Tex>{r`h_{PD}`}</Tex> 的步階響應，
-        <Tex>{r`S_\infty=\sum_n s[n]`}</Tex>，<Tex>{r`S_D=\sum_{n<D}s[n]`}</Tex>）：
+        <Tex>{r`S_\infty=\sum_n s[n]`}</Tex>，<Tex>{r`S_D=\sum_{n<D}s[n]`}</Tex>）。式子裡的 <Tex>{'D'}</Tex> 是<strong>相關器延遲</strong>：GMAC 拿來乘的 regressor 比當拍的 code 晚了幾拍。先看它在時序上是什麼意思：
+      </p>
+      <Diagram id="align" />
+      <p>
+        由上往下看一拍裡發生的事：累加器送出 code，DTC 與 PMUX 依這個 code 產生 edge，SSPD 取樣，比較器輸出 <Tex>{'q[n]'}</Tex>；同一個 code 也送進 regressor 的暫存器。再看最後兩個註記：<Tex>{'D=0'}</Tex> 時 GMAC 把 <Tex>{'q[n]'}</Tex> 乘上「造成這一拍誤差的那個 code」
+        <Tex>{'x[n]'}</Tex>；<Tex>{'D=+1'}</Tex> 時乘到的是前一拍的 <Tex>{'x[n-1]'}</Tex>。因為 <Tex>{r`h_{PD}[0]=1`}</Tex>，鋸齒跳回 0 的那一拍 PD 會原封不動看到這個跳變，<Tex>{'D=0'}</Tex> 才對得到它。圖上的 <Tex>{'r[n]=x[n-D]'}</Tex> 就是下面公式裡 <Tex>{'S_D'}</Tex> 的那個 <Tex>{'D'}</Tex>。
+      </p>
+      <p>
+        再看公式本身怎麼來。near-grid 的慢鋸齒可以拆成兩個部分：一個每拍增加 <Tex>{r`\beta`}</Tex> 的慢斜坡，加上每 <Tex>{r`1/\beta`}</Tex> 拍一次、大小為 <Tex>{'-1'}</Tex> 的跳變（wrap）。兩個部分各自通過 <Tex>{r`H_{PD}`}</Tex>，再和 regressor 相關：
+      </p>
+      <Diagram id="near-grid" />
+      <p>
+        先看上面那條路（斜坡）：<Tex>{r`H_{PD}`}</Tex> 對斜率 <Tex>{r`\beta`}</Tex> 的斜坡，穩態響應是一個常數 <Tex>{r`\beta S_\infty`}</Tex>（斜坡是步階的累加，所以響應是步階響應 <Tex>{'s[n]'}</Tex> 的累加）；它乘上 regressor 的平均值 <Tex>{r`\tfrac12`}</Tex>，貢獻{' '}
+        <Tex>{r`+\beta S_\infty/2`}</Tex>。再看藍色那條路（wrap）：每次跳變在 PD 產生 <Tex>{'-s[m]'}</Tex>（<Tex>{'m'}</Tex> 是跳變之後第幾拍），它乘到的是跳變附近的 regressor。對齊（<Tex>{'D=0'}</Tex>）時乘到的是剛歸零、還很小的 <Tex>{r`\rho\approx\beta m`}</Tex>，只留下 <Tex>{r`\beta^2`}</Tex> 階的小量；晚{' '}
+        <Tex>{'D'}</Tex> 拍時，前 <Tex>{'D'}</Tex> 拍乘到的還是跳之前的 <Tex>{r`\rho\approx1`}</Tex>，每次 wrap 多出 <Tex>{r`-S_D`}</Tex>，而 wrap 每拍發生 <Tex>{r`\beta`}</Tex> 次。圖上加法點的輸出就是下面的公式；最右邊三格是公式後面列的三種情況。
       </p>
       <Formula id="F-CS.12" />
       <ul>

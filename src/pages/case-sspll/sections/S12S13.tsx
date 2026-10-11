@@ -1,7 +1,7 @@
 import { Callout, ModeGate, Section, StepDerivation, Tex } from '@/components'
 import { eqOffset } from '@/simulation/models/sspll'
 import { LOOP_KEYS, PARAMS, PRED, SIM_CFG, offsetPoint, type LoopKey } from '../data'
-import { Claim, DataTable, Formula, Hand, ModelCode, Sci, Src, fmtFs, fx, r, tx } from '../common'
+import { Claim, DataTable, Diagram, Formula, Hand, ModelCode, Sci, Src, fmtFs, fx, r, tx } from '../common'
 
 /** §12 有限步長 */
 export function S12FiniteStep() {
@@ -16,7 +16,15 @@ export function S12FiniteStep() {
   return (
     <Section kind="formula" level={2} title="12. 有限步長：$\mathrm{Re}\,\kappa>0$ 還不夠" id="cs-12">
       <p>
-        block 更新 <Tex>{r`\theta_{k+1}=(I-\mu K_qC)\theta_k`}</Tex>。以 sim 的正規化（開迴路時間常數 <Tex>{r`N_\tau`}</Tex> blocks，<Tex>{r`\kappa=8\lambda`}</Tex>）：
+        §4 的結論「<Tex>{r`\mathrm{Re}\,\mathrm{eig}(C)>0`}</Tex> 就收斂」只在步長很小時成立。原因是 <Tex>{'C'}</Tex> 的特徵值可以是複數：實部把誤差拉回來，虛部讓誤差旋轉；步長一大，旋轉造成的 overshoot 可能比拉回來的量還多。
+      </p>
+      <Diagram id="finite-step" />
+      <p>
+        先看迴圈：這是 §4 <Tex>{r`\delta_{k+1}=\delta_k-\mu K_qC\delta_k`}</Tex> 沿著一個特徵方向的版本，<Tex>{r`\theta_k`}</Tex> 是誤差在那個方向上的分量（一個複數），每個 block 被扣掉 <Tex>{r`\kappa/N_\tau`}</Tex> 倍的自己。這裡把步長換成比較好懂的量：<Tex>{r`N_\tau`}</Tex>{' '}
+        是沒有迴路（<Tex>{r`H\equiv1`}</Tex>、<Tex>{r`\kappa=1`}</Tex>）時 LMS 的時間常數，單位是 block；<Tex>{r`N_\tau`}</Tex> 越小，步長越大。再看菱形：迴圈每轉一圈，誤差的大小乘上 <Tex>{r`\lvert1-\kappa/N_\tau\rvert`}</Tex>，它要小於 1 才會縮小。走到「否」有兩種情況：<Tex>{r`\mathrm{Re}\,\kappa\le0`}</Tex>（§4 說的反號），或者 <Tex>{r`\mathrm{Re}\,\kappa>0`}</Tex> 但 <Tex>{r`\lvert\kappa\rvert^2`}</Tex> 太大（這一節要講的新情況）。圖上的迴圈就是下面推導的第 1 步，菱形裡的不等式是第 3 步的結論。
+      </p>
+      <p>
+        寫成式子：block 更新 <Tex>{r`\theta_{k+1}=(I-\mu K_qC)\theta_k`}</Tex>。以 sim 的正規化（開迴路時間常數 <Tex>{r`N_\tau`}</Tex> blocks，<Tex>{r`\kappa=8\lambda`}</Tex>）：
       </p>
       <StepDerivation
         steps={[
@@ -79,7 +87,13 @@ export function S13Offset() {
   return (
     <Section kind="assumptions" level={2} title="13. 比較器 DC offset：線性分析裡看不到的一階效應" id="cs-13">
       <p>
-        前面所有特徵值分析都假設 <Tex>{'E[q]=0'}</Tex>。實際上比較器一定看到 DC，來源包括：比較器 offset、SSCP／gm offset、CPPLL 的 UP/DN mismatch 與 bleeder、Type-I 在殘餘頻差下的 static phase error。
+        前面所有特徵值分析都假設 <Tex>{'E[q]=0'}</Tex>。實際上比較器一定看到 DC，來源包括：比較器 offset、SSCP／gm offset、CPPLL 的 UP/DN mismatch 與 bleeder、Type-I 在殘餘頻差下的 static phase error。把這些 DC 全部折算到比較器輸入端，記為等效 offset <Tex>{r`u_{os}`}</Tex>（單位
+        fs）。它造成的問題和「反號」是兩回事：它不改變恢復力的方向，而是多出一股一直往同一邊推的力。
+      </p>
+      <Diagram id="offset" />
+      <p>
+        先看紅色的路徑：<Tex>{r`u_{os}`}</Tex> 和殘差、雜訊一起進比較器，使 <Tex>{'q[n]'}</Tex> 的 +1 比 −1 多一點，平均值 <Tex>{'E[q]'}</Tex> 不再是 0。這個平均值在乘法點遇到 regressor 的平均值 <Tex>{r`\langle r_i\rangle`}</Tex>：raw 的 GOS regressor 平均是 1/2、one-hot 平均是 1/8，都不是 0，所以乘積的平均多出一項{' '}
+        <Tex>{r`E[q]\,\langle r_i\rangle`}</Tex>。它和權重誤差 <Tex>{r`\delta`}</Tex> 無關，權重對了它也還在，這就是 forcing。再看綠色那一格：regressor 若是 zero-mean（一階差分天生如此；或把平均減掉），<Tex>{r`\langle r_i\rangle=0`}</Tex>，這條路就斷了。圖上 block 平均之後分出的兩格，就是下面推導第 2 步的兩項。
       </p>
       <StepDerivation
         title="一步一步：offset 是 forcing 項"

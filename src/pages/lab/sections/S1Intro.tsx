@@ -1,7 +1,6 @@
-import { Callout, ClaimTag, Mermaid, ModeGate, ModelLevel, Section, SourceTag, SymbolTable, Tex, TexBlock } from '@/components'
-import { ChLink, ErratumNote, md, Question } from '../common'
+import { Callout, ClaimTag, ModeGate, ModelLevel, Section, SourceTag, Tex, TexBlock } from '@/components'
+import { ChLink, Diagram, ErratumNote, md, Question } from '../common'
 import { PIPELINE_CHART } from '../diagrams'
-import { LAB_SYMBOLS } from '../symbols'
 
 const T = String.raw
 
@@ -17,7 +16,7 @@ const STAGE_ROWS: { stage: string; eq: string; level: 'L1' | 'L2' | 'L4' | 'L5';
   { stage: '⑨ 輸出端', eq: T`t_{\mathrm{out}}=T\{e_{\mathrm{DTC}}\},\ T=1-H_{\mathrm{PD}}`, level: 'L4', ch: [{ to: '/ch/12', label: 'Ch12' }], fn: 'unifiedLab.ts：replayPipeline、analyzeOutput', assume: '只含 DTC 殘差這一個雜訊來源；線性、時不變的 $T$' },
 ]
 
-/** §1–§2：開場問題、符號表、整條訊號鏈的方塊圖與「每一級是誰、在哪一章」。 */
+/** §1–§2：開場問題、整條訊號鏈的方塊圖與「每一級是誰、在哪一章」。（符號表在頁末：sections/S6Symbols.tsx） */
 export function S1Intro() {
   return (
     <>
@@ -53,14 +52,28 @@ export function S1Intro() {
             另外，你真正在乎的不是 comparator 看到什麼，而是 <strong>PLL 輸出端</strong>的 jitter 與 spur——那是同一個 DTC 誤差走另一條路（low-pass，<Tex>{'T'}</Tex>）的結果。這兩條路不一樣，是整合模擬最容易弄錯的地方。
           </p>
         </Section>
-
-        <SymbolTable rows={LAB_SYMBOLS} caption={md('頻率變數：$z=e^{j\\Omega}$，$\\Omega=2\\pi f/f_s$（rad/sample）。所有時間量以 fs 計；$a$、$w$、$\\mu$ 的單位帶 fs 是因為 code 已正規化成無因次。')} />
       </section>
 
       <section aria-labelledby="lab-s2">
         <h2 id="lab-s2">2｜整條訊號鏈：九級、兩條路</h2>
         <Section kind="diagram" title="方塊圖">
-          <Mermaid chart={PIPELINE_CHART} caption="同一個 DTC 誤差分兩條路：一條經 PD 的 error path（high-pass）到 comparator，是校正迴路看到的；另一條經 output transfer（low-pass）到輸出，是使用者看到的。編號對應 Lab 裡的九張 stage 卡片。" ariaLabel="FCW 到輸出端的九級訊號流程圖" />
+          <p>
+            先看整條鏈長什麼樣子，再看每一級的式子。箭頭是訊號的流向；標著 <Tex>{'w_{\\mathrm{app}}'}</Tex> 的那條線把校正出來的係數送回 DTC，形成一圈。
+          </p>
+          <Diagram
+            chart={PIPELINE_CHART}
+            caption="同一個 DTC 誤差分兩條路：藍色那條經 PD 的 error path（high-pass）到 comparator，是校正迴路看到的；棕色那條經 output transfer（low-pass）到輸出，是使用者看到的。編號對應 Lab 裡的九張 stage 卡片。"
+            ariaLabel="FCW 到輸出端的九級訊號流程圖"
+          >
+            <p>
+              先看 DTC 之後的分岔：同一個 <Tex>{'e_{\\mathrm{DTC}}[n]'}</Tex>（DTC 沒抵銷乾淨的時間誤差）一份送進藍色的 <Tex>{'H_{\\mathrm{PD}}'}</Tex>（第 4 級），一份送進棕色的 <Tex>T</Tex>（第 9
+              級）。校正迴路是藍色那條路接下去的一圈：第 4 → 5 → 6 → 8 → 7 級，再回到第 3 級的 DTC；第 9 級只是「旁觀」，不在迴路裡。
+            </p>
+            <p>
+              圖上帶 <Tex>{'[n]'}</Tex> 的訊號每個 comparator sample 更新一次；帶下標 <Tex>k</Tex> 的（<Tex>{'G_k'}</Tex>、<Tex>{'w_k'}</Tex>）每 <Tex>N</Tex> 個 sample 才更新一次。圖上的{' '}
+              <Tex>{'w_{\\mathrm{app}}'}</Tex> 是「這個 block 實際作用在 DTC 上的係數」，比最新的 <Tex>{'w_k'}</Tex> 晚 <Tex>d</Tex> 個 block。
+            </p>
+          </Diagram>
           <TexBlock id="F-LAB.1" label="FCW 決定輸出頻率，也決定 DSM residue 這串 code 長什麼樣子。">
             {T`f_{\mathrm{out}}=\Bigl(N_{\mathrm{int}}+\frac KM\Bigr)f_{\mathrm{ref}},\qquad r[n]=\sum_{m=0}^{n}\Bigl(y[m]-\frac KM\Bigr)`}
           </TexBlock>

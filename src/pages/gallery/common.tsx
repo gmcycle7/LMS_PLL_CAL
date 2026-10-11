@@ -1,6 +1,6 @@
 import { useMemo, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { mathText, ModelLevel, StepDerivation, Tex, TestBadge, type Step } from '@/components'
+import { mathText, Mermaid, ModelLevel, StepDerivation, Tex, TestBadge, type Step } from '@/components'
 import { useSettings, type LearningMode } from '@/app/settings'
 import type { ModelLevelId, PresetEntry } from '@/data/types'
 import { PAGES } from '@/app/registry'
@@ -36,6 +36,19 @@ export function Steps({ title, steps, result, open }: { title: string; steps: { 
       </summary>
       <StepDerivation steps={rendered} result={result} />
     </details>
+  )
+}
+
+/**
+ * 方塊圖版位（docs/teaching-style.md §8）：一張 Mermaid 圖、一句圖說（要看什麼），下面緊接「先看…再看…」的導讀。
+ * 圖說是純文字（Mermaid 的 caption 不渲染 KaTeX），數學符號留給 children 用 <Tex> 寫，並對照「圖上的 X 就是公式裡的 x」。
+ */
+export function Diagram({ chart, caption, ariaLabel, children }: { chart: string; caption: string; ariaLabel?: string; children?: ReactNode }) {
+  return (
+    <div className="gal-diagram">
+      <Mermaid chart={chart} caption={caption} ariaLabel={ariaLabel} />
+      {children && <div className="gal-diagram-walk">{children}</div>}
+    </div>
   )
 }
 

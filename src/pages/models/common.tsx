@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { HandCalc, mathText, StepDerivation, type Step } from '@/components'
+import { HandCalc, mathText, Mermaid, StepDerivation, type Step } from '@/components'
 import { useSettings, type LearningMode } from '@/app/settings'
 import { handcalc } from './handcalcs'
 
@@ -40,6 +40,19 @@ export function Steps({ title, steps, result, open }: { title: ReactNode; steps:
       </summary>
       <StepDerivation steps={rendered} result={result} />
     </details>
+  )
+}
+
+/**
+ * 方塊圖 + 「怎麼讀這張圖」導讀（docs/teaching-style.md §8）。
+ * Mermaid 不渲染 KaTeX，圖上的符號是 Unicode；導讀用 KaTeX 把圖上的名字對回正文的公式。圖說（caption）是純文字。
+ */
+export function Diagram({ chart, caption, ariaLabel, children }: { chart: string; caption: string; ariaLabel?: string; children?: ReactNode }) {
+  return (
+    <div className="models-diagram">
+      <Mermaid chart={chart} caption={caption} ariaLabel={ariaLabel ?? caption} />
+      {children && <div className="models-diagram-walk">{children}</div>}
+    </div>
   )
 }
 

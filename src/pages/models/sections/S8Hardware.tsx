@@ -3,7 +3,8 @@ import gmacSrc from '@/simulation/models/gmac.ts?raw'
 import { roundingMeanError } from '@/simulation/models/gmac'
 import blockLmsSrc from '@/simulation/models/blockLms.ts?raw'
 import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Prereq, Section, Tex, TexBlock } from '@/components'
-import { ChLink, ErratumNote, HandCalcPointer, Steps, md, sig, texNum } from '../common'
+import { ChLink, Diagram, ErratumNote, HandCalcPointer, Steps, md, sig, texNum } from '../common'
+import { CHART_GMAC_DATAPATH } from '../diagrams'
 import { GmacSizingLab } from '../experiments/GmacSizingLab'
 import { accBitsExact, truncationEquilibrium, worstCaseAccumulate } from '../experiments/gmacMath'
 import { SPEC_NUMBERS, alignmentDemo, gCritical, limitCycleDemo } from '../refNumbers'
@@ -433,6 +434,20 @@ export function S8Hardware() {
         教學模型裡的每一個等號，在 RTL 裡都是一個有位寬、有時序、有 rounding 的電路。下面 12 項是規格要求逐一核對的細節；每一項列出<strong>檢查什麼、為什麼（數學）、怎麼驗、本站對應</strong>，能用 JSON Lab
         重現的附上 preset 連結。
       </p>
+      <Diagram
+        chart={CHART_GMAC_DATAPATH}
+        caption="GMAC 到 gain register 的 RTL datapath，以及前 8 項檢查各自落在哪一塊。藍色的累加器決定位元數，紅色的右移是截斷偏差的來源。其餘四項（CDC、lock、injection 模式、noise tracing）是整個系統層級的檢查，不在這條 datapath 上。"
+        ariaLabel="GMAC datapath 的方塊圖：comparator bit 映射成正負一，code 對齊延遲後條件取負，累加 N 筆，右移，乘上 learning rate，寫入 gain register，再送到 DTC"
+      >
+        <p>
+          先看左邊的兩個輸入：comparator 給的是 0/1 的 bit <Tex>{'b[n]'}</Tex>，要先映射成 <Tex>{'q=2b-1'}</Tex>；code 是 <Tex>{'B_x'}</Tex>-bit 的有號整數 <Tex>{'x_\\mathrm{int}'}</Tex>，要延遲 <Tex>{'D'}</Tex> 個 sample 與誤差對齊。乘上 <Tex>{'q=\\pm1'}</Tex>{' '}
+          在硬體裡是「條件取負」。
+        </p>
+        <p>
+          圖上的 <Tex>{'S_k'}</Tex> 是一個 block 內 <Tex>{'N'}</Tex> 筆的總和（整數），<Tex>{'B_\\mathrm{acc}'}</Tex> 是它需要的位元數（<Tex>{'M_x'}</Tex> 是 <Tex>{'|q\\,x_\\mathrm{int}|'}</Tex> 的最大值，§9.1）。右移 <Tex>{'\\ell'}</Tex> bits 之後是{' '}
+          <Tex>{'\\hat G_k'}</Tex>，保留 <Tex>{'F_G'}</Tex> 個小數 bit、一個 LSB 是 <Tex>{'\\Delta_G'}</Tex>；算術右移等於 floor，會留下固定的偏差（§9.2）。
+        </p>
+      </Diagram>
       <div className="models-checks">
         {CHECKS.map((c) => (
           <article key={c.no} className="models-check" aria-labelledby={`models-check-${c.no}`}>

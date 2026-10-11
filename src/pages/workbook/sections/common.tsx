@@ -1,4 +1,5 @@
-import { Tex, TexBlock, mathText } from '@/components'
+import type { ReactNode } from 'react'
+import { Mermaid, Tex, TexBlock, mathText } from '@/components'
 import type { HandCalcDef, HandCalcSolution } from '@/data/types'
 import { LEVEL_LABEL, givenTex, resultTex, type Level } from '../logic'
 
@@ -52,6 +53,19 @@ export function SolutionView({ sol }: { sol: HandCalcSolution }) {
           ))}
         </ul>
       )}
+    </div>
+  )
+}
+
+/**
+ * 方塊圖版位（docs/teaching-style.md §8）：一張 Mermaid 圖、一句圖說（要看什麼），下面緊接「先看…再看…」的導讀。
+ * 圖說支援 `$…$` 行內公式（Mermaid 元件會用 KaTeX 排版）；導讀的數學用 <Tex>。
+ */
+export function Diagram({ chart, caption, ariaLabel, children }: { chart: string; caption: string; ariaLabel?: string; children?: ReactNode }) {
+  return (
+    <div className="wb-diagram">
+      <Mermaid chart={chart} caption={caption} ariaLabel={ariaLabel} />
+      {children && <div className="wb-diagram-walk">{children}</div>}
     </div>
   )
 }

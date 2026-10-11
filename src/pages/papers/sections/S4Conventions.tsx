@@ -4,7 +4,8 @@ import { conventionalStep } from '@/simulation/models/lms'
 import lmsSrc from '@/simulation/models/lms.ts?raw'
 import bridgeSrc from '../bridge.ts?raw'
 import { CONVENTION_SHORT, conventionHandTable } from '../bridge'
-import { ErratumNote, Fold, FormulaAnchor, Hand, Question, num, r } from '../common'
+import { Diagram, ErratumNote, Fold, FormulaAnchor, Hand, Question, num, r } from '../common'
+import { CHART_CONVENTION_BRIDGE } from '../diagrams'
 
 /** 規格 §1.2 的手算例（Gallery #1）：w0 = 1、a = 3、x = 2、μ = 0.1 */
 export const HAND = { a: 3, w0: 1, x: 2, mu: 0.1, steps: 3 } as const
@@ -123,6 +124,20 @@ export function S4Conventions() {
       <p className="small muted">
         三欄由三段不同的程式碼（下方 CodeCompare）實際執行得到；{mathText(CONVENTION_SHORT.half)}那一欄就是 Ch00–Ch03 使用的 <code>conventionalStep</code>。
       </p>
+      <Diagram
+        chart={CHART_CONVENTION_BRIDGE}
+        caption="四種寫法先換算成同一個量，再用同一條規則判斷穩定。箭頭上的式子就是換算方式；藍色是共同的中間量。"
+        ariaLabel="步長寫法換算圖：本站 Part A、Widrow 型、NLMS、block sign-GMAC 四種更新式換成每單位 eigenvalue 的平均 loop gain，再算每個 eigen-mode 的 loop gain 與 pole"
+      >
+        <p>
+          <strong>先看</strong>左邊四個方塊：四種寫法的更新式長得不一樣，但都可以換算成同一個量 <Tex>{'s'}</Tex>（每單位 eigenvalue 的平均 loop gain）。箭頭上寫的就是換算式；Widrow 型的{' '}
+          <Tex>{r`s=2\mu_W`}</Tex> 就是「差 2 倍」的來源，下面馬上推導。
+        </p>
+        <p>
+          <strong>再看</strong>右邊：有了 <Tex>{'s'}</Tex>，第 <Tex>{'i'}</Tex> 個 eigen-mode 的 loop gain 是 <Tex>{r`g_i=s\lambda_i`}</Tex>（<Tex>{r`\lambda_i`}</Tex> 是 regressor 自相關矩陣的特徵值），pole 是{' '}
+          <Tex>{'p_i=1-g_i'}</Tex>，穩定條件對四種寫法都一樣。圖上藍色的 <Tex>{'s'}</Tex> 就是本節後面 <code>gainScale</code> 那段程式回傳的數。
+        </p>
+      </Diagram>
       <Fold
         title={
           <>

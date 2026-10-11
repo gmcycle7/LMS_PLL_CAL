@@ -1,8 +1,9 @@
-import { Callout, ClaimTag, CodeBlock, ModeGate, Quiz, Recap, Section, SourceTag, StepDerivation, Tex } from '@/components'
+import { Callout, ClaimTag, CodeBlock, Mermaid, ModeGate, Quiz, Recap, Section, SourceTag, StepDerivation, Tex } from '@/components'
 import pyStability from '../../../../golden/lms_pll_golden/stability.py?raw'
 import { useMemo } from 'react'
 import { analyzeGeneral, comparatorKq, delayCriticalGain, pmFirstOrder, pmWithDelay, stableIntervalsNumeric, type ObservationSystem } from '@/simulation/models/stability'
 import { ErratumNote, Expand, fx, HandCalcSlot, rich, tx } from '../common'
+import { SYNTHESIS_FLOW_CHART, UNIFIED_LOOP_CHART } from '../diagrams'
 
 /** 入門課 Lesson 4 / T13 的硬體數字：comparator 前雜訊 σ_v = 100 fs、±1 code、identity path（C = 1） */
 const HW_SIGMA_V_FS = 100
@@ -75,6 +76,21 @@ export function Wrapup() {
             </tbody>
           </table>
         </div>
+        <h4>六種模型其實是同一個迴路</h4>
+        <p>
+          {rich(
+            String.raw`看第二張表之前，先用一張圖把 §8.2–§8.4 收成同一個迴路：加法點、暫存器（積分器 $\frac{\mu}{z-1}$）和負回授從頭到尾都沒有變，三節之間唯一換掉的是「從 $\delta$ 到 $G$ 的觀測路徑」$F(z)$。下表的每一列，就是把不同的 $F(z)$ 代進開迴路增益 $L_{\mathrm{cal}}(z)=\frac{\mu F(z)}{z-1}$ 之後得到的穩定條件。`,
+          )}
+        </p>
+        <Mermaid
+          caption={String.raw`整章是同一個迴路：實線那一圈不變；用虛線指進藍色方塊的四格，是 §8.2、§8.3、§8.4 與 quasi-static 各自代進去的觀測路徑 $F(z)$，紅色那格是近似`}
+          chart={UNIFIED_LOOP_CHART}
+        />
+        <p className="small">
+          {rich(
+            String.raw`讀圖：先看實線那一圈——目標 $a$ 從 $\Sigma$ 的「＋」端進來、$w_k$ 從「−」端回來，所以 $\delta_k=a-w_k$；它經過藍色的 $F(z)$ 變成 $G_k$，再被暫存器 $\frac{\mu}{z-1}$ 累加成 $w_k$。框起來的兩格相乘就是 F-08.14 的 $L_{\mathrm{cal}}(z)=\frac{\mu F(z)}{z-1}$。再看四條虛線——它們不是訊號，而是「把哪一個 $F(z)$ 代進藍色方塊」：$F=K$ 得到 F-08.2 的 $\frac{g}{z-1}$；$F=Kz^{-d}$（也就是 $G_k=K\delta_{k-d}$）得到 F-08.7 的 $\frac{g\,z^{-d}}{z-1}$；$F=\frac{b_sc_s}{z-r_s}$ 得到 F-08.16 用的 $\frac{\mu b_sc_s}{(z-1)(z-r_s)}$（§8.4 把 $K$ 正規化成 $1$）。§8.3 的圖把 $z^{-d}$ 畫在暫存器的輸出，這裡把它併進 $F(z)$：$a$ 是常數時，兩種畫法給出同一條遞迴式 $\delta_{k+1}=\delta_k-g\,\delta_{k-d}$。最後看紅色那格——quasi-static 把 $F(z)$ 換成常數 $F(1)$，等於退回「§8.2 一階」那一格的迴路，只是 $g$ 換成 $g_{\mathrm{eff}}=\mu F(1)$；觀測路徑的相位全部被丟掉，這就是下表「何時會錯」那一欄的來源。`,
+          )}
+        </p>
         <div className="table-wrap">
           <table className="ch08-table">
             <caption>{rich(String.raw`同一個 calibration loop，六種模型給的穩定條件（「本例」：§8.2–8.3 以 $g$、$d$ 表示；§8.4 用 Gallery #5 的 $r_s=0.8,\ b_sc_s=0.2$）`)}</caption>
@@ -290,6 +306,15 @@ export function Wrapup() {
         <p>
           {rich(
             String.raw`把整章串起來算一次：手上只有三個硬體數字——comparator 前的雜訊 $\sigma_v$、暫存器的學習率 $\mu$、RTL 數出來的更新延遲 $d$（再加上 Ch06 的相關 $C$）。先把它們換成無因次的 $g$（§8.2），再用 §8.3 的 $g^*(d)$、$GM_d$、$PM_d$ 判斷離不穩定還有多遠。預設值就是上面「用晶片上的數字算一次」的 $\sigma_v=${HW_SIGMA_V_FS}$ fs、$\mu=10$ fs。`,
+          )}
+        </p>
+        <Mermaid
+          caption={String.raw`綜合手算的計算順序：圓角的是四個輸入，其餘每一格是一步；先算到藍色的 $g$，再分頭算 pole、學習率上限與兩個裕度`}
+          chart={SYNTHESIS_FLOW_CHART}
+        />
+        <p className="small">
+          {rich(
+            String.raw`讀圖：先看通到藍色方塊的那條主線——$\sigma_v\to K_q\to K\to g$，把三個硬體數字壓成一個沒有單位的 $g$（$K_q=\sqrt{2/\pi}/\sigma_v$ 是 Ch05 的 comparator 統計增益）。再看 $d$ 那條線——它只決定臨界增益 $g^{*}(d)$。最後兩條線會合：$g^{*}(d)$ 除以 $K$ 是學習率上限 $\mu_{\max}$，除以 $g$ 是 $GM_d$；$g$ 和 $d$ 一起決定 $PM_d$。圖上的每一格都對應下面手算題裡的一到兩個步驟（例如 $GM_d$ 那格在手算題裡分成「算倍數」和「換成 dB」），順序相同。`,
           )}
         </p>
         <HandCalcSlot id="HC-08.8">

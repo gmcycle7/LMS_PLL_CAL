@@ -1,9 +1,10 @@
 import { useMemo } from 'react'
-import { ClaimTag, CodeBlock, CodeCompare, ModeGate, Section, Tex } from '@/components'
+import { ClaimTag, CodeBlock, CodeCompare, Mermaid, ModeGate, Section, Tex } from '@/components'
 import quantSrc from '@/simulation/models/quantizer.ts?raw'
 import pySrc from '../../../../golden/lms_pll_golden/quantization.py?raw'
 import { STRATEGY_LABEL, runQuantLab } from '@/simulation/models/quantizer'
 import { DEFAULT_LAB_PARAMS, Fold, SpurAt, Unit, fx, num } from '../common'
+import { CHART_FIVE_STRATEGIES, CHART_POWER_SPLIT } from '../diagrams'
 
 const PATH = 'src/simulation/models/quantizer.ts'
 const CMP_LEN = 8000
@@ -29,6 +30,14 @@ export function CodeComparison() {
         下面就是網站實際執行的程式碼（<code>{PATH}</code>，以 <code>?raw</code> 匯入、<code>#region core:*</code> 擷取）。五個函式有相同的介面
         <code>(W, s, c) → y</code>：<code>W</code> 是以 <Tex>{'1/D'}</Tex> LSB 為單位的整數 <Tex>{'w_H[n]'}</Tex>，<code>s</code> 是狀態，<code>c</code> 是設定。標記
         <code>← 差異</code> 的行就是它們真正不同的地方。
+      </p>
+      <Mermaid
+        chart={CHART_FIVE_STRATEGIES}
+        caption="五種策略並排。先看中間一欄：五個方塊的差別只在「送進共用量化器的 $v$ 是什麼」；再看藍色的 D、E：只有它們有從輸出拉回來的虛線（誤差回授）。計數器只給 B，亂數只給 C 與 E。"
+      />
+      <p className="small ch13-figwalk">
+        圖上每個方塊裡的 <Tex>{'v'}</Tex> 就是程式碼裡送進 <code>quantize()</code> 的那個值（A 的 <code>s.wFreeze</code>、B / C 的 <code>(lo + bit) * c.D</code>、D 的 <code>W + s.r</code>、E 的 <code>V + d</code>）；圖上回授線的{' '}
+        <Tex>{'r[n]=v-y'}</Tex> 就是 D、E 最後存回 <code>s.r</code> 的那一行。下面的程式碼分頁照同樣的順序排，標記 <code>← 差異</code> 的行對應圖上各方塊不同的地方。
       </p>
       <CodeCompare
         items={[
@@ -72,6 +81,14 @@ export function CodeComparison() {
       </ModeGate>
 
       <h3>演算法比較表（常數 <Tex>{String.raw`w_H=32.4`}</Tex>，同一 seed）</h3>
+      <Mermaid
+        chart={CHART_POWER_SPLIT}
+        caption={String.raw`同樣的功率、不同的頻率分布。先看上面一組：只用 32 與 33 的方法（B、C、常數輸入的 D）總誤差功率都是 $0.24\,\mathrm{LSB}^2$，差別只在它落在兩條譜線還是攤平成白色；再看下面兩條：A 的功率較小但全在 DC，E 的總功率較大但沒有譜線。`}
+      />
+      <p className="small ch13-figwalk">
+        圖上的 <Tex>{'p(1-p)'}</Tex> 就是 §13.3 公式 F-13.6 的變異數，兩條譜線的數字是 §13.2 的 <Tex>{'P_1'}</Tex>、<Tex>{'P_2'}</Tex>，「被 <Tex>{String.raw`1-z^{-1}`}</Tex> 推到高頻」是 §13.4 的 NTF。這張圖就是本章的主旨「平均正確{' '}
+        <Tex>{String.raw`\ne`}</Tex> 頻譜理想」；下表把同一件事用模擬的數字再列一次（「總誤差功率」「最大譜線」「頻帶內」三欄）。
+      </p>
       <div className="table-wrap">
         <table className="ch13-table ch13-table-wide" aria-label="五種量化策略在常數 32.4 下的比較：平均、DC 誤差、功率、譜線、週期與硬體成本">
           <thead>

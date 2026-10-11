@@ -17,7 +17,8 @@ import {
 import { STEP, VARIANT_LABEL, huberPsi, lossValue, type LmsVariant, type TieRule } from '@/simulation/models/lms'
 import { runVariantOnData, signErrorFixedPointRun, type LossData } from '@/simulation/models/lossCompare'
 import lmsSrc from '@/simulation/models/lms.ts?raw'
-import { ChapterHandCalc, Erratum, f, texNum, useChapterMode } from '../common'
+import { BlockDiagram, ChapterHandCalc, Erratum, f, texNum, useChapterMode } from '../common'
+import { OUTLIER_DEMO } from '../diagrams'
 
 const DH = 1 // 圖中的 Huber 門檻 δₕ
 const CMP = { a: 3, x: 1, w: 1, mu: 0.2, huberDelta: 1 } // 入門課 Lesson 3 的單步比較
@@ -82,6 +83,16 @@ export function LossesSection() {
       (['conventional', 'sign_error', 'huber', 'sign_sign'] as LmsVariant[]).map((v) => ({
         v,
         out: STEP[v]({ w: CMP.w, x: CMP.x, y: CMP.a * CMP.x, mu: CMP.mu, tie: 'zero', huberDelta: CMP.huberDelta }),
+      })),
+    [],
+  )
+
+  // 圖 2-3：與上表同一個起點、一筆 outlier 走一步（OUTLIER_DEMO 與圖上的數字同源，diagrams.test.tsx 逐一核對）
+  const outlier = useMemo(
+    () =>
+      (['conventional', 'sign_error', 'huber'] as LmsVariant[]).map((v) => ({
+        v,
+        out: STEP[v]({ w: OUTLIER_DEMO.w, x: OUTLIER_DEMO.x, y: OUTLIER_DEMO.y, mu: OUTLIER_DEMO.mu, tie: 'zero', huberDelta: OUTLIER_DEMO.huberDelta }),
       })),
     [],
   )
@@ -159,7 +170,9 @@ export function LossesSection() {
       <Section kind="intuition" title="2.1 可以用絕對值嗎？可以——但目標與更新律都會跟著變" level={2} id="ch01-s21">
         <p className="ch01-lead">
           §1.1 說「平方」是為了不讓正負抵消。絕對值也做得到。<strong>選哪一種誤差指標，就決定了演算法要找的「最佳解」是哪一個，以及每一步怎麼更新</strong>
-          （規格 §2）。我們比較三種損失：
+          （規格 §2）。把「一筆誤差 <Tex>{'e'}</Tex> 算多壞」寫成一個函數 <Tex>{String.raw`\rho(e)`}</Tex>，叫損失函數（loss）；下標 <Tex>{'2'}</Tex>、<Tex>{'1'}</Tex>、
+          <Tex>{'H'}</Tex> 分別代表平方（MSE，mean squared error）、絕對值（MAE，mean absolute error）與 Huber。<Tex>{String.raw`\delta_H`}</Tex> 是 Huber 的門檻：誤差比它小用平方、比它大改用直線
+          （注意它和 §1.4 的參數誤差 <Tex>{String.raw`\delta_n`}</Tex> 是兩回事）。我們比較三種損失：
         </p>
         <TexBlock
           id="F-01.10"
@@ -171,6 +184,17 @@ export function LossesSection() {
         >
           {String.raw`\rho_2(e)=\tfrac12e^2,\qquad \rho_1(e)=|e|,\qquad \rho_H(e)=\begin{cases}\tfrac12e^2,&|e|\le\delta_H\\ \delta_H\big(|e|-\tfrac12\delta_H\big),&|e|>\delta_H\end{cases}`}
         </TexBlock>
+        <p>
+          換了損失，更新式要重推嗎？不用。§1.3 的推導只用到「損失對誤差的斜率」，把它記成 <Tex>{String.raw`\psi(e)=d\rho/de`}</Tex>（influence function：這筆誤差對更新量有多大的影響力），
+          三種演算法就只差在這一格：
+        </p>
+        <BlockDiagram id="D-01.13">
+          三列的頭尾都一樣：左邊進來的是誤差 <Tex>{'e'}</Tex>，右邊乘上 <Tex>{String.raw`\mu x`}</Tex> 變成更新量。只要看中間藍色那一格：第一列讓 <Tex>{'e'}</Tex> 原樣通過；
+          第二列只留正負號 <Tex>{String.raw`\operatorname{sign}(e)`}</Tex>（<Tex>{'+1'}</Tex> 或 <Tex>{'-1'}</Tex>，大小被丟掉）；第三列用{' '}
+          <Tex>{String.raw`\operatorname{clip}(e,-\delta_H,\delta_H)`}</Tex> 把 <Tex>{'e'}</Tex> 截在 <Tex>{String.raw`[-\delta_H,\delta_H]`}</Tex> 之內（超出就取端點）。
+          圖上的三個藍色方塊就是 F-01.11 的 <Tex>{String.raw`\psi_2`}</Tex>、<Tex>{String.raw`\psi_1`}</Tex>、<Tex>{String.raw`\psi_H`}</Tex>，每一列最右邊就是{' '}
+          <Tex>{String.raw`\Delta w=\mu\,\psi(e)\,x`}</Tex>。
+        </BlockDiagram>
         {atLeast('engineer') ? chain : <Derivation title="連鎖律：一般損失的更新式" derivation={chain} level="L0" claim="exact" />}
         <TexBlock id="F-01.11" label="統一更新式">
           {String.raw`\boxed{\Delta w=\mu\,\psi(e)\,x},\qquad \psi_2=e,\quad \psi_1=\operatorname{sign}(e),\quad \psi_H=\operatorname{clip}(e,-\delta_H,\delta_H)`}
@@ -259,6 +283,16 @@ export function LossesSection() {
         level={2}
         id="ch01-s22"
       >
+        <p>
+          <Tex>{'|e|'}</Tex> 的圖形是一個 V 字：右半邊斜率是 <Tex>{'+1'}</Tex>、左半邊是 <Tex>{'-1'}</Tex>，所以 <Tex>{String.raw`\psi_1(e)=\operatorname{sign}(e)`}</Tex>。
+          問題出在尖點 <Tex>{'e=0'}</Tex>：那裡沒有唯一的斜率。數學上，所有「還能當斜率用」的值組成一個集合，叫次梯度（subgradient），記作{' '}
+          <Tex>{String.raw`\partial|e|`}</Tex>；在 0 這個集合是整段 <Tex>{'[-1,1]'}</Tex>。程式和硬體不能回傳一個集合，必須挑一個值——這個選擇叫 tie 慣例：
+        </p>
+        <BlockDiagram id="D-01.14">
+          先看上面的菱形：誤差大於 0 走左邊得到 <Tex>{'+1'}</Tex>，小於 0 得到 <Tex>{'-1'}</Tex>，這兩條沒有爭議。再看藍色的菱形：剛好等於 0 時有三種選法——數學次梯度取 0（這一步不動），
+          硬體 comparator 只有兩個輸出，所以只能是 <Tex>{'+1'}</Tex> 或 <Tex>{'-1'}</Tex>。圖上最下面的三個方塊就是 F-01.12 大括號裡的三個值，也是 <code>lms.ts</code> 裡{' '}
+          <code>sgn(v, tie)</code> 的 <code>zero</code>／<code>plus</code>／<code>minus</code>。
+        </BlockDiagram>
         {atLeast('engineer') ? absDeriv : <Derivation title="$|e|$ 的導數" derivation={absDeriv} level="L0" claim="exact" />}
         <Prereq title="次梯度（subgradient）：尖點上的「斜率」">
           <p>
@@ -432,6 +466,17 @@ export function LossesSection() {
             </caption>
           </table>
         </div>
+        <p>
+          上表的誤差只有 <Tex>{texNum(oneStep[0].out.e)}</Tex>，三種演算法差不多。差別要在 outlier 身上才看得出來：同一個起點，假設這一筆量測壞掉了，
+          <Tex>{'y'}</Tex> 從正常的 <Tex>{texNum(OUTLIER_DEMO.yNormal)}</Tex> 變成 <Tex>{texNum(OUTLIER_DEMO.y)}</Tex>（由同一組 step 函數即時計算）：
+        </p>
+        <BlockDiagram id="D-01.15">
+          先看左邊：這筆 outlier 讓誤差變成 <Tex>{String.raw`e=${texNum(outlier[0].out.e)}`}</Tex>，是上表的 <Tex>{texNum(outlier[0].out.e / oneStep[0].out.e)}</Tex> 倍。再看三條分支的藍色方塊各放行多少：
+          Conventional 放行整個 <Tex>{texNum(outlier[0].out.e)}</Tex>，<Tex>{'w'}</Tex> 一步從 <Tex>{texNum(OUTLIER_DEMO.w)}</Tex> 跳到 <Tex>{texNum(outlier[0].out.w)}</Tex>（紅色）；Sign-Error 與 Huber 都只放行{' '}
+          <Tex>{'+1'}</Tex>，<Tex>{'w'}</Tex> 只走到 <Tex>{texNum(outlier[1].out.w)}</Tex>（綠色），和誤差是 <Tex>{texNum(oneStep[0].out.e)}</Tex> 時一模一樣。圖上每條分支最後的{' '}
+          <Tex>{String.raw`\Delta w`}</Tex> 就是 F-01.11 的 <Tex>{String.raw`\mu\,\psi(e)\,x`}</Tex> 代入 <Tex>{String.raw`\mu=${OUTLIER_DEMO.mu},\ x=${OUTLIER_DEMO.x}`}</Tex>：
+          <Tex>{String.raw`${outlier.map((o) => texNum(o.out.dw)).join(',\\ ')}`}</Tex>。
+        </BlockDiagram>
         <ChapterHandCalc id="HC-01.5">
           換一個誤差自己走一步：先算 <Tex>{'e'}</Tex>，再分別換成 <Tex>{'e'}</Tex>、<Tex>{String.raw`\operatorname{sign}(e)`}</Tex>、
           <Tex>{String.raw`\operatorname{clip}(e,\pm\delta_H)`}</Tex>。預設就是上表的例子；把 <Tex>{'y'}</Tex> 改成 <Tex>{'21'}</Tex>（outlier）或{' '}

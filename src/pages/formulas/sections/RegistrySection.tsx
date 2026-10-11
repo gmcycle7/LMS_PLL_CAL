@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ClaimTag, mathText, ModelLevel, Section, SelectControl, TexBlock, ToggleControl } from '@/components'
+import { ClaimTag, mathText, Mermaid, ModelLevel, Section, SelectControl, TexBlock, ToggleControl } from '@/components'
 import { CLAIM_LABEL, type ClaimKind, type ModelLevelId } from '@/components'
 import { ALL_FORMULAS, registryStats, type RegistryRow } from '../registry'
 import { ErrataList, FormulaLink, Gate, MatchCount, NoMatch, useMode, shortPageLabel } from '../common'
+import { CHART_FORMULA_LINKS } from '../diagrams'
 
 /**
  * (1) 全站公式登錄：import.meta.glob 收集所有 chapters/*\/formulas.ts 與 pages/*\/formulas.ts。
@@ -92,6 +93,12 @@ export function RegistrySection({ rows, searching, focusId }: { rows: RegistryRo
           共 <strong>{ALL_FORMULAS.length}</strong> 條。每一條都有：ID、名稱、TeX、使用條件、結論標籤、模型層級、規格段落、所在頁面，以及（若與規格原文不同）勘誤編號。
           點 <strong>前往</strong> 會切換到該頁並捲到公式本身（錨點 <span className="mono">#formula-ID</span>）。
         </p>
+      )}
+      {!searching && (
+        <Mermaid
+          chart={CHART_FORMULA_LINKS}
+          caption="一個公式 ID 的旅程：章節的 formulas.ts 登錄（藍色是彙整後的 ALL_FORMULAS，也就是下面這張表）→ 按「前往」跳到該章的 #formula-ID 錨點；與規格原文不同的公式帶勘誤編號 Exx，紅色的 errata.json 提供 tooltip 摘要並連到驗證頁。"
+        />
       )}
       <div className="fr-filters">
         <SelectControl

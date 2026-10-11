@@ -60,7 +60,9 @@ afterEach(() => {
 })
 
 // 整章 DOM 很大（數百個 KaTeX 公式），jsdom 渲染一次約數秒：整章測試放寬 timeout，互動測試只渲染單一實驗元件。
-const SLOW = 60_000
+// 多個測試行程同時跑時（CPU 超額）渲染與卸載都會慢很多，所以 test 與 hook（RTL 的自動 cleanup）都給足時間。
+const SLOW = 240_000
+vi.setConfig({ testTimeout: SLOW, hookTimeout: SLOW })
 
 describe('Ch08 smoke test（jsdom）', () => {
   it.each(['beginner', 'engineer', 'research'] as const)(
@@ -85,9 +87,17 @@ describe('Ch08 smoke test（jsdom）', () => {
       expect(container.querySelectorAll('.katex-error')).toHaveLength(0)
       // 每個登錄的公式恰好一個錨點
       for (const f of FORMULAS) expect(container.querySelectorAll(`[id="formula-${f.id}"]`)).toHaveLength(1)
-      // 符號表在章首（開場問題之後、第一個段落之前）：teaching-style §5
-      expect(text.indexOf('本章符號')).toBeGreaterThan(0)
-      expect(text.indexOf('本章符號')).toBeLessThan(text.indexOf('先用一個生活例子'))
+      // 符號表在章末（teaching-style §5）：章首只留一行「本章符號表在最後 ↓」，表本身是頁面最後一個區塊（外層 id="symbols"，排在 Recap 之後）
+      expect(text.indexOf('本章符號表在最後')).toBeGreaterThan(text.indexOf('這一章要回答的問題'))
+      expect(text.indexOf('本章符號表在最後')).toBeLessThan(text.indexOf('先用一個生活例子'))
+      const symbols = container.querySelector('[id="symbols"]')
+      expect(container.querySelectorAll('.c-symbols')).toHaveLength(1)
+      expect(symbols?.querySelectorAll('.c-symbols tbody tr')).toHaveLength(29)
+      expect(container.querySelector('.ch08')?.lastElementChild).toBe(symbols)
+      expect(text.lastIndexOf('本章符號表（依第一次出現的順序）')).toBeGreaterThan(text.indexOf('應該記住的'))
+      // 方塊圖（teaching-style §8）：章首的系統地圖 + 本章 19 張圖，三種模式都看得到（不放在 ModeGate 裡）
+      expect(container.querySelectorAll('figure.c-mermaid')).toHaveLength(20)
+      expect(container.querySelector('figure.c-mermaid')?.getAttribute('aria-label') ?? '').toContain('系統方塊圖')
       // 「用晶片上的數字算一次」：μ 上界 250.66 / 125.33 fs（入門課 Lesson 4）由模型算出
       expect(text).toContain('250.66')
       expect(text).toContain('125.33')

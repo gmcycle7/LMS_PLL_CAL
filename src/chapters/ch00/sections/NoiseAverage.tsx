@@ -6,7 +6,7 @@ import { presetById, presetHref } from '@/app/presets'
 import { fixedXPole } from '@/simulation/models/lms'
 import { STEADY_STATE_EXAMPLE, diceAverages, equivalentAveragingLength, steadyStateVarW, stepsToFraction } from '../model'
 import { num, texNum } from '../format'
-import { ChapterHandCalc, ErratumRef, Observe, PageLink } from '../common'
+import { ChapterDiagram, ChapterHandCalc, ErratumRef, FigRef, Observe, PageLink } from '../common'
 import { NoiseAverageLab } from '../experiments/NoiseAverageLab'
 import modelSrc from '../model.ts?raw'
 import playgroundSrc from '../experiments/playgroundModel.ts?raw'
@@ -110,49 +110,66 @@ export function NoiseAverageSection() {
       </Prereq>
 
       <h3>平均的更新方向</h3>
-      <StepDerivation
-        title={
-          <>
-            固定 <Tex>{'w'}</Tex>，計算 <Tex>{'e\\,x'}</Tex> 的期望值
-          </>
-        }
-        steps={[
-          {
-            tex: String.raw`y=ax+v`,
-            why: (
-              <>
-                黑盒子模型：<Tex>{'v'}</Tex> 是零均值雜訊，<Tex>{'E[v]=0'}</Tex>。
-              </>
-            ),
-          },
-          {
-            tex: String.raw`e=y-wx=(a-w)\,x+v`,
-            why: (
-              <>
-                代入 <Tex>{'y'}</Tex>，把含 <Tex>{'x'}</Tex> 的項合併。
-              </>
-            ),
-          },
-          {
-            tex: String.raw`e\,x=(a-w)\,x^2+v\,x`,
-            why: (
-              <>
-                兩邊乘上 <Tex>{'x'}</Tex>（LMS 的更新量正比於 <Tex>{'e\\,x'}</Tex>）。
-              </>
-            ),
-          },
-          {
-            tex: String.raw`E[e\,x]=(a-w)\,E[x^2]+E[v\,x]`,
-            why: (
-              <>
-                取期望值並用線性；<Tex>{'w'}</Tex> 固定，所以 <Tex>{'(a-w)'}</Tex> 是常數，可以提出來。
-              </>
-            ),
-          },
-          { tex: String.raw`E[v\,x]=E[v]\,E[x]=0`, why: '雜訊與輸入獨立（至少不相關），且雜訊平均為 0。' },
-        ]}
-        result={String.raw`E[e\,x]=(a-w)\,E[x^2]`}
-      />
+      <p>
+        LMS 每一步加到 <Tex>{'w'}</Tex> 上的是 <Tex>{'\\mu\\,e\\,x'}</Tex>，所以只要弄清楚 <Tex>{'e\\,x'}</Tex> 這個乘積「平均來說」指向哪裡。把含雜訊的誤差代進去，<Tex>{'e\\,x'}</Tex>{' '}
+        會分成兩份：一份來自「<Tex>{'w'}</Tex> 還沒對」，一份來自雜訊。
+      </p>
+      <ChapterDiagram name="CHART_SIGNAL_VS_NOISE">
+        <p>
+          先看最左邊：有雜訊的誤差 <Tex>{'e=(a-w)x+v'}</Tex>（把 §0.1 <FigRef name="CHART_BLACKBOX_MODEL" /> 的兩條路相減、再把含 <Tex>{'x'}</Tex> 的項合併）和{' '}
+          <Tex>{'x'}</Tex> 一起進乘法器，得到 <Tex>{'e\\,x'}</Tex>。再看乘法器之後分出的兩格（線上寫著 <Tex>{'e\\,x'}</Tex> 的第一項、第二項）：綠色的訊號部分 <Tex>{'(a-w)x^2'}</Tex>（<Tex>{'x^2\\ge0'}</Tex>，所以每一筆都和{' '}
+          <Tex>{'a-w'}</Tex> 同號），以及紅色的雜訊部分 <Tex>{'v\\,x'}</Tex>（時正時負）。最後看兩條進「取平均」的線：綠色那一份平均之後還在，紅色那一份平均之後是 0。
+        </p>
+        <p>
+          圖上的「<code>E[·]</code>」就是上面先備知識框介紹的期望值 <Tex>{'E[\\cdot]'}</Tex>；藍色那格「<code>E[e·x] = (a − w)·E[x²] + 0</code>」就是 F-00.7，其中的{' '}
+          <Tex>{'0'}</Tex> 是紅色那一份的平均 <Tex>{'E[v\\,x]'}</Tex>——它是 0 的條件寫在那條線上：<Tex>{'v'}</Tex> 的平均是 0，而且和 <Tex>{'x'}</Tex> 無關。
+        </p>
+      </ChapterDiagram>
+      <div id="ch00-mean-steps">
+        <StepDerivation
+          title={
+            <>
+              固定 <Tex>{'w'}</Tex>，計算 <Tex>{'e\\,x'}</Tex> 的期望值
+            </>
+          }
+          steps={[
+            {
+              tex: String.raw`y=ax+v`,
+              why: (
+                <>
+                  黑盒子模型：<Tex>{'v'}</Tex> 是零均值雜訊，<Tex>{'E[v]=0'}</Tex>。
+                </>
+              ),
+            },
+            {
+              tex: String.raw`e=y-wx=(a-w)\,x+v`,
+              why: (
+                <>
+                  代入 <Tex>{'y'}</Tex>，把含 <Tex>{'x'}</Tex> 的項合併。
+                </>
+              ),
+            },
+            {
+              tex: String.raw`e\,x=(a-w)\,x^2+v\,x`,
+              why: (
+                <>
+                  兩邊乘上 <Tex>{'x'}</Tex>（LMS 的更新量正比於 <Tex>{'e\\,x'}</Tex>）。
+                </>
+              ),
+            },
+            {
+              tex: String.raw`E[e\,x]=(a-w)\,E[x^2]+E[v\,x]`,
+              why: (
+                <>
+                  取期望值並用線性；<Tex>{'w'}</Tex> 固定，所以 <Tex>{'(a-w)'}</Tex> 是常數，可以提出來。
+                </>
+              ),
+            },
+            { tex: String.raw`E[v\,x]=E[v]\,E[x]=0`, why: '雜訊與輸入獨立（至少不相關），且雜訊平均為 0。' },
+          ]}
+          result={String.raw`E[e\,x]=(a-w)\,E[x^2]`}
+        />
+      </div>
       <TexBlock
         id="F-00.7"
         label={
@@ -253,6 +270,21 @@ export function NoiseAverageSection() {
         />
       </Prereq>
 
+      <p>
+        把這條法則用在更新量上：把 <Tex>{'N'}</Tex> 筆 <Tex>{'e_ix_i'}</Tex> 加起來再除以 <Tex>{'N'}</Tex>，記為 <Tex>{'\\bar G_N'}</Tex>（<Tex>{'G'}</Tex>{' '}
+        上面一橫表示平均）。單獨一筆 <Tex>{'e\\,x'}</Tex> 的標準差記為 <Tex>{'s_1'}</Tex>（下標 1 表示「只有一筆」），雜訊 <Tex>{'v'}</Tex> 的標準差記為 <Tex>{'\\sigma_v'}</Tex>。
+      </p>
+      <ChapterDiagram name="CHART_NOISE_AVERAGING">
+        <p>
+          先看最左邊：每一筆 <Tex>{'e_ix_i'}</Tex> 的平均是 <Tex>{'(a-w)E[x^2]'}</Tex>（上一張圖的結論）、標準差是 <Tex>{'s_1'}</Tex>。再看藍色的兩格：先累加 <Tex>{'N'}</Tex>{' '}
+          筆——總和裡訊號長成 <Tex>{'N'}</Tex> 倍，雜訊只長成 <Tex>{'\\sqrt N'}</Tex> 倍；再除以 <Tex>{'N'}</Tex>。最後看輸出的兩個性質：中心沒有動，抖動縮成{' '}
+          <Tex>{'s_1/\\sqrt N'}</Tex>。
+        </p>
+        <p>
+          圖上的「N 筆的平均」就是公式裡的 <Tex>{'\\bar G_N'}</Tex>；綠色那格「<code>s₁ / √N</code>」就是下面的 F-00.8。這個「先累加、再除以 <Tex>{'N'}</Tex>」的方塊，到了 §0.9 會換個名字叫
+          GMAC。
+        </p>
+      </ChapterDiagram>
       <TexBlock
         id="F-00.8"
         label={
@@ -354,8 +386,21 @@ export function NoiseAverageSection() {
         LMS 一邊學一邊平均：<Tex>{'w'}</Tex> 最後會抖多大？
       </h3>
       <p>
-        LMS 不會先平均再更新，而是每一筆都只更新一點點——<Tex>{'\\mu'}</Tex> 越小，等效上平均越多筆。固定 <Tex>{'x'}</Tex>、雜訊為 iid 時，<Tex>{'w'}</Tex> 收斂後的抖動有精確公式：
+        LMS 不會先平均再更新，而是每一筆都只更新一點點——<Tex>{'\\mu'}</Tex> 越小，等效上平均越多筆。固定 <Tex>{'x'}</Tex>、雜訊為 iid（每一筆互相獨立、分布相同）時，<Tex>{'w'}</Tex> 收斂後的抖動有精確公式。
+        先看雜訊是從哪裡灌進迴圈的：
       </p>
+      <ChapterDiagram name="CHART_STEADY_STATE_NOISE">
+        <p>
+          先看迴圈（暫存器 → 藍色的「× <Tex>{'p'}</Tex>」→ 相加點 → 暫存器）：它就是 §0.6 的 <FigRef name="CHART_ERROR_RECURSION" />，只是把繞一圈的效果合成一格。再看紅色的入口：雜訊{' '}
+          <code>v[n]</code> 乘上 <Tex>{'\\mu x'}</Tex> 之後以 <code>(−)</code> 進入相加點——因為雜訊讓 <Tex>{'e'}</Tex> 多了 <Tex>{'v'}</Tex>，<Tex>{'w'}</Tex> 就多修了{' '}
+          <Tex>{'\\mu x v'}</Tex>，「還差多少」<Tex>{'\\delta'}</Tex> 也就少了這麼多。
+        </p>
+        <p>
+          圖上相加點的兩個輸入合起來就是 <Tex>{'\\delta_{n+1}=p\\,\\delta_n-\\mu x\\,v_n'}</Tex>（Engineer 推導的第二行）；綠色那格就是下面的 F-00.9。<Tex>{'\\mu'}</Tex>{' '}
+          在圖上出現兩次：入口的 <Tex>{'\\mu x'}</Tex> 決定每一筆雜訊灌進來多少，迴圈裡的 <Tex>{'p=1-\\mu x^2'}</Tex> 決定舊的雜訊多久才忘掉。<Tex>{'\\mu'}</Tex>{' '}
+          小，灌進來的少（抖動小），但 <Tex>{'p'}</Tex> 靠近 1、忘得慢（收斂也慢）。
+        </p>
+      </ChapterDiagram>
       <TexBlock
         id="F-00.9"
         label={

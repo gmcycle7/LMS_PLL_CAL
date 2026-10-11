@@ -18,7 +18,7 @@ import pllSrc from '@/simulation/models/pll.ts?raw'
 import { ctBandwidth3dB } from '@/simulation/models/pll'
 import { compareCtDt, ctHpd, loopFreqFromBw, lowFreqReCoef } from '@/simulation/models/polarity'
 import { CtDtExperiment } from '../experiments/CtDtExperiment'
-import { ChapterHandCalc, ChapterSection, Erratum, f, fx, StepBox } from '../shared'
+import { ChapterDiagram, ChapterHandCalc, ChapterSection, Erratum, f, fx, StepBox } from '../shared'
 
 const PATH = 'src/simulation/models/polarity.ts'
 
@@ -93,6 +93,23 @@ export function S5LoopTypes() {
         §4 告訴我們：極性由 <Tex>{'\\cos\\phi=\\operatorname{Re}\\{H\\}/|H|'}</Tex> 的正負決定。所以問題變成：主 PLL 的 <Tex>{'H_{\\mathrm{PD}}'}</Tex>{' '}
         在哪些頻率 <Tex>{'\\operatorname{Re}\\{H\\}<0'}</Tex>？先用連續時間（CT）參考原型推導，最後再處理離散時間（DT）的修正（E44）。
       </p>
+      <p>
+        主 PLL 有兩種常見的結構，差別只在迴路裡有<strong>幾個積分器</strong>。DCO 把頻率積分成相位，所以每個 PLL 至少有一個；Type-II 的 PI
+        迴路濾波器再多一個。積分器越多，PLL 把慢速誤差「追掉」得越乾淨——留給 PD 看的殘差也就越不像原本的 code。
+      </p>
+      <ChapterDiagram id="D-06.10">
+        <p>
+          先比較兩邊迴路裡的方塊。Type-I 的迴路濾波器只是一個比例增益 <Tex>{'\\omega_c'}</Tex>（開迴路交越頻率：<Tex>{'|L(j\\omega_c)|=1'}</Tex>），後面接 DCO 的積分{' '}
+          <Tex>{'1/s'}</Tex>（乘上 <Tex>{'1/s'}</Tex> 就是對時間積分，見下面的先備知識），所以開迴路是 <Tex>{'L(s)=\\omega_c/s'}</Tex>。Type-II 把比例增益換成藍色的 PI
+          濾波器（比例 + 積分），開迴路是 <Tex>{'L(s)=(2\\zeta\\omega_ns+\\omega_n^2)/s^2'}</Tex>，其中 <Tex>{'\\omega_n'}</Tex> 是自然頻率、<Tex>{'\\zeta'}</Tex>{' '}
+          是阻尼比。再看兩邊從加法點用虛線拉出去的結果（綠色與紅色）——它們寫的是「從 <Tex>{'e_{\\mathrm{PD}}'}</Tex> 看」的轉移函數，和圖 6.3 的輸出 1
+          是同一個位置：低頻時 Type-I 的 PD 看到 code 的<strong>一次微分</strong>，Type-II 看到<strong>二次微分</strong>。
+        </p>
+        <p>
+          圖上兩個迴路各自套用 §2 的 <Tex>{'H_{\\mathrm{PD}}=1/(1+L)'}</Tex>，就得到 5.1 的 F-06.7（綠色那格）與 5.2 的 F-06.8（紅色那格）；「一次微分只會變慢、二次微分會變號」的原因在
+          5.3。
+        </p>
+      </ChapterDiagram>
 
       <Prereq title={String.raw`Laplace 變數 $s$：乘上 $s$ 就是微分`}>
         <p>
@@ -238,6 +255,10 @@ export function S5LoopTypes() {
         lead={String.raw`這就是上面的手算，拆成每一步只做一種運算。先用紙筆把規格的 $\nu=0.3$、$\zeta=0.7$ 算到 $-0.0815+j0.0376$、$155.2^\circ$，再換成你的 $\nu$ 與 $\zeta$（試試 $\nu=1$ 與 $\nu=2$）。`}
       />
 
+      <p className="small">
+        下面兩張圖把兩種迴路畫在一起。橫軸 <Tex>{'\\nu=\\omega/\\omega_L'}</Tex> 是以<strong>迴路頻率</strong> <Tex>{'\\omega_L'}</Tex> 正規化的頻率（Type-I 取{' '}
+        <Tex>{'\\omega_L=\\omega_c'}</Tex>，Type-II 取 <Tex>{'\\omega_L=\\omega_n'}</Tex>）。
+      </p>
       <div className="ch06-grid2">
         <Plot
           title={String.raw`CT 原型 $\operatorname{Re}\{H_{\mathrm{PD}}\}$`}
@@ -266,6 +287,21 @@ export function S5LoopTypes() {
       </div>
 
       <h3>5.3 物理意義：Type-II 的 PD 看到慢速誤差的「二次微分」</h3>
+      <p>
+        為什麼多一個積分器就會變號？白話：Type-II 連「等速變化」的誤差都追得掉（斜坡的穩態誤差是零），所以慢速 code 經過它之後，PD 只看得到 code 的
+        <strong>彎曲程度</strong>（二次微分）。而一個訊號和自己的彎曲程度總是反相：正弦在波峰（值最大）時向下彎得最厲害（二次微分最負）。
+      </p>
+      <ChapterDiagram id="D-06.11">
+        <p>
+          先沿著主線走：慢速 code 被微分兩次（藍色是第二次），再除以 <Tex>{'\\omega_n^2'}</Tex>，就是 PD 看到的 <Tex>{'u'}</Tex>；GMAC 把它和原始的{' '}
+          <Tex>{'x'}</Tex> 相乘再平均，得到紅色那一格。再看虛線的支線：Type-I 只微分一次就停了，而 <Tex>{'x'}</Tex> 和自己的一次微分 <Tex>{"x'"}</Tex>{' '}
+          平均起來剛好不相關（綠色）。
+        </p>
+        <p>
+          圖上的兩個 <Tex>{'d/dt'}</Tex> 就是公式 <Tex>{'H\\approx s^2/\\omega_n^2'}</Tex> 裡的 <Tex>{'s^2'}</Tex>（乘上 <Tex>{'s'}</Tex> 就是微分）；紅色那格的等號{' '}
+          <Tex>{"E[x\\,x'']=-E[(x')^2]"}</Tex> 來自分部積分，是下面推導的第 4 步。
+        </p>
+      </ChapterDiagram>
       <StepBox title="為什麼兩個積分器會讓相關變負">
         <StepDerivation
           steps={[
@@ -398,7 +434,8 @@ export function S5LoopTypes() {
             <tr>
               <td>DT 的例外（E44）</td>
               <td>
-                latency 大到 <Tex>{'K(d+\\tfrac12)>1'}</Tex> 時低頻也變號
+                latency 大到 <Tex>{'K(d+\\tfrac12)>1'}</Tex> 時低頻也變號（<Tex>{'K=\\omega_cT_s'}</Tex> 是 Type-I DPLL 的迴路增益，<Tex>{'d'}</Tex> 是額外的 loop
+                latency，單位 sample；見 5.4）
               </td>
               <td>
                 邊界隨 <Tex>{'\\omega_nT_s'}</Tex> 與 <Tex>{'d'}</Tex> 移到約 <Tex>{'1.00\\text{–}1.49\\,\\omega_n'}</Tex>
@@ -437,7 +474,32 @@ export function S5LoopTypes() {
           網站的 DT 參考模型（<code>pll.ts</code> 的 <code>designDtLoop</code>，本章另以 <code>polarity.ts</code> 的係數函式重現並交叉驗證）：
         </li>
       </ul>
+      <ChapterDiagram id="D-06.12">
+        <p>
+          先找兩個藍色的累加器：PI 濾波器的積分路徑 <Tex>{'K_i/(1-z^{-1})'}</Tex>，和 DCO 的 <Tex>{'z^{-1}/(1-z^{-1})'}</Tex>——它們就是 CT
+          原型的兩個積分器（累加就是離散時間的積分）。再看延遲：DCO 自帶一個 <Tex>{'z^{-1}'}</Tex>（這一拍算出的控制量，下一拍才變成相位），它前面還串著一塊{' '}
+          <Tex>{'d'}</Tex> 拍的額外 latency <Tex>{'z^{-d}'}</Tex>（<Tex>{'d=0'}</Tex> 就是沒有這一塊）。一拍的時間是 PD / comparator 的取樣週期 <Tex>{'T_s'}</Tex>。最後看回授：DCO
+          的輸出 <Tex>{'\\varphi_{\\mathrm{fb}}[n]'}</Tex> 以「−」號回到加法點，和圖 6.3 一樣是負回授。
+        </p>
+        <p>
+          沿著迴路把方塊乘起來，<Tex>{'\\big(K_p+\\tfrac{K_i}{1-z^{-1}}\\big)\\cdot z^{-d}\\cdot\\tfrac{z^{-1}}{1-z^{-1}}'}</Tex>，就是下面的 F-06.10：
+          <Tex>{'K_p'}</Tex> 是比例增益、<Tex>{'K_i'}</Tex> 是積分增益、<Tex>{'d'}</Tex> 是額外 latency 的拍數。Type-I 的 DT 版本只是把 PI 的兩條路換成一個比例增益{' '}
+          <Tex>{'K=\\omega_cT_s'}</Tex>。
+        </p>
+      </ChapterDiagram>
       <TexBlock id="F-06.10">{String.raw`\boxed{L(z)=\Big(K_p+\frac{K_i}{1-z^{-1}}\Big)\frac{z^{-(1+d)}}{1-z^{-1}},\qquad K_p=2\zeta\omega_nT_s,\;K_i=(\omega_nT_s)^2}`}</TexBlock>
+      <ChapterDiagram id="D-06.13">
+        <p>
+          逐列對照：每一條有標籤的箭頭從 CT 的一項指向它在 DT 裡的對應（藍色）。積分器那一條，CT 的 <Tex>{'1/s'}</Tex> 變成 DT 的累加器，因為{' '}
+          <Tex>{'1-z^{-1}\\approx sT_s'}</Tex>；PI 濾波器那一條，兩個係數各乘上 <Tex>{'T_s'}</Tex> 與 <Tex>{'T_s^2'}</Tex>，變成無因次的 <Tex>{'K_p'}</Tex>、
+          <Tex>{'K_i'}</Tex>；頻率那一條，頻率軸從 <Tex>{'\\omega'}</Tex>（rad/s）換成 <Tex>{'\\Omega=\\omega T_s'}</Tex>（rad/sample）；延遲那一條是 CT
+          原型沒有、真實迴路一定有的 <Tex>{'z^{-(1+d)}'}</Tex>。最後看菱形：
+          <Tex>{'\\omega_nT_s\\ll1'}</Tex> 而且 <Tex>{'d=0'}</Tex> 時 CT 與 DT 幾乎一樣；否則 DT 的相位比 CT 多轉一些，polarity 邊界就不在 <Tex>{'\\omega_n'}</Tex>。
+        </p>
+        <p>
+          圖上積分器與 PI 濾波器那兩條就是下面推導框的第 3 到 5 步（把 F-06.10 的 <Tex>{'z'}</Tex> 換回 <Tex>{'s'}</Tex>）；最後一格「1.00 到 1.49 倍」的數字來自推導框裡的 E44 表。
+        </p>
+      </ChapterDiagram>
       <StepBox
         title={
           <>
@@ -528,6 +590,29 @@ export function S5LoopTypes() {
         </div>
       </StepBox>
 
+      <p>
+        <strong>實際設計時從哪裡開始算？</strong>手上通常只有主 PLL 的 closed-loop <Tex>{'-3\\,\\mathrm{dB}'}</Tex> 頻寬 <Tex>{'\\mathrm{BW}'}</Tex>、reference 頻率{' '}
+        <Tex>{'f_{\\mathrm{ref}}'}</Tex> 與阻尼比 <Tex>{'\\zeta'}</Tex>，沒有 <Tex>{'\\omega_n'}</Tex>。下面這張圖把「頻寬 → <Tex>{'\\omega_nT_s'}</Tex> → <Tex>{'K_p'}</Tex>、
+        <Tex>{'K_i'}</Tex> → 某個 code 頻率落在反相頻帶的哪一邊」排成計算順序；後面的推導框與手算題 HC-06.6 都照這個順序走。
+      </p>
+      <ChapterDiagram id="D-06.14">
+        <p>
+          跟著圈號算。先算 ①：頻寬除以 reference 頻率（本章所有結果只和這個比值有關，<Tex>{'T_s=1/f_{\\mathrm{ref}}'}</Tex>）。②、③、④ 只用到阻尼比{' '}
+          <Tex>{'\\zeta'}</Tex>，算出 <Tex>{'-3\\,\\mathrm{dB}'}</Tex> 頻寬是自然頻率的幾倍，記作 <Tex>{'c_{3\\mathrm{dB}}=\\omega_{3\\mathrm{dB}}/\\omega_n'}</Tex>（
+          <Tex>{`\\zeta=0.7`}</Tex> 時是 <Tex>{fx(c3dB, 4)}</Tex>）。再算 ⑤（藍色）：把 ① 乘上 <Tex>{'2\\pi'}</Tex> 變成每個 sample 的角度{' '}
+          <Tex>{'\\omega_{3\\mathrm{dB}}T_s'}</Tex>，除以 ④ 就是 <Tex>{'\\omega_nT_s'}</Tex>；本章實驗預設的 <Tex>{'\\mathrm{BW}/f_{\\mathrm{ref}}=0.01'}</Tex> 得到{' '}
+          <Tex>{`\\omega_nT_s=${f(wnDefault, 5)}`}</Tex>。⑥、⑦ 由它算出離散時間迴路的兩個係數。⑧、⑨ 是另一條支線：把 code 的頻率 <Tex>{'f'}</Tex> 換成每個 sample 的角度{' '}
+          <Tex>{'\\Omega'}</Tex>，再除以 <Tex>{'\\omega_nT_s'}</Tex> 得到頻率比 <Tex>{'\\nu'}</Tex>（藍色）。最後看菱形：<Tex>{'\\nu<1'}</Tex> 時這個頻率落在 Type-II
+          的反相頻帶（紅色）。
+        </p>
+        <p>
+          圖上的 ④ 就是下面推導框的結果 <Tex>{'\\omega_{3\\mathrm{dB}}/\\omega_n=\\sqrt{\\beta+\\sqrt{\\beta^2+1}}'}</Tex>（<Tex>{'\\beta=1+2\\zeta^2'}</Tex>{' '}
+          只是代號）；⑥、⑦ 就是 F-06.10 的 <Tex>{'K_p=2\\zeta\\omega_nT_s'}</Tex>、<Tex>{'K_i=(\\omega_nT_s)^2'}</Tex>；菱形比的 <Tex>{'\\nu'}</Tex> 就是 5.2 的 F-06.8 裡的{' '}
+          <Tex>{'\\nu=\\omega/\\omega_n'}</Tex>。「和 1 比」是 CT 原型的邊界；DT 迴路的邊界略高於 1（圖 6.13 與上一個推導框裡的 E44 表）。若 <Tex>{'f'}</Tex> 是一階 DSM residue 的基頻，這個{' '}
+          <Tex>{'\\nu'}</Tex> 就是 §6.4 要用的比值 <Tex>{'\\Delta'}</Tex>。注意菱形判斷的是<strong>單一頻率</strong>：真實的 code 有很多頻率，要用 §6 的加權平均才知道{' '}
+          <Tex>{'C'}</Tex> 的正負（近整數鋸齒的基頻落在反相頻帶，小訊號卻不一定變號，見 §6.4）。
+        </p>
+      </ChapterDiagram>
       <StepBox title={String.raw`由 $-3\,\mathrm{dB}$ 頻寬求 $\omega_n$：實驗滑桿 $\mathrm{BW}/f_{\mathrm{ref}}$ 怎麼換成 $\omega_nT_s$`}>
         <p>
           設計 PLL 時手上通常是 closed-loop 頻寬，不是 <Tex>{'\\omega_n'}</Tex>。CT 原型的 closed-loop 轉移函數是{' '}

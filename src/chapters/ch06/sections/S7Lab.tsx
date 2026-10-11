@@ -15,7 +15,7 @@ import {
 } from '@/simulation/models/polarity'
 import { PolarityExplorer } from '../experiments/PolarityExplorer'
 import { POLARITY_EXPERIMENT_ID } from '../experiments/explorerModel'
-import { ChapterSection, f, fx, radOf, StepBox } from '../shared'
+import { ChapterDiagram, ChapterSection, f, fx, JumpTo, radOf, StepBox } from '../shared'
 
 /** §7 動手觀察：Polarity Explorer（規格 §19；Gallery #3）。「你會發現…」裡的數字全部即時計算。 */
 export function S7Lab() {
@@ -69,6 +69,26 @@ export function S7Lab() {
         （F-06.19）。{' '}
         <ModelLevel level="L2" /> <TestBadge id="T06" />
       </p>
+      <p>
+        動手之前，先看閉迴路模擬在一個 GMAC block 裡做了哪些事、各以什麼速率發生。前面的公式有兩種時間索引——sample 的 <Tex>{'n'}</Tex> 與 block 的{' '}
+        <Tex>{'k'}</Tex>；把兩者混在一起，是讀這一章（和寫模擬）最常見的錯誤。
+      </p>
+      <ChapterDiagram id="D-06.24">
+        <p>
+          先看 loop 框裡面（sample rate）：每個 sample <Tex>{'n'}</Tex>，DTC 用這個 block 的 gain <Tex>{'w_k'}</Tex> 產生誤差{' '}
+          <Tex>{'\\varepsilon[n]=(a-w_k)\\,x[n]'}</Tex>；它經過主 PLL 的 <Tex>{'H_{\\mathrm{PD}}'}</Tex>、加上雜訊 <Tex>{'v[n]'}</Tex> 成為{' '}
+          <Tex>{'e_{\\mathrm{PD}}[n]'}</Tex>；comparator 取出正負號 <Tex>{'q[n]'}</Tex>；GMAC 把 <Tex>{'q[n]\\,x[n-D]'}</Tex> 加進累加器。這四件事重複{' '}
+          <Tex>{'N'}</Tex> 次，期間 <Tex>{'w_k'}</Tex> 完全不動。再看 loop 框外面（block rate）：<Tex>{'N'}</Tex> 個 sample 累加完，GMAC 才把結果平均成{' '}
+          <Tex>{'G_k'}</Tex>，校正值更新一次，下一個 block 的 DTC 改用 <Tex>{'w_{k+1}'}</Tex>（虛線箭頭）。
+        </p>
+        <p>
+          圖上的每一個箭頭就是 <JumpTo target="ch06-s3">§3 核心程式碼</JumpTo> <code>simulateSignLmsChain</code> 的一行：外層的 <code>for k</code> 是 block、內層的{' '}
+          <code>for i</code> 是 sample；loop 框外的兩行就是公式 <Tex>{'G_k=\\tfrac1N\\sum_n q[n]\\,x[n-D]'}</Tex> 與 <Tex>{'w_{k+1}=w_k+\\mu G_k'}</Tex>。
+          有一件事圖上看不出來、但程式有做到：主 PLL 的濾波器狀態<strong>跨 block 保留</strong>——<Tex>{'w'}</Tex> 在 block 邊界一跳，<Tex>{'H_{\\mathrm{PD}}'}</Tex>{' '}
+          的輸出要過幾拍才跟上，所以 F-06.1 的 <Tex>{'e_{\\mathrm{PD}}\\approx(a-w_k)\\,u+v'}</Tex> 只在 <Tex>{'w'}</Tex> 變得比主 PLL 慢時成立。pole{' '}
+          <Tex>{'p=1-\\mu K_qC'}</Tex>（圖 6.6）描述的是 loop 框外、block rate 的平均行為。
+        </p>
+      </ChapterDiagram>
       <Section kind="explore" title="試試看（你會發現…）">
         <ol>
           <li>

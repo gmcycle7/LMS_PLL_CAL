@@ -591,3 +591,32 @@
     flex: 1 1 auto;
   }
 }
+
+/* 方塊圖版位：圖 + 圖說，下面緊接「先看…再看…」的導讀（docs/teaching-style.md §8） */
+.gal-diagram {
+  margin: 1rem 0 1.1rem;
+  min-width: 0;
+}
+.gal-diagram .c-mermaid {
+  margin-bottom: 0.4rem;
+}
+.gal-diagram-walk {
+  border-left: 3px solid var(--accent);
+  padding: 0.1rem 0 0.1rem 0.75rem;
+  font-size: 0.93rem;
+}
+.gal-diagram-walk > p {
+  margin: 0.35rem 0;
+}
+
+/* 頁首「本頁符號表在最後」的一行連結，與頁尾的符號表（docs/teaching-style.md §5） */
+.gal-symbols-link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin: 0 0 1.2rem;
+}
+.gal-symbols {
+  scroll-margin-top: 72px;
+}

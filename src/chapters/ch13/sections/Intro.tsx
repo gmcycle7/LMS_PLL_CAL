@@ -8,46 +8,14 @@ import {
   Section,
   SourceTag,
   StepDerivation,
-  SymbolTable,
+  SystemMap,
   Tex,
   TexBlock,
-  type SymbolEntry,
 } from '@/components'
 import { makeGrid, quantize, makeCtx } from '@/simulation/models/quantizer'
 import { DEFAULT_LAB_PARAMS, Erratum, LSB_FS_EXAMPLE, fx, n, tx } from '../common'
-
-const SYMBOLS: SymbolEntry[] = [
-  { symbol: String.raw`w^*`, meaning: '理想（最佳）校正係數，本章例子 32.4', unit: String.raw`\mathrm{LSB}`, firstSeen: '§13.0', note: tx(String.raw`規格 §13 的 $w^*$；換成 fs 要乘 $\Delta_\mathrm{LSB}$`) },
-  { symbol: String.raw`w_H[n]`, meaning: 'LMS 內部的高解析係數（accumulator 內容）', unit: String.raw`\mathrm{LSB}`, firstSeen: '§13.0', note: tx(String.raw`常數情境 $w_H=w^*$；時變情境 $w_H[n]=w^*+\delta w[n]$`) },
-  { symbol: String.raw`y[n]`, meaning: '實體 6-bit gain code（DTC gain register 的值）', unit: String.raw`\mathrm{LSB}`, firstSeen: '§13.0', note: <Tex>{String.raw`y\in\{0,1,\dots,2^B-1\}`}</Tex> },
-  { symbol: 'B', meaning: 'gain register 的位元數（本章 6）', firstSeen: '§13.0' },
-  { symbol: String.raw`\Delta_\mathrm{LSB}`, meaning: '1 個 gain LSB 對應的 DTC gain', unit: String.raw`\mathrm{fs}/\mathrm{LSB}`, firstSeen: '§13.0', note: <><Erratum id="E13" />：規格原未給，本章示例 <Tex>{String.raw`${LSB_FS_EXAMPLE}\,\mathrm{fs/LSB}`}</Tex></> },
-  { symbol: String.raw`Q_B(\cdot)`, meaning: tx(String.raw`$B$-bit 量化器：round-half-up $\lfloor v+\tfrac12\rfloor$ 或 floor $\lfloor v\rfloor$；超出 $[0,2^B-1]$ 時 saturate / wrap`), firstSeen: '§13.1' },
-  { symbol: String.raw`\delta w=w-w^*`, meaning: '係數誤差（本章顯示用的約定）', unit: String.raw`\mathrm{LSB}`, firstSeen: '§13.1', note: <><Erratum id="E49" />：{tx(String.raw`§0 約定 $\delta=a-w=-\delta w$，正負號相反`)}</> },
-  { symbol: String.raw`e[n]=y[n]-w^*`, meaning: 'code 誤差（gain error）', unit: String.raw`\mathrm{LSB}`, firstSeen: '§13.1' },
-  { symbol: String.raw`\overline e,\;\overline{e^2}`, meaning: tx(String.raw`時間平均（DC 誤差）與平方平均（總誤差功率）；$\overline{e^2}=\overline e^{\,2}+$ 變異數`), unit: String.raw`\mathrm{LSB},\;\mathrm{LSB}^2`, firstSeen: '§13.1' },
-  { symbol: 'p', meaning: <><Tex>{String.raw`w^*`}</Tex> 的小數部分 <Tex>{String.raw`\mathrm{frac}(w^*)`}</Tex>（<Tex>{String.raw`32.4\to0.4`}</Tex>）；也是 stochastic rounding 輸出 33 的機率</>, firstSeen: '§13.2', note: tx(String.raw`第 12 章的係數 pole $p$ 在本章改記為 $p_\mathrm{cal}$，避免衝突`) },
-  { symbol: String.raw`L_t,\;h`, meaning: 'toggle pattern 的週期與其中「進位」的個數（5 與 2）', firstSeen: '§13.2' },
-  { symbol: String.raw`c_k,\;P_k`, meaning: tx(String.raw`週期誤差的第 $k$ 個傅立葉係數與 one-sided 線功率（頻率 $kf_u/q$）`), unit: String.raw`\mathrm{LSB},\;\mathrm{LSB}^2`, firstSeen: '§13.2' },
-  { symbol: String.raw`f_u`, meaning: tx(String.raw`6-bit code 的更新率（每個 reference cycle 更新時 $f_u=f_\mathrm{ref}$；每個 GMAC block 更新時 $f_u=f_s/N$）`), unit: String.raw`\mathrm{Hz}`, firstSeen: '§13.2', note: <><Erratum id="E47" />：{tx(String.raw`規格的 $f_\mathrm{toggle}$ 未定義，本章一律用 $f_u$`)}</> },
-  { symbol: String.raw`f_s,\;N_\mathrm{upd}`, meaning: tx(String.raw`reference / DTC 取樣率；每 $N_\mathrm{upd}$ 個 reference cycle 更新一次 code（$f_u=f_s/N_\mathrm{upd}$）`), unit: String.raw`f_s:\ \mathrm{Hz}`, firstSeen: '§13.2', note: tx(String.raw`§13.2 的 ZOH 推導把保持的樣本數記為 $N_h$，與 $N_\mathrm{upd}$ 是同一個量`) },
-  { symbol: String.raw`\Omega=2\pi f/f_u`, meaning: '以 code 更新率為取樣率的離散時間頻率', unit: String.raw`\mathrm{rad/sample}`, firstSeen: '§13.4' },
-  { symbol: String.raw`v[n],\;r[n]`, meaning: 'ΔΣ 量化器輸入與內部量化誤差（residual）', unit: String.raw`\mathrm{LSB}`, firstSeen: '§13.4', note: tx(String.raw`round-half-up 時 $r\in[-\tfrac12,\tfrac12)$；floor 時 $r\in[0,1)$`) },
-  { symbol: String.raw`\sigma_r^2`, meaning: tx(String.raw`$r$ 的變異數；白色近似取 $\tfrac1{12}$，常數 32.4 時實際為 0.08`), unit: String.raw`\mathrm{LSB}^2`, firstSeen: '§13.4', note: <Erratum id="E15" /> },
-  { symbol: String.raw`\mathrm{NTF}(z)=1-z^{-1}`, meaning: '一階 noise transfer function', firstSeen: '§13.4' },
-  { symbol: String.raw`q,\;m`, meaning: tx(String.raw`有理目標 $w=m/q$（最簡分數）；$q$ 也是 limit cycle 的週期`), firstSeen: '§13.4' },
-  { symbol: String.raw`F,\;K`, meaning: tx(String.raw`$w_H$ 定點表示的小數位元數；$K=w_H\cdot2^F$ 為整數`), unit: String.raw`F:\ \mathrm{bit}`, firstSeen: '§13.4' },
-  { symbol: String.raw`d[n],\;A,\;\sigma_d^2`, meaning: tx(String.raw`dither、其峰對峰寬度、變異數（RPDF：$A^2/12$；TPDF：$A^2/24$）`), unit: String.raw`\mathrm{LSB},\;\mathrm{LSB}^2`, firstSeen: '§13.4E' },
-  { symbol: String.raw`u[n],\;e_q[n]`, meaning: tx(String.raw`加了 dither 的量化器輸入 $u=v+d$，與量化器本身的誤差 $e_q=y-u$`), unit: String.raw`\mathrm{LSB}`, firstSeen: '§13.4E' },
-  { symbol: String.raw`\delta w[n],\;\sigma_w,\;p_\mathrm{cal}`, meaning: tx(String.raw`LMS 更新雜訊（AR(1)）、其穩態 RMS 與 pole（第 12 章的 $p$）`), unit: String.raw`\mathrm{LSB}`, firstSeen: '§13.5a' },
-  { symbol: String.raw`\epsilon[n]=y[n]-w_H[n]`, meaning: tx(String.raw`量化誤差：只看量化器本身（不含 LMS 雜訊）；用 $\epsilon$ 是為了和有理分母 $q$、量化器誤差 $e_q$ 區分`), unit: String.raw`\mathrm{LSB}`, firstSeen: '§13.5a' },
-  { symbol: String.raw`f_B=f_u/64`, meaning: '本章「頻帶內」的上緣（相當於 OSR = 32）：會被當成 static / 慢變 gain error 的頻段', unit: String.raw`\mathrm{Hz}`, firstSeen: '§13.5a' },
-  { symbol: String.raw`x[n],\;\delta t[n]`, meaning: tx(String.raw`DSM residue（正規化 regressor）與 DTC timing error $\delta t=\Delta_\mathrm{LSB}\,e\,x$`), unit: String.raw`\delta t:\ \mathrm{fs}`, firstSeen: '§13.5' },
-  { symbol: String.raw`T(f)`, meaning: '從 DTC 誤差到 PLL output 的 closed-loop transfer（low-pass）', firstSeen: '§13.5' },
-  { symbol: String.raw`\sigma_{\delta t},\;\sigma_\mathrm{out}`, meaning: tx(String.raw`$\delta t$ 的 RMS（未經 PLL）與經 $|T(f)|^2$ 加權積分後的 output jitter（只含 $f\ge f_L$）`), unit: String.raw`\mathrm{fs}`, firstSeen: '§13.5' },
-  { symbol: String.raw`f_L,\;\sigma_\mathrm{slow},\;\overline{\delta t}`, meaning: tx(String.raw`$\sigma_\mathrm{out}$ 的積分下限（Welch 的頻率解析度 $f_s/N_\mathrm{seg}$）；比它慢的成分 RMS；整段紀錄的平均（靜態偏移，或分辨不出的慢差頻）`), unit: String.raw`\mathrm{Hz},\;\mathrm{fs},\;\mathrm{fs}`, firstSeen: '§13.5b' },
-  { symbol: String.raw`P_\mathrm{code},\;P_\mathrm{DSM}`, meaning: tx(String.raw`code 的 limit-cycle 週期與 DSM residue 的週期；混頻產物的週期是 $\mathrm{lcm}(P_\mathrm{code}N_\mathrm{upd},\,P_\mathrm{DSM})$ 個 reference cycle`), unit: String.raw`\text{更新次數},\;\text{cycles}`, firstSeen: '§13.5b' },
-]
+import { CHART_ERROR_PATH, CHART_SIGNAL_FLOW, SYSTEM_MAP_FOCUS } from '../diagrams'
+import { SymbolsLink } from './Symbols'
 
 export function Intro() {
   const nums = useMemo(() => {
@@ -76,26 +44,60 @@ export function Intro() {
         </ul>
         <p>
           本章的答案是：<strong>平均正確不等於頻譜理想</strong>。五種方法的總誤差功率可能一模一樣，差別只在誤差能量落在哪個頻率——而
-          DSM residue 與 PLL 的 <Tex>{'T(f)'}</Tex> 會決定哪個頻率最傷。對常數目標 32.4，一階 ΔΣ 甚至與「固定週期切換」落入<strong>同一個</strong>週期 5 循環（floor
+          DSM residue（小數除頻留下的餘數碼 <Tex>{'x[n]'}</Tex>，DTC 的輸入）與 PLL 的 <Tex>{'T(f)'}</Tex>（從 DTC 誤差到 PLL 輸出的 closed-loop 轉移函數，low-pass）會決定哪個頻率最傷。對常數目標 32.4，一階 ΔΣ 甚至與「固定週期切換」落入<strong>同一個</strong>週期 5 循環（floor
           版逐點相同、round-half-up 版只差循環移位；<Erratum id="E15" />）。
         </p>
         <SourceTag kind="illustrative" />
       </Section>
 
-      <SymbolTable
-        rows={SYMBOLS}
-        caption={
-          <>
-            全站約定見規格 §0。本章 code 一律以 LSB 為單位，換成時間要乘 <Tex>{String.raw`\Delta_\mathrm{LSB}`}</Tex>（<Erratum id="E13" />）。
-          </>
-        }
-      />
+      <Section kind="diagram" title="系統地圖：本章在整個校正系統的哪裡？" id="ch13-map">
+        <SystemMap focus={SYSTEM_MAP_FOCUS} />
+        <p>
+          藍色的三塊是本章的主角：<strong>Gain accumulator</strong>（LMS 算出來的高解析係數）、<strong>Quantizer</strong>（把它放進有限個 bit）與 <strong>Gain correction</strong>（把量化後的係數乘上
+          residue、送進 DTC）；前面幾章都把 Quantizer 當成一條直通的線，本章加上的就是這一塊，以及它造成的誤差怎麼沿著 Gain correction → DTC → 主 PLL 迴路走到輸出。
+        </p>
+      </Section>
+
+      <SymbolsLink />
+
+      <Section kind="diagram" title={<>訊號流：高解析 <Tex>{'w_H'}</Tex> <Tex>{String.raw`\to`}</Tex> 6-bit code <Tex>{String.raw`\to`}</Tex> DTC</>} id="ch13-diagram">
+        <p>
+          把系統地圖上藍色的三塊（Gain accumulator → Quantizer → Gain correction）放大。三個名字先記住：<Tex>{'w_H[n]'}</Tex> 是 LMS accumulator 裡的<strong>高解析係數</strong>（有小數 bit；LMS 收斂、不再變動時 <Tex>{String.raw`w_H=w^*`}</Tex>）；
+          <Tex>{'y[n]'}</Tex> 是真正寫進 gain register 的<strong>整數 code</strong>，只能是 <Tex>{String.raw`0,1,\dots,2^B-1`}</Tex>（<Tex>{'B=6'}</Tex> 是位元數，所以最大 63）；
+          <Tex>{'x[n]'}</Tex> 是 DSM residue。
+        </p>
+        <Mermaid
+          chart={CHART_SIGNAL_FLOW}
+          caption="6-bit gain code 的訊號流。先看藍色菱形：五種策略都是「高解析 $w_H$ 進、整數 $y$ 出」的同一個位置；再看虛線：code 誤差乘上 $x$ 之後才到 PLL 輸出。"
+          ariaLabel="GMAC 平均進入 LMS accumulator，經量化策略成為 6-bit gain register，再與 DSM residue 一起控制 DTC；code 誤差乘上 DSM residue 後經 PLL 到輸出"
+        />
+        <p className="small ch13-figwalk">
+          先看上排由左到右：GMAC 平均 <Tex>{'G_k'}</Tex>（第 4 章：一個 block 內 comparator 輸出乘上 code 的平均）更新 accumulator <Tex>{String.raw`\to`}</Tex> 藍色的量化策略 <Tex>{String.raw`\to`}</Tex> 6-bit register{' '}
+          <Tex>{String.raw`\to`}</Tex> DTC，再經 PD / comparator 回到 GMAC，這是校正迴路。再看虛線：code 誤差 <Tex>{String.raw`e=y-w^*`}</Tex> 不是直接加到輸出，而是與 DSM residue <Tex>{'x[n]'}</Tex> <strong>相乘</strong>（§12.2：乘號不是加號），得到 DTC
+          注入的 timing error <Tex>{String.raw`\delta t[n]=\Delta_\mathrm{LSB}\,e[n]\,x[n]`}</Tex>，再經 PLL 的 <Tex>{'T(f)'}</Tex> 到輸出。圖上 DTC 方塊裡的延遲 <Tex>{String.raw`\Delta_\mathrm{LSB}\cdot y\cdot x[n]`}</Tex> 中，<Tex>{String.raw`\Delta_\mathrm{LSB}`}</Tex> 是 1 個 gain LSB 對應多少 fs（下一段就算它）。
+        </p>
+        <ModeGate min="engineer">
+          <p className="small muted">
+            硬體對應：<Tex>{'w_H'}</Tex> 是 LMS 更新暫存器（例如 16–24 bit）；<Tex>{'y'}</Tex> 是 DTC gain DAC 的 6-bit 控制字；量化策略是兩者之間的一小塊
+            RTL。code 的更新時脈 <Tex>{'f_u'}</Tex>（每個 reference cycle 或每個 GMAC block）會決定量化誤差落在哪個頻率（§13.5 第 5 點）。
+          </p>
+        </ModeGate>
+      </Section>
 
       <Section kind="example" title="先算一次：把 LSB 換成 fs" id="ch13-units">
         <p>
           規格 §13 只寫「32.4 LSB」，沒有說 1 LSB 是多少 fs，所以 6-bit 的結果無法和第 12 章的 0.399 fs 比較（<Erratum id="E13" />）。本章補上
-          <Tex>{String.raw`\Delta_\mathrm{LSB}`}</Tex>，示例值取 <Tex>{String.raw`\Delta_\mathrm{LSB}=${LSB_FS_EXAMPLE}\,\mathrm{fs/LSB}`}</Tex>
+          <Tex>{String.raw`\Delta_\mathrm{LSB}`}</Tex>（1 個 gain LSB 對應的 DTC gain，單位 <Tex>{String.raw`\mathrm{fs/LSB}`}</Tex>），示例值取 <Tex>{String.raw`\Delta_\mathrm{LSB}=${LSB_FS_EXAMPLE}\,\mathrm{fs/LSB}`}</Tex>
           （與 Lab 的 <code>gain_lsb_fs</code> 預設一致，非量測值）。
+        </p>
+        <Mermaid
+          chart={CHART_ERROR_PATH}
+          caption={String.raw`誤差的定義與單位。先看上面一條：$y$ 減 $w^*$ 得到 code 誤差（$\mathrm{LSB}$），乘 $\Delta_\mathrm{LSB}$ 變成 $\mathrm{fs}$，再乘 DSM residue 才是 timing error；再看下面一條：§0 的約定把減法反過來，同一個誤差正負號相反。`}
+        />
+        <p className="small ch13-figwalk">
+          圖上藍色加法點的輸出 <Tex>{String.raw`e=\delta w=y-w^*`}</Tex> 就是本章所有表格顯示的<strong>係數誤差</strong>（code 比理想值大就是正的）；圖上的 <Tex>{String.raw`\times\Delta_\mathrm{LSB}`}</Tex> 方塊就是下面公式 F-13.1 的{' '}
+          <Tex>{String.raw`w\,[\mathrm{fs}]=\Delta_\mathrm{LSB}\cdot w\,[\mathrm{LSB}]`}</Tex>。下面的手算照著圖由左到右走一次：先算 <Tex>{'y'}</Tex>，再算 <Tex>{String.raw`\delta w`}</Tex>，最後乘 <Tex>{String.raw`\Delta_\mathrm{LSB}`}</Tex>。其中{' '}
+          <Tex>{String.raw`Q_6(\cdot)`}</Tex> 表示「四捨五入成 6-bit 整數 code」的量化器（一般寫成 <Tex>{String.raw`Q_B`}</Tex>，<Tex>{'B'}</Tex> 是位元數）。
         </p>
         <StepDerivation
           steps={[
@@ -106,7 +108,9 @@ export function Intro() {
               tex: String.raw`\sigma_w^{(\mathrm{ch12})}=\frac{\mu}{\sqrt{N(1-p_\mathrm{cal}^2)}}=${fx(nums.sigmaWFs, 3)}\ \mathrm{fs}=\frac{${fx(nums.sigmaWFs, 3)}}{${LSB_FS_EXAMPLE}}=${fx(nums.sigmaWLsb, 2)}\ \mathrm{LSB}`,
               why: (
                 <>
-                  第 12 章 T13 例子（<Tex>{String.raw`\mu=10\,\mathrm{fs},\ N=4096,\ \sigma_v=100\,\mathrm{fs}\Rightarrow p_\mathrm{cal}=${fx(nums.pcal, 5)}`}</Tex>）的係數雜訊換成 LSB：在這個 <Tex>{String.raw`\Delta_\mathrm{LSB}`}</Tex> 下 LMS
+                  <Tex>{String.raw`\sigma_w`}</Tex> 是 LMS 更新雜訊讓係數在 <Tex>{'w^*'}</Tex> 附近擺動的 RMS（第 12 章）；<Tex>{String.raw`\mu`}</Tex> 是 LMS 步長、<Tex>{'N'}</Tex> 是 GMAC 的 block 長度、
+                  <Tex>{String.raw`\sigma_v`}</Tex> 是 comparator 前的雜訊、<Tex>{String.raw`p_\mathrm{cal}`}</Tex> 是第 12 章的係數 pole（那裡記為 <Tex>{'p'}</Tex>；本章的 <Tex>{'p'}</Tex> 另指小數部分，所以改名）。第 12 章 T13 例子（
+                  <Tex>{String.raw`\mu=10\,\mathrm{fs},\ N=4096,\ \sigma_v=100\,\mathrm{fs}\Rightarrow p_\mathrm{cal}=${fx(nums.pcal, 5)}`}</Tex>）的係數雜訊換成 LSB：在這個 <Tex>{String.raw`\Delta_\mathrm{LSB}`}</Tex> 下 LMS
                   雜訊遠大於 1 LSB，量化幾乎被淹沒。本章因此把 <Tex>{String.raw`\sigma_w/\Delta_\mathrm{LSB}`}</Tex> 當成關鍵參數（§13.5a 的時變情境用 <Tex>{String.raw`\sigma_w=0.2\,\mathrm{LSB}`}</Tex>，量化誤差與 LMS 雜訊同量級）。
                 </>
               ),
@@ -128,33 +132,6 @@ export function Intro() {
         </Callout>
       </Section>
 
-      <Section kind="diagram" title={<>訊號流：高解析 <Tex>{'w_H'}</Tex> <Tex>{String.raw`\to`}</Tex> 6-bit code <Tex>{String.raw`\to`}</Tex> DTC</>} id="ch13-diagram">
-        <Mermaid
-          chart={[
-            'flowchart LR',
-            '  G[GMAC 平均 G_k] --> ACC["LMS accumulator<br/>w_H（高解析）"]',
-            '  ACC --> Q{"量化策略<br/>A Freeze / B Toggle / C Stochastic<br/>D ΔΣ / E ΔΣ+dither"}',
-            '  Q --> REG["6-bit gain register<br/>y ∈ {0..63}"]',
-            '  REG --> DTC["DTC：延遲 = Δ_LSB·y·x[n]"]',
-            '  DSM["DSM residue x[n]"] --> DTC',
-            '  DTC --> PD["PD / comparator"] --> G',
-            '  DTC -. "δt = Δ_LSB·(y − w*)·x" .-> OUT["PLL output（經 T(f)）"]',
-          ].join('\n')}
-          caption="6-bit gain code 的訊號流（虛線：code 誤差到 PLL 輸出的路徑）"
-          ariaLabel="GMAC 平均進入 LMS accumulator，經量化策略成為 6-bit gain register，再與 DSM residue 一起控制 DTC；code 誤差乘上 DSM residue 後經 PLL 到輸出"
-        />
-        <p className="small">
-          code 誤差 <Tex>{String.raw`e=y-w^*`}</Tex> 不是直接加到輸出，而是與 DSM residue <Tex>{'x[n]'}</Tex> <strong>相乘</strong>（§12.2：乘號不是加號）：
-          <Tex>{String.raw`\delta t[n]=\Delta_\mathrm{LSB}\,e[n]\,x[n]`}</Tex>，再經 PLL 的 <Tex>{'T(f)'}</Tex> 到輸出。
-        </p>
-        <ModeGate min="engineer">
-          <p className="small muted">
-            硬體對應：<Tex>{'w_H'}</Tex> 是 LMS 更新暫存器（例如 16–24 bit）；<Tex>{'y'}</Tex> 是 DTC gain DAC 的 6-bit 控制字；量化策略是兩者之間的一小塊
-            RTL。code 的更新時脈 <Tex>{'f_u'}</Tex>（每個 reference cycle 或每個 GMAC block）會決定量化誤差落在哪個頻率（§13.5 第 5 點）。
-          </p>
-        </ModeGate>
-      </Section>
-
       <Prereq title="floor、round 與小數部分（frac）">
         <p>
           <Tex>{String.raw`\lfloor x\rfloor`}</Tex>（floor）是「不大於 <Tex>{'x'}</Tex> 的最大整數」：<Tex>{String.raw`\lfloor 32.9\rfloor=32`}</Tex>、
@@ -163,7 +140,7 @@ export function Intro() {
         </p>
         <p>
           round-half-up：<Tex>{String.raw`\mathrm{round}(x)=\lfloor x+\tfrac12\rfloor`}</Tex>，所以 <Tex>{String.raw`\mathrm{round}(32.5)=33`}</Tex>（tie 往上）。truncation（floor）則直接
-          <Tex>{String.raw`\lfloor x\rfloor`}</Tex>。兩者對 ΔΣ 只差相位與 <Tex>{'r'}</Tex> 的範圍（<Tex>{String.raw`[-\tfrac12,\tfrac12)`}</Tex> vs <Tex>{'[0,1)'}</Tex>），但對「直接截位」會差半個 LSB 的 bias（§13.6）。
+          <Tex>{String.raw`\lfloor x\rfloor`}</Tex>。兩者對 ΔΣ（§13.4）只差相位與它內部誤差暫存器 <Tex>{'r'}</Tex> 的範圍（<Tex>{String.raw`[-\tfrac12,\tfrac12)`}</Tex> vs <Tex>{'[0,1)'}</Tex>），但對「直接截位」會差半個 LSB 的 bias（§13.6）。
         </p>
         <TexBlock>{String.raw`x=\lfloor x\rfloor+\mathrm{frac}(x),\qquad 0\le\mathrm{frac}(x)<1`}</TexBlock>
         <p className="small">

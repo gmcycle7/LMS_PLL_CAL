@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { ClaimTag, Quiz, Recap, Tex, TexBlock } from '@/components'
 import { calPole, ctHpd, kqFromSigma, naiveCtWhiteCorrelation, toneCorrelation } from '@/simulation/models/polarity'
-import { ChapterHandCalc, ChapterSection, fx, radOf } from '../shared'
+import { ChapterDiagram, ChapterHandCalc, ChapterSection, fx, radOf } from '../shared'
 
 /** §8 演算法比較、思考題、本課必記、硬體對應與下一個問題 */
 export function S8Recap() {
@@ -18,6 +18,22 @@ export function S8Recap() {
       <h3>
         怎麼讓 <Tex>{'C'}</Tex> 變回正的？三種 regressor 的比較（第 07 章詳述）
       </h3>
+      <p>
+        極性錯了，要改的是 GMAC 拿來相乘的那個訊號（regressor），不是 <Tex>{'\\mu'}</Tex>。常見的選擇有三種，先看圖再看表：
+      </p>
+      <ChapterDiagram id="D-06.25">
+        <p>
+          三個乘法器拿的都是同一個 comparator 輸出 <Tex>{'q[n]'}</Tex>（它的誤差裡含的是 <Tex>{'u=h*x'}</Tex>），差別只在另一個輸入：raw-x 直接用原始 code；delayed-x
+          多一個 <Tex>{'D'}</Tex> 拍的延遲（藍色）；filtered-x 先讓 code 通過主 PLL 的模型 <Tex>{'\\hat h'}</Tex>（藍色），得到 <Tex>{'u_f=\\hat h*x'}</Tex>。
+        </p>
+        <p>
+          每個乘法器的輸出取 block 平均之後，就是那一種 GMAC 的平均輸出 <Tex>{'E[G]\\approx K_q\\,\\delta\\times(\\text{相關})'}</Tex>（§3 的 F-06.2）；<Tex>{'K_q'}</Tex> 與{' '}
+          <Tex>{'\\delta'}</Tex> 三種都一樣，所以最下面三格只寫出各自的「相關」，更新方向就看它的正負。
+          圖上最下面的三格就是下表「相關」那一欄：raw-x 是本章的 <Tex>{'C=E[x\\,u]'}</Tex>；delayed-x 是 <Tex>{'C_D=E\\big[x[n-D]\\,u[n]\\big]'}</Tex>（單頻時正比於{' '}
+          <Tex>{'\\cos(\\phi+\\Omega D)'}</Tex>，一個 <Tex>{'D'}</Tex> 只能對準一個頻率）；filtered-x 是 <Tex>{'E[u\\,u_f]'}</Tex>，模型準（<Tex>{'\\hat h=h'}</Tex>）時等於{' '}
+          <Tex>{'E[u^2]\\ge0'}</Tex>。
+        </p>
+      </ChapterDiagram>
       <div className="table-wrap">
         <table className="ch06-table">
           <thead>
@@ -79,6 +95,17 @@ export function S8Recap() {
         <Tex>{'C_D'}</Tex>（F-06.14、F-06.18）→ <Tex>{'K_q'}</Tex> 與 pole（§3）。這一題回答一個很實際的問題：
         <strong>GMAC 的 regressor 只比 PD 誤差晚一個 sample，raw-x LMS 的極性會不會反過來？</strong>
       </p>
+      <ChapterDiagram id="D-06.26">
+        <p>
+          跟著圈號算。先算 ①：把 <Tex>{'\\omega_nT_s'}</Tex> 平方得到積分增益 <Tex>{'K_i'}</Tex>，⑤ 的門檻 <Tex>{'D^*=\\mathrm{frac}/K_i'}</Tex>（圖上寫成 D⋆）與 ⑦ 的二階項都要用到它；⑥ 的一階項只和{' '}
+          <Tex>{'\\mathrm{frac}'}</Tex>、<Tex>{'D'}</Tex> 有關。再把 ⑥ 和 ⑦ 相加得到 ⑧ 的 <Tex>{'C_D/\\sigma_x^2'}</Tex>（藍色）——它的正負號就是這一題的答案。最後 ⑨ 到 ⑪ 接上
+          comparator 增益 <Tex>{'K_q'}</Tex> 與 <Tex>{'\\mu'}</Tex>，把它換成 pole。②、③、④ 是檢查用的旁支：<Tex>{'\\Delta'}</Tex> 要遠小於 1，展開才準；
+          <Tex>{'R_x[D]'}</Tex> 讓你親手看到鋸齒自相關的一次項。
+        </p>
+        <p>
+          圖上的圈號和下面手算題的步驟編號一一對應：⑧ 就是 F-06.18（<Tex>{'D=0'}</Tex> 時退化成 F-06.14），⑪ 就是 F-06.3 的 <Tex>{'p=1-\\mu K_qC_D'}</Tex>。
+        </p>
+      </ChapterDiagram>
       <ChapterHandCalc
         id="HC-06.8"
         lead={String.raw`預設值是 §6.4 表格裡 $\mathrm{frac}=5\times10^{-4}$、$D=1$ 的那一格。換成你的 FCW 小數、$\omega_nT_s$（HC-06.6 的結果）、latency $d$ 與 code delay $D$，先用紙筆算門檻 $D^*=\mathrm{frac}/K_i$ 與 $C_D$ 的正負號，再把 $D$ 改成 0 重算一次比較。`}

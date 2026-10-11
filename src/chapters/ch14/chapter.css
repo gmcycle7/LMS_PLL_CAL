@@ -253,3 +253,61 @@
 .ch14-handcalc .c-handcalc {
   margin-top: 0.4rem;
 }
+
+/* 方塊圖版位（docs/teaching-style.md §8）：圖 + 圖說 + 「先看…再看…」導讀 */
+.ch14-diagram {
+  margin: 1rem 0 1.1rem;
+  min-width: 0;
+}
+
+.ch14-diagram .c-mermaid {
+  margin-bottom: 0.4rem;
+}
+
+.ch14-diagram-walk {
+  border-left: 3px solid var(--accent);
+  padding: 0.1rem 0 0.1rem 0.75rem;
+  font-size: 0.93rem;
+}
+
+.ch14-diagram-walk > p {
+  margin: 0.35rem 0;
+}
+
+/* 章首「本章符號表在最後」與章末符號表（docs/teaching-style.md §5） */
+.ch14-symbols-jump {
+  margin: 0.5rem 0;
+}
+
+.ch14-linkbtn {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  margin: 0 0.4rem 0 0;
+  background: none;
+  font: inherit;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ch14-linkbtn:hover {
+  text-decoration-thickness: 2px;
+}
+
+.ch14-symbols {
+  margin-top: 2rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+  scroll-margin-top: calc(var(--topbar-h, 52px) + 12px); /* 固定的 topbar 不要蓋住捲動目標 */
+}
+
+/* 捲動目標本身不是互動元件：滑鼠點擊不畫外框，鍵盤跳過來時才畫 */
+.ch14-symbols:focus {
+  outline: none;
+}
+
+.ch14-symbols:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
