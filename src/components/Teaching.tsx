@@ -29,7 +29,7 @@ export function SymbolTable({ rows, title = '本章符號', caption }: { rows: S
               <th>符號</th>
               <th>意義</th>
               {hasUnit && <th>單位</th>}
-              {hasSeen && <th>首次出現</th>}
+              {hasSeen && <th className="nowrap">首次出現</th>}
               {hasNote && <th>備註</th>}
             </tr>
           </thead>

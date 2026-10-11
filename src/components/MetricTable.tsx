@@ -11,7 +11,7 @@ export interface MetricTableProps {
 
 /**
  * 指標表：名稱、數值、單位、公式 ID、結論標籤；有 analytic 時顯示 Δ，有 tolerance 時顯示 ✓ / ✗。
- * 表格在窄螢幕於自身容器內水平捲動。
+ * 容器窄（例如實驗的右欄、手機）時由 CSS 改排成一個指標一張小卡，不必橫向捲動（見 components.css）。
  */
 export function MetricTable({ rows, caption }: MetricTableProps) {
   if (rows.length === 0) return null
@@ -52,10 +52,12 @@ export function MetricTable({ rows, caption }: MetricTableProps) {
                 )}
                 {hasClaim && <td>{r.claim ? <ClaimTag kind={r.claim} /> : ''}</td>}
                 {hasAnalytic && (
-                  <td className="num mono">{r.analytic !== undefined ? fmtNum(r.analytic, digits) : ''}</td>
+                  <td className="num mono" data-label="解析值">
+                    {r.analytic !== undefined ? fmtNum(r.analytic, digits) : ''}
+                  </td>
                 )}
                 {hasAnalytic && (
-                  <td className="num mono">
+                  <td className="num mono" data-label="Δ">
                     {ev.delta !== undefined ? fmtNum(ev.delta, 3) : ''}
                     {ev.relDelta !== undefined && Number.isFinite(ev.relDelta) && (
                       <span className="small muted"> ({fmtNum(ev.relDelta * 100, 3)}%)</span>
@@ -63,7 +65,7 @@ export function MetricTable({ rows, caption }: MetricTableProps) {
                   </td>
                 )}
                 {hasAnalytic && (
-                  <td>
+                  <td data-col="check">
                     {ev.pass === undefined ? (
                       ''
                     ) : ev.pass ? (

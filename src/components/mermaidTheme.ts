@@ -3,7 +3,7 @@ import { cssVar } from './theme'
 /**
  * 全站方塊圖（Mermaid）的視覺主題：把 Mermaid 預設的淡紫／淡黃配色換成與網站一致的樣式。
  *   - 節點：白底（深色主題為 surface）、細邊框、圓角、極淡的陰影
- *   - 群組（subgraph）：淡色底、虛線框、圓角、粗體小標題
+ *   - 群組（subgraph）：淡色底、虛線框、圓角、粗體小標題（字級只設在最外層，KaTeX 的巢狀 span 不能再各縮一次）
  *   - 連線：稍粗、石板灰；連線標籤是有邊框的小膠囊
  * 顏色從 global.css 的 design token 讀取（主題切換時 Mermaid 元件會重新 render）。
  * 各圖自己用 classDef 標示重點的顏色（focus／warn／ok…）不受影響。
@@ -55,7 +55,10 @@ function themeCss(p: Palette): string {
     .katex-display { margin: 0.1em 0; }
     .edgeLabel .katex-display { margin: 0; }
     .cluster rect { rx: 14px; ry: 14px; stroke-width: 1.1px; stroke-dasharray: 6 4; }
-    .cluster-label .nodeLabel, .cluster-label span, .cluster-label p { font-weight: 650; font-size: 0.86em; letter-spacing: 0.01em; color: ${p.muted}; fill: ${p.muted}; }
+    .cluster-label .nodeLabel { font-weight: 650; font-size: 0.86em; letter-spacing: 0.01em; color: ${p.muted}; fill: ${p.muted}; }
+    .cluster-label .nodeLabel p { color: ${p.muted}; }
+    .cluster-label .nodeLabel .katex { font-weight: 400; letter-spacing: 0; }
+    .katex path { fill: currentColor !important; stroke: none !important; }
     .flowchart-link, .edgePath .path, .transition, .messageLine0, .messageLine1 { stroke-width: 1.5px; }
     .edgeLabel { font-size: 0.9em; }
     .edgeLabel .labelBkg, .edgeLabel p { background-color: transparent; }
@@ -123,6 +126,7 @@ export function diagramConfig(theme: DiagramTheme, fontFamily: string) {
     themeCSS: themeCss(p),
     flowchart: { htmlLabels: true, curve: 'basis' as const, nodeSpacing: 38, rankSpacing: 46, padding: 13, diagramPadding: 10, useMaxWidth: true },
     state: { useMaxWidth: true, padding: 10 },
-    sequence: { useMaxWidth: true, actorMargin: 60, messageMargin: 34, boxMargin: 8 },
+    // width：參與者方塊的最小寬度（預設 150 會讓 5 個參與者的圖寬到放不進正文欄）
+    sequence: { useMaxWidth: true, width: 120, actorMargin: 56, messageMargin: 34, boxMargin: 8 },
   }
 }

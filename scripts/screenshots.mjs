@@ -93,7 +93,7 @@ try {
           }
           // 元素截圖時藏起固定在上方的工具列，避免蓋住被截的元素
           if (!page.__chromeHidden) {
-            await page.addStyleTag({ content: '.topbar{visibility:hidden!important}' })
+            await page.addStyleTag({ content: '.topbar{visibility:hidden!important}.fr-search{position:static!important}' })
             await page.evaluate(() => document.querySelectorAll('details').forEach((d) => (d.open = true)))
             await sleep(300)
             page.__chromeHidden = true

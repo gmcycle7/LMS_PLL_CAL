@@ -390,6 +390,28 @@ ol {
     display: none;
   }
 }
+/* 手機：品牌字與兩個下拉選單要一起放進 375px，選單縮窄、不換行 */
+@media (max-width: 480px) {
+  .topbar {
+    gap: 8px;
+    padding: 0 10px;
+  }
+  .brand {
+    font-size: 0.95rem;
+    white-space: nowrap;
+  }
+  .topbar-controls {
+    gap: 6px;
+    min-width: 0;
+  }
+  .topbar-controls select {
+    max-width: 104px;
+    padding-left: 6px;
+    padding-right: 4px;
+    font-size: 0.8rem;
+    text-overflow: ellipsis;
+  }
+}
 
 /* ===== Generic UI primitives (shared by all chapters) ===== */
 .btn {

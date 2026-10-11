@@ -73,7 +73,7 @@ try {
     await page.close()
     console.log(`\n${route}（${rows.length} 張）`)
     for (const r of rows) {
-      const flag = r.error ? `ERROR ${r.error}` : `${r.natural}  ×${r.scale}${r.overflow ? `  超出 ${r.overflow}px` : ''}${r.unsupported ? '  UNSUPPORTED-MARKDOWN' : ''}`
+      const flag = r.error ? `ERROR ${r.error}` : `${r.natural}  ×${r.scale}${r.overflow ? (args.viewport === 'mobile' ? `  框內橫向捲動 ${r.overflow}px（手機上是預期行為）` : `  超出 ${r.overflow}px`) : ''}${r.unsupported ? '  UNSUPPORTED-MARKDOWN' : ''}`
       console.log(`  ${String(r.i).padStart(2)}  ${flag}  ${r.caption}`)
     }
   }

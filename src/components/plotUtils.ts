@@ -176,6 +176,12 @@ export function buildThemedLayout(t: ThemeTokens, opts: ThemedLayoutOptions): Pa
     if (/^[xy]axis\d+$/.test(k)) base[k] = axisStyle(t)
   }
   const merged = mergeDeep(base, user)
+  // 預設圖例貼在繪圖區上方（yanchor: 'bottom'）。呼叫端只改 y 想把圖例放到 x 軸下方時，
+  // 錨點要跟著換成 'top'，否則圖例會往上長、蓋住座標軸與資料。
+  const userLegend = isPlainObject(user.legend) ? user.legend : null
+  if (userLegend && typeof userLegend.y === 'number' && userLegend.yanchor === undefined && userLegend.y <= 0) {
+    merged.legend = { ...(merged.legend as Obj), yanchor: 'top' }
+  }
   if (opts.xLog) merged.xaxis = { ...(merged.xaxis as Obj), type: 'log', exponentformat: (merged.xaxis as Obj).exponentformat ?? 'power' }
   if (opts.yLog) merged.yaxis = { ...(merged.yaxis as Obj), type: 'log', exponentformat: (merged.yaxis as Obj).exponentformat ?? 'power' }
   merged.height = opts.height

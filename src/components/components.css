@@ -332,6 +332,15 @@
     opacity: 1;
   }
 }
+/* 「放大」鈕一直顯示的情況（圖可橫向捲動、觸控裝置）：上方留一列給它，免得蓋住圖的右上角 */
+.c-mermaid-frame.is-scrollable .c-mermaid-svg {
+  padding-top: 42px;
+}
+@media (hover: none) {
+  .c-mermaid-svg {
+    padding-top: 42px;
+  }
+}
 @media print {
   .c-mermaid-zoom,
   .c-mermaid-frame::before,
@@ -922,6 +931,85 @@
 .c-metric-table td.num,
 .c-metric-table th.num {
   white-space: nowrap;
+}
+/*
+ * 指標表最多有 8 欄，放進實驗右欄（約 530px）會擠到每個字一行、後面幾欄還要橫向捲動。
+ * 容器窄的時候改成「一個指標一張小卡」：第一列是名稱，第二列是數值＋單位＋公式＋標籤，
+ * 第三列是解析值／Δ／檢查（欄名由 data-label 補在數字前面）。DOM 還是同一張 <table>。
+ */
+.c-metric-wrap {
+  container-type: inline-size;
+  container-name: metric;
+}
+@container metric (max-width: 700px) {
+  .c-metric-table,
+  .c-metric-table tbody {
+    display: block;
+    width: 100%;
+  }
+  .c-metric-table caption {
+    display: block;
+  }
+  .c-metric-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+  .c-metric-table tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 12px;
+    padding: 8px 2px;
+    border-bottom: 1px solid var(--border);
+    background: none;
+  }
+  .c-metric-table tbody tr:first-child {
+    border-top: 1px solid var(--border);
+  }
+  /* 第二列與第三列之間的換行 */
+  .c-metric-table tr::after {
+    content: '';
+    order: 2;
+    flex: 0 0 100%;
+    height: 0;
+  }
+  .c-metric-table td {
+    display: block;
+    order: 1;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  .c-metric-table td:empty {
+    display: none;
+  }
+  .c-metric-table td:first-child {
+    order: 0;
+    flex: 0 0 100%;
+    font-weight: 600;
+  }
+  .c-metric-table td:first-child .small {
+    font-weight: 400;
+  }
+  .c-metric-table td:nth-child(2) {
+    font-size: 0.98rem;
+    font-weight: 600;
+  }
+  .c-metric-table td[data-label],
+  .c-metric-table td[data-col='check'] {
+    order: 3;
+    font-size: 0.84rem;
+  }
+  .c-metric-table td[data-label]::before {
+    content: attr(data-label) ' ';
+    color: var(--text-muted);
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+  }
 }
 
 /* ===== ExperimentShell ===== */
