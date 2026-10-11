@@ -263,7 +263,8 @@
   outline-offset: -2px;
   border-radius: var(--radius);
 }
-.c-mermaid-svg svg {
+/* 只管圖本身那一層 <svg>：KaTeX 的根號、括號也是內嵌 <svg>，不能被這裡的尺寸規則波及 */
+.c-mermaid-svg > svg {
   height: auto;
 }
 /* 圖比版面寬：邊緣的漸層提示「這邊還有」 */
@@ -536,7 +537,7 @@
   margin: auto;
   padding: 24px;
 }
-.c-zoom-inner svg {
+.c-zoom-inner > svg {
   display: block;
   width: var(--c-zoom-width, auto) !important;
   max-width: none !important;
