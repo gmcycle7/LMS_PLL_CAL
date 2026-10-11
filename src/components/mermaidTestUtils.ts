@@ -24,11 +24,15 @@ export function installMermaidSvgShim(): void {
 let counter = 0
 
 /** 以與網站相同的前處理（sanitizeMermaidSource）真的 render 一次；回傳 SVG 與圖上的文字。 */
-export async function renderMermaidForTest(chart: string): Promise<{ svg: string; text: string; nodeCount: number }> {
-  mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', suppressErrorRendering: true })
+export async function renderMermaidForTest(chart: string): Promise<{ svg: string; text: string; nodeCount: number; mathCount: number }> {
+  // 與網站相同：forceLegacyMathML 讓標籤裡的 `$...$`／`$$...$$` 以 KaTeX 排版；TeX 語法錯誤會讓 render 直接丟出例外
+  mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', suppressErrorRendering: true, forceLegacyMathML: true })
   const { svg } = await mermaid.render(`mt-${++counter}`, sanitizeMermaidSource(chart))
   const host = document.createElement('div')
   host.innerHTML = svg
   host.querySelector('style')?.remove()
-  return { svg, text: host.textContent ?? '', nodeCount: host.querySelectorAll('g.node').length }
+  const mathCount = host.querySelectorAll('.katex').length
+  // 圖上的文字：拿掉 KaTeX 的 MathML 複本，避免每個公式的文字出現兩次
+  host.querySelectorAll('.katex-mathml').forEach((e) => e.remove())
+  return { svg, text: host.textContent ?? '', nodeCount: host.querySelectorAll('g.node').length, mathCount }
 }

@@ -678,3 +678,8 @@ SUGGESTED ADDITION TO SHARED CODE: a TS `compareToGolden(vector, key, actual)` h
 - **符號表位置**：改放章末（Recap 之後），外層 `id="symbols"`；章首只留一行連結。見 teaching-style.md §5、§8（方塊圖規範）。
 
 - **Mermaid 更新**：`Mermaid` 元件會先以 `sanitizeMermaidSource`（`src/components/mermaidSource.ts`）把單獨的 `+`／`-` 標籤換成「＋」「−」，避免 Mermaid 11 畫出「Unsupported markdown: list」；圖說支援 `$...$`；瀏覽器中接近可視範圍才 render（IntersectionObserver），jsdom 中立即 render。測試工具 `@/components/mermaidTestUtils`：`installMermaidSvgShim()`、`renderMermaidForTest(chart) → { svg, text, nodeCount }`（不從 `@/components` 匯出，只給測試用）。
+
+- **圖內數學的 LaTeX（2026-10-11）**：
+  - `Mermaid`：雙引號標籤內的 `$...$` 由 KaTeX 排版（`forceLegacyMathML`；前處理 `mermaidMathDelimiters` 會把每個含公式的標籤合併成單一 `$$...$$`，文字包成 `\text{}`、`<br/>` 多行用 `gathered`）。`renderMermaidForTest(chart)` 回傳 `{ svg, text, nodeCount, mathCount }`（`text` 已去掉 MathML 複本；TeX 語法錯誤會讓它丟出例外）。SVG 會加上 `min-width`（自然寬度的 70%，至少 480px），窄螢幕在容器內橫向捲動。
+  - `Plot`：對 `data`／`layout` 自動套用 `applyPlotMath`（`src/components/plotMath.ts`）：`name`／`text`／`title`／`ticktext`／`hovertemplate`／`texttemplate`／`hovertext`／`label` 等欄位裡的 `$...$` 轉成 Plotly pseudo-HTML（`<i>`、`<sub>`、`<sup>`、Unicode 符號）。可用 `plotMath(str)`／`texToPlotly(tex)` 在測試中檢查轉換結果（不應殘留 `\`、`{`、`}`、`$`）。
+  - `ParamControl`／`SelectControl`／`ToggleControl` 的 label／hint／unit 與 `MetricRow.unit` 也支援 `$...$`。

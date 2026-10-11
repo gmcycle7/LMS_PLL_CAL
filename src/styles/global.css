@@ -507,3 +507,16 @@ input[type='range'] {
 :not(pre) > code {
   overflow-wrap: anywhere;
 }
+
+/*
+ * Mermaid 圖內的 KaTeX（標籤裡的 `$...$`）：字級接近圖上的一般文字，\text{…} 的文字沿用圖的無襯線字體。
+ * 選擇器用 svg 的 id（c-mermaid-N）：Mermaid 量測標籤大小時 svg 還在暫存容器裡，樣式必須在那時就生效，
+ * 否則節點會照 KaTeX 預設字體的寬度配置，顯示時文字溢出。
+ */
+svg[id^='c-mermaid-'] .katex {
+  font-size: 1.08em;
+}
+svg[id^='c-mermaid-'] .katex .text {
+  font-family: var(--font-sans);
+  font-size: 0.93em;
+}

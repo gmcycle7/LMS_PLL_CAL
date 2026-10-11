@@ -1,5 +1,6 @@
 import { useId, useState, type ChangeEvent, type ReactNode } from 'react'
 import { fmtNum } from './format'
+import { mathText, stripMathDelimiters } from './Tex'
 import {
   checkValue,
   clampValue,
@@ -42,7 +43,8 @@ export interface ParamControlProps {
 
 function labelText(label: ReactNode, ariaLabel?: string): string {
   if (ariaLabel) return ariaLabel
-  return typeof label === 'string' || typeof label === 'number' ? String(label) : '參數'
+  // 無障礙名稱是純文字：拿掉 `$` 分隔符，保留 TeX 原始碼
+  return typeof label === 'string' || typeof label === 'number' ? stripMathDelimiters(String(label)) : '參數'
 }
 
 /**
@@ -143,14 +145,14 @@ export function ParamControl({
   const sliderMin = logOk ? Math.log10(min) : min
   const sliderMax = logOk ? Math.log10(max) : max
   const sliderValue = logOk ? toLogPosition(value, min, max) : Math.min(Math.max(value, min), max)
-  const valueText = `${fmtNum(value, digits)}${unit ? ` ${unit}` : ''}`
+  const valueText = `${fmtNum(value, digits)}${unit ? ` ${stripMathDelimiters(unit)}` : ''}`
   const describedBy = [rangeId, hint ? hintId : null, warning ? warnId : null].filter(Boolean).join(' ')
 
   return (
     <div className={`c-param${warning ? ' has-warning' : ''}${disabled ? ' is-disabled' : ''}`}>
       <div className="c-param-head">
         <label className="c-param-label" htmlFor={inputId}>
-          {label}
+          {mathText(label)}
         </label>
         {reg && <span className="c-param-reg mono">{reg}</span>}
       </div>
@@ -183,19 +185,19 @@ export function ParamControl({
             aria-invalid={warning ? true : undefined}
             aria-describedby={describedBy}
           />
-          {unit && <span className="c-param-unit">{unit}</span>}
+          {unit && <span className="c-param-unit">{mathText(unit)}</span>}
         </span>
       </div>
       <div className="c-param-meta small muted">
         <span id={rangeId}>
           合法範圍 {rangeText}
-          {unit ? ` ${unit}` : ''}
+          {unit ? <> {mathText(unit)}</> : ''}
           {logOk ? '（log 刻度）' : ''}
           {integer ? '（整數）' : ''}
         </span>
         {hint && (
           <span id={hintId} className="c-param-hint">
-            {hint}
+            {mathText(hint)}
           </span>
         )}
       </div>
@@ -248,7 +250,7 @@ export function SelectControl<T extends string | number>({
     <div className="c-param c-select">
       <div className="c-param-head">
         <label className="c-param-label" htmlFor={id}>
-          {label}
+          {mathText(label)}
         </label>
         {reg && <span className="c-param-reg mono">{reg}</span>}
       </div>
@@ -270,7 +272,7 @@ export function SelectControl<T extends string | number>({
           </option>
         ))}
       </select>
-      {hint && <div className="c-param-meta small muted">{hint}</div>}
+      {hint && <div className="c-param-meta small muted">{mathText(hint)}</div>}
     </div>
   )
 }
@@ -303,11 +305,11 @@ export function ToggleControl({ label, ariaLabel, value, onChange, hint, reg, di
           onChange={(e) => onChange(e.target.checked)}
         />
         <label className="c-param-label" htmlFor={id}>
-          {label}
+          {mathText(label)}
         </label>
         {reg && <span className="c-param-reg mono">{reg}</span>}
       </div>
-      {hint && <div className="c-param-meta small muted">{hint}</div>}
+      {hint && <div className="c-param-meta small muted">{mathText(hint)}</div>}
     </div>
   )
 }

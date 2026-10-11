@@ -27,7 +27,11 @@
 ## 3. 數學呈現
 
 - **所有數學一律 KaTeX/LaTeX**（`Tex` 行內、`TexBlock` 獨立），內文不得用純文字或 Unicode 拼湊公式（例如不要寫「w(n+1)=w(n)+μex」）。
-- **字串屬性也要用 LaTeX**：共用元件的字串屬性（`ExperimentShell` 的 title／description／warnings／assumptions、`MetricRow.name`／`note`、`Plot` 的 title／caption、`Section`／`Derivation`／`Callout`／`Prereq`／`Quiz`／`Recap` 的標題、`CodeBlock`／`CodeCompare` 的 title／caption／label／note）支援 `$...$` 行內公式，例如 `'C ≤ 0：$p = 1-\\mu K_q C > 1$，更新極性錯誤'`。不要在這些字串裡用 Unicode 拼公式（`σ_w`、`μK_q`、`δ²`…），一律改寫成 `$\\sigma_w$`。例外：Plotly 圖內的軸標題與圖例（Plotly 不渲染 KaTeX）可保留 Unicode。
+- **字串屬性也要用 LaTeX**：共用元件的字串屬性（`ExperimentShell` 的 title／description／warnings／assumptions、`MetricRow.name`／`note`／`unit`、`Plot` 的 title／caption、`Section`／`Derivation`／`Callout`／`Prereq`／`Quiz`／`Recap` 的標題、`CodeBlock`／`CodeCompare` 的 title／caption／label／note、`ParamControl`／`SelectControl`／`ToggleControl` 的 label／hint／unit、`Mermaid` 的 caption）支援 `$...$` 行內公式，例如 `'C ≤ 0：$p = 1-\\mu K_q C > 1$，更新極性錯誤'`。不要在這些字串裡用 Unicode 拼公式（`σ_w`、`μK_q`、`δ²`…），一律改寫成 `$\\sigma_w$`。
+- **圖裡面的數學也要用 LaTeX**（使用者要求，2026-10-11：「數學公式包含圖片裡面的數學公式都要用類似 latex 的格式」）：
+  - **方塊圖（Mermaid）**：節點與連線的雙引號標籤裡，數學一律寫 `$...$`，文字照常寫，例如 `A["誤差 $e[n] = y[n] - \\hat y[n]$"]`、`X -- "$\\mu$" --> Y`。共用的 `Mermaid` 元件會用 KaTeX 排版（和正文同一套樣式）。圖的原始碼用 `String.raw` 樣板字串，反斜線就不用寫兩次。限制：標籤內不要用 `\\\\`（Mermaid 會把它收成一個反斜線；換行用 `<br/>`）；`stateDiagram`／`sequenceDiagram` 的文字與 subgraph 標題是否支援公式，以 `renderMermaidForTest` 的結果為準（`mathCount`、文字中不可殘留 `$`），不支援就改用文字敘述或改畫成 flowchart。
+  - **互動圖表（Plotly）**：軸標題、圖例名稱（trace `name`）、annotation、`ticktext`、`hovertemplate` 裡的數學也寫 `$...$`，例如 `'學習率 $\\mu$'`、`'$\\sigma_w$ (fs)'`、`'$|H_{\\mathrm{PD}}|$ (dB)'`。`Plot` 元件會轉成斜體符號與真正的上下標（`plotMath.ts`；分數以行內 `a/b` 顯示）。不支援的 TeX 指令會原樣顯示指令名稱，所以圖表字串只用基本指令（希臘字母、上下標、`\\frac`、`\\sqrt`、`\\hat`／`\\bar`、`\\mathrm`、`\\text`、常見運算符號）。
+  - 下拉選單的 `<option>` 文字、匯出檔的欄名、aria-label 是純文字，不放公式。
 - 重要結果用 `\boxed{}`；推導用 `\begin{aligned} … \end{aligned}`。
 - 有單位的量要寫單位（\(\mathrm{fs}\)、\(\mathrm{fs}^{-1}\)、\(\mathrm{Hz}\)），並註明時間索引 \(n\)（sample）／\(k\)（block）。
 - 盡量多數學分析：除了規格書的公式，補上中間推導、邊界情況、數值驗算，以及「如果假設不成立會怎樣」。
@@ -67,7 +71,7 @@
 ## 8. 方塊圖（使用者要求：「多加一些方塊圖讓我好理解」）
 
 - **每個主要概念都要有一張方塊圖**，放在文字說明之後、公式推導之前（先看圖知道訊號怎麼流，再看數學）。每章至少 5 張（含章首的系統地圖），重要章節 8 張以上。
-- 圖的種類（依內容選用，使用 `Mermaid` 元件的 flowchart；節點文字可用 Unicode 數學符號，因為 Mermaid 不渲染 KaTeX）：
+- 圖的種類（依內容選用，使用 `Mermaid` 元件的 flowchart；節點與連線標籤裡的數學一律寫 `$...$`，由 KaTeX 排版）：
   1. **系統地圖**（章首）：`<SystemMap focus={['cmp','gmac']} />`，全站同一張圖、藍色標出本章主角。
   2. **數學模型方塊圖**：把方程式畫成訊號流，例如 `x → [× a] → (+) ← v`、`e = y − ŷ`；加法點用圓形節點，正負號寫全形「＋」與減號「−」（U+2212），例如 `S(("＋"))`、連線標籤 `-- "−" -->`；延遲用 `["z⁻¹"]`，積分器用 `["1/(z−1)"]`。**不要用單獨的半形 `+`／`-` 當標籤**：Mermaid 11 會把它當成 Markdown 清單，畫出「Unsupported markdown: list」（共用的 `Mermaid` 元件會自動替換，但原始碼仍應直接寫對）。
   3. **演算法迴圈圖**：更新式畫成迴圈（預測 → 比較 → 修正 → 延遲回授），標出每條線上的訊號名稱與極性（+／−）。
@@ -77,5 +81,5 @@
   7. **狀態機／時序圖**：校正流程、clock domain、block 邊界（可用 `stateDiagram-v2` 或 `sequenceDiagram`）。
 - 每張圖要有圖說（一句話說明要看什麼），且圖上的訊號名稱、正負號、箭頭方向必須和正文公式一致（審查時逐一核對）。
 - 每張圖都要在測試裡**真的畫一次**，不能只過 parser（parser 抓不到「Unsupported markdown」這類問題）：各章的 `diagrams.test.tsx`（jsdom 環境）用 `@/components/mermaidTestUtils` 的 `installMermaidSvgShim` 與 `renderMermaidForTest(chart)`，逐張斷言畫出來的文字不含 `Unsupported markdown`、節點數不超過上限。節點文字含括號、冒號、引號等特殊字元時用雙引號包住。
-- 圖說（`caption`）支援 `$...$` 行內公式，圖說裡的數學一律用 LaTeX；圖內節點文字才用 Unicode。
+- 圖說（`caption`）與圖內標籤的數學一律用 `$...$` LaTeX；測試要斷言畫出來的文字裡沒有殘留的 `$`，而且 KaTeX 以外的文字沒有 Unicode 拼的數學。
 - 圖不要過大：單張不超過約 14 個節點；太大就拆成兩張。手機上圖會在自己的容器內縮放或捲動。

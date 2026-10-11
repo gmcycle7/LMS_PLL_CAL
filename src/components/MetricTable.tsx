@@ -46,7 +46,7 @@ export function MetricTable({ rows, caption }: MetricTableProps) {
                   {r.note && <div className="small muted">{mathText(r.note)}</div>}
                 </td>
                 <td className={`num mono${nonFinite ? ' c-bad' : ''}`}>{formatMetricValue(r.value, digits)}</td>
-                <td>{r.unit ?? ''}</td>
+                <td>{r.unit ? mathText(r.unit) : ''}</td>
                 {hasFormula && (
                   <td>{r.formulaId ? <a href={`#formula-${r.formulaId}`}>{r.formulaId}</a> : ''}</td>
                 )}

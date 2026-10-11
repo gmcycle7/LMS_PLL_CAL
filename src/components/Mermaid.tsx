@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Callout } from './Callout'
-import { sanitizeMermaidSource } from './mermaidSource'
+import { sanitizeMermaidSource, withReadableMinWidth } from './mermaidSource'
 import { useOptionalSettings } from './optionalSettings'
 import { mathText, stripMathDelimiters } from './Tex'
 import { cssVar, useDocumentTheme } from './theme'
@@ -43,10 +43,18 @@ export function renderMermaid(chart: string, theme: 'light' | 'dark', isCancelle
       theme: theme === 'dark' ? 'dark' : 'default',
       fontFamily: cssVar('--font-sans', 'sans-serif'),
       suppressErrorRendering: true,
+      // 節點／連線標籤裡的 `$$...$$` 用 KaTeX 的 HTML 輸出排版（和正文同一套樣式；KaTeX CSS 已全站載入）
+      forceLegacyMathML: true,
     })
+    // KaTeX 字型還沒載入就量尺寸會讓節點太窄；等字型就緒（不支援 document.fonts 的環境直接略過）
+    try {
+      await document.fonts?.ready
+    } catch {
+      /* ignore */
+    }
     try {
       const { svg } = await mermaid.render(id, sanitizeMermaidSource(chart))
-      return svg
+      return withReadableMinWidth(svg)
     } finally {
       // 失敗時 mermaid 可能留下暫存節點
       document.getElementById(id)?.remove()
