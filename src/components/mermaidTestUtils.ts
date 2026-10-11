@@ -47,6 +47,6 @@ export async function renderMermaidForTest(chart: string): Promise<{ svg: string
  * 純文字的箭頭「→」與中文標點不算；單位與英文單字不算。
  */
 export function unicodeMathIn(plainText: string): string[] {
-  const hits = plainText.match(/[\u0370-\u03ff\u2070-\u209f\u00b2\u00b3\u00b9∑∏√∞≤≥≠≈±∓·×÷∂∇∈∝⌊⌋⌈⌉ℒ𝒩]|\b[A-Za-z]{1,3}_[A-Za-z0-9{]|\^[-0-9{]|z⁻¹/g)
+  const hits = plainText.match(/[\u0370-\u03ff\u2070-\u209f\u00b2\u00b3\u00b9∑∏√∞≤≥≠≈±∓·×÷∂∇∈∝⌊⌋⌈⌉ℒ𝒩]|\b[A-Za-z]{1,3}_[A-Za-z0-9{]|\^[-0-9{]|z⁻¹/gu)
   return hits ? [...new Set(hits)] : []
 }
