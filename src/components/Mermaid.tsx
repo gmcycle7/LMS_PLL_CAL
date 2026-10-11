@@ -25,9 +25,17 @@ function loadMermaid(): Promise<MermaidApi> {
 let queue: Promise<unknown> = Promise.resolve()
 let counter = 0
 
-export function renderMermaid(chart: string, theme: 'light' | 'dark'): Promise<string> {
+/** 排隊中的圖若已不需要（元件已卸載或主題已換），輪到它時直接跳過，不佔用後面的圖 */
+export class MermaidCancelled extends Error {
+  constructor() {
+    super('mermaid render cancelled')
+  }
+}
+
+export function renderMermaid(chart: string, theme: 'light' | 'dark', isCancelled?: () => boolean): Promise<string> {
   const id = `c-mermaid-${++counter}`
   const job = queue.then(async () => {
+    if (isCancelled?.()) throw new MermaidCancelled()
     const mermaid = await loadMermaid()
     mermaid.initialize({
       startOnLoad: false,
@@ -96,7 +104,7 @@ export function Mermaid({ chart, caption, ariaLabel }: MermaidProps) {
   useEffect(() => {
     if (!near) return
     let cancelled = false
-    renderMermaid(chart, theme).then(
+    renderMermaid(chart, theme, () => cancelled).then(
       (svg) => {
         if (!cancelled) setState({ status: 'ok', svg })
       },

@@ -91,3 +91,13 @@ describe('Mermaid：延後渲染（IntersectionObserver）', () => {
     }
   })
 })
+
+describe('renderMermaid：取消排隊中的圖', () => {
+  it('輪到時若已取消就跳過，不影響後面的圖', async () => {
+    const { renderMermaid, MermaidCancelled } = await import('./Mermaid')
+    const skipped = renderMermaid('flowchart LR\n  A --> B', 'light', () => true)
+    const kept = renderMermaid('flowchart LR\n  C --> D', 'light', () => false)
+    await expect(skipped).rejects.toBeInstanceOf(MermaidCancelled)
+    await expect(kept).resolves.toEqual(expect.any(String))
+  })
+})
