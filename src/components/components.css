@@ -451,6 +451,15 @@
   border-radius: 7px;
   background: var(--surface);
 }
+/* 成對的標籤（net label）：PD 輸出旁一個、comparator 輸入旁一個，代替中間那段連線 */
+.c-sysmap-wirelabel.is-tag > span {
+  border: 1px dashed var(--diagram-line);
+  color: var(--text);
+  font-weight: 600;
+}
+.c-sysmap-junction {
+  fill: var(--diagram-line);
+}
 .c-sysmap-legend text {
   fill: var(--text-muted);
   font-size: 11.5px;

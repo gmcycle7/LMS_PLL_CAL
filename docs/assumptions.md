@@ -20,11 +20,27 @@
 
 1. Comparator 前雜訊預設為 iid Gaussian；colored / correlated noise 屬 Backlog R1。
 2. Comparator 小訊號增益 `K_q = √(2/π)/σ_v` 只在 `|s| ≪ σ_v` 成立；大偏移時 S 曲線飽和。
-3. PLL 主迴路以線性化模型表示：`H_PD = 1/(1+L)`、`T = L/(1+L)`；注入點依「DTC 誤差在 feedback 比較路徑」約定。
+3. PLL 主迴路以線性化模型表示：`H_PD = 1/(1+L)`、`T = L/(1+L)`；DTC 在 reference 輸入端，殘餘誤差在 PD 的 reference 輸入注入（見 §2a）。
 4. Mean stability ≠ mean-square stability ≠ 機率性有界 ≠ 全域非線性穩定；每個結論都標註 `ClaimTag`。
 5. 有限樣本 Monte Carlo 不能證明全域穩定，只能說「在指定條件與 seeds 下未觀察到發散」。
 6. 時間單位預設 fs；相位 rad；PSD 預設 one-sided；`ℒ(f)=10log10(S_φ^(1)/2)`。
 7. 量化誤差不一定是獨立白雜訊；決定性循環會產生 tones，需以時域模擬判斷。
+
+## 2a. 全站架構約定：DTC 在 reference 輸入端（2026-10-12 起）
+
+使用者的晶片是 reference 端的 input DTC，所以全站的方塊圖與文字都照這個接法（規格 §4 的概念圖把 DTC 畫在 divider 之後、§12.3 的注入極性取 feedback 側；兩者的 `|H_PD|`、`|T|`、jitter、spur dBc 完全相同，差別只在下面第 4、5 點的寫法）。
+
+1. **訊號路徑**：`Reference clock → DTC → Phase detector → Loop filter → VCO / DCO`；回授是 `VCO → Divider / PMUX → Phase detector`。DTC 不在回授路徑上，回授路徑上只有 divider（或 phase mux）。
+2. **小數除頻**：DSM／累加器的 carry 控制 divider（或 PMUX 選相位）；餘數（fractional residue）經 gain correction（code × w）控制 reference 端的 DTC。
+3. **LMS 校正迴路的輸入**是 PD 的輸出 `e[n]`——就是送進 loop filter 的同一個節點。1-bit comparator 取它的正負號。圖上要從 PD 的輸出（PD → loop filter 那條線）分接，不是從 DTC、divider 或沒有標示的地方拉。
+4. **時間與正負號（數學不變）**：
+   - regressor `x[n]` = DTC code = `s[n]/M ∈ [0, 1)`（累加器餘數），定義不變。
+   - feedback（divider）edge 比理想時刻**早到** `a·x[n]`（`a` = 真實的 DTC gain，理想值 `T_vco`；`r[n] = −s[n]/M` 不變）。
+   - reference 端的 DTC **只能延遲、不能提前**，所以它從一個固定的基準延遲 `T_0` 往回扣：`τ_DTC[n] = T_0 − w_k·x[n]`（有 INL 時是 `T_0 − (w_k·x[n] + INL·d(x))`）。code 越大延遲越短；數位端送進 DTC 的 code 是 `C_0 − w_k·x[n]`（`C_0` 是固定的中心值，等於把 code 取補數）。`T_0` 是常數，被 PLL 當成靜態相位偏移吸收，不影響任何會動的量。
+   - 文字上把 `w_k·x[n]` 叫做 DTC 的**補償量**（reference edge 被提前——也就是少延遲——的時間），不要再寫成「DTC 插入的延遲」。
+   - PD 量的是「（DTC 延遲後的）reference edge 減 feedback edge」：`e[n] = t_ref′[n] − t_fb[n] = (a − w_k)·x[n] + v[n]`。補償不足（`w < a`）時 reference 還是太晚，誤差為正。這和原來的式子一模一樣，所以**所有章節的數學、模型、hand calc 的數字與 golden vector 都不變**；要改的只有「哪一條 edge 被延遲」的敘述與圖。
+5. **線性化 PLL**：DTC 的殘餘誤差 `φ_dtc`（或時間 `δt`）在 PD 的 **reference 輸入端**注入：`e_PD = φ_dtc − θ_fb`，解出來 `e_PD = H_PD·φ_dtc`、`θ_out = T·φ_dtc`（都是正號）。`H_PD = 1/(1+L)`、`T = L/(1+L)`、`H_PD + T = 1` 不變。
+6. **使用者晶片的細節**（8 相 PMUX 在回授、input DTC 只補 `T_vco/8` 以內）在案例頁 `/case/sspll`；一般章節用上面的通用模型。
 
 ## 3. 架構限制（本實作）
 

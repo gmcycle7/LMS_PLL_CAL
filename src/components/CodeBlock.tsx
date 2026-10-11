@@ -11,6 +11,9 @@ hljs.registerLanguage('python', python)
 
 export type CodeLang = 'typescript' | 'python'
 
+/** 不超過這麼多行的程式碼不限制高度（超過才收進 520px 的可捲動框） */
+export const CODE_FULL_LINES = 32
+
 export interface CodeBlockProps {
   /** 原始檔內容（以 `?raw` 匯入） */
   source: string
@@ -96,7 +99,8 @@ export function CodeBlock({ source, region, lang = 'typescript', title, path, hi
           {copied ? '已複製' : '複製'}
         </button>
       </figcaption>
-      <pre className="c-code-pre">
+      {/* 高度上限約 25 行。只多出幾行的程式碼直接整段顯示：為了一兩行放一條捲軸沒有用途。 */}
+      <pre className={`c-code-pre${lines.length <= CODE_FULL_LINES ? ' is-full' : ''}`}>
         <code className={`hljs language-${lang}`}>
           {lines.map((html, i) => (
             <span key={i} className={`c-code-line${marked.has(i + 1) ? ' c-code-mark' : ''}`}>

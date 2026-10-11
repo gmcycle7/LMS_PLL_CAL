@@ -52,7 +52,7 @@ function themeCss(p: Palette): string {
     .node rect.label-container, .node rect.basic { rx: 9px; ry: 9px; }
     .node .label-container, .node > rect, .node > polygon, .node > circle { filter: drop-shadow(0 1px 1.5px ${p.shadow}); }
     .nodeLabel, .nodeLabel p { line-height: 1.4; }
-    .katex-display { margin: 0.1em 0; }
+    .katex-display { margin: 0.1em 0; padding: 0; overflow: visible; }
     .edgeLabel .katex-display { margin: 0; }
     .cluster rect { rx: 14px; ry: 14px; stroke-width: 1.1px; stroke-dasharray: 6 4; }
     .cluster-label .nodeLabel { font-weight: 650; font-size: 0.86em; letter-spacing: 0.01em; color: ${p.muted}; fill: ${p.muted}; }

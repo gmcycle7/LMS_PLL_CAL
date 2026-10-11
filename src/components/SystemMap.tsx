@@ -9,6 +9,11 @@ import { mathText } from './Tex'
  *
  * 這張圖是手排的 SVG（不是 Mermaid 自動排版）：三條水平泳道由上而下是
  * 主 PLL 迴路、小數除頻與補償、LMS 校正迴路；所有連線都是水平或垂直，而且沒有任何交叉。
+ *
+ * 架構（2026-10 起，依使用者的晶片接法）：
+ *   - DTC 在 reference 的輸入端：Reference clock → DTC → Phase detector；回授路徑上只有 Divider / PMUX。
+ *   - LMS 校正迴路的輸入是 PD 的輸出 e[n]（就是送進 loop filter 的那個節點）。這條線若直接畫到下面的
+ *     comparator 會穿過回授與小數補償的線，所以用「成對的標籤」表示：PD 輸出旁一個、comparator 輸入旁一個。
  */
 export type SystemBlock =
   | 'ref' // Reference clock
@@ -52,16 +57,18 @@ export const SYSTEM_BLOCK_LABEL: Record<SystemBlock, string> = {
 /* ---------- 版面（單位：SVG 使用者座標，1 單位 = 自然大小下的 1px） ---------- */
 
 /** 圖的自然尺寸 */
-export const SYSTEM_MAP_SIZE = { width: 976, height: 584 } as const
+export const SYSTEM_MAP_SIZE = { width: 1044, height: 610 } as const
 
 const BOX_H = 56
-/** 五列的中心 y：A、B 在主 PLL 泳道，C 在小數補償泳道，D、E 在 LMS 泳道 */
-const ROW = { a: 84, b: 178, c: 300, d: 424, e: 520 } as const
-/** 各欄的 [左緣 x, 寬]。第 1 欄有寬（PD、comparator）窄（DTC、GC、Quantizer）兩種，右緣對齊，
- *  左邊空出來的那一條剛好讓 phase error 直直往下走到 comparator。 */
-const COL = { c0: [30, 128], c1w: [202, 164], c1n: [246, 120], c2: [424, 140], c3: [614, 140], c4: [806, 140] } as const
-/** phase error e[n] 那條垂直虛線的 x */
-const ERR_X = 224
+/** 五列的中心 y：A、B 在主 PLL 泳道（A 上方留一列給 e[n] 的標籤），C 在小數補償泳道，D、E 在 LMS 泳道 */
+const ROW = { a: 118, b: 206, c: 326, d: 450, e: 546 } as const
+/** 各欄的 [左緣 x, 寬]。第 1 欄有寬（comparator）窄（DTC、GC、Quantizer）兩種，右緣對齊，
+ *  左邊多出來的那一段讓 e[n] 的標籤從上方接進 comparator，不會碰到 Quantizer。 */
+const COL = { c0: [30, 116], c1w: [172, 162], c1n: [214, 120], c2: [384, 148], c3: [582, 140], c4: [772, 130] } as const
+/** e[n] 的標籤接進 comparator 的那條垂直線的 x（在 comparator 左緣與 Quantizer 左緣之間） */
+const ERR_X = 193
+/** PD 輸出標籤（在 A 列上方）的上下緣 */
+const TAG_Y = { top: 50, bottom: 76 } as const
 
 export type SystemLane = 'pll' | 'frac' | 'lms'
 
@@ -85,12 +92,12 @@ function block(id: SystemBlock, lane: SystemLane, col: keyof typeof COL, row: ke
 }
 
 export const SYSTEM_MAP_BLOCKS: readonly SystemMapBlock[] = [
-  // 主 PLL 迴路（快）
+  // 主 PLL 迴路（快）：reference 先經過 DTC 才進 PD；回授路徑只有 divider
   block('ref', 'pll', 'c0', 'a', 'Reference clock'),
-  block('pd', 'pll', 'c1w', 'a', 'Phase detector', 'PD / SSPD / BBPD'),
-  block('lf', 'pll', 'c2', 'a', 'Loop filter'),
-  block('vco', 'pll', 'c3', 'a', 'VCO / DCO'),
-  block('dtc', 'pll', 'c1n', 'b', 'DTC', 'code → delay'),
+  block('dtc', 'pll', 'c1n', 'a', 'DTC', 'code → delay'),
+  block('pd', 'pll', 'c2', 'a', 'Phase detector', 'PD / SSPD / BBPD'),
+  block('lf', 'pll', 'c3', 'a', 'Loop filter'),
+  block('vco', 'pll', 'c4', 'a', 'VCO / DCO'),
   block('div', 'pll', 'c3', 'b', 'Divider / PMUX'),
   // 小數除頻與補償
   block('gc', 'frac', 'c1n', 'c', 'Gain correction', String.raw`code $\times\, w$`),
@@ -107,17 +114,37 @@ export const SYSTEM_MAP_BLOCKS: readonly SystemMapBlock[] = [
   block('align', 'lms', 'c4', 'e', 'Code alignment', 'delay / filtered-x'),
 ]
 
+type Pt = readonly [number, number]
+interface LabelBox {
+  x: number
+  y: number
+  w: number
+  h: number
+  align: 'left' | 'right' | 'center'
+}
+
 export interface SystemMapWire {
   from: SystemBlock
   /** 終點方塊；'out' 表示 PLL 輸出（圖的右邊） */
   to: SystemBlock | 'out'
-  /** 折線的頂點（由起點到箭頭尖端） */
-  points: ReadonlyArray<readonly [number, number]>
+  /** 折線的頂點（由起點到箭頭尖端）。用標籤接續的線（見 tag）這裡是「進入終點方塊」的那一小段 */
+  points: ReadonlyArray<Pt>
   /** 虛線：只是「觀測」訊號，不在主迴路的訊號路徑上 */
   dashed?: boolean
   /** 連線上的訊號名稱（可含 `$...$`）與它的位置 */
   label?: string
-  labelBox?: { x: number; y: number; w: number; h: number; align: 'left' | 'right' | 'center' }
+  labelBox?: LabelBox
+  /**
+   * 用成對的標籤代替中間那一段連線（像電路圖的 net label）：
+   * `tap` 是來源那一側的小段（從分接點到來源標籤），`source`／`dest` 是兩個標籤的文字與位置。
+   */
+  tag?: {
+    /** 分接點（在哪一條線上分出來）與那條線的起訖方塊 */
+    tapOn: readonly [SystemBlock, SystemBlock]
+    tap: ReadonlyArray<Pt>
+    source: { text: string; box: LabelBox }
+    dest: { text: string; box: LabelBox }
+  }
 }
 
 const B = Object.fromEntries(SYSTEM_MAP_BLOCKS.map((b) => [b.id, b])) as Record<SystemBlock, SystemMapBlock>
@@ -140,31 +167,37 @@ function along(from: SystemBlock, to: SystemBlock, x = cx(to)): SystemMapWire {
 }
 
 /** x[n] 由 residue 往下、沿兩條泳道之間往右，再往下進 code alignment */
-const X_BUS_Y = 353
+const X_BUS_Y = 379
+/** e[n] 的分接點：PD 與 loop filter 之間那條線的中點 */
+const TAP_X = (right('pd') + left('lf')) / 2
 
 export const SYSTEM_MAP_WIRES: readonly SystemMapWire[] = [
-  // 主 PLL 迴路
-  across('ref', 'pd'),
+  // 主 PLL 迴路：reference → DTC → PD → loop filter → VCO；VCO → divider → PD
+  across('ref', 'dtc'),
+  across('dtc', 'pd'),
   across('pd', 'lf'),
   across('lf', 'vco'),
-  { from: 'vco', to: 'out', points: [[right('vco'), ROW.a], [right('vco') + 58, ROW.a]], label: String.raw`輸出 $f_{\mathrm{out}}$`, labelBox: { x: right('vco') + 66, y: ROW.a - 14, w: 110, h: 28, align: 'left' } },
-  along('vco', 'div'),
-  across('div', 'dtc'),
-  along('dtc', 'pd'),
-  // 小數除頻與補償
+  { from: 'vco', to: 'out', points: [[right('vco'), ROW.a], [right('vco') + 34, ROW.a]], label: String.raw`輸出 $f_{\mathrm{out}}$`, labelBox: { x: right('vco') + 40, y: ROW.a - 14, w: 96, h: 28, align: 'left' } },
+  { from: 'vco', to: 'div', points: [[cx('vco'), bottom('vco')], [cx('vco'), ROW.b], [right('div'), ROW.b]] },
+  { from: 'div', to: 'pd', points: [[left('div'), ROW.b], [cx('pd'), ROW.b], [cx('pd'), bottom('pd')]] },
+  // 小數除頻與補償：carry → divider；residue → gain correction → reference 端的 DTC
   across('fcw', 'dsm'),
   across('dsm', 'res'),
   across('res', 'gc'),
   along('dsm', 'div'),
   along('gc', 'dtc'),
-  // LMS 校正迴路
+  // LMS 校正迴路：輸入是 PD 的輸出 e[n]（用成對的標籤接過來）
   {
     from: 'pd',
     to: 'cmp',
-    points: [[ERR_X, bottom('pd')], [ERR_X, top('cmp')]],
     dashed: true,
-    label: 'phase error $e[n]$',
-    labelBox: { x: 36, y: ROW.c - 14, w: ERR_X - 46, h: 28, align: 'right' },
+    points: [[COL.c0[0] + COL.c0[1] + 4, ROW.d], [ERR_X, ROW.d], [ERR_X, top('cmp')]],
+    tag: {
+      tapOn: ['pd', 'lf'],
+      tap: [[TAP_X, ROW.a], [TAP_X, TAG_Y.bottom]],
+      source: { text: String.raw`PD 輸出 $e[n]$ → 給 LMS 校正迴路`, box: { x: TAP_X - 112, y: TAG_Y.top, w: 224, h: TAG_Y.bottom - TAG_Y.top, align: 'center' } },
+      dest: { text: String.raw`$e[n]$（PD 輸出）`, box: { x: COL.c0[0] - 8, y: ROW.d - 13, w: COL.c0[1] + 12, h: 26, align: 'right' } },
+    },
   },
   across('noise', 'cmp'),
   { ...across('cmp', 'gmac'), label: '$q[n]$', labelBox: { x: cx('acc') - 40, y: ROW.e - 31, w: 80, h: 26, align: 'center' } },
@@ -173,19 +206,19 @@ export const SYSTEM_MAP_WIRES: readonly SystemMapWire[] = [
     to: 'align',
     points: [[cx('res'), bottom('res')], [cx('res'), X_BUS_Y], [cx('align'), X_BUS_Y], [cx('align'), top('align')]],
     label: '$x[n]$',
-    labelBox: { x: cx('align') + 9, y: ROW.d - 13, w: 60, h: 26, align: 'left' },
+    labelBox: { x: cx('align') + 9, y: ROW.d - 13, w: 56, h: 26, align: 'left' },
   },
   across('align', 'gmac'),
   along('gmac', 'scale'),
   across('scale', 'acc'),
   across('acc', 'qnt'),
-  { ...along('qnt', 'gc'), label: '$w$', labelBox: { x: cx('gc') + 9, y: X_BUS_Y - 15, w: 40, h: 26, align: 'left' } },
+  { ...along('qnt', 'gc'), label: '$w$', labelBox: { x: cx('gc') + 9, y: X_BUS_Y - 13, w: 40, h: 26, align: 'left' } },
 ]
 
 const LANES: ReadonlyArray<{ id: SystemLane; title: string; y: number; h: number }> = [
-  { id: 'pll', title: '主 PLL 迴路（快）', y: 22, h: 200 },
-  { id: 'frac', title: '小數除頻與補償', y: 240, h: 104 },
-  { id: 'lms', title: 'LMS 校正迴路（慢）', y: 362, h: 206 },
+  { id: 'pll', title: '主 PLL 迴路（快）', y: 22, h: 226 },
+  { id: 'frac', title: '小數除頻與補償', y: 266, h: 104 },
+  { id: 'lms', title: 'LMS 校正迴路（慢）', y: 388, h: 206 },
 ]
 const LANE_X = 14
 const LANE_W = SYSTEM_MAP_SIZE.width - 2 * LANE_X
@@ -229,6 +262,16 @@ export interface SystemMapProps {
   caption?: string
 }
 
+function WireLabel({ box, text, className }: { box: LabelBox; text: string; className: string }) {
+  return (
+    <foreignObject x={box.x} y={box.y} width={box.w} height={box.h}>
+      <div className={`c-sysmap-wirelabel is-${box.align} ${className}`}>
+        <span>{mathText(text)}</span>
+      </div>
+    </foreignObject>
+  )
+}
+
 /** 系統地圖的 SVG 本體（同一頁可能出現兩份：正文與放大檢視，所以 marker id 由 useId 產生）。 */
 function SystemMapSvg({ focus }: { focus: readonly SystemBlock[] }) {
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '')
@@ -236,8 +279,8 @@ function SystemMapSvg({ focus }: { focus: readonly SystemBlock[] }) {
   const model = useMemo(() => systemMapModel(focus), [focus])
   const anyFocus = model.blocks.some((b) => b.focused)
   const { width, height } = SYSTEM_MAP_SIZE
-  // 圖例放在主 PLL 泳道右邊的空位（Divider 的右邊）
-  const legendX = right('div') + 62
+  // 圖例放在主 PLL 泳道右下的空位（VCO 往下接 divider 那條線的右邊）
+  const legendX = cx('vco') + 26
   const legendY = ROW.b - (anyFocus ? 20 : 8)
 
   return (
@@ -261,17 +304,25 @@ function SystemMapSvg({ focus }: { focus: readonly SystemBlock[] }) {
         {model.wires.map((w) => (
           <path key={`${w.from}-${w.to}`} className={`c-sysmap-wire${w.dashed ? ' is-dashed' : ''}`} d={wirePath(w.points)} markerEnd={`url(#${arrow})`} data-from={w.from} data-to={w.to} />
         ))}
+        {model.wires.map(
+          (w) =>
+            w.tag && (
+              <g key={`tap-${w.from}-${w.to}`} className="c-sysmap-tap" data-from={w.from} data-to={w.to}>
+                <path className="c-sysmap-wire is-dashed" d={wirePath(w.tag.tap)} />
+                <circle className="c-sysmap-junction" cx={w.tag.tap[0][0]} cy={w.tag.tap[0][1]} r={3.2} />
+              </g>
+            ),
+        )}
       </g>
 
+      {model.wires.map((w) => w.label && w.labelBox && <WireLabel key={`label-${w.from}-${w.to}`} box={w.labelBox} text={w.label} className="" />)}
       {model.wires.map(
         (w) =>
-          w.label &&
-          w.labelBox && (
-            <foreignObject key={`label-${w.from}-${w.to}`} x={w.labelBox.x} y={w.labelBox.y} width={w.labelBox.w} height={w.labelBox.h}>
-              <div className={`c-sysmap-wirelabel is-${w.labelBox.align}`}>
-                <span>{mathText(w.label)}</span>
-              </div>
-            </foreignObject>
+          w.tag && (
+            <g key={`tag-${w.from}-${w.to}`} className="c-sysmap-tags">
+              <WireLabel box={w.tag.source.box} text={w.tag.source.text} className="is-tag" />
+              <WireLabel box={w.tag.dest.box} text={w.tag.dest.text} className="is-tag" />
+            </g>
           ),
       )}
 
@@ -298,7 +349,7 @@ function SystemMapSvg({ focus }: { focus: readonly SystemBlock[] }) {
         )}
         <path className="c-sysmap-wire is-dashed" d={`M${legendX},${legendY + (anyFocus ? 31 : 7)} h22`} />
         <text x={legendX + 30} y={legendY + (anyFocus ? 35 : 11)}>
-          只是觀測（虛線）
+          同名標籤＝同一條線
         </text>
       </g>
     </svg>
@@ -312,7 +363,7 @@ export function SystemMap({ focus, caption }: SystemMapProps) {
     <DiagramFrame
       className="c-sysmap"
       caption={caption ?? `系統地圖：藍色是本章的主角（${names || '整個系統'}）。教學用概念架構，不是特定晶片的 netlist。`}
-      ariaLabel={`DTC-based Fractional-N PLL 與 Sign-LMS 校正迴路的系統方塊圖；本章重點：${names || '整個系統'}`}
+      ariaLabel={`DTC-based Fractional-N PLL 與 Sign-LMS 校正迴路的系統方塊圖（DTC 在 reference 輸入端；LMS 的輸入取自 PD 的輸出）；本章重點：${names || '整個系統'}`}
       naturalSize={SYSTEM_MAP_SIZE}
       zoomChildren={<SystemMapSvg focus={focus} />}
     >
