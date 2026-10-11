@@ -28,7 +28,7 @@ function palette(theme: DiagramTheme): Palette {
   const dark = theme === 'dark'
   // 後面的值只在 CSS 還沒載入時使用（例如 jsdom 測試），與 global.css 相同
   return {
-    nodeFill: cssVar('--diagram-node', dark ? '#1a222c' : '#ffffff'),
+    nodeFill: cssVar('--diagram-node', dark ? '#1f2935' : '#ffffff'),
     nodeBorder: cssVar('--diagram-node-border', dark ? '#55667a' : '#93a4ba'),
     text: cssVar('--text', dark ? '#e6ebf1' : '#1b2430'),
     muted: cssVar('--text-muted', dark ? '#a3aebb' : '#5b6676'),
