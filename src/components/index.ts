@@ -118,7 +118,6 @@ export { texNum, texNumP, checkAnswer, defaultValues, randomValues, inputError }
 // 系統地圖（每章開頭的「你在這裡」方塊圖）
 export {
   SystemMap,
-  systemMapChart,
   systemMapModel,
   SYSTEM_BLOCK_LABEL,
   SYSTEM_MAP_BLOCKS,

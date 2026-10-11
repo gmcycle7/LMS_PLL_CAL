@@ -423,7 +423,7 @@ Import everything from '@/components'. Importing it also loads components.css.
 MATH / DIAGRAMS
 - Tex({ children: string }) and TexBlock({ children: string; id?: string; label?: ReactNode }). TexBlock uses display mode and shows the "(F-x.y)" badge; the DOM anchor is id="formula-F-x.y". Both are memoized.
 - renderTex(src, displayMode): string
-- Mermaid({ chart: string; caption?: string; ariaLabel?: string }). Loads mermaid lazily with securityLevel 'strict'. Renders are queued one at a time with unique ids. It re-renders when the theme changes ('dark' or 'default'). A parse error shows a danger callout.
+- Mermaid({ chart: string; caption?: string; ariaLabel?: string }). Loads mermaid lazily with securityLevel 'strict'. Renders are queued one at a time with unique ids. It re-renders when the theme changes (one 'base' theme whose colours come from the design tokens; see mermaidTheme.ts). A parse error shows a danger callout.
 
 PLOT
 - Plot({ data: Plotly.Data[]; layout?; config?; height?=320; title?; csvName?; xLog?; yLog?; caption?; ariaLabel?; className? })
@@ -674,7 +674,8 @@ SUGGESTED ADDITION TO SHARED CODE: a TS `compareToGolden(vector, key, actual)` h
 
 - **帶入手算**：`HandCalc({ def, initialMode?, compact? })`、`texNum(x, sig)` / `texNumP(x, sig)`（負數加括號，代入用）、`checkAnswer`、`randomValues(def, seed)`、`defaultValues(def)`（`@/components`）；型別 `HandCalcDef / HandCalcInput / HandCalcStep / HandCalcResult / HandCalcSolution`（`@/data/types`）；彙整 `ALL_HANDCALCS / handcalcById / handcalcsForPage`（`@/app/handcalcs`，以 glob 收集 `src/chapters/*/handcalcs.ts` 與 `src/pages/*/handcalcs.ts` 的 `HANDCALCS`）。範本：`src/chapters/ch00/handcalcs.ts`。ID 格式 `HC-<章>.<序>`（案例頁用 `HC-CS.n`）。
 
-- **系統地圖**：`SystemMap({ focus: SystemBlock[], caption? })`（`@/components`）— 全站共用的 PLL + LMS 校正系統方塊圖，`focus` 的方塊標成藍色。`SystemBlock` = 'ref' | 'pd' | 'lf' | 'vco' | 'div' | 'fcw' | 'dsm' | 'res' | 'gc' | 'dtc' | 'cmp' | 'align' | 'gmac' | 'scale' | 'acc' | 'qnt' | 'noise'。`systemMapChart(focus)` 回傳 Mermaid 原始碼（測試用）。
+- **系統地圖**：`SystemMap({ focus: SystemBlock[], caption? })`（`@/components`）— 全站共用的 PLL + LMS 校正系統方塊圖，`focus` 的方塊標成藍色。`SystemBlock` = 'ref' | 'pd' | 'lf' | 'vco' | 'div' | 'fcw' | 'dsm' | 'res' | 'gc' | 'dtc' | 'cmp' | 'align' | 'gmac' | 'scale' | 'acc' | 'qnt' | 'noise'。手排的 SVG（三條泳道、連線只走水平／垂直、不交叉），不經過 Mermaid；`systemMapModel(focus)` 回傳純資料 `{ blocks: [{ id, title, sub, lane, focused, x, y, w, h }], wires }`（測試檢查本章主角時用），另有 `SYSTEM_MAP_BLOCKS`、`SYSTEM_MAP_WIRES`、`SYSTEM_MAP_SIZE`。
+- **方塊圖外框**：`DiagramFrame`（`Mermaid` 與 `SystemMap` 共用）— DOM 為 `figure.c-mermaid > .c-mermaid-frame > .c-mermaid-svg > svg`＋`button.c-mermaid-zoom`（放大檢視）＋`figcaption`；圖還沒畫好時沒有 `.c-mermaid-svg`。外觀由 `mermaidTheme.ts` 統一（配色來自 global.css 的 `--diagram-*`）。
 - **符號表位置**：改放章末（Recap 之後），外層 `id="symbols"`；章首只留一行連結。見 teaching-style.md §5、§8（方塊圖規範）。
 
 - **Mermaid 更新**：`Mermaid` 元件會先以 `sanitizeMermaidSource`（`src/components/mermaidSource.ts`）把單獨的 `+`／`-` 標籤換成「＋」「−」，避免 Mermaid 11 畫出「Unsupported markdown: list」；圖說支援 `$...$`；瀏覽器中接近可視範圍才 render（IntersectionObserver），jsdom 中立即 render。測試工具 `@/components/mermaidTestUtils`：`installMermaidSvgShim()`、`renderMermaidForTest(chart) → { svg, text, nodeCount }`（不從 `@/components` 匯出，只給測試用）。

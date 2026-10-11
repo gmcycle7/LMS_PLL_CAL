@@ -58,11 +58,30 @@ describe('Mermaid 標籤裡的 LaTeX', () => {
   A["$\frac{1}{$"] --> B`)).rejects.toThrow()
   })
 
-  it('系統地圖的公式標籤都排版成功', async () => {
-    const { systemMapChart } = await import('./SystemMap')
-    const r = await renderMermaidForTest(systemMapChart(['cmp', 'gmac']))
-    expect(r.mathCount).toBeGreaterThanOrEqual(8)
+  it('一張有 subgraph、多行標籤與連線標籤的校正迴路圖：公式標籤都排版成功', async () => {
+    const chart = [
+      'flowchart TB',
+      '  subgraph FRAC["小數除頻與補償"]',
+      '    direction LR',
+      String.raw`    DSM["DSM / accumulator"] --> RES["Fractional residue<br/>$x[n]$（regressor）"]`,
+      String.raw`    RES --> GC["Gain correction<br/>code $\times\, w$"]`,
+      '  end',
+      '  subgraph CAL["LMS 校正迴路（慢）"]',
+      '    direction LR',
+      String.raw`    NOISE(["雜訊 $v[n]$"]) --> CMP["1-bit comparator<br/>$q[n] = \mathrm{sign}(e[n])$"]`,
+      String.raw`    CMP --> GMAC["GMAC<br/>$\sum q[n]\, x[n]$"]`,
+      String.raw`    GMAC --> SCALE["$\div N$、$\times\,\mu$"]`,
+      String.raw`    SCALE --> ACC["Gain accumulator<br/>$w_k$"]`,
+      '  end',
+      String.raw`  GC -. "phase error $e[n]$" .-> CMP`,
+      String.raw`  ACC -- "$w$" --> GC`,
+      '  classDef focus fill:#1f5fa8,stroke:#0d3b6e,color:#ffffff,stroke-width:2px',
+      '  class CMP,GMAC focus',
+    ].join('\n')
+    const r = await renderMermaidForTest(chart)
+    expect(r.mathCount).toBe(9)
     expect(r.text).not.toContain('$')
+    expect(r.text).not.toContain('Unsupported markdown')
   })
 })
 

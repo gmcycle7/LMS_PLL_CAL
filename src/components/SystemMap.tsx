@@ -222,69 +222,6 @@ export function systemMapModel(focus: readonly SystemBlock[]): SystemMapModel {
   return { blocks: SYSTEM_MAP_BLOCKS.map((b) => ({ ...b, focused: on.has(b.id) })), wires: SYSTEM_MAP_WIRES }
 }
 
-const NODE_ID: Record<SystemBlock, string> = {
-  ref: 'REF',
-  pd: 'PD',
-  lf: 'LF',
-  vco: 'VCO',
-  div: 'DIV',
-  fcw: 'FCW',
-  dsm: 'DSM',
-  res: 'RES',
-  gc: 'GC',
-  dtc: 'DTC',
-  cmp: 'CMP',
-  align: 'ALIGN',
-  gmac: 'GMAC',
-  scale: 'SCALE',
-  acc: 'ACC',
-  qnt: 'QNT',
-  noise: 'NOISE',
-}
-
-/**
- * 同一張系統地圖的 Mermaid 原始碼（純函式）。畫面上的圖已改用手排的 SVG；
- * 這個文字版保留給需要「圖的原始碼」的地方（例如測試比對拓樸、匯出文字版）。
- */
-export function systemMapChart(focus: readonly SystemBlock[]): string {
-  const lines = [
-    'flowchart TB',
-    '  subgraph MAIN["主 PLL 迴路（快）"]',
-    '    direction LR',
-    '    REF["Reference clock"] --> PD["Phase detector<br/>PD / SSPD / BBPD"]',
-    '    PD --> LF["Loop filter"]',
-    '    LF --> VCO["VCO / DCO"]',
-    '    VCO --> DIV["Divider / PMUX"]',
-    '    DIV --> DTC["DTC<br/>code → delay"]',
-    '    DTC --> PD',
-    '  end',
-    '  subgraph FRAC["小數除頻與補償"]',
-    '    direction LR',
-    '    FCW["FCW"] --> DSM["DSM / accumulator"]',
-    String.raw`    DSM --> RES["Fractional residue<br/>$x[n]$（regressor）"]`,
-    String.raw`    RES --> GC["Gain correction<br/>code $\times\, w$"]`,
-    '  end',
-    '  subgraph CAL["LMS 校正迴路（慢）"]',
-    '    direction LR',
-    String.raw`    NOISE(["雜訊 $v[n]$"]) --> CMP["1-bit comparator<br/>$q[n] = \mathrm{sign}(e[n])$"]`,
-    String.raw`    CMP --> GMAC["GMAC<br/>$\sum q[n]\, x[n]$"]`,
-    '    ALIGN["Code alignment<br/>delay / filtered-x"] --> GMAC',
-    String.raw`    GMAC --> SCALE["$\div N$、$\times\,\mu$"]`,
-    String.raw`    SCALE --> ACC["Gain accumulator<br/>$w_k$"]`,
-    '    ACC --> QNT["Quantizer<br/>有限位元"]',
-    '  end',
-    '  DSM --> DIV',
-    '  GC --> DTC',
-    String.raw`  PD -. "phase error $e[n]$" .-> CMP`,
-    '  RES --> ALIGN',
-    String.raw`  QNT -- "$w$" --> GC`,
-    '  classDef focus fill:#1f5fa8,stroke:#0d3b6e,color:#ffffff,stroke-width:2px',
-  ]
-  const ids = [...new Set(focus)].map((b) => NODE_ID[b])
-  if (ids.length) lines.push(`  class ${ids.join(',')} focus`)
-  return lines.join('\n')
-}
-
 export interface SystemMapProps {
   /** 本章在講的方塊（會標成藍色） */
   focus: SystemBlock[]
