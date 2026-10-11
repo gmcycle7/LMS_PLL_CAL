@@ -69,12 +69,13 @@
 - **每個主要概念都要有一張方塊圖**，放在文字說明之後、公式推導之前（先看圖知道訊號怎麼流，再看數學）。每章至少 5 張（含章首的系統地圖），重要章節 8 張以上。
 - 圖的種類（依內容選用，使用 `Mermaid` 元件的 flowchart；節點文字可用 Unicode 數學符號，因為 Mermaid 不渲染 KaTeX）：
   1. **系統地圖**（章首）：`<SystemMap focus={['cmp','gmac']} />`，全站同一張圖、藍色標出本章主角。
-  2. **數學模型方塊圖**：把方程式畫成訊號流，例如 `x → [× a] → (+) ← v`、`e = y − ŷ`；加法點用圓形節點 `((+))`、`((−))`，延遲用 `[z⁻¹]`，積分器用 `[1/(z−1)]`。
+  2. **數學模型方塊圖**：把方程式畫成訊號流，例如 `x → [× a] → (+) ← v`、`e = y − ŷ`；加法點用圓形節點，正負號寫全形「＋」與減號「−」（U+2212），例如 `S(("＋"))`、連線標籤 `-- "−" -->`；延遲用 `["z⁻¹"]`，積分器用 `["1/(z−1)"]`。**不要用單獨的半形 `+`／`-` 當標籤**：Mermaid 11 會把它當成 Markdown 清單，畫出「Unsupported markdown: list」（共用的 `Mermaid` 元件會自動替換，但原始碼仍應直接寫對）。
   3. **演算法迴圈圖**：更新式畫成迴圈（預測 → 比較 → 修正 → 延遲回授），標出每條線上的訊號名稱與極性（+／−）。
   4. **路徑／轉移函數圖**：誤差注入點、`H_PD`、`T`、comparator、GMAC 的串接，標出取樣率（`n`／`k`）。
   5. **比較圖**：兩三種架構並排（raw-x／delayed-x／filtered-x；scalar／preconditioned；freeze／toggle／ΔΣ），差異的方塊用 `classDef` 標色。
   6. **手算流程圖**：一題綜合手算的計算順序（先算什麼、再算什麼），方便跟著做。
   7. **狀態機／時序圖**：校正流程、clock domain、block 邊界（可用 `stateDiagram-v2` 或 `sequenceDiagram`）。
 - 每張圖要有圖說（一句話說明要看什麼），且圖上的訊號名稱、正負號、箭頭方向必須和正文公式一致（審查時逐一核對）。
-- 每張圖的 Mermaid 原始碼要能被真正的 parser 解析：各章用 `*.test.tsx`（jsdom 環境）以 `mermaid.parse()` 檢查全部圖（範例：`src/components/SystemMap.test.tsx`、`src/chapters/ch14/diagrams.test.tsx`）。節點文字含括號、冒號、引號等特殊字元時用雙引號包住。
+- 每張圖都要在測試裡**真的畫一次**，不能只過 parser（parser 抓不到「Unsupported markdown」這類問題）：各章的 `diagrams.test.tsx`（jsdom 環境）用 `@/components/mermaidTestUtils` 的 `installMermaidSvgShim` 與 `renderMermaidForTest(chart)`，逐張斷言畫出來的文字不含 `Unsupported markdown`、節點數不超過上限。節點文字含括號、冒號、引號等特殊字元時用雙引號包住。
+- 圖說（`caption`）支援 `$...$` 行內公式，圖說裡的數學一律用 LaTeX；圖內節點文字才用 Unicode。
 - 圖不要過大：單張不超過約 14 個節點；太大就拆成兩張。手機上圖會在自己的容器內縮放或捲動。

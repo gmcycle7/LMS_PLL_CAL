@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Callout } from './Callout'
+import { sanitizeMermaidSource } from './mermaidSource'
 import { useOptionalSettings } from './optionalSettings'
+import { mathText, stripMathDelimiters } from './Tex'
 import { cssVar, useDocumentTheme } from './theme'
 
 type MermaidApi = (typeof import('mermaid'))['default']
@@ -35,7 +37,7 @@ export function renderMermaid(chart: string, theme: 'light' | 'dark'): Promise<s
       suppressErrorRendering: true,
     })
     try {
-      const { svg } = await mermaid.render(id, chart)
+      const { svg } = await mermaid.render(id, sanitizeMermaidSource(chart))
       return svg
     } finally {
       // 失敗時 mermaid 可能留下暫存節點
@@ -57,14 +59,42 @@ export interface MermaidProps {
 
 type RenderState = { status: 'loading' } | { status: 'ok'; svg: string } | { status: 'error'; message: string }
 
-/** Mermaid 方塊圖：跟隨深淺主題重新渲染；語法錯誤時顯示錯誤訊息 */
+/**
+ * Mermaid 方塊圖：跟隨深淺主題重新渲染；語法錯誤時顯示錯誤訊息。
+ * 一章可能有二十幾張圖，所以圖接近可視範圍時才 render（IntersectionObserver）；
+ * 沒有 IntersectionObserver 的環境（jsdom、舊瀏覽器）直接 render。圖說支援 `$...$` 行內公式。
+ */
 export function Mermaid({ chart, caption, ariaLabel }: MermaidProps) {
   const settings = useOptionalSettings()
   const docTheme = useDocumentTheme()
   const theme = settings?.resolvedTheme ?? docTheme
   const [state, setState] = useState<RenderState>({ status: 'loading' })
+  const ref = useRef<HTMLElement | null>(null)
+  const [near, setNear] = useState(() => typeof IntersectionObserver === 'undefined')
 
   useEffect(() => {
+    if (near || !ref.current || typeof IntersectionObserver === 'undefined') return
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setNear(true)
+          io.disconnect()
+        }
+      },
+      { rootMargin: '800px 0px' },
+    )
+    io.observe(ref.current)
+    // 列印整頁時，還沒捲到的圖也要畫出來（否則印出「圖表載入中…」）
+    const onPrint = () => setNear(true)
+    window.addEventListener('beforeprint', onPrint)
+    return () => {
+      io.disconnect()
+      window.removeEventListener('beforeprint', onPrint)
+    }
+  }, [near])
+
+  useEffect(() => {
+    if (!near) return
     let cancelled = false
     renderMermaid(chart, theme).then(
       (svg) => {
@@ -77,10 +107,11 @@ export function Mermaid({ chart, caption, ariaLabel }: MermaidProps) {
     return () => {
       cancelled = true
     }
-  }, [chart, theme])
+  }, [chart, theme, near])
 
+  const label = ariaLabel ?? caption
   return (
-    <figure className="c-mermaid" aria-label={ariaLabel ?? caption}>
+    <figure className="c-mermaid" aria-label={label ? stripMathDelimiters(label) : undefined} ref={ref}>
       {state.status === 'error' ? (
         <Callout kind="danger" title="Mermaid 圖解析失敗">
           <pre className="c-mermaid-error">{state.message}</pre>
@@ -90,7 +121,7 @@ export function Mermaid({ chart, caption, ariaLabel }: MermaidProps) {
       ) : (
         <div className="c-mermaid-loading muted small">圖表載入中…</div>
       )}
-      {caption && <figcaption className="c-figcaption">{caption}</figcaption>}
+      {caption && <figcaption className="c-figcaption">{mathText(caption)}</figcaption>}
     </figure>
   )
 }
