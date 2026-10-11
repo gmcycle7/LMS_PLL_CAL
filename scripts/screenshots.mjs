@@ -12,7 +12,7 @@
  *   all-mermaid    該頁全部方塊圖
  * 檔名：<route>__<viewport>-<theme>__<shot>-<i>.png
  */
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import puppeteer from 'puppeteer-core'
@@ -50,10 +50,11 @@ const SELECTORS = {
 }
 
 mkdirSync(out, { recursive: true })
+const profileDir = join(tmpdir(), `lmspll-shots-${process.pid}`)
 const browser = await puppeteer.launch({
   executablePath: chrome,
   headless: true,
-  userDataDir: join(tmpdir(), `lmspll-shots-${process.pid}`),
+  userDataDir: profileDir,
   args: ['--no-first-run', '--no-default-browser-check', '--hide-scrollbars'],
 })
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -120,5 +121,6 @@ try {
   }
 } finally {
   await browser.close()
+  rmSync(profileDir, { recursive: true, force: true })
 }
 console.log(written.join('\n'))

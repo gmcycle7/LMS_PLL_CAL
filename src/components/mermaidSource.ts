@@ -92,3 +92,22 @@ export function withReadableMinWidth(svg: string): string {
     : open[0].replace(/^<svg\b/, `<svg style="min-width: ${min}px;"`)
   return tag + svg.slice(open[0].length)
 }
+
+/** SVG 的自然尺寸（viewBox 的寬高，px）；讀不到時回傳 null。 */
+export function svgNaturalSize(svg: string): { width: number; height: number } | null {
+  const open = /^<svg\b[^>]*>/.exec(svg)
+  const vb = open && /viewBox="[-\d.]+ [-\d.]+ ([\d.]+) ([\d.]+)"/.exec(open[0])
+  if (!vb) return null
+  const width = Number(vb[1])
+  const height = Number(vb[2])
+  return Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0 ? { width, height } : null
+}
+
+/**
+ * 同一張 SVG 要在頁面上出現第二份（放大檢視）時，把它的 id 全部加上後綴：
+ * Mermaid 用根節點 id 當作 <style> 的範圍與箭頭 marker 的前綴，整份字串一起換才不會對不上。
+ */
+export function withSvgIdSuffix(svg: string, suffix: string): string {
+  const id = /^<svg\b[^>]*\bid="([^"]+)"/.exec(svg)?.[1]
+  return id ? svg.split(id).join(`${id}${suffix}`) : svg
+}

@@ -64,7 +64,7 @@ export function ParamControl({
   min,
   max,
   step,
-  unit,
+  unit: rawUnit,
   log = false,
   hint,
   reg,
@@ -75,6 +75,8 @@ export function ParamControl({
   disabled = false,
   id,
 }: ParamControlProps) {
+  // 「—」「-」只是呼叫端表示「沒有單位」的寫法，不顯示出來
+  const unit = rawUnit && !/^[—–-]$/.test(rawUnit.trim()) ? rawUnit : undefined
   const autoId = useId()
   const inputId = id ?? `${autoId}-input`
   const rangeId = `${autoId}-range`

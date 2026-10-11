@@ -4,7 +4,7 @@
  *   node scripts/diagram-audit.mjs --base http://localhost:5173 --routes /ch/05,/ch/06 [--viewport desktop|mobile] [--json out.json]
  * 每張圖輸出：序號、圖說開頭、自然寬×高（px）、顯示倍率、超出版面的寬度（px，0 表示放得下）。
  */
-import { writeFileSync } from 'node:fs'
+import { rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import puppeteer from 'puppeteer-core'
@@ -17,10 +17,11 @@ const routes = (args.routes ?? '/').split(',')
 const vp = args.viewport === 'mobile' ? { width: 375, height: 812, deviceScaleFactor: 2, isMobile: true, hasTouch: true } : { width: 1280, height: 900 }
 const chrome = args.chrome ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 
+const profileDir = join(tmpdir(), `lmspll-audit-${process.pid}`)
 const browser = await puppeteer.launch({
   executablePath: chrome,
   headless: true,
-  userDataDir: join(tmpdir(), `lmspll-audit-${process.pid}`),
+  userDataDir: profileDir,
   args: ['--no-first-run', '--no-default-browser-check', '--hide-scrollbars'],
 })
 const all = []
@@ -72,5 +73,6 @@ try {
   }
 } finally {
   await browser.close()
+  rmSync(profileDir, { recursive: true, force: true })
 }
 if (args.json) writeFileSync(args.json, JSON.stringify(all, null, 1))

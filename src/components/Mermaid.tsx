@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Callout } from './Callout'
-import { sanitizeMermaidSource, withReadableMinWidth } from './mermaidSource'
+import { DiagramFrame } from './DiagramFrame'
+import { sanitizeMermaidSource, svgNaturalSize, withReadableMinWidth, withSvgIdSuffix } from './mermaidSource'
+import { diagramConfig } from './mermaidTheme'
 import { useOptionalSettings } from './optionalSettings'
-import { mathText, stripMathDelimiters } from './Tex'
 import { cssVar, useDocumentTheme } from './theme'
 
 type MermaidApi = (typeof import('mermaid'))['default']
@@ -40,7 +41,8 @@ export function renderMermaid(chart: string, theme: 'light' | 'dark', isCancelle
     mermaid.initialize({
       startOnLoad: false,
       securityLevel: 'strict',
-      theme: theme === 'dark' ? 'dark' : 'default',
+      // 全站統一的方塊圖樣式（配色取自網站的 design token，見 mermaidTheme.ts）
+      ...diagramConfig(theme, cssVar('--font-sans', 'sans-serif')),
       fontFamily: cssVar('--font-sans', 'sans-serif'),
       suppressErrorRendering: true,
       // 節點／連線標籤裡的 `$$...$$` 用 KaTeX 的 HTML 輸出排版（和正文同一套樣式；KaTeX CSS 已全站載入）
@@ -125,19 +127,29 @@ export function Mermaid({ chart, caption, ariaLabel }: MermaidProps) {
     }
   }, [chart, theme, near])
 
-  const label = ariaLabel ?? caption
+  const svg = state.status === 'ok' ? state.svg : undefined
+  // 放大檢視裡是同一張圖的第二份：換掉 id，避免同一頁出現重複的 id
+  const zoomSvg = useMemo(() => (svg === undefined ? undefined : withSvgIdSuffix(svg, '-zoom')), [svg])
+  const naturalSize = useMemo(() => (svg === undefined ? null : svgNaturalSize(svg)), [svg])
+
   return (
-    <figure className="c-mermaid" aria-label={label ? stripMathDelimiters(label) : undefined} ref={ref}>
-      {state.status === 'error' ? (
-        <Callout kind="danger" title="Mermaid 圖解析失敗">
-          <pre className="c-mermaid-error">{state.message}</pre>
-        </Callout>
-      ) : state.status === 'ok' ? (
-        <div className="c-mermaid-svg" dangerouslySetInnerHTML={{ __html: state.svg }} />
-      ) : (
-        <div className="c-mermaid-loading muted small">圖表載入中…</div>
-      )}
-      {caption && <figcaption className="c-figcaption">{mathText(caption)}</figcaption>}
-    </figure>
+    <DiagramFrame
+      caption={caption}
+      ariaLabel={ariaLabel}
+      figureRef={ref}
+      ready={svg !== undefined}
+      naturalSize={naturalSize}
+      html={svg}
+      zoomHtml={zoomSvg}
+      placeholder={
+        state.status === 'error' ? (
+          <Callout kind="danger" title="Mermaid 圖解析失敗">
+            <pre className="c-mermaid-error">{state.message}</pre>
+          </Callout>
+        ) : (
+          <div className="c-mermaid-loading muted small">圖表載入中…</div>
+        )
+      }
+    />
   )
 }

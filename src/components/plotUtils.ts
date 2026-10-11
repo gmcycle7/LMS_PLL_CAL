@@ -162,8 +162,8 @@ export function buildThemedLayout(t: ThemeTokens, opts: ThemedLayoutOptions): Pa
     plot_bgcolor: 'rgba(0,0,0,0)',
     font: { family: t.fontSans, color: t.text, size: 12 },
     colorway: t.series,
-    // t = 32：讓 modebar 落在上邊界內，不遮住資料
-    margin: { l: 56, r: 16, t: 32, b: 44, pad: 0 },
+    // 工具列（modebar）由 CSS 移到圖的上方自己一列，上邊界只需要放得下一列圖例
+    margin: { l: 56, r: 16, t: 30, b: 44, pad: 0 },
     hovermode: 'closest',
     hoverlabel: { bgcolor: t.surface, bordercolor: t.border, font: { color: t.text, family: t.fontSans } },
     legend: { orientation: 'h', x: 0, xanchor: 'left', y: 1.02, yanchor: 'bottom', bgcolor: 'rgba(0,0,0,0)', font: { color: t.text } },

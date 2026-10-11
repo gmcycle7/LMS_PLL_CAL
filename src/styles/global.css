@@ -42,6 +42,17 @@
   --series-5: #7b4fb8;
   --series-6: #3d8fa8;
 
+  /* 方塊圖（Mermaid 與系統地圖共用；mermaidTheme.ts 會讀這些值） */
+  --diagram-node: #ffffff;
+  --diagram-node-border: #93a4ba;
+  --diagram-line: #5f6f84;
+  --diagram-group: rgba(31, 95, 168, 0.045);
+  --diagram-group-border: #b4c2d4;
+  --diagram-dot: rgba(27, 36, 48, 0.075);
+  --diagram-shadow: rgba(15, 23, 42, 0.13);
+  --diagram-focus: #1f5fa8;
+  --diagram-focus-border: #0d3b6e;
+
   --radius: 8px;
   --radius-sm: 5px;
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.08);
@@ -88,6 +99,14 @@
   --series-4: #f0b44c;
   --series-5: #b48cec;
   --series-6: #6fc4dc;
+
+  --diagram-node: #1a222c;
+  --diagram-node-border: #55667a;
+  --diagram-line: #8c9bb0;
+  --diagram-group: rgba(106, 168, 236, 0.06);
+  --diagram-group-border: #3d4a59;
+  --diagram-dot: rgba(230, 235, 241, 0.055);
+  --diagram-shadow: rgba(0, 0, 0, 0.45);
 
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
   color-scheme: dark;
