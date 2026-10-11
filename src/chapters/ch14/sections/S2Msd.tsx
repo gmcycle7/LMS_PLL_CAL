@@ -106,8 +106,8 @@ function DecompositionPlot() {
     const ks = Array.from({ length: 81 }, (_, k) => k)
     const parts = ks.map((k) => msdSplit(3, p, mu, s2, k))
     return [
-      { x: ks, y: parts.map((q) => q.total), name: 'E[δ_k²]（總和）', line: { color: tokens.series[0], width: 2.5 } },
-      { x: ks, y: parts.map((q) => q.bias2), name: 'bias² = p²ᵏ·δ0²', line: { color: tokens.series[1], dash: 'dash' } },
+      { x: ks, y: parts.map((q) => q.total), name: String.raw`$E[\delta_k^2]$（總和）`, line: { color: tokens.series[0], width: 2.5 } },
+      { x: ks, y: parts.map((q) => q.bias2), name: String.raw`$\text{bias}^2 = p^{2k}\delta_0^2$`, line: { color: tokens.series[1], dash: 'dash' } },
       { x: ks, y: parts.map((q) => q.variance), name: 'variance', line: { color: tokens.series[2], dash: 'dot' } },
     ]
   }, [K, mu, s2, tokens])
@@ -118,7 +118,7 @@ function DecompositionPlot() {
       yLog
       height={300}
       csvName="ch14-bias-variance-vs-k"
-      layout={{ xaxis: { title: { text: '更新次數 k（blocks）' } }, yaxis: { title: { text: 'fs²' } } }}
+      layout={{ xaxis: { title: { text: String.raw`更新次數 $k$（blocks）` } }, yaxis: { title: { text: String.raw`$\mathrm{fs}^2$` } } }}
       caption={md(String.raw`$\mu$ 是 $B=32$ 時的最佳點（§14.2 (a)）。交點附近就是「再多跑也不會更好」的地方；$B=32$ 時 $\text{bias}^2$ 已低於 variance。`)}
     />
   )

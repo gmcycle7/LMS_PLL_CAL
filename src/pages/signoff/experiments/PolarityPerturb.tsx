@@ -67,8 +67,8 @@ const LOCAL_PRESETS: ExperimentPreset[] = [
 ]
 
 /** Plot 的 layout 放在模組層：每次 render 都新建物件會讓 Plotly.react 重畫（infra-api：data／layout 要 memoize）。 */
-const S_CURVE_LAYOUT = { xaxis: { title: { text: 'w [fs/unit code]' } }, yaxis: { title: { text: 'Ḡ(w)（無因次）' } } }
-const K_PLOT_LAYOUT = { yaxis: { title: { text: 'K [fs⁻¹]' }, zeroline: true }, xaxis: { type: 'category' as const } }
+const S_CURVE_LAYOUT = { xaxis: { title: { text: '$w$ [fs/unit code]' } }, yaxis: { title: { text: '$\\bar G(w)$（無因次）' } } }
+const K_PLOT_LAYOUT = { yaxis: { title: { text: '$K$ [fs$^{-1}$]' }, zeroline: true }, xaxis: { type: 'category' as const } }
 
 function isCaseList(v: unknown): v is PolarityCase[] {
   return Array.isArray(v) && v.length >= 1 && v.length <= 3 && v.every((c) => typeof c === 'object' && c !== null && 'code' in c && 'mapping' in c)
@@ -172,7 +172,7 @@ export function PolarityPerturbExperiment() {
           x: r.res.sweep.w,
           y: r.res.sweep.gMean,
           mode: 'markers',
-          name: `Case ${r.id} MC（±2se）`,
+          name: `Case ${r.id} MC（$\\pm2\\,\\mathrm{se}$）`,
           marker: { color, size: 7 },
           error_y: { type: 'data', array: r.res.sweep.gSe.map((s) => (Number.isFinite(s) ? 2 * s : 0)), visible: true, color: withAlpha(color, 0.6) },
         })
@@ -183,7 +183,7 @@ export function PolarityPerturbExperiment() {
         x: [w0 - dl, w0 + dl],
         y: [r.res.est.gMinusMean, r.res.est.gPlusMean],
         mode: 'lines+markers',
-        name: `Case ${r.id} ±Δ 量測`,
+        name: `Case ${r.id} $\\pm\\Delta$ 量測`,
         marker: { color, symbol: 'diamond', size: 10 },
         line: { color, width: 2.5 },
       })
@@ -199,7 +199,7 @@ export function PolarityPerturbExperiment() {
         y: ok.map((r) => (r.res as PolarityPerturbResult).est.K),
         error_y: { type: 'data', array: ok.map((r) => deferred.shared.z * (r.res as PolarityPerturbResult).est.se), visible: true },
         mode: 'markers',
-        name: `K̂（±z·se，z = ${deferred.shared.z}）`,
+        name: `$\\hat K$（$\\pm z\\cdot\\mathrm{se}$，$z = ${deferred.shared.z}$）`,
         marker: { size: 12, color: ok.map((r) => tokens.series[r.seriesIndex]) },
       },
       {
@@ -213,7 +213,7 @@ export function PolarityPerturbExperiment() {
         x: ok.map((r) => `Case ${r.id}`),
         y: ok.map((r) => (r.res as PolarityPerturbResult).Klin),
         mode: 'markers',
-        name: '小訊號 K_qC',
+        name: '小訊號 $K_qC$',
         marker: { size: 12, symbol: 'x-thin', line: { width: 2, color: tokens.textMuted }, color: tokens.textMuted },
       },
     ]
@@ -222,12 +222,12 @@ export function PolarityPerturbExperiment() {
   const metrics: MetricRow[] = res
     ? [
         { name: `Case ${active.id}：有效相關 $C_D$`, value: res.C, formulaId: 'F-SO.4', claim: 'exact', note: ap.code === 'tone' ? String.raw`$C_D=|H|\cos(\phi+\Omega D)$（$A=\sqrt2$ 單頻）` : String.raw`$C_D=\sum_kh[k]R_{xx}[k-D]=h[D]$（iid $\pm1$）` },
-        { name: String.raw`小訊號 $K=K_q\,C_D\times$（映射係數）`, value: res.Klin, unit: 'fs⁻¹', formulaId: 'F-SO.4', claim: 'approx' },
-        { name: 'mean-field 中央差分 $K$（含 erf 截斷）', value: res.KmeanField, unit: 'fs⁻¹', claim: 'exact' },
+        { name: String.raw`小訊號 $K=K_q\,C_D\times$（映射係數）`, value: res.Klin, unit: '$\\mathrm{fs}^{-1}$', formulaId: 'F-SO.4', claim: 'approx' },
+        { name: 'mean-field 中央差分 $K$（含 erf 截斷）', value: res.KmeanField, unit: '$\\mathrm{fs}^{-1}$', claim: 'exact' },
         {
           name: String.raw`量測 $\hat K=-\hat S$`,
           value: res.est.K,
-          unit: 'fs⁻¹',
+          unit: '$\\mathrm{fs}^{-1}$',
           analytic: res.KmeanField,
           tolerance: 4 * res.est.se,
           formulaId: 'F-SO.1',

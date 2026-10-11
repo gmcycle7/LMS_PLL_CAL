@@ -11,7 +11,7 @@ import modelSrc from '../model.ts?raw'
 export const BIAS_DEMO = { a: 3, w0: 1, mu: 0.02, sigmaV: 0.5, steps: 20000, seed: 20261010, stride: 20 }
 export const BIAS_KAPPA_LIST = [0, 0.1, 0.2, -0.3]
 /** 固定的版面物件（模組層級，避免每次 render 產生新參照而讓 Plot 重畫） */
-const BIAS_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'n' } }, yaxis: { title: { text: 'w_n' } } }
+const BIAS_LAYOUT: Partial<Layout> = { xaxis: { title: { text: '$n$' } }, yaxis: { title: { text: '$w_n$' } } }
 
 interface AssumptionRow {
   key: string
@@ -186,11 +186,11 @@ export function AssumptionsSection() {
     const out: Data[] = []
     runs.forEach(({ kappa, r }, i) => {
       const color = tokens.series[i % tokens.series.length]
-      out.push({ x: r.traceN, y: r.traceW, name: `κ = ${num(kappa)}：w_n`, mode: 'lines', line: { color, width: 1.2 } })
+      out.push({ x: r.traceN, y: r.traceW, name: String.raw`$\kappa = ${texRes(kappa)}$：$w_n$`, mode: 'lines', line: { color, width: 1.2 } })
       out.push({
         x: [0, BIAS_DEMO.steps],
         y: [r.wStar, r.wStar],
-        name: `w* = a + κ = ${num(r.wStar)}`,
+        name: String.raw`$w^* = a + \kappa = ${texRes(r.wStar)}$`,
         mode: 'lines',
         line: { color, dash: 'dash', width: 1 },
         showlegend: false,
@@ -246,8 +246,8 @@ export function AssumptionsSection() {
           哪一份來自 <Tex>{'\\kappa'}</Tex>。
         </p>
         <p>
-          和 §0.1 的 <FigRef name="CHART_BLACKBOX_MODEL" /> 比：唯一多出來的就是紅色那條並聯的路。圖上相加點的輸出「<code>y = (a + κ)·x + v′</code>」就是下面推導的最後一行；最後一格的{' '}
-          <code>w*</code> 是公式裡的 <Tex>{'w^*'}</Tex>——「平均更新量剛好是 0」的那個 <Tex>{'w'}</Tex>，也就是 LMS 平均來說會停下來的位置。
+          和 §0.1 的 <FigRef name="CHART_BLACKBOX_MODEL" /> 比：唯一多出來的就是紅色那條並聯的路。圖上相加點的輸出「<Tex>{"y = (a + \\kappa)\\,x + v'"}</Tex>」就是下面推導的最後一行；最後一格的{' '}
+          <Tex>{'w^*'}</Tex> 是公式裡的 <Tex>{'w^*'}</Tex>——「平均更新量剛好是 0」的那個 <Tex>{'w'}</Tex>，也就是 LMS 平均來說會停下來的位置。
         </p>
       </ChapterDiagram>
       <div id="ch00-bias-steps">
@@ -431,7 +431,7 @@ export function AssumptionsSection() {
                   tex: String.raw`\operatorname{Var}(\bar w)\approx\frac{\operatorname{Var}(w_\infty)}{n}\sum_{k=-\infty}^{\infty}p^{|k|}=\frac{\operatorname{Var}(w_\infty)}{n}\cdot\frac{1+p}{1-p}`,
                   why: (
                     <>
-                      <Tex>{'n'}</Tex> 遠大於相關長度時，平均值的變異數 = 單筆變異數 × 所有延遲的相關係數總和 ÷ <Tex>{'n'}</Tex>；等比級數{' '}
+                      <Tex>{'n'}</Tex> 遠大於相關長度時，平均值的變異數 <Tex>{'='}</Tex> 單筆變異數 <Tex>{'\\times'}</Tex> 所有延遲的相關係數總和 <Tex>{'\\div n'}</Tex>；等比級數{' '}
                       <Tex>{'1+2\\sum_{k\\ge1}p^k=\\frac{1+p}{1-p}'}</Tex>。
                     </>
                   ),
@@ -480,8 +480,8 @@ export function AssumptionsSection() {
         </p>
         <p>
           圖上的四條支線就是下面手算題的四組步驟：① 是 F-00.11、② 是 F-00.4（先算 <Tex>{'p'}</Tex> 再取對數，得到誤差降到 1% 所需的步數 <Tex>{'n_{1\\%}'}</Tex>）、③ 是
-          F-00.9（先算變異數再開根號）、④ 是 F-00.8 的 <Tex>{'1/\\sqrt N'}</Tex> 法則。圖上的 <code>σ_v′</code> 是獨立雜訊 <Tex>{"v'"}</Tex> 的標準差{' '}
-          <Tex>{"\\sigma_{v'}"}</Tex>，<code>w∞</code> 是收斂之後的 <Tex>{'w'}</Tex>（公式裡的 <Tex>{'w_\\infty'}</Tex>）。
+          F-00.9（先算變異數再開根號）、④ 是 F-00.8 的 <Tex>{'1/\\sqrt N'}</Tex> 法則。圖上的 <Tex>{"\\sigma_{v'}"}</Tex> 是獨立雜訊 <Tex>{"v'"}</Tex> 的標準差，<Tex>{'w_\\infty'}</Tex> 是收斂之後（<Tex>{'n\\to\\infty'}</Tex>）的{' '}
+          <Tex>{'w'}</Tex>。
         </p>
       </ChapterDiagram>
       <ChapterHandCalc id="HC-00.8">

@@ -130,8 +130,8 @@ export function FftPitfallsLab() {
       { x: [(r.f2 * r.N) / r.fs], y: [dp.spurDbc], name: '真實 spur 位準', mode: 'markers', marker: { symbol: 'diamond', size: 10, color: tokens.series[2] } },
     ]
     const layout = {
-      xaxis: { title: { text: '頻率 [bin = f·N/f_s]' }, range: [lo, hi] },
-      yaxis: { title: { text: 'dBc per bin（相對 A₁²/2）' }, range: [Math.max(-200, Math.min(r.noiseFloorDbc, dp.spurDbc) - 30), 5] },
+      xaxis: { title: { text: '頻率 [bin $= f\\cdot N/f_s$]' }, range: [lo, hi] },
+      yaxis: { title: { text: 'dBc per bin（相對 $A_1^2/2$）' }, range: [Math.max(-200, Math.min(r.noiseFloorDbc, dp.spurDbc) - 30), 5] },
     }
     return { data, layout }
   }, [r, dp, tokens])
@@ -192,7 +192,7 @@ export function FftPitfallsLab() {
             step={1}
             integer
             clampOnBlur
-            unit="log2 samples"
+            unit="$\log_2$ samples"
             reg="Measurement：record length N"
             hint={md(`$N=${2 ** p.log2N}$`)}
           />
@@ -240,7 +240,7 @@ export function FftPitfallsLab() {
             step={1}
             integer
             clampOnBlur
-            unit="log2 samples"
+            unit="$\log_2$ samples"
             reg="Measurement：Welch nperseg"
             hint={md('超過 $\\log_2N$ 時以 $N$ 計算')}
           />

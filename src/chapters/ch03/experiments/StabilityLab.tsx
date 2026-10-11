@@ -35,7 +35,7 @@ import {
   type XDist,
 } from '@/simulation/models/scalarStability'
 import { finiteOrNull, logGrid, mergeParams, num, T, texText, tnum, tx, Verdict } from '../common'
-import { DEFAULT_DIST_FIELDS, DistControls, distSummary, toXDist, type DistFields } from './DistControls'
+import { DEFAULT_DIST_FIELDS, DistControls, distSummary, distSummaryTex, toXDist, type DistFields } from './DistControls'
 
 export const LAB_EXPERIMENT = 'stability-lab'
 
@@ -52,9 +52,10 @@ export interface LabParams extends DistFields {
   noiseSigma: number
 }
 
-const FRAC_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'n' } }, yaxis: { title: { text: '比例' }, range: [0, 1.02] } }
-const CASES_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'n' } }, yaxis: { title: { text: 'log₁₀' } } }
-const MEAN_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'n' } }, yaxis: { title: { text: 'E[δ_n]' }, zeroline: true } }
+// 圖內文字的數學一律寫 `$…$`（Plot 轉成斜體符號與上下標）
+const FRAC_LAYOUT: Partial<Layout> = { xaxis: { title: { text: '$n$' } }, yaxis: { title: { text: '比例' }, range: [0, 1.02] } }
+const CASES_LAYOUT: Partial<Layout> = { xaxis: { title: { text: '$n$' } }, yaxis: { title: { text: T`$\log_{10}$` } } }
+const MEAN_LAYOUT: Partial<Layout> = { xaxis: { title: { text: '$n$' } }, yaxis: { title: { text: T`$E[\delta_n]$` }, zeroline: true } }
 
 export const DEFAULT_LAB: LabParams = { ...DEFAULT_DIST_FIELDS, mu: 0.8, delta0: 1, paths: 2000, steps: 200, noiseSigma: 0 }
 
@@ -366,9 +367,9 @@ export function StabilityLab() {
         line: { width: 0, color: c0 },
         fill: 'tonexty',
         fillcolor: withAlpha(c0, 0.18),
-        name: 'MC |δ_n| 10–90% 分位帶',
+        name: T`MC $|\delta_n|$ 10–90% 分位帶`,
       })
-      d.push({ x: n, y: finiteOrNull(res.q50), mode: 'lines', line: { width: 2.5, color: c0 }, name: 'MC 中位數 log₁₀|δ_n|' })
+      d.push({ x: n, y: finiteOrNull(res.q50), mode: 'lines', line: { width: 2.5, color: c0 }, name: T`MC 中位數 $\log_{10}|\delta_n|$` })
       const R = res.n.length
       for (let k = 0; k < res.keepPaths; k++) {
         d.push({
@@ -386,15 +387,15 @@ export function StabilityLab() {
         y: finiteOrNull(res.naiveLog10Rms),
         mode: 'lines',
         line: { width: 1.5, color: tokens.series[4], dash: 'dashdot' },
-        name: '天真 MC：½log₁₀(樣本平均 δ²)（heavy tail，不可信）',
+        name: T`天真 MC：$\frac{1}{2}\,\log_{10}$(樣本平均 $\delta^2$)（heavy tail，不可信）`,
       })
     }
     if (traj) {
       const n = Array.from(nGrid)
-      d.push({ x: n, y: finiteOrNull(traj.log10Rms), mode: 'lines', line: { width: 2.5, color: tokens.series[1] }, name: '解析 ½log₁₀E[δ_n²]（MSD 的 RMS）' })
-      d.push({ x: n, y: finiteOrNull(traj.log10AbsMean), mode: 'lines', line: { width: 2, color: tokens.series[2], dash: 'dash' }, name: '解析 log₁₀|E[δ_n]|（mean）' })
+      d.push({ x: n, y: finiteOrNull(traj.log10Rms), mode: 'lines', line: { width: 2.5, color: tokens.series[1] }, name: T`解析 $\frac{1}{2}\,\log_{10}E[\delta_n^2]$（MSD 的 RMS）` })
+      d.push({ x: n, y: finiteOrNull(traj.log10AbsMean), mode: 'lines', line: { width: 2, color: tokens.series[2], dash: 'dash' }, name: T`解析 $\log_{10}|E[\delta_n]|$（mean）` })
       if (ap.noiseSigma === 0) {
-        d.push({ x: n, y: finiteOrNull(traj.log10Typical), mode: 'lines', line: { width: 2, color: tokens.series[3], dash: 'dot' }, name: '典型路徑 log₁₀|δ₀| + nλ/ln10（a.s.）' })
+        d.push({ x: n, y: finiteOrNull(traj.log10Typical), mode: 'lines', line: { width: 2, color: tokens.series[3], dash: 'dot' }, name: T`典型路徑 $\log_{10}|\delta_0| + n\lambda/\ln 10$（a.s.）` })
         if (A && cltOk && A.sd > 0) {
           const l0 = Math.log10(Math.abs(ap.delta0))
           for (const [q, show] of [
@@ -419,12 +420,12 @@ export function StabilityLab() {
           y: [0.5 * Math.log10(traj.msdInf), 0.5 * Math.log10(traj.msdInf)],
           mode: 'lines',
           line: { width: 1.5, color: tokens.series[5], dash: 'longdash' },
-          name: '穩態 √MSD∞（解析）',
+          name: T`穩態 $\sqrt{\text{MSD}_\infty}$（解析）`,
         })
     }
     return d
   }, [res, resMatches, traj, nGrid, tokens, ap.noiseSigma, ap.steps, ap.delta0, A, cltOk])
-  const mainLayout = useMemo<Partial<Layout>>(() => ({ xaxis: { title: { text: 'n（sample）' } }, yaxis: { title: { text: 'log₁₀ of |δ_n|、√E[δ_n²]、|E[δ_n]|' } } }), [])
+  const mainLayout = useMemo<Partial<Layout>>(() => ({ xaxis: { title: { text: '$n$（sample）' } }, yaxis: { title: { text: T`$\log_{10}$ of $|\delta_n|$、$\sqrt{E[\delta_n^2]}$、$|E[\delta_n]|$` } } }), [])
 
   // ── 圖 2：μ 軸三種判據
   const muData = useMemo<Data[]>(() => {
@@ -437,12 +438,12 @@ export function StabilityLab() {
       { x: A.b.asMax, t: `a.s. ${num(A.b.asMax, 4)}` },
     ].filter((m) => Number.isFinite(m.x))
     return [
-      { x: mu, y: pos(muCurves.meanAbs), mode: 'lines', line: { color: tokens.series[2], width: 2 }, name: 'mean：|1 − μP_x|' },
-      { x: mu, y: pos(muCurves.g), mode: 'lines', line: { color: tokens.series[1], width: 2 }, name: 'mean-square：g(μ)' },
-      { x: mu, y: pos(muCurves.geo), mode: 'lines', line: { color: tokens.series[0], width: 2 }, name: 'almost-sure：e^{λ(μ)}' },
-      { x: [mu[0], mu[mu.length - 1]], y: [1, 1], mode: 'lines', line: { color: tokens.textMuted, dash: 'dash', width: 1.5 }, name: '門檻 = 1' },
+      { x: mu, y: pos(muCurves.meanAbs), mode: 'lines', line: { color: tokens.series[2], width: 2 }, name: T`mean：$|1 - \mu P_x|$` },
+      { x: mu, y: pos(muCurves.g), mode: 'lines', line: { color: tokens.series[1], width: 2 }, name: T`mean-square：$g(\mu)$` },
+      { x: mu, y: pos(muCurves.geo), mode: 'lines', line: { color: tokens.series[0], width: 2 }, name: T`almost-sure：$e^{\lambda(\mu)}$` },
+      { x: [mu[0], mu[mu.length - 1]], y: [1, 1], mode: 'lines', line: { color: tokens.textMuted, dash: 'dash', width: 1.5 }, name: '門檻 $= 1$' },
       ...(ap.mu > 0
-        ? [{ x: [ap.mu, ap.mu], y: [10 ** -2.5, 10 ** 1.5], mode: 'lines', line: { color: tokens.text, width: 2, dash: 'dot' }, name: `目前 μ = ${num(ap.mu, 4)}` } as Data]
+        ? [{ x: [ap.mu, ap.mu], y: [10 ** -2.5, 10 ** 1.5], mode: 'lines', line: { color: tokens.text, width: 2, dash: 'dot' }, name: T`目前 $\mu = ${tnum(ap.mu, 4)}$` } as Data]
         : []),
       {
         x: marks.map((m) => m.x),
@@ -457,7 +458,7 @@ export function StabilityLab() {
     ]
   }, [muCurves, A, tokens, ap.mu])
   const muLayout = useMemo<Partial<Layout>>(
-    () => ({ xaxis: { title: { text: 'μ（log）' }, type: 'log' }, yaxis: { title: { text: '每步因子（log）' }, range: [-2.5, 1.5] } }),
+    () => ({ xaxis: { title: { text: T`$\mu$（log）` }, type: 'log' }, yaxis: { title: { text: '每步因子（log）' }, range: [-2.5, 1.5] } }),
     [],
   )
 
@@ -465,7 +466,7 @@ export function StabilityLab() {
   const histData = useMemo<Data[]>(() => {
     if (!res || !resMatches) return []
     const finite = Array.from(res.finalLog10).filter((v) => Number.isFinite(v))
-    return [{ x: finite, type: 'histogram', nbinsx: 60, marker: { color: withAlpha(tokens.series[0], 0.75) }, name: `log₁₀|δ_N|（${finite.length} 條路徑）` }]
+    return [{ x: finite, type: 'histogram', nbinsx: 60, marker: { color: withAlpha(tokens.series[0], 0.75) }, name: T`$\log_{10}|\delta_N|$（${finite.length} 條路徑）` }]
   }, [res, resMatches, tokens])
   const histLayout = useMemo<Partial<Layout>>(() => {
     if (!res || !resMatches) return {}
@@ -481,11 +482,11 @@ export function StabilityLab() {
     const hi = res.q90[finalIdx]
     if (Number.isFinite(rms) && Number.isFinite(lo) && Number.isFinite(hi) && rms < hi + 3 * Math.max(1, hi - lo)) {
       shapes.push({ type: 'line', xref: 'x', yref: 'paper', x0: rms, x1: rms, y0: 0, y1: 1, line: { color: tokens.series[1], width: 2, dash: 'dash' } })
-      ann.push({ x: rms, y: 0.9, yref: 'paper', text: '解析 √E[δ²]', showarrow: false, xanchor: 'left', font: { color: tokens.text } })
+      ann.push({ x: rms, y: 0.9, yref: 'paper', text: T`解析 $\sqrt{E[\delta^2]}$`, showarrow: false, xanchor: 'left', font: { color: tokens.text } })
     } else if (Number.isFinite(rms)) {
-      ann.push({ x: 1, xref: 'paper', y: 0.95, yref: 'paper', xanchor: 'right', showarrow: false, text: `解析 √E[δ_N²] = 10^${num(rms, 4)}，遠在圖的右邊`, font: { color: tokens.text } })
+      ann.push({ x: 1, xref: 'paper', y: 0.95, yref: 'paper', xanchor: 'right', showarrow: false, text: T`解析 $\sqrt{E[\delta_N^2]} = 10^{${tnum(rms, 4)}}$，遠在圖的右邊`, font: { color: tokens.text } })
     }
-    return { xaxis: { title: { text: 'log₁₀|δ_N|' } }, yaxis: { title: { text: '路徑數' } }, shapes, annotations: ann, bargap: 0.05 }
+    return { xaxis: { title: { text: T`$\log_{10}|\delta_N|$` } }, yaxis: { title: { text: '路徑數' } }, shapes, annotations: ann, bargap: 0.05 }
   }, [res, resMatches, finalIdx, traj, tokens])
 
   // ── 圖 4：收斂比例（所有 case）＋ 圖 5：case 比較
@@ -495,7 +496,7 @@ export function StabilityLab() {
         const r = out?.byId[c.id]
         const col = tokens.series[c.seriesIndex]
         const d: Data[] = []
-        if (r) d.push({ x: Array.from(r.n), y: Array.from(r.fracConverged), mode: 'lines', line: { color: col, width: 2 }, name: `Case ${c.id} MC（μ=${num(c.params.mu)}，${distSummary(c.params)}）` })
+        if (r) d.push({ x: Array.from(r.n), y: Array.from(r.fracConverged), mode: 'lines', line: { color: col, width: 2 }, name: T`Case ${c.id} MC（$\mu=${tnum(c.params.mu)}$，${distSummaryTex(c.params)}）` })
         // CLT 預測（F-03.18，近似）：無雜訊、δ₀ ≠ 0、s 有定義時
         if (a && c.params.noiseSigma === 0 && c.params.delta0 !== 0 && Number.isFinite(a.sd) && Number.isFinite(a.f.lambda)) {
           const ns = Array.from(r ? r.n : recordIndices(c.params.steps))
@@ -521,7 +522,7 @@ export function StabilityLab() {
       if (a) {
         const ns = r ? r.n : recordIndices(c.params.steps)
         const tr = analyticTrajectory({ mu: c.params.mu, dist: a.dist, delta0: c.params.delta0, noiseSigma: c.params.noiseSigma }, ns)
-        d.push({ x: Array.from(ns), y: finiteOrNull(tr.log10Rms), mode: 'lines', line: { color: col, width: 1.5, dash: 'dash' }, name: `Case ${c.id} 解析 √MSD` })
+        d.push({ x: Array.from(ns), y: finiteOrNull(tr.log10Rms), mode: 'lines', line: { color: col, width: 1.5, dash: 'dash' }, name: T`Case ${c.id} 解析 $\sqrt{\text{MSD}}$` })
       }
       return d
     })
@@ -542,7 +543,7 @@ export function StabilityLab() {
             mode: 'lines+markers',
             marker: { size: 4, color: tokens.series[c.seriesIndex] },
             line: { color: tokens.series[c.seriesIndex], width: 1.5 },
-            name: `Case ${c.id}：E[δ_n]（1 − μP_x = ${num(r, 3)}）`,
+            name: T`Case ${c.id}：$E[\delta_n]$（$1 - \mu P_x = ${tnum(r, 3)}$）`,
           } as Data,
         ]
       }),
@@ -609,7 +610,7 @@ export function StabilityLab() {
       params={{ ...ap, case: cases.activeId, distSummary: distSummary(ap) }}
       seed={cases.seed}
       onSeedChange={cases.setSeed}
-      units={{ mu: '1/[x]²', delta0: '—（正規化）', paths: 'paths', steps: 'samples', noiseSigma: '—（與 y 同單位）' }}
+      units={{ mu: '1/[x]^2', delta0: '—（正規化）', paths: 'paths', steps: 'samples', noiseSigma: '—（與 y 同單位）' }}
       metrics={metrics}
       warnings={warnings}
       crossCheck={{
@@ -650,31 +651,31 @@ export function StabilityLab() {
         <>
           <CaseSelector cases={cases} />
           <ParamControl
-            label={`μ（Case ${cases.activeId}）`}
+            label={T`$\mu$（Case ${cases.activeId}）`}
             value={ap.mu}
             onChange={(mu) => set({ mu })}
             min={0.001}
             max={20}
             log
-            unit="1/[x]²"
+            unit={T`$1/[x]^2$`}
             reg="LMS_MU（behavioral）"
             hint={A && A.m.Px > 0 ? <Tex>{T`\mu_\text{mean}=${tnum(A.b.meanMax)},\ \mu_\text{MS}=${tnum(A.b.msMax)},\ \mu_\text{as}=${tnum(A.b.asMax)}`}</Tex> : undefined}
           />
           <DistControls value={ap} onChange={(patch) => set(patch)} />
-          <ParamControl label="δ₀ = a − w₀" value={ap.delta0} onChange={(delta0) => set({ delta0 })} min={-10} max={10} step={0.1} unit="—（正規化）" reg="初始誤差（真值 − REG_GAIN 初值）" />
+          <ParamControl label={T`$\delta_0 = a - w_0$`} value={ap.delta0} onChange={(delta0) => set({ delta0 })} min={-10} max={10} step={0.1} unit="—（正規化）" reg="初始誤差（真值減 REG_GAIN 初值）" />
           <ParamControl
-            label="σ_v（量測雜訊）"
+            label={T`$\sigma_v$（量測雜訊）`}
             value={ap.noiseSigma}
             onChange={(noiseSigma) => set({ noiseSigma })}
             min={0}
             max={2}
             step={0.001}
-            unit="[y]"
+            unit="$[y]$"
             reg="comparator 前雜訊 RMS（正規化）"
             hint={tx`$0$ = 關閉；$\sigma_v>0$ 時看穩態分布與 $\text{MSD}_\infty$`}
           />
           <ParamControl label="路徑數" value={ap.paths} onChange={(paths) => set({ paths })} min={10} max={MC_LIMITS.maxPaths} log integer clampOnBlur unit="paths" reg="Monte Carlo 路徑數（behavioral）" />
-          <ParamControl label="步數 N" value={ap.steps} onChange={(steps) => set({ steps })} min={10} max={5000} integer clampOnBlur unit="samples" reg="模擬長度（behavioral）" />
+          <ParamControl label="步數 $N$" value={ap.steps} onChange={(steps) => set({ steps })} min={10} max={5000} integer clampOnBlur unit="samples" reg="模擬長度（behavioral）" />
         </>
       }
     >

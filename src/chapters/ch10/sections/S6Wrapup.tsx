@@ -84,7 +84,7 @@ export function S6Wrapup() {
           的三種寫法分別來自 F-10.3、F-10.4、F-10.8，變異那一格是 F-10.7，其中 <Tex>{String.raw`\xi_{\text{slow}}`}</Tex> 是誤差沿慢 eigenvector 的分量（模式座標，不是單一參數）。
         </Fig>
         <Hand id="HC-10.8">
-          建議先在紙上畫一張 3×4 的表（列：三種更新矩陣；欄：<Tex>{'m'}</Tex>、<Tex>{'p'}</Tex>、<Tex>{'k_{95}'}</Tex>、<Tex>{String.raw`\operatorname{Var}`}</Tex>），用預設數字填滿後切到「自己算算看」對答案；再把{' '}
+          建議先在紙上畫一張 <Tex>{String.raw`3\times4`}</Tex> 的表（列：三種更新矩陣；欄：<Tex>{'m'}</Tex>、<Tex>{'p'}</Tex>、<Tex>{'k_{95}'}</Tex>、<Tex>{String.raw`\operatorname{Var}`}</Tex>），用預設數字填滿後切到「自己算算看」對答案；再把{' '}
           <Tex>{String.raw`\rho`}</Tex> 換成 0.9、<Tex>{String.raw`\lambda_{\mathrm{reg}}`}</Tex> 換成 0.05 重算一次，看速度與雜訊怎麼互換。
         </Hand>
       </Section>
@@ -135,7 +135,7 @@ export function S6Wrapup() {
                   tex: String.raw`\lambda_{\min}=1-\rho=${tn(Q.lmin, 3)}`,
                   why: (
                     <>
-                      2×2 相關矩陣的 eigenvalue 是 <Tex>{String.raw`1\pm\rho`}</Tex>。
+                      <Tex>{String.raw`2\times2`}</Tex> 相關矩陣的 eigenvalue 是 <Tex>{String.raw`1\pm\rho`}</Tex>。
                     </>
                   ),
                 },
@@ -309,7 +309,7 @@ export function S6Wrapup() {
                   量產測試或背景 FSM：freeze → <Tex>{String.raw`\pm\Delta`}</Tex> → 各跑 <Tex>{'N_J'}</Tex> 個 sample
                 </td>
                 <td>
-                  <Tex>{String.raw`\Delta\approx0.3\sigma_v`}</Tex>（±1 碼截斷 −1.5%）；<Tex>{String.raw`\rho\to1`}</Tex> 時需要非常大的 <Tex>{'N_J'}</Tex>
+                  <Tex>{String.raw`\Delta\approx0.3\sigma_v`}</Tex>（<Tex>{String.raw`\pm1`}</Tex> 碼截斷 <Tex>{String.raw`-1.5\%`}</Tex>）；<Tex>{String.raw`\rho\to1`}</Tex> 時需要非常大的 <Tex>{'N_J'}</Tex>
                 </td>
               </tr>
               <tr>

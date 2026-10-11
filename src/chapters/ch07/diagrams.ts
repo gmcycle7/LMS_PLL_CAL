@@ -1,5 +1,5 @@
 /**
- * Ch07 的 Mermaid 方塊圖原始碼（docs/teaching-style.md §8）。集中在這裡，diagrams.test.tsx 用真正的 mermaid parser 逐張驗證。
+ * Ch07 的 Mermaid 方塊圖原始碼（docs/teaching-style.md §8）。集中在這裡，diagrams.test.tsx 用真正的 mermaid parser 與 renderer 逐張驗證。
  *
  * 約定（與本章公式逐一核對）：
  *   - 訊號名稱與公式相同：x[n]（code）、u = h * x（PD 端的有效 regressor）、e_PD = (a − w)·u + v、q = sign(e_PD)、
@@ -10,8 +10,12 @@
  *     Type-II 迴路的 (a − w)·x 減去回授；每條輸入線都標正負號。
  *   - 平均後的校正迴路（CHART_MEAN_LOOP）：E[G_k] ≈ K_q·C·δ_k、w_{k+1} = w_k + μ·G_k ⇒ δ_{k+1} = (1 − μ·K_q·C)·δ_k；
  *     加法點是 δ_k = a − w_k（a 進正端、w_k 進負端），整圈都是 block rate。
- *   - Mermaid 不渲染 KaTeX：節點文字用 Unicode 數學符號；標籤內不用 ASCII 的 < >（改全形 ＜ ＞），換行用 <br/>。
- *   - 加法點與正號一律用全形「＋」：Mermaid 11 會把每個標籤當 Markdown 解析，只有一個 ASCII「+」（或以「+ 」「- 」「1. 」開頭）的標籤
+ *   - 圖內數學一律 LaTeX（docs/teaching-style.md §3，使用者要求 2026-10-11）：雙引號標籤裡的公式寫 `$...$`，文字照常寫；
+ *     `Mermaid` 元件會用 KaTeX 排版。原始碼用 String.raw（反斜線只寫一次）；標籤內不用兩個連續的反斜線（Mermaid 會收成一個），
+ *     換行用 <br/>；比較符號寫 \lt、\gt、\le、\ge（標籤內不放 ASCII 的 < >）。暫存器名稱用 \mathtt{REG\_…}。
+ *     含公式的標籤，KaTeX 不會自動換行：每一行都手動用 <br/> 斷在 20–26 個全形字寬以內（LR 的圖更短）。
+ *   - 上文提到的 Unicode 拼法（z⁻ᴰ、σ_v、ΩD…）只出現在這段說明裡，標籤裡一律是 `$z^{-D}$`、`$\sigma_v$`、`$\Omega D$`。
+ *   - 加法點與正號一律用全形「＋」，或寫在公式裡（`$+a$`）：Mermaid 11 會把每個標籤當 Markdown 解析，只有一個 ASCII「+」（或以「+ 」「- 」「1. 」開頭）的標籤
  *     會被當成清單，畫面上變成「Unsupported markdown: list」。diagrams.test.tsx 用真正的 render 檢查這件事。
  *   - 走圖的文字用顏色與方塊名稱指路（不用「上面／下面」）：方塊的實際位置由 Mermaid 的排版決定。
  *   - 排版：內文欄位約 1000 px。「兩路相乘」與流程類的圖（6 個以上的方塊串在一起）用 flowchart TB——左右排列會超過 1400 px，
@@ -20,6 +24,8 @@
  */
 
 import type { SystemBlock } from '@/components'
+
+const r = String.raw
 
 const CLASS_DEFS = [
   '  classDef focus fill:#1f5fa8,stroke:#0d3b6e,color:#ffffff,stroke-width:2px',
@@ -32,15 +38,15 @@ const chart = (lines: string[]): string => [...lines, ...CLASS_DEFS].join('\n')
 /** §7.1：問題出在哪裡——comparator 看到的是 u（經過 H），GMAC 乘的卻是 code；本章在 code 這一側加一個延遲。 */
 export const CHART_SIGNAL_MODEL = chart([
   'flowchart TB',
-  '  X(["code x[n]"]) --> H["PLL 誤差路徑 H<br/>增益 |H|、相位 φ"]',
-  '  X --> DLY["延遲 D 個 sample<br/>z⁻ᴰ"]',
-  '  H -- "u[n]" --> GE["乘上剩餘 gain 誤差<br/>δ = a − w"]',
-  '  GE -- "＋ δ·u[n]" --> S(("＋"))',
-  '  V(["comparator 前的雜訊<br/>v[n]，標準差 σ_v"]) -- "＋ v[n]" --> S',
-  '  S -- "e_PD[n] = δ·u[n] + v[n]" --> CMP["1-bit comparator<br/>q = sign(e_PD)"]',
-  '  CMP -- "q[n]" --> M(("×"))',
-  '  DLY -- "x[n−D]" --> M',
-  '  M --> AVG["一個 block 取平均<br/>G_k = (1/N) Σ q[n]·x[n−D]"]',
+  r`  X(["code $x[n]$"]) --> H["PLL 誤差路徑 $H$<br/>增益 $|H|$、相位 $\phi$"]`,
+  r`  X --> DLY["延遲 $D$ 個 sample<br/>$z^{-D}$"]`,
+  r`  H -- "$u[n]$" --> GE["乘上剩餘 gain 誤差<br/>$\delta = a - w$"]`,
+  r`  GE -- "$+\delta\cdot u[n]$" --> S(("＋"))`,
+  r`  V(["comparator 前的雜訊<br/>$v[n]$，標準差 $\sigma_v$"]) -- "$+v[n]$" --> S`,
+  r`  S -- "$e_{\mathrm{PD}}[n] = \delta\cdot u[n] + v[n]$" --> CMP["1-bit comparator<br/>$q = \mathrm{sign}(e_{\mathrm{PD}})$"]`,
+  r`  CMP -- "$q[n]$" --> M(("$\times$"))`,
+  r`  DLY -- "$x[n-D]$" --> M`,
+  r`  M --> AVG["一個 block 取平均<br/>$G_k = \tfrac{1}{N}\sum q[n]\cdot x[n-D]$"]`,
   '  class H warn',
   '  class DLY focus',
 ])
@@ -48,13 +54,13 @@ export const CHART_SIGNAL_MODEL = chart([
 /** §7.1：單頻的相位記帳——誤差路徑加 φ、延遲 code 減 ΩD，GMAC 只留下兩路的相位差 θ = φ + ΩD。 */
 export const CHART_PHASE_BOOKKEEPING = chart([
   'flowchart TB',
-  '  T(["單頻 code：相位 Ωn"]) --> H["誤差路徑 H：相位加 φ<br/>例：φ = −120°"]',
-  '  T --> D["延遲 D 個 sample：相位減 ΩD<br/>例：D = 4，ΩD = 120°"]',
-  '  H -- "u：Ωn + φ" --> M["相乘再平均，只留下兩路的相位差<br/>殘餘相位 θ = φ + ΩD<br/>例：−120° + 120° = 0°"]',
-  '  D -- "x[n−D]：Ωn − ΩD" --> M',
-  '  M --> Q{{"|θ| ＜ 90°？"}}',
-  '  Q -- "是" --> POS["C_D ＞ 0<br/>往對的方向修"]',
-  '  Q -- "否" --> NEG["C_D ≤ 0<br/>沒有恢復力，或反向更新"]',
+  r`  T(["單頻 code：相位 $\Omega n$"]) --> H["誤差路徑 $H$：相位加 $\phi$<br/>例：$\phi = -120^\circ$"]`,
+  r`  T --> D["延遲 $D$ 個 sample：相位減 $\Omega D$<br/>例：$D = 4$，$\Omega D = 120^\circ$"]`,
+  r`  H -- "$u$：$\Omega n + \phi$" --> M["相乘再平均，只留下兩路的相位差<br/>殘餘相位 $\theta = \phi + \Omega D$<br/>例：$-120^\circ + 120^\circ = 0^\circ$"]`,
+  r`  D -- "$x[n-D]$：$\Omega n - \Omega D$" --> M`,
+  r`  M --> Q{{"$|\theta| \lt 90^\circ$？"}}`,
+  r`  Q -- "是" --> POS["$C_D \gt 0$<br/>往對的方向修"]`,
+  r`  Q -- "否" --> NEG["$C_D \le 0$<br/>沒有恢復力，或反向更新"]`,
   '  class D focus',
   '  class POS ok',
   '  class NEG warn',
@@ -66,24 +72,24 @@ export const CHART_PHASE_BOOKKEEPING = chart([
  */
 export const CHART_MEAN_LOOP = chart([
   'flowchart LR',
-  '  A(["DTC 真正的 gain a"]) -- "＋ a" --> S(("＋"))',
-  '  S -- "δ_k = a − w_k" --> KC["comparator、乘法器、平均器<br/>平均而言：乘上 K_q·C"]',
-  '  KC -- "E[G_k] = K_q·C·δ_k" --> MU["乘上 learning rate μ"]',
-  '  MU -- "μ·G_k" --> ACC["累加器 1/(z−1)<br/>w_{k+1} = w_k + μ·G_k"]',
-  '  ACC -- "− w_k" --> S',
+  r`  A(["DTC 真正的<br/>gain $a$"]) -- "$+a$" --> S(("＋"))`,
+  r`  S -- "$\delta_k = a - w_k$" --> KC["comparator、乘法器、<br/>平均器<br/>平均而言：乘上<br/>$K_q\cdot C$"]`,
+  r`  KC -- "$E[G_k] = K_q\cdot C\cdot\delta_k$" --> MU["乘上 learning rate<br/>$\mu$"]`,
+  r`  MU -- "$\mu\cdot G_k$" --> ACC["累加器 $\tfrac{1}{z-1}$<br/>$w_{k+1} = w_k + \mu\cdot G_k$"]`,
+  r`  ACC -- "$-w_k$" --> S`,
   '  class KC focus',
 ])
 
 /** §7.2：推導 C_D 的關鍵——乘法器把兩個同頻 cos 變成「常數項 + 兩倍頻項」，平均器只留下常數項。 */
 export const CHART_MIXER_AVERAGE = chart([
   'flowchart TB',
-  '  XD(["x[n−D] = A·cos(Ωn − ΩD)"]) --> M(("×"))',
-  '  U(["u[n] = A·|H|·cos(Ωn + φ)"]) --> M',
-  '  M -- "積化和差" --> DC["不隨 n 變的項<br/>(A²|H|/2)·cos(φ + ΩD)"]',
-  '  M -- "積化和差" --> HF["兩倍頻的項<br/>(A²|H|/2)·cos(2Ωn + φ − ΩD)"]',
-  '  DC -- "原封不動" --> AVG["長時間平均 E[·]<br/>GMAC 的累加"]',
-  '  HF -- "正負抵消成 0" --> AVG',
-  '  AVG --> C(["C_D = (A²/2)·|H|·cos(φ + ΩD)"])',
+  r`  XD(["$x[n-D] = A\cdot\cos(\Omega n - \Omega D)$"]) --> M(("$\times$"))`,
+  r`  U(["$u[n] = A\cdot|H|\cdot\cos(\Omega n + \phi)$"]) --> M`,
+  r`  M -- "積化和差" --> DC["不隨 $n$ 變的項<br/>$\tfrac{A^2|H|}{2}\cdot\cos(\phi + \Omega D)$"]`,
+  r`  M -- "積化和差" --> HF["兩倍頻的項<br/>$\tfrac{A^2|H|}{2}\cdot\cos(2\Omega n + \phi - \Omega D)$"]`,
+  r`  DC -- "原封不動" --> AVG["長時間平均 $E[\cdot]$<br/>GMAC 的累加"]`,
+  r`  HF -- "正負抵消成 $0$" --> AVG`,
+  r`  AVG --> C(["$C_D = \tfrac{A^2}{2}\cdot|H|\cdot\cos(\phi + \Omega D)$"])`,
   '  class DC focus',
 ])
 
@@ -94,17 +100,17 @@ export const CHART_DELAY_SIDE = chart([
   // Mermaid 把同一層互不相連的框排成「後宣告的在前」，所以先宣告 B、再宣告 A，畫面上 A 在上面（diagrams.test.tsx 會檢查）。
   '  subgraph SIDE_ERR["做法 B：延遲 comparator 輸出"]',
   '    direction LR',
-  '    QB(["q[n]"]) --> DB["z⁻ᴰ"]',
-  '    DB -- "q[n−D]" --> MB(("×"))',
-  '    XB(["x[n]"]) --> MB',
-  '    MB --> RB["殘餘相位 φ − ΩD<br/>適合超前的誤差路徑（φ ＞ 0）"]',
+  r`    QB(["$q[n]$"]) --> DB["$z^{-D}$"]`,
+  r`    DB -- "$q[n-D]$" --> MB(("$\times$"))`,
+  r`    XB(["$x[n]$"]) --> MB`,
+  r`    MB --> RB["殘餘相位 $\phi - \Omega D$<br/>適合超前的誤差路徑<br/>（$\phi \gt 0$）"]`,
   '  end',
-  '  subgraph SIDE_CODE["做法 A：延遲 code（本站的 D）"]',
+  '  subgraph SIDE_CODE["做法 A：延遲 code（本站的 $D$）"]',
   '    direction LR',
-  '    XA(["x[n]"]) --> DA["z⁻ᴰ"]',
-  '    DA -- "x[n−D]" --> MA(("×"))',
-  '    QA(["q[n]"]) --> MA',
-  '    MA --> RA["殘餘相位 φ + ΩD<br/>適合落後的誤差路徑（φ ＜ 0）"]',
+  r`    XA(["$x[n]$"]) --> DA["$z^{-D}$"]`,
+  r`    DA -- "$x[n-D]$" --> MA(("$\times$"))`,
+  r`    QA(["$q[n]$"]) --> MA`,
+  r`    MA --> RA["殘餘相位 $\phi + \Omega D$<br/>適合落後的誤差路徑<br/>（$\phi \lt 0$）"]`,
   '  end',
   '  class DA,DB focus',
 ])
@@ -115,10 +121,10 @@ export const CHART_DELAY_SIDE = chart([
  */
 export const CHART_BLOCK_AVERAGE = chart([
   'flowchart TB',
-  '  P(["乘法器輸出 x[n−D]·u[n]<br/>第 k 個 block：n = n₀ … n₀+N−1"]) --> DC["不隨 n 變的項<br/>(A²|H|/2)·cos(φ + ΩD)"]',
-  '  P --> HF["兩倍頻的項<br/>(A²|H|/2)·cos(2Ωn + φ − ΩD)"]',
-  '  DC -- "原封不動" --> AVG["只平均 N 個 sample<br/>(1/N) Σ"]',
-  '  HF -- "n 換成 block 的中點 n₀ + (N−1)/2<br/>再乘上 sin(NΩ) / (N·sin Ω)" --> AVG',
+  r`  P(["乘法器輸出 $x[n-D]\cdot u[n]$<br/>第 $k$ 個 block：$n = n_0, \ldots, n_0 + N - 1$"]) --> DC["不隨 $n$ 變的項<br/>$\tfrac{A^2|H|}{2}\cdot\cos(\phi + \Omega D)$"]`,
+  r`  P --> HF["兩倍頻的項<br/>$\tfrac{A^2|H|}{2}\cdot\cos(2\Omega n + \phi - \Omega D)$"]`,
+  r`  DC -- "原封不動" --> AVG["只平均 $N$ 個 sample<br/>$\tfrac{1}{N}\sum$"]`,
+  r`  HF -- "$n$ 換成 block 的中點 $n_0 + \tfrac{N-1}{2}$<br/>再乘上 $\tfrac{\sin(N\Omega)}{N\cdot\sin\Omega}$" --> AVG`,
   '  AVG --> G(["這一個 block 的相關<br/>常數項 + ripple"])',
   '  class DC focus',
   '  class HF warn',
@@ -127,31 +133,31 @@ export const CHART_BLOCK_AVERAGE = chart([
 /** §7.3：delay line + tap MUX——每多一級 register，相位多落後 Ω（線性相位）。圖上畫 4 級。 */
 export const CHART_DELAY_LINE = chart([
   'flowchart LR',
-  '  X(["x[n]"]) --> R1["z⁻¹"]',
-  '  R1 --> R2["z⁻¹"]',
-  '  R2 --> R3["z⁻¹"]',
-  '  R3 --> R4["z⁻¹"]',
-  '  X -- "相位 0" --> MUX{{"tap MUX<br/>REG_GMAC_DLY = D"}}',
-  '  R1 -- "−Ω" --> MUX',
-  '  R2 -- "−2Ω" --> MUX',
-  '  R3 -- "−3Ω" --> MUX',
-  '  R4 -- "−4Ω" --> MUX',
-  '  MUX -- "x[n−D]" --> GMAC(["GMAC"])',
+  r`  X(["$x[n]$"]) --> R1["$z^{-1}$"]`,
+  r`  R1 --> R2["$z^{-1}$"]`,
+  r`  R2 --> R3["$z^{-1}$"]`,
+  r`  R3 --> R4["$z^{-1}$"]`,
+  r`  X -- "相位 $0$" --> MUX{{"tap MUX<br/>$\mathtt{REG\_GMAC\_DLY} = D$"}}`,
+  r`  R1 -- "$-\Omega$" --> MUX`,
+  r`  R2 -- "$-2\Omega$" --> MUX`,
+  r`  R3 -- "$-3\Omega$" --> MUX`,
+  r`  R4 -- "$-4\Omega$" --> MUX`,
+  r`  MUX -- "$x[n-D]$" --> GMAC(["GMAC"])`,
   '  class R1,R2,R3,R4,MUX focus',
 ])
 
 /** §7.3：同一個 D 對兩個頻率——對準 tone 1 之後，tone 2 的殘餘相位是 (Ω₂ − Ω₁)·D。 */
 export const CHART_TWO_TONES = chart([
   'flowchart TB',
-  '  subgraph TONE1["tone 1：Ω₁ = 30°/sample（對準的頻率）"]',
-  '    A1["誤差路徑：φ₁ = −120°"] --> B1["同一條 delay line，D = 4<br/>Ω₁D = 120°"]',
-  '    B1 --> C1["θ₁ = φ₁ + Ω₁D = 0°<br/>cos θ₁ = +1"]',
+  r`  subgraph TONE1["tone 1：$\Omega_1 = 30^\circ$/sample（對準的頻率）"]`,
+  r`    A1["誤差路徑：<br/>$\phi_1 = -120^\circ$"] --> B1["同一條 delay line，$D = 4$<br/>$\Omega_1 D = 120^\circ$"]`,
+  r`    B1 --> C1["$\theta_1 = \phi_1 + \Omega_1 D = 0^\circ$<br/>$\cos\theta_1 = +1$"]`,
   '  end',
-  '  subgraph TONE2["tone 2：Ω₂ = 60°/sample"]',
-  '    A2["誤差路徑：φ₂ = −120°（假設相同）"] --> B2["同一條 delay line，D = 4<br/>Ω₂D = 240°"]',
-  '    B2 --> C2["θ₂ = φ₂ + Ω₂D = +120°<br/>cos θ₂ = −0.5"]',
+  r`  subgraph TONE2["tone 2：$\Omega_2 = 60^\circ$/sample"]`,
+  r`    A2["誤差路徑：$\phi_2 = -120^\circ$<br/>（假設相同）"] --> B2["同一條 delay line，$D = 4$<br/>$\Omega_2 D = 240^\circ$"]`,
+  r`    B2 --> C2["$\theta_2 = \phi_2 + \Omega_2 D = +120^\circ$<br/>$\cos\theta_2 = -0.5$"]`,
   '  end',
-  '  C1 -- "正票" --> SUM["C_D = Σᵢ (Aᵢ²/2)·|Hᵢ|·cos θᵢ"]',
+  r`  C1 -- "正票" --> SUM["$C_D = \sum_i \tfrac{A_i^2}{2}\cdot|H_i|\cdot\cos\theta_i$"]`,
   '  C2 -- "負票" --> SUM',
   '  class B1,B2 focus',
   '  class C1 ok',
@@ -161,12 +167,12 @@ export const CHART_TWO_TONES = chart([
 /** §7.3：多頻／寬頻 code 的 C_D——每個頻率依 S_xx·|H| 加權投票，票的正負由 cos(φ + ΩD) 決定。 */
 export const CHART_VOTING = chart([
   'flowchart TB',
-  '  WGT["這一票有多重<br/>code 功率 S_xx(Ω) 乘上 |H(Ω)|"] --> PROD(("×"))',
-  '  SGN["這一票是正是負<br/>cos(φ(Ω) + ΩD)"] --> PROD',
-  '  PROD -- "一個頻率的票" --> SUM["所有頻率加總<br/>C_D = Σᵢ 或 (1/2π)∫ dΩ"]',
-  '  SUM --> Q{{"C_D ＞ 0？"}}',
-  '  Q -- "是" --> P1["p = 1 − μ·K_q·C_D ＜ 1<br/>方向正確"]',
-  '  Q -- "否" --> P2["p ≥ 1<br/>漂移或發散"]',
+  r`  WGT["這一票有多重<br/>code 功率 $S_{xx}(\Omega)$<br/>乘上 $|H(\Omega)|$"] --> PROD(("$\times$"))`,
+  r`  SGN["這一票是正是負<br/>$\cos(\phi(\Omega) + \Omega D)$"] --> PROD`,
+  r`  PROD -- "一個頻率的票" --> SUM["所有頻率加總<br/>$C_D = \sum_i$ 或 $\tfrac{1}{2\pi}\int d\Omega$"]`,
+  r`  SUM --> Q{{"$C_D \gt 0$？"}}`,
+  r`  Q -- "是" --> P1["$p = 1 - \mu\cdot K_q\cdot C_D \lt 1$<br/>方向正確"]`,
+  r`  Q -- "否" --> P2["$p \ge 1$<br/>漂移或發散"]`,
   '  class SGN focus',
   '  class P1 ok',
   '  class P2 warn',
@@ -175,16 +181,16 @@ export const CHART_VOTING = chart([
 /** §7.4：同一個 e_PD 乘 u 還是乘 x——真正的梯度乘的是 u（E[u²] ≥ 0），raw-x 乘的是 x（C 可正可負）。 */
 export const CHART_GRADIENT = chart([
   'flowchart LR',
-  '  X(["x[n]"]) --> H["誤差路徑 h"]',
-  '  H -- "u[n]" --> GE["乘上 (a − w)"]',
+  r`  X(["$x[n]$"]) --> H["誤差路徑 $h$"]`,
+  r`  H -- "$u[n]$" --> GE["乘上 $(a - w)$"]`,
   '  GE -- "＋" --> S(("＋"))',
-  '  V(["v[n]"]) -- "＋" --> S',
-  '  S -- "e_PD[n]" --> MU(("×"))',
-  '  H -- "u[n]" --> MU',
-  '  MU -- "−dJ/dw：真正的梯度" --> RU["平均：(a − w)·E[u²]<br/>E[u²] ≥ 0，方向永遠正確"]',
-  '  S -- "e_PD[n]" --> MX(("×"))',
-  '  X -- "x[n]" --> MX',
-  '  MX -- "乘的是 x：raw-x" --> RX["平均：(a − w)·C，C = E[x·u]<br/>C 可正可負"]',
+  r`  V(["$v[n]$"]) -- "＋" --> S`,
+  r`  S -- "$e_{\mathrm{PD}}[n]$" --> MU(("$\times$"))`,
+  r`  H -- "$u[n]$" --> MU`,
+  r`  MU -- "$-dJ/dw$：真正的梯度" --> RU["平均：<br/>$(a - w)\cdot E[u^2]$<br/>$E[u^2] \ge 0$，<br/>方向永遠正確"]`,
+  r`  S -- "$e_{\mathrm{PD}}[n]$" --> MX(("$\times$"))`,
+  r`  X -- "$x[n]$" --> MX`,
+  r`  MX -- "乘的是 $x$：raw-x" --> RX["平均：<br/>$(a - w)\cdot C$，$C = E[x\cdot u]$<br/>$C$ 可正可負"]`,
   '  class RU ok',
   '  class RX warn',
 ])
@@ -195,23 +201,23 @@ export const CHART_THREE_REGRESSORS = chart([
   // 三個互不相連的框上下疊、各自由左到右（做法同 CHART_DELAY_SIDE）：先宣告 C、最後宣告 A，畫面上由上到下是 A、B、C。
   '  subgraph ARCH_FX["C：filtered-x（補一個模型）"]',
   '    direction LR',
-  '    XC(["x[n]"]) --> HC["模型 Ĥ<br/>u_f = ĥ * x"]',
-  '    HC -- "x_ref = u_f[n]" --> MC(("×"))',
-  '    QC(["q[n]"]) --> MC',
-  '    MC --> GC["相關 E[u·u_f]<br/>每個頻率都補上 ∠Ĥ"]',
+  r`    XC(["$x[n]$"]) --> HC["模型 $\hat H$<br/>$u_f = \hat h * x$"]`,
+  r`    HC -- "$x_{\mathrm{ref}} = u_f[n]$" --> MC(("$\times$"))`,
+  r`    QC(["$q[n]$"]) --> MC`,
+  r`    MC --> GC["相關 $E[u\cdot u_f]$<br/>每個頻率都補上<br/>$\angle\hat H$"]`,
   '  end',
   '  subgraph ARCH_DLY["B：delayed-x（補一個延遲）"]',
   '    direction LR',
-  '    XB(["x[n]"]) --> DB["z⁻ᴰ<br/>D 級 shift register"]',
-  '    DB -- "x_ref = x[n−D]" --> MB(("×"))',
-  '    QB(["q[n]"]) --> MB',
-  '    MB --> GB["相關 C_D = E[x[n−D]·u]<br/>只補一條直線 ΩD"]',
+  r`    XB(["$x[n]$"]) --> DB["$z^{-D}$<br/>$D$ 級 shift register"]`,
+  r`    DB -- "$x_{\mathrm{ref}} = x[n-D]$" --> MB(("$\times$"))`,
+  r`    QB(["$q[n]$"]) --> MB`,
+  r`    MB --> GB["相關<br/>$C_D = E[x[n-D]\cdot u]$<br/>只補一條直線 $\Omega D$"]`,
   '  end',
   '  subgraph ARCH_RAW["A：raw-x（不補償）"]',
   '    direction LR',
-  '    XA(["x[n]"]) -- "x_ref = x[n]" --> MA(("×"))',
-  '    QA(["q[n]"]) --> MA',
-  '    MA --> GA["相關 C = E[x·u]<br/>相位 φ 原封不動"]',
+  r`    XA(["$x[n]$"]) -- "$x_{\mathrm{ref}} = x[n]$" --> MA(("$\times$"))`,
+  r`    QA(["$q[n]$"]) --> MA`,
+  r`    MA --> GA["相關 $C = E[x\cdot u]$<br/>相位 $\phi$ 原封不動"]`,
   '  end',
   '  class DB,HC focus',
 ])
@@ -219,37 +225,37 @@ export const CHART_THREE_REGRESSORS = chart([
 /** §7.4：filtered-x 的閉迴路（F-07.10）——sample rate n 的相乘、block rate k 的平均與累加，w_k 回授到 DTC。 */
 export const CHART_FX_LOOP = chart([
   'flowchart TB',
-  '  X(["code x[n]"]) --> P["真實路徑加雜訊<br/>e_PD[n] = (a − w_k)·(h * x)[n] + v[n]"]',
-  '  X --> HAT["模型 Ĥ<br/>u_f = ĥ * x"]',
-  '  P -- "e_PD[n]" --> CMP["comparator<br/>q = sign(e_PD)"]',
-  '  HAT --> DL["z⁻ᴰ"]',
-  '  CMP -- "q[n]" --> M(("×"))',
-  '  DL -- "u_f[n−D]" --> M',
-  '  M -- "每個 sample n" --> AVG["block 平均<br/>G_k = (1/N) Σ q[n]·u_f[n−D]"]',
-  '  AVG -- "每個 block k" --> ACC["乘上 μ 再累加，1/(z−1)<br/>w_{k+1} = w_k + μ·G_k"]',
-  '  ACC -- "w_k 回授（負回授：a − w_k）" --> P',
+  r`  X(["code $x[n]$"]) --> P["真實路徑加雜訊<br/>$e_{\mathrm{PD}}[n] = (a - w_k)\cdot(h * x)[n] + v[n]$"]`,
+  r`  X --> HAT["模型 $\hat H$<br/>$u_f = \hat h * x$"]`,
+  r`  P -- "$e_{\mathrm{PD}}[n]$" --> CMP["comparator<br/>$q = \mathrm{sign}(e_{\mathrm{PD}})$"]`,
+  r`  HAT --> DL["$z^{-D}$"]`,
+  r`  CMP -- "$q[n]$" --> M(("$\times$"))`,
+  r`  DL -- "$u_f[n-D]$" --> M`,
+  r`  M -- "每個 sample $n$" --> AVG["block 平均<br/>$G_k = \tfrac{1}{N}\sum q[n]\cdot u_f[n-D]$"]`,
+  r`  AVG -- "每個 block $k$" --> ACC["乘上 $\mu$ 再累加，$\tfrac{1}{z-1}$<br/>$w_{k+1} = w_k + \mu\cdot G_k$"]`,
+  r`  ACC -- "$w_k$ 回授（負回授：$a - w_k$）" --> P`,
   '  class HAT focus',
 ])
 
 /** §7.4：正規化相關 ρ 怎麼算、怎麼讀——符號是極性，大小是效率。 */
 export const CHART_RHO_READING = chart([
   'flowchart LR',
-  '  N1["分子 E[x_ref·u]<br/>regressor 和 u 有多同步"] --> R["ρ_ref = 分子 ÷ 分母<br/>範圍 −1 到 +1"]',
-  '  N2["分母 √(E[x_ref²]·E[u²])<br/>兩個訊號各自的大小"] --> R',
-  '  R --> SG["看符號<br/>ρ ＞ 0 方向正確，ρ ＜ 0 反向更新"]',
-  '  R --> MG["看大小<br/>σ_w ∝ 1/(√N·|ρ|)<br/>N 要補 1/ρ² 倍"]',
+  r`  N1["分子 $E[x_{\mathrm{ref}}\cdot u]$<br/>regressor 和 $u$<br/>有多同步"] --> R["$\rho_{\mathrm{ref}}$ = 分子 $\div$ 分母<br/>範圍 $-1$ 到 $+1$"]`,
+  r`  N2["分母 $\sqrt{E[x_{\mathrm{ref}}^2]\cdot E[u^2]}$<br/>兩個訊號各自的大小"] --> R`,
+  r`  R --> SG["看符號<br/>$\rho \gt 0$ 方向正確，<br/>$\rho \lt 0$ 反向更新"]`,
+  r`  R --> MG["看大小<br/>$\sigma_w \propto \tfrac{1}{\sqrt{N}\cdot|\rho|}$<br/>$N$ 要補 $1/\rho^2$ 倍"]`,
   '  class R focus',
 ])
 
 /** §7.5：模型誤差——GMAC 等效在算 E[u·u_f]；每個頻率的票是 S_xx·|H|·|Ĥ|·cos(∠H − ∠Ĥ)（F-07.12）。 */
 export const CHART_MISMATCH = chart([
   'flowchart TB',
-  '  X(["code x[n]"]) --> H["真實誤差路徑 H<br/>在 PLL 裡，拿不到"]',
-  '  X --> HAT["模型 Ĥ<br/>設計者寫進 RTL"]',
-  '  H -- "u[n]，藏在 q[n] 裡" --> COR["GMAC 等效在算 E[u·u_f]<br/>每個頻率一票：<br/>S_xx·|H|·|Ĥ|·cos(∠H − ∠Ĥ)"]',
-  '  HAT -- "u_f[n]" --> COR',
-  '  COR --> Q{{"有 code 能量的頻率上<br/>|∠H − ∠Ĥ| ＜ 90°？"}}',
-  '  Q -- "都成立" --> POS["E[u·u_f] ＞ 0<br/>p_f ＜ 1"]',
+  r`  X(["code $x[n]$"]) --> H["真實誤差路徑 $H$<br/>在 PLL 裡，拿不到"]`,
+  r`  X --> HAT["模型 $\hat H$<br/>設計者寫進 RTL"]`,
+  r`  H -- "$u[n]$，藏在 $q[n]$ 裡" --> COR["GMAC 等效在算 $E[u\cdot u_f]$<br/>每個頻率一票：<br/>$S_{xx}\cdot|H|\cdot|\hat H|\cdot\cos(\angle H - \angle\hat H)$"]`,
+  r`  HAT -- "$u_f[n]$" --> COR`,
+  r`  COR --> Q{{"有 code 能量的頻率上<br/>$|\angle H - \angle\hat H| \lt 90^\circ$？"}}`,
+  r`  Q -- "都成立" --> POS["$E[u\cdot u_f] \gt 0$<br/>$p_f \lt 1$"]`,
   '  Q -- "有些不成立" --> NEG["那些頻率投負票<br/>總和可能變號"]',
   '  class HAT focus',
   '  class POS ok',
@@ -259,38 +265,38 @@ export const CHART_MISMATCH = chart([
 /** §7.5：失效例子 Ĥ = H·z^−Δ——模型多算的 latency 變成相位差 ΩΔ。 */
 export const CHART_LATENCY_MISMATCH = chart([
   'flowchart TB',
-  '  X(["單頻 code：相位 Ωn"]) --> H["真實路徑 H<br/>相位加 φ"]',
-  '  X --> HM["模型裡的 H<br/>相位加 φ"]',
-  '  HM --> DL["模型多算的 latency z^−Δ<br/>相位減 ΩΔ"]',
-  '  H -- "u：Ωn + φ" --> COR["相乘再平均，只留下相位差<br/>∠H − ∠Ĥ = ΩΔ"]',
-  '  DL -- "u_f：Ωn + φ − ΩΔ" --> COR',
-  '  COR --> R["E[u·u_f] = |H|²·cos(ΩΔ)（unit power）<br/>例：Ω = 30°、Δ = 4<br/>cos 120° = −0.5，反向更新"]',
+  r`  X(["單頻 code：相位 $\Omega n$"]) --> H["真實路徑 $H$<br/>相位加 $\phi$"]`,
+  r`  X --> HM["模型裡的 $H$<br/>相位加 $\phi$"]`,
+  r`  HM --> DL["模型多算的 latency $z^{-\Delta}$<br/>相位減 $\Omega\Delta$"]`,
+  r`  H -- "$u$：$\Omega n + \phi$" --> COR["相乘再平均，只留下相位差<br/>$\angle H - \angle\hat H = \Omega\Delta$"]`,
+  r`  DL -- "$u_f$：$\Omega n + \phi - \Omega\Delta$" --> COR`,
+  r`  COR --> R["$E[u\cdot u_f] = |H|^2\cdot\cos(\Omega\Delta)$（unit power）<br/>例：$\Omega = 30^\circ$、$\Delta = 4$<br/>$\cos 120^\circ = -0.5$，反向更新"]`,
   '  class DL,R warn',
 ])
 
 /** §7.5：二次差分 regressor 的硬體——兩個暫存器、一個左移、一個三輸入加法（F-07.14）。 */
 export const CHART_SECOND_DIFF = chart([
   'flowchart LR',
-  '  X(["x[n]"]) --> R1["z⁻¹"]',
-  '  R1 -- "x[n−1]" --> R2["z⁻¹"]',
-  '  X -- "＋ x[n]" --> S(("＋"))',
-  '  R1 -- "x[n−1]" --> SH["乘 2<br/>左移 1 bit"]',
-  '  SH -- "− 2x[n−1]" --> S',
-  '  R2 -- "＋ x[n−2]" --> S',
-  '  S --> K["乘上 K₂<br/>可併入 μ"]',
-  '  K --> O(["x_ref[n] = K₂·(x[n] − 2x[n−1] + x[n−2])"])',
+  r`  X(["$x[n]$"]) --> R1["$z^{-1}$"]`,
+  r`  R1 -- "$x[n-1]$" --> R2["$z^{-1}$"]`,
+  r`  X -- "$+x[n]$" --> S(("＋"))`,
+  r`  R1 -- "$x[n-1]$" --> SH["乘 $2$<br/>左移 $1$ bit"]`,
+  r`  SH -- "$-2x[n-1]$" --> S`,
+  r`  R2 -- "$+x[n-2]$" --> S`,
+  r`  S --> K["乘上 $K_2$<br/>可併入 $\mu$"]`,
+  r`  K --> O(["$x_{\mathrm{ref}}[n] = K_2\cdot(x[n] - 2x[n-1] + x[n-2])$"])`,
   '  class R1,R2,SH,S focus',
 ])
 
 /** §7.5：E44 的 DT Type-II DPLL——開迴路 L(z) 是三個藍色方塊的乘積；加法點的輸出 (a − w)·u 除以輸入 (a − w)·x 就是 H_PD = 1/(1 + L)。 */
 export const CHART_TYPE2_LOOP = chart([
   'flowchart LR',
-  '  E(["DTC 的 gain 誤差<br/>(a − w)·x[n]"]) -- "＋" --> S(("＋"))',
-  '  S -- "(a − w)·u[n]" --> PI["PI loop filter<br/>K_p + K_i/(1 − z⁻¹)"]',
-  '  PI --> DCO["DCO 積分器<br/>1/(1 − z⁻¹)"]',
-  '  DCO --> DL["迴路延遲<br/>z^−(1+d)"]',
-  '  DL -- "回授，−" --> S',
-  '  S -- "(a − w)·u[n]" --> OUT(["到 comparator<br/>再加上雜訊 v[n]"])',
+  r`  E(["DTC 的 gain 誤差<br/>$(a - w)\cdot x[n]$"]) -- "＋" --> S(("＋"))`,
+  r`  S -- "$(a - w)\cdot u[n]$" --> PI["PI loop filter<br/>$K_p + \tfrac{K_i}{1 - z^{-1}}$"]`,
+  r`  PI --> DCO["DCO 積分器<br/>$\tfrac{1}{1 - z^{-1}}$"]`,
+  r`  DCO --> DL["迴路延遲<br/>$z^{-(1+d)}$"]`,
+  r`  DL -- "回授，$-$" --> S`,
+  r`  S -- "$(a - w)\cdot u[n]$" --> OUT(["到 comparator<br/>再加上雜訊 $v[n]$"])`,
   '  class PI,DCO,DL focus',
 ])
 
@@ -300,33 +306,33 @@ export const CHART_TYPE2_LOOP = chart([
  */
 export const CHART_RTL_REGRESSORS = chart([
   'flowchart LR',
-  '  X(["code x[n]<br/>DSM 或 training tone"]) --> DTC["DTC：真正的 gain a<br/>校正係數 w_k"]',
-  '  DTC -- "(a − w_k)·x[n]" --> H["PLL 誤差路徑 H_PD<br/>再加上雜訊 v[n]"]',
-  '  H -- "e_PD[n]" --> CMP["1-bit comparator<br/>q = sign(e_PD)"]',
+  r`  X(["code $x[n]$<br/>DSM 或 training tone"]) --> DTC["DTC：真正的 gain $a$<br/>校正係數 $w_k$"]`,
+  r`  DTC -- "$(a - w_k)\cdot x[n]$" --> H["PLL 誤差路徑 $H_{\mathrm{PD}}$<br/>再加上雜訊 $v[n]$"]`,
+  r`  H -- "$e_{\mathrm{PD}}[n]$" --> CMP["1-bit comparator<br/>$q = \mathrm{sign}(e_{\mathrm{PD}})$"]`,
   '  X --> R0["raw：直接接線"]',
-  '  X --> SR["shift register<br/>z⁻¹ × D_max"]',
-  '  SR --> MUX{{"tap MUX<br/>REG_GMAC_DLY = D"}}',
-  '  X --> HF["模型 Ĥ：FIR 或 IIR<br/>u_f = ĥ * x"]',
-  '  HF --> SR2["z⁻ᴰ"]',
-  '  X --> SD["二次差分<br/>K₂·(x[n] − 2x[n−1] + x[n−2])"]',
-  '  R0 -- "x[n]" --> SEL{{"REG_GMAC_XSEL<br/>四選一"}}',
-  '  MUX -- "x[n−D]" --> SEL',
-  '  SR2 -- "u_f[n−D]" --> SEL',
+  r`  X --> SR["shift register<br/>$z^{-1}\times D_{\max}$"]`,
+  r`  SR --> MUX{{"tap MUX<br/>$\mathtt{REG\_GMAC\_DLY} = D$"}}`,
+  r`  X --> HF["模型 $\hat H$：FIR 或 IIR<br/>$u_f = \hat h * x$"]`,
+  r`  HF --> SR2["$z^{-D}$"]`,
+  r`  X --> SD["二次差分<br/>$K_2\cdot(x[n] - 2x[n-1] + x[n-2])$"]`,
+  r`  R0 -- "$x[n]$" --> SEL{{"$\mathtt{REG\_GMAC\_XSEL}$<br/>四選一"}}`,
+  r`  MUX -- "$x[n-D]$" --> SEL`,
+  r`  SR2 -- "$u_f[n-D]$" --> SEL`,
   '  SD --> SEL',
-  '  SEL -- "x_ref[n]" --> GMAC["GMAC<br/>G_k = (1/N) Σ q[n]·x_ref[n]"]',
-  '  CMP -- "q[n]" --> GMAC',
-  '  GMAC -- "每個 block k" --> UPD["累加器<br/>w_{k+1} = w_k + μ·G_k"]',
-  '  UPD -- "w_k" --> DTC',
+  r`  SEL -- "$x_{\mathrm{ref}}[n]$" --> GMAC["GMAC<br/>$G_k = \tfrac{1}{N}\sum q[n]\cdot x_{\mathrm{ref}}[n]$"]`,
+  r`  CMP -- "$q[n]$" --> GMAC`,
+  r`  GMAC -- "每個 block $k$" --> UPD["累加器<br/>$w_{k+1} = w_k + \mu\cdot G_k$"]`,
+  r`  UPD -- "$w_k$" --> DTC`,
   '  class SEL focus',
 ])
 
 /** §7.6：硬體成本階梯——每往後一階，額外硬體與需要事先知道的東西越來越多，能處理的 code 也越廣。 */
 export const CHART_COST_LADDER = chart([
   'flowchart LR',
-  '  L0["第 0 階：raw-x<br/>額外硬體：無<br/>要知道：無<br/>有效：code 頻帶上 |∠H| ＜ 90°"]',
-  '  L1["第 1 階：二次差分<br/>額外硬體：2×B 個 flip-flop、2 個加法器、1 個左移<br/>要知道：迴路是 Type-II<br/>有效：窄頻、低頻的 tone"]',
-  '  L2["第 2 階：delayed-x<br/>額外硬體：D_max×B 個 flip-flop、tap MUX<br/>要知道：φ(Ω₀)<br/>有效：窄頻 code，只對準一個頻率"]',
-  '  L3["第 3 階：filtered-x<br/>額外硬體：L_FIR 個乘法器加 adder tree，或 2 階 IIR<br/>要知道：Ĥ（ω_n、ζ、latency、K_DCO）<br/>有效：任何 code，只要相位誤差 ＜ 90°"]',
+  r`  L0["第 0 階：raw-x<br/>額外硬體：無<br/>要知道：無<br/>有效：code 頻帶上<br/>$|\angle H| \lt 90^\circ$"]`,
+  r`  L1["第 1 階：二次差分<br/>額外硬體：<br/>$2\times B$ 個 flip-flop、<br/>2 個加法器、1 個左移<br/>要知道：迴路是 Type-II<br/>有效：窄頻、低頻的 tone"]`,
+  r`  L2["第 2 階：delayed-x<br/>額外硬體：<br/>$D_{\max}\times B$ 個 flip-flop、<br/>tap MUX<br/>要知道：$\phi(\Omega_0)$<br/>有效：窄頻 code，<br/>只對準一個頻率"]`,
+  r`  L3["第 3 階：filtered-x<br/>額外硬體：<br/>$L_{\mathrm{FIR}}$ 個乘法器加 adder tree，<br/>或 2 階 IIR<br/>要知道：$\hat H$（$\omega_n$、<br/>$\zeta$、latency、$K_{\mathrm{DCO}}$）<br/>有效：任何 code，只要<br/>相位誤差 $\lt 90^\circ$"]`,
   '  L0 --> L1',
   '  L1 --> L2',
   '  L2 --> L3',
@@ -336,16 +342,16 @@ export const CHART_COST_LADDER = chart([
 /** §7.6：決策流程——我需要哪一種修法？先看 C 的符號，再看 code 是不是窄頻，最後才上 filtered-x。 */
 export const CHART_DECISION = chart([
   'flowchart TB',
-  '  A(["先量或先算 raw-x 的相關 C = E[x·u]<br/>bring-up：GMAC 斜率 S ≈ −K_q·C"]) --> Q1{{"C ＞ 0，而且 ρ 夠大？"}}',
+  r`  A(["先量或先算 raw-x 的相關 $C = E[x\cdot u]$<br/>bring-up：GMAC 斜率 $S \approx -K_q\cdot C$"]) --> Q1{{"$C \gt 0$，而且 $\rho$ 夠大？"}}`,
   '  Q1 -- "是" --> RAW["用 raw-x<br/>不需要補償"]',
   '  Q1 -- "否" --> Q2{{"code 是窄頻嗎？<br/>training tone、單一主譜線"}}',
-  '  Q2 -- "是" --> Q3{{"Type-II 迴路，而且<br/>Ω 低於 F-07.15 的邊界？"}}',
-  '  Q3 -- "是" --> SD["二次差分<br/>K₂·(1 − z⁻¹)²"]',
-  '  Q3 -- "否" --> DX["delayed-x<br/>D ≈ ((−φ) mod 2π) / Ω<br/>FCW、PVT 一變就要重找"]',
-  '  Q2 -- "否：寬頻、DSM code" --> FX["filtered-x<br/>u_f = ĥ * x"]',
-  '  FX --> Q4{{"E[u·u_f] ＞ 0？<br/>充分條件：激勵頻帶上 |∠H − ∠Ĥ| ＜ 90°"}}',
-  '  Q4 -- "是" --> DONE["完成<br/>p_f = 1 − μ·K_q·E[u·u_f]"]',
-  '  Q4 -- "否" --> FIX["修模型 Ĥ<br/>先查 latency（E45）"]',
+  r`  Q2 -- "是" --> Q3{{"Type-II 迴路，而且<br/>$\Omega$ 低於 F-07.15 的邊界？"}}`,
+  r`  Q3 -- "是" --> SD["二次差分<br/>$K_2\cdot(1 - z^{-1})^2$"]`,
+  r`  Q3 -- "否" --> DX["delayed-x<br/>$D \approx \tfrac{(-\phi) \bmod 2\pi}{\Omega}$<br/>FCW、PVT 一變就要重找"]`,
+  r`  Q2 -- "否：寬頻、DSM code" --> FX["filtered-x<br/>$u_f = \hat h * x$"]`,
+  r`  FX --> Q4{{"$E[u\cdot u_f] \gt 0$？<br/>充分條件：激勵頻帶上<br/>$|\angle H - \angle\hat H| \lt 90^\circ$"}}`,
+  r`  Q4 -- "是" --> DONE["完成<br/>$p_f = 1 - \mu\cdot K_q\cdot E[u\cdot u_f]$"]`,
+  r`  Q4 -- "否" --> FIX["修模型 $\hat H$<br/>先查 latency（E45）"]`,
   '  FIX --> FX',
   '  class RAW,SD,DX,DONE ok',
   '  class FX focus',
@@ -355,20 +361,20 @@ export const CHART_DECISION = chart([
 /** §7.7：綜合手算 HC-07.8 的計算順序（①…⑨ 與手算題的步驟順序相同）。 */
 export const CHART_HANDCALC_FLOW = chart([
   'flowchart TB',
-  '  IN(["已知：|H|、φ、Ω、D、μ、σ_v（unit power：A²/2 = 1）"])',
-  '  IN --> A1["① raw-x<br/>C_raw = |H|·cos φ"]',
-  '  IN --> B1["② delayed-x 的殘餘相位<br/>θ = wrap(φ + ΩD)"]',
-  '  B1 --> B2["③ C_D = |H|·cos θ"]',
-  '  IN --> C1["④ filtered-x（Ĥ = H）<br/>E[u²] = |H|²"]',
-  '  IN --> K1["⑤ K_q = √(2/π) / σ_v"]',
-  '  K1 --> K2["⑥ μ·K_q"]',
-  '  A1 --> P1["⑦ p_raw = 1 − μ·K_q·C_raw"]',
-  '  B2 --> P2["⑧ p_D = 1 − μ·K_q·C_D"]',
-  '  C1 --> P3["⑨ p_f = 1 − μ·K_q·E[u²]"]',
+  r`  IN(["已知：$|H|$、$\phi$、$\Omega$、$D$、$\mu$、$\sigma_v$<br/>（unit power：$A^2/2 = 1$）"])`,
+  r`  IN --> A1["① raw-x<br/>$C_{\mathrm{raw}} = |H|\cdot\cos\phi$"]`,
+  r`  IN --> B1["② delayed-x 的殘餘相位<br/>$\theta = \mathrm{wrap}(\phi + \Omega D)$"]`,
+  r`  B1 --> B2["③ $C_D = |H|\cdot\cos\theta$"]`,
+  r`  IN --> C1["④ filtered-x（$\hat H = H$）<br/>$E[u^2] = |H|^2$"]`,
+  r`  IN --> K1["⑤ $K_q = \tfrac{\sqrt{2/\pi}}{\sigma_v}$"]`,
+  r`  K1 --> K2["⑥ $\mu\cdot K_q$"]`,
+  r`  A1 --> P1["⑦ $p_{\mathrm{raw}} = 1 - \mu\cdot K_q\cdot C_{\mathrm{raw}}$"]`,
+  r`  B2 --> P2["⑧ $p_D = 1 - \mu\cdot K_q\cdot C_D$"]`,
+  r`  C1 --> P3["⑨ $p_f = 1 - \mu\cdot K_q\cdot E[u^2]$"]`,
   '  K2 --> P1',
   '  K2 --> P2',
   '  K2 --> P3',
-  '  P1 --> J["判讀每個 pole<br/>|p| ＜ 1 收斂；p ＞ 1 反向更新"]',
+  r`  P1 --> J["判讀每個 pole<br/>$|p| \lt 1$ 收斂；$p \gt 1$ 反向更新"]`,
   '  P2 --> J',
   '  P3 --> J',
   '  class K2 focus',
@@ -380,13 +386,13 @@ export const CHART_HANDCALC_FLOW = chart([
  */
 export const CHART_BRINGUP = chart([
   'flowchart TB',
-  '  W1(["把 w 固定在 w₀ + Δw"]) --> GP["讀 GMAC 的平均<br/>G₊ = E[G_k]"]',
-  '  W2(["把 w 固定在 w₀ − Δw"]) --> GM["讀 GMAC 的平均<br/>G₋ = E[G_k]"]',
-  '  GP --> SL["斜率 S = (G₊ − G₋) / (2Δw)<br/>≈ −K_q·C"]',
+  r`  W1(["把 $w$ 固定在 $w_0 + \Delta w$"]) --> GP["讀 GMAC 的平均<br/>$G_+ = E[G_k]$"]`,
+  r`  W2(["把 $w$ 固定在 $w_0 - \Delta w$"]) --> GM["讀 GMAC 的平均<br/>$G_- = E[G_k]$"]`,
+  r`  GP --> SL["斜率 $S = \tfrac{G_+ - G_-}{2\Delta w}$<br/>$\approx -K_q\cdot C$"]`,
   '  GM --> SL',
-  '  SL --> Q{{"S ＜ 0？"}}',
-  '  Q -- "是" --> OK["C ＞ 0：極性正確<br/>可以閉迴路"]',
-  '  Q -- "否" --> BAD["C ≤ 0：極性錯誤<br/>改用 delayed-x、filtered-x（7.6 節的決策流程）"]',
+  r`  SL --> Q{{"$S \lt 0$？"}}`,
+  r`  Q -- "是" --> OK["$C \gt 0$：極性正確<br/>可以閉迴路"]`,
+  r`  Q -- "否" --> BAD["$C \le 0$：極性錯誤<br/>改用 delayed-x、filtered-x<br/>（7.6 節的決策流程）"]`,
   '  class SL focus',
   '  class OK ok',
   '  class BAD warn',

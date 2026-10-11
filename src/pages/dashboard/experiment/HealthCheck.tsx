@@ -105,7 +105,7 @@ function metricsFor(r: ThesisResult, mc?: McOutcome): MetricRow[] {
         ]
       : []),
     { name: String.raw`$\Delta w=w^*-a=B/C$`, value: mv(r.deltaW), unit: 'fs', claim: 'exact', note: 'MSE-LMS 線性固定點；Sign-LMS 為近似（勘誤 E01）' },
-    { name: String.raw`$\sigma_{\delta t}$ random（DTC-referred）`, value: mv(r.sigmaDtRand), unit: 'fs', claim: 'approx', note: 'gain-equivalent × code，不是 PLL 輸出 jitter（規格 §12.1）' },
+    { name: String.raw`$\sigma_{\delta t}$ random（DTC-referred）`, value: mv(r.sigmaDtRand), unit: 'fs', claim: 'approx', note: String.raw`gain-equivalent $\times$ code，不是 PLL 輸出 jitter（規格 §12.1）` },
     { name: String.raw`$\sigma_{\delta t}$ deterministic $=\sqrt{P_x}\,|\Delta w|$`, value: mv(r.sigmaDtDet), unit: 'fs', claim: 'exact' },
     { name: String.raw`$\sigma_{\delta t}$ 合計 $=\sqrt{P_x(\Delta w^2+\sigma_w^2)}$`, value: mv(r.sigmaDt), unit: 'fs', claim: 'approx', note: '單參數時等於 F-DB.5；雙參數時 random 部分取兩個 mode 的總和' },
     { name: String.raw`$f_u=f_s/N$`, value: mv(r.fuHz), unit: 'Hz', claim: 'exact' },
@@ -165,19 +165,19 @@ export function HealthCheck({ cases, evaluated }: { cases: UseCasesResult<Thesis
       }
       out.push(
         { x: xs, y: up, type: 'scatter', mode: 'lines', line: { width: 0, color }, hoverinfo: 'skip', showlegend: false },
-        { x: xs, y: lo, type: 'scatter', mode: 'lines', line: { width: 0, color }, fill: 'tonexty', fillcolor: withAlpha(color, 0.18), hoverinfo: 'skip', name: `Case ${e.id} ±1σ`, showlegend: false },
-        { x: xs, y: m, type: 'scatter', mode: 'lines', line: { width: 2, color }, name: `Case ${e.id}：E[w_k − a]` },
+        { x: xs, y: lo, type: 'scatter', mode: 'lines', line: { width: 0, color }, fill: 'tonexty', fillcolor: withAlpha(color, 0.18), hoverinfo: 'skip', name: `Case ${e.id} $\\pm1\\sigma$`, showlegend: false },
+        { x: xs, y: m, type: 'scatter', mode: 'lines', line: { width: 2, color }, name: `Case ${e.id}：$E[w_k - a]$` },
       )
       if (Number.isFinite(e.result.deltaW))
-        out.push({ x: [0, K], y: [e.result.deltaW, e.result.deltaW], type: 'scatter', mode: 'lines', line: { width: 1, dash: 'dash', color }, name: `Case ${e.id}：Δw = B/C` })
+        out.push({ x: [0, K], y: [e.result.deltaW, e.result.deltaW], type: 'scatter', mode: 'lines', line: { width: 1, dash: 'dash', color }, name: `Case ${e.id}：$\\Delta w = B/C$` })
     }
     return out
   }, [traj, tokens, K])
 
   const layout = useMemo(
     () => ({
-      xaxis: { title: { text: 'GMAC block k' } },
-      yaxis: { title: { text: 'w_k − a  [fs]' } },
+      xaxis: { title: { text: 'GMAC block $k$' } },
+      yaxis: { title: { text: '$w_k - a$ [fs]' } },
     }),
     [],
   )

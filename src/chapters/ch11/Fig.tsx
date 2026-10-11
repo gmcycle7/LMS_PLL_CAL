@@ -15,7 +15,8 @@ export function FigRef({ id }: { id: Ch11DiagramId }) {
 
 /**
  * 依 id 顯示本章的一張方塊圖（docs/teaching-style.md §8）。
- * Mermaid 不渲染 KaTeX，所以圖說不交給 Mermaid 的 caption，而是另外以 mathText 顯示（圖說裡的 `$…$` 才會是 KaTeX）；
+ * 圖裡面的標籤（節點、連線、subgraph 標題）直接寫 `$…$`，由 `Mermaid` 元件用 KaTeX 排版；
+ * 圖名與圖說不交給 Mermaid 的 caption，而是另外以 mathText 顯示（`$…$` 一樣是 KaTeX）；
  * 螢幕閱讀器用的 aria-label 則是去掉 `$` 的純文字。
  */
 export function Fig({ id }: { id: Ch11DiagramId }) {

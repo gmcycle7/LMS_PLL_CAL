@@ -2,7 +2,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
 import { presetById, presetsForExperiment } from '@/app/presets'
-import { MathText, extractRegion, listRegions, systemMapChart } from '@/components'
+import { MathText, extractRegion, listRegions, plotMath, sanitizeMermaidSource, systemMapChart } from '@/components'
+import { unicodeMathIn } from '@/components/mermaidTestUtils'
 import { analyseAlpha, eqOffset, inversionBands, kappaInfWorst, kappaRational, kernelMin, largeSignalPeriodic, loopF3dB, loopMargins, makeL1, oneDiffMargin, runSspllLms } from '@/simulation/models/sspll'
 import CaseSspllPage from './index'
 import { FORMULAS } from './formulas'
@@ -122,6 +123,21 @@ function traceNames(): string[] {
   return P.react.mock.calls.flatMap((c) => ((c as unknown as [unknown, { name?: string }[]])[1] ?? []).map((d) => d.name ?? ''))
 }
 
+type PlotlyCall = [unknown, { name?: string; type?: string; y?: unknown[] }[], { title?: string | { text?: string }; xaxis?: { title?: string | { text?: string } }; yaxis?: { title?: string | { text?: string } } }?]
+
+/** 送進 Plotly 的圖內文字：trace 名稱、圖標題、軸標題（Plot 已把 `$...$` 轉成斜體符號與上下標） */
+function plotTexts(): { names: string[]; axisTitles: string[] } {
+  const title = (t: string | { text?: string } | undefined) => (typeof t === 'string' ? t : (t?.text ?? ''))
+  const calls = P.react.mock.calls as unknown as PlotlyCall[]
+  return {
+    names: calls.flatMap((c) => (c[1] ?? []).map((d) => d.name ?? '')).filter(Boolean),
+    axisTitles: calls.flatMap((c) => [title(c[2]?.xaxis?.title), title(c[2]?.yaxis?.title)]).filter(Boolean),
+  }
+}
+
+/** 圖內文字裡不該有的東西：沒轉換的 TeX（`$`、反斜線、大括號）與純文字拼的上下標（K_p、f_ref、x^2） */
+const PLOT_TEXT_LEFTOVER = /[$\\{}]|(?<![A-Za-z0-9_])[A-Za-z]{1,3}_[A-Za-z0-9]|\^[-0-9]/
+
 /**
  * 清掉 plotly／mermaid mock 的呼叫紀錄。Plot 在 unmount 時呼叫 purge(gd)（react／Plots.resize 也收到 gd）：
  * mock 的呼叫紀錄會一直抓著 gd，也就是整棵已卸載的頁面 DOM——jsdom 的一頁約 10 萬個節點、實測約 390 MB。
@@ -224,6 +240,18 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
       }
     }
     expect(checkedProps).toBeGreaterThan(400)
+    // 控制項的 label／hint／unit 與指標的 unit（第 3 欄）：同樣不留 Unicode 拼的數學（含 ×、÷、±、·）；reg 與 <option> 是純文字，不在此列
+    let checkedControls = 0
+    for (const sel of ['.c-param-label', '.c-param-hint', '.c-param-unit', '.c-metric-table tbody td:nth-child(3)']) {
+      const els = Array.from(container.querySelectorAll(sel))
+      expect(els.length, sel).toBeGreaterThan(0)
+      for (const el of els) {
+        expect(unicodeMathIn(textWithoutMath(el)), `${sel}：${(el.textContent ?? '').slice(0, 60)}`).toEqual([])
+        checkedControls++
+      }
+    }
+    expect(checkedControls).toBeGreaterThan(40)
+    expect(container.querySelectorAll('.c-param-unit .katex').length).toBeGreaterThan(0) // 增益倍率的單位 × 以 KaTeX 顯示
     // 實驗的標題、圖標題與公式標籤確實有 KaTeX（不是把 `$` 原樣印出來）
     for (const sel of ['.c-exp-title', '.c-plot-title', '.c-assumption-list li', '.c-texblock-label', '.c-handcalc-title', '.cs-hand-invite']) {
       expect(container.querySelectorAll(`${sel} .katex`).length, sel).toBeGreaterThan(0)
@@ -250,16 +278,41 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
     expect(text).toContain('0.388836')
     // 方塊圖（mermaid：系統地圖 + 每一張登錄的圖都送去畫）與圖表（plotly）
     await waitFor(() => expect(M.render.mock.calls.length).toBeGreaterThanOrEqual(DIAGRAMS.length + 1))
+    // 元件送進 mermaid 的是前處理過的原始碼（`$...$` 標籤合併成 Mermaid 的 `$$...$$`）
     const drawn = (M.render.mock.calls as unknown as [string, string][]).map((c) => c[1])
-    expect(drawn[0]).toBe(systemMapChart(MAP_FOCUS))
-    for (const d of DIAGRAMS) expect(drawn, d.id).toContain(d.chart)
+    expect(drawn[0]).toBe(sanitizeMermaidSource(systemMapChart(MAP_FOCUS)))
+    for (const d of DIAGRAMS) expect(drawn, d.id).toContain(sanitizeMermaidSource(d.chart))
     await waitFor(() => {
       const names = traceNames()
-      expect(names.some((n) => n.startsWith('Re H_PD（TS port'))).toBe(true)
+      // 圖例名稱裡的公式已轉成 Plotly 的 pseudo-HTML：斜體符號與真正的上下標
+      expect(names).toContain(plotMath('$\\mathrm{Re}\\,H_{\\mathrm{PD}}$（TS port，即時）'))
+      expect(names.some((n) => /<i>H<\/i><sub>PD<\/sub>（TS port，即時）$/.test(n))).toBe(true)
       expect(names.some((n) => n.includes('golden JSON'))).toBe(true)
       expect(names.some((n) => n.startsWith('反號帶'))).toBe(true)
-      expect(names.some((n) => n.startsWith('Re κ（ergodic'))).toBe(true)
+      expect(names).toContain(plotMath('$\\mathrm{Re}\\,\\kappa$（ergodic 諧波和）'))
+      expect(names.some((n) => n.includes('<i>κ</i>（ergodic 諧波和）'))).toBe(true)
     })
+    // 圖內數學：trace 名稱與軸標題都沒有殘留的 `$`、反斜線、大括號或純文字的上下標；公式確實轉成斜體符號與上下標
+    const { names: plotNames, axisTitles } = plotTexts()
+    expect(plotNames.length).toBeGreaterThan(10)
+    for (const t of [...plotNames, ...axisTitles]) expect(t, t).not.toMatch(PLOT_TEXT_LEFTOVER)
+    for (const t of [
+      '$\\kappa$（$>0$ restoring；$<0$ 反號）',
+      '$\\min(\\alpha,\\,1-\\alpha)\\cdot f_{\\mathrm{ref}}$ [MHz]',
+      '$\\alpha\\cdot f_{\\mathrm{ref}}$ [MHz]',
+      '$\\mathrm{Re}\\,H_{\\mathrm{PD}}$、$\\mathrm{Re}\\,\\Gamma_{\\mathrm{eff}}$',
+      'block $k$（每 block $N$ 個 sample）',
+    ])
+      expect(axisTitles, t).toContain(plotMath(t))
+    expect(axisTitles.some((t) => t.includes('<i>α</i>·<i>f</i><sub>ref</sub> [MHz]'))).toBe(true)
+    for (const t of ['$|H_{\\mathrm{PD}}|$', '$\\Delta=T_{\\mathrm{vco}}/8$（DTC 範圍；之上為飽和／失鎖）', 'Case C：filtered-x（$\\hat H=H$）（golden 存檔）', '目前的 $\\alpha$：$\\kappa_{\\mathrm{PHOS}}$（TS port）'])
+      expect(plotNames, t).toContain(plotMath(t))
+    // 熱圖的類別名稱（y 軸）不經 applyPlotMath，元件自己用 plotMath 轉好
+    const heat = (P.react.mock.calls as unknown as PlotlyCall[]).flatMap((c) => c[1] ?? []).find((d) => d.type === 'heatmap')
+    expect(heat?.y).toContain(plotMath('大訊號 $\\kappa_\\infty$：ac'))
+    expect(heat?.y).toContain(plotMath('GOS：$D=+1$'))
+    expect(heat?.y?.length).toBeGreaterThanOrEqual(10)
+    for (const label of heat?.y ?? []) expect(String(label), String(label)).not.toMatch(PLOT_TEXT_LEFTOVER)
     // 預設的實驗 B（L2、83.5 MHz、raw）顯示反號警告；實驗 C 在參數穩定後自動執行（inline worker）
     expect(screen.getAllByText(/PHOS 反號/).length).toBeGreaterThan(0)
     const expC = container.querySelector(`#exp-${LMS_EXPERIMENT_ID}`) as HTMLElement
@@ -297,7 +350,7 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
   it('SSPLL: ?preset=sspll-l1-nominal 載入實驗 A：L1 沒有反號帶，TS port 與 golden JSON 一致', async () => {
     const { container } = renderPage('/case/sspll?preset=sspll-l1-nominal')
     const expA = () => container.querySelector(`#exp-${HPD_EXPERIMENT_ID}`) as HTMLElement
-    await waitFor(() => expect(expA().textContent).toContain('無（整個頻帶 Re H_PD ≥ 0）'))
+    await waitFor(() => expect(expA().textContent).toContain('無（整個頻帶的實部都不是負的）'))
     expect(expA().textContent).toContain('0.388836')
     expect(expA().querySelector('.c-check-ok')).not.toBeNull()
     expect(expA().querySelector('.c-check-mismatch')).toBeNull()

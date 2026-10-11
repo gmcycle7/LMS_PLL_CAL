@@ -49,9 +49,9 @@ export function FreezeSection() {
   }, [])
   const data = useMemo<Data[]>(
     () => [
-      { x: curves.w, y: curves.a, name: '(A) Freeze：Q(w*) − w*', line: { color: tokens.series[4], width: 2 } },
-      { x: curves.w, y: curves.b, name: '(B) Toggle L_t = 5：平均 − w*', line: { color: tokens.series[0], width: 1.5, dash: 'dot' } },
-      { x: curves.w, y: curves.d, name: '(D) ΔΣ：平均 − w*', line: { color: tokens.series[1], width: 1.5 } },
+      { x: curves.w, y: curves.a, name: String.raw`(A) Freeze：$Q(w^*) - w^*$`, line: { color: tokens.series[4], width: 2 } },
+      { x: curves.w, y: curves.b, name: String.raw`(B) Toggle $L_t = 5$：平均 $- w^*$`, line: { color: tokens.series[0], width: 1.5, dash: 'dot' } },
+      { x: curves.w, y: curves.d, name: String.raw`(D) $\Delta\Sigma$：平均 $- w^*$`, line: { color: tokens.series[1], width: 1.5 } },
     ],
     [curves, tokens],
   )
@@ -139,7 +139,7 @@ export function FreezeSection() {
           data={data}
           height={280}
           csvName="ch13-static-error-vs-target"
-          layout={{ xaxis: { title: { text: 'w* [LSB]' } }, yaxis: { title: { text: '平均 code − w* [LSB]' } } }}
+          layout={{ xaxis: { title: { text: String.raw`$w^*$ [LSB]` } }, yaxis: { title: { text: String.raw`平均 code $- w^*$ [LSB]` } } }}
           caption={
             <>
               由 <code>quantize()</code> 與 <code>toggleK()</code> 逐點計算（<Tex>{'w_H'}</Tex> 用 <Tex>{'F=16'}</Tex> 個小數 bit 的定點格點；<Tex>{'F'}</Tex> 是小數位元數，§13.4）；縱軸採 <Tex>{String.raw`\delta w=w-w^*`}</Tex> 約定（<Tex>{String.raw`\delta=a-w`}</Tex> 則上下顛倒）。

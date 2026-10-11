@@ -97,7 +97,7 @@ const DEFAULT_MC: McSettings = { muAuto: true, mu: 0.0125, N: 64, blocks: 3000, 
 const G_TARGET = 0.02
 /** MC 結果快取的最大筆數（以參數 JSON 為 key；A/B/C 三個 Case 加上最近幾次設定） */
 const MC_CACHE_MAX = 8
-const TRACE_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'block k' } }, yaxis: { title: { text: 'w_k（t.u.）' } } }
+const TRACE_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'block $k$' } }, yaxis: { title: { text: '$w_k$（t.u.）' } } }
 
 export function toModel(s: SharedParams, c: CaseParams): ErrorModel {
   return { a: s.a, b: s.b, c2: s.c2, c3: s.c3, kappa: s.kappa, sigmaV: c.sigmaV, jitterSlope: s.jitterSlope, jitterRef: s.jitterRef }
@@ -110,14 +110,8 @@ export function toCode(s: SharedParams): CodeSpec {
 const CODE_KINDS: CodeDistKind[] = ['five_level', 'pm_one', 'unipolar4', 'gaussian', 'uniform_residue', 'dsm']
 const CONTINUOUS: CodeDistKind[] = ['gaussian', 'uniform_residue']
 
+/** 一個 Case 的設定說明：`$\sigma_v=…$` 是行內公式——比較表用 m() 以 KaTeX 顯示，Plotly 圖例由 Plot 轉成斜體符號與上下標（plotMath）。 */
 function caseLabel(c: CaseParams): string {
-  const alg = c.algorithm === 'mse' ? 'MSE' : 'Sign'
-  const dc = c.dcMode === 'none' ? '' : c.dcMode === 'shared_bbpd' ? '，shared BBPD' : '，linear PD'
-  return `${alg}，σ_v = ${num(c.sigmaV, 4)}${dc}`
-}
-
-/** caseLabel 的頁面版（比較表用）：σ_v 以 `$…$` 行內公式顯示；Plotly 圖例不渲染 KaTeX，仍用上面的純文字版。 */
-function caseLabelTex(c: CaseParams): string {
   const alg = c.algorithm === 'mse' ? 'MSE' : 'Sign'
   const dc = c.dcMode === 'none' ? '' : c.dcMode === 'shared_bbpd' ? '，shared BBPD' : '，linear PD'
   return String.raw`${alg}，$\sigma_v=${texNum(c.sigmaV, 4)}$${dc}`
@@ -348,7 +342,7 @@ export function BiasInlLab() {
       out.push({
         x: a.an.curve.w,
         y: a.an.curve.G,
-        name: `Case ${c.id}：E[G](w)，${caseLabel(c.params)}`,
+        name: String.raw`Case ${c.id}：$E[G](w)$，${caseLabel(c.params)}`,
         mode: 'lines',
         line: { color: tokens.series[c.seriesIndex], width: 2, shape: stepLike ? 'hv' : 'linear' },
       })
@@ -362,7 +356,7 @@ export function BiasInlLab() {
         x: zeros.map((z) => z.w),
         y: zeros.map(() => 0),
         mode: 'markers',
-        name: '零交越 w*（固定點）',
+        name: String.raw`零交越 $w^*$（固定點）`,
         marker: { color: zeros.map((z) => tokens.series[z.c.seriesIndex]), symbol: 'x', size: 11, line: { width: 2 } },
       })
     // dead zone：G = 0 的整段區間（解不唯一）畫成粗線段
@@ -373,7 +367,7 @@ export function BiasInlLab() {
         x: [a.an.zeroSet.lo, a.an.zeroSet.hi],
         y: [0, 0],
         mode: 'lines+markers',
-        name: `Case ${c.id}：dead zone（G = 0 的區間）`,
+        name: String.raw`Case ${c.id}：dead zone（$G=0$ 的區間）`,
         line: { color: tokens.series[c.seriesIndex], width: 6 },
         marker: { color: tokens.series[c.seriesIndex], symbol: 'line-ns-open', size: 12 },
       })
@@ -388,7 +382,7 @@ export function BiasInlLab() {
         y: [0],
         error_x: { type: 'data', array: [r.halfWidth], visible: true },
         mode: 'markers',
-        name: `Case ${c.id}：MC w̄（95% CI）`,
+        name: String.raw`Case ${c.id}：MC $\bar w$（95% CI）`,
         marker: { color: tokens.series[c.seriesIndex], symbol: 'diamond-open', size: 11, line: { width: 2 } },
       })
     })
@@ -396,7 +390,7 @@ export function BiasInlLab() {
       out.push({
         x: an.curve.w,
         y: an.curve.Glin,
-        name: `Case ${cases.activeId}：一階線性化（K_q）`,
+        name: String.raw`Case ${cases.activeId}：一階線性化（$K_q$）`,
         mode: 'lines',
         line: { color: tokens.textMuted, dash: 'dash', width: 1.5 },
       })
@@ -405,7 +399,7 @@ export function BiasInlLab() {
         x: mcValid.gmac.w,
         y: mcValid.gmac.mean,
         error_y: { type: 'data', array: mcValid.gmac.halfWidth, visible: true },
-        name: `Case ${cases.activeId}：MC 凍結 w 的平均 G（95% CI）`,
+        name: String.raw`Case ${cases.activeId}：MC 凍結 $w$ 的平均 $G$（95% CI）`,
         mode: 'markers',
         marker: { color: tokens.series[activeCase.seriesIndex], symbol: 'circle-open', size: 9 },
       })
@@ -421,8 +415,8 @@ export function BiasInlLab() {
     })
     shapes.push({ type: 'line', xref: 'x', yref: 'paper', x0: shared.a, x1: shared.a, y0: 0, y1: 1, line: { color: tokens.textMuted, dash: 'longdash', width: 1 } })
     return {
-      xaxis: { title: { text: 'w（t.u.）' } },
-      yaxis: { title: { text: 'E[G]（平均 GMAC）' }, zeroline: true },
+      xaxis: { title: { text: '$w$（t.u.）' } },
+      yaxis: { title: { text: '$E[G]$（平均 GMAC）' }, zeroline: true },
       shapes,
     }
   }, [analyses, cases.cases, shared.a, tokens])
@@ -433,14 +427,14 @@ export function BiasInlLab() {
     const rc = an.residualCurve
     if (!an.continuous && rc.x.length <= 64) {
       return [
-        { x: rc.x, y: rc.eAtA, type: 'bar', name: 'w = a（真實線性 gain）', marker: { color: tokens.textMuted } },
-        { x: rc.x, y: rc.eStar, type: 'bar', name: `w = w*（${num(an.wStar)}）`, marker: { color: tokens.series[activeCase.seriesIndex] } },
+        { x: rc.x, y: rc.eAtA, type: 'bar', name: '$w=a$（真實線性 gain）', marker: { color: tokens.textMuted } },
+        { x: rc.x, y: rc.eStar, type: 'bar', name: `$w=w^*$（${num(an.wStar)}）`, marker: { color: tokens.series[activeCase.seriesIndex] } },
       ]
     }
     const mode = an.continuous ? 'lines' : 'markers'
     return [
-      { x: rc.x, y: rc.eAtA, mode, name: 'w = a', line: { color: tokens.textMuted, dash: 'dash' }, marker: { color: tokens.textMuted, size: 4 } },
-      { x: rc.x, y: rc.eStar, mode, name: `w = w*（${num(an.wStar)}）`, line: { color: tokens.series[activeCase.seriesIndex] }, marker: { color: tokens.series[activeCase.seriesIndex], size: 4 } },
+      { x: rc.x, y: rc.eAtA, mode, name: '$w=a$', line: { color: tokens.textMuted, dash: 'dash' }, marker: { color: tokens.textMuted, size: 4 } },
+      { x: rc.x, y: rc.eStar, mode, name: `$w=w^*$（${num(an.wStar)}）`, line: { color: tokens.series[activeCase.seriesIndex] }, marker: { color: tokens.series[activeCase.seriesIndex], size: 4 } },
       { x: rc.x, y: rc.density, mode: 'lines', name: an.continuous ? 'code pdf（右軸）' : 'code 機率（右軸）', yaxis: 'y2', line: { color: tokens.series[4] ?? tokens.textMuted, width: 1 } },
     ]
   }, [an, activeCase.seriesIndex, tokens])
@@ -448,8 +442,8 @@ export function BiasInlLab() {
   const residualLayout: Partial<Layout> = useMemo(
     () => ({
       barmode: 'group',
-      xaxis: { title: { text: 'code x' } },
-      yaxis: { title: { text: '確定性殘差 e_det + φ（t.u.）' }, zeroline: true },
+      xaxis: { title: { text: 'code $x$' } },
+      yaxis: { title: { text: String.raw`確定性殘差 $e_\mathrm{det}+\varphi$（t.u.）` }, zeroline: true },
       yaxis2: { overlaying: 'y', side: 'right', showgrid: false, title: { text: '機率密度' }, rangemode: 'tozero' },
     }),
     [],
@@ -462,11 +456,11 @@ export function BiasInlLab() {
     const s = sweepValid
     const xs = [s.sigma[0], s.sigma[s.sigma.length - 1]]
     const out: Data[] = [
-      { x: s.sigma, y: s.wSign, mode: 'lines', name: 'Sign-LMS mean-field w*(σ_v)', line: { color: tokens.series[0], width: 2 } },
+      { x: s.sigma, y: s.wSign, mode: 'lines', name: String.raw`Sign-LMS mean-field $w^*(\sigma_v)$`, line: { color: tokens.series[0], width: 2 } },
       { x: xs, y: [s.wMse, s.wMse], mode: 'lines', name: `MSE-LMS（${num(s.wMse)}）`, line: { color: tokens.series[1], dash: 'dash' } },
     ]
     if (Number.isFinite(s.wNoiseFree))
-      out.push({ x: xs, y: [s.wNoiseFree, s.wNoiseFree], mode: 'lines', name: `σ_v = 0 的 Sign（${num(s.wNoiseFree)}）`, line: { color: tokens.series[2], dash: 'dot' } })
+      out.push({ x: xs, y: [s.wNoiseFree, s.wNoiseFree], mode: 'lines', name: String.raw`$\sigma_v=0$ 的 Sign（${num(s.wNoiseFree)}）`, line: { color: tokens.series[2], dash: 'dot' } })
     if (s.wSecond.some(Number.isFinite)) {
       const lo = Math.min(s.wMse, s.wNoiseFree, ...s.wSign.filter(Number.isFinite))
       const hi = Math.max(s.wMse, s.wNoiseFree, ...s.wSign.filter(Number.isFinite))
@@ -475,7 +469,7 @@ export function BiasInlLab() {
         x: s.sigma,
         y: s.wSecond.map((v) => (v > hi + pad || v < lo - pad ? null : v)),
         mode: 'lines',
-        name: '二階近似 w₁ − E[xe₀³]/(6σ_v²E[x²])',
+        name: String.raw`二階近似 $w_1 - E[x e_0^3]/(6\sigma_v^2 E[x^2])$`,
         line: { color: tokens.series[3], dash: 'dashdot' },
         connectgaps: false,
       } as Data)
@@ -486,7 +480,7 @@ export function BiasInlLab() {
         y: [mcValid.mean],
         error_y: { type: 'data', array: [mcValid.halfWidth], visible: true },
         mode: 'markers',
-        name: 'MC（目前 σ_v，95% CI）',
+        name: String.raw`MC（目前 $\sigma_v$，95% CI）`,
         marker: { color: tokens.series[activeCase.seriesIndex], size: 9, symbol: 'diamond' },
       })
     return out
@@ -494,8 +488,8 @@ export function BiasInlLab() {
 
   const sweepLayout: Partial<Layout> = useMemo(
     () => ({
-      xaxis: { title: { text: 'σ_v（t.u.，log）' } },
-      yaxis: { title: { text: 'w*（t.u.）' } },
+      xaxis: { title: { text: String.raw`$\sigma_v$（t.u.，log）` } },
+      yaxis: { title: { text: String.raw`$w^*$（t.u.）` } },
       shapes:
         activeCase.params.sigmaV > 0
           ? [{ type: 'line', xref: 'x', yref: 'paper', x0: activeCase.params.sigmaV, x1: activeCase.params.sigmaV, y0: 0, y1: 1, line: { color: tokens.textMuted, dash: 'dot', width: 1 } }]
@@ -520,10 +514,10 @@ export function BiasInlLab() {
       out.push({ x: kx, y: [an.zeroSet.lo, an.zeroSet.lo], mode: 'lines', name: `dead zone 下緣（${num(an.zeroSet.lo)}）`, line: { color: tokens.text, dash: 'dash', width: 1.5 } })
       out.push({ x: kx, y: [an.zeroSet.hi, an.zeroSet.hi], mode: 'lines', name: `dead zone 上緣（${num(an.zeroSet.hi)}）`, line: { color: tokens.text, dash: 'dash', width: 1.5 } })
     } else if (an && Number.isFinite(an.wStar)) {
-      out.push({ x: kx, y: [an.wStar, an.wStar], mode: 'lines', name: `mean-field w*（${num(an.wStar)}）`, line: { color: tokens.text, dash: 'dash', width: 1.5 } })
+      out.push({ x: kx, y: [an.wStar, an.wStar], mode: 'lines', name: String.raw`mean-field $w^*$（${num(an.wStar)}）`, line: { color: tokens.text, dash: 'dash', width: 1.5 } })
       const ws = mcValid.reference.wServoAware
       if (Number.isFinite(ws) && Math.abs(ws - an.wStar) > 1e-6)
-        out.push({ x: kx, y: [ws, ws], mode: 'lines', name: `servo-aware w*（${num(ws)}）`, line: { color: tokens.textMuted, dash: 'dot', width: 1.5 } })
+        out.push({ x: kx, y: [ws, ws], mode: 'lines', name: String.raw`servo-aware $w^*$（${num(ws)}）`, line: { color: tokens.textMuted, dash: 'dot', width: 1.5 } })
     }
     return out
   }, [mcValid, an, activeCase.seriesIndex, tokens])
@@ -608,7 +602,7 @@ export function BiasInlLab() {
     metrics.push({
       name: String.raw`GMAC 斜率 $S=-dE[G]/dw$（$=K$，勘誤 E13）`,
       value: an.slope,
-      unit: isSign ? 't.u.⁻¹' : '—',
+      unit: isSign ? String.raw`$\mathrm{t.u.}^{-1}$` : '—',
       formulaId: 'F-11.15',
       note: deadZone
         ? String.raw`跨過整段 dead zone 的割線斜率（只用來設定 $\mu$）`
@@ -621,7 +615,7 @@ export function BiasInlLab() {
       metrics.push({
         name: String.raw`$\hat S$（MC：凍結 gain、$w^*\pm${texNum(probe.delta, 3)}$ 的中央差分）`,
         value: probe.slope,
-        unit: isSign ? 't.u.⁻¹' : '—',
+        unit: isSign ? String.raw`$\mathrm{t.u.}^{-1}$` : '—',
         formulaId: 'F-11.15',
         analytic: probe.meanFieldSecant,
         tolerance: 4 * probe.se,
@@ -631,7 +625,7 @@ export function BiasInlLab() {
     metrics.push({ name: String.raw`平均 pole $p=1-\mu S$`, value: 1 - gUsed })
     for (const c of an.costs) {
       const lbl = c.at === 'w0' ? '校正前（$w=w_0$）' : c.at === 'a' ? '$w=a$' : '校正後（$w=w^*$）'
-      metrics.push({ name: String.raw`$E[e_\mathrm{det}^2]$ ${lbl}`, value: c.mse, unit: 't.u.²', note: String.raw`$E|e_\mathrm{det}|=${texNum(c.mae)}$；含雜訊總功率 $${texNum(c.total)}$` })
+      metrics.push({ name: String.raw`$E[e_\mathrm{det}^2]$ ${lbl}`, value: c.mse, unit: String.raw`$\mathrm{t.u.}^2$`, note: String.raw`$E|e_\mathrm{det}|=${texNum(c.mae)}$；含雜訊總功率 $${texNum(c.total)}$` })
     }
     if (dcOn) metrics.push({ name: String.raw`$\varphi^*$（主迴路加的 DC 偏移）`, value: an.phiStar, unit: 't.u.' })
     if (mcValid && dcOn) {
@@ -789,14 +783,14 @@ export function BiasInlLab() {
             reg="GMAC_MODE：1-bit q（Sign）／多位元 e（MSE）"
           />
           <ParamControl
-            label={`Case ${cases.activeId}：σ_v（comparator 前雜訊）`}
+            label={String.raw`Case ${cases.activeId}：$\sigma_v$（comparator 前雜訊）`}
             value={activeCase.params.sigmaV}
             onChange={(v) => cases.update({ sigmaV: v })}
             min={0}
             max={5}
             step={0.01}
             unit="t.u."
-            reg="Behavioral：comparator input noise σ_v"
+            reg="Behavioral：comparator input noise sigma_v"
             hint={m('0 = 無雜訊；Sign-LMS 的固定點隨 $\\sigma_v$ 改變（勘誤 E01）')}
           />
           <SelectControl
@@ -808,12 +802,12 @@ export function BiasInlLab() {
           />
 
           <div className="ch11-group-title">誤差模型（所有 Case 共用）</div>
-          <ParamControl label="a（真實線性 gain）" value={shared.a} onChange={set('a')} min={-5} max={5} step={0.01} unit="t.u." reg="Behavioral：DTC 真實 gain a" />
-          <ParamControl label="w₀（初始 gain 暫存器）" value={shared.w0} onChange={set('w0')} min={-5} max={5} step={0.01} unit="t.u." reg="REG_DTC_GAIN_INIT" />
-          <ParamControl label="b（comparator / PD offset）" value={shared.b} onChange={set('b')} min={-2} max={2} step={0.01} unit="t.u." reg="Behavioral：comparator offset b（REG_CMP_OS_TRIM 殘量）" />
-          <ParamControl label="c₂（二階 INL）" value={shared.c2} onChange={set('c2')} min={-1} max={1} step={0.005} unit="t.u." reg="Behavioral：DTC INL d(x) 的 c₂" />
-          <ParamControl label="c₃（三階 INL）" value={shared.c3} onChange={set('c3')} min={-1} max={1} step={0.005} unit="t.u." reg="Behavioral：DTC INL d(x) 的 c₃" />
-          <ParamControl label="κ（ε_cc = κx）" value={shared.kappa} onChange={set('kappa')} min={-1} max={1} step={0.005} unit="t.u." reg="Behavioral：code-correlated deterministic error" hint={m('$\\kappa\\neq0\\Rightarrow w^*=a+\\kappa$（不可辨識）')} />
+          <ParamControl label="$a$（真實線性 gain）" value={shared.a} onChange={set('a')} min={-5} max={5} step={0.01} unit="t.u." reg="Behavioral：DTC 真實 gain a" />
+          <ParamControl label="$w_0$（初始 gain 暫存器）" value={shared.w0} onChange={set('w0')} min={-5} max={5} step={0.01} unit="t.u." reg="REG_DTC_GAIN_INIT" />
+          <ParamControl label="$b$（comparator / PD offset）" value={shared.b} onChange={set('b')} min={-2} max={2} step={0.01} unit="t.u." reg="Behavioral：comparator offset b（REG_CMP_OS_TRIM 殘量）" />
+          <ParamControl label="$c_2$（二階 INL）" value={shared.c2} onChange={set('c2')} min={-1} max={1} step={0.005} unit="t.u." reg="Behavioral：DTC INL d(x) 的 c2" />
+          <ParamControl label="$c_3$（三階 INL）" value={shared.c3} onChange={set('c3')} min={-1} max={1} step={0.005} unit="t.u." reg="Behavioral：DTC INL d(x) 的 c3" />
+          <ParamControl label={String.raw`$\kappa$（$\varepsilon_{cc}=\kappa x$）`} value={shared.kappa} onChange={set('kappa')} min={-1} max={1} step={0.005} unit="t.u." reg="Behavioral：code-correlated deterministic error" hint={m('$\\kappa\\neq0\\Rightarrow w^*=a+\\kappa$（不可辨識）')} />
 
           <div className="ch11-group-title">Code 分布</div>
           <SelectControl
@@ -824,7 +818,7 @@ export function BiasInlLab() {
             reg="DSM / training pattern 選擇"
           />
           <ParamControl
-            label="code 平移 x → x + x₀"
+            label="code 平移 $x \to x + x_0$"
             value={shared.codeShift}
             onChange={set('codeShift')}
             min={-3}
@@ -846,14 +840,14 @@ export function BiasInlLab() {
                 ]}
                 reg="DSM_ORDER"
               />
-              <ParamControl label="FCW 小數 frac" value={shared.dsmFrac} onChange={set('dsmFrac')} min={0} max={0.996} step={1 / 256} unit="—" reg="FCW[7:0]（8-bit 累加器，量化到 1/256）" hint="frac = 0 時 code 恆為 0（不可辨識）" />
+              <ParamControl label="FCW 小數 $\mathrm{frac}$" value={shared.dsmFrac} onChange={set('dsmFrac')} min={0} max={0.996} step={1 / 256} unit="—" reg="FCW[7:0]（8-bit 累加器，量化到 1/256）" hint="$\mathrm{frac}=0$ 時 code 恆為 0（不可辨識）" />
             </>
           )}
           {atLeast('research') ? (
             <>
               <div className="ch11-group-title">Research：code-dependent jitter（勘誤 E17）</div>
-              <ParamControl label="ρ_j（σ_v(x) 斜率）" value={shared.jitterSlope} onChange={set('jitterSlope')} min={0} max={2} step={0.01} unit="code⁻²" reg="Behavioral：DTC random jitter 隨 delay 增加" hint={m('$\\sigma_v(x)=\\sigma_v\\sqrt{1+\\rho_j(x-x_j)^2}$')} />
-              <ParamControl label="x_j（jitter 最小的 code）" value={shared.jitterRef} onChange={set('jitterRef')} min={-4} max={4} step={0.1} unit="code" reg="Behavioral：最短 delay 對應的 code" />
+              <ParamControl label="$\rho_j$（$\sigma_v(x)$ 斜率）" value={shared.jitterSlope} onChange={set('jitterSlope')} min={0} max={2} step={0.01} unit="$\mathrm{code}^{-2}$" reg="Behavioral：DTC random jitter 隨 delay 增加" hint={m('$\\sigma_v(x)=\\sigma_v\\sqrt{1+\\rho_j(x-x_j)^2}$')} />
+              <ParamControl label="$x_j$（jitter 最小的 code）" value={shared.jitterRef} onChange={set('jitterRef')} min={-4} max={4} step={0.1} unit="code" reg="Behavioral：最短 delay 對應的 code" />
             </>
           ) : shared.jitterSlope > 0 ? (
             <p className="small muted">
@@ -862,9 +856,9 @@ export function BiasInlLab() {
           ) : null}
 
           <div className="ch11-group-title">Monte Carlo（block LMS，worker）</div>
-          <ToggleControl label="μ 自動（g = μS = 0.02）" value={mc.muAuto} onChange={setM('muAuto')} hint={m('$S$ 為 $w^*$ 處的 GMAC 斜率（dead zone 時用跨區間的割線）')} reg="Behavioral：μ = g/S（以正規化 loop gain 設定 REG_LMS_MU）" />
+          <ToggleControl label="$\mu$ 自動（$g=\mu S=0.02$）" value={mc.muAuto} onChange={setM('muAuto')} hint={m('$S$ 為 $w^*$ 處的 GMAC 斜率（dead zone 時用跨區間的割線）')} reg="Behavioral：mu = g/S（以正規化 loop gain 設定 REG_LMS_MU）" />
           <ParamControl
-            label="μ（學習率）"
+            label="$\mu$（學習率）"
             value={mc.muAuto && Number.isFinite(muUsed) ? muUsed : mc.mu}
             onChange={setM('mu')}
             min={1e-5}
@@ -874,21 +868,21 @@ export function BiasInlLab() {
             reg="REG_LMS_MU"
             disabled={mc.muAuto}
           />
-          <ParamControl label="N（每 block sample 數）" value={mc.N} onChange={setM('N')} min={1} max={4096} integer clampOnBlur unit="samples" reg="REG_GMAC_N" />
+          <ParamControl label="$N$（每 block sample 數）" value={mc.N} onChange={setM('N')} min={1} max={4096} integer clampOnBlur unit="samples" reg="REG_GMAC_N" />
           <ParamControl label="blocks（每條 chain）" value={mc.blocks} onChange={setM('blocks')} min={100} max={50000} integer clampOnBlur unit="blocks" reg="Behavioral：模擬長度" hint="前 50% 為 burn-in" />
           <ParamControl label="chains（獨立 seeds）" value={mc.chains} onChange={setM('chains')} min={2} max={64} integer clampOnBlur unit="chains" reg="Behavioral：MC 次數（給 95% CI）" />
           {activeCase.params.dcMode !== 'none' && (
-            <ParamControl label="k_φ（主迴路 servo 增益 / sample）" value={mc.servoGain} onChange={setM('servoGain')} min={1e-4} max={0.2} log unit="—" reg="Behavioral：主 PLL 積分路徑等效增益" />
+            <ParamControl label="$k_\varphi$（主迴路 servo 增益 / sample）" value={mc.servoGain} onChange={setM('servoGain')} min={1e-4} max={0.2} log unit="—" reg="Behavioral：主 PLL 積分路徑等效增益" />
           )}
           <ParamControl
-            label="Δ（凍結 gain 量斜率的 ±擾動）"
+            label="$\Delta$（凍結 gain 量斜率的 $\pm$ 擾動）"
             value={mc.probeDelta}
             onChange={setM('probeDelta')}
             min={0.001}
             max={1}
             log
             unit="t.u."
-            reg="Behavioral：Freeze + w ± Δ 的 GMAC 斜率量測（規格 §11.4）"
+            reg="Behavioral：Freeze + w +/- Delta 的 GMAC 斜率量測（規格 §11.4）"
             hint="太大時割線斜率小於切線斜率"
           />
           <ToggleControl
@@ -1001,7 +995,7 @@ export function BiasInlLab() {
             {compareRows.map(({ c, a, r, ag }) => (
               <tr key={c.id} className={c.id === cases.activeId ? 'ch11-hl' : undefined}>
                 <td>{c.id}</td>
-                <td>{m(caseLabelTex(c.params))}</td>
+                <td>{m(caseLabel(c.params))}</td>
                 <td className="num">{a ? (isDeadZone(a) ? `(${num(a.zeroSet.lo, 5)}, ${num(a.zeroSet.hi, 5)})` : num(a.wStar)) : '—'}</td>
                 <td className="num">{ag ? (ag.kind === 'dead-zone' ? '區間內任一點' : num(ag.reference)) : '—'}</td>
                 <td className="num">{r ? `${num(r.mean)} ± ${num(r.halfWidth, 2)}` : '—'}</td>

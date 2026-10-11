@@ -1,7 +1,8 @@
 import { fireEvent, render } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import katex from 'katex'
 import mermaid from 'mermaid'
-import { installMermaidSvgShim, renderMermaidForTest } from '@/components/mermaidTestUtils'
+import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { SettingsProvider } from '@/app/settings'
 import { kq } from '@/simulation/models/comparator'
 import { blockSignGmacStep, gainScale, type ConventionInput } from './bridge'
@@ -71,6 +72,33 @@ const plain = (s: string) =>
     .replace(/&amp;/g, '&')
     .replace(/\s+/g, '')
 
+/** 與共用 Mermaid 前處理（mermaidSource.ts）相同的行內公式規則：`$...$` 或 `$$...$$`，`\$` 是字面的美元符號。 */
+const MATH = /\$\$((?:[^$\\]|\\.)+?)\$\$|(?<!\\)\$((?:[^$\\]|\\.)+?)(?<!\\)\$/g
+
+/** 圖原始碼裡所有雙引號標籤（節點、連線）。 */
+const quotedLabels = (chart: string): string[] => Array.from(chart.matchAll(/"([^"\n]*)"/g), (m) => m[1])
+
+const hasMath = (label: string): boolean => {
+  MATH.lastIndex = 0
+  const found = MATH.test(label)
+  MATH.lastIndex = 0
+  return found
+}
+
+/** 含 `$...$` 的標籤個數：共用 Mermaid 把每個這樣的標籤排版成一個 KaTeX 區塊，所以畫出來的 .katex 數必須剛好等於它。 */
+const mathLabelCount = (chart: string): number => quotedLabels(chart).filter(hasMath).length
+
+/** 標籤去掉 `$...$` 之後留下的文字片段（<br/> 與公式都當成分隔）。 */
+const textPieces = (label: string): string[] =>
+  label
+    .replace(MATH, '\uE000')
+    .split(/<br\s*\/?>|\uE000/i)
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0)
+
+/** 去掉所有空白（含不換行空白與零寬空白） */
+const squash = (t: string) => t.replace(/[\s\u00a0\u200b]+/g, '')
+
 /** Mermaid 11 把標籤當 Markdown：這些寫法會被畫成「Unsupported markdown: …」或被 HTML 解析吃掉。 */
 function labelHazard(text: string): string | null {
   for (const line of text.split(/<br\s*\/?>/)) {
@@ -128,7 +156,7 @@ describe('Papers 的 Mermaid 圖（真正的 mermaid parser）', () => {
     expect(d4.title).toMatch(/74\s?fs-Jitter/)
     expect(d4.titleClaim).toContain('74 fs jitter')
     expect(nodeText(g, 'LIT')).toContain('D4 題名的 74 fs jitter')
-    expect(nodeText(g, 'DER')).toContain('σ_w')
+    expect(nodeText(g, 'DER')).toContain(String.raw`$\sigma_w$`)
     expect(CHART_NUMBER_SOURCES).toContain('class DER focus')
     expect(CHART_NUMBER_SOURCES).toContain('class NO warn')
   })
@@ -153,16 +181,17 @@ describe('Papers 的 Mermaid 圖（真正的 mermaid parser）', () => {
     // 迴路：code → 殘差 → H_PD → comparator → GMAC → 累加 → 延遲 → 量化 → 回到殘差；regressor 另有一條到 GMAC
     const loop = ['X', 'RES', 'HPD', 'CMP', 'GMAC', 'UPD', 'DLY', 'QNT', 'RES']
     for (let i = 0; i + 1 < loop.length; i++) expect(hasEdge(g, loop[i], loop[i + 1]), `${loop[i]} → ${loop[i + 1]}`).toBe(true)
-    expect(edgeText(g, 'X', 'GMAC')).toBe('regressor x[n]')
-    expect(edgeText(g, 'HPD', 'CMP')).toBe('e[n]')
-    expect(edgeText(g, 'CMP', 'GMAC')).toBe('q[n]')
-    expect(edgeText(g, 'GMAC', 'UPD')).toBe('G_k')
-    expect(edgeText(g, 'QNT', 'RES')).toBe('w')
-    // 公式與極性：殘差 (a − w)·x[n]（δ = a − w）、q = sign(e)、G_k 是平均、w_(k+1) = w_k + μ·G_k
-    expect(nodeText(g, 'RES')).toContain('(a − w)·x[n]')
-    expect(nodeText(g, 'CMP')).toContain('q[n] = sign(e[n])')
-    expect(nodeText(g, 'GMAC')).toContain('G_k = (1/N)·Σ q[n]·x[n]')
-    expect(nodeText(g, 'UPD')).toContain('w_(k+1) = w_k + μ·G_k')
+    expect(edgeText(g, 'X', 'GMAC')).toBe('regressor $x[n]$')
+    expect(edgeText(g, 'HPD', 'CMP')).toBe('$e[n]$')
+    expect(edgeText(g, 'CMP', 'GMAC')).toBe('$q[n]$')
+    expect(edgeText(g, 'GMAC', 'UPD')).toBe('$G_k$')
+    expect(edgeText(g, 'QNT', 'RES')).toBe('$w$')
+    // 公式與極性（標籤原始碼就是 LaTeX）：殘差 (a − w)·x[n]（δ = a − w）、q = sign(e)、G_k 是平均、w_(k+1) = w_k + μ·G_k
+    expect(nodeText(g, 'RES')).toContain(String.raw`$(a - w)\,x[n]$`)
+    expect(nodeText(g, 'HPD')).toContain(String.raw`$H_{\mathrm{PD}}$`)
+    expect(nodeText(g, 'CMP')).toContain(String.raw`$q[n] = \operatorname{sign}(e[n])$`)
+    expect(nodeText(g, 'GMAC')).toContain(String.raw`$G_k = \frac{1}{N}\sum q[n]\,x[n]$`)
+    expect(nodeText(g, 'UPD')).toContain(String.raw`$w_{k+1} = w_k + \mu\,G_k$`)
   })
 
   it('文獻對照圖上的運算就是 bridge.ts 的 blockSignGmacStep：照著圖算一個 block，G 與新的 w 完全相同', () => {
@@ -184,15 +213,16 @@ describe('Papers 的 Mermaid 圖（真正的 mermaid parser）', () => {
 
   it('步長換算圖：四條箭頭上的換算式就是 gainScale 算的 s；右半邊是 g_i = s·λ_i、p_i = 1 − g_i', async () => {
     const g = await flow(CHART_CONVENTION_BRIDGE)
-    expect(edgeText(g, 'H', 'S')).toBe('s = μ')
-    expect(edgeText(g, 'W', 'S')).toBe('s = 2·μ_W')
-    expect(edgeText(g, 'N', 'S')).toBe('s ≈ μ̃/(ε_reg + tr R)')
-    expect(edgeText(g, 'G', 'S')).toBe('s = μ·K_q（誤用 sum 模式再 ×N）')
-    expect(nodeText(g, 'H')).toContain('w ← w + μ·e·x')
-    expect(nodeText(g, 'W')).toContain('w ← w + 2·μ_W·ε·x')
-    expect(nodeText(g, 'G')).toContain('w ← w + μ·(1/N)·Σ q·x')
-    expect(nodeText(g, 'GI')).toContain('g_i = s·λ_i')
-    expect(nodeText(g, 'P')).toContain('p_i = 1 − g_i')
+    expect(edgeText(g, 'H', 'S')).toBe(String.raw`$s = \mu$`)
+    expect(edgeText(g, 'W', 'S')).toBe(String.raw`$s = 2\mu_W$`)
+    expect(edgeText(g, 'N', 'S')).toBe(String.raw`$s \approx \tilde\mu/(\varepsilon_{\mathrm{reg}} + \operatorname{tr}R)$`)
+    expect(edgeText(g, 'G', 'S')).toBe(String.raw`$s = \mu K_q$（誤用 sum 模式再 $\times N$）`)
+    expect(nodeText(g, 'H')).toContain(String.raw`$w \leftarrow w + \mu\,e\,x$`)
+    expect(nodeText(g, 'W')).toContain(String.raw`$w \leftarrow w + 2\mu_W\,\varepsilon\,x$`)
+    expect(nodeText(g, 'N')).toContain(String.raw`$w \leftarrow w + \tilde\mu\,e\,x/(\varepsilon_{\mathrm{reg}} + \lVert x\rVert^2)$`)
+    expect(nodeText(g, 'G')).toContain(String.raw`$w \leftarrow w + \mu\,\frac{1}{N}\sum q\,x$`)
+    expect(nodeText(g, 'GI')).toContain(String.raw`$g_i = s\,\lambda_i$`)
+    expect(nodeText(g, 'P')).toContain(String.raw`$p_i = 1 - g_i$`)
     for (const [a, b] of [['S', 'GI'], ['GI', 'P'], ['P', 'Q'], ['Q', 'OK'], ['Q', 'BAD']]) expect(hasEdge(g, a, b), `${a} → ${b}`).toBe(true)
     expect(edgeText(g, 'Q', 'OK')).toBe('是')
     expect(edgeText(g, 'Q', 'BAD')).toBe('否')
@@ -210,19 +240,47 @@ describe('Papers 的 Mermaid 圖（真正的 mermaid parser）', () => {
     expect(stable(-0.1, [1.9, 0.1])).toBe(false) // 極性接反
   })
 
-  it('實際渲染（共用的 renderMermaidForTest）：每張圖都畫得出來，沒有「Unsupported markdown」、節點數 ≤ 14，畫面上的每個標籤都和原始碼相同', async () => {
+  it('圖內的數學一律是 `$...$` LaTeX：$ 成對、每段 TeX 可被 KaTeX 嚴格解析、不用雙反斜線（Mermaid 會收成一個）、`$...$` 以外沒有 Unicode 拼的數學', () => {
     for (const c of PAPERS_CHARTS) {
-      const { svg, text, nodeCount } = await renderMermaidForTest(c.chart)
+      expect(c.chart, c.name).not.toContain('\\\\')
+      for (const label of quotedLabels(c.chart)) {
+        const dollars = label.replace(/\\\$/g, '').split('$').length - 1
+        expect(dollars % 2, `${c.name}：${label}`).toBe(0)
+        for (const m of label.matchAll(MATH)) {
+          expect(() => katex.renderToString(m[1] ?? m[2], { throwOnError: true, strict: 'ignore' }), `${c.name}：${m[0]}`).not.toThrow()
+        }
+        expect(unicodeMathIn(textPieces(label).join(' ')), `${c.name}：${label}`).toEqual([])
+      }
+    }
+    // 三張新圖都真的有公式（閱讀路線圖 READING_PATH_CHART 是文獻名稱的流程圖，沒有公式）
+    for (const c of [CHART_NUMBER_SOURCES, CHART_PAPER_MAP, CHART_CONVENTION_BRIDGE]) expect(mathLabelCount(c)).toBeGreaterThanOrEqual(1)
+    expect(mathLabelCount(CHART_PAPER_MAP)).toBeGreaterThanOrEqual(10)
+    expect(mathLabelCount(CHART_CONVENTION_BRIDGE)).toBeGreaterThanOrEqual(12)
+  })
+
+  it('實際渲染（共用的 renderMermaidForTest）：每張圖都畫得出來，沒有「Unsupported markdown」、畫面上沒有殘留的 $、KaTeX 以外沒有 Unicode 數學、節點數 ≤ 14，每個標籤都畫出來', async () => {
+    for (const c of PAPERS_CHARTS) {
+      const { svg, text, nodeCount, mathCount, plainText } = await renderMermaidForTest(c.chart)
       expect(text, c.name).not.toMatch(/Unsupported markdown/)
+      expect(text, `${c.name}：畫面上不可殘留 $`).not.toContain('$')
+      expect(unicodeMathIn(plainText), `${c.name}：KaTeX 以外不可有 Unicode 拼的數學`).toEqual([])
       expect(nodeCount, c.name).toBeLessThanOrEqual(14)
       expect(nodeCount, c.name).toBeGreaterThanOrEqual(4)
+      expect(mathCount, `${c.name}：每個含 $...$ 的標籤都排成一個 KaTeX 區塊`).toBe(mathLabelCount(c.chart))
       const host = document.createElement('div')
       host.innerHTML = svg
-      const shown = new Set(Array.from(host.querySelectorAll('.nodeLabel, .edgeLabel')).map((e) => plain(e.textContent ?? '')))
+      host.querySelectorAll('.katex-mathml').forEach((e) => e.remove())
+      const shown = Array.from(host.querySelectorAll('.nodeLabel, .edgeLabel')).map((e) => squash(e.textContent ?? ''))
       const g = await flow(c.chart)
       expect(nodeCount, `${c.name}：畫出來的節點數 = 解析出來的節點數`).toBe(g.vertices.length)
-      for (const v of g.vertices) expect(shown.has(plain(v.text ?? '')), `${c.name} 節點 ${v.id}：「${v.text}」沒有原樣出現在圖上`).toBe(true)
-      for (const e of g.edges) if (e.text) expect(shown.has(plain(e.text)), `${c.name} 邊 ${e.start}→${e.end}：「${e.text}」沒有原樣出現在圖上`).toBe(true)
+      // 沒有公式的標籤原樣出現在圖上；含公式的標籤，公式以外的文字片段都在同一個標籤裡
+      const appears = (label: string): boolean => {
+        const decoded = label.replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&')
+        if (!hasMath(decoded)) return shown.includes(plain(decoded))
+        return shown.some((t) => textPieces(decoded).every((piece) => t.includes(squash(piece))))
+      }
+      for (const v of g.vertices) expect(appears(v.text ?? ''), `${c.name} 節點 ${v.id}：「${v.text}」沒有出現在圖上`).toBe(true)
+      for (const e of g.edges) if (e.text) expect(appears(e.text), `${c.name} 邊 ${e.start}→${e.end}：「${e.text}」沒有出現在圖上`).toBe(true)
     }
   }, 120000)
 })

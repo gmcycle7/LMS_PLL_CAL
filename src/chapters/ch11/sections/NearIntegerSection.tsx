@@ -43,9 +43,9 @@ interface P {
 const DEFAULT: P = { wnTs: 0.02, zeta: 0.707, loopDelay: 1, kappaDirect: 0.01, sigmaV: 1 }
 
 const NI_LAYOUT: Partial<Layout> = {
-  xaxis: { title: { text: 'FCW frac（越小越接近整數）' } },
-  yaxis: { title: { text: 'C' }, type: 'log' },
-  yaxis2: { title: { text: '|w* − a|（t.u.）' }, overlaying: 'y', side: 'right', type: 'log', showgrid: false },
+  xaxis: { title: { text: String.raw`FCW $\mathrm{frac}$（越小越接近整數）` } },
+  yaxis: { title: { text: '$C$' }, type: 'log' },
+  yaxis2: { title: { text: String.raw`$|w^*-a|$（t.u.）` }, overlaying: 'y', side: 'right', type: 'log', showgrid: false },
 }
 
 function NearIntegerExperiment() {
@@ -70,16 +70,16 @@ function NearIntegerExperiment() {
   const data: Data[] = useMemo(() => {
     if (!res) return []
     return [
-      { x: res.frac, y: res.Cfreq, mode: 'lines', name: 'C（頻域：Σ|X_k|²·Re H_PD）', line: { color: tokens.series[0], width: 2 } },
-      { x: res.frac, y: res.C, mode: 'markers', name: 'C（時域：序列通過 H_PD）', marker: { color: tokens.series[0], size: 6, symbol: 'circle-open' } },
+      { x: res.frac, y: res.Cfreq, mode: 'lines', name: String.raw`$C$（頻域：$\sum_k |X_k|^2 \cdot \mathrm{Re}\,H_\mathrm{PD}$）`, line: { color: tokens.series[0], width: 2 } },
+      { x: res.frac, y: res.C, mode: 'markers', name: String.raw`$C$（時域：序列通過 $H_\mathrm{PD}$）`, marker: { color: tokens.series[0], size: 6, symbol: 'circle-open' } },
       {
         x: res.frac,
         y: res.CinBand.map((v) => -v),
         mode: 'lines',
-        name: '−C_in-band（頻寬內諧波，Re H_PD < 0）',
+        name: String.raw`$-C_\mathrm{in\text{-}band}$（頻寬內諧波，$\mathrm{Re}\,H_\mathrm{PD} \lt 0$）`,
         line: { color: tokens.series[3], dash: 'dot' },
       },
-      { x: res.frac, y: res.bias.map((v) => Math.abs(v)), mode: 'lines+markers', name: '|w* − a| = |B/C|（右軸）', yaxis: 'y2', line: { color: tokens.series[2] }, marker: { size: 4 } },
+      { x: res.frac, y: res.bias.map((v) => Math.abs(v)), mode: 'lines+markers', name: String.raw`$|w^*-a| = |B/C|$（右軸）`, yaxis: 'y2', line: { color: tokens.series[2] }, marker: { size: 4 } },
     ]
   }, [res, tokens])
 
@@ -94,7 +94,7 @@ function NearIntegerExperiment() {
       { name: `$w^*-a$（frac $=${texNum(res.frac[i0], 3)}$）`, value: res.bias[i0], unit: 't.u.', claim: 'approx' },
       { name: `$C$（frac $=${texNum(res.frac[iLast], 3)}$）`, value: res.Cfreq[iLast] },
       { name: `$w^*-a$（frac $=${texNum(res.frac[iLast], 3)}$）`, value: res.bias[iLast], unit: 't.u.' },
-      { name: String.raw`GMAC 斜率 $S=K_q\,C$（frac 最小處）`, value: res.slope[i0], unit: 't.u.⁻¹', formulaId: 'F-11.15', note: '越小 ⇒ 收斂越慢、對 bias 越敏感' },
+      { name: String.raw`GMAC 斜率 $S=K_q\,C$（frac 最小處）`, value: res.slope[i0], unit: String.raw`$\mathrm{t.u.}^{-1}$`, formulaId: 'F-11.15', note: String.raw`越小 $\Rightarrow$ 收斂越慢、對 bias 越敏感` },
       { name: String.raw`低 frac 冪次 $d\ln C/d\ln\mathrm{frac}$（最小 6 點擬合）`, value: res.lowFracExponent, note: String.raw`$\mathrm{frac}\ll\omega_nT_s/2\pi$ 時 $\to2$` },
       { name: '時域 vs 頻域最大相對差', value: res.maxRelDiff, note: `時域略過 ${res.skip} 個暫態 sample，取整數個週期` },
     )
@@ -146,11 +146,11 @@ function NearIntegerExperiment() {
       actions={{ onReset: () => setP(DEFAULT), running }}
       controls={
         <>
-          <ParamControl label="ω_nT_s（主 PLL 頻寬）" value={p.wnTs} onChange={set('wnTs')} min={0.002} max={0.3} log unit="rad/sample" reg="Behavioral：主 PLL ω_n/f_s" />
-          <ParamControl label="ζ（阻尼）" value={p.zeta} onChange={set('zeta')} min={0.3} max={2} step={0.01} unit="—" reg="Behavioral：主 PLL damping" />
+          <ParamControl label={String.raw`$\omega_n T_s$（主 PLL 頻寬）`} value={p.wnTs} onChange={set('wnTs')} min={0.002} max={0.3} log unit="rad/sample" reg="Behavioral：主 PLL omega_n/f_s" />
+          <ParamControl label={String.raw`$\zeta$（阻尼）`} value={p.zeta} onChange={set('zeta')} min={0.3} max={2} step={0.01} unit="—" reg="Behavioral：主 PLL damping" />
           <ParamControl label="loop delay" value={p.loopDelay} onChange={set('loopDelay')} min={0} max={4} integer clampOnBlur unit="samples" reg="Behavioral：PLL loop latency" />
-          <ParamControl label="κ_d（直接耦合係數）" value={p.kappaDirect} onChange={set('kappaDirect')} min={-0.2} max={0.2} step={0.001} unit="t.u." reg="Behavioral：PD 端 code-correlated 耦合" />
-          <ParamControl label="σ_v" value={p.sigmaV} onChange={set('sigmaV')} min={0.01} max={10} log unit="t.u." reg="Behavioral：comparator noise（給 K_q）" />
+          <ParamControl label={String.raw`$\kappa_d$（直接耦合係數）`} value={p.kappaDirect} onChange={set('kappaDirect')} min={-0.2} max={0.2} step={0.001} unit="t.u." reg="Behavioral：PD 端 code-correlated 耦合" />
+          <ParamControl label="$\sigma_v$" value={p.sigmaV} onChange={set('sigmaV')} min={0.01} max={10} log unit="t.u." reg="Behavioral：comparator noise（給 K_q）" />
         </>
       }
     >

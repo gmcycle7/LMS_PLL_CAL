@@ -80,8 +80,12 @@ const BODE_OMEGAS = logOmegaGrid(400, 1e-3, Math.PI)
 
 // 固定的 Plot layout 放在模組層級（物件參考不變 ⇒ 重新渲染時不會多打一次 Plotly.react、也不會重設使用者的縮放）
 const Z_PLANE_LAYOUT = zPlaneLayout(1.6)
-const BODE_MAG_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'ω [rad/block]' } }, yaxis: { title: { text: 'dB' }, range: [-30, 50] } }
-const BODE_PHASE_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'ω [rad/block]' } }, yaxis: { title: { text: 'deg' } } }
+const BODE_MAG_LAYOUT: Partial<Layout> = { xaxis: { title: { text: String.raw`$\omega$ [rad/block]` } }, yaxis: { title: { text: 'dB' }, range: [-30, 50] } }
+/** Bode 圖兩個模式共用的 trace 名稱（數學寫 `$...$`，Plot 會轉成斜體符號） */
+const BODE_FULL_NAME = String.raw`完整 $L = \mu F(z)/(z - 1)$`
+const BODE_QS_NAME = String.raw`quasi-static $\mu F(1)/(z - 1)$`
+const BODE_MINUS_180_NAME = String.raw`$-180^\circ$`
+const BODE_PHASE_LAYOUT: Partial<Layout> = { xaxis: { title: { text: String.raw`$\omega$ [rad/block]` } }, yaxis: { title: { text: 'deg' } } }
 
 /** 「試試看」提示用到的數字：全部由模型計算（不手寫） */
 const TRY = (() => {
@@ -174,28 +178,29 @@ function useTwoStateModel(cases: UseCasesResult<DualLoopParams>, steps: number, 
     // ── 時域（所有 cases） ──
     const k = indexArray(steps + 1)
     const time: Data[] = []
+    const deltaName = signed ? String.raw`$\delta_k$` : String.raw`$|\delta_k|$`
     for (const cs of cases.cases) {
       const color = tokens.series[cs.seriesIndex % tokens.series.length]
       const full = simulateFullModel(cs.params, steps).delta
       const simp = simulateQuasiStatic(cs.params, steps)
       const shape = (v: number) => (signed ? v : Math.abs(v))
-      time.push({ x: k, y: finiteSeries(Array.from(full, shape)), name: `Case ${cs.id} 完整：${signed ? 'δ_k' : '|δ_k|'}（μ=${sig(cs.params.mu)}）`, mode: 'lines', line: { color, width: 2 } })
-      time.push({ x: k, y: finiteSeries(Array.from(simp, shape)), name: `Case ${cs.id} quasi-static：${signed ? 'δ_k' : '|δ_k|'}`, mode: 'lines', line: { color, width: 1.5, dash: 'dash' } })
+      time.push({ x: k, y: finiteSeries(Array.from(full, shape)), name: String.raw`Case ${cs.id} 完整：${deltaName}（$\mu=${tsig(cs.params.mu)}$）`, mode: 'lines', line: { color, width: 2 } })
+      time.push({ x: k, y: finiteSeries(Array.from(simp, shape)), name: `Case ${cs.id} quasi-static：${deltaName}`, mode: 'lines', line: { color, width: 1.5, dash: 'dash' } })
     }
     const env = finiteSeries(Array.from(k, (kk) => a.rho ** kk))
-    time.push({ x: k, y: env, name: `ρ^k 包絡（ρ = ${fx(a.rho, 4)}）`, mode: 'lines', line: { color: tokens.textFaint, dash: 'dot', width: 1 } })
-    if (signed) time.push({ x: k, y: env.map((e) => (e === null ? null : -e)), name: '−ρ^k', mode: 'lines', line: { color: tokens.textFaint, dash: 'dot', width: 1 }, showlegend: false })
+    time.push({ x: k, y: env, name: String.raw`$\rho^k$ 包絡（$\rho = ${fx(a.rho, 4)}$）`, mode: 'lines', line: { color: tokens.textFaint, dash: 'dot', width: 1 } })
+    if (signed) time.push({ x: k, y: env.map((e) => (e === null ? null : -e)), name: String.raw`$-\rho^k$`, mode: 'lines', line: { color: tokens.textFaint, dash: 'dot', width: 1 }, showlegend: false })
 
     // ── z 平面 ──
     const sweepMus = Array.from({ length: 240 }, (_, i) => (sweepRange * (i + 1)) / 240)
     const loc = dualLoopRootLocus(p.r, p.b, p.c, sweepMus).flat()
     const zPlane: Data[] = [
       unitCircleTrace(tokens.textMuted),
-      { x: loc.map((z) => z.re), y: loc.map((z) => z.im), name: '完整模型根軌跡（μ 由 0 增加）', mode: 'markers', marker: { size: 3, color: tokens.textFaint }, hoverinfo: 'skip' },
-      poleTrace([{ re: p.r, im: 0 }, { re: 1, im: 0 }], 'μ = 0 的起點 z = r_s, 1', tokens.textMuted, 'x', 11),
+      { x: loc.map((z) => z.re), y: loc.map((z) => z.im), name: String.raw`完整模型根軌跡（$\mu$ 由 $0$ 增加）`, mode: 'markers', marker: { size: 3, color: tokens.textFaint }, hoverinfo: 'skip' },
+      poleTrace([{ re: p.r, im: 0 }, { re: 1, im: 0 }], String.raw`$\mu = 0$ 的起點 $z = r_s, 1$`, tokens.textMuted, 'x', 11),
       ...cases.cases.map((cs) => {
         const color = tokens.series[cs.seriesIndex % tokens.series.length]
-        return poleTrace(analyzeDualLoop(cs.params).poles, `Case ${cs.id} 完整 poles（μ=${sig(cs.params.mu)}）`, color, 'circle', 10)
+        return poleTrace(analyzeDualLoop(cs.params).poles, String.raw`Case ${cs.id} 完整 poles（$\mu=${tsig(cs.params.mu)}$）`, color, 'circle', 10)
       }),
       ...cases.cases.map((cs) => {
         const color = tokens.series[cs.seriesIndex % tokens.series.length]
@@ -209,27 +214,27 @@ function useTwoStateModel(cases: UseCasesResult<DualLoopParams>, steps: number, 
     const rhoSimp = sweepMus.map((mu) => Math.abs(1 - (mu * bc) / (1 - p.r)))
     const yTop = 1.6
     const sweep: Data[] = [
-      { x: sweepMus, y: rhoFull, name: '完整模型 ρ(A)', mode: 'lines', line: { color: tokens.series[0], width: 2 } },
-      { x: sweepMus, y: finiteSeries(rhoSimp), name: 'quasi-static |1 − μbc/(1 − r)|', mode: 'lines', line: { color: tokens.series[1], width: 2, dash: 'dash' } },
-      hLine(1, 0, sweepRange, tokens.danger, 'ρ = 1'),
-      ...(Number.isFinite(a.fullRange.hi) ? [vLine(a.fullRange.hi, 0, yTop, tokens.series[0], `(1 − r)/(bc) = ${sig(a.fullRange.hi, 5)}`, 'dash')] : []),
-      ...(Number.isFinite(a.simplifiedRange.hi) ? [vLine(a.simplifiedRange.hi, 0, yTop, tokens.series[1], `2(1 − r)/(bc) = ${sig(a.simplifiedRange.hi, 5)}`, 'dash')] : []),
-      ...(Number.isFinite(a.muComplex) && a.muComplex < sweepRange ? [vLine(a.muComplex, 0, yTop, tokens.textMuted, `複數門檻 (1 − r)²/(4bc) = ${sig(a.muComplex, 4)}`, 'dot')] : []),
-      { x: [p.mu], y: [a.rho], name: `目前 μ = ${sig(p.mu)}`, mode: 'markers', marker: { size: 10, color: tokens.accent } },
+      { x: sweepMus, y: rhoFull, name: String.raw`完整模型 $\rho(\mathbf A)$`, mode: 'lines', line: { color: tokens.series[0], width: 2 } },
+      { x: sweepMus, y: finiteSeries(rhoSimp), name: String.raw`quasi-static $|1 - \mu b_s c_s/(1 - r_s)|$`, mode: 'lines', line: { color: tokens.series[1], width: 2, dash: 'dash' } },
+      hLine(1, 0, sweepRange, tokens.danger, String.raw`$\rho = 1$`),
+      ...(Number.isFinite(a.fullRange.hi) ? [vLine(a.fullRange.hi, 0, yTop, tokens.series[0], String.raw`$(1 - r_s)/(b_s c_s) = ${tsig(a.fullRange.hi, 5)}$`, 'dash')] : []),
+      ...(Number.isFinite(a.simplifiedRange.hi) ? [vLine(a.simplifiedRange.hi, 0, yTop, tokens.series[1], String.raw`$2(1 - r_s)/(b_s c_s) = ${tsig(a.simplifiedRange.hi, 5)}$`, 'dash')] : []),
+      ...(Number.isFinite(a.muComplex) && a.muComplex < sweepRange ? [vLine(a.muComplex, 0, yTop, tokens.textMuted, String.raw`複數門檻 $(1 - r_s)^2/(4 b_s c_s) = ${tsig(a.muComplex, 4)}$`, 'dot')] : []),
+      { x: [p.mu], y: [a.rho], name: String.raw`目前 $\mu = ${tsig(p.mu)}$`, mode: 'markers', marker: { size: 10, color: tokens.accent } },
     ]
 
     // ── Bode：完整 vs quasi-static ──
     const negGain = Number.isFinite(gEff) && gEff < 0
-    const bf = bodeTraces('完整 L = μF(z)/(z − 1)', (w) => calLoopGainGeneral(sys, p.mu, w), tokens.series[0], 'solid', negGain)
+    const bf = bodeTraces(BODE_FULL_NAME, (w) => calLoopGainGeneral(sys, p.mu, w), tokens.series[0], 'solid', negGain)
     const bs = Number.isFinite(a.dcGain)
-      ? bodeTraces('quasi-static μF(1)/(z − 1)', (w) => calLoopGainGeneral({ A: [], b: [], c: [], d: a.dcGain }, p.mu, w), tokens.series[1], 'dash', negGain)
+      ? bodeTraces(BODE_QS_NAME, (w) => calLoopGainGeneral({ A: [], b: [], c: [], d: a.dcGain }, p.mu, w), tokens.series[1], 'dash', negGain)
       : null
     const bodeMag = [bf?.mag, bs?.mag, hLine(0, BODE_OMEGAS[0], Math.PI, tokens.textMuted, '0 dB')].filter(Boolean) as Data[]
     const bodePhase = [
       bf?.phase,
       bs?.phase,
-      hLine(-180, BODE_OMEGAS[0], Math.PI, tokens.danger, '−180°'),
-      ...(Number.isFinite(gmCf.omega180) ? [vLine(gmCf.omega180, -360, 0, tokens.textMuted, `ω_180 = acos((1 + r)/2) = ${fx(gmCf.omega180, 4)}`, 'dot')] : []),
+      hLine(-180, BODE_OMEGAS[0], Math.PI, tokens.danger, BODE_MINUS_180_NAME),
+      ...(Number.isFinite(gmCf.omega180) ? [vLine(gmCf.omega180, -360, 0, tokens.textMuted, String.raw`$\omega_{180} = \arccos((1 + r_s)/2) = ${fx(gmCf.omega180, 4)}$`, 'dot')] : []),
     ].filter(Boolean) as Data[]
 
     // ── 警告 ──
@@ -372,35 +377,36 @@ function useGeneralModel(gen: GeneralState, steps: number, tokens: ThemeTokens, 
     const sim = simulateGeneral(sys, gen.mu, steps)
     const simp = Array.from(k, (kk) => (signed ? an.simplifiedPole ** kk : Math.abs(an.simplifiedPole) ** kk))
 
+    const deltaName = signed ? String.raw`$\delta_k$` : String.raw`$|\delta_k|$`
     const time: Data[] = [
-      { x: k, y: finiteSeries(Array.from(sim.delta, (v) => (signed ? v : Math.abs(v)))), name: `完整：${signed ? 'δ_k' : '|δ_k|'}（ρ = ${fx(an.rho, 4)}）`, mode: 'lines', line: { color: tokens.series[0], width: 2 } },
-      { x: k, y: finiteSeries(simp), name: signed ? 'quasi-static：(1 − μF(1))^k' : 'quasi-static：|1 − μF(1)|^k', mode: 'lines', line: { color: tokens.series[1], width: 1.5, dash: 'dash' } },
-      { x: k, y: finiteSeries(sim.sNorm), name: '‖s_k‖（觀測狀態）', mode: 'lines', line: { color: tokens.series[2], width: 1 } },
-      { x: k, y: finiteSeries(Array.from(k, (kk) => an.rho ** kk)), name: 'ρ^k 包絡', mode: 'lines', line: { color: tokens.textFaint, width: 1, dash: 'dot' } },
+      { x: k, y: finiteSeries(Array.from(sim.delta, (v) => (signed ? v : Math.abs(v)))), name: String.raw`完整：${deltaName}（$\rho = ${fx(an.rho, 4)}$）`, mode: 'lines', line: { color: tokens.series[0], width: 2 } },
+      { x: k, y: finiteSeries(simp), name: signed ? String.raw`quasi-static：$(1 - \mu F(1))^k$` : String.raw`quasi-static：$|1 - \mu F(1)|^k$`, mode: 'lines', line: { color: tokens.series[1], width: 1.5, dash: 'dash' } },
+      { x: k, y: finiteSeries(sim.sNorm), name: String.raw`$\|s_k\|$（觀測狀態）`, mode: 'lines', line: { color: tokens.series[2], width: 1 } },
+      { x: k, y: finiteSeries(Array.from(k, (kk) => an.rho ** kk)), name: String.raw`$\rho^k$ 包絡`, mode: 'lines', line: { color: tokens.textFaint, width: 1, dash: 'dot' } },
     ]
     const zPlane: Data[] = [
       unitCircleTrace(tokens.textMuted),
-      poleTrace(an.observerPoles, 'eig(A_s)：觀測狀態自己的 poles', tokens.textMuted, 'x', 11),
-      poleTrace(an.poles, 'eig(A_comb)：完整閉迴路 poles', tokens.series[0], 'circle', 10),
-      poleTrace(Number.isFinite(an.simplifiedPole) ? [{ re: an.simplifiedPole, im: 0 }] : [], 'quasi-static pole 1 − μF(1)', tokens.series[1], 'diamond-open', 11),
+      poleTrace(an.observerPoles, String.raw`$\mathrm{eig}(\mathbf A_s)$：觀測狀態自己的 poles`, tokens.textMuted, 'x', 11),
+      poleTrace(an.poles, String.raw`$\mathrm{eig}(\mathbf A_{\mathrm{comb}})$：完整閉迴路 poles`, tokens.series[0], 'circle', 10),
+      poleTrace(Number.isFinite(an.simplifiedPole) ? [{ re: an.simplifiedPole, im: 0 }] : [], String.raw`quasi-static pole $1 - \mu F(1)$`, tokens.series[1], 'diamond-open', 11),
     ]
     const sweepMus = Array.from({ length: 240 }, (_, i) => (gen.muScanMax * (i + 1)) / 240)
     const rhoFull = sweepMus.map((mu) => analyzeGeneral(sys, mu).rho)
     const rhoSimp = sweepMus.map((mu) => Math.abs(1 - mu * an.dcGain))
     const sweep: Data[] = [
-      { x: sweepMus, y: rhoFull, name: '完整 ρ(A_comb)', mode: 'lines', line: { color: tokens.series[0], width: 2 } },
-      { x: sweepMus, y: finiteSeries(rhoSimp), name: 'quasi-static |1 − μF(1)|', mode: 'lines', line: { color: tokens.series[1], width: 2, dash: 'dash' } },
-      hLine(1, 0, gen.muScanMax, tokens.danger, 'ρ = 1'),
-      { x: [gen.mu], y: [an.rho], name: `目前 μ = ${sig(gen.mu)}`, mode: 'markers', marker: { size: 10, color: tokens.accent } },
-      ...(an.simplifiedMuMax < gen.muScanMax ? [vLine(an.simplifiedMuMax, 0, 1.6, tokens.series[1], `2/F(1) = ${sig(an.simplifiedMuMax, 4)}`, 'dash')] : []),
+      { x: sweepMus, y: rhoFull, name: String.raw`完整 $\rho(\mathbf A_{\mathrm{comb}})$`, mode: 'lines', line: { color: tokens.series[0], width: 2 } },
+      { x: sweepMus, y: finiteSeries(rhoSimp), name: String.raw`quasi-static $|1 - \mu F(1)|$`, mode: 'lines', line: { color: tokens.series[1], width: 2, dash: 'dash' } },
+      hLine(1, 0, gen.muScanMax, tokens.danger, String.raw`$\rho = 1$`),
+      { x: [gen.mu], y: [an.rho], name: String.raw`目前 $\mu = ${tsig(gen.mu)}$`, mode: 'markers', marker: { size: 10, color: tokens.accent } },
+      ...(an.simplifiedMuMax < gen.muScanMax ? [vLine(an.simplifiedMuMax, 0, 1.6, tokens.series[1], String.raw`$2/F(1) = ${tsig(an.simplifiedMuMax, 4)}$`, 'dash')] : []),
     ]
     const negGain = Number.isFinite(gEff) && gEff < 0
-    const bf = bodeTraces('完整 L = μF(z)/(z − 1)', (w) => calLoopGainGeneral(sys, gen.mu, w), tokens.series[0], 'solid', negGain)
+    const bf = bodeTraces(BODE_FULL_NAME, (w) => calLoopGainGeneral(sys, gen.mu, w), tokens.series[0], 'solid', negGain)
     const bs = Number.isFinite(an.dcGain)
-      ? bodeTraces('quasi-static μF(1)/(z − 1)', (w) => calLoopGainGeneral({ A: [], b: [], c: [], d: an.dcGain }, gen.mu, w), tokens.series[1], 'dash', negGain)
+      ? bodeTraces(BODE_QS_NAME, (w) => calLoopGainGeneral({ A: [], b: [], c: [], d: an.dcGain }, gen.mu, w), tokens.series[1], 'dash', negGain)
       : null
     const bodeMag = [bf?.mag, bs?.mag, hLine(0, BODE_OMEGAS[0], Math.PI, tokens.textMuted, '0 dB')].filter(Boolean) as Data[]
-    const bodePhase = [bf?.phase, bs?.phase, hLine(-180, BODE_OMEGAS[0], Math.PI, tokens.danger, '−180°')].filter(Boolean) as Data[]
+    const bodePhase = [bf?.phase, bs?.phase, hLine(-180, BODE_OMEGAS[0], Math.PI, tokens.danger, BODE_MINUS_180_NAME)].filter(Boolean) as Data[]
 
     const warnings: string[] = []
     if (an.observerRho >= 1 - 1e-12)
@@ -564,11 +570,11 @@ export function DualLoopLab() {
 
   const n = gen.A.length
   const sweepLayout = useMemo<Partial<Layout>>(
-    () => ({ xaxis: { title: { text: 'μ（正規化）' }, range: [0, vm.sweepRange] }, yaxis: { title: { text: 'ρ' }, range: [0, 1.6] }, legend: { orientation: 'h', y: -0.25 } }),
+    () => ({ xaxis: { title: { text: String.raw`$\mu$（正規化）` }, range: [0, vm.sweepRange] }, yaxis: { title: { text: String.raw`$\rho$` }, range: [0, 1.6] }, legend: { orientation: 'h', y: -0.25 } }),
     [vm.sweepRange],
   )
   const timeLayout = useMemo<Partial<Layout>>(
-    () => ({ xaxis: { title: { text: 'k [block]' } }, yaxis: { title: { text: logY ? '|δ_k| / δ₀' : 'δ_k / δ₀' } } }),
+    () => ({ xaxis: { title: { text: '$k$ [block]' } }, yaxis: { title: { text: logY ? String.raw`$|\delta_k| / \delta_0$` : String.raw`$\delta_k / \delta_0$` } } }),
     [logY],
   )
   const timeTitle = `${logY ? String.raw`$|\delta_k|$（log 軸）` : String.raw`$\delta_k$（step response 的誤差，線性軸）`}：${mode === 'two-state' ? '完整' : String.raw`$\mathbf A_{\mathrm{comb}}$`} vs quasi-static（${steps} blocks）`
@@ -576,7 +582,7 @@ export function DualLoopLab() {
   return (
     <ExperimentShell
       id={DUAL_LOOP_ID}
-      title="Dual-Loop Explorer：觀測動態 × 校正迴路"
+      title={String.raw`Dual-Loop Explorer：觀測動態 $\times$ 校正迴路`}
       level="L2"
       claim="exact"
       tests={['T09']}

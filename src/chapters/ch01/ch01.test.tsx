@@ -721,6 +721,8 @@ const STRING_PROP_BOXES = [
   '.c-code-caption',
   '.c-metric-table tbody td:first-child',
   '.c-param-label',
+  '.c-param-unit',
+  '.c-param-meta',
 ].join(', ')
 
 describe('Ch01 帶入手算：放在對應推導之後', () => {
@@ -880,3 +882,4 @@ describe('Ch01 字串屬性的數學一律是 $...$ LaTeX（教學規範 §3）'
     expect(FORMULAS.filter((fm) => fm.conditions.includes('$')).length).toBeGreaterThanOrEqual(14)
   })
 })
+

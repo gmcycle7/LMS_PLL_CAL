@@ -19,7 +19,7 @@ import {
 import { presetsForExperiment, useUrlPreset } from '@/app/presets'
 import { REGIME_LABEL } from '@/simulation/models/calNoise'
 import { isWorkerCancelled, useWorkerTask } from '@/workers'
-import { texHz, texNum } from '../format'
+import { regimeLabelTex, texHz, texNum } from '../format'
 import { ErratumTag, Rich } from '../common'
 import {
   DEFAULT_CASE,
@@ -315,14 +315,14 @@ export function UnitsCalculator() {
   // ── 指標（目前選取的 case）
   const metrics: MetricRow[] = [
     { name: String.raw`$g=\mu K${cases.active.params.gmMode === 'sum' ? 'N' : ''}$（無因次 loop gain）`, value: lp.g, formulaId: 'F-12.1', claim: 'approx', note: String.raw`$\mu=${texNum(cases.active.params.mu)}\,\mathrm{fs}$、$K=K_qC=${texNum(lp.K)}\,\mathrm{fs^{-1}}$` },
-    { name: String.raw`pole $p=1-g$`, value: lp.p, formulaId: 'F-12.2', claim: 'approx', note: `型態：${REGIME_LABEL[lp.regime]}` },
+    { name: String.raw`pole $p=1-g$`, value: lp.p, formulaId: 'F-12.2', claim: 'approx', note: `型態：${regimeLabelTex(REGIME_LABEL[lp.regime])}` },
     { name: String.raw`時間常數 $\tau=-1/\ln|p|$`, value: Number.isFinite(lp.tauBlocks) ? lp.tauBlocks : null, unit: 'blocks', note: Number.isFinite(lp.tauSeconds) ? String.raw`$=${texNum(lp.tauBlocks * cases.active.params.N)}$ samples $=${texNum(lp.tauSeconds * 1e6)}\,\mu\mathrm{s}$` : '沒有穩態' },
     { name: String.raw`$\sigma_w$（gain-equivalent，不是 output jitter）`, value: stable ? lp.sigmaW : null, unit: 'fs', formulaId: 'F-12.5', claim: 'exact', analytic: stable ? au.sigmaFromEnbw : undefined, tolerance: checkTolerance(lp.p), toleranceMode: 'rel', note: String.raw`解析欄：$\sqrt{S_w^{(1)}(0)\cdot\mathrm{ENBW}}$（Parseval 驗算）` },
     { name: String.raw`exact $f_{3\mathrm{dB}}$`, value: Number.isFinite(lp.f3dbExact) ? lp.f3dbExact : null, unit: 'Hz', formulaId: 'F-12.7', claim: 'exact', analytic: Number.isFinite(au.f3dbNumeric) ? au.f3dbNumeric : undefined, tolerance: checkTolerance(lp.p), toleranceMode: 'rel', note: Number.isFinite(lp.f3dbExact) ? String.raw`解析欄：二分法解 $|H|^2=\tfrac12|H(1)|^2$` : String.raw`不存在（需 $3-2\sqrt2\le p<1$）` },
     { name: String.raw`$(1-p)f_u/2\pi$ 近似`, value: Number.isFinite(lp.f3dbOneMinusP) ? lp.f3dbOneMinusP : null, unit: 'Hz', formulaId: 'F-12.8', claim: 'approx', analytic: Number.isFinite(lp.f3dbExact) ? lp.f3dbExact : undefined, note: String.raw`與 exact 的差 $\approx-(1-p)/2$（相對）` },
     { name: String.raw`$-\ln p\cdot f_u/2\pi$ 近似`, value: Number.isFinite(lp.f3dbNegLnP) ? lp.f3dbNegLnP : null, unit: 'Hz', formulaId: 'F-12.8', claim: 'approx', analytic: Number.isFinite(lp.f3dbExact) ? lp.f3dbExact : undefined },
     { name: 'One-sided ENBW', value: Number.isFinite(lp.enbw) ? lp.enbw : null, unit: 'Hz', formulaId: 'F-12.9', claim: 'exact', analytic: Number.isFinite(au.enbwNumeric) ? au.enbwNumeric : undefined, tolerance: checkTolerance(lp.p), toleranceMode: 'rel', note: String.raw`解析欄：$\int_0^{f_u/2}|H|^2df/|H(1)|^2$ 的數值積分` },
-    { name: String.raw`$\sqrt{S_w^{(1)}(0)\cdot f_{3\mathrm{dB}}}$（把 −3 dB 誤當 Noise BW）`, value: Number.isFinite(au.sigmaFromF3db) ? au.sigmaFromF3db : null, unit: 'fs', claim: 'approx', analytic: stable ? lp.sigmaW : undefined, note: String.raw`E06：低估約 $1-\sqrt{2/\pi}\approx20\%$` },
+    { name: String.raw`$\sqrt{S_w^{(1)}(0)\cdot f_{3\mathrm{dB}}}$（把 $-3\,\mathrm{dB}$ 誤當 Noise BW）`, value: Number.isFinite(au.sigmaFromF3db) ? au.sigmaFromF3db : null, unit: 'fs', claim: 'approx', analytic: stable ? lp.sigmaW : undefined, note: String.raw`E06：低估約 $1-\sqrt{2/\pi}\approx20\%$` },
     { name: String.raw`$f_{3\mathrm{dB}}$ 以下的雜訊功率比例`, value: Number.isFinite(au.fracBelowF3db) ? au.fracBelowF3db : null, claim: 'exact', note: String.raw`$F(f)=\frac2\pi\arctan\!\big(\frac{1+p}{1-p}\tan\frac{\Omega}{2}\big)$；約一半，不是全部` },
     { name: String.raw`$1\,\mathrm{fs}$ 對應的相位（在 $f_{\mathrm{out}}$）`, value: au.radPerFs, unit: 'rad', claim: 'exact', note: String.raw`$2\pi f_{\mathrm{out}}\times10^{-15}$` },
     { name: String.raw`Spur $20\log_{10}(\beta/2)$`, value: au.spurDbc, unit: 'dBc', formulaId: 'F-12.18', claim: 'approx', analytic: au.spurDbcBessel, tolerance: 0.01, note: String.raw`解析欄：Bessel 精確值 $20\log_{10}(J_1/J_0)$；$\beta=${texNum(au.beta)}\,\mathrm{rad}$、$|T|=1$` },
@@ -364,13 +364,13 @@ export function UnitsCalculator() {
       shapes.push(vline(x, activeColor, dash))
       annotations.push({ x: Math.log10(x), xref: 'x', y, yref: 'paper', text: label, showarrow: false, font: { size: 11, color: tokens.textMuted }, xanchor: 'left', xshift: 3 })
     }
-    mark(lp.f3dbOneMinusP, '(1−p)', 'dot', 0.28)
-    mark(lp.f3dbExact, 'f_3dB', 'solid', 0.16)
-    mark(lp.enbw, 'ENBW', 'dash', 0.04)
+    mark(lp.f3dbOneMinusP, String.raw`$(1-p)$`, 'dot', 0.28)
+    mark(lp.f3dbExact, String.raw`$f_{3\mathrm{dB}}$`, 'solid', 0.16)
+    mark(lp.enbw, String.raw`$\mathrm{ENBW}$`, 'dash', 0.04)
     shapes.push({ type: 'line', xref: 'paper', yref: 'y', x0: 0, x1: 1, y0: -3.0103, y1: -3.0103, line: { color: tokens.textMuted, width: 1, dash: 'dot' } })
     return {
-      xaxis: { title: { text: 'f [Hz]（block-rate 序列：0 … f_u/2）' } },
-      yaxis: { title: { text: '|H|² / |H(0)|²  [dB]' } },
+      xaxis: { title: { text: String.raw`$f$ [Hz]（block-rate 序列：$0\ldots f_u/2$）` } },
+      yaxis: { title: { text: String.raw`$|H|^2/|H(0)|^2$ [dB]` } },
       shapes,
       annotations,
     }
@@ -379,16 +379,16 @@ export function UnitsCalculator() {
   const fracData: Data[] = useMemo(() => {
     const out: Data[] = curves
       .filter((c) => c.ok)
-      .map((c) => ({ x: c.c.f, y: c.c.frac, name: `Case ${c.id}：F(f)`, mode: 'lines', line: { color: tokens.series[c.seriesIndex] } }))
+      .map((c) => ({ x: c.c.f, y: c.c.frac, name: String.raw`Case ${c.id}：$F(f)$`, mode: 'lines', line: { color: tokens.series[c.seriesIndex] } }))
     const a = curves.find((c) => c.id === active.id)
-    if (a && a.ok) out.push({ x: a.c.f, y: a.c.rect.map((v) => Math.min(1, v)), name: `Case ${a.id}：矩形近似 min(1, f/ENBW)`, mode: 'lines', line: { color: tokens.series[a.seriesIndex], dash: 'dash', width: 1.5 } })
+    if (a && a.ok) out.push({ x: a.c.f, y: a.c.rect.map((v) => Math.min(1, v)), name: String.raw`Case ${a.id}：矩形近似 $\min(1,\ f/\mathrm{ENBW})$`, mode: 'lines', line: { color: tokens.series[a.seriesIndex], dash: 'dash', width: 1.5 } })
     return out
   }, [curves, tokens, active.id])
   const fracLayout: Partial<Layout> = useMemo(() => {
     const shapes: Partial<Shape>[] = [{ type: 'line', xref: 'paper', yref: 'y', x0: 0, x1: 1, y0: 0.5, y1: 0.5, line: { color: tokens.textMuted, width: 1, dash: 'dot' } }]
     if (Number.isFinite(lp.f3dbExact)) shapes.push(vline(lp.f3dbExact, activeColor, 'solid'))
     if (Number.isFinite(lp.enbw) && lp.enbw > 0) shapes.push(vline(lp.enbw, activeColor, 'dash'))
-    return { xaxis: { title: { text: 'f [Hz]' } }, yaxis: { title: { text: '0 … f 的雜訊功率比例 F(f)' }, range: [0, 1.05] }, shapes }
+    return { xaxis: { title: { text: '$f$ [Hz]' } }, yaxis: { title: { text: String.raw`$0\ldots f$ 的雜訊功率比例 $F(f)$` }, range: [0, 1.05] }, shapes }
   }, [lp.f3dbExact, lp.enbw, activeColor, tokens])
 
   const traceData: Data[] = useMemo(() => {
@@ -399,7 +399,7 @@ export function UnitsCalculator() {
       out.push({
         x: Array.from({ length: e.res.trace.length }, (_, i) => i),
         y: Array.from(e.res.trace),
-        name: `Case ${c.id}：δ_k（chain 0）`,
+        name: String.raw`Case ${c.id}：$\delta_k$（chain 0）`,
         mode: 'lines',
         line: { color: tokens.series[c.seriesIndex], width: 1 },
       })
@@ -411,7 +411,7 @@ export function UnitsCalculator() {
     const shapes: Partial<Shape>[] = Number.isFinite(s)
       ? [s, -s].map((y) => ({ type: 'line' as const, xref: 'paper' as const, yref: 'y' as const, x0: 0, x1: 1, y0: y, y1: y, line: { color: tokens.textMuted, width: 1, dash: 'dash' as const } }))
       : []
-    return { xaxis: { title: { text: 'block k（burn-in 之後）' } }, yaxis: { title: { text: 'δ_k = a − w_k  [fs]' } }, shapes }
+    return { xaxis: { title: { text: 'block $k$（burn-in 之後）' } }, yaxis: { title: { text: String.raw`$\delta_k = a - w_k$ [fs]` } }, shapes }
   }, [stable, lp.sigmaW, tokens])
 
   const c = cases.active.params
@@ -615,7 +615,7 @@ export function UnitsCalculator() {
               clampOnBlur
               unit="blocks"
               reg="behavioral：num_blocks（不含 burn-in）"
-              hint={mathText(String.raw`chains ×（burn-in + blocks）超過 $2\times10^5$ 時自動減少（1-bit 引擎在 $N>3600$ 時上限依 $\sqrt N$ 再降低）；burn-in 放不下時不做判定`)}
+              hint={mathText(String.raw`chains $\times$（burn-in + blocks）超過 $2\times10^5$ 時自動減少（1-bit 引擎在 $N>3600$ 時上限依 $\sqrt N$ 再降低）；burn-in 放不下時不做判定`)}
             />
           </>
         }
@@ -642,7 +642,7 @@ export function UnitsCalculator() {
                 unit="1"
                 note={String.raw`$\mathrm{fs}\times\mathrm{fs^{-1}}$ 相消：$${texNum(c.mu)}\times${texNum(lp.K, 5)}${sumMode ? String.raw`\times${c.N}` : ''}$`}
               />
-              <ChainRow name="Pole" tex="p=1-g" value={texNum(lp.p, 7)} unit="1" note={REGIME_LABEL[lp.regime]} />
+              <ChainRow name="Pole" tex="p=1-g" value={texNum(lp.p, 7)} unit="1" note={regimeLabelTex(REGIME_LABEL[lp.regime])} />
               <ChainRow
                 name="時間常數"
                 tex={String.raw`\tau=\frac{-1}{\ln|p|}`}
@@ -663,7 +663,7 @@ export function UnitsCalculator() {
                 }
               />
               <ChainRow
-                name="−3 dB corner（exact）"
+                name={String.raw`$-3\,\mathrm{dB}$ corner（exact）`}
                 tex={String.raw`\Omega_{3\mathrm{dB}}=2\arcsin\frac{1-p}{2\sqrt p}`}
                 value={Number.isFinite(lp.f3dbExact) ? texNum(au.omega3dbBlock, 6) : String.raw`\text{—}`}
                 unit={String.raw`\mathrm{rad/block}`}
@@ -758,7 +758,9 @@ export function UnitsCalculator() {
                         <td data-label="f_3dB">{Number.isFinite(l.f3dbExact) ? <Tex>{texHz(l.f3dbExact)}</Tex> : dash}</td>
                         <td data-label="ENBW">{Number.isFinite(l.enbw) ? <Tex>{texHz(l.enbw)}</Tex> : dash}</td>
                         <td data-label="MC">{m && Number.isFinite(m.sigmaHat) ? <Tex>{`${texNum(m.sigmaHat)}${m.valid ? String.raw`\ (z=${texNum(m.z, 2)})` : String.raw`\ \text{（不判定）}`}`}</Tex> : dash}</td>
-                        <td data-label="型態">{REGIME_LABEL[l.regime]}</td>
+                        <td data-label="型態">
+                          <Rich text={regimeLabelTex(REGIME_LABEL[l.regime])} />
+                        </td>
                       </tr>
                     )
                   })}
@@ -779,7 +781,7 @@ export function UnitsCalculator() {
           caption={
             h2Data.length === 0
               ? '沒有穩定的 case 可畫：$|p|\\ge1$ 時 $H_{\\eta\\to w}$ 沒有頻率響應可言。'
-              : '解析曲線 $|H|^2/|H(1)|^2=(1-p)^2/(1-2p\\cos\\Omega+p^2)$，$\\Omega=2\\pi f/f_u$（block-rate，單邊 $0\\dots f_u/2$）。實線：exact −3 dB；點線：$(1-p)$ 近似；虛線：ENBW（積分用的等效矩形寬度）。水平點線是 −3.01 dB。'
+              : '解析曲線 $|H|^2/|H(1)|^2=(1-p)^2/(1-2p\\cos\\Omega+p^2)$，$\\Omega=2\\pi f/f_u$（block-rate，單邊 $0\\dots f_u/2$）。實線：exact $-3\\,\\mathrm{dB}$；點線：$(1-p)$ 近似；虛線：$\\mathrm{ENBW}$（積分用的等效矩形寬度）。水平點線是 $-3.01\\,\\mathrm{dB}$。'
           }
         />
         <Plot
@@ -827,7 +829,7 @@ export function mcRunNote(info: McRunInfo | null, mode: 'worker' | 'inline'): st
 function ChainRow({ name, tex, value, unit, note }: { name: string; tex: string; value: string; unit: string; note?: string }) {
   return (
     <tr>
-      <td data-label="量">{name}</td>
+      <td data-label="量">{mathText(name)}</td>
       <td data-label="怎麼算">
         <Tex>{tex}</Tex>
       </td>

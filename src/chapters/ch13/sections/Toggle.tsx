@@ -193,8 +193,8 @@ export function ToggleSection() {
         csvName="ch13-toggle-lines"
         layout={{
           barmode: 'group',
-          xaxis: { title: { text: 'f / f_u' }, tickvals: [0.2, 0.4], ticktext: ['f_u/5', '2f_u/5'] },
-          yaxis: { title: { text: '線功率 [LSB²]' } },
+          xaxis: { title: { text: String.raw`$f / f_u$` }, tickvals: [0.2, 0.4], ticktext: [String.raw`$f_u/5$`, String.raw`$2f_u/5$`] },
+          yaxis: { title: { text: String.raw`線功率 [$\mathrm{LSB}^2$]` } },
         }}
         caption={
           <>

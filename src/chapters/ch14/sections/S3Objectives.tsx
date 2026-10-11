@@ -352,8 +352,8 @@ export function S3Objectives() {
         data={plot.traces}
         layout={{
           shapes: plot.shapes,
-          xaxis: { title: { text: 'μ（fs，log）' } },
-          yaxis: { title: { text: 'J(μ)/J(μ*)' }, range: [-0.05, 1.3] },
+          xaxis: { title: { text: String.raw`$\mu$（fs，log）` } },
+          yaxis: { title: { text: String.raw`$J(\mu)/J(\mu^*)$` }, range: [-0.05, 1.3] },
         }}
         xLog
         yLog

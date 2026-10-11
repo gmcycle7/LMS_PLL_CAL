@@ -1,6 +1,8 @@
 import { act, configure, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
+import { plotMath } from '@/components'
+import { allChartStrings, chartStringProblems } from '../chartStrings.testutil'
 import { DitherSection } from './Dither'
 
 // 多個 agent／開發者同時跑測試時 CPU 會嚴重超額（load average 曾達數百），jsdom 渲染與 Monte Carlo 比平常慢一到兩個數量級：
@@ -24,6 +26,20 @@ const P = vi.hoisted(() => ({
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
 vi.mock('plotly.js-dist-min', () => ({ default: P }))
+
+// 圖內文字（軸標題、圖例名稱）的數學一律寫 `$...$`：<Plot> 先套用 applyPlotMath 再交給 Plotly，
+// 所以在轉換前記下作者寫的字串（chartStrings.testutil.ts），Plotly.react 看到的則是轉換後的 pseudo-HTML。
+const plotCalls = vi.hoisted(() => [] as { data: unknown; layout: unknown }[])
+vi.mock('@/components/plotMath', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/plotMath')>()
+  return {
+    ...actual,
+    applyPlotMath: (data: unknown, layout: unknown) => {
+      plotCalls.push({ data, layout })
+      return actual.applyPlotMath(data, layout)
+    },
+  }
+})
 
 function lastPlotWith(pred: (t: Trace) => boolean): Trace[] | undefined {
   for (let i = P.react.mock.calls.length - 1; i >= 0; i--) {
@@ -56,7 +72,10 @@ function renderDither(url = '/ch/05') {
 }
 
 describe('Dither 實驗（§7：雜訊像 dither）', () => {
-  beforeEach(() => P.react.mockClear())
+  beforeEach(() => {
+    P.react.mockClear()
+    plotCalls.length = 0
+  })
 
   it('預設 Case A/B/C（σ_v = 0 / 1 / 30 fs）：σ_v = 0 出現 limit-cycle 警告（偏差 0.15 fs），MC 與精確穩態一致', async () => {
     const errSpy = vi.spyOn(console, 'error')
@@ -78,14 +97,19 @@ describe('Dither 實驗（§7：雜訊像 dither）', () => {
     expect(container.textContent).toContain('MC 時間平均落在解析值的容差內')
     // 精確穩態 π(w)：σ_v = 0 只有兩個支撐點、各 ½
     // Plot 在 passive effect 裡才呼叫 Plotly.react：文字出現後圖不一定已經送出，所以用 waitFor 等到那張圖
-    const isPi = (t: Trace) => (t.name ?? '').includes('精確穩態 π(w)')
+    // 圖例名稱是 LaTeX（`$\\pi(w)$`）：Plotly 看到的是轉換後的斜體符號
+    const piName = plotMath(String.raw`精確穩態 $\pi(w)$`)
+    expect(piName).toBe('精確穩態 <i>π</i>(<i>w</i>)')
+    const isPi = (t: Trace) => (t.name ?? '').includes(piName)
     await waitFor(() => expect(lastPlotWith(isPi)?.length).toBe(3))
     const pi = lastPlotWith(isPi)!
     const piA = pi.find((t) => (t.name ?? '').startsWith('A '))!
     expect(Array.from(piA.x!)).toEqual([1, 1.5])
     expect(Array.from(piA.y!)).toEqual([0.5, 0.5])
     // 軌跡圖：三個 Case 都從 w₀ = 0 出發（同一個 seed 的 paired comparison）
-    const isTrajC = (t: Trace) => (t.name ?? '').startsWith('C：σ_v = 30 fs')
+    const trajC = plotMath(String.raw`C：$\sigma_v =$ 30 fs`)
+    expect(trajC).toBe('C：<i>σ</i><sub><i>v</i></sub> = 30 fs')
+    const isTrajC = (t: Trace) => (t.name ?? '').startsWith(trajC)
     await waitFor(() => expect(lastPlotWith(isTrajC)).toBeTruthy())
     const traj = lastPlotWith(isTrajC)!
     expect(traj.length).toBe(3)
@@ -93,6 +117,17 @@ describe('Dither 實驗（§7：雜訊像 dither）', () => {
     // 表格：捨入誤差等級的精確偏差不顯示成有效數字
     expect(container.textContent).toContain('≈ 0（< 1e-9）')
     expect(container.textContent).not.toMatch(/\d\.\d+e-1[0-9]/)
+    // 圖內數學：四張圖的軸標題、圖例名稱都是成對的 $...$ LaTeX，公式以外沒有 Unicode 拼的數學；轉換後沒有殘留的 TeX
+    expect(chartStringProblems(plotCalls)).toEqual([])
+    const strings = allChartStrings(plotCalls)
+    for (const t of ['$n$', '$w_n$（fs）', String.raw`$\bar w_n$（fs）`, '$w$（fs）', String.raw`$\pi(w)$`, String.raw`$\sigma_v$（fs）`]) expect(strings, t).toContain(t)
+    expect(strings.some((t) => t.includes(String.raw`時間平均 $\bar w_n$`))).toBe(true)
+    expect(strings.some((t) => t.includes(String.raw`$\mathrm{RMS}(w - a)$（精確）`))).toBe(true)
+    expect(plotMath(String.raw`$\bar w_n$（fs）`)).toBe('<i>w̄</i><sub><i>n</i></sub>（fs）')
+    const axes = P.react.mock.calls.map((c) => c[2] as { xaxis?: { title?: { text?: string } }; yaxis?: { title?: { text?: string } } } | undefined)
+    const axisTexts = axes.flatMap((l) => [l?.xaxis?.title?.text ?? '', l?.yaxis?.title?.text ?? ''])
+    expect(axisTexts).toContain(plotMath(String.raw`$\sigma_v$（fs）`))
+    expect(axisTexts.filter((t) => /[$\\{}]/.test(t))).toEqual([])
     const real = errSpy.mock.calls.map((c) => String(c[0])).filter((m) => !/not wrapped in act/.test(m))
     expect(real).toEqual([])
     errSpy.mockRestore()
@@ -118,6 +153,8 @@ describe('Dither 實驗（§7：雜訊像 dither）', () => {
     const { container } = renderDither('/ch/05?preset=comparator-dither-tradeoff')
     await waitFor(() => expect(container.textContent).toContain('Case C'))
     await waitFor(() => expect(container.textContent).toContain('Monte Carlo 完成'))
-    await waitFor(() => expect(lastPlotWith((t) => (t.name ?? '').startsWith('B：σ_v = 1 fs、μ = 0.5 fs'))).toBeTruthy())
+    const trajB = plotMath(String.raw`B：$\sigma_v =$ 1 fs、$\mu =$ 0.5 fs`)
+    expect(trajB).toBe('B：<i>σ</i><sub><i>v</i></sub> = 1 fs、<i>μ</i> = 0.5 fs')
+    await waitFor(() => expect(lastPlotWith((t) => (t.name ?? '').startsWith(trajB))).toBeTruthy())
   }, SLOW)
 })

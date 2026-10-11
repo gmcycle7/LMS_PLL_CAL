@@ -383,7 +383,7 @@ export function MimoLab() {
   // ── 指標 ──
   const metrics: MetricRow[] = []
   if (!plant.errors.length) {
-    metrics.push({ name: String.raw`$K_q=\sqrt{2/\pi}/\sigma_v$`, value: plant.Kq, unit: 'fs⁻¹', formulaId: 'F-10.1', claim: 'approx', digits: 6 })
+    metrics.push({ name: String.raw`$K_q=\sqrt{2/\pi}/\sigma_v$`, value: plant.Kq, unit: String.raw`$\mathrm{fs}^{-1}$`, formulaId: 'F-10.1', claim: 'approx', digits: 6 })
     if (eff.params.mode === 'R') {
       metrics.push({ name: String.raw`$\lambda_{\max}(\mathbf R)$`, value: plant.modeValues[0], claim: 'exact' })
       metrics.push({ name: String.raw`$\lambda_{\min}(\mathbf R)$`, value: plant.modeValues[P - 1], claim: 'exact', note: plant.modeValues[P - 1] <= 1e-12 ? '不可辨識（缺乏 PE）' : undefined })
@@ -426,7 +426,7 @@ export function MimoLab() {
       metrics.push({
         name: String.raw`MC $\operatorname{Var}(\delta_{${i + 1}})$（Case ${mc.caseId}）`,
         value: mc.res.cov[i][i],
-        unit: 'fs²',
+        unit: String.raw`$\mathrm{fs}^2$`,
         analytic: mc.res.covAnalytic ? mc.res.covAnalytic[i][i] : undefined,
         tolerance: mc.res.covAnalytic ? 4 * se : undefined,
         claim: 'approx',
@@ -477,19 +477,19 @@ export function MimoLab() {
     [freezeAt, tokens],
   )
   const trajLayout = useMemo(
-    () => ({ xaxis: { title: { text: 'block k' } }, yaxis: { title: { text: 'δ_{k,i} = a_i − w_{k,i} (fs)' } }, shapes: freezeShapes }),
+    () => ({ xaxis: { title: { text: 'block $k$' } }, yaxis: { title: { text: String.raw`$\delta_{k,i} = a_i - w_{k,i}$ (fs)` } }, shapes: freezeShapes }),
     [freezeShapes],
   )
-  const normLayout = useMemo(() => ({ xaxis: { title: { text: 'block k' } }, yaxis: { title: { text: '‖δ_k‖ (fs)' } }, shapes: freezeShapes }), [freezeShapes])
-  const poleLayout = useMemo(() => ({ xaxis: { title: { text: 'Re' }, zeroline: true }, yaxis: { title: { text: 'Im' }, scaleanchor: 'x' as const, scaleratio: 1 } }), [])
+  const normLayout = useMemo(() => ({ xaxis: { title: { text: 'block $k$' } }, yaxis: { title: { text: String.raw`$\|\delta_k\|$ (fs)` } }, shapes: freezeShapes }), [freezeShapes])
+  const poleLayout = useMemo(() => ({ xaxis: { title: { text: String.raw`$\mathrm{Re}$` }, zeroline: true }, yaxis: { title: { text: String.raw`$\mathrm{Im}$` }, scaleanchor: 'x' as const, scaleratio: 1 } }), [])
   const phaseLayout = useMemo(
     () => ({
-      xaxis: { title: { text: 'δ₁ (fs)' }, range: [-L, L] },
-      yaxis: { title: { text: 'δ₂ (fs)' }, range: [-L, L], scaleanchor: 'x' as const, scaleratio: 1 },
+      xaxis: { title: { text: String.raw`$\delta_1$ (fs)` }, range: [-L, L] },
+      yaxis: { title: { text: String.raw`$\delta_2$ (fs)` }, range: [-L, L], scaleanchor: 'x' as const, scaleratio: 1 },
     }),
     [L],
   )
-  const mcLayout = useMemo(() => ({ xaxis: { title: { text: 'δ₁ (fs)' } }, yaxis: { title: { text: 'δ₂ (fs)' }, scaleanchor: 'x' as const, scaleratio: 1 } }), [])
+  const mcLayout = useMemo(() => ({ xaxis: { title: { text: String.raw`$\delta_1$ (fs)` } }, yaxis: { title: { text: String.raw`$\delta_2$ (fs)` }, scaleanchor: 'x' as const, scaleratio: 1 } }), [])
   const poleData = useMemo(() => poleTraces(analyses, caseIds, tokens), [analyses, caseIds, tokens])
   const normData = useMemo(() => normTraces(allTraj, tokens, kView), [allTraj, tokens, kView])
   const mcData = useMemo(() => (mc && mc.res.ok ? mcTraces(mc.res, tokens, tokens.series[Math.max(0, CASE_IDS.indexOf(mc.caseId))]) : []), [mc, tokens])
@@ -586,7 +586,7 @@ export function MimoLab() {
             onChange={(A) => set('Jn', embedMat(params.Jn, A))}
             min={-10}
             max={10}
-            reg="MEAS_J[i][j]（量測 Jacobian / K_q）"
+            reg="MEAS_J[i][j]"
             unit="無因次"
             hint={String.raw`$J_{ij}=\partial E[G_i]/\partial w_j$；對角 $<0$ 代表單一 loop 極性正確。T18：$\begin{bmatrix}-1&2\\2&-1\end{bmatrix}$`}
           />
@@ -741,7 +741,7 @@ export function MimoLab() {
             step={0.0001}
             digits={6}
             unit="無因次"
-            reg="REG_CAL_MU（× K_q）"
+            reg="REG_CAL_MU"
             hint={mathText(String.raw`實體 $\mu=\mu K_q/K_q=${tn(activeCase.muKq / (Math.sqrt(2 / Math.PI) / params.sigmaV), 4)}\ \mathrm{fs}$（勘誤 E05）`)}
           />
         )}
@@ -787,7 +787,7 @@ export function MimoLab() {
               max={100}
               step={0.00001}
               digits={6}
-              unit={activeCase.regForm === 'R' ? '無因次（R 尺度）' : '無因次（J_n² 尺度）'}
+              unit={activeCase.regForm === 'R' ? String.raw`無因次（$\mathbf R$ 尺度）` : String.raw`無因次（$J_n^2$ 尺度）`}
               reg="REG_CAL_LAMBDA_REG"
               hint={mathText(
                 activeCase.regForm === 'R'
@@ -897,7 +897,14 @@ export function MimoLab() {
       controls={controls}
     >
       <div className="ch10-kpi">
-        <KPI label={<Tex>{'K_q'}</Tex>} value={`${n(plant.Kq, 4)} fs⁻¹`} />
+        <KPI
+          label={<Tex>{'K_q'}</Tex>}
+          value={
+            <>
+              {n(plant.Kq, 4)} <Tex>{String.raw`\mathrm{fs}^{-1}`}</Tex>
+            </>
+          }
+        />
         <KPI
           label={<Tex>{eff.params.mode === 'R' ? String.raw`\lambda_i(\mathbf R)` : String.raw`\sigma_i(\mathbf J_n)`}</Tex>}
           value={plant.modeValues.map((v) => n(v, 4)).join(' / ') || '—'}
@@ -929,7 +936,7 @@ export function MimoLab() {
       {plant.errors.length === 0 && inspection && (
         <details className="ch10-deriv" open>
           <summary>
-            <span className="ch10-deriv-badge">Matrix Inspector</span> eigen / singular values、反矩陣、M 與 A = I + MJ（Case {eff.activeId}）
+            <span className="ch10-deriv-badge">Matrix Inspector</span> eigen / singular values、反矩陣、<Tex>{String.raw`\mathbf M`}</Tex> 與 <Tex>{String.raw`\mathbf A=\mathbf I+\mathbf M\mathbf J`}</Tex>（Case {eff.activeId}）
           </summary>
           <div className="ch10-deriv-body">
             <div className="grid-2">
@@ -1094,18 +1101,18 @@ export function MimoLab() {
                 <tr key={a.rule} className={a.rule === activeCfg.rule ? 'ch10-hl' : undefined}>
                   <td>{RULE_SHORT[a.rule]}</td>
                   <td className="ch10-num">{a.ok ? n(a.spectralRadius, 5) : '—'}</td>
-                  <td className="ch10-num">{a.ok ? (a.blocks95 === null ? '∞ / 未達成' : nint(a.blocks95)) : '—'}</td>
+                  <td className="ch10-num">{a.ok ? (a.blocks95 === null ? mathText(String.raw`$\infty$ / 未達成`) : nint(a.blocks95)) : '—'}</td>
                   <td className="ch10-num">{rms !== null ? `${n(rms, 4)} fs` : '—'}</td>
-                  <td className="ch10-num">{rms !== null && baseRms ? `×${n(rms / baseRms, 3)}` : '—'}</td>
+                  <td className="ch10-num">{rms !== null && baseRms ? <Tex>{String.raw`\times${tn(rms / baseRms, 3)}`}</Tex> : '—'}</td>
                   <td className="ch10-num">{a.validityIndex !== null ? n(a.validityIndex, 2) : '—'}</td>
                   <td className={a.ok && a.stable && !(a.rule === 'sequential' && a.blocks95 === null) ? 'ch10-good small' : 'ch10-bad small'}>
                     {a.ok
                       ? !a.stable
                         ? Math.abs(a.spectralRadius - 1) <= MARGINAL_TOL
-                          ? '臨界（|pole| = 1：不收斂）'
+                          ? mathText(String.raw`臨界（$|p|=1$：不收斂）`)
                           : '發散'
                         : a.rule === 'sequential' && a.blocks95 === null
-                          ? '排程結束時誤差仍 > 5%（未收斂就凍結）'
+                          ? mathText(String.raw`排程結束時誤差仍 $>5\%$（未收斂就凍結）`)
                           : '穩定'
                       : a.error}
                   </td>
@@ -1117,7 +1124,7 @@ export function MimoLab() {
       </div>
       <p className="small muted">
         有效性指標 = <Tex>{String.raw`\operatorname{tr}(\mathbf R_u\operatorname{Cov}\boldsymbol\delta)/\sigma_v^2`}</Tex>，需 <Tex>{String.raw`\ll1`}</Tex> 才能用{' '}
-        <Tex>{'K_q'}</Tex> 線性化（§10.4.1 Research）。Sequential 的 RMS 是排程結束凍結時的值。雜訊懲罰 = 該規則的 RMS ÷ Scalar 的 RMS（同一組超參數）。
+        <Tex>{'K_q'}</Tex> 線性化（§10.4.1 Research）。Sequential 的 RMS 是排程結束凍結時的值。雜訊懲罰 = 該規則的 RMS 除以 Scalar 的 RMS（同一組超參數）。
       </p>
 
       <h3 className="ch10-sub">穩態共變異：Monte Carlo vs 公式（Case {mc?.caseId ?? eff.activeId}）</h3>
@@ -1141,7 +1148,7 @@ export function MimoLab() {
             height={320}
             csvName="ch10-mc-scatter"
             layout={mcLayout}
-            caption={`${mc.res.chains} chains × ${mc.res.recordBlocks} blocks（burn-in ${mc.res.burnIn}）；${mc.res.samplesUsed > 0 ? `${n(mc.res.samplesUsed, 3)} comparator samples` : '線性引擎'}。`}
+            caption={`${mc.res.chains} chains $\\times$ ${mc.res.recordBlocks} blocks（burn-in ${mc.res.burnIn}）；${mc.res.samplesUsed > 0 ? `${n(mc.res.samplesUsed, 3)} comparator samples` : '線性引擎'}。`}
           />
           <div className="table-wrap">
             <table>

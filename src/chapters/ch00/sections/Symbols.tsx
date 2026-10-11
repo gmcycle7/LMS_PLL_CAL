@@ -42,7 +42,7 @@ export const SYMBOLS: SymbolEntry[] = [
       </>
     ),
     firstSeen: '章首圖例',
-    note: 'Mermaid 的圖不排版 KaTeX，所以圖上用方括號代替下標',
+    note: '圖上的公式也用 KaTeX 排版；時間索引寫成方括號，和正文的下標是同一個意思',
   },
   {
     symbol: '\\mu',
@@ -116,7 +116,11 @@ export const SYMBOLS: SymbolEntry[] = [
     ),
     unit: '[w]/([e][x])',
     firstSeen: '§0.6',
-    note: '§0.5 的 μ 地圖用同一個界（F-00.5）',
+    note: (
+      <>
+        §0.5 的 <Tex>{'\\mu'}</Tex> 地圖用同一個界（F-00.5）
+      </>
+    ),
   },
   {
     symbol: 'j_n=\\tfrac12e_n^2',

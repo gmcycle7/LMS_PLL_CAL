@@ -195,7 +195,7 @@ export function caseWarnings(tag: string, c: CaseConfig, an: AlgoAnalysis[], run
         )
       if (c.nlmsEps === 0 && c.xKind === 'gauss')
         w.push(
-          String.raw`${tag}NLMS：$\varepsilon=0$ 且 Gaussian $x$ 可任意接近 0：更新量 $\tilde\mu\,e\,x/x^2=\tilde\mu\,e/x$（雜訊被 $1/x$ 放大），$E[v^2/x^2]=\infty$——$w_n$ 是重尾分布，穩態變異數無限大，「MC 平均 ± CI」不可靠。請設 $\varepsilon>0$。`,
+          String.raw`${tag}NLMS：$\varepsilon=0$ 且 Gaussian $x$ 可任意接近 0：更新量 $\tilde\mu\,e\,x/x^2=\tilde\mu\,e/x$（雜訊被 $1/x$ 放大），$E[v^2/x^2]=\infty$——$w_n$ 是重尾分布，穩態變異數無限大，「MC 平均 $\pm$ CI」不可靠。請設 $\varepsilon>0$。`,
         )
       else if (c.nlmsEps === 0 && c.xKind === 'uniformPos')
         w.push(
@@ -306,13 +306,13 @@ export function SignLmsCompare() {
     if (!run || !an) return []
     const N = dShared.steps
     const idx = decimate(N + 1, 3000)
-    const out: Data[] = [{ x: [0, N], y: [dShared.a, dShared.a], name: 'a', mode: 'lines', line: { color: tokens.textMuted, dash: 'dash' } }]
+    const out: Data[] = [{ x: [0, N], y: [dShared.a, dShared.a], name: '$a$', mode: 'lines', line: { color: tokens.textMuted, dash: 'dash' } }]
     for (const a of an) {
       const w = run.w[a.algo]
       if (!w) continue
       out.push({ x: idx, y: idx.map((i) => w[i]), name: ALGO_LABEL[a.algo], mode: 'lines', line: { color: tokens.series[ALGO_SERIES[a.algo]], width: 1.5 } })
       if (a.mf.identifiable && Math.abs(a.mf.wStar - dShared.a) > 1e-6 * (1 + Math.abs(dShared.a)))
-        out.push({ x: [0, N], y: [a.mf.wStar, a.mf.wStar], name: `w*（${ALGO_LABEL[a.algo]}）`, mode: 'lines', line: { color: tokens.series[ALGO_SERIES[a.algo]], dash: 'dot', width: 1 } })
+        out.push({ x: [0, N], y: [a.mf.wStar, a.mf.wStar], name: String.raw`$w^*$（${ALGO_LABEL[a.algo]}）`, mode: 'lines', line: { color: tokens.series[ALGO_SERIES[a.algo]], dash: 'dot', width: 1 } })
     }
     return out
   }, [runs, analysis, activeIdx, dShared, tokens])
@@ -487,8 +487,8 @@ export function SignLmsCompare() {
           <AlgoToggles value={shared.algos} onChange={(v) => setS('algos', v)} />
           <fieldset className="ch02-controls-group">
             <legend>共用參數</legend>
-            <ParamControl {...lab(String.raw`$a$（真實係數）`, 'a（真實係數）')} unit="同 y/x" value={shared.a} onChange={(v) => setS('a', v)} min={-10} max={10} step={0.01} reg="behavioural: true gain a" />
-            <ParamControl {...lab(String.raw`$w_0$（初值）`, 'w₀（初值）')} unit="同 a" value={shared.w0} onChange={(v) => setS('w0', v)} min={-10} max={10} step={0.01} reg="REG_W_INIT" />
+            <ParamControl {...lab(String.raw`$a$（真實係數）`, 'a（真實係數）')} unit="同 $y/x$" value={shared.a} onChange={(v) => setS('a', v)} min={-10} max={10} step={0.01} reg="behavioural: true gain a" />
+            <ParamControl {...lab(String.raw`$w_0$（初值）`, 'w₀（初值）')} unit="同 $a$" value={shared.w0} onChange={(v) => setS('w0', v)} min={-10} max={10} step={0.01} reg="REG_W_INIT" />
             <ParamControl {...lab(String.raw`步數 $N$`, '步數 N')} unit="samples" value={shared.steps} onChange={(v) => setS('steps', v)} min={10} max={20000} integer clampOnBlur reg="sim length（samples）" />
             <ParamControl label="MC seeds 數" unit="seeds" value={shared.runs} onChange={(v) => setS('runs', v)} min={4} max={256} integer clampOnBlur reg="Monte Carlo runs" hint={effRuns < shared.runs ? `為控制計算量，實際使用 ${effRuns}` : undefined} />
             <SelectControl
@@ -518,14 +518,14 @@ export function SignLmsCompare() {
             <SelectControl {...lab(String.raw`$x$ 的分布`, 'x 的分布')} value={active.xKind} onChange={(v) => set('xKind', v)} options={X_KINDS.map((k) => ({ value: k, label: X_KIND_LABEL[k] }))} reg="behavioural: DSM/code distribution" />
             <ParamControl {...lab(String.raw`$x$ 的幅度 $A$`, 'x 幅度 A')} unit="無因次" value={active.xAmp} onChange={(v) => set('xAmp', v)} min={0} max={4} step={0.01} reg="behavioural: code scale" />
             <SelectControl label="雜訊形狀" value={active.noiseKind} onChange={(v) => set('noiseKind', v)} options={NOISE_KINDS.map((k) => ({ value: k, label: NOISE_KIND_LABEL[k] }))} reg="behavioural: comparator-input noise pdf" />
-            <ParamControl {...lab(String.raw`$\sigma_v$（雜訊標準差）`, 'σ（雜訊標準差）')} unit="同 y" value={active.sigma} onChange={(v) => set('sigma', v)} min={0} max={5} step={0.01} reg="behavioural: sigma_v" />
+            <ParamControl {...lab(String.raw`$\sigma_v$（雜訊標準差）`, 'σ（雜訊標準差）')} unit="同 $y$" value={active.sigma} onChange={(v) => set('sigma', v)} min={0} max={5} step={0.01} reg="behavioural: sigma_v" />
             <ParamControl {...lab(String.raw`outlier 機率 $p_{\rm out}$`, 'outlier 機率 p_out')} unit="機率" value={active.outlierProb} onChange={(v) => set('outlierProb', v)} min={0} max={0.5} step={0.001} reg="behavioural: impulsive disturbance rate" />
-            <ParamControl {...lab(String.raw`outlier 大小 $s$（單邊，加在 $v$ 上）`, 'outlier 大小 s（單邊，加在 v 上）')} unit="同 y" value={active.outlierSize} onChange={(v) => set('outlierSize', v)} min={-50} max={50} step={0.1} reg="behavioural: disturbance size" />
+            <ParamControl {...lab(String.raw`outlier 大小 $s$（單邊，加在 $v$ 上）`, 'outlier 大小 s（單邊，加在 v 上）')} unit="同 $y$" value={active.outlierSize} onChange={(v) => set('outlierSize', v)} min={-50} max={50} step={0.1} reg="behavioural: disturbance size" />
             <SelectControl {...lab(String.raw`$\operatorname{sign}(0)$ 慣例`, 'sign(0) 慣例')} value={active.tie} onChange={(v) => set('tie', v)} options={TIES.map((t) => ({ value: t, label: TIE_LABEL[t] }))} reg="CMP_TIE_POLICY（behavioural）" />
             <SelectControl label="步長排程" value={active.schedule} onChange={(v) => set('schedule', v)} options={SCHEDULES.map((s) => ({ value: s, label: SCHEDULE_LABEL[s] }))} reg="REG_MU_SCHED（gear-shift FSM）" />
             <ParamControl {...lab(String.raw`$n_0$（排程時間常數）`, 'n₀（排程時間常數）')} unit="samples" value={active.n0} onChange={(v) => set('n0', v)} min={1} max={100000} log integer clampOnBlur reg="REG_MU_GEAR_LEN" />
-            <ParamControl {...lab(String.raw`$\delta_{\rm H}$（Huber 門檻）`, 'δₕ（Huber 門檻）')} unit="同 y" value={active.huberDelta} onChange={(v) => set('huberDelta', v)} min={0.01} max={10} log reg="REG_ERR_CLIP" />
-            <ParamControl {...lab(String.raw`NLMS 的 $\varepsilon$`, 'NLMS ε')} unit="[x]^2" value={active.nlmsEps} onChange={(v) => set('nlmsEps', v)} min={0} max={10} step={0.001} reg="behavioural: nlms_eps" />
+            <ParamControl {...lab(String.raw`$\delta_{\rm H}$（Huber 門檻）`, 'δₕ（Huber 門檻）')} unit="同 $y$" value={active.huberDelta} onChange={(v) => set('huberDelta', v)} min={0.01} max={10} log reg="REG_ERR_CLIP" />
+            <ParamControl {...lab(String.raw`NLMS 的 $\varepsilon$`, 'NLMS ε')} unit="$[x]^2$" value={active.nlmsEps} onChange={(v) => set('nlmsEps', v)} min={0} max={10} step={0.001} reg="behavioural: nlms_eps" />
           </fieldset>
         </>
       }
@@ -535,7 +535,7 @@ export function SignLmsCompare() {
           圖表與表格停在按下「凍結」當時的參數（seed {frozen.seed}、{frozen.caseIds.length} 個 Case）。現在調整控制項不會重算；再按一次「凍結」解除後才更新。
         </Callout>
       )}
-      <Plot title={`$w_n$（Case ${cases.activeId}，seed ${seed}）`} data={wData} height={300} csvName="sign-lms-compare-w" layout={{ xaxis: { title: { text: 'n（sample）' } }, yaxis: { title: { text: 'w_n' } } }} />
+      <Plot title={`$w_n$（Case ${cases.activeId}，seed ${seed}）`} data={wData} height={300} csvName="sign-lms-compare-w" layout={{ xaxis: { title: { text: '$n$（sample）' } }, yaxis: { title: { text: '$w_n$' } } }} />
       <Plot
         title={String.raw`$|\delta_n|$（單一 seed、所有 Case；log）`}
         data={dData}
@@ -543,7 +543,7 @@ export function SignLmsCompare() {
         height={300}
         csvName="sign-lms-compare-delta"
         caption="顏色 = 演算法；線型：Case A 實線、B 虛線、C 點線"
-        layout={{ xaxis: { title: { text: 'n' } }, yaxis: { title: { text: dShared.deltaRef === 'a' ? '|a − w_n|' : '|w* − w_n|' } } }}
+        layout={{ xaxis: { title: { text: '$n$' } }, yaxis: { title: { text: dShared.deltaRef === 'a' ? String.raw`$|a-w_n|$` : String.raw`$|w^*-w_n|$` } } }}
       />
       <Plot
         title={String.raw`Monte Carlo：$|a-w_n|$ 的中位數與 10–90% 帶（Case ${cases.activeId}）`}
@@ -553,7 +553,7 @@ export function SignLmsCompare() {
         height={280}
         csvName="sign-lms-compare-mc"
         caption={mc.pending ? 'Worker 計算中…' : mcRes ? String.raw`${effRuns} seeds；勘誤 E14：畫中位數與分位數，而不是 $E[\delta^2]$ 的樣本平均（會被少數重尾路徑主導）` : mc.error ?? ''}
-        layout={{ xaxis: { title: { text: 'n（log）' } }, yaxis: { title: { text: '|a − w_n|' } } }}
+        layout={{ xaxis: { title: { text: '$n$（log）' } }, yaxis: { title: { text: String.raw`$|a-w_n|$` } } }}
       />
       <div className="table-wrap">
         <table className="ch02-table">

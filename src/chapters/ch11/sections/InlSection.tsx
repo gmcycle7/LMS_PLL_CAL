@@ -22,7 +22,7 @@ import { Hand } from '../Hand'
 
 const PATH = 'src/simulation/models/bias.ts'
 const M: ErrorModel = { a: 1, b: 0, c2: 0, c3: 0.1, kappa: 0, sigmaV: 0 }
-const SWEEP_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'σ_v（t.u.，log）' } }, yaxis: { title: { text: 'w*（t.u.）' }, range: [1.33, 1.41] } }
+const SWEEP_LAYOUT: Partial<Layout> = { xaxis: { title: { text: String.raw`$\sigma_v$（t.u.，log）` } }, yaxis: { title: { text: String.raw`$w^*$（t.u.）` }, range: [1.33, 1.41] } }
 
 function logspace(lo: number, hi: number, n: number): number[] {
   const a = Math.log10(lo)
@@ -79,11 +79,11 @@ export function InlSection() {
         x: s,
         y: curve.map((r) => (r.secondOrder < 1.45 ? r.secondOrder : null)),
         mode: 'lines',
-        name: '二階近似 1.34 + 3.456e−4/σ_v²',
+        name: String.raw`二階近似 $1.34 + 3.456\times10^{-4}/\sigma_v^2$`,
         line: { color: tokens.series[3], dash: 'dashdot' },
       },
       { x: [lo, hi], y: [wMse, wMse], mode: 'lines', name: 'MSE-LMS 1.34（精確）', line: { color: tokens.series[1], dash: 'dash' } },
-      { x: [lo, hi], y: [med.lo, med.lo], mode: 'lines', name: '無雜訊 Sign 1.4（|x| 加權中位數）', line: { color: tokens.series[2], dash: 'dot' } },
+      { x: [lo, hi], y: [med.lo, med.lo], mode: 'lines', name: String.raw`無雜訊 Sign 1.4（$|x|$ 加權中位數）`, line: { color: tokens.series[2], dash: 'dot' } },
       {
         x: table.filter((r) => [0.05, 0.1, 0.3, 1].includes(r.sigma)).map((r) => r.sigma),
         y: table.filter((r) => [0.05, 0.1, 0.3, 1].includes(r.sigma)).map((r) => r.exact),

@@ -97,7 +97,7 @@ export function RegistrySection({ rows, searching, focusId }: { rows: RegistryRo
       {!searching && (
         <Mermaid
           chart={CHART_FORMULA_LINKS}
-          caption="一個公式 ID 的旅程：章節的 formulas.ts 登錄（藍色是彙整後的 ALL_FORMULAS，也就是下面這張表）→ 按「前往」跳到該章的 #formula-ID 錨點；與規格原文不同的公式帶勘誤編號 Exx，紅色的 errata.json 提供 tooltip 摘要並連到驗證頁。"
+          caption="一個公式 ID 的旅程：章節的 formulas.ts 登錄（藍色是彙整後的 $\mathtt{ALL\_FORMULAS}$，也就是下面這張表）→ 按「前往」跳到該章的 #formula-ID 錨點；與規格原文不同的公式帶勘誤編號 Exx，紅色的 errata.json 提供 tooltip 摘要並連到驗證頁。"
         />
       )}
       <div className="fr-filters">

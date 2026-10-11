@@ -99,10 +99,10 @@ function BlockBoundPlot() {
         mode: 'lines',
         line: { color: tokens.series[i], width: 2 },
       } as Data
-    }).concat([{ x: [1, 4096], y: [2, 2], mode: 'lines', name: 'mean 界 2/P_x（×P_x = 2）', line: { color: tokens.textMuted, dash: 'dash', width: 1.5 } }])
+    }).concat([{ x: [1, 4096], y: [2, 2], mode: 'lines', name: T`mean 界 $2/P_x$（$\times P_x = 2$）`, line: { color: tokens.textMuted, dash: 'dash', width: 1.5 } }])
   }, [tokens])
   const layout = useMemo<Partial<Layout>>(
-    () => ({ xaxis: { title: { text: 'block 長度 N（GMAC 累加筆數）' }, type: 'log' }, yaxis: { title: { text: 'μ_MS · P_x（正規化 MS 界）' }, range: [0, 2.2] } }),
+    () => ({ xaxis: { title: { text: 'block 長度 $N$（GMAC 累加筆數）' }, type: 'log' }, yaxis: { title: { text: T`$\mu_{\mathrm{MS}} \cdot P_x$（正規化 MS 界）` }, range: [0, 2.2] } }),
     [],
   )
   return (

@@ -10,6 +10,9 @@ import pySimulator from '../../../analysis/sspll/golden/sspll_golden/simulator.p
 
 export const r = String.raw
 
+/** 迴路名稱 `L1`／`L2`／`L3` 的 LaTeX 版（`$L_2$`），給圖表標題與圖例用 */
+export const loopTex = (key: string): string => `$L_${key.slice(1)}$`
+
 export const MODEL_PATH = 'src/simulation/models/sspll.ts'
 /** sspll.ts 的原始碼（?raw）：頁面顯示的就是網站實際執行的程式 */
 export const MODEL_SRC: string = modelSrc

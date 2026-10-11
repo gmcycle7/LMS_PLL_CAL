@@ -15,7 +15,6 @@ import {
 import { presetsForExperiment, useUrlPreset } from '@/app/presets'
 import { isWorkerCancelled, useWorkerTask } from '@/workers'
 import {
-  CODE_LABEL,
   CODE_LABEL_TEX,
   calLoop,
   texNum,
@@ -68,13 +67,23 @@ export const CODE_SPECTRA_DEFAULTS: CodeSpectraLabParams = {
 
 const EXP_ID = 'code-spectra-lab'
 // layout 放在模組層（參考不變）：worker 狀態改變造成的 re-render 不會重畫圖、也不會重設 zoom
+// 圖內的數學寫 `$...$`（Plot 元件轉成斜體符號與上下標；plotMath.ts）
 const PSD_LAYOUT: Partial<Layout> = {
   margin: { r: 60 },
-  xaxis: { title: { text: 'f [Hz]（sample rate f_s，one-sided）' } },
-  yaxis: { title: { text: 'S_δt^(1) [fs²/Hz]' }, type: 'log', range: [-26, -3] },
-  yaxis2: { title: { text: '|T|², |H_PD|²' }, type: 'log', overlaying: 'y', side: 'right', range: [-8, 1] },
+  xaxis: { title: { text: String.raw`$f$ [Hz]（sample rate $f_s$，one-sided）` } },
+  yaxis: { title: { text: String.raw`$S_{\delta t}^{(1)}$ [$\mathrm{fs}^2/\mathrm{Hz}$]` }, type: 'log', range: [-26, -3] },
+  yaxis2: { title: { text: String.raw`$|T|^2$, $|H_{\mathrm{PD}}|^2$` }, type: 'log', overlaying: 'y', side: 'right', range: [-8, 1] },
 }
-const L_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'offset f [Hz]' } }, yaxis: { title: { text: 'ℒ(f) [dBc/Hz]' }, range: [-260, -110] } }
+const L_LAYOUT: Partial<Layout> = {
+  xaxis: { title: { text: 'offset $f$ [Hz]' } },
+  yaxis: { title: { text: String.raw`$\mathcal{L}(f)$ [dBc/Hz]` }, range: [-260, -110] },
+}
+/** 圖例用的 code 名稱（Plotly 圖內文字：數學寫 `$...$`） */
+const CODE_LEGEND: Record<CodeKind, string> = {
+  const: '常數 code',
+  tone: '單頻 code',
+  white: String.raw`$\pm1$ 隨機 code`,
+}
 const KINDS: CodeKind[] = ['const', 'tone', 'white']
 
 function toAnalytic(p: CodeSpectraLabParams): CodeSpectraParams {
@@ -129,14 +138,14 @@ export function CodeSpectraLab() {
     const out: Data[] = KINDS.map((k, i) => ({
       x: f,
       y: Array.from(curves.dt[k]),
-      name: `S_δt^(1)：${CODE_LABEL[k]}`,
+      name: String.raw`$S_{\delta t}^{(1)}$：${CODE_LEGEND[k]}`,
       mode: 'lines',
       line: { color: tokens.series[i] },
     }))
     out.push(
-      { x: f, y: Array.from(curves.t2), name: '|T(f)|²（右軸）', mode: 'lines', yaxis: 'y2', line: { dash: 'dash', color: tokens.textMuted } },
-      { x: f, y: Array.from(curves.hpd2), name: '|H_PD(f)|²（右軸）', mode: 'lines', yaxis: 'y2', line: { dash: 'dot', color: tokens.textMuted } },
-      { x: [Math.min(prm.fBw, prm.fs / 2), Math.min(prm.fBw, prm.fs / 2)], y: [1e-26, 1e-3], name: 'f_BW', mode: 'lines', line: { dash: 'dashdot', color: tokens.series[4] } },
+      { x: f, y: Array.from(curves.t2), name: String.raw`$|T(f)|^2$（右軸）`, mode: 'lines', yaxis: 'y2', line: { dash: 'dash', color: tokens.textMuted } },
+      { x: f, y: Array.from(curves.hpd2), name: String.raw`$|H_{\mathrm{PD}}(f)|^2$（右軸）`, mode: 'lines', yaxis: 'y2', line: { dash: 'dot', color: tokens.textMuted } },
+      { x: [Math.min(prm.fBw, prm.fs / 2), Math.min(prm.fBw, prm.fs / 2)], y: [1e-26, 1e-3], name: '$f_{BW}$', mode: 'lines', line: { dash: 'dashdot', color: tokens.series[4] } },
     )
     return out
   }, [curves, tokens, prm.fBw, prm.fs])
@@ -147,7 +156,7 @@ export function CodeSpectraLab() {
     return KINDS.map((k, i) => ({
       x: f,
       y: f.map((_, j) => 10 * Math.log10(Math.max((k2 * curves.t2[j] * curves.dt[k][j]) / 2, 1e-300))),
-      name: `ℒ(f)：${CODE_LABEL[k]}`,
+      name: String.raw`$\mathcal{L}(f)$：${CODE_LEGEND[k]}`,
       mode: 'lines',
       line: { color: tokens.series[i] },
     }))
@@ -190,7 +199,7 @@ export function CodeSpectraLab() {
         const s = simCur.rows.find((x) => x.kind === r.kind)
         return !s || !(s.fractionLo <= r.inbandFraction && r.inbandFraction <= s.fractionHi && s.inbandLo <= r.inbandRms && r.inbandRms <= s.inbandHi)
       })
-      mc = bad.length === 0 ? { status: 'ok', note: '三種 code 的 in-band RMS 與比例皆在 95% CI 內' } : { status: 'mismatch', note: `不在 CI 內：${bad.map((b) => CODE_LABEL[b.kind]).join('、')}` }
+      mc = bad.length === 0 ? { status: 'ok', note: '三種 code 的 in-band RMS 與比例皆在 95% CI 內' } : { status: 'mismatch', note: `不在 CI 內：${bad.map((b) => CODE_LABEL_TEX[b.kind]).join('、')}` }
     }
     return {
       analytic: analytic ? { status: 'ok', note: String.raw`數值積分（adaptive Simpson，斷點在 $kf_u\pm f_x$）` } : { status: 'n/a', note: '計算中或迴路無穩態' },
@@ -354,7 +363,7 @@ export function CodeSpectraLab() {
         data={psdData}
         layout={PSD_LAYOUT}
         caption={md(
-          `常數 code 的頻譜留在 DC 附近（$\\mathrm{ENBW}\\approx${sigText(lp.enbw / 1e3, 4)}$ kHz）並帶有 ZOH 在 $k f_u$ 的 notch；tone code 搬到 $f_x$；±1 code 是平的 $\\tfrac{2}{f_s}\\sigma_w^2$。單位 $\\mathrm{fs}^2/\\mathrm{Hz}$、one-sided、取樣率 $f_s=${sig(prm.fs, 4)}$ Hz（解析曲線，非 FFT）。`,
+          `常數 code 的頻譜留在 DC 附近（$\\mathrm{ENBW}\\approx${sigText(lp.enbw / 1e3, 4)}$ kHz）並帶有 ZOH 在 $k f_u$ 的 notch；tone code 搬到 $f_x$；$\\pm1$ code 是平的 $\\tfrac{2}{f_s}\\sigma_w^2$。單位 $\\mathrm{fs}^2/\\mathrm{Hz}$、one-sided、取樣率 $f_s=${sig(prm.fs, 4)}$ Hz（解析曲線，非 FFT）。`,
         )}
       />
       <Plot

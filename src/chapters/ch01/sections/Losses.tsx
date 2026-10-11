@@ -20,7 +20,7 @@ import lmsSrc from '@/simulation/models/lms.ts?raw'
 import { BlockDiagram, ChapterHandCalc, Erratum, f, texNum, useChapterMode } from '../common'
 import { OUTLIER_DEMO } from '../diagrams'
 
-const DH = 1 // 圖中的 Huber 門檻 δₕ
+const DH = 1 // 圖中的 Huber 門檻 $\delta_H$
 const CMP = { a: 3, x: 1, w: 1, mu: 0.2, huberDelta: 1 } // 入門課 Lesson 3 的單步比較
 /** 勘誤 E40 的數值證據：T01 參數（a = 3, x = 2, w₀ = 1, μ = 0.1）、無雜訊，跑 Sign-Error LMS */
 const TIE_DEMO = { a: 3, x: 2, w0: 1, mu: 0.1, steps: 40 }
@@ -35,29 +35,29 @@ export function LossesSection() {
   const plots = useMemo(() => {
     const es = Array.from({ length: 241 }, (_, i) => -3 + (6 * i) / 240)
     const rho: Data[] = [
-      { x: es, y: es.map((e) => lossValue('mse', e)), name: 'ρ₂ = ½e²（MSE）', mode: 'lines', line: { color: tokens.series[0] } },
-      { x: es, y: es.map((e) => lossValue('mae', e)), name: 'ρ₁ = |e|（MAE）', mode: 'lines', line: { color: tokens.series[1] } },
-      { x: es, y: es.map((e) => lossValue('huber', e, DH)), name: `ρₕ（δₕ = ${DH}）`, mode: 'lines', line: { color: tokens.series[2], dash: 'dash' } },
+      { x: es, y: es.map((e) => lossValue('mse', e)), name: String.raw`$\rho_2=\tfrac12e^2$（MSE）`, mode: 'lines', line: { color: tokens.series[0] } },
+      { x: es, y: es.map((e) => lossValue('mae', e)), name: String.raw`$\rho_1=|e|$（MAE）`, mode: 'lines', line: { color: tokens.series[1] } },
+      { x: es, y: es.map((e) => lossValue('huber', e, DH)), name: String.raw`$\rho_H$（$\delta_H=${DH}$）`, mode: 'lines', line: { color: tokens.series[2], dash: 'dash' } },
     ]
     const neg = es.filter((e) => e < 0)
     const pos = es.filter((e) => e > 0)
     const psi: Data[] = [
-      { x: es, y: es, name: 'ψ₂ = e', mode: 'lines', line: { color: tokens.series[0] } },
-      { x: [...neg, null, ...pos], y: [...neg.map(() => -1), null, ...pos.map(() => 1)], name: 'ψ₁ = sign(e)', mode: 'lines', line: { color: tokens.series[1] } },
-      { x: [0, 0], y: [-1, 1], name: 'e = 0：次梯度集合 [−1, 1]', mode: 'lines', line: { color: tokens.series[1], dash: 'dot' } },
-      { x: es, y: es.map((e) => huberPsi(e, DH)), name: 'ψₕ = clip(e, ±δₕ)', mode: 'lines', line: { color: tokens.series[2], dash: 'dash' } },
+      { x: es, y: es, name: String.raw`$\psi_2=e$`, mode: 'lines', line: { color: tokens.series[0] } },
+      { x: [...neg, null, ...pos], y: [...neg.map(() => -1), null, ...pos.map(() => 1)], name: String.raw`$\psi_1=\operatorname{sign}(e)$`, mode: 'lines', line: { color: tokens.series[1] } },
+      { x: [0, 0], y: [-1, 1], name: String.raw`$e=0$：次梯度集合 $[-1,1]$`, mode: 'lines', line: { color: tokens.series[1], dash: 'dot' } },
+      { x: es, y: es.map((e) => huberPsi(e, DH)), name: String.raw`$\psi_H=\operatorname{clip}(e,\pm\delta_H)$`, mode: 'lines', line: { color: tokens.series[2], dash: 'dash' } },
     ]
     // 次梯度示意：|e| 與幾條過原點、斜率 g ∈ [−1, 1] 的支撐線
     const sub: Data[] = [
-      { x: es, y: es.map(Math.abs), name: '|e|', mode: 'lines', line: { color: tokens.series[1], width: 3 } },
+      { x: es, y: es.map(Math.abs), name: '$|e|$', mode: 'lines', line: { color: tokens.series[1], width: 3 } },
       ...[-1, -0.5, 0, 0.5, 1].map((g, i) => ({
         x: es,
         y: es.map((e) => g * e),
-        name: `g = ${g}`,
+        name: `$g=${g}$`,
         mode: 'lines' as const,
         line: { color: tokens.series[(i % 4) + 2], dash: 'dot' as const, width: 1.2 },
       })),
-      { x: es, y: es.map((e) => 1.4 * e), name: 'g = 1.4（不是次梯度）', mode: 'lines', line: { color: tokens.textMuted, dash: 'dash', width: 1 } },
+      { x: es, y: es.map((e) => 1.4 * e), name: '$g=1.4$（不是次梯度）', mode: 'lines', line: { color: tokens.textMuted, dash: 'dash', width: 1 } },
     ]
     return { rho, psi, sub }
   }, [tokens])
@@ -204,8 +204,8 @@ export function LossesSection() {
           <Tex>{'\\psi'}</Tex> 裡。
         </p>
         <div className="ch01-two">
-          <Plot title="損失 $\rho(e)$" ariaLabel="三種損失函數 ρ(e)" data={plots.rho} layout={{ xaxis: { title: { text: 'e' } }, yaxis: { title: { text: 'ρ' } } }} height={260} csvName="ch01-rho" />
-          <Plot title="$\psi(e)=d\rho/de$（更新量正比於它）" ariaLabel="三種損失的導數 ψ(e)" data={plots.psi} layout={{ xaxis: { title: { text: 'e' } }, yaxis: { title: { text: 'ψ' } } }} height={260} csvName="ch01-psi" />
+          <Plot title="損失 $\rho(e)$" ariaLabel="三種損失函數 ρ(e)" data={plots.rho} layout={{ xaxis: { title: { text: '$e$' } }, yaxis: { title: { text: String.raw`$\rho$` } } }} height={260} csvName="ch01-rho" />
+          <Plot title="$\psi(e)=d\rho/de$（更新量正比於它）" ariaLabel="三種損失的導數 ψ(e)" data={plots.psi} layout={{ xaxis: { title: { text: '$e$' } }, yaxis: { title: { text: String.raw`$\psi$` } } }} height={260} csvName="ch01-psi" />
         </div>
         <div className="table-wrap">
           <table className="ch01-table">
@@ -338,7 +338,7 @@ export function LossesSection() {
             title="$|e|$ 與過原點的直線 $g\,e$：$|g|\le1$ 的都在 V 字下方"
             ariaLabel="絕對值函數與過原點的直線：斜率絕對值不超過 1 的都在 V 字下方"
             data={plots.sub}
-            layout={{ xaxis: { title: { text: 'e' } }, yaxis: { title: { text: '' }, range: [-3, 3.2] } }}
+            layout={{ xaxis: { title: { text: '$e$' } }, yaxis: { title: { text: '' }, range: [-3, 3.2] } }}
             height={250}
             csvName="ch01-subgradient"
           />

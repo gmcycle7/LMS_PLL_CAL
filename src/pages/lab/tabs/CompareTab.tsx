@@ -224,7 +224,7 @@ export function CompareTab() {
               { value: 'fs2', label: 'S_t [fs²/Hz]（one-sided）' },
             ]}
           />
-          {fPsd && <Plot title="各 case 的輸出 timing-error PSD" csvName="compare-psd" data={fPsd.data} layout={fPsd.layout} xLog yLog={unit === 'fs2'} height={330} caption="Welch、Hann、one-sided、sample-rate 頻率軸；對數格點每格取最大值。各 case 的視窗長度（outBlocks × N）不同時，頻率解析度與譜線高度不可直接比，請看下表的 RMS 與 peak-based dBc。" />}
+          {fPsd && <Plot title="各 case 的輸出 timing-error PSD" csvName="compare-psd" data={fPsd.data} layout={fPsd.layout} xLog yLog={unit === 'fs2'} height={330} caption="Welch、Hann、one-sided、sample-rate 頻率軸；對數格點每格取最大值。各 case 的視窗長度（outBlocks $\times N$）不同時，頻率解析度與譜線高度不可直接比，請看下表的 RMS 與 peak-based dBc。" />}
           <h4 className="lab-subhead">並排指標</h4>
           <div className="table-wrap">
             <table className="lab-table">

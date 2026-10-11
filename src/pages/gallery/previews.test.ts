@@ -114,7 +114,7 @@ describe('Gallery 預覽 vs golden vectors（T01–T18；每個數字都由真�
     expectGolden(g, 'pole', val(r, 'pole'))
     expect(val(r, 'C')).toBeLessThan(0)
     expect(val(r, 'pole')).toBeGreaterThan(1)
-    expect(verdictText(r)).toContain('danger:C ≤ 0：更新極性錯誤，正 learning rate 會使平均誤差發散')
+    expect(verdictText(r)).toContain('danger:$C\\le0$：更新極性錯誤，正 learning rate 會使平均誤差發散')
     const phis = [0, 60, 90, 120, 180]
     phis.forEach((phiDeg, i) => expectGolden(g, 'C_at_phi_list_deg', val(run(mk('polarity-explorer', { ...slot(3).params, phiDeg })), 'C'), i))
   })
@@ -178,7 +178,7 @@ describe('Gallery 預覽 vs golden vectors（T01–T18；每個數字都由真�
     const eig = g.expected.missing_pe_eig_list as number[]
     expect(val(miss, 'lamMax')).toBeCloseTo(eig[0], 12)
     expect(val(miss, 'lamMin')).toBeCloseTo(eig[1], 12)
-    expect(verdictText(miss)).toContain('danger:λ_min = 0：不可辨識')
+    expect(verdictText(miss)).toContain('danger:$\\lambda_{\\min}=0$：不可辨識')
   })
 
   it('T11: #6 的慢 pole 0.995、95% 衰減 598 blocks（K_q 正規化為 1；勘誤 E05）', () => {
@@ -248,7 +248,7 @@ describe('Gallery 預覽 vs golden vectors（T01–T18；每個數字都由真�
     expect(val(r, 'line2:toggle')).toBeGreaterThan(val(r, 'line1:toggle')) // 主 tone 在 2f_u/5（勘誤 E47）
     expect(val(r, 'rotation')).toBeGreaterThanOrEqual(0)
     // ΔΣ 的整數輸出序列就是 golden 的 ef_cycle
-    const ds = r.chart?.series.find((s) => s.name.includes('ΔΣ') && !s.name.toLowerCase().includes('dither'))
+    const ds = r.chart?.series.find((s) => s.name.includes(String.raw`\Delta\Sigma`) && !s.name.toLowerCase().includes('dither'))
     const cyc = g.expected.ef_cycle as number[]
     expect(ds?.y.slice(0, 5)).toEqual(cyc)
   })
@@ -479,7 +479,7 @@ describe('GALLERY_SLOTS 文字中的參考數字與模型一致（不是手打�
     expect(val(r, 'eigRxA4')).toBeCloseTo(0, 12)
     expect(val(r, 'maxDiffGauge')).toBeLessThan(1e-12)
     expect(val(r, 'maxDiffB')).toBeGreaterThan(0.1)
-    expect(verdictText(r)).toContain('warn:λ_min = 0：不可辨識')
+    expect(verdictText(r)).toContain('warn:$\\lambda_{\\min}=0$：不可辨識')
   })
 })
 
@@ -767,7 +767,7 @@ describe('反面測試：參數落在模型沒有定義的地方時，預覽要�
     // C < 0 時仍然要有規格要求的極性警告
     const neg = run(mk('polarity-explorer', { mode: 'tone', phiDeg: 120, omega: Math.PI / 6, sigmaV: 0, mu: 10 }))
     clean(neg)
-    expect(verdictText(neg)).toContain('danger:C ≤ 0：更新極性錯誤，正 learning rate 會使平均誤差發散')
+    expect(verdictText(neg)).toContain('danger:$C\\le0$：更新極性錯誤，正 learning rate 會使平均誤差發散')
     const fxl = run(mk('delay-fx-lab', { scenario: { pathKind: 'single_tone', codeKind: 'sinusoid', sigmaV: 0 }, cases: [{ mode: 'delayed', D: 4, mu: 10 }] }))
     clean(fxl)
     expect(verdictText(fxl)).toMatch(/^warn:.*hard limiter/)

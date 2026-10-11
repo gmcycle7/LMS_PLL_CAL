@@ -90,7 +90,7 @@ export function S15Checklist() {
           點；改用 <code>ac</code> 後剩 {web.L1.n_large_signal_inverted_ac} 點）。
         </li>
         <li>
-          <strong>查網站資料核對。</strong> <code>signmap_L*.json</code> 的 <code>LSinf</code>、<code>LSinf_ac</code> 欄（<Tex>{r`<-10^{-3}`}</Tex> 即列入），以及 <code>summary.large_signal_inverted_MHz</code>——也就是實驗 B 熱圖的「大訊號 κ∞」那兩列。
+          <strong>查網站資料核對。</strong> <code>signmap_L*.json</code> 的 <code>LSinf</code>、<code>LSinf_ac</code> 欄（<Tex>{r`<-10^{-3}`}</Tex> 即列入），以及 <code>summary.large_signal_inverted_MHz</code>——也就是實驗 B 熱圖的「大訊號 <Tex>{r`\kappa_\infty`}</Tex>」那兩列。
         </li>
       </ol>
       <p>本設計（raw，大訊號 <Tex>{r`A\to\infty`}</Tex>，網站的 1 MHz midpoint 網格，<strong>未加 PVT margin</strong>）的 keep-out 總結：</p>

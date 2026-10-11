@@ -93,7 +93,7 @@ export function StochasticSection() {
       {
         x: [psd.f[1], psd.f[psd.f.length - 1]],
         y: [(2 * VAR_C) / FU_DEMO, (2 * VAR_C) / FU_DEMO],
-        name: '理論 2p(1−p)/f_u',
+        name: String.raw`理論 $2p(1-p)/f_u$`,
         line: { color: tokens.text, dash: 'dash', width: 1.5 },
       },
     ],
@@ -173,7 +173,7 @@ export function StochasticSection() {
         height={260}
         yLog
         csvName="ch13-stochastic-psd"
-        layout={{ xaxis: { title: { text: 'f [Hz]（f_u = 1 MHz）' } }, yaxis: { title: { text: 'PSD [LSB²/Hz]' } } }}
+        layout={{ xaxis: { title: { text: String.raw`$f$ [Hz]（$f_u = 1\,\mathrm{MHz}$）` } }, yaxis: { title: { text: String.raw`PSD [$\mathrm{LSB}^2/\mathrm{Hz}$]` } } }}
         caption={
           <>
             Welch：Hann、nperseg {psd.nperseg}、{psd.nSegments} 段、ENBW {n(psd.enbwHz, 4)} Hz、one-sided、<Tex>{String.raw`\mathrm{LSB}^2/\mathrm{Hz}`}</Tex>；<Tex>{'2^{15}'}</Tex> 個 sample（seed 7）。虛線是理論值{' '}

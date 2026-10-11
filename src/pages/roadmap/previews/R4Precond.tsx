@@ -47,8 +47,8 @@ const INLINE_PRESETS: ExperimentPreset[] = [
 const EPS_GRID = Array.from({ length: 61 }, (_, i) => 10 ** (-6 + i * 0.12))
 
 // Plot 的 layout 是靜態的：放在模組層，避免每次 render 產生新物件而觸發 Plotly.react
-const LAYOUT_TRADEOFF: Partial<Layout> = { xaxis: { title: { text: '95% 收斂 blocks（最慢 mode）' } }, yaxis: { title: { text: 'E‖δw‖²' } } }
-const LAYOUT_POLES: Partial<Layout> = { xaxis: { title: { text: 'ε' } }, yaxis: { title: { text: 'p_i' } } }
+const LAYOUT_TRADEOFF: Partial<Layout> = { xaxis: { title: { text: '95% 收斂 blocks（最慢 mode）' } }, yaxis: { title: { text: '$E\\|\\delta\\mathbf w\\|^2$' } } }
+const LAYOUT_POLES: Partial<Layout> = { xaxis: { title: { text: '$\\varepsilon$' } }, yaxis: { title: { text: '$p_i$' } } }
 
 function R4Experiment() {
   const [P, setP] = useState<R4Params>(DEFAULTS)
@@ -94,12 +94,12 @@ function R4Experiment() {
     { name: String.raw`封閉式與 $\mathrm{eig}(\mathbf I+\mathbf M\mathbf J)$ 的最大差`, value: eigErr, analytic: 0, tolerance: 1e-10 },
     { name: '最慢 pole', value: res.slowest, unit: '—' },
     { name: '95% 收斂 blocks', value: Number.isFinite(res.settle) ? res.settle : '不收斂（pole 為 1）', unit: 'blocks' },
-    { name: String.raw`每個 mode 的穩態變異 $\mathrm{Var}_i$`, value: res.modeVar.map((v) => n4(v)).join(', '), unit: '[w]²', formulaId: 'F-R4.1', claim: 'exact' },
-    { name: String.raw`$E\|\delta\mathbf w\|^2$（封閉式）`, value: res.totalVar, unit: '[w]²', claim: 'exact' },
+    { name: String.raw`每個 mode 的穩態變異 $\mathrm{Var}_i$`, value: res.modeVar.map((v) => n4(v)).join(', '), unit: String.raw`$[w]^2$`, formulaId: 'F-R4.1', claim: 'exact' },
+    { name: String.raw`$E\|\delta\mathbf w\|^2$（封閉式）`, value: res.totalVar, unit: String.raw`$[w]^2$`, claim: 'exact' },
     {
       name: String.raw`$E\|\delta\mathbf w\|^2$（Lyapunov trace）`,
       value: res.totalVarLyap,
-      unit: '[w]²',
+      unit: String.raw`$[w]^2$`,
       analytic: res.totalVar,
       tolerance: 1e-9,
       toleranceMode: 'rel',
@@ -108,7 +108,7 @@ function R4Experiment() {
     {
       name: String.raw`$E\|\delta\mathbf w\|^2$（Monte Carlo）`,
       value: mc?.meanSq ?? null,
-      unit: '[w]²',
+      unit: String.raw`$[w]^2$`,
       analytic: res.totalVar,
       tolerance: mc ? Math.max(mc.hi - mc.meanSq, mc.meanSq - mc.lo) + 0.03 * res.totalVar : undefined,
       claim: 'approx',
@@ -123,20 +123,20 @@ function R4Experiment() {
       {
         x: sweep.settle.filter((_, i) => ok[i]),
         y: sweep.totalVar.filter((_, i) => ok[i]),
-        text: sweep.eps.filter((_, i) => ok[i]).map((e) => `ε = ${e.toExponential(2)}`),
-        name: 'ε 由 1e-6 掃到 1e1',
+        text: sweep.eps.filter((_, i) => ok[i]).map((e) => `$\\varepsilon$ = ${e.toExponential(2)}`),
+        name: '$\\varepsilon$ 由 1e-6 掃到 1e1',
         mode: 'lines+markers',
         marker: { size: 4 },
         line: { color: tokens.series[0] },
       },
       ...(Number.isFinite(res.settle)
-        ? [{ x: [res.settle], y: [res.totalVar], name: `目前 ε = ${dP.eps}`, mode: 'markers', marker: { size: 12, color: tokens.series[1], symbol: 'diamond' } } as Data]
+        ? [{ x: [res.settle], y: [res.totalVar], name: `目前 $\\varepsilon$ = ${dP.eps}`, mode: 'markers', marker: { size: 12, color: tokens.series[1], symbol: 'diamond' } } as Data]
         : []),
     ]
   }, [sweep, res, dP.eps, tokens])
   const poleData: Data[] = useMemo(() => {
     const modes = sweep.eps.map((eps) => regularizedPreconditioner({ J, gamma: dP.gamma, eps, sigmaEta2 }).poles)
-    return [0, 1].map((i) => ({ x: sweep.eps, y: modes.map((m) => m[i]), name: `mode ${i + 1}（σ = ${n4(res.sv[i] ?? NaN)}）`, mode: 'lines', line: { color: tokens.series[2 + i] } }))
+    return [0, 1].map((i) => ({ x: sweep.eps, y: modes.map((m) => m[i]), name: `mode ${i + 1}（$\\sigma$ = ${n4(res.sv[i] ?? NaN)}）`, mode: 'lines', line: { color: tokens.series[2 + i] } }))
   }, [sweep, J, dP.gamma, sigmaEta2, res.sv, tokens])
 
   return (

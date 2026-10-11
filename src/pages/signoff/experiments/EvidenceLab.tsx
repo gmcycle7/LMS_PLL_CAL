@@ -30,9 +30,9 @@ export const EVIDENCE_DEFAULT: EvidenceParams = { n: 200, kf: 0, conf: 0.95, pMa
 /** 路徑研究的計算上限（paths × steps 個 Gaussian 樣本）。 */
 export const PATH_BUDGET = 200_000
 
-const PU_LAYOUT = { xaxis: { title: { text: 'n（獨立試驗數）' } }, yaxis: { title: { text: 'p_U' } } }
+const PU_LAYOUT = { xaxis: { title: { text: '$n$（獨立試驗數）' } }, yaxis: { title: { text: '$p_U$' } } }
 const HIST_LAYOUT = {
-  xaxis: { title: { text: 'log10 |δ_n/δ_0|' } },
+  xaxis: { title: { text: '$\\log_{10}|\\delta_n/\\delta_0|$' } },
   yaxis: { title: { text: '路徑數' } },
   yaxis2: { overlaying: 'y' as const, range: [0, 1], visible: false },
   bargap: 0.02,
@@ -90,21 +90,21 @@ export function EvidenceLabExperiment() {
       x: ns,
       y: ns.map((n) => (n > k ? failureUpperBound(k, n, dp.conf) : NaN)),
       mode: 'lines',
-      name: `k_f = ${k}`,
+      name: `$k_f = ${k}$`,
       line: { color: tokens.series[k] },
     }))
   }, [dp.conf, tokens])
   const curveWithMarker: Data[] = useMemo(
-    () => [...curve, { x: [Math.round(dp.n)], y: [pU], mode: 'markers', name: '目前 (n, k_f)', marker: { size: 11, symbol: 'diamond', color: tokens.series[3] } }],
+    () => [...curve, { x: [Math.round(dp.n)], y: [pU], mode: 'markers', name: '目前 $(n, k_f)$', marker: { size: 11, symbol: 'diamond', color: tokens.series[3] } }],
     [curve, dp.n, pU, tokens],
   )
 
   const hist: Data[] = useMemo(
     () => [
-      { x: Array.from(study.log10Abs), type: 'histogram', nbinsx: 40, name: 'log10|δ_n/δ_0|（各路徑）', marker: { color: tokens.series[0] } },
+      { x: Array.from(study.log10Abs), type: 'histogram', nbinsx: 40, name: '$\\log_{10}|\\delta_n/\\delta_0|$（各路徑）', marker: { color: tokens.series[0] } },
       { x: [study.log10MedianAbs, study.log10MedianAbs], y: [0, 1], yaxis: 'y2', mode: 'lines', name: '中位數', line: { color: tokens.series[2], width: 2 } },
-      { x: [0.5 * study.log10TheoryMsd, 0.5 * study.log10TheoryMsd], y: [0, 1], yaxis: 'y2', mode: 'lines', name: '理論 log10 √E[δ²]/δ₀', line: { color: tokens.series[1], width: 2, dash: 'dash' } },
-      { x: [0.5 * study.log10SampleMsd, 0.5 * study.log10SampleMsd], y: [0, 1], yaxis: 'y2', mode: 'lines', name: '樣本 log10 √mean(δ²)/δ₀', line: { color: tokens.series[3], width: 2, dash: 'dot' } },
+      { x: [0.5 * study.log10TheoryMsd, 0.5 * study.log10TheoryMsd], y: [0, 1], yaxis: 'y2', mode: 'lines', name: '理論 $\\log_{10}\\bigl(\\sqrt{E[\\delta^2]}/\\delta_0\\bigr)$', line: { color: tokens.series[1], width: 2, dash: 'dash' } },
+      { x: [0.5 * study.log10SampleMsd, 0.5 * study.log10SampleMsd], y: [0, 1], yaxis: 'y2', mode: 'lines', name: '樣本 $\\log_{10}\\bigl(\\sqrt{\\mathrm{mean}(\\delta^2)}/\\delta_0\\bigr)$', line: { color: tokens.series[3], width: 2, dash: 'dot' } },
     ],
     [study, tokens],
   )
@@ -159,7 +159,7 @@ export function EvidenceLabExperiment() {
       onLoadPreset={(pr) => setP({ ...EVIDENCE_DEFAULT, ...(pr.params as Partial<EvidenceParams>) })}
       controls={
         <>
-          <ParamControl label={rich('$n$（獨立試驗數：seeds × sweep 點）')} ariaLabel="n（獨立試驗數：seeds × sweep 點）" value={p.n} onChange={(v) => set('n', v)} min={1} max={1_000_000} log integer reg="behav: mc_runs" />
+          <ParamControl label={rich('$n$（獨立試驗數：seeds $\\times$ sweep 點）')} ariaLabel="n（獨立試驗數：seeds × sweep 點）" value={p.n} onChange={(v) => set('n', v)} min={1} max={1_000_000} log integer reg="behav: mc_runs" />
           <ParamControl label={rich('$k_f$（觀察到的失效數）')} ariaLabel="k_f（觀察到的失效數）" value={p.kf} onChange={(v) => set('kf', v)} min={0} max={1000} integer clampOnBlur reg="behav: failures" />
           <ParamControl label={rich(String.raw`信心水準 $1-\alpha$`)} ariaLabel="信心水準 1 − α" value={p.conf} onChange={(v) => set('conf', v)} min={0.5} max={0.9999} step={0.0001} reg="behav: confidence" />
           <ParamControl label={rich(String.raw`想宣稱的失效率上限 $p_\text{max}$`)} ariaLabel="想宣稱的失效率上限 p_max" value={p.pMax} onChange={(v) => set('pMax', v)} min={1e-6} max={0.5} log reg="behav: p_fail_target" />

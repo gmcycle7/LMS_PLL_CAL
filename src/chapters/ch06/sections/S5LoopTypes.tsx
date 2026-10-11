@@ -44,9 +44,9 @@ export function S5LoopTypes() {
     const x = Array.from({ length: n }, (_, i) => 0.01 * Math.pow(1e4, i / (n - 1)))
     const curves: { name: string; type: 'typeI' | 'typeII'; zeta: number; color: string; dash?: 'dash' | 'dot' }[] = [
       { name: 'Type-I', type: 'typeI', zeta: 0.7, color: tokens.series[2] },
-      { name: 'Type-II ζ = 0.5', type: 'typeII', zeta: 0.5, color: tokens.series[3], dash: 'dot' },
-      { name: 'Type-II ζ = 0.7', type: 'typeII', zeta: 0.7, color: tokens.series[1] },
-      { name: 'Type-II ζ = 1.0', type: 'typeII', zeta: 1.0, color: tokens.series[4], dash: 'dash' },
+      { name: String.raw`Type-II $\zeta = 0.5$`, type: 'typeII', zeta: 0.5, color: tokens.series[3], dash: 'dot' },
+      { name: String.raw`Type-II $\zeta = 0.7$`, type: 'typeII', zeta: 0.7, color: tokens.series[1] },
+      { name: String.raw`Type-II $\zeta = 1.0$`, type: 'typeII', zeta: 1.0, color: tokens.series[4], dash: 'dash' },
     ]
     const re: Data[] = curves.map((c) => ({
       x,
@@ -267,7 +267,7 @@ export function S5LoopTypes() {
           xLog
           height={280}
           csvName="ch06-ct-re"
-          layout={{ xaxis: { title: { text: 'ν = ω/ω_L' } }, yaxis: { title: { text: 'Re{H_PD}' } }, shapes: [zeroLine] }}
+          layout={{ xaxis: { title: { text: String.raw`$\nu = \omega/\omega_L$` } }, yaxis: { title: { text: String.raw`$\operatorname{Re}\,H_{\mathrm{PD}}$` } }, shapes: [zeroLine] }}
           caption={String.raw`由封閉式 ctHpd() 計算。Type-I 恆正；Type-II 在 $\nu<1$ 為負，與 $\zeta$ 無關。`}
         />
         <Plot
@@ -278,7 +278,7 @@ export function S5LoopTypes() {
           height={280}
           csvName="ch06-ct-phase"
           layout={{
-            xaxis: { title: { text: 'ν = ω/ω_L' } },
+            xaxis: { title: { text: String.raw`$\nu = \omega/\omega_L$` } },
             yaxis: { title: { text: '相位 [deg]' } },
             shapes: [{ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: 90, y1: 90, line: { color: tokens.danger, dash: 'dot', width: 1 } }],
           }}

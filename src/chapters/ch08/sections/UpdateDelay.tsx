@@ -35,8 +35,8 @@ import { DELAY_LOOP_CHART, PHASE_BUDGET_CHART, PIPELINE_SEQ_CHART, ROOT_STATES_C
 
 const SRC_PATH = 'src/simulation/models/stability.ts'
 // Plot 的 layout 放在模組層級：物件參考固定，重新渲染時不會觸發多餘的 Plotly.react
-const RHO_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'g' } }, yaxis: { title: { text: 'ρ' }, range: [0, 1.8] } }
-const PMD_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'g' } }, yaxis: { title: { text: 'PM_d [deg]' }, range: [-120, 95] } }
+const RHO_LAYOUT: Partial<Layout> = { xaxis: { title: { text: '$g$' } }, yaxis: { title: { text: String.raw`$\rho$` }, range: [0, 1.8] } }
+const PMD_LAYOUT: Partial<Layout> = { xaxis: { title: { text: '$g$' } }, yaxis: { title: { text: '$PM_d$ [deg]' }, range: [-120, 95] } }
 
 /** §8.3 更新延遲：δ_{k+1} = δ_k − gδ_{k−d} */
 export function UpdateDelay() {
@@ -51,22 +51,22 @@ export function UpdateDelay() {
     const rho: Data[] = [0, 1, 2, 3, 4].map((d) => ({
       x: gs,
       y: gs.map((g) => delayStable(g, d).rho),
-      name: `d = ${d}`,
+      name: `$d = ${d}$`,
       mode: 'lines',
       line: { color: tokens.series[d % tokens.series.length], width: 2 },
     }))
-    rho.push({ x: [0, 2.4], y: [1, 1], name: 'ρ = 1', mode: 'lines', line: { color: tokens.danger, dash: 'dash', width: 1 } })
+    rho.push({ x: [0, 2.4], y: [1, 1], name: String.raw`$\rho = 1$`, mode: 'lines', line: { color: tokens.danger, dash: 'dash', width: 1 } })
     const pm: Data[] = [0, 1, 2, 3, 4].map((d) => ({
       x: gs,
       y: gs.map((g) => {
         const v = pmWithDelay(g, d).pmDeg
         return Number.isFinite(v) ? v : null
       }),
-      name: `PM_d，d = ${d}`,
+      name: `$PM_d$，$d = ${d}$`,
       mode: 'lines',
       line: { color: tokens.series[d % tokens.series.length], width: 2 },
     }))
-    pm.push({ x: [0, 2.4], y: [0, 0], name: 'PM = 0', mode: 'lines', line: { color: tokens.danger, dash: 'dash', width: 1 } })
+    pm.push({ x: [0, 2.4], y: [0, 0], name: '$PM = 0$', mode: 'lines', line: { color: tokens.danger, dash: 'dash', width: 1 } })
     return { rho, pm }
   }, [tokens])
 

@@ -290,7 +290,7 @@ export function SignalFlowExperiment() {
         ...(momNow
           ? [{ name: R`$E[G_{${k}}\mid\text{codes},\,w_{${k}}]$`, value: momNow.mean, unit: '', digits: 5, claim: 'exact' as const, note: R`$\pm1\sigma=${tx(momNow.sd, 4)}$（只有雜訊是隨機的）`, formulaId: 'F-04.4' }]
           : []),
-        { name: R`$K=K_qC$（忘了映射時再 $\times\tfrac12$）`, value: an.K, unit: 'fs⁻¹', digits: 5, claim: 'approx', formulaId: 'F-04.4' },
+        { name: R`$K=K_qC$（忘了映射時再 $\times\tfrac12$）`, value: an.K, unit: R`$\mathrm{fs}^{-1}$`, digits: 5, claim: 'approx', formulaId: 'F-04.4' },
         { name: R`$g$（loop gain）`, value: an.g, digits: 5, claim: 'approx', formulaId: 'F-04.5', note: active.params.gmMode === 'sum' ? R`sum 模式：$g=N\mu K$` : R`average 模式：$g=\mu K$` },
         { name: R`pole $p=1-g$`, value: an.p, digits: 5, claim: 'approx' },
         { name: R`$w_{${k}}\to w_{${k + 1}}$`, value: `${f(blk.wk, 5)} → ${f(blk.wNext, 5)}`, unit: 'fs' },
@@ -311,12 +311,12 @@ export function SignalFlowExperiment() {
       .map((r) => ({
         x: Array.from({ length: K + 1 }, (_, i) => i),
         y: Array.from(r.res!.blocks.w),
-        name: `Case ${r.id}：${r.params.gmMode === 'sum' ? 'sum' : 'avg'}，μ=${r.params.mu}`,
+        name: R`Case ${r.id}：${r.params.gmMode === 'sum' ? 'sum' : 'avg'}，$\mu=${r.params.mu}$`,
         mode: 'lines+markers' as const,
         marker: { size: 4 },
         line: { color: r.color },
       }))
-    d.push({ x: [0, K], y: [shared.aTrue, shared.aTrue], name: 'a（真實 gain）', mode: 'lines', line: { dash: 'dot', color: tokens.textMuted } })
+    d.push({ x: [0, K], y: [shared.aTrue, shared.aTrue], name: R`$a$（真實 gain）`, mode: 'lines', line: { dash: 'dot', color: tokens.textMuted } })
     if (res) d.push({ x: [k], y: [res.blocks.w[k]], name: '目前 block', mode: 'markers', marker: { size: 12, symbol: 'circle-open', color: tokens.accent } })
     return d
   }, [runs, K, shared.aTrue, tokens, res, k])
@@ -327,14 +327,14 @@ export function SignalFlowExperiment() {
     () =>
       blk
         ? [
-            { x: localN, y: Array.from(blk.x), name: 'x[n]（code）', mode: 'lines+markers', line: { shape: 'hv', color: tokens.series[0] }, marker: { size: 4 } },
+            { x: localN, y: Array.from(blk.x), name: R`$x[n]$（code）`, mode: 'lines+markers', line: { shape: 'hv', color: tokens.series[0] }, marker: { size: 4 } },
             ...(shared.path !== 'identity'
-              ? [{ x: localN, y: Array.from(blk.u), name: 'u[n] = H_PD{x}', mode: 'lines' as const, line: { dash: 'dash' as const, color: tokens.series[4] } }]
+              ? [{ x: localN, y: Array.from(blk.u), name: R`$u[n]$（$H_\mathrm{PD}$ 濾波後的 $x$）`, mode: 'lines' as const, line: { dash: 'dash' as const, color: tokens.series[4] } }]
               : []),
             {
               x: localN.slice(0, shown),
               y: Array.from(blk.e.subarray(0, shown)),
-              name: 'e[n]（fs，右軸）',
+              name: R`$e[n]$（fs，右軸）`,
               mode: 'markers',
               yaxis: 'y2',
               marker: { size: 8, color: Array.from(blk.q.subarray(0, shown), (v) => (v > 0 ? tokens.series[2] : tokens.series[1])) },
@@ -350,26 +350,26 @@ export function SignalFlowExperiment() {
             {
               x: localN.slice(0, shown),
               y: Array.from(blk.q.subarray(0, shown), (v, i) => v * blk.xr[i]),
-              name: 'q[n]·x_ref[n]',
+              name: R`$q[n]\,x_\mathrm{ref}[n]$`,
               type: 'bar',
               marker: { color: tokens.series[3] },
             },
-            { x: localN.slice(0, shown), y: Array.from(blk.S.subarray(0, shown)), name: '累加 S（running sum）', mode: 'lines+markers', line: { color: tokens.series[0] } },
+            { x: localN.slice(0, shown), y: Array.from(blk.S.subarray(0, shown)), name: R`累加 $S$（running sum）`, mode: 'lines+markers', line: { color: tokens.series[0] } },
           ]
         : [],
     [blk, localN, shown, tokens],
   )
   const i0Blk = blk?.i0 ?? 0
-  const layoutW = useMemo(() => ({ xaxis: { title: { text: 'block k' } }, yaxis: { title: { text: 'w_k [fs/code]' } } }), [])
+  const layoutW = useMemo(() => ({ xaxis: { title: { text: R`block $k$` } }, yaxis: { title: { text: R`$w_k$ [fs/code]` } } }), [])
   const layoutA = useMemo(
     () => ({
-      xaxis: { title: { text: `block 內 sample（n − ${i0Blk}）` }, range: [-0.5, N - 0.5] },
-      yaxis: { title: { text: 'x、u（無因次）' } },
-      yaxis2: { title: { text: 'e [fs]' }, overlaying: 'y' as const, side: 'right' as const },
+      xaxis: { title: { text: R`block 內 sample（$n-${i0Blk}$）` }, range: [-0.5, N - 0.5] },
+      yaxis: { title: { text: R`$x$、$u$（無因次）` } },
+      yaxis2: { title: { text: R`$e$ [fs]` }, overlaying: 'y' as const, side: 'right' as const },
     }),
     [i0Blk, N],
   )
-  const layoutB = useMemo(() => ({ xaxis: { title: { text: 'block 內 sample' }, range: [-0.5, N - 0.5] }, yaxis: { title: { text: 'q·x_ref、S' } } }), [N])
+  const layoutB = useMemo(() => ({ xaxis: { title: { text: 'block 內 sample' }, range: [-0.5, N - 0.5] }, yaxis: { title: { text: R`$q\,x_\mathrm{ref}$、$S$` } } }), [N])
 
   const mode = active.params.gmMode
   const mu = active.params.mu
@@ -523,7 +523,9 @@ export function SignalFlowExperiment() {
             <table>
               <thead>
                 <tr>
-                  <th>n</th>
+                  <th>
+                    <Tex>n</Tex>
+                  </th>
                   <th>
                     <Tex>{R`x[n]`}</Tex>
                   </th>

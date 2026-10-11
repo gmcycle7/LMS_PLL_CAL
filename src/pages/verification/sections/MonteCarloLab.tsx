@@ -186,15 +186,15 @@ export function MonteCarloLab() {
         type: 'bar',
         x: labels,
         y: zs.map((c) => c.z),
-        name: 'z = (估計 − 期望)/SE',
+        name: '$z = (\\text{估計} - \\text{期望})/\\mathrm{SE}$',
         marker: { color: zs.map((c) => (c.pass ? tokens.series[0] : tokens.series[1])) },
-        hovertext: zs.map((c) => `${texToPlain(c.label)}<br>z = ${c.z.toFixed(3)}${c.expect === 'reject' ? '（反面：應超出門檻）' : ''}`),
+        hovertext: zs.map((c) => `${c.label}<br>$z = ${c.z.toFixed(3)}$${c.expect === 'reject' ? '（反面：應超出門檻）' : ''}`),
         hoverinfo: 'text',
       },
-      { type: 'scatter', mode: 'lines', x: [labels[0], labels[labels.length - 1]], y: [zc, zc], name: '+z_crit', line: { dash: 'dash', color: tokens.textMuted } },
-      { type: 'scatter', mode: 'lines', x: [labels[0], labels[labels.length - 1]], y: [-zc, -zc], name: '−z_crit', line: { dash: 'dash', color: tokens.textMuted } },
+      { type: 'scatter', mode: 'lines', x: [labels[0], labels[labels.length - 1]], y: [zc, zc], name: '$+z_{\\mathrm{crit}}$', line: { dash: 'dash', color: tokens.textMuted } },
+      { type: 'scatter', mode: 'lines', x: [labels[0], labels[labels.length - 1]], y: [-zc, -zc], name: '$-z_{\\mathrm{crit}}$', line: { dash: 'dash', color: tokens.textMuted } },
     ]
-    return { data, layout: { yaxis: { title: { text: 'z（標準誤）' }, zeroline: true }, xaxis: { title: { text: '檢查項目（MC_PLAN 的 key）' } }, showlegend: true } }
+    return { data, layout: { yaxis: { title: { text: '$z$（標準誤）' }, zeroline: true }, xaxis: { title: { text: '檢查項目（MC_PLAN 的 key）' } }, showlegend: true } }
   }, [checks, ui.zCrit, result, tokens])
 
   const presets: ExperimentPreset[] = useMemo(
@@ -283,7 +283,7 @@ export function MonteCarloLab() {
                 min={MC_SCALE_MIN}
                 max={MC_SCALE_MAX}
                 log
-                unit="×"
+                unit={String.raw`$\times$`}
                 reg="mc_scale（behavioral）"
                 hint={M('每項的樣本數 $\\times$ scale；$\\mathrm{SE}\\propto1/\\sqrt{\\text{scale}}$')}
               />

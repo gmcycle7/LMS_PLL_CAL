@@ -50,18 +50,19 @@ export function S5Mismatch() {
   const prof = useMemo(() => {
     const H = pathTransfer(TYPE2)
     const om = logOmegaGrid(1e-3, 500)
-    const variants: { name: string; label: ReactNode; hat: FxHatSpec }[] = [
-      { name: 'Ĥ = H', label: <Tex>{r`\hat H=H`}</Tex>, hat: HAT_EXACT },
-      { name: '頻寬 +50%', label: <>頻寬誤差 <Tex>{r`\hat\omega_n=1.5\,\omega_n`}</Tex></>, hat: { ...HAT_EXACT, bwErrPct: 50 } },
-      { name: '頻寬 −40%', label: <>頻寬誤差 <Tex>{r`\hat\omega_n=0.6\,\omega_n`}</Tex></>, hat: { ...HAT_EXACT, bwErrPct: -40 } },
-      { name: '模型漏算 1 sample latency（d̂ = 0）', label: <>模型漏算 1 sample loop latency（<Tex>{r`\hat d=0`}</Tex>）</>, hat: { ...HAT_EXACT, loopDelayErr: -1 } },
-      { name: '多算 3 sample（z⁻³）', label: <>多算 3 sample（<Tex>{r`\hat H=Hz^{-3}`}</Tex>）</>, hat: { ...HAT_EXACT, extraDelay: 3 } },
-      { name: '二次差分 Ĥ₂', label: <>二次差分 <Tex>{r`\hat H_2`}</Tex></>, hat: { ...HAT_EXACT, base: 'second_diff' } },
+    // key：查表用的識別字；trace：圖例名稱（數學寫成 `$...$`，Plot 元件轉成斜體符號與上下標）
+    const variants: { key: string; trace: string; label: ReactNode; hat: FxHatSpec }[] = [
+      { key: 'exact', trace: r`$\hat H = H$`, label: <Tex>{r`\hat H=H`}</Tex>, hat: HAT_EXACT },
+      { key: 'bw+50', trace: '頻寬 +50%', label: <>頻寬誤差 <Tex>{r`\hat\omega_n=1.5\,\omega_n`}</Tex></>, hat: { ...HAT_EXACT, bwErrPct: 50 } },
+      { key: 'bw-40', trace: '頻寬 −40%', label: <>頻寬誤差 <Tex>{r`\hat\omega_n=0.6\,\omega_n`}</Tex></>, hat: { ...HAT_EXACT, bwErrPct: -40 } },
+      { key: 'latency-miss-1', trace: r`模型漏算 1 sample latency（$\hat d = 0$）`, label: <>模型漏算 1 sample loop latency（<Tex>{r`\hat d=0`}</Tex>）</>, hat: { ...HAT_EXACT, loopDelayErr: -1 } },
+      { key: 'extra-3', trace: r`多算 3 sample（$z^{-3}$）`, label: <>多算 3 sample（<Tex>{r`\hat H=Hz^{-3}`}</Tex>）</>, hat: { ...HAT_EXACT, extraDelay: 3 } },
+      { key: 'second-diff', trace: r`二次差分 $\hat H_2$`, label: <>二次差分 <Tex>{r`\hat H_2`}</Tex></>, hat: { ...HAT_EXACT, base: 'second_diff' } },
     ]
     const data: Data[] = variants.map((v) => {
       const hat = buildHat(TYPE2, v.hat, { kind: 'white_pm_one' })
       const p = phaseProfile({ h: H, g: hat.full, D: 0, omega: om })
-      return { x: Array.from(om), y: Array.from(p.thetaDeg), name: v.name, mode: 'lines' }
+      return { x: Array.from(om), y: Array.from(p.thetaDeg), name: v.trace, mode: 'lines' }
     })
     const band = (y: number) => ({ type: 'line' as const, xref: 'paper' as const, x0: 0, x1: 1, y0: y, y1: y, line: { dash: 'dash' as const, width: 1 } })
     // 白色 ±1 code 下各 Ĥ 的 E[u·u_f]
@@ -78,9 +79,9 @@ export function S5Mismatch() {
       const hat = buildHat(TYPE2, v.hat, white)
       const w = rhoOf(white, hat.full)
       const l = rhoOf(lp, hat.full)
-      return { name: v.name, label: v.label, white: w.c, whiteRho: w.rho, lowpass: l.c, lowpassRho: l.rho }
+      return { key: v.key, label: v.label, white: w.c, whiteRho: w.rho, lowpass: l.c, lowpassRho: l.rho }
     })
-    const row = (name: string) => table.find((t) => t.name === name) as (typeof table)[number]
+    const row = (key: string) => table.find((t) => t.key === key) as (typeof table)[number]
     return { data, shapes: [band(90), band(-90)], table, row }
   }, [])
 
@@ -232,7 +233,7 @@ export function S5Mismatch() {
           title={r`$\angle H-\angle\hat H$（Type-II DPLL，$\omega_nT_s=0.1$、$\zeta=0.7$、$d=1$）`}
           data={prof.data}
           layout={{
-            xaxis: { title: { text: 'Ω [rad/sample]（log）' } },
+            xaxis: { title: { text: r`$\Omega$ [rad/sample]（log）` } },
             yaxis: { title: { text: '相位差 [deg]' }, range: [-185, 185], dtick: 45 },
             shapes: prof.shapes,
           }}
@@ -272,7 +273,7 @@ export function S5Mismatch() {
             </thead>
             <tbody>
               {prof.table.map((row) => (
-                <tr key={row.name}>
+                <tr key={row.key}>
                   <td>{row.label}</td>
                   <td className={`num ${signClass(row.white)}`}>{fx(row.white, 5)}</td>
                   <td className={`num ${signClass(row.whiteRho, 1e-6)}`}>{fp(row.whiteRho, 3)}</td>
@@ -287,17 +288,17 @@ export function S5Mismatch() {
           <li>
             <strong>頻寬誤差</strong>只在 <Tex>{r`\omega_n`}</Tex> 附近（相位從 <Tex>{r`180^\circ`}</Tex> 轉到 <Tex>{r`0^\circ`}</Tex> 的過渡帶）造成相位差，
             兩端（低頻 <Tex>{r`\approx180^\circ`}</Tex>、高頻 <Tex>{r`\approx0^\circ`}</Tex>）不受影響——相當耐受（<Tex>{r`\hat\omega_n=1.5\,\omega_n`}</Tex> 時
-            <Tex>{r`\rho_{\mathrm{ref}}=${tx(prof.row('頻寬 +50%').whiteRho, 3)}`}</Tex>／<Tex>{tx(prof.row('頻寬 +50%').lowpassRho, 3)}</Tex>）。
+            <Tex>{r`\rho_{\mathrm{ref}}=${tx(prof.row('bw+50').whiteRho, 3)}`}</Tex>／<Tex>{tx(prof.row('bw+50').lowpassRho, 3)}</Tex>）。
           </li>
           <li>
             <strong>latency 誤差</strong>是線性相位 <Tex>{r`\Omega\Delta`}</Tex>，<strong>頻率越高越大</strong>；DSM code 的能量正好集中在高頻，
-            是最危險的模型誤差：只多算 3 個 sample，白色 code 的 <Tex>{r`\rho_{\mathrm{ref}}=${tx(prof.row('多算 3 sample（z⁻³）').whiteRho, 3)}`}</Tex>
-            {prof.row('多算 3 sample（z⁻³）').whiteRho < 0 ? '（已經變號）' : ''}。
+            是最危險的模型誤差：只多算 3 個 sample，白色 code 的 <Tex>{r`\rho_{\mathrm{ref}}=${tx(prof.row('extra-3').whiteRho, 3)}`}</Tex>
+            {prof.row('extra-3').whiteRho < 0 ? '（已經變號）' : ''}。
           </li>
           <li>
             <strong>二次差分</strong>只在 DC 附近與 Nyquist 附近相位正確，中頻帶的相位差超過 <Tex>{r`90^\circ`}</Tex>；白色 code 靠 Nyquist 附近的正票得到
-            <Tex>{r`\rho_{\mathrm{ref}}=${tx(prof.row('二次差分 Ĥ₂').whiteRho, 3)}`}</Tex>，低通 AR(1) 反而只有
-            <Tex>{txs(prof.row('二次差分 Ĥ₂').lowpassRho, 3)}</Tex>——下一段推導為什麼它只適合<strong>窄頻</strong>的低頻 tone。
+            <Tex>{r`\rho_{\mathrm{ref}}=${tx(prof.row('second-diff').whiteRho, 3)}`}</Tex>，低通 AR(1) 反而只有
+            <Tex>{txs(prof.row('second-diff').lowpassRho, 3)}</Tex>——下一段推導為什麼它只適合<strong>窄頻</strong>的低頻 tone。
           </li>
         </ul>
         <p className="small muted">

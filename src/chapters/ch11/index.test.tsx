@@ -4,6 +4,7 @@ import { SettingsProvider } from '@/app/settings'
 import Chapter11 from './index'
 import { CH11_DIAGRAMS } from './diagrams'
 import { BiasInlLab } from './experiments/BiasInlLab'
+import { DcNullExperiment } from './experiments/DcNullExperiment'
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
 
@@ -34,6 +35,70 @@ function wrap(node: React.ReactNode, url = '/ch/11') {
 afterEach(() => {
   localStorage.clear()
 })
+
+/** 用 Unicode 拼數學時會出現的字元（希臘字母、上下標、關係與運算符號）；控制項的 label／hint／unit 與指標的名稱／單位一律寫 `$…$` */
+const UNICODE_MATH = /[σμκεφρλθωΩΣΔπ√²³⁴⁻¹₀₁₂₃ₖ≤≥≈≠≡∂∈∞δηβ·×÷∓ŷ]/
+
+/** 元素裡 KaTeX 以外的文字 */
+function outsideKatex(el: Element): string {
+  const c = el.cloneNode(true) as Element
+  c.querySelectorAll('.katex').forEach((k) => k.remove())
+  return c.textContent ?? ''
+}
+
+/**
+ * 控制項（ParamControl／SelectControl／ToggleControl 的 label、單位、說明、暫存器名稱）與指標表（名稱、備註、單位）：
+ * 數學都由 KaTeX 排版，KaTeX 以外沒有 Unicode 拼的數學（<option> 與匯出欄名是純文字，不在此列）。
+ */
+function expectLatexControls(root: Element): number {
+  const where = ['.c-param-label', '.c-param-unit', '.c-param-meta', '.c-param-reg', '.c-metric-table tbody td:nth-child(1)', '.c-metric-table tbody td:nth-child(3)']
+  const bad: string[] = []
+  let katex = 0
+  for (const sel of where) {
+    for (const el of Array.from(root.querySelectorAll(sel))) {
+      katex += el.querySelectorAll('.katex').length
+      if (UNICODE_MATH.test(outsideKatex(el))) bad.push(`${sel}：${outsideKatex(el)}`)
+    }
+  }
+  expect(bad).toEqual([])
+  return katex
+}
+
+type PlotlyCall = [unknown, unknown, unknown, unknown]
+/** 傳給 Plotly.react 的所有「會顯示的字串」（name／text／title／ticktext…）；Plot 元件已把其中的 `$…$` 轉成斜體符號與上下標。 */
+function plotlyStrings(): string[] {
+  const keys = new Set(['name', 'text', 'title', 'ticktext', 'hovertemplate', 'texttemplate', 'hovertext'])
+  const out: string[] = []
+  const walk = (v: unknown, key: string | null, depth: number) => {
+    if (typeof v === 'string') {
+      if (key !== null && keys.has(key)) out.push(v)
+      return
+    }
+    if (depth > 6 || v === null || typeof v !== 'object' || ArrayBuffer.isView(v)) return
+    if (Array.isArray(v)) {
+      if (typeof v[0] === 'number') return
+      v.forEach((x) => walk(x, key, depth + 1))
+      return
+    }
+    for (const [k, x] of Object.entries(v)) walk(x, k, depth + 1)
+  }
+  for (const [, data, layout] of P.react.mock.calls as unknown as PlotlyCall[]) {
+    walk(data, null, 0)
+    walk(layout, null, 0)
+  }
+  return out
+}
+
+/** 圖表字串都經過 plotMath：沒有殘留的 TeX（反斜線、大括號、`$`）、沒有 `_`／`^`、沒有 Unicode 拼的上下標，希臘字母都是斜體變數（<i>…</i>）。 */
+function expectTypesetPlotStrings(): string[] {
+  const strings = plotlyStrings()
+  const bare = (t: string) => t.replace(/<i>[^<]*<\/i>/g, '')
+  expect(strings.filter((t) => /[\\{}$]/.test(t))).toEqual([])
+  expect(strings.filter((t) => /[_^]/.test(t))).toEqual([])
+  expect(strings.filter((t) => /[²³⁴⁻¹₀₁₂₃ₖ]/.test(t))).toEqual([])
+  expect(strings.filter((t) => /[α-ω]/.test(bare(t)))).toEqual([])
+  return strings
+}
 
 /**
  * 整章 render（8 題手算、3 個實驗、十幾段程式碼）在多個測試行程同時執行的機器上可能超過一分鐘：
@@ -194,6 +259,26 @@ describe('Ch11 smoke tests（jsdom）', () => {
     expect(bad).toEqual([])
     // 行內數學分隔符成對：渲染後的文字不應殘留 '$'
     expect(container.textContent ?? '').not.toMatch(/\$/)
+    // 控制項與指標表的數學都是 KaTeX
+    expect(expectLatexControls(container)).toBeGreaterThan(40)
+    // 互動圖表（Plotly）裡的軸標題、圖例、標記文字：`$…$` 都已轉成斜體符號與真正的上下標
+    const plotText = expectTypesetPlotStrings()
+    expect(plotText.filter((t) => /<i>|<sub>|<sup>/.test(t)).length).toBeGreaterThan(20)
+    for (const t of [
+      '<i>e</i>（t.u.）',
+      '<i>E</i>[<i>q</i>|<i>e</i>]',
+      '<i>E</i>[<i>q</i>|<i>e</i>] = erf(<i>e</i>/(√2\u2009<i>σ</i><sub><i>v</i></sub>))',
+      '<i>x</i> = −2',
+      '<i>σ</i><sub><i>v</i></sub>（t.u.，log）',
+      '<i>w</i><sup>∗</sup>（t.u.）',
+      '二階近似 1.34+3.456×10<sup>−4</sup>/<i>σ</i><sub><i>v</i></sub><sup>2</sup>',
+      '<i>C</i>（頻域：Σ<sub><i>k</i></sub>|<i>X</i><sub><i>k</i></sub>|<sup>2</sup>·Re\u2009<i>H</i><sub>PD</sub>）',
+      '|<i>w</i><sup>∗</sup>−<i>a</i>|（t.u.）',
+      'Case A：<i>E</i>[<i>G</i>](<i>w</i>)，Sign，<i>σ</i><sub><i>v</i></sub> = 1',
+      '<i>w</i> = <i>w</i><sup>∗</sup>（1.34035）',
+      '確定性殘差 <i>e</i><sub>det</sub>+<i>φ</i>（t.u.）',
+    ])
+      expect(plotText, t).toContain(t)
     // 不可把 NaN / undefined 印到頁面上（程式碼區塊本身含 Number.NaN，先移除再檢查）
     const clone = container.cloneNode(true) as HTMLElement
     clone.querySelectorAll('.c-code, pre, code').forEach((el) => el.remove())
@@ -209,12 +294,19 @@ describe('Ch11 smoke tests（jsdom）', () => {
     expect(container.querySelector('#ch11-offset')).toBeTruthy()
     if (mode === 'research') {
       expect(screen.getByText('Research：mean-field 的嚴格意義')).toBeTruthy()
-      expect(screen.getByText(/ρ_j（σ_v\(x\) 斜率）/)).toBeTruthy()
+      // 「ρ_j（σ_v(x) 斜率）」與單位 code^{-2} 都由 KaTeX 排版
+      const jitter = Array.from(container.querySelectorAll('.c-param-label')).find((l) => (l.textContent ?? '').includes('ρ'))
+      expect(jitter?.textContent).toContain('斜率')
+      expect(jitter?.querySelectorAll('.katex').length).toBe(2)
+      expect(Array.from(container.querySelectorAll('.c-param-unit .katex')).length).toBeGreaterThanOrEqual(1)
     } else {
       expect(screen.queryByText('Research：mean-field 的嚴格意義')).toBeNull()
     }
     const bad = Array.from(container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.textContent)
     expect(bad).toEqual([])
+    // 控制項的 label／單位／說明與指標表：數學都是 KaTeX，沒有 Unicode 拼的公式
+    expect(expectLatexControls(container)).toBeGreaterThan(40)
+    expect(container.textContent ?? '').not.toMatch(/\$/)
     await waitFor(() => expect(P.react).toHaveBeenCalled(), { timeout: WAIT })
   }, SMOKE_TIMEOUT)
 
@@ -248,6 +340,39 @@ describe('Ch11 smoke tests（jsdom）', () => {
     expect(row?.textContent).toMatch(/1\.3\d+ ± /)
     expect(row?.textContent).toContain('✓')
     expect(container.textContent).toContain('有限步長偏移估計')
+    // 指標表的單位 t.u.^{-1}、控制項的 label 與說明都是 KaTeX
+    const slopeRow = Array.from(container.querySelectorAll('.c-metric-table tbody tr')).find((tr) => (tr.textContent ?? '').includes('GMAC 斜率'))
+    expect(slopeRow?.querySelector('td:nth-child(3) .katex')).toBeTruthy()
+    expect(expectLatexControls(container)).toBeGreaterThan(30)
+    expect(container.textContent ?? '').not.toMatch(/\$/)
+    // Run 之後多了 MC 軌跡圖與 MC 標記：圖表字串一樣是排版好的符號與上下標
+    const mcText = expectTypesetPlotStrings()
+    for (const t of [
+      'block <i>k</i>',
+      '<i>w</i><sub><i>k</i></sub>（t.u.）',
+      'Case A：MC <i>w\u0304</i>（95% CI）',
+      'Case A：MC 凍結 <i>w</i> 的平均 <i>G</i>（95% CI）',
+      'MC（目前 <i>σ</i><sub><i>v</i></sub>，95% CI）',
+      'mean-field <i>w</i><sup>∗</sup>（1.34035）',
+    ])
+      expect(mcText, t).toContain(t)
+  }, LAB_TIMEOUT)
+
+  it('DC null 實驗：Run 之後圖表的軸標題與圖例（w*、σ_eff）是排版好的符號，控制項的 label 是 KaTeX', async () => {
+    P.react.mockClear()
+    const { container } = render(wrap(<DcNullExperiment />))
+    fireEvent.click(screen.getAllByRole('button', { name: /執行 Run/ })[0])
+    await waitFor(() => expect(plotlyStrings().some((t) => t.startsWith('servo-aware（'))).toBe(true), { timeout: WAIT })
+    const text = expectTypesetPlotStrings()
+    expect(text).toContain('servo-aware（<i>σ</i><sub>eff</sub>）')
+    expect(text).toContain('<i>w</i><sup>∗</sup>（t.u.）')
+    expect(text).toContain('Monte Carlo（95% CI）')
+    // 控制項：b、c₂、c₃、x₀、σ_v、N 的 label 都是 KaTeX；暫存器名稱用 ASCII
+    const labels = Array.from(container.querySelectorAll('.c-param-label'))
+    expect(labels.filter((l) => l.querySelector('.katex')).length).toBeGreaterThanOrEqual(6)
+    expect(expectLatexControls(container)).toBeGreaterThan(10)
+    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expect(container.textContent ?? '').not.toMatch(/\$/)
   }, LAB_TIMEOUT)
 
   it('Lab：dead zone preset 的 w* 顯示區間（不是任意一點），Run 後 MC 落在區間內', async () => {
@@ -265,6 +390,10 @@ describe('Ch11 smoke tests（jsdom）', () => {
     expect(dz.textContent).toContain('1.33333')
     expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
     expect(container.textContent ?? '').not.toMatch(/\$/)
+    // dead zone 的圖例（G = 0 的區間）與 σ_v = 0 的圖例是排版好的符號
+    const dzText = expectTypesetPlotStrings()
+    expect(dzText).toContain('Case A：dead zone（<i>G</i> = 0 的區間）')
+    expect(dzText).toContain('Case A：<i>E</i>[<i>G</i>](<i>w</i>)，Sign，<i>σ</i><sub><i>v</i></sub> = 0')
     // Case 比較表的「設定」欄：σ_v 以 KaTeX 顯示
     const caseRow = Array.from(container.querySelectorAll('tr.ch11-hl')).find((tr) => /^[A-C]Sign/.test(tr.textContent ?? ''))
     expect(caseRow?.querySelector('td:nth-child(2) .katex')).toBeTruthy()

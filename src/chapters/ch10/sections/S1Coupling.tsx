@@ -400,7 +400,7 @@ export function S1Coupling() {
             <Tex>{'K_q'}</Tex>」。(2) 誤差大時有效增益 <Tex>{String.raw`K_q/\sqrt{1+\boldsymbol\delta^T\mathbf R_u\boldsymbol\delta/\sigma_v^2}`}</Tex> 變小，
             所以 Sign-LMS 一開始比線性模型慢。上面例子 <Tex>{String.raw`\boldsymbol\delta=(0,10)`}</Tex>：精確{' '}
             <Tex>{String.raw`G_1=${tn(c.Gexact[0], 5)}`}</Tex> vs 線性 <Tex>{String.raw`${tn(c.G1lin, 5)}`}</Tex>（壓縮因子{' '}
-            <Tex>{String.raw`1/\sqrt{1+100/10^4}=${tn(c.Gexact[0] / c.G1lin, 5)}`}</Tex>）。±1 碼則用列舉：{' '}
+            <Tex>{String.raw`1/\sqrt{1+100/10^4}=${tn(c.Gexact[0] / c.G1lin, 5)}`}</Tex>）。<Tex>{String.raw`\pm1`}</Tex> 碼則用列舉：{' '}
             <Tex>{String.raw`E[\mathbf G]=\sum_{\mathbf s}p(\mathbf s)\,\mathbf B\mathbf s\,\operatorname{erf}\big(\mathbf s^T\boldsymbol\delta/(\sqrt2\sigma_v)\big)`}</Tex>（程式碼{' '}
             <code>signGmacMean</code>）。<ClaimTag kind="exact" />
           </p>

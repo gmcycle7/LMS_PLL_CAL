@@ -79,7 +79,7 @@ export const CORNER_DEFAULTS: CornerParams = {
 }
 
 const MAX_CORNERS = 6
-const BMIN_LAYOUT = { xaxis: { title: { text: 'r = K_min/K_max' } }, yaxis: { title: { text: 'B_min' } } }
+const BMIN_LAYOUT = { xaxis: { title: { text: String.raw`$r = K_{\min}/K_{\max}$` } }, yaxis: { title: { text: String.raw`$B_{\min}$` } } }
 const SQRT_2_OVER_PI = Math.sqrt(2 / Math.PI)
 
 /**
@@ -160,7 +160,7 @@ export function CornerIntervalExperiment() {
           const v = cornerContraction(mu, K, dp.B)
           return Number.isFinite(v) && v > 0 && v < 1e6 ? v : null
         }),
-        name: `${dp.corners[i].name}（K = ${nf(K, 3)}）`,
+        name: `${dp.corners[i].name}（$K = ${tx(K, 3)}$）`,
         line: { color: tokens.series[i % tokens.series.length] },
       })),
     [kLin, plotRange, dp.B, dp.corners, tokens],
@@ -175,13 +175,13 @@ export function CornerIntervalExperiment() {
     return s
   }, [res, dp.eps, tokens, plotRange])
 
-  const contractionLayout = useMemo(() => ({ shapes, xaxis: { title: { text: 'μ（fs，log）' } }, yaxis: { title: { text: '|E[δ_B]/δ0|' } } }), [shapes])
+  const contractionLayout = useMemo(() => ({ shapes, xaxis: { title: { text: String.raw`$\mu$（fs，log）` } }, yaxis: { title: { text: String.raw`$|E[\delta_B]/\delta_0|$` } } }), [shapes])
   const bminData = useMemo<Data[]>(() => {
     const rs = linspace(0.02, 1, 200)
     const g = gMaxForPm(dp.pmTargetDeg)
     const curve = rs.map((r) => (g * r >= 1 ? 1 : Math.log(dp.eps) / Math.log(1 - g * r)))
-    const d: Data[] = [{ x: rs, y: curve, name: `B_min(r)，ε = ${dp.eps}、PM ≥ ${dp.pmTargetDeg}°`, line: { color: tokens.series[0], width: 2.4 } }]
-    if (res.ok) d.push({ x: [res.ratio], y: [dp.B], name: `目前設計（r = ${nf(res.ratio, 3)}、B = ${dp.B}）`, mode: 'markers', marker: { size: 12, color: res.nonEmpty ? tokens.series[2] : tokens.danger, symbol: res.nonEmpty ? 'circle' : 'x' } })
+    const d: Data[] = [{ x: rs, y: curve, name: String.raw`$B_{\min}(r)$，$\epsilon = ${tx(dp.eps, 3)}$、$PM \ge ${tx(dp.pmTargetDeg, 3)}^\circ$`, line: { color: tokens.series[0], width: 2.4 } }]
+    if (res.ok) d.push({ x: [res.ratio], y: [dp.B], name: String.raw`目前設計（$r = ${tx(res.ratio, 3)}$、$B = ${dp.B}$）`, mode: 'markers', marker: { size: 12, color: res.nonEmpty ? tokens.series[2] : tokens.danger, symbol: res.nonEmpty ? 'circle' : 'x' } })
     return d
   }, [dp.eps, dp.pmTargetDeg, dp.B, res, tokens])
 
@@ -211,7 +211,7 @@ export function CornerIntervalExperiment() {
   })()
 
   const metrics: MetricRow[] = [
-    { name: String.raw`$K_{\min}$／$K_{\max}$`, value: res.ok ? `${nf(res.kMin, 4)} / ${nf(res.kMax, 4)}` : null, unit: 'fs⁻¹' },
+    { name: String.raw`$K_{\min}$／$K_{\max}$`, value: res.ok ? `${nf(res.kMin, 4)} / ${nf(res.kMax, 4)}` : null, unit: String.raw`$\mathrm{fs}^{-1}$` },
     { name: String.raw`$r=K_{\min}/K_{\max}$`, value: res.ok ? res.ratio : null },
     { name: String.raw`$\mu$ 下限 $(1-\epsilon^{1/B})/K_{\min}$`, value: res.ok ? res.muLo : null, unit: 'fs', formulaId: 'F-14.15', claim: 'exact' },
     { name: String.raw`$\mu$ 上限 $g_{\max}/K_{\max}$`, value: res.ok ? res.muHi : null, unit: 'fs', formulaId: 'F-14.15', claim: 'exact' },
@@ -305,7 +305,7 @@ export function CornerIntervalExperiment() {
                   min={-0.1}
                   max={0.1}
                   step={0.0001}
-                  unit="fs⁻¹"
+                  unit={String.raw`$\mathrm{fs}^{-1}$`}
                   digits={5}
                   reg={`corner ${i + 1}: 量測到的 GMAC 斜率（Jacobian）`}
                   hint={md(String.raw`$K_i\le0$ 代表極性錯誤`)}

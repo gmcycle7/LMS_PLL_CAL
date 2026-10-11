@@ -1,7 +1,8 @@
 import { fireEvent, render, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import katex from 'katex'
 import mermaid from 'mermaid'
-import { installMermaidSvgShim, renderMermaidForTest } from '@/components/mermaidTestUtils'
+import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { SettingsProvider } from '@/app/settings'
 import { conventionalStep, fixedXPole } from '@/simulation/models/lms'
 import * as D from './diagrams'
@@ -67,6 +68,39 @@ const plain = (s: string) =>
     .replace(/&lt;/g, '<')
     .replace(/&amp;/g, '&')
     .replace(/\s+/g, '')
+
+/** 與共用 Mermaid 前處理（mermaidSource.ts）相同的行內公式規則：`$...$` 或 `$$...$$`，`\$` 是字面的美元符號。 */
+const MATH = /\$\$((?:[^$\\]|\\.)+?)\$\$|(?<!\\)\$((?:[^$\\]|\\.)+?)(?<!\\)\$/g
+
+/** 圖原始碼裡所有雙引號標籤（節點、連線）。 */
+const quotedLabels = (chart: string): string[] => Array.from(chart.matchAll(/"([^"\n]*)"/g), (m) => m[1])
+
+const hasMath = (label: string): boolean => {
+  MATH.lastIndex = 0
+  const found = MATH.test(label)
+  MATH.lastIndex = 0
+  return found
+}
+
+/** 含 `$...$` 的標籤個數：共用 Mermaid 把每個這樣的標籤排版成一個 KaTeX 區塊，所以畫出來的 .katex 數必須剛好等於它。 */
+const mathLabelCount = (chart: string): number => quotedLabels(chart).filter(hasMath).length
+
+/** 標籤去掉 `$...$` 之後留下的文字片段（<br/> 與公式都當成分隔）。 */
+const textPieces = (label: string): string[] =>
+  label
+    .replace(MATH, '\uE000')
+    .split(/<br\s*\/?>|\uE000/i)
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0)
+
+/** 去掉所有空白（含不換行空白與零寬空白） */
+const squash = (t: string) => t.replace(/[\s\u00a0\u200b]+/g, '')
+
+/**
+ * 圖上的程式碼名稱（常數、函式）不是數學：unicodeMathIn 的底線下標規則會誤判 ALL_PRESETS 這類識別字，檢查前先拿掉。
+ * 這張表只放真正出現在圖上的程式碼名稱；有新的數學變數寫成 w_k 這類 Unicode 拼法時仍然會被抓到。
+ */
+const CODE_NAMES = /\bALL_PRESETS\b/g
 
 /** Mermaid 11 把標籤當 Markdown：這些寫法會被畫成「Unsupported markdown: …」或被 HTML 解析吃掉。 */
 function labelHazard(text: string): string | null {
@@ -136,7 +170,8 @@ describe('Gallery 的 Mermaid 圖（真正的 mermaid parser）', () => {
       for (const s of sums) {
         const incoming = g.edges.filter((e) => e.end === s.id)
         expect(incoming.length, `${c.name} 加法點 ${s.id}`).toBeGreaterThanOrEqual(2)
-        for (const e of incoming) expect(e.text ?? '', `${c.name}：${e.start} → ${s.id} 要標正負號`).toMatch(/^[＋−]/)
+        // 正負號：純符號的邊寫全形「＋」「−」；標籤裡還有公式的邊把正負號放進數學（`$+\,...$`、`$-\,...$`）
+        for (const e of incoming) expect(e.text ?? '', `${c.name}：${e.start} → ${s.id} 要標正負號`).toMatch(/^([＋−]|\$[+-])/)
       }
     }
     // 兩張迴路圖各有兩個加法點
@@ -145,14 +180,15 @@ describe('Gallery 的 Mermaid 圖（真正的 mermaid parser）', () => {
 
   it('#1 的 LMS 迴路：極性與公式一致（e_n = y_n − w_n·x、w_(n+1) = w_n + μ·e_n·x），照著圖算的結果就是 conventionalStep', async () => {
     const g = await flow(CHART_LMS_LOOP)
-    expect(edgeText(g, 'BOX', 'S1')).toBe('＋ y_n = a·x') // 量測為正
-    expect(edgeText(g, 'PRED', 'S1')).toBe('− w_n·x') // 預測為負
-    expect(edgeText(g, 'S1', 'GAIN')).toBe('e_n = y_n − w_n·x')
-    expect(edgeText(g, 'GAIN', 'S2')).toBe('＋ μ·e_n·x')
-    expect(edgeText(g, 'Z', 'S2')).toBe('＋ w_n')
-    expect(edgeText(g, 'S2', 'Z')).toBe('w_(n+1) = w_n + μ·e_n·x')
-    expect(nodeText(g, 'Z')).toContain('z⁻¹')
-    expect(nodeText(g, 'GAIN')).toContain('× μ·x')
+    // 標籤原始碼就是 LaTeX：正負號放在進入加法點的那條線的數學裡
+    expect(edgeText(g, 'BOX', 'S1')).toBe(String.raw`$+\,y_n = a\,x$`) // 量測為正
+    expect(edgeText(g, 'PRED', 'S1')).toBe(String.raw`$-\,w_n\,x$`) // 預測為負
+    expect(edgeText(g, 'S1', 'GAIN')).toBe(String.raw`$e_n = y_n - w_n\,x$`)
+    expect(edgeText(g, 'GAIN', 'S2')).toBe(String.raw`$+\,\mu\,e_n\,x$`)
+    expect(edgeText(g, 'Z', 'S2')).toBe(String.raw`$+\,w_n$`)
+    expect(edgeText(g, 'S2', 'Z')).toBe(String.raw`$w_{n+1} = w_n + \mu\,e_n\,x$`)
+    expect(nodeText(g, 'Z')).toContain('$z^{-1}$')
+    expect(nodeText(g, 'GAIN')).toContain(String.raw`$\times\,\mu\,x$`)
     // 回授：z⁻¹ 的輸出（w_n）回到預測方塊
     expect(g.edges.some((e) => e.start === 'Z' && e.end === 'PRED')).toBe(true)
     // 照著圖上的方塊做一遍（T01 的輸入），每一步都和模型函式相同
@@ -175,11 +211,11 @@ describe('Gallery 的 Mermaid 圖（真正的 mermaid parser）', () => {
     const g = await flow(CHART_MATCH_DECISION)
     expect(PRECISE_REL).toBe(0.01)
     expect(EXACT_REL).toBe(1e-9)
-    expect(nodeText(g, 'H')).toContain('Δ_t = ½·10^(e − n_d)')
-    expect(nodeText(g, 'Q1')).toContain('Δ_t ≤ 0.01·|y_t|')
-    expect(nodeText(g, 'W1')).toContain('W = k_tol·Δ_t')
-    expect(nodeText(g, 'W2')).toContain('W = 10⁻⁹·max(1, |y_t|)')
-    expect(nodeText(g, 'CMP')).toContain('|ŷ − y_t| ≤ W')
+    expect(nodeText(g, 'H')).toContain(String.raw`$\Delta_t = \frac{1}{2}\cdot 10^{e - n_d}$`)
+    expect(nodeText(g, 'Q1')).toContain(String.raw`$\Delta_t \le 0.01\cdot |y_t|$`)
+    expect(nodeText(g, 'W1')).toContain(String.raw`$W = k_{\mathrm{tol}}\cdot\Delta_t$`)
+    expect(nodeText(g, 'W2')).toContain(String.raw`$W = 10^{-9}\cdot\max(1, |y_t|)$`)
+    expect(nodeText(g, 'CMP')).toContain(String.raw`$|\hat y - y_t| \le W$`)
     // 圖的走向：H → Q1 →（是）W1 → CMP；Q1 →（否）Q2 →（是）W2 → CMP；Q2 →（否）SKIP；CMP → OK / BAD
     expect(edgeText(g, 'Q1', 'W1')).toMatch(/^是/)
     expect(edgeText(g, 'Q1', 'Q2')).toMatch(/^否/)
@@ -210,14 +246,14 @@ describe('Gallery 的 Mermaid 圖（真正的 mermaid parser）', () => {
   it('統一觀點的迴路：δ_k = a − w_k、G_k = K·δ_k + B + η_k、w_(k+1) = w_k + μ·G_k；照著圖迭代會停在 w* = a + B/K，pole 是 1 − μK', async () => {
     const g = await flow(CHART_UNIFIED_LOOP)
     expect(edgeText(g, 'A', 'S1')).toBe('＋') // 真值為正
-    expect(edgeText(g, 'ACC', 'S1')).toMatch(/^−.*w_k/) // 回授的 w_k 為負
-    expect(edgeText(g, 'S1', 'KB')).toBe('δ_k = a − w_k')
-    expect(edgeText(g, 'KB', 'S2')).toMatch(/^＋/)
+    expect(edgeText(g, 'ACC', 'S1')).toMatch(/^\$-\$.*\$w_k\$/) // 回授的 w_k 為負
+    expect(edgeText(g, 'S1', 'KB')).toBe(String.raw`$\delta_k = a - w_k$`)
+    expect(edgeText(g, 'KB', 'S2')).toMatch(/^\$\+/)
     expect(edgeText(g, 'B', 'S2')).toBe('＋')
     expect(edgeText(g, 'ETA', 'S2')).toBe('＋')
-    expect(edgeText(g, 'S2', 'MU')).toBe('G_k = K·δ_k + B + η_k')
-    expect(nodeText(g, 'ACC')).toContain('1/(z−1)')
-    expect(nodeText(g, 'ACC')).toContain('w_(k+1) = w_k + μ·G_k')
+    expect(edgeText(g, 'S2', 'MU')).toBe(String.raw`$G_k = K\,\delta_k + B + \eta_k$`)
+    expect(nodeText(g, 'ACC')).toContain(String.raw`$\frac{1}{z-1}$`)
+    expect(nodeText(g, 'ACC')).toContain(String.raw`$w_{k+1} = w_k + \mu\,G_k$`)
     // 三個問題各一種顏色
     expect(CHART_UNIFIED_LOOP).toContain('class KB focus')
     expect(CHART_UNIFIED_LOOP).toContain('class B alt')
@@ -237,19 +273,45 @@ describe('Gallery 的 Mermaid 圖（真正的 mermaid parser）', () => {
     expect(w).toBeCloseTo(1.34, 12)
   })
 
-  it('實際渲染（共用的 renderMermaidForTest）：每張圖都畫得出來，沒有「Unsupported markdown」、節點數 ≤ 14，畫面上的每個標籤都和原始碼相同', async () => {
+  it('圖內的數學一律是 `$...$` LaTeX：$ 成對、每段 TeX 可被 KaTeX 嚴格解析、不用雙反斜線（Mermaid 會收成一個）、`$...$` 以外沒有 Unicode 拼的數學', () => {
     for (const c of GALLERY_CHARTS) {
-      const { svg, text, nodeCount } = await renderMermaidForTest(c.chart)
+      expect(c.chart, c.name).not.toContain('\\\\')
+      for (const label of quotedLabels(c.chart)) {
+        const dollars = label.replace(/\\\$/g, '').split('$').length - 1
+        expect(dollars % 2, `${c.name}：${label}`).toBe(0)
+        for (const m of label.matchAll(MATH)) {
+          expect(() => katex.renderToString(m[1] ?? m[2], { throwOnError: true, strict: 'ignore' }), `${c.name}：${m[0]}`).not.toThrow()
+        }
+        expect(unicodeMathIn(textPieces(label).join(' ').replace(CODE_NAMES, '')), `${c.name}：${label}`).toEqual([])
+      }
+    }
+    // 三張數學模型圖都真的有公式（PRESET_FLOW、THREE_QUESTIONS 是文字流程圖）
+    for (const c of [CHART_LMS_LOOP, CHART_MATCH_DECISION, CHART_UNIFIED_LOOP]) expect(mathLabelCount(c)).toBeGreaterThanOrEqual(6)
+  })
+
+  it('實際渲染（共用的 renderMermaidForTest）：每張圖都畫得出來，沒有「Unsupported markdown」、畫面上沒有殘留的 $、KaTeX 以外沒有 Unicode 數學、節點數 ≤ 14，每個標籤都畫出來', async () => {
+    for (const c of GALLERY_CHARTS) {
+      const { svg, text, nodeCount, mathCount, plainText } = await renderMermaidForTest(c.chart)
       expect(text, c.name).not.toMatch(/Unsupported markdown/)
+      expect(text, `${c.name}：畫面上不可殘留 $`).not.toContain('$')
+      expect(unicodeMathIn(plainText.replace(CODE_NAMES, '')), `${c.name}：KaTeX 以外不可有 Unicode 拼的數學`).toEqual([])
       expect(nodeCount, c.name).toBeLessThanOrEqual(14)
       expect(nodeCount, c.name).toBeGreaterThanOrEqual(4)
+      expect(mathCount, `${c.name}：每個含 $...$ 的標籤都排成一個 KaTeX 區塊`).toBe(mathLabelCount(c.chart))
       const host = document.createElement('div')
       host.innerHTML = svg
-      const shown = new Set(Array.from(host.querySelectorAll('.nodeLabel, .edgeLabel')).map((e) => plain(e.textContent ?? '')))
+      host.querySelectorAll('.katex-mathml').forEach((e) => e.remove())
+      const shown = Array.from(host.querySelectorAll('.nodeLabel, .edgeLabel')).map((e) => squash(e.textContent ?? ''))
       const g = await flow(c.chart)
       expect(nodeCount, `${c.name}：畫出來的節點數 = 解析出來的節點數`).toBe(g.vertices.length)
-      for (const v of g.vertices) expect(shown.has(plain(v.text ?? '')), `${c.name} 節點 ${v.id}：「${v.text}」沒有原樣出現在圖上`).toBe(true)
-      for (const e of g.edges) if (e.text) expect(shown.has(plain(e.text)), `${c.name} 邊 ${e.start}→${e.end}：「${e.text}」沒有原樣出現在圖上`).toBe(true)
+      // 沒有公式的標籤原樣出現在圖上；含公式的標籤，公式以外的文字片段都在同一個標籤裡
+      const appears = (label: string): boolean => {
+        const decoded = label.replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&')
+        if (!hasMath(decoded)) return shown.includes(plain(decoded))
+        return shown.some((t) => textPieces(decoded).every((piece) => t.includes(squash(piece))))
+      }
+      for (const v of g.vertices) expect(appears(v.text ?? ''), `${c.name} 節點 ${v.id}：「${v.text}」沒有出現在圖上`).toBe(true)
+      for (const e of g.edges) if (e.text) expect(appears(e.text), `${c.name} 邊 ${e.start}→${e.end}：「${e.text}」沒有出現在圖上`).toBe(true)
     }
   }, 120000)
 })

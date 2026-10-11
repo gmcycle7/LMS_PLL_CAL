@@ -38,7 +38,6 @@ import {
   modelLevelOf,
   presetConfigText,
   setConfigPath,
-  shortLabel,
   shortLabelTex,
   summarizeParams,
   tailHistogram,
@@ -53,11 +52,11 @@ const md = (s: string) => mathText(s)
 type Keyed<T> = { key: string; res: T }
 
 // Plot 以 layout 的 identity 判斷是否重畫：放在模組層級，避免在文字框每打一個字就讓所有圖 Plotly.react 一次（也會重設使用者的縮放）
-const LAYOUT_W = { xaxis: { title: { text: 'block k' } }, yaxis: { title: { text: 'w [fs/unit code]' } } }
-const LAYOUT_G_AVG = { xaxis: { title: { text: 'block k' } }, yaxis: { title: { text: 'G（average，無因次）' } } }
-const LAYOUT_G_SUM = { xaxis: { title: { text: 'block k' } }, yaxis: { title: { text: 'S（sum，無因次）' } } }
-const LAYOUT_TRACE = { xaxis: { title: { text: 'sample n' } }, yaxis: { title: { text: 'e [fs]' } } }
-const LAYOUT_HIST = { xaxis: { title: { text: 'w [fs/unit code]' } }, yaxis: { title: { text: '機率密度 [1/fs]' } }, barmode: 'overlay' as const }
+const LAYOUT_W = { xaxis: { title: { text: 'block $k$' } }, yaxis: { title: { text: '$w$ [fs/unit code]' } } }
+const LAYOUT_G_AVG = { xaxis: { title: { text: 'block $k$' } }, yaxis: { title: { text: '$G$（average，無因次）' } } }
+const LAYOUT_G_SUM = { xaxis: { title: { text: 'block $k$' } }, yaxis: { title: { text: '$S$（sum，無因次）' } } }
+const LAYOUT_TRACE = { xaxis: { title: { text: 'sample $n$' } }, yaxis: { title: { text: '$e$ [fs]' } } }
+const LAYOUT_HIST = { xaxis: { title: { text: '$w$ [fs/unit code]' } }, yaxis: { title: { text: '機率密度 [1/fs]' } }, barmode: 'overlay' as const }
 
 const PATTERN_KINDS = ['iid_pm_one', 'gaussian', 'uniform', 'sinusoid', 'dsm_first_order', 'mash111'] as const
 const PATH_KINDS = ['identity', 'single_tone', 'fir', 'first_order_hp', 'type2_dt', 'iir'] as const
@@ -190,10 +189,10 @@ export function BlockLmsJsonLab() {
     if (!shown) return null
     const res = shown
     const w = decimate(res.blocks.w)
-    const traces: Plotly.Data[] = [{ x: w.x, y: w.y, name: 'w_k（內部暫存器）', mode: 'lines', line: { color: tokens.series[0], width: 1.5 } }]
+    const traces: Plotly.Data[] = [{ x: w.x, y: w.y, name: '$w_k$（內部暫存器）', mode: 'lines', line: { color: tokens.series[0], width: 1.5 } }]
     if (res.config.gain_register.quantize_physical) {
       const wp = decimate(res.blocks.wPhys)
-      traces.push({ x: wp.x, y: wp.y, name: 'w_phys（實體 code × LSB）', mode: 'lines', line: { color: tokens.series[3], width: 1, shape: 'hv' } })
+      traces.push({ x: wp.x, y: wp.y, name: '$w_{\\mathrm{phys}}$（實體 code $\\times$ LSB）', mode: 'lines', line: { color: tokens.series[3], width: 1, shape: 'hv' } })
     }
     if (mcCur && mc?.key === result?.key) {
       const m = decimate(mcCur.wMean)
@@ -204,11 +203,11 @@ export function BlockLmsJsonLab() {
     const a = res.config.gain_true
     const ws = res.analytic.wStarMeanField
     const sw = res.analytic.sigmaWPred
-    traces.push({ x: [0, K], y: [a, a], name: 'a（gain_true）', mode: 'lines', line: { color: tokens.textMuted, dash: 'dash', width: 1 } })
+    traces.push({ x: [0, K], y: [a, a], name: '$a$（gain_true）', mode: 'lines', line: { color: tokens.textMuted, dash: 'dash', width: 1 } })
     if (Number.isFinite(ws)) {
-      traces.push({ x: [0, K], y: [ws, ws], name: 'w*（mean-field）', mode: 'lines', line: { color: tokens.series[2], dash: 'dot', width: 1.5 } })
+      traces.push({ x: [0, K], y: [ws, ws], name: '$w^*$（mean-field）', mode: 'lines', line: { color: tokens.series[2], dash: 'dot', width: 1.5 } })
       if (Number.isFinite(sw) && sw > 0) {
-        traces.push({ x: [0, K, K, 0], y: [ws + 2 * sw, ws + 2 * sw, ws - 2 * sw, ws - 2 * sw], name: 'w* ± 2σ_w（預測）', fill: 'toself', mode: 'lines', line: { width: 0 }, opacity: 0.15, fillcolor: tokens.series[2], hoverinfo: 'skip' })
+        traces.push({ x: [0, K, K, 0], y: [ws + 2 * sw, ws + 2 * sw, ws - 2 * sw, ws - 2 * sw], name: '$w^* \\pm 2\\sigma_w$（預測）', fill: 'toself', mode: 'lines', line: { width: 0 }, opacity: 0.15, fillcolor: tokens.series[2], hoverinfo: 'skip' })
       }
     }
     return traces
@@ -217,7 +216,7 @@ export function BlockLmsJsonLab() {
   const plotG = useMemo(() => {
     if (!shown) return null
     const g = decimate(shown.blocks.G)
-    return [{ x: g.x, y: g.y, name: 'G_k', mode: 'lines' as const, line: { color: tokens.series[1], width: 1 } }]
+    return [{ x: g.x, y: g.y, name: '$G_k$', mode: 'lines' as const, line: { color: tokens.series[1], width: 1 } }]
   }, [shown, tokens])
 
   const plotTrace = useMemo(() => {
@@ -236,8 +235,8 @@ export function BlockLmsJsonLab() {
     }
     const e = decimate(t.e, 8000)
     return [
-      { x: e.x.map((i) => t.n[i]), y: e.y, name: 'e[n]（含雜訊）', mode: 'markers' as const, marker: { size: 3, color: tokens.series[0], opacity: 0.5 } },
-      { x: n0, y: eDet, name: '(a − w₀)·u[n] + b（block 0 的確定性部分）', mode: 'lines' as const, line: { color: tokens.series[1], width: 2 } },
+      { x: e.x.map((i) => t.n[i]), y: e.y, name: '$e[n]$（含雜訊）', mode: 'markers' as const, marker: { size: 3, color: tokens.series[0], opacity: 0.5 } },
+      { x: n0, y: eDet, name: '$(a - w_0)\\cdot u[n] + b$（block 0 的確定性部分）', mode: 'lines' as const, line: { color: tokens.series[1], width: 2 } },
     ]
   }, [shown, tokens])
 
@@ -246,8 +245,8 @@ export function BlockLmsJsonLab() {
     const h = tailHistogram(shown.blocks.w, shown.analytic.wStarMeanField, shown.analytic.sigmaWPred)
     if (!h) return null
     return [
-      { x: h.centers, y: h.density, name: '模擬：後半段 w 直方圖', type: 'bar' as const, marker: { color: tokens.series[0], opacity: 0.6 } },
-      { x: h.centers, y: h.gauss, name: 'N(w*, σ_w²) 預測', mode: 'lines' as const, line: { color: tokens.series[2], width: 2 } },
+      { x: h.centers, y: h.density, name: '模擬：後半段 $w$ 直方圖', type: 'bar' as const, marker: { color: tokens.series[0], opacity: 0.6 } },
+      { x: h.centers, y: h.gauss, name: '$\\mathcal{N}(w^*, \\sigma_w^2)$ 預測', mode: 'lines' as const, line: { color: tokens.series[2], width: 2 } },
     ]
   }, [shown, tokens])
 
@@ -415,7 +414,7 @@ export function BlockLmsJsonLab() {
               disabled={pins.length >= 3}
               onClick={() => {
                 const w = decimate(shown.blocks.w, 4000)
-                setPins((p) => [...p, { label: `釘選 ${p.length + 1}：${shortLabel(shown.config)}`, x: w.x, y: w.y }].slice(-3))
+                setPins((p) => [...p, { label: `釘選 ${p.length + 1}：${shortLabelTex(shown.config)}`, x: w.x, y: w.y }].slice(-3))
               }}
             >
               釘選目前的 gain 曲線作比較

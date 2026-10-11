@@ -16,7 +16,10 @@ import {
 } from '../diagrams'
 
 const PATH = 'src/simulation/models/calNoise.ts'
-const ZOH_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'f [kHz]' } }, yaxis: { title: { text: 'PSD [dB re fs²/Hz]' }, range: [-140, -40] } }
+const ZOH_LAYOUT: Partial<Layout> = {
+  xaxis: { title: { text: '$f$ [kHz]' } },
+  yaxis: { title: { text: String.raw`PSD [dB re $\mathrm{fs}^2/\mathrm{Hz}$]` }, range: [-140, -40] },
+}
 
 export function S4Mixing() {
   const zoh = useMemo(() => {
@@ -31,9 +34,9 @@ export function S4Mixing() {
     const images = f.map((ff, i) => (ff > EX.fu / 2 ? block[i] : NaN))
     const fk = f.map((x) => x / 1e3)
     const traces: Data[] = [
-      { x: fk, y: inBase, name: 'block-rate S_w^(1)（0…f_u/2）', mode: 'lines' },
+      { x: fk, y: inBase, name: String.raw`block-rate $S_w^{(1)}$（$0 \ldots f_u/2$）`, mode: 'lines' },
       { x: fk, y: images, name: 'block-rate DTFT 的週期 image', mode: 'lines', line: { dash: 'dot' } },
-      { x: fk, y: zohDb, name: 'ZOH sample-rate S^(1)（E09）', mode: 'lines' },
+      { x: fk, y: zohDb, name: String.raw`ZOH sample-rate $S^{(1)}$（E09）`, mode: 'lines' },
     ]
     return traces
   }, [])

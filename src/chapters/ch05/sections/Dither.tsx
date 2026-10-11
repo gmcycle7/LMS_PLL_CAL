@@ -159,7 +159,7 @@ function DitherExperiment() {
               {
                 x: Array.from({ length: Math.min(showN, r.sim.w.length - 1) + 1 }, (_, i) => i),
                 y: Array.from(r.sim.w.subarray(0, showN + 1)),
-                name: `${r.id}：σ_v = ${r.params.sigma} fs、μ = ${r.params.mu} fs`,
+                name: String.raw`${r.id}：$\sigma_v =$ ${r.params.sigma} fs、$\mu =$ ${r.params.mu} fs`,
                 mode: 'lines' as const,
                 line: { color: tokens.series[r.seriesIndex], width: 1.2, shape: 'hv' as const },
               },
@@ -184,7 +184,7 @@ function DitherExperiment() {
             j++
           }
         }
-        return [{ x: idx, y: ys, name: `${r.id} 時間平均 w̄_n`, mode: 'lines' as const, line: { color: tokens.series[r.seriesIndex] } }]
+        return [{ x: idx, y: ys, name: String.raw`${r.id} 時間平均 $\bar w_n$`, mode: 'lines' as const, line: { color: tokens.series[r.seriesIndex] } }]
       }),
     [runs, tokens],
   )
@@ -195,7 +195,7 @@ function DitherExperiment() {
         .map((r) => ({
           x: r.st.support,
           y: r.st.prob,
-          name: `${r.id} 精確穩態 π(w)`,
+          name: String.raw`${r.id} 精確穩態 $\pi(w)$`,
           mode: 'lines+markers',
           line: { color: tokens.series[r.seriesIndex], shape: 'hvh' },
           marker: { size: 4 },
@@ -205,9 +205,9 @@ function DitherExperiment() {
   const tradeData = useMemo<Data[]>(() => {
     const xs = tradeoff.rows.map((r) => r.sigma)
     const traces: Data[] = [
-      { x: xs, y: tradeoff.rows.map((r) => Math.max(r.absBias, 1e-8)), name: '|時間平均偏差|（精確；< 1e-8 以 1e-8 顯示）', mode: 'lines', line: { color: tokens.series[1] } },
-      { x: xs, y: tradeoff.rows.map((r) => r.rms), name: 'RMS(w − a)（精確）', mode: 'lines', line: { color: tokens.series[0] } },
-      { x: xs, y: tradeoff.rows.map((r) => r.lin), name: '線性化 RMS √(μ/(K_q(2−μK_q)))', mode: 'lines', line: { color: tokens.series[2], dash: 'dash' } },
+      { x: xs, y: tradeoff.rows.map((r) => Math.max(r.absBias, 1e-8)), name: String.raw`$|\text{時間平均偏差}|$（精確；$<10^{-8}$ 以 $10^{-8}$ 顯示）`, mode: 'lines', line: { color: tokens.series[1] } },
+      { x: xs, y: tradeoff.rows.map((r) => r.rms), name: String.raw`$\mathrm{RMS}(w - a)$（精確）`, mode: 'lines', line: { color: tokens.series[0] } },
+      { x: xs, y: tradeoff.rows.map((r) => r.lin), name: String.raw`線性化 $\mathrm{RMS} = \sqrt{\mu/(K_q(2-\mu K_q))}$`, mode: 'lines', line: { color: tokens.series[2], dash: 'dash' } },
     ]
     for (const r of runs) {
       if (r.params.sigma > 0 && r.params.mu === activeMu && r.st.ok) {
@@ -344,7 +344,7 @@ function DitherExperiment() {
       }}
       controls={
         <div className="ch05-controls">
-          <CaseSelector cases={cases} label="比較組（各自的 σ_v、μ）" />
+          <CaseSelector cases={cases} label="比較組（各自的雜訊 RMS 與步長）" />
           <ParamControl label={mathText(String.raw`$\sigma_v$ — Case ${cases.activeId}`)} ariaLabel={`σ_v — Case ${cases.activeId}`} value={c.sigma} onChange={(sigma) => update({ sigma })} min={0} max={200} step={0.01} unit="fs" reg="Behavioral: σ_v（comparator 前雜訊）" hint="0 = hard limiter" />
           <ParamControl label={mathText(String.raw`$\mu$（步長）— Case ${cases.activeId}`)} ariaLabel={`μ（步長）— Case ${cases.activeId}`} value={c.mu} onChange={(mu) => update({ mu })} min={0.001} max={10} log unit="fs" reg="REG_LMS_STEP（每 sample）" />
           <ParamControl label={mathText('$a$（真值）')} ariaLabel="a（真值）" value={sh.a} onChange={(a) => setSh((s) => ({ ...s, a }))} min={-20} max={20} step={0.01} unit="fs" reg="Behavioral: 理想係數 a" />
@@ -361,7 +361,7 @@ function DitherExperiment() {
         <Plot
           title={`$w_n$（前 ${showN} 步）`}
           data={trajData}
-          layout={{ xaxis: { title: { text: 'n' } }, yaxis: { title: { text: 'w_n（fs）' } }, shapes: [hline(sh.a, tokens.textMuted, 'dash')] }}
+          layout={{ xaxis: { title: { text: '$n$' } }, yaxis: { title: { text: '$w_n$（fs）' } }, shapes: [hline(sh.a, tokens.textMuted, 'dash')] }}
           height={280}
           csvName="ch05-dither-w"
           caption={
@@ -373,7 +373,7 @@ function DitherExperiment() {
         <Plot
           title={String.raw`時間平均 $\bar w_n=\tfrac1n\sum_{k<n}w_k$（橫軸為 $\log n$）`}
           data={avgData}
-          layout={{ xaxis: { title: { text: 'n' } }, yaxis: { title: { text: 'w̄_n（fs）' } }, shapes: [hline(sh.a, tokens.textMuted, 'dash')] }}
+          layout={{ xaxis: { title: { text: '$n$' } }, yaxis: { title: { text: String.raw`$\bar w_n$（fs）` } }, shapes: [hline(sh.a, tokens.textMuted, 'dash')] }}
           xLog
           height={280}
           csvName="ch05-dither-avg"
@@ -388,7 +388,7 @@ function DitherExperiment() {
         <Plot
           title={String.raw`精確穩態分布 $\pi(w)$（birth–death）`}
           data={piData}
-          layout={{ xaxis: { title: { text: 'w（fs）' } }, yaxis: { title: { text: 'π(w)' } }, shapes: [vline(sh.a, tokens.textMuted)] }}
+          layout={{ xaxis: { title: { text: '$w$（fs）' } }, yaxis: { title: { text: String.raw`$\pi(w)$` } }, shapes: [vline(sh.a, tokens.textMuted)] }}
           height={280}
           csvName="ch05-dither-pi"
         />
@@ -396,7 +396,7 @@ function DitherExperiment() {
           title={String.raw`取捨曲線：$\sigma_v$ 掃描（$\mu=${texNum(activeMu, 4)}\,\mathrm{fs}$）`}
           data={tradeData}
           layout={{
-            xaxis: { title: { text: 'σ_v（fs）' } },
+            xaxis: { title: { text: String.raw`$\sigma_v$（fs）` } },
             yaxis: { title: { text: 'fs' } },
             shapes: [hline(Math.max(1e-12, Math.abs(tradeoff.zero.bias)), tokens.series[3], 'dot')],
           }}

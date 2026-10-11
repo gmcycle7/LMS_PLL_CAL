@@ -76,14 +76,14 @@ function RhoWidget() {
       {
         x: [1 - rho, 1 - rho, 1 - rho],
         y: rows.map((r) => r.an.blocks95 ?? null),
-        name: `目前 ρ = ${rho}`,
+        name: String.raw`目前 $\rho = ${rho}$`,
         mode: 'markers',
         marker: { size: 9, color: [tokens.series[0], tokens.series[1], tokens.series[2]], line: { width: 1, color: tokens.text } },
       },
     ],
     [curve, rows, rho, tokens],
   )
-  const layout = useMemo(() => ({ xaxis: { title: { text: '1 − ρ（越往左 regressor 越相關）' } }, yaxis: { title: { text: 'k₉₅（blocks）' } } }), [])
+  const layout = useMemo(() => ({ xaxis: { title: { text: String.raw`$1-\rho$（越往左 regressor 越相關）` } }, yaxis: { title: { text: String.raw`$k_{95}$（blocks）` } } }), [])
 
   return (
     <div className="card">
@@ -108,8 +108,8 @@ function RhoWidget() {
             step={0.0001}
             digits={6}
             unit="無因次"
-            reg="BEH_RHO（R₁₂）"
-            hint={mathText(String.raw`$\mathbf R=\begin{bmatrix}1&\rho\\\rho&1\end{bmatrix}$；$\lambda=1\pm\rho$`)}
+            reg="BEH_RHO"
+            hint={mathText(String.raw`$\rho=R_{12}$，$\mathbf R=\begin{bmatrix}1&\rho\\\rho&1\end{bmatrix}$；$\lambda=1\pm\rho$`)}
           />
           <ParamControl
             label={mathText(String.raw`$\mu K_q$（一般 LMS）`)}
@@ -120,7 +120,7 @@ function RhoWidget() {
             max={2.5}
             step={0.001}
             unit="無因次"
-            reg="REG_CAL_MU（× K_q）"
+            reg="REG_CAL_MU"
             hint={mathText(String.raw`穩定需 $0<\mu K_q<2/\lambda_{\max}=2/(1+\rho)$`)}
           />
         </div>
@@ -145,7 +145,7 @@ function RhoWidget() {
             min={0}
             max={10}
             step={0.0001}
-            unit="無因次（R 形式）"
+            unit={String.raw`無因次（$\mathbf R$ 形式）`}
             reg="REG_CAL_LAMBDA_REG"
             hint={mathText(String.raw`與 $\mathbf R$ 同單位（正規化 regressor ⇒ 無因次）；勘誤 E22`)}
           />
@@ -580,17 +580,17 @@ export function S2UpdateMatrix() {
           按計算機）算出兩個 pole 與 <Tex>{'k_{95}'}</Tex>，再展開步驟對答案。
         </Hand>
 
-        <h3 className="ch10-sub">反矩陣有多大？（不是 ±25，而是 ±50）</h3>
+        <h3 className="ch10-sub">反矩陣有多大？（不是 <Tex>{String.raw`\pm25`}</Tex>，而是 <Tex>{String.raw`\pm50`}</Tex>）</h3>
         <TexBlock>
           {String.raw`\mathbf R^{-1}=\frac{1}{1-\rho^2}\begin{bmatrix}1&-\rho\\-\rho&1\end{bmatrix}=${texMat(r.Rinv, 5)},\qquad \mathbf M_n=K_q\mathbf M=0.5\mathbf R^{-1}=${texMat(r.Mn, 5)}`}
         </TexBlock>
         <p>
-          （<Tex>{String.raw`\mathbf M_n=K_q\mathbf M`}</Tex> 是把 <Tex>{'K_q'}</Tex> 乘進去之後的無因次「正規化更新矩陣」；實體的 <Tex>{String.raw`\mathbf M=\mathbf M_n/K_q`}</Tex> 單位是 fs。）規格說「反矩陣元素約 ±25」：其實{' '}
+          （<Tex>{String.raw`\mathbf M_n=K_q\mathbf M`}</Tex> 是把 <Tex>{'K_q'}</Tex> 乘進去之後的無因次「正規化更新矩陣」；實體的 <Tex>{String.raw`\mathbf M=\mathbf M_n/K_q`}</Tex> 單位是 fs。）規格說「反矩陣元素約 <Tex>{String.raw`\pm25`}</Tex>」：其實{' '}
           <Tex>{String.raw`\mathbf R^{-1}`}</Tex> 本身是{' '}
           <strong>
             {n(r.Rinv[0][0], 4)} / {n(r.Rinv[0][1], 4)}
           </strong>
-          ，±25 是 <Tex>{String.raw`0.5\mathbf R^{-1}`}</Tex>（而且對角為正、非對角為負，不是「±」隨意）
+          ，<Tex>{String.raw`\pm25`}</Tex> 是 <Tex>{String.raw`0.5\mathbf R^{-1}`}</Tex>（而且對角為正、非對角為負，不是「<Tex>{String.raw`\pm`}</Tex>」隨意）
           <Erratum id="E21" />。換成實體單位 <Tex>{String.raw`\mathbf M=\mathbf M_n/K_q=${texMat(ph.Mphys, 5)}\ \mathrm{fs}`}</Tex>：一個 GMAC 的單位輸出要讓係數動約{' '}
           {n(ph.Mphys[0][0], 3)} fs，暫存器的位寬與定點誤差都要重新評估。
         </p>
@@ -600,7 +600,7 @@ export function S2UpdateMatrix() {
           <Tex>{String.raw`\gamma/\lambda_{\max}=${tn(r.eigMn[1], 5)}`}</Tex>（沿快 eigenvector）。GMAC noise 沿慢方向被乘上 {n(r.eigMn[0], 4)}——下一節計算代價。
         </p>
         <Hand id="HC-10.3">
-          2×2 的反矩陣只要四則運算。預設數字會算出上面的 <Tex>{String.raw`\mathbf M_n=${texMat(r.Mn, 4)}`}</Tex>；把 <Tex>{'R_{12}'}</Tex> 換成 0.6 或 0.8（或把 <Tex>{'R_{11}'}</Tex> 改成 2，模擬兩個
+          <Tex>{String.raw`2\times2`}</Tex> 的反矩陣只要四則運算。預設數字會算出上面的 <Tex>{String.raw`\mathbf M_n=${texMat(r.Mn, 4)}`}</Tex>；把 <Tex>{'R_{12}'}</Tex> 換成 0.6 或 0.8（或把 <Tex>{'R_{11}'}</Tex> 改成 2，模擬兩個
           regressor 功率不同）先用紙筆算一次，並驗算 <Tex>{String.raw`\mathbf M_n\mathbf R=\gamma\mathbf I`}</Tex>，再展開步驟對答案。
         </Hand>
       </Section>

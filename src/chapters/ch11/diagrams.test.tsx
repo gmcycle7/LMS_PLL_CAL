@@ -5,8 +5,8 @@ import mermaid from 'mermaid'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
 import { renderTex, stripMathDelimiters, systemMapChart, SYSTEM_BLOCK_LABEL } from '@/components'
-import { sanitizeMermaidSource } from '@/components/mermaidSource'
-import { installMermaidSvgShim, renderMermaidForTest } from '@/components/mermaidTestUtils'
+import { mermaidMathDelimiters, sanitizeMermaidSource } from '@/components/mermaidSource'
+import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import {
   KQ_FACTOR,
   SERVO_SHAPE_FRACTION,
@@ -43,8 +43,11 @@ import { IntroSection } from './sections/IntroSection'
  *  1. parser：每一張圖都能解析；
  *  2. renderer：用共用的 renderMermaidForTest 在 jsdom 裡真的畫一次，確認圖上沒有
  *     「Unsupported markdown」——Mermaid 11 把所有標籤當 Markdown，單獨的 "+"、"E[G](w*)" 之類都會壞掉，
- *     這種錯誤 parser 抓不到；節點數不超過 14；原始碼本身就用全形「＋」（sanitizeMermaidSource 不需要改動它）；
- *  3. 內容：圖上的數字、正負號、延遲與取樣率和 bias.ts 的模型／正文公式一致。
+ *     這種錯誤 parser 抓不到；節點數不超過 14；原始碼本身就用全形「＋」（sanitizeMermaidSource 除了把含公式的標籤合併成單一
+ *     `$$…$$` 之外，不需要改動它）；
+ *  3. 圖裡面的數學都是 LaTeX（teaching-style §3）：標籤裡的公式都在 `$…$` 內並由 KaTeX 排版（每個含公式的標籤恰好畫成一段 KaTeX），
+ *     畫出來的文字沒有殘留的 `$`，公式外沒有 Unicode 拼的數學；
+ *  4. 內容：圖上的數字、正負號、延遲與取樣率和 bias.ts 的模型／正文公式一致（節點文字比對的是圖的 TeX 原始碼）。
  */
 
 vi.setConfig({ testTimeout: 120000 })
@@ -115,7 +118,9 @@ let layoutSeq = 0
  * 但「誰在誰的左邊／上面」（dagre 的 rank 方向）是可信的 —— 用來核對正文與圖說裡「先看左邊…再看右邊」的說法。
  */
 async function layout(chart: string) {
-  const { svg } = await mermaid.render(`ch11-layout-${++layoutSeq}`, chart)
+  // 與網站相同的前處理與設定（含公式的標籤合併成 `$$…$$`、KaTeX 用 HTML 輸出），排出來的才是實際的圖
+  mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', suppressErrorRendering: true, forceLegacyMathML: true })
+  const { svg } = await mermaid.render(`ch11-layout-${++layoutSeq}`, sanitizeMermaidSource(chart))
   const host = document.createElement('div')
   host.innerHTML = svg
   const pos = new Map<string, { x: number; y: number }>()
@@ -136,12 +141,44 @@ async function layout(chart: string) {
   return { at, increasing }
 }
 
-/** 圖上數字的寫法：負號用 U+2212；signed 時正數帶 '+'；0 不帶號 */
+/** 圖上數字的寫法：負號用 U+2212；signed 時正數帶 '+'；0 不帶號（純文字標籤，例如連線上單獨的「−」） */
 function fmt(v: number, digits = 2, signed = false): string {
   const r = Number(v.toFixed(digits))
   if (r === 0) return '0'
   const s = String(Math.abs(r))
   return r < 0 ? `−${s}` : signed ? `+${s}` : s
+}
+
+/** `$…$` 裡的數字：同 fmt，但負號是 TeX 的 ASCII '-' */
+function tn(v: number, digits = 2, signed = false): string {
+  return fmt(v, digits, signed).replace('−', '-')
+}
+
+/** 與 mathText／Mermaid 相同的行內公式切分規則 */
+const INLINE_MATH = /(?<!\\)\$((?:[^$\\]|\\.)+?)(?<!\\)\$/g
+/** 圖原始碼裡所有雙引號標籤：節點、連線、subgraph 標題 */
+const labelsOf = (chart: string) => Array.from(chart.matchAll(/"([^"\n]*)"/g), (m) => m[1])
+const hasMath = (label: string) => new RegExp(INLINE_MATH.source).test(label)
+/** 去掉 `$…$` 與換行，剩下 KaTeX 以外的文字 */
+const outsideMath = (label: string) => label.replace(INLINE_MATH, ' ').replace(/<br\s*\/?>/g, ' ')
+/** 用 Unicode 拼數學時會出現的字元（希臘字母、上下標、關係與運算符號、combining accent） */
+const UNICODE_MATH = /[\u0300-\u036fσμκεφρλθωΩΣΔπδηβ√²³⁴⁻¹₀₁₂₃ₖ≤≥≈≠≡∂∈∞·×÷±∓\u0177]/
+/** 公式外單獨的拉丁字母（變數）；方塊圖上的編號 (A)(B)(C)、「架構 A」「世界 A」、公式編號 F-11.2、「S 形曲線」不算 */
+const LONE_LETTER = /(?<![A-Za-z0-9])[A-Za-z](?![A-Za-z0-9])/
+
+/**
+ * Mermaid 實際會畫的 KaTeX 文字：標籤（含 `$…$`）→ mermaidMathDelimiters 合併後的單一 TeX → KaTeX 的 HTML 文字（去掉 MathML 複本）。
+ * 用來核對「畫出來的標籤」就是這個標籤的 TeX 排版結果。
+ */
+function katexText(label: string): string {
+  const merged = mermaidMathDelimiters(`"${label}"`)
+  const tex = /^"\$\$([\s\S]*)\$\$"$/.exec(merged)?.[1]
+  if (tex === undefined) throw new Error(`標籤沒有被合併成 $$…$$：${label}`)
+  const host = document.createElement('div')
+  host.innerHTML = renderTex(tex, true)
+  expect(host.querySelector('.katex-error, .c-tex-error'), `KaTeX 無法解析：${label}`).toBeNull()
+  host.querySelectorAll('.katex-mathml').forEach((e) => e.remove())
+  return host.textContent ?? ''
 }
 
 const CHARTS: Ch11Diagram[] = [...CH11_DIAGRAMS]
@@ -191,6 +228,36 @@ describe('Ch11 方塊圖：登錄表', () => {
     expect(bad).toEqual([])
   })
 
+  it('圖上的標籤（節點、連線、subgraph 標題）：數學都在 $…$ 內且能被 KaTeX 解析，公式外沒有 Unicode 拼的數學或單獨的變數字母', () => {
+    const bad: string[] = []
+    let mathLabels = 0
+    for (const d of CHARTS) {
+      const labels = labelsOf(d.chart)
+      expect(labels.length, d.name).toBeGreaterThanOrEqual(5)
+      for (const label of labels) {
+        const where = `${d.name} 「${label}」`
+        if ((label.replace(/\\\$/g, '').match(/\$/g) ?? []).length % 2) bad.push(`${where}：$ 不成對`)
+        if (hasMath(label)) mathLabels++
+        for (const mm of label.matchAll(INLINE_MATH)) {
+          if (/katex-error|c-tex-error/.test(renderTex(mm[1], false))) bad.push(`${where}：KaTeX 無法解析 ${mm[1]}`)
+          if (mm[1].includes('−')) bad.push(`${where}：公式內的減號要寫 ASCII '-'，不是 U+2212 —— ${mm[1]}`)
+          if (/[<&]/.test(mm[1])) bad.push(`${where}：公式內的 < 或 & 會被當成 HTML —— ${mm[1]}`)
+          if (UNICODE_MATH.test(mm[1])) bad.push(`${where}：公式內也不用 Unicode 符號，寫成 TeX 指令 —— ${mm[1]}`)
+        }
+        const rest = outsideMath(label)
+        const uni = unicodeMathIn(rest)
+        if (uni.length || UNICODE_MATH.test(rest)) bad.push(`${where}：公式外有 Unicode 拼的數學 —— ${[...uni, rest.match(UNICODE_MATH)?.[0] ?? ''].join(' ')}`)
+        if (/[_^]/.test(rest)) bad.push(`${where}：公式外有 _ 或 ^`)
+        // 純粹的正負號標籤（連線上的「−」「＋」）以外，U+2212 只出現在 $…$ 之外是不對的
+        if (rest.includes('−') && rest.trim() !== '−') bad.push(`${where}：公式外的減號要放進 $…$`)
+        const words = rest.replace(/\([ABC]\)|架構 [ABC]|世界 [AB]|F-\d+\.\d+|S 形/g, ' ')
+        if (LONE_LETTER.test(words)) bad.push(`${where}：公式外有單獨的變數字母 ${words.match(LONE_LETTER)?.[0]}`)
+      }
+    }
+    expect(bad).toEqual([])
+    expect(mathLabels).toBeGreaterThan(250) // 25 張圖幾乎每個標籤都含公式
+  })
+
   it('每張圖在頁面原始碼中恰好用一次（<Fig id="…" />），而且放在登錄表記載的那個 Section 檔案裡', () => {
     const dir = join(process.cwd(), 'src/chapters/ch11/sections')
     const files = readdirSync(dir).filter((f) => f.endsWith('.tsx'))
@@ -237,30 +304,41 @@ describe('Ch11 方塊圖：真正的 mermaid parser 與 renderer', () => {
     for (const id of g.nodes.keys()) expect(g.edges.some((e) => e.from === id || e.to === id), `${d.name} 節點 ${id} 沒有連線`).toBe(true)
     // 標色只用三種共用 class
     for (const n of g.nodes.values()) for (const c of n.classes) expect(['focus', 'warn', 'ok', 'default']).toContain(c)
-    // δ 的極性：gain 誤差一律寫成 (a − w)，不寫 (w − a)
-    expect(d.chart).not.toMatch(/\(w(_k)? − a\)/)
-    // 不用 ASCII 的 '-' 當減號（會和 Markdown list 混淆，也和正文的 − 不一致）
-    for (const n of g.nodes.values()) expect(n.text.replace(/圖 \d+-\d+|F-\d+\.\d+/g, ''), d.name).not.toMatch(/\d\s*-\s*\d|[a-z)]\s-\s[a-z(]/)
-    // 原始碼本身就寫全形「＋」與「−」（U+2212）：共用的 sanitizeMermaidSource 不需要幫它改任何字
-    expect(sanitizeMermaidSource(d.chart), `${d.name} 含有會被當成 Markdown list 的標籤`).toBe(d.chart)
+    // δ 的極性：gain 誤差一律寫成 (a - w)，不寫 (w - a)
+    expect(d.chart).not.toMatch(/\(w(_k)?\s*[-−]\s*a\)/)
+    // 公式外不用 ASCII 的 '-' 當減號（會和 Markdown list 混淆，也和正文的 − 不一致）；公式內照 TeX 寫 '-'
+    for (const n of g.nodes.values()) expect(outsideMath(n.text).replace(/圖 \d+-\d+|F-\d+\.\d+/g, ''), d.name).not.toMatch(/\d\s*-\s*\d|[a-z)]\s-\s[a-z(]/)
+    // 原始碼的純文字標籤本來就寫全形「＋」與「−」（U+2212）：共用的 sanitizeMermaidSource 除了把含公式的標籤合併成單一 `$$…$$`，不需要幫它改任何字
+    expect(sanitizeMermaidSource(d.chart), `${d.name} 含有會被當成 Markdown list 的標籤`).toBe(mermaidMathDelimiters(d.chart))
   })
 
-  it.each(CHARTS.map((d, i) => [`圖 11-${i + 1}`, d.name, d] as const))('%s %s：真的畫得出來，標籤沒有被 Markdown 吃掉', async (_label, name, d) => {
+  it.each(CHARTS.map((d, i) => [`圖 11-${i + 1}`, d.name, d] as const))('%s %s：真的畫得出來，標籤沒有被 Markdown 吃掉，公式都由 KaTeX 排版', async (_label, name, d) => {
     const g = await parseFlow(d.chart)
-    const { svg, text, nodeCount } = await renderMermaidForTest(d.chart)
+    const { svg, text, nodeCount, mathCount, plainText } = await renderMermaidForTest(d.chart)
     expect(text).not.toMatch(/Unsupported markdown/)
     expect(svg).not.toContain('Unsupported markdown')
+    // 畫出來的文字沒有殘留 `$`，KaTeX 以外的文字也沒有 Unicode 拼的數學
+    expect(text, `${name} 畫出來的文字殘留了 $`).not.toContain('$')
+    expect(unicodeMathIn(plainText), `${name} KaTeX 以外還有 Unicode 拼的數學`).toEqual([])
     expect(nodeCount).toBeLessThanOrEqual(14) // subgraph 的標題不算節點
     expect(nodeCount).toBe(g.nodes.size)
+    // 每個含 `$…$` 的標籤（節點、連線、subgraph 標題）恰好畫成一段 KaTeX
+    const labels = labelsOf(d.chart)
+    expect(mathCount, `${name} 含公式的標籤數`).toBe(labels.filter(hasMath).length)
+    expect(mathCount).toBeGreaterThanOrEqual(4)
     const host = document.createElement('div')
     host.innerHTML = svg
+    expect(host.querySelectorAll('.katex-error').length).toBe(0)
     expect(host.querySelectorAll('em, strong, a, ul, ol, h1, h2, blockquote, code, del').length).toBe(0)
+    host.querySelectorAll('.katex-mathml').forEach((e) => e.remove()) // 只比對 HTML 排版的那一份文字
     const norm = (t: string) => t.replace(/\s+/g, '')
-    const drawn = new Set(Array.from(host.querySelectorAll('.nodeLabel, .edgeLabel'), (el) => norm(plain(el.innerHTML))))
-    // 每個節點、每條有標籤的連線、每個 subgraph 標題，畫出來的文字和原始碼一字不差
-    for (const [id, n] of g.nodes) expect(drawn.has(norm(n.text)), `${name} 節點 ${id}：${n.text}`).toBe(true)
-    for (const e of g.edges) if (e.text) expect(drawn.has(norm(e.text)), `${name} 連線 ${e.from}→${e.to}：${e.text}`).toBe(true)
-    for (const sg of g.subgraphs) expect(drawn.has(norm(sg.title)), `${name} subgraph ${sg.id}`).toBe(true)
+    const drawn = new Set(Array.from(host.querySelectorAll('.nodeLabel, .edgeLabel'), (el) => norm(el.textContent ?? '')))
+    // 每個節點、每條有標籤的連線、每個 subgraph 標題：純文字標籤畫出來的文字和原始碼一字不差；
+    // 含公式的標籤畫出來的就是它的 TeX 排版結果（文字部分在 \text{…} 裡，公式在 KaTeX 裡）
+    for (const label of labels) {
+      const expected = hasMath(label) ? katexText(label) : plain(label)
+      expect(drawn.has(norm(expected)), `${name} 標籤：${label}`).toBe(true)
+    }
     // classDef 真的套到節點上
     const classed = [...g.nodes.values()].filter((n) => n.classes.some((c) => ['focus', 'warn', 'ok'].includes(c))).length
     expect(host.querySelectorAll('g.node.focus, g.node.warn, g.node.ok').length).toBe(classed)
@@ -288,8 +366,12 @@ describe('Ch11 方塊圖：真正的 mermaid parser 與 renderer', () => {
     const chart = systemMapChart(SYSTEM_MAP_FOCUS)
     expect(chart).toContain('class DTC,PD,NOISE,CMP,GMAC,ACC focus')
     await mermaid.parse(chart, { suppressErrors: false })
-    const { svg, text } = await renderMermaidForTest(chart)
+    const { svg, text, plainText, mathCount } = await renderMermaidForTest(chart)
     expect(text).not.toMatch(/Unsupported markdown/)
+    // 共用系統地圖的公式也是 KaTeX：沒有殘留的 `$`，KaTeX 以外沒有 Unicode 拼的數學
+    expect(mathCount).toBeGreaterThanOrEqual(8)
+    expect(text).not.toContain('$')
+    expect(unicodeMathIn(plainText)).toEqual([])
     const host = document.createElement('div')
     host.innerHTML = svg
     expect(host.querySelectorAll('g.node.focus').length).toBe(SYSTEM_MAP_FOCUS.length)
@@ -297,21 +379,25 @@ describe('Ch11 方塊圖：真正的 mermaid parser 與 renderer', () => {
 })
 
 describe('Ch11 方塊圖：和模型／公式一致', () => {
+  // 節點與連線的文字比對的是圖的 TeX 原始碼（`$…$`）；數字用 tn()（TeX 的 ASCII 負號）寫出來
   it('gmac-zero（手算流程）：w = 1.34 時五個 code 的 e 與 x·e 來自 eDet，平均為 0', async () => {
     const g = await parseFlow(D.CHART_GMAC_ZERO)
     const ids: Record<number, string> = { [-2]: 'M2', [-1]: 'M1', 0: 'Z0', 1: 'P1', 2: 'P2' }
     for (const x of five.values) {
       const e = eDet(x, 1.34, CUBIC)
-      expect(g.node(ids[x]).text).toBe(`x = ${fmt(x, 0, true)}：e = ${fmt(e, 2, true)}\nx·e = ${fmt(x * e, 2, true)}`)
+      expect(g.node(ids[x]).text).toBe(
+        [String.raw`$x = ${tn(x, 0, true)}$：$e = ${tn(e, 2, true)}$`, String.raw`$x \cdot e = ${tn(x * e, 2, true)}$`].join('\n'),
+      )
       expect(g.edge('W', ids[x])).toBeTruthy()
       expect(g.edge(ids[x], 'AVG')).toBeTruthy()
     }
-    expect(g.node('W').text).toContain(`= ${fmt(1 - 1.34)}·x + ${fmt(CUBIC.c3, 1)}·x³`)
-    expect(g.node('AVG').text).toContain('( 0.24 − 0.24 + 0 − 0.24 + 0.24 ) / 5')
+    expect(g.node('W').text).toContain(String.raw`$= ${tn(1 - 1.34)} \cdot x + ${tn(CUBIC.c3, 1)} \cdot x^3$`)
+    expect(g.node('AVG').text).toContain(String.raw`$E[x \cdot e] = (0.24 - 0.24 + 0 - 0.24 + 0.24) / 5$`)
     expect(Math.abs(meanGmacMse(1.34, CUBIC, five))).toBeLessThan(1e-12)
     expect(mseFixedPoint(CUBIC, five)).toBeCloseTo(1.34, 12)
     // 「四個 code 的 e 都不是 0」
     expect(five.values.filter((x) => Math.abs(eDet(x, 1.34, CUBIC)) > 0.1)).toHaveLength(4)
+    expect(g.node('LEFT').text).toContain(String.raw`$\pm 0.24$ 與 $\pm 0.12$`)
     // 圖說「由左到右」：w → 五個 code → 平均 → 結論
     const lay = await layout(D.CHART_GMAC_ZERO)
     lay.increasing('x', 'W', ['M2', 'M1', 'Z0', 'P1', 'P2'], 'AVG', ['ZERO', 'LEFT'])
@@ -319,23 +405,24 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
 
   it('error-sources（硬體視角）：DTC 的 delay 以「＋」、補償 w·x 以「−」進加法點；主迴路以虛線回到加法點；w ← w + μ·G', async () => {
     const g = await parseFlow(D.CHART_ERROR_SOURCES)
-    expect(g.node('COMP').text).toBe('校正電路的補償量\nw·x')
-    expect(g.node('DTC').text).toContain('delay = a·x + d(x)')
+    expect(g.node('COMP').text).toBe('校正電路的補償量\n$w \\cdot x$')
+    expect(g.node('DTC').text).toContain(String.raw`delay $= a \cdot x + d(x)$`)
     expect(g.into('COMP').map((e) => e.from).sort()).toEqual(['DSM', 'W']) // 補償量 = w × x
     // 加法點：DTC 的真實 delay ＋、補償量 −、其餘（b、ε_cc、v、主迴路的 φ）都是 ＋
     const into = Object.fromEntries(g.into('SUM').map((e) => [e.from, e.text]))
-    expect(into).toEqual({ DTC: '＋', COMP: '−', B: '＋', ECC: '＋', V: '＋', LF: '＋ φ（static phase offset）' })
-    expect(g.edge('SUM', 'Q').text).toBe('e[n]')
-    expect(g.node('Q').text).toContain('q = sign(e)')
+    expect(into).toEqual({ DTC: '＋', COMP: '−', B: '＋', ECC: '＋', V: '＋', LF: String.raw`＋ $\varphi$（static phase offset）` })
+    expect(g.node('SUM').text).toBe(String.raw`$\Sigma$`)
+    expect(g.edge('SUM', 'Q').text).toBe('$e[n]$')
+    expect(g.node('Q').text).toContain(String.raw`$q = \operatorname{sign}(e)$`)
     // 主迴路：comparator 若就是 BBPD，q 進 loop filter（虛線），積分後的 φ 以虛線回到加法點
     expect(g.edge('Q', 'LF').text).toContain('BBPD')
     expect(g.into('LF').map((e) => e.from)).toEqual(['Q'])
     // GMAC：q 與 x（regressor）相關，G 去改 w（每 N 個 sample 一次）
     expect(g.into('GMAC').map((e) => e.from).sort()).toEqual(['DSM', 'Q'])
-    expect(g.node('GMAC').text).toContain('G = (1/N)·Σ q·x')
-    expect(g.edge('GMAC', 'UPD').text).toBe('G')
-    expect(g.node('UPD').text).toContain('w ← w + μ·G')
-    expect(g.node('UPD').text).toContain('每 N 個 sample')
+    expect(g.node('GMAC').text).toContain(String.raw`$G = (1/N) \cdot \sum q \cdot x$`)
+    expect(g.edge('GMAC', 'UPD').text).toBe('$G$')
+    expect(g.node('UPD').text).toContain(String.raw`$w \leftarrow w + \mu \cdot G$`)
+    expect(g.node('UPD').text).toContain('每 $N$ 個 sample')
     expect(g.edge('UPD', 'W')).toBeTruthy()
     // 模型：DTC(a·x + d) − w·x + b + ε_cc + v 就是 F-11.1 的 e = e_det + v
     const m = model({ b: 0.3, c2: 0.05, c3: 0.1, kappa: 0.02 })
@@ -355,12 +442,12 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     const into = g.into('SUM')
     expect(into.map((e) => e.from).sort()).toEqual(['ECC', 'GAIN', 'INL', 'OFF', 'V'])
     for (const e of into) expect(e.text, e.from).toBe('＋')
-    expect(g.node('GAIN').text).toContain('(a − w)·x[n]')
-    expect(g.node('INL').text).toContain('d(x) = c₂·x² + c₃·x³')
-    expect(g.node('ECC').text).toContain('ε_cc[n] = κ·x[n]')
-    expect(g.edge('SUM', 'CMP').text).toBe('e[n]')
-    expect(g.node('CMP').text).toContain('q[n] = sign(e[n])')
-    expect(g.node('GMAC').text).toContain('G_k = (1/N)·Σ q[n]·x[n]')
+    expect(g.node('GAIN').text).toContain(String.raw`$(a - w) \cdot x[n]$`)
+    expect(g.node('INL').text).toContain(String.raw`$d(x) = c_2 \cdot x^2 + c_3 \cdot x^3$`)
+    expect(g.node('ECC').text).toContain(String.raw`$\varepsilon_{cc}[n] = \kappa \cdot x[n]$`)
+    expect(g.edge('SUM', 'CMP').text).toBe('$e[n]$')
+    expect(g.node('CMP').text).toContain(String.raw`$q[n] = \operatorname{sign}(e[n])$`)
+    expect(g.node('GMAC').text).toContain(String.raw`$G_k = (1/N) \cdot \sum q[n] \cdot x[n]$`)
     // 與 x 相關的三項都由 code 分出來；offset 與雜訊不是
     for (const id of ['GAIN', 'INL', 'ECC', 'GMAC']) expect(g.edge('X', id)).toBeTruthy()
     for (const id of ['OFF', 'V']) expect(g.into(id)).toHaveLength(0)
@@ -383,25 +470,27 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
   it('lms-loop（LMS 迴圈）：w_(k+1) = w_k + μ·G_k，延遲在 w 的回授上；sample（n）一列、block（k）一列', async () => {
     const g = await parseFlow(D.CHART_LMS_LOOP)
     const into = g.into('ADD')
-    expect(into.map((e) => `${e.from}:${e.text}`).sort()).toEqual(['DLY:＋ w_k', 'MU:＋ μ·G_k'])
-    expect(g.edge('ADD', 'DLY').text).toBe('w_(k+1)')
-    expect(g.node('DLY').text).toContain('z⁻¹')
-    expect(g.node('ERR').text).toContain('(a − w_k)·x[n]')
+    expect(into.map((e) => `${e.from}:${e.text}`).sort()).toEqual([String.raw`DLY:＋ $w_k$`, String.raw`MU:＋ $\mu \cdot G_k$`])
+    expect(g.edge('ADD', 'DLY').text).toBe('$w_{k+1}$')
+    expect(g.node('MU').text).toBe(String.raw`$\times \mu$`)
+    expect(g.node('DLY').text).toContain('$z^{-1}$')
+    expect(g.node('ERR').text).toContain(String.raw`(a - w_k) \cdot x[n]`)
     expect(g.node('ERR').text).toContain(`（${figLabel('error-budget')}）`) // 圖上引用的圖號沒有過期
-    expect(g.edge('ERR', 'CMP').text).toBe('e[n]')
-    expect(g.edge('AVG', 'MU').text).toBe('G_k')
+    expect(g.edge('ERR', 'CMP').text).toBe('$e[n]$')
+    expect(g.edge('AVG', 'MU').text).toBe('$G_k$')
     // 相關器：q 與 x 相乘（sample rate），N 個一組送到 block rate 取平均
     expect(g.into('MUL').map((e) => e.from).sort()).toEqual(['CMP', 'X'])
-    expect(g.node('AVG').text).toContain('G_k = (1/N)·Σ q[n]·x[n]')
+    expect(g.node('MUL').text).toBe(String.raw`$\times$`)
+    expect(g.node('AVG').text).toContain(String.raw`$G_k = (1/N) \cdot \sum q[n] \cdot x[n]$`)
     // 兩種速率各自一個 subgraph；跨速率的兩條線：乘積往下、w_k 往上回授
     const fast = g.subgraphs.find((x) => x.id === 'FAST')
     const slow = g.subgraphs.find((x) => x.id === 'SLOW')
-    expect(fast?.title).toContain('每個 sample n')
-    expect(slow?.title).toContain('每個 block k')
+    expect(fast?.title).toContain('每個 sample $n$')
+    expect(slow?.title).toContain('每個 block $k$')
     expect([...(fast?.nodes ?? [])].sort()).toEqual(['CMP', 'ERR', 'MUL', 'X'])
     expect([...(slow?.nodes ?? [])].sort()).toEqual(['ADD', 'AVG', 'DLY', 'MU'])
-    expect(g.edge('FAST', 'SLOW').text).toContain('q[n]·x[n]')
-    expect(g.edge('SLOW', 'FAST').text).toMatch(/^w_k 回授/)
+    expect(g.edge('FAST', 'SLOW').text).toContain(String.raw`$q[n] \cdot x[n]$`)
+    expect(g.edge('SLOW', 'FAST').text).toMatch(/^\$w_k\$ 回授/)
     // 版面：sample 那一列在上、block 那一列在下；每一列都是由左到右
     const lay = await layout(D.CHART_LMS_LOOP)
     lay.increasing('y', ['X', 'ERR', 'CMP', 'MUL'], ['AVG', 'MU', 'ADD', 'DLY'])
@@ -411,10 +500,11 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
 
   it('mse-vs-sign（MSE vs Sign）：大雜訊的出口回到 MSE 的封閉解，σ_v = 0 的出口是 |x| 加權中位數', async () => {
     const g = await parseFlow(D.CHART_MSE_VS_SIGN)
-    expect(g.edge('GS', 'FM').text).toContain('erf ≈ K_q·e_det')
-    expect(g.edge('GS', 'FMED').text).toContain('σ_v = 0')
-    expect(g.node('ERF').text).toContain('E[q | x] = erf( e_det / (√2·σ_v) )')
-    expect(g.node('FM').text).toContain('w* = a + ( b·E[x] + E[x·d] + E[x·ε_cc] ) / E[x²]')
+    expect(g.edge('GS', 'FM').text).toContain(String.raw`$\operatorname{erf} \approx K_q \cdot e_\mathrm{det}$`)
+    expect(g.edge('GS', 'FMED').text).toContain(String.raw`$\sigma_v = 0$`)
+    expect(g.node('ERF').text).toContain(String.raw`$E[q \mid x] = \operatorname{erf}(e_\mathrm{det} / (\sqrt{2} \cdot \sigma_v))$`)
+    expect(g.node('FM').text).toContain(String.raw`$w^* = a + (b \cdot E[x] + E[x \cdot d] + E[x \cdot \varepsilon_{cc}]) / E[x^2]$`)
+    expect(g.node('FMED').text).toContain('$|x|$ 加權中位數')
     // 模型：σ_v 很大 → MSE 解；σ_v = 0 → 1.4；中間介於兩者
     const mse = mseFixedPoint(CUBIC, five)
     const big = fixedPoint('sign', { ...CUBIC, sigmaV: 100 }, five).w
@@ -437,19 +527,19 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     expect(g.subgraphs.map((x) => x.id).sort()).toEqual(['LIN', 'MEAN', 'REAL'])
     // ① 實際電路：e_det 與 v 都以「＋」進加法點 → sign → q = ±1 → 乘 x 取平均
     expect(g.into('R1').map((e) => `${e.from}:${e.text}`).sort()).toEqual(['R0:＋', 'R2:＋'])
-    expect(g.edge('R1', 'R3').text).toBe('e[n]')
-    expect(g.node('R3').text).toContain('sign(·)')
-    expect(g.edge('R3', 'R4').text).toBe('q[n] = ±1')
-    expect(g.node('R4').text).toContain('G_k')
+    expect(g.edge('R1', 'R3').text).toBe('$e[n]$')
+    expect(g.node('R3').text).toContain(String.raw`$\operatorname{sign}(\cdot)$`)
+    expect(g.edge('R3', 'R4').text).toBe(String.raw`$q[n] = \pm 1$`)
+    expect(g.node('R4').text).toContain('$G_k$')
     // ② 對 v 平均 → erf（F-11.2，精確）
-    expect(g.node('M1').text).toContain('erf( e_det / (√2·σ_v) )')
-    expect(g.edge('M1', 'M2').text).toBe('E[q | x]')
-    expect(g.node('M3').text).toContain('E[G] = E[ x·erf( e_det / (√2·σ_v) ) ]')
+    expect(g.node('M1').text).toContain(String.raw`$\operatorname{erf}(e_\mathrm{det} / (\sqrt{2} \cdot \sigma_v))$`)
+    expect(g.edge('M1', 'M2').text).toBe(String.raw`$E[q \mid x]$`)
+    expect(g.node('M3').text).toContain(String.raw`$E[G] = E[x \cdot \operatorname{erf}(e_\mathrm{det} / (\sqrt{2} \cdot \sigma_v))]$`)
     // ③ 線性化 → K_q（F-11.3，近似）
-    expect(g.node('L1').text).toContain('K_q = √(2/π) / σ_v')
-    expect(g.edge('L1', 'L2').text).toBe('K_q·e_det')
-    expect(g.node('L3').text).toContain('E[G] ≈ K_q·E[x·e]')
-    expect(g.edge('MEAN', 'LIN').text).toContain('|e_det| 都遠小於 σ_v')
+    expect(g.node('L1').text).toContain(String.raw`$K_q = \sqrt{2/\pi} / \sigma_v$`)
+    expect(g.edge('L1', 'L2').text).toBe(String.raw`$K_q \cdot e_\mathrm{det}$`)
+    expect(g.node('L3').text).toContain(String.raw`$E[G] \approx K_q \cdot E[x \cdot e]$`)
+    expect(g.edge('MEAN', 'LIN').text).toContain(String.raw`$|e_\mathrm{det}|$ 都遠小於 $\sigma_v$`)
     // 藍色只有三個 comparator 方塊（三排的差別）
     const blue = [...g.nodes.entries()].filter(([, n]) => n.classes.includes('focus')).map(([id]) => id).sort()
     expect(blue).toEqual(['L1', 'M1', 'R3'])
@@ -475,10 +565,11 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
       expect(g.edge(`T${i}`, `C${i}`)).toBeTruthy()
       expect(g.edge(`C${i}`, 'S').text).toBe('＋')
     }
-    expect(g.node('C1').text).toBe('(a − w)·E[x²]')
-    expect(g.node('C2').text).toBe('b·E[x]')
-    expect(g.node('C5').text).toBe('E[x·v] = 0')
-    expect(g.subgraphs.map((s) => s.title)).toEqual(expect.arrayContaining(['e[n] 的五項', '各自乘上 x 再取平均']))
+    expect(g.node('C1').text).toBe(String.raw`$(a - w) \cdot E[x^2]$`)
+    expect(g.node('C2').text).toBe(String.raw`$b \cdot E[x]$`)
+    expect(g.node('C5').text).toBe(String.raw`$E[x \cdot v] = 0$`)
+    expect(g.node('FP').text).toContain(String.raw`$w^* = a + (b \cdot E[x] + E[x \cdot d] + E[x \cdot \varepsilon_{cc}]) / E[x^2]$`)
+    expect(g.subgraphs.map((s) => s.title)).toEqual(expect.arrayContaining(['$e[n]$ 的五項', '各自乘上 $x$ 再取平均']))
     // 非對稱 code（E[x] ≠ 0、E[x³] ≠ 0）+ 全部的 bias 項
     const m = model({ b: 0.5, c2: 0.05, c3: 0.1, kappa: 0.02 })
     const mo = codeMoments(u4)
@@ -500,14 +591,15 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     const b = 0.1
     expect(mo.Ex).toBeCloseTo(1 / 2, 9)
     expect(mo.Ex2).toBeCloseTo(1 / 3, 9)
-    expect(g.node('X').text).toContain('E[x] = 1/2，E[x²] = 1/3')
-    expect(g.node('OFF').text).toContain(`b = ${fmt(b, 1)}`)
-    expect(g.node('AVG').text).toContain(`b·E[x] = ${fmt(b * mo.Ex)}`)
-    expect(g.node('BIAS').text).toContain(`多調 ${fmt(b * mo.Ex)} ÷ (1/3) = ${fmt(mseFixedPoint(model({ b }), u) - 1)}`)
-    expect(g.node('BIAS').text).toContain('w* − a = b·E[x] / E[x²]')
+    expect(g.node('X').text).toContain(String.raw`$E[x] = 1/2$，$E[x^2] = 1/3$`)
+    expect(g.node('OFF').text).toContain(`$b = ${fmt(b, 1)}$`)
+    expect(g.node('AVG').text).toContain(String.raw`$b \cdot E[x] = ${fmt(b * mo.Ex)}$`)
+    expect(g.node('BIAS').text).toContain(String.raw`多調 $${fmt(b * mo.Ex)} \div (1/3) = ${fmt(mseFixedPoint(model({ b }), u) - 1)}$`)
+    expect(g.node('BIAS').text).toContain(String.raw`$w^* - a = b \cdot E[x] / E[x^2]$`)
     // 置中後 offset 項為 0
     expect(mseFixedPoint(model({ b }), five)).toBeCloseTo(1, 12)
     expect(g.edge('AVG', 'ZERO').text).toBe('若 code 置中')
+    expect(g.node('ZERO').text).toContain(String.raw`$E[x] = 0$，所以 $b \cdot E[x] = 0$`)
     const lay = await layout(D.CHART_OFFSET_PATH)
     lay.increasing('x', ['OFF', 'X'], 'MUL', 'AVG', ['BIAS', 'ZERO'])
   })
@@ -515,6 +607,9 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
   it('dc-null（三種架構）：積分路徑的極性與輸入、三個固定點公式都和模型一致', async () => {
     const g = await parseFlow(D.CHART_DC_NULL)
     expect(g.subgraphs).toHaveLength(3)
+    expect(g.subgraphs.map((s) => s.title)).toEqual(
+      expect.arrayContaining([String.raw`(A) none：主迴路不碰 comparator 的 DC，$\varphi = 0$`, String.raw`(B) shared BBPD：積分路徑強制 $E[q] = 0$`]),
+    )
     // 版面：三種架構由上到下依序是 (A)(B)(C)，每個框內由左到右
     const lay = await layout(D.CHART_DC_NULL)
     lay.increasing('y', ['A0', 'A1', 'A2'], ['B0', 'B1', 'B2', 'B3', 'B4'], ['C0', 'C1', 'C2', 'C3', 'C4'])
@@ -524,25 +619,25 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     // (A) 沒有回授
     expect(g.into('A0')).toHaveLength(0)
     // (B) φ ← φ − k_φ·q，以「＋ φ」加回 comparator 輸入
-    expect(g.node('B4').text).toContain('φ ← φ − k_φ·q')
-    expect(g.edge('B2', 'B4').text).toBe('q')
-    expect(g.edge('B4', 'B1').text).toBe('＋ φ')
-    expect(g.node('B2').text).toContain('q = sign(e_det + φ + v)')
+    expect(g.node('B4').text).toContain(String.raw`$\varphi \leftarrow \varphi - k_\varphi \cdot q$`)
+    expect(g.edge('B2', 'B4').text).toBe('$q$')
+    expect(g.edge('B4', 'B1').text).toBe(String.raw`＋ $\varphi$`)
+    expect(g.node('B2').text).toContain(String.raw`$q = \operatorname{sign}(e_\mathrm{det} + \varphi + v)$`)
     // (C) 線性 PD 看不到 comparator 的 b；積分的是 e_PD；comparator 再加上自己的 b
-    expect(g.node('C0').text).toBe('e_det − b')
-    expect(g.node('C4').text).toContain('φ ← φ − k_φ·e_PD')
-    expect(g.edge('C1', 'C4').text).toBe('e_PD')
-    expect(g.edge('C4', 'C1').text).toBe('＋ φ')
-    expect(g.node('C2').text).toContain('q = sign(e_PD + b + v)')
+    expect(g.node('C0').text).toBe(String.raw`$e_\mathrm{det} - b$`)
+    expect(g.node('C4').text).toContain(String.raw`$\varphi \leftarrow \varphi - k_\varphi \cdot e_\mathrm{PD}$`)
+    expect(g.edge('C1', 'C4').text).toBe(String.raw`$e_\mathrm{PD}$`)
+    expect(g.edge('C4', 'C1').text).toBe(String.raw`＋ $\varphi$`)
+    expect(g.node('C2').text).toContain(String.raw`$q = \operatorname{sign}(e_\mathrm{PD} + b + v)$`)
     // 三個節點上的公式（照圖上的式子重算）= bias.ts 的 linearizedFixedPoint
     const m = model({ b: 0.5, c2: 0.05, c3: 0.1, kappa: 0.02 })
     const mo = codeMoments(u4)
     const f = (x: number) => m.c2 * x * x + m.c3 * x ** 3 + m.kappa * x // d + ε_cc
     const Exf = expectation(u4, (x) => x * f(x))
     const cov = Exf - mo.Ex * expectation(u4, f)
-    expect(g.node('A2').text).toContain('w* − a = ( b·E[x] + E[x·d] + E[x·ε_cc] ) / E[x²]')
-    expect(g.node('B3').text).toContain('w* − a ≈ Cov(x, d + ε_cc) / Var(x)')
-    expect(g.node('C3').text).toContain('w* − a ≈ ( b·E[x] + Cov(x, d + ε_cc) ) / Var(x)')
+    expect(g.node('A2').text).toContain(String.raw`$w^* - a = (b \cdot E[x] + E[x \cdot d] + E[x \cdot \varepsilon_{cc}]) / E[x^2]$`)
+    expect(g.node('B3').text).toContain(String.raw`$w^* - a \approx \operatorname{Cov}(x, d + \varepsilon_{cc}) / \operatorname{Var}(x)$`)
+    expect(g.node('C3').text).toContain(String.raw`$w^* - a \approx (b \cdot E[x] + \operatorname{Cov}(x, d + \varepsilon_{cc})) / \operatorname{Var}(x)$`)
     expect(m.a + (m.b * mo.Ex + Exf) / mo.Ex2).toBeCloseTo(linearizedFixedPoint(m, u4, 'none', false).w, 12)
     expect(m.a + cov / mo.varX).toBeCloseTo(linearizedFixedPoint(m, u4, 'shared_bbpd', false).w, 12)
     expect(m.a + (m.b * mo.Ex + cov) / mo.varX).toBeCloseTo(linearizedFixedPoint(m, u4, 'linear_pd', false).w, 12)
@@ -558,10 +653,12 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     const g = await parseFlow(D.CHART_SERVO_DITHER)
     expect(g.into('R3').map((e) => e.text)).toEqual(['＋', '＋', '＋'])
     expect(g.into('Q2').map((e) => e.text)).toEqual(['＋', '＋'])
-    expect(g.node('R1').text).toContain('σ_φ²')
-    expect(g.node('R2').text).toContain('σ_v²')
-    expect(g.node('Q1').text).toContain('σ_eff² = σ_v² + σ_φ²')
-    expect(g.node('Q3').text).toMatch(/erf\( \(e_det \+ φ̄\) \/ \(√2·σ_eff\) \)/)
+    expect(g.node('R0').text).toContain(String.raw`$e_\mathrm{det}(x; w) + \bar\varphi$`)
+    expect(g.node('R1').text).toContain(String.raw`$\tilde\varphi[n]$`)
+    expect(g.node('R1').text).toContain(String.raw`$\sigma_\varphi^2$`)
+    expect(g.node('R2').text).toContain(String.raw`$\sigma_v^2$`)
+    expect(g.node('Q1').text).toContain(String.raw`$\sigma_\mathrm{eff}^2 = \sigma_v^2 + \sigma_\varphi^2$`)
+    expect(g.node('Q3').text).toContain(String.raw`$E[q \mid x] \approx \operatorname{erf}((e_\mathrm{det} + \bar\varphi) / (\sqrt{2} \cdot \sigma_\mathrm{eff}))$`)
     expect(g.edge('REAL', 'EQUIV').text).toContain('變異數相加')
     const lay = await layout(D.CHART_SERVO_DITHER)
     lay.increasing('y', ['R0', 'R1', 'R2', 'R3', 'R4'], ['Q0', 'Q1', 'Q2', 'Q3'])
@@ -570,7 +667,8 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
   it('centering-tree（centering 判斷樹）：四個問題、三個紅色出口，和模型的行為一致', async () => {
     const g = await parseFlow(D.CHART_CENTERING_TREE)
     expect(g.edge('Q1', 'N1').text).toBe('否')
-    expect(g.edge('Q2', 'N2').text).toContain('σ_v = 0')
+    expect(g.node('Q1').text).toContain('$E[x] = 0$')
+    expect(g.edge('Q2', 'N2').text).toContain(String.raw`$\sigma_v = 0$`)
     expect(g.edge('Q4', 'Y1').text).toBe('沒有')
     for (const id of ['N1', 'N2', 'N3']) expect(g.node(id).classes).toContain('warn')
     expect(g.node('Y1').classes).toContain('ok')
@@ -599,18 +697,18 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     const g = await parseFlow(D.CHART_JITTER_WEIGHT)
     const jit = model({ b: 0.2, jitterSlope: 0.25, jitterRef: -2 })
     expect(five.values.map((x) => fmt(sigmaAt(x, jit), 3))).toEqual(['1', '1.118', '1.414', '1.803', '2.236'])
-    expect(g.node('OFF').text).toContain(`b = ${fmt(jit.b, 1)}`)
-    expect(g.node('OFF').text).toContain(`x·b：${five.values.map((x) => fmt(x * jit.b, 1, true)).join('、')}`)
-    expect(g.node('KV').text).toContain(`權重 1/σ_v(x)：${five.values.map((x) => fmt(1 / sigmaAt(x, jit), 3)).join('、')}`)
+    expect(g.node('OFF').text).toContain(`$b = ${fmt(jit.b, 1)}$`)
+    expect(g.node('OFF').text).toContain(String.raw`$x \cdot b$：$${five.values.map((x) => tn(x * jit.b, 1, true)).join(',\\ ')}$`)
+    expect(g.node('KV').text).toContain(String.raw`權重 $1/\sigma_v(x)$：$${five.values.map((x) => fmt(1 / sigmaAt(x, jit), 3)).join(',\\ ')}$`)
     // 常數 σ_v：b·E[x] = 0；σ_v(x)：b·E[x/σ_v] ≠ 0
     expect(codeMoments(five).Ex).toBeCloseTo(0, 14)
     const bExw = expectation(five, (x) => (jit.b * x) / sigmaAt(x, jit))
     const Ex2w = expectation(five, (x) => (x * x) / sigmaAt(x, jit))
-    expect(g.node('SC').text).toContain('b·E[x] = 0')
-    expect(g.node('SV').text).toContain(`b·E[x / σ_v(x)] = ${fmt(bExw, 4)}`)
+    expect(g.node('SC').text).toContain(String.raw`$b \cdot E[x] = 0$`)
+    expect(g.node('SV').text).toContain(String.raw`$b \cdot E[x / \sigma_v(x)] = ${tn(bExw, 4)}$`)
     const wLin = linearizedFixedPoint(jit, five, 'none', true).w
-    expect(g.node('WV').text).toContain(`( ${fmt(bExw, 4)} ) / E[x² / σ_v(x)]`)
-    expect(g.node('WV').text).toContain(`= 1 − ${fmt(Math.abs(bExw), 4)} / ${fmt(Ex2w, 4)} = ${fmt(wLin, 4)}`)
+    expect(g.node('WV').text).toContain(String.raw`(${tn(bExw, 4)}) / E[x^2 / \sigma_v(x)]`)
+    expect(g.node('WV').text).toContain(String.raw`$= 1 - ${fmt(Math.abs(bExw), 4)} / ${fmt(Ex2w, 4)} = ${fmt(wLin, 4)}$`)
     expect(1 + bExw / Ex2w).toBeCloseTo(wLin, 12)
     // 勘誤 E17：Sign-LMS 的 mean-field 根也是 0.9601；σ_v 為常數或改用 MSE-LMS 都回到 w = a
     expect(fixedPoint('sign', jit, five).w).toBeCloseTo(0.9601, 3)
@@ -634,12 +732,13 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     const m = model({ b: 1, sigmaV: 0 })
     const z = signWeightedMedian(m, u4.values, u4.probs)
     expect(g.node('LO').text).toContain(`小於 ${z.lo.toFixed(4)}`)
-    expect(g.node('DZ').text).toContain(`w 在 ${z.lo.toFixed(4)} 與 ${fmt(z.hi, 4)} 之間`)
+    expect(g.node('DZ').text).toContain(`在 ${z.lo.toFixed(4)} 與 ${fmt(z.hi, 4)} 之間`)
     expect(g.node('HI').text).toContain(`大於 ${fmt(z.hi, 4)}`)
-    expect(g.node('LO').text).toContain(`E[G] = ${fmt(meanGmacSign(1.2, m, u4), 2, true)}`)
+    expect(g.node('LO').text).toContain(String.raw`$E[G] = ${tn(meanGmacSign(1.2, m, u4), 2, true)}$`)
     expect(meanGmacSign(1.4, m, u4)).toBe(0)
-    expect(g.node('DZ').text).toContain('E[G] = 0')
-    expect(g.node('HI').text).toContain(`E[G] = ${fmt(meanGmacSign(1.7, m, u4))} 或 ${fmt(meanGmacSign(2.5, m, u4))}`)
+    expect(g.node('DZ').text).toContain(String.raw`$E[G] = 0$`)
+    expect(g.node('HI').text).toContain(String.raw`$E[G] = ${tn(meanGmacSign(1.7, m, u4))}$ 或 $${tn(meanGmacSign(2.5, m, u4))}$`)
+    expect(g.edge('DZ', 'UNI').text).toBe(String.raw`加入雜訊 $\sigma_v > 0$，等於 dither`)
     // 加入雜訊後零交越唯一，且落在原本的 dead zone 內
     const w = fixedPoint('sign', { ...m, sigmaV: 0.05 }, u4).w
     expect(w).toBeGreaterThan(z.lo)
@@ -654,14 +753,15 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     const mo = codeMoments(five)
     const Exd = CUBIC.c3 * mo.Ex4
     const slope = Exd / mo.Ex2
-    expect(g.node('PAR').text).toContain(`= ( ${fmt(Exd)} / ${fmt(mo.Ex2)} )·x = ${fmt(slope)}·x`)
-    expect(g.node('ABS').text).toContain(`w* = a + ${fmt(slope)} = ${fmt(mseFixedPoint(CUBIC, five))}`)
-    expect(g.node('ORT').text).toContain(`e₀(x) = ${fmt(CUBIC.c3, 1)}·x³ − ${fmt(slope)}·x`)
+    expect(g.node('PAR').text).toContain(String.raw`$= (${fmt(Exd)} / ${fmt(mo.Ex2)}) \cdot x = ${fmt(slope)} \cdot x$`)
+    expect(g.node('ABS').text).toContain(String.raw`$w^* = a + ${fmt(slope)} = ${fmt(mseFixedPoint(CUBIC, five))}$`)
+    expect(g.node('ORT').text).toContain(String.raw`$e_0(x) = ${fmt(CUBIC.c3, 1)} \cdot x^3 - ${fmt(slope)} \cdot x$`)
     const e1 = eDet(1, 1.34, CUBIC)
     const e2 = eDet(2, 1.34, CUBIC)
     expect(e1).toBeLessThan(0) // x = +1 的殘差是負的 ⇒ 圖上寫「x = ±1：∓0.24」
     expect(e2).toBeGreaterThan(0)
-    expect(g.node('RES').text).toContain(`x = ±1：∓${fmt(Math.abs(e1))}；x = ±2：±${fmt(e2)}`)
+    expect(g.node('RES').text).toContain(String.raw`$x = \pm 1$：$\mp ${fmt(Math.abs(e1))}$；$x = \pm 2$：$\pm ${fmt(e2)}$`)
+    expect(g.node('ORT').text).toContain(String.raw`$E[x \cdot e_0] = 0$`)
     expect(expectation(five, (x) => x * eDet(x, 1.34, CUBIC))).toBeCloseTo(0, 12)
     const lay = await layout(D.CHART_BEST_FIT)
     lay.increasing('x', 'D', 'SPLIT', ['PAR', 'ORT'], ['ABS', 'RES'])
@@ -671,12 +771,12 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     const g = await parseFlow(D.CHART_MEAN_VS_MEDIAN)
     const t1 = perCodeGain(1, CUBIC)
     const t2 = perCodeGain(2, CUBIC)
-    expect(g.node('T').text).toContain(`t(±1) = ${fmt(t1)}；t(±2) = ${fmt(t2)}`)
+    expect(g.node('T').text).toContain(String.raw`$t(\pm 1) = ${fmt(t1)}$；$t(\pm 2) = ${fmt(t2)}$`)
     const wt = (pow: number, ax: number) => five.values.reduce((s, x, i) => s + (Math.abs(x) === ax ? five.probs[i] * Math.abs(x) ** pow : 0), 0)
-    expect(g.node('M1').text).toContain(`權重 p·x²：${fmt(wt(2, 1))} 與 ${fmt(wt(2, 2))}`)
-    expect(g.node('M3').text).toContain(`票重 p·|x|：${fmt(wt(1, 1))} 與 ${fmt(wt(1, 2))}`)
+    expect(g.node('M1').text).toContain(String.raw`權重 $p \cdot x^2$：${fmt(wt(2, 1))} 與 ${fmt(wt(2, 2))}`)
+    expect(g.node('M3').text).toContain(String.raw`票重 $p \cdot |x|$：${fmt(wt(1, 1))} 與 ${fmt(wt(1, 2))}`)
     const mean = mseWeightedMean(CUBIC, five.values, five.probs)
-    expect(g.node('R1').text).toContain(`( ${fmt(wt(2, 1))}·${fmt(t1)} + ${fmt(wt(2, 2))}·${fmt(t2)} ) / ${fmt(wt(2, 1) + wt(2, 2))} = ${fmt(mean)}`)
+    expect(g.node('R1').text).toContain(String.raw`$(${fmt(wt(2, 1))} \cdot ${fmt(t1)} + ${fmt(wt(2, 2))} \cdot ${fmt(t2)}) / ${fmt(wt(2, 1) + wt(2, 2))} = ${fmt(mean)}$`)
     const med = signWeightedMedian(CUBIC, five.values, five.probs)
     expect(med.lo).toBeCloseTo(1.4, 12)
     expect(med.hi).toBeCloseTo(1.4, 12)
@@ -685,7 +785,7 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     // 二階修正的係數 3.456×10⁻⁴（σ_v = 1 時的修正量）
     const coef = signSecondOrder({ ...CUBIC, sigmaV: 1 }, five) - mean
     expect(coef).toBeCloseTo(3.456e-4, 9)
-    expect(g.node('R2').text).toContain('1.34 + 3.456×10⁻⁴ / σ_v²')
+    expect(g.node('R2').text).toContain(String.raw`$1.34 + 3.456 \times 10^{-4} / \sigma_v^2$`)
     // 圖說「最上面／中間／最下面」
     const lay = await layout(D.CHART_MEAN_VS_MEDIAN)
     lay.increasing('y', 'T', ['M1', 'M2', 'M3'], ['R1', 'R2', 'R3'])
@@ -694,54 +794,59 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
   it('identifiability／coupling-node（不可辨識）：兩條路以「＋」並聯，兩個世界的 GMAC 完全相同', async () => {
     const g = await parseFlow(D.CHART_IDENTIFIABILITY)
     expect(g.into('S').map((e) => `${e.from}:${e.text}`).sort()).toEqual(['GA:＋', 'GK:＋', 'V:＋'])
-    expect(g.node('GA').text).toContain('× (a − w)')
-    expect(g.node('GK').text).toContain('× κ')
-    expect(g.node('CMP').text).toContain('e[n] = ( (a + κ) − w )·x[n] + v[n]')
+    expect(g.node('GA').text).toContain(String.raw`$\times (a - w)$`)
+    expect(g.node('GK').text).toContain(String.raw`$\times \kappa$`)
+    expect(g.node('CMP').text).toContain(String.raw`$e[n] = ((a + \kappa) - w) \cdot x[n] + v[n]$`)
     expect(g.edge('S', 'CMP')).toBeTruthy()
     const A = model({ kappa: 0.1, sigmaV: 0.5 })
     const B = model({ a: 1.1, sigmaV: 0.5 })
-    expect(g.node('WA').text).toContain(`a = ${A.a}，κ = ${A.kappa}`)
-    expect(g.node('WB').text).toContain(`a = ${B.a}，κ = ${B.kappa}`)
+    expect(g.node('WA').text).toContain(String.raw`$a = ${A.a}$，$\kappa = ${A.kappa}$`)
+    expect(g.node('WB').text).toContain(String.raw`$a = ${B.a}$，$\kappa = ${B.kappa}$`)
     for (const w of [0.6, 0.9, 1.1, 1.3, 1.6]) expect(Math.abs(meanGmacSign(w, A, five) - meanGmacSign(w, B, five))).toBeLessThan(1e-14)
     expect(fixedPoint('sign', A, five).w).toBeCloseTo(1.1, 9)
-    expect(g.node('OBS').text).toContain('w* = a + κ = 1.1')
+    expect(g.node('OBS').text).toContain(String.raw`$w^* = a + \kappa = 1.1$`)
     expect(g.into('OBS').map((e) => e.from).sort()).toEqual(['CMP', 'WA', 'WB'])
     const lay = await layout(D.CHART_IDENTIFIABILITY)
     lay.increasing('x', 'X', ['GA', 'GK'], 'S', 'CMP', 'OBS')
     const c = await parseFlow(D.CHART_COUPLING_NODE)
     expect(c.node('A2').classes).toContain('ok')
     expect(c.node('B2').classes).toContain('warn')
-    expect(c.node('B2').text).toContain('κ·x')
+    expect(c.node('B2').text).toContain(String.raw`$\kappa \cdot x$`)
+    expect(c.node('A1').text).toContain(String.raw`$w = a + \kappa$`)
   })
 
   it('near-integer-path／near-integer-why：gain 誤差經過 H_PD、β 不經過；w* = a + B/C、S = K_q·C', async () => {
     const g = await parseFlow(D.CHART_NEAR_INTEGER_PATH)
     expect(g.edge('X', 'G')).toBeTruthy()
     expect(g.edge('G', 'H')).toBeTruthy()
-    expect(g.edge('H', 'S').text).toBe('＋ (a − w)·(h ∗ x)[n]')
+    expect(g.edge('H', 'S').text).toBe(String.raw`＋ $(a - w) \cdot (h * x)[n]$`)
     expect(g.edge('BETA', 'S').text).toBe('＋')
     expect(g.into('H').map((e) => e.from)).toEqual(['G']) // β 不經過 H_PD
-    expect(g.edge('PATH', 'CORR').text).toBe('e_PD[n]')
-    expect(g.node('CMP').text).toContain('q[n] = sign(e_PD[n])')
+    expect(g.node('H').text).toContain(String.raw`$H_\mathrm{PD}(z)$`)
+    expect(g.node('BETA').text).toContain(String.raw`$\beta[n]$`)
+    expect(g.edge('PATH', 'CORR').text).toBe(String.raw`$e_\mathrm{PD}[n]$`)
+    expect(g.node('CMP').text).toContain(String.raw`$q[n] = \operatorname{sign}(e_\mathrm{PD}[n])$`)
     expect(g.into('M').map((e) => e.from).sort()).toEqual(['CMP', 'XR'])
-    expect(g.node('XR').text).toContain('x[n]')
-    expect(g.node('AVG').text).toContain('E[G] ≈ K_q·( (a − w)·C + B )')
+    expect(g.node('XR').text).toContain('$x[n]$')
+    expect(g.node('AVG').text).toContain(String.raw`$E[G] \approx K_q \cdot ((a - w) \cdot C + B)$`)
     // 版面：誤差路徑在上、GMAC 在下
     const lay = await layout(D.CHART_NEAR_INTEGER_PATH)
     lay.increasing('y', ['X', 'G', 'H', 'S', 'BETA', 'V'], ['CMP', 'XR', 'M', 'AVG', 'FP'])
     lay.increasing('x', 'X', 'G', 'H', 'S')
     lay.increasing('x', 'CMP', 'M', 'AVG', 'FP')
-    expect(g.node('FP').text).toContain('w* = a + B / C')
+    expect(g.node('FP').text).toContain(String.raw`$w^* = a + B / C$`)
     const s = nearIntegerSensitivity(0.01, 0.01, 1)
     expect(s.bias).toBeCloseTo(1, 12)
     expect(s.slope).toBeCloseTo(KQ_FACTOR * 0.01, 14)
     expect(nearIntegerSensitivity(0.01, -0.01, 1).attracting).toBe(false)
     const y = await parseFlow(D.CHART_NEAR_INTEGER_WHY)
     expect(y.into('CS').map((e) => e.from).sort()).toEqual(['IN', 'OUT'])
-    expect(y.node('IN').text).toMatch(/Ω_k 小於 Ω_n[\s\S]*Re H_PD 為負/)
-    expect(y.node('OUT').text).toMatch(/Ω_k 不小於 Ω_n[\s\S]*Re H_PD 為正/)
-    expect(y.node('SL').text).toContain('S = K_q·C')
-    expect(y.node('NG').text).toContain('C ≤ 0')
+    expect(y.node('IN').text).toContain(String.raw`$\Omega_k$ 小於 $\Omega_n$` + '\n' + String.raw`$\mathrm{Re}\,H_\mathrm{PD}$ 為負`)
+    expect(y.node('OUT').text).toContain(String.raw`$\Omega_k$ 不小於 $\Omega_n$` + '\n' + String.raw`$\mathrm{Re}\,H_\mathrm{PD}$ 為正`)
+    expect(y.node('SAW').text).toContain(String.raw`$\Omega_1 = 2\pi \cdot \mathrm{frac}$`)
+    expect(y.node('CS').text).toContain(String.raw`$C \propto \mathrm{frac}^2$`)
+    expect(y.node('SL').text).toContain(String.raw`$S = K_q \cdot C$`)
+    expect(y.node('NG').text).toContain(String.raw`$C \le 0$`)
     const layY = await layout(D.CHART_NEAR_INTEGER_WHY)
     layY.increasing('y', 'F', 'SAW', ['IN', 'OUT'], 'CS', ['SL', 'BI', 'NG'])
   })
@@ -752,15 +857,18 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     expect(g.edge('DSM', 'NORM')).toBeTruthy()
     expect(g.into('T1').map((e) => e.from)).toEqual(['NORM'])
     expect(g.into('F1').map((e) => e.from)).toEqual(['NORM'])
-    expect(g.node('DSM').text).toContain('P = 2¹⁶ / gcd(K, 2¹⁶)')
-    expect(g.node('NORM').text).toContain('E[x] = 0，E[x²] = 1')
-    expect(g.node('T1').text).toContain('u[n] = (h ∗ x)[n]')
-    expect(g.node('F2').text).toContain('C = Σ_k |X_k|²·Re H_PD(e^{jΩ_k})')
-    expect(g.node('F2').text).toContain('Ω_k = 2πk / P')
+    expect(g.node('FRAC').text).toContain(String.raw`$K = \mathrm{frac} \cdot 2^{16}$`)
+    expect(g.node('DSM').text).toContain(String.raw`$P = 2^{16} / \gcd(K, 2^{16})$`)
+    expect(g.node('NORM').text).toContain(String.raw`$E[x] = 0$，$E[x^2] = 1$`)
+    expect(g.node('T1').text).toContain(String.raw`$u[n] = (h * x)[n]$`)
+    expect(g.node('T2').text).toContain(String.raw`$C = \text{平均}(x[n] \cdot u[n])$`)
+    expect(g.node('F2').text).toContain(String.raw`$C = \sum_k |X_k|^2 \cdot \mathrm{Re}\,H_\mathrm{PD}(e^{j\Omega_k})$`)
+    expect(g.node('F2').text).toContain(String.raw`$\Omega_k = 2\pi k / P$`)
     expect(g.into('CHK').map((e) => e.from).sort()).toEqual(['F2', 'T2'])
+    expect(g.node('CHK').text).toContain(String.raw`小於 $10^{-6}$`)
     expect(g.edge('CHK', 'OUT').text).toBe('是')
     expect(g.edge('CHK', 'BAD').text).toBe('否')
-    expect(g.node('OUT').text).toContain('w* − a = B / C')
+    expect(g.node('OUT').text).toContain(String.raw`$w^* - a = B / C$`)
     // 模型：16-bit first-order DSM 的週期 P = 2¹⁶/gcd(K, 2¹⁶)；兩條路的 C 相對差小於 10⁻⁶（圖上六角形的門檻）
     const r = nearIntegerSweep({ fracs: [0.0625, 0.25], wnTs: 0.05, zeta: 0.707, loopDelay: 1, kappaDirect: 0.01, sigmaV: 1, length: 2048 })
     expect(r.period).toEqual([2 ** 16 / 4096, 2 ** 16 / 16384]) // K = 4096、16384
@@ -772,20 +880,21 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
 
   it('slope-measure：Ŝ = (G₋ − G₊)/(2Δ) 就是 bias.ts 的 slopeProbe；Ŝ ≤ 0 極性錯誤、Ŝ 很小 bias 被放大', async () => {
     const g = await parseFlow(D.CHART_SLOPE_MEASURE)
-    expect(g.node('F1').text).toContain('w + Δ')
-    expect(g.node('F1').text).toContain('G₊')
-    expect(g.node('F2').text).toContain('w − Δ')
-    expect(g.node('F2').text).toContain('G₋')
-    expect(g.node('F3').text).toContain('Ŝ = ( G₋ − G₊ ) / (2·Δ)')
+    expect(g.node('F1').text).toContain(String.raw`$w + \Delta$`)
+    expect(g.node('F1').text).toContain('$G_+$')
+    expect(g.node('F2').text).toContain(String.raw`$w - \Delta$`)
+    expect(g.node('F2').text).toContain('$G_-$')
+    expect(g.node('F3').text).toContain(String.raw`$\hat S = (G_- - G_+) / (2 \cdot \Delta)$`)
     expect(g.into('F3').map((e) => e.from).sort()).toEqual(['F1', 'F2'])
     expect(g.edge('Q1', 'BAD').text).toBe('否')
     expect(g.edge('Q1', 'Q2').text).toBe('是')
     expect(g.edge('Q2', 'SMALL').text).toBe('是')
     expect(g.edge('Q2', 'GOOD').text).toBe('否')
     expect(g.into('NEXT').map((e) => e.from).sort()).toEqual(['BAD', 'GOOD', 'SMALL'])
-    expect(g.node('Q2').text).toContain('K_q·E[x²]')
-    expect(g.node('BAD').text).toContain('C ≤ 0')
-    expect(g.node('SMALL').text).toContain('bias = B / C 被放大')
+    expect(g.node('Q1').text).toContain(String.raw`$\hat S$ 大於 0`)
+    expect(g.node('Q2').text).toContain(String.raw`$K_q \cdot E[x^2]$`)
+    expect(g.node('BAD').text).toContain(String.raw`$C \le 0$`)
+    expect(g.node('SMALL').text).toContain(String.raw`bias $= B / C$ 被放大`)
     // 模型：靜態路徑 a = 1、5-level code、σ_v = 1。G(w) 對 w 遞減，所以 Ŝ = (G(w−Δ) − G(w+Δ))/(2Δ) 為正，且 ≈ K_q·E[x²]
     const stat = model({ sigmaV: 1 })
     const delta = 0.05
@@ -806,8 +915,8 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     const g = await parseFlow(D.CHART_MC_GAPS)
     expect(g.into('S').map((e) => e.from).sort()).toEqual(['G1', 'G2', 'G3', 'MF'])
     for (const e of g.into('S')) expect(e.text).toBe('＋')
-    expect(g.node('G1').text).toContain("G''(w*)·Var(w) / (2·S)")
-    expect(g.node('CHK').text).toContain(`4·SE + ①③ 的估計 + ${SERVO_SHAPE_FRACTION}·②`)
+    expect(g.node('G1').text).toContain(String.raw`$G''(w^*) \cdot \operatorname{Var}(w) / (2 \cdot S)$`)
+    expect(g.node('CHK').text).toContain(String.raw`$\le 4 \cdot \mathrm{SE} + \text{①③ 的估計} + ${SERVO_SHAPE_FRACTION} \cdot \text{②}$`)
     const src = readFileSync(join(process.cwd(), 'src/simulation/models/bias.ts'), 'utf8')
     expect(src).toContain('stat: 4 * mc.se')
     const lay = await layout(D.CHART_MC_GAPS)
@@ -818,19 +927,19 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     const g = await parseFlow(D.CHART_FINITE_STEP_LOOP)
     // 加法點 SG 的三個輸入：抽樣雜訊 ＋、恢復力 −、曲率 ＋
     expect(Object.fromEntries(g.into('SG').map((e) => [e.from, e.text]))).toEqual({ ETA: '＋', REST: '−', CURV: '＋' })
-    expect(g.edge('SG', 'MU').text).toBe('G_k')
+    expect(g.edge('SG', 'MU').text).toBe('$G_k$')
     // 累加器：δw_(k+1) = δw_k + μ·G_k，延遲 z⁻¹ 在 δw 的回授上
-    expect(Object.fromEntries(g.into('ADD').map((e) => [e.from, e.text]))).toEqual({ MU: '＋ μ·G_k', DLY: '＋ δw_k' })
-    expect(g.edge('ADD', 'DLY').text).toBe('δw_(k+1)')
-    expect(g.node('DLY').text).toContain('z⁻¹')
-    expect(g.edge('DLY', 'REST').text).toBe('δw_k')
-    expect(g.edge('DLY', 'CURV').text).toBe('δw_k')
-    expect(g.node('REST').text).toContain('× S')
-    expect(g.node('CURV').text).toContain("½·G''(w*)·δw_k²")
-    expect(g.node('POLE').text).toContain('δw_(k+1) = (1 − g)·δw_k + μ·η_k')
-    expect(g.node('POLE').text).toContain('g = μ·S，pole = 1 − g')
-    expect(g.node('SHIFT').text).toContain("E[δw] ≈ G''(w*)·Var(w) / (2·S)")
-    expect(g.node('ETA').text).toContain('E[x²] / N')
+    expect(Object.fromEntries(g.into('ADD').map((e) => [e.from, e.text]))).toEqual({ MU: String.raw`＋ $\mu \cdot G_k$`, DLY: String.raw`＋ $\delta w_k$` })
+    expect(g.edge('ADD', 'DLY').text).toBe(String.raw`$\delta w_{k+1}$`)
+    expect(g.node('DLY').text).toContain('$z^{-1}$')
+    expect(g.edge('DLY', 'REST').text).toBe(String.raw`$\delta w_k$`)
+    expect(g.edge('DLY', 'CURV').text).toBe(String.raw`$\delta w_k$`)
+    expect(g.node('REST').text).toContain(String.raw`$\times S$`)
+    expect(g.node('CURV').text).toContain(String.raw`$\tfrac{1}{2} \cdot G''(w^*) \cdot \delta w_k^2$`)
+    expect(g.node('POLE').text).toContain(String.raw`$\delta w_{k+1} = (1 - g) \cdot \delta w_k + \mu \cdot \eta_k$`)
+    expect(g.node('POLE').text).toContain(String.raw`$g = \mu \cdot S$，pole $= 1 - g$`)
+    expect(g.node('SHIFT').text).toContain(String.raw`$E[\delta w] \approx G''(w^*) \cdot \operatorname{Var}(w) / (2 \cdot S)$`)
+    expect(g.node('ETA').text).toContain(String.raw`$E[x^2] / N$`)
     expect(g.node('REST').classes).toContain('focus')
     expect(g.node('CURV').classes).toContain('warn')
     // 模型（Sign-LMS、5-level、a = 1、c₃ = 0.1、σ_v = 1、μ = 0.0125、N = 64）：只留藍色那條負回授時 Var(w) = μ²E[x²]/(N·g·(2 − g))
@@ -854,24 +963,26 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
 
   it('verdict-tree／handcalc-flow（判斷樹與手算流程）：門檻 0.3、g = 0.02 與手算題、Lab 相同', async () => {
     const g = await parseFlow(D.CHART_VERDICT_TREE)
-    expect(g.node('Q4').text).toContain(`≤ ${LINEAR_OK_RATIO}`)
-    expect(g.node('Q1').text).toContain('S = K_q·C > 0')
+    expect(g.node('Q4').text).toContain(String.raw`\le ${LINEAR_OK_RATIO}$`)
+    expect(g.node('Q1').text).toContain(String.raw`$S = K_q \cdot C > 0$`)
     expect(g.edge('Q1', 'N1').text).toBe('否')
     expect(g.edge('Q2', 'OKN').text).toBe('是')
     expect(g.into('Q4').map((e) => e.from).sort()).toEqual(['B1', 'B2', 'B3'])
-    expect(g.node('B1').text).toContain('b·E[x] / E[x²]')
-    expect(g.node('B2').text).toContain('E[x·d] / E[x²]')
-    expect(g.node('B3').text).toContain('w* = a + κ')
+    expect(g.node('B1').text).toContain(String.raw`bias $= b \cdot E[x] / E[x^2]$`)
+    expect(g.node('B1').text).toContain(String.raw`$E[x] \ne 0$`)
+    expect(g.node('B2').text).toContain(String.raw`bias $= E[x \cdot d] / E[x^2]$`)
+    expect(g.node('B3').text).toContain(String.raw`$w^* = a + \kappa$`)
     const h = await parseFlow(D.CHART_HANDCALC_FLOW)
-    expect(h.node('S5').text).toContain(`≤ ${LINEAR_OK_RATIO}`)
+    expect(h.node('S5').text).toContain(String.raw`\le ${LINEAR_OK_RATIO}$`)
     // ①→②→③→④→⑤ 與 ①→⑥→⑦
     for (const [a, b] of [['S1', 'S2'], ['S2', 'S3'], ['S3', 'S4'], ['S4', 'S5'], ['S1', 'S8'], ['S8', 'S9']]) expect(h.edge(a, b)).toBeTruthy()
     expect(h.into('S8').map((e) => e.from)).toEqual(['S1']) // S ≈ K_q·E[x²] 只用 ① 的動差與 σ_v，不需要 w*（HC-11.8）
-    expect(h.edge('S1', 'S8').text).toBe('只用 E[x²]')
+    expect(h.edge('S1', 'S8').text).toBe(String.raw`只用 $E[x^2]$`)
+    expect(h.node('S3').text).toContain(String.raw`$w^* = a + \text{offset} + \text{INL} + \kappa$`)
     const S = KQ_FACTOR * codeMoments(five).Ex2 // σ_v = 1
     expect(1 - autoMu(S) * S).toBeCloseTo(0.98, 12)
-    expect(h.node('S9').text).toContain('g = 0.02 時平均 pole = 0.98')
-    expect(h.node('S8').text).toContain('K_q = √(2/π) / σ_v')
+    expect(h.node('S9').text).toContain(String.raw`$g = 0.02$ 時平均 pole $= 0.98$`)
+    expect(h.node('S8').text).toContain(String.raw`$K_q = \sqrt{2/\pi} / \sigma_v$`)
     const layG = await layout(D.CHART_VERDICT_TREE)
     layG.increasing('y', 'R', 'Q1', 'Q2', 'Q3', ['B1', 'B2', 'B3'], 'Q4', ['L1', 'L2'])
     const layH = await layout(D.CHART_HANDCALC_FLOW)
@@ -893,6 +1004,9 @@ describe('Ch11 方塊圖：頁面元件（真正的 mermaid）', () => {
     expect(box).toBeTruthy()
     await waitFor(() => expect(box.querySelector('.c-mermaid-svg svg')).toBeTruthy())
     expect(box.querySelector('.c-callout')).toBeNull() // 沒有「Mermaid 圖解析失敗」
+    // 圖裡面的標籤也是 KaTeX（不是 `$…$` 原文）
+    expect(box.querySelectorAll('.c-mermaid-svg .katex').length).toBeGreaterThanOrEqual(15)
+    expect(box.querySelector('.c-mermaid-svg')?.textContent ?? '').not.toContain('$')
     expect(box.querySelector('figure')?.getAttribute('aria-label')).toBe(`${figLabel('dc-null')}：三種主迴路架構：\\varphi 由誰決定`)
     const cap = box.querySelector('.ch11-figcap') as HTMLElement
     expect(cap.textContent).toContain(figLabel('dc-null'))
@@ -908,7 +1022,8 @@ describe('Ch11 方塊圖：頁面元件（真正的 mermaid）', () => {
     expect(figures).toHaveLength(3)
     const map = figures[0]
     expect(map.getAttribute('aria-label')).toContain('系統方塊圖')
-    for (const b of SYSTEM_MAP_FOCUS) expect(map.getAttribute('aria-label')).toContain(SYSTEM_BLOCK_LABEL[b])
+    // aria-label 是純文字：方塊名稱裡的 `$…$` 只去掉分隔符號
+    for (const b of SYSTEM_MAP_FOCUS) expect(map.getAttribute('aria-label')).toContain(stripMathDelimiters(SYSTEM_BLOCK_LABEL[b]))
     const question = container.querySelector('.c-callout') as HTMLElement
     expect(question.textContent).toContain('這一課要回答的問題')
     expect(question.nextElementSibling).toBe(map)

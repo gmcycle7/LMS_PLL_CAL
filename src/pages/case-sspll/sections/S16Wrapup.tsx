@@ -151,7 +151,7 @@ export function S17Recap() {
           rows={[
             [<Tex key="a">{r`H_{PD}=1/(1+L)`}</Tex>, 'SSPD 取樣值（或 CPPLL 的 PFD／CP 輸出）相對於注入誤差的閉迴路響應；比較器接在 SSPD 的 hold 節點'],
             [<><Tex>{'L'}</Tex> 的 1 拍延遲</>, 'SSPD 取樣 → SSCP／gm → VCO 控制電壓生效'],
-            [<Tex key="a">{r`K_p,\ K_i`}</Tex>, <>SSCP 比例路徑的 gm·R 與積分電容（或數位 loop filter 的係數）乘上 <Tex>{r`K_{vco}`}</Tex> 與 SSPD 斜率 <Tex>{r`A\omega_{vco}`}</Tex>；PVT 會移動它們</>],
+            [<Tex key="a">{r`K_p,\ K_i`}</Tex>, <>SSCP 比例路徑的 <Tex>{r`g_m R`}</Tex> 與積分電容（或數位 loop filter 的係數）乘上 <Tex>{r`K_{vco}`}</Tex> 與 SSPD 斜率 <Tex>{r`A\omega_{vco}`}</Tex>；PVT 會移動它們</>],
             [<><Tex>{r`\rho[n]`}</Tex>／<Tex>{'p[n]'}</Tex></>, '分數累加器的低位（DTC code）／高 3 位（PMUX select）'],
             [<Tex key="a">{'D'}</Tex>, 'DTC code 與 PMUX select 到比較器的數位 pipeline 延遲（兩者可能在不同 clock domain）'],
             [<Tex key="a">{r`G=1-z^{-1}`}</Tex>, '每條 regressor 一個暫存器與一個減法器（GMAC 前）'],

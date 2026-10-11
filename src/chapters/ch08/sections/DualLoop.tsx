@@ -327,7 +327,7 @@ export function DualLoop() {
             <Tex>{'F(-1)=b_sc_s/(1+r_s)'}</Tex> 比 <Tex>{'F(1)=b_sc_s/(1-r_s)'}</Tex> 小，高頻增益被觀測的低通衰減。上表最後兩欄是數值掃描與封閉式的比對。
           </p>
           <p className="small">
-            把這兩個模型並排看，歸因就清楚了。完整模型的觀測可以拆成「一個 block 的延遲 × 沒有 latency 的低通」：
+            把這兩個模型並排看，歸因就清楚了。完整模型的觀測可以拆成「一個 block 的延遲 <Tex>{'\\times'}</Tex> 沒有 latency 的低通」：
           </p>
           <TexBlock>{String.raw`F(z)=\frac{b_sc_s}{z-r_s}=\underbrace{z^{-1}}_{\text{一個 block 的 latency}}\cdot\underbrace{\frac{b_sc_s}{1-r_sz^{-1}}}_{\text{低通（反事實模型的 }F\text{）}}`}</TexBlock>
           <ul className="small">

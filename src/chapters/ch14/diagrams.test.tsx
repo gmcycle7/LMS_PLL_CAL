@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import mermaid from 'mermaid'
 import { SettingsProvider } from '@/app/settings'
 import { defaultValues, systemMapChart } from '@/components'
-import { installMermaidSvgShim, renderMermaidForTest } from '@/components/mermaidTestUtils'
+import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import type { PresetEntry } from '@/data/types'
 import {
   DEFAULT_CAL_SM,
@@ -152,37 +152,39 @@ describe('Ch14 Mermaid 圖（真正的 mermaid parser）', () => {
       expect(g.vertices.length, `${c.name} 節點數`).toBeGreaterThanOrEqual(4)
       for (const v of g.vertices) expect(labelHazard(v.text ?? ''), `${c.name} 節點 ${v.id}`).toBeNull()
       for (const e of g.edges) expect(labelHazard(e.text ?? ''), `${c.name} 邊 ${e.start}→${e.end}`).toBeNull()
-      // 加法點 = 圓形節點、文字是全形「＋」；每條進來的邊都要以「＋」或「−」開頭
+      // 加法點 = 圓形節點、文字是全形「＋」；每條進來的邊都要以「＋」或「−」開頭（純正負號照舊用全形字元；和文字、公式混在一起時寫 `$+$`、`$-$`）
       const sums = g.vertices.filter((v) => v.type === 'circle' && v.text === '＋')
       for (const s of sums) {
         const incoming = g.edges.filter((e) => e.end === s.id)
         expect(incoming.length, `${c.name} 加法點 ${s.id}`).toBeGreaterThanOrEqual(2)
-        for (const e of incoming) expect(e.text ?? '', `${c.name}：${e.start} → ${s.id} 要標正負號`).toMatch(/^[＋−]/)
+        for (const e of incoming) expect(e.text ?? '', `${c.name}：${e.start} → ${s.id} 要標正負號`).toMatch(/^(?:[＋−]|\$[+-]\$)/)
       }
     }
   }, 60000)
 
-  it('訊號極性與公式一致：δ = a − w、δ_B = p^B·δ₀ − μΣp^(B−1−k)η_k、H(z) = μ/(z − p)、1/P 累加、K̂ 的差分方向', async () => {
+  it('訊號極性與公式一致：δ = a − w、δ_B = p^B·δ₀ − μΣp^(B−1−k)η_k、H(z) = μ/(z − p)、1/P 累加、K̂ 的差分方向（標籤是 `$...$` 的 LaTeX 原始碼）', async () => {
     // §14.0：a 進加法點為正、回授 w_k 為負；G_k = K·δ_k + η_k；累加器 w_(k+1) = w_k + μ·G_k
     const loop = (await flow(D.CHART_CAL_LOOP))!
     expect(edgeText(loop, 'A', 'S1')).toBe('＋')
-    expect(edgeText(loop, 'ACC', 'S1')).toMatch(/^−.*w_k/)
-    expect(edgeText(loop, 'S1', 'KB')).toBe('δ_k = a − w_k')
+    expect(edgeText(loop, 'ACC', 'S1')).toMatch(/^\$-\$.*\$w_k\$/)
+    expect(edgeText(loop, 'S1', 'KB')).toBe(String.raw`$\delta_k = a - w_k$`)
     expect(edgeText(loop, 'KB', 'S2')).toBe('＋')
     expect(edgeText(loop, 'ETA', 'S2')).toBe('＋')
-    expect(edgeText(loop, 'S2', 'MU')).toBe('G_k = K·δ_k + η_k')
+    expect(edgeText(loop, 'S2', 'MU')).toBe(String.raw`$G_k = K\,\delta_k + \eta_k$`)
+    expect(edgeText(loop, 'MU', 'ACC')).toBe(String.raw`$\mu\,G_k$`)
     const acc = loop.vertices.find((v) => v.id === 'ACC')?.text ?? ''
-    expect(acc).toContain('1/(z−1)')
-    expect(acc).toContain('w_(k+1) = w_k + μ·G_k')
+    expect(acc).toContain('$1/(z-1)$')
+    expect(acc).toContain(String.raw`$w_{k+1} = w_k + \mu\,G_k$`)
 
     // 先備知識：e = δ + v（兩條輸入都是正號）→ sign → 取平均 E[q] = erf(δ/(√2σ_v)) = 2Φ(δ/σ_v) − 1；線性區斜率 K_q = √(2/π)/σ_v
     const cg = (await flow(D.CHART_COMPARATOR_GAIN))!
     expect(edgeText(cg, 'D', 'S')).toBe('＋')
     expect(edgeText(cg, 'V', 'S')).toBe('＋')
-    expect(edgeText(cg, 'S', 'Q')).toBe('e = δ + v')
-    expect(cg.vertices.find((v) => v.id === 'Q')?.text).toContain('q = sign(e) = ±1')
-    expect(cg.vertices.find((v) => v.id === 'M')?.text).toContain('E[q] = erf(δ/(√2·σ_v)) = 2Φ(δ/σ_v) − 1')
-    expect(cg.vertices.find((v) => v.id === 'LIN')?.text).toContain('K_q = √(2/π)/σ_v')
+    expect(edgeText(cg, 'S', 'Q')).toBe(String.raw`$e = \delta + v$`)
+    expect(cg.vertices.find((v) => v.id === 'Q')?.text).toContain(String.raw`$q = \mathrm{sign}(e) = \pm 1$`)
+    expect(cg.vertices.find((v) => v.id === 'M')?.text).toContain(String.raw`$E[q] = \mathrm{erf}(\delta/(\sqrt{2}\,\sigma_v)) = 2\Phi(\delta/\sigma_v) - 1$`)
+    expect(cg.vertices.find((v) => v.id === 'LIN')?.text).toContain(String.raw`$K_q = \sqrt{2/\pi}/\sigma_v$`)
+    expect(cg.vertices.find((v) => v.id === 'LIN')?.text).toContain(String.raw`$E[q] \approx K_q\,\delta$`)
     expect(cg.edges.some((e) => e.start === 'M' && e.end === 'LIN')).toBe(true)
     expect(cg.edges.some((e) => e.start === 'M' && e.end === 'SAT')).toBe(true)
 
@@ -190,16 +192,17 @@ describe('Ch14 Mermaid 圖（真正的 mermaid parser）', () => {
     const s2b = (await flow(D.CHART_SAMPLE_TO_BLOCK))!
     expect(edgeText(s2b, 'PROD', 'SUMV')).toBe('＋')
     expect(edgeText(s2b, 'VN', 'SUMV')).toBe('＋')
-    expect(edgeText(s2b, 'SUMV', 'CMP')).toBe('e[n] = δ_k·u[n] + v[n]')
-    expect(edgeText(s2b, 'PATH', 'PROD')).toBe('u[n]')
+    expect(edgeText(s2b, 'SUMV', 'CMP')).toBe(String.raw`$e[n] = \delta_k\,u[n] + v[n]$`)
+    expect(edgeText(s2b, 'PATH', 'PROD')).toBe('$u[n]$')
     expect(s2b.edges.some((e) => e.start === 'XC' && e.end === 'PATH')).toBe(true)
     expect(s2b.edges.some((e) => e.start === 'XC' && e.end === 'MUL')).toBe(true)
-    expect(s2b.vertices.find((v) => v.id === 'PATH')?.text).toContain('u[n] = c·x[n] + s·x[n−1]')
-    expect(D.CHART_SAMPLE_TO_BLOCK).toContain('q[n] = sign(e[n])')
-    expect(D.CHART_SAMPLE_TO_BLOCK).toContain('G_k = (1/N)·Σ q[n]·x[n]')
-    expect(edgeText(s2b, 'AVG', 'UPD')).toBe('G_k ≈ K·δ_k + η_k')
-    expect(edgeText(s2b, 'UPD', 'PROD')).toContain('δ_k = a − w_k')
-    expect(D.CHART_SAMPLE_TO_BLOCK).toMatch(/subgraph FS\["sample rate[^\n]*索引 n[^\n]*\n(?:.*\n)*?\s*end\n\s*subgraph FU\["block rate[^\n]*索引 k[^\n]*f_u = f_s\/N/)
+    expect(s2b.vertices.find((v) => v.id === 'PATH')?.text).toContain(String.raw`$u[n] = c\,x[n] + s\,x[n-1]$`)
+    expect(s2b.vertices.find((v) => v.id === 'MUL')?.text).toBe(String.raw`$\times$`) // 乘法點
+    expect(D.CHART_SAMPLE_TO_BLOCK).toContain(String.raw`$q[n] = \mathrm{sign}(e[n])$`)
+    expect(D.CHART_SAMPLE_TO_BLOCK).toContain(String.raw`$G_k = (1/N)\sum q[n]\,x[n]$`)
+    expect(edgeText(s2b, 'AVG', 'UPD')).toBe(String.raw`$G_k \approx K\,\delta_k + \eta_k$`)
+    expect(edgeText(s2b, 'UPD', 'PROD')).toContain(String.raw`$\delta_k = a - w_k$`)
+    expect(D.CHART_SAMPLE_TO_BLOCK).toMatch(/subgraph FS\["sample rate[^\n]*索引 \$n\$[^\n]*\n(?:.*\n)*?\s*end\n\s*subgraph FU\["block rate[^\n]*索引 \$k\$[^\n]*\$f_u = f_s\/N\$/)
     // 取樣率：e、q 在 sample rate 子圖；G_k 與 w 的更新在 block rate 子圖
     const inSub = (name: string) => {
       const m = D.CHART_SAMPLE_TO_BLOCK.match(new RegExp(`subgraph ${name}\\[[^\\n]*\\n([\\s\\S]*?)\\n  end`))
@@ -212,9 +215,10 @@ describe('Ch14 Mermaid 圖（真正的 mermaid parser）', () => {
     const msd = (await flow(D.CHART_MSD_SPLIT))!
     expect(edgeText(msd, 'PB', 'SUM')).toBe('＋')
     expect(edgeText(msd, 'WGT', 'SUM')).toBe('−')
-    expect(D.CHART_MSD_SPLIT).toContain('bias² = δ₀²·p^(2B)')
-    expect(D.CHART_MSD_SPLIT).toContain('variance = μ²·σ_η²·(1 − p^(2B))/(1 − p²)')
-    expect(D.CHART_MSD_SPLIT).toContain('× μ·p^(B−1−k)')
+    expect(D.CHART_MSD_SPLIT).toContain(String.raw`$\text{bias}^2 = \delta_0^2\,p^{2B}$`)
+    expect(D.CHART_MSD_SPLIT).toContain(String.raw`$\text{variance} = \mu^2\sigma_\eta^2\,(1 - p^{2B})/(1 - p^2)$`)
+    expect(D.CHART_MSD_SPLIT).toContain(String.raw`$\times\,\mu\,p^{B-1-k}$`)
+    expect(D.CHART_MSD_SPLIT).toContain(String.raw`$\eta_0, \ldots, \eta_{B-1}$`)
 
     // §14.2 (d)：前饋 × μ、回授 z⁻¹ → × p → 加法點，兩條輸入都是正的
     const ns = (await flow(D.CHART_NOISE_SHAPING))!
@@ -222,51 +226,56 @@ describe('Ch14 Mermaid 圖（真正的 mermaid parser）', () => {
     expect(edgeText(ns, 'PP', 'SUM')).toBe('＋')
     expect(ns.edges.some((e) => e.start === 'SUM' && e.end === 'ZD')).toBe(true)
     expect(ns.edges.some((e) => e.start === 'ZD' && e.end === 'PP')).toBe(true)
-    expect(edgeText(ns, 'ZD', 'PSD')).toContain('w_k − a')
-    expect(D.CHART_NOISE_SHAPING).toContain('H(z) = μ/(z − p)')
+    expect(edgeText(ns, 'ZD', 'PSD')).toContain('$w_k - a$')
+    expect(ns.vertices.find((v) => v.id === 'ZD')?.text).toContain('$z^{-1}$')
+    expect(D.CHART_NOISE_SHAPING).toContain(String.raw`$H(z) = \mu/(z - p)$`)
 
     // §14.2 (a)、(e)：成本是兩項相加
     for (const chart of [D.CHART_DESIGN_FLOW, D.CHART_TRACKING_TRADEOFF]) {
       const g = (await flow(chart))!
       expect(g.edges.filter((e) => e.end === 'JS').map((e) => e.text)).toEqual(['＋', '＋'])
     }
-    expect(D.CHART_TRACKING_TRADEOFF).toContain('(r/(μ·K))²')
-    expect(D.CHART_TRACKING_TRADEOFF).toContain('σ_ζ²/(2·μ·K)')
-    expect(D.CHART_TRACKING_TRADEOFF).toContain('μ·σ_η²/(2·K)')
+    expect(D.CHART_TRACKING_TRADEOFF).toContain(String.raw`$(r/(\mu K))^2$`)
+    expect(D.CHART_TRACKING_TRADEOFF).toContain(String.raw`$\sigma_\zeta^2/(2\mu K)$`)
+    expect(D.CHART_TRACKING_TRADEOFF).toContain(String.raw`$\mu\,\sigma_\eta^2/(2K)$`)
 
     // §14.1：g = μK 從 0 往上加，p = 1 − g 依序經過 1、(0,1)、0、(−1,0)、−1、< −1；每個方塊的 PM = 90° − arcsin(g/2)
     const pole = (await flow(D.CHART_POLE_REGIMES))!
     const chain = ['R0', 'R1', 'R2', 'R3', 'R4', 'R5']
-    for (let i = 0; i + 1 < chain.length; i++) expect(edgeText(pole, chain[i], chain[i + 1]), `${chain[i]}→${chain[i + 1]}`).toBe('g 增加')
+    for (let i = 0; i + 1 < chain.length; i++) expect(edgeText(pole, chain[i], chain[i + 1]), `${chain[i]}→${chain[i + 1]}`).toBe('$g$ 增加')
     const poleTxt = (id: string) => pole.vertices.find((v) => v.id === id)?.text ?? ''
-    expect(poleTxt('R0')).toContain('g = 0 ⇒ p = 1')
-    expect(poleTxt('R2')).toContain('g = 1 ⇒ p = 0')
-    expect(poleTxt('R2')).toContain(`PM = ${calPhaseMarginDeg(1).toFixed(0)}°`)
-    expect(poleTxt('R2')).toContain('μ = 1/K')
-    expect(poleTxt('R4')).toContain('g = 2 ⇒ p = −1')
-    expect(poleTxt('R4')).toContain(`PM = ${(90 - Math.asin(1) * (180 / Math.PI)).toFixed(0)}°`)
+    expect(poleTxt('R0')).toContain(String.raw`$g = 0 \Rightarrow p = 1$`)
+    expect(poleTxt('R2')).toContain(String.raw`$g = 1 \Rightarrow p = 0$`)
+    expect(poleTxt('R2')).toContain(`$PM = ${calPhaseMarginDeg(1).toFixed(0)}^\\circ$`)
+    expect(poleTxt('R2')).toContain('$\\mu = 1/K$')
+    expect(poleTxt('R4')).toContain(String.raw`$g = 2 \Rightarrow p = -1$`)
+    expect(poleTxt('R4')).toContain(`$PM = ${(90 - Math.asin(1) * (180 / Math.PI)).toFixed(0)}^\\circ$`)
+    expect(poleTxt('R5')).toContain(String.raw`$g$ 大於 $2 \Rightarrow$ $p$ 小於 $-1$`)
     expect(calPhaseMarginDeg(1)).toBeCloseTo(60, 10)
     expect(calPhaseMarginDeg(0.5)).toBeGreaterThan(60) // R1：g 在 0 與 1 之間 ⇒ PM 大於 60°
     expect(calPhaseMarginDeg(1.5)).toBeLessThan(60) // R3：g 在 1 與 2 之間 ⇒ PM 小於 60°
     expect(calPhaseMarginDeg(1.5)).toBeGreaterThan(0)
-    expect(poleTxt('R1')).toContain('PM 大於 60°')
-    expect(poleTxt('R3')).toContain('PM 小於 60°')
+    expect(poleTxt('R1')).toContain(String.raw`$PM$ 大於 $60^\circ$`)
+    expect(poleTxt('R3')).toContain(String.raw`$PM$ 小於 $60^\circ$`)
+    expect(poleTxt('R1')).toContain('$g$ 在 $0$ 與 $1$ 之間')
+    expect(poleTxt('R3')).toContain('$g$ 在 $1$ 與 $2$ 之間')
+    expect(poleTxt('R3')).toContain('$p$ 在 $-1$ 與 $0$ 之間')
 
     // §14.2 (f)：回授為負、開迴路 L(z) = g/(z−1)、|L| = 1 ⇒ sin(ω_c/2) = g/2、PM = 90° − arcsin(g/2) ≥ PM_t ⇔ g ≤ 2cos PM_t
     const pm = (await flow(D.CHART_PM_LOOP))!
     expect(edgeText(pm, 'A', 'S')).toBe('＋')
-    expect(edgeText(pm, 'INT', 'S')).toMatch(/^−.*w_k/)
-    expect(edgeText(pm, 'S', 'GK')).toBe('δ_k = a − w_k')
+    expect(edgeText(pm, 'INT', 'S')).toMatch(/^\$-\$.*\$w_k\$/)
+    expect(edgeText(pm, 'S', 'GK')).toBe(String.raw`$\delta_k = a - w_k$`)
     expect(pm.edges.some((e) => e.start === 'GK' && e.end === 'INT')).toBe(true)
     const pmTxt = (id: string) => pm.vertices.find((v) => v.id === id)?.text ?? ''
-    expect(pmTxt('GK')).toContain('g = μ·K')
-    expect(pmTxt('INT')).toContain('1/(z−1)')
-    expect(pmTxt('LZ')).toContain('L(z) = g/(z−1)')
-    expect(pmTxt('WC')).toContain('sin(ω_c/2) = g/2')
-    expect(pmTxt('PMN')).toContain('PM = 180° + ∠L = 90° − arcsin(g/2)')
-    expect(pmTxt('LIM')).toContain('g ≤ g_max = 2·cos PM_t')
-    expect(pmTxt('MAXMU')).toContain('g_max = 1')
-    expect(pmTxt('MAXMU')).toContain('μ ≤ 1/K')
+    expect(pmTxt('GK')).toContain(String.raw`$g = \mu K$`)
+    expect(pmTxt('INT')).toContain('$1/(z-1)$')
+    expect(pmTxt('LZ')).toContain('$L(z) = g/(z-1)$')
+    expect(pmTxt('WC')).toContain(String.raw`$\Rightarrow \sin(\omega_c/2) = g/2$`)
+    expect(pmTxt('PMN')).toContain(String.raw`$PM = 180^\circ + \angle L = 90^\circ - \arcsin(g/2)$`)
+    expect(pmTxt('LIM')).toContain(String.raw`$\Leftrightarrow g \le g_{\max} = 2\cos PM_t$`)
+    expect(pmTxt('MAXMU')).toContain(String.raw`$PM_t = 60^\circ \Rightarrow g_{\max} = 1$`)
+    expect(pmTxt('MAXMU')).toContain(String.raw`$\Leftrightarrow \mu \le 1/K$`)
     // 數值：g_max = 2cos PM_t 時 PM 剛好等於 PM_t（PM_t = 60° ⇒ g_max = 1）
     for (const t of [45, 60, 75]) {
       const gmax = gMaxForPm(t)
@@ -275,25 +284,42 @@ describe('Ch14 Mermaid 圖（真正的 mermaid parser）', () => {
     }
     expect(gMaxForPm(60)).toBe(1)
     expect(calPhaseMarginDeg(2)).toBeCloseTo(0, 10)
-    expect(pmTxt('EDGE')).toContain('g = 2：PM = 0°')
+    expect(pmTxt('EDGE')).toContain(String.raw`$g = 2$：$PM = 0^\circ$`)
 
     // §14.6：資訊累加器 1/P_(k+1) = 1/P_k + K²/σ_η²
     const kal = (await flow(D.CHART_KALMAN_INFO))!
     expect(edgeText(kal, 'INF', 'SUM')).toBe('＋')
-    expect(edgeText(kal, 'ZD', 'SUM')).toMatch(/^＋.*1\/P_k/)
-    expect(edgeText(kal, 'SUM', 'ZD')).toBe('1/P_(k+1) = 1/P_k + K²/σ_η²')
+    expect(edgeText(kal, 'ZD', 'SUM')).toMatch(/^\$\+\$.*\$1\/P_k\$/)
+    expect(edgeText(kal, 'SUM', 'ZD')).toBe(String.raw`$1/P_{k+1} = 1/P_k + K^2/\sigma_\eta^2$`)
 
     // §14.5、§14.7：w↑ ⇒ δ↓ ⇒ G↓，所以 K̂ = (Ḡ(−Δ) − Ḡ(+Δ))/(2Δ)
-    for (const chart of [D.CHART_SLOPE_MEASURE, D.CHART_VERIFY_DECISION]) expect(chart).toContain('K̂ = (Ḡ(−Δ) − Ḡ(+Δ))/(2Δ)')
-    expect(D.CHART_VERIFY_DECISION).toContain('δ̂ = ½·(Ḡ(+Δ) + Ḡ(−Δ))/K̂')
+    for (const chart of [D.CHART_SLOPE_MEASURE, D.CHART_VERIFY_DECISION]) expect(chart).toContain(String.raw`$\hat K = (\bar G(-\Delta) - \bar G(+\Delta))/(2\Delta)$`)
+    expect(D.CHART_VERIFY_DECISION).toContain(String.raw`$\hat\delta = \tfrac{1}{2}(\bar G(+\Delta) + \bar G(-\Delta))/\hat K$`)
+    // 量測的兩步：先 w̄ + Δ 得 Ḡ(+Δ)，再 w̄ − Δ 得 Ḡ(−Δ)
+    const slope = (await flow(D.CHART_SLOPE_MEASURE))!
+    const slopeTxt = (id: string) => slope.vertices.find((v) => v.id === id)?.text ?? ''
+    expect(slopeTxt('M2')).toContain(String.raw`$\bar w + \Delta$`)
+    expect(slopeTxt('M2')).toContain(String.raw`$\bar G(+\Delta)$`)
+    expect(slopeTxt('M3')).toContain(String.raw`$\bar w - \Delta$`)
+    expect(slopeTxt('M3')).toContain(String.raw`$\bar G(-\Delta)$`)
+    expect(slopeTxt('M4')).toContain(String.raw`$\mathrm{se} = \sigma_\eta/(\Delta\sqrt{2M})$`)
+    expect(slopeTxt('M6')).toContain(String.raw`$K_{\min} = \min(\hat K_i - z\,\mathrm{se}_i)$`)
+    expect(slopeTxt('M6')).toContain(String.raw`$K_{\max} = \max(\hat K_i + z\,\mathrm{se}_i)$`)
 
     // §14.5：下限由 K_min、上限由 K_max
     const corner = (await flow(D.CHART_CORNER_FLOW))!
     expect(corner.edges.some((e) => e.start === 'KMIN' && e.end === 'LO')).toBe(true)
     expect(corner.edges.some((e) => e.start === 'KMAX' && e.end === 'HI')).toBe(true)
-    expect(corner.vertices.find((v) => v.id === 'LO')?.text).toContain('μ_min = (1 − ε^(1/B))/K_min')
-    expect(corner.vertices.find((v) => v.id === 'HI')?.text).toContain('μ_max = 1/K_max')
-    expect(corner.vertices.find((v) => v.id === 'CMP')?.text).toContain('B ≥ ln ε / ln(1 − K_min/K_max)')
+    expect(corner.vertices.find((v) => v.id === 'POL')?.text).toContain(String.raw`$K_i \gt 0$`)
+    expect(corner.vertices.find((v) => v.id === 'LO')?.text).toContain(String.raw`$\mu_{\min} = (1 - \epsilon^{1/B})/K_{\min}$`)
+    expect(corner.vertices.find((v) => v.id === 'HI')?.text).toContain(String.raw`$\mu_{\max} = 1/K_{\max}$`)
+    expect(corner.vertices.find((v) => v.id === 'CMP')?.text).toContain(String.raw`$B \ge \ln\epsilon / \ln(1 - K_{\min}/K_{\max})$`)
+    expect(corner.vertices.find((v) => v.id === 'CMP')?.text).toContain(String.raw`$\mu_{\min} \le \mu_{\max}$`)
+
+    // §14.7：stateDiagram 的標籤也是 LaTeX：計數 = 0、計數 ≥ 1、連續 n 個 block
+    expect(D.CHART_ALARM_HYSTERESIS).toContain(String.raw`state "安靜（計數 $= 0$）" as QUIET`)
+    expect(D.CHART_ALARM_HYSTERESIS).toContain(String.raw`state "累計中（計數 $\ge 1$）" as COUNTING`)
+    expect(D.CHART_ALARM_HYSTERESIS).toContain(String.raw`COUNTING --> RESTART : $$\text{計數達到 }n\text{ 個 block}$$`)
   }, 60000)
 
   it('本站實作圖的每條箭頭都是 calStep 真的會走的轉移；所有 optimizer-sm-* 情境走過的轉移都畫在圖上', async () => {
@@ -348,9 +374,10 @@ describe('Ch14 Mermaid 圖（真正的 mermaid parser）', () => {
     expect(m.B).toBe(131072 / 4096)
     expect(D.CHART_CALC_VERIFY).toContain(`B = T/N = ${m.B}`)
     const g = 11.2 * m.K
-    expect(D.CHART_CALC_VERIFY).toContain(`${Math.sqrt(msdAfterBlocks(m.delta0, 1 - g, 11.2, m.sigmaEta2, m.B)).toFixed(3)} fs`)
+    expect(D.CHART_CALC_VERIFY).toContain(`${Math.sqrt(msdAfterBlocks(m.delta0, 1 - g, 11.2, m.sigmaEta2, m.B)).toFixed(3)}\\,\\mathrm{fs}`)
     expect(D.CHART_CALC_VERIFY).toContain((1 - g).toFixed(4))
-    expect(D.CHART_CALC_VERIFY).toContain(`${calPhaseMarginDeg(g).toFixed(1)}°`)
+    expect(D.CHART_CALC_VERIFY).toContain(`${calPhaseMarginDeg(g).toFixed(1)}^\\circ`)
+    expect(D.CHART_CALC_VERIFY).toContain(String.raw`$\alpha = 11.20\,\mathrm{fs}$`)
     expect(finalCostDerivative(11.2, m)).toBeGreaterThan(0)
     const best = optimizeMu('final', m).mu
     expect(best).toBeLessThan(11.2)
@@ -364,31 +391,78 @@ describe('Ch14 Mermaid 圖（真正的 mermaid parser）', () => {
       if (!r) throw new Error(`HC-14.8 沒有 ${symbol}`)
       return r.value
     }
-    expect(D.CHART_HAND_FLOW).toContain(`μ = ${val(String.raw`\mu`).toFixed(2)} fs`)
+    expect(D.CHART_HAND_FLOW).toContain(`\\mu = ${val(String.raw`\mu`).toFixed(2)}\\,\\mathrm{fs}`)
     expect(D.CHART_HAND_FLOW).toContain(`p = ${val('p').toFixed(4)}`)
-    expect(D.CHART_HAND_FLOW).toContain(`PM = ${val('PM').toFixed(1)}°`)
-    expect(D.CHART_HAND_FLOW).toContain(`τ = ${val(String.raw`\tau`).toFixed(2)} blocks`)
-    expect(D.CHART_HAND_FLOW).toContain(`RMS = ${val(String.raw`\sqrt{E[\delta_B^2]}`).toFixed(3)} fs`)
+    expect(D.CHART_HAND_FLOW).toContain(`PM = ${val('PM').toFixed(1)}^\\circ`)
+    expect(D.CHART_HAND_FLOW).toContain(`\\tau = ${val(String.raw`\tau`).toFixed(2)}$ blocks`)
+    expect(D.CHART_HAND_FLOW).toContain(`\\mathrm{RMS} = ${val(String.raw`\sqrt{E[\delta_B^2]}`).toFixed(3)}\\,\\mathrm{fs}`)
   })
 
-  it('實際渲染（共用的 renderMermaidForTest）：每張都沒有「Unsupported markdown」、節點數不超過 14，畫面上的每個標籤都和原始碼相同', async () => {
+  it('原始碼：標籤裡的數學都寫成 `$...$`，`$` 以外的文字沒有 Unicode 拼的數學（希臘字母、上下標、≤ ⇒ ° ∠ …）', () => {
     for (const c of CH14_CHARTS) {
-      const { svg, text, nodeCount } = await renderMermaidForTest(c.chart)
+      // 拿掉 `$$...$$`／`$...$` 公式與 classDef／class 行，剩下的是純文字（含節點 id）
+      const rest = c.chart
+        .split('\n')
+        .filter((l) => !/^\s*(classDef|class)\s/.test(l))
+        .join('\n')
+        .replace(/\$\$.*?\$\$/g, '')
+        .replace(/\$[^$\n]*\$/g, '')
+      expect(unicodeMathIn(rest), `${c.name}：公式以外還有 Unicode 拼的數學`).toEqual([])
+      expect(rest.match(/[⇒⇔≪≫≲≳∠°′″ˆ]|[\u0300-\u036f]/g) ?? [], `${c.name}：公式以外還有數學符號`).toEqual([])
+      // `$` 要成對
+      expect((c.chart.replace(/\\\$/g, '').match(/\$/g) ?? []).length % 2, `${c.name} 的 $ 要成對`).toBe(0)
+      // 公式裡不直接寫 < >（Mermaid 會把標籤裡的 < > 轉成 &lt; &gt;，KaTeX 讀到會出錯）；大小於用 \lt \gt \le \ge
+      const mathSegments = c.chart.match(/\$\$.*?\$\$|\$[^$\n]*\$/g) ?? []
+      expect(mathSegments.filter((m) => /[<>]/.test(m)), `${c.name}：公式裡有 < 或 >`).toEqual([])
+    }
+  })
+
+  it('實際渲染（共用的 renderMermaidForTest）：沒有「Unsupported markdown」、畫面沒有殘留的 $、KaTeX 以外沒有 Unicode 數學、節點數不超過 14；含公式的標籤都由 KaTeX 排版，其餘標籤原樣出現', async () => {
+    type SubGraph = { title?: string }
+    // 含公式的標籤中，公式以外的文字片段（以 <br> 與公式切開）
+    const words = (label: string) => label.split(/<br\s*\/?>/).flatMap((line) => line.split(/\$[^$]*\$/)).map(plain).filter(Boolean)
+    for (const c of CH14_CHARTS) {
+      const { svg, text, plainText, nodeCount, mathCount } = await renderMermaidForTest(c.chart)
       expect(text, c.name).not.toMatch(/Unsupported markdown/)
+      expect(text, `${c.name}：畫出來的文字不可殘留「$」（TeX 沒有被排版）`).not.toContain('$')
+      expect(unicodeMathIn(plainText), `${c.name}：KaTeX 以外還有 Unicode 拼的數學`).toEqual([])
       expect(nodeCount, `${c.name} 畫出來的節點數`).toBeGreaterThan(0)
       expect(nodeCount, `${c.name} 畫出來的節點數`).toBeLessThanOrEqual(14)
       const host = document.createElement('div')
       host.innerHTML = svg
-      const shown = new Set(Array.from(host.querySelectorAll('.nodeLabel, .edgeLabel')).map((e) => plain(e.textContent ?? '')))
+      host.querySelectorAll('.katex-mathml').forEach((e) => e.remove()) // KaTeX 的 MathML 複本裡有 TeX 原始碼，不算「畫出來的字」
+      const shownList = Array.from(host.querySelectorAll('.nodeLabel, .edgeLabel, .cluster-label, .label')).map((e) => plain(e.textContent ?? ''))
+      const shown = new Set(shownList)
       const g = await flow(c.chart)
-      if (!g) continue
-      for (const v of g.vertices) expect(shown.has(plain(v.text ?? '')), `${c.name} 節點 ${v.id}：「${v.text}」沒有原樣出現在圖上`).toBe(true)
-      for (const e of g.edges) if (e.text) expect(shown.has(plain(e.text)), `${c.name} 邊 ${e.start}→${e.end}：「${e.text}」沒有原樣出現在圖上`).toBe(true)
+      if (!g) {
+        // stateDiagram：兩個 state 標籤（`state "…" as X`）＋一個手寫 `$$…$$` 的轉移 = 3 個 KaTeX 標籤
+        expect(c.name).toBe('CHART_ALARM_HYSTERESIS')
+        expect(mathCount, c.name).toBe(3)
+        continue
+      }
+      const db = (await mermaid.mermaidAPI.getDiagramFromText(c.chart)).db as unknown as { getSubGraphs?: () => SubGraph[] }
+      const titles = (db.getSubGraphs?.() ?? []).map((sg) => sg.title ?? '')
+      const labels = [...g.vertices.map((v) => v.text ?? ''), ...g.edges.map((e) => e.text ?? ''), ...titles].filter(Boolean)
+      const mathLabels = labels.filter((t) => t.includes('$'))
+      expect(mathCount, `${c.name}：含公式的標籤數與 KaTeX 排版出來的公式數不同`).toBe(mathLabels.length)
+      for (const t of labels) {
+        if (t.includes('$')) {
+          for (const w of words(t)) expect(shownList.some((sh) => sh.includes(w)), `${c.name}：公式標籤「${t}」裡的文字「${w}」沒有出現在圖上`).toBe(true)
+        } else if (!titles.includes(t)) {
+          expect(shown.has(plain(t)), `${c.name}：標籤「${t}」沒有原樣出現在圖上`).toBe(true)
+        }
+      }
     }
-    // 章首的共用系統地圖（節點比單張章內圖多，所以不套 14 個節點的上限，只確認畫得出來）
+    // 規格原圖沒有公式；其餘 23 張都有
+    expect((await renderMermaidForTest(D.SPEC_CHART)).mathCount).toBe(0)
+    for (const c of CH14_CHARTS.filter((x) => x.name !== 'SPEC_CHART')) expect((await renderMermaidForTest(c.chart)).mathCount, c.name).toBeGreaterThan(0)
+    // 章首的共用系統地圖（節點比單張章內圖多，所以不套 14 個節點的上限，只確認畫得出來，公式也由 KaTeX 排版）
     const map = await renderMermaidForTest(systemMapChart(CH14_SYSTEM_FOCUS))
     expect(map.text).not.toMatch(/Unsupported markdown/)
+    expect(map.text).not.toContain('$')
+    expect(unicodeMathIn(map.plainText)).toEqual([])
     expect(map.nodeCount).toBeGreaterThan(0)
+    expect(map.mathCount).toBeGreaterThan(0)
   }, 300000)
 })
 

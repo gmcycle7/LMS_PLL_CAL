@@ -59,7 +59,7 @@ export function QuizSection() {
                   tex: String.raw`\Delta w=\mu e x=${texNum(QUIZ1.mu)}\times${texNum(q1.e)}\times${texNum(QUIZ1.x)}=${texRes(q1.dw)}`,
                   why: (
                     <>
-                      ③ 負 × 負 ＝ 正：<Tex>{'x<0'}</Tex> 時，想讓 <Tex>{'\\hat y'}</Tex> 變小，<Tex>{'w'}</Tex> 反而要變大。
+                      ③ 負 <Tex>{'\\times'}</Tex> 負 <Tex>{'='}</Tex> 正：<Tex>{'x<0'}</Tex> 時，想讓 <Tex>{'\\hat y'}</Tex> 變小，<Tex>{'w'}</Tex> 反而要變大。
                     </>
                   ),
                 },

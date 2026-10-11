@@ -21,7 +21,6 @@ vi.mock('plotly.js-dist-min', () => ({ default: P }))
 vi.mock('mermaid', () => ({
   default: { initialize: vi.fn(), render: vi.fn(async (id: string) => ({ svg: `<svg id="${id}"></svg>`, diagramType: 'flowchart-v2' })) },
 }))
-
 function wrap(node: ReactNode, url = '/ch/14') {
   return (
     <MemoryRouter initialEntries={[url]}>
@@ -30,7 +29,11 @@ function wrap(node: ReactNode, url = '/ch/14') {
   )
 }
 
-afterEach(() => localStorage.clear())
+afterEach(() => {
+  localStorage.clear()
+  // P.react 的 mock.calls 會留著每次傳給 Plotly 的整包資料陣列；整個檔案渲染多次完整章節，不清掉會把 heap 撐到上限
+  P.react.mockClear()
+})
 
 describe('Ch14 頁面（jsdom smoke）', () => {
   it('完整章節可以渲染：各節標題、勘誤 E16／E48 連到驗證頁、三個實驗、章末符號表', async () => {
@@ -166,7 +169,7 @@ describe('Ch14 Research 模式：所有內容（含 Research-only 推導與程�
  * docs/teaching-style.md §3：內文不得用 Unicode 拼湊公式。掃描 KaTeX／程式碼以外的文字節點，
  * 不可出現希臘字母、上下標數字、帽號，或 ≤ ≥ ≈ ⇒ √ ± 等數學運算符號。
  * 例外（只能是純文字的地方）：<option>、ParamControl 的 reg／unit、參數摘要與 JSON、共用元件自己的固定文字、
- * 單位欄（fs⁻¹、fs²）、規格要求逐字顯示的警告詞「C ≤ 0：更新極性錯誤…」。Plotly 的圖例與軸標題畫在 canvas 內，不在 DOM 文字節點中。
+ * 規格要求逐字顯示的警告詞「C ≤ 0：更新極性錯誤…」（單位欄 fs⁻¹、fs²、µs 已改成 `$\mathrm{fs}^{-1}$` 等 KaTeX）。Plotly 的圖例與軸標題畫在 canvas 內，不在 DOM 文字節點中，另由下方的「Plot 圖內文字」測試攔截原始字串檢查。
  */
 function unicodeMathLeaks(container: HTMLElement): string[] {
   const BAD = /[\u0370-\u03FF\u00B2\u00B3\u00B9\u2070-\u209F\u1D2C-\u1D6A≤≥≈≠≪≫⇒⇔√∑∝∞∂∠±∓]|\u0302|\u0304/
@@ -177,7 +180,6 @@ function unicodeMathLeaks(container: HTMLElement): string[] {
     const el = n.parentElement
     if (!el || el.closest(SKIP)) continue
     const t = (n.textContent ?? '').trim().replace('C ≤ 0：更新極性錯誤', '')
-    if (/^(fs⁻¹|fs²|µs)$/.test(t)) continue
     // '$'：字串屬性裡的 $…$ 沒有被 mathText 轉換（傳到不支援的 prop）時會原樣漏出來
     if (BAD.test(t) || t.includes('$')) leaks.push(`<${el.tagName.toLowerCase()} class="${el.className}"> ${t.slice(0, 70)}`)
   }

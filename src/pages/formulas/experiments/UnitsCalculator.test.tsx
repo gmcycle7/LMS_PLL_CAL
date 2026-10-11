@@ -1,11 +1,40 @@
 import { act, fireEvent, waitFor } from '@testing-library/react'
+import { unicodeMathIn } from '@/components/mermaidTestUtils'
+import { plotMath } from '@/components/plotMath'
 import { analyticChecks, CHECK_NAME, checkTolerance, mcRunNote, UnitsCalculator } from './UnitsCalculator'
 import { useFormulaAnchorHandler } from '../common'
+import { regimeLabelTex } from '../format'
 import { DEFAULT_UNITS_PARAMS, unitsCalc } from '../unitsModel'
 import { buttonByText, count, mountAt, q, renderProblems } from '../domTestUtils'
 import { richProblems } from '../testUtils'
 
 vi.mock('plotly.js-dist-min', async () => ({ default: (await import('../domTestUtils')).PLOTLY_STUB }))
+// 記下每一張圖「轉換之前」的圖內文字（軸標題、圖例名稱、註記…）：只存字串，不存資料與 DOM（避免抓住整頁的節點）
+const PLOT = vi.hoisted(() => ({ strings: new Set<string>() }))
+vi.mock('@/components/plotMath', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('@/components/plotMath')>()
+  const TEXT_KEYS = new Set(['name', 'text', 'title', 'ticktext', 'hovertemplate', 'texttemplate', 'hovertext', 'label'])
+  const collect = (v: unknown, key: string | null, depth: number): void => {
+    if (typeof v === 'string') {
+      if (key !== null && TEXT_KEYS.has(key)) PLOT.strings.add(v)
+      return
+    }
+    if (depth > 6 || v === null || typeof v !== 'object' || ArrayBuffer.isView(v)) return
+    if (Array.isArray(v)) {
+      for (const x of v.slice(0, 40)) collect(x, key, depth + 1)
+      return
+    }
+    for (const [k, x] of Object.entries(v)) collect(x, k, depth + 1)
+  }
+  return {
+    ...mod,
+    applyPlotMath: <D, L>(data: D, layout: L) => {
+      collect(data, null, 0)
+      collect(layout, null, 0)
+      return mod.applyPlotMath(data, layout)
+    },
+  }
+})
 vi.setConfig({ testTimeout: 120_000 })
 
 const J = vi.hoisted(() => ({ jumps: [] as string[] }))
@@ -177,6 +206,95 @@ describe('UnitsCalculator（jsdom）', () => {
     // 改 σ_v → 上一次的 MC 不再對應目前設定
     setNumber(root, /sigma_v/, '50')
     await waitFor(() => expect(crossText(root)).toMatch(/參數已改變，上一次的 Monte Carlo 結果不再對應目前設定/))
+  })
+
+  it('控制項與指標表：label／hint／unit、指標名稱與說明、單位鏈的「量」欄都沒有 Unicode 拼的數學（一律 $…$ 由 KaTeX 排版）', () => {
+    const { container } = mountAt(<Harness />)
+    const root = q(container, '#fr-units-calculator')
+    // KaTeX 以外的文字；reg（暫存器與參數的程式碼名稱）與下拉選單（<option> 是純文字）不算
+    const bare = (el: Element) => {
+      const c = el.cloneNode(true) as Element
+      c.querySelectorAll('.katex, .c-param-reg, select').forEach((e) => e.remove())
+      return c.textContent ?? ''
+    }
+    const boxes = Array.from(root.querySelectorAll('.c-param'))
+    expect(boxes.length).toBeGreaterThanOrEqual(12)
+    for (const b of boxes) {
+      const where = `控制項「${b.querySelector('.c-param-label')?.textContent}」`
+      expect(unicodeMathIn(bare(b)), where).toEqual([])
+      expect(bare(b), `${where}：負號要寫在 $…$ 裡`).not.toContain('−')
+    }
+    // 符號確實由 KaTeX 排版：N、μ、f_s、σ_v、C、f_out、A_t、Δ_LSB 這 8 個 label，以及 K_q、f_u 的 hint
+    const labels = boxes.map((b) => b.querySelector('.c-param-label')?.querySelectorAll('.katex').length ?? 0)
+    expect(labels.filter((n) => n > 0).length).toBe(8)
+    expect(boxes.some((b) => b.querySelector('.c-param-hint .katex'))).toBe(true)
+    // 指標表：名稱＋說明（第 1 欄）與單位（第 3 欄）
+    const rows = Array.from(root.querySelectorAll('.c-metric-table tbody tr'))
+    expect(rows.length).toBeGreaterThanOrEqual(11)
+    for (const r of rows) {
+      const cells = r.querySelectorAll('td')
+      for (const i of [0, 2]) {
+        expect(unicodeMathIn(bare(cells[i])), r.textContent ?? '').toEqual([])
+        expect(bare(cells[i]), `${r.textContent}：負號要寫在 $…$ 裡`).not.toContain('−')
+      }
+    }
+    // 單位鏈表的「量」欄：「−3 dB corner」的負號與單位是 KaTeX
+    for (const td of Array.from(root.querySelectorAll('.fr-chain-table tbody td:first-child'))) {
+      expect(unicodeMathIn(bare(td)), td.textContent ?? '').toEqual([])
+      expect(bare(td), `${td.textContent}：負號要寫在 $…$ 裡`).not.toContain('−')
+    }
+    const corner = Array.from(root.querySelectorAll('.fr-chain-table tbody tr')).find((r) => /corner/.test(r.querySelector('td')?.textContent ?? ''))
+    expect(corner?.querySelector('td .katex')).toBeTruthy()
+    expect(renderProblems(root)).toEqual([])
+  })
+
+  it('regimeLabelTex：型態名稱裡的「−3 dB」改成 $-3\\,\\mathrm{dB}$（其餘文字不動），單位鏈的 pole 列用它顯示', () => {
+    expect(regimeLabelTex('Low-pass（有 −3 dB 點）')).toBe(String.raw`Low-pass（有 $-3\,\mathrm{dB}$ 點）`)
+    expect(regimeLabelTex('High-pass')).toBe('High-pass')
+    const { container } = mountAt(<Harness />)
+    const root = q(container, '#fr-units-calculator')
+    const pole = Array.from(root.querySelectorAll('.fr-chain-table tbody tr')).find((r) => r.querySelector('td')?.textContent === 'Pole')!
+    const note = pole.querySelector('td:last-child .small')!
+    expect(note.querySelector('.katex')).toBeTruthy()
+    expect(note.textContent).toContain('Low-pass（有')
+    expect(note.textContent).not.toContain('−3 dB')
+  })
+
+  it('三張圖的圖內文字（軸標題、圖例名稱、註記）：數學是 $…$ LaTeX，沒有 Unicode 拼的數學，轉成 Plotly 文字後沒有殘留的 \\ { } $', async () => {
+    PLOT.strings.clear()
+    const { container } = mountAt(<Harness />)
+    const root = q(container, '#fr-units-calculator')
+    fireEvent.click(buttonByText(root, /^(Run|執行)/))
+    await waitFor(() => expect(crossText(root)).toMatch(/引擎：精確 1-bit Binomial/), { timeout: 20_000 })
+    const strings = [...PLOT.strings]
+    // 三張圖都有畫：註記、兩條 x 軸、三條 y 軸、圖例名稱（解析曲線、矩形近似、Monte Carlo 路徑）
+    for (const want of [
+      String.raw`$(1-p)$`,
+      String.raw`$f_{3\mathrm{dB}}$`,
+      String.raw`$\mathrm{ENBW}$`,
+      String.raw`$f$ [Hz]（block-rate 序列：$0\ldots f_u/2$）`,
+      String.raw`$|H|^2/|H(0)|^2$ [dB]`,
+      String.raw`Case A：$F(f)$`,
+      String.raw`Case A：矩形近似 $\min(1,\ f/\mathrm{ENBW})$`,
+      '$f$ [Hz]',
+      String.raw`$0\ldots f$ 的雜訊功率比例 $F(f)$`,
+      String.raw`Case A：$\delta_k$（chain 0）`,
+      'block $k$（burn-in 之後）',
+      String.raw`$\delta_k = a - w_k$ [fs]`,
+    ])
+      expect(strings, want).toContain(want)
+    for (const s of strings) {
+      const outside = s.replace(/\$[^$]*\$/g, ' ')
+      expect(unicodeMathIn(outside), `圖內文字 $…$ 以外的 Unicode 數學：${s}`).toEqual([])
+      expect(outside, `圖內文字的負號要寫在 $…$ 裡：${s}`).not.toContain('−')
+      // 轉成 Plotly 的 pseudo-HTML：不認得的指令會原樣留下反斜線，語法錯誤會留下大括號或 $
+      expect(plotMath(s), `轉換後殘留 TeX：${s}`).not.toMatch(/[\\${}]/)
+    }
+    // 轉換結果是斜體符號與真正的上下標（不是把 TeX 原樣貼上去）
+    expect(plotMath(String.raw`Case A：$\delta_k$（chain 0）`)).toBe('Case A：<i>δ</i><sub><i>k</i></sub>（chain 0）')
+    expect(plotMath(String.raw`$|H|^2/|H(0)|^2$ [dB]`)).toBe('|<i>H</i>|<sup>2</sup>/|<i>H</i>(0)|<sup>2</sup> [dB]')
+    expect(plotMath(String.raw`$f_{3\mathrm{dB}}$`)).toBe('<i>f</i><sub>3dB</sub>')
+    expect(plotMath(String.raw`$0\ldots f$ 的雜訊功率比例 $F(f)$`)).toBe('0…<i>f</i> 的雜訊功率比例 <i>F</i>(<i>f</i>)')
   })
 
   it('T13: 反面 —— 把 GMAC 改成 sum：警告解釋 g 放大 N 倍與 g ≥ 2，單位鏈沒有 σ_w／頻寬；Run 之後 Monte Carlo 標為不做判定', async () => {

@@ -50,7 +50,7 @@ function previewRows(a: LabAnalysis): MetricRow[] {
   return [
     { name: '$f_{\\mathrm{out}}$', value: a.fOutHz, unit: 'Hz', claim: 'exact', formulaId: 'F-LAB.1' },
     { name: '$C=E[x_{\\mathrm{ref}}u_x]$', value: an.Cest, claim: 'approx', formulaId: 'F-LAB.6' },
-    { name: '$K_q=\\sqrt{2/\\pi}/\\sigma_v$', value: an.Kq, unit: 'fs⁻¹', claim: 'approx', formulaId: 'F-LAB.5' },
+    { name: '$K_q=\\sqrt{2/\\pi}/\\sigma_v$', value: an.Kq, unit: '$\\mathrm{fs}^{-1}$', claim: 'approx', formulaId: 'F-LAB.5' },
     { name: '$g=\\mu K$', value: an.g, claim: 'approx', formulaId: 'F-LAB.7', note: `臨界值 $g_{\\mathrm{crit}}=${texNum(an.gCritical)}$` },
     { name: '$\\rho$（含更新延遲）', value: an.rhoMean, claim: 'exact', formulaId: 'F-LAB.7' },
     { name: '$\\tau$', value: an.tauBlocks, unit: 'block', claim: 'exact' },
@@ -392,7 +392,7 @@ export function PipelineTab() {
           )}
           <div className="lab-inline-controls">
             <ParamControl
-              label="單步游標（block k）"
+              label="單步游標（block $k$）"
               value={cur ?? 0}
               onChange={(v) => setCursor(Math.round(v))}
               min={0}

@@ -320,7 +320,7 @@ export function FixedPointExperiment() {
     { name: R`$\max|S|$（最壞情況）`, value: sizing.maxPosSum, unit: 'LSB' },
     ...(an && st
       ? [
-          { name: R`Case ${cases.activeId}：$K=K_qE[x^2]$`, value: an.K, unit: 'fs⁻¹', digits: 5, claim: 'approx' as const },
+          { name: R`Case ${cases.activeId}：$K=K_qE[x^2]$`, value: an.K, unit: R`$\mathrm{fs}^{-1}$`, digits: 5, claim: 'approx' as const },
           { name: R`Case ${cases.activeId}：$g$、pole $p=1-g$`, value: `${f(an.g, 4)}、${f(an.pole, 5)}`, claim: 'approx' as const, formulaId: 'F-04.5' },
           { name: R`Case ${cases.activeId}：$\ell$、$\Delta_G$`, value: ac.gmMode === 'average' ? `${an.ell}、${f(an.deltaG, 4)}` : 'sum：不右移' },
           {
@@ -417,13 +417,13 @@ export function FixedPointExperiment() {
       })
       const r0 = loop[0]
       d.push({ x: r0.k, y: r0.wFloatApplied, name: 'Case A 的浮點參考', mode: 'lines', line: { color: tokens.textMuted, dash: 'dash' } })
-      d.push({ x: r0.k, y: r0.a, name: 'a(k)', mode: 'lines', line: { color: tokens.text, dash: 'dot', shape: 'hv' } })
+      d.push({ x: r0.k, y: r0.a, name: '$a(k)$', mode: 'lines', line: { color: tokens.text, dash: 'dot', shape: 'hv' } })
     }
     return d
   }, [loop, caseIds, tokens])
-  const layoutTrace = useMemo(() => ({ xaxis: { title: { text: 'block 內 sample' } }, yaxis: { title: { text: 'S [code LSB]' } } }), [])
-  const layoutRt = useMemo(() => ({ xaxis: { title: { text: 'E[S]/2^ℓ（真實平均，輸出 LSB）' } }, yaxis: { title: { text: '平均誤差 [輸出 LSB]' } } }), [])
-  const layoutLoop = useMemo(() => ({ xaxis: { title: { text: 'block k' } }, yaxis: { title: { text: 'w_k [fs per FS code]' } } }), [])
+  const layoutTrace = useMemo(() => ({ xaxis: { title: { text: 'block 內 sample' } }, yaxis: { title: { text: R`$S$ [code LSB]` } } }), [])
+  const layoutRt = useMemo(() => ({ xaxis: { title: { text: R`$E[S]/2^{\ell}$（真實平均，輸出 LSB）` } }, yaxis: { title: { text: '平均誤差 [輸出 LSB]' } } }), [])
+  const layoutLoop = useMemo(() => ({ xaxis: { title: { text: R`block $k$` } }, yaxis: { title: { text: R`$w_k$ [fs per FS code]` } } }), [])
 
   return (
     <ExperimentShell
@@ -522,7 +522,7 @@ export function FixedPointExperiment() {
           <div className="ch04-controls-group">
             <div className="ch04-controls-title">面板 B：rounding 轉移</div>
             <ParamControl label={mt(R`$\ell$（右移 bits）`)} ariaLabel="ℓ（右移 bits）" value={s.ellB} onChange={(ellB) => setS({ ...s, ellB })} min={1} max={8} integer clampOnBlur unit="bits" reg="behavioral: shift ℓ（面板 B）" />
-            <ParamControl label={mt(R`$\sigma_S/2^\ell$（dither 比）`)} ariaLabel="σ_S / 2^ℓ（dither 比）" value={s.ditherRatio} onChange={(ditherRatio) => setS({ ...s, ditherRatio })} min={0} max={3} step={0.01} hint="0 = 無雜訊" reg="behavioral: σ_S / 2^ℓ" />
+            <ParamControl label={mt(R`$\sigma_S/2^\ell$（dither 比）`)} ariaLabel="σ_S / 2^ℓ（dither 比）" value={s.ditherRatio} onChange={(ditherRatio) => setS({ ...s, ditherRatio })} min={0} max={3} step={0.01} hint={R`$0$ = 無雜訊`} reg="behavioral: σ_S / 2^ℓ" />
           </div>
           <div className="ch04-controls-group">
             <div className="ch04-controls-title">面板 C：閉迴路（共用）</div>
@@ -630,7 +630,9 @@ export function FixedPointExperiment() {
         <table>
           <thead>
             <tr>
-              <th>N</th>
+              <th>
+                <Tex>N</Tex>
+              </th>
               <th>
                 symmetric（精確；<Tex>{R`=B_x+\log_2N`}</Tex>）
               </th>

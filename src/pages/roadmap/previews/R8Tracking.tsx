@@ -43,7 +43,7 @@ const INLINE_PRESETS: ExperimentPreset[] = [
 ]
 
 // Plot 的 layout 是靜態的：放在模組層，避免每次 render 產生新物件而觸發 Plotly.react
-const LAYOUT_TRACK: Partial<Layout> = { xaxis: { title: { text: 'μ [fs]' } }, yaxis: { title: { text: 'RMS(w* − w) [fs]' } } }
+const LAYOUT_TRACK: Partial<Layout> = { xaxis: { title: { text: '$\\mu$ [fs]' } }, yaxis: { title: { text: 'RMS$(w^* - w)$ [fs]' } } }
 
 function R8Experiment() {
   const [P, setP] = useState<R8Params>(DEFAULTS)
@@ -84,8 +84,8 @@ function R8Experiment() {
     )
 
   const metrics: MetricRow[] = [
-    { name: '$K=K_qC$', value: K, unit: 'fs⁻¹' },
-    { name: String.raw`$\sigma_y^2=\sigma_\eta^2/K^2$（等效量測雜訊）`, value: sy2, unit: 'fs²' },
+    { name: '$K=K_qC$', value: K, unit: String.raw`$\mathrm{fs}^{-1}$` },
+    { name: String.raw`$\sigma_y^2=\sigma_\eta^2/K^2$（等效量測雜訊）`, value: sy2, unit: String.raw`$\mathrm{fs}^2$` },
     { name: '最佳固定增益 $g^*$', value: gStar, unit: '—', formulaId: 'F-R8.1', claim: 'exact' },
     { name: String.raw`穩態 Kalman 增益 $K_\infty=\frac{P^-}{P^-+\sigma_y^2}$`, value: kal.gain, unit: '—', analytic: gStar, tolerance: 1e-12, toleranceMode: 'rel', formulaId: 'F-R8.1', claim: 'exact' },
     { name: String.raw`最佳步長 $\mu^*=g^*/K$`, value: muStar, unit: 'fs' },
@@ -95,7 +95,7 @@ function R8Experiment() {
     {
       name: String.raw`MC：目前 $\mu$ 的 $E[e^2]$`,
       value: mcCur?.meanSq ?? null,
-      unit: 'fs²',
+      unit: String.raw`$\mathrm{fs}^2$`,
       analytic: curUsable && Number.isFinite(Vcur) ? Vcur : undefined,
       tolerance: curUsable && mcCur ? Math.max(mcCur.hi - mcCur.meanSq, mcCur.meanSq - mcCur.lo) + 0.03 * Vcur : undefined,
       claim: 'approx',
@@ -104,7 +104,7 @@ function R8Experiment() {
     {
       name: String.raw`MC：$\mu^*$ 的 $E[e^2]$`,
       value: mcOpt.meanSq,
-      unit: 'fs²',
+      unit: String.raw`$\mathrm{fs}^2$`,
       analytic: optUsable ? kal.Pprior : undefined,
       tolerance: optUsable ? Math.max(mcOpt.hi - mcOpt.meanSq, mcOpt.meanSq - mcOpt.lo) + 0.03 * kal.Pprior : undefined,
       claim: 'approx',
@@ -114,11 +114,11 @@ function R8Experiment() {
 
   const data: Data[] = useMemo(
     () => [
-      { x: muGrid, y: curve, name: '穩態 RMS √V(μK)', mode: 'lines', line: { color: tokens.series[0] } },
-      { x: [muStar], y: [Math.sqrt(kal.Pprior)], name: 'μ*（= 穩態 Kalman）', mode: 'markers', marker: { size: 12, symbol: 'star', color: tokens.series[1] } },
-      ...(Number.isFinite(Vcur) ? [{ x: [dP.mu], y: [Math.sqrt(Vcur)], name: '目前 μ', mode: 'markers', marker: { size: 10, symbol: 'diamond', color: tokens.series[2] } } as Data] : []),
-      ...(mcCur ? [{ x: [dP.mu], y: [Math.sqrt(mcCur.meanSq)], name: 'MC（目前 μ）', mode: 'markers', marker: { size: 8, symbol: 'x', color: tokens.text } } as Data] : []),
-      { x: [muStar], y: [Math.sqrt(mcOpt.meanSq)], name: 'MC（μ*）', mode: 'markers', marker: { size: 8, symbol: 'x', color: tokens.text } },
+      { x: muGrid, y: curve, name: '穩態 RMS $\\sqrt{V(\\mu K)}$', mode: 'lines', line: { color: tokens.series[0] } },
+      { x: [muStar], y: [Math.sqrt(kal.Pprior)], name: '$\\mu^*$（= 穩態 Kalman）', mode: 'markers', marker: { size: 12, symbol: 'star', color: tokens.series[1] } },
+      ...(Number.isFinite(Vcur) ? [{ x: [dP.mu], y: [Math.sqrt(Vcur)], name: '目前 $\\mu$', mode: 'markers', marker: { size: 10, symbol: 'diamond', color: tokens.series[2] } } as Data] : []),
+      ...(mcCur ? [{ x: [dP.mu], y: [Math.sqrt(mcCur.meanSq)], name: 'MC（目前 $\\mu$）', mode: 'markers', marker: { size: 8, symbol: 'x', color: tokens.text } } as Data] : []),
+      { x: [muStar], y: [Math.sqrt(mcOpt.meanSq)], name: 'MC（$\\mu^*$）', mode: 'markers', marker: { size: 8, symbol: 'x', color: tokens.text } },
     ],
     [muGrid, curve, muStar, kal.Pprior, Vcur, dP.mu, mcCur, mcOpt, tokens],
   )

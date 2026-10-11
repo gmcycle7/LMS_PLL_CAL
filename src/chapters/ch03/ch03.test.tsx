@@ -252,7 +252,7 @@ describe('Chapter 03 smoke test（jsdom）', () => {
     fireEvent.click(btn(exp, '凍結 Freeze'))
     expect(btn(exp, '已凍結 Frozen').getAttribute('aria-pressed')).toBe('true')
     expect(exp.textContent).toMatch(/已凍結：改參數時 Monte Carlo 不會自動重跑/)
-    const muLabel = Array.from(exp.querySelectorAll('label.c-param-label')).find((l) => l.textContent?.includes('μ（Case A）')) as HTMLLabelElement
+    const muLabel = Array.from(exp.querySelectorAll('label.c-param-label')).find((l) => srcText(l).includes(String.raw`$\mu$（Case A）`)) as HTMLLabelElement
     const muInput = exp.querySelector(`[id="${muLabel.htmlFor}"]`) as HTMLInputElement
     fireEvent.change(muInput, { target: { value: '2' } })
     await new Promise((r) => setTimeout(r, 700)) // 超過 debounce（300 ms）

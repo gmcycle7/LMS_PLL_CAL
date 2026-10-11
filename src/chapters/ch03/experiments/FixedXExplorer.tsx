@@ -31,8 +31,9 @@ export interface FixedXParams {
   steps: number
 }
 
-const DELTA_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'n' } }, yaxis: { title: { text: 'δ_n' } } }
-const ABS_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'n' } }, yaxis: { title: { text: '|δ_n|' } } }
+// 圖內文字的數學一律寫 `$…$`（Plot 轉成斜體符號與上下標）
+const DELTA_LAYOUT: Partial<Layout> = { xaxis: { title: { text: '$n$' } }, yaxis: { title: { text: T`$\delta_n$` } } }
+const ABS_LAYOUT: Partial<Layout> = { xaxis: { title: { text: '$n$' } }, yaxis: { title: { text: T`$|\delta_n|$` } } }
 
 export const DEFAULT_FIXED_X: FixedXParams = { a: 3, w0: 1, x: 2, mu: 0.1, steps: 20 }
 
@@ -202,7 +203,7 @@ export function FixedXExplorer() {
         return {
           x: r.n.slice(0, k),
           y: r.delta.slice(0, k).map((v) => (Number.isFinite(v) ? v : null)),
-          name: `Case ${c.id}：μ=${num(c.params.mu)}, x=${num(c.params.x)}（p=${num(r.p, 3)}）`,
+          name: T`Case ${c.id}：$\mu=${tnum(c.params.mu)}$, $x=${tnum(c.params.x)}$（$p=${tnum(r.p, 3)}$）`,
           mode: 'lines+markers',
           line: { color: tokens.series[c.seriesIndex], width: 2 },
           marker: { size: 6 },
@@ -218,14 +219,14 @@ export function FixedXExplorer() {
           {
             x: r.n.slice(0, k),
             y: r.delta.slice(0, k).map((v) => (Number.isFinite(v) ? Math.abs(v) : null)),
-            name: `Case ${c.id} 模擬 |δ_n|`,
+            name: T`Case ${c.id} 模擬 $|\delta_n|$`,
             mode: 'markers',
             marker: { size: 7, color: tokens.series[c.seriesIndex] },
           } as Data,
           {
             x: r.n, // 封閉式是「預測」：單步模式下也畫完整條線，讓模擬的點一步一步落在線上
             y: r.closed.map((v) => Math.abs(v)),
-            name: `Case ${c.id} 封閉式 |δ₀|·|p|ⁿ`,
+            name: T`Case ${c.id} 封閉式 $|\delta_0| \cdot |p|^n$`,
             mode: 'lines',
             line: { color: tokens.series[c.seriesIndex], width: 1.5, dash: 'dot' },
           } as Data,
@@ -236,14 +237,14 @@ export function FixedXExplorer() {
   const zData = useMemo<Data[]>(() => {
     const th = Array.from({ length: 361 }, (_, i) => (i * Math.PI) / 180)
     return [
-      { x: th.map(Math.cos), y: th.map(Math.sin), mode: 'lines', name: '|z| = 1', line: { color: tokens.textMuted, width: 1.5, dash: 'dot' }, hoverinfo: 'skip' },
+      { x: th.map(Math.cos), y: th.map(Math.sin), mode: 'lines', name: '$|z| = 1$', line: { color: tokens.textMuted, width: 1.5, dash: 'dot' }, hoverinfo: 'skip' },
       ...results.map(
         ({ c, r }) =>
           ({
             x: [r.p],
             y: [0],
             mode: 'markers',
-            name: `Case ${c.id}：p = ${num(r.p, 4)}`,
+            name: T`Case ${c.id}：$p = ${tnum(r.p, 4)}$`,
             marker: { size: 13, symbol: 'x', color: tokens.series[c.seriesIndex], line: { width: 2, color: tokens.series[c.seriesIndex] } },
           }) as Data,
       ),
@@ -252,8 +253,8 @@ export function FixedXExplorer() {
   const maxAbsP = Math.max(1.3, ...results.map((x) => Math.abs(x.r.p) + 0.2))
   const zLayout = useMemo<Partial<Layout>>(
     () => ({
-      xaxis: { title: { text: 'Re z' }, range: [-maxAbsP, maxAbsP], zeroline: true },
-      yaxis: { title: { text: 'Im z' }, range: [-1.25, 1.25], scaleanchor: 'x', zeroline: true },
+      xaxis: { title: { text: T`$\mathrm{Re}\,z$` }, range: [-maxAbsP, maxAbsP], zeroline: true },
+      yaxis: { title: { text: T`$\mathrm{Im}\,z$` }, range: [-1.25, 1.25], scaleanchor: 'x', zeroline: true },
     }),
     [maxAbsP],
   )
@@ -304,7 +305,7 @@ export function FixedXExplorer() {
       }
       assumptions={['$x$ 固定且已知（退化分布）', '無量測雜訊 $v = 0$', '$\\delta = a - w$（全站極性，勘誤 E39）', '浮點雙精度，無量化（L0）']}
       params={{ ...ap, case: cases.activeId, cases: cases.cases.length }}
-      units={{ a: '—（正規化）', w0: '—', x: '—', mu: '1/[x]²', steps: 'samples' }}
+      units={{ a: '—（正規化）', w0: '—', x: '—', mu: '1/[x]^2', steps: 'samples' }}
       metrics={metrics}
       warnings={warnings}
       crossCheck={{
@@ -340,20 +341,20 @@ export function FixedXExplorer() {
         <>
           <CaseSelector cases={cases} />
           <ParamControl
-            label={`μ（Case ${cases.activeId}）`}
+            label={T`$\mu$（Case ${cases.activeId}）`}
             value={ap.mu}
             onChange={(mu) => set({ mu })}
             min={-0.2}
             max={1.2}
             step={0.001}
-            unit="1/[x]²"
+            unit={T`$1/[x]^2$`}
             reg="LMS_MU（behavioral）"
             hint={<Tex>{T`\text{穩定：}0<\mu<2/x^2=${tnum(fixedXMuMax(ap.x))}`}</Tex>}
           />
-          <ParamControl label="x（固定輸入）" value={ap.x} onChange={(x) => set({ x })} min={-4} max={4} step={0.01} unit="[x]" reg="DTC code（正規化，固定）" />
-          <ParamControl label="a（真實參數）" value={ap.a} onChange={(a) => set({ a })} min={-10} max={10} step={0.1} unit="—（正規化）" reg="真實 DTC gain（未知）" />
-          <ParamControl label="w₀（初始估計）" value={ap.w0} onChange={(w0) => set({ w0 })} min={-10} max={10} step={0.1} unit="—（正規化）" reg="REG_GAIN 初值" hint={<Tex>{T`\delta_0=a-w_0=${tnum(ap.a - ap.w0)}`}</Tex>} />
-          <ParamControl label="步數 N" value={ap.steps} onChange={(steps) => set({ steps })} min={1} max={200} integer clampOnBlur unit="samples" reg="模擬長度（behavioral）" />
+          <ParamControl label="$x$（固定輸入）" value={ap.x} onChange={(x) => set({ x })} min={-4} max={4} step={0.01} unit="$[x]$" reg="DTC code（正規化，固定）" />
+          <ParamControl label="$a$（真實參數）" value={ap.a} onChange={(a) => set({ a })} min={-10} max={10} step={0.1} unit="—（正規化）" reg="真實 DTC gain（未知）" />
+          <ParamControl label="$w_0$（初始估計）" value={ap.w0} onChange={(w0) => set({ w0 })} min={-10} max={10} step={0.1} unit="—（正規化）" reg="REG_GAIN 初值" hint={<Tex>{T`\delta_0=a-w_0=${tnum(ap.a - ap.w0)}`}</Tex>} />
+          <ParamControl label="步數 $N$" value={ap.steps} onChange={(steps) => set({ steps })} min={1} max={200} integer clampOnBlur unit="samples" reg="模擬長度（behavioral）" />
         </>
       }
     >

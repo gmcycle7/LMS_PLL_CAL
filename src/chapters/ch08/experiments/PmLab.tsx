@@ -84,14 +84,14 @@ const NYQ_OMEGAS = logOmegaGrid(700, 1e-4, Math.PI)
 const finiteOrNull = (x: number): number | null => (Number.isFinite(x) ? x : null)
 
 // 固定的 Plot layout 放在模組層級（物件參考不變 ⇒ 重新渲染時不會多打一次 Plotly.react、也不會重設使用者的縮放）
-const BODE_MAG_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'ω [rad/block]' } }, yaxis: { title: { text: '|L| [dB]' }, range: [-20, 50] } }
+const BODE_MAG_LAYOUT: Partial<Layout> = { xaxis: { title: { text: String.raw`$\omega$ [rad/block]` } }, yaxis: { title: { text: String.raw`$|L|$ [dB]` }, range: [-20, 50] } }
 const NYQUIST_LAYOUT: Partial<Layout> = {
-  xaxis: { title: { text: 'Re L' }, range: [-NYQ_R, NYQ_R * 0.7], zeroline: true },
-  yaxis: { title: { text: 'Im L' }, range: [-NYQ_R, NYQ_R], scaleanchor: 'x', scaleratio: 1, zeroline: true },
+  xaxis: { title: { text: String.raw`$\mathrm{Re}\,L$` }, range: [-NYQ_R, NYQ_R * 0.7], zeroline: true },
+  yaxis: { title: { text: String.raw`$\mathrm{Im}\,L$` }, range: [-NYQ_R, NYQ_R], scaleanchor: 'x', scaleratio: 1, zeroline: true },
   legend: { orientation: 'h', y: -0.25 },
 }
 const Z_PLANE_LAYOUT = zPlaneLayout(1.6)
-const ABS_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'k [block]' } }, yaxis: { title: { text: '|δ_k| / δ₀' } } }
+const ABS_LAYOUT: Partial<Layout> = { xaxis: { title: { text: '$k$ [block]' } }, yaxis: { title: { text: String.raw`$|\delta_k| / \delta_0$` } } }
 
 /** 「試試看」提示用到的數字：全部由模型計算（不手寫） */
 const TRY = {
@@ -315,24 +315,24 @@ export function PmLab() {
       ...responses.map(({ cs, resp }) => ({
         x: resp.omega,
         y: resp.magDb,
-        name: `Case ${cs.id}：|L|（g=${sig(cs.params.g)}）`,
+        name: String.raw`Case ${cs.id}：$|L|$（$g=${tsig(cs.params.g)}$）`,
         mode: 'lines' as const,
         line: { color: caseColor(cs.seriesIndex), width: cs.id === cases.activeId ? 2.5 : 1.5 },
       })),
       hLine(0, OMEGAS[0], Math.PI, tokens.textMuted, '0 dB'),
-      ...(Number.isFinite(pm.omegaC) ? [vLine(pm.omegaC, -40, 60, tokens.danger, `ω_c = ${fx(pm.omegaC, 4)}`)] : []),
+      ...(Number.isFinite(pm.omegaC) ? [vLine(pm.omegaC, -40, 60, tokens.danger, String.raw`$\omega_c = ${fx(pm.omegaC, 4)}$`)] : []),
     ]
     const bodePhase: Data[] = [
       ...responses.map(({ cs, resp }) => ({
         x: resp.omega,
         y: resp.phaseDeg,
-        name: `Case ${cs.id}：∠L（d=${cs.params.d}）`,
+        name: String.raw`Case ${cs.id}：$\angle L$（$d=${cs.params.d}$）`,
         mode: 'lines' as const,
         line: { color: caseColor(cs.seriesIndex), width: cs.id === cases.activeId ? 2.5 : 1.5 },
       })),
-      hLine(-180, OMEGAS[0], Math.PI, tokens.danger, '−180°'),
-      ...(Number.isFinite(pm.omegaC) ? [vLine(pm.omegaC, -180 - 360 * 2, 0, tokens.danger, `ω_c（PM = ${fx(pm.pmDeg, 2)}°）`)] : []),
-      vLine(pm.omega180, -180 - 360 * 2, 0, tokens.textMuted, `ω_180 = π/(2d+1) = ${fx(pm.omega180, 4)}`, 'dash'),
+      hLine(-180, OMEGAS[0], Math.PI, tokens.danger, String.raw`$-180^\circ$`),
+      ...(Number.isFinite(pm.omegaC) ? [vLine(pm.omegaC, -180 - 360 * 2, 0, tokens.danger, String.raw`$\omega_c$（$PM = ${fx(pm.pmDeg, 2)}^\circ$）`)] : []),
+      vLine(pm.omega180, -180 - 360 * 2, 0, tokens.textMuted, String.raw`$\omega_{180} = \pi/(2d+1) = ${fx(pm.omega180, 4)}$`, 'dash'),
     ]
     const phaseMin = Math.min(...responses.map(({ resp }) => resp.phaseDeg[resp.phaseDeg.length - 1]))
 
@@ -349,25 +349,25 @@ export function PmLab() {
         }
       }
       const color = caseColor(cs.seriesIndex)
-      nyquist.push({ x: xs, y: ys, name: `Case ${cs.id}：ω ∈ (0, π]`, mode: 'lines', line: { color, width: 2 } })
-      nyquist.push({ x: xs, y: ys.map((v) => -v), name: `Case ${cs.id}：ω ∈ [−π, 0)（共軛）`, mode: 'lines', line: { color, width: 1, dash: 'dash' } })
+      nyquist.push({ x: xs, y: ys, name: String.raw`Case ${cs.id}：$\omega \in (0, \pi]$`, mode: 'lines', line: { color, width: 2 } })
+      nyquist.push({ x: xs, y: ys.map((v) => -v), name: String.raw`Case ${cs.id}：$\omega \in [-\pi, 0)$（共軛）`, mode: 'lines', line: { color, width: 1, dash: 'dash' } })
     }
-    nyquist.push(arcTrace(NYQ_R, 90, -90, tokens.textMuted, 'z = 1 的 indentation（示意：半徑實際 → ∞，順時針）'))
-    nyquist.push(unitCircleTrace(tokens.textMuted, '|L| = 1'))
-    nyquist.push({ x: [-1], y: [0], name: '−1 點', mode: 'markers', marker: { symbol: 'x', size: 12, color: tokens.danger } })
+    nyquist.push(arcTrace(NYQ_R, 90, -90, tokens.textMuted, String.raw`$z = 1$ 的 indentation（示意：半徑實際 $\to \infty$，順時針）`))
+    nyquist.push(unitCircleTrace(tokens.textMuted, String.raw`$|L| = 1$`))
+    nyquist.push({ x: [-1], y: [0], name: String.raw`$-1$ 點`, mode: 'markers', marker: { symbol: 'x', size: 12, color: tokens.danger } })
     if (Number.isFinite(pm.omegaC)) {
       const Lc = calLoopGain(g, d, pm.omegaC)
-      nyquist.push({ x: [Lc.re], y: [Lc.im], name: `crossover（PM = ${fx(pm.pmDeg, 1)}°）`, mode: 'markers', marker: { size: 10, color: tokens.accent } })
+      nyquist.push({ x: [Lc.re], y: [Lc.im], name: String.raw`crossover（$PM = ${fx(pm.pmDeg, 1)}^\circ$）`, mode: 'markers', marker: { size: 10, color: tokens.accent } })
     }
 
     // z 平面
     const zPlane: Data[] = [
       unitCircleTrace(tokens.textMuted),
-      { x: locus.x, y: locus.y, name: `根軌跡（d=${d}，g 由 0 增加）`, mode: 'markers', marker: { size: 3, color: tokens.textFaint }, hoverinfo: 'skip' },
-      poleTrace([{ re: 1, im: 0 }], '開迴路 pole z = 1（GMAC 積分器）', tokens.textMuted, 'x', 12),
-      ...(d > 0 ? [poleTrace([{ re: 0, im: 0 }], `開迴路 pole z = 0（${d} 重，延遲）`, tokens.textMuted, 'x-open', 12)] : []),
+      { x: locus.x, y: locus.y, name: String.raw`根軌跡（$d=${d}$，$g$ 由 $0$ 增加）`, mode: 'markers', marker: { size: 3, color: tokens.textFaint }, hoverinfo: 'skip' },
+      poleTrace([{ re: 1, im: 0 }], String.raw`開迴路 pole $z = 1$（GMAC 積分器）`, tokens.textMuted, 'x', 12),
+      ...(d > 0 ? [poleTrace([{ re: 0, im: 0 }], String.raw`開迴路 pole $z = 0$（${d} 重，延遲）`, tokens.textMuted, 'x-open', 12)] : []),
       ...cases.cases.map((cs) =>
-        poleTrace(delayStable(cs.params.g, cs.params.d).roots, `Case ${cs.id} 閉迴路 poles（g=${sig(cs.params.g)}, d=${cs.params.d}）`, caseColor(cs.seriesIndex), 'circle', 10),
+        poleTrace(delayStable(cs.params.g, cs.params.d).roots, String.raw`Case ${cs.id} 閉迴路 poles（$g=${tsig(cs.params.g)}$, $d=${cs.params.d}$）`, caseColor(cs.seriesIndex), 'circle', 10),
       ),
     ]
 
@@ -376,17 +376,17 @@ export function PmLab() {
       ...runs.map(({ cs, run }) => ({
         x: kAxis,
         y: Array.from(run.delta, (v) => 1 - v),
-        name: `Case ${cs.id}：w_k/a（g=${sig(cs.params.g)}, d=${cs.params.d}）`,
+        name: String.raw`Case ${cs.id}：$w_k/a$（$g=${tsig(cs.params.g)}$, $d=${cs.params.d}$）`,
         mode: 'lines+markers' as const,
         marker: { size: 4 },
         line: { color: caseColor(cs.seriesIndex), width: 2, shape: 'hv' as const },
       })),
-      hLine(1, 0, steps, tokens.textMuted, '目標 a'),
+      hLine(1, 0, steps, tokens.textMuted, String.raw`目標 $a$`),
     ]
     if (stab.rho < 1.2 && g > 0) {
       const env = Array.from(kAxis, (k) => stab.rho ** k)
-      stepTraces.push({ x: kAxis, y: env.map((e) => 1 + e), name: `1 ± ρ^k（ρ = ${fx(stab.rho, 4)}）`, mode: 'lines', line: { color: tokens.textFaint, dash: 'dot', width: 1 } })
-      stepTraces.push({ x: kAxis, y: env.map((e) => 1 - e), name: '1 − ρ^k', mode: 'lines', line: { color: tokens.textFaint, dash: 'dot', width: 1 }, showlegend: false })
+      stepTraces.push({ x: kAxis, y: env.map((e) => 1 + e), name: String.raw`$1 \pm \rho^k$（$\rho = ${fx(stab.rho, 4)}$）`, mode: 'lines', line: { color: tokens.textFaint, dash: 'dot', width: 1 } })
+      stepTraces.push({ x: kAxis, y: env.map((e) => 1 - e), name: String.raw`$1 - \rho^k$`, mode: 'lines', line: { color: tokens.textFaint, dash: 'dot', width: 1 }, showlegend: false })
     }
     if (mcCurrent) {
       const kk = indexArray(mcCurrent.deltaMc.length)
@@ -410,7 +410,7 @@ export function PmLab() {
     const absTraces: Data[] = runs.map(({ cs, run }) => ({
       x: kAxis,
       y: Array.from(run.delta, (v) => Math.abs(v)),
-      name: `Case ${cs.id}：|δ_k|/δ₀`,
+      name: String.raw`Case ${cs.id}：$|\delta_k|/\delta_0$`,
       mode: 'lines',
       line: { color: caseColor(cs.seriesIndex), width: 2 },
     }))
@@ -418,11 +418,11 @@ export function PmLab() {
   }, [responses, runs, locus, cases.cases, cases.activeId, tokens, pm, stab, g, d, steps, kAxis, mcCurrent])
   const { bodeMag, bodePhase, phaseMin, nyquist, zPlane, stepTraces, clipped, absTraces } = plots
   const bodePhaseLayout = useMemo<Partial<Layout>>(
-    () => ({ xaxis: { title: { text: 'ω [rad/block]' } }, yaxis: { title: { text: '∠L [deg]' }, range: [Math.min(-200, phaseMin - 20), -60] } }),
+    () => ({ xaxis: { title: { text: String.raw`$\omega$ [rad/block]` } }, yaxis: { title: { text: String.raw`$\angle L$ [deg]` }, range: [Math.min(-200, phaseMin - 20), -60] } }),
     [phaseMin],
   )
   const stepLayout = useMemo<Partial<Layout>>(
-    () => ({ xaxis: { title: { text: 'k [block]' } }, yaxis: { title: { text: 'w_k / a' }, ...(clipped ? { range: [-2.5, 4] } : {}) } }),
+    () => ({ xaxis: { title: { text: '$k$ [block]' } }, yaxis: { title: { text: '$w_k / a$' }, ...(clipped ? { range: [-2.5, 4] } : {}) } }),
     [clipped],
   )
 

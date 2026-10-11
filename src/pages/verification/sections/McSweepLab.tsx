@@ -44,8 +44,8 @@ const INLINE_PRESETS: ExperimentPreset[] = [
 const r = String.raw
 const HIST_EDGES = Array.from({ length: 17 }, (_, i) => -4 + 0.5 * i)
 // Plot 以 layout 的參考是否改變決定要不要重畫：放在模組層，父元件重新 render 時不會觸發 Plotly.react
-const QQ_LAYOUT: Partial<Layout> = { xaxis: { title: { text: '理論分位數 Φ⁻¹((i + ½)/n)' } }, yaxis: { title: { text: '排序後的 z' } }, showlegend: true }
-const HIST_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'z' }, range: [-4.2, 4.2] }, yaxis: { title: { text: '機率密度' } }, showlegend: true, bargap: 0.05 }
+const QQ_LAYOUT: Partial<Layout> = { xaxis: { title: { text: '理論分位數 $\\Phi^{-1}((i + \\tfrac{1}{2})/n)$' } }, yaxis: { title: { text: '排序後的 $z$' } }, showlegend: true }
+const HIST_LAYOUT: Partial<Layout> = { xaxis: { title: { text: '$z$' }, range: [-4.2, 4.2] }, yaxis: { title: { text: '機率密度' } }, showlegend: true, bargap: 0.05 }
 
 /** §V.3（續）多 seed 校準：z 檢定本身準不準？ */
 export function McSweepLab() {
@@ -136,8 +136,8 @@ export function McSweepLab() {
     const n = pooled.n
     const theo = pooled.sorted.map((_, i) => normInv((i + 0.5) / n)) // 理論分位數 Φ⁻¹((i + ½)/n)
     const qq: Data[] = [
-      { type: 'scatter', mode: 'markers', x: theo, y: pooled.sorted, name: '排序後的 z', marker: { size: 4, color: tokens.series[0] } },
-      { type: 'scatter', mode: 'lines', x: [-4, 4], y: [-4, 4], name: 'y = x（完美校準）', line: { dash: 'dash', color: tokens.textMuted } },
+      { type: 'scatter', mode: 'markers', x: theo, y: pooled.sorted, name: '排序後的 $z$', marker: { size: 4, color: tokens.series[0] } },
+      { type: 'scatter', mode: 'lines', x: [-4, 4], y: [-4, 4], name: '$y = x$（完美校準）', line: { dash: 'dash', color: tokens.textMuted } },
     ]
     const counts = new Array<number>(HIST_EDGES.length - 1).fill(0)
     for (const z of pooled.sorted) {
@@ -147,8 +147,8 @@ export function McSweepLab() {
     const centers = counts.map((_, k) => HIST_EDGES[k] + 0.25)
     const xs = Array.from({ length: 161 }, (_, i) => -4 + 0.05 * i)
     const hist: Data[] = [
-      { type: 'bar', x: centers, y: counts.map((c) => c / (n * 0.5)), name: 'z 的直方圖（密度）', marker: { color: tokens.series[0] }, width: 0.46 },
-      { type: 'scatter', mode: 'lines', x: xs, y: xs.map((x) => normPdf(x)), name: 'N(0, 1) 的密度 φ(z)', line: { color: tokens.series[1] } },
+      { type: 'bar', x: centers, y: counts.map((c) => c / (n * 0.5)), name: '$z$ 的直方圖（密度）', marker: { color: tokens.series[0] }, width: 0.46 },
+      { type: 'scatter', mode: 'lines', x: xs, y: xs.map((x) => normPdf(x)), name: '$\\mathcal N(0, 1)$ 的密度 $\\varphi(z)$', line: { color: tokens.series[1] } },
     ]
     return { qq, hist }
   }, [pooled, tokens])
@@ -202,7 +202,7 @@ export function McSweepLab() {
 
       <ExperimentShell
         id={SWEEP_EXPERIMENT_ID}
-        title="$z$ 校準實驗（同一組檢查 × $K$ 個 seed）"
+        title={String.raw`$z$ 校準實驗（同一組檢查 $\times$ $K$ 個 seed）`}
         level="L1"
         claim="approx"
         source="simulation"
@@ -271,7 +271,7 @@ export function McSweepLab() {
               min={MC_SCALE_MIN}
               max={MC_SCALE_MAX}
               log
-              unit="×"
+              unit={String.raw`$\times$`}
               reg="mc_scale（behavioral）"
               hint={M('每個 seed 的樣本數倍率。$z$ 已除以 SE，所以校準原則上與 scale 無關、小 scale 跑得快；例外是用漸近 SE 的 T14（scale $<0.1$ 時 $s_z$ 偏大）')}
             />
@@ -389,7 +389,7 @@ export function McSweepLab() {
                   height={320}
                   csvName="acceptance-mc-sweep-hist"
                   ariaLabel="z 分數的直方圖與標準常態密度"
-                  caption={`$n=${pooled.n}$ 個 $z$（獨立的校準項目 × ${result.runs} 個 seed），bin 寬 $0.5$。`}
+                  caption={`$n=${pooled.n}$ 個 $z$（獨立的校準項目 $\\times$ ${result.runs} 個 seed），bin 寬 $0.5$。`}
                 />
               </div>
             )}

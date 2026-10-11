@@ -138,10 +138,10 @@ export function HeavyTailDemo() {
     return [
       mk(1, '覆蓋真值的 CI', tokens.series[2]),
       mk(0, '沒覆蓋真值的 CI', tokens.series[1]),
-      { x: [0.5, nb + 0.5], y: [r.exact, r.exact], mode: 'lines', name: `真值 gⁿδ₀² = ${num(r.exact, 5)}`, line: { color: tokens.text, width: 2, dash: 'dash' } },
+      { x: [0.5, nb + 0.5], y: [r.exact, r.exact], mode: 'lines', name: T`真值 $g^n\delta_0^2 = ${tnum(r.exact, 5)}$`, line: { color: tokens.text, width: 2, dash: 'dash' } },
     ]
   }, [r, tokens])
-  const layout = useMemo<Partial<Layout>>(() => ({ xaxis: { title: { text: '批次 b（最多畫 100 批）' } }, yaxis: { title: { text: '樣本平均 δ_n² ± z·樣本SE' } } }), [])
+  const layout = useMemo<Partial<Layout>>(() => ({ xaxis: { title: { text: '批次 $b$（最多畫 100 批）' } }, yaxis: { title: { text: T`樣本平均 $\delta_n^2 \,\pm\, z \,\cdot\,$ 樣本 SE` } } }), [])
 
   const onRun = useCallback(() => setRunToken((t) => t + 1), [])
 
@@ -168,7 +168,7 @@ export function HeavyTailDemo() {
       params={{ ...params, distSummary: distSummary(params) }}
       seed={seed}
       onSeedChange={setSeed}
-      units={{ mu: '1/[x]²', n: 'samples', delta0: '—', pathsPerBatch: 'paths', batches: 'batches' }}
+      units={{ mu: '1/[x]^2', n: 'samples', delta0: '—', pathsPerBatch: 'paths', batches: 'batches' }}
       metrics={metrics}
       warnings={warnings}
       crossCheck={{
@@ -202,11 +202,11 @@ export function HeavyTailDemo() {
       onLoadPreset={(pr) => setParams((cur) => mergeParams(cur, pr.params))}
       controls={
         <>
-          <ParamControl label="μ（學習率）" value={params.mu} onChange={(mu) => setParams((p) => ({ ...p, mu }))} min={0.001} max={3} log unit="1/[x]²" reg="LMS_MU（behavioral）" />
-          <ParamControl label="n（看第 n 步）" value={params.n} onChange={(n) => setParams((p) => ({ ...p, n }))} min={1} max={50} integer clampOnBlur unit="samples" reg="觀察的步數（behavioral）" />
-          <ParamControl label="δ₀ = a − w₀" value={params.delta0} onChange={(delta0) => setParams((p) => ({ ...p, delta0 }))} min={-10} max={10} step={0.1} unit="—（正規化）" reg="初始誤差 a − w₀" />
+          <ParamControl label="$\mu$（學習率）" value={params.mu} onChange={(mu) => setParams((p) => ({ ...p, mu }))} min={0.001} max={3} log unit={T`$1/[x]^2$`} reg="LMS_MU（behavioral）" />
+          <ParamControl label="$n$（看第 $n$ 步）" value={params.n} onChange={(n) => setParams((p) => ({ ...p, n }))} min={1} max={50} integer clampOnBlur unit="samples" reg="觀察的步數（behavioral）" />
+          <ParamControl label={T`$\delta_0 = a - w_0$`} value={params.delta0} onChange={(delta0) => setParams((p) => ({ ...p, delta0 }))} min={-10} max={10} step={0.1} unit="—（正規化）" reg="初始誤差（真值減初始估計）" />
           <ParamControl
-            label="每批路徑數 M"
+            label="每批路徑數 $M$"
             value={params.pathsPerBatch}
             onChange={(pathsPerBatch) => setParams((p) => ({ ...p, pathsPerBatch }))}
             min={10}
@@ -217,7 +217,7 @@ export function HeavyTailDemo() {
             unit="paths"
             reg="每批 Monte Carlo 路徑數"
           />
-          <ParamControl label="批數 B" value={params.batches} onChange={(batches) => setParams((p) => ({ ...p, batches }))} min={1} max={1000} integer clampOnBlur unit="batches" reg="重複批數（覆蓋率統計）" />
+          <ParamControl label="批數 $B$" value={params.batches} onChange={(batches) => setParams((p) => ({ ...p, batches }))} min={1} max={1000} integer clampOnBlur unit="batches" reg="重複批數（覆蓋率統計）" />
           <DistControls value={params} onChange={(patch) => setParams((p) => ({ ...p, ...patch }))} />
         </>
       }

@@ -44,7 +44,7 @@ const INLINE_PRESETS: ExperimentPreset[] = [
 const GOLDEN_SAFE = worstCaseSafeCount(DEFAULTS.codeBits, DEFAULTS.accBits, DEFAULTS.mostNeg)
 
 // Plot 的 layout 是靜態的：放在模組層，避免每次 render 產生新物件而觸發 Plotly.react
-const LAYOUT_ACC: Partial<Layout> = { xaxis: { title: { text: 'n（已累加筆數）' } }, yaxis: { title: { text: '累加器值 [code LSB]' } } }
+const LAYOUT_ACC: Partial<Layout> = { xaxis: { title: { text: '$n$（已累加筆數）' } }, yaxis: { title: { text: '累加器值 [code LSB]' } } }
 
 function R9Experiment() {
   const [P, setP] = useState<R9Params>(DEFAULTS)

@@ -1,9 +1,14 @@
 /**
  * Dashboard 的 Mermaid 圖原始碼（diagrams.test.ts 以真正的 mermaid parser 驗證語法；docs/teaching-style.md §8）。
- * - 標籤內避免 ASCII '<' 與 ';'（Mermaid 會當成 HTML 或敘述分隔）；換行用 <br/>；大於／小於寫全形「＞」「＜」。
- * - 加法點用圓形節點「＋」，每條進來的邊標正負號：正號寫全形「＋」、負號寫「−」（U+2212）。
+ * - 圖內的數學一律寫 LaTeX（使用者要求，2026-10-11）：節點與連線的「雙引號標籤」裡把數學放在 `$...$`，文字照常寫，
+ *   由共用的 <Mermaid> 用 KaTeX 排版。所以每張圖的原始碼都用 `String.raw`（TeX 的反斜線只寫一次）；
+ *   標籤內不寫 `\\`（Mermaid 會收成一個反斜線），換行用 <br/>。
+ * - 標籤內避免 ASCII '<' 與 ';'（Mermaid 會當成 HTML 或敘述分隔）：大於／小於在 `$...$` 內寫 `\gt`、`\lt`，不用 `\;`（thin space 寫 `\,`）。
+ *   單位與名稱（FCW、DSM、GMAC、jitter、spur…）照舊寫成文字。
+ * - 加法點用圓形節點「＋」，每條進來的邊標正負號：正號寫全形「＋」、負號寫「−」（U+2212）；
+ *   正負號後面還有說明文字時，負號寫成 `$-$`（KaTeX 的文字模式不認得 U+2212，會在主控台警告）。
  *   Mermaid 11 把標籤當 Markdown：單獨的 ASCII「+」「-」會被當成清單，畫面上變成「Unsupported markdown: list」。
- * - 圖上的訊號名稱、正負號與箭頭方向都和「一條方程式」那一節的推導一致（δ = a − w；G_k = K_q·(C·δ_k + B) + η_k）。
+ * - 圖上的訊號名稱、正負號與箭頭方向都和「一條方程式」那一節的推導一致（$\delta = a - w$；$G_k = K_q\,(C\,\delta_k + B) + \eta_k$）。
  */
 import { SYSTEM_BLOCK_LABEL, type SystemBlock } from '@/components'
 
@@ -24,86 +29,86 @@ export const CONDITION_MAP_NAMES = ['資訊足夠', '更新方向正確', '動�
 const N = CONDITION_MAP_NAMES
 
 /**
- * 校正迴路的訊號流（實線）與六個條件各自「住在哪裡」（虛線圓角框）。
- * 對應線性化方程式 e[n] = (a − w)·u[n] + ε_det[n] + v[n]：
- *   (a − w) 來自 DTC / PMUX 的係數誤差、u = h*x 來自 PLL error path、ε_det 來自 offset / INL、v 是 comparator 前的雜訊。
+ * 圈圈數字 ①–⑥：KaTeX 的文字模式沒有 U+2460…（含公式的標籤整個交給 KaTeX，會警告而且量不到寬度），
+ * 所以標籤裡的圈圈數字改用 `\textcircled`（文字放進 \text{} 才合法）。
  */
-export const CONDITION_MAP_CHART = [
-  'flowchart LR',
-  '  DSM["DSM / FCW<br/>code x[n]"]',
-  '  DTC["DTC / PMUX<br/>延遲 = w · x<br/>真值 a（GOS / PHOS）"]',
-  '  PLL["PLL error path<br/>u = h * x<br/>|H|、φ"]',
-  '  CMP["1-bit comparator<br/>q = sign(e)<br/>雜訊 σ_v"]',
-  '  GMAC["GMAC<br/>G = (1/N) Σ q · x[n − D]"]',
-  '  UPD["係數更新<br/>w ← w + μ · G<br/>（晚 d 個 block）"]',
-  '  OUT["PLL 輸出<br/>jitter / spur"]',
-  '  DSM --> DTC --> PLL --> CMP --> GMAC --> UPD',
-  '  UPD -- "w（6-bit 暫存器）" --> DTC',
-  '  DSM -. "x[n − D]" .-> GMAC',
-  '  DTC -- "δt = x · δw，經 T" --> OUT',
-  `  C1(["① ${N[0]}<br/>λ_min ＞ 0"]) -.- DSM`,
-  `  C2(["② ${N[1]}<br/>C = E[x u] ＞ 0"]) -.- PLL`,
-  `  C3(["③ ${N[2]}<br/>0 ＜ g ＜ g*"]) -.- UPD`,
-  `  C4(["④ ${N[3]}<br/>σ_w 夠小"]) -.- CMP`,
-  `  C5(["⑤ ${N[4]}<br/>w* = a + B/C"]) -.- DTC`,
-  `  C6(["⑥ ${N[5]}<br/>jitter、spur"]) -.- OUT`,
-].join('\n')
+export const CIRC: readonly string[] = [1, 2, 3, 4, 5, 6].map((n) => String.raw`$\text{\textcircled{${n}}}$`)
+
+/**
+ * 校正迴路的訊號流（實線）與六個條件各自「住在哪裡」（虛線圓角框）。
+ * 對應線性化方程式 $e[n] = (a - w)\,u[n] + \varepsilon_{\mathrm{det}}[n] + v[n]$：
+ *   $(a - w)$ 來自 DTC / PMUX 的係數誤差、$u = h * x$ 來自 PLL error path、$\varepsilon_{\mathrm{det}}$ 來自 offset / INL、$v$ 是 comparator 前的雜訊。
+ */
+export const CONDITION_MAP_CHART = String.raw`flowchart LR
+  DSM["DSM / FCW<br/>code $x[n]$"]
+  DTC["DTC / PMUX<br/>延遲 $= w\cdot x$<br/>真值 $a$（GOS / PHOS）"]
+  PLL["PLL error path<br/>$u = h * x$<br/>$\lvert H\rvert$、$\phi$"]
+  CMP["1-bit comparator<br/>$q = \mathrm{sign}(e)$<br/>雜訊 $\sigma_v$"]
+  GMAC["GMAC<br/>$G = \frac{1}{N}\sum q\cdot x[n-D]$"]
+  UPD["係數更新<br/>$w \leftarrow w + \mu\cdot G$<br/>（晚 $d$ 個 block）"]
+  OUT["PLL 輸出<br/>jitter / spur"]
+  DSM --> DTC --> PLL --> CMP --> GMAC --> UPD
+  UPD -- "$w$（6-bit 暫存器）" --> DTC
+  DSM -. "$x[n-D]$" .-> GMAC
+  DTC -- "$\delta t = x\cdot\delta w$，經 $T$" --> OUT
+  C1(["${CIRC[0]} ${N[0]}<br/>$\lambda_{\min} \gt 0$"]) -.- DSM
+  C2(["${CIRC[1]} ${N[1]}<br/>$C = E[x\,u] \gt 0$"]) -.- PLL
+  C3(["${CIRC[2]} ${N[2]}<br/>$0 \lt g \lt g^*$"]) -.- UPD
+  C4(["${CIRC[3]} ${N[3]}<br/>$\sigma_w$ 夠小"]) -.- CMP
+  C5(["${CIRC[4]} ${N[4]}<br/>$w^* = a + B/C$"]) -.- DTC
+  C6(["${CIRC[5]} ${N[5]}<br/>jitter、spur"]) -.- OUT`
 
 /**
  * 六個條件的檢查流程（由上到下就是 thesisModel.ts 的 CONDITION_ORDER）。
- * 順序不是隨便排的：後面的判據要用到前面算出來的量——有了 C 才能算 g = μ·K_q·C；|z| ＜ 1 才有穩態的 σ_w 與固定點；
- * σ_w 與 Δw = B/C 都有了才能換算成輸出端的 σ_δt 與 spur。六個都要過；任何一個「否」就停下來修那一塊。
+ * 順序不是隨便排的：後面的判據要用到前面算出來的量——有了 $C$ 才能算 $g = \mu K_q C$；$\lvert z\rvert \lt 1$ 才有穩態的 $\sigma_w$ 與固定點；
+ * $\sigma_w$ 與 $\Delta w = B/C$ 都有了才能換算成輸出端的 $\sigma_{\delta t}$ 與 spur。六個都要過；任何一個「否」就停下來修那一塊。
  */
-export const CONDITION_FLOW_CHART = [
-  'flowchart TB',
-  `  Q1{"① ${N[0]}？<br/>λ_min ＞ 0"}`,
-  `  Q2{"② ${N[1]}？<br/>C = E[x·u] ＞ 0"}`,
-  `  Q3{"③ ${N[2]}？<br/>0 ＜ g ＜ g*(d)，g = μ·K_q·C"}`,
-  `  Q4{"④ ${N[3]}？<br/>σ_w 在預算內"}`,
-  `  Q5{"⑤ ${N[4]}？<br/>w* − a = B/C 在預算內"}`,
-  `  Q6{"⑥ ${N[5]}？<br/>σ_δt 與 spur 在預算內"}`,
-  '  OK(["六個都通過<br/>才是成功的 calibration"])',
-  '  Q1 -- "是" --> Q2',
-  '  Q2 -- "是：有了 C 才能算 g" --> Q3',
-  '  Q3 -- "是：迴路會收斂" --> Q4',
-  '  Q4 -- "是" --> Q5',
-  '  Q5 -- "是：σ_w 與 B/C 都有了" --> Q6',
-  '  Q6 -- "是" --> OK',
-  '  Q1 -- "否" --> F1["看不見：某個方向學不到<br/>換 code／FCW，或少校正幾個參數"]',
-  '  Q2 -- "否" --> F2["C ≤ 0：越修越遠，或隨雜訊亂走<br/>調 code delay D，或改用 filtered-x"]',
-  '  Q3 -- "否" --> F3["g 太大：震盪發散<br/>減小 μ、縮短延遲 d、檢查 sum／average"]',
-  '  Q4 -- "否" --> F4["係數抖動太大<br/>減小 μ 或增加 N"]',
-  '  Q5 -- "否" --> F5["GMAC 歸零，但 w ≠ a<br/>降低 B（offset、INL），或提高 C"]',
-  '  Q6 -- "否" --> F6["jitter／spur 超標<br/>bias 與雜訊合起來重新分配預算"]',
-  `  ${PASS}`,
-  `  ${WARN}`,
-  '  class OK ok',
-  '  class F1,F2,F3,F4,F5,F6 warn',
-].join('\n')
+export const CONDITION_FLOW_CHART = String.raw`flowchart TB
+  Q1{"${CIRC[0]} ${N[0]}？<br/>$\lambda_{\min} \gt 0$"}
+  Q2{"${CIRC[1]} ${N[1]}？<br/>$C = E[x\cdot u] \gt 0$"}
+  Q3{"${CIRC[2]} ${N[2]}？<br/>$0 \lt g \lt g^*(d)$，<br/>$g = \mu\cdot K_q\cdot C$"}
+  Q4{"${CIRC[3]} ${N[3]}？<br/>$\sigma_w$ 在預算內"}
+  Q5{"${CIRC[4]} ${N[4]}？<br/>$w^* - a = B/C$ 在預算內"}
+  Q6{"${CIRC[5]} ${N[5]}？<br/>$\sigma_{\delta t}$ 與 spur 在預算內"}
+  OK(["六個都通過<br/>才是成功的 calibration"])
+  Q1 -- "是" --> Q2
+  Q2 -- "是：有了 $C$ 才能算 $g$" --> Q3
+  Q3 -- "是：迴路會收斂" --> Q4
+  Q4 -- "是" --> Q5
+  Q5 -- "是：$\sigma_w$ 與 $B/C$ 都有了" --> Q6
+  Q6 -- "是" --> OK
+  Q1 -- "否" --> F1["看不見：某個方向學不到<br/>換 code／FCW，或少校正幾個參數"]
+  Q2 -- "否" --> F2["$C \le 0$：越修越遠，或隨雜訊亂走<br/>調 code delay $D$，或改用 filtered-$x$"]
+  Q3 -- "否" --> F3["$g$ 太大：震盪發散<br/>減小 $\mu$、縮短延遲 $d$、檢查 sum／average"]
+  Q4 -- "否" --> F4["係數抖動太大<br/>減小 $\mu$ 或增加 $N$"]
+  Q5 -- "否" --> F5["GMAC 歸零，但 $w \ne a$<br/>降低 $B$（offset、INL），或提高 $C$"]
+  Q6 -- "否" --> F6["jitter／spur 超標<br/>bias 與雜訊合起來重新分配預算"]
+  ${PASS}
+  ${WARN}
+  class OK ok
+  class F1,F2,F3,F4,F5,F6 warn`
 
 /**
  * 線性化 block 方程式（F-DB.1）畫成訊號流：
- *   δ_k = a − w_k → × C → ＋B → × K_q → ＋η_k = G_k → × μ → 累加器 → w_k（負回授）
- * 也就是 G_k = K_q·(C·δ_k + B) + η_k、w_(k+1) = w_k + μ·G_k ⇒ δ_(k+1) = (1 − μK_qC)·δ_k − μK_qB − μη_k。
- * 三個藍色方塊相乘 = loop gain g = μ·K_q·C；棕色的 B 決定固定點 δ* = −B/C。
+ *   $\delta_k = a - w_k$ → $\times C$ → $+B$ → $\times K_q$ → $+\eta_k = G_k$ → $\times \mu$ → 累加器 → $w_k$（負回授）
+ * 也就是 $G_k = K_q\,(C\,\delta_k + B) + \eta_k$、$w_{k+1} = w_k + \mu\,G_k$ ⇒ $\delta_{k+1} = (1 - \mu K_q C)\,\delta_k - \mu K_q B - \mu\,\eta_k$。
+ * 三個藍色方塊相乘 = loop gain $g = \mu K_q C$；棕色的 $B$ 決定固定點 $\delta^* = -B/C$。
  */
-export const BLOCK_EQUATION_CHART = [
-  'flowchart LR',
-  '  A(["a<br/>真值"]) -- "＋" --> S1(("＋"))',
-  '  S1 -- "δ_k = a − w_k" --> CC["× C<br/>C = E[x·u]<br/>條件 ②：看它的正負"]',
-  '  CC -- "＋" --> S2(("＋"))',
-  '  BB(["B = E[x·ε_det]<br/>條件 ⑤：bias 的來源"]) -- "＋" --> S2',
-  '  S2 -- "C·δ_k + B" --> KQ["× K_q<br/>comparator 的統計增益<br/>K_q = √(2/π)/σ_v"]',
-  '  KQ -- "＋" --> S3(("＋"))',
-  '  ETA(["η_k：GMAC 雜訊<br/>變異數 σ_η² ≈ P_x/N<br/>條件 ④"]) -- "＋" --> S3',
-  '  S3 -- "G_k = K_q·(C·δ_k + B) + η_k" --> MU["× μ<br/>learning rate"]',
-  '  MU -- "μ·G_k" --> ACC["累加器 1/(z−1)<br/>w_(k+1) = w_k + μ·G_k<br/>條件 ③：g = μ·K_q·C 的大小"]',
-  '  ACC -- "−（回授 w_k）" --> S1',
-  `  ${FOCUS}`,
-  `  ${ALT}`,
-  '  class CC,KQ,MU focus',
-  '  class BB alt',
-].join('\n')
+export const BLOCK_EQUATION_CHART = String.raw`flowchart LR
+  A(["$a$<br/>真值"]) -- "＋" --> S1(("＋"))
+  S1 -- "$\delta_k = a - w_k$" --> CC["$\times C$<br/>$C = E[x\cdot u]$<br/>條件 ${CIRC[1]}：看它的正負"]
+  CC -- "＋" --> S2(("＋"))
+  BB(["$B = E[x\cdot\varepsilon_{\mathrm{det}}]$<br/>條件 ${CIRC[4]}：bias 的來源"]) -- "＋" --> S2
+  S2 -- "$C\cdot\delta_k + B$" --> KQ["$\times K_q$<br/>comparator 的統計增益<br/>$K_q = \sqrt{2/\pi}/\sigma_v$"]
+  KQ -- "＋" --> S3(("＋"))
+  ETA(["$\eta_k$：GMAC 雜訊<br/>變異數 $\sigma_\eta^2 \approx P_x/N$<br/>條件 ${CIRC[3]}"]) -- "＋" --> S3
+  S3 -- "$G_k = K_q\cdot(C\cdot\delta_k + B) + \eta_k$" --> MU["$\times \mu$<br/>learning rate"]
+  MU -- "$\mu\cdot G_k$" --> ACC["累加器 $\frac{1}{z-1}$<br/>$w_{k+1} = w_k + \mu\cdot G_k$<br/>條件 ${CIRC[2]}：$g = \mu\cdot K_q\cdot C$ 的大小"]
+  ACC -- "$-$（回授 $w_k$）" --> S1
+  ${FOCUS}
+  ${ALT}
+  class CC,KQ,MU focus
+  class BB alt`
 
 /** 本頁自己的圖（依出現順序；章首的系統地圖由共用元件 SystemMap 產生，不在這裡）；diagrams.test.ts 逐一解析。 */
 export const DASH_CHARTS: { name: string; chart: string }[] = [

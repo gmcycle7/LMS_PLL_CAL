@@ -30,13 +30,13 @@ function TradeoffPlot() {
     const xs = (pts: { blocks95: number | null }[]) => pts.map((p) => p.blocks95)
     const ys = (pts: { maxStd: number | null }[]) => pts.map((p) => p.maxStd)
     return [
-      { x: xs(res.scalar), y: ys(res.scalar), name: '一般 LMS（掃 μK_q）', mode: 'lines', line: { color: tokens.series[0] } },
-      { x: xs(res.full), y: ys(res.full), name: '完整反矩陣（掃 γ）', mode: 'lines', line: { color: tokens.series[1] } },
-      { x: xs(res.reg), y: ys(res.reg), name: `Regularized（γ=${gammaReg}，掃 λ_reg）`, mode: 'lines', line: { color: tokens.series[2] } },
+      { x: xs(res.scalar), y: ys(res.scalar), name: String.raw`一般 LMS（掃 $\mu K_q$）`, mode: 'lines', line: { color: tokens.series[0] } },
+      { x: xs(res.full), y: ys(res.full), name: String.raw`完整反矩陣（掃 $\gamma$）`, mode: 'lines', line: { color: tokens.series[1] } },
+      { x: xs(res.reg), y: ys(res.reg), name: String.raw`Regularized（$\gamma=${gammaReg}$，掃 $\lambda_{\mathrm{reg}}$）`, mode: 'lines', line: { color: tokens.series[2] } },
       {
         x: xs(res.marks),
         y: ys(res.marks),
-        name: '§10.1 例：μK_q=.5 / γ=.5 / λ_reg=.1',
+        name: String.raw`§10.1 例：$\mu K_q=0.5$ / $\gamma=0.5$ / $\lambda_{\mathrm{reg}}=0.1$`,
         mode: 'text+markers',
         text: res.marks.map((m) => (m.blocks95 === null ? '—' : String(m.blocks95))),
         textposition: 'top center',
@@ -44,7 +44,7 @@ function TradeoffPlot() {
       },
     ]
   }, [res, gammaReg, tokens])
-  const layout = useMemo(() => ({ xaxis: { title: { text: 'k₉₅（blocks，越左越快）' } }, yaxis: { title: { text: 'max_j std(δ_j)（fs，越低越安靜）' } } }), [])
+  const layout = useMemo(() => ({ xaxis: { title: { text: String.raw`$k_{95}$（blocks，越左越快）` } }, yaxis: { title: { text: String.raw`$\max_j\ \operatorname{std}(\delta_j)$（fs，越低越安靜）` } } }), [])
   return (
     <div className="card">
       <TagRow>
@@ -54,7 +54,7 @@ function TradeoffPlot() {
       </TagRow>
       <div className="grid-2">
         <div>
-          <ParamControl label={mathText(String.raw`$\rho$（regressor 相關係數）`)} ariaLabel="ρ（regressor 相關係數）" value={rho} onChange={setRho} min={0} max={0.9999} step={0.0001} digits={6} unit="無因次" reg="BEH_RHO（R₁₂）" />
+          <ParamControl label={mathText(String.raw`$\rho$（regressor 相關係數）`)} ariaLabel="ρ（regressor 相關係數）" value={rho} onChange={setRho} min={0} max={0.9999} step={0.0001} digits={6} unit="無因次" reg="BEH_RHO" hint={String.raw`$\rho=R_{12}$`} />
           <ParamControl label={mathText('$N$（GMAC block 長度）')} ariaLabel="N（GMAC block 長度）" value={N} onChange={setN} min={16} max={1048576} log integer clampOnBlur reg="REG_GMAC_N[19:0]" unit="samples" />
         </div>
         <div>
@@ -74,7 +74,7 @@ function TradeoffPlot() {
         </div>
       </div>
       <Plot
-        title="95% 收斂 blocks（x）vs 穩態每參數 RMS（y）"
+        title="95% 收斂 blocks（$x$）vs 穩態每參數 RMS（$y$）"
         data={data}
         xLog
         yLog
@@ -83,7 +83,7 @@ function TradeoffPlot() {
         layout={layout}
         caption={
           <>
-            每條曲線由 <code>tradeoffSweep()</code> 掃描一個超參數，每點解一次離散 Lyapunov 方程（F-10.15）。y 軸是{' '}
+            每條曲線由 <code>tradeoffSweep()</code> 掃描一個超參數，每點解一次離散 Lyapunov 方程（F-10.15）。<Tex>{'y'}</Tex> 軸是{' '}
             <Tex>{String.raw`\max_j\sqrt{\operatorname{Var}(\delta_j)}`}</Tex>。左下角是理想區；沒有任何曲線同時又快又安靜。
           </>
         }

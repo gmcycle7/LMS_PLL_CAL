@@ -40,7 +40,7 @@ export function S04MeanUpdate() {
       </ul>
       <Diagram id="toy" />
       <p>
-        兩列的方塊一模一樣，只有第二格不同：把兩種情況合寫成 <Tex>{r`e=g\,(a-w)\,x`}</Tex>。圖上第一格是還沒校掉的誤差 <Tex>{r`\delta\,x`}</Tex>（<Tex>{r`\delta=a-w`}</Tex> 是「真值 − 估計」），「× g」就是式子裡的 <Tex>{'g'}</Tex>（A 是 <Tex>{'+1'}</Tex>，B 是 <Tex>{'-0.2'}</Tex>），第三格的{' '}
+        兩列的方塊一模一樣，只有第二格不同：把兩種情況合寫成 <Tex>{r`e=g\,(a-w)\,x`}</Tex>。圖上第一格是還沒校掉的誤差 <Tex>{r`\delta\,x`}</Tex>（<Tex>{r`\delta=a-w`}</Tex> 是「真值 − 估計」），「<Tex>{r`\times g`}</Tex>」就是式子裡的 <Tex>{'g'}</Tex>（A 是 <Tex>{'+1'}</Tex>，B 是 <Tex>{'-0.2'}</Tex>），第三格的{' '}
         <Tex>{r`e=g\,\delta\,x`}</Tex> 就是 PD 看到的殘差。先看 A 列：<Tex>{'q'}</Tex> 和 <Tex>{r`\delta\,x`}</Tex> 同號，所以更新量 <Tex>{r`\mu\,q\,x`}</Tex> 和 <Tex>{r`\delta`}</Tex> 同號，把 <Tex>{'w'}</Tex> 推向 <Tex>{'a'}</Tex>。再看 B 列：紅色那一格把符號翻過來，後面的 sign
         與更新照做，結果每一步都走錯方向。下表就是照這兩列各走四步的結果。
       </p>
@@ -96,7 +96,7 @@ export function S04MeanUpdate() {
       <Diagram id="mean-loop" />
       <p>
         先看迴圈本身：只剩一個延遲（一個 block）、一個矩陣 <Tex>{'C'}</Tex> 和兩個增益。圖上的 <Tex>{'C'}</Tex> 方塊就是推導第 6 步定義的 <Tex>{r`C_{ij}=\langle r_i\,(h_{PD}*x_j)\rangle`}</Tex>，它把 <FigRef id="lms-loop" /> 裡的 <Tex>{r`H_{PD}`}</Tex>、<Tex>{'G'}</Tex> 與 regressor
-        全部收進去；「× <Tex>{'K_q'}</Tex>」是第 3 步把比較器線性化之後的等效增益；加法點上的「−」就是第 7 步 <Tex>{r`\delta_{k+1}=\delta_k-\mu K_q C\,\delta_k`}</Tex> 的負號。再看虛線指到的說明：沿 <Tex>{'C'}</Tex> 的每個特徵方向，這個迴圈每個 block 把誤差乘上{' '}
+        全部收進去；「<Tex>{r`\times K_q`}</Tex>」是第 3 步把比較器線性化之後的等效增益；加法點上的「−」就是第 7 步 <Tex>{r`\delta_{k+1}=\delta_k-\mu K_q C\,\delta_k`}</Tex> 的負號。再看虛線指到的說明：沿 <Tex>{'C'}</Tex> 的每個特徵方向，這個迴圈每個 block 把誤差乘上{' '}
         <Tex>{r`1-\mu K_q\lambda`}</Tex>（<Tex>{r`\lambda`}</Tex> 是 <Tex>{'C'}</Tex> 在那個方向的特徵值，推導後面的先備知識框有說明），所以收不收斂只看 <Tex>{r`\lambda`}</Tex> 的實部是正是負。
       </p>
       <StepDerivation

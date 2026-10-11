@@ -87,17 +87,18 @@ export const LR_DEFAULTS: LrParams = {
 }
 
 const MC_FACTORS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3]
-const TRACE_LAYOUT = { xaxis: { title: { text: 'k（blocks）' } }, yaxis: { title: { text: 'fs²' } } }
-const CASE_LAYOUT = { xaxis: { title: { text: 'μ（fs，log）' } }, yaxis: { title: { text: 'RMS (fs)' } } }
+// Plot 的軸標題、圖例名稱裡的數學寫 `$...$`（Plot 元件會轉成斜體符號與上下標，見 src/components/plotMath.ts）
+const TRACE_LAYOUT = { xaxis: { title: { text: String.raw`$k$（blocks）` } }, yaxis: { title: { text: String.raw`$\mathrm{fs}^2$` } } }
+const CASE_LAYOUT = { xaxis: { title: { text: String.raw`$\mu$（fs，log）` } }, yaxis: { title: { text: 'RMS (fs)' } } }
 
-/** 目標成本的純文字單位（Plotly 軸標題用；KaTeX 版本見 OBJECTIVE_UNIT） */
+/** 目標成本的單位（Plotly 軸標題用，字串裡的 `$...$` 由 Plot 轉成上標；KaTeX 版本見 OBJECTIVE_UNIT） */
 const UNIT_TEXT: Record<Objective, string> = {
-  final: 'fs²',
+  final: String.raw`$\mathrm{fs}^2$`,
   fastest: 'blocks',
-  integrated: 'fs²',
-  spur: 'fs²/(cycle/block)',
-  trackRamp: 'fs²',
-  trackRw: 'fs²',
+  integrated: String.raw`$\mathrm{fs}^2$`,
+  spur: String.raw`$\mathrm{fs}^2$/(cycle/block)`,
+  trackRamp: String.raw`$\mathrm{fs}^2$`,
+  trackRw: String.raw`$\mathrm{fs}^2$`,
 }
 
 export function designModel(p: Pick<LrParams, 'sigmaV' | 'N' | 'T' | 'delta0' | 'thetaDeg' | 'eps' | 'spurFrac' | 'driftRate' | 'driftSigma'>): DesignModel {
@@ -192,8 +193,8 @@ export function LrOptimizerExperiment() {
 
   const decompData = useMemo<Data[]>(() => {
     const d: Data[] = [
-      { x: curves.mus, y: curves.total, name: 'E[δ_B²]（線性 F-14.3）', line: { color: tokens.series[0], width: 2.6 } },
-      { x: curves.mus, y: curves.bias2, name: 'bias² = δ0²·p²ᴮ', line: { color: tokens.series[1], dash: 'dash' } },
+      { x: curves.mus, y: curves.total, name: String.raw`$E[\delta_B^2]$（線性 F-14.3）`, line: { color: tokens.series[0], width: 2.6 } },
+      { x: curves.mus, y: curves.bias2, name: String.raw`$\text{bias}^2 = \delta_0^2\,p^{2B}$`, line: { color: tokens.series[1], dash: 'dash' } },
       { x: curves.mus, y: curves.variance, name: 'variance', line: { color: tokens.series[2], dash: 'dot' } },
     ]
     if (mcRes) {
@@ -225,11 +226,11 @@ export function LrOptimizerExperiment() {
     if (!Number.isFinite(muStar) || m.B < 1) return []
     // B 很大時只畫約 400 個 block（與 worker 記錄的索引相同），避免數十萬點的圖
     const ks = Array.from(traceBlockIndices(m.B))
-    const d: Data[] = [{ x: ks, y: ks.map((k) => msdAfterBlocks(m.delta0, 1 - muStar * m.K, muStar, m.sigmaEta2, k)), name: `線性 F-14.3（μ = ${nf(muStar, 4)} fs）`, line: { color: tokens.series[0], width: 2.4 } }]
+    const d: Data[] = [{ x: ks, y: ks.map((k) => msdAfterBlocks(m.delta0, 1 - muStar * m.K, muStar, m.sigmaEta2, k)), name: String.raw`線性 F-14.3（$\mu = ${tx(muStar, 4)}\,\mathrm{fs}$）`, line: { color: tokens.series[0], width: 2.4 } }]
     if (mcRes) {
       const t = mcRes.trace
       const tk = Array.from(t.k)
-      d.push({ x: tk, y: Array.from(t.msd), name: `MC exact-binomial（μ = ${nf(t.mu, 4)}）`, mode: 'lines+markers', line: { color: tokens.series[4] }, marker: { size: 4 } })
+      d.push({ x: tk, y: Array.from(t.msd), name: String.raw`MC exact-binomial（$\mu = ${tx(t.mu, 4)}$）`, mode: 'lines+markers', line: { color: tokens.series[4] }, marker: { size: 4 } })
       d.push({ x: tk.concat([...tk].reverse()), y: Array.from(t.hi).concat(Array.from(t.lo).reverse()), name: 'MC 95% CI', fill: 'toself', line: { width: 0 }, fillcolor: withAlpha(tokens.series[4], 0.18), hoverinfo: 'skip', showlegend: false })
       if (mcRes.blockLms) d.push({ x: tk, y: Array.from(mcRes.blockLms.curve), name: 'blockLms sample-level', line: { color: tokens.series[5], dash: 'dot' } })
     }
@@ -248,7 +249,7 @@ export function LrOptimizerExperiment() {
             const v = msdAfterBlocks(mc2.delta0, 1 - mu * mc2.K, mu, mc2.sigmaEta2, Math.max(0, mc2.B))
             return Number.isFinite(v) && v < 1e12 ? Math.sqrt(v) : null
           }),
-          name: `Case ${c.id}：N = ${c.params.N}（B = ${mc2.B}）、θ = ${c.params.thetaDeg}°`,
+          name: String.raw`Case ${c.id}：$N = ${c.params.N}$（$B = ${mc2.B}$）、$\theta = ${c.params.thetaDeg}^\circ$`,
           line: { color: tokens.series[c.seriesIndex] },
         }
       }),
@@ -256,12 +257,12 @@ export function LrOptimizerExperiment() {
   )
 
   // Plot 的 layout 也要 memo（每個新物件都會觸發一次 Plotly.react）
-  const decompLayout = useMemo(() => ({ shapes, xaxis: { title: { text: 'μ（fs，log）' } }, yaxis: { title: { text: 'fs²（log）' } } }), [shapes])
+  const decompLayout = useMemo(() => ({ shapes, xaxis: { title: { text: String.raw`$\mu$（fs，log）` } }, yaxis: { title: { text: String.raw`$\mathrm{fs}^2$（log）` } } }), [shapes])
   const objLayout = useMemo(
-    () => ({ shapes, xaxis: { title: { text: 'μ（fs，log）' } }, yaxis: { title: { text: `J（${UNIT_TEXT[dp.objective]}）` } } }),
+    () => ({ shapes, xaxis: { title: { text: String.raw`$\mu$（fs，log）` } }, yaxis: { title: { text: String.raw`$J$（${UNIT_TEXT[dp.objective]}）` } } }),
     [shapes, dp.objective],
   )
-  const objData = useMemo<Data[]>(() => [{ x: curves.mus, y: curves.obj, name: 'J(μ)', line: { color: tokens.series[0], width: 2.4 } }], [curves, tokens])
+  const objData = useMemo<Data[]>(() => [{ x: curves.mus, y: curves.obj, name: String.raw`$J(\mu)$`, line: { color: tokens.series[0], width: 2.4 } }], [curves, tokens])
 
   const warnings = lrWarnings(dp, m, opt.feasible ? undefined : opt.reason)
   const canRun = m.K > 0 && m.B >= 1 && opt.feasible
@@ -338,7 +339,7 @@ export function LrOptimizerExperiment() {
   }
   const metrics: MetricRow[] = [
     { name: String.raw`$B=\lfloor T/N\rfloor$`, value: m.B, unit: 'blocks', digits: 6 },
-    { name: String.raw`$K=K_q\cos\theta$`, value: m.K, unit: 'fs⁻¹', formulaId: 'F-14.1', claim: 'approx' },
+    { name: String.raw`$K=K_q\cos\theta$`, value: m.K, unit: String.raw`$\mathrm{fs}^{-1}$`, formulaId: 'F-14.1', claim: 'approx' },
     { name: String.raw`$\mu^*$（${OBJECTIVE_LABEL[dp.objective]}）`, value: opt.feasible ? opt.mu : '無可行解', unit: 'fs', claim: dp.objective === 'final' ? 'exact' : 'approx', note: opt.atBoundary ? `落在${opt.atBoundary === 'hi' ? '上限（PM／穩定）' : '下限'}邊界` : undefined },
     {
       name: String.raw`RMS $\delta_B$（在 $\mu^*$）`,
@@ -348,7 +349,7 @@ export function LrOptimizerExperiment() {
       claim: linearRisk ? 'approx' : 'exact',
       note: linearRisk ? String.raw`線性化失效風險：$\delta_0/\sigma_v\ge0.3$，以 Monte Carlo 為準（E48）` : '線性化 iid 模型的精確值',
     },
-    { name: String.raw`$\text{bias}^2$／variance（在 $\mu^*$）`, value: split ? `${nf(split.bias2, 4)} / ${nf(split.variance, 4)}` : null, unit: 'fs²' },
+    { name: String.raw`$\text{bias}^2$／variance（在 $\mu^*$）`, value: split ? `${nf(split.bias2, 4)} / ${nf(split.variance, 4)}` : null, unit: String.raw`$\mathrm{fs}^2$` },
     { name: String.raw`pole $p=1-\mu^*K$`, value: opt.feasible ? opt.p : null, formulaId: 'F-14.1' },
     { name: 'PM（$d=0$）', value: opt.feasible ? opt.pmDeg : null, unit: '°', formulaId: 'F-14.14', claim: 'exact' },
     { name: String.raw`$\tau=-1/\ln|p|$`, value: opt.feasible ? opt.tauBlocks : null, unit: 'blocks' },
@@ -364,7 +365,7 @@ export function LrOptimizerExperiment() {
       note: asym.valid ? String.raw`$A=${tx(asym.A, 4)}$` : String.raw`$A=${tx(asym.A, 3)}$：漸近式不適用（需 $A\gg1$、$\ln A\ll2B$）`,
     },
     { name: String.raw`穩態 $\sigma_w$（在 $\mu^*$）`, value: opt.feasible && opt.g < 2 ? Math.sqrt((opt.mu * m.sigmaEta2) / (m.K * (2 - opt.g))) : null, unit: 'fs', formulaId: 'F-14.6' },
-    { name: '校正時間 $T/f_s$', value: (dp.T / dp.fsHz) * 1e6, unit: 'µs' },
+    { name: '校正時間 $T/f_s$', value: (dp.T / dp.fsHz) * 1e6, unit: String.raw`$\mu\mathrm{s}$` },
     { name: 'block rate $f_u=f_s/N$', value: fu / 1e3, unit: 'kHz' },
     {
       name: String.raw`校正頻寬 $f_{3\mathrm{dB}}$（精確 $-3\,\mathrm{dB}$ 點）`,
@@ -379,7 +380,7 @@ export function LrOptimizerExperiment() {
     metrics.push({
       name: String.raw`MC exact-binomial $E[\delta_B^2]$（$\mu^*$）`,
       value: mcRes.msd[i],
-      unit: 'fs²',
+      unit: String.raw`$\mathrm{fs}^2$`,
       analytic: mcRes.linear[i],
       tolerance: (mcRes.hi[i] - mcRes.lo[i]) / 2,
       claim: 'approx',
@@ -387,7 +388,7 @@ export function LrOptimizerExperiment() {
     })
     if (mcRes.blockLms) {
       const b = mcRes.blockLms
-      metrics.push({ name: String.raw`blockLms sample-level $E[\delta_B^2]$（$\mu^*$）`, value: b.msdB, unit: 'fs²', analytic: mcRes.linear[i], tolerance: (b.hi - b.lo) / 2, claim: 'approx', note: `${b.runs} runs、${b.samples} samples` })
+      metrics.push({ name: String.raw`blockLms sample-level $E[\delta_B^2]$（$\mu^*$）`, value: b.msdB, unit: String.raw`$\mathrm{fs}^2$`, analytic: mcRes.linear[i], tolerance: (b.hi - b.lo) / 2, claim: 'approx', note: `${b.runs} runs、${b.samples} samples` })
     }
   }
 

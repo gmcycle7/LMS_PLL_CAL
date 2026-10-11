@@ -144,11 +144,11 @@ export function HandCalcSection() {
       <ChapterDiagram name="CHART_HANDCALC_STEP">
         <p>
           先看最左邊「已知」的四個數。再看箭頭串起來的四格，每一格只做一種運算：① 一次乘法得到預測、② 一次減法得到誤差、③ 連乘得到修正量 <Tex>{'\\Delta w'}</Tex>、④ 一次加法得到新的{' '}
-          <Tex>{'w'}</Tex>。然後沿著回授線回到 ①：線上帶回去的是剛算出的新 <Tex>{'w'}</Tex>（<code>w[1]</code>），用它再算一圈。
+          <Tex>{'w'}</Tex>。然後沿著回授線回到 ①：線上帶回去的是剛算出的新 <Tex>{'w'}</Tex>（<Tex>{'w[1]'}</Tex>），用它再算一圈。
         </p>
         <p>
-          圖上的 <code>w[0]、ŷ[0]、e[0]、Δw[0]、w[1]</code> 就是下面逐步推導裡的 <Tex>{'w_0,\\ \\hat y_0,\\ e_0,\\ \\Delta w_0,\\ w_1'}</Tex>，四格的數字和推導的四行一一對應；回授線上的{' '}
-          <code>w[2] = {num(r1.wNext)}</code> 是帶著 <code>w[1]</code> 再算一圈之後得到的結果。
+          圖上的 <Tex>{'w[0],\\ \\hat y[0],\\ e[0],\\ \\Delta w[0],\\ w[1]'}</Tex> 就是下面逐步推導裡的 <Tex>{'w_0,\\ \\hat y_0,\\ e_0,\\ \\Delta w_0,\\ w_1'}</Tex>，四格的數字和推導的四行一一對應；回授線上的{' '}
+          <Tex>{`w[2] = ${num(r1.wNext)}`}</Tex> 是帶著 <Tex>{'w[1]'}</Tex> 再算一圈之後得到的結果。
         </p>
       </ChapterDiagram>
 
@@ -328,7 +328,7 @@ export function HandCalcSection() {
                 <th className="num">IEEE double（conventionalStep）</th>
                 <th className="num">最接近精確值的 double</th>
                 <th className="num">差幾個 ulp</th>
-                <th className="num">double − 精確（真正的差）</th>
+                <th className="num">double <Tex>{'-'}</Tex> 精確（真正的差）</th>
               </tr>
             </thead>
             <tbody>

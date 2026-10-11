@@ -109,7 +109,7 @@ export function DcNullExperiment() {
       { x: labels, y: analytic.rows.map((r) => r.meanField), type: 'bar', name: 'mean-field', marker: { color: tokens.series[0] } },
     ]
     if (valid && p.algorithm === 'sign')
-      out.push({ x: labels, y: valid.rows.map((r) => r.servoAware), type: 'bar', name: 'servo-aware（σ_eff）', marker: { color: tokens.series[3] } })
+      out.push({ x: labels, y: valid.rows.map((r) => r.servoAware), type: 'bar', name: String.raw`servo-aware（$\sigma_\mathrm{eff}$）`, marker: { color: tokens.series[3] } })
     if (valid)
       out.push({
         x: labels,
@@ -125,7 +125,7 @@ export function DcNullExperiment() {
   const layout: Partial<Layout> = useMemo(
     () => ({
       barmode: 'group',
-      yaxis: { title: { text: 'w*（t.u.）' } },
+      yaxis: { title: { text: String.raw`$w^*$（t.u.）` } },
       shapes: [{ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: 1, y1: 1, line: { color: tokens.textMuted, dash: 'dash', width: 1 } }],
     }),
     [tokens],
@@ -230,9 +230,9 @@ export function DcNullExperiment() {
       onLoadPreset={(pr) => setP({ ...DEFAULT, ...(pr.params as Partial<P>) })}
       controls={
         <>
-          <ParamControl label="b（comparator offset）" value={p.b} onChange={set('b')} min={-2} max={2} step={0.01} unit="t.u." reg="Behavioral：comparator offset b" />
-          <ParamControl label="c₂（二階 INL）" value={p.c2} onChange={set('c2')} min={-0.5} max={0.5} step={0.005} unit="t.u." reg="Behavioral：DTC INL c₂" />
-          <ParamControl label="c₃（三階 INL）" value={p.c3} onChange={set('c3')} min={-0.5} max={0.5} step={0.005} unit="t.u." reg="Behavioral：DTC INL c₃" />
+          <ParamControl label="$b$（comparator offset）" value={p.b} onChange={set('b')} min={-2} max={2} step={0.01} unit="t.u." reg="Behavioral：comparator offset b" />
+          <ParamControl label="$c_2$（二階 INL）" value={p.c2} onChange={set('c2')} min={-0.5} max={0.5} step={0.005} unit="t.u." reg="Behavioral：DTC INL c2" />
+          <ParamControl label="$c_3$（三階 INL）" value={p.c3} onChange={set('c3')} min={-0.5} max={0.5} step={0.005} unit="t.u." reg="Behavioral：DTC INL c3" />
           <SelectControl
             label="code 分布"
             value={p.codeKind}
@@ -240,8 +240,8 @@ export function DcNullExperiment() {
             options={(['unipolar4', 'uniform_residue', 'dsm', 'five_level', 'gaussian'] as const).map((k) => ({ value: k, label: CODE_KIND_LABEL[k] }))}
             reg="DSM / training pattern"
           />
-          <ParamControl label="code 平移 x₀" value={p.codeShift} onChange={set('codeShift')} min={-3} max={3} step={0.01} unit="code" reg="REG_CODE_OFFSET" />
-          <ParamControl label="σ_v" value={p.sigmaV} onChange={set('sigmaV')} min={0} max={5} step={0.01} unit="t.u." reg="Behavioral：comparator noise σ_v" />
+          <ParamControl label="code 平移 $x_0$" value={p.codeShift} onChange={set('codeShift')} min={-3} max={3} step={0.01} unit="code" reg="REG_CODE_OFFSET" />
+          <ParamControl label="$\sigma_v$" value={p.sigmaV} onChange={set('sigmaV')} min={0} max={5} step={0.01} unit="t.u." reg="Behavioral：comparator noise sigma_v" />
           <SelectControl
             label="演算法"
             value={p.algorithm}
@@ -249,7 +249,7 @@ export function DcNullExperiment() {
             options={(['sign', 'mse'] as const).map((v) => ({ value: v, label: ALGORITHM_LABEL[v] }))}
             reg="GMAC_MODE"
           />
-          <ParamControl label="N" value={p.N} onChange={set('N')} min={1} max={1024} integer clampOnBlur unit="samples" reg="REG_GMAC_N" />
+          <ParamControl label="$N$" value={p.N} onChange={set('N')} min={1} max={1024} integer clampOnBlur unit="samples" reg="REG_GMAC_N" />
           <ParamControl label="blocks" value={p.blocks} onChange={set('blocks')} min={200} max={20000} integer clampOnBlur unit="blocks" reg="Behavioral：模擬長度" />
           <ParamControl label="chains" value={p.chains} onChange={set('chains')} min={2} max={32} integer clampOnBlur unit="chains" reg="Behavioral：MC 次數" />
         </>

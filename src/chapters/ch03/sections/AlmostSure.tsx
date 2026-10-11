@@ -103,7 +103,7 @@ function LambdaPlot() {
         const l = lyapunovExponent(mu, dist)
         return Number.isFinite(l) ? l : null
       }),
-      name: `λ(μ)：${label}`,
+      name: T`$\lambda(\mu)$：${label}`,
       mode: 'lines',
       line: { color: tokens.series[i], width: 2 },
     }))
@@ -113,17 +113,17 @@ function LambdaPlot() {
       x: [g.asMax, fast.mu],
       y: [0, fast.lambda],
       mode: 'text+markers',
-      text: [`μ_as ≈ ${num(g.asMax, 5)}`, `最快 μ ≈ ${num(fast.mu, 4)}`],
+      text: [T`$\mu_{\mathrm{as}} \approx ${tnum(g.asMax, 5)}$`, T`最快 $\mu \approx ${tnum(fast.mu, 4)}$`],
       textposition: 'top center',
       name: 'Gaussian 的界限與最快點',
       marker: { size: 10, color: tokens.text, symbol: 'diamond' },
       textfont: { color: tokens.text, size: 11 },
     } as Data)
-    traces.push({ x: [0.01, 4], y: [0, 0], mode: 'lines', name: 'λ = 0', line: { color: tokens.textMuted, dash: 'dash', width: 1.5 } })
+    traces.push({ x: [0.01, 4], y: [0, 0], mode: 'lines', name: T`$\lambda = 0$`, line: { color: tokens.textMuted, dash: 'dash', width: 1.5 } })
     return traces
   }, [tokens])
   const layout = useMemo<Partial<Layout>>(
-    () => ({ xaxis: { title: { text: 'μ（log；P_x = 1 或稀疏 code）' }, type: 'log' }, yaxis: { title: { text: 'λ(μ) = E ln|1 − μx²|' }, range: [-1.5, 1.2] } }),
+    () => ({ xaxis: { title: { text: T`$\mu$（log；$P_x = 1$ 或稀疏 code）` }, type: 'log' }, yaxis: { title: { text: T`$\lambda(\mu) = E\ln|1 - \mu x^2|$` }, range: [-1.5, 1.2] } }),
     [],
   )
   return (

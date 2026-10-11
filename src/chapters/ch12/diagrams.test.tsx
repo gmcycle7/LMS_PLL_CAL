@@ -3,8 +3,8 @@ import mermaid from 'mermaid'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
 import { defaultValues, systemMapChart } from '@/components'
-import { sanitizeMermaidSource } from '@/components/mermaidSource'
-import { installMermaidSvgShim, renderMermaidForTest } from '@/components/mermaidTestUtils'
+import { mermaidMathDelimiters, sanitizeMermaidSource } from '@/components/mermaidSource'
+import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { calLoop, spurBeta, spurDbcSmallAngle } from '@/simulation/models/calNoise'
 import Chapter12 from './index'
 import { CODE_TABLE_PRM, codeTable } from './common'
@@ -15,8 +15,10 @@ import { HANDCALCS } from './handcalcs'
 /**
  * 第 12 章的方塊圖測試（docs/teaching-style.md §8）。
  *  1. 每一張圖都用「真正的」mermaid 畫一次（@/components/mermaidTestUtils；這個檔案沒有 mock mermaid 套件）：
- *     畫出來的文字不含「Unsupported markdown」、每個標籤都原封不動出現在圖上、節點數不超過 14。
- *  2. 用 mermaid 自己的 parser 取出節點與連線，逐條核對訊號名稱、箭頭方向、加法點的正負號、延遲的位置與正文公式一致。
+ *     畫出來的文字不含「Unsupported markdown」與殘留的 `$`、KaTeX 以外的文字沒有 Unicode 拼的數學（unicodeMathIn）、
+ *     每個含公式的標籤都由 KaTeX 排版（mathCount）、標籤裡的文字部分原封不動出現在圖上、節點數不超過 14。
+ *  2. 用 mermaid 自己的 parser 取出節點與連線（原始碼裡的 `$...$` 標籤），逐條核對訊號名稱、箭頭方向、加法點的正負號、
+ *     延遲的位置與正文公式一致（斷言直接比對標籤的 TeX 原始碼）。
  *  3. 整章渲染（只渲染一次，之後各個測試查同一份 DOM 快照）：為了不在 jsdom 裡再排版一次 SVG，把 @/components 的
  *     Mermaid／SystemMap 換成只記錄 props 的替身，核對頁面上畫出來的圖與 CH12_CHARTS 完全相同（數量、順序）、
  *     章首有系統地圖、每張圖都放在對應公式之前。Plot 與三個互動實驗和本檔無關，也換成空元件。
@@ -122,9 +124,9 @@ function labelHazard(text: string): string | null {
   return null
 }
 
-/** 拿掉延遲方塊（z⁻¹）之後，圖上還有沒有迴圈；有的話就是「沒有延遲的迴圈」（algebraic loop）。 */
+/** 拿掉延遲方塊（$z^{-1}$）之後，圖上還有沒有迴圈；有的話就是「沒有延遲的迴圈」（algebraic loop）。 */
 function hasDelayFreeLoop(g: Flow): boolean {
-  const delay = new Set(g.vertices.filter((v) => (v.text ?? '').includes('z⁻¹')).map((v) => v.id))
+  const delay = new Set(g.vertices.filter((v) => (v.text ?? '').includes('z^{-1}')).map((v) => v.id))
   const next = new Map<string, string[]>()
   for (const e of g.edges) {
     if (delay.has(e.start) || delay.has(e.end)) continue
@@ -146,6 +148,18 @@ function hasLoop(g: Flow): boolean {
   return hasDelayFreeLoop({ ...g, vertices: g.vertices.map((v) => ({ ...v, text: '' })) })
 }
 
+/** 原始碼裡所有雙引號標籤（節點、連線、subgraph 標題）。 */
+const labelsOf = (chart: string): string[] => chart.match(/"[^"\n]*"/g)?.map((l) => l.slice(1, -1)) ?? []
+/** 含 `$...$` 公式的標籤數：每一個都要由 KaTeX 排版出一個 `.katex`。 */
+const mathLabelCount = (chart: string): number => labelsOf(chart).filter((l) => l.includes('$')).length
+/** 標籤裡「公式以外」的文字片段（依 `$...$` 與 <br/> 切開）：這些字必須原封不動出現在圖上。 */
+const textChunks = (label: string): string[] =>
+  label
+    .replace(/\$(?:[^$\\]|\\.)+?\$/g, '\uE000')
+    .split(/\uE000|<br\s*\/?>/)
+    .map(squash)
+    .filter((c) => c.length > 0)
+
 describe('第 12 章方塊圖：清單', () => {
   it(`共 ${N_CHARTS} 張圖，名稱與內容都不重複；diagrams.ts 匯出的每一張都在清單裡；舊的雜訊傳遞鏈仍是第一張`, () => {
     expect(CH12_CHARTS.length).toBe(N_CHARTS)
@@ -165,110 +179,103 @@ describe('第 12 章方塊圖：清單', () => {
     expect(CH12_CHARTS.length + 1).toBeGreaterThanOrEqual(8)
   })
 
-  it('語法衛生：沒有裸的 <（只允許 <br/>）、沒有分號、沒有未代入的樣板或 NaN；正負號直接寫成全形「＋」與減號「−」，不靠元件替換', () => {
+  it('語法衛生：沒有裸的 <（只允許 <br/>）、沒有分號、沒有未代入的樣板或 NaN；數學一律寫 `$...$`（成對、不用雙反斜線），正負號不寫單獨的半形 +／-，不靠元件替換', () => {
     for (const { name, chart } of CH12_CHARTS) {
       expect(chart.replace(/<br\/>/g, ''), name).not.toMatch(/</)
       expect(chart, name).not.toMatch(/;/)
       expect(chart, name).not.toMatch(/\$\{|NaN|undefined|Infinity/)
-      // 共用的 Mermaid 元件會把單獨的 +／- 換掉；原始碼本來就寫對的話，替換前後應該完全一樣
-      expect(sanitizeMermaidSource(chart), name).toBe(chart)
+      // 只有 flowchart 的標籤支援 KaTeX（sequenceDiagram／stateDiagram 的文字不支援，`$...$` 會原樣顯示）
+      expect(chart, name).toMatch(/^flowchart (LR|TB)\n/)
+      // Mermaid 會把標籤裡連續兩個反斜線收成一個：TeX 的反斜線只寫一次（String.raw），換行用 <br/>
+      expect(chart, name).not.toMatch(/\\\\/)
+      // 每個標籤的 `$` 都成對（一個標籤可以有好幾段公式）
+      for (const l of labelsOf(chart)) expect((l.match(/\$/g) ?? []).length % 2, `${name}：${l}`).toBe(0)
+      expect(mathLabelCount(chart), `${name} 至少有一個公式標籤`).toBeGreaterThan(0)
+      // 共用的 Mermaid 元件會把單獨的 +／- 換掉；原始碼本來就寫對的話，元件唯一做的事是把含公式的標籤合併成單一的 `$$...$$`
+      expect(sanitizeMermaidSource(chart), name).toBe(mermaidMathDelimiters(chart))
       expect(chart, name).not.toMatch(/\(\(\s*"?[+-]"?\s*\)\)|"[+-]"|"[+\-*] /)
       // 三種標色用同一組深淺主題都看得清楚的顏色（白字配深色底）
-      if (name !== 'CHART_BLOCK_TIMING') {
-        expect(chart, name).toContain('classDef focus fill:#1f5fa8,stroke:#0d3b6e,color:#ffffff')
-        expect(chart, name).toContain('classDef warn fill:#b42318,stroke:#7a160f,color:#ffffff')
-        expect(chart, name).toContain('classDef ok fill:#1d7a46,stroke:#0f4d2b,color:#ffffff')
-        expect(chart, name).toMatch(/\n {2}class [A-Za-z0-9,]+ (focus|warn|ok)/)
-      }
+      expect(chart, name).toContain('classDef focus fill:#1f5fa8,stroke:#0d3b6e,color:#ffffff')
+      expect(chart, name).toContain('classDef warn fill:#b42318,stroke:#7a160f,color:#ffffff')
+      expect(chart, name).toContain('classDef ok fill:#1d7a46,stroke:#0f4d2b,color:#ffffff')
+      expect(chart, name).toMatch(/\n {2}class [A-Za-z0-9,]+ (focus|warn|ok)/)
     }
   })
 })
 
 describe('第 12 章方塊圖：真的畫一次（mermaid.render）', () => {
-  const drawn = new Map<string, { text: string; nodeCount: number }>()
+  const drawn = new Map<string, { text: string; plainText: string; nodeCount: number; mathCount: number }>()
   const flows = new Map<string, Flow | null>()
-  let mapText = ''
+  let mapDrawn: { text: string; plainText: string; mathCount: number } = { text: '', plainText: '', mathCount: 0 }
   beforeAll(async () => {
     installMermaidSvgShim()
     for (const { name, chart } of CH12_CHARTS) {
       try {
-        const { text, nodeCount } = await renderMermaidForTest(chart)
-        drawn.set(name, { text, nodeCount })
+        const { text, plainText, nodeCount, mathCount } = await renderMermaidForTest(chart)
+        drawn.set(name, { text, plainText, nodeCount, mathCount })
       } catch (err) {
         throw new Error(`${name} render 失敗：${err instanceof Error ? err.message : String(err)}`)
       }
       flows.set(name, await flow(chart))
     }
-    mapText = (await renderMermaidForTest(systemMapChart(CH12_SYSTEM_FOCUS))).text
+    mapDrawn = await renderMermaidForTest(systemMapChart(CH12_SYSTEM_FOCUS))
   }, T_SLOW)
 
-  it('每一張都畫得出來：沒有「Unsupported markdown」，節點數不超過 14（subgraph 的標題不算節點）', () => {
+  it('每一張都畫得出來：沒有「Unsupported markdown」、沒有殘留的 `$`、KaTeX 以外的文字沒有 Unicode 拼的數學，節點數不超過 14（subgraph 的標題不算節點）', () => {
     expect(drawn.size).toBe(N_CHARTS)
     for (const { name } of CH12_CHARTS) {
-      const { text, nodeCount } = drawn.get(name) as { text: string; nodeCount: number }
+      const { text, plainText, nodeCount } = drawn.get(name) as { text: string; plainText: string; nodeCount: number }
       expect(text, name).not.toMatch(/Unsupported markdown/)
       expect(text, name).not.toMatch(/Syntax error/i)
+      // 公式都由 KaTeX 排版：畫出來的文字裡不會有 `$`；KaTeX 以外的文字沒有希臘字母、上下標、運算符號、w_k 這類 Unicode／底線拼的數學
+      expect(text, name).not.toContain('$')
+      expect(unicodeMathIn(plainText), `${name} 還有 Unicode 拼的數學`).toEqual([])
       expect(nodeCount, `${name}: ${nodeCount} 個節點`).toBeLessThanOrEqual(14)
       const g = flows.get(name)
-      if (!g) {
-        // sequenceDiagram：沒有 flowchart 節點；三個參與者都畫出來
-        expect(name).toBe('CHART_BLOCK_TIMING')
-        expect(chartOf(name).match(/^\s*participant /gm)?.length, name).toBe(3)
-        for (const who of ['Comparator 與 GMAC（每個 sample）', 'LMS 累加器（每個 block）', 'DTC 的 gain（每個 sample）']) expect(squash(text), who).toContain(squash(who))
-        continue
-      }
+      if (!g) throw new Error(`${name} 不是 flowchart`)
       // parser 看到幾個節點，圖上就畫出幾個
       expect(nodeCount, `${name}: 畫出 ${nodeCount} 個、parser 有 ${g.vertices.length} 個`).toBe(g.vertices.length)
       expect(g.vertices.length, `${name}: ${g.vertices.length} 個節點`).toBeGreaterThanOrEqual(5)
     }
   })
 
-  it('每個節點、每條連線、每個框的文字都原封不動出現在圖上（沒有被 Markdown／HTML 解析吃掉字元）', () => {
+  it('每個含 `$...$` 的標籤（節點、連線、subgraph 標題）都由 KaTeX 排版成一個公式；標籤裡公式以外的文字原封不動出現在圖上（沒有被 Markdown／HTML 解析吃掉字元）', () => {
     for (const { name, chart } of CH12_CHARTS) {
-      const text = squash((drawn.get(name) as { text: string }).text)
-      const g = flows.get(name)
-      if (!g) {
-        // sequenceDiagram：每一則訊息與註記
-        const lines = chart.split('\n').map((l) => /^\s*(?:Note over \w+|\w+->>\w+): (.+)$/.exec(l)?.[1])
-        const msgs = lines.filter((x): x is string => typeof x === 'string')
-        expect(msgs.length, name).toBe(8) // 4 則註記 + 4 則訊息
-        for (const m of msgs) {
-          expect(labelHazard(m), `${name}：${m}`).toBeNull()
-          expect(text, `${name}：${m}`).toContain(squash(m))
-        }
-        continue
+      const d = drawn.get(name) as { text: string; mathCount: number }
+      // 原始碼裡有幾個公式標籤，圖上就有幾個 .katex（少了代表某個標籤沒被排版，`$` 會原樣露出來）
+      expect(d.mathCount, `${name} 的 KaTeX 公式數`).toBe(mathLabelCount(chart))
+      const text = squash(d.text)
+      const g = flows.get(name) as Flow
+      const check = (where: string, label: string) => {
+        expect(labelHazard(label), `${name} ${where}`).toBeNull()
+        for (const c of textChunks(label)) expect(text, `${name} ${where}：「${c}」`).toContain(c)
       }
       for (const v of g.vertices) {
         expect((v.text ?? '').length, `${name} 節點 ${v.id} 沒有文字`).toBeGreaterThan(0)
-        expect(labelHazard(v.text ?? ''), `${name} 節點 ${v.id}`).toBeNull()
-        expect(text, `${name} 節點 ${v.id}`).toContain(squash(v.text ?? ''))
+        check(`節點 ${v.id}`, v.text ?? '')
       }
-      for (const e of g.edges) {
-        if (!e.text) continue
-        expect(labelHazard(e.text), `${name} 連線 ${e.start}→${e.end}`).toBeNull()
-        expect(text, `${name} 連線 ${e.start}→${e.end}`).toContain(squash(e.text))
-      }
-      for (const s of g.subgraphs) expect(text, `${name} 框 ${s.id}`).toContain(squash(s.title))
+      for (const e of g.edges) if (e.text) check(`連線 ${e.start}→${e.end}`, e.text)
+      for (const s of g.subgraphs) check(`框 ${s.id}`, s.title)
     }
   })
 
-  it('加法點、乘法點與延遲：每條進加法點的線都標了正負號；每個乘號恰有兩個輸入；離散時間的迴圈一定經過 z⁻¹', () => {
+  it('加法點、乘法點與延遲：每條進加法點的線都標了正負號；每個乘號恰有兩個輸入；離散時間的迴圈一定經過 $z^{-1}$', () => {
     const withSum: string[] = []
     const withLoop: string[] = []
     for (const { name } of CH12_CHARTS) {
       const g = flows.get(name)
       if (!g) continue
-      // 加法點 = 圓形節點、文字是全形「＋」；每條進來的線都要以「＋」或「−」開頭，而且至少兩條
-      const sums = g.vertices.filter((v) => v.type === 'circle' && v.text === '＋')
+      // 加法點 = 圓形節點、文字是 `$+$`；每條進來的線都要以 `$+` 或 `$-` 開頭，而且至少兩條
+      const sums = g.vertices.filter((v) => v.type === 'circle' && v.text === '$+$')
       if (sums.length) withSum.push(name)
       for (const s of sums) {
         const incoming = g.edges.filter((e) => e.end === s.id)
         expect(incoming.length, `${name} 加法點 ${s.id}`).toBeGreaterThanOrEqual(2)
-        for (const e of incoming) expect(e.text ?? '', `${name}：${e.start} → ${s.id} 要標正負號`).toMatch(/^[＋−]/)
+        for (const e of incoming) expect(e.text ?? '', `${name}：${e.start} → ${s.id} 要標正負號`).toMatch(/^\$[+-]/)
         expect(g.edges.filter((e) => e.start === s.id).length, `${name} 加法點 ${s.id} 的輸出`).toBeGreaterThanOrEqual(1)
       }
-      // 乘法點（×）與卷積（∗）：兩個輸入、至少一個輸出
-      for (const m of g.vertices.filter((v) => v.type === 'circle' && (v.text === '×' || v.text === '∗'))) {
+      // 乘法點（$\times$）與卷積（$\ast$）：兩個輸入、至少一個輸出
+      for (const m of g.vertices.filter((v) => v.type === 'circle' && (v.text === '$\\times$' || v.text === '$\\ast$'))) {
         expect(g.edges.filter((e) => e.end === m.id).length, `${name} 乘法點 ${m.id}`).toBe(2)
         expect(g.edges.filter((e) => e.start === m.id).length, `${name} 乘法點 ${m.id} 的輸出`).toBeGreaterThanOrEqual(1)
       }
@@ -290,216 +297,240 @@ describe('第 12 章方塊圖：真的畫一次（mermaid.render）', () => {
     }
     // F-12.1 的實際電路：e[n] = C·(a − w_k)·x[n] + v[n]，q = sign(e)，G_k = (1/N)·Σ q·x
     const lin = g('CHART_GMAC_LINEAR')
-    expect(vertexText(lin, 'A')).toContain('a − w_k = −δw_k') // a − w 與 δw 方向相反
+    expect(vertexText(lin, 'A')).toContain('$a - w_k = -\\delta w_k$') // a − w 與 δw 方向相反
     expect(hasEdge(lin, 'A', 'X1') && hasEdge(lin, 'XC', 'X1')).toBe(true)
-    expect(vertexText(lin, 'XC')).toContain('C·x[n]')
-    expect(edgeText(lin, 'X1', 'S1')).toBe('＋')
-    expect(edgeText(lin, 'V', 'S1')).toBe('＋')
-    expect(edgeText(lin, 'S1', 'SGN')).toBe('e[n]')
-    expect(edgeText(lin, 'SGN', 'X2')).toBe('q[n]')
+    expect(vertexText(lin, 'XC')).toContain('$C\\,x[n]$')
+    expect(edgeText(lin, 'X1', 'S1')).toBe('$+$')
+    expect(edgeText(lin, 'V', 'S1')).toBe('$+$')
+    expect(edgeText(lin, 'S1', 'SGN')).toBe('$e[n]$')
+    expect(edgeText(lin, 'SGN', 'X2')).toBe('$q[n]$')
     expect(hasEdge(lin, 'XR', 'X2') && hasEdge(lin, 'X2', 'AVG')).toBe(true)
     // F-12.1 的等效模型：G_k ≈ −K·δw_k + η_k —— K 那一路以負號、η 以正號進入加法點
-    expect(vertexText(lin, 'DW')).toBe('δw_k = w_k − w*')
+    expect(vertexText(lin, 'DW')).toBe('$\\delta w_k = w_k - w^*$')
     expect(hasEdge(lin, 'DW', 'KB')).toBe(true)
-    expect(vertexText(lin, 'KB')).toContain('K = K_q·C')
-    expect(edgeText(lin, 'KB', 'S2')).toBe('−')
-    expect(edgeText(lin, 'ETA', 'S2')).toBe('＋')
-    expect(vertexText(lin, 'ETA')).toContain('σ_η² ≈ 1/N')
-    expect(edgeText(lin, 'AVG', 'SAME')).toContain('G_k')
-    expect(edgeText(lin, 'S2', 'SAME')).toContain('G_k')
+    expect(vertexText(lin, 'KB')).toContain('$K = K_q C$')
+    expect(edgeText(lin, 'KB', 'S2')).toBe('$-$')
+    expect(edgeText(lin, 'ETA', 'S2')).toBe('$+$')
+    expect(vertexText(lin, 'ETA')).toContain('$\\sigma_\\eta^2 \\approx 1/N$')
+    expect(edgeText(lin, 'AVG', 'SAME')).toContain('$G_k$')
+    expect(edgeText(lin, 'S2', 'SAME')).toContain('$G_k$')
     // 實際電路在 sample rate（索引 n），等效模型在 block rate（索引 k）
-    expect(lin.subgraphs.find((s) => s.id === 'REAL')?.title).toBe('實際電路：每個 sample 做一次（索引 n）')
-    expect(lin.subgraphs.find((s) => s.id === 'LIN')?.title).toBe('等效模型：每個 block 一個值（索引 k）')
+    expect(lin.subgraphs.find((s) => s.id === 'REAL')?.title).toBe('實際電路：每個 sample 做一次（索引 $n$）')
+    expect(lin.subgraphs.find((s) => s.id === 'LIN')?.title).toBe('等效模型：每個 block 一個值（索引 $k$）')
 
     // 更新迴圈：G_k = η_k − K·δw_k；δw_{k+1} = δw_k + μ·G_k；延遲在累加器的輸出
     const upd = g('CHART_UPDATE_LOOP')
-    expect(edgeText(upd, 'ETA', 'S1')).toBe('＋')
-    expect(edgeText(upd, 'KB', 'S1')).toMatch(/^− K·δw_k/)
-    expect(edgeText(upd, 'S1', 'MU')).toBe('G_k')
-    expect(vertexText(upd, 'MU')).toBe('× μ')
-    expect(edgeText(upd, 'MU', 'S2')).toBe('＋ μ·G_k')
-    expect(edgeText(upd, 'D', 'S2')).toMatch(/^＋ δw_k/)
-    expect(edgeText(upd, 'S2', 'D')).toBe('δw_{k+1}')
-    expect(vertexText(upd, 'D')).toContain('z⁻¹')
-    expect(edgeText(upd, 'D', 'OUT')).toBe('δw_k')
+    expect(edgeText(upd, 'ETA', 'S1')).toBe('$+$')
+    expect(edgeText(upd, 'KB', 'S1')).toMatch(/^\$-K\\,\\delta w_k\$/)
+    expect(edgeText(upd, 'S1', 'MU')).toBe('$G_k$')
+    expect(vertexText(upd, 'MU')).toBe('$\\times\\,\\mu$')
+    expect(edgeText(upd, 'MU', 'S2')).toBe('$+\\mu G_k$')
+    expect(edgeText(upd, 'D', 'S2')).toMatch(/^\$\+\\delta w_k\$/)
+    expect(edgeText(upd, 'S2', 'D')).toBe('$\\delta w_{k+1}$')
+    expect(vertexText(upd, 'D')).toContain('$z^{-1}$')
+    expect(edgeText(upd, 'D', 'OUT')).toBe('$\\delta w_k$')
     expect(hasEdge(upd, 'D', 'KB')).toBe(true)
 
     // F-12.2 / F-12.3：δw_{k+1} = p·δw_k + μ·η_k，H(z) = μ/(z − p)，延遲在迴圈內（前向與回授都經過它）
     const coef = g('CHART_COEF_LOOP')
     expect(hasEdge(coef, 'ETA', 'MU')).toBe(true)
-    expect(edgeText(coef, 'MU', 'S')).toBe('＋ μ·η_k')
-    expect(edgeText(coef, 'P', 'S')).toBe('＋ p·δw_k')
-    expect(edgeText(coef, 'S', 'D')).toBe('δw_{k+1}')
-    expect(vertexText(coef, 'D')).toBe('z⁻¹')
-    expect(edgeText(coef, 'D', 'OUT')).toBe('δw_k')
+    expect(edgeText(coef, 'MU', 'S')).toBe('$+\\mu\\eta_k$')
+    expect(edgeText(coef, 'P', 'S')).toBe('$+p\\,\\delta w_k$')
+    expect(edgeText(coef, 'S', 'D')).toBe('$\\delta w_{k+1}$')
+    expect(vertexText(coef, 'D')).toBe('$z^{-1}$')
+    expect(edgeText(coef, 'D', 'OUT')).toBe('$\\delta w_k$')
     expect(hasEdge(coef, 'D', 'P')).toBe(true)
-    expect(vertexText(coef, 'P')).toContain('p = 1 − μK')
-    expect(squash(vertexText(coef, 'HZ'))).toBe(squash('H(z) = μ/(z − p)= μ·z⁻¹/(1 − p·z⁻¹)'))
+    expect(vertexText(coef, 'P')).toContain('$p = 1 - \\mu K$')
+    expect(squash(vertexText(coef, 'HZ'))).toBe(squash('$H(z) = \\mu/(z - p)$<br/>$= \\mu z^{-1}/(1 - p z^{-1})$'))
 
     // F-12.4 / F-12.5
-    expect(D.CHART_PSD_FILTER).toContain('μ² / (1 − 2p·cosΩ + p²)')
-    expect(D.CHART_PSD_FILTER).toContain('σ_w² = μ²·σ_η² / (1 − p²)')
-    expect(D.CHART_PSD_FILTER).toContain('μ²/(1 − p)²') // DC
-    expect(D.CHART_PSD_FILTER).toContain('μ²/(1 + p)²') // Nyquist
+    expect(D.CHART_PSD_FILTER).toContain('\\mu^2 / (1 - 2p\\cos\\Omega + p^2)')
+    expect(D.CHART_PSD_FILTER).toContain('\\sigma_w^2 = \\mu^2\\sigma_\\eta^2 / (1 - p^2)')
+    expect(D.CHART_PSD_FILTER).toContain('\\mu^2/(1 - p)^2') // DC
+    expect(D.CHART_PSD_FILTER).toContain('\\mu^2/(1 + p)^2') // Nyquist
     // 變異數迴圈：V_{k+1} = p²·V_k + μ²·σ_η²
     const vl = g('CHART_VAR_LOOP')
-    expect(vertexText(vl, 'Q')).toContain('μ²·σ_η²')
-    expect(edgeText(vl, 'Q', 'S')).toBe('＋')
-    expect(edgeText(vl, 'P2', 'S')).toBe('＋')
-    expect(edgeText(vl, 'S', 'D')).toBe('V_{k+1}')
-    expect(edgeText(vl, 'D', 'P2')).toBe('V_k = E[δw_k²]')
-    expect(vertexText(vl, 'P2')).toContain('× p²')
-    expect(D.CHART_VAR_LOOP).toContain('V = p²·V + μ²·σ_η²')
-    expect(vertexText(vl, 'R')).toBe('σ_w² = μ²·σ_η² / (1 − p²)')
+    expect(vertexText(vl, 'Q')).toContain('$\\mu^2\\sigma_\\eta^2$')
+    expect(edgeText(vl, 'Q', 'S')).toBe('$+$')
+    expect(edgeText(vl, 'P2', 'S')).toBe('$+$')
+    expect(edgeText(vl, 'S', 'D')).toBe('$V_{k+1}$')
+    expect(edgeText(vl, 'D', 'P2')).toBe('$V_k = E[\\delta w_k^2]$')
+    expect(vertexText(vl, 'P2')).toContain('$\\times\\,p^2$')
+    expect(D.CHART_VAR_LOOP).toContain('V = p^2 V + \\mu^2\\sigma_\\eta^2')
+    expect(vertexText(vl, 'R')).toBe('$\\sigma_w^2 = \\mu^2\\sigma_\\eta^2 / (1 - p^2)$')
 
     // Research：AR(1) 的 η_k = r·η_{k−1} + √(1 − r²)·σ_η·ε_k，結果多一個 (1 + pr)/(1 − pr)
     const col = g('CHART_COLORED_ETA')
     expect(hasEdge(col, 'EPS', 'SC')).toBe(true)
-    expect(vertexText(col, 'SC')).toBe('× √(1 − r²)·σ_η')
-    expect(edgeText(col, 'SC', 'S1')).toBe('＋')
-    expect(edgeText(col, 'R', 'S1')).toBe('＋ r·η_{k−1}')
-    expect(edgeText(col, 'S1', 'H')).toBe('η_k')
+    expect(vertexText(col, 'SC')).toBe('$\\times\\,\\sqrt{1 - r^2}\\,\\sigma_\\eta$')
+    expect(edgeText(col, 'SC', 'S1')).toBe('$+$')
+    expect(edgeText(col, 'R', 'S1')).toBe('$+r\\,\\eta_{k-1}$')
+    expect(edgeText(col, 'S1', 'H')).toBe('$\\eta_k$')
     expect(hasEdge(col, 'S1', 'D1')).toBe(true)
-    expect(edgeText(col, 'D1', 'R')).toBe('η_{k−1}')
-    expect(vertexText(col, 'OUT')).toContain('(1 + p·r)/(1 − p·r)')
+    expect(edgeText(col, 'D1', 'R')).toBe('$\\eta_{k-1}$')
+    expect(vertexText(col, 'OUT')).toContain('\\frac{1 + p\\,r}{1 - p\\,r}')
 
     // F-12.11：w[n] = w* + δw[n]，延遲 = w[n]·x[n]，δt = x·δw（乘法，不是加法）
     const gm = g('CHART_GAIN_MULT')
-    expect(edgeText(gm, 'WS', 'S')).toBe('＋')
-    expect(edgeText(gm, 'DW', 'S')).toBe('＋')
-    expect(edgeText(gm, 'S', 'M')).toBe('w[n] = w* + δw[n]')
+    expect(edgeText(gm, 'WS', 'S')).toBe('$+$')
+    expect(edgeText(gm, 'DW', 'S')).toBe('$+$')
+    expect(edgeText(gm, 'S', 'M')).toBe('$w[n] = w^* + \\delta w[n]$')
     expect(hasEdge(gm, 'X', 'M')).toBe(true)
-    expect(vertexText(gm, 'DT')).toContain('δt[n] = x[n]·δw[n]')
-    expect(D.NOISE_CHAIN_CHART).toContain('(("×"))')
-    expect(D.CHART_TF_CHAIN).toContain('δt[n] = x[n]·δw[n]')
+    expect(vertexText(gm, 'DT')).toContain('$\\delta t[n] = x[n]\\,\\delta w[n]$')
+    expect(D.NOISE_CHAIN_CHART).toContain('(("$\\times$"))')
+    expect(D.CHART_TF_CHAIN).toContain('$\\delta t[n] = x[n]\\,\\delta w[n]$')
     // 雜訊傳遞鏈：code 進乘號，也（虛線）進 GMAC；乘號之後分成 PD 與 output 兩個出口
     const chain = g('NOISE_CHAIN_CHART')
     for (const [a, b] of [['V', 'Q'], ['Q', 'G'], ['G', 'U'], ['U', 'W'], ['W', 'M'], ['X', 'M'], ['X', 'G'], ['M', 'DT'], ['DT', 'PD'], ['DT', 'T'], ['T', 'OUT']]) expect(hasEdge(chain, a, b), `${a} → ${b}`).toBe(true)
-    expect(vertexText(chain, 'PD')).toContain('H_PD = 1/(1+L)')
-    expect(vertexText(chain, 'T')).toContain('T = L/(1+L)')
-    expect(vertexText(chain, 'OUT')).toContain('φ_out = −2π·f_out·T·δt')
+    expect(vertexText(chain, 'PD')).toContain('$H_{\\mathrm{PD}} = 1/(1+L)$')
+    expect(vertexText(chain, 'T')).toContain('$T = L/(1+L)$')
+    expect(vertexText(chain, 'OUT')).toContain('\\phi_{\\mathrm{out}} = -2\\pi f_{\\mathrm{out}}\\,T\\,\\delta t')
 
     // F-12.12：和頻與差頻，各 A·B/2
-    expect(D.CHART_TONE_MIXER).toContain('f_x − f_w = 90 kHz')
-    expect(D.CHART_TONE_MIXER).toContain('f_x + f_w = 110 kHz')
-    expect(D.CHART_TONE_MIXER.match(/A·B\/2 = 0\.5 fs/g)?.length).toBe(2)
+    expect(D.CHART_TONE_MIXER).toContain('f_x - f_w = 90\\ \\mathrm{kHz}')
+    expect(D.CHART_TONE_MIXER).toContain('f_x + f_w = 110\\ \\mathrm{kHz}')
+    expect(D.CHART_TONE_MIXER.match(/AB\/2 = 0\.5\\ \\mathrm\{fs\}/g)?.length).toBe(2)
     // F-12.13：時域相乘、自相關相乘、頻域卷積再除以 2π
     const dom = g('CHART_MIX_DOMAINS')
-    expect(vertexText(dom, 'CV')).toBe('∗')
-    expect(edgeText(dom, 'CV', 'ST')).toBe('÷ 2π')
+    expect(vertexText(dom, 'CV')).toBe('$\\ast$')
+    expect(edgeText(dom, 'CV', 'ST')).toBe('$\\div\\,2\\pi$')
     expect(dom.subgraphs.map((s) => s.id).sort()).toEqual(['CORR', 'FREQ', 'TIME'])
     expect(hasEdge(dom, 'TIME', 'CORR') && hasEdge(dom, 'CORR', 'FREQ')).toBe(true)
     // 三種 code：dcTerm、toneTerm、whiteTerm
-    for (const s of ['S_δt = m²·S_w(f)', 'S_δt = (A²/4)·[S_w(f − f_x) + S_w(f + f_x)]', 'S_δt = σ_x²·σ_w²·(2/f_s)']) expect(D.CHART_THREE_CODES, s).toContain(s)
+    for (const s of ['S_{\\delta t} = m^2 S_w(f)', 'S_{\\delta t} = \\frac{A^2}{4}\\left[S_w(f - f_x) + S_w(f + f_x)\\right]', 'S_{\\delta t} = \\sigma_x^2\\,\\sigma_w^2\\,\\frac{2}{f_s}']) expect(D.CHART_THREE_CODES, s).toContain(s)
     // code 的 DC 直通：δt = m·δw + x̃·δw
     const dc = g('CHART_DC_FEEDTHROUGH')
     expect(hasEdge(dc, 'DC', 'M1') && hasEdge(dc, 'DW', 'M1') && hasEdge(dc, 'AC', 'M2') && hasEdge(dc, 'DW', 'M2')).toBe(true)
-    expect(edgeText(dc, 'M1', 'S')).toMatch(/^＋ m·δw/)
-    expect(edgeText(dc, 'M2', 'S')).toMatch(/^＋ x̃·δw/)
-    expect(edgeText(dc, 'S', 'T')).toBe('δt[n]')
+    expect(edgeText(dc, 'M1', 'S')).toMatch(/^\$\+m\\,\\delta w\$/)
+    expect(edgeText(dc, 'M2', 'S')).toMatch(/^\$\+\\tilde x\\,\\delta w\$/)
+    expect(edgeText(dc, 'S', 'T')).toBe('$\\delta t[n]$')
     // F-12.14：(1/N)·[sin(Nθ/2)/sin(θ/2)]²·S_w(e^{jNθ})；先插零、再 boxcar
     const zoh = g('CHART_ZOH_TWO_STEP')
-    expect(edgeText(zoh, 'UP', 'BOX')).toContain('(1/N)·S_w(e^jNθ)')
-    expect(edgeText(zoh, 'BOX', 'OUT')).toContain('(sin(Nθ/2)/sin(θ/2))²')
+    expect(edgeText(zoh, 'UP', 'BOX')).toContain('(1/N)\\,S_w(e^{jN\\theta})')
+    expect(edgeText(zoh, 'BOX', 'OUT')).toContain('\\left(\\frac{\\sin(N\\theta/2)}{\\sin(\\theta/2)}\\right)^2')
     expect(hasEdge(zoh, 'A', 'UP') && hasEdge(zoh, 'OUT', 'M') && hasEdge(zoh, 'X', 'M')).toBe(true)
+    // block 邊界的時序（原本是 sequenceDiagram，文字不支援 KaTeX，改畫成三條泳道的 flowchart）：
+    // GMAC 累加 N 個 sample 得到 G_k → LMS 每個 block 更新一次 w_{k+1} = w_k + μ·G_k → 新係數延遲 n_c 個 sample 後套用、DTC 保持 N 個 sample
+    const tim = g('CHART_BLOCK_TIMING')
+    expect(tim.subgraphs.map((s) => s.id).sort()).toEqual(['CG', 'DG', 'LA'])
+    expect(tim.subgraphs.find((s) => s.id === 'CG')?.title).toBe('Comparator 與 GMAC（每個 sample）')
+    expect(tim.subgraphs.find((s) => s.id === 'LA')?.title).toBe('LMS 累加器（每個 block）')
+    expect(tim.subgraphs.find((s) => s.id === 'DG')?.title).toBe('DTC 的 gain（每個 sample）')
+    expect(vertexText(tim, 'A1')).toContain('$q[n]\\,x[n]$')
+    expect(vertexText(tim, 'B1')).toContain('$w_{k+1} = w_k + \\mu G_k$')
+    expect(vertexText(tim, 'D1')).toContain('ZOH')
+    expect(edgeText(tim, 'A1', 'B1')).toContain('$G_k$')
+    expect(edgeText(tim, 'B1', 'D1')).toContain('$n_c$')
+    expect(edgeText(tim, 'A2', 'B2')).toBe('$G_{k+1}$')
+    expect(edgeText(tim, 'B2', 'D2')).toBe('再換一次係數')
+    expect(tim.edges.length).toBe(4)
     // F-12.10 / F-12.16：× 2/f_r → × (2π·f_out)²·|T|² → ÷ 2 再取 dB
     const units = g('CHART_PSD_UNITS')
-    expect(edgeText(units, 'A', 'B')).toBe('× 2/f_r')
-    expect(edgeText(units, 'B', 'C')).toContain('× (2π·f_out)²·|T|²')
-    expect(edgeText(units, 'C', 'D')).toBe('÷ 2，再取 10·log10')
+    expect(edgeText(units, 'A', 'B')).toBe('$\\times\\,2/f_r$')
+    expect(edgeText(units, 'B', 'C')).toContain('\\times\\,(2\\pi f_{\\mathrm{out}})^2|T|^2')
+    expect(edgeText(units, 'C', 'D')).toBe('$\\div\\,2$，再取 $10\\log_{10}$')
 
     // §12.7：e_PD = −(θ_out + φ_dtc)，θ_out = L·e_PD；H_PD + T = 1
     const pll = g('CHART_PLL_LOOP')
-    expect(edgeText(pll, 'REF', 'S')).toBe('＋')
-    expect(edgeText(pll, 'A', 'S')).toBe('−（θ_out + φ_dtc）')
-    expect(edgeText(pll, 'S', 'L')).toBe('e_PD')
-    expect(edgeText(pll, 'L', 'A')).toBe('＋ θ_out')
-    expect(edgeText(pll, 'K', 'A')).toBe('＋ φ_dtc')
+    expect(edgeText(pll, 'REF', 'S')).toBe('$+$')
+    expect(edgeText(pll, 'A', 'S')).toBe('$-(\\theta_{\\mathrm{out}} + \\phi_{\\mathrm{dtc}})$')
+    expect(edgeText(pll, 'S', 'L')).toBe('$e_{\\mathrm{PD}}$')
+    expect(edgeText(pll, 'L', 'A')).toBe('$+\\theta_{\\mathrm{out}}$')
+    expect(edgeText(pll, 'K', 'A')).toBe('$+\\phi_{\\mathrm{dtc}}$')
     expect(hasEdge(pll, 'DTC', 'K')).toBe(true)
-    expect(vertexText(pll, 'K')).toContain('× 2π·f_out')
-    expect(vertexText(pll, 'OUT')).toContain('θ_out = −T·φ_dtc')
-    expect(vertexText(pll, 'PDN')).toContain('e_PD = −H_PD·φ_dtc')
+    expect(vertexText(pll, 'K')).toContain('\\times\\,2\\pi f_{\\mathrm{out}}')
+    expect(vertexText(pll, 'OUT')).toContain('\\theta_{\\mathrm{out}} = -T\\,\\phi_{\\mathrm{dtc}}')
+    expect(vertexText(pll, 'PDN')).toContain('e_{\\mathrm{PD}} = -H_{\\mathrm{PD}}\\,\\phi_{\\mathrm{dtc}}')
     const exits = g('CHART_TWO_EXITS')
     expect(hasEdge(exits, 'DT', 'PD') && hasEdge(exits, 'DT', 'T') && hasEdge(exits, 'PD', 'EPD') && hasEdge(exits, 'T', 'PO') && hasEdge(exits, 'T', 'J')).toBe(true)
-    expect(vertexText(exits, 'PD')).toContain('H_PD = 1/(1+L)')
+    expect(vertexText(exits, 'PD')).toContain('H_{\\mathrm{PD}} = 1/(1+L)')
     expect(vertexText(exits, 'T')).toContain('T = L/(1+L)')
-    expect(vertexText(exits, 'EPD')).toContain('e_PD = −2π·f_out·H_PD·δt')
-    expect(vertexText(exits, 'PO')).toContain('φ_out = −2π·f_out·T·δt')
-    expect(vertexText(exits, 'SUM')).toContain('H_PD + T = 1')
+    expect(vertexText(exits, 'EPD')).toContain('e_{\\mathrm{PD}} = -2\\pi f_{\\mathrm{out}}\\,H_{\\mathrm{PD}}\\,\\delta t')
+    expect(vertexText(exits, 'PO')).toContain('\\phi_{\\mathrm{out}} = -2\\pi f_{\\mathrm{out}}\\,T\\,\\delta t')
+    expect(vertexText(exits, 'SUM')).toContain('H_{\\mathrm{PD}} + T = 1')
 
     // 取樣率：block 量標 k、sample 量標 n
-    expect(D.CHART_TF_CHAIN).toContain('block rate f_u = f_s/N（索引 k）')
-    expect(D.CHART_TF_CHAIN.match(/sample rate f_s（索引 n）/g)?.length).toBe(2)
+    expect(D.CHART_TF_CHAIN).toContain('block rate $f_u = f_s/N$（索引 $k$）')
+    expect(D.CHART_TF_CHAIN.match(/sample rate \$f_s\$（索引 \$n\$）/g)?.length).toBe(2)
     const tf = g('CHART_TF_CHAIN')
-    expect(edgeText(tf, 'AVG', 'H')).toContain('η_k')
-    expect(edgeText(tf, 'H', 'ZOH')).toContain('δw_k')
-    expect(edgeText(tf, 'ZOH', 'M')).toBe('δw[n]')
-    expect(D.CHART_BLOCK_TIMING).toContain('w_{k+1} = w_k + μ·G_k')
+    expect(edgeText(tf, 'AVG', 'H')).toContain('$\\eta_k$')
+    expect(edgeText(tf, 'H', 'ZOH')).toContain('$\\delta w_k$')
+    expect(edgeText(tf, 'ZOH', 'M')).toBe('$\\delta w[n]$')
     // 三個引擎：binomialStep 用 Φ(−C·δw/σ_v)（a − w = −δw），之後的更新相同
-    expect(D.CHART_ENGINES).toContain('Bin(N, Φ(−C·δw/σ_v))')
-    expect(D.CHART_ENGINES).toContain('G = −K·δw + η')
-    expect(D.CHART_ENGINES).toContain('G = (2·N₊ − N)/N')
+    expect(D.CHART_ENGINES).toContain('\\mathrm{Bin}\\big(N, \\Phi(-C\\,\\delta w/\\sigma_v)\\big)')
+    expect(D.CHART_ENGINES).toContain('G = -K\\,\\delta w + \\eta')
+    expect(D.CHART_ENGINES).toContain('G = (2N_+ - N)/N')
     const eng = g('CHART_ENGINES')
     for (const id of ['A2', 'B2', 'C2']) expect(hasEdge(eng, id, 'U'), id).toBe(true)
-    expect(vertexText(eng, 'U')).toContain('δw ← δw + μ·G')
+    expect(vertexText(eng, 'U')).toContain('\\delta w \\leftarrow \\delta w + \\mu G')
     // 硬體旋鈕：N 動到 η、μ 動到 δw、code 動到 δt、PLL 頻寬動到輸出；σ_v 經由斜率 K 進到 p
     const hw = g('CHART_HW_KNOBS')
     for (const [a, b] of [['V', 'ETA'], ['ETA', 'DW'], ['DW', 'DT'], ['DT', 'OUT'], ['RN', 'ETA'], ['RMU', 'DW'], ['BITS', 'DW'], ['CODE', 'DT'], ['BW', 'OUT'], ['V', 'DW']]) expect(hasEdge(hw, a, b), `${a} → ${b}`).toBe(true)
-    expect(edgeText(hw, 'V', 'DW')).toContain('K = √(2/π)·C/σ_v')
-    expect(vertexText(hw, 'ETA')).toContain('σ_η² ≈ 1/N')
+    expect(edgeText(hw, 'V', 'DW')).toContain('K = \\sqrt{2/\\pi}\\,C/\\sigma_v')
+    expect(vertexText(hw, 'ETA')).toContain('\\sigma_\\eta^2 \\approx 1/N')
+    // 暫存器名稱用等寬字型的 \mathtt（底線要跳脫），不是裸的 REG_GMAC_N
+    expect(vertexText(hw, 'RN')).toContain('\\mathtt{REG\\_GMAC\\_N}')
+    expect(vertexText(hw, 'RMU')).toContain('\\mathtt{REG\\_GAIN\\_STEP}')
   })
 
   it('−3 dB 存在範圍的判斷順序與 bwRegime() 相同（E27）', () => {
     const g = flows.get('CHART_BW_REGIME') as Flow
     // 不穩定 → high-pass → flat → 衰減不足 3 dB → low-pass
-    expect(vertexText(g, 'D1')).toContain('|p| ≥ 1')
+    expect(vertexText(g, 'D1')).toContain('|p| \\ge 1')
     expect(edgeText(g, 'D1', 'U')).toBe('是')
     expect(edgeText(g, 'D1', 'D2')).toBe('否')
-    expect(vertexText(g, 'D2')).toContain('p ≥ 0')
+    expect(vertexText(g, 'D2')).toContain('p \\ge 0')
     expect(edgeText(g, 'D2', 'HP')).toBe('否')
     expect(edgeText(g, 'D2', 'D3')).toBe('是')
     expect(vertexText(g, 'D3')).toContain('p = 0')
     expect(edgeText(g, 'D3', 'FL')).toBe('是')
     expect(edgeText(g, 'D3', 'D4')).toBe('否')
-    expect(vertexText(g, 'D4')).toContain('p ≥ 3 − 2√2')
+    expect(vertexText(g, 'D4')).toContain('p \\ge 3 - 2\\sqrt{2}')
     expect(edgeText(g, 'D4', 'N3')).toBe('否')
     expect(edgeText(g, 'D4', 'OK')).toBe('是')
-    expect(vertexText(g, 'OK')).toContain('Ω_3dB = 2·arcsin((1 − p)/(2√p))')
+    expect(vertexText(g, 'OK')).toContain('\\Omega_{3\\mathrm{dB}} = 2\\arcsin\\frac{1 - p}{2\\sqrt{p}}')
   })
 
-  it('章首的系統地圖（真正的 SystemMap 原始碼）也畫得出來，藍色方塊是雜訊走的路', () => {
-    expect(mapText).not.toMatch(/Unsupported markdown/)
+  it('章首的系統地圖（真正的 SystemMap 原始碼）也畫得出來，藍色方塊是雜訊走的路；公式由 KaTeX 排版', () => {
+    expect(mapDrawn.text).not.toMatch(/Unsupported markdown/)
+    expect(mapDrawn.text).not.toContain('$')
+    expect(unicodeMathIn(mapDrawn.plainText)).toEqual([])
+    expect(mapDrawn.mathCount).toBeGreaterThanOrEqual(8)
     expect(systemMapChart(CH12_SYSTEM_FOCUS)).toContain('class NOISE,CMP,GMAC,SCALE,ACC,GC,DTC,PD,VCO focus')
-    expect(squash(mapText)).toContain(squash('q[n] = sign(e[n])'))
+    expect(systemMapChart(CH12_SYSTEM_FOCUS)).toContain('$q[n] = \\mathrm{sign}(e[n])$')
   })
 
   it('T13/T14/T15: 圖上的範例數字就是模型算出來的數字（不是手打的）', () => {
-    expect(D.CHART_TF_CHAIN).toContain(`σ_w = ${EX.sigmaW.toFixed(3)} fs`)
-    expect(D.CHART_TF_CHAIN).toContain('σ_w = 0.399 fs')
-    expect(D.NOISE_CHAIN_CHART).toContain('σ_v = 100 fs')
+    expect(D.CHART_TF_CHAIN).toContain(`\\sigma_w = ${EX.sigmaW.toFixed(3)}\\ \\mathrm{fs}`)
+    expect(D.CHART_TF_CHAIN).toContain('\\sigma_w = 0.399\\ \\mathrm{fs}')
+    expect(D.NOISE_CHAIN_CHART).toContain('\\sigma_v = 100\\ \\mathrm{fs}')
     // 四個頻寬（T14）
-    const kHz = (hz: number) => `${(hz / 1e3).toFixed(2)} kHz`
+    const kHz = (hz: number) => `${(hz / 1e3).toFixed(2)}\\ \\mathrm{kHz}`
     for (const v of [EX.f3dbExact, EX.f3dbNegLnP, EX.f3dbOneMinusP, EX.enbw]) expect(D.CHART_BW_READOUTS).toContain(`= ${kHz(v)}`)
-    for (const s of ['= 12.93 kHz', '= 12.92 kHz', '= 12.40 kHz', '= 20.29 kHz']) expect(D.CHART_BW_READOUTS, s).toContain(s)
-    for (const s of ['(f_u/π)·arcsin((1 − p)/(2√p))', '(−ln p)/(2π)·f_u', '(1 − p)/(2π)·f_u', '(f_u/2)·(1 − p)/(1 + p)', 'σ_w² = S_w^(1)(0)·ENBW']) expect(D.CHART_BW_READOUTS, s).toContain(s)
+    for (const s of ['= 12.93\\ \\mathrm{kHz}', '= 12.92\\ \\mathrm{kHz}', '= 12.40\\ \\mathrm{kHz}', '= 20.29\\ \\mathrm{kHz}']) expect(D.CHART_BW_READOUTS, s).toContain(s)
+    for (const s of ['\\frac{f_u}{\\pi}\\arcsin\\frac{1 - p}{2\\sqrt{p}}', '\\frac{-\\ln p}{2\\pi}f_u', '\\frac{1 - p}{2\\pi}f_u', '\\frac{f_u}{2}\\cdot\\frac{1 - p}{1 + p}', '\\sigma_w^2 = S_w^{(1)}(0)\\cdot\\mathrm{ENBW}']) expect(D.CHART_BW_READOUTS, s).toContain(s)
     // −3 dB 存在範圍（E27）
     expect(D.CHART_BW_REGIME).toContain((3 - 2 * Math.SQRT2).toFixed(4))
     expect(D.CHART_BW_REGIME).toContain((2 * Math.SQRT2 - 2).toFixed(4))
     // 位準 × 寬度
-    expect(D.CHART_LEVEL_WIDTH).toContain('π·σ_v² / (C²·f_s)')
-    expect(D.CHART_LEVEL_WIDTH).toContain('(f_u/2)·(1 − p)/(1 + p)')
-    expect(D.CHART_LEVEL_WIDTH).toContain('2·σ_v² / f_s')
-    // spur（T15）
+    expect(D.CHART_LEVEL_WIDTH).toContain('\\pi\\sigma_v^2 / (C^2 f_s)')
+    expect(D.CHART_LEVEL_WIDTH).toContain('\\frac{f_u}{2}\\cdot\\frac{1 - p}{1 + p}')
+    expect(D.CHART_LEVEL_WIDTH).toContain('2\\sigma_v^2 / f_s')
+    // spur（T15）：科學記號寫成 m\times10^{e}（負號是 TeX 的 -，不是 Unicode 的 −）
+    const sci = (x: number) => {
+      const [m, e] = x.toExponential(3).split('e')
+      return `${m}\\times10^{${Number(e)}}`
+    }
     const beta = spurBeta(13e9, 0.5, 1)
-    expect(D.CHART_SPUR_FLOW).toContain(`${beta.toExponential(3).replace('-', '−')} rad`)
-    expect(D.CHART_SPUR_FLOW).toContain('4.084e−5 rad')
-    expect(D.CHART_SPUR_FLOW).toContain(`${spurDbcSmallAngle(beta).toFixed(2).replace('-', '−')} dBc`)
-    expect(D.CHART_SPUR_FLOW).toContain('−93.80 dBc')
-    expect(D.CHART_SPUR_FLOW).toContain(`β/2 = ${(beta / 2).toExponential(3).replace('-', '−')}`)
+    expect(D.CHART_SPUR_FLOW).toContain(`${sci(beta)}\\ \\mathrm{rad}`)
+    expect(D.CHART_SPUR_FLOW).toContain('4.084\\times10^{-5}\\ \\mathrm{rad}')
+    expect(D.CHART_SPUR_FLOW).toContain(`${spurDbcSmallAngle(beta).toFixed(2)}\\ \\mathrm{dBc}`)
+    expect(D.CHART_SPUR_FLOW).toContain('-93.80\\ \\mathrm{dBc}')
+    expect(D.CHART_SPUR_FLOW).toContain(`\\beta/2 = ${sci(beta / 2)}`)
     // 綜合手算的順序與答案（HC-12.8 的範例）
     expect(D.CHART_HAND_FLOW).toContain(`= ${EX.g.toFixed(5)}`)
     expect(D.CHART_HAND_FLOW).toContain(`= ${EX.p.toFixed(5)}`)
-    for (const s of ['= 0.3992 fs', '= 0.399 fs', '= 0.282 fs', '= 0.0089 fs']) expect(D.CHART_HAND_FLOW, s).toContain(s)
+    for (const s of ['= 0.3992\\ \\mathrm{fs}', '= 0.399\\ \\mathrm{fs}', '= 0.282\\ \\mathrm{fs}', '= 0.0089\\ \\mathrm{fs}']) expect(D.CHART_HAND_FLOW, s).toContain(s)
     // 同一題的 solve()（預設值）給出同樣的三個 RMS
     const def = HANDCALCS.find((h) => h.id === 'HC-12.8')
     if (!def) throw new Error('找不到 HC-12.8')
@@ -525,9 +556,9 @@ describe('第 12 章方塊圖：真的畫一次（mermaid.render）', () => {
     ]
     for (const [kind, c, o, p] of cells) {
       const r = row(kind)
-      expect(vertexText(g, c), kind).toContain(`總 RMS ${r.totalRms.toFixed(3)} fs`)
-      expect(vertexText(g, o), kind).toContain(`${r.outRms.toFixed(3)} fs`)
-      expect(vertexText(g, p), kind).toContain(`${r.pdRms.toFixed(3)} fs`)
+      expect(vertexText(g, c), kind).toContain(`總 RMS $${r.totalRms.toFixed(3)}\\ \\mathrm{fs}$`)
+      expect(vertexText(g, o), kind).toContain(`$${r.outRms.toFixed(3)}\\ \\mathrm{fs}$`)
+      expect(vertexText(g, p), kind).toContain(`$${r.pdRms.toFixed(3)}\\ \\mathrm{fs}$`)
       expect(hasEdge(g, c, o) && hasEdge(g, c, p), kind).toBe(true)
     }
     // 藍色（focus）= 看到比較多的出口：常數與單頻 code 是 output，白色 code 是 PD

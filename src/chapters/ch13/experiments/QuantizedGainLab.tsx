@@ -271,7 +271,7 @@ export function QuantizedGainLab() {
               ]}
               reg="REG_GAIN_SAT_EN"
             />
-            <ToggleControl label={<>ΔΣ anti-windup（<Tex>{'r'}</Tex> 夾回範圍）</>} ariaLabel="ΔΣ anti-windup（r 夾回範圍）" value={shared.antiWindup} onChange={(v) => set('antiWindup', v)} reg="REG_DS_ANTIWINDUP" />
+            <ToggleControl label={<><Tex>{String.raw`\Delta\Sigma`}</Tex> anti-windup（<Tex>{'r'}</Tex> 夾回範圍）</>} ariaLabel="ΔΣ anti-windup（r 夾回範圍）" value={shared.antiWindup} onChange={(v) => set('antiWindup', v)} reg="REG_DS_ANTIWINDUP" />
             <SelectControl<Arithmetic>
               label="算術"
               value={shared.arithmetic}
@@ -293,9 +293,9 @@ export function QuantizedGainLab() {
               <Tex>{'w_H'}</Tex>：LMS 雜訊、PVT、Freeze/Track
             </div>
             <ParamControl label={<><Tex>{String.raw`\sigma_w`}</Tex>（LMS 雜訊 RMS）</>} ariaLabel="σ_w（LMS 雜訊 RMS）" value={shared.sigmaW} onChange={(v) => set('sigmaW', v)} min={0} max={5} step={0.01} unit="LSB" reg="BEH_LMS_SIGMA_W" hint={<>只在 Case 勾選「LMS 雜訊」時使用；等於第 12 章的 <Tex>{String.raw`\sigma_w\,[\mathrm{fs}]/\Delta_\mathrm{LSB}`}</Tex></>} />
-            <ParamControl label={<><Tex>{String.raw`p_\mathrm{cal}`}</Tex>（AR(1) pole）</>} ariaLabel="p_cal（AR(1) pole）" value={shared.pole} onChange={(v) => set('pole', v)} min={0} max={0.9999} step={0.0001} unit="無因次" reg="BEH_P_CAL（= 1 − μK）" digits={6} hint={<>第 12 章的係數 pole <Tex>{String.raw`p=1-\mu K`}</Tex></>} />
+            <ParamControl label={<><Tex>{String.raw`p_\mathrm{cal}`}</Tex>（AR(1) pole）</>} ariaLabel="p_cal（AR(1) pole）" value={shared.pole} onChange={(v) => set('pole', v)} min={0} max={0.9999} step={0.0001} unit="無因次" reg="BEH_P_CAL" digits={6} hint={<>第 12 章的係數 pole <Tex>{String.raw`p=1-\mu K`}</Tex></>} />
             <ParamControl label="PVT drift" value={shared.driftPerK} onChange={(v) => set('driftPerK', v)} min={-2} max={2} step={0.01} unit="LSB/1000 次更新" reg="BEH_PVT_DRIFT" />
-            <ParamControl label="LMS 凍結於第幾次更新（0 = 持續追蹤）" value={shared.lmsFreezeAt} onChange={(v) => set('lmsFreezeAt', v)} min={0} max={shared.length - 1} integer clampOnBlur unit="次更新" reg="REG_LMS_FREEZE" hint={<>Freeze/Track：凍結後 <Tex>{'w_H'}</Tex> 為定點常數，ΔΣ 重新進入 limit cycle；上方「凍結 Freeze」按鈕會設成 <Tex>{'L/4'}</Tex></>} />
+            <ParamControl label="LMS 凍結於第幾次更新（0 = 持續追蹤）" value={shared.lmsFreezeAt} onChange={(v) => set('lmsFreezeAt', v)} min={0} max={shared.length - 1} integer clampOnBlur unit="次更新" reg="REG_LMS_FREEZE" hint={<>Freeze/Track：凍結後 <Tex>{'w_H'}</Tex> 為定點常數，<Tex>{String.raw`\Delta\Sigma`}</Tex> 重新進入 limit cycle；上方「凍結 Freeze」按鈕會設成 <Tex>{'L/4'}</Tex></>} />
           </div>
           <div className="ch13-ctl-group">
             <div className="ch13-ctl-title">策略參數</div>
@@ -342,7 +342,7 @@ export function QuantizedGainLab() {
               reg="REG_DITHER_PDF"
             />
             <ModeGate min="research">
-              <ParamControl label={<>ΔΣ 初始 <Tex>{'r[-1]'}</Tex></>} ariaLabel="ΔΣ 初始 r[−1]" value={shared.rInit} onChange={(v) => set('rInit', v)} min={-2} max={2} step={0.01} unit="LSB" reg="REG_DS_R_INIT" hint="E15：任何初始值都進入同一個 limit cycle" />
+              <ParamControl label={<><Tex>{String.raw`\Delta\Sigma`}</Tex> 初始 <Tex>{'r[-1]'}</Tex></>} ariaLabel="ΔΣ 初始 r[−1]" value={shared.rInit} onChange={(v) => set('rInit', v)} min={-2} max={2} step={0.01} unit="LSB" reg="REG_DS_R_INIT" hint="E15：任何初始值都進入同一個 limit cycle" />
             </ModeGate>
           </div>
           <div className="ch13-ctl-group">

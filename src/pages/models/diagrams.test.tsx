@@ -1,11 +1,15 @@
 import mermaid from 'mermaid'
 import { extractRegion } from '@/components'
-import { installMermaidSvgShim, renderMermaidForTest } from '@/components/mermaidTestUtils'
+import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import blockLmsSrc from '@/simulation/models/blockLms.ts?raw'
 import * as D from './diagrams'
 import { MODEL_CHARTS } from './diagrams'
 import { accBitsExact } from './experiments/gmacMath'
 import { LEVEL_ROWS } from './sections/S2Levels'
+import { hasMath, mathLabelCount, quotedLabels, renderProblems, unicodeMathInSource } from '../lab/diagramTestUtils'
+
+/** 圖原始碼的 TeX 反斜線只寫一次（與 diagrams.ts 的 String.raw 相同） */
+const R = String.raw
 
 interface Vertex {
   id: string
@@ -34,6 +38,11 @@ const node = (g: { vertices: Vertex[] }, id: string): string => {
   const v = g.vertices.find((x) => x.id === id)
   if (!v) throw new Error(`沒有節點 ${id}`)
   return v.text ?? ''
+}
+/** 連線標籤開頭的正負號（可能寫成 `$-$`、`$+$`）：統一成全形「＋」與減號「−」（U+2212） */
+function leadingSign(text: string): string {
+  const c = text.trim().replace(/^\$/, '').charAt(0)
+  return c === '+' ? '＋' : c === '-' ? '−' : c
 }
 const hasEdge = (g: { edges: Edge[] }, start: string, end: string) => g.edges.some((e) => e.start === start && e.end === end)
 
@@ -85,7 +94,7 @@ describe('Models 頁的方塊圖（真正的 mermaid parser）', () => {
       for (const s of g.vertices.filter((v) => v.type === 'circle' && v.text === '＋')) {
         const incoming = g.edges.filter((e) => e.end === s.id)
         expect(incoming.length, `${c.name} 加法點 ${s.id}`).toBeGreaterThanOrEqual(2)
-        for (const e of incoming) expect(e.text ?? '', `${c.name}：${e.start} → ${s.id} 要標正負號`).toMatch(/^[＋−]/)
+        for (const e of incoming) expect(leadingSign(e.text ?? ''), `${c.name}：${e.start} → ${s.id} 要標正負號`).toMatch(/^[＋−]/)
       }
     }
   }, 60_000)
@@ -114,24 +123,24 @@ describe('Models 頁的方塊圖（真正的 mermaid parser）', () => {
     }
     expect(edgeText(g, 'HPD', 'S')).toBe('＋')
     expect(edgeText(g, 'BV', 'S')).toBe('＋')
-    expect(edgeText(g, 'S', 'CMP')).toBe('e[n]')
-    expect(edgeText(g, 'CMP', 'MUL')).toBe('q[n]')
-    expect(edgeText(g, 'X', 'MUL')).toContain('x_ref[n]')
-    expect(edgeText(g, 'AVG', 'UPD')).toBe('G_k')
-    expect(edgeText(g, 'REG', 'DTC')).toContain('w_app')
+    expect(edgeText(g, 'S', 'CMP')).toBe(R`$e[n]$`)
+    expect(edgeText(g, 'CMP', 'MUL')).toBe(R`$q[n]$`)
+    expect(edgeText(g, 'X', 'MUL')).toContain(R`$x_{\mathrm{ref}}[n]$`)
+    expect(edgeText(g, 'AVG', 'UPD')).toBe(R`$G_k$`)
+    expect(edgeText(g, 'REG', 'DTC')).toContain(R`$w_{\mathrm{app}}$`)
     // 極性 δ = a − w：DTC 誤差是 (a − w_app)·x；tie 規則 e ≥ 0 ⇒ q = +1（E07）
-    expect(node(g, 'DTC')).toContain('(a − w_app)·x')
-    expect(node(g, 'DTC')).toContain('c₂·x² + c₃·x³ + o')
-    expect(node(g, 'CMP')).toContain('e ≥ 0 時 q = +1')
-    expect(node(g, 'AVG')).toContain('G_k = (1/N)·Σ q[n]·x_ref[n]')
-    expect(node(g, 'UPD')).toContain('w_(k+1) = w_k + μ·G_k')
-    expect(node(g, 'REG')).toContain('w_app = phys(w_(k−d))')
+    expect(node(g, 'DTC')).toContain(R`$(a - w_{\mathrm{app}})\cdot x$`)
+    expect(node(g, 'DTC')).toContain(R`$+ c_2\cdot x^2 + c_3\cdot x^3 + o$`)
+    expect(node(g, 'CMP')).toContain(R`$e \ge 0$ 時 $q = +1$，否則 $q = -1$`)
+    expect(node(g, 'AVG')).toContain(R`$G_k = \frac{1}{N}\sum q[n]\cdot x_{\mathrm{ref}}[n]$`)
+    expect(node(g, 'UPD')).toContain(R`$w_{k+1} = w_k + \mu\cdot G_k$`)
+    expect(node(g, 'REG')).toContain(R`$w_{\mathrm{app}} = \mathrm{phys}(w_{k-d})$`)
     expect(node(g, 'HPD')).toContain('狀態跨 block 持續')
     // 兩個取樣率各自一個 subgraph：內層索引 n、外層索引 k；sample-rate 的方塊在內層、block-rate 的在外層
     const sub = /subgraph FS\["([^"]*)"\]([\s\S]*?)\n {2}end\n {2}subgraph FU\["([^"]*)"\]([\s\S]*?)\n {2}end/.exec(chart)
     expect(sub).toBeTruthy()
-    expect(sub![1]).toContain('索引 n')
-    expect(sub![3]).toContain('索引 k')
+    expect(sub![1]).toContain(R`索引 $n$`)
+    expect(sub![3]).toContain(R`索引 $k$`)
     for (const id of ['DTC', 'HPD', 'CMP', 'MUL']) expect(sub![2], id).toMatch(new RegExp(`\\b${id}[\\[(]`))
     for (const id of ['AVG', 'UPD', 'REG']) expect(sub![4], id).toMatch(new RegExp(`\\b${id}\\[`))
     // 與實際執行的程式逐行對照（core region；頁面的 CodeCompare 顯示的就是這幾段）
@@ -150,17 +159,17 @@ describe('Models 頁的方塊圖（真正的 mermaid parser）', () => {
       expect(hasEdge(g, a, b), `${a} → ${b}`).toBe(true)
     }
     expect(g.edges).toHaveLength(9)
-    expect(node(g, 'MAP')).toContain('q = 2b − 1')
-    expect(node(g, 'DLY')).toContain('z^(−D)')
-    expect(edgeText(g, 'DLY', 'NEG')).toBe('x_int[n−D]')
-    expect(edgeText(g, 'ACC', 'SHIFT')).toBe('S_k')
-    expect(edgeText(g, 'SHIFT', 'MU')).toBe('Ĝ_k')
-    expect(node(g, 'ACC')).toContain('S_k = Σ q·x_int')
-    expect(node(g, 'ACC')).toContain('B_acc = 1 + ⌈log₂(N·M_x + 1)⌉ bits')
-    expect(node(g, 'SHIFT')).toContain('ℓ = log₂N − F_G')
-    expect(node(g, 'SHIFT')).toContain('Ĝ_k = Δ_G·⌊S_k / 2^ℓ⌋')
-    expect(node(g, 'MU')).toContain('μ = 2^(−m)')
-    expect(node(g, 'REG')).toContain('w_(k+1) = w_k + μ·Ĝ_k')
+    expect(node(g, 'MAP')).toContain(R`$q = 2b - 1$`)
+    expect(node(g, 'DLY')).toContain(R`$z^{-D}$`)
+    expect(edgeText(g, 'DLY', 'NEG')).toBe(R`$x_{\mathrm{int}}[n-D]$`)
+    expect(edgeText(g, 'ACC', 'SHIFT')).toBe(R`$S_k$`)
+    expect(edgeText(g, 'SHIFT', 'MU')).toBe(R`$\hat G_k$`)
+    expect(node(g, 'ACC')).toContain(R`$S_k = \sum q\cdot x_{\mathrm{int}}$`)
+    expect(node(g, 'ACC')).toContain(R`$B_{\mathrm{acc}} = 1 + \lceil \log_2(N\cdot M_x + 1)\rceil$`)
+    expect(node(g, 'SHIFT')).toContain(R`$\ell = \log_2 N - F_G$`)
+    expect(node(g, 'SHIFT')).toContain(R`$\hat G_k = \Delta_G\cdot\lfloor S_k / 2^{\ell}\rfloor$`)
+    expect(node(g, 'MU')).toContain(R`$\mu = 2^{-m}$`)
+    expect(node(g, 'REG')).toContain(R`$w_{k+1} = w_k + \mu\cdot\hat G_k$`)
     // 檢查 1–8 都標在圖上，各出現一次
     const marks = D.CHART_GMAC_DATAPATH.match(/檢查 [\d、]+/g) ?? []
     expect(marks.flatMap((m) => m.replace('檢查 ', '').split('、').map(Number)).sort((x, y) => x - y)).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
@@ -173,18 +182,33 @@ describe('Models 頁的方塊圖（真正的 mermaid parser）', () => {
     expect(accBitsExact(6, 4096, 'symmetric')).toBe(18)
   })
 
-  it('實際渲染（共用的 renderMermaidForTest）：沒有「Unsupported markdown」、節點數不超過 14，畫面上的每個標籤都和原始碼相同', async () => {
+  it('實際渲染（共用的 renderMermaidForTest）：沒有「Unsupported markdown」、畫出來的文字沒有 $、公式都由 KaTeX 排版、KaTeX 以外沒有 Unicode 拼的數學、節點數不超過 14', async () => {
     for (const c of MODEL_CHARTS) {
-      const { svg, text, nodeCount } = await renderMermaidForTest(c.chart)
-      expect(text, c.name).not.toMatch(/Unsupported markdown/)
-      expect(nodeCount, `${c.name} 節點數`).toBeLessThanOrEqual(14)
-      expect(nodeCount, `${c.name} 節點數`).toBeGreaterThanOrEqual(5)
-      const host = document.createElement('div')
-      host.innerHTML = svg
-      const shown = new Set(Array.from(host.querySelectorAll('.nodeLabel, .edgeLabel, .cluster-label')).map((e) => plain(e.textContent ?? '')))
+      const r = await renderMermaidForTest(c.chart)
+      expect(r.text, c.name).not.toMatch(/Unsupported markdown/)
+      expect(r.text, c.name).not.toContain('$')
+      expect(unicodeMathIn(r.plainText), `${c.name} 畫面上 KaTeX 以外的 Unicode 數學`).toEqual([])
+      expect(unicodeMathInSource(c.chart), `${c.name} 原始碼 $...$ 以外的 Unicode 數學`).toEqual([])
+      expect(r.mathCount, `${c.name} KaTeX 公式數`).toBe(mathLabelCount(c.chart))
+      expect(r.mathCount, c.name).toBeGreaterThanOrEqual(1)
+      expect(renderProblems(c.chart, r), c.name).toEqual([])
+      expect(r.nodeCount, `${c.name} 節點數`).toBeLessThanOrEqual(14)
+      expect(r.nodeCount, `${c.name} 節點數`).toBeGreaterThanOrEqual(5)
       const g = await flow(c.chart)
-      for (const v of g.vertices) expect(shown.has(plain(v.text ?? '')), `${c.name} 節點 ${v.id}：「${v.text}」沒有原樣出現在圖上`).toBe(true)
-      for (const e of g.edges) if (e.text) expect(shown.has(plain(e.text)), `${c.name} 邊 ${e.start}→${e.end}：「${e.text}」沒有原樣出現在圖上`).toBe(true)
+      for (const v of g.vertices) if (!hasMath(v.text ?? '')) expect(plain(r.text).includes(plain(v.text ?? '')), `${c.name} 節點 ${v.id}：「${v.text}」沒有原樣出現在圖上`).toBe(true)
+      for (const e of g.edges) if (e.text && !hasMath(e.text)) expect(plain(r.text).includes(plain(e.text)), `${c.name} 邊 ${e.start}→${e.end}：「${e.text}」沒有原樣出現在圖上`).toBe(true)
     }
   }, 120_000)
+
+  it('圖內的數學都是 LaTeX：兩層迴圈與 datapath 的變數標籤都含 `$...$`，且成對；subgraph 標題的公式也由 KaTeX 排版', async () => {
+    for (const c of MODEL_CHARTS) {
+      expect(quotedLabels(c.chart).some(hasMath), c.name).toBe(true)
+      for (const label of quotedLabels(c.chart)) expect((label.match(/(?<!\\)\$/g) ?? []).length % 2, `${c.name}：「${label}」的 $ 要成對`).toBe(0)
+    }
+    // subgraph 標題含 $n$、$k$、$N$：標題裡沒有殘留 `$`，公式個數也計入 mathCount
+    const r = await renderMermaidForTest(D.CHART_BLOCK_SIGN_LMS)
+    expect(r.text).toContain('內層迴圈')
+    expect(r.text).toContain('外層迴圈')
+    expect(r.text).not.toContain('$')
+  }, 60_000)
 })

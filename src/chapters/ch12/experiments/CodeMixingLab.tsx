@@ -41,13 +41,17 @@ export const MIX_DEFAULTS: MixParams = {
 
 const EXP_ID = 'code-mixing-lab'
 // layout 放在模組層（參考不變）：避免每次 render 都觸發 Plotly.react 而重設 zoom
+// 圖內的數學寫 `$...$`（Plot 元件轉成斜體符號與上下標；plotMath.ts）
 const TIME_LAYOUT: Partial<Layout> = {
   margin: { r: 56 },
-  xaxis: { title: { text: 't [μs]' } },
-  yaxis: { title: { text: 'δw, δt [fs]' } },
-  yaxis2: { title: { text: 'x [—]' }, overlaying: 'y', side: 'right' },
+  xaxis: { title: { text: String.raw`$t$ [$\mathrm{\mu s}$]` } },
+  yaxis: { title: { text: String.raw`$\delta w$, $\delta t$ [fs]` } },
+  yaxis2: { title: { text: '$x$ [—]' }, overlaying: 'y', side: 'right' },
 }
-const SPEC_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'offset f [Hz]（取樣率 f_sim，one-sided）' } }, yaxis: { title: { text: '10log10(P_φ,bin/2) [dBc]' }, range: [-220, -60] } }
+const SPEC_LAYOUT: Partial<Layout> = {
+  xaxis: { title: { text: String.raw`offset $f$ [Hz]（取樣率 $f_{\mathrm{sim}}$，one-sided）` } },
+  yaxis: { title: { text: String.raw`$10\log_{10}(P_{\phi,\mathrm{bin}}/2)$ [dBc]` }, range: [-220, -60] },
+}
 
 function runCase(p: MixParams, seed: number): { r: MixingSimResult | null; err: string | null } {
   try {
@@ -85,9 +89,9 @@ export function CodeMixingLab() {
     if (!r) return []
     const t = Array.from(r.trace.tUs)
     return [
-      { x: t, y: Array.from(r.trace.x), name: 'x[n]（code，右軸）', mode: 'lines', yaxis: 'y2', line: { color: tokens.textMuted, width: 1 } },
-      { x: t, y: Array.from(r.trace.dw), name: 'δw[n] [fs]', mode: 'lines', line: { color: tokens.series[1] } },
-      { x: t, y: Array.from(r.trace.dt), name: 'δt[n] = x·δw [fs]', mode: 'lines', line: { color: tokens.series[0] } },
+      { x: t, y: Array.from(r.trace.x), name: '$x[n]$（code，右軸）', mode: 'lines', yaxis: 'y2', line: { color: tokens.textMuted, width: 1 } },
+      { x: t, y: Array.from(r.trace.dw), name: String.raw`$\delta w[n]$ [fs]`, mode: 'lines', line: { color: tokens.series[1] } },
+      { x: t, y: Array.from(r.trace.dt), name: String.raw`$\delta t[n] = x\,\delta w$ [fs]`, mode: 'lines', line: { color: tokens.series[0] } },
     ]
   }, [r, tokens])
 
@@ -110,7 +114,7 @@ export function CodeMixingLab() {
         out.push({
           x: [t.f, t.f],
           y: [t.dbcSmall - 25, t.dbcSmall + 6],
-          name: `${t.label} = ${sigText(t.f / 1e3, 5)} kHz`,
+          name: `$${t.tex}$ = ${sigText(t.f / 1e3, 5)} kHz`,
           mode: 'lines',
           line: { dash: 'dot', color: tokens.textMuted },
           showlegend: false,
@@ -161,7 +165,7 @@ export function CodeMixingLab() {
       rows.push({
         name: String.raw`$\delta t$ 均方值（Monte Carlo）`,
         value: c.meas,
-        unit: 'fs²',
+        unit: String.raw`$\mathrm{fs}^2$`,
         analytic: c.pred,
         tolerance: Number.isFinite(c.se) && c.batches >= 8 ? c.zCrit * c.se : undefined,
         claim: 'exact',

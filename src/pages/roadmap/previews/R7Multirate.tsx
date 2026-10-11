@@ -49,9 +49,9 @@ const MU_GRID = Array.from({ length: 161 }, (_, i) => i * 0.025)
 const N_SWEEP = [1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 256, 512, 1024]
 
 // Plot 的 layout 是靜態的：放在模組層，避免每次 render 產生新物件而觸發 Plotly.react
-const LAYOUT_RHO: Partial<Layout> = { xaxis: { title: { text: 'μ（正規化）' } }, yaxis: { title: { text: 'spectral radius' }, range: [0, 1.6] } }
-const LAYOUT_MUMAX: Partial<Layout> = { xaxis: { title: { text: 'N（log）' } }, yaxis: { title: { text: 'μ_max' } } }
-const LAYOUT_TIME: Partial<Layout> = { xaxis: { title: { text: 'k（block）' } }, yaxis: { title: { text: 'δ_k / δ_0' } } }
+const LAYOUT_RHO: Partial<Layout> = { xaxis: { title: { text: '$\\mu$（正規化）' } }, yaxis: { title: { text: 'spectral radius' }, range: [0, 1.6] } }
+const LAYOUT_MUMAX: Partial<Layout> = { xaxis: { title: { text: '$N$（log）' } }, yaxis: { title: { text: '$\\mu_{\\max}$' } } }
+const LAYOUT_TIME: Partial<Layout> = { xaxis: { title: { text: '$k$（block）' } }, yaxis: { title: { text: '$\\delta_k / \\delta_0$' } } }
 
 function R7Experiment() {
   const [P, setP] = useState<R7Params>(DEFAULTS)
@@ -112,25 +112,25 @@ function R7Experiment() {
   const rhoData: Data[] = useMemo(() => {
     const d: Data[] = Object.keys(sweep.rho)
       .map(Number)
-      .map((n, i) => ({ x: MU_GRID, y: sweep.rho[n], name: `N = ${n}`, mode: 'lines', line: { color: tokens.series[i % tokens.series.length], width: n === N ? 3 : 1.5 } }))
+      .map((n, i) => ({ x: MU_GRID, y: sweep.rho[n], name: `$N = ${n}$`, mode: 'lines', line: { color: tokens.series[i % tokens.series.length], width: n === N ? 3 : 1.5 } }))
     d.push({ x: MU_GRID, y: sweep.quasi, name: 'quasi-static |pole|', mode: 'lines', line: { color: tokens.textMuted, dash: 'dash' } })
     d.push({ x: [MU_GRID[0], MU_GRID[MU_GRID.length - 1]], y: [1, 1], name: '單位圓', mode: 'lines', line: { color: tokens.text, dash: 'dot' } })
-    d.push({ x: [dP.mu], y: [rho], name: '目前 (μ, N)', mode: 'markers', marker: { size: 11, symbol: 'diamond', color: tokens.text } })
+    d.push({ x: [dP.mu], y: [rho], name: '目前 $(\\mu, N)$', mode: 'markers', marker: { size: 11, symbol: 'diamond', color: tokens.text } })
     return d
   }, [sweep, N, dP.mu, rho, tokens])
   const muData: Data[] = useMemo(
     () => [
-      { x: N_SWEEP, y: muMaxCurve, name: 'μ_max(N)（lifted，exact）', mode: 'lines+markers', marker: { size: 5 }, line: { color: tokens.series[0] } },
-      { x: [N_SWEEP[0], N_SWEEP[N_SWEEP.length - 1]], y: [qsMax, qsMax], name: 'quasi-static 2(1 − r_s)/(b_s·c_s)', mode: 'lines', line: { color: tokens.series[1], dash: 'dash' } },
-      { x: [N_SWEEP[0], N_SWEEP[N_SWEEP.length - 1]], y: [jury, jury], name: 'N = 1 Jury (1 − r_s)/(b_s·c_s)', mode: 'lines', line: { color: tokens.series[2], dash: 'dot' } },
+      { x: N_SWEEP, y: muMaxCurve, name: '$\\mu_{\\max}(N)$（lifted，exact）', mode: 'lines+markers', marker: { size: 5 }, line: { color: tokens.series[0] } },
+      { x: [N_SWEEP[0], N_SWEEP[N_SWEEP.length - 1]], y: [qsMax, qsMax], name: 'quasi-static $2(1 - r_s)/(b_s c_s)$', mode: 'lines', line: { color: tokens.series[1], dash: 'dash' } },
+      { x: [N_SWEEP[0], N_SWEEP[N_SWEEP.length - 1]], y: [jury, jury], name: '$N = 1$ Jury $(1 - r_s)/(b_s c_s)$', mode: 'lines', line: { color: tokens.series[2], dash: 'dot' } },
     ],
     [muMaxCurve, qsMax, jury, tokens],
   )
   const kAxis = useMemo(() => Array.from({ length: blocks + 1 }, (_, k) => k), [blocks])
   const tData: Data[] = useMemo(
     () => [
-      { x: kAxis, y: Array.from(sim.delta), name: '逐 sample 模擬 δ_k', mode: 'lines', line: { color: tokens.series[0] } },
-      { x: kAxis, y: Array.from(lifted), name: 'lifted A_N^k', mode: 'markers', marker: { size: 5, color: tokens.series[1], symbol: 'circle-open' } },
+      { x: kAxis, y: Array.from(sim.delta), name: '逐 sample 模擬 $\\delta_k$', mode: 'lines', line: { color: tokens.series[0] } },
+      { x: kAxis, y: Array.from(lifted), name: 'lifted $\\mathbf A_N^k$', mode: 'markers', marker: { size: 5, color: tokens.series[1], symbol: 'circle-open' } },
     ],
     [kAxis, sim, lifted, tokens],
   )

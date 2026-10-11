@@ -110,6 +110,14 @@ export function ntex(x: number | null | undefined, digits = 4): string {
   return m ? `${m[1]}\\times10^{${m[2]}}` : s === '—' ? '\\text{—}' : s
 }
 
+/**
+ * 圖例／圖標題用：把策略名稱裡的「ΔΣ」換成 `$\Delta\Sigma$`（Plot 會轉成符號）。
+ * 網頁上的表格、選單與 aria-label 仍用純文字的 STRATEGY_LABEL。
+ */
+export function texLabel(s: string): string {
+  return s.replace(/ΔΣ/g, () => String.raw`$\Delta\Sigma$`)
+}
+
 /** 固定小數位數（表格對齊用）。 */
 export function fx(x: number | null | undefined, digits = 4): string {
   if (x === null || x === undefined || Number.isNaN(x)) return '—'

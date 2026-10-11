@@ -28,7 +28,7 @@ import {
   stochasticQuantVar,
   stochasticQuantVarApprox,
 } from '@/simulation/models/quantizer'
-import { DEFAULT_LAB_PARAMS, Erratum, Fold, STRATEGY_COLOR, SpurAt, Unit, fx, n, ntex, num, tx } from '../common'
+import { DEFAULT_LAB_PARAMS, Erratum, Fold, STRATEGY_COLOR, SpurAt, Unit, fx, n, ntex, num, texLabel, tx } from '../common'
 import { CHART_INBAND, CHART_TIME_VARYING } from '../diagrams'
 
 const L = 1 << 14
@@ -60,10 +60,10 @@ export function TimeVaryingSection() {
     const out: Data[] = []
     for (const r of sim) {
       if (r.strategy === 'freeze') continue
-      out.push({ x: r.psd.f, y: r.psd.psd, name: STRATEGY_LABEL[r.strategy], line: { color: tokens.series[STRATEGY_COLOR[r.strategy]], width: 1.1 } })
+      out.push({ x: r.psd.f, y: r.psd.psd, name: texLabel(STRATEGY_LABEL[r.strategy]), line: { color: tokens.series[STRATEGY_COLOR[r.strategy]], width: 1.1 } })
     }
     const ref = sim.find((r) => r.psd.lmsRef)
-    if (ref?.psd.lmsRef) out.push({ x: ref.psd.f, y: ref.psd.lmsRef, name: 'LMS 地板 S_δw（AR(1) 理論）', line: { color: tokens.text, dash: 'dash', width: 1.5 } })
+    if (ref?.psd.lmsRef) out.push({ x: ref.psd.f, y: ref.psd.lmsRef, name: String.raw`LMS 地板 $S_{\delta w}$（AR(1) 理論）`, line: { color: tokens.text, dash: 'dash', width: 1.5 } })
     return out
   }, [sim, tokens])
   const ps = sim[0].psd
@@ -221,7 +221,7 @@ export function TimeVaryingSection() {
         xLog
         yLog
         csvName="ch13-time-varying-psd"
-        layout={{ xaxis: { title: { text: 'f [Hz]（f_u = 1 MHz）' } }, yaxis: { title: { text: 'PSD [LSB²/Hz]' } } }}
+        layout={{ xaxis: { title: { text: String.raw`$f$ [Hz]（$f_u = 1\,\mathrm{MHz}$）` } }, yaxis: { title: { text: String.raw`PSD [$\mathrm{LSB}^2/\mathrm{Hz}$]` } } }}
         caption={
           <>
             Welch：Hann、nperseg {ps.nperseg}、{ps.nSegments} 段、ENBW {n(ps.enbwHz, 4)} Hz、one-sided、<Tex>{String.raw`\mathrm{LSB}^2/\mathrm{Hz}`}</Tex>。低頻時 D、E 貼著 LMS 地板（虛線），C 多一個白色地板、B 多一個{' '}

@@ -244,7 +244,7 @@ export function PolarityExplorer() {
         claim: 'exact',
         note: ap.regressor === 'u' ? '目前 GMAC 用 $u$：pole 以此計算' : String.raw`若改用 filtered-x（$\hat H=H$）會得到的值`,
       },
-      { name: String.raw`$K_q=\sqrt{2/\pi}/\sigma_v$`, value: t.Kq, unit: 'fs⁻¹', claim: 'approx' },
+      { name: String.raw`$K_q=\sqrt{2/\pi}/\sigma_v$`, value: t.Kq, unit: String.raw`$\mathrm{fs}^{-1}$`, claim: 'approx' },
       { name: String.raw`平均 pole $p=1-\mu K_qC$`, value: t.pole, formulaId: 'F-06.3', claim: 'exact', note: ap.regressor === 'u' ? String.raw`$C=E[u_D\,u]$` : '$C=C_D$' },
       { name: String.raw`polarity margin $90^\circ-|\mathrm{wrap}_{180}(\phi+\Omega D)|$`, value: t.marginDeg, unit: 'deg', claim: 'exact' },
       { name: '有限 $N$ block 的 ripple 上界', value: t.rippleN, formulaId: 'F-06.5', claim: 'exact' },
@@ -283,7 +283,7 @@ export function PolarityExplorer() {
   if (activeLoop) {
     metrics.push(
       { name: String.raw`閉迴路：in-run $C_D$（$x_{\mathrm{ref}}$ 與 $u$）`, value: activeLoop.C, analytic: Number.isFinite(activeSum?.C ?? NaN) ? activeSum?.C : undefined, tolerance: 0.02 * Math.abs(activeSum?.C ?? 0) + 0.01, claim: 'approx' },
-      { name: '閉迴路：blockLms 參考模型 Cest', value: activeLoop.reference?.Cest ?? null, note: '共用 L2 reference simulator（同 seed）' },
+      { name: String.raw`閉迴路：blockLms 參考模型的 $\hat C$`, value: activeLoop.reference?.Cest ?? null, note: '共用 L2 reference simulator（同 seed）' },
       { name: String.raw`閉迴路：MC 平均 $\bar\delta$ 在 $k^*=${activeLoop.check.k}$`, value: activeLoop.check.mean, unit: 'fs', analytic: activeLoop.check.pred, note: modelTextTex(activeLoop.check.note) },
       {
         name: String.raw`閉迴路：最後 block 平均 $\delta$`,
@@ -494,7 +494,7 @@ export function PolarityExplorer() {
                 unit="rad/sample"
                 digits={7}
                 reg="seeded_pattern.sinusoid.omega"
-                hint={mathText(String.raw`= $${fx(omegaDeg, 2)}^\circ$/sample，週期 ${active.omega > 0 ? fx((2 * Math.PI) / active.omega, 2) : '∞'} samples；$\Omega=0,\pi$ 為 E46 邊界`)}
+                hint={mathText(String.raw`= $${fx(omegaDeg, 2)}^\circ$/sample，週期 ${active.omega > 0 ? fx((2 * Math.PI) / active.omega, 2) : String.raw`$\infty$`} samples；$\Omega=0,\pi$ 為 E46 邊界`)}
               />
               <ParamControl label={mathText('$A$（code 振幅）')} ariaLabel="A（code 振幅）" value={active.A} onChange={(A) => set({ A })} min={0.01} max={4} step={0.01} reg="seeded_pattern.sinusoid.amplitude" />
             </div>
@@ -560,10 +560,10 @@ export function PolarityExplorer() {
                   min={0.01}
                   max={100}
                   log
-                  reg="seeded_pattern.sinusoid.omega = ratio·ω_LT_s"
+                  reg="seeded_pattern.sinusoid.omega"
                   hint={
                     <>
-                      Type-II：比值 <Tex>{'\\lesssim1'}</Tex> 時 <Tex>{'\\operatorname{Re}H<0'}</Tex>
+                      <Tex>{'\\Omega=\\text{ratio}\\cdot\\omega_LT_s'}</Tex>；Type-II：比值 <Tex>{'\\lesssim1'}</Tex> 時 <Tex>{'\\operatorname{Re}H<0'}</Tex>
                     </>
                   }
                 />

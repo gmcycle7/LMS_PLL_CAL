@@ -16,7 +16,7 @@ export function Rich({ text }: { text: string }) {
 
 /**
  * 方塊圖 + 「怎麼讀這張圖」導讀（docs/teaching-style.md §8）。
- * Mermaid 不渲染 KaTeX，圖上的符號是 Unicode；導讀用 KaTeX 把圖上的名字對回正文的公式。圖說（caption）是純文字，不放數學符號。
+ * 圖上的數學在 diagrams.ts 以 `$...$` 寫 LaTeX、由 <Mermaid> 用 KaTeX 排版；導讀與圖說（caption 支援 `$…$`）用 KaTeX 把圖上的名字對回正文的公式。
  */
 export function DiagramWalk({ chart, caption, ariaLabel, children }: { chart: string; caption: string; ariaLabel?: string; children?: ReactNode }) {
   return (

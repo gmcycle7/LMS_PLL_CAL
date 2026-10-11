@@ -63,8 +63,8 @@ const AUTO_RUN_LIMIT = 6_000_000
 const paramsKey = (p: ComparisonParams): string => JSON.stringify(p)
 
 /**
- * Case 的一句話描述。tex = false：純文字（Plotly 圖例、匯出的 params——Plotly 不渲染 KaTeX）；
- * tex = true：數學寫成 `$...$`，給頁面上經過 mathText 的地方用。
+ * Case 的一句話描述。tex = false：純文字（匯出的 params JSON）；
+ * tex = true：數學寫成 `$...$`，給頁面上經過 mathText 的地方、以及 Plot 的圖例（plotMath 轉成斜體符號）用。
  */
 function caseLabel(c: LabCase, tex = false): string {
   const eq = (plain: string, math: string): string => (tex ? `$${math}$` : plain)
@@ -329,7 +329,8 @@ export function DelayFxLab() {
   const figSweep = useMemo(() => (an ? sweepFigure(an, active.D, active.mode) : null), [an, active.D, active.mode])
   const figPhase = useMemo(() => (an ? phaseFigure(an) : null), [an])
   const colors = useMemo(() => Object.fromEntries(cases.cases.map((c) => [c.id, tokens.series[c.seriesIndex]])), [cases.cases, tokens.series])
-  const labels = useMemo(() => Object.fromEntries(cases.cases.map((c) => [c.id, caseLabel(c.params)])), [cases.cases])
+  // 圖例名稱裡的數學寫成 `$...$`（Plot 元件轉成斜體符號與上下標）
+  const labels = useMemo(() => Object.fromEntries(cases.cases.map((c) => [c.id, caseLabel(c.params, true)])), [cases.cases])
   const figCl = useMemo(() => (cl ? closedLoopFigure(cl.result, cl.params.scenario, colors, labels) : null), [cl, colors, labels])
 
   const params = {

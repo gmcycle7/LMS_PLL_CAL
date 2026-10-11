@@ -85,7 +85,7 @@ export function PreviewView({
           title={r.chart.title}
           csvName={`gallery-${preset.id}`}
           yLog={r.chart.yLog}
-          ariaLabel={`${stripMathDelimiters(r.chart.title)}：${r.chart.series.map((s) => s.name).join('、')}`}
+          ariaLabel={`${stripMathDelimiters(r.chart.title)}：${r.chart.series.map((s) => stripMathDelimiters(s.name)).join('、')}`}
         />
       )}
       <ModeGate min="engineer">

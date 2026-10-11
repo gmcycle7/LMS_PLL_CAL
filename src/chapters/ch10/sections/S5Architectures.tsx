@@ -139,7 +139,7 @@ export function S5Architectures() {
                 tex: String.raw`\mathbf M=\frac{\tilde\mu}{K_q\operatorname{tr}\mathbf R}\,\mathbf I`,
                 why: (
                   <>
-                    純量 × <Tex>{String.raw`\mathbf I`}</Tex>：方向與 scalar LMS 相同，只是步長自動縮放。
+                    純量 <Tex>{String.raw`\times\mathbf I`}</Tex>：方向與 scalar LMS 相同，只是步長自動縮放。
                   </>
                 ),
               },
@@ -281,7 +281,7 @@ export function S5Architectures() {
           <Deriv
             title={
               <>
-                為什麼每輪收縮 <Tex>{String.raw`\rho^2`}</Tex>（2×2、<Tex>{String.raw`\gamma=1`}</Tex>）
+                為什麼每輪收縮 <Tex>{String.raw`\rho^2`}</Tex>（<Tex>{String.raw`2\times2`}</Tex>、<Tex>{String.raw`\gamma=1`}</Tex>）
               </>
             }
           >
@@ -407,7 +407,7 @@ export function S5Architectures() {
                     <td className="small">{HYPER[row.rule]}</td>
                     <td className="ch10-num">{row.blocks95 === null ? '未達成' : nint(row.blocks95)}</td>
                     <td className="ch10-num">{row.std === null ? '—' : `${n(row.std, 4)} fs`}</td>
-                    <td className="ch10-num">{row.std === null ? '—' : `×${n(row.std / base, 3)}`}</td>
+                    <td className="ch10-num">{row.std === null ? '—' : <Tex>{String.raw`\times${tn(row.std / base, 3)}`}</Tex>}</td>
                     <td className="small">{HW_COST[row.rule]}</td>
                   </tr>
                 )

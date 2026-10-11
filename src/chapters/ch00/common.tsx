@@ -98,8 +98,9 @@ export function scrollToId(id: string) {
 
 /**
  * 章內的方塊圖（docs/teaching-style.md §8）：依名稱從 diagrams.ts 取出 Mermaid 原始碼與圖說，圖說前自動加上圖號。
- * children 是「怎麼看這張圖」的導讀：先看哪裡、再看哪裡，以及「圖上的 X 就是公式裡的 x」的對應（可以放 KaTeX；
- * Mermaid 的圖說只能是純文字）。名稱打錯時 TypeScript 與 diagramByName 都會擋下來，不會默默少一張圖。
+ * children 是「怎麼看這張圖」的導讀：先看哪裡、再看哪裡，以及「圖上的 X 就是公式裡的 x」的對應（圖上的公式一律用 <Tex> 排版，
+ * 不用 <code> 拼 Unicode）。圖說與圖內標籤的數學寫成 `$...$`，由 Mermaid 元件以 KaTeX 排版。
+ * 名稱打錯時 TypeScript 與 diagramByName 都會擋下來，不會默默少一張圖。
  */
 export function ChapterDiagram({ name, children }: { name: DiagramName; children: ReactNode }) {
   const d = diagramByName(name)

@@ -90,19 +90,24 @@ export interface DerivedGain {
   /** g = μK_q */
   g: number
   muUnit: string
+  /** K_q 的單位（純文字，給匯出的 units 欄位用） */
   kqUnit: string
+  /** K_q 的單位（含 `$…$`，給畫面上的 MetricRow.unit 用；docs/teaching-style.md §3） */
+  kqUnitTex: string
 }
+
+const KQ_UNIT_TEX = String.raw`$\mathrm{fs}^{-1}$`
 
 /** 由狀態推出 K_q、μ、g（見檔頭）。 */
 export function derivedGain(s: PeLabState): DerivedGain {
-  if (s.detector === 'linear') return { Kq: 1, mu: s.muInput, g: s.muInput, muUnit: '—', kqUnit: '—' }
+  if (s.detector === 'linear') return { Kq: 1, mu: s.muInput, g: s.muInput, muUnit: '—', kqUnit: '—', kqUnitTex: '—' }
   const Kq = comparatorKq(s.sigmaV)
   if (s.kqMode === 'normalized') {
     const g = s.muInput
-    return { Kq, mu: Number.isFinite(Kq) ? g / Kq : 0, g, muUnit: 'fs', kqUnit: 'fs⁻¹' }
+    return { Kq, mu: Number.isFinite(Kq) ? g / Kq : 0, g, muUnit: 'fs', kqUnit: 'fs⁻¹', kqUnitTex: KQ_UNIT_TEX }
   }
   const mu = s.muInput
-  return { Kq, mu, g: Number.isFinite(Kq) ? mu * Kq : Infinity, muUnit: 'fs', kqUnit: 'fs⁻¹' }
+  return { Kq, mu, g: Number.isFinite(Kq) ? mu * Kq : Infinity, muUnit: 'fs', kqUnit: 'fs⁻¹', kqUnitTex: KQ_UNIT_TEX }
 }
 
 /** 切換 K_q 模式時保持 g 不變（換算 muInput）。 */

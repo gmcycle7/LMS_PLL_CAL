@@ -4,9 +4,10 @@ import type { Complex } from '@/simulation/core'
 /**
  * Ch08 圖表的小工具：單位圓、極點標記、參考線（以 scatter trace 繪製，避免 log 軸上 shape 座標的歧義）。
  * 只產生 Plotly trace 物件；所有數值都由呼叫端以模型計算後傳入。
+ * 圖內文字（trace 名稱、軸標題、hover）的數學一律寫 `$...$`（teaching-style §3）；`Plot` 元件會轉成斜體符號與上下標（plotMath.ts）。
  */
 
-export function unitCircleTrace(color: string, name = '單位圓 |z| = 1'): Data {
+export function unitCircleTrace(color: string, name = String.raw`單位圓 $|z| = 1$`): Data {
   const n = 361
   const x = new Float64Array(n)
   const y = new Float64Array(n)
@@ -45,7 +46,7 @@ export function poleTrace(
     name,
     mode: 'markers',
     marker: { color, symbol, size, line: { width: 2, color } },
-    hovertemplate: `${name}<br>z = %{x:.4f} %{y:+.4f}j${extraHover}<extra></extra>`,
+    hovertemplate: `${name}<br>$z$ = %{x:.4f} %{y:+.4f}$j$${extraHover}<extra></extra>`,
   }
 }
 
@@ -62,8 +63,8 @@ export function vLine(x: number, y0: number, y1: number, color: string, name: st
 /** z 平面的等比例座標軸 */
 export function zPlaneLayout(range = 1.6): Partial<Layout> {
   return {
-    xaxis: { title: { text: 'Re z' }, range: [-range, range], zeroline: true },
-    yaxis: { title: { text: 'Im z' }, range: [-range, range], scaleanchor: 'x', scaleratio: 1, zeroline: true },
+    xaxis: { title: { text: String.raw`$\mathrm{Re}\,z$` }, range: [-range, range], zeroline: true },
+    yaxis: { title: { text: String.raw`$\mathrm{Im}\,z$` }, range: [-range, range], scaleanchor: 'x', scaleratio: 1, zeroline: true },
     legend: { orientation: 'h', y: -0.22 },
   }
 }

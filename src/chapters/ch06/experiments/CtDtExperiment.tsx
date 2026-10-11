@@ -95,22 +95,22 @@ export function CtDtExperiment() {
   const plots = useMemo(() => {
     const nu = Array.from(r.nu)
     const data: Data[] = [
-      { x: nu, y: Array.from(r.ctRe), name: 'CT 原型 Re{H(jω)}', mode: 'lines', line: { color: tokens.series[0], dash: 'dash' } },
-      { x: nu, y: Array.from(r.dtRe), name: `DT 模型 Re{H(e^{jΩ})}（d = ${r.design.loopDelay}）`, mode: 'lines', line: { color: tokens.series[1] } },
+      { x: nu, y: Array.from(r.ctRe), name: String.raw`CT 原型 $\operatorname{Re}\,H(j\omega)$`, mode: 'lines', line: { color: tokens.series[0], dash: 'dash' } },
+      { x: nu, y: Array.from(r.dtRe), name: String.raw`DT 模型 $\operatorname{Re}\,H(e^{j\Omega})$（$d = ${r.design.loopDelay}$）`, mode: 'lines', line: { color: tokens.series[1] } },
       ...(tustin ? [{ x: nu, y: tustin.re, name: 'Tustin（bilinear）對照', mode: 'lines' as const, line: { color: tokens.series[4], dash: 'dot' as const } }] : []),
     ]
     const phaseData: Data[] = [
-      { x: nu, y: Array.from(r.ctPhaseDeg), name: 'CT ∠H', mode: 'lines', line: { color: tokens.series[0], dash: 'dash' } },
-      { x: nu, y: Array.from(r.dtPhaseDeg), name: 'DT ∠H', mode: 'lines', line: { color: tokens.series[1] } },
-      ...(tustin ? [{ x: nu, y: tustin.phase, name: 'Tustin ∠H', mode: 'lines' as const, line: { color: tokens.series[4], dash: 'dot' as const } }] : []),
+      { x: nu, y: Array.from(r.ctPhaseDeg), name: String.raw`CT $\angle H$`, mode: 'lines', line: { color: tokens.series[0], dash: 'dash' } },
+      { x: nu, y: Array.from(r.dtPhaseDeg), name: String.raw`DT $\angle H$`, mode: 'lines', line: { color: tokens.series[1] } },
+      ...(tustin ? [{ x: nu, y: tustin.phase, name: String.raw`Tustin $\angle H$`, mode: 'lines' as const, line: { color: tokens.series[4], dash: 'dot' as const } }] : []),
     ]
     const shapes = [
       { type: 'line' as const, xref: 'paper' as const, x0: 0, x1: 1, y0: 0, y1: 0, line: { color: tokens.textMuted, width: 1 } },
       ...(r.dtBoundaryNu ? [{ type: 'line' as const, yref: 'paper' as const, y0: 0, y1: 1, x0: r.dtBoundaryNu, x1: r.dtBoundaryNu, line: { color: tokens.series[1], dash: 'dot' as const } }] : []),
     ]
-    const reLayout: Partial<Layout> = { xaxis: { title: { text: 'ν = Ω/(ω_L T_s)' } }, yaxis: { title: { text: 'Re{H_PD}' } }, shapes }
+    const reLayout: Partial<Layout> = { xaxis: { title: { text: String.raw`$\nu = \Omega/(\omega_L T_s)$` } }, yaxis: { title: { text: String.raw`$\operatorname{Re}\,H_{\mathrm{PD}}$` } }, shapes }
     const phaseLayout: Partial<Layout> = {
-      xaxis: { title: { text: 'ν = Ω/(ω_L T_s)' } },
+      xaxis: { title: { text: String.raw`$\nu = \Omega/(\omega_L T_s)$` } },
       yaxis: { title: { text: '相位 [deg]' } },
       shapes: [{ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: 90, y1: 90, line: { color: tokens.danger, dash: 'dot', width: 1 } }],
     }
@@ -205,8 +205,8 @@ export function CtDtExperiment() {
             max={1.5}
             log
             unit="rad/sample"
-            reg="REG_PLL_KP / REG_PLL_KI（K_p = 2ζω_nT_s、K_i = (ω_nT_s)²；Type-I：K = ω_cT_s）"
-            hint="E44 的數值例子：0.01、0.1、0.3"
+            reg="REG_PLL_KP / REG_PLL_KI"
+            hint={mathText(String.raw`Type-II：$K_p=2\zeta\omega_nT_s$、$K_i=(\omega_nT_s)^2$；Type-I：$K=\omega_cT_s$。E44 的數值例子：0.01、0.1、0.3`)}
           />
           <ParamControl
             label={mathText('額外 loop latency $d$')}

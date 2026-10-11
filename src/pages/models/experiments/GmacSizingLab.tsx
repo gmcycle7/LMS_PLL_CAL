@@ -25,7 +25,7 @@ const md = (s: string) => mathText(s)
 const GMAC_EXPERIMENT_ID = 'gmac-datapath-sizing'
 
 // layout 放在模組層級：identity 穩定，Plot 只在資料改變時重畫
-const CURVE_LAYOUT = { xaxis: { title: { text: 'δ = a − w [fs]' } }, yaxis: { title: { text: 'E[Ĝ]（正規化）' } } }
+const CURVE_LAYOUT = { xaxis: { title: { text: '$\\delta = a - w$ [fs]' } }, yaxis: { title: { text: '$E[\\hat G]$（正規化）' } } }
 
 export function GmacSizingLab() {
   const urlPreset = useUrlPreset(GMAC_EXPERIMENT_ID)
@@ -61,10 +61,10 @@ export function GmacSizingLab() {
     const deltas = Array.from({ length: 121 }, (_, i) => -R + (2 * R * i) / 120)
     const c = meanGhatCurves({ bx: dp.bx, log2N: dp.log2N, gFracBits: dp.gFracBits, sigmaV: dp.sigmaV }, deltas)
     const data: Data[] = [
-      { x: deltas, y: c.ideal, name: '無截斷 E[G] = x_n(2Φ − 1)', mode: 'lines', line: { color: tokens.textMuted, width: 1.5 } },
-      { x: deltas, y: c.linear, name: '線性化 Kδ', mode: 'lines', line: { color: tokens.textMuted, dash: 'dot', width: 1 } },
-      { x: deltas, y: c.floor, name: 'floor 右移 E[Ĝ]', mode: 'lines', line: { color: tokens.series[1], width: 2 } },
-      { x: deltas, y: c.halfUp, name: 'round half up E[Ĝ]', mode: 'lines', line: { color: tokens.series[0], width: 2, dash: 'dash' } },
+      { x: deltas, y: c.ideal, name: '無截斷 $E[G] = x_n(2\\Phi - 1)$', mode: 'lines', line: { color: tokens.textMuted, width: 1.5 } },
+      { x: deltas, y: c.linear, name: '線性化 $K\\delta$', mode: 'lines', line: { color: tokens.textMuted, dash: 'dot', width: 1 } },
+      { x: deltas, y: c.floor, name: 'floor 右移 $E[\\hat G]$', mode: 'lines', line: { color: tokens.series[1], width: 2 } },
+      { x: deltas, y: c.halfUp, name: 'round half up $E[\\hat G]$', mode: 'lines', line: { color: tokens.series[0], width: 2, dash: 'dash' } },
     ]
     return { data, R }
   }, [o, dp, tokens])
@@ -150,9 +150,9 @@ export function GmacSizingLab() {
         const get = (name: string) => (curve.data.find((t) => (t as { name?: string }).name === name) as { y: number[] }).y
         return {
           delta_fs: (curve.data[0] as { x: number[] }).x,
-          E_G_ideal: get('無截斷 E[G] = x_n(2Φ − 1)'),
-          E_Ghat_floor: get('floor 右移 E[Ĝ]'),
-          E_Ghat_half_up: get('round half up E[Ĝ]'),
+          E_G_ideal: get('無截斷 $E[G] = x_n(2\\Phi - 1)$'),
+          E_Ghat_floor: get('floor 右移 $E[\\hat G]$'),
+          E_Ghat_half_up: get('round half up $E[\\hat G]$'),
         }
       }}
       presets={presets}

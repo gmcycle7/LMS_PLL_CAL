@@ -471,7 +471,7 @@ export function HandExampleSection() {
           title={String.raw`思考題 2（$\tfrac12$ 的陷阱，勘誤 E41）`}
           question={
             <>
-              某人用沒有 ½ 的 <Tex>{'J_2'}</Tex> 的曲率 <Tex>{'2x^2'}</Tex> 推出「<Tex>{'x=2'}</Tex> 時 LMS 必須{' '}
+              某人用沒有 <Tex>{String.raw`\tfrac12`}</Tex> 的 <Tex>{'J_2'}</Tex> 的曲率 <Tex>{'2x^2'}</Tex> 推出「<Tex>{'x=2'}</Tex> 時 LMS 必須{' '}
               <Tex>{String.raw`\mu<0.25`}</Tex>」。那 <Tex>{String.raw`\mu=0.4`}</Tex> 的 LMS 會怎樣？
             </>
           }

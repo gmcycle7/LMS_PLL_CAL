@@ -194,7 +194,7 @@ export function CriteriaSection() {
       {
         x: Array.from(trap.blockMeans, (_, i) => i * stepMs),
         y: Array.from(trap.blockMeans),
-        name: '區塊平均 δt（toggle × DSM residue，frac = 0.1）',
+        name: String.raw`區塊平均 $\delta t$（toggle $\times$ DSM residue，$\mathrm{frac}=0.1$）`,
         mode: 'lines',
         line: { shape: 'hv', color: tokens.series[0], width: 2 },
       },
@@ -374,7 +374,7 @@ export function CriteriaSection() {
             data={trapData}
             height={240}
             csvName="ch13-fcw-trap-staircase"
-            layout={{ xaxis: { title: { text: '時間 [ms]' } }, yaxis: { title: { text: '區塊平均 δt [fs]' } } }}
+            layout={{ xaxis: { title: { text: '時間 [ms]' } }, yaxis: { title: { text: String.raw`區塊平均 $\delta t$ [fs]` } } }}
             caption={
               <>
                 由 <code>slowProductStaircase()</code> 計算：<Tex>{String.raw`\delta t[n]=\Delta_\mathrm{LSB}\,e[n]\,x[n]`}</Tex> 每 {trap.blockLen} 個 cycle 的平均（比 <Tex>{String.raw`f_L`}</Tex>{' '}

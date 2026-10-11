@@ -240,17 +240,20 @@ describe('R3 指標表：數值與單位分欄（不把單位拼在數值字串�
       const tr = rows.find((r) => label.test(r.querySelector('td')?.textContent ?? ''))
       expect(tr, String(label)).toBeTruthy()
       const td = tr!.querySelectorAll('td')
-      return { value: Number(td[1].textContent), unit: td[2].textContent }
+      // 單位若是 `$…$`（例如 LSB²）由 KaTeX 排版：textContent 含 MathML 複本，TeX 原始碼在 <annotation> 裡
+      return { value: Number(td[1].textContent), unit: td[2].textContent, unitTex: td[2].querySelector('annotation')?.textContent ?? null }
     }
     const peak = cells(/peak 振幅/)
     expect(peak.value).toBeCloseTo(2 * top.mag, 5)
     expect(peak.unit).toBe('LSB')
     const power = cells(/tone：功率/)
     expect(power.value).toBeCloseTo(2 * top.mag * top.mag, 5)
-    expect(power.unit).toBe('LSB²')
+    expect(power.unitTex).toBe(String.raw`\mathrm{LSB}^2`) // LSB²：單位是 LaTeX，不是 Unicode 上標
+    expect(power.unit).not.toContain('²')
     const total = cells(/總量化誤差功率/)
     expect(total.value).toBeCloseTo(0.24, 9)
-    expect(total.unit).toBe('LSB²')
+    expect(total.unitTex).toBe(String.raw`\mathrm{LSB}^2`)
+    expect(total.unit).not.toContain('²')
     // 數值欄裡沒有任何一格把單位拼進去
     for (const r of rows) expect(r.querySelectorAll('td')[1].textContent ?? '').not.toMatch(/LSB|fs/)
   })

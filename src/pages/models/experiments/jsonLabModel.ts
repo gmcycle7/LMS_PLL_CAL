@@ -261,7 +261,7 @@ export function buildMetricRows(res: BlockLmsResult): MetricRow[] {
       toleranceMode: 'rel',
       note: '解析值為線性化 $\\sigma_w$（GMAC 雜訊 iid、小訊號 $K_q$）；它是 gain-equivalent 雜訊，不是 output jitter',
     },
-    { name: 'MSE：$\\overline{(w-a)^2}$（後半段）', value: m.mse, unit: 'fs²', claim: 'approx' },
+    { name: 'MSE：$\\overline{(w-a)^2}$（後半段）', value: m.mse, unit: '$\\mathrm{fs}^2$', claim: 'approx' },
     { name: 'settling block（落入 $4\\sigma$ 帶）', value: m.settlingBlock === null ? '未收斂（null）' : m.settlingBlock, unit: 'block' },
     { name: '平均 $G$（全部 blocks）', value: m.meanG, unit: cfg.gm_mode === 'average' ? '無因次（average）' : '無因次（sum）' },
     { name: 'saturation 次數', value: m.saturationCount, unit: '次' },
@@ -493,7 +493,7 @@ export function decimate(y: ArrayLike<number>, maxPts = PLOT_MAX_POINTS, x0 = 0)
   return { x: xs, y: ys }
 }
 
-/** 一行摘要的 `$...$` 版本（圖說等 HTML 文字用；Plotly 圖例仍用 shortLabel） */
+/** 一行摘要的 `$...$` 版本（圖說、Plotly 圖例的釘選曲線標籤；<Plot> 會把 `$...$` 轉成斜體符號與上下標）。分隔用「 / 」（「·」會被當成乘號） */
 export function shortLabelTex(cfg: BlockLmsConfig): string {
   const parts = [
     `$\\mu=${texNumber(cfg.gain_step, 4)}$`,
@@ -504,10 +504,10 @@ export function shortLabelTex(cfg: BlockLmsConfig): string {
   if (cfg.cal_update_delay_blocks > 0) parts.push(`$d=${cfg.cal_update_delay_blocks}$`)
   if (cfg.pll_error_path.kind !== 'identity') parts.push(cfg.pll_error_path.kind)
   if (cfg.gain_register.quantize_physical) parts.push('L5')
-  return parts.join(' · ')
+  return parts.join(' / ')
 }
 
-/** 一行摘要（釘選比較曲線的標籤） */
+/** 一行摘要的純文字版（不含 TeX；匯出檔等純文字用途） */
 export function shortLabel(cfg: BlockLmsConfig): string {
   const parts = [
     `μ=${fmtNum(cfg.gain_step, 4)}`,

@@ -38,7 +38,7 @@ const LOCAL_PRESETS: ExperimentPreset[] = [
   { name: '不可辨識：ρ_GP = 0.995', description: 'GOS 與 PHOS regressor 幾乎相同：σ_min(Ĵ) → 0', params: { ...SSPLL_DEFAULT, rho: 0.995, cP: 1 } },
 ]
 
-const POLE_LAYOUT = { xaxis: { title: { text: 'Re z' }, scaleanchor: 'y' as const, range: [-1.6, 1.6] }, yaxis: { title: { text: 'Im z' }, range: [-1.3, 1.3] } }
+const POLE_LAYOUT = { xaxis: { title: { text: '$\\mathrm{Re}\\,z$' }, scaleanchor: 'y' as const, range: [-1.6, 1.6] }, yaxis: { title: { text: '$\\mathrm{Im}\\,z$' }, range: [-1.3, 1.3] } }
 
 function MatrixTex({ A, digits = 4 }: { A: Matrix; digits?: number }) {
   return <Tex>{`\\begin{bmatrix}${A.map((r) => r.map((v) => tx(v, digits)).join('&')).join('\\\\')}\\end{bmatrix}`}</Tex>
@@ -72,8 +72,8 @@ export function SspllJacobianExperiment() {
       res
         ? [
             unit,
-            { x: res.eigA.map((z) => z.re), y: res.eigA.map((z) => z.im), mode: 'markers', name: '聯合 eig(I + MĴ)', marker: { size: 12, symbol: 'x', color: tokens.series[1] } },
-            { x: res.diagPoles, y: res.diagPoles.map(() => 0), mode: 'markers', name: '單獨更新 1 + μ_iĴ_ii', marker: { size: 10, symbol: 'circle-open', color: tokens.series[0], line: { width: 2 } } },
+            { x: res.eigA.map((z) => z.re), y: res.eigA.map((z) => z.im), mode: 'markers', name: '聯合 $\\mathrm{eig}(\\mathbf I + \\mathbf M\\hat{\\mathbf J})$', marker: { size: 12, symbol: 'x', color: tokens.series[1] } },
+            { x: res.diagPoles, y: res.diagPoles.map(() => 0), mode: 'markers', name: '單獨更新 $1 + \\mu_i\\hat J_{ii}$', marker: { size: 10, symbol: 'circle-open', color: tokens.series[0], line: { width: 2 } } },
           ]
         : [unit],
     [res, unit, tokens],
@@ -82,15 +82,15 @@ export function SspllJacobianExperiment() {
   const k = kq(p.sigmaV)
   const metrics: MetricRow[] = res
     ? [
-        { name: String.raw`$\hat J_{GG}$（量測）`, value: res.Jhat[0][0], unit: 'fs⁻¹', analytic: res.JmeanField[0][0], tolerance: 4 * res.Jse[0][0], claim: 'approx', formulaId: 'F-SO.6' },
-        { name: String.raw`$\hat J_{GP}$`, value: res.Jhat[0][1], unit: 'fs⁻¹', analytic: res.JmeanField[0][1], tolerance: 4 * res.Jse[0][1], claim: 'approx' },
-        { name: String.raw`$\hat J_{PG}$`, value: res.Jhat[1][0], unit: 'fs⁻¹', analytic: res.JmeanField[1][0], tolerance: 4 * res.Jse[1][0], claim: 'approx' },
-        { name: String.raw`$\hat J_{PP}$（量測）`, value: res.Jhat[1][1], unit: 'fs⁻¹', analytic: res.JmeanField[1][1], tolerance: 4 * res.Jse[1][1], claim: 'approx', formulaId: 'F-SO.6' },
+        { name: String.raw`$\hat J_{GG}$（量測）`, value: res.Jhat[0][0], unit: '$\\mathrm{fs}^{-1}$', analytic: res.JmeanField[0][0], tolerance: 4 * res.Jse[0][0], claim: 'approx', formulaId: 'F-SO.6' },
+        { name: String.raw`$\hat J_{GP}$`, value: res.Jhat[0][1], unit: '$\\mathrm{fs}^{-1}$', analytic: res.JmeanField[0][1], tolerance: 4 * res.Jse[0][1], claim: 'approx' },
+        { name: String.raw`$\hat J_{PG}$`, value: res.Jhat[1][0], unit: '$\\mathrm{fs}^{-1}$', analytic: res.JmeanField[1][0], tolerance: 4 * res.Jse[1][0], claim: 'approx' },
+        { name: String.raw`$\hat J_{PP}$（量測）`, value: res.Jhat[1][1], unit: '$\\mathrm{fs}^{-1}$', analytic: res.JmeanField[1][1], tolerance: 4 * res.Jse[1][1], claim: 'approx', formulaId: 'F-SO.6' },
         { name: String.raw`$\rho(\mathbf I+\mathbf M\hat{\mathbf J})$（聯合）`, value: res.rhoA, claim: 'exact', formulaId: 'F-SO.7', note: String.raw`$<1$ 才穩定（以量測 $\hat{\mathbf J}$ 計算）` },
         {
           name: String.raw`$\sigma_{\min}(\hat{\mathbf J})$（可辨識性）`,
           value: res.singularValues[1],
-          unit: 'fs⁻¹',
+          unit: '$\\mathrm{fs}^{-1}$',
           claim: 'approx',
           formulaId: 'F-SO.6',
           note: `門檻 $z\\,\\|\\mathrm{se}\\|_F=${tx(res.sigmaMinThreshold, 3)}\\,\\mathrm{fs}^{-1}$（Weyl：$|\\sigma_{\\min}(\\hat{\\mathbf J})-\\sigma_{\\min}(\\mathbf J)|\\le\\|\\hat{\\mathbf J}-\\mathbf J\\|_F$）；高於門檻才算顯著 $>0$`,
@@ -283,7 +283,7 @@ export function SspllJacobianExperiment() {
         </>
       )}
       <Plot
-        title="Poles：單獨更新（○）vs 聯合更新（×）"
+        title={String.raw`Poles：單獨更新（○）vs 聯合更新（$\times$）`}
         data={poles}
         layout={POLE_LAYOUT}
         height={320}

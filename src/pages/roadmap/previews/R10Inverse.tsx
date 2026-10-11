@@ -45,8 +45,8 @@ const INLINE_PRESETS: ExperimentPreset[] = [
 ]
 
 // Plot 的 layout 是靜態的：放在模組層，避免每次 render 產生新物件而觸發 Plotly.react
-const LAYOUT_SIGMA: Partial<Layout> = { xaxis: { title: { text: 'N（GMAC 長度）' } }, yaxis: { title: { text: 'σ_w [fs]' } } }
-const LAYOUT_MU: Partial<Layout> = { xaxis: { title: { text: 'N' } }, yaxis: { title: { text: 'μ [fs]' } } }
+const LAYOUT_SIGMA: Partial<Layout> = { xaxis: { title: { text: '$N$（GMAC 長度）' } }, yaxis: { title: { text: '$\\sigma_w$ [fs]' } } }
+const LAYOUT_MU: Partial<Layout> = { xaxis: { title: { text: '$N$' } }, yaxis: { title: { text: '$\\mu$ [fs]' } } }
 
 function R10Experiment() {
   const [P, setP] = useState<R10Params>(DEFAULTS)
@@ -90,7 +90,7 @@ function R10Experiment() {
     warnings.push(String.raw`$|\delta_0|/\sigma_v=${n4(dP.delta0 / dP.sigmaV)}>0.3$：大誤差時 sign-LMS 不再線性（$E[G]$ 飽和在 $\pm1$），時間下界只是必要條件，實際收斂更慢（勘誤 E48）。`)
 
   const metrics: MetricRow[] = [
-    { name: '$K=K_qC$', value: res.K, unit: 'fs⁻¹' },
+    { name: '$K=K_qC$', value: res.K, unit: String.raw`$\mathrm{fs}^{-1}$` },
     { name: String.raw`總比較次數 $f_sT_{\max}$`, value: dP.fs * dP.tMaxUs * 1e-6, unit: 'samples' },
     { name: String.raw`多 block 極限 $\sqrt{L_\varepsilon/(2K^2f_sT)}$`, value: res.floorMany, unit: 'fs', formulaId: 'F-R10.1', claim: 'approx' },
     { name: String.raw`一次平均 $1/(K\sqrt{f_sT})$`, value: res.floorOneShot, unit: 'fs', claim: 'approx', note: String.raw`把 $f_sT$ 個樣本平均一次（$N=f_sT$、$g=1$）；固定 $\mu$ 的 tanh 律只在 $B\to1$ 時才接近它` },
@@ -109,19 +109,19 @@ function R10Experiment() {
   const Ns = useMemo(() => res.rows.map((r) => r.N), [res])
   const sigmaData: Data[] = useMemo(
     () => [
-      { x: Ns, y: res.rows.map((r) => (r.feasible ? r.sigmaWAtLo : null)), name: '可行：σ_w @ g_lo（整數 B）', mode: 'lines+markers', marker: { size: 6 }, line: { color: tokens.series[0] } },
+      { x: Ns, y: res.rows.map((r) => (r.feasible ? r.sigmaWAtLo : null)), name: '可行：$\\sigma_w$ @ $g_{\\mathrm{lo}}$（整數 $B$）', mode: 'lines+markers', marker: { size: 6 }, line: { color: tokens.series[0] } },
       { x: Ns, y: res.rows.map((r) => (!r.feasible && Number.isFinite(r.sigmaWAtLo) ? r.sigmaWAtLo : null)), name: '不可行列', mode: 'markers', marker: { size: 7, symbol: 'x', color: tokens.series[3] } },
-      { x: Ns, y: res.rows.map((r) => r.sigmaWContinuous), name: 'tanh 律（連續 B）', mode: 'lines', line: { color: tokens.series[1], dash: 'dash' } },
-      { x: [Ns[0], Ns[Ns.length - 1]], y: [dP.sigmaWMax, dP.sigmaWMax], name: 'σ_w,max（規格）', mode: 'lines', line: { color: tokens.text, dash: 'dot' } },
+      { x: Ns, y: res.rows.map((r) => r.sigmaWContinuous), name: 'tanh 律（連續 $B$）', mode: 'lines', line: { color: tokens.series[1], dash: 'dash' } },
+      { x: [Ns[0], Ns[Ns.length - 1]], y: [dP.sigmaWMax, dP.sigmaWMax], name: '$\\sigma_{w,\\max}$（規格）', mode: 'lines', line: { color: tokens.text, dash: 'dot' } },
       { x: [Ns[0], Ns[Ns.length - 1]], y: [res.floorMany, res.floorMany], name: '多 block 極限', mode: 'lines', line: { color: tokens.textMuted } },
-      { x: [Ns[0], Ns[Ns.length - 1]], y: [res.floorOneShot, res.floorOneShot], name: '一次平均（N = f_s·T、g = 1）', mode: 'lines', line: { color: tokens.textMuted, dash: 'dashdot' } },
+      { x: [Ns[0], Ns[Ns.length - 1]], y: [res.floorOneShot, res.floorOneShot], name: '一次平均（$N = f_sT$、$g = 1$）', mode: 'lines', line: { color: tokens.textMuted, dash: 'dashdot' } },
     ],
     [Ns, res, dP.sigmaWMax, tokens],
   )
   const muData: Data[] = useMemo(
     () => [
-      { x: Ns, y: res.rows.map((r) => (r.feasible ? r.muLo : null)), name: 'μ 下界（時間 / slew）', mode: 'lines+markers', marker: { size: 5 }, line: { color: tokens.series[0] } },
-      { x: Ns, y: res.rows.map((r) => (r.feasible ? r.muHi : null)), name: 'μ 上界（雜訊 / PM）', mode: 'lines+markers', marker: { size: 5 }, line: { color: tokens.series[2] }, fill: 'tonexty' },
+      { x: Ns, y: res.rows.map((r) => (r.feasible ? r.muLo : null)), name: '$\\mu$ 下界（時間 / slew）', mode: 'lines+markers', marker: { size: 5 }, line: { color: tokens.series[0] } },
+      { x: Ns, y: res.rows.map((r) => (r.feasible ? r.muHi : null)), name: '$\\mu$ 上界（雜訊 / PM）', mode: 'lines+markers', marker: { size: 5 }, line: { color: tokens.series[2] }, fill: 'tonexty' },
     ],
     [Ns, res, tokens],
   )
@@ -168,7 +168,7 @@ function R10Experiment() {
           <ParamControl {...pl('$C$（code 相關）', 'C（code 相關）')} value={P.C} onChange={(v) => setP({ ...P, C: v })} min={0.01} max={2} step={0.01} unit="—" reg="Behavioral：C = E[x·u]" />
           <ParamControl {...pl('$f_s$', 'f_s')} value={P.fs} onChange={(v) => setP({ ...P, fs: v })} min={1e8} max={2e10} log unit="Hz" reg="Behavioral：f_ref" />
           <ParamControl {...pl(String.raw`$\sigma_{w,\max}$（規格）`, 'sigma_w,max（規格）')} value={P.sigmaWMax} onChange={(v) => setP({ ...P, sigmaWMax: v })} min={0.01} max={20} log unit="fs" reg="Spec：gain-equivalent noise 上限" />
-          <ParamControl {...pl(String.raw`$T_{\max}$（規格）`, 'T_max（規格）')} value={P.tMaxUs} onChange={(v) => setP({ ...P, tMaxUs: v })} min={0.1} max={100000} log unit="µs" reg="Spec：校正時間上限" />
+          <ParamControl {...pl(String.raw`$T_{\max}$（規格）`, 'T_max（規格）')} value={P.tMaxUs} onChange={(v) => setP({ ...P, tMaxUs: v })} min={0.1} max={100000} log unit={String.raw`$\mu\mathrm{s}$`} reg="Spec：校正時間上限" />
           <ParamControl {...pl(String.raw`$\varepsilon$（平均誤差縮減比）`, 'epsilon（平均誤差縮減比）')} value={P.eps} onChange={(v) => setP({ ...P, eps: v })} min={1e-6} max={0.5} log unit="—" reg="Spec：相對比例（勘誤 E16）" />
           <ParamControl {...pl(String.raw`$|\delta_0|$（初始誤差）`, 'delta_0（初始誤差）')} value={P.delta0} onChange={(v) => setP({ ...P, delta0: v })} min={0.01} max={10000} log unit="fs" reg="Spec：上電 / PVT 跳變" />
           <ParamControl {...pl(String.raw`$PM_{\min}$`, 'PM_min')} value={P.pmMinDeg} onChange={(v) => setP({ ...P, pmMinDeg: v })} min={1} max={89} step={1} unit="deg" reg="Design：calibration PM" />

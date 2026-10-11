@@ -36,7 +36,7 @@ const MU = 0.1
 export const GRADIENT_EXAMPLE = { w: W0, x: X, y: Y, mu: MU }
 const MU_LIST = [0.02, 0.1, 0.25, 0.4, 0.5, 0.65]
 /** 固定的版面物件放在模組層級：每次 render 傳入同一個參照，Plot 才不會重畫（也不會把使用者的縮放重設） */
-const COST_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'w' } }, yaxis: { title: { text: 'j(w)' }, range: [-0.5, 14] } }
+const COST_LAYOUT: Partial<Layout> = { xaxis: { title: { text: '$w$' } }, yaxis: { title: { text: '$j(w)$' }, range: [-0.5, 14] } }
 
 /** §0.6 為什麼更新量是 μ·e·x？——½e² 的導數一步一步算。 */
 export function WhyExSection() {
@@ -60,23 +60,23 @@ export function WhyExSection() {
   const costData: Data[] = useMemo(() => {
     const tangentW = [W0 - 0.9, W0 + 0.9]
     return [
-      { x: curve.w, y: curve.j, name: 'j(w) = ½(y − wx)²', mode: 'lines', line: { color: tokens.series[0] } },
+      { x: curve.w, y: curve.j, name: String.raw`$j(w) = \tfrac12\,(y - w\,x)^2$`, mode: 'lines', line: { color: tokens.series[0] } },
       {
         x: tangentW,
         y: tangentW.map((w) => j0 + g * (w - W0)),
-        name: `w₀ 的切線（斜率 dj/dw = ${num(g)}）`,
+        name: String.raw`$w_0$ 的切線（斜率 $dj/dw = ${texRes(g)}$）`,
         mode: 'lines',
         line: { color: tokens.series[1], dash: 'dash' },
       },
       {
         x: [W0, w1],
         y: [j0, sampleCost(w1, X, Y)],
-        name: `一步更新 w₀ = ${num(W0)} → w₁ = ${num(w1)}`,
+        name: String.raw`一步更新 $w_0 = ${texRes(W0)} \to w_1 = ${texRes(w1)}$`,
         mode: 'lines+markers',
         marker: { size: 9 },
         line: { color: tokens.series[2] },
       },
-      { x: [Y / X], y: [0], name: `最低點 w = y/x = ${num(Y / X)}`, mode: 'markers', marker: { size: 10, symbol: 'star', color: tokens.series[3] } },
+      { x: [Y / X], y: [0], name: String.raw`最低點 $w = y/x = ${texRes(Y / X)}$`, mode: 'markers', marker: { size: 10, symbol: 'star', color: tokens.series[3] } },
     ]
   }, [curve, tokens, g, j0, w1])
 
@@ -124,12 +124,12 @@ export function WhyExSection() {
       </p>
       <ChapterDiagram name="CHART_GRADIENT_DESCENT">
         <p>
-          先由左到右看主線：在目前的 <code>w[n]</code> 量出單筆成本 <Tex>{'j=\\tfrac12e^2'}</Tex> 的斜率（藍色）；算斜率還要這一筆資料 <code>x[n]</code>、<code>y[n]</code>（圓角的輸入，因為 <Tex>{'e=y-wx'}</Tex>）。再乘上 <Tex>{'-\\mu'}</Tex>（負號表示「反方向」，<Tex>{'\\mu'}</Tex> 決定步伐大小），得到這一步要走的{' '}
-          <Tex>{'\\Delta w'}</Tex>。再看相加點：<code>w[n]</code> 另外拉一條線直接過來，和 <Tex>{'\\Delta w'}</Tex> 相加，得到新位置 <code>w[n+1]</code>；虛線表示下一筆資料來時再重複一次。
+          先由左到右看主線：在目前的 <Tex>{'w[n]'}</Tex> 量出單筆成本 <Tex>{'j=\\tfrac12e^2'}</Tex> 的斜率（藍色）；算斜率還要這一筆資料 <Tex>{'x[n]'}</Tex>、<Tex>{'y[n]'}</Tex>（圓角的輸入，因為 <Tex>{'e=y-wx'}</Tex>）。再乘上 <Tex>{'-\\mu'}</Tex>（負號表示「反方向」，<Tex>{'\\mu'}</Tex> 決定步伐大小），得到這一步要走的{' '}
+          <Tex>{'\\Delta w'}</Tex>。再看相加點：<Tex>{'w[n]'}</Tex> 另外拉一條線直接過來，和 <Tex>{'\\Delta w'}</Tex> 相加，得到新位置 <Tex>{'w[n+1]'}</Tex>；虛線表示下一筆資料來時再重複一次。
         </p>
         <p>
-          圖上的「斜率 <code>dj/dw = −e·x</code>」就是下面逐步微分要證明的結果；「<code>Δw = −μ·(dj/dw) = μ·e·x</code>」就是推導的最後兩行。把這張圖和 §0.3 的{' '}
-          <FigRef name="CHART_LMS_ACCUMULATOR" /> 疊在一起看：兩張圖最後都是「<code>w[n]</code> 加上 <code>μ·e·x</code>」，所以 LMS 就是下坡法。
+          圖上的「斜率 <Tex>{'dj/dw = -e\\,x'}</Tex>」就是下面逐步微分要證明的結果；「<Tex>{'\\Delta w = -\\mu\\,(dj/dw) = \\mu\\,e\\,x'}</Tex>」就是推導的最後兩行。把這張圖和 §0.3 的{' '}
+          <FigRef name="CHART_LMS_ACCUMULATOR" /> 疊在一起看：兩張圖最後都是「<Tex>{'w[n]'}</Tex> 加上 <Tex>{'\\mu\\,e\\,x'}</Tex>」，所以 LMS 就是下坡法。
         </p>
       </ChapterDiagram>
       <div id="ch00-gradient-steps">
@@ -312,12 +312,12 @@ export function WhyExSection() {
       </p>
       <ChapterDiagram name="CHART_ERROR_RECURSION">
         <p>
-          先從暫存器出發順著箭頭走一圈：<code>δ[n]</code> 乘上 <Tex>{'x'}</Tex> 變成誤差 <code>e[n]</code>（沒有雜訊時 <Tex>{'e=\\delta x'}</Tex>），再乘上 <Tex>{'\\mu x'}</Tex>{' '}
-          變成 LMS 的修正量 <Tex>{'\\mu e x=\\mu x^2\\delta'}</Tex>。再看藍色的相加點：<code>δ[n]</code> 以 <code>(+)</code> 進入、修正量以 <code>(−)</code> 進入——<Tex>{'w'}</Tex>{' '}
-          往上修多少，「還差多少」就少多少。相加點的輸出寫回暫存器，成為 <code>δ[n+1]</code>。
+          先從暫存器出發順著箭頭走一圈：<Tex>{'\\delta[n]'}</Tex> 乘上 <Tex>{'x'}</Tex> 變成誤差 <Tex>{'e[n]'}</Tex>（沒有雜訊時 <Tex>{'e=\\delta x'}</Tex>），再乘上 <Tex>{'\\mu x'}</Tex>{' '}
+          變成 LMS 的修正量 <Tex>{'\\mu e x=\\mu x^2\\delta'}</Tex>。再看藍色的相加點：<Tex>{'\\delta[n]'}</Tex> 以 <Tex>{'(+)'}</Tex> 進入、修正量以 <Tex>{'(-)'}</Tex> 進入——<Tex>{'w'}</Tex>{' '}
+          往上修多少，「還差多少」就少多少。相加點的輸出寫回暫存器，成為 <Tex>{'\\delta[n+1]'}</Tex>。
         </p>
         <p>
-          圖上繞一圈的總效果「<code>δ[n+1] = (1 − μ·x²)·δ[n]</code>」就是下面的 F-00.4；括號裡那個數就是 <Tex>{'p'}</Tex>。繞 <Tex>{'n'}</Tex> 圈就乘 <Tex>{'n'}</Tex> 次{' '}
+          圖上繞一圈的總效果「<Tex>{'\\delta[n+1] = (1 - \\mu\\,x^2)\\,\\delta[n]'}</Tex>」就是下面的 F-00.4；括號裡那個數就是 <Tex>{'p'}</Tex>。繞 <Tex>{'n'}</Tex> 圈就乘 <Tex>{'n'}</Tex> 次{' '}
           <Tex>{'p'}</Tex>，所以會不會收斂只看 <Tex>{'|p|<1'}</Tex>——這正是 §0.5 <FigRef name="CHART_MU_REGIONS" /> 五個區段的由來。
         </p>
       </ChapterDiagram>

@@ -16,6 +16,7 @@ export interface MatrixEditorProps {
   max?: number
   /** 硬體暫存器或行為參數名稱 */
   reg?: string
+  /** 單位（`$...$` 以 KaTeX 顯示） */
   unit?: string
   /** 說明文字；其中的 `$...$` 以 KaTeX 顯示 */
   hint?: string
@@ -78,8 +79,8 @@ export function MatrixEditor({ label, value, onChange, symmetric = false, lockDi
           <Tex>{label}</Tex>
         </span>
         <span className="small muted">
-          {P}×{P}
-          {unit ? `，單位 ${unit}` : ''}，合法範圍 [{min}, {max}]{symmetric ? '，對稱' : ''}
+          <Tex>{`${P}\\times${P}`}</Tex>
+          {unit ? <>，單位 {mathText(unit)}</> : ''}，合法範圍 [{min}, {max}]{symmetric ? '，對稱' : ''}
         </span>
         {reg && <span className="small mono muted">{reg}</span>}
       </div>

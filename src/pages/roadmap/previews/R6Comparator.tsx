@@ -54,8 +54,8 @@ const INLINE_PRESETS: ExperimentPreset[] = [
 ]
 
 // Plot 的 layout 是靜態的：放在模組層，避免每次 render 產生新物件而觸發 Plotly.react
-const LAYOUT_S: Partial<Layout> = { xaxis: { title: { text: 's / σ_v' } }, yaxis: { title: { text: 'E[q | s]' }, range: [-1.05, 1.05] } }
-const LAYOUT_H: Partial<Layout> = { xaxis: { title: { text: 'H / σ_v' } }, yaxis: { title: { text: '相對值' } } }
+const LAYOUT_S: Partial<Layout> = { xaxis: { title: { text: '$s / \\sigma_v$' } }, yaxis: { title: { text: '$E[q \\mid s]$' }, range: [-1.05, 1.05] } }
+const LAYOUT_H: Partial<Layout> = { xaxis: { title: { text: '$H / \\sigma_v$' } }, yaxis: { title: { text: '相對值' } } }
 
 function R6Experiment() {
   const [P, setP] = useState<R6Params>(DEFAULTS)
@@ -74,7 +74,7 @@ function R6Experiment() {
     const d: Data[] = KINDS.map((k, i) => ({
       x: sGrid.map((s) => s / dP.sigma),
       y: sGrid.map((s) => comparatorMean({ kind: k, sigma: dP.sigma, djFrac: dP.djFrac }, s, dP.theta)),
-      name: `${NOISE_LABEL[k]}（H = 0）`,
+      name: `${NOISE_LABEL[k]}（$H = 0$）`,
       mode: 'lines',
       line: { color: tokens.series[i % tokens.series.length], width: k === dP.kind ? 3 : 1, dash: k === dP.kind ? 'solid' : 'dot' },
     }))
@@ -82,7 +82,7 @@ function R6Experiment() {
       d.push({
         x: sGrid.map((s) => s / dP.sigma),
         y: sGrid.map((s) => hysteresisStats(spec, s, dP.H, dP.theta).mean),
-        name: `${NOISE_LABEL[dP.kind]}，遲滯 H = ${dP.H} fs（Markov 解析）`,
+        name: `${NOISE_LABEL[dP.kind]}，遲滯 $H = ${dP.H}$ fs（Markov 解析）`,
         mode: 'lines',
         line: { color: tokens.text, width: 2, dash: 'dash' },
       })
@@ -101,9 +101,9 @@ function R6Experiment() {
   const hGrid = useMemo(() => Array.from({ length: 81 }, (_, i) => (i * 0.05) * dP.sigma), [dP.sigma])
   const infoData: Data[] = useMemo(
     () => [
-      { x: hGrid.map((h) => h / dP.sigma), y: hGrid.map((h) => hysteresisStats(spec, dP.theta, h, dP.theta).info / info0), name: 'ℐ / K_q²（每 sample 資訊）', mode: 'lines', line: { color: tokens.series[0] } },
-      { x: hGrid.map((h) => h / dP.sigma), y: hGrid.map((h) => hysteresisStats(spec, dP.theta, h, dP.theta).slope / kqGauss), name: '斜率 / K_q', mode: 'lines', line: { color: tokens.series[1], dash: 'dash' } },
-      { x: hGrid.map((h) => h / dP.sigma), y: hGrid.map((h) => hysteresisStats(spec, dP.theta, h, dP.theta).nu), name: '記憶因子 ν', mode: 'lines', line: { color: tokens.series[2], dash: 'dot' } },
+      { x: hGrid.map((h) => h / dP.sigma), y: hGrid.map((h) => hysteresisStats(spec, dP.theta, h, dP.theta).info / info0), name: '$\\mathcal I / K_q^2$（每 sample 資訊）', mode: 'lines', line: { color: tokens.series[0] } },
+      { x: hGrid.map((h) => h / dP.sigma), y: hGrid.map((h) => hysteresisStats(spec, dP.theta, h, dP.theta).slope / kqGauss), name: '斜率 / $K_q$', mode: 'lines', line: { color: tokens.series[1], dash: 'dash' } },
+      { x: hGrid.map((h) => h / dP.sigma), y: hGrid.map((h) => hysteresisStats(spec, dP.theta, h, dP.theta).nu), name: '記憶因子 $\\nu$', mode: 'lines', line: { color: tokens.series[2], dash: 'dot' } },
     ],
     [hGrid, spec, dP.theta, dP.sigma, info0, kqGauss, tokens],
   )
@@ -132,10 +132,10 @@ function R6Experiment() {
     warnings.push(String.raw`DJ 佔 ${Math.round(dP.djFrac * 100)}% 變異數：中心附近 PDF 很低，小訊號斜率遠小於 Gaussian 的 $K_q$；以 RMS 換算 $K_q$ 會高估迴路增益。`)
 
   const metrics: MetricRow[] = [
-    { name: String.raw`Gaussian 的 $K_q=\sqrt{2/\pi}/\sigma_v$`, value: kqGauss, unit: 'fs⁻¹', claim: 'approx' },
-    { name: String.raw`斜率 $2f_v(0)$（${NOISE_LABEL[dP.kind]}，$H=0$）`, value: comparatorSlope(spec, dP.theta, dP.theta), unit: 'fs⁻¹', formulaId: 'F-R6.1', claim: 'exact' },
+    { name: String.raw`Gaussian 的 $K_q=\sqrt{2/\pi}/\sigma_v$`, value: kqGauss, unit: String.raw`$\mathrm{fs}^{-1}$`, claim: 'approx' },
+    { name: String.raw`斜率 $2f_v(0)$（${NOISE_LABEL[dP.kind]}，$H=0$）`, value: comparatorSlope(spec, dP.theta, dP.theta), unit: String.raw`$\mathrm{fs}^{-1}$`, formulaId: 'F-R6.1', claim: 'exact' },
     { name: String.raw`斜率比 $2f_v(0)/K_q$`, value: comparatorSlope(spec, dP.theta, dP.theta) / kqGauss, unit: '—' },
-    { name: String.raw`含遲滯的斜率（$H=${dP.H}$ fs）`, value: at.slope, unit: 'fs⁻¹', formulaId: 'F-R6.2', claim: 'exact' },
+    { name: String.raw`含遲滯的斜率（$H=${dP.H}$ fs）`, value: at.slope, unit: String.raw`$\mathrm{fs}^{-1}$`, formulaId: 'F-R6.2', claim: 'exact' },
     { name: String.raw`記憶因子 $\nu=1-t_+-t_-$`, value: at.nu, unit: '—', formulaId: 'F-R6.2' },
     { name: String.raw`MC lag-1 相關（$s=\theta$）`, value: mc.lag1[mid], unit: '—', analytic: at.nu, tolerance: 0.03, claim: 'approx' },
     { name: String.raw`每 sample 資訊 $\mathcal I/K_q^2$`, value: at.info / info0, unit: '—', formulaId: 'F-R6.3', claim: 'approx', note: String.raw`$H=0$ 的 Gaussian 為 1` },

@@ -23,14 +23,10 @@ export const DEFAULT_ENCODING: Omit<EncodingCompareParams, 'seed'> = {
   codeSigma: 1,
 }
 
-/** Plotly 圖例用（Plotly 不渲染 KaTeX，保留 Unicode） */
+/**
+ * 圖例與指標名稱共用的名稱（字串內的 `$...$`：指標表以 KaTeX 顯示，Plotly 圖例由 Plot 轉成斜體符號與上下標）。
+ */
 const LABEL: Record<ComparatorEncoding, string> = {
-  bipolar_pm_one: 'bipolar ±1',
-  unipolar_mapped: '0/1 → q = 2b − 1',
-  unipolar_unmapped_bug: '0/1 直接用（bug）',
-}
-/** 指標表用（字串內的 `$...$` 以 KaTeX 顯示） */
-const LABEL_TEX: Record<ComparatorEncoding, string> = {
   bipolar_pm_one: R`bipolar $\pm1$`,
   unipolar_mapped: R`0/1 → $q=2b-1$`,
   unipolar_unmapped_bug: '0/1 直接用（bug）',
@@ -107,7 +103,7 @@ export function BitEncodingExperiment() {
           const isBug = r.encoding === 'unipolar_unmapped_bug'
           const se = seOf(r.w, r.meanW)
           return {
-            name: `${LABEL_TEX[r.encoding]}：後半段平均 $w$`,
+            name: `${LABEL[r.encoding]}：後半段平均 $w$`,
             value: r.meanW,
             unit: 'fs',
             digits: 5,
@@ -149,24 +145,24 @@ export function BitEncodingExperiment() {
               mode: 'lines' as const,
               line: { color: tokens.series[i], dash: r.encoding === 'unipolar_mapped' ? ('dash' as const) : ('solid' as const) },
             })),
-            { x: [0, p.numBlocks], y: [p.aTrue, p.aTrue], name: 'a', mode: 'lines', line: { dash: 'dot', color: tokens.textMuted } },
+            { x: [0, p.numBlocks], y: [p.aTrue, p.aTrue], name: '$a$', mode: 'lines', line: { dash: 'dot', color: tokens.textMuted } },
             ...(bug
               ? [
                   {
                     x: [0, p.numBlocks],
                     y: [res.bugExactPred, res.bugExactPred],
-                    name: 'bug 的精確 w*（F-04.16）',
+                    name: R`bug 的精確 $w^*$（F-04.16）`,
                     mode: 'lines' as const,
                     line: { dash: 'dashdot' as const, color: tokens.series[2] },
                   },
-                  { x: [0, p.numBlocks], y: [res.bugLinearPred, res.bugLinearPred], name: 'bug 的線性化 w*', mode: 'lines' as const, line: { dash: 'dot' as const, color: tokens.series[4] } },
+                  { x: [0, p.numBlocks], y: [res.bugLinearPred, res.bugLinearPred], name: R`bug 的線性化 $w^*$`, mode: 'lines' as const, line: { dash: 'dot' as const, color: tokens.series[4] } },
                 ]
               : []),
           ]
         : [],
     [res, bug, p.numBlocks, p.aTrue, tokens],
   )
-  const layout = useMemo(() => ({ xaxis: { title: { text: 'block k' } }, yaxis: { title: { text: 'w_k [fs/code]' } } }), [])
+  const layout = useMemo(() => ({ xaxis: { title: { text: R`block $k$` } }, yaxis: { title: { text: R`$w_k$ [fs/code]` } } }), [])
 
   return (
     <ExperimentShell
@@ -218,7 +214,7 @@ export function BitEncodingExperiment() {
             max={2}
             step={0.01}
             reg="seeded_pattern.parameters.mean"
-            hint="0 = 零均值 code"
+            hint={R`$0$ = 零均值 code`}
           />
           <ParamControl label={mt(R`$\sigma_x$（code 標準差）`)} ariaLabel="σ_x（code 標準差）" value={p.codeSigma} onChange={(codeSigma) => setP({ ...p, codeSigma })} min={0.01} max={4} step={0.01} reg="seeded_pattern.parameters.sigma" />
           <ParamControl label={mt(R`$\sigma_v$`)} ariaLabel="σ_v" value={p.sigmaV} onChange={(sigmaV) => setP({ ...p, sigmaV })} min={1} max={500} step={0.1} unit="fs" reg="pd_noise_rms_fs" />

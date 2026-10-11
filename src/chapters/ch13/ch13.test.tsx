@@ -3,6 +3,8 @@ import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
 import { presetsForExperiment } from '@/app/presets'
 import { extractRegion, listRegions, systemMapChart } from '@/components'
+import { plotMath } from '@/components/plotMath'
+import { sanitizeMermaidSource } from '@/components/mermaidSource'
 import quantSrc from '@/simulation/models/quantizer.ts?raw'
 import { STRATEGIES, runQuantCriteria, runQuantLab } from '@/simulation/models/quantizer'
 import { FORMULAS } from './formulas'
@@ -23,6 +25,19 @@ const P = vi.hoisted(() => ({
 }))
 vi.mock('plotly.js-dist-min', () => ({ default: P }))
 
+// 記下每個 <Plot> 交給 applyPlotMath 的 data／layout（轉換前的字串），檢查圖內文字的數學都寫成 `$...$`
+const PM = vi.hoisted(() => ({ inputs: [] as { data: unknown; layout: unknown }[] }))
+vi.mock('@/components/plotMath', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('@/components/plotMath')>()
+  return {
+    ...mod,
+    applyPlotMath: (data: unknown, layout: unknown) => {
+      PM.inputs.push({ data, layout })
+      return mod.applyPlotMath(data, layout)
+    },
+  }
+})
+
 const M = vi.hoisted(() => ({
   initialize: vi.fn(),
   render: vi.fn(async (id: string, _chart: string) => ({ svg: `<svg id="${id}"></svg>`, diagramType: 'flowchart-v2' })),
@@ -41,6 +56,28 @@ function renderChapter(mode: 'beginner' | 'engineer' | 'research' = 'engineer', 
 }
 
 afterEach(() => localStorage.clear())
+
+/** Plotly 圖內會顯示的文字欄位（與 src/components/plotMath.ts 的 TEXT_KEYS 相同）。 */
+const PLOT_TEXT_KEYS = new Set(['name', 'text', 'title', 'ticktext', 'hovertemplate', 'texttemplate', 'hovertext', 'label', 'ticksuffix', 'tickprefix', 'legendgrouptitle'])
+
+/** 取出 data／layout 裡所有會顯示在圖上的字串（轉換前，也就是原始碼裡寫的樣子）。 */
+function plotTextStrings(value: unknown, key: string | null = null, depth = 0, out: string[] = []): string[] {
+  if (typeof value === 'string') {
+    if (key !== null && PLOT_TEXT_KEYS.has(key)) out.push(value)
+    return out
+  }
+  if (depth > 6 || value === null || typeof value !== 'object' || ArrayBuffer.isView(value)) return out
+  if (Array.isArray(value)) {
+    if (typeof value[0] !== 'number') for (const v of value) plotTextStrings(v, key, depth + 1, out)
+    return out
+  }
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) plotTextStrings(v, k, depth + 1, out)
+  return out
+}
+
+/** 圖內文字在 `$...$` 以外不可再有 Unicode 拼的數學：希臘字母、上下標、運算符號、w_k 底線下標、x^2、w* 這類寫法。 */
+const PLOT_UNICODE_MATH = /[\u0370-\u03ff\u2070-\u209f\u00b2\u00b3\u00b9∑∏√∞≤≥≠≈±∓·×÷∂∇∈∝⌊⌋⌈⌉−]|\b[A-Za-z]{1,3}_[A-Za-z0-9{]|\^|[A-Za-z0-9)\]]\*|\|[A-Za-z]/
+const PLOT_INLINE_MATH = /(?<!\\)\$((?:[^$\\]|\\.)+?)(?<!\\)\$/g
 
 /**
  * 時間上限：單獨執行時整章渲染約十幾秒；多個測試程序同時跑、CPU 嚴重超額時（load average 曾超過 600）會慢數十倍，
@@ -165,7 +202,8 @@ describe('Chapter 13（jsdom smoke）', () => {
     // 非同步結果出現後，整頁仍然沒有 KaTeX 解析錯誤
     expect(Array.from(container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.textContent)).toEqual([])
     // 每一張圖的原始碼都真的交給 mermaid.render（含章首的 SystemMap），沒有任何一張顯示成解析失敗
-    const wanted = [systemMapChart(SYSTEM_MAP_FOCUS), ...DIAGRAMS.map((d) => d.chart)]
+    // （Mermaid 元件先經 sanitizeMermaidSource 把 `$...$` 標籤合併成 KaTeX 的 `$$...$$`，所以比對前處理後的原始碼）
+    const wanted = [systemMapChart(SYSTEM_MAP_FOCUS), ...DIAGRAMS.map((d) => d.chart)].map(sanitizeMermaidSource)
     await waitFor(
       () => {
         const sent = new Set(M.render.mock.calls.map((c) => c[1]))
@@ -175,6 +213,27 @@ describe('Chapter 13（jsdom smoke）', () => {
     )
     await waitFor(() => expect(container.querySelectorAll('.c-mermaid-svg svg')).toHaveLength(wanted.length), { timeout: WAIT_MS, interval: 250 })
     expect(screen.queryByText('Mermaid 圖解析失敗')).toBeNull()
+    // 互動圖表（Plotly）圖內的文字：軸標題、圖例名稱、tick 文字、hover 文字裡的數學都寫成 `$...$`，
+    // 而且每一段 `$...$` 經 plotMath 轉換後不殘留反斜線、大括號或 `$`（不支援的 TeX 指令會原樣顯示指令名稱）
+    const strings = [...new Set(PM.inputs.flatMap((i) => [...plotTextStrings(i.data), ...plotTextStrings(i.layout)]))]
+    expect(strings.length).toBeGreaterThan(40)
+    let withMath = 0
+    for (const s of strings) {
+      const plain = s.replace(PLOT_INLINE_MATH, (whole: string) => {
+        withMath++
+        const shown = plotMath(whole)
+        expect(shown, `Plot 文字 ${s}`).not.toMatch(/[\\{}$]/)
+        expect(shown.length, `Plot 文字 ${s}`).toBeGreaterThan(0)
+        return ''
+      })
+      expect(plain, `Plot 文字裡的數學請寫成 $...$ —— ${s}`).not.toMatch(PLOT_UNICODE_MATH)
+    }
+    expect(withMath).toBeGreaterThan(40)
+    // 幾個代表性的字串真的轉成斜體符號與上下標（不是原樣顯示 TeX）
+    const shown = strings.map(plotMath)
+    expect(shown).toContain('<i>y</i>[<i>n</i>]（6-bit code）')
+    expect(shown.some((x) => x.includes('<i>f</i>') && x.includes('<sub><i>u</i></sub>'))).toBe(true)
+    expect(shown.some((x) => x.includes('LSB<sup>2</sup>'))).toBe(true)
   }, TEST_MS)
 
   it('?preset=quant-fixed-point-period-512 會套用 preset（偵測週期 512、定點格點）', async () => {
@@ -296,6 +355,10 @@ describe('Chapter 13：Lab 的交叉比對必須誠實（labChecks）', () => {
     expect(lf.claim).toBe('approx')
     const rb = metricRows(runOne({}, 'toggle'), shared)
     expect(rb.find((x) => x.name.startsWith('頻帶內誤差'))!.claim).toBe('exact')
+    // 指標的單位也寫成 `$...$`（MetricRow.unit 支援）：不再有 Unicode 上標的 LSB²
+    expect(pow.unit).toBe(String.raw`$\mathrm{LSB}^2$`)
+    for (const row of [...rows, ...rb]) expect(row.unit ?? '', row.name).not.toMatch(/[²³⁻]/)
+    expect(rb.filter((x) => x.unit === String.raw`$\mathrm{LSB}^2$`).length).toBeGreaterThanOrEqual(5)
   })
 
   it('§13.5b 相位檢查：floor 版 D 與 B 逐點相同 ⇒ σ_out 完全相同；解析得出來的 FCW 下 round-half-up 版（循環移位）也幾乎相同；FCW 陷阱下「靜態偏移」跟著相位變', () => {

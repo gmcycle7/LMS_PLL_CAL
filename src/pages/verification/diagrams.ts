@@ -2,8 +2,11 @@
  * Verification 頁的方塊圖原始碼（docs/teaching-style.md §8；diagrams.test.tsx 以真正的 mermaid 解析並「畫出來」逐一檢查）。
  *
  * 規則：
- * - 節點文字用 Unicode 數學符號（Mermaid 不渲染 KaTeX）；含括號、等號、絕對值符號、斜線的文字一律用雙引號包住。
- * - 加法點是圓形節點，文字寫全形「＋」；每條進來的邊以「＋」或「−」（U+2212）開頭。
+ * - 節點與連線標籤裡的數學一律寫 `$...$`（LaTeX），共用的 <Mermaid> 元件用 KaTeX 排版（和正文同一套樣式）；文字、方塊名稱、程式碼名稱照常寫。
+ *   原始碼用 String.raw 樣板字串，TeX 的反斜線只寫一次；換行用 `<br/>`，標籤內不用雙反斜線；
+ *   標籤的數學裡不用 ASCII 的 < >（Mermaid 會先把它們轉成 HTML 實體），不等式寫 `\lt` `\gt` `\le` `\ge`。
+ *   含括號、等號、絕對值符號、斜線的文字一律用雙引號包住。
+ * - 加法點是圓形節點，文字寫全形「＋」；每條進來的邊以「＋」或「−」（U+2212）開頭，標籤裡還有公式時把正負號放進數學（`$+\,\varepsilon_{\mathrm{rel}}\,|e_k|$`）。
  *   Mermaid 11 把標籤當 Markdown：單獨的 ASCII「+」「-」會被當成清單，畫面上變成「Unsupported markdown: list」。
  * - 顏色在深淺主題下都看得清楚：藍 = 本張圖的主角、綠 = 通過、紅 = 不通過／出錯、棕 = 需要小心的分支。
  * - 四張圖各對應程式裡的一個函式或一份資料，測試會逐一核對：
@@ -24,16 +27,16 @@ const WARN = 'classDef warn fill:#b42318,stroke:#7a160f,color:#ffffff,stroke-wid
  * Δ = a_k − e_k（網站為正、golden 為負）；b_k = ε_abs + ε_rel·|e_k|；通過 ⇔ |Δ| ≤ b_k。
  * 上排是誤差，下排是容許量；e_k 同時進入兩條路，這就是「接近 0 靠絕對項、很大靠相對項」的原因。
  */
-export const CHART_TOLERANCE = `flowchart LR
-  A(["a_k<br/>網站即時算出<br/>（actual）"]) -- "＋" --> D(("＋"))
-  E(["e_k<br/>golden 的期望值<br/>（expected）"]) -- "−" --> D
-  D -- "a_k − e_k" --> ABS["取絕對值<br/>|Δ| = |a_k − e_k|"]
-  ABS --> CMP{"|Δ| ≤ b_k ？"}
-  E --> AE["|e_k|"]
-  AE --> REL["× ε_rel<br/>相對項"]
-  REL -- "＋ ε_rel·|e_k|" --> B(("＋"))
-  EA(["ε_abs<br/>絕對項"]) -- "＋" --> B
-  B -- "b_k = ε_abs + ε_rel·|e_k|" --> CMP
+export const CHART_TOLERANCE = String.raw`flowchart LR
+  A(["$a_k$<br/>網站即時算出<br/>（actual）"]) -- "＋" --> D(("＋"))
+  E(["$e_k$<br/>golden 的期望值<br/>（expected）"]) -- "−" --> D
+  D -- "$a_k - e_k$" --> ABS["取絕對值<br/>$|\Delta| = |a_k - e_k|$"]
+  ABS --> CMP{"$|\Delta| \le b_k$ ？"}
+  E --> AE["$|e_k|$"]
+  AE --> REL["$\times\,\varepsilon_{\mathrm{rel}}$<br/>相對項"]
+  REL -- "$+\,\varepsilon_{\mathrm{rel}}\,|e_k|$" --> B(("＋"))
+  EA(["$\varepsilon_{\mathrm{abs}}$<br/>絕對項"]) -- "＋" --> B
+  B -- "$b_k = \varepsilon_{\mathrm{abs}} + \varepsilon_{\mathrm{rel}}\,|e_k|$" --> CMP
   CMP -- "是" --> OK["通過"]
   CMP -- "否" --> BAD["不一致"]
   ${FOCUS}

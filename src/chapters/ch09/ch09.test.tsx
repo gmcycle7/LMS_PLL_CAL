@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider, type LearningMode } from '@/app/settings'
 import { presetById, presetsForExperiment } from '@/app/presets'
 import { MathText, listRegions, systemMapChart } from '@/components'
+import { sanitizeMermaidSource } from '@/components/mermaidSource'
 import peSrc from '@/simulation/models/pe.ts?raw'
 import mimoPy from '../../../golden/lms_pll_golden/mimo.py?raw'
 import { gaugeAnalysis, gaugeDriftStd, peAnalytic, simulatePeLab } from '@/simulation/models/pe'
@@ -134,10 +135,11 @@ describe('Ch09 smoke test（jsdom）', () => {
     await waitFor(() => expect(container.textContent).toContain('的輸出逐點重合'), WAIT)
     expect(container.textContent).toContain(String.raw`\boldsymbol\theta'`)
     expect(screen.queryByText(/執行失敗|計算失敗/)).toBeNull()
-    // 送進 Mermaid 的原始碼：系統地圖（本章的 focus）與清單裡的每一張圖（語法由 diagrams.test.tsx 以真正的 parser 檢查）
+    // 送進 Mermaid 的原始碼：系統地圖（本章的 focus）與清單裡的每一張圖（語法由 diagrams.test.tsx 以真正的 parser 檢查）。
+    // Mermaid 元件先經 sanitizeMermaidSource：含公式（`$...$`）的標籤合併成單一的 `$$...$$`，所以比對前處理後的字串
     const rendered = (mermaidMock.render.mock.calls as unknown as unknown[][]).map((c) => c[1])
-    expect(rendered).toContain(systemMapChart(SYSTEM_FOCUS))
-    for (const d of CH09_DIAGRAMS) expect(rendered, d.id).toContain(d.chart)
+    expect(rendered).toContain(sanitizeMermaidSource(systemMapChart(SYSTEM_FOCUS)))
+    for (const d of CH09_DIAGRAMS) expect(rendered, d.id).toContain(sanitizeMermaidSource(d.chart))
     expect(container.querySelectorAll('.c-mermaid-error')).toHaveLength(0)
     expect(reactWarnings()).toEqual([])
     // 各模式（含 ModeGate 才顯示的內容）都沒有 KaTeX 解析錯誤

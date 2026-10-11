@@ -2,6 +2,8 @@ import { act, cleanup, configure, fireEvent, render, screen, waitFor, within } f
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider, type LearningMode } from '@/app/settings'
 import { MathText, listRegions } from '@/components'
+import { unicodeMathIn } from '@/components/mermaidTestUtils'
+import { plotMath } from '@/components/plotMath'
 import mimoSrc from '@/simulation/models/mimo.ts?raw'
 import { useState } from 'react'
 import mimoPy from '../../../golden/lms_pll_golden/mimo.py?raw'
@@ -12,6 +14,8 @@ import { CH10_DIAGRAMS } from './diagrams'
 import { HANDCALCS } from './handcalcs'
 import { MatrixEditor } from './experiments/MatrixEditor'
 import { MimoLab } from './experiments/MimoLab'
+import { S2UpdateMatrix } from './sections/S2UpdateMatrix'
+import { S3Noise } from './sections/S3Noise'
 import { S7Symbols } from './sections/S7Symbols'
 
 const P = vi.hoisted(() => ({
@@ -535,5 +539,160 @@ describe('Ch10 MatrixEditor 與 golden 程式碼片段', () => {
     expect(py.length).toBeLessThan(mimoPy.length)
     // 找不到段落標題時退回整個檔案（仍是真實程式碼）
     expect(goldenSection10('x = 1\n')).toBe('x = 1\n')
+  })
+})
+
+describe('Ch10 圖表與控制項：數學都是 LaTeX（docs/teaching-style.md §3：圖裡面的數學也要用 LaTeX）', () => {
+  /**
+   * 去掉 KaTeX 之後剩下的文字。另外排除不是「畫面上的數學」的純文字：<option>（選單項目只能是純文字）、TestBadge 的 tooltip（測試標題）、
+   * 程式碼、暫存器／行為參數的識別字（`.mono`，例如 BEH_RHO）、按鈕（Case 的「×」是關閉圖示）、
+   * 「模擬條件摘要」（匯出 JSON 用的 `名稱: 單位` 純文字，與匯出檔同一份）、以及共用元件 MetricTable 的表頭（「Δ（模擬 − 解析）」不屬於本章）。
+   */
+  function plainTextOf(root: HTMLElement): string {
+    const c = root.cloneNode(true) as HTMLElement
+    c.querySelectorAll('.katex, option, .c-tip, pre, code, script, style, svg, .mono, button, .c-exp-summary, .c-metric-table thead').forEach((e) => e.remove())
+    return c.textContent ?? ''
+  }
+
+  type PlotCall = [unknown, { name?: unknown }[], { xaxis?: { title?: unknown }; yaxis?: { title?: unknown } }]
+  const titleOf = (axis?: { title?: unknown }): string | undefined => {
+    const t = axis?.title
+    return typeof t === 'string' ? t : (t as { text?: string } | undefined)?.text
+  }
+  /** 傳給 Plotly.react 的（已經過 plotMath 轉換的）軸標題與圖例名稱 */
+  function plotted() {
+    const calls = P.react.mock.calls as unknown as PlotCall[]
+    return {
+      x: calls.map((c) => titleOf(c[2]?.xaxis)).filter((t): t is string => !!t),
+      y: calls.map((c) => titleOf(c[2]?.yaxis)).filter((t): t is string => !!t),
+      names: calls.flatMap((c) => (c[1] ?? []).map((d) => d.name).filter((t): t is string => typeof t === 'string')),
+    }
+  }
+  /** 轉換後的圖上文字不可殘留 TeX（反斜線、大括號、$） */
+  function expectTypeset(list: string[], what: string) {
+    expect(list.length, what).toBeGreaterThan(0)
+    for (const t of list) expect(t, `${what}：${t}`).not.toMatch(/[\\{}$]/)
+  }
+  function selectByText(root: HTMLElement, label: string, text: RegExp) {
+    const sel = within(root).getByLabelText(label) as HTMLSelectElement
+    const opt = Array.from(sel.options).find((o) => text.test(o.textContent ?? ''))
+    if (!opt) throw new Error(`「${label}」沒有符合 ${String(text)} 的選項`)
+    fireEvent.change(sel, { target: { value: opt.value } })
+  }
+
+  it('MIMO LMS Lab：每個 Ĵ 來源、每種更新規則、R／J 兩種模型的控制項、指標、KPI 與表格，KaTeX 以外都沒有 Unicode 拼的數學；軸標題與圖例轉成斜體符號與下標', async () => {
+    const { container } = render(
+      <SettingsProvider>
+        <MemoryRouter initialEntries={['/ch/10']}>
+          <MimoLab />
+        </MemoryRouter>
+      </SettingsProvider>,
+    )
+    const exp = container.querySelector('[data-experiment="mimo-lms"]') as HTMLElement
+    await waitFor(() => expect(kpiPoles(exp, { k: 598 }).length).toBeGreaterThan(0), WAIT)
+    const check = (what: string) => expect(unicodeMathIn(plainTextOf(exp)), what).toEqual([])
+    check('預設（R 模型、Case A scalar）')
+    // 單位與暫存器名稱：μK_q 的 `× K_q`、`R₁₂` 之類的說明改放進 label／hint，reg 欄只剩暫存器名稱
+    expect(Array.from(exp.querySelectorAll('.c-param-reg')).map((e) => e.textContent)).toContain('REG_CAL_MU')
+    // 指標表的單位：fs⁻¹ → KaTeX
+    const kqRow = Array.from(exp.querySelectorAll('.c-metric-table tr')).find((tr) => /K_q=\\sqrt/.test(tr.querySelector('annotation')?.textContent?.replace(/\s/g, '') ?? ''))
+    expect(kqRow?.querySelector('annotation[encoding="application/x-tex"]')).toBeTruthy()
+    expect(Array.from(kqRow?.querySelectorAll('annotation') ?? []).map((a) => a.textContent)).toContain('\\mathrm{fs}^{-1}')
+    // KPI：K_q 的單位也是 KaTeX
+    expect(Array.from(exp.querySelectorAll('.ch10-kpi-value annotation')).map((a) => a.textContent)).toContain('\\mathrm{fs}^{-1}')
+    // 矩陣編輯器的大小標示 2×2 與單位
+    expect(Array.from(exp.querySelectorAll('.ch10-matrix-head annotation')).map((a) => a.textContent)).toEqual(expect.arrayContaining(['2\\times2']))
+
+    // Case A 的每一種規則
+    for (const rule of [/Diagonal/, /Block NLMS/, /Full Preconditioner/, /Regularized/, /Sequential/]) {
+      selectByText(exp, 'Case A 規則', rule)
+      check(`Case A：${String(rule)}`)
+    }
+    // regularized 的兩種形式（單位：R 尺度／J_n² 尺度）
+    selectByText(exp, 'Case A 規則', /Regularized/)
+    selectByText(exp, 'Regularizer 形式', /^J 形式/)
+    check('Regularized：J 形式')
+    expect(Array.from(exp.querySelectorAll('.c-param-unit annotation')).map((a) => a.textContent)).toContain('J_n^2')
+    selectByText(exp, 'Regularizer 形式', /^R 形式/)
+    expect(Array.from(exp.querySelectorAll('.c-param-unit annotation')).map((a) => a.textContent)).toContain('\\mathbf R')
+
+    // Ĵ 來源
+    for (const src of [/^perturbed/, /^finiteDiff/, /^custom/]) {
+      selectByText(exp, 'Ĵ 來源', src)
+      check(`Ĵ 來源：${String(src)}`)
+    }
+    selectByText(exp, 'Ĵ 來源', /^exact/)
+    // J 模型（T18）與 ±1 碼
+    selectByText(exp, '模型', /^J：/)
+    check('J 模型')
+    selectByText(exp, '模型', /^R：/)
+    selectByText(exp, 'Regressor 分布', /±1 碼/)
+    check('±1 碼')
+    selectByText(exp, '參數個數 P', /^3/)
+    check('P = 3')
+    selectByText(exp, '參數個數 P', /^2/)
+
+    // 圖：全部六種規則（‖δ_k‖）、時域軌跡、相平面、poles
+    fireEvent.click(within(exp).getByLabelText('同時畫出全部六種規則（同 seed）'))
+    await waitFor(() => expect(plotted().y.some((t) => t.includes('‖'))).toBe(true), WAIT)
+    const { x, y, names } = plotted()
+    expect(x).toEqual(expect.arrayContaining(['block <i>k</i>', '<i>δ</i><sub>1</sub> (fs)', 'Re']))
+    expect(y).toEqual(
+      expect.arrayContaining(['<i>δ</i><sub><i>k</i>,<i>i</i></sub> = <i>a</i><sub><i>i</i></sub>−<i>w</i><sub><i>k</i>,<i>i</i></sub> (fs)', '‖<i>δ</i><sub><i>k</i></sub>‖ (fs)', '<i>δ</i><sub>2</sub> (fs)', 'Im']),
+    )
+    expectTypeset([...x, ...y], '軸標題')
+    expectTypeset(names, '圖例')
+    expect(names).toContain('單位圓 |<i>z</i>| = 1')
+    expect(names.some((t) => /^Case A：Scalar <i>δ<\/i><sub>1<\/sub>$/.test(t))).toBe(true)
+    expect(names.some((t) => t.includes('<i>E</i>[<i>δ</i><sub>1</sub>]（線性解析）'))).toBe(true)
+    check('六種規則的圖與表')
+  }, LONG)
+
+  it('S2、S3 的互動圖與控制項：軸標題、圖例用 LaTeX（k₉₅、ρ、γ、λ_reg）；暫存器欄只剩名稱，單位／說明在 KaTeX 以外沒有 Unicode 拼的數學', async () => {
+    const { container } = render(
+      <SettingsProvider>
+        <MemoryRouter initialEntries={['/ch/10']}>
+          <S2UpdateMatrix />
+          <S3Noise />
+        </MemoryRouter>
+      </SettingsProvider>,
+    )
+    await waitFor(() => expect(plotted().names.some((t) => t.startsWith('一般 LMS（掃'))).toBe(true), WAIT)
+    const { x, y, names } = plotted()
+    expect(x).toEqual(expect.arrayContaining(['1−<i>ρ</i>（越往左 regressor 越相關）', '<i>k</i><sub>95</sub>（blocks，越左越快）']))
+    expect(y).toEqual(expect.arrayContaining(['<i>k</i><sub>95</sub>（blocks）', 'max<sub><i>j</i></sub> std(<i>δ</i><sub><i>j</i></sub>)（fs，越低越安靜）']))
+    expect(names).toEqual(
+      expect.arrayContaining([
+        '一般 LMS（掃 <i>μK</i><sub><i>q</i></sub>）',
+        '完整反矩陣（掃 <i>γ</i>）',
+        'Regularized（<i>γ</i> = 0.5，掃 <i>λ</i><sub>reg</sub>）',
+        '§10.1 例：<i>μK</i><sub><i>q</i></sub> = 0.5 / <i>γ</i> = 0.5 / <i>λ</i><sub>reg</sub> = 0.1',
+      ]),
+    )
+    expect(names.some((t) => /^目前 <i>ρ<\/i> = [\d.]+$/.test(t))).toBe(true)
+    expectTypeset([...x, ...y, ...names], 'S2／S3 的圖')
+    // 控制項：label／單位／說明／暫存器欄
+    const params = Array.from(container.querySelectorAll<HTMLElement>('.c-param'))
+    expect(params.length).toBeGreaterThanOrEqual(8)
+    for (const el of params) expect(unicodeMathIn(plainTextOf(el)), el.textContent ?? '').toEqual([])
+    const regs = Array.from(container.querySelectorAll('.c-param-reg')).map((e) => e.textContent ?? '')
+    expect(regs).toEqual(expect.arrayContaining(['BEH_RHO', 'REG_CAL_MU', 'REG_CAL_GAMMA', 'REG_CAL_LAMBDA_REG']))
+    for (const r of regs) expect(r, r).toMatch(/^[A-Z0-9_[\]:]+$/)
+    // R₁₂ 的對應改放在 ρ 的說明裡
+    expect(Array.from(container.querySelectorAll('.c-param-hint annotation')).map((a) => a.textContent)).toEqual(expect.arrayContaining(['\\rho=R_{12}']))
+  }, LONG)
+
+  it('plotMath 的對照：圖表字串用到的 TeX 都轉得出來（沒有殘留反斜線／大括號）', () => {
+    const samples = [
+      String.raw`$\delta_{k,i} = a_i - w_{k,i}$ (fs)`,
+      String.raw`$\|\delta_k\|$ (fs)`,
+      String.raw`$\max_j\ \operatorname{std}(\delta_j)$（fs）`,
+      String.raw`Case A $E[\delta_1]$（線性解析）`,
+      String.raw`$\pm2\sigma$ $\delta_2$`,
+      String.raw`平均更新方向 $-\mathbf M\mathbf G$（active case）`,
+      String.raw`單位圓 $|z| = 1$`,
+      String.raw`Case A：Sequential（sweep $\Phi$）`,
+    ]
+    for (const t of samples) expect(plotMath(t), t).not.toMatch(/[\\{}$]/)
   })
 })

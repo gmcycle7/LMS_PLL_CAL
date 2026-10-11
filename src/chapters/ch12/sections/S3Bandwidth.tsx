@@ -8,7 +8,10 @@ import { Diagram, EX, Erratum, Hand, Steps, md, regimeLabel, relPct, sig } from 
 import { CHART_BW_READOUTS, CHART_BW_REGIME, CHART_LEVEL_WIDTH } from '../diagrams'
 
 const PATH = 'src/simulation/models/calNoise.ts'
-const HNORM_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'f / f_u' } }, yaxis: { title: { text: '|H(f)|²/|H(0)|² [dB]' }, range: [-45, 25] } }
+const HNORM_LAYOUT: Partial<Layout> = {
+  xaxis: { title: { text: '$f / f_u$' } },
+  yaxis: { title: { text: String.raw`$|H(f)|^2/|H(0)|^2$ [dB]` }, range: [-45, 25] },
+}
 
 export function S3Bandwidth() {
   const wrongSigma = Math.sqrt(EX.sw1Dc * EX.f3dbExact)
@@ -24,10 +27,10 @@ export function S3Bandwidth() {
         const om = 2 * Math.PI * r
         return 10 * Math.log10((1 - p) ** 2 / (1 - 2 * p * Math.cos(om) + p * p))
       }),
-      name: p === EX.p ? `p = ${p.toFixed(5)}（本例）` : p === P_MIN_3DB ? 'p = 3 − 2√2（邊界）' : `p = ${p}`,
+      name: p === EX.p ? `$p = ${p.toFixed(5)}$（本例）` : p === P_MIN_3DB ? String.raw`$p = 3 - 2\sqrt{2}$（邊界）` : `$p = ${p}$`,
       mode: 'lines',
     }))
-    traces.push({ x: [1e-4, 0.5], y: [-3.0103, -3.0103], name: '−3 dB', mode: 'lines', line: { dash: 'dot', color: '#888' } })
+    traces.push({ x: [1e-4, 0.5], y: [-3.0103, -3.0103], name: '$-3$ dB', mode: 'lines', line: { dash: 'dot', color: '#888' } })
     return traces
   }, [])
   const regimeRows = useMemo(

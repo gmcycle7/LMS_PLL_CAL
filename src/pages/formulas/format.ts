@@ -31,3 +31,11 @@ export function texHz(hz: number, digits = 4): string {
   const [scale, unit] = a >= 1e9 ? [1e9, 'GHz'] : a >= 1e6 ? [1e6, 'MHz'] : a >= 1e3 ? [1e3, 'kHz'] : [1, 'Hz']
   return `${texNum(hz / scale, digits)}\\,\\mathrm{${unit}}`
 }
+
+/**
+ * calNoise 的 REGIME_LABEL 是純文字（給下拉選單等不渲染 KaTeX 的地方）；顯示在會經 mathText／Rich 渲染的地方時，
+ * 把其中的「−3 dB」（Unicode 負號）改成 `$-3\,\mathrm{dB}$`。
+ */
+export function regimeLabelTex(label: string): string {
+  return label.replace(/−3 dB/g, String.raw`$-3\,\mathrm{dB}$`)
+}

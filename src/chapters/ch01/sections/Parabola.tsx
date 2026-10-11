@@ -17,7 +17,7 @@ import {
 import { mean } from '@/simulation/core'
 import { batchL2, mseParabola } from '@/simulation/models/lossCompare'
 import lossSrc from '@/simulation/models/lossCompare.ts?raw'
-import { BlockDiagram, ChapterHandCalc, Erratum, f, PllLink, SpecNote, texNum, useChapterMode } from '../common'
+import { BlockDiagram, ChapterHandCalc, Erratum, PllLink, SpecNote, texNum, useChapterMode } from '../common'
 
 /** 與 §1.0 相同的三筆含雜訊資料：把「期望值」當成三筆等機率的平均 */
 const X = [1, 2, 4]
@@ -41,17 +41,17 @@ export function ParabolaSection() {
     const grid = Array.from({ length: 161 }, (_, i) => 1.5 + (3 * i) / 160)
     const half = 0.35
     return [
-      { x: grid, y: grid.map(m.J), name: 'J(w) = ½·(1/3)Σ(yᵢ − w·xᵢ)²', mode: 'lines', line: { color: tokens.series[0] } },
-      { x: [m.wStar], y: [m.Jmin], name: `w* = ${f(m.wStar, 5)}`, mode: 'markers', marker: { size: 12, color: tokens.series[1] } },
+      { x: grid, y: grid.map(m.J), name: String.raw`$J(w)=\tfrac12\cdot\tfrac13\,\sum(y_i-w\,x_i)^2$`, mode: 'lines', line: { color: tokens.series[0] } },
+      { x: [m.wStar], y: [m.Jmin], name: String.raw`$w^*=${texNum(m.wStar, 5)}$`, mode: 'markers', marker: { size: 12, color: tokens.series[1] } },
       {
         x: [m.wT - half, m.wT + half],
         y: [m.J(m.wT) - m.slope * half, m.J(m.wT) + m.slope * half],
-        name: `w = ${m.wT} 的切線（斜率 −E[e·x] = ${f(m.slope, 4)}）`,
+        name: String.raw`$w=${m.wT}$ 的切線（斜率 $-E[e\,x]=${texNum(m.slope, 4)}$）`,
         mode: 'lines',
         line: { dash: 'dot', color: tokens.series[3] },
       },
-      { x: [m.wT], y: [m.J(m.wT)], name: `w = ${m.wT}`, mode: 'markers', marker: { size: 9, color: tokens.series[3] } },
-      { x: [1.5, 4.5], y: [m.Jmin, m.Jmin], name: 'J(w*)（雜訊底）', mode: 'lines', line: { dash: 'dash', color: tokens.textMuted } },
+      { x: [m.wT], y: [m.J(m.wT)], name: `$w=${m.wT}$`, mode: 'markers', marker: { size: 9, color: tokens.series[3] } },
+      { x: [1.5, 4.5], y: [m.Jmin, m.Jmin], name: String.raw`$J(w^*)$（雜訊底）`, mode: 'lines', line: { dash: 'dash', color: tokens.textMuted } },
     ]
   }, [m, tokens])
 
@@ -381,7 +381,7 @@ export function ParabolaSection() {
           title="三筆資料的 $J(w)$：拋物線、最低點與切線"
           ariaLabel="三筆資料的成本曲線 J(w)：拋物線、最低點與切線"
           data={plot}
-          layout={{ xaxis: { title: { text: 'w' } }, yaxis: { title: { text: 'J(w)' } } }}
+          layout={{ xaxis: { title: { text: '$w$' } }, yaxis: { title: { text: '$J(w)$' } } }}
           height={280}
           csvName="ch01-parabola"
           caption={
@@ -484,7 +484,7 @@ export function ParabolaSection() {
         id="ch01-s13"
       >
         <p>
-          規格 §1 的成本 <Tex>{'J_2'}</Tex> 沒有 ½，但 §1.1 的單筆成本 <Tex>{String.raw`j_n=\tfrac12e_n^2`}</Tex> 有 ½。兩者梯度差 2 倍
+          規格 §1 的成本 <Tex>{'J_2'}</Tex> 沒有 <Tex>{String.raw`\tfrac12`}</Tex>，但 §1.1 的單筆成本 <Tex>{String.raw`j_n=\tfrac12e_n^2`}</Tex> 有 <Tex>{String.raw`\tfrac12`}</Tex>。兩者梯度差 2 倍
           <Erratum id="E41" />。本站統一採用
         </p>
         <TexBlock

@@ -2,7 +2,7 @@ import { configure, render } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
 import { systemMapChart } from '@/components'
-import { installMermaidSvgShim, renderMermaidForTest } from '@/components/mermaidTestUtils'
+import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { normCdf, normInv, binomPmf } from '@/simulation/core'
 import {
   blockLoopLinear,
@@ -32,7 +32,9 @@ import Chapter05 from './index'
 /**
  * Ch05 的方塊圖（docs/teaching-style.md §8）：
  *  1. 每一張圖的 Mermaid 原始碼都用「真正的」mermaid parser 解析，並且用共用的測試工具（@/components/mermaidTestUtils）
- *     「真的畫一次」：畫出來的文字不含 Unsupported markdown，節點數不超過 14（parser 抓不到這類問題）。
+ *     「真的畫一次」：畫出來的文字不含 Unsupported markdown 與殘留的 `$`，節點數不超過 14（parser 抓不到這類問題），
+ *     每個含公式的標籤都排成 KaTeX（mathCount），KaTeX 以外的文字沒有 Unicode 拼的數學（unicodeMathIn）。
+ *     圖裡的數學一律是 `$...$` LaTeX（teaching-style §3）：下面比對「圖上寫死的式子」時，比的是原始碼裡的 TeX 字串。
  *  2. 圖的張數、加法點的正負號標示、δ = a − w 的回授極性、sample／block 速率的寫法、迴路是否真的閉合。
  *  3. 圖上寫死的數字與結論，由 src/simulation 的函式重算核對（圖不可以和公式不一致）。
  *  4. 整頁渲染：章首有 <SystemMap>，每張登錄的圖都依序出現、有圖說與導讀，而且排在它對應的公式之前；符號表在頁面最後。
@@ -102,6 +104,26 @@ interface Parsed {
 
 /** 圖上的正號寫成全形「＋」（U+FF0B）；比對語意時換回半形，原始碼本身另有 MD_BLOCK 檢查。 */
 const shown = (t: string | undefined) => (t ?? '').replace(/\\\+/g, '+').replace(/＋/g, '+')
+
+/** 標籤裡的 `$...$`（一段公式；標籤內不放 `\$`）。 */
+const MATH = /\$[^$]+\$/g
+/** 拿掉 `$` 分隔符，只剩 TeX 內容（比對正負號開頭用）。 */
+const unTex = (t: string | undefined) => (t ?? '').replace(/\$/g, '')
+/** 標籤中不在 `$...$` 裡的文字（逐行、逐段，去掉空白）：這些字會原樣畫在圖上。 */
+const proseOf = (label: string) =>
+  label
+    .split(/<br\s*\/?>/)
+    .flatMap((line) => line.split(MATH))
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0)
+/** 原始碼中所有雙引號標籤的內容（節點、連線、subgraph 標題）。 */
+const labelsOf = (chart: string) => (chart.match(/"[^"\n]*"/g) ?? []).map((l) => l.slice(1, -1))
+/** 原始碼中含公式的雙引號標籤（節點、連線、subgraph 標題）：Mermaid 會把每一個合併成一個 KaTeX 區塊。 */
+const mathLabelsOf = (chart: string) => chart.match(/"[^"\n]*\$[^"\n]*"/g) ?? []
+/** 原始碼裡所有 `$...$` 的 TeX 內容。 */
+const texSegmentsOf = (chart: string) => [...chart.matchAll(/\$([^$"\n]+)\$/g)].map((m) => m[1])
+/** KaTeX 畫出來的文字：不換行空白與零寬空白換成一般空白，才能和原始碼的文字比對。 */
+const flat = (t: string) => t.replace(/[\u00a0\u200b]/g, ' ').replace(/\s+/g, ' ')
 
 async function parse(chart: string): Promise<Parsed> {
   const mermaid = (await import('mermaid')).default
@@ -182,14 +204,21 @@ describe('Ch05 方塊圖：登錄表與張數', () => {
     }
   })
 
-  it('每張圖都有一句圖說與文字替代說明；圖說的數學用 $...$（成對），圖說裡不用 Unicode 拼數學；替代說明與原始碼不含 $', () => {
+  it('每張圖都有一句圖說與文字替代說明；圖說與圖裡的數學都用成對的 $...$ LaTeX（圖說不用 Unicode 拼數學）；替代說明（純文字）不含 $', () => {
     const unicodeMath = /[Α-Ωα-ω√≈≤≥≠∝∑∫²³⁻]/
+    // 圖的原始碼裡 `$...$` 內只能是 TeX 指令與 ASCII：不能把 σ、≤、√、²、· 等 Unicode 數學符號直接寫進公式
+    const unicodeInTex = /[\u0370-\u03ff\u2070-\u209f\u00b2\u00b3\u00b9∑∏√∞≤≥≠≈±∓·×÷∂∇∈∝⌊⌋⌈⌉ℒ𝒩−½]/u
     for (const d of CH05_DIAGRAMS) {
       expect(d.caption.length, d.key).toBeGreaterThanOrEqual(15)
       expect(d.alt.length, d.key).toBeGreaterThanOrEqual(15)
-      expect(d.alt + d.chart, d.key).not.toContain('$')
+      expect(d.alt, d.key).not.toContain('$')
       expect((d.caption.match(/(?<!\\)\$/g) ?? []).length % 2, `${d.key} 圖說的 $ 沒有成對`).toBe(0)
       expect(d.caption, `${d.key} 圖說裡有 Unicode 拼的數學`).not.toMatch(unicodeMath)
+      // 圖裡的數學：有公式、每個標籤的 $ 成對、公式是 TeX（沒有 Unicode 拼的數學，也沒有 Mermaid 會吃掉的雙反斜線）
+      expect(d.chart, d.key).toContain('$')
+      for (const label of mathLabelsOf(d.chart)) expect((label.match(/\$/g) ?? []).length % 2, `${d.key}：${label} 的 $ 沒有成對`).toBe(0)
+      for (const tex of texSegmentsOf(d.chart)) expect(tex, `${d.key} 的公式「${tex}」`).not.toMatch(unicodeInTex)
+      expect(d.chart, `${d.key}：標籤內不能用雙反斜線（Mermaid 會收成一個）`).not.toContain('\\\\')
     }
   })
 
@@ -198,15 +227,19 @@ describe('Ch05 方塊圖：登錄表與張數', () => {
     const chart = systemMapChart(CH05_SYSTEM_FOCUS)
     expect(chart).toContain('class NOISE,CMP,GMAC focus')
     expect((await parse(chart)).type).toBe('flowchart-v2')
-    const { text } = await renderOnce('systemMap', chart)
+    const { text, plainText, mathCount } = await renderOnce('systemMap', chart)
     expect(text).not.toMatch(/Unsupported markdown/)
-    expect(text).toContain('1-bit comparator')
+    expect(text).not.toContain('$')
+    expect(mathCount).toBeGreaterThan(0)
+    expect(unicodeMathIn(plainText)).toEqual([])
+    // 含公式的標籤把文字包在 KaTeX 的 \text 裡：空白畫成不換行空白，所以先 flat() 再比
+    expect(flat(text)).toContain('1-bit comparator')
   }, SLOW)
 })
 
 describe('Ch05 方塊圖：真正的 mermaid parser 與真實渲染', () => {
   it.each(CH05_DIAGRAMS.map((d) => [`圖 5-${d.no} ${d.key}`, d] as const))(
-    '%s：語法正確、節點不超過 14 個、加法點的每條輸入都標了正負號、真的畫得出來',
+    '%s：語法正確、節點不超過 14 個、加法點的每條輸入都標了正負號、公式都排成 KaTeX、真的畫得出來',
     async (_name, d) => {
       const g = await parse(d.chart)
       expect(g.type).toBe('flowchart-v2')
@@ -218,12 +251,12 @@ describe('Ch05 方塊圖：真正的 mermaid parser 與真實渲染', () => {
         expect((v.text ?? '').trim().length, `${d.key}:${v.id}`).toBeGreaterThan(0)
         expect(g.edges.some((e) => e.start === v.id || e.end === v.id), `${d.key}:${v.id} 沒有連線`).toBe(true)
       }
-      // 加法點（圓形、文字是 ＋）：至少兩條輸入，而且每條輸入的標籤都以 ＋ 或 − 開頭
+      // 加法點（圓形、文字是 ＋）：至少兩條輸入，而且每條輸入的標籤都以 + 或 − 開頭（正負號寫在公式裡：`$+ s$`、`$- \\theta$`）
       const sums = g.vertices.filter((v) => v.type === 'circle' && v.text === '+')
       for (const s of sums) {
         const labels = into(g.edges, s.id)
         expect(labels.length, `${d.key}:${s.id}`).toBeGreaterThanOrEqual(2)
-        for (const l of labels) expect(l, `${d.key}:${s.id} 的輸入「${l}」沒有標正負號`).toMatch(/^[+−]/)
+        for (const l of labels) expect(unTex(l), `${d.key}:${s.id} 的輸入「${l}」沒有標正負號`).toMatch(/^[+−-]/)
       }
       // 加法點的圓圈裡一律是全形「＋」（半形的單獨 + 會被當成 markdown 清單）
       for (const v of g.vertices.filter((x) => x.type === 'circle')) expect(v.text, `${d.key}:${v.id}`).toBe('+')
@@ -236,19 +269,29 @@ describe('Ch05 方塊圖：真正的 mermaid parser 與真實渲染', () => {
       for (const c of g.classes) expect(['focus', 'warn', 'ok']).toContain(c)
       // 標籤內沒有裸的 '<'（只允許 <br/>）：strict 模式下會被當成 HTML tag
       expect(d.chart.replace(/<br\/>/g, '')).not.toContain('<')
-      // 減號一律用 U+2212（−），不用連字號當負號：「a - w」「- w_k」這種寫法不應出現在標籤裡
-      for (const e of g.edges) expect(e.text ?? '', d.key).not.toMatch(/(^|\s)-\s?[a-zA-Zμθδ]/)
+      // 公式以外的文字不用連字號當負號（「a - w」「- w_k」要寫進 `$...$`，由 TeX 排成真正的減號），
+      // 也沒有 Unicode 拼的數學（含混在公式標籤裡的文字：Mermaid 會把它們包進 \text{}、畫在 KaTeX 區塊內，畫出來後無法再分辨）
+      for (const l of labelsOf(d.chart)) {
+        expect(l.replace(MATH, ''), `${d.key}：「${l}」`).not.toMatch(/(^|\s)-\s?[a-zA-Zμθδ]/)
+        for (const part of proseOf(l)) expect(unicodeMathIn(part), `${d.key}：「${l}」公式以外的文字「${part}」`).toEqual([])
+      }
 
       // 真的畫一次（與網站相同的前處理）：沒有 Unsupported markdown、節點數 ≤ 14、每個節點都畫出來
-      const { text, nodeCount } = await renderOnce(d.key, d.chart)
+      const { text, nodeCount, mathCount, plainText } = await renderOnce(d.key, d.chart)
       expect(text, d.key).not.toMatch(/Unsupported markdown/)
       expect(text, d.key).not.toMatch(/Syntax error/)
       expect(nodeCount, d.key).toBeLessThanOrEqual(14)
       expect(nodeCount, `${d.key}：畫出來的節點數應等於原始碼的節點數`).toBe(g.vertices.length)
-      // 圖上看得到的文字 = 原始碼的標籤：加法點畫成 ＋，每條邊的標籤（逐行）都出現
+      // 圖上的數學：畫出來的文字沒有殘留的 `$`；KaTeX 以外的文字沒有 Unicode 拼的數學；
+      // 每個含公式的標籤（節點、連線、subgraph 標題）都排成一個 KaTeX 區塊
+      expect(text, `${d.key}：圖上不應殘留 $`).not.toContain('$')
+      expect(unicodeMathIn(plainText), `${d.key}：KaTeX 以外還有 Unicode 拼的數學`).toEqual([])
+      expect(mathCount, d.key).toBeGreaterThan(0)
+      expect(mathCount, `${d.key}：含公式的標籤數`).toBe(mathLabelsOf(d.chart).length)
+      // 圖上看得到的文字 = 原始碼的標籤：加法點畫成 ＋，每個標籤裡公式以外的文字（逐行、逐段）都出現
       expect((text.match(/＋/g) ?? []).length, `${d.key} 的加法點`).toBeGreaterThanOrEqual(sums.length)
-      for (const e of g.edges) {
-        for (const part of e.raw.split(/<br\s*\/?>/).filter(Boolean)) expect(text, `${d.key} 的邊標籤「${part}」`).toContain(part)
+      for (const label of labelsOf(d.chart)) {
+        for (const part of proseOf(label)) expect(flat(text), `${d.key} 的標籤「${label}」`).toContain(part)
       }
     },
     SLOW,
@@ -341,71 +384,72 @@ describe('Ch05 方塊圖：與正文公式一致', () => {
     ] as const) {
       const g = await parse(chartOf(key))
       const labels = into(g.edges, 'S1').sort()
-      expect(labels, key).toEqual(['+ a', `− w_${idx}`].sort())
+      expect(labels, key).toEqual(['$+ a$', `$- w_${idx}$`].sort())
       // S1 的輸出就是誤差 a − w（判號式迴路叫 s，其餘叫 δ）
       const out = g.edges.filter((e) => e.start === 'S1').map((e) => e.text ?? '')
       expect(out).toHaveLength(1)
-      expect(out[0], key).toContain(`a − w_${idx}`)
+      expect(out[0], key).toContain(`a - w_${idx}`)
       // 回授：累加器（或延遲）的輸出以負號回到 S1，所以 S1 在一個環上
-      expect(edgeOf(g.edges, back, 'S1').text, key).toBe(`− w_${idx}`)
+      expect(edgeOf(g.edges, back, 'S1').text, key).toBe(`$- w_${idx}$`)
       expect(reaches(g.edges, 'S1', 'S1'), `${key}：迴路沒有閉合`).toBe(true)
     }
-    for (const d of CH05_DIAGRAMS) expect(d.chart, d.key).not.toMatch(/w(_\w+|_\(\w[+−]1\))? − a/)
+    // 沒有任何一張把極性寫反成 w − a（TeX 的減號是 `-`）
+    for (const d of CH05_DIAGRAMS) expect(d.chart, d.key).not.toMatch(/w(_\w+|_\{\w[+-]1\})? - a\b/)
   }, SLOW)
 
   it('取樣率：逐 sample 的迴路只用下標 n，block 迴路只用下標 k；延遲與累加器的位置和更新式一致', async () => {
     for (const key of ['sampleLoop', 'linearizedLoop'] as const) {
       const c = chartOf(key)
-      expect(c).toContain('w_(n+1)')
-      expect(c).toContain('z⁻¹')
-      expect(c).not.toMatch(/_k\b|_\(k/)
-      // w_(n+1) = w_n + μ·q_n：累加的加法點 S3 收到 ＋ μ·q_n 與 ＋ w_n，輸出經 z⁻¹ 才變回 w_n
+      expect(c).toContain('w_{n+1}')
+      expect(c).toContain('z^{-1}')
+      expect(c).not.toMatch(/_k\b|_\{k/)
+      // w_{n+1} = w_n + μ·q_n：累加的加法點 S3 收到 ＋ μ·q_n 與 ＋ w_n，輸出經 z^{-1} 才變回 w_n
       const g = await parse(c)
-      expect(into(g.edges, 'S3').sort()).toEqual(['+ w_n', '+ μ·q_n'].sort())
-      expect(g.edges.find((e) => e.start === 'S3')).toMatchObject({ end: 'D', text: 'w_(n+1)' })
+      expect(into(g.edges, 'S3').sort()).toEqual(['$+ w_n$', '$+ \\mu \\cdot q_n$'].sort())
+      expect(g.edges.find((e) => e.start === 'S3')).toMatchObject({ end: 'D', text: '$w_{n+1}$' })
       // 延遲的輸出（w_n）同時回到累加點 S3（＋）與誤差點 S1（−）
-      expect(g.edges.filter((e) => e.start === 'D').map((e) => `${e.end}:${e.text}`).sort()).toEqual(['S1:− w_n', 'S3:+ w_n'])
+      expect(g.edges.filter((e) => e.start === 'D').map((e) => `${e.end}:${e.text}`).sort()).toEqual(['S1:$- w_n$', 'S3:$+ w_n$'])
     }
     const blk = chartOf('blockLoop')
-    for (const t of ['δ_k = a − w_k', 'G_k ≈ K_q·δ_k + η_k', 'w_(k+1) = w_k + μ·G_k', '1/(z−1)', 'Var ≈ 1/N']) expect(blk).toContain(t)
+    for (const t of ['\\delta_k = a - w_k', 'G_k \\approx K_q \\cdot \\delta_k + \\eta_k', 'w_{k+1} = w_k + \\mu \\cdot G_k', '1/(z-1)', '\\operatorname{Var} \\approx 1/N']) expect(blk).toContain(t)
     expect(blk).not.toMatch(/_n\b|\[n\]/)
     // block 迴路：S2 收到 ＋ K_q·δ_k 與 ＋ η_k，輸出 G_k 乘 μ 再進累加器
     const gb = await parse(blk)
-    expect(into(gb.edges, 'S2').sort()).toEqual(['+ K_q·δ_k', '+ η_k'].sort())
-    expect(edgeOf(gb.edges, 'MU', 'INT').text).toBe('μ·G_k')
+    expect(into(gb.edges, 'S2').sort()).toEqual(['$+ K_q \\cdot \\delta_k$', '$+ \\eta_k$'].sort())
+    expect(edgeOf(gb.edges, 'MU', 'INT').text).toBe('$\\mu \\cdot G_k$')
     // 判號式 block 迴路與硬體路徑圖：comparator 在 sample 速率（[n]），更新在 block 速率（k）
     for (const key of ['signBlockLoop', 'hwMap'] as const) {
       const c = chartOf(key)
-      expect(c, key).toContain('每個 sample n')
-      expect(c, key).toContain('每個 block k')
-      expect(c, key).toMatch(/w_\(k\+1\)/)
+      expect(c, key).toContain('每個 sample $n$')
+      expect(c, key).toContain('每個 block $k$')
+      expect(c, key).toMatch(/w_\{k\+1\}/)
     }
-    expect(chartOf('hwMap')).toContain('w_(k+1) = w_k + μ·G_k')
-    expect(chartOf('hwMap')).toContain('q = 2b − 1')
+    expect(chartOf('hwMap')).toContain('w_{k+1} = w_k + \\mu \\cdot G_k')
+    expect(chartOf('hwMap')).toContain('q = 2b - 1')
     // 判號式 block 迴路：e[n] = s + v[n]（S2），sign 之後每個 sample 一次、累加 N 次後每個 block 取一次正負號、再乘 μ 進累加器
     const gs = await parse(chartOf('signBlockLoop'))
-    expect(into(gs.edges, 'S2').sort()).toEqual(['+ (s = a − w_k)', '+ v[n]'].sort())
-    expect(gs.vertices.find((v) => v.id === 'CMP')?.text).toContain('每個 sample n')
-    expect(gs.vertices.find((v) => v.id === 'ACC')?.text).toContain('Σ N 次')
-    expect(gs.vertices.find((v) => v.id === 'SGN')?.text).toContain('每個 block k')
-    expect(edgeOf(gs.edges, 'S2', 'CMP').raw).toBe('e[n]')
+    expect(into(gs.edges, 'S2').sort()).toEqual(['$+ (s = a - w_k)$', '$+ v[n]$'].sort())
+    expect(gs.vertices.find((v) => v.id === 'CMP')?.text).toContain('每個 sample $n$')
+    expect(gs.vertices.find((v) => v.id === 'ACC')?.text).toContain('累加 $N$ 次')
+    expect(gs.vertices.find((v) => v.id === 'SGN')?.text).toContain('每個 block $k$')
+    expect(edgeOf(gs.edges, 'S2', 'CMP').raw).toBe('$e[n]$')
     expect(edgeOf(gs.edges, 'CMP', 'ACC')).toBeTruthy()
     expect(edgeOf(gs.edges, 'ACC', 'SGN')).toBeTruthy()
-    expect(edgeOf(gs.edges, 'SGN', 'INT').raw).toContain('d_k ∈ {+1, −1, 0}')
-    expect(chartOf('signBlockLoop')).toContain('μ/(z−1)')
+    expect(edgeOf(gs.edges, 'SGN', 'INT').raw).toContain('d_k \\in \\{+1, -1, 0\\}')
+    expect(chartOf('signBlockLoop')).toContain('\\mu/(z-1)')
   }, SLOW)
 
   it('硬體路徑圖：s 與 v[n] 在加法點相加成 e[n]，經 BBPD、位元映射、GMAC（每個 sample）、÷N×μ、累加器（每個 block）回到 DTC；regressor 虛線進誤差與 GMAC', async () => {
     const g = await parse(chartOf('hwMap'))
-    expect(into(g.edges, 'ADD').sort()).toEqual(['+ s', '+ v[n]'].sort())
+    expect(into(g.edges, 'ADD').sort()).toEqual(['$+ s$', '$+ v[n]$'].sort())
     const chain = ['ADD', 'BB', 'MAP', 'GM', 'SCL', 'ACC', 'DTC']
     for (let i = 0; i + 1 < chain.length; i++) expect(edgeOf(g.edges, chain[i], chain[i + 1]), `${chain[i]} → ${chain[i + 1]}`).toBeTruthy()
     expect(edgeOf(g.edges, 'DTC', 'ADD')).toBeTruthy()
     expect(edgeOf(g.edges, 'X', 'DTC').raw).toContain('誤差')
-    expect(edgeOf(g.edges, 'X', 'GM').raw).toContain('q[n]')
-    expect(edgeOf(g.edges, 'BB', 'MAP').raw).toContain('{0, 1}')
-    expect(edgeOf(g.edges, 'MAP', 'GM').raw).toContain('每個 sample n')
-    expect(edgeOf(g.edges, 'GM', 'SCL').raw).toContain('每個 block k')
+    expect(edgeOf(g.edges, 'X', 'GM').raw).toContain('$q[n]$')
+    expect(edgeOf(g.edges, 'BB', 'MAP').raw).toContain('\\{0, 1\\}')
+    expect(edgeOf(g.edges, 'MAP', 'GM').raw).toContain('每個 sample $n$')
+    expect(edgeOf(g.edges, 'GM', 'SCL').raw).toContain('每個 block $k$')
     expect(reaches(g.edges, 'DTC', 'DTC'), '硬體路徑圖要形成一個環').toBe(true)
   }, SLOW)
 
@@ -427,8 +471,8 @@ describe('Ch05 方塊圖：與正文公式一致', () => {
     expect(L.pole).toBeCloseTo(1 - mu * kq(sigma), 15)
     expect(L.pole).toBeGreaterThan(0)
     expect(L.pole).toBeLessThan(1) // 負回授：誤差單調縮小（極性畫反的話會大於 1）
-    expect(chartOf('roadmap')).toContain('p_cal = 1 − μ·K_q')
-    expect(chartOf('sCurveRegions')).toContain('pole = 1 − μ·K_q')
+    expect(chartOf('roadmap')).toContain('p_{\\mathrm{cal}} = 1 - \\mu \\cdot K_q')
+    expect(chartOf('sCurveRegions')).toContain('\\mathrm{pole} = 1 - \\mu \\cdot K_q')
   })
 
   it('逐 sample 的線性化迴路：誤差每個 sample 乘 1 − μ·K_q；穩態 RMS 與 σ_v 的關係（τ ∝ σ_v、RMS ∝ √(μσ_v)）', () => {
@@ -448,7 +492,7 @@ describe('Ch05 方塊圖：與正文公式一致', () => {
     expect(1 / (mu * kq(4 * sigma)) / (1 / (mu * kq(sigma)))).toBeCloseTo(4, 12)
     expect(signLoopLinearRms(mu, 4 * sigma) / signLoopLinearRms(mu, sigma)).toBeCloseTo(2, 1)
     const c = chartOf('ditherRegimes')
-    for (const t of ['τ ≈ 1/(μ·K_q) ∝ σ_v', 'RMS ∝ √(μ·σ_v)', 'period-2 limit cycle', '時間平均偏差最多 μ/2']) expect(c).toContain(t)
+    for (const t of ['\\tau \\approx 1/(\\mu \\cdot K_q) \\propto \\sigma_v', '\\mathrm{RMS} \\propto \\sqrt{\\mu \\cdot \\sigma_v}', 'period-2 limit cycle', '時間平均偏差最多 $\\mu/2$']) expect(c).toContain(t)
     // σ_v = 0 的 hard limiter：w 在 a 兩側的兩個格點之間來回跳，時間平均偏差不超過 μ/2（用本站的精確穩態解算）
     const zero = signLoopStationary({ a: 1.1, w0: 0, mu: 0.5, sigma: 0 })
     expect(Math.abs(zero.bias)).toBeLessThanOrEqual(0.5 / 2 + 1e-12)
@@ -467,7 +511,7 @@ describe('Ch05 方塊圖：與正文公式一致', () => {
     // 平衡點在 w = a − θ：往上與往下的機率都是 ½
     expect(pPlus(theta, sigma, theta)).toBeCloseTo(0.5, 15)
     const c = chartOf('birthDeath')
-    for (const t of ['u_k = Φ((a − θ − w_k)/σ_v)', 'ū_k = 1 − u_k', 'π_k·u_k = π_(k+1)·ū_(k+1)', 'w_(k−1)<br/>= w_k − μ', 'w_0 + k·μ']) expect(c).toContain(t)
+    for (const t of ['u_k = \\Phi((a - \\theta - w_k)/\\sigma_v)', '\\bar u_k = 1 - u_k', '\\pi_k \\cdot u_k = \\pi_{k+1} \\cdot \\bar u_{k+1}', 'w_{k-1}$<br/>$= w_k - \\mu', 'w_0 + k \\cdot \\mu']) expect(c).toContain(t)
     const g = await parse(c)
     expect(edgeOf(g.edges, 'W0', 'WP').raw).toContain('往上')
     expect(edgeOf(g.edges, 'W0', 'WM').raw).toContain('往下')
@@ -479,42 +523,42 @@ describe('Ch05 方塊圖：與正文公式一致', () => {
     const c = chartOf('firstCalc')
     const p = pPlus(1, 100)
     const m = meanQ(1, 100)
-    expect(c).toContain(`≈ ${p.toFixed(5)}`) // 0.50399
-    expect(c).toContain(`1 − p ≈ ${(1 - p).toFixed(5)}`) // 0.49601
-    expect(c).toContain(`≈ ${m.toFixed(5)}`) // 0.00798
-    expect(c).toContain(`≈ ${varQ(m).toFixed(5)}`) // 0.99994
-    expect(c).toContain('r = s/σ_v = 0.01')
+    expect(c).toContain(`\\approx ${p.toFixed(5)}`) // 0.50399
+    expect(c).toContain(`1 - p \\approx ${(1 - p).toFixed(5)}`) // 0.49601
+    expect(c).toContain(`\\approx ${m.toFixed(5)}`) // 0.00798
+    expect(c).toContain(`\\approx ${varQ(m).toFixed(5)}`) // 0.99994
+    expect(c).toContain('r = s/\\sigma_v = 0.01')
     // 圖上的訊號／雜訊式子就是 sumMoments()
     const mo = sumMoments(10001, m)
     expect(mo.meanSum).toBeCloseTo(10001 * m, 12)
     expect(mo.sdSum).toBeCloseTo(Math.sqrt(10001 * (1 - m * m)), 12)
     expect(mo.snr).toBeCloseTo(mo.meanSum / mo.sdSum, 12)
-    expect(c).toContain('E[S_N] = N·m')
-    expect(c).toContain('SD(S_N) = √(N·(1 − m²))')
+    expect(c).toContain('E[S_N] = N \\cdot m')
+    expect(c).toContain('\\mathrm{SD}(S_N) = \\sqrt{N \\cdot (1 - m^2)}')
   })
 
   it('單一次比較圖與 q 的統計圖：e − θ ≥ 0 的機率是 Φ((s − θ)/σ_v)；＋p 與 −(1 − p) 相加得 2p − 1，q² = 1 得 Var(q) = 1 − m²', async () => {
     const g = await parse(chartOf('singleCompare'))
     // e = s + v（第一個加法點），再減掉門檻 θ（第二個加法點）
-    expect(into(g.edges, 'ADD').sort()).toEqual(['+ s', '+ v'].sort())
-    expect(into(g.edges, 'SUB').sort()).toEqual(['+ (e = s + v)', '− θ'].sort())
-    expect(edgeOf(g.edges, 'SUB', 'SGN').raw).toBe('e − θ')
-    expect(edgeOf(g.edges, 'SGN', 'QP').raw).toContain('p = Φ((s − θ)/σ_v)')
-    expect(edgeOf(g.edges, 'SGN', 'QM').raw).toContain('1 − p')
+    expect(into(g.edges, 'ADD').sort()).toEqual(['$+ s$', '$+ v$'].sort())
+    expect(into(g.edges, 'SUB').sort()).toEqual(['$+ (e = s + v)$', '$- \\theta$'].sort())
+    expect(edgeOf(g.edges, 'SUB', 'SGN').raw).toBe('$e - \\theta$')
+    expect(edgeOf(g.edges, 'SGN', 'QP').raw).toContain('p = \\Phi((s - \\theta)/\\sigma_v)')
+    expect(edgeOf(g.edges, 'SGN', 'QM').raw).toContain('1 - p')
     // 門檻讓機率左右移動：θ = s 時剛好 ½；θ 比 s 大 σ_v 時是 Φ(−1)
     expect(pPlus(3, 100, 3)).toBeCloseTo(0.5, 15)
     expect(pPlus(0, 100, 100)).toBeCloseTo(normCdf(-1), 15)
     // q 的統計圖
     const q = await parse(chartOf('qStats'))
-    expect(into(q.edges, 'E').sort()).toEqual(['+ p', '− (1 − p)'].sort())
+    expect(into(q.edges, 'E').sort()).toEqual(['$+ p$', '$- (1 - p)$'].sort())
     for (const [s, sigma] of [[1, 100], [30, 100], [-50, 100]] as const) {
       const p = pPlus(s, sigma)
       expect(p - (1 - p)).toBeCloseTo(meanQ(s, sigma), 12) // 加法點 = 2p − 1 = erf(…)
       expect(1 - meanQ(s, sigma) ** 2).toBeCloseTo(p * 1 ** 2 + (1 - p) * (-1) ** 2 - meanQ(s, sigma) ** 2, 12) // E[q²] = 1
       expect(varQ(meanQ(s, sigma))).toBeCloseTo(4 * p * (1 - p), 12) // 1 − (2p − 1)² = 4p(1 − p)
     }
-    expect(chartOf('qStats')).toContain('m = E[q] = 2p − 1')
-    expect(chartOf('qStats')).toContain('Var(q) = E[q²] − m² = 1 − m²')
+    expect(chartOf('qStats')).toContain('m = E[q] = 2p - 1')
+    expect(chartOf('qStats')).toContain('\\operatorname{Var}(q) = E[q^2] - m^2 = 1 - m^2')
   }, SLOW)
 
   it('訊號 ∝ N、雜訊 ∝ √N：N 變 100 倍時訊號 ×100、雜訊 ×10、SNR ×10；sum 與 average 的 SNR 相同', () => {
@@ -528,9 +572,9 @@ describe('Ch05 方塊圖：與正文公式一致', () => {
     expect(b.meanAvg).toBeCloseTo(m, 14)
     expect(b.sdAvg).toBeCloseTo(Math.sqrt((1 - m * m) / 10000), 14)
     const c = chartOf('signalVsNoise')
-    for (const t of ['q_i = m + η_i', 'N·m（∝ N）', '√(N·(1 − m²))（∝ √N）', 'SNR_stat = m·√N / √(1 − m²)']) expect(c).toContain(t)
+    for (const t of ['q_i = m + \\eta_i', 'N \\cdot m$（$\\propto N$）', '\\sqrt{N \\cdot (1 - m^2)}$（$\\propto \\sqrt{N}$）', '\\mathrm{SNR}_{\\mathrm{stat}} = m \\cdot \\sqrt{N} / \\sqrt{1 - m^2}']) expect(c).toContain(t)
     const s = chartOf('sumVsAvg')
-    for (const t of ['E = N·m', 'SD = √(N·(1 − m²))', 'E = m', 'SD = √((1 − m²)/N)', '(μ/N)·S_N', 'w + μ·G']) expect(s).toContain(t)
+    for (const t of ['E = N \\cdot m', '\\mathrm{SD} = \\sqrt{N \\cdot (1 - m^2)}', 'E = m', '\\mathrm{SD} = \\sqrt{(1 - m^2)/N}', '(\\mu/N) \\cdot S_N', 'w + \\mu \\cdot G']) expect(s).toContain(t)
     // 硬體用 sum 時的更新量 (μ/N)·S_N 與演算法用 average 的 μ·G 是同一個數
     const N = 4096
     const S = 37
@@ -541,10 +585,10 @@ describe('Ch05 方塊圖：與正文公式一致', () => {
     const p = pPlus(1, 100)
     expect(directionExact(p, 101).tie).toBe(0)
     expect(directionExact(p, 100).tie).toBeGreaterThan(0.07)
-    expect(chartOf('decision')).toContain('= 2K − N')
-    expect(chartOf('decision')).toContain('只有偶數 N')
+    expect(chartOf('decision')).toContain('= 2K - N')
+    expect(chartOf('decision')).toContain('只有偶數 $N$')
     const c = chartOf('exactVsClt')
-    for (const t of ['σ_S = √(N·(1 − m²))', 'Φ(N·m/σ_S)', 'Φ((N·m − 1)/σ_S)']) expect(c).toContain(t)
+    for (const t of ['\\sigma_S = \\sqrt{N \\cdot (1 - m^2)}', '\\Phi(N \\cdot m/\\sigma_S)', '\\Phi((N \\cdot m - 1)/\\sigma_S)']) expect(c).toContain(t)
   })
 
   it('tie rule 決策樹的結論：half／skip 無偏，sign(0) = +1 偏向負、strict（硬體 sign(0) = −1）偏向正，大小約 1/(N·K_q)', () => {
@@ -563,10 +607,11 @@ describe('Ch05 方塊圖：與正文公式一致', () => {
     // 奇數 N 沒有 tie：四種 rule 都無偏
     expect(Math.abs(tieRuleEquilibrium(101, sigma, 'plus'))).toBeLessThan(1e-6)
     const c = chartOf('tieRules')
-    expect(c).toMatch(/R3 --> B3\["判號式迴路偏移<br\/>s\* ≈ −1\/\(N·K_q\)"\]/)
-    expect(c).toMatch(/R1 --> B1\["s > 0 時等同硬體 sign\(0\) = −1<br\/>判號式迴路偏移 s\* ≈ \+1\/\(N·K_q\)"\]/)
+    // 平衡點偏移的方向與大小：sign(0) = +1 偏向負、strict（硬體 sign(0) = −1）偏向正，大小 1/(N·K_q)
+    expect(c).toContain(String.raw`R3 --> B3["判號式迴路偏移<br/>$s^* \approx -1/(N \cdot K_q)$"]`)
+    expect(c).toContain(String.raw`R1 --> B1["$s > 0$ 時等同硬體 $\operatorname{sign}(0) = -1$<br/>判號式迴路偏移 $s^* \approx +1/(N \cdot K_q)$"]`)
     expect(c).toContain('class R2,R4,U0 ok')
-    expect(c).toContain('只有偶數 N 會發生')
+    expect(c).toContain('只有偶數 $N$ 會發生')
   })
 
   it('最後一個樣本圖（F-05.13）：進 tie 的兩條流量相等，tie 平分後 P(S_N>0) + ½P(S_N=0) = P(S_(N−1)>0)', () => {
@@ -582,8 +627,8 @@ describe('Ch05 方塊圖：與正文公式一致', () => {
       expect(d.tie).toBeCloseTo((1 - p) * pPlus1 + p * pMinus1, 14)
     }
     const c = chartOf('lastSample')
-    expect(c).toContain('(1 − p)·P(S_(N−1) = +1) = p·P(S_(N−1) = −1)')
-    for (const t of ['q_N = +1：機率 p', 'q_N = −1：機率 1 − p', '擲硬幣：機率 ½']) expect(c).toContain(t)
+    expect(c).toContain('(1 - p) \\cdot P(S_{N-1} = +1) = p \\cdot P(S_{N-1} = -1)')
+    for (const t of ['q_N = +1$：機率 $p$', 'q_N = -1$：機率 $1 - p$', '擲硬幣：機率 $\\tfrac{1}{2}$']) expect(c).toContain(t)
   })
 
   it('位元映射圖：w = a 時正確路徑的平均更新是 0，忘了映射時是 ½·E[x]', () => {
@@ -594,29 +639,29 @@ describe('Ch05 方塊圖：與正文公式一致', () => {
     expect(meanGmacEncoding(300, 300, xs, ps, 100, 'unipolar')).toBeCloseTo(Ex / 2, 14)
     expect(Ex).not.toBe(0)
     const c = chartOf('bitMapping')
-    expect(c).toContain('q = 2b − 1')
-    expect(c).toContain('E[b·x] = ½·E[x]')
-    expect(c).toContain('E[q·x] = 0')
+    expect(c).toContain('q = 2b - 1')
+    expect(c).toContain('E[b \\cdot x] = \\tfrac{1}{2} \\cdot E[x]')
+    expect(c).toContain('E[q \\cdot x] = 0')
   })
 
   it('設計流程圖上的數字：z = 1.645、m = 0.00798、N 約 42,500、精確最小奇數 42,499；1-bit 比類比多 π/2 倍', () => {
     const c = chartOf('designFlow')
     const z = normInv(0.95)
     const m = meanQ(1, 100)
-    expect(c).toContain(`≈ ${z.toFixed(3)}`) // 1.645
-    expect(c).toContain(`≈ ${m.toFixed(5)}`) // 0.00798
+    expect(c).toContain(`\\approx ${z.toFixed(3)}`) // 1.645
+    expect(c).toContain(`\\approx ${m.toFixed(5)}`) // 0.00798
     const clt = samplesForConfidence(m, 0.95)
     const small = samplesSmallSignal(0.01, 0.95)
     expect(Math.abs(clt - 42500)).toBeLessThan(10)
     expect(Math.abs(small - 42500)).toBeLessThan(10)
-    expect(c).toContain('≈ 42,500')
+    expect(c).toContain('\\approx 42{,}500')
     expect(minNForTarget(pPlus(1, 100), 0.95, 'odd')).toBe(42499)
-    expect(c).toContain('精確最小奇數 N = 42,499')
+    expect(c).toContain('精確最小奇數 $N = 42{,}499$')
     // 類比路徑 N = (z·σ_v/s)²，1-bit 路徑多乘 π/2
     const analog = (z * 100) ** 2
     expect(small / analog).toBeCloseTo(Math.PI / 2, 12)
     const a = chartOf('analogVs1bit')
-    for (const t of ['SNR = s·√N / σ_v', 'N = (z·σ_v/s)²"', 'SNR ≈ √(2/π)·s·√N / σ_v', 'N ≈ (z·σ_v/s)²·π/2']) expect(a).toContain(t)
+    for (const t of ['\\mathrm{SNR} = s \\cdot \\sqrt{N} / \\sigma_v', 'N = (z \\cdot \\sigma_v/s)^2$"', '\\mathrm{SNR} \\approx \\sqrt{2/\\pi} \\cdot s \\cdot \\sqrt{N} / \\sigma_v', 'N \\approx (z \\cdot \\sigma_v/s)^2 \\cdot \\pi/2']) expect(a).toContain(t)
     // 小訊號下 SNR_stat ≈ √(2/π)·(s/σ_v)·√N
     const N = 10001
     expect(sumMoments(N, m).snr / (Math.sqrt(2 / Math.PI) * 0.01 * Math.sqrt(N))).toBeCloseTo(1, 3)
@@ -625,13 +670,13 @@ describe('Ch05 方塊圖：與正文公式一致', () => {
   it('小訊號等效模型與 S 曲線分區圖：K_q = √(2/π)/σ_v；r = 0.25 高估約 1%、r = 0.55 約 5%、r = 1.5 斜率不到 0.33·K_q', () => {
     expect(kq(100)).toBeCloseTo(Math.sqrt(2 / Math.PI) / 100, 16)
     const ss = chartOf('smallSignal')
-    for (const t of ['K_q = √(2/π)/σ_v', '＋ K_q·s ≈ E[q]', 'Var(η) = 1 − m² ≈ 1', 'q ≈ K_q·s + η']) expect(ss).toContain(t)
+    for (const t of ['K_q = \\sqrt{2/\\pi}/\\sigma_v', '$+ K_q \\cdot s \\approx E[q]$', '\\operatorname{Var}(\\eta) = 1 - m^2 \\approx 1', 'q \\approx K_q \\cdot s + \\eta']) expect(ss).toContain(t)
     // 等效模型的兩個量：平均 ≈ K_q·s、雜訊功率 = 1 − m²
     expect(meanQ(1, 100) / (kq(100) * 1)).toBeCloseTo(1, 4)
     expect(varQ(meanQ(1, 100))).toBeGreaterThan(0.9999)
     const c = chartOf('sCurveRegions')
-    expect(c).toContain('r ≤ 0.25')
-    expect(c).toContain('r ≤ 1.5')
+    expect(c).toContain('r \\le 0.25')
+    expect(c).toContain('r \\le 1.5')
     expect(linearizationRelError(0.25)).toBeGreaterThan(0.009)
     expect(linearizationRelError(0.25)).toBeLessThan(0.011) // 「高估最多約 1%」
     expect(linearizationRelError(0.55)).toBeGreaterThan(0.045)
@@ -641,13 +686,13 @@ describe('Ch05 方塊圖：與正文公式一致', () => {
     expect(slope15).toBeLessThan(0.33) // 「斜率不到 0.33·K_q」
     expect(slope15).toBeGreaterThan(0.32)
     expect(meanQ(1.5, 1)).toBeGreaterThan(0.86) // 「E[q] 貼近 ±1」
-    expect(c).toContain('K_q·exp(−r²/2)')
+    expect(c).toContain('K_q \\cdot \\exp(-r^2/2)')
   })
 
   it('小訊號等效模型圖：K_q·s 的加法點與 η 相加得 q ≈ K_q·s + η；兩個框都有 ＋ 的加法點', async () => {
     const g = await parse(chartOf('smallSignal'))
-    expect(into(g.edges, 'AD1').sort()).toEqual(['+ s', '+ v'].sort())
-    expect(into(g.edges, 'AD2').sort()).toEqual(['+ K_q·s ≈ E[q]', '+ η'].sort())
+    expect(into(g.edges, 'AD1').sort()).toEqual(['$+ s$', '$+ v$'].sort())
+    expect(into(g.edges, 'AD2').sort()).toEqual(['$+ K_q \\cdot s \\approx E[q]$', '$+ \\eta$'].sort())
     // 平均 E[q] 與 K_q·s 的差：|s| ≪ σ_v 時是三次項（r³ 級），相對誤差 ≈ r²/6
     const r = 0.01
     expect(linearizationRelError(r)).toBeCloseTo((r * r) / 6, 7)
@@ -677,14 +722,14 @@ describe('Ch05 方塊圖：與正文公式一致', () => {
     expect(L.sigmaW).toBeCloseTo(sw, 12)
     expect(L.sigmaW).toBeCloseTo(0.399, 3) // T13 的 σ_w
     const c = chartOf('handcalcFlow')
-    const order = ['① K_q = √(2/π)/σ_v', '② 穩定上限 μ_max = 2/K_q', '③ loop gain g = μ·K_q', '④ pole p_cal = 1 − g', '⑤ τ = −1/ln|p_cal|', '⑥', '⑦', '⑧']
+    const order = ['① $K_q = \\sqrt{2/\\pi}/\\sigma_v$', '② 穩定上限 $\\mu_{\\max} = 2/K_q$', '③ loop gain $g = \\mu \\cdot K_q$', '④ pole $p_{\\mathrm{cal}} = 1 - g$', '⑤ $\\tau = -1/\\ln|p_{\\mathrm{cal}}|$', '⑥', '⑦', '⑧']
     // 八個步驟都在圖上，而且原始碼裡的順序就是計算順序
     const pos = order.map((t) => c.indexOf(t))
     pos.forEach((i, n) => expect(i, order[n]).toBeGreaterThan(-1))
     expect([...pos].sort((x, y) => x - y)).toEqual(pos)
-    expect(c).toContain('T_blk = N/f_s')
-    expect(c).toContain('t_τ = τ·T_blk')
-    expect(c).toContain('σ_w = μ/√(N·(1 − p_cal²))')
+    expect(c).toContain('T_{\\mathrm{blk}} = N/f_s')
+    expect(c).toContain('t_\\tau = \\tau \\cdot T_{\\mathrm{blk}}')
+    expect(c).toContain('\\sigma_w = \\mu/\\sqrt{N \\cdot (1 - p_{\\mathrm{cal}}^2)}')
     // 手算題 HC-05.8 的輸入就是圖上的四個已知量
     const hc = HANDCALCS.find((h) => h.id === 'HC-05.8')!
     expect(hc.inputs.map((i) => i.key).sort()).toEqual(['N', 'fs', 'mu', 'sigma'].sort())
@@ -719,10 +764,10 @@ describe('Ch05 方塊圖：與正文公式一致', () => {
 
   it('Monte Carlo 交叉比對圖：接受域每側尾機率低於 Φ(−4) ≈ 3.2e-5（與 Comparator Lab 同一個判準）', () => {
     const c = chartOf('mcCheck')
-    expect(c).toContain('每側尾機率低於 Φ(−4)')
+    expect(c).toContain('每側尾機率低於 $\\Phi(-4)$')
     expect(normCdf(-4)).toBeGreaterThan(3.1e-5)
     expect(normCdf(-4)).toBeLessThan(3.2e-5)
-    expect(c).toContain('k ~ Bin(T, P)')
+    expect(c).toContain('k \\sim \\mathrm{Bin}(T, P)')
     expect(c).toContain('Wilson 95% 區間')
   })
 
@@ -740,11 +785,11 @@ describe('Ch05 方塊圖：與正文公式一致', () => {
     // 產生器 v_(i+1) = ρ·v_i + √(1 − ρ²)·z_i：變異數保持 1（ρ² + (1 − ρ²) = 1）
     for (const rho of [0, 0.5, 0.99]) expect(rho ** 2 + Math.sqrt(1 - rho ** 2) ** 2).toBeCloseTo(1, 15)
     const c = chartOf('ar1')
-    for (const t of ['× √(1 − ρ²)', '× ρ', '(2/π)·arcsin(ρ)', 'N_eff = N² / Var(S_N)']) expect(c).toContain(t)
+    for (const t of ['\\times \\sqrt{1 - \\rho^2}', '\\times \\rho', '(2/\\pi) \\cdot \\arcsin(\\rho)', 'N_{\\mathrm{eff}} = N^2 / \\operatorname{Var}(S_N)']) expect(c).toContain(t)
     const g = await parse(c)
-    expect(into(g.edges, 'SUM').sort()).toEqual(['+ ρ·v_i', '+ √(1 − ρ²)·z_i'].sort())
-    expect(edgeOf(g.edges, 'SUM', 'D').raw).toBe('v_(i+1)')
-    expect(edgeOf(g.edges, 'D', 'RHO').raw).toBe('v_i')
+    expect(into(g.edges, 'SUM').sort()).toEqual(['$+ \\rho \\cdot v_i$', '$+ \\sqrt{1 - \\rho^2} \\cdot z_i$'].sort())
+    expect(edgeOf(g.edges, 'SUM', 'D').raw).toBe('$v_{i+1}$')
+    expect(edgeOf(g.edges, 'D', 'RHO').raw).toBe('$v_i$')
     expect(reaches(g.edges, 'SUM', 'SUM'), 'AR(1) 的 ×ρ 回授要形成一個環').toBe(true)
   }, SLOW)
 })

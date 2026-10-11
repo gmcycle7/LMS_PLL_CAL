@@ -1,6 +1,6 @@
 import { useId, useState } from 'react'
 import { ParamControl, SelectControl } from '@/components'
-import { tx } from '../common'
+import { T, texText, tnum, tx } from '../common'
 import { DIST_LABEL, validateDist, type XDist, type XDistKind } from '@/simulation/models/scalarStability'
 
 /** 實驗參數中描述 x 分布的欄位（全部是純量 / 字串，方便 preset 與 JSON 匯出） */
@@ -86,6 +86,27 @@ export function distSummary(f: DistFields): string {
   }
 }
 
+/**
+ * distSummary 的圖例版本：數學寫成 `$…$`（Plot 的 trace 名稱用；distSummary 本身維持純文字，給 JSON 摘要與匯出）。
+ * 清單只取前 24 個字元，內容只可能是數字、逗號與空白（parseList 已驗證），可以安全地放進 TeX。
+ */
+export function distSummaryTex(f: DistFields): string {
+  switch (f.dist) {
+    case 'fixed':
+      return T`固定 $x = ${tnum(f.xValue)}$`
+    case 'gaussian':
+      return T`Gaussian $\sigma = ${tnum(f.sigma)}$`
+    case 'uniform':
+      return T`Uniform $\pm ${Number(f.halfWidth.toPrecision(4))}$`
+    case 'pm_one':
+      return T`$\pm ${tnum(f.amplitude)}$`
+    case 'list': {
+      const clean = f.listText.replace(/[\\{}$%&#_^~]/g, '').replace(/\s+/g, T`\ `)
+      return T`清單 $\{${clean.length > 24 ? `${clean.slice(0, 24)}\\ldots` : clean}\}$`
+    }
+  }
+}
+
 const KINDS: XDistKind[] = ['fixed', 'gaussian', 'uniform', 'pm_one', 'list']
 
 function ListInput({ value, onChange }: { value: string; onChange: (s: string) => void }) {
@@ -99,7 +120,7 @@ function ListInput({ value, onChange }: { value: string; onChange: (s: string) =
   const { error } = parseList(text)
   return (
     <div className="ch03-listinput">
-      <label htmlFor={id}>x 的清單（每筆 iid 等機率抽一個）</label>
+      <label htmlFor={id}>{texText('$x$ 的清單（每筆 iid 等機率抽一個）')}</label>
       <input
         id={id}
         type="text"
@@ -122,7 +143,7 @@ export function DistControls({ value, onChange }: { value: DistFields; onChange:
   return (
     <>
       <SelectControl<XDistKind>
-        label="x 的分布"
+        label="$x$ 的分布"
         value={value.dist}
         onChange={(dist) => onChange({ dist })}
         options={KINDS.map((k) => ({ value: k, label: DIST_LABEL[k] }))}
@@ -130,26 +151,26 @@ export function DistControls({ value, onChange }: { value: DistFields; onChange:
         hint={tx`每一筆 $x_n$ 都由此分布獨立抽樣（iid）`}
       />
       {value.dist === 'fixed' && (
-        <ParamControl label="x（固定值）" value={value.xValue} onChange={(xValue) => onChange({ xValue })} min={-4} max={4} step={0.01} unit="[x]" reg="DTC code（固定）" />
+        <ParamControl label="$x$（固定值）" value={value.xValue} onChange={(xValue) => onChange({ xValue })} min={-4} max={4} step={0.01} unit="$[x]$" reg="DTC code（固定）" />
       )}
       {value.dist === 'gaussian' && (
-        <ParamControl label="σ（x 的標準差）" value={value.sigma} onChange={(sigma) => onChange({ sigma })} min={0} max={4} step={0.01} unit="[x]" reg="code RMS（正規化）" hint={tx`$P_x=\sigma^2$，$M_4=3\sigma^4$`} />
+        <ParamControl label={T`$\sigma$（$x$ 的標準差）`} value={value.sigma} onChange={(sigma) => onChange({ sigma })} min={0} max={4} step={0.01} unit="$[x]$" reg="code RMS（正規化）" hint={tx`$P_x=\sigma^2$，$M_4=3\sigma^4$`} />
       )}
       {value.dist === 'uniform' && (
         <ParamControl
-          label="c（半寬，U(−c, c)）"
+          label={T`$c$（半寬，$U(-c, c)$）`}
           value={value.halfWidth}
           onChange={(halfWidth) => onChange({ halfWidth })}
           min={0}
           max={4}
           step={0.001}
-          unit="[x]"
+          unit="$[x]$"
           reg="code 峰值（正規化）"
           hint={tx`$c=\sqrt3\approx1.732$ 時 $P_x=c^2/3=1$；$M_4=c^4/5$`}
         />
       )}
       {value.dist === 'pm_one' && (
-        <ParamControl label="A（±A 的幅度）" value={value.amplitude} onChange={(amplitude) => onChange({ amplitude })} min={-4} max={4} step={0.01} unit="[x]" reg="bipolar code 幅度" hint={tx`$|x|$ 恆為 $|A|$：三種界限相同`} />
+        <ParamControl label={T`$A$（$\pm A$ 的幅度）`} value={value.amplitude} onChange={(amplitude) => onChange({ amplitude })} min={-4} max={4} step={0.01} unit="$[x]$" reg="bipolar code 幅度" hint={tx`$|x|$ 恆為 $|A|$：三種界限相同`} />
       )}
       {value.dist === 'list' && <ListInput value={value.listText} onChange={(listText) => onChange({ listText })} />}
     </>

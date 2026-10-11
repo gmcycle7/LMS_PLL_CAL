@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import type { Data } from 'plotly.js-dist-min'
 import { Callout, ModeGate, Plot, Section, SelectControl, SourceTag, Tex, mathText, useThemeTokens } from '@/components'
 import { FREF_MHZ, LMS_NOTE_ZH, LOOP_KEYS, PARAMS, PRED, SIM_CFG, type LoopKey, type LsCount } from '../data'
-import { Claim, DataTable, Diagram, Formula, Kappa, ModelCode, Src, fmtFs, fp, fx, intervalsText, r } from '../common'
+import { Claim, DataTable, Diagram, Formula, Kappa, ModelCode, Src, fmtFs, fp, fx, intervalsText, loopTex, r } from '../common'
 
 const COUNT_VARIANTS: [string, string][] = [
   ['raw', 'raw'],
@@ -58,10 +58,10 @@ function FinePlot() {
         { x: f, y: d.kP_sim_1diff, name: '1diff：時域 sim', mode: 'markers', marker: { size: 4, color: tokens.series[3], symbol: 'diamond' } },
       ]
     return [
-      { x: f, y: d.LSinf_theory, name: 'A → ∞：κ∞（理論，6 個方向的最差值）', mode: 'lines', line: { color: tokens.series[0], width: 2 } },
-      { x: f, y: d.LS_sim_A5ps, name: 'A = 5 ps：時域 sim 的割線斜率', mode: 'markers', marker: { size: 4, color: tokens.series[1] } },
-      { x: f, y: d.LS_sim_A1ps, name: 'A = 1 ps：時域 sim 的割線斜率', mode: 'markers', marker: { size: 4, color: tokens.series[3], symbol: 'diamond' } },
-      { x: f, y: d.kP_theory, name: '小訊號 κ_PHOS（對照）', mode: 'lines', line: { color: tokens.textMuted, dash: 'dot' } },
+      { x: f, y: d.LSinf_theory, name: '$A\\to\\infty$：$\\kappa_\\infty$（理論，6 個方向的最差值）', mode: 'lines', line: { color: tokens.series[0], width: 2 } },
+      { x: f, y: d.LS_sim_A5ps, name: '$A=5$ ps：時域 sim 的割線斜率', mode: 'markers', marker: { size: 4, color: tokens.series[1] } },
+      { x: f, y: d.LS_sim_A1ps, name: '$A=1$ ps：時域 sim 的割線斜率', mode: 'markers', marker: { size: 4, color: tokens.series[3], symbol: 'diamond' } },
+      { x: f, y: d.kP_theory, name: '小訊號 $\\kappa_{\\mathrm{PHOS}}$（對照）', mode: 'lines', line: { color: tokens.textMuted, dash: 'dot' } },
     ]
   }, [loop, qty, tokens])
   return (
@@ -79,14 +79,14 @@ function FinePlot() {
         />
       </div>
       <Plot
-        title={`${loop}：預測（線）vs 時域 sim（點），$\\alpha=0.001\\ldots0.500$`}
+        title={`${loopTex(loop)}：預測（線）vs 時域 sim（點），$\\alpha=0.001\\ldots0.500$`}
         data={data}
         xLog
         height={340}
         csvName={`sspll-pred-vs-sim-${loop}-${qty}`}
         layout={{
-          xaxis: { title: { text: 'α·f_ref [MHz]' } },
-          yaxis: { title: { text: 'κ（> 0 restoring；< 0 反號）' } },
+          xaxis: { title: { text: '$\\alpha\\cdot f_{\\mathrm{ref}}$ [MHz]' } },
+          yaxis: { title: { text: '$\\kappa$（$>0$ restoring；$<0$ 反號）' } },
           shapes: [{ type: 'line', xref: 'paper', yref: 'y', x0: 0, x1: 1, y0: 0, y1: 0, line: { color: tokens.textMuted, width: 1 } }],
         }}
         caption="資料：pred_vs_sim.json 的 fine（golden 的理論與 analysis/sspll/sim 的時域模擬；非本頁即時模擬）。"
@@ -335,7 +335,7 @@ export function S10Sim() {
       </p>
       <Callout kind="warn" title="ps 級的「發散值」在硬體上不成立">
         <p>
-          表中 ps 級的值是在<strong>無界的線性 SSPD 與無限 DTC range</strong> 下得到的。以 {PARAMS.assumptions.f_vco_Hz_illustrative / 1e9} GHz（插圖值）為例，SSPD 只在 <Tex>{r`\pm T_{vco}/4`}</Tex> = ±{fx(SIM_CFG.deltaPs * 2, 1)} ps 內單調，DTC range 約{' '}
+          表中 ps 級的值是在<strong>無界的線性 SSPD 與無限 DTC range</strong> 下得到的。以 {PARAMS.assumptions.f_vco_Hz_illustrative / 1e9} GHz（插圖值）為例，SSPD 只在 <Tex>{`\\pm T_{vco}/4=\\pm${fx(SIM_CFG.deltaPs * 2, 1)}`}</Tex> ps 內單調，DTC range 約{' '}
           <Tex>{r`T_{vco}/8`}</Tex> = {fx(SIM_CFG.deltaPs, 1)} ps。所以實際會看到的是<strong>權重卡在 DTC 上限、SSPLL cycle slip、FLL dead zone 被觸發或失鎖</strong>。應加上 weight clamp 與 lock detector。收斂到 3–25 fs 的那些數字，則假設比較器沒有 offset（
           <Tex>{'E[q]=0'}</Tex>），見 §13。
         </p>

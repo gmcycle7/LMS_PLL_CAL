@@ -72,16 +72,16 @@ export default function Chapter00() {
         每個主要概念都先畫一張方塊圖、再寫公式；每張圖下面有一段「怎麼看圖」，告訴你先看哪裡、圖上的哪個訊號就是公式裡的哪個符號。圖上的寫法只有四條規則：
         <ul className="ch00-legend">
           <li>
-            <strong>方括號是時間索引</strong>：圖上的 <code>x[n]</code> 就是公式裡的 <Tex>{'x_n'}</Tex>（第 <Tex>{'n'}</Tex> 筆資料）；<code>w[n+1]</code> 就是{' '}
-            <Tex>{'w_{n+1}'}</Tex>。§0.8 之後出現的 <code>w[k]</code> 是 <Tex>{'w_k'}</Tex>（第 <Tex>{'k'}</Tex> 個 block，一個 block 有 <Tex>{'N'}</Tex> 筆）。
+            <strong>方括號是時間索引</strong>：圖上的 <Tex>{'x[n]'}</Tex> 就是公式裡的 <Tex>{'x_n'}</Tex>（第 <Tex>{'n'}</Tex> 筆資料）；<Tex>{'w[n+1]'}</Tex> 就是{' '}
+            <Tex>{'w_{n+1}'}</Tex>。§0.8 之後出現的 <Tex>{'w[k]'}</Tex> 是 <Tex>{'w_k'}</Tex>（第 <Tex>{'k'}</Tex> 個 block，一個 block 有 <Tex>{'N'}</Tex> 筆）。
           </li>
           <li>
-            <strong>圓圈是運算</strong>：圓圈 ＋ 是相加點，進入它的線以 <code>(+)</code> 或 <code>(−)</code> 開頭，表示這條訊號是被加還是被減；圓圈 × 是乘法器；寫著「×{' '}
-            <Tex>{'\\mu'}</Tex>」的方塊是乘上一個常數（增益）。
+            <strong>圓圈是運算</strong>：圓圈 <Tex>{'+'}</Tex> 是相加點，進入它的線以 <Tex>{'(+)'}</Tex> 或 <Tex>{'(-)'}</Tex> 開頭，表示這條訊號是被加還是被減；圓圈 <Tex>{'\\times'}</Tex> 是乘法器；寫著「
+            <Tex>{'\\times\\,\\mu'}</Tex>」的方塊是乘上一個常數（增益）。
           </li>
           <li>
             <strong>
-              <code>z⁻¹</code> 是暫存器
+              <Tex>{'z^{-1}'}</Tex> 是暫存器
             </strong>
             ：它的輸出是「上一拍寫進去的值」，也就是延遲一筆資料（Z transform 到 Ch03 才正式介紹，這裡把它當成一個暫存器就好）。
           </li>

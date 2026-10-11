@@ -307,7 +307,7 @@ describe('Ch08 實驗元件（單獨渲染）', () => {
     await waitFor(() => expect(container.textContent).toContain('更新極性錯誤'))
     await waitFor(() => {
       const calls = P.react.mock.calls as unknown as [unknown, { name?: string; y?: ArrayLike<number> }[]][]
-      const phase = calls.flatMap((c) => c[1]).filter((t) => (t.name ?? '').includes('∠L'))
+      const phase = calls.flatMap((c) => c[1]).filter((t) => (t.name ?? '').includes('∠<i>L</i>')) // Plot 把名稱裡的 `$\angle L$` 轉成 ∠ 加斜體 L
       expect(phase.length).toBeGreaterThan(0)
       const last = phase[phase.length - 1]
       const ys = Array.from(last.y ?? [])
@@ -328,6 +328,95 @@ describe('Ch08 實驗元件（單獨渲染）', () => {
       fireEvent.change(cell, { target: { value: '0.5' } })
     })
     expect(cell.getAttribute('aria-invalid')).toBeNull()
+  }, SLOW)
+})
+
+/** Plotly.react 收到的、會顯示在圖上的文字：trace 名稱、軸標題、圖標題、註記、hovertemplate（已由 Plot 元件轉成 pseudo-HTML） */
+function plotTexts(): string[] {
+  const keys = new Set(['name', 'text', 'title', 'ticktext', 'hovertemplate', 'texttemplate', 'hovertext'])
+  const out: string[] = []
+  const walk = (v: unknown, key: string | null, depth: number) => {
+    if (typeof v === 'string') {
+      if (key !== null && keys.has(key)) out.push(v)
+      return
+    }
+    if (depth > 6 || v === null || typeof v !== 'object' || ArrayBuffer.isView(v)) return
+    if (Array.isArray(v)) {
+      for (const x of v.slice(0, 40)) walk(x, key, depth + 1)
+      return
+    }
+    for (const [k, x] of Object.entries(v)) walk(x, k, depth + 1)
+  }
+  for (const [, data, layout] of P.react.mock.calls as unknown as [unknown, unknown, unknown][]) {
+    walk(data, null, 0)
+    walk(layout, null, 0)
+  }
+  return out
+}
+
+/** 圖內文字的數學都是 `$...$` 轉出來的：沒有殘留的 `$`、TeX 指令、大括號，也沒有 Unicode 拼的下標、上標與沒轉成斜體的希臘字母 */
+function expectTypesetPlotTexts(texts: string[]) {
+  expect(texts.length).toBeGreaterThan(20)
+  expect(texts.some((t) => t.includes('<i>'))).toBe(true)
+  for (const raw of texts) {
+    const t = raw.replace(/%\{[^}]*\}/g, '') // Plotly 的 %{x:.4f} 佔位不算
+    expect(t, raw).not.toMatch(/[$\\{}^]/)
+    const outsideItalic = t.replace(/<i>.*?<\/i>/g, '')
+    expect(outsideItalic, raw).not.toMatch(/[α-ω⁰-₟²³¹]|\b[A-Za-z]{1,3}_[A-Za-z0-9{]/u)
+  }
+}
+
+describe('Ch08 數學一律是 LaTeX（圖內文字與控制項）', () => {
+  it('整章（engineer）：§8.2／§8.3 的圖與兩個實驗的圖，軸標題、圖例名稱、hover 裡的數學都由 `$...$` 轉出', async () => {
+    renderChapter('/ch/08', 'engineer')
+    // §8.2 兩張、§8.3 兩張、PM Lab 六張、Dual-Loop 五張
+    await waitFor(() => expect(P.react.mock.calls.length).toBeGreaterThanOrEqual(15), { timeout: 60_000 })
+    const texts = plotTexts()
+    expectTypesetPlotTexts(texts)
+    // 幾個代表性的字串：變數是斜體、下標與上標是真正的 <sub>／<sup>、度數是 °
+    expect(texts).toContain('<i>g</i>') // §8.2／§8.3／PM Lab 的橫軸
+    expect(texts).toContain('<i>ρ</i> = 1')
+    expect(texts).toContain('<i>PM</i><sub><i>d</i></sub> [deg]')
+    expect(texts).toContain('<i>ω</i> [rad/block]')
+    expect(texts.some((t) => /^Re\s<i>L<\/i>$/.test(t))).toBe(true) // `\mathrm{Re}\,L`
+    expect(texts).toContain('|<i>δ</i><sub><i>k</i></sub>|/<i>δ</i><sub>0</sub>')
+    expect(texts.some((t) => t.includes('<i>PM</i> = 90°−arcsin(<i>g</i>/2)'))).toBe(true)
+    expect(texts.some((t) => /單位圓 \|<i>z<\/i>\| = 1/.test(t))).toBe(true)
+    expect(texts.some((t) => t.includes('<br><i>z</i> = %{x:.4f} %{y:+.4f}<i>j</i>'))).toBe(true) // 極點的 hovertemplate
+    expect(errorSpy).not.toHaveBeenCalled()
+  }, SLOW)
+
+  it('Dual-Loop 一般化 state-space 模式：圖內文字同樣是 LaTeX 轉出的', async () => {
+    wrap(<DualLoopLab />, '/ch/08?preset=dual-loop-second-order', 'research')
+    await waitFor(() => expect(P.react.mock.calls.length).toBeGreaterThanOrEqual(5), { timeout: 60_000 })
+    const texts = plotTexts()
+    expectTypesetPlotTexts(texts)
+    expect(texts.some((t) => t.includes('eig(<b><i>A</i></b><sub><i>s</i></sub>)'))).toBe(true)
+    expect(texts.some((t) => t.includes('<i>ρ</i>(<b><i>A</i></b><sub>comb</sub>)'))).toBe(true)
+    expect(errorSpy).not.toHaveBeenCalled()
+  }, SLOW)
+
+  it('整章的文字（含控制項的標籤、提示、單位與指標名稱）沒有 Unicode 或 `^`／`_` 拼出來的公式，也沒有沒轉成 KaTeX 的 `$`', async () => {
+    const { container } = renderChapter('/ch/08', 'research')
+    await waitFor(() => expect(container.querySelectorAll('.c-param').length).toBeGreaterThan(8))
+    // 例外（docs/teaching-style.md §3）：程式碼、下拉選單、暫存器／behavioral 參數名稱、檔案路徑、共用徽章的 tooltip；Plotly 圖內文字另由上面兩題檢查
+    // 共用元件自己的文字（Plot 的 log 軸提示、實驗的參數／單位摘要、指標表的欄名）不在本章範圍
+    const skip = '.katex, code, pre, option, script, style, svg, .c-param-reg, .c-code-path, .c-tip, .c-tip-item, .c-plot-note, .c-exp-summary-list'
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT)
+    const offenders: string[] = []
+    let total = 0
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      const el = n.parentElement
+      if (!el || el.closest(skip)) continue
+      total++
+      const t = n.textContent ?? ''
+      if (t === 'Δ（模擬 − 解析）') continue // MetricTable 的欄名（共用元件）
+      // 小寫下標（w_k、σ_w）、上標 ^、希臘字母／根號／積分等符號、乘號與中點、不等號、正負號、上下標數字、未渲染的 $ ⇒ 純文字公式
+      if (/(?<![A-Z_])[A-Za-z]_[a-z0-9{(]|\^|[Ͱ-Ͽ⁰-₟²³¹∑∏√∫∞≤≥≠≈±∓×·÷∂∇∈∝∠]|\$/u.test(t)) offenders.push(`<${el.tagName.toLowerCase()} class="${el.className}"> ${t.trim().slice(0, 80)}`)
+    }
+    expect(total).toBeGreaterThan(1500)
+    expect(offenders).toEqual([])
+    expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
   }, SLOW)
 })
 

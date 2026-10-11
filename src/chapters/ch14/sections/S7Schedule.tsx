@@ -86,24 +86,24 @@ export function S7Schedule() {
       return twoPhaseMsd(delta0, K, s2, design.two.mu1, b1, design.two.mu2, k - b1)
     })
     const d: Data[] = [
-      { x: ks, y: linFixed, name: `固定 μ* = ${nf(design.fixed.mu, 4)} fs（解析）`, line: { color: tokens.series[0], width: 2.2 } },
-      { x: ks, y: linTwo, name: `兩段式 ${nf(design.two.mu1, 3)} → ${nf(design.two.mu2, 3)} fs @ k = ${design.two.B1}（解析）`, line: { color: tokens.series[1], width: 2.2 } },
-      { x: ks, y: Array.from(design.opt.P), name: '1/k 最佳排程 P_k（解析下界）', line: { color: tokens.series[2], width: 2.2 } },
+      { x: ks, y: linFixed, name: String.raw`固定 $\mu^* = ${tx(design.fixed.mu, 4)}\,\mathrm{fs}$（解析）`, line: { color: tokens.series[0], width: 2.2 } },
+      { x: ks, y: linTwo, name: String.raw`兩段式 $${tx(design.two.mu1, 3)} \to ${tx(design.two.mu2, 3)}\,\mathrm{fs}$ @ $k = ${design.two.B1}$（解析）`, line: { color: tokens.series[1], width: 2.2 } },
+      { x: ks, y: Array.from(design.opt.P), name: String.raw`$1/k$ 最佳排程 $P_k$（解析下界）`, line: { color: tokens.series[2], width: 2.2 } },
     ]
     if (mcRes) {
       d.push(
-        { x: ks, y: Array.from(mcRes.fixed), name: 'MC 固定 μ', mode: 'markers', marker: { color: tokens.series[0], size: 5 } },
+        { x: ks, y: Array.from(mcRes.fixed), name: String.raw`MC 固定 $\mu$`, mode: 'markers', marker: { color: tokens.series[0], size: 5 } },
         { x: ks, y: Array.from(mcRes.twoPhase), name: 'MC 兩段式', mode: 'markers', marker: { color: tokens.series[1], size: 5, symbol: 'square' } },
-        { x: ks, y: Array.from(mcRes.inverseK), name: 'MC 1/k', mode: 'markers', marker: { color: tokens.series[2], size: 5, symbol: 'diamond' } },
+        { x: ks, y: Array.from(mcRes.inverseK), name: String.raw`MC $1/k$`, mode: 'markers', marker: { color: tokens.series[2], size: 5, symbol: 'diamond' } },
       )
     }
     return d
   }, [ks, delta0, design, K, s2, mcRes, tokens])
   const muData = useMemo<Data[]>(
     () => [
-      { x: ks.slice(0, B), y: ks.slice(0, B).map(() => design.fixed.mu), name: '固定 μ*', line: { color: tokens.series[0], shape: 'hv' } },
+      { x: ks.slice(0, B), y: ks.slice(0, B).map(() => design.fixed.mu), name: String.raw`固定 $\mu^*$`, line: { color: tokens.series[0], shape: 'hv' } },
       { x: ks.slice(0, B), y: ks.slice(0, B).map((k) => (k < design.two.B1 ? design.two.mu1 : design.two.mu2)), name: '兩段式', line: { color: tokens.series[1], shape: 'hv' } },
-      { x: ks.slice(0, B), y: Array.from(design.opt.mu), name: 'μ_k = 1/(K(k+1+k₀))', line: { color: tokens.series[2] } },
+      { x: ks.slice(0, B), y: Array.from(design.opt.mu), name: String.raw`$\mu_k = 1/(K(k+1+k_0))$`, line: { color: tokens.series[2] } },
     ],
     [ks, B, design, tokens],
   )
@@ -268,7 +268,7 @@ export function S7Schedule() {
         yLog
         height={320}
         csvName="ch14-schedules"
-        layout={{ xaxis: { title: { text: 'k（blocks）' } }, yaxis: { title: { text: 'fs²' } } }}
+        layout={{ xaxis: { title: { text: String.raw`$k$（blocks）` } }, yaxis: { title: { text: String.raw`$\mathrm{fs}^2$` } } }}
         caption={md(
           String.raw`線為線性解析（F-14.3、F-14.20、F-14.18），點為 Monte Carlo。條件：$\sigma_v=${tx(sigmaV, 6)}\,\mathrm{fs}$、$N=${N}$、$\delta_0=${tx(delta0, 6)}\,\mathrm{fs}$、$\theta=0$、$K=${tx(K, 4)}\,\mathrm{fs^{-1}}$。`,
         )}
@@ -279,7 +279,7 @@ export function S7Schedule() {
         yLog
         height={240}
         csvName="ch14-schedule-mu"
-        layout={{ xaxis: { title: { text: 'k（blocks）' } }, yaxis: { title: { text: 'μ_k (fs)' } } }}
+        layout={{ xaxis: { title: { text: String.raw`$k$（blocks）` } }, yaxis: { title: { text: String.raw`$\mu_k$ (fs)` } } }}
         caption={md('兩段式就是用兩個「台階」去逼近 $1/k$ 曲線；台階越多（coarse、fine、track 三段）越接近。')}
       />
       <h3>核心程式碼：只差一行</h3>

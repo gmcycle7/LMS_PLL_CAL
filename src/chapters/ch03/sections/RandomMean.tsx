@@ -98,12 +98,12 @@ function DistributionPrereq() {
   )
 }
 
-/** 本章反覆使用的四個例子；label 給圖例（純文字），tex 給表格（KaTeX） */
+/** 本章反覆使用的四個例子；label 給圖例（字串中的數學寫 `$…$`，Plot 轉成斜體符號），tex 給表格（KaTeX） */
 export const EXAMPLE_DISTS: { label: string; tex: string; dist: XDist }[] = [
-  { label: 'Gaussian N(0,1)', tex: T`\text{Gaussian }\mathcal N(0,1)`, dist: { kind: 'gaussian', sigma: 1 } },
-  { label: 'Uniform U(−√3, √3)', tex: T`\text{Uniform }U(-\sqrt3,\sqrt3)`, dist: { kind: 'uniform', halfWidth: Math.sqrt(3) } },
-  { label: '±1（bipolar code）', tex: T`\pm1\ \text{(bipolar code)}`, dist: { kind: 'pm_one', amplitude: 1 } },
-  { label: '稀疏 code {0×9, 3}', tex: T`\text{稀疏 code }\{0\times9,\ 3\}`, dist: { kind: 'list', values: [0, 0, 0, 0, 0, 0, 0, 0, 0, 3] } },
+  { label: T`Gaussian $\mathcal N(0,1)$`, tex: T`\text{Gaussian }\mathcal N(0,1)`, dist: { kind: 'gaussian', sigma: 1 } },
+  { label: T`Uniform $U(-\sqrt{3},\ \sqrt{3})$`, tex: T`\text{Uniform }U(-\sqrt3,\sqrt3)`, dist: { kind: 'uniform', halfWidth: Math.sqrt(3) } },
+  { label: T`$\pm1$（bipolar code）`, tex: T`\pm1\ \text{(bipolar code)}`, dist: { kind: 'pm_one', amplitude: 1 } },
+  { label: T`稀疏 code $\{0\times9,\ 3\}$`, tex: T`\text{稀疏 code }\{0\times9,\ 3\}`, dist: { kind: 'list', values: [0, 0, 0, 0, 0, 0, 0, 0, 0, 3] } },
 ]
 
 export function RandomMeanSection() {

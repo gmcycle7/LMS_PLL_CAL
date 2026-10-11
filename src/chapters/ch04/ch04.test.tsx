@@ -4,6 +4,8 @@ import { StrictMode } from 'react'
 import { act, render, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { renderTex } from '@/components'
+import { plotMath } from '@/components/plotMath'
+import { unicodeMathIn } from '@/components/mermaidTestUtils'
 import { SettingsProvider } from '@/app/settings'
 import type { PresetEntry } from '@/data/types'
 import Chapter04 from './index'
@@ -31,6 +33,18 @@ const P = vi.hoisted(() => ({
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
 vi.mock('plotly.js-dist-min', () => ({ default: P }))
+// 記錄 Plot 送進 Plotly 之前的 data／layout（`$...$` 還沒轉成 pseudo-HTML），檢查圖內文字都用 LaTeX 寫
+const PM = vi.hoisted(() => ({ calls: [] as [unknown, unknown][] }))
+vi.mock('@/components/plotMath', async (importOriginal) => {
+  const orig = await importOriginal<typeof import('@/components/plotMath')>()
+  return {
+    ...orig,
+    applyPlotMath: <D, L>(data: D, layout: L) => {
+      PM.calls.push([data, layout])
+      return orig.applyPlotMath(data, layout)
+    },
+  }
+})
 vi.mock('mermaid', () => ({
   default: {
     initialize: vi.fn(),
@@ -53,6 +67,23 @@ afterEach(() => localStorage.clear())
 
 function loadPreset(id: string): PresetEntry {
   return JSON.parse(readFileSync(join(process.cwd(), 'src', 'data', 'presets', `${id}.json`), 'utf8')) as PresetEntry
+}
+
+/** Plot 的 data／layout 裡會顯示的文字欄位（與 plotMath.ts 處理的欄位相同）的字串 */
+const PLOT_TEXT_KEYS = new Set(['name', 'text', 'title', 'ticktext', 'hovertemplate', 'texttemplate', 'hovertext', 'label'])
+function plotStrings(value: unknown, key: string | null = null, depth = 0, out: string[] = []): string[] {
+  if (typeof value === 'string') {
+    if (key !== null && PLOT_TEXT_KEYS.has(key)) out.push(value)
+    return out
+  }
+  if (depth > 6 || value === null || typeof value !== 'object' || ArrayBuffer.isView(value)) return out
+  if (Array.isArray(value)) {
+    if (typeof value[0] === 'number') return out
+    for (const v of value) plotStrings(v, key, depth + 1, out)
+    return out
+  }
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) plotStrings(v, k, depth + 1, out)
+  return out
 }
 
 function headings(root: ParentNode): string[] {
@@ -98,6 +129,7 @@ function caseButtons(root: ParentNode, experimentId: string): HTMLButtonElement[
 describe('Ch04 頁面（jsdom smoke test）', () => {
   it('渲染不丟錯：章末的符號表、所有段落、三個實驗、勘誤連結、公式錨點與 FORMULAS 一致', async () => {
     const errSpy = vi.spyOn(console, 'error')
+    PM.calls.length = 0
     const { container } = renderAt()
     // 符號表在整頁最後（Recap 與「連結到 PLL」之後），外層 id="symbols"；章首不放符號表，只留一行捲到它的連結（teaching-style §5）
     const page = container.querySelector('.ch04')!
@@ -196,6 +228,19 @@ describe('Ch04 頁面（jsdom smoke test）', () => {
     expect(texText(shellOf(container, 'gmac-bit-encoding'))).toContain('0/1 → q=2b-1：後半段平均 w')
     expect(texText(shellOf(container, 'gmac-fixed-point'))).toContain('最壞情況需要的 B_\\mathrm{acc}（精確）')
     expect(P.react).toHaveBeenCalled()
+    // 互動圖裡的數學也是 LaTeX（docs/teaching-style.md §3）：圖內文字（軸標題、圖例、標題）的公式寫成 `$...$`，
+    // 其餘文字沒有 Unicode 拼的數學；轉成 Plotly 的 pseudo-HTML 之後不剩反斜線、大括號與 `$`
+    const plotTexts = [...new Set(PM.calls.flatMap(([d, l]) => [...plotStrings(d), ...plotStrings(l)]))]
+    expect(plotTexts.filter((t) => t.includes('$')).length).toBeGreaterThanOrEqual(25)
+    for (const t of plotTexts) {
+      expect((t.match(/(?<!\\)\$/g) ?? []).length % 2, `「${t}」的 $ 沒有成對`).toBe(0)
+      expect(unicodeMathIn(t.replace(/\$[^$]*\$/g, ' ')), `圖內文字「${t}」還有 Unicode 拼的數學`).toEqual([])
+      const shown = plotMath(t).replace(/<\/?(i|b|sub|sup|br)>/g, '').replace(/%\{[^}]*\}/g, '')
+      expect(shown, `圖內文字「${t}」轉換後還有 TeX 語法`).not.toMatch(/[\\{}$]/)
+    }
+    for (const t of [String.raw`$w_k$ [fs/code]`, String.raw`block $k$`, String.raw`bipolar $\pm1$`, String.raw`$a(k)$`, String.raw`$E[S]/2^{\ell}$（真實平均，輸出 LSB）`, String.raw`$y[n]$`, String.raw`$E[\delta_k]/\delta_0$`, String.raw`累加 $S$（running sum）`]) {
+      expect(plotTexts, t).toContain(t)
+    }
     // React 不應報錯（key、DOM 巢狀、hooks 規則…）
     expect(errSpy.mock.calls.map((c) => String(c[0]).slice(0, 200))).toEqual([])
     errSpy.mockRestore()

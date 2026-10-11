@@ -121,7 +121,7 @@ export default function Chapter12() {
       </Section>
 
       <Section kind="explore" title="實驗 3：Code Mixing Lab（T15）" level={2} id="ch12-lab-mixing">
-        <p>Gallery preset #9：13 GHz output、0.5 fs peak tone ⇒ −93.8 dBc。用 Case A / B / C 對照 tone × tone、code 有 DC、隨機係數雜訊三種情境。</p>
+        <p>{md(String.raw`Gallery preset #9：$13\ \mathrm{GHz}$ output、$0.5\ \mathrm{fs}$ peak tone $\Rightarrow -93.8\ \mathrm{dBc}$。用 Case A / B / C 對照 tone $\times$ tone、code 有 DC、隨機係數雜訊三種情境。`)}</p>
         <CodeMixingLab />
       </Section>
 

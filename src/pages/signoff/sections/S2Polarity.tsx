@@ -47,7 +47,7 @@ export function S2Polarity() {
         </Callout>
         <Diagram
           chart={CHART_FREEZE_MEASURE}
-          caption="freeze ±Δ 的量測流程：兩個工作點各量 M 個 block 取平均，相減除以 2Δ 得斜率，取負號得恢復力，再與標準誤比較做三分法判決。"
+          caption="freeze $\pm\Delta$ 的量測流程：兩個工作點各量 $M$ 個 block 取平均，相減除以 $2\Delta$ 得斜率，取負號得恢復力，再與標準誤比較做三分法判決。"
           ariaLabel="freeze 加減 Delta 量測極性的流程圖：把 w 凍結後分別推到 w0 加 Delta 與 w0 減 Delta，各量 M 個 block 得 G 正與 G 負，相減後除以 2 Delta 得斜率，取負號得恢復力，與標準誤比較後判決為 pass、reversed 或 inconclusive"
         >
           <p>

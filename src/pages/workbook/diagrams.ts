@@ -2,12 +2,15 @@
  * 手算練習簿頁的方塊圖原始碼（docs/teaching-style.md §8；diagrams.test.tsx 以真正的 mermaid 解析並「畫出來」逐一檢查）。
  *
  * 規則：
- * - 節點文字用 Unicode 數學符號（Mermaid 不渲染 KaTeX）；含括號、等號、問號、斜線的文字一律用雙引號包住。
- * - 加法點是圓形節點，文字寫全形「＋」；每條進來的邊以「＋」或「−」（U+2212）開頭。
+ * - 節點與連線標籤裡的數學一律寫 `$...$`（LaTeX），共用的 <Mermaid> 元件用 KaTeX 排版（和正文同一套樣式）；文字、按鈕名稱、程式碼名稱照常寫。
+ *   原始碼用 String.raw 樣板字串，TeX 的反斜線只寫一次；換行用 `<br/>`，標籤內不用雙反斜線；
+ *   標籤的數學裡不用 ASCII 的 < >（Mermaid 會先把它們轉成 HTML 實體），不等式寫 `\lt` `\gt` `\le` `\ge`；百分比寫 `\%`。
+ *   含括號、等號、問號、斜線的文字一律用雙引號包住。
+ * - 加法點是圓形節點，文字寫全形「＋」；每條進來的邊以「＋」或「−」（U+2212）開頭，標籤裡還有公式時把正負號放進數學（`$+\,\Delta w_n$`）。
  *   Mermaid 11 把標籤當 Markdown：單獨的 ASCII「+」「-」會被當成清單，畫面上變成「Unsupported markdown: list」。
  * - 顏色在深淺主題下都看得清楚：藍 = 本張圖的主角、綠 = 通過、棕 = 需要小心的分支。
  * - 三張圖各對應程式裡的一處，測試會逐一核對：
- *     CHART_HOWTO       ↔ src/components/HandCalc.tsx 的按鈕與 handcalcMath.ts 的 checkAnswer（相對 1%、絕對 10⁻⁹）
+ *     CHART_HOWTO       ↔ src/components/HandCalc.tsx 的按鈕與 handcalcMath.ts 的 checkAnswer（相對 1%、絕對 1e-9）
  *     CHART_DEMO_ORDER  ↔ src/chapters/ch00/handcalcs.ts 的 HC-00.1（測試照著圖算兩步，等於 solve() 的 w₁、w₂）
  *     CHART_BANK        ↔ index.tsx 的篩選、題庫瀏覽、隨機練習、練習卷（logic.ts 的 filtersToParams 等）
  */
@@ -20,11 +23,11 @@ const PASS = 'classDef pass fill:#1d7a46,stroke:#0f4d2b,color:#ffffff,stroke-wid
  * §2：一題的練習流程。先改成自己的數字看代入，再切到「自己算算看」，答案落在容許誤差內就算對；
  * 不對（或卡住）就看詳解，對照每一步找出哪裡算錯，改正後重填。容許誤差見 handcalcMath.ts 的 checkAnswer。
  */
-export const CHART_HOWTO = `flowchart TD
+export const CHART_HOWTO = String.raw`flowchart TD
   PICK["① 挑一題<br/>題庫瀏覽或隨機練習"] --> SUB["② 改成你自己的數字<br/>看每一步怎麼代入"]
   SUB --> HAND["③ 切到「自己算算看」<br/>先用紙筆和計算機算"]
   HAND --> FILL["④ 填答案，按「對答案」"]
-  FILL --> CHK{"相對誤差 ≤ 1%<br/>（或絕對誤差 ≤ 10⁻⁹）？"}
+  FILL --> CHK{"相對誤差 $\le 1\%$<br/>（或絕對誤差 $\le 10^{-9}$）？"}
   CHK -- "是" --> OK["✓ 正確"]
   OK -- "換一題（隨機數字）" --> HAND
   CHK -- "否：顯示相對誤差" --> REV["⑤ 看詳解<br/>符號式 = 代入數字 = 結果"]
@@ -42,16 +45,16 @@ export const CHART_HOWTO = `flowchart TD
  * §2「先試一題」：HC-00.1（LMS 更新）的計算順序。①預測 ②比較 ③修正量 ④更新，然後用新的 w 再做一次（同一組 x、y）。
  * e_n = y − ŷ_n（量測為正、預測為負）；w_(n+1) = w_n + μ·e_n·x。
  */
-export const CHART_DEMO_ORDER = `flowchart LR
-  W(["w_n<br/>目前的猜測"]) --> PRED["① 預測<br/>ŷ_n = w_n·x"]
-  X(["x<br/>輸入"]) --> PRED
-  X --> FIX["③ 修正量<br/>Δw_n = μ·e_n·x"]
-  PRED -- "− ŷ_n" --> S1(("＋"))
-  Y(["y<br/>量到的輸出"]) -- "＋ y" --> S1
-  S1 -- "② e_n = y − ŷ_n" --> FIX
-  FIX -- "＋ Δw_n" --> S2(("＋"))
-  W -- "＋ w_n" --> S2
-  S2 -- "④ w_(n+1) = w_n + Δw_n" --> NEXT(["w_(n+1)<br/>回到 ① 再做一次<br/>（同一組 x、y）"])
+export const CHART_DEMO_ORDER = String.raw`flowchart LR
+  W(["$w_n$<br/>目前的猜測"]) --> PRED["① 預測<br/>$\hat y_n = w_n\,x$"]
+  X(["$x$<br/>輸入"]) --> PRED
+  X --> FIX["③ 修正量<br/>$\Delta w_n = \mu\,e_n\,x$"]
+  PRED -- "$-\,\hat y_n$" --> S1(("＋"))
+  Y(["$y$<br/>量到的輸出"]) -- "$+\,y$" --> S1
+  S1 -- "② $e_n = y - \hat y_n$" --> FIX
+  FIX -- "$+\,\Delta w_n$" --> S2(("＋"))
+  W -- "$+\,w_n$" --> S2
+  S2 -- "④ $w_{n+1} = w_n + \Delta w_n$" --> NEXT(["$w_{n+1}$<br/>回到 ① 再做一次<br/>（同一組 $x$、$y$）"])
   ${FOCUS}
   class FIX focus`
 

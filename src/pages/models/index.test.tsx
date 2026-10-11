@@ -146,8 +146,19 @@ describe('頁面原始碼的 LaTeX 規範（docs/teaching-style.md §3）', () =
   it('一般字串（非 String.raw、非 JSX 屬性）裡的 TeX 指令必須寫成雙反斜線，否則反斜線會被 JS 吃掉', () => {
     const bad: string[] = []
     for (const { file, text } of files) {
+      // 跨多行的 String.raw 樣板字串（diagrams.ts 的方塊圖原始碼）：整段都是 raw，單一反斜線是對的
+      let inRaw = false
       text.split('\n').forEach((line, i) => {
-        if (line.includes('String.raw') || /^\s*(\/\/|\*|\/\*)/.test(line)) return
+        const ticks = (line.match(/(?<!\\)`/g) ?? []).length
+        if (inRaw) {
+          if (ticks % 2 === 1) inRaw = false
+          return
+        }
+        if (line.includes('String.raw')) {
+          if (ticks % 2 === 1) inRaw = true
+          return
+        }
+        if (/^\s*(\/\/|\*|\/\*)/.test(line)) return
         // 先拿掉 JSX 屬性字串（單反斜線是對的）與樣板字串的 ${…} 插值（避免 $${x} 被當成一對 $）
         const stripped = line.replace(/\s[\w-]+="[^"\n]*"/g, ' ').replace(/\$\{[^}]*\}/g, '0')
         // '$...\cmd...$' 或 `$...\cmd...$`：$ 內出現單一反斜線接字母

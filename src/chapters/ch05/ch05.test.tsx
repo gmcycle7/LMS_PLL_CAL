@@ -6,6 +6,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
 import type { PresetEntry } from '@/data/types'
 import { berryEsseenBound, directionOutcomeExact, pPlus, runComparatorMC } from '@/simulation/models/comparator'
+import { allChartStrings, chartStringProblems } from './chartStrings.testutil'
 import { sigOrZero, texInt, texNum } from './common'
 import { CH05_DIAGRAMS } from './diagrams'
 import { DEFAULT_CASE, analyzeCase, labWarnings, mcConsistency, parsePresetParams, sweepNs } from './experiments/labModel'
@@ -30,6 +31,19 @@ const P = vi.hoisted(() => ({
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
 vi.mock('plotly.js-dist-min', () => ({ default: P }))
+// 圖內文字的數學一律寫 `$...$`（teaching-style §3）：<Plot> 先套用 applyPlotMath 再交給 Plotly，
+// 所以在轉換前記下作者寫的字串（chartStrings.testutil.ts），整章所有 Plotly 圖一次檢查
+const plotCalls = vi.hoisted(() => [] as { data: unknown; layout: unknown }[])
+vi.mock('@/components/plotMath', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/plotMath')>()
+  return {
+    ...actual,
+    applyPlotMath: (data: unknown, layout: unknown) => {
+      plotCalls.push({ data, layout })
+      return actual.applyPlotMath(data, layout)
+    },
+  }
+})
 vi.mock('mermaid', () => ({
   default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: '<svg></svg>' })), parse: vi.fn(async () => true) },
 }))
@@ -62,6 +76,7 @@ const presets: PresetEntry[] = readdirSync(presetDir)
 describe('Ch05 頁面（jsdom smoke）', () => {
   it('T04/T05: 整章可渲染：章末的符號表、修正後的奇數 N 表格、tie 對照框（49.20% / 7.93% / 42.86%）與 Comparator Lab', async () => {
     const errSpy = vi.spyOn(console, 'error')
+    plotCalls.length = 0
     const { container } = renderChapter()
     expect(screen.getByText('這次我們要回答的問題')).toBeTruthy()
     // 符號表在章末（teaching-style §5）：只有一份，包在 id="symbols" 裡，是整頁最後一個區塊，排在「本課必記」（Recap）之後
@@ -153,6 +168,16 @@ describe('Ch05 頁面（jsdom smoke）', () => {
     const dither = heading(container, /Dither 實驗/)?.closest('section, .c-exp, div') as HTMLElement
     expect(dither).toBeTruthy()
     await waitFor(() => expect(container.textContent).toContain('Case C'))
+    // 圖內數學：整章所有 Plotly 圖（§1 的標準化 PDF、§3 的訊號／雜訊線、§5 的 S 曲線、Comparator Lab、Dither）的軸標題、圖例名稱、註記，
+    // 數學都在成對的 $...$ LaTeX 裡，公式以外沒有 Unicode 拼的數學（σ_v、E[q]、√、²、· 之類）
+    expect(chartStringProblems(plotCalls)).toEqual([])
+    const chartTexts = allChartStrings(plotCalls)
+    expect(chartTexts.length).toBeGreaterThan(40)
+    for (const t of [String.raw`$z = v/\sigma_v$`, String.raw`$\varphi(z)$`, '$S_N$ 的尺度', String.raw`$r = (s - \theta)/\sigma_v$`, '$E[q]$　/　斜率比', String.raw`$\sigma_v$（fs）`]) {
+      expect(chartTexts, t).toContain(t)
+    }
+    expect(chartTexts.some((t) => t.includes(String.raw`$\mathrm{SD}(S_N) = \sqrt{N(1-m^2)}$`))).toBe(true)
+    expect(chartTexts.some((t) => t.includes(String.raw`$\theta$ 與 $s$ 之間`))).toBe(true)
     // 除了 Plotly mock 非同步載入造成的 act() 提示之外，不應有任何 console.error（key 重複、DOM 巢狀錯誤、render 例外…）
     const real = errSpy.mock.calls.map((c) => String(c[0])).filter((m) => !/not wrapped in act/.test(m))
     expect(real).toEqual([])
