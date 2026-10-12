@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-11T19:26:14.885Z",
-  "commit": "780f21e",
+  "generatedAt": "2026-10-12T02:58:44.261Z",
+  "commit": "8730a5f",
   "note": "由 `npm run verify` 產生；status=pass 代表 TypeScript 與 Python golden 測試皆通過。",
   "tests": {
     "T01": {
@@ -22,12 +22,12 @@
           "ch01.test.tsx › LMS Playground T01: 預設（Gallery #1）顯示 w₁ = 1.8、w₂ = 2.28，交叉比對解析 ok",
           "handcalcs.test.tsx › Ch01 帶入手算 (a)：預設數字 = 模型函式 = 本章 worked example T01: HC-01.3 把 μ 改成 0.1 ⇒ w_LMS = 1.8（golden w1）；HC-01.4 預設 ⇒ E[w₂] = 2.28（golden w2）、p = 0.6（golden pole）",
           "presets.test.ts › Ch01 presets 與公式登錄 T01: Gallery preset #1（w₀=1, a=3, x=2, μ=0.1）重現 w₁ = 1.8、w₂ = 2.28、p = 0.6",
-          "handcalcs.test.tsx › ch03 帶入手算：(e) 每一步的 TeX 重新求值——畫面上的數字自己算得出下一個等號 T01: HC-03.1 的 δ₂、w₂ 就是 LMS 程式（runScalarLms）實際迭代兩步的結果：預設值、20 個隨機題與「自己的數字」都只差 double 的捨入誤差",
           "ch02.test.tsx › Ch02 頁面（jsdom smoke） T01: GdExplorer 預設（½ 成本）顯示 w₁ = 1.8、w₂ = 2.28，analytic cross-check ok",
           "diagrams.test.tsx › Ch02 方塊圖：和公式、模型一致（正負號、極性、圖上的式子） T01: 「量坡度」展開圖：e = y − ŷ（+y、−ŷ）、e·x = −J′、Δw = μ·e·x；照圖走兩步得到 1.8、2.28",
           "handcalcs.test.tsx › (a) 預設值：結果 = 模型函式 = 內文 worked example = golden vector T01: HC-02.1（a=3、x=2、w₀=1、μ=0.1）w₁ = golden w1 = 1.8；切線預測 1.6；真實 J(w₁) = ½·e1² = 2.88",
           "handcalcs.test.tsx › (a) 預設值：結果 = 模型函式 = 內文 worked example = golden vector T01: HC-02.4（w=1、x=2、y=6、μ=0.1）LMS = golden w1 = 1.8、Sign-Error 1.2、Sign-Sign 1.1：等於 lms.ts 的三個 stepper",
           "handcalcs.test.tsx › (a) 預設值：結果 = 模型函式 = 內文 worked example = golden vector T01: HC-02.7（T01 的資料、μ̃ = μx² = 0.4、ε = 0）NLMS 與 LMS 相同：w₁ = golden w1、e⁺ = golden e1",
+          "handcalcs.test.tsx › ch03 帶入手算：(e) 每一步的 TeX 重新求值——畫面上的數字自己算得出下一個等號 T01: HC-03.1 的 δ₂、w₂ 就是 LMS 程式（runScalarLms）實際迭代兩步的結果：預設值、20 個隨機題與「自己的數字」都只差 double 的捨入誤差",
           "previews.test.ts › Dashboard 預覽數字（15 個問題） T01: Hero 手算 w₁ = 1.8、w₂ = 2.28（直接用 runScalarLms）",
           "refValues.test.ts › refValues × golden vectors（Python 獨立計算） T01: 手算 LMS w_1 = 1.8、w_2 = 2.28、pole 0.6；δ = a − w 為 2、1.2、0.72",
           "previews.test.ts › Gallery 預覽 vs golden vectors（T01–T18；每個數字都由真實模型函式算出） T01: #1 手算例 w₁ = 1.8、w₂ = 2.28、pole 0.6",
@@ -68,6 +68,7 @@
           "handcalcs.test.tsx › Ch01 帶入手算 (a)：預設數字 = 模型函式 = 本章 worked example T02: HC-01.3 預設（x = 2、μ = 0.4）⇒ LMS 的 p = −0.6（golden pole_list）、μ_max = 0.5（golden mu_max）；「J₂ 配 μ」的 p = −2.2 發散、w 走到 7.4",
           "handcalcs.test.tsx › Ch01 帶入手算 (c)：validate 擋掉模型不適用的輸入，並說明原因 T02: HC-01.4 只接受 golden 表中收斂的 μ（x = 2：0.1、0.25、0.4、0.49），拒絕 0.5（邊界）、0.51、−0.01；x = 0 也拒絕",
           "presets.test.ts › Ch01 presets 與公式登錄 T02: deadbeat / oscillating / boundary / divergent presets 的行為與 pole 一致",
+          "handcalcs.test.tsx › (a) 預設值：結果 = 模型函式 = 內文 worked example = golden vector T02: HC-02.1 備註的步長上限 = golden mu_max = 0.5、Newton 步長 = mu_one_step = 0.25（x = 2）",
           "ch03.test.tsx › Chapter 03 smoke test（jsdom） T02/T03: Engineer 模式完整渲染：章節、符號表、公式錨點、程式碼 region、無 KaTeX 錯誤；Stability Lab 的 Monte Carlo（inline worker）完成並通過單步交叉比對",
           "ch03.test.tsx › Chapter 03 smoke test（jsdom） T02: ±1 code preset（|x| 常數、SE = 0 的退化情況）單步 MC 交叉比對仍為 ✓",
           "ch03.test.tsx › Chapter 03 smoke test（jsdom） T02: Fixed-x Explorer 的單步 / 執行 / 執行至收斂（規格 §19：Single Step、Run-to-Convergence）與逐步更新表",
@@ -80,7 +81,6 @@
           "handcalcs.test.tsx › ch03 帶入手算：(e) 每一步的 TeX 重新求值——畫面上的數字自己算得出下一個等號 T02: HC-03.2 比值 ln ε / ln|p| 恰為整數時不多算一步（舊版顯示「⌈2⌉ = 3」）；模擬在那一步也確實到達門檻",
           "logic.test.ts › ch03 presets T02: Fixed-x preset（手算例子）與 Explorer 的遞迴 / 封閉式一致",
           "logic.test.ts › ch03 Fixed-x：收斂步數與勘誤連結 T02: n_ε = ⌈ln ε / ln|p|⌉（F-03.4）：五個 μ 的收斂步數；邊界與發散回傳 NaN；模擬在第 n_ε 步確實降到 ε 以下",
-          "handcalcs.test.tsx › (a) 預設值：結果 = 模型函式 = 內文 worked example = golden vector T02: HC-02.1 備註的步長上限 = golden mu_max = 0.5、Newton 步長 = mu_one_step = 0.25（x = 2）",
           "previews.test.ts › Dashboard 預覽數字（15 個問題） T02: 固定 x = 2 ⇒ 0 < μ < 0.5，一步到位 μ = 0.25",
           "refValues.test.ts › refValues × golden vectors（Python 獨立計算） T02: 固定 x = 2 的穩定界 0 < μ < 0.5；μ = 0.1 的 pole 0.6",
           "previews.test.ts › Gallery 預覽 vs golden vectors（T01–T18；每個數字都由真實模型函式算出） T02: 固定 x = 2 的穩定範圍 0 < μ < 0.5；邊界與超過邊界的判定",
