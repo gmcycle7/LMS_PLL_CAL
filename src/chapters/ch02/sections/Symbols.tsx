@@ -14,10 +14,10 @@ export const TOP_ID = 'ch02-top'
 export const SYMBOLS: SymbolEntry[] = [
   { symbol: 'a', meaning: '真實（未知）係數；校正時就是理想 DTC gain 等', unit: '[y]/[x]', firstSeen: '§1' },
   { symbol: 'w_n', meaning: tm('第 $n$ 筆資料時的係數估計（我們能改的旋鈕）；方塊圖裡寫成 $w[n]$'), unit: '[a]', firstSeen: '§1' },
-  { symbol: 'x_n,\\;y_n', meaning: tm('第 $n$ 筆輸入（regressor）與量測輸出；方塊圖裡寫成 $x[n]$、$y[n]$'), unit: '[x],\\ [y]', firstSeen: '§1' },
-  { symbol: '\\hat y_n=w_nx_n', meaning: tm('預測值：用目前的 $w_n$ 猜的輸出'), unit: '[y]', firstSeen: '§1' },
+  { symbol: 'x_n,\\;y_n', meaning: tm('第 $n$ 筆輸入（regressor）與量測輸出；方塊圖裡寫成 $x[n]$、$y[n]$。DTC 校正時 $x[n]$ 是 DSM 殘差 code，$a\\,x[n]$ 是 divider 的 feedback edge 比理想時刻早到的時間'), unit: '[x],\\ [y]', firstSeen: '§1' },
+  { symbol: '\\hat y_n=w_nx_n', meaning: tm('預測值：用目前的 $w_n$ 猜的輸出；DTC 校正時就是 reference 端 DTC 的補償量（從基準延遲 $T_0$ 往回扣、reference edge 少延遲的時間）'), unit: '[y]', firstSeen: '§1' },
   { symbol: 'v_n,\\;\\sigma_v', meaning: tm('量測雜訊與它的標準差（形狀可為 Gaussian / Laplacian / impulsive / skewed，四種都正規化成同一個 $\\sigma_v$，見 §3 的雜訊形狀表）'), unit: '[y]', firstSeen: '§2' },
-  { symbol: 'e_n=y_n-w_nx_n', meaning: '預測誤差（comparator 之前的訊號）：量到的減掉預測的', unit: '[y]', firstSeen: '§1' },
+  { symbol: 'e_n=y_n-w_nx_n', meaning: tm('預測誤差（comparator 之前的訊號；PLL 裡就是 PD 的輸出 $e[n]$）：量到的減掉預測的'), unit: '[y]', firstSeen: '§1' },
   { symbol: '\\Delta w_n', meaning: tm('這一步的更新量：$w_{n+1}=w_n+\\Delta w_n$'), unit: '[a]', firstSeen: '§1' },
   { symbol: '\\delta_n=a-w_n', meaning: '參數誤差', unit: '[a]', firstSeen: '§1', note: tm('全站極性 $\\delta=a-w$（規格 §3 曾寫 $w-a$，勘誤 E39）') },
   { symbol: 'd=a-w', meaning: tm('同 $\\delta$，但在期望值裡當作固定的數（mean-field 推導用）'), unit: '[a]', firstSeen: '§3', note: tm('與 Ch08 的 update delay $d$ 無關') },

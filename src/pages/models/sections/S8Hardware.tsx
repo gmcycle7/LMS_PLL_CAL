@@ -189,7 +189,7 @@ export function S8Hardware() {
     {
       no: 1,
       title: 'Comparator polarity：0/1 轉 $\\pm1$ 與 PD 正負',
-      what: md('硬體 comparator 輸出 $b\\in\\{0,1\\}$，GMAC 需要 $q=2b-1$；$b=1$ 是否真的代表「DTC 太慢」（$e>0$）？'),
+      what: md("硬體 comparator 輸出 $b\\in\\{0,1\\}$，GMAC 需要 $q=2b-1$；$b=1$ 是否真的代表「DTC 延遲後的 reference edge 比 feedback edge 晚」（PD 輸出 $e=t_\\mathrm{ref}'-t_\\mathrm{fb}>0$；$x>0$ 時就是補償不足，$w<a$）？"),
       why: (
         <>
           忘了映射（<Tex>{'q=b'}</Tex>）時 <Tex>{'E[G_\\mathrm{bug}]=\\tfrac12E[G]+\\tfrac12E[x_\\mathrm{ref}]'}</Tex>：增益減半，且 code 有 DC 時固定點整個移走（F-16.5）。極性接反（<Tex>{'q\\to-q'}</Tex>）時 pole 變{' '}
@@ -437,15 +437,19 @@ export function S8Hardware() {
       <Diagram
         chart={CHART_GMAC_DATAPATH}
         caption="GMAC 到 gain register 的 RTL datapath，以及前 8 項檢查各自落在哪一塊。藍色的累加器決定位元數，紅色的右移是截斷偏差的來源。其餘四項（CDC、lock、injection 模式、noise tracing）是整個系統層級的檢查，不在這條 datapath 上。"
-        ariaLabel="GMAC datapath 的方塊圖：comparator bit 映射成正負一，code 對齊延遲後條件取負，累加 N 筆，右移，乘上 learning rate，寫入 gain register，再送到 DTC"
+        ariaLabel="GMAC datapath 的方塊圖：comparator bit（PD 輸出的正負號）映射成正負一，code 對齊延遲後條件取負，累加 N 筆，右移，乘上 learning rate，寫入 gain register，再送到 reference 端的 DTC"
       >
         <p>
-          先看最上面一列左邊的兩個輸入：comparator 給的是 0/1 的 bit <Tex>{'b[n]'}</Tex>，要先映射成 <Tex>{'q=2b-1'}</Tex>；code 是 <Tex>{'B_x'}</Tex>-bit 的有號整數 <Tex>{'x_\\mathrm{int}'}</Tex>，要延遲 <Tex>{'D'}</Tex> 個 sample 與誤差對齊。乘上 <Tex>{'q=\\pm1'}</Tex>{' '}
+          先看最上面一列左邊的兩個輸入：comparator 取的是 PD 的輸出 <Tex>{'e[n]'}</Tex>（也就是送進 loop filter 的同一個訊號），給的是它的正負號——0/1 的 bit <Tex>{'b[n]'}</Tex>，要先映射成 <Tex>{'q=2b-1'}</Tex>；code 是 <Tex>{'B_x'}</Tex>-bit 的有號整數 <Tex>{'x_\\mathrm{int}'}</Tex>，要延遲 <Tex>{'D'}</Tex> 個 sample 與誤差對齊。乘上 <Tex>{'q=\\pm1'}</Tex>{' '}
           在硬體裡是「條件取負」。
         </p>
         <p>
           圖上的 <Tex>{'S_k'}</Tex> 是一個 block 內 <Tex>{'N'}</Tex> 筆的總和（整數），<Tex>{'B_\\mathrm{acc}'}</Tex> 是它需要的位元數（<Tex>{'M_x'}</Tex> 是 <Tex>{'|q\\,x_\\mathrm{int}|'}</Tex> 的最大值，§9.1）。右移 <Tex>{'\\ell'}</Tex> bits 之後是{' '}
           <Tex>{'\\hat G_k'}</Tex>，保留 <Tex>{'F_G'}</Tex> 個小數 bit、一個 LSB 是 <Tex>{'\\Delta_G'}</Tex>；算術右移等於 floor，會留下固定的偏差（§9.2）。
+        </p>
+        <p>
+          最下面一列的終點是 reference 輸入端的 DTC：gain register 高位的實體 code 就是係數 <Tex>{'w'}</Tex>，它乘上 code 得到補償量 <Tex>{'w\\,x'}</Tex>，DTC 從基準延遲 <Tex>{'T_0'}</Tex> 往回扣這麼多（
+          <Tex>{'\\tau_\\mathrm{DTC}=T_0-w\\,x'}</Tex>）。
         </p>
       </Diagram>
       <div className="models-checks">

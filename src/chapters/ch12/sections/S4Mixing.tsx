@@ -62,18 +62,19 @@ export function S4Mixing() {
     <>
       <Section kind="intuition" title="§12.6 乘號不是加號" level={3} id="ch12-mixing">
         <p>
-          係數 <Tex>{'w'}</Tex> 是 DTC 的 <strong>gain</strong>：DTC 實際延遲 = <Tex>{'w\\cdot x[n]'}</Tex>。所以 gain 的抖動不是「加」在輸出上，而是<strong>乘</strong>上當下的 code。
+          係數 <Tex>{'w'}</Tex> 是 DTC 的 <strong>gain</strong>：reference 端的 DTC 補償量 = <Tex>{'w\\cdot x[n]'}</Tex>（DTC 只能延遲、不能提前，所以實際延遲是從固定的基準延遲{' '}
+          <Tex>{'T_0'}</Tex> 往回扣：<Tex>{String.raw`\tau_{\mathrm{DTC}}[n]=T_0-w\,x[n]`}</Tex>）。所以 gain 的抖動不是「加」在輸出上，而是<strong>乘</strong>上當下的 code。
           就像一首歌的音量旋鈕以 10 Hz 輕輕抖動：你聽到的不是一個 10 Hz 的聲音，而是每個音符旁邊多出 ±10 Hz 的邊帶。
         </p>
         <p>
           {md(
-            String.raw`把這句話畫成方塊圖：$x[n]$ 是第 $n$ 個 sample 的 DTC code，$w[n]$ 是當下 DTC 實際使用的係數，它等於固定點 $w^*$ 加上抖動 $\delta w[n]$；多出來的延遲記作 $\delta t[n]$。`,
+            String.raw`把這句話畫成方塊圖：$x[n]$ 是第 $n$ 個 sample 的 DTC code，$w[n]$ 是當下 DTC 實際使用的係數，它等於固定點 $w^*$ 加上抖動 $\delta w[n]$；多補償的時間記作 $\delta t[n]$。`,
           )}
         </p>
-        <Diagram chart={CHART_GAIN_MULT} caption={String.raw`係數是 gain，所以它的抖動要先乘上 code 才變成延遲誤差：$\delta t[n]=x[n]\,\delta w[n]$。先找乘號，再看乘開之後的兩項。`}>
+        <Diagram chart={CHART_GAIN_MULT} caption={String.raw`係數是 gain，所以它的抖動要先乘上 code 才變成 timing error：$\delta t[n]=x[n]\,\delta w[n]$。先找乘號，再看乘開之後的兩項。`}>
           <p>
             {md(
-              String.raw`先看加法點：DTC 用的係數是固定點 $w^*$ 加上抖動 $\delta w[n]$。再看乘號：整個係數乘上 code $x[n]$ 才是 DTC 的延遲。最後看乘號之後：乘開分成兩項，$w^*x[n]$ 是本來就要的延遲，$x[n]\,\delta w[n]$ 是多出來的。`,
+              String.raw`先看加法點：DTC 用的係數是固定點 $w^*$ 加上抖動 $\delta w[n]$。再看乘號：整個係數乘上 code $x[n]$ 才是 DTC 的補償量——reference edge 被提前（少延遲）的時間；DTC 的實際延遲是 $\tau=T_0-w[n]\,x[n]$，$T_0$ 是固定的基準延遲。最後看乘號之後：乘開分成兩項，$w^*x[n]$ 是本來就要補的量，$x[n]\,\delta w[n]$ 是多補的。`,
             )}
           </p>
           <p>
@@ -87,7 +88,8 @@ export function S4Mixing() {
         </TexBlock>
         <p>
           第二式說明 block 與 sample 的關係：係數每 <Tex>N</Tex> 個 sample 才更新一次（zero-order hold，ZOH），<Tex>{'n_c'}</Tex> 是 commit / apply latency <Erratum id="E09" />。
-          極性：<Tex>{String.raw`\delta t`}</Tex> 是 DTC <strong>多施加</strong>的延遲；殘餘 timing error 中對應的項是 <Tex>{String.raw`-x[n]\,\delta w[n]`}</Tex>，
+          極性：<Tex>{String.raw`\delta t`}</Tex> 是 reference 端的 DTC <strong>多補償</strong>的時間，reference edge 因此比該到的時刻早 <Tex>{String.raw`\delta t`}</Tex>；PD 量的是 reference edge 減 feedback
+          edge，所以殘餘 timing error 中對應的項是 <Tex>{String.raw`-x[n]\,\delta w[n]`}</Tex>，
           和直接 PD 路徑做 cross-spectrum 時必須用一致的極性 <Erratum id="E33" />。
         </p>
       </Section>

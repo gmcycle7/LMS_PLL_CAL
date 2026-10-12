@@ -92,7 +92,7 @@ describe('Ch08 smoke test（jsdom）', () => {
       expect(text.indexOf('本章符號表在最後')).toBeLessThan(text.indexOf('先用一個生活例子'))
       const symbols = container.querySelector('[id="symbols"]')
       expect(container.querySelectorAll('.c-symbols')).toHaveLength(1)
-      expect(symbols?.querySelectorAll('.c-symbols tbody tr')).toHaveLength(29)
+      expect(symbols?.querySelectorAll('.c-symbols tbody tr')).toHaveLength(30)
       expect(container.querySelector('.ch08')?.lastElementChild).toBe(symbols)
       expect(text.lastIndexOf('本章符號表（依第一次出現的順序）')).toBeGreaterThan(text.indexOf('應該記住的'))
       // 方塊圖（teaching-style §8）：章首的系統地圖 + 本章 19 張圖，三種模式都看得到（不放在 ModeGate 裡）
@@ -433,6 +433,22 @@ describe('Ch08 公式登錄與 presets', () => {
     expect(FORMULAS.filter((f) => f.erratumId === 'E19').length).toBeGreaterThan(0)
     expect(FORMULAS.filter((f) => f.erratumId === 'E20').length).toBeGreaterThan(0)
     expect(FORMULAS.filter((f) => f.erratumId === 'E31').length).toBeGreaterThan(0)
+  })
+
+  it('F-08.1 與 F-08.14 分成兩行（gathered）：排成一行會比桌機 1280px 的正文欄寬，多出一條橫向捲軸（scripts/scroll-audit.mjs 量得到）；內容一項不少', () => {
+    const lines = (id: string) => {
+      const tex = formula(id).tex
+      expect(tex.startsWith(String.raw`\begin{gathered}`) && tex.endsWith(String.raw`\end{gathered}`), id).toBe(true)
+      return tex.slice(String.raw`\begin{gathered}`.length, -String.raw`\end{gathered}`.length).split(/\\\\(?:\[[^\]]*\])?/)
+    }
+    const f1 = lines('F-08.1')
+    expect(f1).toHaveLength(2)
+    expect(f1[0]).toBe(String.raw`M_{\mathrm{polarity}}=90^\circ-\big|\mathrm{wrap}_{180}(\theta)\big|=\arcsin(\cos\theta)`)
+    expect(f1[1]).toBe(String.raw`\mathrm{wrap}_{180}(\theta)\triangleq\big((\theta+180^\circ)\bmod 360^\circ\big)-180^\circ\in[-180^\circ,180^\circ)`)
+    const f14 = lines('F-08.14')
+    expect(f14).toHaveLength(2)
+    expect(f14[0]).toBe(String.raw`F(z)=d_s+\mathbf c_s^{\mathsf T}(z\mathbf I-\mathbf A_s)^{-1}\mathbf b_s,\qquad \boxed{L_{\mathrm{cal}}(z)=\frac{\mu F(z)}{z-1}}`)
+    expect(f14[1]).toBe(String.raw`\det(z\mathbf I-\mathbf A_{\mathrm{comb}})=\det(z\mathbf I-\mathbf A_s)\,\big(z-1+\mu F(z)\big)`)
   })
 
   it('stability.ts 的 core regions 都存在（頁面引用的名稱）', () => {

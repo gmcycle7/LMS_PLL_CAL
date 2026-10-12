@@ -110,7 +110,8 @@ export function S5Mismatch() {
           { tex: r`E[u\,u_f]=E\Big[\sum_kh[k]x[n-k]\sum_l\hat h[l]x[n-l]\Big]`, why: <>兩個卷積相乘（<Tex>{r`u=h*x`}</Tex>、<Tex>{r`u_f=\hat h*x`}</Tex>，同一個 code）。</> },
           { tex: r`=\sum_k\sum_l h[k]\,\hat h[l]\,R_x[k-l]`, why: <>期望值線性；<Tex>{r`E[x[n-k]x[n-l]]=R_x[k-l]`}</Tex>。</> },
           {
-            tex: r`=\frac1{2\pi}\int_{-\pi}^{\pi}S_{xx}(e^{j\Omega})\,H(e^{j\Omega})\,\overline{\hat H(e^{j\Omega})}\,d\Omega`,
+            // S_xx 不寫引數（和下一行、F-07.12 相同）：寫成 S_xx(e^{jΩ}) 時在手機（375 px）上只比欄位寬 4 px，會多出一條沒有用途的橫向捲軸
+            tex: r`=\frac1{2\pi}\int_{-\pi}^{\pi}S_{xx}\,H(e^{j\Omega})\,\overline{\hat H(e^{j\Omega})}\,d\Omega`,
             why: (
               <>
                 代入 <Tex>{r`R_x[m]=\frac1{2\pi}\int S_{xx}e^{j\Omega m}d\Omega`}</Tex>：<Tex>{'k'}</Tex> 的和收成 <Tex>{r`\overline{H}`}</Tex>、

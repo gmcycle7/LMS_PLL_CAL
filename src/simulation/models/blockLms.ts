@@ -6,6 +6,8 @@
  *   δt[n]     = (a − w_applied,k)·x[n] + offset_fs + c2·x[n]² + c3·x[n]³          [fs]   （δ = a − w 極性）
  *   e[n]      = H_PD{δt}[n] + b + v[n]，v ~ N(0, σ_v²) iid                         [fs]
  *               H_PD 為有狀態 LTI 濾波器，**狀態跨 block 持續**（§15.2：不可每個 block 重置主 PLL）
+ *               架構（docs/assumptions.md §2a）：DTC 在 reference 輸入端，a·x 是需要補的量、w_applied·x 是 DTC 的補償量；
+ *               殘差 δt 在 PD 的 reference 輸入端注入（PD 輸出 = +H_PD{δt}），comparator 取的就是 PD 的輸出（送進 loop filter 的同一個節點）
  *   b[n]      = (e[n] ≥ 0)；tie 規則：e = 0 時 q = +1（§15.2「q = +1 if e >= 0」，E07）
  *   q[n]      = 2b − 1 ∈ {±1}（bipolar_pm_one / unipolar_mapped）；unipolar_unmapped_bug 時 q = b ∈ {0, 1}（反面測試）
  *   x_ref[n]  = x[n]（raw）、x[n − D]（delayed）、u_f[n − D] = (Ĥ * x)[n − D]（filtered），D = gm_code_delay_samples

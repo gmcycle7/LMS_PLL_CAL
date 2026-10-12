@@ -44,24 +44,24 @@ export function S5Paths() {
           </p>
           <p>
             {md(
-              String.raw`和公式的對照：圖上的兩個藍色方塊就是下面的 F-12.15，$\phi_{\mathrm{out}}$ 那一格是 F-12.16，jitter 的積分是 F-12.17；PD residual 那一格的 $e_{\mathrm{PD}}=-2\pi f_{\mathrm{out}}H_{\mathrm{PD}}\,\delta t$ 是下面推導第四行（$e_{\mathrm{PD}}$ 是 PD 看到的相位誤差）。圖中的 $L$ 是 PLL 的開迴路增益。`,
+              String.raw`和公式的對照：圖上的兩個藍色方塊就是下面的 F-12.15，$\phi_{\mathrm{out}}$ 那一格是 F-12.16，jitter 的積分是 F-12.17；PD residual 那一格的 $e_{\mathrm{PD}}=-2\pi f_{\mathrm{out}}H_{\mathrm{PD}}\,\delta t$ 是下面推導的最後一行（$e_{\mathrm{PD}}$ 是 PD 看到的相位誤差，也就是校正迴路的 comparator 取的那個節點）。圖中的 $L$ 是 PLL 的開迴路增益。兩格的負號來自 $\delta t$ 的定義：它是 reference 端的 DTC 多補償的時間，reference edge 早到 $\delta t$，而 PD 量的是 reference edge 減 feedback edge，所以進 PD 的時間誤差是 $-\delta t$。`,
             )}
           </p>
         </Diagram>
         <p>
           {md(
-            String.raw`這兩個轉移函數從哪裡來？把 PLL 畫成最簡化的平均線性迴路，DTC 的 timing 誤差先換成相位 $\phi_{\mathrm{dtc}}=2\pi f_{\mathrm{out}}\,\delta t$，在 feedback 的比較路徑加進來：`,
+            String.raw`這兩個轉移函數從哪裡來？把 PLL 畫成最簡化的平均線性迴路。DTC 在 reference 輸入端，所以它的殘餘誤差從 PD 的 reference 輸入進來：DTC 多補償了 $\delta t$，reference edge 早到 $\delta t$，時間誤差是 $-\delta t$，換成相位就是 $\phi_{\mathrm{dtc}}=-2\pi f_{\mathrm{out}}\,\delta t$（本章的相位都是「edge 的時間誤差乘上 $2\pi f_{\mathrm{out}}$」，晚到為正）：`,
           )}
         </p>
-        <Diagram chart={CHART_PLL_LOOP} caption={String.raw`最簡化的線性 PLL：DTC 誤差在 feedback 比較路徑加進來，$e_{\mathrm{PD}}=-(\theta_{\mathrm{out}}+\phi_{\mathrm{dtc}})$、$\theta_{\mathrm{out}}=L\,e_{\mathrm{PD}}$。先找兩個加法點，注意回到比較點的那條線帶負號；綠色兩格是解出來的兩個出口。`}>
+        <Diagram chart={CHART_PLL_LOOP} caption={String.raw`最簡化的線性 PLL：DTC 在 reference 輸入端，它的殘餘誤差從 PD 的 reference 輸入加進來，$e_{\mathrm{PD}}=\phi_{\mathrm{dtc}}-\theta_{\mathrm{out}}$、$\theta_{\mathrm{out}}=L\,e_{\mathrm{PD}}$。先找加法點（它就是 PD），注意 feedback 那條線帶負號、路上只有 divider，沒有 DTC；綠色兩格是解出來的兩個出口。`}>
           <p>
             {md(
-              String.raw`先看 $\theta_{\mathrm{out}}$ 與 $\phi_{\mathrm{dtc}}$ 相遇的加法點：輸出相位和 DTC 的等效相位相加之後，以負號回到 reference 進來的比較點，所以 PD 看到的誤差是 $e_{\mathrm{PD}}=-(\theta_{\mathrm{out}}+\phi_{\mathrm{dtc}})$。再看前向路徑：$e_{\mathrm{PD}}$ 乘上開迴路增益 $L(s)$ 得到 $\theta_{\mathrm{out}}$。最後看兩個綠色方塊：把這兩個關係聯立解出來，輸出相位是 $-T\phi_{\mathrm{dtc}}$，PD 看到的誤差是 $-H_{\mathrm{PD}}\phi_{\mathrm{dtc}}$——同一個迴路、兩個觀察點，就是上一張圖的兩個出口。`,
+              String.raw`先由上往下看 reference 這一路：reference clock 先經過 DTC 才到 PD；DTC 多補償了 $\delta t$，reference edge 早到 $\delta t$，時間誤差 $-\delta t$ 乘上 $2\pi f_{\mathrm{out}}$ 換成相位 $\phi_{\mathrm{dtc}}$，以正號進加法點。再看加法點：它就是 PD，量的是 reference 減 feedback；feedback 那條線只經過 divider，把輸出相位 $\theta_{\mathrm{out}}$ 以負號送回來，所以 PD 看到的誤差是 $e_{\mathrm{PD}}=\phi_{\mathrm{dtc}}-\theta_{\mathrm{out}}$。divider 那一格沒有另外乘一個增益：相位都以 output 為參考，輸出的 edge 晚多少時間，divider 送回 PD 的 edge 就晚多少時間，所以回來的還是 $\theta_{\mathrm{out}}$；除數只出現在開迴路增益 $L(s)$ 裡（藍色那一格的「$\div$ 除數」和這個 divider 是同一個）。接著看前向路徑：$e_{\mathrm{PD}}$ 乘上開迴路增益 $L(s)$ 得到 $\theta_{\mathrm{out}}$。最後看兩個綠色方塊：把這兩個關係聯立解出來，輸出相位是 $T\phi_{\mathrm{dtc}}$，PD 看到的誤差是 $H_{\mathrm{PD}}\phi_{\mathrm{dtc}}$——同一個迴路、兩個觀察點，就是上一張圖的兩個出口。PD 出口的 $e_{\mathrm{PD}}$ 就是送進 loop filter 的訊號，校正迴路的 comparator 取的也是這個節點。`,
             )}
           </p>
           <p>
             {md(
-              String.raw`和公式的對照：兩個加法點寫成式子就是下面推導的第一、二行；兩個綠色方塊是第三、四行，也就是 F-12.15 的 $T$ 與 $H_{\mathrm{PD}}$。圖上的 $\theta_{\mathrm{out}}$ 和 F-12.16 的 $\phi_{\mathrm{out}}$ 是同一個量（$\delta t$ 在輸出造成的相位）；推導沿用規格的記號，在最後一行才改寫成 $\phi_{\mathrm{out}}$。`,
+              String.raw`和公式的對照：加法點與前向路徑寫成式子就是下面推導的第一、二行；兩個綠色方塊是第三、四行，也就是 F-12.15 的 $T$ 與 $H_{\mathrm{PD}}$；DTC 到加法點那一段（時間誤差 $-\delta t$ 乘上 $2\pi f_{\mathrm{out}}$）是第六行。圖上的 $\theta_{\mathrm{out}}$ 和 F-12.16 的 $\phi_{\mathrm{out}}$ 是同一個量（$\delta t$ 在輸出造成的相位）；推導沿用規格的記號，在第七行才改寫成 $\phi_{\mathrm{out}}$。`,
             )}
           </p>
         </Diagram>
@@ -69,16 +69,29 @@ export function S5Paths() {
           title={md(String.raw`$H_{\mathrm{PD}}$ 與 $T$（相位以 output 為參考）`)}
           steps={[
             {
-              tex: String.raw`e_{\mathrm{PD}}=-\big(\theta_{\mathrm{out}}+\phi_{\mathrm{dtc}}\big)`,
+              tex: String.raw`e_{\mathrm{PD}}=\phi_{\mathrm{dtc}}-\theta_{\mathrm{out}}`,
               why: md(
-                String.raw`reference 相位取 0；依規格 §12.3 的注入極性約定，DTC 的 timing 誤差等效成在比較點（feedback 側）加上相位 $\phi_{\mathrm{dtc}}$。若你的架構極性相反（例如 DTC 放在 reference 路徑），$\phi_{\mathrm{dtc}}$ 變號，下面所有結果只差一個負號——$|T|^2$、jitter、spur 的 dBc 都不變。`,
+                String.raw`PD 量的是「DTC 延遲後的 reference edge 減 feedback edge」（全站約定 $e[n]=t_{\mathrm{ref}}'[n]-t_{\mathrm{fb}}[n]$）。DTC 在 reference 輸入端，所以它的殘餘誤差等效成在 PD 的 reference 輸入加上相位 $\phi_{\mathrm{dtc}}$（reference clock 本身的相位取 0）；回授路徑上只有 divider，以 output 為參考時 feedback 的相位就是 $\theta_{\mathrm{out}}$。相位一律是「edge 的時間誤差 $\times\,2\pi f_{\mathrm{out}}$」，晚到為正。規格 §12.3 原本把同一個誤差寫在 feedback 側；兩種寫法的 $|H_{\mathrm{PD}}|$、$|T|$、jitter 與 spur 的 dBc 完全相同。`,
               ),
             },
             { tex: String.raw`\theta_{\mathrm{out}}=L(s)\,e_{\mathrm{PD}}`, why: md(String.raw`開迴路增益 $L$ = PD 增益 × loop filter × VCO 積分 ÷ 除數。`) },
-            { tex: String.raw`\theta_{\mathrm{out}}=-L\theta_{\mathrm{out}}-L\phi_{\mathrm{dtc}}\ \Rightarrow\ \theta_{\mathrm{out}}=-\frac{L}{1+L}\phi_{\mathrm{dtc}}=-T\phi_{\mathrm{dtc}}`, why: '代入、移項、整理。' },
-            { tex: String.raw`e_{\mathrm{PD}}=-(1-T)\phi_{\mathrm{dtc}}=-\frac{1}{1+L}\phi_{\mathrm{dtc}}=-H_{\mathrm{PD}}\phi_{\mathrm{dtc}}`, why: md(String.raw`代回第一式；$1-T=1/(1+L)$。`) },
+            { tex: String.raw`\theta_{\mathrm{out}}=L\phi_{\mathrm{dtc}}-L\theta_{\mathrm{out}}\ \Rightarrow\ \theta_{\mathrm{out}}=\frac{L}{1+L}\phi_{\mathrm{dtc}}=T\phi_{\mathrm{dtc}}`, why: '代入、移項、整理。' },
+            { tex: String.raw`e_{\mathrm{PD}}=(1-T)\phi_{\mathrm{dtc}}=\frac{1}{1+L}\phi_{\mathrm{dtc}}=H_{\mathrm{PD}}\phi_{\mathrm{dtc}}`, why: md(String.raw`代回第一式；$1-T=1/(1+L)$。`) },
             { tex: String.raw`H_{\mathrm{PD}}(s)+T(s)=1`, why: md(String.raw`迴路頻寬內 $T\approx1$（輸出跟著 DTC 誤差走，PD 幾乎看不到）；頻寬外 $H_{\mathrm{PD}}\approx1$（PD 全看到，輸出不跟）。`) },
-            { tex: String.raw`\phi_{\mathrm{dtc}}=2\pi f_{\mathrm{out}}\,\delta t\ \Rightarrow\ \phi_{\mathrm{out}}=-2\pi f_{\mathrm{out}}\,T(s)\,\delta t(s)`, why: md(String.raw`時間換相位：一個 output 週期 $1/f_{\mathrm{out}}$ 對應 $2\pi$。`) },
+            {
+              tex: String.raw`\phi_{\mathrm{dtc}}=-2\pi f_{\mathrm{out}}\,\delta t`,
+              why: md(
+                String.raw`時間換相位：一個 output 週期 $1/f_{\mathrm{out}}$ 對應 $2\pi$。負號來自 $\delta t$ 的定義（F-12.11）：$\delta t=x\,\delta w$ 是 reference 端的 DTC 多補償的時間，reference edge 因此早到 $\delta t$，在 PD 的 reference 輸入是 $-\delta t$——$w^*=a$ 時就是全站 §0 的殘餘誤差 $(a-w)\,x$。`,
+              ),
+            },
+            {
+              tex: String.raw`\phi_{\mathrm{out}}=\theta_{\mathrm{out}}=T\phi_{\mathrm{dtc}}=-2\pi f_{\mathrm{out}}\,T(s)\,\delta t(s)`,
+              why: md(String.raw`把第六行代進第三行；$\phi_{\mathrm{out}}$ 是 $\theta_{\mathrm{out}}$ 的另一個名字。負號只決定相位的正負：$|T|^2$、jitter、spur 的 dBc 都與它無關。`),
+            },
+            {
+              tex: String.raw`e_{\mathrm{PD}}=H_{\mathrm{PD}}\phi_{\mathrm{dtc}}=-2\pi f_{\mathrm{out}}\,H_{\mathrm{PD}}(s)\,\delta t(s)`,
+              why: md(String.raw`把第六行代進第四行：DTC 多補償（$\delta t>0$）時 reference 太早，PD 的誤差為負；補償不足時為正——和 §12.1 的 $e=C(a-w)x+v$ 同一個方向。`),
+            },
           ]}
         />
         <TexBlock id="F-12.15" label="PD 與 output 的轉移">

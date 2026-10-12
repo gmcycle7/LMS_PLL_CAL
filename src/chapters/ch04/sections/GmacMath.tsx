@@ -107,7 +107,7 @@ export function GmacMathSection() {
       />
       <p>
         <strong>先看左欄</strong>（實際訊號，由上往下）：gain 誤差 <Tex>{R`\delta_k=a-w_k`}</Tex> 乘上有效 regressor <Tex>{R`u[n]`}</Tex>（code 經過 PLL 誤差路徑後的樣子；PD 直接看到 DTC 誤差時{' '}
-        <Tex>{R`u=x`}</Tex>），加上雜訊 <Tex>{R`v[n]`}</Tex> 得到 comparator 的輸入 <Tex>{R`e[n]`}</Tex>；comparator 只留下正負號 <Tex>{R`q[n]`}</Tex>；再乘上對齊的 code <Tex>{R`x_\mathrm{ref}[n]`}</Tex>；最後把一個 block 的{' '}
+        <Tex>{R`u=x`}</Tex>），加上雜訊 <Tex>{R`v[n]`}</Tex> 得到 PD 的輸出 <Tex>{R`e[n]`}</Tex>（comparator 取的就是它）；comparator 只留下正負號 <Tex>{R`q[n]`}</Tex>；再乘上對齊的 code <Tex>{R`x_\mathrm{ref}[n]`}</Tex>；最後把一個 block 的{' '}
         <Tex>N</Tex> 筆平均起來成為 <Tex>{R`G_k`}</Tex>。下面「先算一次」的表格，每一欄就是左欄的一個方塊。
       </p>
       <p>
@@ -220,7 +220,7 @@ export function GmacMathSection() {
               why: mt(R`代回第 2 步；$C=E[x_\mathrm{ref}u]$ 是 regressor 與有效 regressor 的相關（identity path、$x_\mathrm{ref}=x$ 時 $C=E[x^2]$）。`),
             },
           ]}
-          result={R`E[G_k]\approx K\,\delta_k,\qquad K=K_qC\;[\mathrm{fs}^{-1}]`}
+          result={R`E[G_k]\approx K\,\delta_k,\quad K=K_qC\;[\mathrm{fs}^{-1}]`}
         />
         <p className="small">
           <ClaimTag kind="approx" /> 小訊號近似，相對誤差約 <Tex>{R`(\delta u/\sigma_v)^2/6`}</Tex>。<Tex>K</Tex> 的單位是 <Tex>{R`\mathrm{fs}^{-1}`}</Tex>、

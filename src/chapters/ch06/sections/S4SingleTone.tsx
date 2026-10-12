@@ -105,7 +105,7 @@ export function S4SingleTone() {
               ),
             },
             {
-              tex: String.raw`\Big|\frac{1-e^{j2\Omega N}}{1-e^{j2\Omega}}\Big|=\frac{|\sin(N\Omega)|}{|\sin\Omega|}\le\frac{1}{|\sin\Omega|}`,
+              tex: String.raw`\begin{aligned}\Big|\frac{1-e^{j2\Omega N}}{1-e^{j2\Omega}}\Big|&=\frac{|\sin(N\Omega)|}{|\sin\Omega|}\\[2pt]&\le\frac{1}{|\sin\Omega|}\end{aligned}`,
               why: (
                 <>
                   <Tex>{'|1-e^{j\\theta}|=2|\\sin(\\theta/2)|'}</Tex>；分子的 <Tex>{'|\\sin|\\le1'}</Tex>。

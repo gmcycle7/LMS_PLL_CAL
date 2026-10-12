@@ -183,23 +183,25 @@ export const CHART_MIMO_LOOP = String.raw`flowchart TB
 
 /**
  * §8：從 gain code 的偏差到輸出 spur／jitter（§8 的逐步推導）。
- * $\delta t[n] = x[n]\,\delta w[n]$（block 速率 $k$ 的 $\delta w_k$ 以 ZOH 展開到 sample 速率 $n$，含 commit latency $n_c$）；
- * 輸出路徑用 $T = \frac{L}{1+L}$（不是 $H_{\mathrm{PD}}$）；$\varphi_{\mathrm{out}} = -2\pi f_{\mathrm{out}}\,T\,\delta t$；tone 時 $\beta = 2\pi f_{\mathrm{out}} A_t\,\lvert T(f_m)\rvert$，spur $\approx 20\log_{10}(\beta/2)$。
+ * $\delta t[n] = x[n]\,\delta w[n]$ 是 DTC 的「補償誤差」（block 速率 $k$ 的 $\delta w_k$ 以 ZOH 展開到 sample 速率 $n$，含 commit latency $n_c$）：
+ * DTC 在 reference 輸入端、從基準延遲 $T_0$ 往回扣 $w\,x$，多補償 $\delta t$ 就是 reference edge 少延遲、早到 $\delta t$，殘差 $\phi_{\mathrm{dtc}} = -2\pi f_{\mathrm{out}}\,\delta t$（和 $e = (a-w)\,x$ 同號誌）。
+ * 殘差在 PD 的 reference 輸入注入（docs/assumptions.md §2a）：$e_{\mathrm{PD}} = \phi_{\mathrm{dtc}} - \theta_{\mathrm{out}}$ ⇒ $\theta_{\mathrm{out}} = +T\,\phi_{\mathrm{dtc}}$。
+ * 輸出路徑用 $T = \frac{L}{1+L}$（不是 $H_{\mathrm{PD}}$）；$\varphi_{\mathrm{out}} = -2\pi f_{\mathrm{out}}\,T\,\delta t$（負號來自殘差 $= -\delta t$，不是 $T$ 的號誌）；tone 時 $\beta = 2\pi f_{\mathrm{out}} A_t\,\lvert T(f_m)\rvert$，spur $\approx 20\log_{10}(\beta/2)$。
  */
 export const CHART_OUTPUT_PATH = String.raw`flowchart TB
   W(["$\delta w_k$：係數偏差<br/>（block 速率，索引 $k$）"])
   ZOH["ZOH 展開到 sample 速率<br/>$\delta w[n] = \delta w_{\lfloor (n - n_c)/N\rfloor}$<br/>$n_c$ = commit latency"]
   X(["code $x[n]$"])
   MUL(("$\times$"))
-  T["輸出 transfer<br/>$T = \frac{L}{1+L}$（不是 $H_{\mathrm{PD}}$）"]
-  PH["$\times (-2\pi f_{\mathrm{out}})$<br/>$\varphi_{\mathrm{out}} = -2\pi f_{\mathrm{out}}\cdot T\cdot\delta t$"]
+  T["輸出 transfer<br/>$T = \frac{L}{1+L}$（不是 $H_{\mathrm{PD}}$）<br/>DTC 殘差 $\phi_{\mathrm{dtc}}$ 在 PD 的<br/>reference 輸入注入：$\theta_{\mathrm{out}} = +T\cdot\phi_{\mathrm{dtc}}$"]
+  PH["$\times (-2\pi f_{\mathrm{out}})$<br/>$\varphi_{\mathrm{out}} = -2\pi f_{\mathrm{out}}\cdot T\cdot\delta t$<br/>（負號：多補償 $\delta t$ 時，殘差為 $-\delta t$）"]
   BETA["單一 tone $\delta t = A_t\cdot\cos(2\pi f_m t)$：<br/>$\beta = 2\pi f_{\mathrm{out}}\cdot A_t\cdot\lvert T(f_m)\rvert$"]
   SPUR["spur $\approx 20\log_{10}(J_1(\beta)/J_0(\beta))$<br/>$\approx 20\log_{10}(\beta/2)$"]
   JIT["隨機分量 $\to$ 輸出 PN／jitter<br/>（$\delta t$ 的 PSD 經 $\lvert T\rvert^2$ 與 $(2\pi f_{\mathrm{out}})^2$）"]
   W --> ZOH
   ZOH -- "$\delta w[n]$" --> MUL
   X --> MUL
-  MUL -- "$\delta t[n] = x[n]\cdot\delta w[n]$" --> T
+  MUL -- "補償誤差 $\delta t[n] = x[n]\cdot\delta w[n]$" --> T
   T -- "$T\cdot\delta t$" --> PH
   PH -- "$\varphi_{\mathrm{out}}$" --> BETA
   BETA --> SPUR

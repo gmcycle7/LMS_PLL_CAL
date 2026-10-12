@@ -425,6 +425,17 @@ describe('字串屬性的 LaTeX（docs/teaching-style.md §3）', () => {
     expect(FORMULAS.filter((f) => f.conditions.includes('$')).length).toBeGreaterThan(12)
   })
 
+  it('F-06.6 的適用條件寫明全站的架構約定：DTC 在 reference 輸入端，誤差從 PD 的 reference 輸入端進來，e_PD = ε − φ_fb = +H_PD·ε', () => {
+    const f = FORMULAS.find((x) => x.id === 'F-06.6')!
+    expect(f.tex).toBe(String.raw`H_{\mathrm{PD}}=\frac{1}{1+L}`)
+    expect(f.conditions).toMatch(/DTC 在 reference 輸入端/)
+    expect(f.conditions).toMatch(/從 PD 的 reference 輸入端進來/)
+    expect(f.conditions).toContain(String.raw`$e_{\mathrm{PD}}=\varepsilon-\varphi_{\mathrm{fb}}=H_{\mathrm{PD}}\,\varepsilon$`)
+    expect(f.conditions).toMatch(/正號/)
+    // 全章的公式登錄都沒有把誤差算在 feedback 那一邊的寫法（−H_PD·ε、−T·ε）
+    for (const x of FORMULAS) expect(`${x.tex} ${x.conditions}`, x.id).not.toMatch(/=\s*-\s*H_\{\\mathrm\{PD\}\}\\,\\varepsilon|=\s*-\s*T\\,\\varepsilon/)
+  })
+
   it('polarityWarnings／verdict：三種情況都解釋原因，數字用 TeX 記號（不會出現 1e-5 這種字樣）', () => {
     const neg = polarityWarnings('Case A — ', -0.25, 'negative', 0.0079788456, 10)
     expect(neg).toHaveLength(1)

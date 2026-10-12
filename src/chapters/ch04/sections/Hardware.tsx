@@ -27,17 +27,17 @@ const MAPPING: { part: string; role: ReactNode; hw: ReactNode; model: ReactNode;
   },
   {
     part: 'DTC',
-    role: 'Code → Delay',
+    role: mt(R`Code → Delay，在 reference 輸入端：延遲 $T_0-w\,x[n]$`),
     hw: 'Analog delay / interpolation',
     model: mt(R`dtc.ts；blockLms 的 gain_true $=a$、dtc_nonlinearity`),
-    note: '類比 gain 隨 PVT 漂移，所以需要背景校正；INL 造成 bias（Ch11）',
+    note: '只能延遲、不能提前，所以要留基準延遲（code 越大延遲越短）；類比 gain 隨 PVT 漂移，所以需要背景校正；INL 造成 bias（Ch11）',
   },
   {
     part: 'PD / BBPD',
-    role: '觀察 residual phase error',
+    role: '觀察 residual phase error：DTC 延遲後的 reference edge 減 feedback edge',
     hw: '類比相位檢測，可能含 comparator',
     model: mt(R`$e[n]=H_\mathrm{PD}\{\delta x\}[n]+b_\mathrm{off}+v[n]$`),
-    note: mt(R`極性與 $H_\mathrm{PD}$ 的相位決定 $C$ 的正負（Ch06）；BBPD 本身就是 1-bit comparator`),
+    note: mt(R`PD 的輸出同時送進 loop filter 與校正迴路的 comparator；極性與 $H_\mathrm{PD}$ 的相位決定 $C$ 的正負（Ch06）；BBPD 本身就是 1-bit comparator`),
   },
   {
     part: 'Code Alignment',
@@ -149,9 +149,9 @@ export function HardwareSection() {
         規格 §4.1 的硬體對應表，加上兩欄：本站哪個模型負責模擬它，以及設計時最常出錯的地方。每一列在後面的章節都有對應的實驗。
       </p>
       <p>
-        表裡會用到幾個後面才正式推導的符號，先各用一句話說明：<Tex>{R`H_\mathrm{PD}`}</Tex> 是「DTC 的時間誤差 → PD 輸出」這條路徑的轉移函數（主 PLL 會把慢的誤差追掉，所以 PD 看到的不是原封不動的{' '}
+        表裡會用到幾個後面才正式推導的符號，先各用一句話說明：<Tex>{R`H_\mathrm{PD}`}</Tex> 是「DTC 的殘餘時間誤差 → PD 輸出」這條路徑的轉移函數（殘餘誤差從 PD 的 reference 輸入端進來；主 PLL 會把慢的誤差追掉，所以 PD 看到的不是原封不動的{' '}
         <Tex>{R`\delta\,x[n]`}</Tex>）；<Tex>{R`u[n]`}</Tex> 是 code <Tex>{R`x[n]`}</Tex> 通過這條路徑之後的樣子，叫做<strong>有效 regressor</strong>（effective regressor，和 <Tex>x</Tex> 同樣無因次）；
-        <Tex>{R`b_\mathrm{off}`}</Tex> 是 comparator 的 offset，<Tex>{R`v[n]`}</Tex> 是 comparator 前的雜訊（RMS 為 <Tex>{R`\sigma_v`}</Tex>），三項相加就是 comparator 的輸入 <Tex>{R`e[n]`}</Tex>（單位都是 fs）；
+        <Tex>{R`b_\mathrm{off}`}</Tex> 是 comparator 的 offset，<Tex>{R`v[n]`}</Tex> 是 comparator 前的雜訊（RMS 為 <Tex>{R`\sigma_v`}</Tex>），三項相加就是 comparator 的輸入 <Tex>{R`e[n]`}</Tex>（單位都是 fs）——comparator 接在 PD 的輸出上，也就是送進 loop filter 的同一個節點，<Tex>{R`b_\mathrm{off}`}</Tex> 是把 comparator 自己的 offset 折算到這個節點；
         <Tex>{R`C=E[x_\mathrm{ref}\,u]`}</Tex> 是 GMAC 用的對齊 code 與有效 regressor 的相關（correlation，無因次；它的正負號決定迴路極性，期望值 <Tex>{R`E[\cdot]`}</Tex> 的說明框在本節稍後）；
         <Tex>D</Tex> 是 code 對齊延遲（單位 samples），<Tex>d</Tex> 是更新延遲（單位 blocks）；<Tex>{R`B_x`}</Tex> 是有號 code 的位元數。
       </p>
@@ -214,7 +214,7 @@ export function HardwareSection() {
       />
       <p>
         <strong>先看</strong>最上面的加法點：真實 gain <Tex>a</Tex> 標「<Tex>+</Tex>」，從最下面繞回來的 <Tex>{R`w_k`}</Tex> 標「<Tex>-</Tex>」，輸出就是 <Tex>{R`\delta_k=a-w_k`}</Tex>。<strong>再順著箭頭往下走</strong>：
-        第一個乘法點乘的是送進 DTC 的 code <Tex>{R`x[n]`}</Tex>，得到時間誤差 <Tex>{R`\delta_k\,x[n]`}</Tex>（fs）；經過 <Tex>{R`H_\mathrm{PD}`}</Tex> 變成 <Tex>{R`\delta_k\,u[n]`}</Tex>；加上雜訊 <Tex>{R`v[n]`}</Tex> 與 offset 得到{' '}
+        第一個乘法點乘的是送進 DTC 的 code <Tex>{R`x[n]`}</Tex>，得到時間誤差 <Tex>{R`\delta_k\,x[n]`}</Tex>（fs；這是 reference edge 補償後還差的量，從 PD 的 reference 輸入端進來）；經過 <Tex>{R`H_\mathrm{PD}`}</Tex> 變成 PD 輸出上的 <Tex>{R`\delta_k\,u[n]`}</Tex>；加上雜訊 <Tex>{R`v[n]`}</Tex> 與 offset 得到{' '}
         <Tex>{R`e[n]`}</Tex>；sign 之後只剩 <Tex>{R`q[n]=\pm1`}</Tex>；第二個乘法點乘的是對齊後的 <Tex>{R`x_\mathrm{ref}[n]`}</Tex>。到這裡為止每個 sample 動一次；從「<Tex>{R`(1/N)\sum`}</Tex>」開始每個 block 才動一次。
       </p>
       <p>

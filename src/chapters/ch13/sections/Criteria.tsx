@@ -253,7 +253,7 @@ export function CriteriaSection() {
       <Fold title="準則 3、5、6 的數學：code 誤差怎麼變成 output jitter？">
         <StepDerivation
           steps={[
-            { tex: String.raw`\delta t[n]=\Delta_\mathrm{LSB}\,e_s[n]\,x[n],\qquad e_s[n]=e\big[\lfloor n/N_\mathrm{upd}\rfloor\big]`, why: tx(String.raw`DTC 延遲是 gain 乘上 code（§12.2 的 $\delta t=x\,\delta w$，乘號不是加號）；code 以 ZOH 保持 $N_\mathrm{upd}$ 個 reference cycle，$e_s$ 是 $e$ 在 $f_s$ 上的版本（勘誤 E09 的 ZOH 映射；此處 commit latency $n_c=0$）。`) },
+            { tex: String.raw`\delta t[n]=\Delta_\mathrm{LSB}\,e_s[n]\,x[n],\qquad e_s[n]=e\big[\lfloor n/N_\mathrm{upd}\rfloor\big]`, why: tx(String.raw`DTC 補償量的誤差是 gain 誤差乘上 code（§12.2 的 $\delta t=x\,\delta w$，乘號不是加號）；code 以 ZOH 保持 $N_\mathrm{upd}$ 個 reference cycle，$e_s$ 是 $e$ 在 $f_s$ 上的版本（勘誤 E09 的 ZOH 映射；此處 commit latency $n_c=0$）。`) },
             { tex: String.raw`S_{e_s}(e^{j\Omega})=\frac1{N_\mathrm{upd}}\left[\frac{\sin(N_\mathrm{upd}\Omega/2)}{\sin(\Omega/2)}\right]^2S_e\big(e^{jN_\mathrm{upd}\Omega}\big)`, why: tx(String.raw`勘誤 E09：block-rate 的 $S_e$ 不能直接放到 sample-rate 軸；ZOH 的 $\mathrm{sinc}^2$ 權重乘上「頻率軸壓縮 $N_\mathrm{upd}$ 倍」的 $S_e$（時間平均 PSD，序列實際上是 cyclostationary）。`) },
             { tex: String.raw`R_{\delta t}[\ell]=\Delta_\mathrm{LSB}^2\,R_x[\ell]\,R_{e_s}[\ell]`, why: tx(String.raw`若 $x$ 與 $e_s$ 獨立、廣義平穩：$E\big[x[n]x[n+\ell]\,e_s[n]e_s[n+\ell]\big]=E\big[x[n]x[n+\ell]\big]\,E\big[e_s[n]e_s[n+\ell]\big]$，乘積的自相關 = 自相關的乘積（真實 LMS 中兩者不必獨立，所以下表直接模擬）。`) },
             { tex: String.raw`S_{\delta t}(e^{j\Omega})=\frac{\Delta_\mathrm{LSB}^2}{2\pi}\int_{-\pi}^{\pi}S_x(e^{j\nu})\,S_{e_s}(e^{j(\Omega-\nu)})\,d\nu`, why: tx(String.raw`對上一式取 DTFT：時域相乘 = 頻域捲積（見上方先備知識）。$e$ 在 $f_e$ 的 tone 與 $x$ 在 $f_x$ 的 tone 會產生 $f_x\pm f_e$ 的 tone。`) },

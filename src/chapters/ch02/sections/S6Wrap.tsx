@@ -19,14 +19,24 @@ export function S6Wrap() {
         <Diagram id="pll-loop">
           <p>
             {tm(
-              String.raw`先看最上面的 DSM 殘差 code $x[n]$：它分成兩路。一路是小數除頻真正造成的時間誤差 $y[n]=a\,x[n]$（$a$ 是理想的 DTC gain，未知）；另一路是 DTC 實際補償的量 $\hat y[n]=w_k\,x[n]$（目前的 gain 估計乘上同一個 code）。再看加法點：兩者相減，再加上 comparator 前的雜訊 $v[n]$，就是 DTC 沒修乾淨的時間誤差 $e[n]=(a-w_k)\,x[n]+v[n]$，由藍色的 comparator 判成正負號 $q[n]$。最後沿著下面那條路看：GMAC 把 $q[n]$ 和同一個 code $x[n]$ 相乘後累加 $N$ 筆、取平均得到 $G_k$，乘上 $\mu$ 後加到 $w_k$ 上，經過 $z^{-1}$ 變成下一個 block 的 $w_{k+1}$，送回 DTC。`,
+              String.raw`先看最上面兩排：Reference clock 先進 reference 端的 DTC，再進 PD（圓圈）；回授路徑上只有 divider，它的 feedback edge 直接進 PD，不經過 DTC。DSM 殘差 code $x[n]$ 往下有三條線，先看左邊兩條。一條是小數除頻真正造成的時間誤差：divider 的 feedback edge 比理想時刻早到 $y[n]=a\,x[n]$（$a$ 是理想的 DTC gain，未知）。另一條送進 DTC：DTC 只能延遲、不能提前，所以它從一個固定的基準延遲 $T_0$ 往回扣，$\tau_{\rm DTC}[n]=T_0-w_k\,x[n]$（code 越大，延遲越短），等於把 reference edge 提前了 $\hat y[n]=w_k\,x[n]$——這就是 DTC 的補償量（目前的 gain 估計乘上同一個 code）；$T_0$ 是常數，PLL 把它當成靜態相位偏移吸收，不影響任何會動的量。`,
             )}
           </p>
           <p>
             {tm(
-              String.raw`圖上的 $e[n]$、$q[n]=\operatorname{sign}(e[n])$、$x[n]$ 就是下表左欄前三列的符號；GMAC 那一格算的 $q[n]\,x[n]$ 就是第四列的 $\operatorname{sign}(e)\,x$。整張圖和 §3 的 Sign-Error 迴圈一一對應（$y=a\,x+v$、$\hat y=w\,x$、$e=y-\hat y$），差別只有速率：$x[n]$、$e[n]$、$q[n]$ 每個 sample 一筆（索引 $n$），$G_k$、$w_k$ 每個 block 一筆（索引 $k$，§2 的時間軸圖），所以整個 block 內 DTC 用的都是同一個 $w_k$。`,
+              String.raw`再看 PD：它量的是（DTC 延遲後的）reference edge 減 feedback edge，$e[n]=t'_{\rm ref}[n]-t_{\rm fb}[n]$。把兩條 edge 都寫成相對同一個理想時刻 $t_{\rm id}[n]$（$T_0$ 已經算在裡面）：feedback edge 早到 $y$，所以 $t_{\rm fb}=t_{\rm id}-y$；reference edge 提前了 $\hat y$，所以 $t'_{\rm ref}=t_{\rm id}-\hat y$。兩式相減，$t'_{\rm ref}-t_{\rm fb}=y-\hat y$：這就是圖上 $y$ 那條線標正號、$\hat y$ 那條線標負號的原因。這兩個正負號是「早到的時間」對 $e$ 的貢獻，不是 PD 兩個輸入端的極性——PD 仍然是 reference 減 feedback。再加上 comparator 前的雜訊 $v[n]$，就是 DTC 沒修乾淨的時間誤差 $e[n]=(a-w_k)\,x[n]+v[n]$。補償不足（$w_k<a$）而且 $x[n]>0$ 時，reference 還是太晚，$e[n]$ 為正。`,
             )}
-            極性沿用本章的 <Tex>{'e=y-\\hat y'}</Tex>；實際 PD 看到的是 <Tex>{'e'}</Tex> 還是 <Tex>{'-e'}</Tex> 很重要——反了的話 pole 會從 <Tex>{'1-\\mu K'}</Tex> 變成 <Tex>{'1+\\mu K'}</Tex>，迴路發散（<ChapterLink ch="06">Ch06</ChapterLink>）。
+          </p>
+          <p>
+            {tm(
+              String.raw`這個 $e[n]$ 是 PD 的輸出，同一個訊號分兩路：一路送進 loop filter 與 VCO（主迴路；VCO 再經 divider 回到 PD，這一段圖上只用文字註明，完整的迴路見章首的系統地圖），另一路由藍色的 comparator 判成正負號 $q[n]$——校正迴路的輸入取自 PD 的輸出，不是從 DTC 或 divider 拉出來的。最後沿著下面那條路看：GMAC 把 $q[n]$ 和同一個 code $x[n]$ 相乘後累加 $N$ 筆、取平均得到 $G_k$，乘上 $\mu$ 後加到 $w_k$ 上，經過 $z^{-1}$ 變成下一個 block 的 $w_{k+1}$，送回 DTC。`,
+            )}
+          </p>
+          <p>
+            {tm(
+              String.raw`圖上的 $e[n]$、$q[n]=\operatorname{sign}(e[n])$、$x[n]$ 就是下表左欄前三列的符號；GMAC 那一格算的 $q[n]\,x[n]$ 就是第四列的 $\operatorname{sign}(e)\,x$。整張圖和 §3 的 Sign-Error 迴圈一一對應（$\hat y=w\,x$、$e=y-\hat y$；§3 的 $y=a\,x+v$ 在這張圖上拆成兩條線：divider 的早到量 $a\,x$ 與雜訊 $v$），差別只有速率：$x[n]$、$e[n]$、$q[n]$ 每個 sample 一筆（索引 $n$），$G_k$、$w_k$ 每個 block 一筆（索引 $k$，§2 的時間軸圖），所以整個 block 內 DTC 用的都是同一個 $w_k$。`,
+            )}
+            極性沿用本章的 <Tex>{'e=y-\\hat y'}</Tex>，也就是全站的約定：PD 量 reference 減 feedback。校正迴路的極性很重要：如果 comparator 的輸出接反（<Tex>{'q=-\\operatorname{sign}(e)'}</Tex>），或送進 DTC 的 code 方向反了（延遲變成 <Tex>{'T_0+w_k\\,x[n]'}</Tex>，<Tex>{'w_k'}</Tex> 越大誤差反而越大），pole 會從 <Tex>{'1-\\mu K'}</Tex> 變成 <Tex>{'1+\\mu K'}</Tex>，迴路發散（<ChapterLink ch="06">Ch06</ChapterLink>）。
           </p>
         </Diagram>
         <div className="table-wrap">
@@ -43,8 +53,10 @@ export function S6Wrap() {
                 <td>
                   <Tex>{'e[n]'}</Tex>
                 </td>
-                <td>DTC 殘餘時間誤差（fs）</td>
-                <td>看不到大小，只看得到 comparator 的輸出</td>
+                <td>PD 的輸出：DTC 沒修乾淨的殘餘時間誤差（fs）</td>
+                <td>
+                  看不到大小，只看得到 comparator 的輸出；comparator 取的就是送進 loop filter 的同一個 <Tex>{'e[n]'}</Tex>
+                </td>
               </tr>
               <tr>
                 <td>

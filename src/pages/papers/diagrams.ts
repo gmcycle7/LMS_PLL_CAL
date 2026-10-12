@@ -55,13 +55,14 @@ export const PAPER_MAP: { node: string; papers: PaperId[]; pages: string[] }[] =
 
 /**
  * §3：七份文獻各自在講校正迴路的哪一塊。
- * 訊號：殘差 (a − w)·x[n] 經 PLL 誤差路徑到 comparator（sample rate，索引 n）；
+ * 訊號：reference 端 DTC 補償後的殘差 (a − w)·x[n] 經 PLL 誤差路徑，成為 PD 的輸出 e[n]（PD 量 t_ref′ − t_fb）；
+ * comparator 取的就是這個 PD 輸出（送進 loop filter 的同一個訊號），在 sample rate（索引 n）取正負號；
  * GMAC 每 N 個 sample 輸出一次 G_k，累加器更新 w_(k+1) = w_k + μ·G_k（block rate，索引 k）。
  */
 export const CHART_PAPER_MAP = String.raw`flowchart TB
-  X(["code $x[n]$：激勵夠不夠<br/>D4｜Ch09、Ch11"]) --> RES["DTC 補償後的殘差<br/>$(a - w)\,x[n]$"]
+  X(["code $x[n]$：激勵夠不夠<br/>D4｜Ch09、Ch11"]) --> RES["reference 端 DTC 補償後的殘差<br/>$(a - w)\,x[n]$"]
   RES --> HPD["PLL 誤差路徑 $H_{\mathrm{PD}}$：極性與 filtered-x<br/>D2｜Ch06、Ch07"]
-  HPD -- "$e[n]$" --> CMP["1-bit comparator<br/>$q[n] = \operatorname{sign}(e[n])$"]
+  HPD -- "PD 輸出 $e[n]$" --> CMP["1-bit comparator<br/>$q[n] = \operatorname{sign}(e[n])$"]
   CMP -- "$q[n]$" --> GMAC["GMAC：$G_k = \frac{1}{N}\sum q[n]\,x[n]$<br/>雜訊與校正頻寬<br/>D1｜Ch12"]
   X -. "regressor $x[n]$" .-> GMAC
   GMAC -- "$G_k$" --> UPD["$\times\,\mu$ 後累加<br/>$w_{k+1} = w_k + \mu\,G_k$<br/>eigen-mode 與步長<br/>D7｜Ch03、Ch09"]

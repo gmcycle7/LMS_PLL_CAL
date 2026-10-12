@@ -585,7 +585,7 @@ export function DitherSection() {
           { tex: String.raw`\delta_n\equiv a-w_n,\qquad \delta_{n+1}=\delta_n-\mu\,q_n`, why: <>代入 <Tex>{'w_{n+1}=w_n+\\mu q_n'}</Tex>（全站 <Tex>{'\\delta=a-w'}</Tex>）。</> },
           { tex: String.raw`q_n=E[q_n\,|\,\delta_n]+\eta_n\approx K_q\delta_n+\eta_n,\quad E[\eta_n]=0,\;\operatorname{Var}(\eta_n)=1-m^2\approx1`, why: <>把 <Tex>{'q'}</Tex> 拆成平均（§5 的小訊號增益）加上零均值的「量化雜訊」<Tex>{'\\eta_n'}</Tex>。</> },
           { tex: String.raw`\delta_{n+1}=(1-\mu K_q)\,\delta_n-\mu\,\eta_n`, why: <>代回：一個 pole 在 <Tex>{'1-\\mu K_q'}</Tex> 的一階遞迴。</> },
-          { tex: String.raw`\operatorname{Var}(\delta)=(1-\mu K_q)^2\operatorname{Var}(\delta)+\mu^2`, why: <>穩態時兩邊變異數相等；<Tex>{'\\eta_n'}</Tex> 與 <Tex>{'\\delta_n'}</Tex> 不相關（<Tex>{'\\eta_n'}</Tex> 是這一步新的雜訊）。</> },
+          { tex: String.raw`\begin{aligned}\operatorname{Var}(\delta)&=(1-\mu K_q)^2\operatorname{Var}(\delta)\\&\quad+\mu^2\end{aligned}`, why: <>穩態時兩邊變異數相等；<Tex>{'\\eta_n'}</Tex> 與 <Tex>{'\\delta_n'}</Tex> 不相關（<Tex>{'\\eta_n'}</Tex> 是這一步新的雜訊）。</> },
           { tex: String.raw`\operatorname{Var}(\delta)=\frac{\mu^2}{1-(1-\mu K_q)^2}=\frac{\mu}{K_q(2-\mu K_q)}`, why: <>移項；分母 <Tex>{'=\\mu K_q(2-\\mu K_q)'}</Tex>，需 <Tex>{'0<\\mu K_q<2'}</Tex>。</> },
           { tex: String.raw`\mu K_q\ll1:\;\operatorname{Var}(\delta)\approx\frac{\mu}{2K_q}=\frac{\mu\,\sigma_v}{2}\sqrt{\frac\pi2}`, why: <>代入 <Tex>{'K_q=\\sqrt{2/\\pi}/\\sigma_v'}</Tex>：RMS <Tex>{'\\propto\\sqrt{\\mu\\sigma_v}'}</Tex>。</> },
         ]}
@@ -619,7 +619,7 @@ export function DitherSection() {
           title="精確穩態（細緻平衡 detailed balance）"
           steps={[
             { tex: String.raw`\pi_k\,u_k=\pi_{k+1}\,\bar u_{k+1}`, why: <>穩態時 <Tex>{'k\\to k+1'}</Tex> 與 <Tex>{'k+1\\to k'}</Tex> 的機率流相等（一維鏈只能這樣平衡）。</> },
-            { tex: String.raw`\frac{\pi_{k+1}}{\pi_k}=\frac{\Phi\big((a-\theta-w_k)/\sigma_v\big)}{\Phi\big(-(a-\theta-w_{k+1})/\sigma_v\big)}`, why: <>代入 <Tex>{'u_k'}</Tex> 與 <Tex>{'\\bar u_{k+1}=1-u_{k+1}=\\Phi(-(a-\\theta-w_{k+1})/\\sigma_v)'}</Tex>。</> },
+            { tex: String.raw`\begin{aligned}\frac{\pi_{k+1}}{\pi_k}&=\frac{u_k}{\bar u_{k+1}}\\&=\frac{\Phi\big((a-\theta-w_k)/\sigma_v\big)}{\Phi\big(-(a-\theta-w_{k+1})/\sigma_v\big)}\end{aligned}`, why: <>代入 <Tex>{'u_k'}</Tex> 與 <Tex>{'\\bar u_{k+1}=1-u_{k+1}=\\Phi(-(a-\\theta-w_{k+1})/\\sigma_v)'}</Tex>。</> },
             { tex: String.raw`E_\pi[w]=\sum_k\pi_kw_k,\qquad \mathrm{RMS}=\Big(\sum_k\pi_k(w_k-a)^2\Big)^{1/2}`, why: <>連乘後正規化（程式在 log 空間累加避免溢位）；時間平均收斂到 <Tex>{'E_\\pi[w]'}</Tex>（遍歷定理）。</> },
           ]}
         />

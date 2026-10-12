@@ -19,6 +19,7 @@ import { kq } from './util'
  *      KaTeX 以外的文字沒有 Unicode 拼的數學（unicodeMathIn）；
  *   3. 排版：長的圖用上下排列（桌機上不需要橫向捲動，字不會縮到看不清楚）、並排比較的框上下疊且順序正確；
  *   4. 與公式一致：加法點的正負號、δ = a − w、φ ± ΩD、取樣率（n／k），以及圖上的例子數字（由模型重算）；
+ *      架構照 docs/assumptions.md §2a：DTC 在 reference 輸入端（不在回授路徑上）、comparator 的輸入從 PD 的輸出拉、Type-II 迴路的減法點就是 PD；
  *   5. 頁面：章首的 SystemMap（手排的 SVG，不經過 Mermaid；用 systemMapModel／is-focus 檢查主角）、全章圖數、每張圖都在對應的公式之前、圖後有一段「先看…再看…」的走圖說明。
  */
 
@@ -79,6 +80,9 @@ function fakeSvgMetrics() {
   proto.getBBox = () => ({ x: 0, y: 0, width: 80, height: 24 })
   proto.getComputedTextLength = () => 80
 }
+
+/** 連線標籤裡的換行（parser 會把 <br/> 正規化成 <br>）換成一個空格，方便整句比對。 */
+const oneLine = (label: string) => label.replace(/<br\s*\/?>/g, ' ')
 
 /** 原始碼中所有雙引號包住的標籤。 */
 const labelsOf = (chart: string) => [...chart.matchAll(/"([^"]*)"/g)].map((m) => m[1])
@@ -356,14 +360,15 @@ describe('Ch07 Mermaid 圖：與本章公式一致', () => {
       CHART_GRADIENT: { GE: '＋', V: '＋' },
       // x_ref = K₂·(x[n] − 2x[n−1] + x[n−2])
       CHART_SECOND_DIFF: { X: '$+x[n]$', SH: '$-2x[n-1]$', R2: '$+x[n-2]$' },
-      // E_PD = 輸入 − L·E_PD ⇒ H_PD = 1/(1 + L)
+      // PD 的輸出 = reference 輸入（DTC 留下的誤差，＋）− 回授（L·PD 的輸出）⇒ H_PD = 1/(1 + L)，正號
       CHART_TYPE2_LOOP: { E: '＋', DL: /-\$$/ },
     }
-    // 有圓形加法點的圖就是這五張（其餘的圖把「相加」寫在方塊的公式裡）
-    expect(NAMES.filter((n) => /\(\("＋"\)\)/.test(CH07_CHARTS[n])).sort()).toEqual(Object.keys(sums).sort())
+    // 有圓形加法點的圖就是這五張（其餘的圖把「相加」寫在方塊的公式裡）；Type-II 迴路的減法點就是 PD，圓圈裡寫「PD」
+    expect(NAMES.filter((n) => /\(\("(?:＋|PD)"\)\)/.test(CH07_CHARTS[n])).sort()).toEqual(Object.keys(sums).sort())
+    expect(NAMES.filter((n) => /\(\("PD"\)\)/.test(CH07_CHARTS[n]))).toEqual(['CHART_TYPE2_LOOP'])
     for (const [name, want] of Object.entries(sums) as [Ch07ChartName, Record<string, string | RegExp>][]) {
       const f = await parseFlow(CH07_CHARTS[name])
-      expect(f.text('S'), name).toBe('＋')
+      expect(f.text('S'), name).toBe(name === 'CHART_TYPE2_LOOP' ? 'PD' : '＋')
       const inputs = f.into('S')
       expect(inputs.map((e) => e.start).sort(), name).toEqual(Object.keys(want).sort())
       for (const e of inputs) {
@@ -383,7 +388,9 @@ describe('Ch07 Mermaid 圖：與本章公式一致', () => {
     expect(f.text('V')).toContain('$v[n]$')
     expect(f.text('V')).toContain(r`$\sigma_v$`)
     expect(f.edge('V', 'S')).toEqual([r`$+v[n]$`])
-    expect(f.edge('S', 'CMP')).toEqual([r`$e_{\mathrm{PD}}[n] = \delta\cdot u[n] + v[n]$`])
+    // comparator 的輸入線標「PD 的輸出」：e_PD 就是送進 loop filter 的同一個訊號（docs/assumptions.md §2a 第 3 點）
+    expect(f.edge('S', 'CMP').map(oneLine)).toEqual([r`PD 的輸出 $e_{\mathrm{PD}}[n] = \delta\cdot u[n] + v[n]$`])
+    expect(f.into('CMP').map((e) => e.start)).toEqual(['S'])
     expect(f.text('CMP')).toContain(r`$q = \mathrm{sign}(e_{\mathrm{PD}})$`)
     expect(f.edge('CMP', 'M')).toEqual(['$q[n]$'])
     expect(f.edge('X', 'DLY')).toHaveLength(1)
@@ -560,7 +567,11 @@ describe('Ch07 Mermaid 圖：與本章公式一致', () => {
   it('filtered-x 迴圈：乘法在 sample rate（n）、平均之後是 block rate（k），w_{k+1} = w_k + μ·G_k 回授到真實路徑', async () => {
     const f = await parseFlow(CH07_CHARTS.CHART_FX_LOOP)
     expect(f.text('P')).toContain(r`$e_{\mathrm{PD}}[n] = (a - w_k)\cdot(h * x)[n] + v[n]$`)
-    expect(f.edge('P', 'CMP')).toEqual([r`$e_{\mathrm{PD}}[n]$`])
+    // 真實路徑是「reference 端的 DTC → PD」，它的輸出就是 PD 的輸出；comparator 的輸入只從這裡拉
+    expect(f.text('P')).toContain('reference 端的 DTC 到 PD')
+    expect(f.text('P')).toContain('PD 的輸出')
+    expect(f.edge('P', 'CMP')).toEqual([r`PD 的輸出 $e_{\mathrm{PD}}[n]$`])
+    expect(f.into('CMP').map((e) => e.start)).toEqual(['P'])
     expect(f.text('CMP')).toContain(r`$q = \mathrm{sign}(e_{\mathrm{PD}})$`)
     expect(f.edge('CMP', 'M')).toEqual(['$q[n]$'])
     expect(f.text('HAT')).toContain(r`$u_f = \hat h * x$`)
@@ -571,7 +582,8 @@ describe('Ch07 Mermaid 圖：與本章公式一致', () => {
     expect(f.edge('AVG', 'ACC')).toEqual(['每個 block $k$'])
     expect(f.text('ACC')).toContain(r`$w_{k+1} = w_k + \mu\cdot G_k$`)
     expect(f.text('ACC')).toContain(r`$\tfrac{1}{z-1}$`)
-    expect(f.edge('ACC', 'P')).toEqual([r`$w_k$ 回授（負回授：$a - w_k$）`])
+    // 校正迴路的回授：w_k 送回 reference 端的 DTC（負回授 a − w_k）
+    expect(f.edge('ACC', 'P')).toEqual([r`$w_k$ 送回 DTC（負回授：$a - w_k$）`])
   })
 
   it('三種 regressor 並排：x_ref 分別是 x[n]、x[n−D]、u_f[n]；藍色是多出來的 z⁻ᴰ 與 Ĥ', async () => {
@@ -645,17 +657,34 @@ describe('Ch07 Mermaid 圖：與本章公式一致', () => {
     expect(f.classOf('SGN')).toEqual(['focus'])
   })
 
-  it('Type-II 迴路：L(z) = (K_p + K_i/(1 − z⁻¹))·1/(1 − z⁻¹)·z^−(1+d)，負回授', async () => {
+  it('Type-II 迴路：L(z) = (K_p + K_i/(1 − z⁻¹))·1/(1 − z⁻¹)·z^−(1+d)，負回授；圓圈是 PD（reference 輸入為正、回授為負），PD 的輸出同時送進 loop filter 與 comparator', async () => {
     const f = await parseFlow(CH07_CHARTS.CHART_TYPE2_LOOP)
     expect(f.text('PI')).toContain(r`$K_p + \tfrac{K_i}{1 - z^{-1}}$`)
     expect(f.text('DCO')).toContain(r`$\tfrac{1}{1 - z^{-1}}$`)
     expect(f.text('DL')).toContain(r`$z^{-(1+d)}$`)
     expect(f.edges.map((e) => `${e.start}>${e.end}`)).toEqual(expect.arrayContaining(['S>PI', 'PI>DCO', 'DCO>DL', 'DL>S', 'S>OUT']))
-    // 輸入是 (a − w)·x、加法點的輸出是 (a − w)·u（u = h_PD * x）；雜訊 v 在迴路外、comparator 前才加進來
+    // 輸入是 (a − w)·x、PD 的輸出是 (a − w)·u（u = h_PD * x）；雜訊 v 在迴路外、comparator 前才加進來
     expect(f.text('E')).toContain(r`$(a - w)\cdot x[n]$`)
     expect(f.edge('S', 'PI')).toEqual([r`$(a - w)\cdot u[n]$`])
     expect(f.edge('S', 'OUT')).toEqual([r`$(a - w)\cdot u[n]$`])
     expect(f.text('OUT')).toContain('雜訊 $v[n]$')
+    // 架構（docs/assumptions.md §2a 第 1、3、5 點）：圓圈是 PD；DTC 留下的誤差從 reference 端（正端）進來，回授從負端進來
+    expect(f.text('S')).toBe('PD')
+    expect(f.text('E')).toContain('reference 端')
+    expect(f.text('E')).toContain('DTC')
+    expect(f.edge('E', 'S')).toEqual(['＋'])
+    // 回授線標明走的是 divider（回授路徑上只有 divider；以時間為單位時增益是 1，所以不另外畫方塊），進 PD 的負端
+    expect(f.edge('DL', 'S')).toEqual([r`divider 的回授，$-$`])
+    expect(f.into('S').map((e) => e.start).sort()).toEqual(['DL', 'E'])
+    // DTC 不在回授路徑上：DTC 那個節點是純粹的來源（沒有任何線進去），迴圈 PD → PI → DCO → 延遲 → PD 上沒有 DTC
+    expect(f.into('E')).toEqual([])
+    for (const id of ['PI', 'DCO', 'DL']) expect(f.text(id), id).not.toContain('DTC')
+    // comparator 取的是 PD 的輸出——和送進 loop filter 的是同一個節點：PD 只有兩條輸出線，標籤相同
+    expect(f.edges.filter((e) => e.start === 'S').map((e) => e.end).sort()).toEqual(['OUT', 'PI'])
+    expect(f.edge('S', 'OUT')).toEqual(f.edge('S', 'PI'))
+    expect(f.text('OUT')).toContain('同一個 PD 輸出')
+    expect(f.text('OUT')).toContain('comparator')
+    expect(f.into('OUT').map((e) => e.start)).toEqual(['S'])
   })
 
   it('二次差分與 RTL 位置圖：x_ref = K₂·(x[n] − 2x[n−1] + x[n−2])、G_k = (1/N)Σ q·x_ref、w_{k+1} = w_k + μ·G_k', async () => {
@@ -665,6 +694,12 @@ describe('Ch07 Mermaid 圖：與本章公式一致', () => {
     expect(sd.edge('R1', 'SH')).toEqual(['$x[n-1]$'])
     const rtl = await parseFlow(CH07_CHARTS.CHART_RTL_REGRESSORS)
     expect(rtl.edge('DTC', 'H')).toEqual([r`$(a - w_k)\cdot x[n]$`])
+    // 架構：DTC 在 reference 輸入端；comparator 的輸入只從 PD 的輸出拉；進 DTC 的只有 code 與校正係數 w_k（沒有 divider → DTC）
+    expect(rtl.text('DTC')).toContain('reference 端的 DTC')
+    expect(rtl.edge('H', 'CMP').map(oneLine)).toEqual([r`PD 的輸出 $e_{\mathrm{PD}}[n]$`])
+    expect(rtl.into('CMP').map((e) => e.start)).toEqual(['H'])
+    expect(rtl.into('DTC').map((e) => e.start).sort()).toEqual(['UPD', 'X'])
+    expect(rtl.edges.filter((e) => e.start === 'DTC').map((e) => e.end)).toEqual(['H'])
     expect(rtl.text('MUX')).toContain(r`$\mathtt{REG\_GMAC\_DLY} = D$`)
     expect(rtl.text('SEL')).toContain(r`$\mathtt{REG\_GMAC\_XSEL}$`)
     expect(rtl.text('SD')).toContain(r`$K_2\cdot(x[n] - 2x[n-1] + x[n-2])$`)
@@ -679,6 +714,39 @@ describe('Ch07 Mermaid 圖：與本章公式一致', () => {
     expect(rho.text('SG')).toContain(r`$\rho \gt 0$`)
     expect(rho.text('SG')).toContain(r`$\rho \lt 0$`)
     expect(rho.text('MG')).toContain(r`$\sigma_w \propto \tfrac{1}{\sqrt{N}\cdot|\rho|}$`)
+  })
+
+  it('架構約定（docs/assumptions.md §2a）：沒有任何一張圖的回授路徑上有 DTC，也沒有 divider → DTC 的線；畫到 comparator 的圖，comparator 的輸入都標成 PD 的輸出', async () => {
+    for (const name of NAMES) {
+      const chart = CH07_CHARTS[name]
+      // 舊接法的字眼不會出現在任何標籤裡（下面是「不可以出現」的樣式）
+      expect(chart, name).not.toMatch(/DTC 插入|插入延遲|推回|divider 之後|回授路徑上的 DTC|feedback 側|回授側注入/)
+      const f = await parseFlow(chart)
+      const isDtc = (id: string) => /DTC/.test(f.text(id))
+      const isDivider = (id: string) => /divider|除頻|PMUX/i.test(f.text(id))
+      // 沒有 divider／PMUX → DTC 的線；DTC 的輸出也不會接回 divider
+      for (const e of f.edges) {
+        expect(isDivider(e.start) && isDtc(e.end), `${name}: ${e.start} → ${e.end}`).toBe(false)
+        expect(isDtc(e.start) && isDivider(e.end), `${name}: ${e.start} → ${e.end}`).toBe(false)
+      }
+    }
+    // comparator 方塊（q = sign(e_PD)）只出現在這三張圖；它唯一的輸入線標著「PD 的輸出」與 e_PD[n]
+    const taps: Partial<Record<Ch07ChartName, string>> = { CHART_SIGNAL_MODEL: 'S', CHART_FX_LOOP: 'P', CHART_RTL_REGRESSORS: 'H' }
+    const withCmp: Ch07ChartName[] = []
+    for (const name of NAMES) {
+      const f = await parseFlow(CH07_CHARTS[name])
+      if (!f.text('CMP').includes(r`\mathrm{sign}(e_{\mathrm{PD}})`)) continue
+      withCmp.push(name)
+      const inputs = f.into('CMP')
+      expect(inputs.map((e) => e.start), name).toEqual([taps[name]])
+      expect(inputs[0].text ?? '', name).toContain('PD 的輸出')
+      expect(inputs[0].text ?? '', name).toContain(r`$e_{\mathrm{PD}}[n]`)
+    }
+    expect(withCmp.sort()).toEqual(Object.keys(taps).sort())
+    // 第四張是 Type-II 迴路：comparator 從標著 PD 的圓圈拉線（上一個測試逐項檢查）
+    const t2 = await parseFlow(CH07_CHARTS.CHART_TYPE2_LOOP)
+    expect(t2.text('S')).toBe('PD')
+    expect(t2.edge('S', 'OUT')).toHaveLength(1)
   })
 
   it('手算流程圖的 ①…⑨ 依序出現，且與 HC-07.8 的步驟順序相同（12 步：圖上一格對應一到兩步）', async () => {

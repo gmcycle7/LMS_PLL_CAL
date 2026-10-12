@@ -261,7 +261,7 @@ export default function R7Preview() {
       <ModeGate min="research">
         <h4>Research：事件級模型要多什麼</h4>
         <ul>
-          <li>reference / divider edge 的時間序（DSM 改變 divider 比例 → edge 時間是非線性的），DTC 在 edge 上的延遲、PD 的取樣時刻。</li>
+          <li>reference edge 經 DTC 的延遲（DTC 在 reference 輸入端、只能延遲：<Tex>{'\\tau_{\\mathrm{DTC}}=T_0-w\\,x'}</Tex>）、feedback（divider）edge 的時間序（DSM 改變 divider 比例 → edge 時間是非線性的）、PD 的取樣時刻；PD 量的是（被 DTC 延遲後的）reference edge 減 feedback edge。</li>
           <li>四條路徑分開：PD error（<Tex>{'H_{\\mathrm{PD}}'}</Tex>）、reference noise、VCO noise（<Tex>{'1-T'}</Tex>）、gain update（本預覽）。</li>
           <li>
             injection-locked 模式的 <Tex>{'H_{\\mathrm{PD}}'}</Tex> 與非注入模式不同，必須分開量測。<ErratumNote eid="E44">{String.raw`CT 原型的 $H_{\mathrm{PD}}$ 不能直接套在 DT 迴路上。`}</ErratumNote>

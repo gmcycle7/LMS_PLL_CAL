@@ -57,6 +57,13 @@ function accept(id: string, over: Record<string, number>): void {
   const d = hc(id)
   expect(d.validate?.({ ...defaultValues(d), ...over }) ?? null, `${id} 應接受 ${JSON.stringify(over)}`).toBeNull()
 }
+/**
+ * 兩行對齊的步驟（`\begin{aligned}a&=b=c\\&=d=e\end{aligned}`）只是排版：拿掉環境、對齊記號與換行，
+ * 還原成一行的「a=b=c=d=e」再做字串比對與逐個等號的求值。
+ */
+function flatAligned(tex: string): string {
+  return tex.replace(/\\begin\{aligned\}|\\end\{aligned\}/g, '').replace(/\\\\/g, '').replace(/&/g, '')
+}
 /** |a − b| ≤ abs + rel·|b| */
 function close(a: number, b: number, rel = 1e-9, abs = 1e-12): boolean {
   return Math.abs(a - b) <= abs + rel * Math.abs(b)
@@ -156,8 +163,11 @@ describe('(a) 預設值 = 本章 worked example：與模型函式、golden 向�
     // 第 8、9 步把乘積 p·δw_k（章首表格的第三欄）單獨列出，再做加減：一個等號只做一種運算；
     // 第 8 步是相近的數相減，乘積多顯示一位（7 位），畫面上的數字相減才得到 −0.0124669
     expect((EX.p * d1).toFixed(5)).toBe('0.14378')
-    expect(sol.steps[7].tex).toContain(String.raw`=0.9202115\times0.15625-0.15625=0.1437831-0.15625=-0.0124669\ \mathrm{fs}`)
+    // （兩步都折成對齊的兩行，折行處的 `\\&` 只是排版：拿掉之後每個等號照樣接得上）
+    expect(sol.steps[7].tex).toBe(String.raw`\begin{aligned}\delta w_2&=p\,\delta w_1+\mu(-\sigma_\eta)=0.9202115\times0.15625-0.15625\\&=0.1437831-0.15625=-0.0124669\ \mathrm{fs}\end{aligned}`)
+    expect(flatAligned(sol.steps[7].tex)).toContain(String.raw`=0.9202115\times0.15625-0.15625=0.1437831-0.15625=-0.0124669\ \mathrm{fs}`)
     expect(sol.steps[8].tex).toContain(`=${texNum(EX.p * d2, 6)}+${texNum(kick, 6)}=${texNum(d3)}`)
+    expect(flatAligned(sol.steps[8].tex)).toBe(String.raw`\delta w_3=p\,\delta w_2+\mu(+\sigma_\eta)=0.9202115\times(-0.0124669)+0.15625=-0.0114722+0.15625=0.14478\ \mathrm{fs}`)
     expect(0.1437831 - 0.15625).toBeCloseTo(d2, 7)
     // 極性（E33）：補充說明給出 §0 約定 δ = a − w 下的三個值（全部變號）
     const polarity = (sol.notes ?? []).find((n) => n.includes('E33')) ?? ''
@@ -249,6 +259,11 @@ describe('(a) 預設值 = 本章 worked example：與模型函式、golden 向�
     expect(values('HC-12.6', { m: 0.5 })).toEqual([110, 90, 0.5, 0.5])
     // f_x < f_w：差頻落在 f_w − f_x，不會消失
     expect(values('HC-12.6', { fx: 10, fw: 100 }).slice(0, 3)).toEqual([110, 90, 0.5])
+    // 和頻、差頻兩步折成對齊的兩行（手機的步驟欄很窄）；還原成一行後就是「符號式 = 代入 = 結果」
+    const sol = hc('HC-12.6').solve(defaultValues(hc('HC-12.6')))
+    expect(sol.steps[0].tex).toBe(String.raw`\begin{aligned}f_x+f_w&=100+10\\&=110\ \mathrm{kHz}\end{aligned}`)
+    expect(flatAligned(sol.steps[0].tex)).toBe(String.raw`f_x+f_w=100+10=110\ \mathrm{kHz}`)
+    expect(flatAligned(sol.steps[1].tex)).toBe(String.raw`|f_x-f_w|=|100-10|=90\ \mathrm{kHz}`)
   })
 
   it('T15: HC-12.7 的 β = 4.0841e−5 rad、spur = −93.80 dBc（golden）；A_t 加倍 +6.02 dB、|T| = 0.1 −20 dB', () => {
@@ -866,13 +881,15 @@ describe('(e) 每一步都能照畫面上的數字重算：符號式 = 代入數
         const shown: { value: number; ulp: number }[] = []
         for (const s of sol.steps) {
           steps++
-          const top = splitTop(s.tex)
+          // 折成兩行對齊的步驟先還原成一行（折行不改變任何一個等號）
+          const tex = flatAligned(s.tex)
+          const top = splitTop(tex)
           // 符號式 = 代入數字 = 結果：至少兩個等號，第一段是符號式
           expect(top.length, s.tex).toBeGreaterThanOrEqual(3)
-          const numeric = numericSegments(s.tex)
+          const numeric = numericSegments(tex)
           expect(numeric.length, s.tex).toBeGreaterThanOrEqual(/x\\equiv1/.test(s.tex) ? 1 : 2)
           expect(() => evalTex(top[0]), s.tex).toThrow(Symbolic)
-          const w = worstMismatch(s.tex)
+          const w = worstMismatch(tex)
           if (w.units > worst.units) worst = { ...w, v }
           for (const n of numeric.slice(1)) for (const part of n.parts) {
             const lit = literal(part.seg)

@@ -73,7 +73,8 @@ export function S2DelayDerivation() {
               ),
             },
             {
-              tex: r`H(e^{j\Omega})\equiv\sum_k h[k]\,e^{-j\Omega k}=|H|\,e^{j\phi}`,
+              // 兩行：寫成一行時在手機（375 px）上只比欄位寬 4 px，會多出一條沒有用途的橫向捲軸
+              tex: r`\begin{aligned}H(e^{j\Omega})&\equiv\sum_k h[k]\,e^{-j\Omega k}\\&=|H|\,e^{j\phi}\end{aligned}`,
               why: (
                 <>
                   定義頻率響應（DTFT；也就是 Z transform 在單位圓 <Tex>{r`z=e^{j\Omega}`}</Tex> 上的值），並寫成極座標。
@@ -230,7 +231,8 @@ export function S2DelayDerivation() {
         title="延遲 comparator 誤差（另一種做法）"
         steps={[
           {
-            tex: r`u[n-D]=A|H|\cos(\Omega n-\Omega D+\phi)`,
+            // 索引裡的減號寫成 {-}（不留運算子間距）：原本在手機（375 px）上只比欄位寬 2 px，會多出一條沒有用途的橫向捲軸
+            tex: r`u[n{-}D]=A|H|\cos(\Omega n-\Omega D+\phi)`,
             why: (
               <>
                 把 <Tex>{'u'}</Tex> 的 <Tex>{'n'}</Tex> 換成 <Tex>{'n-D'}</Tex>：誤差路徑的輸出再晚 <Tex>{'D'}</Tex> 個 sample。

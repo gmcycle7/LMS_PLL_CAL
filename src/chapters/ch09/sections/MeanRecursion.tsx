@@ -51,7 +51,7 @@ export function MeanRecursion() {
 
       <h3>1. 誤差：每個參數誤差乘上自己的 regressor 再相加</h3>
       <p>
-        要校正的參數有 {m`M`} 個時，comparator 前面仍然只有<strong>一個</strong>誤差 {m`e[n]`}。先約定兩個時間索引：{m`n`} 是 comparator 的 sample 編號
+        要校正的參數有 {m`M`} 個時，comparator 前面仍然只有<strong>一個</strong>誤差 {m`e[n]`}（在 PLL 裡它就是 PD 的輸出，也是送進 loop filter 的同一個訊號）。先約定兩個時間索引：{m`n`} 是 comparator 的 sample 編號
         （regressor {m`\mathbf u[n]`}、雜訊 {m`v[n]`}、誤差 {m`e[n]`} 每個 sample 都在變）；{m`k`} 是 GMAC block 的編號（一個 block 有 {m`N`} 個 sample，
         校正係數 {m`\mathbf w_k`} 每個 block 才更新一次，所以參數誤差 {m`\boldsymbol\delta_k=\mathbf a-\mathbf w_k`} 在一個 block 內是固定的）。
         {m`v[n]`} 是 comparator 前的雜訊，假設零均值。
@@ -85,7 +85,7 @@ export function MeanRecursion() {
         看藍色的 GMAC 方塊：它之前的內積、偵測器、相關器每個 sample（{m`n`}）跑一次；它之後的 {m`\mathbf G_k`}、累加器與回授的 {m`\boldsymbol\delta_k`} 每個 block（{m`k`}）才更新一次。
       </Diagram>
       <p>
-        <FigRef id="block-loop" /> 怎麼看：先看 sample rate 的那一段——{m`\boldsymbol\delta_k`} 與 {m`\mathbf u[n]`} 做內積、加上雜訊成為 {m`e[n]`}，
+        <FigRef id="block-loop" /> 怎麼看：先看 sample rate 的那一段——{m`\boldsymbol\delta_k`} 與 {m`\mathbf u[n]`} 做內積、加上雜訊成為 PD 的輸出 {m`e[n]`}，
         經過偵測器變成 {m`t[n]`}，再乘回 {m`\mathbf u[n]`}。再看藍色的 GMAC——它把 {m`N`} 個乘積平均成一筆 {m`\mathbf G_k`}；{m`\mathbf G_k`} 乘上 {m`\mu`}
         加進累加器，{m`z^{-1}`} 表示新的係數要到下一個 block 才生效。最後看回授——{m`\mathbf w_k`} 以<strong>負號</strong>進入加法點（真值 {m`\mathbf a`}
         以正號），得到 {m`\boldsymbol\delta_k=\mathbf a-\mathbf w_k`}，繞回起點。圖上的「{m`(1/N)\Sigma`}」就是 F-09.2 的 {m`\mathbf G_k`}；
@@ -362,7 +362,7 @@ export function MeanRecursion() {
         此時 {m`u_1=u_2`}，{m`e=u_1(\delta_1+\delta_2)+v`} 只含 <strong>和</strong>；差模分量 {m`c_2=(\delta_1-\delta_2)/\sqrt2`} 對 {m`e`}
         毫無影響，所以：
       </p>
-      <TexBlock>{String.raw`c_{2,k}=1^k\,c_{2,0}=c_{2,0}\quad\text{（永遠停在初值）}`}</TexBlock>
+      <TexBlock>{String.raw`c_{2,k}=1^k\,c_{2,0}=c_{2,0}\;\text{（永遠停在初值）}`}</TexBlock>
       <p>
         從 {m`\boldsymbol\delta_0=(1,0)`} 出發，30 步後 {m`E[\boldsymbol\delta_{30}]=(${texNum(traj1[0][30], 5)},\ ${texNum(traj1[1][30], 5)})`}：
         和歸零、差仍是 1。<strong>增加 {m`N`}、加大 {m`\mu`}、跑更久都沒有用</strong>——缺的是資訊，不是時間。這就是開場「{m`\mathbf u`} 永遠是 {m`(1,1)`}」的例子。

@@ -2,10 +2,10 @@ import { ModeGate, Prereq, Section, StepDerivation, Tex } from '@/components'
 import { H_IMPULSE, LOOP_KEYS } from '../data'
 import { DataTable, Diagram, FigRef, ModelCode, Src, fx, r } from '../common'
 
-/** §3 從比較點到 PD：H_PD = 1/(1 + L) 的逐步推導與脈衝響應。 */
+/** §3 從比較點（PD 的輸入端）到 PD 的輸出：H_PD = 1/(1 + L) 的逐步推導與脈衝響應。外加誤差 u 在 PD 的 reference 輸入端（＋），迴路的修正 y 從 feedback 輸入端回來（−）。 */
 export function S03Hpd() {
   return (
-    <Section kind="formula" level={2} title="3. 從比較點到 PD：$H_{PD}$ 的推導" id="cs-3">
+    <Section kind="formula" level={2} title="3. 從比較點到 PD 的輸出：$H_{PD}$ 的推導" id="cs-3">
       <Prereq title="Z transform、離散頻率 $\Omega$、頻率響應、卷積、pole">
         <ul>
           <li>
@@ -34,18 +34,19 @@ export function S03Hpd() {
         </ul>
       </Prereq>
       <p>
-        設比較點收到的「外加誤差」是 <Tex>{'u[n]'}</Tex>（DTC 加 PMUX 的誤差，§2 的 <FigRef id="injection" />），迴路產生的修正是 <Tex>{'y[n]'}</Tex>。主迴路是一個負回授：PD 量到殘差，loop filter 與 VCO 把它變成修正量，下一拍再從誤差裡扣掉。
+        設比較點（PD 的輸入端）收到的「外加誤差」是 <Tex>{'u[n]'}</Tex>（DTC 加 PMUX 的誤差，已依 §2 的極性約定折算到 PD 的 reference 輸入端；見 <FigRef id="injection" />），迴路產生的修正是 <Tex>{'y[n]'}</Tex>，從 PD 的 feedback 輸入端回來。主迴路是一個負回授：PD
+        量到殘差，loop filter 與 VCO 把它變成修正量，下一拍再從誤差裡扣掉。
       </p>
       <Diagram id="hpd-loop" />
       <p>
-        先看藍色的加法點：它的輸出 <Tex>{r`e_{PD}[n]`}</Tex> 同時送到兩個地方——一路進主迴路（外框標著 <Tex>{'L(z)'}</Tex> 的那一塊），一路給 1-bit 比較器。再看 <Tex>{'L(z)'}</Tex> 的外框：殘差經過 loop filter、VCO（把頻率積分成相位）和 1 拍延遲之後，變成修正量 <Tex>{'y[n]'}</Tex>，以負號回到加法點。圖上的加法點就是下面推導的第 1 步{' '}
+        先看藍色的圓，它就是 PD（一個做減法的加法點）：它的輸出 <Tex>{r`e_{PD}[n]`}</Tex> 同時送到兩個地方——一路進主迴路的 loop filter（外框標著 <Tex>{'L(z)'}</Tex> 的那一塊），一路給 1-bit 比較器。所以校正迴路取的是 PD 的輸出，也就是送進 loop filter 的同一個訊號。再看 <Tex>{'L(z)'}</Tex> 的外框：殘差經過 loop filter、VCO（把頻率積分成相位）和 1 拍延遲之後，變成修正量 <Tex>{'y[n]'}</Tex>，以負號回到 PD。圖上的 PD 就是下面推導的第 1 步{' '}
         <Tex>{r`e_{PD}=u-y`}</Tex>；整個外框就是第 2 步的 <Tex>{'L(z)'}</Tex>（開迴路增益：從 <Tex>{r`e_{PD}`}</Tex> 繞一圈回到 <Tex>{'y'}</Tex> 的轉移函數）。三個迴路的外框裡各放什麼，見 §6 的 <FigRef id="three-loops" />。
       </p>
       <p>把圖寫成代數，PD 看到的殘差一步一步推：</p>
       <StepDerivation
         title="一步一步：誤差 → PD 的轉移函數"
         steps={[
-          { tex: r`e_{PD}[n]=u[n]-y[n]`, why: '比較點做減法：外加誤差減去迴路修正。' },
+          { tex: r`e_{PD}[n]=u[n]-y[n]`, why: 'PD（比較點）做減法：reference 輸入端的外加誤差，減去從 feedback 輸入端回來的迴路修正。' },
           { tex: r`Y(z)=L(z)\,E_{PD}(z)`, why: <>迴路把 PD 輸出經 loop filter、VCO（積分器）和 1 拍延遲送回來；這整條路徑記為 <Tex>{'L(z)'}</Tex>。</> },
           { tex: r`E_{PD}=U-L\,E_{PD}`, why: '把第 2 步代入第 1 步（Z transform 是線性的，可以逐項代入）。' },
           { tex: r`(1+L)\,E_{PD}=U`, why: <>把含 <Tex>{r`E_{PD}`}</Tex> 的項移到左邊。</> },
@@ -55,7 +56,8 @@ export function S03Hpd() {
       />
       <p>
         這裡的 <Tex>{r`H_{PD}`}</Tex> 就是你問的「DTC GOS／PHOS 誤差到 PD 輸出的 transfer function」。因為 <Tex>{'L'}</Tex> 嚴格 proper（至少 1 拍延遲），<Tex>{r`L(\infty)=0`}</Tex>，所以{' '}
-        <Tex>{r`h_{PD}[0]=1`}</Tex>：<strong>誤差注入的當拍，PD 會原封不動看到它</strong>。這一點後面會變成一階差分對策的關鍵（§11）。
+        <Tex>{r`h_{PD}[0]=1`}</Tex>：<strong>誤差注入的當拍，PD 會原封不動看到它</strong>。這一點後面會變成一階差分對策的關鍵（§11）。同一組式子也給出迴路的修正 <Tex>{r`Y=L\,E_{PD}=T\,U`}</Tex>，<Tex>{r`T=L/(1+L)=1-H_{PD}`}</Tex>：外加誤差從 PD 的 reference
+        輸入端進來，所以 <Tex>{r`E_{PD}=H_{PD}\,U`}</Tex> 與 <Tex>{r`Y=T\,U`}</Tex> 都是正號。
       </p>
       <h3>先算一次：三個迴路的脈衝響應</h3>
       <DataTable

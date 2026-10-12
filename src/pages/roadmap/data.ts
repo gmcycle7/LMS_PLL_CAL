@@ -288,7 +288,7 @@ export const ITEMS: RoadmapItem[] = [
     id: 'R7',
     title: '真正的 Fractional-N PLL Closed-Loop State-Space',
     spec: '附錄 C R7',
-    goal: '建立 reference / divider / DSM / DTC / PD / loop filter / VCO 的事件級模型；明確分開 PD error、reference noise、VCO noise、gain update 四條路徑；處理主迴路快狀態 + LMS 慢狀態的 multirate stability 與線性化；injection-locked 與非注入模式各自量測 $H_{\\mathrm{PD}}$。',
+    goal: '建立 reference → DTC → PD → loop filter → VCO（DTC 在 reference 輸入端），以及 VCO → divider（由 DSM 控制）→ PD 回授的事件級模型；明確分開 PD error、reference noise、VCO noise、gain update 四條路徑；處理主迴路快狀態 + LMS 慢狀態的 multirate stability 與線性化；injection-locked 與非注入模式各自量測 $H_{\\mathrm{PD}}$。',
     why: '第 8 章用抽象的 $s_{k+1}=r_ss_k+b_s\\delta_k$ 說明「時間尺度分離」可能失效。真實 PLL 每個 reference cycle 走一步、LMS 每 $N$ 個 cycle 才更新一次，兩者的耦合必須在同一個多速率模型裡算 poles：同一個 $\\mu$，換一個 $N$，穩定與否可能就不同，不能用單一速率的公式外推。',
     math: [
       { label: '多速率 lifting（一個 block 內的 $N$ 步精確積掉；符號依勘誤 E31）', tex: '\\mathbf s_{(k+1)N}=\\mathbf A_s^{N}\\mathbf s_{kN}+\\Big(\\textstyle\\sum_{i=0}^{N-1}\\mathbf A_s^{i}\\Big)\\mathbf b_s\\,\\delta_k' },
@@ -306,7 +306,7 @@ export const ITEMS: RoadmapItem[] = [
       { text: '線性化 Type-II DT 主迴路（含 latency）、§8.4 抽象雙迴路（第 6、8 章）；PD vs output 路徑（第 12 章）', status: 'on-site' },
       { text: '抽象雙迴路的多速率 lifting $\\mathbf A_N$，與逐 sample 模擬逐點吻合', status: 'preview' },
       { text: '以真實 $H_{\\mathrm{PD}}(z)$ 與 GMAC block 做 lifting（含 commit latency），計算 multirate poles', status: 'pending' },
-      { text: '事件級（edge-based）reference / divider / DSM / DTC / PD / LF / VCO 模型與四條 noise 路徑', status: 'not-started' },
+      { text: '事件級（edge-based）模型：reference → DTC → PD → LF → VCO，回授 VCO → divider（DSM 控制）→ PD；四條 noise 路徑', status: 'not-started' },
       { text: 'injection-locked 模式的 $H_{\\mathrm{PD}}$ 量測與比較', status: 'not-started' },
     ],
     errata: ['E13', 'E19', 'E31', 'E34', 'E44'],
@@ -420,7 +420,7 @@ export const ITEMS: RoadmapItem[] = [
       { label: 'raw-x GMAC 的相關（勘誤 E46 的單頻邊界另計）', tex: 'C=\\sum_{k\\ge0}h_{\\mathrm{PD}}[k]\\,R_x[k]=\\frac1{2\\pi}\\int_{-\\pi}^{\\pi}S_x(e^{j\\Omega})\\,\\mathrm{Re}\\{H_{\\mathrm{PD}}(e^{j\\Omega})\\}\\,d\\Omega' },
       {
         label: 'PHOS：8 個 one-hot 的平均更新矩陣是 circulant，特徵向量是 DFT mode $m$',
-        tex: 's_m[n]=e^{-j2\\pi m\\,p[n]/8},\\qquad \\kappa_m=\\sum_{\\ell\\equiv m\\ (8)}w_\\ell\\,\\mathrm{Re}\\{H_{\\mathrm{PD}}(e^{j2\\pi\\ell\\alpha})\\},\\qquad w_\\ell=\\frac{64\\sin^2(\\pi\\ell/8)}{\\pi^2\\ell^2}',
+        tex: 's_m[n]=e^{-j2\\pi m\\,p[n]/8},\\quad \\kappa_m=\\sum_{\\ell\\equiv m\\ (8)}w_\\ell\\,\\mathrm{Re}\\{H_{\\mathrm{PD}}(e^{j2\\pi\\ell\\alpha})\\},\\quad w_\\ell=\\frac{64\\sin^2(\\pi\\ell/8)}{\\pi^2\\ell^2}',
       },
       { label: 'one-hot 的 gauge（勘誤 E04）', tex: 'x_i[n]=\\mathbb 1\\{p[n]=i\\},\\quad \\sum_{i=0}^{7}x_i[n]=1\\;\\Rightarrow\\;H_{\\mathrm{PD}}(1)=0\\text{ 時共模 }(m=0)\\text{ 不可見}' },
       { label: 'GOS：DTC 細部殘差是鋸齒，基頻 $\\beta=\\mathrm{frac}(8\\alpha)$', tex: '\\rho[n]=8\\varphi[n]-p[n],\\qquad C_{\\mathrm{GOS}}=\\sum_{k\\ne0}|c_k|^2\\,\\mathrm{Re}\\{H_{\\mathrm{PD}}(e^{j2\\pi k\\beta})\\}' },

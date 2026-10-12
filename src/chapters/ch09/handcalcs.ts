@@ -941,19 +941,19 @@ export const HANDCALCS: HandCalcDef[] = [
             why: '$\\pm1$ sparse-flip code（$u_2=s\\,u_1$）：每一筆「不 flip」（$s=+1$）的機率與「flip」（$s=-1$）的機率，兩者相加是 1。',
           },
           {
-            tex: String.raw`\Big(\frac{1+\rho}{2}\Big)^{N_0}=${txF(pPlus, 12)}^{${nTex}}=${texNum(powPlus, 5)}`,
+            tex: String.raw`\Big(\tfrac{1+\rho}{2}\Big)^{N_0}=${txF(pPlus, 12)}^{${nTex}}=${texNum(powPlus, 5)}`,
             why:
               '整個窗口 $N_0$ 筆都沒有 flip 的機率（各筆獨立，機率連乘）：按 $y^x$ 鍵。此時 $u_2\\equiv u_1$，差模完全沒被激發。' +
               (underflow(powPlus) ? '這個數小於 $10^{-99}$，一般工程計算機會直接顯示 0——當成 0 即可。' : ''),
           },
           {
-            tex: String.raw`\Big(\frac{1-\rho}{2}\Big)^{N_0}=${txF(pMinus, 12)}^{${nTex}}=${texNum(powMinus, 5)}`,
+            tex: String.raw`\Big(\tfrac{1-\rho}{2}\Big)^{N_0}=${txF(pMinus, 12)}^{${nTex}}=${texNum(powMinus, 5)}`,
             why:
               '整個窗口每一筆都 flip 的機率（$u_2\\equiv-u_1$，這次是共模沒被激發）。$\\rho$ 接近 1 時小到可以忽略。' +
               (underflow(powMinus) ? '它小於 $10^{-99}$，一般工程計算機會直接顯示 0——當成 0 即可，答案不受影響。' : ''),
           },
           {
-            tex: String.raw`P_{\text{退化}}=\Big(\frac{1+\rho}{2}\Big)^{N_0}+\Big(\frac{1-\rho}{2}\Big)^{N_0}=${texNum(powPlus, 5)}+${texNum(powMinus, 5)}=${texNum(pDeg, 5)}`,
+            tex: String.raw`P_{\text{退化}}=\Big(\tfrac{1+\rho}{2}\Big)^{N_0}+\Big(\tfrac{1-\rho}{2}\Big)^{N_0}=${texNum(powPlus, 5)}+${texNum(powMinus, 5)}=${texNum(pDeg, 5)}`,
             why: '兩種退化情形互斥，機率相加（F-09.11）：這些窗口的 $\\lambda_{\\min}(\\mathbf R_k)=0$，對其中一個方向沒有任何資訊。',
           },
           {

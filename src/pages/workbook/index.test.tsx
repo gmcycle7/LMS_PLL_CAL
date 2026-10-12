@@ -121,6 +121,34 @@ describe('手算練習簿：整頁', () => {
     expect(db.closest('.wb-tool-calc')?.textContent).toContain('= 100')
     noKatexError(container)
   })
+
+  it('手算工具的獨立公式都排成多行：桌機上卡片只有半欄寬（約 390–430px），寫成一行會被切掉、底下多一條橫向捲軸', () => {
+    const { container } = renderPage()
+    const tex = qa(container, '.wb-tools .katex-display annotation').map((a) => a.textContent ?? '')
+    const lines = (t: string) => t.split(String.raw`\\`).length
+    // ② 小 |z| 近似：級數一行、框起來的結論一行
+    const approx = tex.find((t) => t.includes(String.raw`\frac{z^5}{40}`))!
+    expect(approx).toMatch(/^\\begin\{aligned\}\\Phi\(z\) &= /)
+    expect(approx).toContain(String.raw`&\approx \boxed{\frac12 + \frac{z}{\sqrt{2\pi}}}`)
+    expect(lines(approx)).toBe(2)
+    // ④ dB 的定義一行、反過來解一行
+    const dbDef = tex.find((t) => t.includes(String.raw`20\log_{10}\frac{A_2}{A_1}`))!
+    expect(dbDef).toContain(String.raw`\mathrm{dB} = 10\log_{10}\frac{P_2}{P_1} = 20\log_{10}\frac{A_2}{A_1}`)
+    expect(dbDef).toContain(String.raw`\frac{P_2}{P_1} = 10^{\mathrm{dB}/10}`)
+    expect(dbDef).toContain(String.raw`\frac{A_2}{A_1} = 10^{\mathrm{dB}/20}`)
+    expect(lines(dbDef)).toBe(2)
+    // dB 計算機：功率比一行、振幅比一行（預設 −3 dB，數字不變）
+    const dbCalc = tex.find((t) => t.includes('功率比'))!
+    expect(dbCalc).toContain(String.raw`10^{-3/10} &= 0.50119\ \text{（功率比）}`)
+    expect(dbCalc).toContain(String.raw`10^{-3/20} &= 0.70795\ \text{（振幅比）}`)
+    expect(lines(dbCalc)).toBe(2)
+    // 查表內插的第 3 步（預設 z = 0.37）：每個等號一行
+    const interp = tex.find((t) => t.includes(String.raw`\Phi(0.37) &\approx`))!
+    expect(lines(interp)).toBe(3)
+    expect(interp).toContain(String.raw`&= 0.6179 + 0.7\times0.0375`)
+    expect(interp).toContain(String.raw`&= 0.6179 + 0.02625 = 0.6442`)
+    noKatexError(container)
+  })
 })
 
 describe('手算工具（浮動）與說明文字', () => {

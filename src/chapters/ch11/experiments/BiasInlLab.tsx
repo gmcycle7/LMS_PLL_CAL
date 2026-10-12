@@ -847,7 +847,7 @@ export function BiasInlLab() {
             <>
               <div className="ch11-group-title">Research：code-dependent jitter（勘誤 E17）</div>
               <ParamControl label="$\rho_j$（$\sigma_v(x)$ 斜率）" value={shared.jitterSlope} onChange={set('jitterSlope')} min={0} max={2} step={0.01} unit="$\mathrm{code}^{-2}$" reg="Behavioral：DTC random jitter 隨 delay 增加" hint={m('$\\sigma_v(x)=\\sigma_v\\sqrt{1+\\rho_j(x-x_j)^2}$')} />
-              <ParamControl label="$x_j$（jitter 最小的 code）" value={shared.jitterRef} onChange={set('jitterRef')} min={-4} max={4} step={0.1} unit="code" reg="Behavioral：最短 delay 對應的 code" />
+              <ParamControl label="$x_j$（jitter 最小的 code）" value={shared.jitterRef} onChange={set('jitterRef')} min={-4} max={4} step={0.1} unit="code" reg="Behavioral：最短 delay 對應的 code" hint={m('reference 端的 DTC 延遲是 $T_0-w\\,x$，延遲最短的是最大的 code；預設 $-2$ 沿用勘誤 E17 的數字，換成 $+2$ 時偏移的方向相反（§11.1「方向的提醒」）')} />
             </>
           ) : shared.jitterSlope > 0 ? (
             <p className="small muted">

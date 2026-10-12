@@ -37,6 +37,23 @@ const solveDefault = (id: string) => {
   const def = handcalc(id)
   return def.solve(defaultValues(def))
 }
+/**
+ * 步驟的 TeX 為了不出現多餘的橫向捲軸，有幾步用 `aligned` 排成兩行（只是換行，運算不變）。兩種寫法：
+ *   - 同一條等式接到下一行：`\begin{aligned}A&=B\\&=C\end{aligned}` ⇒ 還原成 `A=B=C`
+ *   - 兩條等式各一行：`\begin{aligned}A&=B\\C&=D\end{aligned}` ⇒ 還原成 `A=B,\qquad C=D`（和原本寫在同一行時一模一樣）
+ * 檢查數字時先還原成一行，所以每個等號前後的數字照樣逐一核對。只用在沒有矩陣的步驟（矩陣的 `&`、`\\` 不能拿掉）：有矩陣就直接丟錯。
+ */
+function unaligned(tex: string): string {
+  const open = '\\begin{aligned}'
+  const close = '\\end{aligned}'
+  if (!tex.startsWith(open) || !tex.endsWith(close)) return tex
+  const body = tex.slice(open.length, -close.length)
+  if (/\\begin\{/.test(body)) throw new Error(`aligned 的步驟裡不可以有矩陣或其他環境（檢查器無法還原）：${tex}`)
+  return body
+    .replace(/\\\\\s*&=/g, '=')
+    .replace(/\\\\\s*/g, ',\\qquad ')
+    .replace(/&/g, '')
+}
 /** 相對 1e-9（加上 1e-12 的絕對容差，處理 0） */
 function expectClose(actual: number, expected: number, msg = '', rel = 1e-9) {
   expect(Math.abs(actual - expected), `${msg} actual ${actual} vs expected ${expected}`).toBeLessThanOrEqual(rel * Math.max(Math.abs(actual), Math.abs(expected)) + 1e-12)
@@ -249,8 +266,8 @@ describe('Ch10 帶入手算：(a) 預設值 = 模型函式 = 文中 worked examp
     expect(m12).toBeCloseTo(-24.87, 2)
     // 驗算步驟：(M_n R)₁₁ = γ、(M_n R)₁₂ = 0、pole = 1 − γ
     const steps = solveDefault('HC-10.3').steps.map((s) => s.tex)
-    expect(steps[3].endsWith('=0.5')).toBe(true)
-    expect(steps[4].endsWith('=0')).toBe(true)
+    expect(unaligned(steps[3]).endsWith('=0.5')).toBe(true)
+    expect(unaligned(steps[4]).endsWith('=0')).toBe(true)
     expect(steps[5].endsWith('=0.5')).toBe(true)
   })
 
@@ -334,7 +351,8 @@ describe('Ch10 帶入手算：(a) 預設值 = 模型函式 = 文中 worked examp
     expect(p2).toBeCloseTo(0.4, 12)
     // 單一 loop 的 pole 0.8、A 的元素、T = 1.6、D = 0.48、判別式 0.64
     const single = v.expected.single_loop_poles as number[]
-    expect(sol.steps[0].tex).toContain(`=${single[0]},`)
+    expect(unaligned(sol.steps[0].tex)).toContain(`=${single[0]},\\qquad p_{\\text{single},2}=`)
+    expect(unaligned(sol.steps[0].tex).endsWith(`=${single[1]}`)).toBe(true)
     expect(sol.steps[1].tex).toContain('\\begin{bmatrix}0.8&0.4\\\\0.4&0.8\\end{bmatrix}')
     expect(sol.steps[2].tex.endsWith('=1.6')).toBe(true)
     expect(sol.steps[3].tex.endsWith('=0.48')).toBe(true)
@@ -704,7 +722,7 @@ const flat = (v: TexVal): number[] => (typeof v === 'number' ? [v] : v.flat())
  */
 function checkStepTex(tex: string, label: string): number[] {
   const finals: number[] = []
-  for (const part of splitTop(tex, [',\\qquad', '\\qquad', '\\quad\\Rightarrow\\quad', '\\ \\Rightarrow\\ ', '\\Rightarrow'])) {
+  for (const part of splitTop(unaligned(tex), [',\\qquad', '\\qquad', '\\quad\\Rightarrow\\quad', '\\ \\Rightarrow\\ ', '\\Rightarrow'])) {
     const segs = splitTop(part.replace(/\\approx/g, '='), ['='])
       .map((seg) => ({ seg, r: evalSeg(seg) }))
       .filter((x): x is { seg: string; r: { v: TexVal; ceil: boolean } } => x.r !== null)
@@ -795,6 +813,15 @@ describe('Ch10 帶入手算：畫面上的每一步都算得出來（把步驟�
     expect(() => checkStepTex('s=0.8\\times10=9', 'self-test')).toThrow()
     expect(() => checkStepTex('k=\\lceil 597.65\\rceil=597', 'self-test')).toThrow()
     expect(checkStepTex('a=1\\times0+0.8\\times10=0+8=8\\ \\mathrm{fs},\\qquad b=\\lceil 4.3219\\rceil=5', 'self-test')).toEqual([8, 5])
+    // 排成兩行的步驟（aligned）先還原成一行再檢查：同一條等式接到下一行、兩條等式各一行，數字都照樣逐一核對，寫錯一樣會被抓到
+    expect(unaligned('\\begin{aligned}a&=b+c\\\\&=1+2=3\\end{aligned}')).toBe('a=b+c=1+2=3')
+    expect(unaligned('\\begin{aligned}\\text{甲：}\\quad a&=1+2=3\\\\b&=2\\times3=6\\end{aligned}')).toBe('\\text{甲：}\\quad a=1+2=3,\\qquad b=2\\times3=6')
+    expect(unaligned('a=1+2=3')).toBe('a=1+2=3')
+    expect(checkStepTex('\\begin{aligned}a&=b+c\\\\&=1+2=3\\end{aligned}', 'self-test')).toEqual([3])
+    expect(checkStepTex('\\begin{aligned}\\text{甲：}\\quad a&=1+2=3\\\\b&=2\\times3=6\\end{aligned}', 'self-test')).toEqual([3, 6])
+    expect(() => checkStepTex('\\begin{aligned}a&=b+c\\\\&=1+2=4\\end{aligned}', 'self-test')).toThrow()
+    expect(() => checkStepTex('\\begin{aligned}a&=1+2=3\\\\b&=2\\times3=7\\end{aligned}', 'self-test')).toThrow()
+    expect(() => unaligned('\\begin{aligned}\\mathbf A&=\\begin{bmatrix}1&0\\\\0&1\\end{bmatrix}\\end{aligned}')).toThrow(/不可以有矩陣/)
   })
 
   it.each(HANDCALCS.map((h) => [h.id, h] as const))(

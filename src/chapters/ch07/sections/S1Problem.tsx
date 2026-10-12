@@ -62,7 +62,8 @@ export function S1Problem() {
         <strong>怎麼看這張圖：</strong>先看經過紅色方塊的那一路。code <Tex>{'x[n]'}</Tex> 先經過 PLL 的誤差路徑 <Tex>{'H'}</Tex>（PLL 迴路會去修正 DTC 的時間誤差，PD 看到的是修正後剩下的殘差；Ch06），
         變成 comparator 實際看到的 code <Tex>{'u[n]'}</Tex>；再乘上還沒校正掉的 gain 誤差 <Tex>{String.raw`\delta=a-w`}</Tex>（<Tex>{'a'}</Tex> 是 DTC 真正的 gain、
         <Tex>{'w'}</Tex> 是 LMS 目前的校正係數，單位都是 fs per unit code）；圓形的加法點把它和 comparator 前的雜訊 <Tex>{'v[n]'}</Tex>（標準差 <Tex>{String.raw`\sigma_v`}</Tex>）相加
-        （兩條輸入線都是正號），就是 PD 誤差 <Tex>{String.raw`e_{\mathrm{PD}}[n]`}</Tex>；1-bit comparator 只留下它的正負號 <Tex>{String.raw`q[n]=\pm1`}</Tex>。再看經過藍色方塊的那一路：同一個 code 只被延遲
+        （兩條輸入線都是正號），就是 PD 的輸出 <Tex>{String.raw`e_{\mathrm{PD}}[n]`}</Tex>（PD 誤差）。comparator 取的就是這個 PD 輸出——也就是送進 loop filter 的同一個訊號（章首系統地圖上
+        PD 到 loop filter 那條線，地圖上標成 <Tex>{'e[n]'}</Tex>）；1-bit comparator 只留下它的正負號 <Tex>{String.raw`q[n]=\pm1`}</Tex>。再看經過藍色方塊的那一路：同一個 code 只被延遲
         <Tex>{'D'}</Tex> 個 sample，變成 <Tex>{'x[n-D]'}</Tex>。兩路在乘法器相遇，平均器每 <Tex>{'N'}</Tex> 個 sample 平均一次，輸出第 <Tex>{'k'}</Tex> 個 block 的
         <Tex>{'G_k'}</Tex>（<Tex>{'n'}</Tex> 數 sample、<Tex>{'k'}</Tex> 數 block）。
       </p>
@@ -70,8 +71,16 @@ export function S1Problem() {
         <strong>圖和公式的對應：</strong>紅色那一路就是 <Tex>{String.raw`e_{\mathrm{PD}}[n]=(a-w)\,u[n]+v[n]`}</Tex>；紅色方塊在 code 的頻率上把振幅乘
         <Tex>{'|H|'}</Tex>、相位加 <Tex>{String.raw`\phi`}</Tex>（<Tex>{String.raw`\phi<0`}</Tex> 表示落後）；藍色方塊加上乘法器、平均器就是
         <Tex>{String.raw`G_k=\tfrac1N\sum_{n\in\text{block }k}q[n]\,x[n-D]`}</Tex>。問題就在兩路經過的方塊不一樣：一路有 <Tex>{'H'}</Tex>，另一路沒有。
-        （真實電路裡是 DTC 先產生 <Tex>{'(a-w)\\,x[n]'}</Tex> 的時間誤差、再經過 <Tex>{'H'}</Tex>；因為 <Tex>{'w'}</Tex> 每個 block 才更新一次、每次只動一點點，先乘後濾和先濾後乘幾乎沒有差別，
-        圖上畫成後者是為了直接看到 <Tex>{'u[n]'}</Tex>。）
+      </p>
+      <p>
+        <strong>這張圖在真實電路的哪裡（對照章首的系統地圖）：</strong>DTC 在 reference 輸入端，回授路徑上只有 divider。Fractional-N 的 feedback（divider）edge 比理想時刻早到
+        <Tex>{'a\\,x[n]'}</Tex>；reference 端的 DTC 只能延遲、不能提前，所以它從一個固定的基準延遲 <Tex>{'T_0'}</Tex> 往回扣：
+        <Tex>{String.raw`\tau_{\mathrm{DTC}}[n]=T_0-w\,x[n]`}</Tex>（code <Tex>{'x[n]'}</Tex> 越大，延遲越短），把 reference edge 也提前（少延遲）<Tex>{'w\\,x[n]'}</Tex> 去對齊。<Tex>{'w\\,x[n]'}</Tex> 叫做 DTC 的<strong>補償量</strong>；
+        <Tex>{'T_0'}</Tex> 是常數，被 PLL 當成靜態相位偏移吸收。PD 量的是「DTC 延遲後的 reference edge 減 feedback edge」
+        <Tex>{String.raw`t_{\mathrm{ref}}'-t_{\mathrm{fb}}`}</Tex>：需要 <Tex>{'a\\,x[n]'}</Tex>、實際補 <Tex>{'w\\,x[n]'}</Tex>，如果 PLL 完全不反應，PD 看到的就是
+        <Tex>{'(a-w)\\,x[n]'}</Tex>（補償不足、<Tex>{'w<a'}</Tex> 時 reference edge 還是太晚：<Tex>{'x[n]>0'}</Tex> 時誤差為正，也就是誤差和 <Tex>{'x[n]'}</Tex> 同號）。但 PLL 迴路會跟著修正這個時間誤差，所以 PD 輸出端實際留下的是它經過誤差路徑
+        <Tex>{'H'}</Tex> 之後的 <Tex>{'(a-w)\\,u[n]'}</Tex>。真實電路是先乘 <Tex>{'(a-w)'}</Tex>、再經過 <Tex>{'H'}</Tex>；因為 <Tex>{'w'}</Tex> 每個 block 才更新一次、每次只動一點點，先乘後濾和先濾後乘幾乎沒有差別，
+        圖上畫成後者是為了直接看到 <Tex>{'u[n]'}</Tex>。
       </p>
 
       <Prereq title="期望值（expectation）、時間平均與相關（correlation）">

@@ -38,7 +38,7 @@ export default function Chapter00() {
       <SystemMap focus={SYSTEM_MAP_FOCUS} />
       <p className="ch00-map-note">
         <strong>你在這裡：</strong>藍色的六個方塊就是 LMS 校正迴路本身——拿來相乘的 code <Tex>{'x[n]'}</Tex>（regressor）、乘上目前猜測 <Tex>{'w'}</Tex> 的 gain
-        correction、1-bit comparator、把很多筆乘積加起來的 GMAC、「除以 <Tex>{'N'}</Tex>、乘上 <Tex>{'\\mu'}</Tex>」，以及存放 <Tex>{'w'}</Tex> 的 gain accumulator。
+        correction（它的輸出去控制 reference 端的 DTC）、輸入取自 PD 輸出 <Tex>{'e[n]'}</Tex> 的 1-bit comparator、把很多筆乘積加起來的 GMAC、「除以 <Tex>{'N'}</Tex>、乘上 <Tex>{'\\mu'}</Tex>」，以及存放 <Tex>{'w'}</Tex> 的 gain accumulator。
         這一章先把圖上其餘的部分（PLL 主迴路、DTC、phase detector）縮成一個「黑盒子」<Tex>{'y=ax+v'}</Tex>，只學這條藍色迴路最簡單的版本：
         <strong>預測 → 比較 → 修正</strong>。每個藍色方塊對應到哪一個動作，§0.8 會一格一格對回來。
       </p>

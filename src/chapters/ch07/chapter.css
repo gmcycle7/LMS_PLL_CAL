@@ -139,6 +139,17 @@
   cursor: pointer;
   font-weight: 600;
 }
+/* 手機：收合框左右的框線與留白（每邊 11 px）拿掉，只留上下兩條虛線。這樣展開後的推導和 Engineer／Research 模式一樣寬（375 px 的手機上是 300 px）；
+   留著的話欄位只剩 278 px，有三條公式（7.3 的 PSD 積分、7.4 的 dJ/dw、7.5 的相位差）只比欄位寬 2–5 px，各多出一條沒有用途的橫向捲軸。 */
+@media (max-width: 480px) {
+  .ch07-fold > details {
+    border-left: 0;
+    border-right: 0;
+    border-radius: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
 .ch07-fold-badge {
   display: inline-block;
   padding: 0 6px;
@@ -196,4 +207,11 @@
 }
 .ch07-symbols-title {
   margin: 0 0 6px;
+}
+
+/* 7.4 節的 GMAC 程式碼（S4Gradient.tsx）：最長的一行（gmacUpdate 的函式簽名）在桌機的正文欄（909 px）只比欄位寬 2 px，
+   會多出一條沒有用途的橫向捲軸。把每行右側的留白從 12 px 收成 8 px 就放得下，程式碼一個字都沒有被遮住；
+   視窗較窄（例如手機）、內容真的放不下時照常橫向捲動。 */
+.ch07-code-fit .c-code-line {
+  padding-right: 8px;
 }

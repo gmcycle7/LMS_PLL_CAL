@@ -148,7 +148,7 @@ const ROWS: AssumptionRow[] = [
     needs: '從係數到誤差之間沒有濾波、沒有延遲',
     breaks: (
       <>
-        PLL 裡比較器看到的是經過迴路濾波的 <Tex>{'u=h*x'}</Tex>，更新量變成 <Tex>{'\\propto(a-w)\\,E[x\\,u]'}</Tex>；<Tex>{'E[x\\,u]'}</Tex>{' '}
+        PLL 裡比較器取的是 PD 的輸出，那裡的殘差不再正比於原始的 <Tex>{'x'}</Tex>，而是正比於被 PLL 迴路濾波過的版本 <Tex>{'u=h*x'}</Tex>，更新量變成 <Tex>{'\\propto(a-w)\\,E[x\\,u]'}</Tex>；<Tex>{'E[x\\,u]'}</Tex>{' '}
         可能變小、變 0、甚至變負號——正的 <Tex>{'\\mu'}</Tex> 也會發散（和 Playground 的 <Tex>{'\\mu<0'}</Tex> 是同一種病）
       </>
     ),

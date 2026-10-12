@@ -289,7 +289,7 @@ export function S4Conventions() {
                 why: <>向量時：用更新後的係數重新計算同一筆資料的誤差（a posteriori error），代入更新式即得；這一步是精確的代數。</>,
               },
             ]}
-            result={r`s_{\mathrm{NLMS}}\approx\frac{\tilde\mu}{\epsilon_{\mathrm{reg}}+E\|\mathbf x\|^2}=\frac{\tilde\mu}{\epsilon_{\mathrm{reg}}+\mathrm{tr}\,\mathbf R}`}
+            result={r`\begin{aligned}s_{\mathrm{NLMS}}&\approx\frac{\tilde\mu}{\epsilon_{\mathrm{reg}}+E\|\mathbf x\|^2}\\&=\frac{\tilde\mu}{\epsilon_{\mathrm{reg}}+\mathrm{tr}\,\mathbf R}\end{aligned}`}
           />
         </FormulaAnchor>
       </Fold>

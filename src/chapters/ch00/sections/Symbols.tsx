@@ -23,11 +23,37 @@ export const SYMBOLS: SymbolEntry[] = [
     note: 'PLL 中為 DSM 殘差／DTC code',
   },
   { symbol: 'y,\\ y_n', meaning: '黑盒子的輸出（量測值）', unit: '[y]', firstSeen: '§0.1' },
-  { symbol: 'a', meaning: '黑盒子內部的真實參數（未知）', unit: '[y]/[x]', firstSeen: '§0.1', note: 'PLL 中為真實 DTC gain（fs/code）' },
+  {
+    symbol: 'a',
+    meaning: '黑盒子內部的真實參數（未知）',
+    unit: '[y]/[x]',
+    firstSeen: '§0.1',
+    note: (
+      <>
+        PLL 中為真實 DTC gain（fs/code）：feedback edge 早到 <Tex>{'a\\,x[n]'}</Tex>
+      </>
+    ),
+  },
   { symbol: 'v,\\ v_n', meaning: '量測雜訊，零均值', unit: '[y]', firstSeen: '§0.1' },
-  { symbol: 'w,\\ w_n', meaning: '我們目前的猜測（可調係數 / weight）', unit: '[y]/[x]', firstSeen: '§0.1', note: '硬體上的 gain register' },
+  {
+    symbol: 'w,\\ w_n',
+    meaning: '我們目前的猜測（可調係數 / weight）',
+    unit: '[y]/[x]',
+    firstSeen: '§0.1',
+    note: (
+      <>
+        硬體上的 gain register；PLL 中 <Tex>{'w\\,x'}</Tex> 是 DTC 的補償量
+      </>
+    ),
+  },
   { symbol: '\\hat y_n=w_nx_n', meaning: '預測', unit: '[y]', firstSeen: '§0.1' },
-  { symbol: 'e_n=y_n-\\hat y_n', meaning: '誤差：預測錯多少、往哪錯', unit: '[y]', firstSeen: '§0.1' },
+  {
+    symbol: 'e_n=y_n-\\hat y_n',
+    meaning: '誤差：預測錯多少、往哪錯',
+    unit: '[y]',
+    firstSeen: '§0.1',
+    note: 'PLL 中是 PD 的輸出，也是 LMS 校正迴路（比較器）的輸入',
+  },
   {
     symbol: '\\hat a_{\\mathrm{LS}}',
     meaning: '批次最小平方估計：一次看完全部資料算出的最佳係數',
@@ -191,6 +217,32 @@ export const SYMBOLS: SymbolEntry[] = [
     unit: '\\text{samples}',
     firstSeen: '§0.7',
     note: 'Engineer 模式的推導',
+  },
+  {
+    symbol: 'T_0,\\ \\tau_{\\mathrm{DTC}}[n]',
+    meaning: (
+      <>
+        reference 端 DTC 的固定基準延遲 <Tex>{'T_0'}</Tex>，與第 <Tex>{'n'}</Tex> 個週期實際的延遲 <Tex>{'\\tau_{\\mathrm{DTC}}[n]=T_0-w\\,x[n]'}</Tex>（DTC 只能延遲，所以從 <Tex>{'T_0'}</Tex> 往回扣補償量 <Tex>{'w\\,x[n]'}</Tex>）
+      </>
+    ),
+    unit: '\\mathrm{fs}',
+    firstSeen: '§0.8',
+    note: (
+      <>
+        只有 PLL 例子用到；<Tex>{'T_0'}</Tex> 是常數，被 PLL 當成靜態相位偏移吸收
+      </>
+    ),
+  },
+  {
+    symbol: "t_{\\mathrm{ref}}',\\ t_{\\mathrm{fb}}",
+    meaning: (
+      <>
+        PD 比較的兩條 edge 的時間：經過 DTC 的 reference edge <Tex>{"t_{\\mathrm{ref}}'"}</Tex>、divider 回授來的 feedback edge <Tex>{'t_{\\mathrm{fb}}'}</Tex>；PD 量{' '}
+        <Tex>{"e[n]=t_{\\mathrm{ref}}'[n]-t_{\\mathrm{fb}}[n]"}</Tex>
+      </>
+    ),
+    unit: '\\mathrm{fs}',
+    firstSeen: '§0.8',
   },
   {
     symbol: '\\mathrm{sign}(e),\\ q',

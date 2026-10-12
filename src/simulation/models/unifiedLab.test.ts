@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import katex from 'katex'
 import { createRng, effectiveSampleSize, erf } from '@/simulation/core'
 import { toneFit } from '@/simulation/signal'
 import { DsmStream } from '@/simulation/models/dsm'
@@ -305,6 +306,57 @@ describe('跨級一致性：replay 與 runBlockLms 逐位元相同', () => {
     expect(r.stages.find((s) => s.id === 'register')?.level).toBe('L5')
     expect(r.modelLevel).toBe('L5')
     expect(r.version).toMatch(/^unifiedLab\//)
+  })
+
+  it('架構約定（docs/assumptions.md §2a）：DTC 在 reference 輸入端、殘差在 PD 的 reference 輸入注入（+H_PD、+T）、comparator 取 PD 的輸出', () => {
+    const r = runPipeline({ ...SMALL, codeSource: 'dsm_first_order', frac: 0.01, normalization: 'unit_rms', dither: false })
+    const stage = (id: string) => r.stages.find((s) => s.id === id)!.assumptions.join('\n')
+    // ③ DTC：位置與「補償量」的說法；線性項仍是 (a − w_app)x
+    expect(stage('dtc')).toContain('DTC 在 reference 輸入端')
+    expect(stage('dtc')).toContain('補償量')
+    expect(stage('dtc')).toContain('(a-w_{\\mathrm{app}})\\,x')
+    // ④ PLL error path：注入在 PD 的 reference 輸入，兩個轉移函數都是正號
+    expect(stage('pll')).toContain('PD 的 reference 輸入注入')
+    expect(stage('pll')).toContain('u_{\\mathrm{pd}}=+H_{\\mathrm{PD}}\\{e_{\\mathrm{DTC}}\\}')
+    expect(stage('pll')).toContain('t_{\\mathrm{out}}=+T\\{e_{\\mathrm{DTC}}\\}')
+    // ⑤ Comparator：輸入是 PD 的輸出（送進 loop filter 的同一個訊號）
+    expect(stage('comparator')).toContain('comparator 取的是 PD 的輸出')
+    expect(stage('comparator')).toContain('送進 loop filter 的同一個訊號')
+    expect(r.assumptions.join('\n')).toContain('DTC 在 reference 輸入端，回授路徑只有 divider；comparator 取 PD 的輸出')
+    // 這幾句都會顯示在 Calibration Lab 的每級卡片上：`$...$` 成對，而且每一段都是 KaTeX 能解析的 TeX
+    for (const text of [...r.assumptions, ...r.stages.flatMap((st) => st.assumptions)]) {
+      expect((text.match(/(?<!\\)\$/g) ?? []).length % 2, text).toBe(0)
+      for (const m of text.matchAll(/(?<!\\)\$((?:[^$\\]|\\.)+?)(?<!\\)\$/g)) expect(() => katex.renderToString(m[1], { throwOnError: true, strict: 'ignore' }), m[1]).not.toThrow()
+    }
+    // 舊接法的說法不能再出現
+    const all = [...r.assumptions, ...r.stages.flatMap((s) => [...s.assumptions, ...s.metrics.map((m) => `${m.name} ${m.note ?? ''}`)])].join('\n')
+    expect(all).not.toMatch(/比較端|divider 之後|插入延遲|插入的延遲/)
+    expect(all).not.toMatch(/(feedback|回授) ?側/)
+    // 文字寫的正號就是模型算的：u_pd = +H_PD{e_DTC}、t_out = +T{e_DTC}，H_PD + T = 1 ⇒ 相加回到 e_DTC
+    const s = r.snippet!
+    for (let i = 0; i < s.n.length; i += 5) expect(s.uPd[i] + s.tOut[i]).toBeCloseTo(s.eDtc[i], 8)
+    // 這個模型的 x 是正規化後的 residue r（未置中的一階 DSM：x ≤ 0），和 §2a 的 x = s/M = −r 差一個負號（檔頭有說明）
+    expect(Math.max(...s.x)).toBeLessThanOrEqual(0)
+    // 忽略主 PLL 的教學基準（H_PD = T = 1）：文字不寫 T = 1 − H_PD，PD 與輸出都直接看到 e_DTC
+    const none = runPipeline({ ...SMALL, pll: 'none' })
+    const nonePll = none.stages.find((st) => st.id === 'pll')!.assumptions.join('\n')
+    expect(nonePll).toContain('PD 的 reference 輸入注入')
+    expect(nonePll).toContain('u_{\\mathrm{pd}}=+e_{\\mathrm{DTC}}')
+    expect(nonePll).not.toContain('T=1-H_{\\mathrm{PD}}')
+    // 整份報告最上面的假設清單也一樣：有主 PLL 時寫 T = 1 − H_PD；教學基準（H_PD = T = 1）不能再寫這一句（1 ≠ 1 − 1）
+    expect(DEFAULT_LAB_PARAMS.pll).not.toBe('none')
+    expect(r.assumptions.join('\n')).toContain('$T=1-H_{\\mathrm{PD}}$（線性、時不變）')
+    expect(none.assumptions.join('\n')).not.toContain('T=1-H_{\\mathrm{PD}}')
+    expect(none.assumptions.join('\n')).toContain('這個基準不滿足 $H_{\\mathrm{PD}}+T=1$')
+    for (const text of [...none.assumptions, ...none.stages.flatMap((st) => st.assumptions)]) {
+      expect((text.match(/(?<!\\)\$/g) ?? []).length % 2, text).toBe(0)
+      for (const m of text.matchAll(/(?<!\\)\$((?:[^$\\]|\\.)+?)(?<!\\)\$/g)) expect(() => katex.renderToString(m[1], { throwOnError: true, strict: 'ignore' }), m[1]).not.toThrow()
+    }
+    const sn = none.snippet!
+    for (let i = 0; i < sn.n.length; i += 5) {
+      expect(sn.uPd[i]).toBe(sn.eDtc[i])
+      expect(sn.tOut[i]).toBe(sn.eDtc[i])
+    }
   })
 })
 

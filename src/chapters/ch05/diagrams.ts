@@ -25,7 +25,7 @@ import type { SystemBlock } from '@/components'
  *   階段多的流程與判斷樹（路線圖、先算一次、設計流程、決策、硬體路徑、AR(1) 產生器、判號式 block 迴路…）改成直式（TB）；
  *   兩條平行的路（累加路徑、Monte Carlo 與解析）也用 TB 讓兩條路上下並行、在底部會合。
  * - Mermaid（dagre）的排版會受「節點與連線的宣告順序」影響：連線要不要交叉、回授線走哪一邊，都取決於順序。
- *   `hwMap`（regressor 的兩條虛線先宣告，才會分別走左右兩側、不和 w_k 回授線交叉）、`handcalcFlow`、`lastSample`
+ *   `hwMap`（regressor 分成兩個節點、jitter 先於 DTC 宣告，才不會有任何一條線穿過 w_k 的回授線，而且訊號由上往下流）、`handcalcFlow`、`lastSample`
  *   的順序是挑過的（用 `node scripts/diagram-audit.mjs` 與截圖確認沒有連線交叉）；改動這幾張圖時請重新看一次排版。
  *   `qStats` 的兩個分支各連到兩個目的地（K2,2），在兩層的排版裡一定會交叉一次，無法避免。
  * - subgraph 的標題不要放公式（共用主題的 `.cluster-label span` 對每一層巢狀的 <span> 都縮一次字，KaTeX 裡的公式會縮到看不見），
@@ -386,22 +386,49 @@ export const CHART_METHOD_CHOICE = String.raw`flowchart TB
   class EX ok
   class CLT,CC focus`
 
-/** §9：本章符號對應的硬體路徑（sample n 的 comparator 與 block k 的更新）。 */
+/**
+ * §9：本章符號對應的硬體路徑（sample n 的 comparator 與 block k 的更新）。
+ *
+ * 架構依全站約定（docs/assumptions.md §2a）：
+ *  - DTC 在 reference 的輸入端（Reference clock → DTC → PD），回授路徑上只有 divider / PMUX（VCO → divider → PD）。
+ *    DTC 只能延遲，所以它的延遲是從基準 T_0 往回扣補償量：τ_DTC[n] = T_0 − w_k·x[n]；feedback edge 則比理想時刻早到 a·x[n]。
+ *    PD 量的是 e[n] = t_ref′ − t_fb = (a − w_k)·x[n] + v[n] = s + v[n]（和原來的式子一樣，只有「哪一條 edge 被延遲」的說法不同）。
+ *    圖上進 PD 的三條線各寫它在 e[n] 裡的那一項（正負號在公式裡）：− w_k·x[n]（DTC 的補償量：reference 少延遲）、＋ a·x[n]（feedback edge 早到）、
+ *    ＋ v[n]（jitter）；三項加起來就是 PD 方塊裡的 e[n] = s + v[n]、s = (a − w_k)·x[n]。正負號寫在前面、說明放在括號裡，
+ *    才不會被讀成「提前了 −w_k·x[n]」。
+ *  - LMS 校正迴路的輸入是 PD 的輸出 e[n]：PD 的輸出畫成一個節點（EO），從這個節點一路送進 loop filter（主迴路）、一路分接給 1-bit comparator（虛線）
+ *    ——同一個節點、同一個訊號，不是從 DTC、divider 或 PD 以外的地方拉出來（Ch04 的概念圖也是這樣畫）。
+ *  - regressor 畫成兩個同名的節點（X 進 DTC 的 code、XG 進 GMAC）：只畫一個節點、拉兩條虛線的話，其中一條一定要穿過 w_k 的回授線
+ *    （或讓整張圖上下顛倒），分成兩個節點就沒有任何交叉，而且訊號由上往下流。
+ * 版面：節點與連線的宣告順序是挑過的（Mermaid 的 dagre 依宣告順序決定哪一條線「往回走」與左右位置）：
+ *   reference → DTC → PD → PD 輸出在上面，comparator → … → accumulator 的鏈在左、loop filter / divider 的小迴圈在右，w_k 沿著最右邊回到 DTC；沒有任何交叉
+ *   （截圖確認過；jitter 要在 DTC 之前宣告，不然 w_k 那條線會穿過 jitter → PD）。改動時請重新看一次排版。
+ */
 export const CHART_HW_MAP = String.raw`flowchart TB
   X(["regressor $x[n]$<br/>本章固定 $x \equiv 1$"])
-  DTC["DTC gain 誤差在 PD 處<br/>造成的時間誤差<br/>$s = (a - w_k) \cdot x[n]$"]
+  XG(["regressor $x[n]$<br/>（同一個訊號）"])
+  REF["Reference clock"]
   JIT(["jitter、量化殘差<br/>$v[n]$，RMS $\sigma_v$"])
-  ADD(("＋"))
-  BB["BBPD（1-bit TDC）<br/>offset $\theta$"]
+  DTC["reference 端 DTC<br/>$\tau_{\mathrm{DTC}} = T_0 - w_k \cdot x[n]$"]
+  PD["Phase detector（PD）<br/>$e[n] = t_{\mathrm{ref}}' - t_{\mathrm{fb}} = s + v[n]$<br/>$s = (a - w_k) \cdot x[n]$"]
+  EO(["PD 輸出 $e[n]$"])
+  BB["1-bit comparator（BBPD）<br/>取 $e[n]$ 的正負號<br/>offset $\theta$"]
+  LF["Loop filter → VCO / DCO<br/>（主 PLL 迴路）"]
+  DIV["Divider / PMUX<br/>（回授路徑）"]
   MAP["映射 $q = 2b - 1$"]
   GM["GMAC 累加器<br/>$S_N = \sum q[n] \cdot x[n]$<br/>$N$ 個 sample"]
   SCL["$\div N$、$\times \mu$<br/>$G_k = S_N / N$"]
   ACC["Gain accumulator<br/>$w_{k+1} = w_k + \mu \cdot G_k$"]
-  X -. "乘在誤差上" .-> DTC
-  X -. "乘在 $q[n]$ 上" .-> GM
-  JIT -- "$+ v[n]$" --> ADD
-  DTC -- "$+ s$" --> ADD
-  ADD -- "$e[n] = s + v[n]$" --> BB
+  JIT -- "$+ v[n]$" --> PD
+  X -. "code $x[n]$，乘 $w_k$ 後<br/>控制 DTC" .-> DTC
+  XG -. "乘在 $q[n]$ 上" .-> GM
+  REF --> DTC
+  DTC -- "$- w_k \cdot x[n]$<br/>（DTC 補償量：reference 少延遲）" --> PD
+  PD --> EO
+  EO -. "分接同一個 $e[n]$<br/>給 LMS 校正迴路" .-> BB
+  EO -- "送進 loop filter" --> LF
+  LF -- "VCO 輸出" --> DIV
+  DIV -- "$+ a \cdot x[n]$<br/>（feedback edge 早到）" --> PD
   BB -- "位元 $b[n] \in \{0, 1\}$" --> MAP
   MAP -- "$q[n] = \pm 1$，每個 sample $n$" --> GM
   GM -- "每個 block $k$" --> SCL
@@ -708,8 +735,8 @@ const DEFS: Omit<DiagramDef, 'no'>[] = [
     key: 'hwMap',
     section: '§9',
     chart: CHART_HW_MAP,
-    caption: '本章符號在硬體上的位置：藍色三格是本章分析的部分；注意哪些線每個 sample $n$ 動一次、哪些每個 block $k$ 才動一次；虛線是 regressor $x[n]$。',
-    alt: 'DTC gain 誤差加上 jitter 進入 BBPD，位元映射成 q，GMAC 累加 N 個樣本，除以 N、乘 μ、進入 gain accumulator，再回到 DTC；regressor x[n] 以虛線同時進入誤差與 GMAC',
+    caption: '本章符號在硬體上的位置：reference 端的 DTC 與回授路徑的 divider 在 PD 相遇，藍色三格接在 PD 的輸出 $e[n]$ 上。注意哪些線每個 sample $n$ 動一次、哪些每個 block $k$ 才動一次；虛線是 regressor $x[n]$ 與分接給校正迴路的 $e[n]$。',
+    alt: 'Reference clock 經 DTC 進 PD，回授路徑的 divider 把 feedback edge 也送進 PD；PD 的輸出 e[n]（含 jitter）一路送 loop filter，一路分接給 1-bit comparator；位元映射成 q，GMAC 累加 N 個樣本，除以 N、乘 μ、進入 gain accumulator，w_k 再回到 reference 端的 DTC；regressor x[n] 以虛線進入 DTC 的 code 與 GMAC',
     isNew: true,
   },
   {

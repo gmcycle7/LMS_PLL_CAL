@@ -20,6 +20,23 @@ const vp = args.viewport === 'mobile' ? { width: 375, height: 812, deviceScaleFa
 const mode = args.mode ?? 'research'
 const chrome = args.chrome ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 
+/**
+ * 開發伺服器在別人改檔時會讓頁面整頁重新載入，量到一半的 evaluate 會丟出
+ * 「Execution context was destroyed」。遇到這類暫時性錯誤就整頁重來。
+ */
+async function withRetry(label, fn, tries = 5) {
+  for (let i = 1; ; i++) {
+    try {
+      return await fn()
+    } catch (e) {
+      const transient = /Execution context was destroyed|detached Frame|Target closed|Cannot find context|Session closed|Navigating frame was detached/i.test(String(e))
+      if (!transient || i >= tries) throw e
+      console.error(`（${label}：頁面在途中被重新載入，重試第 ${i} 次）`)
+      await new Promise((r) => setTimeout(r, 2000))
+    }
+  }
+}
+
 const profileDir = join(tmpdir(), `lmspll-audit-${process.pid}`)
 const browser = await puppeteer.launch({
   executablePath: chrome,
@@ -31,46 +48,51 @@ const all = []
 try {
   for (const route of routes) {
     // 每一頁開新分頁：HashRouter 換 hash 不會重新載入，舊頁的圖會被誤算進來
-    const page = await browser.newPage()
-    await page.setViewport(vp)
-    await page.evaluateOnNewDocument((m) => localStorage.setItem('lmspll.mode', m), mode)
-    await page.goto(`${base}/#${route}`, { waitUntil: 'networkidle2', timeout: 120000 })
-    await page.waitForSelector('article.page', { timeout: 60000 })
-    const rows = await page.evaluate(async () => {
-      const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-      document.querySelectorAll('details').forEach((d) => (d.open = true))
-      await sleep(300)
-      const figs = [...document.querySelectorAll('figure.c-mermaid')]
-      const out = []
-      for (let i = 0; i < figs.length; i++) {
-        const f = figs[i]
-        f.scrollIntoView({ block: 'center' })
-        for (let t = 0; t < 120 && !f.querySelector('.c-mermaid-svg svg') && !f.querySelector('.c-mermaid-error'); t++) await sleep(100)
-        await sleep(60)
-        const svg = f.querySelector('.c-mermaid-svg svg')
-        const box = f.querySelector('.c-mermaid-svg')
-        const cap = f.querySelector('figcaption')?.cloneNode(true)
-        cap?.querySelectorAll('.katex-mathml').forEach((n) => n.remove())
-        const caption = (cap?.textContent ?? '').slice(0, 40)
-        if (!svg || !box) {
-          out.push({ i: i + 1, caption, error: (f.querySelector('.c-mermaid-error')?.textContent ?? 'not rendered').slice(0, 120) })
-          continue
-        }
-        const vb = svg.viewBox.baseVal
-        const shown = svg.getBoundingClientRect().width
-        out.push({
-          i: i + 1,
-          caption,
-          natural: `${Math.round(vb.width)}x${Math.round(vb.height)}`,
-          scale: Number((shown / vb.width).toFixed(2)),
-          overflow: Math.max(0, Math.round(box.scrollWidth - box.clientWidth)),
-          unsupported: /Unsupported markdown/.test(svg.textContent ?? ''),
+    const rows = await withRetry(route, async () => {
+      const page = await browser.newPage()
+      await page.setViewport(vp)
+      await page.evaluateOnNewDocument((m) => localStorage.setItem('lmspll.mode', m), mode)
+      await page.goto(`${base}/#${route}`, { waitUntil: 'networkidle2', timeout: 120000 })
+      await page.waitForSelector('article.page', { timeout: 60000 })
+      try {
+        return await page.evaluate(async () => {
+          const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+          document.querySelectorAll('details').forEach((d) => (d.open = true))
+          await sleep(300)
+          const figs = [...document.querySelectorAll('figure.c-mermaid')]
+          const out = []
+          for (let i = 0; i < figs.length; i++) {
+            const f = figs[i]
+            f.scrollIntoView({ block: 'center' })
+            for (let t = 0; t < 120 && !f.querySelector('.c-mermaid-svg svg') && !f.querySelector('.c-mermaid-error'); t++) await sleep(100)
+            await sleep(60)
+            const svg = f.querySelector('.c-mermaid-svg svg')
+            const box = f.querySelector('.c-mermaid-svg')
+            const cap = f.querySelector('figcaption')?.cloneNode(true)
+            cap?.querySelectorAll('.katex-mathml').forEach((n) => n.remove())
+            const caption = (cap?.textContent ?? '').slice(0, 40)
+            if (!svg || !box) {
+              out.push({ i: i + 1, caption, error: (f.querySelector('.c-mermaid-error')?.textContent ?? 'not rendered').slice(0, 120) })
+              continue
+            }
+            const vb = svg.viewBox.baseVal
+            const shown = svg.getBoundingClientRect().width
+            out.push({
+              i: i + 1,
+              caption,
+              natural: `${Math.round(vb.width)}x${Math.round(vb.height)}`,
+              scale: Number((shown / vb.width).toFixed(2)),
+              overflow: Math.max(0, Math.round(box.scrollWidth - box.clientWidth)),
+              unsupported: /Unsupported markdown/.test(svg.textContent ?? ''),
+            })
+          }
+          return out
         })
+      } finally {
+        await page.close().catch(() => undefined)
       }
-      return out
     })
     for (const r of rows) all.push({ route, ...r })
-    await page.close()
     console.log(`\n${route}（${rows.length} 張）`)
     for (const r of rows) {
       const flag = r.error ? `ERROR ${r.error}` : `${r.natural}  ×${r.scale}${r.overflow ? (args.viewport === 'mobile' ? `  框內橫向捲動 ${r.overflow}px（手機上是預期行為）` : `  超出 ${r.overflow}px`) : ''}${r.unsupported ? '  UNSUPPORTED-MARKDOWN' : ''}`

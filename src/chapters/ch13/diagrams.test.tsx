@@ -69,6 +69,8 @@ interface Edge {
   start: string
   end: string
   text?: string
+  /** 'normal'（實線）／'dotted'（虛線）／'thick' */
+  stroke?: string
 }
 
 /** 用真正的 mermaid parser 取出 flowchart 的節點與邊。 */
@@ -402,6 +404,146 @@ describe('Ch13 方塊圖與公式一致：加法點 / 乘法點 / 延遲', () =>
       expect(edges.filter((e) => e.end === 'Q').map((e) => e.start), name).toEqual([src])
       expect(edges.filter((e) => e.start === 'Q').map((e) => e.end).sort(), name).toEqual(['A2', 'OUT'])
     }
+  })
+})
+
+describe('Ch13 架構（docs/assumptions.md §2a）：DTC 在 reference 輸入端、LMS 校正迴路的輸入是 PD 的輸出', () => {
+  const into = (edges: Edge[], id: string) => edges.filter((e) => e.end === id).map((e) => e.start).sort()
+  const outOf = (edges: Edge[], id: string) => edges.filter((e) => e.start === id).map((e) => e.end).sort()
+  const textOf = (vertices: Map<string, Vertex>, id: string) => vertices.get(id)?.text ?? ''
+
+  /** 兩張畫了 DTC 的 PLL 路徑圖：節點代號相同（REF、DTC、PD、DIV、LF、CMP），差別只在 DTC 之前與 comparator 之後接什麼。 */
+  const PLL_CHARTS = [
+    { name: 'CHART_SIGNAL_FLOW', dtcInputs: ['GC', 'REF'], cmpTo: 'G' },
+    { name: 'CHART_HARDWARE_MAP', dtcInputs: ['DSM', 'REF', 'REG'], cmpTo: 'LMS' },
+  ]
+
+  it.each(PLL_CHARTS)('$name：Reference clock → DTC → PD → loop filter → VCO；回授是 VCO → divider → PD（閉合的一圈，路上只有 divider）；DTC 不在回授路徑上', async ({ name, dtcInputs }) => {
+    const { vertices, edges } = await flow(byName(name))
+    // 訊號路徑
+    expect(edges.some((e) => e.start === 'REF' && e.end === 'DTC'), `${name}: REF → DTC`).toBe(true)
+    expect(edges.some((e) => e.start === 'DTC' && e.end === 'PD'), `${name}: DTC → PD`).toBe(true)
+    expect(edges.some((e) => e.start === 'PD' && e.end === 'LF'), `${name}: PD → LF`).toBe(true)
+    expect(textOf(vertices, 'REF')).toContain('Reference clock')
+    // REF 不直接進 PD（DTC 存在時，reference 一定先經過它）
+    expect(outOf(edges, 'REF'), `${name}: REF 只連到 DTC`).toEqual(['DTC'])
+    // DTC 的輸入：reference，加上 gain correction（或 gain register 與 DSM residue）；沒有 divider、PD 或 comparator
+    expect(into(edges, 'DTC'), `${name}: DTC 的輸入`).toEqual(dtcInputs)
+    // 回授路徑是閉合的：loop filter / VCO 的輸出只經 divider 回到 PD；沒有 DIV → DTC，也沒有 DTC → DIV
+    expect(outOf(edges, 'DIV'), `${name}: DIV 只連到 PD`).toEqual(['PD'])
+    expect(into(edges, 'DIV'), `${name}: divider 的唯一輸入是 VCO 的輸出（回授路徑上沒有 DTC）`).toEqual(['LF'])
+    expect(outOf(edges, 'LF'), `${name}: VCO 的輸出只回到 divider`).toEqual(['DIV'])
+    expect(edges.find((e) => e.start === 'LF' && e.end === 'DIV')!.text, name).toContain('VCO 輸出')
+    expect(textOf(vertices, 'LF'), name).toMatch(/Loop filter.*VCO/)
+    expect(into(edges, 'PD'), `${name}: PD 的兩個輸入就是 reference 端的 DTC 與回授端的 divider`).toEqual(['DIV', 'DTC'])
+    // 主迴路上的線都是實線；圖上唯一的虛線是「DTC 的殘餘誤差經 T(f) 到輸出」的簡寫（不是實體的線），而且輸出方塊沒有別的輸入
+    for (const [a, b] of [['REF', 'DTC'], ['DTC', 'PD'], ['PD', 'LF'], ['LF', 'DIV'], ['DIV', 'PD'], ['PD', 'CMP']]) expect(edges.find((e) => e.start === a && e.end === b)!.stroke, `${name}: ${a} → ${b} 是實線`).toBe('normal')
+    expect(edges.filter((e) => e.stroke === 'dotted').map((e) => `${e.start}->${e.end}`), `${name}: 虛線`).toEqual(['DTC->OUT'])
+    expect(into(edges, 'OUT'), name).toEqual(['DTC'])
+    // DTC 的延遲是從基準延遲 T_0 往回扣補償量，不是「插入延遲」
+    expect(textOf(vertices, 'DTC')).toContain('reference 端')
+    expect(textOf(vertices, 'DTC')).toContain(String.raw`T_0 - \Delta_{\mathrm{LSB}} \cdot y \cdot x[n]`)
+    expect(textOf(vertices, 'DIV')).toContain('Divider / PMUX')
+    expect(textOf(vertices, 'DIV')).toContain('回授路徑上只有它')
+  })
+
+  it.each(PLL_CHARTS)('$name：敘述順序決定排版——PD → comparator 寫在 PD → loop filter 之前、虛線寫在回授之後，三條回頭的線（校正迴路、回授、虛線）才不會交叉', async ({ name }) => {
+    // 排版本身只能在瀏覽器裡看（scripts/screenshots.mjs --shots all-mermaid）；這裡釘住會讓線交叉的兩個順序：
+    // 順序反過來時 comparator 排到右邊，回授線（DIV → PD）會和校正迴路往上的線交叉；虛線寫在 DTC → PD 之前時，輸出方塊排到最左邊，虛線會和校正迴路的線交叉。
+    const { edges } = await flow(byName(name))
+    const at = (a: string, b: string) => edges.findIndex((e) => e.start === a && e.end === b)
+    for (const [a, b] of [['PD', 'CMP'], ['PD', 'LF'], ['LF', 'DIV'], ['DIV', 'PD'], ['DTC', 'OUT'], ['DTC', 'PD']]) expect(at(a, b), `${name}: ${a} → ${b}`).toBeGreaterThanOrEqual(0)
+    expect(at('PD', 'CMP'), name).toBeLessThan(at('PD', 'LF'))
+    expect(at('DTC', 'PD'), name).toBeLessThan(at('PD', 'CMP'))
+    expect(at('DIV', 'PD'), name).toBeLessThan(at('DTC', 'OUT'))
+  })
+
+  it.each(PLL_CHARTS)('$name：校正迴路的輸入取自 PD 的輸出：comparator 的唯一輸入是 PD，與送進 loop filter 的是同一個 e_PD；不從 DTC 或 divider 拉線', async ({ name, cmpTo }) => {
+    const { vertices, edges } = await flow(byName(name))
+    expect(into(edges, 'CMP'), `${name}: comparator 的輸入`).toEqual(['PD'])
+    expect(into(edges, 'LF'), `${name}: loop filter 的輸入`).toEqual(['PD'])
+    const toCmp = edges.find((e) => e.start === 'PD' && e.end === 'CMP')!
+    const toLf = edges.find((e) => e.start === 'PD' && e.end === 'LF')!
+    expect(toCmp.text, name).toContain(String.raw`e_{\mathrm{PD}}[n]`)
+    expect(toLf.text, name).toContain(String.raw`e_{\mathrm{PD}}[n]`)
+    expect(toCmp.text, name).toContain('PD 的輸出')
+    expect(outOf(edges, 'CMP'), `${name}: comparator 的輸出回到 GMAC / LMS`).toEqual([cmpTo])
+    // DTC 與 divider 都沒有連到 comparator；舊的合併節點「PD / comparator」不存在
+    for (const src of ['DTC', 'DIV']) expect(outOf(edges, src), `${name}: ${src} 不連到 comparator`).not.toContain('CMP')
+    expect([...vertices.values()].map((v) => v.text ?? '').filter((t) => /PD \/ comparator/.test(t)), name).toEqual([])
+    expect(textOf(vertices, 'CMP')).toContain('comparator')
+  })
+
+  it('所有 Mermaid 圖：沒有 divider → DTC 或 DTC → divider 的邊（DTC 只在 reference 路徑上）；有 comparator 的圖，comparator 只吃 PD', async () => {
+    for (const d of DIAGRAMS.filter((x) => x.kind === 'flowchart')) {
+      const { vertices, edges } = await flow(d.chart)
+      const isDtc = (id: string) => /\bDTC\b/.test(textOf(vertices, id)) && !/domain/.test(textOf(vertices, id))
+      const isDiv = (id: string) => /Divider|divider|PMUX/.test(textOf(vertices, id))
+      for (const e of edges) {
+        expect(isDiv(e.start) && isDtc(e.end), `${d.name}: ${e.start} → ${e.end}（divider → DTC）`).toBe(false)
+        expect(isDtc(e.start) && isDiv(e.end), `${d.name}: ${e.start} → ${e.end}（DTC → divider）`).toBe(false)
+      }
+      const cmp = [...vertices.entries()].filter(([, v]) => /1-bit comparator/.test(v.text ?? '')).map(([id]) => id)
+      for (const id of cmp) {
+        const srcs = into(edges, id).map((s) => textOf(vertices, s))
+        expect(srcs.length, `${d.name}: comparator 要有輸入`).toBeGreaterThan(0)
+        for (const t of srcs) expect(t, `${d.name}: comparator 的輸入必須是 PD`).toMatch(/Phase detector/)
+      }
+    }
+  })
+
+  it('章內沒有殘留舊接法的說法（DTC 延遲 / 插入延遲 / 推回 / DTC 注入 / PD / comparator 合併 / 回授側注入）；原始碼與頁面文字都一樣', () => {
+    const files = ['diagrams.ts', 'formulas.ts', 'handcalcs.ts', 'index.tsx', 'common.tsx', ...readdirSync(join(DIR, 'sections')).map((f) => `sections/${f}`), ...readdirSync(join(DIR, 'experiments')).map((f) => `experiments/${f}`)]
+    const LEGACY = /DTC delay|DTC 延遲|DTC 插入|插入延遲|推回|DTC 注入|注入的 timing|PD \/ comparator|回授側|feedback 側|divider 之後|經過 DTC|e_\{?\\mathrm\{PD\}\}?\s*=\s*-|theta_\{?\\mathrm\{out\}\}?\s*=\s*-T/
+    for (const f of files) {
+      if (!/\.(ts|tsx)$/.test(f) || /\.test\./.test(f)) continue
+      expect(read(f), `${f} 還有舊接法的說法`).not.toMatch(LEGACY)
+    }
+  })
+
+  it('章首「訊號流」一節：說明 reference 端的 DTC（從 T_0 往回扣補償量）、PD 量 reference edge 減 feedback edge，以及「comparator 取的是 PD 的輸出」', () => {
+    localStorage.setItem('lmspll.mode', 'engineer')
+    const { container, unmount } = render(
+      <MemoryRouter>
+        <SettingsProvider>
+          <Intro />
+        </SettingsProvider>
+      </MemoryRouter>,
+    )
+    const sec = container.querySelector('#ch13-diagram') as HTMLElement
+    const text = (sec.textContent ?? '').replace(/\u00a0/g, ' ')
+    for (const phrase of ['reference 端的 DTC', 'comparator 取的是 PD 的輸出', '送進 loop filter 的同一個訊號', '補償量', '回授路徑上只有 divider', '只能延遲、不能提前', '基準延遲']) expect(text, phrase).toContain(phrase)
+    // 公式：PD 量的是（延遲後的）reference edge 減 feedback edge；第三行把它接到本章的 δt（多補償為正，所以 PD 看到 −δt）
+    expect(text).toContain(String.raw`\begin{aligned}e_\mathrm{PD}[n]&=t_\mathrm{ref}'[n]-t_\mathrm{fb}[n]\\&=(a-w)\,x[n]+v[n]\\&=-\delta t[n]+v[n]\end{aligned}`)
+    expect(text).toContain(String.raw`(a-w)\,x=-\Delta_\mathrm{LSB}\,(y-w^*)\,x=-\delta t`)
+    expect(text).toContain(String.raw`a=\Delta_\mathrm{LSB}\,w^*`)
+    expect(text).toContain(String.raw`w=\Delta_\mathrm{LSB}\,y`)
+    expect(text).toContain(String.raw`T_0-\Delta_\mathrm{LSB}\cdot y\cdot x[n]`)
+    // 線性化 PLL：殘餘誤差在 PD 的 reference 輸入注入，θ_out = +T·φ_dtc；φ_dtc 是 −δt 換成相位（晚到為正，和第 12 章相同）
+    expect(text).toContain(String.raw`\theta_\mathrm{out}=T\,\phi_\mathrm{dtc}`)
+    expect(text).toContain(String.raw`\phi_\mathrm{dtc}=-2\pi f_\mathrm{out}\,\delta t`)
+    for (const phrase of ['多補償', '以多補償為正', '扣得太多，reference edge 比該到的時刻早', 'PD 量的是 reference 減 feedback，所以看到', '相位以 edge 晚到為正', '從 PD 的 reference 輸入進去', '虛線是簡寫，不是一條實體的線']) expect(text, phrase).toContain(phrase)
+    // 敘述的順序：先說 DTC 只能延遲（從 T_0 往回扣），之後才出現「reference edge 比該到的時刻早」——不會讓人以為 DTC 能把 edge 提前
+    expect(text.indexOf('只能延遲、不能提前')).toBeGreaterThan(0)
+    expect(text.indexOf('只能延遲、不能提前')).toBeLessThan(text.indexOf('比該到的時刻早'))
+    // LMS 更新的正負號不變：w ← w + μ·q·x，補償不足時往上推
+    expect(text).toContain(String.raw`w\leftarrow w+\mu\,q\,x`)
+    expect(text).toContain('補償不足時')
+    // δt 沒有正負號的舊說法（「reference edge 上殘留的 timing error」）與「φ_dtc 是 δt 換成相位」（差一個負號）都不能留
+    expect(text).not.toMatch(/殘留的 timing error|是 \\delta t ?換成相位/)
+    // 方位詞跟著現在的排版：主迴路在 PD 的下面、校正迴路的線在圖的左邊
+    for (const phrase of ['PD 下面那一圈是主 PLL 迴路', '圖左邊往上的那條線']) expect(text, phrase).toContain(phrase)
+    expect(text).not.toMatch(/DTC 方塊裡的延遲|圖右邊往上|再看右下角/)
+    // aria-label 與圖說跟著圖走
+    const figs = Array.from(container.querySelectorAll('figure.c-mermaid'))
+    const flowFig = figs[1]
+    expect(flowFig.getAttribute('aria-label')).toContain('reference 端的 DTC')
+    expect(flowFig.getAttribute('aria-label')).toContain('PD 的輸出同時送給 loop filter 與 1-bit comparator')
+    expect(flowFig.getAttribute('aria-label')).toContain('只經 divider 回到 PD')
+    expect(flowFig.querySelector('figcaption')?.textContent).toContain('reference 端的 DTC')
+    expect(flowFig.querySelector('figcaption')?.textContent).toContain('從下面繞回來的是回授路徑的 divider')
+    unmount()
+    localStorage.clear()
   })
 })
 

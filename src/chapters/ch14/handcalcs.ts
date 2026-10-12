@@ -333,7 +333,8 @@ export const HANDCALCS: HandCalcDef[] = [
             tex: String.raw`\sigma_{w,${tag}}^2=\frac{\mu_${tag}\,\sigma_\eta^2}{K(2-g_${tag})}=\frac{${n6p(mu)}\times${n6p(s2)}}{${n6p(K)}\times(2-${n1(g)})}=\frac{${n6(mu * s2)}}{${n6p(K)}\times${n6p(2 - g)}}=\frac{${n6(mu * s2)}}{${n6(K * (2 - g))}}=${n6(v)}\ \mathrm{fs^2}`,
             why: String.raw`穩態係數雜訊功率（F-14.6）。照順序：分子一次乘法；分母先算 $2-g$、再乘 $K$；最後一次除法。`,
           },
-          { tex: String.raw`\sigma_{w,${tag}}=\sqrt{${n6(v)}}=${n6(sw)}\ \mathrm{fs}`, why: '開根號得 RMS。' },
+          // 拆成兩行：單行在 375 px 的手機上只超出 2 px，會多一條沒有用途的捲軸；單位留在式子裡
+          { tex: String.raw`\begin{aligned}\sigma_{w,${tag}}&=\sqrt{${n6(v)}}\\&=${n6(sw)}\ \mathrm{fs}\end{aligned}`, why: '開根號得 RMS。' },
         ]
         return { g, p, tau, v, sw, steps }
       }
@@ -492,7 +493,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: String.raw`大 $B$ 封閉式：最佳 $\mu^*$ 與做得到的 RMS（順便驗證「只看 $T$」）`,
     page: PAGE,
     formulaId: 'F-14.8',
-    formulaTex: String.raw`A=\frac{4BK^2\delta_0^2}{\sigma_\eta^2}=4TK^2\delta_0^2,\qquad \mu^*\approx\frac{\ln A}{2BK},\qquad E[\delta_B^2]^*\approx\frac{\sigma_\eta^2(1+\ln A)}{4BK^2}=\frac{1+\ln A}{4TK^2}\qquad\Big(B=\frac TN,\ \sigma_\eta^2=\frac1N\Big)`,
+    formulaTex: String.raw`\begin{aligned}A&=\frac{4BK^2\delta_0^2}{\sigma_\eta^2}=4TK^2\delta_0^2,\qquad \mu^*\approx\frac{\ln A}{2BK}\\ E[\delta_B^2]^*&\approx\frac{\sigma_\eta^2(1+\ln A)}{4BK^2}=\frac{1+\ln A}{4TK^2}\qquad\Big(B=\frac TN,\ \sigma_\eta^2=\frac1N\Big)\end{aligned}`,
     level: 'engineer',
     claim: 'approx',
     inputs: [

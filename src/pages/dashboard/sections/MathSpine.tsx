@@ -90,8 +90,8 @@ export const MathSpine = memo(function MathSpine() {
       <h3 className="dash-h3">先看圖：校正迴路與六個條件的位置</h3>
       <Mermaid
         chart={CONDITION_MAP_CHART}
-        ariaLabel="校正迴路方塊圖：DSM code 經 DTC、PLL error path、1-bit comparator、GMAC、係數更新回到 DTC；六個條件分別標在 DSM、PLL error path、係數更新、comparator、DTC 與 PLL 輸出"
-        caption="實線是訊號流（一圈就是一次校正更新），虛線把每個條件（圓角膠囊）接到它主要取決的那一塊。下面的方程式只是把這張圖寫成數學。"
+        ariaLabel="校正迴路方塊圖：DSM code 經 reference 端的 DTC、PLL error path 到 PD 的輸出，1-bit comparator 取 PD 輸出的正負號，再經 GMAC、係數更新回到 DTC；六個條件分別標在 DSM、PLL error path、係數更新、comparator、DTC 與 PLL 輸出"
+        caption="實線是訊號流（一圈就是一次校正更新），虛線把每個條件（圓角膠囊）接到它主要取決的那一塊。DTC 在 reference 的輸入端，給的是補償量 $w\cdot x$；comparator 取的是 PD 的輸出 $e[n]$，也就是送進 loop filter 的同一個訊號。下面的方程式只是把這張圖寫成數學。"
       />
       <div className="table-wrap">
         <table className="dash-legend-table">
@@ -227,7 +227,7 @@ export const MathSpine = memo(function MathSpine() {
             steps={[
               {
                 tex: String.raw`e[n]=\underbrace{(a-w_k)\,u[n]+\varepsilon_{\mathrm{det}}[n]}_{e_{\mathrm{det}}[n]}+v[n]`,
-                why: R('Comparator 看到的是：剩下的 gain 誤差經 PLL error path 之後的量，加上 deterministic 干擾，再加上隨機雜訊（§11）。前兩項不含隨機雜訊，合稱 $e_{\\mathrm{det}}$。'),
+                why: R('Comparator 取的是 PD 的輸出 $e[n]$（送進 loop filter 的同一個訊號）：剩下的 gain 誤差經 PLL error path 之後的量，加上 deterministic 干擾，再加上隨機雜訊（§11）。前兩項不含隨機雜訊，合稱 $e_{\\mathrm{det}}$。'),
               },
               {
                 tex: String.raw`E\big[q[n]\,\big|\,e_{\mathrm{det}}\big]=\mathrm{erf}\!\Big(\frac{e_{\mathrm{det}}}{\sqrt2\,\sigma_v}\Big)\approx K_q\,e_{\mathrm{det}},\quad K_q=\frac{\sqrt{2/\pi}}{\sigma_v}`,
@@ -317,7 +317,7 @@ export const MathSpine = memo(function MathSpine() {
             steps={[
               {
                 tex: String.raw`\delta t[n]=w_k\,x[n]-a\,x[n]=(w_k-a)\,x[n]=(\Delta w+\delta w_k)\,x[n]`,
-                why: R('DTC 實際給的延遲是 $w\\,x$，理想是 $a\\,x$；再把 $w-a$ 拆成固定的 bias $\\Delta w=w^*-a$（推導 2）與隨機的 $\\delta w_k$（推導 3）。'),
+                why: R('Reference 端的 DTC 實際給的補償量是 $w\\,x$（從基準延遲 $T_0$ 往回扣），需要的是 $a\\,x$（feedback edge 早到的量）；兩者的差就是 $\\delta t$（多補償為正）。PD 量到的殘餘 $(a-w_k)\\,x$ 正好是它的負號（勘誤 E33）；下面只用到大小與功率，正負號不影響結果。再把 $w-a$ 拆成固定的 bias $\\Delta w=w^*-a$（推導 2）與隨機的 $\\delta w_k$（推導 3）。'),
               },
               {
                 tex: String.raw`E[\delta t^2]=\Delta w^2E[x^2]+2\,\Delta w\,E[x^2\,\delta w_k]+E[x^2\,\delta w_k^2]=P_x\,(\Delta w^2+\sigma_w^2)`,

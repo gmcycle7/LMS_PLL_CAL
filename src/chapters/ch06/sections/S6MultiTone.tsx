@@ -625,7 +625,7 @@ export function S6MultiTone() {
           </span>
         </p>
         <p>用預設迴路（Type-II、<Tex>{'\\zeta=0.7'}</Tex>、<Tex>{'\\mathrm{BW}/f_{\\mathrm{ref}}=0.01'}</Tex>、<Tex>{'d=0'}</Tex>）即時驗算：</p>
-        <TexBlock>{String.raw`\omega_nT_s=${f(near.des.wLTs, 5)},\quad K_i=${f(near.des.Ki, 5)};\qquad m_0=${f(near.m[0], 2)},\;\; m_1=${f(near.m[1], 2)},\;\; m_2=${f(near.m[2], 7)}\;\;\Big(\tfrac{2}{K_i}=${f(2 / near.des.Ki, 7)}\Big)`}</TexBlock>
+        <TexBlock>{String.raw`\begin{gathered}\omega_nT_s=${f(near.des.wLTs, 5)},\quad K_i=${f(near.des.Ki, 5)}\\[2pt] m_0=${f(near.m[0], 2)},\;\; m_1=${f(near.m[1], 2)},\;\; m_2=${f(near.m[2], 7)}\;\;\Big(\tfrac{2}{K_i}=${f(2 / near.des.Ki, 7)}\Big)\end{gathered}`}</TexBlock>
         <div className="table-wrap">
           <table className="ch06-table">
             <thead>

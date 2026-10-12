@@ -32,15 +32,32 @@ const STYLE = String.raw`
 
 /* ───────────────────────── §13.0 開場 ───────────────────────── */
 
-/** （原有）6-bit gain code 的訊號流：高解析 accumulator → 量化策略 → 6-bit register → DTC。 */
+/**
+ * （原有）6-bit gain code 的訊號流：高解析 accumulator → 量化策略 → 6-bit register → gain correction → reference 端的 DTC。
+ * 架構照 docs/assumptions.md §2a：REF → DTC → PD → loop filter → VCO；回授是 VCO → divider → PD（LF → DIV → PD，
+ * 回授路徑上只有 divider，主迴路在圖上是閉合的一圈）；
+ * LMS 校正迴路的輸入是 PD 的輸出（PD 有兩條 e_PD 出線：一條去 loop filter、一條去 comparator）。
+ * DTC 的延遲是 T_0 − 補償量（補償量 = Δ_LSB·y·x[n]）。本章的 e = y − w*（code 誤差）已經有別的意思，所以 PD 輸出記成 e_PD。
+ * 虛線是「δt 經 T(f) 到輸出」的簡寫，不是實體的線：δt = Δ_LSB·(y − w*)·x 是多補償的時間（reference edge 早到 δt），
+ * 在 PD 的 reference 輸入是 −δt = (a − w)·x，繞主迴路一圈才到 VCO 輸出（θ_out = T·φ_dtc，φ_dtc 是 −δt 換成相位）。
+ * 敘述的順序會決定排版：PD → CMP 寫在 PD → LF 之前、虛線寫在回授之後，comparator 才會排在左邊、
+ * 主迴路排在 PD 的正下方，三條回頭的線（校正迴路、回授、虛線）互不交叉；改順序前先截圖確認。
+ */
 export const CHART_SIGNAL_FLOW = String.raw`flowchart TB
   G["GMAC 平均 $G_k$"] --> ACC["LMS accumulator<br/>$w_H$（高解析）"]
   ACC --> Q["量化策略<br/>A Freeze / B Toggle / C Stochastic<br/>D $\Delta\Sigma$ / E $\Delta\Sigma$+dither"]
   Q --> REG["6-bit gain register<br/>$y \in \{0, \ldots, 63\}$"]
-  REG --> DTC["DTC：延遲 $= \Delta_{\mathrm{LSB}} \cdot y \cdot x[n]$"]
-  DSM["DSM residue $x[n]$"] --> DTC
-  DTC --> PD["PD / comparator"] --> G
-  DTC -. "$\delta t = \Delta_{\mathrm{LSB}} \cdot (y - w^*) \cdot x$" .-> OUT["PLL output（經 $T(f)$）"]${STYLE}
+  REG --> GC["Gain correction<br/>補償量 $= \Delta_{\mathrm{LSB}} \cdot y \cdot x[n]$"]
+  DSM["DSM residue $x[n]$"] --> GC
+  GC --> DTC["DTC（reference 端）<br/>延遲 $= T_0 - \Delta_{\mathrm{LSB}} \cdot y \cdot x[n]$"]
+  REF["Reference clock"] --> DTC
+  DTC --> PD["Phase detector"]
+  PD -- "$e_{\mathrm{PD}}[n]$：PD 的輸出" --> CMP["1-bit comparator<br/>$q = \mathrm{sign}(e_{\mathrm{PD}})$"]
+  PD -- "$e_{\mathrm{PD}}[n]$" --> LF["Loop filter → VCO"]
+  LF -- "VCO 輸出" --> DIV["Divider / PMUX<br/>（回授路徑上只有它）"]
+  DIV --> PD
+  DTC -. "$\delta t = \Delta_{\mathrm{LSB}} \cdot (y - w^*) \cdot x$" .-> OUT["PLL output（經 $T(f)$）"]
+  CMP --> G${STYLE}
   class Q focus`
 
 /** 誤差的定義、單位換算與兩種正負號約定（F-13.1、勘誤 E13 / E49）。 */
@@ -372,16 +389,27 @@ export const CHART_SYNTHESIS_FLOW = String.raw`flowchart TB
   class A2,S2 focus
   class C2,D2 ok`
 
-/** （原有）校正邏輯到 DTC 與 PLL 輸出的硬體路徑。 */
+/**
+ * （原有）校正邏輯到 reference 端的 DTC 與 PLL 輸出的硬體路徑。
+ * 架構照 docs/assumptions.md §2a：REF → DTC → PD → loop filter → VCO，回授是 VCO → divider → PD（LF → DIV → PD，
+ * 回授路徑上只有 divider）；校正迴路的輸入是 PD 的輸出 e_PD（comparator 取它的正負號，再經 GMAC 回到 LMS accumulator）。
+ * 虛線與敘述順序的說明同 CHART_SIGNAL_FLOW。
+ */
 export const CHART_HARDWARE_MAP = String.raw`flowchart TB
-  subgraph CAL["校正邏輯（code 更新率的 domain）"]
+  subgraph CAL["校正邏輯（code 更新率）"]
     LMS["LMS accumulator $w_H$<br/>（$B+F$ bit，$f_u$ domain）"] --> QS["量化策略<br/>$Q_B$ / toggle / PRBS / $\Delta\Sigma$ / dither"]
   end
   QS -- "6-bit code（CDC：同步 / gray）" --> REG["DTC gain register<br/>（$f_s$ domain，ZOH $N_{\mathrm{upd}}$）"]
-  REG --> DTC["DTC delay $= \Delta_{\mathrm{LSB}} \cdot y \cdot x[n]$"]
+  REG --> DTC["DTC（reference 端）<br/>延遲 $= T_0 - \Delta_{\mathrm{LSB}} \cdot y \cdot x[n]$"]
   DSM["DSM residue $x[n]$"] --> DTC
-  DTC --> LOOP["PLL：PD → LF → VCO"]
-  LOOP -- "$T(f)$：low-pass" --> OUT["Output phase noise / spur"]${STYLE}
+  REF["Reference clock"] --> DTC
+  DTC --> PD["Phase detector"]
+  PD -- "$e_{\mathrm{PD}}[n]$：PD 的輸出" --> CMP["1-bit comparator → GMAC"]
+  PD -- "$e_{\mathrm{PD}}[n]$" --> LF["Loop filter → VCO"]
+  LF -- "VCO 輸出" --> DIV["Divider / PMUX<br/>（回授路徑上只有它）"]
+  DIV --> PD
+  DTC -. "$T(f)$：low-pass" .-> OUT["Output phase noise / spur"]
+  CMP -- "$G_k$" --> LMS${STYLE}
   class QS focus`
 
 export type DiagramKind = 'flowchart' | 'state'

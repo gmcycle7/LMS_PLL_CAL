@@ -105,7 +105,7 @@ export function FreezeSection() {
 
       <Callout kind="warn" title="Freeze 的代價：gain 誤差乘上 DSM residue">
         <p>
-          DTC 真正注入的 timing error 是 <Tex>{String.raw`\delta t[n]=x[n]\cdot\delta w\cdot\Delta_\mathrm{LSB}`}</Tex>（§12.2）。Freeze 時 <Tex>{String.raw`\delta w`}</Tex>{' '}
+          DTC 補償量的 gain 差了 <Tex>{String.raw`\delta w\cdot\Delta_\mathrm{LSB}`}</Tex>，所以每一拍的補償量差了 <Tex>{String.raw`\delta t[n]=x[n]\cdot\delta w\cdot\Delta_\mathrm{LSB}`}</Tex>（§12.2；以多補償為正，本例 <Tex>{String.raw`\delta w<0`}</Tex> 是補償不足）——這就是 reference edge 上沒補掉的 timing error。Freeze 時 <Tex>{String.raw`\delta w`}</Tex>{' '}
           是常數，所以 <Tex>{String.raw`\delta t`}</Tex> 就是 DSM residue <Tex>{'x[n]'}</Tex> 的<strong>縮小版</strong>：<Tex>{'x'}</Tex> 有什麼譜線（fractional spur），<Tex>{String.raw`\delta t`}</Tex>{' '}
           就有同樣頻率的譜線，振幅乘上
           {' '}

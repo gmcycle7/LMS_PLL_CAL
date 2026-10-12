@@ -14,7 +14,7 @@ export const FORMULAS: FormulaEntry[] = [
     id: 'F-CS.1',
     title: '誤差 → PD 的轉移函數',
     tex: r`e_{PD}=h_{PD}*u,\qquad H_{PD}(z)=\frac{1}{1+L(z)},\qquad T(z)=\frac{L(z)}{1+L(z)}=1-H_{PD}(z),\qquad h_{PD}[0]=1`,
-    conditions: r`LTI 取樣資料迴路；$L(z)$ 嚴格 proper（至少 1 拍延遲）；誤差注入在相位比較點`,
+    conditions: r`LTI 取樣資料迴路；$L(z)$ 嚴格 proper（至少 1 拍延遲）；誤差 $u$ 注入在相位比較點（折算到 PD 的 reference 輸入端：$e_{PD}=u-y$，$y$ 是迴路的修正）；$e_{PD}$ 是 PD 的輸出，比較器取的就是它`,
     claim: 'exact',
     level: 'L2',
     specSection: '6',
@@ -66,7 +66,7 @@ export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-CS.6',
     title: r`Type-I 的低頻（延遲 $d$ 拍）`,
-    tex: r`\mathrm{Re}\,H_{PD}\approx\frac{\Omega^2}{K^2}\Big[1-K\big(d-\tfrac12\big)\Big]`,
+    tex: r`\mathrm{Re}\,H_{PD}\approx\frac{\Omega^2}{K^2}\big[1-K(d-\tfrac12)\big]`,
     conditions: r`$L=Kz^{-d}/(1-z^{-1})$、$\Omega\to0$；整數 $d$ 時「存在反號帶 $\iff K(d-\tfrac12)>1$」`,
     claim: 'exact',
     level: 'L2',

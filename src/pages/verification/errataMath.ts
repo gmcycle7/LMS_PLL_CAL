@@ -131,7 +131,7 @@ export const ERRATA_MATH: Record<string, ErratumMath> = {
   },
   E23: {
     gist: r`598 是 mean（ensemble）遞迴的結果；per-sample（$N=1$）的 Gaussian regressor 在均方意義下發散。`,
-    spec: r`\rho=0.99,\ \mu=0.5\ \Rightarrow\ 598\ \text{次更新}`,
+    spec: r`\rho=0.99,\ \mu=0.5\Rightarrow598\ \text{次更新}`,
     fix: r`\text{mean：}p=0.995\ \checkmark\qquad\text{mean-square spectral radius：}\ N=1:\ 1.98>1,\quad N=2:\ 0.9925,\quad N\ge16:\ 0.9900`,
   },
   E24: {

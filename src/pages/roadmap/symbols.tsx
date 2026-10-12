@@ -40,6 +40,12 @@ export const ROADMAP_SYMBOLS: SymbolEntry[] = [
   { symbol: 'T_{\\max},\\ \\varepsilon,\\ B', meaning: '校正時間上限、平均誤差縮減比（相對）、block 數', firstSeen: 'R10', note: <><ErratumTag eid="E16" /> {mt(String.raw`$\varepsilon$ 是相對比例`)}</> },
   { symbol: 'L_\\varepsilon,\\ y', meaning: mt(String.raw`$\ln(1/\varepsilon)$、tanh 律的自變數 $NL_\varepsilon/(2f_sT_{\max})$`), firstSeen: 'R10', note: mt('局部符號；R2 的 $L$ 是聯合週期、SSPLL 的 $L$ 是開迴路增益') },
   { symbol: 'L,\\ H_{\\mathrm{PD}},\\ T', meaning: mt(String.raw`主 PLL 開迴路、PD 誤差轉移 $1/(1+L)$、output 轉移 $L/(1+L)$`), firstSeen: 'SSPLL' },
+  {
+    symbol: '\\phi_{\\mathrm{in}},\\ \\theta_{\\mathrm{fb}},\\ e_{\\mathrm{PD}}',
+    meaning: mt(String.raw`折算到 PD 的 reference 輸入的外加誤差（reference 端 DTC 的殘差，加上折算過來的 PMUX offset）、回授回來的相位 $L\,e_{\mathrm{PD}}$、PD 的輸出 $\phi_{\mathrm{in}}-\theta_{\mathrm{fb}}=H_{\mathrm{PD}}\,\phi_{\mathrm{in}}$（comparator 取的就是它）`),
+    firstSeen: 'SSPLL',
+    note: mt(String.raw`案例頁把同一個外加誤差記作 $u[n]$；本頁的 $u$ 保留給有效 regressor $h_{\mathrm{PD}}*x$`),
+  },
   { symbol: 'K_L;\\ K_p,\\ K_i', meaning: 'Type-I 迴路增益；Type-II 的比例 / 積分增益（每 sample）', firstSeen: 'SSPLL', note: mt('$K_L$ 與 $K=K_qC$ 不同') },
   { symbol: '\\Omega=2\\pi f/f_{\\mathrm{ref}}', meaning: '離散時間頻率', unit: '\\mathrm{rad/sample}', firstSeen: 'SSPLL' },
   { symbol: '\\varphi[n],\\ p[n]', meaning: mt(String.raw`分數累加器相位 $\mathrm{frac}(n\alpha)$、PMUX 相位索引 $\lfloor8\varphi[n]\rfloor$`), firstSeen: 'SSPLL', note: mt('$p[n]$ 與校正 pole $p$ 不同') },

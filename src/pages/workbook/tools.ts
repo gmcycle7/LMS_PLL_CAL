@@ -349,7 +349,8 @@ export function phiLookupSteps(l: PhiLookup): { tex: string; why: string }[] {
       why: '讀出兩格的表值，相減得到這一格之間的增加量。',
     })
     steps.push({
-      tex: String.raw`\Phi(${az}) \approx \Phi(z_0) + t\,\bigl[\Phi(z_1) - \Phi(z_0)\bigr] = ${fix4(l.phi0)} + ${texNum(l.t, 4)}\times${fix4(l.diff)} = ${fix4(l.phi0)} + ${texNum(l.increment, 4)} = ${fix4(l.phiAbs)}`,
+      // 排成三行（aligned）：寫成一行約 750px，桌機上「手算工具」的半欄卡片（約 390px）放不下，公式會被切掉、底下多一條橫向捲軸
+      tex: String.raw`\begin{aligned}\Phi(${az}) &\approx \Phi(z_0) + t\,\bigl[\Phi(z_1) - \Phi(z_0)\bigr]\\ &= ${fix4(l.phi0)} + ${texNum(l.t, 4)}\times${fix4(l.diff)}\\ &= ${fix4(l.phi0)} + ${texNum(l.increment, 4)} = ${fix4(l.phiAbs)}\end{aligned}`,
       why: '線性內插：把兩格之間當成直線。先乘、再加，最後取 4 位小數。',
     })
   }

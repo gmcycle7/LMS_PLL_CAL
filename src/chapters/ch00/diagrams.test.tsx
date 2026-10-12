@@ -380,7 +380,7 @@ describe('ch00 方塊圖：和本章公式一致', () => {
     for (const name of ['CHART_ERROR_RECURSION', 'CHART_STEADY_STATE_NOISE'] as const) expect(has(name, String.raw`\delta[n] = a - w[n]`), name).toBe(true)
     // e = (a − w)·x + v：訊號／雜訊拆解、PLL 模型、PLL 迴圈三張圖寫法一致
     expect(has('CHART_SIGNAL_VS_NOISE', String.raw`e = (a - w)\,x + v`)).toBe(true)
-    expect(has('CHART_BLACKBOX_TO_PLL', String.raw`e[n] =$<br/>$(a - w)\,x[n] + v[n]`)).toBe(true)
+    expect(has('CHART_BLACKBOX_TO_PLL', String.raw`$= (a - w)\,x[n] + v[n]`)).toBe(true)
     expect(has('CHART_PLL_LOOP', String.raw`e[n] =$<br/>$(a - w)\,x[n] + v[n]`)).toBe(true)
   })
 
@@ -602,7 +602,8 @@ describe('ch00 方塊圖：和本章公式一致', () => {
     expect(nodeText(s, 'A')).toBe(String.raw`$\times\,a$ 正確的 DTC gain 未知，單位 fs/code`)
     expect(nodeText(s, 'W')).toBe(String.raw`$\times\,w$ gain register 的值 DTC 實際補償的量`)
     expect(nodeText(s, 'V')).toContain('雜訊 $v[n]$')
-    expect(nodeText(s, 'E')).toBe(String.raw`PD 量到的殘留誤差 $e[n] =$ $(a - w)\,x[n] + v[n]$`)
+    // PD 量的是（經過 DTC 的）reference edge 減 feedback edge（docs/assumptions.md §2a）：e = t_ref′ − t_fb = (a − w)·x + v
+    expect(nodeText(s, 'E')).toBe(String.raw`PD 量到的殘留誤差 $e[n] =$ $t_{\mathrm{ref}}'[n] - t_{\mathrm{fb}}[n]$ $= (a - w)\,x[n] + v[n]$`)
     // 對應的方塊用同一個顏色（未知的 a 深灰、我們的 w 藍、雜訊紅）
     for (const id of ['A', 'W', 'V']) expect(node(s, id).classes, id).toEqual(node(toy, id).classes)
     // PLL 裡只有一個相加點（y 與 ŷ 不會單獨出現）；黑盒子模型有兩個
@@ -610,25 +611,56 @@ describe('ch00 方塊圖：和本章公式一致', () => {
     expect(toy.nodes.filter(isSum)).toHaveLength(2)
   })
 
-  it('§0.8 PLL 校正迴圈：主路徑（DSM → DTC → PD）與校正迴路（比較器 → GMAC → 更新）兩框互相連接；n／k 的寫法正確', async () => {
+  it('§0.8 PLL 校正迴圈：DTC 在 reference 輸入端、回授路徑只有 divider、校正迴路的輸入是 PD 的輸出；兩框互相連接；n／k 的寫法正確', async () => {
     const s = await structure(chartOf('CHART_PLL_LOOP'))
-    expect([...box(s, 'MAIN').nodes].sort()).toEqual(['DSM', 'DTC', 'PD', 'REF'])
-    expect([...box(s, 'CAL').nodes].sort()).toEqual(['CMP', 'G', 'U'])
-    expect(s.edges.filter((e) => ['DSM', 'DTC', 'REF'].includes(e.from)).map((e) => `${e.from}>${e.to}`)).toEqual(['DSM>DTC', 'DTC>PD', 'REF>PD'])
+    const into = (to: string) => s.edges.filter((e) => e.to === to).map((e) => e.from).sort()
+    const outOf = (from: string) => s.edges.filter((e) => e.from === from).map((e) => e.to).sort()
+    const pair = (a: string, b: string) => s.edges.some((e) => e.from === a && e.to === b)
+    expect([...box(s, 'MAIN').nodes].sort()).toEqual(['CT', 'DIV', 'DSM', 'DTC', 'LF', 'PD', 'REF'])
+    expect([...box(s, 'CAL').nodes].sort()).toEqual(['CMP', 'G', 'U', 'XT'])
+
+    // ① 訊號路徑（assumptions §2a 第 1 點）：Reference → DTC → PD → Loop filter；回授是 Loop filter（VCO）→ Divider → PD
+    expect(pair('REF', 'DTC')).toBe(true)
+    expect(pair('DTC', 'PD')).toBe(true)
+    expect(pair('PD', 'LF')).toBe(true)
+    expect(pair('LF', 'DIV')).toBe(true)
+    expect(pair('DIV', 'PD')).toBe(true)
+    // DTC 的輸入只有 reference、DSM 餘數 x[n] 與 gain register 的 w；PD 的輸入只有 DTC（reference 側）與 divider（回授側）
+    expect(into('DTC')).toEqual(['DSM', 'REF', 'U'])
+    expect(into('PD')).toEqual(['DIV', 'DTC'])
+    // 回授路徑上沒有 DTC：divider 的輸入是 VCO 與 DSM 的 carry，輸出只去 PD；沒有 divider → DTC，也沒有 REF → PD 的直連線
+    expect(into('DIV')).toEqual(['CT', 'LF'])
+    expect(outOf('DIV')).toEqual(['PD'])
+    expect(pair('DIV', 'DTC')).toBe(false)
+    expect(pair('REF', 'PD')).toBe(false)
+    expect(outOf('REF')).toEqual(['DTC'])
+    // ② 小數除頻（§2a 第 2 點）：DSM 的 carry 控制 divider（標籤節點 CT），餘數 x[n] 控制 DTC
+    expect(nodeText(s, 'CT')).toBe('carry （來自 DSM）')
+    expect(outOf('DSM')).toEqual(['DTC'])
+    expect(nodeText(s, 'DSM')).toBe('DSM 累加器 餘數 $x[n]$')
     expect(nodeText(s, 'DTC')).toBe(String.raw`DTC 補償 $w\,x[n]$`)
-    expect(nodeText(s, 'PD')).toBe(String.raw`PD 量到的誤差 $e[n] =$ $(a - w)\,x[n] + v[n]$`)
-    expect(nodeText(s, 'CMP')).toBe(String.raw`1-bit 比較器 $q[n] = \mathrm{sign}(e[n])$`)
+    // ③ LMS 校正迴路的輸入是 PD 的輸出 e[n]（§2a 第 3 點）：比較器只有一個輸入，來自 PD；PD → loop filter 與 PD → 比較器是同一個訊號 e[n]
+    expect(into('CMP')).toEqual(['PD'])
+    expect(edgeLabel(s, 'PD', 'CMP')).toBe('$e[n]$')
+    expect(edgeLabel(s, 'PD', 'LF')).toBe('$e[n]$')
+    expect(outOf('PD').sort()).toEqual(['CMP', 'LF'])
+    for (const id of ['DTC', 'DIV', 'REF', 'DSM', 'CT']) expect(pair(id, 'CMP'), `${id} → CMP`).toBe(false) // 不從 DTC、divider 或其他地方分接
+    expect(nodeText(s, 'PD')).toBe(String.raw`PD $e[n] =$ $(a - w)\,x[n] + v[n]$`)
+    expect(nodeText(s, 'CMP')).toBe(String.raw`1-bit 比較器 $q[n] =$ $\mathrm{sign}(e[n])$`)
     expect(nodeText(s, 'G')).toBe(String.raw`GMAC：平均 $N$ 筆 $G[k] =$ $(1/N)\sum q[n]\,x[n]$`)
     expect(nodeText(s, 'U')).toBe(String.raw`更新 gain register $w[k+1] =$ $w[k] + \mu\,G[k]$`)
     expect(edgeLabel(s, 'CMP', 'G')).toBe('$q[n]$')
     expect(edgeLabel(s, 'G', 'U')).toBe('$G[k]$')
-    // 主路徑把 e[n]、x[n] 交給校正迴路；校正迴路把 w 交回 DTC（迴圈閉合）
-    expect(edgeLabel(s, 'MAIN', 'CAL')).toBe('$e[n]$ 給比較器 $x[n]$ 給 GMAC')
-    expect(edgeLabel(s, 'CAL', 'MAIN')).toBe('$w$ 給 DTC 每 $N$ 筆才更新一次') // w 是 block 速率（k）才換一次
+    expect(into('G')).toEqual(['CMP', 'XT']) // GMAC 的另一個輸入是同一個 code x[n]
+    expect(nodeText(s, 'XT')).toBe('$x[n]$ （同一個 code）')
+    // 校正迴路把 w 交回 DTC（迴圈閉合）；w 是 block 速率（k）才換一次
+    expect(edgeLabel(s, 'U', 'DTC')).toBe('$w$ 給 DTC 每 $N$ 筆才更新一次')
     // 主路徑的訊號都是 sample 速率；[k] 只出現在 GMAC 的輸出與更新
     for (const id of box(s, 'MAIN').nodes) expect(nodeText(s, id), id).not.toMatch(/\[k/)
     expect(nodeText(s, 'CMP')).not.toMatch(/\[k/)
     for (const id of ['CMP', 'G', 'U']) expect(node(s, id).classes).toEqual(['focus'])
+    // 每一條線都只出現一次（不是靠重複的線湊出來的）
+    expect(new Set(s.edges.map((e) => `${e.from}>${e.to}`)).size).toBe(s.edges.length)
   })
 
   it('§0.9 LMS vs Sign-Error：只有 Conventional 那一框有乘法器；Sign-Error 那一框是比較器 + 條件變號；之後的路徑相同', async () => {
@@ -664,7 +696,7 @@ describe('ch00 方塊圖：和本章公式一致', () => {
     return out
   }
 
-  it('版面和說明文字一致（圖 0.3、0.12、0.14、0.15：宣告順序決定畫在哪裡，順序被改掉時這裡會提醒）', async () => {
+  it('版面和說明文字一致（圖 0.3、0.12、0.14、0.15：宣告順序與連線方向決定畫在哪裡，被改掉時這裡會提醒）', async () => {
     // 圖 0.3：「① 預測」在上、「② 比較」在右、「③ 修正」在左下——順時針一圈，說明文字就是這樣寫的（x[n] 輸入在最左）
     const loop = await positions(chartOf('CHART_LOOP'))
     expect(loop.P.y, '① 預測在上').toBeLessThan(loop.C.y)
@@ -676,11 +708,24 @@ describe('ch00 方塊圖：和本章公式一致', () => {
     const adaptive = await positions(chartOf('CHART_ADAPTIVE_LOOP'))
     expect(adaptive.D.y, 'y（+）在相加點上方').toBeLessThan(adaptive.S.y)
     expect(adaptive.F.y, '預測（−）來自相加點下方的 w').toBeGreaterThan(adaptive.S.y)
-    // 圖 0.14、0.15：Mermaid 把後宣告的子圖畫在前面（左邊／上面）。
-    // 說明文字：「主 PLL 路徑（快）」在左、「LMS 校正迴路（慢）」在右；Conventional LMS 在上、Sign-Error LMS 在下
-    expect((await structure(chartOf('CHART_PLL_LOOP'))).subgraphs.map((g) => g.id)).toEqual(['CAL', 'MAIN'])
+    // 圖 0.15：Mermaid 把後宣告的子圖畫在前面（上面）。說明文字：Conventional LMS 在上、Sign-Error LMS 在下
     expect((await structure(chartOf('CHART_LMS_VS_SIGN'))).subgraphs.map((g) => g.id)).toEqual(['SGN', 'LMS'])
-    expect(chartOf('CHART_PLL_LOOP').startsWith('flowchart LR')).toBe(true) // 兩個框左右並排
+    // 圖 0.14：訊號由左向右流（reference → DTC → PD），divider 在 PD 的右邊（回授），LMS 校正迴路在 PD 的右上方，比較器 → GMAC → 更新由左向右
+    const pll = await positions(chartOf('CHART_PLL_LOOP'))
+    expect(pll.REF.x, 'reference 在 DTC 的左邊').toBeLessThan(pll.DTC.x)
+    expect(pll.DTC.x, 'DTC 在 PD 的左邊（reference 側）').toBeLessThan(pll.PD.x)
+    expect(pll.PD.x, 'divider（回授）在 PD 的右邊').toBeLessThan(pll.DIV.x)
+    expect(pll.PD.x, '比較器取自 PD 的輸出，在 PD 的右邊').toBeLessThan(pll.CMP.x)
+    expect(pll.CMP.y, 'LMS 校正迴路在主路徑的上方').toBeLessThan(pll.PD.y)
+    // 「x[n]（同一個 code）」標籤和比較器在同一直排：標籤要在比較器的上方（遠離 PD 的那一側）。
+    // 反過來的話，PD → 比較器的 e[n] 線會從標籤後面穿過去，箭頭變成從 x[n] 標籤冒出來接到比較器——看起來像比較器的輸入是 x[n]
+    expect(Math.abs(pll.XT.x - pll.CMP.x), 'x[n] 標籤和比較器在同一直排').toBeLessThan(40)
+    expect(pll.XT.y, 'x[n] 標籤在比較器的上方，不擋住 PD → 比較器的 e[n] 線').toBeLessThan(pll.CMP.y)
+    const src = chartOf('CHART_PLL_LOOP')
+    expect(src.indexOf('XT(['), 'XT 要比 CMP 先宣告（決定上下順序）').toBeLessThan(src.indexOf('CMP['))
+    expect(pll.CMP.x).toBeLessThan(pll.G.x)
+    expect(pll.G.x).toBeLessThan(pll.U.x)
+    expect(chartOf('CHART_PLL_LOOP')).toMatch(/^%%\{init: \{"flowchart": \{"nodeSpacing": \d+, "rankSpacing": \d+\}\}\}%%\nflowchart LR\n/) // 兩個框以橫向流程並排（縮小間距，自然寬度才放得進正文欄）
   })
 
   it('§0.9 比較器 + 累加：統計量的寫法和推導一致（總和 S_N，不是平均；勘誤 E18）', async () => {

@@ -10,7 +10,7 @@ export const FORMULAS: FormulaEntry[] = [
     id: 'F-07.1',
     title: 'PD 誤差與有效 regressor',
     tex: String.raw`e_{\mathrm{PD}}[n]=(a-w)\,u[n]+v[n],\qquad u[n]=(h*x)[n]`,
-    conditions: 'LTI 誤差路徑 $h$（DT，狀態跨 block 持續）；$v$ 與 $x$ 獨立',
+    conditions: String.raw`LTI 誤差路徑 $h$（DT，狀態跨 block 持續）；$v$ 與 $x$ 獨立。$e_{\mathrm{PD}}$ 是 PD 的輸出（DTC 延遲後的 reference edge 減 feedback edge），comparator 與 loop filter 取同一個節點；DTC 在 reference 輸入端，殘餘誤差 $(a-w)\,x$ 從 PD 的 reference 輸入注入（$H_{\mathrm{PD}}=1/(1+L)$ 取正號）`,
     claim: 'exact',
     level: 'L2',
     specSection: '6, 7',

@@ -115,12 +115,14 @@ export function S6Hardware() {
       </p>
       <Mermaid
         chart={CHART_RTL_REGRESSORS}
-        caption="四種 regressor 在 RTL 中的位置：同一個 GMAC，只差 regressor 從哪裡來（藍色的 REG_GMAC_XSEL 選擇；暫存器名稱為示意）"
+        caption="四種 regressor 在 RTL 中的位置：同一個 GMAC，只差 regressor 從哪裡來（藍色的 REG_GMAC_XSEL 選擇；暫存器名稱為示意）。comparator 取的是 PD 的輸出，累加器的校正係數送回 reference 端的 DTC。"
       />
       <p>
-        先看 code 往 DTC 走的那一路（DTC、誤差路徑、comparator）：這部分四種做法完全相同，輸出是 <Tex>{'q[n]'}</Tex>。再看 code 分出去的四條支路：直接接線的 raw、shift register 加 tap
+        先看 code 往 DTC 走的那一路（reference 端的 DTC、PLL 誤差路徑、comparator）：DTC 在 reference 輸入端，它的補償量是 <Tex>{r`w_k\,x[n]`}</Tex>（DTC 只能延遲，所以 RTL
+        送進 DTC 的數位 code 是把 <Tex>{r`w_k\,x[n]`}</Tex> 從一個固定的中心值往回扣——<Tex>{'x[n]'}</Tex> 越大，延遲越短；Ch04），補償之後留下 <Tex>{r`(a-w_k)\,x[n]`}</Tex>，經過 PLL 的誤差路徑、加上雜訊，成為 PD 的輸出
+        <Tex>{r`e_{\mathrm{PD}}[n]`}</Tex>；comparator 取的就是這個 PD 輸出，也就是送進 loop filter 的同一個訊號。這部分四種做法完全相同，輸出是 <Tex>{'q[n]'}</Tex>。再看 code 分出去的四條支路：直接接線的 raw、shift register 加 tap
         MUX（7.3 節的 delay line）、模型 <Tex>{r`\hat H`}</Tex>（後面可再接一個延遲）、二次差分（7.5 節）。藍色的選擇器從四者中選一個，圖上它的輸出就是公式裡的
-        <Tex>{r`x_{\mathrm{ref}}[n]`}</Tex>；GMAC 與更新式 <Tex>{r`w\leftarrow w+\mu G_k`}</Tex> 完全不用改。
+        <Tex>{r`x_{\mathrm{ref}}[n]`}</Tex>；GMAC 與更新式 <Tex>{r`w\leftarrow w+\mu G_k`}</Tex> 完全不用改，累加器的 <Tex>{'w_k'}</Tex> 送回 reference 端的 DTC。
       </p>
       <h3 className="ch07-subhead">
         硬體成本表（<Tex>{'B'}</Tex> = code 位元數，<Tex>{r`D_{\max}`}</Tex> = 最大延遲，<Tex>{r`L_{\mathrm{FIR}}`}</Tex> = FIR tap 數）

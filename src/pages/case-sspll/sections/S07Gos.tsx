@@ -84,7 +84,7 @@ export function S07Gos() {
             why: <>每個正弦拆成 <Tex>{r`\pm m\beta`}</Tex> 兩條線，各自的功率是 <Tex>{r`(1/2\pi m)^2`}</Tex>。</>,
           },
           { tex: r`C_{GOS}=\textstyle\sum_{m\ge1}\frac{\mathrm{Re}\,\Gamma_{\rm eff}(\mathrm{frac}(m\beta))}{2\pi^2m^2}`, why: <>代入 §4.3 的對角項公式。DC 項 <Tex>{'1/2'}</Tex> 乘上 <Tex>{r`\Gamma(0)=0`}</Tex>。</> },
-          { tex: r`\textstyle\sum_{m\ge1}\frac{1}{2\pi^2m^2}=\frac{1}{2\pi^2}\cdot\frac{\pi^2}{6}=\frac1{12}=\mathrm{var}(\rho)`, why: <><Tex>{r`\sum 1/m^2=\pi^2/6`}</Tex>；權重加總恰好等於 <Tex>{r`\rho`}</Tex> 的變異數。</> },
+          { tex: r`\begin{aligned}\textstyle\sum_{m\ge1}\frac{1}{2\pi^2m^2}&=\textstyle\frac{1}{2\pi^2}\cdot\frac{\pi^2}{6}\\[2pt]&=\tfrac1{12}=\mathrm{var}(\rho)\end{aligned}`, why: <><Tex>{r`\sum 1/m^2=\pi^2/6`}</Tex>；權重加總恰好等於 <Tex>{r`\rho`}</Tex> 的變異數。</> },
         ]}
       />
       <Formula id="F-CS.11" />

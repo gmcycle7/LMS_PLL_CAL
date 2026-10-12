@@ -5,7 +5,11 @@ import { Claim, DataTable, Diagram, FigRef, Src, fx, r } from '../common'
 
 const ALPHA_EX = 0.137
 
-/** §2 架構：SSPLL + 8 相 PMUX + input DTC，小數相位的拆法、兩個誤差的注入點、極性約定與 regressor 的手算表。 */
+/**
+ * §2 架構：SSPLL + 8 相 PMUX + input DTC，小數相位的拆法、哪一條 edge 被延遲、兩個誤差的注入點、極性約定與 regressor 的手算表。
+ * 接法與時間的寫法照 docs/assumptions.md §2a：DTC 在 reference 輸入端，延遲 = T_0 − 補償量；PD 量 t_ref′ − t_fb；
+ * 比較器取 PD 的輸出（送進 loop filter 的同一個訊號）。數學（u、e_GOS、e_PHOS、δ = 真值 − 估計）不變。
+ */
 export function S02Architecture() {
   const seq = phaseSequence(ALPHA_EX, 10, 'right')
   const beta = (8 * ALPHA_EX) % 1
@@ -17,8 +21,9 @@ export function S02Architecture() {
       </p>
       <Diagram id="sspll" />
       <p>
-        先看主迴路：reference 經過 DTC、VCO 經過 PMUX，兩邊在「相位比較點」（SSPD 的取樣節點）相比，差值經 loop filter 回去控制 VCO。再看校正迴路：1-bit 比較器從同一個比較點取出正負號 <Tex>{'q'}</Tex>，和分數累加器送來的 regressor 一起進 GMAC；sign-error LMS 用 GMAC
-        的結果更新 9 個權重（GOS 的 <Tex>{'w_g'}</Tex> 與 PHOS 的 <Tex>{r`w_0,\dots,w_7`}</Tex>），再送回 DTC 去修正延遲。兩個迴路共用同一個比較點，這就是主迴路會影響校正的原因。
+        先看主迴路：reference 先經過 DTC、VCO 經過 PMUX，兩條 edge 在 SSPD（phase detector，本章也叫它「相位比較點」）相比，PD 的輸出 <Tex>{r`e_{PD}`}</Tex> 經 loop filter 回去控制 VCO。回授路徑上只有 PMUX；DTC 在 reference 的輸入端，不在回授路徑上。再看校正迴路：1-bit
+        比較器取的是 <strong>PD 的輸出</strong> <Tex>{r`e_{PD}[n]`}</Tex>，也就是送進 loop filter 的同一個訊號——圖上藍色的「PD 輸出」分出兩條線，一條給 loop filter，一條給比較器。比較器只留下它的正負號 <Tex>{'q'}</Tex>，和 regressor（分數累加器算出的 <Tex>{r`\rho[n]`}</Tex> 與{' '}
+        <Tex>{'p[n]'}</Tex> 的 one-hot，圖上標著 regressor 的那一格）一起進 GMAC；sign-error LMS 用 GMAC 的結果更新 9 個權重（GOS 的 <Tex>{'w_g'}</Tex> 與 PHOS 的 <Tex>{r`w_0,\dots,w_7`}</Tex>），再送回 DTC 去修正它的補償量。兩個迴路共用同一個 PD 輸出，這就是主迴路會影響校正的原因。
       </p>
 
       <h3>
@@ -38,21 +43,34 @@ export function S02Architecture() {
         1，否則為 0），所以每一拍 8 條裡只有一條是 1，這就是「one-hot」。
       </p>
 
+      <h3>哪一條 edge 被延遲：DTC 從基準延遲往回扣</h3>
+      <p>
+        以理想的比較時刻為基準。小數相位累積到 <Tex>{r`\varphi[n]`}</Tex> 時，沒有補償的 feedback edge 會<strong>早到</strong> <Tex>{r`\varphi[n]\,T_{vco}=8\varphi[n]\Delta`}</Tex>。PMUX 選第 <Tex>{'p[n]'}</Tex> 相，把它往後挪 <Tex>{r`p[n]\Delta`}</Tex>，所以 PMUX 之後的 feedback edge 還早到{' '}
+        <Tex>{r`\rho[n]\Delta`}</Tex>：粗調只能對到格線，還差不到一格。這一段由 DTC 補。DTC 在 reference 的輸入端，動不到 feedback edge，所以要對齊，就得讓 reference edge 也早同樣的時間。但 DTC <strong>只能延遲、不能提前</strong>；做法是先給 reference 一個固定的基準延遲{' '}
+        <Tex>{'T_0'}</Tex>，再從 <Tex>{'T_0'}</Tex> 往回扣：
+      </p>
+      <TexBlock>{r`\tau_{DTC}[n]=T_0-\underbrace{\rho[n]\,\Delta}_{\text{補償量}}`}</TexBlock>
+      <p>
+        <Tex>{r`\rho[n]`}</Tex> 越大，DTC 的延遲越短：送進 DTC 的數位 code 是一個固定的中心值 <Tex>{'C_0'}</Tex> 減去補償量對應的 code，等於把 <Tex>{r`\rho[n]`}</Tex> 取補數。延遲不能是負的，所以 <Tex>{'T_0'}</Tex> 至少要有補償量的最大值那麼長（一格 <Tex>{r`\Delta`}</Tex>{' '}
+        再加上 PHOS 修正的餘量）。<Tex>{'T_0'}</Tex> 是常數，PLL 把它當成靜態相位偏移吸收掉，不影響任何會動的量。本章把 DTC 從 <Tex>{'T_0'}</Tex> 扣掉的那一段時間叫做 DTC 的<strong>補償量</strong>——reference edge 被提前（也就是少延遲）的時間。PD 量的是「DTC 之後的 reference edge 減
+        feedback edge」，<Tex>{r`t_{ref}'[n]-t_{fb}[n]`}</Tex>：補得不夠時 reference edge 還是太晚，誤差為正。所以下面兩個誤差都是「該補的量」減掉「實際補上的量」。
+      </p>
+
       <h3>兩個誤差的注入點</h3>
       <ul>
         <li>
-          <strong>GOS（DTC gain error）</strong>：DTC 在 reference 端。理想的延遲是 <Tex>{r`\rho\Delta`}</Tex>，實際的延遲是 <Tex>{r`(1-a)(1+w_g)\rho\Delta`}</Tex>：<Tex>{'a'}</Tex> 是 DTC 的增益誤差（真值，未知），<Tex>{'w_g'}</Tex> 是 LMS 對它的估計。理想模型下，比較點多出{' '}
+          <strong>GOS（DTC gain error）</strong>：DTC 在 reference 端。理想的補償量是 <Tex>{r`\rho\Delta`}</Tex>，實際的補償量是 <Tex>{r`(1-a)(1+w_g)\rho\Delta`}</Tex>：<Tex>{'a'}</Tex> 是 DTC 的增益誤差（真值，未知），<Tex>{'w_g'}</Tex> 是 LMS 對它的估計。理想模型下，比較點（PD 的輸入端）多出{' '}
           <Tex>{r`e_{GOS}[n]=(a-w_g)\,\rho[n]\,\Delta`}</Tex>。
         </li>
         <li>
-          <strong>PHOS（PMUX phase offset）</strong>：PMUX 在 feedback 端。選到第 <Tex>{'k'}</Tex> 相時，edge 多出一個固定的時間偏差 <Tex>{r`\varepsilon_k`}</Tex>（真值，未知）；這個偏差經由 reference 端的 DTC 用估計值 <Tex>{'w_k'}</Tex> 補回來。所以{' '}
-          <Tex>{r`e_{PHOS}[n]=\sum_k(\varepsilon_k-w_k)\,\mathbf 1\{p[n]=k\}`}</Tex>。
+          <strong>PHOS（PMUX phase offset）</strong>：PMUX 在 feedback 端。選到第 <Tex>{'k'}</Tex> 相時，feedback edge 除了 <Tex>{r`\rho\Delta`}</Tex> 之外，還多早到一個固定的時間偏差 <Tex>{r`\varepsilon_k`}</Tex>（真值，未知；晚到就是負值）。它和 <Tex>{r`\rho\Delta`}</Tex> 一樣是 DTC
+          該補的量，所以 reference 端的 DTC 在補償量裡再加上估計值 <Tex>{'w_k'}</Tex> 把它補回來。所以 <Tex>{r`e_{PHOS}[n]=\sum_k(\varepsilon_k-w_k)\,\mathbf 1\{p[n]=k\}`}</Tex>。
         </li>
       </ul>
       <Diagram id="injection" />
       <p>
         先看最上面的兩個乘法點（左邊是 GOS、右邊是 PHOS）：每個誤差都是「還沒校掉的量」乘上它的 regressor。本章把「真值 − 估計」記為 <Tex>{r`\delta`}</Tex>，也就是 <Tex>{r`\delta_g=a-w_g`}</Tex>、<Tex>{r`\delta_k=\varepsilon_k-w_k`}</Tex>；權重校準好的時候 <Tex>{r`\delta=0`}</Tex>，誤差就消失。再看下面：兩個誤差在比較點相加成{' '}
-        <Tex>{'u[n]'}</Tex>，但 PD 看到的不是 <Tex>{'u[n]'}</Tex>，而是它通過藍色方塊之後的 <Tex>{r`e_{PD}[n]`}</Tex>。圖上加法點的輸出就是下面公式裡的 <Tex>{'u[n]'}</Tex>：
+        <Tex>{'u[n]'}</Tex>——沒有迴路時，它就是 <Tex>{r`t_{ref}'-t_{fb}`}</Tex> 去掉常數 <Tex>{'T_0'}</Tex> 之後剩下的部分。但主迴路會反應，所以 PD 的輸出不是 <Tex>{'u[n]'}</Tex>，而是它通過藍色方塊之後的 <Tex>{r`e_{PD}[n]`}</Tex>；比較器取的就是這個輸出。圖上加法點的輸出就是下面公式裡的 <Tex>{'u[n]'}</Tex>：
       </p>
       <TexBlock>{r`u[n]=\underbrace{(a-w_g)\,\Delta\;\rho[n]}_{e_{GOS}[n]}+\underbrace{\sum_{k=0}^{7}(\varepsilon_k-w_k)\,\mathbf 1\{p[n]=k\}}_{e_{PHOS}[n]}=\sum_j\delta_j\,x_j[n]`}</TexBlock>
       <p className="small muted">
@@ -60,13 +78,15 @@ export function S02Architecture() {
       </p>
       <Callout kind="info" title="極性約定">
         <p>
-          reference 端與 feedback 端的誤差在比較點的符號相反。我們規定：在 <Tex>{r`H_{PD}\equiv1`}</Tex>（沒有迴路）時，<Tex>{r`w\leftarrow w+\mu\,q\,r`}</Tex> 會往正確方向更新，並用這個規定吸收兩邊的符號——所以 <FigRef id="injection" /> 的兩條線都標「＋」。這裡{' '}
-          <Tex>{r`\mu`}</Tex> 是步長，<Tex>{r`q=\pm1`}</Tex> 是比較器輸出，<Tex>{'r'}</Tex> 是 GMAC 實際拿來相乘的 regressor（不做任何處理時 <Tex>{'r=x'}</Tex>）。實作時，GOS 與 PHOS 的更新符號要<strong>各自</strong>依 <Tex>{r`H\equiv1`}</Tex> 推導，因為 PHOS 的修正是透過 reference 端的 DTC
-          加上去的，誤差卻來自 feedback 端。
+          PD 量的是 <Tex>{r`t_{ref}'-t_{fb}`}</Tex>，所以同樣是「edge 晚到」，發生在 reference 端與 feedback 端時，進到 PD 的符號相反。本章把兩邊都換算成同一個方向——「該補的量」減掉「DTC 實際補上的量」：<Tex>{r`\rho\Delta`}</Tex> 與 <Tex>{r`\varepsilon_k`}</Tex> 是 feedback edge
+          早到的時間，補償量是 reference edge 被提前（少延遲）的時間。這樣在 <Tex>{r`H_{PD}\equiv1`}</Tex>（沒有迴路）時，<Tex>{r`w\leftarrow w+\mu\,q\,r`}</Tex> 對 GOS 與 PHOS 都往正確方向更新，所以 <FigRef id="injection" /> 的兩條線都標「＋」。這裡 <Tex>{r`\mu`}</Tex> 是步長，<Tex>{r`q=\pm1`}</Tex>{' '}
+          是比較器輸出，<Tex>{'r'}</Tex> 是 GMAC 實際拿來相乘的 regressor（不做任何處理時 <Tex>{'r=x'}</Tex>）。實作時，GOS 與 PHOS 的更新符號仍要<strong>各自</strong>依 <Tex>{r`H\equiv1`}</Tex> 推導：PHOS 的修正是透過 reference 端的 DTC 加上去的，誤差卻來自 feedback 端。你的電路若把{' '}
+          <Tex>{r`\varepsilon_k`}</Tex> 記成 PMUX 多出來的延遲（晚到為正），<Tex>{r`\varepsilon_k`}</Tex> 與 <Tex>{'w_k'}</Tex> 都要變號：<Tex>{'w_k'}</Tex> 改成加在 DTC 的延遲上，更新式變成 <Tex>{r`w_k\leftarrow w_k-\mu\,q\,r`}</Tex>。DTC 的 code 也因為「從{' '}
+          <Tex>{'T_0'}</Tex> 往回扣」而要取補數。
         </p>
       </Callout>
       <p>
-        注意：§4 會把「平均梯度的斜率」寫成矩陣 <Tex>{'C'}</Tex>，它只依賴 regressor 每條譜線的功率 <Tex>{r`\lvert c_\nu\rvert^2`}</Tex> 與一個頻域 kernel <Tex>{r`\Gamma`}</Tex>。所以 DTC code 用 <Tex>{r`\rho`}</Tex> 或 <Tex>{r`1-\rho`}</Tex>、PMUX 索引用 <Tex>{'p'}</Tex> 或{' '}
+        注意：§4 會把「平均梯度的斜率」寫成矩陣 <Tex>{'C'}</Tex>，它只依賴 regressor 每條譜線的功率 <Tex>{r`\lvert c_\nu\rvert^2`}</Tex> 與一個頻域 kernel <Tex>{r`\Gamma`}</Tex>。所以 DTC code 用 <Tex>{r`\rho`}</Tex> 或 <Tex>{r`1-\rho`}</Tex>（取補數）、PMUX 索引用 <Tex>{'p'}</Tex> 或{' '}
         <Tex>{'p+1'}</Tex>、PMUX 旋轉方向（§8 的模態特徵值滿足 <Tex>{r`\mathrm{Re}\lambda_m=\mathrm{Re}\lambda_{8-m}`}</Tex>）都<strong>不會</strong>改變反號結論。
         <Claim kind="exact" />
       </p>

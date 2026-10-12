@@ -386,7 +386,8 @@ export const HANDCALCS: HandCalcDef[] = [
         steps: [
           { tex: String.raw`\text{${w.label}：}\quad n_\mathrm{bins}=${nBins},\qquad \mathrm{ENBW_{bins}}=${texNum(enbw, 5)}`, why: String.raw`查表：主瓣積分取 spur 峰值 bin 左右各 $L+1$ 個 bin（$L$ 是主瓣半寬：矩形 1、Hann 2、Blackman-Harris 4），共 $2(L+1)+1$ 個；ENBW 見 §8.1 的視窗表。` },
           { tex: String.raw`n_\mathrm{seg}=2^{${log2Seg}}=${nseg}`, why: String.raw`每個 Welch segment 的長度：one-sided 頻譜有 $n_\mathrm{seg}/2$ 個 bin。` },
-          { tex: String.raw`\frac{2\,n_\mathrm{bins}}{n_\mathrm{seg}}=\frac{2\times${nBins}}{${nseg}}=\frac{${2 * nBins}}{${nseg}}=${texNum(frac)}`, why: String.raw`白雜訊平均攤在 $n_\mathrm{seg}/2$ 個 bin 上；積分 $n_\mathrm{bins}$ 個 bin 就拿到這個比例的雜訊功率。` },
+          // 寫成兩行（中間的 2×n_bins 那一步照樣留著）：排成一行在手機上會比正文欄寬 2px，多出一條沒有用途的橫向捲軸
+          { tex: String.raw`\begin{aligned}\frac{2\,n_\mathrm{bins}}{n_\mathrm{seg}}&=\frac{2\times${nBins}}{${nseg}}=\frac{${2 * nBins}}{${nseg}}\\&=${texNum(frac)}\end{aligned}`, why: String.raw`白雜訊平均攤在 $n_\mathrm{seg}/2$ 個 bin 上；積分 $n_\mathrm{bins}$ 個 bin 就拿到這個比例的雜訊功率。` },
           { tex: String.raw`10\log_{10}(${texNum(frac)})=${texNum(fracDb, 5)}\ \mathrm{dB}`, why: String.raw`換成 dB：按 $\log$ 再乘 10。` },
           { tex: String.raw`P_\mathrm{noise,lobe}=${tp(noiseDbc)}+(${texNum(fracDb, 5)})=${texNum(lobeNoise, 5)}\ \mathrm{dBc}`, why: String.raw`主瓣積分範圍裡「只有白雜訊」時的期望功率。` },
           { tex: String.raw`10^{P_\mathrm{spur}/10}=10^{${texNum(spurDbc / 10, 6)}}=${sci(linSpur)}`, why: String.raw`dB 不能直接相加：先換回線性功率比（按 $10^x$）。` },
@@ -395,7 +396,7 @@ export const HANDCALCS: HandCalcDef[] = [
           { tex: String.raw`P_\mathrm{B}=10\log_{10}(${sci(linSpur + linNoise)})=${texNum(reading, 5)}\ \mathrm{dBc}`, why: String.raw`(B) Welch 主瓣積分的期望讀值：比真實 spur 高 $${texNum(over, 3)}\ \mathrm{dB}$。` },
           { tex: String.raw`\frac{f_s}{n_\mathrm{seg}}=\frac{${texNum(fsMHz)}\ \mathrm{MHz}}{${nseg}}=${texNum(binHz / 1e6, 7)}\ \mathrm{MHz}=${texNum(binHz / 1e3, 7)}\ \mathrm{kHz}`, why: String.raw`Welch 的 bin 間隔（$1\ \mathrm{MHz}=1000\ \mathrm{kHz}$）。` },
           { tex: String.raw`\mathrm{RBW}=\mathrm{ENBW_{bins}}\times\frac{f_s}{n_\mathrm{seg}}=${texNum(enbw, 5)}\times${texNum(binHz / 1e3, 7)}=${texNum(rbwHz / 1e3, 7)}\ \mathrm{kHz}`, why: String.raw`解析頻寬（resolution bandwidth）就是以 Hz 表示的 ENBW。` },
-          { tex: String.raw`10\log_{10}\bigl(${texNum(rbwHz, 7)}\ \mathrm{Hz}\bigr)=${texNum(rbwDb, 5)}\ \mathrm{dB}`, why: String.raw`注意要先把 kHz 換成 Hz（乘 1000）再取 $\log$。` },
+          { tex: String.raw`10\log_{10}(${texNum(rbwHz, 7)})=${texNum(rbwDb, 5)}\ \mathrm{dB}`, why: String.raw`取 $\log$ 的是以 Hz 為單位的數值：先把 kHz 換成 Hz（乘 1000），$\mathrm{RBW}=${texNum(rbwHz, 7)}\ \mathrm{Hz}$。` },
           { tex: String.raw`S_\mathrm{peak}=P_\mathrm{spur}-10\log_{10}\mathrm{RBW}=${tp(spurDbc)}-${texNum(rbwDb, 5)}=${texNum(peak, 5)}\ \mathrm{dBc/Hz}`, why: String.raw`一根 tone 在 density PSD 上的峰值＝它的功率除以 RBW：這個數字不是 tone 的性質，換一個 $n_\mathrm{seg}$ 就變。` },
         ],
         results: [

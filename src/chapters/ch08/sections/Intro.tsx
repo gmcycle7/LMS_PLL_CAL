@@ -21,7 +21,7 @@ export function Intro() {
 
       <p>
         {rich(
-          String.raw`先看系統地圖，確認這一章在整個系統的哪裡。藍色的三個方塊——GMAC（把 comparator 的 $q[n]$ 和 code $x[n]$ 相乘累加，量出平均相關 $G_k$）、「$\div N$、$\times\mu$」（決定每次修正多少）與 gain accumulator（把修正量累加成係數 $w_k$）——就是前幾章的校正路徑。這一章新增的觀點是：把它們連同 $w$ 回到 DTC、再經過主 PLL 與 comparator 回到 GMAC 的那一圈，當成一個`,
+          String.raw`先看系統地圖，確認這一章在整個系統的哪裡。藍色的三個方塊——GMAC（把 comparator 的 $q[n]$ 和 code $x[n]$ 相乘累加，量出平均相關 $G_k$）、「$\div N$、$\times\mu$」（決定每次修正多少）與 gain accumulator（把修正量累加成係數 $w_k$）——就是前幾章的校正路徑。這一章新增的觀點是：把它們連同 $w$ 回到 reference 端的 DTC（$w$ 在 gain correction 乘上 code）、經過 PD 與主 PLL 得到 PD 的輸出 $e[n]$（就是送進 loop filter 的同一個訊號）、再由 comparator 取它的正負號回到 GMAC 的那一圈，當成一個`,
         )}
         <strong>回授迴路</strong>
         {rich(String.raw`來分析——它的 loop gain、更新延遲與主 PLL 的動態，決定校正會不會振盪。`)}

@@ -45,7 +45,8 @@ export default function Chapter07() {
       <SystemMap focus={CH07_SYSTEM_FOCUS} />
       <p>
         <strong>你在這裡：</strong>藍色的三塊是本章的主角——小數殘量 <Tex>{'x[n]'}</Tex>（GMAC 的 regressor 從這裡來）、code alignment（delay／filtered-x，本章要設計的方塊）、
-        GMAC（把 comparator 的輸出 <Tex>{'q[n]'}</Tex> 和 regressor 相乘、累加）。沒有上色的主 PLL 迴路決定了誤差路徑 <Tex>{r`H_{\mathrm{PD}}`}</Tex>，本章完全不動它；本章新增的只有
+        GMAC（把 comparator 的輸出 <Tex>{'q[n]'}</Tex> 和 regressor 相乘、累加；comparator 取的是 PD 的輸出 <Tex>{'e[n]'}</Tex>，也就是送進 loop filter 的同一個訊號）。沒有上色的主 PLL
+        迴路（DTC 在 reference 輸入端，回授路徑上只有 divider）決定了誤差路徑 <Tex>{r`H_{\mathrm{PD}}`}</Tex>，本章完全不動它；本章新增的只有
         「GMAC 拿哪一個訊號當 regressor」這一件事：直接用 <Tex>{'x[n]'}</Tex>、先延遲 <Tex>{'D'}</Tex> 個 sample、或先經過 PLL 的模型 <Tex>{r`\hat H`}</Tex>。
       </p>
       <S1Problem />

@@ -397,11 +397,11 @@ export const HANDCALCS: HandCalcDef[] = [
             why: String.raw`每個元素乘上 $\gamma$。這是正規化（無因次）的更新矩陣 $\mathbf M_n=K_q\mathbf M$；實體 $\mathbf M=\mathbf M_n/K_q$（單位 fs）。`,
           },
           {
-            tex: String.raw`(\mathbf M_n\mathbf R)_{11}=M_{n,11}R_{11}+M_{n,12}R_{21}=${tx(Mn[0][0], 7)}\times${txP(r11)}+${txP(Mn[0][1], 7)}\times${txP(r12)}=${tx(Mn[0][0] * r11, 7)}+${txP(Mn[0][1] * r12, 7)}=${tx(mr11)}`,
+            tex: String.raw`\begin{aligned}(\mathbf M_n\mathbf R)_{11}&=M_{n,11}R_{11}+M_{n,12}R_{21}\\&=${tx(Mn[0][0], 7)}\times${txP(r11)}+${txP(Mn[0][1], 7)}\times${txP(r12)}=${tx(Mn[0][0] * r11, 7)}+${txP(Mn[0][1] * r12, 7)}=${tx(mr11)}\end{aligned}`,
             why: String.raw`驗算第 1 列乘第 1 行（兩次乘法、一次加法），應該等於 $\gamma$。$\det\mathbf R$ 很小時這是兩個很接近的大數相減：上一步只留 5 位的話，這裡會差在第 3 位小數——這種敏感度正是近奇異矩陣的特徵。`,
           },
           {
-            tex: String.raw`(\mathbf M_n\mathbf R)_{12}=M_{n,11}R_{12}+M_{n,12}R_{22}=${tx(Mn[0][0], 7)}\times${txP(r12)}+${txP(Mn[0][1], 7)}\times${txP(r22)}=${tx(Mn[0][0] * r12, 7)}+${txP(Mn[0][1] * r22, 7)}=${tx(mr12)}`,
+            tex: String.raw`\begin{aligned}(\mathbf M_n\mathbf R)_{12}&=M_{n,11}R_{12}+M_{n,12}R_{22}\\&=${tx(Mn[0][0], 7)}\times${txP(r12)}+${txP(Mn[0][1], 7)}\times${txP(r22)}=${tx(Mn[0][0] * r12, 7)}+${txP(Mn[0][1] * r22, 7)}=${tx(mr12)}\end{aligned}`,
             why: String.raw`驗算第 1 列乘第 2 行，應該等於 0：$\mathbf M_n\mathbf R=\gamma\mathbf I$，耦合被消掉了。`,
           },
           {
@@ -577,7 +577,7 @@ export const HANDCALCS: HandCalcDef[] = [
             why: 'R 形式的 pole（F-10.8）：乘上 $\\gamma$，再用 1 去減。',
           },
           {
-            tex: String.raw`m_i=\frac{\gamma}{\lambda_i+\lambda_{\mathrm{reg}}}=\frac{${tx(gamma)}}{${tx(lam + lamReg)}}=${tx(mR)}`,
+            tex: String.raw`\begin{aligned}m_i&=\frac{\gamma}{\lambda_i+\lambda_{\mathrm{reg}}}\\&=\frac{${tx(gamma)}}{${tx(lam + lamReg)}}=${tx(mR)}\end{aligned}`,
             why:
               String.raw`更新矩陣沿這個方向的增益：GMAC noise 也乘上它。` +
               (mFullGain === null ? String.raw`完整反矩陣在 $\lambda_i=0$ 時不存在；regularizer 讓它變成有限值。` : String.raw`完整反矩陣是 $\gamma/\lambda_i=${texNum(mFullGain)}$，regularizer 把它壓成 $${texNum(mR / mFullGain, 3)}$ 倍。`),
@@ -627,7 +627,8 @@ export const HANDCALCS: HandCalcDef[] = [
     title: '中央差分：兩個 GMAC 讀數 → $\\hat J_{ij}$ → 截斷與雜訊',
     page: PAGE,
     formulaId: 'F-10.9',
-    formulaTex: String.raw`\hat J_{ij}=\frac{G_i(\mathbf w+\Delta\mathbf e_j)-G_i(\mathbf w-\Delta\mathbf e_j)}{2\Delta},\qquad r=\frac{\Delta}{\sigma_v}:\ \ \frac{\hat J_{ij}}{J_{ij}}=\frac{\operatorname{erf}(r/\sqrt2)}{K_q\Delta}\ (\pm1\text{ 碼}),\ \ \frac{1}{\sqrt{1+r^2}}\ (\text{Gaussian}),\qquad \operatorname{std}\!\Big(\frac{\hat J_{ij}}{K_q}\Big)\approx\frac{\sqrt{2/N_J}}{2K_q\Delta}`,
+    // 通式排成兩行（第二行是量測雜訊）：寫成一行在桌機的正文欄放不下
+    formulaTex: String.raw`\begin{gathered}\hat J_{ij}=\frac{G_i(\mathbf w+\Delta\mathbf e_j)-G_i(\mathbf w-\Delta\mathbf e_j)}{2\Delta},\qquad r=\frac{\Delta}{\sigma_v}:\ \ \frac{\hat J_{ij}}{J_{ij}}=\frac{\operatorname{erf}(r/\sqrt2)}{K_q\Delta}\ (\pm1\text{ 碼}),\ \ \frac{1}{\sqrt{1+r^2}}\ (\text{Gaussian})\\[4pt] \operatorname{std}\!\Big(\frac{\hat J_{ij}}{K_q}\Big)\approx\frac{\sqrt{2/N_J}}{2K_q\Delta}\end{gathered}`,
     level: 'research',
     claim: 'approx',
     // practice：讀數的差 ≤ 0.24，而 2K_qΔ ≥ 2×0.0039894×30 = 0.2394 ⇒ |Ĵ/K_q| ≤ 1.003：每一種組合都是 |R_ij| ≤ 1 的 unit-RMS regressor（在雜訊內）量得到的數字
@@ -790,7 +791,8 @@ export const HANDCALCS: HandCalcDef[] = [
       const Dz = snap(D)
       const steps: HandCalcStep[] = [
         {
-          tex: String.raw`p_{\text{single},1}=1+\mu J_{11}=1+${tx(mu)}\times${txP(j11)}=1${txSigned(mu * j11)}=${tx(single[0])},\qquad p_{\text{single},2}=1+\mu J_{22}=1+${tx(mu)}\times${txP(j22)}=1${txSigned(mu * j22)}=${tx(single[1])}`,
+          // 兩個 pole 各一行（對齊等號）：寫成一行在桌機的正文欄也放不下，會多出一條橫向捲軸
+          tex: String.raw`\begin{aligned}p_{\text{single},1}&=1+\mu J_{11}=1+${tx(mu)}\times${txP(j11)}=1${txSigned(mu * j11)}=${tx(single[0])}\\p_{\text{single},2}&=1+\mu J_{22}=1+${tx(mu)}\times${txP(j22)}=1${txSigned(mu * j22)}=${tx(single[1])}\end{aligned}`,
           why: String.raw`先看「只開一個 loop、另一個凍結」：純量遞迴的 pole 是 $1+\mu J_{ii}$（先乘、再加 1）。$J_{ii}<0$ 代表單一 loop 的極性正確。`,
         },
         {
@@ -906,7 +908,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: '綜合題：598／5／65——三種更新矩陣在慢模式上的速度與雜訊',
     page: PAGE,
     formulaId: 'F-10.7',
-    formulaTex: String.raw`m=\begin{cases}\mu K_q&\text{一般 LMS}\\ \gamma/\lambda_{\min}&\text{完整反矩陣}\\ \gamma/(\lambda_{\min}+\lambda_{\mathrm{reg}})&\text{Regularized}\end{cases}\qquad p=1-m\,\lambda_{\min},\quad k_{95}=\left\lceil\frac{\ln0.05}{\ln|p|}\right\rceil,\quad \operatorname{Var}(\xi_{\text{slow}})=\frac{m^2\,\lambda_{\min}}{K_q^2\,N\,(1-p^2)}`,
+    formulaTex: String.raw`m=\begin{cases}\mu K_q&\text{一般 LMS}\\ \gamma/\lambda_{\min}&\text{完整反矩陣}\\ \gamma/(\lambda_{\min}+\lambda_{\mathrm{reg}})&\text{Regularized}\end{cases}\quad p=1-m\,\lambda_{\min},\quad k_{95}=\left\lceil\frac{\ln0.05}{\ln|p|}\right\rceil,\quad \operatorname{Var}(\xi_{\text{slow}})=\frac{m^2\,\lambda_{\min}}{K_q^2\,N\,(1-p^2)}`,
     level: 'engineer',
     claim: 'approx',
     inputs: [
@@ -986,7 +988,7 @@ export const HANDCALCS: HandCalcDef[] = [
       return {
         steps: [
           {
-            tex: String.raw`\lambda_{\min}=1-|\rho|=1-${tx(Math.abs(rho))}=${tx(lmin)}`,
+            tex: String.raw`\begin{aligned}\lambda_{\min}&=1-|\rho|\\&=1-${tx(Math.abs(rho))}=${tx(lmin)}\end{aligned}`,
             why: String.raw`慢模式的 eigenvalue（差模方向 $[1,-1]^T/\sqrt2$）。三種更新矩陣都與 $\mathbf R$ 共用 eigenvector，所以只要比較它們沿這個方向的增益 $m$。`,
           },
           kqStep(sigmaV, Kq),
@@ -995,7 +997,8 @@ export const HANDCALCS: HandCalcDef[] = [
             why: String.raw`變異公式的共同分母（平方一次、乘一次）。$K_q$ 只影響雜訊的大小，不影響 pole（$\mathbf A=\mathbf I+\mathbf M\mathbf J$ 與 $K_q$ 無關）。`,
           },
           {
-            tex: String.raw`\text{一般 LMS：}\quad m_{\mathrm s}=\mu K_q=${tx(muKq)},\qquad p_{\mathrm s}=1-m_{\mathrm s}\lambda_{\min}=1-${tx(muKq)}\times${tx(lmin)}=1-${tx(muKq * lmin, 7)}=${tx(s.p, 7)}`,
+            // 三種更新矩陣的「m、p」這一步都排成兩行（m 一行、p 一行，對齊等號）：寫成一行時 Regularized 那一步在桌機的正文欄也放不下
+            tex: String.raw`\begin{aligned}\text{一般 LMS：}\quad m_{\mathrm s}&=\mu K_q=${tx(muKq)}\\p_{\mathrm s}&=1-m_{\mathrm s}\lambda_{\min}=1-${tx(muKq)}\times${tx(lmin)}=1-${tx(muKq * lmin, 7)}=${tx(s.p, 7)}\end{aligned}`,
             why: String.raw`$\mathbf M=\mu\mathbf I$：每個方向的增益都是 $\mu K_q$，完全不看 $\mathbf R$（F-10.3）。`,
           },
           {
@@ -1011,7 +1014,7 @@ export const HANDCALCS: HandCalcDef[] = [
             why: String.raw`F-10.7：分子 $m^2\lambda_{\min}$（平方一次、乘一次），分母 $K_q^2N$ 乘上剛才的 $1-p^2$，最後相除。`,
           },
           {
-            tex: String.raw`\text{完整反矩陣：}\quad m_{\mathrm f}=\frac{\gamma}{\lambda_{\min}}=\frac{${tx(gamma)}}{${tx(lmin)}}=${tx(f.m)},\qquad p_{\mathrm f}=1-m_{\mathrm f}\lambda_{\min}=1-\gamma=1-${tx(gamma)}=${tx(f.p, 7)}`,
+            tex: String.raw`\begin{aligned}\text{完整反矩陣：}\quad m_{\mathrm f}&=\frac{\gamma}{\lambda_{\min}}=\frac{${tx(gamma)}}{${tx(lmin)}}=${tx(f.m)}\\p_{\mathrm f}&=1-m_{\mathrm f}\lambda_{\min}=1-\gamma=1-${tx(gamma)}=${tx(f.p, 7)}\end{aligned}`,
             why: String.raw`$\mathbf M=\gamma(K_q\mathbf R)^{-1}$：把弱方向的增益放大 $1/\lambda_{\min}$ 倍，使每個方向的 loop gain 都是 $\gamma$（F-10.4）；$m_{\mathrm f}\lambda_{\min}=\gamma$ 剛好約掉，不必再乘一次。`,
           },
           {
@@ -1027,7 +1030,7 @@ export const HANDCALCS: HandCalcDef[] = [
             why: String.raw`同一個公式代 $m_{\mathrm f}$；化簡後就是 F-10.6 的 $\gamma/\big(K_q^2N\lambda_{\min}(2-\gamma)\big)$。$m^2$ 讓雜訊隨增益的平方成長。`,
           },
           {
-            tex: String.raw`\text{Regularized：}\quad m_{\mathrm r}=\frac{\gamma}{\lambda_{\min}+\lambda_{\mathrm{reg}}}=\frac{${tx(gamma)}}{${tx(lmin)}+${tx(lamReg)}}=\frac{${tx(gamma)}}{${tx(lmin + lamReg)}}=${tx(r.m, 7)},\qquad p_{\mathrm r}=1-m_{\mathrm r}\lambda_{\min}=1-${tx(r.m, 7)}\times${tx(lmin)}=1-${tx(r.m * lmin, 7)}=${tx(r.p, 7)}`,
+            tex: String.raw`\begin{aligned}\text{Regularized：}\quad m_{\mathrm r}&=\frac{\gamma}{\lambda_{\min}+\lambda_{\mathrm{reg}}}=\frac{${tx(gamma)}}{${tx(lmin)}+${tx(lamReg)}}=\frac{${tx(gamma)}}{${tx(lmin + lamReg)}}=${tx(r.m, 7)}\\p_{\mathrm r}&=1-m_{\mathrm r}\lambda_{\min}=1-${tx(r.m, 7)}\times${tx(lmin)}=1-${tx(r.m * lmin, 7)}=${tx(r.p, 7)}\end{aligned}`,
             why: String.raw`$\mathbf M=\gamma\big(K_q(\mathbf R+\lambda_{\mathrm{reg}}\mathbf I)\big)^{-1}$：分母多了 $\lambda_{\mathrm{reg}}$，弱方向的增益不再被放大到 $1/\lambda_{\min}$（F-10.8）。$m_{\mathrm r}$ 多留幾位：$p_{\mathrm r}$ 離 1 多遠決定了後面的 $k_{95}$ 與變異。`,
           },
           {

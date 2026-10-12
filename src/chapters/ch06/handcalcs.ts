@@ -826,7 +826,8 @@ export const HANDCALCS: HandCalcDef[] = [
     title: String.raw`綜合題：近整數 FCW ＋ GMAC code delay，極性會不會翻？`,
     page: PAGE,
     formulaId: 'F-06.18',
-    formulaTex: String.raw`\frac{R_x[\ell]}{\sigma_x^2}=1-6\,t_\ell(1-t_\ell),\;\;t_\ell=|\ell|\,\mathrm{frac};\qquad \frac{C_D}{\sigma_x^2}\approx-12\,\mathrm{frac}\,D+\frac{12\,\mathrm{frac}^2}{K_i},\;\;K_i=(\omega_nT_s)^2;\qquad p=1-\mu K_qC_D`,
+    // 兩行（gathered）：排成一行在桌機的正文欄會超出幾個像素，多出一條沒有用途的橫向捲軸
+    formulaTex: String.raw`\begin{gathered}\frac{R_x[\ell]}{\sigma_x^2}=1-6\,t_\ell(1-t_\ell),\;\;t_\ell=|\ell|\,\mathrm{frac}\\[4pt] \frac{C_D}{\sigma_x^2}\approx-12\,\mathrm{frac}\,D+\frac{12\,\mathrm{frac}^2}{K_i},\;\;K_i=(\omega_nT_s)^2;\qquad p=1-\mu K_qC_D\end{gathered}`,
     level: 'engineer',
     claim: 'approx',
     inputs: [

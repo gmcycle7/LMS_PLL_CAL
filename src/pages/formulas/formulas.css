@@ -838,3 +838,44 @@ tr.fr-focus > td:first-child {
 .fr-page-symbols {
   margin-top: 24px;
 }
+
+/*
+ * 兩欄並排的先備知識（.fr-prereq-row）：桌機上每欄只有 420px 左右，和手機的欄寬差不多，展開後裡面的獨立公式比欄位寬兩三百 px，
+ * 每條式子底下一條橫向捲軸、右半被切掉。這一排不分螢幕寬度都讓 KaTeX 在最外層的等號／運算子後面換行
+ * （和下面手機的規則同一個做法）。表格（.fr-table）裡的公式不套用，免得整張表被重排。
+ */
+.fr .fr-prereq-row .c-texblock-math .katex-display > .katex {
+  white-space: normal;
+}
+.fr .fr-prereq-row .c-texblock-math .katex-display > .katex > .katex-html > .base {
+  margin: 0.12em 0;
+}
+.fr .fr-prereq-row .c-texblock-math .katex-display {
+  padding-right: 3px;
+}
+
+/*
+ * 手機上的逐步推導／帶入手算／獨立公式：一列等式鏈只比欄位寬幾個像素（寬度還隨讀者輸入的數字而變），
+ * 結果是一列只能橫向捲幾個 px、沒有用途的捲軸。讓 KaTeX 在最外層的等號／運算子後面換行
+ * （KaTeX 文件對 display math 自動換行的建議寫法）：放不下的式子分成兩行，放得下的仍然排成一行，
+ * 桌機（> 640px）完全不受影響；內容一個字都沒有被隱藏。
+ */
+@media (max-width: 640px) {
+  .fr .c-step-tex .katex-display > .katex,
+  .fr .c-texblock-math .katex-display > .katex {
+    white-space: normal;
+  }
+  /* 換行之後上下兩行之間留一點空隙 */
+  .fr .c-step-tex .katex-display > .katex > .katex-html > .base,
+  .fr .c-texblock-math .katex-display > .katex > .katex-html > .base {
+    margin: 0.12em 0;
+  }
+  /*
+   * 剛好排滿一行的式子，最後一個字的上標或斜體會比行框多凸出 1–2px，一樣會冒出一條沒有用途的捲軸。
+   * 右邊留 3px：凸出的部分落在留白裡；真的放不下的式子則照上面的規則換行。
+   */
+  .fr .c-step-tex .katex-display,
+  .fr .c-texblock-math .katex-display {
+    padding-right: 3px;
+  }
+}

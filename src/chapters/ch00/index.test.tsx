@@ -84,6 +84,9 @@ const EXPLAINED_AT_FIRST_USE: [string, string][] = [
   ['ch00-why-matters', String.raw`比較器只留下正負號，記為 $q_n=\mathrm{sign}(e_n)$`], // q
   ['ch00-why-matters', '取平均，記為 $G_k$'], // G_k
   ['ch00-why-matters', '是每 $N$ 筆組成的一個 block'], // k
+  ['ch00-why-matters', String.raw`它從一個固定的基準延遲 $T_0$ 往回扣`], // T_0
+  ['ch00-why-matters', String.raw`$\tau_{\mathrm{DTC}}[n]=T_0-w\,x[n]$`], // τ_DTC
+  ['ch00-why-matters', String.raw`$e[n]=t_{\mathrm{ref}}'[n]-t_{\mathrm{fb}}[n]$`], // t_ref′、t_fb
   ['ch00-sign', String.raw`$q$ 的平均不是 0，而是一個很小的正數，記為 $m_q=E[q]$`], // m_q
   ['ch00-sign', '加起來的總和記為 $S_N$'], // S_N
   ['ch00-assumptions', String.raw`記為 $\varepsilon_{cc}=\kappa\,x$`], // κ、ε_cc
@@ -212,6 +215,56 @@ describe('Ch00 整頁 smoke test', () => {
     for (const [id, phrase] of EXPLAINED_AT_FIRST_USE)
       expect(texText(container.querySelector(`#${id}`)).replace(/\s+/g, ' '), `${id}：${phrase}`).toContain(phrase)
     for (const row of SYMBOLS) expect(row.firstSeen, row.symbol).toMatch(/^(§0\.\d+|章首圖例)$/)
+    // 全站架構約定（docs/assumptions.md §2a）：DTC 在 reference 輸入端、feedback edge 早到、DTC 只能從基準延遲往回扣（補償量）、
+    // PD 量 reference edge 減 feedback edge、回授路徑只有 divider、LMS 校正迴路的輸入是 PD 的輸出
+    const walk = (name: string) => texText(container.querySelector(`[data-diagram="${name}"] .ch00-diagram-walk`)).replace(/\s+/g, ' ')
+    const physical = walk('CHART_BLACKBOX_TO_PLL')
+    for (const phrase of [
+      'feedback（divider）edge 會比理想時刻早到',
+      '是 DTC 的補償量',
+      'DTC 放在 reference 的輸入端，只能延遲、不能提前',
+      '把 reference edge 提前（少延遲）',
+      'PD 量的是（經過 DTC 的）reference edge 減 feedback edge',
+      '補償不足（$w<a$）時，reference 還是太晚，誤差為正',
+    ])
+      expect(physical, phrase).toContain(phrase)
+    expect(physical).not.toMatch(/插入|推回|回授路徑上的 DTC|DTC 在回授|divider 之後/)
+    const pllWalk = walk('CHART_PLL_LOOP')
+    for (const phrase of [
+      '參考時脈先進 DTC',
+      'DTC 不在回授路徑上，回授路徑上只有 divider',
+      'DSM 的 carry 控制 divider',
+      '比較器的輸入是 PD 的輸出 $e[n]$',
+      '送進 loop filter 的同一個訊號',
+    ])
+      expect(pllWalk, phrase).toContain(phrase)
+    expect(pllWalk).not.toMatch(/經過 DTC 再|DTC 之後|divider 的 edge/)
+    // 圖上的兩個圓角標籤（carry、x[n]）是接線標籤，不是新的方塊：說明文字要講清楚它們接到哪裡
+    expect(pllWalk).toContain('「carry（來自 DSM）」就是左下角 DSM 累加器的進位輸出，接到 divider')
+    expect(pllWalk).toContain('同時接到 GMAC')
+    // feedback edge 為什麼早到：divider 只能數整數個 VCO 週期（不是「因為 carry」就早到）
+    expect(physical).toContain('divider 一次只能數整數個 VCO 週期（要不要多數一個，由 DSM 的 carry 決定），所以 feedback（divider）edge 會比理想時刻早到 $a\\,x[n]$')
+    // 「預測」那一句：DTC 不能產生負的延遲，所以「提前」一定要連著基準延遲 T_0 一起講
+    const threeActions = texText(container.querySelector('#ch00-pll-walk')).replace(/\s+/g, ' ')
+    expect(threeActions).toContain('比較器取 PD 的輸出')
+    expect(threeActions).toContain('少延遲 reference edge（補償量 $w\\,x$，相對於基準延遲 $T_0$ 等於把 edge 提前這麼多）')
+    expect(threeActions).not.toMatch(/產生補償延遲|插入|推回/)
+    // 每一句「提前」都在同一句話裡提到基準延遲 T_0 或「少延遲」（三段說明文字都檢查）
+    for (const text of [physical, pllWalk, threeActions])
+      for (const sentence of text.split(/[。；]/).filter((t) => t.includes('提前'))) expect(sentence, sentence).toMatch(/T_0|少延遲|不能提前/)
+    // §0.10「path」那一列：比較器取的是 PD 的輸出，那裡的殘差正比於被迴路濾波過的 u = h*x（不是「殘差變成 u」）
+    const assumptions = texText(container.querySelector('#ch00-assumptions')).replace(/\s+/g, ' ')
+    expect(assumptions).toContain('PLL 裡比較器取的是 PD 的輸出，那裡的殘差不再正比於原始的 $x$，而是正比於被 PLL 迴路濾波過的版本 $u=h*x$')
+    // 章首的說明：比較器的輸入是 PD 的輸出；gain correction 的輸出去控制 reference 端的 DTC
+    const mapNote = texText(container.querySelector('.ch00-map-note'))
+    expect(mapNote).toContain('輸入取自 PD 輸出 $e[n]$ 的 1-bit comparator')
+    expect(mapNote).toContain('控制 reference 端的 DTC')
+    // 符號表：新增的 PLL 符號（T_0、τ_DTC、t_ref′、t_fb）與 e 的 PLL 意義（PD 的輸出）
+    const symbolRows = texText(container.querySelector('#symbols'))
+    expect(symbolRows).toContain(String.raw`$T_0,\ \tau_{\mathrm{DTC}}[n]$`)
+    expect(symbolRows).toContain(String.raw`$t_{\mathrm{ref}}',\ t_{\mathrm{fb}}$`)
+    expect(symbolRows).toContain('PLL 中 $w\\,x$ 是 DTC 的補償量')
+    expect(symbolRows).toContain('PLL 中是 PD 的輸出，也是 LMS 校正迴路（比較器）的輸入')
     // 勘誤標記（連到驗證頁）、程式碼區塊
     const errata = Array.from(container.querySelectorAll('.ch00-erratum-badge')).map((a) => a.textContent)
     expect(errata).toEqual(expect.arrayContaining(['勘誤 E39', '勘誤 E40', '勘誤 E41']))
@@ -231,6 +284,24 @@ describe('Ch00 整頁 smoke test', () => {
     expect(e40?.textContent).toContain('3.25')
     expect(e40?.textContent).toContain('2.75')
     expect(e40?.textContent).toContain('3.0000000000000004')
+    // sign(0) 慣例表：每一格仍然是模擬算出來的四個數字（逗號隔開）；很長的那一欄（17 位數的 double）在桌面／平板可以在逗號後換行，
+    // 才不必為了一長串數字橫向捲動（手機寬度維持不換行）。數字本身沒有空白，不會被拆開
+    const tieTable = Array.from(container.querySelectorAll('#ch00-sign table.ch00-num-table')).find((t) => t.textContent?.includes('慣例')) as HTMLTableElement
+    expect(tieTable.tBodies[0].rows).toHaveLength(3)
+    for (const row of Array.from(tieTable.tBodies[0].rows)) {
+      expect(row.cells[1].className).toBe('num')
+      expect(row.cells[2].className).toBe('num ch00-num-list')
+      for (const cell of [row.cells[1], row.cells[2]]) expect(cell.textContent, cell.textContent ?? '').toMatch(/^-?[\d.]+(, -?[\d.]+){3}$/)
+    }
+    expect(Array.from(tieTable.tBodies[0].rows).map((r) => r.cells[1].textContent)).toEqual(['3, 3, 3, 3', '3.25, 3, 3.25, 3', '2.75, 3, 2.75, 3'])
+    expect(tieTable.tBodies[0].rows[0].cells[2].textContent).toBe('2.8000000000000003, 3.0000000000000004, 2.8000000000000003, 3.0000000000000004')
+    const css = readFileSync(join(process.cwd(), 'src/chapters/ch00/chapter.css'), 'utf8')
+    expect(css).toMatch(/@media \(min-width: 561px\) \{\s*\.ch00-num-table td\.num\.ch00-num-list \{\s*white-space: normal;/)
+    // §0.4 的程式碼區塊（core:handCalc）：每一行都不超過 115 個字，桌面寬度不需要橫向捲軸
+    const handCode = Array.from(container.querySelectorAll('#ch00-hand figure.c-code pre')).find((pre) => pre.textContent?.includes('handCalcRows'))
+    const handLines = Array.from(handCode!.querySelectorAll('.c-code-line')).map((l) => l.textContent ?? '')
+    expect(handLines.length).toBeGreaterThan(10)
+    for (const line of handLines) expect(line.replace(/\n/g, '').length, line).toBeLessThanOrEqual(115)
     expect(container.querySelector('.c-tex-error')).toBeNull()
     // KaTeX throwOnError:false 時的語法錯誤會以 .katex-error 呈現：全章不得出現
     const texErrors = Array.from(container.querySelectorAll('.katex-error')).map((e) => e.getAttribute('title') ?? e.textContent)

@@ -20,7 +20,7 @@ const SYMBOLS: SymbolEntry[] = [
       </>
     ),
   },
-  { symbol: String.raw`u_i[n]`, meaning: mathText('第 $i$ 個參數的有效 regressor（它的誤差經 PLL 路徑到 comparator 前的「權重」）'), unit: String.raw`1`, firstSeen: '10.1', note: '已正規化（unit RMS）' },
+  { symbol: String.raw`u_i[n]`, meaning: mathText('第 $i$ 個參數的有效 regressor（它的誤差經 PLL 路徑到 PD 輸出 $e[n]$ 的「權重」）'), unit: String.raw`1`, firstSeen: '10.1', note: '已正規化（unit RMS）' },
   {
     symbol: String.raw`x_i[n]`,
     meaning: (
@@ -31,7 +31,13 @@ const SYMBOLS: SymbolEntry[] = [
     unit: String.raw`1`,
     firstSeen: '10.5',
   },
-  { symbol: String.raw`e[n]=\mathbf u^T[n]\boldsymbol\delta_k+v[n]`, meaning: 'comparator 前的總誤差：所有參數的誤差加在一起，再加雜訊', unit: String.raw`\mathrm{fs}`, firstSeen: '10.1' },
+  { symbol: String.raw`e[n]=\mathbf u^T[n]\boldsymbol\delta_k+v[n]`, meaning: 'PD 的輸出（comparator 的輸入）：所有參數的誤差加在一起，再加雜訊', unit: String.raw`\mathrm{fs}`, firstSeen: '10.1' },
+  {
+    symbol: String.raw`T_0`,
+    meaning: mathText('reference 端 DTC 的固定基準延遲：DTC 只能延遲，補償量 $\\sum_i w_i\\,x_i[n]$ 是從它往回扣的（DTC 的延遲 $=T_0-\\sum_i w_i\\,x_i[n]$）；常數，被 PLL 當成靜態相位偏移吸收'),
+    unit: String.raw`\mathrm{fs}`,
+    firstSeen: '系統圖',
+  },
   {
     symbol: String.raw`v[n],\ \sigma_v`,
     meaning: (

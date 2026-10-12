@@ -405,7 +405,7 @@ CLT 近似式保留 Φ(m√N/√(1−m²))，並註明：奇數 N 時它近似 P
 
 **問題**：δw=w−w* 的極性和 §0 的 δ=a−w 相反，參考點也不同（w* 和 a；§11 已說明 w*≠a）。因此 δt=(w−w*)x 和 §6 的 e_DTC=(a−w)x 差一個負號（w*=a 時）。§12.3 要求含 Cross-Spectrum（直接 PD 路徑與 LMS 的相關），若混用 e_DTC 和 δt，相關係數會反號。
 
-**修正（網站採用）**：在 §0 新增一列：δw_k=w_k−w*，表示相對 LMS 固定點 w* 的係數偏差，極性與 δ 相反，且 a−w_k=(a−w*)−δw_k。§12.2 改為「DTC 實際施加 delay 的擾動 δt[n]=x[n]δw[n]；對應的殘餘 timing error 貢獻為 −x[n]δw[n]（w*=a 時即 e_DTC 中的 gain-noise 項）。計算與直接 PD 路徑的 cross-spectrum 時須使用一致極性」。§13.1 改為「Static Error：w−w*=−0.4 LSB」。
+**修正（網站採用）**：在 §0 新增一列：δw_k=w_k−w*，表示相對 LMS 固定點 w* 的係數偏差，極性與 δ 相反，且 a−w_k=(a−w*)−δw_k。§12.2 改為「DTC 補償量的擾動（多補償的時間）δt[n]=x[n]δw[n]；對應的殘餘 timing error 貢獻為 −x[n]δw[n]（w*=a 時即 e_DTC 中的 gain-noise 項）。計算與直接 PD 路徑的 cross-spectrum 時須使用一致極性」。§13.1 改為「Static Error：w−w*=−0.4 LSB」。
 
 **數值證據**：取 w*=a=3、w=3.4、x=1：e_DTC=(a−w)x=−0.4，δt=x·δw=+0.4。
 
@@ -686,3 +686,4 @@ CLT 近似式保留 Φ(m√N/√(1−m²))，並註明：奇數 N 時它近似 P
 | Ch03 手算驗證 | `ln ε / ln|p|` 恰為整數時，所需步數多算一步（顯示 `⌈2⌉ = 3`） | `scalarStability.ts` 加入整數容差並補測試 |
 | Ch00 手算驗證 | `samplesForTargetStd` 的保護項用了相對 `1e-9`，大比值時少算樣本數 | 改為 `16·ε` 並補測試 |
 | 手算元件 | 科學記號的數字直接加上次方會產生 KaTeX「Double superscript」錯誤；浮點殘差（`1.4e-17`）被顯示成結果 | 各章以精確十進位運算產生顯示步驟，負數與科學記號底數加括號 |
+| 使用者指定的架構（2026-10-12） | 規格 §4 的概念圖把 DTC 畫在 divider 之後（回授路徑），§12.3 的注入極性取 feedback 側；使用者的晶片是 reference 端的 input DTC，而且 LMS 的輸入取自 PD 的輸出 | 全站的系統地圖、各章方塊圖與文字改成 `Reference → DTC → PD`、回授只有 divider；正負號約定見 [assumptions.md §2a](assumptions.md)：`τ_DTC = T_0 − w·x`、`e = t_ref′ − t_fb = (a − w)x + v`、`e_PD = H_PD·φ_dtc`。數學、模型與 golden vector 不變 |

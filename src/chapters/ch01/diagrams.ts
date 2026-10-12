@@ -456,7 +456,7 @@ export const DIAGRAMS: Ch01Diagram[] = [
     section: 'ch01-s101',
     chart: CHART_LMS_LOOP,
     caption:
-      '純量 LMS 的訊號流（L0 模型）。PLL 對應：輸入是 DSM code、黑盒子的係數是 DTC gain 所在的誤差路徑、相減的是 PD／comparator、更新的是 GMAC + gain register。',
+      '純量 LMS 的訊號流（L0 模型）。PLL 對應：輸入是 DSM code、$a$ 是 DTC 的真實 gain、相減的是 PD（輸出 $e_n$ 即 LMS 的輸入）、更新的是 GMAC + gain register。',
   },
   {
     id: 'D-01.3',

@@ -79,6 +79,13 @@ describe('Ch14 符號表放在章末（docs/teaching-style.md §5）', () => {
     expect(SYMBOLS.length).toBeGreaterThanOrEqual(30)
     // 最後一個區塊
     expect(root.lastElementChild).toBe(sym)
+    // 架構約定（docs/assumptions.md §2a）：符號表說明 T_0、e[n]（PD 的輸出）與 w_k 的「補償量」
+    const symRows = (sym: HTMLElement, name: string) => Array.from(sym.querySelectorAll('.c-symbols tbody tr')).find((tr) => tr.querySelector('annotation')?.textContent === name)
+    expect(symRows(sym, 'T_0')?.textContent).toContain('reference 端 DTC 的固定基準延遲')
+    expect(symRows(sym, 'e[n]')?.textContent).toContain('PD 的輸出')
+    expect(symRows(sym, 'e[n]')?.textContent).toContain('送進 loop filter 的同一個節點')
+    expect(symRows(sym, 'w_k')?.textContent).toContain('補償量')
+    expect(symRows(sym, 'a')?.textContent).toContain('feedback edge 早到')
     const follows = (a: Element | null, b: Element) => {
       expect(a).toBeTruthy()
       expect(a!.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -158,6 +165,29 @@ describe('Ch14 Research 模式：所有內容（含 Research-only 推導與程�
       if (/\^\{|_\{|\\[a-zA-Z]+/.test(t)) leaks.push(t.trim().slice(0, 80))
     }
     expect(leaks).toEqual([])
+    // 全站架構約定（docs/assumptions.md §2a）：DTC 在 reference 輸入端；w·x 叫「補償量」，不再說 DTC 插入延遲、把 feedback edge 推回去，也沒有回授側注入的說法
+    const pageText = container.textContent ?? ''
+    // （DTC 不能產生負的延遲：不說它把 reference edge「多提前／少提前」，一律寫成延遲 T_0 − w·x[n] 少扣或多扣）
+    for (const old of ['插入延遲', '推回', 'DTC 在回授', 'DTC 延遲 feedback', '回授側注入', 'feedback 側', 'divider 之後', 'divider 的 edge 經過 DTC', '多提前', '少提前']) expect(pageText, old).not.toContain(old)
+    expect(pageText).toContain('補償量')
+    expect(pageText).toContain('comparator 取的是 PD 的輸出')
+    // 硬體對照表：e[n] 取自 PD 輸出；數位端送進 DTC 的 code 是 C_0 − w_k·x[n]（從固定中心值往回扣），對應的延遲是 T_0 − w_k·x[n]
+    const hw = container.querySelector('[id="ch14-pll"]')!
+    expect(hw.textContent).toContain('PD 的輸出，也就是送進 loop filter 的同一個節點')
+    expect(hw.textContent).toContain('不從 DTC 或 divider 取')
+    expect(hw.textContent).toContain('數位端送進 reference 端 DTC 的 code')
+    const hwTex = Array.from(hw.querySelectorAll('annotation')).map((a) => a.textContent)
+    expect(hwTex).toContain(String.raw`C_0-w_k\,x[n]`)
+    expect(hwTex).toContain(String.raw`T_0-w_k\,x[n]`)
+    // §14.5「連結到 PLL」：±Δ 的擾動寫成 reference 端 DTC 延遲 T_0 − (w̄ ± Δ)·x[n] 的變化；PD 量到的誤差是 (a − w̄ ∓ Δ)·x[n] + v[n]，多了 ∓Δ·x[n]
+    const slope = Array.from(container.querySelectorAll('.c-callout')).find((c) => c.textContent?.includes('量測時 DTC 的 gain 被刻意偏移'))
+    expect(slope, '§14.5 的「連結到 PLL」').toBeTruthy()
+    expect(slope!.textContent).toContain('補償量')
+    expect(slope!.textContent).toContain('reference 端 DTC 的延遲')
+    const slopeTex = Array.from(slope!.querySelectorAll('annotation')).map((a) => a.textContent)
+    expect(slopeTex).toContain(String.raw`T_0-(\bar w\pm\Delta)\,x[n]`)
+    expect(slopeTex).toContain(String.raw`e[n]=(a-\bar w\mp\Delta)\,x[n]+v[n]`)
+    expect(slopeTex).toContain(String.raw`\mp\Delta\cdot x[n]`)
     // 只容許共用 Plot/Mermaid 非同步載入的 act() 警告（React 測試環境的已知雜訊）
     const real = errSpy.mock.calls.map((c) => String(c[0])).filter((m) => !m.includes('not wrapped in act'))
     expect(real).toEqual([])

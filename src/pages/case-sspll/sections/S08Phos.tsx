@@ -135,7 +135,7 @@ export function S08Phos() {
       </p>
       <StepDerivation
         steps={[
-          { tex: r`\kappa_1=W_1\,\mathrm{Re}\Gamma(\alpha)+\textstyle\sum_{\ell\ne1}w_\ell\,\mathrm{Re}\Gamma(\ell\alpha)`, why: '把基波從和裡拿出來。' },
+          { tex: r`\begin{aligned}\kappa_1&=W_1\,\mathrm{Re}\Gamma(\alpha)\\&\quad+\textstyle\sum_{\ell\ne1}w_\ell\,\mathrm{Re}\Gamma(\ell\alpha)\end{aligned}`, why: '把基波從和裡拿出來。' },
           {
             tex: r`W_1\mathrm{Re}\Gamma(\alpha)+(1-W_1)\min_f\mathrm{Re}\Gamma\;\le\;\kappa_1\;\le\;W_1\mathrm{Re}\Gamma(\alpha)+(1-W_1)\max_f\mathrm{Re}\Gamma`,
             why: <>其餘權重和為 <Tex>{'1-W_1'}</Tex>，每一項夾在 <Tex>{r`\mathrm{Re}\Gamma`}</Tex> 的全域最小與最大之間。</>,
@@ -185,6 +185,7 @@ export function S08Phos() {
         <Tex>{r`\alpha=j/4096`}</Tex>（<Tex>{'j=1..2048'}</Tex>），exact periodic，floor 約定，理想注入模型；<Tex>{r`\kappa_{PHOS}=8\min_m\mathrm{Re}\lambda_m`}</Tex>：
       </p>
       <DataTable
+        className="cs-fit"
         head={['', <><Tex>{r`\tau=10^{-3}`}</Tex> 的反號帶 [MHz]</>, <Tex key="t">{r`\tau=10^{-2}`}</Tex>, <>最差 <Tex>{r`\kappa_{PHOS}`}</Tex></>, 'GOS 負值']}
         rows={(['L1', 'L2', 'L3'] as LoopKey[]).map((k) => [
           k,

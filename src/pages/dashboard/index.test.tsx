@@ -100,6 +100,61 @@ function expectDiagrams(container: HTMLElement) {
   expect(precedes(loopFig, eqFig) && precedes(eqFig, spine.querySelector('details.dash-details'))).toBe(true)
   // 檢查流程與 block 方程式各有「怎麼讀」導讀，並用 KaTeX 把圖上的名字對回公式
   for (const f of [flowFig, eqFig]) expect(f.closest('.dash-diagram')?.querySelector('.dash-diagram-walk .katex'), f.getAttribute('aria-label') ?? '').toBeTruthy()
+  expectReferenceSideDtc(container, map, loopFig)
+}
+
+/**
+ * 架構（docs/assumptions.md §2a）：DTC 在 reference 的輸入端、回授路徑上只有 divider；LMS 校正迴路的輸入是 PD 的輸出；
+ * DTC 的作用寫成「補償量」（從基準延遲 T_0 往回扣），PD 量的是 e = t_ref′ − t_fb = (a − w)·x + v。
+ */
+function expectReferenceSideDtc(container: HTMLElement, map: HTMLElement, loopFig: HTMLElement) {
+  const sec = container.querySelector('#dash-map') as HTMLElement
+  const text = plainText(sec).replace(/\s+/g, ' ')
+  // 系統地圖下面的三點說明：主迴路的順序、補償的接法、LMS 的輸入
+  expect(text).toContain('reference → DTC → phase detector → loop filter → VCO')
+  expect(text).toContain('DTC 在 reference 的輸入端，回授路徑上只有 divider')
+  expect(text).toContain('gain correction → reference 端的 DTC')
+  expect(text).toContain('只能延遲、不能提前')
+  expect(text).toContain('補償量')
+  // 「提前」一定和基準延遲 T_0 一起講（DTC 不能產生負的延遲）；feedback edge 早到的量是鋸齒 a·x[n]，x ∈ [0, 1)
+  expect(text).toContain('和「一律延遲')
+  expect(text).toContain('去對齊早到的 feedback edge')
+  expect(text).toContain('補償不足')
+  expect(text).toContain('reference 還是太晚，誤差為正')
+  // 標題旁的小字與圖下的註記不能互相矛盾：這張圖不是規格 §4 原圖的接法
+  expect(plainText(sec.querySelector('h2') as Element)).toContain('DTC 改接在 reference 輸入端')
+  expect(plainText(sec.querySelector('h2') as Element)).not.toContain('規格 §4 的概念架構')
+  expect(text).toContain('本站一律照 reference 端 input DTC 的接法畫，上面這張圖也是')
+  // q 的正負號：補償後的 reference edge 比 feedback edge 晚 ⇒ q = +1（LMS 的更新 w ← w + μ·q·x 把補償量加大）
+  expect(text).toMatch(/reference edge 比 feedback edge 晚（.*）還是早（/)
+  expect(text).toContain('comparator 取的是 PD 的輸出')
+  expect(text).toContain('也就是送進 loop filter 的同一個訊號')
+  // 舊接法的說法（把 DTC 放在回授那一側、說 DTC 產生相反的延遲、LMS 的輸入只寫 phase error）不再出現
+  expect(text).not.toMatch(/divider → DTC|DTC → 回到 phase detector|產生相反的延遲|phase error → 1-bit comparator/)
+  const tex = texIn(sec)
+  expect(tex).toContain(String.raw`\tau_{\mathrm{DTC}}[n]=T_0-w\,x[n]`)
+  expect(tex).toContain(String.raw`e[n]=t_{\mathrm{ref}}'[n]-t_{\mathrm{fb}}[n]=(a-w)\,x[n]+v[n]`)
+  expect(tex).toContain(String.raw`0\le x[n]<1`)
+  expect(tex.indexOf('q[n]=+1')).toBeGreaterThan(-1)
+  expect(tex.indexOf('q[n]=+1')).toBeLessThan(tex.indexOf('q[n]=-1')) // 先「晚」（+1）後「早」（−1），和文字的順序一致
+  // 系統地圖與條件地圖的圖說、替代文字都說明 LMS 的輸入取自 PD 的輸出
+  expect(plainText(map.querySelector('figcaption') as Element)).toContain('LMS 校正迴路的輸入是 phase detector 的輸出')
+  expect(map.getAttribute('aria-label')).toContain('DTC 在 reference 輸入端')
+  expect(loopFig.getAttribute('aria-label')).toContain('reference 端的 DTC')
+  expect(loopFig.getAttribute('aria-label')).toContain('取 PD 輸出的正負號')
+  expect(plainText(loopFig.querySelector('figcaption') as Element)).toContain('comparator 取的是 PD 的輸出')
+  // 推導 1（comparator 的輸入）與推導 4（DTC-referred timing error）的說明用同一套講法
+  const spine = plainText(container.querySelector('#dash-spine') as HTMLElement)
+  expect(spine).toContain('Comparator 取的是 PD 的輸出')
+  expect(spine).toContain('Reference 端的 DTC 實際給的補償量是')
+  expect(spine).not.toMatch(/DTC 實際給的延遲/)
+  // δt = (w − a)·x 是「多補償的時間」，和 PD 量到的殘餘 (a − w)·x 差一個負號（勘誤 E33）——頁面要明講，讀者才不會以為兩處的正負號互相矛盾
+  expect(spine).toMatch(/多補償為正）。PD 量到的殘餘\s*正好是它的負號（勘誤 E33）/)
+  // 頁末符號表：δt 的定義改用補償量；另外列出 τ_DTC 與 t_ref′、t_fb
+  const symbols = container.querySelector('#symbols') as HTMLElement
+  expect(plainText(symbols)).not.toMatch(/DTC 實際延遲與理想延遲的差/)
+  expect(texIn(symbols)).toContain(String.raw`\tau_{\mathrm{DTC}}[n]=T_0-w\,x[n]`)
+  expect(texIn(symbols)).toContain(String.raw`t_{\mathrm{ref}}'[n],\ t_{\mathrm{fb}}[n]`)
 }
 
 describe('DashboardPage（jsdom smoke）', () => {

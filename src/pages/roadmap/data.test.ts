@@ -72,6 +72,19 @@ describe('Roadmap 資料：誠實與完整', () => {
     expect(ss.subgoals.filter((s) => s.status === 'in-analysis').length).toBeGreaterThanOrEqual(2)
     expect(ss.subgoals.some((s) => /沒有證明/.test(s.text))).toBe(true)
     expect(ss.subgoals.some((s) => s.status === 'not-started')).toBe(true)
+    // 架構（docs/assumptions.md §2a）：分數除頻由 feedback 側的 PMUX 加上 reference 側的 input DTC 完成
+    expect(ss.goal).toMatch(/feedback 側的 8 相 PMUX 加上 reference 側的 input DTC/)
+  })
+
+  it('R7 事件級模型：DTC 在 reference 輸入端（reference → DTC → PD），divider 在回授路徑（docs/assumptions.md §2a）', () => {
+    const r7 = ITEMS.find((i) => i.id === 'R7')!
+    expect(r7.goal).toContain('reference → DTC → PD → loop filter → VCO')
+    expect(r7.goal).toMatch(/VCO → divider（由 DSM 控制）→ PD/)
+    const todo = r7.subgoals.find((g) => /事件級（edge-based）/.test(g.text))!
+    expect(todo.text).toContain('reference → DTC → PD')
+    expect(todo.text).toMatch(/divider（DSM 控制）→ PD/)
+    // 舊寫法（把 DTC 夾在 divider 與 PD 之間的順序）不能再出現
+    expect(`${r7.goal}${todo.text}`).not.toMatch(/divider \/ DSM \/ DTC/)
   })
 
   it('狀態彙整：partial / pending / not started / in analysis 的總數 = 項目數', () => {

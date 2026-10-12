@@ -34,7 +34,7 @@ export const SYMBOLS: SymbolEntry[] = [
   { symbol: 'n,\\ k_f,\\ p_U', meaning: '獨立試驗數、觀察到的失效數、失效機率上界', unit: '—', firstSeen: '§3.5' },
   { symbol: 'B_x,\\ B_\\text{acc},\\ F', meaning: 'GMAC 輸入位元、累加器位元、內部小數位元', unit: '\\text{bits}', firstSeen: '§6' },
   { symbol: 'T_\\text{lc}', meaning: 'limit cycle 週期（與閉迴路 $T=L/(1+L)$ 不同）', unit: '\\text{updates}', firstSeen: '§6' },
-  { symbol: '\\delta t[n],\\ \\sigma_{\\delta t},\\ T', meaning: 'DTC 實際施加的延遲誤差 $\\delta t=x\\,\\delta w$、它的 RMS，與主 PLL 對輸出的 transfer $T=L/(1+L)$（輸出路徑用 $T$，不是 $H_\\mathrm{PD}$）', unit: '\\mathrm{fs},\\ \\mathrm{fs},\\ 1', firstSeen: '§8' },
+  { symbol: '\\delta t[n],\\ \\sigma_{\\delta t},\\ T', meaning: 'DTC 的補償誤差 $\\delta t=x\\,\\delta w$（reference 端的 DTC 多補償的時間：reference edge 少延遲、早到這麼多，殘差是 $-\\delta t$）、它的 RMS，與主 PLL 對輸出的 transfer $T=L/(1+L)$（DTC 殘差在 PD 的 reference 輸入注入，$\\theta_\\mathrm{out}=+T\\,\\phi_\\mathrm{dtc}$；輸出路徑用 $T$，不是 $H_\\mathrm{PD}$）', unit: '\\mathrm{fs},\\ \\mathrm{fs},\\ 1', firstSeen: '§8' },
 ]
 
 /** 字串欄位中的 `$…$` 以 KaTeX 顯示（SymbolTable 的 meaning／note 是 ReactNode，不會自動轉）。 */

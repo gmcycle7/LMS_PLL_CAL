@@ -4,9 +4,16 @@
  *
  * ── 整條訊號鏈（每一級的符號，δ = a − w 極性；時間單位 fs）──
  *   FCW = N_int + frac ──DSM──▶ residue r[n] [T_vco] ──正規化──▶ x[n] = (r[n] − o)·s（無因次）
- *   DTC：e_DTC[n] = (a − w_app,k)·x[n] + o_DTC + c₂x² + c₃x³                         [fs]
- *   PLL error path：u_pd[n] = H_PD{e_DTC}[n]（有狀態，跨 block 持續）；輸出 t_out[n] = T{e_DTC}[n]（T = 1 − H_PD）
- *   Comparator：e[n] = u_pd[n] + b + v[n]，q = sign(e)（e ≥ 0 ⇒ +1，E07）
+ *   DTC（在 reference 輸入端；全站架構約定見 docs/assumptions.md §2a）：需要補的量是 a·x[n]，DTC 實際的補償量是 w_app,k·x[n]
+ *     （從固定的基準延遲 T_0 往回扣），PD 看到兩者之差：
+ *     e_DTC[n] = (a − w_app,k)·x[n] + o_DTC + c₂x² + c₃x³                              [fs]
+ *     （本檔的 x 是正規化後的 residue r：未置中的一階 DSM 為 x ≤ 0，和 §2a 的 x = s/M = −r 差一個負號。
+ *       照 §2a 的時間寫：feedback edge 早到 a·|r|、τ_DTC = T_0 − w_app·|r|、t_ref′ − t_fb = (a − w_app)·|r|；
+ *       本檔用帶正負號的 x 寫成 (a − w_app)·x：gain 項與 regressor 一起變號，q·x 的統計不變，所以 GMAC 與更新式相同。
+ *       o_DTC、c₂x²、b 不隨 x 變號，它們的正負號是相對本檔的 e_DTC 定義的。）
+ *   PLL error path：e_DTC 在 PD 的 reference 輸入端注入 ⇒ PD 的輸出 u_pd[n] = +H_PD{e_DTC}[n]（有狀態，跨 block 持續）；
+ *     輸出 t_out[n] = +T{e_DTC}[n]（T = 1 − H_PD）
+ *   Comparator（輸入取自 PD 的輸出，也就是送進 loop filter 的同一個節點）：e[n] = u_pd[n] + b + v[n]，q = sign(e)（e ≥ 0 ⇒ +1，E07）
  *   GMAC：G_k = (1/N)Σ q·x_ref（average）或 Σ（sum）；x_ref ∈ {x, x[n−D], Ĥ{x}[n−D]}
  *   Gain register / update：w_{k+1} = w_k + μG_k，第 k 個 block 實際作用 w_app,k = phys(w_{k−d})
  *
@@ -1657,6 +1664,7 @@ function buildStages(x: {
       title: STAGE_TITLES.dtc,
       level: 'L2',
       assumptions: [
+        'DTC 在 reference 輸入端：需要補的量是 $a\\,x$，DTC 實際的補償量是 $w_{\\mathrm{app}}\\,x$（從固定的基準延遲 $T_0$ 往回扣），PD 只看到兩者之差 $(a-w_{\\mathrm{app}})\\,x$',
         '$e_{\\mathrm{DTC}}=(a-w_{\\mathrm{app}})\\,x+o_{\\mathrm{DTC}}+c_2x^2+c_3x^3$（靜態非線性；沒有 code-dependent settling / glitch）',
         '$a$、$w$ 的單位為 fs per unit code；極性 $\\delta=a-w$（E13、E32）',
       ],
@@ -1681,7 +1689,9 @@ function buildStages(x: {
             ? 'Type-I DPLL：$L(z)=k\\,z^{-(1+d_L)}/(1-z^{-1})$'
             : 'Type-II DPLL（E44 的直接差分方程）：$L(z)=\\bigl(K_p+\\tfrac{K_i}{1-z^{-1}}\\bigr)\\dfrac{z^{-(1+d_L)}}{1-z^{-1}}$',
         'PLL 與 comparator 同一取樣率；$H_{\\mathrm{PD}}$ 的狀態跨 block 持續（§15.2）',
-        '$T=1-H_{\\mathrm{PD}}$：DTC 誤差到 output timing error（注入點在 PD 比較端；極性見 E33）',
+        design.kind === 'none'
+          ? 'DTC 在 reference 輸入端：$e_{\\mathrm{DTC}}$ 在 PD 的 reference 輸入注入；這個教學基準讓 PD 與輸出都直接看到它，$u_{\\mathrm{pd}}=+e_{\\mathrm{DTC}}$、$t_{\\mathrm{out}}=+e_{\\mathrm{DTC}}$（$\\delta w$ 的極性見 E33）'
+          : 'DTC 在 reference 輸入端：$e_{\\mathrm{DTC}}$ 在 PD 的 reference 輸入注入，所以 $u_{\\mathrm{pd}}=+H_{\\mathrm{PD}}\\{e_{\\mathrm{DTC}}\\}$、$t_{\\mathrm{out}}=+T\\{e_{\\mathrm{DTC}}\\}$，$T=1-H_{\\mathrm{PD}}$（$\\delta w$ 的極性見 E33）',
       ],
       metrics: [
         { name: '設計', value: design.description },
@@ -1697,6 +1707,7 @@ function buildStages(x: {
       title: STAGE_TITLES.comparator,
       level: 'L1',
       assumptions: [
+        'comparator 取的是 PD 的輸出 $u_{\\mathrm{pd}}$，也就是送進 loop filter 的同一個訊號：$e[n]=u_{\\mathrm{pd}}[n]+b+v[n]$',
         `$v[n]$ 為 iid Gaussian，$\\sigma_v=${p.sigmaV}\\,\\mathrm{fs}$，與 code 獨立`,
         'tie 規則：$e\\ge 0\\Rightarrow q=+1$（E07）',
         `encoding = ${p.encoding}${bug ? '（反面測試：0/1 未映射成 $\\pm1$）' : ''}`,
@@ -2297,9 +2308,11 @@ export function runPipeline(p: LabParams): PipelineResult {
   const assumptions = [
     `時間單位 fs；code 依 ${p.normalization} 正規化後無因次；$a$、$w$ 的單位為 fs per unit code；極性 $\\delta=a-w$`,
     '$f_s=f_{\\mathrm{ref}}$：每個 DSM sample 對應一個 DTC code、一個 comparator sample（多速率未建模）',
-    '$e[n]=H_{\\mathrm{PD}}\\{e_{\\mathrm{DTC}}\\}[n]+b+v[n]$，$e_{\\mathrm{DTC}}=(a-w_{\\mathrm{app}})x+o_{\\mathrm{DTC}}+c_2x^2+c_3x^3$；$H_{\\mathrm{PD}}$ 狀態跨 block 持續（§15.2）',
+    'DTC 在 reference 輸入端，回授路徑只有 divider；comparator 取 PD 的輸出：$e[n]=H_{\\mathrm{PD}}\\{e_{\\mathrm{DTC}}\\}[n]+b+v[n]$，$e_{\\mathrm{DTC}}=(a-w_{\\mathrm{app}})x+o_{\\mathrm{DTC}}+c_2x^2+c_3x^3$；$H_{\\mathrm{PD}}$ 狀態跨 block 持續（§15.2）',
     `$v[n]$ 為 iid Gaussian（$\\sigma_v=${p.sigmaV}\\,\\mathrm{fs}$），與 code 獨立；$q=\\mathrm{sign}(e)$，tie 規則 $e\\ge0\\Rightarrow q=+1$（E07）`,
-    `主 PLL：${design.description}；$T=1-H_{\\mathrm{PD}}$（線性、時不變）`,
+    design.kind === 'none'
+      ? `主 PLL：${design.description}；PD 與輸出兩條路徑都取全通，所以這個基準不滿足 $H_{\\mathrm{PD}}+T=1$`
+      : `主 PLL：${design.description}；$T=1-H_{\\mathrm{PD}}$（線性、時不變）`,
     '$K_q=\\sqrt{2/\\pi}/\\sigma_v$ 是小訊號近似（$|e_{\\mathrm{det}}|\\ll\\sigma_v$）；$\\sigma_w$ 預測假設 GMAC 雜訊 iid 且線性化有效',
     `$C$、固定點由 blockLms 以前 $2^{17}$ 個 code 樣本估計（mean-field 固定點用 $2^{14}$ 個）`,
     `輸出分析：最後 $${W}$ 個 block（$${W * p.N}$ 個 samples）的重播視窗；靜態殘差用該視窗的 $\\bar w$`,

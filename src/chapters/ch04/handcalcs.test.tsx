@@ -227,6 +227,20 @@ describe('Ch04 手算題：(a) 預設值 = 模型函式、文中 worked example�
     expect(vals[3]).toBeCloseTo(721.15, 2)
     // 每一拍一個步驟 + M、carry 數、兩種 r、s_max、x、T_vco、τ、e
     expect(sol.steps.length).toBe(1 + HC_CYCLES + 8)
+    // 架構（全站約定，docs/assumptions.md §2a）：72115.38 fs 是「需要的補償量」τ_need——feedback edge 早到多少，reference 端的 DTC 就把 reference edge 提前多少
+    // （從基準延遲 T_0 少延遲這麼多）；它不是 DTC 加上去的延遲。數字與原來相同，只有符號與說明改了
+    const tauStep = sol.steps[1 + HC_CYCLES + 6]
+    expect(tauStep.tex).toMatch(/^\\tau_\\mathrm\{need\}\^\{\\max\}=x\[2\]\\,T_\\mathrm\{vco\}=/)
+    expect(tauStep.why).toContain('feedback（divider）edge 早到')
+    expect(tauStep.why).toContain('reference 端的 DTC')
+    expect(tauStep.why).toContain('基準延遲 $T_0$')
+    expect(sol.steps[1 + HC_CYCLES + 7].tex).toContain(String.raw`=\varepsilon\,\tau_\mathrm{need}^{\max}=`)
+    expect(sol.results[2].symbol).toBe(String.raw`\tau_\mathrm{need}^{\max}`)
+    expect(sol.results[2].label).toContain('需要的補償量')
+    expect(handcalc('HC-04.1').title).toBe('一階 DSM 累加器走 5 拍：residue、DTC 需要的補償量、gain 誤差的殘差')
+    expect(handcalc('HC-04.1').formulaTex).toContain(String.raw`\tau_\mathrm{need}[n]=\frac{s[n]}{M}\,T_\mathrm{vco}`)
+    const hc1Text = JSON.stringify([handcalc('HC-04.1').title, handcalc('HC-04.1').formulaTex, handcalc('HC-04.1').tips, sol.steps, sol.results, sol.notes])
+    for (const old of ['tau_\\\\mathrm{DTC}', '要延遲這麼多', '要補的延遲']) expect(hc1Text, old).not.toContain(old)
     // 很小的 residue（B = 16、K_F = 1：r[4] = −5/65536）會用科學記號：步驟與附註的數字都要在 $...$ 裡
     const tiny = handcalc('HC-04.1').solve({ KF: 1, B: 16, fvco: 13, eps: 1 })
     expect(tiny.results[1].value).toBe(-5 / 65536)

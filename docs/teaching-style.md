@@ -79,6 +79,7 @@
   5. **比較圖**：兩三種架構並排（raw-x／delayed-x／filtered-x；scalar／preconditioned；freeze／toggle／ΔΣ），差異的方塊用 `classDef` 標色。
   6. **手算流程圖**：一題綜合手算的計算順序（先算什麼、再算什麼），方便跟著做。
   7. **狀態機／時序圖**：校正流程、clock domain、block 邊界（可用 `stateDiagram-v2` 或 `sequenceDiagram`）。
+- **架構一律照 `docs/assumptions.md` §2a**：DTC 畫在 reference 輸入端（`Reference → DTC → PD`），回授路徑只有 divider／PMUX；LMS 校正迴路（comparator）的輸入從 **PD 的輸出**拉；DTC 的作用寫成「補償量 $w_k x[n]$（從基準延遲 $T_0$ 往回扣）」，PD 量的是 $e[n] = t_{\mathrm{ref}}' - t_{\mathrm{fb}} = (a - w_k)x[n] + v[n]$。
 - 每張圖要有圖說（一句話說明要看什麼），且圖上的訊號名稱、正負號、箭頭方向必須和正文公式一致（審查時逐一核對）。
 - 每張圖都要在測試裡**真的畫一次**，不能只過 parser（parser 抓不到「Unsupported markdown」這類問題）：各章的 `diagrams.test.tsx`（jsdom 環境）用 `@/components/mermaidTestUtils` 的 `installMermaidSvgShim` 與 `renderMermaidForTest(chart)`，逐張斷言畫出來的文字不含 `Unsupported markdown`、節點數不超過上限。節點文字含括號、冒號、引號等特殊字元時用雙引號包住。
 - 圖說（`caption`）與圖內標籤的數學一律用 `$...$` LaTeX；測試要斷言畫出來的文字裡沒有殘留的 `$`，而且 KaTeX 以外的文字沒有 Unicode 拼的數學。

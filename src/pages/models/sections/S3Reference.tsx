@@ -110,16 +110,18 @@ export function S3Reference() {
       </p>
       <p>
         先看圖，再看程式。圖裡的每一個方塊，在 §3.1 的程式裡都找得到對應的那一行；符號的意思：<Tex>{'x[n]'}</Tex> 是正規化後的 code，<Tex>{'a'}</Tex> 是真實的 DTC gain、<Tex>{'w_k'}</Tex> 是第 <Tex>{'k'}</Tex> 個 block 的校正係數，
-        <Tex>{'e[n]'}</Tex> 是 comparator 的輸入、<Tex>{'q[n]=\\pm1'}</Tex> 是它的輸出，<Tex>{'G_k'}</Tex> 是一個 block 內 <Tex>{'q\\,x_\\mathrm{ref}'}</Tex> 的平均，<Tex>{'\\mu'}</Tex> 是 learning rate。
+        <Tex>{'e[n]'}</Tex> 是 comparator 的輸入（取自 PD 的輸出）、<Tex>{'q[n]=\\pm1'}</Tex> 是它的輸出，<Tex>{'G_k'}</Tex> 是一個 block 內 <Tex>{'q\\,x_\\mathrm{ref}'}</Tex> 的平均，<Tex>{'\\mu'}</Tex> 是 learning rate。
       </p>
       <Diagram
         chart={CHART_BLOCK_SIGN_LMS}
-        caption="參考 Block Sign-LMS 的兩層迴圈：內層每個 comparator sample 做一次，外層每個 block 做一次。虛線是新的係數回到 DTC 的路，整個 block 內它不變。"
-        ariaLabel="Block Sign-LMS 兩層迴圈的方塊圖：內層由 code 經 DTC 誤差、PLL error path、加上 offset 與雜訊、1-bit comparator，再乘上 regressor；外層是 GMAC 平均、係數更新與 gain register，更新後的係數回到 DTC"
+        caption="參考 Block Sign-LMS 的兩層迴圈：內層每個 comparator sample 做一次，外層每個 block 做一次。DTC 在 reference 的輸入端，它補償之後剩下的誤差經 $H_\mathrm{PD}$ 到 PD 的輸出，comparator 取的就是這個輸出。虛線是新的係數回到 DTC 的路，整個 block 內它不變。"
+        ariaLabel="Block Sign-LMS 兩層迴圈的方塊圖：內層由 code 得到 reference 端 DTC 的殘餘誤差，經 PLL error path 到 PD 的輸出，加上 offset 與雜訊後進 1-bit comparator，再乘上 regressor；外層是 GMAC 平均、係數更新與 gain register，更新後的係數回到 DTC"
       >
         <p>
-          先看上面的內層：code 乘上還沒校正掉的 gain 誤差 <Tex>{'a-w_\\mathrm{app}'}</Tex>（加上 DTC 的非線性）得到時間誤差，經過 <Tex>{'H_\\mathrm{PD}'}</Tex>，在加法點加上 comparator offset <Tex>{'b'}</Tex> 與雜訊{' '}
-          <Tex>{'v[n]'}</Tex>，就是 <Tex>{'e[n]'}</Tex>（F-15.2）。comparator 只留下正負號，再乘上 regressor <Tex>{'x_\\mathrm{ref}[n]'}</Tex>。
+          先看上面的內層。Feedback（divider）edge 比理想時刻早到 <Tex>{'a\\,x[n]'}</Tex>；reference 端的 DTC 從基準延遲 <Tex>{'T_0'}</Tex> 往回扣 <Tex>{'w_\\mathrm{app}\\,x[n]'}</Tex>（補償量），等於讓 reference edge
+          也提前這麼多去對齊。PD 量的是 <Tex>{"t_\\mathrm{ref}'-t_\\mathrm{fb}"}</Tex>，所以沒補掉的部分是 code 乘上 gain 誤差 <Tex>{'a-w_\\mathrm{app}'}</Tex>，再加上 DTC 在這個 code 多出來的延遲 <Tex>{'c_2x^2+c_3x^3+o'}</Tex>（它讓 reference edge
+          更晚，所以是正號）——這就是第一個方塊的時間誤差，它在 PD 的 reference 輸入端進入主 PLL。經過 <Tex>{'H_\\mathrm{PD}'}</Tex> 之後是 PD 的輸出；comparator 取的是 PD 的輸出，也就是送進 loop filter 的同一個訊號。comparator 的 offset <Tex>{'b'}</Tex> 與 comparator 前的雜訊{' '}
+          <Tex>{'v[n]'}</Tex> 在模型裡都折算到同一個節點（PD 的輸出，也就是 comparator 的輸入），在加法點加進來，得到 comparator 實際比較的 <Tex>{'e[n]'}</Tex>（F-15.2）。comparator 只留下正負號，再乘上 regressor <Tex>{'x_\\mathrm{ref}[n]'}</Tex>。
         </p>
         <p>
           再看外層：<Tex>{'N'}</Tex> 個乘積平均成 <Tex>{'G_k'}</Tex>，係數走一步 <Tex>{'\\mu G_k'}</Tex>（F-15.1）。圖上的 <Tex>{'w_\\mathrm{app}'}</Tex> 是「實際作用在 DTC 上」的係數：比 <Tex>{'w_k'}</Tex> 晚 <Tex>{'d'}</Tex> 個 block，開定點時還先量化成實體 code（

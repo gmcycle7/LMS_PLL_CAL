@@ -10,6 +10,7 @@ import Chapter12 from './index'
 import { CODE_TABLE_PRM, codeTable } from './common'
 import * as D from './diagrams'
 import { CH12_CHARTS, CH12_SYSTEM_FOCUS } from './diagrams'
+import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
 
 /**
@@ -303,15 +304,21 @@ describe('第 12 章方塊圖：真的畫一次（mermaid.render）', () => {
       }
       if (hasLoop(g)) {
         withLoop.push(name)
-        // CHART_PLL_LOOP 是連續時間的迴路（L(s) 內含 VCO 的積分），沒有 z⁻¹；其餘迴圈都是 block rate 的遞迴
-        if (name !== 'CHART_PLL_LOOP') expect(hasDelayFreeLoop(g), `${name} 有不經過 z⁻¹ 的迴圈`).toBe(false)
+        if (name === 'NOISE_CHAIN_CHART') {
+          // 方塊層級的地圖：PD 的輸出回到 comparator 的那個迴圈（校正迴路）一定經過「LMS 更新」——它是累加器，
+          // 展開之後就是 CHART_UPDATE_LOOP 的 z⁻¹；拿掉這一格，圖上就不能再有迴圈
+          expect(hasLoop({ ...g, edges: g.edges.filter((e) => e.start !== 'U' && e.end !== 'U') }), `${name} 有不經過 LMS 累加器的迴圈`).toBe(false)
+        } else if (name !== 'CHART_PLL_LOOP') {
+          // CHART_PLL_LOOP 是連續時間的迴路（L(s) 內含 VCO 的積分），沒有 z⁻¹；其餘迴圈都是 block rate 的遞迴
+          expect(hasDelayFreeLoop(g), `${name} 有不經過 z⁻¹ 的迴圈`).toBe(false)
+        }
       }
     }
     expect(withSum).toEqual(['CHART_GMAC_LINEAR', 'CHART_UPDATE_LOOP', 'CHART_COEF_LOOP', 'CHART_VAR_LOOP', 'CHART_COLORED_ETA', 'CHART_GAIN_MULT', 'CHART_DC_FEEDTHROUGH', 'CHART_PLL_LOOP'])
-    expect(withLoop).toEqual(['CHART_UPDATE_LOOP', 'CHART_COEF_LOOP', 'CHART_VAR_LOOP', 'CHART_COLORED_ETA', 'CHART_PLL_LOOP'])
+    expect(withLoop).toEqual(['NOISE_CHAIN_CHART', 'CHART_UPDATE_LOOP', 'CHART_COEF_LOOP', 'CHART_VAR_LOOP', 'CHART_COLORED_ETA', 'CHART_PLL_LOOP'])
   })
 
-  it('極性與箭頭方向和公式一致（F-12.1、F-12.2、F-12.3、F-12.5、F-12.11、§12.7；極性 δw = w − w*，勘誤 E33）', () => {
+  it('極性與箭頭方向和公式一致（F-12.1、F-12.2、F-12.3、F-12.5、F-12.11、§12.7；極性 δw = w − w*，勘誤 E33）；架構照全站約定：DTC 在 reference 輸入端、回授只有 divider、comparator 的輸入是 PD 的輸出', () => {
     const g = (name: string) => {
       const f = flows.get(name)
       if (!f) throw new Error(`${name} 不是 flowchart`)
@@ -324,7 +331,8 @@ describe('第 12 章方塊圖：真的畫一次（mermaid.render）', () => {
     expect(vertexText(lin, 'XC')).toContain('$C\\,x[n]$')
     expect(edgeText(lin, 'X1', 'S1')).toBe('$+$')
     expect(edgeText(lin, 'V', 'S1')).toBe('$+$')
-    expect(edgeText(lin, 'S1', 'SGN')).toBe('$e[n]$')
+    // comparator 的輸入 e[n] 就是 PD 的輸出（送進 loop filter 的同一個節點；docs/assumptions.md §2a 第 3 點）
+    expect(edgeText(lin, 'S1', 'SGN')).toBe('$e[n]$：PD 的輸出')
     expect(edgeText(lin, 'SGN', 'X2')).toBe('$q[n]$')
     expect(hasEdge(lin, 'XR', 'X2') && hasEdge(lin, 'X2', 'AVG')).toBe(true)
     // F-12.1 的等效模型：G_k ≈ −K·δw_k + η_k —— K 那一路以負號、η 以正號進入加法點
@@ -392,13 +400,20 @@ describe('第 12 章方塊圖：真的畫一次（mermaid.render）', () => {
     expect(edgeText(col, 'D1', 'R')).toBe('$\\eta_{k-1}$')
     expect(vertexText(col, 'OUT')).toContain('\\frac{1 + p\\,r}{1 - p\\,r}')
 
-    // F-12.11：w[n] = w* + δw[n]，延遲 = w[n]·x[n]，δt = x·δw（乘法，不是加法）
+    // F-12.11：w[n] = w* + δw[n]，reference 端 DTC 的補償量 = w[n]·x[n]（實際延遲 T_0 − w[n]·x[n]），δt = x·δw（乘法，不是加法）
     const gm = g('CHART_GAIN_MULT')
     expect(edgeText(gm, 'WS', 'S')).toBe('$+$')
     expect(edgeText(gm, 'DW', 'S')).toBe('$+$')
     expect(edgeText(gm, 'S', 'M')).toBe('$w[n] = w^* + \\delta w[n]$')
     expect(hasEdge(gm, 'X', 'M')).toBe(true)
     expect(vertexText(gm, 'DT')).toContain('$\\delta t[n] = x[n]\\,\\delta w[n]$')
+    // w·x 是「補償量」，不是 DTC 插入的延遲：延遲從基準 T_0 往回扣；δt 是多補的量（docs/assumptions.md §2a 第 4 點）
+    expect(hasEdge(gm, 'M', 'DLY') && hasEdge(gm, 'DLY', 'ID') && hasEdge(gm, 'DLY', 'DT')).toBe(true)
+    expect(vertexText(gm, 'DLY')).toContain('DTC 的補償量 $w[n]\\,x[n]$')
+    expect(vertexText(gm, 'DLY')).toContain('$\\tau = T_0 - w[n]\\,x[n]$')
+    expect(vertexText(gm, 'ID')).toContain('本來就要補的量')
+    expect(vertexText(gm, 'DT')).toContain('多補的量')
+    expect(D.CHART_GAIN_MULT).not.toMatch(/DTC 延遲 \$=|多出來的延遲|本來就要的延遲/)
     expect(D.NOISE_CHAIN_CHART).toContain('(("$\\times$"))')
     expect(D.CHART_TF_CHAIN).toContain('$\\delta t[n] = x[n]\\,\\delta w[n]$')
     // 雜訊傳遞鏈：code 進乘號，也（虛線）進 GMAC；乘號之後分成 PD 與 output 兩個出口
@@ -407,6 +422,17 @@ describe('第 12 章方塊圖：真的畫一次（mermaid.render）', () => {
     expect(vertexText(chain, 'PD')).toContain('$H_{\\mathrm{PD}} = 1/(1+L)$')
     expect(vertexText(chain, 'T')).toContain('$T = L/(1+L)$')
     expect(vertexText(chain, 'OUT')).toContain('\\phi_{\\mathrm{out}} = -2\\pi f_{\\mathrm{out}}\\,T\\,\\delta t')
+    // δt 是 reference 端的 DTC「多補償的時間」（不是多出來的延遲）
+    expect(vertexText(chain, 'DT')).toContain('$\\delta t[n] = x\\,\\delta w$')
+    expect(vertexText(chain, 'DT')).toContain('reference 端的 DTC')
+    expect(vertexText(chain, 'DT')).toContain('多補償的時間')
+    expect(D.NOISE_CHAIN_CHART).not.toContain('延遲')
+    // 校正迴路的輸入：comparator 取的是 PD 的輸出 e[n]（虛線由 PD 拉回 comparator）；comparator 只有雜訊與 PD 輸出兩個輸入
+    expect(edgeText(chain, 'PD', 'Q')).toContain('PD 的輸出 $e[n]$')
+    expect(edgeText(chain, 'PD', 'Q')).toContain('comparator 取它的正負號')
+    expect(chain.edges.filter((e) => e.end === 'Q').map((e) => e.start).sort()).toEqual(['PD', 'V'])
+    expect(hasEdge(chain, 'DT', 'Q') || hasEdge(chain, 'M', 'Q') || hasEdge(chain, 'T', 'Q')).toBe(false)
+    expect(chain.edges.length).toBe(12)
 
     // F-12.12：和頻與差頻，各 A·B/2
     expect(D.CHART_TONE_MIXER).toContain('f_x - f_w = 90\\ \\mathrm{kHz}')
@@ -456,17 +482,43 @@ describe('第 12 章方塊圖：真的畫一次（mermaid.render）', () => {
     expect(edgeText(units, 'B', 'C')).toContain('\\times\\,(2\\pi f_{\\mathrm{out}})^2|T|^2')
     expect(edgeText(units, 'C', 'D')).toBe('$\\div\\,2$，再取 $10\\log_{10}$')
 
-    // §12.7：e_PD = −(θ_out + φ_dtc)，θ_out = L·e_PD；H_PD + T = 1
+    // §12.7：DTC 在 reference 輸入端，殘餘誤差在 PD 的 reference 輸入注入：e_PD = φ_dtc − θ_out，θ_out = L·e_PD；H_PD + T = 1
     const pll = g('CHART_PLL_LOOP')
-    expect(edgeText(pll, 'REF', 'S')).toBe('$+$')
-    expect(edgeText(pll, 'A', 'S')).toBe('$-(\\theta_{\\mathrm{out}} + \\phi_{\\mathrm{dtc}})$')
-    expect(edgeText(pll, 'S', 'L')).toBe('$e_{\\mathrm{PD}}$')
-    expect(edgeText(pll, 'L', 'A')).toBe('$+\\theta_{\\mathrm{out}}$')
-    expect(edgeText(pll, 'K', 'A')).toBe('$+\\phi_{\\mathrm{dtc}}$')
-    expect(hasEdge(pll, 'DTC', 'K')).toBe(true)
+    // 訊號路徑 Reference clock → DTC →（時間換相位）→ PD（加法點）→ L(s) → output；回授 output → divider → PD，路上只有 divider
+    expect(hasEdge(pll, 'REF', 'DTC')).toBe(true)
+    expect(vertexText(pll, 'REF')).toContain('reference clock')
+    expect(vertexText(pll, 'DTC')).toContain('DTC（reference 輸入端）')
+    expect(vertexText(pll, 'DTC')).toContain('多補償 $\\delta t$')
+    expect(edgeText(pll, 'DTC', 'K')).toBe('時間誤差 $-\\delta t$')
     expect(vertexText(pll, 'K')).toContain('\\times\\,2\\pi f_{\\mathrm{out}}')
-    expect(vertexText(pll, 'OUT')).toContain('\\theta_{\\mathrm{out}} = -T\\,\\phi_{\\mathrm{dtc}}')
-    expect(vertexText(pll, 'PDN')).toContain('e_{\\mathrm{PD}} = -H_{\\mathrm{PD}}\\,\\phi_{\\mathrm{dtc}}')
+    expect(edgeText(pll, 'K', 'S')).toBe('$+\\phi_{\\mathrm{dtc}}$')
+    expect(edgeText(pll, 'S', 'L')).toBe('$e_{\\mathrm{PD}}$')
+    expect(edgeText(pll, 'L', 'OUT')).toBe('$\\theta_{\\mathrm{out}}$')
+    // 回授路徑是一個畫出來的 divider 方塊：output → divider → PD（帶負號），divider 直接進 PD，中間沒有別的方塊
+    expect(hasEdge(pll, 'OUT', 'DIV') && hasEdge(pll, 'DIV', 'S')).toBe(true)
+    expect(edgeText(pll, 'DIV', 'S')).toBe('$-\\theta_{\\mathrm{out}}$')
+    expect(vertexText(pll, 'DIV')).toContain('divider：回授路徑上只有它')
+    // 相位以 output 為參考：divider 把 θ_out 原樣送回，除數算在 L(s) 裡（L 那一格的「÷ 除數」就是這個 divider）
+    expect(vertexText(pll, 'DIV')).toContain('除數已算進 $L(s)$')
+    expect(vertexText(pll, 'L')).toContain('PD 增益 $\\times$ loop filter $\\times$ VCO $\\div$ 除數')
+    expect(pll.edges.filter((e) => e.end === 'DIV').map((e) => e.start)).toEqual(['OUT'])
+    expect(pll.edges.filter((e) => e.start === 'DIV').map((e) => e.end)).toEqual(['S'])
+    expect(hasEdge(pll, 'OUT', 'S')).toBe(false)
+    // reference 不直接接 PD（中間一定經過 DTC）；DTC 唯一的輸入是 reference、唯一的輸出往 PD，不在回授路徑上；進 PD 的只有 reference 這一路與 divider
+    expect(hasEdge(pll, 'REF', 'S')).toBe(false)
+    expect(pll.edges.filter((e) => e.end === 'DTC').map((e) => e.start)).toEqual(['REF'])
+    expect(pll.edges.filter((e) => e.start === 'DTC').map((e) => e.end)).toEqual(['K'])
+    expect(pll.edges.filter((e) => e.end === 'K').map((e) => e.start)).toEqual(['DTC'])
+    expect(pll.edges.filter((e) => e.start === 'K').map((e) => e.end)).toEqual(['S'])
+    expect(pll.edges.filter((e) => e.end === 'S').map((e) => e.start).sort()).toEqual(['DIV', 'K'])
+    expect(pll.vertices.filter((v) => v.type === 'circle').map((v) => v.id)).toEqual(['S'])
+    // 解出來都是正號：θ_out = T·φ_dtc、e_PD = H_PD·φ_dtc
+    expect(vertexText(pll, 'OUT')).toContain('\\theta_{\\mathrm{out}} = T\\,\\phi_{\\mathrm{dtc}}')
+    expect(vertexText(pll, 'PDN')).toContain('e_{\\mathrm{PD}} = H_{\\mathrm{PD}}\\,\\phi_{\\mathrm{dtc}}')
+    expect(vertexText(pll, 'PDN')).toContain('加法點就是 PD')
+    // 校正迴路的輸入：comparator 取的是 PD 的輸出 e_PD（送進 L(s)——loop filter——的同一條線）
+    expect(vertexText(pll, 'PDN')).toContain('comparator 取的也是 $e_{\\mathrm{PD}}$')
+    expect(D.CHART_PLL_LOOP).not.toMatch(/= -T|= -H_|\\theta_\{\\mathrm\{out\}\} \+ \\phi_\{\\mathrm\{dtc\}\}/)
     const exits = g('CHART_TWO_EXITS')
     expect(hasEdge(exits, 'DT', 'PD') && hasEdge(exits, 'DT', 'T') && hasEdge(exits, 'PD', 'EPD') && hasEdge(exits, 'T', 'PO') && hasEdge(exits, 'T', 'J')).toBe(true)
     expect(vertexText(exits, 'PD')).toContain('H_{\\mathrm{PD}} = 1/(1+L)')
@@ -474,6 +526,8 @@ describe('第 12 章方塊圖：真的畫一次（mermaid.render）', () => {
     expect(vertexText(exits, 'EPD')).toContain('e_{\\mathrm{PD}} = -2\\pi f_{\\mathrm{out}}\\,H_{\\mathrm{PD}}\\,\\delta t')
     expect(vertexText(exits, 'PO')).toContain('\\phi_{\\mathrm{out}} = -2\\pi f_{\\mathrm{out}}\\,T\\,\\delta t')
     expect(vertexText(exits, 'SUM')).toContain('H_{\\mathrm{PD}} + T = 1')
+    // 兩格的負號來自 δt 的定義：DTC 多補償 δt，reference edge 早到 δt，進 PD 的時間誤差是 −δt
+    expect(vertexText(exits, 'DT')).toContain('reference edge 早到 $\\delta t$')
 
     // 取樣率：block 量標 k、sample 量標 n
     expect(D.CHART_TF_CHAIN).toContain('block rate $f_u = f_s/N$（索引 $k$）')
@@ -669,10 +723,87 @@ describe('第 12 章方塊圖：頁面上的位置', () => {
     expect(question.nextElementSibling).toBe(maps[0])
     expect(maps[0].nextElementSibling?.textContent ?? '').toMatch(/藍色方塊.*本章新增/)
     expect(maps[0].querySelector('figcaption')?.textContent ?? '').toMatch(/系統地圖.*phase detector.*VCO 輸出/)
+    // 全站架構約定（docs/assumptions.md §2a）：DTC 在 reference 輸入端；comparator 取 PD 的輸出（送進 loop filter 的同一個訊號）
+    expect(maps[0].querySelector('figcaption')?.textContent ?? '').toMatch(/reference 輸入端的 DTC/)
+    expect(maps[0].querySelector('figcaption')?.textContent ?? '').toMatch(/comparator 取的是 phase detector 的輸出.*loop filter 的同一個訊號/)
+    expect(maps[0].nextElementSibling?.textContent ?? '').toMatch(/reference 輸入端的 DTC.*補償量/)
     // 系統地圖在第一個小節裡，而且在所有其他圖與第一個公式之前
     expect(need('#ch12-start').contains(maps[0])).toBe(true)
     expect(follows(maps[0], stubs[0])).toBe(true)
     expect(follows(maps[0], formula('F-12.1'))).toBe(true)
+  })
+
+  it('架構敘述（docs/assumptions.md §2a）：DTC 在 reference 輸入端、w·x 是補償量、PD 量的是 reference edge 減 feedback edge；§12.7 的推導由 e_PD = φ_dtc − θ_out 出發，解出來 θ_out = T·φ_dtc、e_PD = H_PD·φ_dtc', () => {
+    const page = container.textContent ?? ''
+    // 舊的說法（DTC 在回授路徑上「插入／多施加延遲」、誤差在 feedback 側注入）整頁都不能再出現
+    for (const old of ['多施加', '多出來的延遲', 'DTC 多出的延遲', '本來就要的延遲', 'DTC 實際延遲', 'feedback 的比較路徑', 'feedback 比較路徑', 'feedback 側）加上相位']) {
+      expect(page, old).not.toContain(old)
+    }
+    // DTC 不能產生負的延遲：不能在沒有基準延遲 T_0 的說明下寫「reference edge 被（多／少）提前」
+    expect(page).not.toMatch(/被多提前|少提前了/)
+    expect(need('[data-testid="system-map-stub"]').nextElementSibling?.textContent ?? '').toMatch(/DTC 的延遲比該有的短了一點或長了一點，reference edge 因此早到或晚到一點/)
+    // 公式（KaTeX 的 TeX 原始碼）：推導的八行
+    const tex = Array.from(container.querySelectorAll('#ch12-paths annotation')).map((a) => a.textContent ?? '')
+    const has = (t: string) => tex.some((x) => x.includes(t))
+    expect(has(String.raw`e_{\mathrm{PD}}=\phi_{\mathrm{dtc}}-\theta_{\mathrm{out}}`)).toBe(true)
+    expect(has(String.raw`\theta_{\mathrm{out}}=L(s)\,e_{\mathrm{PD}}`)).toBe(true)
+    expect(has(String.raw`\theta_{\mathrm{out}}=L\phi_{\mathrm{dtc}}-L\theta_{\mathrm{out}}\ \Rightarrow\ \theta_{\mathrm{out}}=\frac{L}{1+L}\phi_{\mathrm{dtc}}=T\phi_{\mathrm{dtc}}`)).toBe(true)
+    expect(has(String.raw`e_{\mathrm{PD}}=(1-T)\phi_{\mathrm{dtc}}=\frac{1}{1+L}\phi_{\mathrm{dtc}}=H_{\mathrm{PD}}\phi_{\mathrm{dtc}}`)).toBe(true)
+    expect(has(String.raw`H_{\mathrm{PD}}(s)+T(s)=1`)).toBe(true)
+    expect(has(String.raw`\phi_{\mathrm{dtc}}=-2\pi f_{\mathrm{out}}\,\delta t`)).toBe(true)
+    expect(has(String.raw`\phi_{\mathrm{out}}=\theta_{\mathrm{out}}=T\phi_{\mathrm{dtc}}=-2\pi f_{\mathrm{out}}\,T(s)\,\delta t(s)`)).toBe(true)
+    expect(has(String.raw`e_{\mathrm{PD}}=H_{\mathrm{PD}}\phi_{\mathrm{dtc}}=-2\pi f_{\mathrm{out}}\,H_{\mathrm{PD}}(s)\,\delta t(s)`)).toBe(true)
+    // 舊的 feedback 側注入：−(θ_out + φ_dtc)、−T·φ_dtc、−H_PD·φ_dtc 都不能留下
+    for (const t of tex) {
+      expect(t).not.toMatch(/-\\big\(\\theta_\{\\mathrm\{out\}\}\+\\phi_\{\\mathrm\{dtc\}\}/)
+      expect(t).not.toMatch(/-\(\\theta_\{\\mathrm\{out\}\}\+\\phi_\{\\mathrm\{dtc\}\}\)/)
+      expect(t).not.toMatch(/-T\\?,?\\phi_\{\\mathrm\{dtc\}\}|-H_\{\\mathrm\{PD\}\}\\?,?\\phi_\{\\mathrm\{dtc\}\}/)
+    }
+    // F-12.16 的負號不變（δt = x·δw 是多補償的時間：reference edge 早到 δt，進 PD 的是 −δt）
+    expect((formula('F-12.16').querySelector('annotation')?.textContent ?? '')).toContain(String.raw`\phi_{\mathrm{out}}(s)=-2\pi f_{\mathrm{out}}T(s)\,\delta t(s)`)
+    // 導讀：PLL 迴路圖從 reference 這一路講起，加法點就是 PD，feedback 只經過 divider；PD 的輸出就是 comparator 取的節點
+    const readPll = stub('CHART_PLL_LOOP').closest('.ch12-diagram')?.querySelector('.ch12-diagram-read')?.textContent ?? ''
+    expect(readPll).toMatch(/reference clock 先經過 DTC 才到 PD/)
+    expect(readPll).toMatch(/feedback 那條線只經過 divider/)
+    // divider 方塊與 L(s) 裡的「÷ 除數」是同一個 divider：以 output 為參考時 divider 把 θ_out 原樣送回，除數只算在 L(s) 裡
+    expect(readPll).toMatch(/輸出的 edge 晚多少時間，divider 送回 PD 的 edge 就晚多少時間/)
+    expect(readPll).toMatch(/除數只出現在開迴路增益.*和這個 divider 是同一個/)
+    expect(readPll).toMatch(/loop filter.*comparator/)
+    expect(stub('CHART_PLL_LOOP').querySelector('figcaption')?.textContent ?? '').toMatch(/路上只有 divider，沒有 DTC/)
+    expect(stub('CHART_PLL_LOOP').querySelector('figcaption')?.textContent ?? '').toMatch(/DTC 在 reference 輸入端.*PD 的 reference 輸入/)
+    const readChain = stub('NOISE_CHAIN_CHART').closest('.ch12-diagram')?.querySelector('.ch12-diagram-read')?.textContent ?? ''
+    expect(readChain).toMatch(/comparator 取的是 PD 的輸出.*loop filter 的同一個訊號/)
+    expect(readChain).toMatch(/reference 端的 DTC 多補償的時間/)
+    // 數學模型那張圖只畫雜訊往前走的路：導讀交代 comparator 的輸入仍是 PD 的輸出，回授那一圈收在 H(z) 的 pole 裡
+    const readTf = stub('CHART_TF_CHAIN').closest('.ch12-diagram')?.querySelector('.ch12-diagram-read')?.textContent ?? ''
+    expect(readTf).toMatch(/comparator 的輸入仍然是 PD 的輸出/)
+    expect(readTf).toMatch(/已經收在.*LMS 閉迴路/)
+    const readGain = stub('CHART_GAIN_MULT').closest('.ch12-diagram')?.querySelector('.ch12-diagram-read')?.textContent ?? ''
+    expect(readGain).toMatch(/補償量.*reference edge 被提前/)
+    expect(readGain).toMatch(/本來就要補的量/)
+    // §12.1 推導第一行：PD 量的是 reference edge 減 feedback edge；§12.6：DTC 只能延遲，從基準延遲往回扣
+    expect(need('#ch12-linearize').textContent ?? '').toMatch(/PD 量的是「DTC 延遲後的 reference edge 減 feedback edge」/)
+    expect(Array.from(container.querySelectorAll('#ch12-linearize annotation')).some((a) => (a.textContent ?? '').includes(String.raw`e[n]=t_{\mathrm{ref}}'[n]-t_{\mathrm{fb}}[n]`))).toBe(true)
+    // §12.1 第一次講補償就交代 T_0（DTC 只能延遲）：feedback edge 早到 a·x，DTC 的延遲 τ = T_0 − w_k·x；補償不足時 e 為正
+    const lin1 = need('#ch12-linearize').textContent ?? ''
+    expect(lin1).toMatch(/feedback（divider）edge 早到/)
+    expect(lin1).toMatch(/只能延遲、不能提前.*從固定的基準.*縮短/)
+    expect(lin1).toMatch(/補償不足.*reference edge 還是太晚.*為正/)
+    expect(Array.from(container.querySelectorAll('#ch12-linearize annotation')).some((a) => (a.textContent ?? '').includes(String.raw`\tau_{\mathrm{DTC}}=T_0-w_k\,x[n]`))).toBe(true)
+    expect(need('#ch12-mixing').textContent ?? '').toMatch(/DTC 只能延遲、不能提前/)
+    expect(Array.from(container.querySelectorAll('#ch12-mixing annotation')).some((a) => (a.textContent ?? '').includes(String.raw`\tau_{\mathrm{DTC}}[n]=T_0-w\,x[n]`))).toBe(true)
+    // 公式登錄與符號表也用同一個說法
+    const f15 = FORMULAS.find((f) => f.id === 'F-12.15')
+    const f16 = FORMULAS.find((f) => f.id === 'F-12.16')
+    expect(f15?.conditions).toContain('reference 輸入')
+    expect(f15?.conditions).toContain(String.raw`e_{\mathrm{PD}}=\phi_{\mathrm{dtc}}-\theta_{\mathrm{out}}`)
+    expect(f16?.conditions).toContain(String.raw`\phi_{\mathrm{dtc}}=-2\pi f_{\mathrm{out}}\delta t`)
+    expect(f16?.tex).toContain(String.raw`\phi_{\mathrm{out}}(s)=-2\pi f_{\mathrm{out}}T(s)\,\delta t(s)`)
+    for (const f of FORMULAS) expect(`${f.title} ${f.conditions ?? ''}`, f.id).not.toMatch(/feedback/)
+    const symbols = need('#symbols').textContent ?? ''
+    expect(symbols).toMatch(/reference 端的 DTC 多補償的時間/)
+    expect(symbols).toMatch(/固定的基準延遲/)
+    expect(symbols).toMatch(/PD 的輸出，送進 loop filter 的同一個訊號/)
   })
 
   it(`頁面上畫出的 Mermaid 圖與 CH12_CHARTS 完全相同（${N_CHARTS} 張、同樣的順序），加上系統地圖共 ${N_CHARTS + 1} 張；每張都有圖說與「先看…再看…」的導讀`, () => {

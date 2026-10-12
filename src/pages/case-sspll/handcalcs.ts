@@ -335,7 +335,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: r`Type-I（延遲 $d$ 拍）：判據 $K(d-\tfrac12)$ 與 $\mathrm{Re}\,H_{PD}(f)$`,
     page: PAGE,
     formulaId: 'F-CS.10',
-    formulaTex: r`\begin{gathered}L=\frac{Kz^{-d}}{1-z^{-1}}:\quad \mathrm{Re}\,L=-\frac{K\sin\theta}{2\sin(\Omega/2)},\quad \mathrm{Im}\,L=-\frac{K\cos\theta}{2\sin(\Omega/2)},\quad \theta=\big(d-\tfrac12\big)\Omega\\[4pt]\mathrm{Re}\,H_{PD}=\frac{1+\mathrm{Re}\,L}{(1+\mathrm{Re}\,L)^2+(\mathrm{Im}\,L)^2}\approx\frac{\Omega^2}{K^2}\Big[1-K\big(d-\tfrac12\big)\Big]\quad(\Omega\ll K)\end{gathered}`,
+    formulaTex: r`\begin{gathered}L=\frac{Kz^{-d}}{1-z^{-1}}:\quad \mathrm{Re}\,L=-\frac{K\sin\theta}{2\sin(\Omega/2)},\quad \mathrm{Im}\,L=-\frac{K\cos\theta}{2\sin(\Omega/2)},\quad \theta=\big(d-\tfrac12\big)\Omega\\[4pt]\mathrm{Re}\,H_{PD}=\frac{1+\mathrm{Re}\,L}{(1+\mathrm{Re}\,L)^2+(\mathrm{Im}\,L)^2}\approx\frac{\Omega^2}{K^2}\big[1-K(d-\tfrac12)\big]\quad(\Omega\ll K)\end{gathered}`,
     level: 'research',
     claim: 'exact',
     inputs: [
@@ -388,7 +388,7 @@ export const HANDCALCS: HandCalcDef[] = [
           why: r`低頻近似的大小：先除、再平方。它要求 $\Omega/K\ll1$。`,
         },
         {
-          tex: r`\mathrm{Re}\,H_{PD}\approx\frac{\Omega^2}{K^2}\Big[1-K\big(d-\tfrac12\big)\Big]=${n(ratio)}\times(1-${fixedTex(crit, pCrit, false)})=${n(ratio)}\times${np(oneMinus)}=${n(approx)}`,
+          tex: r`\mathrm{Re}\,H_{PD}\approx\frac{\Omega^2}{K^2}\big[1-K(d-\tfrac12)\big]=${n(ratio)}\times(1-${fixedTex(crit, pCrit, false)})=${n(ratio)}\times${np(oneMinus)}=${n(approx)}`,
           why: '低頻近似（F-CS.6）：先算方括號，再相乘。符號只由方括號決定。',
         },
         {
@@ -677,7 +677,7 @@ export const HANDCALCS: HandCalcDef[] = [
       const ratioTex = texNum(Ki / Kp, Math.abs(Ki / Kp - 2) < 5e-3 ? 10 : 4) // 接近 2 時多寫幾位，才看得出在 2 的哪一邊
       return {
         steps: [
-          { tex: r`\frac{K_i}{2}=\frac{${ni(Ki)}}{2}=${n(half)}`, why: '兩個條件都用得到。' },
+          { tex: r`\tfrac{K_i}{2}=\tfrac{${ni(Ki)}}{2}=${n(half)}`, why: '兩個條件都用得到。' },
           {
             tex: r`g(0)=K_p-\frac{K_i}{2}=${ni(Kp)}-${fixedTex(half, pG, false)}=${n(g0)}`,
             why: r`$\cos\Omega=1$（DC 端）。$g(0)\ge0\iff K_i\le2K_p$：積分路徑不能比比例路徑強太多。` + moreDigits,
@@ -766,8 +766,8 @@ export const HANDCALCS: HandCalcDef[] = [
             why: r`offset 讓比較器離開最陡的工作點，增益要打折；先算指數。它就是第 1 步的 $z$ 的平方：$z^2=u_{os}^2/(2\sigma_v^2)$，所以只要按一次平方。`,
           },
           {
-            tex: r`e^{-u_{os}^2/2\sigma_v^2}=e^{-${n(expo)}}=${n(Math.exp(-expo))}`,
-            why: r`按 $e^x$ 鍵（先輸入負的指數）。小值可以手算：$e^{-x}\approx1-x$，$x\le0.05$ 時誤差小於 $0.13\%$。`,
+            tex: r`e^{-z^2}=e^{-${n(expo)}}=${n(Math.exp(-expo))}`,
+            why: r`指數就是上一步的 $z^2=u_{os}^2/(2\sigma_v^2)$。按 $e^x$ 鍵（先輸入負的指數）。小值可以手算：$e^{-x}\approx1-x$，$x\le0.05$ 時誤差小於 $0.13\%$。`,
           },
           { tex: r`K_q(u_{os})=K_{q0}\,e^{-u_{os}^2/2\sigma_v^2}=${n(Kq0)}\times${n(Math.exp(-expo))}=${n(KqU)}\ \mathrm{fs}^{-1}`, why: r`在 $u_{os}$ 這個工作點的斜率：erf 在該點的導數。` },
           { tex: r`C_{GOS}=\frac{\kappa_{GOS}}{12}=\frac{${ni(kG)}}{12}=${n(C)}`, why: r`$\kappa_{GOS}=C_{GOS}/\mathrm{var}(\rho)$，而均勻鋸齒的 $\mathrm{var}(\rho)=\tfrac{1}{12}$。` },
@@ -891,7 +891,7 @@ export const HANDCALCS: HandCalcDef[] = [
             tex: r`f_{rot}-f_{inv}=${nx(fRot)}-${fixedTex(finv, pDF, false)}=${n(dF)}\ \mathrm{MHz}`,
             why: r`負＝PMUX 的旋轉頻率在反號帶內；正＝在帶外。（$f_{inv}$ 寫到和答案相同的小數位數。）`,
           },
-          { tex: r`\frac{K_i}{2}=\frac{${ni(Ki)}}{2}=${n(Ki / 2)}`, why: '最後看對策：一階差分的 margin（HC-CS.6）的兩個候選都用得到它。' },
+          { tex: r`\tfrac{K_i}{2}=\tfrac{${ni(Ki)}}{2}=${n(Ki / 2)}`, why: '最後看對策：一階差分的 margin（HC-CS.6）的兩個候選都用得到它。' },
           {
             tex: r`\min_\Omega g=\min\Big\{K_p-\frac{K_i}{2},\ 2-K_p-\frac{K_i}{2}\Big\}=\min\{${ni(Kp)}-${fixedTex(Ki / 2, pG, false)},\ 2-${ni(Kp)}-${fixedTex(Ki / 2, pG, false)}\}=\min\{${n(g0)},\ ${n(gPi)}\}=${n(gMin)}`,
             why: r`兩個候選各做一次減法，取小的。$\ge0$ 就對任何 $\alpha$ 都安全。`,

@@ -230,6 +230,9 @@ describe('Ch05 頁面（jsdom smoke）', () => {
       // 極性註記仍在表內：δ = a − w（不是 w − a）
       const rows = Array.from(target.querySelectorAll('.c-symbols tbody tr')).map((tr) => tr.textContent ?? '')
       expect(rows.some((r) => r.includes('剩餘參數誤差') && r.includes('全站約定'))).toBe(true)
+      // PLL 中的對應：s 是 DTC 補償的殘差在 PD 輸出留下的時間誤差（補償不足為正、過頭為負：和 δ = a − w 同號），e = s + v 是 PD 的輸出（也是 comparator 的輸入）
+      expect(rows.some((r) => r.includes('DTC 補償的殘差在 PD 輸出留下的時間誤差：補償不足時為正、補償過頭時為負'))).toBe(true)
+      expect(rows.some((r) => r.includes('就是 PD 的輸出') && r.includes('loop filter'))).toBe(true)
     } finally {
       vi.useRealTimers()
       proto.scrollIntoView = original
@@ -258,6 +261,7 @@ describe('Ch05 頁面（jsdom smoke）', () => {
     expect(itemOf('v')!.textContent).toContain('comparator 前的雜訊')
     expect(tex(itemOf('v')!)).toEqual(expect.arrayContaining(['\\sigma_v', 'v\\sim\\mathcal N(0,\\sigma_v^2)']))
     expect(itemOf('e=s+v')!.textContent).toContain('comparator 的輸入')
+    expect(itemOf('e=s+v')!.textContent).toContain('在 PLL 裡就是 PD 的輸出')
     expect(tex(itemOf('e=s+v')!)).toContain('\\theta')
     expect(itemOf('e=s+v')!.textContent).toContain('threshold')
     expect(itemOf('q=\\pm1')!.textContent).toContain('comparator 的輸出')

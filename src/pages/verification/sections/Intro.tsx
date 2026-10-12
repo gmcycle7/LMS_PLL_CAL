@@ -155,7 +155,7 @@ export function Intro() {
               { tex: r`w_{n+1}=w_n+\mu(a-w_n)x^2`, why: r`這是沒有捨入的精確遞迴。` },
               { tex: r`d_{n+1}=d_n-\mu x^2d_n+\eta_n=p\,d_n+\eta_n,\qquad d_n:=\tilde w_n-w_n`, why: r`兩式相減：$a$ 消掉，剩下 $d_n$ 的線性遞迴，係數正是 pole $p=1-\mu x^2$。` },
               { tex: r`d_n=\sum_{k=0}^{n-1}p^{\,n-1-k}\,\eta_k`, why: r`把遞迴一路展開（$d_0=0$：初值 $1$ 可精確表示）。每個舊的捨入誤差被 $p$ 乘了很多次。` },
-              { tex: r`|d_n|\le\max_k|\eta_k|\sum_{j=0}^{\infty}|p|^{j}=\frac{\max|\eta|}{1-|p|}`, why: r`三角不等式，再用等比級數 $\sum|p|^j=1/(1-|p|)$（需要 $|p|<1$）。` },
+              { tex: r`\begin{aligned}|d_n|&\le\max_k|\eta_k|\sum_{j=0}^{\infty}|p|^{j}\\&=\frac{\max|\eta|}{1-|p|}\end{aligned}`, why: r`三角不等式，再用等比級數 $\sum|p|^j=1/(1-|p|)$（需要 $|p|<1$）。` },
               { tex: `\\frac{4\\times${texNum(mach, 3)}\\times3}{1-${fmtNum(Math.abs(pole))}}=${texNum(boundT01, 3)}\\ \\ll\\ 10^{-12}`, why: r`代入 $c\approx4$、$\max|w|=3$、$|p|=0.6$：上界比容忍度小兩個數量級以上。` },
             ])}
           />

@@ -10,6 +10,8 @@
  *  - 加法點用圓形 `(("＋"))`，每條進入加法點的線都標上正負號：加號寫全形「＋」；減號在含公式的標籤裡寫成 `$-$`（KaTeX 的減號：
  *    U+2212 放進 `\text{}` 會觸發 KaTeX 的 strict 警告）；延遲寫 `$z^{-1}$`。
  *    不用單獨的半形 `+`／`-` 當標籤：Mermaid 11 會把它當成 Markdown 清單，畫出「Unsupported markdown: list」。
+ *    PLL 校正迴圈（`pll-loop`）裡的 PD 也是一個減法器（reference 減 feedback），畫成寫著 `PD` 的圓形，進入它的線同樣標正負號
+ *    （標的是那條線上的量對 e 的貢獻：feedback 早到的 y 是 ＋、DTC 補償量 ŷ 是 −；見該圖的註解）。
  *  - 參數誤差極性一律 δ = a − w（勘誤 E39）；誤差 e = y − ŷ（量測減預測）。
  *  - `stateDiagram-v2` 與 `sequenceDiagram` 的文字不會經過 `mermaidMathDelimiters`（它只處理雙引號標籤），所以那兩種圖直接寫成
  *    Mermaid 原生的單一 `$$\text{文字}數學\text{文字}$$`（一個標籤只能有一段 `$$`）。sequence 的 participant 名稱與 loop 標題放公式會畫壞
@@ -408,14 +410,25 @@ export const CHART_NLMS_DATAPATH = String.raw`flowchart TB
 /**
  * Block Sign-Error LMS 在 DTC 校正裡的樣子：把 §3 的 Sign-Error 迴圈（e = y − ŷ，y = a·x + v，ŷ = w·x）對應到硬體，
  * 差別只有更新速率：x[n]、e[n]、q[n] 每個 sample 一筆（索引 n），G_k 與 w_k 每個 block（N 筆）一筆（索引 k）。
- * 極性沿用本章約定 e = y − ŷ（PD 實際看到的是 e 還是 −e，是 Ch06 的主題）。
+ *
+ * 架構照全站約定（docs/assumptions.md §2a）：DTC 在 reference 輸入端（Reference clock → DTC → PD），回授路徑上只有 divider；
+ * divider 的 feedback edge 比理想時刻早到 y = a·x：t_fb = t_id − y。DTC 只能延遲，所以方塊上寫的是它的延遲 τ_DTC = T_0 − w_k·x
+ * 與補償量 ŷ = w_k·x（從基準延遲 T_0 往回扣，reference edge 少延遲的時間）：t_ref′ = t_id − ŷ（T_0 併在 t_id 裡）。
+ * PD 量 reference 減 feedback：e = t_ref′ − t_fb = y − ŷ（+ v）不變。所以進 PD 的兩條線標的是「早到的時間對 e 的貢獻」
+ * （y 標 ＋、ŷ 標 −），不是 PD 兩個輸入端的極性。comparator 的輸入取自 PD 的輸出 e[n]，
+ * 也就是送進 loop filter 的同一個訊號（圖上 PD 有兩條出線：e[n] → loop filter、e[n] → comparator）。
+ * VCO → divider 那一段回授只在 loop filter 方塊上用文字註明：真的畫一條線（或多畫一個 VCO 節點）的話，不是 divider 被排到 PD 下面、
+ * DTC 被排到最下面，就是那條線從 DTC 方塊後面穿過去，看起來像 VCO 接到 DTC（瀏覽器實測過）。完整的迴路在章首的 SystemMap。
+ * 極性沿用本章約定 e = y − ŷ（校正迴路的極性接反會怎樣，是 Ch06 的主題）。
  */
 export const CHART_PLL_LOOP = String.raw`flowchart TB
-  X["DSM 殘差 code<br/>$x[n]$"] --> GC["DTC 補償<br/>$\hat y = w_k\,x[n]$"]
-  X --> TRUE["小數除頻造成的<br/>時間誤差 $y = a\,x[n]$"]
-  TRUE -- "＋ $y[n]$" --> S(("＋"))
-  GC -- "$-$ $\hat y[n]$" --> S
+  REF(["Reference clock"]) --> DTC["reference 端的 DTC<br/>延遲 $\tau_{\mathrm{DTC}} = T_0 - w_k\,x[n]$<br/>補償量 $\hat y = w_k\,x[n]$"]
+  X["DSM 殘差 code<br/>$x[n]$"] --> DTC
+  X --> FB["divider 的 feedback edge<br/>比理想時刻早到<br/>$y = a\,x[n]$"]
+  FB -- "＋ $y[n]$" --> S(("PD"))
+  DTC -- "$-$ $\hat y[n]$" --> S
   V(["comparator 前雜訊<br/>$v[n]$"]) -- "＋" --> S
+  S -- "$e[n]$" --> LF["loop filter → VCO<br/>（主迴路：VCO 再經<br/>divider 回到 PD）"]
   S -- "$e[n] = (a - w_k)\,x[n] + v[n]$" --> CMP["comparator<br/>$q[n] = \operatorname{sign}(e[n])$"]
   CMP --> GMAC["GMAC：每個 sample 累加 $q[n]\,x[n]$<br/>每 $N$ 個 sample 交出<br/>$G_k = \frac{1}{N}\sum q[n]\,x[n]$"]
   X --> GMAC
@@ -423,7 +436,7 @@ export const CHART_PLL_LOOP = String.raw`flowchart TB
   MU -- "＋ $\mu\,G_k$" --> ACC(("＋"))
   ACC -- "$w_{k+1}$" --> Z["$z^{-1}$<br/>每個 block 一次"]
   Z -- "＋ $w_k$" --> ACC
-  Z -- "$w_k$" --> GC
+  Z -- "$w_k$" --> DTC
   ${CLASS_FOCUS}
   ${CLASS_WARN}
   class CMP,GMAC focus
@@ -655,7 +668,7 @@ export const DIAGRAMS = [
     id: 'pll-loop',
     kind: 'flowchart',
     chart: CHART_PLL_LOOP,
-    caption: 'Block Sign-Error LMS 在 DTC 校正裡的樣子：和 Sign-Error 迴圈相同，只是更新一個 block（$N$ 個 sample）才做一次。藍色是 comparator 與 GMAC，紅色是它前面的雜訊。',
+    caption: 'Block Sign-Error LMS 在 DTC 校正裡的樣子：DTC 在 reference 端、回授路徑只有 divider，comparator 取的是 PD 的輸出（和送進 loop filter 的是同一個訊號）。更新迴圈和 Sign-Error 相同，只是一個 block（$N$ 個 sample）才更新一次。藍色是 comparator 與 GMAC，紅色是它前面的雜訊。',
     added: false,
   },
   {

@@ -403,7 +403,7 @@ export function S3SignError() {
             steps={[
               { tex: String.raw`|w_N-w_0|\le\sum_{n<N}\mu_n|x_n|`, why: tm('Sign-Error 每步最多移動 $\\mu_n|x_n|$（三角不等式）') },
               { tex: String.raw`\sum_n\mu_n=\infty`, why: tm('否則總移動距離有上限：起點離 $w^*$ 太遠就永遠走不到（stall）') },
-              { tex: String.raw`\operatorname{Var}\Big(\sum_n\mu_n\eta_n\Big)=\sigma_\eta^2\sum_n\mu_n^2<\infty`, why: tm('獨立的梯度雜訊 $\\eta_n$ 被 $\\mu_n$ 加權累加：變異有限，抖動才會收斂') },
+              { tex: String.raw`\operatorname{Var}\bigl(\sum_n\mu_n\eta_n\bigr)=\sigma_\eta^2\sum_n\mu_n^2<\infty`, why: tm('獨立的梯度雜訊 $\\eta_n$ 被 $\\mu_n$ 加權累加：變異有限，抖動才會收斂') },
               { tex: String.raw`\sum_{n=0}^{N-1}\frac{\mu_0}{1+n/n_0}\approx\int_0^N\frac{\mu_0\,dn}{1+n/n_0}=\mu_0n_0\ln\!\Big(1+\frac{N}{n_0}\Big)`, why: tm('和用積分近似：發散（$\\sum\\mu_n=\\infty$），但只以 $\\ln N$ 的速度') },
               { tex: String.raw`\sum_n\frac{\mu_0^2}{(1+n/n_0)^2}\approx\mu_0^2n_0<\infty`, why: tm('$\\int_0^\\infty dn/(1+n/n_0)^2=n_0$：收斂') },
               { tex: String.raw`\mu_0n_0|x|\ln\!\Big(1+\frac{N}{n_0}\Big)\ge D\iff N\ge n_0\big(\mathrm{e}^{D/(\mu_0n_0|x|)}-1\big)`, why: tm('要走完距離 $D=|a-w_0|$ 需要的步數：對 $D$ 是指數！') },

@@ -782,7 +782,7 @@ export const HANDCALCS: HandCalcDef[] = [
       return {
         steps: [
           {
-            tex: String.raw`E[v\,x] = \kappa\,E[x^2] = ${txF(K)}\times${ex2} = ${tx(evxE)}`,
+            tex: String.raw`E[vx] = \kappa E[x^2] = ${txF(K)}\times${ex2} = ${tx(evxE)}`,
             why: String.raw`$v=\kappa x+v'$：和輸入成正比的那一部分留下來，獨立雜訊的 $E[v'x]=0$。$x=\pm1$，所以 $E[x^2]=1$。`,
           },
           {

@@ -34,7 +34,7 @@ export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-R2.1',
     title: 'ZOH 係數 × 週期 code 的時間平均自相關',
-    tex: String.raw`\bar R_{\delta t}[m]=\frac1L\sum_{n=0}^{L-1}x[n]x[n+m]\,\sigma_w^2\,p^{\left|\lfloor (n+m)/N\rfloor-\lfloor n/N\rfloor\right|},\quad L=\mathrm{lcm}(P,N)`,
+    tex: String.raw`\bar R_{\delta t}[m]=\frac1L\sum_{n=0}^{L-1}x[n]x[n+m]\,\sigma_w^2\,p^{\left|\lfloor (n+m)/N\rfloor-\lfloor n/N\rfloor\right|},\ L=\mathrm{lcm}(P,N)`,
     conditions: 'x 為週期 P 的決定性序列；δw 為 block-rate AR(1)（pole p）並以 ZOH 保持 N 個 sample；commit latency 0',
     claim: 'exact',
     level: 'L4',

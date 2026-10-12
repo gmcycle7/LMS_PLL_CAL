@@ -200,7 +200,7 @@ export function BlackBoxSection() {
                   ),
                 },
                 {
-                  tex: String.raw`\frac{dS}{dw}=0\;\Longrightarrow\;w\sum_i x_i^2=\sum_i x_iy_i`,
+                  tex: String.raw`\frac{dS}{dw}=0\;\Rightarrow\;w\sum_i x_i^2=\sum_i x_iy_i`,
                   why: (
                     <>
                       <Tex>{'S(w)'}</Tex> 是開口向上的拋物線（二次項係數 <Tex>{'\\sum_i x_i^2>0'}</Tex>），最低點的斜率為 0。

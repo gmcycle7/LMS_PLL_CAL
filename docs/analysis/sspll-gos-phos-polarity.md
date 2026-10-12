@@ -117,9 +117,9 @@ sign-error LMS 的平均梯度，等於「regressor 在每一條譜線上的功�
 flowchart LR
   ACC["分數累加器<br/>FCW = N_int + α<br/>φ[n] = frac(nα)"] -->|"ρ[n]（細部殘差）"| DTC
   ACC -->|"p[n]（相位索引）"| PMUX
-  REF["4 GHz reference"] --> DTC["input DTC<br/>延遲 = (1−a)(1+w_g)·ρΔ + PHOS 修正"]
+  REF["4 GHz reference"] --> DTC["input DTC（reference 端）<br/>延遲 = T_0 − 補償量<br/>補償量 = (1−a)(1+w_g)·ρΔ + PHOS 修正"]
   DTC --> SUM(("相位比較點<br/>（SSPD 取樣）"))
-  VCO["VCO（f_vco）"] --> PMUX["8 相 PMUX<br/>第 k 相實際延遲 k/8·T_vco + ε_k"]
+  VCO["VCO（f_vco）"] --> PMUX["8 相 PMUX（feedback 端）<br/>第 k 相的 edge 比 k/8·T_vco 早到 ε_k"]
   PMUX --> SUM
   SUM -->|"e_PD = h_PD * u"| LF["loop filter／SSCP<br/>（L1：P；L2：P+I；L3：R+C1∥C2）"]
   LF --> VCO
@@ -132,10 +132,10 @@ flowchart LR
 
 **兩個誤差的注入點**：
 
-- **GOS**：DTC 在 reference 端。實際延遲是 $(1-a)(1+w_g)\rho\Delta$，理想值是 $\rho\Delta$。理想模型下，比較點多出 $e_{GOS}[n]=(a-w_g)\,\rho[n]\,\Delta$。
-- **PHOS**：PMUX 在 feedback 端。選到第 $k$ 相時多出 $\varepsilon_k$；這個偏差經由 reference 端的 DTC 用 $w_k$ 補回來。所以 $e_{PHOS}[n]=\sum_k(\varepsilon_k-w_k)\,\mathbb 1\{p[n]=k\}$。
+- **GOS**：DTC 在 reference 端。DTC 只能延遲、不能提前，所以它的延遲是固定的基準延遲 $T_0$ 減掉「補償量」（$T_0$ 是常數，被 PLL 當成靜態相位偏移吸收）；實際的補償量是 $(1-a)(1+w_g)\rho\Delta$，理想值是 $\rho\Delta$。理想模型下，比較點（PD 的輸入端）多出 $e_{GOS}[n]=(a-w_g)\,\rho[n]\,\Delta$。
+- **PHOS**：PMUX 在 feedback 端。選到第 $k$ 相時，feedback edge 多早到一個固定的時間偏差 $\varepsilon_k$（晚到就是負值）；這個偏差經由 reference 端的 DTC 在補償量裡加上 $w_k$ 補回來。所以 $e_{PHOS}[n]=\sum_k(\varepsilon_k-w_k)\,\mathbb 1\{p[n]=k\}$。
 
-**極性約定**：reference 端與 feedback 端的誤差在比較點的符號相反。我們規定：在 $H_{PD}\equiv1$（沒有迴路）時，$w\leftarrow w+\mu\,q\,r$ 會往正確方向更新，並用這個規定吸收兩邊的符號。實作時，GOS 與 PHOS 的更新符號要**各自**依 $H\equiv1$ 推導，因為 PHOS 的修正是透過 reference 端的 DTC 加上去的，誤差卻來自 feedback 端。
+**極性約定**：PD 量的是「DTC 之後的 reference edge 減 feedback edge」（$t_{ref}'-t_{fb}$），所以 reference 端與 feedback 端的誤差在比較點的符號相反；本文把兩邊都換算成「該補的量減掉 DTC 實際補上的量」（網站的全站約定見 [assumptions.md §2a](../assumptions.md)，案例頁 `/case/sspll` §2 用同一個寫法）。1-bit 比較器取的是 PD（SSPD）的輸出，也就是送進 loop filter 的同一個節點。`analysis/sspll` 的 Python 模型把同一個式子記成「需要的 reference delay − 實際的 DTC delay」——也就是把 $\rho\Delta$、$\varepsilon_k$ 讀成 feedback edge 晚到、DTC 的延遲隨 code 變長、PD 取 $t_{fb}-t_{ref}'$；兩種讀法互為鏡像（edge 的早晚與 PD 的正負號同時反過來，再差一個常數 $T_0$），$u[n]$ 的式子、$C$ 矩陣與所有數值結論完全相同。你的電路是哪一種讀法，只影響 DTC code 要不要取補數與更新式的正負號（見案例頁 §2 的「極性約定」）。我們規定：在 $H_{PD}\equiv1$（沒有迴路）時，$w\leftarrow w+\mu\,q\,r$ 會往正確方向更新，並用這個規定吸收兩邊的符號。實作時，GOS 與 PHOS 的更新符號要**各自**依 $H\equiv1$ 推導，因為 PHOS 的修正是透過 reference 端的 DTC 加上去的，誤差卻來自 feedback 端。
 
 注意：$C$ 只依賴 $\lvert c_\nu\rvert^2$ 與 $\Gamma$。所以 DTC code 用 $\rho$ 或 $1-\rho$、PMUX 索引用 $p$ 或 $p+1$、PMUX 旋轉方向（$\mathrm{Re}\lambda_m=\mathrm{Re}\lambda_{8-m}$）都**不會**改變反號結論。**【精確｜指定模型】**
 

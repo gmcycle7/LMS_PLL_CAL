@@ -45,7 +45,7 @@ export const FORMULAS: FormulaEntry[] = [
     id: 'F-LAB.4',
     title: '主 PLL 的兩條路徑；Type-I 由頻寬反解 pole',
     tex: String.raw`H_{\mathrm{PD}}(z)=\frac{1}{1+L(z)},\quad T(z)=\frac{L(z)}{1+L(z)}=1-H_{\mathrm{PD}}(z);\qquad \text{Type-I：}\ \rho_T=\Bigl(\sqrt{1+s^2}-s\Bigr)^2,\ s=\sin\frac{\pi f_{\mathrm{BW}}}{f_s}`,
-    conditions: 'PLL 與 comparator 同一取樣率；線性時不變；Type-I 無額外 latency（d_L = 0）時 T(z) = k/(z − ρ_T)、k = 1 − ρ_T；Type-II 用 E44 的直接差分方程',
+    conditions: 'DTC 在 reference 輸入端：e_DTC 從 PD 的 reference 輸入注入，所以 PD 的輸出 u_pd = +H_PD{e_DTC}（comparator 取的就是它）、輸出 t_out = +T{e_DTC}；PLL 與 comparator 同一取樣率；線性時不變；Type-I 無額外 latency（d_L = 0）時 T(z) = k/(z − ρ_T)、k = 1 − ρ_T；Type-II 用 E44 的直接差分方程',
     claim: 'exact',
     level: 'L2',
     specSection: '6',

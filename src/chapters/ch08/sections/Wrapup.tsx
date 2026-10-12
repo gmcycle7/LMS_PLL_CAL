@@ -212,7 +212,7 @@ export function Wrapup() {
                 <td>
                   <Tex>{'F(z)'}</Tex>、<Tex>{'r_s'}</Tex>
                 </td>
-                <td>{rich(String.raw`主 PLL 的 error transfer（$H_{\mathrm{PD}}$）在 block rate 上的等效動態`)}</td>
+                <td>{rich(String.raw`主 PLL 的 error transfer（DTC 殘差從 PD 的 reference 輸入進去、PD 輸出 $e_{\mathrm{PD}}=H_{\mathrm{PD}}\,\phi_{\mathrm{dtc}}$）在 block rate 上的等效動態`)}</td>
                 <td>{rich(String.raw`由 PLL loop filter／頻寬換算到 $f_u$，並包含 GMAC「取樣→觀測」的 latency；即使 PLL 很快（$r_s\approx0$），這個 latency 仍讓界限減半（E19）`)}</td>
               </tr>
               <tr>

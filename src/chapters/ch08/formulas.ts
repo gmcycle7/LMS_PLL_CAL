@@ -10,7 +10,8 @@ export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-08.1',
     title: String.raw`單頻 Polarity Margin（含 $\mathrm{wrap}_{180}$ 的精確定義）`,
-    tex: String.raw`M_{\mathrm{polarity}}=90^\circ-\big|\mathrm{wrap}_{180}(\theta)\big|=\arcsin(\cos\theta),\qquad \mathrm{wrap}_{180}(\theta)\triangleq\big((\theta+180^\circ)\bmod 360^\circ\big)-180^\circ\in[-180^\circ,180^\circ)`,
+    // 兩行（gathered）：一行排開要 915px，比桌機的正文欄（約 837px）寬，會多出一條橫向捲軸
+    tex: String.raw`\begin{gathered}M_{\mathrm{polarity}}=90^\circ-\big|\mathrm{wrap}_{180}(\theta)\big|=\arcsin(\cos\theta)\\[0.6em]\mathrm{wrap}_{180}(\theta)\triangleq\big((\theta+180^\circ)\bmod 360^\circ\big)-180^\circ\in[-180^\circ,180^\circ)\end{gathered}`,
     conditions: String.raw`單頻模型 $\theta=\phi+\Omega D$；$\bmod$ 取非負餘數、週期 $360^\circ$（不是 $180^\circ$）；$M>0\iff\cos\theta>0$`,
     claim: 'exact',
     level: 'L2',
@@ -151,7 +152,8 @@ export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-08.14',
     title: '觀測轉移函數與 calibration loop gain',
-    tex: String.raw`F(z)=d_s+\mathbf c_s^{\mathsf T}(z\mathbf I-\mathbf A_s)^{-1}\mathbf b_s,\qquad \boxed{L_{\mathrm{cal}}(z)=\frac{\mu F(z)}{z-1}},\qquad \det(z\mathbf I-\mathbf A_{\mathrm{comb}})=\det(z\mathbf I-\mathbf A_s)\,\big(z-1+\mu F(z)\big)`,
+    // 兩行（gathered）：一行排開比桌機的正文欄寬約 67px，會多出一條橫向捲軸
+    tex: String.raw`\begin{gathered}F(z)=d_s+\mathbf c_s^{\mathsf T}(z\mathbf I-\mathbf A_s)^{-1}\mathbf b_s,\qquad \boxed{L_{\mathrm{cal}}(z)=\frac{\mu F(z)}{z-1}}\\[0.6em]\det(z\mathbf I-\mathbf A_{\mathrm{comb}})=\det(z\mathbf I-\mathbf A_s)\,\big(z-1+\mu F(z)\big)\end{gathered}`,
     conditions: String.raw`線性、非時變觀測；最後一式由 Schur complement 得到（$z$ 不是 $\mathbf A_s$ 的 eigenvalue）`,
     claim: 'exact',
     level: 'L2',

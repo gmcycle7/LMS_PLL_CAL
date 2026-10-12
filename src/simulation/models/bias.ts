@@ -8,6 +8,10 @@
  *   ε_cc[n] = κ·x[n]                   deterministic code-correlated error（不是 random jitter，勘誤 E17）
  *   v[n] ~ N(0, σ_v(x)²)，與 x 獨立     σ_v(x) = σ_v·√(1 + ρ_j·(x − x_j)²)；ρ_j = 0 時與 code 無關
  * 確定性部分 e_det(x; w) = (a − w)x + b + d(x) + κx。
+ * 架構（docs/assumptions.md §2a）：DTC 在 reference 輸入端，回授路徑上只有 divider。feedback edge 早到 a·x（t_fb = −a·x）；
+ *   DTC 延遲後的 reference edge 是 t_ref′ = T_0 − w·x + d(x)（補償量 w·x 從固定的基準延遲 T_0 往回扣；d(x) 是 DTC 在這個 code
+ *   多出來的延遲，所以以正號進入誤差）；PD 量 t_ref′ − t_fb = (a − w)x + d(x)（常數 T_0 被主 PLL 吸收）。
+ *   comparator 取的是 PD 的輸出（送進 loop filter 的同一個節點），b 是 comparator／PD 的 offset。
  *
  * ── 兩種 GMAC（同一個誤差模型，只差進 GMAC 的那個量）──
  *   MSE-LMS ：G = mean(e·x)        ⇒ 固定點 E[x·e] = 0，對 w 是一次方程（封閉解，[精確｜指定模型]）
@@ -169,7 +173,7 @@ export function validateModel(m: ErrorModel): void {
 
 // ───────────────────────── Code 分布 ─────────────────────────
 
-/** 依 CodeSpec 建立 code 分布。DSM 使用 x = −residue（first-order 時 x ∈ [0, 1)，像 DTC 的非負 delay code）。 */
+/** 依 CodeSpec 建立 code 分布。DSM 使用 x = −residue（first-order 時 x = s/M ∈ [0, 1)：非負的 DTC code，也就是 feedback edge 早到的量，以 T_vco 計）。 */
 export function buildCodeDistribution(spec: CodeSpec): CodeDistribution {
   const shift = spec.shift ?? 0
   if (!Number.isFinite(shift)) throw new Error(`code 平移必須為有限數，收到 ${shift}`)

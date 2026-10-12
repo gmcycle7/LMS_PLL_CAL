@@ -53,11 +53,11 @@ export function S1Intro() {
       </div>
       <SystemMap
         focus={CH12_SYSTEM_FOCUS}
-        caption="系統地圖：藍色是本章追蹤的雜訊路徑，從 comparator 前的雜訊、1-bit comparator、GMAC、平均與學習率、gain accumulator、gain correction 到 DTC，最後分成兩個出口：phase detector 看到的 residual，以及 VCO 輸出。教學用概念架構，不是特定晶片的 netlist。"
+        caption={String.raw`系統地圖：藍色是本章追蹤的雜訊路徑，從 comparator 前的雜訊、1-bit comparator、GMAC、平均與學習率、gain accumulator、gain correction 到 reference 輸入端的 DTC，最後分成兩個出口：phase detector 看到的 residual，以及 VCO 輸出。comparator 取的是 phase detector 的輸出 $e[n]$，也就是送進 loop filter 的同一個訊號。教學用概念架構，不是特定晶片的 netlist。`}
       />
       <p>
         {md(
-          String.raw`藍色方塊就是雜訊走的路：comparator 前的雜訊讓 1-bit 判斷亂跳，GMAC 把它平均、乘上學習率後累加成係數的抖動，這個抖動在 gain correction 乘上 code、由 DTC 變成多出來的延遲；這份多出來的延遲有兩個地方看得到——phase detector 的 residual，以及經過 PLL 迴路之後的 VCO 輸出。前面幾章只問這條校正迴路「平均」會不會收斂，本章新增的是沿著同一條路，把雜訊的大小（RMS）、頻寬與頻譜一路算到輸出的 jitter 或 spur。`,
+          String.raw`藍色方塊就是雜訊走的路：1-bit comparator 取的是 phase detector 的輸出 $e[n]$（送進 loop filter 的同一個訊號），上面疊著 comparator 前的雜訊，所以 1-bit 判斷會亂跳；GMAC 把它平均、乘上學習率後累加成係數的抖動，這個抖動在 gain correction 乘上 code，送到 reference 輸入端的 DTC，變成補償量的誤差——DTC 的延遲比該有的短了一點或長了一點，reference edge 因此早到或晚到一點。這份時間誤差有兩個地方看得到——phase detector 的 residual，以及經過 PLL 迴路之後的 VCO 輸出。前面幾章只問這條校正迴路「平均」會不會收斂，本章新增的是沿著同一條路，把雜訊的大小（RMS）、頻寬與頻譜一路算到輸出的 jitter 或 spur。`,
         )}
       </p>
 
@@ -81,7 +81,7 @@ export function S1Intro() {
       </div>
       <p>
         {md(
-          String.raw`四張卡片先用到幾個符號，各用一句話交代（完整的表在本章最後）：$\sigma_w$ 是係數抖動的 RMS；$\mu$ 是 learning rate，每個 block 走多大一步；$N$ 是每個 block 平均的 comparator 樣本數；$p$ 是 pole，每過一個 block 舊的偏差還留下的比例；$f_{3\mathrm{dB}}$ 與 ENBW 是兩種不同定義的頻寬；$x[n]$ 是 DTC／DSM code，也就是 LMS 的 regressor；$\delta w$ 是係數相對於收斂點的偏差；$\delta t$ 是 DTC 因此多出來的延遲。時間索引有兩個：$n$ 數的是 comparator 的每一個 sample（取樣率 $f_s$），$k$ 數的是 GMAC 的每一個 block（每 $N$ 個 sample 一個，取樣率 $f_u=f_s/N$）。`,
+          String.raw`四張卡片先用到幾個符號，各用一句話交代（完整的表在本章最後）：$\sigma_w$ 是係數抖動的 RMS；$\mu$ 是 learning rate，每個 block 走多大一步；$N$ 是每個 block 平均的 comparator 樣本數；$p$ 是 pole，每過一個 block 舊的偏差還留下的比例；$f_{3\mathrm{dB}}$ 與 ENBW 是兩種不同定義的頻寬；$x[n]$ 是 DTC／DSM code，也就是 LMS 的 regressor；$\delta w$ 是係數相對於收斂點的偏差；$\delta t$ 是 reference 端的 DTC 因此多補償的時間（reference edge 早到的量）。時間索引有兩個：$n$ 數的是 comparator 的每一個 sample（取樣率 $f_s$），$k$ 數的是 GMAC 的每一個 block（每 $N$ 個 sample 一個，取樣率 $f_u=f_s/N$）。`,
         )}
       </p>
 
@@ -97,12 +97,12 @@ export function S1Intro() {
         </p>
         <Diagram
           chart={NOISE_CHAIN_CHART}
-          caption={String.raw`雜訊傳遞鏈（本章的地圖）：藍色的圓圈是乘法，不是加法——係數雜訊要先乘上 code，才變成延遲誤差 $\delta t=x\,\delta w$。`}
-          ariaLabel="comparator noise 經 GMAC、LMS、code 相乘、PLL 傳遞到輸出的方塊圖"
+          caption={String.raw`雜訊傳遞鏈（本章的地圖）：藍色的圓圈是乘法，不是加法——係數雜訊要先乘上 code，才變成 timing error $\delta t=x\,\delta w$。由 PD 拉回 comparator 的虛線是校正迴路的輸入：comparator 取 PD 的輸出 $e[n]$。`}
+          ariaLabel="comparator noise 經 GMAC、LMS、code 相乘、PLL 傳遞到輸出的方塊圖；comparator 的輸入取自 PD 的輸出"
         >
           <p>
             {md(
-              String.raw`先由上往下沿著主線看：雜訊 $v[n]$ 進 comparator，1-bit 的 $q$ 被 GMAC 平均成 $G_k$，LMS 用它更新 $w$，於是係數帶著雜訊 $\delta w_k$。再看藍色的乘號：$\delta w$ 不是直接加到輸出，而是先乘上 code $x[n]$ 才變成 DTC 多出的延遲 $\delta t$。最後看乘號之後的分岔：同一個 $\delta t$ 往 PD 走是 high-pass，往 PLL output 走是 low-pass。圖上的方塊對應後面的小節：主線上乘號之前的五格是 §12.1–12.5，乘號是 §12.6，分岔之後是 §12.7–12.8。`,
+              String.raw`先由上往下沿著主線看：雜訊 $v[n]$ 進 comparator，1-bit 的 $q$ 被 GMAC 平均成 $G_k$，LMS 用它更新 $w$，於是係數帶著雜訊 $\delta w_k$。再看藍色的乘號：$\delta w$ 不是直接加到輸出，而是先乘上 code $x[n]$ 才變成 reference 端的 DTC 多補償的時間 $\delta t$。最後看乘號之後的分岔：同一個 $\delta t$ 往 PD 走是 high-pass，往 PLL output 走是 low-pass。圖上的方塊對應後面的小節：主線上乘號之前的五格是 §12.1–12.5，乘號是 §12.6，分岔之後是 §12.7–12.8。`,
             )}
           </p>
           <p>
@@ -112,7 +112,12 @@ export function S1Intro() {
           </p>
           <p>
             {md(
-              String.raw`圖上最後三格先出現了幾個 §12.7 才會推導的符號，這裡各用一句話交代：$L$ 是 PLL 的開迴路增益；$H_{\mathrm{PD}}=1/(1+L)$ 與 $T=L/(1+L)$ 是 $\delta t$ 到 PD、到輸出的轉移函數（一個 high-pass、一個 low-pass）；$f_{\mathrm{out}}$ 是 PLL 的輸出頻率，乘上 $2\pi f_{\mathrm{out}}$ 是把時間換成相位；$\phi_{\mathrm{out}}$ 是 $\delta t$ 在輸出造成的相位（rad）。`,
+              String.raw`圖上由 PD residual 拉回 comparator 的那條虛線是校正迴路的輸入：comparator 取的是 PD 的輸出 $e[n]$，也就是送進 loop filter 的同一個訊號。$\delta t$ 留在 PD 上的 residual 和雜訊 $v[n]$ 一起進 comparator，所以係數一偏離就會被拉回來——這條回授就是 §12.1 的恢復力。`,
+            )}
+          </p>
+          <p>
+            {md(
+              String.raw`圖上最後三格先出現了幾個 §12.7 才會推導的符號，這裡各用一句話交代：$L$ 是 PLL 的開迴路增益；$H_{\mathrm{PD}}=1/(1+L)$ 與 $T=L/(1+L)$ 是 $\delta t$ 到 PD、到輸出的轉移函數（一個 high-pass、一個 low-pass）；$f_{\mathrm{out}}$ 是 PLL 的輸出頻率，乘上 $2\pi f_{\mathrm{out}}$ 是把時間換成相位；$\phi_{\mathrm{out}}$ 是 $\delta t$ 在輸出造成的相位（rad）。最後一格式子前面的負號，是因為 $\delta t$ 是多補償的時間：reference edge 早到 $\delta t$，PLL 跟著把輸出的 edge 也拉早（相位以晚到為正）。`,
             )}
           </p>
         </Diagram>
@@ -125,7 +130,7 @@ export function S1Intro() {
         >
           <p>
             {md(
-              String.raw`先看三個框的標題：(1)、(3) 是每個 sample 都在動的量（索引 $n$，取樣率 $f_s$），(2) 是每個 block 才有一個值的量（索引 $k$，取樣率 $f_u=f_s/N$）。再看框與框之間的線，線上標的是那一點的訊號與它的大小：進入 (2) 之前先平均 $N$ 筆，平均之後剩下的起伏記作 $\eta_k$（GMAC 雜訊），它的變異數 $\sigma_\eta^2$ 降成約 $1/N$；離開 (2) 時每個 $\delta w_k$ 要保持 $N$ 個 sample（zero-order hold，ZOH）才能和 code 相乘。最後沿著 (3) 往下：乘上 code、經過 PLL 的 low-pass 才到輸出。`,
+              String.raw`先看三個框的標題：(1)、(3) 是每個 sample 都在動的量（索引 $n$，取樣率 $f_s$），(2) 是每個 block 才有一個值的量（索引 $k$，取樣率 $f_u=f_s/N$）。再看框與框之間的線，線上標的是那一點的訊號與它的大小：進入 (2) 之前先平均 $N$ 筆，平均之後剩下的起伏記作 $\eta_k$（GMAC 雜訊），它的變異數 $\sigma_\eta^2$ 降成約 $1/N$；離開 (2) 時每個 $\delta w_k$ 要保持 $N$ 個 sample（zero-order hold，ZOH）才能和 code 相乘。最後沿著 (3) 往下：乘上 code、經過 PLL 的 low-pass 才到輸出。這張圖只畫雜訊往前走的路：comparator 的輸入仍然是 PD 的輸出 $e[n]$（上一張圖的虛線），係數偏差經 PD 回到 comparator 的那一圈沒有另外畫出來，它已經收在 (2) 的「LMS 閉迴路」$H(z)$ 裡——pole $p$ 就是那條回授造成的。`,
             )}
           </p>
           <p>

@@ -70,7 +70,7 @@ import { firstOrderAccumulator, residueSignals } from './residue'
 import { defaultBiasNumbers, negateBugNumbers, wTruncNumbers } from './sections/FixedPoint'
 import { handGmac, HAND_GMAC } from './sections/GmacMath'
 import { clearVsNoClear } from './sections/HardwareNotes'
-import { CH04_SYSTEM_FOCUS } from './sections/Intro'
+import { CH04_SYSTEM_CAPTION, CH04_SYSTEM_FOCUS } from './sections/Intro'
 
 /**
  * Ch04 的方塊圖（docs/teaching-style.md §8）。這個檔案用「真正的 mermaid」做四件事：
@@ -259,7 +259,9 @@ describe('Ch04 方塊圖：寫法規則（逐張檢查）', () => {
     for (const g of f.subGraphs) {
       expect(g.title, `${name} 的 subgraph「${g.id}」標題只寫文字`).not.toContain('$')
       expect(g.title, `${name} 的 subgraph「${g.id}」標題只有一行`).not.toContain('<br/>')
-      expect(textWidth(displayText(g.title)), `${name} 的 subgraph「${g.id}」標題太長`).toBeLessThanOrEqual(300)
+      // 估計寬度上限 240：瀏覽器實際量到，估計 238 的「block 結束之後：每個 block 一次」還在一行內，估計 246 的「一個 block 之內：每個 sample 一次」
+      // 與 278 的「LMS 校正迴路（每個 block 更新一次）」都被折成兩行（第二行貼在、甚至壓在第一個方塊後面）——這兩個標題已經改短
+      expect(textWidth(displayText(g.title)), `${name} 的 subgraph「${g.id}」標題太長，會被折成兩行`).toBeLessThanOrEqual(240)
     }
     for (const label of allLabels(f)) {
       // `$` 成對（跳脫的 \$ 不算）
@@ -307,7 +309,7 @@ describe('Ch04 方塊圖：寫法規則（逐張檢查）', () => {
     arrows.forEach((e, i) => expect(number(e), `${e.start} → ${e.end}`).toBe(i + 1))
     // 兩欄各是一個 subgraph（標題只寫文字，含公式的標題會被縮得看不見）；block k 涵蓋的 sample 寫在 GMAC 方塊上；兩欄都是由上往下
     expect(f.subGraphs.map((s) => [s.id, s.title, [...s.nodes].sort(), s.dir])).toEqual([
-      ['BLK', '一個 block 之內：每個 sample 一次', ['C', 'G', 'S'], 'TB'],
+      ['BLK', 'block 之內：每個 sample 一次', ['C', 'G', 'S'], 'TB'],
       ['NEXT', 'block 結束之後：每個 block 一次', ['D', 'NOTE', 'R', 'U'], 'TB'],
     ])
     expect(LATENCY_TIMELINE.split('\n')[0]).toBe('flowchart LR')
@@ -369,7 +371,7 @@ describe('Ch04 方塊圖：實際渲染（jsdom + 估計字寬）', () => {
       const { width, height } = svgNaturalSize(await renderSvg(d.name, d.chart))
       sizes[d.name] = Math.round(width)
       expect(width, `${d.name} 寬度`).toBeLessThanOrEqual(1260)
-      // （jsdom 的估計值比瀏覽器高一些：含公式的方塊估得比較高；真實瀏覽器量到的最高是 CONCEPT_LMS_LOOP 的 1276 px，見 scripts/diagram-audit.mjs，規範的目標是 1400 px）
+      // （jsdom 的估計值比瀏覽器高一些：含公式的方塊估得比較高；真實瀏覽器量到的最高是 CONCEPT_LMS_LOOP 的 1265 px 與 CONCEPT_FAST_LOOP 的 1256 px，見 scripts/diagram-audit.mjs，規範的目標是 1400 px）
       expect(height, `${d.name} 高度`).toBeLessThanOrEqual(1500)
       expect(width).toBeGreaterThan(200)
     }
@@ -405,25 +407,51 @@ describe('Ch04 方塊圖：內容與公式、模型一致', () => {
     expect(gain.edge('A', 'SUB').text).toMatch(/^＋ \$a\\,x\[n\]\$/)
     expect(gain.edge('W', 'SUB').text).toMatch(/^\$-w\\,x\[n\]\$/)
     expect(oneLine(gain.edge('SUB', 'PD').text)).toBe(R`$e_\mathrm{det}[n] = (a - w)\,x[n]$ $= \delta\,x[n]$`)
+    // 兩條線就是 PD 的兩個輸入（DTC 在 reference 輸入端）：＋ 是 feedback edge 早到的時間，− 是 DTC 把 reference edge 提前的補償量
+    expect(oneLine(gain.edge('A', 'SUB').text)).toBe(R`＋ $a\,x[n]$ feedback edge 早到的時間`)
+    expect(oneLine(gain.edge('W', 'SUB').text)).toBe(R`$-w\,x[n]$ DTC 的補償量： reference edge 提前`)
+    expect(oneLine(gain.node('PD').text)).toBe('PD 輸出 comparator 只看得到 這個殘差')
     expect(GMAC_MEAN_MODEL).toContain(R`$\delta_k = a - w_k$`)
   })
 
   it('CONCEPT_FAST_LOOP / CONCEPT_LMS_LOOP：標籤依勘誤修正——S_k 與 G_k 分開、q = 2b − 1、code 延遲用 D、有雜訊注入點；兩張圖在 PD、x[n]、w_k 接起來', async () => {
+    // INL 的正負號照 Ch11／bias.ts：d(x) 是「這個 code 的延遲偏離直線的量」，多延遲為正 ⇒ delay = T_0 − w_k x + d(x)、e = (a − w)x + d(x)
+    const DTC_LABEL = R`reference 端 DTC 的 delay $= T_0 - w_k\,x[n] + d(x)$`
+    for (const chart of [CONCEPT_FAST_LOOP, CONCEPT_LMS_LOOP]) expect(chart).not.toMatch(/T_0 - \(w_k/)
     // 快的部分：DSM 的 carry 去 divider、餘數變成 code x[n]；LMS 校正迴路收成一個藍色方塊，只和快迴路有三條線
     const fast = await flow(CONCEPT_FAST_LOOP)
     expect(fast.edge('DSM', 'DIVCTL').text).toBe(R`carry $y[n]$`)
     expect(fast.edge('DSM', 'RES').text).toBe(R`residue $s[n] / M$`)
-    expect(oneLine(fast.node('DTC').text)).toBe(R`DTC 的 delay = $w_k\,x[n] + \mathrm{INL}\,d(x)$`)
+    expect(oneLine(fast.node('DTC').text)).toBe(DTC_LABEL)
     expect(oneLine(fast.node('GC').text)).toBe(R`Gain code correction $w_k\,x[n]$`)
     expect(oneLine(fast.node('FCW').text)).toBe(R`FCW $= N_\mathrm{int} + \mathrm{frac}$`)
-    expect(fast.edge('PD', 'LMS')).toMatchObject({ text: 'PD 輸出（fs）', stroke: 'dotted' })
     expect(fast.edge('RES', 'LMS').text).toBe(R`code $x[n]$`)
     expect(fast.edge('LMS', 'GC').text).toBe(R`gain $w_k$`)
     expect(fast.node('LMS').classes).toEqual(['focus'])
-    for (const [a, b] of [['RES', 'GC'], ['GC', 'DTC'], ['DTC', 'PD'], ['PD', 'PLLF'], ['PLLF', 'VCO'], ['VCO', 'DIV'], ['DIV', 'DTC'], ['DIVCTL', 'DIV'], ['FCW', 'DSM'], ['REF', 'PD']]) expect(() => fast.edge(a, b), `${a} → ${b}`).not.toThrow()
+    for (const [a, b] of [['RES', 'GC'], ['GC', 'DTC'], ['REF', 'DTC'], ['DTC', 'PD'], ['PD', 'EOUT'], ['EOUT', 'PLLF'], ['PLLF', 'VCO'], ['VCO', 'DIV'], ['DIV', 'PD'], ['DIVCTL', 'DIV'], ['FCW', 'DSM']]) expect(() => fast.edge(a, b), `${a} → ${b}`).not.toThrow()
     expect(fast.subGraphs.map((s) => s.title)).toEqual(['主 PLL 迴路（每拍）'])
+    // 框裡只有主 PLL 迴路的七個方塊；divider control 是 DSM 那一側的數位邏輯，放在框外（carry 那條長線才不必穿過框裡的 feedback edge）
+    expect([...fast.subGraphs[0].nodes].sort()).toEqual(['DIV', 'DTC', 'EOUT', 'PD', 'PLLF', 'REF', 'VCO'])
+    expect(fast.into('DIVCTL').map((e) => e.start)).toEqual(['DSM'])
+    expect(fast.edges.filter((e) => e.start === 'DIVCTL').map((e) => e.end)).toEqual(['DIV'])
+    // 架構（全站約定，docs/assumptions.md §2a）：DTC 在 reference 的輸入端——Reference clock → DTC → PD；
+    // DTC 的輸入只有 reference 與 gain correction，回授路徑上只有 divider（VCO → divider → PD），沒有「divider → DTC」也沒有「reference 直接進 PD」
+    expect(fast.into('DTC').map((e) => e.start).sort()).toEqual(['GC', 'REF'])
+    expect(fast.into('PD').map((e) => e.start).sort()).toEqual(['DIV', 'DTC'])
+    expect(fast.into('DIV').map((e) => e.start).sort()).toEqual(['DIVCTL', 'VCO'])
+    expect(oneLine(fast.edge('DTC', 'PD').text)).toBe('延遲後的 reference edge')
+    expect(fast.edge('DIV', 'PD').text).toBe('feedback edge')
+    for (const [a, b] of [['DIV', 'DTC'], ['REF', 'PD'], ['DTC', 'DIV']]) expect(fast.edges.some((e) => e.start === a && e.end === b), `不可以有 ${a} → ${b}`).toBe(false)
+    // LMS 校正迴路的輸入是 PD 的輸出 e[n]（§2a 第 3 點）：PD 輸出是一個膠囊形節點，同一個節點實線去 loop filter、虛線分接給 LMS
+    expect(fast.node('EOUT').type).toBe('stadium')
+    expect(oneLine(fast.node('EOUT').text)).toBe(R`PD 輸出 $e[n]$（fs）`)
+    expect(fast.into('EOUT').map((e) => e.start)).toEqual(['PD'])
+    expect(fast.edge('EOUT', 'PLLF').stroke).toBe('normal')
+    expect(fast.edge('EOUT', 'LMS')).toMatchObject({ text: R`同一個 $e[n]$`, stroke: 'dotted' })
+    expect(fast.into('LMS').map((e) => e.start).sort()).toEqual(['EOUT', 'RES'])
+    expect(fast.edges.filter((e) => e.stroke === 'dotted').map((e) => `${e.start}>${e.end}`)).toEqual(['EOUT>LMS'])
 
-    // 慢的部分：comparator 前的加法點（PD 輸出 ＋ 雜訊）→ comparator → GMAC（q × x_ref）→ ÷N → ×μ → accumulator → w_k 回到 gain correction
+    // 慢的部分（由上往下走一圈）：reference 端的 DTC → PD → 加法點（PD 量到的時間誤差 ＋ 雜訊 = PD 輸出 e[n]）→ comparator → GMAC（q × x_ref）→ ÷N → ×μ → accumulator → w_k → gain correction → 回到 DTC
     const f = await flow(CONCEPT_LMS_LOOP)
     expect(oneLine(f.node('GMAC').text)).toBe(R`GMAC $S_k = \sum q[n]\,x_\mathrm{ref}[n]$`)
     expect(oneLine(f.node('SCALE').text)).toBe(R`Normalize $G_k = S_k / N$ step $\mu$`)
@@ -431,19 +459,39 @@ describe('Ch04 方塊圖：內容與公式、模型一致', () => {
     expect(oneLine(f.node('ALIGN').text)).toContain(R`$x[n-D]$`)
     expect(oneLine(f.node('NOISE').text)).toBe(R`comparator 前雜訊 $v[n]$ RMS $\sigma_v$`)
     expect(oneLine(f.node('ACC').text)).toBe(R`Gain accumulator $w_{k+1} = w_k + \mu\,G_k$`)
-    expect(oneLine(f.node('DTC').text)).toBe(R`DTC 的 delay = $w_k\,x[n] + \mathrm{INL}\,d(x)$`)
+    expect(oneLine(f.node('DTC').text)).toBe(DTC_LABEL)
+    // 雜訊注入點：PD 後面的加法點，兩個輸入是「PD 量到的時間誤差」與 v[n]，輸出就是 PD 輸出 e[n]
     expect(f.node('SUM').type).toBe('circle')
     expect(f.edge('NOISE', 'SUM').text).toBe(R`＋ $v[n]$`)
-    expect(f.edge('PD', 'SUM')).toMatchObject({ text: '＋ PD 輸出（fs）', stroke: 'dotted' })
-    expect(f.edge('SUM', 'CMP').text).toBe(R`$e[n]$（fs）`)
+    expect(f.edge('PD', 'SUM').text).toBe('＋ PD 量到的時間誤差')
+    expect(f.into('SUM').map((e) => e.start).sort()).toEqual(['NOISE', 'PD'])
+    // LMS 校正迴路的輸入是 PD 的輸出 e[n]：comparator 只有一個輸入，從加法點（PD 輸出）分接，線上註明同一個節點也送進 loop filter；
+    // 不是從 DTC、divider 或沒有標示的地方拉
+    expect(f.into('CMP').map((e) => e.start)).toEqual(['SUM'])
+    expect(f.edge('SUM', 'CMP').stroke).toBe('dotted')
+    expect(oneLine(f.edge('SUM', 'CMP').text)).toBe(R`PD 輸出 $e[n]$（fs） 也送進 loop filter`)
     expect(f.edge('ALIGN', 'GMAC').text).toBe(R`$x_\mathrm{ref}[n]$`)
     expect(f.edge('CMP', 'GMAC').text).toBe(R`$q[n]$`)
     expect(f.edge('GMAC', 'SCALE').text).toBe(R`$S_k$`)
     expect(f.edge('SCALE', 'ACC').text).toBe(R`$\mu\,G_k$`)
-    expect(f.edge('ACC', 'GC').text).toBe(R`$w_k$`)
-    expect(f.edge('DTC', 'PD')).toMatchObject({ stroke: 'dotted' })
-    for (const [a, b] of [['RES', 'GC'], ['RES', 'ALIGN'], ['GC', 'DTC']]) expect(() => f.edge(a, b), `${a} → ${b}`).not.toThrow()
-    expect(f.subGraphs.map((s) => s.title)).toEqual(['LMS 校正迴路（每個 block 更新一次）'])
+    expect(f.edge('ACC', 'GC').text).toBe(R`gain $w_k$`)
+    expect(f.edge('RES', 'ALIGN').text).toBe(R`code $x[n]$`)
+    for (const [a, b] of [['RES', 'GC'], ['RES', 'ALIGN'], ['GC', 'DTC'], ['DTC', 'PD'], ['PD', 'SUM']]) expect(() => f.edge(a, b), `${a} → ${b}`).not.toThrow()
+    // DTC 在 reference 路徑上：它的輸出是「延遲後的 reference edge」，直接進 PD（實線）；DTC 的輸入只有 gain correction（Reference clock 的方塊畫在上一張圖）；
+    // PD 的輸入在這張圖只有 DTC；整張圖只有分接給 comparator 的那一條是虛線
+    expect(oneLine(f.edge('DTC', 'PD').text)).toBe('延遲後的 reference edge')
+    expect(f.edge('DTC', 'PD').stroke).toBe('normal')
+    expect(f.into('DTC').map((e) => e.start)).toEqual(['GC'])
+    expect(f.into('PD').map((e) => e.start)).toEqual(['DTC'])
+    // PD 的另一個輸入（divider 的 feedback edge）畫在上一張圖：這張圖的 PD 方塊上要寫明，才不會看起來像只有一個輸入的 PD；
+    // 這張圖沒有 divider 方塊，所以也不可能有「divider → DTC」
+    expect(oneLine(f.node('PD').text)).toBe('Phase detector / BBPD 另一輸入：feedback edge')
+    expect(oneLine(fast.node('PD').text)).toBe('Phase detector / BBPD')
+    expect(f.nodes.map((v) => v.id)).not.toContain('DIV')
+    expect(f.edges.filter((e) => e.stroke === 'dotted').map((e) => `${e.start}>${e.end}`)).toEqual(['SUM>CMP'])
+    // subgraph 標題只有一行（原本的「LMS 校正迴路（每個 block 更新一次）」太長，被折成兩行、第二行壓在方塊後面）
+    expect(f.subGraphs.map((s) => s.title)).toEqual(['LMS 校正迴路（block rate）'])
+    expect([...f.subGraphs[0].nodes].sort()).toEqual(['ACC', 'ALIGN', 'CMP', 'GMAC', 'SCALE'])
     expect([...f.nodes.filter((v) => v.classes.includes('focus')).map((v) => v.id)].sort()).toEqual(['ACC', 'GMAC', 'SCALE'])
     // 兩張圖共用的方塊：快迴路圖的 PD、RES、GC、DTC 在慢迴路圖裡再出現一次，名稱相同
     for (const id of ['PD', 'RES', 'GC', 'DTC']) expect(() => fast.node(id) && f.node(id), id).not.toThrow()
@@ -452,6 +500,15 @@ describe('Ch04 方塊圖：內容與公式、模型一致', () => {
     // 17 個方塊（和系統地圖一樣多）：兩張圖合起來涵蓋全部，沒有任何一張超過 14 個節點
     expect(fast.nodes.length).toBeLessThanOrEqual(MAX_NODES)
     expect(f.nodes.length).toBeLessThanOrEqual(MAX_NODES)
+    // 版面靠宣告順序（Mermaid／dagre 從第一個節點開始決定哪些線往回走）：圖 4-1 從 RES 開始（往回走的才會是 divider → PD 與 LMS → gain correction）、
+    // carry 那條線寫在 residue 之前（carry 才會排在最左邊）、divider control 在框外；圖 4-2 從 DTC 開始。
+    // 這樣排兩張圖都沒有任何交叉（瀏覽器裡逐條連線量過，見 diagrams.ts 的說明）；順序一換，DTC 會被排到最下面，或 carry 和 feedback edge 交叉，所以釘住
+    expect(fast.nodes[0].id).toBe('RES')
+    expect(CONCEPT_FAST_LOOP.split('\n')[1].trim()).toMatch(/^RES\[/)
+    expect(fast.edges.findIndex((e) => e.start === 'DSM' && e.end === 'DIVCTL')).toBeLessThan(fast.edges.findIndex((e) => e.start === 'DSM' && e.end === 'RES'))
+    expect(fast.edges.findIndex((e) => e.start === 'GC' && e.end === 'DTC')).toBeLessThan(fast.edges.findIndex((e) => e.start === 'REF' && e.end === 'DTC'))
+    expect(fast.edges.findIndex((e) => e.start === 'DIVCTL' && e.end === 'DIV')).toBeLessThan(fast.edges.findIndex((e) => e.start === 'VCO' && e.end === 'DIV'))
+    expect(f.nodes[0].id).toBe('DTC')
   })
 
   it('RESIDUE_ACCUMULATOR：照圖上的式子走一遍，和 residue.ts（F-04.1、F-04.2）逐拍相同', async () => {
@@ -460,13 +517,22 @@ describe('Ch04 方塊圖：內容與公式、模型一致', () => {
     expect(oneLine(f.node('WRAP').text)).toBe(R`溢位判斷（mod $M$） $t[n] \ge M$ 時 $y[n] = 1$ 否則 $y[n] = 0$ $s[n] = t[n] - M\,y[n]$`)
     expect(f.edge('REG', 'ADD').text).toBe(R`＋ $s[n-1]$`)
     expect(f.edge('WRAP', 'DIV').text).toBe(R`carry $y[n]$`)
-    expect(oneLine(f.edge('DIV', 'DTC').text)).toBe(R`edge 早到 $s[n]/M$ 個 $T_\mathrm{vco}$ $r[n] = -s[n]/M$`)
     expect(oneLine(f.node('NORM').text)).toBe(R`$\div M$ $x[n] = s[n] / M$`)
-    expect(oneLine(f.node('DTC').text)).toBe(R`DTC：插入延遲 $\tau_\mathrm{DTC}[n] = x[n]\,T_\mathrm{vco}$`)
+    // 下半部（全站約定，docs/assumptions.md §2a）：兩條 edge 在 PD 相遇。divider 的 feedback edge 早到 s/M 個 T_vco，直接進 PD、不經過 DTC；
+    // DTC 在 reference 路徑上（輸入是 reference clock 與 code），從基準延遲 T_0 往回扣，把 reference edge 也提前 x·T_vco
+    expect(oneLine(f.edge('DIV', 'PD').text)).toBe(R`feedback edge 早到 $s[n]/M$ 個 $T_\mathrm{vco}$ $r[n] = -s[n]/M$`)
+    expect(oneLine(f.node('DIV').text)).toBe(R`Divider（回授路徑） 這一拍除 $N_\mathrm{int} + y[n]$`)
+    expect(oneLine(f.node('DTC').text)).toBe(R`DTC（reference 路徑） $\tau_\mathrm{DTC}[n] = T_0 - x[n]\,T_\mathrm{vco}$`)
+    expect(oneLine(f.edge('DTC', 'PD').text)).toBe(R`reference edge 也提前 $x[n]\,T_\mathrm{vco}$`)
+    expect(oneLine(f.node('PD').text)).toBe(R`PD：量 $t_\mathrm{ref}' - t_\mathrm{fb}$ 兩條 edge 對齊`)
+    expect(f.into('DTC').map((e) => e.start).sort()).toEqual(['NORM', 'REFCLK'])
+    expect(f.into('PD').map((e) => e.start).sort()).toEqual(['DIV', 'DTC'])
+    expect(f.edges.some((e) => e.start === 'DIV' && e.end === 'DTC'), '不可以有 divider → DTC').toBe(false)
+    expect(RESIDUE_ACCUMULATOR).not.toContain('插入' + '延遲')
     expect(oneLine(f.node('KF').text)).toBe(R`FCW 小數字 $K_\mathrm{F}$ $\mathrm{frac} = K_\mathrm{F} / M$`)
     expect(oneLine(f.node('REG').text)).toBe(R`$z^{-1}$ 暫存器 $B_\mathrm{dsm}$ bits $M = 2^{B_\mathrm{dsm}}$`)
     expect(f.edge('NORM', 'DTC').text).toBe(R`code $x[n] \in [0, 1)$`)
-    // 圖上的遞迴：t = s_prev + K_F；y = (t ≥ M)；s = t − M·y；r = −s/M；x = s/M；τ = x·T_vco
+    // 圖上的遞迴：t = s_prev + K_F；y = (t ≥ M)；s = t − M·y；r = −s/M；x = s/M；需要的補償量 τ_need = x·T_vco（DTC 的延遲是 T_0 − x·T_vco）
     const KF = 5
     const bits = 4
     const M = 2 ** bits
@@ -488,6 +554,14 @@ describe('Ch04 方塊圖：內容與公式、模型一致', () => {
       const a = sig.tvcoFs
       const w = (1 - 0.01) * a
       expect(sig.residualFs[n]).toBeCloseTo(a * x - w * x, 6)
+      // 同一個數字用「兩條 edge」再算一次（以鎖定後的理想時刻為 0）：feedback edge 早到 a·x ⇒ t_fb = −a·x；
+      // reference 端的 DTC 延遲 T_0 − w·x，T_0 被 PLL 吸收 ⇒ t_ref′ = −w·x；PD 量 t_ref′ − t_fb = (a − w)·x，補償不足（w < a）時為正
+      const tFb = -a * x
+      const tRef = -w * x
+      expect(tRef - tFb).toBeCloseTo(sig.residualFs[n], 6)
+      expect(tRef - tFb).toBeGreaterThanOrEqual(0)
+      // DTC 只能延遲：基準延遲 T_0 取一個 T_vco 就夠（x < 1），code 越大延遲越短，而且永遠不為負
+      expect(a - w * x).toBeGreaterThan(0)
     })
   })
 
@@ -546,7 +620,9 @@ describe('Ch04 方塊圖：內容與公式、模型一致', () => {
     expect(f.into('ADDN').map((e) => e.start).sort()).toEqual(['BOFF', 'HPD', 'VN'])
     expect(oneLine(f.node('BOFF').text)).toBe(R`comparator offset $b_\mathrm{off}$`)
     expect(oneLine(f.node('VN').text)).toBe(R`雜訊 $v[n]$`)
-    expect(oneLine(f.node('HPD').text)).toBe(R`$H_\mathrm{PD}(z)$ PLL 誤差路徑`)
+    // 全站約定（§2a 第 5 點）：DTC 的殘餘誤差從 PD 的 reference 輸入端進來，H_PD 是它到 PD 輸出的轉移函數；進加法點是正號
+    expect(oneLine(f.node('HPD').text)).toBe(R`$H_\mathrm{PD}(z)$：PLL 誤差路徑 PD 的 reference 輸入 到 PD 輸出`)
+    expect(f.edge('HPD', 'ADDN').text).toMatch(/^＋ /)
     expect(f.edge('SGN', 'CORR').text).toBe(R`$q[n]$`)
     expect(oneLine(f.node('INTG').text)).toBe(R`$1/(z-1)$ gain accumulator $w_{k+1} = w_k + \mu\,G_k$`)
     expect(oneLine(f.edge('INTG', 'SUB').text)).toBe(R`$-w_k$ 再晚 $d$ 個 block 生效`)
@@ -626,6 +702,9 @@ describe('Ch04 方塊圖：內容與公式、模型一致', () => {
     expect(t13.gSum).toBeCloseTo(326.8, 1) // 規格 T13 的反面測試
 
     const m = await flow(BIT_MAPPING)
+    // comparator 的輸入是 PD 的輸出 e[n]（全站約定：LMS 校正迴路的輸入在 PD 的輸出）
+    expect(oneLine(m.node('E').text)).toBe(R`PD 輸出 $e[n]$`)
+    expect(m.into('CMP').map((e) => e.start)).toEqual(['E'])
     expect(oneLine(m.node('MAP').text)).toBe(R`映射 $q = 2b - 1$ $0 \to -1$，$1 \to +1$`)
     expect(oneLine(m.node('R2').text)).toContain(R`$G_\mathrm{bug} = \tfrac12 G + \tfrac12 \bar x_\mathrm{ref}$`)
     expect(oneLine(m.node('R3').text)).toBe(R`固定點 $w^* \approx$ $a + E[x_\mathrm{ref}] / (K_q C)$`)
@@ -928,6 +1007,34 @@ describe('Ch04 頁面上的方塊圖（整頁渲染）', () => {
     expect(lead.tagName).toBe('P')
     expect(lead.textContent).toMatch(/藍色方塊/)
     expect(lead.textContent).toMatch(/這一課新增的是/)
+    // 架構（全站約定，docs/assumptions.md §2a）：圖說與地圖後面那一段都寫明 DTC 在 reference 輸入端、LMS 的輸入是 PD 的輸出
+    expect(CH04_SYSTEM_CAPTION).toContain('reference 輸入端的 DTC → PD')
+    expect(CH04_SYSTEM_CAPTION).toContain(R`PD 的輸出 $e[n]$（就是送進 loop filter 的那個節點）`)
+    expect(CH04_SYSTEM_CAPTION).not.toContain('沿虛線')
+    const afterMap = map.nextElementSibling!
+    expect(afterMap.tagName).toBe('P')
+    expect(afterMap.textContent).toContain('DTC 在 reference 的輸入端')
+    expect(afterMap.textContent).toContain('回授路徑上只有 divider')
+    expect(afterMap.textContent).toContain('LMS 校正迴路的輸入是 PD 的輸出')
+    // §1 的讀圖說明：comparator 取的是 PD 的輸出，也就是送進 loop filter 的同一個訊號；DTC 在 reference 這一側
+    expect(system.textContent).toContain('也就是送進 loop filter 的同一個訊號')
+    expect(system.textContent).toContain('DTC 在 reference 這一側')
+    // 讀圖說明裡的位置要和圖一致（圖 4-1：數位的小數除頻在左、主 PLL 迴路的框在右；carry 在最左邊、feedback edge 在框裡最右邊，兩條線不交叉；
+    // 版面由 CONCEPT_FAST_LOOP 的宣告順序決定，上面的測試已釘住）。圖 4-2 沒有 divider 方塊，所以文字與 PD 方塊都要說明 PD 的另一個輸入
+    for (const t of ['左半邊是數位的小數除頻與補償，右邊的框是主 PLL 迴路', '沿最左邊那條長線往下到 divider control', '框裡最右邊那條往上的線', 'PD 的另一個輸入是 divider 的 feedback edge']) expect(system.textContent, t).toContain(t)
+    for (const t of ['最左邊那條往上的線', '沿最右邊往下']) expect(system.textContent, t).not.toContain(t)
+    expect(system.textContent).toContain('只能延遲、不能提前')
+    expect(system.textContent).toContain('原圖的 DTC 接在 divider 的輸出與 PD 之間。本站依全站約定把 DTC 畫在 reference 的輸入端')
+    // §2 的物理圖像：feedback edge 早到、reference 端的 DTC 從基準延遲往回扣（補償量）、PD 量 reference edge 減 feedback edge；
+    // 舊接法的說法（DTC 把 divider 的 edge 往後延、對回理想時刻）整頁都不能再出現；下面的字串拆開寫，這個測試檔本身才不會含有那些句子
+    const residue = container.querySelector('#ch04-residue')!
+    for (const t of ['它直接進 PD，不經過 DTC', 'reference 的輸入端', '基準延遲', '補償量', '只能延遲、不能提前', 'DTC 延遲後的 reference edge」減「feedback edge」']) expect(residue.textContent, t).toContain(t)
+    for (const t of ['插入' + '延遲', '推回' + '理想時刻', 'DTC ' + '補回', '需' + '插入的延遲']) expect(container.textContent, t).not.toContain(t)
+    // 兩條 edge 的時刻（t_ref′、t_fb）寫成三行對齊的式子，正負號就是全站約定：reference edge 提前 w·x、feedback edge 早到 a·x、差是 (a − w)·x。
+    // 三行只放式子（說明在前一段文字）：旁邊再加中文註解，手機上這一塊就比欄寬多出兩百多 px、多一條沒有用途的橫向捲軸
+    const timing = Array.from(residue.querySelectorAll('annotation')).map((el) => el.textContent ?? '').filter((t) => t.includes('aligned') && t.includes(R`t_\mathrm{id}[n]`))
+    expect(timing).toEqual([R`\begin{aligned}t_\mathrm{ref}'[n]&=t_\mathrm{id}[n]-w\,x[n]\\t_\mathrm{fb}[n]&=t_\mathrm{id}[n]-a\,x[n]\\t_\mathrm{ref}'[n]-t_\mathrm{fb}[n]&=(a-w)\,x[n]\end{aligned}`])
+    for (const t of ['第一行是 reference edge（被 DTC 提前', '第二行是 feedback edge（早到', '補償不足（', '時 reference edge 還是太晚，誤差為正']) expect(residue.textContent, t).toContain(t)
 
     // 2) 22 張圖：順序 = 登錄表；每張都有圖號與圖說
     const figs = Array.from(container.querySelectorAll('.ch04-mermaid-fig'))

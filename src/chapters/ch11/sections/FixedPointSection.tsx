@@ -131,7 +131,7 @@ export function FixedPointSection() {
               why: m('期望值是線性的：逐項拆開；$a-w$ 與 $b$ 是常數可以提出來。'),
             },
             {
-              tex: String.raw`E[x\,v]=E[x]\,E[v]=E[x]\cdot0=0`,
+              tex: String.raw`\begin{aligned}E[x\,v]&=E[x]\,E[v]\\&=E[x]\cdot0=0\end{aligned}`, // 兩行：手機的欄寬放不下一整行（只差 2px 也會多出一條捲軸）
               why: m('$v$ 與 $x$ 獨立 ⇒ 乘積的平均 = 平均的乘積；$v$ 零均值。'),
             },
             {

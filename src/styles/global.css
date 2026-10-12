@@ -529,10 +529,17 @@ input[type='range'] {
   white-space: nowrap;
 }
 
+/* 正文裡太寬的獨立公式可以在自己的框內橫向捲動（手機上常見）；捲軸用細的，不搶版面。
+   方塊圖節點裡的公式不該有捲軸：mermaidTheme.ts 在每張圖自己的樣式裡把它關掉，這裡再保險一次。 */
 .katex-display {
   overflow-x: auto;
   overflow-y: hidden;
   padding: 4px 0;
+  scrollbar-width: thin;
+}
+figure.c-mermaid svg .katex-display {
+  overflow: visible;
+  padding: 0;
 }
 
 /*

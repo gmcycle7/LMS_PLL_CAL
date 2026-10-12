@@ -120,11 +120,13 @@ export function normalizeNumberText(text: string): string {
  * 從預期結果文字抽出所有數字（含千分位逗號、科學記號 a×10⁻ᵇ / aeb、百分比）。
  * 緊接在英文字母、底線或 § 之後的數字（例如 T06、E30、F-06.15、§12.1 的章節號）不算，避免把編號當成結果。
  * 百分比同時加入 x 與 x/100 兩個值（78.75% 可對應機率 0.7875）。
+ * （排版：正規表示式另起一行。它是這段程式最長的一行，接在 `const re =` 後面時，頁面上的程式碼框在桌機會多出一條只差 5px 的橫向捲軸。）
  */
 // #region core:extractNumbers
 export function extractNumbers(text: string): ExtractedNumber[] {
   const s = normalizeNumberText(text)
-  const re = /(?<![A-Za-z_§.\d^-])(-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?)(?:\s*[×*]\s*10\^?([-+]?\d+)|e([-+]?\d+))?(\s*%)?/g
+  const re =
+    /(?<![A-Za-z_§.\d^-])(-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?)(?:\s*[×*]\s*10\^?([-+]?\d+)|e([-+]?\d+))?(\s*%)?/g
   const out: ExtractedNumber[] = []
   let m: RegExpExecArray | null
   while ((m = re.exec(s))) {

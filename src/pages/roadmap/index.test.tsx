@@ -295,6 +295,31 @@ describe('預覽的警告會解釋原因（反面情境）', () => {
     expect(container.querySelector('.c-exp-crosscheck')?.textContent).toMatch(/Not implemented/i)
   })
 
+  it('SSPLL 預覽的假設（docs/assumptions.md §2a）：DTC 在 reference 輸入端注入，e_PD = φ_in − θ_fb ⇒ e_PD = +H_PD·φ_in；PD 量 reference 減 feedback', () => {
+    const { container } = withProviders(<PREVIEWS.SSPLL />)
+    const shell = container.querySelector('#exp-roadmap-sspll-polarity') as HTMLElement
+    const text = shell.textContent ?? ''
+    expect(text).toContain('DTC 在 reference 輸入端')
+    expect(text).toContain('reference 輸入注入')
+    expect(text).toContain('PMUX 在 feedback 路徑上')
+    // KaTeX 的 annotation 帶 TeX 原始碼：PD 做減法（reference 輸入 − feedback 輸入），解出來是正號
+    expect(text).toContain(String.raw`e_{\mathrm{PD}}=\phi_{\mathrm{in}}-\theta_{\mathrm{fb}}`)
+    expect(text).toContain(String.raw`e_{\mathrm{PD}}=+H_{\mathrm{PD}}\,\phi_{\mathrm{in}}`)
+    expect(text).toContain('reference edge 減 feedback edge')
+    expect(text).not.toContain('phase-comparison')
+    // 這一頁的 u 是有效 regressor u = h_PD * x（推導二），不能同時拿來當「注入的誤差」
+    expect(text).not.toMatch(/=u-y|H_\{\\mathrm\{PD\}\}\\,u\b/)
+  })
+
+  it('R7 預覽（Research）：事件級模型要有 reference 端的 DTC 延遲與 feedback（divider）edge；PD 量 reference 減 feedback', () => {
+    const { container } = withProviders(<PREVIEWS.R7 />, 'research')
+    const text = container.textContent ?? ''
+    expect(text).toContain('DTC 在 reference 輸入端')
+    expect(text).toContain('feedback（divider）edge')
+    expect(text).toContain('reference edge 減 feedback edge')
+    expect(text).not.toContain('DTC 在 edge 上的延遲')
+  })
+
   it('SSPLL：切到 Type-I（使用者的 L1）後沒有反號警告', () => {
     const { container } = withProviders(<PREVIEWS.SSPLL />)
     const shell = container.querySelector('#exp-roadmap-sspll-polarity') as HTMLElement

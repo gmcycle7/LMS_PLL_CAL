@@ -22,7 +22,7 @@ export function S4Code() {
         </p>
         <CodeCompare
           items={[
-            { label: 'none（忽略主 PLL）', source: labSrc, region: 'pathNone', path: LAB_PATH, note: '教學基準：$H_{\\mathrm{PD}}=T=1$，PD 與輸出端看到的都是原始的 DTC 誤差。' },
+            { label: 'none（忽略主 PLL）', source: labSrc, region: 'pathNone', path: LAB_PATH, note: '教學基準：$H_{\\mathrm{PD}}=T=1$，PD 的輸出與輸出端看到的都是原始的 DTC 誤差。' },
             { label: 'Type-I DPLL', source: labSrc, region: 'pathType1', path: LAB_PATH, note: '一個積分器：$1+L=(1-\\rho_Tz^{-1})/(1-z^{-1})$；pole 由頻寬的封閉式反解（§4.4）。' },
             { label: 'Type-II DPLL', source: labSrc, region: 'pathType2', path: LAB_PATH, note: '兩個積分器（PI loop filter）：係數交給 pll.ts 的 designDtLoop（E44 的直接差分方程）。' },
           ]}

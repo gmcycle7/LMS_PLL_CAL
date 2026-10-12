@@ -385,7 +385,7 @@ export function ExperimentShell(props: ExperimentShellProps) {
               </>
             )}
           </dl>
-          {summaryOpen && <pre className="c-exp-json">{prettyJson(summary)}</pre>}
+          {summaryOpen && <SummaryJson text={prettyJson(summary)} />}
         </details>
 
         <div className="c-exp-export" role="group" aria-label="匯出">
@@ -405,4 +405,12 @@ export function ExperimentShell(props: ExperimentShellProps) {
       </section>
     </PlotRegistryProvider>
   )
+}
+
+/** 不超過這麼多行的摘要 JSON 整段顯示（超過才收進 320px 的可捲動框）：為了兩三行放一條捲軸沒有用途 */
+export const SUMMARY_JSON_FULL_LINES = 24
+
+function SummaryJson({ text }: { text: string }) {
+  const short = text.split('\n').length <= SUMMARY_JSON_FULL_LINES
+  return <pre className={`c-exp-json${short ? ' is-full' : ''}`}>{text}</pre>
 }

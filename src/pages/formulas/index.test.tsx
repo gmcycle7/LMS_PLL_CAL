@@ -158,6 +158,14 @@ describe('FormulasPage（jsdom smoke：三種學習模式）', () => {
     expect(q(container, '[data-testid="formulas-page"]').lastElementChild).toBe(q(container, '#symbols'))
     expect(q(container, '#fr-coverage').compareDocumentPosition(q(container, '#symbols')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(renderProblems(container)).toEqual([])
+    // 手機上獨立公式會在最外層的運算子後面自動換行（formulas.css）：一組負數必須包在 {…} 裡，
+    // 否則「vs −2」「（實際 −0.058%）」的負號會被當成二元運算子，留在上一行的行尾，下一行讀起來變成正數
+    const displayTex = Array.from(container.querySelectorAll('.katex-display annotation')).map((a) => a.textContent ?? '')
+    const t01 = displayTex.find((t) => t.includes(String.raw`\delta_0,\delta_1,\delta_2=`))!
+    expect(t01).toMatch(/\\text\{vs\}\\quad\{-[0-9]/)
+    const errRow = displayTex.find((t) => t.includes(String.raw`\frac{-\ln p}{\Omega_{3\mathrm{dB}}}-1\approx`))!
+    expect(errRow.match(/\(\\text\{實際 \}\{-?[0-9.]+\\%\}\)/g)?.length).toBe(2)
+    for (const t of displayTex) expect(t, t).not.toMatch(/\\text\{(?:vs|實際 ?)\}(?:\\q?quad)?\s*-/)
     // 版面約定：所有 fr-table 都在 .table-wrap 內，且每個資料格都有 data-label（≤ 640 px 的卡片排版用）
     const tables = Array.from(container.querySelectorAll('table.fr-table'))
     expect(tables.length).toBeGreaterThan(14)

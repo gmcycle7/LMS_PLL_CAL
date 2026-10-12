@@ -151,12 +151,16 @@ export function S5SecondDiff() {
       </p>
       <Mermaid
         chart={CHART_TYPE2_LOOP}
-        caption={String.raw`E44 的離散時間 Type-II DPLL：開迴路 $L(z)$ 是三個藍色方塊（PI loop filter、DCO 積分器、迴路延遲）的乘積；DTC 的 gain 誤差從加法點的正端進來，回授從負端進來，加法點的輸出就是到達 PD 的誤差。`}
+        caption={String.raw`E44 的離散時間 Type-II DPLL：圓圈是 PD。DTC 在 reference 輸入端，它留下的 gain 誤差從 PD 的正端（reference 輸入）進來，divider 的回授從負端進來；開迴路 $L(z)$ 是三個藍色方塊（PI loop filter、DCO 積分器、迴路延遲）的乘積。PD 的輸出同時送進 loop filter 與 comparator。`}
       />
       <p>
-        先看加法點：DTC 的 gain 誤差 <Tex>{r`(a-w)\,x[n]`}</Tex> 從正端進來，迴路的回授從負端進來，輸出是到達 PD 的 <Tex>{r`(a-w)\,u[n]`}</Tex>（再加上雜訊 <Tex>{'v[n]'}</Tex> 才是 comparator 看到的 <Tex>{r`e_{\mathrm{PD}}[n]`}</Tex>）。再看三個藍色方塊，沿著迴路繞一圈：PI loop
+        先看標著 PD 的圓圈：PD 量的是「reference 端減回授端」。DTC 在 reference 輸入端，所以它補償之後留下的 gain 誤差 <Tex>{r`(a-w)\,x[n]`}</Tex> 從正端進來；迴路的回授從負端進來——回授路徑是 DCO 的輸出經
+        divider 回到 PD（以時間為單位時 divider 的增益是 1，圖上不另外畫方塊，只在回授線上標出「divider 的回授」），DTC 不在這條路上。PD 的輸出裡由 code 決定的部分是 <Tex>{r`(a-w)\,u[n]`}</Tex>，它分成兩條線：一條送進 PI loop filter，另一條給 comparator——comparator
+        取的就是 PD 的輸出，和送進 loop filter 的是同一個訊號。本章的模型把雜訊合成一個 comparator 前的 <Tex>{'v[n]'}</Tex>，不另外算它繞迴路的效果，所以 comparator 看到的是
+        <Tex>{r`e_{\mathrm{PD}}[n]=(a-w)\,u[n]+v[n]`}</Tex>。再看三個藍色方塊，沿著迴路繞一圈：PI loop
         filter <Tex>{r`K_p+K_i/\nabla`}</Tex>、DCO 積分器 <Tex>{r`1/\nabla`}</Tex>、<Tex>{'1+d'}</Tex> 個 sample 的延遲 <Tex>{r`z^{-(1+d)}`}</Tex>——三個相乘就是下面第一行的
-        <Tex>{'L(z)'}</Tex>。負回授繞一圈的意思是「輸出等於輸入減掉 <Tex>{'L'}</Tex> 乘輸出」，解出來輸出除以輸入是 <Tex>{r`H_{\mathrm{PD}}=1/(1+L)`}</Tex>，也就是下面第二行。
+        <Tex>{'L(z)'}</Tex>。負回授繞一圈的意思是「PD 的輸出等於 reference 端的輸入減掉 <Tex>{'L'}</Tex> 乘 PD 的輸出」（下面第二行），解出來輸出除以輸入是 <Tex>{r`H_{\mathrm{PD}}=1/(1+L)`}</Tex>——正號，因為誤差是從 PD 的
+        reference 輸入注入的——也就是下面第三行。
       </p>
       <FoldSteps
         steps={[
@@ -165,7 +169,17 @@ export function S5SecondDiff() {
             why: <>E44 的 DPLL 開迴路（PI loop filter 加上一個 DCO 積分器、<Tex>{'1+d'}</Tex> 個 sample 的延遲）；通分。</>,
           },
           {
-            tex: r`H_{\mathrm{PD}}=\frac{1}{1+L}=\frac{\nabla^2}{\nabla^2+(K_i+K_p\nabla)\,z^{-(1+d)}}`,
+            tex: r`(a-w)\,U(z)=\underbrace{(a-w)\,X(z)}_{\text{reference 輸入}}-\underbrace{L(z)\,(a-w)\,U(z)}_{\text{回授}}\ \Rightarrow\ U(z)=\frac{X(z)}{1+L(z)}`,
+            why: (
+              <>
+                PD 的輸出＝reference 輸入減回授（<Tex>{'X(z)'}</Tex>、<Tex>{'U(z)'}</Tex> 是 <Tex>{'x[n]'}</Tex>、<Tex>{'u[n]'}</Tex> 的 Z 轉換）：DTC 在 reference 輸入端，它留下的{' '}
+                <Tex>{r`(a-w)\,x`}</Tex> 從正端進來；回授是 PD 的輸出繞開迴路一圈。把 DTC 的殘餘誤差記成 <Tex>{r`\phi_{\mathrm{dtc}}`}</Tex>、回授端記成 <Tex>{r`\theta_{\mathrm{fb}}`}</Tex>，這一行就是全站的約定{' '}
+                <Tex>{r`e_{\mathrm{PD}}=\phi_{\mathrm{dtc}}-\theta_{\mathrm{fb}}`}</Tex>，解出來 <Tex>{r`e_{\mathrm{PD}}=H_{\mathrm{PD}}\,\phi_{\mathrm{dtc}}`}</Tex>（正號）。
+              </>
+            ),
+          },
+          {
+            tex: r`H_{\mathrm{PD}}=\frac{U}{X}=\frac{1}{1+L}=\frac{\nabla^2}{\nabla^2+(K_i+K_p\nabla)\,z^{-(1+d)}}`,
             why: <>分子分母同乘 <Tex>{r`\nabla^2`}</Tex>。分子的 <Tex>{r`\nabla^2`}</Tex> 就是 Type-II 的兩個 DC 零點。</>,
           },
           {

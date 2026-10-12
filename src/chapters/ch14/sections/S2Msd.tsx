@@ -132,14 +132,14 @@ export function S2Msd() {
         <ModelLevel level="L1" /> 單參數、近鎖定、每個 block 的 GMAC 雜訊 iid。我們要算 B 次更新後的均方誤差 <Tex>{'E[\\delta_B^2]'}</Tex>。推導之前先看兩張圖：第一張說明「每個 block 的一個數 <Tex>{'G_k'}</Tex>」是怎麼從{' '}
         <Tex>{'N'}</Tex> 個 comparator 樣本來的，第二張說明 <Tex>{'B'}</Tex> 個 block 之後的誤差由哪兩部分組成。
       </p>
-      <Diagram chart={CHART_SAMPLE_TO_BLOCK} caption="從 sample rate 到 block rate：標著 sample rate 的框每個 comparator 樣本做一次，標著 block rate 的框每 $N$ 個樣本才做一次；虛線表示誤差在一個 block 內不變。">
+      <Diagram chart={CHART_SAMPLE_TO_BLOCK} caption="從 sample rate 到 block rate：標著 sample rate 的框每個 comparator 樣本做一次，標著 block rate 的框每 $N$ 個樣本才做一次；comparator 與 loop filter 取同一個 PD 輸出 $e[n]$；右邊的長虛線表示誤差在一個 block 內不變。">
         <p>
-          <strong>先看</strong>標著 sample rate 的框（索引 <Tex>{'n'}</Tex>），由上到下：code <Tex>{'x[n]'}</Tex> 經過 PLL 誤差路徑變成 <Tex>{'u[n]'}</Tex>，乘上這個 block 的誤差 <Tex>{'\\delta_k'}</Tex>，再和 RMS 為 <Tex>{'\\sigma_v'}</Tex> 的雜訊 <Tex>{'v[n]'}</Tex> 在加法點相加（兩條線都是正號），
-          得到 comparator 看到的 <Tex>{'e[n]=\\delta_k\\,u[n]+v[n]'}</Tex>。comparator 只輸出正負號 <Tex>{'q[n]=\\pm1'}</Tex>，再乘上 code <Tex>{'x[n]'}</Tex>。<strong>再看</strong>標著 block rate 的框（索引 <Tex>{'k'}</Tex>，更新率 <Tex>{'f_u=f_s/N'}</Tex>）：GMAC 把 <Tex>{'N'}</Tex> 個{' '}
-          <Tex>{'q[n]x[n]'}</Tex> 平均成一個數 <Tex>{'G_k'}</Tex>，乘 <Tex>{'\\mu'}</Tex> 加進暫存器。虛線是回授：整個 block 內 <Tex>{'w_k'}</Tex> 不變（新的 <Tex>{'w_{k+1}'}</Tex> 要到下個 block 才生效，這就是「無更新延遲 <Tex>{'d=0'}</Tex>」的意思），所以 <Tex>{'\\delta_k'}</Tex> 在 <Tex>{'N'}</Tex> 個樣本內也不變。
+          <strong>先看</strong>標著 sample rate 的框（索引 <Tex>{'n'}</Tex>），由上到下：DTC 的 code <Tex>{'x[n]'}</Tex> 經過 PLL 誤差路徑（從 DTC 到 PD 的輸出）變成 <Tex>{'u[n]'}</Tex>，乘上這個 block 的誤差 <Tex>{'\\delta_k'}</Tex> 就是 PD 輸出裡的訊號部分，再和 RMS 為 <Tex>{'\\sigma_v'}</Tex> 的雜訊 <Tex>{'v[n]'}</Tex> 在加法點相加（兩條線都是正號），
+          得到 <strong>PD 的輸出</strong> <Tex>{'e[n]=\\delta_k\\,u[n]+v[n]'}</Tex>。這個加法點就是送進 loop filter 的那個節點（往右的短虛線是它進 PLL 主迴路的一支），comparator 從<strong>同一個節點</strong>分接：它取的是 PD 的輸出 <Tex>{'e[n]'}</Tex>，不是 DTC 或 divider 的訊號。comparator 只輸出正負號 <Tex>{'q[n]=\\pm1'}</Tex>，再乘上 code <Tex>{'x[n]'}</Tex>。<strong>再看</strong>標著 block rate 的框（索引 <Tex>{'k'}</Tex>，更新率 <Tex>{'f_u=f_s/N'}</Tex>）：GMAC 把 <Tex>{'N'}</Tex> 個{' '}
+          <Tex>{'q[n]x[n]'}</Tex> 平均成一個數 <Tex>{'G_k'}</Tex>，乘 <Tex>{'\\mu'}</Tex> 加進暫存器。右邊那條長虛線是回授：整個 block 內 <Tex>{'w_k'}</Tex> 不變（新的 <Tex>{'w_{k+1}'}</Tex> 要到下個 block 才生效，這就是「無更新延遲 <Tex>{'d=0'}</Tex>」的意思），所以 <Tex>{'\\delta_k'}</Tex> 在 <Tex>{'N'}</Tex> 個樣本內也不變。
         </p>
         <p>
-          圖上加法點輸出的「<Tex>{'e[n]=\\delta_k\\,u[n]+v[n]'}</Tex>」就是 comparator 的輸入；藍色方塊輸出的「<Tex>{'G_k\\approx K\\delta_k+\\eta_k'}</Tex>」是下面推導的第 1 步：平均值對誤差的斜率 <Tex>{'K=K_qC'}</Tex>（<Tex>{'K_q=\\sqrt{2/\\pi}/\\sigma_v'}</Tex> 是 comparator 的小訊號增益，<Tex>{'C=E[x\\,u]'}</Tex>{' '}
+          圖上加法點輸出的「<Tex>{'e[n]=\\delta_k\\,u[n]+v[n]'}</Tex>」是 PD 的輸出，也就是 comparator 的輸入；藍色方塊輸出的「<Tex>{'G_k\\approx K\\delta_k+\\eta_k'}</Tex>」是下面推導的第 1 步：平均值對誤差的斜率 <Tex>{'K=K_qC'}</Tex>（<Tex>{'K_q=\\sqrt{2/\\pi}/\\sigma_v'}</Tex> 是 comparator 的小訊號增益，<Tex>{'C=E[x\\,u]'}</Tex>{' '}
           是 <Tex>{'x'}</Tex> 與 <Tex>{'u'}</Tex> 的有效相關），<Tex>{'\\eta_k'}</Tex> 是平均不掉的隨機部分；block rate 框裡的更新式則是第 2 步。
         </p>
       </Diagram>
@@ -176,7 +176,7 @@ export function S2Msd() {
             why: <>代入第 1 步的線性化，把 <Tex>{'\\delta_k'}</Tex> 的項合併；定義 <Tex>{'p=1-g'}</Tex>、<Tex>{'g=\\mu K'}</Tex>。</>,
           },
           {
-            tex: String.raw`\begin{aligned}\delta_1&=p\delta_0-\mu\eta_0\\ \delta_2&=p\delta_1-\mu\eta_1=p^2\delta_0-\mu(p\eta_0+\eta_1)\\ \delta_B&=p^B\delta_0-\mu\sum_{k=0}^{B-1}p^{B-1-k}\eta_k\end{aligned}`,
+            tex: String.raw`\begin{aligned}\delta_1&=p\delta_0-\mu\eta_0\\ \delta_2&=p\delta_1-\mu\eta_1\\ &=p^2\delta_0-\mu(p\eta_0+\eta_1)\\ \delta_B&=p^B\delta_0-\mu\sum_{k=0}^{B-1}p^{B-1-k}\eta_k\end{aligned}`,
             why: <>把遞迴往回代（unroll）：每過一個 block，舊的雜訊再乘一次 <Tex>{'p'}</Tex>。</>,
           },
           {
@@ -270,7 +270,7 @@ export function S2Msd() {
         ]}
       />
       <TexBlock id="F-14.4" label={md('$|p|=1$ 的極限')}>
-        {String.raw`p^2=1:\quad E[\delta_B^2]=\delta_0^2+B\mu^2\sigma_\eta^2`}
+        {String.raw`\begin{aligned}p^2&=1:\\ E[\delta_B^2]&=\delta_0^2+B\mu^2\sigma_\eta^2\end{aligned}`}
       </TexBlock>
       <ul>
         <li>

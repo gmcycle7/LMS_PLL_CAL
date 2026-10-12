@@ -11,7 +11,11 @@ export const SYMBOLS: SymbolEntry[] = [
     meaning: '黑盒子裡真正的係數（未知）',
     unit: String.raw`[y]/[x]`,
     firstSeen: '§1.0',
-    note: 'PLL 中例如 DTC gain（fs / code）',
+    note: (
+      <>
+        PLL 中例如 DTC 的真實 gain（fs / code）：feedback edge 比理想時刻早到 <Tex>{'ax'}</Tex>
+      </>
+    ),
   },
   {
     symbol: 'x,\\ x_n',
@@ -22,7 +26,7 @@ export const SYMBOLS: SymbolEntry[] = [
     ),
     unit: String.raw`[x]`,
     firstSeen: '§1.0',
-    note: 'PLL 中為正規化 DSM code，通常無因次',
+    note: 'PLL 中為正規化 DSM code（累加器餘數，也是 DTC 的 code），通常無因次',
   },
   { symbol: 'y,\\ y_n', meaning: '量測到的輸出', unit: String.raw`[y]`, firstSeen: '§1.0' },
   { symbol: 'v,\\ v_n', meaning: '量測雜訊', unit: String.raw`[y]`, firstSeen: '§1.0', note: <>本章（除思考題 4 的反例）假設零均值、與 <Tex>{'x'}</Tex> 獨立</> },
@@ -35,7 +39,11 @@ export const SYMBOLS: SymbolEntry[] = [
     ),
     unit: String.raw`[y]/[x]`,
     firstSeen: '§1.0',
-    note: 'PLL 中為 gain register 的內容',
+    note: (
+      <>
+        PLL 中為 gain register 的內容；reference 端 DTC 的補償量是 <Tex>{'wx'}</Tex>
+      </>
+    ),
   },
   {
     symbol: '\\hat y=wx',
@@ -54,7 +62,7 @@ export const SYMBOLS: SymbolEntry[] = [
     firstSeen: '§1.0',
     note: (
       <>
-        全站約定 <Tex>{String.raw`e=y-\hat y`}</Tex>（規格 §0）
+        全站約定 <Tex>{String.raw`e=y-\hat y`}</Tex>（規格 §0）；PLL 中是 PD 的輸出（送進 loop filter 的同一個訊號）
       </>
     ),
   },
@@ -69,6 +77,38 @@ export const SYMBOLS: SymbolEntry[] = [
     ),
   },
   { symbol: 'N', meaning: '資料筆數／更新次數', firstSeen: '§1.0', note: <>GMAC 的累加長度也記作 <Tex>{'N'}</Tex>（Part B）</> },
+  {
+    symbol: String.raw`T_0,\ \tau_{\mathrm{DTC}}`,
+    meaning: (
+      <>
+        reference 端 DTC 的固定基準延遲 <Tex>{'T_0'}</Tex>，與實際的延遲 <Tex>{String.raw`\tau_{\mathrm{DTC}}=T_0-w_nx_n`}</Tex>（DTC 只能延遲，所以從{' '}
+        <Tex>{'T_0'}</Tex> 往回扣補償量 <Tex>{'w_nx_n'}</Tex>；code 越大延遲越短）
+      </>
+    ),
+    unit: String.raw`[y]`,
+    firstSeen: '§1.0.1',
+    note: (
+      <>
+        只有「連結到 PLL」用到；<Tex>{'T_0'}</Tex> 是常數，被 PLL 當成靜態相位偏移吸收
+      </>
+    ),
+  },
+  {
+    symbol: String.raw`t_{\mathrm{ref}}',\ t_{\mathrm{fb}}`,
+    meaning: (
+      <>
+        PD 比較的兩條 edge 的時間（以理想時刻當零點）：經過 DTC 的 reference edge <Tex>{String.raw`t_{\mathrm{ref}}'=-w_nx_n`}</Tex>、divider 回授來的 feedback edge{' '}
+        <Tex>{String.raw`t_{\mathrm{fb}}=-ax_n`}</Tex>
+      </>
+    ),
+    unit: String.raw`[y]`,
+    firstSeen: '§1.0.1',
+    note: (
+      <>
+        PD 量 <Tex>{String.raw`e_n=t_{\mathrm{ref}}'-t_{\mathrm{fb}}=(a-w_n)\,x_n+v_n`}</Tex>；只有「連結到 PLL」用到
+      </>
+    ),
+  },
   { symbol: 'E[\\cdot]', meaning: '期望值（很多次的平均）', firstSeen: '§1.1', note: '見先備知識框' },
   {
     symbol: String.raw`\arg\min_w J(w)`,
@@ -137,7 +177,7 @@ export const SYMBOLS: SymbolEntry[] = [
     firstSeen: '§1.2.1',
     note: (
       <>
-        PLL 對應：Sign-Error LMS 的 <Tex>{String.raw`\operatorname{sign}(e)`}</Tex>；<Erratum id="E40" />
+        PLL 對應：comparator 取 PD 輸出 <Tex>{'e'}</Tex> 的正負號，即 Sign-Error LMS 的 <Tex>{String.raw`\operatorname{sign}(e)`}</Tex>；<Erratum id="E40" />
       </>
     ),
   },

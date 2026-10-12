@@ -651,9 +651,10 @@ describe('Ch14 帶入手算：(c) validate 擋掉模型不適用的輸入，並�
 class TexSymbolic extends Error {}
 type TexFn = (L: number[]) => number
 
-/** 去掉單位、排版用的空白，以及尾端的文字註記（區間非空／為空、p = 0）。 */
+/** 去掉單位、排版用的空白與 aligned 的換行記號（`\\`、`&`），以及尾端的文字註記（區間非空／為空、p = 0）。 */
 function cleanTex(tex: string): string {
   return tex
+    .replace(/\\begin\{aligned\}|\\end\{aligned\}|\\\\|&/g, ' ')
     .replace(/\\mathrm\{fs(\^\{?-?\d\}?)?\}|\\text\{blocks\}/g, '')
     .replace(/\\quad\(.*$/, '')
     .replace(/\\qquad|\\quad|\\[,!;]|\\[Bb]ig[lr]?|\\left|\\right/g, ' ')
@@ -933,6 +934,20 @@ describe('Ch14 帶入手算：(e) 畫面上的每一個數字都對得起來（�
     expect(checkStepArithmetic('m=0.81\\times7.32835+0.0383495=5.93596+0.0383495=5.97431\\ \\mathrm{fs^2}').bad).toEqual([])
     expect(checkStepArithmetic('m=0.81\\times7.32835+0.0383495=5.93596+0.0383495=5.97441\\ \\mathrm{fs^2}').bad.length).toBe(1)
     expect(checkStepArithmetic('K=\\sqrt{\\tfrac{2}{\\pi}}\\,\\frac{1}{\\sigma_v}').pairs).toBe(0) // 純符號
+    // 拆成兩行（aligned）的步驟照樣檢查：HC-14.3 的 σ_w = √(σ_w²)
+    const twoLine = (r: string) => String.raw`\begin{aligned}\sigma_{w,A}&=\sqrt{0.15935}\\&=${r}\ \mathrm{fs}\end{aligned}`
+    expect(checkStepArithmetic(twoLine('0.399186'))).toEqual({ bad: [], pairs: 1 })
+    expect(checkStepArithmetic(twoLine('0.399286')).bad.length).toBe(1)
+  })
+
+  it('HC-14.3：σ_w 那一步的數字帶單位 fs（為了不在手機上多一條 2 px 的捲軸而拆成兩行，單位不能因此拿掉）', () => {
+    const def = HANDCALCS.find((h) => h.id === 'HC-14.3')!
+    const sol = def.solve(defaultValues(def))
+    const rms = sol.steps.filter((s) => /^\\begin\{aligned\}\\sigma_\{w,[AB]\}&=\\sqrt/.test(s.tex))
+    expect(rms.map((s) => s.tex)).toEqual([
+      String.raw`\begin{aligned}\sigma_{w,A}&=\sqrt{0.15935}\\&=0.399186\ \mathrm{fs}\end{aligned}`,
+      String.raw`\begin{aligned}\sigma_{w,B}&=\sqrt{0.0780532}\\&=0.27938\ \mathrm{fs}\end{aligned}`,
+    ])
   })
 
   it('預設值、20 組隨機題、特殊分支：每一步的「代入數字 = 結果」都成立，沒有任何一步缺代入', () => {

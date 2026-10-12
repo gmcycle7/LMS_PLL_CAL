@@ -143,7 +143,7 @@ export function S5Architectures() {
                   </>
                 ),
               },
-              { tex: String.raw`\mathbf I-K_q\mathbf M\mathbf R=\mathbf V\Big(\mathbf I-\frac{\tilde\mu}{\operatorname{tr}\mathbf R}\boldsymbol\Lambda\Big)\mathbf V^T`, why: '同 F-10.3 的 eigen 分解。' },
+              { tex: String.raw`\mathbf I-K_q\mathbf M\mathbf R=\mathbf V\big(\mathbf I-\tfrac{\tilde\mu}{\operatorname{tr}\mathbf R}\boldsymbol\Lambda\big)\mathbf V^T`, why: '同 F-10.3 的 eigen 分解。' },
               {
                 tex: String.raw`p_i=1-\tilde\mu\,\frac{\lambda_i}{\operatorname{tr}\mathbf R}=1-\tilde\mu\,\frac{\lambda_i}{\sum_j\lambda_j}`,
                 why: (

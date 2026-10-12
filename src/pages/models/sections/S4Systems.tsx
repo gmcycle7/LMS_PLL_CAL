@@ -245,7 +245,7 @@ export function S4Systems() {
     <section aria-labelledby="models-s4">
       <h2 id="models-s4">4｜L2 的三塊積木：DT 主 PLL、DSM residue、DTC mapping</h2>
       <p>
-        <ModelLevel level="L2" /> 比 L1 多了「code 從哪裡來（DSM）」、「誤差經過什麼路徑才到 comparator（主 PLL）」與「code 怎麼變成延遲（DTC）」。JSON 的{' '}
+        <ModelLevel level="L2" /> 比 L1 多了「code 從哪裡來（DSM）」、「DTC 的殘餘誤差從 PD 的 reference 輸入進去之後，經過什麼路徑才到 PD 的輸出、也就是 comparator 取樣的地方（主 PLL）」與「code 怎麼變成延遲（DTC）」。JSON 的{' '}
         <code>pll_error_path</code>、<code>seeded_pattern</code>、<code>gain_register</code> 就是在選這三塊積木。下面三段程式都是網站實際執行的版本。
       </p>
 
@@ -258,11 +258,19 @@ export function S4Systems() {
           </p>
         </Prereq>
         <Steps
-          title="$L(z)$ 的分子分母（DPLL 差分方程，$d$ 為額外 latency）"
+          title="從 $L(z)$ 到 $H_\mathrm{PD}(z)$：誤差從哪裡注入、分子分母怎麼來（DPLL 差分方程，$d$ 為額外 latency）"
           steps={[
             { tex: String.raw`L(z)=\Bigl(K_p+\frac{K_i}{1-z^{-1}}\Bigr)\cdot\frac{z^{-(1+d)}}{1-z^{-1}}`, why: 'PI loop filter 乘上 DCO 相位累加器 $z^{-1}/(1-z^{-1})$，再加 $d$ 個 sample 的額外延遲。' },
             { tex: String.raw`=\frac{K_p(1-z^{-1})+K_i}{1-z^{-1}}\cdot\frac{z^{-(1+d)}}{1-z^{-1}}`, why: '把 PI 通分。' },
             { tex: String.raw`=\frac{\bigl[(K_p+K_i)-K_pz^{-1}\bigr]z^{-(1+d)}}{1-2z^{-1}+z^{-2}}`, why: '展開分子，並用 $(1-z^{-1})^2=1-2z^{-1}+z^{-2}$。程式中 numL[d+1] 放 $K_p+K_i$、numL[d+2] 放 $-K_p$、denL 為 $[1,-2,1]$。' },
+            {
+              tex: String.raw`\begin{aligned}e_\mathrm{PD}&=\phi_\mathrm{dtc}-\theta_\mathrm{fb}\\\theta_\mathrm{fb}&=L(z)\,e_\mathrm{PD}\end{aligned}`,
+              why: 'DTC 在 reference 的輸入端：它的殘餘誤差 $\\phi_\\mathrm{dtc}$（§4.2 的 $(a-w)\\,x$）從 PD 的 reference 輸入進來，PD 的輸出是它減掉回授相位 $\\theta_\\mathrm{fb}$；$\\theta_\\mathrm{fb}$ 則是 PD 的輸出繞主迴路一圈（loop filter、DCO、divider）回來的結果。',
+            },
+            {
+              tex: String.raw`\begin{aligned}e_\mathrm{PD}&=\frac{\phi_\mathrm{dtc}}{1+L(z)}=H_\mathrm{PD}\,\phi_\mathrm{dtc}\\\theta_\mathrm{fb}&=\frac{L(z)\,\phi_\mathrm{dtc}}{1+L(z)}=T\,\phi_\mathrm{dtc}\end{aligned}`,
+              why: '把第二式代入第一式，解出 $e_\\mathrm{PD}$。兩條路都是正號，而且 $H_\\mathrm{PD}+T=1$：低頻時迴路跟得上（$T\\approx1$、$H_\\mathrm{PD}\\approx0$），高頻時跟不上（$H_\\mathrm{PD}\\approx1$）。comparator 取的是 PD 的輸出 $e_\\mathrm{PD}$。',
+            },
             { tex: String.raw`H_\mathrm{PD}(z)=\frac{1}{1+L(z)}=\frac{\mathrm{den}_L(z)}{\mathrm{den}_L(z)+\mathrm{num}_L(z)}`, why: '上下同乘 $\\mathrm{den}_L$；程式中 char = dL + nL（補零到同長度後逐項相加）。' },
             { tex: String.raw`h_\mathrm{PD}[0]=\lim_{z\to\infty}H_\mathrm{PD}(z)=1`, why: '$\\mathrm{num}_L$ 從 $z^{-(1+d)}$ 開始（嚴格因果），所以 char 的首項與 $\\mathrm{den}_L$ 相同；白色 $x$ 時 $C=h_\\mathrm{PD}[0]\\,\\sigma_x^2=\\sigma_x^2>0$（精確）。' },
           ]}
@@ -288,6 +296,14 @@ export function S4Systems() {
         <p>
           Fractional-N divider 每個 reference cycle 除以 <Tex>{'N_\\mathrm{int}+y[n]'}</Tex>，理想是 <Tex>{'N_\\mathrm{int}+\\mathrm{frac}'}</Tex>。多除或少除的部分累積成時間誤差——這就是 DTC 要抵消的
           residue <Tex>{'r[n]'}</Tex>，也就是 GMAC 的 regressor 來源。
+        </p>
+        <p>
+          放回系統裡看：<Tex>{'r[n]\\le0'}</Tex>（零初值）表示 feedback（divider）edge 比理想時刻<strong>早到</strong> <Tex>{'x[n]\\,T_\\mathrm{vco}'}</Tex>，其中 <Tex>{'x[n]=-r[n]=s[n]/M\\in[0,1)'}</Tex> 就是 DTC code（GMAC 的 regressor）。用校正係數{' '}
+          <Tex>{'w'}</Tex> 的尺度來量，這段時間寫成 <Tex>{'a\\,x[n]'}</Tex>：<Tex>{'a'}</Tex> 是真實的 DTC gain，DTC 的增益完全準確時 <Tex>{'a=T_\\mathrm{vco}'}</Tex>，有增益誤差時就不是——這正是要校正的量。DTC 在 reference
+          的輸入端，只能延遲、不能提前，所以它從一個固定的基準延遲 <Tex>{'T_0'}</Tex> 往回扣：<Tex>{'\\tau_\\mathrm{DTC}[n]=T_0-w\\,x[n]'}</Tex>。和「一律延遲 <Tex>{'T_0'}</Tex>」相比，reference edge 等於也提前了{' '}
+          <Tex>{'w\\,x[n]'}</Tex>（補償量），去對齊早到的 feedback edge。PD 量的是「DTC 延遲後的 reference edge 減 feedback edge」；主 PLL 還沒反應之前，兩者相差{' '}
+          <Tex>{"t_\\mathrm{ref}'[n]-t_\\mathrm{fb}[n]=(a-w)\\,x[n]"}</Tex>（常數 <Tex>{'T_0'}</Tex> 被 PLL 當成靜態相位偏移吸收，不寫出來）。這就是 §3 那張圖第一個方塊的 <Tex>{'(a-w_\\mathrm{app})\\,x'}</Tex>；它再經過{' '}
+          <Tex>{'H_\\mathrm{PD}'}</Tex>（§4.1）才是 PD 的輸出。補償不足（<Tex>{'w<a'}</Tex>）時 reference 還是太晚，誤差為正。
         </p>
         <Steps
           title="一階累加器的 residue 是 telescoping sum"
@@ -365,6 +381,12 @@ export function S4Systems() {
         <p>
           DTC 把整數 code 轉成延遲。行為模型分兩步：先量化（rounding）與飽和到實體範圍，再套增益、offset、二階／三階與 INL 查表。JSON 的 <code>gain_register</code>（quantize_physical）與{' '}
           <code>dtc_nonlinearity</code> 就是這兩步在正規化 code 上的版本。
+        </p>
+        <p className="small">
+          這裡的 <Tex>{'\\tau(c)'}</Tex> 描述的是 DTC 這顆元件本身——實體 code 越大、延遲越長——和它接在哪裡無關。接在 reference 輸入端時，要把 reference edge 的延遲從基準值 <Tex>{'T_0'}</Tex> 減少 <Tex>{'g_\\mathrm{DTC}\\,c'}</Tex>（補償量），數位端送的是取補數的 code{' '}
+          <Tex>{'C_0-c'}</Tex>（<Tex>{'C_0'}</Tex> 是固定的中心值）：線性的 DTC 給出 <Tex>{'\\tau(C_0-c)=T_0-g_\\mathrm{DTC}\\,c'}</Tex>，<Tex>{'T_0=\\tau(C_0)'}</Tex>。換成正規化 code 就是 §4.2 的{' '}
+          <Tex>{'\\tau_\\mathrm{DTC}[n]=T_0-w\\,x[n]'}</Tex>。DTC 不是線性的時候，把 <Tex>{'C_0-c'}</Tex> 代進下式，多出來的延遲會變成 <Tex>{'x'}</Tex> 的另一個多項式；§3 與 JSON 的 <code>dtc_nonlinearity</code>（
+          <Tex>{'o+c_2x^2+c_3x^3'}</Tex>）是直接以正規化 code <Tex>{'x'}</Tex> 寫這個「多出來的延遲」，所以以正號進入 PD 的誤差，它的係數和下式以實體 code 寫的 <Tex>{'c_2'}</Tex>、<Tex>{'c_3'}</Tex> 不是同一組數字。
         </p>
         <TexBlock id="F-15.10" label="DTC code → delay">
           {String.raw`\tau(c)=g_\mathrm{DTC}\,\hat c+o+c_2\hat c^2+c_3\hat c^3+\mathrm{INL}(\hat c),\quad \hat c=\mathrm{sat}\bigl(Q(c)\bigr)`}

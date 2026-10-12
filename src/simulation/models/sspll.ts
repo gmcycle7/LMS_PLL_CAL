@@ -9,7 +9,11 @@
  *   - 時間以 T_ref 為單位（f_ref = 4 GHz、T_ref = 250 ps）；頻率 f 對 f_ref 正規化（cycles/sample），
  *     Ω = 2πf，z⁻¹ = e^{−jΩ}。
  *   - L(z) = bL(z⁻¹)/aL(z⁻¹) 為開迴路增益，嚴格 proper（至少 1 拍延遲），所以 h_PD[0] = 1。
+ *   - 架構（docs/assumptions.md §2a 第 6 點）：input DTC 在 reference 端（Reference → DTC → SSPD），8 相 PMUX 在回授路徑
+ *     （VCO → PMUX → SSPD）；1-bit 比較器取的是 PD 的輸出 e_PD，也就是送進 loop filter 的同一個節點。
  *   - H_PD = 1/(1+L)：比較點注入的誤差 → PD 殘差；T = L/(1+L)：|T| 的 −3 dB 是 320 MHz 的設計目標。
+ *     「比較點」= PD 的輸入端：外加誤差 u（該補的量減掉 DTC 實際的補償量）折算到 PD 的 reference 輸入端，
+ *     迴路的修正 y = L·e_PD 從 feedback 輸入端回來，e_PD = u − y ⇒ e_PD = +H_PD·u（正號）。
  *   - regressor：index 0 = GOS 的 ρ[n]，index 1+k = PHOS 的 one-hot 1{p[n] = k}。
  *   - C_ij = ⟨r_i (h_PD * x_j)⟩ = Σ_ν conj(c^i_ν) c^j_ν Γ_eff(f_ν)，Γ_eff = H_PD · conj(G)。
  *   - 極性：H_PD ≡ 1 時 w ← w + μ q r 為正確方向；δ = 真值 − 估計。

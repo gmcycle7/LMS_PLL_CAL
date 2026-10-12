@@ -558,7 +558,7 @@ export const HANDCALCS: HandCalcDef[] = [
       steps.push(
         { tex: String.raw`\sum_{n=0}^{${EFB_STEPS - 1}}y[n]=${y.join('+')}=${sum}`, why: '把表中的六個 code 加起來。' },
         { tex: String.raw`\sum_{n=0}^{${EFB_STEPS - 1}}\big(y[n]-w_H\big)=${sum}-${EFB_STEPS}\times${tin(wH)}=${tin(sumErr)}`, why: String.raw`六列的累積誤差：減掉 $${EFB_STEPS}\,w_H$。` },
-        { tex: String.raw`r[-1]-r[${EFB_STEPS - 1}]=${tin(r0)}-${tinP(rLast)}=${tin(tele)}\ \checkmark`, why: String.raw`Telescoping：$y[n]-w_H=r[n-1]-r[n]$ 相加後相鄰項抵消，只剩頭尾——和上一步的數字一樣。` },
+        { tex: String.raw`r[-1]-r[${EFB_STEPS - 1}]=${tin(r0)}-${tinP(rLast)}=${tin(tele)}\,\checkmark`, why: String.raw`Telescoping：$y[n]-w_H=r[n-1]-r[n]$ 相加後相鄰項抵消，只剩頭尾——和上一步的數字一樣。` },
         { tex: String.raw`\frac1{${EFB_STEPS}}\sum\big(y[n]-w_H\big)=\frac{${tin(tele)}}{${EFB_STEPS}}=${texNum(meanErr)}\ \mathrm{LSB}`, why: String.raw`平均誤差 $=(r[-1]-r[N-1])/N$：$r$ 有界，所以以 $1/N$ 變小——ΔΣ 的平均一定追得上 $w_H$。` },
       )
       // 第 0 列是不是暫態：直接比對模型多跑幾列的結果（第 q 列與第 0 列），不靠公式。

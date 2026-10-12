@@ -257,10 +257,12 @@ export function S6Wrapup() {
           最後把本章的數學放回硬體。和章首的系統地圖相比，多出來的只有兩樣東西：GMAC 從一個變成 <Tex>{'P'}</Tex> 個，以及 GMAC 與係數暫存器之間的混合矩陣。
         </p>
         <Fig id="hw-map">
-          先沿實線走：comparator 的 <Tex>{'q[n]'}</Tex> 同時送進每個參數自己的 GMAC accumulator；<Tex>{'P'}</Tex> 個 GMAC 輸出進到藍色的混合矩陣（scalar／diagonal 時它退化成 <Tex>{'P'}</Tex> 個 shift），再累加到係數暫存器，最後回到
-          DTC／PMUX 的補償，經 PLL 的 error path 回到 comparator。再看虛線：韌體或測試機偶爾凍結係數、加上 <Tex>{String.raw`\pm\Delta`}</Tex> 量 <Tex>{String.raw`\hat{\mathbf J}`}</Tex>，算好之後把{' '}
+          先沿實線走：最上面是 phase detector，PD 的輸出 <Tex>{'e[n]'}</Tex> 分成兩路——往右進主迴路（loop filter → VCO／DCO → divider／PMUX，feedback edge 從那一格直接回到 PD），往左進 comparator。comparator 取它的正負號得到{' '}
+          <Tex>{'q[n]'}</Tex>，<Tex>{'q[n]'}</Tex> 同時送進每個參數自己的 GMAC accumulator；<Tex>{'P'}</Tex> 個 GMAC 輸出進到藍色的混合矩陣（scalar／diagonal 時它退化成 <Tex>{'P'}</Tex> 個 shift），再累加到係數暫存器，最後經 gain correction 交給右下角 reference 端的 DTC（reference clock 先經過它才進 PD）。DTC 只能延遲、不能提前，所以它的延遲是從固定的基準延遲{' '}
+          <Tex>{'T_0'}</Tex> 往回扣補償量：<Tex>{String.raw`T_0-\sum_iw_ix_i[n]`}</Tex>；補償量 <Tex>{String.raw`\sum_iw_ix_i[n]`}</Tex> 越大，reference edge 越早。延遲後的 reference edge 沿右邊那條線回到 PD，與 feedback（divider／PMUX）edge 比較（PD 量的是前者減後者），補償得不夠的部分又出現在 PD 的輸出{' '}
+          <Tex>{'e[n]'}</Tex>。DTC 只在 reference 輸入端，不在回授路徑上。再看虛線：韌體或測試機偶爾凍結係數、加上 <Tex>{String.raw`\pm\Delta`}</Tex> 量 <Tex>{String.raw`\hat{\mathbf J}`}</Tex>，算好之後把{' '}
           <Tex>{String.raw`\mathbf M`}</Tex>、<Tex>{String.raw`\gamma`}</Tex>、<Tex>{String.raw`\lambda_{\mathrm{reg}}`}</Tex> 寫進暫存器。圖上的混合矩陣就是公式裡的 <Tex>{String.raw`\mathbf M`}</Tex>，GMAC accumulator 就是{' '}
-          <Tex>{String.raw`G_i=\tfrac1N\sum q\,x_i`}</Tex>，係數暫存器就是 <Tex>{String.raw`\mathbf w`}</Tex>；每個方塊對應下表的一列。
+          <Tex>{String.raw`G_i=\tfrac1N\sum q\,x_i`}</Tex>，係數暫存器就是 <Tex>{String.raw`\mathbf w`}</Tex>；校正這一側的方塊（GMAC accumulator、混合矩陣、韌體的 FSM）各對應下表的一列。
         </Fig>
         <div className="table-wrap">
           <table>
@@ -285,7 +287,9 @@ export function S6Wrapup() {
                 <td>
                   <Tex>{String.raw`\mathbf R,\ \mathbf C`}</Tex>
                 </td>
-                <td>DSM residue、PHOS one-hot、DTC gain code 經 PLL error path 後的統計</td>
+                <td>
+                  DSM residue、PHOS one-hot、DTC gain code 經 PLL error path，在 PD 輸出 <Tex>{'e[n]'}</Tex> 看到的統計
+                </td>
                 <td>
                   隨 FCW、PVT 改變；<Tex>{String.raw`H_{\mathrm{PD}}(1)=0`}</Tex> 時 common-mode 不可觀察（第 9 章、勘誤 E04）
                 </td>

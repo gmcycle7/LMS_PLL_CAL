@@ -178,34 +178,64 @@ export const CHART_ADAPTIVE_LOOP = String.raw`flowchart LR
 ${CLASS_DEFS}
   class F focus`
 
-/** §0.8 黑盒子的每個符號，在 PLL 的 DTC gain 校正裡是什麼。 */
+/**
+ * §0.8 黑盒子的每個符號，在 PLL 的 DTC gain 校正裡是什麼。
+ * 物理意義（docs/assumptions.md §2a）：a·x = feedback（divider）edge 比理想時刻早到的時間；w·x = reference 端的 DTC 的補償量
+ * （從基準延遲 T_0 往回扣，reference edge 被提前）；PD 量 t_ref′ − t_fb，所以 e = (a − w)·x + v。
+ */
 export const CHART_BLACKBOX_TO_PLL = String.raw`flowchart LR
   X["DSM 量化殘差<br/>DTC code $x[n]$"] --> A["$\times\,a$<br/>正確的 DTC gain<br/>未知，單位 fs/code"]
   X --> W["$\times\,w$<br/>gain register 的值<br/>DTC 實際補償的量"]
   A -- "$(+)$ $a\,x[n]$" --> S(("$+$"))
   W -- "$(-)$ $w\,x[n]$" --> S
   V(["PD 與比較器前的<br/>雜訊 $v[n]$"]) -- "$(+)$ $v[n]$" --> S
-  S --> E["PD 量到的殘留誤差<br/>$e[n] =$<br/>$(a - w)\,x[n] + v[n]$"]
+  S --> E["PD 量到的殘留誤差<br/>$e[n] =$<br/>$t_{\mathrm{ref}}'[n] - t_{\mathrm{fb}}[n]$<br/>$= (a - w)\,x[n] + v[n]$"]
 ${CLASS_DEFS}
   class A box
   class W focus
   class V warn`
 
-/** §0.8 PLL 的 DTC gain 校正迴圈（簡化）：sample 速率的比較器、block 速率的更新。 */
-export const CHART_PLL_LOOP = String.raw`flowchart LR
+/**
+ * §0.8 PLL 的 DTC gain 校正迴圈（簡化）：sample 速率的比較器、block 速率的更新。
+ * 架構照 docs/assumptions.md §2a：
+ *   - DTC 在 reference 輸入端（REF → DTC → PD → loop filter），回授路徑只有 divider（VCO → DIV → PD）；DTC 不在回授路徑上。
+ *   - DSM 的 carry 控制 divider，餘數 x[n] 乘上 w（gain correction，併在 DTC 方塊裡）控制 DTC。
+ *   - LMS 校正迴路的輸入是 PD 的輸出 e[n]：圖上 PD 有兩條 e[n] 出線，一條去 loop filter、一條去比較器。
+ * 版面：dagre 對「迴圈 + 長線」很容易交叉，所以 carry 與 x[n]（給 GMAC）用成對的標籤節點（像電路圖的 net label）代替長線，
+ * 其餘全是連線；w 繞回 DTC 的那一條是唯一的長回授線。實際畫出來沒有任何連線交叉，也沒有線從別的方塊後面穿過。
+ * 宣告順序有意義：「x[n]（同一個 code）」標籤（XT）要比比較器（CMP）先宣告，dagre 才會把它排在比較器的上方；
+ * 反過來的話，PD → 比較器的 e[n] 線會從 XT 後面穿過去，看起來像是「x[n] 接到比較器」（瀏覽器實測過，diagrams.test.tsx 有檢查）。
+ * 用 LR 加 init 縮小間距，自然寬度約 1275 px（TB 排版會高到 1000 px 以上）。
+ */
+export const CHART_PLL_LOOP = String.raw`%%{init: {"flowchart": {"nodeSpacing": 26, "rankSpacing": 24}}}%%
+flowchart LR
+  REF["參考時脈"] --> DTC["DTC<br/>補償 $w\,x[n]$"]
+  DSM["DSM 累加器<br/>餘數 $x[n]$"] --> DTC
+  DTC --> PD["PD<br/>$e[n] =$<br/>$(a - w)\,x[n] + v[n]$"]
+  PD -- "$e[n]$" --> LF["Loop filter、VCO"]
+  LF --> DIV["Divider"]
+  DIV --> PD
+  XT(["$x[n]$<br/>（同一個 code）"]) --> G["GMAC：平均 $N$ 筆<br/>$G[k] =$<br/>$(1/N)\sum q[n]\,x[n]$"]
+  PD -- "$e[n]$" --> CMP["1-bit 比較器<br/>$q[n] =$<br/>$\mathrm{sign}(e[n])$"]
+  CMP -- "$q[n]$" --> G
+  G -- "$G[k]$" --> U["更新 gain register<br/>$w[k+1] =$<br/>$w[k] + \mu\,G[k]$"]
+  U -- "$w$ 給 DTC<br/>每 $N$ 筆才更新一次" --> DTC
+  CT(["carry<br/>（來自 DSM）"]) --> DIV
   subgraph CAL["LMS 校正迴路（慢）"]
-    direction TB
-    CMP["1-bit 比較器<br/>$q[n] = \mathrm{sign}(e[n])$"] -- "$q[n]$" --> G["GMAC：平均 $N$ 筆<br/>$G[k] =$<br/>$(1/N)\sum q[n]\,x[n]$"]
-    G -- "$G[k]$" --> U["更新 gain register<br/>$w[k+1] =$<br/>$w[k] + \mu\,G[k]$"]
+    XT
+    CMP
+    G
+    U
   end
   subgraph MAIN["主 PLL 路徑（快）"]
-    direction TB
-    DSM["DSM 殘差<br/>$x[n]$"] --> DTC["DTC<br/>補償 $w\,x[n]$"]
-    DTC --> PD["PD 量到的誤差<br/>$e[n] =$<br/>$(a - w)\,x[n] + v[n]$"]
-    REF["參考時脈"] --> PD
+    REF
+    DSM
+    CT
+    DTC
+    DIV
+    PD
+    LF
   end
-  MAIN -- "$e[n]$ 給比較器<br/>$x[n]$ 給 GMAC" --> CAL
-  CAL -- "$w$ 給 DTC<br/>每 $N$ 筆才更新一次" --> MAIN
 ${CLASS_DEFS}
   class CMP,G,U focus`
 
@@ -485,10 +515,10 @@ const DRAFTS = [
     section: 'ch00-why-matters',
     sectionLabel: '§0.8',
     before: 'CHART_PLL_LOOP',
-    shows: String.raw`把黑盒子模型換上 PLL 的名字：$x$ = DSM 殘差 code、$a$ = 正確的 DTC gain、$w$ = gain register、$v$ = PD 前雜訊、$e$ = PD 量到的誤差`,
+    shows: String.raw`把黑盒子模型換上 PLL 的名字：$x$ = DSM 殘差 code、$a$ = 正確的 DTC gain、$w$ = gain register、$v$ = PD 前雜訊、$e$ = PD 量到的誤差（reference edge 減 feedback edge）`,
     chart: CHART_BLACKBOX_TO_PLL,
-    caption: String.raw`和{CHART_BLACKBOX_MODEL}是同一個模型，每個方塊換上它在 PLL 裡的名字。注意這裡只剩一個相加點：在 PLL 裡看不到 $y$ 和 $\hat y$，PD 直接量到兩者相減之後的 $e$。`,
-    ariaLabel: 'DSM 量化殘差同時乘上正確的 DTC gain 與 gain register 的值，兩者相減再加上 PD 前的雜訊，就是 PD 量到的殘留誤差',
+    caption: String.raw`和{CHART_BLACKBOX_MODEL}是同一個模型，每個方塊換上它在 PLL 裡的名字。注意這裡只剩一個相加點：在 PLL 裡看不到 $y$ 和 $\hat y$，PD 直接量到 reference edge 與 feedback edge 相減之後的 $e$。`,
+    ariaLabel: 'DSM 量化殘差同時乘上正確的 DTC gain（feedback edge 早到的時間）與 gain register 的值（reference 端 DTC 的補償量），兩者相減再加上 PD 前的雜訊，就是 PD 量到的 reference edge 減 feedback edge 的殘留誤差',
     isNew: true,
   },
   {
@@ -497,10 +527,10 @@ const DRAFTS = [
     section: 'ch00-why-matters',
     sectionLabel: '§0.8',
     before: 'ch00-pll-walk',
-    shows: 'DTC gain 校正迴圈分成左右兩個框：主 PLL 路徑（DSM → DTC → PD）與 LMS 校正迴路（比較器 → GMAC → 更新）',
+    shows: 'DTC gain 校正迴圈分成兩個框：主 PLL 路徑（reference → DTC → PD → loop filter，回授路徑只有 divider）與 LMS 校正迴路（取 PD 輸出的比較器 → GMAC → 更新）',
     chart: CHART_PLL_LOOP,
-    caption: 'DTC gain 校正迴圈（簡化示意；完整版還有 PLL 的 error transfer，見 Ch04、Ch06）。兩個框就是系統地圖的「主 PLL 迴路（快）」與「LMS 校正迴路（慢）」；藍色三格是校正迴路的主角。',
-    ariaLabel: '主路徑：DSM 殘差驅動 DTC，PD 量到誤差；校正迴路：比較器取正負號，GMAC 平均 N 筆，每個 block 更新一次 gain register，再把 w 送回 DTC',
+    caption: 'DTC gain 校正迴圈（簡化示意；完整版還有 PLL 的 error transfer，見 Ch04、Ch06）。DTC 在 reference 輸入端，回授路徑只有 divider；比較器的輸入從 PD 的輸出分接（和送進 loop filter 的是同一個 $e[n]$）。兩個框就是系統地圖的「主 PLL 迴路（快）」與「LMS 校正迴路（慢）」；藍色三格是校正迴路的主角。',
+    ariaLabel: '主路徑：參考時脈先經 DTC 再進 PD，PD 輸出送給 loop filter 與 VCO，VCO 經 divider 回到 PD，DSM 的 carry 控制 divider、餘數控制 DTC；校正迴路：比較器取 PD 的輸出並取正負號，GMAC 平均 N 筆，每個 block 更新一次 gain register，再把 w 送回 DTC',
     isNew: false,
   },
   {

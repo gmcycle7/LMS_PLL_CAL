@@ -156,6 +156,22 @@ describe('Chapter 13（jsdom smoke）', () => {
         // §13.4 的共變異數由完整週期計算：Cov(r[n−1], r[n]) = −0.0400（舊版用 499 對相鄰樣本，顯示成 −0.0401）
         expect(container.textContent).toContain(String.raw`\mathrm{Cov}(r[n-1],r[n])=-0.0400`)
         expect(container.textContent).not.toContain('-0.0401')
+        // 架構（docs/assumptions.md §2a）：DTC 在 reference 輸入端、回授路徑只有 divider；校正迴路取 PD 的輸出；DTC 的是「補償量」不是插入的延遲
+        const pllSec = (container.querySelector('#ch13-pll') as HTMLElement).textContent ?? ''
+        for (const phrase of ['Reference clock', '回授路徑上只有 divider', '校正迴路的輸入是 PD 的輸出', '和送進 loop filter 的是同一個訊號', 'DTC 補償量的誤差']) expect(pllSec, `${mode}: #ch13-pll「${phrase}」`).toContain(phrase)
+        const walkSec = (container.querySelector('#ch13-diagram') as HTMLElement).textContent ?? ''
+        expect(walkSec, mode).toContain('comparator 取的是 PD 的輸出')
+        expect(walkSec, mode).toContain('補償量')
+        expect(container.textContent, mode).not.toMatch(/DTC 延遲|DTC delay|插入延遲|推回|DTC 注入/)
+        // δt 的正負號寫清楚（多補償為正；PD 量 reference 減 feedback，所以看到 −δt）：整頁沒有不帶方向的「reference edge 上殘留的 timing error」
+        expect(container.textContent, mode).not.toMatch(/殘留的 timing error/)
+        expect(pllSec, mode).toContain('多補償為正')
+        expect((container.querySelector('#ch13-freeze') as HTMLElement).textContent, mode).toContain('以多補償為正')
+        expect(symbols.textContent, mode).toContain(String.raw`(a-w)\,x+v=-\delta t+v`)
+        expect(symbols.textContent, mode).toContain(String.raw`\phi_\mathrm{dtc}=-2\pi f_\mathrm{out}\,\delta t`)
+        // 符號表有 PD 輸出 e_PD 與 DTC 的基準延遲 T_0 / 中心 code C_0
+        expect(symbols.textContent, mode).toContain(String.raw`e_\mathrm{PD}[n]`)
+        expect(symbols.textContent, mode).toContain(String.raw`T_0,\;C_0`)
         // §13.6 的 wrap 示範：40% 的更新被繞回 0（硬體丟掉進位，r 不會多出 64）
         expect(container.querySelector('#ch13-nonideal')?.textContent).toContain('40.0%')
         // 每個登錄的公式 ID 在每種模式都恰好有一個 TexBlock 錨點（Formula & Unit Reference 頁會連過來）

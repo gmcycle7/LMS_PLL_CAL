@@ -5,6 +5,13 @@
  *
  *   delay(code) = gain·code + offset + c2·code² + c3·code³ + INL_LUT(code)     [fs]
  *
+ * 這是 DTC 元件本身的特性（實際送進 DTC 的控制碼 → DTC 的延遲 τ_DTC）：控制碼越大，延遲越長。
+ * 在系統裡的位置（docs/assumptions.md §2a）：DTC 在 reference 輸入端，回授路徑上只有 divider。DTC 只能延遲、不能提前，
+ * 所以數位端送進來的控制碼是 C_0 − w·x[n]（C_0 是固定的中心值，x[n] 是累加器餘數）：τ_DTC[n] = T_0 − w·x[n]，
+ * x 越大延遲越短。w·x[n] 叫做「補償量」（reference edge 被提前的時間），不是 DTC 的延遲本身。
+ * （控制碼與時間之間差一個 DTC 的 gain：線性的 DTC 是 τ_DTC = gain·(C_0 − w·x) + offset，所以 T_0 = delay(C_0)，
+ *   而各章 e = (a − w)·x 裡以時間計的 w 是「gain × 這裡以 LSB 計的 w」；T_0 是常數，被主 PLL 當成靜態相位偏移吸收。）
+ *
  * - gainFs：fs/LSB；offsetFs：fs；c2：fs/LSB²；c3：fs/LSB³；inlLutFs：每個整數 code 的額外 INL [fs]
  *   （非整數 code 線性內插；超出表格範圍時取端點值）。
  * - 實體 code 量化（bits 有給時）：先依 rounding 量化成整數，再飽和（saturate）到可用範圍：

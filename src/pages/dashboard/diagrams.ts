@@ -39,18 +39,23 @@ export const CIRC: readonly string[] = [1, 2, 3, 4, 5, 6].map((n) => String.raw`
 /**
  * 校正迴路的訊號流（實線）與六個條件各自「住在哪裡」（圓角膠囊，用虛線接到那一塊）。由上到下：DSM → DTC → PLL error path → comparator → GMAC → 係數更新，
  * 回授的 $w$ 從左側繞回 DTC；每個條件的膠囊放在它所屬方塊的上方（⑥ 接在「PLL 輸出」的下面，才不會和回授的 $w$ 交叉）。
+ * 架構照 docs/assumptions.md §2a：DTC 在 reference 的輸入端，它給的是「補償量」$w\cdot x$（從基準延遲 $T_0$ 往回扣），不是插在回授路徑上的延遲；
+ * PLL error path 的輸出就是 PD 的輸出 $e[n]$（送進 loop filter 的同一個訊號），comparator 的輸入從那裡拉（PLL → CMP 那條線標「PD 輸出 $e[n]$」）。
+ * 這一格代表「被校正的那個元件」：DTC 的 gain（GOS）或 PMUX 的相位偏移（PHOS）。兩者的位置不同——DTC 在 reference 端、PMUX 在回授路徑上——所以標籤各自註明。
  * 對應線性化方程式 $e[n] = (a - w)\,u[n] + \varepsilon_{\mathrm{det}}[n] + v[n]$：
  *   $(a - w)$ 來自 DTC / PMUX 的係數誤差、$u = h * x$ 來自 PLL error path、$\varepsilon_{\mathrm{det}}$ 來自 offset / INL、$v$ 是 comparator 前的雜訊。
  */
 export const CONDITION_MAP_CHART = String.raw`flowchart TB
   DSM["DSM / FCW<br/>code $x[n]$"]
-  DTC["DTC / PMUX<br/>延遲 $= w\cdot x$<br/>真值 $a$（GOS / PHOS）"]
+  DTC["DTC（reference 端）<br/>或 PMUX（回授端）<br/>補償量 $= w\cdot x$<br/>真值 $a$（GOS / PHOS）"]
   PLL["PLL error path<br/>$u = h * x$<br/>$\lvert H\rvert$、$\phi$"]
   CMP["1-bit comparator<br/>$q = \mathrm{sign}(e)$<br/>雜訊 $\sigma_v$"]
   GMAC["GMAC<br/>$G = \frac{1}{N}\sum q\cdot x[n-D]$"]
   UPD["係數更新<br/>$w \leftarrow w + \mu\cdot G$<br/>（晚 $d$ 個 block）"]
   OUT["PLL 輸出<br/>jitter / spur"]
-  DSM --> DTC --> PLL --> CMP --> GMAC --> UPD
+  DSM --> DTC --> PLL
+  PLL -- "PD 輸出 $e[n]$" --> CMP
+  CMP --> GMAC --> UPD
   UPD -- "$w$（6-bit 暫存器）" --> DTC
   DSM -. "$x[n-D]$" .-> GMAC
   DTC -- "$\delta t = x\cdot\delta w$，經 $T$" --> OUT

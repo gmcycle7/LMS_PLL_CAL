@@ -14,14 +14,18 @@ import { CODE_TABLE_PRM, EX, SPUR, codeTable } from './common'
  *  - sequenceDiagram 的文字不支援 KaTeX，所以 CHART_BLOCK_TIMING 改畫成 flowchart（三條泳道：每個 sample／每個 block／每個 sample）。
  *  - 圖上的訊號名稱、正負號、箭頭方向與取樣率（sample 索引 n／block 索引 k）必須和正文公式一致：
  *    極性 δw = w − w*（勘誤 E33）、G_k ≈ −K·δw_k + η_k（F-12.1）、δw_{k+1} = p·δw_k + μ·η_k（F-12.2）、
- *    δt[n] = x[n]·δw[n]（F-12.11）、e_PD = −(θ_out + φ_dtc)（§12.7）。
+ *    δt[n] = x[n]·δw[n]（F-12.11）、e_PD = φ_dtc − θ_out 與 φ_dtc = −2π·f_out·δt（§12.7）。
+ *  - 架構照全站約定（docs/assumptions.md §2a）：Reference clock → DTC → PD；回授路徑上只有 divider。
+ *    w·x 是 reference 端 DTC 的「補償量」（實際延遲 T_0 − w·x），δt = x·δw 是多補償的時間：reference edge 早到 δt，
+ *    PD 量的是 reference edge 減 feedback edge，所以它在 PD 的 reference 輸入是 −δt（F-12.16 的負號）。
+ *    校正迴路（1-bit comparator）的輸入是 PD 的輸出 e[n]，也就是送進 loop filter 的同一個節點。
  *  - 圖內的範例數字（0.399 fs、12.93 kHz、−93.80 dBc、三種 code 的 output／PD RMS…）不手打：
  *    由本章的標準例 EX / SPUR / codeTable()（common.tsx → calNoise.ts）代入。
  */
 
 /**
- * 章首系統地圖要標成藍色的方塊：雜訊 → comparator → GMAC → ÷N、×μ → accumulator → gain correction → DTC，
- * 再到本章 §12.7 的兩個出口：phase detector（PD residual，H_PD）與 VCO 輸出（T）。
+ * 章首系統地圖要標成藍色的方塊：雜訊 → comparator → GMAC → ÷N、×μ → accumulator → gain correction → DTC（reference 輸入端），
+ * 再到本章 §12.7 的兩個出口：phase detector（PD residual，H_PD；它的輸出 e[n] 就是 comparator 的輸入）與 VCO 輸出（T）。
  */
 export const CH12_SYSTEM_FOCUS: SystemBlock[] = ['noise', 'cmp', 'gmac', 'scale', 'acc', 'gc', 'dtc', 'pd', 'vco']
 
@@ -48,19 +52,22 @@ const SIGMA_V = String(EX.input.sigmaV) // 100
 /**
  * 雜訊傳遞鏈（方塊層級；本章的第一張地圖）。
  * code x[n] 進兩個地方：GMAC 的相關（G_k = (1/N)·Σ q·x，虛線）與 DTC 的乘法（δt = x·δw，F-12.11）。
+ * 由 PD residual 拉回 comparator 的虛線：comparator 取的是 PD 的輸出 e[n]（送進 loop filter 的同一個訊號），
+ * δt 留在 PD 上的 residual 和雜訊 v[n] 一起進 comparator——這條回授就是 §12.1 的恢復力。
  */
 export const NOISE_CHAIN_CHART = String.raw`flowchart TB
   V["$v[n]$：comparator 前雜訊<br/>$\sigma_v = ${numUnit(SIGMA_V, 'fs')}$"] --> Q["1-bit comparator<br/>$q = \mathrm{sign}(e)$"]
   Q --> G["GMAC 平均<br/>$G_k = \frac{1}{N}\sum q\,x$<br/>雜訊 $\eta_k$"]
-  X["DSM code $x[n]$"] -. "GMAC 也用同一個 code<br/>做相關" .-> G
   G --> U["LMS 更新<br/>$w \leftarrow w + \mu G$"]
   U --> W["係數雜訊 $\delta w_k$<br/>（gain-equivalent）"]
-  X --> M(("$\times$"))
-  W --> M
-  M --> DT["$\delta t[n] = x\,\delta w$<br/>DTC 多出的延遲"]
-  DT --> PD["$H_{\mathrm{PD}} = 1/(1+L)$<br/>PD residual：high-pass"]
+  W --> M(("$\times$"))
+  X["DSM code $x[n]$"] --> M
+  X -. "GMAC 也用同一個 code<br/>做相關" .-> G
+  M --> DT["$\delta t[n] = x\,\delta w$<br/>reference 端的 DTC<br/>多補償的時間"]
   DT --> T["$T = L/(1+L)$<br/>PLL output：low-pass"]
+  DT --> PD["$H_{\mathrm{PD}} = 1/(1+L)$<br/>PD residual：high-pass"]
   T --> OUT["$\phi_{\mathrm{out}} = -2\pi f_{\mathrm{out}}\,T\,\delta t$<br/>jitter skirt 或 spur"]
+  PD -. "PD 的輸出 $e[n]$：<br/>comparator 取它的正負號" .-> Q
 ${CLASSES}
   class M focus`
 
@@ -94,14 +101,17 @@ ${CLASSES}
 
 /* ───────────────────────── §12.1–12.4 係數雜訊 ───────────────────────── */
 
-/** 線性化 GMAC：一個框是真實電路（每個 sample），另一個框是等效模型（每個 block）；G_k ≈ −K·δw_k + η_k（F-12.1） */
+/**
+ * 線性化 GMAC：一個框是真實電路（每個 sample），另一個框是等效模型（每個 block）；G_k ≈ −K·δw_k + η_k（F-12.1）。
+ * comparator 的輸入 e[n] 就是 PD 的輸出（送進 loop filter 的同一個節點）：e[n] = t_ref′ − t_fb = C·(a − w_k)·x[n] + v[n]。
+ */
 export const CHART_GMAC_LINEAR = String.raw`flowchart TB
   subgraph REAL["實際電路：每個 sample 做一次（索引 $n$）"]
     A["$a - w_k = -\delta w_k$<br/>（固定點 $w^* = a$ 時）"] --> X1(("$\times$"))
     XC["$C\,x[n]$<br/>code 經有效路徑 $C$"] --> X1
     X1 -- "$+$" --> S1(("$+$"))
     V["雜訊 $v[n]$"] -- "$+$" --> S1
-    S1 -- "$e[n]$" --> SGN["$\mathrm{sign}$：1-bit comparator"]
+    S1 -- "$e[n]$：PD 的輸出" --> SGN["$\mathrm{sign}$：1-bit comparator"]
     SGN -- "$q[n]$" --> X2(("$\times$"))
     XR["code $x[n]$"] --> X2
     X2 --> AVG["GMAC：平均 $N$ 筆"]
@@ -232,15 +242,18 @@ ${CLASSES}
 
 /* ───────────────────────── §12.6 乘上 code ───────────────────────── */
 
-/** 係數是 gain：DTC 延遲 = w[n]·x[n]，多出來的部分是 δt[n] = x[n]·δw[n]（F-12.11） */
+/**
+ * 係數是 gain：reference 端 DTC 的補償量 = w[n]·x[n]（實際延遲 τ = T_0 − w[n]·x[n]，從基準延遲 T_0 往回扣），
+ * 多補償的部分是 δt[n] = x[n]·δw[n]（F-12.11）。
+ */
 export const CHART_GAIN_MULT = String.raw`flowchart LR
   WS["$w^*$：固定點<br/>（LMS 平均停下來的 gain）"] -- "$+$" --> S(("$+$"))
   DW["$\delta w[n]$：係數的抖動<br/>每 $N$ 個 sample 才換一次值"] -- "$+$" --> S
   S -- "$w[n] = w^* + \delta w[n]$" --> M(("$\times$"))
   X["code $x[n]$"] --> M
-  M --> DLY["DTC 延遲 $= w[n]\,x[n]$"]
-  DLY --> ID["$w^* x[n]$<br/>本來就要的延遲"]
-  DLY --> DT["$\delta t[n] = x[n]\,\delta w[n]$<br/>多出來的延遲"]
+  M --> DLY["DTC 的補償量 $w[n]\,x[n]$<br/>延遲 $\tau = T_0 - w[n]\,x[n]$"]
+  DLY --> ID["$w^* x[n]$<br/>本來就要補的量"]
+  DLY --> DT["$\delta t[n] = x[n]\,\delta w[n]$<br/>多補的量"]
 ${CLASSES}
   class M focus
   class DT warn`
@@ -363,7 +376,7 @@ ${CLASSES}
 
 /** 一個 DTC 誤差、兩個轉移函數：往 PD 是 H_PD（high-pass），往輸出是 T（low-pass）（F-12.15–17） */
 export const CHART_TWO_EXITS = String.raw`flowchart LR
-  DT["同一個 DTC 誤差 $\delta t(f)$"] --> PD["往 PD：$H_{\mathrm{PD}} = 1/(1+L)$<br/>high-pass"]
+  DT["同一個 DTC 誤差 $\delta t(f)$<br/>reference edge 早到 $\delta t$"] --> PD["往 PD：$H_{\mathrm{PD}} = 1/(1+L)$<br/>high-pass"]
   DT --> T["往輸出：$T = L/(1+L)$<br/>low-pass"]
   PD --> EPD["PD residual<br/>$e_{\mathrm{PD}} = -2\pi f_{\mathrm{out}}\,H_{\mathrm{PD}}\,\delta t$<br/>PLL 頻寬外的成分才看得到"]
   T --> PO["輸出相位<br/>$\phi_{\mathrm{out}} = -2\pi f_{\mathrm{out}}\,T\,\delta t$<br/>PLL 頻寬內的成分才跟著走"]
@@ -373,18 +386,24 @@ ${CLASSES}
   class PD,T focus`
 
 /**
- * 最簡化的平均線性 PLL：DTC 誤差在 feedback 比較路徑注入，e_PD = −(θ_out + φ_dtc)、θ_out = L·e_PD。
- * 兩個綠色方塊是解出來的結果（§12.7 推導第 3、4 行）：θ_out = −T·φ_dtc、e_PD = −H_PD·φ_dtc。
+ * 最簡化的平均線性 PLL（docs/assumptions.md §2a 第 5 點）：Reference clock → DTC → PD，回授路徑上只有 divider。
+ * DTC 的殘餘誤差在 PD 的 reference 輸入端注入：e_PD = φ_dtc − θ_out、θ_out = L·e_PD。
+ * δt = x·δw 是多補償的時間（reference edge 早到 δt），所以 reference 輸入的時間誤差是 −δt、φ_dtc = −2π·f_out·δt
+ * （相位一律是「時間誤差 × 2π·f_out」，晚到為正，和 e[n] = t_ref′ − t_fb 同一個方向）。
+ * 兩個綠色方塊是解出來的結果（§12.7 推導第 3、4 行）：θ_out = T·φ_dtc、e_PD = H_PD·φ_dtc（都是正號）。
+ * 回授路徑畫成一個 divider 方塊（output → divider → PD，路上沒有 DTC）：相位以 output 為參考（同一個 edge 時間誤差 × 2π·f_out），
+ * 所以 divider 把 θ_out 原樣送回 PD，它的除數算在開迴路增益 L(s) 裡——L 那一格的「÷ 除數」和這個方塊是同一個 divider，不是兩個。
+ * PD 出口的 e_PD 就是送進 loop filter 的節點，校正迴路的 comparator 取的也是它。
  */
 export const CHART_PLL_LOOP = String.raw`flowchart TB
-  REF["reference 相位 $= 0$"] -- "$+$" --> S(("$+$"))
-  S -- "$e_{\mathrm{PD}}$" --> L["開迴路增益 $L(s)$<br/>PD $\times$ loop filter $\times$ VCO $\div$ 除數"]
-  L -- "$\theta_{\mathrm{out}}$" --> OUT["output 出口：PLL 輸出相位<br/>解出來 $\theta_{\mathrm{out}} = -T\,\phi_{\mathrm{dtc}}$"]
-  L -- "$+\theta_{\mathrm{out}}$" --> A(("$+$"))
-  DTC["DTC 誤差 $\delta t$"] --> K["$\times\,2\pi f_{\mathrm{out}}$<br/>時間換相位"]
-  K -- "$+\phi_{\mathrm{dtc}}$" --> A
-  A -- "$-(\theta_{\mathrm{out}} + \phi_{\mathrm{dtc}})$" --> S
-  S -.- PDN["PD 出口：PD 看到的誤差<br/>解出來 $e_{\mathrm{PD}} = -H_{\mathrm{PD}}\,\phi_{\mathrm{dtc}}$"]
+  REF["reference clock<br/>相位取 $0$"] --> DTC["DTC（reference 輸入端）<br/>多補償 $\delta t$：edge 早到 $\delta t$"]
+  DTC -- "時間誤差 $-\delta t$" --> K["$\times\,2\pi f_{\mathrm{out}}$<br/>時間換相位"]
+  K -- "$+\phi_{\mathrm{dtc}}$" --> S(("$+$"))
+  S -- "$e_{\mathrm{PD}}$" --> L["開迴路增益 $L(s)$<br/>PD 增益 $\times$ loop filter $\times$ VCO $\div$ 除數"]
+  L -- "$\theta_{\mathrm{out}}$" --> OUT["output 出口：PLL 輸出相位<br/>解出來 $\theta_{\mathrm{out}} = T\,\phi_{\mathrm{dtc}}$"]
+  OUT --> DIV["divider：回授路徑上只有它<br/>除數已算進 $L(s)$"]
+  DIV -- "$-\theta_{\mathrm{out}}$" --> S
+  S -.- PDN["PD 出口：加法點就是 PD<br/>解出來 $e_{\mathrm{PD}} = H_{\mathrm{PD}}\,\phi_{\mathrm{dtc}}$<br/>comparator 取的也是 $e_{\mathrm{PD}}$"]
 ${CLASSES}
   class DTC,K warn
   class L focus

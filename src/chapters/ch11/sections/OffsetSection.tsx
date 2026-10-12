@@ -72,6 +72,8 @@ export function OffsetSection() {
       jitCubic: signFixedPoint({ ...jit, c3: 0.1 }, five).w,
       jitCubicConst: signFixedPoint({ ...jit, c3: 0.1, jitterSlope: 0 }, five).w,
       jitNoBias: signFixedPoint({ ...jit, b: 0 }, five).w,
+      // 同一個例子，但 jitter 最小的 code 換到最大的那一個（reference 端 DTC：code 越大延遲越短）—— 對稱 code、只有 offset 時固定點左右鏡射
+      jitMirror: signFixedPoint({ ...jit, jitterRef: 2 }, five).w,
     }
   }, [])
   const dead = useMemo(() => {
@@ -164,15 +166,16 @@ export function OffsetSection() {
         但主迴路會不會把 b 吃掉？三種架構 <Erratum id="E03" />
       </h3>
       <p>
-        靜態式偷偷假設了一件事：<Tex>{'b'}</Tex> 以及 <Tex>{'x'}</Tex> 相關項的 DC 分量原封不動地到達 comparator。可是在 §4 的架構裡，同一個 PD／BBPD 同時驅動主 PLL 的 loop
-        filter，而 <Tex>{String.raw`H_\mathrm{PD}=1/(1+L)`}</Tex>（<Tex>{String.raw`H_\mathrm{PD}`}</Tex>：從 PD 輸入端的擾動到 PD 誤差的轉移函數；
+        靜態式偷偷假設了一件事：<Tex>{'b'}</Tex> 以及 <Tex>{'x'}</Tex> 相關項的 DC 分量原封不動地到達 comparator。可是在全站的架構裡（章首的系統地圖），comparator 看的
+        PD 輸出就是送進主 PLL loop filter 的同一個節點，而 <Tex>{String.raw`H_\mathrm{PD}=1/(1+L)`}</Tex>（<Tex>{String.raw`H_\mathrm{PD}`}</Tex>：從 PD 的
+        reference 輸入端注入的擾動到 PD 輸出的轉移函數，DTC 的殘餘誤差就是從這裡進來；
         <Tex>{'L'}</Tex>：主迴路的開迴路增益）在 DC 的增益是 0。type-II（有積分路徑）的 BBPD-PLL 在 lock 時會強制 <Tex>{'E[q]=0'}</Tex>。結果取決於架構：
       </p>
       <p>
         先看 <FigRef id="dc-null" /> 三個框共同的部分：誤差 → comparator → GMAC。再看藍色的積分路徑接在哪裡：(A) 根本沒有這條路；(B)
         它累加的是 comparator 自己的輸出 <Tex>{'q'}</Tex>，穩態時 <Tex>{'E[q]=0'}</Tex>；(C) 它累加的是線性 PD 的誤差{' '}
-        <Tex>{String.raw`e_\mathrm{PD}`}</Tex>，而 comparator 的 offset <Tex>{'b'}</Tex> 落在這個迴路外面。這裡 <Tex>{'\\varphi'}</Tex> 是主迴路加回 PD
-        輸入的 static phase offset（單位 t.u.），<Tex>{'k_\\varphi'}</Tex> 是積分路徑每個 sample 的步長。圖上每個框裡「GMAC 的固定點」那一塊，就是下面三張卡片的公式；
+        <Tex>{String.raw`e_\mathrm{PD}`}</Tex>，而 comparator 的 offset <Tex>{'b'}</Tex> 落在這個迴路外面。這裡 <Tex>{'\\varphi'}</Tex> 是主迴路經 VCO、divider
+        加回 PD 的 static phase offset（feedback edge 再早到 <Tex>{'\\varphi'}</Tex>，等於誤差多一項 <Tex>{'+\\varphi'}</Tex>；單位 t.u.），<Tex>{'k_\\varphi'}</Tex> 是積分路徑每個 sample 的步長。圖上每個框裡「GMAC 的固定點」那一塊，就是下面三張卡片的公式；
         <Tex>{String.raw`\operatorname{Cov}`}</Tex> 與 <Tex>{String.raw`\operatorname{Var}`}</Tex> 是共變異數與變異數（§11.0 的先備知識框）。
       </p>
       <Fig id="dc-null" />
@@ -198,7 +201,7 @@ export function OffsetSection() {
           steps={[
             {
               tex: String.raw`q[n]=\operatorname{sign}\big(e_\mathrm{det}(x[n];w)+\varphi+v[n]\big),\qquad \varphi[n+1]=\varphi[n]-k_\varphi\,q[n]`,
-              why: m('主迴路的積分路徑累加 BBPD 的輸出，並把累加值當成 static phase offset $\\varphi$ 加回 PD 的輸入。'),
+              why: m('主迴路的積分路徑累加 BBPD 的輸出；累加值經 VCO、divider 讓 feedback edge 再早到 $\\varphi$（static phase offset），在 PD 相減後就是誤差裡的 $+\\varphi$。'),
             },
             { tex: String.raw`E[q]=0`, why: '積分器在穩態不再漂移的唯一可能：輸入的平均為 0（type-II 迴路的 lock 條件）。' },
             { tex: String.raw`E[q]\approx K_q\,E[e_\mathrm{det}+\varphi]=0\;\Rightarrow\;\varphi=-E[e_\mathrm{det}]`, why: m('comparator 線性化（條件同 F-11.3），解出主迴路自動加上的 $\\varphi$。') },
@@ -374,7 +377,8 @@ export function OffsetSection() {
       </ModeDetails>
       <ol>
         <li>
-          <strong>DTC 參數要重新定義。</strong> 若 delay = <Tex>{'a\\,x+o'}</Tex>（<Tex>{'o'}</Tex> 是 DTC 的固定 delay offset），改用置中的 <Tex>{'x_c=x-m'}</Tex>（<Tex>{'m=E[x]'}</Tex>）後變成{' '}
+          <strong>DTC 參數要重新定義。</strong> 若需要的補償量是 <Tex>{'a\\,x+o'}</Tex>（<Tex>{'o'}</Tex> 是固定的時間 offset，和 DTC 的基準延遲{' '}
+          <Tex>{'T_0'}</Tex> 是同一類的常數），改用置中的 <Tex>{'x_c=x-m'}</Tex>（<Tex>{'m=E[x]'}</Tex>）後變成{' '}
           <Tex>{String.raw`a\,x_c+(o+a\,m)`}</Tex>：offset 暫存器必須吸收 <Tex>{'a\\,m'}</Tex>，而且 <Tex>{'a'}</Tex> 一改，offset 也跟著改 —— gain 與 offset 的 parameterization
           必須一起變換，不能只在 GMAC 端減平均。
         </li>
@@ -391,7 +395,8 @@ export function OffsetSection() {
         </li>
         <li>
           <strong>Code-dependent jitter 讓 centering 失效（Sign-LMS 限定）。</strong>
-          <Erratum id="E17" /> DTC 的 random jitter 常隨 delay code 增加：<Tex>{String.raw`\sigma_v=\sigma_v(x)`}</Tex>。Sign-LMS 的局部增益{' '}
+          <Erratum id="E17" /> DTC 的 random jitter 常隨它的延遲變大，而延遲由 code 決定，所以雜訊的大小是 code 的函數：
+          <Tex>{String.raw`\sigma_v=\sigma_v(x)`}</Tex>。Sign-LMS 的局部增益{' '}
           <Tex>{String.raw`K_q(x)=\sqrt{2/\pi}/\sigma_v(x)`}</Tex> 隨 code 改變，固定點變成 <Tex>{'1/\\sigma_v(x)'}</Tex> 加權（推導見下）。
         </li>
         <li>
@@ -405,6 +410,12 @@ export function OffsetSection() {
         權重較大，抵銷不了。最下面一排就是下面推導的最後兩行。
       </p>
       <Fig id="jitter-weight" />
+      <p className="small">
+        方向的提醒：這個例子沿用勘誤 E17 的數字，jitter 最小的 code（記作 <Tex>{'x_j'}</Tex>）取在最小的那一個（<Tex>{'x_j=-2'}</Tex>，<Tex>{String.raw`\sigma_v`}</Tex> 隨{' '}
+        <Tex>{'x'}</Tex> 變大）。全站的接法是 reference 端的 DTC，延遲是 <Tex>{String.raw`T_0-w\,x`}</Tex>：code 越大延遲越短，jitter 最小的是最大的 code。把{' '}
+        <Tex>{'x_j'}</Tex> 換成 <Tex>{'+2'}</Tex>，五個權重左右對調，<Tex>{String.raw`b\,E[x/\sigma_v(x)]`}</Tex> 變號，固定點變成{' '}
+        <Tex>{texNum(centering.jitMirror, 5)}</Tex> —— 偏移的大小不變、方向相反（即時計算）。
+      </p>
       <ModeDetails title={m('推導：code-dependent $\\sigma_v(x)$ 下的 Sign-LMS 固定點（$1/\\sigma_v$ 加權）')}>
         <StepDerivation
           steps={[
@@ -413,7 +424,7 @@ export function OffsetSection() {
             { tex: String.raw`e_\mathrm{det}=(a-w)x+B(x),\qquad B(x)=b+d(x)+\varepsilon_{cc}(x)`, why: '把確定性誤差分成 gain 項與其餘 bias 項。' },
             { tex: String.raw`0=(a-w^*)E\Big[\frac{x^2}{\sigma_v(x)}\Big]+E\Big[\frac{x\,B(x)}{\sigma_v(x)}\Big]`, why: '代入並令平均 GMAC 為 0。' },
             { tex: String.raw`w^*\approx a+\frac{E\big[x\,B(x)/\sigma_v(x)\big]}{E\big[x^2/\sigma_v(x)\big]}`, why: m('解出 $w^*$：每個 code 的貢獻以 $1/\\sigma_v(x)$ 加權（F-11.12）。') },
-            { tex: String.raw`B\equiv b,\;E[x]=0:\quad E\Big[\frac{x\,b}{\sigma_v(x)}\Big]=b\,E\Big[\frac{x}{\sigma_v(x)}\Big]\neq0`, why: m('$x$ 與 $1/\\sigma_v(x)$ 相關（大 code 雜訊大、權重小），置中不再讓 offset 項消失。') },
+            { tex: String.raw`B\equiv b,\;E[x]=0:\quad E\Big[\frac{x\,b}{\sigma_v(x)}\Big]=b\,E\Big[\frac{x}{\sigma_v(x)}\Big]\neq0`, why: m('$x$ 與 $1/\\sigma_v(x)$ 相關（下面的例子裡大 code 雜訊大、權重小），置中不再讓 offset 項消失。') },
           ]}
         />
         <TexBlock id="F-11.12">{F.jitterWeighted}</TexBlock>

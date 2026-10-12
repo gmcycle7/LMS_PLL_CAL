@@ -581,6 +581,40 @@ describe('(b) 隨機數字：有限、且等於測試內獨立重算', () => {
     }
   })
 
+  it('HC-06.8 的公式摘要排成兩行（gathered）：一行排完在桌機的正文欄會超出幾個像素，多出一條沒有用途的橫向捲軸', () => {
+    const def = HANDCALCS.find((h) => h.id === 'HC-06.8')!
+    expect(def.formulaTex.startsWith(String.raw`\begin{gathered}`)).toBe(true)
+    const lines = def.formulaTex.replace(/\\begin\{gathered\}|\\end\{gathered\}/g, '').split(/\\\\(?:\[[^\]]*\])?/)
+    expect(lines).toHaveLength(2)
+    // 內容不變：第一行是鋸齒自相關（F-06.17），第二行是 C_D 的近似式（F-06.18）與 pole
+    expect(lines[0]).toContain(String.raw`\frac{R_x[\ell]}{\sigma_x^2}=1-6\,t_\ell(1-t_\ell)`)
+    expect(lines[0]).toContain(String.raw`t_\ell=|\ell|\,\mathrm{frac}`)
+    expect(lines[1]).toContain(String.raw`\frac{C_D}{\sigma_x^2}\approx-12\,\mathrm{frac}\,D+\frac{12\,\mathrm{frac}^2}{K_i}`)
+    expect(lines[1]).toContain(String.raw`K_i=(\omega_nT_s)^2`)
+    expect(lines[1]).toContain(String.raw`p=1-\mu K_qC_D`)
+  })
+
+  it('沒有用途的捲軸：窄螢幕上手算步驟的等式鏈在等號後面換行，不為了幾個像素橫向捲動（桌機不受影響）', () => {
+    // jsdom 不排版，這裡只確認規則還在、選擇器對得上真正的 DOM；實際寬度用
+    // `node scripts/scroll-audit.mjs --routes /ch/06 --viewport mobile` 量（規則拿掉的話，375px 的手機上
+    // HC-06.4「Im H = …」只比 284px 的欄位寬 6px、HC-06.7 最後一步只寬 2px，各多一列只能捲幾個像素的捲動區）。
+    const css = readFileSync(resolve(process.cwd(), 'src/chapters/ch06/chapter.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    const mobile = css.match(/@media \(max-width: 640px\) \{\s*\.ch06 \.c-handcalc \.c-step-tex \.katex-display > \.katex \{([^}]*)\}/)
+    expect(mobile).not.toBeNull()
+    expect(mobile?.[1]).toContain('white-space: normal')
+    // 這條規則只出現在 @media 裡：桌機上的步驟維持一行（放不下才捲動）
+    expect(css.match(/\.c-step-tex \.katex-display > \.katex \{/g)).toHaveLength(1)
+    // 選擇器的前提：每一步的公式是 .c-handcalc 裡 .c-step-tex 底下的 display math（KaTeX 把最外層的等式鏈拆成好幾個可以換行的 .base）
+    const { container, unmount } = render(<HandCalc def={HANDCALCS.find((h) => h.id === 'HC-06.4')!} />)
+    const steps = Array.from(container.querySelectorAll('.c-handcalc .c-step-tex .katex-display > .katex'))
+    expect(steps.length).toBe(container.querySelectorAll('.c-step').length)
+    expect(steps.length).toBeGreaterThan(0)
+    const imStep = steps.find((el) => /Im/.test(el.querySelector('annotation')?.textContent ?? ''))!
+    expect(imStep).toBeDefined()
+    expect(imStep.querySelectorAll('.katex-html > .base').length).toBeGreaterThanOrEqual(3)
+    unmount()
+  })
+
   it('pole 類答案的容許誤差以 |p − 1| 計：把 1.0199 答成 1.01 或 1.03 不會被判為正確', () => {
     const sol = solveDefault('HC-06.2')
     const p = sol.results.find((r) => r.symbol === 'p')!

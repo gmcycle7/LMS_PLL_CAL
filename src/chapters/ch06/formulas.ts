@@ -68,7 +68,7 @@ export const FORMULAS: FormulaEntry[] = [
     id: 'F-06.6',
     title: 'PD 的誤差傳遞函數',
     tex: String.raw`H_{\mathrm{PD}}=\frac{1}{1+L}`,
-    conditions: '線性化主 PLL；注入點依架構核對（§0）',
+    conditions: String.raw`線性化主 PLL；DTC 在 reference 輸入端，殘餘誤差 $\varepsilon$ 從 PD 的 reference 輸入端進來：$e_{\mathrm{PD}}=\varepsilon-\varphi_{\mathrm{fb}}=H_{\mathrm{PD}}\,\varepsilon$（正號；別的接法依架構核對，§0）`,
     claim: 'exact',
     level: 'L2',
     specSection: '6.1',

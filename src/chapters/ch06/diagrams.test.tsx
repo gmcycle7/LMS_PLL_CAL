@@ -361,11 +361,21 @@ describe('第 06 章方塊圖：真的畫出來（共用的 renderMermaidForTest
     },
   )
 
-  it('系統地圖（本章的 focus）：17 個方塊、7 個標成藍色（主 PLL 迴路五塊 + comparator 與 GMAC）、其餘不標色；地圖本身（排版、連線）由共用元件的測試負責', () => {
-    const { blocks } = systemMapModel([...SYSTEM_FOCUS])
+  it('系統地圖（本章的 focus）：17 個方塊、7 個標成藍色（reference 端的 DTC、主 PLL 迴路四塊、comparator 與 GMAC）、其餘不標色；本章文字引用的接法（DTC 在 reference 輸入端、LMS 的輸入取自 PD 的輸出）和地圖一致', () => {
+    const { blocks, wires } = systemMapModel([...SYSTEM_FOCUS])
     expect(blocks).toHaveLength(17)
     expect(blocks.filter((b) => b.focused).map((b) => b.id).sort()).toEqual([...SYSTEM_FOCUS].sort())
-    // 藍色的方塊分在兩條泳道：主 PLL 迴路（DTC、PD、LF、VCO、divider）與 LMS 校正迴路（comparator、GMAC）；小數除頻與補償那一條本章不是主角
+    // 「你在這裡」那段話說的接法（地圖本身的排版與連線由共用元件的測試負責，這裡只釘住本章引用到的）：
+    // Reference → DTC → PD → loop filter → VCO；回授是 VCO → divider → PD，回授路徑上沒有 DTC；comparator 的輸入從 PD → loop filter 那條線分接
+    const wired = (from: string, to: string) => wires.some((w) => w.from === from && w.to === to)
+    for (const [from, to] of [['ref', 'dtc'], ['dtc', 'pd'], ['pd', 'lf'], ['lf', 'vco'], ['vco', 'div'], ['div', 'pd'], ['gc', 'dtc']]) expect(wired(from, to), `${from} → ${to}`).toBe(true)
+    expect(wired('div', 'dtc')).toBe(false)
+    expect(wired('ref', 'pd')).toBe(false)
+    expect(wires.filter((w) => w.to === 'dtc').map((w) => w.from).sort()).toEqual(['gc', 'ref'])
+    const lmsInput = wires.filter((w) => w.to === 'cmp' && w.from !== 'noise')
+    expect(lmsInput.map((w) => w.from)).toEqual(['pd'])
+    expect(lmsInput[0].tag?.tapOn).toEqual(['pd', 'lf'])
+    // 藍色的方塊分在兩條泳道：主 PLL 那一條（reference 端的 DTC，與 PD、LF、VCO、回授的 divider）與 LMS 校正迴路（comparator、GMAC）；小數除頻與補償那一條本章不是主角
     const lane = (l: string) => blocks.filter((b) => b.focused && b.lane === l).map((b) => b.id).sort()
     expect(lane('pll')).toEqual(['div', 'dtc', 'lf', 'pd', 'vco'])
     expect(lane('lms')).toEqual(['cmp', 'gmac'])
@@ -423,14 +433,31 @@ describe('第 06 章方塊圖：與正文公式一致（極性、取樣率、延
     expect(t.h[1]).toBeCloseTo(-Math.sqrt(3), 12)
   })
 
-  it('圖 6.3（注入點）：ε 以＋、回授 φ_fb 以−進入加法點；兩個輸出 H_PD 與 T 相加為 1', async () => {
-    const { edges } = await parseChart(diagrams.CHART_PLL_INJECTION)
+  it('圖 6.3（注入點）：DTC 誤差 ε 從 PD 的 reference 輸入以＋、divider 的回授 φ_fb 從 feedback 輸入以−進入加法點；兩個輸出 H_PD 與 T 都是正號、相加為 1', async () => {
+    const g = await parseChart(diagrams.CHART_PLL_INJECTION)
+    const { edges } = g
+    // 架構（docs/assumptions.md §2a）：DTC 在 reference 輸入端，誤差從 PD 的 reference 輸入端進來；回授路徑上只有 loop filter、DCO、divider，沒有 DTC
+    expect(nodeText(g, 'EPS')).toMatch(/reference 端 DTC 的殘餘時間誤差/)
+    expect(nodeText(g, 'EPS')).toMatch(/從 PD 的 reference 輸入端進來/)
+    expect(nodeText(g, 'EPS')).not.toMatch(/比較點/)
+    expect(nodeText(g, 'L')).toMatch(/divider/)
+    expect(nodeText(g, 'L')).toMatch(/回到 PD 的 feedback 輸入端/)
+    expect(nodeText(g, 'L')).not.toMatch(/DTC/)
+    // 進加法點（PD）的只有兩條線：reference 那一邊的 ε 與回授；DTC 誤差不會直接接到迴路裡的任何方塊
+    expect(edges.filter((e) => e.end === 'SUM').map((e) => e.start).sort()).toEqual(['EPS', 'L'])
+    expect(edges.filter((e) => e.start === 'EPS').map((e) => e.end)).toEqual(['SUM'])
+    // 輸出 1 是 PD 的輸出（加法點後面那個節點，也就是送進 L 的同一個訊號）：校正迴路的 comparator 取這裡
+    expect(hasEdge(edges, 'SUM', 'O1') && hasEdge(edges, 'SUM', 'L')).toBe(true)
+    expect(nodeText(g, 'O1')).toMatch(/PD 的輸出（殘差），comparator 取這裡/)
+    expect(g.vertices.find((v) => v.id === 'O1')?.classes).toContain('focus')
     expect(edge(edges, 'EPS', 'SUM').text).toBe('＋')
     expect(edge(edges, 'L', 'SUM').text).toBe(String.raw`$-$（回授 $\varphi_{\mathrm{fb}} = L\,e_{\mathrm{PD}}$）`)
     expect(edge(edges, 'SUM', 'L').text).toBe(String.raw`$e_{\mathrm{PD}} = \varepsilon - \varphi_{\mathrm{fb}}$`)
     expect(diagrams.CHART_PLL_INJECTION).toContain(String.raw`e_{\mathrm{PD}} = \varepsilon/(1+L) = H_{\mathrm{PD}}\,\varepsilon`)
     expect(diagrams.CHART_PLL_INJECTION).toContain(String.raw`\varphi_{\mathrm{fb}} = \varepsilon L/(1+L) = T\,\varepsilon`)
     expect(diagrams.CHART_PLL_INJECTION).toContain(String.raw`H_{\mathrm{PD}} + T = 1`)
+    // 誤差從 reference 那一邊進來：兩個輸出都是正號（沒有 −H_PD·ε、−T·ε 這種把誤差算在 feedback 那一邊的寫法）
+    expect(diagrams.CHART_PLL_INJECTION).not.toMatch(/=\s*-\s*H_\{\\mathrm\{PD\}\}|=\s*-\s*T\\,|-\s*\\varepsilon\s*[/L]/)
     // 依圖上的正負號解迴路：e = (＋1)·ε + (−1)·L·e ⇒ e/ε = 1/(1 + L)；拿任意一個複數 L 驗 H_PD + T = 1
     const sFb = signOf(edge(edges, 'L', 'SUM').text)
     const sIn = signOf(edge(edges, 'EPS', 'SUM').text)
@@ -454,11 +481,18 @@ describe('第 06 章方塊圖：與正文公式一致（極性、取樣率、延
     expect(hasEdge(edges, 'X', 'MUL')).toBe(true)
     expect(edge(edges, 'MUL', 'HPD').text).toContain(String.raw`\varepsilon[n] = \delta_k\,x[n]`)
     expect(nodeText(g, 'HPD')).toContain(String.raw`H_{\mathrm{PD}} = 1/(1+L)`)
-    // H_PD 的輸出加上雜訊才是 comparator 的輸入；q = sign(e_PD)
+    // 藍色方塊 = 從 PD 的 reference 輸入（DTC 誤差進來的地方）到 PD 的輸出
+    expect(nodeText(g, 'HPD')).toContain(String.raw`PD 的 reference 輸入 $\to$ PD 的輸出`)
+    // 校正迴路的輸入取自 PD 的輸出：H_PD 的輸出（標成「PD 的輸出」）加上雜訊才是 comparator 的輸入；q = sign(e_PD)
     expect(edge(edges, 'HPD', 'ADD').text).toMatch(/^＋.*\\delta_k\\,u\[n\].*u = h \\ast x/)
+    expect(edge(edges, 'HPD', 'ADD').text).toMatch(/^＋ PD 的輸出/)
     expect(edge(edges, 'V', 'ADD').text).toBe('＋')
     expect(edge(edges, 'ADD', 'CMP').text).toBe(String.raw`$e_{\mathrm{PD}}[n]$`)
     expect(nodeText(g, 'CMP')).toContain(String.raw`q[n] = \operatorname{sign}(e_{\mathrm{PD}}[n])`)
+    // comparator 唯一的輸入來自那個加法點，加法點只有「PD 的輸出」與雜訊兩條輸入：不是從 DTC 誤差（MUL）、code 或 w 直接拉過來
+    expect(edges.filter((e) => e.end === 'CMP').map((e) => e.start)).toEqual(['ADD'])
+    expect(edges.filter((e) => e.end === 'ADD').map((e) => e.start).sort()).toEqual(['HPD', 'V'])
+    expect(edges.filter((e) => e.start === 'MUL').map((e) => e.end)).toEqual(['HPD'])
     // GMAC 的 regressor 直接從 code 來：只經過 z^−D，沒經過 H_PD
     expect(hasEdge(edges, 'X', 'DLY')).toBe(true)
     expect(nodeText(g, 'DLY')).toContain('$z^{-D}$')
@@ -945,8 +979,12 @@ describe('第 06 章方塊圖：與正文公式一致（極性、取樣率、延
     expect(msgs[8].message).toBe(String.raw`$$w_{k+1}=w_k+\mu G_k$$`)
     expect(msgs[9].message).toBe(String.raw`$$\text{block }k+1\text{ 改用 }w_{k+1}$$`)
     expect(msgs[0].message).toMatch(/w_k\\text\{ 固定.*acc 歸零/)
-    // 時序圖的 participant 只用文字（名稱裡不放符號）
-    expect([...db.getActors().values()].map((a) => a.description)).toEqual(['DTC（gain<br/>由校正值決定）', '主 PLL 的誤差路徑', '1-bit comparator', 'GMAC 累加器', '校正值的暫存器'])
+    // 時序圖的 participant 只用文字（名稱裡不放符號）。架構（docs/assumptions.md §2a）：DTC 在 reference 輸入端；
+    // comparator 的輸入來自「主 PLL 的誤差路徑」的輸出，也就是 PD 的輸出（不是直接從 DTC 來）
+    expect([...db.getActors().values()].map((a) => a.description)).toEqual(['reference<br/>輸入端的 DTC', '主 PLL 的誤差路徑<br/>（到 PD 的輸出）', '1-bit comparator', 'GMAC 累加器', '校正值的暫存器'])
+    const solid = msgs.filter((m) => m.type === T.SOLID || m.type === T.DOTTED)
+    expect(solid.filter((m) => m.to === 'CMP').map((m) => m.from)).toEqual(['PLL'])
+    expect(solid.filter((m) => m.from === 'DTC').map((m) => m.to)).toEqual(['PLL'])
 
     // 照圖做一次（FIR 路徑 h = [1, −√3]、D = 2、決定性的「雜訊」），和核心程式逐 block 比較
     const N = 12
@@ -1145,6 +1183,63 @@ describe('第 06 章頁面：系統地圖、方塊圖的位置、符號表在章
     expect(follows(note, toc)).toBe(true)
     expect(note.textContent).toMatch(/你在這裡：[\s\S]*主 PLL 迴路[\s\S]*這一章補上/)
     expect(texSources(note)).toContain('H_{\\mathrm{PD}}=1/(1+L)')
+    // 文字和系統地圖的接法一致（docs/assumptions.md §2a）：DTC 在 reference 輸入端、回授路徑上只有 divider、comparator 取的是 PD 的輸出
+    expect(map.querySelector('figcaption')!.textContent).toMatch(/reference 輸入端的 DTC[\s\S]*回授路徑上的 divider/)
+    expect(map.getAttribute('aria-label')).toMatch(/DTC 在 reference 輸入端；LMS 的輸入取自 PD 的輸出/)
+    expect(note.textContent).toMatch(/reference 輸入端的 DTC/)
+    expect(note.textContent).toMatch(/phase detector → loop filter → VCO → divider\s*→ 回到 phase detector；回授路徑上只有 divider/)
+    expect(note.textContent).toMatch(/從 PD 的 reference 輸入端進來/)
+    expect(note.textContent).toMatch(/comparator 取的是 PD 的輸出[\s\S]*送進 loop filter 的同一個訊號/)
+    expect(note.textContent).not.toMatch(/DTC → phase detector/)
+    expect(container.querySelector('.ch06-lead')!.textContent).toMatch(/comparator 取的是 PD 的輸出：DTC 在 reference 的輸入端/)
+
+    // §2 的物理圖像（全章只講一次）：feedback（divider）edge 早到，reference 端的 DTC 從基準延遲 T_0 往回扣補償量，PD 量 t_ref′ − t_fb
+    const s2 = container.querySelector('#ch06-s2')!
+    const s2Tex = texSources(s2)
+    const s2Text = s2.textContent ?? ''
+    expect(s2Tex).toEqual(expect.arrayContaining(["t_{\\mathrm{ref}}'-t_{\\mathrm{fb}}", '\\tau_{\\mathrm{DTC}}=T_0-w\\,x', '\\varepsilon=(a-w)\\,x', 'T_0']))
+    expect(s2Text).toMatch(/DTC 接在 reference 的輸入端[\s\S]*回授路徑上只有 divider/)
+    expect(s2Text).toMatch(/feedback（divider）的 edge 比理想時刻早到/)
+    expect(s2Text).toMatch(/DTC 只能延遲、不能提前/)
+    expect(s2Text).toMatch(/補償量/)
+    expect(s2Text).toMatch(/PD 量的是「DTC 延遲後的 reference edge 減 feedback edge」/)
+    expect(s2Text).toMatch(/補償不足（[\s\S]{0,40}）時 reference 還是太晚，誤差為正/)
+    // H_PD 的推導：誤差從 PD 的 reference 輸入進來、回授從 feedback 輸入進來，兩個轉移函數都是正號（從頭到尾一致）
+    expect(s2Tex).toEqual(
+      expect.arrayContaining([
+        'e_{\\mathrm{PD}}=\\varepsilon-\\varphi_{\\mathrm{fb}}',
+        'E_{\\mathrm{PD}}=\\mathcal E-\\Phi_{\\mathrm{fb}}',
+        '\\Phi_{\\mathrm{fb}}=L(z)\\,E_{\\mathrm{PD}}',
+        'E_{\\mathrm{PD}}=\\frac{1}{1+L}\\,\\mathcal E=H_{\\mathrm{PD}}\\,\\mathcal E',
+        '\\Phi_{\\mathrm{fb}}=L\\,E_{\\mathrm{PD}}=\\frac{L}{1+L}\\,\\mathcal E=T\\,\\mathcal E',
+        'e_{\\mathrm{PD}}=H_{\\mathrm{PD}}\\,\\varepsilon',
+        '\\varphi_{\\mathrm{fb}}=T\\,\\varepsilon',
+        'E_{\\mathrm{PD}}=+H_{\\mathrm{PD}}\\,\\mathcal E',
+        '\\Phi_{\\mathrm{fb}}=+T\\,\\mathcal E',
+      ]),
+    )
+    for (const t of s2Tex) expect(t, t).not.toMatch(/=\s*-\s*(?:H_\{\\mathrm\{PD\}\}|T\\,)|-\\mathcal E|-\s*\\varepsilon/)
+    expect(s2Text).toMatch(/PD 量的是 reference 輸入減 feedback 輸入/)
+    expect(s2Text).toMatch(/回到 PD 的 feedback 輸入[\s\S]*回授路徑上只有 divider，沒有 DTC/)
+    // 校正迴路的輸入是 PD 的輸出（送進 loop filter 的同一個訊號），不是 DTC 或 divider 的輸出
+    expect(s2Text).toMatch(/comparator 取的是 PD 的輸出，也就是送進 loop filter 的同一個訊號（不是 DTC 的輸出，也不是 divider 的輸出）/)
+    const read24 = container.querySelector('[id="diagram-D-06.24"] .ch06-diagram-read')!.textContent ?? ''
+    expect(read24).toMatch(/reference 輸入端的 DTC[\s\S]*從 PD 的 reference 輸入端進主 PLL[\s\S]*PD 的輸出（送進 loop filter\s*的同一個訊號）[\s\S]*comparator 取的就是它/)
+    // §5 的兩張迴路圖（圖 6.10、6.12）把 DCO 的輸出直接畫回加法點、沒有畫 divider：正文要說明加法點就是 PD、
+    // DTC 誤差從 reference 輸入進來、divider 併在迴路增益裡、回授路徑上沒有 DTC（和圖 6.3 的「loop filter → DCO → divider」一致）
+    const read10 = container.querySelector('[id="diagram-D-06.10"] .ch06-diagram-read')!.textContent ?? ''
+    expect(read10).toMatch(/加法點就是 PD，DTC 誤差從它的 reference 輸入（「＋」）進來[\s\S]*從 feedback 輸入（「−」）回來/)
+    expect(read10).toMatch(/divider\s*在線性化的相位模型裡只是一個固定的倍數，已經併進迴路增益[\s\S]*所以圖上沒有另外畫；回授路徑上沒有 DTC/)
+    const read12 = container.querySelector('[id="diagram-D-06.12"] .ch06-diagram-read')!.textContent ?? ''
+    expect(read12).toMatch(/加法點是 PD，「＋」是 reference 輸入（DTC 誤差從這裡進來），「−」是\s*feedback 輸入；回授路徑上 divider 的倍數已經併進[\s\S]*所以沒有另外畫，那裡也沒有 DTC/)
+    // 開場白不說 PD 的輸出「變小」：|H_PD| 可以等於、甚至略大於 1（§1 的例子就是 |H| = 1、只轉相位）
+    expect(lead.textContent).toMatch(/被主 PLL 濾過的誤差：大小變了，相位也轉了/)
+    expect(lead.textContent).not.toMatch(/變小/)
+    // 地圖上的 e[n]（PD 輸出）與本章的 e_PD[n]：本章的 e_PD 從 F-06.1 起含 comparator 前的雜訊 v（地圖把 v 另外畫進 comparator）
+    expect(note.textContent).toMatch(/本章記作[\s\S]*地圖上另外畫進 comparator 的雜訊[\s\S]*從 §2 的 F-06.1 起也併進/)
+    expect(texSources(note)).toEqual(expect.arrayContaining(['e[n]', 'e_{\\mathrm{PD}}[n]', 'v[n]']))
+    // 舊的說法（DTC 放在回授那一邊、誤差進「比較點」、正負號未定）不再出現在整章
+    expect(container.textContent ?? '').not.toMatch(/PD 的比較點|主 PLL 的比較點|正負號依注入點而定|divider\s*之後的\s*DTC|DTC\s*在回授/)
 
     // 系統地圖是手排的 SVG（不經過 Mermaid）：標成藍色（is-focus）的方塊就是本章的主角，其餘不標色
     expect(map.hasAttribute('data-chart')).toBe(false)
@@ -1251,6 +1346,15 @@ describe('第 06 章頁面：系統地圖、方塊圖的位置、符號表在章
       expect(tex).toEqual(expect.arrayContaining(['\\delta_k=a-w_k', '\\operatorname{sign}(e_{\\mathrm{PD}}[n])', 'e_{\\mathrm{PD}}\\approx(a-w_k)\\,u+v']))
       expect(tex).not.toContain('\\operatorname{sign}(e_{\\mathrm{PD}}+v)')
       expect(symbols.querySelectorAll('.katex-error')).toHaveLength(0)
+      // 符號表照全站的架構約定：DTC 誤差從 PD 的 reference 輸入端進來、回授經 divider 回到 feedback 輸入端、e_PD 是 PD 的輸出加雜訊
+      expect(tex).toEqual(expect.arrayContaining(['\\tau_{\\mathrm{DTC}},\\;T_0', '\\tau_{\\mathrm{DTC}}=T_0-w\\,x', "t_{\\mathrm{ref}}',\\;t_{\\mathrm{fb}}", "t_{\\mathrm{ref}}'-t_{\\mathrm{fb}}"]))
+      const symbolsText = symbols.textContent ?? ''
+      expect(symbolsText).toMatch(/reference 端的 DTC 沒補乾淨的殘餘時間誤差（從 PD 的 reference 輸入端進來）/)
+      expect(symbolsText).toMatch(/經 divider 回到 PD 的 feedback 輸入端/)
+      expect(symbolsText).toMatch(/從 DTC 誤差（PD 的 reference 輸入）到 PD 輸出/)
+      expect(symbolsText).toMatch(/PD 的輸出（送進 loop filter 的同一個訊號）加上 comparator 前的雜訊/)
+      expect(symbolsText).toMatch(/DTC 延遲後的 reference edge 與 feedback（divider）edge/)
+      expect(symbolsText).not.toMatch(/比較點/)
 
       // 符號表移到最後之後：每個符號第一次出現的那一節，正文要就地用一句話說明
       const sectionCache = new Map<string, { tex: Set<string>; text: string }>()

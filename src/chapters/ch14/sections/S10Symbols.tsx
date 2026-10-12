@@ -18,13 +18,33 @@ export const SYMBOLS: SymbolEntry[] = [
     symbol: 'a',
     meaning: (
       <>
-        DTC 真正需要的 gain（未知的正確答案）；追蹤時會隨 PVT 漂移，寫成 <Tex>{'a_k'}</Tex>
+        DTC 真正需要的 gain（未知的正確答案；feedback edge 早到 <Tex>{'a\\,x[n]'}</Tex>）；追蹤時會隨 PVT 漂移，寫成 <Tex>{'a_k'}</Tex>
       </>
     ),
     unit: '\\mathrm{fs}',
     firstSeen: '章首',
   },
-  { symbol: 'w_k', meaning: '第 k 個 block 使用的校正係數（gain register）', unit: '\\mathrm{fs}', firstSeen: '章首' },
+  {
+    symbol: 'w_k',
+    meaning: (
+      <>
+        第 k 個 block 使用的校正係數（gain register）；reference 端 DTC 的補償量是 <Tex>{'w_k\\,x[n]'}</Tex>（延遲 <Tex>{'\\tau_\\mathrm{DTC}=T_0-w_k\\,x[n]'}</Tex>）
+      </>
+    ),
+    unit: '\\mathrm{fs}',
+    firstSeen: '章首',
+  },
+  {
+    symbol: 'T_0',
+    meaning: (
+      <>
+        reference 端 DTC 的固定基準延遲：DTC 只能延遲、不能提前，所以 <Tex>{'\\tau_\\mathrm{DTC}=T_0-w_k\\,x[n]'}</Tex> 從它往回扣
+      </>
+    ),
+    unit: '\\mathrm{fs}',
+    firstSeen: '章首',
+    note: '常數；PLL 把它當成靜態相位偏移吸收，不影響任何會動的量',
+  },
   {
     symbol: '\\delta_k=a-w_k',
     meaning: '第 k 次更新後的剩餘係數誤差（register error）',
@@ -74,10 +94,20 @@ export const SYMBOLS: SymbolEntry[] = [
     firstSeen: '章首、先備知識',
   },
   {
+    symbol: 'e[n]',
+    meaning: (
+      <>
+        PD 的輸出：<Tex>{String.raw`t_\mathrm{ref}^{\prime}[n]-t_\mathrm{fb}[n]=\delta_k\,u[n]+v[n]`}</Tex>（<Tex>{String.raw`t_\mathrm{ref}^{\prime}`}</Tex> 是 DTC 延遲後的 reference edge）；就是送進 loop filter 的同一個節點，comparator 取它的正負號
+      </>
+    ),
+    unit: '\\mathrm{fs}',
+    firstSeen: '章首、先備知識',
+  },
+  {
     symbol: 'q[n],\\ v[n]',
     meaning: (
       <>
-        1-bit comparator 輸出 <Tex>{'q=\\mathrm{sign}(\\delta u+v)=\\pm1'}</Tex> 與 comparator 前的雜訊樣本
+        1-bit comparator 輸出 <Tex>{'q=\\mathrm{sign}(\\delta u+v)=\\pm1'}</Tex>（輸入是 PD 的輸出 <Tex>{'e[n]=\\delta u+v'}</Tex>）與 comparator 前的雜訊樣本
       </>
     ),
     unit: '—,\\ \\mathrm{fs}',

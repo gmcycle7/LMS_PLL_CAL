@@ -155,6 +155,50 @@ describe('DT DPLL 迴路（E44 參數化）', () => {
     expect(C).toBeCloseTo(1, 9)
   })
 
+  it('架構約定（docs/assumptions.md §2a 第 5 點）：誤差在 PD 的 reference 輸入端注入 ⇒ e_PD = +H_PD{φ}、θ_out = +T{φ}（逐 sample 的迴路差分方程）', () => {
+    // 不用 H_PD、T 的係數，直接照方塊圖一拍一拍算：e_PD[n] = φ[n] − θ_fb[n]，θ_fb = L{e_PD}（L 嚴格因果，所以沒有代數迴圈）
+    const closeLoop = (des: ReturnType<typeof designDtLoop>, phi: Float64Array, side: 'reference' | 'feedback') => {
+      const { b, a } = des.L
+      expect(b[0]).toBe(0) // L 嚴格因果：θ_fb[n] 只用到過去的 e_PD
+      const e = new Float64Array(phi.length)
+      const th = new Float64Array(phi.length)
+      for (let n = 0; n < phi.length; n++) {
+        let y = 0
+        for (let k = 1; k < b.length && k <= n; k++) y += b[k] * e[n - k]
+        for (let k = 1; k < a.length && k <= n; k++) y -= a[k] * th[n - k]
+        th[n] = y / a[0]
+        // reference 側（全站約定）：e_PD = φ − θ_fb；對照組把同一個 φ 改從 PD 的另一個輸入加進去（規格 §12.3 的舊寫法），PD 的輸出整個反號
+        e[n] = side === 'reference' ? phi[n] - th[n] : -(th[n] + phi[n])
+      }
+      return { e, th }
+    }
+    for (const d of [0, 1, 2]) {
+      const des = designDtLoop({ wnTs: 0.08, zeta: 0.7, loopDelay: d })
+      expect(des.stable).toBe(true)
+      const phi = createRng(11 + d).normalArray(4000)
+      const h = lfilter(des.Hpd.b, des.Hpd.a, phi).y
+      const t = lfilter(des.T.b, des.T.a, phi).y
+      const ref = closeLoop(des, phi, 'reference')
+      const fb = closeLoop(des, phi, 'feedback')
+      let maxRef = 0
+      let maxFb = 0
+      let maxSum = 0
+      for (let n = 0; n < phi.length; n++) {
+        // reference 側：兩個都是正號，而且 PD 的輸出加上輸出相位剛好等於注入的誤差（H_PD + T = 1）
+        maxRef = Math.max(maxRef, Math.abs(ref.e[n] - h[n]), Math.abs(ref.th[n] - t[n]))
+        maxSum = Math.max(maxSum, Math.abs(ref.e[n] + ref.th[n] - phi[n]))
+        // feedback 側：同樣的 H_PD、T，只是兩個都多一個負號（|H_PD|、|T|、jitter、spur dBc 因此不變）
+        maxFb = Math.max(maxFb, Math.abs(fb.e[n] + h[n]), Math.abs(fb.th[n] + t[n]))
+      }
+      expect(maxRef).toBeLessThan(1e-9)
+      expect(maxFb).toBeLessThan(1e-9)
+      expect(maxSum).toBeLessThan(1e-12)
+      // 第一拍：L 嚴格因果 ⇒ θ_fb[0] = 0，PD 的輸出就是注入的誤差本身（h_PD[0] = +1）
+      expect(ref.e[0]).toBe(phi[0])
+      expect(h[0]).toBe(phi[0])
+    }
+  })
+
   it('createHpdFilter 狀態跨 block 持續，分段處理 = 一次 lfilter', () => {
     const des = designDtLoop({ wnTs: 0.05, zeta: 0.7, loopDelay: 2 })
     const x = createRng(3).normalArray(3000)

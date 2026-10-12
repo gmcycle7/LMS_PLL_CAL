@@ -190,7 +190,7 @@ export function McSweepLab() {
             { tex: r`Z_{\rm mean}=\bar z\,\sqrt K\sim\mathcal N(0,1)`, why: r`把平均值標準化。$|Z_{\rm mean}|$ 太大 $\Rightarrow$ $z$ 有系統性偏移：估計量有偏差，或模型與期望值不符。` },
             { tex: r`s_z^2=\frac{1}{K-1}\sum_j(z_j-\bar z)^2,\qquad(K-1)\,s_z^2\sim\chi^2_{K-1}`, why: r`常態樣本的樣本變異數乘上自由度，服從卡方分布（$\nu=K-1$ 個獨立標準常態的平方和）。` },
             { tex: r`\Big(\frac{\chi^2_\nu}{\nu}\Big)^{1/3}\approx\mathcal N\Big(1-\frac{2}{9\nu},\ \frac{2}{9\nu}\Big)`, why: r`Wilson–Hilferty：卡方除以自由度後取立方根，分布非常接近常態（把右偏拉正）。` },
-            { tex: r`Z_{\rm sd}=\frac{(s_z^2)^{1/3}-\big(1-\tfrac{2}{9\nu}\big)}{\sqrt{2/(9\nu)}}\ \approx\ \mathcal N(0,1)`, why: r`標準化。$Z_{\rm sd}$ 太大 $\Rightarrow$ $s_z>1$：SE 被低估；太小 $\Rightarrow$ SE 被高估（檢定太保守）。` },
+            { tex: r`Z_{\rm sd}=\frac{(s_z^2)^{1/3}-\big(1-\tfrac{2}{9\nu}\big)}{\sqrt{2/(9\nu)}}\approx\mathcal N(0,1)`, why: r`標準化。$Z_{\rm sd}$ 太大 $\Rightarrow$ $s_z>1$：SE 被低估；太小 $\Rightarrow$ SE 被高估（檢定太保守）。` },
           ])}
         />
         <FBlock id="F-VF.10" />

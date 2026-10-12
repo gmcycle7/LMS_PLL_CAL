@@ -272,7 +272,7 @@ export function MedianExampleSection() {
           ),
         },
         {
-          tex: String.raw`m=(1-\mu)\,m+\mu E[y]\Rightarrow m=E[y]`,
+          tex: String.raw`\begin{aligned}m&=(1-\mu)\,m+\mu E[y]\\&\Rightarrow\ m=E[y]\end{aligned}`,
           why: (
             <>
               兩邊取期望值，穩態時 <Tex>{'E[w_{n+1}]=E[w_n]=m'}</Tex>

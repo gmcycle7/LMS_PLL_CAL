@@ -149,7 +149,7 @@ export function NonIdealSection() {
       <StepDerivation
         steps={[
           { tex: String.raw`\lfloor w\rfloor-w=-\mathrm{frac}(w)\in(-1,0]`, why: '無記憶 truncation（直接丟掉小數 bit）永遠往下偏。' },
-          { tex: String.raw`E\big[\lfloor w\rfloor-w\big]=-\int_0^1u\,du=-\tfrac12\ \mathrm{LSB}`, why: tx(String.raw`若 $w$ 的小數部分在 $[0,1)$ 均勻（PVT 下未知），平均偏 $-\tfrac12$ LSB：truncation 有系統性 bias。`) },
+          { tex: String.raw`E[\lfloor w\rfloor-w]=-\int_0^1u\,du=-\tfrac12\,\mathrm{LSB}`, why: tx(String.raw`若 $w$ 的小數部分在 $[0,1)$ 均勻（PVT 下未知），平均偏 $-\tfrac12$ LSB：truncation 有系統性 bias。`) },
           { tex: String.raw`E\big[\lfloor w+\tfrac12\rfloor-w\big]=0,\qquad E\big[y_{\mathrm{SR}}-w\big]=0`, why: tx(String.raw`round-half-up 在同樣的平均意義下無偏；stochastic rounding 對每一個 $w$ 都無偏（$E[y\,|\,w]=w$）。`) },
         ]}
       />

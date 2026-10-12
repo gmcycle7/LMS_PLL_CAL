@@ -326,7 +326,8 @@ export function S4Jacobian() {
                 ),
               },
               {
-                tex: String.raw`\mathbf M\mathbf J=-\gamma\,\mathbf V(\boldsymbol\Sigma^2+\lambda_{\mathrm{reg}}\mathbf I)^{-1}\boldsymbol\Sigma^2\mathbf V^T`,
+                // 寫成一行、而且 γ 後面不加 `\,`：375px 寬的手機上這一行剛好放得下（多 3px 就會出現一條沒有用途的橫向捲軸），不必把乘積拆成兩行。
+                tex: String.raw`\mathbf M\mathbf J=-\gamma\mathbf V(\boldsymbol\Sigma^2+\lambda_{\mathrm{reg}}\mathbf I)^{-1}\boldsymbol\Sigma^2\mathbf V^T`,
                 why: (
                   <>
                     <Tex>{String.raw`(\mathbf V\mathbf D\mathbf V^T)^{-1}=\mathbf V\mathbf D^{-1}\mathbf V^T`}</Tex>；對角矩陣相乘、求逆都逐元素。

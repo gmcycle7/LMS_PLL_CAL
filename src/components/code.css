@@ -43,6 +43,9 @@
   font-size: 0.82rem;
   line-height: 1.55;
 }
+.c-code-pre.is-full {
+  max-height: none;
+}
 .c-code-pre code {
   display: block;
   min-width: max-content;

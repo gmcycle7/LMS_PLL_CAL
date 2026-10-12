@@ -50,7 +50,7 @@ function StageCard({ s }: { s: StageReport }) {
                   {md(m.name)}
                   {m.note && <div className="small muted">{md(m.note)}</div>}
                 </th>
-                <td className="mono lab-num">{typeof m.value === 'string' ? md(m.value) : fmtValue(m.value, m.unit)}</td>
+                <td className={typeof m.value === 'string' ? 'mono lab-num lab-num-text' : 'mono lab-num'}>{typeof m.value === 'string' ? md(m.value) : fmtValue(m.value, m.unit)}</td>
                 <td className="nowrap">{m.unit && !(m.unit === 'Hz' && typeof m.value === 'number') ? md(m.unit) : ''}</td>
                 <td>{m.claim ? <ClaimTag kind={m.claim} /> : ''}</td>
               </tr>
@@ -107,7 +107,7 @@ const num = (v: number | undefined): string => (v === undefined ? '' : sig(v, 6)
 export const CheckTable = memo(function CheckTable({ checks }: { checks: PipelineChecks }) {
   return (
     <div className="table-wrap">
-      <table className="lab-table">
+      <table className="lab-table lab-check-table">
         <thead>
           <tr>
             <th>檢查</th>

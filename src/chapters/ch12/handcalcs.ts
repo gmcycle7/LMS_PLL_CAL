@@ -179,11 +179,12 @@ export const HANDCALCS: HandCalcDef[] = [
             why: String.raw`從固定點出發（$\delta w_0=w_0-w^*=0$），第一個 block 的雜訊取 $+\sigma_\eta$。$+,-,+$ 只是方便手算的示意圖樣，不是模擬結果。`,
           },
           {
-            tex: String.raw`\delta w_2=p\,\delta w_1+\mu(-\sigma_\eta)=${txM(lp.p, pS)}\times${txM(dw1, kS)}-${tx(kick, kS)}=${tx(prod1, s8)}-${tx(kick, kS)}=${tx(dw2)}\ \mathrm{fs}`,
+            // 第 8、9 步各有四段，寫成一行會比正文欄寬幾個像素（多出一條沒有用途的橫向捲軸）：折成對齊的兩行
+            tex: String.raw`\begin{aligned}\delta w_2&=p\,\delta w_1+\mu(-\sigma_\eta)=${txM(lp.p, pS)}\times${txM(dw1, kS)}-${tx(kick, kS)}\\&=${tx(prod1, s8)}-${tx(kick, kS)}=${tx(dw2)}\ \mathrm{fs}\end{aligned}`,
             why: String.raw`先乘（舊偏差留下 $p$ 倍，就是章首「先算一次」表格的 $p\,\delta w_k$ 欄），再被 $-\sigma_\eta$ 推一次。${why8}`,
           },
           {
-            tex: String.raw`\delta w_3=p\,\delta w_2+\mu(+\sigma_\eta)=${txM(lp.p, pS)}\times${txM(dw2)}+${tx(kick, kS)}=${tx(prod2, s9)}+${tx(kick, kS)}=${tx(dw3, 5)}\ \mathrm{fs}`,
+            tex: String.raw`\begin{aligned}\delta w_3&=p\,\delta w_2+\mu(+\sigma_\eta)=${txM(lp.p, pS)}\times${txM(dw2)}+${tx(kick, kS)}\\&=${tx(prod2, s9)}+${tx(kick, kS)}=${tx(dw3, 5)}\ \mathrm{fs}\end{aligned}`,
             why: String.raw`同樣先乘再加：再被 $+\sigma_\eta$ 推一次。$|p|<1$ 讓舊的偏差一步步被忘掉，所以係數不會跑掉；但雜訊每個 block 都在推，所以也停不下來。`,
           },
         ],
@@ -215,7 +216,8 @@ export const HANDCALCS: HandCalcDef[] = [
     title: String.raw`單位圓上的一點：$|H|^2$ 相對 DC 掉幾 dB、$S_w^{(1)}(f)$ 是多少`,
     page: PAGE,
     formulaId: 'F-12.4',
-    formulaTex: String.raw`\Omega=\frac{2\pi f}{f_u},\qquad e^{j\Omega}-p=(\cos\Omega-p)+j\sin\Omega,\qquad \frac{|H(e^{j\Omega})|^2}{|H(1)|^2}=\frac{(1-p)^2}{|e^{j\Omega}-p|^2},\qquad S_w^{(1)}(f)=\frac{2}{f_u}\cdot\frac{\mu^2\sigma_\eta^2}{|e^{j\Omega}-p|^2}`,
+    // 四個式子排成一行會比正文欄寬 6px（多出一條沒有用途的橫向捲軸）：分成兩行
+    formulaTex: String.raw`\begin{gathered}\Omega=\frac{2\pi f}{f_u},\qquad e^{j\Omega}-p=(\cos\Omega-p)+j\sin\Omega\\[4pt]\frac{|H(e^{j\Omega})|^2}{|H(1)|^2}=\frac{(1-p)^2}{|e^{j\Omega}-p|^2},\qquad S_w^{(1)}(f)=\frac{2}{f_u}\cdot\frac{\mu^2\sigma_\eta^2}{|e^{j\Omega}-p|^2}\end{gathered}`,
     level: 'research',
     claim: 'exact',
     inputs: [
@@ -653,16 +655,17 @@ export const HANDCALCS: HandCalcDef[] = [
       )
       notes.push(String.raw`乘積裡沒有 $f_x$ 也沒有 $f_w$ 本身（除非 code 有 DC）。下一步：把 $A_t=AB/2$ 代進 HC-12.7 算 spur。`)
       notes.push(
-        String.raw`極性（勘誤 E33）：$\delta t=x\,\delta w$ 是 DTC 多施加的延遲，本章 $\delta w=w-w^*$；改用全站 §0 的 $\delta=a-w$（$w^*=a$ 時 $\delta=-\delta w$）寫殘餘 timing error，對應的項是 $-x\,\delta w=x\,\delta$。正負號只讓兩根 tone 的相位同時轉 $180^\circ$：頻率、peak 與後面的 dBc 都不變。`,
+        String.raw`極性（勘誤 E33）：$\delta t=x\,\delta w$ 是 reference 端的 DTC 多補償的時間（reference edge 早到 $\delta t$），本章 $\delta w=w-w^*$；改用全站 §0 的 $\delta=a-w$（$w^*=a$ 時 $\delta=-\delta w$）寫殘餘 timing error，對應的項是 $-x\,\delta w=x\,\delta$。正負號只讓兩根 tone 的相位同時轉 $180^\circ$：頻率、peak 與後面的 dBc 都不變。`,
       )
       return {
         steps: [
           {
-            tex: String.raw`f_x+f_w=${txIn(fx)}+${txIn(fw)}=${tx(sum.f / KHZ, 15)}\ \mathrm{kHz}`,
+            // 手機上步驟欄只有約 250px：這兩步折成對齊的兩行，就不必為了幾個像素橫向捲動
+            tex: String.raw`\begin{aligned}f_x+f_w&=${txIn(fx)}+${txIn(fw)}\\&=${tx(sum.f / KHZ, 15)}\ \mathrm{kHz}\end{aligned}`,
             why: String.raw`和頻：積化和差 $\cos a\cos b=\tfrac12[\cos(a+b)+\cos(a-b)]$ 的第一項。`,
           },
           {
-            tex: String.raw`|f_x-f_w|=|${txIn(fx)}-${txIn(fw)}|=${tx(diff.f / KHZ, 15)}\ \mathrm{kHz}`,
+            tex: String.raw`\begin{aligned}|f_x-f_w|&=|${txIn(fx)}-${txIn(fw)}|\\&=${tx(diff.f / KHZ, 15)}\ \mathrm{kHz}\end{aligned}`,
             why: String.raw`差頻。$\cos$ 是偶函數，所以 $f_x<f_w$ 時它落在 $f_w-f_x$，不會消失。`,
           },
           {

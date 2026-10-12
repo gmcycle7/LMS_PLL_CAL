@@ -374,9 +374,27 @@ function Derivations() {
       {/* ---------- 4.3 ---------- */}
       <Section kind="formula" title="4.3　DTC：沒抵銷乾淨的時間誤差" id="lab-s43">
         <p>
-          <ModelLevel level="L2" /> <ClaimTag kind="exact" /> DTC 應該產生 <Tex>{'a\\,x'}</Tex> 的延遲來抵銷 residue，實際上它用的是目前的係數 <Tex>w</Tex>，而且本身不完美：
+          <ModelLevel level="L2" /> <ClaimTag kind="exact" /> DTC 在 reference 的輸入端（Reference clock → DTC → phase detector），回授路徑上只有 divider。小數除頻讓 feedback（divider）edge
+          每個週期偏離理想時刻；要把兩條 edge 對齊，reference edge 需要補的量是 <Tex>{'a\\,x[n]'}</Tex>，DTC 實際的<strong>補償量</strong>是用目前的係數算的 <Tex>{'w_{\\mathrm{app}}\\,x[n]'}</Tex>。DTC
+          只能延遲、不能提前，所以補償量是從一個固定的基準延遲 <Tex>{'T_0'}</Tex> 往回扣出來的；<Tex>{'T_0'}</Tex> 是常數，被主 PLL 當成靜態相位偏移吸收。
+        </p>
+        <p>
+          phase detector 量的是「DTC 之後的 reference edge」減「feedback edge」，也就是 <Tex>{"t_{\\mathrm{ref}}'-t_{\\mathrm{fb}}"}</Tex>：需要 <Tex>{'a\\,x'}</Tex>、實際補{' '}
+          <Tex>{'w_{\\mathrm{app}}\\,x'}</Tex>，它只看到兩者之差。再加上 DTC 本身的不完美，就是 DTC 沒抵銷乾淨的時間誤差：
         </p>
         <TexBlock>{T`e_{\mathrm{DTC}}[n]=\underbrace{(a-w_{\mathrm{app}})\,x[n]}_{\text{gain 誤差：校正要消掉的}}+\underbrace{o_{\mathrm{DTC}}+c_2x^2[n]+c_3x^3[n]}_{d(x)\text{：一個係數消不掉的}}`}</TexBlock>
+        <p className="small">
+          <strong>正負號</strong>：一般章節拿累加器的餘數（<Tex>{'\\ge0'}</Tex>）當 regressor；本頁的 <Tex>x</Tex> 是正規化後的 residue <Tex>r</Tex>，而 <Tex>r</Tex> 正好是那個餘數的負值（§4.1：一階 DSM 的{' '}
+          <Tex>{'-1<r\\le0'}</Tex>），兩者差一個負號。照時間寫一次（一階 DSM、正規化選 none，此時 <Tex>{'x=r\\le0'}</Tex>）：feedback edge <strong>早到</strong> <Tex>{'a\\,|r[n]|'}</Tex>；DTC 的延遲是{' '}
+          <Tex>{'\\tau_{\\mathrm{DTC}}[n]=T_0-w_{\\mathrm{app}}\\,|r[n]|'}</Tex>（<Tex>{'|r|'}</Tex> 越大延遲越短，reference edge 跟著提早同樣的量）；PD 量到{' '}
+          <Tex>{"t_{\\mathrm{ref}}'-t_{\\mathrm{fb}}=(a-w_{\\mathrm{app}})\\,|r[n]|"}</Tex>（<Tex>{'T_0'}</Tex> 已被主 PLL 吸收）——補償不足（<Tex>{'w_{\\mathrm{app}}<a'}</Tex>）時 reference 還是太晚，誤差為正。
+        </p>
+        <p className="small">
+          本頁的模型用帶正負號的 <Tex>x</Tex> 把它寫成 <Tex>{'(a-w_{\\mathrm{app}})\\,x'}</Tex>：gain 這一項與 regressor 同時變號。所以圖上與匯出的 <Tex>{'e_{\\mathrm{DTC}}'}</Tex>（以及由它濾出來的{' '}
+          <Tex>{'u_{\\mathrm{pd}}'}</Tex>、<Tex>{'t_{\\mathrm{out}}'}</Tex>）裡，gain 這一項的正負號和 <Tex>{"t_{\\mathrm{ref}}'-t_{\\mathrm{fb}}"}</Tex> 相反；但 GMAC 累加的乘積{' '}
+          <Tex>{'q\\,x_{\\mathrm{ref}}'}</Tex> 的統計不變，所以更新式與極性 <Tex>{'\\delta=a-w'}</Tex> 都和一般章節相同，收斂的快慢、jitter 與 spur 的大小也不受影響。<Tex>{'o_{\\mathrm{DTC}}'}</Tex>、
+          <Tex>{'c_2x^2'}</Tex> 與 comparator offset <Tex>b</Tex> 不隨 <Tex>x</Tex> 變號，它們的正負號是相對本頁的 <Tex>{'e_{\\mathrm{DTC}}'}</Tex> 定義的。
+        </p>
         <p className="small">
           單位：<Tex>x</Tex> 無因次，所以 <Tex>{'a,\\ w'}</Tex> 是 fs per unit code、<Tex>{'e_{\\mathrm{DTC}}'}</Tex> 是 fs（<ErratumNote id="E13" />）。極性採全站約定 <Tex>{'\\delta=a-w'}</Tex>（<ErratumNote id="E32" />）。
           <Tex>{'w_{\\mathrm{app}}'}</Tex> 是「這個 block 實際作用在 DTC 上」的值：比最新的 <Tex>{'w_k'}</Tex> 晚 <Tex>d</Tex> 個 block，開定點時還要先量化成實體 code。<Tex>{'d(x)'}</Tex>{' '}
@@ -387,24 +405,30 @@ function Derivations() {
       {/* ---------- 4.4 ---------- */}
       <Section kind="formula" title="4.4　主 PLL：同一個誤差的兩條路 $H_{\mathrm{PD}}$ 與 $T$" id="lab-s44">
         <p>
-          <ModelLevel level="L2" /> <ClaimTag kind="exact" /> PLL 是負回授：phase detector 看到誤差，迴路就去移動輸出相位把它補掉。
+          <ModelLevel level="L2" /> <ClaimTag kind="exact" /> PLL 是負回授：phase detector 看到誤差，迴路就去移動輸出相位把它補掉。DTC 在 reference 的輸入端，所以 <Tex>{'e_{\\mathrm{DTC}}'}</Tex> 是從 PD 的{' '}
+          <strong>reference 輸入</strong>進來的；回授路徑上只有 divider，接到 PD 的另一個輸入。
         </p>
         <p>
-          所以同一個 DTC 誤差 <Tex>{'e_{\\mathrm{DTC}}'}</Tex> 會在兩個地方留下痕跡：phase detector 上「還沒被補掉的部分」（記作 <Tex>{'u_{\\mathrm{pd}}'}</Tex>，comparator 看到的就是它），以及輸出端「已經被迴路搬過去的部分」（記作{' '}
-          <Tex>{'\\theta_{\\mathrm{fb}}'}</Tex>，也就是輸出的 timing error <Tex>{'t_{\\mathrm{out}}'}</Tex>）。先看圖，再看推導。
+          所以同一個 DTC 誤差 <Tex>{'e_{\\mathrm{DTC}}'}</Tex> 會在兩個地方留下痕跡：phase detector 上「還沒被補掉的部分」（記作 <Tex>{'u_{\\mathrm{pd}}'}</Tex>——它就是 <strong>PD 的輸出</strong>，送進 loop filter；comparator
+          取的也是這同一個訊號），以及輸出端「已經被迴路搬過去的部分」（記作 <Tex>{'\\theta_{\\mathrm{fb}}'}</Tex>，也就是輸出的 timing error <Tex>{'t_{\\mathrm{out}}'}</Tex>）。先看圖，再看推導。
         </p>
         <Diagram
           chart={CHART_TWO_PATHS}
-          caption="主 PLL 的負回授：加法點的輸出送到 comparator（藍色，high-pass），回授量本身就是輸出端被移動的量（棕色，low-pass）。兩條路的轉移函數相加等於 1。"
-          ariaLabel="主 PLL 負回授的方塊圖：DTC 誤差減去回授相位得到 PD residual，PD residual 經 open loop 變成回授相位；PD residual 送到 comparator，回授相位就是輸出 timing error"
+          caption="主 PLL 的負回授，照電路的接法畫：Reference clock → DTC → phase detector，DTC 的殘差從 PD 的 reference 輸入進來；回授從 VCO 只經過 divider 回到 PD 的另一個輸入。PD 的輸出同時送進 loop filter 與 comparator（藍色，high-pass）；回授量本身就是輸出端被移動的量（棕色，low-pass）。兩條路的轉移函數相加等於 1。"
+          ariaLabel="主 PLL 負回授的方塊圖：Reference clock 經 DTC 接到 phase detector 的 reference 輸入，DTC 的殘差從這裡進來；loop filter 與 VCO 的輸出只經過 divider 回到 phase detector 的另一個輸入，兩者相減得到 PD 的輸出；PD 的輸出送進 loop filter，comparator 取的也是它；回授相位就是輸出 timing error"
         >
           <p>
-            先看加法點：<Tex>{'e_{\\mathrm{DTC}}'}</Tex> 進來是「＋」，迴路已經補掉的 <Tex>{'\\theta_{\\mathrm{fb}}'}</Tex> 是「−」，所以加法點的輸出是 <Tex>{'u_{\\mathrm{pd}}=e_{\\mathrm{DTC}}-\\theta_{\\mathrm{fb}}'}</Tex>
-            ——下面推導的第一行。
+            先看虛線框裡的加法點，它就是 phase detector：Reference clock 經 DTC 進來的 <Tex>{'e_{\\mathrm{DTC}}'}</Tex> 是「＋」，divider 送回來、迴路已經補掉的 <Tex>{'\\theta_{\\mathrm{fb}}'}</Tex> 是「−」，所以 PD
+            的輸出是 <Tex>{'u_{\\mathrm{pd}}=e_{\\mathrm{DTC}}-\\theta_{\\mathrm{fb}}'}</Tex>——下面推導的第一行。
           </p>
           <p>
-            圖上的 <Tex>{'L(z)'}</Tex> 是 open-loop transfer（loop filter 加 VCO 合起來）。藍色那條路從加法點<strong>之後</strong>拉出去，除以 <Tex>{'1+L'}</Tex>；棕色那條路是 <Tex>{'L(z)'}</Tex> 的輸出，乘上{' '}
-            <Tex>{'L/(1+L)'}</Tex>。PD 沒看到的，全部到了輸出。
+            圖上的 <Tex>{'L(z)'}</Tex> 是 open-loop transfer（loop filter 加 VCO 合起來）。「PD 的輸出」那個節點拉出兩條線：一條進 <Tex>{'L(z)'}</Tex>（主迴路），一條進藍色的 comparator（校正迴路）——校正迴路的輸入就是 PD
+            的輸出，也就是送進 loop filter 的同一個訊號，等於 <Tex>{'e_{\\mathrm{DTC}}'}</Tex> 除以 <Tex>{'1+L'}</Tex>。棕色那條路是 <Tex>{'L(z)'}</Tex> 的輸出，乘上 <Tex>{'L/(1+L)'}</Tex>。兩個都是正號；PD
+            沒看到的，全部到了輸出。
+          </p>
+          <p>
+            再看下面那條回授：從 VCO 回到 PD 的路上只有 divider，DTC 不在裡面。本頁的訊號都以時間（fs）計，divider 不改變 edge 的時間誤差，所以 divider 前後都是同一個{' '}
+            <Tex>{'\\theta_{\\mathrm{fb}}'}</Tex>，它也就是輸出端的 <Tex>{'t_{\\mathrm{out}}'}</Tex>。
           </p>
         </Diagram>
         <Prereq title="Z transform 與頻率響應（只需要兩件事）">
@@ -417,10 +441,16 @@ function Derivations() {
         <Steps
           title="$H_{\mathrm{PD}}=1/(1+L)$ 與 $T=1-H_{\mathrm{PD}}$"
           steps={[
-            { tex: T`u_{\mathrm{pd}}=e_{\mathrm{DTC}}-\theta_{\mathrm{fb}}`, why: 'PD 看到的是「DTC 誤差」減去「迴路已經補掉的部分」。' },
-            { tex: T`\theta_{\mathrm{fb}}=L(z)\,u_{\mathrm{pd}}`, why: '迴路把 PD 看到的誤差經 loop filter 與 VCO（合稱 open-loop $L$）變成回授相位。' },
-            { tex: T`u_{\mathrm{pd}}\,(1+L)=e_{\mathrm{DTC}}\ \Rightarrow\ u_{\mathrm{pd}}=\frac{1}{1+L}\,e_{\mathrm{DTC}}=H_{\mathrm{PD}}\,e_{\mathrm{DTC}}`, why: '把第二式代入第一式，解出 $u_{\\mathrm{pd}}$。' },
-            { tex: T`t_{\mathrm{out}}=\theta_{\mathrm{fb}}=\frac{L}{1+L}\,e_{\mathrm{DTC}}=T\,e_{\mathrm{DTC}}`, why: '輸出端被移動的量就是回授相位。' },
+            {
+              tex: T`u_{\mathrm{pd}}=e_{\mathrm{DTC}}-\theta_{\mathrm{fb}}`,
+              why: 'PD 量的是 reference 輸入減 feedback 輸入。DTC 在 reference 輸入端，所以 $e_{\\mathrm{DTC}}$ 從 reference 那一側進來（正號）；$\\theta_{\\mathrm{fb}}$ 是迴路經 divider 回授、已經補掉的部分（負號）。',
+            },
+            { tex: T`\theta_{\mathrm{fb}}=L(z)\,u_{\mathrm{pd}}`, why: '迴路把 PD 的輸出經 loop filter 與 VCO（合稱 open-loop $L$）變成回授相位。' },
+            {
+              tex: T`u_{\mathrm{pd}}\,(1+L)=e_{\mathrm{DTC}}\ \Rightarrow\ u_{\mathrm{pd}}=\frac{1}{1+L}\,e_{\mathrm{DTC}}=H_{\mathrm{PD}}\,e_{\mathrm{DTC}}`,
+              why: '把第二式代入第一式，解出 $u_{\\mathrm{pd}}$。正號：PD 的輸出與 $e_{\\mathrm{DTC}}$ 同向；comparator 取的就是這個 $u_{\\mathrm{pd}}$。',
+            },
+            { tex: T`t_{\mathrm{out}}=\theta_{\mathrm{fb}}=L\,u_{\mathrm{pd}}=\frac{L}{1+L}\,e_{\mathrm{DTC}}`, why: '輸出端被移動的量就是回授相位；把第三式的 $u_{\\mathrm{pd}}$ 代進去。係數 $\\tfrac{L}{1+L}$ 記作 $T$，所以 $t_{\\mathrm{out}}=T\\,e_{\\mathrm{DTC}}$，也是正號。' },
             { tex: T`H_{\mathrm{PD}}+T=\frac{1}{1+L}+\frac{L}{1+L}=1`, why: '所以 $T=1-H_{\\mathrm{PD}}$：PD 沒看到的，全部到了輸出。' },
           ]}
         />
@@ -491,7 +521,8 @@ function Derivations() {
       {/* ---------- 4.5 ---------- */}
       <Section kind="formula" title="4.5　Comparator：1 bit 裡還剩多少資訊" id="lab-s45">
         <p>
-          <ModelLevel level="L1" /> <ClaimTag kind="approx" /> comparator 的輸入是 <Tex>{'e=e_{\\det}+v'}</Tex>，其中 <Tex>{'e_{\\det}=u_{\\mathrm{pd}}+b'}</Tex> 是確定的部分、<Tex>v</Tex> 是雜訊。
+          <ModelLevel level="L1" /> <ClaimTag kind="approx" /> comparator 取的是 PD 的輸出 <Tex>{'u_{\\mathrm{pd}}'}</Tex>——也就是送進 loop filter 的同一個訊號——的正負號。它的輸入是{' '}
+          <Tex>{'e=e_{\\det}+v'}</Tex>，其中 <Tex>{'e_{\\det}=u_{\\mathrm{pd}}+b'}</Tex> 是確定的部分、<Tex>v</Tex> 是雜訊。
         </p>
         <Prereq title="期望值、Gaussian 與 erf">
           <p>
@@ -533,7 +564,7 @@ function Derivations() {
         <Steps
           title="平均的 GMAC 輸出：$E[G]\approx K_q(C\delta+B)$"
           steps={[
-            { tex: T`e_{\det}[n]=H_{\mathrm{PD}}\{(a-w)\,x+d(x)\}[n]+b`, why: 'PD residual（§4.4）加上 comparator offset。' },
+            { tex: T`e_{\det}[n]=H_{\mathrm{PD}}\{(a-w)\,x+d(x)\}[n]+b`, why: 'PD 的輸出 $u_{\\mathrm{pd}}$（§4.4）加上 comparator offset。' },
             { tex: T`e_{\det}[n]\approx\delta\,u_x[n]+u_d[n]+b,\qquad u_x=H_{\mathrm{PD}}\{x\},\ u_d=H_{\mathrm{PD}}\{d(x)\}`, why: '濾波器是線性的；$w$ 每個 block 才動一點，在 $H_{\\mathrm{PD}}$ 的記憶長度內近似常數，可以提到外面。' },
             { tex: T`E[G]=E\bigl[q\,x_{\mathrm{ref}}\bigr]\approx K_q\,E\bigl[x_{\mathrm{ref}}\,e_{\det}\bigr]`, why: '先對雜訊 $v$ 取期望值（§4.5），$x_{\\mathrm{ref}}$ 與 $v$ 獨立。' },
             { tex: T`E[G]\approx K_q\Bigl(\delta\,\underbrace{E[x_{\mathrm{ref}}u_x]}_{C}+\underbrace{E[x_{\mathrm{ref}}u_d]+b\,E[x_{\mathrm{ref}}]}_{B}\Bigr)`, why: '把 $e_{\\det}$ 的三項代進去，期望值是線性的。' },
@@ -646,7 +677,7 @@ function Derivations() {
           title="平均模型與特徵方程"
           steps={[
             { tex: T`w_{k+1}=w_k+\mu\,G_k`, why: '更新式（average 模式）。' },
-            { tex: T`G_k=K\,\delta_{k-d}+\eta_k,\qquad K=K_qC`, why: '§4.6 的平均值加上零均值的 GMAC 雜訊 $\\eta_k$；這個 block 作用在 DTC 上的是 $d$ 個 block 以前的 $w$。' },
+            { tex: T`G_k=K\,\delta_{k-d}+\eta_k,\quad K=K_qC`, why: '§4.6 的平均值加上零均值的 GMAC 雜訊 $\\eta_k$；這個 block 作用在 DTC 上的是 $d$ 個 block 以前的 $w$。' },
             { tex: T`\delta_{k+1}=a-w_{k+1}=\delta_k-\mu K\,\delta_{k-d}-\mu\eta_k`, why: '兩邊用 $a$ 去減。' },
             { tex: T`\delta_{k+1}=\delta_k-g\,\delta_{k-d}-\mu\eta_k,\qquad g=\mu K`, why: '$g$ 是無因次的迴路增益（sum 模式要再乘 $N$）。' },
             { tex: T`z^{d+1}-z^{d}+g=0`, why: '令 $\\eta=0$、試 $\\delta_k=z^k$：兩邊除以 $z^{k-d}$。所有根都在單位圓內才（平均）收斂。' },

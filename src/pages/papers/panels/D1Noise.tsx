@@ -186,7 +186,7 @@ export function D1Noise() {
       <ModeGate min="engineer">
         <Callout kind="info" title="從係數雜訊到 PLL 輸出：還差兩步（Ch12）">
           <p>
-            DTC 的時間誤差是 <Tex>{r`\delta t[n]=x[n]\,\delta w[n]`}</Tex>：<strong>乘號</strong>，所以 code 的頻譜會和 <Tex>{r`\delta w`}</Tex>{' '}
+            reference 端 DTC 的補償誤差（多補償的時間：reference edge 少延遲、早到這麼多）是 <Tex>{r`\delta t[n]=x[n]\,\delta w[n]`}</Tex>：<strong>乘號</strong>，所以 code 的頻譜會和 <Tex>{r`\delta w`}</Tex>{' '}
             的低通頻譜捲積（混頻）。 而且 <Tex>{r`\delta w_k`}</Tex> 活在 block rate <Tex>{'f_u'}</Tex>，要先以 ZOH 展開到 sample rate：
             <Tex>{r`\delta w[n]=\delta w_{\lfloor (n-n_c)/N\rfloor}`}</Tex>（<ErratumNote id="E09" />
             ）。之後再經 PLL 的 output transfer 才是輸出 jitter。 所以 <Tex>{r`\sigma_w\approx${texNum(n.sigmaW, 3)}\ \mathrm{fs}`}</Tex> 只是 gain-equivalent
