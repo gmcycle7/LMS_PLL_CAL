@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-12T02:58:44.261Z",
-  "commit": "8730a5f",
+  "generatedAt": "2026-10-12T08:16:08.193Z",
+  "commit": "db56ad4",
   "note": "由 `npm run verify` 產生；status=pass 代表 TypeScript 與 Python golden 測試皆通過。",
   "tests": {
     "T01": {
@@ -172,11 +172,11 @@
         "failed": 0,
         "names": [
           "handcalcs.test.tsx › Ch01 帶入手算 (a)：預設數字 = 模型函式 = 本章 worked example T04: HC-01.7 以 σ_v = 100 fs 代入 ⇒ K_q = 0.00797885 fs⁻¹（golden kq_per_fs）",
-          "handcalcs.test.tsx › Ch04 手算題：(a) 預設值 = 模型函式、文中 worked example、golden T04: HC-04.3 的 K_q 等於 golden T04 的 kq_per_fs（σ_v = 100 fs）",
-          "handcalcs.test.tsx › Ch04 手算題：(a) 預設值 = 模型函式、文中 worked example、golden T04: HC-04.5（反面測試：忘了映射）：線性化 53.13 fs；ξ = −0.6023 時 h ≈ 0、w = 63.23 fs = mean-field 固定點 63.2341 fs",
           "ch05.test.tsx › Ch05 頁面（jsdom smoke） T04/T05: 整章可渲染：章末的符號表、修正後的奇數 N 表格、tie 對照框（49.20% / 7.93% / 42.86%）與 Comparator Lab",
           "handcalcs.test.tsx › Ch05 帶入手算：預設值對上模型、文中表格與 golden vector T04: HC-05.1 的 p、m 等於 golden 的 p_plus、mean_q，Var(q) = 1 − m²（s = 1 fs、σ_v = 100 fs）",
           "handcalcs.test.tsx › Ch05 帶入手算：預設值對上模型、文中表格與 golden vector T04: HC-05.7 的 K_q 與 K_q·s 等於 golden kq_per_fs、kq_times_s；高估量與局部斜率來自模型",
+          "handcalcs.test.tsx › Ch04 手算題：(a) 預設值 = 模型函式、文中 worked example、golden T04: HC-04.3 的 K_q 等於 golden T04 的 kq_per_fs（σ_v = 100 fs）",
+          "handcalcs.test.tsx › Ch04 手算題：(a) 預設值 = 模型函式、文中 worked example、golden T04: HC-04.5（反面測試：忘了映射）：線性化 53.13 fs；ξ = −0.6023 時 h ≈ 0、w = 63.23 fs = mean-field 固定點 63.2341 fs",
           "previews.test.ts › Dashboard 預覽數字（15 個問題） T04: P(q = +1) = Φ(0.01) = 0.503989、E[q] = erf(0.01/√2)",
           "thesisModel.test.ts › thesisModel：對 golden vectors T04: K_q = √(2/π)/σ_v（σ_v = 100 fs）",
           "refValues.test.ts › refValues × golden vectors（Python 獨立計算） T04: s = 1 fs、σ_v = 100 fs 的 P(q=+1)、E[q]、K_q",
@@ -590,11 +590,12 @@
         ]
       },
       "py": {
-        "passed": 4,
+        "passed": 5,
         "failed": 0,
         "names": [
           "golden/test_reference_values.py::test_T12_closed_form",
           "golden/test_reference_values.py::test_T12_least_squares_and_gmac_zero",
+          "golden/test_reference_values.py::test_T12_noise_free_sign_changes_sign_at_the_median",
           "golden/test_reference_values.py::test_T12_sign_lms_fixed_point_approaches_1p34",
           "golden/test_reference_values.py::test_T12_monte_carlo_block_sign_lms"
         ]
@@ -606,8 +607,8 @@
         "passed": 81,
         "failed": 0,
         "names": [
-          "handcalcs.test.tsx › Ch04 手算題：(a) 預設值 = 模型函式、文中 worked example、golden T13: HC-04.3 的 K_q、g、p 與 sum 模式的 g、pole 等於 golden T13（σ_v = 100 fs、N = 4096、μ = 10 fs、C = 1）",
           "handcalcs.test.tsx › Ch05 帶入手算：預設值對上模型、文中表格與 golden vector T13: HC-05.8（σ_v = 100 fs、μ = 10 fs、N = 4096）的 pole 與 σ_w 等於 golden；與 Ch12 的 calLoop 一致",
+          "handcalcs.test.tsx › Ch04 手算題：(a) 預設值 = 模型函式、文中 worked example、golden T13: HC-04.3 的 K_q、g、p 與 sum 模式的 g、pole 等於 golden T13（σ_v = 100 fs、N = 4096、μ = 10 fs、C = 1）",
           "ch12.test.tsx › 第 12 章：資料與程式碼一致性 T13/T15: 每個 preset 以預設 seed 實際執行後，行為與它宣稱的 expected 一致（型態、交叉比對狀態、關鍵數值）",
           "diagrams.test.tsx › 第 12 章方塊圖：真的畫一次（mermaid.render） T13/T14/T15: 圖上的範例數字就是模型算出來的數字（不是手打的）",
           "handcalcs.test.tsx › (a) 預設值 = 本章 worked example：與模型函式、golden 向量、內文數字一致 T13: HC-12.1 的 p = 0.92021（golden）；三步遞迴 = dwStep = 章首「先算一次」表格的前三列",
@@ -743,7 +744,7 @@
         ]
       },
       "py": {
-        "passed": 7,
+        "passed": 8,
         "failed": 0,
         "names": [
           "golden/test_reference_values.py::test_T14_update_rate",
@@ -752,6 +753,7 @@
           "golden/test_reference_values.py::test_T14_bw_definition_one_minus_p_does_not_match_spec",
           "golden/test_reference_values.py::test_T14_bw_definition_enbw_does_not_match_spec",
           "golden/test_reference_values.py::test_T14_psd_total_power_parseval",
+          "golden/test_reference_values.py::test_T14_psd_density_is_per_cycle_not_per_rad",
           "golden/test_reference_values.py::test_T14_monte_carlo_lag1_autocorrelation"
         ]
       }

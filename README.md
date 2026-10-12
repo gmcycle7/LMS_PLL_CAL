@@ -69,15 +69,16 @@ npm run lint
 - **學習模式**：Beginner／Engineer／Research 共用同一計算核心，只改變呈現深度。
 - **可追溯性**：383 條公式有 ID 並彙整在 Formula 頁；218 個 preset 可由 Gallery 載入；每個實驗可下載 JSON／CSV／HTML 報告（含 seed、版本、假設）。
 
-## 驗證狀態（2026-10-11）
+## 驗證狀態（2026-10-12）
 
 | 項目 | 結果 |
 |---|---|
-| TypeScript 測試（Vitest） | 217 個檔案、5,254 項，全部通過（2026-10-12 架構約定改版後重跑） |
-| Python golden（pytest） | `golden/` 147 項 + `analysis/sspll/golden/` 64 項，全部通過 |
+| TypeScript 測試（Vitest） | 223 個檔案、5,553 項，全部通過（2026-10-12 外部技術審查修正後重跑） |
+| Python golden（pytest） | `golden/` 149 項 + `analysis/sspll/golden/` 64 項，全部通過 |
 | T01–T18（TS 與 Python 兩邊都要過才算 verified） | 18／18 pass |
 | 規格書驗算 | 237 項聲明重算，確認 49 項勘誤（[docs/validation.md](docs/validation.md)），網站一律採用修正版本 |
 | typecheck／lint／build | 通過 |
+| 外部技術審查（Codex，25 點） | 逐項重現、修正並驗收，紀錄在 [docs/reviews/2026-10-12-codex-review-results.md](docs/reviews/2026-10-12-codex-review-results.md) |
 
 ## 專案結構
 
