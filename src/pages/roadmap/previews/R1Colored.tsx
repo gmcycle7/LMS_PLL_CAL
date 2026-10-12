@@ -192,7 +192,7 @@ function R1Experiment() {
         </>
       }
       assumptions={[
-        String.raw`線性化 GMAC：$G\approx-K\,\delta w+\eta$（$|\delta w|\,C\ll\sigma_v$），$\delta w=w-w^*$（勘誤 E33）`,
+        String.raw`線性化 GMAC：$G\approx-K\,\delta w+\eta$（F-12.1；小訊號是指 comparator 前的確定性殘差遠小於 $\sigma_v$，$\pm1$ code、無記憶 path $u=Cx$ 時就是 $|C\,\delta w|\ll\sigma_v$），$\delta w=w-w^*$（勘誤 E33）`,
         String.raw`無更新延遲（$d=0$）；average-mode GMAC；$\sigma_\eta^2=1/N$`,
         String.raw`$\eta$ 為零均值、平穩 AR(1)：$R_\eta[\ell]=\sigma_\eta^2\rho^{|\ell|}$（真實的 $S_\eta$ 需量測，屬 R1 待辦）`,
         String.raw`PSD 為單邊 per-Hz，取樣率 $f_u=f_s/N$（勘誤 E28）`,

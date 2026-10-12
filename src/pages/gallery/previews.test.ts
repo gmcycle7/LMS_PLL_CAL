@@ -556,6 +556,244 @@ describe('推導步驟：顯示的公式就是算出那個數字的公式', () =
     expect(verdictText(one)).toMatch(/^ok:.*GMAC 歸零 ≠ DTC 誤差歸零/)
   })
 
+  it('技術審查 R05：無雜訊 Sign-LMS 的固定點是 E[G] 由正變負的位置（跳過 0），不是 E[G] = 0 的根；dead zone 與有雜訊的情形維持原樣', () => {
+    // 反例：五值 code、c₃ = 0.1、σ_v = 0 ⇒ E[G] 只取 +1.2、+0.4、−1.2，在 w* = 1.4 由 +0.4 跳到 −1.2
+    const one = run(real('bias-inl-cubic-noisefree'))
+    const s1 = stepsText(one)
+    expect(s1).toContain('由正變負')
+    expect(s1).toContain('|x|\\operatorname{sign}(t(x)-w)')
+    expect(s1).not.toContain('\\big]=0\\Rightarrow w^*=1.4')
+    expect(s1).toContain('\\text{ 由正變負}\\Rightarrow w^*=1.4')
+    expect(s1).toContain('由 $0.4$ 直接跳到 $-1.2$')
+    expect(verdictText(one)).toMatch(/^ok:.*GMAC 歸零 ≠ DTC 誤差歸零/)
+    expect(verdictText(one)).toContain('由正變負')
+    expect(verdictText(one)).toContain('時間平均歸零')
+    expect(one.chart?.title).toContain('零交越就是固定點')
+    // 階梯函數在 w* 沒有切線斜率：顯示的 16.6667 是跨過跳變的割線斜率 (0.4 − (−1.2))/(2·0.02·(1 + 1.4))，要標出來
+    expect(val(one, 'slope')).toBeCloseTo(1.6 / (2 * 0.02 * 2.4), 9)
+    expect(one.metrics.find((m) => m.key === 'slope')?.note).toContain('跨過跳變的割線斜率')
+    // 用整數算一次（全部乘 10）：w = 1.4 時 10·e = (0, 3, 0, −3, 0)，三種 tie 慣例的 Σx·sign(e) 都是 −2（E[G] = −2/5，不是 0）
+    const xs = [-2, -1, 0, 1, 2]
+    for (const tie of [0, 1, -1]) expect(xs.reduce((acc, x) => acc + x * (((10 - 14) * x + x ** 3 > 0 ? 1 : (10 - 14) * x + x ** 3 < 0 ? -1 : tie) as number), 0)).toBe(-2)
+    // 有雜訊的 preset（#7，σ_v = 1）：主步驟仍是真正的根（= 0），只有「無雜訊對照」那一步改成變號
+    const noisy = run(slot(7))
+    const s7 = stepsText(noisy)
+    expect(s7).toContain('\\text{ 由正變負}\\Rightarrow w^*=1.4')
+    expect(s7).not.toContain('\\big]=0\\Rightarrow w^*=1.4')
+    expect(s7).toMatch(/\\right\)\\right\]=0\\Rightarrow w\^\*=1\.34035/) // erf 平均的根
+    expect(verdictText(noisy)).toContain('GMAC 在 $w^*=1.34035$ 歸零')
+    expect(verdictText(noisy)).not.toContain('由正變負')
+    expect(noisy.metrics.find((m) => m.key === 'slope')?.note ?? '').not.toContain('割線') // 有雜訊：E[G] 平滑，是真正的切線斜率
+    // dead zone：整段區間真的滿足 E[G] = 0，維持「= 0 ⇒ w* ∈ […]」
+    const dz = run(real('bias-deadzone-noisefree'))
+    expect(stepsText(dz)).toContain('\\big]=0\\Rightarrow w^*\\in')
+    expect(stepsText(dz)).not.toContain('由正變負')
+    // 文字不可寫成「E[G](w*) 一定不是 0」：c₃ = 0、b = 0 時階梯由 +1.2 跳到 −1.2，剛好站在 w* = a 上時每個 code 的 e 都是 0
+    const flat = run(mk('bias-inl-lab', { ...real('bias-inl-cubic-noisefree').params, c3: 0 }))
+    expect(val(flat, 'wStar')).toBeCloseTo(1, 12)
+    expect(stepsText(flat)).toContain('由 $1.2$ 直接跳到 $-1.2$')
+    expect(stepsText(flat)).not.toMatch(/不是等於 0|不等於 0/)
+    expect(verdictText(flat)).toContain('沒有 gain bias')
+    // 連續 code（Gaussian）的無雜訊固定點是真正的根：維持「= 0」
+    const gauss = run(mk('bias-inl-lab', { ...real('bias-inl-cubic-noisefree').params, codeKind: 'gaussian' }))
+    expect(stepsText(gauss)).toContain('\\big]=0\\Rightarrow w^*=')
+    expect(stepsText(gauss)).not.toContain('由正變負')
+  })
+
+  it('技術審查 C04：固定點處每個 code 的殘差都是 0 時（只有 κx、或 ±1 code 的三次 INL），不可寫「殘差 ≠ 0」；殘差表不顯示浮點殘渣', () => {
+    const tableRows = (r: PreviewResult) => (r.table?.rows ?? []).map((row) => [row[0], row[2], row[3]])
+    // 反例：preset bias-kappa-identifiability（κ = 0.1、c₃ = 0）⇒ e(x;w) = (a + κ − w)x，在 w* = 1.1 對每個 code 恰為 0
+    const k = run(real('bias-kappa-identifiability'))
+    expect(val(k, 'wStar')).toBeCloseTo(1.1, 9)
+    for (const x of [-2, -1, 0, 1, 2]) expect(Math.abs((10 + 1 - 11) * x)).toBe(0) // 全部乘 10 的整數算術：(a + κ − w*)·x = 0
+    const vk = verdictText(k)
+    expect(vk).toMatch(/^ok:GMAC 在 \$w\^\*=1\.1\$ 歸零/)
+    expect(vk).toContain('每個 code 的殘差 $e(x;w^*)$ 都是 0')
+    expect(vk).toContain('不可辨識')
+    expect(vk).not.toContain('殘差 $e(x;w^*)\\ne0$')
+    expect(vk).not.toContain('不全為 0')
+    expect(tableRows(k)).toEqual([-2, -1, 0, 1, 2].map((x) => [x, 0, 0]))
+    expect(val(k, 'validity')).toBe(0) // max|e_det|/σ_v 也不顯示 1.7e-16 的殘渣
+    expect(val(run(real('bias-inl-gallery7')), 'validity')).toBeCloseTo(0.2403458, 6) // 殘差不為 0 的 preset 不受影響
+    expect(k.table?.caption).toContain('顯示成 0')
+    // 同一組參數換成無雜訊（階梯）、MSE、連續的 Gaussian code：殘差同樣恆為 0
+    for (const over of [{ sigmaV: 0 }, { algorithm: 'mse' }, { codeKind: 'gaussian' }]) {
+      const r = run(mk('bias-inl-lab', { ...real('bias-kappa-identifiability').params, ...over }))
+      expect(verdictText(r), JSON.stringify(over)).toContain('都是 0')
+      expect(verdictText(r), JSON.stringify(over)).not.toContain('不全為 0')
+      for (const row of tableRows(r)) expect(row.slice(1), JSON.stringify(over)).toEqual([0, 0])
+    }
+    // ±1 code 的三次 INL：x³ = x，e = (a + c₃ − w)x，在 w* = 1.1 兩個 code 都是 0（不是 κ：說明換成「等效 gain」）
+    const pm = run(mk('bias-inl-lab', { ...slot(7).params, codeKind: 'pm_one' }))
+    expect(val(pm, 'wStar')).toBeCloseTo(1.1, 6)
+    expect(verdictText(pm)).toContain('都是 0')
+    expect(verdictText(pm)).toContain('等效 gain')
+    expect(verdictText(pm)).not.toContain('\\kappa x')
+    // 殘差真的不為 0 的 preset：說法改成「不全為 0」（x = 0 那一列本來就是 0），表中其餘的數字照 analyzeBias 的值顯示
+    for (const id of ['bias-inl-gallery7', 'bias-inl-cubic-mse', 'bias-inl-cubic-sigma01', 'bias-inl-cubic-noisefree', 'bias-offset-static']) {
+      const r = run(real(id))
+      expect(verdictText(r), id).toMatch(/殘差 \$e\(x;w\^\*\)\$ 不全為 0：GMAC 歸零 ≠ DTC 誤差歸零/)
+      expect(verdictText(r), id).not.toContain('殘差 $e(x;w^*)\\ne0$')
+      expect(tableRows(r).some((row) => row[1] !== 0), id).toBe(true)
+    }
+    const mse = tableRows(run(real('bias-inl-cubic-mse')))
+    expect(mse[0][1] as number).toBeCloseTo(-0.12, 12) // x = −2：(1 − 1.34)(−2) + 0.1·(−8)
+    expect(mse[1][1] as number).toBeCloseTo(0.24, 12)
+    expect(mse[2].slice(1)).toEqual([0, 0])
+    // 共用 BBPD 的 preset：x = 0 那一列的 −5.6e-17 是 b + φ* 的浮點殘渣，顯示成 0
+    const servo = tableRows(run(real('bias-servo-dither')))
+    expect(servo.find((row) => row[0] === 0)?.slice(1)).toEqual([0, 0])
+  })
+
+  it('技術審查 R06a：PE / Eigen 預覽——1-bit detector 的 g、pole、k₉₅ 只是小訊號線性化（標近似、步驟用 ≈、寫出前提）；linear detector 維持精確', () => {
+    const claimOf = (r: PreviewResult, key: string) => r.metrics.find((m) => m.key === key)?.claim
+    const noteOf = (r: PreviewResult, key: string) => r.metrics.find((m) => m.key === key)?.note ?? ''
+    const phys = run(real('pe-physical-kq'))
+    expect(phys.claim).toBe('approx')
+    for (const key of ['g', 'pFast', 'pSlow', 'k95Slow', 'k95SlowReal', 'Kq', 'msRadius']) expect(claimOf(phys, key), key).toBe('approx')
+    for (const key of ['lamMax', 'lamMin', 'kappa', 'gOpt']) expect(claimOf(phys, key), key).toBe('exact') // R 的 eigenvalue 與 g* 只是代數
+    expect(val(phys, 'k95Slow')).toBe(75091)
+    expect(val(phys, 'pSlow')).toBeCloseTo(0.99996011, 8)
+    expect(noteOf(phys, 'pSlow')).toContain('小訊號')
+    expect(noteOf(phys, 'k95Slow')).toContain('\\ll\\sigma_v')
+    const sp = stepsText(phys)
+    expect(sp).toContain('E[\\delta_{k+1}]\\approx(I-gR)\\,E[\\delta_k]')
+    expect(sp).not.toContain('E[\\delta_{k+1}]=(I-gR)')
+    expect(sp).toContain('|\\mathbf u^T\\boldsymbol\\delta_k|\\ll\\sigma_v')
+    expect(verdictText(phys)).toMatch(/^ok:小訊號的平均遞迴穩定/)
+    expect(phys.notes.join(' ')).toContain('小訊號線性化')
+    expect(phys.summary).toContain('小訊號')
+    // 反例的大小（審查者的例子）：Gaussian regressor 的精確條件平均是 K_q·Rδ/√(1 + s²)，s = 1 時只有線性化值的 1/√2
+    expect(1 / Math.sqrt(1 + 1)).toBeCloseTo(0.7071, 4)
+    // linear detector（#6 的 preset）：等號、精確、沒有小訊號的字樣
+    const lin = run(slot(6))
+    expect(lin.claim).toBe('exact')
+    for (const key of ['g', 'pFast', 'pSlow', 'k95Slow', 'k95SlowReal', 'msRadius']) expect(claimOf(lin, key), key).toBe('exact')
+    expect(stepsText(lin)).toContain('E[\\delta_{k+1}]=(I-gR)\\,E[\\delta_k]')
+    expect(stepsText(lin)).not.toContain('小訊號')
+    expect(verdictText(lin)).toMatch(/^ok:平均遞迴穩定/)
+    expect(lin.notes.join(' ')).not.toContain('小訊號')
+    // sign + 正規化輸入：同樣是近似
+    const norm = run(mk('pe-eigen-lab', { ...slot(6).params, detector: 'sign', sigmaV: 100, kqMode: 'normalized', muInput: 0.5 }))
+    expect(norm.claim).toBe('approx')
+    expect(val(norm, 'k95Slow')).toBe(598)
+    expect(claimOf(norm, 'k95Slow')).toBe('approx')
+  })
+
+  it('技術審查 R02：MIMO 的 k95 是最壞初始方向的誤差長度；A 非正規時 ⌈ln 0.05/ln ρ⌉ 只是下界，要標出來', () => {
+    const noteOf = (r: PreviewResult, key: string) => r.metrics.find((m) => m.key === key)?.note ?? ''
+    const claimOf = (r: PreviewResult, key: string) => r.metrics.find((m) => m.key === key)?.claim
+    // 反例：J_n = [[−1, 2], [0, −1]]、μK_q = 0.5 ⇒ A = [[0.5, 1], [0, 0.5]]，ρ = 0.5（公式 5），但 ‖A^k‖₂ 要到 k = 9 才低於 5%
+    const nn = run(mk('mimo-lms', { P: 2, mode: 'J', Jn: [[-1, 2], [0, -1]], sigmaV: 100, N: 4096, delta0: [0, 1], cases: [{ rule: 'scalar', muKq: 0.5 }] }))
+    expect(val(nn, 'rho:A')).toBeCloseTo(0.5, 12)
+    expect(val(nn, 'k95:A')).toBe(9)
+    expect(claimOf(nn, 'k95:A')).toBe('exact')
+    expect(noteOf(nn, 'k95:A')).toContain('只是下界')
+    expect(noteOf(nn, 'k95:A')).toContain('=5$')
+    expect(verdictText(nn)).toContain('$k_{95}=9$')
+    // 預覽圖畫的就是 ‖A^kδ₀‖（δ₀ = (0, 1)）：k = 5 還有 31%，k = 8 是 6.3%，k = 9 才是 3.5%
+    const y = nn.chart!.series[0].y
+    expect(y[5] / y[0]).toBeCloseTo(0.3140586, 6)
+    expect(y[8] / y[0]).toBeCloseTo(0.062622, 6)
+    expect(y[9] / y[0]).toBeCloseTo(0.0352105, 6)
+    // 正常對照：對稱（正規）的 A——k95 就是 ⌈ln 0.05/ln ρ⌉，不加註
+    const sym = run(mk('mimo-lms', { P: 2, mode: 'R', R: [[1, 0.99], [0.99, 1]], sigmaV: 100, N: 4096, cases: [{ rule: 'scalar', muKq: 0.5 }, { rule: 'full', gamma: 0.5 }] }))
+    expect(val(sym, 'k95:A')).toBe(598)
+    expect(val(sym, 'k95:B')).toBe(5)
+    expect(noteOf(sym, 'k95:A')).toBe('')
+    expect(claimOf(sym, 'k95:A')).toBe('exact')
+    // 同一個非正規 plant 用完整反矩陣：A = 0.5·I（正規）⇒ 5，不加註
+    const full = run(mk('mimo-lms', { P: 2, mode: 'J', Jn: [[-1, 2], [0, -1]], sigmaV: 100, N: 4096, cases: [{ rule: 'full', gamma: 0.5 }] }))
+    expect(val(full, 'k95:A')).toBe(5)
+    expect(noteOf(full, 'k95:A')).toBe('')
+  })
+
+  it('技術審查 R03：Filtered-x 的步驟——Ĥ = H 只抵銷模型的相位，剩下 θ = ΩD；D ≠ 0 時 C 不再是 E[u²]，可以是負的', () => {
+    const base = real('filtered-x-latency-mismatch').params as Record<string, unknown>
+    // 反例：T07 的單頻場景（Ω = 30°、|H| = 1、單位功率 code），兩個 Case 都是 Ĥ = H，只差 regressor 的額外延遲 D = 0 與 D = 4
+    const r = run(mk('delay-fx-lab', { ...base, cases: [{ mode: 'filtered', D: 0, mu: 10 }, { mode: 'filtered', D: 4, mu: 10 }] }))
+    const st = r.steps.filter((x) => x.tex.includes('\\hat H=H\\Rightarrow\\theta=\\Omega D'))
+    expect(st).toHaveLength(2)
+    expect(st[0].why).toContain('只剩 $\\theta=\\Omega D$')
+    expect(st[0].why).toContain('$D=0$ 時 $C=E[u^2]\\ge0$')
+    expect(st[1].why).toContain('$D=4\\ne0$')
+    expect(st[1].why).toContain('$C=E[u[n]\\,u_f[n-D]]=|H|^2\\cos(\\Omega D)=E[u^2]\\cos(\\Omega D)$')
+    expect(st[1].why).toContain('$\\cos(\\Omega D)<0$ 時是負的（F-07.12）')
+    expect(val(r, 'C:A')).toBeCloseTo(1, 12) // D = 0：C = E[u²] = 1
+    expect(val(r, 'C:B')).toBeCloseTo(Math.cos((4 * 30 * Math.PI) / 180), 9) // D = 4：cos 120° = −0.5（沒有 D 的式子會給 +1）
+    expect(val(r, 'pole:A')).toBeCloseTo(1 - 10 * (Math.sqrt(2 / Math.PI) / 100), 9) // 0.92021
+    expect(val(r, 'pole:B')).toBeCloseTo(1 + 5 * (Math.sqrt(2 / Math.PI) / 100), 9) // 1.03989：模型完美，regressor 多延遲一樣會反向更新
+    expect(st[1].tex).toContain('\\cos({120}^\\circ)=-0.5')
+    expect(stepsText(r)).not.toContain('相位完全抵銷，$C=E[u^2]')
+    // 文字不可寫成「D ≠ 0 時 C 一定不是 E[u²]」：ΩD 剛好一整圈（Ω = 30°、D = 12）時 cos(ΩD) = 1，C 又回到 E[u²]；半圈（D = 6）是 −E[u²]
+    const turn = run(mk('delay-fx-lab', { ...base, cases: [{ mode: 'filtered', D: 12, mu: 10 }, { mode: 'filtered', D: 6, mu: 10 }] }))
+    expect(val(turn, 'C:A')).toBeCloseTo(1, 9)
+    expect(val(turn, 'C:B')).toBeCloseTo(-1, 9)
+    expect(stepsText(turn)).not.toMatch(/不再是 \$E\[u\^2\]\$/)
+    // Ĥ ≠ H 再加上 D ≠ 0：有效相關寫成 E[u[n]·u_f[n−D]]，殘餘相位是模型相位差加 ΩD（Ĥ 多算 2 拍：∠H − ∠Ĥ = 2Ω = 60°；D = 2 再加 ΩD = 60°）
+    const both = run(mk('delay-fx-lab', { ...base, cases: [{ mode: 'filtered', D: 2, mu: 10, extraDelay: 2 }, { mode: 'filtered', D: 0, mu: 10, extraDelay: 2 }] }))
+    const mis = both.steps.filter((x) => x.tex.includes('\\theta=\\angle H-\\angle\\hat H+\\Omega D'))
+    expect(mis).toHaveLength(2)
+    expect(mis[0].why).toContain('$\\hat H\\ne H$、$D=2\\ne0$：有效相關是 $E[u[n]\\,u_f[n-D]]$')
+    expect(mis[1].why).toContain('$\\hat H\\ne H$：有效相關是 $E[u\\,u_f]$，不是 $E[u^2]$')
+    expect(val(both, 'C:A')).toBeCloseTo(Math.cos((120 * Math.PI) / 180), 9) // θ = ∠H − ∠Ĥ + ΩD = 60° + 60° = 120°：−0.5
+    expect(val(both, 'C:B')).toBeCloseTo(Math.cos((60 * Math.PI) / 180), 9) // D = 0：只有模型多算的 2 拍，θ = 60°：+0.5
+    // 模型（analyzeFxLab）的警告是 Unicode 拼的純文字；Gallery 顯示前改成 `$…$`（含 D ≠ 0 的新訊息），不留 Unicode 數學
+    const UNI = /[ΩĤ≠≤≥·²−°μ]|E\[u/
+    for (const cases of [[{ mode: 'filtered', D: 2, mu: 10 }], [{ mode: 'filtered', D: 6, mu: 10 }], [{ mode: 'filtered', D: 2, mu: 10, extraDelay: 2 }], [{ mode: 'raw', D: 0, mu: 10 }]]) {
+      const r = run(mk('delay-fx-lab', { ...base, cases }))
+      const info = r.verdicts.filter((v) => v.kind === 'info')
+      expect(info.length, JSON.stringify(cases)).toBeGreaterThan(0)
+      for (const v of info) {
+        const outside = v.text.replace(/\$[^$]*\$/g, '').replace(/^C (?:≤|≈) 0/, '') // 「C ≤ 0」是全站警告的固定標籤
+        expect(UNI.test(outside), v.text).toBe(false)
+        expect((v.text.match(/\$/g) ?? []).length % 2, v.text).toBe(0)
+      }
+    }
+    const d6 = verdictText(run(mk('delay-fx-lab', { ...base, cases: [{ mode: 'filtered', D: 6, mu: 10 }] })))
+    expect(d6).toContain('info:C ≤ 0：$E[u[n]\\,u_f[n-D]]=-1.000<0$（$D=6$）')
+    expect(d6).toContain('info:$D=6\\ne0$：有效相關是 $E[u[n]\\,u_f[n-D]]=-1.000$，不是 $E[u^2]=1.000$（F-07.12）')
+  })
+
+  it('技術審查 C01：PE / eigen 預覽——g 超過 2/(λ_max+λ_min) 時最慢的是 λ_max 的模式，判定要說出來（不能只報慢模式的 k95）', () => {
+    // 直接迭代 δ ← (I − gR)δ：1 + 最後一次 ‖δ_k‖ > 5%·‖δ_0‖ 的 k
+    const settle = (rho: number, g: number, d0: [number, number]) => {
+      let [a, b] = d0
+      const n0 = Math.hypot(a, b)
+      let last = 0
+      for (let k = 1; k <= 5000; k++) {
+        ;[a, b] = [a - g * (a + rho * b), b - g * (rho * a + b)]
+        if (Math.hypot(a, b) > 0.05 * n0) last = k
+      }
+      return last + 1
+    }
+    // 反例：ρ = 0.5（λ = 1.5、0.5）、g = 1.2 ⇒ p = −0.8、0.4：慢模式 4 個 block，但沿 λ_max 方向要 14 個
+    const over = run(mk('pe-eigen-lab', { rho: 0.5, detector: 'linear', muInput: 1.2 }))
+    expect(val(over, 'pFast')).toBeCloseTo(-0.8, 12)
+    expect(val(over, 'pSlow')).toBeCloseTo(0.4, 12)
+    expect(val(over, 'k95Slow')).toBe(4)
+    expect(val(over, 'gOpt')).toBeCloseTo(1, 12)
+    expect(settle(0.5, 1.2, [1, -1])).toBe(4)
+    expect(settle(0.5, 1.2, [1, 1])).toBe(14)
+    const vo = verdictText(over)
+    expect(vo).toMatch(/^ok:平均遞迴穩定；慢模式要 \$4\$ 個 block/)
+    expect(vo).toContain('warn:$g=1.2>g^*=2/(\\lambda_{\\max}+\\lambda_{\\min})=1$')
+    expect(vo).toContain('$|p_{\\text{fast}}|=0.8>|p_{\\text{slow}}|=0.4$')
+    expect(vo).toContain('=14$ 個 block（不是慢模式的 $4$）')
+    // 正常對照：g ≤ g* 時最慢的就是 λ_min 的模式，不加註（分界 g = g* 兩個 |p| 相等，也不加）
+    for (const [rho, g, k] of [[0.5, 0.5, 11], [0.99, 0.5, 598], [0.5, 1, 5]] as const) {
+      const r = run(mk('pe-eigen-lab', { rho, detector: 'linear', muInput: g }))
+      expect(val(r, 'k95Slow'), `rho=${rho}, g=${g}`).toBe(k)
+      expect(verdictText(r), `rho=${rho}, g=${g}`).not.toContain('過衝')
+      expect(Math.max(settle(rho, g, [1, -1]), settle(rho, g, [1, 1])), `rho=${rho}, g=${g}`).toBe(k)
+    }
+    // 真實 preset 都在 g ≤ g* 的範圍：判定不變
+    for (const p of ALL_PRESETS.filter((x) => x.experiment === 'pe-eigen-lab')) {
+      const o = previewPreset(p)
+      if (o.status === 'ok') expect(o.result.verdicts.map((v) => v.text).join(' '), p.id).not.toContain('過衝')
+    }
+  })
+
   it('LMS Noise Lab、colored η：σ_w² = μ²σ_η²/(1−p²)·(1+pr)/(1−pr)，步驟上的乘法等於顯示的結果', () => {
     const r = run(real('noise-colored-eta'))
     const p = val(r, 'p')

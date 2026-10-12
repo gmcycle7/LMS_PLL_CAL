@@ -293,6 +293,34 @@ describe('Ch05 帶入手算：題目結構', () => {
     expect(defaultValues(byId('HC-05.6')).P).toBe(0.95)
     expect(defaultValues(byId('HC-05.8'))).toEqual({ sigma: 100, mu: 10, N: 4096, fs: 4 })
   })
+
+  it('HC-05.3 / .4 / .8 的通式在桌機寬度（878 px 欄）放不下一行：拆成兩行對齊（aligned），原本的每一項都還在', () => {
+    // 內容和拆行前完全相同；只在最上層的逗號／關係式之間換行，所以只確認各段 TeX 都還在、換行恰好一次
+    const parts: Record<string, string[][]> = {
+      'HC-05.3': [
+        [String.raw`P(K=k)=\binom Nk p^k(1-p)^{N-k}`, String.raw`S_N=2K-N`],
+        [String.raw`P(S_2>0)=p^2`, String.raw`P(S_2=0)=2p(1-p)`, String.raw`P(S_3>0)=p^3+3p^2(1-p)`],
+      ],
+      'HC-05.4': [
+        [String.raw`z=\frac{Nm}{\sigma_S}`, String.raw`\sigma_S=\sqrt{N(1-m^2)}`, String.raw`\Phi(z)\approx\begin{cases}P(S_N>0) & N\text{ 奇數}\\ P(S_N>0)+\tfrac12P(S_N=0) & N\text{ 偶數}\end{cases}`],
+        [String.raw`P(S_N>0)\approx\Phi\!\Big(\frac{Nm-1}{\sigma_S}\Big)\ (N\text{ 偶數})`],
+      ],
+      'HC-05.8': [
+        [String.raw`K_q=\sqrt{\tfrac2\pi}\,\frac1{\sigma_v}`, String.raw`0<\mu<\mu_{\max}=\frac{2}{K_q}`, String.raw`g=\mu K_q`, String.raw`p_{\mathrm{cal}}=1-g`],
+        [String.raw`\tau=\frac{-1}{\ln|p_{\mathrm{cal}}|}`, String.raw`\sigma_w=\frac{\mu}{\sqrt{N\,(1-p_{\mathrm{cal}}^2)}}`],
+      ],
+    }
+    for (const [id, lines] of Object.entries(parts)) {
+      const tex = byId(id).formulaTex
+      expect(tex.startsWith(String.raw`\begin{aligned}`) && tex.endsWith(String.raw`\end{aligned}`), id).toBe(true)
+      expect(tex.split(String.raw`\\[1ex]`).length, `${id} 恰好兩行`).toBe(2)
+      lines.forEach((segs, li) => {
+        const line = tex.split(String.raw`\\[1ex]`)[li]
+        for (const seg of segs) expect(line, `${id} 第 ${li + 1} 行`).toContain(seg)
+      })
+      expect(renderTex(tex, true), id).not.toContain('katex-error')
+    }
+  })
 })
 
 /* ───────────── (a) 預設值 = 模型函式／文中數字／golden vector ───────────── */

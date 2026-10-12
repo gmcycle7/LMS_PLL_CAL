@@ -191,6 +191,12 @@ function ErratumCard({ e, target, evidence, checks }: { e: Erratum; target: bool
           <dt>修正</dt>
           <dd>{M(e.correction)}</dd>
         </dl>
+        {math?.addendum && (
+          <p className="small" data-testid="erratum-addendum">
+            <strong>補充（原文是當時的紀錄，不改寫）：</strong>
+            {M(math.addendum)}
+          </p>
+        )}
       </details>
       <details open={target || atLeast('research')} key={`e-${target}-${atLeast('research')}`}>
         <summary>數值證據（原文）</summary>

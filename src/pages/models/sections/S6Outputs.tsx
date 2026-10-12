@@ -168,7 +168,7 @@ export function S6Outputs() {
               why: '和獨立樣本的 $\\sigma^2/n$ 對照，定義「有效樣本數」$N_\\mathrm{eff}$：相關越強，$N_\\mathrm{eff}$ 越小。',
             },
             {
-              tex: String.raw`\rho_1=p=${texNum(n.p, 5)},\;N_\mathrm{blk}=${TAIL_BLOCKS}:\quad N_\mathrm{eff}=${TAIL_BLOCKS}\times\frac{${texNum(1 - n.p, 5)}}{${texNum(1 + n.p, 5)}}=${texNum(nEff, 4)},\qquad \mathrm{SE}(\bar w)=\frac{\sigma_w}{\sqrt{N_\mathrm{eff}}}=\frac{${texNum(n.sigmaW, 5)}}{\sqrt{${texNum(nEff, 4)}}}=${texNum(se, 3)}\,\mathrm{fs}`,
+              tex: String.raw`\begin{aligned}&\rho_1=p=${texNum(n.p, 5)},\;N_\mathrm{blk}=${TAIL_BLOCKS}:\quad N_\mathrm{eff}=${TAIL_BLOCKS}\times\frac{${texNum(1 - n.p, 5)}}{${texNum(1 + n.p, 5)}}=${texNum(nEff, 4)}\\&\mathrm{SE}(\bar w)=\frac{\sigma_w}{\sqrt{N_\mathrm{eff}}}=\frac{${texNum(n.sigmaW, 5)}}{\sqrt{${texNum(nEff, 4)}}}=${texNum(se, 3)}\,\mathrm{fs}\end{aligned}`,
               why: `代入 §15.3 範例：${TAIL_BLOCKS} 個 block 只相當於約 ${Math.round(nEff)} 個獨立樣本。JSON Lab 的容忍度取 $4\\,\\mathrm{SE}\\approx${texNum(4 * se, 3)}\\,\\mathrm{fs}$；如果誤當成獨立樣本，會以為 $\\mathrm{SE}=${texNum(n.sigmaW / Math.sqrt(TAIL_BLOCKS), 2)}\\,\\mathrm{fs}$，把正確的模擬判成「不一致」。`,
             },
           ]}

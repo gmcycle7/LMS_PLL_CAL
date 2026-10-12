@@ -3,7 +3,7 @@ import { ClaimTag, Tex, TexBlock } from '@/components'
 import { useSettings } from '@/app/settings'
 import { QUESTIONS } from '../data'
 import { computePreviews, type Previews } from '../previews'
-import { ConditionChip, ErratumLink, PageChip, Rich } from '../ui'
+import { ConditionChip, ErratumLink, Glue, PageChip, Rich } from '../ui'
 
 const f = (x: number, d = 6) => Number(x.toPrecision(d)).toString()
 
@@ -103,7 +103,10 @@ function answer(n: number, P: Previews): ReactNode {
         <>
           <p>
             Polarity margin <Tex>{'M_{\\mathrm{pol}}=\\arcsin(\\cos\\theta)'}</Tex> 只回答「平均更新方向對不對」（靜態、單頻）；真正的 calibration PM 來自{' '}
-            <Tex>{'L(z)=g\\,z^{-d}/(z-1)'}</Tex>：<Tex>{'\\mathrm{PM}=90^\\circ-(2d+1)\\arcsin(g/2)'}</Tex>，例如 <Tex>{`g=${P.pm.g}`}</Tex> 時{' '}
+            <Glue>
+              <Tex>{'L(z)=g\\,z^{-d}/(z-1)'}</Tex>：
+            </Glue>
+            <Tex>{'\\mathrm{PM}=90^\\circ-(2d+1)\\arcsin(g/2)'}</Tex>，例如 <Tex>{`g=${P.pm.g}`}</Tex> 時{' '}
             <Tex>{`\\mathrm{PM}=${f(P.pm.pmDeg, 4)}^\\circ`}</Tex>。<Tex>{'M_{\\mathrm{pol}}=90^\\circ'}</Tex> 而 PM 很小、或反過來，都可能發生 <ErratumLink eid="E20" />。
           </p>
           <ClaimTag kind="exact" />
@@ -114,11 +117,21 @@ function answer(n: number, P: Previews): ReactNode {
         <>
           <StepLine tex={String.raw`z^2-(1+r)z+r+\mu bc=0,\qquad r=${P.dual.r},\ b=${P.dual.b},\ c=${P.dual.c},\ \mu=${P.dual.mu}\ \Rightarrow\ |z|=${f(P.dual.absZ)}>1`} />
           <p>
-            時間尺度分離（quasi-static）給 <Tex>{`0<\\mu<2(1-r)/(bc)=${f(P.dual.muMaxSimplified)}`}</Tex>，完整雙迴路只有{' '}
-            <Tex>{`0<\\mu<(1-r)/(bc)=${f(P.dual.muMaxFull)}`}</Tex>：差的那一半來自 sample→observe 的一個 block latency。只有{' '}
-            <Tex>{'\\mu bc\\ll(1-r)^2/4'}</Tex> 時才能分開分析 <ErratumLink eid="E19" />。
+            這是 Ch08 §8.4 <strong>二狀態模型</strong>的特徵方程（主 PLL 的觀測是一階狀態，誤差晚一個 block 才被 GMAC 看到）。時間尺度分離（quasi-static）給{' '}
+            <Tex>{`0<\\mu<2(1-r)/(bc)=${f(P.dual.muMaxSimplified)}`}</Tex>，這個模型的完整界限只有 <Tex>{`0<\\mu<(1-r)/(bc)=${f(P.dual.muMaxFull)}`}</Tex>：差的那一半來自
+            sample→observe 的一個 block latency；觀測路徑不同的雙迴路，比例不一定是一半。只有 <Tex>{'\\mu bc\\ll(1-r)^2/4'}</Tex> 時才能分開分析{' '}
+            <ErratumLink eid="E19" />。
           </p>
-          <ClaimTag kind="exact" />
+          <ClaimTag kind="exact" />{' '}
+          <span className="small muted">
+            （Ch08 二狀態模型，
+            <Glue>
+              <Tex>{'|r|<1'}</Tex>、
+            </Glue>
+            <Glue>
+              <Tex>{'bc>0'}</Tex>）
+            </Glue>
+          </span>
         </>
       )
     case 11:
@@ -126,8 +139,9 @@ function answer(n: number, P: Previews): ReactNode {
         <>
           <p>
             GMAC 停在 <Tex>{'E[G]=0'}</Tex>，也就是 <Tex>{'w^*=a+B/C'}</Tex>，不是 <Tex>{'w=a'}</Tex>。三階 INL 例（
-            <Tex>{'x\\in\\{-2,\\dots,2\\},\\ a=1,\\ c_3=0.1'}</Tex>）：MSE-LMS 停在 <Tex>{`1+c_3E[x^4]/E[x^2]=${f(P.inl.wMse)}`}</Tex>，無雜訊 Sign-LMS 停在{' '}
-            <Tex>{'|x|'}</Tex> 加權中位數 <Tex>{`${f(P.inl.wSign0)}`}</Tex>——兩者都讓 GMAC 歸零，但殘差 <Tex>{'(a-w^*)x+c_3x^3'}</Tex> 仍在，仍會產生 spur{' '}
+            <Tex>{'x\\in\\{-2,\\dots,2\\},\\ a=1,\\ c_3=0.1'}</Tex>）：MSE-LMS 停在 <Tex>{`1+c_3E[x^4]/E[x^2]=${f(P.inl.wMse)}`}</Tex>，無雜訊 Sign-LMS 則在{' '}
+            <Tex>{'|x|'}</Tex> 加權中位數 <Tex>{`${f(P.inl.wSign0)}`}</Tex> 的兩側來回跳（<Tex>{'E[G]'}</Tex> 在那裡由正變負，不是等於 0）——兩者的 GMAC 時間平均都是 0，但殘差{' '}
+            <Tex>{'(a-w^*)x+c_3x^3'}</Tex> 仍在，仍會產生 spur{' '}
             <ErratumLink eid="E01" /> <ErratumLink eid="E03" />。
           </p>
           <ClaimTag kind="exact" />

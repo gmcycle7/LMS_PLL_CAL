@@ -1,8 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import type { Data } from 'plotly.js-dist-min'
-import { Callout, ClaimTag, ParamControl, Plot, Section, StepDerivation, Tex, TexBlock, TestBadge, mathText, useThemeTokens } from '@/components'
+import { Callout, ClaimTag, ModeGate, ParamControl, Plot, Section, StepDerivation, Tex, TexBlock, TestBadge, mathText, useThemeTokens } from '@/components'
 import { DEFAULT_RULE, analyzeRule, buildPlant, corrMatrix, type RuleConfig } from '@/simulation/models/mimo'
-import { Deriv, Erratum, Fig, FigRef, Hand, TagRow, TryIt, n, nint, texMat, tn } from '../common'
+import { Deriv, Erratum, Fig, FigRef, Hand, TagRow, TryIt, chop, n, nint, texMat, tn } from '../common'
 import { NUM, SIGMA_KQ1 } from '../numbers'
 
 const rule = (r: Partial<RuleConfig>): RuleConfig => ({ ...DEFAULT_RULE, ...r })
@@ -14,6 +14,7 @@ function RhoWidget() {
   const [gamma, setGamma] = useState(0.5)
   const [lambdaReg, setLambdaReg] = useState(0.1)
   const tokens = useThemeTokens()
+  const fl = NUM.fastLed
 
   const rows = useMemo(() => {
     const plant = buildPlant({ mode: 'R', R: corrMatrix(2, rho), sigmaV: SIGMA_KQ1, N: 4096 })
@@ -169,9 +170,9 @@ function RhoWidget() {
             {rows.map(({ key, label, an }) => (
               <tr key={key}>
                 <td>{label}</td>
-                <td className="ch10-num">{an.ok && an.poles[0] ? n(an.poles[0].re, 6) : '—'}</td>
-                <td className="ch10-num">{an.ok ? an.blocks95 === null ? <span className="ch10-bad">不收斂</span> : nint(an.blocks95) : <span className="ch10-bad">{an.error}</span>}</td>
-                <td className="ch10-num">{an.ok ? n(an.spectralRadius, 6) : '—'}</td>
+                <td className="ch10-num">{an.ok && an.poles[0] ? n(chop(an.poles[0].re), 6) : '—'}</td>
+                <td className="ch10-num">{an.ok ? an.blocks95 === null ? <span className="ch10-bad">不收斂</span> : nint(an.blocks95) : <span className="ch10-bad">{mathText(an.error)}</span>}</td>
+                <td className="ch10-num">{an.ok ? n(chop(an.spectralRadius), 6) : '—'}</td>
               </tr>
             ))}
           </tbody>
@@ -188,8 +189,9 @@ function RhoWidget() {
         layout={layout}
         caption={
           <>
-            一般 LMS 的 <Tex>{String.raw`k_{95}\approx\ln0.05/\ln\big(1-\mu K_q(1-\rho)\big)\propto1/(1-\rho)`}</Tex>；完整反矩陣與 <Tex>{String.raw`\rho`}</Tex> 無關（只要{' '}
-            <Tex>{String.raw`\rho<1`}</Tex>）；regularized 在 <Tex>{String.raw`1-\rho\ll\lambda_{\mathrm{reg}}`}</Tex> 後才開始變慢。
+            <Tex>{String.raw`\mu K_q\le1`}</Tex> 時，一般 LMS 的 <Tex>{String.raw`k_{95}\approx\ln0.05/\ln\big(1-\mu K_q(1-\rho)\big)\propto1/(1-\rho)`}</Tex>（慢模式主導）；
+            <Tex>{String.raw`\mu K_q>1`}</Tex> 時改由快模式主導，式子裡的 pole 換成 <Tex>{String.raw`|1-\mu K_q(1+\rho)|`}</Tex>，<Tex>{String.raw`\rho\ge2/(\mu K_q)-1`}</Tex> 就不收斂（曲線在那裡中斷）。完整反矩陣與{' '}
+            <Tex>{String.raw`\rho`}</Tex> 無關（只要 <Tex>{String.raw`\rho<1`}</Tex>）；regularized 在 <Tex>{String.raw`1-\rho\ll\lambda_{\mathrm{reg}}`}</Tex> 後才開始變慢。
           </>
         }
       />
@@ -200,7 +202,9 @@ function RhoWidget() {
         </strong>
         。把 <Tex>{String.raw`\rho`}</Tex> 拉到 0.9999：一般 LMS 需要約 6 萬個 block；把 <Tex>{String.raw`\mu K_q`}</Tex> 拉到超過{' '}
         <Tex>{String.raw`2/\lambda_{\max}=2/(1+\rho)`}</Tex>（<Tex>{String.raw`\rho=0.99`}</Tex> 時約 1.005），一般 LMS 的快模式 pole 跑到 −1 以下而發散。再把{' '}
-        <Tex>{String.raw`\lambda_{\mathrm{reg}}`}</Tex> 調到 0，regularized 就變回完整反矩陣。
+        <Tex>{String.raw`\lambda_{\mathrm{reg}}`}</Tex> 調到 0，regularized 就變回完整反矩陣。再試一組：把 <Tex>{String.raw`\rho`}</Tex> 設成 {n(fl.rho)}、<Tex>{String.raw`\mu K_q`}</Tex> 拉到 {n(fl.muKq)}（還在穩定上限{' '}
+        <Tex>{String.raw`2/(1+\rho)\approx${tn(fl.muMax)}`}</Tex> 之內）——一般 LMS 那一列的主導 pole 變成 {n(fl.fast)}，是快模式，要 <strong>{nint(fl.blocks)}</strong> 個 block；慢模式自己的 pole 是 {n(fl.slow)}，只要{' '}
+        {nint(fl.blocksSlowAlone)} 個。<Tex>{String.raw`\mu K_q`}</Tex> 超過 1 之後，最慢的就不再是 <Tex>{String.raw`\lambda_{\min}`}</Tex> 那個模式。
       </TryIt>
     </div>
   )
@@ -209,6 +213,9 @@ function RhoWidget() {
 export function S2UpdateMatrix() {
   const r = NUM.rho099
   const ph = NUM.phys
+  const fl = NUM.fastLed
+  const nn = NUM.nonNormal
+  const sd = NUM.smallSignal
   return (
     <>
       <Section
@@ -328,6 +335,18 @@ export function S2UpdateMatrix() {
           取平均（<Tex>{String.raw`E[\boldsymbol\eta]=0`}</Tex>）得到 <Tex>{String.raw`E[\boldsymbol\delta_{k+1}]=\mathbf A_{\mathrm{cal}}E[\boldsymbol\delta_k]`}</Tex>：
           平均誤差收斂 ⇔ <Tex>{String.raw`\mathbf A_{\mathrm{cal}}`}</Tex> 的所有 eigenvalue 在單位圓內。這是<strong>平均收斂（mean convergence）</strong>，不是「每條軌跡一定收斂」。
         </p>
+        <p id="ch10-linear-model-note">
+          F-10.2 的等號，是把 F-10.1 的 <Tex>{String.raw`\approx`}</Tex> 當成等式（線性模型 <Tex>{String.raw`\mathbf G=K_q\mathbf R\boldsymbol\delta+\boldsymbol\eta`}</Tex>）之後才有的。真正的 1-bit comparator 只有在小訊號{' '}
+          <Tex>{String.raw`|\mathbf u^T\boldsymbol\delta_k|\ll\sigma_v`}</Tex> 時才接近這個模型，所以本章由 <Tex>{String.raw`\mathbf A_{\mathrm{cal}}`}</Tex> 算出來的 pole 與 <Tex>{'k_{95}'}</Tex>（F-10.3、F-10.4、F-10.5、F-10.8、F-10.10、F-10.12）用在 1-bit
+          迴路時，都只是小訊號區的局部結果。 <ClaimTag kind="approx" />
+        </p>
+        <ModeGate min="engineer">
+          <p className="small muted">
+            多小才算小：看 <Tex>{String.raw`s_\delta=\sqrt{\boldsymbol\delta^T\mathbf R\boldsymbol\delta}/\sigma_v`}</Tex>（第 9 章 F-09.3 的符號；它的平方平均就是 §10.9 的有效性指標）。Gaussian regressor 時 comparator 的平均增益是{' '}
+            <Tex>{String.raw`K_q/\sqrt{1+s_\delta^2}`}</Tex>（§10.2 的 F-10.13）：<Tex>{String.raw`s_\delta=${tn(sd.s[0])}`}</Tex> 時比 <Tex>{'K_q'}</Tex> 少 {n(100 * (1 - sd.gain[0]), 2)}%，<Tex>{String.raw`s_\delta=${tn(sd.s[1])}`}</Tex> 少{' '}
+            {n(100 * (1 - sd.gain[1]), 2)}%，<Tex>{String.raw`s_\delta=${tn(sd.s[2])}`}</Tex> 少 {n(100 * (1 - sd.gain[2]), 2)}%；每個模式的有效 loop gain 跟著變小。這個條件要對初始誤差成立，也要對迴路自己的穩態抖動成立。
+          </p>
+        </ModeGate>
         <p className="small muted">
           兩個名字：<Tex>{String.raw`\mathbf A_{\mathrm{cal}}`}</Tex> 叫<strong>校正迴路矩陣</strong>（誤差每個 block 被它乘一次）；<Tex>{String.raw`\mathbf J`}</Tex> 叫 <strong>Jacobian</strong>（斜率矩陣），第{' '}
           <Tex>{'(i,j)'}</Tex> 格是「<Tex>{'w_j'}</Tex> 增加 1 fs 時，GMAC<sub>i</sub> 的平均變化多少」，單位 <Tex>{String.raw`\mathrm{fs}^{-1}`}</Tex>。§10.5 會直接量它。
@@ -343,8 +362,9 @@ export function S2UpdateMatrix() {
         <Fig id="eigen-modes">
           先看左邊的「<Tex>{String.raw`\times\mathbf V^T`}</Tex>」：它把 <Tex>{String.raw`(\delta_1,\delta_2)`}</Tex> 換成模式座標 <Tex>{String.raw`\boldsymbol\xi=\mathbf V^T\boldsymbol\delta`}</Tex>，也就是共模{' '}
           <Tex>{String.raw`\xi_1=(\delta_1+\delta_2)/\sqrt2`}</Tex> 與差模 <Tex>{String.raw`\xi_2=(\delta_1-\delta_2)/\sqrt2`}</Tex>。再看中間：每個模式每個 block 只是乘上自己的 pole，兩條線不再交叉；最後「
-          <Tex>{String.raw`\times\mathbf V`}</Tex>」轉回原來的座標。圖上的「<Tex>{String.raw`\times p_i`}</Tex>」就是下面 F-10.3 的 <Tex>{String.raw`p_i=1-\mu K_q\lambda_i`}</Tex>：<Tex>{String.raw`\lambda_1=1+\rho`}</Tex> 大，共模很快消失；
-          <Tex>{String.raw`\lambda_2=1-\rho`}</Tex> 小，差模（紅色）拖很久。這張圖畫的是無雜訊的平均遞迴。
+          <Tex>{String.raw`\times\mathbf V`}</Tex>」轉回原來的座標。圖上的「<Tex>{String.raw`\times p_i`}</Tex>」就是下面 F-10.3 的 <Tex>{String.raw`p_i=1-\mu K_q\lambda_i`}</Tex>：圖畫的是 <Tex>{String.raw`\rho\ge0`}</Tex>（本章正文的例子都是），這時 <Tex>{String.raw`\lambda_1=1+\rho`}</Tex> 大，共模很快消失；
+          <Tex>{String.raw`\lambda_2=1-\rho`}</Tex> 小，差模（紅色）拖很久（這是步長不太大時的情形，條件寫在 F-10.3 下面）。<Tex>{String.raw`\rho<0`}</Tex> 時兩者對調：<Tex>{String.raw`\lambda_2=1-\rho`}</Tex> 較大，差模快、共模慢；合起來寫是{' '}
+          <Tex>{String.raw`\lambda_{\max,\min}=1\pm|\rho|`}</Tex>。這張圖畫的是無雜訊的平均遞迴。
         </Fig>
         <Deriv title="用 eigen 分解把耦合拆開">
           <StepDerivation
@@ -385,13 +405,30 @@ export function S2UpdateMatrix() {
             ]}
           />
         </Deriv>
-        <TexBlock id="F-10.3" label="Scalar LMS 的模式 pole 與穩定範圍（mean recursion）">
+        <TexBlock id="F-10.3" label="Scalar LMS 的模式 pole 與穩定範圍（線性模型的 mean recursion；1-bit 時是小訊號區的局部 pole）">
           {String.raw`\boxed{p_i=1-\mu K_q\lambda_i(\mathbf R)},\qquad 0<\mu K_q<\frac{2}{\lambda_{\max}}`}
         </TexBlock>
         <p>
-          穩定範圍由最大 eigenvalue 決定（快模式不能 overshoot 超過 −1），但收斂速度由最小 eigenvalue 決定（慢模式）。兩者的比值就是{' '}
-          <Tex>{String.raw`\kappa=\lambda_{\max}/\lambda_{\min}`}</Tex>：<strong>即使 <Tex>{String.raw`\mu`}</Tex> 選到最大合法值，慢模式 pole 也大於</strong>{' '}
-          <Tex>{String.raw`1-2/\kappa`}</Tex>（因為 <Tex>{String.raw`\mu K_q\lambda_{\min}<2\lambda_{\min}/\lambda_{\max}`}</Tex>）。
+          穩定範圍由最大 eigenvalue 決定（快模式不能 overshoot 超過 −1）。收斂速度則看<strong>絕對值最大</strong>的 pole：
+        </p>
+        <TexBlock>{String.raw`\max_i|p_i|=\max\big(|1-\mu K_q\lambda_{\min}|,\ |1-\mu K_q\lambda_{\max}|\big)`}</TexBlock>
+        <p>
+          （<Tex>{String.raw`|1-\mu K_q\lambda|`}</Tex> 對 <Tex>{String.raw`\lambda`}</Tex> 是 V 字形，最大值一定落在兩端的 eigenvalue，中間的不會更慢。）步長不太大時，也就是{' '}
+          <Tex>{String.raw`\mu K_q\le 2/(\lambda_{\max}+\lambda_{\min})`}</Tex>，最慢的是最小 eigenvalue 的慢模式，pole 是 <Tex>{String.raw`1-\mu K_q\lambda_{\min}`}</Tex>。本章 <Tex>{String.raw`2\times2`}</Tex> 例子的{' '}
+          <Tex>{String.raw`\mathbf R`}</Tex> 對角都是 1，<Tex>{String.raw`\lambda_{\max}+\lambda_{\min}=\operatorname{tr}\mathbf R=2`}</Tex>，條件就是 <Tex>{String.raw`\mu K_q\le1`}</Tex>；本章的例子用{' '}
+          <Tex>{String.raw`\mu K_q=0.5`}</Tex> 或更小（§10.6 用到 1），都在這個範圍內。
+        </p>
+        <p>
+          步長再大（但還在穩定範圍內），快模式的 pole <Tex>{String.raw`1-\mu K_q\lambda_{\max}`}</Tex> 是負的，而且絕對值反過來比慢模式大：名字叫「快」的模式每個 block 變號、縮得最慢，變成拖住收斂的那一個。例如{' '}
+          <Tex>{String.raw`\rho=${tn(fl.rho)}`}</Tex>（<Tex>{String.raw`\lambda=${tn(fl.eig[0])},\ ${tn(fl.eig[1])}`}</Tex>）、<Tex>{String.raw`\mu K_q=${tn(fl.muKq)}`}</Tex>（穩定上限{' '}
+          <Tex>{String.raw`2/${tn(fl.eig[0])}\approx${tn(fl.muMax)}`}</Tex>）：<Tex>{String.raw`p=${tn(fl.fast)},\ ${tn(fl.slow)}`}</Tex>，沿快模式的誤差每個 block 只縮到 {n(fl.dominant)} 倍，比慢模式的{' '}
+          {n(Math.abs(fl.slow))} 倍還慢。§10.3.1 的「換你算」HC-10.2 輸入這兩個數字，可以一步一步對答案。
+        </p>
+        <p>
+          兩個 eigenvalue 的比值是 <Tex>{String.raw`\kappa=\lambda_{\max}/\lambda_{\min}`}</Tex>：<strong>即使 <Tex>{String.raw`\mu`}</Tex> 選到最大合法值，慢模式 pole 也大於</strong>{' '}
+          <Tex>{String.raw`1-2/\kappa`}</Tex>（因為 <Tex>{String.raw`\mu K_q\lambda_{\min}<2\lambda_{\min}/\lambda_{\max}`}</Tex>）。兩個模式一起看，<Tex>{String.raw`\max_i|p_i|`}</Tex> 最小只能到{' '}
+          <Tex>{String.raw`(\kappa-1)/(\kappa+1)`}</Tex>，在 <Tex>{String.raw`\mu K_q=2/(\lambda_{\max}+\lambda_{\min})`}</Tex> 時達到（第 9 章 F-09.7）；<Tex>{String.raw`\rho=0.99`}</Tex> 時{' '}
+          <Tex>{String.raw`\kappa=${tn(r.cond, 5)}`}</Tex>，最好也只有 {n(r.bestMaxPole)}。<Tex>{String.raw`\kappa`}</Tex> 很大時，怎麼調 <Tex>{String.raw`\mu`}</Tex> 都快不起來。
         </p>
 
         <h3 className="ch10-sub">
@@ -501,8 +538,11 @@ export function S2UpdateMatrix() {
             <Tex>{String.raw`1-0.5\times${tn(r.eig[0])}=${tn(r.fast)}`}</Tex>。
           </li>
           <li>
-            95% 衰減需要 <Tex>{String.raw`|p|^k\le0.05`}</Tex>。兩邊取 ln（ln 是遞增函數，但 <Tex>{String.raw`\ln|p|<0`}</Tex>，除過去不等號反向）：
+            95% 衰減需要 <Tex>{String.raw`|p|^k\le0.05`}</Tex>，<Tex>{'p'}</Tex> 代<strong>絕對值最大</strong>的那個 pole（這裡是慢 pole <Tex>{String.raw`${tn(r.slow)}`}</Tex>；快 pole{' '}
+            <Tex>{String.raw`${tn(r.fast)}`}</Tex> 一個 block 就降到 5% 以下）。兩邊取 ln（ln 是遞增函數，但 <Tex>{String.raw`\ln|p|<0`}</Tex>，除過去不等號反向）：
             <TexBlock id="F-10.5">{String.raw`\boxed{k_{95}=\left\lceil\frac{\ln0.05}{\ln|p|}\right\rceil}=\left\lceil\frac{${tn(r.ln005, 5)}}{${tn(r.lnSlow, 5)}}\right\rceil=\lceil ${tn(r.blocksScalarReal, 5)}\rceil=${r.blocksScalar}`}</TexBlock>
+            這條式子一次只算<strong>一個模式</strong>。本例的 <Tex>{String.raw`\mathbf A_{\mathrm{cal}}=\mathbf I-\mu K_q\mathbf R`}</Tex> 是對稱矩陣，各模式的方向互相垂直，所以不管初始誤差指向哪裡，整個誤差向量的長度最慢也只照最慢的{' '}
+            <Tex>{'|p|'}</Tex> 衰減——代 <Tex>{String.raw`|p|=\rho(\mathbf A_{\mathrm{cal}})`}</Tex>（最大的 <Tex>{'|p_i|'}</Tex>，spectral radius）就是整體的 <Tex>{'k_{95}'}</Tex>。
           </li>
           <li>
             完整反矩陣 <Tex>{String.raw`\mathbf M=0.5(K_q\mathbf R)^{-1}`}</Tex>（<Tex>{String.raw`\gamma=0.5`}</Tex>）：所有 pole = 0.5，
@@ -510,6 +550,33 @@ export function S2UpdateMatrix() {
             <Tex>{String.raw`0.5^5=0.03125\le0.05`}</Tex>）。
           </li>
         </ol>
+        <ModeGate min="engineer">
+          <Callout
+            kind="warn"
+            title={
+              <>
+                <Tex>{String.raw`\mathbf A_{\mathrm{cal}}`}</Tex> 不對稱時，F-10.5 只是下界
+              </>
+            }
+          >
+            <p>
+              上面用到「各模式的方向互相垂直」。<Tex>{String.raw`\mathbf A_{\mathrm{cal}}`}</Tex> 不是<strong>正規矩陣</strong>（normal matrix：<Tex>{String.raw`\mathbf A\mathbf A^T=\mathbf A^T\mathbf A`}</Tex>，對稱矩陣都是）時就不成立——例如 §10.5
+              量到的一般 <Tex>{String.raw`\mathbf J`}</Tex>、<Tex>{String.raw`\hat{\mathbf J}\ne\mathbf J`}</Tex>，或各 loop 用不同增益。這時 eigenvector 不再互相垂直，只剩 <Tex>{String.raw`\|\mathbf A^k\|_2\ge\rho(\mathbf A)^k`}</Tex>（正規時是等號；<Tex>{String.raw`\|\cdot\|_2`}</Tex>{' '}
+              是最大 singular value，也就是最壞初始方向的放大倍數）：誤差長度可以先變大再衰減。
+            </p>
+            <p>
+              例：<Tex>{String.raw`\mathbf J_n=${texMat(nn.J)}`}</Tex>、<Tex>{String.raw`\mu K_q=${tn(nn.muKq)}`}</Tex> 得 <Tex>{String.raw`\mathbf A=\mathbf I+\mu K_q\mathbf J_n=${texMat(nn.A)}`}</Tex>，兩個 pole 都是{' '}
+              <Tex>{String.raw`${tn(nn.rho)}`}</Tex>，F-10.5 給 <Tex>{String.raw`\lceil\ln0.05/\ln${tn(nn.rho)}\rceil=${nn.asym}`}</Tex>。但{' '}
+              <Tex>{String.raw`\mathbf A^k=\begin{bmatrix}2^{-k}&k\,2^{-(k-1)}\\0&2^{-k}\end{bmatrix}`}</Tex>，從 <Tex>{String.raw`\boldsymbol\delta_0=(${nn.delta0.join(',')})`}</Tex> 出發，
+              <Tex>{String.raw`\|\boldsymbol\delta_5\|=${tn(nn.n5, 3)}`}</Tex>、<Tex>{String.raw`\|\boldsymbol\delta_8\|=${tn(nn.n8, 3)}`}</Tex>、<Tex>{String.raw`\|\boldsymbol\delta_9\|=${tn(nn.n9, 3)}`}</Tex>：要{' '}
+              <strong>{nn.blocks}</strong> 個 block 才低於 5%，不是 {nn.asym} 個。
+            </p>
+            <p>
+              <Tex>{String.raw`\rho(\mathbf A)<1`}</Tex> 仍然保證最後會收斂（穩定的判斷不變），只是有限時間的 block 數要改看 <Tex>{String.raw`\|\mathbf A^k\|_2\le0.05`}</Tex>。本章互動實驗的{' '}
+              <Tex>{'k_{95}'}</Tex> 就是這樣算的：最小的 <Tex>{'k'}</Tex>，使所有 <Tex>{String.raw`j\ge k`}</Tex> 都有 <Tex>{String.raw`\|\mathbf A^j\|_2\le0.05`}</Tex>；<Tex>{String.raw`\mathbf A`}</Tex> 對稱（正規）時兩種算法給同一個數。
+            </p>
+          </Callout>
+        </ModeGate>
         <div className="table-wrap">
           <table>
             <thead>
@@ -574,6 +641,10 @@ export function S2UpdateMatrix() {
           全表由 <code>analyzeRule()</code> 計算。「忘了 <Tex>{'K_q'}</Tex>」那一列：<Tex>{String.raw`\mathbf A=\mathbf I-K_q\cdot0.5\mathbf R^{-1}\mathbf R=(1-0.5K_q)\mathbf I`}</Tex>，pole ={' '}
           {n(ph.forgotKqPole, 6)}，需要 {nint(ph.forgotKqBlocks)} 個 block——比規格宣稱的 {r.blocksFull} 慢 {n(ph.forgotKqBlocks / r.blocksFull, 4)} 倍。這就是勘誤 E05 / E08 要求 Lab 同時顯示{' '}
           <Tex>{String.raw`g_i=\mu K_q\lambda_i`}</Tex> 與單位（<Tex>{'K_q'}</Tex> 為 <Tex>{String.raw`\mathrm{fs}^{-1}`}</Tex>、<Tex>{String.raw`\mu`}</Tex> 為 fs）的原因。
+        </p>
+        <p className="small muted" id="ch10-phys-kq-note">
+          <ClaimTag kind="approx" /> 後三列的實體 <Tex>{'K_q'}</Tex> 是 1-bit comparator 的小訊號增益：{nint(ph.blocks)}、{nint(ph.forgotKqBlocks)}、{nint(ph.fullBlocks)} 這三個 block 數的前提是{' '}
+          <Tex>{String.raw`|\mathbf u^T\boldsymbol\delta_k|\ll\sigma_v=${tn(NUM.sigmaV)}\ \mathrm{fs}`}</Tex>（F-10.2 下面的說明）；單位換算本身是精確的算術。
         </p>
         <Hand id="HC-10.2">
           598 是怎麼來的？預設數字（<Tex>{String.raw`\rho=0.99,\ \mu K_q=0.5`}</Tex>）就是上面的例子。把 <Tex>{String.raw`\rho`}</Tex> 換成 0.9 或 0.5、<Tex>{String.raw`\mu K_q`}</Tex> 換成你想試的值，先用紙筆（<Tex>{String.raw`\ln`}</Tex>{' '}

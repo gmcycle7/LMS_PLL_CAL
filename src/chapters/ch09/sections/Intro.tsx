@@ -177,7 +177,7 @@ export function Intro() {
         </HandCalcBox>
         <Callout kind="ok" title="本課主線">
           LMS 的收斂速度由 {m`\mathbf R=E[\mathbf u\mathbf u^T]`} 的 eigenvalues 決定：最大的 {m`\lambda_{\max}`} 限制 {m`\mu`}（穩定），
-          最小的 {m`\lambda_{\min}`} 決定最慢的模式；{m`\lambda_{\min}=0`} 的方向完全學不到。
+          最小的 {m`\lambda_{\min}`} 決定最慢的模式（{m`\mu`} 不太大時；精確的條件見後面的 F-09.7）；{m`\lambda_{\min}=0`} 的方向完全學不到。
           （{m`\mathbf R`} 是「regressor 兩兩相乘、長期平均」排成的表；它的 eigenvalue {m`\lambda`} 可以想成輸入在某一個參數方向上的<strong>能量</strong>。
           這兩個名詞下一節從頭講。）
         </Callout>

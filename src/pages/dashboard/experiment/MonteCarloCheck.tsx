@@ -168,7 +168,8 @@ export function MonteCarloPanel({ mc, r, caseId, seriesIndex, seed }: { mc: Mont
               <Rich text={productTex([plan.runs, plan.numBlocks, r.params.N])} /> 個 sample；seed 為 {seed}
               {plan.expectStable ? (
                 <>
-                  ；時間常數 <Tex>{`\\tau=${f(plan.tauBlocks, 3)}`}</Tex> blocks，後半段 {plan.lateBlocks} blocks 用來做統計
+                  ；時間常數 <Tex>{`\\tau=-1/\\ln\\max|z|=${f(plan.tauBlocks, 3)}`}</Tex> blocks
+                  {r.params.d >= 1 ? '（有 commit 延遲時是漸近值）' : ''}，後半段 {plan.lateBlocks} blocks 用來做統計
                 </>
               ) : (
                 '；解析模型預測不收斂，改為檢查 Monte Carlo 是否也沒有收斂'

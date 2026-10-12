@@ -17,7 +17,8 @@ export const F = {
   linearPd: String.raw`w^*\approx a+\frac{b\,E[x]+\operatorname{Cov}(x,\,d+\varepsilon_{cc})}{\operatorname{Var}(x)}\quad(\text{線性 PD 鎖定＋獨立 comparator})`,
   cubicMse: String.raw`w^*_\mathrm{MSE}=a+c_3\frac{E[x^4]}{E[x^2]}=1+0.1\cdot\frac{6.8}{2}=1.34`,
   secondOrder: String.raw`w^*_\mathrm{sign}\approx w_1-\frac{E[x\,e_0^3]}{6\sigma_v^2E[x^2]}=1.34+\frac{3.456\times10^{-4}}{\sigma_v^2}`,
-  weightedMedian: String.raw`\begin{gathered}E\big[x\operatorname{sign}(e)\big]=E\big[|x|\operatorname{sign}(t(x)-w)\big]=0\\[0.4em]\Rightarrow\;w^*=\operatorname{med}_{|x|}\,t(x)=1.4\end{gathered}`,
+  // 無雜訊、離散 code：E[G](w) 是階梯，在 w* 「跳過」0（變號），不是等於 0；w* 同時是 MAE E|e| 的最小點（次梯度條件 0 ∈ ∂J）。
+  weightedMedian: String.raw`\begin{gathered}E[G](w)=E\big[x\operatorname{sign}(e)\big]=E\big[|x|\operatorname{sign}(t(x)-w)\big]\\[0.4em]E[G](w)>0\ \ (w<w^*),\qquad E[G](w)<0\ \ (w>w^*)\\[0.4em]\Rightarrow\;w^*=\operatorname{med}_{|x|}\,t(x)=\arg\min_w E|e|=1.4\end{gathered}`,
   weightedMean: String.raw`t(x)=a+\kappa+\frac{b+d(x)}{x},\qquad w^*_\mathrm{MSE}=\frac{E[x^2\,t(x)]}{E[x^2]}`,
   jitterWeighted: String.raw`w^*\approx a+\frac{E\big[x\,B(x)/\sigma_v(x)\big]}{E\big[x^2/\sigma_v(x)\big]},\qquad B(x)=b+d(x)+\varepsilon_{cc}(x)`,
   kappa: String.raw`\varepsilon_{cc}=\kappa x\;\Rightarrow\;E[x\varepsilon_{cc}]=\kappa E[x^2]\;\Rightarrow\;w^*=a+\kappa`,
@@ -130,9 +131,10 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11.10',
-    title: '無雜訊 Sign-LMS = $|x|$ 加權中位數（1.4）',
+    title: '無雜訊 Sign-LMS：$E[G]$ 的變號點 = $|x|$ 加權中位數（1.4）',
     tex: F.weightedMedian,
-    conditions: '$\\sigma_v=0$、mode none；實際 $w$ 在 $O(\\mu)$ 的 limit cycle 中跳動',
+    conditions:
+      '$\\sigma_v=0$、mode none、離散 code：$E[G](w)$ 是階梯函數，在 $w^*$ 由正跳到負（本例 $+0.4\\to-1.2$），不是 $E[G](w^*)=0$ 的根；累積票重剛好一半時改成一整段 $E[G]=0$（dead zone）。$w=1.4$ 時 $x=\\pm2$ 的 $e=0$（tie，機率 $0.4$），$\\operatorname{sign}(0)$ 取 $0$ 或 $\\pm1$ 都得到 $E[G](1.4)=-0.4$。實際的 $w$ 在 $O(\\mu)$ 的 limit cycle 中跳動',
     claim: 'exact',
     level: 'L0',
     specSection: '11.2',
@@ -175,7 +177,8 @@ export const FORMULAS: FormulaEntry[] = [
     id: 'F-11.14',
     title: 'Near-integer：$w^*=a+B/C$（$C=E[x\\,(h*x)]$ 同 §6）',
     tex: F.nearInteger,
-    conditions: '$K_q$ 線性化；$C$ 為經主 PLL 誤差路徑的有效相關；$C\\le0$ 時固定點為 repelling',
+    conditions:
+      'MSE-LMS（多位元 $e$、$w$ 慢變）精確。Sign-LMS 是 $K_q$ 線性化（F-11.3）：需 $\\max_n|(a-w^*)(h*x)[n]+\\beta[n]|\\ll\\sigma_v$（本站門檻 $\\le0.3\\,\\sigma_v$），且把 $w^*$ 代回完整 erf 平均的殘餘比 $|\\gamma_\\mathrm{lin}|\\le0.05$；near-integer（first-order DSM 經 type-II）時 $\\max|h*x|\\approx2\\sqrt3\\,\\sigma_x$（$\\sigma_x$ 是 code 的標準差），第一個條件約為 $|B_\\mathrm{bias}/C|\\lesssim0.087\\,\\sigma_v/\\sigma_x$，超出時 $a+B_\\mathrm{bias}/C$ 只是線性外推。$C$ 為經主 PLL 誤差路徑的有效相關；$C>0$ 只保證小訊號（局部）吸引（Ch06 F-06.19 的 $\\delta_c$），$C\\le0$ 時固定點為 repelling',
     claim: 'approx',
     level: 'L2',
     specSection: '11.4',
@@ -186,7 +189,7 @@ export const FORMULAS: FormulaEntry[] = [
     id: 'F-11.15',
     title: 'Near-integer 敏感度與 GMAC 斜率',
     tex: F.sensitivity,
-    conditions: '同 F-11.14；本章 $S$ 與全站 $K=K_qC$ 同號，規格 §11.4 的 $S_\\mathrm{GMAC}=\\partial E[G]/\\partial w=-S$',
+    conditions: '同 F-11.14（$S$ 是 $|e_\\mathrm{det}|\\ll\\sigma_v$ 的小訊號斜率）；本章 $S$ 與全站 $K=K_qC$ 同號，規格 §11.4 的 $S_\\mathrm{GMAC}=\\partial E[G]/\\partial w=-S$',
     claim: 'approx',
     level: 'L2',
     specSection: '11.4',

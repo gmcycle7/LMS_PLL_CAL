@@ -48,7 +48,7 @@ import {
   type RuleAnalysis,
   type RuleConfig,
 } from '@/simulation/models/mimo'
-import { Erratum, n, nint, texMat, tint, tn } from '../common'
+import { Erratum, chop, n, nint, texMat, tint, tn } from '../common'
 import {
   DEFAULT_CASES,
   DEFAULT_PARAMS,
@@ -58,6 +58,7 @@ import {
   delta0Of,
   embedMat,
   jhatSpecOf,
+  k95Metric,
   parsePresetParams,
   plantSpecOf,
   sliceMat,
@@ -68,15 +69,16 @@ import { MatrixEditor } from './MatrixEditor'
 
 const RULE_OPTIONS = (Object.keys(RULE_LABEL) as MimoRule[]).map((r) => ({ value: r, label: RULE_LABEL[r] }))
 
+/** pole／eigenvalue 的顯示：實部、虛部各自把浮點殘餘（< 10⁻¹²）當成 0（deadbeat 的 pole 不印成 5.6e−17） */
 function complexText(z: { re: number; im: number }): string {
-  if (Math.abs(z.im) < 1e-12) return n(z.re, 5)
-  return `${n(z.re, 4)} ${z.im >= 0 ? '+' : '−'} j${n(Math.abs(z.im), 4)}`
+  if (Math.abs(z.im) < 1e-12) return n(chop(z.re), 5)
+  return `${n(chop(z.re), 4)} ${z.im >= 0 ? '+' : '−'} j${n(Math.abs(z.im), 4)}`
 }
 
 /** TeX 版（放在 `$...$` 字串裡）：1.2+j0.4 */
 function complexTex(z: { re: number; im: number }): string {
-  if (Math.abs(z.im) < 1e-12) return tn(z.re, 5)
-  return `${tn(z.re, 4)}${z.im >= 0 ? '+' : '-'}j${tn(Math.abs(z.im), 4)}`
+  if (Math.abs(z.im) < 1e-12) return tn(chop(z.re), 5)
+  return `${tn(chop(z.re), 4)}${z.im >= 0 ? '+' : '-'}j${tn(Math.abs(z.im), 4)}`
 }
 
 function KPI({ label, value }: { label: ReactNode; value: ReactNode }) {
@@ -263,9 +265,11 @@ export function MimoLab() {
       })
   }
   const mcStale = mc !== null && mc.key !== mcKey
+  // burn-in 的規則是 ⌈6/(−ln ρ)⌉ ≈ 2·⌈ln 0.05/ln ρ⌉（mimo.ts），所以用「只看 ρ(A)」的 blocks95Asymptotic 估，不用範數版的 k₉₅
+  const kBurn = activeAn?.blocks95Asymptotic ?? activeAn?.blocks95
   const mcCost =
     eff.params.engine === 'sample'
-      ? estimateSampleCost({ cases: 1, blocks: eff.params.mcRecord + (activeAn?.blocks95 ? Math.min(200000, Math.ceil((6 * activeAn.blocks95) / 3)) : 0), N: eff.params.N, chains: eff.params.mcChains })
+      ? estimateSampleCost({ cases: 1, blocks: eff.params.mcRecord + (kBurn ? Math.min(200000, Math.ceil((6 * kBurn) / 3)) : 0), N: eff.params.N, chains: eff.params.mcChains })
       : 0
 
   // ── 單步 / 執行至收斂 ──
@@ -396,10 +400,11 @@ export function MimoLab() {
   analyses.forEach((a, i) => {
     if (!a || !a.ok) return
     const id = eff.cases[i].id
-    const cl = a.closedPoles ? Math.max(...a.closedPoles.map(Math.abs)) : undefined
+    // deadbeat（γ = 1）時 ρ(A) 與封閉式都是 0：浮點殘餘（1.1e−16）顯示成 0
+    const cl = a.closedPoles ? chop(Math.max(...a.closedPoles.map(Math.abs))) : undefined
     metrics.push({
       name: String.raw`Case ${id} $\rho(\mathbf I+\mathbf M\mathbf J)$（${RULE_SHORT[a.rule]}）`,
-      value: a.spectralRadius,
+      value: chop(a.spectralRadius),
       analytic: a.rule === 'sequential' ? undefined : cl,
       tolerance: cl !== undefined && a.rule !== 'sequential' ? 1e-9 : undefined,
       formulaId: a.rule === 'full' ? 'F-10.4' : a.rule === 'regularized' ? (cfgOf(eff, i).regForm === 'R' ? 'F-10.8' : 'F-10.10') : 'F-10.2',
@@ -407,7 +412,7 @@ export function MimoLab() {
       digits: 6,
       note: a.rule === 'sequential' ? String.raw`每 block 等效 $\rho(\boldsymbol\Phi_{\text{sweep}})^{1/(PK)}$` : undefined,
     })
-    metrics.push({ name: String.raw`Case ${id} 95% 收斂 blocks $k_{95}$`, value: a.blocks95 ?? (a.stable ? '—' : '不收斂'), formulaId: 'F-10.5', claim: 'exact' })
+    metrics.push(k95Metric(id, a))
     if (a.perParamVar) {
       metrics.push({
         name: String.raw`Case ${id} 穩態 $\max_j\mathrm{RMS}(\delta_j)$`,
@@ -576,7 +581,7 @@ export function MimoLab() {
               digits={6}
               unit="無因次"
               reg="BEH_RHO12"
-              hint={mathText(String.raw`$\rho=1\Rightarrow\lambda_{\min}=0$（不可辨識）`)}
+              hint={mathText(String.raw`$\lambda=1\pm\rho_{12}$（$2\times2$、對角為 1）；$|\rho_{12}|=1\Rightarrow\lambda_{\min}=0$（不可辨識）`)}
             />
           </>
         ) : (
@@ -871,6 +876,7 @@ export function MimoLab() {
         String.raw`linear 引擎：$\mathbf G=K_q\mathbf C\boldsymbol\delta+\boldsymbol\eta$，$\boldsymbol\eta\sim\mathcal N(\mathbf 0,\mathbf R_x/N)$（iid block、近平衡）；所有封閉式在此模型下精確`,
         String.raw`sample 引擎：block 內 $\mathbf u[n]$、$v[n]$ iid；$\pm1$ 碼以 $p(\mathbf s)=\big(1+\sum_{i<j}s_is_jR_{ij}\big)/2^P$ 產生（$P\le3$）`,
         String.raw`poles $=\operatorname{eig}\big(\mathbf I+\mathbf M(\hat{\mathbf J})\,\mathbf J_{\text{true}}\big)$，$\hat{\mathbf J}\ne\mathbf J$ 時與封閉式不同（勘誤 E24）；$\lambda_{\mathrm{reg}}$ 不是 eigenvalue（勘誤 E22）`,
+        String.raw`$k_{95}$：最小的 $k$，使所有 $j\ge k$ 都有 $\|\mathbf A^j\|_2\le0.05$（最壞初始方向的誤差長度降到 5% 以下、且之後不再超過；sequential 用 $\|\boldsymbol\Phi_j\|_2$）。$\mathbf A=\mathbf I+\mathbf M\mathbf J$ 是正規矩陣（$\mathbf A\mathbf A^T=\mathbf A^T\mathbf A$，對稱屬之）時等於 F-10.5 的 $\lceil\ln0.05/\ln\rho(\mathbf A)\rceil$；非正規（一般 $\mathbf J$、$\hat{\mathbf J}\ne\mathbf J$、各 loop 增益不同）時 F-10.5 只是下界`,
         '靜態 plant：沒有 PLL 動態、更新延遲、定點量化（見第 8、13 章）',
         'Case A/B/C 與「六種規則」共用同一條 GMAC 亂數串流（paired comparison）',
       ]}
@@ -923,7 +929,7 @@ export function MimoLab() {
             value={
               a && a.ok ? (
                 <span className={a.stable ? undefined : 'ch10-bad'}>
-                  <Tex>{String.raw`\rho(\mathbf A)=${tn(a.spectralRadius, 5)},\ k_{95}=${a.blocks95 === null ? '\\infty' : tint(a.blocks95)}`}</Tex>
+                  <Tex>{String.raw`\rho(\mathbf A)=${tn(chop(a.spectralRadius), 5)},\ k_{95}${a.blocks95Basis === 'lower-bound' ? String.raw`\ge` : '='}${a.blocks95 === null ? '\\infty' : tint(a.blocks95)}`}</Tex>
                 </span>
               ) : (
                 <span className="ch10-bad small">{mathText(plant.errors.length ? 'Plant 無效（見警告）' : a?.error ? String.raw`無法建立 $\mathbf M$` : JnHat ? '—' : String.raw`等待 $\hat{\mathbf J}$…`)}</span>
@@ -964,7 +970,7 @@ export function MimoLab() {
                 )}
                 {JnHat && jhatInfo && jhatInfo.source !== 'exact' && (
                   <p className="small">
-                    <Tex>{String.raw`\hat{\mathbf J}_n=${texMat(JnHat, 4)}`}</Tex>（{jhatInfo.note}；
+                    <Tex>{String.raw`\hat{\mathbf J}_n=${texMat(JnHat, 4)}`}</Tex>（{mathText(jhatInfo.note)}；
                     <Tex>{String.raw`\|\hat{\mathbf J}-\mathbf J\|_F/\|\mathbf J\|_F=${tn(100 * jhatInfo.relErr, 3)}\%`}</Tex>）
                     {jhatInfo.expected && (
                       <>
@@ -988,7 +994,7 @@ export function MimoLab() {
                     )}
                     {activeAn.A && (
                       <p className="small">
-                        <Tex>{String.raw`${activeCfg.rule === 'sequential' ? '\\boldsymbol\\Phi_{\\text{sweep}}' : '\\mathbf A=\\mathbf I+\\mathbf M\\mathbf J'}=${texMat(activeAn.A, 4)}`}</Tex>
+                        <Tex>{String.raw`${activeCfg.rule === 'sequential' ? '\\boldsymbol\\Phi_{\\text{sweep}}' : '\\mathbf A=\\mathbf I+\\mathbf M\\mathbf J'}=${texMat(activeAn.A, 4, 1)}`}</Tex>
                       </p>
                     )}
                     <p className="small">
@@ -996,7 +1002,7 @@ export function MimoLab() {
                       {activeAn.closedPoles && (
                         <>
                           <br />
-                          封閉式（依模式 <Tex>{String.raw`i=1,\dots,${P}`}</Tex> 的順序，<Tex>{eff.params.mode === 'R' ? String.raw`\lambda_i` : String.raw`\sigma_i`}</Tex> 由大到小）：{activeAn.closedPoles.map((p) => n(p, 5)).join('、')} <ClaimTag kind="exact" />
+                          封閉式（依模式 <Tex>{String.raw`i=1,\dots,${P}`}</Tex> 的順序，<Tex>{eff.params.mode === 'R' ? String.raw`\lambda_i` : String.raw`\sigma_i`}</Tex> 由大到小）：{activeAn.closedPoles.map((p) => n(chop(p), 5)).join('、')} <ClaimTag kind="exact" />
                           <br />
                           模式 loop gain <Tex>{String.raw`g_i=1-p_i`}</Tex>
                           {activeCfg.rule === 'scalar' && eff.params.mode === 'R' && (
@@ -1006,7 +1012,7 @@ export function MimoLab() {
                             </>
                           )}
                           ：
-                          {activeAn.closedPoles.map((p) => n(1 - p, 5)).join('、')}
+                          {activeAn.closedPoles.map((p) => n(1 - chop(p), 5)).join('、')}
                         </>
                       )}
                     </p>
@@ -1021,7 +1027,7 @@ export function MimoLab() {
                     )}
                   </>
                 ) : (
-                  <p className="small ch10-bad">{activeAn?.error ?? (JnHat ? '—' : mathText(String.raw`等待 $\hat{\mathbf J}$ 量測…`))}</p>
+                  <p className="small ch10-bad">{mathText(activeAn?.error ?? (JnHat ? '—' : String.raw`等待 $\hat{\mathbf J}$ 量測…`))}</p>
                 )}
               </div>
             </div>
@@ -1100,12 +1106,14 @@ export function MimoLab() {
               return (
                 <tr key={a.rule} className={a.rule === activeCfg.rule ? 'ch10-hl' : undefined}>
                   <td>{RULE_SHORT[a.rule]}</td>
-                  <td className="ch10-num">{a.ok ? n(a.spectralRadius, 5) : '—'}</td>
-                  <td className="ch10-num">{a.ok ? (a.blocks95 === null ? mathText(String.raw`$\infty$ / 未達成`) : nint(a.blocks95)) : '—'}</td>
+                  <td className="ch10-num">{a.ok ? n(chop(a.spectralRadius), 5) : '—'}</td>
+                  <td className="ch10-num">
+                    {a.ok ? (a.blocks95 === null ? mathText(String.raw`$\infty$ / 未達成`) : a.blocks95Basis === 'lower-bound' ? mathText(String.raw`$\ge$ ${nint(a.blocks95)}`) : nint(a.blocks95)) : '—'}
+                  </td>
                   <td className="ch10-num">{rms !== null ? `${n(rms, 4)} fs` : '—'}</td>
                   <td className="ch10-num">{rms !== null && baseRms ? <Tex>{String.raw`\times${tn(rms / baseRms, 3)}`}</Tex> : '—'}</td>
                   <td className="ch10-num">{a.validityIndex !== null ? n(a.validityIndex, 2) : '—'}</td>
-                  <td className={a.ok && a.stable && !(a.rule === 'sequential' && a.blocks95 === null) ? 'ch10-good small' : 'ch10-bad small'}>
+                  <td className={a.ok && a.stable && !(a.rule === 'sequential' && a.blocks95 === null) ? 'ch10-good small' : a.ok ? 'ch10-bad small' : 'ch10-bad small ch10-status-msg'}>
                     {a.ok
                       ? !a.stable
                         ? Math.abs(a.spectralRadius - 1) <= MARGINAL_TOL
@@ -1114,7 +1122,7 @@ export function MimoLab() {
                         : a.rule === 'sequential' && a.blocks95 === null
                           ? mathText(String.raw`排程結束時誤差仍 $>5\%$（未收斂就凍結）`)
                           : '穩定'
-                      : a.error}
+                      : mathText(a.error)}
                   </td>
                 </tr>
               )
@@ -1124,7 +1132,9 @@ export function MimoLab() {
       </div>
       <p className="small muted">
         有效性指標 = <Tex>{String.raw`\operatorname{tr}(\mathbf R_u\operatorname{Cov}\boldsymbol\delta)/\sigma_v^2`}</Tex>，需 <Tex>{String.raw`\ll1`}</Tex> 才能用{' '}
-        <Tex>{'K_q'}</Tex> 線性化（§10.4.1 Research）。Sequential 的 RMS 是排程結束凍結時的值。雜訊懲罰 = 該規則的 RMS 除以 Scalar 的 RMS（同一組超參數）。
+        <Tex>{'K_q'}</Tex> 線性化（§10.4.1 Research）。Sequential 的 RMS 是排程結束凍結時的值。雜訊懲罰 = 該規則的 RMS 除以 Scalar 的 RMS（同一組超參數）。<Tex>{'k_{95}'}</Tex>{' '}
+        六列用同一個定義：最壞初始方向的 <Tex>{String.raw`\|\boldsymbol\delta_k\|`}</Tex> 降到 5% 以下、且之後不再超過；<Tex>{String.raw`\mathbf A`}</Tex> 對稱（正規）時就是最慢 pole 的{' '}
+        <Tex>{String.raw`\lceil\ln0.05/\ln|p|\rceil`}</Tex>（F-10.5），否則 F-10.5 只是下界（§10.3.1）。
       </p>
 
       <h3 className="ch10-sub">穩態共變異：Monte Carlo vs 公式（Case {mc?.caseId ?? eff.activeId}）</h3>
@@ -1201,7 +1211,7 @@ export function MimoLab() {
           </p>
         </>
       )}
-      {mc && !mc.res.ok && <p className="small ch10-bad">{mc.res.error}</p>}
+      {mc && !mc.res.ok && <p className="small ch10-bad">{mathText(mc.res.error)}</p>}
 
       <p className="small muted">
         模式：{eff.params.engine === 'sample' ? `sample 引擎，時域約 ${n(trajCost, 3)} samples` : 'linear 引擎'}；
@@ -1215,7 +1225,7 @@ export function MimoLab() {
           </>
         )}
         ；參數變更後 250 ms 自動重算；<Tex>{String.raw`\hat{\mathbf J}`}</Tex>：
-        {jhatInfo?.note ?? '—'}。
+        {mathText(jhatInfo?.note ?? '—')}。
       </p>
     </ExperimentShell>
   )

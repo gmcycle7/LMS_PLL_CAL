@@ -42,7 +42,7 @@ export const FORMULAS: FormulaEntry[] = [
     id: 'F-01.4',
     title: 'MSE 最佳解（Wiener 解，純量）',
     tex: String.raw`w^*=\frac{E[xy]}{E[x^2]}=a+\frac{E[xv]}{E[x^2]}`,
-    conditions: '需 $E[x^2]>0$；只有 $E[xv]=0$（雜訊與輸入不相關）時 $w^*=a$',
+    conditions: '需 $E[x^2]>0$；只有 $E[xv]=0$（雜訊與輸入正交；$E[v]=0$ 時也就是不相關）時 $w^*=a$',
     claim: 'exact',
     level: 'L0',
     specSection: '1',
@@ -52,7 +52,7 @@ export const FORMULAS: FormulaEntry[] = [
     id: 'F-01.5',
     title: 'Normal equation（正交原理）',
     tex: String.raw`E[e^*x]=E\big[(y-w^*x)\,x\big]=0`,
-    conditions: String.raw`在 $w^*$ 處誤差與輸入不相關；GMAC 估計的正是 $E[e\,x]$（或 $E[\operatorname{sign}(e)\,x]$）`,
+    conditions: String.raw`對任何資料都成立，只需 $E[x^2]>0$（不必 $E[xv]=0$，也不必 $w^*=a$）：在 $w^*$ 處誤差與輸入正交。這不等於「不相關」（$E[e^*x]=E[e^*]\,E[x]$）；兩者只在 $E[x]=0$ 或 $E[e^*]=0$ 時相同。GMAC 估計的正是 $E[e\,x]$（或 $E[\operatorname{sign}(e)\,x]$）`,
     claim: 'exact',
     level: 'L0',
     specSection: '1',
@@ -164,10 +164,12 @@ export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-01.16',
     title: String.raw`Sign-Error 的時間平均：離中位數 $O(\mu|x|)$`,
-    tex: String.raw`\big|\,\overline{w}-w_{L1}\big|=O(\mu|x|),\qquad y\in\{0,0,0,10\}:\ \overline{w}=\tfrac{\mu}{2}\ (\text{sign}(0)=0),\ \mu\ (+1),\ 0\ (-1)`,
+    // 右式是「把格點鏈當成向右無限延伸」的小步長近似（審查 R08）：有限鏈在 w = 10 到頭，
+    // 10/μ 為正整數時三種慣例的精確值都少 (10 + μ)/(3^{1 + 10/μ} − 1)；μ = 5、sign(0) = 0 是 25/13，不是 2.5
+    tex: String.raw`\big|\,\overline{w}-w_{L1}\big|=O(\mu|x|),\qquad y\in\{0,0,0,10\},\ \mu\ll10:\ \overline{w}\approx\tfrac{\mu}{2}\ (\text{sign}(0)=0),\ \mu\ (+1),\ 0\ (-1)`,
     conditions:
-      String.raw`固定步長、中位數唯一；時間平均依 tie 慣例與算術（exact / IEEE / fixed-point）偏移 $O(\mu)$（勘誤 E40）。右式需 $w_0$ 為 $\mu$ 的整數倍（格點含 0）與精確算術。這是「時間平均」的界，不是軌跡抖動的界（見 F-01.18）`,
-    claim: 'exact',
+      String.raw`固定步長、中位數唯一；時間平均依 tie 慣例與算術（exact / IEEE / fixed-point）偏移 $O(\mu)$（勘誤 E40）。右式是小步長近似：需 $w_0$ 為 $\mu$ 的整數倍（格點含 0）、精確算術，且 $\mu\ll10$（中位數 $0$ 到下一個資料值 $10$ 的距離）——推導把格點鏈當成向右無限延伸，忽略 $w\ge10$ 的機率（量級 $3^{-10/\mu}$）。$10/\mu$ 為正整數時，三種慣例的精確值都比右式少 $(10+\mu)/(3^{1+10/\mu}-1)$：$\mu=0.2$ 約 $4.7\times10^{-24}$、$\mu=1$ 約 $6.2\times10^{-5}$，但 $\mu=5$、$\operatorname{sign}(0)=0$ 時精確值是 $25/13\approx1.923$ 而非 $2.5$；步長不小時直接解格點鏈。這是「時間平均」的界，不是軌跡抖動的界（見 F-01.18）`,
+    claim: 'approx',
     level: 'L0',
     specSection: '2.3、19',
     page,

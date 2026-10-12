@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
 import { MathText, extractRegion } from '@/components'
 import blockLmsSrc from '@/simulation/models/blockLms.ts?raw'
+import { roundingMeanError, shiftRound } from '@/simulation/models/gmac'
 import dsmSrc from '@/simulation/models/dsm.ts?raw'
 import dtcSrc from '@/simulation/models/dtc.ts?raw'
 import pllSrc from '@/simulation/models/pll.ts?raw'
@@ -207,6 +208,77 @@ describe('公式登錄（Formula & Unit Reference 頁以 mathText 顯示 title /
   })
 })
 
+describe('§10 硬體檢查的文字背後的算術（技術審查 R04、R11）', () => {
+  const gray = (n: number) => (n ^ (n >>> 1)) >>> 0
+  const grayDecode = (g: number) => {
+    let n = 0
+    for (let x = g >>> 0; x; x >>>= 1) n ^= x
+    return n >>> 0
+  }
+  const hamming = (a: number, b: number) => {
+    let x = (a ^ b) >>> 0
+    let c = 0
+    for (; x; x >>>= 1) c += x & 1
+    return c
+  }
+
+  it('R04：gray code 只有相鄰的 code 才只差 1 個 bit；31 → 34 差 3 個 bit，取樣到新舊混合可能讀到 28–35', () => {
+    // 正常對照：31 → 32（第 9 項 why 的例子）二進位 6 個 bit 全翻，gray 碼只翻 1 個
+    expect(hamming(31, 32)).toBe(6)
+    expect(gray(31)).toBe(0b010000)
+    expect(gray(32)).toBe(0b110000)
+    expect(hamming(gray(31), gray(32))).toBe(1)
+    for (let a = 0; a < 63; a++) expect(hamming(gray(a), gray(a + 1)), `a=${a}`).toBe(1) // 相鄰：恆為 1
+    for (let a = 0; a < 64; a++) expect(grayDecode(gray(a))).toBe(a)
+    // 反例：一次跳 3 個 code 的 31 → 34
+    expect(gray(34)).toBe(0b110011)
+    expect(hamming(gray(31), gray(34))).toBe(3)
+    const diff = [5, 1, 0] // 不同的 bit 位置
+    const seen = new Set<number>()
+    for (let m = 0; m < 8; m++) {
+      let w = gray(31)
+      diff.forEach((bit, i) => {
+        if (m & (1 << i)) w ^= 1 << bit // 這個 bit 已經是新值
+      })
+      seen.add(grayDecode(w))
+    }
+    expect([...seen].sort((x, y) => x - y)).toEqual([28, 29, 30, 31, 32, 33, 34, 35]) // 28 比舊值還低 3 LSB：不是「最壞差 1 LSB」
+    expect(grayDecode(0b010011)).toBe(29)
+    // 不能反過來說「跳多個 code 一定翻多個 bit」：2 個 code 恆翻 2 個 bit；3 個 code 翻 1 個（起點為偶數）或 3 個（起點為奇數）
+    for (let a = 0; a < 62; a++) expect(hamming(gray(a), gray(a + 2)), `a=${a}`).toBe(2)
+    for (let a = 0; a < 61; a++) expect(hamming(gray(a), gray(a + 3)), `a=${a}`).toBe(a % 2 === 0 ? 1 : 3)
+    expect(hamming(gray(32), gray(35))).toBe(1)
+  })
+
+  it('R11：half_even 的平均誤差在「餘數均勻」下不一定是 0——還要 tie 時商的奇偶各半；奇對稱保證平衡點的平均輸出為 0', () => {
+    const mean = (vs: number[], ell: number, mode: Parameters<typeof shiftRound>[2]) => vs.reduce((acc, v) => acc + (shiftRound(v, ell, mode) - v / 2 ** ell), 0) / vs.length
+    // 反例：ℓ = 2、S = 8K + R（R = 0…3 均勻，商 2K 恆為偶數）
+    const evenQ: number[] = []
+    for (let K = -3; K <= 3; K++) for (let R = 0; R < 4; R++) evenQ.push(8 * K + R)
+    const hist = [0, 0, 0, 0]
+    for (const v of evenQ) hist[((v % 4) + 4) % 4]++
+    expect(hist).toEqual([7, 7, 7, 7]) // 餘數確實均勻
+    expect(mean(evenQ, 2, 'half_even')).toBeCloseTo(-0.125, 12) // 不是 0
+    expect(roundingMeanError(2, 'half_even')).toBe(0) // 表格用的值：需要額外的 tie 條件
+    expect(Math.abs(mean(evenQ, 2, 'half_even'))).toBeLessThanOrEqual(2 ** -3) // |ε̄| ≤ 2^{−ℓ−1}
+    // 同一組資料：floor、half_up 只需要餘數均勻
+    expect(mean(evenQ, 2, 'floor')).toBeCloseTo(roundingMeanError(2, 'floor'), 12)
+    expect(mean(evenQ, 2, 'half_up')).toBeCloseTo(roundingMeanError(2, 'half_up'), 12)
+    // 鏡像：商恆為奇數 ⇒ +1/8
+    expect(mean(evenQ.map((v) => v + 4), 2, 'half_even')).toBeCloseTo(0.125, 12)
+    // 正常對照：S mod 2^{ℓ+1} 均勻（奇偶各半）⇒ 0
+    const both: number[] = []
+    for (let K = -3; K <= 3; K++) for (let R = 0; R < 8; R++) both.push(8 * K + R)
+    expect(mean(both, 2, 'half_even')).toBeCloseTo(0, 12)
+    // 奇對稱：Q(−v) = −Q(v)，所以對 0 對稱的分布平均輸出為 0（floor 沒有這個性質）
+    for (const ell of [1, 2, 3, 5, 12]) for (let v = -400; v <= 400; v++) expect(shiftRound(-v, ell, 'half_even') + shiftRound(v, ell, 'half_even')).toBe(0)
+    expect(shiftRound(-1, 2, 'floor') + shiftRound(1, 2, 'floor')).toBe(-1)
+    let sum = 0
+    for (let v = -5; v <= 5; v++) sum += shiftRound(v, 2, 'half_even') // 餘數不均勻 [3,3,2,3]，但對 0 對稱
+    expect(sum).toBe(0)
+  })
+})
+
 describe('Models 頁面（jsdom smoke）', () => {
   it('T13: 整頁可渲染：章節、符號表、公式錨點、勘誤連結、程式碼區塊，JSON Lab 跑完並顯示指標', async () => {
     // console.error：React 的 key／DOM 巢狀／未知屬性警告與 KaTeX 錯誤都會走這裡。
@@ -343,6 +415,17 @@ describe('Models 頁面（jsdom smoke）', () => {
     expect(text).toContain('export function noiseFloorPerBinDbc') // §8 的 CodeBlock
     // 12 項硬體檢查卡片、§16.2 的 7 列、§15.1 的 7 個層級
     expect(container.querySelectorAll('.models-check').length).toBe(12)
+    // 技術審查 R04：第 9 項（CDC）——gray code 的單 bit 保證只對相鄰的 code 成立，多 LSB 的更新要用 handshake
+    const cdcCard = container.querySelector('#models-check-9')?.closest('.models-check')?.textContent ?? ''
+    expect(cdcCard).toContain('需要 handshake。只有電路保證每次更新最多變')
+    expect(cdcCard).toContain('相鄰的兩個 code 才只差 1 個 bit')
+    expect(cdcCard).toContain('否則用 handshake')
+    expect(cdcCard).not.toContain('handshake 或 gray code')
+    expect(cdcCard).not.toContain('gray / handshake 檢查')
+    expect(cdcCard).toContain('可能讀到') // 原有的 31 → 32 例子保留
+    // 技術審查 R11：half_even 的 0 還需要 tie 時商的奇偶各半；對 w 的影響 ≈ 0 靠對稱性
+    expect(text).toContain('還要「恰好一半」時商的奇偶各半')
+    expect(text).toContain('奇函數')
     expect(text).toContain('Sign-off Matrix（§16.2）')
     expect(container.querySelectorAll('.models-levels tbody tr').length).toBe(7)
     // 三個實驗外框

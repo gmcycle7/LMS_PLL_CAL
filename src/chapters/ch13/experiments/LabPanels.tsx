@@ -63,8 +63,8 @@ export function TimelinePanel({ run, tokens }: { run: StrategyRun; tokens: Theme
       />
       {isDs && (
         <Plot
-          title={String.raw`ΔΣ 內部誤差 $r[n]$（有界 $\Leftrightarrow$ 沒有 overload）`}
-          ariaLabel="ΔΣ 內部誤差 r[n]（有界表示沒有 overload）"
+          title={String.raw`ΔΣ 內部誤差 $r[n]$（沒有 overload 時有界）`}
+          ariaLabel="ΔΣ 內部誤差 r[n]（沒有 overload 時有界）"
           data={rData}
           height={200}
           csvName="ch13-lab-residual"

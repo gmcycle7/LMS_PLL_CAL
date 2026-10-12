@@ -21,7 +21,7 @@ import {
   stepsToDecay,
   stepsToDecayReal,
 } from '@/simulation/models/pe'
-import { rdF, rdP, sigNear1, sigSub, snap, tx, txCeilArg, txF, txInt, txP, txVec } from './handcalcTex'
+import { rdF, rdP, sigNear1, sigSub, snap, tx, txCeilArg, txDistinct, txF, txInt, txP, txVec } from './handcalcTex'
 
 /**
  * Ch09 的「帶入手算」題（docs/teaching-style.md §7；範本：src/chapters/ch00/handcalcs.ts）。
@@ -437,7 +437,7 @@ export const HANDCALCS: HandCalcDef[] = [
       const t = (x: number) => tx(x, 7)
       const notes = [
         Math.abs(pFast) > Math.abs(pSlow)
-          ? String.raw`$g>g^\star=2/(\lambda_{\max}+\lambda_{\min})=1$：此時 $|p_{\text{fast}}|=${t(Math.abs(pFast))}>|p_{\text{slow}}|=${t(Math.abs(pSlow))}$，「快」「慢」的名字對調了——最慢的反而是共模（$\lambda_{\max}$）那個模式，它要 $k_{95}=${txInt(k95Fast)}$ 個 blocks。$g$ 超過 $g^\star$ 只會更慢。`
+          ? String.raw`$g>g^\star=2/(\lambda_{\max}+\lambda_{\min})=1$：此時 $|p_{\text{fast}}|=${t(Math.abs(pFast))}>|p_{\text{slow}}|=${t(Math.abs(pSlow))}$，名字叫「快」的共模（$\lambda_{\max}$）因為過衝（pole 是負的）反而是最慢的模式，它要 $k_{95}=${txInt(k95Fast)}$ 個 blocks。$g$ 超過 $g^\star$ 只會更慢。`
           : String.raw`快模式（共模）只要 $k_{95}=${txInt(k95Fast)}$ 個 block，慢模式（差模）要 $${txInt(k95)}$ 個：整體收斂時間由 $\lambda_{\min}$ 決定。`,
         '這是 mean（ensemble 平均）的敘述，不是每一條軌跡的行為（勘誤 E23）；1-bit comparator 時 $g=\\mu K_q$ 要用物理的 $K_q$ 換算（勘誤 E05，見章末的綜合題）。',
       ]
@@ -905,9 +905,15 @@ export const HANDCALCS: HandCalcDef[] = [
       const Kq = comparatorKq(sigmaV)
       const g = mu * Kq
       const [lmax, lmin] = eig2x2(1, rho, 1).values
-      const pSlow = polesOf([lmax, lmin], g)[1]
+      const [pFast, pSlow] = polesOf([lmax, lmin], g)
       const x = g * lmin
       const k95 = stepsToDecay(pSlow)
+      // g > g⋆ = 2/(λ_max + λ_min)（單位功率的 2×2：= 1）時，|p_fast| > |p_slow|：最慢的換成快模式（共模）
+      const fastLed = Math.abs(pFast) > Math.abs(pSlow) + 1e-12
+      const k95Fast = stepsToDecay(pFast) // |p_fast| > |p_slow| ⇒ k95Fast ≥ k95（取上整後可能相等）
+      // 兩個很接近的數要寫成「a > b」：顯示到看得出差別為止（g = 1.0000007 不可顯示成「1 > 1」）
+      const [gTex] = txDistinct(g, 1)
+      const [apFastTex, apSlowTex] = txDistinct(Math.abs(pFast), Math.abs(pSlow))
       const pPlus = (1 + rho) / 2
       const pMinus = (1 - rho) / 2
       const powPlus = Math.pow(pPlus, N0)
@@ -930,7 +936,7 @@ export const HANDCALCS: HandCalcDef[] = [
             why: '$\\mathbf R=\\begin{bmatrix}1&\\rho\\\\\\rho&1\\end{bmatrix}$ 的 eigenvalues（F-09.5）。',
           },
           { tex: String.raw`g\lambda_{\max}=${texNum(g, 7)}\times${t(lmax)}=${texNum(g * lmax, 5)}<2`, why: '穩定性看 $\\lambda_{\\max}$：平均收斂需要 $0<g\\lambda_{\\max}<2$。' },
-          { tex: String.raw`x=g\lambda_{\min}=${texNum(g, 7)}\times${t(lmin)}=${tx(x, 7)}`, why: '速度看 $\\lambda_{\\min}$：$x$ 是慢模式每個 block 修掉的比例。' },
+          { tex: String.raw`x=g\lambda_{\min}=${texNum(g, 7)}\times${t(lmin)}=${tx(x, 7)}`, why: '慢模式的速度看 $\\lambda_{\\min}$：$x$ 是慢模式每個 block 修掉的比例。' },
           {
             tex: String.raw`p_{\text{slow}}=1-x=1-${tx(x, 7)}=${tx(pSlow, sigNear1(pSlow))}`,
             why: '慢模式的 pole。這個數很接近 1：小數點後的每一位都要留著（或讓計算機接著算，不要重新輸入四捨五入後的 $p$），下一步的 $\\ln$ 才準。',
@@ -969,7 +975,16 @@ export const HANDCALCS: HandCalcDef[] = [
         ],
         notes: [
           String.raw`要得到規格例子的 $g=0.5$（$\rho=0.99$ 時 598 blocks），需要 $\mu=0.5/K_q=${texNum(0.5 / Kq, 5)}\ \mathrm{fs}$；若把「0.5」直接當成 $\mu\,[\mathrm{fs}]$，$g$ 只有 $0.5K_q=${texNum(0.5 * Kq, 5)}$，慢了 $1/K_q\approx${texNum(1 / Kq, 3)}$ 倍（勘誤 E05）。`,
-          String.raw`三件事各看不同的量：穩定看 $g\lambda_{\max}$、速度看 $g\lambda_{\min}$、PE 看每一個窗口的 $\lambda_{\min}(\mathbf R_k)$。$k_{95}$ 是 mean 的敘述（勘誤 E23），$K_q$ 是 $|\mathbf u^T\boldsymbol\delta|\ll\sigma_v$ 的小訊號近似。`,
+          String.raw`三件事各看不同的量：穩定看 $g\lambda_{\max}$、速度看 $g\lambda_{\min}$（$g\le g^\star=2/(\lambda_{\max}+\lambda_{\min})=1$ 時，F-09.7）、PE 看每一個窗口的 $\lambda_{\min}(\mathbf R_k)$。$k_{95}$ 是 mean 的敘述（勘誤 E23），$K_q$ 是 $|\mathbf u^T\boldsymbol\delta|\ll\sigma_v$ 的小訊號近似。`,
+          ...(fastLed
+            ? [
+                // fastLed ⇒ p_fast < 0（p_fast ≥ 0 時 p_slow ≥ p_fast ≥ 0，不可能 |p_fast| > |p_slow|）
+                String.raw`這組數字的 $g=${gTex}>g^\star=1$：快模式（共模）的 pole $1-g\lambda_{\max}=-${apFastTex}$ 是負的，而且 $|p_{\text{fast}}|=${apFastTex}>|p_{\text{slow}}|=${apSlowTex}$——最慢的反而是共模` +
+                  (k95Fast > k95
+                    ? String.raw`，它要 $k_{95}=${txInt(k95Fast)}$ 個 blocks，比上面慢模式的 $${txInt(k95)}$ 個還久。整體要等的是這個數字。`
+                    : String.raw`。不過兩個 $|p|$ 很接近，取上整之後共模也是 $k_{95}=${txInt(k95Fast)}$ 個 blocks，和上面慢模式的一樣。`),
+              ]
+            : []),
           String.raw`要把 $\lambda_{\min}$ 量到 $\pm1\%$，Gaussian regressor 需要 $N_0\approx2/0.01^2=2\times10^4$ 筆。`,
         ],
       }

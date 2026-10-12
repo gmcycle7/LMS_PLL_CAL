@@ -423,7 +423,7 @@ export function S3LinearPhase() {
         ]}
       />
       <TexBlock id="F-07.8" label={<>PSD 加權的 <Tex>{'C_D'}</Tex>（DT 形式，E44）</>}>
-        {r`C_D=\frac1{2\pi}\int_{-\pi}^{\pi}S_{xx}(e^{j\Omega})\,\mathrm{Re}\big\{H(e^{j\Omega})\,e^{j\Omega D}\big\}\,d\Omega=\frac1{2\pi}\int_{-\pi}^{\pi}S_{xx}\,|H|\cos\big(\phi(\Omega)+\Omega D\big)\,d\Omega=\sum_k h[k]\,R_x[k-D]`}
+        {r`\begin{aligned}C_D&=\frac1{2\pi}\int_{-\pi}^{\pi}S_{xx}(e^{j\Omega})\,\mathrm{Re}\big\{H(e^{j\Omega})\,e^{j\Omega D}\big\}\,d\Omega\\&=\frac1{2\pi}\int_{-\pi}^{\pi}S_{xx}\,|H|\cos\big(\phi(\Omega)+\Omega D\big)\,d\Omega=\sum_k h[k]\,R_x[k-D]\end{aligned}`}
       </TexBlock>
       <p>
         <ClaimTag kind="exact" /> 每個頻率依 <Tex>{r`S_{xx}|H|`}</Tex> 加權投票，票的正負由 <Tex>{r`\cos(\phi+\Omega D)`}</Tex> 決定。{' '}

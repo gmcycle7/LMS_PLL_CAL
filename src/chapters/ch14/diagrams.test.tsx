@@ -235,11 +235,12 @@ describe('Ch14 Mermaid 圖（真正的 mermaid parser）', () => {
     expect(cg.edges.some((e) => e.start === 'M' && e.end === 'LIN')).toBe(true)
     expect(cg.edges.some((e) => e.start === 'M' && e.end === 'SAT')).toBe(true)
 
-    // §14.1：sample rate 做 e[n] = δ_k·u[n] + v[n]（兩條輸入都是正號）、sign 與乘 code，block rate 才平均與更新；虛線回授 δ_k = a − w_k
+    // §14.1：sample rate 做 e[n] ≈ δ_k·u[n] + v[n]（兩條輸入都是正號；w 逐 block 更新、誤差路徑有記憶，所以是 ≈，技術審查 R06b）、
+    // sign 與乘 code，block rate 才平均與更新；虛線回授 δ_k = a − w_k
     const s2b = (await flow(D.CHART_SAMPLE_TO_BLOCK))!
     expect(edgeText(s2b, 'PROD', 'SUMV')).toBe('＋')
     expect(edgeText(s2b, 'VN', 'SUMV')).toBe('＋')
-    expect(edgeText(s2b, 'SUMV', 'CMP')).toBe(String.raw`PD 輸出 $e[n] = \delta_k\,u[n] + v[n]$`)
+    expect(edgeText(s2b, 'SUMV', 'CMP')).toBe(String.raw`PD 輸出 $e[n] \approx \delta_k\,u[n] + v[n]$`)
     expect(edgeText(s2b, 'PATH', 'PROD')).toBe('$u[n]$')
     expect(s2b.edges.some((e) => e.start === 'XC' && e.end === 'PATH')).toBe(true)
     expect(s2b.edges.some((e) => e.start === 'XC' && e.end === 'MUL')).toBe(true)
@@ -533,7 +534,7 @@ describe('Ch14 架構約定（docs/assumptions.md §2a）：DTC 在 reference �
   it('CHART_SAMPLE_TO_BLOCK：e[n] 是 PD 的輸出（加法點），comparator 與 loop filter 從同一個節點分接；comparator 沒有別的輸入；誤差路徑從 DTC 的 code 走到 PD 輸出', async () => {
     const g = (await flow(D.CHART_SAMPLE_TO_BLOCK))!
     expect(edgeText(g, 'SUMV', 'CMP')).toContain('PD 輸出')
-    expect(edgeText(g, 'SUMV', 'CMP')).toContain(String.raw`$e[n] = \delta_k\,u[n] + v[n]$`)
+    expect(edgeText(g, 'SUMV', 'CMP')).toContain(String.raw`$e[n] \approx \delta_k\,u[n] + v[n]$`)
     expect(g.edges.some((e) => e.start === 'SUMV' && e.end === 'LF'), '同一個節點也送進 loop filter').toBe(true)
     expect(g.vertices.find((v) => v.id === 'LF')?.text).toContain('Loop filter')
     expect(g.edges.filter((e) => e.end === 'CMP').map((e) => e.start), 'comparator 唯一的輸入是 PD 輸出').toEqual(['SUMV'])

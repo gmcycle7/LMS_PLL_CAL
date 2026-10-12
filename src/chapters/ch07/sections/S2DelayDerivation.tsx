@@ -357,7 +357,7 @@ export function S2DelayDerivation() {
           ]}
           result={r`C_D=A^2\,H(e^{j\Omega})\cos(\Omega D)\quad(\Omega\in\{0,\pi\})`}
         />
-        <TexBlock id="F-07.5" label={<><Tex>{r`\Omega=0`}</Tex> 或 <Tex>{r`\pi`}</Tex> 的邊界（E46）</>}>{r`C_D=A^2\,H(e^{j\Omega})\cos(\Omega D),\quad H(e^{j\Omega})\in\mathbb R\quad(\Omega\in\{0,\pi\});\qquad\text{例：交替碼 }x[n]=A(-1)^n\Rightarrow C_D=A^2H(e^{j\pi})(-1)^D`}</TexBlock>
+        <TexBlock id="F-07.5" label={<><Tex>{r`\Omega=0`}</Tex> 或 <Tex>{r`\pi`}</Tex> 的邊界（E46）</>}>{r`\begin{aligned}&C_D=A^2\,H(e^{j\Omega})\cos(\Omega D),\quad H(e^{j\Omega})\in\mathbb R\quad(\Omega\in\{0,\pi\});\\&\text{例：交替碼 }x[n]=A(-1)^n\Rightarrow C_D=A^2H(e^{j\pi})(-1)^D\end{aligned}`}</TexBlock>
         <p>
           這是一般公式的 <strong>2 倍</strong>。<ClaimTag kind="exact" /> 若用「<Tex>{'|H|'}</Tex>、<Tex>{'\\phi'}</Tex>、<Tex>{'\\Omega'}</Tex>
           三個獨立滑桿」合成 <Tex>{'u'}</Tex>，在 <Tex>{r`\Omega=\pi`}</Tex> 選 <Tex>{r`\phi=120^\circ`}</Tex> 會得到實數濾波器不可能產生的訊號，

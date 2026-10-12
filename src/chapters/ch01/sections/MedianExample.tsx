@@ -39,6 +39,12 @@ import { MseMaeLab } from '../experiments/MseMaeLab'
 const Y4 = [...FOUR_POINT_VALUES]
 const ONES = [1, 1, 1, 1]
 const MU_SS = 0.2
+/** F-01.16 右式的適用範圍（審查 R08）：$w=10$ 是第 $M=10/\mu$ 格（$\mu=0.2$ 時 $M=50$），格點鏈到那裡就到頭 */
+const M_SS = Math.round(10 / MU_SS)
+/** 把鏈當成向右無限延伸所忽略的修正量 $(M+1)\mu/(3^{M+1}-1)=(10+\mu)/(3^{1+10/\mu}-1)$：$\mu=0.2$ 時約 $4.7\times10^{-24}$ */
+const UPPER_CORR_SS = ((M_SS + 1) * MU_SS) / (3 ** (M_SS + 1) - 1)
+/** 步長不小的反例：$\mu=5$ 時 $w$ 只待在 $\{0,5,10\}$，時間平均是 $25/13$ 而不是 $\mu/2=2.5$ */
+const MU_BIG = 5
 const FOUR: LossDataParams = {
   model: 'four_point',
   a: 0,
@@ -98,6 +104,8 @@ export function MedianExampleSection() {
       (['zero', 'plus', 'minus'] as TieRule[]).map((tie) => ({ tie, r: signErrorLatticeStationary(FOUR, { w0: 0, mu: MU_SS, tie })! })),
     [],
   )
+  // 步長不小（μ = 5）的格點鏈：只有 {0, 5, 10} 三格，π = (9, 3, 1)/13、時間平均 25/13——F-01.16 右式（μ/2 = 2.5）不適用
+  const latBig = useMemo(() => signErrorLatticeStationary(FOUR, { w0: 0, mu: MU_BIG, tie: 'zero' })!, [])
   const contam = useMemo(() => {
     const p: LossDataParams = { ...FOUR, model: 'contaminated', a: 0, sigma: CONTAM.sigma, outlierProb: CONTAM.eps, outlierSize: CONTAM.s }
     const o = populationOptima(p, 1)
@@ -435,7 +443,7 @@ export function MedianExampleSection() {
           why: (
             <>
               <Tex>{'y=0'}</Tex> 給 <Tex>{'e<0'}</Tex>、<Tex>{'y=10'}</Tex> 給 <Tex>{'e>0'}</Tex>（<Tex>{String.raw`w\ge10`}</Tex> 的狀態機率小於{' '}
-              <Tex>{String.raw`3^{-10/\mu}`}</Tex>——<Tex>{String.raw`\mu=${MU_SS}`}</Tex> 時是 <Tex>{String.raw`3^{-${Math.round(10 / MU_SS)}}`}</Tex>——以下忽略）
+              <Tex>{String.raw`3^{-10/\mu}`}</Tex>——<Tex>{String.raw`\mu=${MU_SS}`}</Tex> 時是 <Tex>{String.raw`3^{-${M_SS}}`}</Tex>——以下先忽略，最後三步再補回來）
             </>
           ),
         },
@@ -464,10 +472,47 @@ export function MedianExampleSection() {
           ),
         },
         {
-          tex: String.raw`\overline w=\mu\sum_k k\,\pi_k=\mu\cdot\tfrac23\cdot\sum_k k\,3^{-k}=\mu\cdot\tfrac23\cdot\tfrac34=\tfrac{\mu}{2}`,
+          tex: String.raw`\overline w\approx\mu\sum_{k\ge0}k\,\pi_k=\mu\cdot\tfrac23\cdot\sum_{k\ge0}k\,3^{-k}=\mu\cdot\tfrac23\cdot\tfrac34=\tfrac{\mu}{2}`,
           why: (
             <>
-              <Tex>{String.raw`\sum_k k\,r^k=\tfrac{r}{(1-r)^2}`}</Tex>（對等比級數微分），<Tex>{String.raw`r=\tfrac13`}</Tex> 時為 <Tex>{String.raw`\tfrac34`}</Tex>
+              <Tex>{String.raw`\sum_{k\ge0}k\,r^k=\tfrac{r}{(1-r)^2}`}</Tex>（對等比級數微分），<Tex>{String.raw`r=\tfrac13`}</Tex> 時為 <Tex>{String.raw`\tfrac34`}</Tex>；
+              <Tex>{String.raw`\approx`}</Tex> 來自第 2 步忽略的上邊界
+            </>
+          ),
+        },
+        {
+          tex: String.raw`w=10=M\mu:\ P(\text{不動})=\tfrac14\ (e=0),\quad P(\downarrow)=\tfrac34,\quad P(\uparrow)=0`,
+          why: (
+            <>
+              把忽略的上邊界補回來。設 <Tex>{String.raw`M=10/\mu`}</Tex> 是正整數（10 剛好落在格點上；<Tex>{String.raw`\mu=${MU_SS}`}</Tex> 時{' '}
+              <Tex>{String.raw`M=${M_SS}`}</Tex>）：站在 <Tex>{'w=10'}</Tex> 時，抽到 10 是 <Tex>{'e=0'}</Tex>、不動，抽到 0 往下，再也不會往上，所以鏈只有{' '}
+              <Tex>{String.raw`k=0,1,\dots,M`}</Tex> 這 <Tex>{'M+1'}</Tex> 格，<Tex>{String.raw`\pi_k=\pi_0\,3^{-k}`}</Tex> 在這些格子上照樣成立
+            </>
+          ),
+        },
+        {
+          // 一行寫完會比欄寬：每個等號一行
+          tex: String.raw`\begin{aligned}\overline w&=\mu\,\frac{\sum_{k=0}^{M}k\,3^{-k}}{\sum_{k=0}^{M}3^{-k}}\\&=\frac{\mu}{2}-\frac{(M+1)\,\mu}{3^{M+1}-1}\\&=\frac{\mu}{2}-\frac{10+\mu}{3^{1+10/\mu}-1}\end{aligned}`,
+          why: (
+            <>
+              截斷的等比級數 <Tex>{String.raw`\sum_{k=0}^{M}r^k=\tfrac{1-r^{M+1}}{1-r}`}</Tex>、
+              <Tex>{String.raw`\sum_{k=0}^{M}k\,r^k=\tfrac{r\,[1-(M+1)r^M+Mr^{M+1}]}{(1-r)^2}`}</Tex>，代 <Tex>{String.raw`r=\tfrac13`}</Tex> 相除。
+              <Tex>{String.raw`\mu=${MU_SS}`}</Tex>（<Tex>{String.raw`M=${M_SS}`}</Tex>）時修正量約 <Tex>{texNum(UPPER_CORR_SS, 2)}</Tex>，寫{' '}
+              <Tex>{String.raw`\mu/2`}</Tex> 綽綽有餘；<Tex>{String.raw`\mu=${MU_BIG}`}</Tex>（<Tex>{String.raw`M=${Math.round(10 / MU_BIG)}`}</Tex>）時{' '}
+              <Tex>{String.raw`\pi=\tfrac{1}{13}(9,3,1)`}</Tex>、<Tex>{String.raw`\overline w=\tfrac{25}{13}\approx${texNum(latBig.mean, 4)}`}</Tex>，不是{' '}
+              <Tex>{texNum(MU_BIG / 2)}</Tex>
+            </>
+          ),
+        },
+        {
+          // 手機欄寬放不下「sign(0) = ±1：」加上整條式子（會多出 2px 的橫向捲軸）：左邊只留 (+1)、(−1)，說明文字寫出它們是哪個慣例
+          tex: String.raw`\begin{aligned}(+1):\quad\overline w&=\mu-\frac{10+\mu}{3^{1+10/\mu}-1}\\(-1):\quad\overline w&=-\frac{10+\mu}{3^{1+10/\mu}-1}\end{aligned}`,
+          why: (
+            <>
+              另外兩種慣例 <Tex>{String.raw`\operatorname{sign}(0)=+1`}</Tex>、<Tex>{String.raw`\operatorname{sign}(0)=-1`}</Tex>（式子左邊括號裡的數字）：tie 發生在 <Tex>{'w'}</Tex> 等於資料值的每一格，所以 <Tex>{'w=0'}</Tex> 與 <Tex>{'w=10'}</Tex> 兩格的箭頭都會變（<Tex>{'+1'}</Tex>：
+              <Tex>{'w=0'}</Tex> 一定往上，<Tex>{'w=10'}</Tex> 抽到 10 再往上到 <Tex>{String.raw`10+\mu`}</Tex>；<Tex>{'-1'}</Tex>：<Tex>{'w=0'}</Tex> 抽到 0 往下到{' '}
+              <Tex>{String.raw`-\mu`}</Tex>，<Tex>{'w=10'}</Tex> 一定往下）。同樣做流量平衡，<Tex>{String.raw`10/\mu`}</Tex> 為正整數時修正量與上一步相同；小步長時就是 F-01.16 的{' '}
+              <Tex>{'\\mu'}</Tex> 與 <Tex>{'0'}</Tex>
             </>
           ),
         },
@@ -710,24 +755,42 @@ export function MedianExampleSection() {
         <BlockDiagram id="D-01.18">
           每個圓角方塊是 <Tex>{'w'}</Tex> 可能待的一格（<Tex>{String.raw`0,\ \mu,\ 2\mu,\dots`}</Tex>），箭頭上是走那條路的機率。先看藍色的 <Tex>{'w=0'}</Tex>：抽到 0（機率{' '}
           <Tex>{String.raw`\tfrac34`}</Tex>）時 <Tex>{'e=0'}</Tex>、原地不動，抽到 10（機率 <Tex>{String.raw`\tfrac14`}</Tex>）才往右一格。再看右邊每一格：往左回去的機率都是{' '}
-          <Tex>{String.raw`\tfrac34`}</Tex>、往右只有 <Tex>{String.raw`\tfrac14`}</Tex>，所以越右邊越少去，待在第 <Tex>{'k'}</Tex> 格的時間比例是 <Tex>{String.raw`\tfrac23\cdot3^{-k}`}</Tex>。
-          把圖上每一格的位置乘上待在那裡的比例再加起來，就是下式右邊 <Tex>{String.raw`\operatorname{sign}(0)=0`}</Tex> 那一列的 <Tex>{String.raw`\overline w=\mu/2`}</Tex>；
-          換成另外兩種 tie 慣例，只會改變 <Tex>{'w=0'}</Tex> 那一格的箭頭（Research 模式有完整推導）。
+          <Tex>{String.raw`\tfrac34`}</Tex>、往右只有 <Tex>{String.raw`\tfrac14`}</Tex>，所以越右邊越少去，待在第 <Tex>{'k'}</Tex> 格的時間比例約是 <Tex>{String.raw`\tfrac23\cdot3^{-k}`}</Tex>。
+          圖只畫前幾格：這條鏈其實走到另一個資料值 <Tex>{'w=10'}</Tex> 附近就到頭了，但步長比 10 小很多時幾乎走不到那裡（機率小於{' '}
+          <Tex>{String.raw`3^{-10/\mu}`}</Tex>；<Tex>{String.raw`\mu=${MU_SS}`}</Tex> 時 <Tex>{String.raw`3^{-${M_SS}}\approx${texNum(3 ** -M_SS, 2)}`}</Tex>），所以把它當成一直往右延伸。
+          把圖上每一格的位置乘上待在那裡的比例再加起來，就是下式右邊 <Tex>{String.raw`\operatorname{sign}(0)=0`}</Tex> 那一列的{' '}
+          <Tex>{String.raw`\overline w\approx\mu/2`}</Tex>；換成另外兩種 tie 慣例，圖上這幾格只有 <Tex>{'w=0'}</Tex> 的箭頭會變（<Tex>{'w'}</Tex> 剛好等於 10
+          的那一格也會變，但幾乎到不了；Research 模式有完整推導）。
         </BlockDiagram>
         <TexBlock
           id="F-01.16"
           label={
             <>
-              Sign-Error 的時間平均（固定步長、中位數唯一；右式需 <Tex>{'w_0'}</Tex> 是 <Tex>{'\\mu'}</Tex> 的整數倍、精確算術）
+              Sign-Error 的時間平均（固定步長、中位數唯一；右式是小步長近似：需 <Tex>{'w_0'}</Tex> 是 <Tex>{'\\mu'}</Tex> 的整數倍、精確算術，且{' '}
+              <Tex>{String.raw`\mu\ll10`}</Tex>）
             </>
           }
         >
-          {String.raw`\big|\,\overline{w}-w_{L1}\big|=O(\mu|x|),\qquad y\in\{0,0,0,10\}:\ \overline{w}=\begin{cases}\mu/2,&\operatorname{sign}(0)=0\\ \mu,&\operatorname{sign}(0)=+1\\ 0,&\operatorname{sign}(0)=-1\end{cases}`}
+          {String.raw`\big|\,\overline{w}-w_{L1}\big|=O(\mu|x|),\qquad y\in\{0,0,0,10\},\ \mu\ll10:\ \overline{w}\approx\begin{cases}\mu/2,&\operatorname{sign}(0)=0\\ \mu,&\operatorname{sign}(0)=+1\\ 0,&\operatorname{sign}(0)=-1\end{cases}`}
         </TexBlock>
         <p>
-          <ClaimTag kind="exact" /> 驗證「時間平均 vs 中位數」的容忍度因此至少要取 <Tex>{'\\mu|x|'}</Tex>，報告中要記錄 tie 慣例與算術（exact／IEEE double／fixed-point）。
-          （軌跡本身抖多大是另一回事：這組資料是 <Tex>{String.raw`O(\mu)`}</Tex>，但有連續雜訊時不是——見 §2.3.2。）
-          下表由 <code>signErrorLatticeStationary</code> 精確計算（<Tex>{String.raw`\mu=${MU_SS},\ w_0=0`}</Tex>）：
+          <ClaimTag kind="approx" /> 左式的意思是：驗證「時間平均 vs 中位數」的容忍度至少要取 <Tex>{'\\mu|x|'}</Tex>，報告中要記錄 tie 慣例與算術（exact／IEEE double／fixed-point）。
+          （軌跡本身抖多大是另一回事：這組資料是 <Tex>{String.raw`O(\mu)`}</Tex>，但有連續雜訊時不是——見 §2.3.2。）右式的{' '}
+          <Tex>{String.raw`\mu/2,\ \mu,\ 0`}</Tex> 則是小步長（<Tex>{String.raw`\mu\ll10`}</Tex>）的近似：這個例子的 <Tex>{'\\mu'}</Tex> 比資料裡的 10 小很多，
+          <Tex>{'w'}</Tex> 幾乎走不到 10，所以推導時把那一端忽略了。
+          {atLeast('engineer') && (
+            <>
+              {' '}
+              步長不小時不能這樣忽略：<Tex>{String.raw`\mu=${MU_BIG}`}</Tex>、<Tex>{String.raw`\operatorname{sign}(0)=0`}</Tex> 時 <Tex>{'w'}</Tex> 只會待在{' '}
+              <Tex>{String.raw`\{${latBig.grid.map((g) => texNum(g)).join(',')}\}`}</Tex> 三格，時間平均是{' '}
+              <Tex>{String.raw`25/13\approx${texNum(latBig.mean, 4)}`}</Tex>，不是 <Tex>{String.raw`\mu/2=${texNum(MU_BIG / 2)}`}</Tex>——這時直接解格點鏈（MSE vs MAE Lab
+              的解析值就是這樣算的）。
+            </>
+          )}
+        </p>
+        <p>
+          下表由 <code>signErrorLatticeStationary</code> 直接解格點鏈（<Tex>{String.raw`\mu=${MU_SS},\ w_0=0`}</Tex>）；這個步長下被忽略的修正量只有約{' '}
+          <Tex>{texNum(UPPER_CORR_SS, 2)}</Tex>，遠小於 double 的解析度，所以表上看到的就是 <Tex>{String.raw`\mu/2`}</Tex>、<Tex>{'\\mu'}</Tex>、<Tex>{'0'}</Tex>：
         </p>
         <div className="table-wrap">
           <table className="ch01-table">

@@ -30,6 +30,7 @@ import {
   stochasticQuantVarApprox,
   toggleCycle,
 } from '@/simulation/models/quantizer'
+import { mixedSamples } from './cdc'
 import { DEFAULT_LAB_PARAMS, LSB_FS_EXAMPLE } from './common'
 import * as D from './diagrams'
 import { DIAGRAMS, SYSTEM_MAP_FOCUS } from './diagrams'
@@ -794,7 +795,7 @@ describe('Ch13 方塊圖上的數字與模型一致（quantizer.ts）', () => {
     expect(D.CHART_ANTIWINDUP).toContain('CL --> Z')
   })
 
-  it('CDC 圖：31 → 32 的二進位差 6 個 bit，gray 碼只差 1 個 bit', () => {
+  it('CDC 圖：31 → 32 二進位差 6 個 bit、gray 碼差 1 個 bit；31 → 34 的 gray 碼仍差 3 個 bit', () => {
     const bin = (x: number) => x.toString(2).padStart(6, '0')
     const gray = (x: number) => x ^ (x >> 1)
     const ham = (a: number, b: number) => bin(a ^ b).split('1').length - 1
@@ -802,6 +803,32 @@ describe('Ch13 方塊圖上的數字與模型一致（quantizer.ts）', () => {
     expect(ham(gray(31), gray(32))).toBe(1)
     expect(D.CHART_CDC).toContain(`二進位 ${bin(31)} → ${bin(32)}`)
     expect(D.CHART_CDC).toContain(`gray 碼 ${bin(gray(31))} → ${bin(gray(32))}`)
+    // 審查 R04：gray 碼的單 bit 保證只對相鄰的 code 成立；圖上要有反例 31 → 34（010000 → 110011，3 個 bit）
+    expect(ham(gray(31), gray(34))).toBe(3)
+    expect(D.CHART_CDC).toContain(`gray 碼 ${bin(gray(31))} → ${bin(gray(34))}`)
+    expect(D.CHART_CDC).toContain('010000 → 110011<br/>翻 3 個 bit')
+    expect(D.CHART_CDC).toContain('相鄰 code：只翻 1 個 bit')
+    expect(D.CHART_CDC).toContain('只會讀到 31 或 32')
+    // 圖上寫的範圍與混合取樣的列舉一致（cdc.ts）
+    expect(mixedSamples(31, 32, 'gray')).toEqual([31, 32])
+    const mix = mixedSamples(31, 34, 'gray')
+    expect(D.CHART_CDC).toContain(`可能讀到 ${mix[0]} 到 ${mix[mix.length - 1]}`)
+    expect(D.CHART_CDC).toContain('可能讀到 28 到 35')
+    // 綠色節點不再把 handshake 和 gray 碼並列成「擇一即可」；多 LSB 的那條路才寫 handshake
+    expect(D.CHART_CDC).not.toContain('最壞只差 1 LSB<br/>或用 handshake 同步')
+    expect(D.CHART_CDC).toContain('MIX["可能讀到 28 到 35<br/>要改用 handshake"]')
+    expect(D.CHART_CDC).toMatch(/class BAD,MIX warn\n\s*class SAFE ok/)
+    // 硬體路徑圖：CDC 的做法寫 handshake，不寫「同步 / gray」
+    expect(D.CHART_HARDWARE_MAP).toContain('CDC：同步 / handshake')
+    expect(D.CHART_HARDWARE_MAP).not.toContain('同步 / gray')
+    // 正文同步：相鄰條件、handshake、asynchronous FIFO；不再有沒有條件的舊說法
+    const nonIdeal = read('sections/NonIdeal.tsx')
+    for (const phrase of ['相鄰', 'handshake', 'asynchronous FIFO', String.raw`|\Delta y|\le1`, '這個保證只對相鄰的 code']) expect(nonIdeal, phrase).toContain(phrase)
+    expect(nonIdeal).not.toContain('gray / thermometer 編碼傳遞')
+    expect(nonIdeal).not.toContain('改用 gray 碼後一次只翻 1 個 bit')
+    expect(nonIdeal).not.toContain('同步、單 bit 翻轉或 handshake')
+    // §13.4E「E 會跳 2、3 LSB」的地方連回 §13.6 的 CDC 條件
+    expect(read('sections/Dither.tsx')).toContain('§13.6 第 4 點')
   })
 
   it('時變圖：e = ε + δw 的拆法與正負號', () => {
@@ -811,6 +838,19 @@ describe('Ch13 方塊圖上的數字與模型一致（quantizer.ts）', () => {
     expect(D.CHART_TIME_VARYING).toContain(String.raw`e[n] = y[n] - w^* = \epsilon[n] + \delta w[n]`)
     expect(D.CHART_TELESCOPING).toContain('r[n] = r[n-1] + (w_H[n] - y[n])')
     expect(D.CHART_TELESCOPING).toContain(String.raw`\sum (y - w_H) = r[-1] - r[N-1]`)
+    // 審查 C02：圖上的常數 1/N 要帶著它的條件（方法 D、沒有 overload、r[−1] 也在範圍內）
+    expect(D.CHART_TELESCOPING).toContain(String.raw`ACC -- "$r[n]$，方法 D 沒有 overload 時 $|r| \le \tfrac12$" --> B`)
+    expect(D.CHART_TELESCOPING).toContain(String.raw`AVG["除以 $N$<br/>$r[-1]$ 也在這個範圍內時<br/>平均誤差的大小 $\le 1/N$"]`)
+    // 「r 有界 ⇔ 沒有 overload」不成立：anti-windup 或 wrap 時 r 有界但 code 已經 overload（quantizer.test.ts 的 F-13.12 反面測試）
+    const labPanels = read('experiments/LabPanels.tsx')
+    expect(labPanels).toContain('（沒有 overload 時有界）')
+    expect(labPanels).not.toContain(String.raw`\Leftrightarrow`)
+    // 正文：等式與常數分開講，常數 1 的條件寫在公式旁（三種學習模式都看得到，ch13.test.tsx 另外檢查渲染結果）
+    const ds = read('sections/DeltaSigma.tsx')
+    expect(ds).toContain('常數要小心')
+    expect(ds).not.toContain('累加器的內容永遠有界')
+    expect(ds).not.toContain('永遠追得上')
+    expect(read('sections/Stochastic.tsx')).toContain(String.raw`\le\tfrac1{2N}`)
     // telescoping：Σ(y − w_H) = r[−1] − r[N−1]（用模型驗一次，r[−1] = 0.25）
     const o = efbConstant({ target: 32.4, steps: 37, rInit: 0.25 })
     const sum = o.y.reduce((a, y) => a + (y - 32.4), 0)

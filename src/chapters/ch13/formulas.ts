@@ -130,12 +130,13 @@ export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-13.12',
     title: 'ΔΣ 的平均追蹤（telescoping）',
-    tex: String.raw`\frac1N\sum_{n=0}^{N-1}\big(y[n]-w_H[n]\big)=\frac{r[-1]-r[N-1]}{N},\qquad \Big|\cdot\Big|\le\frac1N`,
-    conditions: String.raw`$r$ 有界（無 overload）；對任意時變 $w_H$ 都成立`,
+    tex: String.raw`\frac1N\sum_{n=0}^{N-1}\big(y[n]-w_H[n]\big)=\frac{r[-1]-r[N-1]}{N},\qquad \Big|\cdot\Big|\le\frac{1+A}{N}\;\;\big(A=0:\ \tfrac1N\big)`,
+    conditions: String.raw`等式：$r=v-y$ 原樣存回暫存器時成立（任意時變 $w_H$、有沒有 dither 都可以）；overload 時 anti-windup 的夾限或 wrap 丟掉的進位會破壞它。上界（單位 LSB，$A$ 是 dither 的峰對峰寬度）另外需要：沒有 overload，而且起點 $r[-1]$ 也在量化器的範圍內——round-half-up 是 $|r|\le\tfrac12+\tfrac A2$，floor 是 $-\tfrac A2\le r\le1+\tfrac A2$。方法 D 的 $A=0$，上界才是 $1/N$；只知道「$r$ 有界」只能說平均誤差以 $1/N$ 變小，常數不一定是 1`,
     claim: 'exact',
     level: 'L5',
     specSection: '13.4',
     page: '/ch/13',
+    units: { y: 'LSB', w_H: 'LSB', r: 'LSB', A: 'LSB（峰對峰）' },
   },
   {
     id: 'F-13.13',

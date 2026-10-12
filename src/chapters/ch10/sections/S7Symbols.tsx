@@ -250,7 +250,8 @@ const SYMBOLS: SymbolEntry[] = [
     symbol: String.raw`k_{95}`,
     meaning: (
       <>
-        誤差衰減到 5%（下降 95%）所需的 block 數：<Tex>{String.raw`\lceil\ln0.05/\ln|p|\rceil`}</Tex>
+        誤差衰減到 5%（下降 95%）所需的 block 數。單一模式：<Tex>{String.raw`\lceil\ln0.05/\ln|p|\rceil`}</Tex>；整個誤差向量：<Tex>{String.raw`\mathbf A_{\mathrm{cal}}`}</Tex> 對稱（正規）時代{' '}
+        <Tex>{String.raw`|p|=\rho(\mathbf A_{\mathrm{cal}})`}</Tex>，否則用 <Tex>{String.raw`\|\mathbf A^k\|_2\le0.05`}</Tex>
       </>
     ),
     unit: String.raw`\text{blocks}`,

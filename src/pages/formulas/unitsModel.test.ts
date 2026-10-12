@@ -342,17 +342,46 @@ describe('unitsModel：Monte Carlo（固定 seed）', () => {
     expect(lin.note).toMatch(/發散/)
   })
 
-  it('反面：p 太接近 1 且樣本太少 ⇒ ESS < 30，回報不判定；σ_w/σ_v > 0.2 時 1-bit 比對標為僅供參考', () => {
+  it('反面：p 太接近 1 且樣本太少 ⇒ ESS < 30，回報不判定；|C|σ_w/σ_v > 0.2 時 1-bit 比對標為僅供參考', () => {
     // μ = 0.01 fs：p = 0.99992，τ ≈ 12533 blocks
     const slow = runUnitsMc({ ...MC_BASE, mu: 0.01, chains: 2, blocks: 2000 })
     expect(slow.valid).toBe(false)
     expect(slow.ess).toBeLessThan(30)
     expect(slow.note).toMatch(/ESS/)
-    // N = 1、μ = 60 fs：σ_w ≈ 0.6·σ_v 量級 → 小訊號線性化不成立
+    // N = 1、μ = 60 fs（C = 1）：|C|σ_w ≈ 0.7·σ_v 量級 → 小訊號線性化不成立
     const big = runUnitsMc({ ...MC_BASE, engine: 'sign', N: 1, mu: 60, chains: 8, blocks: 4000 })
-    expect(Math.sqrt(big.varTheory) / 100).toBeGreaterThan(0.2)
+    expect((MC_BASE.C * Math.sqrt(big.varTheory)) / 100).toBeGreaterThan(0.2)
     expect(big.valid).toBe(false)
     expect(big.note).toMatch(/小訊號線性化不成立/)
+  })
+
+  it('技術審查 R06c：小訊號的判定看 comparator 前的殘差 |C|·σ_w（引擎是 u = C·x），不是 σ_w 本身', () => {
+    const base = { gmMode: 'average', engine: 'sign', chains: 4, blocks: 40000, seed: 20261010 } as const
+    // 反例 1：C = 2。σ_w/σ_v = 0.199（舊判定放行），但 comparator 看到的是 |C|σ_w/σ_v = 0.398：線性公式已經偏掉（z ≈ −9）
+    const c2 = runUnitsMc({ ...base, mu: 3.6, sigmaV: 10, C: 2, N: 4 })
+    expect(Math.sqrt(c2.varTheory) / 10).toBeCloseTo(0.1989, 3)
+    expect(Math.sqrt(c2.varTheory) / 10).toBeLessThan(0.2)
+    expect((2 * Math.sqrt(c2.varTheory)) / 10).toBeGreaterThan(0.2)
+    expect(c2.z).toBeLessThan(-6) // 模型誤差，不是統計誤差（三個 seed：−9.1、−11.1、−10.1）
+    expect(c2.valid).toBe(false)
+    expect(c2.note).toMatch(/小訊號線性化不成立/)
+    expect(c2.note).toContain(String.raw`|C|\,\sigma_w/\sigma_v=0.398>0.2`)
+    // 反例 2（另一個方向）：C = 0.1。σ_w/σ_v = 0.578（舊判定擋掉），但 |C|σ_w/σ_v = 0.058：線性化其實成立
+    const c01 = runUnitsMc({ ...base, mu: 30, sigmaV: 10, C: 0.1, N: 64 })
+    expect(Math.sqrt(c01.varTheory)).toBeCloseTo(5.7765, 3)
+    expect(Math.sqrt(c01.varTheory) / 10).toBeGreaterThan(0.2)
+    expect((0.1 * Math.sqrt(c01.varTheory)) / 10).toBeLessThan(0.2)
+    expect(c01.valid).toBe(true)
+    expect(Math.abs(c01.z)).toBeLessThanOrEqual(4) // 0.58（三個 seed：0.58、−1.47、1.33）
+    // 正常對照：C = 1 時新舊判定相同——T13 條件通過，N = 1、μ = 60 仍被擋下
+    const t13 = runUnitsMc({ ...MC_BASE, engine: 'sign', chains: 4, blocks: 40000 })
+    expect(t13.valid).toBe(true)
+    expect(Math.abs(t13.z)).toBeLessThanOrEqual(4)
+    const big = runUnitsMc({ ...MC_BASE, engine: 'sign', N: 1, mu: 60, chains: 8, blocks: 4000 })
+    expect(big.valid).toBe(false)
+    expect(big.note).toContain(String.raw`|C|\,\sigma_w/\sigma_v=0.703>0.2`)
+    // 線性引擎不做這個判定（它沒有 comparator）
+    expect(runUnitsMc({ ...base, engine: 'linear', mu: 3.6, sigmaV: 10, C: 2, N: 4 }).valid).toBe(true)
   })
 
   it('運算量上限：chains × (blocks + burn-in) 不超過預算；1-bit 引擎在 N 很大時預算依 √N 縮小', () => {

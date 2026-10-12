@@ -170,7 +170,7 @@ export function WrapupSection() {
             索引分三種：<Tex>{'n'}</Tex>（sample，<Tex>{'f_s'}</Tex>）、<Tex>{'k'}</Tex>（block，<Tex>{'f_u=f_s/N'}</Tex>）、<Tex>{'m'}</Tex>（PVT）。同一個頻率在兩條軸上的角頻率差 <Tex>{'N'}</Tex> 倍。
           </>,
           <>
-            fs 和 rad 不能直接比較；PSD 的數字要連同「單邊／雙邊、per-Hz／per-rad、哪個取樣率」一起報。
+            fs 和 rad 不能直接比較；PSD 的數字要連同「單邊／雙邊、per-Hz／DTFT 形式（每 cycle/sample）、哪個取樣率」一起報。
           </>,
           <>
             −3 dB corner 不是 noise bandwidth：corner 以下只有一半的雜訊。而且 <Tex>{String.raw`p<3-2\sqrt2`}</Tex> 時 corner 根本不存在。

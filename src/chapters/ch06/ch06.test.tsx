@@ -23,7 +23,7 @@ import { fcwZoomAsymptoteName } from './experiments/FcwSweepExperiment'
 import { CH06_DIAGRAMS } from './diagrams'
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
-import { modelTextTex, polarityWarnings, verdict, withDefaults } from './experiments/explorerModel'
+import { analyzeTone, modelTextTex, polarityWarnings, verdict, withDefaults } from './experiments/explorerModel'
 
 const plotlyMock = vi.hoisted(() => ({
   react: vi.fn(async () => undefined),
@@ -253,6 +253,11 @@ describe('第 06 章頁面（jsdom smoke test）', () => {
     const s6 = container.querySelector('#ch06-s6') as HTMLElement
     expect(s6.querySelectorAll('td.neg').length).toBeGreaterThan(3)
     expect(s6.querySelectorAll('td.pos').length).toBeGreaterThan(3)
+    // R01：C → 0⁺ 的後果寫成「線性化的固定點 w* ≈ a + B/C」，並說明超出線性範圍時只是線性外推（Ch11 §11.4）；不再有無條件的「固定點 w* = a + B/C」
+    expect(s6.textContent).toMatch(/而線性化的固定點.*對任何 bias.*極度敏感——.*大到超出線性範圍時，.*只是線性外推，不再是固定點（第 11 章 §11\.4 的代回檢查）/)
+    const s6Tex = Array.from(s6.querySelectorAll('annotation')).map((a) => a.textContent ?? '')
+    expect(s6Tex).toContain(String.raw`w^*\approx a+B/C`)
+    expect(s6Tex).not.toContain('w^*=a+B/C')
     // §6.4 但書 1：basin 表由 worker 算出（4 個 frac；前 3 個有 δ_c，數值與 Python 參考 0.456、0.766 σ_v 相符）
     const basin = await waitFor(
       () => {
@@ -503,7 +508,21 @@ describe('modelTextTex：polarity.ts 的純文字警告／說明／標籤 → `$
     expect(near).toMatch(/^\$\\mathrm\{frac\}=0\.33333\d*\$ 很接近 \$p\/3\$：DSM 的真實週期 \$\d+\$ 大於分析長度 \$\d+\$，/)
     // frac = 5e−6：code 週期 2×10⁵ samples 超過分析長度上限的 1/4，C_D = 2.40e-7（toPrecision 的 e 記號）也要轉成 ×10^{-7}
     const tiny = run({ code: 'dsm1', frac: 5e-6 }).warnings.map(convert)
-    expect(tiny.some((w) => /^\$C\\approx0\$：GMAC 沒有平均恢復力（\$C_D=\d\.\d+\\times10\^\{-7\}\$），\$w\$ 會隨雜訊漂移；固定點 \$w\^\*=a\+B\/C\$ 對任何 bias \$B\$ 都極度敏感/.test(w))).toBe(true)
+    // R01：C ≈ 0 時 a + B/C 只是線性化的值——顯示成「線性化的 a + B/C … 只是線性外推、不是固定點（Ch11 §11.4 的代回檢查）」，不再寫無條件的「固定點 w* = a + B/C」
+    const NEAR_ZERO = /^\$C\\approx0\$：GMAC 沒有平均恢復力（\$C_D=\d\.\d+\\times10\^\{-7\}\$），\$w\$ 會隨雜訊漂移；線性化的 \$a\+B\/C\$ 對任何 bias \$B\$ 都極度敏感，\$C\\approx0\$ 時 \$B\/C\$ 通常已經超出線性範圍，\$a\+B\/C\$ 只是線性外推、不是固定點（Ch11 §11\.4 的代回檢查）。$/
+    expect(tiny.some((w) => NEAR_ZERO.test(w))).toBe(true)
+    expect(tiny.join('\n')).not.toMatch(/固定點 \$w\^\*=a\+B\/C\$/)
+    // 模型字串本身（polarity.ts）也已經寫成「線性化的固定點 w* ≈ a + B/C …（§11.4 的代回檢查：…）」
+    const rawTiny = run({ code: 'dsm1', frac: 5e-6 }).warnings.find((w) => w.startsWith('C ≈ 0')) as string
+    expect(rawTiny).toContain('線性化的固定點 w* ≈ a + B/C 對任何 bias B 都極度敏感（§11.4')
+    expect(rawTiny).not.toContain('；固定點 w* = a + B/C')
+    // 同一條規則接得住模型現在的寫法、舊的寫法與較短的寫法，輸出同一句
+    for (const model of [
+      'C ≈ 0：GMAC 沒有平均恢復力（C_D = 2.40e-7），w 會隨雜訊漂移；線性化的固定點 w* ≈ a + B/C 對任何 bias B 都極度敏感（§11.4 的代回檢查：B/C 大到超出線性範圍時只是線性外推，不再是固定點）。',
+      'C ≈ 0：GMAC 沒有平均恢復力（C_D = 2.40e-7），w 會隨雜訊漂移；固定點 w* = a + B/C 對任何 bias B 都極度敏感（§11.4）。',
+      'C ≈ 0：GMAC 沒有平均恢復力（C_D = 2.40e-7），w 會隨雜訊漂移；線性化的固定點 w* ≈ a + B/C 對任何 bias B 都極度敏感（§11.4 的代回檢查）。',
+      'C ≈ 0：GMAC 沒有平均恢復力（C_D = 2.40e-7），w 會隨雜訊漂移；線性化的 w* ≈ a + B/C 對任何 bias B 都極度敏感（§11.4）。',
+    ]) expect(convert(model), model).toMatch(NEAR_ZERO)
     expect(tiny.some((w) => w.includes('個週期：$C$ 的時間平均尚未收斂'))).toBe(true)
     const nyq = run({ code: 'tone', toneRatio: Math.PI / wL }).warnings.map(convert)
     expect(nyq).toContain('tone 的 $\\Omega$ 落在 $\\pi$（Nyquist）：此時 $x$ 為 $\\pm1$ 交替序列，E46 的 2 倍公式以 $\\sigma_x^2$ 表示仍為 $C=\\sigma_x^2\\,H(e^{j\\pi})$。')
@@ -653,6 +672,22 @@ describe('公式登錄與 presets', () => {
     expect(g3?.experiment).toBe('polarity-explorer')
     expect(g3?.tests).toContain('T06')
     expect((g3?.params as { phiDeg: number }).phiDeg).toBe(120)
+  })
+
+  it('§7「試試看」：regressor 選 filtered-x u 時 Lab 算的是 E[u_D·u]——D 留在 8 會得到 −0.25（反向更新），D 調回 0 才是 E[u²] = 0.5', () => {
+    // 文字照順序做：先把 D 調到 8（delay alignment），再把 regressor 換成 filtered-x。Ĥ = H 但 D ≠ 0 時相關是 (A|H|)²/2·cos(ΩD)
+    const base = { mode: 'tone', phiDeg: 120, omega: Math.PI / 6, regressor: 'u' }
+    const d8 = analyzeTone(withDefaults({ ...base, D: 8 }))
+    expect(d8.Cfx).toBeCloseTo(-0.25, 12)
+    expect(d8.Cfx).toBeCloseTo(0.5 * Math.cos((8 * Math.PI) / 6), 12)
+    expect(d8.Ceff).toBe(d8.Cfx)
+    expect(d8.pole).toBeCloseTo(1.019947, 6)
+    expect(d8.Cfx.toFixed(3)).toBe('-0.250') // 頁面上印出來的字樣
+    // 對照：D = 0 ⇒ E[u²] = A²|H|²/2 = 0.5 ≥ 0，pole < 1
+    const d0 = analyzeTone(withDefaults({ ...base, D: 0 }))
+    expect(d0.Cfx).toBeCloseTo(0.5, 12)
+    expect(d0.pole).toBeCloseTo(0.960106, 6)
+    expect(d0.pole).toBeLessThan(1)
   })
 
   it('T06: preset 的 expected 文字裡的數字就是模擬算出來的（不是手打的假數字）', () => {

@@ -141,6 +141,13 @@
 }
 /* 手機：收合框左右的框線與留白（每邊 11 px）拿掉，只留上下兩條虛線。這樣展開後的推導和 Engineer／Research 模式一樣寬（375 px 的手機上是 300 px）；
    留著的話欄位只剩 278 px，有三條公式（7.3 的 PSD 積分、7.4 的 dJ/dw、7.5 的相位差）只比欄位寬 2–5 px，各多出一條沒有用途的橫向捲軸。 */
+/* 7.4 節「兩拍的反例」框裡的一般式：第三行在手機（框寬約 294 px）寬了約 40 px。只在手機把這一條公式縮小一級，
+   整條放得進框，不需要橫向捲動；桌機維持原本的字級。 */
+@media (max-width: 480px) {
+  .ch07-eq-phone .katex-display {
+    font-size: 0.82em;
+  }
+}
 @media (max-width: 480px) {
   .ch07-fold > details {
     border-left: 0;

@@ -449,7 +449,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: String.raw`小 $N$ 的精確機率：$N=2$ 的 tie 與 $N=3$ 的多數決`,
     page: PAGE,
     formulaId: 'F-05.6',
-    formulaTex: String.raw`P(K=k)=\binom Nk p^k(1-p)^{N-k},\quad S_N=2K-N:\qquad P(S_2>0)=p^2,\quad P(S_2=0)=2p(1-p),\quad P(S_3>0)=p^3+3p^2(1-p)`,
+    formulaTex: String.raw`\begin{aligned}&P(K=k)=\binom Nk p^k(1-p)^{N-k},\quad S_N=2K-N:\\[1ex]&P(S_2>0)=p^2,\quad P(S_2=0)=2p(1-p),\quad P(S_3>0)=p^3+3p^2(1-p)\end{aligned}`,
     level: 'beginner',
     claim: 'exact',
     inputs: [
@@ -522,7 +522,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: String.raw`CLT：由 $\mathrm{SNR}_{\mathrm{stat}}$ 查表得判對機率（偶數 $N$ 要做連續性修正）`,
     page: PAGE,
     formulaId: 'F-05.7',
-    formulaTex: String.raw`z=\frac{Nm}{\sigma_S},\quad\sigma_S=\sqrt{N(1-m^2)}:\qquad \Phi(z)\approx\begin{cases}P(S_N>0) & N\text{ 奇數}\\ P(S_N>0)+\tfrac12P(S_N=0) & N\text{ 偶數}\end{cases}\qquad P(S_N>0)\approx\Phi\!\Big(\frac{Nm-1}{\sigma_S}\Big)\ (N\text{ 偶數})`,
+    formulaTex: String.raw`\begin{aligned}&z=\frac{Nm}{\sigma_S},\quad\sigma_S=\sqrt{N(1-m^2)}:\qquad \Phi(z)\approx\begin{cases}P(S_N>0) & N\text{ 奇數}\\ P(S_N>0)+\tfrac12P(S_N=0) & N\text{ 偶數}\end{cases}\\[1ex]&P(S_N>0)\approx\Phi\!\Big(\frac{Nm-1}{\sigma_S}\Big)\ (N\text{ 偶數})\end{aligned}`,
     level: 'research',
     claim: 'approx',
     inputs: [
@@ -886,7 +886,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: String.raw`綜合題：從 $\sigma_v$ 到校正迴路——穩定上限、pole、收斂時間與 $\sigma_w$`,
     page: PAGE,
     formulaId: 'F-05.20',
-    formulaTex: String.raw`K_q=\sqrt{\tfrac2\pi}\,\frac1{\sigma_v},\qquad 0<\mu<\mu_{\max}=\frac{2}{K_q},\qquad g=\mu K_q,\quad p_{\mathrm{cal}}=1-g,\qquad \tau=\frac{-1}{\ln|p_{\mathrm{cal}}|},\qquad \sigma_w=\frac{\mu}{\sqrt{N\,(1-p_{\mathrm{cal}}^2)}}`,
+    formulaTex: String.raw`\begin{aligned}&K_q=\sqrt{\tfrac2\pi}\,\frac1{\sigma_v},\qquad 0<\mu<\mu_{\max}=\frac{2}{K_q},\qquad g=\mu K_q,\quad p_{\mathrm{cal}}=1-g\\[1ex]&\tau=\frac{-1}{\ln|p_{\mathrm{cal}}|},\qquad \sigma_w=\frac{\mu}{\sqrt{N\,(1-p_{\mathrm{cal}}^2)}}\end{aligned}`,
     level: 'engineer',
     claim: 'approx',
     inputs: [

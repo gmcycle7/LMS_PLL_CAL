@@ -640,6 +640,75 @@ def test_T12_least_squares_and_gmac_zero():
     assert np.max(np.abs(e)) > 0.1  # 但 e ≠ 0
 
 
+def test_T12_noise_free_sign_changes_sign_at_the_median():
+    """技術審查 R05（勘誤 E01）：無雜訊（σ_v = 0）時，Sign-LMS 的固定點是 E[x·sign(e)] 的變號點，不是零點。
+
+    全程用有理數（Fraction），浮點捨入不會把 e = 0 的 tie 翻成正負。
+    e(x; w) = (1 − w)x + x³/10，x ∈ {−2, …, 2} 等機率：E[x·sign(e)] 是階梯函數——
+    w < 11/10 為 +6/5，11/10 < w < 7/5 為 +2/5，w > 7/5 為 −6/5；w = 7/5 那一點是 −2/5
+    （x = ±2 兩個 tie 的貢獻互相抵銷，所以與 sign(0) 的慣例無關）。階梯由正跳到負，沒有經過 0。
+    7/5 是 MAE E|e| 的最小點（|x| 加權中位數）；MSE 的最小點是 67/50 = 1.34，兩者不同。
+    """
+    xs = [Fraction(k) for k in range(-2, 3)]
+    p = Fraction(1, 5)
+    c3 = Fraction(1, 10)
+
+    def err(w: Fraction) -> list[Fraction]:
+        return [(1 - w) * x + c3 * x**3 for x in xs]  # a = 1
+
+    def sgn(v: Fraction, s0: int) -> int:
+        return 1 if v > 0 else -1 if v < 0 else s0
+
+    def mean_gmac(w: Fraction, s0: int = 0) -> Fraction:
+        return sum((p * x * sgn(e, s0) for x, e in zip(xs, err(w))), Fraction(0))  # E[x·sign(e)]
+
+    def mae(w: Fraction) -> Fraction:
+        return sum((p * abs(e) for e in err(w)), Fraction(0))  # E|e|
+
+    def mse(w: Fraction) -> Fraction:
+        return sum((p * e * e for e in err(w)), Fraction(0))  # E[e²]
+
+    w_med = Fraction(7, 5)
+    w_mse = Fraction(67, 50)
+    eps = Fraction(1, 10**9)
+
+    # w = 7/5：x = ±2 與 x = 0 三個 code 的殘差剛好是 0（tie），x = ±1 的殘差是 ±3/10
+    assert err(w_med) == [0, Fraction(3, 10), 0, Fraction(-3, 10), 0]
+    for s0 in (0, 1, -1):
+        assert mean_gmac(w_med, s0) == Fraction(-2, 5)  # 不是 0，三種 sign(0) 慣例都一樣
+    assert mean_gmac(w_med - eps) == Fraction(2, 5)
+    assert mean_gmac(w_med + eps) == Fraction(-6, 5)
+    # 階梯的每一段（另一個 tie 點 11/10：x = ±1 的殘差是 0，那一點的值是 +4/5，同樣與 sign(0) 無關）
+    assert mean_gmac(Fraction(1)) == Fraction(6, 5)
+    assert mean_gmac(Fraction(5, 4)) == Fraction(2, 5)
+    assert mean_gmac(Fraction(3, 2)) == Fraction(-6, 5)
+    for s0 in (0, 1, -1):
+        assert mean_gmac(Fraction(11, 10), s0) == Fraction(4, 5)
+
+    # 0.9 ≤ w ≤ 1.7（步距 0.001，含 11/10 與 7/5 兩個 tie 點）：沒有任何 w 讓 E[x·sign(e)] = 0，而且恰好在 7/5 由正變負
+    for k in range(900, 1701):
+        w = Fraction(k, 1000)
+        for s0 in (0, 1, -1):
+            g = mean_gmac(w, s0)
+            assert g != 0
+            assert (g > 0) == (w < w_med)
+
+    # 7/5 是 E|e| 的最小點：左右斜率 −2/5 與 +6/5（0 落在次梯度裡），不是「斜率 = 0」
+    assert mae(w_med) == Fraction(3, 25)
+    assert (mae(w_med) - mae(w_med - eps)) / eps == Fraction(-2, 5)
+    assert (mae(w_med + eps) - mae(w_med)) / eps == Fraction(6, 5)
+    assert mae(w_mse) == Fraction(18, 125)  # 0.144 > 0.12：1.34 不是 MAE 的最小點
+
+    # MSE 的最小點才是 67/50：E[x·e] = 0，而且 E[e²] 比 7/5 小
+    ex2 = sum((p * x**2 for x in xs), Fraction(0))
+    ex4 = sum((p * x**4 for x in xs), Fraction(0))
+    assert 1 + c3 * ex4 / ex2 == w_mse
+    assert sum((p * x * e for x, e in zip(xs, err(w_mse))), Fraction(0)) == 0
+    assert mse(w_mse) == Fraction(18, 625)  # 0.0288
+    assert mse(w_med) == Fraction(9, 250)  # 0.036
+    assert mean_gmac(w_mse) == Fraction(2, 5)  # 在 1.34，無雜訊的平均更新仍是正的（w 會繼續往 7/5 走）
+
+
 def test_T12_sign_lms_fixed_point_approaches_1p34():
     """Sign-Error LMS 的精確平均固定點（有限 σ）→ 1.34。
 
@@ -795,6 +864,26 @@ def test_T14_psd_total_power_parseval():
     s_eta = 1.0 / 4096
     val, _ = integrate.quad(lambda om: float(noise.coef_noise_psd(10.0, P13, om, s_eta)), -math.pi, math.pi, limit=400, epsrel=1e-13)
     assert val / (2 * math.pi) == pytest.approx(noise.sigma_w2_closed(10.0, s_eta, P13), rel=1e-11)
+
+
+def test_T14_psd_density_is_per_cycle_not_per_rad():
+    """技術審查 C03：DTFT 形式的 S_w 是「每 cycle/block」的密度——對 Ω/2π 積分才是 σ_w²，直接對 Ω 積分會多 2π。
+
+    noise.py 會整份顯示在第 12 章，所以連 docstring 的單位寫法一起固定（不可寫成 per rad）。
+    """
+    import inspect
+
+    from scipy import integrate
+
+    s_eta = 1.0 / 4096
+    val, _ = integrate.quad(lambda om: float(noise.coef_noise_psd(10.0, P13, om, s_eta)), -math.pi, math.pi, limit=400, epsrel=1e-13)
+    sw2 = noise.sigma_w2_closed(10.0, s_eta, P13)
+    assert val / sw2 == pytest.approx(2 * math.pi, rel=1e-11)  # ∫S_w dΩ = 2πσ_w²：S_w 不是每 rad/block 的密度
+    # DC 值的封閉式：S_w(1) = μ²S_η/(1 − p)²；除以 2π 才是每 rad/block 的密度
+    assert float(noise.coef_noise_psd(10.0, P13, 0.0, s_eta)) == pytest.approx(100.0 * s_eta / (1.0 - P13) ** 2, rel=1e-13)
+    doc = noise.coef_noise_psd.__doc__ or ''
+    assert 'cycle/block' in doc
+    assert 'per rad' not in inspect.getsource(noise)
 
 
 def test_T14_monte_carlo_lag1_autocorrelation(make_rng):

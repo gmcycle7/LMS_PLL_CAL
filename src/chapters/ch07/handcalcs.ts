@@ -27,6 +27,7 @@ import {
 } from '@/simulation/models/filteredX'
 import {
   add,
+  breakChain,
   calc,
   chain,
   cosd,
@@ -60,6 +61,7 @@ import { DEG, RAD } from './util'
  *    「模型函式 = 測試內的獨立重算」，並且把每一步的 TeX 重新求值（畫面上的數字自己算得出下一個等號）。
  *  - 每一步用 ./handcalcTex.ts 的 chain() 產生「符號式 = 代入數字 =（中間結果 =）結果」：一個等號只做一種運算；
  *    使用者輸入的數完整顯示；相減會吃掉有效位數的地方，運算元自動多顯示幾位。
+ *    桌機的內文欄（約 850 px）放不下一整行的步驟（HC-07.7 的複數乘除），用 breakChain() 在等號前換行、對齊第一個等號——內容不變。
  *  - 極性約定：δ = a − w；延遲 GMAC 的 code ⇒ θ = φ + ΩD；延遲 comparator 誤差 ⇒ θ′ = φ − ΩD。
  *  - 頻率一律是離散時間 Ω（E44）；單頻公式只適用 0 < Ω < π（E46）；Ĥ ≠ H 時 pole 用 E[u·u_f]（E45）。
  *  - 角度：手算最常用「度」，所以多數題目的 Ω 以 °/sample 輸入；和本文 rad/sample 的例子對照的題目（HC-07.3、HC-07.4）
@@ -474,7 +476,7 @@ export const HANDCALCS: HandCalcDef[] = [
             : total.value < 0
               ? r`$C_D=${num(total.value)}<0$：${(p1 > 0) !== (p2 > 0) ? '一個 tone 對齊了，另一個的反對票卻更重——' : ''}LMS 反向更新。一個 $D$ 只是一條線性相位 $\Omega D$，不能同時對準兩個頻率。`
               : r`$C_D=0$：兩個 tone 的票剛好抵消，沒有恢復力。`,
-          r`對照 filtered-x（$\hat H=H$）：$E[u^2]=\sum_i\tfrac{A_i^2}{2}|H_i|^2=${num(eu2)}${eu2 > 0 ? '>0' : ''}$，不管 code 有幾個頻率都不會是負的，也不需要選 $D$。`,
+          r`對照 filtered-x（$\hat H=H$、regressor 不再另外延遲）：$E[u^2]=\sum_i\tfrac{A_i^2}{2}|H_i|^2=${num(eu2)}${eu2 > 0 ? '>0' : ''}$，不管 code 有幾個頻率都不會是負的，也不需要選 $D$。`,
         ],
       }
     },
@@ -492,7 +494,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: r`正規化相關 $\rho$：這個 regressor 的效率是 filtered-x 的幾成？`,
     page: '/ch/07',
     formulaId: 'F-07.13',
-    formulaTex: r`\rho_{\mathrm{ref}}=\frac{E[x_{\mathrm{ref}}\,u]}{\sqrt{E[x_{\mathrm{ref}}^2]\,E[u^2]}},\qquad E[x_{\mathrm{ref}}\,u]=C_D,\quad E[x_{\mathrm{ref}}^2]=\frac{A^2}{2},\quad E[u^2]=\frac{A^2}{2}|H|^2;\qquad \sigma_w\propto\frac{1}{\sqrt N\,|\rho|}\Rightarrow N\propto\frac1{\rho^2}`,
+    formulaTex: r`\begin{aligned}&\rho_{\mathrm{ref}}=\frac{E[x_{\mathrm{ref}}\,u]}{\sqrt{E[x_{\mathrm{ref}}^2]\,E[u^2]}},\qquad E[x_{\mathrm{ref}}\,u]=C_D,\quad E[x_{\mathrm{ref}}^2]=\frac{A^2}{2},\quad E[u^2]=\frac{A^2}{2}|H|^2;\\[1ex]&\sigma_w\propto\frac{1}{\sqrt N\,|\rho|}\Rightarrow N\propto\frac1{\rho^2}\end{aligned}`,
     level: 'engineer',
     claim: 'approx',
     inputs: [
@@ -528,17 +530,17 @@ export const HANDCALCS: HandCalcDef[] = [
         step(cosT, r`DEG 模式按 $\cos$。`),
         step(Ex2, r`regressor $x_{\mathrm{ref}}=x[n-D]$ 的功率：延遲不改變功率。先平方、再除以 2。`),
         step(C, r`分子：regressor 與 $u$ 的相關（F-07.2）。`),
-        step(Eu2, r`$u$ 是振幅 $A|H|$ 的弦波。這也是 $\hat H=H$ 的 filtered-x 得到的相關——它永遠 $\ge0$。`),
+        step(Eu2, r`$u$ 是振幅 $A|H|$ 的弦波。這也是 $\hat H=H$、$D=0$ 的 filtered-x 得到的相關——它永遠 $\ge0$。`),
         step(prod, r`分母根號裡面的量：regressor 的功率乘上 $u$ 的功率。`),
         step(den, r`按計算機的 $\sqrt{x}$ 鍵。這是 Cauchy–Schwarz 的上限：$|C_D|$ 不可能比它大。`),
         step(rho, r`每單位 regressor 功率的恢復力；$A$ 和 $|H|$ 全部約掉，只剩 $\cos\theta$。`),
       ]
       const results: HandCalcResult[] = [
         { symbol: 'C_D', label: 'delayed-x 的相關', value: tidy(C.value), tolerance: { abs: 0.002, rel: 0.01 } },
-        { symbol: 'E[u^2]', label: r`filtered-x（$\hat H=H$）的相關`, value: tidy(Eu2.value) },
+        { symbol: 'E[u^2]', label: r`filtered-x（$\hat H=H$、$D=0$）的相關`, value: tidy(Eu2.value) },
         { symbol: r`\rho_{\mathrm{ref}}`, label: '正規化相關', value: tidy(rho.value), tolerance: { abs: 0.002, rel: 0.01 } },
       ]
-      const notes = [r`單頻 delayed-x 的 $\rho=\cos\theta$：和 $A$、$|H|$ 無關。filtered-x（$\hat H=H$）的 $\rho$ 恆為 1。$\rho$ 本身是精確的；最後一步「$N$ 的倍數」來自 $\sigma_w$ 的小訊號近似（7.4 節）。`]
+      const notes = [r`單頻 delayed-x 的 $\rho=\cos\theta$：和 $A$、$|H|$ 無關。filtered-x（$\hat H=H$、$D=0$）的 $\rho$ 恆為 1。$\rho$ 本身是精確的；最後一步「$N$ 的倍數」來自 $\sigma_w$ 的小訊號近似（7.4 節）。`]
       if (rho.value > 0) {
         const pen = chain(r`\frac{N}{N_{\rho=1}} = \frac{1}{\rho^2}`, div(given(1), sq(rho.leaf)), { target: averagingPenalty(rho.value) })
         steps.push(step(pen, r`同樣的收斂速度 $g$ 下 $\sigma_w\propto1/(\sqrt N|\rho|)$：要和 filtered-x 一樣準，$N$（校正時間）要放大 $1/\rho^2$ 倍。先平方、再取倒數。［近似］`))
@@ -562,7 +564,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: r`模型 $\hat H$ 多算了 $\Delta$ 個 sample：filtered-x 的極性還對嗎？`,
     page: '/ch/07',
     formulaId: 'F-07.12',
-    formulaTex: r`E[u\,u_f]=\frac{A^2}{2}\,|H|\,|\hat H|\cos\!\big(\angle H-\angle\hat H\big),\qquad\hat H=r\,H\,z^{-\Delta}\Rightarrow\angle H-\angle\hat H=\Omega\Delta;\qquad p_f=1-\mu K_q\,E[u\,u_f],\quad K_q=\frac{\sqrt{2/\pi}}{\sigma_v}`,
+    formulaTex: r`\begin{aligned}&E[u\,u_f]=\frac{A^2}{2}\,|H|\,|\hat H|\cos\!\big(\angle H-\angle\hat H\big),\qquad\hat H=r\,H\,z^{-\Delta}\Rightarrow\angle H-\angle\hat H=\Omega\Delta;\\[1ex]&p_f=1-\mu K_q\,E[u\,u_f],\quad K_q=\frac{\sqrt{2/\pi}}{\sigma_v}\end{aligned}`,
     level: 'engineer',
     claim: 'approx',
     inputs: [
@@ -604,7 +606,7 @@ export const HANDCALCS: HandCalcDef[] = [
           step(err, r`$\hat H=rHz^{-\Delta}$：$z^{-\Delta}$ 的相位是 $-\Omega\Delta$，所以模型比真實路徑多落後 $\Omega\Delta$（和 $\phi$ 是多少無關）。`),
           step(cosE, r`DEG 模式按 $\cos$。相位誤差（折回 $\pm180^\circ$ 以內之後）超過 $90^\circ$ 就變負。`),
           step(magHat, r`模型的增益。`),
-          step(Euf, r`F-07.12 的單頻版本；code 是 unit power（$A=\sqrt2$，$A^2/2=1$，和 Lab 相同），所以第一個因子是 1。`),
+          step(Euf, r`F-07.12 的單頻版本（regressor 沒有額外延遲，$D=0$）；code 是 unit power（$A=\sqrt2$，$A^2/2=1$，和 Lab 相同），所以第一個因子是 1。`),
           step(Eu2, r`模型完美（$\hat H=H$）時的相關。有模型誤差時「不可以」拿它來算 pole（勘誤 E45）。`),
           step(Kq, r`1-bit comparator 的小訊號增益（Ch05）；$\sqrt{2/\pi}\approx0.79788$。`),
           step(muKq, r`先把兩個常數乘起來，下面兩個 pole 都會用到。`),
@@ -641,7 +643,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: r`二次差分 regressor 遇到中頻 tone：用複數算出 $E[u\,u_f]$ 的符號`,
     page: '/ch/07',
     formulaId: 'F-07.14',
-    formulaTex: r`H_{\mathrm{PD}}=\frac{\nabla^2}{\nabla^2+(K_i+K_p\nabla)\,z^{-(1+d)}},\qquad\hat H_2=K_2\nabla^2,\qquad\nabla=1-e^{-j\Omega},\ z^{-1}=e^{-j\Omega};\qquad E[u\,u_f]=\mathrm{Re}\big\{H_{\mathrm{PD}}\,\overline{\hat H_2}\big\}\quad(A^2/2=1)`,
+    formulaTex: r`\begin{aligned}&H_{\mathrm{PD}}=\frac{\nabla^2}{\nabla^2+(K_i+K_p\nabla)\,z^{-(1+d)}},\qquad\hat H_2=K_2\nabla^2,\qquad\nabla=1-e^{-j\Omega},\ z^{-1}=e^{-j\Omega};\\[1ex]&E[u\,u_f]=\mathrm{Re}\big\{H_{\mathrm{PD}}\,\overline{\hat H_2}\big\}\quad(A^2/2=1)\end{aligned}`,
     level: 'research',
     claim: 'exact',
     inputs: [
@@ -722,16 +724,16 @@ export const HANDCALCS: HandCalcDef[] = [
           step(qi, r`$Q$ 的虛部。`),
           step(cz, r`迴路延遲 $1+d$ 個 sample：$z^{-(1+d)}=e^{-j(1+d)\Omega}=c-js$。先算角度 $(1+d)\Omega$，再按 $\cos$。`),
           step(sz, r`同一個角度按 $\sin$。`),
-          step(qzr, r`複數相乘 $(a+jb)(c-js)=(ac+bs)+j(bc-as)$ 的實部。`),
-          step(qzi, r`同一個乘法的虛部。`),
+          step(breakChain(qzr, [2]), r`複數相乘 $(a+jb)(c-js)=(ac+bs)+j(bc-as)$ 的實部。`),
+          step(breakChain(qzi, [2]), r`同一個乘法的虛部。`),
           step(dr, r`分母 $\mathcal D\equiv\nabla^2+Qz^{-(1+d)}$ 的實部。`),
           step(di, r`分母的虛部。`),
           step(den2, r`複數除法要用到分母的絕對值平方。`),
-          step(Hre, r`複數除法：分子分母同乘分母的共軛，$\dfrac{a+jb}{c+je}=\dfrac{(ac+be)+j(bc-ae)}{c^2+e^2}$。這是實部：兩個乘積相加，再除以 $|\mathcal D|^2$。`),
-          step(Him, r`同一個除法的虛部。到這裡就得到真實誤差路徑在這個頻率的響應。`),
+          step(breakChain(Hre, [2, 3]), r`複數除法：分子分母同乘分母的共軛，$\dfrac{a+jb}{c+je}=\dfrac{(ac+be)+j(bc-ae)}{c^2+e^2}$。這是實部：兩個乘積相加，再除以 $|\mathcal D|^2$。`),
+          step(breakChain(Him, [2, 3]), r`同一個除法的虛部。到這裡就得到真實誤差路徑在這個頻率的響應。`),
           step(h2r, r`regressor 路徑的響應 $\hat H_2=K_2\nabla^2$：實部乘 $K_2$。`),
           step(h2i, r`虛部也乘 $K_2$。`),
-          step(E, r`$\mathrm{Re}\{(a+jb)\overline{(c+je)}\}=ac+be$：兩個複數的「內積」。它等於 $|H||\hat H_2|\cos(\angle H-\angle\hat H_2)$（F-07.12，unit-power code）。`),
+          step(breakChain(E, [2]), r`$\mathrm{Re}\{(a+jb)\overline{(c+je)}\}=ac+be$：兩個複數的「內積」。它等於 $|H||\hat H_2|\cos(\angle H-\angle\hat H_2)$（F-07.12 取 $D=0$，unit-power code）。`),
         ],
         results: [
           { symbol: r`\mathrm{Re}\,H_{\mathrm{PD}}`, label: '真實誤差路徑響應的實部', value: tidy(Hre.value), tolerance: { abs: 2e-3, rel: 0.02 } },
@@ -764,7 +766,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: r`綜合：raw-x／delayed-x／filtered-x 三個平均 pole（算完到 Lab 對答案）`,
     page: '/ch/07',
     formulaId: 'F-07.11',
-    formulaTex: r`C_{\mathrm{raw}}=|H|\cos\phi,\qquad C_D=|H|\cos(\phi+\Omega D),\qquad E[u^2]=|H|^2\qquad(\text{unit power：}A^2/2=1);\qquad p=1-\mu K_q\,C,\quad K_q=\frac{\sqrt{2/\pi}}{\sigma_v}`,
+    formulaTex: r`\begin{aligned}&C_{\mathrm{raw}}=|H|\cos\phi,\qquad C_D=|H|\cos(\phi+\Omega D),\qquad E[u^2]=|H|^2\qquad(\text{unit power：}A^2/2=1);\\[1ex]&p=1-\mu K_q\,C,\quad K_q=\frac{\sqrt{2/\pi}}{\sigma_v}\end{aligned}`,
     level: 'engineer',
     claim: 'approx',
     inputs: [
@@ -805,26 +807,26 @@ export const HANDCALCS: HandCalcDef[] = [
           { tex: thetaTex(r`\theta`, r`\phi+\Omega D`, a), why: r`延遲的是 code，所以是加 $\Omega D$。${a.wrap.wrapped ? WHY_WRAP : ''}` },
           step(cosT, r`DEG 模式按 $\cos$。`),
           step(CD, r`delayed-x 的相關。`),
-          step(Eu2, r`filtered-x（$\hat H=H$）：regressor 就是 $u$ 本身，相關是 $u$ 的功率——不可能是負的。`),
+          step(Eu2, r`filtered-x（$\hat H=H$、$D=0$）：regressor 就是 $u$ 本身，相關是 $u$ 的功率——不可能是負的。`),
           step(Kq, r`1-bit comparator 的小訊號增益；$\sqrt{2/\pi}\approx0.79788$。`),
           step(muKq, r`三個 pole 共用的常數。`),
           step(pR, r`raw-x 的平均 pole：先乘出 loop gain $g=\mu K_qC$，再用 1 去減。`),
           step(pD, r`delayed-x 的平均 pole。`),
-          step(pF, r`filtered-x（$\hat H=H$）的平均 pole。`),
+          step(pF, r`filtered-x（$\hat H=H$、$D=0$）的平均 pole。`),
         ],
         results: [
           { symbol: r`C_{\mathrm{raw}}`, label: 'raw-x 的相關', value: tidy(Craw.value), tolerance: { abs: 0.002, rel: 0.01 } },
           { symbol: 'C_D', label: 'delayed-x 的相關', value: tidy(CD.value), tolerance: { abs: 0.002, rel: 0.01 } },
-          { symbol: 'E[u^2]', label: r`filtered-x（$\hat H=H$）的相關`, value: tidy(Eu2.value) },
+          { symbol: 'E[u^2]', label: r`filtered-x（$\hat H=H$、$D=0$）的相關`, value: tidy(Eu2.value) },
           { symbol: r`p_{\mathrm{raw}}`, label: 'raw-x 的 pole', value: prv, digits: 6, tolerance: poleTol(1 - prv) },
           { symbol: 'p_D', label: 'delayed-x 的 pole', value: pdv, digits: 6, tolerance: poleTol(1 - pdv) },
-          { symbol: 'p_f', label: 'filtered-x 的 pole', value: pfv, digits: 6, tolerance: poleTol(1 - pfv) },
+          { symbol: 'p_f', label: r`filtered-x（$\hat H=H$、$D=0$）的 pole`, value: pfv, digits: 6, tolerance: poleTol(1 - pfv) },
         ],
         notes: [
           poleVerdict('raw-x', prv),
           poleVerdict(r`delayed-x（$D=${D}$）`, pdv),
           poleVerdict('filtered-x', pfv),
-          r`到上面的 Lab 對答案：誤差路徑選 single_tone、把 $|H|$、$\phi$、$\Omega$（rad/sample：$${num(om)}$）、$\sigma_v$ 設成同樣的數字，Case A/B/C 分別是 raw-x、delayed-x、filtered-x；指標表的 $C$ 與「平均 pole」、閉迴路結果的 $p$ 應該和你算的一樣。`,
+          r`到上面的 Lab 對答案：誤差路徑選 single_tone、把 $|H|$、$\phi$、$\Omega$（rad/sample：$${num(om)}$）、$\sigma_v$ 設成同樣的數字，Case A/B/C 分別是 raw-x、delayed-x、filtered-x（Case C 的 $D$ 保持 0）；指標表的 $C$ 與「平均 pole」、閉迴路結果的 $p$ 應該和你算的一樣。`,
         ],
       }
     },

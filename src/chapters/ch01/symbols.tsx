@@ -321,7 +321,11 @@ export const SYMBOLS: SymbolEntry[] = [
     symbol: '\\pi_k,\\ u_k,\\ d_k',
     meaning: '格點 Markov 鏈的穩態機率、往上／往下的機率',
     firstSeen: '§2.3.1',
-    note: 'Research 模式',
+    note: (
+      <>
+        Research 模式；推導裡的 <Tex>{String.raw`M=10/\mu`}</Tex> 是 <Tex>{'w=10'}</Tex> 那一格的編號
+      </>
+    ),
   },
   {
     symbol: String.raw`\tilde v=y-ax`,

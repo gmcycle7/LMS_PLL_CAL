@@ -54,7 +54,7 @@ export function MatrixPrereq() {
       <p>
         整節其實只要記住一個畫面：<strong>矩陣 {m`\mathbf R`} 是一台「丟一個向量進去、吐一個向量出來」的機器</strong>。這裡的 {m`\mathbf R`} 是
         <strong>相關矩陣</strong>（correlation matrix）{m`\begin{bmatrix}1&\rho\\\rho&1\end{bmatrix}`}：對角線的 1 是每個 regressor 自己的功率，
-        {m`\rho`}（相關係數，correlation coefficient）是兩個 regressor「同進同出」的程度，{m`\rho=1`} 表示完全一樣、{m`\rho=0`} 表示互不相干。
+        {m`\rho`}（相關係數，correlation coefficient）是兩個 regressor「同進同出」的程度，{m`\rho=1`} 表示完全一樣、{m`\rho=0`} 表示平均起來既不同向也不反向（正交，見下面的先備知識框）。
         下圖取 {m`\rho=0.99`}，把三個不同的向量丟進去：
       </p>
       <Diagram id="matrix-machine">
@@ -65,7 +65,7 @@ export function MatrixPrereq() {
         {m`${texNum(machine.out[1][0])}\times(1,-1)`}，方向都沒變。這種「只被縮放」的向量叫 <strong>eigenvector</strong>，縮放的倍數叫
         <strong>eigenvalue</strong>，記成 {m`\lambda`}。再看輸入是 {m`(1,0)`} 的那一列——進去之後變成 {m`(${texNum(machine.out[2][0])},\,${texNum(machine.out[2][1])})`}，
         方向變了，所以它不是 eigenvector。圖上的「{m`\times\mathbf R`}」就是下面要講的矩陣乘向量 {m`\mathbf R\mathbf x`}；圖上的 1.99 與 0.01 就是後面公式裡的
-        {m`\lambda_{\max}=1+\rho`} 與 {m`\lambda_{\min}=1-\rho`}。這一章的結論幾乎都來自這張圖：LMS 沿著 {m`\lambda`} 大的方向學得快，沿著 {m`\lambda`} 小的方向學得慢。
+        {m`\lambda_{\max}=1+\rho`} 與 {m`\lambda_{\min}=1-\rho`}（{m`\rho\ge0`} 時；{m`\rho<0`} 時兩者對調）。這一章的結論幾乎都來自這張圖：步長不太大時，LMS 沿著 {m`\lambda`} 大的方向學得快，沿著 {m`\lambda`} 小的方向學得慢。
       </p>
 
       <Prereq title={String.raw`期望值 $E[\cdot]$、相關（correlation）與相關矩陣 $\mathbf R$`}>
@@ -75,7 +75,10 @@ export function MatrixPrereq() {
         </p>
         <ul>
           <li>{m`E[u_1u_2]>0`}：多半同號（一起推同一個方向）。</li>
-          <li>{m`E[u_1u_2]=0`}：不相關（uncorrelated），互相不干擾。</li>
+          <li>
+            {m`E[u_1u_2]=0`}：<strong>正交（orthogonal）</strong>，兩個 regressor 互相不干擾。只要其中一個的平均為 0，這也就是不相關（uncorrelated，
+            {m`E[u_1u_2]=E[u_1]\,E[u_2]`}，第 0 章 §0.7 的定義）；本章的 {m`\rho`} 與 {m`\mathbf R`} 用的都是不扣平均的 {m`E[u_iu_j]`}。
+          </li>
           <li>{m`E[u_1u_2]<0`}：多半反號。</li>
         </ul>
         <p>
@@ -165,7 +168,7 @@ export function MatrixPrereq() {
               why: <>{m`2\times2`} 行列式 = 對角相乘 − 反對角相乘。</>,
             },
             { tex: String.raw`1-\lambda=\pm\rho`, why: <>兩邊開根號（平方相等 {m`\iff`} 相等或相反）。</> },
-            { tex: String.raw`\lambda_1=1+\rho,\qquad \lambda_2=1-\rho`, why: <>解出 {m`\lambda`}；{m`\rho\ge0`} 時 {m`\lambda_1`} 較大。</> },
+            { tex: String.raw`\lambda_1=1+\rho,\qquad \lambda_2=1-\rho`, why: <>解出 {m`\lambda`}；{m`\rho\ge0`} 時 {m`\lambda_1`} 較大，{m`\rho<0`} 時換成 {m`\lambda_2`} 較大（合起來 {m`\lambda_{\max,\min}=1\pm|\rho|`}）。</> },
             {
               tex: String.raw`\lambda_1:\ \begin{bmatrix}-\rho&\rho\\\rho&-\rho\end{bmatrix}\begin{bmatrix}v_1\\v_2\end{bmatrix}=\mathbf 0\Rightarrow v_1=v_2\Rightarrow \mathbf v_1=\tfrac1{\sqrt2}\begin{bmatrix}1\\1\end{bmatrix}`,
               why: <>代回 {m`(\mathbf R-\lambda_1\mathbf I)\mathbf v=\mathbf 0`}；第一列 {m`-\rho v_1+\rho v_2=0`}。除以長度 {m`\sqrt2`} 變成單位向量。</>,

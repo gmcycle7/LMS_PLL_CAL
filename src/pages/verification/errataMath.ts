@@ -16,13 +16,20 @@ export interface ErratumMath {
   spec: string | null
   /** 網站採用的修正（TeX） */
   fix: string
+  /**
+   * 事後補充（可含 `$…$`）：docs/validation.md／errata.json 的原文是歷史紀錄，不改寫；
+   * 原文的某一句後來被更精確的說法取代時，把補充寫在這裡，顯示在卡片「原文」區塊的最下面。
+   */
+  addendum?: string
 }
 
 export const ERRATA_MATH: Record<string, ErratumMath> = {
   E01: {
     gist: r`$1.34$ 是 MSE-LMS 的固定點；1-bit Sign-LMS 的固定點隨 $\sigma_v$ 從 $1.4$（無雜訊）連續變到 $1.34$（雜訊主導）。`,
     spec: r`w^*=a+c\,\frac{E[x^4]}{E[x^2]}=1.34\qquad(\text{未說明演算法與 }\sigma_v)`,
-    fix: r`\begin{aligned}\text{MSE-LMS：}&\ E[x\,e]=0\ \Rightarrow\ w^*=a+c_3\frac{E[x^4]}{E[x^2]}=\frac{67}{50}=1.34\\[2pt]\text{Sign-LMS：}&\ \sum_xp_x\,x\,\operatorname{erf}\!\Big(\frac{(a-w^*)x+c_3x^3}{\sqrt2\,\sigma_v}\Big)=0\ \Rightarrow\ w^*\approx1.34+\frac{3.456\times10^{-4}}{\sigma_v^2}\\[2pt]\sigma_v=0:\ &\ E[x\operatorname{sign}(e)]=0\ \Rightarrow\ w^*=1.4\end{aligned}`,
+    fix: r`\begin{aligned}\text{MSE-LMS：}&\ E[x\,e]=0\ \Rightarrow\ w^*=a+c_3\frac{E[x^4]}{E[x^2]}=\frac{67}{50}=1.34\\[2pt]\text{Sign-LMS：}&\ \sum_xp_x\,x\,\operatorname{erf}\!\Big(\frac{(a-w^*)x+c_3x^3}{\sqrt2\,\sigma_v}\Big)=0\ \Rightarrow\ w^*\approx1.34+\frac{3.456\times10^{-4}}{\sigma_v^2}\\[2pt]\sigma_v=0:\ &\ E[x\operatorname{sign}(e)]\ \text{由正變負（跳過 }0\text{）}\ \Rightarrow\ w^*=1.4\end{aligned}`,
+    // 技術審查 R05：原文「問題」欄的「由 E[x·sign(e)]=0 決定」與上面的修正式寫法不同；原文是紀錄不改，補充寫在這裡
+    addendum: r`「問題」欄寫的「固定點由 $E[x\cdot\operatorname{sign}(e)]=0$ 決定」是當時的簡寫（技術審查 R05）。code 只有離散值、又沒有雜訊時，$E[x\operatorname{sign}(e)]$ 是 $w$ 的階梯函數：它在 $w^*=1.4$ 由 $+0.4$ 直接跳到 $-1.2$，中間沒有等於 $0$ 的點。固定點指的是這個變號的位置（$|x|$ 加權中位數），和上方「網站採用的修正」的寫法一致；只有 code 連續分布或 $\sigma_v>0$ 時才是「等於 $0$」的根。數值不變。`,
   },
   E02: {
     gist: r`偶數 $N$ 有 tie（$S_N=0$）；規格的 CLT 式近似的是「tie 平分」，照字面算 $P(S_{100}>0)$ 只有 $49.2\%$。`,
@@ -215,7 +222,7 @@ export const ERRATA_MATH: Record<string, ErratumMath> = {
     fix: r`\delta_n=a-w_n\ \Rightarrow\ \delta_0,\delta_1,\delta_2=+2,\ +1.2,\ +0.72`,
   },
   E40: {
-    gist: r`$\operatorname{sign}(0)$ 的慣例會讓 Sign-Error 的穩態平均偏移 $0$、$\mu/2$ 或 $\mu$；驗證容忍度至少取 $\mu|x|$。`,
+    gist: r`$\operatorname{sign}(0)$ 的慣例會讓 Sign-Error 的穩態平均偏移約 $0$、$\mu/2$ 或 $\mu$（步長遠小於資料值的間距時的近似，第 1 章）；驗證容忍度至少取 $\mu|x|$。`,
     spec: r`q=\operatorname{sign}(e),\qquad\operatorname{sign}(0)\ \text{未定義}`,
     fix: r`\text{數學 subgradient：}\operatorname{sign}(0)=0;\qquad\text{comparator：}e\ge0\to+1;\qquad\text{時間平均的偏移}=O(\mu|x|)`,
   },

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import katex from 'katex'
 import { binomPmf, createRng } from '@/simulation/core'
+import { runBlockLms } from '@/simulation/models/blockLms'
 import {
   CODE_LABEL_TEX,
   P_MIN_3DB,
@@ -213,6 +214,67 @@ describe('§12.1 係數雜訊：T13', () => {
     expect(txt.match(/g ≥ 2：一階模型不穩定/g)?.length).toBe(1)
     expect(txt).toMatch(/g=\\mu KN=326\.8/)
   })
+
+  it('大偏差（δw_0 = 10σ_v）時兩個引擎的差別：線性版每個 block 乘 p（指數收斂，不是發散），sign 版每個 block 最多走 μ', () => {
+    // §12.9 程式碼對照的圖說：T13 的迴路 p = 0.9202（穩定），由 δw_0 = 1000 fs 起跑、不做 burn-in
+    const lp = calLoop(T13_BASE)
+    const start = (engine: 'linear' | 'binomial') => runNoiseLab({ ...T13_BASE, engine, dw0: 1000, blocks: 60, chains: 1, seed: 3, burnIn: 0, traceMax: 100 }).trace.dw
+    const lin = start('linear')
+    expect(lin[0]).toBe(1000)
+    expect(lin[1] / lin[0]).toBeCloseTo(lp.p, 2) // 0.9203：G = −K·δw 沒有上限，一步就走了約 80 fs
+    expect(lin[0] - lin[1]).toBeGreaterThan(7 * 10)
+    expect(Math.abs(lin[40])).toBeLessThan(0.05 * 1000) // p^40 = 0.036
+    const sgn = start('binomial')
+    for (let k = 1; k <= 40; k++) expect(Math.abs(sgn[k] - sgn[k - 1])).toBeLessThanOrEqual(10 + 1e-9) // |G| ≤ 1 ⇒ 每步 ≤ μ = 10 fs
+    expect(sgn[0] - sgn[1]).toBeCloseTo(10, 6) // 飽和：G ≈ −1
+    expect(sgn[40]).toBeGreaterThan(1000 - 40 * 10 - 1e-9)
+  })
+})
+
+describe('§12.1 小訊號判據的適用範圍（技術審查 R06c）：逐 sample 引擎、固定 w', () => {
+  /**
+   * 固定係數（gain_step = 0）、δw = w − a = 2 fs、σ_v = 1 fs、±1 iid code，量 GMAC 的平均輸出 E[G | δw]。
+   * 精確值（四種 (x[n], x[n−1]) 組合各算一次 erf 再平均；Python 以 erfc 與直接積分各算過一次）：
+   *   兩個 tap [0.05, 1]：−0.0108521；單一 tap [0.05]（無記憶 path）：−0.0796557；F-12.1 的線性值 −K·δw = −0.0797885。
+   * 用 taps [0.05, 1] 而不是審查意見的 [0.001, 1]（那一組的解析值在 src/chapters/ch12/smallSignalScope.test.ts）：
+   * 線性值大十倍（−0.0798 對 −0.008），和量到的 −0.0109 相差約 200 個標準誤差，Monte Carlo 的對照比較清楚。
+   */
+  const meanG = (taps: number[]) => {
+    const r = runBlockLms({
+      seed: 7,
+      gm_accum_samples: 4096,
+      gain_true: 3,
+      gain_initial: 5,
+      gain_step: 0,
+      code_normalization: 'unit_rms',
+      gm_mode: 'average',
+      pd_noise_rms_fs: 1,
+      pll_error_path: { kind: 'fir', parameters: { taps } },
+      seeded_pattern: { kind: 'iid_pm_one', parameters: {} },
+      num_blocks: 2000,
+      record: { sample_trace_blocks: 0, decimate: 1 },
+    })
+    expect(r.blocks.w[0]).toBe(5)
+    expect(r.blocks.w[r.blocks.w.length - 1]).toBe(5) // 係數真的沒有動：量到的是條件平均 E[G | δw = 2]
+    let s = 0
+    for (let k = 0; k < r.blocks.G.length; k++) s += r.blocks.G[k]
+    return s / r.blocks.G.length // 2000 × 4096 個 sample：標準誤差 ≈ 0.00035
+  }
+  const linear = -Math.sqrt(2 / Math.PI) * 0.05 * 2 // −K·δw，K = K_q·C、C = 0.05
+
+  it('反例：path 有記憶（taps [0.05, 1]）時 |C·δw| = 0.1σ_v 看似小訊號，量到的恢復力卻只有線性值的約 0.14 倍', () => {
+    const g = meanG([0.05, 1])
+    expect(linear).toBeCloseTo(-0.0797885, 6)
+    expect(Math.abs(g - -0.0108521)).toBeLessThan(0.002)
+    expect(Math.abs(g - linear)).toBeGreaterThan(0.06)
+    expect(g / linear).toBeLessThan(0.2)
+  }, 60000)
+
+  it('對照組：無記憶 path（taps [0.05]，本章與 LMS Noise Lab 的模型）時量到的恢復力就是線性值（差 0.17%）', () => {
+    const g = meanG([0.05])
+    expect(Math.abs(g - -0.0796557)).toBeLessThan(0.002)
+    expect(Math.abs(g / linear - 1)).toBeLessThan(0.03)
+  }, 60000)
 })
 
 describe('§12.4 研究延伸：colored GMAC noise（AR(1) S_η）', () => {
@@ -365,6 +427,54 @@ describe('§12 Calibration 頻寬：T14', () => {
     expect(10 * Math.log10(closed(100, 1, 4e9) / ((2 * 100 * 100) / 4e9))).toBeCloseTo(1.9612, 4)
   })
 
+  it('C03：DTFT 形式的 S_w 是每 cycle/block 的密度：(1/2π)∫S_w dΩ = σ_w²，直接對 Ω 積分是 2πσ_w²；單邊 per-Hz 只乘 2/f_u', () => {
+    const TWO_PI = 2 * Math.PI
+    // ∫_{−π}^{π} S_w dΩ（S_w 對 Ω 偶對稱：2 × ∫_0^π）
+    const plainIntegral = (mu: number, p: number, sEta: number, breaks: number[], tol: number) =>
+      2 * integrateWithBreaks((om) => swDtft(om, mu, p, sEta), 0, Math.PI, breaks, tol).value
+    // ── 反例（T13）：把 S_w 當成「每 rad/block」的密度直接對 Ω 積分，得到的不是變異數，而是 2π 倍 ──
+    const lp = calLoop(T13_BASE)
+    expect(lp.sigmaW2).toBeCloseTo(0.15934957675597428, 14)
+    const I = plainIntegral(10, lp.p, lp.sigmaEta2, [(TWO_PI * lp.f3dbExact) / lp.fu], 1e-12 * lp.sigmaW2)
+    expect(I).toBeCloseTo(1.00122291937842, 10)
+    expect(I / TWO_PI / lp.sigmaW2).toBeCloseTo(1, 9) // 對 Ω/2π（cycle/block）積分才是 σ_w²
+    expect(I / lp.sigmaW2).toBeCloseTo(6.283185307, 8) // 直接對 Ω 積分：2π·σ_w²
+    // 能直接對 Ω 積分的「每 rad/block」密度是 S_w/(2π)；DC 處 S_w(0) = πσ_v²/(2N)，除以 2π 是 σ_v²/(4N)
+    const s0 = swDtft(0, 10, lp.p, lp.sigmaEta2)
+    expect(s0 / ((Math.PI * 1e4) / (2 * 4096))).toBeCloseTo(1, 12)
+    expect(s0 / TWO_PI).toBeCloseTo(1e4 / (4 * 4096), 12) // 0.6103515625
+    // ── per-Hz 那一側不要矯枉過正：S^(1)(0) = (2/f_u)·S_w(0) = πσ_v²/f_s，沒有 2π ──
+    const s1 = swOneSided(0, 10, lp.p, lp.sigmaEta2, lp.fu)
+    expect(s1 / ((Math.PI * 1e4) / 4e9)).toBeCloseTo(1, 12) // 7.853981634×10⁻⁶ fs²/Hz
+    expect(s1 / ((2 / lp.fu) * s0)).toBeCloseTo(1, 14)
+    expect((((4 * Math.PI) / lp.fu) * s0) / s1).toBeCloseTo(TWO_PI, 12) // 多乘 2π 的寫法（4.9348×10⁻⁵）差 2π 倍
+    // 單位推算：fs²/(cycle/block) × (block/s)⁻¹ = fs²/Hz ⇒ ∫_0^{f_u/2} S^(1) df = ∫_{−1/2}^{1/2} S_w d(Ω/2π)
+    expect((s1 * lp.enbw) / lp.sigmaW2).toBeCloseTo(1, 12)
+    // ── 對照組：p = +0.5（low-pass）與 p = −0.5（high-pass），N = 16、f_s = 1 MHz、σ_v = 100 fs、C = 1 ──
+    const K = Math.sqrt(2 / Math.PI) / 100
+    const ctrl = (g: number) => {
+      const mu = g / K
+      const c = calLoop({ N: 16, fs: 1e6, mu, sigmaV: 100, C: 1 })
+      return { mu, c, I: plainIntegral(mu, c.p, c.sigmaEta2, [], 1e-12 * c.sigmaW2) }
+    }
+    const lo = ctrl(0.5)
+    expect(lo.mu).toBeCloseTo(62.665706865775014, 10)
+    expect(lo.c.p).toBeCloseTo(0.5, 14)
+    expect(lo.c.sigmaW2).toBeCloseTo(327.24923474893683, 9)
+    expect(lo.I).toBeCloseTo(2056.167583560283, 6)
+    expect(lo.I / lo.c.sigmaW2).toBeCloseTo(TWO_PI, 9)
+    expect(lo.I / TWO_PI / lo.c.sigmaW2).toBeCloseTo(1, 10)
+    expect(swDtft(0, lo.mu, lo.c.p, lo.c.sigmaEta2) / ((Math.PI * 1e4) / 32)).toBeCloseTo(1, 12) // 981.7477 = π·10⁴/32
+    expect(swOneSided(0, lo.mu, lo.c.p, lo.c.sigmaEta2, lo.c.fu) / ((Math.PI * 1e4) / 1e6)).toBeCloseTo(1, 12) // 0.0314159 fs²/Hz
+    const hi = ctrl(1.5)
+    expect(hi.mu).toBeCloseTo(187.99712059732505, 10)
+    expect(hi.c.p).toBeCloseTo(-0.5, 14)
+    expect(hi.c.sigmaW2).toBeCloseTo(2945.243112740431, 8)
+    expect(hi.I).toBeCloseTo(18505.508252042546, 5)
+    expect(hi.I / hi.c.sigmaW2).toBeCloseTo(TWO_PI, 9)
+    expect(hi.I / TWO_PI / hi.c.sigmaW2).toBeCloseTo(1, 10)
+  })
+
   it('T14: 反面測試：p < 3 − 2√2 沒有 −3 dB 點、p < 0 為 high-pass、p = 0 flat、|p| ≥ 1 不穩定（E27）', () => {
     expect(P_MIN_3DB).toBeCloseTo(0.171573, 6)
     const Kq = Math.sqrt(2 / Math.PI) / 100
@@ -424,7 +534,7 @@ describe('§12.2 Multirate 與三種 code 頻譜', () => {
     expect(tot / sw2).toBeCloseTo(1, 7)
   })
 
-  it('E09 反面測試：把 block-rate S_w（per rad/block）直接當 sample-rate PSD 會在 skirt 差約 N 倍', () => {
+  it('E09 反面測試：把 block-rate S_w（Ω 為 rad/block）直接當 sample-rate PSD 會在 skirt 差約 N 倍', () => {
     const f = 5e3
     const correct = swZohOneSided(f, 4e9, 4096, 10, lp.p, lp.sigmaEta2)
     const wrong = (2 / 4e9) * swDtft((2 * Math.PI * f) / 4e9, 10, lp.p, lp.sigmaEta2) // 頻率軸、位準都錯

@@ -5,7 +5,7 @@ import { PAGES } from '@/app/registry'
 import { SIX_CONDITIONS } from '../data'
 import { handExample } from '../previews'
 import { summarizeErrata, summarizeTests } from '../summaries'
-import { scrollToId } from '../ui'
+import { Glue, scrollToId } from '../ui'
 
 const TOC: { id: string; label: string }[] = [
   { id: 'dash-map', label: '系統地圖' },
@@ -133,7 +133,11 @@ export const Hero = memo(function Hero() {
           </table>
         </div>
         <p className="small muted">
-          每一步誤差都乘上 <Tex>{`p=1-\\mu x^2=${fmt(h.pole)}`}</Tex>，所以 <Tex>{'w_n\\to a'}</Tex>。接下來 {chapters - 1} 章就是在問：換成 PLL
+          每一步誤差都乘上 <Tex>{`p=1-\\mu x^2=${fmt(h.pole)}`}</Tex>，所以{' '}
+          <Glue>
+            <Tex>{'w_n\\to a'}</Tex>。
+          </Glue>
+          接下來 {chapters - 1} 章就是在問：換成 PLL
           裡的 1-bit comparator、相位、雜訊與 6-bit 暫存器之後，這件事還成立嗎？
         </p>
         {start && (

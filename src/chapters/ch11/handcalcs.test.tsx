@@ -6,6 +6,7 @@ import type { HandCalcDef, HandCalcSolution } from '@/data/types'
 import { normCdf } from '@/simulation/core'
 import {
   KQ_FACTOR,
+  LIN_RATIO_LIMIT,
   autoMu,
   buildCodeDistribution,
   codeMoments,
@@ -353,6 +354,11 @@ describe('Ch11 handcalcs：預設值重現本章的 worked example（數值來�
     expect(sol.steps[2].tex).toContain(String.raw`-0.12,\ 0.24,\ 0,\ -0.24,\ 0.12`)
     expect(sol.steps[3].tex).toContain(String.raw`0.24,\ -0.24,\ 0,\ -0.24,\ 0.24`)
     expect(sol.notes?.[0]).toContain('GMAC 歸零不代表誤差歸零')
+    // 審查 C04：補充觀察只點名 ±1、±2 四個 code 的殘差（x = 0 的殘差是 0，寫在第 3 步），所以「沒有一個是 0」在這裡是對的
+    expect(sol.notes?.[0]).toContain(String.raw`e(\pm1)=\mp0.24`)
+    expect(sol.notes?.[0]).toContain(String.raw`e(\pm2)=\pm0.12`)
+    expect(sol.steps[2].why).toContain('$x=0$ 的殘差是 0')
+    expect(solve('HC-11.1', { c3: 0, w: 1 }).notes?.[0]).toContain('每個殘差都是 0')
     // 開場「先算一次」的另外三個 w
     expect(values(solve('HC-11.1', { w: 1 }))[2]).toBeCloseTo(0.68, 12)
     expect(values(solve('HC-11.1', { w: 1.2 }))[2]).toBeCloseTo(0.28, 12)
@@ -506,8 +512,14 @@ describe('Ch11 handcalcs：預設值重現本章的 worked example（數值來�
     expect(def.validate?.(at(0.2))).toBeNull() // 內文的「σ_v ≳ 0.2 時有效」：邊界值本身可以算
     const w = def.solve(at(0.2)).results[2].value
     expect(Math.abs(w - signFixedPoint(model({ c3: 0.1, sigmaV: 0.2 }), FIVE).w)).toBeLessThan(1e-4)
-    expect(def.validate?.(at(0.19))).toMatch(/不收斂/)
-    expect(def.validate?.(at(0.1))).toMatch(/不收斂/)
+    // 審查 C05：失準的是 erf 只取到三次項的低階截斷；erf 的泰勒級數對任何有限引數都收斂，訊息不可再寫「不收斂」
+    expect(def.validate?.(at(0.19))).toMatch(/低階截斷/)
+    expect(def.validate?.(at(0.1))).toMatch(/低階截斷/)
+    expect(def.validate?.(at(0.19))).not.toMatch(/不收斂/)
+    expect(def.validate?.(at(0.19))).toMatch(/都收斂/)
+    // ratio 剛超過 1.2 時結果只是不準（1.34957 vs 1.34944），訊息不說「飽和」（erf(1.2/√2) 只有 0.77）
+    expect(def.validate?.(at(0.19))).not.toMatch(/飽和/)
+    expect(comparatorMean(1.2, 1)).toBeCloseTo(0.7699, 4)
   })
 
   it('HC-11.5：很小的 c₃ 時 Δ 不會被捨成 0（步驟與答案一致）；σ_min 落在適用範圍外時加註「只能當量級估計」', () => {
@@ -586,6 +598,27 @@ describe('Ch11 handcalcs：預設值重現本章的 worked example（數值來�
       expect(v[2], `C = ${C}`).toBeCloseTo(sens, 8)
     }
     expect(solve('HC-11.7', { C: -0.01 }).notes?.[0]).toContain('repelling')
+    // 審查 R01：預設值的 w* − a = 1 遠遠超出線性化範圍（2√3·1/σ_v = 3.46 > 0.3）——算術不變，但要註明它只是線性外推
+    expect(sol.notes?.[0]).toContain('放大')
+    const notes = (sol.notes ?? []).join(' ')
+    expect(notes).toContain('線性外推')
+    expect(notes).toContain('3.4641') // max|e_det| ≈ |w* − a|·2√3·√E[x²]
+    expect(notes).toContain('11.5') // 回到線性範圍至少需要的 σ_v = 3.4641/0.3
+    expect(notes).toContain(String.raw`|\kappa_d|\lesssim0.000866`) // 或 |κ_d| ≲ 0.01·0.3/3.4641 = 8.66e−4
+    expect(2 * Math.sqrt(3)).toBeCloseTo(3.4641, 4)
+    expect((2 * Math.sqrt(3)) / LINEAR_OK_RATIO).toBeCloseTo(11.547, 3)
+    // σ_v = 20：指標 0.1732 ≤ 0.3，只說「第一個條件通過」（C 很小時還要看 γ_lin），不說它已經是固定點
+    const wide = (solve('HC-11.7', { sigma: 20 }).notes ?? []).join(' ')
+    expect(wide).toContain('第一個條件通過')
+    expect(wide).toContain('0.1732')
+    expect(wide).not.toContain('線性外推')
+    expect(wide).toContain(String.raw`\gamma_\mathrm{lin}`)
+    // C < 0（repelling）與 C ≥ E[x²] 不加這個註記
+    expect((solve('HC-11.7', { C: -0.01 }).notes ?? []).join(' ')).not.toContain('線性化檢查')
+    expect((solve('HC-11.7', { C: 1 }).notes ?? []).join(' ')).not.toContain('線性化檢查')
+    // 門檻只有一個數字：手算、Lab 警告與 near-integer 實驗共用
+    expect(LINEAR_OK_RATIO).toBe(LIN_RATIO_LIMIT)
+    expect(LINEAR_OK_RATIO).toBe(0.3)
     // 靜態結果 a + κ 與 E[x²] 無關，並等於模型的 MSE／Sign 固定點（F-11.13）
     for (const w of values(solve('HC-11.7', { kd: 0.1, px: 2, C: 2 })).slice(0, 2)) expect(w).toBeCloseTo(1.1, 12)
     expect(mseFixedPoint(model({ kappa: 0.1 }), FIVE)).toBeCloseTo(1.1, 12)
@@ -783,11 +816,11 @@ describe('Ch11 handcalcs：validate', () => {
     expect(hc('HC-11.4').validate?.({ a: 1, c3: 0.1, x1: 0, x2: 0, x3: 0, x4: 0, x5: 3 })).toBeNull()
   })
 
-  it('HC-11.5：σ_v = 0、ε ≤ 0、以及 max|e₀|/σ_v > 1.2（泰勒展開不收斂）', () => {
+  it('HC-11.5：σ_v = 0、ε ≤ 0、以及 max|e₀|/σ_v > 1.2（三次截斷失準）', () => {
     reject('HC-11.5', { sigma: 0 }, /加權中位數/)
     reject('HC-11.5', { eps: 0 }, /大於 0/)
-    reject('HC-11.5', { sigma: 0.05 }, /不收斂/)
-    reject('HC-11.5', { c3: 0.6 }, /不收斂/) // max|e₀| = 2.4·0.6 = 1.44 > 1.2σ_v
+    reject('HC-11.5', { sigma: 0.05 }, /低階截斷/)
+    reject('HC-11.5', { c3: 0.6 }, /低階截斷/) // max|e₀| = 2.4·0.6 = 1.44 > 1.2σ_v
   })
 
   it('HC-11.7：C = 0（不可辨識）、E[x²] ≤ 0、σ_v ≤ 0；C < 0 可以算（標成 repelling）', () => {
@@ -825,7 +858,8 @@ describe('Ch11 handcalcs：<HandCalc> 渲染', () => {
     const sigma = screen.getByLabelText(/comparator 前雜訊的標準差/) as HTMLInputElement
     fireEvent.change(sigma, { target: { value: '0.05' } })
     expect(container.querySelectorAll('.c-step').length).toBe(0)
-    expect(container.querySelector('.callout-warn')?.textContent).toContain('泰勒展開不收斂')
+    expect(container.querySelector('.callout-warn')?.textContent).toContain('低階截斷')
+    expect(container.querySelector('.callout-warn')?.textContent).not.toContain('不收斂')
     expect(container.querySelector('.callout-warn .katex')).not.toBeNull()
     expect(container.querySelector('.katex-error')).toBeNull()
     fireEvent.change(sigma, { target: { value: '0.5' } })

@@ -61,8 +61,8 @@ export function S1Coupling() {
           </p>
         </Callout>
         <p>
-          繼續算幾步。為了讓數字乾淨，先把 <Tex>{'K_q'}</Tex> 正規化為 1（<Tex>{String.raw`\mu K_q=0.5`}</Tex>，無雜訊的平均遞迴{' '}
-          <Tex>{String.raw`\boldsymbol\delta_{k+1}=(\mathbf I-\mu K_q\mathbf R)\boldsymbol\delta_k`}</Tex>，下一節推導）：
+          繼續算幾步。為了讓數字乾淨，先把 <Tex>{'K_q'}</Tex> 正規化為 1（<Tex>{String.raw`\mu K_q=0.5`}</Tex>），並把上面的 <Tex>{String.raw`\approx`}</Tex> 當成等式（線性模型；1-bit comparator 時是誤差遠小於{' '}
+          <Tex>{String.raw`\sigma_v`}</Tex> 的小訊號近似）。這時無雜訊的平均遞迴是 <Tex>{String.raw`\boldsymbol\delta_{k+1}=(\mathbf I-\mu K_q\mathbf R)\boldsymbol\delta_k`}</Tex>（§10.3 推導）：
         </p>
         <div className="table-wrap">
           <table>

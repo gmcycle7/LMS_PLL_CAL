@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { criticalGain, gainScale } from '../bridge'
+import { countedStepsToDecay, criticalGain, delayedTrajectory, delaySpectralRadius, gainScale, stepsToDecay } from '../bridge'
 import { DEFAULT_PARAMS, LOCAL_PRESETS, analyzeLab, crossCheckLab, parseLabParams, radiusCurve, tex, type LabParams } from './labModel'
 
 function golden(name: string): Record<string, unknown> {
@@ -93,6 +93,75 @@ describe('文獻寫法換算器（labModel）', () => {
     const d = analyzeLab(DEFAULT_PARAMS)
     expect(d.radiusSlow).toBeGreaterThan(d.radiusFast)
     expect(d.stepsFast).toBe(1)
+  })
+
+  it('技術審查 R02：「95% 衰減」的步數 ⌈ln 0.05/ln|z|_max⌉ 在 d = 0 精確；d ≥ 1 只是漸近估計（逐步數可能更多或更少）', () => {
+    // 逐步的平均遞迴（bridge.ts 的 delayedTrajectory，初始歷史 = 初值）：1 + 最後一次 |δ_k| > 5% 的 k
+    const settle = (g: number, d: number) => {
+      const y = delayedTrajectory(g, d, 4000)
+      let last = 0
+      for (let k = 1; k < y.length; k++) if (Math.abs(y[k]) > 0.05) last = k
+      return last + 1
+    }
+    const lab = (g: number, d: number) => analyzeLab({ ...DEFAULT_PARAMS, convention: 'half', mu: g, rho: 0, d }) // ρ = 0：兩個 mode 的 loop gain 都是 g
+    // 反例：d = 1、g = 1/4 是重根 z = 1/2，δ_k = (1 + k/2)·2^{−k}
+    const r = lab(0.25, 1)
+    expect(r.gSlow).toBeCloseTo(0.25, 12)
+    expect(r.radiusSlow).toBeCloseTo(0.5, 6)
+    expect(r.stepsSlow).toBe(5)
+    expect(settle(0.25, 1)).toBe(7)
+    const y = delayedTrajectory(0.25, 1, 8)
+    expect(y[5]).toBeCloseTo(0.109375, 12)
+    expect(y[6]).toBeCloseTo(0.0625, 12)
+    expect(y[7]).toBeCloseTo(0.03515625, 12)
+    // 另一個方向：公式也可能高估
+    expect(lab(0.33 * criticalGain(3), 3).stepsSlow).toBe(14)
+    expect(settle(0.33 * criticalGain(3), 3)).toBe(8)
+    // 正常對照：d = 0 時兩者相同
+    for (const g of [0.005, 0.25, 0.5, 0.9, 1.5]) expect(settle(g, 0), `g=${g}`).toBe(lab(g, 0).stepsSlow)
+    expect(lab(0.005, 0).stepsSlow).toBe(598)
+  })
+
+  it('技術審查 R02：countedStepsToDecay 就是逐 step 數出來的步數（和暴力遞推一致）；實驗把它列在 d ≥ 1 的註記裡，原來的估計值不變', () => {
+    const brute = (g: number, d: number, K: number) => {
+      const y = delayedTrajectory(g, d, K)
+      let last = 0
+      for (let k = 1; k < y.length; k++) if (Math.abs(y[k]) > 0.05) last = k
+      return last + 1
+    }
+    // 反例（重根 1/2）：估計 5 步，逐步數 7 步；另一個方向：估計 14 步，逐步數 8 步
+    expect(countedStepsToDecay(0.25, 1)).toBe(7)
+    expect(countedStepsToDecay(0.33 * criticalGain(3), 3)).toBe(8)
+    // d = 0：和封閉式相同
+    for (const g of [0.005, 0.25, 0.5, 0.9, 1.5, 1.99]) expect(countedStepsToDecay(g, 0), `g=${g}`).toBe(stepsToDecay(Math.abs(1 - g)))
+    // 格點（d = 1…6、g = 2%…98% 的臨界值）：和長時間的暴力遞推逐點相同；停止規則沒有漏掉回彈
+    let checked = 0
+    let maxDiff = 0
+    for (let d = 1; d <= 6; d++) {
+      for (const f of [0.02, 0.05, 0.1, 0.2, 0.33, 0.5, 0.7, 0.85, 0.95, 0.98]) {
+        const g = f * criticalGain(d)
+        const radius = delaySpectralRadius(g, d)
+        const K = Math.ceil(12 * stepsToDecay(radius)) + 200 // 遠超過收斂所需
+        const c = countedStepsToDecay(g, d)
+        expect(c, `d=${d}, g=${g}`).toBe(brute(g, d, K))
+        maxDiff = Math.max(maxDiff, Math.abs(c - stepsToDecay(radius)))
+        checked++
+      }
+    }
+    expect(checked).toBe(60)
+    expect(maxDiff).toBeGreaterThanOrEqual(5) // 兩個數字真的會差好幾步（所以要標成估計）
+    // 不穩定 ⇒ ∞；極慢的 mode 在步數上限內數不完 ⇒ NaN（畫面不列）
+    expect(countedStepsToDecay(1.2 * criticalGain(2), 2)).toBe(Infinity)
+    expect(countedStepsToDecay(-0.1, 1)).toBe(Infinity)
+    expect(Number.isNaN(countedStepsToDecay(1e-6, 1, 0.05, 1000))).toBe(true)
+    // 實驗的結果：估計值（stepsSlow）不變，另外帶出逐步數的數字
+    const r = analyzeLab({ ...DEFAULT_PARAMS, convention: 'half', mu: 0.25, rho: 0, d: 1 })
+    expect(r.stepsSlow).toBe(5)
+    expect(r.countedSlow).toBe(7)
+    expect(r.countedFast).toBe(7)
+    const r0 = analyzeLab({ ...DEFAULT_PARAMS, d: 0 })
+    expect(r0.countedSlow).toBe(r0.stepsSlow)
+    expect(r0.countedFast).toBe(r0.stepsFast)
   })
 
   it('換算表：四種寫法的等效步長都給出同一個 |s|；步長上限對應 g = g*(d)', () => {

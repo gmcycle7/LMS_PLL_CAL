@@ -157,7 +157,7 @@ describe('Models 頁「帶入手算」（docs/teaching-style.md §7）', () => {
         expect(Math.hypot(re, im), `char(z) ${JSON.stringify(v)}`).toBeLessThan(1e-6 * (1 + Math.hypot(zinv.re, zinv.im) ** 2))
       }
       // 穩定與否的說明和實際模型一致
-      expect(sol.notes?.[0]).toMatch(des.stable ? /穩定，暫態/ : /不穩定/)
+      expect(sol.notes?.[0]).toMatch(des.stable ? /模型穩定[。，]/ : /模型不穩定/)
     }
     // 範例數字（tips）
     const [Kp, Ki, re, im, rho] = values(h, defaultValues(h))
@@ -178,6 +178,52 @@ describe('Models 頁「帶入手算」（docs/teaching-style.md §7）', () => {
     expect(h.validate?.({ wnTs: 1.5, zeta: 1 })).toBeNull() // 不穩定仍然可以算，notes 會說明
     expect(inputError(h.inputs[0], 2.5)).toMatch(/不可大於/) // JSON 合法範圍 (0, 2]
     expect(h.solve({ wnTs: 0.5, zeta: 0.5 }).notes?.join('')).toMatch(/E44/)
+  })
+
+  it('技術審查 R02：HC-MD.1 的註記——ρ 是暫態的漸近衰減率，−1/ln ρ 不是「誤差降到 1/e 要幾個 sample」', () => {
+    const h = handcalc('HC-MD.1')
+    // phase step 的 PD 誤差：E(z) = (1 − z⁻¹)/(1 + a₁z⁻¹ + a₂z⁻²) ⇒ e[0] = 1、e[1] = −1 − a₁、e[n] = −a₁e[n−1] − a₂e[n−2]
+    const stepError = (wnTs: number, zeta: number, n: number) => {
+      const a1 = 2 * zeta * wnTs + wnTs * wnTs - 2
+      const a2 = 1 - 2 * zeta * wnTs
+      const e = [1, -1 - a1]
+      for (let k = 2; k <= n; k++) e.push(-a1 * e[k - 1] - a2 * e[k - 2])
+      return e
+    }
+    const firstBelow = (e: number[]) => e.findIndex((_, k) => e.slice(k).every((x) => Math.abs(x) < 1 / Math.E))
+    // 預設（ω_nT_s = 0.1、ζ = 0.7）：ρ = √0.86、−1/ln ρ = 13.26，但誤差是 1, 0.85, 0.7125, …，第 6 個 sample 起就低於 1/e
+    const d = h.solve({ wnTs: 0.1, zeta: 0.7 })
+    const rho = d.results[d.results.length - 1].value
+    expect(rho).toBeCloseTo(Math.sqrt(0.86), 12)
+    expect(-1 / Math.log(rho)).toBeCloseTo(13.26, 2)
+    const e = stepError(0.1, 0.7, 60)
+    expect(e[1]).toBeCloseTo(0.85, 12)
+    expect(e[2]).toBeCloseTo(0.7125, 12)
+    expect(firstBelow(e)).toBe(6)
+    expect(e[6]).toBeLessThan(rho ** 6) // 這個例子前幾個 sample 比 ρⁿ 快
+    // 練習值（0.25、1）：兩個實數 pole 0.8476／0.5899，−1/ln ρ = 6.05，誤差第 2 個 sample 起就低於 1/e
+    const p = h.solve({ wnTs: 0.25, zeta: 1 })
+    const rho2 = p.results[p.results.length - 1].value
+    expect(rho2).toBeCloseTo(0.8476, 3)
+    expect(-1 / Math.log(rho2)).toBeCloseTo(6.05, 1)
+    const e2 = stepError(0.25, 1, 60)
+    expect(e2[1]).toBeCloseTo(0.4375, 12)
+    expect(e2[2]).toBeCloseTo(0.12890625, 12)
+    expect(firstBelow(e2)).toBe(2)
+    // 文字：說成漸近衰減率，不再寫「暫態每個 sample 乘上 ρ；衰減到 1/e 需要 … 個 sample」
+    for (const sol of [d, p]) {
+      const note = sol.notes![0]
+      expect(note).toContain('漸近衰減率')
+      expect(note).toContain('它不是「誤差降到 $1/e$ 要幾個 sample」')
+      expect(note).not.toContain('暫態每個 sample 乘上')
+      expect(note).not.toMatch(/衰減到 \$1\/e\$ 需要/)
+    }
+    expect(d.notes![0]).toContain('13.26')
+    // deadbeat（K_p = K_i = 1，兩個 pole 都在原點）：不印 −1/ln 0
+    const db = h.solve({ wnTs: 1, zeta: 0.5 }).notes![0]
+    expect(db).toContain('deadbeat')
+    expect(db).not.toMatch(/NaN|Infinity|\\infty/)
+    expect(h.claim).toBe('exact') // 數字（K_p、K_i、pole、ρ）仍是指定模型內的精確值
   })
 
   it('HC-MD.2（F-15.10）：量化、飽和與延遲 = dtc.ts 的 quantizeDtcCode / dtcDelayFs = 獨立重算；§4.3 表格的每一列', () => {

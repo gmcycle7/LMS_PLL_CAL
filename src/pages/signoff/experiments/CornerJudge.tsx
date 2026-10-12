@@ -139,7 +139,7 @@ export function CornerJudgeExperiment() {
         String.raw`一階線性化模型（小誤差、Gaussian comparator）；$K_c=K_q(\sigma_{v,c})\cos\theta_c$`,
         String.raw`更新延遲 $d$ 個 block：$\delta_{k+1}=\delta_k-g\,\delta_{k-d}+\mu\eta_k$`,
         String.raw`$\sigma_\eta^2\approx1/N$（$\pm1$ code、近平衡、block 間獨立）；$\sigma_w^2=\mu^2\sigma_\eta^2\sum_kh_k^2$（$\sum_kh_k^2$ 以 Yule–Walker 方程組精確求解）`,
-        String.raw`95% 收斂：$k_{95}=\max\big(1,\lceil\ln0.05/\ln\rho\rceil\big)\le B$（以 spectral radius 的包絡估計；$d\ge1$ 時是近似）；$PM_d=90^\circ-(2d+1)\arcsin(g/2)$`,
+        String.raw`95% 收斂：$k_{95}=\max\big(1,\lceil\ln0.05/\ln\rho\rceil\big)\le B$（只用 spectral radius $\rho$ 的漸近衰減率估計。$d=0$ 時精確；$d\ge1$ 時是近似：$\rho^k$ 不是誤差的包絡，逐 block 算出來的數字可能比它多、也可能比它少，例如 $d=1$、$g=0.25$ 是重根 $z=0.5$，公式給 $5$，從定值的初始歷史逐 block 算要 $7$）；$PM_d=90^\circ-(2d+1)\arcsin(g/2)$`,
         String.raw`數值皆為 illustrative；實際 corner 請用 freeze $\pm\Delta$ 量測的 $\hat K$（保守取 $\hat K\mp z\,\mathrm{se}$）`,
       ]}
       params={{ mu: p.mu, d: p.d, pmTargetDeg: p.pmTargetDeg, B: p.B, N: p.N, sigmaWMax: p.sigmaWMax, corners: p.corners.map((c) => `${c.name}:${c.sigmaV}fs/${c.thetaDeg}deg`).join('; ') }}

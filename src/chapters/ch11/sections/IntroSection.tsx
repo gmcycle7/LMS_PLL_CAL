@@ -141,8 +141,9 @@ export function IntroSection() {
           ]}
         />
         <p>
-          在 <Tex>{'w=1.34'}</Tex> 處 GMAC 的平均已經是 0，但是表的最後一欄沒有任何一個殘差是 0：code <Tex>{'\\pm1'}</Tex> 還剩 <Tex>{'\\mp0.24'}</Tex>，code{' '}
-          <Tex>{'\\pm2'}</Tex> 還剩 <Tex>{'\\pm0.12'}</Tex>。
+          在 <Tex>{'w=1.34'}</Tex> 處 GMAC 的平均已經是 0，但是表的最後一欄並非全部為 0：只有 <Tex>{'x=0'}</Tex> 那一列是 0（<Tex>{'x=0'}</Tex> 時{' '}
+          <Tex>{'y=0'}</Tex>、<Tex>{'w\\,x=0'}</Tex>，不論 <Tex>{'w'}</Tex> 是多少，<Tex>{'e=y-wx'}</Tex> 都是 0），其餘四個 code 都還有殘差：code{' '}
+          <Tex>{'\\pm1'}</Tex> 還剩 <Tex>{'\\mp0.24'}</Tex>，code <Tex>{'\\pm2'}</Tex> 還剩 <Tex>{'\\pm0.12'}</Tex>。
         </p>
         <TexBlock>{String.raw`\boxed{E[x\,e]=0\quad\not\Rightarrow\quad e[n]=0}`}</TexBlock>
         <p className="small muted">

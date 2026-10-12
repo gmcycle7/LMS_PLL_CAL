@@ -222,7 +222,7 @@ export function S3Analysis() {
           title="Run-to-Convergence 要跑多少個 block"
           open={false}
           steps={[
-            { tex: T`|\delta_k|=|\delta_0|\,\rho^{\,k}\le\frac{\sigma_w}{4}\ \Rightarrow\ k\ge n_s=\tau\ln\frac{4|\delta_0|}{\sigma_w},\qquad \tau=-\frac{1}{\ln\rho}`, why: '要 transient 小到比穩態抖動的四分之一還小；兩邊取對數。' },
+            { tex: T`|\delta_k|\approx|\delta_0|\,\rho^{\,k}\le\frac{\sigma_w}{4}\ \Rightarrow\ k\ge n_s=\tau\ln\frac{4|\delta_0|}{\sigma_w},\qquad \tau=-\frac{1}{\ln\rho}`, why: '要 transient 小到比穩態抖動的四分之一還小；兩邊取對數。$d=0$ 時第一個關係是等號；$d\\ge1$ 時 $\\rho$ 只是漸近的衰減率（$\\rho^k$ 不是包絡），所以這裡是估計，不是保證。' },
             { tex: T`\text{後半段長度}\ \tfrac{K_B}{2}\ \ge\ 10\,\tau`, why: '統計只用後半段：至少要有 10 個時間常數的穩態資料，平均才有意義（上面的 $m_{\\mathrm{eff}}$）。' },
             { tex: T`K_B=2\max\bigl(n_s,\ 10\tau\bigr)`, why: '前半段給 transient，後半段給統計；兩個條件取較嚴的。' },
           ]}
@@ -362,7 +362,10 @@ export function S3Analysis() {
           title="$J$ 的定義"
           steps={[
             { tex: T`e_{\mathrm{DTC}}[n]=\sum_j\delta\theta_j\,\phi_j(x[n])`, why: '每個參數的誤差 $\\delta\\theta_j$ 乘上自己的基底。' },
-            { tex: T`u_{\mathrm{pd}}[n]=\sum_j\delta\theta_j\,\phi_{u,j}[n],\qquad \phi_{u,j}=H_{\mathrm{PD}}\{\phi_j(x)\}`, why: '主 PLL 是線性的：每個基底各自被 $H_{\\mathrm{PD}}$ 濾過。' },
+            {
+              tex: T`u_{\mathrm{pd}}[n]\approx\sum_j\delta\theta_j\,\phi_{u,j}[n],\qquad \phi_{u,j}=H_{\mathrm{PD}}\{\phi_j(x)\}`,
+              why: '主 PLL 是線性的：每個基底各自被 $H_{\\mathrm{PD}}$ 濾過。$\\delta\\theta_j$ 每個 block 才動一點，在 $H_{\\mathrm{PD}}$ 的記憶長度內近似常數，才能提到濾波器外面（與 §4.6 的單參數版本同一個前提；$\\delta\\theta_j$ 凍結不動時是等號）。',
+            },
             { tex: T`E[G_i]=E[q\,\psi_i]\approx K_q\sum_j E[\psi_i\,\phi_{u,j}]\,\delta\theta_j`, why: '第 $i$ 個相關器用 regressor $\\psi_i$；comparator 的小訊號增益 $K_q$（§4.5）。' },
           ]}
           result={T`E[\mathbf G]\approx J\,\delta\boldsymbol\theta,\qquad J_{ij}=K_q\,E\bigl[\psi_i\,\phi_{u,j}\bigr]`}

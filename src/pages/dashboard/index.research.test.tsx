@@ -54,6 +54,19 @@ describe('DashboardPage（jsdom smoke，第二組）', () => {
     expect(texIn(container.querySelector('#dash-check'))).toContain(String.raw`\approx20\log_{10}(\pi f_{\mathrm{out}}|T|A_t)=-93.8\,\mathrm{dBc}>-95\,\mathrm{dBc}`)
     // 每張卡片都有反例按鈕
     expect(container.querySelectorAll('.dash-cond-example')).toHaveLength(SIX_CONDITIONS.length)
+    // 按鈕（.btn 是 inline-flex）裡的「載入反例：公式＋文字」是一個元素：不會被拆成三個 flex item（手機上會排成三欄）
+    for (const b of Array.from(container.querySelectorAll('.dash-cond-example'))) {
+      expect(b.childNodes, b.textContent ?? '').toHaveLength(1)
+      expect((b.firstChild as HTMLElement).tagName).toBe('SPAN')
+      expect(b.textContent).toContain('載入反例：')
+    }
+    // R01：卡片 5 的「不滿足時」說明 C → 0 的 bias 是線性化的值（大到 comparator 飽和時 a + B/C 不再是固定點）
+    expect(card('bias').textContent).toContain('大到 comparator 飽和時它只是線性外推')
+    expect(card('bias').textContent).toContain('Ch11 §11.4')
+    // C06：Engineer 模式的穩定卡片就看得到「一半」只屬於 Ch08 的二狀態模型（不必開 Research）
+    expect(card('stability').textContent).toContain('二狀態模型')
+    expect(card('stability').textContent).toContain('不是所有 PLL 雙迴路的通則')
+    expect(card('stability').textContent).not.toContain('雙迴路的完整界限只有簡化模型的一半')
   })
 
   it('Research 模式（全部展開）：沒有 KaTeX 解析錯誤，文字中沒有 undefined / NaN / 未配對的 $', () => {
@@ -72,6 +85,38 @@ describe('DashboardPage（jsdom smoke，第二組）', () => {
     const tex = Array.from(container.querySelectorAll('annotation[encoding="application/x-tex"]')).map((el) => el.textContent ?? '')
     expect(tex.length).toBeGreaterThan(100)
     for (const src of tex) expect(src, src).not.toMatch(/(^|[^\\])\\\\[a-zA-Z]/)
+    // C06：推導 5 與 Q10 把雙迴路的「一半」限定在 Ch08 §8.4 的二狀態模型，數字不變（2、1、|z| = 1.0198）
+    const spineText = container.querySelector('#dash-spine')?.textContent ?? ''
+    expect(spineText).toContain('二狀態模型')
+    expect(spineText).toContain('不是所有 PLL 雙迴路的通則')
+    expect(spineText).not.toContain('完整界限只有簡化模型一半的原因')
+    const q10 = container.querySelector('#dash-q-10 .dash-q-answer')
+    expect(q10?.textContent).toContain('二狀態模型')
+    expect(q10?.textContent).toContain('比例不一定是一半')
+    expect(q10?.textContent).not.toContain('完整雙迴路只有')
+    expect(texIn(q10)).toContain(String.raw`0<\mu<2(1-r)/(bc)=2`)
+    expect(texIn(q10)).toContain(String.raw`0<\mu<(1-r)/(bc)=1`)
+    expect(texIn(q10).some((t) => t.includes('|z|=1.0198>1'))).toBe(true)
+    // R05：Q11 不再說無雜訊 Sign-LMS「停在」中位數並讓 GMAC 歸零——E[G] 在那裡是由正變負的跳躍；1.34 / 1.4 兩個數字不變
+    const q11 = container.querySelector('#dash-q-11 .dash-q-answer')
+    expect(q11?.textContent).toContain('的兩側來回跳')
+    expect(q11?.textContent).toContain('由正變負，不是等於 0')
+    expect(q11?.textContent).not.toContain('兩者都讓 GMAC 歸零')
+    expect(texIn(q11)).toContain('1+c_3E[x^4]/E[x^2]=1.34')
+    expect(texIn(q11)).toContain('1.4')
+    // R06b：推導 1 的第一步就地寫出「把 (a − w_k) 提到卷積外面」的前提
+    expect(spineText).toContain('前提是')
+    expect(spineText).toContain('的記憶長度內幾乎不變')
+    // R12：推導 7 的提醒（Research）有 F-DB.6 與反例的數字 0.25 對 1.323
+    const f6 = container.querySelector('[id="formula-F-DB.6"]')
+    expect(f6?.closest('.c-callout')?.querySelector('.c-callout-title')?.textContent).toContain('多了一個假設')
+    const calloutTex = texIn(f6?.closest('.c-callout') ?? null)
+    expect(calloutTex.some((t) => t.includes(String.raw`1-1.5\cos60^\circ=0.25`))).toBe(true)
+    expect(calloutTex.some((t) => t.includes(String.raw`|z|=\sqrt{1.75}\approx1.323`))).toBe(true)
+    // R14：推導 4 的第四個提醒用模型算出的 0.3992 fs 說明「在預算內」不等於「比校正前好」
+    expect(spineText).toContain('四個提醒')
+    expect(spineText).toContain('不是「比校正前好」')
+    expect(texIn(container.querySelector('#dash-spine')).some((t) => t.includes(String.raw`\sqrt{P_x}\,\sigma_w=0.3992\,\mathrm{fs}`))).toBe(true)
   })
 
   it('帶入手算：六題在三種模式下都顯示在頁面上（HandCalc），各自放在對應推導的正後方、綜合題在思考題之前', () => {

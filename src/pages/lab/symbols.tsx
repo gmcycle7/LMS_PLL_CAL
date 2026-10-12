@@ -28,6 +28,13 @@ export const LAB_SYMBOLS: SymbolEntry[] = [
   { symbol: 'x_{\\mathrm{ref}}[n]', meaning: md('GMAC 用的 regressor：$x$、$x[n-D]$ 或 $\\hat H\\{x\\}[n-D]$'), unit: '—', firstSeen: '§4.6' },
   { symbol: 'G_k,\\ N', meaning: md('GMAC 輸出（block 內 $q\\,x_{\\mathrm{ref}}$ 的平均）與每個 block 的樣本數'), unit: '—,\\ \\mathrm{sample}', firstSeen: '§4.6', note: <>{md('average 模式；sum 模式不除 $N$')}（<ErratumNote id="E18" />）</> },
   { symbol: 'C,\\ K', meaning: md('相關 $E[x_{\\mathrm{ref}}u_x]$；GMAC 斜率 $K=K_qC$'), unit: '—,\\ \\mathrm{fs}^{-1}', firstSeen: '§4.6', note: md('$C$ 的正負決定更新極性') },
+  {
+    symbol: 'C_{f,D},\\ \\hat u[n],\\ R_u[k]',
+    meaning: md('filtered-x 的相關 $E\\bigl[\\hat u[n-D]\\,u_x[n]\\bigr]$；模型濾過的 code $\\hat u=\\hat H\\{x\\}$；$u_x$ 的自相關 $E\\bigl[u_x[n]\\,u_x[n-k]\\bigr]$'),
+    unit: '—',
+    firstSeen: '§4.6',
+    note: md('$\\hat H=H_{\\mathrm{PD}}$ 時 $C_{f,D}=R_u[D]$：只有 $D=0$ 保證 $\\ge0$（Ch07 F-07.12）'),
+  },
   { symbol: '\\mu,\\ g', meaning: md('learning rate；無因次迴路增益 $g=\\mu K$'), unit: '\\mathrm{fs},\\ —', firstSeen: '§4.7' },
   { symbol: 'd,\\ D,\\ d_L', meaning: '更新延遲（blocks）；GMAC code delay（samples）；主 PLL 的 loop latency（samples）', unit: '\\mathrm{block},\\ \\mathrm{sample}', firstSeen: '§4.7', note: <>三個不同的延遲，不要混用（<ErratumNote id="E34" />）</> },
   { symbol: 'p,\\ \\rho,\\ \\tau', meaning: md('$d=0$ 的 pole $1-g$；含延遲的 pole 半徑；時間常數 $-1/\\ln\\rho$'), unit: '—,\\ —,\\ \\mathrm{block}', firstSeen: '§4.7', note: md('$\\rho$ 在第 9 章是相關係數；本頁是 pole 半徑') },

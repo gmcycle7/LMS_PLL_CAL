@@ -57,13 +57,33 @@ export const DASH_SYMBOLS: SymbolEntry[] = [
   { symbol: 'y_m', meaning: R('校正迴路的脈衝響應（第 $m$ 個 block 還剩多少），$\\sum_m y_m^2$ 是白雜訊的功率增益'), firstSeen: '推導 6' },
   { symbol: '\\sigma_w', meaning: R('係數 $w_k$ 在固定點附近的穩態 RMS（gain-equivalent，不是輸出 jitter）'), unit: '\\mathrm{fs}', firstSeen: '§12.1' },
   { symbol: '\\mathbf R,\\ \\tilde{\\mathbf R},\\ \\lambda_{\\min}', meaning: R('有效 regressor 的自相關矩陣 $\\mathbf R=E[\\mathbf u\\mathbf u^T]=|H|^2P_x\\tilde{\\mathbf R}$、正規化後的 $\\tilde{\\mathbf R}$（特徵值 $\\tilde\\lambda_i$）與最小特徵值'), firstSeen: '§9' },
-  { symbol: '\\rho,\\ \\kappa', meaning: R('兩個 regressor 的相關係數，與 condition number $\\kappa=\\lambda_{\\max}/\\lambda_{\\min}$'), firstSeen: '§9、§10.1' },
+  {
+    symbol: '\\rho,\\ \\kappa',
+    meaning: R('兩個 regressor 的零延遲相關係數 $\\rho=E[x_1x_2]/P_x$，與 condition number $\\kappa=\\lambda_{\\max}/\\lambda_{\\min}$'),
+    firstSeen: '§9、§10.1',
+    note: R('雙參數模型另外假設交叉相關 $E[x_iu_j]=C\\,\\tilde R_{ij}$（見體檢的「假設」）'),
+  },
+  {
+    symbol: '\\psi_i,\\ r_{ij}[m]',
+    meaning: R('同頻單頻 code $x_i=A\\cos(\\Omega n+\\psi_i)$ 的相位（$\\rho=\\cos(\\psi_2-\\psi_1)$），與兩個 code 在延遲 $m$ 的交叉相關 $r_{ij}[m]=E[x_i[n]\\,x_j[n+m]]$'),
+    unit: '{}^\\circ,\\ 1',
+    firstSeen: '推導 7',
+    note: 'F-DB.6',
+  },
   { symbol: '\\mathbf M', meaning: R('多參數的更新矩陣：$\\mathbf w_{k+1}=\\mathbf w_k+\\mathbf M\\,\\mathbf G_k$；一般 LMS $\\mathbf M=\\mu\\mathbf I$，preconditioned $\\mathbf M=\\mu\\tilde{\\mathbf R}^{-1}$'), unit: '\\mathrm{fs}', firstSeen: '§10' },
   { symbol: '\\boldsymbol\\xi=\\mathbf V^T\\boldsymbol\\delta', meaning: R('eigen-mode 座標下的參數誤差（$\\mathbf V$ 的欄是 $\\tilde{\\mathbf R}$ 的特徵向量）'), unit: '\\mathrm{fs}', firstSeen: '§10.1', note: <ErratumLink eid="E05" /> },
   { symbol: 'N,\\ f_s,\\ f_u=f_s/N', meaning: 'block 長度、comparator 取樣率、block 更新率', unit: '\\mathrm{samples},\\ \\mathrm{Hz},\\ \\mathrm{Hz}', firstSeen: '§0' },
   { symbol: '\\delta t[n],\\ \\sigma_{\\delta t}', meaning: R('DTC 實際的補償量 $w_k\\,x[n]$ 與需要的補償量 $a\\,x[n]$ 的差 $(w_k-a)\\,x[n]$，與它的 RMS（DTC-referred）'), unit: '\\mathrm{fs}', firstSeen: '§12.2', note: <>同一個 block 內 <Rich text="$w_k$" /> 不變（block rate 的係數以 ZOH 展開到每個 sample，<ErratumLink eid="E09" />）</> },
   { symbol: 'A_t,\\ \\beta', meaning: R('code tone 的 timing 幅度（peak）與對應的輸出相位調變指數 $\\beta=2\\pi f_{\\mathrm{out}}|T|A_t$'), unit: '\\mathrm{fs},\\ \\mathrm{rad}', firstSeen: '§12.4' },
   { symbol: 'f_{\\mathrm{out}},\\ |T|', meaning: 'PLL 輸出頻率，與 output transfer 在 tone 頻率偏移處的幅度', unit: '\\mathrm{Hz},\\ 1', firstSeen: '§12.3' },
+  {
+    symbol: '\\sigma_{\\delta t,\\max},\\ \\mathrm{Spur}_{\\max}',
+    meaning: R('條件 6 的兩個預算：DTC-referred timing error RMS $\\sigma_{\\delta t}$ 的上限，與單 tone spur 的上限（體檢的控制項，illustrative 規格）'),
+    unit: '\\mathrm{fs},\\ \\mathrm{dBc}',
+    firstSeen: '動手體檢',
+  },
+  { symbol: 'k_{95}', meaning: R('平均暫態（相對於固定點）最後一次超過初值 5% 的下一個 block；$d=0$ 時是 $\\lceil\\ln0.05/\\ln|1-g_i|\\rceil$，$d\\ge1$ 時由平均遞迴逐 block 數出'), unit: '\\mathrm{blocks}', firstSeen: '推導 7、動手體檢' },
+  { symbol: "g'", meaning: R('不含 $\\cos\\theta$ 的 loop gain $g\'=\\mu\\,s\\,K_qP_x|H|$（$g=g\'\\cos\\theta$）；只用在雙參數假設的對照（F-DB.6）'), firstSeen: '動手體檢' },
 ]
 
 /** 頁首只留這一行：按了捲到頁末的符號表（HashRouter 下不能用 href="#symbols"，那會被當成路由）。 */

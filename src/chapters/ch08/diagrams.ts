@@ -295,7 +295,7 @@ export const STABILITY_CHECK_CHART = String.raw`flowchart TB
   Q -- "$\rho \lt 1$" --> PASS["線性平均模型穩定<br/>再讀 $L_{\mathrm{cal}} = \mu F(z)/(z-1)$ 的 PM、GM"]
   Q -- "$\rho = 1$" --> MARG["臨界：不能當成穩定"]
   Q -- "$\rho \gt 1$" --> FAIL["不穩定<br/>降 $\mu$，或改善觀測動態 $F(z)$"]
-  PASS --> TD["時域再驗一次<br/>跑 300 個 block 以上，疊上 $\rho^k$ 包絡"]
+  PASS --> TD["時域再驗一次<br/>跑 300 個 block 以上，疊上 $\rho^k$ 參考線"]
 ${CLASS_DEFS}
   class BUILD focus
   class PASS ok

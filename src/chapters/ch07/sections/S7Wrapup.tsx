@@ -123,7 +123,7 @@ export function S7Wrapup() {
             <p>
               相位差 <Tex>{r`\angle H-\angle\hat H=\Omega\Delta=30^\circ\times3=90^\circ`}</Tex>，所以
               <Tex>{r`E[u\,u_f]=|H|^2\tfrac{A^2}{2}\cos90^\circ=0`}</Tex>（F-07.12）：pole <Tex>{r`p_f=1`}</Tex>，沒有恢復力。<Tex>{r`\Delta=4`}</Tex> 才是 <Tex>{r`120^\circ`}</Tex>、發散。
-              「<Tex>{r`E[u^2]\ge0`}</Tex>」只在 <Tex>{r`\hat H=H`}</Tex> 時成立（E45）。對照：<Tex>{'H=1'}</Tex> 時 code 錯位 3 個 sample 也是
+              「<Tex>{r`E[u^2]\ge0`}</Tex>」只在 <Tex>{r`\hat H=H`}</Tex>、<Tex>{'D=0'}</Tex> 時成立（E45）。對照：<Tex>{'H=1'}</Tex> 時 code 錯位 3 個 sample 也是
               <Tex>{r`C_3=${tx(q2, 4)}`}</Tex>。
             </p>
           }
@@ -177,8 +177,15 @@ export function S7Wrapup() {
             { label: <>(F-07.2) 延遲 code 的單頻相關［精確｜<Tex>{r`0<\Omega<\pi`}</Tex>，長時間平均］</>, tex: r`\boxed{C_D=\frac{A^2}{2}|H|\cos(\phi+\Omega D)}` },
             { label: '(F-07.3) 延遲 error：符號相反', tex: r`\boxed{C'_D=\frac{A^2}{2}|H|\cos(\phi-\Omega D)}` },
             { label: '(F-07.8) 多頻：PSD 加權（DT 形式，E44）', tex: r`\boxed{C_D=\frac1{2\pi}\int_{-\pi}^{\pi}S_{xx}\,\mathrm{Re}\{H(e^{j\Omega})e^{j\Omega D}\}\,d\Omega}` },
-            { label: '(F-07.10/11) Filtered-x block 更新與平均 pole［近似］', tex: r`\boxed{w_{k+1}=w_k+\frac{\mu}{N}\sum_{n\in\text{block }k}q[n]\,u_f[n-D],\quad p_f=1-\mu K_qE[u\,u_f]}` },
-            { label: '(F-07.12) 模型誤差（E45）', tex: r`\boxed{E[u\,u_f]=\frac1{2\pi}\int S_{xx}|H||\hat H|\cos(\angle H-\angle\hat H)\,d\Omega}` },
+            { label: '(F-07.10/11) Filtered-x block 更新與平均 pole［近似］', tex: r`\boxed{w_{k+1}=w_k+\frac{\mu}{N}\sum_{n\in\text{block }k}q[n]\,u_f[n-D],\quad p_f=1-\mu K_q\,C_{f,D}}` },
+            {
+              label: (
+                <>
+                  (F-07.12) 有效相關 <Tex>{r`C_{f,D}=E[u[n]\,u_f[n-D]]`}</Tex>：模型誤差與額外延遲（E45）；<Tex>{'D=0'}</Tex> 時是 <Tex>{r`E[u\,u_f]`}</Tex>
+                </>
+              ),
+              tex: r`\boxed{C_{f,D}=\frac1{2\pi}\int S_{xx}|H||\hat H|\cos(\angle H-\angle\hat H+\Omega D)\,d\Omega}`,
+            },
           ]}
           points={[
             <>
@@ -190,10 +197,11 @@ export function S7Wrapup() {
             </>,
             <>
               真正的梯度 <Tex>{r`-E[e_{\mathrm{PD}}u]`}</Tex> 用的是 <Tex>{r`u=h*x`}</Tex>；filtered-x 用模型 <Tex>{r`u_f=\hat h*x`}</Tex> 近似它，
-              <Tex>{r`\hat H=H`}</Tex> 時 <Tex>{r`E[u^2]\ge0`}</Tex>、<Tex>{r`\rho=1`}</Tex>（Cauchy–Schwarz 最佳）。
+              <Tex>{r`\hat H=H`}</Tex>、<Tex>{'D=0'}</Tex> 時 <Tex>{r`E[u^2]\ge0`}</Tex>、<Tex>{r`\rho=1`}</Tex>（Cauchy–Schwarz 最佳）。
             </>,
             <>
-              <Tex>{r`\hat H\ne H`}</Tex> 時 pole 一律用 <Tex>{r`E[u\,u_f]`}</Tex>；激勵頻帶上相位差 <Tex>{r`<90^\circ`}</Tex> 是充分條件。latency 誤差最危險（線性相位隨頻率增長）。
+              <Tex>{r`\hat H\ne H`}</Tex> 或 <Tex>{r`D\ne0`}</Tex> 時 pole 一律用 <Tex>{r`C_{f,D}=E\big[u[n]\,u_f[n-D]\big]`}</Tex>（<Tex>{'D=0'}</Tex> 時就是{' '}
+              <Tex>{r`E[u\,u_f]`}</Tex>）；激勵頻帶上殘餘相位 <Tex>{r`|\angle H-\angle\hat H+\Omega D|<90^\circ`}</Tex> 是充分條件。latency 誤差最危險（線性相位隨頻率增長）。
             </>,
             <>
               Type-II 的二次差分 <Tex>{r`(1-z^{-1})^2`}</Tex> 是幾乎免費的低頻 <Tex>{r`\hat H`}</Tex>，但只適合<strong>窄頻</strong>、低頻（<Tex>{r`\Omega\lesssim\omega_nT_s`}</Tex>）的 tone；
@@ -250,14 +258,16 @@ export function S7Wrapup() {
         />
         <p>
           先看兩個起點：把 <Tex>{'w'}</Tex> 手動固定在 <Tex>{r`w_0+\Delta w`}</Tex> 與 <Tex>{r`w_0-\Delta w`}</Tex>，各讀一次 GMAC 的長時間平均。因為 <Tex>{r`E[G_k]\approx K_qC\,(a-w)`}</Tex>，所以
-          <Tex>{r`G_+=K_qC\,(a-w_0-\Delta w)`}</Tex>、<Tex>{r`G_-=K_qC\,(a-w_0+\Delta w)`}</Tex>。再看藍色方塊：兩者相減，<Tex>{r`a-w_0`}</Tex> 互相抵消，只剩 <Tex>{r`-2K_qC\,\Delta w`}</Tex>，
-          除以 <Tex>{r`2\Delta w`}</Tex> 就是斜率 <Tex>{r`S=-K_qC`}</Tex>。最後看六角形：<Tex>{r`K_q>0`}</Tex>，所以 <Tex>{r`S<0`}</Tex> 才表示 <Tex>{r`C>0`}</Tex>，可以閉迴路；否則回到 7.6 節的決策流程換一種 regressor。
+          <Tex>{r`G_+\approx K_qC\,(a-w_0-\Delta w)`}</Tex>、<Tex>{r`G_-\approx K_qC\,(a-w_0+\Delta w)`}</Tex>。再看藍色方塊：兩者相減，<Tex>{r`a-w_0`}</Tex> 互相抵消，只剩 <Tex>{r`-2K_qC\,\Delta w`}</Tex>，
+          除以 <Tex>{r`2\Delta w`}</Tex> 就是斜率 <Tex>{r`S\approx-K_qC`}</Tex>（和圖上藍色方塊寫的一樣是近似：小訊號線性化）。最後看六角形：<Tex>{r`K_q>0`}</Tex>，所以 <Tex>{r`S<0`}</Tex> 才表示 <Tex>{r`C>0`}</Tex>，可以閉迴路；否則回到 7.6 節的決策流程換一種 regressor。
         </p>
         <p>
           本章只處理「方向對不對」（polarity）與「每單位雜訊的恢復力」（<Tex>{'\\rho'}</Tex>）。方向對了之後，校正迴路本身還有自己的 phase margin：GMAC
-          更新延遲、filtered-x 的 <Tex>{'D'}</Tex> 或 <Tex>{r`\hat H`}</Tex> 造成的額外 latency，都會縮小 <Tex>{'g'}</Tex> 的穩定範圍——這是 Ch08 的主題
+          算出的修正量晚幾個 block 才生效（更新延遲），會縮小 <Tex>{'g'}</Tex> 的穩定範圍——這是 Ch08 的主題
           （<Tex>{r`L_{\mathrm{cal}}(z)=g/(z-1)`}</Tex>；GMAC 更新晚 <Tex>{r`d_{\mathrm{upd}}`}</Tex> 個 block 生效時臨界 <Tex>{r`g_{\mathrm{crit}}=2\sin\frac{\pi}{4d_{\mathrm{upd}}+2}`}</Tex>，
-          規格 §8.3 記為 <Tex>{'d'}</Tex>；本章的 <Tex>{'d'}</Tex> 是 PLL loop latency，兩者不同）。
+          規格 §8.3 記為 <Tex>{'d'}</Tex>；本章的 <Tex>{'d'}</Tex> 是 PLL loop latency，兩者不同）。filtered-x 的 <Tex>{'D'}</Tex> 與 <Tex>{r`\hat H`}</Tex> 的 latency
+          不是這一種延遲：它們在 regressor 那一側（前饋），不在校正迴路的回授路徑上。在平均模型裡（<Tex>{'w'}</Tex> 慢變）它們只改變相關 <Tex>{r`C_{f,D}`}</Tex>（F-07.12）——同一個{' '}
+          <Tex>{'\\mu'}</Tex> 下 <Tex>{r`g=\mu K_q\,C_{f,D}`}</Tex> 的大小，甚至正負號——不改變 <Tex>{'g'}</Tex> 的穩定上限。
         </p>
         <ModeGate min="engineer">
           <Callout

@@ -125,10 +125,10 @@ function SspllExperiment() {
       String.raw`PMUX 旋轉頻率 $\alpha f_{\mathrm{ref}}=${mhz(fRot)}$ MHz 落在反號帶內：PHOS mode-1 的 $\kappa_1=${n4(pm.kappaPhos1)}<0$，raw-x GMAC 以正 $\mu$ 更新會把 8 個相位 offset 推離真值（發散）。修法：改用一階差分 regressor、filtered-x、校準時改變迴路型態，或避開這個 $\alpha$（第 7 章與案例頁）。`,
     )
   if (lt.stable && !pm.circulant)
-    warnings.push(String.raw`$\alpha=${j}/${ALPHA_Q}$ 化簡後的分母 $Q=${pm.Qred}$ 不是 8 的倍數：PMUX 只會走過一部分相位，PHOS 的平均更新矩陣不是 circulant，這裡的 $\kappa_1$ 只是 Rayleigh quotient，不保證是 eigenvalue。`)
+    warnings.push(String.raw`$\alpha=${j}/${ALPHA_Q}$ 化簡後的分母 $Q=${pm.Qred}$ 不是 8 的倍數：PMUX 只會走過一部分相位，PHOS 的平均更新矩陣不是 circulant，這裡的 $\kappa_1$ 只是 Rayleigh quotient，不保證是 eigenvalue 的實部（$8\mid Q$ 時它才是案例頁複數 $\kappa_1=8\lambda_1$ 的實部）。`)
   if (lt.stable && gosConst) warnings.push(String.raw`$\alpha=k/8$：DTC 細部殘差 $\rho[n]$ 是常數，GOS 沒有任何激發（$\lambda_{\min}=0$，gain 不可辨識）；GMAC 只會看到 offset。`)
   else if (lt.stable && pm.twelveCGos > 0 && pm.twelveCGos < 0.05)
-    warnings.push(String.raw`near-grid（$\beta=\mathrm{frac}(8\alpha)=${n4(beta8)}$）：GOS 的 $12C=${n4(pm.twelveCGos)}$ 很小（dead zone）——方向仍然正確，但收斂極慢，$w^*=a+B/C$ 的 bias 也被放大（第 11 章）。`)
+    warnings.push(String.raw`near-grid（$\beta=\mathrm{frac}(8\alpha)=${n4(beta8)}$）：GOS 的 $12C=${n4(pm.twelveCGos)}$ 很小（dead zone）——方向仍然正確，但收斂極慢，線性化的 bias $B/C$ 也被放大（大到 comparator 飽和時 $a+B/C$ 不再是固定點，第 11 章 §11.4）。`)
   if (lt.stable && pm.twelveCGos < 0) warnings.push(String.raw`GOS 的 $12C=${n4(pm.twelveCGos)}<0$：這個迴路與 $\alpha$ 下 DTC gain 的 LMS 反號。離線掃描在 L1 / L2 / L3 沒有發現這種情況（研究假說，沒有證明），請保留參數並回報。`)
   if (dP.kind === 'type1' && lt.stable && dP.KL * (d + 0.5) > 1)
     warnings.push(String.raw`$K_L(d+\tfrac12)=${n4(dP.KL * (d + 0.5))}>1$：延遲讓 Type-I 迴路也在低頻反號（穩定且反號的窗口：$\frac{1}{d+1/2}<K_L<2\sin\frac{\pi}{4d+2}$）。`)
@@ -156,7 +156,7 @@ function SspllExperiment() {
     { name: String.raw`PHOS mode-1：$\kappa_1$（一個週期的 DFT）`, value: pm.kappaPhos1, unit: '—', formulaId: 'F-SS.5', claim: 'exact', note: pm.kappaPhos1 < 0 ? String.raw`$<0\Rightarrow$ 正 $\mu$ 發散` : '極性正確' },
     { name: String.raw`基波近似 $W_1\mathrm{Re}\{H_{\mathrm{PD}}(\alpha f_{\mathrm{ref}})\}$，$W_1=${n4(PMUX_W1)}$`, value: PMUX_W1 * reRot, unit: '—', claim: 'approx', note: String.raw`其餘 $1-W_1\approx5\%$ 的功率散在 $(1+8k)\alpha f_{\mathrm{ref}}$` },
     { name: String.raw`mode-1「一定反號」帶（上界 $<0$）`, value: sureText, formulaId: 'F-SS.5', claim: 'exact', note: String.raw`門檻 $\mathrm{Re}H_{\mathrm{PD}}<${n4(sure.threshold)}$（$\max\mathrm{Re}H_{\mathrm{PD}}=${n4(sure.maxRe)}$）` },
-    { name: String.raw`GOS：$12\,C_{\mathrm{GOS}}$（$H_{\mathrm{PD}}\equiv1$ 時 $\approx1$），$\beta=${n4(beta8)}$`, value: pm.twelveCGos, unit: '—', claim: 'research', note: '離線掃描未發現負值，但沒有證明' },
+    { name: String.raw`GOS：$12\,C_{\mathrm{GOS}}$（$H_{\mathrm{PD}}\equiv1$、不計 DC 時 $\approx1$），$\beta=${n4(beta8)}$`, value: pm.twelveCGos, unit: '—', claim: 'research', note: '離線掃描未發現負值，但沒有證明' },
     ...(gosAsym !== undefined
       ? [{ name: dP.kind === 'type2' ? String.raw`near-grid 漸近式 $12\beta^2/K_i$` : String.raw`near-grid 漸近式 $6\beta/K_L$`, value: gosAsym, unit: '—', claim: 'approx' as const, note: String.raw`案例頁的結果；$\beta\to0$ 時與上一列吻合` }]
       : []),
@@ -419,7 +419,7 @@ export default function SspllPreview() {
           { tex: String.raw`c_1=\sum_{k=0}^{7}e^{-j2\pi k/8}\int_{k/8}^{(k+1)/8}e^{j2\pi\varphi}\,d\varphi=\sum_{k=0}^{7}\frac{e^{j\pi/4}-1}{j2\pi}=\frac{8\,(e^{j\pi/4}-1)}{j2\pi}`, why: <>每一階內 <Tex>{'g'}</Tex> 是常數；積分 <Tex>{String.raw`\int e^{j2\pi\varphi}d\varphi=e^{j2\pi\varphi}/(j2\pi)`}</Tex>，上下限相減後 <Tex>{'e^{j2\\pi k/8}'}</Tex> 與前面的 <Tex>{'e^{-j2\\pi k/8}'}</Tex> 相消，8 階都一樣。</> },
           { tex: String.raw`|c_1|^2=\frac{64\cdot4\sin^2(\pi/8)}{4\pi^2}=\frac{64\sin^2(\pi/8)}{\pi^2}=W_1\approx0.9496`, why: <>弦長 <Tex>{'|e^{j\\pi/4}-1|=2\\sin(\\pi/8)'}</Tex>。</> },
           { tex: String.raw`\sum_\ell|c_\ell|^2=\int_0^1|g|^2d\varphi=1,\qquad c_\ell\ne0\ \text{只在}\ \ell=1+8k`, why: <>Parseval（<Tex>{'|g|=1'}</Tex>）；又 <Tex>{'g(\\varphi+\\tfrac18)=e^{-j\\pi/4}g(\\varphi)'}</Tex>，所以只有 <Tex>{'\\ell\\equiv1\\pmod 8'}</Tex> 的線。其餘 <Tex>{'1-W_1\\approx5\\%'}</Tex> 散在 <Tex>{'-7,9,-15,17,\\dots'}</Tex> 倍頻。</> },
-          { tex: String.raw`\kappa_1=\sum_{\ell}|c_\ell|^2\,\mathrm{Re}\{H_{\mathrm{PD}}(e^{j2\pi\ell\alpha})\}=W_1\,\mathrm{Re}\{H_{\mathrm{PD}}(e^{j2\pi\alpha})\}+\sum_{\ell\ne1}|c_\ell|^2\,\mathrm{Re}\{H_{\mathrm{PD}}(e^{j2\pi\ell\alpha})\}`, why: <>推導（二）對每條線各用一次：不同頻率的線平均後互不相關，所以功率加權相加。<Tex>{'\\kappa_1'}</Tex> 是正規化的平均斜率（<Tex>{'H_{\\mathrm{PD}}\\equiv1'}</Tex> 時為 1）。</> },
+          { tex: String.raw`\kappa_1=\sum_{\ell}|c_\ell|^2\,\mathrm{Re}\{H_{\mathrm{PD}}(e^{j2\pi\ell\alpha})\}=W_1\,\mathrm{Re}\{H_{\mathrm{PD}}(e^{j2\pi\alpha})\}+\sum_{\ell\ne1}|c_\ell|^2\,\mathrm{Re}\{H_{\mathrm{PD}}(e^{j2\pi\ell\alpha})\}`, why: <>推導（二）對每條線各用一次：不同頻率的線平均後互不相關，所以功率加權相加。<Tex>{'\\kappa_1'}</Tex> 是正規化的平均斜率（<Tex>{'H_{\\mathrm{PD}}\\equiv1'}</Tex> 時為 1）；它是實數，也就是案例頁複數 <Tex>{'\\kappa_1=8\\lambda_1'}</Tex> 的實部 <Tex>{'\\mathrm{Re}\\,\\kappa_1'}</Tex>。</> },
           { tex: String.raw`\kappa_1\le W_1\,\mathrm{Re}\{H_{\mathrm{PD}}(\alpha f_{\mathrm{ref}})\}+(1-W_1)\max_f\mathrm{Re}\{H_{\mathrm{PD}}\}`, why: '其餘的線加起來只有 5% 的權重，每一項最多是全頻帶的最大值。' },
         ]}
         result={String.raw`\mathrm{Re}\{H_{\mathrm{PD}}(\alpha f_{\mathrm{ref}})\}<-\frac{1-W_1}{W_1}\max_f\mathrm{Re}\{H_{\mathrm{PD}}\}\ \Rightarrow\ \kappa_1<0\ (\text{PHOS mode-1 一定反號})\qquad(\text{F-SS.5})`}

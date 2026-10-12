@@ -228,6 +228,33 @@ describe('Ch02 帶入手算：登錄資料', () => {
   })
 })
 
+describe('Ch02 帶入手算：通式不比欄位寬（拆行，內容不變）', () => {
+  // 1280 px 桌面上這三條通式曾比欄位寬、要左右捲動；拆成 gathered 的 2–3 行（在逗號或分號處換行），項目一個不少
+  const SPLIT: Record<string, { rows: number; terms: string[] }> = {
+    'HC-02.2': {
+      rows: 2,
+      terms: [String.raw`\delta_0=a-w_0`, String.raw`h=\mu|x|`, String.raw`n_c=\Big\lfloor\frac{|\delta_0|}{h}\Big\rfloor`, String.raw`\rho=|\delta_0|-n_c\,h`, String.raw`w_n\in\big\{a-\operatorname{sgn}(\delta_0)\,\rho,\ \ a+\operatorname{sgn}(\delta_0)(h-\rho)\big\}\ \ (n\ge n_c)`],
+    },
+    'HC-02.6': {
+      rows: 3,
+      terms: [String.raw`\psi_{\rm LMS}(a)=E[v]\,E[x]`, String.raw`\psi_{\rm SE}(a)=E[\operatorname{sign}v]\,E[x]`, String.raw`x\equiv A:`, String.raw`w^*_{\rm LMS}=a+\frac{E[v]}{A}`, String.raw`w^*_{\rm SE}=a+\frac{\operatorname{med}(v)}{A}`, String.raw`\operatorname{med}(v)\approx\sigma_v\,\Phi^{-1}\!\Big(\frac{1}{2(1-p_{\rm out})}\Big)`],
+    },
+    'HC-02.8': {
+      rows: 2,
+      terms: [String.raw`K_q=\sqrt{\tfrac{2}{\pi}}\,\frac{1}{\sigma_v}`, String.raw`K_{\rm SE}=K_q\,E[x^2]`, String.raw`p=1-\mu K_{\rm SE}`, String.raw`\tau=\frac{-1}{\ln|p|}`, String.raw`\operatorname{Var}(w)\approx\frac{\mu\,\sigma_\eta^2}{K\,(2-\mu K)}`, String.raw`\frac{\operatorname{Var}_{\rm SE}}{\operatorname{Var}_{\rm LMS}}\bigg|_{\text{同 }\mu K}=\frac{\pi}{2}`],
+    },
+  }
+  it('HC-02.2 / 02.6 / 02.8 的通式是 \\begin{gathered} 的多行式，每個項目原樣保留、可解析', () => {
+    for (const [id, { rows, terms }] of Object.entries(SPLIT)) {
+      const tex = byId(id).formulaTex
+      expect(tex, id).toMatch(/^\\begin\{gathered\}.*\\end\{gathered\}$/s)
+      expect(tex.split(String.raw`\\[4pt]`), `${id} 行數`).toHaveLength(rows)
+      for (const t of terms) expect(tex, `${id}: ${t}`).toContain(t)
+      expect(renderTex(tex, true), id).not.toMatch(/katex-error|c-tex-error/)
+    }
+  })
+})
+
 describe('Ch02 帶入手算：全站彙整', () => {
   it('「手算練習簿」頁用的彙整（import.meta.glob）收得到本章 8 題，而且就是同一批物件', async () => {
     // 動態匯入：彙整會一併載入其他章節的 handcalcs.ts，別的章節正在修改時只影響這一個測試

@@ -224,7 +224,8 @@ export default function R8Preview() {
       <ModeGate min="research">
         <h4>Research：1-bit 觀測與多參數</h4>
         <p>
-          Sign-GMAC 的觀測是 <Tex>{'q=\\mathrm{sign}(\\cdot)'}</Tex>，Kalman 的線性 Gaussian 假設只在 <Tex>{'|C\\delta|\\ll\\sigma_v'}</Tex> 時近似成立；大誤差時更新量被 <Tex>{'\\mu'}</Tex> 截斷（slew，見 R10）。
+          Sign-GMAC 的觀測是 <Tex>{'q=\\mathrm{sign}(\\cdot)'}</Tex>，Kalman 的線性 Gaussian 假設只在 comparator 前的確定性殘差遠小於 <Tex>{'\\sigma_v'}</Tex> 時近似成立（<Tex>{'\\pm1'}</Tex> code、無記憶 path <Tex>{'u=Cx'}</Tex> 時即{' '}
+          <Tex>{'|C\\delta|\\ll\\sigma_v'}</Tex>）；大誤差時更新量被 <Tex>{'\\mu'}</Tex> 截斷（slew，見 R10）。
           多參數時 Kalman 的增益矩陣 <Tex>{'\\mathbf P^-\\mathbf H^T(\\mathbf H\\mathbf P^-\\mathbf H^T+\\mathbf R_y)^{-1}'}</Tex> 會自動做 R4 的 preconditioning，但 PE 不足時 <Tex>{'\\mathbf P^-'}</Tex> 的弱方向會無限長大（需要 leaky / regularization）。
           <ClaimTag kind="research" /> 未實作。<ErratumNote eid="E14">mean / mean-square / almost-sure 三種穩定要分開講。</ErratumNote>
         </p>

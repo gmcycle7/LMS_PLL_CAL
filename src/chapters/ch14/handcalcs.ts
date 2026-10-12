@@ -330,7 +330,8 @@ export const HANDCALCS: HandCalcDef[] = [
                 why: String.raw`平均誤差縮到 $1/e\approx37\%$ 需要的 block 數：按 $\ln$、取倒數、變號。$g\le0.25$ 時可用 $\tau\approx1/g-\tfrac12$ 心算（誤差 $<1\%$）。`,
               },
           {
-            tex: String.raw`\sigma_{w,${tag}}^2=\frac{\mu_${tag}\,\sigma_\eta^2}{K(2-g_${tag})}=\frac{${n6p(mu)}\times${n6p(s2)}}{${n6p(K)}\times(2-${n1(g)})}=\frac{${n6(mu * s2)}}{${n6p(K)}\times${n6p(2 - g)}}=\frac{${n6(mu * s2)}}{${n6(K * (2 - g))}}=${n6(v)}\ \mathrm{fs^2}`,
+            // 折成兩行：四個分數排成一行，在 1280 px 的欄位裡會多出橫向捲軸（scripts/scroll-audit.mjs --formulas）
+            tex: String.raw`\begin{aligned}\sigma_{w,${tag}}^2&=\frac{\mu_${tag}\,\sigma_\eta^2}{K(2-g_${tag})}=\frac{${n6p(mu)}\times${n6p(s2)}}{${n6p(K)}\times(2-${n1(g)})}\\&=\frac{${n6(mu * s2)}}{${n6p(K)}\times${n6p(2 - g)}}=\frac{${n6(mu * s2)}}{${n6(K * (2 - g))}}=${n6(v)}\ \mathrm{fs^2}\end{aligned}`,
             why: String.raw`穩態係數雜訊功率（F-14.6）。照順序：分子一次乘法；分母先算 $2-g$、再乘 $K$；最後一次除法。`,
           },
           // 拆成兩行：單行在 375 px 的手機上只超出 2 px，會多一條沒有用途的捲軸；單位留在式子裡
@@ -394,7 +395,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: String.raw`勘誤 E48：$\delta_0$ 很大時線性公式還能用嗎？查 $\Phi$ 表，再做 slew-limited 估計`,
     page: PAGE,
     formulaId: 'F-14.5',
-    formulaTex: String.raw`E[G\,|\,\delta_0]=2\Phi\!\Big(\frac{\delta_0}{\sigma_v}\Big)-1\quad\text{vs.}\quad K\delta_0\ (\text{線性}),\qquad |w_{k+1}-w_k|\le\mu\max|x|\ \Rightarrow\ B\gtrsim\frac{|\delta_0|-\delta_\text{target}}{\mu\max|x|}\qquad(x=\pm1,\ \theta=0)`,
+    formulaTex: String.raw`\begin{aligned}&E[G\,|\,\delta_0]=2\Phi\!\Big(\frac{\delta_0}{\sigma_v}\Big)-1\quad\text{vs.}\quad K\delta_0\ (\text{線性}),\\[1ex]&|w_{k+1}-w_k|\le\mu\max|x|\ \Rightarrow\ B\gtrsim\frac{|\delta_0|-\delta_\text{target}}{\mu\max|x|}\\[1ex]&(x=\pm1,\ \theta=0)\end{aligned}`,
     level: 'research',
     claim: 'approx',
     inputs: [
@@ -449,7 +450,7 @@ export const HANDCALCS: HandCalcDef[] = [
             why: String.raw`真正的第一步（mean-field）：$\delta_1=\delta_0-\mu G_0$ 取期望值。`,
           },
           {
-            tex: String.raw`p\,\delta_0=(1-\mu K)\,\delta_0=(1-${n6p(mu)}\times${n6p(K)})\times${n6p(d0)}=(1-${n1(g)})\times${n6p(d0)}=${n1p(1 - g)}\times${n6p(d0)}=${n6(d1lin)}\ \mathrm{fs}`,
+            tex: String.raw`\begin{aligned}p\,\delta_0&=(1-\mu K)\,\delta_0=(1-${n6p(mu)}\times${n6p(K)})\times${n6p(d0)}\\&=(1-${n1(g)})\times${n6p(d0)}=${n1p(1 - g)}\times${n6p(d0)}=${n6(d1lin)}\ \mathrm{fs}\end{aligned}`,
             why: String.raw`線性模型（F-14.2）預測的第一步，拿來和上一列比較。`,
           },
           {
@@ -729,11 +730,12 @@ export const HANDCALCS: HandCalcDef[] = [
             why: String.raw`起點偏移：先驗資訊相當於幾個 block。用前面算好的兩個數相除。`,
           },
           {
-            tex: String.raw`\mu_0=\frac{1}{K\,(0+1+k_0)}=\frac{1}{${n6p(K)}\times(1+${n6(sch.k0)})}=\frac{1}{${n6p(K)}\times${n6p(1 + sch.k0)}}=\frac{1}{${n6(K * (1 + sch.k0))}}=${n6(first)}\ \mathrm{fs}`,
+            // 這一步與下一步都折成兩行：四個分數排成一行，在 1280 px 的欄位裡會多出橫向捲軸
+            tex: String.raw`\begin{aligned}\mu_0&=\frac{1}{K\,(0+1+k_0)}=\frac{1}{${n6p(K)}\times(1+${n6(sch.k0)})}\\&=\frac{1}{${n6p(K)}\times${n6p(1 + sch.k0)}}=\frac{1}{${n6(K * (1 + sch.k0))}}=${n6(first)}\ \mathrm{fs}\end{aligned}`,
             why: String.raw`第一步（$k=0$）最大：括號裡先加、再乘 $K$、最後取倒數。等效迴路增益 $\mu_0K=1/(1+k_0)=${texNum(first * K, 4)}$。`,
           },
           {
-            tex: String.raw`\mu_{${int(B - 1)}}=\frac{1}{K\,(B+k_0)}=\frac{1}{${n6p(K)}\times(${int(B)}+${n6(sch.k0)})}=\frac{1}{${n6p(K)}\times${n6p(B + sch.k0)}}=\frac{1}{${n6(K * (B + sch.k0))}}=${n6(last)}\ \mathrm{fs}`,
+            tex: String.raw`\begin{aligned}\mu_{${int(B - 1)}}&=\frac{1}{K\,(B+k_0)}=\frac{1}{${n6p(K)}\times(${int(B)}+${n6(sch.k0)})}\\&=\frac{1}{${n6p(K)}\times${n6p(B + sch.k0)}}=\frac{1}{${n6(K * (B + sch.k0))}}=${n6(last)}\ \mathrm{fs}\end{aligned}`,
             why: String.raw`最後一步（$k=B-1$，所以 $k+1=B$）最小：步長照 $1/k$ 遞減，等於把所有 block 的 $G$ 等權重平均。`,
           },
         ],
@@ -832,7 +834,8 @@ B&=\frac{T}{N},\qquad K=\sqrt{\tfrac{2}{\pi}}\,\frac{\cos\theta}{\sigma_v},\qqua
           },
           { tex: String.raw`p=1-\mu K=1-${n6(g)}=${n1(p)}`, why: String.raw`pole；依定義等於上面的 $\epsilon^{1/B}$，是一個現成的驗算。` },
           {
-            tex: String.raw`PM=90^\circ-\arcsin\frac{g}{2}=90^\circ-\arcsin\frac{${n6(g)}}{2}=90^\circ-\arcsin ${n6p(g / 2)}=90^\circ-${n6(asinDeg)}^\circ=${n6(pm)}^\circ`,
+            // 折成兩行：一行寫完在 1280 px 的欄位裡只剩 1 px 的餘裕，g 多一位數就會多出橫向捲軸
+            tex: String.raw`\begin{aligned}PM&=90^\circ-\arcsin\frac{g}{2}=90^\circ-\arcsin\frac{${n6(g)}}{2}\\&=90^\circ-\arcsin ${n6p(g / 2)}=90^\circ-${n6(asinDeg)}^\circ=${n6(pm)}^\circ\end{aligned}`,
             why: String.raw`一階校正迴路的 phase margin（F-14.14）。DEG 模式按 $\sin^{-1}$；$g/2\le0.2$ 時可用 $\arcsin x\approx57.296^\circ\times x$（誤差 $<0.7\%$）。`,
           },
           {
@@ -853,7 +856,7 @@ B&=\frac{T}{N},\qquad K=\sqrt{\tfrac{2}{\pi}}\,\frac{\cos\theta}{\sigma_v},\qqua
           },
           { tex: String.raw`p^2=${n1p(p)}^2=${n1(p2)}`, why: String.raw`等比數列的公比。` },
           {
-            tex: String.raw`\text{variance}=\mu^2\sigma_\eta^2\,\frac{1-p^{2B}}{1-p^2}=${n6p(noise)}\times\frac{1-${n1(p2B)}}{1-${n1(p2)}}=${n6p(noise)}\times\frac{${n6(1 - p2B)}}{${n6(1 - p2)}}=${n6p(noise)}\times${n6p(S)}=${n6(sp.variance)}\ \mathrm{fs^2}`,
+            tex: String.raw`\begin{aligned}\text{variance}&=\mu^2\sigma_\eta^2\,\frac{1-p^{2B}}{1-p^2}=${n6p(noise)}\times\frac{1-${n1(p2B)}}{1-${n1(p2)}}\\&=${n6p(noise)}\times\frac{${n6(1 - p2B)}}{${n6(1 - p2)}}=${n6p(noise)}\times${n6p(S)}=${n6(sp.variance)}\ \mathrm{fs^2}\end{aligned}`,
             why: '累積的更新雜訊：兩次減法、一次除法、一次乘法。',
           },
           { tex: String.raw`E[\delta_B^2]=\text{bias}^2+\text{variance}=${n6(sp.bias2)}+${n6(sp.variance)}=${n6(sp.total)}\ \mathrm{fs^2}`, why: 'F-14.3：兩項相加。' },

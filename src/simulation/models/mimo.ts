@@ -87,6 +87,36 @@ export const MAX_SEQ_SCHEDULE = 100000
 
 // ───────────────────────────── 小工具 ─────────────────────────────
 
+// 警告／錯誤／說明字串會經 mathText 顯示在 Lab 的警告區、表格與 Gallery：數學一律寫成 `$...$`（docs/teaching-style.md §3），
+// 數字用下面幾個函式轉成 TeX（1.2e-5 ⇒ 1.2\times10^{-5}、200000 ⇒ 200{,}000）。
+
+/** 科學記號字串 1.2e-5 → 1.2\times10^{-5}；其餘原樣 */
+function sciTex(text: string): string {
+  const m = /^(-?[\d.]+)e([+-]?\d+)$/.exec(text)
+  return m ? `${m[1]}\\times10^{${Number(m[2])}}` : text
+}
+
+/** 訊息用：有效位數（toPrecision）的數字 → TeX */
+function texNum(x: number, sig = 4): string {
+  if (typeof x !== 'number' || Number.isNaN(x)) return '\\text{NaN}'
+  if (!Number.isFinite(x)) return x > 0 ? '\\infty' : '-\\infty'
+  return sciTex(x.toPrecision(sig))
+}
+
+/** 訊息用：使用者輸入的原值（不改位數）→ TeX */
+function texRaw(x: number): string {
+  if (typeof x !== 'number' || Number.isNaN(x)) return '\\text{NaN}'
+  if (!Number.isFinite(x)) return x > 0 ? '\\infty' : '-\\infty'
+  return sciTex(String(x))
+}
+
+/** 訊息用：整數加千分位（TeX 的 {,}） */
+function texInt(x: number): string {
+  return Math.round(x)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, '{,}')
+}
+
 /** 1-bit comparator 的小訊號增益 K_q = √(2/π)/σ_v（fs⁻¹；規格 §5.1） */
 export function kqFromSigma(sigmaV: number): number {
   return Math.sqrt(2 / Math.PI) / sigmaV
@@ -145,6 +175,129 @@ function sortedPoles(A: Mat): Complex[] {
 /** 2-norm（最大 singular value） */
 function norm2Mat(A: Mat): number {
   return svd(A).S[0] ?? 0
+}
+
+/**
+ * ‖X‖₂ > t 嗎？不算 SVD：‖X‖₂ < t ⇔ t²I − XᵀX 正定 ⇔ Cholesky 的每個 pivot 都 > 0（P ≤ 4，約 P³ 次乘法）。
+ * 恰好相等（pivot = 0，機率為零的邊界）算作「超過」。逐 block 判斷 95% 衰減時每一步都會用到，所以不能每步做一次 SVD。
+ */
+function norm2Exceeds(X: Mat, t: number): boolean {
+  const P = X.length
+  const t2 = t * t
+  // H = t²I − XᵀX（對稱），原地做 Cholesky（只用下三角）
+  const H: number[][] = []
+  for (let i = 0; i < P; i++) {
+    const row = new Array<number>(i + 1)
+    for (let j = 0; j <= i; j++) {
+      let g = 0
+      for (let l = 0; l < P; l++) g += X[l][i] * X[l][j]
+      row[j] = (i === j ? t2 : 0) - g
+    }
+    H.push(row)
+  }
+  for (let j = 0; j < P; j++) {
+    let d = H[j][j]
+    for (let l = 0; l < j; l++) d -= H[j][l] * H[j][l]
+    if (!(d > 0)) return true
+    const s = Math.sqrt(d)
+    H[j][j] = s
+    for (let i = j + 1; i < P; i++) {
+      let v = H[i][j]
+      for (let l = 0; l < j; l++) v -= H[i][l] * H[j][l]
+      H[i][j] = v / s
+    }
+  }
+  return false
+}
+
+// ───────────────────────────── 95% 衰減：整個誤差向量（勘誤審查 R02） ─────────────────────────────
+
+/** 判斷「F-10.5 對整個誤差向量精確」的相對容差：‖A‖₂ − ρ(A) ≤ POLE_EXACT_TOL·(1 − ρ(A)) */
+const POLE_EXACT_TOL = 1e-9
+/** 捨入誤差下限（相對於 max(1, ‖A‖_F)）：對稱（或正規）的 A 經過反矩陣等運算後，只會差這個量級。isNormalMatrix 與 poleCountIsExact 共用 */
+const POLE_EXACT_ROUNDOFF = 1e-13
+
+/**
+ * A 是正規矩陣（A Aᵀ = Aᵀ A；對稱矩陣屬之）嗎？
+ * 加上 c·I 不會改變 A Aᵀ − Aᵀ A，所以用去掉平均對角的 B = A − (tr A/P)·I 來量：‖B Bᵀ − Bᵀ B‖_F ≤ tol·‖B‖_F²。
+ * （不能拿 ‖A‖_F² 當尺度：A = I + μJ、μ 很小時 A ≈ I，任何 J 都會被誤判成正規——
+ *   例如 J = [[−1, 0.3], [0, −1]]、μK_q = 10⁻⁴ 的 ‖A Aᵀ − Aᵀ A‖_F 只有 1.3×10⁻⁹，但 ‖A^k‖₂ 在 k₉₅ 附近是 ρ^k 的 1.5 倍。）
+ * 捨入誤差：A 的元素經過反矩陣等運算後只準到 δ = POLE_EXACT_ROUNDOFF·max(1, ‖A‖_F)。B = B₀ + E（B₀ 正規、‖E‖_F ≤ δ）時
+ * ‖B Bᵀ − Bᵀ B‖_F ≤ 4‖B₀‖_F·δ + 2δ² ≤ 4‖B‖_F·δ + 6δ²，所以容差再加上這一項；‖B‖_F ≤ δ（A 是 I 的倍數，例如完整反矩陣的 A = (1 − γ)·I
+ * 加上 10⁻¹⁶ 的捨入殘差）直接視為正規。少了這一項，A = 0.3·I + 捨入殘差 會被判成「非正規」。
+ */
+export function isNormalMatrix(A: Mat, tol = 1e-9): boolean {
+  const P = A.length
+  const c = trace(A) / P
+  const B = A.map((row, i) => row.map((v, j) => (i === j ? v - c : v)))
+  const nB = normFro(B)
+  const delta = POLE_EXACT_ROUNDOFF * Math.max(1, normFro(A))
+  if (nB <= delta) return true
+  const Bt = transpose(B)
+  return normFro(matAdd(matMul(B, Bt), matScale(matMul(Bt, B), -1))) <= tol * nB * nB + 4 * nB * delta + 6 * delta * delta
+}
+
+/**
+ * 「只看最慢 pole」的 ⌈ln 0.05/ln ρ(A)⌉（F-10.5）可以直接當作整個誤差向量的 k₉₅ 嗎？
+ * ‖A‖₂ = ρ(A) 時可以：ρ^k ≤ ‖A^k‖₂ ≤ ‖A‖₂^k 永遠成立，兩端相等就得到 ‖A^k‖₂ = ρ(A)^k（對所有 k）。
+ * 正規矩陣（對稱屬之）一定滿足 ‖A‖₂ = ρ(A)；2×2 時「‖A‖₂ = ρ(A)」與「正規」等價。
+ * 容差要相對於 1 − ρ（不是 ‖A‖）：‖A‖₂ ≤ ρ + t ⇒ ‖A^k‖₂ ≤ ρ^k·e^{kt/ρ}；k ≈ 3/(1 − ρ) 時要 t ≪ 1 − ρ 才看不出差別。
+ * t = max(POLE_EXACT_TOL·(1 − ρ), 捨入誤差下限)。
+ *  (a) 對稱（到容差內）：S = (A + Aᵀ)/2 對稱、E = (A − Aᵀ)/2 ⇒ ‖A‖₂ ≤ ρ(S) + ‖E‖₂；另一方面 A 一定有一個 eigenvalue 的絕對值
+ *      ≥ ρ(S) − (2P − 1)‖E‖₂（Bauer–Fike：A 的 eigenvalue 都落在以 S 的 eigenvalue 為圓心、半徑 ‖E‖₂ 的圓盤聯集裡，而且每個連通分量
+ *      裡兩邊的個數相同）⇒ ‖A‖₂ − ρ(A) ≤ 2P‖E‖₂ ≤ P·‖A − Aᵀ‖_F。這一條不需要 SVD，
+ *      極慢的對稱迴路（1 − ρ ≈ 10⁻⁸）也不會被 SVD／eig 的浮點誤差誤判。
+ *  (b) 其他（不對稱但正規，例如旋轉加縮放）：直接比 ‖A‖₂ 與 ρ(A)。
+ * 兩條都不過就逐 block 算（normDecayBlocks）：那個結果不管 A 正規與否都是對的，這裡只是決定能不能省掉連乘、並標示成 F-10.5。
+ */
+function poleCountIsExact(A: Mat, rho: number): boolean {
+  const gap = 1 - rho
+  if (!(gap > 0)) return false
+  const t = Math.max(POLE_EXACT_TOL * gap, POLE_EXACT_ROUNDOFF * Math.max(1, normFro(A)))
+  if (A.length * normFro(matAdd(A, matScale(transpose(A), -1))) <= t) return true
+  return norm2Mat(A) - rho <= t
+}
+
+/** normDecayBlocks 逐 block 相乘的上限（超過就放棄、回傳 null） */
+export const MAX_NORM_DECAY_ITER = 200000
+
+/**
+ * 最小的 k，使所有 j ≥ k 都有 ‖A^j‖₂ ≤ frac（0 < frac < 1）：最壞初始方向的誤差長度降到 frac 以下、且之後不再超過。
+ * maxIter 內無法確定（不穩定，或非正規又衰減極慢）回傳 null。
+ *
+ * 做法：逐 block 算 A^k，記下最後一次 ‖A^k‖₂ > frac 的 k（lastAbove）。
+ * 何時可以停：令 c = max_{0≤m≤k} ‖A^m‖_F（c ≥ ‖I‖_F = √P ≥ 1）。若 ‖A^k‖_F·c ≤ frac，則對 j ∈ [k, 2k]：
+ *   ‖A^j‖₂ ≤ ‖A^j‖_F ≤ ‖A^k‖_F·‖A^{j−k}‖_F ≤ ‖A^k‖_F·c ≤ frac（次可乘性，0 ≤ j − k ≤ k）；
+ * 再往後每 k 個 block 用歸納法：‖A^{j−k}‖_F ≤ frac ≤ c ⇒ ‖A^j‖_F ≤ ‖A^k‖_F·c ≤ frac。所以 k 之後不會再超過，答案就是 lastAbove + 1。
+ * ‖A^k‖₂ > frac 的判斷：‖·‖_F/√P ≤ ‖·‖₂ ≤ ‖·‖_F，只有落在兩界之間才用 norm2Exceeds（Cholesky）。
+ */
+export function normDecayBlocks(A: Mat, frac = DECAY_95, maxIter = MAX_NORM_DECAY_ITER): number | null {
+  const P = A.length
+  if (!(frac > 0 && frac < 1) || !isFiniteMatrix(A)) return null
+  const rootP = Math.sqrt(P)
+  let Pk = identity(P)
+  let tmp = zeros(P)
+  let peakF = rootP
+  let lastAbove = 0
+  for (let k = 1; k <= maxIter; k++) {
+    let ss = 0
+    for (let i = 0; i < P; i++) {
+      for (let j = 0; j < P; j++) {
+        let s = 0
+        for (let l = 0; l < P; l++) s += A[i][l] * Pk[l][j]
+        tmp[i][j] = s
+        ss += s * s
+      }
+    }
+    ;[Pk, tmp] = [tmp, Pk]
+    const fro = Math.sqrt(ss)
+    if (!Number.isFinite(fro)) return null
+    if (fro > peakF) peakF = fro
+    const above = fro > frac * rootP ? true : fro <= frac ? false : norm2Exceeds(Pk, frac)
+    if (above) lastAbove = k
+    if (fro * peakF <= frac) return lastAbove + 1
+  }
+  return null
 }
 
 // ───────────────────────────── 矩陣檢視（Matrix Inspector） ─────────────────────────────
@@ -284,19 +437,21 @@ export function buildPlant(spec: PlantSpec): PlantModel {
     warnings,
   })
   if (!isSquare(src) || P < 1 || P > 4) {
-    errors.push('矩陣必須是 1×1 到 4×4 的方陣（本章實驗用 2×2 或 3×3）。')
+    errors.push(String.raw`矩陣必須是 $1\times1$ 到 $4\times4$ 的方陣（本章實驗用 $2\times2$ 或 $3\times3$）。`)
     return empty()
   }
   if (!isFiniteMatrix(src)) {
-    errors.push('矩陣含有非有限值（NaN / ∞）。')
+    errors.push(String.raw`矩陣含有非有限值（NaN 或 $\infty$）。`)
     return empty()
   }
   if (!(spec.sigmaV > 0)) {
-    errors.push(`σ_v = ${spec.sigmaV} fs 不合法：必須 > 0（K_q = √(2/π)/σ_v；σ_v = 0 時 1-bit comparator 沒有線性小訊號增益）。`)
+    errors.push(
+      String.raw`$\sigma_v=${texRaw(spec.sigmaV)}\ \mathrm{fs}$ 不合法：必須 $>0$（$K_q=\sqrt{2/\pi}/\sigma_v$；$\sigma_v=0$ 時 1-bit comparator 沒有線性小訊號增益）。`,
+    )
     return empty()
   }
   if (!(Number.isInteger(spec.N) && spec.N >= 1)) {
-    errors.push(`N = ${spec.N} 不合法：GMAC block 長度必須是正整數。`)
+    errors.push(String.raw`$N=${texRaw(spec.N)}$ 不合法：GMAC block 長度必須是正整數。`)
     return empty()
   }
   const Kq = kqFromSigma(spec.sigmaV)
@@ -306,13 +461,13 @@ export function buildPlant(spec: PlantSpec): PlantModel {
   let Jn: Mat
   if (spec.mode === 'R') {
     const asym = src.some((row, i) => row.some((v, j) => Math.abs(v - src[j][i]) > 1e-12))
-    if (asym) warnings.push('R 必須對稱（R = E[uuᵀ]）；已改用對稱部分 (R + Rᵀ)/2。')
+    if (asym) warnings.push(String.raw`$\mathbf R$ 必須對稱（$\mathbf R=E[\mathbf u\mathbf u^T]$）；已改用對稱部分 $(\mathbf R+\mathbf R^T)/2$。`)
     const R = symmetricPart(src)
     const { values } = eigSym(R)
     const lmin = values[P - 1]
     if (lmin < -1e-10 * Math.max(1, Math.abs(values[0]))) {
       errors.push(
-        `R 不是半正定：λ_min = ${lmin.toPrecision(4)} < 0。自相關矩陣 E[uuᵀ] 的 eigenvalue 不可能為負（例如 |ρ| > 1 或 3×3 的相關係數互相矛盾），請修正 R。`,
+        String.raw`$\mathbf R$ 不是半正定：$\lambda_{\min}=${texNum(lmin)}<0$。自相關矩陣 $E[\mathbf u\mathbf u^T]$ 的 eigenvalue 不可能為負（例如 $|\rho|>1$ 或 $3\times3$ 的相關係數互相矛盾），請修正 $\mathbf R$。`,
       )
       return empty()
     }
@@ -335,9 +490,9 @@ export function buildPlant(spec: PlantSpec): PlantModel {
   let patternProb: number[] = []
   let patternCdf: number[] = []
   if (dist === 'pm1') {
-    if (P > 3) errors.push('±1 碼的 pattern 機率公式只適用 P ≤ 3。')
+    if (P > 3) errors.push(String.raw`$\pm1$ 碼的 pattern 機率公式只適用 $P\le3$。`)
     const diagOk = Ru.every((row, i) => Math.abs(row[i] - 1) < 1e-9)
-    if (!diagOk) errors.push('±1 碼的每個 regressor 功率恆為 1：R 的對角線必須全為 1（相關係數矩陣）；或改用 Gaussian。')
+    if (!diagOk) errors.push(String.raw`$\pm1$ 碼的每個 regressor 功率恆為 1：$\mathbf R$ 的對角線必須全為 1（相關係數矩陣）；或改用 Gaussian。`)
     patterns = allSignPatterns(P)
     patternProb = patterns.map((s) => {
       let acc = 1
@@ -347,7 +502,7 @@ export function buildPlant(spec: PlantSpec): PlantModel {
     const neg = patternProb.find((p) => p < -1e-12)
     if (neg !== undefined) {
       errors.push(
-        `這個 R 無法用 ±1 碼實現：某個 pattern 的機率 = ${neg.toPrecision(3)} < 0（三個相關係數互相矛盾）。請改用 Gaussian regressor 或調整 R。`,
+        String.raw`這個 $\mathbf R$ 無法用 $\pm1$ 碼實現：某個 pattern 的機率 $=${texNum(neg, 3)}<0$（三個相關係數互相矛盾）。請改用 Gaussian regressor 或調整 $\mathbf R$。`,
       )
     }
     let c = 0
@@ -365,18 +520,19 @@ export function buildPlant(spec: PlantSpec): PlantModel {
     const lmax = e.values[0]
     const lmin = e.values[P - 1]
     if (lmax <= 0) {
-      errors.push('R = 0：沒有任何激勵（no excitation），GMAC 永遠是 0。')
+      errors.push(String.raw`$\mathbf R=\mathbf 0$：沒有任何激勵（no excitation），GMAC 永遠是 0。`)
     } else if (lmin <= 1e-12 * lmax) {
       warnings.push(
-        `λ_min(R) = ${lmin.toExponential(2)} ≈ 0：不可辨識（缺乏 persistent excitation）。沿 v_min 方向的誤差完全看不到，完整 Preconditioner 無法求逆；只能用 regularized 或固定其中一個參數。`,
+        // 判斷條件是 λ_min ≤ 10⁻¹²·λ_max：不印出 λ_min 的數值（那只是 eigen 分解的浮點殘餘，例如 2.2e−16，數學上就是 0）
+        String.raw`$\lambda_{\min}(\mathbf R)\approx0$（不到 $\lambda_{\max}$ 的 $10^{-12}$ 倍）：不可辨識（缺乏 persistent excitation）。沿 $\mathbf v_{\min}$ 方向的誤差完全看不到，完整 Preconditioner 無法求逆；只能用 regularized 或固定其中一個參數。`,
       )
     }
   } else {
     const s = svd(Jn)
     modeValues = s.S
     modeBasis = s.V
-    if (s.S[0] === 0) errors.push('J = 0：GMAC 對任何參數都沒有斜率。')
-    else if (s.S[P - 1] <= 1e-12 * s.S[0]) warnings.push(`σ_min(J) ≈ 0：J 奇異，有一個方向不可辨識（完整反矩陣不存在）。`)
+    if (s.S[0] === 0) errors.push(String.raw`$\mathbf J=\mathbf 0$：GMAC 對任何參數都沒有斜率。`)
+    else if (s.S[P - 1] <= 1e-12 * s.S[0]) warnings.push(String.raw`$\sigma_{\min}(\mathbf J)\approx0$：$\mathbf J$ 奇異，有一個方向不可辨識（完整反矩陣不存在）。`)
   }
   return {
     P,
@@ -611,7 +767,7 @@ export function buildUpdateMatrix(cfg: RuleConfig, JnHat: Mat, mode: PlantMode):
       if (!(JnHat[i][i] < 0)) {
         return {
           Mn: null,
-          error: `Ĵ_${i + 1}${i + 1} = ${JnHat[i][i].toPrecision(3)} ≥ 0：第 ${i + 1} 個 loop 單獨看就是錯誤極性（C_${i + 1}${i + 1} ≤ 0）或沒有斜率，無法用「讓單一 loop pole = 1 − γ」設定 μ_${i + 1}。`,
+          error: String.raw`$(\hat{\mathbf J}_n)_{${i + 1}${i + 1}}=${texNum(JnHat[i][i], 3)}\ge0$：第 ${i + 1} 個 loop 單獨看就是錯誤極性（$C_{${i + 1}${i + 1}}\le0$）或沒有斜率，無法用「讓單一 loop pole $=1-\gamma$」設定 $\mu_{${i + 1}}$。`,
           warnings,
         }
       }
@@ -624,7 +780,7 @@ export function buildUpdateMatrix(cfg: RuleConfig, JnHat: Mat, mode: PlantMode):
     if (total > MAX_SEQ_SCHEDULE) {
       return {
         Mn: null,
-        error: `Sequential 排程總長 P·sweeps·K = ${total} blocks 超過上限 ${MAX_SEQ_SCHEDULE}：解析需逐 block 傳遞共變異，請減少每階段 blocks 或輪流次數。`,
+        error: String.raw`Sequential 排程總長 $P\times\text{sweeps}\times K=${texInt(total)}$ blocks 超過上限 $${texInt(MAX_SEQ_SCHEDULE)}$：解析需逐 block 傳遞共變異，請減少每階段 blocks 或輪流次數。`,
         warnings,
       }
     }
@@ -641,7 +797,7 @@ export function buildUpdateMatrix(cfg: RuleConfig, JnHat: Mat, mode: PlantMode):
         break
       case 'nlms': {
         const Rx = rxHatFrom(mode, JnHat)
-        if (!(trace(Rx) > 0)) return { Mn: null, error: 'tr(R̂_x) ≤ 0：regressor 沒有能量，NLMS 無法正規化。', warnings }
+        if (!(trace(Rx) > 0)) return { Mn: null, error: String.raw`$\operatorname{tr}(\hat{\mathbf R}_x)\le0$：regressor 沒有能量，NLMS 無法正規化。`, warnings }
         Mn = mNlms(JnHat, cfg, Rx)
         break
       }
@@ -650,31 +806,35 @@ export function buildUpdateMatrix(cfg: RuleConfig, JnHat: Mat, mode: PlantMode):
         if (s[P - 1] <= 1e-12 * s[0]) {
           return {
             Mn: null,
-            error: `Ĵ 奇異（σ_min/σ_max = ${(s[P - 1] / s[0]).toExponential(2)}）：λ_min = 0 ⇒ 該方向不可辨識，完整 Preconditioner (K_qR)⁻¹ 不存在。Preconditioner 可以加速，但不能製造缺失的資訊；請改用 regularized（λ_reg > 0）。`,
+            // 判斷條件是 σ_min ≤ 10⁻¹²·σ_max：不印出比值（只是 SVD 的浮點殘餘，數學上就是 0）
+            error: String.raw`$\hat{\mathbf J}$ 奇異（$\sigma_{\min}/\sigma_{\max}\le10^{-12}$）：$\lambda_{\min}=0$ ⇒ 該方向不可辨識，完整 Preconditioner $(K_q\mathbf R)^{-1}$ 不存在。Preconditioner 可以加速，但不能製造缺失的資訊；請改用 regularized（$\lambda_{\mathrm{reg}}>0$）。`,
             warnings,
           }
         }
         Mn = mFull(JnHat, cfg)
-        if (s[0] / s[P - 1] > 1e3) warnings.push(`Ĵ 的 condition number = ${(s[0] / s[P - 1]).toPrecision(3)}：反矩陣元素很大，GMAC noise 會被大幅放大。`)
+        if (s[0] / s[P - 1] > 1e3) warnings.push(String.raw`$\hat{\mathbf J}$ 的 condition number $\kappa=${texNum(s[0] / s[P - 1], 3)}$：反矩陣元素很大，GMAC noise 會被大幅放大。`)
         break
       }
       case 'regularized': {
-        if (!(cfg.lambdaReg >= 0)) return { Mn: null, error: 'λ_reg 必須 ≥ 0。', warnings }
+        if (!(cfg.lambdaReg >= 0)) return { Mn: null, error: String.raw`$\lambda_{\mathrm{reg}}$ 必須 $\ge0$。`, warnings }
         if (cfg.regForm === 'R') {
           const Rhat = symmetricPart(matScale(JnHat, -1))
           const asym = JnHat.some((row, i) => row.some((v, j) => Math.abs(v - JnHat[j][i]) > 1e-9 * (1 + Math.abs(v))))
-          if (asym) warnings.push('R 形式假設 Ĵ = −K_q R̂ 對稱；Ĵ 不對稱，已取對稱部分。一般（不對稱）Ĵ 請用 J 形式。')
+          if (asym) warnings.push(String.raw`R 形式假設 $\hat{\mathbf J}=-K_q\hat{\mathbf R}$ 對稱；$\hat{\mathbf J}$ 不對稱，已取對稱部分。一般（不對稱）$\hat{\mathbf J}$ 請用 J 形式。`)
           const lmin = eigSym(Rhat).values[P - 1]
           if (lmin + cfg.lambdaReg <= 1e-12) {
+            // 落在 ±10⁻¹² 內的和是浮點殘餘：顯示成 0，不印 1.1e−16 之類的數字
+            const sum = lmin + cfg.lambdaReg
+            const sumTex = Math.abs(sum) <= 1e-12 ? '=0' : `=${texNum(sum, 3)}<0`
             return {
               Mn: null,
-              error: `R̂ + λ_reg I 不可逆（λ_min(R̂) + λ_reg = ${(lmin + cfg.lambdaReg).toExponential(2)} ≤ 0）：請增加 λ_reg，或檢查 Ĵ 的極性（−Ĵ 必須半正定才適用 R 形式）。`,
+              error: String.raw`$\hat{\mathbf R}+\lambda_{\mathrm{reg}}\mathbf I$ 不可逆（$\lambda_{\min}(\hat{\mathbf R})+\lambda_{\mathrm{reg}}${sumTex}$）：請增加 $\lambda_{\mathrm{reg}}$，或檢查 $\hat{\mathbf J}$ 的極性（$-\hat{\mathbf J}$ 必須半正定才適用 R 形式）。`,
               warnings,
             }
           }
         } else if (cfg.lambdaReg === 0) {
           const s = svd(JnHat).S
-          if (s[P - 1] <= 1e-12 * s[0]) return { Mn: null, error: 'λ_reg = 0 且 Ĵ 奇異：(ĴᵀĴ)⁻¹ 不存在。請設定 λ_reg > 0。', warnings }
+          if (s[P - 1] <= 1e-12 * s[0]) return { Mn: null, error: String.raw`$\lambda_{\mathrm{reg}}=0$ 且 $\hat{\mathbf J}$ 奇異：$(\hat{\mathbf J}^T\hat{\mathbf J})^{-1}$ 不存在。請設定 $\lambda_{\mathrm{reg}}>0$。`, warnings }
         }
         Mn = mRegularized(JnHat, cfg)
         break
@@ -682,11 +842,11 @@ export function buildUpdateMatrix(cfg: RuleConfig, JnHat: Mat, mode: PlantMode):
       default:
         return { Mn: null, error: `未知的規則 ${String(cfg.rule)}`, warnings }
     }
-    if (!isFiniteMatrix(Mn)) return { Mn: null, error: '更新矩陣含有非有限值（Ĵ 可能奇異）。', warnings }
+    if (!isFiniteMatrix(Mn)) return { Mn: null, error: String.raw`更新矩陣含有非有限值（$\hat{\mathbf J}$ 可能奇異）。`, warnings }
     return { Mn, error: null, warnings }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
-    return { Mn: null, error: `無法建立更新矩陣：${msg}（λ_min = 0 ⇒ 不可辨識）`, warnings }
+    return { Mn: null, error: String.raw`無法建立更新矩陣：${msg}（$\lambda_{\min}=0$ ⇒ 不可辨識）`, warnings }
   }
 }
 
@@ -767,8 +927,21 @@ export interface RuleAnalysis {
   /** ρ(A)；sequential 為每 block 等效 ρ(Φ_sweep)^{1/(P·K)} */
   spectralRadius: number
   stable: boolean
-  /** 95% 衰減所需 block 數（最慢模式；sequential 為 ‖Φ_k‖₂ ≤ 0.05 的第一個 k；達不到為 null） */
+  /**
+   * 95% 衰減所需 block 數：最小的 k，使所有 j ≥ k 都有 ‖A^j‖₂ ≤ 0.05（最壞初始方向的誤差長度降到 5% 以下、且之後不再超過）。
+   * A 正規（對稱屬之）時等於 ⌈ln 0.05/ln ρ(A)⌉（F-10.5）；非正規時 F-10.5 只是下界。sequential 用 ‖Φ_j‖₂；達不到為 null。
+   */
   blocks95: number | null
+  /**
+   * blocks95 的來源：
+   *  'pole' = ‖A‖₂ = ρ(A)（A 正規時一定成立），F-10.5 精確；
+   *  'norm' = 逐 block 計算範數（非正規的 A，或 sequential）；
+   *  'lower-bound' = A 非正規、但 MAX_NORM_DECAY_ITER 個 block 內沒算完，只列 F-10.5 的下界；
+   *  null = 沒有值。
+   */
+  blocks95Basis: 'pole' | 'norm' | 'lower-bound' | null
+  /** 只看 ρ(A) 的 ⌈ln 0.05/ln ρ(A)⌉（穩定的時不變規則；sequential、不穩定、分析失敗為 null） */
+  blocks95Asymptotic: number | null
   /** 穩態 Cov(δ)（fs²；sequential 為排程結束、凍結後的 Cov） */
   cov: Mat | null
   covKind: 'stationary' | 'final' | null
@@ -797,6 +970,8 @@ function failAnalysis(rule: MimoRule, error: string, warnings: string[] = []): R
     spectralRadius: NaN,
     stable: false,
     blocks95: null,
+    blocks95Basis: null,
+    blocks95Asymptotic: null,
     cov: null,
     covKind: null,
     modeVar: null,
@@ -845,23 +1020,25 @@ export const MARGINAL_TOL = 1e-9
 export function explainInstability(poles: Complex[], rho: number, Jn: Mat, exactJ: boolean): string {
   const worst = poles[0]
   const isComplex = Math.abs(worst.im) > 1e-9 * Math.max(1, Math.abs(worst.re))
-  const poleText = `${worst.re.toPrecision(4)}${isComplex ? ` ± j${Math.abs(worst.im).toPrecision(3)}` : ''}`
-  const head = `ρ(I + MJ) = ${rho.toPrecision(5)} ≥ 1`
+  // 回傳的字串經 mathText 顯示（Lab 警告區、Gallery）：數學寫成 `$...$`
+  const poleTex = `${texNum(worst.re)}${isComplex ? `\\pm j${texNum(Math.abs(worst.im), 3)}` : ''}`
+  const head = String.raw`$\rho(\mathbf I+\mathbf M\mathbf J)=${texNum(rho, 5)}\ge1$`
   const diagOk = Jn.every((row, i) => row[i] < 0)
   const tail = diagOk ? '每個 loop 單獨穩定不代表 MIMO 一起穩定。' : ''
-  const jhatNote = exactJ ? '' : '（M 由 Ĵ ≠ J 建構：也可能是 Ĵ 的誤差造成，勘誤 E24）'
+  const jhatNote = exactJ ? '' : String.raw`（$\mathbf M$ 由 $\hat{\mathbf J}\ne\mathbf J$ 建構：也可能是 $\hat{\mathbf J}$ 的誤差造成，勘誤 E24）`
+  const tooBig = String.raw`請減小 $\mu$／$\gamma$ 或加大 $\lambda_{\mathrm{reg}}$`
   if (isComplex) {
-    return `${head}：複數 pole ${poleText}（|p| = ${rho.toPrecision(4)}）——M·J 不對稱造成旋轉，誤差${rho > 1 + MARGINAL_TOL ? '邊振盪邊放大' : '持續振盪、不收斂'}${jhatNote}。${tail}`
+    return String.raw`${head}：複數 pole $${poleTex}$（$|p|=${texNum(rho)}$）——$\mathbf M\mathbf J$ 不對稱造成旋轉，誤差${rho > 1 + MARGINAL_TOL ? '邊振盪邊放大' : '持續振盪、不收斂'}${jhatNote}。${tail}`
   }
   if (Math.abs(rho - 1) <= MARGINAL_TOL) {
     return worst.re > 0
-      ? `${head}：臨界——pole = 1 的模式 loop gain 為 0（或小於 10⁻⁹），平均誤差沿該方向凍結（不收斂也不放大）。原因是該方向不可辨識（λ_min = 0）或更新矩陣在該方向沒有增益（步長為 0）${jhatNote}。`
-      : `${head}：臨界——pole = −1 的模式 loop gain 恰為 2，平均誤差每個 block 變號、振幅不衰減；請減小 μ / γ 或加大 λ_reg${jhatNote}。`
+      ? String.raw`${head}：臨界——pole $=1$ 的模式 loop gain 為 0（或小於 $10^{-9}$），平均誤差沿該方向凍結（不收斂也不放大）。原因是該方向不可辨識（$\lambda_{\min}=0$）或更新矩陣在該方向沒有增益（步長為 0）${jhatNote}。`
+      : String.raw`${head}：臨界——pole $=-1$ 的模式 loop gain 恰為 2，平均誤差每個 block 變號、振幅不衰減；${tooBig}${jhatNote}。`
   }
   if (worst.re > 0) {
-    return `${head}：平均誤差沿 pole ${poleText} 的模式發散（每個 block 放大 ${rho.toPrecision(4)} 倍）。pole > 1 代表該模式的更新方向相反（−J 在該方向不是正定／極性錯誤），縮小步長無效，需要用反矩陣或 regularized pinv 修正方向${jhatNote}。${tail}`
+    return String.raw`${head}：平均誤差沿 pole $${poleTex}$ 的模式發散（每個 block 放大 $${texNum(rho)}$ 倍）。pole $>1$ 代表該模式的更新方向相反（$-\mathbf J$ 在該方向不是正定／極性錯誤），縮小步長無效，需要用反矩陣或 regularized pinv 修正方向${jhatNote}。${tail}`
   }
-  return `${head}：平均誤差沿 pole ${poleText} 的模式發散（每個 block 變號並放大 ${rho.toPrecision(4)} 倍）。pole < −1 代表該模式的 loop gain 1 − p = ${(1 - worst.re).toPrecision(4)} > 2，過度修正：請減小 μ / γ 或加大 λ_reg${jhatNote}。`
+  return String.raw`${head}：平均誤差沿 pole $${poleTex}$ 的模式發散（每個 block 變號並放大 $${texNum(rho)}$ 倍）。pole $<-1$ 代表該模式的 loop gain $1-p=${texNum(1 - worst.re)}>2$，過度修正：${tooBig}${jhatNote}。`
 }
 
 /**
@@ -893,7 +1070,9 @@ export function analyzeRule(plant: PlantModel, cfg: RuleConfig, JnHat: Mat): Rul
     let tmpPhi = zeros(P)
     let tmpX = zeros(P)
     const AX = zeros(P)
-    let blocks95: number | null = null
+    // 與時不變規則同一個定義：‖Φ_j‖₂ 最後一次超過 5% 的下一個 block（不是第一次低於 5%：過度修正 γ > 1 時範數會再回升）
+    let lastAbove = 0
+    let endBelow = false
     for (let k = 0; k < total; k++) {
       const { A, Q } = steps[Math.floor(k / K) % P]
       for (let i = 0; i < P; i++) {
@@ -917,18 +1096,19 @@ export function analyzeRule(plant: PlantModel, cfg: RuleConfig, JnHat: Mat): Rul
       }
       ;[PhiK, tmpPhi] = [tmpPhi, PhiK]
       ;[X, tmpX] = [tmpX, X]
-      if (blocks95 === null) {
-        // ‖Φ‖_F/√P ≤ ‖Φ‖₂ ≤ ‖Φ‖_F：只有落在兩界之間才需要算 SVD
-        const fro = normFro(PhiK)
-        if (fro <= DECAY_95 || (fro / Math.sqrt(P) <= DECAY_95 && norm2Mat(PhiK) <= DECAY_95)) blocks95 = k + 1
-      }
+      // ‖Φ‖_F/√P ≤ ‖Φ‖₂ ≤ ‖Φ‖_F：只有落在兩界之間才需要真的比 2-norm
+      const fro = normFro(PhiK)
+      endBelow = fro <= DECAY_95 || (fro / Math.sqrt(P) <= DECAY_95 && !norm2Exceeds(PhiK, DECAY_95))
+      if (!endBelow) lastAbove = k + 1
     }
+    // 排程結束後所有係數凍結，範數不再改變：結束時仍 > 5% 就是「沒有達成」
+    const blocks95 = endBelow ? lastAbove + 1 : null
     const modeVar = modeDiag(plant.modeBasis, X)
     const perParamVar = diagOf(X)
     const vIdx = trace(matMul(plant.Ru, X)) / (plant.sigmaV * plant.sigmaV)
     if (blocks95 === null) {
       warnings.push(
-        `Sequential：${cfg.seqSweeps} 個 sweep 結束時 ‖Φ‖₂ = ${norm2Mat(PhiK).toPrecision(3)} > 0.05，初始誤差沒有被消除就凍結了（耦合使每個參數都把別人的誤差吸收進來）。`,
+        String.raw`Sequential：${cfg.seqSweeps} 個 sweep 結束時 $\|\boldsymbol\Phi\|_2=${texNum(norm2Mat(PhiK), 3)}>0.05$，初始誤差沒有被消除就凍結了（耦合使每個參數都把別人的誤差吸收進來）。`,
       )
     }
     return {
@@ -943,6 +1123,8 @@ export function analyzeRule(plant: PlantModel, cfg: RuleConfig, JnHat: Mat): Rul
       spectralRadius: rhoSweep > 0 ? Math.pow(rhoSweep, 1 / (P * K)) : 0,
       stable: rhoSweep < 1 - MARGINAL_TOL,
       blocks95,
+      blocks95Basis: blocks95 === null ? null : 'norm',
+      blocks95Asymptotic: null,
       cov: X,
       covKind: 'final',
       modeVar,
@@ -971,6 +1153,24 @@ export function analyzeRule(plant: PlantModel, cfg: RuleConfig, JnHat: Mat): Rul
     warnings.push(explainInstability(poles, rho, plant.Jn, exactJ))
   }
   const modeVar = cov ? modeDiag(plant.modeBasis, cov) : null
+  // 95% 衰減：ρ(A) < 1 只保證最後會收斂；有限時間的 block 數要看 ‖A^k‖₂（A 非正規時 ‖A^k‖₂ > ρ^k，審查 R02）
+  const blocks95Asymptotic = stable ? stepsToDecay(rho) : null
+  let blocks95 = blocks95Asymptotic
+  let blocks95Basis: RuleAnalysis['blocks95Basis'] = stable ? 'pole' : null
+  if (blocks95Asymptotic !== null && !poleCountIsExact(A, rho)) {
+    const kNorm = normDecayBlocks(A)
+    if (kNorm !== null) {
+      // ‖A^k‖₂ ≥ ρ^k ⇒ 一定不小於 F-10.5；取 max 只是擋掉剛好落在整數邊界時的浮點差異
+      blocks95 = Math.max(kNorm, blocks95Asymptotic)
+      blocks95Basis = 'norm'
+    } else {
+      blocks95Basis = 'lower-bound'
+      // 這則訊息會經 mathText 顯示在 Lab 的警告區與 Gallery：數學寫成 `$...$`（docs/teaching-style.md §3）
+      warnings.push(
+        String.raw`$\mathbf A$ 非正規且衰減極慢：$\|\mathbf A^k\|_2$ 在 $${texInt(MAX_NORM_DECAY_ITER)}$ 個 block 內沒有確定降到 5% 以下；$k_{95}$ 只列出由 $\rho(\mathbf A)$ 算的下界 $${texInt(blocks95Asymptotic)}$（實際更久）。`,
+      )
+    }
+  }
   // 封閉式（Ĵ = J 時）
   let closedPoles: number[] | null = null
   let closedModeVar: number[] | null = null
@@ -999,7 +1199,9 @@ export function analyzeRule(plant: PlantModel, cfg: RuleConfig, JnHat: Mat): Rul
     poles,
     spectralRadius: rho,
     stable,
-    blocks95: stable ? stepsToDecay(rho) : null,
+    blocks95,
+    blocks95Basis,
+    blocks95Asymptotic,
     cov,
     covKind: cov ? 'stationary' : null,
     modeVar,
@@ -1160,10 +1362,10 @@ export function resolveJhat(plant: PlantModel, spec: JhatSpec, delta0: number[],
   switch (spec.source) {
     case 'custom': {
       if (!isSquare(spec.custom, P) || !isFiniteMatrix(spec.custom)) {
-        return { JnHat: plant.Jn, info: { source: 'exact', relErr: 0, ...base, note: '自訂 Ĵ 尺寸不符，改用 Ĵ = J' }, error: `自訂 Ĵ 必須是 ${P}×${P} 的有限數值矩陣。` }
+        return { JnHat: plant.Jn, info: { source: 'exact', relErr: 0, ...base, note: String.raw`自訂 $\hat{\mathbf J}$ 尺寸不符，改用 $\hat{\mathbf J}=\mathbf J$` }, error: String.raw`自訂 $\hat{\mathbf J}$ 必須是 $${P}\times${P}$ 的有限數值矩陣。` }
       }
       const J = spec.custom.map((r) => r.slice())
-      return { JnHat: J, info: { source: 'custom', relErr: relErr(J), ...base, note: '使用者輸入的 Ĵ（例如舊 corner 的量測值）' }, error: null }
+      return { JnHat: J, info: { source: 'custom', relErr: relErr(J), ...base, note: String.raw`使用者輸入的 $\hat{\mathbf J}$（例如舊 corner 的量測值）` }, error: null }
     }
     case 'perturbed': {
       const eps = spec.perturbRel ?? 0
@@ -1172,12 +1374,12 @@ export function resolveJhat(plant: PlantModel, spec: JhatSpec, delta0: number[],
       if (plant.mode === 'R') E = symmetricPart(E)
       const scale = (eps * normFro(plant.Jn)) / Math.max(normFro(E), 1e-300)
       const J = matAdd(plant.Jn, matScale(E, scale))
-      return { JnHat: J, info: { source: 'perturbed', relErr: relErr(J), ...base, note: `Ĵ = J + 隨機誤差（相對 Frobenius ε = ${eps}）` }, error: null }
+      return { JnHat: J, info: { source: 'perturbed', relErr: relErr(J), ...base, note: String.raw`$\hat{\mathbf J}=\mathbf J$ 加上隨機誤差（相對 Frobenius $\varepsilon=${texRaw(eps)}$）` }, error: null }
     }
     case 'finiteDiff': {
       const dfs = spec.fdDeltaFs ?? 0.3 * plant.sigmaV
       const NJ = Math.max(1, Math.round(spec.fdSamples ?? 4096))
-      if (!(dfs > 0)) return { JnHat: plant.Jn, info: { source: 'exact', relErr: 0, ...base, note: 'Δ 不合法' }, error: 'Δ 必須 > 0 fs。' }
+      if (!(dfs > 0)) return { JnHat: plant.Jn, info: { source: 'exact', relErr: 0, ...base, note: String.raw`$\Delta$ 不合法` }, error: String.raw`$\Delta$ 必須 $>0\ \mathrm{fs}$。` }
       const meas: PlantModel = { ...plant, N: NJ }
       const rng = createRng(seed).fork('jacobian-fd')
       const normal = makeNormal(rng)
@@ -1198,13 +1400,13 @@ export function resolveJhat(plant: PlantModel, spec: JhatSpec, delta0: number[],
           expected,
           std,
           samplesUsed: 2 * P * NJ,
-          note: `中央差分：Δ = ${dfs} fs（Δ/σ_v = ${(dfs / plant.sigmaV).toPrecision(3)}），每點 N_J = ${NJ} samples，在 δ_0 量測`,
+          note: String.raw`中央差分：$\Delta=${texRaw(dfs)}\ \mathrm{fs}$（$\Delta/\sigma_v=${texNum(dfs / plant.sigmaV, 3)}$），每點 $N_J=${texInt(NJ)}$ samples，在 $\boldsymbol\delta_0$ 量測`,
         },
         error: null,
       }
     }
     default:
-      return { JnHat: plant.Jn.map((r) => r.slice()), info: { source: 'exact', relErr: 0, ...base, note: 'Ĵ = J（模型完全匹配）' }, error: null }
+      return { JnHat: plant.Jn.map((r) => r.slice()), info: { source: 'exact', relErr: 0, ...base, note: String.raw`$\hat{\mathbf J}=\mathbf J$（模型完全匹配）` }, error: null }
   }
 }
 
@@ -1277,12 +1479,14 @@ export function runMimoTrajectories(p: MimoTrajParams): MimoTrajResult {
   })
   if (plant.errors.length) return fail(plant.errors.join(' '))
   const blocks = Math.round(p.blocks)
-  if (!(blocks >= 1 && blocks <= MAX_BLOCKS)) return fail(`blocks 必須在 1…${MAX_BLOCKS}。`)
-  if (!Array.isArray(p.delta0) || p.delta0.length !== plant.P || !p.delta0.every(Number.isFinite)) return fail(`δ_0 必須有 ${plant.P} 個有限數值。`)
+  if (!(blocks >= 1 && blocks <= MAX_BLOCKS)) return fail(String.raw`blocks 必須在 1 到 $${texInt(MAX_BLOCKS)}$ 之間。`)
+  if (!Array.isArray(p.delta0) || p.delta0.length !== plant.P || !p.delta0.every(Number.isFinite)) return fail(String.raw`$\boldsymbol\delta_0$ 必須有 ${plant.P} 個有限數值。`)
   const fdCost = p.jhat.source === 'finiteDiff' ? 2 * plant.P * (p.jhat.fdSamples ?? 4096) : 0
   const cost = p.engine === 'sample' ? p.cases.length * blocks * plant.N + fdCost : fdCost
   if (cost > MAX_SAMPLE_BUDGET) {
-    return fail(`運算量 ${cost.toExponential(2)} samples 超過預算 ${MAX_SAMPLE_BUDGET.toExponential(0)}：請減少 N、blocks、N_J 或 case 數，或改用 linear 引擎。`)
+    return fail(
+      String.raw`運算量 $${sciTex(cost.toExponential(2))}$ samples 超過預算 $${sciTex(MAX_SAMPLE_BUDGET.toExponential(0))}$：請減少 $N$、blocks、$N_J$ 或 case 數，或改用 linear 引擎。`,
+    )
   }
   const { JnHat, info, error: jErr } = resolveJhat(plant, p.jhat, p.delta0, p.seed)
   const warnings = [...plant.warnings]
@@ -1427,7 +1631,7 @@ export function runMimoCovarianceMc(p: MimoCovParams): MimoCovResult {
   })
   if (plant.errors.length) return fail(plant.errors.join(' '))
   const chains = Math.round(p.chains)
-  if (!(chains >= 2 && chains <= 4096)) return fail('chains 必須在 2…4096（CI 需要至少 2 條獨立 chain）。')
+  if (!(chains >= 2 && chains <= 4096)) return fail(String.raw`chains 必須在 2 到 $4{,}096$ 之間（CI 需要至少 2 條獨立 chain）。`)
   const delta0 = p.delta0 ?? new Array<number>(P).fill(0)
   const { JnHat, error: jErr } = resolveJhat(plant, p.jhat, delta0, p.seed)
   const warnings = [...plant.warnings]
@@ -1435,7 +1639,7 @@ export function runMimoCovarianceMc(p: MimoCovParams): MimoCovResult {
   const an = analyzeRule(plant, p.rule, JnHat)
   if (!an.ok) return fail(an.error ?? '無法分析此規則')
   const isSeq = p.rule.rule === 'sequential'
-  if (!isSeq && !an.stable) return fail(`ρ(I + MJ) = ${an.spectralRadius.toPrecision(4)} ≥ 1：迴路不穩定，沒有穩態共變異可估計（誤差會無限成長）。`)
+  if (!isSeq && !an.stable) return fail(String.raw`$\rho(\mathbf I+\mathbf M\mathbf J)=${texNum(an.spectralRadius)}\ge1$：迴路不穩定，沒有穩態共變異可估計（誤差會無限成長）。`)
   const built = buildUpdateMatrix(p.rule, JnHat, plant.mode)
   const K = p.rule.seqBlocksPerPhase
   const seqTotal = P * p.rule.seqSweeps * K
@@ -1443,7 +1647,7 @@ export function runMimoCovarianceMc(p: MimoCovParams): MimoCovResult {
   const record = isSeq ? 1 : Math.max(1, Math.round(p.recordBlocks))
   const perChainBlocks = isSeq ? seqTotal : burnIn + record
   const cost = p.engine === 'sample' ? chains * perChainBlocks * plant.N : 0
-  if (cost > MAX_SAMPLE_BUDGET) return fail(`運算量 ${cost.toExponential(2)} samples 超過預算：請減少 chains、record blocks 或 N，或改用 linear 引擎。`)
+  if (cost > MAX_SAMPLE_BUDGET) return fail(String.raw`運算量 $${sciTex(cost.toExponential(2))}$ samples 超過預算：請減少 chains、record blocks 或 $N$，或改用 linear 引擎。`)
 
   const maxScatter = p.maxScatter ?? 1500
   const totalRecorded = chains * record
@@ -1541,7 +1745,7 @@ export function runMimoCovarianceMc(p: MimoCovParams): MimoCovResult {
   const vIdx = trace(matMul(plant.Ru, cov)) / (plant.sigmaV * plant.sigmaV)
   if (vIdx > 0.05) {
     warnings.push(
-      `線性化有效性指標 E[δᵀR_uδ]/σ_v² = ${vIdx.toPrecision(3)} 不夠小：殘差已和 comparator noise 同量級，K_q 線性化高估實際增益（sample 引擎的變異會偏離公式）。`,
+      String.raw`線性化有效性指標 $E[\boldsymbol\delta^T\mathbf R_u\boldsymbol\delta]/\sigma_v^2=${texNum(vIdx, 3)}$ 不夠小：殘差已和 comparator noise 同量級，$K_q$ 線性化高估實際增益（sample 引擎的變異會偏離公式）。`,
     )
   }
   return {

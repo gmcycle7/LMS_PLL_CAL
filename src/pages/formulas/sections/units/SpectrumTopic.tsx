@@ -24,10 +24,12 @@ export function PsdTopic() {
         <p>
           一個零平均的隨機序列 <Tex>{'y'}</Tex> 的「功率」就是它的變異數 <Tex>{String.raw`\sigma_y^2=E[y^2]`}</Tex>。PSD 回答的是：這些功率有多少落在慢的變化（低頻）、多少落在快的變化（高頻）。
           它是一個「密度」：<strong>要對頻率積分才得到功率</strong>，就像線密度（kg/m）要對長度積分才得到質量。所以 PSD 的單位永遠是「<Tex>{'y'}</Tex> 的單位平方 ÷ 頻率的單位」，
-          而頻率的單位可以選 Hz，也可以選 rad/sample——這就是兩種正規化的來源。
+          而頻率的單位可以選 Hz，也可以選「每個樣本轉幾圈」的 <Tex>{String.raw`\Omega/2\pi`}</Tex>（cycle/sample；block 量是 cycle/block）——這就是兩種正規化的來源。DTFT 形式是對{' '}
+          <Tex>{String.raw`\Omega`}</Tex>（rad/sample）積分<strong>再除以</strong> <Tex>{String.raw`2\pi`}</Tex>，等於對 <Tex>{String.raw`\Omega/2\pi`}</Tex> 積分，所以它是「每 cycle/sample」的密度；能直接對{' '}
+          <Tex>{String.raw`\Omega`}</Tex> 積分的「每 rad/sample」密度是 <Tex>{String.raw`S/(2\pi)`}</Tex>，本站不用。
         </p>
       </Prereq>
-      <TexBlock>{String.raw`\underbrace{\sigma^2=\frac{1}{2\pi}\int_{-\pi}^{\pi}S(e^{j\Omega})\,d\Omega}_{\text{DTFT 形式（雙邊，對 }\Omega\text{ 積分）}}\qquad\qquad\underbrace{\sigma^2=\int_{0}^{f_r/2}S^{(1)}(f)\,df}_{\text{單邊 per-Hz（對 }f\text{ 積分）}}`}</TexBlock>
+      <TexBlock>{String.raw`\underbrace{\sigma^2=\frac{1}{2\pi}\int_{-\pi}^{\pi}S(e^{j\Omega})\,d\Omega}_{\text{DTFT 形式（雙邊；對 }\Omega\text{ 積分再除以 }2\pi\text{）}}\qquad\qquad\underbrace{\sigma^2=\int_{0}^{f_r/2}S^{(1)}(f)\,df}_{\text{單邊 per-Hz（對 }f\text{ 積分）}}`}</TexBlock>
       <StepDerivation
         title={
           <>
@@ -555,7 +557,7 @@ export function MultirateTopic() {
               tex: String.raw`\frac{2}{f_s}\cdot N\,S_w^{(f_u)}(1)=\frac{2}{f_u}\,S_w^{(f_u)}(1)=${texNum(q.swZoh1Dc)}\ \mathrm{fs^2/Hz}`,
               why: (
                 <>
-                  換成單邊 per-Hz（<Tex>{String.raw`f_s=Nf_u`}</Tex>）：<strong>完全不變</strong>。慢慢變的訊號被「保持」之後，低頻的物理頻譜當然一樣；差 <Tex>{'N'}</Tex> 倍的只是 per-rad 的記帳方式。
+                  換成單邊 per-Hz（<Tex>{String.raw`f_s=Nf_u`}</Tex>）：<strong>完全不變</strong>。慢慢變的訊號被「保持」之後，低頻的物理頻譜當然一樣；差 <Tex>{'N'}</Tex> 倍的只是 DTFT 形式的記帳單位：每 cycle/sample 與每 cycle/block（<Tex>{String.raw`1\ \text{cycle/sample}=N\ \text{cycle/block}`}</Tex>）。
                 </>
               ),
             },

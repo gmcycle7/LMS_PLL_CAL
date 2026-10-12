@@ -1,5 +1,6 @@
 import { texNum, texNumP } from '@/components'
 import type { HandCalcDef } from '@/data/types'
+import { SIX_CONDITIONS } from './data'
 import { CONDITION_ORDER, DEFAULT_PARAMS, comparatorGain, evaluateThesis, trajectory, type CheckState, type ConditionId, type ThesisParams, type ThesisResult } from './thesisModel'
 
 /**
@@ -25,14 +26,8 @@ const BASE: ThesisParams = { ...DEFAULT_PARAMS, B: 0 }
 const SQRT_2_OVER_PI = comparatorGain(1)
 
 const STATE_ZH: Record<CheckState, string> = { ok: '通過', warn: '注意', fail: '未通過' }
-const CONDITION_ZH: Record<ConditionId, string> = {
-  identifiability: '資訊足夠',
-  polarity: '更新方向正確',
-  stability: '動態穩定',
-  variance: '統計精度足夠',
-  bias: '收斂到正確的物理參數',
-  system: '真正改善 PLL 輸出',
-}
+/** 六個條件的名稱直接取自條件卡片（data.ts），HC-DB.6 的判定列才不會和卡片各寫各的 */
+const CONDITION_ZH = Object.fromEntries(SIX_CONDITIONS.map((c) => [c.id, c.zh])) as Record<ConditionId, string>
 
 const PAGE = '/'
 
@@ -316,7 +311,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: String.raw`Preconditioner 的代價：兩個 mode 的係數雜訊差 $\sqrt\kappa$ 倍`,
     page: PAGE,
     formulaId: 'F-DB.4',
-    formulaTex: String.raw`\begin{gathered}\tilde\lambda_\pm=1\pm\rho,\qquad \kappa=\frac{\tilde\lambda_+}{\tilde\lambda_-},\qquad \mathrm{Var}(\xi_\pm)=\frac{\mu^2}{N\,g\,(2-g)}\cdot\frac{1}{\tilde\lambda_\pm}\\[4pt]\frac{\sigma_{\xi,-}}{\sigma_{\xi,+}}=\sqrt\kappa,\qquad \sigma_w=\sqrt{\tfrac12\big(\mathrm{Var}(\xi_+)+\mathrm{Var}(\xi_-)\big)}\qquad\big(\mathbf M=\mu\tilde{\mathbf R}^{-1},\ P_x=1\big)\end{gathered}`,
+    formulaTex: String.raw`\begin{gathered}\tilde\lambda_\pm=1\pm\rho,\qquad \kappa=\frac{\tilde\lambda_+}{\tilde\lambda_-},\qquad \mathrm{Var}(\xi_\pm)=\frac{\mu^2}{N\,g\,(2-g)}\cdot\frac{1}{\tilde\lambda_\pm}\\[4pt]\frac{\sigma_{\xi,-}}{\sigma_{\xi,+}}=\sqrt\kappa,\qquad \sigma_w=\sqrt{\tfrac12\big(\mathrm{Var}(\xi_+)+\mathrm{Var}(\xi_-)\big)}\qquad\big(\mathbf M=\mu\tilde{\mathbf R}^{-1},\ P_x=|H|=1,\ \theta=0^\circ\big)\end{gathered}`,
     level: 'engineer',
     claim: 'approx',
     inputs: [
@@ -348,9 +343,31 @@ export const HANDCALCS: HandCalcDef[] = [
       const ratio = sW / sS
       const sum = strong.variance + weak.variance
       const notes: string[] = [String.raw`驗算（F-DB.4）：比值應等於 $\sqrt\kappa=\sqrt{${texNum(kappa)}}=${texNum(Math.sqrt(kappa))}$——和 $\mu$、$N$、$g$ 都無關，只由 $\rho$ 決定。`]
-      if (sc.stable)
+      // 一般 LMS 的兩個 mode：強方向 loop gain g·λ̃₊、弱方向 g·λ̃₋。g ≤ 2/(λ̃₊ + λ̃₋) = 1 時最慢的是弱方向；
+      // g 更大時強方向過衝（pole 靠近 −1），最慢的反而是強方向——不能再把最慢的 block 數說成「弱方向」的。
+      // 這一題 d = 0，「誰最慢」直接比 |pole|（等價於 g > 1 且 ρ > 0）：只比取整後的 block 數的話，g 略大於 1 時兩者同數，
+      // 會落回下面那句「代價是 σ_w 變成…快與安靜不能兼得」，而 g > 1 時 preconditioner 的 σ_w 其實比較小。
+      // σ_w(precond)/σ_w(一般 LMS) = √(((2−g)² − g²ρ²)/((2−g)²(1−ρ²)))：ρ = 0 或 g = 1 時恰好是 1，這兩種情況沒有「代價」可言，各寫一句。
+      const [scStrong, scWeak] = sc.modes
+      const noCorrelation = rho < 1e-9 // ρ = 0：R̃ = I，兩種更新是同一件事
+      const atBoundary = Math.abs(g - 1) <= 1e-9 // g = 1：兩個方向的 |pole| 都是 ρ，σ_w 的比值恰好是 1
+      const weakIsSlowest = atBoundary || !(scStrong.radius > scWeak.radius * (1 + 1e-12))
+      const sameCount = scWeak.t95Blocks === sc.slowT95Blocks
+      if (sc.stable && noCorrelation)
         notes.push(
-          String.raw`對照一般 LMS（$\mathbf M=\mu\mathbf I$，同一組數字）：每個係數的 $\sigma_w=${texNum(sc.sigmaW, 4)}\ \mathrm{fs}$，但弱方向衰減 95% 要 $${texInt(sc.slowT95Blocks)}$ 個 block；preconditioner 只要 $${texInt(pc.slowT95Blocks)}$ 個 block，代價是 $\sigma_w$ 變成 $${texNum(pc.sigmaW, 4)}\ \mathrm{fs}$（$${texNum(pc.sigmaW / sc.sigmaW, 3)}$ 倍）。快與安靜不能兼得。`,
+          String.raw`對照一般 LMS（$\mathbf M=\mu\mathbf I$，同一組數字）：$\rho=0$ 時 $\tilde{\mathbf R}=\mathbf I$，preconditioner 和一般 LMS 是同一個更新——每個係數的 $\sigma_w$ 同樣是 $${texNum(sc.sigmaW, 4)}\ \mathrm{fs}$，衰減 95% 同樣要 $${texInt(sc.slowT95Blocks)}$ 個 block。兩個 regressor 有相關（$\rho\ne0$）時 preconditioner 才比較快；它比較吵是在 $g<1$ 的時候。`,
+        )
+      else if (sc.stable && atBoundary)
+        notes.push(
+          String.raw`對照一般 LMS（$\mathbf M=\mu\mathbf I$，同一組數字）：每個係數的 $\sigma_w=${texNum(sc.sigmaW, 4)}\ \mathrm{fs}$，弱方向衰減 95% 要 $${texInt(scWeak.t95Blocks)}$ 個 block；preconditioner 只要 $${texInt(pc.slowT95Blocks)}$ 個 block，$\sigma_w$ 也是 $${texNum(pc.sigmaW, 4)}\ \mathrm{fs}$。$g=1$ 剛好是分界：$g<1$ 時 preconditioner 比較吵（快與安靜要取捨），$g>1$ 時它反而比較安靜。`,
+        )
+      else if (sc.stable && weakIsSlowest)
+        notes.push(
+          String.raw`對照一般 LMS（$\mathbf M=\mu\mathbf I$，同一組數字）：每個係數的 $\sigma_w=${texNum(sc.sigmaW, 4)}\ \mathrm{fs}$，但弱方向衰減 95% 要 $${texInt(scWeak.t95Blocks)}$ 個 block；preconditioner 只要 $${texInt(pc.slowT95Blocks)}$ 個 block，代價是 $\sigma_w$ 變成 $${texNum(pc.sigmaW, 4)}\ \mathrm{fs}$（$${texNum(pc.sigmaW / sc.sigmaW, 3)}$ 倍）。快與安靜不能兼得。`,
+        )
+      else if (sc.stable)
+        notes.push(
+          String.raw`對照一般 LMS（$\mathbf M=\mu\mathbf I$，同一組數字）：每個係數的 $\sigma_w=${texNum(sc.sigmaW, 4)}\ \mathrm{fs}$；這個 $g$ 已經超過 $2/(\tilde\lambda_++\tilde\lambda_-)=1$，強方向過衝（loop gain $g\,\tilde\lambda_+=${texNum(scStrong.gain)}$，pole $1-g\,\tilde\lambda_+=${texNum(1 - scStrong.gain)}$），最慢的反而是強方向，衰減 95% 要 $${texInt(scStrong.t95Blocks)}$ 個 block（弱方向 $${texInt(scWeak.t95Blocks)}$ 個${sameCount ? '，取整後相同' : ''}）；preconditioner 只要 $${texInt(pc.slowT95Blocks)}$ 個 block，$\sigma_w$ 是 $${texNum(pc.sigmaW, 4)}\ \mathrm{fs}$（$${texNum(pc.sigmaW / sc.sigmaW, 3)}$ 倍：$g>1$ 時它反而比較小）。`,
         )
       else
         notes.push(
@@ -392,6 +409,7 @@ export const HANDCALCS: HandCalcDef[] = [
       String.raw`$V_0$ 就是 HC-DB.3 的 $\sigma_w^2$（$d=0$、$P_x=1$）：預設數字時 $V_0=${texNum(REF.t13.sigmaW ** 2, 4)}\ \mathrm{fs^2}$，也就是 $${texNum(REF.t13.sigmaW, 4)}^2$。`,
       String.raw`開根號用計算機的 $\sqrt{x}$ 鍵；$\sqrt{199}\approx14.1$（因為 $14^2=196$）。`,
       String.raw`「慢模式要幾個 block」的手算（598 的由來）在 Ch09 的 HC-09.3 與 Ch10 的 HC-10.2；這一題只算雜訊這一面。`,
+      String.raw`這一題取 $\theta=0^\circ$：兩個 regressor 的交叉相關就是 $C\,\tilde{\mathbf R}$。$\theta\ne0^\circ$ 時要另外確認交叉相關的假設（體檢會提醒；F-DB.6）。`,
     ],
   },
 

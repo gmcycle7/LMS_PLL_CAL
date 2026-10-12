@@ -102,7 +102,8 @@ export const HANDCALCS: HandCalcDef[] = [
     title: String.raw`離散時間主 PLL（$d=0$）：$K_p$、$K_i$、特徵多項式與 closed-loop poles`,
     page: '/models',
     formulaId: 'F-15.8',
-    formulaTex: String.raw`K_p=2\zeta\,\omega_nT_s,\quad K_i=(\omega_nT_s)^2,\qquad 1+L(z)=0\;\overset{d=0}{\Longleftrightarrow}\;z^2+a_1z+a_2=0,\quad a_1=K_p+K_i-2,\;a_2=1-K_p,\qquad z=\frac{-a_1\pm\sqrt{a_1^2-4a_2}}{2}`,
+    // 三行（桌機欄寬約 880px；一行排不下會出現橫向捲軸）：增益、特徵式、二次公式
+    formulaTex: String.raw`\begin{aligned}&K_p=2\zeta\,\omega_nT_s,\quad K_i=(\omega_nT_s)^2\\&1+L(z)=0\;\overset{d=0}{\Longleftrightarrow}\;z^2+a_1z+a_2=0,\quad a_1=K_p+K_i-2,\;a_2=1-K_p\\&z=\frac{-a_1\pm\sqrt{a_1^2-4a_2}}{2}\end{aligned}`,
     level: 'engineer',
     claim: 'exact',
     inputs: [
@@ -163,7 +164,9 @@ export const HANDCALCS: HandCalcDef[] = [
       results.push({ symbol: String.raw`\rho`, label: 'spectral radius（最大 pole 半徑）', value: rho, tolerance: { abs: 1e-3, rel: 0.01 } })
       const notes: string[] = [
         des.stable
-          ? String.raw`$\rho=${texNum(rho)}<1$：主 PLL 的線性化模型穩定，暫態每個 sample 乘上 $\rho$；衰減到 $1/e$ 需要 $-1/\ln\rho=${texNum(-1 / Math.log(rho), 4)}$ 個 sample${rho === 0 ? '（deadbeat）' : ''}。`
+          ? rho === 0
+            ? String.raw`$\rho=0$：兩個 pole 都在原點（deadbeat），主 PLL 的線性化模型穩定，暫態在有限個 sample 內結束。`
+            : String.raw`$\rho=${texNum(rho)}<1$：主 PLL 的線性化模型穩定。$\rho$ 是暫態的漸近衰減率：夠久以後每個 sample 約乘上 $\rho$，對應的時間常數是 $-1/\ln\rho=${texNum(-1 / Math.log(rho), 4)}$ 個 sample。它不是「誤差降到 $1/e$ 要幾個 sample」：實際的暫態是兩個 pole 的組合，前幾個 sample 可以比 $\rho^n$ 快，也可以比它慢。`
           : String.raw`$\rho=${texNum(rho)}\ge1$：主 PLL 的線性化模型不穩定——這時 $H_\mathrm{PD}$ 沒有穩態頻率響應，後面所有 $C$、$g$ 的計算都沒有意義。$d=0$ 的穩定條件是 $K_i>0$、$K_p<2$、$K_p+\tfrac12K_i<2$。`,
       ]
       if (complexPair && des.stable) {
@@ -349,7 +352,8 @@ export const HANDCALCS: HandCalcDef[] = [
     title: String.raw`Welch 主瓣積分為什麼高估 spur？功率（dB）相加，以及 dBc 與 dBc/Hz`,
     page: '/models',
     formulaId: 'F-15.11',
-    formulaTex: String.raw`P_\mathrm{noise,lobe}=P_\mathrm{noise}+10\log_{10}\frac{2\,n_\mathrm{bins}}{n_\mathrm{seg}},\qquad P_\mathrm{B}=10\log_{10}\bigl(10^{P_\mathrm{spur}/10}+10^{P_\mathrm{noise,lobe}/10}\bigr),\qquad S_\mathrm{peak}=P_\mathrm{spur}-10\log_{10}\mathrm{RBW},\;\mathrm{RBW}=\mathrm{ENBW_{bins}}\frac{f_s}{n_\mathrm{seg}}`,
+    // 三行（一行排不下會出現橫向捲軸）：主瓣內的雜訊、功率和、峰值 PSD 與 RBW
+    formulaTex: String.raw`\begin{aligned}P_\mathrm{noise,lobe}&=P_\mathrm{noise}+10\log_{10}\frac{2\,n_\mathrm{bins}}{n_\mathrm{seg}}\\[2pt]P_\mathrm{B}&=10\log_{10}\bigl(10^{P_\mathrm{spur}/10}+10^{P_\mathrm{noise,lobe}/10}\bigr)\\[2pt]S_\mathrm{peak}&=P_\mathrm{spur}-10\log_{10}\mathrm{RBW},\quad\mathrm{RBW}=\mathrm{ENBW_{bins}}\frac{f_s}{n_\mathrm{seg}}\end{aligned}`,
     level: 'engineer',
     claim: 'approx',
     inputs: [
@@ -497,7 +501,8 @@ export const HANDCALCS: HandCalcDef[] = [
     title: String.raw`綜合：回答開場問題——浮點模型的 $\sigma_w$ 對上 RTL 的截斷偏差 $\delta^*$，要保留幾個小數 bit？`,
     page: '/models',
     formulaId: 'F-16.3',
-    formulaTex: String.raw`K=\frac{\sqrt{2/\pi}}{\sigma_v}\,x_n^2,\quad \sigma_w=\frac{\mu\,x_n}{\sqrt{N\,(1-p^2)}},\;p=1-\mu K;\qquad \delta^*(F_G)\approx\frac{\Delta_G}{2K}=\frac{2^{-F_G}}{2^{B_x-1}\cdot2K};\qquad F_{G,\min}=\max\Bigl(0,\Bigl\lceil\log_2\frac{\delta^*(0)}{\sigma_w}\Bigr\rceil\Bigr)`,
+    // 兩行（一行排不下會出現橫向捲軸）：迴路的 K、σ_w、p；truncation 的平衡點與需要的小數位元
+    formulaTex: String.raw`\begin{aligned}&K=\frac{\sqrt{2/\pi}}{\sigma_v}\,x_n^2,\quad \sigma_w=\frac{\mu\,x_n}{\sqrt{N\,(1-p^2)}},\;p=1-\mu K\\&\delta^*(F_G)\approx\frac{\Delta_G}{2K}=\frac{2^{-F_G}}{2^{B_x-1}\cdot2K};\qquad F_{G,\min}=\max\Bigl(0,\Bigl\lceil\log_2\frac{\delta^*(0)}{\sigma_w}\Bigr\rceil\Bigr)\end{aligned}`,
     level: 'engineer',
     claim: 'approx',
     inputs: [

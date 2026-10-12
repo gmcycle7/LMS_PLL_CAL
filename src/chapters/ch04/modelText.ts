@@ -83,6 +83,14 @@ const RULES: Rule[] = [
       R`$\sigma_S/2^\ell=${n(m[1])}<${n(m[2])}$：GMAC 雜訊遠小於右移後的 1 個 LSB，取整後的 $G$ 幾乎都是同一個值——平衡點附近的回復斜率只剩 $\chi\approx${n(m[3])}$（$1$ = 沒有取整），迴路實際上停在 dead zone 裡，偏差預測（F-04.11）不再適用。請保留更多小數位元 $F_G$`,
   ],
   [
+    // toward-zero：下限加倍（gmac.ts 的 ditherMinFor），回復斜率是 toward-zero 自己的（towardZeroRestoringSlope）
+    pat(
+      'σ_S/2^ℓ = #N < #N（toward-zero 的下限是 floor 的兩倍）：|S| < 2^ℓ 時 toward-zero 一律輸出 0，0 兩側的平台合起來寬 2 個 LSB——平衡點 δ = 0 附近的回復斜率只剩 χ ≈ #N（1 = 沒有取整），迴路實際上停在 dead zone 裡，偏差預測（F-04.11）不再適用。請保留更多小數位元 F_G',
+    ),
+    (m) =>
+      R`$\sigma_S/2^\ell=${n(m[1])}<${n(m[2])}$（toward-zero 的下限是 floor 的兩倍）：$|S|<2^\ell$ 時 toward-zero 一律輸出 $0$，$0$ 兩側的平台合起來寬 $2$ 個 LSB——平衡點 $\delta=0$ 附近的回復斜率只剩 $\chi\approx${n(m[3])}$（$1$ = 沒有取整），迴路實際上停在 dead zone 裡，偏差預測（F-04.11）不再適用。請保留更多小數位元 $F_G$`,
+  ],
+  [
     pat(
       '更新量 μ·G 以 #T 取整到 W 的 LSB Δ_W = #N fs（R = Δ_W/(μΔ_G) = #N）：平均誤差 #N fs／block ⇒ w* − a ≈ ε̄_WΔ_W/g = #N fs（F-04.18）。這個偏差 ∝ 1/g：μ 調小反而更大。請增加 W 的小數位元（Δ_W ≤ 2g × 可容忍偏差）或改用 round-half-even',
     ),
@@ -95,6 +103,13 @@ const RULES: Rule[] = [
     ),
     (m) =>
       R`$\mu\sigma_G/\Delta_W=${n(m[1])}<${n(m[2])}$：每個 block 的更新量雜訊遠小於一個 $W$-LSB，取整後絕大多數更新是 $0$ 或 $\pm1$ LSB——平衡點附近的回復斜率只剩 $\chi\approx${n(m[3])}$，迴路停在 dead zone 裡，偏差預測（F-04.18）不再適用（實體 gain 量化的完整討論見 Ch13）`,
+  ],
+  [
+    pat(
+      'μσ_G/Δ_W = #N < #N（toward-zero 的下限是 floor 的兩倍）：更新量的絕對值小於一個 W-LSB 時 toward-zero 一律取成 0，0 兩側的平台合起來寬 2 個 LSB——平衡點 δ = 0 附近的回復斜率只剩 χ ≈ #N，迴路停在 dead zone 裡，偏差預測（F-04.18）不再適用（實體 gain 量化的完整討論見 Ch13）',
+    ),
+    (m) =>
+      R`$\mu\sigma_G/\Delta_W=${n(m[1])}<${n(m[2])}$（toward-zero 的下限是 floor 的兩倍）：更新量的絕對值小於一個 $W$-LSB 時 toward-zero 一律取成 $0$，$0$ 兩側的平台合起來寬 $2$ 個 LSB——平衡點 $\delta=0$ 附近的回復斜率只剩 $\chi\approx${n(m[3])}$，迴路停在 dead zone 裡，偏差預測（F-04.18）不再適用（實體 gain 量化的完整討論見 Ch13）`,
   ],
   [
     pat('真實 gain a 超出 DTC 可實現範圍 [#N, #N] fs：gain 只能停在 rail，#T'),

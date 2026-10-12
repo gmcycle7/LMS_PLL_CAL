@@ -364,7 +364,7 @@ describe('filteredX：Filtered-x 與模型誤差（E45）', () => {
     expect(res.cases[1].analytic.Cest).toBeCloseTo(-0.5, 2)
     expect(Math.abs(res.cases[1].metrics.wEnd - 3)).toBeGreaterThan(100)
     expect(res.cases[1].warnings.some((w) => w.includes('E45'))).toBe(true)
-    // 在 filtered 模式下用 D 補回「Ĥ 漏算」的 latency：Ĥ = H 時最佳 D 是 0
+    // filtered 模式的 D 是 regressor 的額外延遲：Ĥ = H 時 C_{f,D} = R_u[D] 在 D = 0 最大（不需要、也不應該再延遲）
     const lab = analyzeFxLab({ path, code, mode: 'filtered', D: 0, hat: HAT_EXACT, seed: 1, Dmax: 11 })
     const fil = lab.sweep.filtered.analytic as Float64Array
     expect(Array.from(fil).indexOf(Math.max(...fil))).toBe(0)
@@ -897,5 +897,330 @@ describe('filteredX：第二輪審查補上的測試（E44 極性邊界、閉迴
     expect(cc.note).toContain('無法比對')
     // 沒有不穩定警告、但 g 非有限時也不會被說成「g ≈ 0」
     expect(closedLoopConsistent(fake({ g: NaN, meanW: NaN }), 3, 0).note).toContain('不是有限數')
+  })
+})
+
+describe('filteredX：filtered-x 的 regressor 再延遲 D（R03）', () => {
+  // F-07.10 的 regressor 是 u_f[n − D]：平均相關是 C_{f,D} = E[u[n]·u_f[n − D]] = (1/2π)∫S_xx|H||Ĥ|cos(∠H − ∠Ĥ + ΩD)dΩ（F-07.12），
+  // 不是 E[u·u_f]。Ĥ = H 時 C_{f,D} = R_u[D]，只有 D = 0 才保證是 E[u²] ≥ 0。
+  const ID = { b: [1], a: [1] }
+  const QUARTER = { kind: 'sinusoid' as const, omega: Math.PI / 2 }
+  const T07_PATH = { kind: 'single_tone' as const, magnitude: 1, phaseDeg: -120, omega: OMEGA }
+  const T07_CODE = { kind: 'sinusoid' as const, omega: OMEGA }
+  const TYPE2 = { kind: 'type2_dt' as const, wnTs: 0.1, zeta: 0.7, loopDelay: 1 }
+  const WHITE = { kind: 'white_pm_one' as const }
+
+  it('反例：H = Ĥ = 1、x = cos(πn/2)、D = 2 ⇒ u_f[n − 2] = −u[n]，C_{f,2} = −1/2（沒有 D 的式子會給 +1/2）', () => {
+    const c = (D: number) => multiToneCorrFiltered({ tones: [{ A: 1, omega: Math.PI / 2 }], h: ID, hHat: ID, D })
+    expect(c(0)).toBeCloseTo(0.5, 12)
+    expect(c(1)).toBeCloseTo(0, 12)
+    expect(c(2)).toBeCloseTo(-0.5, 12)
+    expect(c(4)).toBeCloseTo(0.5, 12)
+    // 時域直接平均（一個週期 1, 0, −1, 0；不經過任何公式）
+    const x = Float64Array.from({ length: 64 }, (_, n) => Math.cos((Math.PI * n) / 2))
+    const uf2 = regressorFiltered(x, ID, 2)
+    let s = 0
+    for (let n = 8; n < 64; n++) s += x[n] * uf2[n]
+    expect(s / 56).toBeCloseTo(-0.5, 12)
+    // Lab 的 unit-power code（A = √2）：+1 與 −1
+    expect(analyticCorr({ code: QUARTER, h: ID, g: ID, D: 0 })).toBeCloseTo(1, 12)
+    expect(analyticCorr({ code: QUARTER, h: ID, g: ID, D: 2 })).toBeCloseTo(-1, 12)
+  })
+
+  it('Lab 分析：Ĥ = H、D = 2 ⇒ ρ = −1，警告說明原因是 D（F-07.12），不再歸咎於「Ĥ 與 H 的相位差」；正常對照（D = 0）沒有警告', () => {
+    const an = analyzeFxLab({ path: { kind: 'identity' }, code: QUARTER, mode: 'filtered', D: 2, hat: HAT_EXACT, seed: 1, Dmax: 8 })
+    expect(an.corr.filtered.analytic).toBeCloseTo(-1, 12)
+    expect(Math.abs(an.corr.filtered.empirical + 1)).toBeLessThan(1e-9)
+    expect(an.Eu2.analytic).toBeCloseTo(1, 12)
+    expect(an.rhoActive).toBeCloseTo(-1, 9)
+    expect(an.hat.exact).toBe(true)
+    expect(Math.abs(an.tone?.thetaDeg as number)).toBeCloseTo(180, 9)
+    expect(an.warnings).toHaveLength(2)
+    expect(an.warnings[0].startsWith('C ≤ 0：E[u[n]·u_f[n−D]] = -1.000 < 0（D = 2）')).toBe(true)
+    expect(an.warnings[0].endsWith('（F-07.12）')).toBe(true)
+    expect(an.warnings[1]).toBe('D = 2 ≠ 0：有效相關是 E[u[n]·u_f[n−D]] = -1.000，不是 E[u²] = 1.000（F-07.12）')
+    expect(an.warnings.some((w) => w.includes('Ĥ 與 H 在激勵頻帶的相位差超過 90°（E45）'))).toBe(false)
+    // 正常對照：T07 的單頻、Ĥ = H、D = 0 ⇒ C = E[u²] = 1、ρ = 1、沒有任何警告
+    const ok = analyzeFxLab({ path: T07_PATH, code: T07_CODE, mode: 'filtered', D: 0, hat: HAT_EXACT, seed: 1, Dmax: 8 })
+    expect(ok.corr.filtered.analytic).toBeCloseTo(1, 12)
+    expect(ok.corr.filtered.analytic as number).toBeCloseTo(ok.Eu2.analytic as number, 12)
+    expect(ok.rhoActive).toBeCloseTo(1, 9)
+    expect(ok.warnings).toEqual([])
+  })
+
+  it('D 只讓相關變小（還是正的）也要提醒；Ĥ ≠ H 與 D ≠ 0 同時存在時兩個原因都寫出來', () => {
+    // Type-II（ω_nT_s = 0.1、ζ = 0.7、d = 1）、白色 ±1 code、Ĥ = H、D = 1：C 從 1.1402 掉到 0.1280（ρ = 0.112），沒有變號
+    const t2 = analyzeFxLab({ path: TYPE2, code: WHITE, mode: 'filtered', D: 1, hat: HAT_EXACT, seed: 3, Dmax: 8 })
+    expect(t2.corr.filtered.analytic as number).toBeCloseTo(0.1279517584, 9)
+    expect(t2.warnings).toEqual(['D = 1 ≠ 0：有效相關是 E[u[n]·u_f[n−D]] = 0.1280，不是 E[u²] = 1.140（F-07.12）'])
+    // T07 的單頻：Ĥ = H·z⁻²、D = 2 ⇒ 殘餘相位 30°·(2 + 2) = 120°，C = −0.5
+    const both = analyzeFxLab({ path: T07_PATH, code: T07_CODE, mode: 'filtered', D: 2, hat: { ...HAT_EXACT, extraDelay: 2 }, seed: 1, Dmax: 8 })
+    expect(both.corr.filtered.analytic).toBeCloseTo(-0.5, 12)
+    const note = both.warnings.filter((w) => w.startsWith('Ĥ ≠ H、D = 2 ≠ 0：'))
+    expect(note).toHaveLength(1)
+    expect(note[0].endsWith('（E45）')).toBe(true)
+    // D = 0 的兩句訊息維持原樣（diagText.test.tsx 也釘住這兩句）
+    const d0 = analyzeFxLab({ path: T07_PATH, code: T07_CODE, mode: 'filtered', D: 0, hat: { ...HAT_EXACT, extraDelay: 4 }, seed: 3, Dmax: 12 }).warnings
+    expect(d0).toEqual([
+      'C ≤ 0：E[u·u_f] = -0.5000 < 0，Ĥ 與 H 在激勵頻帶的相位差超過 90°（E45）：filtered-x 一樣會反向更新',
+      'Ĥ ≠ H：有效相關是 E[u·u_f] = -0.5000，不是 E[u²] = 1.000（E45）',
+    ])
+  })
+
+  it('延遲 regressor D 個 sample = 把模型換成 Ĥ·z⁻ᴰ：T07 的單頻兩者都是 cos(30°·k)（§7.5 的 Δ 表與 D 逐列相同）', () => {
+    const H = pathTransfer(T07_PATH)
+    for (let k = 0; k <= 6; k++) {
+      const viaD = analyticCorr({ code: T07_CODE, h: H, g: buildHat(T07_PATH, HAT_EXACT, T07_CODE).full, D: k }) as number
+      const viaModel = analyticCorr({ code: T07_CODE, h: H, g: buildHat(T07_PATH, { ...HAT_EXACT, extraDelay: k }, T07_CODE).full, D: 0 }) as number
+      expect(viaD).toBeCloseTo(Math.cos((k * 30 * Math.PI) / 180), 12)
+      expect(viaModel).toBeCloseTo(viaD, 12)
+    }
+    // 章內文字引用的三個值：D = 2、3、4 ⇒ 0.5、0、−0.5
+    const c = (D: number) => analyticCorr({ code: T07_CODE, h: H, g: H, D }) as number
+    expect([c(2), c(3), c(4)].map((v) => Number(v.toFixed(4)))).toEqual([0.5, 0, -0.5])
+  })
+
+  it('閉迴路：同一個 seed，Ĥ = H 的 filtered-x 在 D = 0 收斂、D = 2 被推離真值（p = 1 ∓ μK_q）', () => {
+    const res = runFxComparison({
+      scenario: { path: { kind: 'identity' }, code: QUARTER, a: 100, w0: 80, sigmaV: 100, N: 256, blocks: 600, seed: 7 },
+      cases: [
+        { id: 'A', spec: { mode: 'filtered', D: 0, mu: 10, hat: HAT_EXACT } },
+        { id: 'B', spec: { mode: 'filtered', D: 2, mu: 10, hat: HAT_EXACT } },
+      ],
+    })
+    const [A, B] = res.cases
+    const g = (10 * Math.sqrt(2 / Math.PI)) / 100 // μK_q·|C|，|C| = 1
+    expect(A.analytic.Cest).toBeCloseTo(1, 9)
+    expect(A.analytic.p).toBeCloseTo(1 - g, 9) // 0.920212
+    expect(A.analytic.p).toBeCloseTo(0.920212, 6)
+    expect(Math.abs(A.metrics.meanW - 100)).toBeLessThan(2)
+    expect(closedLoopConsistent(A, 100, 80).status).toBe('ok')
+    expect(B.analytic.Cest).toBeCloseTo(-1, 9)
+    expect(B.analytic.p).toBeCloseTo(1 + g, 9) // 1.079788：沒有 D 的公式會預測 0.920212
+    expect(B.analytic.p).toBeCloseTo(1.079788, 6)
+    expect(Math.abs(B.metrics.wEnd - 100)).toBeGreaterThan(1000)
+    const cc = closedLoopConsistent(B, 100, 80)
+    expect(cc.status).toBe('ok')
+    expect(cc.note.startsWith('預測發散')).toBe(true)
+  })
+
+  it('寬頻 code：Type-II（d = 1）、白色 ±1、Ĥ = H ⇒ C_{f,D} = R_u[D] = 1.14016／0.12795／−0.03737（ρ = 1／0.1122／−0.0328），時域雙重和 = 頻域積分', () => {
+    const H = pathTransfer(TYPE2)
+    const c = (D: number) => analyticCorr({ code: WHITE, h: H, g: H, D }) as number
+    expect(c(0)).toBeCloseTo(1.1401641836, 9)
+    expect(c(1)).toBeCloseTo(0.1279517584, 9)
+    expect(c(2)).toBeCloseTo(-0.0373720482, 9)
+    expect(c(1) / c(0)).toBeCloseTo(0.11222, 4)
+    expect(c(2) / c(0)).toBeCloseTo(-0.03278, 4)
+    // |R_u[D]| ≤ R_u[0] = E[u²]（Cauchy–Schwarz）
+    for (let D = 1; D <= 16; D++) expect(Math.abs(c(D))).toBeLessThan(c(0))
+    // 頻域：(1/2π)∫S_xx·Re{H·Ĥ*·e^{+jΩD}}dΩ（F-07.12 的 +ΩD）
+    for (const D of [0, 1, 2]) {
+      const split = crossIntegralSplit({ code: WHITE, h: H, g: H, D }) as { pos: number; neg: number; total: number }
+      expect(Math.abs(split.total - c(D))).toBeLessThan(1e-9)
+    }
+  })
+
+  it('D 補得回、補不回的延遲：串在路徑上的純延遲 z⁻² 用 D = 2 補回；模型漏算的 loop latency（在迴路內部）在這組參數的白色與低通 AR(1) code 下，用 D 只會更差', () => {
+    // (1) 串聯純延遲：H = z⁻²、Ĥ = 1 ⇒ D = 2 時 regressor 與 u 完全相同，C = E[u²] = 1
+    const hs = { b: [0, 0, 1], a: [1] }
+    const corr = (code: Parameters<typeof analyticCorr>[0]['code'], D: number) => analyticCorr({ code, h: hs, g: ID, D }) as number
+    expect(corr(WHITE, 0)).toBeCloseTo(0, 12)
+    expect(corr(WHITE, 2)).toBeCloseTo(1, 12)
+    expect(corr(QUARTER, 0)).toBeCloseTo(-1, 12)
+    expect(corr(QUARTER, 2)).toBeCloseTo(1, 12)
+    expect(corr({ kind: 'ar1', rho: 0.6 }, 0)).toBeCloseTo(0.36, 12)
+    expect(corr({ kind: 'ar1', rho: 0.6 }, 2)).toBeCloseTo(1, 12)
+    // (2) 漏算 loop latency：真實 d = 1、模型 d̂ = 0。H(d) 不是 Ĥ(d̂)·z⁻ᴸ，D = 1、2 的 ρ 一路變小（Lab 的 Δd 提示）
+    const H = pathTransfer(TYPE2)
+    const hat = buildHat(TYPE2, { ...HAT_EXACT, loopDelayErr: -1 }, WHITE)
+    expect(hat.exact).toBe(false)
+    const rho = (code: Parameters<typeof analyticCorr>[0]['code'], D: number) =>
+      (analyticCorr({ code, h: H, g: hat.full, D }) as number) /
+      Math.sqrt((analyticCorr({ code, h: H, g: H, D: 0 }) as number) * (analyticCorr({ code, h: hat.full, g: hat.full, D: 0 }) as number))
+    const white = [0, 1, 2].map((D) => rho(WHITE, D))
+    expect(white[0]).toBeCloseTo(0.98771, 5)
+    expect(white[1]).toBeCloseTo(0.11271, 5)
+    expect(white[2]).toBeCloseTo(-0.03011, 5)
+    const lp = [0, 1, 2].map((D) => rho({ kind: 'ar1', rho: 0.98 }, D))
+    expect(lp[0]).toBeCloseTo(0.99448, 5)
+    expect(lp[1]).toBeCloseTo(0.87261, 5)
+    expect(lp[2]).toBeCloseTo(0.72074, 5)
+    for (const r of [white, lp]) {
+      expect(r[1]).toBeLessThan(r[0])
+      expect(r[2]).toBeLessThan(r[1])
+    }
+  })
+
+  it('Lab 的 Δd 提示：漏算 loop latency 時，白色 code 下任何 D > 0 都比 D = 0 差；單頻 code 則和 delayed-x 一樣可以用 D 轉回那個頻率的相位（所以提示不能寫成「一律補不回」）', () => {
+    // 漏算的 loop latency 不是串聯純延遲：h[0] = ĥ[0] = 1，H = Ĥ·z⁻ᴸ 只可能是 L = 0、Ĥ = H
+    const TONE1 = { kind: 'sinusoid' as const, omega: 1 }
+    // (a) 白色 ±1 code：C(D) = Σ_l h[l + D]·ĥ[l]。掃 ω_nT_s、ζ、d 與每一種漏算量，D = 1…32 都小於 D = 0
+    let cases = 0
+    for (const wnTs of [0.05, 0.1, 0.2, 0.3]) {
+      for (const zeta of [0.5, 0.7, 1, 1.5]) {
+        for (const loopDelay of [1, 2, 3]) {
+          const path = { kind: 'type2_dt' as const, wnTs, zeta, loopDelay }
+          if (!(pathStability(path).radius < 0.999)) continue
+          const H = pathTransfer(path)
+          expect(H.b[0] / H.a[0]).toBe(1)
+          for (let err = -loopDelay; err <= -1; err++) {
+            const hat = buildHat(path, { ...HAT_EXACT, loopDelayErr: err }, WHITE)
+            expect(hat.exact).toBe(false)
+            expect(hat.full.b[0] / hat.full.a[0]).toBe(1)
+            const c = (D: number) => analyticCorr({ code: WHITE, h: H, g: hat.full, D }) as number
+            const c0 = c(0)
+            expect(c0).toBeGreaterThan(0)
+            for (let D = 1; D <= 32; D++) expect(c(D), `${wnTs}/${zeta}/${loopDelay}/${err}/D=${D}`).toBeLessThan(c0)
+            cases++
+          }
+        }
+      }
+    }
+    expect(cases).toBeGreaterThanOrEqual(60)
+    // (b) 單頻反例：ω_nT_s = 0.25、ζ = 0.7、d = 2、模型 d̂ = 0、Ω = 1 rad/sample——D = 1 就把 ρ 從 0.688 拉回 0.983，D = 7 是 0.995
+    const path = { kind: 'type2_dt' as const, wnTs: 0.25, zeta: 0.7, loopDelay: 2 }
+    const H = pathTransfer(path)
+    const hat = buildHat(path, { ...HAT_EXACT, loopDelayErr: -2 }, TONE1)
+    const rho = (D: number) =>
+      (analyticCorr({ code: TONE1, h: H, g: hat.full, D }) as number) /
+      Math.sqrt((analyticCorr({ code: TONE1, h: H, g: H, D: 0 }) as number) * (analyticCorr({ code: TONE1, h: hat.full, g: hat.full, D: 0 }) as number))
+    expect(rho(0)).toBeCloseTo(0.68757, 5)
+    expect(rho(1)).toBeCloseTo(0.9825, 5)
+    expect(rho(7)).toBeCloseTo(0.99541, 5)
+    // 單頻的 ρ 就是 cos(殘餘相位)：D 每加 1，相位加 Ω = 1 rad
+    const th0 = Math.acos(rho(0))
+    expect(Math.min(Math.abs(Math.cos(th0 + 1) - rho(1)), Math.abs(Math.cos(-th0 + 1) - rho(1)))).toBeLessThan(1e-9)
+  })
+})
+
+describe('filteredX：F-07.1 的等號只在 w 凍結時成立——用真正的閉迴路核心 runBlockLms 驗證（R06b）', () => {
+  // Ch07 §7.4 與 Lab 的假設欄寫「本站的閉迴路模擬照真實電路的順序計算（先乘 (a − w_k)，再進狀態跨 block 保留的濾波器），不用這個近似」。
+  // 這裡把章內「兩拍的反例」原封不動送進 runBlockLms：h = [1, −1]、x ≡ 1、a = 1、N = 1、μ = 1、無雜訊（sign(0) = +1）。
+  const TWO_TAP = {
+    seed: 1,
+    gm_accum_samples: 1,
+    num_blocks: 6,
+    gain_initial: 0,
+    gain_true: 1,
+    gain_step: 1,
+    code_normalization: 'none' as const,
+    pd_noise_rms_fs: 0,
+    pll_error_path: { kind: 'fir' as const, parameters: { taps: [1, -1] } },
+    seeded_pattern: { kind: 'sinusoid' as const, parameters: { amplitude: 1, omega: 0, phase_deg: 0 } },
+    record: { sample_trace_blocks: 6, decimate: 1 },
+  }
+  /** e[n] − (a − w_{k(n)})·u[n]：F-07.1 的寫法（先濾後乘）和核心實際算出的 PD 誤差差多少 */
+  const residual = (res: ReturnType<typeof runBlockLms>, a: number, N: number): number[] => {
+    const t = res.trace as NonNullable<typeof res.trace>
+    return Array.from(t.e, (e, n) => e - (a - res.blocks.w[Math.floor(n / N)]) * t.u[n])
+  }
+
+  it('反例：w 每拍都在跳（0、1、0、1…）時 e[n] ≠ (a − w[n])·u[n]——核心算的是先乘後濾，殘差從第二拍起是 ∓1', () => {
+    const res = runBlockLms(TWO_TAP)
+    const t = res.trace as NonNullable<typeof res.trace>
+    // 手算：e[0] = (1 − 0)·1 = 1 ⇒ q = +1 ⇒ w = 1；e[1] = (1 − 1)·1 − (1 − 0)·1 = −1 ⇒ w = 0；e[2] = (1 − 0)·1 − (1 − 1)·1 = +1 ⇒ w = 1；…
+    expect(Array.from(res.blocks.w)).toEqual([0, 1, 0, 1, 0, 1, 0])
+    expect(Array.from(t.x)).toEqual([1, 1, 1, 1, 1, 1])
+    expect(Array.from(t.e)).toEqual([1, -1, 1, -1, 1, -1])
+    // u = h * x = x[n] − x[n − 1]：只有第一拍（濾波器初始狀態 0）是 1，之後恆為 0 ⇒ 「先濾後乘」的 (a − w)·u 從第二拍起是 0
+    expect(Array.from(t.u)).toEqual([1, 0, 0, 0, 0, 0])
+    expect(residual(res, 1, 1)).toEqual([0, -1, 1, -1, 1, -1])
+  })
+
+  it('對照（正常情況）：w 凍結（μ = 0）時兩種寫法逐點相同——2-tap 路徑殘差恰為 0，Type-II 路徑 < 1e−12', () => {
+    const frozen = runBlockLms({ ...TWO_TAP, gain_step: 0 })
+    expect(Array.from(frozen.blocks.w)).toEqual([0, 0, 0, 0, 0, 0, 0])
+    expect(Array.from((frozen.trace as NonNullable<typeof frozen.trace>).e)).toEqual([1, 0, 0, 0, 0, 0])
+    expect(residual(frozen, 1, 1)).toEqual([0, 0, 0, 0, 0, 0])
+    // 有記憶的 IIR 路徑（ω_nT_s = 0.05、ζ = 0.7 的 Type-II）、單頻 code、w 固定在 1.25（a = 3）：e = (a − w)·u 到捨入誤差
+    const type2 = runBlockLms({
+      ...TWO_TAP,
+      gain_initial: 1.25,
+      gain_true: 3,
+      gain_step: 0,
+      gm_accum_samples: 64,
+      num_blocks: 8,
+      pll_error_path: { kind: 'type2_dt', parameters: { wn_ts: 0.05, zeta: 0.7 } },
+      seeded_pattern: { kind: 'sinusoid', parameters: { amplitude: 1, omega: Math.PI / 6, phase_deg: 0 } },
+      record: { sample_trace_blocks: 8, decimate: 1 },
+    })
+    expect(Array.from(type2.blocks.w).every((w) => w === 1.25)).toBe(true)
+    const r = residual(type2, 3, 64)
+    expect(r).toHaveLength(8 * 64)
+    expect(Math.max(...r.map(Math.abs))).toBeLessThan(1e-12)
+    // 不是因為訊號本身是 0 才過關：e 的振幅是 (a − w)·|u| 的量級
+    expect(Math.max(...Array.from((type2.trace as NonNullable<typeof type2.trace>).e, Math.abs))).toBeGreaterThan(1)
+  })
+})
+
+describe('filteredX：regressor 的延遲 D 是前饋——改的是相關 C_{f,D}，不是 g 的穩定上限（§7.10 的敘述）', () => {
+  // Type-II（ω_nT_s = 0.1、ζ = 0.7、d = 1）、白色 ±1、Ĥ = H：C_{f,0} = 1.14016、C_{f,1} = 0.12795（上面 R03 的測試）。
+  // 把兩個 Case 的 μ 調成同一個 g = μK_qC_{f,D}：平均模型的 pole 一樣、穩定與否一樣；D = 1 只是 ρ 小（0.112），同樣的 g 下 w 的抖動大約 1/ρ 倍。
+  const path = { kind: 'type2_dt' as const, wnTs: 0.1, zeta: 0.7, loopDelay: 1 }
+  const code = { kind: 'white_pm_one' as const }
+  const H = pathTransfer(path)
+  const Kq = Math.sqrt(2 / Math.PI) / 100
+  const C0 = analyticCorr({ code, h: H, g: H, D: 0 }) as number
+  const C1 = analyticCorr({ code, h: H, g: H, D: 1 }) as number
+  const run = (g: number) =>
+    runFxComparison({
+      scenario: { path, code, a: 100, w0: 99, sigmaV: 100, N: 16384, blocks: 120, seed: 11 },
+      cases: [
+        { id: 'A', spec: { mode: 'filtered', D: 0, mu: g / (Kq * C0), hat: HAT_EXACT } },
+        { id: 'B', spec: { mode: 'filtered', D: 1, mu: g / (Kq * C1), hat: HAT_EXACT } },
+      ],
+    }).cases
+
+  it('g = 1.5（< 2）：D = 0 與 D = 1 都預測穩定、pole 都是 −0.5，模擬的 std(w) 與各自的預測相符；D = 1 的 μ 是 C_{f,0}/C_{f,1} ≈ 8.9 倍', () => {
+    expect(C0 / C1).toBeCloseTo(8.911, 2)
+    const [A, B] = run(1.5)
+    expect(B.mu / A.mu).toBeCloseTo(C0 / C1, 9)
+    for (const c of [A, B]) {
+      expect(c.analytic.stableMean, c.id).toBe(true)
+      expect(c.analytic.g, c.id).toBeGreaterThan(1.45)
+      expect(c.analytic.g, c.id).toBeLessThan(1.55)
+      expect(c.analytic.p, c.id).toBeCloseTo(-0.5, 1)
+      expect(c.metrics.diverged, c.id).toBe(false)
+      // 實測 std(w)／預測：A 1.10、B 0.92
+      expect(c.metrics.stdW / c.analytic.sigmaWPred, c.id).toBeGreaterThan(0.7)
+      expect(c.metrics.stdW / c.analytic.sigmaWPred, c.id).toBeLessThan(1.4)
+      expect(Math.abs(c.metrics.meanW - 100), c.id).toBeLessThan(2)
+    }
+    // 同一個 g：D = 1 的抖動大（ρ 小），但沒有因為 D 而失穩
+    expect(B.metrics.stdW / A.metrics.stdW).toBeGreaterThan(5)
+    expect(B.metrics.stdW / A.metrics.stdW).toBeLessThan(12)
+  })
+
+  it('g = 2.3（> 2）：D = 0 與 D = 1 同樣超出穩定上限（「g ≥ 2」的警告兩個都有），w 變成大振幅振盪——上限是 g 的，和 D 無關', () => {
+    const stable = run(1.5)
+    const unstable = run(2.3)
+    unstable.forEach((c, i) => {
+      expect(c.analytic.stableMean, c.id).toBe(false)
+      expect(c.analytic.p, c.id).toBeLessThan(-1)
+      expect(c.warnings.some((w) => w.startsWith('g ≥ 2：一階模型不穩定')), c.id).toBe(true)
+      // 實測：A 74.8 fs（g = 1.5 時 1.75 fs）、B 45.2 fs（g = 1.5 時 12.9 fs）
+      expect(c.metrics.stdW, c.id).toBeGreaterThan(3 * stable[i].metrics.stdW)
+    })
+    stable.forEach((c) => expect(c.warnings.some((w) => w.startsWith('g ≥ 2')), c.id).toBe(false))
+  })
+})
+
+describe('filteredX：Lab 的 Δd 提示——低通的有色 code 下，小的 D 偶爾讓相關多幾個百分點，一樣補不回', () => {
+  it('AR(1) ρ_x = 0.9、Type-II（ω_nT_s = 0.2、ζ = 0.7、d = 3）、模型漏算 1 拍：ρ 由 0.4806（D = 0）升到 0.5169（D = 1），之後下降；離 1 很遠', () => {
+    const path = { kind: 'type2_dt' as const, wnTs: 0.2, zeta: 0.7, loopDelay: 3 }
+    const code = { kind: 'ar1' as const, rho: 0.9 }
+    const H = pathTransfer(path)
+    const hat = buildHat(path, { ...HAT_EXACT, loopDelayErr: -1 }, code)
+    expect(hat.exact).toBe(false)
+    const norm = Math.sqrt((analyticCorr({ code, h: H, g: H, D: 0 }) as number) * (analyticCorr({ code, h: hat.full, g: hat.full, D: 0 }) as number))
+    const rho = (D: number) => (analyticCorr({ code, h: H, g: hat.full, D }) as number) / norm
+    expect(rho(0)).toBeCloseTo(0.4806, 4)
+    expect(rho(1)).toBeCloseTo(0.5169, 4)
+    expect(rho(1) / rho(0) - 1).toBeGreaterThan(0.05)
+    expect(rho(1) / rho(0) - 1).toBeLessThan(0.1)
+    // D = 1 就是最好的；再大只會更差，而且始終離 ρ = 1 很遠（補不回）
+    for (let D = 2; D <= 32; D++) expect(rho(D), `D=${D}`).toBeLessThan(rho(1))
+    expect(rho(1)).toBeLessThan(0.6)
   })
 })

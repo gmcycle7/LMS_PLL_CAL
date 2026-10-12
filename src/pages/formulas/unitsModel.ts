@@ -341,7 +341,9 @@ export function runUnitsMc(prm: UnitsMcParams): UnitsMcResult {
   const ess = stable ? (n * (1 - p * p)) / (1 + p * p) : 0
   const se = stable && n > 0 ? varTheory * Math.sqrt((2 * (1 + p * p)) / ((1 - p * p) * n)) : NaN
   const z = (varHat - varTheory) / se
-  const smallSignal = !(prm.engine === 'sign') || Math.sqrt(varTheory) <= 0.2 * prm.sigmaV
+  // 小訊號（K_q 線性化）要看 comparator 前確定性殘差的大小：本引擎 u = C·x、|x| = 1，殘差是 C·δ，RMS 為 |C|·σ_w（不是 σ_w 本身）
+  const residualRatio = (Math.abs(prm.C) * Math.sqrt(varTheory)) / prm.sigmaV
+  const smallSignal = !(prm.engine === 'sign') || residualRatio <= 0.2
   // note 是「$TeX$ 夾雜的說明文字」（ExperimentShell 的警告、交叉比對說明會以 KaTeX 顯示）
   const t = (x: number, d = 4) => texNum(x, d)
   let note = ''
@@ -366,7 +368,7 @@ export function runUnitsMc(prm: UnitsMcParams): UnitsMcResult {
     note = String.raw`有效樣本數 ESS $=${t(ess, 3)}<30$（$p$ 太接近 1，$\tau=${t(tau)}$ blocks，相鄰 block 高度相關）：請增加 blocks 或 chains。`
   } else if (!smallSignal) {
     valid = false
-    note = String.raw`$\sigma_w/\sigma_v=${t(Math.sqrt(varTheory) / prm.sigmaV, 3)}>0.2$：$K_q$ 小訊號線性化不成立（comparator 的 S 曲線已經彎曲），1-bit Monte Carlo 與線性公式的差距是模型誤差，只供參考。`
+    note = String.raw`$|C|\,\sigma_w/\sigma_v=${t(residualRatio, 3)}>0.2$：comparator 前殘差的 RMS（本引擎 $u=Cx$，所以是 $|C|\,\sigma_w$）已經不是遠小於 $\sigma_v$，$K_q$ 小訊號線性化不成立（comparator 的 S 曲線已經彎曲），1-bit Monte Carlo 與線性公式的差距是模型誤差，只供參考。`
   } else {
     note = String.raw`ESS $=${t(ess, 4)}$、$z=${t(z, 3)}$（判定：$|z|\le4$）。標準誤用 AR(1) 的 $\operatorname{Var}(\hat s^2)\approx2\sigma^4(1+p^2)/((1-p^2)n)$。`
   }

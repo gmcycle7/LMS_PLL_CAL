@@ -39,8 +39,8 @@
 
 import { createRng, erf, meanCI, normPdf, polyRoots, type Rng } from '@/simulation/core'
 import { runDsm, type DsmKind } from '@/simulation/models/dsm'
-import { corrFromSequence, designDtLoop } from '@/simulation/models/pll'
-import { fft } from '@/simulation/signal'
+import { corrEmpirical, designDtLoop } from '@/simulation/models/pll'
+import { fft, lfilter } from '@/simulation/signal'
 
 const SQRT2 = Math.SQRT2
 /** K_q = √(2/π)/σ_v 的常數部分 */
@@ -147,11 +147,29 @@ export function sigmaAt(x: number, m: ErrorModel): number {
 }
 // #endregion
 
+/**
+ * e_det(x; w) 各項絕對值的和（不讓它們相消）：(|a| + |w| + |κ|)·|x| + |b| + |c_2|·x² + |c_3|·|x|³。
+ * 這是 e_det 的「自然大小」：e_det 的浮點捨入誤差大約是它的 1e-16 倍。只用來判斷一個殘差是不是捨入殘渣（顯示用），不進入任何計算。
+ */
+export function eDetScale(x: number, w: number, m: ErrorModel): number {
+  const ax = Math.abs(x)
+  return (Math.abs(m.a) + Math.abs(w) + Math.abs(m.kappa)) * ax + Math.abs(m.b) + Math.abs(m.c2) * ax * ax + Math.abs(m.c3) * ax * ax * ax
+}
+
+/**
+ * 顯示殘差時的歸零門檻（相對於 BiasAnalysis.residualScale）：|e| ≤ 1e-9·scale 的殘差視為數學上的 0。
+ * 浮點捨入約 1e-16·scale，Brent 求根的絕對容許誤差 1e-13 再乘上 |x|，都遠小於這個門檻；
+ * 而 Lab 控制項的步長（0.005 以上）造成的真實殘差遠大於它。只用於顯示，analyzeBias 回傳的數值不變。
+ */
+export const RESIDUAL_DUST_REL = 1e-9
+
 // #region core:comparatorMean
 /**
  * Comparator 的條件平均 E[q | x] = E[sign(s + v)]，v ~ N(0, σ²)：
  *   P(q = +1) = Φ(s/σ) ⇒ E[q] = 2Φ(s/σ) − 1 = erf(s/(√2σ))。
- * σ = 0 時退化為 sign(s)（mean-field 中 sign(0) 取 0；只影響測度為 0 的點）。
+ * σ = 0 時退化為 sign(s)；mean-field 取 sign(0) = 0（Monte Carlo 用硬體慣例 sign(0) = +1）。
+ * σ > 0 時 tie 的機率是 0，兩種慣例沒有差別；σ = 0 且 code 離散時 tie 有正機率
+ *（§11.2：w = 1.4 時 x = ±2，機率 0.4），這時 E[G](w) 是階梯，要看的是它變號的位置，不是某一點的值。
  */
 export function comparatorMean(s: number, sigma: number): number {
   if (!(sigma > 0)) return s > 0 ? 1 : s < 0 ? -1 : 0
@@ -459,14 +477,18 @@ export interface FixedPointResult {
 }
 
 // #region core:signFixedPoint
-/** Sign-LMS 固定點（mean-field）：解 E[x·erf((e_det + φ)/(√2σ_v))] = 0。 */
+/**
+ * Sign-LMS 固定點（mean-field）：解 E[x·erf((e_det + φ)/(√2σ_v))] = 0。
+ * σ_v = 0 且 code 離散時 G(w) 是階梯：回傳的是 G 由正變負（跳變）的位置，那裡 G 不必等於 0；
+ * status 'ok' 只表示找到了變號點。
+ */
 export function signFixedPoint(m: ErrorModel, dist: CodeDistribution, dc: DcNullMode = 'none'): FixedPointResult {
   const G = (w: number) => meanGmacSign(w, m, dist, dc) // ← 差異：G(w) 經過 erf，對 w 非線性
   const start = mseFixedPoint(m, dist, dc) // K_q 線性化的解（= MSE 解）當起點
   if (!Number.isFinite(start)) return { w: Number.NaN, status: 'unidentifiable' }
   const br = bracketRoot(G, start, 0.05 * (1 + Math.abs(start))) // ← 差異：往外擴張直到 G 變號
   if (!br) return { w: Number.NaN, status: 'no-root' }
-  const w = br.lo === br.hi ? br.lo : brentRoot(G, br.lo, br.hi, 1e-13) // ← 差異：Brent（σ_v = 0 時退化為二分）
+  const w = br.lo === br.hi ? br.lo : brentRoot(G, br.lo, br.hi, 1e-13) // ← 差異：Brent（σ_v = 0 時退化為二分，收斂到跳變點）
   return { w, status: 'ok' }
 }
 // #endregion
@@ -565,7 +587,10 @@ export function mseWeightedMean(m: ErrorModel, values: ArrayLike<number>, probs:
 // #endregion
 
 // #region core:signWeightedMedian
-/** 無雜訊 Sign-LMS（mode none）：E[x·sign(e)] = E[|x|·sign(t(x) − w)] = 0 ⇒ w* 是 t(x) 的 |x| 加權中位數。 */
+/**
+ * 無雜訊 Sign-LMS（mode none）：E[G](w) = E[|x|·sign(t(x) − w)] 是階梯；它由正變負的位置（= E|e_det| 的最小點）
+ * 是 t(x) 的 |x| 加權中位數。累積權重剛好一半時 G = 0 於整段區間（dead zone）。
+ */
 export function signWeightedMedian(m: ErrorModel, values: ArrayLike<number>, probs: ArrayLike<number>): { lo: number; hi: number } {
   const items: { t: number; wt: number }[] = []
   for (let i = 0; i < values.length; i++) {
@@ -735,8 +760,25 @@ export interface ResidualRow {
   eAtA: number
   /** x·e(w*) */
   xe: number
-  /** x·E[GMAC 統計量 | x] at w*：MSE 為 x·e，Sign 為 x·erf(e/(√2σ_v(x)))（這一欄的機率加權平均 = E[G](w*) = 0） */
+  /**
+   * x·E[GMAC 統計量 | x] at w*：MSE 為 x·e，Sign 為 x·erf(e/(√2σ_v(x)))。
+   * 這一欄的機率加權平均 = 數值解 w* 處的 E[G]：E[G] 連續時為 0；crossing.kind = 'jump' 時依數值解落在跳變的哪一側與 tie 而定，不保證是 0。
+   */
   xg: number
+}
+
+/**
+ * 平均 GMAC E[G](w) 在固定點附近是「怎麼」通過 0 的（只描述，不改變求解）：
+ *   'root'      ：E[G] 連續地通過 0（MSE、σ_v > 0 的 Sign、連續 code）—— E[G](w*) = 0 是真正的根。
+ *   'jump'      ：σ_v = 0 的離散 code，E[G] 是階梯，在 w* 由 gLeft 跳到 gRight；w* 那一點本身的值依 tie 慣例而定，不必是 0。
+ *   'dead-zone' ：E[G] = 0 於整段 zeroSet；gLeft／gRight 是區間兩側外面的值。
+ * gLeft = E[G](w* − ε)、gRight = E[G](w* + ε)，ε = 1e-7·(1 + |w*|)（與 finiteStepBias 相同；dead zone 時從區間的兩端往外取）。
+ * 已知限制：連續 code 而 e_det ≡ 0 的退化情形（沒有 INL／offset、σ_v = 0）仍歸為 'root'（mean-field 取 sign(0) = 0 時該點 G = 0）。
+ */
+export interface GmacCrossing {
+  kind: 'root' | 'jump' | 'dead-zone'
+  gLeft: number
+  gRight: number
 }
 
 export interface BiasAnalysis {
@@ -757,6 +799,8 @@ export interface BiasAnalysis {
   zeroSet: { lo: number; hi: number } | null
   /** −dG/dw at w*（數值；σ_v = 0 時為割線斜率） */
   slope: number
+  /** E[G](w) 在 w* 是連續地通過 0（root）、跳過 0（jump），還是整段為 0（dead-zone）；w* 不是有限值時 null */
+  crossing: GmacCrossing | null
   /** w* 處主迴路加上的 φ */
   phiStar: number
   /** max|e_det + φ|/σ_v(x)（Sign；連續分布取 99.99% 範圍）；越小線性化越準 */
@@ -764,6 +808,11 @@ export interface BiasAnalysis {
   curve: { w: number[]; G: number[]; Glin: number[] }
   residual: ResidualRow[] | null
   residualCurve: { x: number[]; eStar: number[]; eAtA: number[]; density: number[] }
+  /**
+   * 殘差 e_det + φ 的自然大小（顯示用）：eDetScale + |φ| 在 code 的支撐（連續分布取 residualCurve 的格點）與 w ∈ {w_0, a, w*} 上的最大值。
+   * |殘差| ≤ RESIDUAL_DUST_REL·residualScale 的值只是浮點捨入（例：κ ≠ 0、沒有 INL 時 w* = a + κ，每個 code 的殘差數學上都是 0）。
+   */
+  residualScale: number
   /** E[(e_det + φ)²]、E|e_det + φ| 與總功率 E[e²] = E[(e_det+φ)²] + E[σ_v(x)²] */
   costs: { at: 'w0' | 'a' | 'wStar'; w: number; mse: number; mae: number; total: number }[]
   warnings: string[]
@@ -804,6 +853,20 @@ export function analyzeBias(p: BiasAnalysisParams): BiasAnalysis {
     slope = (meanGmac(alg, zeroSet.lo - h, m, dist, dc) - meanGmac(alg, zeroSet.hi + h, m, dist, dc)) / (zeroSet.hi - zeroSet.lo + 2 * h)
   }
 
+  // E[G] 在 w* 是「等於 0」還是「跳過 0」：取兩側的值（σ_v = 0 的離散 code 是階梯，固定點是變號的位置，不是根）
+  let crossing: GmacCrossing | null = null
+  if (Number.isFinite(wStar)) {
+    const dead = !!zeroSet && zeroSet.hi - zeroSet.lo > 1e-9
+    const lo = zeroSet ? zeroSet.lo : wStar
+    const hi = dead && zeroSet ? zeroSet.hi : lo
+    const eps = 1e-7 * (1 + Math.abs(lo))
+    const gLeft = G(lo - eps)
+    const gRight = G(hi + eps)
+    const stepLike = alg === 'sign' && !noisy && !dist.continuous // σ_v = 0 的離散 code：E[G](w) 是階梯
+    const kind = dead ? 'dead-zone' : stepLike && gLeft - gRight > 1e-9 * expectation(dist, (x) => Math.abs(x)) ? 'jump' : 'root'
+    crossing = { kind, gLeft, gRight }
+  }
+
   // w* 處的殘差
   const wRef = Number.isFinite(wStar) ? wStar : m.a
   const rs = residualArg(wRef, m, dist, dc, alg)
@@ -835,9 +898,11 @@ export function analyzeBias(p: BiasAnalysisParams): BiasAnalysis {
       warnings.push(
         String.raw`$\sigma_v=0$ 且 $|x|$ 加權中位數是一整段區間 $(${fmtTex(zeroSet.lo)},\ ${fmtTex(zeroSet.hi)})$：$G(w)=0$ 的解不唯一（dead zone），$w$ 停在哪裡取決於初值與 $\mu$；加入雜訊（$\sigma_v>0$）才有唯一的零交越。`,
       )
-  } else if (alg === 'sign' && validityRatio > 0.3) {
+  } else if (alg === 'sign' && validityRatio > LIN_RATIO_LIMIT) {
+    // Ch05 的分區：|e|/σ_v ≤ 0.25 線性區、≤ 1.5 壓縮區、> 1.5 飽和區——剛超過 0.3 時只是離開線性區，還沒有飽和
+    const zone = validityRatio > 1.5 ? '已進入 erf 的飽和區' : '已離開 erf 的線性區（S 曲線開始彎曲；比值超過 1.5 才是飽和區，Ch05）'
     warnings.push(
-      String.raw`線性化失效風險：$w^*$ 處 $\max|e_\mathrm{det}|/\sigma_v=${fmtTex(validityRatio)}>0.3$，$E[q\mid x]$ 已進入 erf 的飽和區；固定點應以 mean-field root（$${fmtTex(wStar)}$）為準，$w^*=a+(bE[x]+E[x\,d]+E[x\,\varepsilon_{cc}])/E[x^2]$ 不適用（勘誤 E01）。`,
+      String.raw`線性化失效風險：$w^*$ 處 $\max|e_\mathrm{det}|/\sigma_v=${fmtTex(validityRatio)}>0.3$，$E[q\mid x]$ ${zone}；固定點應以 mean-field root（$${fmtTex(wStar)}$）為準，$w^*=a+(bE[x]+E[x\,d]+E[x\,\varepsilon_{cc}])/E[x^2]$ 不適用（勘誤 E01）。`,
     )
   }
   if (m.kappa !== 0)
@@ -903,8 +968,11 @@ export function analyzeBias(p: BiasAnalysisParams): BiasAnalysis {
 
   // E[e²] before / after
   const noisePow = expectation(dist, (x) => sigmaAt(x, m) ** 2)
+  const absPhi = (phi: number) => (Number.isFinite(phi) ? Math.abs(phi) : 0)
+  let phiMax = Math.max(absPhi(rs.phi), absPhi(ra.phi)) // 三個 w 上最大的 |φ|：只給下面顯示用的 residualScale
   const costAt = (at: 'w0' | 'a' | 'wStar', w: number) => {
     const r = residualArg(w, m, dist, dc, alg)
+    phiMax = Math.max(phiMax, absPhi(r.phi))
     const brk = argBreakpoints(w, m, r.phi, dist)
     const mse = expectation(dist, (x) => r.f(x) ** 2)
     const mae = expectation(dist, (x) => Math.abs(r.f(x)), brk)
@@ -912,6 +980,11 @@ export function analyzeBias(p: BiasAnalysisParams): BiasAnalysis {
   }
   const costs = [costAt('w0', p.w0 ?? m.a), costAt('a', m.a)]
   if (Number.isFinite(wStar)) costs.push(costAt('wStar', wStar))
+
+  // 殘差的自然大小（顯示用，不影響上面任何數值）：各項絕對值的和，在支撐與三個 w 上取最大
+  let residualScale = 0
+  for (const w of [p.w0 ?? m.a, m.a, wRef]) for (const x of gx) residualScale = Math.max(residualScale, eDetScale(x, w, m))
+  residualScale += phiMax
 
   return {
     distLabel: dist.label,
@@ -925,11 +998,13 @@ export function analyzeBias(p: BiasAnalysisParams): BiasAnalysis {
     wSecondOrder,
     zeroSet,
     slope,
+    crossing,
     phiStar: rs.phi,
     validityRatio,
     curve: { w: cw, G: cg, Glin: cl },
     residual,
     residualCurve,
+    residualScale,
     costs,
     warnings,
   }
@@ -1421,7 +1496,7 @@ export interface SigmaSweepResult {
   ratio: number[]
   /** MSE-LMS 固定點（與 σ_v 無關） */
   wMse: number
-  /** σ_v = 0 的 Sign 固定點（mean-field 根；dead zone 時為區間中某點） */
+  /** σ_v = 0 的 Sign 固定點（mean-field 的變號點；dead zone 時為區間中某點） */
   wNoiseFree: number
 }
 
@@ -1579,10 +1654,20 @@ export interface NearIntegerResult {
   CinBand: number[]
   /** residue 的週期 P（samples） */
   period: number[]
-  /** w* − a = B/C */
+  /** 線性候選 B/C（K_q 線性化下的 w* − a；能不能當作固定點看 linValid） */
   bias: number[]
-  /** GMAC 斜率 S = K_q·C（越小收斂越慢） */
+  /** GMAC 斜率 S = K_q·C（小訊號斜率；越小收斂越慢） */
   slope: number[]
+  /** max_n |(h_PD * x)[n]|（最後一個週期；near-integer 時約為 2√3，也就是 sawtooth 的跳變高度） */
+  uMax: number[]
+  /** 把 w = a + B/C 代回誤差模型後的 max_n |e_det[n]|/σ_v（F-11.3 的條件，門檻 LIN_RATIO_LIMIT） */
+  linRatio: number[]
+  /** w = a + B/C 處的 mean-field 平均 GMAC：E[x·erf(e_det/(√2σ_v))]（固定點的定義是它等於 0） */
+  gAtLinear: number[]
+  /** 殘餘比 γ_lin = gAtLinear/(K_q·B)（門檻 LIN_RESIDUAL_LIMIT） */
+  linResidual: number[]
+  /** C > 0 而且兩個門檻都通過：a + B/C 可以當作 Sign-LMS 的固定點；否則只是線性外推 */
+  linValid: boolean[]
   B: number
   Kq: number
   /** 時域 vs 頻域的最大相對差 max|C − Cfreq|/max(|Cfreq|, 1e-9) */
@@ -1662,7 +1747,8 @@ function nearIntegerC(residue: Float64Array, P: number, skip: number, hpd: { b: 
   const sd = Math.sqrt(v2 / P)
   if (!(sd > 0)) return null // residue 恆為常數（整數 FCW）：沒有激勵
   const x = Float64Array.from(residue, (r) => (r - mean) / sd)
-  const cTime = corrFromSequence({ x, h: hpd, skip }) // (1) 時域：skip 之後剛好 m 個整週期
+  const u = lfilter(hpd.b, hpd.a, x).y // u = h_PD * x（從靜止狀態）
+  const cTime = corrEmpirical(x.subarray(skip), u.subarray(skip)) // (1) 時域：skip 之後剛好 m 個整週期
 
   const re = x.slice(base, L) // (2) 頻域：一個整週期
   const im = new Float64Array(P)
@@ -1678,7 +1764,7 @@ function nearIntegerC(residue: Float64Array, P: number, skip: number, hpd: { b: 
     cFreq += c
     if (omega < wnTs) cIn += c // 迴路頻寬內（Ω < ω_nT_s）：相位接近 180°，Re H_PD < 0，貢獻為負
   }
-  return { cTime, cFreq, cIn }
+  return { cTime, cFreq, cIn, x: x.subarray(base), u: u.subarray(base) } // x、u 的最後一個整週期：給 nearIntegerLinearCheck 用
 }
 // #endregion
 
@@ -1686,7 +1772,8 @@ function nearIntegerC(residue: Float64Array, P: number, skip: number, hpd: { b: 
 /**
  * §11.4 的線性化固定點與敏感度（F-11.14 / F-11.15）：平均 GMAC ≈ K_q·((a − w)·C + B) ⇒
  *   w* − a = B/C、∂(w*)/∂C = −B/C²、S = −∂E[G]/∂w = K_q·C。
- * C > 0 才是吸引的固定點；C < 0 時 a + B/C 是 repelling 的點（極性錯誤）；C = 0 不可辨識（回傳 NaN）。
+ * C > 0 才是（小訊號、局部）吸引的固定點；誤差大到 comparator 飽和時見 nearIntegerLinearCheck 與 Ch06 F-06.19。
+ * C < 0 時 a + B/C 是 repelling 的點（極性錯誤）；C = 0 不可辨識（回傳 NaN）。
  * 純函式：Ch11 的手算題（HC-11.7）與 §11.4 的敏感度表使用；算式與 nearIntegerSweep 的 bias / slope 相同。
  */
 export function nearIntegerSensitivity(B: number, C: number, sigmaV: number): { bias: number; dBiasdC: number; Kq: number; slope: number; attracting: boolean } {
@@ -1702,10 +1789,63 @@ export function nearIntegerSensitivity(B: number, C: number, sigmaV: number): { 
 }
 // #endregion
 
+// #region core:nearIntegerLinearCheck
+/** 線性化門檻 max|e_det|/σ_v ≤ 0.3（勘誤 E01；與 analyzeBias 的「線性化失效風險」警告、手算 HC-11.8 是同一個數字）。 */
+export const LIN_RATIO_LIMIT = 0.3
+/** 把線性候選代回完整的 erf 平均後，殘餘平均 GMAC 相對 K_q·B 的容許值 |γ_lin| ≤ 0.05。 */
+export const LIN_RESIDUAL_LIMIT = 0.05
+
+export interface NearIntegerLinearCheck {
+  /** max_n |u[n]|，u = h_PD * x */
+  uMax: number
+  /** max_n |e_det[n]|/σ_v，e_det[n] = −bias·u[n] + κ_d·x[n]（F-11.3 的條件） */
+  ratio: number
+  /** w = a + bias 處的 mean-field 平均 GMAC：mean_n x[n]·erf(e_det[n]/(√2σ_v)) */
+  gmac: number
+  /** 殘餘比 γ_lin = gmac/(K_q·B)，B = κ_d·E[x²] */
+  residual: number
+  /** ratio ≤ LIN_RATIO_LIMIT 且 |residual| ≤ LIN_RESIDUAL_LIMIT */
+  valid: boolean
+}
+
 /**
- * 以真實 DSM residue 經主 PLL 的 H_PD(z) 計算 C(FCW)，示範 near-integer 時 C → 0 使 w* = a + B/C 爆增
+ * 線性候選點 w = a + bias（bias = B/C）是不是 Sign-LMS 的 mean-field 固定點？
+ * 固定點的定義是 gmac = 0（F-11.2 的完整 erf 平均，這裡不做任何線性化）；
+ * ratio = max|e_det|/σ_v 是 F-11.3 的條件；residual γ_lin = gmac/(K_q·B) 是「代回去之後還有幾成沒有被抵銷」。
+ * x = 標準化 code 的一個整週期，u = (h_PD * x) 在同一段 sample 上的值（週期穩態）；w 視為常數（平均模型）。
+ *
+ * 三次項估計：E[G]/K_q ≈ B − (w − a)·C + c·(w − a)³，C ≪ E[x²] 時 c ≈ E[x·u³]/(6σ_v²) > 0
+ *   ⇒ γ_lin ≈ c·B²/C³；真正的零點在 w − a = (B/C)(1 + s)，s = γ_lin(1 + s)³ ≈ γ_lin/(1 − 3γ_lin)；γ_lin > 4/27 時這個方程沒有解。
+ * 只看 ratio 不夠：C 是正負貢獻相消後剩下的小量，C 越小，同樣的壓扁造成的 γ_lin 越大。
+ * u 取時域濾波的最後一個週期；主 PLL 暫態沒衰減完（nearIntegerSweep 的 warnings 會提示）時這個檢查也不準。
+ */
+export function nearIntegerLinearCheck(x: ArrayLike<number>, u: ArrayLike<number>, bias: number, kappaDirect: number, sigmaV: number): NearIntegerLinearCheck {
+  const P = Math.min(x.length, u.length)
+  let uMax = 0
+  for (let n = 0; n < P; n++) uMax = Math.max(uMax, Math.abs(u[n]))
+  if (!Number.isFinite(bias) || !(sigmaV > 0) || P === 0) return { uMax, ratio: Infinity, gmac: Number.NaN, residual: Number.NaN, valid: false }
+  let mx = 0
+  let g = 0
+  let px = 0
+  for (let n = 0; n < P; n++) {
+    const e = -bias * u[n] + kappaDirect * x[n] // e_det 在 w = a + bias：a − w = −bias
+    mx = Math.max(mx, Math.abs(e))
+    g += x[n] * comparatorMean(e, sigmaV) // ← 完整的 erf，不線性化
+    px += x[n] * x[n]
+  }
+  g /= P
+  const ratio = mx / sigmaV
+  const kqB = (KQ_FACTOR / sigmaV) * kappaDirect * (px / P) // K_q·B：w = a 時干擾造成的平均 GMAC（線性化值）
+  const residual = g === 0 ? 0 : g / kqB // γ_lin；κ_d = 0 時候選點就是 w = a，e_det ≡ 0 ⇒ g = 0
+  return { uMax, ratio, gmac: g, residual, valid: ratio <= LIN_RATIO_LIMIT && Math.abs(residual) <= LIN_RESIDUAL_LIMIT }
+}
+// #endregion
+
+/**
+ * 以真實 DSM residue 經主 PLL 的 H_PD(z) 計算 C(FCW)，示範 near-integer 時 C → 0 使線性候選 a + B/C 快速變大，
+ * 並逐點把它代回完整的 erf 平均，檢查它還是不是固定點（linValid）
  * （規格 §11.4；勘誤 E12：此處 C = E[x(h*x)] 同 §6，B 為干擾 bias 項）。worker 可呼叫。
- * 時域與頻域兩種算法互相交叉比對（maxRelDiff）。
+ * 時域與頻域兩種算法互相交叉比對（maxRelDiff）：那只驗證 C，不驗證固定點。
  */
 export function nearIntegerSweep(p: NearIntegerParams): NearIntegerResult {
   const design = designDtLoop({ wnTs: p.wnTs, zeta: p.zeta, loopDelay: p.loopDelay ?? 0 })
@@ -1725,6 +1865,11 @@ export function nearIntegerSweep(p: NearIntegerParams): NearIntegerResult {
     period: [],
     bias: [],
     slope: [],
+    uMax: [],
+    linRatio: [],
+    gAtLinear: [],
+    linResidual: [],
+    linValid: [],
     B,
     Kq,
     maxRelDiff: 0,
@@ -1752,8 +1897,15 @@ export function nearIntegerSweep(p: NearIntegerParams): NearIntegerResult {
     out.C.push(c.cTime)
     out.Cfreq.push(c.cFreq)
     out.CinBand.push(c.cIn)
-    out.bias.push(B / c.cFreq)
+    const lin = B / c.cFreq // 線性候選 w − a = B/C
+    const chk = nearIntegerLinearCheck(c.x, c.u, lin, p.kappaDirect, p.sigmaV) // 代回完整的 erf 平均
+    out.bias.push(lin)
     out.slope.push(Kq * c.cFreq)
+    out.uMax.push(chk.uMax)
+    out.linRatio.push(chk.ratio)
+    out.gAtLinear.push(chk.gmac)
+    out.linResidual.push(chk.residual)
+    out.linValid.push(c.cFreq > 0 && chk.valid)
     out.maxRelDiff = Math.max(out.maxRelDiff, Math.abs(c.cTime - c.cFreq) / Math.max(Math.abs(c.cFreq), 1e-9))
   }
   const lowN = Math.min(6, out.frac.length)

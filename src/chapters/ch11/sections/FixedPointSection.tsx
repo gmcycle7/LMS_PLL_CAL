@@ -88,13 +88,19 @@ export function FixedPointSection() {
       </p>
       <TexBlock>{String.raw`\boxed{E[G](w^*)=E\big[q\,x\big]\Big|_{w=w^*}=0}\qquad(\text{還需 }dE[G]/dw<0\text{ 才是吸引的固定點})`}</TexBlock>
       <p>
-        注意這個條件只說「<Tex>{'q'}</Tex> 與 <Tex>{'x'}</Tex> 不相關」，完全沒說 <Tex>{'e=0'}</Tex>。接下來對兩種 GMAC 分別解它。
+        注意這個條件只說「<Tex>{'q'}</Tex> 與 <Tex>{'x'}</Tex> 正交」（相乘再平均等於 0；<Tex>{'E[x]=0'}</Tex> 或 <Tex>{'E[q]=0'}</Tex>{' '}
+        時也就是不相關，用語見 §11.0 的先備知識框），完全沒說 <Tex>{'e=0'}</Tex>。接下來對兩種 GMAC 分別解它。
       </p>
       <p className="small">
         這裡的「穩定／吸引」是<strong>平均動態（mean-field）的局部吸引</strong>：另外還需要離散更新本身不發散，也就是{' '}
         <Tex>{String.raw`0<g=\mu S<2`}</Tex>（<Tex>{String.raw`S=-dE[G]/dw`}</Tex> 是平均 GMAC 對 <Tex>{'w'}</Tex> 的恢復斜率，<Tex>{'g'}</Tex> 是正規化的 loop
         gain；Ch03、Ch08），而有限的 <Tex>{'\\mu'}</Tex> 會讓 <Tex>{'w'}</Tex> 在{' '}
         <Tex>{'w^*'}</Tex> 附近隨機抖動（Ch12）。本章只回答「平均停在哪裡」。
+      </p>
+      <p className="small">
+        {m(
+          '方框裡的條件 $E[G](w^*)=0$ 把 $E[G](w)$ 當成 $w$ 的連續函數（例如 MSE-LMS，或 $\\sigma_v>0$ 的 Sign-LMS）。如果 $\\sigma_v=0$ 而且 code 只取有限個值，$E[G](w)$ 是階梯函數，可以直接由正跳到負，沒有任何一點等於 0。這時固定點 $w^*$ 改指 $E[G]$ 由正變負的位置（$w<w^*$ 時 $E[G]>0$、$w>w^*$ 時 $E[G]<0$）：$w$ 一般不會停住，而是在 $w^*$ 兩側以 $O(\\mu)$ 的幅度來回跳，GMAC 的時間平均仍然是 0。§11.2 情境 (3) 的 1.4 就是這種情況。',
+        )}
       </p>
 
       <p>
@@ -295,7 +301,9 @@ export function FixedPointSection() {
               <td>
                 <Tex>{String.raw`E[x\,\varepsilon_{cc}]/E[x^2]`}</Tex>
               </td>
-              <td>干擾與 code 不相關</td>
+              <td>
+                <Tex>{String.raw`\varepsilon_{cc}`}</Tex> 與 <Tex>{'x'}</Tex> 正交（相乘再平均等於 0）
+              </td>
               <td>§11.3</td>
             </tr>
           </tbody>

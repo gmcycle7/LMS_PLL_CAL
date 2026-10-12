@@ -94,7 +94,7 @@ export const LIMITATIONS: Limitation[] = [
     specNo: 6,
     title: '損失函數與最佳點不完全相同',
     text: String.raw`MSE 的 GMAC 固定點是 $E[ex]=0$；Sign-Error 的固定點是 $E[\operatorname{sign}(e)x]=0$，一般不等價。`,
-    why: String.raw`MSE 對大誤差懲罰重（平均值），MAE 對 outlier 穩健（中位數）。Sign-LMS 在雜訊很大時才趨近 MSE 解（comparator 被雜訊「線性化」）。`,
+    why: String.raw`MSE 對大誤差懲罰重（平均值），MAE 對 outlier 穩健（中位數）。Sign-LMS 在雜訊很大時才趨近 MSE 解（comparator 被雜訊「線性化」）。無雜訊而且資料只取有限個值時，$E[\operatorname{sign}(e)x]$ 是 $w$ 的階梯函數，固定點是它由正變負的位置，不一定有讓它 $=0$ 的 $w$（附錄 A 的 Sign-Error 列）。`,
     example: (r) => {
       const o = batchOptima([0, 0, 0, 10])
       return String.raw`$y=[0,0,0,10]$：MSE 解 $${texNum(o.mse)}$、MAE 解 $[${texNum(o.maeLow)},${texNum(o.maeHigh)}]$。三階 INL：MSE $${texNum(r.bias.mse)}$、無雜訊 Sign $${texNum(r.bias.sign0, 6)}$`

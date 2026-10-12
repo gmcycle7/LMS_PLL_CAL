@@ -79,6 +79,14 @@ describe('FormulasPage（jsdom smoke：三種學習模式）', () => {
     expect(chips.filter((c) => c.querySelector('.katex')).length).toBeGreaterThanOrEqual(5)
     expect(chips.some((c) => /[μσ]/.test(Array.from(c.childNodes).filter((n) => n.nodeType === 3).map((n) => n.nodeValue).join('')))).toBe(false)
     expect(q(container, '#fr-unit-index .fr-topic-title').querySelectorAll('.katex').length).toBe(3) // n、k、m
+    // 技術審查 C03：§2.5 的 PSD——DTFT 形式是「每 cycle/sample（block 量：每 cycle/block）」的密度，不是每 rad 的密度
+    const psdTopic = q(container, '#fr-unit-psd').textContent ?? ''
+    expect(psdTopic).toContain('cycle/sample')
+    expect(psdTopic).toContain('再除以')
+    expect(psdTopic).not.toContain('也可以選 rad/sample')
+    expect(psdTopic).toContain('每 cycle/block') // 「先算一次」表格的 DTFT 欄
+    expect(q(container, '#fr-unit-multirate').textContent).not.toContain('per-rad')
+    expect(q(container, '#fr-wrapup').textContent).not.toContain('per-rad')
     // 3 速查、5 限制、6 術語
     expect(count(container, '.fr-quick-table tr[data-quick]')).toBe(QUICK_REF.length)
     expect(count(container, '.fr-limit')).toBe(LIMITATIONS.length)

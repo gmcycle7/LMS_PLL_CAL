@@ -103,6 +103,22 @@ const TRY = {
   neg: pmFirstOrder(-0.1),
 }
 
+/**
+ * Step response 圖說。點線 1 ± ρ^k 只對目前的 case 畫：
+ * d = 0 時 δ_k = (1 − g)^k δ_0，|δ_k|/δ_0 = ρ^k，是精確的包絡；
+ * d ≥ 1 時 ρ = max|z| 只給漸近速率，ρ^k 不是誤差的包絡（技術審查 R02）——
+ * 例：d = 1、g = 0.25 是重根 z = 0.5，δ_k/δ_0 = (1 + k/2)·2^{−k}，每一個 block 都在點線外面。
+ */
+export function stepCaption(clipped: boolean, showRhoLine: boolean, d: number): string {
+  const clip = clipped ? String.raw`發散的曲線已裁切到 $[-2.5,\,4]$，右圖用 log 軸看完整成長。` : ''
+  if (!showRhoLine) return clip || String.raw`$w_k/a=1-\delta_k/\delta_0$：收斂時會走到目標 $1$。`
+  const line =
+    d === 0
+      ? String.raw`點線：目前 case 的解析包絡 $1\pm\rho^k$（$\rho=|1-g|$）；$d=0$ 時 $|\delta_k|/\delta_0=\rho^k$，每一點都落在點線上。`
+      : String.raw`點線 $1\pm\rho^k$（目前 case 的 $\rho=\max|z|$）只是漸近速率的參考線，不是包絡：$d\ge1$ 時誤差是 $d+1$ 個模式的組合（可能有重根、複數根），曲線可以跑到點線外面。例：$d=1$、$g=0.25$ 是重根 $z=0.5$，$\delta_k/\delta_0=(1+k/2)\,2^{-k}$。`
+  return clip + line
+}
+
 /** g 是否落在「d 個 block 延遲下」的穩定區（不含臨界） */
 function verdict(g: number, d: number): { label: ReactNode; kind: 'ok' | 'bad' | 'marginal' } {
   const s = delayStable(g, d)
@@ -301,12 +317,29 @@ export function PmLab() {
       ? { name: String.raw`$GM$（數值 phase crossover vs $20\log_{10}(g^*/g)$）`, value: finiteOrNull(margins.gmDb), analytic: pm.gmDb, tolerance: 1e-6, unit: 'dB', formulaId: 'F-08.9', claim: 'exact', digits: 6 }
       : { name: String.raw`$GM$`, value: null, unit: 'dB', formulaId: 'F-08.9', note: String.raw`$g\le0$：極性錯誤，GM 無意義` },
     { name: String.raw`Delay margin $DM=PM[\mathrm{rad}]/\omega_c$`, value: finiteOrNull(pm.delayMarginBlocks), unit: 'blocks', formulaId: 'F-08.6', claim: 'exact', note: String.raw`在目前的 $d$ 之外還能額外容忍的純延遲（可非整數）` },
-    { name: String.raw`時間常數 $\tau=-1/\ln\rho$`, value: stab.rho > 0 && stab.rho < 1 ? -1 / Math.log(stab.rho) : null, unit: 'blocks', claim: 'exact' },
+    // d = 0：|δ_k| = ρ^k·|δ_0|，τ 是精確的時間常數；d ≥ 1：ρ 只給漸近的衰減率（ρ^k 不是誤差的包絡），不能標「精確」（技術審查 R02）
+    d === 0
+      ? {
+          name: String.raw`時間常數 $\tau=-1/\ln\rho$`,
+          value: stab.rho > 0 && stab.rho < 1 ? -1 / Math.log(stab.rho) : null,
+          unit: 'blocks',
+          claim: 'exact',
+          note: String.raw`$d=0$：平均誤差的大小每個 block 剛好乘上 $\rho=|1-g|$`,
+        }
+      : {
+          name: String.raw`$\tau=-1/\ln\rho$（漸近衰減率）`,
+          value: stab.rho > 0 && stab.rho < 1 ? -1 / Math.log(stab.rho) : null,
+          unit: 'blocks',
+          claim: 'approx',
+          note: String.raw`$d\ge1$：$\rho$ 只決定漸近的衰減率，$\rho^k$ 不是平均誤差的包絡（重根、複數根）；逐 block 的暫態可能比 $\tau$ 慢、也可能比它快，請直接看下方的 step response`,
+        },
     { name: String.raw`對應 $\mu=g/(K_qC)$`, value: muFs, unit: 'fs', note: String.raw`$\sigma_v=${tsig(mc.sigmaV)}$ fs、$C=1$（$\pm1$ code、identity path）、average GMAC` },
   ]
 
   // ── 圖（全部 memo：只有參數、cases、MC 結果或主題改變時才重建 Plotly trace） ──
   const kAxis = useMemo(() => indexArray(steps + 1), [steps])
+  /** step response 上是否畫 1 ± ρ^k 的點線（發散太快或 g ≤ 0 時不畫） */
+  const showRhoLine = stab.rho < 1.2 && g > 0
   const plots = useMemo(() => {
     const caseColor = (i: number) => tokens.series[i % tokens.series.length]
     // Bode
@@ -382,9 +415,11 @@ export function PmLab() {
       })),
       hLine(1, 0, steps, tokens.textMuted, String.raw`目標 $a$`),
     ]
-    if (stab.rho < 1.2 && g > 0) {
+    if (showRhoLine) {
+      // d = 0 時 w_k/a = 1 − (1 − g)^k 剛好落在 1 ± ρ^k 上（包絡）；d ≥ 1 時 ρ^k 只是漸近速率的參考線，曲線可以跑到線外（技術審查 R02）
       const env = Array.from(kAxis, (k) => stab.rho ** k)
-      stepTraces.push({ x: kAxis, y: env.map((e) => 1 + e), name: String.raw`$1 \pm \rho^k$（$\rho = ${fx(stab.rho, 4)}$）`, mode: 'lines', line: { color: tokens.textFaint, dash: 'dot', width: 1 } })
+      const rhoName = d === 0 ? String.raw`$1 \pm \rho^k$ 包絡（$\rho = ${fx(stab.rho, 4)}$）` : String.raw`$1 \pm \rho^k$ 漸近速率參考線（$\rho = ${fx(stab.rho, 4)}$）`
+      stepTraces.push({ x: kAxis, y: env.map((e) => 1 + e), name: rhoName, mode: 'lines', line: { color: tokens.textFaint, dash: 'dot', width: 1 } })
       stepTraces.push({ x: kAxis, y: env.map((e) => 1 - e), name: String.raw`$1 - \rho^k$`, mode: 'lines', line: { color: tokens.textFaint, dash: 'dot', width: 1 }, showlegend: false })
     }
     if (mcCurrent) {
@@ -414,7 +449,7 @@ export function PmLab() {
       line: { color: caseColor(cs.seriesIndex), width: 2 },
     }))
     return { bodeMag, bodePhase, phaseMin, nyquist, zPlane, stepTraces, clipped, absTraces }
-  }, [responses, runs, locus, cases.cases, cases.activeId, tokens, pm, stab, g, d, steps, kAxis, mcCurrent])
+  }, [responses, runs, locus, cases.cases, cases.activeId, tokens, pm, stab, g, d, steps, kAxis, mcCurrent, showRhoLine])
   const { bodeMag, bodePhase, phaseMin, nyquist, zPlane, stepTraces, clipped, absTraces } = plots
   const bodePhaseLayout = useMemo<Partial<Layout>>(
     () => ({ xaxis: { title: { text: String.raw`$\omega$ [rad/block]` }, dtick: 1 }, yaxis: { title: { text: String.raw`$\angle L$ [deg]` }, range: [Math.min(-200, phaseMin - 20), -60] } }),
@@ -600,17 +635,19 @@ export function PmLab() {
           height={340}
           csvName="pm-lab-step"
           layout={stepLayout}
-          caption={clipped ? rich(String.raw`發散的曲線已裁切到 $[-2.5,\,4]$，右圖用 log 軸看完整成長。`) : rich(String.raw`點線：解析包絡 $1\pm\rho^k$（$\rho=\max|z|$）。`)}
+          caption={rich(stepCaption(clipped, showRhoLine, d))}
         />
         <Plot
-          title={String.raw`$|\delta_k|/\delta_0$（log 軸：斜率 $=\log_{10}\rho$）`}
+          title={String.raw`$|\delta_k|/\delta_0$（log 軸：長期斜率 $=\log_{10}\rho$）`}
           ariaLabel="誤差大小對 block（log 軸）"
           data={absTraces}
           yLog
           height={340}
           csvName="pm-lab-abs-delta"
           layout={ABS_LAYOUT}
-          caption={rich(String.raw`log 軸上 $|\delta_k|\sim\rho^k$ 是直線，斜率 $\log_{10}\rho$：往下＝收斂、水平＝臨界、往上＝發散。`)}
+          caption={rich(
+            String.raw`log 軸上 $\rho^k$ 是直線，斜率 $\log_{10}\rho$：往下＝收斂、水平＝臨界、往上＝發散。$d=0$ 時 $|\delta_k|/\delta_0$ 就是這條直線；$d\ge1$ 時只有長期的斜率是 $\log_{10}\rho$（複數根會週期性往下探，重根多一個 $k$ 的因子）。`,
+          )}
         />
       </div>
       {mcCurrent && (

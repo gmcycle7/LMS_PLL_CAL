@@ -9,6 +9,8 @@ const SPEED = { a: 3, mu: 0.05, tol: 0.1, delta0: [1, 10, 100] }
 /** 思考題 3 的資料與兩個步長（用 lattice Markov 鏈精確算 Sign-Error 的穩態） */
 const Q3 = [1, 2, 3, 100]
 const Q3_MUS = [0.05, 0.01]
+/** 思考題 3：步長不小的對照（審查 R08 的同一件事——「時間平均落在區間中點」也是小步長近似；$\mu=0.2$ 時是 $2.50053$，不是 $2.5$） */
+const Q3_MU_BIG = 0.2
 
 /** Sign-Error（sign(0) = 0）在 {1,2,3,100} 上的精確穩態：平均、std、落在中位數區間 [2,3] 的機率 */
 function quiz3Lattice(mu: number) {
@@ -64,6 +66,7 @@ export function WrapupSection() {
   const q3 = batchOptima(Q3)
   const q3mean = q3.mse
   const q3lat = useMemo(() => Q3_MUS.map(quiz3Lattice), [])
+  const q3big = useMemo(() => quiz3Lattice(Q3_MU_BIG), [])
   const corr = { a: 3, c: 0.5 }
 
   return (
@@ -400,8 +403,15 @@ export function WrapupSection() {
                 ]}
               />
               <p className="small">
-                <ClaimTag kind="exact" /> 時間平均剛好是區間中點只是因為這組資料對稱（<Tex>{String.raw`P(y<2)=P(y>3)`}</Tex>）；偶數筆資料時，MAE
-                本身並不偏好區間內的任何一點。
+                <ClaimTag kind="approx" /> 時間平均落在區間中點，只是因為這組資料在區間兩側對稱（<Tex>{String.raw`P(y<2)=P(y>3)`}</Tex>），而且步長很小——和 F-01.16
+                的右式一樣，這是忽略格點鏈遠端的近似：再往外的資料值 <Tex>{'1'}</Tex> 與 <Tex>{'100'}</Tex> 離區間不一樣遠。上面兩個步長與中點只差不到{' '}
+                <Tex>{'10^{-10}'}</Tex>
+                {q3big && (
+                  <>
+                    ，但 <Tex>{String.raw`\mu=${Q3_MU_BIG}`}</Tex> 時時間平均已是 <Tex>{texNum(q3big.mean, 6)}</Tex>
+                  </>
+                )}
+                。偶數筆資料時，MAE 本身並不偏好區間內的任何一點。
               </p>
             </>
           }
@@ -443,7 +453,7 @@ export function WrapupSection() {
         title="這一課最重要的公式"
         formulas={[
           { tex: String.raw`\boxed{J(w)=\tfrac12E[(y-wx)^2],\quad w^*=\frac{E[xy]}{E[x^2]}=a+\frac{E[xv]}{E[x^2]}}`, label: String.raw`MSE 成本與最佳解（含 $\tfrac12$，勘誤 E41）` },
-          { tex: String.raw`\boxed{E[e^*x]=0}`, label: 'Normal equation：最佳解處誤差與輸入不相關' },
+          { tex: String.raw`\boxed{E[e^*x]=0}`, label: 'Normal equation：最佳解處誤差與輸入正交' },
           { tex: String.raw`\boxed{w_{n+1}=w_n+\mu e_nx_n,\quad \delta_n=(1-\mu x^2)^n\delta_0,\quad 0<\mu<2/x^2}`, label: (
               <>
                 LMS 與固定 <Tex>{'x'}</Tex> 的確切解（<Tex>{String.raw`\delta=a-w`}</Tex>）

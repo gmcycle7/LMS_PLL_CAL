@@ -107,3 +107,29 @@ export function signed(x: number, digits = 6): string {
   const s = num(x, digits)
   return x > 0 ? `+${s}` : s
 }
+
+/**
+ * log 軸畫不出 ≤ 0 的值：改成 null，折線在那裡斷開。
+ * 直接把負值交給 Plotly 的 log 軸時，它會把線拉到圖的最下面，變成一根一根的直線（§11.4：$C\le0$ 的 FCW）。
+ */
+export function positiveOrGap(v: number): number | null {
+  return v > 0 ? v : null
+}
+
+/**
+ * 把一組遞增的索引畫成一條折線時用：索引不相鄰的地方插入 null，Plotly 就在那裡斷線。
+ * 同一張圖把點分成兩類、各畫一條線（例如 §11.4 的「通過／未通過代回檢查」）時，線才不會跨過另一類的點。
+ */
+export function gappedSeries(idx: readonly number[], x: ArrayLike<number>, y: ArrayLike<number>): { x: (number | null)[]; y: (number | null)[] } {
+  const xs: (number | null)[] = []
+  const ys: (number | null)[] = []
+  idx.forEach((i, k) => {
+    if (k > 0 && i !== idx[k - 1] + 1) {
+      xs.push(null)
+      ys.push(null)
+    }
+    xs.push(x[i])
+    ys.push(y[i])
+  })
+  return { x: xs, y: ys }
+}

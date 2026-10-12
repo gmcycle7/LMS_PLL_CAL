@@ -27,7 +27,10 @@ export interface ParamControlProps {
   log?: boolean
   /** 補充說明 */
   hint?: ReactNode
-  /** 對應 Hardware Reg 或 Behavioral Parameter，例如 'REG_GMAC_N[15:0]' */
+  /**
+   * 對應 Hardware Reg 或 Behavioral Parameter，例如 'REG_GMAC_N[15:0]'。
+   * 說明文字裡若有數學，寫成 `$...$`（以 KaTeX 顯示；SelectControl／ToggleControl 的 reg 相同），不要用 Unicode 拼。
+   */
   reg?: string
   /** 顯示有效位數（預設 6）；只影響顯示，不改變輸入的精確值 */
   digits?: number
@@ -156,7 +159,7 @@ export function ParamControl({
         <label className="c-param-label" htmlFor={inputId}>
           {mathText(label)}
         </label>
-        {reg && <span className="c-param-reg mono">{reg}</span>}
+        {reg && <span className="c-param-reg mono">{mathText(reg)}</span>}
       </div>
       <div className="c-param-row">
         <input
@@ -254,7 +257,7 @@ export function SelectControl<T extends string | number>({
         <label className="c-param-label" htmlFor={id}>
           {mathText(label)}
         </label>
-        {reg && <span className="c-param-reg mono">{reg}</span>}
+        {reg && <span className="c-param-reg mono">{mathText(reg)}</span>}
       </div>
       <select
         id={id}
@@ -274,7 +277,20 @@ export function SelectControl<T extends string | number>({
           </option>
         ))}
       </select>
-      {hint && <div className="c-param-meta small muted">{mathText(hint)}</div>}
+      {hint && <HintRow hint={hint} />}
+    </div>
+  )
+}
+
+/**
+ * SelectControl／ToggleControl 的說明列。`.c-param-meta` 是 flex 容器（ParamControl 用它把「合法範圍」與 hint 排成一列），
+ * 所以 hint 一定要包成單一個元素：否則「文字 + 行內公式 + 文字」會變成三個 flex item，公式自己佔一行、句子被拆成三段。
+ * 刻意不用 `.c-param-hint` 這個 class：各頁的字串測試以它選取 ParamControl 的 hint，範圍不應因此改變。
+ */
+function HintRow({ hint }: { hint: ReactNode }) {
+  return (
+    <div className="c-param-meta small muted">
+      <span className="c-param-note">{mathText(hint)}</span>
     </div>
   )
 }
@@ -309,9 +325,9 @@ export function ToggleControl({ label, ariaLabel, value, onChange, hint, reg, di
         <label className="c-param-label" htmlFor={id}>
           {mathText(label)}
         </label>
-        {reg && <span className="c-param-reg mono">{reg}</span>}
+        {reg && <span className="c-param-reg mono">{mathText(reg)}</span>}
       </div>
-      {hint && <div className="c-param-meta small muted">{mathText(hint)}</div>}
+      {hint && <HintRow hint={hint} />}
     </div>
   )
 }

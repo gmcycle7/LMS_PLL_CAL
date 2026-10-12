@@ -1,6 +1,6 @@
-import { Callout, Prereq, Section, StepDerivation, Tex, TexBlock, mathText } from '@/components'
-import { kqGain, toySignLmsStep } from '@/simulation/models/sspll'
-import { SIM_CFG, WORKED } from '../data'
+import { Callout, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock, mathText } from '@/components'
+import { kqGain, loopImpulse, toySignLmsStep, type SspllLoop } from '@/simulation/models/sspll'
+import { LOOP_KEYS, LOOPS, SIM_CFG, SURE, WORKED } from '../data'
 import { Claim, DataTable, Diagram, FigRef, Formula, Hand, fx, r, txs } from '../common'
 
 /** 玩具模型：sign-error LMS，PD 看到 e = g·(a − w)·x（g = +1：沒有迴路；g = −0.2：反相縮小）。每一步都是 sspll.ts 的 toySignLmsStep（HC-CS.1 用同一個函式） */
@@ -15,6 +15,31 @@ function toy(g: number, steps = 5, a = 1, mu = 0.1, x = 1): { w: number[]; q: nu
   return { w, q }
 }
 
+/**
+ * h_PD 的「記憶長度」：Σ|h_PD| 的 99.9% 落在前幾拍（第 5 步把 δ_j 提到卷積外面的前提，要拿它和 LMS 的時間尺度比）。
+ * sspll.test.ts 以同一個定義核對三個標稱迴路是 14／40／49 拍。
+ */
+export function hpdMemorySamples(loop: SspllLoop, frac = 0.999, nMax = 4096): number {
+  const h = loopImpulse(loop, nMax)
+  let total = 0
+  for (const v of h) total += Math.abs(v)
+  let acc = 0
+  for (let i = 0; i < nMax; i++) {
+    acc += Math.abs(h[i])
+    if (acc >= frac * total) return i + 1
+  }
+  return nMax
+}
+
+/** 第 5 步的數字例：§14 閉迴路模擬的預設值（N = 512、每個 block 修掉 1/25）與實驗 C 允許的最小值（N = 64、每個 block 修掉 1/2） */
+const LMS_EXAMPLE = { nBlk: 512, tauBlocks: 25, nBlkMin: 64, tauMin: 2 } as const
+
+/**
+ * 有迴路時「每個 block 修掉的比例 × N_τ」在三個標稱迴路、實驗 C 的所有 regressor 裡的最大值：α = 1/2、filtered-x 時恰為 8
+ * （只有 2 個相位輪流被選到，功率正規化後每個 block 修掉 8/N_τ）。sspll.test.ts 以 cPeriodic + runSspllLms 的步長核對。
+ */
+export const LMS_WORST_RATE = 8
+
 /** §4 LMS 的平均更新：為什麼是 Re H_PD 決定符號。 */
 export function S04MeanUpdate() {
   const A = toy(1)
@@ -23,6 +48,16 @@ export function S04MeanUpdate() {
   const Kq = kqGain(sigFs)
   // golden 的手算表與這裡的玩具模型一致（顯示時以即時計算為準）
   const consistent = A.w.every((v, i) => Math.abs(v - WORKED['e_H=+1'][i]) < 1e-12) && B.w.every((v, i) => Math.abs(v - WORKED['e_H=-0.2'][i]) < 1e-12)
+  // 第 5 步的前提（權重慢變）有多寬：LMS 的時間尺度對 h_PD 的記憶長度
+  const mem = LOOP_KEYS.map((k) => hpdMemorySamples(LOOPS[k]))
+  const lmsSamples = LMS_EXAMPLE.nBlk * LMS_EXAMPLE.tauBlocks
+  // raw regressor、8 個相位出現次數相同（α 為無理數或 8 | Q）時，Re κ 是 Re H_PD 的加權平均（§4.3），不會超過 Re H_PD 的最大值。
+  // 其他情況每個 block 的修正比例會再大幾倍：§11 的 regressor 經功率正規化後最多約 2.4/N_τ；α 的分母很小時只有幾個相位輪流被選到，
+  // 最極端的 α = 1/2 是 raw 4·Re H_PD(1/2)/N_τ ≈ 4.3–5.0/N_τ、filtered-x 8/N_τ（sspll.test.ts 的「frozen-weight 前提」核對）。
+  const reHMax = Math.max(...LOOP_KEYS.map((k) => SURE[k].maxReH))
+  const slowRatio = Math.floor(lmsSamples / reHMax / Math.max(...mem) / 100) * 100
+  // 最極端的情況（每個 block 修掉 8/N_τ）還剩幾倍：取到十位數
+  const slowRatioWorst = Math.floor(lmsSamples / LMS_WORST_RATE / Math.max(...mem) / 10) * 10
   return (
     <Section kind="formula" level={2} title="4. LMS 的平均更新：為什麼是 $\mathrm{Re}\,H_{PD}$ 決定符號" id="cs-4">
       <h3>4.1 一個問題，先算一次</h3>
@@ -114,8 +149,13 @@ export function S04MeanUpdate() {
           },
           { tex: r`E[G_i]=E\Big[\tfrac1N\textstyle\sum_n q[n]\,r_i[n]\Big]\approx K_q\,\langle r_i\,e_{PD}\rangle`, why: '一個 block 的 GMAC 輸出取期望，代入上一步。block 夠長時，樣本平均可以換成時間平均。' },
           {
-            tex: r`e_{PD}=h_{PD}*\Big(\textstyle\sum_j \delta_j\,x_j\Big)=\textstyle\sum_j \delta_j\,(h_{PD}*x_j)`,
-            why: <>理想模型下的殘差：每個權重誤差 <Tex>{r`\delta_j`}</Tex> 乘上它的 regressor，再通過迴路。LTI 系統可以逐項通過。</>,
+            tex: r`e_{PD}=h_{PD}*\Big(\textstyle\sum_j \delta_j\,x_j\Big)\;\overset{\delta_j\ \text{固定}}{=}\;\textstyle\sum_j \delta_j\,(h_{PD}*x_j)`,
+            why: (
+              <>
+                理想模型下的殘差：每個權重誤差 <Tex>{r`\delta_j`}</Tex> 乘上它的 regressor，再通過迴路。第二個等號把 <Tex>{r`\delta_j`}</Tex> 當成常數提到卷積外面：<Tex>{r`h_{PD}`}</Tex> 是 LTI，但只有不隨時間變的係數才能這樣提出來。權重在更新時，舊的{' '}
+                <Tex>{r`\delta_j`}</Tex> 還留在迴路的記憶裡，這個等號只是近似；前提是權重在 <Tex>{r`h_{PD}`}</Tex> 的記憶長度內幾乎不變（LMS 比主迴路慢很多，也就是時間尺度分離）。數字例在推導後面。
+              </>
+            ),
           },
           { tex: r`E[G_i]\approx K_q\textstyle\sum_j \underbrace{\langle r_i\,(h_{PD}*x_j)\rangle}_{C_{ij}}\,\delta_j = K_q\,(C\delta)_i`, why: <>把上一步代入，定義矩陣 <Tex>{'C'}</Tex>。</> },
           { tex: r`\delta_{k+1}=\delta_k-\mu K_q\,C\,\delta_k`, why: <>權重更新 <Tex>{r`w\leftarrow w+\mu G`}</Tex>，而 <Tex>{r`\delta=`}</Tex> 真值 − <Tex>{'w'}</Tex>，所以 <Tex>{r`\delta`}</Tex> 減少 <Tex>{r`\mu E[G]`}</Tex>。</> },
@@ -123,11 +163,23 @@ export function S04MeanUpdate() {
       />
       <Formula id="F-CS.2" />
       <p>
+        <strong>第 5 步的前提有多寬？</strong>以 §14 閉迴路模擬的預設值為例：一個 block 是 {LMS_EXAMPLE.nBlk} 拍，步長設成「沒有迴路、8 個相位被選到的次數一樣多時，每個 block 修掉誤差的 <Tex>{`1/${LMS_EXAMPLE.tauBlocks}`}</Tex>」，所以 LMS 的名義時間常數大約是{' '}
+        <Tex>{`${LMS_EXAMPLE.nBlk}\\times${LMS_EXAMPLE.tauBlocks}=${lmsSamples}`}</Tex> 拍；有迴路時每個模態還要再除以正規化斜率 <Tex>{r`\kappa`}</Tex>（§0.3）實部的大小。用 raw regressor、而且 PMUX 的 8 個相位被選到的次數一樣多時，<Tex>{r`\mathrm{Re}\,\kappa`}</Tex> 是 <Tex>{r`\mathrm{Re}\,H_{PD}`}</Tex> 的加權平均（§4.3），不超過它的最大值（三個標稱迴路約{' '}
+        {fx(reHMax, 2)}），所以至少約一萬拍。三個標稱迴路（{LOOP_KEYS.join('、')}）的脈衝響應 <Tex>{r`h_{PD}`}</Tex> 則在 {mem.join('、')} 拍內就衰減完（<Tex>{r`\textstyle\sum\lvert h_{PD}\rvert`}</Tex> 的 99.9% 落在這幾拍內）。LMS 比迴路慢 {slowRatio}{' '}
+        倍以上，所以這個前提成立得很好。
+        <ModeGate min="engineer">
+          換成 §11 的其他 regressor（步長另外對功率正規化），或 <Tex>{r`\alpha`}</Tex> 是分母很小的有理數（只有幾個相位輪流被選到）時，每個 block 修掉的比例會再大幾倍——最極端的是 <Tex>{r`\alpha=\tfrac12`}</Tex> 配 filtered-x，每個 block 修掉{' '}
+          <Tex>{`${LMS_WORST_RATE}/${LMS_EXAMPLE.tauBlocks}`}</Tex>——LMS 仍然比迴路慢 {slowRatioWorst} 倍以上，前提還是成立。
+        </ModeGate>
+        把 block 長度與步長調到很極端時就不是這樣了：實驗 C 允許一個 block{' '}
+        {LMS_EXAMPLE.nBlkMin} 拍、每個 block 修掉 <Tex>{`1/${LMS_EXAMPLE.tauMin}`}</Tex>，名義時間常數只剩 {LMS_EXAMPLE.nBlkMin * LMS_EXAMPLE.tauMin} 拍，和迴路的記憶長度同一個量級。§14 的閉迴路模擬照實際順序計算（先乘、再通過迴路），不用這個近似。
+      </p>
+      <p>
         <strong>收斂條件</strong>：最後一步是線性遞迴，沿 <Tex>{'C'}</Tex> 的每個特徵方向，誤差每個 block 乘上 <Tex>{r`1-\mu K_q\lambda`}</Tex>。所以：
       </p>
       <TexBlock>{r`\boxed{\ \text{小 }\mu\text{ 時，平均收斂}\iff \mathrm{Re}\,\mathrm{eig}(C)>0\ \text{（在可觀測子空間）}\ }`}</TexBlock>
       <p>
-        <Claim kind="exact">指 Bussgang 線性化與穩態平均下</Claim>
+        <Claim kind="exact">指 Bussgang 線性化、穩態平均、權重慢變（時間尺度分離）下</Claim>
         若某個 eigenvalue 的實部 <Tex>{'<0'}</Tex>，那個方向的誤差會指數成長，這就是反號。這裡說的是「平均收斂」（mean convergence）；有限步長的條件更嚴（§12），大訊號與比較器 offset 另外處理（§10、§13）。
       </p>
       <Prereq title="矩陣、特徵值、可觀測子空間">

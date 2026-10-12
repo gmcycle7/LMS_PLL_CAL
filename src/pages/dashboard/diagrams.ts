@@ -26,7 +26,7 @@ const WARN = 'classDef warn fill:#b42318,stroke:#7a160f,color:#ffffff,stroke-wid
 export const DASH_SYSTEM_FOCUS: SystemBlock[] = Object.keys(SYSTEM_BLOCK_LABEL) as SystemBlock[]
 
 /** 圖上六個條件的短名稱（各自是 SIX_CONDITIONS[i].zh 的子字串；diagrams.test.ts 會檢查） */
-export const CONDITION_MAP_NAMES = ['資訊足夠', '更新方向正確', '動態穩定', '統計精度足夠', '正確的物理參數', '改善 PLL 輸出'] as const
+export const CONDITION_MAP_NAMES = ['資訊足夠', '更新方向正確', '動態穩定', '統計精度足夠', '正確的物理參數', '殘餘誤差在預算內'] as const
 
 const N = CONDITION_MAP_NAMES
 
@@ -64,12 +64,12 @@ export const CONDITION_MAP_CHART = String.raw`flowchart TB
   C3(["${CIRC[2]} ${N[2]}<br/>$0 \lt g \lt g^*$"]) -.- UPD
   C4(["${CIRC[3]} ${N[3]}<br/>$\sigma_w$ 夠小"]) -.- CMP
   C5(["${CIRC[4]} ${N[4]}<br/>$w^* = a + B/C$"]) -.- DTC
-  OUT -.- C6(["${CIRC[5]} ${N[5]}<br/>jitter、spur"])`
+  OUT -.- C6(["${CIRC[5]} ${N[5]}<br/>$\sigma_{\delta t}$、spur"])`
 
 /**
  * 六個條件的檢查流程（由上到下就是 thesisModel.ts 的 CONDITION_ORDER）。
  * 順序不是隨便排的：後面的判據要用到前面算出來的量——有了 $C$ 才能算 $g = \mu K_q C$；$\lvert z\rvert \lt 1$ 才有穩態的 $\sigma_w$ 與固定點；
- * $\sigma_w$ 與 $\Delta w = B/C$ 都有了才能換算成輸出端的 $\sigma_{\delta t}$ 與 spur。六個都要過；任何一個「否」就停下來修那一塊。
+ * $\sigma_w$ 與 $\Delta w = B/C$ 都有了才能換算成 DTC-referred 的 $\sigma_{\delta t}$ 與輸出的單 tone spur。六個都要過；任何一個「否」就停下來修那一塊。
  */
 export const CONDITION_FLOW_CHART = String.raw`flowchart TB
   Q1{"${CIRC[0]} ${N[0]}？<br/>$\lambda_{\min} \gt 0$"}
@@ -77,7 +77,7 @@ export const CONDITION_FLOW_CHART = String.raw`flowchart TB
   Q3{"${CIRC[2]} ${N[2]}？<br/>$0 \lt g \lt g^*(d)$，<br/>$g = \mu\cdot K_q\cdot C$"}
   Q4{"${CIRC[3]} ${N[3]}？<br/>$\sigma_w$ 在預算內"}
   Q5{"${CIRC[4]} ${N[4]}？<br/>$w^* - a = B/C$<br/>在預算內"}
-  Q6{"${CIRC[5]} ${N[5]}？<br/>$\sigma_{\delta t}$ 與 spur<br/>在預算內"}
+  Q6{"${CIRC[5]} ${N[5]}？<br/>合計 $\sigma_{\delta t}$ 與 spur"}
   OK(["六個都通過<br/>才是成功的 calibration"])
   Q1 -- "是" --> Q2
   Q2 -- "是：有了 $C$ 才能算 $g$" --> Q3
@@ -90,7 +90,7 @@ export const CONDITION_FLOW_CHART = String.raw`flowchart TB
   Q3 -- "否" --> F3["$g$ 太大：震盪發散<br/>減小 $\mu$、縮短延遲 $d$、<br/>檢查 sum／average"]
   Q4 -- "否" --> F4["係數抖動太大<br/>減小 $\mu$ 或增加 $N$"]
   Q5 -- "否" --> F5["GMAC 歸零，但 $w \ne a$<br/>降低 $B$（offset、INL），<br/>或提高 $C$"]
-  Q6 -- "否" --> F6["jitter／spur 超標<br/>bias 與雜訊合起來<br/>重新分配預算"]
+  Q6 -- "否" --> F6["誤差／spur 超標<br/>bias 與雜訊合起來<br/>重新分配預算"]
   ${PASS}
   ${WARN}
   class OK ok
@@ -133,5 +133,10 @@ export const CONDITION_MAP_LEGEND: { n: number; block: string; knobs: string }[]
   { n: 3, block: '係數更新（積分器）', knobs: '$\\mu$、GMAC 的 sum / average、commit 延遲 $d$ → $g=\\mu K_qC$ 與 $g^*(d)$' },
   { n: 4, block: 'Comparator 與 GMAC 累加', knobs: '$\\sigma_v$、$N$、$\\mu$ → $\\sigma_w$' },
   { n: 5, block: 'DTC / comparator 的非理想', knobs: 'offset、INL、code-correlated 干擾 → $B=E[x\\,\\varepsilon_{\\mathrm{det}}]$' },
-  { n: 6, block: 'DTC 輸出到 PLL 輸出', knobs: 'code 頻譜、6-bit 量化、output transfer $T$ → jitter 與 spur' },
+  {
+    n: 6,
+    block: 'DTC 輸出到 PLL 輸出',
+    knobs:
+      'code 功率、$\\sigma_w$ 與 $\\Delta w$ → DTC-referred $\\sigma_{\\delta t}$；$f_{\\mathrm{out}}$ 與 output transfer $|T|$ → 單 tone spur（code 頻譜、6-bit 量化與 $T(f)$ 對輸出 jitter 的影響在 Ch12、Ch13）',
+  },
 ]

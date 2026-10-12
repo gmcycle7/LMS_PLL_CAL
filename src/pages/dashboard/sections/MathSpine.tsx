@@ -1,13 +1,15 @@
 import { memo, useMemo } from 'react'
-import { ClaimTag, HandCalc, Mermaid, ModeGate, Prereq, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, HandCalc, Mermaid, ModeGate, Prereq, StepDerivation, Tex, TexBlock } from '@/components'
 import { useSettings } from '@/app/settings'
 import { SIX_CONDITIONS } from '../data'
 import { BLOCK_EQUATION_CHART, CONDITION_MAP_CHART, CONDITION_MAP_LEGEND } from '../diagrams'
 import {
   DEFAULT_PARAMS,
   blocksTo95,
+  comparatorGain,
   criticalGain,
   evaluateThesis,
+  fixedToneRadius,
   impulseEnergyClosed,
   impulseEnergyClosedD1,
   impulseEnergyLyapunov,
@@ -15,7 +17,7 @@ import {
   polarityOf,
 } from '../thesisModel'
 import { handcalc } from '../handcalcs'
-import { DiagramWalk, ErratumLink, Rich, scrollToId } from '../ui'
+import { DiagramWalk, ErratumLink, Glue, Rich, scrollToId } from '../ui'
 
 const R = (t: string) => <Rich text={t} />
 
@@ -55,6 +57,14 @@ export const MathSpine = memo(function MathSpine() {
   )
   // 推導 4（system-level）的數字：預設參數，以及 T15（A = 1、Δw = 0.5 fs ⇒ A_t = 0.5 fs peak）
   const sys = useMemo(() => ({ base: evaluateThesis(DEFAULT_PARAMS), t15: evaluateThesis({ ...DEFAULT_PARAMS, Px: 0.5, B: 0.25 }) }), [])
+  // 推導 7 的反例（ρ = 0、θ = 60°、μK_qP_x|H| = 1.5）：本模型的 pole 與兩個固定正交 code 的 pole，由計算核心現算
+  const ft = useMemo(() => {
+    const gp = 1.5
+    const p = { ...DEFAULT_PARAMS, B: 0, mu: gp / comparatorGain(DEFAULT_PARAMS.sigmaV), twoParam: true, rho: 0, phiDeg: 60 }
+    const r = evaluateThesis(p)
+    const c = r.polarity.cosTheta
+    return { gp, model: 1 - r.g, fixed: fixedToneRadius(p), re: 1 - gp * c, im: gp * Math.sqrt(1 - c * c), abs2: (1 - gp * c) ** 2 + gp * gp * (1 - c * c) }
+  }, [])
   // T10 / T11 的數字（ρ = 0.99、μK_q = 0.5）由公式現算
   const rho = 0.99
   const kappa = (1 + rho) / (1 - rho)
@@ -137,7 +147,11 @@ export const MathSpine = memo(function MathSpine() {
       <Prereq title="高斯分布與 erf：comparator 的統計增益從哪來">
         <p>
           零均值、標準差 <Tex>{'\\sigma'}</Tex> 的高斯雜訊 <Tex>{'v'}</Tex> 的機率密度是 <Tex>{'\\frac{1}{\\sqrt{2\\pi}\\sigma}e^{-v^2/(2\\sigma^2)}'}</Tex>。
-          Comparator 輸入是 <Tex>{'s+v'}</Tex>，輸出 +1 的機率是 <Tex>{'P(v>-s)=\\Phi(s/\\sigma)'}</Tex>，其中
+          Comparator 輸入是 <Tex>{'s+v'}</Tex>，輸出 +1 的機率是{' '}
+          <Glue>
+            <Tex>{'P(v>-s)=\\Phi(s/\\sigma)'}</Tex>，
+          </Glue>
+          其中
         </p>
         <TexBlock>{String.raw`\Phi(z)=\int_{-\infty}^{z}\frac{e^{-t^2/2}}{\sqrt{2\pi}}\,dt=\tfrac12\Big[1+\mathrm{erf}\big(z/\sqrt2\big)\Big],\qquad \mathrm{erf}(z)=\frac{2}{\sqrt\pi}\int_0^z e^{-t^2}dt`}</TexBlock>
         <p>
@@ -202,7 +216,11 @@ export const MathSpine = memo(function MathSpine() {
       <h3 className="dash-h3">再看一張圖：把那一圈畫成一條方程式</h3>
       <p>
         上面那張圖畫的是硬體方塊。現在把每個方塊換成它在「平均」意義下做的事——乘一個數，或加一個數——整個校正迴路就變成一張可以直接寫成方程式的訊號流圖。先認得四個符號：
-        <Tex>{'\\delta_k=a-w_k'}</Tex> 是第 <Tex>{'k'}</Tex> 個 block 還剩多少參數誤差（真值 <Tex>{'a'}</Tex> 減目前的係數 <Tex>{'w_k'}</Tex>）；<Tex>{'C'}</Tex> 是 code 與它造成的誤差之間的相關；<Tex>{'B'}</Tex> 是 code
+        <Tex>{'\\delta_k=a-w_k'}</Tex> 是第 <Tex>{'k'}</Tex> 個 block 還剩多少參數誤差（真值 <Tex>{'a'}</Tex> 減目前的係數{' '}
+        <Glue>
+          <Tex>{'w_k'}</Tex>）；
+        </Glue>
+        <Tex>{'C'}</Tex> 是 code 與它造成的誤差之間的相關；<Tex>{'B'}</Tex> 是 code
         與「不是 gain 誤差造成的」干擾之間的相關；<Tex>{'\\eta_k'}</Tex> 是這個 block 的 GMAC 雜訊。
       </p>
       <DiagramWalk
@@ -227,7 +245,7 @@ export const MathSpine = memo(function MathSpine() {
             steps={[
               {
                 tex: String.raw`e[n]=\underbrace{(a-w_k)\,u[n]+\varepsilon_{\mathrm{det}}[n]}_{e_{\mathrm{det}}[n]}+v[n]`,
-                why: R('Comparator 取的是 PD 的輸出 $e[n]$（送進 loop filter 的同一個訊號）：剩下的 gain 誤差經 PLL error path 之後的量，加上 deterministic 干擾，再加上隨機雜訊（§11）。前兩項不含隨機雜訊，合稱 $e_{\\mathrm{det}}$。'),
+                why: R('Comparator 取的是 PD 的輸出 $e[n]$（送進 loop filter 的同一個訊號）：剩下的 gain 誤差經 PLL error path 之後的量，加上 deterministic 干擾，再加上隨機雜訊（§11）。前兩項不含隨機雜訊，合稱 $e_{\\mathrm{det}}$。把 $(a-w_k)$ 提到 error path 的卷積外面（寫成 $(a-w_k)\\,u[n]$，$u=h*x$），前提是 $w$ 在這條 path 的記憶長度內幾乎不變（時間尺度分離，Ch06 的 F-06.1）；$w$ 變得快時要回到 $h*\\big((a-w)\\,x\\big)$。'),
               },
               {
                 tex: String.raw`E\big[q[n]\,\big|\,e_{\mathrm{det}}\big]=\mathrm{erf}\!\Big(\frac{e_{\mathrm{det}}}{\sqrt2\,\sigma_v}\Big)\approx K_q\,e_{\mathrm{det}},\quad K_q=\frac{\sqrt{2/\pi}}{\sigma_v}`,
@@ -274,7 +292,8 @@ export const MathSpine = memo(function MathSpine() {
             兩個重點：(1) 停下來的地方是 <Tex>{'E[G]=0'}</Tex>，<strong>不是</strong> <Tex>{'w=a'}</Tex>；(2) <Tex>{'C'}</Tex> 在分母：極性裕度小（
             <Tex>{'C\\to0'}</Tex>）時，同樣的干擾 <Tex>{'B'}</Tex> 會被放大成很大的 bias。若 <Tex>{'C<0'}</Tex>，<Tex>{'w^*'}</Tex> 是排斥點，根本到不了。
             這是 MSE-LMS 的線性固定點 <ClaimTag kind="exact" />；1-bit Sign-LMS 只在殘差遠小於 <Tex>{'\\sigma_v'}</Tex> 時近似成立（
-            <ErratumLink eid="E01" />）。若 comparator 就是主 PLL 的 BBPD（type-II 迴路強制 <Tex>{'E[q]=0'}</Tex>），offset 造成的 bias 會被吸收、分母改成{' '}
+            <ErratumLink eid="E01" />）：<Tex>{'B/C'}</Tex> 是線性化的 bias，大到讓 comparator 飽和時它只是線性外推，<Tex>{'a+B/C'}</Tex> 不再是 Sign-LMS
+            的固定點（Ch11 §11.4；體檢的條件 5 會亮「注意」）。若 comparator 就是主 PLL 的 BBPD（type-II 迴路強制 <Tex>{'E[q]=0'}</Tex>），offset 造成的 bias 會被吸收、分母改成{' '}
             <Tex>{'\\mathrm{Var}(x)'}</Tex>（<ErratumLink eid="E03" />）。
           </p>
         </div>
@@ -299,8 +318,9 @@ export const MathSpine = memo(function MathSpine() {
           />
           <p>
             T13：<Tex>{`\\sigma_w=\\sqrt{\\frac{${DEFAULT_PARAMS.mu}^2\\cdot ${DEFAULT_PARAMS.Px}/${DEFAULT_PARAMS.N}}{1-${f(1 - t13.g)}^2}}=${f(t13.sigmaW, 4)}\\,\\mathrm{fs}`}</Tex>
-            。它是 <strong>gain-equivalent</strong> 的係數雜訊，不是 PLL 輸出 jitter；要再乘上 code（<Tex>{'\\delta t=x\\,\\delta w'}</Tex>）並經過 output transfer{' '}
-            <Tex>{'T'}</Tex>，才是條件 6 關心的量。<ClaimTag kind="approx" />
+            。它是 <strong>gain-equivalent</strong> 的係數雜訊，不是 PLL 輸出 jitter：乘上 code（隨機部分是 <Tex>{'x\\,\\delta w'}</Tex>）並和 bias 那一項合起來，才是條件 6 檢查的
+            DTC-referred <Tex>{'\\sigma_{\\delta t}'}</Tex>（推導 4）；再經過 output transfer <Tex>{'T(f)'}</Tex> 才是輸出 jitter，本頁不算這一步（Ch12 的 F-12.17）。
+            <ClaimTag kind="approx" />
           </p>
           <p className="small muted">
             一個 trade-off 就藏在這裡：<Tex>{'g'}</Tex> 越小收斂越慢（時間常數 <Tex>{'\\approx1/g'}</Tex> blocks），但{' '}
@@ -350,10 +370,13 @@ export const MathSpine = memo(function MathSpine() {
             就有這麼大。<ClaimTag kind="approx" />
           </p>
           <p className="small muted">
-            三個提醒：(1) <Tex>{'\\sigma_{\\delta t}'}</Tex> 是 <strong>DTC-referred</strong> 的量，還沒經過 PLL 的頻率響應，不能直接叫 output jitter（規格 §12.1 的提醒）；(2)
+            四個提醒：(1) <Tex>{'\\sigma_{\\delta t}'}</Tex> 是 <strong>DTC-referred</strong> 的量，還沒經過 PLL 的頻率響應，不能直接叫 output jitter（規格 §12.1 的提醒）；(2)
             隨機部分的頻譜形狀——低頻的 <Tex>{'\\delta w'}</Tex> 乘上寬頻 code 之後變成寬頻——在 Ch12，而且 block rate 的 <Tex>{'\\delta w_k'}</Tex> 要先以 ZOH 展開到
             sample rate 才能套卷積公式（<ErratumLink eid="E09" />）；(3) variance 與 bias
-            各自在預算內，平方和仍可能超出預算，所以條件 6 必須獨立檢查。
+            各自在預算內，平方和仍可能超出預算，所以條件 6 必須另外檢查；(4) 條件 6 問的是「在不在預算內」，不是「比校正前好」：它不看初始誤差{' '}
+            <Tex>{'w_0-a'}</Tex>。例如 gain 本來就正確（<Tex>{'w_0=a'}</Tex>、<Tex>{'B=0'}</Tex>）時，不校正的 gain-error timing 是 0；開著固定步長的追蹤反而多出{' '}
+            <Tex>{`\\sqrt{P_x}\\,\\sigma_w=${f(t13.sigmaDt, 4)}\\,\\mathrm{fs}`}</Tex> 的隨機誤差，卻仍在 <Tex>{`${DEFAULT_PARAMS.jitterBudget}\\,\\mathrm{fs}`}</Tex>{' '}
+            的預算內、判定通過（freeze 與持續追蹤的取捨在 Ch13、Ch14）。
           </p>
         </div>
       </details>
@@ -405,8 +428,12 @@ export const MathSpine = memo(function MathSpine() {
               </table>
             </div>
             <p className="small muted">
-              只晚一個 block，可用的 loop gain 就從 <Tex>{f(gStar[0].g)}</Tex> 掉到 <Tex>{f(gStar[1].g)}</Tex>。這也是雙迴路（主 PLL × LMS）的完整界限只有簡化模型一半的原因（<ErratumLink eid="E19" />）。
-              <ClaimTag kind="exact" />
+              只晚一個 block，可用的 loop gain 就從 <Tex>{f(gStar[0].g)}</Tex> 掉到 <Tex>{f(gStar[1].g)}</Tex>。Ch08 §8.4 的雙迴路<strong>二狀態模型</strong>
+              （主 PLL 的觀測是一階狀態，誤差晚一個 block 才被 GMAC 看到）是同一個機制：在那個模型裡，完整的 <Tex>{'\\mu'}</Tex> 上界恰好是 quasi-static（把主 PLL
+              當成瞬間到穩態）上界的一半——換算成等效 loop gain（<Tex>{'\\mu'}</Tex> 乘上觀測路徑的 DC 增益），正是上表的 <Tex>{f(gStar[0].g)}</Tex> 掉到{' '}
+              <Tex>{f(gStar[1].g)}</Tex>；主 PLL 沒有記憶時，它就是這裡的 <Tex>{'d=1'}</Tex>（本頁 Q10、<ErratumLink eid="E19" />）。這個「一半」是該指定模型的結果，不是所有 PLL
+              雙迴路的通則：觀測路徑不同，比例就不一定是一半（Ch08 的二階觀測例子差距更大；拿掉那一個 block 的 latency，quasi-static 反而可能偏保守）。
+              <ClaimTag kind="exact" />（Ch08 §8.4 的二狀態模型）
             </p>
           </div>
         </details>
@@ -483,13 +510,22 @@ export const MathSpine = memo(function MathSpine() {
                       <Tex>{'g'}</Tex>
                     </th>
                     <th className="num">
-                      <Tex>{'d=0'}</Tex>：<Tex>{'\\sum y^2'}</Tex>
+                      <Glue>
+                        <Tex>{'d=0'}</Tex>：
+                      </Glue>
+                      <Tex>{'\\sum y^2'}</Tex>
                     </th>
                     <th className="num">
-                      <Tex>{'d=1'}</Tex>：<Tex>{'\\sum y^2'}</Tex>（封閉式）
+                      <Glue>
+                        <Tex>{'d=1'}</Tex>：
+                      </Glue>
+                      <Tex>{'\\sum y^2'}</Tex>（封閉式）
                     </th>
                     <th className="num">
-                      <Tex>{'d=2'}</Tex>：<Tex>{'\\sum y^2'}</Tex>
+                      <Glue>
+                        <Tex>{'d=2'}</Tex>：
+                      </Glue>
+                      <Tex>{'\\sum y^2'}</Tex>
                     </th>
                     <th className="num">
                       <Tex>{'\\sigma_w(d{=}1)/\\sigma_w(d{=}0)'}</Tex>
@@ -517,7 +553,11 @@ export const MathSpine = memo(function MathSpine() {
             </div>
             <p className="small muted">
               表中數字由 Lyapunov 解即時計算；括號內是上面推導的 <Tex>{'d=1'}</Tex> 封閉式（兩者應完全相同）。第一列是 T13 的 <Tex>{'g'}</Tex>：延遲兩個 block
-              只讓 <Tex>{'\\sigma_w'}</Tex> 增加 <Tex>{`${f((delayNoise[0].rows[2].ratio - 1) * 100, 2)}\\%`}</Tex>；<Tex>{'g=0.6'}</Tex> 時 <Tex>{'d=2'}</Tex> 已經非常接近{' '}
+              只讓 <Tex>{'\\sigma_w'}</Tex> 增加{' '}
+              <Glue>
+                <Tex>{`${f((delayNoise[0].rows[2].ratio - 1) * 100, 2)}\\%`}</Tex>；
+              </Glue>
+              <Tex>{'g=0.6'}</Tex> 時 <Tex>{'d=2'}</Tex> 已經非常接近{' '}
               <Tex>{`g^*(2)=${f(gStar[2].g, 4)}`}</Tex>，<Tex>{'\\sigma_w'}</Tex> 變成 <Tex>{`${f(delayNoise[2].rows[2].ratio, 3)}`}</Tex> 倍——還沒發散，但已經不能用了。
             </p>
           </div>
@@ -527,10 +567,15 @@ export const MathSpine = memo(function MathSpine() {
           <div className="dash-details-body">
             <StepDerivation
               steps={[
-                { tex: String.raw`E[\mathbf G_k]\approx K_q\,C\,\tilde{\mathbf R}\,\boldsymbol\delta_k,\qquad \tilde{\mathbf R}=\begin{bmatrix}1&\rho\\\rho&1\end{bmatrix}`, why: R('兩個 regressor 經相同 path，相關矩陣正規化成 $\\tilde{\\mathbf R}$（有效 regressor 的 $\\mathbf R=E[\\mathbf u\\mathbf u^T]=|H|^2P_x\\tilde{\\mathbf R}$，$C=P_x|H|\\cos\\theta$）。') },
+                { tex: String.raw`E[\mathbf G_k]\approx K_q\,C\,\tilde{\mathbf R}\,\boldsymbol\delta_k,\qquad \tilde{\mathbf R}=\begin{bmatrix}1&\rho\\\rho&1\end{bmatrix}`, why: R('假設交叉相關也以同一個 $C$ 縮放：$E[x_i[n-D]\\,u_j[n]]=C\\,\\tilde R_{ij}$。「經過同一條 path」還不夠：要 $\\theta=0^\\circ$，或每個延遲的交叉相關都是自相關的 $\\rho$ 倍（見本推導最後的提醒）。有效 regressor 的 $\\mathbf R=E[\\mathbf u\\mathbf u^T]=|H|^2P_x\\tilde{\\mathbf R}$，$C=P_x|H|\\cos\\theta$。') },
                 { tex: String.raw`\tilde{\mathbf R}=\mathbf V\boldsymbol\Lambda\mathbf V^{T},\quad \tilde\lambda_{\pm}=1\pm\rho,\quad \boldsymbol\xi=\mathbf V^{T}\boldsymbol\delta`, why: '用特徵向量換座標（先備知識：特徵值）。' },
                 { tex: String.raw`\mathbf M=\mu\mathbf I:\quad \xi_{i,k+1}=(1-g\,\tilde\lambda_i)\,\xi_{i,k}`, why: R('每個 mode 各自是一個純量迴路，loop gain 變成 $g\\tilde\\lambda_i$（先略去雜訊與 $B$）。') },
-                { tex: String.raw`k_{95}=\Big\lceil\frac{\ln0.05}{\ln(1-g\tilde\lambda_{\min})}\Big\rceil`, why: R(`弱方向衰減到 5% 所需的 block 數（T11：$g=0.5$、$\\tilde\\lambda=${f(1 - rho)}\\Rightarrow k_{95}=${t11}$）。`) },
+                {
+                  tex: String.raw`k_{95}=\Big\lceil\frac{\ln0.05}{\ln|1-g\tilde\lambda_{\min}|}\Big\rceil`,
+                  why: R(
+                    `弱方向衰減到 5% 所需的 block 數（T11：$g=0.5$、$\\tilde\\lambda=${f(1 - rho)}\\Rightarrow k_{95}=${t11}$）。$g\\le1$（也就是 $g\\le2/(\\tilde\\lambda_++\\tilde\\lambda_-)$）時它也是最慢的方向；$g$ 更大時強方向過衝（$1-g\\tilde\\lambda_{\\max}$ 靠近 $-1$），最慢的反而是強方向。`,
+                  ),
+                },
                 {
                   tex: String.raw`\mathbf M=\mu\tilde{\mathbf R}^{-1}:\quad \xi_{i,k+1}=(1-g)\,\xi_{i,k}-\frac{\mu}{\tilde\lambda_i}\,\zeta_{i,k},\qquad \zeta_{i,k}=\mathbf v_i^{T}\boldsymbol\eta_k,\ \ \mathrm{Var}(\zeta_{i,k})=\tilde\lambda_i\,\frac{P_x}{N}`,
                   why: R('Preconditioner 把所有 mode 拉成同一個 $g$；$\\zeta_{i,k}$ 是 GMAC 雜訊向量在第 $i$ 個特徵向量 $\\mathbf v_i$ 上的投影（共變異 $\\propto\\tilde{\\mathbf R}$，所以變異數 $\\propto\\tilde\\lambda_i$），它也被乘上 $1/\\tilde\\lambda_i$。'),
@@ -543,20 +588,44 @@ export const MathSpine = memo(function MathSpine() {
             />
             <TexBlock id="F-DB.4">{String.raw`\boxed{\mathbf M=\mu\tilde{\mathbf R}^{-1}:\qquad \frac{\sigma_{\xi,\mathrm{weak}}}{\sigma_{\xi,\mathrm{strong}}}=\sqrt{\frac{\tilde\lambda_{\max}}{\tilde\lambda_{\min}}}=\sqrt{\kappa}}`}</TexBlock>
             <p className="small muted">
-              <Tex>{`\\rho=${rho}`}</Tex>：<Tex>{`\\kappa=${f(kappa)}`}</Tex>，<Tex>{`\\sqrt\\kappa=${f(Math.sqrt(kappa), 4)}`}</Tex>。快與安靜不能兼得——這就是第 13 個問題。規格 §10.1
-              的數字以 <Tex>{'K_q=1'}</Tex> 正規化（<ErratumLink eid="E05" />）。<ClaimTag kind="approx" />
+              <Tex>{`\\rho=${rho}`}</Tex>：<Tex>{`\\kappa=${f(kappa)}`}</Tex>，<Tex>{`\\sqrt\\kappa=${f(Math.sqrt(kappa), 4)}`}</Tex>。<Tex>{'g<1'}</Tex> 時 preconditioner
+              每個係數的 <Tex>{'\\sigma_w'}</Tex> 也比一般 LMS 大，快與安靜不能兼得——這就是第 13 個問題；<Tex>{'g>1'}</Tex> 時它反而比較小（這裡沒有 commit 延遲；對照的數字在下面的
+              HC-DB.4）。規格 §10.1 的數字以 <Tex>{'K_q=1'}</Tex> 正規化（<ErratumLink eid="E05" />）。<ClaimTag kind="approx" />
             </p>
-            <p className="small muted">
-              模型假設：兩個 regressor 經過同一條 error path，而且交叉相關也以同一個 <Tex>{'C'}</Tex> 縮放（<Tex>{'E[x_iu_j]=C\\,\\tilde R_{ij}'}</Tex>）。
-              相位不是 <Tex>{'0^\\circ'}</Tex> 的單頻 code 會讓這個矩陣不對稱，那時要用完整的 Jacobian（Ch10）。
-            </p>
+            <Callout kind="warn" title="這個 $2\times2$ 模型多了一個假設：交叉相關也以同一個 $C$ 縮放">
+              <StepDerivation
+                steps={[
+                  {
+                    tex: String.raw`E\big[x_i[n-D]\,u_j[n]\big]=\sum_k h[k]\,r_{ij}[D-k],\qquad r_{ij}[m]=E\big[x_i[n]\,x_j[n+m]\big]`,
+                    why: R('把 $u_j=h*x_j$ 代回去：用到的是每一個延遲的交叉相關 $r_{ij}[m]$，不只是 $m=0$ 的 $\\rho$。'),
+                  },
+                  {
+                    tex: String.raw`r_{ij}[m]=\tilde R_{ij}\,r_{11}[m]\ \Rightarrow\ E\big[x_i[n-D]\,u_j[n]\big]=\tilde R_{ij}\sum_k h[k]\,r_{11}[D-k]=C\,\tilde R_{ij}`,
+                    why: R('每個延遲都成同一個比例時，就得到本模型的 $C\\,\\tilde{\\mathbf R}$（充分條件；例如兩個互相獨立、頻譜相同的窄頻隨機 code 的線性混合）。'),
+                  },
+                  {
+                    tex: String.raw`\begin{aligned}x_i[n]=A\cos(\Omega n+\psi_i):\quad E\big[x_i[n-D]\,u_j[n]\big]&=P_x|H|\cos(\theta+\psi_j-\psi_i)\\&=C\,\tilde R_{ij}-P_x|H|\sin\theta\,\sin(\psi_j-\psi_i)\end{aligned}`,
+                    why: R('兩個固定的同頻單頻 code（$\\rho=\\cos(\\psi_2-\\psi_1)$）：和先備知識「相關」同一個積化和差。$\\theta\\ne0^\\circ$ 時多出反對稱的一項，矩陣不再對稱，也不再是 $C\\,\\tilde{\\mathbf R}$。'),
+                  },
+                ]}
+              />
+              <TexBlock id="F-DB.6">{String.raw`\boxed{\begin{aligned}E\big[x_i[n-D]\,u_j[n]\big]&=P_x|H|\cos(\theta+\psi_j-\psi_i)\\[2pt]\lambda_\pm&=P_x|H|\big(\cos\theta\pm\sqrt{\rho^2-\sin^2\theta}\big)\end{aligned}}`}</TexBlock>
+              <p>
+                這個矩陣的兩個特徵值之和是 <Tex>{'\\lambda_++\\lambda_-=2P_x|H|\\cos\\theta'}</Tex>、乘積是 <Tex>{'\\lambda_+\\lambda_-=P_x^2|H|^2(1-\\rho^2)'}</Tex>；
+                <Tex>{'\\theta=0^\\circ'}</Tex> 時回到 <Tex>{'C(1\\pm\\rho)'}</Tex>。例：<Tex>{'\\rho=0'}</Tex>、<Tex>{'\\theta=60^\\circ'}</Tex>、
+                <Tex>{`\\mu K_qP_x|H|=${f(ft.gp)}`}</Tex>。本模型的 pole 是 <Tex>{`1-${f(ft.gp)}\\cos60^\\circ=${f(ft.model, 4)}`}</Tex>；兩個固定的正交 code 的 pole 是{' '}
+                <Tex>{`1-${f(ft.gp)}\\,e^{\\pm j60^\\circ}=${f(ft.re, 4)}\\mp j${f(ft.im, 4)}`}</Tex>，<Tex>{`|z|=\\sqrt{${f(ft.abs2, 4)}}\\approx${f(ft.fixed, 4)}`}</Tex>，會發散。同樣的{' '}
+                <Tex>{'\\rho'}</Tex>、同樣的 <Tex>{'C'}</Tex>，結論相反；這類情況要用完整的 Jacobian（Ch10）。下方的體檢遇到雙參數且{' '}
+                <Tex>{'\\theta\\ne0^\\circ'}</Tex> 時會列出這個對照值。<ClaimTag kind="exact" />
+              </p>
+            </Callout>
           </div>
         </details>
       </ModeGate>
       {/* 放在 Research 區塊之外：三種模式都看得到這一題（推導在 Research 模式的推導 7；特徵值的先備知識在上面） */}
       <SpineHandCalc
         id="HC-DB.4"
-        lead="兩個相關的參數（$\tilde\lambda_\pm=1\pm\rho$，見先備知識「矩陣的特徵值」）用 preconditioner 校正時，手算兩個 mode 的係數雜訊 $\sigma_{\xi,\pm}$、它們的比值 $\sqrt\kappa$，以及每個係數的 $\sigma_w$。預設數字就是體檢的 preset「$\rho=0.99$ ＋ preconditioner」；完整推導在 Research 模式的推導 7。"
+        lead="兩個相關的參數（$\tilde\lambda_\pm=1\pm\rho$，見先備知識「矩陣的特徵值」）用 preconditioner 校正時，手算兩個 mode 的係數雜訊 $\sigma_{\xi,\pm}$、它們的比值 $\sqrt\kappa$，以及每個係數的 $\sigma_w$。預設數字就是體檢的 preset「$\rho=0.99$ ＋ preconditioner」；完整推導在 Research 模式的推導 7。這一題取 $\theta=0^\circ$，兩個 regressor 的交叉相關就是 $C\,\tilde{\mathbf R}$；$\theta\ne0^\circ$ 時這個 $2\times2$ 模型多一個假設（體檢會提醒）。"
       />
     </section>
   )

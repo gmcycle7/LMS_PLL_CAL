@@ -24,6 +24,7 @@ import {
   ALGORITHM_LABEL,
   CODE_KIND_LABEL,
   DC_MODE_LABEL,
+  RESIDUAL_DUST_REL,
   analyzeBias,
   autoMu,
   mcAgreement,
@@ -165,6 +166,62 @@ interface CaseMc {
 
 function isDeadZone(an: BiasAnalysis | null): an is BiasAnalysis & { zeroSet: { lo: number; hi: number } } {
   return !!an?.zeroSet && an.zeroSet.hi - an.zeroSet.lo > 1e-9
+}
+
+/**
+ * 顯示用：把數學上是 0、只剩浮點捨入的殘差歸零（審查 C04）。
+ * 門檻是 RESIDUAL_DUST_REL × 殘差的自然大小（bias.ts 的 residualScale：e_det 各項絕對值的和）；power = 2 用於功率 E[e²]。
+ * 例：κ = 0.1、沒有 INL 時 w* = a + κ，每個 code 的殘差都是 0，模型算出來的卻是 1.7e-16 之類的殘渣。只改顯示，不改模型的數值。
+ */
+export function residualDust(an: Pick<BiasAnalysis, 'residualScale'>, v: number, power: 1 | 2 = 1): number {
+  return chop(v, an.residualScale ** power, RESIDUAL_DUST_REL ** power)
+}
+
+/** w* 處每個 code 的確定性殘差（含 φ）是不是都是 0（連續 code 看 residualCurve 的格點）。 */
+export function residualAllZero(an: BiasAnalysis): boolean {
+  return Number.isFinite(an.wStar) && an.residualCurve.eStar.every((e) => residualDust(an, e) === 0)
+}
+
+/** gain bias w* − a；(a − w*)·x 這一項在整個 code 範圍內都小於殘差的捨入門檻時視為 0（例：置中 code + offset，求根只準到 1e-13）。 */
+export function gainBiasShown(an: BiasAnalysis, a: number): number {
+  const xMax = an.residualCurve.x.reduce((mx, x) => Math.max(mx, Math.abs(x)), 0)
+  const d = an.wStar - a
+  return xMax > 0 && residualDust(an, d * xMax) === 0 ? 0 : d
+}
+
+/** 「殘差 vs code」那張圖的標題：殘差全為 0 時不可以寫「殘差不歸零」；沒有固定點時不可以寫「GMAC 歸零」。 */
+export function residualPlotTitle(o: { hasFixedPoint: boolean; allZero: boolean }): string {
+  if (!o.hasFixedPoint) return '殘差 vs code（沒有固定點可比較）'
+  return o.allZero ? '殘差 vs code：這組設定下每個 code 的殘差都是 0' : '殘差 vs code：GMAC 歸零，殘差不全為 0'
+}
+
+/**
+ * KPI「E[e_det²]：校正前 → 後」下面的一句話（`$…$` 字串，以 m() 顯示）。
+ * 殘差功率是不是 0 由模型的數字決定（審查 C04）：不可以對每一組設定都寫「殘差功率 ≠ 0」。
+ */
+export function residualPowerNote(o: { jump: boolean; allZero: boolean; biased: boolean }): string {
+  const head = o.jump ? String.raw`$E[G]$ 在 $w^*$ 變號（時間平均為 0），` : '$E[G]=0$'
+  if (!o.allZero) return o.jump ? String.raw`${head}殘差功率 $\neq0$` : String.raw`${head} 但殘差功率 $\neq0$`
+  const tail = o.biased ? String.raw`殘差功率也是 0（$w^*\neq a$：這個誤差與 gain 共線，不可辨識）` : '殘差功率也是 0（這組設定沒有 gain bias）'
+  return o.jump ? `${head}${tail}` : `${head}，${tail}`
+}
+
+/**
+ * 殘差表的圖說（`$…$` 字串，以 m() 顯示；審查 C04／R05）。
+ * MSE：機率加權平均為 0 的是 x·e 欄，e 欄不必每一列都是 0（x = 0 那一列就是 0；沒有 INL 時整欄都是 0）。
+ * Sign（σ_v > 0）：機率加權平均為 0 的是最後一欄 x·E[q|x]。
+ * 無雜訊 Sign、離散 code（jump）：E[G] 是階梯，最後一欄的平均是數值解那一側的值（gLeft、gRight、avg 由模型給）。
+ * allZero：w* 處每個 code 的殘差都是 0（例：κ ≠ 0、沒有 INL）——這時兩欄整欄都是 0，不寫「一般不為 0」。
+ */
+export function residualCaption(o: { isSign: boolean; jump: boolean; allZero: boolean; gLeft: number; gRight: number; avgXg: number }): string {
+  if (o.isSign && o.jump)
+    return String.raw`無雜訊 Sign-LMS（離散 code）：$E[G](w)$ 是階梯，在 $w^*$ 由 $${texNum(chop(o.gLeft))}$ 跳到 $${texNum(chop(o.gRight))}$，是變號而不是連續地通過 0。最後一欄 $x\,E[q|x]$ 在表中這個數值解上的機率加權平均是 $${texNum(chop(o.avgXg))}$（它依數值解落在跳變的哪一側與 tie 而定，不保證是 0）。$x\neq0$ 而 $e(x;\,w^*)$ 欄是 0 的 code 就是 tie 的 code：數值解在那裡的 $e$ 是 0 或只剩捨入誤差（顯示時歸零），最後一欄照模型算出來的 $x\operatorname{sign}(e)$ 顯示，所以在這些 code 上可能是 $\pm|x|$（捨入誤差的正負號）。GMAC 的時間平均仍是 0：$w$ 在 $w^*$ 兩側來回跳。`
+  if (o.allZero)
+    return o.isSign
+      ? String.raw`Sign-LMS：這組設定下每個 code 的殘差 $e(x;\,w^*)$ 都是 0，所以 $x\,e$ 欄與最後一欄 $x\,E[q|x]$ 整欄都是 0（Sign 與 MSE 的固定點相同）。`
+      : String.raw`MSE-LMS：這組設定下每個 code 的殘差 $e(x;\,w^*)$ 都是 0，$x\,e$ 欄整欄都是 0。`
+  if (o.isSign) return String.raw`Sign-LMS：機率加權平均為 0 的是最後一欄 $x\,E[q|x]$（GMAC 歸零），$x\,e$ 欄的平均一般不為 0 —— 這正是 Sign 與 MSE 固定點不同的原因。`
+  return String.raw`MSE-LMS：$x\,e$ 欄的機率加權平均為 0（GMAC 歸零），但這不代表 $e(x;\,w^*)$ 欄的每一列都是 0。`
 }
 
 export function BiasInlLab() {
@@ -425,16 +482,19 @@ export function BiasInlLab() {
   const residualData: Data[] = useMemo(() => {
     if (!an) return []
     const rc = an.residualCurve
+    // 圖上（與滑鼠提示）不顯示浮點殘渣：數學上是 0 的殘差畫成 0
+    const eAtA = rc.eAtA.map((e) => residualDust(an, e))
+    const eStar = rc.eStar.map((e) => residualDust(an, e))
     if (!an.continuous && rc.x.length <= 64) {
       return [
-        { x: rc.x, y: rc.eAtA, type: 'bar', name: '$w=a$（真實線性 gain）', marker: { color: tokens.textMuted } },
-        { x: rc.x, y: rc.eStar, type: 'bar', name: `$w=w^*$（${num(an.wStar)}）`, marker: { color: tokens.series[activeCase.seriesIndex] } },
+        { x: rc.x, y: eAtA, type: 'bar', name: '$w=a$（真實線性 gain）', marker: { color: tokens.textMuted } },
+        { x: rc.x, y: eStar, type: 'bar', name: `$w=w^*$（${num(an.wStar)}）`, marker: { color: tokens.series[activeCase.seriesIndex] } },
       ]
     }
     const mode = an.continuous ? 'lines' : 'markers'
     return [
-      { x: rc.x, y: rc.eAtA, mode, name: '$w=a$', line: { color: tokens.textMuted, dash: 'dash' }, marker: { color: tokens.textMuted, size: 4 } },
-      { x: rc.x, y: rc.eStar, mode, name: `$w=w^*$（${num(an.wStar)}）`, line: { color: tokens.series[activeCase.seriesIndex] }, marker: { color: tokens.series[activeCase.seriesIndex], size: 4 } },
+      { x: rc.x, y: eAtA, mode, name: '$w=a$', line: { color: tokens.textMuted, dash: 'dash' }, marker: { color: tokens.textMuted, size: 4 } },
+      { x: rc.x, y: eStar, mode, name: `$w=w^*$（${num(an.wStar)}）`, line: { color: tokens.series[activeCase.seriesIndex] }, marker: { color: tokens.series[activeCase.seriesIndex], size: 4 } },
       { x: rc.x, y: rc.density, mode: 'lines', name: an.continuous ? 'code pdf（右軸）' : 'code 機率（右軸）', yaxis: 'y2', line: { color: tokens.series[4] ?? tokens.textMuted, width: 1 } },
     ]
   }, [an, activeCase.seriesIndex, tokens])
@@ -527,6 +587,14 @@ export function BiasInlLab() {
   const warnings: string[] = []
   const dcOn = activeCase.params.dcMode !== 'none'
   const deadZone = isDeadZone(an)
+  // σ_v = 0 的離散 code：E[G](w) 是階梯，在 w* 由 gL 跳到 gR —— 固定點是「變號」的位置，不是 E[G] = 0 的根（bias.ts 的 GmacCrossing）
+  const jump = an?.crossing?.kind === 'jump'
+  const gL = an?.crossing?.gLeft ?? Number.NaN
+  const gR = an?.crossing?.gRight ?? Number.NaN
+  // 顯示用：數學上是 0 的殘差／功率／gain bias 不印浮點殘渣（審查 C04；門檻見 residualDust）
+  const allZero = !!an && residualAllZero(an)
+  const biasShown = an ? gainBiasShown(an, shared.a) : Number.NaN
+  const ratioShown = an ? (allZero ? 0 : an.validityRatio) : Number.NaN
   if (act?.error) warnings.push(`參數錯誤：${act.error}`)
   if (an) {
     const algTag = isSign ? 'Sign-LMS mean-field' : 'MSE-LMS 封閉解'
@@ -538,6 +606,17 @@ export function BiasInlLab() {
         claim: 'exact',
         formulaId: 'F-11.10',
         note: String.raw`$E[G]=0$ 於整段區間：解不唯一，$w$ 停在哪裡取決於初值與 $\mu$`,
+      })
+    else if (isSign && jump)
+      metrics.push({
+        name: '$w^*$（Sign-LMS mean-field：$E[G]$ 的變號點）',
+        value: an.wStar,
+        unit: 't.u.',
+        claim: 'exact',
+        formulaId: an.zeroSet ? 'F-11.10' : 'F-11.2',
+        note:
+          String.raw`$\sigma_v=0$、離散 code：$E[G](w)$ 是階梯，在 $w^*$ 由 $${texNum(chop(gL))}$ 跳到 $${texNum(chop(gR))}$：固定點是變號的位置` +
+          (an.zeroSet ? String.raw`；$w^*$ 是 $t(x)$ 的 $|x|$ 加權中位數，也是 $E|e_\mathrm{det}|$ 的最小點` : ''),
       })
     else
       metrics.push({
@@ -553,7 +632,7 @@ export function BiasInlLab() {
     if (Number.isFinite(an.wSecondOrder)) metrics.push({ name: '$w^*$ 二階近似', value: an.wSecondOrder, unit: 't.u.', claim: 'approx', formulaId: 'F-11.9', analytic: an.wStar, tolerance: 1e-4 })
     metrics.push({ name: '$w^*$（MSE-LMS，同 DC 模式）', value: an.wMse, unit: 't.u.', claim: 'exact', formulaId: 'F-11.4' })
     if (an.zeroSet && !deadZone) metrics.push({ name: '無雜訊 Sign：$|x|$ 加權中位數', value: an.zeroSet.lo, unit: 't.u.', claim: 'exact', formulaId: 'F-11.10' })
-    if (!deadZone) metrics.push({ name: 'gain bias $w^*-a$', value: an.wStar - shared.a, unit: 't.u.' })
+    if (!deadZone) metrics.push({ name: 'gain bias $w^*-a$', value: biasShown, unit: 't.u.' })
     if (mcValid && agreement) {
       const ref = mcValid.reference
       const tolNote = String.raw`容許 = $4\,\mathrm{SE}$（${num(agreement.parts.stat, 2)}）+ 有限步長（${num(agreement.parts.step, 2)}）${agreement.parts.servo > 0 ? ` + servo 修正的 25%（${num(agreement.parts.servo, 2)}）` : ''}`
@@ -598,7 +677,7 @@ export function BiasInlLab() {
     }
     metrics.push({ name: '$E[x]$', value: chop(an.moments.Ex, an.moments.Ex2) }, { name: '$E[x^2]$', value: an.moments.Ex2 }, { name: String.raw`$\operatorname{Var}(x)$`, value: an.moments.varX })
     if (isSign)
-      metrics.push({ name: String.raw`$\max|e_\mathrm{det}+\varphi|/\sigma_v$（$w^*$ 處）`, value: an.validityRatio, note: String.raw`$\lesssim0.3$ 時一階線性化可信（勘誤 E01）`, formulaId: 'F-11.3' })
+      metrics.push({ name: String.raw`$\max|e_\mathrm{det}+\varphi|/\sigma_v$（$w^*$ 處）`, value: ratioShown, note: String.raw`$\lesssim0.3$ 時一階線性化可信（勘誤 E01）`, formulaId: 'F-11.3' })
     metrics.push({
       name: String.raw`GMAC 斜率 $S=-dE[G]/dw$（$=K$，勘誤 E13）`,
       value: an.slope,
@@ -625,7 +704,7 @@ export function BiasInlLab() {
     metrics.push({ name: String.raw`平均 pole $p=1-\mu S$`, value: 1 - gUsed })
     for (const c of an.costs) {
       const lbl = c.at === 'w0' ? '校正前（$w=w_0$）' : c.at === 'a' ? '$w=a$' : '校正後（$w=w^*$）'
-      metrics.push({ name: String.raw`$E[e_\mathrm{det}^2]$ ${lbl}`, value: c.mse, unit: String.raw`$\mathrm{t.u.}^2$`, note: String.raw`$E|e_\mathrm{det}|=${texNum(c.mae)}$；含雜訊總功率 $${texNum(c.total)}$` })
+      metrics.push({ name: String.raw`$E[e_\mathrm{det}^2]$ ${lbl}`, value: residualDust(an, c.mse, 2), unit: String.raw`$\mathrm{t.u.}^2$`, note: String.raw`$E|e_\mathrm{det}|=${texNum(residualDust(an, c.mae))}$；含雜訊總功率 $${texNum(residualDust(an, c.total, 2))}$` })
     }
     if (dcOn) metrics.push({ name: String.raw`$\varphi^*$（主迴路加的 DC 偏移）`, value: an.phiStar, unit: 't.u.' })
     if (mcValid && dcOn) {
@@ -665,7 +744,7 @@ export function BiasInlLab() {
   }
   const analyticCheck: CheckEntry =
     an && Number.isFinite(an.wStar)
-      ? { status: 'ok', note: deadZone ? `dead zone (${num(an.zeroSet.lo)}, ${num(an.zeroSet.hi)})：$|x|$ 加權中位數區間與 mean-field $G(w)=0$ 一致` : isSign ? `mean-field root ${num(an.wStar)}（一階 ${num(an.wLinear)}）` : `封閉解 ${num(an.wStar)}` }
+      ? { status: 'ok', note: deadZone ? `dead zone (${num(an.zeroSet.lo)}, ${num(an.zeroSet.hi)})：$|x|$ 加權中位數區間與 mean-field $G(w)=0$ 一致` : isSign && jump ? `mean-field 變號點 ${num(an.wStar)}（$E[G]$ 由 $${texNum(chop(gL))}$ 跳到 $${texNum(chop(gR))}$）` : isSign ? `mean-field root ${num(an.wStar)}（一階 ${num(an.wLinear)}）` : `封閉解 ${num(an.wStar)}` }
       : { status: 'n/a', note: an?.status === 'unidentifiable' ? '不可辨識：沒有唯一固定點' : '沒有吸引的固定點' }
 
   // ── Case A/B/C 並列比較（mean-field vs Monte Carlo；同一個 seed）──
@@ -742,9 +821,9 @@ export function BiasInlLab() {
         '$x$ 與 $v$ 獨立；iid code（DSM 為確定性序列，MC 依時間順序循環、每條 chain 隨機相位）',
         String.raw`$v\sim\mathcal N(0,\sigma_v(x)^2)$，$\sigma_v(x)=\sigma_v\sqrt{1+\rho_j(x-x_j)^2}$；$\rho_j=0$ 時與 code 無關`,
         String.raw`靜態誤差路徑（identity path）：PLL 動態已吸收；主迴路 DC null 以逐 sample 的積分 servo 等效（$k_\varphi\gg$ LMS 速度）`,
-        String.raw`mean-field：小 $\mu$ 平均動態 $E[G](w^*)=0$；MC：$w_{k+1}=w_k+\mu G_k$，$G_k=\tfrac1N\sum q\,x$（average mode）`,
+        String.raw`mean-field：小 $\mu$ 平均動態的固定點 $E[G](w^*)=0$（$\sigma_v=0$ 且 code 離散時 $E[G]$ 是階梯，固定點改指 $E[G]$ 由正變負的位置）；MC：$w_{k+1}=w_k+\mu G_k$，$G_k=\tfrac1N\sum q\,x$（average mode）`,
         String.raw`Analytic ↔ MC 比對：參考值為 mean-field 根（DC null 模式用 servo-aware：$\sigma_\mathrm{eff}^2=\sigma_v^2+\operatorname{Var}(\varphi)$）；容許量 = $4\,\mathrm{SE}$ + 有限步長偏移估計 + servo 修正量的 25%`,
-        String.raw`Comparator tie：MC 用硬體慣例 $\operatorname{sign}(0)=+1$；mean-field 的 $\operatorname{sign}(0)=0$（只影響測度為 0 的點）`,
+        String.raw`Comparator tie：MC 用硬體慣例 $\operatorname{sign}(0)=+1$，mean-field 用 $\operatorname{sign}(0)=0$。$\sigma_v>0$ 時 $e=0$ 的機率是 0，兩者沒有差別；$\sigma_v=0$ 且 code 離散時 tie 有正機率（§11.2：$w=1.4$ 時 $x=\pm2$，機率 $0.4$）：兩種慣例不改變 $E[G]$ 變號的位置，但剛好落在 tie 上的那一步會不同，時間平均 $\bar w$ 可以相差到 $O(\mu)$（勘誤 E40）`,
         String.raw`全站極性 $\delta=a-w$；時間量用正規化單位 t.u.（例如 fs 或 DTC LSB），$x$ 無因次`,
       ]}
       params={{
@@ -907,7 +986,7 @@ export function BiasInlLab() {
               'dead zone：解不唯一'
             ) : (
               <>
-                gain bias <Tex>{'w^*-a'}</Tex> = {an ? signed(an.wStar - shared.a) : '—'}
+                gain bias <Tex>{'w^*-a'}</Tex> = {an ? signed(biasShown) : '—'}
               </>
             )}
           </div>
@@ -918,7 +997,7 @@ export function BiasInlLab() {
           </div>
           <div className="ch11-kpi-value">{an ? num(an.wLinear) : '—'}</div>
           <div className="ch11-kpi-note">
-            {isSign ? m(`$\\max|e_\\mathrm{det}|/\\sigma_v=${an ? texNum(an.validityRatio, 3) : '?'}$`) : 'MSE：與上相同（精確）'}
+            {isSign ? m(`$\\max|e_\\mathrm{det}|/\\sigma_v=${an ? texNum(ratioShown, 3) : '?'}$`) : 'MSE：與上相同（精確）'}
           </div>
         </div>
         <div className="ch11-kpi">
@@ -936,8 +1015,8 @@ export function BiasInlLab() {
           <div className="ch11-kpi-label">
             <Tex>{String.raw`E[e_\mathrm{det}^2]`}</Tex>：校正前 → 後
           </div>
-          <div className="ch11-kpi-value">{an && an.costs.length > 2 ? `${num(an.costs[0].mse, 4)} → ${num(an.costs[2].mse, 4)}` : '—'}</div>
-          <div className="ch11-kpi-note">{m('$E[G]=0$ 但殘差功率 $\\neq0$')}</div>
+          <div className="ch11-kpi-value">{an && an.costs.length > 2 ? `${num(residualDust(an, an.costs[0].mse, 2), 4)} → ${num(residualDust(an, an.costs[2].mse, 2), 4)}` : '—'}</div>
+          <div className="ch11-kpi-note">{an && an.costs.length > 2 ? m(residualPowerNote({ jump, allZero, biased: biasShown !== 0 })) : '沒有固定點可比較'}</div>
         </div>
       </div>
 
@@ -951,7 +1030,7 @@ export function BiasInlLab() {
       />
       <div className="ch11-plot-grid">
         <Plot
-          title="殘差 vs code：GMAC 歸零，殘差不歸零"
+          title={residualPlotTitle({ hasFixedPoint: !an || Number.isFinite(an.wStar), allZero })}
           data={residualData}
           layout={residualLayout}
           height={300}
@@ -1022,9 +1101,7 @@ export function BiasInlLab() {
           <table className="ch11-table">
             <caption className="small muted">
               殘差表（Case {cases.activeId}；<Tex>{'t(x)'}</Tex> 為每個 code 的零誤差 gain）。
-              {isSign
-                ? m('Sign-LMS：機率加權平均為 0 的是最後一欄 $x\\,E[q|x]$（GMAC 歸零），$x\\,e$ 欄的平均並不為 0 —— 這正是 Sign 與 MSE 固定點不同的原因。')
-                : m('MSE-LMS：$x\\,e$ 欄的機率加權平均為 0（GMAC 歸零），但 $e$ 本身不為 0。')}
+              {m(residualCaption({ isSign, jump, allZero, gLeft: gL, gRight: gR, avgXg: residualTable.reduce((acc, r) => acc + r.p * r.xg, 0) }))}
             </caption>
             <thead>
               <tr>
@@ -1054,17 +1131,23 @@ export function BiasInlLab() {
               </tr>
             </thead>
             <tbody>
-              {residualTable.map((r) => (
-                <tr key={r.x}>
-                  <td className="num">{num(r.x, 5)}</td>
-                  <td className="num">{num(r.p, 4)}</td>
-                  <td className="num">{Number.isFinite(r.t) ? num(r.t, 6) : '—'}</td>
-                  <td className="num">{signed(r.eAtA, 5)}</td>
-                  <td className="num">{signed(r.eStar, 5)}</td>
-                  <td className="num">{signed(r.xe, 5)}</td>
-                  {isSign && <td className="num">{signed(r.xg, 5)}</td>}
-                </tr>
-              ))}
+              {residualTable.map((r) => {
+                // 數學上是 0 的殘差不印浮點殘渣（審查 C04）。x·e 跟著歸零；x·E[q|x] 在 σ_v > 0 時也是（erf(0) = 0）。
+                // σ_v = 0 的 tie code 例外：模型的 x·sign(e) 取的是捨入誤差的正負號，照模型的值顯示（圖說有說明）。
+                const eStar = an ? residualDust(an, r.eStar) : r.eStar
+                const zeroed = eStar === 0 && r.eStar !== 0 // 模型算出來的是捨入殘渣
+                return (
+                  <tr key={r.x}>
+                    <td className="num">{num(r.x, 5)}</td>
+                    <td className="num">{num(r.p, 4)}</td>
+                    <td className="num">{Number.isFinite(r.t) ? num(r.t, 6) : '—'}</td>
+                    <td className="num">{signed(an ? residualDust(an, r.eAtA) : r.eAtA, 5)}</td>
+                    <td className="num">{signed(eStar, 5)}</td>
+                    <td className="num">{signed(zeroed ? 0 : r.xe, 5)}</td>
+                    {isSign && <td className="num">{signed(zeroed && activeCase.params.sigmaV > 0 ? 0 : r.xg, 5)}</td>}
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -1073,6 +1156,10 @@ export function BiasInlLab() {
         <Callout kind="warn" title="無雜訊 Sign-LMS">
           <Tex>{'\\sigma_v=0'}</Tex> 時 comparator 只看殘差的正負號；固定點是每個 code 的零誤差 gain <Tex>{'t(x)'}</Tex> 以 <Tex>{'|x|'}</Tex> 加權的中位數，與 MSE 的{' '}
           <Tex>{'x^2'}</Tex> 加權平均不同。把 <Tex>{'\\sigma_v'}</Tex> 調大，看 <Tex>{'w^*'}</Tex> 沿著 <Tex>{'w^*(\\sigma_v)'}</Tex> 圖的曲線滑向 MSE 解。
+          {jump &&
+            m(
+              '這裡 $E[G](w)$ 是階梯：固定點是它由正變負的位置（階梯是「跳過」0，不是連續地通過 0），實際的 $w$ 在兩側以 $O(\\mu)$ 來回跳，GMAC 的時間平均仍是 0。',
+            )}
         </Callout>
       )}
     </ExperimentShell>

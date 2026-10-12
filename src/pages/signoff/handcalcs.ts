@@ -139,7 +139,8 @@ export const HANDCALCS: HandCalcDef[] = [
     title: String.raw`Freeze $\pm\Delta w$ 量測：這次量測判得出極性嗎？至少要幾個 block？`,
     page: '/signoff',
     formulaId: 'F-SO.3',
-    formulaTex: String.raw`K=K_qC=\frac{\sqrt{2/\pi}}{\sigma_v}\cos\theta,\qquad \mathrm{se}(\hat S)=\frac{\sigma_\eta}{\Delta\sqrt{2M}},\quad\sigma_\eta\approx\frac1{\sqrt N},\qquad z=\frac{K}{\mathrm{se}},\qquad M_{\min}=\Big\lceil M\Big(\frac{z_t}{z}\Big)^{2}\Big\rceil=\Big\lceil\frac{z_t^2}{2N\Delta^2K^2}\Big\rceil`,
+    // 兩行（桌機欄寬約 880px，一行排不下會出現橫向捲軸）：恢復力與標準誤；信心倍數與需要的 block 數
+    formulaTex: String.raw`\begin{aligned}&K=K_qC=\frac{\sqrt{2/\pi}}{\sigma_v}\cos\theta,\qquad \mathrm{se}(\hat S)=\frac{\sigma_\eta}{\Delta\sqrt{2M}},\quad\sigma_\eta\approx\frac1{\sqrt N}\\[2pt]&z=\frac{K}{\mathrm{se}},\qquad M_{\min}=\Big\lceil M\Big(\frac{z_t}{z}\Big)^{2}\Big\rceil=\Big\lceil\frac{z_t^2}{2N\Delta^2K^2}\Big\rceil\end{aligned}`,
     level: 'engineer',
     claim: 'approx',
     inputs: [
@@ -223,7 +224,8 @@ export const HANDCALCS: HandCalcDef[] = [
     title: String.raw`GOS／PHOS 兩參數：$\mathbf J$ 的行列式、$\sigma_{\min}$，以及這次量測分得出「不是奇異」嗎？`,
     page: '/signoff',
     formulaId: 'F-SO.12',
-    formulaTex: String.raw`\mathbf J=-K_q\mathbf B,\quad \mathbf B=\mathbf R\,\mathrm{diag}(c_G,c_P)=\begin{bmatrix}c_G&\rho_{GP}c_P\\\rho_{GP}c_G&c_P\end{bmatrix},\qquad \sigma_{\max}(\mathbf B)=\sqrt{\frac{F+\sqrt{F^2-4\det^2\mathbf B}}{2}},\quad F=\|\mathbf B\|_F^2,\qquad \sigma_{\min}(\mathbf J)=K_q\frac{|\det\mathbf B|}{\sigma_{\max}(\mathbf B)}\ \overset{?}{>}\ z\,\|\mathrm{se}\|_F=\frac{2z}{\Delta\sqrt{2MN}}`,
+    // 三行（一行排不下會出現橫向捲軸）：Jacobian 與 B；最大奇異值；可辨識性的判準
+    formulaTex: String.raw`\begin{aligned}&\mathbf J=-K_q\mathbf B,\quad \mathbf B=\mathbf R\,\mathrm{diag}(c_G,c_P)=\begin{bmatrix}c_G&\rho_{GP}c_P\\\rho_{GP}c_G&c_P\end{bmatrix}\\[2pt]&\sigma_{\max}(\mathbf B)=\sqrt{\frac{F+\sqrt{F^2-4\det^2\mathbf B}}{2}},\quad F=\|\mathbf B\|_F^2\\[2pt]&\sigma_{\min}(\mathbf J)=K_q\frac{|\det\mathbf B|}{\sigma_{\max}(\mathbf B)}\ \overset{?}{>}\ z\,\|\mathrm{se}\|_F=\frac{2z}{\Delta\sqrt{2MN}}\end{aligned}`,
     level: 'engineer',
     claim: 'approx',
     inputs: [
@@ -301,7 +303,8 @@ export const HANDCALCS: HandCalcDef[] = [
             why: String.raw`四個元素的平方和。它等於兩個奇異值的平方和：$F=\sigma_{\max}^2+\sigma_{\min}^2$；而 $|\det\mathbf B|=\sigma_{\max}\sigma_{\min}$。`,
           },
           {
-            tex: String.raw`\sqrt{F^2-4\det^2\mathbf B}=\sqrt{${sq(F)}-4\times${sq(det)}}=\sqrt{${num(F * F)}-4\times${num(det * det)}}=\sqrt{${num(F * F)}-${num(4 * det * det)}}=\sqrt{${num(inner)}}=${texNum(disc)}`,
+            // \nolimits：獨立公式（display style）裡 \det^2 的 2 會被排到 det 的正上方，看起來像打錯
+            tex: String.raw`\begin{aligned}\sqrt{F^2-4\det\nolimits^2\mathbf B}&=\sqrt{${sq(F)}-4\times${sq(det)}}=\sqrt{${num(F * F)}-4\times${num(det * det)}}\\&=\sqrt{${num(F * F)}-${num(4 * det * det)}}=\sqrt{${num(inner)}}=${texNum(disc)}\end{aligned}`,
             why: String.raw`$\sigma^2$ 是 $t^2-Ft+\det^2\mathbf B=0$ 的兩個根（和 $=F$、積 $=\det^2$），這是它的判別式開根號，等於 $\sigma_{\max}^2-\sigma_{\min}^2$。依序：兩個平方、乘 $4$、相減、開根號。`,
           },
           {
@@ -419,9 +422,10 @@ export const HANDCALCS: HandCalcDef[] = [
     title: String.raw`同一個 $\mu$ 過兩個 corner：最快的 $PM_d$ 夠嗎？最慢的 $B$ 次內收斂嗎？`,
     page: '/signoff',
     formulaId: 'F-SO.5',
-    formulaTex: String.raw`g_c=\mu K_q(\sigma_{v,c})\cos\theta_c,\qquad PM_d(g_F)=90^\circ-(2d+1)\arcsin\frac{g_F}{2}\ge PM_t,\qquad \rho_S=\begin{cases}|1-g_S|&d=0\\[2pt]\max|z|:\ z^2-z+g_S=0&d=1\end{cases},\qquad k_{95}=\Big\lceil\frac{\ln0.05}{\ln\rho_S}\Big\rceil\le B`,
+    // 兩行（一行排不下會出現橫向捲軸）：每個 corner 的 g 與最快 corner 的 PM；最慢 corner 的 ρ 與 k95
+    formulaTex: String.raw`\begin{aligned}&g_c=\mu K_q(\sigma_{v,c})\cos\theta_c,\qquad PM_d(g_F)=90^\circ-(2d+1)\arcsin\frac{g_F}{2}\ge PM_t\\[2pt]&\rho_S=\begin{cases}|1-g_S|&d=0\\[2pt]\max|z|:\ z^2-z+g_S=0&d=1\end{cases},\qquad k_{95}=\Big\lceil\frac{\ln0.05}{\ln\rho_S}\Big\rceil\le B\end{aligned}`,
     level: 'engineer',
-    // g、PM_d、ρ_S 在線性化一階模型內是精確的；k95 用 ρ_S^k 的包絡估計（d = 1 時兩個模式的係數不剛好是 1），所以整題標「近似」
+    // g、PM_d、ρ_S 在線性化一階模型內是精確的；k95 用 ρ_S 的漸近衰減率估計（d = 1 時 ρ_S^k 不是誤差的包絡：重根、複數根），所以整題標「近似」
     claim: 'approx',
     inputs: [
       { key: 'sigmaF', symbol: String.raw`\sigma_{v,F}`, label: '最快的 corner：comparator 雜訊', unit: String.raw`\mathrm{fs}`, default: 70, min: 1, max: 10000, practice: { choices: [50, 70, 80, 100] } },
@@ -508,8 +512,11 @@ export const HANDCALCS: HandCalcDef[] = [
           {
             tex: String.raw`k_{95}=\Big\lceil\frac{\ln0.05}{\ln\rho_S}\Big\rceil=\Big\lceil\frac{${texNum(LN_005)}}{${texNum(lnRho)}}\Big\rceil=\left\lceil${ceilArg(LN_005 / lnRho, S.settle95)}\right\rceil=${int(S.settle95)}`,
             why:
-              String.raw`誤差包絡 $\rho_S^{\,k}\le0.05$ ⇒ $k\ge\ln0.05/\ln\rho_S$（兩個負數相除得正數），再無條件進位。和 $B=${int(B)}$ 比：${S.ok.settle ? '來得及' : '來不及'}。` +
-              (d === 1 ? String.raw`$d=1$ 時這是包絡估計：實際的誤差是兩個模式的組合，前面的係數不剛好是 $1$（$g_S$ 越接近 $\tfrac14$ 差越多）。` : ''),
+              (d === 0 ? String.raw`$d=0$ 時平均誤差的大小每個 block 剛好乘上 $\rho_S$：$\rho_S^{\,k}\le0.05$` : String.raw`用 $\rho_S$ 的漸近衰減率估計：$\rho_S^{\,k}\le0.05$`) +
+              String.raw` ⇒ $k\ge\ln0.05/\ln\rho_S$（兩個負數相除得正數），再無條件進位。和 $B=${int(B)}$ 比：${S.ok.settle ? '來得及' : '來不及'}。` +
+              (d === 1
+                ? String.raw`$d=1$ 時這只是估計：實際的誤差是兩個模式的組合，$\rho_S^{\,k}$ 不是它的包絡，逐 block 算出來的 block 數可能比它多、也可能比它少（相對差距在 $g_S=\tfrac14$ 附近最大：那裡是重根 $z=\tfrac12$，公式給 $5$，從定值的初始歷史逐 block 算要 $7$）。`
+                : ''),
           },
         )
       }

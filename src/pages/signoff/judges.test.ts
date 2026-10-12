@@ -368,6 +368,69 @@ describe('Corner、延遲與雜訊增益', () => {
     })
   })
 
+  it('技術審查 R13：單參數時「穩定」⇔ 0 < g < g_crit(d)——穩定已經包含極性正確（g = μK > 0），反過來不成立', () => {
+    // 反例（對「六個條件互相獨立」）：極性錯誤 g < 0 時，任何 d 都不穩定。g = −0.5·10·√(2/π)/100（C = −0.5、μ = 10 fs、σ_v = 100 fs）
+    const gNeg = -0.5 * 10 * J.kq(100)
+    expect(gNeg).toBeCloseTo(-0.0398942280401, 12)
+    const rhoNeg = [1.03989422804, 1.03841826496, 1.03709162111, 1.03588967703, 1.03479330082] // 獨立的 numpy.roots 結果
+    rhoNeg.forEach((r, d) => expect(J.delayPoles(gNeg, d).rho).toBeCloseTo(r, 9))
+    for (let d = 0; d <= 8; d++) {
+      // g ≤ 0：不收斂（g = 0 時根在 z = 1 上）；多小的負 g 都救不回來
+      for (const g of [-1, -0.3, -1e-3, -1e-6]) expect(J.delayPoles(g, d).rho, `g=${g}, d=${d}`).toBeGreaterThan(1)
+      expect(J.delayPoles(0, d).rho).toBeCloseTo(1, 12)
+      // 正常對照：0 < g < g_crit(d) 都穩定
+      for (const f of [0.02, 0.2, 0.5, 0.8, 0.98]) expect(J.delayPoles(f * J.gCrit(d), d).rho, `f=${f}, d=${d}`).toBeLessThan(1)
+      // 反方向不成立：極性正確（g > 0）但 g ≥ g_crit(d) 時不收斂
+      for (const f of [1.02, 1.5, 3]) expect(J.delayPoles(f * J.gCrit(d), d).rho, `f=${f}, d=${d}`).toBeGreaterThan(1)
+    }
+    // 密掃一次：穩定 ⇒ g > 0（沒有例外），而且穩定區間就是 (0, g_crit)
+    for (let d = 0; d <= 4; d++) {
+      for (let i = 0; i <= 640; i++) {
+        const g = -1 + (3.2 * i) / 640
+        const stable = J.delayPoles(g, d).rho < 1 - 1e-9
+        if (stable) expect(g, `g=${g}, d=${d}`).toBeGreaterThan(0)
+        if (Math.abs(g) > 1e-6 && Math.abs(g - J.gCrit(d)) > 1e-2) expect(stable, `g=${g}, d=${d}`).toBe(g > 0 && g < J.gCrit(d))
+      }
+    }
+    expect(J.delayPoles(0.5 * J.gCrit(1), 1).rho).toBeCloseTo(Math.SQRT1_2, 12) // d = 1、g = 0.5：|z| = 1/√2
+  })
+
+  it('技術審查 R02：k95 = ⌈ln 0.05/ln ρ⌉ 在 d = 0 精確；d ≥ 1 只是漸近估計，逐 block 算可能更多也可能更少', () => {
+    // 逐 block 的平均遞迴 δ_{k+1} = δ_k − g·δ_{k−d}，初始歷史都是 1：1 + 最後一次 |δ_k| > 5% 的 k
+    const settle = (g: number, d: number) => {
+      const y = new Array<number>(d + 1).fill(1)
+      let last = 0
+      for (let k = 1; k < 5000; k++) {
+        y.push(y[y.length - 1] - g * y[y.length - 1 - d])
+        if (Math.abs(y[y.length - 1]) > 0.05) last = k
+      }
+      return last + 1
+    }
+    const k95 = (g: number, d: number) =>
+      J.cornerJudge([{ name: 'x', sigmaV: 100, thetaDeg: 0 }], { mu: g / J.kq(100), d, pmTargetDeg: 0, B: Infinity, N: 4096, sigmaWMax: Infinity })[0].settle95
+    // 反例（Corner 判斷器假設欄寫的那一組）：d = 1、g = 1/4 是重根 z = 1/2，δ_k = (1 + k/2)·2^{−k}
+    expect(J.delayPoles(0.25, 1).rho).toBeCloseTo(0.5, 6)
+    expect(k95(0.25, 1)).toBe(5)
+    expect(settle(0.25, 1)).toBe(7)
+    expect((1 + 5 / 2) * 2 ** -5).toBe(0.109375) // k = 5 還有 10.9%
+    expect((1 + 6 / 2) * 2 ** -6).toBeGreaterThan(0.05)
+    expect((1 + 7 / 2) * 2 ** -7).toBeLessThan(0.05)
+    // 兩個方向都會錯（獨立的 NumPy 重算：公式／逐 block）
+    const cases: [number, number, number, number][] = [
+      [4 / 27, 2, 8, 11],
+      [27 / 256, 3, 11, 16],
+      [0.33 * J.gCrit(3), 3, 14, 8],
+      [0.8, 1, 27, 26],
+    ]
+    for (const [g, d, formula, actual] of cases) {
+      expect(k95(g, d), `公式 g=${g}, d=${d}`).toBe(formula)
+      expect(settle(g, d), `逐 block g=${g}, d=${d}`).toBe(actual)
+    }
+    // 正常對照：d = 0 時兩者相同
+    for (const g of [0.005, 0.0797884561, 0.25, 0.5, 0.9, 1.5]) expect(settle(g, 0), `g=${g}`).toBe(k95(g, 0))
+    expect(k95(0.005, 0)).toBe(598) // T11
+  })
+
   it('T08: g = 1、d = 0 ⇒ pole 0、PM 60°；d = 1 時剛好臨界', () => {
     expect(J.delayPoles(1, 0).rho).toBeCloseTo(0, 14)
     expect(J.pmDeg(1, 0)).toBeCloseTo(60, 12)

@@ -31,7 +31,9 @@ export function S08Phos() {
     const fxI = (kHat: number) => analyseAlpha(LOOPS.L2, 71.5 / FREF_MHZ, 'fx:typeI', { typeI: makeL1({ K: kHat }) }).kappaPhos
     // 帶緣 127 MHz：最差模態的 κ
     const edge = analyseAlpha(LOOPS.L2, 127 / FREF_MHZ)
-    return { lsRaw: ls('raw'), lsAc: ls('ac'), ls1d: ls('1diff'), fx02: fxI(0.2), fx01: fxI(0.1), fx005: fxI(0.05), edge: edge.kappaM[edge.worstMode - 1] }
+    // 手算例 α = 0.021 的 κ_1（完整的複數；表格只列實部）
+    const k1 = analyseAlpha(LOOPS.L2, 0.021).kappaM[0]
+    return { lsRaw: ls('raw'), lsAc: ls('ac'), ls1d: ls('1diff'), fx02: fxI(0.2), fx01: fxI(0.1), fx005: fxI(0.05), edge: edge.kappaM[edge.worstMode - 1], k1 }
   }, [])
   return (
     <Section kind="formula" level={2} title="8. PHOS：8 相 circulant 與 DFT 模態" id="cs-8">
@@ -86,6 +88,14 @@ export function S08Phos() {
         </Claim>
       </p>
       <p>
+        <strong>
+          <Tex>{r`\kappa_m`}</Tex> 是複數；談正負時看實部。
+        </strong>{' '}
+        <Tex>{r`\Gamma_{\rm eff}`}</Tex> 是複數，所以 <Tex>{r`\lambda_m`}</Tex>、<Tex>{r`\kappa_m`}</Tex> 一般也是複數，而且 <Tex>{r`\lambda_{8-m}=\overline{\lambda_m}`}</Tex>（<Tex>{'C'}</Tex> 是實數矩陣；mode 7 是 mode 1 的共軛，<Tex>{r`\lambda_4`}</Tex> 是實數）。§4
+        說過，決定誤差放大或縮小的是 <Tex>{r`\mathrm{Re}\,\lambda`}</Tex>，所以反號、上下界、sign map 與門檻 <Tex>{r`\tau`}</Tex> 看的都是實部：下面一律寫成 <Tex>{r`\mathrm{Re}\,\kappa_m`}</Tex>，最差的那個記作{' '}
+        <Tex>{r`\kappa_{PHOS}=\min_m\mathrm{Re}\,\kappa_m`}</Tex>。虛部 <Tex>{r`\mathrm{Im}\,\kappa_m`}</Tex> 讓誤差旋轉，到 §12 的有限步長判據才用到；那裡要代整個複數，不能只代實部。
+      </p>
+      <p>
         <strong>共模是精確的 null</strong>：對任何 <Tex>{r`\alpha`}</Tex>（包括 <Tex>{r`8\nmid Q`}</Tex>、occupancy 不均）都成立。因為 <Tex>{'H(1)=0'}</Tex>，全 1 向量同時是右 null（<Tex>{r`C\mathbf1=\langle x\,(h*1)\rangle=0`}</Tex>）與左 null（
         <Tex>{r`\mathbf 1^TC=0`}</Tex>）。物理上，共模就是一個靜態相位偏移，迴路會把它吃掉，所以它無害也不可觀測。
         <Claim kind="exact" />
@@ -93,7 +103,7 @@ export function S08Phos() {
       <p>
         <strong>權重集中在基波</strong>：<Tex>{`w_1=W_1=64\\sin^2(\\pi/8)/\\pi^2=${tx(W1, 5)}`}</Tex>。所以
       </p>
-      <TexBlock>{`\\boxed{\\ \\kappa_1\\approx${tx(W1, 4)}\\,\\mathrm{Re}\\,H_{PD}(\\alpha f_{ref})+\\text{（剩下 ${fx((1 - W1) * 100, 0)}\\% 散在高頻）}\\ }`}</TexBlock>
+      <TexBlock>{`\\boxed{\\ \\mathrm{Re}\\,\\kappa_1\\approx${tx(W1, 4)}\\,\\mathrm{Re}\\,H_{PD}(\\alpha f_{ref})+\\text{（剩下 ${fx((1 - W1) * 100, 0)}\\% 散在高頻）}\\ }`}</TexBlock>
       <p>
         mode-1 的 regressor 就是「PMUX 以 <Tex>{r`\alpha f_{ref}`}</Tex> 旋轉」這件事本身。旋轉頻率落在反號帶，mode-1 就反號。
       </p>
@@ -109,12 +119,13 @@ export function S08Phos() {
         rows={[
           ...lines.map((l) => [String(l.l).replace('-', '−'), fx(fold(l.f_MHz), 0), fx(l.w, 5), fx(l.ReH, 5), <Kappa key="c" v={l.w * l.ReH} digits={5} tol={0} />]),
           ['其他', '', fx(1 - wSum, 5), '', <Kappa key="c" v={WORKED.c_8Relam1 - cSum} digits={4} tol={0} />],
-          [<strong key="s">合計 <Tex>{r`\kappa_1=8\mathrm{Re}\lambda_1`}</Tex></strong>, '', '1', '', <Kappa key="c" v={WORKED.c_8Relam1} digits={5} />],
+          [<strong key="s">合計 <Tex>{r`\mathrm{Re}\,\kappa_1=8\,\mathrm{Re}\,\lambda_1`}</Tex></strong>, '', '1', '', <Kappa key="c" v={WORKED.c_8Relam1} digits={5} />],
         ]}
       />
       <p>
-        這是最差點附近，<Tex>{`\\kappa_1=${tx(WORKED.c_8Relam1, 4)}`}</Tex>；L2 在 <Tex>{r`j/4096`}</Tex> 網格上的最差值是 <Tex>{tx(map.L2.worst_kP, 4)}</Tex> @ {fx(map.L2.worst_at_MHz, 1)} MHz。同一點其他模態為{' '}
-        <Tex>{`\\kappa_{2..4}=${WORKED.c_8lam_all.slice(1, 4).map((v) => tx(v, 3)).join(',\\ ')}`}</Tex>，全部 restoring，所以只有 mode-1（以及 mode-7，它是 mode-1 的共軛）反號。
+        這是最差點附近，<Tex>{`\\mathrm{Re}\\,\\kappa_1=${tx(WORKED.c_8Relam1, 4)}`}</Tex>（完整的複數是{' '}
+        <Tex>{`\\kappa_1=${tx(tryNums.k1.re, 4)}${tryNums.k1.im >= 0 ? '+' : '-'}${tx(Math.abs(tryNums.k1.im), 4)}j`}</Tex>；虛部不改變反號與否，§12 才用到）；L2 在 <Tex>{r`j/4096`}</Tex> 網格上的最差值是 <Tex>{tx(map.L2.worst_kP, 4)}</Tex> @ {fx(map.L2.worst_at_MHz, 1)} MHz。同一點其他模態為{' '}
+        <Tex>{`\\mathrm{Re}\\,\\kappa_{2..4}=${WORKED.c_8lam_all.slice(1, 4).map((v) => tx(v, 3)).join(',\\ ')}`}</Tex>，全部 restoring，所以只有 mode-1（以及 mode-7，它是 mode-1 的共軛）反號。
       </p>
       <Src>
         golden 的 <code>worked_examples.json</code>；TS 的 <code>phosLambdaHarmonic</code> 在測試中重現 7 個模態到 <Tex>{r`2\times10^{-9}`}</Tex>。
@@ -126,7 +137,7 @@ export function S08Phos() {
 
       <h3>8.2 嚴格的 mode-1 界限：「一定反號」與「不可能反號」</h3>
       <p>
-        mode-1 有 95% 的權重在基波，但還有 5% 散在別的頻率。只看基波會不會誤判？把剩下的 5% 想成「不知道落在哪裡」，分別放在對你最有利與最不利的頻率，就得到 <Tex>{r`\kappa_1`}</Tex> 的上下界：
+        mode-1 有 95% 的權重在基波，但還有 5% 散在別的頻率。只看基波會不會誤判？把剩下的 5% 想成「不知道落在哪裡」，分別放在對你最有利與最不利的頻率，就得到 <Tex>{r`\mathrm{Re}\,\kappa_1`}</Tex> 的上下界（<Tex>{r`\kappa_1`}</Tex> 是複數，不能和實數比大小；能夾的是實部，而反號正好只看實部）：
       </p>
       <Diagram id="mode1-bounds" />
       <p>
@@ -135,9 +146,12 @@ export function S08Phos() {
       </p>
       <StepDerivation
         steps={[
-          { tex: r`\begin{aligned}\kappa_1&=W_1\,\mathrm{Re}\Gamma(\alpha)\\&\quad+\textstyle\sum_{\ell\ne1}w_\ell\,\mathrm{Re}\Gamma(\ell\alpha)\end{aligned}`, why: '把基波從和裡拿出來。' },
           {
-            tex: r`W_1\mathrm{Re}\Gamma(\alpha)+(1-W_1)\min_f\mathrm{Re}\Gamma\;\le\;\kappa_1\;\le\;W_1\mathrm{Re}\Gamma(\alpha)+(1-W_1)\max_f\mathrm{Re}\Gamma`,
+            tex: r`\begin{aligned}\mathrm{Re}\,\kappa_1&=W_1\,\mathrm{Re}\Gamma(\alpha)\\&\quad+\textstyle\sum_{\ell\ne1}w_\ell\,\mathrm{Re}\Gamma(\ell\alpha)\end{aligned}`,
+            why: <>F-CS.13 兩邊取實部（權重 <Tex>{r`w_\ell`}</Tex> 是實數），再把基波從和裡拿出來。</>,
+          },
+          {
+            tex: r`W_1\mathrm{Re}\Gamma(\alpha)+(1-W_1)\min_f\mathrm{Re}\Gamma\;\le\;\mathrm{Re}\,\kappa_1\;\le\;W_1\mathrm{Re}\Gamma(\alpha)+(1-W_1)\max_f\mathrm{Re}\Gamma`,
             why: <>其餘權重和為 <Tex>{'1-W_1'}</Tex>，每一項夾在 <Tex>{r`\mathrm{Re}\Gamma`}</Tex> 的全域最小與最大之間。</>,
           },
           { tex: r`\text{一定反號}\iff\mathrm{Re}\,H(\alpha f_{ref})<-\frac{(1-W_1)\max\mathrm{Re}H}{W_1}`, why: <>上界 <Tex>{'<0'}</Tex> 就保證反號。</> },
@@ -221,7 +235,7 @@ export function S08Phos() {
           (a) 近整數（<Tex>{r`\alpha\to0`}</Tex>）：dead zone，不是穩健反號。
         </strong>{' '}
         one-hot 變成每 <Tex>{r`1/(8\alpha)`}</Tex> 拍換一次相的階梯，<Tex>{r`C\approx(\text{rate})\cdot S_\infty\cdot\sum\Delta^2/2`}</Tex> 加上對 <Tex>{r`1/(8\alpha)`}</Tex> 指數小的尾項。Type-II 的 <Tex>{r`S_\infty=0`}</Tex>，只剩符號不定的尾項。L2 在{' '}
-        {fx(FREF_MHZ / 256, 1)} MHz（<Tex>{r`\alpha=1/256`}</Tex>）時 <Tex>{`\\kappa_{1..4}=${nearInt.km.slice(0, 4).map((k) => (k.re >= 0 ? '+' : '') + tx(k.re, 5)).join(',\\ ')}`}</Tex>：最負的是 m3、m4，不是 m1。這就是不同報告之間「反號帶下緣 3.9／16／22.5 MHz」說法不同的根因：門檻不同（
+        {fx(FREF_MHZ / 256, 1)} MHz（<Tex>{r`\alpha=1/256`}</Tex>）時 <Tex>{`\\mathrm{Re}\\,\\kappa_{1..4}=${nearInt.km.slice(0, 4).map((k) => (k.re >= 0 ? '+' : '') + tx(k.re, 5)).join(',\\ ')}`}</Tex>：最負的是 m3、m4，不是 m1。這就是不同報告之間「反號帶下緣 3.9／16／22.5 MHz」說法不同的根因：門檻不同（
         <Tex>{r`10^{-12}`}</Tex> 或 <Tex>{r`10^{-3}`}</Tex>），統計的模態也不同。
         <Claim kind="approx">
           數值是精確的，但它的符號會隨 step response 的尾巴、<Tex>{r`\sigma_v`}</Tex>、探測幅度而變，實務上一律當作「不收斂、會漂移」
@@ -236,7 +250,7 @@ export function S08Phos() {
         </li>
         <li>
           <Tex>{r`8\nmid Q`}</Tex>：occupancy 不均勻（<Tex>{r`\alpha=1/50`}</Tex> 的 8 相佔用率是 {p50.occupancy.map((o) => fx(o, 2)).join('、')}），GOS–PHOS 有耦合（§9）。例：<Tex>{r`\alpha=1/50`}</Tex> 時 L2 的{' '}
-          <Tex>{`8\\lambda_{min}=${tx(p50.eightlam_min, 4)}`}</Tex>；若改用同一紀錄的開迴路參考正規化（sim 的做法，參考值是 {fx(ref50, 2)} 而不是 1/8），得到 <Tex>{tx(p50.kP_occnorm, 4)}</Tex>。不同報告之間「{fx(sim020?.kP_sim, 4)} @ <Tex>{r`\alpha=0.020`}</Tex>」（時域 sim）與「{fx(sim021?.kP_8lam_ergodic, 3)} @ 84 MHz」（理論）的差異，
+          <Tex>{`8\\min_m\\operatorname{Re}\\lambda_m=${tx(p50.eightlam_min, 4)}`}</Tex>（特徵值是複數，這裡取實部最小的那一個）；若改用同一紀錄的開迴路參考正規化（sim 的做法，參考值是 {fx(ref50, 2)} 而不是 1/8），得到 <Tex>{tx(p50.kP_occnorm, 4)}</Tex>。不同報告之間「{fx(sim020?.kP_sim, 4)} @ <Tex>{r`\alpha=0.020`}</Tex>」（時域 sim）與「{fx(sim021?.kP_8lam_ergodic, 3)} @ 84 MHz」（理論）的差異，
           <strong>全部</strong>來自這個正規化與 <Tex>{r`\alpha`}</Tex> 本身不同。
           <Claim kind="exact" />
         </li>
@@ -271,7 +285,7 @@ export function S08Phos() {
       </ul>
       <p>
         因為 <Tex>{`${tx(W_SQUARE, 2)}\\min\\mathrm{Re}H+${tx(1 - W_SQUARE, 2)}\\max\\mathrm{Re}H>0`}</Tex>（L2：{fx(aliasBound('L2'), 4)}；L3：{fx(aliasBound('L3'), 4)}），<strong>alias 區的反號永遠不能保證</strong>，只會是近乎抵消的 dead zone。在 8 | Q 的網格上{' '}
-        <Tex>{r`\lvert\kappa\rvert\lesssim5\times10^{-3}`}</Tex>；<Tex>{r`8\nmid Q`}</Tex> 的有理數可以到 <Tex>{tx(alias.L2.worst[0][3], 4)}</Tex>（L2，<Tex>{`\\alpha=${alias.L2.worst[0][0]}/${alias.L2.worst[0][1]}`}</Tex>），其次{' '}
+        <Tex>{r`\lvert\kappa_{PHOS}\rvert\lesssim5\times10^{-3}`}</Tex>；<Tex>{r`8\nmid Q`}</Tex> 的有理數可以到 <Tex>{tx(alias.L2.worst[0][3], 4)}</Tex>（L2，<Tex>{`\\alpha=${alias.L2.worst[0][0]}/${alias.L2.worst[0][1]}`}</Tex>），其次{' '}
         <Tex>{`${alias.L2.worst[1][0]}/${alias.L2.worst[1][1]}`}</Tex>：<Tex>{tx(alias.L2.worst[1][3], 4)}</Tex>。L2 在 <Tex>{r`Q\le400`}</Tex>、mode-1 帶緣以上有 {alias.L2.n_hits} 個 PHOS 反號的有理數，其中離 <Tex>{r`\tfrac14`}</Tex> 或{' '}
         <Tex>{r`\tfrac12`}</Tex> 超過 <Tex>{r`\pm0.02`}</Tex> 的有 {alias.L2.n_far} 個；L3 則是 {alias.L3.n_hits} 個。
         <Claim kind="exact">界限部分</Claim>
@@ -286,7 +300,7 @@ export function S08Phos() {
       <SignMapExplorer />
       <TryIt
         items={[
-          <>預設（L2、83.5 MHz、raw）：mode 1 與 mode 7 的長條是紅的（<Tex>{`\\kappa\\approx${tx(web.L2.worst_kP, 2)}`}</Tex>），其餘是藍的。把 regressor 模式換成「一階差分」：全部變藍——同一個 <Tex>{r`\alpha`}</Tex>、同一個迴路，只改了 GMAC 的 regressor。</>,
+          <>預設（L2、83.5 MHz、raw）：mode 1 與 mode 7 的長條是紅的（<Tex>{`\\mathrm{Re}\\,\\kappa\\approx${tx(web.L2.worst_kP, 2)}`}</Tex>），其餘是藍的。把 regressor 模式換成「一階差分」：全部變藍——同一個 <Tex>{r`\alpha`}</Tex>、同一個迴路，只改了 GMAC 的 regressor。</>,
           <>把 <Tex>{r`\alpha f_{ref}`}</Tex> 拉到 140 MHz 以上：mode-1 的下界變成正的；再拉到 988.5 MHz（<Tex>{r`\alpha\approx\tfrac14`}</Tex>）：這次輪到 mode 4 掉進 dead zone，而單線近似仍然顯示 +{fx(alias247?.kP_single_line, 1)}。</>,
           <>
             輸入 80 MHz（<Tex>{r`\alpha=1/50`}</Tex>，<Tex>{r`8\nmid Q`}</Tex>）：指標列的「精確週期 <Tex>{r`\kappa_{PHOS}`}</Tex>」（{fx(p50.kP_occnorm, 3)}，以該紀錄的開迴路參考 {fx(ref50, 2)} 正規化）與 ergodic（{fx(p50.ergodic_min, 3)}）不同，並出現 GOS–PHOS 耦合。
@@ -301,7 +315,7 @@ export function S08Phos() {
             <Tex>{`\\kappa_{PHOS}=${tx(tryNums.fx01, 4)}`}</Tex> 仍為正；降到 0.05 才真的反號（<Tex>{`\\kappa_{PHOS}=${tx(tryNums.fx005, 4)}`}</Tex>）。臨界值是「對任何 <Tex>{r`\alpha`}</Tex> 都保證安全」的界線，不是「一低於就反號」的界線。
           </>,
           <>
-            把 <Tex>{r`\alpha f_{ref}`}</Tex> 設為 127 MHz、<Tex>{r`N_\tau=25`}</Tex>（<Tex>{r`N_\tau`}</Tex> 是沒有迴路時 LMS 的時間常數，單位是 block；它越小，步長越大）：<Tex>{`\\kappa_1=${tx(tryNums.edge.re, 4)}+${tx(tryNums.edge.im, 4)}j`}</Tex>，<Tex>{r`\mathrm{Re}\,\kappa>0`}</Tex> 但{' '}
+            把 <Tex>{r`\alpha f_{ref}`}</Tex> 設為 127 MHz、<Tex>{r`N_\tau=25`}</Tex>（<Tex>{r`N_\tau`}</Tex> 的單位是 block：沒有迴路、8 個相位被選到的次數一樣多（<Tex>{r`H\equiv1`}</Tex>、<Tex>{r`\kappa=1`}</Tex>）時 LMS 每個 block 修掉誤差的 <Tex>{r`1/N_\tau`}</Tex>，所以叫開迴路的名義時間常數；它越小，步長越大，§12 再細講）：<Tex>{`\\kappa_1=${tx(tryNums.edge.re, 4)}+${tx(tryNums.edge.im, 4)}j`}</Tex>，<Tex>{r`\mathrm{Re}\,\kappa>0`}</Tex> 但{' '}
             <Tex>{`\\lvert\\kappa\\rvert^2/(2N_\\tau)=${tx((tryNums.edge.re ** 2 + tryNums.edge.im ** 2) / 50, 4)}`}</Tex> 更大，有限步長判據顯示不穩定；把 <Tex>{r`N_\tau`}</Tex> 加大到 50 就穩定了（§12）。
           </>,
         ]}

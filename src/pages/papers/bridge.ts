@@ -269,6 +269,38 @@ export function stepsToDecay(radius: number, frac = 0.05): number {
 }
 // #endregion
 
+// #region core:countedStepsToDecay
+/**
+ * 逐 step 數出來的衰減步數（技術審查 R02）：照平均遞迴 δ_{k+1} = δ_k − g·δ_{k−d} 一步一步算
+ * （初始歷史 δ_j = 1，j ≤ 0，和 delayedTrajectory 相同），回傳 1 + max{k : |δ_k| > frac}，
+ * 也就是暫態「最後一次」超過 frac 的下一個 step（不是第一次低於：複數根會回彈）。
+ * d = 0 時 δ_k = (1 − g)^k，結果就是 stepsToDecay(|1 − g|)；d ≥ 1 時 |z|_max^k 不是 |δ_k| 的包絡，兩者會差幾步到幾十步。
+ * 停止規則：連續 d + 1 個 |δ|（整個狀態）都 ≤ frac·10⁻³ 才停。之後不會再超過 frac 的依據是量到的上界，不是證明：
+ * 狀態的 ∞-範數之後最多再放大 sup_j ‖F^j‖_∞ = 1 + d·g 倍（本實驗的 d ≤ 6、0 < g < g*(d) 逐點量測，最大 2.45），離 frac 還有約 400 倍的餘裕；
+ * labModel.test.ts 以格點和長時間的暴力遞推比對。不穩定（|z|_max ≥ 1）回傳 ∞；maxSteps 內沒有停（極慢的 mode）回傳 NaN。
+ */
+export function countedStepsToDecay(g: number, d: number, frac = 0.05, maxSteps = 1_000_000): number {
+  const radius = delaySpectralRadius(g, d)
+  if (!(radius < 1)) return Infinity
+  if (d === 0) return stepsToDecay(radius, frac)
+  const L = d + 1
+  // 環形緩衝：步驟 n 開始時 ring[n % L] = δ_n、ring[(n + 1) % L] = δ_{n−d}
+  const ring = new Float64Array(L).fill(1)
+  let lastAbove = 0
+  let small = 0
+  for (let n = 0; n < maxSteps; n++) {
+    const next = ring[n % L] - g * ring[(n + 1) % L]
+    ring[(n + 1) % L] = next
+    const a = Math.abs(next)
+    if (a > frac) lastAbove = n + 1
+    if (a <= frac * 1e-3) {
+      if (++small >= L) return lastAbove + 1
+    } else small = 0
+  }
+  return Number.NaN
+}
+// #endregion
+
 // ───────────────────────── 3. D1：係數雜訊（Ch12） ─────────────────────────
 
 export interface CalNoiseInput {

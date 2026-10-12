@@ -46,6 +46,12 @@ export function S5Mismatch() {
     })
   }, [])
 
+  // ── 模型完美（Ĥ = H）但 regressor 再延遲 D：C_{f,D} = E[u[n]·u_f[n − D]] = R_u[D]（單頻 unit power：cos(ΩD)）──
+  const extraD = useMemo(() => {
+    const H = pathTransfer(TONE_PATH)
+    return [2, 3, 4].map((D) => ({ D, c: analyticCorr({ code: TONE_CODE, h: H, g: H, D }) as number }))
+  }, [])
+
   // ── 逐頻率相位差：Type-II（d = 1）與幾種 Ĥ ──
   const prof = useMemo(() => {
     const H = pathTransfer(TYPE2)
@@ -88,7 +94,7 @@ export function S5Mismatch() {
   return (
     <Section kind="assumptions" level={2} title="7.5 模型不準怎麼辦？Filtered-x 的極性條件（E45）" id="ch07-mismatch">
       <p>
-        Filtered-x 的保證 <Tex>{r`E[u^2]\ge0`}</Tex> 只在 <Tex>{r`\hat H=H`}</Tex> 時成立。實際的 <Tex>{r`\hat H`}</Tex> 是設計者對 PLL 的<strong>模型</strong>：
+        Filtered-x 的保證 <Tex>{r`E[u^2]\ge0`}</Tex> 只在 <Tex>{r`\hat H=H`}</Tex>、而且 regressor 沒有額外延遲（<Tex>{'D=0'}</Tex>）時成立。實際的 <Tex>{r`\hat H`}</Tex> 是設計者對 PLL 的<strong>模型</strong>：
         loop bandwidth 隨 PVT 漂移、DCO gain <Tex>{r`K_{\mathrm{DCO}}`}</Tex> 估錯、pipeline latency 少算一拍……{' '}
         <ErratumNote id="E45">
           規格只給了 <Tex>{r`\hat H=H`}</Tex> 的情形；有模型誤差時，analytic pole 必須用 <Tex>{r`E[u\,u_f]`}</Tex>。
@@ -101,7 +107,7 @@ export function S5Mismatch() {
       <p>
         先看 code 分出去的兩路：一路是真實的誤差路徑 <Tex>{'H'}</Tex>，它的輸出 <Tex>{'u[n]'}</Tex> 藏在 comparator 的 <Tex>{'q[n]'}</Tex> 裡；另一路是藍色的模型
         <Tex>{r`\hat H`}</Tex>，它的輸出 <Tex>{'u_f[n]'}</Tex> 是 GMAC 的 regressor。再看後半段：GMAC 的平均等效在算 <Tex>{r`E[u\,u_f]`}</Tex>，把它拆到每個頻率就是「每個頻率一票」——
-        圖上那個方塊裡的 <Tex>{r`S_{xx}|H||\hat H|\cos(\angle H-\angle\hat H)`}</Tex>，正是下面 F-07.12 的被積函數。振幅 <Tex>{r`|\hat H|`}</Tex> 只改變票的重量，
+        圖上那個方塊裡的 <Tex>{r`S_{xx}|H||\hat H|\cos(\angle H-\angle\hat H)`}</Tex>，正是下面 F-07.12 在 <Tex>{'D=0'}</Tex> 時的被積函數。振幅 <Tex>{r`|\hat H|`}</Tex> 只改變票的重量，
         相位差 <Tex>{r`\angle H-\angle\hat H`}</Tex> 才決定票的正負；六角形問的就是下面定理的條件。
       </p>
       <FoldSteps
@@ -128,16 +134,53 @@ export function S5Mismatch() {
               </>
             ),
           },
+          {
+            // 拆成兩行（左邊自己一行）：一行寫完在手機（375 px）上會比欄位寬，多出一條橫向捲軸
+            tex: r`\begin{aligned}&E\big[u[n]\,u_f[n-D]\big]\\&\quad=\sum_k\sum_l h[k]\,\hat h[l]\,R_x[k-l-D]\end{aligned}`,
+            why: (
+              <>
+                若 regressor 再延遲 <Tex>{'D'}</Tex> 個 sample（F-07.10 的 <Tex>{'u_f[n-D]'}</Tex>）：第二行的 <Tex>{r`E[x[n-k]\,x[n-l]]`}</Tex> 變成{' '}
+                <span className="nowrap">
+                  <Tex>{r`E[x[n-k]\,x[n-D-l]]=R_x[k-l-D]`}</Tex>，
+                </span>
+                其餘不變。
+              </>
+            ),
+          },
+          {
+            tex: r`=\frac1{2\pi}\int_{-\pi}^{\pi}S_{xx}\,|H|\,|\hat H|\cos\theta(\Omega)\,d\Omega`,
+            why: (
+              <>
+                延遲 <Tex>{'D'}</Tex> 等於把模型換成 <Tex>{r`\hat H\,z^{-D}`}</Tex>，它的相位是 <Tex>{r`\angle\hat H-\Omega D`}</Tex>，所以殘餘相位{' '}
+                <Tex>{r`\theta(\Omega)=\angle H-\angle\hat H+\Omega D`}</Tex>——多出來的 <Tex>{r`+\Omega D`}</Tex> 和 7.1 節 delayed-x 的 <Tex>{r`\phi+\Omega D`}</Tex>{' '}
+                是同一筆相位帳。<Tex>{'D=0'}</Tex> 就回到第四行。
+              </>
+            ),
+          },
         ]}
       />
-      <TexBlock id="F-07.12" label="模型誤差下的有效相關（E45）">
-        {r`E[u\,u_f]=\frac1{2\pi}\int_{-\pi}^{\pi}S_{xx}\,|H|\,|\hat H|\cos\!\big(\angle H-\angle\hat H\big)\,d\Omega\;\overset{\hat H=H}{=}\;E[u^2]\ge0`}
+      <TexBlock id="F-07.12" label="模型誤差與額外延遲下的有效相關（E45）">
+        {r`\begin{aligned}C_{f,D}&=E\big[u[n]\,u_f[n-D]\big]\\&=\frac1{2\pi}\int_{-\pi}^{\pi}S_{xx}\,|H|\,|\hat H|\cos\!\big(\angle H-\angle\hat H+\Omega D\big)\,d\Omega\;\overset{\hat H=H,\ D=0}{=}\;E[u^2]\ge0\end{aligned}`}
       </TexBlock>
+      <p>
+        本節以下的圖、表與手算都取 <Tex>{'D=0'}</Tex>，所以直接寫 <Tex>{r`E[u\,u_f]`}</Tex>（就是 <Tex>{r`C_{f,0}`}</Tex>）。<Tex>{r`\hat H=H`}</Tex> 的保證是在{' '}
+        <Tex>{'D=0'}</Tex> 下說的：<Tex>{r`\hat H=H`}</Tex> 但 <Tex>{r`D\ne0`}</Tex> 時 <Tex>{r`C_{f,D}=E\big[u[n]\,u[n-D]\big]=R_u[D]`}</Tex>，是 <Tex>{'u'}</Tex>{' '}
+        自己的自相關——大小不超過 <Tex>{r`E[u^2]`}</Tex>，但可以是負的。例：T07 的單頻（<Tex>{r`\Omega=30^\circ`}</Tex>、<Tex>{'|H|=1'}</Tex>、unit power）
+        <Tex>{r`C_{f,D}=\cos(30^\circ D)`}</Tex>，
+        {extraD.map((e, i) => (
+          <span key={e.D}>
+            {i > 0 ? '、' : ''}
+            <Tex>{`D=${e.D}`}</Tex> 是 <Tex>{String(Number(tx(e.c, 4)))}</Tex>
+          </span>
+        ))}
+        （反向更新）；和下面「<Tex>{r`\hat H`}</Tex> 多算 <Tex>{r`\Delta`}</Tex>」的表逐列相同，因為兩者都是讓 regressor 晚幾個 sample。 <ClaimTag kind="exact" />
+      </p>
       <Callout kind="ok" title="定理（充分條件）">
         <p>
           若在所有 <Tex>{r`S_{xx}|H||\hat H|>0`}</Tex> 的頻率上都有 <Tex>{r`|\angle H-\angle\hat H|<90^\circ`}</Tex>，則
           <Tex>{r`E[u\,u_f]>0`}</Tex>：被積函數處處 <Tex>{r`\ge0`}</Tex>，而且至少在一段有 code 能量的頻帶（或一條譜線）上 <Tex>{r`>0`}</Tex>，
-          積分（面積）就一定是正的。<ClaimTag kind="exact" />
+          積分（面積）就一定是正的。<ClaimTag kind="exact" />（這裡是 <Tex>{'D=0'}</Tex>；regressor 另外延遲 <Tex>{'D'}</Tex> 時，把相位差換成殘餘相位{' '}
+          <Tex>{r`\angle H-\angle\hat H+\Omega D`}</Tex>，結論換成 <Tex>{r`C_{f,D}>0`}</Tex>。）
         </p>
         <p className="small">
           這不是必要條件：只要加權積分為正就好，少數頻率超過 <Tex>{r`90^\circ`}</Tex> 可以被其他頻率「投票」蓋過。真正的判據就是積分本身——Lab 會直接算它。

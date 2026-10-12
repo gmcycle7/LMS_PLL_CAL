@@ -273,6 +273,13 @@ describe('Ch02 頁面（jsdom smoke）', () => {
     expect(validity.textContent).toMatch(/Monte Carlo 對照/)
     expect(validity.textContent).toContain('HC-02.8')
     expect(FORMULAS.find((f) => f.id === 'F-02.13')!.conditions).toContain(String.raw`$\mu x^2\ll\sigma_v$`)
+    // R05：「E[sign(e)x]=0」是連續分布的說法；有限個值時平均更新是階梯函數、固定點是它變號的位置——F-02.9、F-02.8 兩個方框後面各有一段小字，登錄的條件也寫了
+    const stepNotes = Array.from(container.querySelectorAll('.ch02 .ch02-note')).filter((n) => /階梯函數/.test(n.textContent ?? ''))
+    expect(stepNotes).toHaveLength(2)
+    for (const note of stepNotes) expect(note.textContent).toMatch(/由正跳到負/)
+    for (const [id, note] of [['F-02.9', stepNotes[0]], ['F-02.8', stepNotes[1]]] as const)
+      expect(document.getElementById(`formula-${id}`)!.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING, `${id} 方框之後`).toBeTruthy()
+    expect(FORMULAS.find((f) => f.id === 'F-02.8')!.conditions).toMatch(/階梯函數.*由正跳到負.*變號的位置/)
     // Engineer 模式：除了 Research 專屬的 F-02.17 外，每個公式 ID 都有錨點
     for (const fm of FORMULAS.filter((f) => f.id !== 'F-02.17')) expect(document.getElementById(`formula-${fm.id}`), fm.id).toBeTruthy()
     // Worker（jsdom 下 inline）完成後，主實驗與固定點實驗的 analytic cross-check 應為 ok

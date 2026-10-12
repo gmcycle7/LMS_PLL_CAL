@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import katex from 'katex'
 import { SettingsProvider } from '@/app/settings'
 import { presetsForExperiment } from '@/app/presets'
 import { extractRegion, listRegions, systemMapModel } from '@/components'
@@ -174,6 +175,27 @@ describe('Chapter 13（jsdom smoke）', () => {
         expect(symbols.textContent, mode).toContain(String.raw`T_0,\;C_0`)
         // §13.6 的 wrap 示範：40% 的更新被繞回 0（硬體丟掉進位，r 不會多出 64）
         expect(container.querySelector('#ch13-nonideal')?.textContent).toContain('40.0%')
+        // §13.6 第 4 點（審查 R04）：gray 碼的手算（31 → 34 翻 3 個 bit、可能讀到 28 到 35）與表格的 gray 欄在每種模式都看得到
+        const nonIdeal = container.querySelector('#ch13-nonideal')?.textContent ?? ''
+        for (const s of ['462 / 2777', '403 / 2777', '110011_2', String.raw`\{28,29,30,31,32,33,34,35\}`, String.raw`010011_2:\ b_5b_4b_3b_2b_1b_0=0,\ 0\oplus1,\ 1\oplus0,\ 1\oplus0,\ 1\oplus1,\ 0\oplus1=011101_2=29`, '這個保證只對相鄰的 code', 'asynchronous FIFO', '本站沒有模擬非同步 ZOH'])
+          expect(nonIdeal, `${mode}: #ch13-nonideal「${s}」`).toContain(s)
+        // 讀表文字的數字來自同一次模擬：D 有 3 次跳 2 LSB 以上，E 的 2777 次切換裡 462 次
+        expect(nonIdeal, mode).toContain('D 有 3 次跳 2 LSB 以上（最多一次跳 2 LSB）')
+        expect(nonIdeal, mode).toMatch(/E 的 2777 次切換裡有 462 次跳 2 LSB 以上，改用 gray 碼後仍有 462 次是多 bit 翻轉（二進位那一欄是 403 次）/)
+        // §13.4 的 telescoping（審查 C02）：常數 1 的條件與反例不可藏在 ModeGate 後面
+        const dsSec = container.querySelector('#ch13-deltasigma')?.textContent ?? ''
+        expect(dsSec, mode).toContain('常數要小心')
+        for (const s of ['u=31.41', 'r[0]=1.4', String.raw`-1.4\,\mathrm{LSB}`, '大小卻超過', '(1+A)/N=3']) expect(dsSec, `${mode}: #ch13-deltasigma「${s}」`).toContain(s)
+        // (1 + A)/N 這個上界也帶著自己的條件（沒有 overload、r[−1] 在變寬後的範圍內），不是只寫在方法 D 那一句
+        expect(dsSec, mode).toMatch(/上界變成 .*（一樣要沒有 overload，而且 .* 也在這個範圍內）/)
+        expect(dsSec, mode).not.toContain('永遠追得上')
+        // §13.4E 的工程取捨（Engineer 以上）：dither 讓平均追蹤的常數由 1 變成 1 + A，並連回 §13.6 的 CDC 條件
+        const ditherSec = container.querySelector('#ch13-dither')?.textContent ?? ''
+        if (mode === 'beginner') expect(ditherSec).not.toContain('平均追蹤的常數變大')
+        else for (const s of ['平均追蹤的常數變大', '(1+A)/N', '§13.6 第 4 點']) expect(ditherSec, `${mode}: #ch13-dither「${s}」`).toContain(s)
+        // 符號表：Δy 與 gray(n)
+        expect(symbols.textContent, mode).toContain(String.raw`\Delta y[n]=y[n]-y[n-1]`)
+        expect(symbols.textContent, mode).toContain(String.raw`\mathrm{gray}(n)=n\oplus\lfloor n/2\rfloor`)
         // 每個登錄的公式 ID 在每種模式都恰好有一個 TexBlock 錨點（Formula & Unit Reference 頁會連過來）
         for (const f of FORMULAS) expect(container.querySelectorAll(`[id="formula-${f.id}"]`).length, `${mode}: ${f.id}`).toBe(1)
         // 「帶入手算」：HC-13.1 … HC-13.8 在每種模式都各出現一次（不藏在收合的推導框裡），順序與章節一致
@@ -431,6 +453,26 @@ describe('Chapter 13：資料與程式碼一致性', () => {
       expect(f.page).toBe('/ch/13')
       if (f.erratumId) expect(['E13', 'E15', 'E47', 'E49']).toContain(f.erratumId)
     }
+  })
+
+  it('F-13.12（審查 C02）：等式仍是 exact；上界寫成 (1 + A)/N，使用條件帶著 dither、overload、r[−1] 的範圍與單位', () => {
+    const f = FORMULAS.find((x) => x.id === 'F-13.12')!
+    expect(f.claim).toBe('exact')
+    expect(f.title).toBe('ΔΣ 的平均追蹤（telescoping）')
+    expect(f.specSection).toBe('13.4')
+    expect(f.tex).toContain(String.raw`\frac{r[-1]-r[N-1]}{N}`)
+    expect(f.tex).toContain(String.raw`\frac{1+A}{N}`)
+    // A = 0（方法 D）時的 1/N 仍看得到；不再是沒有條件的「≤ 1/N」
+    expect(f.tex).toContain(String.raw`\big(A=0:\ \tfrac1N\big)`)
+    expect(f.tex).not.toMatch(/\\le\\frac1N$/)
+    for (const s of ['dither', 'overload', 'r[-1]', 'LSB', String.raw`$|r|\le\tfrac12+\tfrac A2$`, String.raw`$-\tfrac A2\le r\le1+\tfrac A2$`, '常數不一定是 1']) expect(f.conditions, s).toContain(s)
+    expect(f.conditions).not.toBe(String.raw`$r$ 有界（無 overload）；對任意時變 $w_H$ 都成立`)
+    expect(f.units).toEqual({ y: 'LSB', w_H: 'LSB', r: 'LSB', A: 'LSB（峰對峰）' })
+    // 使用條件裡的數學都寫成 $...$，而且每一段都能被 KaTeX 解析
+    const parts = f.conditions.split('$')
+    expect(parts.length % 2).toBe(1)
+    for (const tex of parts.filter((_, i) => i % 2 === 1)) expect(() => katex.renderToString(tex, { throwOnError: true }), tex).not.toThrow()
+    expect(parts.filter((_, i) => i % 2 === 0).join(' ')).not.toMatch(/[≤≥±−∑]|[A-Za-z]_[A-Za-z0-9{]|\\/)
   })
 
   it('presets：Gallery #10 存在、屬於本實驗，且每個 preset 的參數都能跑', () => {

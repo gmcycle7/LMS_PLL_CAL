@@ -485,13 +485,14 @@ describe('Ch07 Mermaid 圖：與本章公式一致', () => {
     expect(f.edge('MUX', 'GMAC')).toEqual(['$x[n-D]$'])
   })
 
-  it('平均迴路：δ_k = a − w_k（a 進正端、w_k 進負端）、E[G_k] = K_q·C·δ_k、w_{k+1} = w_k + μ·G_k ⇒ pole = 1 − μ·K_q·C（用遞迴重算）', async () => {
+  it('平均迴路：δ_k = a − w_k（a 進正端、w_k 進負端）、E[G_k] ≈ K_q·C·δ_k、w_{k+1} = w_k + μ·G_k ⇒ pole = 1 − μ·K_q·C（用遞迴重算）', async () => {
     const f = await parseFlow(CH07_CHARTS.CHART_MEAN_LOOP)
     expect(f.edge('A', 'S')).toEqual(['$+a$'])
     expect(f.edge('ACC', 'S')).toEqual(['$-w_k$'])
     expect(f.edge('S', 'KC')).toEqual([r`$\delta_k = a - w_k$`])
     expect(f.text('KC')).toContain(r`$K_q\cdot C$`)
-    expect(f.edge('KC', 'MU')).toEqual([r`$E[G_k] = K_q\cdot C\cdot\delta_k$`])
+    // 平均 GMAC 是小訊號線性化的近似：連線寫 ≈（和走圖文字、F-07.11、Ch04／Ch06 的平均迴路圖一致），不寫等號
+    expect(f.edge('KC', 'MU')).toEqual([r`$E[G_k] \approx K_q\cdot C\cdot\delta_k$`])
     expect(f.edge('MU', 'ACC')).toEqual([r`$\mu\cdot G_k$`])
     expect(f.text('ACC')).toContain(r`$\tfrac{1}{z-1}$`)
     expect(f.text('ACC')).toContain(r`$w_{k+1} = w_k + \mu\cdot G_k$`)
@@ -566,7 +567,8 @@ describe('Ch07 Mermaid 圖：與本章公式一致', () => {
 
   it('filtered-x 迴圈：乘法在 sample rate（n）、平均之後是 block rate（k），w_{k+1} = w_k + μ·G_k 回授到真實路徑', async () => {
     const f = await parseFlow(CH07_CHARTS.CHART_FX_LOOP)
-    expect(f.text('P')).toContain(r`$e_{\mathrm{PD}}[n] = (a - w_k)\cdot(h * x)[n] + v[n]$`)
+    // 這張圖的 w_k 每個 block 都在更新：(a − w_k) 提到 h 的卷積外面只是近似（F-06.1），所以寫 ≈，不是 =
+    expect(f.text('P')).toContain(r`$e_{\mathrm{PD}}[n] \approx (a - w_k)\cdot(h * x)[n] + v[n]$`)
     // 真實路徑是「reference 端的 DTC → PD」，它的輸出就是 PD 的輸出；comparator 的輸入只從這裡拉
     expect(f.text('P')).toContain('reference 端的 DTC 到 PD')
     expect(f.text('P')).toContain('PD 的輸出')
@@ -584,6 +586,35 @@ describe('Ch07 Mermaid 圖：與本章公式一致', () => {
     expect(f.text('ACC')).toContain(r`$\tfrac{1}{z-1}$`)
     // 校正迴路的回授：w_k 送回 reference 端的 DTC（負回授 a − w_k）
     expect(f.edge('ACC', 'P')).toEqual([r`$w_k$ 送回 DTC（負回授：$a - w_k$）`])
+  })
+
+  it('凍結 w 的前提（R06b）：只有 w_k 在更新的閉迴路圖把 e_PD 寫成 ≈；w 凍結的圖（訊號模型、梯度、Type-II 迴路）維持等號，RTL 圖照真實順序先乘後濾', async () => {
+    // 原始碼層級：「e_PD[n] ≈」只出現在 CHART_FX_LOOP
+    for (const name of NAMES) {
+      expect(/e_\{\\mathrm\{PD\}\}\[n\] \\approx/.test(CH07_CHARTS[name]), name).toBe(name === 'CHART_FX_LOOP')
+    }
+    const loop = await parseFlow(CH07_CHARTS.CHART_FX_LOOP)
+    expect(loop.text('P')).not.toContain(r`$e_{\mathrm{PD}}[n] = (a - w_k)`)
+    // 對照：w 凍結的三張圖
+    const model = await parseFlow(CH07_CHARTS.CHART_SIGNAL_MODEL)
+    expect(model.edge('S', 'CMP').map(oneLine)).toEqual([r`PD 的輸出 $e_{\mathrm{PD}}[n] = \delta\cdot u[n] + v[n]$`])
+    const grad = await parseFlow(CH07_CHARTS.CHART_GRADIENT)
+    expect(grad.text('GE')).toContain('$(a - w)$')
+    const t2 = await parseFlow(CH07_CHARTS.CHART_TYPE2_LOOP)
+    expect(t2.edge('S', 'PI')).toEqual([r`$(a - w)\cdot u[n]$`])
+    // RTL 位置圖：DTC 先乘 (a − w_k)，再進 H_PD（真實電路的順序，不需要近似）
+    const rtl = await parseFlow(CH07_CHARTS.CHART_RTL_REGRESSORS)
+    expect(rtl.edge('DTC', 'H')).toEqual([r`$(a - w_k)\cdot x[n]$`])
+    // 兩拍的反例（7.4 節的 Engineer 框）：h = [1, −1]、x ≡ 1、a = 1，w 由 0 跳到 1
+    const [h, x, a, w] = [[1, -1], [1, 1], 1, [0, 1]]
+    const filterOfProduct = h[0] * (a - w[1]) * x[1] + h[1] * (a - w[0]) * x[0] // 先乘後濾（真實電路）
+    const productOfFilter = (a - w[1]) * (h[0] * x[1] + h[1] * x[0]) // 先濾後乘（F-07.1 的寫法）
+    expect(filterOfProduct).toBe(-1)
+    expect(productOfFilter).toBe(0)
+    // 差 = Σ_{m≥1} h[m]·(w[n] − w[n−m])·x[n−m]
+    expect(filterOfProduct - productOfFilter).toBe(h[1] * (w[1] - w[0]) * x[0])
+    // w 不動（0 → 0 或 1 → 1）時兩者相等
+    for (const w0 of [0, 1]) expect(h[0] * (a - w0) * x[1] + h[1] * (a - w0) * x[0]).toBe((a - w0) * (h[0] * x[1] + h[1] * x[0]))
   })
 
   it('三種 regressor 並排：x_ref 分別是 x[n]、x[n−D]、u_f[n]；藍色是多出來的 z⁻ᴰ 與 Ĥ', async () => {

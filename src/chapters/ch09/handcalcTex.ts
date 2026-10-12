@@ -90,6 +90,19 @@ export function sigNear1(p: number, keep = 7): number {
   return Math.min(15, keep + Math.floor(-Math.log10(gap)))
 }
 
+/**
+ * 要寫成「a > b」的兩個很接近的數：從 sig 位起逐步增加位數，直到畫面上的兩個數字看得出不同為止
+ * （1.0000007 與 1 用 5 位都顯示成 1，畫面會變成「1 > 1」）。最多 15 位。
+ */
+export function txDistinct(a: number, b: number, sig = 5): [string, string] {
+  for (let k = sig; k < 15; k++) {
+    const sa = texNum(a, k)
+    const sb = texNum(b, k)
+    if (sa !== sb) return [sa, sb]
+  }
+  return [texNum(a, 15), texNum(b, 15)]
+}
+
 /** 筆數、步數這類整數：每一位都寫出來（75091 不可顯示成 75091.0，也不用科學記號）。 */
 export function txInt(k: number): string {
   return Number.isInteger(k) && Math.abs(k) < 1e15 ? String(k) : texNum(k, 12)

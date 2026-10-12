@@ -81,6 +81,17 @@ export const MSE_MAE_DEFAULTS: MseMaeParams = {
 }
 const DEFAULT_SEED = 7
 
+/**
+ * 「試試看 (2)」引用的數字（審查 R08）：four_point、預設的 w0（μ 的整數倍）、sign(0) = 0，把 μ 調到 1 時格點鏈的時間平均。
+ * 精確值是 44281/88573 = 0.49993790…，不是 F-01.16 右式的 μ/2 = 0.5：差的就是被忽略的上邊界修正量 (10 + μ)/(3^(1 + 10/μ) − 1) ≈ 6.2e−5。
+ * 由同一個格點鏈函式即時計算（不是寫死的數字），顯示時取 6 位有效數字——與指標表「解析值」欄相同。
+ */
+export const TRY_MU1 = 1
+export const TRY_MU1_LATTICE_MEAN = signErrorLatticeStationary(
+  { model: 'four_point', a: 0, xDist: 'const', xScale: 1, sigma: 0, outlierProb: 0, outlierSize: 0, outlierSign: 'positive', n: 0, seed: 0 },
+  { w0: MSE_MAE_DEFAULTS.w0, mu: TRY_MU1, tie: 'zero' },
+)!.mean
+
 const FOCUS_INDEX: Record<MseMaeParams['focus'], number> = { all: -1, mse: 0, mae: 1, huber: 2 }
 
 /** 「loss type」選擇：被選中的（或 all）不透明，其餘淡化 */
@@ -356,6 +367,10 @@ export function MseMaeLab() {
 
   const intervalStr = (lo: number, hi: number) => (lo === hi ? lo : `[${f(lo, 6)}, ${f(hi, 6)}]`)
 
+  // 這兩列的解析值是「直接解格點鏈」的結果（指定模型下精確），不是 F-01.16 右式 μ/2、μ、0 那個小步長近似（審查 R08）；
+  // Gaussian x 沒有格點鏈（lattice = null）時沒有解析值，所以這一句只在有格點鏈時出現
+  const latticeNote = lattice ? 'analytic = 格點鏈數值解（不是 F-01.16 右式的小步長近似）；' : ''
+
   const metrics: MetricRow[] = [
     { name: String.raw`批次最佳解 L2（$\sum xy/\sum x^2$；$x\equiv1$ 時 = 平均）`, value: batch.l2, analytic: pop.l2, formulaId: 'F-01.4', claim: 'exact', note: String.raw`analytic = 母體最佳解（$N\to\infty$）` },
     { name: '批次最佳解 L1（加權中位數）', value: intervalStr(batch.l1.lo, batch.l1.hi), formulaId: 'F-01.14', claim: 'exact', note: `母體中位數 ${intervalStr(pop.l1.lo, pop.l1.hi)}` },
@@ -397,7 +412,7 @@ export function MseMaeLab() {
       tolerance: seSe !== undefined ? band + Z_PASS * seSe : undefined,
       formulaId: 'F-01.16',
       claim: 'exact',
-      note: String.raw`容忍度 $\mu|x|+${Z_PASS}\sigma$（勘誤 E40：tie 與算術會讓時間平均偏移 $O(\mu)$；$\sigma$ 為格點鏈的精確標準誤）`,
+      note: latticeNote + String.raw`容忍度 $\mu|x|+${Z_PASS}\sigma$（勘誤 E40：tie 與算術會讓時間平均偏移 $O(\mu)$；$\sigma$ 為格點鏈的精確標準誤）`,
     },
     {
       name: 'Sign-Error 定點（整數 code）時間平均',
@@ -406,7 +421,7 @@ export function MseMaeLab() {
       tolerance: seSe !== undefined && taFixed ? Z_PASS * seSe + 1e-12 : undefined,
       formulaId: 'F-01.16',
       claim: 'exact',
-      note: String.raw`容忍度 $${Z_PASS}\sigma$（沒有 $\mu|x|$ 的寬限：整數 code 上 tie 會精確發生）`,
+      note: latticeNote + String.raw`容忍度 $${Z_PASS}\sigma$（沒有 $\mu|x|$ 的寬限：整數 code 上 tie 會精確發生）`,
     },
     {
       name: 'Sign-Error 穩態標準差（軌跡的抖動）',
@@ -861,7 +876,9 @@ export function MseMaeLab() {
       <TryIt>
         (1) <code>four_point</code>、<Tex>{String.raw`\mu=0.2`}</Tex>：LMS 在 2.5 附近大幅抖動（std{' '}
         <Tex>{String.raw`\approx\sqrt{0.2\cdot18.75/1.8}\approx1.44`}</Tex>），Sign-Error 停在中位數 0 附近。(2) 把 tie 換成{' '}
-        <Tex>{'+1'}</Tex> / <Tex>{'-1'}</Tex>，看定點時間平均變成 <Tex>{'\\mu'}</Tex>、<Tex>{'0'}</Tex>。(3) 切到 <code>contaminated</code>、
+        <Tex>{'+1'}</Tex> / <Tex>{'-1'}</Tex>，看定點時間平均變成約 <Tex>{'\\mu'}</Tex>、<Tex>{'0'}</Tex>（<Tex>{String.raw`\mu\ll10`}</Tex> 的近似）；換回{' '}
+        <Tex>{String.raw`\operatorname{sign}(0)=0`}</Tex>、把 <Tex>{'\\mu'}</Tex> 調到 <Tex>{String(TRY_MU1)}</Tex>，指標表的解析值（格點鏈）是{' '}
+        <Tex>{texNum(TRY_MU1_LATTICE_MEAN, 6)}</Tex>，不是 <Tex>{String.raw`\mu/2=${texNum(TRY_MU1 / 2)}`}</Tex>——被忽略的上邊界開始看得見。(3) 切到 <code>contaminated</code>、
         <Tex>{String.raw`\varepsilon=0.1,\ s=20`}</Tex>：LMS 被拉到 <Tex>{String.raw`a+\varepsilon s/A`}</Tex>，中位數幾乎不動。(4) 改用 gaussian{' '}
         <Tex>{'x'}</Tex>：三種母體最佳解都回到 <Tex>{'a'}</Tex>——outlier 只讓 LMS 抖得更大，不再偏移。(5) <code>contaminated</code>、const{' '}
         <Tex>{'x'}</Tex>、<Tex>{String.raw`A=2,\ \mu=0.6`}</Tex>（<Tex>{String.raw`\mu A^2=2.4>2`}</Tex>）：LMS 發散，Sign-Error 只是跳得很大——看警告怎麼解釋。(6) 留在{' '}

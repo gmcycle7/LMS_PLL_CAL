@@ -9,7 +9,10 @@ import {
   DEFAULT_SWEEP_OPTIONS,
   LAB_PARAM_LABEL,
   LAB_RANGES,
+  analyzeLab,
   combineMc,
+  delayLoopRadius,
+  meanDeltaTrajectory,
   labParamErrors,
   mcChecks,
   mcSeeds,
@@ -49,10 +52,12 @@ import {
   sweepExport,
   sweepWarnings,
   tabOfExperiment,
+  tauMetricRow,
   timingPsdToDbc,
   trainingErrors,
 } from './logic'
-import { anchorNumbers, blockFixedPointExample, delayTable, dsmHandExample, pllNumbers, seNumbers, spurNumbers } from './numbers'
+import { FORMULAS } from './formulas'
+import { anchorNumbers, blockFixedPointExample, delayTable, dsmHandExample, FX_DELAY_EXAMPLE, pllNumbers, seNumbers, spurNumbers } from './numbers'
 import { labelOf, LAB_UNITS, PANEL_GROUPS, PARAM_META } from './paramMeta'
 
 interface GoldenVector {
@@ -580,5 +585,73 @@ describe('量化策略 what-if 用到的第 13 章函式', () => {
     expect(sig(NaN)).toBe('NaN')
     expect(sig(null)).toBe('—')
     expect(sig(Infinity)).toBe('∞')
+  })
+})
+
+describe('技術審查的回歸測試（R02、R03、R06b）：/lab 的文字與它自己的模型一致', () => {
+  const src = (f: string) => readFileSync(join(process.cwd(), 'src/pages/lab', f), 'utf8')
+
+  it('R03：filtered-x、Ĥ = H_PD（g_m = 1、D_x = 0）時 C 只有 D = 0 保證 ≥ 0；D = 1 就變號——§4.6 表格下的數字（FX_DELAY_EXAMPLE）就是 analyzeLab 的結果', () => {
+    const fx = (D: number) => analyzeLab({ ...DEFAULT_LAB_PARAMS, regressor: 'filtered', fxGain: 1, fxExtraDelay: 0, codeDelay: D }).analytic
+    const a = FX_DELAY_EXAMPLE.delays.map((D) => fx(D))
+    // D = 0：C = E[u_x²] > 0，pole 在單位圓內；D = 1：C < 0、pole > 1（極性反轉）；D = 2：又變回正的、但很小
+    expect(a[0].Cest).toBeGreaterThan(0.95)
+    expect(a[0].p).toBeLessThan(1)
+    expect(a[1].Cest).toBeLessThan(-0.6)
+    expect(a[1].p).toBeGreaterThan(1)
+    expect(a[2].Cest).toBeGreaterThan(0.1)
+    expect(a[2].Cest).toBeLessThan(0.25)
+    // 頁面上寫的兩位小數
+    a.forEach((x, i) => expect(Math.abs(x.Cest - FX_DELAY_EXAMPLE.C[i]), `D=${FX_DELAY_EXAMPLE.delays[i]}：C=${x.Cest}`).toBeLessThan(0.005))
+    expect(Math.abs(a[1].p - FX_DELAY_EXAMPLE.poleAtD1)).toBeLessThan(0.005)
+    // MASH 1-1-1 的 residue 近似 (1 − z⁻¹)² 整形的白雜訊：R[1]/R[0] = −4/6、R[2]/R[0] = 1/6（H_PD 在這些頻率幾乎是 1）
+    expect(a[1].Cest / a[0].Cest).toBeCloseTo(-2 / 3, 2)
+    expect(a[2].Cest / a[0].Cest).toBeCloseTo(1 / 6, 2)
+    // 文字：filtered-x 那一列寫出 D，並且不再無條件地說「Ĥ = H 時 = E[u_x²] ≥ 0」
+    const s2 = src('sections/S2Chain.tsx')
+    expect(s2).toContain(String.raw`C_{f,D}=E\\bigl[\\hat u[n-D]\\,u_x[n]\\bigr]`)
+    expect(s2).toContain(String.raw`<Tex>{'D=0'}</Tex> 時 <Tex>{'=E[u_x^2]\\ge0'}</Tex>`)
+    expect(s2).toContain(String.raw`<Tex>{'D\\ne0'}</Tex> 時 <Tex>{'=R_u[D]'}</Tex>，可以是負的`)
+    expect(s2).toContain('設錯')
+    expect(s2).not.toContain(String.raw`<Tex>{'\\hat H=H'}</Tex> 時 <Tex>{'=E[u_x^2]\\ge0'}</Tex>`)
+    expect(s2).toContain('FX_DELAY_NOTE')
+  })
+
+  it('R02：τ = −1/ln ρ 那一列——d = 0 是精確的 1/e 時間；d ≥ 1 只是漸近衰減率（ρ^k 不是誤差的包絡），標成近似並加註', () => {
+    const r0 = tauMetricRow(12.03, 0)
+    expect(r0.claim).toBe('exact')
+    expectTexOk(r0.name)
+    expectTexOk(r0.note as string)
+    const r1 = tauMetricRow(1.4427, 1)
+    expect(r1.claim).toBe('approx')
+    expect(r1.name).toContain('漸近衰減率')
+    expect(r1.note).toContain('不是平均誤差的包絡')
+    expectTexOk(r1.name)
+    expectTexOk(r1.note as string)
+    // 反例：d = 1、g = 1/4 是重根 1/2：τ = 1/ln 2 = 1.4427 個 block，但平均誤差要 7 個 block 才低於 5%，而且每一步都在 ρ^k 之上
+    const rho = delayLoopRadius(0.25, 1)
+    expect(rho).toBeCloseTo(0.5, 6)
+    expect(-1 / Math.log(rho)).toBeCloseTo(1.4427, 3)
+    const y = meanDeltaTrajectory(1, 0.25, 1, 12)
+    expect(Array.from(y.slice(1, 6))).toEqual([0.75, 0.5, 0.3125, 0.1875, 0.109375])
+    for (let k = 1; k <= 12; k++) expect(y[k], `k=${k}`).toBeGreaterThan(rho ** k)
+    expect(y[6]).toBeGreaterThan(0.05)
+    expect(y[7]).toBeLessThan(0.05)
+    // d = 0：|δ_k| = ρ^k 是等式
+    const y0 = meanDeltaTrajectory(1, 0.25, 0, 8)
+    for (let k = 0; k <= 8; k++) expect(y0[k]).toBeCloseTo(0.75 ** k, 12)
+    // 模擬後的指標表與即時解析表都用同一個函式；登錄的條件也寫出來
+    expect(src('logic.ts')).toContain('tauMetricRow(an.tauBlocks, r.params.updateDelay)')
+    expect(src('tabs/PipelineTab.tsx')).toContain('tauMetricRow(an.tauBlocks, updateDelay)')
+    expect(FORMULAS.find((f) => f.id === 'F-LAB.7')?.conditions).toContain('不是平均誤差的包絡')
+    expect(FORMULAS.find((f) => f.id === 'F-LAB.17')?.conditions).toContain('漸近')
+  })
+
+  it('R06b：多參數的 u_pd ≈ Σ δθ_j φ_{u,j} 寫 ≈，並說明前提（δθ_j 在 H_PD 的記憶長度內近似常數）；F-LAB.15 的條件同步', () => {
+    const s3 = src('sections/S3Analysis.tsx')
+    expect(s3).toContain(String.raw`u_{\mathrm{pd}}[n]\approx\sum_j\delta\theta_j\,\phi_{u,j}[n]`)
+    expect(s3).not.toContain(String.raw`u_{\mathrm{pd}}[n]=\sum_j\delta\theta_j\,\phi_{u,j}[n]`)
+    expect(s3).toContain('記憶長度內近似常數，才能提到濾波器外面')
+    expect(FORMULAS.find((f) => f.id === 'F-LAB.15')?.conditions).toContain('記憶長度內近似不變')
   })
 })

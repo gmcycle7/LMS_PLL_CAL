@@ -249,6 +249,34 @@ describe('Sign-off 頁（jsdom smoke）', () => {
       expect(walk?.textContent, f.getAttribute('aria-label') ?? '').toContain('先看')
       expect(walk?.querySelector('.katex')).toBeTruthy()
     }
+    // 技術審查 R13：六個條件要逐一檢查，但不是互相獨立——單參數、μ > 0 時「穩定」已經包含「極性正確」（0 < g = μK < g_crit(d)）
+    const soWalkEl = fig('Sign-off 流程圖').closest('.so-diagram')?.querySelector('.so-diagram-walk')
+    const soWalk = soWalkEl?.textContent ?? ''
+    expect(soWalk).toContain('不是互相獨立')
+    expect(soWalk).not.toContain('它們互相獨立')
+    expect(soWalk).toContain('單參數')
+    expect(soWalk).toContain('前五個都通過，第六個仍可能不過')
+    const soWalkTex = Array.from(soWalkEl?.querySelectorAll('annotation') ?? []).map((a) => a.textContent ?? '')
+    expect(soWalkTex).toContain(String.raw`0<g=\mu K<g_\text{crit}(d)`)
+    expect(soWalkTex).toContain(String.raw`g\ge g_\text{crit}(d)`) // 反方向不成立：K > 0 但 g 太大仍不收斂
+    // 技術審查 R14：第六關驗收的是「輸出的 jitter 與 spur」（δt 經 T）；σ_δt 是還沒經過 PLL 的 DTC 補償誤差 RMS，不可說成輸出量；
+    // 「在預算內」是可驗收的判準，比「真的改善」窄（沒有和校正前比較）
+    expect(soWalk).toContain('換算到輸出的 jitter 與 spur')
+    expect(soWalk).toContain('還沒經過 PLL，不是輸出 jitter')
+    expect(soWalk).not.toMatch(/換算到輸出的\s*(\\sigma_\{\\delta t\}|σ)/)
+    expect(soWalk).toContain('第六個菱形要分清楚目標與判準')
+    expect(soWalk).toContain('這比「改善」窄：沒有和校正前比較')
+    // 技術審查 R01：§5.1 的 |B/C| 是線性化的值——comparator 飽和（> 0.3σ_v）時只是線性外推，那種 FCW 也進 keep-out
+    const fcwSec = container.querySelector('#so-fcw-noise') as HTMLElement
+    expect(fcwSec.textContent).toContain('是線性化的值')
+    expect(fcwSec.textContent).toContain('只是線性外推，不能再當作固定點')
+    const fcwTex = Array.from(fcwSec.querySelectorAll('annotation')).map((a) => a.textContent ?? '')
+    expect(fcwTex).toContain(String.raw`\max_n|e_\text{det}[n]|>0.3\,\sigma_v`)
+    expect(fcwTex).toContain(String.raw`E[G(w^*)]=0\ \Rightarrow\ w^*\approx a+\frac{B_\text{bias}}{C}`) // 線性化的固定點用 ≈
+    // 技術審查 R02：Corner 判斷器的 k95 是用 spectral radius 的漸近衰減率估計（d ≥ 1 時 ρ^k 不是誤差的包絡）
+    const cornerText = container.querySelector('#so-corner')?.textContent ?? ''
+    expect(cornerText).toContain('漸近衰減率估計')
+    expect(cornerText).not.toContain('以 spectral radius 的包絡估計')
     // §8（docs/assumptions.md §2a）：DTC 在 reference 輸入端，殘差在 PD 的 reference 輸入注入，θ_out = +T·φ_dtc（正號）
     const strat = container.querySelector('#so-strategy') as HTMLElement
     const stratWalk = fig('從 gain code 偏差到輸出').closest('.so-diagram')?.querySelector('.so-diagram-walk')?.textContent ?? ''

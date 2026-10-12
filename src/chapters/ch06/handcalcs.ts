@@ -907,7 +907,8 @@ export const HANDCALCS: HandCalcDef[] = [
             why: String.raw`regressor 落後 $D$ 個 sample，等於鋸齒相位差了 $t_D$ 個週期。`,
           },
           {
-            tex: String.raw`\frac{R_x[D]}{\sigma_x^2}=1-6\,t_D(1-t_D)=1-6\times${tp(tD)}\times(1-${tp(tD)})=1-6\times${tp(tD)}\times${tn(1 - tD, 8)}=1-${tp(6 * tD * (1 - tD), 8)}=${tn(RD, 8)}`,
+            // 兩行（對齊等號）：一整行在桌機的內文欄放不下，會多一條橫向捲軸
+            tex: String.raw`\begin{aligned}\frac{R_x[D]}{\sigma_x^2}&=1-6\,t_D(1-t_D)=1-6\times${tp(tD)}\times(1-${tp(tD)})\\&=1-6\times${tp(tD)}\times${tn(1 - tD, 8)}=1-${tp(6 * tD * (1 - tD), 8)}=${tn(RD, 8)}\end{aligned}`,
             why: String.raw`鋸齒的自相關（F-06.17）。注意它對 $t$ 有「一次項」$-6t$（折返跳變造成的折角）：這就是 $D\ge1$ 會出事的來源。`,
           },
           {

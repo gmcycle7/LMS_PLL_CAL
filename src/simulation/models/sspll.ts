@@ -848,7 +848,8 @@ export function kernelMean(Geff: Kernel, n = 4096): Complex {
 // #region core:gosHarmonic
 /**
  * GOS 的自我斜率：C_GOS = Σ_{m≥1} Re Γ_eff(frac(mβ))/(2π²m²)，β = frac(8α)。
- * κ_GOS = 12·C_GOS（H ≡ 1 時為 1）。M 以外的尾項用 Re Γ 的等分佈平均。
+ * β 為無理數時 var(ρ) = 1/12，κ_GOS = C_GOS/var(ρ) = 12·C_GOS（把 Γ ≡ 1 代入這個只含 m ≥ 1 的和得到 1：開迴路基準不含 DC）。
+ * M 以外的尾項用 Re Γ 的等分佈平均。
  */
 export function gosHarmonic(alpha: number, Geff: Kernel, M = 8192, mean?: Complex): number {
   const beta = frac(NPH * alpha) // 8·frac(nα) 與 8nα 只差 8 的整數倍 ⇒ GOS 只依賴 β
@@ -1115,7 +1116,8 @@ export function discConstant(loop: SspllLoop, variant = '1diff', models?: LoopMo
 
 // #region core:blockMeanStable
 /**
- * 有限步長的 block LMS（N_τ = 開迴路時間常數 [blocks]，κ = 8λ）：
+ * 有限步長的 block LMS（N_τ = 開迴路名義時間常數 [blocks]；κ = 8λ）：
+ * H ≡ 1、κ = 1（8 相被選到的次數相同）時每個 block 誤差乘上 1 − 1/N_τ。
  * θ_{k+1} = (1 − κ/N_τ)θ_k 穩定 ⟺ |1 − κ/N_τ| < 1 ⟺ Re κ > |κ|²/(2N_τ)。
  */
 export function blockMeanStable(kappas: Complex[], tau: number): boolean {
@@ -1735,7 +1737,7 @@ export interface SspllLmsParams {
   nBlocks?: number
   /** 每個 GMAC block 的比較器 sample 數 N（預設 512） */
   nBlk?: number
-  /** 開迴路（H ≡ 1）時的時間常數 N_τ [blocks]（預設 25） */
+  /** 開迴路（H ≡ 1）時的名義時間常數 N_τ [blocks]（預設 25）；raw：μ_p = 8/(N_τ K_q) */
   tauBlocks?: number
   seed?: number
   /** 每幾個 block 記錄一次（預設 20） */
@@ -1785,7 +1787,7 @@ function median(v: number[]): number {
  *   e_PD   = h_PD * u
  *   q[n]   = sign(e_PD[n] + v[n] + u_os)             1-bit 比較器
  *   w_g   += μ_g·mean(q·r_0)，w_k += μ_p·mean(q·r_{1+k})
- * 步長：開迴路時間常數 N_τ，並對變體的 regressor 功率做 NLMS 式正規化。不同對策只差在 r 怎麼來。
+ * 步長：開迴路名義時間常數 N_τ（raw：μ_p K_q/8 = 1/N_τ），並對變體的 regressor 功率做 NLMS 式正規化。不同對策只差在 r 怎麼來。
  */
 export function runSspllLms(params: SspllLmsParams): SspllLmsResult {
   const { loop, alpha, variant, models, cfg } = params
@@ -1801,7 +1803,7 @@ export function runSspllLms(params: SspllLmsParams): SspllLmsResult {
   const eps = cfg.epsPs
   const rowFn = makeRowFn(alpha, seq)
 
-  // 步長：開迴路時間常數 τ + regressor 功率正規化（前 2¹⁵ 拍，去掉前 2¹² 拍）
+  // 步長：開迴路名義時間常數 τ + regressor 功率正規化（前 2¹⁵ 拍，去掉前 2¹² 拍）
   const ccmp = Math.sqrt(2 / Math.PI) / sig
   let muP = 8 / (tau * ccmp)
   let muG = 12 / (tau * ccmp * Dl)
@@ -2001,7 +2003,7 @@ export interface AlphaAnalysis {
   /** κ_PHOS = 8 min_m Re λ_m 與對應的模態 */
   kappaPhos: number
   worstMode: number
-  /** κ_GOS = 12 C_GOS */
+  /** 12 C_GOS（ergodic；β 為無理數時 = κ_GOS = C_GOS/var(ρ)） */
   kappaGos: number
   /** 單線近似 W₁ Re Γ_eff(α) */
   singleLine: number

@@ -2,8 +2,8 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { PresetEntry } from '@/data/types'
 import { studentTInv } from '@/simulation/core'
-import { MAX_SAMPLE_BUDGET, analyzeMimo, analyzeRule, estimateSampleCost, resolveJhat, buildPlant, runMimoCovarianceMc, runMimoTrajectories } from '@/simulation/models/mimo'
-import { DEFAULT_PARAMS, EXPERIMENT_ID, allRulesFrom, delta0Of, ellipsePoints, jhatSpecOf, parsePresetParams, plantSpecOf, sliceMat } from './experiments/labState'
+import { DEFAULT_RULE, MAX_SAMPLE_BUDGET, analyzeMimo, analyzeRule, estimateSampleCost, resolveJhat, buildPlant, corrMatrix, runMimoCovarianceMc, runMimoTrajectories } from '@/simulation/models/mimo'
+import { DEFAULT_PARAMS, EXPERIMENT_ID, allRulesFrom, delta0Of, ellipsePoints, jhatSpecOf, k95Metric, parsePresetParams, plantSpecOf, sliceMat } from './experiments/labState'
 
 const dir = resolve(process.cwd(), 'src/data/presets')
 const files = readdirSync(dir).filter((f) => /^mimo.*\.json$/.test(f))
@@ -156,6 +156,24 @@ describe('Ch10 presets（src/data/presets/mimo*.json）', () => {
     expect(at0.info.expected![0][0]).toBeCloseTo(-0.9852, 4)
     expect(at0.info.expected![0][1]).toBeCloseTo(-0.9852 * 0.9, 4)
   })
+
+  it('審查 R02：只有有限差分 preset 的 k₉₅ 會變（Ĵ ≠ J ⇒ A 不對稱）：Case B 8 → 9；其餘 preset 的 A 都對稱，數字與 F-10.5 相同', () => {
+    const fd = analyze('mimo-fd-jacobian')
+    expect(fd.analyses.map((a) => a.rule)).toEqual(['full', 'regularized', 'scalar'])
+    expect(fd.analyses.map((a) => a.blocks95)).toEqual([5, 9, 59])
+    expect(fd.analyses.map((a) => a.blocks95Asymptotic)).toEqual([5, 8, 59])
+    expect(fd.analyses.map((a) => a.blocks95Basis)).toEqual(['norm', 'norm', 'pole'])
+    // 其餘 preset：凡是穩定的時不變規則，basis 都是 pole、數字不變
+    for (const f of files) {
+      const id = f.replace(/\.json$/, '')
+      if (id === 'mimo-fd-jacobian') continue
+      for (const a of analyze(id).analyses) {
+        if (a.rule === 'sequential' || !a.ok || !a.stable) continue
+        expect(a.blocks95Basis, `${id}/${a.rule}`).toBe('pole')
+        expect(a.blocks95, `${id}/${a.rule}`).toBe(a.blocks95Asymptotic)
+      }
+    }
+  })
 })
 
 describe('Ch10 lab state（純函式）', () => {
@@ -171,6 +189,40 @@ describe('Ch10 lab state（純函式）', () => {
     expect(p.cases[0].rule).toBe('scalar')
     expect(p.cases[0].gamma).toBe(0.5)
     expect(p.seed).toBe(20261010)
+  })
+
+  it('審查 R02：k95Metric——公式連結、claim 與說明跟著 k₉₅ 的來源走（pole／norm／sequential／lower-bound）', () => {
+    const rule = (r: Partial<typeof DEFAULT_RULE>) => ({ ...DEFAULT_RULE, ...r })
+    // (1) A 對稱：F-10.5 精確，和修改前的指標列一模一樣
+    const pr = buildPlant({ mode: 'R', R: corrMatrix(2, 0.99), sigmaV: 100, N: 4096 })
+    const sym = analyzeRule(pr, rule({ rule: 'full', gamma: 0.5 }), pr.Jn)
+    expect(k95Metric('A', sym)).toEqual({ name: 'Case A 95% 收斂 blocks $k_{95}$', value: 5, claim: 'exact', formulaId: 'F-10.5' })
+    // (2) 審查的反例：J_n = [[−1,2],[0,−1]]、μK_q = 0.5 ⇒ 顯示 9，說明裡列出 F-10.5 的 5 只是下界，不再連到 F-10.5
+    const pj = buildPlant({ mode: 'J', Jn: [[-1, 2], [0, -1]], sigmaV: 100, N: 4096 }) // prettier-ignore
+    const nn = k95Metric('B', analyzeRule(pj, rule({ rule: 'scalar', muKq: 0.5 }), pj.Jn))
+    expect(nn.value).toBe(9)
+    expect(nn.claim).toBe('exact')
+    expect(nn.formulaId).toBeUndefined()
+    expect(nn.note).toContain('非正規')
+    expect(nn.note).toContain(String.raw`$\|\mathbf A^j\|_2\le0.05$`)
+    expect(nn.note).toContain('F-10.5 給 $5$，只是下界')
+    expect(nn.note).not.toContain('剛好相同')
+    // (3) sequential：同一個定義，用 Φ_j
+    const seq = k95Metric('C', analyzeRule(pr, rule({ rule: 'sequential', gamma: 1, seqBlocksPerPhase: 1, seqSweeps: 1000 }), pr.Jn))
+    expect(seq.value).toBe(334)
+    expect(seq.formulaId).toBeUndefined()
+    expect(seq.note).toContain(String.raw`\|\boldsymbol\Phi_j\|_2\le0.05`)
+    // (4) 算不完：只能列下界 ⇒ approx，名稱標明「下界」
+    const lb = k95Metric('A', analyzeRule(buildPlant({ mode: 'J', Jn: [[-1, 100], [0, -1]], sigmaV: 100, N: 4096 }), rule({ rule: 'scalar', muKq: 1e-5 }), [[-1, 100], [0, -1]])) // prettier-ignore
+    expect(lb.value).toBe(299572)
+    expect(lb.claim).toBe('approx')
+    expect(lb.name).toContain('（下界）')
+    expect(lb.note).toContain('下界')
+    // (5) 不穩定：照舊顯示「不收斂」
+    const t18 = buildPlant({ mode: 'J', Jn: [[-1, 2], [2, -1]], sigmaV: 100, N: 4096 }) // prettier-ignore
+    expect(k95Metric('A', analyzeRule(t18, rule({ rule: 'scalar', muKq: 0.2 }), t18.Jn)).value).toBe('不收斂')
+    // 說明文字的數學都在 $...$ 裡（成對）
+    for (const m of [nn, seq, lb]) expect((m.note!.match(/\$/g) ?? []).length % 2).toBe(0)
   })
 
   it('ellipsePoints：95% 橢圓半軸 = √(5.991 λ)，方向沿 eigenvector', () => {

@@ -229,7 +229,8 @@ export function StochasticSection() {
       </div>
       <p className="small muted">
         (B) 的部分和 <Tex>{String.raw`\big|\sum_{n<N}e[n]\big|`}</Tex> 在任何起始相位下都不超過 0.8（例如從 <Tex>{'e=0.6'}</Tex> 起算：<Tex>{String.raw`0.6,\,0.2,\,0.8,\,0.4,\,0`}</Tex>），所以最壞是 <Tex>{String.raw`0.8/N`}</Tex>；(D) 由 §13.4 的 telescoping 公式，
-        <Tex>{String.raw`|\text{平均誤差}|=|r[-1]-r[N-1]|/N\le1/N`}</Tex>。
+        <Tex>{String.raw`|\text{平均誤差}|=|r[-1]-r[N-1]|/N\le1/N`}</Tex>（方法 D 沒有 dither、沒有 overload，而且 <Tex>{'r[-1]'}</Tex> 在 <Tex>{String.raw`[-\tfrac12,\tfrac12]`}</Tex> 內時；表中 <Tex>{'r[-1]=0'}</Tex>，所以其實{' '}
+        <Tex>{String.raw`\le\tfrac1{2N}`}</Tex>）。
         <ClaimTag kind="exact" />（B、D） <ClaimTag kind="approx" />（C：有限次 Monte Carlo）
       </p>
 

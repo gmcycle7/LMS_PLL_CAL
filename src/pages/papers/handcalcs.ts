@@ -332,7 +332,8 @@ export const HANDCALCS: HandCalcDef[] = [
     title: r`論文只寫「loop bandwidth $=f_{\mathrm{BW}}$」：當成 $-3\ \mathrm{dB}$ 或當成 ENBW，換回的 $g$ 差多少`,
     page: '/papers',
     formulaId: 'F-PR.15',
-    formulaTex: r`\text{(a) }f_{\mathrm{BW}}=f_{3\mathrm{dB}}:\ \ \beta=\sin\frac{\pi f_{\mathrm{BW}}}{f_u},\quad \sqrt p=\sqrt{1+\beta^2}-\beta;\qquad \text{(b) }f_{\mathrm{BW}}=\mathrm{ENBW}:\ \ \nu=\frac{2f_{\mathrm{BW}}}{f_u},\quad p_E=\frac{1-\nu}{1+\nu};\qquad g=1-p`,
+    // 三行（桌機欄寬約 820px，一行排不下會出現橫向捲軸）：(a)、(b) 兩種頻寬定義各一行，最後是兩者共用的 g = 1 − p
+    formulaTex: r`\begin{aligned}&\text{(a) }f_{\mathrm{BW}}=f_{3\mathrm{dB}}:\ \ \beta=\sin\frac{\pi f_{\mathrm{BW}}}{f_u},\quad \sqrt p=\sqrt{1+\beta^2}-\beta\\[2pt]&\text{(b) }f_{\mathrm{BW}}=\mathrm{ENBW}:\ \ \nu=\frac{2f_{\mathrm{BW}}}{f_u},\quad p_E=\frac{1-\nu}{1+\nu}\\[2pt]&g=1-p\end{aligned}`,
     level: 'engineer',
     claim: 'exact',
     inputs: [
@@ -435,7 +436,8 @@ export const HANDCALCS: HandCalcDef[] = [
     title: r`極性正確就安全嗎？把書上的 $\mu_W$ 換成 $g$，再和 $g^*(d)$ 比`,
     page: '/papers',
     formulaId: 'F-PR.4',
-    formulaTex: r`g=2\mu_W\lambda_{\max},\qquad g^*(d)=2\sin\frac{180^\circ}{4d+2},\qquad \mathrm{PM}_d=90^\circ-(2d+1)\arcsin\frac g2,\qquad \mu_{W,\max}(d)=\frac{g^*(d)}{2\lambda_{\max}}`,
+    // 兩行（一行比桌機欄寬多出十幾 px，會出現橫向捲軸）：迴路增益與臨界值；phase margin 與步長上限
+    formulaTex: r`\begin{aligned}&g=2\mu_W\lambda_{\max},\qquad g^*(d)=2\sin\frac{180^\circ}{4d+2}\\[2pt]&\mathrm{PM}_d=90^\circ-(2d+1)\arcsin\frac g2,\qquad \mu_{W,\max}(d)=\frac{g^*(d)}{2\lambda_{\max}}\end{aligned}`,
     level: 'engineer',
     claim: 'exact',
     inputs: [
@@ -530,7 +532,8 @@ export const HANDCALCS: HandCalcDef[] = [
     title: r`$\pm\tfrac12\ \mathrm{LSB}$ 的 1-bit dither：手算 ${HC_DITHER_STEPS} 拍，驗證 $y[n]=y_{\mathrm{floor}}[n]+b[n]-b[n-1]$`,
     page: '/papers',
     formulaId: 'F-PR.14',
-    formulaTex: r`\begin{gathered}\xi[n]=b[n]-\tfrac12:\quad v[n]=c+r[n-1],\quad y[n]=\big\lfloor v[n]+\xi[n]+\tfrac12\big\rfloor=\lfloor v[n]+b[n]\rfloor,\quad r[n]=v[n]-y[n]\\[4pt] \text{不加 dither 的 floor 版：}\ v_{\mathrm f}[n]=c+\varphi[n-1],\quad y_{\mathrm{floor}}[n]=\lfloor v_{\mathrm f}[n]\rfloor,\quad \varphi[n]=v_{\mathrm f}[n]-y_{\mathrm{floor}}[n]\end{gathered}`,
+    // 四行（原本兩行，每行都比桌機欄寬長，會出現橫向捲軸）：左邊是哪一個版本，右邊是它的三條式子
+    formulaTex: r`\begin{aligned}\xi[n]=b[n]-\tfrac12:\quad&v[n]=c+r[n-1],\quad y[n]=\big\lfloor v[n]+\xi[n]+\tfrac12\big\rfloor=\lfloor v[n]+b[n]\rfloor,\\&r[n]=v[n]-y[n]\\[4pt]\text{不加 dither 的 floor 版：}\quad&v_{\mathrm f}[n]=c+\varphi[n-1],\quad y_{\mathrm{floor}}[n]=\lfloor v_{\mathrm f}[n]\rfloor,\\&\varphi[n]=v_{\mathrm f}[n]-y_{\mathrm{floor}}[n]\end{aligned}`,
     level: 'beginner',
     claim: 'exact',
     inputs: [

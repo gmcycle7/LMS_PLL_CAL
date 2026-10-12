@@ -792,6 +792,28 @@ describe('近整數 FCW：精確的 DT 推導（鋸齒自相關 + 脈衝響應�
     expect(r.CD.theory).not.toBeNull()
     for (const dd of [0, 3, 10]) expect(Math.abs(r.CD.theory![dd] - r.CD.empirical[dd]), `D=${dd}`).toBeLessThan(0.002)
   }, 30000)
+
+  it('R01：C ≈ 0 的警告寫成「線性化的固定點 w* ≈ a + B/C」，同一句說明超出線性範圍時只是線性外推，並指向 §11.4 的代回檢查', () => {
+    const base = { loopType: 'typeII' as const, zeta: 0.7, bwRatio: 0.01, loopDelay: 0, code: 'dsm1' as const, toneRatio: 0.3, D: 0, seed: 1 }
+    // 近整數（frac = 1e-4）：C 仍是正的，但只剩 σ_x² 的萬分之一左右 ⇒ 歸類為 C ≈ 0
+    const r = analyzePllPolarity({ ...base, frac: 1e-4 })
+    expect(r.C.empirical / r.C.sigma2).toBeGreaterThan(0)
+    expect(r.C.empirical / r.C.sigma2).toBeLessThan(1e-3)
+    const zero = r.warnings.filter((s) => s.startsWith('C ≈ 0'))
+    expect(zero).toHaveLength(1)
+    const w = zero[0]
+    // 整句的形狀：ch06 explorerModel.ts 的 MODEL_TEXT_RULES 以同樣的 regex 接這一句（…都極度敏感（§11.4 …）。，括號內沒有「）」）
+    expect(w).toMatch(
+      /^C ≈ 0：GMAC 沒有平均恢復力（C_D = [\d.e+-]+），w 會隨雜訊漂移；線性化的固定點 w\* ≈ a \+ B\/C 對任何 bias B 都極度敏感（§11\.4 的代回檢查：B\/C 大到超出線性範圍時只是線性外推，不再是固定點）。$/,
+    )
+    // 舊的寫法（無條件的「固定點 w* = a + B/C」）不可回來
+    expect(w).not.toMatch(/；固定點 w\* = a \+ B\/C/)
+    expect(w).not.toMatch(/w\* = a/)
+    // 對照：frac = 0.002 時 C 是 σ_x² 的百分之幾，不是 C ≈ 0，沒有這條警告
+    const ok = analyzePllPolarity({ ...base, frac: 0.002 })
+    expect(ok.C.empirical / ok.C.sigma2).toBeGreaterThan(1e-3)
+    expect(ok.warnings.some((s) => s.startsWith('C ≈ 0'))).toBe(false)
+  }, 30000)
 })
 
 describe('有限相位格點的鋸齒自相關（dsmPhaseGrid）', () => {

@@ -174,7 +174,7 @@ export interface RefValues {
   }
   /** PSD 正規化的例子（T13 條件） */
   psd: {
-    /** block-rate DTFT 形式在 DC [fs²/(rad/block)… 依 σ² = (1/2π)∫S dΩ 的約定] */
+    /** block-rate DTFT 形式在 DC [fs²，每 cycle/block：σ² = (1/2π)∫S dΩ] */
     swDtftDc: number
     /** 單邊 per-Hz 在 DC [fs²/Hz] */
     sw1Dc: number

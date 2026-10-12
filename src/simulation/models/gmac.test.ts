@@ -17,6 +17,7 @@ import {
   comparatorBit,
   compareEncodings,
   decodeComparator,
+  ditherMinFor,
   fixedGmacBlock,
   floorRestoringSlope,
   gainUpdate,
@@ -24,17 +25,20 @@ import {
   gmacConditionalMoments,
   gmacRunningSum,
   gmacSum,
+  halfEvenTieAmplitude,
   incrementMeanError,
   negateExtended,
   negateInplace,
   quantizeIncrement,
   roundingMeanError,
+  roundingRestoringSlope,
   roundingTransfer,
   runFixedGmacLoop,
   runFixedGmacLoopCases,
   saturateTwos,
   shiftRound,
   sumAverageTable,
+  towardZeroRestoringSlope,
   unmappedUpdateAtTruth,
   wrapTwos,
   xorCarryAccumulate,
@@ -42,6 +46,7 @@ import {
   ROUNDING_MODES,
   type Bit,
   type FixedLoopParams,
+  type RoundingMode,
 } from './gmac'
 
 interface Vector {
@@ -327,6 +332,135 @@ describe('右移 rounding（§16.1 第 5 項）', () => {
     }
   })
 
+  // ── half-even 的 0 需要「恰好一半（tie）時商的奇偶各半」；只有餘數均勻不夠（外部審查 R11） ──
+  /** shiftRound 的平均誤差 E[Q(S) − S/2^ℓ]（對給定的整數集合取等權平均） */
+  const meanErr = (pts: number[], ell: number, mode: RoundingMode): number => pts.reduce((a, S) => a + shiftRound(S, ell, mode) - S / 2 ** ell, 0) / pts.length
+  /** tie（餘數恰好是 2^{ℓ−1}）且商為奇／偶的機率 */
+  const tieParity = (pts: number[], ell: number): { odd: number; even: number } => {
+    const d = 2 ** ell
+    let odd = 0
+    let even = 0
+    for (const S of pts) {
+      const j = Math.floor(S / d)
+      if (S - j * d !== d / 2) continue
+      if (Math.abs(j % 2) === 1) odd++
+      else even++
+    }
+    return { odd: odd / pts.length, even: even / pts.length }
+  }
+
+  it('反例（R11）：ℓ = 2、S = 8K + R（R = 0…3）餘數完全均勻但商恆為偶數 ⇒ half-even 平均 −1/8 LSB；floor、half-up 仍等於 F-04.10', () => {
+    const pts: number[] = []
+    for (let K = -3; K <= 3; K++) for (let r = 0; r < 4; r++) pts.push(8 * K + r)
+    expect(pts.length).toBe(28)
+    const hist = [0, 0, 0, 0]
+    for (const S of pts) hist[((S % 4) + 4) % 4]++
+    expect(hist).toEqual([7, 7, 7, 7]) // S mod 4 完全均勻
+    expect(pts.every((S) => Math.floor(S / 4) % 2 === 0)).toBe(true) // 商 = 2K，恆為偶數
+    // 只需要餘數均勻的三種：與封閉式相同
+    expect(meanErr(pts, 2, 'floor')).toBeCloseTo(roundingMeanError(2, 'floor'), 12)
+    expect(roundingMeanError(2, 'floor')).toBe(-0.375)
+    expect(meanErr(pts, 2, 'half_up')).toBeCloseTo(roundingMeanError(2, 'half_up'), 12)
+    expect(roundingMeanError(2, 'half_up')).toBe(0.125)
+    // half-even：封閉式回傳 0（它另外假設 tie 時商的奇偶各半），這個分布的實際平均是 −1/8
+    expect(roundingMeanError(2, 'half_even')).toBe(0)
+    expect(meanErr(pts, 2, 'half_even')).toBeCloseTo(-0.125, 12)
+    // 一般式：ε̄ = ½·[P(tie 且商為奇) − P(tie 且商為偶)]，|ε̄| ≤ 2^{−ℓ−1}
+    const tp = tieParity(pts, 2)
+    expect([tp.odd, tp.even]).toEqual([0, 0.25])
+    expect(meanErr(pts, 2, 'half_even')).toBeCloseTo(0.5 * (tp.odd - tp.even), 12)
+    expect(Math.abs(meanErr(pts, 2, 'half_even'))).toBeLessThanOrEqual(2 ** -3)
+    // 逐點：S = 0…7 的 half-even 誤差（頁面推導的例子）
+    expect([0, 1, 2, 3, 4, 5, 6, 7].map((S) => shiftRound(S, 2, 'half_even') - S / 4)).toEqual([0, -0.25, -0.5, 0.25, 0, -0.25, 0.5, 0.25])
+    // 一個週期、商為偶數：−2^{−(ℓ+1)}（上界取到等號）
+    for (const ell of [1, 2, 4, 8]) {
+      const one = Array.from({ length: 2 ** ell }, (_, i) => i)
+      expect(meanErr(one, ell, 'half_even')).toBeCloseTo(-(2 ** -(ell + 1)), 12)
+    }
+    // 只有 σ_S 大並不夠（頁面的說法）：K 散得很開時 σ_S/2^ℓ 可以任意大，餘數仍完全均勻、商仍恆為偶數，half-even 的平均還是 −1/8
+    const wide: number[] = []
+    for (const K of [-123456, -1000, -40, 7, 512, 99999]) for (let r = 0; r < 4; r++) wide.push(8 * K + r)
+    const mu = wide.reduce((a, S) => a + S, 0) / wide.length
+    const sigmaS = Math.sqrt(wide.reduce((a, S) => a + (S - mu) ** 2, 0) / wide.length)
+    expect(sigmaS / 4).toBeGreaterThan(1e5) // σ_S/2^ℓ ≫ 1
+    const histWide = [0, 0, 0, 0]
+    for (const S of wide) histWide[((S % 4) + 4) % 4]++
+    expect(histWide).toEqual([6, 6, 6, 6])
+    expect(meanErr(wide, 2, 'half_even')).toBeCloseTo(-0.125, 9)
+    expect(meanErr(wide, 2, 'floor')).toBeCloseTo(-0.375, 9)
+    expect(meanErr(wide, 2, 'half_up')).toBeCloseTo(0.125, 9)
+  })
+
+  it('鏡像與正常對照（R11）：商恆為奇數 ⇒ +1/8；S mod 2^{ℓ+1} 均勻 ⇒ 0 = roundingMeanError', () => {
+    const odd: number[] = []
+    const full: number[] = []
+    for (let K = -3; K <= 3; K++) {
+      for (let r = 0; r < 4; r++) odd.push(8 * K + 4 + r) // 商 = 2K + 1
+      for (let r = 0; r < 8; r++) full.push(8 * K + r) // S mod 8 均勻：奇偶商各半
+    }
+    expect(meanErr(odd, 2, 'half_even')).toBeCloseTo(0.125, 12)
+    expect(tieParity(odd, 2)).toEqual({ odd: 0.25, even: 0 })
+    expect(meanErr(full, 2, 'half_even')).toBeCloseTo(0, 12)
+    expect(meanErr(full, 2, 'half_even')).toBeCloseTo(roundingMeanError(2, 'half_even'), 12)
+    const tp = tieParity(full, 2)
+    expect(tp.odd).toBe(tp.even)
+    expect(tp.odd).toBe(0.125)
+  })
+
+  it('half-even 是奇函數 Q(−S) = −Q(S)：S 的分布對 0 對稱時平均輸出恰為 0（不需要餘數均勻）——閉迴路平衡點 δ = 0 的理由', () => {
+    for (const ell of [1, 2, 3, 5, 8]) {
+      for (let v = -400; v <= 400; v++) expect(shiftRound(-v, ell, 'half_even') + shiftRound(v, ell, 'half_even')).toBe(0) // 比較「和」，避免 −0 與 0
+    }
+    expect(shiftRound(-1, 2, 'floor') + shiftRound(1, 2, 'floor')).toBe(-1) // 對照：floor 不是奇函數
+    // 對稱但餘數不均勻：S = −5…5、ℓ = 2
+    const sym = Array.from({ length: 11 }, (_, i) => i - 5)
+    const hist = [0, 0, 0, 0]
+    for (const S of sym) hist[((S % 4) + 4) % 4]++
+    expect(hist).toEqual([3, 3, 2, 3])
+    expect(sym.reduce((a, S) => a + shiftRound(S, 2, 'half_even'), 0)).toBe(0)
+    expect(sym.reduce((a, S) => a + shiftRound(S, 2, 'floor'), 0)).toBe(-4)
+    // S → −S 把商為 j 的 tie 換成商為 −j − 1 的 tie（奇偶相反）⇒ 對稱分布自動滿足 tie 的奇偶各半
+    const tp = tieParity(sym, 2)
+    expect(tp.odd).toBe(tp.even)
+    expect(tp.odd).toBeCloseTo(1 / 11, 15)
+    // 第二個取整點（μ·G → W）的 half-even 也是奇函數
+    for (const R of [2, 4, 8, 6.4, 1.5]) {
+      for (let j = -400; j <= 400; j++) expect(quantizeIncrement(-j / R, 1, 'half_even') + quantizeIncrement(j / R, 1, 'half_even')).toBe(0)
+    }
+  })
+
+  it('離散 Gaussian 的 S（面板 B 的模型）：half-even 的殘餘誤差 = −2^{−ℓ}·e^{−π²s²/2}·sin(πm)（tie 項），m = 0 時恆為 0；floor、half-up 收斂得快得多', () => {
+    const rt = roundingTransfer({ ell: 2, ditherRatio: 1, mRange: 2, maxPoints: 100000 })
+    expect(rt.m.length).toBe(17)
+    expect([rt.m[8], rt.m[10], rt.m[14]]).toEqual([0, 0.5, 1.5])
+    const amp = 0.25 * halfEvenTieAmplitude(1)
+    expect(halfEvenTieAmplitude(1)).toBeCloseTo(Math.exp(-(Math.PI ** 2) / 2), 15)
+    expect(halfEvenTieAmplitude(1)).toBeCloseTo(0.0071919, 7) // 頁面：約 0.0072 × 2^{−ℓ}，half-up 的 1.4%
+    expect(halfEvenTieAmplitude(1) / 0.5).toBeCloseTo(0.014, 3)
+    expect(Math.abs(rt.bias.half_even[8])).toBeLessThan(1e-12) // m = 0：對稱 ⇒ 0
+    expect(rt.bias.half_even[10]).toBeCloseTo(-amp, 9) // m = ½：−0.0017979708
+    expect(rt.bias.half_even[10]).toBeCloseTo(-0.0017979708, 9)
+    expect(rt.bias.half_even[14]).toBeCloseTo(+amp, 9) // m = 3/2：反號
+    expect(Math.max(...Array.from(rt.bias.half_even, Math.abs))).toBeCloseTo(amp, 9)
+    // 每一個 m 都符合 tie 項的封閉式（s = 1 時餘數不均勻的那一項只有 1e-9 量級）
+    rt.m.forEach((m, i) => expect(rt.bias.half_even[i]).toBeCloseTo(-amp * Math.sin(Math.PI * m), 8))
+    // 同一組參數下只靠餘數均勻的 floor、half-up 已經和 F-04.10 相差不到 1e-8
+    rt.m.forEach((_, i) => {
+      expect(Math.abs(rt.bias.floor[i] - roundingMeanError(2, 'floor'))).toBeLessThan(1e-8)
+      expect(Math.abs(rt.bias.half_up[i] - roundingMeanError(2, 'half_up'))).toBeLessThan(1e-8)
+    })
+    // 振幅 × 2^ℓ 與 ℓ 無關（頁面的「不超過約 0.0072 × 2^{−ℓ}」）；dither 加倍後小到 1e-10
+    for (const ell of [1, 4, 6, 8]) {
+      const r = roundingTransfer({ ell, ditherRatio: 1, mRange: 2, maxPoints: 100000 })
+      expect(Math.max(...Array.from(r.bias.half_even, Math.abs)) * 2 ** ell).toBeCloseTo(halfEvenTieAmplitude(1), 9)
+    }
+    const wide = roundingTransfer({ ell: 4, ditherRatio: 2, mRange: 2, maxPoints: 100000 })
+    expect(Math.max(...Array.from(wide.bias.half_even, Math.abs))).toBeLessThan(1e-9)
+    expect(Math.max(...Array.from(wide.bias.half_even, Math.abs))).toBeCloseTo(2 ** -4 * halfEvenTieAmplitude(2), 12)
+    // 餘數不均勻的那一項（不隨 ℓ 縮小）：s = 1 時 e^{−2π²}/π ≈ 8.5e-10，ℓ = 16 時仍比 tie 項小兩個數量級以上
+    expect((2 ** -16 * halfEvenTieAmplitude(1)) / (Math.exp(-2 * Math.PI ** 2) / Math.PI)).toBeGreaterThan(100)
+  })
+
   it('rounding 轉移特性：dither 充分時 floor ≈ −(1 − 2^{−ℓ})/2、half-even ≈ 0；無雜訊時 toward-zero 有 dead zone', () => {
     const rt = roundingTransfer({ ell: 4, ditherRatio: 2, mRange: 2 })
     const mid = Math.floor(rt.m.length / 2)
@@ -601,6 +735,26 @@ describe('第二個截斷點：μ·G 取整到 W 的 LSB（§16.1 第 6 項，F-
     expect(incrementMeanError(0, 'floor')).toBe(0)
   })
 
+  it('第二個取整點的 half-even（R11）：R 為偶數時一個週期（商恆為偶數）平均 −1/(2R)，兩個週期才是 0；R 為奇數沒有 tie，一個週期就是 0', () => {
+    const mean = (R: number, n: number): number => {
+      let acc = 0
+      for (let j = 0; j < n; j++) acc += quantizeIncrement(j / R, 1, 'half_even') - j / R
+      return acc / n
+    }
+    for (const [R, one] of [
+      [2, -0.25],
+      [4, -0.125],
+      [8, -0.0625],
+    ] as const) {
+      expect(mean(R, R)).toBeCloseTo(one, 12) // 餘數 {0, 1/R, …, (R−1)/R} 各一次（均勻），但 tie 那一格的商是 0（偶數）
+      expect(mean(R, R)).toBeCloseTo(-1 / (2 * R), 12) // 上界 |ε̄_W| ≤ 1/(2p) 取到等號
+      expect(mean(R, 2 * R)).toBeCloseTo(0, 12) // 奇偶商各一次
+      expect(incrementMeanError(R, 'half_even')).toBe(0)
+    }
+    expect(mean(3, 3)).toBeCloseTo(0, 12)
+    expect(incrementMeanError(3, 'half_even')).toBe(0)
+  })
+
   it('floorRestoringSlope：E[⌊X⌋] 在 m = ½ 恆為 0（任何 s），斜率 χ(s) = 1 + 2Σ(−1)^k e^{−2π²k²s²}', () => {
     // 精確的 E[⌊X⌋] = Σ_k k·P(k ≤ X < k+1)，X ~ N(m, s²)
     const meanFloor = (m: number, s: number): number => {
@@ -680,6 +834,76 @@ describe('第二個截斷點：μ·G 取整到 W 的 LSB（§16.1 第 6 項，F-
     expect(dead.m).toBeCloseTo(-4.35, 1) // 頁面：−4.35 ± 0.09
     expect(dead.r.warnings.join('\n')).toMatch(/dead zone/)
   }, 180000)
+
+  it('toward-zero 的回復斜率 χ_tz(s) = Σ_{k≠0} φ(k/s)/s：同樣的 s 下比 floor 的 χ(s) 小得多，所以 dither 比的下限加倍（ditherMinFor）', () => {
+    // 註解與頁面引用的數字
+    expect(towardZeroRestoringSlope(0.284)).toBeCloseTo(0.0057, 4)
+    expect(towardZeroRestoringSlope(0.4)).toBeCloseTo(0.0876, 4)
+    expect(towardZeroRestoringSlope(0.5)).toBeCloseTo(0.2165, 4)
+    expect(towardZeroRestoringSlope(0.57)).toBeCloseTo(0.3034, 4)
+    expect(towardZeroRestoringSlope(2.273)).toBeCloseTo(0.8245, 4)
+    expect(towardZeroRestoringSlope(0)).toBe(0)
+    expect(towardZeroRestoringSlope(Infinity)).toBe(1)
+    // s ≲ 0.6：≈ ½·χ(s/2)（只差偶數點那幾項）；s ≳ 0.8：≈ 1 − φ(0)/s（所有整數點的總和 ≈ 1，少掉 k = 0 那一項）
+    for (const sv of [0.25, 0.284, 0.4, 0.5]) expect(towardZeroRestoringSlope(sv) / (0.5 * floorRestoringSlope(sv / 2))).toBeCloseTo(1, 2)
+    for (const sv of [0.8, 1, 2.273, 5]) expect(towardZeroRestoringSlope(sv)).toBeCloseTo(1 - 1 / (Math.sqrt(2 * Math.PI) * sv), 4)
+    // 同樣的 dither 比：floor 幾乎不受影響時 toward-zero 還在 dead zone
+    expect(floorRestoringSlope(0.284)).toBeGreaterThan(0.59)
+    expect(towardZeroRestoringSlope(0.284)).toBeLessThan(0.006)
+    // 與面板 B 的精確模型（離散 Gaussian、ℓ = 8）比對：E[Q(S)] 在平衡點 m = 0 對 m 的斜率（差分；格點效應約 1–3%）。
+    // half-even 在 m = 0 的斜率就是 floor 在 m = ½ 的 χ(s)
+    for (const sv of [0.284, 0.4, 0.5, 0.57, 1, 2]) {
+      const rt = roundingTransfer({ ell: 8, ditherRatio: sv, mRange: 1, maxPoints: 100000 })
+      const mid = (rt.m.length - 1) / 2
+      expect(rt.m[mid]).toBe(0)
+      const slopeAt = (mode: RoundingMode, i: number): number => (rt.meanTransfer[mode][i + 4] - rt.meanTransfer[mode][i - 4]) / (rt.m[i + 4] - rt.m[i - 4])
+      expect(slopeAt('toward_zero', mid) / towardZeroRestoringSlope(sv), `tz ${sv}`).toBeCloseTo(1, 1)
+      expect(slopeAt('half_even', mid) / floorRestoringSlope(sv), `he ${sv}`).toBeCloseTo(1, 1)
+      expect(rt.m[mid + 128]).toBe(0.5)
+      expect(slopeAt('floor', mid + 128) / floorRestoringSlope(sv), `floor ${sv}`).toBeCloseTo(1, 1)
+    }
+    // 下限與回復斜率依模式選擇
+    expect(ROUNDING_MODES.map(ditherMinFor)).toEqual([DITHER_MIN, DITHER_MIN, 2 * DITHER_MIN, DITHER_MIN]) // floor、half_up、toward_zero、half_even
+    for (const mode of ROUNDING_MODES) expect(roundingRestoringSlope(0.4, mode)).toBe(mode === 'toward_zero' ? towardZeroRestoringSlope(0.4) : floorRestoringSlope(0.4))
+  })
+
+  it('dead zone 警告的下限依 rounding 模式而定：toward-zero 在 0.25 ≤ dither 比 < 0.5 也警告（用它自己的回復斜率），其他模式的訊息與門檻不變', () => {
+    const dz = (p: FixedLoopParams): string[] => runFixedGmacLoop(p).warnings.filter((w) => /dead zone/.test(w))
+    // ── ÷N 的右移：σ_S/2^ℓ = 0.284（log2 N = 12、F_G = 0）──
+    const base: FixedLoopParams = { ...BASE_LOOP, accBits: 20, gFracBits: 0, log2N: 12, numBlocks: 40, w0: 0 }
+    const tz = runFixedGmacLoop({ ...base, rounding: 'toward_zero' })
+    expect(tz.analytic.ditherRatio).toBeCloseTo(0.284, 3)
+    expect(tz.analytic.ditherRatio).toBeGreaterThan(DITHER_MIN)
+    const tzMsg = tz.warnings.filter((w) => /dead zone/.test(w))
+    expect(tzMsg.length).toBe(1)
+    expect(tzMsg[0]).toContain('σ_S/2^ℓ = 0.284 < 0.5（toward-zero 的下限是 floor 的兩倍）')
+    expect(tzMsg[0]).toContain('回復斜率只剩 χ ≈ 0.0057（1 = 沒有取整）')
+    expect(tzMsg[0]).toContain('偏差預測（F-04.11）不再適用')
+    for (const rounding of ['floor', 'half_up', 'half_even'] as const) expect(dz({ ...base, rounding }), rounding).toEqual([])
+    expect(dz({ ...base, log2N: 10, rounding: 'toward_zero' })).toEqual([]) // 0.568 ≥ 0.5
+    // 低於 DITHER_MIN（0.142）：toward-zero 仍用自己的訊息；floor 的訊息一字不變
+    expect(dz({ ...base, log2N: 14, rounding: 'toward_zero' })[0]).toContain('σ_S/2^ℓ = 0.142 < 0.5（toward-zero 的下限是 floor 的兩倍）')
+    const flDead = dz({ ...base, log2N: 14, rounding: 'floor' })
+    expect(flDead.length).toBe(1)
+    expect(flDead[0]).toBe(
+      'σ_S/2^ℓ = 0.142 < 0.25：GMAC 雜訊遠小於右移後的 1 個 LSB，取整後的 G 幾乎都是同一個值——平衡點附近的回復斜率只剩 χ ≈ 0.011（1 = 沒有取整），迴路實際上停在 dead zone 裡，偏差預測（F-04.11）不再適用。請保留更多小數位元 F_G',
+    )
+    // ── μ·G → W 的取整：μσ_G/Δ_W = 0.284（Δ_W = 0.625 fs）──
+    const wBase: FixedLoopParams = { ...BASE_LOOP, rounding: 'half_even', numBlocks: 40, wLsb: 0.625 }
+    const wtz = runFixedGmacLoop({ ...wBase, wRounding: 'toward_zero' })
+    expect(wtz.analytic.ditherRatioW).toBeCloseTo(0.284, 3)
+    const wtzMsg = wtz.warnings.filter((w) => /dead zone/.test(w))
+    expect(wtzMsg.length).toBe(1)
+    expect(wtzMsg[0]).toContain('μσ_G/Δ_W = 0.284 < 0.5（toward-zero 的下限是 floor 的兩倍）')
+    expect(wtzMsg[0]).toContain('回復斜率只剩 χ ≈ 0.0057')
+    expect(wtzMsg[0]).toContain('偏差預測（F-04.18）不再適用')
+    for (const wRounding of ['floor', 'half_up', 'half_even'] as const) expect(dz({ ...wBase, wRounding }), wRounding).toEqual([])
+    expect(dz({ ...wBase, wLsb: 0.3125, wRounding: 'toward_zero' })).toEqual([]) // 0.568 ≥ 0.5
+    expect(dz({ ...wBase, wLsb: 1.25, wRounding: 'floor' })[0]).toContain('μσ_G/Δ_W = 0.142 < 0.25：每個 block 的更新量雜訊遠小於一個 W-LSB')
+    // 預測值本身不因為警告改變（只改文字）：toward-zero 的 ÷N 預測仍是 0
+    expect(tz.analytic.biasPred).toBe(0)
+    expect(wtz.analytic.biasPred).toBe(0)
+  }, 60000)
 })
 
 describe('0/1 編碼反面教材（blockLms 實際模擬）', () => {

@@ -192,6 +192,38 @@ describe('Ch04 手算題：結構', () => {
     expect(() => handcalc('HC-04.99')).toThrow(/找不到/)
   })
 
+  it('通式比桌機欄寬長的三題（HC-04.1、HC-04.2、HC-04.8）排成對齊的兩行：把換行拿掉後和原本的一行逐字相同；HC-04.4 第 1 步四拍排成兩行', () => {
+    // 把 aligned 的換行換回原本分隔兩段的 \qquad、拿掉對齊記號，應該得到原本的一行（沒有少項、沒有改符號）
+    const oneLine = (tex: string): string =>
+      tex
+        .replace(String.raw`\begin{aligned}`, '')
+        .replace(String.raw`\end{aligned}`, '')
+        .replace(/\\\\(\[\d+pt\])?/g, String.raw`\qquad `)
+        .replace(/&/g, '')
+    const norm = (tex: string): string => tex.replace(/\\qquad\s*/g, String.raw`\qquad `) // \qquad 後面有沒有空白不影響排版
+    const original: Record<string, string> = {
+      'HC-04.1': String.raw`t[n]=s[n-1]+K_\mathrm{F},\quad s[n]=t[n]-M\,y[n];\qquad r[n]=\sum_{m=0}^{n}\Bigl(y[m]-\frac{K_\mathrm{F}}{M}\Bigr)=-\frac{s[n]}{M};\qquad\tau_\mathrm{need}[n]=\frac{s[n]}{M}\,T_\mathrm{vco},\quad e_\mathrm{det}[n]=(a-w)\,x[n]`,
+      'HC-04.2': String.raw`e[n]=\delta\,x[n]+v[n],\quad b[n]=\bigl[e[n]\ge0\bigr],\quad q[n]=2b[n]-1;\qquad S=\sum_{n=0}^{N-1}q[n]\,x[n],\quad G=\frac{S}{N};\qquad w_\mathrm{avg}=w+\mu G,\quad w_\mathrm{sum}=w+\mu S`,
+      'HC-04.8': String.raw`E[x^2]=\frac{M_x(M_x+1)}{3\cdot4^{B_x-1}},\quad K=\frac{\sqrt{2/\pi}}{\sigma_v}E[x^2],\quad g=\mu K<g_\mathrm{crit}(d)=2\sin\frac{\pi}{4d+2};\qquad w^*-a=\frac{\bar\varepsilon\,\Delta_G}{K}+\frac{\bar\varepsilon_W\Delta_W}{g}`,
+    }
+    for (const [id, tex] of Object.entries(original)) {
+      const now = handcalc(id).formulaTex
+      expect(now.startsWith(String.raw`\begin{aligned}&`), id).toBe(true)
+      expect((now.match(/\\\\/g) ?? []).length, `${id} 的行數`).toBe(1) // 兩行
+      expect(norm(oneLine(now)), id).toBe(norm(tex))
+    }
+    // HC-04.4 第 1 步：四拍的 q[n] 每行兩拍（預設值與「全部是 0」的最寬情形）
+    const bitCases: Record<string, number>[] = [{}, { b0: 0, b1: 0, b2: 0, b3: 0 }]
+    for (const bits of bitCases) {
+      const def = handcalc('HC-04.4')
+      const step = def.solve({ ...defaultValues(def), ...bits }).steps[0].tex
+      expect(step.startsWith(String.raw`\begin{aligned}q[n]=2b[n]-1:\quad&q[0]=`)).toBe(true)
+      expect(step).toContain(String.raw`,\;\\&q[2]=`)
+      expect((step.match(/q\[\d\]=2\\times[01]-1=-?1/g) ?? []).length).toBe(4)
+      expect(renderTex(step, true)).not.toMatch(/katex-error|c-tex-error/)
+    }
+  })
+
   it('每個輸入：預設值在合法範圍內、有「換一題」的 practice 範圍；預設值通過 validate', () => {
     for (const h of HANDCALCS) {
       const v = defaultValues(h)
@@ -363,6 +395,16 @@ describe('Ch04 手算題：(a) 預設值 = 模型函式、文中 worked example�
     const tie = handcalc('HC-04.7').solve({ S: -14, m: 2, FG: 0, bx: 6, K: 0.0025 })
     expect(tie.results.slice(0, 2).map((r) => r.value)).toEqual([-4, -4])
     expect(tie.notes?.[0]).toContain('half-up $-3$')
+    // 外部審查 R11：附註不再寫「half-even 的平均誤差是 0」這種無條件的說法——閉迴路沒有固定偏差的理由是奇對稱，開迴路的 0 另需 F-04.10 的條件
+    for (const note of [sol.notes?.[0] ?? '', tie.notes?.[0] ?? '']) {
+      expect(note).toContain(String.raw`half-even 在閉迴路沒有固定偏差：它是奇函數 $Q(-S)=-Q(S)$，平衡點 $\delta=0$ 時 $S$ 的分布對 $0$ 對稱，平均輸出就是 $0$`)
+      expect(note).toContain('（開迴路的平均誤差為 $0$ 則要 F-04.10 的條件）')
+      expect(note).not.toContain('half-even 的平均誤差是 0')
+    }
+    // 奇對稱本身：這一題的例子與它的鏡像
+    expect(shiftRound(300, 8, 'half_even')).toBe(-shiftRound(-300, 8, 'half_even'))
+    expect(shiftRound(14, 2, 'half_even')).toBe(-shiftRound(-14, 2, 'half_even')) // tie：+3.5 → 4、−3.5 → −4
+    expect(shiftRound(14, 2, 'floor')).not.toBe(-shiftRound(-14, 2, 'floor')) // 對照：floor 是 3 與 −4
   })
 
   it('HC-04.8：§5.6「第二個截斷點」的例子——g、Δ_W、(w*−a)_W = −2.653 fs；÷N 也用 floor 時再加 −0.373 fs', () => {

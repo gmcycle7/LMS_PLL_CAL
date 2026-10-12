@@ -1,13 +1,20 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { lfilter } from '@/simulation/signal'
 import {
+  KQ_FACTOR,
+  LIN_RATIO_LIMIT,
+  LIN_RESIDUAL_LIMIT,
+  RESIDUAL_DUST_REL,
   analyzeBias,
   biasSigmaSweep,
+  brentRoot,
   buildCodeDistribution,
   codeMoments,
   comparatorMean,
   cubicReferenceTable,
   eDet,
+  eDetScale,
   expectation,
   finiteStepBias,
   fixedPoint,
@@ -17,6 +24,7 @@ import {
   meanGmacSign,
   mseFixedPoint,
   mseWeightedMean,
+  nearIntegerLinearCheck,
   nearIntegerSweep,
   runDcNullComparison,
   sigmaAt,
@@ -27,6 +35,9 @@ import {
   type BiasMcResult,
   type ErrorModel,
 } from './bias'
+import { runDsm } from './dsm'
+import { designDtLoop } from './pll'
+import { meanFieldCurve } from './polarity'
 
 interface GoldenVector {
   inputs: { x_values: number[]; x_probs: number[]; a: number; c3: number; sigma_list: number[] }
@@ -156,6 +167,183 @@ describe('bias.ts — §11 固定點（T12 拆成 T12a / T12b / T12c，勘誤 E0
   it('T12: 勘誤 E11 —— 其他 code 分布的 MSE 固定點：±1 → 1.10、unit Gaussian → 1.30', () => {
     expect(mseFixedPoint(CUBIC, buildCodeDistribution({ kind: 'pm_one' }))).toBeCloseTo(1.1, 13)
     expect(mseFixedPoint(CUBIC, buildCodeDistribution({ kind: 'gaussian' }))).toBeCloseTo(1.3, 10)
+  })
+})
+
+describe('bias.ts — 審查 R05 / C05：無雜訊 Sign-LMS 的固定點是 E[G] 的變號點；F-11.9 失準是因為低階截斷', () => {
+  const M0: ErrorModel = { ...CUBIC, sigmaV: 0 }
+  const avgXg = (an: ReturnType<typeof analyzeBias>) => (an.residual ?? []).reduce((acc, r) => acc + r.p * r.xg, 0)
+
+  it('R05 反例（整數運算，浮點不會把 tie 翻成正負）：w = 7/5 時 E[x·sign(e)] = −2/5，三種 sign(0) 慣例都一樣，不是 0', () => {
+    // 放大 10 倍：10·e(x; 7/5) = (10 − 14)·x + x³
+    const xs = [-2, -1, 0, 1, 2]
+    const e10 = xs.map((x) => (10 - 14) * x + x ** 3)
+    expect(e10).toEqual([0, 3, 0, -3, 0])
+    for (const s0 of [0, 1, -1]) {
+      const sum = xs.reduce((acc, x, i) => acc + x * (e10[i] > 0 ? 1 : e10[i] < 0 ? -1 : s0), 0)
+      expect(sum).toBe(-2) // ÷5 ⇒ E[G](7/5) = −2/5
+    }
+    // tie：e = 0 的 code 有 3 個（機率 3/5），其中票重不為 0 的是 x = ±2（機率 2/5 = 0.4）
+    expect(e10.filter((e) => e === 0)).toHaveLength(3)
+    expect(xs.filter((x, i) => e10[i] === 0 && x !== 0)).toEqual([-2, 2])
+  })
+
+  it('R05 網站函式：E[G] 在 1.4 的兩側是 +0.4 與 −1.2，附近沒有任何 w 讓 E[G] = 0（階梯跳過 0）', () => {
+    // 不直接檢查 meanGmacSign(1.4)：IEEE double 裡 e_det(±2; 1.4) = ∓2.2e−16，tie 會被捨入誤差翻成正負
+    expect(meanGmacSign(1.4 - 1e-9, M0, five)).toBeCloseTo(0.4, 14)
+    expect(meanGmacSign(1.4 + 1e-9, M0, five)).toBeCloseTo(-1.2, 14)
+    for (let i = 0; i <= 1000; i++) expect(Math.abs(meanGmacSign(1.35 + i * 1e-4, M0, five))).toBeGreaterThanOrEqual(0.4 - 1e-12)
+  })
+
+  it('R05 求解器與描述：signFixedPoint 回傳變號點（status ok、那一點的 G 不是 0）；analyzeBias.crossing = jump（+0.4 → −1.2）', () => {
+    const fp = signFixedPoint(M0, five)
+    expect(fp.status).toBe('ok')
+    expect(fp.w).toBeCloseTo(1.4, 10)
+    expect(Math.abs(meanGmacSign(fp.w, M0, five))).toBeGreaterThanOrEqual(0.4 - 1e-12)
+    const an = analyzeBias({ model: M0, code: { kind: 'five_level' }, algorithm: 'sign', dcMode: 'none' })
+    expect(an.crossing?.kind).toBe('jump')
+    expect(an.crossing?.gLeft).toBeCloseTo(0.4, 14)
+    expect(an.crossing?.gRight).toBeCloseTo(-1.2, 14)
+    expect(an.zeroSet?.lo).toBeCloseTo(1.4, 14)
+    expect(an.zeroSet?.hi).toBeCloseTo(1.4, 14)
+    // 殘差表最後一欄的機率加權平均不是 0：它是數值解那一側的階梯值（目前落在左側：+0.4）
+    const s = avgXg(an)
+    expect(Math.min(Math.abs(s - 0.4), Math.abs(s + 1.2))).toBeLessThan(1e-12)
+  })
+
+  it('R05 文字的界線：jump 不代表「那一點的 E[G] 一定不是 0」，數值解也可能落在右側（UI 不可寫死）', () => {
+    // 沒有 INL：所有 code 想要同一個 gain，階梯由 +1.2 直接跳到 −1.2，而且 w* = 1 那一點（全部 tie）E[G] = 0
+    const flat = analyzeBias({ model: { ...M0, c3: 0 }, code: { kind: 'five_level' }, algorithm: 'sign', dcMode: 'none' })
+    expect(flat.wStar).toBe(1)
+    expect(flat.crossing?.kind).toBe('jump')
+    expect(flat.crossing?.gLeft).toBeCloseTo(1.2, 14)
+    expect(flat.crossing?.gRight).toBeCloseTo(-1.2, 14)
+    expect(avgXg(flat)).toBe(0)
+    // code 平移 0.5：數值解落在跳變的右側，最後一欄的平均是 −0.3
+    const shifted = analyzeBias({ model: M0, code: { kind: 'five_level', shift: 0.5 }, algorithm: 'sign', dcMode: 'none' })
+    expect(shifted.crossing?.kind).toBe('jump')
+    expect(shifted.crossing?.gLeft).toBeCloseTo(0.9, 12)
+    expect(shifted.crossing?.gRight).toBeCloseTo(-0.3, 12)
+    expect(avgXg(shifted)).toBeCloseTo(-0.3, 12)
+  })
+
+  it('R05 次梯度：1.4 是 MAE J(w) = E|e| 的最小點，左右斜率 −0.4 與 +1.2（0 ∈ ∂J），不是 J′ = 0', () => {
+    const J = (w: number) => expectation(five, (x) => Math.abs(eDet(x, w, M0)))
+    expect(J(1.4)).toBeCloseTo(0.12, 12)
+    expect(J(1.34)).toBeCloseTo(0.144, 12)
+    expect((J(1.4) - J(1.4 - 1e-6)) / 1e-6).toBeCloseTo(-0.4, 6)
+    expect((J(1.4 + 1e-6) - J(1.4)) / 1e-6).toBeCloseTo(1.2, 6)
+    for (const w of [1.3, 1.34, 1.39, 1.41, 1.5]) expect(J(1.4)).toBeLessThan(J(w))
+  })
+
+  it('R05 時間平均：w ← w + μE[G](w) 有 3/4 的步數在 1.4 下方、1/4 在上方，E[G] 的時間平均是 0（雖然沒有任何 w 讓 E[G] = 0）；剛好踩到 tie 的格點是例外', () => {
+    // 三組 (w0, μ) 都讓 (1.4 − w0)/(0.4μ) 不是整數：w 永遠踩不到 1.4 這個 tie 點，結果不靠浮點捨入決定。
+    // 以 0.4μ 為單位，w − 1.4 依序走過 φ−3、φ−2、φ−1（下方，各 +1）、φ（上方，−3），0 < φ < 1：週期 4、三下一上。
+    for (const [w0, mu] of [
+      [1.3, 1.07e-3],
+      [1, 7.3e-4],
+      [1.55, 4.1e-4],
+    ]) {
+      const phase = (1.4 - w0) / (0.4 * mu)
+      expect(Math.abs(phase - Math.round(phase))).toBeGreaterThan(0.05)
+      let w = w0
+      let below = 0
+      let sum = 0
+      let maxDev = 0
+      for (let k = 0; k < 4000; k++) {
+        const g = meanGmacSign(w, M0, five)
+        if (k >= 2000) {
+          expect(w).not.toBe(1.4)
+          if (w < 1.4) below++
+          sum += g
+          maxDev = Math.max(maxDev, Math.abs(w - 1.4))
+        }
+        w += mu * g
+      }
+      expect(below).toBe(1500) // ¾ × 0.4 = ¼ × 1.2
+      expect(Math.abs(sum / 2000)).toBeLessThan(1e-12)
+      expect(maxDev).toBeLessThanOrEqual(1.2 * mu + 1e-12) // O(μ) 的 limit cycle
+    }
+    // 內文寫「大約 ¾」而不是「恰好」的原因（整數格點、精確運算）：w 若剛好能踩到 1.4，那一步是 tie（E[G] = −0.4），
+    // 循環變成 1.4 ↔ 1.4 − 0.4μ 各佔一半；GMAC 的時間平均仍然是 0。以 0.4μ 為單位：n < 0 ⇒ +1、n = 0 ⇒ −1、n > 0 ⇒ −3。
+    let n = -5
+    let acc = 0
+    const visited = new Set<number>()
+    for (let k = 0; k < 40; k++) {
+      const g = n < 0 ? 1 : n === 0 ? -1 : -3
+      if (k >= 20) {
+        visited.add(n)
+        acc += g
+      }
+      n += g
+    }
+    expect([...visited].sort((p, q) => p - q)).toEqual([-1, 0])
+    expect(acc).toBe(0)
+  })
+
+  it('R05 對照組：真正的根仍然是 root（σ_v > 0、MSE、連續 code）；dead zone 與 DC null 模式各有正確的描述', () => {
+    const noisy = analyzeBias({ model: { ...CUBIC, sigmaV: 0.3 }, code: { kind: 'five_level' }, algorithm: 'sign', dcMode: 'none' })
+    expect(noisy.crossing?.kind).toBe('root')
+    expect(noisy.wStar).toBeCloseTo(1.3438500804, 8)
+    expect(Math.abs(meanGmacSign(noisy.wStar, { ...CUBIC, sigmaV: 0.3 }, five))).toBeLessThan(1e-12)
+    expect(Math.abs(noisy.crossing?.gLeft ?? 1)).toBeLessThan(1e-5)
+    expect(Math.abs(noisy.crossing?.gRight ?? 1)).toBeLessThan(1e-5)
+    expect(Math.abs(avgXg(noisy))).toBeLessThan(1e-12)
+    const mse = analyzeBias({ model: M0, code: { kind: 'five_level' }, algorithm: 'mse', dcMode: 'none' })
+    expect(mse.crossing?.kind).toBe('root')
+    expect(mse.wStar).toBeCloseTo(1.34, 12)
+    const gauss = analyzeBias({ model: M0, code: { kind: 'gaussian' }, algorithm: 'sign', dcMode: 'none' })
+    expect(gauss.crossing?.kind).toBe('root')
+    expect(gauss.wStar).toBeCloseTo(1 + 0.2 * Math.LN2, 9)
+    const dead = analyzeBias({ model: { a: 1, b: 1, c2: 0, c3: 0, kappa: 0, sigmaV: 0 }, code: { kind: 'unipolar4' }, algorithm: 'sign', dcMode: 'none' })
+    expect(dead.crossing?.kind).toBe('dead-zone')
+    expect(dead.crossing?.gLeft).toBeCloseTo(1.5, 12)
+    expect(dead.crossing?.gRight).toBeCloseTo(-1, 12)
+    expect(meanGmacSign(1.4, { a: 1, b: 1, c2: 0, c3: 0, kappa: 0, sigmaV: 0 }, buildCodeDistribution({ kind: 'unipolar4' }))).toBe(0) // 區間內真的是 0
+    for (const dcMode of ['shared_bbpd', 'linear_pd'] as const) {
+      const an = analyzeBias({ model: M0, code: { kind: 'five_level' }, algorithm: 'sign', dcMode })
+      expect(an.crossing?.kind, dcMode).toBe('jump')
+      expect(an.crossing?.gLeft, dcMode).toBeCloseTo(0.4, 12)
+      expect(an.crossing?.gRight, dcMode).toBeCloseTo(-1.2, 12)
+    }
+    // 整數 FCW：沒有激勵，w* 不是有限值 ⇒ 沒有可描述的零交越
+    expect(analyzeBias({ model: M0, code: { kind: 'dsm', dsmFrac: 0 }, algorithm: 'sign', dcMode: 'none' }).crossing).toBeNull()
+  })
+
+  it('F-11.9 在小 σ_v 失準的原因是 erf 的三次截斷，不是級數發散（C05）', () => {
+    // erf 的 Maclaurin 部分和 (2/√π) Σ_{n<N} (−1)^n u^{2n+1}/(n!(2n+1))；N = 2 就是推導用的三次截斷
+    const erfPartial = (u: number, N: number) => {
+      let term = u
+      let s = 0
+      for (let n = 0; n < N; n++) {
+        s += ((n % 2 ? -1 : 1) * term) / (2 * n + 1)
+        term = (term * u * u) / (n + 1)
+      }
+      return (2 / Math.sqrt(Math.PI)) * s
+    }
+    const [bad, ok] = cubicReferenceTable({ sigmas: [0.05, 1] })
+    // 反例 σ_v = 0.05
+    expect(bad.ratio).toBeCloseTo(5.6628, 3) // 5.662755
+    expect(bad.secondOrder).toBeCloseTo(1.47824, 10)
+    expect(bad.exact).toBeCloseTo(1.3831378, 6) // 1.3831377565
+    const exact = comparatorMean(bad.ratio, 1) // erf(5.6628/√2) = 0.99999998510
+    const u = bad.ratio / Math.SQRT2 // 4.004173
+    expect(exact).toBeGreaterThan(0.9999999)
+    expect(erfPartial(u, 2)).toBeLessThan(-19) // −19.629274：三次截斷連正負號都錯
+    expect(Math.abs(erfPartial(u, 10) - exact)).toBeGreaterThan(1e4) // 2.777e4：部分和先暴衝…
+    expect(Math.abs(erfPartial(u, 80) - exact)).toBeLessThan(1e-9) // …再收斂（1.13e−11）：級數本身是收斂的
+    // 截斷 r − r³/6 的形狀：r = √2 最大、r = √6 過零（內文引用的兩個數）
+    const f = (r: number) => r - r ** 3 / 6
+    expect(f(Math.SQRT2)).toBeGreaterThan(f(1.3)) // 0.94281 > 0.93383
+    expect(f(Math.SQRT2)).toBeGreaterThan(f(1.5)) // 0.94281 > 0.93750
+    expect(f(Math.sqrt(6))).toBeCloseTo(0, 12)
+    expect(f(bad.ratio)).toBeLessThan(0) // −24.60
+    // 適用上限 r = 1.2：三次截斷低 5.48%
+    expect(erfPartial(1.2 / Math.SQRT2, 2) / comparatorMean(1.2, 1) - 1).toBeCloseTo(-0.0548, 3) // −0.054802
+    // 對照 σ_v = 1
+    expect(ok.ratio).toBeCloseTo(0.2403, 3) // 0.240346
+    expect(Math.abs(erfPartial(ok.ratio / Math.SQRT2, 2) / comparatorMean(ok.ratio, 1) - 1)).toBeLessThan(1e-4) // 8.37e−5
+    expect(Math.abs(ok.secondOrder - ok.exact)).toBeLessThan(1e-6) // 2.34e−7（1.3403456 vs 1.3403458）
   })
 })
 
@@ -313,6 +501,65 @@ describe('bias.ts — 反面測試（failure modes）', () => {
     expect(an.warnings.some((w) => w.includes('線性化失效'))).toBe(true)
     const ok = analyzeBias({ model: CUBIC, code: { kind: 'five_level' }, algorithm: 'sign', dcMode: 'none' })
     expect(ok.warnings).toHaveLength(0)
+  })
+
+  it('線性化失效的警告用語跟著比值走：0.3 < max|e_det|/σ_v ≤ 1.5 只說「離開線性區」，超過 1.5 才說「飽和區」（Ch05 的分區）', () => {
+    const at = (sigmaV: number) => {
+      const an = analyzeBias({ model: { ...CUBIC, sigmaV }, code: { kind: 'five_level' }, algorithm: 'sign', dcMode: 'none' })
+      return { ratio: an.validityRatio, warn: an.warnings.find((w) => w.includes('線性化失效風險')) ?? '' }
+    }
+    // σ_v = 0.5：比值 0.483。這裡 erf 只比切線 K_q·e 低 3.8%（還沒有飽和），舊的警告卻寫「已進入 erf 的飽和區」
+    const mid = at(0.5)
+    expect(mid.ratio).toBeCloseTo(0.482771, 5)
+    expect(comparatorMean(mid.ratio, 1) / (KQ_FACTOR * mid.ratio)).toBeGreaterThan(0.96)
+    expect(mid.warn).toContain('已離開 erf 的線性區')
+    expect(mid.warn).toContain('比值超過 1.5 才是飽和區')
+    expect(mid.warn).not.toContain('已進入 erf 的飽和區')
+    // σ_v = 0.1：比值 2.666，E[q|x] = 0.992（真的飽和）——用語不變
+    const sat = at(0.1)
+    expect(sat.ratio).toBeCloseTo(2.66577, 4)
+    expect(comparatorMean(sat.ratio, 1)).toBeGreaterThan(0.99)
+    expect(sat.warn).toContain('已進入 erf 的飽和區')
+    expect(sat.warn).not.toContain('已離開 erf 的線性區')
+    // 兩種用語的界線就是 1.5：σ_v = 0.16 時比值 1.581
+    expect(at(0.16).ratio).toBeGreaterThan(1.5)
+    expect(at(0.16).warn).toContain('已進入 erf 的飽和區')
+    // 兩句其餘的部分相同（門檻 0.3、以 mean-field root 為準、勘誤 E01）
+    for (const w of [mid.warn, sat.warn]) for (const t of ['>0.3$', '固定點應以 mean-field root', '不適用（勘誤 E01）']) expect(w, t).toContain(t)
+  })
+
+  it('審查 C04：residualScale 是殘差各項絕對值的和（只給顯示用）——κ ≠ 0、沒有 INL 時每個 code 的殘差數學上是 0，模型回傳的 1e-16 是捨入殘渣', () => {
+    expect(RESIDUAL_DUST_REL).toBe(1e-9)
+    // e_det 各項絕對值的和：(|a| + |w| + |κ|)·|x| + |b| + |c_2|·x² + |c_3|·|x|³
+    expect(eDetScale(2, 1.1, { a: 1, b: 0, c2: 0, c3: 0, kappa: 0.1, sigmaV: 1 })).toBeCloseTo(4.4, 12)
+    expect(eDetScale(-2, 1.34, { a: 1, b: 0.3, c2: -0.05, c3: 0.1, kappa: 0, sigmaV: 1 })).toBeCloseTo(2.34 * 2 + 0.3 + 0.05 * 4 + 0.1 * 8, 12)
+    // preset bias-kappa-identifiability：w* = a + κ = 1.1，e(x; w*) = (a + κ − w*)·x ≡ 0
+    for (const algorithm of ['sign', 'mse'] as const) {
+      const kap = analyzeBias({ model: { ...CUBIC, c3: 0, kappa: 0.1 }, code: { kind: 'five_level' }, algorithm, dcMode: 'none', w0: 1 })
+      expect(kap.wStar).toBeCloseTo(1.1, 12)
+      expect(kap.residualScale).toBeCloseTo(4.4, 9) // (1 + 1.1 + 0.1)·2，在 w ∈ {w_0, a, w*} 上取最大
+      const dust = RESIDUAL_DUST_REL * kap.residualScale
+      for (const r of kap.residual ?? []) expect(Math.abs(r.eStar)).toBeLessThan(1e-12) // 模型的數值照舊（不在模型裡歸零）
+      expect(Math.max(...kap.residualCurve.eStar.map(Math.abs))).toBeLessThan(dust)
+      expect(kap.costs[2].mse).toBeLessThan(dust * dust)
+      expect(Math.min(...kap.residualCurve.eAtA.filter((e) => e !== 0).map(Math.abs))).toBeGreaterThan(1e6 * dust) // w = a 處的殘差 ±0.1、±0.2 是真的
+    }
+    // 對照：三階 INL 的殘差（±0.24、∓0.12）是真的，比門檻大 7 個數量級以上
+    const cub = analyzeBias({ model: CUBIC, code: { kind: 'five_level' }, algorithm: 'sign', dcMode: 'none', w0: 1 })
+    expect(cub.residualScale).toBeCloseTo((1 + cub.wStar) * 2 + 0.1 * 8, 9)
+    expect(Math.min(...(cub.residual ?? []).filter((r) => r.x !== 0).map((r) => Math.abs(r.eStar)))).toBeGreaterThan(1e7 * RESIDUAL_DUST_REL * cub.residualScale)
+    // 無雜訊的階梯（jump）：tie code（x = ±2）的殘差是二分法留下的 1e-13 量級，也在門檻以下；x = ±1 的 ∓0.3 是真的
+    const step = analyzeBias({ model: { ...CUBIC, sigmaV: 0 }, code: { kind: 'five_level' }, algorithm: 'sign', dcMode: 'none', w0: 1 })
+    const stepDust = RESIDUAL_DUST_REL * step.residualScale
+    expect((step.residual ?? []).map((r) => (Math.abs(r.eStar) <= stepDust ? 0 : Number(r.eStar.toFixed(9))))).toEqual([0, 0.3, 0, -0.3, 0])
+    // DC null：|φ| 也算進去。shared BBPD、b = 0.5、x ∈ {0,1,2,3}、w* = a：(1 + 1)·3 + 0.5 + |φ*| = 7，殘差 b + φ* = 0
+    const sh = analyzeBias({ model: { ...CUBIC, c3: 0, b: 0.5 }, code: { kind: 'unipolar4' }, algorithm: 'sign', dcMode: 'shared_bbpd', w0: 1 })
+    expect(sh.phiStar).toBeCloseTo(-0.5, 9)
+    expect(sh.residualScale).toBeCloseTo(7, 8)
+    // 沒有固定點（x ≡ 0）時仍是有限值：只剩 |b|
+    const none = analyzeBias({ model: { ...CUBIC, c3: 0, b: 0.1 }, code: { kind: 'dsm', dsmFrac: 0 }, algorithm: 'mse', dcMode: 'none' })
+    expect(Number.isFinite(none.wStar)).toBe(false)
+    expect(none.residualScale).toBeCloseTo(0.1, 12)
   })
 })
 
@@ -623,11 +870,17 @@ describe('bias.ts — 數值核心', () => {
     expect(fp.status).toBe('ok')
   })
 
-  it('§11.4 near-integer：FCW → 整數時 C → 0，w* − a = B/C 放大', () => {
+  it('§11.4 near-integer：FCW → 整數時 C → 0，線性候選 B/C 放大', () => {
     const r = nearIntegerSweep({ fracs: [0.0005, 0.002, 0.05], wnTs: 0.02, zeta: 0.707, loopDelay: 1, kappaDirect: 0.01, sigmaV: 1 })
     expect(r.C[0]).toBeLessThan(0.01)
     expect(r.C[2]).toBeGreaterThan(0.9)
     expect(r.bias[0]).toBeGreaterThan(100 * r.bias[2])
+    // 放大最多的那一點（B/C = 1.31）恰好不是固定點：max|e_det|/σ_v = 4.54、γ_lin = 3.90
+    expect(r.linValid).toEqual([false, true, true])
+    expect(r.linRatio[0]).toBeCloseTo(4.536801, 5)
+    expect(r.linResidual[0]).toBeCloseTo(3.899034, 5)
+    expect(r.linRatio[1]).toBeCloseTo(0.274044, 5)
+    expect(r.linResidual[1]).toBeCloseTo(0.0111498, 6)
   })
 
   it('§11.4 near-integer：時域（整數週期）與頻域（Parseval）兩條獨立路徑的 C 一致；低 frac 冪次 ≈ 2', () => {
@@ -652,6 +905,147 @@ describe('bias.ts — 數值核心', () => {
     // 回歸值（Python scipy 獨立計算：frac 3e-4 → C = 0.00279397，頻寬內 −0.0341816）
     expect(r.Cfreq[0]).toBeCloseTo(0.002793967734, 9)
     expect(r.CinBand[0]).toBeCloseTo(-0.0341815738, 8)
+  })
+
+  // ── 審查 R01：線性候選 a + B/C 要代回完整的 erf 平均才知道是不是固定點 ──
+  const NI = { wnTs: 0.02, zeta: 0.707, loopDelay: 1, kappaDirect: 0.01, sigmaV: 1 }
+  const niLogspace = (lo: number, hi: number, n: number) => Array.from({ length: n }, (_, i) => 10 ** (Math.log10(lo) + ((Math.log10(hi) - Math.log10(lo)) * i) / (n - 1)))
+  /** 不經過 nearIntegerSweep，直接重建「標準化的 residue x」與「u = h_PD * x」的最後一個週期（16-bit first-order DSM） */
+  const sawtoothThroughLoop = (frac: number, skip: number, P: number) => {
+    const res = runDsm({ kind: 'first_order', frac, bits: 16, length: skip + P })
+    const last = res.residue.subarray(skip)
+    const mean = last.reduce((acc, v) => acc + v, 0) / P
+    const sd = Math.sqrt(last.reduce((acc, v) => acc + (v - mean) ** 2, 0) / P)
+    const x = Float64Array.from(res.residue, (v) => (v - mean) / sd)
+    const hpd = designDtLoop({ wnTs: NI.wnTs, zeta: NI.zeta, loopDelay: NI.loopDelay }).Hpd
+    const u = lfilter(hpd.b, hpd.a, x).y
+    const xs = x.subarray(skip)
+    const us = u.subarray(skip)
+    /** 平均 GMAC：w − a = d 時 mean_n x·erf((−d·u + κ_d·x)/(√2σ_v)) */
+    const G = (d: number, kd = NI.kappaDirect, sigma = NI.sigmaV) => {
+      let acc = 0
+      for (let n = 0; n < P; n++) acc += xs[n] * comparatorMean(-d * us[n] + kd * xs[n], sigma)
+      return acc / P
+    }
+    return { x: xs, u: us, G }
+  }
+
+  it('R01 反例（實驗的預設第一點 frac = 20/65536）：C 沒有錯，但 a + B/C 代回完整的 erf 平均後 GMAC = +0.0488，不是固定點', () => {
+    const r = nearIntegerSweep({ fracs: [3e-4, 0.05], ...NI })
+    expect(r.frac[0]).toBe(20 / 65536)
+    expect(r.Cfreq[0]).toBeCloseTo(0.002793967734, 9)
+    expect(r.bias[0]).toBeCloseTo(3.5791394, 6)
+    expect(r.uMax[0]).toBeCloseTo(2 * Math.sqrt(3), 6) // sawtooth 的跳變原封不動通過 H_PD：3.4641016
+    expect(r.linRatio[0]).toBeCloseTo(12.381202, 5) // max|e_det|/σ_v：門檻 0.3 的 41 倍
+    expect(r.gAtLinear[0]).toBeCloseTo(0.04881877, 7)
+    expect(r.linResidual[0]).toBeCloseTo(6.118526, 5) // 是 w = a 時（K_q·B）的 6 倍，而不是 0
+    expect(r.linValid[0]).toBe(false)
+    // 對照（frac = 3277/65536）：同一個檢查接受它
+    expect(r.frac[1]).toBe(3277 / 65536)
+    expect(r.Cfreq[1]).toBeCloseTo(1.0313861671, 9)
+    expect(r.bias[1]).toBeCloseTo(0.00969568947, 10)
+    expect(r.linRatio[1]).toBeCloseTo(0.0021539149, 9)
+    expect(Math.abs(r.gAtLinear[1])).toBeLessThan(1e-10) // −8.55e−12
+    expect(Math.abs(r.linResidual[1])).toBeLessThan(1e-8) // −1.07e−9
+    expect(r.linValid[1]).toBe(true)
+  })
+
+  it('R01 實驗的預設掃描（32 點）：最小的 8 個 frac 只是線性外推，其餘 24 個通過；C 的回歸值不變', () => {
+    const r = nearIntegerSweep({ fracs: niLogspace(3e-4, 0.5, 32), ...NI })
+    expect(r.frac).toHaveLength(32)
+    expect(r.linValid).toEqual([...Array<boolean>(8).fill(false), ...Array<boolean>(24).fill(true)])
+    // 第一個通過的點：frac = 133/65536
+    expect(r.frac[8]).toBe(133 / 65536)
+    expect(r.bias[8]).toBeCloseTo(0.0815712, 6)
+    expect(r.linRatio[8]).toBeCloseTo(0.265379, 5)
+    expect(r.linResidual[8]).toBeCloseTo(0.0102614, 6)
+    // 最後一個沒通過的點只輸在 ratio 門檻（γ_lin = 0.0358 < 0.05）
+    expect(r.linRatio[7]).toBeCloseTo(0.43297, 4)
+    expect(r.linRatio[7]).toBeGreaterThan(LIN_RATIO_LIMIT)
+    expect(r.linResidual[7]).toBeCloseTo(0.03582, 4)
+    expect(r.linResidual[7]).toBeLessThan(LIN_RESIDUAL_LIMIT)
+    expect(Math.max(...r.linResidual.slice(8).map(Math.abs))).toBeLessThan(0.011)
+    // C 的數值核心沒有被動到
+    expect(r.Cfreq[0]).toBeCloseTo(0.002793967734, 9)
+    expect(r.CinBand[0]).toBeCloseTo(-0.0341815738, 8)
+    expect(r.maxRelDiff).toBeLessThan(1e-8)
+    expect(r.lowFracExponent).toBeGreaterThan(1.9)
+    expect(r.lowFracExponent).toBeLessThan(2.1)
+    r.frac.forEach((_, i) => expect(r.bias[i]).toBe(r.B / r.Cfreq[i]))
+  })
+
+  it('R01 只看 max|e_det|/σ_v 不夠：κ_d = 2.4e−4 時 ratio = 0.297 ≤ 0.3，但 γ_lin = 0.099 > 0.05（真正的零點偏 15%）', () => {
+    const tight = nearIntegerSweep({ fracs: [3e-4], ...NI, kappaDirect: 2.4e-4 })
+    expect(tight.linRatio[0]).toBeCloseTo(0.297149, 5)
+    expect(tight.linRatio[0]).toBeLessThanOrEqual(LIN_RATIO_LIMIT)
+    expect(tight.linResidual[0]).toBeCloseTo(0.098967, 5)
+    expect(tight.linValid).toEqual([false])
+    const small = nearIntegerSweep({ fracs: [3e-4], ...NI, kappaDirect: 5e-5 })
+    expect(small.linRatio[0]).toBeCloseTo(0.061906, 6)
+    expect(small.linResidual[0]).toBeCloseTo(0.0043353, 6)
+    expect(small.linValid).toEqual([true])
+    // σ_v 夠大時整條曲線都回到線性範圍
+    const noisy = nearIntegerSweep({ fracs: niLogspace(3e-4, 0.5, 32), ...NI, sigmaV: 100 })
+    expect(noisy.linValid.every((v, i) => v === noisy.Cfreq[i] > 0)).toBe(true)
+    expect(Math.max(...noisy.linRatio)).toBeCloseTo(0.12381, 4)
+    expect(Math.max(...noisy.linResidual.map(Math.abs))).toBeCloseTo(0.01732, 4)
+    // 對稱：κ_d 變號，候選點與平均 GMAC 跟著變號，γ_lin 與 ratio 不變
+    const neg = nearIntegerSweep({ fracs: [3e-4, 0.05], ...NI, kappaDirect: -0.01 })
+    expect(neg.bias[0]).toBeCloseTo(-3.5791394, 6)
+    expect(neg.gAtLinear[0]).toBeCloseTo(-0.04881877, 7)
+    expect(neg.linResidual[0]).toBeCloseTo(6.118526, 5)
+    expect(neg.linRatio[0]).toBeCloseTo(12.381202, 5)
+    expect(neg.linValid).toEqual([false, true])
+  })
+
+  it('R01 定義檢查（不經過 helper）：w > a 那一側的平均更新不變號（沒有可以停下來的零點）；w < a 的零點是 repelling', () => {
+    const r = nearIntegerSweep({ fracs: [3e-4], ...NI })
+    const { x, u, G } = sawtoothThroughLoop(3e-4, r.skip, 16384)
+    expect(Math.abs(G(r.bias[0]) - r.gAtLinear[0])).toBeLessThan(1e-10)
+    expect(G(0)).toBeCloseTo(0.0079786, 6) // ≈ K_q·B = 0.0079788
+    for (const d of niLogspace(1e-3, 1e2, 200)) expect(G(d)).toBeGreaterThan(0.007) // 最小值 0.00772（d ≈ 0.17）
+    // 另一側有一個零點，但平均更新把 w 往兩邊推開（左邊 G < 0、右邊 G > 0）
+    expect(brentRoot(G, -2, -0.1)).toBeCloseTo(-0.8706, 3)
+    expect(G(-0.5)).toBeGreaterThan(0)
+    expect(G(-1.5)).toBeLessThan(0)
+    // 與 Ch06 的 mean-field 特性一致（B = 0）：basin 半徑 δ_c = 0.285，線性候選在它的 12 倍之外
+    const cross = meanFieldCurve(x, u, 1, { samples: 16384, points: 60 }).cross
+    expect(cross).toBeCloseTo(0.285, 3)
+    expect(r.bias[0]).toBeGreaterThan(10 * (cross ?? Infinity))
+  })
+
+  it('R01 第一個通過的點（frac = 133/65536）：真正的零點 0.0824378，比 B/C 遠 1.06%，與 γ_lin/(1 − 3γ_lin) 的估計一致', () => {
+    const r = nearIntegerSweep({ fracs: [133 / 65536], ...NI })
+    expect(r.linValid).toEqual([true])
+    const { G } = sawtoothThroughLoop(133 / 65536, r.skip, 65536)
+    expect(Math.abs(G(r.bias[0]) - r.gAtLinear[0])).toBeLessThan(1e-12)
+    const root = brentRoot(G, 0.05, 0.12)
+    expect(root).toBeCloseTo(0.08243783, 7)
+    expect(Math.abs(G(root))).toBeLessThan(1e-12) // 檢查 G(root) 本身，不只是 bracket 變號
+    const shift = root / r.bias[0] - 1
+    expect(shift).toBeCloseTo(0.010624, 5)
+    const g = r.linResidual[0]
+    expect(Math.abs(shift - g / (1 - 3 * g))).toBeLessThan(5e-4) // 0.010587
+  })
+
+  it('R01 nearIntegerLinearCheck：可以手算的兩點序列（x = ±1、u = ±0.5）', () => {
+    // bias = 0.02、κ_d = 0.01：e_det = −0.02·0.5·x + 0.01·x = 0 ⇒ 真正的固定點
+    expect(nearIntegerLinearCheck([1, -1], [0.5, -0.5], 0.02, 0.01, 1)).toEqual({ uMax: 0.5, ratio: 0, gmac: 0, residual: 0, valid: true })
+    // bias = 4：e_det = (−2 + 0.01)·x ⇒ ratio 1.99、gmac = erf(−1.99/√2) = −0.953409、γ_lin = gmac/(K_q·0.01) = −119.49
+    const far = nearIntegerLinearCheck([1, -1], [0.5, -0.5], 4, 0.01, 1)
+    expect(far.ratio).toBeCloseTo(1.99, 12)
+    expect(far.gmac).toBeCloseTo(-0.953409, 6)
+    expect(far.gmac).toBeCloseTo(comparatorMean(-1.99, 1), 14)
+    expect(far.residual).toBeCloseTo(far.gmac / (KQ_FACTOR * 0.01), 9)
+    expect(far.residual).toBeCloseTo(-119.492, 3)
+    expect(far.valid).toBe(false)
+    // 沒有干擾：候選點就是 w = a
+    expect(nearIntegerLinearCheck([1, -1], [0.5, -0.5], 0, 0, 1)).toMatchObject({ ratio: 0, gmac: 0, residual: 0, valid: true })
+    // 非有限的候選點（C = 0）與 σ_v = 0：不丟例外，直接判定不成立
+    expect(nearIntegerLinearCheck([1, -1], [0.5, -0.5], Infinity, 0.01, 1).valid).toBe(false)
+    expect(nearIntegerLinearCheck([1, -1], [0.5, -0.5], 0.02, 0.01, 0).valid).toBe(false)
+    expect(LIN_RATIO_LIMIT).toBe(0.3)
+    expect(LIN_RESIDUAL_LIMIT).toBe(0.05)
   })
 
   it('NEG: §11.4 主 PLL 不穩定時不輸出 C，並給出原因', () => {

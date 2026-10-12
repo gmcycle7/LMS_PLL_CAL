@@ -137,6 +137,27 @@ describe('Ch11 smoke tests（jsdom）', () => {
     // behavioral 測試清單的預期值由模型即時計算（T12b 的 1.3403458、dead zone 區間、E03 三種模式）
     expect(pageText).toContain('本章的 behavioral 測試清單')
     for (const t of ['1.340346', '(1.3333, 1.5)', '1.2141 ／ 1 ／ 1.5897']) expect(pageText, t).toContain(t)
+    // 審查 C05：erf 的泰勒級數對任何有限引數都收斂；小 σ_v 時失準的是只取到三次項的低階截斷
+    expect(pageText).not.toMatch(/泰勒(展開|級數)[^。]{0,8}不收斂/)
+    expect(pageText).toContain('低階截斷')
+    expect(pageText).toContain('erf 的泰勒級數對任何有限的引數都收斂')
+    // 審查 C04：兩張殘差表的 x = 0 那一列是 0，緊接在表後面的文字不可說「沒有一個是 0」
+    const colOf = (root: Element, head: string, col: number) =>
+      Array.from(Array.from(root.querySelectorAll('table')).find((t) => (t.querySelector('thead')?.textContent ?? '').includes(head))!.querySelectorAll('tbody tr')).map((tr) => tr.children[col].textContent)
+    const inl = container.querySelector('#ch11-inl')!
+    expect(colOf(inl, 'e_0=e(x;1.34)', 2)).toEqual(['-0.12', '+0.24', '0', '-0.24', '+0.12'])
+    expect(inl.textContent).not.toContain('欄沒有一個是 0')
+    expect(inl.textContent).toContain('欄並非全部為 0')
+    expect(inl.textContent).toContain('其餘四個 code 的殘差都不是 0')
+    const hand = container.querySelector('#ch11-hand')!
+    expect(colOf(hand, 'w=1.34', 4)).toEqual(['-0.12', '+0.24', '0', '-0.24', '+0.12'])
+    expect(hand.textContent).not.toContain('沒有任何一個殘差是 0')
+    expect(hand.textContent).toContain('最後一欄並非全部為 0')
+    // 審查 R05：§11.A 的定義加上「階梯函數時固定點改指變號的位置」；§11.2 情境 (3) 說明 1.4 不是 E[G] = 0 的根
+    expect(container.querySelector('#ch11-fixed-point')?.textContent).toContain('改指')
+    expect(inl.textContent).toContain('平均 GMAC 變號')
+    expect(inl.textContent).toContain('時間平均')
+    expect(document.getElementById('formula-F-11.10')?.textContent).toContain('由正跳到負')
     // 帶入手算：8 題依序出現在頁面上（各自放在對應的推導後面），綜合題在思考題之前
     expect(Array.from(container.querySelectorAll('.c-handcalc')).map((el) => el.id)).toEqual(HANDCALCS.map((h) => `handcalc-${h.id}`))
     const sectionOf = (id: string) => document.getElementById(`handcalc-${id}`)?.closest('section.c-section')?.id
@@ -200,6 +221,12 @@ describe('Ch11 smoke tests（jsdom）', () => {
     expect(before(document.getElementById('ch11-fig-comparator-model'), document.getElementById('formula-F-11.2'))).toBe(true)
     expect(before(document.getElementById('ch11-fig-jitter-weight'), document.getElementById('formula-F-11.12'))).toBe(true)
     expect(before(document.getElementById('ch11-fig-near-integer-why'), document.getElementById('ch11-fig-near-integer-check'))).toBe(true)
+    // 審查 R01：適用條件的說明框緊接在 F-11.14／F-11.15 後面、敏感度鏈的圖之前（圖的導讀寫「見上面的說明框」、圖說寫「F-11.14 後面的說明框」）
+    const niBox = Array.from(document.querySelectorAll('#ch11-near-integer .callout-warn')).find((el) => (el.textContent ?? '').includes('什麼時候才是 Sign-LMS 的固定點')) ?? null
+    expect(before(document.getElementById('formula-F-11.15'), niBox)).toBe(true)
+    expect(before(niBox, document.getElementById('ch11-fig-near-integer-why'))).toBe(true)
+    expect(document.getElementById('ch11-fig-near-integer-why')?.textContent).toContain('F-11.14 後面的說明框')
+    expect(document.getElementById('ch11-near-integer')?.textContent).toContain('見上面的說明框')
     expect(before(document.getElementById('ch11-fig-slope-measure'), document.getElementById('ch11-fig-mc-gaps'))).toBe(true)
     expect(before(document.getElementById('ch11-fig-finite-step-loop'), document.getElementById('formula-F-11.16'))).toBe(true)
     // ── 符號表（teaching-style §5）：只有一份，在頁面最後（#symbols，本課必記之後）；章首只留一行跳轉 ──
@@ -254,6 +281,18 @@ describe('Ch11 smoke tests（jsdom）', () => {
     // near-integer sweep（inline 模式在主執行緒跑）完成後，時域／頻域交叉比對與「你會發現」段落出現
     await waitFor(() => expect(screen.getAllByText(/時域 vs 頻域最大相對差/).length).toBeGreaterThan(0), { timeout: WAIT })
     await waitFor(() => expect(screen.getByText(/頻寬內諧波貢獻/)).toBeTruthy(), { timeout: WAIT })
+    // 審查 R01：預設的掃描有 8 個 FCW 沒通過「代回完整 erf 平均」的檢查——圖、指標、警告與交叉比對都要說它們只是線性外推
+    const ni = container.querySelector('#ch11-near-integer') as HTMLElement
+    const niText = ni.textContent ?? ''
+    for (const t of ['線性外推', '通過檢查的最小 frac', '24／32 個 FCW 通過', '線性化條件不成立', '只驗證', '不是「', '3.57914', '12.3812', '6.11853', '0.00202942', '0.0815712']) expect(niText, t).toContain(t)
+    expect(niText).not.toContain('確定性序列（無隨機性），不需要 Monte Carlo')
+    // γ_lin 那一列的檢查是 ✗（預設第一點不是固定點）；C 的時域／頻域比對仍是 ✓
+    const niRows = Array.from(ni.querySelectorAll('.c-metric-table tbody tr'))
+    expect(niRows.filter((tr) => tr.getAttribute('data-pass') === 'false').map((tr) => (tr.textContent ?? '').slice(0, 3))).toEqual(['殘餘比'])
+    expect(niRows.filter((tr) => tr.getAttribute('data-pass') === 'true')).toHaveLength(1)
+    // 公式旁邊（Engineer 模式也看得到）的適用條件
+    expect(document.getElementById('formula-F-11.14')?.textContent).toContain('條件見下')
+    expect(niText).toContain('什麼時候才是 Sign-LMS 的固定點')
     // 全章所有 TeX 都能被 KaTeX 解析（含 m() 的 $…$ 行內數學與非同步出現的段落）
     const bad = Array.from(container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.textContent)
     expect(bad).toEqual([])
@@ -273,7 +312,9 @@ describe('Ch11 smoke tests（jsdom）', () => {
       '<i>w</i><sup>∗</sup>（t.u.）',
       '二階近似 1.34+3.456×10<sup>−4</sup>/<i>σ</i><sub><i>v</i></sub><sup>2</sup>',
       '<i>C</i>（頻域：Σ<sub><i>k</i></sub>|<i>X</i><sub><i>k</i></sub>|<sup>2</sup>·Re\u2009<i>H</i><sub>PD</sub>）',
-      '|<i>w</i><sup>∗</sup>−<i>a</i>|（t.u.）',
+      '線性候選 |<i>B</i>/<i>C</i>|（t.u.）',
+      '|<i>w</i><sup>∗</sup>−<i>a</i>| ≈ |<i>B</i>/<i>C</i>|（通過代回檢查，右軸）',
+      '|<i>B</i>/<i>C</i>|：線性外推，未通過檢查（右軸）',
       'Case A：<i>E</i>[<i>G</i>](<i>w</i>)，Sign，<i>σ</i><sub><i>v</i></sub> = 1',
       '<i>w</i> = <i>w</i><sup>∗</sup>（1.34035）',
       '確定性殘差 <i>e</i><sub>det</sub>+<i>φ</i>（t.u.）',
@@ -397,6 +438,95 @@ describe('Ch11 smoke tests（jsdom）', () => {
     // Case 比較表的「設定」欄：σ_v 以 KaTeX 顯示
     const caseRow = Array.from(container.querySelectorAll('tr.ch11-hl')).find((tr) => /^[A-C]Sign/.test(tr.textContent ?? ''))
     expect(caseRow?.querySelector('td:nth-child(2) .katex')).toBeTruthy()
+  }, LAB_TIMEOUT)
+
+  it('Lab（審查 R05）：無雜訊的離散 code 把 w* 標成「E[G] 的變號點」，殘差表不再說最後一欄的平均是 0；有雜訊時仍是真正的根', async () => {
+    const { container, unmount } = render(wrap(<BiasInlLab />, '/ch/11?preset=bias-inl-cubic-noisefree'))
+    await waitFor(() => expect(container.querySelector('.ch11-kpi-value')?.textContent).toBe('1.4'), { timeout: WAIT })
+    const text = container.textContent ?? ''
+    for (const t of ['的變號點', '時間平均', '跳到', '變號而不是連續地通過 0', '在表中這個數值解上的機率加權平均是']) expect(text, t).toContain(t)
+    expect(text).not.toContain('機率加權平均為 0 的是最後一欄')
+    expect(text).not.toContain('的根（指定模型的精確 mean-field）')
+    expect(text).not.toContain('只影響測度為 0 的點')
+    // 殘差表最後一欄（x·E[q|x]）：+2、−1、0、−1、+2，機率加權平均 +0.4（不是 0）
+    const table = Array.from(container.querySelectorAll('table.ch11-table')).find((t) => (t.querySelector('caption')?.textContent ?? '').includes('殘差表')) as HTMLTableElement
+    expect(Array.from(table.querySelectorAll('tbody tr')).map((tr) => tr.lastElementChild?.textContent)).toEqual(['+2', '-1', '0', '-1', '+2'])
+    // tie 的 code（x = ±2）的殘差數學上是 0：顯示 0，不印二分法留下的 5e-14（審查 C04）；圖說說明最後一欄的 ±2 從哪裡來
+    expect(Array.from(table.querySelectorAll('tbody tr')).map((tr) => tr.children[4].textContent)).toEqual(['0', '+0.3', '0', '-0.3', '0'])
+    expect(Array.from(table.querySelectorAll('tbody tr')).map((tr) => tr.children[5].textContent)).toEqual(['0', '-0.3', '0', '-0.3', '0'])
+    expect(table.querySelector('caption')?.textContent).toContain('就是 tie 的 code')
+    expect(table.querySelector('caption')?.textContent).toContain('顯示時歸零')
+    const caption = table.querySelector('caption') as HTMLElement
+    // 圖說裡的三個數字（KaTeX 的 annotation 是 TeX 原文）：由 0.4 跳到 −1.2；最後一欄的平均 0.4
+    expect(Array.from(caption.querySelectorAll('.katex annotation')).map((a) => a.textContent).filter((t) => /^-?[\d.]+$/.test(t ?? ''))).toEqual(['0.4', '-1.2', '0.4'])
+    // 指標表的第一列：w*（變號點）= 1.4，連到 F-11.10
+    const first = container.querySelector('.c-metric-table tbody tr') as HTMLElement
+    expect(first.textContent).toContain('的變號點')
+    expect(first.textContent).toContain('加權中位數')
+    expect(first.querySelector('a[href="#formula-F-11.10"]')).toBeTruthy()
+    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expect(text).not.toMatch(/\$/)
+    unmount()
+    // 對照：預設（σ_v = 1）的固定點是真正的根，文字不變
+    const r2 = render(wrap(<BiasInlLab />))
+    await waitFor(() => expect(r2.container.textContent).toContain('1.34035'), { timeout: WAIT })
+    const t2 = r2.container.textContent ?? ''
+    expect(t2).toContain('機率加權平均為 0 的是最後一欄')
+    expect(t2).toContain('的根（指定模型的精確 mean-field）')
+    expect(t2).not.toContain('的變號點）')
+    expect(t2).toContain('勘誤 E40')
+  }, LAB_TIMEOUT)
+
+  it('Lab（審查 C04）：κ preset 每個 code 的殘差都是 0——表格不印浮點殘渣、KPI 與圖的標題不說「殘差不為 0」；MSE preset 的圖說是改寫後的文字', async () => {
+    const residualTable = (root: Element) =>
+      Array.from(root.querySelectorAll('table.ch11-table')).find((t) => (t.querySelector('caption')?.textContent ?? '').includes('殘差表')) as HTMLTableElement
+    const cells = (t: HTMLTableElement) => Array.from(t.querySelectorAll('tbody tr')).map((tr) => Array.from(tr.children).map((td) => td.textContent ?? ''))
+    // (1) bias-kappa-identifiability：κ = 0.1、沒有 INL、Sign-LMS、σ_v = 1 ⇒ w* = a + κ = 1.1，e(x; w*) ≡ 0
+    const { container, unmount } = render(wrap(<BiasInlLab />, '/ch/11?preset=bias-kappa-identifiability'))
+    await waitFor(() => expect(container.querySelector('.ch11-kpi-value')?.textContent).toBe('1.1'), { timeout: WAIT })
+    const kpis = Array.from(container.querySelectorAll('.ch11-kpi')) as HTMLElement[]
+    expect(kpis[0].textContent).toContain('= +0.1') // gain bias 是真的
+    expect(kpis[3].querySelector('.ch11-kpi-value')?.textContent).toBe('0.02 → 0')
+    expect(kpis[3].textContent).toContain('殘差功率也是 0')
+    expect(kpis[3].textContent).toContain('不可辨識')
+    // 「一階公式」KPI 的 max|e_det|/σ_v 是 0，不是 1.67×10⁻¹⁶
+    expect(Array.from(kpis[1].querySelectorAll('.katex annotation')).map((a) => a.textContent)).toEqual([String.raw`\max|e_\mathrm{det}|/\sigma_v=0`])
+    const kap = residualTable(container)
+    // 欄位：x、p、t(x)、e(x; a)、e(x; w*)、x·e、x·E[q|x]
+    expect(cells(kap).map((r) => r.slice(3))).toEqual([
+      ['-0.2', '0', '0', '0'],
+      ['-0.1', '0', '0', '0'],
+      ['0', '0', '0', '0'],
+      ['+0.1', '0', '0', '0'],
+      ['+0.2', '0', '0', '0'],
+    ])
+    expect(kap.querySelector('caption')?.textContent).toContain('整欄都是 0')
+    expect(kap.querySelector('caption')?.textContent).not.toContain('一般不為 0')
+    const text = container.textContent ?? ''
+    expect(text).toContain('殘差 vs code：這組設定下每個 code 的殘差都是 0')
+    expect(text).not.toContain('殘差不歸零')
+    // 整個 Lab（KPI、指標表、殘差表）都沒有 1e-16、1e-32 之類的殘渣
+    const shown = [...kpis, ...Array.from(container.querySelectorAll('.c-metric-table tbody tr')), kap].map((el) => el.textContent ?? '')
+    expect(shown.filter((t) => /\de-(1[3-9]|[2-9]\d)|10\^\{-(1[3-9]|[2-9]\d)\}/.test(t))).toEqual([])
+    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expect(text).not.toMatch(/\$/)
+    unmount()
+    // (2) bias-inl-cubic-mse：殘差 (−0.12, +0.24, 0, −0.24, +0.12) 是真的；圖說說的是「x·e 欄的平均為 0，e 欄不必每一列都是 0」
+    const r2 = render(wrap(<BiasInlLab />, '/ch/11?preset=bias-inl-cubic-mse'))
+    await waitFor(() => expect(r2.container.querySelector('.ch11-kpi-value')?.textContent).toBe('1.34'), { timeout: WAIT })
+    const mse = residualTable(r2.container)
+    expect(cells(mse).map((r) => r[4])).toEqual(['-0.12', '+0.24', '0', '-0.24', '+0.12'])
+    expect(cells(mse).map((r) => r[5])).toEqual(['+0.24', '-0.24', '0', '-0.24', '+0.24'])
+    const cap = mse.querySelector('caption')?.textContent ?? ''
+    expect(cap).toContain('欄的機率加權平均為 0（GMAC 歸零），但這不代表')
+    expect(cap).toContain('欄的每一列都是 0')
+    expect(cap).not.toContain('本身不為 0')
+    const k2 = Array.from(r2.container.querySelectorAll('.ch11-kpi')) as HTMLElement[]
+    expect(k2[3].querySelector('.ch11-kpi-value')?.textContent).toBe('0.26 → 0.0288')
+    expect(k2[3].textContent).toContain('但殘差功率')
+    expect(k2[3].textContent).not.toContain('也是 0')
+    expect(r2.container.textContent).toContain('殘差 vs code：GMAC 歸零，殘差不全為 0')
+    expect(r2.container.querySelector('.katex-error, .c-tex-error')).toBeNull()
   }, LAB_TIMEOUT)
 
   it('Lab：σ_v = 0.1 時出現「線性化失效」警告（解釋原因而非只顯示錯誤）', async () => {

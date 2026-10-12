@@ -105,7 +105,7 @@ export function InlSection() {
         先看結論的圖，數字的來源在後面的推導。<FigRef id="best-fit" /> 是 MSE-LMS 的觀點：把 INL <Tex>{'c_3x^3'}</Tex> 對 <Tex>{'x'}</Tex>{' '}
         做投影（找一個倍數，讓剩下的部分和 <Tex>{'x'}</Tex> 的相關為 0）。先看藍色的分支：與 <Tex>{'x'}</Tex> 成正比的那一部分 <Tex>{'0.34\\,x'}</Tex> 在 GMAC
         眼裡就是 gain 誤差，被 <Tex>{'w'}</Tex> 吸收，所以 <Tex>{'w^*=a+0.34'}</Tex>。再看紅色的分支：剩下的 <Tex>{'e_0(x)'}</Tex> 與 <Tex>{'x'}</Tex> 正交（
-        <Tex>{String.raw`E[x\,e_0]=0`}</Tex>），GMAC 的平均看不到它，它卻留在每一個 code 上。圖上的 <Tex>{String.raw`E[x\,d]/E[x^2]`}</Tex> 就是 F-11.4 的 INL
+        <Tex>{String.raw`E[x\,e_0]=0`}</Tex>），GMAC 的平均看不到它，它卻留在四個非零的 code 上（<Tex>{'x=0'}</Tex> 的殘差本來就是 0）。圖上的 <Tex>{String.raw`E[x\,d]/E[x^2]`}</Tex> 就是 F-11.4 的 INL
         項；<Tex>{'e_0'}</Tex> 就是下面殘差表的第三欄。
       </p>
       <Fig id="best-fit" />
@@ -193,7 +193,9 @@ export function InlSection() {
         </table>
       </div>
       <p>
-        <Tex>{'x\\,e_0'}</Tex> 欄的平均是 0（GMAC 歸零），但 <Tex>{'e_0'}</Tex> 欄沒有一個是 0：<strong>這是可以解釋的最小化結果，不是發散，也不是 bug</strong>。MSE-LMS
+        <Tex>{'x\\,e_0'}</Tex> 欄的平均是 0（GMAC 歸零），但 <Tex>{'e_0'}</Tex> 欄並非全部為 0：只有 <Tex>{'x=0'}</Tex> 那一列是 0（
+        <Tex>{String.raw`e=(a-w)\,x+c_3x^3`}</Tex> 的兩項都乘了 <Tex>{'x'}</Tex>，所以不論 <Tex>{'w'}</Tex> 是多少，<Tex>{'x=0'}</Tex> 的殘差都是
+        0），其餘四個 code 的殘差都不是 0。<strong>這是可以解釋的最小化結果，不是發散，也不是 bug</strong>。MSE-LMS
         的答案可以看成每個 code 的零誤差 gain <Tex>{'t(x)'}</Tex> 以 <Tex>{'x^2'}</Tex> 加權的平均：
       </p>
       <TexBlock id="F-11.11">{F.weightedMean}</TexBlock>
@@ -256,8 +258,12 @@ export function InlSection() {
       </div>
       <p className="small muted">
         標色的四列是勘誤 E01 的參考值 1.38314 / 1.36658 / 1.34385 / 1.34035。<Tex>{'\\sigma_v=0.05'}</Tex> 時二階近似給出 &gt; 1.4 的荒謬值 —— 最大殘差已經是雜訊的{' '}
-        {num(table.find((r) => r.sigma === 0.05)?.ratio ?? Number.NaN, 3)} 倍，泰勒展開根本不收斂。要讓
-        Sign-LMS 的固定點和 1.34 相差 <Tex>{'<10^{-3}'}</Tex>：<Tex>{String.raw`3.456\times10^{-4}/\sigma_v^2<10^{-3}\Rightarrow\sigma_v>0.588`}</Tex>。
+        {num(table.find((r) => r.sigma === 0.05)?.ratio ?? Number.NaN, 3)} 倍，erf 早已飽和，只取到三次項的低階截斷完全失準。
+        {m(
+          'erf 的泰勒級數對任何有限的引數都收斂，不準的是只留到三次項這件事：以 $e>0$ 為例，$e-e^3/(6\\sigma_v^2)$ 過了 $e/\\sigma_v=\\sqrt2\\approx1.41$ 就不升反降，過了 $\\sqrt6\\approx2.45$ 變成負的（連正負號都錯），真正的 erf 則是單調上升、平滑地飽和到 1。',
+        )}
+        這時要直接用表中的 mean-field 精確根。要讓 Sign-LMS 的固定點和 1.34 相差 <Tex>{'<10^{-3}'}</Tex>：
+        <Tex>{String.raw`3.456\times10^{-4}/\sigma_v^2<10^{-3}\Rightarrow\sigma_v>0.588`}</Tex>。
       </p>
       <Plot
         title={String.raw`三階 INL 例：$w^*$ 隨 $\sigma_v$ 從 1.4 滑到 1.34`}
@@ -283,8 +289,10 @@ export function InlSection() {
               why: m('拔河：每個意見用「離 $w$ 多遠」乘上權重來拉；拉力總和為 0 的地方就是平衡點。離得遠的意見拉得更用力。'),
             },
             {
-              tex: String.raw`\text{加權中位數：}\sum_i m_i\operatorname{sign}(t_i-w)=0`,
-              why: m('投票：每個意見只說「往上」或「往下」，票的重量是 $m_i$；上下兩邊的總重量相等（各佔一半）的地方就是答案。離多遠不重要。'),
+              tex: String.raw`\text{加權中位數：}V(w)=\sum_i m_i\operatorname{sign}(t_i-w)\ \text{由正變負的那個 }w`,
+              why: m(
+                '投票：每個意見只說「往上」（$t_i>w$）或「往下」（$t_i<w$），票的重量是 $m_i$；$V(w)$ 是往上的總票重減去往下的總票重。$w$ 由小往大移動，每越過一個 $t_i$，$V$ 就往下掉 $2m_i$，所以 $V$ 是階梯；答案是它由正變負的那個 $t_i$，也就是累積票重第一次超過總重一半的地方。階梯通常是「跳過」0 而不是「等於」0；只有累積票重剛好等於一半時，才有一整段 $V=0$（§11.1 的 dead zone）。離多遠不重要。',
+              ),
             },
             {
               tex: String.raw`t=(1.1,\,1.4),\ m=(0.4,\,1.6):\ \text{平均}=\tfrac{0.4\cdot1.1+1.6\cdot1.4}{2}=1.34;\\[0.4em] t=(1.1,\,1.4),\ m=(0.4,\,0.8):\ \text{中位數}=1.4`,
@@ -293,8 +301,10 @@ export function InlSection() {
           ]}
         />
         <p className="small">
-          這和 Ch01–02 的 <Tex>{'y=[0,0,0,10]'}</Tex> 是同一件事：平均 2.5 會被離群值拉走，中位數 0 不會。微積分的說法：平均讓 <Tex>{String.raw`\sum m_i(t_i-w)^2`}</Tex>{' '}
-          最小（對 <Tex>{'w'}</Tex> 微分等於 0），中位數讓 <Tex>{String.raw`\sum m_i|t_i-w|`}</Tex> 最小（<Tex>{'|u|'}</Tex> 的導數是 <Tex>{String.raw`\operatorname{sign}(u)`}</Tex>）。
+          這和 Ch01–02 的 <Tex>{'y=[0,0,0,10]'}</Tex> 是同一件事：平均 2.5 會被離群值拉走，中位數 0 不會。
+          {m(
+            '微積分的說法：平均讓 $\\sum m_i(t_i-w)^2$ 最小（對 $w$ 微分等於 0）；中位數讓 $\\sum m_i|t_i-w|$ 最小 —— $u\\neq0$ 時 $|u|$ 的導數是 $\\operatorname{sign}(u)$，所以這條折線的斜率是 $-V(w)$。它的最小值落在折線的尖角上，那一點沒有導數，判斷的方法是「左邊的斜率 $\\le0\\le$ 右邊的斜率」，也就是 $V$ 由正變負（Ch01 §2.2 的次梯度條件 $0\\in\\partial J$；Ch01 §2.3.1 說過：中位數是變號點，不是零點）。',
+          )}
         </p>
       </Prereq>
       <ModeDetails title={m('一步一步推導：$E[x\\operatorname{sign}(e)]$ 與加權中位數')} openFrom="beginner">
@@ -305,16 +315,28 @@ export function InlSection() {
             { tex: String.raw`E[G](w)=\sum_x p(x)\,|x|\operatorname{sign}\big(t(x)-w\big)`, why: m('取期望值：每個 code 投一張「往上 / 往下」的票，票的重量是 $p\\,|x|$。') },
             { tex: String.raw`t(\pm1)=1.1\ (\text{總重 }0.4),\qquad t(\pm2)=1.4\ (\text{總重 }0.8)`, why: m('代入 $a=1$、$c_3=0.1$；$x=0$ 的票重是 0。') },
             { tex: String.raw`1.1<w<1.4:\;E[G]=-0.4+0.8=+0.4;\qquad w>1.4:\;E[G]=-0.4-0.8=-1.2`, why: m('$w$ 小於某個 $t$ 就得到 +重量，大於就得到 −重量。') },
-            { tex: String.raw`E[G]\text{ 在 }w=1.4\text{ 由 }+0.4\text{ 跳到 }-1.2\;\Rightarrow\;w^*=1.4`, why: m('零交越發生在跳變處：累積票重越過總重一半（0.6）的那個 $t$ —— 加權中位數。') },
+            { tex: String.raw`E[G]\text{ 在 }w=1.4\text{ 由 }+0.4\text{ 跳到 }-1.2\;\Rightarrow\;w^*=1.4`, why: m(
+                '零交越發生在跳變處：累積票重第一次超過總重一半（0.6）的那個 $t$ —— 加權中位數。注意 $E[G]$ 是「跳過」0：它只取 $+1.2$、$+0.4$、$-1.2$（以及剛好站在 $1.1$、$1.4$ 上時的 $+0.8$、$-0.4$），沒有任何 $w$ 讓 $E[G]=0$。剛好在 $w=1.4$ 時 $x=\\pm2$ 的 $e=0$（tie，機率共 0.4）：這兩個 code 的貢獻合計為 0（$\\operatorname{sign}(0)$ 取 $0$ 時各自是 0，取 $+1$ 或 $-1$ 時是 $\\pm0.4$ 互相抵消），只剩 $x=\\pm1$ 的 $-0.4$。',
+              ),
+            },
           ]}
         />
-        <TexBlock id="F-11.10">{F.weightedMedian}</TexBlock>
+        <TexBlock id="F-11.10" label={m('$\\sigma_v=0$、離散 code：$E[G]$ 在 $w^*$ 由正跳到負（變號），不是 $E[G](w^*)=0$ 的根')}>
+          {F.weightedMedian}
+        </TexBlock>
       </ModeDetails>
       <p>
         模型即時計算：<Tex>{String.raw`E[G](${steps[0].w})=${texNum(steps[0].g)}`}</Tex>、<Tex>{String.raw`E[G](${steps[1].w})=${texNum(steps[1].g)}`}</Tex>、
         <Tex>{String.raw`E[G](${steps[2].w})=${texNum(steps[2].g)}`}</Tex>；加權中位數 = {num(med.lo)}。<strong>MSE 是平均、無雜訊 Sign 是中位數</strong> —— 這和 Ch01–02 的
         <Tex>{'y=[0,0,0,10]'}</Tex>（平均 2.5、中位數 0）是同一件事。實際的 <Tex>{'w'}</Tex> 不會停在 1.4，而是在它附近以 <Tex>{'O(\\mu)'}</Tex> 的幅度跳動（limit cycle）：在 1.4 以下每個 block 平均上升{' '}
         <Tex>{'0.4\\mu'}</Tex>、以上平均下降 <Tex>{'1.2\\mu'}</Tex>。
+        {m(
+          '所以 $w$ 大約有 $\\tfrac34$ 的 block 在 1.4 下方、$\\tfrac14$ 在上方（$\\tfrac34\\times0.4=\\tfrac14\\times1.2$），GMAC 的',
+        )}
+        <strong>時間平均</strong>
+        {m(
+          '是 0；但沒有任何一個 $w$ 讓 $E[G](w)=0$。情境 (3) 的 $w^*=1.4$ 是 $E[G]$ 由正變負的位置（也就是 MAE $E|e|$ 的最小點），不是 $E[G](w^*)=0$ 的根；§11.A 的「平均 GMAC 等於 0」在這裡要讀成「平均 GMAC 變號」。',
+        )}
       </p>
       <Hand id="HC-11.6">
         {m('自己排一次票：算 4 個 $t(x)$、排序、累加票重找中位數，再和 $x^2$ 加權平均比較。把 $b$ 改成 0.1、$c_3$ 改成 0，會看到 §11.1 的 dead zone。')}

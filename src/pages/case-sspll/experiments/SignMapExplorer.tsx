@@ -15,7 +15,7 @@ import {
   type SspllLoop,
 } from '@/simulation/models/sspll'
 import { FREF_MHZ, LOOPS, LOOP_LABEL, P_ONLY, PRED, REMEDY, SIGNMAP, SIM_CFG, mapIndex, type LoopKey, type SignMapJson } from '../data'
-import { fp, fs, fx, txs } from '../common'
+import { fp, fs, fx, tx, txs } from '../common'
 
 export const SIGNMAP_EXPERIMENT_ID = 'sspll-signmap'
 
@@ -41,7 +41,7 @@ export interface SignParams {
   kHat: number
   /** dead-zone 門檻 τ */
   tau: number
-  /** 開迴路時間常數 N_τ [blocks]（有限步長判據） */
+  /** 開迴路名義時間常數 N_τ [blocks]（H ≡ 1、κ = 1（8 相被選到的次數相同）時每個 block 誤差乘上 1 − 1/N_τ；有限步長判據） */
   nTau: number
   logX: boolean
 }
@@ -115,6 +115,14 @@ export function classify(kappa: number, tau: number): SignClass {
   return kappa < -tau ? 'inverted' : kappa > tau ? 'restoring' : 'dead'
 }
 
+/**
+ * 「精確週期」GOS 列的註記：它和 ergodic 列是同一個 C_GOS，只差正規化——這一列除以這個週期實際的 var(ρ)（κ_GOS = C_GOS/var(ρ)），
+ * ergodic 列乘固定的 12。β = a/b 時 var(ρ) = (b² − 1)/(12b²)，所以這一列是 ergodic 列的 b²/(b² − 1) 倍（正的倍數，符號相同）。
+ */
+export function gosExactNote(varRho: number, kG: number): string {
+  return `$\\mathrm{var}(\\rho)=${tx(varRho, 6)}$（$\\beta$ 為無理數時是 $\\tfrac{1}{12}\\approx0.083333$）；同一個 $C_{GOS}$ 乘 12 是 $${tx(12 * kG * varRho, 5)}$，與 ergodic 那一列只差正的倍數 $\\tfrac{1}{12\\,\\mathrm{var}(\\rho)}=${tx(1 / (12 * varRho), 4)}$`
+}
+
 const CLASS_TEXT: Record<SignClass, string> = { inverted: '反號（不收斂）', dead: 'dead zone（幾乎沒有恢復力）', restoring: 'restoring（收斂）' }
 
 const HEAT_ROWS: { key: keyof SignMapJson; label: string }[] = [
@@ -152,7 +160,7 @@ const INLINE_PRESETS: ExperimentPreset[] = [
 ]
 
 /**
- * 實驗 'sspll-signmap'（L2／L3）：給定 α，PHOS 各 DFT 模態的 κ_m = 8λ_m 與 GOS 的 κ_G = 12C（TS port 的 ergodic 諧波和，
+ * 實驗 'sspll-signmap'（L2／L3）：給定 α，PHOS 各 DFT 模態的 κ_m = 8λ_m 與 GOS 的 12·C_GOS（var(ρ) = 1/12 時等於 κ_GOS；TS port 的 ergodic 諧波和，
  * 有理數 α 另算精確週期解與大訊號 κ∞），並在 golden 預先算好的 sign map（signmap_L*.json）上標出目前的 α。
  */
 export function SignMapExplorer() {
@@ -221,10 +229,10 @@ export function SignMapExplorer() {
   const fTxt = `$\\alpha f_{ref}=${fx(fFold, 2).replace('−', '-')}$ MHz`
   if (clsP === 'inverted')
     warnings.push(
-      `PHOS 反號：mode ${an.worstMode}${an.worstMode !== 8 - an.worstMode ? `（與共軛的 mode ${8 - an.worstMode}）` : ' '}的 $\\kappa=8\\,\\mathrm{Re}\\,\\lambda=${an.kappaPhos.toFixed(4)}<0$（${fTxt}）。這個模態的 regressor 功率主要落在 $\\mathrm{Re}\\,\\Gamma_{\\rm eff}<0$ 的頻率，平均梯度 $-\\mu K_qC\\delta$ 的方向相反，權重誤差沿該模態指數成長——減小 $\\mu$ 改不了符號。`,
+      `PHOS 反號：mode ${an.worstMode}${an.worstMode !== 8 - an.worstMode ? `（與共軛的 mode ${8 - an.worstMode}）` : ' '}的 $\\mathrm{Re}\\,\\kappa=8\\,\\mathrm{Re}\\,\\lambda=${an.kappaPhos.toFixed(4)}<0$（${fTxt}）。這個模態的 regressor 功率主要落在 $\\mathrm{Re}\\,\\Gamma_{\\rm eff}<0$ 的頻率，平均梯度 $-\\mu K_qC\\delta$ 的方向相反，權重誤差沿該模態指數成長——減小 $\\mu$ 改不了符號。`,
     )
   else if (clsP === 'dead')
-    warnings.push(`PHOS 落在 dead zone：$\\lvert\\kappa\\rvert=${txs(Math.abs(an.kappaPhos), 3)}\\le\\tau$（${fTxt}）。恢復力幾乎為零，它的符號會隨 step response 的尾巴、$\\sigma_v$、探測幅度而變；實務上一律當作「不收斂、會漂移」。`)
+    warnings.push(`PHOS 落在 dead zone：$\\lvert\\kappa_{PHOS}\\rvert=${txs(Math.abs(an.kappaPhos), 3)}\\le\\tau$（${fTxt}）。恢復力幾乎為零，它的符號會隨 step response 的尾巴、$\\sigma_v$、探測幅度而變；實務上一律當作「不收斂、會漂移」。`)
   if (an.beta === 0) warnings.push('$\\beta=\\mathrm{frac}(8\\alpha)=0$（$\\alpha=k/8$）：$\\rho[n]\\equiv0$，DTC 細部 code 不動，GOS 不可觀測（persistent excitation 失效）。')
   else if (clsG === 'inverted')
     warnings.push(
@@ -266,9 +274,9 @@ export function SignMapExplorer() {
       ...(jsonP !== null && exact && exact.Q === 8000 ? { analytic: jsonP, tolerance: tol(jsonP), toleranceMode: 'abs' as const } : {}),
       note: `${CLASS_TEXT[clsP]}${jsonP !== null ? `；golden signmap：${fs(jsonP, 5)}` : ''}`,
     },
-    { name: '$\\kappa_1$（mode-1）', value: an.kappaM[0].re, digits: 5, note: `虛部 ${fs(an.kappaM[0].im, 4)}` },
+    { name: '$\\mathrm{Re}\\,\\kappa_1$（mode-1）', value: an.kappaM[0].re, digits: 5, note: `$\\mathrm{Im}\\,\\kappa_1=${an.kappaM[0].im.toFixed(4)}$（有限步長判據用）` },
     { name: '單線近似 $W_1\\mathrm{Re}\\,\\Gamma_{\\rm eff}(\\alpha)$', value: an.singleLine, digits: 5, note: `$\\mathrm{Re}\\,\\Gamma_{\\rm eff}(\\alpha f_{ref})=${an.reGammaAtAlpha.toFixed(5)}$；近整數時過度悲觀、alias 區看不到問題` },
-    { name: 'mode-1 嚴格界限 [下, 上]', value: `[${fs(an.m1Lower, 4)}, ${fs(an.m1Upper, 4)}]`, formulaId: 'F-CS.14', claim: 'exact', note: an.m1Upper < 0 ? '上界 $<0$：一定反號' : an.m1Lower >= 0 ? '下界 $\\ge0$：mode-1 不可能反號' : '界限跨過 0：要看實際的和' },
+    { name: 'mode-1 嚴格界限：$\\mathrm{Re}\\,\\kappa_1$ 的 [下, 上]', value: `[${fs(an.m1Lower, 4)}, ${fs(an.m1Upper, 4)}]`, formulaId: 'F-CS.14', claim: 'exact', note: an.m1Upper < 0 ? '上界 $<0$：一定反號' : an.m1Lower >= 0 ? '下界 $\\ge0$：mode-1 不可能反號' : '界限跨過 0：要看實際的和' },
     {
       name: '$\\kappa_{GOS}=12\\,C_{GOS}$（ergodic）',
       value: an.beta === 0 ? '不可觀測（鋸齒 regressor 恆為 0）' : an.kappaGos,
@@ -276,13 +284,19 @@ export function SignMapExplorer() {
       formulaId: 'F-CS.11',
       claim: 'exact',
       ...(jsonG !== null && an.beta !== 0 && exact && exact.Q === 8000 ? { analytic: jsonG, tolerance: tol(jsonG), toleranceMode: 'abs' as const } : {}),
-      note: `${an.beta === 0 ? '' : CLASS_TEXT[clsG]}${jsonG !== null ? `；golden signmap：${fs(jsonG, 5)}` : ''}`,
+      note: `${an.beta === 0 ? '' : CLASS_TEXT[clsG]}${jsonG !== null ? `；golden signmap：${fs(jsonG, 5)}${exact && exact.Q !== 8000 ? '（golden 除以這個週期實際的 $\\mathrm{var}(\\rho)$，見「精確週期」列）' : ''}` : ''}`,
     },
   ]
   if (exact) {
     metrics.push(
       { name: `精確週期（$\\alpha=${exact.P}/${exact.Q}$）：$\\kappa_{PHOS}$`, value: Number.isFinite(exact.kr.kP) ? exact.kr.kP : null, digits: 5, claim: 'exact', note: `$\\min\\mathrm{Re}\\,\\mathrm{eig}$ $\\div$ 開迴路參考（${fp(exact.kr.refP, 4)}）；可觀測 PHOS 方向 ${exact.kr.phosNObs} 個` },
-      { name: '精確週期：$\\kappa_{GOS}=C_{GOS}/\\mathrm{var}(\\rho)$', value: Number.isFinite(exact.kr.kG) ? exact.kr.kG : '不可觀測', digits: 5, claim: 'exact' },
+      {
+        name: '精確週期：$\\kappa_{GOS}=C_{GOS}/\\mathrm{var}(\\rho)$',
+        value: Number.isFinite(exact.kr.kG) ? exact.kr.kG : '不可觀測',
+        digits: 5,
+        claim: 'exact',
+        ...(Number.isFinite(exact.kr.kG) ? { note: gosExactNote(exact.kr.varRho, exact.kr.kG) } : {}),
+      },
       { name: '精確週期：joint $9\\times9$ 的 $\\min\\mathrm{Re}\\,\\mathrm{eig}$（同一正規化）', value: Number.isFinite(exact.kr.kJ) ? exact.kr.kJ : null, digits: 5, formulaId: 'F-CS.15', claim: 'exact', note: `GOS–PHOS 耦合 $\\max\\lvert C_{0k}\\rvert=${exact.kr.coupling < 1e-15 ? '0' : txs(exact.kr.coupling, 2)}$` },
       {
         name: '大訊號 $\\kappa_\\infty$（6 個方向的最差值）',
@@ -427,13 +441,13 @@ export function SignMapExplorer() {
       description={
         <>
           選一個 {mathText('$\\alpha$')}（或 PMUX 旋轉頻率 {mathText('$\\alpha f_{ref}$')}）與 regressor 模式。長條圖是 TS port 即時算出的{' '}
-          {mathText('$\\kappa_m=8\\lambda_m$')}（PHOS 的 7 個 DFT 模態）與 {mathText('$\\kappa_{GOS}=12C$')}；下方兩張圖是 golden 預先算好的 sign map（<code>signmap_{dP.loop}.json</code>，2000 個 {mathText('$\\alpha$')}）。
+          {mathText('$\\kappa_m=8\\lambda_m$')}（PHOS 的 7 個 DFT 模態）與 GOS 的 {mathText('$12\\,C_{GOS}$')}（{mathText('$\\mathrm{var}(\\rho)=\\tfrac{1}{12}$')} 時等於 {mathText('$\\kappa_{GOS}$')}；小 {mathText('$Q$')} 的差別見「假設」）；下方兩張圖是 golden 預先算好的 sign map（<code>signmap_{dP.loop}.json</code>，2000 個 {mathText('$\\alpha$')}）。
         </>
       }
       assumptions={[
         'Bussgang 小訊號線性化（$\\lvert e_{PD}\\rvert\\ll\\sigma_v$）與穩態平均；小步長極限：收斂 $\\iff$ 可觀測子空間上 $\\mathrm{Re}\\,\\mathrm{eig}(C)>0$',
         '一階累加器、無 DSM 隨機化：$\\varphi[n]=\\mathrm{frac}(n\\alpha)$、$p=\\lfloor8\\varphi\\rfloor$、$\\rho=8\\varphi-p$；相關器延遲 $D=0$（除非選 $D=+1$）',
-        'ergodic 諧波和對無理數 $\\alpha$ 精確；有理數 $\\alpha$ 另列精確週期解（$8\\nmid Q$ 或小 $Q$ 時兩者會不同）',
+        'ergodic 諧波和對無理數 $\\alpha$ 精確；有理數 $\\alpha$ 另列精確週期解（$8\\nmid Q$ 或小 $Q$ 時兩者會不同）；GOS 的兩列用同一個 $C_{GOS}$，差別只在正規化：ergodic 列乘固定的 12，精確週期列與 golden sign map 除以這個週期實際的 $\\mathrm{var}(\\rho)=\\frac{b^2-1}{12b^2}$（$b$ 是 $\\beta$ 的最簡分母），所以是 ergodic 列的 $\\frac{b^2}{b^2-1}$ 倍（$\\alpha=\\tfrac1{16}$ 時 $b=2$，是 $\\tfrac43$ 倍；$b\\ge32$ 時差不到 $0.1\\%$）；ergodic 列的級數截在 8192 項，小 $Q$ 時另有約 $3\\times10^{-5}$ 的尾項誤差',
         'sign map 的格點是 $\\alpha=(2j-1)/8000$（$\\alpha f_{ref}=j-0.5$ MHz），每一點都有 $8\\mid Q$；$1-\\alpha$ 的值相同（鏡像）',
         '大訊號 $\\kappa_\\infty$ 只沿 6 個方向（GOS、m1c、m1s、m2c、m3c、m4）計算，不是完整的非線性穩定域；$\\sigma_v=200$ fs、$f_{vco}=16$ GHz 為插圖值',
         '標稱迴路 L1／L2／L3（320 MHz）；P-only 模式把迴路換成 hold 住積分路徑後的 Type-I 迴路（L3 用 $C_1\\gg C_2$ 模型）',
@@ -510,7 +524,18 @@ export function SignMapExplorer() {
             ]}
             hint={mathText('$\\kappa<-\\tau$ 才算反號；$\\lvert\\kappa\\rvert\\le\\tau$ 是 dead zone')}
           />
-          <ParamControl label={mathText('$N_\\tau$（開迴路時間常數）')} ariaLabel="N_tau" value={P.nTau} onChange={(nTau) => set({ nTau })} min={1} max={1000} log unit="blocks" reg="LMS 步長（以 H ≡ 1 的時間常數表示）" />
+          <ParamControl
+            label={mathText('$N_\\tau$（開迴路名義時間常數）')}
+            ariaLabel="N_tau"
+            value={P.nTau}
+            onChange={(nTau) => set({ nTau })}
+            min={1}
+            max={1000}
+            log
+            unit="blocks"
+            reg="LMS 步長"
+            hint={mathText('$H\\equiv1$、$\\kappa=1$（8 個相位被選到的次數一樣多）時，每個 block 修掉誤差的 $1/N_\\tau$（§12）')}
+          />
           <ToggleControl label="熱圖的頻率軸用 log" value={P.logX} onChange={(logX) => set({ logX })} />
         </>
       }
@@ -521,7 +546,7 @@ export function SignMapExplorer() {
         height={300}
         csvName="sspll-kappa-modes"
         layout={{ yaxis: { title: { text: '$\\kappa$' } }, barmode: 'overlay' }}
-        caption="藍＝restoring、紅＝反號、灰＝dead zone；菱形是虛部（有限步長判據用）；✕ 是有理數 $\alpha$ 的精確週期值（$8\nmid Q$ 時是 Rayleigh quotient，不是特徵值）。"
+        caption="長條是實部 $\mathrm{Re}\,\kappa_m$（最右邊是 GOS 的 $12\,C_{GOS}$），顏色看正負：藍＝restoring、紅＝反號、灰＝dead zone；菱形是虛部 $\mathrm{Im}\,\kappa_m$（有限步長判據用）；✕ 是有理數 $\alpha$ 的精確週期值（$8\nmid Q$ 時是 Rayleigh quotient，不是特徵值）。GOS 的 ✕ 除以這個週期實際的 $\mathrm{var}(\rho)$，小 $Q$ 時是長條（$12C$）的 $\frac{b^2}{b^2-1}$ 倍（$b$ 是 $\beta$ 的最簡分母）；$C_{GOS}$ 本身相同。"
       />
       <Plot
         title="golden sign map：$\kappa$ 對 $\alpha f_{ref}$（星號／菱形 = 目前的 $\alpha$，TS port 即時值）"

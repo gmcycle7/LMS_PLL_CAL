@@ -203,7 +203,15 @@ const MODEL_TEXT_RULES: TextRule[] = [
   // （Explorer 以 polarityWarnings 取代下面兩條；其他頁面若直接顯示模型的版本，也能得到 LaTeX）
   rule('C ≤ 0：更新極性錯誤（C_D = #，以 σ_x² = # 正規化）', (c, s2) => T`$C\le0$：更新極性錯誤（$C_D=${c}$，以 $\sigma_x^2=${s2}$ 正規化）`),
   rule('只減小 μ 不會改變符號', () => T`只減小 $\mu$ 不會改變符號`),
-  rule('C ≈ 0：GMAC 沒有平均恢復力（C_D = #），w 會隨雜訊漂移；固定點 w* = a + B/C 對任何 bias B 都', (c) => T`$C\approx0$：GMAC 沒有平均恢復力（$C_D=${c}$），$w$ 會隨雜訊漂移；固定點 $w^*=a+B/C$ 對任何 bias $B$ 都`),
+  // C ≈ 0 正是 a + B/C 超出線性範圍的情況（Ch11 §11.4）：顯示時寫成「線性化的 a + B/C」並指到代回檢查，不寫成無條件的「固定點 w* = a + B/C」。
+  // 模型字串（polarity.ts）是「…；線性化的固定點 w* ≈ a + B/C 對任何 bias B 都極度敏感（§11.4 的代回檢查：…）。」；regex 也接受舊的寫法
+  // （「固定點 w* = a + B/C …（§11.4）」），兩種都轉成同一句。括號內不可再有「）」；模型那一句要改，必須和這條規則一起改。
+  {
+    re: new RegExp(T`C ≈ 0：GMAC 沒有平均恢復力（C_D = ${NUM}），w 會隨雜訊漂移；(?:線性化的 ?)?(?:固定點 )?w\* [=≈] a \+ B/C 對任何 bias B 都極度敏感（§11\.4[^）]*）`, 'g'),
+    n: 1,
+    to: (c) =>
+      T`$C\approx0$：GMAC 沒有平均恢復力（$C_D=${c}$），$w$ 會隨雜訊漂移；線性化的 $a+B/C$ 對任何 bias $B$ 都極度敏感，$C\approx0$ 時 $B/C$ 通常已經超出線性範圍，$a+B/C$ 只是線性外推、不是固定點（Ch11 §11.4 的代回檢查）`,
+  },
   // analyzePllPolarity：封閉式標籤（MetricRow note）
   rule('σ_x²·Re{H(e^{jΩ₀})e^{jΩ₀D}}', () => T`$\sigma_x^2\operatorname{Re}\{H(e^{j\Omega_0})e^{j\Omega_0D}\}$`),
   rule('h[D]·σ_x²（白色 code；D = 0 時 h[0] = 1 ⇒ C = σ_x²，', () => T`$h[D]\,\sigma_x^2$（白色 code；$D=0$ 時 $h[0]=1\Rightarrow C=\sigma_x^2$，`),

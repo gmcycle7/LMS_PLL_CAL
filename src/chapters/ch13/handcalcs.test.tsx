@@ -122,6 +122,29 @@ describe('ch13 handcalcs：題目清單', () => {
     expect(def('HC-13.8').claim).toBe('approx')
   })
 
+  it('桌機寬度放不下的通式拆成兩行（HC-13.1／13.2／13.4／13.5）：分行不丟項、不丟條件', () => {
+    // 這四條原本是一整行，在 1280px 的欄位裡比欄寬多 85–301px，要橫向捲動；拆成 gathered 兩行（只在逗號或 ⇒ 處換行）。
+    const terms: Record<string, [string, string][]> = {
+      'HC-13.1': [
+        [String.raw`y=Q_B(w^*)=\Big\lfloor w^*+\tfrac12\Big\rfloor,\qquad \delta w=y-w^*\;\;(\delta=a-w=-\delta w),\qquad E[\delta w^2]=(\delta w)^2`, String.raw`\delta w\,[\mathrm{fs}]=\Delta_\mathrm{LSB}\cdot\delta w\,[\mathrm{LSB}]`],
+      ],
+      'HC-13.2': [
+        [String.raw`p=w^*-\lfloor w^*\rfloor,\quad h=\mathrm{round}(pL_t),\quad y[n']=\lfloor w^*\rfloor+\Big\lfloor\tfrac{(n'+1)h}{L_t}\Big\rfloor-\Big\lfloor\tfrac{n'h}{L_t}\Big\rfloor`, String.raw`\overline y=\lfloor w^*\rfloor+\frac{h}{L_t},\quad \overline{e^2}=\frac{h}{L_t}\Big(1-\frac{h}{L_t}\Big)+\big(\overline y-w^*\big)^2`],
+      ],
+      'HC-13.4': [
+        [String.raw`p=w^*-\lfloor w^*\rfloor,\qquad E[y]=\lfloor w^*\rfloor+p,\qquad \mathrm{Var}(y)=p(1-p),\qquad \sigma_y=\sqrt{p(1-p)}`, String.raw`S_e^{(1)}(f)=\frac{2p(1-p)}{f_u},\qquad \sigma_{\bar y}=\frac{\sigma_y}{\sqrt N}`],
+      ],
+      'HC-13.5': [
+        [String.raw`v[n]=w_H+r[n-1],\qquad y[n]=Q_B\big(v[n]\big),\qquad r[n]=v[n]-y[n]`, String.raw`\Rightarrow\;\;y[n]=w_H+r[n-1]-r[n],\qquad\sum_{n=0}^{N-1}\big(y[n]-w_H\big)=r[-1]-r[N-1]`],
+      ],
+    }
+    for (const [id, [[line1, line2]]] of Object.entries(terms)) {
+      const tex = def(id).formulaTex
+      expect(tex, `${id}: 兩行`).toBe(String.raw`\begin{gathered}${line1}\\[4pt]${line2}\end{gathered}`)
+      expect(() => parses(tex, true), `${id} formulaTex`).not.toThrow()
+    }
+  })
+
   it('預設值 = 本章 worked example 的參數（w* = 32.4、Δ_LSB、L_t、σ_w、f_B = f_u/64、A）', () => {
     const d = (id: string, key: string) => def(id).inputs.find((i) => i.key === key)!.default
     for (const [id, key] of [['HC-13.1', 'w'], ['HC-13.2', 'w'], ['HC-13.4', 'w'], ['HC-13.5', 'wH'], ['HC-13.6', 'wH'], ['HC-13.8', 'w']] as const) expect(d(id, key), id).toBe(DEFAULT_LAB_PARAMS.target)

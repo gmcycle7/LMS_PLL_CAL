@@ -300,7 +300,7 @@ export function psdToDbcHz(sPhi: number | ArrayLike<number>): number | Float64Ar
 
 /**
  * DTFT 形式 PSD → one-sided 連續頻率 PSD（validation.md E28）：
- *   若 σ² = (1/2π) ∫_{−π}^{π} S(e^{jΩ}) dΩ（單位 x²/(rad/sample)），則
+ *   若 σ² = (1/2π) ∫_{−π}^{π} S(e^{jΩ}) dΩ（單位 x²，每 cycle/sample），則
  *   S^(1)(f) = (2/fs) · S(e^{j2πf/fs})，0 < f < fs/2（單位 x²/Hz），使 ∫_0^{fs/2} S^(1) df = σ²。
  * block-rate 量（例如 S_w）請把 fs 換成 block 更新率 f_u。
  * 忘記這個換算會讓 ℒ(f) 偏移 10·log10(fs/2)（fs = 4 GHz 時約 93 dB）。

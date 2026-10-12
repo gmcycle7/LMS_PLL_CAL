@@ -74,7 +74,7 @@ export const SYMBOLS: SymbolEntry[] = [
   { symbol: r`G_k,\ N`, meaning: <>第 <Tex>{'k'}</Tex> 個 GMAC block 的平均相關輸出；每 block 的 sample 數</>, unit: r`\text{無因次}`, firstSeen: '§7.1', note: <><Tex>{'n'}</Tex>：sample，<Tex>{'k'}</Tex>：block（E35）</> },
   { symbol: r`\mu`, meaning: 'learning rate（gain_step，average 模式）', unit: r`\mathrm{fs}`, firstSeen: '§7.1' },
   { symbol: r`K_q=\sqrt{2/\pi}/\sigma_v`, meaning: '1-bit comparator 的小訊號增益', unit: r`\mathrm{fs^{-1}}`, firstSeen: '§7.1', note: 'Ch05' },
-  { symbol: r`p,\ p_f`, meaning: <>平均更新 pole <Tex>{r`1-\mu K_qC`}</Tex>；filtered-x 時 <Tex>{'C'}</Tex> 換成 <Tex>{r`E[u\,u_f]`}</Tex></>, unit: '—', firstSeen: '§7.1、§7.4' },
+  { symbol: r`p,\ p_f`, meaning: <>平均更新 pole <Tex>{r`1-\mu K_qC`}</Tex>；filtered-x 時 <Tex>{'C'}</Tex> 換成 <Tex>{r`C_{f,D}`}</Tex>（<Tex>{'D=0'}</Tex> 時是 <Tex>{r`E[u\,u_f]`}</Tex>）</>, unit: '—', firstSeen: '§7.1、§7.4' },
   {
     symbol: r`g=\mu K_qC,\ \tau=-1/\ln|p|`,
     meaning: <>校正迴路的 loop gain（每個 block 修正掉的誤差比例，<Tex>{'p=1-g'}</Tex>）與時間常數</>,
@@ -113,7 +113,20 @@ export const SYMBOLS: SymbolEntry[] = [
   { symbol: r`\hat H,\ \hat h`, meaning: '誤差路徑的模型（filtered-x 用）', unit: '—', firstSeen: '章首、§7.4', note: <ErratumNote id="E45" /> },
   { symbol: r`u_f=\hat h*x`, meaning: 'filtered-x regressor', unit: r`\text{無因次}`, firstSeen: '§7.4' },
   { symbol: r`x_{\mathrm{ref}}[n]`, meaning: <>GMAC 實際相乘的 regressor：<Tex>{'x'}</Tex>、<Tex>{'x_D'}</Tex> 或 <Tex>{r`u_f[n-D]`}</Tex></>, unit: r`\text{無因次}`, firstSeen: '§7.4' },
-  { symbol: r`J(w)=\tfrac12E[e_{\mathrm{PD}}^2]`, meaning: 'PD 端的均方誤差（要最小化的 cost）', unit: r`\mathrm{fs^2}`, firstSeen: '§7.4' },
+  {
+    symbol: r`C_{f,D}`,
+    meaning: <>filtered-x 的有效相關 <Tex>{r`E\big[u[n]\,u_f[n-D]\big]`}</Tex>：regressor <Tex>{'u_f[n-D]'}</Tex> 與 <Tex>{'u[n]'}</Tex> 的相關（F-07.11、F-07.12）</>,
+    unit: r`\text{無因次}`,
+    firstSeen: '§7.4',
+    note: <><Tex>{r`\hat H=H`}</Tex> 且 <Tex>{'D=0'}</Tex> 時等於 <Tex>{r`E[u^2]`}</Tex></>,
+  },
+  {
+    symbol: r`J(w)=\tfrac12E[e_{\mathrm{PD}}^2]`,
+    meaning: 'PD 端的均方誤差（要最小化的 cost）',
+    unit: r`\mathrm{fs^2}`,
+    firstSeen: '§7.4',
+    note: <>把 <Tex>{'w'}</Tex> 凍結（固定不動）時的值；見 §7.4 的前提</>,
+  },
   {
     symbol: r`s[n]=(a-w)\,u[n]`,
     meaning: <>comparator 輸入中由 code 決定的部分（訊號；雜訊是 <Tex>{'v'}</Tex>）</>,

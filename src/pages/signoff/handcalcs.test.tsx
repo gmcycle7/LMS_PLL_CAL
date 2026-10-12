@@ -642,4 +642,53 @@ describe('Sign-off 手算題：渲染', () => {
     expect(container.querySelectorAll('.c-step')).toHaveLength(0)
     expect(container.querySelector('.callout-warn')?.textContent).toContain('不可辨識')
   })
+
+  it('技術審查 R02：HC-SO.4 的 k95——d = 0 時是精確值，d = 1 時只是用 ρ_S 的漸近衰減率估計（ρ_S^k 不是誤差的包絡）', () => {
+    const def = handcalc('HC-SO.4')
+    // 逐 block 的平均遞迴 δ_{k+1} = δ_k − g·δ_{k−d}（初始歷史都是 1）：1 + 最後一次 |δ_k| > 5% 的 k
+    const settle = (g: number, d: number) => {
+      const y = new Array<number>(d + 1).fill(1)
+      let last = 0
+      for (let k = 1; k < 4000; k++) {
+        y.push(y[y.length - 1] - g * y[y.length - 1 - d])
+        if (Math.abs(y[y.length - 1]) > 0.05) last = k
+      }
+      return last + 1
+    }
+    const k95Why = (v: Record<string, number>) => def.solve(v).steps.find((s) => s.tex.startsWith('k_{95}='))!.why as string
+    // 讓最慢的 corner 的 g_S 恰好等於指定值：θ_S = 0、σ_S = 100 ⇒ g_S = μ·K_q(100)
+    const at = (gS: number, d: number) => ({ ...defaultValues(def), sigmaF: 100, thetaF: 0, sigmaS: 100, thetaS: 0, mu: gS / J.kq(100), d, B: 10000, pmT: 0 })
+    // 反例：d = 1、g_S = 1/4 是重根 z = 1/2——公式給 5，逐 block 算要 7（相對差 40%，是 d = 1 時最大的）
+    const dbl = def.solve(at(0.25, 1))
+    close(dbl.results[2].value, 0.5, 1e-6)
+    expect(dbl.results[3].value).toBe(5)
+    expect(settle(0.25, 1)).toBe(7)
+    const why1 = k95Why(at(0.25, 1))
+    expect(why1).toContain('漸近衰減率估計')
+    expect(why1).toContain(String.raw`$\rho_S^{\,k}$ 不是它的包絡`)
+    expect(why1).toContain(String.raw`公式給 $5$，從定值的初始歷史逐 block 算要 $7$`)
+    expect(why1).not.toContain('誤差包絡')
+    expect(why1).not.toContain('越接近')
+    // 「相對差距在 1/4 附近最大」：掃 d = 1 的 g ∈ (0, 1)，相對差的最大值就是 2/5，出現在 0.25 附近
+    let worst = { rel: 0, g: 0 }
+    for (let i = 1; i < 199; i++) {
+      const g = i / 200
+      const formula = def.solve(at(g, 1)).results[3].value
+      const rel = Math.abs(settle(g, 1) - formula) / formula
+      if (rel > worst.rel) worst = { rel, g }
+    }
+    expect(worst.rel).toBeCloseTo(0.4, 12)
+    expect(Math.abs(worst.g - 0.25)).toBeLessThan(0.02)
+    // 另一個方向：公式也可能多算（g_S = 0.8：公式 27、逐 block 26）
+    expect(def.solve(at(0.8, 1)).results[3].value).toBe(27)
+    expect(settle(0.8, 1)).toBe(26)
+    // 正常對照：d = 0 時公式就是逐 block 的結果，說明文字不加「估計」
+    for (const g of [0.005, 0.039894, 0.25, 0.5, 0.9]) expect(def.solve(at(g, 0)).results[3].value, `g=${g}`).toBe(settle(g, 0))
+    const why0 = k95Why(at(0.25, 0))
+    expect(why0).toContain('剛好乘上')
+    expect(why0).not.toContain('估計')
+    // 預設題（g_S = 0.039894、d = 1）：公式 71，逐 block 也是 71
+    expect(def.solve(defaultValues(def)).results[3].value).toBe(71)
+    expect(settle(10 * J.kq(100) * Math.cos(Math.PI / 3), 1)).toBe(71)
+  })
 })

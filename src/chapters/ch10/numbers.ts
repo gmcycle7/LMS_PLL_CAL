@@ -53,6 +53,10 @@ function computeNumbers() {
   const hand = propagateLinearMoments(p08n, rule({ rule: 'scalar', muKq: 0.5 }), p08n.Jn, dCoupling, 6)!
   const handRows = Array.from({ length: 7 }, (_, k) => ({ k, d1: hand.mean[0][k], d2: hand.mean[1][k] }))
   const eig08 = eigSym(R08).values
+  // ── §10.3（審查 R06a）：1-bit 的 K_q 是小訊號增益。Gaussian regressor 的精確平均（F-10.13）÷ 線性式 K_q·Rδ = 1/√(1 + s_δ²)，
+  //    s_δ = √(δᵀRδ)/σ_v（第 9 章 F-09.3 的符號）。取 δ = (0, s_δ·σ_v)：R₂₂ = 1 ⇒ δᵀRδ = (s_δ σ_v)²
+  const sDeltas = [0.1, 0.3, 1]
+  const smallSignalGain = sDeltas.map((sd) => signGmacMean(p08, [0, sd * sigmaV])[1] / (Kq * sd * sigmaV))
 
   // ── §10.1：ρ = 0.99（K_q 正規化為 1） ──
   const R099 = corrMatrix(2, 0.99)
@@ -69,6 +73,23 @@ function computeNumbers() {
   const eigMn = eigSym(Mn05).values
   const slow = scalar05.closedPoles![1]
   const fast = scalar05.closedPoles![0]
+
+  // ── §10.3（審查 C01）：步長超過 2/(λ_max+λ_min) 時，名字叫「快」的模式反而最慢（ρ = 0.5、μK_q = 1.2；K_q 正規化為 1） ──
+  const pHalf = buildPlant({ mode: 'R', R: corrMatrix(2, 0.5), sigmaV: SIGMA_KQ1, N: 4096 })
+  const fastLedMuKq = 1.2
+  const fastLedAn = analyzeRule(pHalf, rule({ rule: 'scalar', muKq: fastLedMuKq }), pHalf.Jn)
+
+  // ── §10.3.1（審查 R02）：A_cal 不對稱（非正規）時 F-10.5 只是下界。J_n = [[−1, 2], [0, −1]]、μK_q = 0.5 ⇒ A = [[0.5, 1], [0, 0.5]] ──
+  const JnN: Mat = [
+    [-1, 2],
+    [0, -1],
+  ]
+  const pNN = buildPlant({ mode: 'J', Jn: JnN, sigmaV: SIGMA_KQ1, N: 4096 })
+  const cfgNN = rule({ rule: 'scalar', muKq: 0.5 })
+  const anNN = analyzeRule(pNN, cfgNN, JnN)
+  const delta0NN = [0, 1]
+  const momNN = propagateLinearMoments(pNN, cfgNN, JnN, delta0NN, 12)!
+  const lenNN = (k: number) => Math.hypot(momNN.mean[0][k], momNN.mean[1][k])
 
   // ── E05 / E08：實體 K_q = 0.00797885 fs⁻¹ ──
   const p099 = buildPlant({ mode: 'R', R: R099, sigmaV, N: 4096 })
@@ -166,6 +187,8 @@ function computeNumbers() {
     sigmaV,
     Kq,
     coupling: { R: R08, eig: eig08, delta: dCoupling, G1lin, G2lin, Gexact, erfOne, muFs, w1Shift, handRows },
+    /** 審查 R06a：1-bit comparator 的平均增益 ÷ K_q（Gaussian regressor，F-10.13），對應 s_δ = 0.1、0.3、1 */
+    smallSignal: { s: sDeltas, gain: smallSignalGain },
     rho099: {
       R: R099,
       eig: ins099.eigSym!.values,
@@ -190,6 +213,38 @@ function computeNumbers() {
       eigMn,
       ln005: Math.log(0.05),
       lnSlow: Math.log(slow),
+      /** 單一 scalar μ 能做到的最小 max|p_i| = (κ − 1)/(κ + 1)（在 μK_q = 2/(λ_max + λ_min) 時；第 9 章 F-09.7） */
+      bestMaxPole: (ins099.cond - 1) / (ins099.cond + 1),
+    },
+    /** 審查 C01：ρ = 0.5、μK_q = 1.2 ⇒ poles −0.8（λ_max 的快模式）／0.4（λ_min 的慢模式），最慢的是快模式 */
+    fastLed: {
+      rho: 0.5,
+      muKq: fastLedMuKq,
+      eig: pHalf.modeValues,
+      /** 穩定上限 2/λ_max */
+      muMax: 2 / pHalf.modeValues[0],
+      /** 換手點 2/(λ_max + λ_min) */
+      muCross: 2 / (pHalf.modeValues[0] + pHalf.modeValues[1]),
+      fast: fastLedAn.closedPoles![0],
+      slow: fastLedAn.closedPoles![1],
+      dominant: fastLedAn.spectralRadius,
+      blocks: fastLedAn.blocks95!,
+      blocksSlowAlone: stepsToDecay(fastLedAn.closedPoles![1]),
+    },
+    /** 審查 R02：非正規 A 的例子（J-mode、scalar μK_q = 0.5），δ₀ = (0, 1) */
+    nonNormal: {
+      J: JnN,
+      muKq: cfgNN.muKq,
+      A: anNN.A as Mat,
+      rho: anNN.spectralRadius,
+      /** 只看 ρ(A) 的 ⌈ln 0.05/ln ρ⌉（F-10.5） */
+      asym: anNN.blocks95Asymptotic!,
+      /** 最壞初始方向的 ‖A^k‖₂ 降到 5% 以下且不再超過 */
+      blocks: anNN.blocks95!,
+      delta0: delta0NN,
+      n5: lenNN(5),
+      n8: lenNN(8),
+      n9: lenNN(9),
     },
     phys: {
       slowPole: physScalar.spectralRadius,

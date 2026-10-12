@@ -29,7 +29,7 @@ const SYMBOLS: SymbolEntry[] = [
   { symbol: String.raw`G_k\ (\text{GMAC})`, meaning: tx(String.raw`GMAC 第 $k$ 個 block 的平均（comparator 輸出乘上 code 的平均，第 4 章）；只出現在 §13.0 的訊號流圖`), firstSeen: '§13.0', note: tx(String.raw`與下一列的 ZOH 權重 $G_k$ 同名不同義：那裡的 $k$ 是譜線編號`) },
   { symbol: String.raw`G_k\ (\text{ZOH})`, meaning: tx(String.raw`ZOH 對第 $k$ 條譜線的權重（離散 sinc）：$G_k=\sin(\pi k/5)/\big(N_h\sin(\pi k/(5N_h))\big)$`), firstSeen: '§13.2', note: tx(String.raw`§13.2 圖與公式 F-13.5 專用；與 §13.0 的 GMAC 平均 $G_k$ 不同`) },
   { symbol: String.raw`\Omega=2\pi f/f_u`, meaning: '以 code 更新率為取樣率的離散時間頻率', unit: String.raw`\mathrm{rad/sample}`, firstSeen: '§13.4' },
-  { symbol: String.raw`v[n],\;r[n]`, meaning: 'ΔΣ 量化器輸入與內部量化誤差（residual）', unit: String.raw`\mathrm{LSB}`, firstSeen: '§13.4', note: tx(String.raw`round-half-up 時 $r\in[-\tfrac12,\tfrac12)$；floor 時 $r\in[0,1)$`) },
+  { symbol: String.raw`v[n],\;r[n]`, meaning: 'ΔΣ 量化器輸入與內部量化誤差（residual）', unit: String.raw`\mathrm{LSB}`, firstSeen: '§13.4', note: tx(String.raw`round-half-up 時 $r\in[-\tfrac12,\tfrac12)$；floor 時 $r\in[0,1)$（方法 D、沒有 overload；方法 E 加了峰對峰 $A$ 的 dither 後，範圍兩端各多 $\tfrac A2$）`) },
   { symbol: String.raw`\sigma_r^2`, meaning: tx(String.raw`$r$ 的變異數；白色近似取 $\tfrac1{12}$，常數 32.4 時實際為 0.08`), unit: String.raw`\mathrm{LSB}^2`, firstSeen: '§13.4', note: <Erratum id="E15" /> },
   { symbol: String.raw`\mathrm{NTF}(z)=1-z^{-1}`, meaning: '一階 noise transfer function', firstSeen: '§13.4' },
   { symbol: String.raw`q,\;m`, meaning: tx(String.raw`有理目標 $w=m/q$（最簡分數）；$q$ 也是 limit cycle 的週期`), firstSeen: '§13.4' },
@@ -48,6 +48,8 @@ const SYMBOLS: SymbolEntry[] = [
   { symbol: String.raw`\sigma_{\delta t},\;\sigma_\mathrm{out}`, meaning: tx(String.raw`$\delta t$ 的 RMS（未經 PLL）與經 $|T(f)|^2$ 加權積分後的 output jitter（只含 $f\ge f_L$）`), unit: String.raw`\mathrm{fs}`, firstSeen: '§13.5b' },
   { symbol: String.raw`f_L,\;\sigma_\mathrm{slow},\;\overline{\delta t}`, meaning: tx(String.raw`$\sigma_\mathrm{out}$ 的積分下限（Welch 的頻率解析度 $f_s/N_\mathrm{seg}$）；比它慢的成分 RMS；整段紀錄的平均（靜態偏移，或分辨不出的慢差頻）`), unit: String.raw`\mathrm{Hz},\;\mathrm{fs},\;\mathrm{fs}`, firstSeen: '§13.5b' },
   { symbol: String.raw`P_\mathrm{code},\;P_\mathrm{DSM},\;P_\mathrm{mix}`, meaning: tx(String.raw`code 的 limit-cycle 週期、DSM residue 的週期，與混頻產物的週期 $P_\mathrm{mix}=\mathrm{lcm}(P_\mathrm{code}N_\mathrm{upd},\,P_\mathrm{DSM})$ 個 reference cycle`), unit: String.raw`\text{更新次數},\;\text{cycles},\;\text{cycles}`, firstSeen: '§13.5b' },
+  { symbol: String.raw`\Delta y[n]=y[n]-y[n-1]`, meaning: tx(String.raw`一次更新的 code 跳動量；$\max|\Delta y|$ 是整段紀錄裡最大的一步`), unit: String.raw`\mathrm{LSB}`, firstSeen: '§13.6', note: tx(String.raw`gray 碼的單 bit 保證只在 $|\Delta y|\le1$ 時成立`) },
+  { symbol: String.raw`\mathrm{gray}(n)=n\oplus\lfloor n/2\rfloor`, meaning: tx(String.raw`reflected-binary gray 碼（$\oplus$ 是逐 bit 的 XOR）：相鄰的兩個整數只差 1 個 bit`), firstSeen: '§13.6', note: tx(String.raw`例：$\mathrm{gray}(31)=010000_2$、$\mathrm{gray}(32)=110000_2$、$\mathrm{gray}(34)=110011_2$`) },
 ]
 
 /** 捲到指定錨點並把鍵盤焦點移過去。HashRouter 下不能用 href="#id"（會改掉路由），所以用 scrollIntoView。 */

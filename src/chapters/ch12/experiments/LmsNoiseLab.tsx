@@ -359,7 +359,7 @@ export function LmsNoiseLab() {
         String.raw`$\sigma_v$：白色 Gaussian comparator 前雜訊；code：unit-RMS $\pm1$ iid；path：identity $\times\,C$（$C=E[x\,u]$）（勘誤 E30 的 T13 條件）`,
         String.raw`GMAC average-mode（sum-mode 時 $g$ 放大 $N$ 倍，作為反面測試）`,
         String.raw`近平衡：$\sigma_\eta^2\approx1/N$（精確值 $(1-m^2)/N$）；無更新延遲 $d=0$、commit latency $n_c=0$`,
-        String.raw`線性化 $K_q=\sqrt{2/\pi}/\sigma_v$ 需 $|C\,\delta w|\ll\sigma_v$；引擎 (b)(c) 不做此近似`,
+        String.raw`線性化 $K_q=\sqrt{2/\pi}/\sigma_v$ 需 comparator 前的確定性殘差遠小於 $\sigma_v$；本 Lab 的 path 無記憶（$u=Cx$、$x=\pm1$），所以條件是 $|C\,\delta w|\ll\sigma_v$（path 有記憶時要看 $|\delta w|\,u_{\max}$，F-06.19）。引擎 (b)(c) 不做此近似`,
         String.raw`$S_\eta$：預設白色（$r=0$）；$r\ne0$ 為 AR(1) colored $\eta$，只作用於引擎 (a) 與解析值（研究延伸 R1 的最簡模型）`,
         String.raw`$\delta w=w-w^*$（極性與 §0 的 $\delta=a-w$ 相反，E33）；Welch：Hann、nperseg $=\min(512,\text{blocks})$、detrend none（先減 chain 平均）`,
       ]}

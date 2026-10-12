@@ -59,7 +59,7 @@ export function S00Conclusion() {
         const m = map[k]
         return m['bands_tau0.01'].length ? (
           <>
-            {intervalsText(m['bands_tau0.01'])} MHz，最差 <Tex>{`\\kappa=${m.worst_kP.toFixed(4)}`}</Tex> @ {fx(m.worst_at_MHz, 1)} MHz
+            {intervalsText(m['bands_tau0.01'])} MHz，最差 <Tex>{`\\kappa_{PHOS}=${m.worst_kP.toFixed(4)}`}</Tex> @ {fx(m.worst_at_MHz, 1)} MHz
           </>
         ) : (
           '無'
@@ -129,14 +129,15 @@ export function S00Conclusion() {
       </p>
       <ul>
         <li>
-          <strong>PHOS（8 相 PMUX 偏差）</strong>：regressor 是 8 個 one-hot（PMUX 選到第 <Tex>{'k'}</Tex> 相時第 <Tex>{'k'}</Tex> 個為 1，其餘為 0），它們的平均梯度矩陣是 circulant，可以拆成 8 個模態（mode）各自分析。mode-1 有 {fx(W1 * 100, 0)}%（基波權重{' '}
+          <strong>PHOS（8 相 PMUX 偏差）</strong>：regressor 是 8 個 one-hot（PMUX 選到第 <Tex>{'k'}</Tex> 相時第 <Tex>{'k'}</Tex> 個為 1，其餘為 0），它們的平均梯度矩陣是 circulant，可以拆成 8 個模態（mode）各自分析，每個模態有自己的 <Tex>{r`\kappa_m`}</Tex>（<Tex>{'m'}</Tex> 是模態編號）。<Tex>{r`\kappa_m`}</Tex> 其實是複數（§8.1）；這裡談正負、門檻與 dead zone 時看的都是實部，最差的那個記作{' '}
+          <Tex>{r`\kappa_{PHOS}=\min_m\mathrm{Re}\,\kappa_m`}</Tex>，虛部到 §12 的有限步長才用到。mode-1 有 {fx(W1 * 100, 0)}%（基波權重{' '}
           <Tex>{`W_1=${fx(W1, 4)}`}</Tex>）的權重落在 PMUX 的旋轉頻率 <Tex>{r`\alpha f_{ref}`}</Tex>。
           <ul>
             <li>
               當 <Tex>{r`\alpha f_{ref}`}</Tex> 落在反號帶內，PHOS LMS 就會反號（數字見下表）。
             </li>
             <li>
-              <Tex>{r`\alpha\approx\tfrac14`}</Tex>、<Tex>{r`\tfrac12`}</Tex> 附近有 alias 造成的 dead zone；<Tex>{r`\alpha\to0`}</Tex> 時也是 dead zone（<Tex>{r`\lvert\kappa\rvert\lesssim5\times10^{-3}`}</Tex>）。
+              <Tex>{r`\alpha\approx\tfrac14`}</Tex>、<Tex>{r`\tfrac12`}</Tex> 附近有 alias 造成的 dead zone；<Tex>{r`\alpha\to0`}</Tex> 時也是 dead zone（<Tex>{r`\lvert\kappa_{PHOS}\rvert\lesssim5\times10^{-3}`}</Tex>）。
             </li>
           </ul>
         </li>

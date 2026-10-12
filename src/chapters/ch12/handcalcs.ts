@@ -275,7 +275,8 @@ export const HANDCALCS: HandCalcDef[] = [
             why: String.raw`同樣用 RAD 模式。$\Omega\le0.1$ 時可用 $\sin\Omega\approx\Omega-\Omega^3/6$（誤差小於 $10^{-7}$）。`,
           },
           {
-            tex: String.raw`e^{j\Omega}-p=(\cos\Omega-p)+j\sin\Omega=(${txD(c, dec)}-${txP(p, 15)})+j\,${txD(s, dec)}=${txD(re, dec)}+j\,${txD(s, dec)}`,
+            // 折成兩行：一行寫完在 1280 px 的欄位裡只剩 5 px 的餘裕，數字多一位（或出現負號）就會多出橫向捲軸
+            tex: String.raw`\begin{aligned}e^{j\Omega}-p&=(\cos\Omega-p)+j\sin\Omega\\&=(${txD(c, dec)}-${txP(p, 15)})+j\,${txD(s, dec)}=${txD(re, dec)}+j\,${txD(s, dec)}\end{aligned}`,
             why: String.raw`Euler 公式 $e^{j\Omega}=\cos\Omega+j\sin\Omega$ 把複數拆成實部與虛部：實部減掉 $p$，虛部不變。`,
           },
           {
@@ -296,7 +297,7 @@ export const HANDCALCS: HandCalcDef[] = [
           },
           {
             tex: String.raw`S_w(e^{j\Omega})=\frac{\mu^2\sigma_\eta^2}{|e^{j\Omega}-p|^2}=\frac{${tx(q)}}{${tx(den)}}=${tx(S)}\ \mathrm{fs}^2`,
-            why: String.raw`F-12.4 的 DTFT 形式（正規化：$\sigma_w^2=\tfrac1{2\pi}\int_{-\pi}^{\pi}S_w\,d\Omega$）。`,
+            why: String.raw`F-12.4 的 DTFT 形式（正規化：$\sigma_w^2=\tfrac1{2\pi}\int_{-\pi}^{\pi}S_w\,d\Omega$，所以這個數字是「每 cycle/block」的密度）。`,
           },
           {
             tex: String.raw`\frac{2}{f_u}=\frac{2}{${tx(fu, 7)}\ \mathrm{Hz}}=${tx(2 / fu)}\ \mathrm{Hz}^{-1}`,
@@ -577,7 +578,8 @@ export const HANDCALCS: HandCalcDef[] = [
             why: String.raw`ENBW 的形狀因子，只跟 $p$ 有關。`,
           },
           {
-            tex: String.raw`\mathrm{ENBW}=\frac{f_u}{2}\cdot\frac{1-p}{1+p}=\frac{${tx(fu / KHZ, 7)}\ \mathrm{kHz}}{2}\times${txM(shape)}=${tx(fu / 2 / KHZ, 7)}\ \mathrm{kHz}\times${txM(shape)}=${tx(enbw / KHZ)}\ \mathrm{kHz}=${tx(enbw)}\ \mathrm{Hz}`,
+            // 折成兩行：一行寫完在 1280 px 的欄位裡會多出橫向捲軸（scripts/scroll-audit.mjs --formulas）
+            tex: String.raw`\begin{aligned}\mathrm{ENBW}&=\frac{f_u}{2}\cdot\frac{1-p}{1+p}=\frac{${tx(fu / KHZ, 7)}\ \mathrm{kHz}}{2}\times${txM(shape)}\\&=${tx(fu / 2 / KHZ, 7)}\ \mathrm{kHz}\times${txM(shape)}=${tx(enbw / KHZ)}\ \mathrm{kHz}=${tx(enbw)}\ \mathrm{Hz}\end{aligned}`,
             why: String.raw`等高矩形的寬度：高度取 $|H(1)|^2$（DC），面積等於真實 $|H|^2$ 從 $0$ 到 $f_u/2$ 的面積。最後換回 Hz（乘 1000），第 6 步要用。`,
           },
           { tex: String.raw`\sigma_v^2=${txM(sigmaV, 15)}^2=${tx(sv2)}\ \mathrm{fs}^2`, why: String.raw`comparator 前雜訊的功率。` },
@@ -613,7 +615,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: String.raw`混頻：兩個 $\cos$ 相乘 ⇒ $f_x\pm f_w$，各 $AB/2$`,
     page: PAGE,
     formulaId: 'F-12.12',
-    formulaTex: String.raw`\delta t=x\cdot\delta w:\quad\big[m+A\cos(2\pi f_xt)\big]\cdot B\cos(2\pi f_wt)=\frac{AB}{2}\cos2\pi(f_x+f_w)t+\frac{AB}{2}\cos2\pi(f_x-f_w)t+mB\cos(2\pi f_wt)`,
+    formulaTex: String.raw`\begin{aligned}\delta t=x\cdot\delta w:\quad&\big[m+A\cos(2\pi f_xt)\big]\cdot B\cos(2\pi f_wt)\\&=\frac{AB}{2}\cos2\pi(f_x+f_w)t+\frac{AB}{2}\cos2\pi(f_x-f_w)t+mB\cos(2\pi f_wt)\end{aligned}`,
     level: 'beginner',
     claim: 'exact',
     inputs: [
@@ -788,7 +790,7 @@ export const HANDCALCS: HandCalcDef[] = [
     id: 'HC-12.8',
     title: String.raw`綜合：從 $\sigma_v$ 一路算到三種 code 的 $\delta t$`,
     page: PAGE,
-    formulaTex: String.raw`p=1-\mu\frac{\sqrt{2/\pi}}{\sigma_v},\qquad\sigma_w=\frac{\mu}{\sqrt{N(1-p^2)}},\qquad\delta t=x\cdot\delta w\ \Rightarrow\ \delta t_{\mathrm{rms}}=\begin{cases}\sigma_w&x\equiv1\ (\text{總 RMS，留在低頻})\\[4pt]\dfrac{A}{\sqrt2}\,\sigma_w&x=A\cos(2\pi f_xt)\ (\text{總 RMS，搬到 }f_x\text{ 兩側})\\[8pt]\sigma_w\sqrt{\dfrac{2f_{BW}}{f_s}}&x=\pm1\ \text{白色}\ (\text{只算 }0\ldots f_{BW}\text{ 內})\end{cases}`,
+    formulaTex: String.raw`\begin{aligned}&p=1-\mu\frac{\sqrt{2/\pi}}{\sigma_v},\qquad\sigma_w=\frac{\mu}{\sqrt{N(1-p^2)}},\qquad\delta t=x\cdot\delta w\\[1ex]&\Rightarrow\ \delta t_{\mathrm{rms}}=\begin{cases}\sigma_w&x\equiv1\ (\text{總 RMS，留在低頻})\\[4pt]\dfrac{A}{\sqrt2}\,\sigma_w&x=A\cos(2\pi f_xt)\ (\text{總 RMS，搬到 }f_x\text{ 兩側})\\[8pt]\sigma_w\sqrt{\dfrac{2f_{BW}}{f_s}}&x=\pm1\ \text{白色}\ (\text{只算 }0\ldots f_{BW}\text{ 內})\end{cases}\end{aligned}`,
     level: 'engineer',
     claim: 'approx',
     inputs: [

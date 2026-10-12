@@ -133,6 +133,11 @@ export function S4SignSign() {
           所以 Sign-Sign 不是 Sign-Error 的近似：它把每一筆資料<strong>同權</strong>投票，而 Sign-Error 讓 <Tex>{'|x|'}</Tex> 大（資訊量大、比值 <Tex>{'r'}</Tex> 較不受雜訊影響）的樣本票數較多。
         </p>
         <p className="ch02-note">
+          {tm(
+            '小字提醒：上面寫的「$=0$」是比值 $r$ 連續分布時的說法。$r$ 只取有限個值時，Sign-Error 與 Sign-Sign 那兩列的期望值是 $w$ 的階梯函數，可能直接由正跳到負而沒有一點等於 0；這時 $w^*$ 是變號的位置，也就是先備知識框裡「累積權重第一次超過一半」的那一點（Ch01 §2.3.1）。',
+          )}
+        </p>
+        <p className="ch02-note">
           小字提醒：NLMS（<Tex>{'\\varepsilon=0'}</Tex>）那一列要 <Tex>{'E[r]=a+E[v/x]'}</Tex> 存在才有意義。若 <Tex>{'x'}</Tex> 可以任意接近 0（例如 Gaussian code），
           <Tex>{'v/x'}</Tex> 是重尾分布，平均與變異數都不存在（<Tex>{String.raw`E[v^2/x^2]=\infty`}</Tex>）——這就是 §5 的 NLMS 一定要加 <Tex>{'\\varepsilon>0'}</Tex> 的原因；主實驗把 <Tex>{'\\varepsilon'}</Tex> 設成 0 時會出現對應的警告。
         </p>
@@ -215,6 +220,11 @@ export function S4SignSign() {
           <p>{tm(String.raw`圖上三個輸出（LMS、Sign-Error、Sign-Sign）依序就是下面 F-02.8 的三個條件。`)}</p>
         </Diagram>
         <TexBlock id="F-02.8">{String.raw`\boxed{E[e\,x]=0\qquad E[\operatorname{sign}(e)\,x]=0\qquad E[\operatorname{sign}(e)\operatorname{sign}(x)]=0}`}</TexBlock>
+        <p className="ch02-note">
+          {tm(
+            '小字提醒：這裡的「$=0$」和 F-02.9 後面的小字同一個意思，是資料連續分布時的說法。資料只取有限個值時，Sign-Error 與 Sign-Sign 的平均更新是 $w$ 的階梯函數，可能直接由正跳到負；固定點是它變號的位置。',
+          )}
+        </p>
         <p>
           什麼時候三個固定點剛好都等於真值 <Tex>{'a'}</Tex>？最快的判斷法：直接把 <Tex>{'w=a'}</Tex> 代進平均更新方向 <Tex>{'\\psi(w)'}</Tex>（§3）。
           結論可以先畫成一張判斷流程：

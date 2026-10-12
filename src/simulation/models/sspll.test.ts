@@ -20,6 +20,7 @@ import {
   W_SQUARE,
   accSide,
   analyseAlpha,
+  analyseC,
   blockMeanStable,
   cPeriodic,
   cppllFinv,
@@ -48,6 +49,7 @@ import {
   loopImpulse,
   loopL,
   loopMargins,
+  loopPoles,
   loopStable,
   loopSummary,
   loopT,
@@ -55,6 +57,7 @@ import {
   makeL1,
   makeL2,
   makeL3,
+  makeLoop,
   makePOnlyL2,
   makePOnlyL3,
   mode1SureBand,
@@ -63,6 +66,7 @@ import {
   phaseSequence,
   phosLambdaHarmonic,
   phosM1Bounds,
+  physicalMix,
   regressorRows,
   runSspllLms,
   runSspllLmsCompare,
@@ -77,6 +81,7 @@ import {
   type SspllLoop,
   type SspllSimCfg,
 } from './sspll'
+import { timeConstantBlocks } from './optimizer'
 
 type Num = number
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -433,8 +438,9 @@ describe('SSPLL regressor 的 Fourier 權重與 ergodic 諧波和', () => {
   it('SSPLL: sign map（signmap_L*.json，α = (2j−1)/8000）：ergodic 與精確週期的 κ_m、κ_PHOS、κ_GOS 都一致', () => {
     for (const k of KEYS) {
       const g = MAP[k]
-      // ergodic（無理數極限）公式假設各譜線不重疊；只取 Q = 8000（2j − 1 與 8000 互質）的格點比對，
-      // 小 Q（例如 j = 988 ⇒ α = 79/320）的譜線會相干疊加，要用下面的精確週期算法。
+      // 只取 Q = 8000（2j − 1 不是 5 的倍數）的格點比對 ergodic 值：signmap 的 kG 是 C_GOS/var(ρ)，var(ρ) = (b² − 1)/(12b²)（b = Q/8），
+      // 而 ergodic 的 kappaGos 是 12·C_GOS——C_GOS 相同，兩者差 b²/(b² − 1) 倍（b = 1000 時 1e-6；j = 988 ⇒ Q = 320、b = 40 時 6e-4）。
+      // ergodic 的級數截在 8192 項，小 Q 時另有尾項近似的誤差。小 Q 的格點用下面的精確週期算法。
       for (const j of [1, 9, 16, 30, 40, 67, 84, 100, 124, 136, 300, 549, 987, 1000, 1500, 1984, 2000]) {
         expect((2 * j - 1) % 5).not.toBe(0)
         const i = j - 1
@@ -520,6 +526,128 @@ describe('SSPLL regressor 的 Fourier 權重與 ergodic 諧波和', () => {
     // 帶內的 α 上界 < 0；帶外（> 136.38 MHz）下界 ≥ 0
     expect(phosM1Bounds(LOOPS.L2, 84e6 / F_REF).upper).toBeLessThan(0)
     expect(phosM1Bounds(LOOPS.L2, 140e6 / F_REF).lower).toBeGreaterThan(0)
+  })
+
+  it('SSPLL: mode-1 的界限夾的是 Re κ₁，不是 |κ₁|——審查反例 Type-I K = 0.5、α = 1/8：κ₁ = 0.80926 + 0.65124j', () => {
+    // 合法的 Type-I 迴路（單一極點 0.5）；Q = 8，occupancy 均勻。用精確週期解（ergodic 的尾項近似在 Q = 8 會差 2e-5）
+    const T = makeL1({ K: 0.5 })
+    const r = kappaRational(T, 1, 8)
+    const H = loopH(T, 1 / 8)
+    close(r.km[0].re, 0.8092564302, 0, 1e-9)
+    close(r.km[0].im, 0.6512392831, 0, 1e-9)
+    close(r.km[0].re, H.re, 0, 1e-12) // Q = 8：mode-1 的所有譜線都折到 α 上，κ₁ = H_PD(α)
+    close(r.km[0].im, H.im, 0, 1e-12)
+    // λ_{8−m} = conj(λ_m)；m = 4 是實數
+    close(r.km[6].re, r.km[0].re, 0, 1e-12)
+    close(r.km[6].im, -r.km[0].im, 0, 1e-12)
+    close(r.km[3].re, 4 / 3, 0, 1e-9)
+    close(r.km[3].im, 0, 0, 1e-12)
+    const b = phosM1Bounds(T, 1 / 8)
+    close(b.lower, 0.7685032503, 0, 1e-8)
+    close(b.upper, 0.8356483123, 0, 1e-8)
+    // 實部在界限內；模（1.0388）在界限外——所以 F-CS.14 寫的是 Re κ₁
+    expect(b.lower).toBeLessThanOrEqual(r.km[0].re)
+    expect(r.km[0].re).toBeLessThanOrEqual(b.upper)
+    const mod = Math.hypot(r.km[0].re, r.km[0].im)
+    close(mod, 1.0387533748, 0, 1e-9)
+    expect(mod).toBeGreaterThan(b.upper)
+    // 有限步長判據要代整個複數：門檻 |κ|²/(2 Re κ) = 1/(2 − K) = 2/3；只代實部會誤判
+    close((r.km[0].re ** 2 + r.km[0].im ** 2) / (2 * r.km[0].re), 2 / 3, 0, 1e-12)
+    expect(blockMeanStable([r.km[0]], 0.6)).toBe(false)
+    expect(blockMeanStable([r.km[0]], 0.7)).toBe(true)
+    expect(blockMeanStable([{ re: r.km[0].re, im: 0 }], 0.6)).toBe(true)
+  })
+
+  it('SSPLL: 正常對照 L2、α = 0.021：κ₁ = −0.13953 + 0.31158j，κ_PHOS 是它的實部，界限 [−0.2053, −0.1355] 夾住實部', () => {
+    const a = analyseAlpha(LOOPS.L2, 0.021)
+    close(a.kappaM[0].re, -0.139527, 0, 1e-5)
+    close(a.kappaM[0].im, 0.311576, 0, 1e-5)
+    close(a.kappaM[6].re, a.kappaM[0].re, 0, 1e-12)
+    close(a.kappaM[6].im, -a.kappaM[0].im, 0, 1e-12)
+    expect(a.kappaPhos).toBe(a.kappaM[0].re)
+    close(a.m1Lower, -0.205292, 0, 1e-5)
+    close(a.m1Upper, -0.135469, 0, 1e-5)
+    expect(a.m1Lower).toBeLessThanOrEqual(a.kappaM[0].re)
+    expect(a.kappaM[0].re).toBeLessThanOrEqual(a.m1Upper)
+    expect(a.m1Upper).toBeLessThan(0)
+    close(Math.hypot(a.kappaM[0].re, a.kappaM[0].im), 0.34139, 0, 1e-5)
+  })
+
+  it('SSPLL: κ_GOS = C_GOS/var(ρ) 與 12·C_GOS 不同——審查反例 Type-I K = 0.5、α = 1/16：C = 1/12、var(ρ) = 1/16 ⇒ 4/3 對 1', () => {
+    const L = makeL1({ K: 0.5 })
+    const G = gammaEff(L)
+    close(loopH(L, 0).re, 0, 0, 1e-12)
+    close(loopH(L, 0.5).re, 4 / 3, 0, 1e-12)
+    // β = 1/2：ρ 在 0 與 1/2 之間交替
+    const c = cPeriodic(1, 16, G)
+    close(c.C[0][0], 1 / 12, 0, 1e-12)
+    close(c.cov[0][0], 1 / 16, 0, 1e-15)
+    close(c.mean[0], 1 / 4, 0, 1e-15)
+    const r = kappaRational(L, 1, 16)
+    close(r.kG, 4 / 3, 0, 1e-12)
+    close(r.varRho, 1 / 16, 0, 1e-15)
+    close(12 * r.kG * r.varRho, 1, 0, 1e-12)
+    close(12 * gosRationalBeta(G, 1, 2), 1, 0, 1e-12)
+    // ergodic 的 12C（級數截在 8192 項，β = 1/2 時尾項近似差 2.5e-5）
+    const erg = analyseAlpha(L, 1 / 16).kappaGos
+    close(erg, 1, 0, 5e-5)
+    expect(r.kG - erg).toBeGreaterThan(0.3)
+  })
+
+  it('SSPLL: 有理數 β = a/b 的 var(ρ) = (b² − 1)/(12b²)；C_GOS 相同，κ_GOS = [b²/(b² − 1)]·12C（b = 2 是 4/3 倍，b = 1000 只差 1e-6）', () => {
+    const G = gammaEff(LOOPS.L2)
+    for (const [P, Q] of [
+      [1, 16],
+      [1, 24],
+      [5, 64],
+      [9, 80],
+      [137, 1000],
+      [1097, 8000],
+    ]) {
+      const b = Q / 8
+      const r = kappaRational(LOOPS.L2, P, Q)
+      const erg = analyseAlpha(LOOPS.L2, P / Q).kappaGos
+      close(r.varRho, (b * b - 1) / (12 * b * b), 0, 1e-12)
+      close(12 * r.kG * r.varRho, 12 * gosRationalBeta(G, P % b, b), 0, 1e-10) // 同一個 C_GOS（精確週期解 vs 有理 β 的線公式）
+      close(12 * r.kG * r.varRho, erg, 0, 5e-5) // 與 ergodic 諧波和也是同一個 C（差在尾項近似：b = 2 時 3.0e-5）
+      close(r.kG / erg, (b * b) / (b * b - 1), 1e-4)
+    }
+    // 釘住兩個小 b 的數值（L2）
+    const r16 = kappaRational(LOOPS.L2, 1, 16)
+    close(r16.kG, 1.1812259, 0, 1e-6)
+    close(12 * r16.kG * r16.varRho, 0.8859194, 0, 1e-6)
+    const r64 = kappaRational(LOOPS.L2, 5, 64)
+    close(r64.kG, 1.1614281, 0, 1e-6)
+    close(12 * r64.kG * r64.varRho, 1.1432807, 0, 1e-6)
+    // 正常對照（長週期）：b = 1000 時兩個 κ 只差 1e-6；b = 125 時差 6.4e-5
+    const long = kappaRational(LOOPS.L2, 1097, 8000)
+    const ergLong = analyseAlpha(LOOPS.L2, 1097 / 8000).kappaGos
+    close(long.varRho, 0.08333325, 0, 1e-12)
+    close(long.kG, 1.0281187, 0, 1e-6)
+    close(ergLong, 1.0281177, 0, 1e-6)
+    expect(Math.abs(long.kG - ergLong)).toBeLessThan(2e-6)
+    const r125 = kappaRational(LOOPS.L2, 137, 1000)
+    close(r125.kG, 1.025977, 0, 1e-6)
+    close(12 * r125.kG * r125.varRho, 1.0259113, 0, 1e-6)
+    close(r125.kG / (12 * r125.kG * r125.varRho), 1.000064, 0, 1e-6)
+  })
+
+  it('SSPLL: 「H ≡ 1 時 κ_GOS = 1」的基準是去掉平均值的 ρ——保留 DC 時開迴路的 C = E[ρ²] ≈ 1/3（12C ≈ 4）', () => {
+    const open = gammaEff(null, 'raw', undefined, true)
+    // 只含 m ≥ 1 的諧波和：形式上代入 Γ ≡ 1 得到 1（沒有 DC 那一條）
+    close(12 * gosHarmonic(0.137, open), 1, 1e-12)
+    // 精確週期解包含 DC 線（Γ(0) = 1）：α = 1097/8000（b = 1000）⇒ C = E[ρ²] = (b − 1)(2b − 1)/(6b²)
+    const c = cPeriodic(1097, 8000, open)
+    close(c.C[0][0], (999 * 1999) / 6e6, 0, 1e-10)
+    close(c.C[0][0], 0.3328335, 0, 1e-10)
+    close(12 * c.C[0][0], 3.994002, 0, 1e-6)
+    close(c.C[0][0] - c.mean[0] ** 2, c.cov[0][0], 0, 1e-12) // 去掉平均值之後才是 var(ρ)
+    close(c.cov[0][0], 0.08333325, 0, 1e-12)
+    // β = 1/2：C = E[ρ²] = 1/8、平均 1/4、var = 1/16
+    const c2 = cPeriodic(1, 16, open)
+    close(c2.C[0][0], 1 / 8, 0, 1e-15)
+    close(c2.mean[0], 1 / 4, 0, 1e-15)
+    close(c2.cov[0][0], 1 / 16, 0, 1e-15)
   })
 })
 
@@ -733,8 +861,38 @@ describe('SSPLL 對策的 kernel', () => {
     expect(r.km[0].re).toBeGreaterThan(0)
     expect(blockMeanStable([r.km[0]], 25)).toBe(false)
     expect(blockMeanStable([r.km[0]], 50)).toBe(true)
+    // 只代實部（把 §8 的 Re κ 當成 κ）會誤判成穩定：(Re κ)²/(2N_τ) ≈ 7e-7 < Re κ
+    expect(blockMeanStable([{ re: r.km[0].re, im: 0 }], 25)).toBe(true)
+    // 同一件事在 α = 127/4000（實驗 B 的 127 MHz）
+    const r127 = kappaRational(LOOPS.L2, 127, 4000)
+    close(r127.km[0].re, 0.0062147907, 0, 1e-8)
+    close(r127.km[0].im, 0.6548956727, 0, 1e-8)
+    expect(blockMeanStable([r127.km[0]], 25)).toBe(false)
+    expect(blockMeanStable([r127.km[0]], 50)).toBe(true)
+    expect(blockMeanStable([{ re: r127.km[0].re, im: 0 }], 25)).toBe(true)
     expect(blockMeanStable([{ re: 1, im: 0 }], 25)).toBe(true)
     expect(blockMeanStable([{ re: -0.1, im: 0 }], 25)).toBe(false)
+  })
+
+  it('SSPLL: N_τ 是名義時間常數——pole = 1 − 1/N_τ 的精確 e-folding 是 −1/ln|1 − 1/N_τ|：N_τ = 5 ⇒ 4.4814（不是 5），N_τ = 25 ⇒ 24.497', () => {
+    // 反例：N_τ = 5
+    expect(timeConstantBlocks(1 - 1 / 5)).toBeCloseTo(4.481420117724551, 9)
+    expect(5 - timeConstantBlocks(0.8)).toBeGreaterThan(0.5)
+    expect(0.8 ** 4).toBeGreaterThan(Math.exp(-1)) // 4 個 block 還沒降到 1/e
+    expect(0.8 ** 5).toBeLessThan(Math.exp(-1)) // 第 5 個 block 已經低於 1/e：e-folding 在 4 與 5 之間
+    // 正常對照：N_τ = 25 只差 2%；N_τ 越大越接近
+    const t25 = timeConstantBlocks(1 - 1 / 25)
+    expect(t25).toBeCloseTo(24.49659826160178, 6)
+    expect((25 - t25) / 25).toBeLessThan(0.021)
+    expect(timeConstantBlocks(1 - 1 / 1000)).toBeCloseTo(999.4999166, 4)
+    expect(timeConstantBlocks(0)).toBe(0) // N_τ = 1：一個 block 修完
+    // 頁面 §12 用的本地算式與它相同
+    for (const n of [2, 5, 25, 1000]) close(-1 / Math.log(Math.abs(1 - 1 / n)), timeConstantBlocks(1 - 1 / n), 1e-12)
+    // 判據本身不依賴「時間常數」的說法：κ = 1 時穩定 ⟺ N_τ > 1/2（對任何 N_τ > 0 都精確）
+    expect(blockMeanStable([{ re: 1, im: 0 }], 5)).toBe(true)
+    expect(blockMeanStable([{ re: 1, im: 0 }], 0.6)).toBe(true)
+    expect(blockMeanStable([{ re: 1, im: 0 }], 0.5)).toBe(false) // |1 − 2| = 1：邊界
+    expect(blockMeanStable([{ re: 1, im: 0 }], 0.4)).toBe(false)
   })
 })
 
@@ -861,5 +1019,175 @@ describe('SSPLL 閉迴路 sign-error LMS（真 1-bit 比較器）', () => {
     expect(d1.finalPhosCmFs).toBeLessThan(1e-6)
     expect(zm.finalGosFs).toBeLessThan(40)
     expect(zm.finalPhosRmsFs).toBeLessThan(20)
+  })
+
+  it('SSPLL: 步長恆等式 μ_p·K_q/8 = 1/N_τ（raw）；開迴路 N_τ = 5 時 PHOS 誤差每個 block 乘上 0.8，e-folding 約 4.48 blocks（不是 5）', () => {
+    const open = makeLoop('open', [0], [1], 1) // L ≡ 0 ⇒ H_PD ≡ 1
+    const cfg: SspllSimCfg = { sigmaPs: 0.2, deltaPs: 7.8125, a: 0, epsPs: [0.02, -0.02, 0.02, -0.02, 0.02, -0.02, 0.02, -0.02] }
+    const Kq = Math.sqrt(2 / Math.PI) / cfg.sigmaPs
+    // 確定性的恆等式（正常對照）：raw 的 NLMS 正規化因子恰為 1
+    for (const tau of [2, 5, 25]) {
+      const r = runSspllLms({ loop: open, alpha: 0.137, variant: 'raw', cfg, nBlocks: 1, nBlk: 512, tauBlocks: tau, seed: 3, recEvery: 1, lanes: 1 })
+      expect((r.muP * Kq) / 8).toBeCloseTo(1 / tau, 12)
+    }
+    // 真 1-bit 的開迴路模擬（N 很大，block 平均的雜訊很小）：20.000 → 15.998 → 12.790 → 10.181 → 8.130 → 6.519 → 5.254 fs
+    const r = runSspllLms({ loop: open, alpha: 0.137, variant: 'raw', cfg, nBlocks: 6, nBlk: 1 << 20, tauBlocks: 5, seed: 3, recEvery: 1, lanes: 1 })
+    const rms = Array.from(r.phosRmsFs)
+    expect(rms).toHaveLength(7)
+    close(rms[0], 20, 0, 1e-9)
+    expect(rms[1] / rms[0]).toBeGreaterThan(0.795)
+    expect(rms[1] / rms[0]).toBeLessThan(0.805)
+    // 5 個 block 之後剩 0.8⁵ = 0.328；N_τ 若真的是 e-folding 時間，會是 1/e = 0.368
+    expect(rms[5] / rms[0]).toBeGreaterThan(0.31)
+    expect(rms[5] / rms[0]).toBeLessThan(0.345)
+    // 對 ln(rms) 做最小平方擬合的 e-folding（−1/斜率）≈ 4.47，不含 5
+    const n = rms.length
+    const mx = (n - 1) / 2
+    const my = rms.reduce((acc, v) => acc + Math.log(v), 0) / n
+    let sxy = 0
+    let sxx = 0
+    rms.forEach((v, i) => {
+      sxy += (i - mx) * (Math.log(v) - my)
+      sxx += (i - mx) ** 2
+    })
+    const eFold = -sxx / sxy
+    expect(eFold).toBeGreaterThan(4.3)
+    expect(eFold).toBeLessThan(4.65)
+  })
+
+  it('SSPLL: 「開迴路每個 block 乘上 1 − 1/N_τ」還要 κ = 1（8 個相位被選到的次數相同）——α = 1/2 只選到 2 個相位：那兩個各乘 1 − 4/N_τ，其餘 6 個不動', () => {
+    // 平均模型：H ≡ 1、raw 時 C 的 PHOS 區塊是對角的，C_kk = 相位 k 被選到的比例；κ = 8λ（去掉共模之後的可觀測方向）
+    const openG = gammaEff(null, 'raw', undefined, true)
+    const kappa = (P: number, Q: number): { occ: number[]; k: number[] } => {
+      const { C, cov } = cPeriodic(P, Q, openG)
+      return { occ: C.slice(1).map((row, i) => row[i + 1]), k: analyseC(C, cov).phosEigs.map((z) => 8 * z.re).sort((x, y) => x - y) }
+    }
+    // 正常對照：α = 137/1000（8 | Q）——每個相位 1/8，7 個方向的 κ 都是 1 ⇒ 每個 block 乘上 1 − 1/N_τ
+    const uni = kappa(137, 1000)
+    for (const o of uni.occ) close(o, 1 / 8, 0, 1e-12)
+    expect(uni.k).toHaveLength(7)
+    for (const k of uni.k) close(k, 1, 0, 1e-9)
+    // 反例：α = 1/2 只選到相位 0 與 4（各 1/2）——唯一可觀測的方向 κ = 4；α = 1/4 選到 4 個相位，κ = 2
+    const half = kappa(1, 2)
+    half.occ.forEach((o, i) => close(o, i % 4 === 0 ? 0.5 : 0, 0, 1e-12))
+    expect(half.k).toHaveLength(1)
+    close(half.k[0], 4, 0, 1e-9)
+    const quarter = kappa(1, 4)
+    expect(quarter.k).toHaveLength(3)
+    for (const k of quarter.k) close(k, 2, 0, 1e-9)
+    // 真 1-bit 的開迴路模擬（N_τ = 5）：ε = ±20 fs 交替。α = 1/2 時被選到的兩個相位各乘 1 − 4/5 = 0.2，其餘 6 個停在 ±20 fs，
+    // 所以 PHOS rms（去掉共模）是 20 → 16.97 → 16.65 → … → 16.58 fs，不是 20·0.8^k
+    const open = makeLoop('open', [0], [1], 1)
+    const cfg: SspllSimCfg = { sigmaPs: 0.2, deltaPs: 7.8125, a: 0, epsPs: [0.02, -0.02, 0.02, -0.02, 0.02, -0.02, 0.02, -0.02] }
+    const want = (k: number): number => {
+      const m = (1 - 4 / 5) ** k
+      const e = cfg.epsPs.map((v, i) => (i % 4 === 0 ? v * m : v))
+      const mean = e.reduce((acc, v) => acc + v, 0) / e.length
+      return Math.sqrt(e.reduce((acc, v) => acc + (v - mean) ** 2, 0) / e.length) * 1000
+    }
+    close(want(1), 16.9706, 0, 1e-4)
+    close(want(6), 16.5831, 0, 1e-3)
+    const r = runSspllLms({ loop: open, alpha: 0.5, variant: 'raw', cfg, nBlocks: 6, nBlk: 1 << 19, tauBlocks: 5, seed: 3, recEvery: 1, lanes: 1 })
+    const rms = Array.from(r.phosRmsFs)
+    expect(rms).toHaveLength(7)
+    close(rms[0], 20, 0, 1e-9)
+    for (let k = 1; k <= 6; k++) close(rms[k], want(k), 5e-3) // seed 3–7 都在 0.2% 以內
+    expect(rms[1] / rms[0]).toBeGreaterThan(0.84) // 實測 0.8503；κ = 1 的話會是 0.8
+    expect(rms[6] / rms[0]).toBeGreaterThan(0.82) // 實測 0.830；κ = 1 的話會是 0.8⁶ = 0.262
+    // 同一個 N_τ、8 相均勻的 α = 0.137（前一個測試）：第一個 block 就乘上 0.8
+    const u = runSspllLms({ loop: open, alpha: 0.137, variant: 'raw', cfg, nBlocks: 1, nBlk: 1 << 19, tauBlocks: 5, seed: 3, recEvery: 1, lanes: 1 })
+    expect(u.phosRmsFs[1] / u.phosRmsFs[0]).toBeGreaterThan(0.79)
+    expect(u.phosRmsFs[1] / u.phosRmsFs[0]).toBeLessThan(0.812)
+  })
+
+  it('SSPLL: 物理注入模型的 GOS 零點在 w_g = a/(1 − a)，不是 w_g = a——a = 0.2 時收斂到總增益 1（殘餘 ≪ a²Δ = 312.5 fs）', () => {
+    // 指標是 |(1 − a)(1 + w_g) − 1|·Δ：若固定點在 w_g = a，會停在 a²Δ
+    const big = runSspllLms({ ...common, cfg: { ...CFG, a: 0.2 }, loop: LOOPS.L2, variant: '1diff' })
+    close(big.gosAbsFs[0], 0.2 * CFG.deltaPs * 1000, 0, 1e-6) // 起始誤差 aΔ = 1562.5 fs
+    close(0.2 * CFG.deltaPs * 1000, 1562.5, 0, 1e-9)
+    expect(big.finalGosFs).toBeLessThan(0.1 * 0.2 * 0.2 * CFG.deltaPs * 1000) // < 31.25 fs（實測 2.2 fs；seed 3–7 都在 1.1–5.0 fs）
+    expect(big.aborted).toBe(false)
+    // 正常對照（網站的插圖值 a = 0.03）：起始 234.375 fs；略去的 a²Δ = 7.03 fs 和適應雜訊同一個量級，所以單靠它分不出零點在哪裡
+    const d1 = runSspllLms({ ...common, loop: LOOPS.L2, variant: '1diff' })
+    close(d1.gosAbsFs[0], 234.375, 0, 1e-6)
+    expect(d1.finalGosFs).toBeLessThan(30)
+    close(CFG.a * CFG.a * CFG.deltaPs * 1000, 7.03125, 0, 1e-9)
+    close(CFG.a / (1 - CFG.a), 0.0309278351, 0, 1e-9)
+    // 校準點的欄混合：GOS 的斜率多乘 (1 − a)，另有 ε/Δ 的 GOS–PHOS 耦合；PHOS 那幾欄不變
+    const Mx = physicalMix(CFG)
+    close(Mx[0][0], 0.97, 0, 1e-15)
+    close(physicalMix({ ...CFG, a: 0.2 })[0][0], 0.8, 0, 1e-15)
+    close(Mx[1][0], ((1 - CFG.a) * CFG.epsPs[0]) / CFG.deltaPs, 1e-12)
+    close(Mx[1][0], 0.0035717484418629, 1e-12)
+    expect(Mx[1][1]).toBe(1)
+    expect(Mx[0][1]).toBe(0)
+    const id = physicalMix(null)
+    expect(id).toHaveLength(9)
+    id.forEach((row, i) => row.forEach((v, j) => expect(v).toBe(i === j ? 1 : 0)))
+  })
+
+  it('SSPLL: frozen-weight 前提——三個標稱迴路的 h_PD 在 14／40／49 拍內衰減完，預設的 LMS（512 × 25 拍）慢 200 倍以上（raw、相位均勻）；最極端的 α = 1/2 配 filtered-x 也慢 30 倍以上', () => {
+    const want = { L1: { mem: 2.572, n999: 14 }, L2: { mem: 6.409, n999: 40 }, L3: { mem: 8.34, n999: 49 } } as const
+    for (const k of KEYS) {
+      const pMax = Math.max(...loopPoles(LOOPS[k]).map((z) => cAbs(z)))
+      close(1 / (1 - pMax), want[k].mem, 0, 2e-3) // 最慢極點的記憶長度 1/(1 − |p|)
+      const h = loopImpulse(LOOPS[k], 4096)
+      let total = 0
+      for (const v of h) total += Math.abs(v)
+      let acc = 0
+      let n999 = 0
+      while (acc < 0.999 * total) acc += Math.abs(h[n999++])
+      expect(n999).toBe(want[k].n999) // Σ|h_PD| 的 99.9% 落在前 n999 拍
+      expect(n999).toBeLessThanOrEqual(k === 'L1' ? 15 : 50)
+      // LMS 的名義時間常數 512 × 25 拍；有迴路時除以 Re κ ≤ max Re H_PD（≤ 1.25）
+      const maxReH = mode1SureBand(LOOPS[k]).maxReH
+      expect(maxReH).toBeLessThan(1.25)
+      expect((512 * 25) / maxReH / n999).toBeGreaterThan(200)
+      // 「Re κ ≤ max Re H_PD」的適用範圍：raw regressor、8 個相位出現次數相同（ergodic 諧波和）——κ_m 與 κ_GOS 都是 Re H_PD 的加權平均
+      for (const fM of [0.5, 42.5, 83.5, 548, 1500, 1998.5]) {
+        const an = analyseAlpha(LOOPS[k], fM / MHZ)
+        for (const z of an.kappaM) expect(z.re).toBeLessThanOrEqual(maxReH + 1e-9)
+        expect(an.kappaGos).toBeLessThanOrEqual(maxReH + 1e-4)
+      }
+      // 其他情況每個 block 修掉的比例會再大幾倍：比例 × N_τ = max Re eig(C)·μ_p·K_q·N_τ（μ_p 含 NLMS 式的功率正規化）
+      const rate = (variant: string, P: number, Q: number): number => {
+        const models = variant === 'fx:exact' ? { exact: LOOPS[k] } : undefined
+        const { C, cov } = cPeriodic(P, Q, gammaEff(LOOPS[k], variant, models))
+        const muP = runSspllLms({ loop: LOOPS[k], alpha: P / Q, variant, models, cfg: CFG, nBlocks: 0, nBlk: 64, tauBlocks: 25, nSettle: 0, lanes: 1 }).muP
+        return Math.max(...analyseC(C, cov).phosEigs.map((e) => e.re)) * muP * (Math.sqrt(2 / Math.PI) / CFG.sigmaPs) * 25
+      }
+      // α = 1/2：只有 2 個相位輪流被選到（occupancy 1/2）。raw：4·Re H_PD(1/2)（4.97／4.72／4.34）；filtered-x：恰為 8
+      close(rate('raw', 1, 2), 4 * loopH(LOOPS[k], 0.5).re, 1e-9)
+      expect(rate('raw', 1, 2)).toBeGreaterThan(4.3)
+      close(rate('fx:exact', 1, 2), 8, 1e-9) // 頁面 §4.2 的 LMS_WORST_RATE：這時 LMS 仍比迴路慢 30 倍以上
+      expect((512 * 25) / 8 / n999).toBeGreaterThan(30)
+      // 8 個相位出現次數相同時，一階差分（功率正規化後）最多約 2.4（L2 的最大值 2.34 在 42.5 MHz）；raw 在同一點不超過 max Re H_PD
+      expect(rate('1diff', 17, 1600)).toBeLessThan(2.4)
+      expect(rate('1diff', 17, 1600)).toBeGreaterThan(maxReH)
+      expect(rate('raw', 17, 1600)).toBeLessThanOrEqual(maxReH)
+    }
+  })
+
+  it('SSPLL: §4.2 第 5 步把 δ_j 提到卷積外面只在權重不動時是等式——h_PD = [1, −1]：δ₁ 由 1 跳到 0 時 [1.5, −2] ≠ [1.5, −1]', () => {
+    // Type-I、K = 1 的 H_PD = 1 − z⁻¹（deadbeat）：脈衝響應就是 [1, −1]
+    const T = makeL1({ K: 1 })
+    const h = Array.from(loopImpulse(T, 4))
+    expect(h).toEqual([1, -1, 0, 0])
+    const conv = (x: number[]): number[] => x.map((_, n) => x.slice(0, n + 1).reduce((acc, _v, m) => acc + h[m] * x[n - m], 0))
+    const x1 = [1, 1]
+    const x2 = [1, -1]
+    const d2 = [0.5, 0.5]
+    const both = (d1: number[]) => ({
+      exact: conv(x1.map((_, n) => d1[n] * x1[n] + d2[n] * x2[n])), // 實際順序：先乘權重誤差，再通過迴路
+      pulled: conv(x1).map((v, n) => d1[n] * v + d2[n] * conv(x2)[n]), // 第 5 步的寫法：權重誤差提到卷積外面
+    })
+    // 反例：δ₁ 在第二拍由 1 變成 0（舊的 δ₁ 還留在迴路的記憶裡）
+    const moving = both([1, 0])
+    expect(moving.exact).toEqual([1.5, -2])
+    expect(moving.pulled).toEqual([1.5, -1])
+    // 對照：δ₁ 不動時兩種寫法完全相同
+    const frozen = both([1, 1])
+    expect(frozen.exact).toEqual([1.5, -1])
+    expect(frozen.pulled).toEqual([1.5, -1])
   })
 })

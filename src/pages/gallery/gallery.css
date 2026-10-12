@@ -400,6 +400,24 @@
   text-decoration: none;
 }
 
+/*
+ * Preset Inspector 固定用單欄：控制項橫排在上面，結果用整個寬度。
+ * 結果欄放的是一整份預覽（指標表、逐步推導、殘差表、圖）；雙欄時它只有約 550px，五欄的指標表會多出幾 px 的橫向捲軸，
+ * 逐步推導裡約三成的公式也排不下。控制項只有六個，橫排後不佔高度；窄螢幕（auto-fit 只排得下一欄）與原來相同。
+ */
+.c-exp[data-experiment='gallery-inspector'] .c-exp-body {
+  grid-template-columns: minmax(0, 1fr);
+}
+.c-exp[data-experiment='gallery-inspector'] .c-exp-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px 24px;
+  align-items: start;
+}
+.c-exp[data-experiment='gallery-inspector'] .c-exp-controls > .c-param {
+  margin-bottom: 0;
+}
+
 /* 即時預覽 */
 .gal-preview {
   border-top: 1px dashed var(--border-strong);

@@ -50,13 +50,24 @@ const SYMBOLS: SymbolEntry[] = [
   { symbol: String.raw`t[n]`, meaning: <>GMAC 的乘數：linear 時 {m`t=e`}，1-bit 時 {m`t=\mathrm{sign}(e)`}</>, unit: String.raw`\mathrm{fs}\text{ 或 }\pm1`, firstSeen: '§9' },
   { symbol: String.raw`\mathbf G_k`, meaning: <>GMAC 第 {m`k`} 個 block 的平均相關輸出</>, unit: String.raw`\text{同 }t\cdot u`, firstSeen: '§9', note: <>全站 §0：{m`\mathbf G`} 為平均；硬體若用總和要再除以 {m`N`}</> },
   { symbol: String.raw`\mathbf R=E[\mathbf u\mathbf u^T]`, meaning: 'regressor 自相關矩陣（對稱、半正定）', unit: String.raw`\text{無因次}`, firstSeen: '§9' },
-  { symbol: String.raw`\rho`, meaning: '兩個 regressor 的相關係數', unit: String.raw`-1\le\rho\le1`, firstSeen: '§9 例子' },
+  {
+    symbol: String.raw`\rho`,
+    meaning: '兩個 regressor 的相關係數',
+    unit: String.raw`-1\le\rho\le1`,
+    firstSeen: '§9 例子',
+    note: <>不扣平均：{m`\rho=E[u_1u_2]/\sqrt{E[u_1^2]\,E[u_2^2]}`}。{m`\rho=0`} 是正交（{m`E[u_1u_2]=0`}）；其中一個 regressor 的平均為 0 時也就是不相關</>,
+  },
   {
     symbol: String.raw`\lambda_i,\ \mathbf v_i`,
     meaning: <>{m`\mathbf R`} 的第 {m`i`} 個 eigenvalue／單位 eigenvector（由大到小）</>,
     unit: String.raw`\text{無因次}`,
     firstSeen: '§9',
-    note: <>{m`\lambda`} 只代表 eigenvalue；正則化參數另用 {m`\varepsilon`}（<Erratum id="E22" />）</>,
+    note: (
+      <>
+        {m`\lambda`} 只代表 eigenvalue；正則化參數另用 {m`\varepsilon`}（<Erratum id="E22" />）。F-09.5 的 {m`\lambda_{1,2}=1\pm\rho`} 固定配共模／差模：
+        {m`\rho\ge0`} 時就是由大到小，{m`\rho<0`} 時 {m`\lambda_{\max}=\lambda_2`}
+      </>
+    ),
   },
   { symbol: String.raw`\mathbf Q,\ \boldsymbol\Lambda`, meaning: <>eigenvector 矩陣（欄為 {m`\mathbf v_i`}）、eigenvalue 對角矩陣：{m`\mathbf R=\mathbf Q\boldsymbol\Lambda\mathbf Q^T`}</>, firstSeen: '§9' },
   { symbol: String.raw`c_{i,k}`, meaning: <>模態座標 {m`\mathbf c_k=\mathbf Q^TE[\boldsymbol\delta_k]`}（誤差在第 {m`i`} 個 eigenvector 上的分量）</>, unit: String.raw`\text{同 }\mathbf a`, firstSeen: '§9' },
@@ -74,6 +85,22 @@ const SYMBOLS: SymbolEntry[] = [
     note: <>規格 §9 的 {m`\mathbf I-\mu\mathbf R`} 隱含 {m`K_q=1`}；本章一律明寫（<Erratum id="E05" />、<Erratum id="E08" />）</>,
   },
   { symbol: String.raw`g=\mu K_q`, meaning: <>無因次 loop gain（正規化後的「{m`\mu`}」）</>, unit: String.raw`\text{無因次}`, firstSeen: '§9' },
+  {
+    symbol: String.raw`s_\delta`,
+    meaning: (
+      <>
+        comparator 輸入端由參數誤差造成的訊號（{m`\mathbf u^T\boldsymbol\delta`} 的 RMS）與雜訊的比：{m`s_\delta=\sqrt{\boldsymbol\delta^T\mathbf R\boldsymbol\delta}/\sigma_v`}；
+        1-bit 的小訊號條件就是 {m`s_\delta\ll1`}
+      </>
+    ),
+    unit: String.raw`\text{無因次}`,
+    firstSeen: '§9（F-09.3）',
+    note: (
+      <>
+        只有 1-bit 需要；Gaussian {m`\mathbf u`} 時有效增益是 {m`K_q/\sqrt{1+s_\delta^2}`}（F-09.16）。和 {m`\pm1`} code 的符號 {m`s`}、§9.2 的 {m`s[n]`} 是不同的量
+      </>
+    ),
+  },
   { symbol: 'p_i=1-g\\lambda_i', meaning: <>第 {m`i`} 個 eigen-mode 的平均 pole</>, unit: String.raw`\text{無因次}`, firstSeen: '§9' },
   { symbol: 'k_{95}', meaning: '某模式衰減到 5% 所需的 block 數', unit: String.raw`\text{blocks}`, firstSeen: '§9' },
   { symbol: 'N,\\ N_0', meaning: 'GMAC block 長度／PE 窗口長度', unit: String.raw`\text{samples}`, firstSeen: '§9、§9.1', note: <>兩者不同：{m`N`} 決定雜訊平均，{m`N_0`} 是檢查 PE 的窗口</> },
@@ -161,7 +188,8 @@ export function ChapterSymbols() {
         title="本章符號表"
         caption={
           <>
-            本章所有平均遞迴都明寫 {m`K_q`}（<Erratum id="E05" />、<Erratum id="E08" />）；598 blocks 這類數字是 <strong>mean</strong> 的敘述（
+            本章所有平均遞迴都明寫 {m`K_q`}（<Erratum id="E05" />、<Erratum id="E08" />）；linear detector 時是精確的等式，1-bit 時是
+            {m`|\mathbf u^T\boldsymbol\delta_k|\ll\sigma_v`} 的小訊號近似（F-09.3）；598 blocks 這類數字是 <strong>mean</strong> 的敘述（
             <Erratum id="E23" />）；§9.2 的 DC-null 版本採修正文字（<Erratum id="E04" />）；{m`\lambda`} 只代表 eigenvalue（
             <Erratum id="E22" />）。全站符號總表在 Formula &amp; Unit Reference 頁。
           </>

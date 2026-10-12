@@ -39,7 +39,7 @@ export const SYMBOLS: SymbolEntry[] = [
     firstSeen: '§2',
     note: <>沒有迴路時 <Tex>{r`t_{ref}'-t_{fb}=T_0+u`}</Tex></>,
   },
-  { symbol: r`a,\ w_g`, meaning: 'DTC 增益誤差（GOS）、其估計', firstSeen: '§2', note: <>實際的補償量是 <Tex>{r`(1-a)(1+w_g)\rho\Delta`}</Tex>；理想模型 <Tex>{r`e_{GOS}=(a-w_g)\rho\Delta`}</Tex></> },
+  { symbol: r`a,\ w_g`, meaning: 'DTC 增益誤差（GOS）、其估計', firstSeen: '§2', note: <>實際的補償量是 <Tex>{r`(1-a)(1+w_g)\rho\Delta`}</Tex>；理想模型（只留一階，略去 <Tex>{r`a\,w_g`}</Tex>）<Tex>{r`e_{GOS}=(a-w_g)\rho\Delta`}</Tex>；不略去時零點在 <Tex>{r`w_g=a/(1-a)`}</Tex></> },
   {
     symbol: r`\varepsilon_k,\ w_k`,
     meaning: <>第 <Tex>{'k'}</Tex> 個 PMUX 相位的偏差（PHOS）、其估計</>,
@@ -81,23 +81,24 @@ export const SYMBOLS: SymbolEntry[] = [
   { symbol: r`\Gamma_{\rm eff}(f)`, meaning: <>有效 kernel <Tex>{r`H_{PD}(f)\,\overline{G(f)}`}</Tex></>, firstSeen: '§0', note: '定義在 §4.3' },
   { symbol: 'C', meaning: <><Tex>{r`9\times9`}</Tex> 平均 GMAC 矩陣 <Tex>{r`C_{ij}=\langle r_i\,(h_{PD}*x_j)\rangle`}</Tex></>, firstSeen: '§0', note: <>全站的純量 <Tex>{'C'}</Tex> 在這裡是矩陣；定義在 §4</> },
   { symbol: r`m,\ \ell`, meaning: <><Tex>{'m'}</Tex>：PHOS 的 DFT 模態編號 <Tex>{'0..7'}</Tex>；<Tex>{r`\ell`}</Tex>：one-hot 的譜線編號（頻率 <Tex>{r`\ell\alpha`}</Tex>）</>, firstSeen: '§7', note: <>§7 的 <Tex>{'m'}</Tex> 是鋸齒的諧波次數；§8 起是模態編號</> },
-  { symbol: r`\lambda_m`, meaning: <>PHOS <Tex>{r`8\times8`}</Tex> circulant 的 DFT 模態特徵值，<Tex>{'m=0..7'}</Tex></>, firstSeen: '§2', note: <>不是全站 <Tex>{'R'}</Tex> 的 eigenvalue；推導在 §8</> },
+  { symbol: r`\lambda_m`, meaning: <>PHOS <Tex>{r`8\times8`}</Tex> circulant 的 DFT 模態特徵值，<Tex>{'m=0..7'}</Tex>；一般是複數，<Tex>{r`\lambda_{8-m}=\overline{\lambda_m}`}</Tex></>, firstSeen: '§2', note: <>不是全站 <Tex>{'R'}</Tex> 的 eigenvalue；推導在 §8</> },
   {
     symbol: r`\kappa`,
     meaning: (
       <>
-        正規化斜率：<Tex>{r`\kappa_m=8\lambda_m`}</Tex>、<Tex>{r`\kappa_{PHOS}=8\min_m\mathrm{Re}\lambda_m`}</Tex>、<Tex>{r`\kappa_{GOS}=C_{GOS}/\mathrm{var}(\rho)=12C_{GOS}`}</Tex>
+        正規化斜率：<Tex>{r`\kappa_m=8\lambda_m`}</Tex>（複數，<Tex>{r`\kappa_{8-m}=\overline{\kappa_m}`}</Tex>）、<Tex>{r`\kappa_{PHOS}=\min_m\mathrm{Re}\,\kappa_m=8\min_m\mathrm{Re}\,\lambda_m`}</Tex>、<Tex>{r`\kappa_{GOS}=C_{GOS}/\mathrm{var}(\rho)`}</Tex>（<Tex>{r`\beta`}</Tex> 為無理數時{' '}
+        <Tex>{r`\mathrm{var}(\rho)=\tfrac1{12}`}</Tex>，即 <Tex>{r`12C_{GOS}`}</Tex>）。談正負、排序、上下界與門檻 <Tex>{r`\tau`}</Tex> 時看的是實部；整個複數只在有限步長判據（§12）使用
       </>
     ),
 
     firstSeen: '§0',
-    note: <><Tex>{r`H\equiv1`}</Tex> 時 <Tex>{r`\kappa=1`}</Tex></>,
+    note: <><Tex>{r`H\equiv1`}</Tex> 時 <Tex>{r`\kappa=1`}</Tex>（GOS 的基準是去掉平均值的 <Tex>{r`\rho`}</Tex>）</>,
   },
   { symbol: 'f_{inv}', meaning: <>反號帶的上緣：<Tex>{r`\mathrm{Re}\,H_{PD}<0`}</Tex> 的頻帶是 <Tex>{r`0<f<f_{inv}`}</Tex>（Type-II）</>, unit: r`\mathrm{Hz}`, firstSeen: '§6', note: <>L2 的 closed form 見 F-CS.8</> },
   { symbol: r`f_{rot},\ f_{saw}`, meaning: <>PMUX 的旋轉頻率 <Tex>{r`\min(\alpha,1-\alpha)f_{ref}`}</Tex>；鋸齒基波（折回後）<Tex>{r`\min(\beta,1-\beta)f_{ref}`}</Tex></>, unit: r`\mathrm{Hz}`, firstSeen: '§8', note: '綜合手算在 §15.3' },
   { symbol: r`g(\Omega)`, meaning: <>一階差分 kernel 的分子 <Tex>{r`1-\cos\Omega+\mathrm{Re}\{(1-e^{-j\Omega})L\}`}</Tex>；<Tex>{r`\min_\Omega g`}</Tex> 是 margin</>, firstSeen: '§11', note: <>不是玩具模型的 <Tex>{'g'}</Tex>（§4.1 的單 tap 增益）</> },
   { symbol: r`\tau`, meaning: <>判定 dead zone 的門檻（<Tex>{r`\kappa<-\tau`}</Tex> 才算反號）</>, firstSeen: '§0', note: <Tex>{r`10^{-3}\text{ 或 }10^{-2}`}</Tex> },
-  { symbol: r`N_\tau`, meaning: <>開迴路（<Tex>{r`H\equiv1`}</Tex>）時 LMS 的時間常數</>, unit: r`\text{block}`, firstSeen: '§8', note: 'sim 取 25' },
+  { symbol: r`N_\tau`, meaning: <>開迴路（<Tex>{r`H\equiv1`}</Tex>、<Tex>{r`\kappa=1`}</Tex>）時 LMS 的名義時間常數：每個 block 誤差乘上 <Tex>{r`1-1/N_\tau`}</Tex>；降到 <Tex>{'1/e'}</Tex> 實際要 <Tex>{r`-1/\ln\lvert1-1/N_\tau\rvert`}</Tex> 個 block</>, unit: r`\text{block}`, firstSeen: '§8', note: 'sim 取 25' },
   { symbol: r`\theta_k`, meaning: <>權重誤差沿 <Tex>{'C'}</Tex> 的一個特徵方向的分量（複數），<Tex>{'k'}</Tex> 是 block 索引</>, firstSeen: '§12' },
   { symbol: 'W_1', meaning: <>mode-1 基波權重 <Tex>{r`64\sin^2(\pi/8)/\pi^2`}</Tex></>, firstSeen: '§0', note: <Tex>{fx(W1, 5)}</Tex> },
   { symbol: 'D', meaning: <>相關器延遲：<Tex>{'r[n]=x[n-D]'}</Tex></>, unit: r`\text{sample}`, firstSeen: '§0', note: '正確值為 0；時序圖在 §7.2' },

@@ -178,7 +178,9 @@ function PreviewTableView({ table }: { table: NonNullable<PreviewResult['table']
   return (
     <div className="table-wrap">
       <table className="gal-data-table">
-        <caption className="small muted">{table.caption}</caption>
+        <caption className="small muted">
+          <Rich text={table.caption} />
+        </caption>
         <thead>
           <tr>
             {table.head.map((h, i) => (

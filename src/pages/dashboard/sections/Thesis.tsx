@@ -5,7 +5,7 @@ import { CLAIM_EXAMPLES, SIX_CONDITIONS } from '../data'
 import { CONDITION_FLOW_CHART } from '../diagrams'
 import { builtinPreset } from '../presets'
 import type { ConditionCheck, ConditionId } from '../thesisModel'
-import { DiagramWalk, ErratumLink, PageChip, Rich, STATE_LABEL, StateIcon, plainTip, scrollToId } from '../ui'
+import { DiagramWalk, ErratumLink, Glue, PageChip, Rich, STATE_LABEL, StateIcon, plainTip, scrollToId } from '../ui'
 
 /** 最終教學主旨：六個條件的視覺化檢查表；右上角的燈號來自下方「動手體檢」目前選取的 case。 */
 export const ThesisSection = memo(function ThesisSection({
@@ -26,19 +26,29 @@ export const ThesisSection = memo(function ThesisSection({
       <p className="dash-lead-sm">
         成功的 calibration 必須<strong>同時</strong>滿足：資訊足夠（identifiability）、更新方向正確（polarity）、動態穩定（stability）、
         統計精度足夠（variance）、收斂到正確物理參數（bias），以及真正改善 PLL output jitter / spur（system-level performance）。
-        它們彼此<strong>獨立</strong>：滿足其中五個，仍可能在第六個失敗。每張卡片右上角的燈號是下方
+        它們要<strong>逐一檢查</strong>：通過前面的不保證通過後面的（前五個都通過，仍可能在第六個失敗）。但六個條件不是互相獨立的——後面的判據建立在前面的結果上（例如在本頁的模型裡，動態穩定就已經保證更新方向正確）。每張卡片右上角的燈號是下方
         <button type="button" className="btn btn-icon" style={{ margin: '0 4px', padding: '0 8px' }} onClick={() => scrollToId('dash-check')}>
           動手體檢
         </button>
         Case {caseId} 的即時結果，卡片中間那一行是它的關鍵數值與原因。想看某個條件<strong>不滿足</strong>時長什麼樣子，按卡片下方的「載入反例」。
       </p>
+      <p className="small muted">
+        最後一項在本頁落實成一個算得出來的檢查（卡片 6）：校正後剩下的 DTC-referred timing error <Tex>{'\\sigma_{\\delta t}'}</Tex> 與單 tone spur 是否<strong>在預算內</strong>。這比「真正改善輸出」窄：沒有和校正前比較，隨機誤差也沒有經{' '}
+        <Tex>{'T(f)'}</Tex> 積分成輸出 jitter（Ch12 的 F-12.17）。
+      </p>
       <DiagramWalk
         chart={CONDITION_FLOW_CHART}
         caption="六個條件的檢查流程：由上到下逐一問，六個「是」才算成功；任何一個「否」就停在那一格，紅色方塊寫的是會看到的現象與該修哪裡。"
-        ariaLabel="六個條件的檢查流程圖：依序檢查資訊足夠、更新方向正確、動態穩定、統計精度足夠、正確的物理參數、改善 PLL 輸出；每一個不通過都對應一種現象與修正方向，六個都通過才是成功的 calibration"
+        ariaLabel="六個條件的檢查流程圖：依序檢查資訊足夠、更新方向正確、動態穩定、統計精度足夠、正確的物理參數、殘餘誤差在預算內；每一個不通過都對應一種現象與修正方向，六個都通過才是成功的 calibration"
       >
         <p>
-          先看那一串由上往下的菱形：順序就是卡片的編號。它們互相獨立（通過前五個不保證第六個），但<strong>計算上有先後</strong>——後面的判據要用到前面算出來的量。
+          先看那一串由上往下的菱形：順序就是卡片的編號，也是<strong>計算上的先後</strong>——後面的判據要用到前面算出來的量，所以六個條件彼此有關聯，不是互相獨立的。例如本頁的模型裡{' '}
+          <Tex>{'\\mu>0'}</Tex>、<Tex>{'K_q>0'}</Tex>，條件 3 的下限 <Tex>{'0<g=\\mu K_qC'}</Tex> 就是條件 2 的{' '}
+          <Glue>
+            <Tex>{'C>0'}</Tex>：
+          </Glue>
+          穩定 <Tex>{'\\Rightarrow'}</Tex>{' '}
+          極性正確；反過來不成立（<Tex>{'C>0'}</Tex> 但 <Tex>{'g\\ge g^*(d)'}</Tex> 時仍不收斂）。仍然要逐一檢查，是因為通過前面的不保證通過後面的：前五個都通過，第六個仍可能不過。
         </p>
         <p>
           圖上的 <Tex>{'C'}</Tex> 是 code 與它造成的誤差之間的相關（條件 2）；有了它才能算 loop gain <Tex>{'g=\\mu K_qC'}</Tex>（條件 3，<Tex>{'g^*(d)'}</Tex> 是更新晚 <Tex>{'d'}</Tex> 個 block 時的臨界值）；迴路收斂了，才有穩態的係數抖動{' '}
@@ -127,8 +137,11 @@ export const ThesisSection = memo(function ThesisSection({
                 {example && onLoadExample && (
                   <div>
                     <button type="button" className="btn dash-cond-example" onClick={() => onLoadExample(c.id)} title={plainTip(example.description)}>
-                      載入反例：
-                      <Rich text={example.rich ?? example.name} />
+                      {/* .btn 是 inline-flex：整句包成一個元素，否則「文字、公式、文字」各自變成一個 flex item，在手機上會排成三欄 */}
+                      <span>
+                        載入反例：
+                        <Rich text={example.rich ?? example.name} />
+                      </span>
                     </button>
                   </div>
                 )}

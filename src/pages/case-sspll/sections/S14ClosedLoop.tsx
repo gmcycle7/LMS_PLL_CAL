@@ -24,7 +24,9 @@ export function S14ClosedLoop() {
       <Diagram id="sim-loop" />
       <p>
         由上往下就是程式每一拍的順序。先看加法點：注入的誤差 <Tex>{'u[n]'}</Tex> 是「該補的量加上 PMUX 的偏差」減掉「DTC 實際補上的量」——也就是主迴路還沒反應時，§2 的 <Tex>{r`t_{ref}'-t_{fb}`}</Tex> 去掉常數 <Tex>{'T_0'}</Tex> 之後的部分（DTC 的延遲是 <Tex>{'T_0'}</Tex> 減掉補償量）。這裡用的是 §10.1 的物理注入模型，不是 §2 的理想模型：DTC 的增益 <Tex>{'(1-a)(1+w_g)'}</Tex> 同時乘在 code 與 PHOS 的修正值 <Tex>{'w_p'}</Tex> 上；把 <Tex>{'a'}</Tex>、<Tex>{'w_g'}</Tex>、<Tex>{'w_p'}</Tex>、<Tex>{r`\varepsilon_p`}</Tex> 都當成小量、只留一階，就回到 §2 的 <Tex>{r`u\approx(a-w_g)\rho\Delta+(\varepsilon_p-w_p)`}</Tex>（<Tex>{'w_p'}</Tex>{' '}
-        是這一拍被選到的那一相的權重，<Tex>{r`\varepsilon_p`}</Tex> 是那一相的偏差）。再看比較器之後：<Tex>{'q[n]'}</Tex> 乘上藍色方塊產生的 <Tex>{'r[n]'}</Tex> 累加進 GMAC，每 <Tex>{'N'}</Tex> 拍把累加值除以 <Tex>{'N'}</Tex>、乘上步長加進權重，新的權重再回到 DTC 的補償量——這條回授線就是 §4{' '}
+        是這一拍被選到的那一相的權重，<Tex>{r`\varepsilon_p`}</Tex> 是那一相的偏差）。不做這個近似時，<Tex>{'u'}</Tex> 對所有 <Tex>{r`\rho`}</Tex>、<Tex>{'p'}</Tex> 都是 0 的條件是 DTC 的總增益 <Tex>{r`(1-a)(1+w_g)=1`}</Tex>（也就是{' '}
+        <Tex>{r`w_g=a/(1-a)`}</Tex>，不是 <Tex>{r`w_g=a`}</Tex>）與 <Tex>{r`w_p=\varepsilon_p`}</Tex>；所以下面實驗 C 的「GOS 誤差」畫的是 <Tex>{r`\lvert(1-a)(1+w_g)-1\rvert\,\Delta`}</Tex>，「PHOS 誤差」畫的是{' '}
+        <Tex>{r`(1-a)(1+w_g)\,w_k-\varepsilon_k`}</Tex>（去掉 8 相的平均之後取 rms）。再看比較器之後：<Tex>{'q[n]'}</Tex> 乘上藍色方塊產生的 <Tex>{'r[n]'}</Tex> 累加進 GMAC，每 <Tex>{'N'}</Tex> 拍把累加值除以 <Tex>{'N'}</Tex>、乘上步長加進權重，新的權重再回到 DTC 的補償量——這條回授線就是 §4{' '}
         <FigRef id="lms-loop" /> 的那一圈。圖上的加法點對應下面程式的 <code>{SIM_LOOP_CODE.inject}</code>，比較器對應 <code>{SIM_LOOP_CODE.compare}</code>，最後一格對應 <code>{SIM_LOOP_CODE.updateGos}</code> 與{' '}
         <code>{SIM_LOOP_CODE.updatePhos}</code>（<code>c</code> 是 <Tex>{r`\rho`}</Tex>、<code>Dl</code> 是 <Tex>{r`\Delta`}</Tex>、<code>l</code> 是獨立雜訊 lane 的編號）；GOS 與 PHOS 的步長 <Tex>{r`\mu_g`}</Tex>、<Tex>{r`\mu_p`}</Tex> 分開設定。
       </p>
@@ -34,7 +36,7 @@ export function S14ClosedLoop() {
           { label: 'Python golden：run_sign_lms', source: PY_SOURCES.simulator.source, region: 'sign_lms_block', lang: 'python', path: PY_SOURCES.simulator.path, note: '文件 §10.5、§13 的閉迴路數字由它產生（向量化、numpy RNG）。' },
         ]}
         layout="tabs"
-        caption={r`兩者是同一個演算法：$q=\mathrm{sign}(e_{PD}+v+u_{os})$、$w\mathrel{+}=\mu\cdot\mathrm{mean}(q\,r)$；步長以開迴路時間常數 $N_\tau$ 決定，並對 regressor 功率做 NLMS 式正規化。隨機數產生器不同，所以逐點數值不同。`}
+        caption={r`兩者是同一個演算法：$q=\mathrm{sign}(e_{PD}+v+u_{os})$、$w\mathrel{+}=\mu\cdot\mathrm{mean}(q\,r)$；步長以開迴路名義時間常數 $N_\tau$ 決定（raw：$\mu_p=8/(N_\tau K_q)$，見 §12），並對 regressor 功率做 NLMS 式正規化。隨機數產生器不同，所以逐點數值不同。`}
       />
       <ClosedLoopLms />
       <TryIt

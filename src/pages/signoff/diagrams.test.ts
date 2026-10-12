@@ -154,6 +154,10 @@ describe('Sign-off 頁的方塊圖（真正的 mermaid）', () => {
     expect(node(g, 'Q3')).toContain(R`$g \lt g_{\mathrm{crit}}(d)$`)
     expect(node(g, 'Q3')).toContain(R`$\rho(\mathbf I + \mathbf M\mathbf J) \lt 1$`)
     expect(node(g, 'Q6')).toContain('T')
+    // 技術審查 R14：σ_δt 是還沒經過 PLL 的 DTC 補償誤差 RMS（符號表），不可標成「輸出 σ_δt」；第六格驗收的是輸出的 jitter 與 spur（δt 經 T）
+    expect(node(g, 'Q6')).toContain('輸出 jitter 與 spur')
+    expect(node(g, 'Q6')).toContain(R`$\delta t$ 經 $T$`)
+    expect(D.CHART_SIGNOFF_FLOW).not.toMatch(/輸出\s*\$\\sigma_\{\\delta t\}\$/)
     expect(D.CHART_SIGNOFF_FLOW).toMatch(/class OK ok/)
     expect(D.CHART_SIGNOFF_FLOW).toMatch(/class BAD warn/)
   })

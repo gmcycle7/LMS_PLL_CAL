@@ -14,8 +14,10 @@ import {
   type PlantSpec,
   type RegForm,
   type RegressorDist,
+  type RuleAnalysis,
   type RuleConfig,
 } from '@/simulation/models/mimo'
+import type { MetricRow } from '@/components/types'
 
 export const EXPERIMENT_ID = 'mimo-lms'
 
@@ -199,6 +201,40 @@ export function parsePresetParams(raw: Record<string, unknown>, base: LabParams 
       : DEFAULT_CASES.map((c) => ({ ...c }))
   const seed = isNum(raw.seed) ? Math.floor(raw.seed) >>> 0 : DEFAULT_SEED
   return { params, cases, seed }
+}
+
+/**
+ * 指標列「Case X 95% 收斂 blocks k₉₅」：公式連結、claim 與說明跟著 blocks95 的來源走（審查 R02）。
+ *  - 'pole'：A 正規，F-10.5 精確 ⇒ 連到 F-10.5、exact、不加說明。
+ *  - 'norm'：逐 block 算範數得到的精確值，但不是 F-10.5 的數字 ⇒ 不連公式，說明裡列出 F-10.5 的下界。
+ *  - 'lower-bound'：沒算完，只能列 F-10.5 的下界 ⇒ approx，名稱加上「下界」。
+ */
+export function k95Metric(caseId: string, a: RuleAnalysis): MetricRow {
+  const row: MetricRow = {
+    name: String.raw`Case ${caseId} 95% 收斂 blocks $k_{95}$`,
+    value: a.blocks95 ?? (a.stable ? '—' : '不收斂'),
+    claim: 'exact',
+  }
+  if (a.blocks95Basis === 'norm') {
+    if (a.rule === 'sequential') return { ...row, note: String.raw`最壞初始方向：$\|\boldsymbol\Phi_j\|_2\le0.05$ 且之後不再超過` }
+    const same = a.blocks95 === a.blocks95Asymptotic
+    return {
+      ...row,
+      note:
+        String.raw`$\mathbf A$ 非正規：逐 block 算 $\|\mathbf A^j\|_2\le0.05$（最壞初始方向，且之後不再超過）；只看 $\rho(\mathbf A)$ 的 F-10.5 給 $${a.blocks95Asymptotic}$，` +
+        (same ? '只是下界（這組數字剛好相同）' : '只是下界'),
+    }
+  }
+  if (a.blocks95Basis === 'lower-bound') {
+    return {
+      ...row,
+      name: String.raw`Case ${caseId} 95% 收斂 blocks $k_{95}$（下界）`,
+      formulaId: 'F-10.5',
+      claim: 'approx',
+      note: String.raw`$\mathbf A$ 非正規且衰減極慢：這是 F-10.5 的下界，實際更久（見警告）`,
+    }
+  }
+  return { ...row, formulaId: 'F-10.5' }
 }
 
 /** 95% 等機率橢圓（χ²₂ 0.95 分位 = 5.991）：回傳 (x, y) 點列 */

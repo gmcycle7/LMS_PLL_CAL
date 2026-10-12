@@ -31,6 +31,8 @@ export const CIRC: readonly string[] = [1, 2, 3, 4, 5, 6].map((n) => String.raw`
 /**
  * §0：sign-off 的六道關卡（順序與頁面「六個條件」表一致：Identifiability → Polarity → Stability → Variance → Bias → System-level）。
  * 前面的量先算出來，後面的判準才有東西可用：有了 $K$（極性）才能算 $g$；迴路收斂了才有穩態的 $\sigma_w$ 與固定點 $w^*$；最後才換算到輸出。
+ * 第六個菱形寫「輸出 jitter 與 spur（$\delta t$ 經 $T$）」（技術審查 R14）：$\sigma_{\delta t}$ 是還沒經過 PLL 的 DTC 補償誤差 RMS（符號表、Ch13、首頁卡片 6），
+ * 不是輸出量，不可寫成「輸出 $\sigma_{\delta t}$」——輸出 jitter 也不是 $|T|\cdot\sigma_{\delta t}$（要把 $\delta t$ 的 PSD 乘 $|T(f)|^2$ 積分，§8）。
  */
 export const CHART_SIGNOFF_FLOW = String.raw`flowchart TB
   START(["量測前提：$0/1 \to \pm 1$ 映射、<br/>code delay $D$ 對齊、<br/>GMAC sum／average 與 $\mu$ 的 scaling 一致<br/>（Matrix 第 1 個 case）"])
@@ -39,7 +41,7 @@ export const CHART_SIGNOFF_FLOW = String.raw`flowchart TB
   Q3{"${CIRC[2]} Stability<br/>$g \lt g_{\mathrm{crit}}(d)$、<br/>$\rho(\mathbf I + \mathbf M\mathbf J) \lt 1$"}
   Q4{"${CIRC[3]} Variance<br/>$\sigma_w \le \sigma_{w,\max}$"}
   Q5{"${CIRC[4]} Bias<br/>$\lvert w^* - a\rvert \le \varepsilon_{\mathrm{bias}}$"}
-  Q6{"${CIRC[5]} System-level<br/>輸出 $\sigma_{\delta t}$ 與 spur<br/>（經 $T$）在預算內"}
+  Q6{"${CIRC[5]} System-level<br/>輸出 jitter 與 spur<br/>（$\delta t$ 經 $T$）在預算內"}
   OK(["六項都過，並寫明「穩定」的種類與證據範圍<br/>才可 sign-off"])
   BAD["不可 sign-off<br/>在 Matrix 記下失敗項目與理由，修正後重做"]
   START --> Q1

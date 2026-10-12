@@ -3,6 +3,8 @@ import katex from 'katex'
 import { join } from 'node:path'
 import { PAGES } from '@/app/registry'
 import { listRegions } from '@/components/codeRegion'
+import { LIN_RATIO_LIMIT, nearIntegerSweep } from '@/simulation/models/bias'
+import { analyzeGeneral, dualLoopFullMuRange, dualLoopSimplifiedMuRange, stableIntervalsNumeric, type ObservationSystem } from '@/simulation/models/stability'
 import { ALL_CASES, LIMITATIONS, NEGATIVE_TESTS, SIGNOFF_CASES, STATEMENTS, STABILITY_NOTIONS } from './data'
 import { FORMULAS } from './formulas'
 import { negativeSignatures } from './judges'
@@ -144,6 +146,79 @@ describe('Sign-off 內容資料的完整性', () => {
     expect(spec.length).toBe(5)
     expect(spec.filter((s) => s.ok).length).toBe(3)
     expect(STATEMENTS.some((s) => s.text === 'LMS 一定穩定。' && !s.ok)).toBe(true)
+  })
+
+  it('技術審查 R01：fcw-nearint 把 |B/C| 標成線性化的值——comparator 飽和（> 0.3σ_v）的 FCW 只是線性外推，進 keep-out', () => {
+    const k = ALL_CASES.flatMap((c) => c.checks).find((x) => x.id === 'fcw-nearint')!
+    expect(k.judge).toContain('線性化的值')
+    expect(k.judge).toContain('線性外推')
+    expect(k.judge).toContain(String.raw`>${LIN_RATIO_LIMIT}\,\sigma_v$`) // 門檻與 Ch11 的 LIN_RATIO_LIMIT 是同一個數字
+    expect(k.judge).toContain('keep-out')
+    expect(k.judge).toContain('repelling point') // 原有的 C ≤ 0 說明保留
+    expect(k.claim).toBe('approx')
+    expect(k.links.map((l) => l.to)).toContain('/ch/11')
+
+    // 文字背後的數字：Ch11 §11.4 實驗的預設值（本站函式；另以獨立的 NumPy/SciPy 重算過）
+    const r = nearIntegerSweep({ fracs: [3e-4, 0.05], wnTs: 0.02, zeta: 0.707, loopDelay: 1, kappaDirect: 0.01, sigmaV: 1 })
+    // 反例：frac = 20/65536——線性候選 B/C = 3.58，代回去 comparator 要承受 12.4σ_v，完整 erf 平均的 GMAC 不是 0（是 K_q·B 的 6.1 倍）
+    expect(r.frac[0]).toBe(20 / 65536)
+    expect(r.bias[0]).toBeCloseTo(3.5791394, 6)
+    expect(r.linRatio[0]).toBeCloseTo(12.381202, 5)
+    expect(r.linRatio[0]).toBeGreaterThan(LIN_RATIO_LIMIT)
+    expect(r.gAtLinear[0]).toBeCloseTo(0.04881877, 7)
+    expect(r.linResidual[0]).toBeCloseTo(6.118526, 5)
+    expect(r.linValid[0]).toBe(false)
+    // 正常對照：frac ≈ 0.05——B/C = 0.0097 通過檢查，可以當作固定點
+    expect(r.bias[1]).toBeCloseTo(0.00969568947, 10)
+    expect(r.linRatio[1]).toBeCloseTo(0.0021539149, 9)
+    expect(Math.abs(r.gAtLinear[1])).toBeLessThan(1e-10)
+    expect(r.linValid[1]).toBe(true)
+  })
+
+  it('技術審查 C06：multi-dual 的判斷方式指明 Ch08 的二狀態模型；「恰好 2 倍」不寫成所有雙迴路的通則', () => {
+    const k = ALL_CASES.flatMap((c) => c.checks).find((x) => x.id === 'multi-dual')!
+    expect(k.judge).toContain('以完整模型判斷')
+    expect(k.judge).toContain('Ch08 §8.4 的二狀態模型')
+    expect(k.judge).toContain('$r_s$') // 與下面 criterion 的符號一致（不是 $r$）
+    expect(k.judge).not.toMatch(/與 \$r\$ 無關/)
+    expect(k.judge).toContain('不一定是 2 倍')
+    expect(k.criterion).toContain(String.raw`0<\mu b_sc_s<1-r_s`)
+    expect(k.claim).toBe('exact')
+    expect(k.errata).toContain('E19')
+
+    // 文字背後的數字（本站的函式；另以獨立的 NumPy eigenvalue 掃描核對過）
+    // 正常對照：二狀態模型（誤差晚一個 block 才被 GMAC 看到）——完整上界恰好是 quasi-static 的一半，與 r_s 無關
+    for (const [r, b, c] of [[0.8, 0.2, 1], [0.5, 0.3, 2], [-0.5, 0.4, 1], [0, 1, 1]] as const) {
+      const full = dualLoopFullMuRange(r, b, c).hi
+      const qs = dualLoopSimplifiedMuRange(r, b, c).hi
+      expect(full / qs).toBeCloseTo(0.5, 12)
+      expect(full * b * c).toBeCloseTo(1 - r, 12)
+    }
+    // 反例：其他觀測路徑的比例不是一半
+    const scan = (sys: ObservationSystem) => {
+      const qs = analyzeGeneral(sys, 0).simplifiedMuMax
+      const iv = stableIntervalsNumeric((mu) => analyzeGeneral(sys, mu).rho, 1e-9, 12 * qs, 9601)
+      expect(iv).toHaveLength(1)
+      return { qs, hi: iv[0].hi, ratio: iv[0].hi / qs }
+    }
+    // (1) Ch08 的二階觀測例 F(z) = 0.04(z+1)/(z² − 1.6z + 0.68)：quasi-static 高估約 7 倍
+    const second = scan({ A: [[1.6, -0.68], [1, 0]], b: [1, 0], c: [0.04, 0.04], d: 0 })
+    expect(second.qs).toBeCloseTo(2, 9)
+    expect(second.hi).toBeCloseTo(20 * Math.SQRT2 - 28, 6) // 0.2842712475
+    expect(second.ratio).toBeCloseTo(0.142136, 5)
+    // (2) 晚兩個 block：F(z) = 0.2/(z(z − r))，r = 0 時就是純延遲 d = 2 的 g* = 2 sin(π/10)
+    const two = scan({ A: [[0, 0], [1, 0]], b: [0.2, 0], c: [0, 1], d: 0 })
+    expect(two.qs).toBeCloseTo(10, 9)
+    expect(two.hi * 0.2).toBeCloseTo(2 * Math.sin(Math.PI / 10), 6)
+    expect(two.ratio).toBeCloseTo(0.309017, 5)
+    // (3) 沒有那一個 block 的 latency（G 直接含當拍的 δ）：quasi-static 反而偏保守（比例 9 > 1）
+    const noLat = scan({ A: [[0.8]], b: [0.2], c: [0.8], d: 0.2 })
+    expect(noLat.qs).toBeCloseTo(2, 9)
+    expect(noLat.hi).toBeCloseTo(18, 6)
+    expect(noLat.ratio).toBeCloseTo(9, 5)
+    // (4) 「不一定是一半」而不是「一定不是一半」：另一條路徑也可能剛好是一半
+    const half = scan({ A: [[-1 / 3]], b: [0.2], c: [-1 / 3], d: 0.2 })
+    expect(half.ratio).toBeCloseTo(0.5, 6)
   })
 
   it('formulas.ts 的每個 ID 唯一，且頁面上恰好有一個同 ID 的 TexBlock 錨點', () => {

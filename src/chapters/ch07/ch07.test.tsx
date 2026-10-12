@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { StrictMode } from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { renderTex } from '@/components'
@@ -7,7 +8,8 @@ import * as plotMathModule from '@/components/plotMath'
 import { unicodeMathIn } from '@/components/mermaidTestUtils'
 import { SettingsProvider } from '@/app/settings'
 import { presetById, presetsForExperiment } from '@/app/presets'
-import { analyzeFxLab, closedLoopConsistent, runFxComparison } from '@/simulation/models/filteredX'
+import { analyzeFxLab, closedLoopConsistent, pathStability, pathTransfer, runFxComparison, type FxPathSpec } from '@/simulation/models/filteredX'
+import { lfilter } from '@/simulation/signal'
 import Chapter07 from './index'
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
@@ -24,6 +26,7 @@ import {
   toPathSpec,
 } from './experiments/labState'
 import { ufDisplayScale } from './experiments/labPlots'
+import { DelayFxLab } from './experiments/DelayFxLab'
 
 const P = vi.hoisted(() => ({
   react: vi.fn(async () => undefined),
@@ -180,7 +183,8 @@ describe('Chapter 07（jsdom smoke）', () => {
     expect(texIn('#ch07-mismatch')).toContain(String.raw`H_{\mathrm{PD}}=\frac{U}{X}=\frac{1}{1+L}=\frac{\nabla^2}{\nabla^2+(K_i+K_p\nabla)\,z^{-(1+d)}}`)
     // 符號表：e_PD 是 PD 的輸出；DTC 的補償量與基準延遲、t_ref′／t_fb 都有列
     const symTex = Array.from(symbols.querySelectorAll('annotation')).map((a) => a.textContent ?? '')
-    for (const t of [String.raw`T_0,\ \tau_{\mathrm{DTC}}[n]=T_0-w\,x[n]`, String.raw`t_{\mathrm{ref}}',\ t_{\mathrm{fb}}`]) expect(symTex, t).toContain(t)
+    for (const t of [String.raw`T_0,\ \tau_{\mathrm{DTC}}[n]=T_0-w\,x[n]`, String.raw`t_{\mathrm{ref}}',\ t_{\mathrm{fb}}`, String.raw`C_{f,D}`]) expect(symTex, t).toContain(t)
+    expect(symbols.textContent).toMatch(/凍結（固定不動）時的值；見 §7\.4 的前提/)
     expect(symbols.textContent).toMatch(/PD 的輸出（PD 誤差；comparator 取的就是它，也就是送進 loop filter 的同一個訊號）/)
     expect(symbols.textContent).toMatch(/誤差從 PD 的 reference 輸入注入/)
     expect(sec('#ch07-linear-phase').textContent).toMatch(/自然頻率（natural frequency）/)
@@ -188,6 +192,64 @@ describe('Chapter 07（jsdom smoke）', () => {
     expect(sec('#ch07-linear-phase').textContent).toMatch(/pipeline latency/)
     expect(sec('#ch07-gradient').textContent).toMatch(/GMAC 實際拿來相乘的訊號/)
     expect(texIn('#ch07-gradient')).toContain(String.raw`x_{\mathrm{ref}}[n]`)
+    // R06b：F-07.1 的等號只在 w 凍結時成立——前提寫在公式旁（所有模式），兩拍的反例在 Engineer 以上；7.1 節指到這裡
+    for (const phrase of ['當成固定不動的常數', '記憶長度內幾乎不變', '兩拍的反例', '慢適應前提', '方塊裡寫的是 F-06.1 的近似式']) expect(s4, phrase).toContain(phrase)
+    expect(texIn('#ch07-gradient').some((t) => t.includes(String.raw`h*\big((a-w)\,x\big)=(a-w)\,(h*x)`))).toBe(true)
+    expect(texIn('#ch07-gradient')).toContain(String.raw`e_{\mathrm{PD}}[n]\approx(a-w_k)\,u[n]+v[n]`)
+    expect(texIn('#ch07-gradient').some((t) => t.includes(String.raw`\sum_{m\ge1}h[m]\,\big(w[n]-w[n-m]\big)\,x[n-m]`))).toBe(true)
+    expect(texIn('#ch07-gradient').some((t) => t.includes(String.raw`=(a-w[n])\,x[n]`) && t.includes(String.raw`-(a-w[n-1])\,x[n-1]`) && t.includes(String.raw`=0\times1-1\times1=-1`) && t.includes(String.raw`(a-w[n])\,u[n]=0\times(1-1)=0`))).toBe(true)
+    expect(s1).toMatch(/固定不動時兩者完全相等；.*在更新時只是近似（Ch06 的 F-06\.1），成立條件寫在 7\.4 節的 F-07\.1 下面/)
+    // 「記憶長度」就地定義成衰減的時間尺度（1/e），和框裡的 1/(1 − 0.964) ≈ 28 個 sample 是同一個量；Lab 的假設欄也帶著這個前提（平均 pole 引用 F-07.11）
+    expect(s4).toMatch(/記憶長度是脈衝響應.*衰減的時間尺度/)
+    expect(texIn('#ch07-gradient')).toContain(String.raw`1/e\approx37\%`)
+    expect(texIn('#ch07-gradient')).toContain(String.raw`1/(1-0.964)\approx28`)
+    const labAssumptions = Array.from(container.querySelectorAll('[id="exp-delay-fx-lab"] .c-assumption-list li')).map((li) => li.textContent ?? '')
+    expect(labAssumptions.some((t) => t.includes('小訊號線性化') && t.includes('記憶長度內近似不變') && t.includes('F-06.1') && t.includes('先乘後濾'))).toBe(true)
+    // R03：章內的 F-07.11／F-07.12 與登錄表逐字相同（帶著 regressor 的額外延遲 D）；D = 0 的約定寫在公式旁
+    const reg = (id: string) => FORMULAS.find((f) => f.id === id)?.tex ?? ''
+    expect(texIn('#ch07-gradient')).toContain(reg('F-07.11'))
+    expect(texIn('#ch07-gradient')).toContain(reg('F-07.10'))
+    expect(texIn('#ch07-mismatch')).toContain(reg('F-07.12'))
+    // 桌機放不下一整行、拆成對齊兩行的公式（F-07.5、F-07.8、F-07.16）：章內的方塊與登錄表逐字相同；拆的是換行，內容不變
+    for (const id of ['F-07.5', 'F-07.8', 'F-07.16']) {
+      expect(reg(id).startsWith(String.raw`\begin{aligned}`), id).toBe(true)
+      expect(texIn(`[id="formula-${id}"]`), id).toContain(reg(id))
+    }
+    const oneLine = (tex: string) => tex.replace(/\\begin\{aligned\}|\\end\{aligned\}|&/g, '').replace(/\\\\/g, ' ')
+    expect(oneLine(reg('F-07.5'))).toBe(String.raw`C_D=A^2\,H(e^{j\Omega})\cos(\Omega D),\quad H(e^{j\Omega})\in\mathbb R\quad(\Omega\in\{0,\pi\}); \text{例：交替碼 }x[n]=A(-1)^n\Rightarrow C_D=A^2H(e^{j\pi})(-1)^D`)
+    expect(oneLine(reg('F-07.8'))).toBe(
+      String.raw`C_D=\frac1{2\pi}\int_{-\pi}^{\pi}S_{xx}(e^{j\Omega})\,\mathrm{Re}\big\{H(e^{j\Omega})\,e^{j\Omega D}\big\}\,d\Omega =\frac1{2\pi}\int_{-\pi}^{\pi}S_{xx}\,|H|\cos\big(\phi(\Omega)+\Omega D\big)\,d\Omega=\sum_k h[k]\,R_x[k-D]`,
+    )
+    expect(oneLine(reg('F-07.16'))).toBe(
+      String.raw`E[u\,u_f]=K_2\Big[(1-\rho_x)^2h[0]-2(1-\rho_x)h[1]+(1-\rho_x)^2\sum_{k\ge2}h[k]\rho_x^{k-2}\Big], E[u_f^2]=2K_2^2(1-\rho_x)(3-\rho_x)`,
+    )
+    // 7.10：會縮小 g 的穩定範圍的是 GMAC 的更新延遲（Ch08）；filtered-x 的 D、Ĥ 的 latency 在 regressor 那一側（前饋），改的是 C_{f,D}，不是 g 的穩定上限
+    const s10 = sec('#ch07-pll').textContent ?? ''
+    expect(s10).toMatch(/算出的修正量晚幾個 block 才生效（更新延遲），會縮小.*的穩定範圍——這是 Ch08 的主題/)
+    expect(s10).toMatch(/不是這一種延遲：它們在 regressor 那一側（前饋），不在校正迴路的回授路徑上。在平均模型裡（.*慢變）它們只改變相關.*（F-07\.12）——同一個.*的大小，甚至正負號——不改變.*的穩定上限/)
+    expect(s10).not.toMatch(/額外 latency，都會縮小/)
+    expect(texIn('#ch07-pll')).toContain(String.raw`g=\mu K_q\,C_{f,D}`)
+    // bring-up 的走圖文字：G_± 與斜率都是小訊號線性化的近似（和圖上的 ≈ 一致）
+    expect(texIn('#ch07-pll')).toContain(String.raw`S\approx-K_qC`)
+    expect(texIn('#ch07-pll')).not.toContain('S=-K_qC')
+    expect(s4).toMatch(/沒有另外標.*的 filtered-x 都是/)
+    expect(s4).toMatch(/、.*的 filtered-x 恆為 1/)
+    expect(texIn('#ch07-gradient')).toContain(String.raw`C_{f,D}=E\big[u[n]\,u_f[n-D]\big]`)
+    expect(s5).toMatch(/而且 regressor 沒有額外延遲（.*）時成立/)
+    expect(s5).toMatch(/本節以下的圖、表與手算都取/)
+    expect(s5).toMatch(/自己的自相關——大小不超過.*，但可以是負的/)
+    // 7.5 節的例子（T07 的單頻、Ĥ = H）：D = 2、3、4 ⇒ 0.5、0、−0.5，由模型即時計算
+    const pExtraD = Array.from(sec('#ch07-mismatch').querySelectorAll('p')).find((p) => p.textContent?.includes('本節以下的圖、表與手算都取')) as HTMLElement
+    const pExtraTex = Array.from(pExtraD.querySelectorAll('annotation')).map((a) => a.textContent ?? '')
+    expect(pExtraTex.slice(pExtraTex.indexOf('D=2'), pExtraTex.indexOf('D=2') + 6)).toEqual(['D=2', '0.5', 'D=3', '0', 'D=4', '-0.5'])
+    expect(pExtraD.textContent).toMatch(/（反向更新）；和下面「.*多算.*」的表逐列相同/)
+    expect(texIn('#ch07-mismatch')).toContain(String.raw`C_{f,D}=E\big[u[n]\,u[n-D]\big]=R_u[D]`)
+    expect(texIn('#ch07-mismatch').some((t) => t.includes(String.raw`E\big[u[n]\,u_f[n-D]\big]`) && t.includes(String.raw`=\sum_k\sum_l h[k]\,\hat h[l]\,R_x[k-l-D]`))).toBe(true)
+    expect(texIn('#ch07-mismatch')).toContain(String.raw`\theta(\Omega)=\angle H-\angle\hat H+\Omega D`)
+    expect(texIn('#ch07-recap').some((t) => t.includes(String.raw`p_f=1-\mu K_q\,C_{f,D}`))).toBe(true)
+    expect(texIn('#ch07-recap').some((t) => t.includes(String.raw`\cos(\angle H-\angle\hat H+\Omega D)`))).toBe(true)
+    // Lab 的指標列：filtered-x 的相關寫成 C_{f,D}（帶著目前 Case 的 D），E[u²] 那一列註明 Ĥ = H、D = 0
+    expect(texIn('[id="exp-delay-fx-lab"]')).toContain(String.raw`C_{f,D}=E\big[u[n]\,u_f[n-0]\big]`)
     expect(sec('#ch07-mismatch').textContent).toMatch(/PI loop filter 的比例係數與積分係數/)
     for (const t of ['7.1 一個問題', '7.2 推導', '7.3 為什麼一個 delay', '7.4 Filtered-x', '7.5 模型不準', '7.6 硬體成本', '7.7 動手觀察', '7.8 思考題', '7.9 本課必記', '7.10 連結到 PLL']) {
       expect(screen.getAllByText((_, el) => !!el && el.tagName === 'H2' && (el.textContent ?? '').startsWith(t)).length).toBeGreaterThan(0)
@@ -313,6 +375,34 @@ describe('Chapter 07（jsdom smoke）', () => {
     }
   }, 240000)
 
+  it('StrictMode（開發伺服器：掛載時 effect 連跑兩次）以 ?preset= 載入：A/B/C 三個 Case 都在，閉迴路的「C ≤ 0」警告依 Case 的 regressor 給建議', async () => {
+    // main.tsx 用 StrictMode：開發模式下 A/B/C 的初始化 effect 會跑兩次。舊版第二次執行把 preset 的 Case 清單丟掉，畫面只剩 Case A。
+    // preset「H = 1 卻把 code 錯位 D = 4」：A raw-x（C = +1）、B delayed-x D = 4（C = −0.5）、C delayed-x D = 3（C ≈ 0）
+    const { container } = render(
+      <StrictMode>
+        <SettingsProvider>
+          <MemoryRouter initialEntries={['/ch/07?preset=delay-code-misalignment']}>
+            <DelayFxLab />
+          </MemoryRouter>
+        </SettingsProvider>
+      </StrictMode>,
+    )
+    const caseButtons = () =>
+      Array.from(container.querySelectorAll('button'))
+        .map((b) => (b.textContent ?? '').trim())
+        .filter((t) => /Case [ABC]$/.test(t))
+    await waitFor(() => expect(caseButtons()).toEqual(['Case A', 'Case B', 'Case C']), { timeout: 30000 })
+    // 閉迴路跑完：Case B 是 delayed-x，警告不再建議「需 delay alignment 或 filtered-x」，而是「換一個 D，或改用 filtered-x」；Case A（raw-x、C > 0）沒有警告
+    const warningTexts = () => Array.from(container.querySelectorAll('.c-exp-warnings > *')).map((e) => e.textContent ?? '')
+    await waitFor(() => expect(warningTexts().some((t) => t.includes('Case B（閉迴路）：C ≤ 0'))).toBe(true), { timeout: 60000 })
+    const b = warningTexts().find((t) => t.includes('Case B（閉迴路）：C ≤ 0')) as string
+    expect(b).toContain('這個 Case 已經是 delayed-x：要換一個')
+    expect(b).toContain('（F-07.4），或改用 filtered-x')
+    expect(b).not.toContain('需 delay alignment 或 filtered-x')
+    expect(warningTexts().some((t) => t.includes('Case A'))).toBe(false)
+    expect(container.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+  })
+
   it('三模式切換：點 filtered-x 後目前 Case 改為 filtered（aria-checked），並顯示 Ĥ 誤差控制', async () => {
     const renderChapterResult = renderChapter()
     const { container } = renderChapterResult
@@ -357,6 +447,14 @@ describe('Chapter 07（jsdom smoke）', () => {
     // 方塊圖幾乎不分模式都顯示（入門模式最需要圖）：只有 Engineer 以上才有的「邊界情況 2：有限 N 的 block」少一張；符號表一樣在章末
     expect(a.container.querySelectorAll('figure.c-mermaid')).toHaveLength(22)
     expect(a.container.querySelector('.ch07')?.lastElementChild?.id).toBe('symbols')
+    // R06b：「w 凍結」的前提在 Beginner 也看得到（公式旁的一段話）；兩拍的反例與數字留給 Engineer 以上
+    const s4b = a.container.querySelector('#ch07-gradient')?.textContent ?? ''
+    expect(s4b).toContain('當成固定不動的常數')
+    expect(s4b).toContain('記憶長度內幾乎不變')
+    expect(s4b).toMatch(/記憶長度是脈衝響應.*衰減的時間尺度/)
+    expect(s4b).not.toContain('兩拍的反例')
+    // R03：F-07.11 下面的 D = 0 約定不分模式都顯示
+    expect(s4b).toMatch(/沒有另外標.*的 filtered-x 都是/)
     // 帶入手算：beginner／engineer 等級的題目都在；複數運算的 HC-07.7 放在 Engineer 模式以上
     const ids = Array.from(a.container.querySelectorAll('[id^="handcalc-HC-07"]')).map((e) => e.id)
     expect(ids).toEqual(HANDCALCS.filter((h) => h.id !== 'HC-07.7').map((h) => `handcalc-${h.id}`))
@@ -425,6 +523,90 @@ describe('Ch07 公式登錄與 presets', () => {
     for (const phrase of ['PD 的輸出', 'reference edge 減 feedback edge', 'comparator 與 loop filter 取同一個節點', 'DTC 在 reference 輸入端', '從 PD 的 reference 輸入注入', String.raw`$H_{\mathrm{PD}}=1/(1+L)$ 取正號`]) {
       expect(f1?.conditions, phrase).toContain(phrase)
     }
+  })
+
+  it('R06b：F-07.1／F-07.9 是「w 凍結」模型內的等式（exact），條件寫明凍結與 F-06.1 的慢適應前提；F-07.11（approx）也帶著這個前提', () => {
+    const f = (id: string) => FORMULAS.find((x) => x.id === id) as (typeof FORMULAS)[number]
+    // 公式不變（等號，不是 ≈）；w 凍結時是等式，LMS 更新時是 F-06.1 的近似
+    expect(f('F-07.1').claim).toBe('exact')
+    expect(f('F-07.1').tex).not.toContain(String.raw`\approx`)
+    expect(f('F-07.1').title).toContain('凍結')
+    for (const phrase of ['凍結', 'F-06.1', '記憶長度', '時間尺度分離', '只說「block 內 $w$ 固定」還不夠', String.raw`$h*\big((a-w)\,x\big)=(a-w)\,(h*x)$`, 'DTC 在 reference 輸入端']) {
+      expect(f('F-07.1').conditions, phrase).toContain(phrase)
+    }
+    expect(f('F-07.9').claim).toBe('exact')
+    expect(f('F-07.9').tex).toBe(String.raw`J(w)=\tfrac12E\big[e_{\mathrm{PD}}^2\big],\qquad \frac{dJ}{dw}=-E\big[e_{\mathrm{PD}}\,u\big]`)
+    for (const phrase of ['凍結', 'F-06.1', '時間尺度分離']) expect(f('F-07.9').conditions, phrase).toContain(phrase)
+    expect(f('F-07.11').claim).toBe('approx')
+    for (const phrase of ['記憶長度', 'F-06.1', String.raw`$|\delta u|\ll\sigma_v$`]) expect(f('F-07.11').conditions, phrase).toContain(phrase)
+  })
+
+  it('R06b：7.4 節 Engineer 框裡的數字——Type-II（0.05、0.7、d = 0）的記憶長度約 28 個 sample；慢適應時兩種寫法只差 8e-4，快適應時差到同一個量級（約 0.8）', () => {
+    // 誤差路徑：H_PD = ∇²/(∇² + (K_i + K_p∇)z⁻¹)，K_p = 0.07、K_i = 0.0025 ⇒ 分母 1 − 1.9275z⁻¹ + 0.93z⁻²
+    const path: FxPathSpec = { kind: 'type2_dt', wnTs: 0.05, zeta: 0.7, loopDelay: 0 }
+    const H = pathTransfer(path)
+    expect(Array.from(H.b)).toEqual([1, -2, 1])
+    expect(H.a).toHaveLength(3)
+    expect(H.a[0]).toBe(1)
+    expect(H.a[1]).toBeCloseTo(-1.9275, 12)
+    expect(H.a[2]).toBeCloseTo(0.93, 12)
+    // 共軛複數 pole：半徑的平方 = 分母的常數項 0.93
+    expect(H.a[1] * H.a[1] - 4 * H.a[2]).toBeLessThan(0)
+    const radius = pathStability(path).radius
+    expect(radius).toBeCloseTo(Math.sqrt(0.93), 9) // 0.964
+    expect(1 / (1 - radius)).toBeCloseTo(28.06, 2)
+    // 先乘後濾（真實電路）對先濾後乘（F-07.1 的寫法）：x = cos(πn/6)、w_k = a(1 − (1 − g)^k)，從 w 第一次更新（k ≥ 1）算起
+    const ratio = (N: number, g: number, blocks: number, a = 3): number => {
+      const L = N * blocks
+      const x = Float64Array.from({ length: L }, (_, n) => Math.cos((Math.PI * n) / 6))
+      const coef = Float64Array.from({ length: L }, (_, n) => a * Math.pow(1 - g, Math.floor(n / N))) // a − w_k
+      const eTrue = lfilter(H.b, H.a, Float64Array.from(x, (v, n) => coef[n] * v)).y
+      const u = lfilter(H.b, H.a, x).y
+      let num = 0
+      let den = 0
+      for (let n = N; n < L; n++) {
+        const approx = coef[n] * u[n]
+        num += (eTrue[n] - approx) ** 2
+        den += approx ** 2
+      }
+      return Math.sqrt(num / den)
+    }
+    // 慢：N/g = 40960 個 sample ≫ 28
+    const slow = ratio(4096, 0.1, 60)
+    expect(slow).toBeGreaterThan(8.0e-4)
+    expect(slow).toBeLessThan(8.5e-4)
+    // N 越小（適應越快）差越大：每一格都比前一格大
+    const byN = [4096, 256, 64, 16, 4, 1].map((N) => ratio(N, 0.1, 60))
+    for (let i = 1; i < byN.length; i++) expect(byN[i]).toBeGreaterThan(byN[i - 1])
+    expect(byN[5]).toBeCloseTo(0.0963, 3)
+    // 快：N/g = 2 個 sample ≪ 28。30 個 block 是 0.772，再長收斂到 0.78——文字寫「約 0.8」
+    expect(ratio(1, 0.5, 30)).toBeCloseTo(0.7716, 3)
+    for (const blocks of [30, 60, 240]) {
+      expect(ratio(1, 0.5, blocks)).toBeGreaterThan(0.75)
+      expect(ratio(1, 0.5, blocks)).toBeLessThan(0.8)
+    }
+    // w 凍結（g = 0）：兩種寫法逐點相同（F-07.1 是等式）
+    expect(ratio(64, 0, 8)).toBeLessThan(1e-12)
+  })
+
+  it('R03：F-07.10–F-07.13 帶著 regressor 的額外延遲 D——公式用 C_{f,D}，條件欄都寫出 D = 0 的情形；claim 不變', () => {
+    const f = (id: string) => FORMULAS.find((x) => x.id === id) as (typeof FORMULAS)[number]
+    expect(f('F-07.10').tex).toContain('u_f[n-D]')
+    expect(f('F-07.11').tex).toContain('C_{f,D}')
+    expect(f('F-07.11').tex).toContain('u_f[n-D]')
+    expect(f('F-07.11').tex).toContain(String.raw`\overset{D=0}{=}E[u\,u_f]`)
+    expect(f('F-07.12').tex).toContain('C_{f,D}')
+    expect(f('F-07.12').tex).toContain(String.raw`\angle H-\angle\hat H+\Omega D`)
+    expect(f('F-07.12').tex).toContain(String.raw`\overset{\hat H=H,\ D=0}{=}`)
+    // 舊式（沒有 D、只寫 Ĥ = H 就保證 E[u²]）不再出現
+    expect(f('F-07.12').tex).not.toContain(String.raw`\overset{\hat H=H}{=}`)
+    expect(f('F-07.11').tex).not.toContain(String.raw`p_f=1-\mu K_q\,E[u\,u_f]`)
+    for (const id of ['F-07.10', 'F-07.11', 'F-07.12', 'F-07.13']) expect(f(id).conditions, id).toContain('D=0')
+    expect(['F-07.10', 'F-07.11', 'F-07.12', 'F-07.13'].map((id) => f(id).claim)).toEqual(['exact', 'approx', 'exact', 'exact'])
+    expect(f('F-07.12').title).toContain('額外延遲')
+    expect(f('F-07.12').conditions).toContain(String.raw`$C_{f,D}=R_u[D]$`)
+    expect(f('F-07.12').conditions).toContain('充分條件（非必要）')
+    expect(f('F-07.13').conditions).toContain(String.raw`$\hat H\propto H$`)
   })
 
   it('所有 delay-fx-lab presets 都能解析；Gallery #4 唯一且指向本章', () => {

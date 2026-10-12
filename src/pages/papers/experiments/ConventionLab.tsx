@@ -44,6 +44,19 @@ const MU_REG: Record<Convention, string> = {
   signBlock: 'REG_GAIN_STEP（gain_step，fs）',
 }
 
+/**
+ * 「95% 衰減」那兩列的適用範圍（技術審查 R02）：步數是 ⌈ln 0.05/ln|z|_max⌉。
+ * d = 0 時單一 mode 的誤差就是 (1 − g)^k，這個數字精確；d ≥ 1 時 |z|_max 只給漸近的衰減率，
+ * |z|_max^k 不是誤差的包絡（重根、複數根），逐 step 數出來的步數可能比它多、也可能比它少。
+ */
+function decayNote(d: number, steps: number, counted: number): string | undefined {
+  // 不衰減（steps 不是有限值）時沒有步數可言，不加註
+  if (!(d >= 1 && Number.isFinite(steps))) return undefined
+  const base = r`$d\ge1$：$\lceil\ln0.05/\ln|z|_{\max}\rceil$ 只用 $|z|_{\max}$ 的漸近衰減率估計，不是逐 step 數出來的精確值（$|z|_{\max}^k$ 不是誤差的包絡）`
+  // 逐 step 數出來的數字（平均遞迴、初始歷史 = 初值，和上方軌跡圖的實線同一條）：暫態最後一次超過 5% 的下一步
+  return Number.isFinite(counted) ? `${base}；照平均遞迴逐 step 數（暫態最後一次超過 5% 的下一步）是 $${counted}$ steps` : base
+}
+
 /** 「文獻寫法換算器」：把論文／教科書的步長換成本站的 loop gain，並看更新延遲下的穩定性。 */
 export function ConventionLab() {
   const urlPreset = useUrlPreset(EXPERIMENT_ID)
@@ -82,8 +95,9 @@ export function ConventionLab() {
     return [
       { ...trim(res.trajFast), name: `快模式（$\\lambda_{\\max}$，$g = ${num(res.gFast, 4)}$）`, mode: 'lines', line: { color: tokens.series[0] } },
       { ...trim(res.trajSlow), name: `慢模式（$\\lambda_{\\min}$，$g = ${num(res.gSlow, 4)}$）`, mode: 'lines', line: { color: tokens.series[1] } },
-      { ...env(res.radiusFast), name: '快模式包絡 $|z|_{\\max}^k$', mode: 'lines', line: { color: tokens.series[0], dash: 'dot', width: 1 } },
-      { ...env(res.radiusSlow), name: '慢模式包絡 $|z|_{\\max}^k$', mode: 'lines', line: { color: tokens.series[1], dash: 'dot', width: 1 } },
+      // 虛線 |z|_max^k：d = 0 時就是 |c_k|（與實線重合）；d ≥ 1 時只是漸近衰減率的參考線，不是誤差的包絡（技術審查 R02）
+      { ...env(res.radiusFast), name: '快模式的 $|z|_{\\max}^k$（漸近衰減率）', mode: 'lines', line: { color: tokens.series[0], dash: 'dot', width: 1 } },
+      { ...env(res.radiusSlow), name: '慢模式的 $|z|_{\\max}^k$（漸近衰減率）', mode: 'lines', line: { color: tokens.series[1], dash: 'dot', width: 1 } },
     ]
   }, [k, res, tokens])
 
@@ -153,15 +167,20 @@ export function ConventionLab() {
           ? `NLMS：取 a posteriori 界限 $2(\\epsilon_{\\mathrm{reg}}+\\mathrm{tr}\\,\\mathbf R)/\\mathrm{tr}\\,\\mathbf R$；平均模型的界限 $${texNum(res.bounds.nlms, 5)}$ 較寬，只保證 $E[\\boldsymbol\\delta]$ 收斂`
           : undefined,
     },
-    { name: r`慢模式（$\lambda_{\min}$）95% 衰減`, value: Number.isFinite(res.stepsSlow) ? res.stepsSlow : '不衰減', unit: 'steps' },
+    { name: r`慢模式（$\lambda_{\min}$）95% 衰減`, value: Number.isFinite(res.stepsSlow) ? res.stepsSlow : '不衰減', unit: 'steps', note: decayNote(deferred.d, res.stepsSlow, res.countedSlow) },
     {
       name: r`快模式（$\lambda_{\max}$）95% 衰減`,
       value: Number.isFinite(res.stepsFast) ? res.stepsFast : '不衰減',
       unit: 'steps',
       note:
-        res.radiusFast > res.radiusSlow && res.radiusFast < 1
-          ? r`步長太大：$\lambda_{\max}$ 的模式過衝，$|z|_{\max}$ 反而比 $\lambda_{\min}$ 的模式大，整體收斂改由它決定`
-          : undefined,
+        [
+          res.radiusFast > res.radiusSlow && res.radiusFast < 1
+            ? r`步長太大：$\lambda_{\max}$ 的模式過衝，$|z|_{\max}$ 反而比 $\lambda_{\min}$ 的模式大，整體收斂改由它決定`
+            : undefined,
+          decayNote(deferred.d, res.stepsFast, res.countedFast),
+        ]
+          .filter(Boolean)
+          .join('；') || undefined,
     },
     {
       name: r`快模式 PM $=90^\circ-(2d+1)\arcsin(g/2)$`,
@@ -440,7 +459,7 @@ export function ConventionLab() {
         </table>
       </div>
       <Plot
-        title={r`各 eigen-mode 的平均誤差 $|c_{i,k}|$（$c_{i,0}=1$；虛線為 $|z|_{\max}^{\,k}$ 包絡）`}
+        title={r`各 eigen-mode 的平均誤差 $|c_{i,k}|$（$c_{i,0}=1$；虛線為 $|z|_{\max}^{\,k}$：$d=0$ 時與實線重合，$d\ge1$ 時只是漸近衰減率，不是包絡）`}
         ariaLabel="各 eigen-mode 的平均誤差軌跡"
         data={trajData}
         yLog

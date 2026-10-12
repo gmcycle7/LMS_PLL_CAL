@@ -4,7 +4,8 @@ import { PAGES, pageById } from '@/app/registry'
 import { ALL_PRESETS, presetHref } from '@/app/presets'
 import type { PresetEntry } from '@/data/types'
 import { CHAPTER_META, CLAIM_EXAMPLES, QUESTIONS, ROUTES, SIX_CONDITIONS, conditionsForPage, questionsForPage, shortCode } from './data'
-import { CONDITION_ORDER, evaluateThesis } from './thesisModel'
+import { renderTex } from '@/components'
+import { CONDITION_ORDER, DEFAULT_PARAMS, evaluateThesis } from './thesisModel'
 import { ERRATA, T_IDS, readErrata, summarizeErrata, summarizeTests, erratumById } from './summaries'
 import { THESIS_PRESETS, builtinPreset, presetParams } from './presets'
 import { galleryPresets } from './sections/Gallery'
@@ -158,7 +159,7 @@ describe('Dashboard 內容資料與 registry 一致', () => {
       const r = evaluateThesis(presetParams(preset!))
       expect(r.checks.find((k) => k.id === c.id)?.state, `${c.id} ← ${c.example}`).toBe('fail')
     }
-    // 六個反例各不相同；variance 與 system 的反例只讓「少數條件」失敗，凸顯條件彼此獨立
+    // 六個反例各不相同；variance 與 system 的反例只讓「少數條件」失敗，凸顯『前面的條件過關不保證後面的』（條件之間仍有關聯：極性反例會連帶讓後面四項失敗）
     expect(new Set(SIX_CONDITIONS.map((c) => c.example)).size).toBe(6)
     const failed = (id: string) => evaluateThesis(presetParams(builtinPreset(id)!)).checks.filter((k) => k.state === 'fail').map((k) => k.id)
     expect(failed('thesis-rho099-precond')).toEqual(['variance'])
@@ -227,6 +228,64 @@ describe('Dashboard 內容資料：數學一律 LaTeX（docs/teaching-style.md �
       expect(preset?.rich, `${c.id} → ${c.example}`).toBeDefined()
       expect(mathTextProblems(preset?.rich ?? ''), preset?.rich).toEqual([])
     }
+  })
+
+  it('C06：穩定條件卡片把雙迴路的「一半」限定在 Ch08 的二狀態模型，不寫成通則', () => {
+    const stab = SIX_CONDITIONS.find((c) => c.id === 'stability')!
+    expect(stab.failure).toContain('Ch08')
+    expect(stab.failure).toContain('二狀態模型')
+    expect(stab.failure).toContain('quasi-static')
+    expect(stab.failure).toContain('不是所有 PLL 雙迴路的通則')
+    expect(stab.failure).not.toContain('雙迴路的完整界限只有簡化模型的一半')
+    // 保留的句子
+    expect(stab.failure).toContain('GMAC 用 sum 卻沒把 $\\mu$ 除以 $N$')
+    expect(stab.failure).toContain('Mean 穩定不代表 mean-square 穩定')
+    // 連結仍在：Ch08、勘誤 E19、Q10
+    expect(stab.pages).toContain('ch08')
+    expect(stab.errata).toContain('E19')
+    expect(stab.questions).toContain(10)
+    expect(mathTextProblems(stab.failure)).toEqual([])
+  })
+
+  it('R13：穩定條件卡片在判據旁註明「穩定 ⇒ 極性正確」（下限 0 < g 就是 C > 0），不反過來', () => {
+    const stab = SIX_CONDITIONS.find((c) => c.id === 'stability')!
+    expect(stab.claim).toBe('exact')
+    expect(stab.claimNote).toContain('$0<g$ 就是條件 2 的 $C>0$')
+    expect(stab.claimNote).toContain('反過來不成立')
+    expect(mathTextProblems(stab.claimNote)).toEqual([])
+    // 計算核心：極性通過、穩定失敗（反過來不成立的例子）
+    const r = evaluateThesis({ ...DEFAULT_PARAMS, mu: 100, d: 2 })
+    expect(r.polarity.C).toBeGreaterThan(0)
+    expect(r.stable).toBe(false)
+  })
+
+  it('卡片 3 的判據排成兩行（一行有 457px，比 1280px 桌機上 407px 的卡片寬）：內容與原來的一行相同', () => {
+    const stab = SIX_CONDITIONS.find((c) => c.id === 'stability')!
+    expect(stab.tex).toBe(String.raw`\begin{gathered}p=1-\mu K_q C\\[2pt]0<g<2\sin\frac{\pi}{4d+2}\quad(g=\mu K_qC)\end{gathered}`)
+    // 原來那一行 p = 1 − μK_qC,  0 < g < 2 sin(π/(4d+2))  (g = μK_qC) 的三個部分都在，沒有多也沒有少
+    const oneLine = String.raw`p=1-\mu K_q C,\qquad 0<g<2\sin\frac{\pi}{4d+2}\quad(g=\mu K_qC)`
+    const [first, second] = oneLine.split(String.raw`,\qquad `)
+    expect(stab.tex).toBe(String.raw`\begin{gathered}${first}\\[2pt]${second}\end{gathered}`)
+    expect(renderTex(stab.tex, true)).not.toMatch(/katex-error|c-tex-error/)
+    // 卡片 6 也是 gathered 兩行（同一種排法）
+    expect(SIX_CONDITIONS.find((c) => c.id === 'system')!.tex.startsWith(String.raw`\begin{gathered}`)).toBe(true)
+  })
+
+  it('R14：卡片 6 的名稱與範圍——殘餘誤差「在預算內」（DTC-referred），不是「真正改善輸出」', () => {
+    const c = SIX_CONDITIONS.find((x) => x.id === 'system')!
+    expect(c.zh).toBe('殘餘誤差在預算內')
+    expect(c.zh).not.toContain('$') // 名稱原樣印在 Hero、體檢表、chip、HC-DB.6
+    expect(c.zh + c.en + c.ask).not.toMatch(/改善|變好|performance/)
+    expect(c.claim).toBe('approx')
+    for (const need of ['單參數', 'DTC-referred', '不是輸出 jitter', '不和校正前比']) expect(c.claimNote, need).toContain(need)
+    expect(c.failure).not.toContain('jitter')
+    expect(renderTex(c.tex, true)).not.toMatch(/katex-error|c-tex-error/)
+    expect(c.tex).toContain(String.raw`\le\sigma_{\delta t,\max}`)
+    expect(c.tex).toContain(String.raw`\le\mathrm{Spur}_{\max}`)
+    // 卡片上的式子就是單參數時燈號比的量
+    const r = evaluateThesis(DEFAULT_PARAMS)
+    expect(r.sigmaDt).toBeCloseTo(Math.sqrt(DEFAULT_PARAMS.Px * (r.deltaW ** 2 + r.sigmaW ** 2)), 14)
+    expect(r.sigmaDt).toBeCloseTo(0.41152105263, 10)
   })
 
   it('極性條件的失敗說明分清楚 C < 0（發散）與 C = 0（random walk），與計算核心的判定一致', () => {

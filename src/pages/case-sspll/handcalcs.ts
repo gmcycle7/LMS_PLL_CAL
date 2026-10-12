@@ -37,6 +37,8 @@ import {
  *     中間量（平方、開根號…）只是把那個函式的算式拆成紙筆做得到的步驟，handcalcs.test.tsx 逐題與獨立重算比對。
  *  2. 每一步的 tex 都是「符號式 = 代入數字 =（中間結果 =）結果」：每個等號只做一種運算（一次函數、一串乘除、或一串加減），
  *     而且畫面上的數字自己就算得出下一個等號；需要 sin／arcsin／erf／exp 的步驟在 why 或 tips 說明怎麼按計算機與手算近似。
+ *     一行放不進 1280px 欄位的步驟排成對齊的多行（\begin{aligned}左式&=…\\&=…\end{aligned}，在等號處換行），
+ *     內容仍是同一串等式（handcalcs.test.tsx 的 unwrapAligned 還原成一行後照樣逐段重算）。
  *  3. 預設值就是內文 worked example 的數字（L2：K_p = 0.28771696、K_i = 0.038253471；L1：K = 0.38883636；f_ref = 4000 MHz；
  *     增益取 8 位有效數字，內文印成 0.287717、0.0382535、0.388836），所以答案與內文印出的數字逐位相同。
  *  4. 使用者會打自己的數字，所以顯示要耐得住邊界情況：
@@ -441,11 +443,11 @@ export const HANDCALCS: HandCalcDef[] = [
         const sHalfTex = wide ? fixedTex(sHalf, pDen + 2, false) : nb(sHalf)
         steps.push(
           {
-            tex: r`(2-K)(1-\cos\Omega)=(2-K)\cdot2\sin^2\frac{\Omega}{2}=(2-${ni(K)})\times2\times${sHalfTex}^2=${n(2 - K)}\times2\times${s2Tex}=${n(num)}`,
+            tex: r`\begin{aligned}(2-K)(1-\cos\Omega)&=(2-K)\cdot2\sin^2\frac{\Omega}{2}=(2-${ni(K)})\times2\times${sHalfTex}^2\\&=${n(2 - K)}\times2\times${s2Tex}=${n(num)}\end{aligned}`,
             why: r`驗算用 $d=1$ 的 closed form（F-CS.7），先算分子：括號的減法與 $\sin\frac{\Omega}{2}$（第 5 步）的平方，再連乘。把 $1-\cos\Omega$ 寫成 $2\sin^2\frac{\Omega}{2}$（半角公式），避免兩個很接近的數相減。`,
           },
           {
-            tex: r`\lvert1-(1-K)e^{-j\Omega}\rvert^2=K^2+4(1-K)\sin^2\frac{\Omega}{2}=${nb(K, 10)}^2+4\times(1-${ni(K)})\times${s2Tex}=${fixedTex(K * K, pDen, false)}+${fixedTex(4 * (1 - K) * s2, pDen)}=${n(den1)}`,
+            tex: r`\begin{aligned}\lvert1-(1-K)e^{-j\Omega}\rvert^2&=K^2+4(1-K)\sin^2\frac{\Omega}{2}\\&=${nb(K, 10)}^2+4\times(1-${ni(K)})\times${s2Tex}\\&=${fixedTex(K * K, pDen, false)}+${fixedTex(4 * (1 - K) * s2, pDen)}=${n(den1)}\end{aligned}`,
             why: r`分母：$\lvert1-ae^{-j\Omega}\rvert^2=1-2a\cos\Omega+a^2=(1-a)^2+4a\sin^2\frac{\Omega}{2}$，這裡 $a=1-K$。$\sin^2\frac{\Omega}{2}$ 用上一步平方出來的數；兩項各自算完再相加。`,
           },
           {
@@ -539,7 +541,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: r`L2 在頻率 $f$ 的 $\mathrm{Re}\,H_{PD}$：實部、虛部分開算`,
     page: PAGE,
     formulaId: 'F-CS.4',
-    formulaTex: r`\begin{gathered}\mathrm{Re}\,L_2=-\frac{K_p}{2}-\frac{K_i}{4\sin^2(\Omega/2)},\qquad \mathrm{Im}\,L_2=-\frac{K_p}{2}\cot\frac{\Omega}{2}\\[4pt]\mathrm{Re}\,H_{PD}=\frac{1+\mathrm{Re}\,L}{(1+\mathrm{Re}\,L)^2+(\mathrm{Im}\,L)^2},\qquad \kappa_1\approx W_1\,\mathrm{Re}\,H_{PD}(\alpha f_{ref}),\quad W_1=\frac{64\sin^2(\pi/8)}{\pi^2}\end{gathered}`,
+    formulaTex: r`\begin{gathered}\mathrm{Re}\,L_2=-\frac{K_p}{2}-\frac{K_i}{4\sin^2(\Omega/2)},\qquad \mathrm{Im}\,L_2=-\frac{K_p}{2}\cot\frac{\Omega}{2}\\[4pt]\mathrm{Re}\,H_{PD}=\frac{1+\mathrm{Re}\,L}{(1+\mathrm{Re}\,L)^2+(\mathrm{Im}\,L)^2},\qquad \mathrm{Re}\,\kappa_1\approx W_1\,\mathrm{Re}\,H_{PD}(\alpha f_{ref}),\quad W_1=\frac{64\sin^2(\pi/8)}{\pi^2}\end{gathered}`,
     level: 'research',
     claim: 'exact',
     inputs: [
@@ -614,7 +616,7 @@ export const HANDCALCS: HandCalcDef[] = [
             why: r`$H_{PD}=\frac{1}{1+L}=\frac{\overline{1+L}}{\lvert1+L\rvert^2}$：分子分母同乘共軛，實部的分子是 $1+\mathrm{Re}\,L$。`,
           },
           {
-            tex: r`\kappa_1\approx W_1\,\mathrm{Re}\,H_{PD}=${n(W1)}\times${np(reH)}=${n(k1)}`,
+            tex: r`\mathrm{Re}\,\kappa_1\approx W_1\,\mathrm{Re}\,H_{PD}=${n(W1)}\times${np(reH)}=${n(k1)}`,
             why: r`單線近似：如果 PMUX 的旋轉頻率 $\alpha f_{ref}$ 剛好是這個 $f$，PHOS mode-1 有 $W_1=64\sin^2(\pi/8)/\pi^2$ 的權重落在這條線上。`,
           },
         ],
@@ -622,7 +624,7 @@ export const HANDCALCS: HandCalcDef[] = [
           { symbol: r`\mathrm{Re}\,L`, label: r`開迴路增益的實部（$<-1$ 就反號）`, value: reL, digits: 6 },
           { symbol: r`\lvert1+L\rvert^2`, value: den, digits: 6 },
           { symbol: r`\mathrm{Re}\,H_{PD}`, label: '誤差 → PD 轉移函數的實部', value: reH, digits: 6, tolerance: { rel: 0.02, abs: 5e-4 } },
-          { symbol: r`W_1\mathrm{Re}\,H_{PD}`, label: r`PHOS mode-1 的單線近似 $\kappa_1$`, value: k1, digits: 6, tolerance: { rel: 0.02, abs: 5e-4 } },
+          { symbol: r`W_1\mathrm{Re}\,H_{PD}`, label: r`PHOS mode-1 的單線近似（$\mathrm{Re}\,\kappa_1$）`, value: k1, digits: 6, tolerance: { rel: 0.02, abs: 5e-4 } },
         ],
         notes: [
           onePlus === 0
@@ -631,7 +633,7 @@ export const HANDCALCS: HandCalcDef[] = [
               ? r`$\mathrm{Re}\,L<-1\Rightarrow\mathrm{Re}\,H_{PD}<0$：$f=${ni(f)}$ MHz 在反號帶內（上緣 $f_{inv}=${n(finv, fSig)}$ MHz，HC-CS.4）。`
               : r`$\mathrm{Re}\,L>-1\Rightarrow\mathrm{Re}\,H_{PD}>0$：$f=${ni(f)}$ MHz 在反號帶之外（上緣 $f_{inv}=${n(finv, fSig)}$ MHz，HC-CS.4）。`,
           r`sspll.ts 的 loopH 給 $H_{PD}=${n(reH)}${H.im >= 0 ? '+' : '-'}${n(Math.abs(snap(H.im)))}\,j$；實部與手算相同。`,
-          r`完整的諧波和（sspll.ts 的 phosLambdaHarmonic，把 $\alpha=f/f_{ref}$ 當成無理數）給 $\kappa_1=${n(k1Full, 5)}$：其餘 $1-W_1\approx${texNum(100 * (1 - W1), 2)}\%$ 的權重落在高頻，那裡 $\mathrm{Re}\,H_{PD}>0$。`,
+          r`完整的諧波和（sspll.ts 的 phosLambdaHarmonic，把 $\alpha=f/f_{ref}$ 當成無理數）給 $\mathrm{Re}\,\kappa_1=${n(k1Full, 5)}$：其餘 $1-W_1\approx${texNum(100 * (1 - W1), 2)}\%$ 的權重落在高頻，那裡 $\mathrm{Re}\,H_{PD}>0$。`,
           ...(Math.abs(fn - 0.25) < 0.02 || fn > 0.48
             ? [
                 r`注意 $f/f_{ref}=${n(fn, 4)}$ 在 $\tfrac14$ 或 $\tfrac12$ 附近：把它當成 PMUX 的旋轉頻率時，mode-4（或 mode-2）的方波基頻會折回低頻、掉進反號帶，形成 alias dead zone（§8.4）；單線近似只看 $\ell=1$ 這一條線，看不到這件事。$\mathrm{Re}\,H_{PD}$ 本身仍然是精確值。`,
@@ -770,7 +772,7 @@ export const HANDCALCS: HandCalcDef[] = [
             why: r`指數就是上一步的 $z^2=u_{os}^2/(2\sigma_v^2)$。按 $e^x$ 鍵（先輸入負的指數）。小值可以手算：$e^{-x}\approx1-x$，$x\le0.05$ 時誤差小於 $0.13\%$。`,
           },
           { tex: r`K_q(u_{os})=K_{q0}\,e^{-u_{os}^2/2\sigma_v^2}=${n(Kq0)}\times${n(Math.exp(-expo))}=${n(KqU)}\ \mathrm{fs}^{-1}`, why: r`在 $u_{os}$ 這個工作點的斜率：erf 在該點的導數。` },
-          { tex: r`C_{GOS}=\frac{\kappa_{GOS}}{12}=\frac{${ni(kG)}}{12}=${n(C)}`, why: r`$\kappa_{GOS}=C_{GOS}/\mathrm{var}(\rho)$，而均勻鋸齒的 $\mathrm{var}(\rho)=\tfrac{1}{12}$。` },
+          { tex: r`C_{GOS}=\frac{\kappa_{GOS}}{12}=\frac{${ni(kG)}}{12}=${n(C)}`, why: r`這一格填的是固定尺度的 $12\,C_{GOS}$（均勻鋸齒 $\mathrm{var}(\rho)=\tfrac{1}{12}$ 時它就是 $\kappa_{GOS}=C_{GOS}/\mathrm{var}(\rho)$），所以除以 12 就得到 $C_{GOS}$。` },
           { tex: r`E[q]\,\langle\rho\rangle=${np(Eq)}\times${ni(rho)}=${n(num)}`, why: 'forcing 項：與誤差無關，只要 regressor 有平均值就存在。' },
           { tex: r`K_q(u_{os})\,C_{GOS}=${n(KqU)}\times${n(C)}=${n(den)}\ \mathrm{fs}^{-1}`, why: '恢復力：每 1 fs 的 GOS 誤差產生多少平均梯度。' },
           {
@@ -847,11 +849,11 @@ export const HANDCALCS: HandCalcDef[] = [
       const reH = loopH(loop, fold).re
       const single = singleLinePhos(alpha, gammaEff(loop))
       const bnd = phosM1Bounds(loop, alpha)
-      const bndTex = r`$${n(bnd.lower, 4)}\le\kappa_1\le${n(bnd.upper, 4)}$`
+      const bndTex = r`$${n(bnd.lower, 4)}\le\mathrm{Re}\,\kappa_1\le${n(bnd.upper, 4)}$`
       const phos =
         dF < 0
-          ? r`PHOS：$f_{rot}<f_{inv}$，mode-1 的基波落在反號帶內。sspll.ts 算出 $\mathrm{Re}\,H_{PD}(f_{rot})=${n(reH, 5)}$，單線近似 $\kappa_1\approx W_1\mathrm{Re}\,H_{PD}=${n(single, 5)}$，嚴格界限 ${bndTex}：` +
-            (bnd.upper < 0 ? '上界也是負的，mode-1 一定反號——raw regressor 不能在這個頻道更新 PHOS。' : '界限跨過 0（基波太靠近 DC 或帶緣，或反號帶很淺），只看基波無法判定符號，要看完整的諧波和（實驗 B）；$\\lvert\\kappa_1\\rvert$ 很小時實務上是 dead zone：不收斂、會漂移。')
+          ? r`PHOS：$f_{rot}<f_{inv}$，mode-1 的基波落在反號帶內。sspll.ts 算出 $\mathrm{Re}\,H_{PD}(f_{rot})=${n(reH, 5)}$，單線近似 $\mathrm{Re}\,\kappa_1\approx W_1\mathrm{Re}\,H_{PD}=${n(single, 5)}$，嚴格界限 ${bndTex}：` +
+            (bnd.upper < 0 ? '上界也是負的，mode-1 一定反號——raw regressor 不能在這個頻道更新 PHOS。' : '界限跨過 0（基波太靠近 DC 或帶緣，或反號帶很淺），只看基波無法判定符號，要看完整的諧波和（實驗 B）；$\\lvert\\mathrm{Re}\\,\\kappa_1\\rvert$ 很小時實務上是 dead zone：不收斂、會漂移。')
           : r`PHOS：$f_{rot}\ge f_{inv}$，mode-1 的基波在帶外（$\mathrm{Re}\,H_{PD}(f_{rot})=${n(reH, 5)}$），嚴格界限 ${bndTex}：` +
             (bnd.lower >= 0 ? 'mode-1 不可能反號。' : '下界仍為負（剛出帶緣），要看完整的諧波和（實驗 B）。')
       const gos =
@@ -880,7 +882,7 @@ export const HANDCALCS: HandCalcDef[] = [
             why: r`DTC 的細部 code $\rho[n]=\mathrm{frac}(n\beta)$ 是鋸齒，GOS 只依賴 $\beta$。先乘 8；$\lfloor\cdot\rfloor$ 是無條件捨去到整數，減掉它就只剩小數部分。`,
           },
           {
-            tex: r`f_{saw}=\min(\beta,\ 1-\beta)\,f_{ref}=\min(${nx(beta)},\ 1-${nx(beta)})\times${ni(fref)}=\min(${nx(beta)},\ ${nx(decSum(1 - beta, 1))})\times${ni(fref)}=${nx(bMin)}\times${ni(fref)}=${nx(fSaw)}\ \mathrm{MHz}`,
+            tex: r`\begin{aligned}f_{saw}&=\min(\beta,\ 1-\beta)\,f_{ref}=\min(${nx(beta)},\ 1-${nx(beta)})\times${ni(fref)}\\&=\min(${nx(beta)},\ ${nx(decSum(1 - beta, 1))})\times${ni(fref)}=${nx(bMin)}\times${ni(fref)}=${nx(fSaw)}\ \mathrm{MHz}\end{aligned}`,
             why: r`鋸齒基波折回後的頻率。$\min(\beta,1-\beta)$ 很小就是 near-grid（$\alpha\approx k/8$）。`,
           },
           { tex: r`\frac{K_i}{2(2-K_p)}=\frac{${ni(Ki)}}{2\times(2-${ni(Kp)})}=\frac{${ni(Ki)}}{2\times${n(a)}}=${n(ratio)}`, why: r`帶緣上的 $\sin^2(\Omega/2)$（HC-CS.4）：先算括號，再除。` },
@@ -893,7 +895,7 @@ export const HANDCALCS: HandCalcDef[] = [
           },
           { tex: r`\tfrac{K_i}{2}=\tfrac{${ni(Ki)}}{2}=${n(Ki / 2)}`, why: '最後看對策：一階差分的 margin（HC-CS.6）的兩個候選都用得到它。' },
           {
-            tex: r`\min_\Omega g=\min\Big\{K_p-\frac{K_i}{2},\ 2-K_p-\frac{K_i}{2}\Big\}=\min\{${ni(Kp)}-${fixedTex(Ki / 2, pG, false)},\ 2-${ni(Kp)}-${fixedTex(Ki / 2, pG, false)}\}=\min\{${n(g0)},\ ${n(gPi)}\}=${n(gMin)}`,
+            tex: r`\begin{aligned}\min_\Omega g&=\min\Big\{K_p-\frac{K_i}{2},\ 2-K_p-\frac{K_i}{2}\Big\}\\&=\min\{${ni(Kp)}-${fixedTex(Ki / 2, pG, false)},\ 2-${ni(Kp)}-${fixedTex(Ki / 2, pG, false)}\}\\&=\min\{${n(g0)},\ ${n(gPi)}\}=${n(gMin)}\end{aligned}`,
             why: r`兩個候選各做一次減法，取小的。$\ge0$ 就對任何 $\alpha$ 都安全。`,
           },
         ],

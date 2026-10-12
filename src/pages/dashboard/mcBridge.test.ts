@@ -8,6 +8,7 @@ import {
   MC_RUNS,
   compareMonteCarlo,
   countTex,
+  lateTransientBound,
   lateWindow,
   perRunMse,
   planMonteCarlo,
@@ -151,6 +152,39 @@ describe('mcBridge：體檢參數 → 共用 block Sign-LMS 設定', () => {
     const big = okPlan({ ...t13, w0MinusA: -60, mu: 1, N: 8192 }).plan
     expect(big.notes.length).toBeGreaterThanOrEqual(2)
     for (const n of big.notes) expect(mathTextProblems(n), n).toEqual([])
+  })
+
+  it('R02：後半段剩下的暫態照平均遞迴算——d ≥ 1 時 δ_0·max|z|^k 不是包絡（重根 d = 1、g = 1/4 差 6 倍）', () => {
+    // 獨立的暴力遞推：y_{k+1} = y_k − g·y_{k−d}，初始歷史 = 1
+    const brute = (g: number, d: number, K: number) => {
+      const y = new Array<number>(d + 1).fill(1) // y_{−d} … y_0
+      for (let n = 0; n < K; n++) y.push(y[y.length - 1] - g * y[y.length - 1 - d])
+      return y.slice(d) // y_0 … y_K
+    }
+    const peak = (y: number[], start: number) => Math.max(...y.slice(start).map(Math.abs))
+    // d = 0：就是 δ_0·|1 − g|^start
+    const g0 = evaluateThesis(t13).g
+    expect(lateTransientBound(g0, 0, 5, 121, 241) / (5 * Math.pow(1 - g0, 121))).toBeCloseTo(1, 12)
+    // d = 1、g = 1/4（重根 z = 1/2）：y_k = (1 + k/2)·2^{−k}，k = 10 時是 6/1024，而 (1/2)^10 = 1/1024
+    expect(lateTransientBound(0.25, 1, 1, 10, 40)).toBeCloseTo(6 / 1024, 15)
+    expect(lateTransientBound(0.25, 1, 1, 10, 40) / Math.pow(0.5, 10)).toBeCloseTo(6, 12)
+    expect(lateTransientBound(0.25, 1, 3, 10, 40)).toBeCloseTo((3 * 6) / 1024, 15) // 與 δ_0 成正比
+    // d = 2、g = 0.6（接近 g* = 0.618 的共軛複數根，max|z| = 0.99145）：window 內的最大值比 max|z|^start 大 5%
+    const y = brute(0.6, 2, 100)
+    expect(lateTransientBound(0.6, 2, 1, 50, 100)).toBeCloseTo(peak(y, 50), 14)
+    expect(peak(y, 50)).toBeCloseTo(0.6858927233, 9)
+    expect(peak(y, 50) / Math.pow(evaluateThesis({ ...t13, mu: 0.6 / evaluateThesis(t13).Kq, d: 2 }).maxRadius, 50)).toBeCloseTo(1.0537, 3)
+    // 格點：回傳值是 window 內每一個 |y_k| 的上界（就是最大值）
+    for (const d of [1, 2, 3, 5])
+      for (const g of [0.05, 0.2, 0.3]) {
+        if (!(g < 2 * Math.sin(Math.PI / (4 * d + 2)))) continue
+        const yy = brute(g, d, 120)
+        for (const start of [1, 7, 40]) {
+          const b = lateTransientBound(g, d, 1, start, 120)
+          expect(b, `d=${d} g=${g} start=${start}`).toBeCloseTo(peak(yy, start), 14)
+          for (let k = start; k <= 120; k++) expect(Math.abs(yy[k])).toBeLessThanOrEqual(b + 1e-15)
+        }
+      }
   })
 
   it('不收斂的情況固定跑 400 blocks，並標記 expectStable = false', () => {

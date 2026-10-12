@@ -83,7 +83,7 @@ export function S6Wrap() {
             { label: '(a) 線性化遞迴', source: calNoiseSrc, region: 'linearStep', path: PATH, note: String.raw`$G$ 是 $\delta w$ 的直線（小訊號）` },
             { label: '(b) Binomial Sign-LMS', source: calNoiseSrc, region: 'binomialStep', path: PATH, note: String.raw`$G$ 來自真的 1-bit 計數，$|G|\le1$` },
           ]}
-          caption="兩者在小訊號（係數偏差遠小於 comparator 雜訊）時給出相同的係數雜訊（T13 測試兩者的 95% CI 都涵蓋 0.3992 fs）；差異在大偏差時才出現：線性版會指數發散，sign 版每 block 最多走一個 learning-rate 步長。"
+          caption={String.raw`兩者在小訊號（$|C\,\delta w|\ll\sigma_v$：comparator 前的殘差遠小於 comparator 雜訊）時給出相同的係數雜訊（T13 測試兩者的 95% CI 都涵蓋 0.3992 fs）；差異在大偏差時才出現：線性版的 $G$ 沒有上限，偏差每個 block 平均乘上 $p$（$|p|<1$ 時指數收斂，$|p|>1$ 時才指數發散）；sign 版的 $|G|\le1$，每 block 最多走一個 learning-rate 步長。`}
         />
       </Section>
 

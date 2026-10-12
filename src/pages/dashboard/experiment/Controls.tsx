@@ -167,14 +167,14 @@ export function ThesisControls({ p, set }: { p: ThesisParams; set: (patch: Parti
           ariaLabel="同時校正第二個參數（二乘二模型）"
           value={p.twoParam}
           onChange={(twoParam) => set({ twoParam })}
-          hint="例如 gain + offset、或 GOS + PHOS"
+          hint={T('例如 gain + offset、或 GOS + PHOS。這裡用兩個同頻、同功率、零延遲相關係數 $\\rho$ 的 regressor 當抽象例子；實際的組合請看 Ch09 / Ch10')}
           reg="cal_param_count（1 / 2）"
         />
         {p.twoParam && (
           <>
             <ParamControl
-              label={T('$\\rho$（兩個 regressor 的相關係數）')}
-              ariaLabel="rho（regressor 相關係數）"
+              label={T('$\\rho$（兩個 regressor 的零延遲相關係數）')}
+              ariaLabel="rho（regressor 零延遲相關係數）"
               value={p.rho}
               onChange={(rho) => set({ rho })}
               min={r.rho[0]}
@@ -246,7 +246,7 @@ export function ThesisControls({ p, set }: { p: ThesisParams; set: (patch: Parti
             reg="spec.timing_error_max_fs（illustrative）"
           />
           <ParamControl
-            label="Spur 上限"
+            label={T('$\\mathrm{Spur}_{\\max}$（單 tone spur 上限）')}
             ariaLabel="Spur 上限"
             value={p.spurLimit}
             onChange={(spurLimit) => set({ spurLimit })}

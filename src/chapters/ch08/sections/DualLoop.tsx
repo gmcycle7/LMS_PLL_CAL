@@ -45,6 +45,30 @@ const EX: DualLoopParams = { r: 0.8, b: 0.2, c: 1, mu: 1.2 }
 const MU_TABLE = [0.02, 0.05, 0.2, 0.5, 0.8, 1, 1.2]
 const R_TABLE = [-0.5, 0, 0.5, 0.8, 0.95]
 
+/**
+ * 「ρ^k 只是漸近速率的參考線，不是 |δ_k| 的包絡」用到的數字（技術審查 R02），全部由 simulateFullModel 逐 block 算出：
+ * - maxRatio：p 的軌跡在前 steps 個 block 內 |δ_k|/ρ^k 的最大值（複數 pole 時會略大於 1）；
+ * - doubleRatio：同一組 r_s、b_s、c_s 在重根（μ = (1 − r_s)²/(4 b_s c_s)，本例 0.05、z = 0.9）時 |δ_steps|/ρ^steps；
+ *   重根的解是 δ_k = (1 + k(1 − z)/z)·z^k（由 δ_0 = δ_1 = 1 定出），本例 (1 + k/9)·0.9^k；
+ * - doubleBelowE：重根的 |δ_k| 從第幾個 block 起一直 ≤ 1/e（對照 τ = −1/ln z 這個漸近時間常數）。
+ */
+export function dualLoopRhoReference(
+  p: DualLoopParams,
+  steps: number,
+): { maxRatio: number; muDouble: number; zDouble: number; doubleRatio: number; doubleBelowE: number } {
+  const rho = analyzeDualLoop(p).rho
+  const traj = simulateFullModel(p, steps).delta
+  let maxRatio = 0
+  for (let k = 0; k <= steps; k++) maxRatio = Math.max(maxRatio, Math.abs(traj[k]) / rho ** k)
+  // 重根門檻四捨五入到 12 位有效數字（(1 − 0.8)² / 0.8 的浮點結果是 0.04999…975，顯示與計算都用 0.05）
+  const muDouble = Number(((1 - p.r) ** 2 / (4 * p.b * p.c)).toPrecision(12))
+  const zDouble = (1 + p.r) / 2
+  const dbl = simulateFullModel({ ...p, mu: muDouble }, steps).delta
+  let lastAboveE = -1
+  for (let k = 0; k <= steps; k++) if (Math.abs(dbl[k]) > Math.exp(-1)) lastAboveE = k
+  return { maxRatio, muDouble, zDouble, doubleRatio: Math.abs(dbl[steps]) / zDouble ** steps, doubleBelowE: lastAboveE + 1 }
+}
+
 /** §8.4 主 PLL 與 LMS 的耦合（雙迴路；勘誤 E19、E31） */
 export function DualLoop() {
   const ex = useMemo(() => analyzeDualLoop(EX), [])
@@ -56,6 +80,9 @@ export function DualLoop() {
   const P = Math.ceil(periodBlocks)
   const windows = [30, 100, 300].map((K) => ({ K, last: Math.abs(traj[K]), lastPeriodPeak: peakAbs(traj, K - P, K), env: ex.rho ** K }))
   const first30Peak = peakAbs(traj, 0, 30)
+  // ρ^k 不是 |δ_k| 的包絡（技術審查 R02）：本例（複數 pole）的峰值最多高出多少；μ = 0.05 的重根 z = 0.9 是 δ_k = (1 + k/9)·0.9^k
+  const rhoRef = useMemo(() => dualLoopRhoReference(EX, 300), [])
+  const dblRow = useMemo(() => analyzeDualLoop({ ...EX, mu: rhoRef.muDouble }), [rhoRef.muDouble])
   const mu05 = useMemo(() => analyzeDualLoop({ ...EX, mu: 0.5 }), [])
   const rTable = useMemo(
     () =>
@@ -218,7 +245,7 @@ export function DualLoop() {
               <th className="num">{rich(String.raw`看到第 $N_{\mathrm{blk}}$ 個 block`)}</th>
               <th className="num">{rich(String.raw`最後一點 $|\delta_{N_{\mathrm{blk}}}|$`)}</th>
               <th className="num">{rich(String.raw`最後 ${P} 個 block 的峰值`)}</th>
-              <th className="num">{rich(String.raw`包絡 $\rho^{N_{\mathrm{blk}}}$`)}</th>
+              <th className="num">{rich(String.raw`參考線 $\rho^{N_{\mathrm{blk}}}$`)}</th>
             </tr>
           </thead>
           <tbody>
@@ -237,8 +264,16 @@ export function DualLoop() {
         {rich(
           String.raw`兩種常見的誤判：(1) 只跑幾十個 block——前 $30$ 個 block 的峰值只從 $1$ 長到 $${fx(first30Peak, 2)}$，看起來像「還在收斂中的振盪」；(2) 只看最後一點——$|\delta_{100}|=${fx(windows[1].last, 3)}$ 剛好落在零交越附近，但同一個週期內的峰值已經是 $${fx(windows[1].lastPeriodPeak, 2)}$。`,
         )}
-        <strong>正確做法：跑 <Tex>{'\\ge300'}</Tex> blocks，看每個週期的峰值或疊上 <Tex>{'\\rho^k'}</Tex> 包絡。</strong> <TestBadge id="T09" />
+        <strong>正確做法：跑 <Tex>{'\\ge300'}</Tex> blocks，看每個週期的峰值，或疊上 <Tex>{'\\rho^k'}</Tex> 參考線比斜率。</strong> <TestBadge id="T09" />
       </p>
+      <ModeGate min="engineer">
+        <p className="small">
+          {rich(
+            String.raw`$\rho^k$ 在這裡是參考線，不是 $|\delta_k|$ 的包絡：$\rho$ 只決定漸近速率（log 軸上的斜率）。本例是複數 pole，前 $300$ 個 block 的 $|\delta_k|$ 最多比 $\rho^k$ 高 $${fx((rhoRef.maxRatio - 1) * 100, 1)}\%$；但 $\mu=${rhoRef.muDouble}$ 剛好是重根 $z=${fx(rhoRef.zDouble, 1)}$，$\delta_k=(1+k/9)\,0.9^k$，到 $k=300$ 已經是 $\rho^k$ 的 $${fx(rhoRef.doubleRatio, 0)}$ 倍。所以拿它比斜率（收斂還是發散、多快），不要拿它當誤差的上界。`,
+          )}{' '}
+          <ClaimTag kind="exact" />
+        </p>
+      </ModeGate>
 
       <HandCalcSlot id="HC-08.7">
         {rich(String.raw`把 $r_s$、$b_s$、$c_s$、$\mu$ 換成你自己的數字（先試 $\mu=0.5$ 和 $\mu=1$），用二次公式解出完整模型的 poles，再和 quasi-static 的預測比一比。`)}
@@ -427,7 +462,9 @@ export function DualLoop() {
       <div className="table-wrap">
         <table className="ch08-table">
           <caption>
-            {rich(String.raw`$r_s=0.8$、$b_s=0.2$、$c_s=1$（門檻 $\mu=${sig(ex.muComplex, 3)}$）：簡化 pole vs 完整 poles（即時計算）`)}
+            {rich(
+              String.raw`$r_s=0.8$、$b_s=0.2$、$c_s=1$（門檻 $\mu=${sig(ex.muComplex, 3)}$）：簡化 pole vs 完整 poles（即時計算）。$\tau=-1/\ln\rho$（簡化模型的 $\rho$ 是 $|1-g_{\mathrm{eff}}|$）是 $\rho^k$ 降到 $1/e$ 所需的 block 數：由漸近衰減率換算的時間常數，不是逐 block 數出來的收斂時間`,
+            )}
           </caption>
           <thead>
             <tr>
@@ -466,6 +503,14 @@ export function DualLoop() {
           String.raw`$\mu=0.5$ 時簡化 pole $${fx(mu05.simplifiedPole, 2)}$（$\tau\approx${fx(-1 / Math.log(mu05.simplifiedPole), 2)}$ blocks），完整 $\rho=${fx(mu05.rho, 4)}$（$\tau\approx${fx(-1 / Math.log(mu05.rho), 1)}$ blocks）。`,
         )}
       </p>
+      <ModeGate min="engineer">
+        <p className="small">
+          {rich(
+            String.raw`表裡的 $\tau$ 是漸近的時間常數，重根那一列（$\mu=${rhoRef.muDouble}$）最看得出差別：$\tau$ 完整 $=${fx(-1 / Math.log(dblRow.rho), 2)}$ blocks，但 $\delta_k=(1+k/9)\,0.9^k$ 要到第 $${rhoRef.doubleBelowE}$ 個 block 才降到 $1/e$ 以下，反而和簡化模型的 $${fx(-1 / Math.log(Math.abs(dblRow.simplifiedPole)), 2)}$ blocks 差不多。所以那一列的結論是「近似可用」，不是「完整模型快一倍」。`,
+          )}{' '}
+          <ClaimTag kind="exact" />
+        </p>
+      </ModeGate>
       <ModeGate min="research">
         <Expand title={rich(String.raw`Research：慢根的二階修正（為什麼門檻是 $(1-r_s)^2$）`)} badge="研究" openFrom="research">
           <StepDerivation

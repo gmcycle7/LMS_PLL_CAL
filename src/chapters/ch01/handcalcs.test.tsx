@@ -423,6 +423,97 @@ describe('Ch01 帶入手算 (a)：預設數字 = 模型函式 = 本章 worked ex
     }
   })
 
+  it('審查 C09：normal equation E[e*x] = 0 是正交，不等於不相關——Cov(e*, x) = −E[e*]·E[x]，只有 E[x] = 0 或 E[e*] = 0 時才是 0', () => {
+    const avg = (v: number[]) => v.reduce((s, q) => s + q, 0) / v.length
+    /** 在係數 w（預設最小平方解）處：E[e x]、E[e]、E[x] 與共變異數 Cov(e, x) = E[e x] − E[e]·E[x] */
+    const at = (x: number[], y: number[], w = batchL2(x, y)) => {
+      const e = x.map((xi, i) => y[i] - w * xi)
+      const Eex = avg(e.map((ei, i) => ei * x[i]))
+      return { w, Eex, Ee: avg(e), Ex: avg(x), cov: Eex - avg(e) * avg(x) }
+    }
+    // 審查的反例：x = (1, 2)、y = v = (1, −1)（a = 0，雜訊零均值）⇒ w* = −1/5、e* = (6/5, −3/5)，正交但 Cov = −9/20
+    const rev = at([1, 2], [1, -1])
+    expect(rev.w).toBeCloseTo(-0.2, 12)
+    expect(Math.abs(rev.Eex)).toBeLessThan(1e-12)
+    expect(rev.Ee).toBeCloseTo(0.3, 12)
+    expect(rev.Ex).toBeCloseTo(1.5, 12)
+    expect(rev.cov).toBeCloseTo(-0.45, 12)
+    // 本章 §1.2 的三筆資料（§1.2.1 公式旁的三個數字）：w* = 323/105、E[e*] = −2/45、E[x] = 7/3、E[e*]·E[x] = −14/135
+    const def = at(X, Y)
+    expect(def.w).toBeCloseTo(323 / 105, 12)
+    expect(Math.abs(def.Eex)).toBeLessThan(1e-12)
+    expect(def.Ee).toBeCloseTo(-2 / 45, 12)
+    expect(def.Ex).toBeCloseTo(7 / 3, 12)
+    expect(def.Ee * def.Ex).toBeCloseTo(-14 / 135, 12)
+    expect(def.cov).toBeCloseTo(14 / 135, 12)
+    expect([def.Ee, def.Ex, def.Ee * def.Ex].map((q) => Number(q.toPrecision(4)))).toEqual([-0.04444, 2.333, -0.1037])
+    // 正常對照 1：雜訊與 x 獨立且零均值（每個 x 值上 v = ±1 各一次）⇒ w* = a = 0、e* = v、E[e*] = 0：正交也就是不相關
+    const c1 = at([1, 1, 2, 2], [1, -1, 1, -1])
+    expect(c1).toEqual({ w: 0, Eex: 0, Ee: 0, Ex: 1.5, cov: 0 })
+    // 正常對照 2：輸入零均值（雜訊與 x 相關，a = 3、v = (−0.3, 0.7, −1.2, 0.8)）⇒ w* = 3.5 ≠ a，但 E[x] = 0，所以 Cov 仍是 0
+    const c2 = at([-1, 1, -2, 2], [-3.3, 3.7, -7.2, 6.8])
+    expect(c2.w).toBeCloseTo(3.5, 12)
+    expect(Math.abs(c2.Eex)).toBeLessThan(1e-12)
+    expect(c2.Ex).toBe(0)
+    expect(Math.abs(c2.cov)).toBeLessThan(1e-12)
+    // 固定輸入 x = (2, 2)、y = (7, 5)：Cov(e, x) 在任何 w 都是 0，找不出 w*；E[e x] = 12、2、0 才分得出來（w* = 3）
+    expect(batchL2([2, 2], [7, 5])).toBe(3)
+    expect([0, 2.5, 3].map((w) => at([2, 2], [7, 5], w).Eex)).toEqual([12, 2, 0])
+    for (const w of [0, 2.5, 3]) expect(at([2, 2], [7, 5], w).cov).toBe(0)
+    // 常數偏移的雜訊 v ≡ 1（a = 0）：與 x 嚴格不相關（Cov(x, v) = 0），但 E[xv] ≠ 0，所以 w* = 0.6 ≠ a——w* = a 的條件是正交 E[xv] = 0
+    const off = at([1, 2], [1, 1])
+    expect(off.w).toBeCloseTo(0.6, 12)
+    expect(off.cov).toBeCloseTo(-0.15, 12)
+    // HC-01.1 提示的資料 y = (3.4, 6.2, 11.8)、a = 3：v = (0.4, 0.2, −0.2) = 0.6 − 0.2x，Σxv = 0（正交、w* = a），但樣本相關係數是 −1
+    const xt = [1, 2, 4]
+    const vt = [3.4, 6.2, 11.8].map((yi, i) => yi - 3 * xt[i])
+    for (const [i, q] of [0.4, 0.2, -0.2].entries()) expect(vt[i]).toBeCloseTo(q, 12)
+    expect(Math.abs(xt.reduce((s, xi, i) => s + xi * vt[i], 0))).toBeLessThan(1e-12)
+    expect(batchL2(xt, [3.4, 6.2, 11.8])).toBeCloseTo(3, 12)
+    const cxv = avg(xt.map((xi, i) => xi * vt[i])) - avg(xt) * avg(vt)
+    expect(cxv).toBeCloseTo(-14 / 45, 12)
+    const sd = (q: number[]) => Math.sqrt(avg(q.map((z) => z * z)) - avg(q) ** 2)
+    expect(cxv / (sd(xt) * sd(vt))).toBeCloseTo(-1, 9)
+  })
+
+  it('審查 C09：手算題的用語——HC-01.2 的 normal-equation 步驟與 HC-01.1 的雜訊步驟、Σxv = 0 的結語都說「正交」，不說「不相關」；數字與步驟不變', () => {
+    // (a) HC-01.2：E[e*x] 那一步
+    const s2 = solveDefault('HC-01.2')
+    const neq = s2.steps.find((st) => st.tex.startsWith('E[e^*x]='))!
+    expect(neq.tex).toBe(String.raw`E[e^*x]=E[xy]-w^*E[x^2]=21.53333-3.07619\times7=21.53333-21.53333=0`)
+    expect(neq.why).toMatch(/正交/)
+    expect(neq.why).toMatch(/F-01\.5/)
+    expect(neq.why).not.toMatch(/不相關/)
+    // 雜訊底 = ½E[v²] 的條件是 E[xv] = 0：J(w*) = ½(E[v²] − E[xv]²/E[x²])
+    const last = s2.notes!.at(-1)!
+    expect(last).toMatch(/E\[xv\]=0/)
+    expect(last).toMatch(/正交/)
+    expect(last).not.toMatch(/不相關/)
+    // (b) HC-01.1 的提示資料：Σxv = 0 的結語（這組雜訊的相關係數是 −1，不能說不相關）
+    const ortho = solveDefault('HC-01.1', { y1: 3.4, y2: 6.2, y3: 11.8 })
+    expect(ortho.notes!.join('')).toMatch(/這組雜訊剛好與 \$x\$ 正交，最小平方解就是真值/)
+    expect(ortho.notes!.join('')).not.toMatch(/不相關/)
+    expect(vals(ortho)[3]).toBe(0)
+    expectClose(vals(ortho)[2], 3)
+    // (c) HC-01.1 預設數字：Σxv 那一步
+    const s1 = solveDefault('HC-01.1')
+    const xv = s1.steps.find((st) => st.tex.startsWith(String.raw`\sum_i x_iv_i=`))!
+    expect(xv.why).toMatch(/正負抵消成 0 才算與 \$x\$ 正交/)
+    expect(xv.why).not.toMatch(/不相關/)
+    // 兩題所有步驟說明、結語、提示都不再把 E[e*x] = 0 或 Σxv = 0 叫做「不相關」
+    for (const id of ['HC-01.1', 'HC-01.2']) {
+      const sol = solveDefault(id)
+      const all = [...sol.steps.map((st) => st.why), ...(sol.notes ?? []), ...(handcalcOf(id).tips ?? [])].join('\n')
+      expect(all, id).not.toMatch(/不相關/)
+    }
+    // J(w*) = ½(E[v²] − E[xv]²/E[x²])：預設資料 a = 3、v = (0.2, −0.3, 0.5)
+    const v = Y.map((yi, i) => yi - 3 * X[i])
+    const Evv = v.reduce((s, q) => s + q * q, 0) / 3
+    const Exv = v.reduce((s, q, i) => s + q * X[i], 0) / 3
+    expectClose(vals(s2)[3], 0.5 * (Evv - (Exv * Exv) / 7), 1e-12)
+    expect(vals(s2)[3]).toBeLessThan(0.5 * Evv) // E[xv] ≠ 0 時雜訊底比 ½E[v²] 小
+  })
+
   it('HC-01.2：§1.2 的拋物線——J(2.5) = 1.205、斜率 −4.0333、w* = 3.07619、J(w*) = 0.043016；與逐筆平均成本（lms.averageCost）、costCurves、batchL2 一致', () => {
     const [J, slope, wStar, jMin] = vals(solveDefault('HC-01.2'))
     expectClose(J, averageCost('mse', 2.5, X, Y))

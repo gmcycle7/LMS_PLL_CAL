@@ -125,6 +125,27 @@ describe('ParamControl', () => {
     expect(screen.getByText(/合法範圍 \[0, 1\] fs/)).toBeTruthy()
     expect(screen.getByText('fs')).toBeTruthy()
   })
+
+  it('reg 說明裡的 `$...$` 以 KaTeX 顯示（三種控制項都是）；沒有 `$` 的暫存器名稱原樣輸出', () => {
+    const reg = '開迴路（$H\\equiv1$）每個 block 乘上 $1-1/N_\\tau$'
+    const { container } = render(
+      <>
+        <ParamControl label="N_tau" value={25} onChange={() => {}} min={2} max={500} reg={reg} />
+        <SelectControl label="迴路" value="L1" onChange={() => {}} options={['L1', 'L2'] as const} reg={reg} />
+        <ToggleControl label="raw" value onChange={() => {}} reg={reg} />
+        <ParamControl label="N" value={64} onChange={() => {}} min={1} max={4096} reg="REG_GMAC_N[15:0]" />
+      </>,
+    )
+    const regs = Array.from(container.querySelectorAll('.c-param-reg'))
+    expect(regs).toHaveLength(4)
+    for (const el of regs.slice(0, 3)) {
+      expect(Array.from(el.querySelectorAll('annotation')).map((a) => a.textContent)).toEqual(['H\\equiv1', '1-1/N_\\tau'])
+      expect(el.querySelector('.katex-error')).toBeNull()
+      expect(el.textContent).not.toContain('$')
+    }
+    expect(regs[3].textContent).toBe('REG_GMAC_N[15:0]')
+    expect(regs[3].querySelector('.katex')).toBeNull()
+  })
 })
 
 describe('SelectControl / ToggleControl', () => {
@@ -162,5 +183,47 @@ describe('SelectControl / ToggleControl', () => {
     expect(sw.checked).toBe(false)
     fireEvent.click(sw)
     expect(onChange).toHaveBeenCalledWith(true)
+  })
+
+  // 技術審查 R12 的版面回歸：.c-param-meta 是 flex 容器，hint 若不包成單一元素，
+  // 「文字 + 行內公式 + 文字」會變成三個 flex item（公式自己佔一行，句子被拆成三段）。
+  it('hint 含行內公式時，整段包在同一個元素裡（Toggle 與 Select 都是；字串與 JSX 兩種寫法都是）', () => {
+    const text = '兩個參數共用同一個 code，零延遲相關係數 $\\rho$ 的 regressor 當抽象例子'
+    const { container } = render(
+      <>
+        <ToggleControl label="雙參數" value={false} onChange={() => {}} hint={text} />
+        <SelectControl label="Window" value="hann" onChange={() => {}} options={['hann', 'rect'] as const} hint={text} />
+        <ToggleControl
+          label="JSX"
+          value={false}
+          onChange={() => {}}
+          hint={
+            <>
+              前半句 <em>中間</em> 後半句
+            </>
+          }
+        />
+      </>,
+    )
+    const metas = Array.from(container.querySelectorAll('.c-toggle > .c-param-meta, .c-select > .c-param-meta'))
+    expect(metas).toHaveLength(3)
+    for (const meta of metas) {
+      // flex 容器只有一個子節點（沒有直接掛在容器下的文字節點或公式）
+      expect(meta.childNodes).toHaveLength(1)
+      expect((meta.firstChild as Element).tagName).toBe('SPAN')
+      expect((meta.firstChild as Element).className).toBe('c-param-note')
+    }
+    for (const meta of metas.slice(0, 2)) {
+      const note = meta.firstElementChild!
+      // 文字、KaTeX、文字三段都在同一個 span 裡，順序不變
+      expect(note.childNodes).toHaveLength(3)
+      expect(note.childNodes[0].textContent).toBe('兩個參數共用同一個 code，零延遲相關係數 ')
+      expect((note.childNodes[1] as Element).querySelector('annotation')?.textContent).toBe('\\rho')
+      expect(note.childNodes[2].textContent).toBe(' 的 regressor 當抽象例子')
+    }
+    expect(metas[2].firstElementChild!.textContent).toBe('前半句 中間 後半句')
+    // 沒有 hint 時不產生空的說明列
+    const none = render(<ToggleControl label="無說明" value onChange={() => {}} />)
+    expect(none.container.querySelector('.c-param-meta')).toBeNull()
   })
 })

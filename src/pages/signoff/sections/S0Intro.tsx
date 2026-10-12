@@ -93,8 +93,14 @@ export function S0Intro() {
           ariaLabel="Sign-off 流程圖：先確認量測前提，再依序檢查 Identifiability、Polarity、Stability、Variance、Bias、System-level 六個條件；每一個不通過都導向不可 sign-off，六個都通過才可 sign-off"
         >
           <p>
-            先看中間那一串菱形：順序就是上表的順序，也是計算上的先後——有了 <Tex>{'K'}</Tex>（極性）才能算 <Tex>{'g=\\mu K'}</Tex>（穩定）；迴路收斂了才有穩態的 <Tex>{'\\sigma_w'}</Tex> 與固定點 <Tex>{'w^*'}</Tex>（variance、bias）；最後把兩者一起換算到輸出的{' '}
-            <Tex>{'\\sigma_{\\delta t}'}</Tex> 與 spur。它們互相獨立：通過前五個不保證第六個。
+            先看中間那一串菱形：順序就是上表的順序，也是計算上的先後——有了 <Tex>{'K'}</Tex>（極性）才能算 <Tex>{'g=\\mu K'}</Tex>（穩定）；迴路收斂了才有穩態的 <Tex>{'\\sigma_w'}</Tex> 與固定點 <Tex>{'w^*'}</Tex>（variance、bias）；最後把兩者一起換算到輸出的 jitter 與 spur（DTC 的補償誤差{' '}
+            <Tex>{'\\delta t'}</Tex> 經 <Tex>{'T'}</Tex>，§8；<Tex>{'\\delta t'}</Tex> 自己的 RMS <Tex>{'\\sigma_{\\delta t}'}</Tex> 還沒經過 PLL，不是輸出 jitter）。所以六個條件彼此有關聯，不是互相獨立的：單參數、<Tex>{'\\mu>0'}</Tex> 時，<Tex>{'\\rho\\big(\\text{閉迴路矩陣}\\big)<1'}</Tex> 等價於{' '}
+            <Tex>{'0<g=\\mu K<g_\\text{crit}(d)'}</Tex>，已經包含極性的 <Tex>{'K>0'}</Tex>（表中只寫上限 <Tex>{'g<g_\\text{crit}(d)'}</Tex>，是因為極性那一列已先確認 <Tex>{'K>0'}</Tex>）；反過來不成立，<Tex>{'K>0'}</Tex> 但{' '}
+            <Tex>{'g\\ge g_\\text{crit}(d)'}</Tex> 時迴路仍不收斂。仍然要逐一檢查，因為通過前面的不保證通過後面的：前五個都通過，第六個仍可能不過。
+          </p>
+          <p>
+            第六個菱形要分清楚目標與判準：上表問的「真的改善 PLL output 的 jitter／spur 嗎？」是目標，菱形裡的「在預算內」是它可以驗收的形式——輸出的 jitter 與 spur 不超過規格。這比「改善」窄：沒有和校正前比較；報告若要寫「改善」，還要附上校正前（或把{' '}
+            <Tex>{'w'}</Tex> 凍結）時同一組輸出指標的數字。
           </p>
           <p>
             最上面的圓角框是量測前提（Matrix 第 1 個 case）：0/1 沒有映射成 <Tex>{'\\pm1'}</Tex>、code delay <Tex>{'D'}</Tex> 沒對齊，或 sum／average 與 <Tex>{'\\mu'}</Tex> 的 scaling 不一致時，後面每一格量到的都是錯的，所以先檢查它們。

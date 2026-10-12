@@ -63,11 +63,15 @@ export const CHART_UNIT_CHAIN = String.raw`flowchart TB
   class NN warn
 `
 
-/** §2.1 兩條時間軸：sample rate（n）與 block rate（k）之間的三個轉換點 */
+/**
+ * §2.1 兩條時間軸：sample rate（n）與 block rate（k）之間的三個轉換點。
+ * 節點 E 寫 \approx（技術審查 R06b，與 Ch07 CHART_FX_LOOP、F-06.1 相同）：w_k 逐 block 更新時，「把 δ_k 提到 PD 路徑的濾波器外面」
+ * 只在 w 於路徑的記憶長度內近似常數時成立；w 凍結才是等式（F-07.1）。
+ */
 export const CHART_RATE_DOMAINS = String.raw`flowchart TB
   subgraph FS["sample rate：索引 $n$，速率 $f_s$"]
     U["$u[n]$：經 PD 路徑的 code"]
-    E["PD 的輸出<br/>$e[n] = \delta_k \cdot u[n] + v[n]$"]
+    E["PD 的輸出<br/>$e[n] \approx \delta_k \cdot u[n] + v[n]$"]
     Q["1-bit comparator<br/>$q[n] = \operatorname{sign}(e[n])$"]
     P["$q[n] \cdot x[n]$"]
     X["$x[n]$：原始 code"]

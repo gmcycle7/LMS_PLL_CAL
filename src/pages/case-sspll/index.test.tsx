@@ -1,4 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
 import { presetById, presetsForExperiment } from '@/app/presets'
@@ -12,8 +14,9 @@ import { DIAGRAMS, MAP_FOCUS } from './diagrams'
 import { FREF_MHZ, HPD, LMS_NOTE_ZH, LOOPS, PRED, SIGNMAP, SIM_CFG, mapIndex, mapIntervalsBelow } from './data'
 import { MODEL_SRC, PY_SOURCES, fp, fs, fx, intervalsText, signClass, tx, txs } from './common'
 import { HANDCALCS } from './handcalcs'
+import { LMS_WORST_RATE, hpdMemorySamples } from './sections/S04MeanUpdate'
 import { HPD_DEFAULTS, HPD_EXPERIMENT_ID, buildHpdLoop, closedFormEdgeMHz, mergeHpdParams } from './experiments/HpdExplorer'
-import { SIGNMAP_EXPERIMENT_ID, SIGN_DEFAULTS, classify, mergeSignParams, modeSetup } from './experiments/SignMapExplorer'
+import { SIGNMAP_EXPERIMENT_ID, SIGN_DEFAULTS, classify, gosExactNote, mergeSignParams, modeSetup } from './experiments/SignMapExplorer'
 import {
   GOLDEN_LMS_COND,
   LMS_CASE_LABEL,
@@ -65,6 +68,11 @@ function proseText(container: HTMLElement): string {
   const clone = container.cloneNode(true) as HTMLElement
   clone.querySelectorAll('.c-code, .c-code-compare, annotation').forEach((el) => el.remove())
   return clone.textContent ?? ''
+}
+
+/** 元素裡每一段 KaTeX 的 TeX 原始碼（<annotation>） */
+function texIn(el: Element): string[] {
+  return Array.from(el.querySelectorAll('annotation')).map((a) => a.textContent ?? '')
 }
 
 /** 實驗 C 的警告「Case C（filtered-x（Ĥ = H））不收斂」：Ĥ = H 以 KaTeX 顯示，textContent 是 MathML＋HTML 的文字，所以括號內不逐字比對 */
@@ -150,9 +158,26 @@ function clearMockCalls() {
 // 放在 beforeEach：此時上一個測試的 RTL cleanup（unmount → purge）已經跑完，紀錄才清得乾淨
 beforeEach(clearMockCalls)
 
+let selectorFlushCount = 0
+
+/**
+ * 釋放這個測試渲染過的整頁 DOM。jsdom 的 selector 引擎（nwsapi 2.2.x）有一個 1000 筆的 LRU 快取，每一種 selector 字串都記著
+ * 「上一次查詢它的 context 節點與查到的結果」：用 querySelector(All) 查過的 container（整頁）與 cloneNode 出來的副本因此一直被抓著，
+ * 直到同一個 selector 字串再被別的節點用到。實測每個測試會留下一整頁（約 0.5 GB）加上每一份整頁副本（約 0.45 GB），
+ * live heap 在第 8 個測試達到 4.2 GB——正好在 Node 的 heap 上限邊緣，頁面內容稍微增加就 heap out of memory。
+ * 做法：先卸載頁面、清掉 mock 的呼叫紀錄，再用 1000 個沒用過的 selector 查一個空元素，把舊的紀錄全部擠出快取（約 10 ms）；
+ * 之後每個測試開始時的 live heap 是 0.1–1.1 GB，整個檔案的尖峰約 2.6 GB。
+ */
+function releasePages() {
+  cleanup()
+  clearMockCalls()
+  const dummy = document.createElement('i')
+  for (let i = 0; i < 1000; i++) dummy.querySelectorAll(`.selector-cache-flush-${selectorFlushCount++}`)
+}
+
 afterEach(() => {
   localStorage.clear()
-  P.react.mockClear()
+  releasePages()
 })
 
 describe('案例頁 /case/sspll（jsdom smoke）', () => {
@@ -276,6 +301,65 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
     expect(text).toContain('32.68–125.33 MHz')
     expect(text).toContain('27.72–105.09 MHz')
     expect(text).toContain('0.388836')
+    // ── 審查修正（R06b／R09／R10／C07／C08）：成立條件在 Engineer 模式就寫在公式旁邊 ──
+    const sec = (id: string) => container.querySelector(`#${id}`) as HTMLElement
+    const allTex = texIn(container)
+    // C08（§2）：理想模型＝只留一階；精確零點 a/(1 − a) = 0.03093；停在 w_g = a 時還剩 a²Δ = 7.03 fs（起始 aΔ = 234.4 fs）
+    const s2 = sec('cs-2').textContent ?? ''
+    for (const frag of ['只留一階', '0.03093', '7.03', '234.4', '斜率多乘']) expect(s2, frag).toContain(frag)
+    expect(texIn(sec('cs-2')).some((t) => t === String.raw`\rho\Delta-(1-a)(1+w_g)\,\rho\Delta=(a-w_g+a\,w_g)\,\rho\Delta`)).toBe(true)
+    expect((SIM_CFG.a / (1 - SIM_CFG.a)).toFixed(5)).toBe('0.03093')
+    expect((SIM_CFG.a ** 2 * SIM_CFG.deltaPs * 1000).toFixed(2)).toBe('7.03')
+    expect((SIM_CFG.a * SIM_CFG.deltaPs * 1000).toFixed(1)).toBe('234.4')
+    // R06b（§4.2）：把 δ_j 提到卷積外面的前提（權重在 h_PD 的記憶長度內幾乎不變）寫在那一步
+    const s4 = proseText(sec('cs-4'))
+    for (const frag of ['記憶長度內幾乎不變', '權重慢變', '14、40、49 拍', '慢 200 倍以上', '只剩 128 拍']) expect(s4, frag).toContain(frag)
+    // 「Re κ 不超過 max Re H_PD」只對 raw regressor、8 個相位出現次數相同成立；其他情況（Engineer 以上才列）最極端是每個 block 修掉 8/25，仍慢 30 倍以上
+    for (const frag of ['用 raw regressor、而且 PMUX 的 8 個相位被選到的次數一樣多時', '慢 30 倍以上']) expect(s4, frag).toContain(frag)
+    expect(texIn(sec('cs-4'))).toContain('8/25')
+    expect(Math.floor((512 * 25) / LMS_WORST_RATE / Math.max(...(['L1', 'L2', 'L3'] as const).map((k) => hpdMemorySamples(LOOPS[k]))) / 10) * 10).toBe(30)
+    expect(texIn(sec('cs-4')).some((t) => t.includes(String.raw`\overset{\delta_j\ \text{固定}}{=}`))).toBe(true)
+    expect(sec('cs-4').querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+    // R09（§7.1）：κ_GOS = C_GOS/var(ρ)；「乘 12」只在 var(ρ) = 1/12；開迴路基準是去掉平均值的 ρ
+    const s7 = proseText(sec('cs-7'))
+    for (const frag of ['去掉平均值之後', '折到 DC', '只差一個正的倍數', '約差 4 倍']) expect(s7, frag).toContain(frag)
+    const tex7 = texIn(sec('cs-7'))
+    for (const t of [String.raw`\kappa_{GOS}=C_{GOS}/\mathrm{var}(\rho)`, String.raw`\mathrm{var}(\rho)=\frac{b^2-1}{12b^2}`, String.raw`\kappa_{GOS}=\frac{b^2}{b^2-1}\cdot12C_{GOS}`, '12C=0.8859', String.raw`\kappa_{GOS}=1.1812`, String.raw`C=E[\rho^2]=\tfrac14+\tfrac1{12}=\tfrac13`])
+      expect(tex7, t).toContain(t)
+    expect(tex7.some((t) => t.includes(String.raw`\xlongequal{\;\mathrm{var}(\rho)=1/12\;}\ 12\,C_{GOS}`))).toBe(true)
+    // R10：κ_m 是複數；排序、正負、上下界都寫 Re κ；dead zone 的量是 κ_PHOS
+    for (const t of [String.raw`\mathrm{Re}\,\kappa_1=8\,\mathrm{Re}\,\lambda_1`, String.raw`\kappa_1=-0.1395+0.3116j`, String.raw`\kappa_{PHOS}=\min_m\mathrm{Re}\,\kappa_m`]) expect(allTex, t).toContain(t)
+    expect(allTex.some((t) => t.includes(String.raw`\mathrm{Re}\,\kappa_1\approx0.9496`))).toBe(true)
+    expect(allTex.some((t) => t.includes(String.raw`\;\le\;\mathrm{Re}\,\kappa_1\;\le\;`))).toBe(true)
+    expect(allTex.some((t) => t.includes(String.raw`\ \le\ \mathrm{Re}\,\kappa_1\ \le\ `))).toBe(true) // F-CS.14
+    expect(allTex.filter((t) => t === String.raw`\lvert\kappa_{PHOS}\rvert\lesssim5\times10^{-3}`).length).toBeGreaterThanOrEqual(4)
+    expect(allTex.some((t) => t.includes(String.raw`\lvert\kappa\rvert\lesssim`))).toBe(false)
+    // 整頁沒有「複數 κ_1 ≈／≤ 實數」的寫法：把 Re κ_1 拿掉之後，不該再有 κ_1 後面接 ≈ 或 ≤
+    for (const t of allTex) {
+      const stripped = t.replace(/\\mathrm\{Re\}\s*\\,\s*\\kappa_\{?1\}?/g, 'ReK1')
+      expect(stripped, t).not.toMatch(/\\kappa_\{?1\}?\s*(?:\\[;, ]\s*)*\\(?:approx|le)(?![a-z])/)
+    }
+    // R10 + C07 + R06b（§12）：有限步長要代整個複數；N_τ 是名義時間常數（精確的 e-folding 是 24.50／4.48 blocks）
+    const s12 = proseText(sec('cs-12'))
+    for (const frag of ['誤判成穩定', '§4.2 的推導就用到的兩個前提', '名義時間常數', '24.50', '4.48']) expect(s12, frag).toContain(frag)
+    expect((-1 / Math.log(1 - 1 / 25)).toFixed(2)).toBe('24.50')
+    expect((-1 / Math.log(1 - 1 / 5)).toFixed(2)).toBe('4.48')
+    const tex12 = texIn(sec('cs-12'))
+    for (const t of [String.raw`\lvert\kappa\rvert^2/(2N_\tau)=0.0086`, String.raw`\mathrm{Re}\,\kappa=0.0059`, String.raw`(\mathrm{Re}\,\kappa)^2/(2N_\tau)\approx7.0\times10^{-7}`, String.raw`0.8^5=0.328<1/e=0.368`, String.raw`-1/\ln\lvert1-1/N_\tau\rvert`])
+      expect(tex12, t).toContain(t)
+    // C07（§8.5 的「試試看」）：「每個 block 修掉 1/N_τ」除了沒有迴路，還要 8 個相位被選到的次數一樣多（κ = 1）
+    expect(proseText(sec('cs-8'))).toContain('沒有迴路、8 個相位被選到的次數一樣多')
+    expect(proseText(sec('cs-8'))).not.toContain('沒有迴路時 LMS 每個 block')
+    // 實驗 B（預設 83.5 MHz = 167/8000，b = 1000）：精確週期的 GOS 列註明它除以實際的 var(ρ)，這裡兩列只差 1e-6
+    const expBTex = texIn(container.querySelector(`#exp-${SIGNMAP_EXPERIMENT_ID}`) as HTMLElement)
+    expect(expBTex).toContain(String.raw`\mathrm{var}(\rho)=0.083333`)
+    expect(expBTex).toContain(String.raw`\tfrac{1}{12\,\mathrm{var}(\rho)}=1.0000`)
+    expect(expBTex).toContain(String.raw`\mathrm{Re}\,\kappa_1`)
+    expect(expBTex).not.toContain(String.raw`\kappa_1`)
+    // 實驗 B 的說明：長條圖最右邊的 GOS 是固定乘 12 的 12·C_GOS（var(ρ) = 1/12 時才等於 κ_GOS），不再寫成沒有前提的「κ_GOS = 12C」
+    const descB = container.querySelector(`#exp-${SIGNMAP_EXPERIMENT_ID} .c-exp-desc`) as HTMLElement
+    expect(texIn(descB)).toEqual(expect.arrayContaining([String.raw`12\,C_{GOS}`, String.raw`\mathrm{var}(\rho)=\tfrac{1}{12}`, String.raw`\kappa_{GOS}`]))
+    expect(texIn(descB)).not.toContain(String.raw`\kappa_{GOS}=12C`)
     // 系統地圖是手排的 SVG（不經過 Mermaid）：本章標成藍色的方塊恰好是 MAP_FOCUS
     const mapFigure = container.querySelector('figure.c-mermaid.c-sysmap') as HTMLElement
     expect(mapFigure).not.toBeNull()
@@ -322,6 +406,19 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
     const expC = container.querySelector(`#exp-${LMS_EXPERIMENT_ID}`) as HTMLElement
     await waitFor(() => expect(expC.textContent).toMatch(/Case A（raw）不收斂/), { timeout: 60000 })
     expect(expC.textContent).not.toMatch(/Case B（一階差分）不收斂/)
+    // C07：實驗 C 的假設——開迴路每個 block 乘上 1 − 1/N_τ 的前提是 H ≡ 1 且 κ = 1（8 個相位被選到的次數一樣多）
+    const assumeC = expC.querySelector('.c-assumption-list') as HTMLElement
+    expect(assumeC.textContent).toContain('PMUX 的 8 個相位被選到的次數一樣多')
+    expect(texIn(assumeC)).toEqual(expect.arrayContaining([String.raw`H\equiv1`, String.raw`\kappa=1`, String.raw`1-1/N_\tau`]))
+    // R06b：小訊號預測的兩個前提（Bussgang、時間尺度分離）也列在實驗 C 的假設裡，並印出目前的 N·N_τ 對 h_PD 記憶長度的倍數（預設 512 × 25 ÷ 40 = 320）
+    for (const frag of ['用到 §4.2 的兩個前提', '時間尺度分離', 'L2 的', '記憶長度（40 拍）', '照實際順序計算（先乘、再通過迴路）']) expect(assumeC.textContent, frag).toContain(frag)
+    expect(texIn(assumeC)).toEqual(expect.arrayContaining([String.raw`N\cdot N_\tau=12800`, '320', String.raw`\lvert e_{PD}\rvert\ll\sigma_v`]))
+    expect((LMS_DEFAULTS.nBlk * LMS_DEFAULTS.tauBlocks) / hpdMemorySamples(LOOPS[LMS_DEFAULTS.loop])).toBe(320)
+    // 實驗 B 的 N_τ 控制項：前提寫在 hint（KaTeX），不是用 Unicode 塞在 reg 裡
+    const hintsB = Array.from(container.querySelectorAll(`#exp-${SIGNMAP_EXPERIMENT_ID} .c-param-hint`))
+    const nTauHint = hintsB.find((el) => (el.textContent ?? '').includes('每個 block 修掉誤差的')) as HTMLElement
+    expect(nTauHint).toBeTruthy()
+    expect(texIn(nTauHint)).toEqual([String.raw`H\equiv1`, String.raw`\kappa=1`, String.raw`1/N_\tau`])
   }, 120000)
 
   it('SSPLL: Beginner 模式顯示入門四句話並收起程式碼；Research 模式顯示研究註記', () => {
@@ -329,6 +426,17 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
     expect(screen.getByText('入門模式：先抓住四句話')).toBeTruthy()
     // regressor 的核心程式碼並排在任何模式都顯示（使用者明確要求看核心程式碼）
     expect(a.container.querySelectorAll('.c-code-mark').length).toBeGreaterThanOrEqual(6)
+    // 審查修正：Beginner 也看得到簡短的前提；細節（因式分解、有理數 β 的 var(ρ)）留給 Engineer
+    const text = (id: string) => (a.container.querySelector(`#${id}`) as HTMLElement).textContent ?? ''
+    for (const frag of ['只留一階', '0.03093']) expect(text('cs-2'), frag).toContain(frag)
+    expect(text('cs-2')).not.toContain('斜率多乘')
+    expect(text('cs-4')).toContain('記憶長度內幾乎不變')
+    expect(text('cs-4')).toContain('次數一樣多時')
+    expect(text('cs-4')).not.toContain('慢 30 倍以上')
+    expect(text('cs-7')).toContain('去掉平均值之後')
+    expect(text('cs-7')).not.toContain('折到 DC')
+    expect(text('cs-8')).toContain('是複數；談正負時看實部')
+    expect(text('cs-12')).toContain('名義時間常數')
     a.unmount()
     clearMockCalls()
     renderPage('/case/sspll', 'research')
@@ -342,6 +450,13 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
     await waitFor(() => expect(expB().textContent).toContain('=21/1000'))
     expect(expB().textContent).toMatch(/PHOS 反號：mode 1/)
     expect(expB().textContent).toMatch(/0\.13953/)
+    // mode-1 的列寫成 Re κ_1，虛部另外標出（有限步長判據才用到）；沒有單獨的「κ_1」
+    const texA = texIn(expB())
+    expect(texA).toContain(String.raw`\mathrm{Re}\,\kappa_1`)
+    expect(texA).toContain(String.raw`\mathrm{Im}\,\kappa_1=0.3116`)
+    expect(texA).not.toContain(String.raw`\kappa_1`)
+    expect(texA.some((t) => t.startsWith(String.raw`\mathrm{Re}\,\kappa=8\,\mathrm{Re}\,\lambda=-0.1395`))).toBe(true)
+    expect(expB().textContent).toContain('−0.2053, −0.1355')
     a.unmount()
     clearMockCalls()
     const b = renderPage('/case/sspll?preset=sspll-l2-1diff')
@@ -362,6 +477,8 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
 
   it('SSPLL: 三個實驗的每一個 preset 都能載入——沒有 KaTeX 錯誤，也沒有非有限數字', async () => {
     const { container } = renderPage('/case/sspll', 'research')
+    // 實驗 B 載入各個 preset 時出現過的 dead-zone 警告（TeX 原始碼）
+    const deadZoneTex = new Set<string>()
     for (const id of [HPD_EXPERIMENT_ID, SIGNMAP_EXPERIMENT_ID, LMS_EXPERIMENT_ID]) {
       const exp = container.querySelector(`#exp-${id}`) as HTMLElement
       const select = exp.querySelector('.c-exp-presets select') as HTMLSelectElement
@@ -373,8 +490,13 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
           expect(exp.querySelectorAll('.katex-error, .c-tex-error').length, `${id} preset ${i}`).toBe(0)
           expect(proseText(exp), `${id} preset ${i}`).not.toMatch(/NaN|undefined|Infinity|\[object Object\]/)
         })
+        const warn = id === SIGNMAP_EXPERIMENT_ID ? exp.querySelector('.c-exp-warnings') : null
+        if (warn) for (const t of texIn(warn)) if (t.includes(String.raw`\le\tau`)) deadZoneTex.add(t)
       }
     }
+    // dead zone 的警告寫的是 κ_PHOS（最差模態的實部），不是某個複數 κ 的模：sspll-l3-near-integer（L3、8 MHz）顯示 |κ_PHOS| = 2.06×10⁻⁵ ≤ τ
+    expect([...deadZoneTex]).toContain(String.raw`\lvert\kappa_{PHOS}\rvert=2.06\times10^{-5}\le\tau`)
+    for (const t of deadZoneTex) expect(t.startsWith(String.raw`\lvert\kappa_{PHOS}\rvert=`), t).toBe(true)
     // 載入過「L1 延遲 5 拍」：Type-I 也出現反號帶（實驗 A 最後停在 L3 ZOH）
     expect((container.querySelector(`#exp-${HPD_EXPERIMENT_ID}`) as HTMLElement).textContent).toMatch(/反號帶/)
   }, 180000)
@@ -395,6 +517,11 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
     // Fixed-Point 沒有實作：必須明確顯示
     expect(cc.textContent).toMatch(/Not implemented/)
     expect(expC().textContent).toMatch(/第 1400 block 的 PHOS rms，即時／golden 存檔的比值/)
+    // R09：指標註記裡 GOS 的小訊號預測是固定乘 12 的 12·C_GOS（ergodic），不標成 κ_GOS（= C_GOS/var(ρ)，小 Q 時兩者不同）
+    const texC = texIn(expC())
+    for (const t of [String.raw`12\,C_{GOS}=1.109`, String.raw`12\,C_{GOS}=1.158`, String.raw`12\,C_{GOS}=1.357`]) expect(texC, t).toContain(t)
+    expect(texC.some((t) => t.startsWith(String.raw`\kappa_{GOS}=`))).toBe(false)
+    expect(expC().textContent).toContain('ergodic，固定乘 12')
     await waitFor(() => {
       const names = traceNames()
       expect(names.some((n) => n.startsWith('Case A：raw（TS，即時）'))).toBe(true)
@@ -518,6 +645,152 @@ describe('SSPLL 案例頁的公式登錄、presets 與實驗輔助函式', () =>
     expect(by('F-CS.13').title).toContain('$8\\times8$')
   })
 
+  it('SSPLL: 審查修正的公式登錄——F-CS.2／.11／.13／.14／.18 的式子與條件（frozen weight、var(ρ)、Re κ、名義時間常數）', () => {
+    const by = (id: string) => FORMULAS.find((f) => f.id === id)!
+    // R06b + C08：F-CS.2 的條件補上權重慢變與理想注入模型（原有的小訊號條件保留）
+    const f2 = by('F-CS.2')
+    for (const frag of ['記憶長度', '時間尺度分離', '$\\lvert e_{PD}\\rvert\\ll\\sigma_v$', '理想模型', '只留一階', '$a\\,w_g$']) expect(f2.conditions, frag).toContain(frag)
+    // R09：κ_GOS = C_GOS/var(ρ)；「= 12 C_GOS」只在 var(ρ) = 1/12
+    const f11 = by('F-CS.11')
+    expect(f11.claim).toBe('exact')
+    expect(f11.tex).not.toContain(String.raw`\frac{C_{GOS}}{\mathrm{var}(\rho)}=12\,C_{GOS}`)
+    // 「= 12 C_GOS」這個等號帶著條件 var(ρ) = 1/12：用加長的等號（\xlongequal）把條件寫在上面，不和等號黏在一起
+    expect(f11.tex).toContain(String.raw`\frac{C_{GOS}}{\mathrm{var}(\rho)}\ \xlongequal{\;\mathrm{var}(\rho)=1/12\;}\ 12\,C_{GOS}`)
+    expect(f11.tex).not.toContain(String.raw`\overset`)
+    for (const frag of [String.raw`\frac{b^2-1}{12b^2}`, String.raw`\frac{b^2}{b^2-1}\cdot12\,C_{GOS}`, '去掉平均值', String.raw`$\Gamma_{\rm eff}(0)=0$`, String.raw`$E[\rho^2]=\tfrac13$`, '4 個長週期']) expect(f11.conditions, frag).toContain(frag)
+    // R10：κ_m 是複數；界限夾實部；有限步長用整個複數
+    const f13 = by('F-CS.13')
+    expect(f13.tex).toContain(String.raw`\kappa_m=8\lambda_m`)
+    expect(f13.conditions).toContain(String.raw`\lambda_{8-m}=\overline{\lambda_m}`)
+    expect(f13.conditions).toContain(String.raw`\mathrm{Re}\,\kappa_m`)
+    const f14 = by('F-CS.14')
+    expect(f14.claim).toBe('exact')
+    expect(f14.tex).toContain(String.raw`\le\ \mathrm{Re}\,\kappa_1\ \le`)
+    expect(f14.tex).not.toContain(String.raw`\le\ \kappa_1\ \le`)
+    expect(f14.conditions).toContain(String.raw`\mathrm{Re}\,\kappa_1<0`)
+    // C07 + R10：遞迴與不等式不變（對任何 N_τ > 0 精確）；N_τ 是名義時間常數
+    const f18 = by('F-CS.18')
+    expect(f18.claim).toBe('exact')
+    expect(f18.tex).toBe(String.raw`\theta_{k+1}=\Big(1-\frac{\kappa}{N_\tau}\Big)\theta_k,\qquad\Big\lvert1-\frac{\kappa}{N_\tau}\Big\rvert<1\iff\mathrm{Re}\,\kappa>\frac{\lvert\kappa\rvert^2}{2N_\tau}`)
+    for (const frag of ['名義時間常數', '$-1/\\ln\\lvert1-1/N_\\tau\\rvert$', '24.50', '4.48', String.raw`\mathrm{Im}\,\kappa`, String.raw`$N_\tau\equiv8/(\mu K_q)$`]) expect(f18.conditions, frag).toContain(frag)
+    expect(LMS_NOTE_ZH).toContain('名義時間常數')
+    expect(LMS_NOTE_ZH).toContain('25 blocks')
+    // 用語：SSPLL 頁（與顯示給讀者的 sspll.ts 註解）裡的「時間常數」只以「名義時間常數」出現——N_τ 是步長的倒數，不是精確的 e-folding 時間
+    const dir = join(process.cwd(), 'src/pages/case-sspll')
+    for (const f of ['formulas.ts', 'symbols.tsx', 'data.ts', 'sections/S04MeanUpdate.tsx', 'sections/S08Phos.tsx', 'sections/S11Remedies.tsx', 'sections/S12S13.tsx', 'sections/S14ClosedLoop.tsx', 'experiments/SignMapExplorer.tsx'])
+      expect(readFileSync(join(dir, f), 'utf8'), f).not.toMatch(/(?<!名義)時間常數/)
+    expect(MODEL_SRC).not.toMatch(/(?<!名義)時間常數/)
+    // 實驗 C 另外用到「模態的實際時間常數」（−1/ln ρ），所以只檢查 N_τ 的稱呼
+    const cl = readFileSync(join(dir, 'experiments/ClosedLoopLms.tsx'), 'utf8')
+    expect(cl).toContain('開迴路名義時間常數')
+    expect(cl).not.toContain('開迴路時間常數')
+    expect(cl).not.toMatch(/）時間常數/)
+  })
+
+  it('SSPLL: 比欄位寬的登錄公式拆成兩行（F-CS.12／.16／.17；1280px 的欄位放得下，不必橫向捲動）——內容與拆行前相同', () => {
+    const by = (id: string) => FORMULAS.find((f) => f.id === id)!
+    // [拆行處原本的分隔, 拆行前的整條式子]：兩行接回去必須一字不差
+    const oneLine: Record<string, [string, string]> = {
+      'F-CS.12': [String.raw`\ `, String.raw`C_{GOS}\approx\frac{\beta}{2}\big(S_\infty-2S_D\big)-\beta^2\sum_m m\,s[m]\ \Rightarrow\ \text{Type-I: }\frac{\beta}{2K};\quad \text{Type-II},\,D=0:\ \frac{\beta^2}{K_i};\quad \text{Type-II},\,D=1:\ -\beta`],
+      'F-CS.16': [String.raw`\qquad `, String.raw`\mathrm{Re}\,\Gamma_{1d}=\frac{1-\cos\Omega+\mathrm{Re}\{(1-e^{-j\Omega})L\}}{\lvert1+L\rvert^2};\qquad \text{Type-II：}\ g(\Omega)=1-\frac{K_i}{2}-(1-K_p)\cos\Omega\ge0\iff K_i\le2K_p\ \text{且}\ K_p+\frac{K_i}{2}\le2`],
+      'F-CS.17': [String.raw`\qquad `, String.raw`\Gamma_{fx}=H_{PD}\,\overline{\hat H_{PD}},\qquad \mathrm{Re}\,\Gamma_{fx}\ge0\iff\lvert\angle H_{PD}-\angle\hat H_{PD}\rvert\le90^\circ;\qquad \hat K>\frac{1}{K_p/K_i+\frac12}\ \ (\text{Type-I 模型配 Type-II 迴路})`],
+    }
+    for (const [id, [sep, want]] of Object.entries(oneLine)) {
+      const f = by(id)
+      const m = /^\\begin\{gathered\}([\s\S]*)\\end\{gathered\}$/.exec(f.tex)
+      expect(m, id).not.toBeNull()
+      const rows = m![1].split(String.raw`\\[4pt]`)
+      expect(rows, id).toHaveLength(2)
+      expect(rows.join(sep), id).toBe(want)
+      expect(f.claim, id).toBe('exact')
+      expect(f.conditions, id).not.toMatch(/右邊|左邊/) // 拆成上下兩行之後，條件裡不能再用「右邊的式子」指第二行
+      const { container, unmount } = render(<MathText>{`$${f.tex}$`}</MathText>)
+      expect(container.querySelectorAll('.katex-error, .c-tex-error').length, id).toBe(0)
+      unmount()
+    }
+    expect(by('F-CS.16').conditions).toContain('第二行（標著 Type-II）的 closed form 只適用 1 拍延遲的 Type-II（P + I）迴路')
+  })
+
+  it('SSPLL: 實驗 C 的 GOS 預測值標成 12·C_GOS（固定乘 12），不標成 κ_GOS；「每個 block 乘上 1 − 1/N_τ」都帶著 κ = 1 的前提', () => {
+    const dir = join(process.cwd(), 'src/pages/case-sspll')
+    const cl = readFileSync(join(dir, 'experiments/ClosedLoopLms.tsx'), 'utf8')
+    // R09：analyseAlpha().kappaGos 是 12·C_GOS（ergodic）。指標註記與兩個 GOS 警告都照這個名字印，沒有「κ_GOS = 數字」
+    expect(cl).not.toMatch(/\\\\kappa_\{GOS\}=\$\{/)
+    expect((cl.match(/12\\\\,C_\{GOS\}=\$\{/g) ?? []).length).toBe(3)
+    expect(cl).toContain('gosOffsetBias(c.pred.kappaGos / 12, 0.5, P.uOsFs, sigmaFs)') // offset 偏差用的 C_GOS = 12C/12：精確，不受標籤影響
+    // 審查的反例（L2、250 MHz、raw：α = 1/16、β = 1/2）：實驗 C 印 12C = 0.886，而定義上的 κ_GOS = C_GOS/var(ρ) = 1.1812（4/3 倍）
+    const erg = analyseAlpha(LOOPS.L2, 1 / 16, 'raw', undefined, 2048).kappaGos // 實驗 C 的諧波和取 2048 項
+    expect(txs(erg, 4)).toBe('0.886')
+    const ex = kappaRational(LOOPS.L2, 1, 16)
+    expect(ex.kG.toPrecision(5)).toBe('1.1812')
+    expect(ex.kG / erg).toBeCloseTo(4 / 3, 3)
+    expect(12 * ex.kG * ex.varRho).toBeCloseTo(erg, 3) // 同一個 C_GOS，只差正規化
+    // 預設的 80 MHz（α = 1/50，β = 4/25，b = 25）：12C = 1.109、κ_GOS = 1.110，只差 b²/(b² − 1) = 1.0016
+    const erg80 = analyseAlpha(LOOPS.L2, 0.02, 'raw', undefined, 2048).kappaGos
+    expect(txs(erg80, 4)).toBe('1.109')
+    expect(kappaRational(LOOPS.L2, 1, 50).kG / erg80).toBeCloseTo(625 / 624, 3)
+    // C07：N_τ 的「每個 block 乘上 1 − 1/N_τ」只在 H ≡ 1 且 κ = 1（8 個相位被選到的次數相同）時成立——頁面上每一處都寫出這個前提
+    expect(cl).toContain('開迴路（$H\\\\equiv1$、$\\\\kappa=1$，也就是 PMUX 的 8 個相位被選到的次數一樣多）每個 block 把 PHOS 誤差乘上 $1-1/N_\\\\tau$')
+    expect(cl).not.toContain('開迴路（$H\\\\equiv1$）每個 block')
+    const s8 = readFileSync(join(dir, 'sections/S08Phos.tsx'), 'utf8')
+    expect(s8).toContain('沒有迴路、8 個相位被選到的次數一樣多（<Tex>{r`H\\equiv1`}</Tex>、<Tex>{r`\\kappa=1`}</Tex>）時 LMS 每個 block 修掉誤差的')
+    // 實驗 B 的 N_τ 控制項：說明放在 hint（LaTeX），reg 只留硬體名稱——不再把 H ≡ 1、1/N_τ 這些數學用 Unicode 塞在 reg 裡
+    const sm = readFileSync(join(dir, 'experiments/SignMapExplorer.tsx'), 'utf8')
+    expect(sm).toContain("hint={mathText('$H\\\\equiv1$、$\\\\kappa=1$（8 個相位被選到的次數一樣多）時，每個 block 修掉誤差的 $1/N_\\\\tau$（§12）')}")
+    expect(sm).not.toMatch(/reg="[^"]*[≡τκ][^"]*"/)
+    expect(extractRegion(MODEL_SRC, 'blockMeanStable')).toContain('H ≡ 1、κ = 1（8 相被選到的次數相同）時每個 block 誤差乘上 1 − 1/N_τ')
+    expect(FORMULAS.find((f) => f.id === 'F-CS.18')!.conditions).toContain(String.raw`開迴路（$H\equiv1$、$\kappa=1$）時每個 block 把誤差乘上 $1-1/N_\tau$`)
+  })
+
+  it('SSPLL: 分析文件與頁面用同一套 κ 記號——逐模態的列表寫成 Re κ_m、最差值寫成 κ_PHOS（文件 §0.4、§8.4(a)、§15）', () => {
+    const doc = readFileSync(join(process.cwd(), 'docs/analysis/sspll-gos-phos-polarity.md'), 'utf8')
+    // 「κ_{1..4} = …」「κ_{2..4} …」這種逐模態的列表都是實部（κ_m 是複數）：前面一定有 \mathrm{Re}\,
+    const listed = [...doc.matchAll(/(\\mathrm\{Re\}\\,)?\\kappa_\{\d\.\.\d\}/g)]
+    expect(listed.length).toBeGreaterThanOrEqual(3)
+    for (const m of listed) expect(m[1], doc.slice(Math.max(0, (m.index ?? 0) - 30), (m.index ?? 0) + 40)).toBe(String.raw`\mathrm{Re}\,`)
+    // §8.4(a)：L2、15.6 MHz（α = 1/256）的四個數字是 kappaRational 的實部；m1–m3 的虛部不是 0，所以不能寫成「κ = 實數」
+    expect(doc).toContain(String.raw`$\mathrm{Re}\,\kappa_{1..4}=+0.00043,\ +0.00001,\ -0.00253,\ -0.0042$`)
+    const km = kappaRational(LOOPS.L2, 1, 256).km
+    const want = [0.00043, 0.00001, -0.00253, -0.0042]
+    want.forEach((v, i) => expect(Math.abs(km[i].re - v), `m${i + 1}`).toBeLessThan(1e-5))
+    for (const i of [0, 1, 2]) expect(Math.abs(km[i].im), `m${i + 1}`).toBeGreaterThan(3e-4) // −0.00043j、−0.00209j、−0.00254j
+    expect(Math.abs(km[3].im)).toBeLessThan(1e-12) // mode 4 是實數
+    // 頁面 §8.4(a) 的同一句（S08Phos.tsx）也是 Re κ_{1..4}
+    expect(readFileSync(join(process.cwd(), 'src/pages/case-sspll/sections/S08Phos.tsx'), 'utf8')).toContain('\\\\mathrm{Re}\\\\,\\\\kappa_{1..4}=')
+    // §0.4 的總表與 §15 的檢查清單：最差模態的實部記作 κ_PHOS（和頁面 §0 的表相同），不寫成沒有下標的 κ
+    expect(doc).toContain(String.raw`最差 $\kappa_{PHOS}=-0.1397$ @ 83.0 MHz`)
+    expect(doc).toContain(String.raw`$\kappa_{PHOS}=+1.06$`)
+    expect(doc).not.toMatch(/最差 \$\\kappa=/)
+    expect(kappaRational(LOOPS.L2, 85, 4096).kP.toFixed(4)).toBe('-0.1397') // 85/4096 × 4000 = 83.0 MHz
+    expect(((85 / 4096) * FREF_MHZ).toFixed(1)).toBe('83.0')
+    expect(analyseAlpha(LOOPS.L2, 0.137).kappaPhos.toFixed(2)).toBe('1.06') // = Re κ_1（κ_1 = 1.0647 + 0.4169j）
+    expect(readFileSync(join(process.cwd(), 'src/pages/case-sspll/sections/S00Conclusion.tsx'), 'utf8')).toContain('\\\\kappa_{PHOS}=')
+  })
+
+  it('SSPLL: 內文引用的審查修正數字由 TS port 重現——h_PD 的記憶長度 14／40／49 拍、實驗 B 的 GOS 註記', () => {
+    // §4.2：Σ|h_PD| 的 99.9% 落在前 14／40／49 拍；預設的 LMS（512 × 25 拍，除以 Re κ ≤ max Re H_PD）慢 200 倍以上
+    expect((['L1', 'L2', 'L3'] as const).map((k) => hpdMemorySamples(LOOPS[k]))).toEqual([14, 40, 49])
+    expect(hpdMemorySamples(makeL1({ K: 1 }))).toBe(2) // h_PD = [1, −1]：兩拍
+    // 實驗 B 的「精確週期」GOS 列：α = 1/16（250 MHz，β = 1/2）⇒ var(ρ) = 1/16，κ_GOS = 1.1812 是 12C = 0.88592 的 4/3 倍
+    const r16 = kappaRational(LOOPS.L2, 1, 16)
+    const n16 = gosExactNote(r16.varRho, r16.kG)
+    for (const frag of [String.raw`$\mathrm{var}(\rho)=0.062500$`, '$0.88592$', String.raw`$\tfrac{1}{12\,\mathrm{var}(\rho)}=1.3333$`]) expect(n16, frag).toContain(frag)
+    expect(r16.kG.toPrecision(5)).toBe('1.1812')
+    expect(analyseAlpha(LOOPS.L2, 1 / 16).kappaGos.toPrecision(5)).toBe('0.88595') // ergodic 列（級數截在 8192 項：與 0.88592 差 3e-5）
+    // α = 1/64（62.5 MHz，b = 8）：多 1.6%
+    const r64 = kappaRational(LOOPS.L2, 1, 64)
+    const n64 = gosExactNote(r64.varRho, r64.kG)
+    for (const frag of ['0.082031', '$1.08090$', '=1.0159$']) expect(n64, frag).toContain(frag)
+    // 預設 83.5 MHz（b = 1000）：兩列只差 1e-6
+    const r835 = kappaRational(LOOPS.L2, 167, 8000)
+    for (const frag of ['0.083333$', '$1.10511$', '=1.0000$']) expect(gosExactNote(r835.varRho, r835.kG), frag).toContain(frag)
+    const { container, unmount } = render(<MathText>{n16}</MathText>)
+    expect(container.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+    expect(container.querySelectorAll('.katex').length).toBe((n16.match(/\$[^$]*\$/g) ?? []).length) // 每一段 `$...$` 都渲染成 KaTeX
+    expect((n16.match(/\$[^$]*\$/g) ?? []).length).toBe(6)
+    unmount()
+  })
+
   it('SSPLL: 實驗 C 的 case 標籤——警告／指標／表格用 `$...$` 版（KaTeX），下拉選單與 Plotly 圖例用純文字版', () => {
     const kinds = Object.keys(LMS_CASE_LABEL) as LmsCaseKind[]
     expect(Object.keys(LMS_CASE_TEX)).toEqual(kinds)
@@ -562,6 +835,9 @@ describe('SSPLL 案例頁的公式登錄、presets 與實驗輔助函式', () =>
     const sa = modeSetup(inband.loop, inband.mode, inband.kHat)
     const a = analyseAlpha(sa.loop, inband.fMHz / FREF_MHZ, sa.variant, sa.models)
     expect(a.kappaPhos).toBeCloseTo(-0.13953, 5)
+    expect(a.kappaM[0].im).toBeCloseTo(0.3116, 4) // preset 的 expected 寫的 κ_1 = −0.1395 + 0.3116j
+    expect(presetById('sspll-l2-inband')!.expected).toContain('Re κ_1 = 8Re λ_1 = −0.13953')
+    expect(presetById('sspll-l2-inband')!.expected).toContain('κ_1 = −0.1395 + 0.3116j')
     expect(a.worstMode).toBe(1)
     expect(a.kappaM[1].re).toBeCloseTo(0.4006, 4)
     expect(a.kappaM[2].re).toBeCloseTo(0.83, 3)

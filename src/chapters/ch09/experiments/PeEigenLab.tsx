@@ -23,18 +23,24 @@ import {
   meanTrajectory,
   modalCoords,
   peAnalytic,
+  signJitterSteadyState,
   stepsToDecay,
+  stepsToDecayReal,
   type PeLabParams,
   type PeLabResult,
 } from '@/simulation/models/pe'
+import { sigNear1, txDistinct } from '../handcalcTex'
 import { m, mt, num, texNum as tn } from '../shared'
 import {
   PE_DEFAULT,
   PE_LIMITS,
+  S_DELTA_LIMIT,
   blocksForConvergence,
   derivedGain,
+  k95ForConvergence,
   mcModalCheck,
   sanitizePeState,
+  shownPole,
   switchDetector,
   switchKqMode,
   type KqMode,
@@ -51,6 +57,14 @@ function nullIfNonFinite(v: ArrayLike<number>): (number | null)[] {
 
 function range(n: number): number[] {
   return Array.from({ length: n }, (_, i) => i)
+}
+
+/**
+ * pole 的 TeX：很接近 ±1 的 pole 多顯示幾位，讓 1 − |p| 至少留 4 位有效數字
+ * （物理 K_q 的慢 pole 0.99996011 用 4 位會被顯示成「1」，看起來像不衰減）。
+ */
+function poleTex(p: number): string {
+  return tn(p, sigNear1(p, 4))
 }
 
 function squareLayout(xTitle: string, yTitle: string): Partial<Layout> {
@@ -115,7 +129,8 @@ export function PeEigenLab() {
     const [m1, m2] = meanTrajectory(R, gUse, d0, state.blocks)
     const Q = an.closed.vectors
     const c0 = modalCoords(Q, d0)
-    const p = an.closed.values.map((l) => 1 - gUse * l)
+    // 圖例與解析曲線用的 pole：gλ = 1 時精確為 0（不顯示 1e-16 的浮點殘渣）
+    const p = an.closed.values.map((l) => shownPole(1 - gUse * l, gUse * l))
     const k = range(state.blocks + 1)
     const cFast = k.map((kk) => Math.abs(c0[0]) * Math.pow(Math.abs(p[0]), kk))
     const cSlow = k.map((kk) => Math.abs(c0[1]) * Math.pow(Math.abs(p[1]), kk))
@@ -195,6 +210,14 @@ export function PeEigenLab() {
     }
   }, [mc])
 
+  // 顯示用的 pole：gλ = 1 時精確為 0。Jacobi 的 λ_max（ρ = ±1 時是 1.9999999999999996）會讓 1 − gλ 留下 2.2×10⁻¹⁶ 的殘渣
+  const pFastShown = shownPole(an.pFast, gUse * an.closed.values[0])
+  const pSlowShown = shownPole(an.pSlow, gUse * an.closed.values[1])
+  // 審查 C01：g⋆ < g < 2/λ_max 時 λ_max 的模式過衝（pole 為負），|p_fast| > |p_slow|——整體要等的是它，不是「慢模式」。
+  // λ_min = 0（|p_slow| = 1）或已發散（|p_fast| ≥ 1）時 meanRadius ≥ 1，另有警告，不在這裡處理。
+  const k95Fast = an.modes.k95[0]
+  const fastLed = an.meanRadius < 1 && Math.abs(an.pFast) > Math.abs(an.pSlow) + 1e-12
+
   // ── 警告（必須解釋原因） ──
   const warnings: string[] = []
   if (an.modes.nullCount > 0) {
@@ -214,6 +237,19 @@ export function PeEigenLab() {
           : ''),
     )
   }
+  if (fastLed) {
+    // 兩個很接近的數要寫成「a > b」：顯示到看得出差別為止（g = 1.0000007 不可顯示成「1 > 1」）
+    const [gTex, gOptTex] = txDistinct(gUse, an.gOpt)
+    const [apFastTex, apSlowTex] = txDistinct(Math.abs(an.pFast), Math.abs(an.pSlow))
+    const beyond = k95Fast > PE_LIMITS.blocks[1] ? String.raw`（超過本實驗的 blocks 上限 ${PE_LIMITS.blocks[1]}，圖上看不到）` : ''
+    warnings.push(
+      String.raw`$g=${gTex}>g^\star=2/(\lambda_{\max}+\lambda_{\min})=${gOptTex}$：$\lambda_{\max}$ 的模式（圖上標成「快」的 $\mathbf v_1$）過衝，pole $p_{\text{fast}}=${poleTex(pFastShown)}$ 是負的，而且 $|p_{\text{fast}}|=${apFastTex}>|p_{\text{slow}}|=${apSlowTex}$——最慢的反而是它` +
+        (k95Fast > an.k95Slow
+          ? String.raw`：要 $\lceil\ln0.05/\ln|p_{\text{fast}}|\rceil=${k95Fast.toLocaleString('en-US').replace(/,/g, '{,}')}$ 個 blocks 才剩 5%${beyond}，比指標表 $k_{95}$（慢模式）的 $${an.k95Slow.toLocaleString('en-US').replace(/,/g, '{,}')}$ 個還久。整體要等的是這個數字，「執行至收斂」也以它為準。`
+          : String.raw`。不過兩個 $|p|$ 很接近，取上整之後它也是 $${k95Fast.toLocaleString('en-US').replace(/,/g, '{,}')}$ 個 blocks，和指標表 $k_{95}$（慢模式）的一樣。`) +
+        String.raw`$g$ 超過 $g^\star$ 只會更慢（F-09.7）。`,
+    )
+  }
   if (an.meanRadius < 1 && an.msRadius >= 1) {
     warnings.push(
       state.detector === 'linear'
@@ -226,6 +262,14 @@ export function PeEigenLab() {
     if (s > 0.3 * state.sigmaV) {
       warnings.push(
         String.raw`$\sqrt{\boldsymbol\delta_0^T\mathbf R\boldsymbol\delta_0}\big/\sigma_v=${tn(s / state.sigmaV)}$ 不夠小：$K_q$ 線性化只在 $|\mathbf u^T\boldsymbol\delta|\ll\sigma_v$ 時有效，平均遞迴的 pole 只是近似；請對照 mean-field（Bussgang）曲線。`,
+      )
+    }
+    // 小訊號條件也要對迴路自己的穩態抖動成立（F-09.3 的條件）：上面只檢查了初始誤差。
+    // F-09.18 固定點的閉式（signJitterSteadyState）；線性化的均方不收斂時回傳 ∞，那種情形由上面 ρ_MS ≥ 1／發散的警告說明。
+    const jitterS = Math.sqrt(signJitterSteadyState(an.closed.values, gUse, state.N))
+    if (Number.isFinite(jitterS) && jitterS > S_DELTA_LIMIT) {
+      warnings.push(
+        String.raw`迴路自己的穩態抖動：F-09.18 的小訊號估計給 $\sqrt{E[s_\delta^2]}\approx${tn(jitterS, 3)}$（$s_\delta=\sqrt{\boldsymbol\delta^T\mathbf R\boldsymbol\delta}\big/\sigma_v$；$g=${tn(gUse)}$、$N=${state.N}$），超過 $${S_DELTA_LIMIT}$。就算初始誤差很小，$K_q$ 線性化在穩態也不成立：1-bit 的有效增益比 $K_q$ 小，平均遞迴的 pole 與 $k_{95}$ 只是近似（慢模式的平均通常收斂得比 $p_{\text{slow}}$ 預測的慢），mean-field 曲線也沒有算進這個抖動。這個估計自己也以小訊號為前提，超過門檻時只能當成量級，請以 MC 為準；要回到小訊號區請加大 $N$ 或減小 $g$。`,
       )
     }
   }
@@ -285,10 +329,10 @@ export function PeEigenLab() {
     },
     { name: String.raw`$\mu$（實際）`, value: gain.mu, unit: gain.muUnit },
     { name: String.raw`$g=\mu K_q$`, value: Number.isFinite(gain.g) ? gain.g : '∞', formulaId: 'F-09.3', claim: claimMean },
-    { name: String.raw`$p_{\text{fast}}=1-g\lambda_{\max}$`, value: an.pFast, formulaId: 'F-09.4', claim: claimMean },
-    { name: String.raw`$p_{\text{slow}}=1-g\lambda_{\min}$`, value: an.pSlow, formulaId: 'F-09.4', claim: claimMean },
+    { name: String.raw`$p_{\text{fast}}=1-g\lambda_{\max}$`, value: pFastShown, formulaId: 'F-09.4', claim: claimMean },
+    { name: String.raw`$p_{\text{slow}}=1-g\lambda_{\min}$`, value: pSlowShown, formulaId: 'F-09.4', claim: claimMean },
     { name: String.raw`$k_{95}$（慢模式）`, value: Number.isFinite(an.k95Slow) ? an.k95Slow : '∞（不衰減）', unit: 'blocks', formulaId: 'F-09.6', claim: claimMean, note: 'mean recursion（勘誤 E23）' },
-    { name: String.raw`$\ln 0.05/\ln|p_{\text{slow}}|$（未取整）`, value: an.k95SlowReal, unit: 'blocks' },
+    { name: String.raw`$\ln 0.05/\ln|p_{\text{slow}}|$（未取整）`, value: stepsToDecayReal(pSlowShown), unit: 'blocks' },
     { name: String.raw`近似 $\ln 20/(g\lambda_{\min})$`, value: an.k95SlowApprox, unit: 'blocks', claim: 'approx' },
     { name: String.raw`mean 半徑 $\max|p_i|$`, value: an.meanRadius, claim: claimMean },
     {
@@ -438,8 +482,8 @@ export function PeEigenLab() {
     const nf = cut(ana.cFast)
     const ns = cut(ana.cSlow)
     const traces: Data[] = [
-      { x: ana.k.slice(0, nf), y: ana.cFast.slice(0, nf), mode: 'lines', name: String.raw`$|c_{\mathrm{fast}}|$ 解析 $=|p_{\mathrm{fast}}|^k\,|c_0|$（$p=${tn(ana.p[0])}$）`, line: { color: tokens.series[1] } },
-      { x: ana.k.slice(0, ns), y: ana.cSlow.slice(0, ns), mode: 'lines', name: String.raw`$|c_{\mathrm{slow}}|$ 解析（$p=${tn(ana.p[1])}$）`, line: { color: tokens.series[2] } },
+      { x: ana.k.slice(0, nf), y: ana.cFast.slice(0, nf), mode: 'lines', name: String.raw`$|c_{\mathrm{fast}}|$ 解析 $=|p_{\mathrm{fast}}|^k\,|c_0|$（$p=${poleTex(ana.p[0])}$）`, line: { color: tokens.series[1] } },
+      { x: ana.k.slice(0, ns), y: ana.cSlow.slice(0, ns), mode: 'lines', name: String.raw`$|c_{\mathrm{slow}}|$ 解析（$p=${poleTex(ana.p[1])}$）`, line: { color: tokens.series[2] } },
       { x: [0, state.blocks], y: [DECAY * Math.abs(ana.c0[1]), DECAY * Math.abs(ana.c0[1])], mode: 'lines', name: '5% 門檻', line: { color: tokens.textMuted, dash: 'dash' } },
     ]
     if (ana.mf) {
@@ -550,7 +594,12 @@ export function PeEigenLab() {
     () =>
       cases.cases.map((c) => {
         const a = peAnalytic({ rho: c.params.rho, dist: 'gaussian', g: c.params.g, N: 1024, N0: 100 })
-        return { c, a }
+        // 顯示用的慢 pole：gλ_min = 1 時精確為 0（不顯示、也不畫 1e-16 的浮點殘渣）
+        const pSlow = shownPole(a.pSlow, c.params.g * a.closed.values[1])
+        // 這張表與圖只看 λ_min 的慢模式；g > g⋆ 時整體要等的是過衝的 λ_max 模式（審查 C01），g ≥ 2/λ_max 時平均遞迴發散——表下方另外註明
+        const diverges = Math.abs(a.pFast) >= 1
+        const fastLed = a.meanRadius < 1 && Math.abs(a.pFast) > Math.abs(a.pSlow) + 1e-12
+        return { c, a, pSlow, diverges, fastLed }
       }),
     [cases.cases],
   )
@@ -558,9 +607,9 @@ export function PeEigenLab() {
     const finite = caseInfo.map((ci) => ci.a.k95Slow).filter((v) => Number.isFinite(v))
     const kmax = Math.min(5000, Math.max(50, Math.ceil(1.3 * Math.max(10, ...finite))))
     const k = range(kmax + 1)
-    return caseInfo.map(({ c, a }) => ({
+    return caseInfo.map(({ c, a, pSlow }) => ({
       x: k,
-      y: k.map((kk) => Math.pow(Math.abs(a.pSlow), kk)),
+      y: k.map((kk) => Math.pow(Math.abs(pSlow), kk)),
       mode: 'lines',
       name: String.raw`Case ${c.id}：$\rho=${tn(c.params.rho)}$、$g=${tn(c.params.g)}\to k_{95}=${Number.isFinite(a.k95Slow) ? a.k95Slow : String.raw`\infty`}$`,
       line: { color: tokens.series[c.seriesIndex] },
@@ -593,6 +642,23 @@ export function PeEigenLab() {
     return out
   }
 
+  // (δ₁, δ₂) 平面的圖說：照目前的 pole 描述平均遞迴。預設（ρ = .99、g = .5）是「v₁ 一步消掉、沿 v₂ 慢慢爬回原點」，
+  // 但 ρ = ±1 時 v₂ 分量不動（到不了原點）、g > g⋆ 時留得久的是 v₁（審查 C01），所以不能寫死。
+  const planeTail =
+    Math.abs(an.pFast) >= 1
+      ? String.raw`$|p_{\text{fast}}|\ge1$：$\mathbf v_1$ 分量每個 block 變號而且不衰減，平均軌跡不收斂。`
+      : an.modes.nullCount > 0
+        ? String.raw`$p_{\text{slow}}=1$：$\mathbf v_2$ 分量不動，平均軌跡停在 $\mathbf v_2$ 軸上，到不了原點。`
+        : fastLed
+          ? String.raw`$|p_{\text{fast}}|>|p_{\text{slow}}|$（$g>g^\star$）：$\mathbf v_1$ 分量每個 block 變號，而且比 $\mathbf v_2$ 分量留得久，軌跡在 $\mathbf v_2$ 軸的兩側來回、慢慢靠近原點。`
+          : Math.abs(pFastShown) <= DECAY && Math.abs(pSlowShown) >= 0.9
+            ? String.raw`$\mathbf v_1$ 分量一步就幾乎消掉（剩不到 5%），之後沿 $\mathbf v_2$ 慢慢爬回原點。`
+            : String.raw`$|p|$ 越小的分量消失得越快，$p<0$ 的分量每個 block 變號。`
+  const planeCaption =
+    String.raw`平均遞迴的 $E[\boldsymbol\delta_k]$ 沿 $\mathbf v_1$ 的分量每個 block 乘上 $p_{\text{fast}}=${poleTex(pFastShown)}$，沿 $\mathbf v_2$ 的分量乘上 $p_{\text{slow}}=${poleTex(pSlowShown)}$。` +
+    planeTail +
+    '個別軌跡（灰）可能完全不像平均。'
+
   const isSign = state.detector === 'sign'
   const muIsPhysical = isSign && state.kqMode === 'physical'
   const muRange = muIsPhysical ? PE_LIMITS.muPhys : PE_LIMITS.g
@@ -614,6 +680,7 @@ export function PeEigenLab() {
         String.raw`$\boldsymbol\delta=\mathbf a-\mathbf w$；$\mathbf w\leftarrow\mathbf w+\mu\mathbf G$（block 更新，$\mathbf G$ 為 $N$ 個 sample 的平均）`,
         String.raw`$\mathbf u$ 在 sample 與 block 間 iid；Gaussian：$u_2=\rho u_1+\sqrt{1-\rho^2}\,z$；$\pm1$：$u_2=s\,u_1$，$P(s=+1)=(1+\rho)/2$`,
         String.raw`linear detector：$t=e$，$K_q\equiv1$（mean recursion 精確）；1-bit：$t=\mathrm{sign}(e)$，$K_q=\sqrt{2/\pi}/\sigma_v$（小訊號近似，勘誤 E05）`,
+        String.raw`1-bit 的小訊號條件要對初始誤差與迴路自己的穩態抖動都成立：$s_\delta=\sqrt{\boldsymbol\delta^T\mathbf R\boldsymbol\delta}/\sigma_v$ 超過 $${S_DELTA_LIMIT}$ 時警告（穩態用 F-09.18 固定點的小訊號估計）`,
         String.raw`mean-square 半徑：linear、iid regressor、無雜訊時精確；1-bit 以 $g=\mu K_q$ 線性化（勘誤 E23）`,
         '滑動窗口 PE 統計使用獨立的 regressor 串流（同 seed 可重現）',
       ]}
@@ -641,9 +708,10 @@ export function PeEigenLab() {
           setSeed(DEFAULT_SEED)
         },
         onRun: () => setNonce((n) => n + 1),
-        // 執行至收斂：把 blocks 拉到 ⌈1.25·k₉₅⌉（看得到慢模式降到 5%）；到不了時停在上限，警告會解釋原因
+        // 執行至收斂：把 blocks 拉到 ⌈1.25·k₉₅⌉，k₉₅ 取最慢的那個模式（g ≤ g⋆ 是慢模式；g > g⋆ 換成過衝的 λ_max 模式，審查 C01），
+        // 看得到兩個模式都降到 5%；到不了時停在上限，警告會解釋原因
         onRunToConvergence: () => {
-          const { blocks } = blocksForConvergence(an.k95Slow)
+          const { blocks } = blocksForConvergence(k95ForConvergence(k95Fast, an.k95Slow))
           setFrozen(false)
           setState((s) => ({ ...s, blocks }))
           setNonce((n) => n + 1)
@@ -659,7 +727,7 @@ export function PeEigenLab() {
       controls={
         <div className="ch09-controls">
           <div className="ch09-controls-group">Regressor</div>
-          <ParamControl label={mt`$\rho$（兩個 regressor 的相關係數）`} ariaLabel="ρ（兩個 regressor 的相關係數）" value={state.rho} onChange={(v) => set('rho', v)} min={-1} max={1} step={0.001} unit="—（無因次）" reg="Behavioral: CODE_CORR_RHO" hint={mt`$\lambda=1\pm\rho$；$\rho=\pm1$ 時不可辨識`} />
+          <ParamControl label={mt`$\rho$（兩個 regressor 的相關係數）`} ariaLabel="ρ（兩個 regressor 的相關係數）" value={state.rho} onChange={(v) => set('rho', v)} min={-1} max={1} step={0.001} unit="—（無因次）" reg="Behavioral: CODE_CORR_RHO" hint={mt`$\lambda_{\max,\min}=1\pm|\rho|$；$\rho=\pm1$ 時不可辨識`} />
           <SelectControl
             label="Regressor 分布"
             value={state.dist}
@@ -740,7 +808,12 @@ export function PeEigenLab() {
           data={ellipseData}
           layout={ELLIPSE_LAYOUT}
           height={360}
-          caption={<>橢圓長軸 = {m`\mathbf v_1`}（長 {m`\sqrt{\lambda_{\max}}`}），短軸 = {m`\mathbf v_2`}（長 {m`\sqrt{\lambda_{\min}}`}）。{m`\rho\to1`} 時短軸消失。</>}
+          caption={
+            <>
+              橢圓長軸 = {m`\mathbf v_1`}（長 {m`\sqrt{\lambda_{\max}}`}），短軸 = {m`\mathbf v_2`}（長 {m`\sqrt{\lambda_{\min}}`}）。本實驗的 {m`\mathbf v_1`}、{m`\mathbf v_2`}
+              依 eigenvalue 由大到小排：{m`\rho<0`} 時長軸（快模式）轉到 {m`(1,-1)/\sqrt2`}，也就是 F-09.5 的差模。{m`|\rho|\to1`} 時短軸消失。
+            </>
+          }
         />
         <Plot
           title={String.raw`$(\delta_1,\delta_2)$ 平面：平均軌跡先沿快方向掉到慢軸上`}
@@ -749,7 +822,7 @@ export function PeEigenLab() {
           data={planeData}
           layout={PLANE_LAYOUT}
           height={360}
-          caption={String.raw`$E[\boldsymbol\delta_k]$ 一步就消掉 $\mathbf v_1$ 分量，之後沿 $\mathbf v_2$ 慢慢爬回原點；個別軌跡（灰）可能完全不像平均。`}
+          caption={planeCaption}
         />
       </div>
       <Plot
@@ -853,24 +926,43 @@ export function PeEigenLab() {
               <th>{m`\lambda_{\min}`}</th>
               <th>{m`\kappa`}</th>
               <th>{m`p_{\text{slow}}`}</th>
-              <th>{m`k_{95}`}</th>
+              <th>{m`k_{95}`}（慢模式）</th>
             </tr>
           </thead>
           <tbody>
-            {caseInfo.map(({ c, a }) => (
+            {caseInfo.map(({ c, a, pSlow }) => (
               <tr key={c.id}>
                 <td className="ch09-left">{c.id}</td>
                 <td>{num(c.params.rho)}</td>
                 <td>{num(c.params.g)}</td>
                 <td>{num(a.closed.values[1])}</td>
                 <td>{Number.isFinite(a.modes.kappa) ? num(a.modes.kappa) : m`\infty`}</td>
-                <td>{num(a.pSlow, 6)}</td>
+                <td>{num(pSlow, 6)}</td>
                 <td>{Number.isFinite(a.k95Slow) ? a.k95Slow : m`\infty`}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {caseInfo.some((ci) => ci.fastLed || ci.diverges) && (
+        <p className="ch09-note">
+          表與圖只描述 {m`\lambda_{\min}`} 的慢模式。
+          {caseInfo.map(({ c, a, fastLed: led, diverges }) =>
+            diverges ? (
+              <span key={c.id}>
+                {' '}
+                Case {c.id}：{m`g=${tn(c.params.g)}\ge2/\lambda_{\max}=${tn(2 / a.closed.values[0])}`}，{m`\lambda_{\max}`} 的模式發散（{m`|p_{\text{fast}}|=${tn(Math.abs(a.pFast))}\ge1`}），平均遞迴不收斂。
+              </span>
+            ) : led ? (
+              <span key={c.id}>
+                {' '}
+                Case {c.id}：{m`g=${txDistinct(c.params.g, a.gOpt)[0]}>g^\star=${txDistinct(c.params.g, a.gOpt)[1]}`}，最慢的是過衝的 {m`\lambda_{\max}`} 模式（
+                {m`|p_{\text{fast}}|=${txDistinct(Math.abs(a.pFast), Math.abs(a.pSlow))[0]}>|p_{\text{slow}}|=${txDistinct(Math.abs(a.pFast), Math.abs(a.pSlow))[1]}`}），整體要等 {m`${a.modes.k95[0]}`} 個 blocks。
+              </span>
+            ) : null,
+          )}
+        </p>
+      )}
       <p className="ch09-note">
         試試看：把 Case B 設成 {m`\rho=0.9`}（{m`k_{95}=${stepsToDecay(1 - 0.5 * 0.1)}`}），Case C 設成 {m`\rho=0.99`}、{m`g=1`}
         （{m`=g^\star`}，最快的單一 {m`\mu`}：{m`k_{95}=${stepsToDecay(0.99)}`}）。再到上方把 {m`N`} 改成 1、分布改成 {m`\pm1`} code，觀察個別軌跡的「階梯」。

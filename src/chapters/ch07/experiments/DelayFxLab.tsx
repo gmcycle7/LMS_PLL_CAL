@@ -47,7 +47,7 @@ import {
 } from './labState'
 import { closedLoopFigure, phaseFigure, sweepFigure, waveFigure } from './labPlots'
 import { LabControls } from './LabControls'
-import { CLOSED_LOOP_WARNING, diagMath } from './diagText'
+import { CLOSED_LOOP_WARNING, closedLoopAdvice, diagMath } from './diagText'
 import { fx, kq, signClass, txs } from '../util'
 
 const r = String.raw
@@ -137,8 +137,12 @@ export function DelayFxLab() {
   useEffect(() => {
     const list = pending.current
     if (!list || cases.cases.length !== 1) return
-    pending.current = null
     const ids = list.slice(1).map(() => cases.addCase())
+    // 開發模式的 StrictMode 會把掛載時的 effect 連跑兩次：第二次執行時 `cases` 還是上一輪 render 的值（只有 A），
+    // 但 useCases 內部已經加過 B、C，addCase 回傳 null。這時不能把 pending 清掉——以 ?preset= 載入時，pending 裝的是 preset 的
+    // A/B/C，清掉之後就只剩 Case A。留著 pending，等 reset 生效、重新 render 之後再加。
+    if (ids.some((id) => id === null)) return
+    pending.current = null
     ids.forEach((id, i) => {
       if (id) cases.update(list[i + 1], id)
     })
@@ -240,8 +244,11 @@ export function DelayFxLab() {
   if (convNote && convNote.key === clKey) warnings.push(convNote.text)
   if (cl) {
     for (const c of cl.result.cases) {
+      // 用模擬當時的 regressor 模式：共用核心的「C ≤ 0」警告結尾固定建議「需 delay alignment 或 filtered-x」，
+      // Case 已經是其中一種時換成對得上的建議（closedLoopAdvice）
+      const mode = cl.params.cases.find((x) => x.id === c.id)?.spec.mode
       for (const w of c.warnings) {
-        if (CLOSED_LOOP_WARNING.test(w)) warnings.push(`Case ${c.id}（閉迴路）：${diagMath(w)}`)
+        if (CLOSED_LOOP_WARNING.test(w)) warnings.push(`Case ${c.id}（閉迴路）：${diagMath(closedLoopAdvice(w, mode))}`)
       }
     }
   }
@@ -260,8 +267,8 @@ export function DelayFxLab() {
   if (an) {
     metrics.push(corrRow(r`$C_{\mathrm{raw}}=E[x\,u]$`, an.corr.raw, 'F-07.8'))
     metrics.push(corrRow(r`$C_D=E\big[x[n-${active.D}]\,u\big]$`, an.corr.delayed, 'F-07.8'))
-    metrics.push(corrRow(r`$E[u\,u_f]$（$D=${active.D}$）`, an.corr.filtered, 'F-07.12'))
-    metrics.push(corrRow(r`$E[u^2]$`, an.Eu2, 'F-07.12', r`$\hat H=H$ 時 filtered-x 的相關`))
+    metrics.push(corrRow(r`$C_{f,D}=E\big[u[n]\,u_f[n-${active.D}]\big]$`, an.corr.filtered, 'F-07.12'))
+    metrics.push(corrRow(r`$E[u^2]$`, an.Eu2, 'F-07.12', r`$\hat H=H$、$D=0$ 時 filtered-x 的相關`))
     metrics.push({ name: r`$\rho$（${MODE_LABEL[active.mode]}，Case ${cases.activeId}）`, value: an.rhoActive, formulaId: 'F-07.13', claim: 'exact', digits: 4, note: r`Cauchy–Schwarz：$|\rho|\le1$` })
     if (an.tone) {
       metrics.push({ name: r`殘餘相位 $\theta$（code 頻率）`, value: an.tone.thetaDeg, unit: 'deg', formulaId: 'F-07.4', claim: 'exact', digits: 5 })
@@ -394,7 +401,7 @@ export function DelayFxLab() {
         r`comparator 前雜訊 $v\sim\mathcal N(0,\sigma_v^2)$ iid、與 code 獨立；$q=\mathrm{sign}(e)$，$e\ge0\Rightarrow q=+1$`,
         r`GMAC：$G_k=\frac1N\sum q\,x_{\mathrm{ref}}$，$w_{k+1}=w_k+\mu G_k$（E45 的 block 形式），無更新延遲、gain register 未量化`,
         r`解析 $C$ 為長時間平均（單頻：$0<\Omega<\pi$，E46）；經驗 $C$ 為同一段 code 的時間平均（略過濾波器暫態）`,
-        r`pole $p=1-\mu K_qC$ 為小訊號線性化（$|\delta u|\ll\sigma_v$）；$C<0$ 時 sign-LMS 先指數再線性漂移`,
+        r`pole $p=1-\mu K_qC$ 為小訊號線性化（$|\delta u|\ll\sigma_v$），並假設 $w$ 在 $h$ 的記憶長度內近似不變（F-06.1 的時間尺度分離；閉迴路模擬照真實順序先乘後濾，不做這個近似）；$C<0$ 時 sign-LMS 先指數再線性漂移`,
       ]}
       params={params}
       seed={cases.seed}
@@ -531,6 +538,10 @@ export function DelayFxLab() {
           </li>
           <li>
             選 Case C，把 <Tex>{r`\hat H`}</Tex> 額外延遲 <Tex>{r`\Delta`}</Tex> 調到 3、再到 4：<Tex>{r`E[u\,u_f]=\cos(30^\circ\Delta)`}</Tex> 從 0 變負，filtered-x 也發散（E45）。
+          </li>
+          <li>
+            把 <Tex>{r`\Delta`}</Tex> 調回 0（<Tex>{r`\hat H=H`}</Tex>），改調 Case C 的 <Tex>{'D'}</Tex>：從 0 調到 2、3、4，<Tex>{r`C_{f,D}=\cos(30^\circ D)`}</Tex> 從 <Tex>{'1'}</Tex> 變成{' '}
+            <Tex>{'0.5'}</Tex>、<Tex>{'0'}</Tex>、<Tex>{'-0.5'}</Tex>——模型完美，regressor 多延遲一樣會反向更新（F-07.12）。
           </li>
           <li>
             載入 preset「Type-II 低頻 tone」：需要 <Tex>{'D=119'}</Tex>；把 code 的 <Tex>{'\\Omega'}</Tex> 從 0.03 改成 0.05，延遲立刻失效，filtered-x 不受影響。

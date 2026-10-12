@@ -235,7 +235,7 @@ export function S11Remedies() {
       <p>
         <strong>更強的保證（有限步長）</strong>：若 <Tex>{r`\mathrm{Re}\Gamma\ge c\lvert\Gamma\rvert^2`}</Tex> 對所有 <Tex>{'f'}</Tex> 成立，由 Cauchy–Schwarz 可得 <Tex>{r`\mathrm{Re}\lambda\ge c\lvert\lambda\rvert^2/(v^HRv)`}</Tex>（<Tex>{'R'}</Tex> 為 regressor
         相關矩陣）。所以只要 <Tex>{r`\mu K_q\lambda_{max}(R)<2c`}</Tex>，block 更新就平均穩定，與 <Tex>{r`\alpha`}</Tex> 無關。一階差分的 disc constant 為 <Tex>{`c=`}</Tex> {LOOP_KEYS.map((k) => `${fx(REMEDY[k].disc, 3)}（${k}）`).join('、')}。若 PHOS occupancy 均勻，並以 raw regressor 在{' '}
-        <Tex>{r`H\equiv1`}</Tex> 時的時間常數 <Tex>{r`N_\tau`}</Tex> 表示步長，條件就是 <Tex>{`N_\\tau>1/(2c)\\approx${tx(1 / (2 * Math.min(...LOOP_KEYS.map((k) => REMEDY[k].disc))), 1)}`}</Tex> blocks。
+        <Tex>{r`H\equiv1`}</Tex> 時的名義時間常數 <Tex>{r`N_\tau`}</Tex>（§12）表示步長，條件就是 <Tex>{`N_\\tau>1/(2c)\\approx${tx(1 / (2 * Math.min(...LOOP_KEYS.map((k) => REMEDY[k].disc))), 1)}`}</Tex> blocks。
         <Claim kind="exact" />
       </p>
       <Callout kind="ok" title="直覺">

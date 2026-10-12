@@ -515,6 +515,10 @@
 .dash-cond-tex .c-texblock {
   margin: 0;
 }
+/* 行內公式和緊跟的標點綁在同一行（ui.tsx 的 Rich / Glue）：不讓「。」單獨掉到下一行的開頭 */
+.dash-glue {
+  white-space: nowrap;
+}
 /* 推導正後方的「帶入手算」 */
 .dash-handcalc {
   margin: 10px 0 18px;

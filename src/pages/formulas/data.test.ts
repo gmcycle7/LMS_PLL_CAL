@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { pageById } from '@/app/registry'
 import { ERRATA, erratumById, erratumExists, erratumSummary, ERRATUM_ID } from './errata'
 import { FORMULA_IDS } from './registry'
@@ -11,6 +13,10 @@ import { errataCoverage } from './coverage'
 import { tokenize } from './search'
 import { texNum, texPct, texHz, plainNum } from './format'
 import { lostBackslash, richProblems, texError, texIssue } from './testUtils'
+import { buildCodeDistribution, LIN_RATIO_LIMIT, LIN_RESIDUAL_LIMIT, meanGmacSign, nearIntegerLinearCheck, type ErrorModel } from '@/simulation/models/bias'
+import { calLoop, swDtft, swOneSided } from '@/simulation/models/calNoise'
+import { multiToneCorrFiltered } from '@/simulation/models/filteredX'
+import { T13_SETUP } from './refValues'
 
 const r = refValues()
 
@@ -161,6 +167,46 @@ describe('全站符號總表（規格 §0 修正版）', () => {
     expect(by('nkm').errata).toContain('E35')
   })
 
+  it('技術審查 C03：DTFT 形式的 PSD 是「每 cycle/sample（或 cycle/block）」的密度，不是每 rad 的密度；換成 per-Hz 只乘 2/f_r', () => {
+    const by = (k: string) => GLOBAL_SYMBOLS.find((x) => x.key === k)!
+    // 標籤：meaning／unit／convention 用同一個說法
+    expect(by('psd').meaning).not.toMatch(/per rad/)
+    expect(by('psd').meaning).toContain('cycle/sample')
+    expect(by('psd').unit).toContain('cycle/sample')
+    expect(by('psd').convention).toContain('cycle/sample')
+    expect(by('psd').convention).toContain(String.raw`S/(2\pi)`)
+    expect(by('psd').convention).toContain(String.raw`\frac{2}{f_r}`) // 單邊 per-Hz 的換算式不變
+    expect(by('psd').convention).not.toContain('口語說法')
+    expect(by('Sw').unit).toContain('cycle/block')
+    expect(GLOSSARY.find((g) => g.key === 'parseval')!.def).toContain('cycle/sample')
+    // 勘誤 E28 的問題敘述（errata.json 與 docs/validation.md 兩份）也用同一個說法；引用的數字（93 dB、2/f_s）不變
+    const e28 = erratumById('E28')!
+    expect(e28.problem).toContain('單位 s²，每 cycle/sample')
+    expect(e28.problem).not.toMatch(/\/\(rad\/sample\)/)
+    expect(e28.problem).toContain('約 93 dB')
+    expect(e28.correction).toContain('S^(1)(f)=(2/f_s)·S(e^{j2πf/f_s})')
+    const validationMd = readFileSync(join(process.cwd(), 'docs', 'validation.md'), 'utf8')
+    expect(validationMd).toContain(e28.problem)
+    expect(validationMd).not.toMatch(/s²\/\(rad\/sample\)/)
+    // 數字（T13 條件；本站的 swDtft／swOneSided，另以獨立的 NumPy 級數核對過）
+    const lp = calLoop({ ...T13_SETUP })
+    const M = 200000
+    let I = 0 // ∫_{−π}^{π} S_w dΩ（中點法）
+    for (let i = 0; i < M; i++) I += swDtft(-Math.PI + ((i + 0.5) * 2 * Math.PI) / M, T13_SETUP.mu, lp.p, lp.sigmaEta2)
+    I *= (2 * Math.PI) / M
+    expect(lp.sigmaW2).toBeCloseTo(0.15934957675597428, 14)
+    expect(I / (2 * Math.PI) / lp.sigmaW2).toBeCloseTo(1, 9) // (1/2π)∫S dΩ = σ_w²：對 Ω/2π 積分
+    expect(I / lp.sigmaW2).toBeCloseTo(2 * Math.PI, 8) // 反例：把 S_w 當成每 rad/block 的密度直接對 Ω 積分，多出 2π（功率 +7.98 dB）
+    expect(swDtft(0, T13_SETUP.mu, lp.p, lp.sigmaEta2) / (2 * Math.PI)).toBeCloseTo(1e4 / (4 * 4096), 12) // 每 rad/block 的密度是 S_w/(2π) = 0.6103515625
+    expect(r.psd.swDtftDc).toBeCloseTo((Math.PI * 1e4) / 8192, 10) // 頁面顯示的 3.83495（每 cycle/block）
+    // 正常對照（不可矯枉過正）：單邊 per-Hz 只乘 2/f_u，不多乘 2π
+    const s1 = swOneSided(0, T13_SETUP.mu, lp.p, lp.sigmaEta2, lp.fu)
+    expect(s1 / ((Math.PI * 1e4) / 4e9)).toBeCloseTo(1, 12) // πσ_v²/(C²f_s) = 7.853981633974e-6 fs²/Hz
+    expect(r.psd.sw1Dc).toBeCloseTo(s1, 18)
+    expect((((4 * Math.PI) / lp.fu) * swDtft(0, T13_SETUP.mu, lp.p, lp.sigmaEta2)) / s1).toBeCloseTo(2 * Math.PI, 12) // 多乘 2π 的錯誤版本
+    expect(s1 * lp.enbw).toBeCloseTo(lp.sigmaW2, 12)
+  })
+
   it('例子的數字來自站內核心：T01 的 δ 反號、T13 的 g 與 pole、sum mode 的 326.8', () => {
     const delta = GLOBAL_SYMBOLS.find((s) => s.key === 'delta')!.example!(r)
     expect(delta).toContain('2,\\ 1.2,\\ 0.72')
@@ -263,6 +309,61 @@ describe('附錄 A：一頁公式速查（修正版）', () => {
     // 帶 ≈ 的 preconditioner 變異數式不可標成「精確」（E37）
     expect(by('precond').claim).toBe('approx')
     expect(by('precond').conditions).toMatch(/不是第 \$i\$ 個參數的/)
+  })
+})
+
+describe('附錄 A：技術審查補上的條件（R03、R05）', () => {
+  const by = (k: string) => QUICK_REF.find((q) => q.key === k)!
+
+  it('R03：Filtered-x 列的 E[u·u_f] 是 D = 0 的式子；regressor 再延遲 D 時相關是 E[u[n]·u_f[n−D]]，Ĥ = H 也可能是負的', () => {
+    const q = by('filteredX')
+    expect(q.claim).toBe('approx')
+    expect(q.conditions).toContain('$D=0$')
+    expect(q.conditions).toContain(String.raw`C_{f,D}=E\big[u[n]\,u_f[n-D]\big]`)
+    expect(q.conditions).toContain(String.raw`e^{j\Omega D}`) // 號誌：regressor 側的延遲是 +ΩD
+    expect(q.conditions).not.toContain('只有')
+    // 反例：H = Ĥ = 1、x[n] = cos(πn/2)、D = 2 ⇒ u_f[n−2] = −u[n]，相關 −1/2（沒有 D 的式子給 +1/2）
+    const ID = { b: [1], a: [1] }
+    const corr = (D: number) => multiToneCorrFiltered({ tones: [{ A: 1, omega: Math.PI / 2 }], h: ID, hHat: ID, D })
+    expect(corr(0)).toBeCloseTo(0.5, 12)
+    expect(corr(1)).toBeCloseTo(0, 12)
+    expect(corr(2)).toBeCloseTo(-0.5, 12)
+    expect(corr(4)).toBeCloseTo(0.5, 12)
+    // 同一件事直接在時域平均（不經過頻域公式）
+    const timeAvg = (D: number) => {
+      let acc = 0
+      const P = 16
+      for (let n = 0; n < P; n++) acc += Math.cos((Math.PI * n) / 2) * Math.cos((Math.PI * (n - D)) / 2)
+      return acc / P
+    }
+    for (const D of [0, 1, 2, 3, 4]) expect(timeAvg(D)).toBeCloseTo(corr(D), 12)
+    // (1/2π)∫S_xx Re{H Ĥ* e^{jΩD}}dΩ 的單頻版本：(A²/2)·cos(ΩD)
+    for (const D of [0, 1, 2, 3, 4, 5]) expect(corr(D)).toBeCloseTo(0.5 * Math.cos((Math.PI / 2) * D), 12)
+  })
+
+  it('R05：Sign-Error 列的固定點是 E[x·sign(e)] 由正變負的位置；離散資料時它是「跳過」0，不是等於 0', () => {
+    const q = by('signError')
+    expect(q.claim).toBe('exact')
+    expect(q.conditions).toContain('由正變負的位置')
+    expect(q.conditions).toContain('加權中位數')
+    expect(q.conditions).not.toContain(String.raw`固定點 $E[x\operatorname{sign}e]=0$（加權中位數）`)
+    // 反例（第 11 章的例子）：x ∈ {−2,…,2} 等機率、a = 1、c_3 = 0.1、σ_v = 0；用整數算（全部乘 10）避免浮點把 e = 0 翻成正負
+    const xs = [-2, -1, 0, 1, 2]
+    const e10 = xs.map((x) => (10 - 14) * x + x ** 3) // 10·e_det(x; w = 1.4)
+    expect(e10).toEqual([0, 3, 0, -3, 0])
+    for (const tie of [0, 1, -1]) {
+      const sgn = (t: number) => (t > 0 ? 1 : t < 0 ? -1 : tie)
+      expect(xs.reduce((acc, x, i) => acc + x * sgn(e10[i]), 0)).toBe(-2) // E[G](1.4) = −2/5，三種 tie 慣例都一樣，不是 0
+    }
+    // 本站的 mean-field 函式：兩側是 +0.4 與 −1.2，附近沒有任何 w 讓 E[G] = 0
+    const M: ErrorModel = { a: 1, b: 0, c2: 0, c3: 0.1, kappa: 0, sigmaV: 0 }
+    const five = buildCodeDistribution({ kind: 'five_level' })
+    expect(meanGmacSign(1.4 - 1e-9, M, five)).toBeCloseTo(0.4, 14)
+    expect(meanGmacSign(1.4 + 1e-9, M, five)).toBeCloseTo(-1.2, 14)
+    for (let i = 0; i <= 1000; i++) expect(Math.abs(meanGmacSign(1.35 + i * 1e-4, M, five))).toBeGreaterThanOrEqual(0.4 - 1e-12)
+    // 正常對照：σ_v > 0 時 E[G] 連續，固定點是真正的根
+    const Mn: ErrorModel = { ...M, sigmaV: 0.3 }
+    expect(Math.abs(meanGmacSign(1.3438500804, Mn, five))).toBeLessThan(1e-9)
   })
 })
 
@@ -386,6 +487,44 @@ describe('術語表', () => {
     const missing = need.filter((t) => filterEntries(idx.glossary, tokenize(t)).length === 0)
     expect(missing).toEqual([])
     expect(GLOSSARY.length).toBeGreaterThanOrEqual(70)
+  })
+})
+
+describe('技術審查 R01：near-integer 的 a + B/C 是線性化的固定點（術語表與符號表同步）', () => {
+  it('術語「近整數／近格點」與符號 B_bias 都寫成線性化的 ≈，並說明超出線性範圍時只是線性外推', () => {
+    const g = GLOSSARY.find((x) => x.key === 'nearInteger')!
+    expect(g.def).toContain('線性化的 bias')
+    expect(g.def).toContain(String.raw`$w^*\approx a+B_{\mathrm{bias}}/C$`)
+    expect(g.def).toContain('線性外推')
+    expect(g.def).not.toContain(String.raw`$w^*=a+B_{\mathrm{bias}}/C$`)
+    const b = GLOBAL_SYMBOLS.find((x) => x.key === 'Bbias')!
+    expect(b.convention).toContain(String.raw`線性化的固定點 $w^*\approx a+B_{\mathrm{bias}}/C$`)
+    expect(b.convention).toContain('MSE-LMS 時是等號')
+    expect(b.convention).toContain(String.raw`\max_n|e_{\mathrm{det}}[n]|\le${LIN_RATIO_LIMIT}\,\sigma_v`)
+    expect(b.convention).not.toMatch(/^\$w\^\*=a\+B/)
+    expect(richProblems(g.def)).toEqual([])
+    expect(richProblems(b.convention)).toEqual([])
+  })
+
+  it('反例（站內的 nearIntegerLinearCheck）：C = 0.1 時把 a + B/C 代回完整的 erf 平均，comparator 已飽和，它不是固定點；干擾小 50 倍時才是', () => {
+    // 週期 3 的 code 與有效 regressor：C = E[x·u] = (2 + 1.6 − 3.3)/3 = 0.1，E[x²] = 14/3
+    const x = [2, 1, -3]
+    const u = [1, 1.6, 1.1]
+    const C = x.reduce((acc, v, i) => acc + v * u[i], 0) / 3
+    expect(C).toBeCloseTo(0.1, 12)
+    const Ex2 = x.reduce((acc, v) => acc + v * v, 0) / 3
+    const sigmaV = 1
+    // 直接耦合的干擾 κ_d·x：B = κ_d·E[x²]，線性化的 bias = B/C
+    const big = 0.05
+    const chkBig = nearIntegerLinearCheck(x, u, (big * Ex2) / C, big, sigmaV)
+    expect(chkBig.ratio).toBeGreaterThan(3) // max|e_det| 是 σ_v 的三倍多：erf 早已飽和
+    expect(Math.abs(chkBig.residual)).toBeGreaterThan(LIN_RESIDUAL_LIMIT) // 代回去之後平均 GMAC 沒有歸零
+    expect(chkBig.valid).toBe(false)
+    const small = 0.001
+    const chkSmall = nearIntegerLinearCheck(x, u, (small * Ex2) / C, small, sigmaV)
+    expect(chkSmall.ratio).toBeLessThan(LIN_RATIO_LIMIT)
+    expect(Math.abs(chkSmall.residual)).toBeLessThan(LIN_RESIDUAL_LIMIT)
+    expect(chkSmall.valid).toBe(true)
   })
 })
 

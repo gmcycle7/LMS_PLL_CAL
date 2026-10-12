@@ -1,7 +1,7 @@
-import { Callout, Section, Tex, TexBlock } from '@/components'
+import { Callout, ModeGate, Section, Tex, TexBlock } from '@/components'
 import { phaseSequence } from '@/simulation/models/sspll'
 import { FREF_MHZ, SIM_CFG } from '../data'
-import { Claim, DataTable, Diagram, FigRef, Src, fx, r } from '../common'
+import { Claim, DataTable, Diagram, FigRef, Src, fx, r, tx } from '../common'
 
 const ALPHA_EX = 0.137
 
@@ -9,10 +9,17 @@ const ALPHA_EX = 0.137
  * §2 架構：SSPLL + 8 相 PMUX + input DTC，小數相位的拆法、哪一條 edge 被延遲、兩個誤差的注入點、極性約定與 regressor 的手算表。
  * 接法與時間的寫法照 docs/assumptions.md §2a：DTC 在 reference 輸入端，延遲 = T_0 − 補償量；PD 量 t_ref′ − t_fb；
  * 比較器取 PD 的輸出（送進 loop filter 的同一個訊號）。數學（u、e_GOS、e_PHOS、δ = 真值 − 估計）不變。
+ * 「理想模型」＝只留一階：實際的乘法 (1 − a)(1 + w_g) 展開後略去 a·w_g（以及它乘在 w_k 上的那一項）；不略去時零點在 w_g = a/(1 − a)。
+ * 文中的例子數字（0.03093、7.03 fs、234.4 fs）由 SIM_CFG 算出，不手寫。
  */
 export function S02Architecture() {
   const seq = phaseSequence(ALPHA_EX, 10, 'right')
   const beta = (8 * ALPHA_EX) % 1
+  // 理想模型略去的 a·w_g 有多大（插圖值）：精確零點 a/(1 − a)、權重停在 w_g = a 時的殘餘 a²Δ、起始誤差 aΔ
+  const aG = SIM_CFG.a
+  const wgExact = aG / (1 - aG)
+  const gosInitFs = aG * SIM_CFG.deltaPs * 1000
+  const gosAtAFs = aG * aG * SIM_CFG.deltaPs * 1000
   return (
     <Section kind="diagram" level={2} title="2. 架構：誤差從哪裡進來" id="cs-2">
       <p>
@@ -59,22 +66,41 @@ export function S02Architecture() {
       <h3>兩個誤差的注入點</h3>
       <ul>
         <li>
-          <strong>GOS（DTC gain error）</strong>：DTC 在 reference 端。理想的補償量是 <Tex>{r`\rho\Delta`}</Tex>，實際的補償量是 <Tex>{r`(1-a)(1+w_g)\rho\Delta`}</Tex>：<Tex>{'a'}</Tex> 是 DTC 的增益誤差（真值，未知），<Tex>{'w_g'}</Tex> 是 LMS 對它的估計。理想模型下，比較點（PD 的輸入端）多出{' '}
+          <strong>GOS（DTC gain error）</strong>：DTC 在 reference 端。理想的補償量是 <Tex>{r`\rho\Delta`}</Tex>，實際的補償量是 <Tex>{r`(1-a)(1+w_g)\rho\Delta`}</Tex>：<Tex>{'a'}</Tex> 是 DTC 的增益誤差（真值，未知），<Tex>{'w_g'}</Tex> 是 LMS 對它的估計。兩者相減，比較點（PD 的輸入端）多出{' '}
+          <Tex>{r`\rho\Delta-(1-a)(1+w_g)\,\rho\Delta=(a-w_g+a\,w_g)\,\rho\Delta`}</Tex>。<Tex>{'a'}</Tex> 與 <Tex>{'w_g'}</Tex> 都遠小於 1（<Tex>{'w_g'}</Tex> 從 0 往 <Tex>{'a'}</Tex> 附近走），乘積 <Tex>{r`a\,w_g`}</Tex> 最多約 <Tex>{'a^2'}</Tex>（插圖值{' '}
+          <Tex>{`a=${aG}`}</Tex> 時是 <Tex>{tx(aG * aG, 4)}</Tex>）。本章的<strong>理想模型</strong>把這一項略去——這是只留一階的近似，條件是 <Tex>{r`\lvert a\rvert\ll1`}</Tex>、<Tex>{r`\lvert w_g\rvert\ll1`}</Tex>——得到{' '}
           <Tex>{r`e_{GOS}[n]=(a-w_g)\,\rho[n]\,\Delta`}</Tex>。
+          <Claim kind="approx">
+            略去 <Tex>{r`a\,w_g`}</Tex>
+          </Claim>
+          不略去的話，誤差剛好為 0 的條件是 DTC 的總增益 <Tex>{r`(1-a)(1+w_g)=1`}</Tex>，也就是 <Tex>{r`w_g=a/(1-a)`}</Tex>，不是 <Tex>{r`w_g=a`}</Tex>。例：<Tex>{`a=${aG}`}</Tex> 時 <Tex>{`a/(1-a)=${tx(wgExact, 5)}`}</Tex>；如果權重停在{' '}
+          <Tex>{r`w_g=a`}</Tex>，以 <Tex>{r`\rho=1`}</Tex> 計還剩 <Tex>{`a^2\\Delta=${tx(gosAtAFs, 2)}`}</Tex> fs，是起始誤差 <Tex>{`a\\Delta=${tx(gosInitFs, 1)}`}</Tex> fs 的 <Tex>{`${tx(aG * 100, 0)}\\%`}</Tex>。
+          <ModeGate min="engineer">
+            <p className="small">
+              不略去時 <Tex>{r`a-w_g+a\,w_g=(1-a)\big(\tfrac{a}{1-a}-w_g\big)`}</Tex>，對 <Tex>{'w_g'}</Tex> 仍是一條直線：和理想模型相比，零點由 <Tex>{'a'}</Tex> 移到 <Tex>{r`a/(1-a)`}</Tex>，斜率多乘 <Tex>{r`(1-a)>0`}</Tex>。所以單看 GOS 這一項，更新方向的正負號和理想模型相同；後面用{' '}
+              <Tex>{r`\delta_g=a-w_g`}</Tex> 推出的符號結論不變，只要把「<Tex>{r`\delta_g=0`}</Tex>」讀成「<Tex>{r`w_g=a/(1-a)`}</Tex>」。§10 的 sim 與 §14 的實驗 C 用的是沒有略去這一項的物理注入模型。
+            </p>
+          </ModeGate>
         </li>
         <li>
           <strong>PHOS（PMUX phase offset）</strong>：PMUX 在 feedback 端。選到第 <Tex>{'k'}</Tex> 相時，feedback edge 除了 <Tex>{r`\rho\Delta`}</Tex> 之外，還多早到一個固定的時間偏差 <Tex>{r`\varepsilon_k`}</Tex>（真值，未知；晚到就是負值）。它和 <Tex>{r`\rho\Delta`}</Tex> 一樣是 DTC
           該補的量，所以 reference 端的 DTC 在補償量裡再加上估計值 <Tex>{'w_k'}</Tex> 把它補回來。所以 <Tex>{r`e_{PHOS}[n]=\sum_k(\varepsilon_k-w_k)\,\mathbf 1\{p[n]=k\}`}</Tex>。
+          <ModeGate min="engineer">
+            <p className="small">
+              同一個理想模型還略去第二個乘積：<Tex>{'w_k'}</Tex> 是加在 DTC 的補償量裡的，也被 DTC 的總增益乘到，實際補上的是 <Tex>{r`(1-a)(1+w_g)\,w_k=w_k-(a-w_g+a\,w_g)\,w_k`}</Tex>。多出來的這一項是「GOS 還沒校掉的比例」乘上 <Tex>{'w_k'}</Tex>，在{' '}
+              <Tex>{r`\lvert w_k\rvert\ll\Delta`}</Tex> 時遠小於 GOS 那一項；總增益校到 1 時它是 0，PHOS 的零點仍然是 <Tex>{r`w_k=\varepsilon_k`}</Tex>。它造成的 GOS–PHOS 耦合（<Tex>{r`\varepsilon/\Delta`}</Tex>）在 §9 (d) 有數字，§10 把它列為 sim 與理論的差異來源之一。
+            </p>
+          </ModeGate>
         </li>
       </ul>
       <Diagram id="injection" />
       <p>
-        先看最上面的兩個乘法點（左邊是 GOS、右邊是 PHOS）：每個誤差都是「還沒校掉的量」乘上它的 regressor。本章把「真值 − 估計」記為 <Tex>{r`\delta`}</Tex>，也就是 <Tex>{r`\delta_g=a-w_g`}</Tex>、<Tex>{r`\delta_k=\varepsilon_k-w_k`}</Tex>；權重校準好的時候 <Tex>{r`\delta=0`}</Tex>，誤差就消失。再看下面：兩個誤差在比較點相加成{' '}
+        先看最上面的兩個乘法點（左邊是 GOS、右邊是 PHOS）：每個誤差都是「還沒校掉的量」乘上它的 regressor。本章把「真值 − 估計」記為 <Tex>{r`\delta`}</Tex>，也就是 <Tex>{r`\delta_g=a-w_g`}</Tex>、<Tex>{r`\delta_k=\varepsilon_k-w_k`}</Tex>；權重校準好的時候 <Tex>{r`\delta=0`}</Tex>，誤差就消失（理想模型下；不略去任何項時，零點是 <Tex>{r`w_g=a/(1-a)`}</Tex>、<Tex>{r`w_k=\varepsilon_k`}</Tex>）。再看下面：兩個誤差在比較點相加成{' '}
         <Tex>{'u[n]'}</Tex>——沒有迴路時，它就是 <Tex>{r`t_{ref}'-t_{fb}`}</Tex> 去掉常數 <Tex>{'T_0'}</Tex> 之後剩下的部分。但主迴路會反應，所以 PD 的輸出不是 <Tex>{'u[n]'}</Tex>，而是它通過藍色方塊之後的 <Tex>{r`e_{PD}[n]`}</Tex>；比較器取的就是這個輸出。圖上加法點的輸出就是下面公式裡的 <Tex>{'u[n]'}</Tex>：
       </p>
       <TexBlock>{r`u[n]=\underbrace{(a-w_g)\,\Delta\;\rho[n]}_{e_{GOS}[n]}+\underbrace{\sum_{k=0}^{7}(\varepsilon_k-w_k)\,\mathbf 1\{p[n]=k\}}_{e_{PHOS}[n]}=\sum_j\delta_j\,x_j[n]`}</TexBlock>
       <p className="small muted">
-        最後一個等號把 GOS 的 <Tex>{r`\Delta`}</Tex> 併進 <Tex>{r`\delta_0`}</Tex>，9 個誤差就寫成同一個形式；§4 會用到。藍色方塊 <Tex>{r`H_{PD}`}</Tex> 怎麼來，是 §3 的主題。
+        這條式子是理想模型（只留一階）；沒有略去任何項的式子是 §14 的 <Tex>{r`u[n]=\rho\Delta+\varepsilon_p-(1-a)(1+w_g)(\rho\Delta+w_p)`}</Tex>。最後一個等號把 GOS 的 <Tex>{r`\Delta`}</Tex> 併進 <Tex>{r`\delta_0`}</Tex>，9 個誤差就寫成同一個形式；§4 會用到。藍色方塊 <Tex>{r`H_{PD}`}</Tex> 怎麼來，是 §3 的主題。
       </p>
       <Callout kind="info" title="極性約定">
         <p>

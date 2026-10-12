@@ -31,6 +31,7 @@ import {
 } from '@/simulation/models/filteredX'
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
+import { breakChain } from './handcalcTex'
 import { parseLabPreset, toCaseSpec, toCodeSpec, toFxScenario, toHatSpec, toPathSpec } from './experiments/labState'
 
 // 多個測試行程同時執行時 CPU 可能嚴重超額：閉迴路模擬與 jsdom 渲染給足夠的時間（預設只有 5 秒）
@@ -720,6 +721,18 @@ function splitChain(tex: string): string[] {
   return out.map((x) => x.trim())
 }
 
+/**
+ * 很長的步驟用 breakChain() 排成對齊的幾行（`\begin{aligned}a &= b \\ &= c\end{aligned}`）：拿掉換行與對齊記號，還原成一行的「a = b = c」再檢查。
+ * 這樣換行不會讓任何一段數字躲過下面的重新求值。
+ */
+function unalign(tex: string): string {
+  if (!tex.startsWith(String.raw`\begin{aligned}`)) return tex
+  return tex
+    .replace(/\\begin\{aligned\}|\\end\{aligned\}/g, '')
+    .replace(/\\\\(?:\[[^\]]*\])?/g, ' ')
+    .replace(/&/g, '')
+}
+
 /** 一段算式裡用到幾「種」運算（連乘、連加各算一種；a\times10^{b} 的科學記號不算）。 */
 function opKinds(seg: string): number {
   const s = seg.replace(/(?:\d(?:\.\d+)?\\times)?10\^\{-?\d+\}/g, '9').replace(/\^\\circ/g, '')
@@ -730,7 +743,8 @@ function opKinds(seg: string): number {
  * 一步的 TeX「a = b = c」（需要折返時以 ⇒ 分成兩句）：每一段數字算出來都要等於那一句最後的數字
  * （容許顯示時四捨五入的誤差：相對 2.5×10⁻⁴，與 ch00 的範本相同），而且最後一個等號只做一種運算。回傳每一句最後的數字。
  */
-function checkStepTex(tex: string, label: string): number[] {
+function checkStepTex(rawTex: string, label: string): number[] {
+  const tex = unalign(rawTex)
   const finals: number[] = []
   for (const part of tex.split(String.raw`\;\Rightarrow\;`)) {
     const nums = splitChain(part)
@@ -879,6 +893,62 @@ describe('Ch07 handcalcs：(e) 畫面上的算式自己算得出來', () => {
       }
     },
   )
+
+  it('很長的步驟排成對齊的幾行（breakChain）：只多了換行——內容與順序不變，每一段數字仍然被重新求值', () => {
+    const r = String.raw
+    // 純函式：在第 2 個（與第 3 個）最外層等號前換行；大括號裡的等號不算；其餘欄位原樣帶著
+    const c = { tex: r`a = \frac{b}{c} = \frac{1 + 2}{\text{x=y}} = 2\times3 = 6`, value: 6 }
+    expect(breakChain(c, [2])).toEqual({ tex: r`\begin{aligned}a &= \frac{b}{c} \\ &= \frac{1 + 2}{\text{x=y}} = 2\times3 = 6\end{aligned}`, value: 6 })
+    expect(breakChain(c, [2, 3]).tex).toBe(r`\begin{aligned}a &= \frac{b}{c} \\ &= \frac{1 + 2}{\text{x=y}} \\ &= 2\times3 = 6\end{aligned}`)
+    // 第 1 個等號是對齊點、超出範圍的序號略過：沒有地方可換行時原樣回傳
+    expect(breakChain(c, [1, 9])).toBe(c)
+    expect(breakChain({ tex: 'a = 1' }, [2]).tex).toBe('a = 1')
+    for (const cuts of [[2], [2, 3], [3], [4]]) expect(unalign(breakChain(c, cuts).tex).replace(/\s+/g, ' '), String(cuts)).toBe(c.tex)
+
+    // HC-07.7（預設值）：五個複數乘除的步驟分成 2 或 3 行；還原成一行後就是原本的「符號式 = 代入數字 = … = 結果」
+    const s7 = hc('HC-07.7').solve(defaultValues(hc('HC-07.7')))
+    const broken = s7.steps.filter((s) => s.tex.startsWith(r`\begin{aligned}`))
+    expect(broken.map((s) => s.tex.split(r`\\`).length)).toEqual([2, 2, 3, 3, 2])
+    const flat = broken.map((s) => unalign(s.tex).replace(/\s+/g, ' '))
+    expect(flat[0]).toBe(r`\mathrm{Re}\{Qz^{-(1+d)}\} = \mathrm{Re}\,Q\cdot c+\mathrm{Im}\,Q\cdot s = 0.028756\times0.86603 + 0.07\times0.5 = 0.024904 + 0.035 = 0.059904`)
+    expect(flat[2]).toBe(
+      r`\mathrm{Re}\,H_{\mathrm{PD}} = \frac{\mathrm{Re}\,\nabla^2\,\mathrm{Re}\,\mathcal D+\mathrm{Im}\,\nabla^2\,\mathrm{Im}\,\mathcal D}{|\mathcal D|^2} = \frac{(-0.23205)\times(-0.17215) + 0.13397\times0.18022}{0.062113} = \frac{0.039947 + 0.024145}{0.062113} = \frac{0.064092}{0.062113} = 1.0319`,
+    )
+    expect(flat[4]).toBe(
+      r`E[u\,u_f] = \mathrm{Re}\,H_{\mathrm{PD}}\cdot\mathrm{Re}\,\hat H_2+\mathrm{Im}\,H_{\mathrm{PD}}\cdot\mathrm{Im}\,\hat H_2 = 1.0319\times(-23.205) + 0.30197\times13.397 = -23.944 + 4.0457 = -19.899`,
+    )
+    // 換行之後每一段數字都還看得到：Re H_PD 那一步有 4 段數字（代入、兩個中間結果、答案），而且前後一致
+    for (const s of broken) expect(splitChain(unalign(s.tex)).filter((seg) => evalTex(seg) !== null).length, s.tex).toBeGreaterThanOrEqual(3)
+    expect(splitChain(unalign(broken[2].tex)).filter((seg) => evalTex(seg) !== null)).toHaveLength(4)
+    expect(checkStepTex(broken[2].tex, 'Re H_PD')).toEqual([1.0319])
+    // 手算題上方的公式（formulaTex）：HC-07.5…HC-07.8 拆成兩行（條件與單位都在），其餘維持一行
+    expect(HANDCALCS.filter((h) => h.formulaTex.startsWith(r`\begin{aligned}`)).map((h) => h.id)).toEqual(['HC-07.5', 'HC-07.6', 'HC-07.7', 'HC-07.8'])
+    for (const [id, parts] of [
+      ['HC-07.5', [r`\rho_{\mathrm{ref}}=\frac{E[x_{\mathrm{ref}}\,u]}{\sqrt{E[x_{\mathrm{ref}}^2]\,E[u^2]}}`, r`E[u^2]=\frac{A^2}{2}|H|^2;`, r`\sigma_w\propto\frac{1}{\sqrt N\,|\rho|}\Rightarrow N\propto\frac1{\rho^2}`]],
+      ['HC-07.6', [r`\hat H=r\,H\,z^{-\Delta}\Rightarrow\angle H-\angle\hat H=\Omega\Delta;`, r`p_f=1-\mu K_q\,E[u\,u_f],\quad K_q=\frac{\sqrt{2/\pi}}{\sigma_v}`]],
+      ['HC-07.7', [r`\nabla=1-e^{-j\Omega},\ z^{-1}=e^{-j\Omega};`, r`E[u\,u_f]=\mathrm{Re}\big\{H_{\mathrm{PD}}\,\overline{\hat H_2}\big\}\quad(A^2/2=1)`]],
+      ['HC-07.8', [r`E[u^2]=|H|^2\qquad(\text{unit power：}A^2/2=1);`, r`p=1-\mu K_q\,C,\quad K_q=\frac{\sqrt{2/\pi}}{\sigma_v}`]],
+    ] as const) {
+      for (const part of parts) expect(hc(id).formulaTex, `${id}：${part}`).toContain(part)
+    }
+  })
+
+  it('filtered-x 的對照量都註明 D = 0（R03）：HC-07.5／HC-07.8 的答案標籤與步驟說明', () => {
+    const r = String.raw
+    for (const id of ['HC-07.5', 'HC-07.8']) {
+      const sol = hc(id).solve(defaultValues(hc(id)))
+      const eu2 = sol.results.find((x) => x.symbol === 'E[u^2]')
+      expect(eu2?.label, id).toBe(r`filtered-x（$\hat H=H$、$D=0$）的相關`)
+    }
+    const s8 = hc('HC-07.8').solve(defaultValues(hc('HC-07.8')))
+    expect(s8.steps[s8.steps.length - 1].why).toBe(r`filtered-x（$\hat H=H$、$D=0$）的平均 pole。`)
+    // 整章的手算文字裡不再有只寫 Ĥ = H、沒有交代 regressor 延遲的 filtered-x
+    for (const def of HANDCALCS) {
+      const sol = def.solve(defaultValues(def))
+      const texts = [...sol.steps.map((s) => s.why), ...sol.results.map((x) => (typeof x.label === 'string' ? x.label : '')), ...(sol.notes ?? [])]
+      for (const t of texts) expect(t, `${def.id}：${t}`).not.toMatch(/filtered-x（\$\\hat H=H\$）/)
+    }
+  })
 
   it('使用者自己打的數字：答案仍等於獨立重算；渲染沒有 KaTeX 錯誤、沒有 NaN、畫面上沒有落單的 $', () => {
     for (const def of HANDCALCS) {

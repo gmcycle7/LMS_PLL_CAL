@@ -308,7 +308,7 @@ export function UnitsCalculator() {
             }
           : {
               status: 'mismatch',
-              note: String.raw`${mcValid.filter((m) => Math.abs(m.res.z) > 4).map((m) => String.raw`Case ${m.id}：$z=${texNum(m.res.z, 3)}$`).join('；')} 超過 $|z|\le4$。先換一個 seed 排除偶然；若仍不一致，檢查 $\sigma_w/\sigma_v$ 是否太大（小訊號 $K_q$ 失效）。`,
+              note: String.raw`${mcValid.filter((m) => Math.abs(m.res.z) > 4).map((m) => String.raw`Case ${m.id}：$z=${texNum(m.res.z, 3)}$`).join('；')} 超過 $|z|\le4$。先換一個 seed 排除偶然；若仍不一致，檢查 $|C|\,\sigma_w/\sigma_v$ 是否太大（小訊號 $K_q$ 失效）。`,
             }
   const fixedPoint: CheckEntry = { status: 'not-implemented', note: '這個換算器沒有量化模型：$\\Delta_{\\mathrm{LSB}}$ 只用來把 fs 換成 LSB。bit-true 的 gain register 見第 13 章與 Models 頁。' }
 
@@ -440,7 +440,7 @@ export function UnitsCalculator() {
           String.raw`Comparator 小訊號增益 $K_q=\sqrt{2/\pi}/\sigma_v$（Gaussian $v$、固定點附近的 deterministic residual $\ll\sigma_v$）`,
           String.raw`$\sigma_\eta^2=1/N$（average mode、unit-RMS code、近平衡）；sum mode 為 $N$`,
           String.raw`$x,u$ 無因次（正規化 code），時間單位由 $a,w$ 承載（fs）；$C=E[xu]$ 由使用者指定`,
-          String.raw`1-bit Monte Carlo：$x=\pm1$ iid、$u=Cx$，$\sum qx=2\,\mathrm{Bin}(N,\Phi(C\delta/\sigma_v))-N$（精確抽樣）`,
+          String.raw`1-bit Monte Carlo：$x=\pm1$ iid、$u=Cx$，$\sum qx=2\,\mathrm{Bin}(N,\Phi(C\delta/\sigma_v))-N$（精確抽樣）。comparator 前的確定性殘差是 $C\delta$，所以小訊號的判定是 $|C|\,\sigma_w\le0.2\,\sigma_v$；超過時 Monte Carlo 與線性公式的比對只供參考`,
           String.raw`Spur：單一 tone、$A_t$ 為 output timing tone 的 peak、$|T|=1$、小角調變`,
           String.raw`$f_s$ 不保證等於 $f_{\mathrm{ref}}$；所有數值皆為示例（illustrative）`,
         ]}

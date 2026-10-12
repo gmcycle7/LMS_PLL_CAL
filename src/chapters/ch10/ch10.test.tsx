@@ -1,19 +1,24 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { act, cleanup, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider, type LearningMode } from '@/app/settings'
 import { MathText, listRegions } from '@/components'
 import { unicodeMathIn } from '@/components/mermaidTestUtils'
 import { plotMath } from '@/components/plotMath'
+import { DEFAULT_RULE, analyzeRule, buildPlant } from '@/simulation/models/mimo'
 import mimoSrc from '@/simulation/models/mimo.ts?raw'
 import { useState } from 'react'
 import mimoPy from '../../../golden/lms_pll_golden/mimo.py?raw'
 import Chapter10 from './index'
 import { FORMULAS } from './formulas'
-import { SymbolsLink, goldenSection10 } from './common'
-import { CH10_DIAGRAMS } from './diagrams'
+import { SymbolsLink, chop, goldenSection10, texMat } from './common'
+import { CH10_DIAGRAMS, diagram } from './diagrams'
 import { HANDCALCS } from './handcalcs'
 import { MatrixEditor } from './experiments/MatrixEditor'
 import { MimoLab } from './experiments/MimoLab'
+import { k95Metric } from './experiments/labState'
+import { S0Intro } from './sections/S0Intro'
 import { S2UpdateMatrix } from './sections/S2UpdateMatrix'
 import { S3Noise } from './sections/S3Noise'
 import { S7Symbols } from './sections/S7Symbols'
@@ -111,6 +116,29 @@ function kpiPoles(root: HTMLElement, want: { rho?: number; k?: number | '∞' })
     if (want.rho !== undefined && Number(m[1]) !== want.rho) return false
     return want.k === undefined || m[2].replace(/\{,\}/g, '') === (want.k === '∞' ? '\\infty' : String(want.k))
   })
+}
+
+/**
+ * 實驗外框警告區的每一則訊息：text = 拿掉 KaTeX 之後留下的文字（中文敘述）、tex = 訊息裡每個公式的 TeX 原始碼。
+ * 模型（mimo.ts）回報的原因都用 `$...$` 寫數學，所以 text 裡不應該再有 Unicode 拼的公式，也不應該有落單的 `$`。
+ */
+function shownWarnings(root: HTMLElement): { text: string; tex: string[] }[] {
+  return Array.from(root.querySelectorAll('.c-exp-warnings .c-callout')).map((c) => {
+    const tex = Array.from(c.querySelectorAll('annotation')).map((a) => a.textContent ?? '')
+    const clone = c.cloneNode(true) as HTMLElement
+    clone.querySelectorAll('.katex').forEach((e) => e.remove())
+    return { text: clone.textContent ?? '', tex }
+  })
+}
+/** 警告區：沒有 KaTeX 錯誤、沒有落單的 `$`、KaTeX 以外沒有 Unicode 拼的數學（ρ、λ_min、Ĵ、≥、10⁻⁹…） */
+function expectWarningsTypeset(root: HTMLElement) {
+  expect(root.querySelectorAll('.c-exp-warnings .katex-error, .c-exp-warnings .c-tex-error').length).toBe(0)
+  for (const w of shownWarnings(root)) {
+    expect(w.text, w.text).not.toContain('$')
+    expect(unicodeMathIn(w.text), w.text).toEqual([])
+    // 帽子（Ĵ、R̂ 的組合用字元）、上標 T、1.2e-5 這種指數寫法
+    expect(w.text, w.text).not.toMatch(/\u0134|\u0302|\u1d40|\d[eE][-+]\d/)
+  }
 }
 
 function button(root: HTMLElement, name: RegExp): HTMLButtonElement {
@@ -250,13 +278,32 @@ describe('Ch10 smoke test（jsdom）', () => {
     expect(jWarn[0].textContent).not.toContain('$')
     expect(exp.querySelectorAll('.katex-error').length).toBe(0)
     expect(kpiPoles(exp, { rho: 0.5, k: 5 }).length).toBe(1)
+    // 模型回報的發散原因也是 LaTeX：ρ(I + MJ) = 1.2 ≥ 1、pole 1.2、pole > 1、−J（不再是 Unicode 拼的「ρ(I + MJ) = 1.2000 ≥ 1」）
+    const why = shownWarnings(exp).find((w) => w.text.includes('每個 loop 單獨穩定不代表 MIMO 一起穩定'))!
+    expect(why.tex).toEqual([String.raw`\rho(\mathbf I+\mathbf M\mathbf J)=1.2000\ge1`, '1.200', '1.200', '>1', String.raw`-\mathbf J`])
+    expect(why.text).toContain('代表該模式的更新方向相反')
+    expectWarningsTypeset(exp)
   }, LONG)
 
   it('負面：sequential 陷阱 preset（ρ = 1）⇒ 完整反矩陣以「不可辨識」說明失敗，而非數值錯誤', async () => {
     const { container } = renderChapter('/ch/10?preset=mimo-sequential-trap')
     const exp = container.querySelector('[data-experiment="mimo-lms"]') as HTMLElement
     await waitFor(() => expect(within(exp).getAllByText(/不能製造缺失的資訊/).length).toBeGreaterThan(0), WAIT)
-    expect(within(exp).getAllByText(/λ_min\(R\) = .* ≈ 0：不可辨識/).length).toBeGreaterThan(0)
+    // Plant 的警告：λ_min(R) ≈ 0（數學上是 0，不印 eigen 分解的浮點殘餘）
+    const pe = shownWarnings(exp).find((w) => w.text.includes('不可辨識（缺乏 persistent excitation）'))!
+    expect(pe.text).toContain('Plant：')
+    expect(pe.tex).toEqual([String.raw`\lambda_{\min}(\mathbf R)\approx0`, String.raw`\lambda_{\max}`, '10^{-12}', String.raw`\mathbf v_{\min}`])
+    // 完整反矩陣被拒絕的原因
+    const full = shownWarnings(exp).find((w) => w.text.includes('不能製造缺失的資訊'))!
+    expect(full.tex).toEqual([String.raw`\hat{\mathbf J}`, String.raw`\sigma_{\min}/\sigma_{\max}\le10^{-12}`, String.raw`\lambda_{\min}=0`, String.raw`(K_q\mathbf R)^{-1}`, String.raw`\lambda_{\mathrm{reg}}>0`])
+    expectWarningsTypeset(exp)
+    // 六種規則的表格「狀態」欄與 Matrix Inspector 也顯示同一個原因：一樣要排成公式，不可以把 `$` 印出來
+    const cells = Array.from(exp.querySelectorAll('td.ch10-bad')).filter((td) => (td.textContent ?? '').includes('不能製造缺失的資訊'))
+    expect(cells.length).toBeGreaterThan(0)
+    for (const td of cells) {
+      expect(td.querySelectorAll('.katex').length).toBeGreaterThanOrEqual(5)
+      expect(td.textContent).not.toContain('$')
+    }
   }, LONG)
 
   it('交叉比對誠實：E24 preset（Ĵ ≠ J，無封閉式）⇒ Analytic = n/a；598 preset ⇒ ok（poles 與 F-10.7 變異皆比對）', async () => {
@@ -368,14 +415,18 @@ describe('MIMO LMS Lab：失敗情境要說明原因（負面測試）', () => {
     await waitFor(() => expect(within(kpi).getAllByText('Plant 無效（見警告）').length).toBe(3), WAIT)
     expect(within(kpi).queryByText(/等待/)).toBeNull()
     // 原因只列一次（時域模擬回報的是同一個原因，不重複）
-    expect(within(exp).getAllByText(/R 不是半正定：λ_min = -0\.5000 < 0/).length).toBe(1)
+    const notPsd = shownWarnings(exp).filter((w) => w.text.includes('不是半正定'))
+    expect(notPsd.length).toBe(1)
+    expect(notPsd[0].tex.slice(0, 2)).toEqual([String.raw`\mathbf R`, String.raw`\lambda_{\min}=-0.5000<0`])
+    expect(notPsd[0].tex).toContain(String.raw`|\rho|>1`)
+    expectWarningsTypeset(exp)
     const analytic = exp.querySelector('.c-exp-crosscheck .c-check') as HTMLElement
     expect(analytic.className).toContain('c-check-n/a')
     expect(analytic.textContent).toMatch(/Plant 無效/)
     fireEvent.change(cell, { target: { value: '0.5' } })
     // ρ = 0.5、μK_q = 0.5：慢 pole 1 − 0.5·0.5 = 0.75 ⇒ ⌈ln 0.05 / ln 0.75⌉ = 11
     await waitFor(() => expect(kpiPoles(exp, { rho: 0.75, k: 11 }).length).toBe(1), WAIT)
-    expect(within(exp).queryByText(/R 不是半正定/)).toBeNull()
+    expect(shownWarnings(exp).some((w) => w.text.includes('不是半正定'))).toBe(false)
     expect((exp.querySelector('.c-exp-crosscheck .c-check') as HTMLElement).className).toContain('c-check-ok')
   }, LONG)
 
@@ -385,8 +436,21 @@ describe('MIMO LMS Lab：失敗情境要說明原因（負面測試）', () => {
     await waitFor(() => expect(kpiPoles(exp, { k: 598 }).length).toBeGreaterThan(0), WAIT)
     fireEvent.change(within(exp).getByLabelText('模型') as HTMLSelectElement, { target: { value: '1' } })
     await waitFor(() => expect(kpiPoles(exp, { rho: 1.5, k: '∞' }).length).toBe(1), WAIT)
-    expect(within(exp).getAllByText(/pole > 1 代表該模式的更新方向相反/).length).toBeGreaterThan(0)
-    expect(within(exp).getAllByText(/−Ĵ 必須半正定才適用 R 形式/).length).toBeGreaterThan(0)
+    const shown = shownWarnings(exp)
+    // Case A（scalar μK_q = 0.5、T18 的 J）：eig(I + 0.5J) = 1.5、−0.5 ⇒ pole > 1
+    const dir = shown.find((w) => w.text.includes('代表該模式的更新方向相反'))!
+    expect(dir.text).toContain('Case A（Scalar）：')
+    expect(dir.tex).toEqual([String.raw`\rho(\mathbf I+\mathbf M\mathbf J)=1.5000\ge1`, '1.500', '1.500', '>1', String.raw`-\mathbf J`])
+    // Case C（R 形式 regularized、λ_reg = 0.1）：R̂ = −J 的 eigenvalue 是 3、−1 ⇒ λ_min + λ_reg = −0.9 < 0
+    const reg = shown.find((w) => w.text.includes('必須半正定才適用 R 形式'))!
+    expect(reg.tex).toEqual([
+      String.raw`\hat{\mathbf R}+\lambda_{\mathrm{reg}}\mathbf I`,
+      String.raw`\lambda_{\min}(\hat{\mathbf R})+\lambda_{\mathrm{reg}}=-0.900<0`,
+      String.raw`\lambda_{\mathrm{reg}}`,
+      String.raw`\hat{\mathbf J}`,
+      String.raw`-\hat{\mathbf J}`,
+    ])
+    expectWarningsTypeset(exp)
     expect(kpiPoles(exp, { rho: 0.5, k: 5 }).length).toBe(1)
     const analytic = exp.querySelector('.c-exp-crosscheck .c-check') as HTMLElement
     expect(analytic.className).toContain('c-check-ok')
@@ -394,6 +458,38 @@ describe('MIMO LMS Lab：失敗情境要說明原因（負面測試）', () => {
     // J 模式的 eigenvalue 不叫 λ_i（λ_i 保留給 R，勘誤 E22）
     const inspector = exp.querySelector('details.ch10-deriv') as HTMLElement
     expect(inspector.innerHTML).toContain('\\operatorname{eig}(\\mathbf J_n)')
+  }, LONG)
+
+  it('審查 R02：J 模式輸入 J_n = [[−1, 2], [0, −1]]（Case A：scalar μK_q = 0.5）⇒ KPI 顯示 ρ(A) = 0.5、k₉₅ = 9（不是 5）；指標列說明 F-10.5 的 5 只是下界；「執行至收斂」停在第 9 個 block', async () => {
+    const { container } = renderLab()
+    const exp = container.querySelector('[data-experiment="mimo-lms"]') as HTMLElement
+    await waitFor(() => expect(kpiPoles(exp, { k: 598 }).length).toBeGreaterThan(0), WAIT)
+    fireEvent.change(within(exp).getByLabelText('模型') as HTMLSelectElement, { target: { value: '1' } })
+    await waitFor(() => expect(kpiPoles(exp, { rho: 1.5, k: '∞' }).length).toBe(1), WAIT)
+    // 把 T18 的 J₂₁ = 2 改成 0：J_n = [[−1, 2], [0, −1]]（合法的 J-mode plant，沒有任何 Plant 警告）
+    fireEvent.change(within(exp).getByLabelText('J_n=J/K_q 第 2 列第 1 行') as HTMLInputElement, { target: { value: '0' } })
+    await waitFor(() => expect(kpiPoles(exp, { rho: 0.5, k: 9 }).length).toBe(1), WAIT)
+    const shown = Array.from(exp.querySelectorAll('.c-exp-warnings .c-callout')).map((c) => c.textContent ?? '')
+    expect(shown.some((w) => w.includes('Plant：'))).toBe(false)
+    expect(shown.some((w) => w.includes('Case A'))).toBe(false) // 一般的非正規情形不另外發警告（說明在指標列）
+    // Case B（完整反矩陣 γ = 0.5）：A = 0.5·I ⇒ 5
+    expect(kpiPoles(exp, { rho: 0.5, k: 5 }).length).toBe(1)
+    // 指標列：Case A 顯示 9，說明 F-10.5 的 5 只是下界，且不再連到 F-10.5；Case B 照舊連到 F-10.5
+    const rows = Array.from(exp.querySelectorAll('.c-metric-table tbody tr'))
+    const rowA = rows.find((tr) => (tr.textContent ?? '').includes('Case A 95% 收斂 blocks'))!
+    expect(rowA.querySelector('td.num')!.textContent).toBe('9')
+    expect(rowA.textContent).toContain('非正規')
+    expect(rowA.textContent).toContain('只是下界')
+    expect(Array.from(rowA.querySelectorAll('annotation')).map((a) => a.textContent)).toEqual(expect.arrayContaining([String.raw`\|\mathbf A^j\|_2\le0.05`, '5']))
+    expect(rowA.querySelector('a[href="#formula-F-10.5"]')).toBeNull()
+    expect(rowA.textContent).toContain('精確')
+    const rowB = rows.find((tr) => (tr.textContent ?? '').includes('Case B 95% 收斂 blocks'))!
+    expect(rowB.querySelector('td.num')!.textContent).toBe('5')
+    expect(rowB.querySelector('a[href="#formula-F-10.5"]')).toBeTruthy()
+    expect(rowB.textContent).not.toContain('下界')
+    // 「執行至收斂」：游標移到最慢的 case 的 k₉₅ = 9（修正前會停在 5，那時誤差還有 31%）
+    fireEvent.click(button(exp, /執行至收斂/))
+    await waitFor(() => expect(exp.querySelector('.ch10-step-cursor')!.textContent).toBe('k = 9'), WAIT)
   }, LONG)
 })
 
@@ -422,6 +518,25 @@ describe('Ch10 公式登錄與程式碼 region', () => {
       expect(outside, `${f.id} 的 $...$ 以外不應有 Unicode 數學符號`).not.toMatch(/[σμλδγρηξ≤≥≈≪²⁻√πĴᵀ‖]/)
     }
     expect(FORMULAS.filter((f) => f.conditions.includes('$')).length).toBeGreaterThanOrEqual(12)
+  })
+
+  it('審查 C01／R02：F-10.5 的條件寫明「代哪個 pole」與「什麼時候才是整個誤差向量的 k₉₅」；公式本身、ID 與 claim 不變', () => {
+    const f = FORMULAS.find((x) => x.id === 'F-10.5')!
+    expect(f.tex).toBe(String.raw`k_{95}=\left\lceil\frac{\ln 0.05}{\ln|p|}\right\rceil`)
+    expect(f.claim).toBe('exact')
+    expect(f.title).toBe('95% 衰減所需 block 數（單一模式）')
+    // C01：不是「慢模式決定整體」，而是絕對值最大的 pole；scalar LMS 的換手點
+    expect(f.conditions).not.toContain('slow mode 決定整體')
+    expect(f.conditions).toContain(String.raw`\max_i|p_i|`)
+    expect(f.conditions).toContain(String.raw`\mu K_q>2/(\lambda_{\max}+\lambda_{\min})`)
+    // R02：整個誤差向量需要 A 正規；非正規時只是下界，改用 ‖A^k‖₂
+    expect(f.conditions).toContain('正規矩陣')
+    expect(f.conditions).toContain(String.raw`\mathbf A\mathbf A^T=\mathbf A^T\mathbf A`)
+    expect(f.conditions).toContain('只是下界')
+    expect(f.conditions).toContain(String.raw`\|\mathbf A^k\|_2\le0.05`)
+    expect(f.conditions).toContain('不含更新延遲')
+    // 沒有為了這件事新增公式 ID（每個登錄的 ID 都要在三種模式有 TexBlock 錨點）
+    expect(FORMULAS.length).toBe(15)
   })
 
   it('mimo.ts 的 core regions 都存在（頁面顯示的就是實際執行的程式碼），且每個規則 region 有一行「← 差異」', () => {
@@ -590,8 +705,24 @@ describe('Ch10 圖表與控制項：數學都是 LaTeX（docs/teaching-style.md 
     )
     const exp = container.querySelector('[data-experiment="mimo-lms"]') as HTMLElement
     await waitFor(() => expect(kpiPoles(exp, { k: 598 }).length).toBeGreaterThan(0), WAIT)
-    const check = (what: string) => expect(unicodeMathIn(plainTextOf(exp)), what).toEqual([])
-    check('預設（R 模型、Case A scalar）')
+    // 控制項改變後 250 ms 才重算（debounce），時域模擬再由 worker 回傳：等這兩件事都完成再檢查，
+    // 否則檢查到的是改變「之前」的畫面（新的警告、Ĵ 來源說明、Matrix Inspector 都還沒出現）。
+    const settle = async () => {
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 320))
+      })
+      await waitFor(() => expect(Array.from(exp.querySelectorAll('.c-plot-title')).some((t) => (t.textContent ?? '').includes('計算中'))).toBe(false), WAIT)
+    }
+    const check = async (what: string) => {
+      await settle()
+      expect(unicodeMathIn(plainTextOf(exp)), what).toEqual([])
+      expect(exp.querySelectorAll('.katex-error, .c-tex-error').length, what).toBe(0)
+      // 落單的 `$`（字串沒有經過 mathText）
+      const c = exp.cloneNode(true) as HTMLElement
+      c.querySelectorAll('.katex, pre, code, .c-exp-summary').forEach((e) => e.remove())
+      expect(c.textContent ?? '', what).not.toContain('$')
+    }
+    await check('預設（R 模型、Case A scalar）')
     // 單位與暫存器名稱：μK_q 的 `× K_q`、`R₁₂` 之類的說明改放進 label／hint，reg 欄只剩暫存器名稱
     expect(Array.from(exp.querySelectorAll('.c-param-reg')).map((e) => e.textContent)).toContain('REG_CAL_MU')
     // 指標表的單位：fs⁻¹ → KaTeX
@@ -606,12 +737,12 @@ describe('Ch10 圖表與控制項：數學都是 LaTeX（docs/teaching-style.md 
     // Case A 的每一種規則
     for (const rule of [/Diagonal/, /Block NLMS/, /Full Preconditioner/, /Regularized/, /Sequential/]) {
       selectByText(exp, 'Case A 規則', rule)
-      check(`Case A：${String(rule)}`)
+      await check(`Case A：${String(rule)}`)
     }
     // regularized 的兩種形式（單位：R 尺度／J_n² 尺度）
     selectByText(exp, 'Case A 規則', /Regularized/)
     selectByText(exp, 'Regularizer 形式', /^J 形式/)
-    check('Regularized：J 形式')
+    await check('Regularized：J 形式')
     expect(Array.from(exp.querySelectorAll('.c-param-unit annotation')).map((a) => a.textContent)).toContain('J_n^2')
     selectByText(exp, 'Regularizer 形式', /^R 形式/)
     expect(Array.from(exp.querySelectorAll('.c-param-unit annotation')).map((a) => a.textContent)).toContain('\\mathbf R')
@@ -619,17 +750,23 @@ describe('Ch10 圖表與控制項：數學都是 LaTeX（docs/teaching-style.md 
     // Ĵ 來源
     for (const src of [/^perturbed/, /^finiteDiff/, /^custom/]) {
       selectByText(exp, 'Ĵ 來源', src)
-      check(`Ĵ 來源：${String(src)}`)
+      await check(`Ĵ 來源：${String(src)}`)
+      // Ĵ 來源的說明（Matrix Inspector 與最下面的摘要列）是模型回傳的字串：數學要排成公式
+      const noteTex = Array.from(exp.querySelectorAll('details.ch10-deriv annotation')).map((a) => a.textContent ?? '')
+      if (String(src) === String(/^perturbed/)) expect(noteTex).toEqual(expect.arrayContaining([String.raw`\hat{\mathbf J}=\mathbf J`, String.raw`\varepsilon=0.01`]))
+      if (String(src) === String(/^finiteDiff/)) expect(noteTex.some((t) => /^\\Delta=[\d.]+\\ \\mathrm\{fs\}$/.test(t))).toBe(true)
     }
     selectByText(exp, 'Ĵ 來源', /^exact/)
-    // J 模型（T18）與 ±1 碼
+    // J 模型（T18）與 ±1 碼：J 模型預設就是 T18 的 J，Case A（regularized R 形式）被拒絕、警告區有說明
     selectByText(exp, '模型', /^J：/)
-    check('J 模型')
+    await check('J 模型')
+    expect(shownWarnings(exp).length).toBeGreaterThan(0)
+    expectWarningsTypeset(exp)
     selectByText(exp, '模型', /^R：/)
     selectByText(exp, 'Regressor 分布', /±1 碼/)
-    check('±1 碼')
+    await check('±1 碼')
     selectByText(exp, '參數個數 P', /^3/)
-    check('P = 3')
+    await check('P = 3')
     selectByText(exp, '參數個數 P', /^2/)
 
     // 圖：全部六種規則（‖δ_k‖）、時域軌跡、相平面、poles
@@ -645,7 +782,7 @@ describe('Ch10 圖表與控制項：數學都是 LaTeX（docs/teaching-style.md 
     expect(names).toContain('單位圓 |<i>z</i>| = 1')
     expect(names.some((t) => /^Case A：Scalar <i>δ<\/i><sub>1<\/sub>$/.test(t))).toBe(true)
     expect(names.some((t) => t.includes('<i>E</i>[<i>δ</i><sub>1</sub>]（線性解析）'))).toBe(true)
-    check('六種規則的圖與表')
+    await check('六種規則的圖與表')
   }, LONG)
 
   it('S2、S3 的互動圖與控制項：軸標題、圖例用 LaTeX（k₉₅、ρ、γ、λ_reg）；暫存器欄只剩名稱，單位／說明在 KaTeX 以外沒有 Unicode 拼的數學', async () => {
@@ -695,4 +832,303 @@ describe('Ch10 圖表與控制項：數學都是 LaTeX（docs/teaching-style.md 
     ]
     for (const t of samples) expect(plotMath(t), t).not.toMatch(/[\\{}$]/)
   })
+})
+
+describe('Ch10 §10.3：審查 C01（哪個模式最慢）與 R02（A 不對稱時 F-10.5 只是下界）的正文', () => {
+  function renderS2(mode: LearningMode) {
+    localStorage.setItem('lmspll.mode', mode)
+    return render(
+      <SettingsProvider>
+        <MemoryRouter initialEntries={['/ch/10']}>
+          <S2UpdateMatrix />
+        </MemoryRouter>
+      </SettingsProvider>,
+    )
+  }
+  const annotations = (root: Element) => Array.from(root.querySelectorAll('annotation')).map((a) => a.textContent ?? '')
+
+  it.each(['beginner', 'engineer'] as const)('C01（%s 模式）：F-10.3 下面寫的是「絕對值最大的 pole」與步長條件，並有 λ_max 模式拖住收斂的例子（−0.8 / 0.4、14 vs 4）', (mode) => {
+    const { container } = renderS2(mode)
+    const text = container.textContent ?? ''
+    expect(text).not.toContain('收斂速度由最小 eigenvalue 決定')
+    expect(text).toContain('絕對值最大')
+    expect(text).toContain('拖住收斂')
+    // 條件就在 F-10.3 的正下方（同一個 Section、不分模式）：一句話 → 展示式 max|p_i| → 步長條件
+    const f103 = container.querySelector('#formula-F-10\\.3')!
+    const lead = f103.nextElementSibling!
+    expect(lead.tagName).toBe('P')
+    expect(lead.textContent).toContain('絕對值最大')
+    const display = lead.nextElementSibling!
+    expect(annotations(display)).toEqual([String.raw`\max_i|p_i|=\max\big(|1-\mu K_q\lambda_{\min}|,\ |1-\mu K_q\lambda_{\max}|\big)`])
+    const para = display.nextElementSibling!
+    expect(para.tagName).toBe('P')
+    const tex = annotations(para)
+    expect(tex).toContain(String.raw`\mu K_q\le 2/(\lambda_{\max}+\lambda_{\min})`)
+    expect(tex).toContain(String.raw`\mu K_q\le1`)
+    expect(para.textContent).toContain('最慢的是最小 eigenvalue 的慢模式')
+    // 例子（數字由模型計算：NUM.fastLed）
+    const example = para.nextElementSibling!
+    expect(annotations(example)).toEqual(expect.arrayContaining([String.raw`\rho=0.5`, String.raw`\lambda=1.5,\ 0.5`, String.raw`\mu K_q=1.2`, String.raw`2/1.5\approx1.333`, String.raw`p=-0.8,\ 0.4`]))
+    expect(example.textContent).toContain('只縮到 0.8 倍')
+    expect(example.textContent).toContain('0.4 倍')
+    // 最佳也只有 (κ−1)/(κ+1)
+    const bound = example.nextElementSibling!
+    expect(annotations(bound)).toEqual(expect.arrayContaining([String.raw`1-2/\kappa`, String.raw`(\kappa-1)/(\kappa+1)`, String.raw`\kappa=199`]))
+    expect(bound.textContent).toContain('最好也只有 0.99')
+    // 互動小工具的圖說與「試試看」同步
+    const tryit = Array.from(container.querySelectorAll('.ch10-tryit')).map((e) => e.textContent ?? '').join(' ')
+    expect(tryit).toContain('14 個 block')
+    expect(tryit).toContain('只要 4 個')
+    expect(tryit).toContain('−0.8')
+    expect(annotations(container)).toEqual(expect.arrayContaining([String.raw`|1-\mu K_q(1+\rho)|`, String.raw`\rho\ge2/(\mu K_q)-1`]))
+    // §10.3.1 步驟 2：代的是絕對值最大的 pole
+    const f105 = container.querySelector('#formula-F-10\\.5')!
+    const step = f105.closest('li')!
+    expect(step.textContent).toContain('絕對值最大')
+    expect(step.textContent).toContain('一次只算一個模式')
+    expect(annotations(step)).toContain(String.raw`|p|=\rho(\mathbf A_{\mathrm{cal}})`)
+  }, LONG)
+
+  it('R02：Engineer 模式在 F-10.5 的步驟後面有「A 不對稱時只是下界」的提醒（例子 5 → 9、‖δ₅‖ = 0.314、‖δ₈‖ = 0.0626、‖δ₉‖ = 0.0352）；Beginner 模式不顯示這個框，但仍有「本例對稱」那一句', () => {
+    const eng = renderS2('engineer')
+    const callout = Array.from(eng.container.querySelectorAll('.c-callout')).find((c) => (c.textContent ?? '').includes('只是下界'))!
+    expect(callout).toBeTruthy()
+    const tex = annotations(callout)
+    expect(tex).toEqual(
+      expect.arrayContaining([
+        String.raw`\mathbf A\mathbf A^T=\mathbf A^T\mathbf A`,
+        String.raw`\|\mathbf A^k\|_2\ge\rho(\mathbf A)^k`,
+        String.raw`\mathbf J_n=\begin{bmatrix}-1&2\\0&-1\end{bmatrix}`,
+        String.raw`\mathbf A=\mathbf I+\mu K_q\mathbf J_n=\begin{bmatrix}0.5&1\\0&0.5\end{bmatrix}`,
+        String.raw`\lceil\ln0.05/\ln0.5\rceil=5`,
+        String.raw`\mathbf A^k=\begin{bmatrix}2^{-k}&k\,2^{-(k-1)}\\0&2^{-k}\end{bmatrix}`,
+        String.raw`\|\boldsymbol\delta_5\|=0.314`,
+        String.raw`\|\boldsymbol\delta_8\|=0.0626`,
+        String.raw`\|\boldsymbol\delta_9\|=0.0352`,
+        String.raw`\|\mathbf A^k\|_2\le0.05`,
+      ]),
+    )
+    expect(callout.textContent).toContain('9 個 block 才低於 5%')
+    expect(callout.textContent).toContain('穩定的判斷不變')
+    // 位置：就在 F-10.5 那個步驟清單的後面、表格之前
+    const list = eng.container.querySelector('#formula-F-10\\.5')!.closest('ol')!
+    expect(list.compareDocumentPosition(callout) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    eng.unmount()
+
+    const beg = renderS2('beginner')
+    expect(Array.from(beg.container.querySelectorAll('.c-callout')).some((c) => (c.textContent ?? '').includes('只是下界'))).toBe(false)
+    expect(beg.container.querySelector('#formula-F-10\\.5')!.closest('li')!.textContent).toContain('是對稱矩陣')
+  }, LONG)
+
+  it('R02：Lab 指標列的說明與「算不完只列下界」的警告都用 LaTeX 寫數學（可渲染、沒有落單的 $、KaTeX 以外沒有 Unicode 拼的數學）', () => {
+    const cfg = (r: Partial<typeof DEFAULT_RULE>) => ({ ...DEFAULT_RULE, ...r })
+    const pj = buildPlant({ mode: 'J', Jn: [[-1, 2], [0, -1]], sigmaV: 100, N: 4096 }) // prettier-ignore
+    const slow = buildPlant({ mode: 'J', Jn: [[-1, 100], [0, -1]], sigmaV: 100, N: 4096 }) // prettier-ignore
+    const pr = buildPlant({ mode: 'R', R: [[1, 0.99], [0.99, 1]], sigmaV: 100, N: 4096 }) // prettier-ignore
+    const nn = analyzeRule(pj, cfg({ rule: 'scalar', muKq: 0.5 }), pj.Jn)
+    const lb = analyzeRule(slow, cfg({ rule: 'scalar', muKq: 1e-5 }), slow.Jn)
+    const seq = analyzeRule(pr, cfg({ rule: 'sequential', gamma: 1, seqBlocksPerPhase: 1, seqSweeps: 1000 }), pr.Jn)
+    expect(lb.blocks95Basis).toBe('lower-bound')
+    expect(lb.warnings.length).toBe(1)
+    const texts = [k95Metric('A', nn), k95Metric('B', lb), k95Metric('C', seq)].flatMap((m) => [m.name, m.note ?? '']).concat(lb.warnings)
+    for (const t of texts) {
+      const { container, unmount } = render(
+        <p>
+          <MathText>{t}</MathText>
+        </p>,
+      )
+      expect(container.querySelectorAll('.katex-error, .c-tex-error').length, t).toBe(0)
+      expect(container.textContent, t).not.toContain('$')
+      container.querySelectorAll('.katex').forEach((e) => e.remove())
+      expect(unicodeMathIn(container.textContent ?? ''), t).toEqual([])
+      unmount()
+    }
+  })
+})
+
+
+describe('收尾：技術審查 R06a 的 Ch10 部分——pole 公式屬於線性模型，1-bit 時是小訊號區的局部結果', () => {
+  const byId = (id: string) => FORMULAS.find((f) => f.id === id)!
+  const annotations = (root: Element) => Array.from(root.querySelectorAll('annotation')).map((a) => a.textContent ?? '')
+  function renderS2(mode: LearningMode) {
+    localStorage.setItem('lmspll.mode', mode)
+    return render(
+      <SettingsProvider>
+        <MemoryRouter initialEntries={['/ch/10']}>
+          <S2UpdateMatrix />
+        </MemoryRouter>
+      </SettingsProvider>,
+    )
+  }
+
+  it('公式登錄：F-10.3 與第 9 章 F-09.4 是同一條 pole 公式，使用條件要寫出「線性模型／1-bit 小訊號」；其餘由 A_cal 算 pole 的公式也都帶這個條件；claim 不變', () => {
+    const f3 = byId('F-10.3')
+    expect(f3.claim).toBe('exact')
+    expect(f3.tex).toBe(String.raw`p_i=1-\mu K_q\lambda_i(\mathbf R),\qquad 0<\mu K_q<\frac{2}{\lambda_{\max}}`)
+    expect(f3.conditions).toContain('指定模型是 F-10.2 的線性遞迴')
+    expect(f3.conditions).toContain('F-09.4')
+    expect(f3.conditions).toContain(String.raw`1-bit comparator 時 $p_i$ 只是小訊號區（$|\mathbf u^T\boldsymbol\delta_k|\ll\sigma_v$，F-10.1）的局部 pole`)
+    expect(f3.conditions).toContain('F-10.13')
+    // F-10.2：等號屬於線性模型；1-bit 時繼承 F-10.1 的小訊號條件（初始誤差與穩態抖動都要成立）
+    const f2 = byId('F-10.2')
+    expect(f2.claim).toBe('exact')
+    expect(f2.conditions).toContain('線性模型裡，本式是精確的代數')
+    expect(f2.conditions).toContain(String.raw`F-10.1 的小訊號近似（$|\mathbf u^T\boldsymbol\delta_k|\ll\sigma_v$`)
+    expect(f2.conditions).toContain('穩態抖動')
+    // 其餘 pole／k₉₅ 公式：一句話指回 F-10.1 的小訊號條件
+    for (const id of ['F-10.4', 'F-10.5', 'F-10.8', 'F-10.10', 'F-10.12']) {
+      const f = byId(id)
+      expect(f.claim, id).toBe('exact')
+      expect(f.conditions, id).toMatch(/1-bit[^。]*小訊號區（F-10\.1）/)
+    }
+    // 小訊號近似本身（F-10.1）與 Bussgang 精確式（F-10.13）的標籤不變
+    expect(byId('F-10.1').claim).toBe('approx')
+    expect(byId('F-10.13').claim).toBe('exact')
+  })
+
+  it.each(['beginner', 'engineer'] as const)('頁面（%s 模式）：F-10.2 與 F-10.3 之間說明等號屬於線性模型、1-bit 只在小訊號區；F-10.3 的標籤與實體 K_q 那三列也寫出條件', (mode) => {
+    const { container } = renderS2(mode)
+    const note = container.querySelector('#ch10-linear-model-note') as HTMLElement
+    expect(note).toBeTruthy()
+    const f2 = container.querySelector('#formula-F-10\\.2')!
+    const f3 = container.querySelector('#formula-F-10\\.3')!
+    expect(f2.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(note.compareDocumentPosition(f3) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(annotations(note)).toEqual(expect.arrayContaining([String.raw`\approx`, String.raw`\mathbf G=K_q\mathbf R\boldsymbol\delta+\boldsymbol\eta`, String.raw`|\mathbf u^T\boldsymbol\delta_k|\ll\sigma_v`]))
+    expect(note.textContent).toContain('只是小訊號區的局部結果')
+    expect(note.querySelector('.c-claim-approx')).toBeTruthy()
+    // 多小才算小（Engineer 以上）：s_δ = 0.1 / 0.3 / 1 ⇒ 增益少 0.5% / 4.2% / 29%（1 − 1/√(1 + s_δ²)，由 signGmacMean 算）
+    const detail = note.nextElementSibling as HTMLElement
+    if (mode === 'engineer') {
+      expect(annotations(detail)).toEqual(
+        expect.arrayContaining([String.raw`s_\delta=\sqrt{\boldsymbol\delta^T\mathbf R\boldsymbol\delta}/\sigma_v`, String.raw`K_q/\sqrt{1+s_\delta^2}`, String.raw`s_\delta=0.1`, String.raw`s_\delta=0.3`, String.raw`s_\delta=1`]),
+      )
+      expect(detail.textContent).toContain('少 0.5%')
+      expect(detail.textContent).toContain('4.2%')
+      expect(detail.textContent).toContain('少 29%')
+      expect(detail.textContent).toContain('穩態抖動')
+    } else {
+      expect(container.textContent).not.toContain('多小才算小')
+    }
+    // F-10.3 的標籤（公式正下方，所有模式）
+    expect(f3.querySelector('figcaption')!.textContent).toBe('Scalar LMS 的模式 pole 與穩定範圍（線性模型的 mean recursion；1-bit 時是小訊號區的局部 pole）')
+    // §10.3.1 的表：實體 K_q 的 75,091 / 750 / 5 是 1-bit 小訊號的數字
+    const phys = container.querySelector('#ch10-phys-kq-note') as HTMLElement
+    expect(phys.querySelector('.c-claim-approx')).toBeTruthy()
+    expect(phys.textContent).toContain('75,091、750、5')
+    expect(annotations(phys)).toContain(String.raw`|\mathbf u^T\boldsymbol\delta_k|\ll\sigma_v=100\ \mathrm{fs}`)
+    expect(phys.textContent).toContain('單位換算本身是精確的算術')
+    expect(container.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+  }, LONG)
+})
+
+describe('收尾：技術審查 R07 的 Ch10 部分——λ₁ = 1 + ρ 是「快」只在 ρ ≥ 0 時成立', () => {
+  const annotations = (root: Element) => Array.from(root.querySelectorAll('annotation')).map((a) => a.textContent ?? '')
+
+  it('圖 eigen-modes 的圖說、看圖說明與章首的先備知識都寫出 ρ ≥ 0 的條件與 ρ < 0 時對調；Lab 的 ρ₁₂ 說明用 |ρ₁₂| = 1', async () => {
+    const cap = diagram('eigen-modes').caption
+    expect(cap).toContain(String.raw`圖畫的是 $\rho\ge0$：共模（綠）快，差模（紅）慢`)
+    expect(cap).toContain(String.raw`$\rho<0$ 時兩者對調`)
+    localStorage.setItem('lmspll.mode', 'beginner')
+    const { container } = render(
+      <SettingsProvider>
+        <MemoryRouter initialEntries={['/ch/10']}>
+          <S0Intro />
+          <S2UpdateMatrix />
+          <MimoLab />
+        </MemoryRouter>
+      </SettingsProvider>,
+    )
+    const fig = container.querySelector('[data-diagram="eigen-modes"]') as HTMLElement
+    const walk = fig.querySelector('.ch10-fig-walk') as HTMLElement
+    expect(annotations(fig.querySelector('.ch10-fig-caption')!)).toEqual([String.raw`\rho\ge0`, String.raw`\rho<0`])
+    expect(annotations(walk)).toEqual(expect.arrayContaining([String.raw`\rho\ge0`, String.raw`\lambda_1=1+\rho`, String.raw`\lambda_2=1-\rho`, String.raw`\rho<0`, String.raw`\lambda_{\max,\min}=1\pm|\rho|`]))
+    expect(walk.textContent).toContain('差模快、共模慢')
+    // 章首先備知識：配對對任何 ρ 成立，哪個較大看正負號；本章正文的例子都取 ρ ≥ 0
+    const prereq = Array.from(container.querySelectorAll('.c-prereq')).find((p) => (p.textContent ?? '').includes('共模'))!
+    expect(annotations(prereq)).toEqual(expect.arrayContaining([String.raw`\lambda_{\max}=\lambda_1`, String.raw`\lambda_{\max}=\lambda_2`, String.raw`\lambda_{\max,\min}=1\pm|\rho|`]))
+    expect(prereq.textContent).toContain('本章正文的例子都取')
+    // Lab 的 ρ₁₂ 滑桿範圍是 [−1, 1]：不可辨識的條件是 |ρ₁₂| = 1
+    const exp = container.querySelector('[data-experiment="mimo-lms"]') as HTMLElement
+    expect(Array.from(exp.querySelectorAll('.c-param-hint annotation')).map((a) => a.textContent)).toEqual(expect.arrayContaining([String.raw`|\rho_{12}|=1\Rightarrow\lambda_{\min}=0`]))
+    await waitFor(() => expect(kpiPoles(exp, { k: 598 }).length).toBeGreaterThan(0), WAIT)
+  }, LONG)
+
+  it('數字：ρ = −0.5 時 λ_max = 1.5 屬於差模 (1, −1)/√2，μK_q = 0.5 的 pole 是差模 0.25（快）、共模 0.75（慢）；ρ = +0.5 相反', () => {
+    for (const [rho, fastIsDiff] of [[-0.5, true], [0.5, false]] as const) {
+      const plant = buildPlant({ mode: 'R', R: [[1, rho], [rho, 1]], sigmaV: 100, N: 4096 }) // prettier-ignore
+      expect(plant.modeValues[0]).toBeCloseTo(1.5, 12)
+      expect(plant.modeValues[1]).toBeCloseTo(0.5, 12)
+      // λ_max 的 eigenvector：兩個分量同號 = 共模，異號 = 差模
+      const vmax = [plant.modeBasis[0][0], plant.modeBasis[1][0]]
+      expect(Math.abs(vmax[0])).toBeCloseTo(Math.SQRT1_2, 12)
+      expect(Math.sign(vmax[0] * vmax[1])).toBe(fastIsDiff ? -1 : 1)
+      const an = analyzeRule(plant, { ...DEFAULT_RULE, rule: 'scalar', muKq: 0.5 }, plant.Jn)
+      expect(an.closedPoles![0]).toBeCloseTo(0.25, 12) // λ_max 的模式：快
+      expect(an.closedPoles![1]).toBeCloseTo(0.75, 12) // λ_min 的模式：慢
+    }
+  })
+})
+
+describe('收尾：版面與顯示——手機不橫向溢出、數學上是 0 的量不印浮點殘餘', () => {
+  it('並排的兩張圖（poles／相平面）：欄位比 340px 窄時下限改成欄寬，不把 375px 的頁面撐寬', () => {
+    // vitest 不處理 CSS（`?raw` 匯入拿到的是空字串），所以直接讀檔
+    const chapterCss = readFileSync(resolve(process.cwd(), 'src/chapters/ch10/chapter.css'), 'utf8')
+    expect(chapterCss).toContain('grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr));')
+    expect(chapterCss).not.toContain('minmax(340px, 1fr)')
+    expect(chapterCss).toMatch(/\.ch10-plot-pair > \* \{\s*min-width: 0;/)
+  })
+
+  it('chop／texMat：pole 與 A = I + MJ 的浮點殘餘顯示成 0；真正的小數不受影響', () => {
+    expect(chop(1.11e-16)).toBe(0)
+    expect(chop(-8.33e-17)).toBe(0)
+    expect(chop(5.68e-14)).toBe(0)
+    expect(chop(1e-9)).toBe(1e-9)
+    expect(chop(-0.5)).toBe(-0.5)
+    // deadbeat 的 A（ρ = 0.8、γ = 1 算出來的樣子）：整個矩陣都是殘餘，要給量級 1 才清得掉
+    const dust = [[-2.22e-16, 0], [4.44e-16, 0]] // prettier-ignore
+    expect(texMat(dust, 4, 1)).toBe(String.raw`\begin{bmatrix}0&0\\0&0\end{bmatrix}`)
+    // 不給量級時維持原來的相對判斷（比最大元素小 12 個數量級才清）
+    expect(texMat([[1, 8.7e-19], [0.25, 1]], 4)).toBe(String.raw`\begin{bmatrix}1&0\\0.25&1\end{bmatrix}`) // prettier-ignore
+    expect(texMat([[2e-13, 0], [0, 1e-13]], 4)).toBe(String.raw`\begin{bmatrix}2\times10^{-13}&0\\0&1\times10^{-13}\end{bmatrix}`) // prettier-ignore
+  })
+
+  it('Lab：R₁₂ = 0.8、完整反矩陣 γ = 1（deadbeat）⇒ KPI 是 ρ(A) = 0、k₉₅ = 1，Matrix Inspector 的 A 與 poles 都是 0（模型算出的 −2.2e−16 不印出來）', async () => {
+    // 模型的數值沒有被改：殘餘仍在（顯示層才清掉）
+    const plant = buildPlant({ mode: 'R', R: [[1, 0.8], [0.8, 1]], sigmaV: 100, N: 4096 }) // prettier-ignore
+    const an = analyzeRule(plant, { ...DEFAULT_RULE, rule: 'full', gamma: 1 }, plant.Jn)
+    expect(an.spectralRadius).toBeGreaterThan(0)
+    expect(an.spectralRadius).toBeLessThan(1e-12)
+    expect(an.blocks95).toBe(1)
+
+    const { container } = render(
+      <SettingsProvider>
+        <MemoryRouter initialEntries={['/ch/10']}>
+          <MimoLab />
+        </MemoryRouter>
+      </SettingsProvider>,
+    )
+    const exp = container.querySelector('[data-experiment="mimo-lms"]') as HTMLElement
+    await waitFor(() => expect(kpiPoles(exp, { k: 598 }).length).toBeGreaterThan(0), WAIT)
+    fireEvent.change(within(exp).getByLabelText(/第 1 列第 2 行/) as HTMLInputElement, { target: { value: '0.8' } })
+    const ruleSel = within(exp).getByLabelText('Case A 規則') as HTMLSelectElement
+    const full = Array.from(ruleSel.options).find((o) => /Full Preconditioner/.test(o.textContent ?? ''))!
+    fireEvent.change(ruleSel, { target: { value: full.value } })
+    fireEvent.change(within(exp).getByLabelText('γ（目標 loop gain）') as HTMLInputElement, { target: { value: '1' } })
+    await waitFor(() => expect(kpiPoles(exp, { rho: 0, k: 1 }).length).toBe(1), WAIT)
+    const inspector = exp.querySelector('details.ch10-deriv') as HTMLElement
+    expect(Array.from(inspector.querySelectorAll('annotation')).map((a) => a.textContent)).toContain(String.raw`\mathbf A=\mathbf I+\mathbf M\mathbf J=\begin{bmatrix}0&0\\0&0\end{bmatrix}`)
+    expect(inspector.textContent).toContain('poles：0、0')
+    expect(inspector.textContent).toContain('：0、0 ') // 封閉式 1 − γ = 0
+    // KPI、Matrix Inspector、六種規則的表：沒有 e−16 或 10^{−16} 之類的殘餘
+    const table = exp.querySelector('.ch10-hl')!.closest('table') as HTMLElement
+    for (const el of [exp.querySelector('.ch10-kpi') as HTMLElement, inspector, table]) {
+      expect(el.textContent ?? '').not.toMatch(/e[-−]1\d/)
+      for (const t of Array.from(el.querySelectorAll('annotation')).map((a) => a.textContent ?? '')) expect(t, t).not.toMatch(/10\^\{-1\d\}/)
+    }
+    // 指標列：ρ(I + MJ) 的模擬值與解析值都是 0
+    const row = Array.from(exp.querySelectorAll('.c-metric-table tbody tr')).find((tr) => (tr.textContent ?? '').includes('Case A') && (tr.textContent ?? '').includes('Full inverse'))!
+    expect(row.querySelector('td.num')!.textContent).toBe('0')
+    expect(row.textContent ?? '').not.toMatch(/e[-−]1\d/)
+  }, LONG)
 })

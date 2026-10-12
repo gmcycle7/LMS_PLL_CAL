@@ -294,7 +294,7 @@ export function S3Objectives() {
       </Diagram>
       <p>換算的結果就是前面全貌圖最右邊的紅色方塊：</p>
       <TexBlock id="F-14.14" label={md(String.raw`PM 與 $\mu$ 上限`)}>
-        {String.raw`PM=90^\circ-\arcsin\frac{g}{2}\ \ge PM_t\iff g\le2\sin(90^\circ-PM_t)=2\cos PM_t\qquad(PM_t=60^\circ\Rightarrow\mu\le1/K)`}
+        {String.raw`\begin{aligned}&PM=90^\circ-\arcsin\frac{g}{2}\ \ge PM_t\iff g\le2\sin(90^\circ-PM_t)=2\cos PM_t\\[0.5ex]&(PM_t=60^\circ\Rightarrow\mu\le1/K)\end{aligned}`}
       </TexBlock>
 
       <h3>比較表（第 10 課條件，全部由程式即時計算）</h3>
