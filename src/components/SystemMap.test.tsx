@@ -1,4 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import {
   SYSTEM_BLOCK_LABEL,
   SYSTEM_MAP_BLOCKS,
@@ -114,6 +116,16 @@ describe('系統地圖：版面（手排 SVG）', () => {
     expect(tapEnd[1]).toBe(e.tag!.source.box.y + e.tag!.source.box.h)
     expect(e.points[0][0]).toBe(e.tag!.dest.box.x + e.tag!.dest.box.w)
     expect(onEdge(byId.cmp, e.points[e.points.length - 1])).toBe(true)
+  })
+
+  it('comparator 的輸入只有 PD 的輸出與雜訊；雜訊方塊註明它是「折算到輸入端」的等效雜訊（e[n] 已經包含 v[n]，§2a 第 3 點）', () => {
+    expect(SYSTEM_MAP_WIRES.filter((w) => w.to === 'cmp').map((w) => w.from).sort()).toEqual(['noise', 'pd'])
+    expect(byId.noise.title).toBe('雜訊 $v[n]$')
+    expect(byId.noise.sub).toBe('折算到輸入端')
+    expect(byId.cmp.sub).toBe(String.raw`$q[n] = \mathrm{sign}(e[n])$`)
+    // 架構約定寫明兩種畫法（系統地圖：comparator 的另一個輸入；章節的圖：PD 後面的加法點）是同一件事
+    const convention = readFileSync(resolve(process.cwd(), 'docs/assumptions.md'), 'utf8')
+    expect(convention).toContain('雜訊 `v[n]` 是折算到這個節點（comparator 的輸入＝PD 的輸出）的等效雜訊，式子裡的 `e[n]` 已經包含它')
   })
 
   it('每條線都只走水平或垂直，起點在來源方塊的邊上、箭頭落在目標方塊的邊上', () => {

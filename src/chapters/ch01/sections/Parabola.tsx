@@ -180,7 +180,7 @@ export function ParabolaSection() {
           ),
         },
         {
-          tex: String.raw`=\tfrac12E[x^2]\Big(w^2-2w\,\frac{E[xy]}{E[x^2]}\Big)+\tfrac12E[y^2]`,
+          tex: String.raw`\begin{aligned}&=\tfrac12E[x^2]\Big(w^2-2w\,\frac{E[xy]}{E[x^2]}\Big)\\&\quad+\tfrac12E[y^2]\end{aligned}`,
           why: (
             <>
               把含 <Tex>{'w'}</Tex> 的兩項提出 <Tex>{'E[x^2]'}</Tex>
@@ -434,8 +434,8 @@ export function ParabolaSection() {
         </p>
         <PllLink>
           GMAC（gain multiply-accumulate）在硬體裡累加的就是 <Tex>{String.raw`\sum_n q_n x_n`}</Tex>，其中{' '}
-          <Tex>{String.raw`q_n=\operatorname{sign}(e_n)`}</Tex> 來自 1-bit comparator／BBPD（<Tex>{String.raw`\operatorname{sign}`}</Tex> 取正負號：正數給{' '}
-          <Tex>{'+1'}</Tex>、負數給 <Tex>{'-1'}</Tex>）。它正是上圖的相關器，只是誤差先被取了正負號。所以校正迴路的固定點是{' '}
+          <Tex>{String.raw`q_n=\operatorname{sign}(e_n)`}</Tex> 來自 1-bit comparator／BBPD：它取的是 PD 的輸出 <Tex>{'e_n'}</Tex>（送進 loop filter 的同一個訊號）的正負號（
+          <Tex>{String.raw`\operatorname{sign}`}</Tex> 取正負號：正數給 <Tex>{'+1'}</Tex>、負數給 <Tex>{'-1'}</Tex>）。它正是上圖的相關器，只是誤差先被取了正負號。所以校正迴路的固定點是{' '}
           <Tex>{String.raw`E[\operatorname{sign}(e)\,x]=0`}</Tex>——那是 §2 的 MAE 版 normal equation，不是 MSE 版。兩者何時一致，見{' '}
           <Link to="/ch/05">
             Ch05（comparator 等效增益 <Tex>{'K_q'}</Tex>）

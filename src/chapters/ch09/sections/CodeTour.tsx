@@ -98,7 +98,7 @@ export function CodeTour() {
         source={peSrc}
         region="gaugeLms"
         path={PATH}
-        caption={String.raw`u-domain 的誤差先經有狀態的 $H_{\mathrm{PD}}$ 濾波器（主 PLL 不在每個 block 重置）；GMAC regressor 可選 raw $\tilde{\mathbf x}$ 或 filtered $\tilde{\mathbf u}$。`}
+        caption={String.raw`u-domain 的 DTC 殘餘誤差先經有狀態的 $H_{\mathrm{PD}}$ 濾波器（主 PLL 不在每個 block 重置），加上雜訊成為 PD 的輸出 $e_{\mathrm{PD}}$；GMAC 取的就是這個 PD 輸出，regressor 可選 raw $\tilde{\mathbf x}$ 或 filtered $\tilde{\mathbf u}$。`}
       />
       <ModeGate min="engineer">
         <p>

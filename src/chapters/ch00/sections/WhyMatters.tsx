@@ -40,8 +40,8 @@ export function WhyMattersSection() {
         <div className="card ch00-app-card">
           <h4>PLL / DTC 校正（本網站主角）</h4>
           <p>
-            Fractional-N PLL 用 DTC 抵消 <Tex>{'\\Delta\\Sigma'}</Tex> 調變器的量化相位誤差；DTC 的增益 <Tex>{'w'}</Tex>（fs／code）必須和真實值{' '}
-            <Tex>{'a'}</Tex> 一致。量化殘差是 <Tex>{'x'}</Tex>，相位偵測器後的 1-bit 比較器給出 <Tex>{'\\mathrm{sign}(e)'}</Tex>，
+            Fractional-N PLL 在 reference 輸入端放一顆 DTC，抵消 <Tex>{'\\Delta\\Sigma'}</Tex> 調變器的量化相位誤差；DTC 的增益 <Tex>{'w'}</Tex>（fs／code）必須和真實值{' '}
+            <Tex>{'a'}</Tex> 一致。量化殘差是 <Tex>{'x'}</Tex>，1-bit 比較器取相位偵測器（PD）輸出的正負號 <Tex>{'\\mathrm{sign}(e)'}</Tex>，
             GMAC 把 <Tex>{'\\mathrm{sign}(e)\\cdot x'}</Tex> 累加後更新 <Tex>{'w'}</Tex>（<PageLink id="ch04" />、<PageLink id="ch05" />）。
           </p>
         </div>
@@ -94,7 +94,7 @@ export function WhyMattersSection() {
             <tr>
               <td>DTC gain 校正</td>
               <td>DSM 量化殘差（DTC code）</td>
-              <td>PD 後的相位誤差，經 1-bit 比較器</td>
+              <td>PD 輸出的相位誤差，經 1-bit 比較器</td>
               <td>DTC gain（fs/code）</td>
               <td>conditional negate + accumulator（GMAC）+ shift</td>
             </tr>
@@ -119,22 +119,34 @@ export function WhyMattersSection() {
       <ChapterDiagram name="CHART_BLACKBOX_TO_PLL">
         <p>
           先看最左邊：輸入 <Tex>{'x'}</Tex> 是 <Tex>{'\\Delta\\Sigma'}</Tex> 調變器（DSM）每個週期留下的量化殘差，也就是送給 DTC 的 code <Tex>{'x[n]'}</Tex>。它分成兩條路：深灰色那條乘上未知的{' '}
-          <Tex>{'a'}</Tex>——把這個 code 完全抵消所需要的「正確的 DTC gain」（單位 fs/code），<Tex>{'a\\,x_n'}</Tex> 就是量化造成、該被抵消掉的時間誤差；藍色那條乘上我們的猜測{' '}
-          <Tex>{'w'}</Tex>——gain register 裡的值，<Tex>{'w\\,x_n'}</Tex> 是 DTC 實際補償掉的量。再看相加點：前者以 <Tex>{'(+)'}</Tex>、後者以 <Tex>{'(-)'}</Tex> 進入，再加上
-          phase detector（PD）與比較器前的雜訊 <Tex>{'v'}</Tex>（紅色），輸出就是 PD 量到的殘留誤差。
+          <Tex>{'a'}</Tex>——divider 一次只能數整數個 VCO 週期（要不要多數一個，由 DSM 的 carry 決定），所以 feedback（divider）edge 會比理想時刻早到 <Tex>{'a\\,x[n]'}</Tex>；<Tex>{'a'}</Tex> 是把這個 code 完全抵消所需要的「正確的 DTC gain」（單位 fs/code），
+          <Tex>{'a\\,x[n]'}</Tex> 就是量化造成、該被抵消掉的時間誤差。藍色那條乘上我們的猜測 <Tex>{'w'}</Tex>——gain register 裡的值，<Tex>{'w\\,x[n]'}</Tex> 是 DTC 的<strong>補償量</strong>：
+          DTC 放在 reference 的輸入端，只能延遲、不能提前，所以它從一個固定的基準延遲 <Tex>{'T_0'}</Tex> 往回扣，<Tex>{'\\tau_{\\mathrm{DTC}}[n]=T_0-w\\,x[n]'}</Tex>，
+          也就是把 reference edge 提前（少延遲）<Tex>{'w\\,x[n]'}</Tex>。<Tex>{'T_0'}</Tex> 是常數，PLL 把它當成靜態相位偏移吸收，所以圖上不畫。
+        </p>
+        <p>
+          再看相加點：PD 量的是（經過 DTC 的）reference edge 減 feedback edge，<Tex>{String.raw`e[n]=t_{\mathrm{ref}}'[n]-t_{\mathrm{fb}}[n]`}</Tex>。feedback edge 早到，<Tex>{'t_{\\mathrm{fb}}'}</Tex>{' '}
+          變小，所以 <Tex>{'a\\,x'}</Tex> 以 <Tex>{'(+)'}</Tex> 進入；reference edge 被 DTC 少延遲了 <Tex>{'w\\,x[n]'}</Tex>（相對於 <Tex>{'T_0'}</Tex> 是提前），<Tex>{String.raw`t_{\mathrm{ref}}'`}</Tex> 變小，所以 <Tex>{'w\\,x'}</Tex> 以 <Tex>{'(-)'}</Tex> 進入；
+          再加上 phase detector（PD）與比較器前的雜訊 <Tex>{'v'}</Tex>（紅色），輸出就是 PD 量到的殘留誤差。補償不足（<Tex>{'w<a'}</Tex>）時，reference 還是太晚，誤差為正。
         </p>
         <p>
           圖上的 <Tex>{'e[n] = (a - w)\\,x[n] + v[n]'}</Tex> 就是本章一直在用的 <Tex>{'e=(a-w)x+v'}</Tex>。和 <FigRef name="CHART_BLACKBOX_MODEL" /> 只有一個差別：那裡有兩個相加點，
-          <Tex>{'y'}</Tex> 和 <Tex>{'\\hat y'}</Tex> 都看得到；PLL 裡「相減」是 DTC 在時間軸上直接做掉的，所以 <Tex>{'y'}</Tex> 與 <Tex>{'\\hat y'}</Tex> 都不會單獨出現，我們只量得到{' '}
+          <Tex>{'y'}</Tex> 和 <Tex>{'\\hat y'}</Tex> 都看得到；PLL 裡「相減」是 PD 直接在時間軸上比 reference edge 與 feedback edge 的先後做掉的，所以 <Tex>{'y'}</Tex> 與 <Tex>{'\\hat y'}</Tex> 都不會單獨出現，我們只量得到{' '}
           <Tex>{'e'}</Tex>。幸好 LMS 的修正量 <Tex>{'\\mu e x'}</Tex> 本來就只需要 <Tex>{'e'}</Tex> 和 <Tex>{'x'}</Tex>。
         </p>
       </ChapterDiagram>
       <ChapterDiagram name="CHART_PLL_LOOP">
         <p>
-          先看「主 PLL 路徑」那一框：DSM 的殘差 <Tex>{'x[n]'}</Tex> 進 DTC，DTC 依 <Tex>{'w\\cdot x'}</Tex> 產生補償延遲；PD 量到補償後剩下的誤差 <Tex>{'e[n]'}</Tex>
-          （就是上一張圖的輸出）。再看「LMS 校正迴路」那一框的藍色三格：比較器只留下正負號，記為 <Tex>{'q_n=\\mathrm{sign}(e_n)'}</Tex>（<Tex>{'+1'}</Tex> 或{' '}
-          <Tex>{'-1'}</Tex>）；GMAC 把 <Tex>{'N'}</Tex> 筆 <Tex>{'q_nx_n'}</Tex> 取平均，記為 <Tex>{'G_k'}</Tex>；最後每 <Tex>{'N'}</Tex> 筆更新一次 <Tex>{'w'}</Tex>。
-          最後看兩框之間的兩條線：主路徑把 <Tex>{'e[n]'}</Tex>、<Tex>{'x[n]'}</Tex> 交給校正迴路，校正迴路把 <Tex>{'w'}</Tex> 交回 DTC——這就是「預測 → 比較 → 修正」那一圈。
+          先看「主 PLL 路徑」那一框：參考時脈先進 DTC，DTC 依 <Tex>{'w\\cdot x'}</Tex> 把 reference edge 提前（補償量 <Tex>{'w\\,x[n]'}</Tex>，從基準延遲 <Tex>{'T_0'}</Tex> 往回扣）；PD 比較延遲後的 reference edge
+          與 divider 回授來的 feedback edge，輸出誤差 <Tex>{'e[n]'}</Tex>（就是上一張圖的輸出），一路送進 loop filter 與 VCO，VCO 再經 divider 回到 PD。DTC 不在回授路徑上，回授路徑上只有 divider：
+          DSM 的 carry 控制 divider，餘數 <Tex>{'x[n]'}</Tex> 乘上 <Tex>{'w'}</Tex> 之後控制 DTC。再看「LMS 校正迴路」那一框的藍色三格：比較器的輸入是 PD 的輸出 <Tex>{'e[n]'}</Tex>——
+          就是送進 loop filter 的同一個訊號（圖上 PD 右側有兩條 <Tex>{'e[n]'}</Tex> 的出線，一條去 loop filter、一條去比較器）；比較器只留下正負號，記為 <Tex>{'q_n=\\mathrm{sign}(e_n)'}</Tex>（<Tex>{'+1'}</Tex> 或{' '}
+          <Tex>{'-1'}</Tex>）；GMAC 把 <Tex>{'N'}</Tex> 筆 <Tex>{'q_nx_n'}</Tex> 取平均，記為 <Tex>{'G_k'}</Tex>（另一個輸入是同一個 code <Tex>{'x[n]'}</Tex>）；最後每 <Tex>{'N'}</Tex> 筆更新一次 <Tex>{'w'}</Tex>。
+          最後看從下方繞回來的那條線：校正迴路把 <Tex>{'w'}</Tex> 交回 DTC——這就是「預測 → 比較 → 修正」那一圈。
+        </p>
+        <p>
+          圖上有兩個圓角的小標籤，它們不是新的方塊，而是「同名的訊號就是同一條線」的接線標籤（為了不讓長線互相交叉）：「carry（來自 DSM）」就是左下角 DSM 累加器的進位輸出，接到 divider；
+          「<Tex>{'x[n]'}</Tex>（同一個 code）」就是 DSM 累加器送給 DTC 的那個餘數 <Tex>{'x[n]'}</Tex>，同時接到 GMAC。
         </p>
         <p>
           注意圖上有兩種索引：<Tex>{'[n]'}</Tex> 是每一筆取樣（sample），<Tex>{'[k]'}</Tex> 是每 <Tex>{'N'}</Tex> 筆組成的一個 block——<Tex>{'x[n],\\ e[n],\\ q[n]'}</Tex> 每筆都在變，
@@ -143,8 +155,8 @@ export function WhyMattersSection() {
         </p>
       </ChapterDiagram>
       <p id="ch00-pll-walk">
-        和 §0.2 的三個動作逐一對照：<strong>預測</strong>＝DTC 依 <Tex>{'w\\cdot x'}</Tex> 產生補償延遲；<strong>比較</strong>＝PD 量到補償後殘留的相位誤差{' '}
-        <Tex>{'e=(a-w)x+v'}</Tex>，比較器只回報 <Tex>{'\\mathrm{sign}(e)'}</Tex>；<strong>修正</strong>＝GMAC 累加{' '}
+        和 §0.2 的三個動作逐一對照：<strong>預測</strong>＝DTC 依 <Tex>{'w\\cdot x'}</Tex> 少延遲 reference edge（補償量 <Tex>{'w\\,x'}</Tex>，相對於基準延遲 <Tex>{'T_0'}</Tex> 等於把 edge 提前這麼多）；<strong>比較</strong>＝PD 量到補償後 reference edge 與 feedback edge 之間殘留的時間差（相位誤差）{' '}
+        <Tex>{'e=(a-w)x+v'}</Tex>，比較器取 PD 的輸出，只回報 <Tex>{'\\mathrm{sign}(e)'}</Tex>；<strong>修正</strong>＝GMAC 累加{' '}
         <Tex>{'\\mathrm{sign}(e)\\cdot x'}</Tex>，再乘上 <Tex>{'\\mu'}</Tex>（通常是右移）更新 gain register。真正的難題在於：比較器只有 1 bit、
         PD 看到的不是原始 <Tex>{'x'}</Tex> 而是經過 PLL 迴路濾波的版本、更新有延遲、係數只有 6 bit……這些都是後面章節的主題。
       </p>

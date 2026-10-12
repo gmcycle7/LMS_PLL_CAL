@@ -14,7 +14,7 @@ export function IntroSection() {
   const rows = useMemo(
     () =>
       five.values.map((x) => {
-        const y = CUBIC.a * x + CUBIC.c3 * x ** 3 // 真實 delay
+        const y = CUBIC.a * x + CUBIC.c3 * x ** 3 // 這個 code 需要的補償量：feedback edge 早到的 a·x 加上 DTC 的 INL
         return { x, y, t: x !== 0 ? perCodeGain(x, CUBIC) : Number.NaN, e1: eDet(x, 1, CUBIC), e134: eDet(x, 1.34, CUBIC) }
       }),
     [five],
@@ -38,7 +38,7 @@ export function IntroSection() {
         </p>
         <p className="small">
           先認識這幾個符號（完整的符號表在本章最後）：<Tex>{'x[n]'}</Tex> 是第 <Tex>{'n'}</Tex> 個 comparator sample 的 DTC code（DSM 的 fractional
-          residue，已正規化、無因次），也是 GMAC 用來做相關的 regressor；<Tex>{'e[n]'}</Tex> 是 comparator 前的總 timing error；
+          residue，已正規化、無因次），也是 GMAC 用來做相關的 regressor；<Tex>{'e[n]'}</Tex> 是 PD 的輸出，也就是 comparator 前的總 timing error；
           <Tex>{String.raw`q[n]=\operatorname{sign}(e[n])`}</Tex> 是 1-bit comparator 的輸出（<Tex>{'\\pm1'}</Tex>）；<Tex>{'w'}</Tex> 是校正電路目前使用的 gain，
           <Tex>{'w^*'}</Tex> 是它最後停下來的值；<Tex>{String.raw`E[\cdot]`}</Tex> 是期望值，也就是「很多次的平均」（§11.0 有先備知識框）。
         </p>
@@ -52,16 +52,25 @@ export function IntroSection() {
 
       <Section kind="intuition" title="直覺：用一條直線去貼一條彎曲的 DTC 曲線" level={2} id="ch11-intuition">
         <p>
-          想像一顆 DTC，真實的 delay 不是完美的直線 <Tex>{'a\\,x'}</Tex>，而是稍微彎曲：<Tex>{String.raw`a\,x+c_3x^3`}</Tex>（<Tex>{'a'}</Tex> 是 DTC
-          真實的線性 gain；<Tex>{'c_3'}</Tex> 是三階 INL 的係數，INL 指 delay 偏離直線的部分）。校正電路只能調
-          <strong>一個</strong>數字 —— 線性 gain <Tex>{'w'}</Tex>，用 <Tex>{'w\\,x'}</Tex> 去抵消 delay。一條直線不可能同時貼齊一條彎曲線上的所有點，所以
+          先把物理圖像講一次（全站的接法：DTC 在 reference 的輸入端，回授路徑上只有 divider）。小數除頻讓 feedback（divider）edge 比理想時刻早到{' '}
+          <Tex>{'a\\,x'}</Tex>（<Tex>{'a'}</Tex> 是真實的 DTC gain，也就是校正 gain <Tex>{'w'}</Tex> 應該到的值）。reference 端的 DTC 把 reference edge
+          也提前去對齊；它只能延遲、不能提前，所以是從一個固定的基準延遲 <Tex>{'T_0'}</Tex> 往回扣：
+          <Tex>{String.raw`\tau_\mathrm{DTC}=T_0-w\,x`}</Tex>，<Tex>{'w\\,x'}</Tex> 叫做 DTC 的<strong>補償量</strong>。PD 量的是「DTC 延遲後的 reference edge 減
+          feedback edge」：<Tex>{String.raw`e=t_\mathrm{ref}'-t_\mathrm{fb}=(a-w)\,x`}</Tex>（常數 <Tex>{'T_0'}</Tex> 只讓 PLL
+          鎖定的相位整個平移，不出現在 <Tex>{'e'}</Tex> 裡）。
+        </p>
+        <p>
+          如果 DTC 是一條完美的直線，<Tex>{'w=a'}</Tex> 就能讓每個 code 都對齊。但真實的 DTC 稍微彎曲：code <Tex>{'x'}</Tex> 的延遲比直線多出{' '}
+          <Tex>{'c_3x^3'}</Tex>（<Tex>{'c_3'}</Tex> 是三階 INL 的係數，INL 指 delay 偏離直線的部分），所以要讓這個 code 的誤差為 0，需要的補償量是{' '}
+          <Tex>{String.raw`y(x)=a\,x+c_3x^3`}</Tex> —— 一條彎曲線。校正電路只能調
+          <strong>一個</strong>數字 —— 線性 gain <Tex>{'w'}</Tex>，補償量只能是直線 <Tex>{'w\\,x'}</Tex>。一條直線不可能同時貼齊一條彎曲線上的所有點，所以
           LMS 只能找一個「最划算」的折衷斜率。問題是：<strong>「最划算」是用什麼標準？</strong> 這個標準由演算法決定，不由物理決定。
         </p>
       </Section>
 
       <Section kind="example" title={m('先算一次：5 個 code、$a=1$、$c_3=0.1$')} level={2} id="ch11-hand">
         <p>
-          code 等機率取 <Tex>{String.raw`x\in\{-2,-1,0,1,2\}`}</Tex>，真實 delay <Tex>{String.raw`y(x)=x+0.1x^3`}</Tex>（單位 t.u.）。每個 code 自己「想要」的 gain 是{' '}
+          code 等機率取 <Tex>{String.raw`x\in\{-2,-1,0,1,2\}`}</Tex>，需要的補償量 <Tex>{String.raw`y(x)=x+0.1x^3`}</Tex>（單位 t.u.）。每個 code 自己「想要」的 gain 是{' '}
           <Tex>{String.raw`t(x)=y(x)/x`}</Tex>：
         </p>
         <div className="table-wrap">
@@ -72,7 +81,7 @@ export function IntroSection() {
                   code <Tex>{'x'}</Tex>
                 </th>
                 <th>
-                  真實 delay <Tex>{'y(x)'}</Tex>
+                  需要的補償量 <Tex>{'y(x)'}</Tex>
                 </th>
                 <th>
                   per-code gain <Tex>{'t(x)=y/x'}</Tex>
@@ -146,14 +155,26 @@ export function IntroSection() {
 
       <Section kind="diagram" title="誤差從哪裡進來？" level={2} id="ch11-diagram">
         <p>
-          剛才的例子只有 INL 一種誤差。實際的電路裡，comparator 前的誤差有好幾個來源。先看 <FigRef id="error-sources" /> 中間的加法點{' '}
-          <Tex>{'\\Sigma'}</Tex>：DTC 的 delay、補償量 <Tex>{'-w\\,x'}</Tex>、PD／comparator 的 offset <Tex>{'b'}</Tex>、與 code 成正比的干擾{' '}
-          <Tex>{String.raw`\varepsilon_{cc}=\kappa x`}</Tex>、隨機雜訊 <Tex>{'v'}</Tex>，全部在這裡相加成 <Tex>{'e[n]'}</Tex>；再看加法點下面：comparator 只留下正負號{' '}
-          <Tex>{'q'}</Tex>，GMAC 把 <Tex>{'q'}</Tex> 乘上 <Tex>{'x'}</Tex> 後累加成 <Tex>{'G'}</Tex>，最後回頭去改 <Tex>{'w'}</Tex>（<Tex>{'\\mu'}</Tex>{' '}
-          是學習率，<Tex>{'N'}</Tex> 是每次更新所平均的 sample 數）。把圖上 DTC 的 <Tex>{'a\\,x'}</Tex> 與補償的 <Tex>{'-w\\,x'}</Tex> 合併成{' '}
-          <Tex>{'(a-w)\\,x'}</Tex>，加法點的輸入就是下一節公式 F-11.1 的五項。圖上的虛線是主 PLL：如果 comparator 就是主 PLL 的 BBPD，它的輸出{' '}
-          <Tex>{'q'}</Tex> 也會送進 loop filter，積分後以 <Tex>{String.raw`\varphi`}</Tex>（static phase offset，單位 t.u.）加回加法點，這是 §11.1 的主迴路 DC
-          null。
+          剛才的例子只有 INL 一種誤差。實際的電路裡，comparator 前的誤差有好幾個來源。先看 <FigRef id="error-sources" /> 上半部的 PD：它是一個減法點，量的是{' '}
+          <Tex>{String.raw`t_\mathrm{ref}'-t_\mathrm{fb}`}</Tex>。Reference clock 先經過 DTC 才進 PD，到達的時間是{' '}
+          <Tex>{String.raw`t_\mathrm{ref}'=T_0-w\,x+d(x)`}</Tex>（補償量 <Tex>{'w\\,x'}</Tex> 由 gain correction 送來；<Tex>{'d(x)'}</Tex> 是 DTC 的
+          INL，也就是延遲偏離直線的量）；回授路徑上只有 divider，它的 edge 早到 <Tex>{'a\\,x'}</Tex>，也就是{' '}
+          <Tex>{String.raw`t_\mathrm{fb}=-a\,x`}</Tex>。兩者相減：<Tex>{String.raw`(T_0-w\,x+d(x))-(-a\,x)=(a-w)\,x+d(x)+T_0`}</Tex>；常數{' '}
+          <Tex>{'T_0'}</Tex> 只讓鎖定的相位整個平移，不算進誤差。PD／comparator 的 offset <Tex>{'b'}</Tex>、與 code 成正比的干擾{' '}
+          <Tex>{String.raw`\varepsilon_{cc}=\kappa x`}</Tex>、隨機雜訊 <Tex>{'v'}</Tex> 也在這裡加進來，總和就是 PD 的輸出 <Tex>{'e[n]'}</Tex> ——
+          下一節公式 F-11.1 的五項。
+        </p>
+        <p>
+          再看 PD 下面：PD 的輸出分成兩路，一路送進主迴路的 loop filter，另一路給 LMS 校正迴路。comparator 取的是 PD 的輸出{' '}
+          <Tex>{'e[n]'}</Tex>，也就是送進 loop filter 的同一個訊號，只留下正負號 <Tex>{'q'}</Tex>；GMAC 把 <Tex>{'q'}</Tex> 乘上 <Tex>{'x'}</Tex> 後累加成{' '}
+          <Tex>{'G'}</Tex>，最後回頭去改 <Tex>{'w'}</Tex>（<Tex>{'\\mu'}</Tex> 是學習率，<Tex>{'N'}</Tex> 是每次更新所平均的 sample 數）。右邊的 DSM
+          同時做三件事：carry 控制 divider、餘數 <Tex>{'x[n]'}</Tex> 送進 gain correction、同一個 <Tex>{'x[n]'}</Tex> 當 GMAC 的 regressor。
+        </p>
+        <p>
+          圖上的虛線是主 PLL 的回授：loop filter 積分後控制 VCO，VCO 的輸出經 divider 回到 PD —— 回授路徑上沒有別的東西。主迴路的修正讓 feedback edge 再早到{' '}
+          <Tex>{String.raw`\varphi`}</Tex>（static phase offset，單位 t.u.），也就是 <Tex>{String.raw`t_\mathrm{fb}=-a\,x-\varphi`}</Tex>，相減後{' '}
+          <Tex>{'e[n]'}</Tex> 多了一項 <Tex>{String.raw`+\varphi`}</Tex>，這是 §11.1 的主迴路 DC null。如果 PD 本身就是 1-bit 的 BBPD，comparator 就是
+          PD，送進 loop filter 的就是 <Tex>{'q'}</Tex>。
         </p>
         <Fig id="error-sources" />
         <p>

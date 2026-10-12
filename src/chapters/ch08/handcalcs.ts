@@ -509,8 +509,8 @@ export const HANDCALCS: HandCalcDef[] = [
             why: String.raw`臨界增益：$g$ 一超過它，就有一對根跑出單位圓。$d\ge3$ 時可用 $g^*\approx\frac{\pi}{2d+1}$（$\sin x\approx x$，誤差 $<1\%$）。`,
           },
           {
-            tex: String.raw`GM_d=\frac{g^{*}}{g}=\frac{${texNum(gStar)}}{${inp(g)}}=${texNum(gmLin, RATIO_SIG)}`,
-            why: String.raw`$g$ 離臨界值還差幾倍；$>1$ 才穩定。這個倍數就是留給 $K_q$、$C$ 的 PVT 變化的餘裕。（多留一位小數，下一步要取 $\log$。）`,
+            tex: String.raw`GM_d=\frac{${texNum(gStar)}}{${inp(g)}}=${texNum(gmLin, RATIO_SIG)}`,
+            why: String.raw`$GM_d=\frac{g^{*}}{g}$：$g$ 離臨界值還差幾倍；$>1$ 才穩定。這個倍數就是留給 $K_q$、$C$ 的 PVT 變化的餘裕。（多留一位小數，下一步要取 $\log$。）`,
           },
           {
             tex: String.raw`GM_d\,[\mathrm{dB}]=20\log_{10}(${texNum(gmLin, RATIO_SIG)})=${texNum(clean(pm.gmDb))}\ \mathrm{dB}`,
@@ -689,7 +689,8 @@ export const HANDCALCS: HandCalcDef[] = [
     title: String.raw`綜合手算：從晶片數字（$\sigma_v$、$\mu$、$d$）到 pole、$\mu$ 上限與裕度`,
     page: '/ch/08',
     formulaId: 'F-08.2',
-    formulaTex: String.raw`K_q=\frac{\sqrt{2/\pi}}{\sigma_v},\qquad K=K_qC,\qquad g=\mu K,\qquad p=1-g,\qquad \mu_{\max}(d)=\frac{g^{*}(d)}{K},\qquad GM_d=\frac{g^{*}(d)}{g},\qquad PM_d=90^\circ-(2d+1)\arcsin\frac g2`,
+    // 兩行（aligned，和 HC-08.7 相同的寫法）：七個式子排成一行比桌機的正文欄寬約 246px，會多出一條橫向捲軸
+    formulaTex: String.raw`\begin{aligned}&K_q=\frac{\sqrt{2/\pi}}{\sigma_v},\qquad K=K_qC,\qquad g=\mu K,\qquad p=1-g\\[1ex]&\mu_{\max}(d)=\frac{g^{*}(d)}{K},\qquad GM_d=\frac{g^{*}(d)}{g},\qquad PM_d=90^\circ-(2d+1)\arcsin\frac g2\end{aligned}`,
     level: 'engineer',
     claim: 'approx',
     inputs: [
@@ -746,8 +747,8 @@ export const HANDCALCS: HandCalcDef[] = [
             why: String.raw`把無因次的上界換回硬體單位：暫存器的 $\mu$ 最大能設到幾 fs。`,
           },
           {
-            tex: String.raw`GM_d=\frac{g^{*}}{g}=\frac{${texNum(gStar)}}{${texNum(g)}}=${texNum(gmLin, RATIO_SIG)}`,
-            why: String.raw`也等於 $\mu_{\max}/\mu$：$K_q$ 或 $C$ 再變大幾倍才會不穩。（多留一位小數，下一步要取 $\log$。）`,
+            tex: String.raw`GM_d=\frac{${texNum(gStar)}}{${texNum(g)}}=${texNum(gmLin, RATIO_SIG)}`,
+            why: String.raw`$GM_d=\frac{g^{*}}{g}$，也等於 $\mu_{\max}/\mu$：$K_q$ 或 $C$ 再變大幾倍才會不穩。（多留一位小數，下一步要取 $\log$。）`,
           },
           {
             tex: String.raw`GM_d\,[\mathrm{dB}]=20\log_{10}(${texNum(gmLin, RATIO_SIG)})=${texNum(clean(pm.gmDb))}\ \mathrm{dB}`,

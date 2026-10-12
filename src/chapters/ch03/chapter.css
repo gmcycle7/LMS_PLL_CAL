@@ -261,3 +261,20 @@
 .ch03-lead {
   scroll-margin-top: calc(var(--topbar-h) + 12px);
 }
+
+/*
+ * 手機上的逐步推導／帶入手算：每一步是「符號式 = 代入數字 = 結果」的等式鏈，欄寬只有 267px 左右，
+ * 有些式子（例如 HC-03.7 的 nλ = 200 × (−0.1162) = −23.24、HC-03.8 的 μ_as ≈ 2.4212/σ² = 2.4212/1 = 2.4212）
+ * 只比欄位寬三到六個像素，結果是一列只能橫向捲幾個像素、沒有用途的捲軸。
+ * 讓 KaTeX 在最外層的等號／運算子後面換行（KaTeX 文件對 display math 自動換行的建議寫法）：窄螢幕上放不下的式子分成兩行，
+ * 放得下的仍然排成一行，桌機（> 640px）完全不受影響；內容一個字都沒有被隱藏。
+ */
+@media (max-width: 640px) {
+  .ch03 .c-step-tex .katex-display > .katex {
+    white-space: normal;
+  }
+  /* 換行之後上下兩行之間留一點空隙 */
+  .ch03 .c-step-tex .katex-display > .katex > .katex-html > .base {
+    margin: 0.12em 0;
+  }
+}

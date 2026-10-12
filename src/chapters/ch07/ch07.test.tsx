@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { renderTex } from '@/components'
@@ -140,6 +142,47 @@ describe('Chapter 07（jsdom smoke）', () => {
     const s1 = sec('#ch07-problem').textContent ?? ''
     for (const phrase of ['DTC 真正的 gain', '目前的校正係數', '雜訊', '標準差', '正負號', 'learning rate', '小訊號增益', 'loop gain', '是 code 的振幅', '誤差路徑在 code 頻率的相位', '離變號']) expect(s1, phrase).toContain(phrase)
     for (const t of [String.raw`\delta=a-w`, String.raw`\sigma_v`, String.raw`e_{\mathrm{PD}}[n]=(a-w)\,u[n]+v[n]`, String.raw`\phi=\angle H`, String.raw`g=\mu K_qC`, 'G_k', 'N']) expect(texIn('#ch07-problem'), t).toContain(t)
+    // 架構約定（docs/assumptions.md §2a）：7.1 節第一次給出物理圖像——DTC 在 reference 輸入端、回授路徑上只有 divider、
+    // DTC 的補償量 w·x[n] 從基準延遲 T_0 往回扣、PD 量的是 t_ref′ − t_fb；comparator 取的是 PD 的輸出（送進 loop filter 的同一個訊號）
+    for (const phrase of ['DTC 在 reference 輸入端', '回授路徑上只有 divider', '補償量', '基準延遲', 'reference edge 減 feedback edge', 'edge 比理想時刻早到', 'comparator 取的就是這個 PD 輸出', '送進 loop filter 的同一個訊號']) {
+      expect(s1, phrase).toContain(phrase)
+    }
+    for (const t of [String.raw`\tau_{\mathrm{DTC}}[n]=T_0-w\,x[n]`, String.raw`t_{\mathrm{ref}}'-t_{\mathrm{fb}}`, String.raw`(a-w)\,x[n]`, String.raw`(a-w)\,u[n]`]) expect(texIn('#ch07-problem'), t).toContain(t)
+    // 章首系統地圖下面的那句話也照同一個接法
+    expect(container.querySelector('figure.c-sysmap')?.nextElementSibling?.textContent).toMatch(/comparator 取的是 PD 的輸出/)
+    expect(container.querySelector('figure.c-sysmap')?.nextElementSibling?.textContent).toMatch(/DTC 在 reference 輸入端，回授路徑上只有 divider/)
+    // 7.4、7.6 節的閉迴路圖與 RTL 位置圖：走圖說明寫明 comparator 取 PD 的輸出、w_k 送回 reference 端的 DTC
+    for (const id of ['#ch07-gradient', '#ch07-hardware']) {
+      expect(sec(id).textContent, id).toMatch(/comparator 取的就是這個 PD 輸出/)
+      expect(sec(id).textContent, id).toMatch(/送回 reference 端的 DTC/)
+    }
+    // reference 端的 DTC 只能延遲：code x[n] 越大延遲越短（7.1 節）；RTL 送進 DTC 的 code 從固定的中心值往回扣（7.6 節）
+    expect(s1).toMatch(/越大，延遲越短/)
+    // 補償不足（w < a）時 reference edge 太晚：x[n] > 0 時誤差為正，也就是誤差和 x[n] 同號（本章的例子 x[n] 有正有負，所以寫成「同號」）
+    expect(s1).toMatch(/補償不足、.*時 reference edge 還是太晚：.*時誤差為正，也就是誤差和.*同號/)
+    expect(texIn('#ch07-problem')).toContain('x[n]>0')
+    expect(sec('#ch07-hardware').textContent).toMatch(/DTC 只能延遲.*從一個固定的中心值往回扣.*越大，延遲越短/)
+    expect(texIn('#ch07-hardware')).toContain(String.raw`w_k\,x[n]`)
+    // 7.4 節：e_PD（含雜訊）就是 PD 的輸出——推導第 1 步與梯度圖的走圖說明都這樣寫，不會讀成「PD 的輸出之後才加雜訊」
+    const s4 = sec('#ch07-gradient').textContent ?? ''
+    expect(s4).toMatch(/再加上雜訊.*，就是 PD 的輸出/)
+    expect(s4).toMatch(/圓形加法點的輸出就是 PD 的輸出，兩個乘法器都從這裡取訊號/)
+    expect(s4).not.toMatch(/成為 PD 的輸出，再加上雜訊/)
+    // 7.5 節的 Type-II 迴路：PD 的輸出＝reference 輸入減回授，誤差從 PD 的 reference 輸入注入，H_PD = 1/(1 + L) 取正號；DTC 不在回授路徑上
+    const s5 = sec('#ch07-mismatch').textContent ?? ''
+    // 回授線走的是 divider（圖上標「divider 的回授」，圖說與走圖說明同一個說法）
+    expect(s5).toMatch(/divider 的回授從負端進來/)
+    expect(s5).toMatch(/只在回授線上標出「divider 的回授」/)
+    for (const phrase of ['先看標著 PD 的圓圈', 'reference 端減回授端', 'DTC 不在這條路上', '和送進 loop filter 的是同一個訊號', 'PD 的輸出等於 reference 端的輸入減掉']) expect(s5, phrase).toContain(phrase)
+    expect(texIn('#ch07-mismatch')).toContain(String.raw`e_{\mathrm{PD}}=\phi_{\mathrm{dtc}}-\theta_{\mathrm{fb}}`)
+    expect(texIn('#ch07-mismatch')).toContain(String.raw`e_{\mathrm{PD}}=H_{\mathrm{PD}}\,\phi_{\mathrm{dtc}}`)
+    expect(texIn('#ch07-mismatch').some((t) => t.includes(String.raw`-\underbrace{L(z)\,(a-w)\,U(z)}_{\text{回授}}`) && t.includes(String.raw`U(z)=\frac{X(z)}{1+L(z)}`))).toBe(true)
+    expect(texIn('#ch07-mismatch')).toContain(String.raw`H_{\mathrm{PD}}=\frac{U}{X}=\frac{1}{1+L}=\frac{\nabla^2}{\nabla^2+(K_i+K_p\nabla)\,z^{-(1+d)}}`)
+    // 符號表：e_PD 是 PD 的輸出；DTC 的補償量與基準延遲、t_ref′／t_fb 都有列
+    const symTex = Array.from(symbols.querySelectorAll('annotation')).map((a) => a.textContent ?? '')
+    for (const t of [String.raw`T_0,\ \tau_{\mathrm{DTC}}[n]=T_0-w\,x[n]`, String.raw`t_{\mathrm{ref}}',\ t_{\mathrm{fb}}`]) expect(symTex, t).toContain(t)
+    expect(symbols.textContent).toMatch(/PD 的輸出（PD 誤差；comparator 取的就是它，也就是送進 loop filter 的同一個訊號）/)
+    expect(symbols.textContent).toMatch(/誤差從 PD 的 reference 輸入注入/)
     expect(sec('#ch07-linear-phase').textContent).toMatch(/自然頻率（natural frequency）/)
     expect(sec('#ch07-linear-phase').textContent).toMatch(/阻尼（damping/)
     expect(sec('#ch07-linear-phase').textContent).toMatch(/pipeline latency/)
@@ -164,6 +207,9 @@ describe('Chapter 07（jsdom smoke）', () => {
     // 所有即時計算的數字都有限：頁面上不得出現 NaN / undefined / Infinity（KaTeX 解析錯誤也不得出現）
     const text = container.textContent ?? ''
     expect(text).not.toMatch(/NaN|undefined|Infinity/)
+    // 全章沒有舊接法的說法：DTC 不在回授路徑上、殘餘誤差不是從回授那一邊進來、DTC 給的是補償量（不是往後推 edge 的延遲）。
+    // （下面是「不可以出現」的樣式，不是內文。）
+    expect(text).not.toMatch(/DTC 在回授|divider 之後|回授路徑上的 DTC|DTC 插入|插入延遲|推回理想|feedback 側注入|回授側注入|延遲 feedback edge/)
     expect(container.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
     // 7.5 的二次差分：DT 推導（F-07.15）與 AR(1) 確切式（F-07.16）都在
     expect(container.querySelector('[id="formula-F-07.16"]')).not.toBeNull()
@@ -333,6 +379,19 @@ describe('Chapter 07（jsdom smoke）', () => {
     expect(plainMathText(b.container)).toEqual([])
     expect(b.container.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
   }, 240000)
+
+  it('沒有用途的捲軸：手機上入門模式的收合框不縮窄推導（和 Engineer 模式同寬）；GMAC 程式碼那一行在桌機放得下', () => {
+    // jsdom 不排版，這裡只確認規則還在；實際寬度用 `node scripts/scroll-audit.mjs --routes /ch/07 --mode beginner --viewport mobile` 量
+    // （規則拿掉的話，375 px 的手機上有三條公式只比 278 px 的欄位寬 2–5 px，各多一條橫向捲軸）。
+    const css = readFileSync(join(process.cwd(), 'src/chapters/ch07/chapter.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    const mobile = css.match(/@media \(max-width: 480px\) \{\s*\.ch07-fold > details \{([^}]*)\}\s*\}/)
+    expect(mobile).not.toBeNull()
+    for (const decl of ['border-left: 0', 'border-right: 0', 'padding-left: 0', 'padding-right: 0']) expect(mobile?.[1], decl).toContain(decl)
+    // 桌機與平板仍是完整的虛線框
+    expect(css).toMatch(/\.ch07-fold > details \{\s*border: 1px dashed var\(--border-strong\);/)
+    // 7.4 節的 GMAC 程式碼：右側留白 8 px（共用預設 12 px 時，桌機上最長的一行只比欄位寬 2 px）
+    expect(css).toMatch(/\.ch07-code-fit \.c-code-line \{\s*padding-right: 8px;\s*\}/)
+  })
 })
 
 describe('Ch07 公式登錄與 presets', () => {
@@ -359,6 +418,13 @@ describe('Ch07 公式登錄與 presets', () => {
     for (const f of FORMULAS) expect(renderTex(f.tex, true).includes('katex-error'), f.id).toBe(false)
     // 至少一半的條件欄含有公式（確認真的轉成 $...$ 了，而不是把數學刪掉）
     expect(FORMULAS.filter((f) => f.conditions.includes('$')).length).toBeGreaterThanOrEqual(FORMULAS.length / 2)
+    // 架構約定（docs/assumptions.md §2a）寫在 F-07.1 的條件裡：公式本身不變（e_PD = (a − w)·u + v，正號），e_PD 是 PD 的輸出、
+    // comparator 與 loop filter 取同一個節點、DTC 在 reference 輸入端、殘餘誤差從 PD 的 reference 輸入注入
+    const f1 = FORMULAS.find((f) => f.id === 'F-07.1')
+    expect(f1?.tex).toBe(String.raw`e_{\mathrm{PD}}[n]=(a-w)\,u[n]+v[n],\qquad u[n]=(h*x)[n]`)
+    for (const phrase of ['PD 的輸出', 'reference edge 減 feedback edge', 'comparator 與 loop filter 取同一個節點', 'DTC 在 reference 輸入端', '從 PD 的 reference 輸入注入', String.raw`$H_{\mathrm{PD}}=1/(1+L)$ 取正號`]) {
+      expect(f1?.conditions, phrase).toContain(phrase)
+    }
   })
 
   it('所有 delay-fx-lab presets 都能解析；Gallery #4 唯一且指向本章', () => {

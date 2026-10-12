@@ -87,7 +87,7 @@ export function UpdateDelay() {
       />
       <p className="small">
         {rich(
-          String.raw`讀圖（由上往下是時間）：先看 block $k$ 的第一個箭頭——暫存器裡已經是 $w_k$，DTC 拿到的卻是 $w_{k-1}$。所以這個 block 的誤差是 $\delta_{k-1}=a-w_{k-1}$，GMAC 累加出來的是 $G_k=K\delta_{k-1}$，暫存器用它算出 $w_{k+1}$。再看 block $k+1$：同樣的事重複一次，所有下標加 $1$。下面的表是同一件事的表格版（多列了前一個 block $k-1$），每一欄是一個 block。`,
+          String.raw`讀圖（由上往下是時間）：先看 block $k$ 的第一個箭頭——暫存器裡已經是 $w_k$，DTC 拿到的卻是 $w_{k-1}$。再看第二個箭頭——GMAC 的輸入不是直接從 DTC 來的，而是 PD 的輸出（comparator 取它的正負號）；DTC 用的是 $w_{k-1}$，所以這個 block 的 PD 輸出裡還沒修掉的誤差是 $\delta_{k-1}=a-w_{k-1}$，GMAC 累加出來的是 $G_k=K\delta_{k-1}$，暫存器用它算出 $w_{k+1}$。最後看 block $k+1$：同樣的事重複一次，所有下標加 $1$。下面的表是同一件事的表格版（多列了前一個 block $k-1$），每一欄是一個 block。`,
         )}
       </p>
       <div className="table-wrap">
@@ -291,7 +291,7 @@ export function UpdateDelay() {
               { tex: String.raw`P(1)=g>0,\qquad P(-1)=-1-1+g=g-2<0\;\Rightarrow\;g<2`, why: '前兩個條件。' },
               { tex: String.raw`|a_0|=g<1`, why: '第三個條件。' },
               { tex: String.raw`|g^2-1|>|g\cdot(-1)-0|\;\Rightarrow\;1-g^2>g`, why: rich(String.raw`第四個條件；在 $0<g<1$ 時 $|g^2-1|=1-g^2$。`) },
-              { tex: String.raw`g^2+g-1<0\;\Rightarrow\;g<\frac{-1+\sqrt5}{2}`, why: '解二次不等式（取正根）。' },
+              { tex: String.raw`g^2+g-1<0\Rightarrow g<\frac{-1+\sqrt5}{2}`, why: '解二次不等式（取正根）。' },
               { tex: String.raw`\frac{\sqrt5-1}{2}=2\sin18^\circ=2\sin\frac{\pi}{10}=${tx(g2, 9)}`, why: rich(String.raw`已知 $\sin18^\circ=\frac{\sqrt5-1}{4}$（正五邊形的幾何）；正好是一般公式 $d=2$ 的情形。`) },
             ]}
             result={String.raw`d=2:\;0<g<2\sin\frac{\pi}{10}\approx${tx(g2, 3)}`}
@@ -316,7 +316,7 @@ export function UpdateDelay() {
             { tex: String.raw`z=e^{j\omega}\ \text{代入}\ z^{d}(z-1)=-g`, why: rich(String.raw`找出「根正好在單位圓上」的所有 $(\omega,g)$。`) },
             { tex: String.raw`\text{大小：}\;|e^{jd\omega}|\cdot|e^{j\omega}-1|=2\sin\frac{\omega}{2}=g`, why: rich(String.raw`$|e^{jd\omega}|=1$，再用弦長公式。`) },
             { tex: String.raw`\text{角度：}\;d\omega+\Big(\frac{\omega}{2}+90^\circ\Big)=180^\circ\pmod{360^\circ}`, why: rich(String.raw`$-g$（$g>0$）的角度是 $180^\circ$。`) },
-            { tex: String.raw`\Big(d+\tfrac12\Big)\omega=90^\circ\;\Rightarrow\;\omega^{*}=\frac{\pi}{2d+1}`, why: rich(String.raw`取最小的正解（其他解的 $\omega$ 更大或是共軛，對應更大的 $g$）。`) },
+            { tex: String.raw`\Big(d+\tfrac12\Big)\omega=90^\circ\Rightarrow\omega^{*}=\frac{\pi}{2d+1}`, why: rich(String.raw`取最小的正解（其他解的 $\omega$ 更大或是共軛，對應更大的 $g$）。`) },
             { tex: String.raw`g^{*}=2\sin\frac{\omega^{*}}{2}=2\sin\frac{\pi}{4d+2}`, why: rich(String.raw`代回大小條件。另外 $z=1$ 永遠不是根（$P(1)=g>0$）。`) },
           ]}
           result={String.raw`0<g<g^{*}(d)=2\sin\frac{\pi}{4d+2}`}

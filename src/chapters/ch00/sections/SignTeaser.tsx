@@ -126,7 +126,7 @@ export function SignTeaserSection() {
   return (
     <Section kind="intuition" level={2} id="ch00-sign" title="§0.9 預告：只知道誤差的「正負號」也能學嗎？">
       <p>
-        在 PLL 裡，相位誤差 <Tex>{'e'}</Tex> 通常只被一顆 <strong>1-bit 比較器</strong>看見：它只告訴你「早了還是晚了」（<Tex>{'+1'}</Tex> 或{' '}
+        在 PLL 裡，PD 輸出的相位誤差 <Tex>{'e'}</Tex> 通常只被一顆 <strong>1-bit 比較器</strong>看見：它只告訴你「早了還是晚了」（<Tex>{'+1'}</Tex> 或{' '}
         <Tex>{'-1'}</Tex>），不告訴你差多少。把比較器的輸出記為 <Tex>{'q_n=\\mathrm{sign}(e_n)'}</Tex>：<Tex>{'e_n>0'}</Tex> 時是 <Tex>{'+1'}</Tex>、
         <Tex>{'e_n<0'}</Tex> 時是 <Tex>{'-1'}</Tex>。把更新式裡的 <Tex>{'e'}</Tex> 換成它的正負號，就是 <strong>Sign-Error LMS</strong>。先看兩者的硬體差在哪裡：
       </p>
@@ -274,7 +274,7 @@ export function SignTeaserSection() {
               <tr key={t}>
                 <td>{TIE_LABEL[t]}</td>
                 <td className="num">{tieExact[t].tail.map((v) => String(v)).join(', ')}</td>
-                <td className="num">{tieT01[t].tail.map((v) => String(v)).join(', ')}</td>
+                <td className="num ch00-num-list">{tieT01[t].tail.map((v) => String(v)).join(', ')}</td>
               </tr>
             ))}
           </tbody>

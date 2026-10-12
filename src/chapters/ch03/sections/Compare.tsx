@@ -206,20 +206,36 @@ export function CompareSection() {
       <h2 id="pll">8｜連到 PLL：code 分布、GMAC 累加與 sign-off 用語</h2>
       <Section kind="diagram" title="本章的符號在硬體裡是什麼">
         <p>
-          前七節的黑盒子 <Tex>{T`y=ax`}</Tex> 在 DTC-based fractional-N PLL 裡是什麼？把章首系統地圖裡和本章有關的方塊拉出來，並把本章「拿掉」的部分標成褐色，就是下面這張圖：
+          前七節的黑盒子 <Tex>{T`y=ax`}</Tex> 在 DTC-based fractional-N PLL 裡是什麼？把章首系統地圖裡和本章有關的方塊拉出來，並把本章「拿掉」的部分標成褐色，就是下面這張圖。接法和系統地圖相同：DTC 在 reference 的輸入端
+          （reference clock → DTC → PD），回授路徑上只有 divider／PMUX，而 LMS 校正迴路的輸入是 PD 的輸出：
         </p>
         <Fig
           chart={CHART_PLL_MAPPING}
-          caption={T`本章的理想模型（L0）畫回 PLL 硬體。看藍色三格（code $x$、$\div N\times\mu$、gain accumulator）就是章首系統地圖的主角；褐色那一格列出本章先拿掉、後面章節才放回來的東西。`}
-          ariaLabel="DSM 或 DTC 的 code x 同時乘上未知的 a 與校正值 w，兩者在 phase detector 相減並加上雜訊 v，得到誤差 e 等於 delta 乘 x 加 v。本章把 error path 當成 1、沒有延遲、comparator 當成線性。誤差與同一個 x 相乘後由 GMAC 累加 N 筆，每個 block 除以 N 乘 mu，加到 gain accumulator 的 w 上，再回到 gain correction"
+          caption={T`本章的理想模型（L0）畫回 PLL 硬體。看藍色三格（code $x$、$\div N\times\mu$、gain accumulator）就是章首系統地圖的主角；DTC 在 reference 輸入端，PD 的輸出 $e$ 同時送進 loop filter 與 LMS；褐色那一格列出本章先拿掉、後面章節才放回來的東西。`}
+          ariaLabel="DSM 的 code x 走兩條路：一條控制 divider，讓 feedback edge 早到 a 乘 x；另一條乘上校正值 w，控制 reference 端的 DTC，讓 reference edge 比基準延遲 T 0 少延遲 w 乘 x。reference clock 經過 DTC 後與 divider 的 feedback edge 一起進 phase detector，phase detector 量 reference edge 減 feedback edge 的時間差並加上雜訊 v，輸出誤差 e 等於 delta 乘 x 加 v；這個輸出同時送進 loop filter，也是 LMS 的輸入，loop filter 與 VCO 的輸出再經 divider 回到 phase detector。本章把 error path 當成 1、沒有延遲、comparator 當成線性。誤差與同一個 x 相乘後由 GMAC 累加 N 筆，每個 block 除以 N 乘 mu，加到 gain accumulator 的 w 上，再回到 gain correction"
         />
         <p>
-          先看上半：同一個 code <Tex>{T`x[i]`}</Tex>（最上面的藍色方塊，<Tex>i</Tex> 是 sample 索引）走兩條路。中間那格是「要被抵消的量」——DSM 量化誤差在 phase detector（PD）輸入端造成的時間誤差 <Tex>{T`a\,x[i]`}</Tex>，
-          <Tex>a</Tex> 就是能把它完全抵消的理想校正 gain（未知）；左邊那格是 DTC 依目前的校正值實際補掉的 <Tex>{T`w[k]\,x[i]`}</Tex>（<Tex>k</Tex> 是 block 索引，block 內 <Tex>w</Tex> 不變）。兩者在加法點相減，再加上右邊紅色那格 PD／reference
-          的雜訊 <Tex>{T`v[i]`}</Tex>，就是 <Tex>{T`e[i]=\delta[k]\,x[i]+v[i]`}</Tex>——和第 3 節的 <Tex>{T`e_n=\delta_nx_n+v_n`}</Tex> 是同一條式子。再看褐色那一格：真實硬體裡 <Tex>e</Tex> 還要經過 PLL 的 error
-          path（第 6–7 章）、更新延遲（第 8 章）和 1-bit comparator（第 5 章），accumulator 的輸出還有位元數限制（第 13 章）；本章把它們全部理想化，才得到乾淨的 <Tex>{T`1-\mu x^2`}</Tex>。最後往下看藍色方塊：
+          先看最上面的藍色方塊：同一個 code <Tex>{T`x[i]`}</Tex>（<Tex>i</Tex> 是 sample 索引）走兩條路。左邊那條長線一路往下，通到 divider／PMUX（回授路徑）：DSM 的 carry 控制除數，但除數只能是整數，留下來的餘數讓
+          feedback edge 比理想時刻<strong>早到</strong> <Tex>{T`a\,x[i]`}</Tex>，<Tex>a</Tex> 就是能把它完全抵消的理想校正 gain（未知）。右邊那條先經過 gain correction 乘上校正值{' '}
+          <Tex>{T`w[k]`}</Tex>（<Tex>k</Tex> 是 block 索引，block 內 <Tex>w</Tex> 不變），再去控制 <strong>reference 端</strong>的 DTC：reference clock 先經過 DTC 才進 PD。DTC 只能延遲、不能提前，
+          所以它從一個固定的基準延遲 <Tex>{T`T_0`}</Tex> 往回扣，<Tex>{T`\tau_{\text{DTC}}=T_0-w[k]\,x[i]`}</Tex>（數位端送進 DTC 的 code 是 <Tex>{T`C_0-w[k]\,x[i]`}</Tex>，<Tex>{T`C_0`}</Tex>{' '}
+          是固定的中心值）。被扣掉的 <Tex>{T`w[k]\,x[i]`}</Tex> 就是 DTC 的<strong>補償量</strong>：reference edge 被提前（少延遲）的時間。
+        </p>
+        <p>
+          接著看中間的 PD：它量的是「經過 DTC 的 reference edge 減 feedback edge」，<Tex>{T`e[i]=t'_{\text{ref}}[i]-t_{\text{fb}}[i]`}</Tex>。feedback 早到 <Tex>{T`a\,x[i]`}</Tex>，<Tex>e</Tex> 就多了{' '}
+          <Tex>{T`+a\,x[i]`}</Tex>；reference 被提前 <Tex>{T`w[k]\,x[i]`}</Tex>，<Tex>e</Tex> 就少了 <Tex>{T`w[k]\,x[i]`}</Tex>（線上的正負號就是對 <Tex>e</Tex> 的貢獻）；再加上右邊紅色那格 PD／reference 的雜訊{' '}
+          <Tex>{T`v[i]`}</Tex>，就是 <Tex>{T`e[i]=(a-w[k])\,x[i]+v[i]=\delta[k]\,x[i]+v[i]`}</Tex>——和第 3 節的 <Tex>{T`e_n=\delta_nx_n+v_n`}</Tex> 是同一條式子。補償不足（<Tex>{T`w<a`}</Tex>）時 reference
+          還是太晚，<Tex>e</Tex> 為正。<Tex>{T`T_0`}</Tex> 是常數，被 PLL 當成靜態相位偏移吸收，不影響任何會動的量，所以本章的數學一個字都不用改。
+        </p>
+        <p>
+          再看 PD 的輸出：<Tex>{T`e[i]`}</Tex> 分成兩路。往左下那一路進 loop filter 與 VCO／DCO，VCO 的輸出再經 divider 回到 PD——這一圈就是 PLL 的主迴路（本章不展開），回授路徑上只有 divider，沒有 DTC。
+          往右下那一路就是 <strong>LMS 校正迴路的輸入</strong>——comparator 取的是 PD 的輸出 <Tex>{T`e[i]`}</Tex>，也就是送進 loop filter 的同一個訊號，不是從 DTC 或 divider 拉出來的。
+          接著看褐色那一格，它列的是本章先拿掉的東西：真實硬體裡主迴路是閉合的，feedback edge 會跟著動，所以 PD 輸出裡的不是 <Tex>{T`\delta\,x`}</Tex>，而是 <Tex>{T`\delta\,u`}</Tex>——
+          <Tex>{T`u=h*x`}</Tex> 是被 PLL 的 error path 濾過的 code（第 6–7 章）；<Tex>w</Tex> 的更新有延遲（第 8 章）；comparator 只留下 1 bit 的正負號（第 5 章）；accumulator 的輸出還有位元數限制（第 13 章）。本章把它們全部理想化，才得到乾淨的{' '}
+          <Tex>{T`1-\mu x^2`}</Tex>。最後往下看藍色方塊：
           <Tex>{T`e[i]\,x[i]`}</Tex> 由 GMAC 累加 <Tex>N</Tex> 筆，每個 block 做一次「<Tex>{T`\div N`}</Tex>、<Tex>{T`\times\mu`}</Tex>」，加進 gain accumulator：
-          <Tex>{T`w[k+1]=w[k]+\mu\cdot\tfrac1N\sum_i e[i]\,x[i]`}</Tex>，新的 <Tex>{T`w[k]`}</Tex> 再沿著左邊那條長線回到「DTC 實際補掉的量」。<Tex>{T`N=1`}</Tex> 時 <Tex>{T`k=n`}</Tex>，這就是第 1–7 節的 <Tex>{T`w_{n+1}=w_n+\mu e_nx_n`}</Tex>；<Tex>{T`N>1`}</Tex> 的情況在本節後半（F-03.14）。下表把每個符號逐一對回硬體：
+          <Tex>{T`w[k+1]=w[k]+\mu\cdot\tfrac1N\sum_i e[i]\,x[i]`}</Tex>，新的 <Tex>{T`w[k]`}</Tex> 再沿著右邊那條長線回到 gain correction，由它去控制 reference 端的 DTC。<Tex>{T`N=1`}</Tex> 時 <Tex>{T`k=n`}</Tex>，這就是第 1–7 節的{' '}
+          <Tex>{T`w_{n+1}=w_n+\mu e_nx_n`}</Tex>；<Tex>{T`N>1`}</Tex> 的情況在本節後半（F-03.14）。下表把每個符號逐一對回硬體：
         </p>
         <div className="table-wrap">
           <table>
@@ -236,7 +252,7 @@ export function CompareSection() {
                   <Tex>{T`x_n`}</Tex>
                 </td>
                 <td>DSM / DTC code（正規化 regressor）</td>
-                <td>Part B 中真正進 PD 的是 <Tex>{T`u=h*x`}</Tex>，有時間相關，本章公式降為近似（勘誤 E38）</td>
+                <td>Part B 中 PD 輸出看到的是被主迴路濾過的 <Tex>{T`u=h*x`}</Tex>，有時間相關，本章公式降為近似（勘誤 E38）</td>
               </tr>
               <tr>
                 <td>

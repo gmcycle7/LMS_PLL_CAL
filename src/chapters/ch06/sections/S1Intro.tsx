@@ -18,8 +18,8 @@ export function S1Intro() {
       <div className="ch06-question">
         <div className="ch06-question-title">這一課要回答的問題</div>
         <p>
-          DTC gain 校正迴路用 1-bit comparator 加 GMAC 去「學」真正的 gain <Tex>{'a'}</Tex>。但 comparator 和 DTC 之間隔著整個主
-          PLL：PLL 會反應、會追蹤、會延遲。<strong>PLL 的 error transfer 會不會讓 LMS 越校越歪？</strong>
+          DTC gain 校正迴路用 1-bit comparator 加 GMAC 去「學」真正的 gain <Tex>{'a'}</Tex>。但 comparator 取的是 PD 的輸出，而 PD 就在主 PLL 的迴路裡：reference
+          輸入端的 DTC 一把誤差送進 PD，PLL 就會反應、會追蹤、會延遲，PD 輸出的已經不是原來的誤差。<strong>PLL 的 error transfer 會不會讓 LMS 越校越歪？</strong>
         </p>
         <p className="ch06-keypoint">
           答案：會。把 DTC 的 code 叫做 <Tex>{'x'}</Tex>、PD 實際看到的（被主 PLL 濾過的）code 叫做 <Tex>{'u'}</Tex>，兩者逐拍相乘再平均就是<strong>相關</strong>{' '}

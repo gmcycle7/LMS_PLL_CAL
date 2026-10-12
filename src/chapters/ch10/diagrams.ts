@@ -47,13 +47,16 @@ const fdRow = (ratio: number) => NUM.fd.rows.find((row) => row.r === ratio) ?? N
 
 /**
  * P 個 GMAC 共用一個 comparator 的整體架構（P = 3）：comparator 之前每個 sample n 一次，GMAC 之後每個 block k 一次。
+ * 校正迴路的輸入是 PD 的輸出 e[n]（全站約定，docs/assumptions.md §2a）：同一個 e[n] 一路進 loop filter、一路進 comparator。
+ * 係數 w 經 reference 端的 DTC 補償（DTC 不在回授路徑上），在 PD 留下 δ = a − w；這張圖不畫 DTC／divider 本身（章首的系統地圖與圖 hw-map 有）。
  * 藍色 = 三個 GMAC 共用的那一個 comparator。
  */
 export const CHART_MIMO_SYSTEM = String.raw`flowchart TB
-  subgraph PLL["PLL + DTC 的誤差路徑（每個 sample $n$）"]
-    E["$e[n] = u_1[n]\,\delta_1 + u_2[n]\,\delta_2 + u_3[n]\,\delta_3 + v[n]$"]
+  subgraph PLL["PLL 主迴路：Phase detector 的輸出端（每個 sample $n$）"]
+    E["Phase detector 的輸出<br/>$e[n] = u_1[n]\,\delta_1 + u_2[n]\,\delta_2 + u_3[n]\,\delta_3 + v[n]$"]
   end
-  E --> Q["1-bit comparator<br/>$q[n] = \operatorname{sign}(e[n])$"]
+  E -- "$e[n]$" --> LF["Loop filter → VCO / DCO<br/>（主迴路，用同一個 $e[n]$）"]
+  E -- "$e[n]$" --> Q["1-bit comparator<br/>$q[n] = \operatorname{sign}(e[n])$"]
   Q -- "$q[n]$" --> G1["$\mathrm{GMAC}_1$（GOS）<br/>$G_1 = \frac{1}{N}\sum_n q[n]\,x_1[n]$"]
   Q -- "$q[n]$" --> G2["$\mathrm{GMAC}_2$（PHOS）<br/>$G_2 = \frac{1}{N}\sum_n q[n]\,x_2[n]$"]
   Q -- "$q[n]$" --> G3["$\mathrm{GMAC}_3$（DTC gain）<br/>$G_3 = \frac{1}{N}\sum_n q[n]\,x_3[n]$"]
@@ -61,7 +64,7 @@ export const CHART_MIMO_SYSTEM = String.raw`flowchart TB
   G2 --> M
   G3 --> M
   M --> W["$\mathbf w_{k+1} = \mathbf w_k + \mathbf M\,\mathbf G_k$<br/>每個 block $k$ 更新一次"]
-  W -- "$\boldsymbol\delta = \mathbf a - \mathbf w$" --> E${STYLE}
+  W -- "$\boldsymbol\delta = \mathbf a - \mathbf w$<br/>（經 reference 端的 DTC<br/>補償，回到 PD）" --> E${STYLE}
   class Q focus`
 
 /* ───────────── §10.1–§10.2：耦合 ───────────── */
@@ -421,17 +424,30 @@ export const CHART_HANDCALC_FLOW = String.raw`flowchart TB
   Q --> V["$\operatorname{Var}(\xi_{\mathrm{slow}}) = m^2 \times \lambda_{\min} \div \big(K_q^2 \times N \times (1 - p^2)\big)$<br/>預設數字：$${d(z.scalarModeVar[1])}$ / $${d(z.modeVar[1])}$ / $${d(z.regModeVar[1])}\ \mathrm{fs}^2$"]${STYLE}
   class M focus`
 
-/** 硬體對應（藍色 = 本章新增的 P×P 混合矩陣；虛線 = 韌體／測試機的慢速路徑） */
+/**
+ * 硬體對應（藍色 = 本章新增的 P×P 混合矩陣；虛線 = 韌體／測試機的慢速路徑）。
+ * 全站約定（docs/assumptions.md §2a）：Reference clock → DTC → PD；回授是 loop filter → VCO／DCO → divider／PMUX → PD（回授路徑上沒有 DTC）。
+ * comparator 的輸入是 PD 的輸出 e[n]（同一個訊號也進 loop filter）；係數 w 經 gain correction 控制 reference 端的 DTC。
+ * DTC 只能延遲，所以方塊上寫的是它的延遲 T_0 − Σ w_i x_i[n]（從基準延遲 T_0 往回扣補償量 Σ w_i x_i[n]；匹配模型 x_i = u_i）。
+ * PD 量「延遲後的 reference edge 減 feedback edge」，所以 e[n] = Σ u_i (a_i − w_i) + v[n]，和本章的數學一致。
+ * 版面：loop filter、VCO、divider 併成一格（分成三格的話會和 GMAC 那一列擠在一起，圖要縮得更小）；PD 在最上面、DTC 在最下面，
+ * 「延遲後的 reference edge」沿右邊回到 PD，「feedback edge」從主迴路那一格直接回到 PD。
+ */
 export const CHART_HW_MAP = String.raw`flowchart TB
-  CMP["BBPD / 1-bit comparator<br/>$q[n] = \pm1$"] --> G1["GMAC accumulator 1<br/>GOS"]
+  PD["Phase detector<br/>輸出 $e[n]$（reference edge 減 feedback edge）"]
+  PD -- "$e[n]$" --> CMP["1-bit comparator（BBPD 判決）<br/>$q[n] = \operatorname{sign}(e[n])$"]
+  PD -- "$e[n]$" --> LF["Loop filter → VCO / DCO<br/>→ Divider / PMUX（回授）"]
+  LF -- "feedback edge" --> PD
+  CMP --> G1["GMAC accumulator 1<br/>GOS"]
   CMP --> G2["GMAC accumulator 2<br/>PHOS"]
   CMP --> G3["GMAC accumulator 3<br/>DTC gain"]
   G1 --> MIX["$P \times P$ 混合矩陣 $\mathbf M$<br/>$P^2$ 個乘加或 LUT<br/>scalar / diagonal 只要 shift"]
   G2 --> MIX
   G3 --> MIX
   MIX --> ACC["$P$ 個係數暫存器 $\mathbf w$"]
-  ACC --> DTC["DTC / PMUX 補償"]
-  DTC -. "經 PLL error path" .-> CMP
+  ACC -- "$\mathbf w$" --> DTC["Gain correction → DTC（reference 端）<br/>延遲 $= T_0 - \sum_i w_i\,x_i[n]$"]
+  REF["Reference clock"] --> DTC
+  DTC -- "延遲後的 reference edge" --> PD
   FW["韌體或測試機的 FSM<br/>Freeze、$\pm\Delta$、量 $\hat{\mathbf J}$"] -. "寫入 $\mathbf M$、$\gamma$、$\lambda_{\mathrm{reg}}$" .-> MIX
   FW -. "Freeze 與 $\pm\Delta$" .-> ACC${STYLE}
   class MIX focus`
@@ -467,8 +483,8 @@ export const CH10_DIAGRAMS: readonly Ch10Diagram[] = [
     kind: '系統圖',
     section: 'ch10-system',
     chart: CHART_MIMO_SYSTEM,
-    caption: String.raw`多參數 Block Sign-LMS 的整體架構（$P=3$）。要看藍色方塊：三個 GMAC 各用自己的 code $x_i[n]$ 去相關「同一個」comparator 輸出 $q[n]$；下面的更新矩陣 $\mathbf M$ 決定各 GMAC 的輸出如何分配到各校正係數。`,
-    alt: '多參數 Block Sign-LMS 架構：三個 GMAC 共用一個 1-bit comparator，輸出經更新矩陣 M 回到校正係數，再以 δ = a − w 回到誤差',
+    caption: String.raw`多參數 Block Sign-LMS 的整體架構（$P=3$）：校正迴路的輸入是 PD 的輸出 $e[n]$（loop filter 吃的是同一個 $e[n]$）。要看藍色方塊：三個 GMAC 各用自己的 code $x_i[n]$ 去相關「同一個」comparator 輸出 $q[n]$；下面的更新矩陣 $\mathbf M$ 決定各 GMAC 的輸出如何分配到各校正係數。`,
+    alt: '多參數 Block Sign-LMS 架構：PD 的輸出 e[n] 同時送進 loop filter 與 1-bit comparator，三個 GMAC 共用這一個 comparator，輸出經更新矩陣 M 回到校正係數，再經 reference 端 DTC 的補償以 δ = a − w 回到 PD',
   },
   {
     id: 'coupling',
@@ -739,8 +755,8 @@ export const CH10_DIAGRAMS: readonly Ch10Diagram[] = [
     kind: '系統圖',
     section: 'ch10-pll',
     chart: CHART_HW_MAP,
-    caption: String.raw`硬體對應：實線是每個 sample／block 都在跑的資料路徑，虛線是韌體或測試機偶爾才動的慢速路徑。藍色的 $P\times P$ 混合矩陣是本章新增的硬體。`,
-    alt: 'comparator 輸出送進三個 GMAC accumulator，經 P×P 混合矩陣到係數暫存器與 DTC/PMUX；韌體負責量 Ĵ 並寫入 M',
+    caption: String.raw`硬體對應：實線是每個 sample／block 都在跑的資料路徑，虛線是韌體或測試機偶爾才動的慢速路徑；comparator 取的是 PD 的輸出 $e[n]$，DTC 在 reference 輸入端（回授路徑上只有 divider／PMUX）。藍色的 $P\times P$ 混合矩陣是本章新增的硬體。`,
+    alt: 'PD 的輸出 e[n] 同時送進 loop filter 與 comparator，comparator 輸出送進三個 GMAC accumulator，經 P×P 混合矩陣到係數暫存器，再經 gain correction 控制 reference 端的 DTC；reference clock 經 DTC 延遲後進 PD，VCO 經 divider／PMUX 的 feedback edge 直接回到 PD；韌體負責量 Ĵ 並寫入 M',
   },
 ]
 

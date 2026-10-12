@@ -44,7 +44,20 @@ export const MODEL_SYMBOLS: SymbolEntry[] = [
       </>
     ),
   },
-  { symbol: 'e[n]', meaning: 'comparator 前的 time-equivalent error', unit: '\\mathrm{fs}', firstSeen: '§3' },
+  { symbol: 'e[n]', meaning: 'comparator 前的 time-equivalent error：PD 的輸出（送進 loop filter 的同一個訊號），加上折算到這個節點的 comparator offset 與 comparator 前的雜訊', unit: '\\mathrm{fs}', firstSeen: '§3' },
+  {
+    symbol: "t_\\mathrm{ref}',\\;t_\\mathrm{fb}",
+    meaning: md("DTC 延遲後的 reference edge 與 feedback（divider）edge 的時刻；PD 比的是這兩條 edge，主 PLL 反應之前兩者相差 $t_\\mathrm{ref}'-t_\\mathrm{fb}=(a-w)\\,x$（常數 $T_0$ 不計）"),
+    unit: '\\mathrm{fs}',
+    firstSeen: '§3',
+  },
+  {
+    symbol: 'T_0,\\;C_0,\\;\\tau_\\mathrm{DTC}[n]',
+    meaning: md('reference 端 DTC 的基準延遲、對應的固定中心 code、實際延遲 $\\tau_\\mathrm{DTC}[n]=T_0-w\\,x[n]$（$w\\,x[n]$ 是補償量）'),
+    unit: '\\mathrm{fs},\\;\\mathrm{LSB},\\;\\mathrm{fs}',
+    firstSeen: '§3',
+    note: md('DTC 只能延遲、不能提前；常數 $T_0$ 被 PLL 當成靜態相位偏移吸收'),
+  },
   { symbol: 'v[n],\\;\\sigma_v', meaning: 'comparator 前 Gaussian 雜訊與其 RMS（pd_noise_rms_fs）', unit: '\\mathrm{fs}', firstSeen: '§3' },
   { symbol: 'b', meaning: 'comparator_offset_fs：comparator offset', unit: '\\mathrm{fs}', firstSeen: '§3', note: md('不是 §8.4 的 $b_s$') },
   {
@@ -105,6 +118,13 @@ export const MODEL_SYMBOLS: SymbolEntry[] = [
     ),
   },
   { symbol: 'f_s,\\;f_u', meaning: md('comparator sample rate 與 block update rate $f_s/N$'), unit: '\\mathrm{Hz}', firstSeen: '§3' },
+  {
+    symbol: '\\phi_\\mathrm{dtc},\\;e_\\mathrm{PD},\\;\\theta_\\mathrm{fb}',
+    meaning: md('DTC 的殘餘誤差（從 PD 的 reference 輸入注入）、PD 的輸出、回授相位（PLL 輸出折算到 PD 輸入）：$e_\\mathrm{PD}=\\phi_\\mathrm{dtc}-\\theta_\\mathrm{fb}=H_\\mathrm{PD}\\,\\phi_\\mathrm{dtc}$、$\\theta_\\mathrm{fb}=T\\,\\phi_\\mathrm{dtc}$'),
+    unit: '\\mathrm{fs}',
+    firstSeen: '§2、§4',
+    note: md('兩條路都是正號；$H_\\mathrm{PD}=1/(1+L)$、$T=L/(1+L)$、$H_\\mathrm{PD}+T=1$'),
+  },
   { symbol: 'K_p,\\;K_i,\\;\\omega_nT_s,\\;\\zeta', meaning: 'DT 主 PLL 的比例／積分增益、正規化自然頻率、阻尼', unit: '\\text{rad/sample}', firstSeen: '§4' },
   {
     symbol: 'M=2^{B},\\;K_\\mathrm{FCW}',
@@ -113,7 +133,7 @@ export const MODEL_SYMBOLS: SymbolEntry[] = [
     firstSeen: '§4',
     note: md('DSM 的 FCW 改記 $K_\\mathrm{FCW}$，避免與 $K=K_qC$ 衝突'),
   },
-  { symbol: 'r[n]', meaning: 'DSM phase residue（DTC 要抵消的量）', unit: 'T_\\mathrm{vco}', firstSeen: '§4' },
+  { symbol: 'r[n]', meaning: 'DSM phase residue（DTC 要抵消的量）', unit: 'T_\\mathrm{vco}', firstSeen: '§4', note: md('$r\\le0$：feedback（divider）edge 早到 $-r\\,T_\\mathrm{vco}$；DTC code $x=-r$') },
   {
     symbol: 'c,\\;\\hat c,\\;g_\\mathrm{DTC},\\;o,\\;c_2,\\;c_3',
     meaning: md('DTC 的 code 要求、量化並飽和後的實體 code、線性增益、固定延遲、二階／三階係數（$\\tau(\\hat c)$ 為延遲）'),

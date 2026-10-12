@@ -178,7 +178,8 @@ export const HANDCALCS: HandCalcDef[] = [
             why: '每一筆的 $x$ 乘上自己的 $y$，再加起來（輸入與輸出「一起動」的程度）。',
           },
           {
-            tex: String.raw`w^*=\frac{\sum_i x_iy_i}{\sum_i x_i^2}=\frac{${texNum(sxy)}}{${texNum(sxx)}}=${texNum(wStar, S)}`,
+            // 一行寫完在手機的欄寬裡會多出 1px 的橫向捲軸：第二個等號前換行
+            tex: String.raw`\begin{aligned}w^*&=\frac{\sum_i x_iy_i}{\sum_i x_i^2}\\&=\frac{${texNum(sxy)}}{${texNum(sxx)}}=${texNum(wStar, S)}\end{aligned}`,
             why: '最小平方解（F-01.4 左式）。分子分母都除以筆數 $N$ 就是 $E[xy]/E[x^2]$，所以直接用總和相除即可。除不盡時多留幾位（下一步要拿它做減法）。',
           },
           {

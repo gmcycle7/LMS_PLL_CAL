@@ -405,7 +405,7 @@ CLT 近似式保留 Φ(m√N/√(1−m²))，並註明：奇數 N 時它近似 P
 
 **問題**：δw=w−w* 的極性和 §0 的 δ=a−w 相反，參考點也不同（w* 和 a；§11 已說明 w*≠a）。因此 δt=(w−w*)x 和 §6 的 e_DTC=(a−w)x 差一個負號（w*=a 時）。§12.3 要求含 Cross-Spectrum（直接 PD 路徑與 LMS 的相關），若混用 e_DTC 和 δt，相關係數會反號。
 
-**修正（網站採用）**：在 §0 新增一列：δw_k=w_k−w*，表示相對 LMS 固定點 w* 的係數偏差，極性與 δ 相反，且 a−w_k=(a−w*)−δw_k。§12.2 改為「DTC 實際施加 delay 的擾動 δt[n]=x[n]δw[n]；對應的殘餘 timing error 貢獻為 −x[n]δw[n]（w*=a 時即 e_DTC 中的 gain-noise 項）。計算與直接 PD 路徑的 cross-spectrum 時須使用一致極性」。§13.1 改為「Static Error：w−w*=−0.4 LSB」。
+**修正（網站採用）**：在 §0 新增一列：δw_k=w_k−w*，表示相對 LMS 固定點 w* 的係數偏差，極性與 δ 相反，且 a−w_k=(a−w*)−δw_k。§12.2 改為「DTC 補償量的擾動（多補償的時間）δt[n]=x[n]δw[n]；對應的殘餘 timing error 貢獻為 −x[n]δw[n]（w*=a 時即 e_DTC 中的 gain-noise 項）。計算與直接 PD 路徑的 cross-spectrum 時須使用一致極性」。§13.1 改為「Static Error：w−w*=−0.4 LSB」。
 
 **數值證據**：取 w*=a=3、w=3.4、x=1：e_DTC=(a−w)x=−0.4，δt=x·δw=+0.4。
 

@@ -144,12 +144,12 @@ export function S17Recap() {
         <Diagram id="hardware" />
         <p>
           先看 code 這一條路：分數累加器的高 3 位是 PMUX 的 select（<Tex>{'p[n]'}</Tex>，解碼成 8 條 one-hot 就是 PHOS 的 regressor），其餘低位是 DTC 的 code（<Tex>{r`\rho[n]`}</Tex>，GOS 的 regressor）；兩者要各自經過 pipeline 對齊到比較器的輸出（<Tex>{'D=0'}</Tex>），再各做一次「暫存器 + 減法器」的一階差分，才進 GMAC。再看比較器這一條路：它接在 SSPD 的
-          hold 節點，輸出的 1 bit 和 9 條 regressor 相乘累加；權重更新後要 clamp 在 DTC 的範圍內，再加回 DTC code。兩個藍色方塊就是採用一階差分時硬體上要做對的兩件事，其他方塊原本就有。
+          hold 節點——那就是 PD 的輸出 <Tex>{r`e_{PD}`}</Tex>，和送進 SSCP／loop filter 的是同一個訊號——輸出的 1 bit 和 9 條 regressor 相乘累加；權重更新後要 clamp 在 DTC 的範圍內，再併進 DTC 的補償量（送進 DTC 的 code 是固定的中心值 <Tex>{'C_0'}</Tex> 減去它，§2）。兩個藍色方塊就是採用一階差分時硬體上要做對的兩件事，其他方塊原本就有。
         </p>
         <DataTable
           head={['數學量', '硬體']}
           rows={[
-            [<Tex key="a">{r`H_{PD}=1/(1+L)`}</Tex>, 'SSPD 取樣值（或 CPPLL 的 PFD／CP 輸出）相對於注入誤差的閉迴路響應；比較器接在 SSPD 的 hold 節點'],
+            [<Tex key="a">{r`H_{PD}=1/(1+L)`}</Tex>, 'SSPD 取樣值（或 CPPLL 的 PFD／CP 輸出）相對於注入誤差的閉迴路響應；比較器接在 SSPD 的 hold 節點（PD 的輸出，和送進 loop filter 的是同一個訊號）'],
             [<><Tex>{'L'}</Tex> 的 1 拍延遲</>, 'SSPD 取樣 → SSCP／gm → VCO 控制電壓生效'],
             [<Tex key="a">{r`K_p,\ K_i`}</Tex>, <>SSCP 比例路徑的 <Tex>{r`g_m R`}</Tex> 與積分電容（或數位 loop filter 的係數）乘上 <Tex>{r`K_{vco}`}</Tex> 與 SSPD 斜率 <Tex>{r`A\omega_{vco}`}</Tex>；PVT 會移動它們</>],
             [<><Tex>{r`\rho[n]`}</Tex>／<Tex>{'p[n]'}</Tex></>, '分數累加器的低位（DTC code）／高 3 位（PMUX select）'],
@@ -158,7 +158,7 @@ export function S17Recap() {
             ['filtered-x', <>9 條以 <Tex>{r`f_{ref}`}</Tex> 運作的數位 IIR，複製 <Tex>{r`\hat H_{PD}`}</Tex></>],
             ['P-only', '校準時凍結積分路徑：需要 dual-path loop filter 或數位 LF'],
             [<Tex key="a">{r`u_{os}`}</Tex>, '比較器 offset、SSPD／SSCP 的 DC、CP mismatch、Type-I 的 static phase error'],
-            [<Tex key="a">{r`\Delta=T_{vco}/8`}</Tex>, <>PMUX 相位間隔，也是 DTC 細部範圍（插圖值 {SIM_CFG.deltaPs} ps）</>],
+            [<Tex key="a">{r`\Delta=T_{vco}/8`}</Tex>, <>PMUX 相位間隔，也是 DTC 補償量的範圍（插圖值 {SIM_CFG.deltaPs} ps）</>],
           ]}
         />
       </Section>

@@ -154,10 +154,32 @@ describe('Dashboard 的方塊圖（真正的 mermaid）', () => {
     expect(CONDITION_MAP_LEGEND).toHaveLength(6)
     // 圖例文字的 $…$ 成對
     for (const row of CONDITION_MAP_LEGEND) expect((row.knobs.split('$').length - 1) % 2).toBe(0)
-    expect(CONDITION_MAP_CHART).toMatch(/DSM --> DTC --> PLL --> CMP --> GMAC --> UPD/)
+    expect(CONDITION_MAP_CHART).toMatch(/DSM --> DTC --> PLL\n/)
+    expect(CONDITION_MAP_CHART).toMatch(/CMP --> GMAC --> UPD\n/)
     expect(CONDITION_MAP_CHART).toMatch(/UPD -- ".*" --> DTC/)
     expect(CONDITION_MAP_CHART).toContain(R`$x[n-D]$`)
     expect(CONDITION_MAP_CHART).toContain(R`$G = \frac{1}{N}\sum q\cdot x[n-D]$`)
+  })
+
+  it('架構（docs/assumptions.md §2a）：DTC 在 reference 端、給的是補償量 w·x；comparator 的輸入只從 PD 的輸出（PLL error path 的輸出）拉', async () => {
+    const g = await flow(CONDITION_MAP_CHART)
+    // 訊號流一圈：DSM → DTC → PLL error path → comparator → GMAC → 係數更新 → 回到 DTC
+    for (const [a, b] of [['DSM', 'DTC'], ['DTC', 'PLL'], ['PLL', 'CMP'], ['CMP', 'GMAC'], ['GMAC', 'UPD'], ['UPD', 'DTC']]) expect(g.edges.some((e) => e.start === a && e.end === b), `${a} → ${b}`).toBe(true)
+    // DTC：標明在 reference 端；它給的是「補償量」，不再寫成插入的延遲
+    expect(node(g, 'DTC')).toContain('DTC（reference 端）')
+    expect(node(g, 'DTC')).toContain(R`補償量 $= w\cdot x$`)
+    expect(node(g, 'DTC')).not.toContain('延遲')
+    // 同一格也代表 PMUX（PHOS）；它在回授路徑上，不在 reference 端——標籤要分開註明，不能讓人讀成「reference 端的 PMUX」
+    expect(node(g, 'DTC')).toContain('或 PMUX（回授端）')
+    expect(node(g, 'DTC')).not.toMatch(/reference 端）\s*\/\s*PMUX/)
+    // LMS 的輸入是 PD 的輸出 e[n]：comparator 的訊號輸入只有 PLL error path 那一條，而且線上標了「PD 輸出」
+    expect(edgeText(g, 'PLL', 'CMP')).toBe(R`PD 輸出 $e[n]$`)
+    const intoCmp = g.edges.filter((e) => e.end === 'CMP').map((e) => e.start).sort()
+    expect(intoCmp).toEqual(['C4', 'PLL']) // C4 是條件 ④ 的膠囊（虛線），不是訊號
+    for (const from of ['DTC', 'DSM', 'UPD', 'GMAC']) expect(g.edges.some((e) => e.start === from && e.end === 'CMP'), `${from} → CMP`).toBe(false)
+    // DTC 的輸入只有 code（DSM）與係數 w（係數更新），沒有任何「經過 divider 再進 DTC」的畫法
+    expect(g.edges.filter((e) => e.end === 'DTC').map((e) => e.start).sort()).toEqual(['C5', 'DSM', 'UPD'])
+    expect(CONDITION_MAP_CHART).not.toMatch(/divider|Divider|DIV/)
   })
 
   it('檢查流程：順序就是 thesisModel 的 CONDITION_ORDER（資訊足夠 → 極性 → 穩定 → 變異 → bias → 輸出），任何一個「否」停在該格', async () => {

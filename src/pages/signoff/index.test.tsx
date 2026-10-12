@@ -249,6 +249,26 @@ describe('Sign-off 頁（jsdom smoke）', () => {
       expect(walk?.textContent, f.getAttribute('aria-label') ?? '').toContain('先看')
       expect(walk?.querySelector('.katex')).toBeTruthy()
     }
+    // §8（docs/assumptions.md §2a）：DTC 在 reference 輸入端，殘差在 PD 的 reference 輸入注入，θ_out = +T·φ_dtc（正號）
+    const strat = container.querySelector('#so-strategy') as HTMLElement
+    const stratWalk = fig('從 gain code 偏差到輸出').closest('.so-diagram')?.querySelector('.so-diagram-walk')?.textContent ?? ''
+    expect(stratWalk).toContain('reference')
+    const stratTex = Array.from(strat.querySelectorAll('annotation')).map((a) => a.textContent ?? '')
+    expect(stratTex.some((t) => t.includes(String.raw`e_\text{PD}=\phi_\text{dtc}-\theta_\text{out}`))).toBe(true)
+    expect(stratTex.some((t) => t.includes(String.raw`\theta_\text{out}=T\,\phi_\text{dtc}`))).toBe(true)
+    // 整條推導的號誌要前後一致：φ_dtc = −2π f_out δt（殘差 = −δt）、φ_out = θ_out = +T·φ_dtc = −2π f_out T δt
+    expect(stratTex.some((t) => t.includes(String.raw`\phi_\text{dtc}=-2\pi f_\text{out}\,\delta t\ \Rightarrow\ \phi_\text{out}=\theta_\text{out}=T\,\phi_\text{dtc}=-2\pi f_\text{out}\,T\,\delta t`))).toBe(true)
+    expect(stratTex.some((t) => /=\s*-\s*T|-\s*H_\\mathrm\{PD\}\\,\\phi|=\s*-\s*\(/.test(t))).toBe(false) // 沒有 θ_out = −T…、e_PD = −H_PD…、e_PD = −(…)
+    // 開頭那一段把接法說清楚：feedback edge 早到 a·x、DTC 從基準延遲 T_0 往回扣補償量 w·x、PD 量 reference 減 feedback
+    const stratIntro = strat.querySelector('.c-section-body > p')
+    const introTex = Array.from(stratIntro?.querySelectorAll('annotation') ?? []).map((a) => a.textContent ?? '')
+    expect(stratIntro?.textContent ?? '').toContain('feedback（divider）edge 比理想時刻早到')
+    expect(stratIntro?.textContent ?? '').toContain('只能延遲不能提前')
+    expect(introTex).toContain(String.raw`\tau_\mathrm{DTC}=T_0-w\,x[n]`)
+    expect(introTex).toContain(String.raw`e[n]=t_\mathrm{ref}'[n]-t_\mathrm{fb}[n]=(a-w)\,x[n]+v[n]`)
+    // 相位的折算方式寫明（以輸出為參考），divider 才不會讓讀者以為少了一個除數
+    expect(strat.textContent ?? '').toContain('經過 divider 數值不變')
+    expect(strat.textContent ?? '').not.toMatch(/feedback injection|DTC 實際施加|延遲誤差/)
     // §9 的圖在項目清單之前；§3.5、§4、§7、§8 的圖在各自的公式之前
     expect(precedes(fig('證據強度流程圖'), container.querySelector('[id="formula-F-SO.8"]'))).toBe(true)
     expect(precedes(fig('Corner 判準流程圖'), container.querySelector('[id="formula-F-SO.5"]'))).toBe(true)

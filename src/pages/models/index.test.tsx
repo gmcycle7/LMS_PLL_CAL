@@ -277,6 +277,57 @@ describe('Models 頁面（jsdom smoke）', () => {
     expect(figPath.closest('section[aria-labelledby="models-s9"]')).toBeTruthy()
     expect(precedes(figPath, sec(9).querySelector('.models-checks'))).toBe(true)
     expect(precedes(figPath, container.querySelector('[id="formula-F-16.1"]'))).toBe(true)
+    // 架構（docs/assumptions.md §2a）：DTC 在 reference 的輸入端（補償量從基準延遲 T_0 往回扣）；comparator 取的是 PD 的輸出；
+    // PD 量的是 t_ref′ − t_fb，主 PLL 反應之前等於 (a − w)·x。圖的導讀、替代文字、§4.2／§4.3 與第 1 項硬體檢查都用同一套講法
+    const walkOf = (f: HTMLElement) => f.closest('.models-diagram')?.querySelector('.models-diagram-walk') as HTMLElement
+    const flat = (el: Element) => nonMathText(el).replace(/\s+/g, ' ')
+    expect(flat(walkOf(figLevels))).toContain('DTC 在 reference 的輸入端，殘餘誤差從 PD 的 reference 輸入進入主 PLL')
+    expect(flat(walkOf(figLoop))).toContain('Feedback（divider）edge 比理想時刻早到')
+    expect(flat(walkOf(figLoop))).toContain('reference 端的 DTC 從基準延遲')
+    expect(flat(walkOf(figLoop))).toContain('comparator 取的是 PD 的輸出，也就是送進 loop filter 的同一個訊號')
+    expect(texSources(walkOf(figLoop))).toContain(String.raw`t_\mathrm{ref}'-t_\mathrm{fb}`)
+    // offset b 與雜訊 v 是折算到 comparator 輸入（＝PD 輸出這個節點）的量，所以加法點之後的 e[n] 仍然是「從 PD 的輸出取的」
+    expect(flat(walkOf(figLoop))).toContain('在模型裡都折算到同一個節點（PD 的輸出，也就是 comparator 的輸入）')
+    // DTC 的非線性項是「這個 code 多出來的延遲」：reference edge 更晚 ⇒ 以正號進入誤差（和 F-15.2、blockLms 的 dt = coef·x + nl(x) 同號）
+    expect(flat(walkOf(figLoop))).toContain('更晚，所以是正號')
+    expect(figLoop.getAttribute('aria-label')).toContain('reference 端 DTC 的殘餘誤差')
+    expect(figLoop.getAttribute('aria-label')).toContain('到 PD 的輸出')
+    expect(flat(walkOf(figPath))).toContain('comparator 取的是 PD 的輸出')
+    expect(flat(walkOf(figPath))).toContain('reference 輸入端的 DTC')
+    expect(figPath.getAttribute('aria-label')).toContain('PD 輸出的正負號')
+    expect(figPath.getAttribute('aria-label')).toContain('reference 端的 DTC')
+    expect(flat(sec(4))).toContain('feedback（divider）edge 比理想時刻早到')
+    expect(flat(sec(4))).toContain('只能延遲、不能提前')
+    expect(flat(sec(4))).toContain('數位端送的是取補數的 code')
+    expect(texSources(sec(4))).toContain(String.raw`\tau_\mathrm{DTC}[n]=T_0-w\,x[n]`)
+    expect(texSources(sec(4))).toContain(String.raw`t_\mathrm{ref}'[n]-t_\mathrm{fb}[n]=(a-w)\,x[n]`)
+    expect(texSources(sec(4))).toContain(String.raw`x[n]=-r[n]=s[n]/M\in[0,1)`)
+    // 早到的量先用 T_vco 寫（x·T_vco），再換成校正係數的尺度（a·x）：兩種寫法要接得起來
+    expect(texSources(sec(4))).toContain(String.raw`x[n]\,T_\mathrm{vco}`)
+    expect(texSources(sec(4))).toContain(String.raw`a=T_\mathrm{vco}`)
+    expect(flat(sec(4))).toContain('去對齊早到的 feedback edge')
+    expect(flat(sec(4))).toContain('補償不足')
+    expect(flat(sec(4))).toMatch(/reference 還是太晚，誤差為正/)
+    // §4.3：不說「DTC 把 edge 提前」而不交代基準延遲——寫成「延遲從基準值 T_0 減少」
+    expect(flat(sec(4))).toContain('要把 reference edge 的延遲從基準值')
+    // code 取補數之後，非線性在 x 上是另一個多項式：§3 的 o + c_2x² + c_3x³ 直接以 x 寫（正號進入誤差），和 τ(c) 以實體 code 寫的係數不是同一組
+    expect(flat(sec(4))).toMatch(/多出來的延遲會變成\s*的另一個多項式/)
+    expect(flat(sec(4))).toContain('不是同一組數字')
+    expect(texSources(sec(4))).toContain(String.raw`\tau(C_0-c)=T_0-g_\mathrm{DTC}\,c`)
+    // §4.1 的推導：殘餘誤差從 PD 的 reference 輸入注入 ⇒ e_PD = φ_dtc − θ_fb，解出 e_PD = +H_PD·φ_dtc、θ_fb = +T·φ_dtc（沒有負號）
+    const loopTex = texSources(sec(4)).join('\n')
+    expect(loopTex).toContain(String.raw`e_\mathrm{PD}&=\phi_\mathrm{dtc}-\theta_\mathrm{fb}`)
+    expect(loopTex).toContain(String.raw`\theta_\mathrm{fb}&=L(z)\,e_\mathrm{PD}`)
+    expect(loopTex).toContain(String.raw`=H_\mathrm{PD}\,\phi_\mathrm{dtc}`)
+    expect(loopTex).toContain(String.raw`=T\,\phi_\mathrm{dtc}`)
+    expect(loopTex).not.toMatch(/=-\s*(H_\\mathrm\{PD\}|T)\\,\\phi|-\(\\theta|-T\\,/)
+    expect(texSources(walkOf(figLevels))).toContain(String.raw`e_\mathrm{PD}=H_\mathrm{PD}\,\phi_\mathrm{dtc}`)
+    expect(flat(sec(9))).toContain('DTC 延遲後的 reference edge 比 feedback edge 晚')
+    expect(texSources(sec(9))).toContain(String.raw`e=t_\mathrm{ref}'-t_\mathrm{fb}>0`)
+    // 舊接法的說法不出現在任何一節。樣式拆開來寫，這個檔案本身才不會被「全站不得出現舊說法」的掃描抓到
+    const OLD_WORDING = new RegExp(['DTC 太慢', 'DTC 插' + '入', '推回' + '理想時刻', 'divider 之後' + '的 DTC', '回授路徑上' + '的 DTC', 'feedback' + ' 側注入', '回授' + '側注入'].join('|'))
+    expect(OLD_WORDING.test('DTC 插' + '入延遲，把 edge ' + '推回' + '理想時刻')).toBe(true)
+    expect(nonMathText(container)).not.toMatch(OLD_WORDING)
     const errata = Array.from(container.querySelectorAll('.models-erratum a'))
     expect(errata.every((a) => a.getAttribute('href') === '#/verification')).toBe(true)
     const ids = new Set(errata.map((a) => a.textContent))

@@ -142,7 +142,8 @@ export function S2Levels() {
           jitter / spur 是多少」，L5 問「定點之後還對不對」。
         </p>
         <p>
-          圖上的 <Tex>{'H_\\mathrm{PD}'}</Tex> 是 DTC 誤差到 phase detector 的轉移函數、<Tex>{'T'}</Tex> 是到 PLL 輸出的轉移函數（§4.1）。下面的表逐列說明每一層驗證什麼、本站做到哪裡。
+          圖上的 <Tex>{'H_\\mathrm{PD}'}</Tex> 是 DTC 的殘餘誤差到 phase detector 輸出的轉移函數、<Tex>{'T'}</Tex> 是到 PLL 輸出的轉移函數（§4.1）。DTC 在 reference 的輸入端，殘餘誤差從 PD 的 reference
+          輸入進入主 PLL，所以兩條路都是正號（<Tex>{'e_\\mathrm{PD}=H_\\mathrm{PD}\\,\\phi_\\mathrm{dtc}'}</Tex>、<Tex>{'\\theta_\\mathrm{fb}=T\\,\\phi_\\mathrm{dtc}'}</Tex>，推導在 §4.1）。下面的表逐列說明每一層驗證什麼、本站做到哪裡。
         </p>
       </Diagram>
       <div className="table-wrap">

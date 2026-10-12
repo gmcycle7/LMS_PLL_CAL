@@ -23,6 +23,7 @@ import { auditSlots } from './data'
 import { PAGES } from '@/app/registry'
 import { handRows } from './sections/HowToRead'
 import { fieldExample, PRESET_FIELDS } from './sections/Intro'
+import { PARAMS_CLAMP_LINES, PARAMS_FULL_LINES, PresetCard } from './sections/PresetCard'
 import { toBoardRow } from './sections/RegressionBoard'
 import { quiz1Answer, quiz4Answer } from './sections/Wrapup'
 import { CHECK_SYMBOLS, MODEL_SYMBOLS } from './symbols'
@@ -350,6 +351,62 @@ describe('頁面用到的純函式與資料', () => {
       expect(() => katex.renderToString(s.symbol, { throwOnError: true, strict: 'ignore' }), s.symbol).not.toThrow()
       if (s.unit) expect(() => katex.renderToString(s.unit as string, { throwOnError: true, strict: 'ignore' }), s.unit).not.toThrow()
     }
+  })
+})
+
+describe('沒有用途的捲軸（使用者要求：「這種地方如果沒有用途請幫我拿掉」）', () => {
+  const paramLines = (p: (typeof ALL_PRESETS)[number]) => JSON.stringify(p.params, null, 2).split('\n').length
+
+  it('preset 參數 JSON：只有超過 28 行的才限高（框外至少還有 13 行）；較短的整段顯示，不為了幾行放一條直向捲軸', () => {
+    try {
+      localStorage.setItem('lmspll.mode', 'research')
+    } catch {
+      /* ignore */
+    }
+    // 限高時被捲到框外的行數 ≥ PARAMS_FULL_LINES + 1 − PARAMS_CLAMP_LINES = 13 行（約 230px，和看得到的 16 行差不多），不是五、六行
+    expect(PARAMS_FULL_LINES).toBe(28)
+    expect(PARAMS_FULL_LINES + 1 - PARAMS_CLAMP_LINES).toBeGreaterThanOrEqual(12)
+    const sorted = [...ALL_PRESETS].sort((a, b) => paramLines(a) - paramLines(b))
+    const short = sorted.filter((p) => paramLines(p) <= PARAMS_FULL_LINES)
+    const long = sorted.filter((p) => paramLines(p) > PARAMS_FULL_LINES)
+    expect(short.length).toBeGreaterThan(10)
+    expect(long.length).toBeGreaterThan(10)
+    // 邊界兩側各取一張，再加最短與最長的
+    const picks = [short[0], short[short.length - 1], long[0], long[long.length - 1]]
+    for (const p of picks) {
+      const { container, unmount } = render(
+        <SettingsProvider>
+          <MemoryRouter initialEntries={['/gallery']}>
+            <PresetCard preset={p} />
+          </MemoryRouter>
+        </SettingsProvider>,
+      )
+      const pre = container.querySelector('details.gal-params pre') as HTMLElement
+      expect(pre, p.id).toBeTruthy()
+      expect(pre.textContent, p.id).toBe(JSON.stringify(p.params, null, 2)) // 內容原樣、完整（沒有被截掉）
+      expect(pre.classList.contains('is-long'), `${p.id}（${paramLines(p)} 行）`).toBe(paramLines(p) > PARAMS_FULL_LINES)
+      unmount()
+    }
+    // CSS：預設不限高（只留橫向捲動給手機上的長行）；限高只掛在 .is-long，高度與 PARAMS_CLAMP_LINES 同步
+    const css = readFileSync(resolve(process.cwd(), 'src/pages/gallery/gallery.css'), 'utf8')
+    const base = /\.gal-params pre \{([^}]*)\}/.exec(css)?.[1] ?? ''
+    expect(base).toMatch(/overflow-x:\s*auto/)
+    expect(base).toMatch(/line-height:\s*1\.5/)
+    // 手機上比框寬的長行折行（內容不變），不為了多出的幾 px 放一條橫向捲軸
+    expect(base).toMatch(/white-space:\s*pre-wrap/)
+    expect(base).toMatch(/overflow-wrap:\s*anywhere/)
+    expect(base).not.toMatch(/max-height|overflow:\s*hidden/)
+    const clamp = /\.gal-params pre\.is-long \{([^}]*)\}/.exec(css)?.[1] ?? ''
+    expect(clamp).toContain(`max-height: calc(${PARAMS_CLAMP_LINES} * 1.5em + 16px)`)
+    expect(clamp).toMatch(/overflow-y:\s*auto/)
+  })
+
+  it('extractNumbers 的程式碼框：最長的一行不超過 120 欄（桌機的正文欄放得下，不會多一條只差幾 px 的橫向捲軸）；正規表示式本身沒有變', () => {
+    const region = extractRegion(formatSrc, 'extractNumbers')
+    // 全形字（中文註解）佔兩欄
+    const cols = (line: string) => [...line].reduce((n, ch) => n + (/[\u2E80-\uFFEF]/.test(ch) ? 2 : 1), 0)
+    for (const line of region.split('\n')) expect(cols(line), line).toBeLessThanOrEqual(120)
+    expect(region).toContain(String.raw`/(?<![A-Za-z_§.\d^-])(-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?)(?:\s*[×*]\s*10\^?([-+]?\d+)|e([-+]?\d+))?(\s*%)?/g`)
   })
 })
 

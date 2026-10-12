@@ -14,8 +14,11 @@
  *
  * ── DTC phase residue（DTC 必須抵消的量，單位：VCO 週期 T_vco）──
  *   第 n 個 reference cycle divider 數 N_int + y[n] 個 VCO 週期，理想為 N_int + frac；
- *   divider edge 相對理想時刻的累積時間誤差（正 = 晚到）：
+ *   divider（feedback）edge 相對理想時刻的累積時間誤差（正 = 晚到）：
  *     residue[n] = Σ_{m=0}^{n} (y[m] − in[m]/M)   [T_vco]
+ *   架構（docs/assumptions.md §2a）：carry y[n] 控制回授路徑上的 divider；DTC 不在回授路徑上，而在 reference 輸入端。
+ *   一階、零初值時 residue = −s[n]/M ≤ 0：feedback edge 早到 x[n] = s[n]/M 個 T_vco，DTC 把 reference edge 也提前 w·x[n] 去對齊
+ *   （DTC 只能延遲，所以是從固定的基準延遲 T_0 往回扣：τ_DTC = T_0 − w·x[n]；w·x[n] 叫做補償量）。
  *   以整數 R[n] = Σ (M·y − in) 精確累加後除以 M，所以沒有浮點漂移，且恆有界：
  *   一階 residue = (s[−1] − s[n])/M ∈ (−1, 1)（零初值時 ∈ (−1, 0]）；MASH 1-1-1 |residue| < 2。
  *   開啟 LSB dither 時 in[n] = K + d[n]（d ∈ {0, 1} 等機率），residue 以「含 dither 的瞬時輸入」為基準

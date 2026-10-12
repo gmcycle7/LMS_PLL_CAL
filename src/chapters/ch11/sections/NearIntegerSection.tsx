@@ -187,18 +187,28 @@ export function NearIntegerSection() {
   return (
     <Section kind="formula" title={m('11.4 Near-integer / near-grid：當 $C\\to0$')} level={2} id="ch11-near-integer">
       <p>
-        到目前為止都假設 gain 誤差造成的 timing error 原封不動到達 comparator。實際上它要先經過主 PLL 的誤差路徑（主迴路會把低頻的相位誤差修掉）。這條路徑的轉移函數記作{' '}
+        到目前為止都假設 gain 誤差造成的 timing error 原封不動到達 comparator。實際上這個殘餘誤差是從 PD 的 reference 輸入端進來的（DTC 在 reference
+        端），主迴路會把其中低頻的部分追掉，所以出現在 PD 輸出的，是它經過主 PLL 誤差路徑之後的結果（正負號不變）。這條路徑的轉移函數記作{' '}
         <Tex>{String.raw`H_\mathrm{PD}(z)`}</Tex>、脈衝響應記作 <Tex>{'h'}</Tex>，「經過它」就是做卷積 <Tex>{'(h*x)[n]'}</Tex>。先看{' '}
         <FigRef id="near-integer-path" /> 上面的框：code 乘上 <Tex>{'(a-w)'}</Tex> 後經過藍色的 <Tex>{String.raw`H_\mathrm{PD}`}</Tex>，變成{' '}
         <Tex>{'(a-w)\\,(h*x)[n]'}</Tex>；紅色的 <Tex>{'\\beta[n]'}</Tex>（直接到達 PD 的其他確定性誤差，例如 §11.3 的耦合）不經過 <Tex>{String.raw`H_\mathrm{PD}`}</Tex>
-        。再看下面的框：GMAC 把 comparator 的輸出和同一個 <Tex>{'x[n]'}</Tex> 做相關 —— 經過 <Tex>{String.raw`H_\mathrm{PD}`}</Tex> 的那條路給出{' '}
+        。再看下面的框：comparator 取的是 PD 的輸出 <Tex>{String.raw`e_\mathrm{PD}[n]`}</Tex>（送進 loop filter 的同一個訊號），GMAC 把它的正負號和同一個{' '}
+        <Tex>{'x[n]'}</Tex> 做相關 —— 經過 <Tex>{String.raw`H_\mathrm{PD}`}</Tex> 的那條路給出{' '}
         <Tex>{'(a-w)\\,C'}</Tex>，沒經過的那條路給出 <Tex>{'B'}</Tex>。圖上的 <Tex>{'C'}</Tex>、<Tex>{'B'}</Tex> 就是下面公式 F-11.14 的{' '}
         <Tex>{String.raw`C=E[x\,(h*x)]`}</Tex> 與 <Tex>{String.raw`B=E[x\,\beta]`}</Tex>。
       </p>
       <Fig id="near-integer-path" />
       <p className="small">
+        「直接到 PD、不經過 <Tex>{String.raw`H_\mathrm{PD}`}</Tex>」什麼時候成立：主迴路追得到的，只有進到 loop filter 的誤差。圖上的{' '}
+        <Tex>{'\\beta[n]'}</Tex> 是示意用的干擾模型 —— 它和雜訊 <Tex>{'v[n]'}</Tex> 一樣算在 comparator 看到的{' '}
+        <Tex>{String.raw`e_\mathrm{PD}`}</Tex> 裡，但主迴路沒有修它（例如只耦合到獨立 comparator 的 threshold，<FigRef id="coupling-node" />{' '}
+        的紅色出口），所以 <Tex>{'B'}</Tex> 不會跟著 <Tex>{'C'}</Tex> 變小。反過來，如果干擾和 DTC
+        的殘餘誤差一樣是從 PD 的輸入端進來的，主迴路同樣會把它的低頻追掉：它要算進 <Tex>{String.raw`H_\mathrm{PD}`}</Tex> 那條路，固定點是{' '}
+        <Tex>{'w^*=a+\\kappa'}</Tex>（§11.3），不會被 <Tex>{'1/C'}</Tex> 放大。
+      </p>
+      <p className="small">
         <Erratum id="E12" note="此處 C = E[x(h*x)] 同 §6；B 為干擾 bias 項" />
-        注意符號：這裡的 <Tex>{'C'}</Tex> 是 Ch06 的有效相關 <Tex>{String.raw`C=E[x\,(h*x)]`}</Tex>（code 經過主 PLL 誤差路徑 <Tex>{'h'}</Tex> 才到 PD），<Tex>{'B'}</Tex> 是 F-11.4
+        注意符號：這裡的 <Tex>{'C'}</Tex> 是 Ch06 的有效相關 <Tex>{String.raw`C=E[x\,(h*x)]`}</Tex>（gain 誤差經過主 PLL 誤差路徑 <Tex>{'h'}</Tex> 才出現在 PD 的輸出），<Tex>{'B'}</Tex> 是 F-11.4
         的分子 <Tex>{String.raw`B_\mathrm{bias}=bE[x]+E[xd]+E[x\varepsilon_{cc}]`}</Tex>。規格書兩處都寫成 <Tex>{'E[x\\,u]'}</Tex>，但它們不是同一個量。
       </p>
       <p className="small">
@@ -210,7 +220,7 @@ export function NearIntegerSection() {
       <ModeDetails title={m('推導：$w^*=a+B/C$ 與它的敏感度')}>
         <StepDerivation
           steps={[
-            { tex: String.raw`e_\mathrm{PD}[n]=(a-w)\,(h*x)[n]+\beta[n]+v[n]`, why: m('gain 誤差造成的 timing error 經過 PLL 誤差路徑 $h$ 才到 PD；$\\beta$ 是到達 PD 的其他確定性誤差。') },
+            { tex: String.raw`e_\mathrm{PD}[n]=(a-w)\,(h*x)[n]+\beta[n]+v[n]`, why: m('gain 誤差造成的 timing error 從 PD 的 reference 輸入端注入，經過 PLL 誤差路徑 $h$ 才出現在 PD 的輸出（正號）；$\\beta$ 是到達 PD 的其他確定性誤差。') },
             { tex: String.raw`E[q\,x]\approx K_q\big((a-w)\,E[x\,(h*x)]+E[x\,\beta]\big)`, why: 'comparator 線性化（F-11.3），再用期望值的線性。' },
             { tex: String.raw`=K_q\big((a-w)\,C+B\big)`, why: m('記 $C=E[x\\,(h*x)]$、$B=E[x\\beta]$（靜態時 $B$ 就是 F-11.4 的分子）。') },
             { tex: String.raw`w^*=a+\frac{B}{C}`, why: m('令平均 GMAC 為 0。$h=1$ 時 $C=E[x^2]$，回到 F-11.4。') },

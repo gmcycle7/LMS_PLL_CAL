@@ -3,7 +3,7 @@ import { DiagramFrame } from './DiagramFrame'
 import { mathText } from './Tex'
 
 /**
- * 全站共用的「系統地圖」：DTC-based Fractional-N PLL + Sign-LMS 校正迴路的完整方塊圖（規格 §4 的概念架構）。
+ * 全站共用的「系統地圖」：DTC-based Fractional-N PLL + Sign-LMS 校正迴路的完整方塊圖（規格 §4 概念架構的方塊，DTC 改接在 reference 輸入端）。
  * 每章開頭放同一張圖，並把本章在講的方塊標成藍色，讓讀者知道「現在在系統的哪裡」。
  * 圖是教學用的概念架構，不是特定晶片的 netlist。
  *
@@ -108,7 +108,8 @@ export const SYSTEM_MAP_BLOCKS: readonly SystemMapBlock[] = [
   block('qnt', 'lms', 'c1n', 'd', 'Quantizer', '有限位元'),
   block('acc', 'lms', 'c2', 'd', 'Gain accumulator', '$w_k$'),
   block('scale', 'lms', 'c3', 'd', 'Normalize', String.raw`$\div N$、$\times\,\mu$`),
-  block('noise', 'lms', 'c0', 'e', '雜訊 $v[n]$', undefined, true),
+  // v[n] 是折算到 comparator 輸入端（＝PD 輸出這個節點）的等效雜訊；公式裡的 e[n] = (a − w)·x[n] + v[n] 已經包含它（docs/assumptions.md §2a 第 3 點）
+  block('noise', 'lms', 'c0', 'e', '雜訊 $v[n]$', '折算到輸入端', true),
   block('cmp', 'lms', 'c1w', 'e', '1-bit comparator', String.raw`$q[n] = \mathrm{sign}(e[n])$`),
   block('gmac', 'lms', 'c3', 'e', 'GMAC', String.raw`$\sum q[n]\,x[n]$`),
   block('align', 'lms', 'c4', 'e', 'Code alignment', 'delay / filtered-x'),

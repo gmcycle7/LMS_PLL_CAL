@@ -463,6 +463,10 @@ describe('Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一
       expect(i, piece).toBeGreaterThan(at)
       at = i
     }
+    // 架構約定（docs/assumptions.md §2a）：GMAC 的輸入是 PD 的輸出，不是直接從 DTC 拉——進 GMAC 的兩則訊息都寫明是「PD 輸出裡的誤差」
+    const intoGmac = db.getMessages!().filter((m) => m.to === 'G')
+    expect(intoGmac.map((m) => m.from)).toEqual(['D', 'D'])
+    for (const m of intoGmac) expect(m.message).toContain(String.raw`\text{PD 輸出裡的誤差是 }`)
     // 數值：g = 0.5、d = 1、δ_0 = 1 就是正文「先算一次」的 0.5、0、−0.25
     expect(Array.from(simulateDelayRecursion(0.5, 1, 3).delta)).toEqual([1, 0.5, 0, -0.25])
   }, SLOW)
@@ -572,7 +576,12 @@ describe('Ch08 Mermaid 圖：訊號名稱、正負號與箭頭方向和公式一
   it('POLARITY_PATH：兩條路徑相乘取平均 = (A²/2)|H|cos(φ + ΩD)，M = arcsin(cos θ) 的正負與相關的正負相同', async () => {
     const g = await flow(POLARITY_PATH_CHART)
     expect(g.text('M')).toBe(String.raw`$\times$`)
-    expect(g.edge('H', 'M').text).toBe('$u[n]$')
+    expect(flat(g.edge('H', 'M').text)).toBe('$u[n]$（PD輸出）')
+    // 架構約定（docs/assumptions.md §2a）：PLL error path 是「DTC code → PD 輸出」，乘法器取的 u[n] 就是 PD 輸出 e[n]，不是 DTC 或 divider 的某一點
+    expect(flat(g.text('H'))).toContain('從DTCcode到PD輸出')
+    expect(g.vertices.has('DIV')).toBe(false)
+    expect(g.into('H').map((e) => e.start)).toEqual(['X'])
+    expect(g.into('M').map((e) => e.start).sort()).toEqual(['DLY', 'H'])
     expect(g.edge('DLY', 'M').text).toBe('$x[n-D]$')
     expect(g.edge('M', 'C').text).toBe('取平均')
     expect(g.text('C')).toContain(String.raw`$C = \frac{A^2}{2}\,|H|\cos\theta$`)
@@ -1427,6 +1436,83 @@ describe('Ch08 頁面：系統地圖、所有方塊圖與章末符號表', () =>
     expect(errorSpy).not.toHaveBeenCalled()
   }, SLOW)
 
+  it('全站架構約定（assumptions §2a）：DTC 在 reference 輸入端、comparator／LMS 的輸入是 PD 的輸出 e[n]；圖與文字都沒有把 DTC 放在 divider 之後', async () => {
+    // 圖：沒有 divider／PMUX → DTC 的連線（回授路徑上只有 divider）；單頻路徑圖的 PLL error path 是「DTC code → PD 輸出」，乘法器只吃 code 路徑與 PD 輸出 u[n]
+    for (const [name, chart] of CHARTS) {
+      if (name === 'PIPELINE_SEQ_CHART') continue
+      const g = await flow(chart)
+      const isDivider = (id: string) => /divider|除頻|PMUX|MMD/i.test(g.text(id))
+      for (const e of g.edges) expect(isDivider(e.start) && /DTC/.test(g.text(e.end)), `${name}：${e.start} → ${e.end}`).toBe(false)
+    }
+    const path = await flow(POLARITY_PATH_CHART)
+    expect(flat(path.text('H'))).toContain('從DTCcode到PD輸出')
+    expect(flat(path.edge('H', 'M').text)).toBe('$u[n]$（PD輸出）')
+    expect(path.into('M').map((e) => e.start).sort()).toEqual(['DLY', 'H'])
+    // 時序圖：進 GMAC 的訊息寫明是 PD 的輸出（不是從 DTC 直接拉）
+    const seq = (await parsed(PIPELINE_SEQ_CHART)).db.getMessages!().filter((m) => m.to === 'G')
+    expect(seq).toHaveLength(2)
+    for (const m of seq) expect(m.message).toContain('PD 輸出裡的誤差是')
+
+    const { container } = renderChapter('engineer')
+    const norm = (el: Element | null | undefined) => (el?.textContent ?? '').replace(/\s+/g, ' ')
+    const tex = (el: Element | null | undefined) => Array.from(el?.querySelectorAll('annotation') ?? [], (x) => x.textContent ?? '').join('\n')
+    const section = (id: string) => container.querySelector(`[id="${id}"]`) as HTMLElement
+    const para = (root: HTMLElement, phrase: string) => {
+      const p = Array.from(root.querySelectorAll('p, li')).find((x) => (x.textContent ?? '').includes(phrase))
+      expect(p, `找不到含「${phrase}」的段落`).toBeTruthy()
+      return p!
+    }
+    // 章首：校正迴路的那一圈走 reference 端的 DTC → PD；comparator 取的是 PD 的輸出（送進 loop filter 的同一個訊號）
+    const intro = container.querySelector('figure.c-sysmap')!.previousElementSibling
+    expect(norm(intro)).toContain('回到 reference 端的 DTC')
+    expect(norm(intro)).toContain('PD 的輸出')
+    expect(norm(intro)).toContain('送進 loop filter 的同一個訊號')
+    expect(norm(intro)).toContain('comparator 取它的正負號')
+    // §8.1：u[n] 就是 PD 輸出 e[n]
+    const polarity = section('ch08-polarity')
+    const polarityPath = para(polarity, '一條經過 PLL error path')
+    expect(norm(polarityPath)).toContain('就是 PD 的輸出')
+    expect(norm(polarityPath)).toContain('送進 loop filter 的同一個訊號，comparator 取的是它的正負號')
+    expect(tex(polarityPath)).toContain('u[n]')
+    expect(tex(polarityPath)).toContain('e[n]')
+    expect(norm(para(polarity, '讀圖：先看經過'))).toContain('從 DTC code 到 PD 輸出')
+    // §8.2：物理圖像——feedback edge 早到 a·x，reference 端 DTC 只能延遲，從 T_0 往回扣；PD 量 t_ref′ − t_fb，e = (a − w)x + v 不變
+    const physical = para(section('ch08-first-order'), '放回系統地圖上看')
+    expect(norm(physical)).toContain('feedback（divider）edge 比理想時刻早到')
+    expect(norm(physical)).toContain('reference 端的 DTC 只能延遲、不能提前')
+    expect(norm(physical)).toContain('這是 DTC 的補償量')
+    expect(norm(physical)).toContain('PD 量的是經過 DTC 的 reference edge 減 feedback edge')
+    expect(norm(physical)).toContain('comparator 取的就是這個 PD 輸出')
+    expect(tex(physical)).toContain(String.raw`\tau_{\mathrm{DTC}}[n]=T_0-w_k\,x[n]`)
+    // 「提前」只能是相對於基準延遲 T_0 少延遲（DTC 不能產生負的延遲）；補償不足（w_k < a）時誤差為正
+    expect(norm(physical)).toContain('code 越大延遲越短，reference edge 相對於這個基準也提前（少延遲）')
+    expect(norm(physical)).toContain('時 reference 還是太晚')
+    expect(tex(physical)).toContain('w_k<a')
+    // §8.3 時序圖的讀圖：GMAC 的輸入是 PD 的輸出，不是直接從 DTC 來
+    const seqRead = para(section('ch08-delay'), '讀圖（由上往下是時間）')
+    expect(norm(seqRead)).toContain('GMAC 的輸入不是直接從 DTC 來的，而是 PD 的輸出（comparator 取它的正負號）')
+    expect(tex(seqRead)).toContain(String.raw`\delta_{k-1}=a-w_{k-1}`)
+    expect(tex(physical)).toContain(String.raw`e[n]=(a-w_k)\,x[n]+v[n]=\delta_k\,x[n]+v[n]`)
+    // §8.4：殘差在 PD 的 reference 輸入端注入：e_PD = φ_dtc − θ_out，θ_out = +T φ_dtc，所以 e_PD = +H_PD φ_dtc（都是正號）
+    const dual = para(section('ch08-dual-loop'), '到目前為止都假設 GMAC 量到的是')
+    expect(norm(dual)).toContain('從 PD 的 reference 輸入端進入主 PLL')
+    expect(norm(dual)).toContain('comparator 取的是 PD 的輸出')
+    expect(norm(dual)).toContain('PD 量的是 reference 減 feedback；feedback 那條線只經過 divider')
+    expect(norm(dual)).toContain('兩個式子都是正號')
+    expect(tex(dual)).toContain(String.raw`\theta_{\mathrm{out}}=T\,\phi_{\mathrm{dtc}}`)
+    expect(tex(dual)).toContain(String.raw`e_{\mathrm{PD}}=\phi_{\mathrm{dtc}}-\theta_{\mathrm{out}}=(1-T)\,\phi_{\mathrm{dtc}}=H_{\mathrm{PD}}\,\phi_{\mathrm{dtc}}`)
+    expect(tex(dual)).not.toMatch(/-\s*T\s*\\phi|-\s*H_\{\\mathrm\{PD\}\}\s*\\phi/)
+    // 收尾表：F(z)、r_s 對應「DTC 殘差從 PD 的 reference 輸入進去、PD 輸出 e_PD = H_PD φ_dtc」
+    expect(norm(container)).toContain('DTC 殘差從 PD 的 reference 輸入進去')
+    expect(tex(container)).toContain(String.raw`e_{\mathrm{PD}}=H_{\mathrm{PD}}\,\phi_{\mathrm{dtc}}`)
+    // 舊寫法不再出現：DTC 在回授路徑／divider 之後、DTC 延遲 feedback edge、feedback 側注入、插入的延遲把 edge 推回理想時刻
+    expect(norm(container)).not.toMatch(/DTC 在回授|divider 之後|DTC 延遲 feedback|推回理想|DTC 插入|feedback 側|回授側|注入 feedback/)
+    // 等所有方塊圖都送去 render 再結束（不然 Mermaid 的 state 更新會落在測試結束之後，噴出 act(...) 警告）
+    await waitFor(() => expect(new Set(sentCharts()).size).toBe(CHARTS.length), { timeout: 120_000 })
+    await waitFor(() => expect(container.querySelector('.c-mermaid-loading')).toBeNull(), { timeout: 120_000 })
+    expect(errorSpy).not.toHaveBeenCalled()
+  }, SLOW)
+
   it('engineer 模式：同樣的 20 張圖；符號表在頁面最後（id="symbols"），章首只留一行按鈕，按下去捲到符號表、再按「回到章首」捲回來', async () => {
     const { container } = renderChapter('engineer')
     await checkFigures(container)
@@ -1448,9 +1534,9 @@ describe('Ch08 頁面：系統地圖、所有方塊圖與章末符號表', () =>
     // 全頁只有一張符號表，內容完整（每個符號一列）；圖上出現的符號（ψ、ω*、PM_d／GM_d、μ_max）也都列了
     expect(container.querySelectorAll('.c-symbols')).toHaveLength(1)
     expect(symbols.querySelectorAll('.c-symbols tbody tr')).toHaveLength(SYMBOLS.length)
-    expect(SYMBOLS.length).toBe(29)
+    expect(SYMBOLS.length).toBe(30)
     expect(new Set(SYMBOLS.map((r) => r.symbol)).size).toBe(SYMBOLS.length)
-    for (const sym of [String.raw`\psi`, String.raw`\omega^{*}`, String.raw`PM_d,\;GM_d`, String.raw`\mu_{\max}`, String.raw`\delta_k=a-w_k`]) {
+    for (const sym of [String.raw`\psi`, String.raw`\omega^{*}`, String.raw`PM_d,\;GM_d`, String.raw`\mu_{\max}`, String.raw`\delta_k=a-w_k`, String.raw`\tau_{\mathrm{DTC}}[n]=T_0-w_k\,x[n]`]) {
       expect(SYMBOLS.map((r) => r.symbol), sym).toContain(sym)
     }
     for (const row of SYMBOLS) {

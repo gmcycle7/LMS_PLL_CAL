@@ -369,6 +369,16 @@ describe('Ch04 資料與輔助計算', () => {
     expect(withMath).toBe(FORMULAS.length) // 每一條的使用條件都含有符號
     // 抽查：極性與 tie 規則（勘誤 E07）、F-04.18 的串接式
     expect(FORMULAS.find((f) => f.id === 'F-04.2')!.conditions).toContain(String.raw`$\delta=a-w$`)
+    // 架構（全站約定，docs/assumptions.md §2a）：DTC 在 reference 輸入端，延遲從基準延遲 T_0 往回扣補償量；需要的補償量另用 τ_need；殘差的式子不變
+    const f042 = FORMULAS.find((f) => f.id === 'F-04.2')!
+    expect(f042.tex).toBe(String.raw`\tau_\mathrm{need}[n]=\frac{s[n]}{M}\,T_\mathrm{vco},\qquad\tau_\mathrm{DTC}[n]=T_0-w\,x[n],\qquad e_\mathrm{det}[n]=(a-w)\,x[n]`)
+    expect(f042.conditions).toContain('DTC 在 reference 輸入端')
+    expect(f042.conditions).toContain(String.raw`從固定的基準延遲 $T_0$ 往回扣補償量 $w\,x[n]$`)
+    expect(f042.conditions).toContain('PD 量的是 DTC 延遲後的 reference edge 減 feedback edge')
+    expect(FORMULAS.find((f) => f.id === 'F-04.1')!.conditions).toContain('feedback（divider）edge 的累積時間誤差（正 = 晚到）')
+    // 符號表：τ_need（需要的補償量）、τ_DTC = T_0 − w_k·x[n]、兩條 edge 的時刻、e[n] 是 PD 的輸出
+    const sym = (s: string) => CH04_SYMBOLS.find((r) => r.symbol === s)
+    for (const s of [String.raw`\tau_\mathrm{need}[n]`, String.raw`\tau_\mathrm{DTC}[n],\;T_0`, String.raw`t_\mathrm{ref}'[n],\;t_\mathrm{fb}[n]`, String.raw`e_\mathrm{det}[n]`, 'e[n]']) expect(sym(s), s).toBeTruthy()
     expect(FORMULAS.find((f) => f.id === 'F-04.3')!.conditions).toContain(String.raw`$b=1\Leftrightarrow e\ge0$（tie 判 $+1$）`)
     expect(FORMULAS.find((f) => f.id === 'F-04.18')!.conditions).toContain(String.raw`$=-(1-2^{-(\ell+\ell_W)})\,\Delta_W/(2g)$`)
   })

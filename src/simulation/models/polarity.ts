@@ -5,6 +5,8 @@
  * ── 模型（全站極性約定 δ = a − w；時間單位 fs；code x 無因次）──
  *   DTC 誤差   ε[n] = (a − w_k)·x[n]                      （block k 內 w 固定）
  *   PD 看到    e[n] = H_PD{ε}[n] + v[n]，H_PD = 1/(1 + L)   （濾波器狀態跨 block 持續）
+ *              架構（docs/assumptions.md §2a）：DTC 在 reference 輸入端，ε 在 PD 的 reference 輸入端注入（e_PD = ε − θ_fb），
+ *              所以 H_PD 前面是正號；q 取的是 PD 的輸出（送進 loop filter 的同一個節點）的正負號
  *   w 在 h 的記憶長度內近似常數時：e[n] ≈ (a − w)·u[n] + v[n]，u = h * x     [近似｜時間尺度分離]
  *   q = sign(e)（tie → +1）；GMAC 用原始（延遲 D）的 code：G_k = (1/N)Σ q[n]·x[n − D]
  *   小訊號：E[G_k] ≈ K_q·(a − w_k)·C_D，C_D = E[x[n − D]·u[n]]，K_q = √(2/π)/σ_v

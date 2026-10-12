@@ -59,7 +59,7 @@ export function S2Recursion() {
         <Diagram chart={CHART_GMAC_LINEAR} caption={String.raw`線性化 GMAC 的兩個框：實際電路（每個 sample 做一次）與近最佳點時的等效模型（每個 block 一個值）。注意等效模型加法點上的負號：$G_k\approx-K\,\delta w_k+\eta_k$。`}>
           <p>
             {md(
-              String.raw`先看「實際電路」的框：gain 誤差 $a-w_k$ 乘上 code，加上雜訊 $v[n]$ 得到 comparator 的輸入 $e[n]$；comparator 只留下正負號 $q[n]$，再乘一次 code，平均 $N$ 筆得到 $G_k$。再看「等效模型」的框：整個實際電路被換成「$\delta w_k$ 乘上 $K$、以負號進入加法點，再加上雜訊 $\eta_k$」。最後看兩個框匯合的那一格：只有在小訊號、近最佳點時，兩個 $G_k$ 的平均與變異數才近似相同——這就是 F-12.1 裡那個 $\approx$ 的意思。`,
+              String.raw`先看「實際電路」的框：gain 誤差 $a-w_k$ 乘上 code，加上雜訊 $v[n]$ 得到 comparator 的輸入 $e[n]$——它就是 PD 的輸出，也是送進 loop filter 的同一個訊號；comparator 只留下正負號 $q[n]$，再乘一次 code，平均 $N$ 筆得到 $G_k$。再看「等效模型」的框：整個實際電路被換成「$\delta w_k$ 乘上 $K$、以負號進入加法點，再加上雜訊 $\eta_k$」。最後看兩個框匯合的那一格：只有在小訊號、近最佳點時，兩個 $G_k$ 的平均與變異數才近似相同——這就是 F-12.1 裡那個 $\approx$ 的意思。`,
             )}
           </p>
           <p>
@@ -88,7 +88,9 @@ export function S2Recursion() {
           steps={[
             {
               tex: String.raw`e[n]=C\,(a-w_k)\,x[n]+v[n],\qquad q[n]=\operatorname{sign}(e[n])`,
-              why: md(String.raw`comparator 前的誤差：DTC gain 誤差 $a-w$ 乘上 code，經有效路徑 $C$，再加上雜訊（§0 約定）。`),
+              why: md(
+                String.raw`comparator 取的是 PD 的輸出 $e[n]$。PD 量的是「DTC 延遲後的 reference edge 減 feedback edge」，$e[n]=t_{\mathrm{ref}}'[n]-t_{\mathrm{fb}}[n]$：feedback（divider）edge 早到 $a\,x[n]$，reference 端的 DTC 補償 $w_k\,x[n]$——它只能延遲、不能提前，所以是把自己的延遲從固定的基準 $T_0$ 縮短這麼多（$\tau_{\mathrm{DTC}}=T_0-w_k\,x[n]$；常數 $T_0$ 被 PLL 當成靜態相位偏移吸收）——剩下 gain 誤差 $a-w_k$ 乘上 code；經有效路徑 $C$，再加上雜訊（§0 約定）。補償不足（$w_k<a$、$x>0$）時 reference edge 還是太晚，$e$ 為正。`,
+              ),
             },
             {
               tex: String.raw`q[n]\,x[n]=\operatorname{sign}\big(C(a-w_k)+v[n]x[n]\big)`,
@@ -206,8 +208,8 @@ export function S2Recursion() {
           steps={[
             { tex: String.raw`W(z)=\sum_{k\ge0}\delta w_kz^{-k},\qquad E(z)=\sum_{k\ge0}\eta_kz^{-k}`, why: '定義兩個數列的 Z-transform。' },
             { tex: String.raw`\sum_k\delta w_{k+1}z^{-k}=p\,W(z)+\mu E(z)`, why: md(String.raw`遞迴式兩邊乘 $z^{-k}$ 再對 $k$ 求和（線性）。`) },
-            { tex: String.raw`z\big(W(z)-\delta w_0\big)=p\,W(z)+\mu E(z)`, why: '左邊用「超前一步」性質。' },
-            { tex: String.raw`(z-p)\,W(z)=\mu E(z)`, why: md(String.raw`忽略初始狀態 $\delta w_0=0$（只看穩態雜訊傳遞）。`) },
+            { tex: String.raw`\sum_k\delta w_{k+1}z^{-k}=z\big(W(z)-\delta w_0\big)`, why: '同一個左邊，用「超前一步」性質改寫。' },
+            { tex: String.raw`(z-p)\,W(z)=\mu E(z)`, why: md(String.raw`上兩行的右邊相等：$zW-z\,\delta w_0=pW+\mu E$；忽略初始狀態 $\delta w_0=0$（只看穩態雜訊傳遞），再移項。`) },
             { tex: String.raw`H_{\eta\to w}(z)=\frac{W(z)}{E(z)}=\frac{\mu}{z-p}`, why: '轉移函數 = 輸出 / 輸入。' },
             { tex: String.raw`\frac{\mu}{z-p}=\frac{\mu z^{-1}}{1-pz^{-1}}=\mu z^{-1}\sum_{m\ge0}p^mz^{-m}`, why: md(String.raw`分子分母同除以 $z$，再用等比級數展開（$|z|>|p|$）。`) },
             { tex: String.raw`h_k=\mu\,p^{k-1}\quad(k\ge1),\qquad h_0=0`, why: md(String.raw`讀出 $z^{-k}$ 的係數：先延遲一個 block（$\eta_k$ 下一個 block 才影響 $w$），之後以 $p^k$ 衰減。`) },
@@ -325,8 +327,8 @@ export function S2Recursion() {
             { tex: String.raw`=\sigma_\eta^2\mu^2\sum_{k\ge1}p^{2(k-1)}`, why: md(String.raw`代入 $h_k=\mu p^{k-1}$。`) },
             { tex: String.raw`=\sigma_\eta^2\mu^2\cdot\frac{1}{1-p^2}`, why: md(String.raw`公比 $p^2$ 的等比級數（$|p|<1$）。`) },
             {
-              tex: String.raw`\frac1{2\pi}\int_{-\pi}^{\pi}\frac{\mu^2\sigma_\eta^2\,d\Omega}{1-2p\cos\Omega+p^2}=\frac{\mu^2\sigma_\eta^2}{1-p^2}`,
-              why: md(`頻域版 Parseval：對 PSD 積分。數值核對（中點法 20000 點）$=${poisson.toPrecision(10)}\\ \\mathrm{fs}^2$，封閉式 $=${EX.sigmaW2.toPrecision(10)}\\ \\mathrm{fs}^2$。`),
+              tex: String.raw`\frac1{2\pi}\int_{-\pi}^{\pi}S_w(e^{j\Omega})\,d\Omega=\frac{\mu^2\sigma_\eta^2}{1-p^2}`,
+              why: md(`頻域版 Parseval：對 PSD（F-12.4 的 $S_w=\\mu^2\\sigma_\\eta^2/(1-2p\\cos\\Omega+p^2)$）積分。數值核對（中點法 20000 點）$=${poisson.toPrecision(10)}\\ \\mathrm{fs}^2$，封閉式 $=${EX.sigmaW2.toPrecision(10)}\\ \\mathrm{fs}^2$。`),
             },
           ]}
         />
@@ -367,7 +369,7 @@ export function S2Recursion() {
         <TexBlock>
           {String.raw`\begin{aligned}
 1-p^2&=1-${sig(EX.p, 6)}^2=${sig(1 - EX.p ** 2, 6)}\\
-\sigma_w^2&=\frac{10^2\cdot(1/4096)}{${sig(1 - EX.p ** 2, 6)}}=${sig(EX.sigmaW2, 6)}\ \mathrm{fs}^2\\
+\sigma_w^2&=\frac{10^2/4096}{${sig(1 - EX.p ** 2, 6)}}=${sig(EX.sigmaW2, 6)}\ \mathrm{fs}^2\\
 \sigma_w&=${sig(EX.sigmaW, 6)}\ \mathrm{fs}
 \end{aligned}`}
         </TexBlock>

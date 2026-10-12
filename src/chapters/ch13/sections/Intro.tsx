@@ -44,7 +44,7 @@ export function Intro() {
         </ul>
         <p>
           本章的答案是：<strong>平均正確不等於頻譜理想</strong>。五種方法的總誤差功率可能一模一樣，差別只在誤差能量落在哪個頻率——而
-          DSM residue（小數除頻留下的餘數碼 <Tex>{'x[n]'}</Tex>，DTC 的輸入）與 PLL 的 <Tex>{'T(f)'}</Tex>（從 DTC 誤差到 PLL 輸出的 closed-loop 轉移函數，low-pass）會決定哪個頻率最傷。對常數目標 32.4，一階 ΔΣ 甚至與「固定週期切換」落入<strong>同一個</strong>週期 5 循環（floor
+          DSM residue（小數除頻留下的餘數碼 <Tex>{'x[n]'}</Tex>，也就是 reference 端 DTC 的 code）與 PLL 的 <Tex>{'T(f)'}</Tex>（從 DTC 誤差到 PLL 輸出的 closed-loop 轉移函數，low-pass）會決定哪個頻率最傷。對常數目標 32.4，一階 ΔΣ 甚至與「固定週期切換」落入<strong>同一個</strong>週期 5 循環（floor
           版逐點相同、round-half-up 版只差循環移位；<Erratum id="E15" />）。
         </p>
         <SourceTag kind="illustrative" />
@@ -54,7 +54,7 @@ export function Intro() {
         <SystemMap focus={SYSTEM_MAP_FOCUS} />
         <p>
           藍色的三塊是本章的主角：<strong>Gain accumulator</strong>（LMS 算出來的高解析係數）、<strong>Quantizer</strong>（把它放進有限個 bit）與 <strong>Gain correction</strong>（把量化後的係數乘上
-          residue、送進 DTC）；前面幾章都把 Quantizer 當成一條直通的線，本章加上的就是這一塊，以及它造成的誤差怎麼沿著 Gain correction → DTC → 主 PLL 迴路走到輸出。
+          residue，得到 reference 端 DTC 的補償量）；前面幾章都把 Quantizer 當成一條直通的線，本章加上的就是這一塊，以及它造成的誤差怎麼沿著 Gain correction → reference 端的 DTC → PD → 主 PLL 迴路走到輸出。
         </p>
       </Section>
 
@@ -68,18 +68,42 @@ export function Intro() {
         </p>
         <Mermaid
           chart={CHART_SIGNAL_FLOW}
-          caption="6-bit gain code 的訊號流。先看藍色方塊：五種策略都是「高解析 $w_H$ 進、整數 $y$ 出」的同一個位置；再看虛線：code 誤差乘上 $x$ 之後才到 PLL 輸出。"
-          ariaLabel="GMAC 平均進入 LMS accumulator，經量化策略成為 6-bit gain register，再與 DSM residue 一起控制 DTC；code 誤差乘上 DSM residue 後經 PLL 到輸出"
+          caption="6-bit gain code 的訊號流。先看藍色方塊：五種策略都是「高解析 $w_H$ 進、整數 $y$ 出」的同一個位置；再看 PD：從上面進來的是 reference 端的 DTC，從下面繞回來的是回授路徑的 divider，PD 的輸出 $e_{\mathrm{PD}}$ 分兩路，一路去 loop filter、一路給 comparator；最後看虛線：code 誤差乘上 $x$ 之後才到 PLL 輸出。"
+          ariaLabel="GMAC 平均進入 LMS accumulator，經量化策略成為 6-bit gain register，再與 DSM residue 一起經 Gain correction 控制 reference 端的 DTC；reference clock 經 DTC 進 PD，PD 的輸出同時送給 loop filter 與 1-bit comparator；loop filter 與 VCO 的輸出只經 divider 回到 PD，回授路徑上沒有 DTC；comparator 經 GMAC 回到 accumulator；code 誤差乘上 DSM residue 後經 PLL 到輸出"
         />
         <p className="small ch13-figwalk">
           先看由上往下的主幹：GMAC 平均 <Tex>{'G_k'}</Tex>（第 4 章：一個 block 內 comparator 輸出乘上 code 的平均）更新 accumulator <Tex>{String.raw`\to`}</Tex> 藍色的量化策略 <Tex>{String.raw`\to`}</Tex> 6-bit register{' '}
-          <Tex>{String.raw`\to`}</Tex> DTC，再經 PD / comparator 回到 GMAC（圖左邊往上的那條線），這是校正迴路。再看虛線：code 誤差 <Tex>{String.raw`e=y-w^*`}</Tex> 不是直接加到輸出，而是與 DSM residue <Tex>{'x[n]'}</Tex> <strong>相乘</strong>（§12.2：乘號不是加號），得到 DTC
-          注入的 timing error <Tex>{String.raw`\delta t[n]=\Delta_\mathrm{LSB}\,e[n]\,x[n]`}</Tex>，再經 PLL 的 <Tex>{'T(f)'}</Tex> 到輸出。圖上 DTC 方塊裡的延遲 <Tex>{String.raw`\Delta_\mathrm{LSB}\cdot y\cdot x[n]`}</Tex> 中，<Tex>{String.raw`\Delta_\mathrm{LSB}`}</Tex> 是 1 個 gain LSB 對應多少 fs（下一段就算它）。
+          <Tex>{String.raw`\to`}</Tex> Gain correction（乘上 DSM residue <Tex>{'x[n]'}</Tex>，得到<strong>補償量</strong> <Tex>{String.raw`\Delta_\mathrm{LSB}\cdot y\cdot x[n]`}</Tex>）<Tex>{String.raw`\to`}</Tex> reference 端的 DTC。再看圖的下半：reference clock 經 DTC 才進 PD；PD 下面那一圈是主 PLL 迴路——PD{' '}
+          <Tex>{String.raw`\to`}</Tex> loop filter <Tex>{String.raw`\to`}</Tex> VCO <Tex>{String.raw`\to`}</Tex> divider <Tex>{String.raw`\to`}</Tex> 回到 PD，回授路徑上只有 divider，沒有 DTC。PD 的輸出{' '}
+          <Tex>{String.raw`e_\mathrm{PD}[n]`}</Tex> 分兩路：往右下送進 loop filter，往左下給 1-bit comparator、再經 GMAC 回到最上面（圖左邊往上的那條線），這就是校正迴路——comparator 取的是 PD 的輸出，也就是送進 loop filter 的<strong>同一個訊號</strong>（系統地圖上標{' '}
+          <Tex>{'e[n]'}</Tex> 的那一個；本章的 <Tex>{String.raw`e=y-w^*`}</Tex> 已經是 code 誤差，所以 PD 的輸出在這裡記成 <Tex>{String.raw`e_\mathrm{PD}`}</Tex>）。
+        </p>
+        <p className="small">
+          再看虛線：code 誤差 <Tex>{String.raw`e=y-w^*`}</Tex> 不是直接加到輸出，而是與 DSM residue <Tex>{'x[n]'}</Tex> <strong>相乘</strong>（§12.2：乘號不是加號），得到補償量的誤差{' '}
+          <Tex>{String.raw`\delta t[n]=\Delta_\mathrm{LSB}\,e[n]\,x[n]`}</Tex>（<strong>多補償</strong>為正）。虛線是簡寫，不是一條實體的線：<Tex>{String.raw`\delta t`}</Tex> 跟著 reference edge 從 PD 的 reference 輸入進去，繞 PD 下面那一圈主迴路才到 VCO 的輸出，整圈合起來的效果就是{' '}
+          <Tex>{'T(f)'}</Tex>。
+        </p>
+        <p className="small">
+          DTC 方塊裡的 <Tex>{String.raw`T_0-\Delta_\mathrm{LSB}\cdot y\cdot x[n]`}</Tex> 怎麼來：feedback（divider）的 edge 比理想時刻早到 <Tex>{String.raw`a\,x[n]`}</Tex>（<Tex>{'a'}</Tex> 是真實的 DTC gain；換成本章的寫法，
+          <Tex>{String.raw`a=\Delta_\mathrm{LSB}\,w^*`}</Tex>）；reference 端的 DTC 只能延遲、不能提前，所以它從固定的基準延遲 <Tex>{String.raw`T_0`}</Tex> 往回扣補償量 <Tex>{String.raw`w\,x[n]`}</Tex>（<Tex>{'w'}</Tex> 是實際寫進去的 gain，本章{' '}
+          <Tex>{String.raw`w=\Delta_\mathrm{LSB}\,y`}</Tex>；<Tex>{String.raw`\Delta_\mathrm{LSB}`}</Tex> 是 1 個 gain LSB 對應多少 fs，下一段就算它），等於把 reference edge 提前去對齊。
+          <Tex>{String.raw`T_0`}</Tex> 是常數，被 PLL 當成靜態相位偏移吸收。PD 量的是（延遲後的）reference edge 減 feedback edge：
+        </p>
+        <TexBlock>{String.raw`\begin{aligned}e_\mathrm{PD}[n]&=t_\mathrm{ref}'[n]-t_\mathrm{fb}[n]\\&=(a-w)\,x[n]+v[n]\\&=-\delta t[n]+v[n]\end{aligned}`}</TexBlock>
+        <p className="small">
+          <Tex>{'v[n]'}</Tex> 是 comparator 前的雜訊。補償不足（<Tex>{'w<a'}</Tex>）時 reference 還是太晚，誤差為正；<Tex>{String.raw`(a-w)\,x[n]`}</Tex> 就是下面正負號約定裡的 <Tex>{String.raw`\delta\,x[n]`}</Tex>（<Tex>{String.raw`\delta=a-w`}</Tex>）。最後一行把{' '}
+          <Tex>{String.raw`a=\Delta_\mathrm{LSB}\,w^*`}</Tex>、<Tex>{String.raw`w=\Delta_\mathrm{LSB}\,y`}</Tex> 代進去：<Tex>{String.raw`(a-w)\,x=-\Delta_\mathrm{LSB}\,(y-w^*)\,x=-\delta t`}</Tex>。本章顯示的 <Tex>{String.raw`\delta w`}</Tex> 與{' '}
+          <Tex>{String.raw`\delta t`}</Tex> 以多補償為正：<Tex>{String.raw`\delta t>0`}</Tex> 時 DTC 從 <Tex>{String.raw`T_0`}</Tex> 扣得太多，reference edge 比該到的時刻早 <Tex>{String.raw`\delta t`}</Tex>；PD 量的是 reference 減 feedback，所以看到 <Tex>{String.raw`-\delta t`}</Tex>。LMS 的更新{' '}
+          <Tex>{String.raw`w\leftarrow w+\mu\,q\,x`}</Tex>（<Tex>{String.raw`q=\mathrm{sign}(e_\mathrm{PD})`}</Tex>）看的是 PD 這個方向：補償不足時 <Tex>{String.raw`q\,x`}</Tex> 的平均為正，把 <Tex>{'w'}</Tex> 往上推。
+        </p>
+        <p className="small">
+          線性化之後寫成相位（和第 12 章的寫法相同）：相位以 edge 晚到為正，DTC 的殘餘誤差在 PD 的 reference 輸入是 <Tex>{String.raw`\phi_\mathrm{dtc}=-2\pi f_\mathrm{out}\,\delta t`}</Tex>（<Tex>{String.raw`f_\mathrm{out}`}</Tex> 是 PLL 的輸出頻率），到輸出是{' '}
+          <Tex>{String.raw`\theta_\mathrm{out}=T\,\phi_\mathrm{dtc}`}</Tex>（正號）。本章只用到 <Tex>{String.raw`|T|^2`}</Tex>、RMS 與 PSD，這個負號不影響任何數字。
         </p>
         <ModeGate min="engineer">
           <p className="small muted">
             硬體對應：<Tex>{'w_H'}</Tex> 是 LMS 更新暫存器（例如 16–24 bit）；<Tex>{'y'}</Tex> 是 DTC gain DAC 的 6-bit 控制字；量化策略是兩者之間的一小塊
-            RTL。code 的更新時脈 <Tex>{'f_u'}</Tex>（每個 reference cycle 或每個 GMAC block）會決定量化誤差落在哪個頻率（§13.5 第 5 點）。
+            RTL。DTC 只能延遲，所以數位端真正送進它的 code 是 <Tex>{String.raw`C_0-w\,x[n]`}</Tex>（<Tex>{String.raw`C_0`}</Tex> 是固定的中心值，等於把 code 取補數；<Tex>{String.raw`T_0`}</Tex> 是它對應的基準延遲），這不改變本章任何數字。code 的更新時脈 <Tex>{'f_u'}</Tex>（每個 reference cycle 或每個 GMAC block）會決定量化誤差落在哪個頻率（§13.5 第 5 點）。
           </p>
         </ModeGate>
       </Section>
@@ -142,7 +166,7 @@ export function Intro() {
           round-half-up：<Tex>{String.raw`\mathrm{round}(x)=\lfloor x+\tfrac12\rfloor`}</Tex>，所以 <Tex>{String.raw`\mathrm{round}(32.5)=33`}</Tex>（tie 往上）。truncation（floor）則直接
           <Tex>{String.raw`\lfloor x\rfloor`}</Tex>。兩者對 ΔΣ（§13.4）只差相位與它內部誤差暫存器 <Tex>{'r'}</Tex> 的範圍（<Tex>{String.raw`[-\tfrac12,\tfrac12)`}</Tex> vs <Tex>{'[0,1)'}</Tex>），但對「直接截位」會差半個 LSB 的 bias（§13.6）。
         </p>
-        <TexBlock>{String.raw`x=\lfloor x\rfloor+\mathrm{frac}(x),\qquad 0\le\mathrm{frac}(x)<1`}</TexBlock>
+        <TexBlock>{String.raw`x=\lfloor x\rfloor+\mathrm{frac}(x),\quad 0\le\mathrm{frac}(x)<1`}</TexBlock>
         <p className="small">
           <ClaimTag kind="exact" /> 這些都是定義，沒有近似。
         </p>

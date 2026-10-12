@@ -35,7 +35,7 @@ export function S05Identity() {
         steps={[
           { tex: r`H_{PD}=\frac{1}{1+L}=\frac{\overline{1+L}}{\lvert1+L\rvert^2}`, why: '分子分母同乘共軛，分母變成正實數。' },
           { tex: r`\mathrm{Re}\,H_{PD}=\frac{1+\mathrm{Re}\,L}{\lvert1+L\rvert^2}`, why: '取實部；分母恆正，所以符號由分子決定。' },
-          { tex: r`\mathrm{Re}\,T=\mathrm{Re}\,(1-H_{PD})=1-\mathrm{Re}\,H_{PD}`, why: <><Tex>{r`T=L/(1+L)=1-H_{PD}`}</Tex>。</> },
+          { tex: r`\mathrm{Re}\,T=1-\mathrm{Re}\,H_{PD}`, why: <><Tex>{r`T=L/(1+L)=1-H_{PD}`}</Tex>，兩邊取實部。</> },
           {
             tex: r`\mathrm{Re}\,H_{PD}<0\iff\mathrm{Re}\,L<-1\iff\mathrm{Re}\,T>1\ \Rightarrow\ \lvert T\rvert>1`,
             why: <>由前兩步直接得到；最後一步因為 <Tex>{r`\lvert T\rvert\ge\mathrm{Re}\,T`}</Tex>。</>,
@@ -124,9 +124,9 @@ export function S05Identity() {
             tex: r`\frac1L=\frac{(1-z^{-1})z^{d}}{K}=\frac{e^{j\Omega(d-1)}(e^{j\Omega}-1)}{K}\approx\frac{j\Omega-\Omega^2(d-\frac12)}{K}`,
             why: <>泰勒展開到 <Tex>{r`\Omega^2`}</Tex>：<Tex>{r`e^{j\Omega(d-1)}(e^{j\Omega}-1)\approx(1+j\Omega(d-1))(j\Omega-\Omega^2/2)`}</Tex>。</>,
           },
-          { tex: r`H_{PD}=\frac{1}{1+L}=\frac{1/L}{1+1/L}\approx\frac1L-\frac1{L^2}`, why: <><Tex>{r`\lvert1/L\rvert\ll1`}</Tex>，用 <Tex>{r`1/(1+x)\approx1-x`}</Tex>。</> },
+          { tex: r`\begin{aligned}H_{PD}&=\frac{1}{1+L}=\frac{1/L}{1+1/L}\\[2pt]&\approx\frac1L-\frac1{L^2}\end{aligned}`, why: <><Tex>{r`\lvert1/L\rvert\ll1`}</Tex>，用 <Tex>{r`1/(1+x)\approx1-x`}</Tex>。</> },
           {
-            tex: r`\mathrm{Re}\,H_{PD}\approx-\frac{\Omega^2(d-\frac12)}{K}+\frac{\Omega^2}{K^2}=\frac{\Omega^2}{K^2}\Big[1-K\big(d-\tfrac12\big)\Big]`,
+            tex: r`\mathrm{Re}\,H_{PD}\approx-\frac{\Omega^2(d-\frac12)}{K}+\frac{\Omega^2}{K^2}=\frac{\Omega^2}{K^2}\big[1-K(d-\tfrac12)\big]`,
             why: <><Tex>{r`1/L^2\approx(j\Omega)^2/K^2=-\Omega^2/K^2`}</Tex>；<Tex>{'1/L'}</Tex> 的 <Tex>{r`j\Omega/K`}</Tex> 是純虛數，不貢獻實部。</>,
           },
         ]}

@@ -62,12 +62,24 @@
   font-size: 1.3rem;
 }
 
-/* 數值表：數字靠右、等寬 */
+/* 數值表：數字靠右、等寬；欄內距縮小一點、表頭可以換行，免得表格比外框寬幾個 px 而多出一條沒有用的捲軸（數字本身不換行） */
 .ch00-num-table td.num,
 .ch00-num-table th.num {
   text-align: right;
   font-family: var(--font-mono);
   white-space: nowrap;
+  padding-left: 7px;
+  padding-right: 7px;
+}
+.ch00-num-table th.num {
+  white-space: normal;
+}
+/* 一格裡放好幾個很長的數字（17 位數的 double，用逗號隔開）的欄：桌面與平板可以在逗號後面換行（數字本身沒有空白，不會被拆開），
+   三欄的表格才不必為了一長串數字橫向捲動、把第一欄擠成五行。手機寬度放不下（一個數字就佔半個螢幕），維持不換行、整張表橫向捲動 */
+@media (min-width: 561px) {
+  .ch00-num-table td.num.ch00-num-list {
+    white-space: normal;
+  }
 }
 .ch00-num-table tr.is-current td {
   background: var(--accent-soft);

@@ -265,7 +265,10 @@ export function WrapupSection() {
               <Tex>{R`s[n]`}</Tex> 依序為 {q4.map((r) => r.s).join('、')}（第 2 拍 <Tex>{R`6+3=9\ge8`}</Tex> 進位，留下 1）；carry <Tex>{R`y[n]`}</Tex> 為 {q4.map((r) => r.y).join('、')}。
             </p>
             <TexBlock>{R`r[3]=\sum_{m=0}^{3}\Bigl(y[m]-\tfrac38\Bigr)=1-4\times\tfrac38=-\tfrac12=-\frac{s[3]}{M}=-\frac{${q4[3].s}}{8}`}</TexBlock>
-            <p>divider edge 早到半個 VCO 週期，DTC 要延遲 <Tex>{R`0.5\,T_\mathrm{vco}`}</Tex>。</p>
+            <p>
+              feedback（divider）edge 早到半個 VCO 週期，所以 reference 端的 DTC 要把 reference edge 也提前 <Tex>{R`0.5\,T_\mathrm{vco}`}</Tex>：需要的補償量 <Tex>{R`\tau_\mathrm{need}=0.5\,T_\mathrm{vco}`}</Tex>，DTC 的延遲是{' '}
+              <Tex>{R`T_0-0.5\,T_\mathrm{vco}`}</Tex>。
+            </p>
           </>
         }
       />
@@ -319,14 +322,18 @@ export function WrapupSection() {
       <Recap
         title="這一課最重要的公式"
         formulas={[
-          { tex: R`r[n]=\sum_{m\le n}(y[m]-\mathrm{frac})=-\frac{s[n]}{M},\qquad\tau_\mathrm{DTC}=\frac{s[n]}{M}T_\mathrm{vco}`, label: 'DTC 要補償的是 DSM 累加器內容（F-04.1、F-04.2）' },
+          { tex: R`r[n]=\sum_{m\le n}(y[m]-\mathrm{frac})=-\frac{s[n]}{M},\qquad\tau_\mathrm{need}=\frac{s[n]}{M}T_\mathrm{vco},\qquad\tau_\mathrm{DTC}=T_0-w\,x[n]`, label: 'DTC 要補償的是 DSM 累加器內容；reference 端的 DTC 從基準延遲往回扣（F-04.1、F-04.2）' },
           { tex: R`E[G_k]\approx K_qC\,\delta_k,\qquad g_\mathrm{avg}=\mu K,\qquad g_\mathrm{sum}=N\mu K`, label: R`GMAC 平均與 sum / average 的 $N$ 倍差異（F-04.4、F-04.5）` },
-          { tex: R`q=2b-1;\qquad G_\mathrm{bug}=\tfrac12G+\tfrac12\bar x_\mathrm{ref}`, label: '0/1 映射（F-04.7）' },
+          { tex: R`q=2b-1;\quad G_\mathrm{bug}=\tfrac12G+\tfrac12\bar x_\mathrm{ref}`, label: '0/1 映射（F-04.7）' },
           { tex: R`B_\mathrm{acc}=1+\lceil\log_2(NM_x+1)\rceil\;\overset{N=2^m}{=}\;B_x+m\;(+1\text{ 若含最負 code})`, label: '累加器位元數（F-04.9）' },
           { tex: R`w^*-a=\frac{\bar\varepsilon\,\Delta_G}{K}+\frac{\bar\varepsilon_W\Delta_W}{g},\qquad\bar\varepsilon_\mathrm{floor}=-\frac{1-2^{-\ell}}{2}`, label: '兩個截斷點的 rounding 偏差（F-04.10、F-04.11、F-04.18）' },
         ]}
         points={[
-          <>DTC 要補償的時間誤差就是 DSM 累加器裡的數字；DTC gain 誤差 <Tex>{R`\delta`}</Tex> 讓 PD 看到 <Tex>{R`\delta\,x[n]`}</Tex>，這正是 LMS 的 <Tex>{R`y=ax`}</Tex> 問題。</>,
+          <>
+            DTC 在 reference 的輸入端，回授路徑上只有 divider。feedback edge 早到的時間就是 DSM 累加器裡的數字；DTC 把 reference edge 也提前（從基準延遲 <Tex>{R`T_0`}</Tex> 少延遲）<Tex>{R`w\,x[n]`}</Tex> 去對齊。DTC gain 誤差{' '}
+            <Tex>{R`\delta`}</Tex> 讓 PD 看到 <Tex>{R`\delta\,x[n]`}</Tex>，這正是 LMS 的 <Tex>{R`y=ax`}</Tex> 問題。
+          </>,
+          <>LMS 校正迴路的輸入是 PD 的輸出 <Tex>{R`e[n]`}</Tex>：comparator 取的是送進 loop filter 的同一個訊號。</>,
           <>GMAC 是相關的樣本估計：<Tex>{R`E[G]\approx K_qC\delta`}</Tex>。總和寫 <Tex>{R`S`}</Tex>、平均寫 <Tex>G</Tex>，兩者差 <Tex>N</Tex> 倍 loop gain 與 <Tex>N</Tex> 倍標準差。</>,
           <>
             <Tex>{R`q=\pm1`}</Tex> 時不用乘法器（XOR + carry-in），但最負 code 取負要多 1 bit（否則 <Tex>{R`w^*-a\approx-p_\mathrm{min}/K`}</Tex>）；硬體 0/1 一定要映射成 <Tex>{R`\pm1`}</Tex>。

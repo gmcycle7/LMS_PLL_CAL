@@ -780,13 +780,13 @@ export const HANDCALCS: HandCalcDef[] = [
             why: `反查常態表：找出 $\\Phi(z)$ 等於目標正確率的 $z$（常用值在下面的手算提示）。意思是「平均要離決策門檻幾個標準差」。$z$ 還要平方，所以這裡多抄一位；只查得到三位小數也可以，$N$ 只會差不到 $0.1\\%$。${zHow(P)}`,
           },
           { tex: String.raw`\frac{\sigma_v}{|s|} = \frac{${tn(sigma)}}{${tn(a)}} = ${tn(ratio)}`, why: '雜訊是誤差的幾倍（$=1/r$）。' },
-          { tex: String.raw`\frac{z\,\sigma_v}{|s|} = ${tn(z)}\times${tn(ratio)} = ${tn(zr)}`, why: '一次乘法。' },
+          { tex: String.raw`\frac{z\sigma_v}{|s|} = ${tn(z)}\times${tn(ratio)} = ${tn(zr)}`, why: '一次乘法。' },
           {
-            tex: String.raw`\left(\frac{z\,\sigma_v}{s}\right)^2 = ${tnSq(zr)} = ${tn(sq)}`,
+            tex: String.raw`\left(\frac{z\sigma_v}{s}\right)^2 = ${tnSq(zr)} = ${tn(sq)}`,
             why: '平方。這個數本身就是「直接平均類比誤差 $e$」所需的樣本數。',
           },
           {
-            tex: String.raw`N \approx \left(\frac{z\,\sigma_v}{s}\right)^2\frac{\pi}{2} = ${tn(sq)}\times${tn(HALF_PI_H)} = ${tn(nHand)}`,
+            tex: String.raw`N \approx \left(\frac{z\sigma_v}{s}\right)^2\frac{\pi}{2} = ${tn(sq)}\times${tn(HALF_PI_H)} = ${tn(nHand)}`,
             why: '乘上 $\\pi/2=1.5708$：1-bit 量化的代價（來自 $m^2\\approx(2/\\pi)\\,r^2$）。',
           },
           {
@@ -973,7 +973,7 @@ export const HANDCALCS: HandCalcDef[] = [
             tex: String.raw`p_{\mathrm{cal}}^2 = ${tnSq(pole)} = ${tn(p2)}`,
             why: `開始算係數雜訊：先算 pole 的平方。${sigDigits(p2) > 5 ? '下一步要拿 1 去減它，所以多抄幾位，相減後才還有 5 位有效數字。' : ''}`,
           },
-          { tex: String.raw`1-p_{\mathrm{cal}}^2 = 1-${tn(p2)} = ${tn(oneMinus)}`, why: '$=g\\,(2-g)$：迴路對雜訊的「平均能力」。' },
+          { tex: String.raw`1-p_{\mathrm{cal}}^2 \\ = 1-${tn(p2)} = ${tn(oneMinus)}`, why: '$=g\\,(2-g)$：迴路對雜訊的「平均能力」。' },
           {
             tex: String.raw`N\,(1-p_{\mathrm{cal}}^2) = ${texI(N)}\times${tn(oneMinus)} = ${tn(den)}`,
             why: '每個 block 的 GMAC 雜訊 $\\operatorname{Var}(G)=(1-m^2)/N\\approx1/N$（§3 的「平均」變異數）。',

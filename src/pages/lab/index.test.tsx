@@ -28,6 +28,9 @@ vi.mock('mermaid', () => ({
 
 type Mode = 'beginner' | 'engineer' | 'research'
 
+/** 比對 TeX 原始碼用：反斜線只寫一次（與各 section 的 String.raw 相同） */
+const R = String.raw
+
 // 每個測試都要 render 一整頁（jsdom 約 1–3 秒）；與其他測試檔同時跑時，預設的 5 秒不夠穩定
 vi.setConfig({ testTimeout: 30_000 })
 
@@ -270,6 +273,98 @@ describe('Lab 頁：三種學習模式都能渲染', () => {
     expect(long).toEqual([])
   })
 
+  it('架構約定（docs/assumptions.md §2a）：DTC 在 reference 輸入端、校正迴路的輸入是 PD 的輸出；§4.4 的推導從 reference 輸入注入，兩條路都是正號', () => {
+    const { container } = renderPage('/lab', 'research')
+    const tex = (root: Element) => Array.from(root.querySelectorAll('annotation')).map((a) => a.textContent ?? '')
+    // §1：第一次給物理圖像的地方——DTC 的位置、回授路徑、補償量、PD 量的是 t_ref' − t_fb、校正迴路的輸入
+    const s1 = container.querySelector('section[aria-labelledby="lab-s1"]') as HTMLElement
+    for (const need of [
+      'DTC 在 reference 的輸入端',
+      'Reference clock → DTC → phase detector',
+      '回授路徑上只有 divider',
+      '比理想時刻早到',
+      '只能延遲、不能提前',
+      '固定的基準延遲往回扣',
+      '補償量',
+      '補償不足',
+      'reference 還是太晚',
+      '校正迴路的輸入就是 phase detector 的輸出',
+      '送進 loop filter 的同一個訊號',
+    ]) {
+      expect(s1.textContent, need).toContain(need)
+    }
+    expect(tex(s1)).toContain(R`t_{\mathrm{ref}}'-t_{\mathrm{fb}}`)
+    // 大小用 |x| 寫（feedback 早到 a|x|、補償量 w|x|、剩下 (a − w)|x|），帶正負號的式子才是 (a − w)x
+    for (const t of [R`a\,|x|`, R`w\,|x|`, R`(a-w)\,|x|`, R`(a-w)\,x`, 'w<a']) expect(tex(s1), t).toContain(t)
+    // 不再說 DTC「推」或「延遲」feedback edge
+    expect(s1.textContent).not.toMatch(/DTC[^。]{0,12}(延遲|推)[^。]{0,8}(feedback|divider|回授)/)
+    // §2：九級訊號鏈的圖說與導讀
+    const s2 = container.querySelector('section[aria-labelledby="lab-s2"]') as HTMLElement
+    const fig2 = s2.querySelector('figure.c-mermaid') as HTMLElement
+    expect(fig2.getAttribute('aria-label')).toContain('DTC 在 reference 輸入端')
+    expect(fig2.getAttribute('aria-label')).toContain('comparator 的輸入是 PD 的輸出')
+    expect(fig2.querySelector('figcaption')?.textContent).toContain('DTC 在 reference 輸入端')
+    const walk2 = s2.querySelector('.lab-diagram-walk')?.textContent ?? ''
+    for (const need of ['DTC 在 reference 的輸入端', '從 PD 的 reference', '回授路徑上只有 divider', 'PD 的輸出', '送進 loop filter 的同一個訊號']) expect(walk2, need).toContain(need)
+    // 每一級的主要假設也寫了接法
+    expect(s2.textContent).toContain('DTC 在 reference 輸入端；靜態非線性')
+    expect(s2.textContent).toContain('輸入取自 PD 的輸出')
+    // §4.3：補償量從基準延遲 T_0 往回扣；模型式子不變
+    const s43 = container.querySelector('#lab-s43') as HTMLElement
+    for (const need of ['DTC 在 reference 的輸入端', '回授路徑上只有 divider', '補償量', '只能延遲、不能提前', '基準延遲', '被主 PLL 當成靜態相位偏移吸收', '「DTC 之後的 reference edge」減「feedback edge」', '早到']) {
+      expect(s43.textContent, need).toContain(need)
+    }
+    expect(s43.textContent).not.toMatch(/應該產生.{0,40}的延遲/)
+    expect(tex(s43)).toContain(R`\tau_{\mathrm{DTC}}[n]=T_0-w_{\mathrm{app}}\,|r[n]|`)
+    expect(tex(s43)).toContain(R`t_{\mathrm{ref}}'-t_{\mathrm{fb}}=(a-w_{\mathrm{app}})\,|r[n]|`)
+    expect(tex(s43).some((t) => t.startsWith(R`e_{\mathrm{DTC}}[n]=\underbrace{(a-w_{\mathrm{app}})\,x[n]}`))).toBe(true)
+    // 正負號：補償不足（w < a）時 reference 太晚、t_ref' − t_fb 為正；本頁的 x 是 residue（≤ 0），所以圖上的 e_DTC 的 gain 項與 t_ref' − t_fb 反號，
+    // 但 q·x_ref 的統計與更新式不變；不隨 x 變號的三項（o_DTC、c_2 x²、b）另外交代
+    for (const need of ['正負號', '兩者差一個負號', '補償不足', 'reference 還是太晚，誤差為正', '同時變號', '相反', '的統計不變', '不隨', '相對本頁的']) expect(s43.textContent, need).toContain(need)
+    for (const t of [R`w_{\mathrm{app}}<a`, R`-1<r\le0`, R`x=r\le0`, R`q\,x_{\mathrm{ref}}`, R`c_2x^2`]) expect(tex(s43), t).toContain(t)
+    // 沒有把 reference edge 寫成被 DTC「提前」而不交代基準延遲：出現「提早／提前」的段落一定同時有 T_0
+    for (const para of Array.from(s43.querySelectorAll('p'))) {
+      const txt = para.textContent ?? ''
+      if (/提早|提前/.test(txt)) expect(tex(para).some((t) => t.includes('T_0')), txt.slice(0, 40)).toBe(true)
+    }
+    // §4.4：e_DTC 從 PD 的 reference 輸入進來；u_pd = +H_PD·e_DTC、t_out = +T·e_DTC；comparator 取 PD 的輸出
+    const s44 = container.querySelector('#lab-s44') as HTMLElement
+    for (const need of ['reference 輸入', '回授路徑上只有 divider', 'PD 的輸出', '校正迴路的輸入就是 PD', '送進 loop filter 的同一個訊號', '它就是 phase detector']) expect(s44.textContent, need).toContain(need)
+    const fig4 = s44.querySelector('figure.c-mermaid') as HTMLElement
+    expect(fig4.getAttribute('aria-label')).toContain('reference 輸入')
+    expect(fig4.getAttribute('aria-label')).toContain('comparator 取的也是它')
+    // 圖照電路的接法畫：Reference clock → DTC → PD；VCO → divider → PD（回授路徑上只有 divider，DTC 不在裡面）
+    expect(fig4.getAttribute('aria-label')).toContain('Reference clock 經 DTC 接到 phase detector 的 reference 輸入')
+    expect(fig4.getAttribute('aria-label')).toContain('只經過 divider 回到 phase detector 的另一個輸入')
+    expect(fig4.querySelector('figcaption')?.textContent).toContain('Reference clock → DTC → phase detector')
+    expect(fig4.querySelector('figcaption')?.textContent).toContain('只經過 divider')
+    const walk4 = Array.from(s44.querySelectorAll('.lab-diagram-walk p')).map((p) => p.textContent ?? '').join('\n')
+    for (const need of ['Reference clock 經 DTC 進來的', 'divider 送回來', '從 VCO 回到 PD 的路上只有 divider，DTC 不在裡面', 'divider 不改變 edge 的時間誤差']) expect(walk4, need).toContain(need)
+    const t44 = tex(s44)
+    expect(t44).toContain(R`u_{\mathrm{pd}}=e_{\mathrm{DTC}}-\theta_{\mathrm{fb}}`)
+    expect(t44).toContain(R`\theta_{\mathrm{fb}}=L(z)\,u_{\mathrm{pd}}`)
+    expect(t44).toContain(R`u_{\mathrm{pd}}\,(1+L)=e_{\mathrm{DTC}}\ \Rightarrow\ u_{\mathrm{pd}}=\frac{1}{1+L}\,e_{\mathrm{DTC}}=H_{\mathrm{PD}}\,e_{\mathrm{DTC}}`)
+    expect(t44).toContain(R`t_{\mathrm{out}}=\theta_{\mathrm{fb}}=L\,u_{\mathrm{pd}}=\frac{L}{1+L}\,e_{\mathrm{DTC}}`)
+    expect(t44).toContain(R`H_{\mathrm{PD}}+T=\frac{1}{1+L}+\frac{L}{1+L}=1`)
+    // 沒有帶負號的版本（−H_PD、−T、−1/(1+L)、−L/(1+L)）：那是殘差從 PD 的另一個輸入進來時的寫法
+    for (const t of t44) expect(t, t).not.toMatch(/=\s*-\s*(H_\{\\mathrm\{PD\}\}|T\b|\\frac\{L\}\{1\+L\}|\\frac\{1\}\{1\+L\})/)
+    // §4.5：comparator 的輸入
+    expect(container.querySelector('#lab-s45')?.textContent).toContain('comparator 取的是 PD 的輸出')
+    // 符號表與公式登錄
+    const sym = (symbol: string) => LAB_SYMBOLS.find((x) => x.symbol === symbol)
+    expect(sym('e_{\\mathrm{DTC}}[n]')?.note).toBe('DTC 在 reference 輸入端：它從 PD 的 reference 輸入進到主迴路')
+    expect(container.querySelector('#symbols')?.textContent).toContain('送進 loop filter，comparator 取的也是它')
+    const f4 = FORMULAS.find((f) => f.id === 'F-LAB.4')
+    expect(f4?.conditions).toContain('e_DTC 從 PD 的 reference 輸入注入')
+    expect(f4?.conditions).toContain('u_pd = +H_PD{e_DTC}')
+    expect(f4?.conditions).toContain('t_out = +T{e_DTC}')
+    expect(f4?.tex).toContain(R`H_{\mathrm{PD}}(z)=\frac{1}{1+L(z)},\quad T(z)=\frac{L(z)}{1+L(z)}=1-H_{\mathrm{PD}}(z)`)
+    // Research 的「還缺什麼」：注入點寫成全站的約定
+    const s9 = container.querySelector('section[aria-labelledby="lab-s9"]') as HTMLElement
+    expect(s9.textContent).toContain('DTC 在 reference 輸入端')
+    expect(s9.textContent).toContain('一起變號')
+  })
+
   it('Research 模式比 Beginner 多顯示內容（同一個計算核心，只改呈現）；Beginner 的逐步推導預設收合但仍在 DOM 內', () => {
     const b = renderPage('/lab', 'beginner')
     const nb = b.container.textContent?.length ?? 0
@@ -302,6 +397,29 @@ describe('原始碼層級的檢查', () => {
     const used = new Set<string>()
     for (const { text } of sourceFiles()) for (const m of text.matchAll(/region[=:]\s*['"]([\w.-]+)['"]/g)) used.add(m[1])
     expect(used.size).toBeGreaterThanOrEqual(15)
+  })
+
+  it('沒有舊接法的說法（規則見 OLD：圖上 divider 接 DTC、DTC 的位置、延遲的寫法、帶負號的轉移）；新的接法寫在圖的原始碼裡', () => {
+    const OLD: RegExp[] = [
+      /\b(DIV|MMD|PMUX)\w*\s*-[-.]+>?\s*(\|[^|\n]*\|\s*)?DTC\b/, // 圖：divider → DTC
+      /(divider|除頻器?)\s*(之後|後面)的?\s*DTC/,
+      /DTC\s*(在|放在|位於)\s*(回授|feedback)/,
+      /DTC[^。\n]{0,16}插入[^。\n]{0,8}延遲/,
+      /推回理想時刻/,
+      /應該產生[^。\n]{0,60}的延遲來抵銷/,
+      /=\s*-\s*H_\{\\+mathrm\{PD\}\}\s*(\\+,|\\+cdot)?\s*(e_\{\\+mathrm\{DTC|\\+(var)?phi_\{\\+mathrm\{dtc)/,
+      /=\s*-\s*T\s*(\\+,|\\+cdot)?\s*(e_\{\\+mathrm\{DTC|\\+(var)?phi_\{\\+mathrm\{dtc)/,
+    ]
+    const bad: string[] = []
+    for (const { file, text } of sourceFiles()) for (const re of OLD) if (re.test(text)) bad.push(`${file}: ${re}`)
+    expect(bad).toEqual([])
+    // 反過來：新的接法確實寫在圖的原始碼裡
+    const src = sourceFiles().find((f) => f.file === '/diagrams.ts')?.text ?? ''
+    expect(src).toContain('Reference clock → DTC')
+    expect(src).toContain('DIV["Divider')
+    expect(src).toContain('DIV -- "−" --> S')
+    expect(src).toContain('subgraph PD["Phase detector"]')
+    expect(src).toContain('comparator 取 PD 的輸出')
   })
 
   it('JSX 屬性字串內的 TeX 用單一反斜線（雙反斜線會被 KaTeX 當成換行）', () => {
@@ -404,6 +522,18 @@ describe('Pipeline 分頁：實際執行（jsdom 下 worker 以 inline 模式跑
       expect(st.querySelector('.c-level')).not.toBeNull()
       expect(st.querySelector('.lab-stage-assume li')).not.toBeNull()
     }
+    // 沒有用途的捲軸（使用者要求拿掉）：九級卡片的寬度由結果欄決定（放不下兩張就單欄），不再硬排兩欄讓每張表都橫向捲動；
+    // 數值欄是文字（例如 PLL 的設計描述）時可以換行，數字不拆開；交叉比對明細用收窄的字級與留白，五欄放得進結果欄
+    const labCss = readFileSync(resolve(PAGE_DIR, 'lab.css'), 'utf8')
+    const stagesRule = /\.lab-stages \{([^}]*)\}/.exec(labCss)?.[1] ?? ''
+    expect(stagesRule).toContain('grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr))')
+    expect(labCss).not.toMatch(/\.lab-stages \{[^}]*repeat\(2,/)
+    expect(/\.lab-stage-table td\.lab-num-text \{([^}]*)\}/.exec(labCss)?.[1] ?? '').toMatch(/white-space:\s*normal/)
+    const pllCells = Array.from(sh().querySelectorAll('.lab-stage[data-stage="pll"] td.lab-num'))
+    expect(pllCells.some((td) => td.classList.contains('lab-num-text') && (td.textContent ?? '').includes('DPLL'))).toBe(true)
+    for (const td of Array.from(sh().querySelectorAll('.lab-stage td.lab-num-text'))) expect(td.textContent ?? '', '純數字的格子不該可換行').not.toMatch(/^-?\d+(\.\d+)?(e[-+]?\d+)?$/)
+    expect(sh().querySelector('tr[data-check="replay"]')?.closest('table')?.classList.contains('lab-check-table')).toBe(true)
+    expect(/\.lab-check-table \{([^}]*)\}/.exec(labCss)?.[1] ?? '').toMatch(/font-size:\s*0\.82rem/)
     expect(buttonByText(sh(), '下載完整報告 JSON')).toBeDefined()
     expect(container.querySelectorAll('.c-tex-error')).toHaveLength(0)
     // Run-to-Convergence：不收斂時說明原因

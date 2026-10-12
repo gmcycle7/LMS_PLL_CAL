@@ -48,7 +48,7 @@ export function SymbolsSection({ rows, collisions, searching }: { rows: GlobalSy
           steps={[
             { tex: String.raw`w_{n+1}=w_n+\mu(y_n-w_nx_n)x_n,\qquad y_n=ax_n`, why: '無雜訊的純量 LMS（規格 §1.2）。' },
             {
-              tex: String.raw`a-w_{n+1}=(a-w_n)-\mu(a-w_n)x_n^2`,
+              tex: String.raw`a-w_{n+1}=(a-w_n)-{\mu(a-w_n)x_n^2}`,
               why: (
                 <>
                   兩邊用 <Tex>{'a'}</Tex> 去減，並把 <Tex>{'y_n-w_nx_n'}</Tex> 寫成 <Tex>{'(a-w_n)x_n'}</Tex>。
@@ -72,7 +72,7 @@ export function SymbolsSection({ rows, collisions, searching }: { rows: GlobalSy
               ),
             },
             {
-              tex: String.raw`\delta_0,\delta_1,\delta_2=${r.t01.delta.map((d) => texNum(d)).join(',\\ ')}\quad\text{vs}\quad ${r.t01.delta.map((d) => texNum(-d)).join(',\\ ')}`,
+              tex: String.raw`\delta_0,\delta_1,\delta_2=${r.t01.delta.map((d) => texNum(d)).join(',\\ ')}\quad\text{vs}\quad{${r.t01.delta.map((d) => texNum(-d)).join(',\\ ')}}`,
               why: (
                 <>
                   代入 <Tex>{String.raw`a=${r.t01.a},\ w_0=${r.t01.w0},\ x=${r.t01.x},\ \mu=${r.t01.mu}`}</Tex>（由 lms.ts 的 conventionalStep 算出）：數值完全相反，所以圖表與逐步表一律用

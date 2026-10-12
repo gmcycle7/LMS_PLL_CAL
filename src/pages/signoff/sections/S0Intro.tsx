@@ -85,7 +85,7 @@ export function S0Intro() {
         <p className="small">
           表中符號的白話意思（完整定義在頁末符號表）：<Tex>{'\\mathbf R'}</Tex> 是有效 regressor 的自相關矩陣（資訊矩陣），<Tex>{'\\mathbf J'}</Tex> 是 GMAC 平均輸出對係數的 Jacobian（斜率矩陣，<Tex>{'\\hat{\\mathbf J}'}</Tex> 是量到的版本）；
           <Tex>{'K=K_qC'}</Tex> 是 GMAC 的恢復力（<Tex>{'K>0'}</Tex> 才會把係數 <Tex>{'w'}</Tex> 拉向真值 <Tex>{'a'}</Tex>），<Tex>{'g=\\mu K'}</Tex> 是無因次迴路增益，<Tex>{'g_\\text{crit}(d)'}</Tex> 是更新晚 <Tex>{'d'}</Tex> 個 block 時 <Tex>{'g'}</Tex> 的上限；
-          <Tex>{'\\sigma_w'}</Tex> 是係數在固定點附近的抖動 RMS，<Tex>{'w^*'}</Tex> 是 LMS 真正停下來的固定點；<Tex>{'\\delta t'}</Tex> 是 DTC 實際施加的延遲誤差，<Tex>{'T=L/(1+L)'}</Tex> 是主 PLL 對輸出的 transfer。
+          <Tex>{'\\sigma_w'}</Tex> 是係數在固定點附近的抖動 RMS，<Tex>{'w^*'}</Tex> 是 LMS 真正停下來的固定點；<Tex>{'\\delta t'}</Tex> 是 DTC 的補償誤差（reference 端的 DTC 多補償的時間：reference edge 因此少延遲、早到這麼多，殘差是 <Tex>{'-\\delta t'}</Tex>；§8），<Tex>{'T=L/(1+L)'}</Tex> 是主 PLL 對輸出的 transfer。
         </p>
         <Diagram
           chart={CHART_SIGNOFF_FLOW}

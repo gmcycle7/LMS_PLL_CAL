@@ -1,3 +1,4 @@
+import { readdirSync, readFileSync } from 'node:fs'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import katex from 'katex'
 import { MemoryRouter } from 'react-router-dom'
@@ -12,6 +13,7 @@ import {
   timeAverage,
   type LossDataParams,
 } from '@/simulation/models/lossCompare'
+import { conventionalStep, signErrorStep } from '@/simulation/models/lms'
 import Chapter01 from './index'
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
@@ -26,7 +28,9 @@ import {
   signErrorFixedPointCheck,
   signErrorMcCheck,
 } from './experiments/MseMaeLab'
+import { IntroSection } from './sections/Intro'
 import { MedianExampleSection } from './sections/MedianExample'
+import { ParabolaSection } from './sections/Parabola'
 import { WrapupSection } from './sections/Wrapup'
 import { SYMBOLS, SymbolsJump, SymbolsSection } from './symbols'
 
@@ -885,3 +889,129 @@ describe('Ch01 字串屬性的數學一律是 $...$ LaTeX（教學規範 §3）'
   })
 })
 
+
+// ───────────────────────── 全站架構約定（docs/assumptions.md §2a）：DTC 在 reference 輸入端、LMS 的輸入是 PD 的輸出 ─────────────────────────
+
+describe('Ch01 架構約定（docs/assumptions.md §2a）', () => {
+  /** 去掉 KaTeX 的 MathML 重複文字，只留顯示出來的字 */
+  const shown = (el: Element): string => {
+    const clone = el.cloneNode(true) as HTMLElement
+    clone.querySelectorAll('.katex-mathml').forEach((m) => m.remove())
+    return clone.textContent ?? ''
+  }
+
+  it('系統地圖的說明、圖 1-2 的 PLL 對應、§1.2.1／§2.6 的提示框、圖 2-9 的導讀：reference 先經過 DTC 才進 PD、回授路徑只有 divider、comparator 取的是 PD 的輸出', async () => {
+    // 只渲染有 PLL 敘述的三個區段（整章渲染的記憶體已經很吃緊）
+    renderAt(
+      <>
+        <IntroSection />
+        <ParabolaSection />
+        <WrapupSection />
+      </>,
+      '/ch/01',
+      'research',
+    )
+    // 這幾段裡的 <Plot> 載入 Plotly 之後會再更新一次狀態：先讓它跑完，免得更新落在 act 之外
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0))
+    })
+    const sys = document.querySelector('figure.c-sysmap')!
+    const t = shown(sys.nextElementSibling!)
+    expect(t).toMatch(/reference clock 先經過 DTC、再進 phase detector（PD）/)
+    expect(t).toMatch(/回授路徑上只有 divider（或 PMUX）/)
+    expect(t).toMatch(/LMS 校正迴路的輸入是 PD 的輸出——送進 loop filter 的同一個訊號，1-bit comparator 取的就是它的正負號/)
+    // 圖 1-2 的「連結到 PLL」：物理圖像在這裡第一次給出——feedback edge 早到 a·x、reference 端 DTC 從 T_0 往回扣 w·x（補償量）、PD 量 t_ref' − t_fb
+    const pll = document.querySelector('#ch01-s101 .ch01-pll')!
+    const p = shown(pll)
+    expect(p).toMatch(/feedback（divider）edge 比理想時刻早到/)
+    expect(p).toMatch(/reference 端的 DTC 只能延遲、不能提前/)
+    expect(p).toMatch(/補償量/)
+    expect(p).toMatch(/reference edge 減 feedback edge/)
+    expect(p).toMatch(/LMS 看到的就是 PD 的輸出/)
+    expect(texOf(pll)).toContain(String.raw`e_n=t_{\mathrm{ref}}'-t_{\mathrm{fb}}=(a-w_n)\,x_n+v_n`) // 與 e_n = y_n − ŷ_n = (a − w_n)x_n + v_n 同一個式子
+    // x 是累加器餘數（DTC code），先乘上 w 才去控制 DTC——送進 DTC 的不是 x 本身（約定第 2、4 點：實際的數位字是 C_0 − w·x）
+    expect(p).toMatch(/是 DTC 的 code：小數除頻累加器的餘數/)
+    expect(p).toMatch(/它先乘上 .{0,6}（gain correction），才去控制 reference 端的 DTC/)
+    expect(p).not.toMatch(/送進 DTC 的 code/)
+    // a 同時是「feedback edge 早到多少」與「w 該等於多少」
+    expect(p).toMatch(/是 DTC 的真實 gain：要把這段時間完全補掉，.{0,4}必須等於它/)
+    // DTC 只能延遲：τ_DTC = T_0 − w·x（code 越大延遲越短）；「提前」一定跟著 T_0 的說明出現
+    expect(texOf(pll)).toContain(String.raw`\tau_{\mathrm{DTC}}=T_0-w_nx_n`)
+    expect(p).toMatch(/基準延遲.{0,6}往回扣/)
+    expect(p).toMatch(/code 越大延遲越短，reference edge 等於被提前（少延遲）了/)
+    // 兩條 edge 相對於理想時刻的位置：feedback 早到 a·x、reference 早到 w·x，兩式相減才是 (a − w)·x（正負號逐項對得起來）
+    expect(texOf(pll)).toContain(String.raw`t_{\mathrm{fb}}=-ax_n`)
+    expect(texOf(pll)).toContain(String.raw`t_{\mathrm{ref}}'=-w_nx_n`)
+    expect(p).toMatch(/補償不足（.{0,8}）時 reference 還是太晚，扣掉雜訊後誤差為正/)
+    // §1.2.1、§2.6 的 PLL 提示框與圖 2-9 的導讀：comparator／LMS 的輸入都明講是 PD 的輸出
+    expect(shown(document.querySelector('#ch01-s121 .ch01-pll')!)).toMatch(/它取的是 PD 的輸出.{0,6}（送進 loop filter 的同一個訊號）的正負號/)
+    const s26 = shown(document.querySelector('#ch01-s26 .ch01-pll')!)
+    expect(s26).toMatch(/校正迴路的輸入是 PD 的輸出 e（送進 loop filter 的同一個訊號），1-bit comparator（BBPD）只取它的正負號/)
+    // 係數抖動經 reference 端 DTC 的補償量變成 jitter／spur，不是「DTC 插入的延遲」
+    expect(s26).toMatch(/reference 端 DTC 的補償量.{0,4}跟著抖/)
+    expect(shown(document.querySelector('[data-diagram="D-01.21"] .ch01-diagram-read')!)).toMatch(/comparator 取 PD 輸出 e 的正負號/)
+  })
+
+  it('符號表：e 是 PD 的輸出、q 是 comparator 取 PD 輸出的正負號、w·x 是 reference 端 DTC 的補償量', () => {
+    const { container } = renderAt(<SymbolsSection />)
+    const rows = Array.from(container.querySelectorAll('tbody tr')).map(shown)
+    expect(rows.find((r) => r.includes('誤差（error）＝量測 − 預測'))).toMatch(/PLL 中是 PD 的輸出（送進 loop filter 的同一個訊號）/)
+    expect(rows.find((r) => r.includes('正負號；硬體上'))).toMatch(/comparator 取 PD 輸出 e 的正負號/)
+    expect(rows.find((r) => r.includes('我們可以調的參數'))).toMatch(/reference 端 DTC 的補償量是 wx/)
+    expect(rows.find((r) => r.includes('黑盒子裡真正的係數'))).toMatch(/DTC 的真實 gain（fs \/ code）：feedback edge 比理想時刻早到 ax/)
+    // 「連結到 PLL」用到的 T_0、τ_DTC、t_ref′、t_fb 也收進符號表（教學規範 §5：正文出現的符號都要查得到）
+    const t0 = SYMBOLS.find((r) => r.symbol.includes('T_0'))!
+    expect(t0.symbol).toBe(String.raw`T_0,\ \tau_{\mathrm{DTC}}`)
+    expect(t0.firstSeen).toBe('§1.0.1')
+    const t0Row = Array.from(container.querySelectorAll('tbody tr')).find((r) => shown(r).includes('固定基準延遲'))!
+    expect(texOf(t0Row)).toContain(String.raw`\tau_{\mathrm{DTC}}=T_0-w_nx_n`)
+    expect(shown(t0Row)).toMatch(/DTC 只能延遲，所以從.{0,6}往回扣補償量.*code 越大延遲越短/)
+    expect(shown(t0Row)).toMatch(/被 PLL 當成靜態相位偏移吸收/)
+    const edgeRow = Array.from(container.querySelectorAll('tbody tr')).find((r) => shown(r).includes('PD 比較的兩條 edge'))!
+    expect(texOf(edgeRow)).toEqual(expect.arrayContaining([String.raw`t_{\mathrm{ref}}'=-w_nx_n`, String.raw`t_{\mathrm{fb}}=-ax_n`, String.raw`e_n=t_{\mathrm{ref}}'-t_{\mathrm{fb}}=(a-w_n)\,x_n+v_n`]))
+    expect(shown(edgeRow)).toMatch(/經過 DTC 的 reference edge.*divider 回授來的 feedback edge/)
+  })
+
+  it('物理圖像與模型的正負號一致：feedback edge 早到 a·x、reference 端 DTC 延遲 T_0 − w·x，PD 量到的 t_ref′ − t_fb 就是 lms.ts 的 e = y − w·x；補償不足時誤差為正、w 往上修', () => {
+    const a = 3 // 真實 gain
+    const T0 = 10 // 基準延遲：只要 ≥ w·x 的最大值，DTC 的延遲就不會是負的
+    for (const w of [1, 2.5, 3, 3.5, 5]) {
+      for (const x of [0, 0.125, 0.5, 0.875]) {
+        const tFb = -a * x // feedback（divider）edge 比理想時刻早到 a·x
+        const tau = T0 - w * x // reference 端 DTC 的延遲：從 T_0 往回扣補償量 w·x
+        expect(tau).toBeGreaterThanOrEqual(0) // DTC 只能延遲
+        const tRef = tau - T0 // 以理想時刻為零點（T_0 被 PLL 吸收）
+        const ePd = tRef - tFb // PD：reference edge 減 feedback edge
+        const lms = conventionalStep({ w, x, y: a * x, mu: 0.1 })
+        expect(ePd).toBeCloseTo(lms.e, 12)
+        expect(ePd).toBeCloseTo((a - w) * x, 12)
+        // 補償不足（w < a）→ 誤差為正；過度補償 → 為負；x = 0 或 w = a → 0
+        expect(Math.sign(ePd)).toBe(x === 0 ? 0 : Math.sign(a - w))
+        // 更新式不變：w ← w + μ·e·x（LMS）與 w ← w + μ·sign(e)·x（Sign-Error）都把 w 往 a 修
+        expect(Math.sign(lms.w - w)).toBe(x === 0 ? 0 : Math.sign(a - w))
+        const se = signErrorStep({ w, x, y: a * x, mu: 0.1 })
+        expect(se.dw).toBeCloseTo(0.1 * Math.sign(ePd) * x, 12)
+      }
+    }
+  })
+
+  it('本章的原始檔裡沒有舊接法的說法：DTC 在回授路徑／divider 之後、DTC 插入延遲、把 edge 推回、DTC 延遲 feedback、PD 後面的 comparator，也沒有 feedback 側注入的極性', () => {
+    const dir = `${process.cwd()}/src/chapters/ch01/`
+    const files: string[] = []
+    const walk = (d: string) => {
+      for (const e of readdirSync(d, { withFileTypes: true })) {
+        const full = `${d}${e.name}`
+        if (e.isDirectory()) walk(`${full}/`)
+        else if (/\.(ts|tsx|css)$/.test(e.name) && !/\.test\./.test(e.name)) files.push(full)
+      }
+    }
+    walk(dir)
+    expect(files.length).toBeGreaterThanOrEqual(15)
+    const bad = [/DTC 在回授/, /回授路徑上的 DTC/, /divider[^。]{0,12}(之後|經過 DTC)/, /DTC 插入/, /插入延遲/, /推回/, /DTC 延遲/, /PD 後面/, /DTC gain 所在/, /feedback 側/, /回授側/]
+    const oldPolarity = [/e_\{?\\?(mathrm\{)?PD/, /\\theta_\{?\\?(mathrm\{)?out/, /phi_\{?\\?(mathrm\{)?dtc/]
+    for (const f of files) {
+      const src = readFileSync(f, 'utf8')
+      for (const re of [...bad, ...oldPolarity]) expect(src, `${f} ${re}`).not.toMatch(re)
+    }
+  })
+})

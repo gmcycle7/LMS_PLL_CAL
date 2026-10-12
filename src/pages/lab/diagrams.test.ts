@@ -101,7 +101,7 @@ describe('Lab 頁的方塊圖（真正的 mermaid parser）', () => {
     }
   }, 60_000)
 
-  it('九級訊號鏈：圖上有九級與兩條路徑（H_PD 到 comparator、T 到輸出），回授由 gain register 回到 DTC', async () => {
+  it('九級訊號鏈：圖上有九級與兩條路徑（H_PD 到 PD 的輸出再到 comparator、T 到輸出），回授由 gain register 回到 reference 端的 DTC', async () => {
     const { PIPELINE_CHART } = D
     for (const n of [1, 2, 3, 4, 5, 6, 7, 8, 9]) expect(PIPELINE_CHART).toMatch(new RegExp(`"${n} `))
     expect(PIPELINE_CHART).toContain(R`DTC -->|"$e_{\mathrm{DTC}}[n]$"| HPD`)
@@ -115,6 +115,14 @@ describe('Lab 頁的方塊圖（真正的 mermaid parser）', () => {
     for (let i = 0; i + 1 < loop.length; i++) expect(g.edges.some((e) => e.start === loop[i] && e.end === loop[i + 1]), `${loop[i]} → ${loop[i + 1]}`).toBe(true)
     // 取樣率寫在訊號名稱上：sample（[n]）與 block（_k）
     expect(edgeText(g, 'NORM', 'DTC')).toBe(R`$x[n]$`)
+    // 架構（docs/assumptions.md §2a）：DTC 在 reference 輸入端；comparator 的輸入是 PD 的輸出 u_pd（第 4 級的輸出），而且只有這一條
+    expect(node(g, 'DTC')).toContain('在 reference 輸入端')
+    expect(node(g, 'HPD')).toContain('到 PD 的輸出')
+    expect(edgeText(g, 'HPD', 'CMP')).toBe(R`PD 輸出 $u_{\mathrm{pd}}[n]$`)
+    expect(g.edges.filter((e) => e.end === 'CMP').map((e) => e.start)).toEqual(['HPD'])
+    expect(g.edges.some((e) => e.start === 'DTC' && (e.end === 'CMP' || e.end === 'GMAC'))).toBe(false)
+    // DTC 的輸入只有 code 與校正係數（沒有任何一條線從 divider 或 PD 接進 DTC）
+    expect(g.edges.filter((e) => e.end === 'DTC').map((e) => e.start).sort()).toEqual(['NORM', 'REG'])
     expect(edgeText(g, 'CMP', 'GMAC')).toBe(R`$q[n]$`)
     expect(edgeText(g, 'GMAC', 'UPD')).toBe(R`$G_k$`)
     expect(node(g, 'UPD')).toContain(R`$w_{k+1} = w_k + \mu\cdot G_k$`)
@@ -127,14 +135,48 @@ describe('Lab 頁的方塊圖（真正的 mermaid parser）', () => {
     expect(PIPELINE_CHART).toMatch(/class TOUT alt/)
   })
 
-  it('訊號極性與公式一致：u_pd = e_DTC − θ_fb、δ = a − w、G_k = K·δ_(k−d) + η_k、e_DTC = (a − w̄)·x + d(x) − δw·x', async () => {
-    // §4.4：e_DTC 進加法點為正、回授 θ_fb 為負；加法點的輸出（u_pd）送去 comparator，回授量（θ_fb）就是輸出端
+  it('訊號極性與公式一致：u_pd = e_DTC − θ_fb（DTC 殘差從 PD 的 reference 輸入進來，comparator 取 PD 的輸出）、δ = a − w、G_k = K·δ_(k−d) + η_k、e_DTC = (a − w̄)·x + d(x) − δw·x', async () => {
+    // §4.4（架構照 docs/assumptions.md §2a），照電路的接法畫：Reference clock → DTC → PD（＋）；VCO → divider → PD（−），回授路徑上只有 divider。
+    // 加法點就是 phase detector（包在「Phase detector」的框裡）。PD 的輸出 u_pd 是一個節點：loop filter 與 comparator 都從它拉線，
+    // 也就是校正迴路的輸入取自 PD 的輸出（送進 loop filter 的同一個訊號）；回授量（θ_fb）就是輸出端
     const two = await flow(D.CHART_TWO_PATHS)
-    expect(leadingSign(edgeText(two, 'E', 'S'))).toBe('＋')
-    expect(leadingSign(edgeText(two, 'L', 'S'))).toBe('−')
-    expect(edgeText(two, 'L', 'S')).toContain(R`$\theta_{\mathrm{fb}} = L\cdot u_{\mathrm{pd}}$`)
-    expect(edgeText(two, 'S', 'L')).toBe(R`$u_{\mathrm{pd}} = e_{\mathrm{DTC}} - \theta_{\mathrm{fb}}$`)
-    expect(edgeText(two, 'S', 'CMP')).toBe(R`$u_{\mathrm{pd}}[n]$`)
+    const into = (id: string) => two.edges.filter((e) => e.end === id).map((e) => e.start).sort()
+    const outOf = (id: string) => two.edges.filter((e) => e.start === id).map((e) => e.end).sort()
+    expect(node(two, 'E')).toContain('Reference clock → DTC')
+    expect(node(two, 'E')).toContain(R`$e_{\mathrm{DTC}}[n]$`)
+    expect(node(two, 'DIV')).toContain('Divider')
+    expect(node(two, 'DIV')).toContain('回授路徑上只有它')
+    // PD 的兩個輸入：reference 側（Reference clock → DTC，＋）與 feedback 側（divider，−）；divider 直接接進 PD
+    expect(edgeText(two, 'E', 'S')).toBe('＋')
+    expect(edgeText(two, 'DIV', 'S')).toBe('−')
+    expect(into('S')).toEqual(['DIV', 'E'])
+    expect(D.CHART_TWO_PATHS).toMatch(/subgraph PD\["Phase detector"\]\s+S\(\("＋"\)\)\s+end/)
+    // 回授路徑：L（loop filter + VCO）→ divider → PD，中間沒有別的方塊；DTC 不在回授路徑上（沒有任何邊進到 E，divider 的輸出只接 PD）
+    expect(edgeText(two, 'L', 'DIV')).toBe(R`$\theta_{\mathrm{fb}} = L\cdot u_{\mathrm{pd}}$`)
+    expect(into('DIV')).toEqual(['L'])
+    expect(outOf('DIV')).toEqual(['S'])
+    expect(outOf('E')).toEqual(['S'])
+    expect(into('E')).toEqual([])
+    expect(node(two, 'L')).toContain('loop filter + VCO')
+    expect(node(two, 'L')).not.toMatch(/DTC|[Dd]ivider/)
+    // PD 唯一的輸出是 U（u_pd = e_DTC − θ_fb）；U 分給主迴路（L）與校正迴路（CMP）
+    expect(node(two, 'U')).toContain('PD 的輸出')
+    expect(joined(node(two, 'U'))).toContain(R`$u_{\mathrm{pd}}[n] = e_{\mathrm{DTC}} - \theta_{\mathrm{fb}}$`)
+    expect(outOf('S')).toEqual(['U'])
+    expect(outOf('U')).toEqual(['CMP', 'L'])
+    // comparator 與 loop filter 的輸入都只來自 PD 的輸出；VCO 的輸出分給輸出端與 divider
+    expect(into('CMP')).toEqual(['U'])
+    expect(into('L')).toEqual(['U'])
+    expect(outOf('L')).toEqual(['DIV', 'OUT'])
+    expect(outOf('CMP')).toEqual([])
+    // 排版靠宣告順序：前向路徑（E → S → U → L）先宣告，回授（L → DIV → S）最後，divider 才會畫在前向路徑下方接回 PD
+    const order = two.edges.map((e) => `${e.start}>${e.end}`)
+    expect(order.indexOf('E>S')).toBe(0)
+    expect(order.slice(-2)).toEqual(['L>DIV', 'DIV>S'])
+    expect(node(two, 'CMP')).toContain('comparator 取 PD 的輸出')
+    // 兩條路都是正號：u_pd = +H_PD·e_DTC、t_out = +T·e_DTC（reference 側注入）
+    expect(node(two, 'CMP')).toContain(R`$u_{\mathrm{pd}} = H_{\mathrm{PD}}\cdot e_{\mathrm{DTC}}$`)
+    expect(D.CHART_TWO_PATHS).not.toMatch(/=\s*-\s*(H_\{\\mathrm\{PD\}\}|T)\\cdot/)
     expect(edgeText(two, 'L', 'OUT')).toBe(R`$\theta_{\mathrm{fb}}[n]$`)
     expect(node(two, 'CMP')).toContain(R`$H_{\mathrm{PD}} = \frac{1}{1+L}$`)
     expect(node(two, 'CMP')).toContain('high-pass')

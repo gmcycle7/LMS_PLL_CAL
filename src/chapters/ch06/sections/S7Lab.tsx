@@ -75,9 +75,10 @@ export function S7Lab() {
       </p>
       <ChapterDiagram id="D-06.24">
         <p>
-          先看 loop 框裡面（sample rate）：每個 sample <Tex>{'n'}</Tex>，DTC 用這個 block 的 gain <Tex>{'w_k'}</Tex> 產生誤差{' '}
-          <Tex>{'\\varepsilon[n]=(a-w_k)\\,x[n]'}</Tex>；它經過主 PLL 的 <Tex>{'H_{\\mathrm{PD}}'}</Tex>、加上雜訊 <Tex>{'v[n]'}</Tex> 成為{' '}
-          <Tex>{'e_{\\mathrm{PD}}[n]'}</Tex>；comparator 取出正負號 <Tex>{'q[n]'}</Tex>；GMAC 把 <Tex>{'q[n]\\,x[n-D]'}</Tex> 加進累加器。這四件事重複{' '}
+          先看 loop 框裡面（sample rate）：每個 sample <Tex>{'n'}</Tex>，reference 輸入端的 DTC 用這個 block 的 gain <Tex>{'w_k'}</Tex> 補償，沒補乾淨的誤差是{' '}
+          <Tex>{'\\varepsilon[n]=(a-w_k)\\,x[n]'}</Tex>，它從 PD 的 reference 輸入端進主 PLL；經過 <Tex>{'H_{\\mathrm{PD}}'}</Tex> 之後就是 PD 的輸出（送進 loop filter
+          的同一個訊號），加上雜訊 <Tex>{'v[n]'}</Tex> 成為 <Tex>{'e_{\\mathrm{PD}}[n]'}</Tex>；comparator 取的就是它，留下正負號 <Tex>{'q[n]'}</Tex>；GMAC 把{' '}
+          <Tex>{'q[n]\\,x[n-D]'}</Tex> 加進累加器。這四件事重複{' '}
           <Tex>{'N'}</Tex> 次，期間 <Tex>{'w_k'}</Tex> 完全不動。再看 loop 框外面（block rate）：<Tex>{'N'}</Tex> 個 sample 累加完，GMAC 才把結果平均成{' '}
           <Tex>{'G_k'}</Tex>，校正值更新一次，下一個 block 的 DTC 改用 <Tex>{'w_{k+1}'}</Tex>（虛線箭頭）。
         </p>

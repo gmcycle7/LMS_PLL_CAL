@@ -92,7 +92,7 @@ export function figCode(r: PipelineResult, pal: Palette, view: SampleView): Fig 
   }
 }
 
-/** 逐 sample：DTC 誤差、PD residual、comparator 輸入、output timing error */
+/** 逐 sample：DTC 誤差、PD 的輸出（H_PD{e_DTC}）、comparator 輸入、output timing error */
 export function figError(r: PipelineResult, pal: Palette, view: SampleView): Fig | null {
   const s = view === 'snippet' ? r.snippet : r.window
   if (!s) return null
@@ -100,7 +100,7 @@ export function figError(r: PipelineResult, pal: Palette, view: SampleView): Fig
     data: [
       { x: s.n, y: s.e, name: '$e = u_{\\mathrm{pd}} + b + v$（comparator 輸入，含雜訊）', mode: 'lines', line: { color: pal.muted, width: 0.6 }, visible: 'legendonly' },
       { x: s.n, y: s.eDtc, name: '$e_{\\mathrm{DTC}}$（DTC 誤差）', mode: 'lines', line: { color: pal.series[0], width: 1 } },
-      { x: s.n, y: s.uPd, name: '$u_{\\mathrm{pd}} = H_{\\mathrm{PD}}(e_{\\mathrm{DTC}})$（PD 看到的）', mode: 'lines', line: { color: pal.series[1], width: 1 } },
+      { x: s.n, y: s.uPd, name: '$u_{\\mathrm{pd}} = H_{\\mathrm{PD}}(e_{\\mathrm{DTC}})$（PD 的輸出）', mode: 'lines', line: { color: pal.series[1], width: 1 } },
       { x: s.n, y: s.tOut, name: '$t_{\\mathrm{out}} = T(e_{\\mathrm{DTC}})$（輸出端）', mode: 'lines', line: { color: pal.series[2], width: 1.4 } },
     ],
     layout: { xaxis: ax(view === 'snippet' ? 'sample $n$（連續）' : 'sample $n$（整個視窗，抽樣顯示）'), yaxis: ax('時間誤差 [fs]') },

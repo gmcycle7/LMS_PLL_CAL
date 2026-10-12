@@ -103,7 +103,7 @@ export function GainSection() {
         steps={[
           { tex: String.raw`\frac{d}{ds}E[q]=\frac{d}{ds}\Big[2\Phi\Big(\frac{s}{\sigma_v}\Big)-1\Big]`, why: <><Tex>{'E[q]=2\\Phi(s/\\sigma_v)-1'}</Tex>（§2）。</> },
           { tex: String.raw`=\frac{2}{\sigma_v}\,\varphi\!\left(\frac{s}{\sigma_v}\right)`, why: <><Tex>{"\\Phi'=\\varphi"}</Tex>（微積分基本定理），內層 <Tex>{'s/\\sigma_v'}</Tex> 的導數 <Tex>{'1/\\sigma_v'}</Tex>（連鎖律）。</> },
-          { tex: String.raw`\left.\frac{dE[q]}{ds}\right|_{s=0}=\frac{2}{\sigma_v}\cdot\frac{1}{\sqrt{2\pi}}=\sqrt{\frac{2}{\pi}}\,\frac{1}{\sigma_v}`, why: <><Tex>{'\\varphi(0)=1/\\sqrt{2\\pi}'}</Tex>；<Tex>{'2/\\sqrt{2\\pi}=\\sqrt{2/\\pi}'}</Tex>。</> },
+          { tex: String.raw`\begin{aligned}\left.\frac{dE[q]}{ds}\right|_{s=0}&=\frac{2}{\sigma_v}\cdot\frac{1}{\sqrt{2\pi}}\\&=\sqrt{\frac{2}{\pi}}\,\frac{1}{\sigma_v}\end{aligned}`, why: <><Tex>{'\\varphi(0)=1/\\sqrt{2\\pi}'}</Tex>；<Tex>{'2/\\sqrt{2\\pi}=\\sqrt{2/\\pi}'}</Tex>。</> },
         ]}
       />
       <TexBlock

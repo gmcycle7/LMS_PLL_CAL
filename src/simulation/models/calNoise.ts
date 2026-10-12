@@ -3,7 +3,10 @@
  *
  * ── 極性與參考點（勘誤 E33）──
  *   δw_k = w_k − w*：相對 LMS 固定點 w* 的係數偏差。與 §0 的 δ = a − w **極性相反**，參考點也不同：
- *   a − w_k = (a − w*) − δw_k。DTC 實際多施加的延遲 δt[n] = x[n]·δw[n]；殘餘 timing error 的對應項為 −x[n]·δw[n]。
+ *   a − w_k = (a − w*) − δw_k。δt[n] = x[n]·δw[n] 是 DTC 多補償的量（gain noise 讓補償量 w·x 多出來的部分）；
+ *   殘餘 timing error e = (a − w)x 的對應項為 −x[n]·δw[n]。
+ *   DTC 在 reference 輸入端（docs/assumptions.md §2a）：延遲是 τ_DTC = T_0 − w·x，所以多補償 δt 就是 reference edge 多提前（少延遲）δt；
+ *   殘餘誤差在 PD 的 reference 輸入注入，輸出 θ_out = +T·φ_dtc，其中 gain-noise 的部分是 φ_dtc = −2π f_out·δt（|T|²、jitter、spur dBc 與極性無關）。
  *
  * ── 線性化 block 模型（§12.1）──
  *   G_k ≈ −K·δw_k + η_k，K = K_q·C [fs⁻¹]，η_k 為 GMAC 的零均值雜訊（average 模式 σ_η² ≈ 1/N）
@@ -1533,7 +1536,7 @@ export function simulateMixing(prm: MixingSimParams): MixingSimResult {
     for (let n = 0; n < L; n++) mean += dt[n]
     mean /= L
     for (let n = 0; n < L; n++) {
-      const phi = -scale * (dt[n] - mean) // φ_out = −2π f_out T δt（極性不影響 dBc）
+      const phi = -scale * (dt[n] - mean) // φ_out = +T·φ_dtc，φ_dtc = 2π f_out·(−δt)（δt 是多補償的量，殘餘誤差是 −δt）⇒ φ_out = −2π f_out |T| δt；極性不影響 dBc
       re[n] = Math.cos(phi)
       im[n] = Math.sin(phi)
     }

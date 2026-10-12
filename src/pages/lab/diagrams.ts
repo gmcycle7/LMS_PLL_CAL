@@ -21,14 +21,18 @@
 const FOCUS = 'classDef focus fill:#1f5fa8,stroke:#0d3b6e,color:#ffffff,stroke-width:2px'
 const ALT = 'classDef alt fill:#8a4b08,stroke:#5c3205,color:#ffffff,stroke-width:2px'
 
-/** §2：FCW 到輸出端的九級訊號鏈。同一個 $e_{\mathrm{DTC}}$ 分兩條路：$H_{\mathrm{PD}}$（藍，到 comparator）與 $T$（棕，到輸出）。 */
+/**
+ * §2：FCW 到輸出端的九級訊號鏈（訊號流，不是電路接線）。架構照 docs/assumptions.md §2a：DTC 在 reference 輸入端，
+ * 殘差 $e_{\mathrm{DTC}}$ 從 PD 的 reference 輸入進到主迴路，分兩條路：$H_{\mathrm{PD}}$（藍，到 PD 的輸出）與 $T$（棕，到輸出）。
+ * comparator 的輸入是第 4 級的輸出 $u_{\mathrm{pd}}$——PD 的輸出，也就是送進 loop filter 的同一個訊號。
+ */
 export const PIPELINE_CHART = String.raw`flowchart TB
   FCW["FCW $= N_{\mathrm{int}} + \alpha$"] --> DSM["1 DSM<br/>first-order / MASH 1-1-1"]
   DSM -->|"residue $r[n]$"| NORM["2 code 正規化<br/>$x = (r - o)\cdot s$"]
-  NORM -->|"$x[n]$"| DTC["3 DTC<br/>gain / offset / INL"]
-  DTC -->|"$e_{\mathrm{DTC}}[n]$"| HPD["4 PLL error path<br/>$H_{\mathrm{PD}} = \frac{1}{1+L}$"]
+  NORM -->|"$x[n]$"| DTC["3 DTC<br/>在 reference 輸入端<br/>gain / offset / INL"]
+  DTC -->|"$e_{\mathrm{DTC}}[n]$"| HPD["4 PLL error path（到 PD 的輸出）<br/>$H_{\mathrm{PD}} = \frac{1}{1+L}$"]
   DTC -->|"$e_{\mathrm{DTC}}[n]$"| TOUT["9 輸出端<br/>$T = \frac{L}{1+L}$"]
-  HPD -->|"$u_{\mathrm{pd}}[n]$"| CMP["5 Comparator<br/>1-bit，雜訊 $\sigma_v$，offset $b$"]
+  HPD -->|"PD 輸出 $u_{\mathrm{pd}}[n]$"| CMP["5 Comparator<br/>1-bit，雜訊 $\sigma_v$，offset $b$"]
   CMP -->|"$q[n]$"| GMAC["6 GMAC<br/>$N$ 筆 $q\cdot x_{\mathrm{ref}}$ 的平均（或總和）"]
   NORM -->|"$x_{\mathrm{ref}}$：raw / delayed / filtered"| GMAC
   GMAC -->|"$G_k$"| UPD["8 更新<br/>$w_{k+1} = w_k + \mu\cdot G_k$"]
@@ -41,16 +45,28 @@ export const PIPELINE_CHART = String.raw`flowchart TB
   class TOUT alt`
 
 /**
- * §4.4：主 PLL 的負回授。$u_{\mathrm{pd}} = e_{\mathrm{DTC}} - \theta_{\mathrm{fb}}$、$\theta_{\mathrm{fb}} = L\,u_{\mathrm{pd}}$
- * ⇒ $u_{\mathrm{pd}} = e_{\mathrm{DTC}}/(1+L)$、$t_{\mathrm{out}} = \theta_{\mathrm{fb}} = \frac{L}{1+L}\,e_{\mathrm{DTC}}$。
- * 加法點的輸出同時送到 comparator（$H_{\mathrm{PD}}$）；回授量本身就是輸出端被移動的量（$T$）。
+ * §4.4：主 PLL 的負回授，照電路的接法畫（docs/assumptions.md §2a）：Reference clock → DTC → phase detector → loop filter → VCO，
+ * 回授是 VCO → divider → phase detector——回授路徑上只有 divider（DIV），DTC 不在裡面。
+ * DTC 在 reference 輸入端，所以殘差 $e_{\mathrm{DTC}}$ 從 PD 的 reference 輸入（＋）進來；divider 的輸出接到 PD 的 feedback 輸入（−）。
+ * 加法點就是 phase detector：$u_{\mathrm{pd}} = e_{\mathrm{DTC}} - \theta_{\mathrm{fb}}$、$\theta_{\mathrm{fb}} = L\,u_{\mathrm{pd}}$
+ * ⇒ $u_{\mathrm{pd}} = +e_{\mathrm{DTC}}/(1+L)$、$t_{\mathrm{out}} = \theta_{\mathrm{fb}} = +\frac{L}{1+L}\,e_{\mathrm{DTC}}$（兩個都是正號）。
+ * 本頁的訊號都以時間（fs）計：divider 不改變 edge 的時間誤差（增益 1），所以 divider 前後都是 $\theta_{\mathrm{fb}}$，它也就是輸出端的 $t_{\mathrm{out}}$。
+ * PD 的輸出 $u_{\mathrm{pd}}$ 畫成一個節點（U）：loop filter 與 comparator 都從這個節點拉線——校正迴路的輸入就是 PD 的輸出，
+ * 也就是送進 loop filter 的同一個訊號（$H_{\mathrm{PD}}$）；回授量本身就是輸出端被移動的量（$T$）。
+ * 排版：邊的宣告順序決定哪一段被畫成回授。先宣告前向的 E → S → U → L，最後才宣告 L → DIV → S，
+ * divider 才會排在前向路徑的下方、由右往左接回 PD（和一般 PLL 方塊圖的畫法相同）。
  */
 export const CHART_TWO_PATHS = String.raw`flowchart LR
-  E(["DTC 誤差<br/>$e_{\mathrm{DTC}}[n]$"]) -- "＋" --> S(("＋"))
-  S -- "$u_{\mathrm{pd}} = e_{\mathrm{DTC}} - \theta_{\mathrm{fb}}$" --> L["open loop $L(z)$<br/>loop filter + VCO"]
-  L -- "$-$（回授 $\theta_{\mathrm{fb}} = L\cdot u_{\mathrm{pd}}$）" --> S
-  S -- "$u_{\mathrm{pd}}[n]$" --> CMP["到 comparator：校正迴路看到的<br/>$u_{\mathrm{pd}} = H_{\mathrm{PD}}\cdot e_{\mathrm{DTC}}$<br/>$H_{\mathrm{PD}} = \frac{1}{1+L}$，high-pass"]
+  E(["Reference clock → DTC<br/>殘差 $e_{\mathrm{DTC}}[n]$"]) -- "＋" --> S
+  subgraph PD["Phase detector"]
+    S(("＋"))
+  end
+  S --> U(["PD 的輸出 $u_{\mathrm{pd}}[n]$<br/>$= e_{\mathrm{DTC}} - \theta_{\mathrm{fb}}$"])
+  U --> L["open loop $L(z)$<br/>loop filter + VCO"]
+  U --> CMP["comparator 取 PD 的輸出<br/>$u_{\mathrm{pd}} = H_{\mathrm{PD}}\cdot e_{\mathrm{DTC}}$<br/>$H_{\mathrm{PD}} = \frac{1}{1+L}$，high-pass"]
   L -- "$\theta_{\mathrm{fb}}[n]$" --> OUT["到 PLL 輸出：使用者看到的<br/>$t_{\mathrm{out}} = \theta_{\mathrm{fb}} = T\cdot e_{\mathrm{DTC}}$<br/>$T = \frac{L}{1+L}$，low-pass"]
+  L -- "$\theta_{\mathrm{fb}} = L\cdot u_{\mathrm{pd}}$" --> DIV["Divider<br/>回授路徑上只有它"]
+  DIV -- "−" --> S
   ${FOCUS}
   ${ALT}
   class CMP focus

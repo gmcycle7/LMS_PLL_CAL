@@ -6,7 +6,7 @@ export const SYMBOLS_ID = 'symbols'
 export const SYMBOLS_LINK_ID = 'ch08-symbols-link'
 
 const SYMBOLS: SymbolEntry[] = [
-  { symbol: String.raw`\theta=\phi+\Omega D`, meaning: rich(String.raw`單頻相關的總相位（PLL error path 相位 $\phi$ 加上 code delay $D$ 造成的 $\Omega D$）`), unit: String.raw`\mathrm{deg}`, firstSeen: '§8.1', note: <ErratumNote id="E34">{rich(String.raw`$D$ 是 code delay（samples），不是 §8.4 的 feedthrough $d_s$`)}</ErratumNote> },
+  { symbol: String.raw`\theta=\phi+\Omega D`, meaning: rich(String.raw`單頻相關的總相位（從 DTC code 到 PD 輸出的 PLL error path 相位 $\phi$，加上 code delay $D$ 造成的 $\Omega D$）`), unit: String.raw`\mathrm{deg}`, firstSeen: '§8.1', note: <ErratumNote id="E34">{rich(String.raw`$D$ 是 code delay（samples），不是 §8.4 的 feedthrough $d_s$`)}</ErratumNote> },
   { symbol: String.raw`\mathrm{wrap}_{180}(\theta)`, meaning: rich(String.raw`把角度折回 $[-180^\circ,180^\circ)$ 的函數，週期 $360^\circ$`), unit: String.raw`\mathrm{deg}`, firstSeen: '§8.1', note: <ErratumNote id="E20">{rich(String.raw`規格未定義值域，本章採 $((\theta+180^\circ)\bmod 360^\circ)-180^\circ$`)}</ErratumNote> },
   { symbol: String.raw`M_{\mathrm{polarity}}`, meaning: rich(String.raw`Polarity margin：$\theta$ 離 $\pm90^\circ$ 邊界還有多遠（只看更新方向）`), unit: String.raw`\mathrm{deg}`, firstSeen: '§8.1', note: rich(String.raw`等於 $\arcsin(\cos\theta)$`) },
   { symbol: String.raw`\psi`, meaning: rich(String.raw`折回後的角度 $\psi=\mathrm{wrap}_{180}(\theta)$（手算流程圖與 F-08.1 的推導用）`), unit: String.raw`\mathrm{deg}`, firstSeen: '§8.1', note: rich(String.raw`$-180^\circ\le\psi<180^\circ$；$M_{\mathrm{polarity}}=90^\circ-|\psi|$`) },
@@ -15,6 +15,7 @@ const SYMBOLS: SymbolEntry[] = [
   { symbol: String.raw`K=K_qC`, meaning: rich(String.raw`GMAC 平均輸出對 $\delta$ 的斜率（小誤差線性化）`), unit: String.raw`\mathrm{fs}^{-1}`, firstSeen: '§8.2', note: <ErratumNote id="E13">{rich(String.raw`§0 未定義 $K$，本站定義 $K=K_qC=-\partial E[G]/\partial w$`)}</ErratumNote> },
   { symbol: String.raw`\mu`, meaning: '學習率（每個 block 更新一次）', unit: String.raw`\mathrm{fs}`, firstSeen: '§8.2', note: <ErratumNote id="E13">{rich(String.raw`§8.4 中為 $K\equiv1$ 的正規化步長（無因次，等同 $g$）`)}</ErratumNote> },
   { symbol: String.raw`g=\mu K`, meaning: '正規化 loop gain（決定一切穩定性的無因次量）', unit: String.raw`1`, firstSeen: '§8.2' },
+  { symbol: String.raw`\tau_{\mathrm{DTC}}[n]=T_0-w_k\,x[n]`, meaning: rich(String.raw`reference 端 DTC 的延遲：從固定的基準延遲 $T_0$ 往回扣補償量 $w_k\,x[n]$（reference edge 被提前——也就是少延遲——的時間）`), unit: String.raw`\mathrm{fs}`, firstSeen: '§8.2', note: rich(String.raw`DTC 只能延遲、不能提前；$T_0$ 是常數，被 PLL 當成靜態相位偏移吸收`) },
   { symbol: String.raw`z`, meaning: rich(String.raw`Z transform 變數；$z^{-1}$ ＝延遲一個 block`), unit: String.raw`1`, firstSeen: '§8.2' },
   { symbol: String.raw`L_{\mathrm{cal}}(z)`, meaning: 'Calibration loop 的開迴路增益（loop gain）', unit: String.raw`1`, firstSeen: '§8.2' },
   { symbol: String.raw`\omega`, meaning: rich(String.raw`block-rate 離散頻率，$\omega=2\pi f/f_u$，$0\le\omega\le\pi$`), unit: String.raw`\mathrm{rad/block}`, firstSeen: '§8.2', note: rich(String.raw`不是 comparator rate 的 $\Omega$（rad/sample）`) },

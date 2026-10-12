@@ -39,7 +39,7 @@ export function S1Intro() {
         caption="系統地圖：藍色的三塊（GMAC、normalize 與 learning rate、gain accumulator）是本章要選數字的地方。教學用概念架構，不是特定晶片的 netlist。"
       />
       <p>
-        <strong>你在這裡。</strong>藍色的三塊是本章的主角：GMAC（把 1-bit comparator 的輸出 <Tex>{'q[n]=\\pm1'}</Tex> 乘上 code <Tex>{'x[n]'}</Tex>，每 <Tex>{'N'}</Tex> 個樣本累加一次）、normalize 與 learning rate（<Tex>{'\\div N'}</Tex>、
+        <strong>你在這裡。</strong>藍色的三塊是本章的主角：GMAC（把 1-bit comparator 的輸出 <Tex>{'q[n]=\\pm1'}</Tex> 乘上 code <Tex>{'x[n]'}</Tex>，每 <Tex>{'N'}</Tex> 個樣本累加一次；comparator 取的是 PD 的輸出 <Tex>{'e[n]'}</Tex>，也就是送進 loop filter 的同一個訊號）、normalize 與 learning rate（<Tex>{'\\div N'}</Tex>、
         <Tex>{'\\times\\mu'}</Tex>）、gain accumulator（存校正係數 <Tex>{'w_k'}</Tex> 的暫存器）。前面各章已經把這三塊的數學講完；本章新增的是<strong>裡面的數字怎麼選</strong>（<Tex>{'N'}</Tex>、<Tex>{'\\mu'}</Tex>、更新幾次
         <Tex>{'B'}</Tex>），以及把選好的步長排程做成一個有保護機制的狀態機。comparator 與它前面的雜訊不是本章的主角，但它們決定了迴路的增益，所以會一直出現。
       </p>
@@ -50,6 +50,11 @@ export function S1Intro() {
         <Tex>{'a-w'}</Tex>），<Tex>{'\\delta_0'}</Tex> 是開始校正時的初始誤差。校正迴路每累加 <Tex>{'N'}</Tex> 個 comparator 樣本（稱為一個 GMAC block）得到一個平均輸出 <Tex>{'G_k'}</Tex>，乘上 learning rate <Tex>{'\\mu'}</Tex>{' '}
         後加進暫存器：<Tex>{'w_{k+1}=w_k+\\mu G_k'}</Tex>（<Tex>{'G_k'}</Tex> 是平均值、沒有單位，所以 <Tex>{'\\mu'}</Tex> 和 <Tex>{'w'}</Tex> 一樣以 fs 計）。總共更新 <Tex>{'B'}</Tex> 次，用掉 <Tex>{'T=NB'}</Tex> 次比較；comparator
         前的雜訊 RMS 記為 <Tex>{'\\sigma_v'}</Tex>。
+      </p>
+      <p>
+        <strong>這些量在晶片上是什麼。</strong>本站全站的接法：reference clock 先經過 DTC 才進 PD，回授路徑上只有 divider。divider 的 feedback edge 比理想時刻早到 <Tex>{'a\\,x[n]'}</Tex>；reference 端的 DTC 只能延遲、不能提前，所以從固定的基準延遲 <Tex>{'T_0'}</Tex> 往回扣：
+        <Tex>{'\\tau_\\mathrm{DTC}[n]=T_0-w_k\\,x[n]'}</Tex>，其中 <Tex>{'w_k\\,x[n]'}</Tex> 是這顆 DTC 的<strong>補償量</strong>（reference edge 被提前——也就是少延遲——的時間）。PD 量的是（DTC 延遲後的）reference edge 減 feedback edge：
+        <Tex>{String.raw`e[n]=t_\mathrm{ref}^{\prime}[n]-t_\mathrm{fb}[n]=(a-w_k)\,x[n]+v[n]=\delta_k\,x[n]+v[n]`}</Tex>（誤差路徑有相位時，<Tex>{'x[n]'}</Tex> 換成 §14.1 的 <Tex>{'u[n]'}</Tex>）。補償不足（<Tex>{'w_k<a'}</Tex>）時 reference edge 還是太晚，所以誤差和 <Tex>{'x[n]'}</Tex> 同號（<Tex>{'x[n]>0'}</Tex> 的樣本上為正）；<Tex>{'T_0'}</Tex> 是常數，PLL 把它當成靜態相位偏移吸收，不影響任何會動的量。本章的模型把 code 寫成零均值的 <Tex>{'x[n]=\\pm1'}</Tex>：<Tex>{'x[n]<0'}</Tex> 的樣本上「早到 <Tex>{'a\\,x[n]'}</Tex>」是負的，也就是晚到，DTC 的延遲則比 <Tex>{'T_0'}</Tex> 長；code 的平均值只貢獻一個直流（DC）的時間偏移，和 <Tex>{'T_0'}</Tex> 一樣被 PLL 吸收，上面的式子不變。
       </p>
       <p className="small">
         <strong>動手算會比較有感覺。</strong>本章有 {HANDCALCS.length} 題「帶入手算」，各自接在對應的推導或範例正後方：先看推導，馬上把數字換成你自己的，用紙筆和計算機算一次再對答案。只需四則運算：{handLinks('beginner')}；需要工程計算機的{' '}
@@ -91,7 +96,7 @@ export function S1Intro() {
 
       <Prereq title="高斯分布、標準常態 CDF、erf，以及 comparator 增益從哪裡來">
         <p>
-          comparator 看到 <Tex>{'e=\\delta+v'}</Tex>：<Tex>{'\\delta'}</Tex> 是要偵測的誤差，<Tex>{'v\\sim\\mathcal N(0,\\sigma_v^2)'}</Tex> 是雜訊（高斯分布：鐘形曲線，68% 落在 <Tex>{'\\pm\\sigma_v'}</Tex> 內）。它只輸出正負號{' '}
+          comparator 看到的是 PD 的輸出，這裡先寫成最簡單的 <Tex>{'e=\\delta+v'}</Tex>：<Tex>{'\\delta'}</Tex> 是要偵測的誤差，<Tex>{'v\\sim\\mathcal N(0,\\sigma_v^2)'}</Tex> 是雜訊（高斯分布：鐘形曲線，68% 落在 <Tex>{'\\pm\\sigma_v'}</Tex> 內）。它只輸出正負號{' '}
           <Tex>{'q=\\mathrm{sign}(e)=\\pm1'}</Tex>；<Tex>{'q=+1'}</Tex> 的機率是
           <Tex>{'P(v>-\\delta)=\\Phi(\\delta/\\sigma_v)'}</Tex>，<Tex>{'\\Phi'}</Tex> 是標準常態的累積分布。先看訊號怎麼流，再看數學：
         </p>

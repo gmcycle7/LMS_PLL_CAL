@@ -20,6 +20,7 @@ export function Intro() {
         上面是全站共用的系統地圖，<strong>藍色的方塊</strong>是這一章的主角：校正用的 code <Tex>{'x[n]'}</Tex>（regressor）、只輸出誤差正負號的 1-bit comparator、把正負號與 code 相乘後累加的 GMAC、
         <Tex>{'\\div N,\\ \\times\\mu'}</Tex>（取平均、乘上步長）與存放係數 <Tex>{'w'}</Tex> 的 gain accumulator。前兩章先用黑盒子介紹了「預測、比較、修正」，以及誤差好壞的兩種算法；
         這一章加上的是<strong>更新式</strong>的來歷——這五個方塊合起來，每一步為什麼要把 <Tex>{'w'}</Tex> 往那個方向推、推多少——從使用完整坡度的 gradient descent，一路簡化到只用兩個正負號的 Sign-Sign。
+        地圖上 comparator 的輸入是從 <strong>PD 的輸出</strong>分接出來的：PD 與 loop filter 之間那條線上有一個分接點，標著「PD 輸出 <Tex>{'e[n]'}</Tex>」；comparator 左上方同名的標籤「<Tex>{'e[n]'}</Tex>（PD 輸出）」就是同一條線。它取的是送進 loop filter 的同一個誤差，不是從 DTC 或 divider 拉出來的。
       </p>
       <SymbolsLink />
       <p>

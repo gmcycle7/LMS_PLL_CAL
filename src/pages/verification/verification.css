@@ -331,10 +331,29 @@ a.ver-chip:hover {
   line-height: 1.6;
   font-weight: 500;
 }
+/*
+ * 「規格原文」與「網站採用的修正」上下排（不並排）：並排時每格在 1280px 的桌機上只有 417px，
+ * 49 則勘誤裡有 58 條式子比格子寬——每格底下一條橫向捲軸、式子的右半被切掉。上下排之後每格是整欄寬，絕大多數式子整條看得到。
+ */
 .ver-em-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
+}
+/*
+ * 上下排之後仍然比整欄寬的少數長等式鏈（桌機）：讓 KaTeX 在最外層的等號／運算子後面換行，不放橫向捲軸。
+ * 只在桌機寬度套用；手機維持原樣（比螢幕寬的式子可以橫向捲動）。
+ */
+@media (min-width: 641px) {
+  .ver-em-cell .c-texblock-math .katex-display > .katex {
+    white-space: normal;
+  }
+  .ver-em-cell .c-texblock-math .katex-display > .katex > .katex-html > .base {
+    margin: 0.12em 0;
+  }
+  .ver-em-cell .c-texblock-math .katex-display {
+    padding-right: 3px;
+  }
 }
 .ver-em-cell {
   border: 1px solid var(--border);

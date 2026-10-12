@@ -1003,7 +1003,7 @@ describe('SSPLL 案例頁的帶入手算（HC-CS.1 – HC-CS.8）', () => {
     expect(s8[3].tex).toContain('\\min(0.168,\\ 1-0.168)\\times4000=\\min(0.168,\\ 0.832)\\times4000=0.168\\times4000=672')
     expect(s8[4].tex).toContain('2\\times(2-0.28771696)')
     expect(s8[8].tex).toBe('f_{rot}-f_{inv}=84-134.8201=-50.8201\\ \\mathrm{MHz}')
-    expect(s8[9].tex).toBe('\\frac{K_i}{2}=\\frac{0.038253471}{2}=0.0191267')
+    expect(s8[9].tex).toBe('\\tfrac{K_i}{2}=\\tfrac{0.038253471}{2}=0.0191267')
     expect(d8.solve(withDefaults(d8, { alpha: 0.1250001 })).steps[2].tex).toContain('1.0000008-1=8\\times10^{-7}')
     expect(d8.solve(withDefaults(d8, { alpha: 0.1250000001 })).steps[2].tex).toContain('1.0000000008-1=8\\times10^{-10}') // 不是 8.000000662×10⁻¹⁰（double 的殘渣）
     // α、f_ref 的乘與加減照十進位寫，不四捨五入成 6 位

@@ -1208,6 +1208,8 @@ describe('Ch05 帶入手算：照畫面上的數字往下算（每一步的 TeX 
     expect(sq.tex).toContain('0.980053^2 = 0.9605039')
     expect(sq.why).toContain('多抄幾位')
     expect(om.tex).toContain('1-0.9605039 = 0.0394961')
+    // 這一步在手機（正文欄約 270px）放不下一行：左邊的式子與等號後面的數字之間先換行，捲軸才不會為了幾個 px 出現
+    expect(om.tex).toContain('1-p_{\\mathrm{cal}}^2 \\\\ = 1-0.9605039')
     // 預設題不需要多抄：說明文字也不出現那句話
     expect(solveDefault('HC-05.8').steps.find((s) => s.tex.startsWith('p_{\\mathrm{cal}}^2'))!.why).not.toContain('多抄幾位')
   })

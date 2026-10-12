@@ -106,6 +106,10 @@ export function S5LoopTypes() {
           是同一個位置：低頻時 Type-I 的 PD 看到 code 的<strong>一次微分</strong>，Type-II 看到<strong>二次微分</strong>。
         </p>
         <p>
+          接法和圖 6.3 一樣：加法點就是 PD，DTC 誤差從它的 reference 輸入（「＋」）進來，回授 <Tex>{'\\varphi_{\\mathrm{fb}}'}</Tex> 從 feedback 輸入（「−」）回來。回授路徑上的
+          divider 在線性化的相位模型裡只是一個固定的倍數，已經併進迴路增益（<Tex>{'\\omega_c'}</Tex>、<Tex>{'\\omega_n'}</Tex>）裡，所以圖上沒有另外畫；回授路徑上沒有 DTC。
+        </p>
+        <p>
           圖上兩個迴路各自套用 §2 的 <Tex>{'H_{\\mathrm{PD}}=1/(1+L)'}</Tex>，就得到 5.1 的 F-06.7（綠色那格）與 5.2 的 F-06.8（紅色那格）；「一次微分只會變慢、二次微分會變號」的原因在
           5.3。
         </p>
@@ -479,7 +483,8 @@ export function S5LoopTypes() {
           先找兩個藍色的累加器：PI 濾波器的積分路徑 <Tex>{'K_i/(1-z^{-1})'}</Tex>，和 DCO 的 <Tex>{'z^{-1}/(1-z^{-1})'}</Tex>——它們就是 CT
           原型的兩個積分器（累加就是離散時間的積分）。再看延遲：DCO 自帶一個 <Tex>{'z^{-1}'}</Tex>（這一拍算出的控制量，下一拍才變成相位），它前面還串著一塊{' '}
           <Tex>{'d'}</Tex> 拍的額外 latency <Tex>{'z^{-d}'}</Tex>（<Tex>{'d=0'}</Tex> 就是沒有這一塊）。一拍的時間是 PD / comparator 的取樣週期 <Tex>{'T_s'}</Tex>。最後看回授：DCO
-          的輸出 <Tex>{'\\varphi_{\\mathrm{fb}}[n]'}</Tex> 以「−」號回到加法點，和圖 6.3 一樣是負回授。
+          的輸出 <Tex>{'\\varphi_{\\mathrm{fb}}[n]'}</Tex> 以「−」號回到加法點，和圖 6.3 一樣是負回授：加法點是 PD，「＋」是 reference 輸入（DTC 誤差從這裡進來），「−」是
+          feedback 輸入；回授路徑上 divider 的倍數已經併進 <Tex>{'K_p'}</Tex>、<Tex>{'K_i'}</Tex>，所以沒有另外畫，那裡也沒有 DTC。
         </p>
         <p>
           沿著迴路把方塊乘起來，<Tex>{'\\big(K_p+\\tfrac{K_i}{1-z^{-1}}\\big)\\cdot z^{-d}\\cdot\\tfrac{z^{-1}}{1-z^{-1}}'}</Tex>，就是下面的 F-06.10：
@@ -549,7 +554,7 @@ export function S5LoopTypes() {
           polarity 邊界因此移動。下表由 <code>compareCtDt()</code> 即時計算（<Tex>{'\\zeta=0.7'}</Tex>），與 validation.md E44 的數值一致：
         </p>
         <div className="table-wrap">
-          <table className="ch06-table">
+          <table className="ch06-table ch06-table-wraphead">
             <thead>
               <tr>
                 <th className="num">
@@ -687,7 +692,7 @@ export function S5LoopTypes() {
           <StepDerivation
             steps={[
               {
-                tex: String.raw`H(e^{j\Omega})=\frac{1-e^{-j\Omega}}{(1-e^{-j\Omega})+K\,e^{-j\Omega(1+d)}}`,
+                tex: String.raw`H(e^{j\Omega})=\frac{1-e^{-j\Omega}}{1-e^{-j\Omega}+K\,e^{-j\Omega(1+d)}}`,
                 why: (
                   <>
                     Type-I DPLL，<Tex>{'K=\\omega_cT_s'}</Tex>。

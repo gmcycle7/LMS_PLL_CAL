@@ -236,7 +236,7 @@ function SspllExperiment() {
         </>
       }
       assumptions={[
-        String.raw`線性化 DT 主迴路；DTC / PMUX 誤差在 phase-comparison 節點注入，$H_{\mathrm{PD}}=1/(1+L)$（reference 側與 feedback 側的符號差已併入校正定義）`,
+        String.raw`線性化 DT 主迴路；PD 量的是（被 DTC 延遲後的）reference edge 減 feedback edge。DTC 在 reference 輸入端，它的殘差直接在 PD 的 reference 輸入注入；PMUX 在 feedback 路徑上，它的相位 offset 也折算到 PD 的 reference 輸入（兩側折算的符號差已併入校正係數的定義）。把折算後的外加誤差記作 $\phi_{\mathrm{in}}$、回授回來的相位記作 $\theta_{\mathrm{fb}}=L\,e_{\mathrm{PD}}$：$e_{\mathrm{PD}}=\phi_{\mathrm{in}}-\theta_{\mathrm{fb}}$，所以 $e_{\mathrm{PD}}=+H_{\mathrm{PD}}\,\phi_{\mathrm{in}}$，$H_{\mathrm{PD}}=1/(1+L)$（正號）`,
         String.raw`raw-x GMAC、相關器延遲 $D=0$：平均斜率 $=\sum(\text{線功率})\cdot\mathrm{Re}\{H_{\mathrm{PD}}\}$；小訊號（$|e_{\mathrm{PD}}|\ll\sigma_v$）、靜態 $w$、長時間平均`,
         String.raw`一階分數累加器：$\varphi[n]=\mathrm{frac}(n\alpha)$、$p[n]=\lfloor8\varphi[n]\rfloor$、$\rho[n]=8\varphi[n]-p[n]$；$\alpha=j/${ALPHA_Q}$ 時以一個週期的 DFT 精確計算`,
         '未含：CPPLL、大訊號（1-bit 飽和）、comparator offset、PMUX 相位間的振幅失配、時域 Monte Carlo——這些在案例頁與離線分析中，狀態為分析中',

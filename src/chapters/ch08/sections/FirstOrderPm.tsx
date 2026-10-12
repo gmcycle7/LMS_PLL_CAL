@@ -79,6 +79,11 @@ export function FirstOrderPm() {
           String.raw`先把符號講清楚（本節起時間都以 block 計）：$k$ 是 GMAC block 的編號（每 $N$ 個 sample 一個 block）；$a$ 是要學的真實增益，$w_k$ 是第 $k$ 個 block 的係數估計；$\delta_k=a-w_k$ 是還沒修掉的剩餘誤差（單位 fs）；$\mu$ 是學習率（每次修正的步長，單位 fs）。小誤差時 GMAC 的平均輸出正比於剩餘誤差，$G_k\approx K\delta_k$；斜率 $K=K_qC$（$K_q$ 是 Ch05 的 comparator 統計增益，$C$ 是 Ch06 的相關，$K$ 的單位是 $\mathrm{fs}^{-1}$）。兩者相乘的 $g=\mu K$ 沒有單位，叫正規化 loop gain——本章所有的穩定條件都只看這個數字。`,
         )}
       </p>
+      <p>
+        {rich(
+          String.raw`把 $\delta_k=a-w_k$ 放回系統地圖上看：累加器餘數 $x[n]$（$n$ 屬於第 $k$ 個 block）讓 feedback（divider）edge 比理想時刻早到 $a\,x[n]$；reference 端的 DTC 只能延遲、不能提前，所以它從一個固定的基準延遲 $T_0$ 往回扣，$\tau_{\mathrm{DTC}}[n]=T_0-w_k\,x[n]$：code 越大延遲越短，reference edge 相對於這個基準也提前（少延遲）$w_k\,x[n]$（這是 DTC 的補償量；$T_0$ 是常數，被 PLL 當成靜態相位偏移吸收）。PD 量的是經過 DTC 的 reference edge 減 feedback edge，所以它的輸出是 $e[n]=(a-w_k)\,x[n]+v[n]=\delta_k\,x[n]+v[n]$（$v[n]$ 是 comparator 前的雜訊）：補償不足（$w_k<a$）時 reference 還是太晚，$e[n]$ 平均為正。comparator 取的就是這個 PD 輸出 $e[n]$ 的正負號，GMAC 再把它和 $x[n]$ 相乘累加。`,
+        )}
+      </p>
       <Mermaid
         caption={String.raw`一階 calibration loop（block rate）：沿著箭頭走一圈，注意加法點 $\Sigma$ 的兩個輸入一正一負，以及藍色的積分器`}
         chart={FIRST_ORDER_CHART}

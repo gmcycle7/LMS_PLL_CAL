@@ -90,7 +90,7 @@ export function S00Conclusion() {
     <Section kind="intuition" level={2} title="0. 先講結論" id="cs-0">
       <h3>0.1 一句話回答</h3>
       <p>
-        PD（比較器）看到的不是誤差本身 <Tex>{'u'}</Tex>（DTC 與 PMUX 在相位比較點注入的時間誤差），而是被主 PLL 迴路「高通」過的殘差 <Tex>{r`e_{PD}`}</Tex>。先看圖，再看公式：
+        PD 的輸出（1-bit 比較器取的就是它，和送進 loop filter 的是同一個訊號）不是誤差本身 <Tex>{'u'}</Tex>（DTC 與 PMUX 在相位比較點注入的時間誤差），而是被主 PLL 迴路「高通」過的殘差 <Tex>{r`e_{PD}`}</Tex>。先看圖，再看公式：
       </p>
       <Diagram id="answer" />
       <p>

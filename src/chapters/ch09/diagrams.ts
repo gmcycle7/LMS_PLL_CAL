@@ -77,6 +77,7 @@ export const CHART_MATRIX_MACHINE = String.raw`flowchart LR
 /**
  * 圖 9.3（數學模型，F-09.1）：多參數的觀測。M 個 regressor 各自乘上「自己的」參數誤差 δ_i = a_i − w_i，
  * 全部加在一起（再加雜訊）才是 comparator 看到的 e[n]——M 個參數共用這一個數。
+ * 在 PLL 裡這個 e[n] 就是 PD 的輸出（送進 loop filter 的同一個訊號）；這張圖只畫數學，不畫 PLL。
  */
 export const CHART_ERROR_MODEL = String.raw`flowchart LR
   U1(["$u_1[n]$"]) --> D1["$\times \delta_1$<br/>$\delta_1 = a_1 - w_1$"]
@@ -86,7 +87,7 @@ export const CHART_ERROR_MODEL = String.raw`flowchart LR
   D2 -- "＋" --> S
   DM -- "＋" --> S
   V(["雜訊 $v[n]$"]) -- "＋" --> S
-  S --> E["$e[n] = \mathbf u[n]^T \boldsymbol\delta_k + v[n]$<br/>每個 sample $n$ 只有一個數"]
+  S --> E["$e[n] = \mathbf u[n]^T \boldsymbol\delta_k + v[n]$<br/>PD 的輸出<br/>每個 sample $n$ 只有一個數"]
   E --> CMP["comparator $\to$ GMAC<br/>$M$ 個參數共用這一個 $e[n]$"]${CLASSES}
   class E focus`
 
@@ -100,7 +101,7 @@ export const CHART_BLOCK_LOOP = String.raw`flowchart TB
   U(["$\mathbf u[n]$：$M$ 個 regressor"]) --> DOT
   DOT -- "＋" --> SE(("＋"))
   V(["雜訊 $v[n]$"]) -- "＋" --> SE
-  SE -- "$e[n]$（每個 sample）" --> DET["偵測器 $t[n]$<br/>linear：$t = e$ ／ 1-bit：$t = \mathrm{sign}(e)$"]
+  SE -- "PD 輸出 $e[n]$（每個 sample）" --> DET["偵測器 $t[n]$<br/>linear：$t = e$ ／ 1-bit：$t = \mathrm{sign}(e)$"]
   DET --> COR["相關：$t[n] \times \mathbf u[n]$<br/>$M$ 個參數各一個乘法器"]
   U --> COR
   COR --> AVG["GMAC：$\mathbf G_k = (1/N) \sum t[n] \cdot \mathbf u[n]$<br/>$N$ 個 sample 平均成一筆"]
@@ -307,18 +308,31 @@ export const CHART_DC_NULL = String.raw`flowchart TB
 /**
  * 圖 9.17（路徑／轉移函數，F-09.19）：u-domain 的 block LMS（與 pe.ts 的 runGaugeLms 相同的訊號流）。
  * d[n] = x̃ᵀ(θ − w_k) → H_PD → + v → e_PD → GMAC（regressor r 可選 raw x̃ 或 filtered ũ）→ w_(k+1) = w_k + μG_k。
+ *
+ * 全站架構約定（docs/assumptions.md §2a）：DTC 在 reference 輸入端，補償後留下的殘餘誤差 d[n] 在 PD 的 reference 輸入端注入，
+ * 經 error path H_PD（正號：e_PD = H_PD · φ_dtc）加上雜訊成為「PD 的輸出」e_PD[n]。
+ * LMS 校正迴路（GMAC）的輸入就是這個 PD 輸出——送進 loop filter 的同一個節點，所以圖上從 PDO 同時分出 LF 與 GMAC 兩條線。
+ * loop filter 只畫成終點（它的效果已經包含在 H_PD = 1/(1+L) 裡，不再畫一圈迴路）。
+ *
+ * 版面（宣告順序決定左右，用實際的 layout 驗過）：先宣告主路徑（DOT → H → ＋ → PD 的輸出），「PD 的輸出 → GMAC」宣告在「→ loop filter」之前；
+ * 再宣告 regressor 那一側，而且 X 的三條線依序是 X → GMAC、X → HF，最後才是 X → DOT。
+ * 這樣主路徑排在左邊（手機上先看到的那一半）、regressor 在右邊，回授的虛線（累加器 → 殘餘誤差）走最左側，整張圖沒有任何兩條線相交。
+ * 若照訊號的順序從 X → DOT 寫起（2026-10-12 的第一版），dagre 會把虛線排在「PD 的輸出」與 GMAC 之間，橫過「LMS 的輸入取自這裡」那條線；
+ * diagrams.test.tsx 用真正的 renderer 守住「沒有翻面、不相交、主路徑在左」。
  */
 export const CHART_GAUGE_LMS_PATH = String.raw`flowchart TB
-  X(["$\tilde{\mathbf x}[n] = (1, x_0, x_1, x_2, x_3)$"]) --> DOT["DTC 端的誤差<br/>$d[n] = \tilde{\mathbf x}[n]^T (\boldsymbol\theta - \mathbf w_k)$"]
-  DOT --> H["主 PLL 的 error path：$H_{\mathrm{PD}}(z)$<br/>$H_{\mathrm{PD}}(1) = 0$，DC 被吃掉"]
+  DOT["DTC 補償後的殘餘誤差<br/>$d[n] = \tilde{\mathbf x}[n]^T (\boldsymbol\theta - \mathbf w_k)$"] -- "在 PD 的 reference 輸入端注入" --> H["error path：PD 的 reference 輸入 $\to$ PD 的輸出<br/>$H_{\mathrm{PD}}(z)$，$H_{\mathrm{PD}}(1) = 0$：DC 被吃掉"]
   H -- "＋" --> S(("＋"))
   V(["雜訊 $v[n]$"]) -- "＋" --> S
-  S -- "$e_{\mathrm{PD}}[n]$" --> G["GMAC：$\mathbf G_k = (1/N) \sum e_{\mathrm{PD}}[n] \cdot \mathbf r[n]$"]
-  X -- "raw：$\mathbf r = \tilde{\mathbf x}$（$b$ 的 $r$ 是常數 1）" --> G
+  S --> PDO["PD 的輸出 $e_{\mathrm{PD}}[n]$"]
+  PDO -- "LMS 的輸入取自這裡" --> G["GMAC：$\mathbf G_k = (1/N) \sum e_{\mathrm{PD}}[n] \cdot \mathbf r[n]$"]
+  PDO -- "同一個訊號" --> LF["loop filter<br/>（主迴路，已含在 $H_{\mathrm{PD}}$ 裡）"]
+  X(["$\tilde{\mathbf x}[n] = (1, x_0, x_1, x_2, x_3)$"]) -- "raw：$\mathbf r = \tilde{\mathbf x}$（$b$ 的 $r$ 是常數 1）" --> G
   X --> HF["同一個 $H_{\mathrm{PD}}(z)$<br/>filtered-x"]
   HF -- "filtered：$\mathbf r = \tilde{\mathbf u}$（$b$ 的 $r \to 0$）" --> G
+  X --> DOT
   G -- "$\mathbf G_k$（每個 block 一筆）" --> ACC["累加器<br/>$\mathbf w_{k+1} = \mathbf w_k + \mu \cdot \mathbf G_k$"]
-  ACC -. "$\mathbf w_k$：register，每個 block 才更新一次" .-> DOT${CLASSES}
+  ACC -. "$\mathbf w_k$：register<br/>每個 block 才更新一次<br/>送回 DTC 的 code" .-> DOT${CLASSES}
   class H focus
   class G warn`
 
@@ -410,8 +424,8 @@ export interface Ch09Diagram {
 export const CH09_DIAGRAMS: Ch09Diagram[] = [
   { id: 'two-knob', chart: CHART_TWO_KNOB, kind: '數學模型', section: 'ch09-intro', before: 'handcalc-HC-09.1', alt: '兩個輸入同時送進未知的真實系統與兩個旋鈕，兩者的輸出相減成為唯一看得到的誤差 e' },
   { id: 'matrix-machine', chart: CHART_MATRIX_MACHINE, kind: '數學模型', section: 'ch09-prereq', before: 'ch09-mean', alt: '三個向量分別乘上相關矩陣 R：共模與差模方向不變只被縮放，第三個向量方向改變' },
-  { id: 'error-model', chart: CHART_ERROR_MODEL, kind: '數學模型', section: 'ch09-mean', formulaId: 'F-09.1', before: 'formula-F-09.1', alt: 'M 個 regressor 各自乘上自己的參數誤差後相加，再加上雜訊，成為單一的誤差 e[n]' },
-  { id: 'block-loop', chart: CHART_BLOCK_LOOP, kind: '演算法迴圈', section: 'ch09-mean', formulaId: 'F-09.3', before: 'formula-F-09.2', alt: '多參數 block LMS 迴圈：誤差經偵測器、與 regressor 相關、GMAC 平均、乘上 mu、累加器延遲一個 block 後回授' },
+  { id: 'error-model', chart: CHART_ERROR_MODEL, kind: '數學模型', section: 'ch09-mean', formulaId: 'F-09.1', before: 'formula-F-09.1', alt: 'M 個 regressor 各自乘上自己的參數誤差後相加，再加上雜訊，成為單一的誤差 e[n]，也就是 PD 的輸出' },
+  { id: 'block-loop', chart: CHART_BLOCK_LOOP, kind: '演算法迴圈', section: 'ch09-mean', formulaId: 'F-09.3', before: 'formula-F-09.2', alt: '多參數 block LMS 迴圈：PD 輸出的誤差經偵測器、與 regressor 相關、GMAC 平均、乘上 mu、累加器延遲一個 block 後回授' },
   { id: 'coupled-mean', chart: CHART_COUPLED_MEAN, kind: '演算法迴圈', section: 'ch09-mean', formulaId: 'F-09.3', before: 'formula-F-09.4', alt: '兩個參數的平均遞迴：每個迴路除了自己的誤差，還經由係數 rho 的交叉路徑讀到另一個參數的誤差' },
   { id: 'eigen-modes', chart: CHART_EIGEN_MODES, kind: '數學模型', section: 'ch09-mean', formulaId: 'F-09.4', before: 'formula-F-09.4', alt: '平均誤差先旋轉到 eigenvector 座標，分成快、慢兩條獨立的一階迴路，再旋轉回原座標' },
   { id: 'k95-flow', chart: CHART_K95_FLOW, kind: '手算流程', section: 'ch09-mean', formulaId: 'F-09.6', before: 'formula-F-09.5', alt: '由 rho 與 g 依序算出 eigenvalue、兩個 pole、檢查穩定，最後得到 598 個 block' },
@@ -424,7 +438,7 @@ export const CH09_DIAGRAMS: Ch09Diagram[] = [
   { id: 'pm1-degenerate', chart: CHART_PM1_DEGENERATE, kind: '數學模型', section: 'ch09-pe', formulaId: 'F-09.11', before: 'formula-F-09.11', alt: '正負一 code 的窗口能量矩陣只由 s 等於正一與負一的個數決定，只有 s 全同號的窗口才退化，機率為兩個冪次相加' },
   { id: 'gauge-shift', chart: CHART_GAUGE_SHIFT, kind: '比較', section: 'ch09-gauge', formulaId: 'F-09.13', before: 'formula-F-09.13', alt: '同一筆 one-hot 輸入送進兩組參數，第二組的 global offset 加 c、每個 phase offset 減 c，兩個輸出相減恆為零' },
   { id: 'dc-null', chart: CHART_DC_NULL, kind: '路徑／轉移函數', section: 'ch09-gauge', formulaId: 'F-09.15', before: 'formula-F-09.15', alt: '常數 regressor 與 one-hot regressor 經過 DC 增益為零的 PLL error path，產生兩個不可觀察的方向，只剩相位之間的差' },
-  { id: 'gauge-lms-path', chart: CHART_GAUGE_LMS_PATH, kind: '路徑／轉移函數', section: 'ch09-gauge', formulaId: 'F-09.19', before: 'formula-F-09.19', alt: 'u-domain 的 LMS 訊號路徑：DTC 端誤差經 PLL error path 加上雜訊後進 GMAC，GMAC 的 regressor 可選原始或濾波後的版本' },
+  { id: 'gauge-lms-path', chart: CHART_GAUGE_LMS_PATH, kind: '路徑／轉移函數', section: 'ch09-gauge', formulaId: 'F-09.19', before: 'formula-F-09.19', alt: 'u-domain 的 LMS 訊號路徑：DTC 補償後的殘餘誤差在 PD 的 reference 輸入端注入，經 PLL error path 加上雜訊成為 PD 的輸出；同一個 PD 輸出送進 loop filter，也是 GMAC 的輸入，GMAC 的 regressor 可選原始或濾波後的版本' },
   { id: 'restoring-force', chart: CHART_RESTORING_FORCE, kind: '比較', section: 'ch09-gauge', formulaId: 'F-09.19', before: 'formula-F-09.19', alt: '可辨識方向的迴路每個 block 把誤差乘上小於一的倍數所以有界，null 方向是純積分器所以 random walk' },
   { id: 'identifiable-tree', chart: CHART_IDENTIFIABLE_TREE, kind: '決策樹', section: 'ch09-compare', before: 'ch09-synthesis', alt: '判斷一個參數方向是否學得到的決策樹：先看 regressor 有沒有投影，再看每個窗口，最後看 condition number' },
   { id: 'synthesis-flow', chart: CHART_SYNTHESIS_FLOW, kind: '手算流程', section: 'ch09-synthesis', formulaId: 'F-09.6', before: 'handcalc-HC-09.8', alt: '綜合手算的順序：換算 K_q 與 g、算 eigenvalue、檢查穩定、算慢 pole 與 k95、最後算窗口退化機率' },

@@ -28,8 +28,8 @@ export function IntroSection() {
 
       <Callout kind="info" title="這次我們要回答的問題">
         <p className="ch05-question">
-          PLL 裡的 DTC gain 還差一點點，造成 <Tex>{String.raw`s=1\,\mathrm{fs}`}</Tex> 的時間誤差；但 PD 前面的雜訊有{' '}
-          <Tex>{String.raw`\sigma_v=100\,\mathrm{fs}`}</Tex> RMS。Bang-bang PD（1-bit comparator）每次只告訴你「早」或「晚」（
+          PLL 裡 reference 端的 DTC 補償還差一點點，PD 的輸出裡因此有 <Tex>{String.raw`s=1\,\mathrm{fs}`}</Tex> 的時間誤差；但同一個輸出還混著{' '}
+          <Tex>{String.raw`\sigma_v=100\,\mathrm{fs}`}</Tex> RMS 的雜訊。1-bit comparator（bang-bang）取這個 PD 輸出的正負號，每次只告訴你「早」或「晚」（
           <Tex>{'q=\\pm1'}</Tex>）。<strong>單一次的 <Tex>{'q'}</Tex> 幾乎就是擲硬幣，那方向資訊到底還在不在？要累加幾次才看得出來？</strong>
         </p>
       </Callout>
@@ -66,12 +66,12 @@ export function IntroSection() {
 
       <Section kind="diagram" level={2} title="0. 模型：一個固定誤差 + 雜訊 → 1-bit → 累加">
         <p>
-          把章首系統地圖裡藍色的那一段單獨拿出來，就是下面這張圖。它是 PLL 校正迴路（Ch04）裡「PD → GMAC」的最小模型：把 regressor{' '}
+          把章首系統地圖裡藍色的那一段單獨拿出來，就是下面這張圖。它是 PLL 校正迴路（Ch04）裡「PD → GMAC」的最小模型（comparator 取的是 PD 的輸出，也就是送進 loop filter 的同一個訊號）：把 regressor{' '}
           <Tex>{'x'}</Tex>（乘在誤差上的已知訊號，例如 DTC code）固定成 <Tex>{'x\\equiv1'}</Tex>，問題就只剩下「
           <strong>一個很小的偏移，經過 1-bit 量化之後，平均還保留多少？</strong>」。之後章節的 <Tex>{'K_q'}</Tex>、loop gain、noise 全部從這裡出發。
         </p>
         <Fig name="l1Model">
-          先看左邊：固定誤差 <Tex>{'s'}</Tex> 與雜訊 <Tex>{'v'}</Tex> 在加法點相加，成為 comparator 的輸入 <Tex>{'e=s+v'}</Tex>。再看中間：comparator 把{' '}
+          先看左邊：固定誤差 <Tex>{'s'}</Tex> 與雜訊 <Tex>{'v'}</Tex> 在加法點相加，成為 comparator 的輸入 <Tex>{'e=s+v'}</Tex>（放進 PLL 裡，這個加法點就是 PD，<Tex>{'e'}</Tex> 就是 PD 的輸出）。再看中間：comparator 把{' '}
           <Tex>{'e'}</Tex> 和門檻 <Tex>{'\\theta'}</Tex> 比較，只輸出一個 bit <Tex>{'q=\\pm1'}</Tex>。最後看右邊：累加器把 <Tex>{'N'}</Tex> 個 <Tex>{'q'}</Tex>{' '}
           加成 <Tex>{'S_N'}</Tex>，取它的正負號當作「誤差是正還是負」的判斷。
         </Fig>
@@ -87,7 +87,7 @@ export function IntroSection() {
             <Tex>{'v\\sim\\mathcal N(0,\\sigma_v^2)'}</Tex>。
           </li>
           <li>
-            <Tex>{'e=s+v'}</Tex>：comparator 的輸入；<Tex>{'\\theta'}</Tex>：comparator 的 threshold／offset（理想是 0，單位 <Tex>{'\\mathrm{fs}'}</Tex>）。
+            <Tex>{'e=s+v'}</Tex>：comparator 的輸入（在 PLL 裡就是 PD 的輸出）；<Tex>{'\\theta'}</Tex>：comparator 的 threshold／offset（理想是 0，單位 <Tex>{'\\mathrm{fs}'}</Tex>）。
           </li>
           <li>
             <Tex>{'q=\\pm1'}</Tex>：comparator 的輸出（<Tex>{'e\\ge\\theta'}</Tex> 時是 <Tex>{'+1'}</Tex>）。硬體給的其實是 0/1 位元 <Tex>{'b'}</Tex>，要先映射成{' '}

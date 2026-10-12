@@ -32,6 +32,7 @@ import { CheckTable, QuantWhatIf, StageCards } from './StageCards'
 const BASE_ASSUMPTIONS = [
   '時間單位 fs；code 正規化後無因次；$a$、$w$ 的單位為 fs per unit code；極性 $\\delta=a-w$',
   '$f_s=f_{\\mathrm{ref}}$：每個 DSM sample 對應一個 DTC code、一個 comparator sample（多速率未建模）',
+  'DTC 在 reference 輸入端，回授路徑只有 divider；comparator 取 PD 的輸出 $u_{\\mathrm{pd}}=H_{\\mathrm{PD}}\\{e_{\\mathrm{DTC}}\\}$（送進 loop filter 的同一個訊號）',
   '主 PLL 為線性、時不變的離散時間模型；$T=1-H_{\\mathrm{PD}}$',
   'comparator 前雜訊 $v[n]$ 為 iid Gaussian，與 code 獨立',
   '輸出端只含 DTC 殘差這一個雜訊來源（VCO / reference / PD 自身雜訊未計）',
@@ -299,7 +300,8 @@ export function PipelineTab() {
       headingLevel={3}
       description={
         <>
-          FCW → DSM → code → DTC → <Tex>{'H_{\\mathrm{PD}}'}</Tex> → comparator → GMAC → gain register → 更新，再把 DTC 殘差經 <Tex>{'T'}</Tex> 送到輸出端算 jitter 與 spur。迴路由 <code>runBlockLms</code>{' '}
+          FCW → DSM → code → DTC（在 reference 輸入端）→ <Tex>{'H_{\\mathrm{PD}}'}</Tex>（到 PD 的輸出）→ comparator → GMAC → gain register → 更新，再把 DTC 殘差經 <Tex>{'T'}</Tex> 送到輸出端算 jitter 與
+          spur。迴路由 <code>runBlockLms</code>{' '}
           執行；本頁另外用獨立重寫的逐 sample 迴圈重播一次，逐位元比對每個 <Tex>{'G_k'}</Tex>（跨級一致性）。
         </>
       }
@@ -434,7 +436,7 @@ export function PipelineTab() {
               data={fErr.data}
               layout={fErr.layout}
               height={280}
-              caption="PD 看到的是 high-pass 後的誤差，輸出端看到的是 low-pass 後的誤差——兩者不能混用（第 12 章）。comparator 的實際輸入還要加上 $b+v[n]$（圖例點一下可顯示；通常被 $\sigma_v$ 淹沒）。"
+              caption="PD 的輸出（comparator 取的就是它）是 high-pass 後的誤差，輸出端看到的是 low-pass 後的誤差——兩者不能混用（第 12 章）。comparator 的實際輸入還要加上 $b+v[n]$（圖例點一下可顯示；通常被 $\sigma_v$ 淹沒）。"
             />
           )}
 

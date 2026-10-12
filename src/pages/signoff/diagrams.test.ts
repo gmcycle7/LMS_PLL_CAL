@@ -275,19 +275,24 @@ describe('Sign-off 頁的方塊圖（真正的 mermaid）', () => {
     expect(D.CHART_MIMO_LOOP).not.toMatch(/\[n\]/)
   })
 
-  it('輸出路徑：δw_k（block）→ ZOH → δw[n] → × x[n] → δt[n] → T（不是 H_PD）→ φ_out = −2π f_out·T·δt → spur／jitter', async () => {
+  it('輸出路徑：δw_k（block）→ ZOH → δw[n] → × x[n] → δt[n]（補償誤差）→ T（不是 H_PD；殘差在 PD 的 reference 輸入注入）→ φ_out = −2π f_out·T·δt → spur／jitter', async () => {
     const g = await flow(D.CHART_OUTPUT_PATH)
     const chain: [string, string][] = [['W', 'ZOH'], ['ZOH', 'MUL'], ['X', 'MUL'], ['MUL', 'T'], ['T', 'PH'], ['PH', 'BETA'], ['BETA', 'SPUR'], ['PH', 'JIT']]
     for (const [a, b] of chain) expect(hasEdge(g, a, b), `${a} → ${b}`).toBe(true)
     expect(g.vertices.find((v) => v.id === 'MUL')?.type).toBe('circle')
     expect(edgeText(g, 'ZOH', 'MUL')).toBe(R`$\delta w[n]$`)
-    expect(edgeText(g, 'MUL', 'T')).toBe(R`$\delta t[n] = x[n]\cdot\delta w[n]$`)
+    expect(edgeText(g, 'MUL', 'T')).toBe(R`補償誤差 $\delta t[n] = x[n]\cdot\delta w[n]$`)
     expect(edgeText(g, 'T', 'PH')).toBe(R`$T\cdot\delta t$`)
     expect(edgeText(g, 'PH', 'BETA')).toBe(R`$\varphi_{\mathrm{out}}$`)
     expect(edgeText(g, 'PH', 'JIT')).toBe(R`$\varphi_{\mathrm{out}}$`)
     expect(node(g, 'W')).toContain(R`block 速率，索引 $k$`)
     expect(node(g, 'ZOH')).toContain(R`$\delta w[n] = \delta w_{\lfloor (n - n_c)/N\rfloor}$`)
     expect(node(g, 'T')).toContain(R`$T = \frac{L}{1+L}$`)
+    // 架構（docs/assumptions.md §2a）：DTC 殘差在 PD 的 reference 輸入注入，θ_out = +T·φ_dtc（正號）；負號只來自「殘差 = −δt」
+    expect(node(g, 'T')).toContain('reference 輸入注入')
+    expect(node(g, 'T')).toContain(R`$\theta_{\mathrm{out}} = +T\cdot\phi_{\mathrm{dtc}}$`)
+    expect(node(g, 'PH')).toContain(R`殘差為 $-\delta t$`)
+    expect(D.CHART_OUTPUT_PATH).not.toMatch(/feedback|回授/)
     expect(node(g, 'PH')).toContain(R`$\varphi_{\mathrm{out}} = -2\pi f_{\mathrm{out}}\cdot T\cdot\delta t$`)
     expect(node(g, 'BETA')).toContain(R`$\beta = 2\pi f_{\mathrm{out}}\cdot A_t\cdot\lvert T(f_m)\rvert$`)
     expect(node(g, 'SPUR')).toContain(R`$\approx 20\log_{10}(J_1(\beta)/J_0(\beta))$`)

@@ -174,6 +174,16 @@ describe('Models 頁的方塊圖（真正的 mermaid parser）', () => {
     expect(node(g, 'UPD')).toContain(R`$w_{k+1} = w_k + \mu\cdot G_k$`)
     expect(node(g, 'REG')).toContain(R`$w_{\mathrm{app}} = \mathrm{phys}(w_{k-d})$`)
     expect(node(g, 'HPD')).toContain('狀態跨 block 持續')
+    // 架構（docs/assumptions.md §2a）：DTC 在 reference 端，它的殘餘誤差從 PD 的 reference 輸入進入主 PLL；
+    // H_PD 的輸出是 PD 的輸出，comparator 的輸入只從那裡（加法點 S）來——不是從 DTC、也不是從 gain register
+    expect(node(g, 'DTC')).toContain('DTC 的殘餘誤差')
+    expect(node(g, 'DTC')).toContain('PD 的 reference 輸入端')
+    expect(node(g, 'HPD')).toContain(R`殘餘誤差 $\to$ PD 的輸出`)
+    expect(g.edges.filter((e) => e.end === 'CMP').map((e) => e.start)).toEqual(['S'])
+    expect(g.edges.filter((e) => e.end === 'S').map((e) => e.start).sort()).toEqual(['BV', 'HPD'])
+    expect(g.edges.filter((e) => e.end === 'HPD').map((e) => e.start)).toEqual(['DTC'])
+    for (const from of ['DTC', 'X', 'REG']) expect(hasEdge(g, from, 'CMP'), `${from} → CMP`).toBe(false)
+    expect(chart).not.toMatch(/divider|Divider|DIV\b/)
     // 兩個取樣率各自一個 subgraph：內層索引 n、外層索引 k；sample-rate 的方塊在內層、block-rate 的在外層
     const sub = /subgraph FS\["([^"]*)"\]([\s\S]*?)\n {2}end\n {2}subgraph FU\["([^"]*)"\]([\s\S]*?)\n {2}end/.exec(chart)
     expect(sub).toBeTruthy()
@@ -220,6 +230,12 @@ describe('Models 頁的方塊圖（真正的 mermaid parser）', () => {
     expect(node(g, 'SHIFT')).toContain(R`$\hat G_k = \Delta_G\cdot\lfloor S_k / 2^{\ell}\rfloor$`)
     expect(node(g, 'MU')).toContain(R`$\mu = 2^{-m}$`)
     expect(node(g, 'REG')).toContain(R`$w_{k+1} = w_k + \mu\cdot\hat G_k$`)
+    // 架構（docs/assumptions.md §2a）：兩端都標明——comparator bit 是 PD 輸出 e[n] 的正負號；gain register 的 code 送到 reference 端的 DTC（補償量 w·x）
+    expect(node(g, 'B')).toContain(R`PD 輸出 $e[n]$ 的正負號`)
+    expect(node(g, 'DTC')).toContain('reference 端的 DTC')
+    expect(node(g, 'DTC')).toContain(R`補償量 $= w\cdot x$`)
+    expect(g.edges.filter((e) => e.end === 'DTC').map((e) => e.start)).toEqual(['REG'])
+    expect(g.edges.filter((e) => e.start === 'DTC')).toHaveLength(0)
     // 檢查 1–8 都標在圖上，各出現一次
     const marks = D.CHART_GMAC_DATAPATH.match(/檢查 [\d、]+/g) ?? []
     expect(marks.flatMap((m) => m.replace('檢查 ', '').split('、').map(Number)).sort((x, y) => x - y)).toEqual([1, 2, 3, 4, 5, 6, 7, 8])

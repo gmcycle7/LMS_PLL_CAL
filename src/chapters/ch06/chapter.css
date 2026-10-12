@@ -130,6 +130,10 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+/* 標題是整句話的表格：標題可以換行（nowrap 只留給數字內容），桌機上才不會只為了標題太長多出一條橫向捲軸 */
+.ch06-table-wraphead th.num {
+  white-space: normal;
+}
 .ch06-table td.neg {
   color: var(--danger);
   font-weight: 600;
@@ -307,4 +311,20 @@
 .ch06-symbols {
   margin: 40px 0 24px;
   scroll-margin-top: calc(var(--topbar-h) + 12px);
+}
+
+/*
+ * 手機上的帶入手算步驟：每一步是「符號式 = 代入數字 = 結果」的等式鏈，欄寬只剩 280px 左右，
+ * 六位有效數字的三段等式常常只比欄位寬幾個像素（寬度還隨讀者輸入的數字而變），結果是一列只能橫向捲幾個像素、沒有用途的捲動區。
+ * 讓 KaTeX 在最外層的等號／運算子後面換行（KaTeX 文件對 display math 自動換行的建議寫法），窄螢幕上就不必為了幾個像素橫向捲動；
+ * 放得下的式子仍然排成一行，桌機（> 640px）完全不受影響。通式與答案框不在 .c-step-tex 裡，維持原樣。
+ */
+@media (max-width: 640px) {
+  .ch06 .c-handcalc .c-step-tex .katex-display > .katex {
+    white-space: normal;
+  }
+  /* 換行之後上下兩行之間留一點空隙 */
+  .ch06 .c-handcalc .c-step-tex .katex-display > .katex > .katex-html > .base {
+    margin: 0.12em 0;
+  }
 }

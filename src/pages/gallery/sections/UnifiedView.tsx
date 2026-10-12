@@ -65,7 +65,7 @@ export function UnifiedView({ audit }: { audit: SlotAudit[] }) {
             why: '代回 $b=-\\mu B$、$1-p=\\mu K$：$\\mu$ 約掉了——停在哪裡與步長無關，只看「固定推力 $B$」與「恢復力的斜率 $K$」的比。$K\\to0$（例如 $C\\to0$）時同樣的 $B$ 會被放大成很大的 bias；#7 的 $1.34$ 就是 $B/K=c_3E[x^4]/E[x^2]$。',
           },
           { tex: String.raw`\mathrm{Var}(\delta_{k+1})=p^2\,\mathrm{Var}(\delta_k)+\mu^2\sigma_\eta^2`, why: '$\\eta_k$ 與 $\\delta_k$ 獨立時變異數相加；常數乘進去要平方；$b$ 是常數，不影響變異數。' },
-          { tex: String.raw`\sigma_w^2=p^2\sigma_w^2+\mu^2\sigma_\eta^2\;\Rightarrow\;\sigma_w^2=\frac{\mu^2\sigma_\eta^2}{1-p^2}`, why: '(3) 穩態時前後兩步的變異數相等，解這個一次方程式。' },
+          { tex: String.raw`\sigma_w^2=p^2\sigma_w^2+\mu^2\sigma_\eta^2\Rightarrow\sigma_w^2=\frac{\mu^2\sigma_\eta^2}{1-p^2}`, why: '(3) 穩態時前後兩步的變異數相等，解這個一次方程式。' },
           { tex: String.raw`\text{多參數：}\ p\to\mathbf A,\qquad |p|<1\to\rho(\mathbf A)<1,\qquad \frac{b}{1-p}\to(\mathbf I-\mathbf A)^{-1}\mathbf b`, why: '每個 eigenvalue 是一個獨立方向上的 pole；$\\mathbf I-\\mathbf A$ 不可逆（有 eigenvalue 等於 1）時，那個方向的固定點不唯一——這就是 #11 的不可辨識。' },
         ]}
         result={String.raw`\rho(\mathbf A)<1,\qquad \boldsymbol\delta_\infty=(\mathbf I-\mathbf A)^{-1}\mathbf b,\qquad \sigma_w^2=\frac{\mu^2\sigma_\eta^2}{1-p^2}`}

@@ -12,6 +12,6 @@
     "gainErrPct": 1,
     "fvcoGHz": 13
   },
-  "expected": "K_F/M = 5/16，residue 以 16 拍為週期，r[n] ∈ [−0.9375, 0] T_vco（divider edge 永遠早到）；DTC 需要的延遲 ∈ [0, 72115] fs；1% gain 誤差 ⇒ PD 殘差最大 721.15 fs（= 0.01 × 15/16 × 76923 fs）。",
+  "expected": "K_F/M = 5/16，residue 以 16 拍為週期，r[n] ∈ [−0.9375, 0] T_vco（feedback 的 divider edge 永遠早到）；reference 端的 DTC 需要的補償量 ∈ [0, 72115] fs；1% gain 誤差 ⇒ PD 殘差最大 721.15 fs（= 0.01 × 15/16 × 76923 fs）。",
   "source": "simulation"
 }

@@ -154,7 +154,7 @@ function DbTool() {
         <p className="small wb-bad">請輸入數字，例如 -3 或 20。</p>
       ) : (
         <TexBlock>
-          {String.raw`10^{${texNum(row.db, 6)}/10} = ${texNum(row.power, 5)}\ \text{（功率比）},\qquad 10^{${texNum(row.db, 6)}/20} = ${texNum(row.amplitude, 5)}\ \text{（振幅比）}`}
+          {String.raw`\begin{aligned}10^{${texNum(row.db, 6)}/10} &= ${texNum(row.power, 5)}\ \text{（功率比）}\\ 10^{${texNum(row.db, 6)}/20} &= ${texNum(row.amplitude, 5)}\ \text{（振幅比）}\end{aligned}`}
         </TexBlock>
       )}
     </div>
@@ -242,7 +242,8 @@ export function HandTools() {
           <h4 id="wb-tool-approx">
             ② 小 <Tex>|z|</Tex> 近似：不查表也能算
           </h4>
-          <TexBlock>{String.raw`\Phi(z) = \frac12 + \frac{1}{\sqrt{2\pi}}\Bigl(z - \frac{z^3}{6} + \frac{z^5}{40} - \cdots\Bigr)\ \approx\ \boxed{\frac12 + \frac{z}{\sqrt{2\pi}}}`}</TexBlock>
+          {/* 排成兩行：寫成一行比桌機的半欄卡片寬 16px，框起來的結論會被切掉、底下多一條橫向捲軸 */}
+          <TexBlock>{String.raw`\begin{aligned}\Phi(z) &= \frac12 + \frac{1}{\sqrt{2\pi}}\Bigl(z - \frac{z^3}{6} + \frac{z^5}{40} - \cdots\Bigr)\\[4pt] &\approx \boxed{\frac12 + \frac{z}{\sqrt{2\pi}}}\end{aligned}`}</TexBlock>
           <p className="small">
             只留第一項就是在 <Tex>z=0</Tex> 畫切線，斜率 <Tex>{String.raw`1/\sqrt{2\pi} = ${texNum(1 / Math.sqrt(2 * Math.PI), 4)}`}</Tex>。<Tex>{String.raw`z > 0`}</Tex> 時切線<strong>高估</strong>{' '}
             <Tex>{String.raw`\Phi`}</Tex>（下一項是負的；<Tex>{String.raw`z < 0`}</Tex> 時對稱地低估），誤差的大小約 <Tex>{String.raw`|z|^3/(6\sqrt{2\pi})`}</Tex>：
@@ -318,7 +319,8 @@ export function HandTools() {
 
         <section className="wb-tool" aria-labelledby="wb-tool-db">
           <h4 id="wb-tool-db">④ dB 換算</h4>
-          <TexBlock>{String.raw`\mathrm{dB} = 10\log_{10}\frac{P_2}{P_1} = 20\log_{10}\frac{A_2}{A_1}\qquad\Longleftrightarrow\qquad \frac{P_2}{P_1} = 10^{\mathrm{dB}/10},\quad \frac{A_2}{A_1} = 10^{\mathrm{dB}/20}`}</TexBlock>
+          {/* 排成兩行（定義一行、反過來解一行）：寫成一行約 630px，桌機的半欄卡片放不下。第二行用短箭頭與窄間距，手機（310px）也放得下 */}
+          <TexBlock>{String.raw`\begin{gathered}\mathrm{dB} = 10\log_{10}\frac{P_2}{P_1} = 20\log_{10}\frac{A_2}{A_1}\\[4pt] \Leftrightarrow\ \ \frac{P_2}{P_1} = 10^{\mathrm{dB}/10},\ \ \frac{A_2}{A_1} = 10^{\mathrm{dB}/20}\end{gathered}`}</TexBlock>
           <div className="wb-db-tables">
             <div className="table-wrap">
               <table className="wb-db-table">

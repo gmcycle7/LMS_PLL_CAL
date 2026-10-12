@@ -35,7 +35,7 @@ export const CH06_SYMBOLS: SymbolEntry[] = [
   },
   {
     symbol: 'h[n],\\;H(z)',
-    meaning: '從 DTC 誤差到 PD 的脈衝響應與轉移函數（主 PLL 的 error transfer）',
+    meaning: '從 DTC 誤差（PD 的 reference 輸入）到 PD 輸出的脈衝響應與轉移函數（主 PLL 的 error transfer）',
     firstSeen: '§1、§2',
     note: <Tex>{'H=H_{\\mathrm{PD}}=1/(1+L)'}</Tex>,
   },
@@ -67,22 +67,52 @@ export const CH06_SYMBOLS: SymbolEntry[] = [
   },
   {
     symbol: '\\varepsilon[n]=(a-w_k)\\,x[n]',
-    meaning: 'DTC 的時間誤差（注入主 PLL 的比較點）',
+    meaning: 'DTC 誤差：reference 端的 DTC 沒補乾淨的殘餘時間誤差（從 PD 的 reference 輸入端進來）',
     unit: '\\mathrm{fs}',
     firstSeen: '§2',
     note: (
       <>
-        Z 域寫成 <Tex>{'\\mathcal E'}</Tex>；與 §11 的 <Tex>{'\\varepsilon_{cc}'}</Tex> 無關
+        需要 <Tex>{'a\\,x'}</Tex>、實際補 <Tex>{'w_k\\,x'}</Tex>；Z 域寫成 <Tex>{'\\mathcal E'}</Tex>；與 §11 的 <Tex>{'\\varepsilon_{cc}'}</Tex> 無關
+      </>
+    ),
+  },
+  {
+    symbol: '\\tau_{\\mathrm{DTC}},\\;T_0',
+    meaning: (
+      <>
+        reference 端 DTC 的延遲與固定的基準延遲：<Tex>{'\\tau_{\\mathrm{DTC}}=T_0-w\\,x'}</Tex>（從 <Tex>{'T_0'}</Tex> 往回扣補償量 <Tex>{'w\\,x'}</Tex>）
+      </>
+    ),
+    unit: '\\mathrm{fs}',
+    firstSeen: '§2',
+    note: (
+      <>
+        DTC 只能延遲；code 越大延遲越短。<Tex>{'T_0'}</Tex> 是常數，被 PLL 當成靜態相位偏移吸收
+      </>
+    ),
+  },
+  {
+    symbol: "t_{\\mathrm{ref}}',\\;t_{\\mathrm{fb}}",
+    meaning: (
+      <>
+        DTC 延遲後的 reference edge 與 feedback（divider）edge 的時刻；PD 量的是 <Tex>{"t_{\\mathrm{ref}}'-t_{\\mathrm{fb}}"}</Tex>
+      </>
+    ),
+    unit: '\\mathrm{fs}',
+    firstSeen: '§2',
+    note: (
+      <>
+        feedback edge 比理想時刻早到 <Tex>{'a\\,x'}</Tex>；回授路徑上只有 divider
       </>
     ),
   },
   {
     symbol: '\\varphi_{\\mathrm{fb}},\\;T=L/(1+L)',
-    meaning: '主 PLL 的回授修正（已追掉的誤差）與 closed-loop 轉移函數',
+    meaning: '主 PLL 的回授修正（已追掉的誤差，經 divider 回到 PD 的 feedback 輸入端）與 closed-loop 轉移函數',
     firstSeen: '§2',
     note: (
       <>
-        <Tex>{'\\Phi_{\\mathrm{fb}}=T\\,\\mathcal E'}</Tex>，<Tex>{'H_{\\mathrm{PD}}+T=1'}</Tex>（圖 6.3）
+        <Tex>{'\\Phi_{\\mathrm{fb}}=T\\,\\mathcal E'}</Tex>（正號），<Tex>{'H_{\\mathrm{PD}}+T=1'}</Tex>（圖 6.3）
       </>
     ),
   },
@@ -90,14 +120,15 @@ export const CH06_SYMBOLS: SymbolEntry[] = [
     symbol: 'e_{\\mathrm{PD}}[n]',
     meaning: (
       <>
-        comparator 輸入端的 PD 誤差：<Tex>{'e_{\\mathrm{PD}}\\approx(a-w_k)\\,u+v'}</Tex>（已含雜訊 <Tex>{'v'}</Tex>）
+        comparator 的輸入：PD 的輸出（送進 loop filter 的同一個訊號）加上 comparator 前的雜訊，<Tex>{'e_{\\mathrm{PD}}\\approx(a-w_k)\\,u+v'}</Tex>（已含雜訊{' '}
+        <Tex>{'v'}</Tex>）
       </>
     ),
     unit: '\\mathrm{fs}',
     firstSeen: '§2',
     note: (
       <>
-        不含雜訊的確定部分記作 <Tex>{'e_{\\det}=(a-w_k)\\,u'}</Tex>（§3）
+        不含雜訊的確定部分（PD 的輸出）記作 <Tex>{'e_{\\det}=(a-w_k)\\,u'}</Tex>（§3）
       </>
     ),
   },

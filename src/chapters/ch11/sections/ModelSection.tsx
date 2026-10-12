@@ -14,7 +14,8 @@ export function ModelSection() {
   return (
     <Section kind="formula" title="11.0 總誤差模型：把每一項拆開看" level={2} id="ch11-model">
       <p>
-        把 comparator 前的誤差寫成五項的和（PLL 的動態先吸收進誤差路徑，用靜態式表達；§11.4 再把 PLL 濾波加回來）。先看 <FigRef id="error-budget" />{' '}
+        把 comparator 前的誤差 —— 也就是 PD 的輸出 <Tex>{'e[n]'}</Tex>，送進 loop filter 的同一個節點 ——
+        寫成五項的和（PLL 的動態先吸收進誤差路徑，用靜態式表達；§11.4 再把 PLL 濾波加回來）。先看 <FigRef id="error-budget" />{' '}
         的左邊：code <Tex>{'x[n]'}</Tex> 分出三條路 —— gain 誤差、INL、code-correlated 干擾 —— 這三項都是 <Tex>{'x'}</Tex> 的函數；另外兩個來源（offset
         與雜訊）不經過 <Tex>{'x'}</Tex>。再看中間的加法點：五項全部以正號相加，和就是 <Tex>{'e[n]'}</Tex>，之後才進 comparator 與 GMAC。
       </p>
@@ -26,8 +27,10 @@ export function ModelSection() {
         {F.errorModel}
       </TexBlock>
       <p>
-        逐項讀一次符號：<Tex>{'a-w'}</Tex> 是真實 gain 減去校正 gain（全站的 gain 誤差 <Tex>{'\\delta=a-w'}</Tex>）；<Tex>{'b'}</Tex> 是 PD／comparator
-        的靜態 offset；<Tex>{'d(x)'}</Tex> 是 DTC 的 INL，<Tex>{'c_2'}</Tex>、<Tex>{'c_3'}</Tex> 分別是它的二階與三階係數；
+        逐項讀一次符號：<Tex>{'a-w'}</Tex> 是真實 gain 減去校正 gain（全站的 gain 誤差 <Tex>{'\\delta=a-w'}</Tex>）—— feedback edge 早到{' '}
+        <Tex>{'a\\,x'}</Tex>、reference 端的 DTC 只補了 <Tex>{'w\\,x'}</Tex>，PD 看到的就是兩者的差 <Tex>{'(a-w)\\,x'}</Tex>；<Tex>{'b'}</Tex> 是 PD／comparator
+        的靜態 offset；<Tex>{'d(x)'}</Tex> 是 DTC 的 INL（延遲偏離直線的量：正的 <Tex>{'d'}</Tex> 表示這個 code 的 reference edge 比直線晚{' '}
+        <Tex>{'d(x)'}</Tex>），<Tex>{'c_2'}</Tex>、<Tex>{'c_3'}</Tex> 分別是它的二階與三階係數；
         <Tex>{String.raw`\varepsilon_{cc}[n]=\kappa\,x[n]`}</Tex> 是與 code 成正比的確定性干擾，<Tex>{'\\kappa'}</Tex> 是耦合係數；<Tex>{'v[n]'}</Tex>{' '}
         是與 code 獨立、零均值的隨機雜訊，它的標準差記作 <Tex>{'\\sigma_v'}</Tex>。
       </p>

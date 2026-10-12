@@ -74,7 +74,7 @@ export function WrapupSection() {
         </p>
         <BlockDiagram id="D-01.21">
           先看最上面的菱形：誤差是多位元（知道大小）還是只有 1 bit（只知道正負）。多位元時走左邊，再問資料有沒有 outlier；只有 1 bit 時走右邊，再問 regressor{' '}
-          <Tex>{'x'}</Tex> 的大小有沒有留著。藍色方塊是 PLL 校正迴路的位置：comparator 只給 <Tex>{String.raw`\operatorname{sign}(e)`}</Tex>、DSM code 是多位元，所以是 Sign-Error LMS。
+          <Tex>{'x'}</Tex> 的大小有沒有留著。藍色方塊是 PLL 校正迴路的位置：comparator 取 PD 輸出 <Tex>{'e'}</Tex> 的正負號 <Tex>{String.raw`\operatorname{sign}(e)`}</Tex>、DSM code 是多位元，所以是 Sign-Error LMS。
           圖上四個方塊裡的更新量 <Tex>{String.raw`\Delta w`}</Tex> 取平均、令它為 0，就是下表的「固定點條件」；方塊裡的「目標」對應下表「最小化的成本」與「
           <Tex>{String.raw`x\equiv1`}</Tex> 時的目標」兩列。
         </BlockDiagram>
@@ -265,8 +265,8 @@ export function WrapupSection() {
           (3) PLL error path 的相位會不會讓更新變號（<Link to="/ch/06">Ch06</Link>）。
         </p>
         <PllLink>
-          校正迴路中，PD 後面的 1-bit comparator（BBPD）只給 <Tex>{String.raw`q=\operatorname{sign}(e)`}</Tex>，所以硬體 LMS 天生就是
-          Sign-Error LMS，它追的是 <Tex>{String.raw`E[q\,x]=0`}</Tex>（MAE 型、加權中位數）的固定點：
+          校正迴路的輸入是 PD 的輸出 <Tex>{'e'}</Tex>（送進 loop filter 的同一個訊號），1-bit comparator（BBPD）只取它的正負號{' '}
+          <Tex>{String.raw`q=\operatorname{sign}(e)`}</Tex>，所以硬體 LMS 天生就是 Sign-Error LMS，它追的是 <Tex>{String.raw`E[q\,x]=0`}</Tex>（MAE 型、加權中位數）的固定點：
           <ul>
             <li>
               DSM code <Tex>{'x'}</Tex> 是 regressor，GMAC 計算 <Tex>{String.raw`\sum q\,x`}</Tex>，gain update 就是 <Tex>{String.raw`w\leftarrow w+\mu G`}</Tex>（
@@ -282,7 +282,7 @@ export function WrapupSection() {
             </li>
             <li>
               穩態時 <Tex>{'w'}</Tex> 每步跳 <Tex>{String.raw`\pm\mu|x|`}</Tex>、不會停：有 comparator 雜訊時抖動的變異數約{' '}
-              <Tex>{String.raw`\mu/(2K_q)`}</Tex>（§2.3.2），這個係數抖動經 DTC 變成 PLL 的 jitter／spur（<Link to="/ch/12">Ch12</Link>、
+              <Tex>{String.raw`\mu/(2K_q)`}</Tex>（§2.3.2），這個係數抖動讓 reference 端 DTC 的補償量 <Tex>{'wx'}</Tex> 跟著抖，變成 PLL 的 jitter／spur（<Link to="/ch/12">Ch12</Link>、
               <Link to="/ch/13">Ch13</Link>）。
             </li>
           </ul>

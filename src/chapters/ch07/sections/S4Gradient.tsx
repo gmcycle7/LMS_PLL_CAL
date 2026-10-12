@@ -37,13 +37,21 @@ export function S4Gradient() {
       />
       <p>
         先看圖的前半段：<Tex>{'x[n]'}</Tex> 經過誤差路徑 <Tex>{'h'}</Tex> 變成 <Tex>{'u[n]'}</Tex>，乘上 <Tex>{'(a-w)'}</Tex>、加上雜訊 <Tex>{'v[n]'}</Tex>，就是上面 F-07.1 的
-        <Tex>{r`e_{\mathrm{PD}}[n]`}</Tex>。再看兩個乘法器：標著「真正的梯度」的那一個把 <Tex>{r`e_{\mathrm{PD}}`}</Tex> 乘回 <Tex>{'u'}</Tex>——<Tex>{'u'}</Tex> 自己乘自己的平均是
+        <Tex>{r`e_{\mathrm{PD}}[n]`}</Tex>——圓形加法點的輸出就是 PD 的輸出，兩個乘法器都從這裡取訊號。再看兩個乘法器：標著「真正的梯度」的那一個把 <Tex>{r`e_{\mathrm{PD}}`}</Tex> 乘回 <Tex>{'u'}</Tex>——<Tex>{'u'}</Tex> 自己乘自己的平均是
         <Tex>{r`E[u^2]`}</Tex>，不可能是負的；標著「raw-x」的那一個乘的是 <Tex>{'x'}</Tex>，平均出來是 Ch06 的 <Tex>{r`C=E[x\,u]`}</Tex>。下面的推導說明：對 PD 端的誤差功率 <Tex>{'J(w)'}</Tex>（推導第 2 步定義）微分，自然會得到綠色那一路——
         圖上綠色方塊前面的乘法器算的 <Tex>{r`E[e_{\mathrm{PD}}\,u]`}</Tex>，就是 F-07.9 裡梯度 <Tex>{r`dJ/dw`}</Tex> 的負值。
       </p>
       <FoldSteps
         steps={[
-          { tex: r`e_{\mathrm{PD}}[n]=(a-w)\,u[n]+v[n],\qquad u=h*x`, why: <>Ch06 的模型：DTC gain 誤差 <Tex>{'(a-w)x'}</Tex> 經過誤差路徑 <Tex>{'h'}</Tex> 到達 PD，再加上雜訊 <Tex>{'v'}</Tex>。</> },
+          {
+            tex: r`e_{\mathrm{PD}}[n]=(a-w)\,u[n]+v[n],\qquad u=h*x`,
+            why: (
+              <>
+                Ch06 的模型：reference 端的 DTC 補償之後留下的 gain 誤差 <Tex>{'(a-w)x'}</Tex> 經過誤差路徑 <Tex>{'h'}</Tex>、再加上雜訊 <Tex>{'v'}</Tex>，就是 PD 的輸出{' '}
+                <Tex>{r`e_{\mathrm{PD}}`}</Tex>（comparator 取的就是它）。
+              </>
+            ),
+          },
           { tex: r`J(w)=\tfrac12E\big[e_{\mathrm{PD}}^2\big]`, why: <>我們真正想最小化的是 PD 看到的誤差功率（MSE）；<Tex>{r`\tfrac12`}</Tex> 只是讓導數乾淨。</> },
           {
             tex: r`\frac{\partial e_{\mathrm{PD}}}{\partial w}=-u[n]`,
@@ -74,7 +82,7 @@ E[e_{\mathrm{PD}}\,u]&=(a-w)\,E[u^2]+E[v\,u]&&\text{代入 }e_{\mathrm{PD}}\\
 
       <h3 className="ch07-subhead">步驟 2：硬體只有 1-bit comparator，<Tex>{'u'}</Tex> 也看不到 → 用模型 <Tex>{r`\hat H`}</Tex> 產生 <Tex>{'u_f'}</Tex></h3>
       <p>
-        兩個實際困難：(1) PD 誤差只經過 1-bit comparator，得到 <Tex>{r`q[n]=\mathrm{sign}(e_{\mathrm{PD}}[n])`}</Tex>；
+        兩個實際困難：(1) 校正迴路拿到的不是 PD 的輸出 <Tex>{r`e_{\mathrm{PD}}[n]`}</Tex> 本身，而是它經過 1-bit comparator 之後的正負號 <Tex>{r`q[n]=\mathrm{sign}(e_{\mathrm{PD}}[n])`}</Tex>；
         (2) <Tex>{'u'}</Tex> 是 PLL 內部的訊號，GMAC 拿不到。解法：用 PLL 誤差路徑的<strong>模型</strong> <Tex>{r`\hat H`}</Tex> 把 code 濾一次，
         <Tex>{r`u_f=\hat h*x`}</Tex>，當作 regressor——這就是 <strong>Filtered-x LMS</strong>（ANC 耳機的 FxLMS 用的是同一個想法：
         喇叭到麥克風的 secondary path 也要先建模）。
@@ -155,25 +163,28 @@ E[e_{\mathrm{PD}}\,u]&=(a-w)\,E[u^2]+E[v\,u]&&\text{代入 }e_{\mathrm{PD}}\\
       </p>
       <Mermaid
         chart={CHART_FX_LOOP}
-        caption={r`Filtered-x 的閉迴路：乘法器之前每個 sample（$n$）動一次，平均器之後每個 block（$k$）動一次；累加器的輸出 $w_k$ 以負回授回到真實路徑，形成迴圈。藍色是 code 路徑上的模型 $\hat H$。`}
+        caption={r`Filtered-x 的閉迴路：乘法器之前每個 sample（$n$）動一次，平均器之後每個 block（$k$）動一次；comparator 取的是 PD 的輸出 $e_{\mathrm{PD}}[n]$，累加器的輸出 $w_k$ 送回 reference 端的 DTC，形成負回授的校正迴圈。藍色是 code 路徑上的模型 $\hat H$。`}
       />
       <p>
-        沿著迴圈走一圈。先看 code 往真實路徑走的那一路：還沒校正掉的 <Tex>{'(a-w_k)'}</Tex> 乘上 <Tex>{'(h*x)[n]'}</Tex>，加上 <Tex>{'v[n]'}</Tex> 得到
-        <Tex>{r`e_{\mathrm{PD}}[n]`}</Tex>，comparator 輸出 <Tex>{'q[n]'}</Tex>。再看 code 往藍色模型走的那一路：<Tex>{r`u_f=\hat h*x`}</Tex> 再延遲 <Tex>{'D'}</Tex>。兩路在乘法器相遇，這裡還是
+        沿著迴圈走一圈。先看 code 往真實路徑走的那一路（reference 端的 DTC，一直到 PD）：還沒校正掉的 <Tex>{'(a-w_k)'}</Tex> 乘上 <Tex>{'(h*x)[n]'}</Tex>，加上 <Tex>{'v[n]'}</Tex> 得到 PD 的輸出
+        <Tex>{r`e_{\mathrm{PD}}[n]`}</Tex>；comparator 取的就是這個 PD 輸出（送進 loop filter 的同一個訊號），輸出 <Tex>{'q[n]'}</Tex>。再看 code 往藍色模型走的那一路：<Tex>{r`u_f=\hat h*x`}</Tex> 再延遲 <Tex>{'D'}</Tex>。兩路在乘法器相遇，這裡還是
         sample rate（索引 <Tex>{'n'}</Tex>）；平均器每 <Tex>{'N'}</Tex> 個 sample 才吐出一個 <Tex>{'G_k'}</Tex>，之後都是 block rate（索引 <Tex>{'k'}</Tex>）：乘上
-        <Tex>{r`\mu`}</Tex> 進累加器，新的 <Tex>{'w_k'}</Tex> 回到真實路徑。圖上的平均器與累加器，分別就是下面 F-07.10 的前兩個式子。只要 <Tex>{r`E[u\,u_f]>0`}</Tex>，
+        <Tex>{r`\mu`}</Tex> 進累加器，新的 <Tex>{'w_k'}</Tex> 送回 reference 端的 DTC（決定下一個 block 的補償量 <Tex>{'w_k\\,x[n]'}</Tex>），也就是回到真實路徑的起點。圖上的平均器與累加器，分別就是下面 F-07.10 的前兩個式子。只要 <Tex>{r`E[u\,u_f]>0`}</Tex>，
         <Tex>{r`w_k<a`}</Tex> 時 <Tex>{'G_k'}</Tex> 的平均是正的、<Tex>{'w'}</Tex> 被往上推，迴圈是負回授。
       </p>
       <TexBlock id="F-07.10" label={<>Filtered-x 的 block 更新（<Tex>{'n'}</Tex>：comparator sample；<Tex>{'k'}</Tex>：GMAC block）</>}>
         {r`G_k=\frac1N\sum_{n\in\text{block }k}q[n]\,u_f[n-D],\qquad w_{k+1}=w_k+\mu\,G_k,\qquad u_f=\hat h*x`}
       </TexBlock>
-      <CodeBlock
-        source={fxSrc}
-        region="gmac"
-        path="src/simulation/models/filteredX.ts"
-        title={r`GMAC block（三種 regressor 共用；差別只在 $x_{\mathrm{ref}}$ 怎麼來）`}
-        caption={r`$q=\pm1$ 時乘法就是條件取負；本站的閉迴路模擬（runBlockLms）每個 block 做的就是這兩行。`}
-      />
+      {/* ch07-code-fit：這段程式碼最長的一行在桌機的正文欄只多出 2 px，收一點右側留白就不會多一條沒有用途的橫向捲軸（chapter.css） */}
+      <div className="ch07-code-fit">
+        <CodeBlock
+          source={fxSrc}
+          region="gmac"
+          path="src/simulation/models/filteredX.ts"
+          title={r`GMAC block（三種 regressor 共用；差別只在 $x_{\mathrm{ref}}$ 怎麼來）`}
+          caption={r`$q=\pm1$ 時乘法就是條件取負；本站的閉迴路模擬（runBlockLms）每個 block 做的就是這兩行。`}
+        />
+      </div>
 
       <h3 className="ch07-subhead">怎麼公平地比較不同的 regressor？正規化相關 <Tex>{'\\rho'}</Tex></h3>
       <p>

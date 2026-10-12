@@ -15,7 +15,7 @@ export const SYMBOLS_ANCHOR = 'symbols'
 export const CH05_SYMBOLS: SymbolEntry[] = [
   {
     symbol: 's',
-    meaning: '要辨識正負號的固定誤差（PLL 中是 DTC residual 在 PD 處的時間誤差）',
+    meaning: '要辨識正負號的固定誤差（PLL 中是 DTC 補償的殘差在 PD 輸出留下的時間誤差：補償不足時為正、補償過頭時為負）',
     unit: '\\mathrm{fs}',
     firstSeen: '開場、§0',
     note: <>本章 regressor {T('x\\equiv1')}，所以 {T('s=\\delta=a-w')}（全站約定 {T('\\delta=a-w')}）</>,
@@ -34,7 +34,7 @@ export const CH05_SYMBOLS: SymbolEntry[] = [
     firstSeen: '§0',
     note: <>硬體慣例 {T('e\\ge\\theta\\Rightarrow q=+1')}（規格 §15.2）；理想 {T('\\theta=0')}</>,
   },
-  { symbol: 'e=s+v', meaning: 'comparator 輸入', unit: '\\mathrm{fs}', firstSeen: '§0' },
+  { symbol: 'e=s+v', meaning: 'comparator 輸入（PLL 中就是 PD 的輸出，也是送進 loop filter 的同一個訊號）', unit: '\\mathrm{fs}', firstSeen: '§0' },
   {
     symbol: 'x',
     meaning: 'regressor（DTC code／相位選擇等，乘在誤差上的已知訊號）',

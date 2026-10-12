@@ -31,7 +31,7 @@ export const LIMITATIONS: Limitation[] = [
     specNo: 1,
     title: 'PLL 的 H(z) 並非一種通用定義',
     text: String.raw`PLL error transfer、DTC 輸入到 PD、gain register 到 phase error、noise 到 output 都是不同路徑，必須依注入位置推導。`,
-    why: String.raw`同一個 DTC 擾動：到 PD 是 $H_{\mathrm{PD}}=1/(1+L)$（high-pass），到 output 是 $T=L/(1+L)$（low-pass），$H_{\mathrm{PD}}+T=1$。算更新極性 $C$ 用前者，算 output jitter 用後者；而且算 $C$ 要用 DT 的 $H(e^{j\Omega})$。`,
+    why: String.raw`同一個 DTC 殘差（在 PD 的 reference 輸入注入）：到 PD 是 $H_{\mathrm{PD}}=1/(1+L)$（high-pass），到 output 是 $T=L/(1+L)$（low-pass），兩者都是正號，$H_{\mathrm{PD}}+T=1$。算更新極性 $C$ 用前者，算 output jitter 用後者；而且算 $C$ 要用 DT 的 $H(e^{j\Omega})$。`,
     example: () => {
       const h = ctHpd('typeII', 0.3, 0.7)
       const t = cSub(c(1), h)

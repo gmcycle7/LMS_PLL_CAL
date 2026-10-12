@@ -142,11 +142,14 @@ export function WrapUp() {
       <Section kind="diagram" title="連結到 PLL：這些數學在硬體的哪裡？" level={2} id="ch13-pll">
         <Mermaid
           chart={CHART_HARDWARE_MAP}
-          caption="校正邏輯（code 更新率的 clock domain）到 DTC 與 PLL 輸出的路徑。先看上面的框：LMS accumulator 與量化策略都在 $f_u$ domain；再看跨出框的那條線：6-bit code 要經過 CDC 才到 $f_s$ domain 的 gain register。"
-          ariaLabel="LMS accumulator 經量化策略產生 6-bit code，跨 clock domain 到 DTC gain register，與 DSM residue 一起決定 DTC 延遲，再經 PLL 的 low-pass 到輸出"
+          caption="校正邏輯（code 更新率）到 reference 端的 DTC 與 PLL 輸出的路徑。先看上面的框：LMS accumulator 與量化策略都在 $f_u$ domain；再看跨出框的那條線：6-bit code 要經過 CDC 才到 $f_s$ domain 的 gain register；最後看 PD：它下面那一圈是主迴路（loop filter、VCO、divider，回授路徑上只有 divider）；它的輸出分兩路，一路去 loop filter、一路給 comparator，經 GMAC 沿左邊的線回到框裡的 accumulator。"
+          ariaLabel="LMS accumulator 經量化策略產生 6-bit code，跨 clock domain 到 DTC gain register，與 DSM residue 一起決定 reference 端 DTC 的補償量；reference clock 經 DTC 進 PD，PD 的輸出同時送給 loop filter 與 1-bit comparator；loop filter 與 VCO 的輸出只經 divider 回到 PD，回授路徑上沒有 DTC；comparator 經 GMAC 回到 LMS accumulator；DTC 的殘餘誤差再經 PLL 的 low-pass 到輸出"
         />
         <p className="small">
-          量化誤差 <Tex>{String.raw`e=y-w^*`}</Tex> 乘上 DSM residue <Tex>{'x[n]'}</Tex>，再經 <Tex>{'T(f)'}</Tex> 到輸出；更新率 <Tex>{'f_u'}</Tex> 決定 tone 落在 <Tex>{'T(f)'}</Tex> 的通帶或阻帶。
+          DTC 在 reference 路徑上（Reference clock <Tex>{String.raw`\to`}</Tex> DTC <Tex>{String.raw`\to`}</Tex> PD），回授路徑上只有 divider（VCO <Tex>{String.raw`\to`}</Tex> divider <Tex>{String.raw`\to`}</Tex> PD）；校正迴路的輸入是 PD 的輸出{' '}
+          <Tex>{String.raw`e_\mathrm{PD}[n]`}</Tex>——comparator 取它的正負號，和送進 loop filter 的是同一個訊號。量化誤差 <Tex>{String.raw`e=y-w^*`}</Tex> 乘上 DSM residue <Tex>{'x[n]'}</Tex>，成為 DTC 補償量的誤差{' '}
+          <Tex>{String.raw`\delta t`}</Tex>（多補償為正：DTC 少延遲了 <Tex>{String.raw`\delta t`}</Tex>，reference edge 比該到的時刻早這麼多，PD 的輸出裡是 <Tex>{String.raw`-\delta t`}</Tex>）；它從 PD 的 reference 輸入進主迴路，整圈的效果就是圖上虛線標的{' '}
+          <Tex>{'T(f)'}</Tex>，經它到輸出；更新率 <Tex>{'f_u'}</Tex> 決定 tone 落在 <Tex>{'T(f)'}</Tex> 的通帶或阻帶。
         </p>
         <ul>
           <li>

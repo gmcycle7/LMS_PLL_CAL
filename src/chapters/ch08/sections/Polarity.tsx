@@ -36,7 +36,7 @@ export function Polarity() {
       <ul>
         <li>
           {rich(
-            String.raw`一條經過 PLL error path $H$，變成 comparator 前的訊號 $u[n]$：振幅乘上 $|H|$、相位多了 $\phi$。`,
+            String.raw`一條經過 PLL error path $H$（code 控制 reference 端的 DTC，一路傳到 PD 的輸出），變成 comparator 前的訊號 $u[n]$：振幅乘上 $|H|$、相位多了 $\phi$。這個 $u[n]$ 就是 PD 的輸出 $e[n]$——送進 loop filter 的同一個訊號，comparator 取的是它的正負號。`,
           )}
         </li>
         <li>{rich(String.raw`另一條是 GMAC 自己留著當參考的 code，只被延遲 $D$ 個 sample（code delay），變成 $x[n-D]$。`)}</li>
@@ -47,7 +47,7 @@ export function Polarity() {
       />
       <p className="small">
         {rich(
-          String.raw`讀圖：先看經過「PLL error path H」的那條線——code 帶著相位 $\phi$ 到乘法器；再看經過「code delay」的那條線——同一個 code 晚了 $D$ 個 sample，相當於在頻率 $\Omega$ 上轉了 $\Omega D$。兩條線相乘再平均，只剩下「相位差的 $\cos$」（圖上乘的是 comparator 前的 $u[n]$；實際的 GMAC 乘的是 comparator 的 1-bit 輸出，小誤差時平均起來是 $K_q\,\delta\cdot C$（$\delta=a-w$ 是還沒修掉的誤差，$K_q>0$ 是 Ch05 的 comparator 統計增益）——多出來的 $K_q\delta$ 與相位無關，所以不影響這裡要看的 $\cos\theta$ 正負）。圖上藍色方塊裡的 $\theta=\phi+\Omega D$ 就是下面公式裡的 $\theta$，$C$ 就是公式左邊的平均相關；最下面三個分支對應 $\cos\theta$ 大於、等於、小於 $0$。`,
+          String.raw`讀圖：先看經過「PLL error path H」（從 DTC code 到 PD 輸出）的那條線——code 帶著相位 $\phi$、以 PD 輸出 $u[n]$ 的樣子到乘法器；再看經過「code delay」的那條線——同一個 code 晚了 $D$ 個 sample，相當於在頻率 $\Omega$ 上轉了 $\Omega D$。兩條線相乘再平均，只剩下「相位差的 $\cos$」（圖上乘的是 comparator 前的 $u[n]$；實際的 GMAC 乘的是 comparator 的 1-bit 輸出，小誤差時平均起來是 $K_q\,\delta\cdot C$（$\delta=a-w$ 是還沒修掉的誤差，$K_q>0$ 是 Ch05 的 comparator 統計增益）——多出來的 $K_q\delta$ 與相位無關，所以不影響這裡要看的 $\cos\theta$ 正負）。圖上藍色方塊裡的 $\theta=\phi+\Omega D$ 就是下面公式裡的 $\theta$，$C$ 就是公式左邊的平均相關；最下面三個分支對應 $\cos\theta$ 大於、等於、小於 $0$。`,
         )}
       </p>
       <p>把圖寫成公式，GMAC 量到的平均相關是</p>

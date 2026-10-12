@@ -17,6 +17,9 @@
  *  - sequenceDiagram：訊息與 Note 的公式要寫成完整的 `$$...$$`（一則訊息只能有一段，文字用 \text{}）；
  *    participant 名稱與 loop 標題不支援公式（真的畫一次會殘留 `$$` 或把 HTML 拆壞），所以那兩處只用文字，不放符號。
  *  - 圖內極性一律 δ = a − w；sample 索引 n、block 索引 k；e_PD 已含雜訊 v（q = sign(e_PD)）。
+ *  - 架構照全站約定（docs/assumptions.md §2a）：DTC 在 reference 輸入端，「DTC 誤差 ε」從 PD 的 reference 輸入（加法點的＋）進來，
+ *    回授 φ_fb 經 divider 從 feedback 輸入（加法點的−）進來，所以 e_PD = ε − φ_fb = H_PD·ε（正號）；回授路徑裡沒有 DTC。
+ *    校正迴路（comparator／GMAC）的輸入取自 PD 的輸出，也就是送進 loop filter 的同一個訊號。
  *  - 圖說與正文不描述「左邊／右邊」這類由自動排版決定的位置（除非連線方向保證它），改用方塊的名稱或顏色指認。
  *
  * 版面（docs/teaching-style.md §8）：桌機（1280px）上每張圖要放進正文欄、不橫向捲動，自然寬度約 1260px 以內（`node scripts/diagram-audit.mjs --routes /ch/06`）。
@@ -68,12 +71,16 @@ export const CHART_TAPPED_DELAY = String.raw`flowchart TB
 ${STYLE}
   class Z1,Z2 focus`
 
-/** 圖 6.3：DTC 誤差注入主 PLL 的比較點；同一個迴路的兩個輸出 H_PD = 1/(1+L) 與 T = L/(1+L)。 */
+/**
+ * 圖 6.3：DTC 在 reference 輸入端，它的殘餘誤差 ε 從 PD 的 reference 輸入（＋）進來，divider 的回授 φ_fb 從 feedback 輸入（−）進來
+ * （全站約定，docs/assumptions.md §2a）；加法點就是 PD，e_PD = ε − φ_fb。同一個迴路的兩個輸出 H_PD = 1/(1+L) 與 T = L/(1+L)，都是正號。
+ * 回授路徑（L 那一塊）裡只有 loop filter、DCO、divider，沒有 DTC。輸出 1 是 PD 的輸出，也是校正迴路的 comparator 取訊號的地方。
+ */
 export const CHART_PLL_INJECTION = String.raw`flowchart TB
-  EPS["DTC 時間誤差 $\varepsilon$<br/>注入 PD 的比較點"] -- "＋" --> SUM(("＋"))
-  SUM -- "$e_{\mathrm{PD}} = \varepsilon - \varphi_{\mathrm{fb}}$" --> L["開迴路 $L$<br/>loop filter $\to$ DCO 積分 $\to$ divider"]
+  EPS["reference 端 DTC 的殘餘時間誤差 $\varepsilon$<br/>從 PD 的 reference 輸入端進來"] -- "＋" --> SUM(("＋"))
+  SUM -- "$e_{\mathrm{PD}} = \varepsilon - \varphi_{\mathrm{fb}}$" --> L["開迴路 $L$<br/>loop filter $\to$ DCO 積分 $\to$ divider<br/>回到 PD 的 feedback 輸入端"]
   L -- "$-$（回授 $\varphi_{\mathrm{fb}} = L\,e_{\mathrm{PD}}$）" --> SUM
-  SUM -- "從這裡看" --> O1["輸出 1：PD 殘差<br/>$e_{\mathrm{PD}} = \varepsilon/(1+L) = H_{\mathrm{PD}}\,\varepsilon$"]
+  SUM -- "從這裡看" --> O1["輸出 1：PD 的輸出（殘差），comparator 取這裡<br/>$e_{\mathrm{PD}} = \varepsilon/(1+L) = H_{\mathrm{PD}}\,\varepsilon$"]
   L -- "從這裡看" --> O2["輸出 2：PLL 追掉的部分<br/>$\varphi_{\mathrm{fb}} = \varepsilon L/(1+L) = T\,\varepsilon$"]
   O1 -.- NOTE["同一個迴路的兩個輸出：$H_{\mathrm{PD}} + T = 1$<br/>低頻 $L$ 很大：$H_{\mathrm{PD}}$ 趨近 0，$T$ 趨近 1<br/>高頻 $L$ 趨近 0：$H_{\mathrm{PD}}$ 趨近 1，$T$ 趨近 0"]
   O2 -.- NOTE
@@ -81,8 +88,10 @@ ${STYLE}
   class O1 focus`
 
 /**
- * 圖 6.4：完整的誤差路徑——DTC 誤差 → H_PD → PD 殘差 → comparator → GMAC（乘原始 x[n−D]）→ 更新 w。
+ * 圖 6.4：完整的誤差路徑——DTC 誤差 → H_PD → PD 的輸出 → comparator → GMAC（乘原始 x[n−D]）→ 更新 w。
  * 對應 F-06.1 e_PD[n] ≈ (a − w_k)·u[n] + v[n] 與 §3 的 G_k = (1/N) Σ q[n]·x[n−D]、w_(k+1) = w_k + μ·G_k。
+ * 校正迴路的輸入取自 PD 的輸出（藍色方塊的輸出，也就是送進 loop filter 的同一個訊號；docs/assumptions.md §2a 第 3 點），
+ * 再加上 comparator 前的雜訊 v 才是 comparator 的輸入 e_PD。
  */
 export const CHART_ERROR_PATH = String.raw`flowchart TB
   W["校正值 $w_k$<br/>每個 block 更新一次"]
@@ -91,8 +100,8 @@ export const CHART_ERROR_PATH = String.raw`flowchart TB
   W -- "−" --> DS
   DS -- "$\delta_k = a - w_k$" --> MUL(("$\times$"))
   X["code $x[n]$"] --> MUL
-  MUL -- "DTC 誤差 $\varepsilon[n] = \delta_k\,x[n]$" --> HPD["主 PLL 的誤差路徑<br/>$H_{\mathrm{PD}} = 1/(1+L)$"]
-  HPD -- "＋（約等於 $\delta_k\,u[n]$，$u = h \ast x$）" --> ADD(("＋"))
+  MUL -- "DTC 誤差 $\varepsilon[n] = \delta_k\,x[n]$" --> HPD["主 PLL 的誤差路徑<br/>PD 的 reference 輸入 $\to$ PD 的輸出<br/>$H_{\mathrm{PD}} = 1/(1+L)$"]
+  HPD -- "＋ PD 的輸出（約等於 $\delta_k\,u[n]$，$u = h \ast x$）" --> ADD(("＋"))
   V(["comparator 前的雜訊 $v[n]$"]) -- "＋" --> ADD
   ADD -- "$e_{\mathrm{PD}}[n]$" --> CMP["1-bit comparator<br/>$q[n] = \operatorname{sign}(e_{\mathrm{PD}}[n])$"]
   CMP -- "$q[n] = \pm 1$" --> COR(("$\times$"))
@@ -412,10 +421,11 @@ ${STYLE}
  * 逐行對應 polarity.ts 的 simulateSignLmsChain（core:signLmsBlock）：
  *   d = a − w；e = pd.step(d·x[n]) + σ_v·noise；q = sign(e)；acc += q·ref[n]（ref[n] = x[n−D]）；G_k = acc/N；w += μ·G_k。
  * 訊息與 Note 的公式是完整的 `$$...$$`（文字用 \text{}）；participant 名稱與 loop 標題不支援公式，只用文字。
+ * 架構（docs/assumptions.md §2a）：DTC 在 reference 輸入端；「主 PLL 的誤差路徑」的輸出就是 PD 的輸出，comparator 的輸入從那裡來。
  */
 export const CHART_BLOCK_TIMING = String.raw`sequenceDiagram
-  participant DTC as DTC（gain<br/>由校正值決定）
-  participant PLL as 主 PLL 的誤差路徑
+  participant DTC as reference<br/>輸入端的 DTC
+  participant PLL as 主 PLL 的誤差路徑<br/>（到 PD 的輸出）
   participant CMP as 1-bit comparator
   participant GMAC as GMAC 累加器
   participant W as 校正值的暫存器
@@ -510,15 +520,15 @@ const DEFS: Def[] = [
   {
     section: 'ch06-s2',
     kind: 'loop',
-    title: 'DTC 誤差注入主 PLL，同一個迴路的兩個輸出',
-    caption: String.raw`先看加法點：PD 看到的是注入的誤差減掉回授，$e_{\mathrm{PD}}=\varepsilon-\varphi_{\mathrm{fb}}$；再看兩個輸出，從加法點後面看是 PD 殘差（藍色，轉移函數 $H_{\mathrm{PD}}$），從迴路後面看是 PLL 追掉的部分（轉移函數 $T$），兩者相加等於注入的誤差。`,
+    title: 'DTC 誤差從 PD 的 reference 輸入端進來，同一個迴路的兩個輸出',
+    caption: String.raw`先看加法點，它就是 PD：DTC 的殘餘誤差從 reference 輸入（正號）進來，divider 的回授從 feedback 輸入（負號）進來，PD 的輸出是兩者相減，$e_{\mathrm{PD}}=\varepsilon-\varphi_{\mathrm{fb}}$；再看兩個輸出，從加法點後面看是 PD 的輸出（藍色，轉移函數 $H_{\mathrm{PD}}$，校正迴路的 comparator 取的就是它），從迴路後面看是 PLL 追掉的部分（轉移函數 $T$），兩者相加等於進來的誤差。`,
     chart: CHART_PLL_INJECTION,
   },
   {
     section: 'ch06-s2',
     kind: 'path',
     title: '完整的誤差路徑與校正迴路',
-    caption: String.raw`跟著誤差走一圈：DTC 誤差先經過主 PLL（藍色）才到 comparator，但 GMAC 的乘法器（紅色）拿的是沒經過主 PLL、只延遲過的原始 code $x[n-D]$；從 code 到紅色乘法器每個 sample $n$ 跑一次，GMAC 之後每個 block $k$ 才更新一次。`,
+    caption: String.raw`跟著誤差走一圈：DTC 誤差從 PD 的 reference 輸入端進主 PLL（藍色），comparator 取的是 PD 的輸出，所以它看到的是被主 PLL 濾過的誤差；但 GMAC 的乘法器（紅色）拿的是沒經過主 PLL、只延遲過的原始 code $x[n-D]$。從 code 到紅色乘法器每個 sample $n$ 跑一次，GMAC 之後每個 block $k$ 才更新一次。`,
     chart: CHART_ERROR_PATH,
   },
   {
@@ -658,7 +668,7 @@ const DEFS: Def[] = [
     section: 'ch06-s7',
     kind: 'timing',
     title: '一個 GMAC block 的時序',
-    caption: String.raw`看 loop 框：框裡的三個箭頭每個 sample $n$ 發生一次（共 $N$ 次），這段時間 $w_k$ 固定不動；框外的箭頭每個 block $k$ 才發生一次——先把累加的結果平均成 $G_k$，再更新成 $w_{k+1}$。`,
+    caption: String.raw`看 loop 框：框裡的三個箭頭每個 sample $n$ 發生一次（共 $N$ 次），這段時間 $w_k$ 固定不動——reference 端的 DTC 留下誤差、主 PLL 把它濾成 PD 的輸出、comparator 取 PD 輸出的正負號；框外的箭頭每個 block $k$ 才發生一次——先把累加的結果平均成 $G_k$，再更新成 $w_{k+1}$。`,
     chart: CHART_BLOCK_TIMING,
   },
   {

@@ -156,6 +156,7 @@ xcorrAtLag(x, y, lag), xcorr(x, y, maxLag)
 - 每個 T-id 至少一個以 `T01:` 開頭命名的測試（`it('T01: ...')`），`scripts/verify.mjs` 依此彙整 `src/data/verification-status.json`。
 - Golden 交叉比對：`src/tests/golden.test.ts` 讀 `golden/vectors/*.json`。
 - 反面測試（規格 §17 末段）：極性反轉、缺乏 PE、Code misalignment、N 改變卻忘記 scaling、定點 overflow、錯誤位元符號、路徑混淆、aliasing。
+- **捲軸**（使用者要求：沒有用途的捲軸一律拿掉）：`node scripts/scroll-audit.mjs --base <dev server> --routes /ch/NN [--viewport mobile]` 列出頁面上所有真的會捲動的區塊並分類。`DIAGRAM`（方塊圖裡面的捲軸）、`TINY`（只超出 6px 以內）、`VERT`（為了兩三行放一條直向捲軸）三類要是 0——2026-10-12 全站 27 個路由在桌機（1280px）上都是 0。`ok` 是內容真的放不下的區塊（寬表格、程式碼、很長的 JSON、比欄位還寬的公式）；窄欄位裡的公式優先改版面，不要留捲軸：兩欄卡片改讓 KaTeX 在最外層的等號／運算子後換行（`white-space: normal`，例：`signoff.css` 的 `.so-stmts`／`.so-limits`、`formulas.css` 的 `.fr-prereq-row`），或把並排的格子改成上下排（`verification.css` 的 `.ver-em-grid`）。這條換行規則不要套到表格的儲存格（整張表會被重排），也還沒有放進共用層：整欄寬的長等式鏈在桌機上、以及多數章節的公式在手機上，仍然是橫向捲動。
 
 ## 7. 語言與文字
 

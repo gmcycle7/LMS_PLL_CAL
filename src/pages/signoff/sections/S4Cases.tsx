@@ -304,25 +304,28 @@ export function S4Cases() {
       <Section kind="formula" level={2} title="8. 校正策略與 output：最後驗收的是 PLL 輸出" id="so-strategy">
         <p>
           GMAC 歸零只代表 LMS 停在 <Tex>{'w^*'}</Tex>。sign-off 最後要問：係數的殘差與抖動，經過 DTC 與主 PLL 之後，在<strong>輸出</strong>造成多少 PN、jitter 與 spur？
+          先把接法說清楚：feedback（divider）edge 比理想時刻早到 <Tex>{'a\\,x[n]'}</Tex>；DTC 在 reference 輸入端、只能延遲不能提前，所以它從固定的基準延遲 <Tex>{'T_0'}</Tex> 往回扣 <Tex>{'w\\,x[n]'}</Tex>（<Tex>{'\\tau_\\mathrm{DTC}=T_0-w\\,x[n]'}</Tex>；這個<strong>補償量</strong>讓 reference edge 少延遲、也就是提前這麼多）。PD 量的是（被 DTC 延遲後的）reference edge 減 feedback edge：<Tex>{'e[n]=t_\\mathrm{ref}\'[n]-t_\\mathrm{fb}[n]=(a-w)\\,x[n]+v[n]'}</Tex>。
         </p>
         <Diagram
           chart={CHART_OUTPUT_PATH}
-          caption={String.raw`從係數偏差到輸出：block 速率的 $\delta w_k$ 展開到 sample 速率、乘上 code 得到 $\delta t[n]$，經輸出 transfer $T$ 換成相位，再分成確定性的 spur 與隨機的 PN／jitter。`}
-          ariaLabel="從 gain code 偏差到輸出 spur 與 jitter 的方塊圖：block 速率的係數偏差經零階保持展開到 sample 速率，乘上 code 得到 DTC 的延遲誤差，經過輸出 transfer T 並乘上負的 2 pi f_out 得到輸出相位，單一 tone 時換算調變指數與 spur，隨機分量換算成輸出相位雜訊與 jitter"
+          caption={String.raw`從係數偏差到輸出：block 速率的 $\delta w_k$ 展開到 sample 速率、乘上 code 得到 DTC 的補償誤差 $\delta t[n]$；它留下的殘差（$-\delta t$）在 PD 的 reference 輸入注入，經輸出 transfer $T$ 換成相位，再分成確定性的 spur 與隨機的 PN／jitter。`}
+          ariaLabel="從 gain code 偏差到輸出 spur 與 jitter 的方塊圖：block 速率的係數偏差經零階保持展開到 sample 速率，乘上 code 得到 DTC 的補償誤差（reference 端的 DTC 多補償的時間），它留下的殘差（負的補償誤差）在 PD 的 reference 輸入注入，經過輸出 transfer T 並乘上負的 2 pi f_out 得到輸出相位，單一 tone 時換算調變指數與 spur，隨機分量換算成輸出相位雜訊與 jitter"
         >
           <p>
             先看最上面：<Tex>{'\\delta w_k'}</Tex> 是 block 速率（索引 <Tex>{'k'}</Tex>）的係數偏差，每 <Tex>{'N'}</Tex> 個 sample 才換一次，所以要先以 ZOH 展開到 sample 速率（索引 <Tex>{'n'}</Tex>，含 commit latency <Tex>{'n_c'}</Tex>）才能乘上 code <Tex>{'x[n]'}</Tex>。
             藍色的 <Tex>{'T=L/(1+L)'}</Tex> 是<strong>輸出路徑</strong>的 transfer——不是校正迴路看到的 <Tex>{'H_\\mathrm{PD}'}</Tex>；兩者混淆是 §9 反面測試的一項（PLL 誤差路徑與輸出路徑混淆）。
+            DTC 的殘差從 PD 的 reference 輸入進去（回授路徑上只有 divider），所以 <Tex>{'e_\\mathrm{PD}=H_\\mathrm{PD}\\,\\phi_\\mathrm{dtc}'}</Tex>、<Tex>{'\\theta_\\mathrm{out}=+T\\,\\phi_\\mathrm{dtc}'}</Tex>，兩者都是正號（<Tex>{'\\theta_\\mathrm{out}'}</Tex> 就是圖上的輸出相位 <Tex>{'\\varphi_\\mathrm{out}'}</Tex>）；圖上 <Tex>{'\\varphi_\\mathrm{out}'}</Tex> 的負號來自殘差本身：多補償 <Tex>{'\\delta t'}</Tex>，reference edge 就太早，殘差是 <Tex>{'-\\delta t'}</Tex>。
           </p>
           <p>
             最下面分兩條：單一 tone 的 <Tex>{'\\delta t'}</Tex> 變成相位調變，spur 看 <Tex>{'\\beta'}</Tex>；隨機的部分變成輸出相位雜訊。GMAC 歸零只是定義了 <Tex>{'w^*'}</Tex>，這兩個輸出指標才是最後的驗收。
           </p>
         </Diagram>
         <Steps
-          title="從 gain code 到輸出 spur（指定 feedback injection 模型）"
+          title="從 gain code 到輸出 spur（DTC 殘差在 reference 輸入注入）"
           steps={[
-            { tex: String.raw`\delta t[n]=x[n]\,\delta w[n],\qquad \delta w[n]=\delta w_{\lfloor(n-n_c)/N\rfloor}`, why: String.raw`DTC 實際施加的 delay 擾動 = code × 係數偏差；block-rate 的 $\delta w_k$ 以 ZOH（含 commit latency $n_c$）展開到 sample rate（E09）。` },
-            { tex: String.raw`\phi_\text{out}=-2\pi f_\text{out}\,T\,\delta t,\qquad T=\frac{L}{1+L}`, why: String.raw`輸出路徑用閉迴路 $T$（不是 $H_\mathrm{PD}$）；時間轉相位要乘 $2\pi f_\text{out}$。` },
+            { tex: String.raw`\delta t[n]=x[n]\,\delta w[n],\qquad \delta w[n]=\delta w_{\lfloor(n-n_c)/N\rfloor}`, why: String.raw`DTC 的補償誤差 = code × 係數偏差：補償量 $w\,x$ 比該有的多了 $\delta t$，reference edge 因此少延遲、早到 $\delta t$；block-rate 的 $\delta w_k$ 以 ZOH（含 commit latency $n_c$）展開到 sample rate（E09）。` },
+            { tex: String.raw`e_\text{PD}=\phi_\text{dtc}-\theta_\text{out},\qquad \theta_\text{out}=L\,e_\text{PD}\ \Rightarrow\ \theta_\text{out}=T\,\phi_\text{dtc},\quad T=\frac{L}{1+L}`, why: String.raw`DTC 殘差 $\phi_\text{dtc}$ 在 PD 的 reference 輸入注入；回授路徑上只有 divider，沒有 DTC。相位一律記成「edge 的時間誤差 $\times\,2\pi f_\text{out}$」（晚到為正），所以經過 divider 數值不變：$\theta_\text{fb}=\theta_\text{out}$。代入得 $\theta_\text{out}(1+L)=L\,\phi_\text{dtc}$；同時 $e_\text{PD}=H_\mathrm{PD}\,\phi_\text{dtc}$，兩者都是正號，$H_\mathrm{PD}+T=1$。` },
+            { tex: String.raw`\phi_\text{dtc}=-2\pi f_\text{out}\,\delta t\ \Rightarrow\ \phi_\text{out}=\theta_\text{out}=T\,\phi_\text{dtc}=-2\pi f_\text{out}\,T\,\delta t`, why: String.raw`殘差 = 該補的減掉實際補的（和 $e=(a-w)x$ 同號誌）：多補償 $\delta t$，reference edge 早到 $\delta t$，時間誤差就是 $-\delta t$——負號從這裡來，不是 $T$ 的號誌；時間轉相位乘 $2\pi f_\text{out}$。$\phi_\text{out}$ 是 $\theta_\text{out}$ 的另一個名字（輸出相位）；輸出路徑用閉迴路 $T$（不是 $H_\mathrm{PD}$）。負號只決定相位的正負，$|T|^2$、jitter 與 spur 的 dBc 都與它無關。` },
             { tex: String.raw`\delta t=A_t\cos(2\pi f_mt)\ \Rightarrow\ \beta=2\pi f_\text{out}A_t|T(f_m)|`, why: '單一 tone 的相位調變指數。' },
             { tex: String.raw`\text{SSB spur}=20\log_{10}\frac{J_1(\beta)}{J_0(\beta)}\approx20\log_{10}\frac\beta2=20\log_{10}(\pi f_\text{out}A_t)\ \ (|T|=1)`, why: String.raw`小角近似：$J_1(\beta)\approx\beta/2$、$J_0(\beta)\approx1$。` },
           ]}

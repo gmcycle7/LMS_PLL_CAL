@@ -271,10 +271,24 @@ export function S9Wrap() {
               </tr>
               <tr>
                 <td>
+                  <Tex>{'e[n]'}</Tex>（comparator 的輸入）
+                </td>
+                <td>PD 的輸出，也就是送進 loop filter 的同一個節點；comparator 從這裡分接（不從 DTC 或 divider 取）</td>
+              </tr>
+              <tr>
+                <td>
+                  <Tex>{'w_k'}</Tex>（gain register）
+                </td>
+                <td>
+                  gain correction 的乘數；數位端送進 reference 端 DTC 的 code 是 <Tex>{'C_0-w_k\\,x[n]'}</Tex>（從固定的中心值 <Tex>{'C_0'}</Tex> 往回扣，<Tex>{'w_k'}</Tex> 換算成 DTC 的 LSB），對應的延遲是 <Tex>{'T_0-w_k\\,x[n]'}</Tex>，補償量是 <Tex>{'w_k\\,x[n]'}</Tex>
+                </td>
+              </tr>
+              <tr>
+                <td>
                   <Tex>{'K=K_qC'}</Tex>
                 </td>
                 <td>
-                  BBPD 前的雜訊（<Tex>{'\\sigma_v'}</Tex>：VCO／ref jitter、comparator noise）與 PLL error path 的相位（<Tex>{'C'}</Tex>）；隨 PVT／FCW 改變
+                  comparator 前（PD 輸出 <Tex>{'e[n]'}</Tex>）的雜訊（<Tex>{'\\sigma_v'}</Tex>：VCO／ref jitter、comparator noise）與 PLL error path 的相位（<Tex>{'C'}</Tex>）；隨 PVT／FCW 改變
                 </td>
               </tr>
               <tr>

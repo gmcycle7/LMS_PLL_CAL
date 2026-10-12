@@ -277,7 +277,7 @@ export function Wrapup() {
             的相近函數驅動，差模能量很小。
           </li>
           <li>
-            <strong>PMUX / PHOS：</strong> one-hot 相位選擇天生滿足 {m`\sum_ix_i=1`}，與 global offset 形成 gauge；在主 PLL 鎖定（BBPD 同時驅動 loop filter）的架構裡，
+            <strong>PMUX / PHOS：</strong> one-hot 相位選擇天生滿足 {m`\sum_ix_i=1`}，與 global offset 形成 gauge；在主 PLL 鎖定（BBPD 的輸出同時驅動 loop filter，也是 GMAC 取用的 {m`e`}）的架構裡，
             DC 被主迴路吃掉，{m`b`} 完全看不到。
           </li>
           <li>

@@ -67,8 +67,8 @@ export const CHART_UNIT_CHAIN = String.raw`flowchart TB
 export const CHART_RATE_DOMAINS = String.raw`flowchart TB
   subgraph FS["sample rate：索引 $n$，速率 $f_s$"]
     U["$u[n]$：經 PD 路徑的 code"]
-    E["$e[n] = \delta_k \cdot u[n] + v[n]$"]
-    Q["$q[n] = \operatorname{sign}(e[n])$"]
+    E["PD 的輸出<br/>$e[n] = \delta_k \cdot u[n] + v[n]$"]
+    Q["1-bit comparator<br/>$q[n] = \operatorname{sign}(e[n])$"]
     P["$q[n] \cdot x[n]$"]
     X["$x[n]$：原始 code"]
   end

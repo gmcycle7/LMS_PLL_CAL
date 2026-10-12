@@ -4,10 +4,15 @@
  * 約定（與本章公式逐一核對）：
  *   - 訊號名稱與公式相同：x[n]（code）、u = h * x（PD 端的有效 regressor）、e_PD = (a − w)·u + v、q = sign(e_PD)、
  *     x_ref（GMAC 實際相乘的 regressor）、u_f = ĥ * x、G_k = (1/N)Σ q·x_ref、w_{k+1} = w_k + μ·G_k；δ = a − w。
+ *   - 架構（docs/assumptions.md §2a）：DTC 在 reference 輸入端，回授路徑上只有 divider。PD 量的是「DTC 延遲後的 reference edge 減 feedback edge」，
+ *     所以 DTC 留下的殘餘誤差 (a − w)·x 從 PD 的 reference 輸入（正端）進來、回授從負端進來，H_PD = 1/(1 + L) 取正號（CHART_TYPE2_LOOP 的圓圈就是 PD）。
+ *     comparator 取的是 PD 的輸出 e_PD——送進 loop filter 的同一個節點：畫到 comparator 的四張圖（CHART_SIGNAL_MODEL、CHART_FX_LOOP、
+ *     CHART_TYPE2_LOOP、CHART_RTL_REGRESSORS），comparator 的輸入線都從 PD 的輸出拉，並在線上或圓圈上標出「PD」。
+ *     校正迴路算出的 w_k 送回 reference 端的 DTC（補償量 w_k·x[n]）；這是校正迴路的回授，不是 PLL 的回授路徑。
  *   - 延遲 code 的殘餘相位是 φ + ΩD，延遲 comparator 輸出是 φ − ΩD（F-07.2／F-07.3）。
  *   - n 是 comparator sample、k 是 GMAC block；累加器在 block rate。
  *   - 加法點（圓形 ＋）：e_PD = δ·u + v（CHART_SIGNAL_MODEL、CHART_GRADIENT）、δ_k = a − w_k（CHART_MEAN_LOOP）、二次差分 x[n] − 2x[n−1] + x[n−2]、
- *     Type-II 迴路的 (a − w)·x 減去回授；每條輸入線都標正負號。
+ *     Type-II 迴路的 (a − w)·x 減去回授（這個減法點就是 PD，圓圈裡寫「PD」而不是「＋」）；每條輸入線都標正負號。
  *   - 平均後的校正迴路（CHART_MEAN_LOOP）：E[G_k] ≈ K_q·C·δ_k、w_{k+1} = w_k + μ·G_k ⇒ δ_{k+1} = (1 − μ·K_q·C)·δ_k；
  *     加法點是 δ_k = a − w_k（a 進正端、w_k 進負端），整圈都是 block rate。
  *   - 圖內數學一律 LaTeX（docs/teaching-style.md §3，使用者要求 2026-10-11）：雙引號標籤裡的公式寫 `$...$`，文字照常寫；
@@ -38,7 +43,10 @@ const CLASS_DEFS = [
 
 const chart = (lines: string[]): string => [...lines, ...CLASS_DEFS].join('\n')
 
-/** §7.1：問題出在哪裡——comparator 看到的是 u（經過 H），GMAC 乘的卻是 code；本章在 code 這一側加一個延遲。 */
+/**
+ * §7.1：問題出在哪裡——comparator 看到的是 u（經過 H），GMAC 乘的卻是 code；本章在 code 這一側加一個延遲。
+ * comparator 的輸入線標「PD 的輸出」：e_PD 就是系統地圖上 PD → loop filter 那條線上的訊號（docs/assumptions.md §2a 第 3 點）。
+ */
 export const CHART_SIGNAL_MODEL = chart([
   'flowchart TB',
   r`  X(["code $x[n]$"]) --> H["PLL 誤差路徑 $H$<br/>增益 $|H|$、相位 $\phi$"]`,
@@ -46,7 +54,7 @@ export const CHART_SIGNAL_MODEL = chart([
   r`  H -- "$u[n]$" --> GE["乘上剩餘 gain 誤差<br/>$\delta = a - w$"]`,
   r`  GE -- "$+\delta\cdot u[n]$" --> S(("＋"))`,
   r`  V(["comparator 前的雜訊<br/>$v[n]$，標準差 $\sigma_v$"]) -- "$+v[n]$" --> S`,
-  r`  S -- "$e_{\mathrm{PD}}[n] = \delta\cdot u[n] + v[n]$" --> CMP["1-bit comparator<br/>$q = \mathrm{sign}(e_{\mathrm{PD}})$"]`,
+  r`  S -- "PD 的輸出<br/>$e_{\mathrm{PD}}[n] = \delta\cdot u[n] + v[n]$" --> CMP["1-bit comparator<br/>$q = \mathrm{sign}(e_{\mathrm{PD}})$"]`,
   r`  CMP -- "$q[n]$" --> M(("$\times$"))`,
   r`  DLY -- "$x[n-D]$" --> M`,
   r`  M --> AVG["一個 block 取平均<br/>$G_k = \tfrac{1}{N}\sum q[n]\cdot x[n-D]$"]`,
@@ -231,22 +239,23 @@ export const CHART_THREE_REGRESSORS = chart([
 ])
 
 /**
- * §7.4：filtered-x 的閉迴路（F-07.10）——sample rate n 的相乘、block rate k 的平均與累加，w_k 回授到 DTC。
+ * §7.4：filtered-x 的閉迴路（F-07.10）——sample rate n 的相乘、block rate k 的平均與累加，w_k 送回 reference 端的 DTC（校正迴路的回授）。
+ * 真實路徑 P 是「reference 端的 DTC → PD」：它的輸出就是 PD 的輸出 e_PD，comparator 的輸入線從這裡拉（docs/assumptions.md §2a 第 3 點）。
  * 宣告順序是排版的一部分：P 先單獨宣告，dagre 打斷迴圈時才會反轉回授線（ACC → P）而不是 q[n] 那條；
  * 再先連 X → HAT、後連 X → P，模型那一支排在左邊，w_k 回授線從最右側繞回 P，不會穿過模型那一支。
  */
 export const CHART_FX_LOOP = chart([
   'flowchart TB',
-  r`  P["真實路徑加雜訊<br/>$e_{\mathrm{PD}}[n] = (a - w_k)\cdot(h * x)[n] + v[n]$"]`,
+  r`  P["真實路徑：reference 端的 DTC 到 PD<br/>PD 的輸出（含雜訊）<br/>$e_{\mathrm{PD}}[n] = (a - w_k)\cdot(h * x)[n] + v[n]$"]`,
   r`  X(["code $x[n]$"]) --> HAT["模型 $\hat H$<br/>$u_f = \hat h * x$"]`,
   '  X --> P',
-  r`  P -- "$e_{\mathrm{PD}}[n]$" --> CMP["comparator<br/>$q = \mathrm{sign}(e_{\mathrm{PD}})$"]`,
+  r`  P -- "PD 的輸出 $e_{\mathrm{PD}}[n]$" --> CMP["comparator<br/>$q = \mathrm{sign}(e_{\mathrm{PD}})$"]`,
   r`  HAT --> DL["$z^{-D}$"]`,
   r`  CMP -- "$q[n]$" --> M(("$\times$"))`,
   r`  DL -- "$u_f[n-D]$" --> M`,
   r`  M -- "每個 sample $n$" --> AVG["block 平均<br/>$G_k = \tfrac{1}{N}\sum q[n]\cdot u_f[n-D]$"]`,
   r`  AVG -- "每個 block $k$" --> ACC["乘上 $\mu$ 再累加，$\tfrac{1}{z-1}$<br/>$w_{k+1} = w_k + \mu\cdot G_k$"]`,
-  r`  ACC -- "$w_k$ 回授（負回授：$a - w_k$）" --> P`,
+  r`  ACC -- "$w_k$ 送回 DTC（負回授：$a - w_k$）" --> P`,
   '  class HAT focus',
 ])
 
@@ -301,28 +310,34 @@ export const CHART_SECOND_DIFF = chart([
   '  class R1,R2,SH,S focus',
 ])
 
-/** §7.5：E44 的 DT Type-II DPLL——開迴路 L(z) 是三個藍色方塊的乘積；加法點的輸出 (a − w)·u 除以輸入 (a − w)·x 就是 H_PD = 1/(1 + L)。 */
+/**
+ * §7.5：E44 的 DT Type-II DPLL——開迴路 L(z) 是三個藍色方塊的乘積；PD 的輸出 (a − w)·u 除以輸入 (a − w)·x 就是 H_PD = 1/(1 + L)。
+ * 圓圈就是 PD（線性化之後是一個減法點，docs/assumptions.md §2a 第 5 點）：DTC 在 reference 輸入端，它留下的 gain 誤差從 PD 的 reference 輸入（正端）進來，
+ * 回授（DCO 經 divider 回到 PD；以時間為單位時 divider 的增益是 1，不另外畫方塊，回授線上標「divider 的回授」，和 Ch06 的線性化迴路圖說法相同）從負端進來。
+ * PD 的輸出分成兩條線：送進 loop filter，以及給 comparator——同一個節點。
+ */
 export const CHART_TYPE2_LOOP = chart([
   'flowchart LR',
-  r`  E(["DTC 的 gain 誤差<br/>$(a - w)\cdot x[n]$"]) -- "＋" --> S(("＋"))`,
+  r`  E(["reference 端：<br/>DTC 的 gain 誤差<br/>$(a - w)\cdot x[n]$"]) -- "＋" --> S(("PD"))`,
   r`  S -- "$(a - w)\cdot u[n]$" --> PI["PI loop filter<br/>$K_p + \tfrac{K_i}{1 - z^{-1}}$"]`,
   r`  PI --> DCO["DCO 積分器<br/>$\tfrac{1}{1 - z^{-1}}$"]`,
   r`  DCO --> DL["迴路延遲<br/>$z^{-(1+d)}$"]`,
-  r`  DL -- "回授，$-$" --> S`,
-  r`  S -- "$(a - w)\cdot u[n]$" --> OUT(["到 comparator<br/>再加上雜訊 $v[n]$"])`,
+  r`  DL -- "divider 的回授，$-$" --> S`,
+  r`  S -- "$(a - w)\cdot u[n]$" --> OUT(["同一個 PD 輸出<br/>也給 comparator<br/>再加上雜訊 $v[n]$"])`,
   '  class PI,DCO,DL focus',
 ])
 
 /**
  * §7.6：四種 regressor 在 RTL 中的位置（原有的圖；標籤改成與公式相同的寫法）。
- * 主路徑：DTC 留下 (a − w_k)·x[n]，經 H_PD 並加上 v[n] 成為 e_PD[n]（F-07.1）；GMAC 與更新式是 F-07.10。
+ * 主路徑：reference 端的 DTC 留下 (a − w_k)·x[n]，經 H_PD 並加上 v[n] 成為 PD 的輸出 e_PD[n]（F-07.1）；comparator 的輸入線從 PD 的輸出拉
+ * （docs/assumptions.md §2a 第 3 點）；GMAC 與更新式是 F-07.10，w_k 送回 DTC。
  * 上下排列：code 一次分出五條支路（DTC 一條、四種 regressor 四條）並排，再收進 REG_GMAC_XSEL 與 GMAC（左右排列的自然寬度 1776 px，桌機要橫向捲動）。
  */
 export const CHART_RTL_REGRESSORS = chart([
   'flowchart TB',
-  r`  X(["code $x[n]$<br/>DSM 或 training tone"]) --> DTC["DTC：真正的 gain $a$<br/>校正係數 $w_k$"]`,
+  r`  X(["code $x[n]$<br/>DSM 或 training tone"]) --> DTC["reference 端的 DTC<br/>真正的 gain $a$<br/>校正係數 $w_k$"]`,
   r`  DTC -- "$(a - w_k)\cdot x[n]$" --> H["PLL 誤差路徑 $H_{\mathrm{PD}}$<br/>再加上雜訊 $v[n]$"]`,
-  r`  H -- "$e_{\mathrm{PD}}[n]$" --> CMP["1-bit comparator<br/>$q = \mathrm{sign}(e_{\mathrm{PD}})$"]`,
+  r`  H -- "PD 的輸出<br/>$e_{\mathrm{PD}}[n]$" --> CMP["1-bit comparator<br/>$q = \mathrm{sign}(e_{\mathrm{PD}})$"]`,
   '  X --> R0["raw：直接接線"]',
   r`  X --> SR["shift register<br/>$z^{-1}\times D_{\max}$"]`,
   r`  SR --> MUX{{"tap MUX<br/>$\mathtt{REG\_GMAC\_DLY} = D$"}}`,

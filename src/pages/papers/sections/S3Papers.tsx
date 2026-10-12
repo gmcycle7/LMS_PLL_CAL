@@ -216,8 +216,10 @@ export function S3Papers() {
         ariaLabel="校正迴路方塊圖：code、PLL 誤差路徑、comparator、GMAC、累加器、更新延遲、量化器，各方塊標出對應的文獻 D1 到 D7 與本站章節"
       >
         <p>
-          <strong>先看</strong>訊號怎麼繞一圈：DTC 的 code <Tex>{'x[n]'}</Tex> 乘上還沒校正掉的 gain 誤差 <Tex>{'a-w'}</Tex>（<Tex>{'a'}</Tex> 是真實 gain、<Tex>{'w'}</Tex> 是校正係數），經 PLL 誤差路徑{' '}
-          <Tex>{r`H_{\mathrm{PD}}`}</Tex> 變成 phase detector 看到的誤差 <Tex>{'e[n]'}</Tex>；comparator 只留下正負號 <Tex>{'q[n]'}</Tex>，GMAC 把一個 block 的 <Tex>{'N'}</Tex> 個{' '}
+          <strong>先看</strong>訊號怎麼繞一圈，從最上面的 code <Tex>{'x[n]'}</Tex> 開始。feedback（divider）edge 比理想時刻早到 <Tex>{'a\\,x[n]'}</Tex>（<Tex>{'a'}</Tex> 是真實的 DTC gain）；
+          reference 端 DTC 只能延遲、不能提前，所以它從固定的基準延遲 <Tex>{'T_0'}</Tex> 往回扣補償量 <Tex>{'w\\,x[n]'}</Tex>（<Tex>{'w'}</Tex> 是校正係數，<Tex>{r`\tau_{\mathrm{DTC}}=T_0-w\,x[n]`}</Tex>）。兩者差的 <Tex>{'(a-w)\\,x[n]'}</Tex> 就是第二個方塊的殘差。
+          PD 量的是（被 DTC 延遲後的）reference edge 減 feedback edge，<Tex>{r`e[n]=t_{\mathrm{ref}}'[n]-t_{\mathrm{fb}}[n]`}</Tex>；殘差經 PLL 誤差路徑{' '}
+          <Tex>{r`H_{\mathrm{PD}}`}</Tex> 變成 phase detector 輸出的誤差 <Tex>{'e[n]'}</Tex>。comparator 取的就是 PD 的輸出 <Tex>{'e[n]'}</Tex>，也就是送進 loop filter 的同一個訊號，只留下正負號 <Tex>{'q[n]'}</Tex>；GMAC 把一個 block 的 <Tex>{'N'}</Tex> 個{' '}
           <Tex>{'q[n]\\,x[n]'}</Tex> 平均成 <Tex>{'G_k'}</Tex>，乘上步長 <Tex>{r`\mu`}</Tex> 後累加成新的 <Tex>{'w'}</Tex>，再經過更新延遲與有限位元量化回到 DTC。
         </p>
         <p>

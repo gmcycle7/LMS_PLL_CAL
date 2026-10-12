@@ -311,6 +311,34 @@ describe('術語表', () => {
     expect(Object.keys(GLOSSARY_CATEGORY_LABEL).sort()).toEqual(GLOSSARY_CATEGORY_ORDER.slice().sort())
   })
 
+  it('DTC 在 reference 輸入端（docs/assumptions.md §2a）：術語、符號與 PLL 輸出式都用同一個接法與號誌', () => {
+    const dtc = GLOSSARY.find((g) => g.key === 'dtc')!.def
+    expect(dtc).toContain('reference 輸入端')
+    expect(dtc).toContain(String.raw`\tau_{\mathrm{DTC}}=T_0-w\,x`) // 只能延遲：從基準延遲 T_0 往回扣補償量
+    expect(dtc).toContain(String.raw`e=t_{\mathrm{ref}}'-t_{\mathrm{fb}}=(a-w)\,x+v`) // PD 量 reference 減 feedback
+    expect(dtc).not.toMatch(/回授路徑|divider 之後/)
+    // H_PD、T：殘差在 PD 的 reference 輸入注入，兩者都是正號
+    expect(GLOSSARY.find((g) => g.key === 'hpd')!.def).toContain(String.raw`e_{\mathrm{PD}}=H_{\mathrm{PD}}\,\phi_{\mathrm{dtc}}`)
+    const sym = (k: string) => GLOBAL_SYMBOLS.find((x) => x.key === k)!
+    expect(sym('HPD').convention).toContain(String.raw`e_{\mathrm{PD}}=\phi_{\mathrm{dtc}}-\theta_{\mathrm{fb}}`)
+    expect(sym('HPD').convention).toContain(String.raw`e_{\mathrm{PD}}=+H_{\mathrm{PD}}\,\phi_{\mathrm{dtc}}`)
+    expect(sym('T').convention).toContain(String.raw`\theta_{\mathrm{out}}=+T\,\phi_{\mathrm{dtc}}`)
+    // δt = x·δw 是「補償量的擾動」：殘差裡的貢獻是 −x·δw（與 e = (a − w)x 同號誌），不再叫「DTC 多施加的延遲」
+    expect(sym('dt').meaning).toContain('多補償')
+    expect(sym('dt').convention).toContain(String.raw`-x\,\delta w`)
+    // 速查表的 δt 一列也要說明它是「多補償的時間」，殘差的對應項帶負號（不是 DTC 插入的延遲）
+    const dtRow = QUICK_REF.find((q) => q.key === 'dtc')!
+    expect(dtRow.tex).toContain(String.raw`\delta t[n]=x[n]\,\delta w[n]`)
+    expect(dtRow.conditions).toContain('reference 端的 DTC 多補償的時間')
+    expect(dtRow.conditions).toContain(String.raw`$-x\,\delta w$`)
+    // 輸出式 φ_out = −2π f_out T δt 的負號來自殘差 = −δt，T 本身是正號
+    const out = QUICK_REF.find((q) => q.key === 'output')!
+    expect(out.tex).toContain(String.raw`\phi_{\mathrm{out}}(s)=-2\pi f_{\mathrm{out}}\,T(s)\,\delta t(s)`)
+    expect(out.conditions).toContain(String.raw`殘差 $=-\delta t$`)
+    expect(out.conditions).toContain(String.raw`\theta_{\mathrm{out}}=+T\,\phi_{\mathrm{dtc}}`)
+    expect(out.conditions).not.toMatch(/feedback injection/)
+  })
+
   it('GOS / PHOS：術語表同時說明兩種用法（規格 §9.2 的 global offset／案例頁的 DTC gain error），不互相矛盾', () => {
     const gos = GLOSSARY.find((g) => g.key === 'gos')!
     const phos = GLOSSARY.find((g) => g.key === 'phos')!

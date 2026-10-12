@@ -39,7 +39,7 @@ describe('Ch04 §2：一階累加器與 fractional residue', () => {
     expect(rows[3].residue).toBe(-0.5)
   })
 
-  it('residueSignals：DTC 需要的延遲 = −r·T_vco ∈ [0, T_vco)，殘差 = ε × 需要的延遲', () => {
+  it('residueSignals：需要的補償量（reference 端的 DTC 要把 reference edge 提前的時間）= −r·T_vco ∈ [0, T_vco)，殘差 = ε × 需要的補償量', () => {
     const s = residueSignals({ kind: 'first_order', frac: 0.3125, bits: 4, length: 64, gainErrPct: 1, fvcoGHz: 13 })
     expect(s.tvcoFs).toBeCloseTo(76923.0769, 3)
     for (let i = 0; i < 64; i++) {

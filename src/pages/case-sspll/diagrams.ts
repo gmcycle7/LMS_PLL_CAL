@@ -25,7 +25,7 @@ const STYLE = `
   classDef ok fill:#1d7a46,stroke:#0f4d2b,color:#ffffff
   classDef warn fill:#b42318,stroke:#7a160f,color:#ffffff`
 
-/** 章首系統地圖要標成藍色的方塊：整個主 PLL 迴路 + 小數累加器與 regressor + 比較器、對齊、GMAC */
+/** 章首系統地圖要標成藍色的方塊：reference 輸入端的 DTC + 整個主 PLL 迴路（PD、loop filter、VCO、divider／PMUX）+ 小數累加器與 regressor + 比較器、對齊、GMAC */
 export const MAP_FOCUS: SystemBlock[] = ['pd', 'lf', 'vco', 'div', 'dtc', 'dsm', 'res', 'cmp', 'align', 'gmac']
 
 /** §0.1 一句話回答：誤差先被主迴路「吃過」才到比較器；regressor 的功率落在 Re H_PD < 0 的頻帶就反號 */
@@ -59,39 +59,53 @@ export const CHART_ROADMAP = String.raw`flowchart TB
   S12 --> S15
   class S3,S4,S5 focus${STYLE}`
 
-/** §2 使用者的 SSPLL：feedback 端 8 相 PMUX（粗調）+ reference 端 input DTC（細調）+ 1-bit 比較器 + GMAC／LMS（既有的圖，原樣保留） */
+/**
+ * §2 使用者的 SSPLL：feedback 端 8 相 PMUX（粗調）+ reference 端 input DTC（細調）+ 1-bit 比較器 + GMAC／LMS。
+ * 架構照 docs/assumptions.md §2a：
+ *   - 訊號路徑 REF → DTC → PD（SSPD）→ loop filter → VCO；回授路徑上只有 PMUX（VCO → PMUX → PD），DTC 不在回授路徑上。
+ *   - DTC 只能延遲，所以它的延遲是「基準延遲 T_0 減掉補償量」；補償量 = (1 − a)(1 + w_g)·ρΔ ＋ PHOS 修正（數學與模型不變）。
+ *   - PMUX 第 k 相的偏差 ε_k 以「早到」為正：和 ρΔ 一樣是「DTC 該補的量」，所以沒有迴路時 t_ref′ − t_fb = T_0 + u、u = ρΔ + ε_p − 補償量。
+ *   - 校正迴路的輸入是 PD 的輸出 e_PD：圖上先畫出「PD 輸出」這個節點（E，藍色），loop filter 與 1-bit 比較器都從它分出去。
+ *   - regressor 用一個標籤節點（XR）接進 GMAC，不從累加器拉一條長線過去——那條線會和 REF → DTC、LMS → DTC 交叉；
+ *     所以節點上寫明它來自累加器（ρ[n] 與 p[n] 的 one-hot）。
+ */
 export const SSPLL_CHART = String.raw`flowchart TB
   ACC["分數累加器<br/>FCW $= N_{int} + \alpha$<br/>$\varphi[n] = \mathrm{frac}(n\alpha)$"] -->|"$\rho[n]$（細部殘差）"| DTC
   ACC -->|"$p[n]$（相位索引）"| PMUX
-  REF["4 GHz reference"] --> DTC["input DTC<br/>延遲 $= (1 - a)(1 + w_g)\cdot\rho\Delta$<br/>＋ PHOS 修正"]
-  DTC --> SUM(("相位比較點<br/>（SSPD 取樣）"))
-  VCO["VCO（$f_{vco}$）"] --> PMUX["8 相 PMUX<br/>第 $k$ 相實際延遲<br/>$\tfrac{k}{8}\,T_{vco} + \varepsilon_k$"]
-  PMUX --> SUM
-  SUM -->|"$e_{PD} = h_{PD} * u$"| LF["loop filter／SSCP<br/>（$L_1$：P；$L_2$：P+I；<br/>$L_3$：$R + C_1 \parallel C_2$）"]
+  REF["4 GHz reference"] --> DTC["input DTC（reference 端）<br/>延遲 $= T_0 -$ 補償量<br/>補償量 $= (1 - a)(1 + w_g)\cdot\rho\Delta$<br/>＋ PHOS 修正"]
+  DTC -->|"reference edge<br/>$t_{ref}'$"| PD["SSPD（phase detector）<br/>相位比較點：量 $t_{ref}' - t_{fb}$"]
+  VCO["VCO（$f_{vco}$）"] --> PMUX["8 相 PMUX（feedback 端）<br/>第 $k$ 相的 edge 比 $\tfrac{k}{8}\,T_{vco}$<br/>早到 $\varepsilon_k$"]
+  PMUX -->|"feedback edge<br/>$t_{fb}$"| PD
+  PD --> E(["PD 輸出 $e_{PD} = h_{PD} * u$"])
+  E --> LF["loop filter／SSCP<br/>（$L_1$：P；$L_2$：P+I；<br/>$L_3$：$R + C_1 \parallel C_2$）"]
   LF --> VCO
-  SUM --> CMP["1-bit 比較器<br/>$q = \mathrm{sign}(e_{PD} + v)$"]
+  E -->|"同一個 $e_{PD}$"| CMP["1-bit 比較器<br/>$q = \mathrm{sign}(e_{PD} + v)$"]
   CMP --> GMAC["GMAC：$\textstyle\sum q\cdot r_i$<br/>（$N = 512$ sample 一個 block）"]
-  ACC -->|"regressor $x_i[n]$"| GMAC
+  XR(["regressor $x_i[n]$<br/>累加器的 $\rho[n]$ 與<br/>$p[n]$ 的 one-hot"]) --> GMAC
   GMAC --> LMS["sign-error LMS<br/>$w_g,\ w_0,\ \ldots,\ w_7$"]
-  LMS --> DTC`
+  LMS --> DTC
+  class E focus${STYLE}`
 
-/** §2 小數相位的拆法：累加器 φ[n] → ×8 → 整數部分 p[n]（PMUX）與小數部分 ρ[n]（DTC） */
+/**
+ * §2 小數相位的拆法：累加器 φ[n] → ×8 → 整數部分 p[n]（PMUX 把 feedback edge 往後挪 p·Δ）與小數部分 ρ[n]（reference 端 DTC 的補償量 ρ·Δ）。
+ * 連線的宣告順序會影響自動排版：「×8 → 加法點」要寫在「floor → PMUX」之前，加法點才會排在 PMUX 左邊，兩條線不交叉。
+ */
 export const CHART_PHASE_SPLIT = String.raw`flowchart TB
   A["FCW 的小數 $\alpha$"] -- "＋" --> S(("＋"))
   S --> F["取小數<br/>$\mathrm{frac}(\cdot)$"]
   F -->|"$\varphi[n] = \mathrm{frac}(n\alpha)$"| X8["$\times 8$"]
   F --> Z["$z^{-1}$"]
   Z -- "$+\,\varphi[n-1]$" --> S
-  X8 -->|"$8\varphi[n]$，範圍 0 到 8"| FL["floor：取整數部分<br/>（累加器的高 3 位）"]
-  FL -->|"$p[n] = 0, 1, \ldots, 7$"| PM["8 相 PMUX<br/>粗調：$p[n]\cdot\Delta$"]
   X8 -- "＋" --> D(("＋"))
+  X8 -->|"$8\varphi[n]$，範圍 0 到 8"| FL["floor：取整數部分<br/>（累加器的高 3 位）"]
   FL -- "−" --> D
-  D -->|"$\rho[n] = 8\varphi[n] - p[n]$，範圍 0 到 1"| DTC["input DTC<br/>細調：$\rho[n]\cdot\Delta$"]
+  FL -->|"$p[n] = 0, 1, \ldots, 7$"| PM["8 相 PMUX<br/>粗調：$p[n]\cdot\Delta$"]
+  D -->|"$\rho[n] = 8\varphi[n] - p[n]$，範圍 0 到 1"| DTC["input DTC<br/>細調：補償量 $\rho[n]\cdot\Delta$"]
   FL --> OH["PHOS 的 regressor<br/>$x_{1+k}[n] = \mathbf{1}\{p[n] = k\}$"]
   D --> X0["GOS 的 regressor<br/>$x_0[n] = \rho[n]$"]
   class PM,DTC focus${STYLE}`
 
-/** §2 兩個誤差的注入點：GOS（reference 端 DTC）與 PHOS（feedback 端 PMUX）相加成 u[n]，經 H_PD 才到 PD */
+/** §2 兩個誤差的注入點：GOS（reference 端 DTC）與 PHOS（feedback 端 PMUX）在 PD 的輸入端（比較點）相加成 u[n]，PD 的輸出是它經過 H_PD 之後的 e_PD */
 export const CHART_INJECTION = String.raw`flowchart TB
   RHO["$x_0[n] = \rho[n]$<br/>DTC code"] --> MG(("$\times$"))
   DG["$\delta_g\cdot\Delta = (a - w_g)\cdot\Delta$<br/>DTC 增益誤差 $-$ 估計"] --> MG
@@ -99,20 +113,20 @@ export const CHART_INJECTION = String.raw`flowchart TB
   DK["$\delta_k = \varepsilon_k - w_k$<br/>第 $k$ 相偏差 $-$ 估計"] --> MP
   MG -- "$+\,e_{GOS}[n]$<br/>reference 端：DTC" --> SU(("＋"))
   MP -- "$+\,e_{PHOS}[n]$<br/>feedback 端：PMUX<br/>（8 相加總）" --> SU
-  SU -->|"$u[n]$：<br/>比較點的時間誤差"| H["主 PLL 迴路<br/>$H_{PD}(z) = 1/(1 + L(z))$"]
-  H -->|"$e_{PD}[n] = (h_{PD} * u)[n]$"| OUT["PD 輸出<br/>→ 1-bit 比較器"]
+  SU -->|"$u[n]$：比較點<br/>（PD 輸入端）的時間誤差"| H["主 PLL 迴路<br/>$H_{PD}(z) = 1/(1 + L(z))$"]
+  H -->|"$e_{PD}[n] = (h_{PD} * u)[n]$"| OUT["PD 輸出<br/>→ loop filter 與 1-bit 比較器"]
   class H focus${STYLE}`
 
-/** §3 迴路的回授結構：e_PD = u − y、y = L·e_PD ⇒ H_PD = 1/(1 + L) */
+/** §3 迴路的回授結構：藍色的圓就是 PD（一個做減法的加法點：進來的兩條線各標正負號），e_PD = u − y（u 在 reference 輸入端、y 從 feedback 輸入端回來）、y = L·e_PD ⇒ H_PD = 1/(1 + L)；比較器取 PD 的輸出 */
 export const CHART_HPD_LOOP = String.raw`flowchart LR
-  U["外加誤差 $u[n]$<br/>GOS + PHOS"] -- "＋" --> S(("＋"))
+  U["外加誤差 $u[n]$<br/>GOS + PHOS<br/>（折算到 PD 的<br/>reference 輸入）"] -- "＋" --> S(("PD"))
   subgraph LOOP["$L(z)$：開迴路增益（至少 1 拍延遲）"]
     direction LR
     LF["loop filter<br/>SSCP 或 CP + RC"] --> VCO["VCO：頻率 → 相位（積分）<br/>＋ 取樣到生效的 1 拍延遲"]
   end
   S -->|"$e_{PD}[n]$"| LF
-  VCO -- "$-\,y[n]$（迴路的修正）" --> S
-  S -->|"$e_{PD}[n]$"| CMP["1-bit 比較器<br/>校正迴路從這裡取訊號"]
+  VCO -- "$-\,y[n]$（迴路的修正，<br/>回到 feedback 輸入）" --> S
+  S -->|"$e_{PD}[n]$"| CMP["1-bit 比較器<br/>校正迴路取的是 PD 的輸出"]
   class S focus${STYLE}`
 
 /** §4.1 玩具模型 e = g·(a − w)·x：只差在迴路把誤差乘上 g = +1 或 g = −0.2 */
@@ -478,7 +492,7 @@ export const CHART_PONLY = String.raw`flowchart TB
   KP -- "＋" --> S(("＋"))
   KI -- "＋（校準時是常數）" --> S
   S --> V["VCO 積分 + 1 拍延遲<br/>$\tfrac{1}{z-1}$"]
-  V -->|"$y[n]$"| O["回到比較點（−）"]
+  V -->|"$y[n]$"| O["回到 PD 的<br/>feedback 輸入（−）"]
   V -.-> N["校準期間 $L = K_p/(z-1)$：Type-I<br/>判據 $K_p\cdot(d - 1/2) \lt 1$ $\Rightarrow$ $\mathrm{Re}\,H_{PD} \ge 0$"]
   class SW,KI focus
   class N ok${STYLE}`
@@ -510,15 +524,19 @@ export const CHART_OFFSET = String.raw`flowchart TB
   class OS,F warn
   class ZM ok${STYLE}`
 
-/** §14 實驗 C 每一拍在做什麼（runSspllLms 的 sample() 與 block 更新） */
+/**
+ * §14 實驗 C 每一拍在做什麼（runSspllLms 的 sample() 與 block 更新）。
+ * 連線的宣告順序會影響自動排版：累加器的三條輸出依「DTC 實際補上的量、regressor、該補的量」的順序寫，
+ * 加法點的兩個輸入才會並排在它上方，權重回到 DTC 的那條線也不會和 regressor 的線交叉。
+ */
 export const CHART_SIM_LOOP = String.raw`flowchart TB
-  SEQ["分數累加器（每拍 $n$）<br/>$\rho[n]$、$p[n]$"] --> ID["該補的量 + PMUX 偏差<br/>$\rho\cdot\Delta + \varepsilon_p$"]
-  SEQ --> DT["DTC 實際補上的量<br/>$(1 - a)(1 + w_g)\cdot(\rho\cdot\Delta + w_p)$"]
+  SEQ["分數累加器（每拍 $n$）<br/>$\rho[n]$、$p[n]$"] --> DT["DTC 實際補上的量<br/>$(1 - a)(1 + w_g)\cdot(\rho\cdot\Delta + w_p)$"]
+  SEQ --> REG["regressor 變體 $\to$ $r[n]$<br/>raw、1diff、filtered-x…"]
+  SEQ --> ID["該補的量 + PMUX 偏差<br/>$\rho\cdot\Delta + \varepsilon_p$"]
   ID -- "＋" --> S(("＋"))
   DT -- "−" --> S
   S -->|"$u[n]$"| H["迴路 $h_{PD}$<br/>$L_1$、$L_2$、$L_3$ 或 P-only"]
   H -->|"$e_{PD}[n]$"| CMP["$q[n] = \mathrm{sign}(e_{PD} + v + u_{os})$"]
-  SEQ --> REG["regressor 變體 $\to$ $r[n]$<br/>raw、1diff、filtered-x…"]
   CMP --> GM["GMAC 累加<br/>$G_i \mathrel{+}= q\cdot r_i$"]
   REG --> GM
   GM -- "每 $N$ 拍一次（block $k$）" --> UP["$w_g \mathrel{+}= \mu_g\cdot G_0/N$<br/>$w_k \mathrel{+}= \mu_p\cdot G_{1+k}/N$<br/>然後把 $G$ 清零"]
@@ -561,10 +579,10 @@ export const CHART_HARDWARE = String.raw`flowchart TB
   CODE --> PIPE
   PIPE --> DIFF["每條 regressor：<br/>1 個暫存器 + 1 個減法器<br/>$G = 1 - z^{-1}$"]
   DIFF --> GM["GMAC<br/>9 個累加器，$N$ 拍清一次"]
-  SSPD["SSPD 的 hold 節點<br/>$e_{PD}$"] --> CMP["1-bit 比較器<br/>先做 offset trim"]
+  SSPD["SSPD 的 hold 節點<br/>PD 輸出 $e_{PD}$"] --> CMP["1-bit 比較器<br/>先做 offset trim"]
   CMP -->|"$q[n]$"| GM
   GM --> W["權重暫存器 $w_g,\ w_0,\ \ldots,\ w_7$<br/>clamp 在 DTC range 內"]
-  W --> COR["修正 DTC 的延遲<br/>$w_g$ 調增益、$w_k$ 補偏移"]
+  W --> COR["修正 DTC 的補償量<br/>$w_g$ 調增益、$w_k$ 補偏移"]
   class PIPE,DIFF focus${STYLE}`
 
 /** 圖的種類（docs/teaching-style.md §8 的分類） */
@@ -604,12 +622,12 @@ export const DIAGRAMS: DiagramDef[] = [
     section: '§2',
     kind: 'architecture',
     chart: SSPLL_CHART,
-    caption: String.raw`使用者的 SSPLL：分數除頻由 feedback 端的 8 相 PMUX（粗調，每格 $\Delta=T_{vco}/8$）加上 reference 端的 input DTC（細調，範圍一格 $\Delta$）實現；1-bit 比較器接在 SSPD 的取樣節點。`,
-    alt: 'SSPLL 方塊圖：分數累加器送出 PMUX 相位索引與 DTC 細部殘差；DTC 與 PMUX 的誤差在相位比較點注入，經 loop filter 與 VCO 形成迴路；比較器輸出與 regressor 進入 GMAC 與 sign-error LMS，更新 DTC 的校正係數。',
+    caption: String.raw`使用者的 SSPLL：分數除頻由 feedback 端的 8 相 PMUX（粗調，每格 $\Delta=T_{vco}/8$）加上 reference 端的 input DTC（細調，範圍一格 $\Delta$）實現；1-bit 比較器取的是 SSPD（PD）的輸出 $e_{PD}$（藍），和送進 loop filter 的是同一個訊號。`,
+    alt: 'SSPLL 方塊圖：reference 先經過 input DTC 才進 SSPD（phase detector）；VCO 經過 8 相 PMUX 回到 SSPD，回授路徑上沒有 DTC。分數累加器送出 PMUX 的相位索引與 DTC 的細部殘差；DTC 的延遲是基準延遲 T_0 減掉補償量。PD 的輸出 e_PD 同時送進 loop filter 與 1-bit 比較器；比較器輸出與 regressor 進入 GMAC 與 sign-error LMS，更新 DTC 的 9 個權重。',
   },
   { id: 'phase-split', section: '§2', kind: 'model', chart: CHART_PHASE_SPLIT, caption: String.raw`小數相位的拆法：累加器的值乘 8 之後，整數部分 $p[n]$ 給 PMUX（藍，粗調），小數部分 $\rho[n]$ 給 DTC（藍，細調）；同樣這兩個數就是 PHOS 與 GOS 的 regressor。` },
-  { id: 'injection', section: '§2', kind: 'path', chart: CHART_INJECTION, caption: '兩個誤差的注入點：GOS 從 reference 端的 DTC 進來、PHOS 從 feedback 端的 PMUX 進來，在比較點加成 $u[n]$；兩者都要先經過藍色的 $H_{PD}$ 才到 PD。' },
-  { id: 'hpd-loop', section: '§3', kind: 'loop', chart: CHART_HPD_LOOP, caption: '主迴路的回授：藍色加法點做 $e_{PD}=u-y$，外框是開迴路增益 $L(z)$。比較器看到的是加法點的輸出，不是 $u$ 本身。' },
+  { id: 'injection', section: '§2', kind: 'path', chart: CHART_INJECTION, caption: '兩個誤差的注入點：GOS 從 reference 端的 DTC 進來、PHOS 從 feedback 端的 PMUX 進來，在比較點（PD 的輸入端）加成 $u[n]$；PD 的輸出是它通過藍色的 $H_{PD}$ 之後的 $e_{PD}[n]$，比較器取的就是這個輸出。' },
+  { id: 'hpd-loop', section: '§3', kind: 'loop', chart: CHART_HPD_LOOP, caption: '主迴路的回授：藍色的圓是 PD，做 $e_{PD}=u-y$，外框是開迴路增益 $L(z)$。比較器取的是 PD 的輸出 $e_{PD}$（和送進 loop filter 的是同一個訊號），不是 $u$ 本身。' },
   { id: 'toy', section: '§4.1', kind: 'compare', chart: CHART_TOY, caption: '玩具模型 $e=g\\,(a-w)\\,x$ 的兩種情況：唯一的差別是紅色那一格把誤差乘上負數，之後每一步的 $q$ 都指向錯的方向。' },
   { id: 'lms-loop', section: '§4.2', kind: 'loop', chart: CHART_LMS_LOOP, caption: String.raw`真正的校正迴路：標著「快」的框每個 sample 做一次（誤差 → $H_{PD}$ → 比較器 → 乘上 regressor），標著「慢」的框每個 block 做一次（平均、乘 $\mu$、累加）。藍色是決定符號的兩個方塊：$H_{PD}$ 與 $G$。` },
   { id: 'mean-loop', section: '§4.2', kind: 'loop', chart: CHART_MEAN_LOOP, caption: '取平均並線性化之後的等效迴路（block rate）：一個延遲、一個矩陣 $C$、兩個增益。收不收斂只看 $C$ 的特徵值的實部。' },

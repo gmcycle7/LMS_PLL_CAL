@@ -469,17 +469,36 @@ describe('Ch03 方塊圖：新增的兩張（heavy tail 的機制、畫回 PLL �
     expect(0.5 * Math.log(pm.g) - pm.lambda).toBeCloseTo(0, 12)
   })
 
-  it('畫回 PLL 硬體：e = a·x − w·x + v 的極性、block 內 w 不變、accumulator 的更新式；N = 1 時就是第 1 節的 LMS', async () => {
+  it('畫回 PLL 硬體：e = t_ref′ − t_fb = a·x − w·x + v 的極性、block 內 w 不變、accumulator 的更新式；N = 1 時就是第 1 節的 LMS', async () => {
+    // 線上的正負號 = 對 e 的貢獻：feedback（divider）edge 早到 a·x → +a·x；reference 端 DTC 讓 reference edge 少延遲 w·x（τ = T₀ − w·x）→ −w·x；雜訊 +v
     const signs = [
-      await edgeText(CHART_PLL_MAPPING, 'A', 'PD'),
-      await edgeText(CHART_PLL_MAPPING, 'W', 'PD'),
+      await edgeText(CHART_PLL_MAPPING, 'DIV', 'PD'),
+      await edgeText(CHART_PLL_MAPPING, 'DTC', 'PD'),
       await edgeText(CHART_PLL_MAPPING, 'V', 'PD'),
     ]
-    expect(signs).toEqual([String.raw`$+\,a \cdot x[i]$`, String.raw`$-\,w[k] \cdot x[i]$`, String.raw`$+\,v[i]$`])
+    expect(signs).toEqual([
+      String.raw`$+\,a \cdot x[i]$<br/>feedback edge 早到<br/>（$a$ 未知）`,
+      String.raw`$-\,w[k] \cdot x[i]$<br/>補償量：reference edge 少延遲`,
+      String.raw`$+\,v[i]$`,
+    ])
     expect(signs.map(signOf)).toEqual(['+', '-', '+'])
-    expect(await edgeText(CHART_PLL_MAPPING, 'PD', 'IDEAL')).toBe(String.raw`$e[i] = \delta[k] \cdot x[i] + v[i]$`)
+    // PD 量的是（經過 DTC 的）reference edge 減 feedback edge，結果就是 δ[k]·x[i] + v[i]
+    const pd = await nodeText(CHART_PLL_MAPPING, 'PD')
+    expect(pd).toContain(String.raw`$e[i] = t'_{\mathrm{ref}}[i] - t_{\mathrm{fb}}[i]$`)
+    expect(pd).toContain(String.raw`$= \delta[k] \cdot x[i] + v[i]$`)
+    expect(await nodeText(CHART_PLL_MAPPING, 'DTC')).toBe(String.raw`DTC（reference 端）<br/>$\tau_{\mathrm{DTC}} = T_0 - w[k] \cdot x[i]$`)
+    // 圖上的物理圖像數值驗算：reference 端的 DTC 只能延遲，τ = T₀ − w·x；feedback edge 早到 a·x。
+    // e = t_ref′ − t_fb 與原本的 (a − w)·x + v 完全相同（常數 T₀ 已被當成靜態相位偏移吸收，x = 0 時兩條 edge 剛好對齊）
+    for (const [aTrue, wEst, x, noise] of [[3, 1, 0.4, 0], [3, 3, 0.7, 0.1], [2, 5, 0.25, -0.05]]) {
+      const T0 = 5
+      const tRefDelayed = 0 + (T0 - wEst * x) // reference edge 經過 DTC：從基準延遲 T₀ 往回扣 w·x
+      const tFb = T0 - aTrue * x // feedback（divider）edge 比理想時刻（= T₀）早到 a·x
+      expect(tRefDelayed - tFb + noise).toBeCloseTo((aTrue - wEst) * x + noise, 12)
+    }
+    // 補償不足（w < a）→ reference 還是太晚 → e > 0（x > 0、無雜訊）
+    expect(5 - 1 * 0.4 - (5 - 3 * 0.4)).toBeGreaterThan(0)
     expect(await edgeText(CHART_PLL_MAPPING, 'IDEAL', 'MUL')).toBe(String.raw`$e[i]$`)
-    expect(await edgeText(CHART_PLL_MAPPING, 'X', 'MUL')).toBe(String.raw`同一個 $x[i]$`)
+    expect(await nodeText(CHART_PLL_MAPPING, 'X2')).toBe(String.raw`同一個 $x[i]$`)
     expect(await edgeText(CHART_PLL_MAPPING, 'MUL', 'GMAC')).toBe(String.raw`$e[i] \cdot x[i]$`)
     expect(await edgeText(CHART_PLL_MAPPING, 'GMAC', 'SCALE')).toBe(String.raw`每 $N$ 筆一次（block rate）`)
     expect(await nodeText(CHART_PLL_MAPPING, 'SCALE')).toBe(String.raw`$\div N$、$\times\, \mu$`)
@@ -519,21 +538,77 @@ describe('Ch03 方塊圖：為了桌機版面（不橫向捲動）重新排過�
   /** 子圖在原始碼裡的宣告順序（互不相連的子圖，Mermaid 會依相反順序由上往下／由左往右排） */
   const subgraphOrder = (chart: string) => [...chart.matchAll(/^\s*subgraph\s+(\w+)\[/gm)].map((m) => m[1])
 
-  it('圖 3-21（畫回 PLL 硬體）：原本由左往右排成 2476px 寬的長鏈，改成由上往下；10 個節點、12 條線、極性與單位都在', async () => {
+  it('圖 3-21（畫回 PLL 硬體）：由上往下；14 個節點、DTC 在 reference 輸入端、回授路徑（VCO → divider → PD）只有 divider、LMS 的輸入取自 PD 的輸出，極性與單位都在', async () => {
     expect(direction(CHART_PLL_MAPPING)).toBe('flowchart TB')
     const vertices = [...(await flowDb(CHART_PLL_MAPPING)).getVertices().keys()].sort()
-    expect(vertices).toEqual(['A', 'ACC', 'GMAC', 'IDEAL', 'MUL', 'PD', 'SCALE', 'V', 'W', 'X'])
-    expect(await edgeList(CHART_PLL_MAPPING)).toEqual(
-      ['A>PD', 'ACC>W', 'GMAC>SCALE', 'IDEAL>MUL', 'MUL>GMAC', 'PD>IDEAL', 'SCALE>ACC', 'V>PD', 'W>PD', 'X>A', 'X>MUL', 'X>W'].sort(),
+    expect(vertices).toEqual(['ACC', 'DIV', 'DTC', 'GMAC', 'IDEAL', 'LF', 'MUL', 'PD', 'REF', 'SCALE', 'V', 'W', 'X', 'X2'])
+    const edges = await edgeList(CHART_PLL_MAPPING)
+    expect(edges).toEqual(
+      [
+        'ACC>W',
+        'DIV>PD',
+        'DTC>PD',
+        'GMAC>SCALE',
+        'IDEAL>MUL',
+        'LF>DIV',
+        'MUL>GMAC',
+        'PD>IDEAL',
+        'PD>LF',
+        'REF>DTC',
+        'SCALE>ACC',
+        'V>PD',
+        'W>DTC',
+        'X2>MUL',
+        'X>DIV',
+        'X>W',
+      ].sort(),
     )
+    // 架構（docs/assumptions.md §2a）：Reference → DTC → PD；VCO 回授只經過 divider → PD；DTC 不在回授路徑上
+    expect(edges).toContain('REF>DTC')
+    expect(edges).toContain('DTC>PD')
+    expect(edges).toContain('DIV>PD')
+    expect(edges).not.toContain('DIV>DTC') // 不能有 divider → DTC
+    expect(edges).not.toContain('DTC>DIV')
+    expect(edges.filter((e) => e.startsWith('DIV>'))).toEqual(['DIV>PD']) // divider 只通到 PD
+    expect(edges.filter((e) => e.startsWith('DTC>'))).toEqual(['DTC>PD']) // DTC 只通到 PD
+    expect(edges.filter((e) => e.startsWith('REF>'))).toEqual(['REF>DTC']) // reference 是先經過 DTC 才進 PD，沒有 REF → PD 的捷徑
+    expect(edges.filter((e) => e.endsWith('>DTC')).sort()).toEqual(['REF>DTC', 'W>DTC']) // DTC 只吃 reference 與 gain correction 的 code
+    // 主迴路是閉合的：PD → loop filter／VCO → divider → PD；divider 只吃 VCO 的輸出與 DSM 的 carry（回授路徑上沒有 DTC）
+    expect(edges.filter((e) => e.endsWith('>DIV')).sort()).toEqual(['LF>DIV', 'X>DIV'])
+    expect(edges.filter((e) => e.startsWith('LF>'))).toEqual(['LF>DIV'])
+    expect(await nodeText(CHART_PLL_MAPPING, 'LF')).toBe(String.raw`Loop filter → VCO／DCO<br/>（主迴路，本章不展開）`)
+    expect(await edgeText(CHART_PLL_MAPPING, 'LF', 'DIV')).toBe(String.raw`VCO 輸出<br/>（回授）`)
+    expect(await edgeText(CHART_PLL_MAPPING, 'X', 'DIV')).toBe(String.raw`carry 控制除數<br/>餘數 $x[i]$ 留在<br/>feedback edge 上`)
+    // PD 的三個輸入：經過 DTC 的 reference edge、divider 的 feedback edge、雜訊；沒有別的東西直接進 PD
+    expect(edges.filter((e) => e.endsWith('>PD')).sort()).toEqual(['DIV>PD', 'DTC>PD', 'V>PD'])
+    // PD 的輸出只有兩個去處：loop filter 與 LMS（comparator）
+    expect(edges.filter((e) => e.startsWith('PD>')).sort()).toEqual(['PD>IDEAL', 'PD>LF'])
+    // LMS 校正迴路的輸入是 PD 的輸出：comparator（IDEAL）只從 PD 接，而 PD 的輸出同時也送進 loop filter
+    expect(edges.filter((e) => e.endsWith('>IDEAL'))).toEqual(['PD>IDEAL'])
+    expect(edges).toContain('PD>LF')
+    expect(await edgeText(CHART_PLL_MAPPING, 'PD', 'LF')).toBe(String.raw`$e[i]$`)
+    expect(await edgeText(CHART_PLL_MAPPING, 'PD', 'IDEAL')).toBe(String.raw`$e[i]$：LMS 取 PD 的輸出`)
+    // 乘法點的兩個輸入：comparator 之後的 e[i]，以及（虛線）同一個 x[i]；沒有任何一條線把 DTC、divider 或 reference 直接拉到 LMS 的方塊
+    expect(edges.filter((e) => e.endsWith('>MUL')).sort()).toEqual(['IDEAL>MUL', 'X2>MUL'])
+    for (const e of edges.filter((e) => /^(DTC|DIV|REF)>/.test(e))) expect(e.endsWith('>PD') || e.endsWith('>DTC'), e).toBe(true)
     // 同一個 x 送給 MUL 的是虛線；ACC 回到 W 的是 block 內不變的 w[k]
-    expect(CHART_PLL_MAPPING).toMatch(/X -\. "同一個 \$x\[i\]\$" \.-> MUL/)
+    expect(CHART_PLL_MAPPING).toMatch(/X2\["同一個 \$x\[i\]\$"\] -\.-> MUL/)
+    expect(await nodeText(CHART_PLL_MAPPING, 'X2')).toBe(String.raw`同一個 $x[i]$`)
     expect(await edgeText(CHART_PLL_MAPPING, 'ACC', 'W')).toBe(String.raw`$w[k]$（block 內不變）`)
     // 三個藍色方塊、褐色的理想化、紅色的雜訊，都還在原處
     for (const c of ['class X,SCALE,ACC focus', 'class IDEAL mid', 'class V warn']) expect(CHART_PLL_MAPPING, c).toContain(c)
     expect(await nodeText(CHART_PLL_MAPPING, 'X')).toBe(String.raw`DSM／DTC code<br/>$x[i]$（sample rate）`)
-    expect(await nodeText(CHART_PLL_MAPPING, 'A')).toBe(String.raw`要被抵消的時間誤差<br/>$\times\, a$（未知）`)
-    expect(await nodeText(CHART_PLL_MAPPING, 'W')).toBe(String.raw`DTC 實際補掉的量<br/>$\times\, w[k]$（gain correction）`)
+    expect(await nodeText(CHART_PLL_MAPPING, 'DIV')).toBe(String.raw`Divider ／ PMUX<br/>（回授路徑）`)
+    expect(await nodeText(CHART_PLL_MAPPING, 'W')).toBe(String.raw`Gain correction<br/>$\times\, w[k]$`)
+    expect(await nodeText(CHART_PLL_MAPPING, 'REF')).toBe('Reference clock')
+    // 褐色那一格（LMS 這一支上 comparator 的位置）：本章拿掉的三件事
+    expect(await nodeText(CHART_PLL_MAPPING, 'IDEAL')).toBe(String.raw`本章的理想化（L0）<br/>error path $= 1$、沒有延遲<br/>comparator 換成<br/>線性（多 bit）`)
+    // 圖上不再有「DTC 實際補掉的量」（DTC 不是被動的減數，它是 reference 端的延遲線，只能從 T₀ 往回扣）或 divider 側的 DTC；
+    // DTC 不能產生負的延遲，線上寫的是「少延遲」（相對基準延遲 T₀），不是沒有前提的「提前」
+    expect(CHART_PLL_MAPPING).not.toContain('DTC 實際補掉')
+    expect(CHART_PLL_MAPPING).not.toContain('reference edge 提前')
+    expect(CHART_PLL_MAPPING).not.toContain('沒被除掉')
+    expect(CHART_PLL_MAPPING).not.toMatch(/DIV\s*--+>\s*DTC/)
   })
 
   it('圖 3-10（雜訊注入）：改成由上往下，9 條線（含 δ[n] 回授與 x 的虛線）一條不少，紅色的加法點與雜訊還在', async () => {

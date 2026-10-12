@@ -274,10 +274,11 @@ export function S3Bandwidth() {
             { tex: String.raw`\Rightarrow\ \sigma_w^2=S_w^{(1)}(0)\cdot\mathrm{ENBW}`, why: '代入定義。' },
             { tex: String.raw`S_w^{(1)}(0)=\frac{2}{f_u}\cdot\frac{\mu^2\sigma_\eta^2}{(1-p)^2}`, why: md(String.raw`$\Omega=0$ 的 DTFT PSD 乘 $2/f_u$。`) },
             { tex: String.raw`\mathrm{ENBW}=\frac{\sigma_w^2}{S_w^{(1)}(0)}=\frac{\mu^2\sigma_\eta^2}{1-p^2}\cdot\frac{f_u(1-p)^2}{2\mu^2\sigma_\eta^2}`, why: '相除。' },
-            { tex: String.raw`=\frac{f_u}{2}\cdot\frac{(1-p)^2}{(1-p)(1+p)}=\frac{f_u}{2}\cdot\frac{1-p}{1+p}`, why: md(String.raw`$1-p^2=(1-p)(1+p)$，約掉一個 $(1-p)$。`) },
+            { tex: String.raw`=\frac{f_u}{2}\cdot\frac{(1-p)^2}{(1-p)(1+p)}`, why: md(String.raw`$\mu^2\sigma_\eta^2$ 上下約掉；$1-p^2=(1-p)(1+p)$。`) },
+            { tex: String.raw`=\frac{f_u}{2}\cdot\frac{1-p}{1+p}`, why: md(String.raw`再約掉一個 $(1-p)$。`) },
             {
-              tex: String.raw`\frac{\mathrm{ENBW}}{f_{3\mathrm{dB}}}\xrightarrow{p\to1}\frac{f_u(1-p)/4}{f_u(1-p)/(2\pi)}=\frac{\pi}{2}`,
-              why: md(String.raw`一階 low-pass 的經典結果；本例 $\mathrm{ENBW}/f_{3\mathrm{dB}}=${sig(EX.enbw / EX.f3dbExact, 5)}$。`),
+              tex: String.raw`\frac{\mathrm{ENBW}}{f_{3\mathrm{dB}}}\xrightarrow{p\to1}\frac{(1-p)/4}{(1-p)/(2\pi)}=\frac{\pi}{2}`,
+              why: md(String.raw`$p\to1$ 時 $\mathrm{ENBW}\approx f_u(1-p)/4$、$f_{3\mathrm{dB}}\approx f_u(1-p)/(2\pi)$，相除時 $f_u$ 約掉。一階 low-pass 的經典結果；本例 $\mathrm{ENBW}/f_{3\mathrm{dB}}=${sig(EX.enbw / EX.f3dbExact, 5)}$。`),
             },
           ]}
         />

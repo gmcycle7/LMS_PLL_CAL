@@ -42,11 +42,13 @@ export const ROADMAP_CHART = String.raw`flowchart LR
 /**
  * §8.1 單頻相關的兩條路徑：θ = φ + ΩD 從哪裡來（comparator rate，索引 n）。
  * E[x[n−D]·u[n]] = (A²/2)·|H|·cos θ；cos θ 的正負決定更新方向。
+ * 全站架構約定（docs/assumptions.md §2a）：code 進 reference 端的 DTC，PLL error path 的終點是 PD 的輸出；
+ * u[n] 就是 PD 輸出 e[n]（送進 loop filter 的同一個訊號），comparator／GMAC 取的是它，不是 DTC 或 divider 的某一點。
  */
 export const POLARITY_PATH_CHART = String.raw`flowchart TB
-  X(["單頻 code<br/>$x[n] = A\cos(\Omega n)$"]) --> H["PLL error path $H$<br/>增益 $|H|$、相位 $\phi$"]
+  X(["單頻 code<br/>$x[n] = A\cos(\Omega n)$"]) --> H["PLL error path $H$<br/>從 DTC code 到 PD 輸出<br/>增益 $|H|$、相位 $\phi$"]
   X --> DLY["code delay<br/>延遲 $D$ 個 sample"]
-  H -- "$u[n]$" --> M(("$\times$"))
+  H -- "$u[n]$（PD 輸出）" --> M(("$\times$"))
   DLY -- "$x[n-D]$" --> M
   M -- "取平均" --> C["相關 $C = \frac{A^2}{2}\,|H|\cos\theta$<br/>$\theta = \phi + \Omega D$"]
   C --> Q{"$\cos\theta$ 的正負？<br/>$M = \arcsin(\cos\theta)$"}
@@ -137,6 +139,9 @@ ${CLASS_DEFS}
 
 /**
  * §8.3 pipeline 時序（d = 1 的例子，與正文的時序表逐格相同）：block k 的 DTC 用的是 w_{k−1}。
+ * 架構約定（docs/assumptions.md §2a）：GMAC 的輸入是 PD 的輸出（經 comparator 取正負號），不是直接從 DTC 拉；
+ * 所以「DTC → GMAC」那則訊息寫明是「PD 輸出裡的誤差」——DTC 用的係數決定 PD 輸出裡還剩多少誤差。
+ * 訊息不要再加長（例如加「這個 block，」）：sequence 圖會跟著把兩條生命線拉開，整張圖超過正文欄就被縮小。
  * sequenceDiagram 的訊息只認得一段 `$$...$$`：整句寫進 \text{} 與公式的混合；participant 名稱不支援公式，所以只寫文字。
  */
 export const PIPELINE_SEQ_CHART = String.raw`sequenceDiagram
@@ -145,12 +150,12 @@ export const PIPELINE_SEQ_CHART = String.raw`sequenceDiagram
   participant R as 係數暫存器
   Note over D,R: $$\text{block } k \text{ 開始，暫存器最新值是 } w_k$$
   R-->>D: $$\text{DTC 拿到的卻是 } w_{k-1} \text{（晚 } d = 1 \text{ 個 block）}$$
-  D->>G: $$\text{這個 block 的誤差是 } \delta_{k-1} = a - w_{k-1}$$
+  D->>G: $$\text{PD 輸出裡的誤差是 } \delta_{k-1} = a - w_{k-1}$$
   G->>R: $$G_k = K\,\delta_{k-1}$$
   R->>R: $$w_{k+1} = w_k + \mu\,G_k$$
   Note over D,R: $$\text{block } k+1 \text{ 開始，暫存器最新值是 } w_{k+1}$$
   R-->>D: $$\text{DTC 拿到 } w_k$$
-  D->>G: $$\text{這個 block 的誤差是 } \delta_k = a - w_k$$
+  D->>G: $$\text{PD 輸出裡的誤差是 } \delta_k = a - w_k$$
   G->>R: $$G_{k+1} = K\,\delta_k$$
   R->>R: $$w_{k+2} = w_{k+1} + \mu\,G_{k+1}$$`
 

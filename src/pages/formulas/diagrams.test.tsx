@@ -222,8 +222,10 @@ describe('圖和本頁公式、數字一致', () => {
     // 公式：e[n] = δ_k·u[n] + v[n]、q[n] = sign(e[n])、G_k = (1/N)Σ q[n]x[n]、w_(k+1) = w_k + μG_k、δ_k = a − w_k、w[n] = w_⌊n/N⌋
     expect(tx(text(g, 'X'))).toBe(tx(String.raw`$x[n]$：原始 code`))
     expect(tx(text(g, 'U'))).toBe(tx(String.raw`$u[n]$：經 PD 路徑的 code`))
-    expect(tx(text(g, 'E'))).toBe(tx(String.raw`$e[n] = \delta_k \cdot u[n] + v[n]$`))
-    expect(tx(text(g, 'Q'))).toBe(tx(String.raw`$q[n] = \operatorname{sign}(e[n])$`))
+    // 架構（docs/assumptions.md §2a）：comparator 的輸入是 PD 的輸出 e[n]，圖上要寫明這個節點是什麼
+    expect(tx(text(g, 'E'))).toBe(tx(String.raw`PD 的輸出<br>$e[n] = \delta_k \cdot u[n] + v[n]$`))
+    expect(tx(text(g, 'Q'))).toBe(tx(String.raw`1-bit comparator<br>$q[n] = \operatorname{sign}(e[n])$`))
+    expect(g.edges.filter((e) => e.end === 'Q').map((e) => e.start)).toEqual(['E'])
     expect(tx(text(g, 'P'))).toBe(tx(String.raw`$q[n] \cdot x[n]$`))
     expect(tx(text(g, 'G'))).toContain(tx(String.raw`$G_k = \frac{1}{N} \sum q[n] \cdot x[n]$`))
     expect(tx(text(g, 'G'))).toContain(tx(String.raw`$n$ 屬於 block $k$`))

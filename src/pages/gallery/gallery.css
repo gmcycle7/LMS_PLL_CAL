@@ -373,13 +373,21 @@
   margin-bottom: 2px;
 }
 .gal-params pre {
-  max-height: 260px;
-  overflow: auto;
+  /* 橫向：手機上比框寬的一行（多半只多出幾 px 到十幾 px）直接折到下一行，不放橫向捲軸；overflow-x 只是保險。直向：預設整段顯示（不限高）。 */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-x: auto;
   font-size: 0.78rem;
+  line-height: 1.5;
   background: var(--surface-2);
   padding: 8px 10px;
   border-radius: var(--radius-sm);
   margin: 6px 0 0;
+}
+/* 很長的 JSON（超過 28 行，見 PresetCard.tsx）才限高成 16 行並在框內捲動；只多幾行到十來行的不限高，免得多一條沒有用途的直向捲軸 */
+.gal-params pre.is-long {
+  max-height: calc(16 * 1.5em + 16px);
+  overflow-y: auto;
 }
 .gal-actions {
   display: flex;

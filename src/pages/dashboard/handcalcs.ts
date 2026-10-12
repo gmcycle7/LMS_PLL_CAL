@@ -515,7 +515,8 @@ export const HANDCALCS: HandCalcDef[] = [
           { tex: String.raw`g=\mu\,K_q\,C=${texNum(mu)}\times${texNum(Kq)}\times${texNum(C)}=${texNum(g)}`, why: String.raw`$0<g<2$：條件 3 成立（$d=0$）。` },
           { tex: String.raw`g\,(2-g)=${texNum(g)}\times${texNum(2 - g)}=${texNum(gg)}`, why: String.raw`等比級數的分母 $1-p^2$。` },
           { tex: String.raw`N\,g\,(2-g)=${texInt(N)}\times${texNum(gg)}=${texNum(N * gg)}`, why: String.raw`乘上 block 長度：$N$ 越大，雜訊被平均得越乾淨。` },
-          { tex: String.raw`\sqrt{N\,g\,(2-g)}=\sqrt{${texNum(N * gg)}}=${texNum(root)}`, why: String.raw`開根號（$\sqrt{x}$ 鍵）。` },
+          // 寫成兩行：一行排在手機上會比正文欄寬 3px，多出一條沒有用途的橫向捲軸
+          { tex: String.raw`\begin{aligned}\sqrt{N\,g\,(2-g)}&=\sqrt{${texNum(N * gg)}}\\&=${texNum(root)}\end{aligned}`, why: String.raw`開根號（$\sqrt{x}$ 鍵）。` },
           {
             tex: String.raw`\sigma_w=\frac{\mu}{\sqrt{N\,g\,(2-g)}}=\frac{${texNum(mu)}}{${texNum(root)}}=${texNum(r.sigmaW)}\ \mathrm{fs}`,
             why: String.raw`條件 4：$\sigma_w^2=\mu^2\sigma_\eta^2/(1-p^2)$，$\sigma_\eta^2=1/N$。`,

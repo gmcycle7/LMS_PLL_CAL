@@ -357,7 +357,7 @@ export function BandwidthTopic() {
               why: <>對數的泰勒展開：前兩項和 exact 完全一樣，第三項差 <Tex>{String.raw`\varepsilon_p^3/12`}</Tex>。</>,
             },
             {
-              tex: String.raw`\frac{-\ln p}{\Omega_{3\mathrm{dB}}}-1\approx-\frac{\varepsilon_p^2}{12}=${texPct(-(eps * eps) / 12, 2)}\quad(\text{實際 }${texPct(errNegLnP, 2)}),\qquad \frac{1-p}{\Omega_{3\mathrm{dB}}}-1\approx-\frac{\varepsilon_p}{2}=${texPct(-eps / 2, 3)}\quad(\text{實際 }${texPct(errOneMinusP, 3)})`,
+              tex: String.raw`\frac{-\ln p}{\Omega_{3\mathrm{dB}}}-1\approx-\frac{\varepsilon_p^2}{12}=${texPct(-(eps * eps) / 12, 2)}\ \ (\text{實際 }{${texPct(errNegLnP, 2)}}),\allowbreak\qquad \frac{1-p}{\Omega_{3\mathrm{dB}}}-1\approx-\frac{\varepsilon_p}{2}=${texPct(-eps / 2, 3)}\ \ (\text{實際 }{${texPct(errOneMinusP, 3)}})`,
               why: (
                 <>
                   代入 <Tex>{String.raw`\varepsilon_p=${texNum(eps)}`}</Tex>：<Tex>{String.raw`-\ln p`}</Tex> 是二階準確、<Tex>{'(1-p)'}</Tex> 只有一階準確，兩者不能用「≈」串在一起。
@@ -623,7 +623,7 @@ export function MultirateTopic() {
             忘了 hold 的 <Tex>{String.raw`\mathrm{sinc}^2`}</Tex> 形狀：在 <Tex>{'f_u'}</Tex> 的整數倍有零點，倍數附近有 images。
           </li>
           <li>
-            號誌：DTC 多施加的延遲是 <Tex>{String.raw`\delta t=x\,\delta w`}</Tex>，但它在殘餘 timing error 裡的貢獻是 <Tex>{String.raw`-x\,\delta w`}</Tex>（<Tex>{String.raw`\delta w=w-w^*`}</Tex>，與{' '}
+            號誌：reference 端的 DTC 多補償的時間（reference edge 少延遲、早到這麼多）是 <Tex>{String.raw`\delta t=x\,\delta w`}</Tex>，但它在殘餘 timing error 裡的貢獻是 <Tex>{String.raw`-x\,\delta w`}</Tex>（<Tex>{String.raw`\delta w=w-w^*`}</Tex>，與{' '}
             <Tex>{String.raw`\delta=a-w`}</Tex> 反號；<ErratumTag eid="E33" />）。算與直接 PD 路徑的 cross-spectrum 時號誌錯了，相關係數就反號。
           </li>
         </ol>

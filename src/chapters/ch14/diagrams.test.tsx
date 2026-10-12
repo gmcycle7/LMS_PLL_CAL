@@ -239,7 +239,7 @@ describe('Ch14 Mermaid 圖（真正的 mermaid parser）', () => {
     const s2b = (await flow(D.CHART_SAMPLE_TO_BLOCK))!
     expect(edgeText(s2b, 'PROD', 'SUMV')).toBe('＋')
     expect(edgeText(s2b, 'VN', 'SUMV')).toBe('＋')
-    expect(edgeText(s2b, 'SUMV', 'CMP')).toBe(String.raw`$e[n] = \delta_k\,u[n] + v[n]$`)
+    expect(edgeText(s2b, 'SUMV', 'CMP')).toBe(String.raw`PD 輸出 $e[n] = \delta_k\,u[n] + v[n]$`)
     expect(edgeText(s2b, 'PATH', 'PROD')).toBe('$u[n]$')
     expect(s2b.edges.some((e) => e.start === 'XC' && e.end === 'PATH')).toBe(true)
     expect(s2b.edges.some((e) => e.start === 'XC' && e.end === 'MUL')).toBe(true)
@@ -255,7 +255,7 @@ describe('Ch14 Mermaid 圖（真正的 mermaid parser）', () => {
       const m = D.CHART_SAMPLE_TO_BLOCK.match(new RegExp(`subgraph ${name}\\[[^\\n]*\\n([\\s\\S]*?)\\n  end`))
       return m ? m[1] : ''
     }
-    for (const id of ['XC', 'PATH', 'PROD', 'SUMV', 'VN', 'CMP', 'MUL']) expect(inSub('FS'), id).toMatch(new RegExp(`\\b${id}\\b`))
+    for (const id of ['XC', 'PATH', 'PROD', 'SUMV', 'VN', 'CMP', 'MUL', 'LF']) expect(inSub('FS'), id).toMatch(new RegExp(`\\b${id}\\b`))
     for (const id of ['AVG', 'UPD']) expect(inSub('FU'), id).toMatch(new RegExp(`\\b${id}\\b`))
 
     // §14.1：bias 那條路為正，雜訊那條路以負號併入（δ_{k+1} = pδ_k − μη_k）
@@ -518,6 +518,48 @@ describe('Ch14 Mermaid 圖（真正的 mermaid parser）', () => {
   }, 300000)
 })
 
+describe('Ch14 架構約定（docs/assumptions.md §2a）：DTC 在 reference 輸入端、LMS 的輸入是 PD 的輸出', () => {
+  it('章首系統地圖：reference → DTC → PD、VCO → divider → PD，DTC 不在回授路徑上；comparator 的輸入是 PD 輸出（從 PD → loop filter 那條線分接）', () => {
+    const { wires } = systemMapModel(CH14_SYSTEM_FOCUS)
+    const has = (a: string, b: string) => wires.some((w) => w.from === a && w.to === b)
+    for (const [a, b] of [['ref', 'dtc'], ['dtc', 'pd'], ['pd', 'lf'], ['lf', 'vco'], ['vco', 'div'], ['div', 'pd'], ['dsm', 'div'], ['gc', 'dtc']]) expect(has(a, b), `${a} → ${b}`).toBe(true)
+    for (const [a, b] of [['div', 'dtc'], ['dtc', 'div'], ['ref', 'pd'], ['dtc', 'cmp'], ['div', 'cmp'], ['lf', 'cmp']]) expect(has(a, b), `不該有 ${a} → ${b}`).toBe(false)
+    const tap = wires.find((w) => w.from === 'pd' && w.to === 'cmp')
+    expect(tap?.tag?.tapOn, 'LMS 的輸入從 PD → loop filter 那條線分接').toEqual(['pd', 'lf'])
+    expect(tap?.tag?.source.text).toContain('PD 輸出')
+    expect(wires.filter((w) => w.to === 'cmp').map((w) => w.from).sort(), 'comparator 的輸入只有 PD 輸出與雜訊').toEqual(['noise', 'pd'])
+  })
+
+  it('CHART_SAMPLE_TO_BLOCK：e[n] 是 PD 的輸出（加法點），comparator 與 loop filter 從同一個節點分接；comparator 沒有別的輸入；誤差路徑從 DTC 的 code 走到 PD 輸出', async () => {
+    const g = (await flow(D.CHART_SAMPLE_TO_BLOCK))!
+    expect(edgeText(g, 'SUMV', 'CMP')).toContain('PD 輸出')
+    expect(edgeText(g, 'SUMV', 'CMP')).toContain(String.raw`$e[n] = \delta_k\,u[n] + v[n]$`)
+    expect(g.edges.some((e) => e.start === 'SUMV' && e.end === 'LF'), '同一個節點也送進 loop filter').toBe(true)
+    expect(g.vertices.find((v) => v.id === 'LF')?.text).toContain('Loop filter')
+    expect(g.edges.filter((e) => e.end === 'CMP').map((e) => e.start), 'comparator 唯一的輸入是 PD 輸出').toEqual(['SUMV'])
+    expect(g.edges.filter((e) => e.end === 'LF').map((e) => e.start), 'loop filter 的輸入同樣是這個節點').toEqual(['SUMV'])
+    expect(g.vertices.find((v) => v.id === 'XC')?.text).toContain('DTC code')
+    expect(g.vertices.find((v) => v.id === 'PATH')?.text).toContain('DTC 到 PD 輸出')
+    expect(g.vertices.find((v) => v.id === 'PROD')?.text).toContain('PD 輸出')
+  })
+
+  it('沒有任何一張圖把 divider 接到 DTC（DTC 不在回授路徑上），也沒有把 comparator 的輸入畫成從 DTC 或 divider 來', async () => {
+    for (const c of CH14_CHARTS) {
+      const g = await flow(c.chart)
+      if (!g) continue // stateDiagram
+      const text = (id: string) => g.vertices.find((v) => v.id === id)?.text ?? ''
+      const isDiv = (id: string) => /divider|除頻|PMUX|MMD/i.test(text(id))
+      const isDtc = (id: string) => /DTC/.test(text(id))
+      const isCmp = (id: string) => /comparator/i.test(text(id))
+      for (const e of g.edges) {
+        expect(isDiv(e.start) && isDtc(e.end), `${c.name}：${e.start} → ${e.end} 是 divider → DTC`).toBe(false)
+        expect(isDtc(e.start) && isCmp(e.end), `${c.name}：${e.start} → ${e.end} 是 DTC → comparator`).toBe(false)
+        expect(isDiv(e.start) && isCmp(e.end), `${c.name}：${e.start} → ${e.end} 是 divider → comparator`).toBe(false)
+      }
+    }
+  }, 60000)
+})
+
 describe('Ch14 頁面上的方塊圖（teaching-style §8）', () => {
   it('章首是 SystemMap（藍色：GMAC、÷N × μ、gain accumulator）；24 張圖各出現一次、順序與清單相同；每張都有圖說與「先看…」導讀，並放在對應公式之前', () => {
     localStorage.setItem('lmspll.mode', 'beginner')
@@ -581,6 +623,30 @@ describe('Ch14 頁面上的方塊圖（teaching-style §8）', () => {
         expect(walk?.querySelector('.katex'), c.name).toBeTruthy()
       }
     }
+
+    // 架構約定（docs/assumptions.md §2a）：導讀與圖說都說明 e[n] 是 PD 的輸出、comparator 與 loop filter 取同一個節點（不是從 DTC 或 divider 取）
+    const s2bDiagram = el('CHART_SAMPLE_TO_BLOCK').closest('.ch14-diagram')!
+    const s2bWalk = s2bDiagram.querySelector('.ch14-diagram-walk')?.textContent ?? ''
+    expect(s2bWalk).toContain('PD 的輸出')
+    expect(s2bWalk).toContain('loop filter')
+    expect(s2bWalk).toMatch(/comparator 從同一個節點分接[^。]*不是 DTC 或 divider/)
+    expect(el('CHART_SAMPLE_TO_BLOCK').querySelector('figcaption')?.textContent).toMatch(/comparator 與 loop filter 取同一個 PD 輸出/)
+    // 章首（先認識本章反覆出現的量之後、14.0 之前）說明一次物理圖像：reference 先經過 DTC 才進 PD、divider 的回授 edge 早到、DTC 只能從 T_0 往回扣（補償量）、PD 量 t_ref′ − t_fb
+    const phys = Array.from(container.querySelectorAll('p')).find((p) => p.textContent?.includes('這些量在晶片上是什麼'))
+    expect(phys, '章首的物理圖像段落').toBeTruthy()
+    for (const w of ['reference clock 先經過 DTC 才進 PD', '回授路徑上只有 divider', 'feedback edge 比理想時刻早到', '只能延遲、不能提前', '補償量', 'reference edge 減 feedback edge']) expect(phys!.textContent, w).toContain(w)
+    const physTex = Array.from(phys!.querySelectorAll('annotation[encoding="application/x-tex"]')).map((a) => a.textContent)
+    expect(physTex).toContain(String.raw`\tau_\mathrm{DTC}[n]=T_0-w_k\,x[n]`)
+    expect(physTex).toContain(String.raw`e[n]=t_\mathrm{ref}^{\prime}[n]-t_\mathrm{fb}[n]=(a-w_k)\,x[n]+v[n]=\delta_k\,x[n]+v[n]`)
+    // 「提前」只是少延遲（DTC 不能產生負的延遲）；補償不足時誤差和 x[n] 同號；本章的 x[n] = ±1 是零均值的 code，x[n] < 0 時是晚到、DTC 的延遲比 T_0 長
+    for (const w of ['reference edge 被提前——也就是少延遲——的時間', '誤差和', '同號', '零均值', '也就是晚到', '一樣被 PLL 吸收']) expect(phys!.textContent, w).toContain(w)
+    expect(physTex).toContain('w_k<a')
+    expect(physTex).toContain(String.raw`x[n]=\pm1`)
+    before(container.querySelector('.ch14-symbols-jump'), phys!, '物理圖像在「符號表在最後」那一行之後')
+    before(phys!, container.querySelector('[id="ch14-question"]'), '物理圖像在 14.0 之前')
+    // 「你在這裡」的那一段也說 comparator 取的是 PD 輸出
+    expect(figs[0].nextElementSibling?.textContent).toContain('comparator 取的是 PD 的輸出')
+    expect(figs[0].nextElementSibling?.textContent).toContain('送進 loop filter 的同一個訊號')
 
     // 方向字眼要跟著圖的方向走：由上到下的圖（flowchart TB／TD、stateDiagram TB）的圖說與導讀不說「由左到右」，橫向（LR）的圖不說「由上到下」。
     // pole 圖是折成兩排的 TB 圖，圖說明寫「上排由左到右，再接到下排」。

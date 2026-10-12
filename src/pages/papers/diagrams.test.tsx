@@ -186,7 +186,12 @@ describe('Papers 的 Mermaid 圖（真正的 mermaid parser）', () => {
     const loop = ['X', 'RES', 'HPD', 'CMP', 'GMAC', 'UPD', 'DLY', 'QNT', 'RES']
     for (let i = 0; i + 1 < loop.length; i++) expect(hasEdge(g, loop[i], loop[i + 1]), `${loop[i]} → ${loop[i + 1]}`).toBe(true)
     expect(edgeText(g, 'X', 'GMAC')).toBe('regressor $x[n]$')
-    expect(edgeText(g, 'HPD', 'CMP')).toBe('$e[n]$')
+    // comparator 的輸入是 PD 的輸出 e[n]（docs/assumptions.md §2a），不是 DTC 或 divider
+    expect(edgeText(g, 'HPD', 'CMP')).toBe('PD 輸出 $e[n]$')
+    expect(g.edges.filter((e) => e.end === 'CMP').map((e) => e.start)).toEqual(['HPD'])
+    // DTC 補償的是 reference 端；圖上沒有 divider／feedback 路徑上的 DTC
+    expect(nodeText(g, 'RES')).toContain('reference 端 DTC')
+    expect(CHART_PAPER_MAP).not.toMatch(/divider|DIV|除頻|回授路徑/)
     expect(edgeText(g, 'CMP', 'GMAC')).toBe('$q[n]$')
     expect(edgeText(g, 'GMAC', 'UPD')).toBe('$G_k$')
     expect(edgeText(g, 'QNT', 'RES')).toBe('$w$')
@@ -324,6 +329,18 @@ describe('Papers 頁面上的方塊圖與符號表（teaching-style §5、§8）
       expect(walk?.textContent, name).toContain('圖上')
       expect(walk?.querySelector('.katex'), name).toBeTruthy()
     }
+    // 文獻對照圖的導讀（docs/assumptions.md §2a）：reference 端的 DTC 從基準延遲往回扣，PD 量 reference 減 feedback；comparator 取 PD 的輸出
+    const mapWalk = el('CHART_PAPER_MAP').closest('.papers-diagram')?.querySelector('.papers-diagram-walk')?.textContent ?? ''
+    expect(mapWalk).toContain('reference 端 DTC')
+    expect(mapWalk).toContain('基準延遲')
+    expect(mapWalk).toContain('feedback（divider）edge 比理想時刻早到')
+    expect(mapWalk).toContain('只能延遲、不能提前')
+    const mapWalkTex = Array.from(el('CHART_PAPER_MAP').closest('.papers-diagram')?.querySelectorAll('.papers-diagram-walk annotation') ?? []).map((a) => a.textContent ?? '')
+    expect(mapWalkTex).toContain(String.raw`\tau_{\mathrm{DTC}}=T_0-w\,x[n]`) // 延遲 = 基準延遲 − 補償量
+    expect(mapWalkTex).toContain(String.raw`e[n]=t_{\mathrm{ref}}'[n]-t_{\mathrm{fb}}[n]`)
+    expect(mapWalk).toContain('reference edge 減 feedback edge')
+    expect(mapWalk).toContain('comparator 取的就是 PD 的輸出')
+    expect(mapWalk).toContain('送進 loop filter 的同一個訊號')
     // ④ 位置：各在自己的段落內；文字說明 → 圖 → 表格／卡片／推導
     const inside: [string, string][] = [
       ['CHART_NUMBER_SOURCES', 'papers-policy'],

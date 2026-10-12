@@ -236,12 +236,19 @@ describe('Ch01 方塊圖：清單與原始碼規則', () => {
     }
     // 本章沒有 block rate（k）的訊號：圖上不出現 w_k、G_k 這類標記
     for (const d of DIAGRAMS) expect(d.chart, d.id).not.toMatch(/[wG\\]\w*_k\b|[wG]_\{k/)
+    // 架構約定（docs/assumptions.md §2a）：本章 22 張圖都是 L0 的數學圖，沒有 PLL 方塊；PLL 的接法（REF → DTC → PD、DIV → PD、
+    // comparator 取 PD 的輸出）只在系統地圖與文字說明。要把 DTC／divider 畫進來，請連同這條斷言一起改成檢查新的接法。
+    for (const d of DIAGRAMS) expect(d.chart, d.id).not.toMatch(/DTC|divider|Divider|PMUX|MMD|除頻|回授路徑/)
   })
 
   it('為了排版（換行、分組、改方向）調整過的圖，內容仍在：圖 1-2 的 DSM code、圖 1-4 兩個模型都進三種計分、圖 1-6 的是／否分支、圖 1-11 的每一條連線', () => {
     // 圖 1-2：輸入節點仍寫明「輸入」與「DSM code」（圖說也提到它）
     expect(D.CHART_LMS_LOOP).toContain(String.raw`X["$x_n$<br/>（輸入 /<br/>DSM code）"]`)
     expect(diagramOf('D-01.2').caption).toContain('DSM code')
+    // 架構約定（docs/assumptions.md §2a）：相減的是 PD，它的輸出 e_n 就是 LMS 的輸入；DTC 的 gain 是 a（不再說「DTC gain 所在的誤差路徑」）
+    expect(diagramOf('D-01.2').caption).toContain('相減的是 PD（輸出 $e_n$ 即 LMS 的輸入）')
+    expect(diagramOf('D-01.2').caption).toContain('$a$ 是 DTC 的真實 gain')
+    expect(diagramOf('D-01.2').caption).not.toMatch(/PD／comparator|所在的誤差路徑/)
     // 圖 1-4：A、B 同在一個 subgraph 裡，三條線從這一組出發（每種計分都吃到兩個模型），結果各接一格
     const group = /subgraph ERRS\[[^\n]*\n([\s\S]*?)\n {2}end/.exec(D.CHART_SCORE_COMPARE)?.[1] ?? ''
     expect(group).toMatch(/^\s+A\["模型 A 的誤差/m)
@@ -876,6 +883,8 @@ describe('Ch01 頁面上的方塊圖', () => {
       expect(follows(s10.querySelector('.ch01-lead')!, sys)).toBe(true)
       expect(follows(sys, document.getElementById('formula-F-01.1')!)).toBe(true)
       expect(sys.nextElementSibling?.textContent).toMatch(/你在這裡.*藍色方塊是本章的主角.*這條修正規則到底在最小化什麼/)
+      // 架構約定：reference 先經過 DTC 才進 PD；回授路徑只有 divider；LMS（comparator）的輸入取自 PD 的輸出
+      expect(sys.nextElementSibling?.textContent).toMatch(/reference clock 先經過 DTC、再進 phase detector（PD）.*回授路徑上只有 divider（或 PMUX）.*LMS 校正迴路的輸入是 PD 的輸出.*送進 loop filter 的同一個訊號.*comparator 取的就是它的正負號/)
 
       // 22 張圖：順序、所在小節、圖說、導讀
       const boxes = Array.from(container.querySelectorAll('[data-diagram]'))

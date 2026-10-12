@@ -28,6 +28,22 @@ import { isWorkerCancelled, useWorkerTask } from '@/workers'
  * 所有曲線都由公式即時計算，沒有手寫資料。
  */
 
+/**
+ * 「圖」這一節示範用的簡化訊號流。架構照全站約定（docs/assumptions.md §2a）：
+ *   - DTC 在 reference 輸入端：Reference clock → DTC → Phase detector；回授路徑上只有 divider（VCO → Divider → PD）。
+ *   - 校正迴路的輸入是 PD 的輸出 e[n]：comparator 從 PD 分接（虛線），和送進 loop filter 的是同一個訊號。
+ */
+export const SHOWCASE_CHART = [
+  'flowchart LR',
+  '  REF["Reference<br/>clock"] --> DTC --> PD["Phase<br/>detector"]',
+  '  RES["Fractional<br/>residue $x[n]$"] --> DTC',
+  '  PD -- "$e[n]$" --> LF["Loop<br/>filter"] --> VCO["VCO /<br/>DCO"] --> DIV["Divider /<br/>PMUX"] --> PD',
+  '  PD -. "$e[n]$" .-> CMP["1-bit<br/>comparator"] --> GMAC --> U["Gain<br/>update"] -- "$w_k$" --> DTC',
+].join('\n')
+
+export const SHOWCASE_CHART_CAPTION =
+  '簡化訊號流（示意）：DTC 在 reference 輸入端（補償量 $w_k\\,x[n]$），回授路徑只有 divider；校正迴路的 comparator 取 PD 的輸出 $e[n]$，也就是送進 loop filter 的同一個訊號。'
+
 /** 固定 x 的 scalar LMS：w_{n+1} = w_n + μ (a − w_n) x²（規格 §1.2；無雜訊） */
 function scalarLms(a: number, w0: number, x: number, mu: number, steps: number): Float64Array {
   const w = new Float64Array(steps + 1)
@@ -190,7 +206,7 @@ export default function Showcase() {
         />
       </Section>
       <Section kind="diagram" title="圖">
-        <Mermaid chart={'flowchart LR\n  DSM[DSM Code] --> DTC --> PD[BBPD / Comparator] --> GMAC --> U[Gain Update] --> DTC'} caption="簡化訊號流（示意）" />
+        <Mermaid chart={SHOWCASE_CHART} caption={SHOWCASE_CHART_CAPTION} />
       </Section>
       <Section kind="explore" title="探索">
         <SelectControl label="選項" value={mode} onChange={setMode} options={[{ value: 'a', label: 'A 模式' }, { value: 'b', label: 'B 模式' }]} reg="REG_MODE[0]" />

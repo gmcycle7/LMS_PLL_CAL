@@ -143,10 +143,10 @@ export const HANDCALCS: HandCalcDef[] = [
   // ─────────────────────────────────────────────────────────────────────────
   {
     id: 'HC-04.1',
-    title: '一階 DSM 累加器走 5 拍：residue、DTC 要補的延遲、gain 誤差的殘差',
+    title: '一階 DSM 累加器走 5 拍：residue、DTC 需要的補償量、gain 誤差的殘差',
     page: '/ch/04',
     formulaId: 'F-04.1',
-    formulaTex: R`t[n]=s[n-1]+K_\mathrm{F},\quad s[n]=t[n]-M\,y[n];\qquad r[n]=\sum_{m=0}^{n}\Bigl(y[m]-\frac{K_\mathrm{F}}{M}\Bigr)=-\frac{s[n]}{M};\qquad\tau_\mathrm{DTC}[n]=\frac{s[n]}{M}\,T_\mathrm{vco},\quad e_\mathrm{det}[n]=(a-w)\,x[n]`,
+    formulaTex: R`t[n]=s[n-1]+K_\mathrm{F},\quad s[n]=t[n]-M\,y[n];\qquad r[n]=\sum_{m=0}^{n}\Bigl(y[m]-\frac{K_\mathrm{F}}{M}\Bigr)=-\frac{s[n]}{M};\qquad\tau_\mathrm{need}[n]=\frac{s[n]}{M}\,T_\mathrm{vco},\quad e_\mathrm{det}[n]=(a-w)\,x[n]`,
     level: 'beginner',
     claim: 'exact',
     inputs: [
@@ -191,7 +191,7 @@ export const HANDCALCS: HandCalcDef[] = [
           },
           {
             tex: R`r[${lastN}]=\sum_{m=0}^{${lastN}}y[m]-${HC_CYCLES}\times\frac{K_\mathrm{F}}{M}=${ti(carries)}-${HC_CYCLES}\times\frac{${ti(KF)}}{${ti(M)}}=${ti(carries)}-\frac{${ti(HC_CYCLES * KF)}}{${ti(M)}}=${ti(carries)}-${tex2((HC_CYCLES * KF) / M, 7)}=${tex2(last.cumErr, 7)}`,
-            why: '逐拍累加「實際多除的」減「理想該多除的 $\\mathrm{frac}=K_\\mathrm{F}/M$」：divider edge 的累積時間誤差（單位 $T_\\mathrm{vco}$，負 = 早到）。',
+            why: '逐拍累加「實際多除的」減「理想該多除的 $\\mathrm{frac}=K_\\mathrm{F}/M$」：feedback（divider）edge 的累積時間誤差（單位 $T_\\mathrm{vco}$，負 = 早到）。',
           },
           {
             tex: R`r[${lastN}]=-\frac{s[${lastN}]}{M}=-\frac{${ti(last.s)}}{${ti(M)}}=${tex2(last.residue, 7)}`,
@@ -199,7 +199,7 @@ export const HANDCALCS: HandCalcDef[] = [
           },
           {
             tex: R`s_{\max}=\max(${rows.map((r) => ti(r.s)).join(R`,\,`)})=${ti(sMax)}\quad(n=${nMax})`,
-            why: `這 ${HC_CYCLES} 拍裡累加器內容最大的那一拍，也就是 DTC 要補最多的那一拍（同樣大時取最早的一拍）。`,
+            why: `這 ${HC_CYCLES} 拍裡累加器內容最大的那一拍，也就是 DTC 要補償最多的那一拍（同樣大時取最早的一拍）。`,
           },
           {
             tex: R`x[${nMax}]=\frac{s[${nMax}]}{M}=\frac{${ti(sMax)}}{${ti(M)}}=${tex2(xMax, 7)}`,
@@ -210,18 +210,18 @@ export const HANDCALCS: HandCalcDef[] = [
             why: '$1\\,\\mathrm{GHz}$ 的週期是 $1\\,\\mathrm{ns}=10^6\\,\\mathrm{fs}$，所以 $T_\\mathrm{vco}[\\mathrm{fs}]=10^6\\div f_\\mathrm{vco}[\\mathrm{GHz}]$。除不盡時多留幾位（這裡留 8 位有效數字），下一步的乘積才不會差在最後一位。',
           },
           {
-            tex: R`\tau_\mathrm{DTC}^{\max}=x[${nMax}]\,T_\mathrm{vco}=${tex2(xMax, 7)}\times${texNum(sig.tvcoFs, 8)}=${texNum(tauMax, 7)}\,\mathrm{fs}`,
-            why: 'divider edge 早到 $x\\,T_\\mathrm{vco}$，DTC 就要延遲這麼多（F-04.2）。',
+            tex: R`\tau_\mathrm{need}^{\max}=x[${nMax}]\,T_\mathrm{vco}=${tex2(xMax, 7)}\times${texNum(sig.tvcoFs, 8)}=${texNum(tauMax, 7)}\,\mathrm{fs}`,
+            why: 'feedback（divider）edge 早到 $x\\,T_\\mathrm{vco}$，reference 端的 DTC 就要把 reference edge 也提前這麼多——從基準延遲 $T_0$ 少延遲這麼多（需要的補償量，F-04.2）。',
           },
           {
-            tex: R`e_\mathrm{det}^{\max}=(a-w)\,x[${nMax}]=\varepsilon\,a\,x[${nMax}]=\varepsilon\,\tau_\mathrm{DTC}^{\max}=${texNumP(eps / 100)}\times${texNum(tauMax, 7)}=${texNum(eMax, 7)}\,\mathrm{fs}`,
+            tex: R`e_\mathrm{det}^{\max}=(a-w)\,x[${nMax}]=\varepsilon\,a\,x[${nMax}]=\varepsilon\,\tau_\mathrm{need}^{\max}=${texNumP(eps / 100)}\times${texNum(tauMax, 7)}=${texNum(eMax, 7)}\,\mathrm{fs}`,
             why: '理想 gain $a=T_\\mathrm{vco}$；DTC gain 少了 $\\varepsilon$（$w=(1-\\varepsilon)a$）時 $\\delta=a-w=\\varepsilon a$，PD 看到的殘差就是 $\\delta\\,x$。先把 % 換成小數（$1\\%=0.01$）；$\\varepsilon<0$（DTC gain 太大）時殘差是負的。',
           },
         ],
         results: [
           { symbol: `s[${lastN}]`, label: `第 ${lastN} 拍的累加器內容`, value: last.s, unit: R`\text{LSB}`, digits: 7, tolerance: { abs: 1e-9, rel: 0 } },
-          { symbol: `r[${lastN}]`, label: `第 ${lastN} 拍的 residue（負 = divider edge 早到）`, value: last.residue, unit: R`T_\mathrm{vco}`, digits: 7 },
-          { symbol: R`\tau_\mathrm{DTC}^{\max}`, label: `這 ${HC_CYCLES} 拍裡 DTC 最大要補的延遲`, value: tauMax, unit: R`\mathrm{fs}`, digits: 7 },
+          { symbol: `r[${lastN}]`, label: `第 ${lastN} 拍的 residue（負 = feedback edge 早到）`, value: last.residue, unit: R`T_\mathrm{vco}`, digits: 7 },
+          { symbol: R`\tau_\mathrm{need}^{\max}`, label: `這 ${HC_CYCLES} 拍裡需要的補償量最大值（reference edge 要提前的時間）`, value: tauMax, unit: R`\mathrm{fs}`, digits: 7 },
           { symbol: R`e_\mathrm{det}^{\max}`, label: '$s_{\\max}$ 那一拍 PD 看到的殘差（$\\varepsilon<0$ 時為負）', value: eMax, unit: R`\mathrm{fs}`, digits: 7 },
         ],
         notes: [
@@ -234,7 +234,7 @@ export const HANDCALCS: HandCalcDef[] = [
     },
     tips: [
       '每一拍只做一次加法：$t=s+K_\\mathrm{F}$；$t\\ge M$ 就記一次 carry 並減掉 $M$。也可以直接用 $s[n]=\\bigl((n+1)K_\\mathrm{F}\\bigr)\\bmod M$ 檢查。',
-      '範例數字（$K_\\mathrm{F}=5$、$M=16$、$f_\\mathrm{vco}=13\\,\\mathrm{GHz}$、$\\varepsilon=1\\%$）：$s=5,10,15,4,9$，$r[4]=-0.5625$；$s_{\\max}=15$ 那一拍 $\\tau_\\mathrm{DTC}=72115.38\\,\\mathrm{fs}$、殘差 $721.15\\,\\mathrm{fs}$（與 §2 文中的數字相同）。',
+      '範例數字（$K_\\mathrm{F}=5$、$M=16$、$f_\\mathrm{vco}=13\\,\\mathrm{GHz}$、$\\varepsilon=1\\%$）：$s=5,10,15,4,9$，$r[4]=-0.5625$；$s_{\\max}=15$ 那一拍 $\\tau_\\mathrm{need}=72115.38\\,\\mathrm{fs}$、殘差 $721.15\\,\\mathrm{fs}$（與 §2 文中的數字相同）。',
     ],
   },
 
@@ -538,7 +538,8 @@ export const HANDCALCS: HandCalcDef[] = [
           },
           { tex: R`z=\frac{\xi\,m_x}{\gamma}=\frac{${texNumP(xi)}\times${texNumP(mx)}}{${texNum(gamma, 6)}}=\frac{${texNum(xi * mx)}}{${texNum(gamma, 6)}}=${texNum(z)}`, why: '$\\Phi$ 與 $\\varphi$ 的引數。' },
           {
-            tex: R`\Phi(z)=\Phi(${texNum(z)})=${texNum(Phi, 6)}`,
+            // 只寫 Φ(數字) = 結果：前面多一個「Φ(z) =」的話，手機（375 px）上這一行剛好比欄寬多 4 px，會多出一條沒有用途的橫向捲軸
+            tex: R`\Phi(${texNum(z)})=${texNum(Phi, 6)}`,
             why:
               R`查標準常態累積分布表（負的 $z$ 用 $\Phi(-z)=1-\Phi(z)$），或用計算機 $\Phi(z)=\tfrac12\bigl[1+\mathrm{erf}(z/\sqrt2)\bigr]$。` +
               (Math.abs(z) <= 0.3

@@ -390,7 +390,7 @@ describe('Ch10 方塊圖：導讀與圖說裡的方位詞（左／右／上／�
     expectIncreasing([L.node.D.y, L.node.GM.y, L.node.BU.y], '程式碼資料流：δ_k → GMAC → blockUpdate')
     expectIncreasing([L.node.RULE.x, L.node.GM.x], '程式碼資料流：左邊一路是規則（M_n），右邊一路是 GMAC（G_k），兩路在 blockUpdate 會合')
     L = await layoutOf(CHART_HW_MAP)
-    expectIncreasing([L.node.CMP.y, L.node.G1.y, L.node.MIX.y, L.node.ACC.y, L.node.DTC.y], '硬體對應：comparator → GMAC → 混合矩陣 → 係數暫存器 → DTC／PMUX')
+    expectIncreasing([L.node.CMP.y, L.node.G1.y, L.node.MIX.y, L.node.ACC.y, L.node.DTC.y], '硬體對應：comparator → GMAC → 混合矩陣 → 係數暫存器 → reference 端的 DTC')
     expectIncreasing([L.node.G1.x, L.node.G2.x, L.node.G3.x], '硬體對應：三個 GMAC accumulator 並排')
     expect(L.node.G1.y).toBe(L.node.G3.y)
   })
@@ -777,6 +777,83 @@ describe('Ch10 方塊圖：新增的三張圖（comparator 增益、GMAC 雜訊�
   })
 })
 
+describe('Ch10 方塊圖：全站架構約定（docs/assumptions.md §2a）——DTC 在 reference 輸入端、LMS 的輸入是 PD 的輸出', () => {
+  /** parser 資料庫裡的連線，寫成 `起點->終點` */
+  async function edgesOf(chart: string): Promise<string[]> {
+    const dg = await mermaid.mermaidAPI.getDiagramFromText(chart)
+    const db = dg.db as { getEdges: () => { start: string; end: string }[] }
+    return db.getEdges().map((e) => `${e.start}->${e.end}`)
+  }
+
+  it('圖 10-1（系統圖）：comparator 的輸入取自 PD 的輸出 e[n]（同一個 e[n] 也進 loop filter）；補償經 DTC 回到 PD，不是回到 comparator', async () => {
+    const edges = await edgesOf(CHART_MIMO_SYSTEM)
+    expect(edges).toEqual(expect.arrayContaining(['E->Q', 'E->LF', 'W->E']))
+    // e[n] 的節點就是 Phase detector 的輸出；loop filter 與 comparator 吃的是同一個節點（兩條線都從 E 出發）
+    expect(CHART_MIMO_SYSTEM).toContain('subgraph PLL["PLL 主迴路：Phase detector 的輸出端（每個 sample $n$）"]')
+    expect(CHART_MIMO_SYSTEM).toMatch(/E\["Phase detector 的輸出<br\/>\$e\[n\] = u_1\[n\]/)
+    expect(CHART_MIMO_SYSTEM).toContain('LF["Loop filter → VCO / DCO')
+    // comparator 的上游只有 E（沒有從 DTC、divider 或別的地方拉進來）；系統圖也沒有 divider → DTC 這種接法
+    expect(edges.filter((e) => e.endsWith('->Q'))).toEqual(['E->Q'])
+    expect(edges.filter((e) => /DIV|DTC/.test(e))).toEqual([])
+    // 回到 PD 的那條線說清楚是「reference 端」DTC 的補償；圖上沒有任何「DTC 在回授／feedback 路徑」的字眼，也不說 DTC「插入延遲」
+    expect(CHART_MIMO_SYSTEM).toContain('（經 reference 端的 DTC<br/>補償，回到 PD）')
+    expect(CHART_MIMO_SYSTEM).not.toMatch(/PLL \+ DTC|回授|feedback|插入|推回/)
+    // e[n] 的式子與極性不變：δ = a − w，e[n] = Σ u_i δ_i + v[n]
+    expect(CHART_MIMO_SYSTEM).toContain(String.raw`$e[n] = u_1[n]\,\delta_1 + u_2[n]\,\delta_2 + u_3[n]\,\delta_3 + v[n]$`)
+    expect(CHART_MIMO_SYSTEM).toContain(String.raw`$\boldsymbol\delta = \mathbf a - \mathbf w$`)
+    // 版面：同一個 e[n] 的兩個去處（loop filter、comparator）在 e[n] 的下面，comparator 在 loop filter 的右邊
+    const L = await layoutOf(CHART_MIMO_SYSTEM)
+    expect(L.node.LF.y).toBeGreaterThan(L.node.E.y)
+    expect(L.node.Q.y).toBeGreaterThan(L.node.E.y)
+    expect(L.node.LF.x, 'loop filter 在 comparator 的左邊').toBeLessThan(L.node.Q.x)
+    expect(CH10_DIAGRAMS[0].caption).toMatch(/PD 的輸出 \$e\[n\]\$/)
+    expect(CH10_DIAGRAMS[0].alt).toMatch(/PD 的輸出 e\[n\].*loop filter.*comparator.*reference 端 DTC 的補償.*δ = a − w 回到 PD/)
+  })
+
+  it('圖 10-27（硬體對應）：Reference clock → DTC → PD；主迴路（loop filter → VCO → divider／PMUX）的 feedback edge 直接回到 PD；comparator 取 PD 的輸出；係數 → gain correction → reference 端的 DTC', async () => {
+    const edges = await edgesOf(CHART_HW_MAP)
+    expect(edges).toEqual(expect.arrayContaining(['REF->DTC', 'DTC->PD', 'PD->LF', 'LF->PD', 'PD->CMP', 'CMP->G1', 'CMP->G2', 'CMP->G3', 'MIX->ACC', 'ACC->DTC']))
+    // PD 只有兩個輸入：延遲後的 reference edge（來自 DTC）與 feedback edge（來自主迴路那一格，裡面是 loop filter → VCO → divider／PMUX）
+    expect(edges.filter((e) => e.endsWith('->PD')).sort()).toEqual(['DTC->PD', 'LF->PD'])
+    // comparator 的上游只有 PD 的輸出；loop filter 吃的是同一個 e[n]
+    expect(edges.filter((e) => e.endsWith('->CMP'))).toEqual(['PD->CMP'])
+    expect(edges.filter((e) => e.startsWith('PD->')).sort()).toEqual(['PD->CMP', 'PD->LF'])
+    // DTC 在 reference 路徑上：上游只有 reference clock 與係數（gain correction），下游只有 PD；回授那一格不經過 DTC
+    expect(edges.filter((e) => e.endsWith('->DTC')).sort()).toEqual(['ACC->DTC', 'REF->DTC'])
+    expect(edges.filter((e) => e.startsWith('DTC->'))).toEqual(['DTC->PD'])
+    expect(edges.filter((e) => e.startsWith('LF->'))).toEqual(['LF->PD'])
+    expect(edges.filter((e) => e.startsWith('REF->'))).toEqual(['REF->DTC'])
+    expect(CHART_HW_MAP).toContain('REF["Reference clock"] --> DTC')
+    expect(CHART_HW_MAP).toContain('DTC -- "延遲後的 reference edge" --> PD')
+    expect(CHART_HW_MAP).toContain('LF -- "feedback edge" --> PD')
+    expect(CHART_HW_MAP).toContain('LF["Loop filter → VCO / DCO<br/>→ Divider / PMUX（回授）"]')
+    expect(CHART_HW_MAP).toContain('PD["Phase detector<br/>輸出 $e[n]$（reference edge 減 feedback edge）"]')
+    expect(CHART_HW_MAP).toContain(String.raw`PD -- "$e[n]$" --> CMP`)
+    expect(CHART_HW_MAP).toContain(String.raw`PD -- "$e[n]$" --> LF`)
+    // DTC 只能延遲：方塊上寫的是它的延遲 T_0 − Σ w_i x_i[n]（從基準延遲往回扣補償量），不是「提前」，也不是「插入的延遲 = w·x」
+    expect(CHART_HW_MAP).toContain(String.raw`DTC["Gain correction → DTC（reference 端）<br/>延遲 $= T_0 - \sum_i w_i\,x_i[n]$"]`)
+    expect(CHART_HW_MAP).not.toMatch(/提前|插入|推回|PLL error path|DTC \/ PMUX 補償|DTC -\. |進 PD 的 reference 輸入/)
+    // 實線 = 每個 sample／block 都在跑的資料路徑：DTC → PD、feedback edge 都是實線（虛線只留給韌體的慢速路徑）
+    expect((CHART_HW_MAP.match(/-\.[^\n]*\.->/g) ?? []).length).toBe(2)
+    expect((CHART_HW_MAP.match(/^ {2}FW\b.*-\./gm) ?? []).length).toBe(2)
+    const L = await layoutOf(CHART_HW_MAP)
+    expect(L.node.PD.y, 'PD 在最上面').toBeLessThan(L.node.CMP.y)
+    expect(L.node.PD.y).toBeLessThan(L.node.LF.y)
+    expect(L.node.LF.y, '主迴路那一格與 comparator 同一層（同一個 e[n] 的兩個去處）').toBe(L.node.CMP.y)
+    expect(L.node.CMP.x, 'comparator 在左、主迴路在右（導讀照這個方向說）').toBeLessThan(L.node.LF.x)
+    expect(L.node.DTC.y, 'DTC 在最下面（延遲後的 reference edge 沿右邊回到 PD）').toBeGreaterThan(L.node.ACC.y)
+    expect(L.node.REF.y, 'reference clock 在 DTC 的上一層，往下進 DTC').toBeLessThan(L.node.DTC.y)
+    expect(L.node.DTC.x, 'DTC 在右下角').toBeGreaterThan(L.node.ACC.x)
+    const cap = diagram('hw-map')
+    expect(cap.caption).toMatch(/comparator 取的是 PD 的輸出 \$e\[n\]\$，DTC 在 reference 輸入端（回授路徑上只有 divider／PMUX）/)
+    expect(cap.alt).toMatch(/PD 的輸出 e\[n\].*loop filter.*comparator.*reference 端的 DTC.*reference clock 經 DTC 延遲後進 PD.*divider／PMUX 的 feedback edge 直接回到 PD/)
+  })
+
+  it('純數學的圖（e → sign → 相加、comparator 增益、GMAC 雜訊）不畫 PLL，沒有 DTC、divider 或 PD', () => {
+    for (const chart of [CHART_SAMPLE_TO_BLOCK, CHART_COMPARATOR_GAIN, CHART_GMAC_NOISE]) expect(chart).not.toMatch(/DTC|divider|Divider|PMUX|Phase detector|Loop filter/)
+  })
+})
+
 describe('Ch10 方塊圖：頁面', () => {
   afterEach(async () => {
     await act(async () => {
@@ -868,6 +945,37 @@ describe('Ch10 方塊圖：頁面', () => {
     expect(follows(fig('gmac-noise'), covEta as Element)).toBe(true)
     expect(follows(fig('seq-trap'), fig('gs-sweep'))).toBe(true)
     expect(follows(fig('gs-sweep'), fig('choose-m'))).toBe(true)
+
+    // ── 全站架構約定（docs/assumptions.md §2a）：DTC 在 reference 輸入端、LMS 的輸入是 PD 的輸出；導讀照這個說 ──
+    const walkOf = (id: string) => (fig(id).querySelector('.ch10-fig-walk') as HTMLElement).textContent ?? ''
+    expect(walkOf('system')).toMatch(/e\[n\] 是 PD 的輸出.*loop filter.*comparator/)
+    expect(walkOf('system')).toMatch(/經 reference 端 DTC 的補償.*回到最上面 PD 的輸出/)
+    expect(walkOf('system')).toMatch(/comparator 前（也就是 PD 輸出端）的雜訊/)
+    expect(walkOf('hw-map')).toMatch(/最上面是 phase detector，PD 的輸出 e\[n\].*分成兩路——往右進主迴路（loop filter → VCO／DCO → divider／PMUX，feedback edge 從那一格直接回到 PD），往左進 comparator。comparator 取它的正負號/)
+    expect(walkOf('hw-map')).toMatch(/reference 端的 DTC（reference clock 先經過它才進 PD）。DTC 只能延遲、不能提前.*固定的基準延遲.*往回扣補償量.*越大，reference edge 越早/)
+    expect(walkOf('hw-map')).toMatch(/延遲後的 reference edge 沿右邊那條線回到 PD，與 feedback（divider／PMUX）edge 比較（PD 量的是前者減後者），補償得不夠的部分又出現在 PD 的輸出/)
+    expect(walkOf('hw-map')).toMatch(/DTC 只在 reference 輸入端，不在回授路徑上/)
+    // 導讀裡 DTC 的延遲是 T_0 − Σ w_i x_i[n]（LaTeX），補償量是 Σ w_i x_i[n]；不再說「DTC 把 reference edge 提前」而不交代基準延遲
+    const hwTex = Array.from(fig('hw-map').querySelectorAll('.ch10-fig-walk annotation')).map((a) => a.textContent ?? '')
+    expect(hwTex).toEqual(expect.arrayContaining(['T_0', String.raw`T_0-\sum_iw_ix_i[n]`, String.raw`\sum_iw_ix_i[n]`]))
+    expect(walkOf('hw-map')).not.toMatch(/reference edge 提前補償量/)
+    // 物理圖像在第一次給出的地方說清楚：PD 量 reference edge 減 feedback edge；DTC 只能延遲，從基準延遲 T₀ 往回扣；用「補償量」
+    const sys = container.querySelector('#ch10-system') as HTMLElement
+    expect(sys.textContent).toMatch(/校正迴路的輸入是 PD 的輸出 e\[n\].*送進 loop filter 的同一個訊號.*只取它的正負號/)
+    expect(sys.textContent).toMatch(/reference edge 減 feedback edge.*feedback（divider／PMUX）edge 比理想時刻早到.*只能延遲、不能提前.*基準延遲.*往回扣.*補償量/)
+    // 極性：w_i 太小（δ_i > 0）⇒ reference edge 還是太晚 ⇒ 誤差為正；單一 DTC gain 時就是 e[n] = (a − w)·x[n] + v[n]
+    expect(sys.textContent).toMatch(/太小（.*）時 reference edge 還是太晚.*補償不足時誤差為正.*DTC 不在回授路徑上，回授路徑上只有 divider／PMUX/)
+    const sysTex = Array.from(sys.querySelectorAll('annotation')).map((a) => a.textContent ?? '')
+    expect(sysTex).toEqual(expect.arrayContaining([String.raw`e[n]=(a-w)\,x[n]+v[n]`, String.raw`x[n]\ge0`, String.raw`\delta_i>0`, 'T_0']))
+    // 符號表：e[n] 是 PD 的輸出（comparator 的輸入），u_i 是到 PD 輸出的權重
+    const symText = (container.querySelector('#symbols') as HTMLElement).textContent ?? ''
+    expect(symText).toMatch(/PD 的輸出（comparator 的輸入）/)
+    expect(symText).toMatch(/PLL 路徑到 PD 輸出/)
+    expect(symText).toMatch(/reference 端 DTC 的固定基準延遲.*往回扣/)
+    const symTex = Array.from((container.querySelector('#symbols') as HTMLElement).querySelectorAll('annotation')).map((a) => a.textContent ?? '')
+    expect(symTex).toEqual(expect.arrayContaining(['T_0', String.raw`=T_0-\sum_i w_i\,x_i[n]`]))
+    // 舊接法的說法不可以再出現（DTC 在回授路徑／插入延遲／推回理想時刻／經 PLL 的 error path 回到 comparator）
+    expect(container.textContent).not.toMatch(/DTC 在回授|DTC 插入|插入延遲|推回|回授側|feedback 側|經 PLL 的 error path 回到 comparator|PLL \+ DTC/)
 
     // ── 正文提到別張圖時一律用 <FigRef>：圖號等於登錄表的順序，頁面上沒有手寫的「圖 10-N」 ──
     const refs = Array.from(container.querySelectorAll<HTMLElement>('.ch10-figref'))

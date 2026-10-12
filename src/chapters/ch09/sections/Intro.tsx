@@ -101,6 +101,8 @@ export function Intro() {
         <strong>你在這裡：</strong>藍色的四個方塊——regressor {m`x[n]`}、code alignment（filtered-x）、GMAC、gain accumulator {m`w_k`}——是 LMS 校正迴路裡
         「每個參數各要一份」的部分。前面幾章只有一份（一個係數）；這一章把它們複製成 {m`M`} 份、全部共用同一個 comparator 輸出，然後問：
         {m`M`} 個 accumulator 各自學得到自己的參數嗎？（§9.2 還會用到標著「主 PLL 迴路」的那一框：它會把 DC 誤差吃掉，讓其中一個參數完全看不到。）
+        地圖上也要注意 LMS 的輸入是從哪裡接出來的：comparator 取的是 <strong>PD 的輸出</strong> {m`e[n]`}，也就是送進 loop filter 的同一個訊號
+        （PD 輸出旁的標籤與 comparator 輸入旁的 {m`e[n]`} 標籤是同一條線）；DTC 在 reference clock 進來的位置，不在回授路徑上。
       </p>
 
       <Section kind="intuition" title="一個黑盒子：兩個旋鈕總是一起動" level={2} id="ch09-intro">
@@ -126,6 +128,19 @@ export function Intro() {
         <p>
           在 PLL 裡這很常見：兩段 DTC gain 被高度相關的 DSM code 驅動、四個 PMUX phase 加上一個所有相位共用的 offset……
           迴路照樣穩定、GMAC 照樣歸零，但參數可能停在<strong>錯的地方</strong>。
+        </p>
+        <p>
+          放回 PLL 裡，那個「唯一看得到的數」就是 <strong>PD 的輸出</strong> {m`e[n]`}（送進 loop filter 的同一個訊號）。接法是 reference clock {m`\to`} DTC {m`\to`} PD，
+          回授路徑上只有 divider（或 PMUX）。以 DTC gain 這個旋鈕為例（{m`u=x[n]`}，{m`x[n]`} 是 DSM 的 residue code）：feedback（divider）edge 比理想時刻<strong>早到</strong>{' '}
+          {m`a\,x[n]`}（{m`a`} 是真實的 DTC gain，也就是把這段早到的時間完全補回來所需要的 gain）；reference 端的 DTC 只能延遲、不能提前，所以它從固定的基準延遲 {m`T_0`} 往回扣：
+          {m`\tau_{\mathrm{DTC}}[n]=T_0-w\,x[n]`}，其中 {m`w\,x[n]`} 是 DTC 的<strong>補償量</strong>（reference edge 被提前——也就是少延遲——的時間）。
+          PD 量的是（被 DTC 延遲後的）reference edge 減 feedback edge：
+        </p>
+        <TexBlock>{String.raw`\begin{aligned}e[n]&=t_{\mathrm{ref}}'[n]-t_{\mathrm{fb}}[n]\\&=(a-w)\,x[n]+v[n]\end{aligned}`}</TexBlock>
+        <p>
+          補償不足（{m`w<a`}）時 reference 還是太晚，誤差為正；{m`T_0`} 是常數，被 PLL 當成靜態相位偏移吸收，不影響任何會動的量。
+          有 {m`M`} 個旋鈕時，每個旋鈕各貢獻一項 {m`u_i(a_i-w_i)`}，全部加在同一個 {m`e[n]`} 裡——這就是上面的黑盒子。
+          （這裡把 PLL 迴路本身的反應先省略；§9.2 會把它加回來：DTC 補償後的殘餘誤差要先經過 {m`H_{\mathrm{PD}}`} 才成為 PD 的輸出，那時記成 {m`e_{\mathrm{PD}}[n]`}。）
         </p>
       </Section>
 

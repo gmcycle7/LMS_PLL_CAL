@@ -25,12 +25,12 @@ export const SYMBOLS: SymbolEntry[] = [
   },
   {
     symbol: r`h[k],\ H(e^{j\Omega})=|H|e^{j\phi}`,
-    meaning: 'DTC 誤差 → PD residual 的脈衝響應與頻率響應',
+    meaning: 'reference 端 DTC 留下的殘餘誤差 → PD 輸出的脈衝響應與頻率響應',
     unit: '—',
     firstSeen: '§7.1、§7.2',
     note: (
       <>
-        一律離散時間；不可代入 CT 的 <Tex>{r`H(j\omega)`}</Tex>（<ErratumNote id="E44" />）。<Tex>{'h[k]'}</Tex>、<Tex>{r`\sum_k`}</Tex> 裡的 <Tex>{'k'}</Tex> 是 tap（延遲幾個
+        一律離散時間；不可代入 CT 的 <Tex>{r`H(j\omega)`}</Tex>（<ErratumNote id="E44" />）。誤差從 PD 的 reference 輸入注入，所以 <Tex>{r`H_{\mathrm{PD}}=1/(1+L)`}</Tex> 取正號（§7.5）。<Tex>{'h[k]'}</Tex>、<Tex>{r`\sum_k`}</Tex> 裡的 <Tex>{'k'}</Tex> 是 tap（延遲幾個
         sample）的編號，與 block 編號（只出現在下標 <Tex>{r`w_k,\ G_k,\ \delta_k`}</Tex>）無關
       </>
     ),
@@ -49,7 +49,27 @@ export const SYMBOLS: SymbolEntry[] = [
   { symbol: r`M_{\mathrm{pol}}=90^\circ-|\theta|`, meaning: 'polarity margin：殘餘相位離變號還有幾度', unit: r`\mathrm{deg}`, firstSeen: '§7.1', note: '§8.1 的自訂單頻指標，不是 Bode phase margin' },
   { symbol: r`C,\ C_D`, meaning: <>GMAC regressor 與 <Tex>{'u'}</Tex> 的相關 <Tex>{r`E[x_{\mathrm{ref}}u]`}</Tex>（決定更新極性）</>, unit: r`\text{無因次}`, firstSeen: '§7.1', note: <>單頻 unit-power code：<Tex>{r`A^2/2=1`}</Tex></> },
   { symbol: r`\delta=a-w`, meaning: <>剩餘 gain 誤差（<Tex>{'a'}</Tex>：真實 DTC gain，<Tex>{'w'}</Tex>：校正係數）</>, unit: r`\mathrm{fs}\ \text{per unit code}`, firstSeen: '§7.1', note: <>本章採 <Tex>{r`\delta=a-w`}</Tex>（§0；E32）</> },
-  { symbol: r`e_{\mathrm{PD}}[n],\ v[n]`, meaning: <>comparator 前的 PD 誤差、雜訊（標準差 <Tex>{r`\sigma_v`}</Tex>）</>, unit: r`\mathrm{fs}`, firstSeen: '§7.1' },
+  {
+    symbol: r`T_0,\ \tau_{\mathrm{DTC}}[n]=T_0-w\,x[n]`,
+    meaning: <>reference 端 DTC 的基準延遲與實際延遲；<Tex>{r`w\,x[n]`}</Tex> 是 DTC 的補償量（從 <Tex>{'T_0'}</Tex> 往回扣、把 reference edge 提前的時間）</>,
+    unit: r`\mathrm{fs}`,
+    firstSeen: '§7.1',
+    note: <><Tex>{'T_0'}</Tex> 是常數，被 PLL 當成靜態相位偏移吸收；feedback（divider）edge 早到 <Tex>{r`a\,x[n]`}</Tex></>,
+  },
+  {
+    symbol: r`t_{\mathrm{ref}}',\ t_{\mathrm{fb}}`,
+    meaning: 'DTC 延遲後的 reference edge 與 feedback（divider）edge 的時刻；PD 量的是兩者的差',
+    unit: r`\mathrm{fs}`,
+    firstSeen: '§7.1',
+    note: <>不計常數 <Tex>{'T_0'}</Tex>：PLL 不反應時 <Tex>{r`t_{\mathrm{ref}}'-t_{\mathrm{fb}}=(a-w)\,x[n]`}</Tex>；經過迴路後留下 <Tex>{r`(a-w)\,u[n]`}</Tex></>,
+  },
+  {
+    symbol: r`e_{\mathrm{PD}}[n],\ v[n]`,
+    meaning: <>PD 的輸出（PD 誤差；comparator 取的就是它，也就是送進 loop filter 的同一個訊號）、comparator 前的雜訊（標準差 <Tex>{r`\sigma_v`}</Tex>）</>,
+    unit: r`\mathrm{fs}`,
+    firstSeen: '§7.1',
+    note: <>章首系統地圖上標成 <Tex>{'e[n]'}</Tex></>,
+  },
   { symbol: r`q[n]=\mathrm{sign}(e_{\mathrm{PD}})`, meaning: '1-bit comparator 輸出', unit: r`\pm1`, firstSeen: '§7.1', note: <><Tex>{r`e\ge0\Rightarrow q=+1`}</Tex>（E07）</> },
   { symbol: r`G_k,\ N`, meaning: <>第 <Tex>{'k'}</Tex> 個 GMAC block 的平均相關輸出；每 block 的 sample 數</>, unit: r`\text{無因次}`, firstSeen: '§7.1', note: <><Tex>{'n'}</Tex>：sample，<Tex>{'k'}</Tex>：block（E35）</> },
   { symbol: r`\mu`, meaning: 'learning rate（gain_step，average 模式）', unit: r`\mathrm{fs}`, firstSeen: '§7.1' },

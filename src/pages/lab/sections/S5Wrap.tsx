@@ -138,7 +138,7 @@ export function S5Wrap() {
         <Recap
           title="整條 pipeline 最重要的六個公式"
           formulas={[
-            { tex: T`H_{\mathrm{PD}}=\frac{1}{1+L},\qquad T=1-H_{\mathrm{PD}}`, label: '同一個 DTC 誤差的兩條路：PD 看到 high-pass，輸出端看到 low-pass' },
+            { tex: T`H_{\mathrm{PD}}=\frac{1}{1+L},\qquad T=1-H_{\mathrm{PD}}`, label: '同一個 DTC 誤差（從 PD 的 reference 輸入進來）的兩條路：PD 的輸出是 high-pass，輸出端是 low-pass' },
             { tex: T`E[G_k]\approx K_q\,C\,\delta_k,\qquad C=E[x_{\mathrm{ref}}\,u_x],\quad u_x=H_{\mathrm{PD}}\{x\}`, label: '$C$ 的正負決定更新極性；$\\mu$、$N$、$\\sigma_v$ 改不了它的符號' },
             { tex: T`g=\mu K_qC,\qquad z^{d+1}-z^d+g=0,\qquad \sigma_w^2=\frac{\mu^2\sigma_\eta^2}{1-p^2}`, label: '迴路增益、含延遲的 pole、係數的穩態抖動' },
             { tex: T`\operatorname{Var}\bigl(T\{\delta w\,x\}\bigr)\approx\sigma_w^2\bigl(\bar x^{\,2}+\operatorname{Var}(T\{\tilde x\})\bigr)`, label: 'gain 抖動「乘上」code 才是輸出 jitter；code 的 DC 讓它直接穿過 $T$' },
@@ -147,7 +147,8 @@ export function S5Wrap() {
           ]}
           points={[
             <>
-              <strong>兩條路不能混</strong>：校正迴路看到的是 <Tex>{'H_{\\mathrm{PD}}\\{e_{\\mathrm{DTC}}\\}'}</Tex>，使用者看到的是 <Tex>{'T\\{e_{\\mathrm{DTC}}\\}'}</Tex>。PD 幾乎看不到的慢速成分，輸出端全部看得到。
+              <strong>兩條路不能混</strong>：校正迴路的輸入是 PD 的輸出 <Tex>{'H_{\\mathrm{PD}}\\{e_{\\mathrm{DTC}}\\}'}</Tex>（送進 loop filter 的同一個訊號），使用者看到的是 <Tex>{'T\\{e_{\\mathrm{DTC}}\\}'}</Tex>。PD
+              幾乎看不到的慢速成分，輸出端全部看得到。
             </>,
             <>
               <strong>極性是 code × PLL × regressor 的性質</strong>：同一顆晶片換一個 FCW，<Tex>C</Tex> 就可能從正變負。所以要做 FCW sweep，不是只驗一個通道。
@@ -187,7 +188,11 @@ export function S5Wrap() {
         <ModeGate min="research">
           <Callout kind="info" title="Research：這個整合模型還缺什麼">
             <ul className="small">
-              <li>{md('**多速率與注入點**：$f_s\\ne f_{\\mathrm{ref}}$、DTC 在 reference 路徑或 feedback 路徑、sub-sampling PD 的增益與脈衝形狀，都會改變 $H_{\\mathrm{PD}}$ 的相位（第 6、7 章與案例頁）。')}</li>
+              <li>
+                {md(
+                  '**多速率與注入點**：本頁照全站的約定——DTC 在 reference 輸入端，$e_{\\mathrm{DTC}}$ 從 PD 的 reference 輸入注入（$u_{\\mathrm{pd}}=+H_{\\mathrm{PD}}\\{e_{\\mathrm{DTC}}\\}$、$t_{\\mathrm{out}}=+T\\{e_{\\mathrm{DTC}}\\}$），而且 $f_s=f_{\\mathrm{ref}}$。$f_s\\ne f_{\\mathrm{ref}}$、sub-sampling PD 的增益與脈衝形狀都會改變 $H_{\\mathrm{PD}}$ 的相位（第 6、7 章與案例頁）。如果殘差改從 PD 的另一個輸入（回授那一側）進來，$u_{\\mathrm{pd}}$ 與 $t_{\\mathrm{out}}$ 只會一起變號，$|H_{\\mathrm{PD}}|$、$|T|$、jitter 與 spur 都不變。',
+                )}
+              </li>
               <li>{md('**shared BBPD**：$q$ 就是主迴路的 phase detector 時，$E[q]=0$ 被主迴路強制，offset 不再造成 gain bias，固定點公式裡的 $E[x^2]$ 也換成 $\\mathrm{Var}(x)$（等效的 $C$ 變小；E03）。本頁的 comparator 是獨立觀測路徑。')}</li>
               <li>{md('**多參數閉迴路**：GOS / PHOS / gain 同時更新時的耦合與 preconditioner（第 9、10 章）；這裡只有線性化的秩分析。')}</li>
               <li>{md('**非 Gaussian、相關的雜訊**：VCO / reference 的 colored noise 也會進到 comparator，且與主迴路的殘差相關（規格附錄 C 的 R1、R6）。')}</li>

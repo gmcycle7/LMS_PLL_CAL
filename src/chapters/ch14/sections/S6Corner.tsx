@@ -51,7 +51,7 @@ export function S6Corner() {
         title="下限：最慢的 corner 決定"
         steps={[
           { tex: String.raw`E[\delta_B]_i=(1-\mu K_i)^B\delta_0`, why: <>每個 corner 套 F-14.2（把 <Tex>{'K'}</Tex> 換成 <Tex>{'K_i'}</Tex>）。</> },
-          { tex: String.raw`|E[\delta_B]_i|\le\epsilon|\delta_0|\iff|1-\mu K_i|^B\le\epsilon`, why: <>兩邊除以 <Tex>{'|\\delta_0|>0'}</Tex>。</> },
+          { tex: String.raw`\begin{aligned}|E[\delta_B]_i|&\le\epsilon|\delta_0|\\ &\iff|1-\mu K_i|^B\le\epsilon\end{aligned}`, why: <>兩邊除以 <Tex>{'|\\delta_0|>0'}</Tex>。</> },
           {
             tex: String.raw`0<\mu K_i\le1:\quad(1-\mu K_i)^B\le\epsilon\iff1-\mu K_i\le\epsilon^{1/B}`,
             why: <>在 <Tex>{'PM\\ge60^\\circ'}</Tex> 的範圍內 <Tex>{'1-\\mu K_i\\ge0'}</Tex>；非負數取 <Tex>{'B'}</Tex> 次方根是遞增函數，不等號方向不變。</>,
@@ -274,7 +274,7 @@ B=12:\ \epsilon^{1/12}&=0.01^{1/12}=${tx(root, 5)}\\
         />
       </ModeGate>
       <Callout kind="info" title="連結到 PLL">
-        量測時 DTC 的 gain 被刻意偏移 <Tex>{'\\pm\\Delta'}</Tex>，代表 PLL 輸出在量測期間多了 <Tex>{'\\pm\\Delta\\cdot x[n]'}</Tex> 的 deterministic timing error——<Tex>{'\\Delta'}</Tex> 不能為了降低 se 無限加大，量測最好在 PLL 的非關鍵時段（例如開機、或 §14.7 的 VERIFY 狀態）。
+        量測時 DTC 的 gain 被刻意偏移 <Tex>{'\\pm\\Delta'}</Tex>：補償量從 <Tex>{'\\bar w\\,x[n]'}</Tex> 變成 <Tex>{'(\\bar w\\pm\\Delta)\\,x[n]'}</Tex>，reference 端 DTC 的延遲 <Tex>{'T_0-(\\bar w\\pm\\Delta)\\,x[n]'}</Tex> 跟著少了（或多了）<Tex>{'\\Delta\\cdot x[n]'}</Tex>。PD 量到的 <Tex>{'e[n]=(a-\\bar w\\mp\\Delta)\\,x[n]+v[n]'}</Tex> 因此多了 <Tex>{'\\mp\\Delta\\cdot x[n]'}</Tex> 的 deterministic timing error，量測期間它會經過 PLL 出現在輸出——<Tex>{'\\Delta'}</Tex> 不能為了降低 se 無限加大，量測最好在 PLL 的非關鍵時段（例如開機、或 §14.7 的 VERIFY 狀態）。
       </Callout>
       <ModeGate min="engineer">
         <CodeBlock source={optimizerSrc} region="cornerInterval" path="src/simulation/models/optimizer.ts" />

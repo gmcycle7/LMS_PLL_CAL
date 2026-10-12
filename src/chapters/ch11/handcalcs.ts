@@ -722,7 +722,7 @@ export const HANDCALCS: HandCalcDef[] = [
           },
           {
             tex: String.raw`w^*=a+\frac{B}{C}=${texNum(a)}+\frac{${texNum(B)}}{${texNum(C)}}=${texNum(a)}+${texNumP(ni.bias, MID)}=${texNum(wNear)}`,
-            why: 'near-integer 時 gain 誤差要先經過主迴路的誤差路徑才到 PD，有效相關只剩 $C$；$B$ 卻沒有變小（F-11.14）。先除，再加上 $a$。',
+            why: 'near-integer 時 gain 誤差從 PD 的 reference 輸入端進來，要先經過主迴路的誤差路徑才出現在 PD 的輸出，有效相關只剩 $C$；$B$ 卻沒有變小（F-11.14）。先除，再加上 $a$。',
           },
           { tex: String.raw`\frac{w^*-a}{\kappa_d}=\frac{E[x^2]}{C}=\frac{${texNum(px)}}{${texNum(C)}}=${texNum(amp)}`, why: 'bias 的放大倍數（相對於靜態的 $\\kappa_d$）：$C$ 越小放大越多；負值表示 bias 反向。' },
           {

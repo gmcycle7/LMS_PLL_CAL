@@ -44,24 +44,38 @@ export const TP2 = String.raw`$\text{\textcircled{2}}$`
 /**
  * 規格 §4 的完整概念系統有 17 個方塊（和章首的系統地圖一樣多），一張圖放不下還要寫式子，所以依 §8「單張不超過約 14 個節點」拆成兩張：
  * 這一張是「快」的部分——主 PLL 迴路 + 小數除頻與 DTC 補償，每個 reference cycle 動一次；LMS 校正迴路收成一個藍色方塊，
- * 只留下它和快迴路之間的三條線（進去：PD 輸出、code x[n]；出來：gain w_k）。
+ * 只留下它和快迴路之間的三條線（進去：PD 輸出 e[n]、code x[n]；出來：gain w_k）。
+ *
+ * 架構依全站約定（docs/assumptions.md §2a）：DTC 在 reference 的輸入端（Reference clock → DTC → PD），回授路徑上只有 divider（VCO → divider → PD）。
+ * DTC 只能延遲，所以它的 delay 是從基準延遲 T_0 往回扣補償量：T_0 − w_k·x[n] + d(x)。d(x) 是 DTC 的 INL——這個 code 的延遲偏離直線的量，
+ * 多延遲為正，所以它以正號進入 PD 的誤差（和 Ch11 的 F-11.1、bias.ts 同一個定義；本章先當作 0）。
+ * PD 的輸出畫成一個膠囊形的節點 EOUT：同一個節點一邊送進 loop filter（實線），一邊分接給 LMS 校正迴路（虛線）。
+ * 版面（左邊是數位的小數除頻與補償，右邊的框是主 PLL 迴路）靠宣告順序，三件事缺一不可：
+ *  1. RES 最先宣告：Mermaid（dagre）從第一個節點開始決定哪些線往回走。從 RES 開始，往回走的才會是「divider → PD」與「LMS → gain correction」這兩條，
+ *     框裡由上往下就是 Reference clock → DTC → PD → e[n] → loop filter → VCO → divider（換成從 FCW 開始、又把 carry 寫在 residue 前面，DTC 會被排到最下面）。
+ *  2. DSM 的 carry 那條線寫在 residue 之前：carry 才會排在最左邊，由上往下一路走到 divider control。
+ *  3. Divider control 放在框外（它是 DSM 那一側的數位邏輯，不在迴路裡）：carry 那條長線就不必穿過框裡的 feedback edge。
+ * 這樣排沒有任何交叉（瀏覽器裡逐條連線量過）。原本把 divider control 放在框裡、從 FCW 開始宣告，carry 會和 feedback edge 交叉一次；
+ * 只調宣告順序（divider control 留在框裡，試過九百多種排列）消不掉那個交叉。
  */
 export const CONCEPT_FAST_LOOP = String.raw`flowchart TB
+  RES["Fractional residue<br/>code $x[n]$（無因次）"]
   FCW["FCW $= N_\mathrm{int} + \mathrm{frac}$"] --> DSM["Delta-Sigma modulator<br/>累加器 $s[n]$"]
-  subgraph PLLLOOP["主 PLL 迴路（每拍）"]
-    REF["Reference clock $f_\mathrm{ref}$"] --> PD["Phase detector / BBPD"]
-    PD --> PLLF["PLL loop filter"]
-    PLLF --> VCO["VCO / DCO"]
-    VCO --> DIV["Multi-modulus divider"]
-    DIVCTL["Divider control<br/>$N_\mathrm{int} + y[n]$"] --> DIV
-    DIV --> DTC["DTC 的 delay =<br/>$w_k\,x[n] + \mathrm{INL}\,d(x)$"]
-    DTC --> PD
-  end
-  DSM -- "carry $y[n]$" --> DIVCTL
-  DSM -- "residue $s[n] / M$" --> RES["Fractional residue<br/>code $x[n]$（無因次）"]
+  DSM -- "carry $y[n]$" --> DIVCTL["Divider control<br/>$N_\mathrm{int} + y[n]$"]
+  DSM -- "residue $s[n] / M$" --> RES
   RES --> GC["Gain code correction<br/>$w_k\,x[n]$"]
   GC --> DTC
-  PD -. "PD 輸出（fs）" .-> LMS["LMS 校正迴路<br/>每 $N$ 拍更新一次 $w_k$<br/>（下一張圖展開）"]
+  DIVCTL --> DIV
+  subgraph PLLLOOP["主 PLL 迴路（每拍）"]
+    REF["Reference clock $f_\mathrm{ref}$"] --> DTC["reference 端 DTC 的 delay<br/>$= T_0 - w_k\,x[n] + d(x)$"]
+    DTC -- "延遲後的 reference edge" --> PD["Phase detector / BBPD"]
+    PD --> EOUT(["PD 輸出 $e[n]$（fs）"])
+    EOUT --> PLLF["PLL loop filter"]
+    PLLF --> VCO["VCO / DCO"]
+    VCO --> DIV["Multi-modulus divider"]
+    DIV -- "feedback edge" --> PD
+  end
+  EOUT -. "同一個 $e[n]$" .-> LMS["LMS 校正迴路<br/>每 $N$ 拍更新一次 $w_k$<br/>（下一張圖展開）"]
   RES -- "code $x[n]$" --> LMS
   LMS -- "gain $w_k$" --> GC
 ${CLASSES}
@@ -69,25 +83,33 @@ ${CLASSES}
 
 /**
  * 規格 §4 概念系統的「慢」的部分：LMS 校正迴路（把上一張圖的藍色方塊展開；修正標籤、含 noise 注入與 DTC 非線性）。
- * comparator 的輸入 e[n] = PD 輸出 + 雜訊 v[n]（§3 的定義：e 已經含雜訊），所以雜訊畫成 comparator 前的加法點。
+ * 由上往下就是校正迴路走一圈：reference 端的 DTC → PD →（加雜訊）→ PD 輸出 e[n] → comparator → GMAC → normalize → gain accumulator → w_k → gain correction，
+ * 再沿右邊那條長線回到最上面的 DTC（迴路在這裡閉合）。
+ *  - DTC 在 reference 的輸入端（全站約定，docs/assumptions.md §2a）：延遲後的 reference edge 送進 PD；delay 是從基準延遲 T_0 往回扣補償量。
+ *  - LMS 校正迴路的輸入是 PD 的輸出 e[n]（§2a 第 3 點）：PD 量到的時間誤差加上雜訊 v[n] 就是 e[n]（§3 的定義：e 已經含雜訊），所以雜訊畫成 PD 後面的加法點；
+ *    加法點的輸出就是「PD 輸出」這個節點，comparator 從這裡分接（虛線），同一個節點也送進 loop filter（上一張圖的 EOUT → PLLF，這張圖只在線上註明）。
+ *  - 版面：DTC 最先宣告，Mermaid（dagre）才會把「gain correction → DTC」當成往回走的那條線、其餘由上往下，而且沒有任何交叉
+ *    （實際截圖確認過；試過把 loop filter 也畫成一個方塊，或把 fractional residue 放在最上面：都會多出一個交叉）。
+ *    Reference clock 的方塊只畫在上一張圖：這張圖再多一級就超過高度上限（瀏覽器約 1400 px），所以在 DTC 方塊的第一行寫明「reference 端 DTC」。
+ *    Divider 也只畫在上一張圖（在這裡多畫一個 divider 方塊，不是多一個交叉、圖寬到要縮小，就是 DTC 被排到最下面）；
+ *    PD 方塊的第二行寫明它的另一個輸入是 feedback edge，免得看起來像只有一個輸入的 PD（只能寫兩行：寫成三行，jsdom 估計的圖高就超過 1500 px 的上限）。
  */
 export const CONCEPT_LMS_LOOP = String.raw`flowchart TB
-  PD["Phase detector / BBPD<br/>（和上一張圖同一個）"]
+  DTC["reference 端 DTC 的 delay<br/>$= T_0 - w_k\,x[n] + d(x)$"] -- "延遲後的 reference edge" --> PD["Phase detector / BBPD<br/>另一輸入：feedback edge"]
+  PD -- "＋ PD 量到的時間誤差" --> SUM(("＋"))
+  NOISE["comparator 前雜訊 $v[n]$<br/>RMS $\sigma_v$"] -- "＋ $v[n]$" --> SUM
   RES["Fractional residue<br/>code $x[n]$（無因次）"]
-  subgraph LMSLOOP["LMS 校正迴路（每個 block 更新一次）"]
-    NOISE["comparator 前雜訊 $v[n]$<br/>RMS $\sigma_v$"] -- "＋ $v[n]$" --> SUM(("＋"))
-    SUM -- "$e[n]$（fs）" --> CMP["1-bit comparator<br/>$b[n] = 1$ 若 $e[n] \ge 0$<br/>$q[n] = 2b[n] - 1$"]
+  subgraph LMSLOOP["LMS 校正迴路（block rate）"]
     ALIGN["Code alignment<br/>$x[n-D]$ 或 filtered-x<br/>$u_f[n-D]$"] -- "$x_\mathrm{ref}[n]$" --> GMAC["GMAC<br/>$S_k = \sum q[n]\,x_\mathrm{ref}[n]$"]
-    CMP -- "$q[n]$" --> GMAC
+    CMP["1-bit comparator<br/>$b[n] = 1$ 若 $e[n] \ge 0$<br/>$q[n] = 2b[n] - 1$"] -- "$q[n]$" --> GMAC
     GMAC -- "$S_k$" --> SCALE["Normalize $G_k = S_k / N$<br/>step $\mu$"]
     SCALE -- "$\mu\,G_k$" --> ACC["Gain accumulator<br/>$w_{k+1} = w_k + \mu\,G_k$"]
   end
-  PD -. "＋ PD 輸出（fs）" .-> SUM
-  RES --> ALIGN
-  RES --> GC["Gain code correction<br/>$w_k\,x[n]$"]
-  ACC -- "$w_k$" --> GC
-  GC --> DTC["DTC 的 delay =<br/>$w_k\,x[n] + \mathrm{INL}\,d(x)$"]
-  DTC -. "edge 送回 PD<br/>迴路閉合" .-> PD
+  SUM -. "PD 輸出 $e[n]$（fs）<br/>也送進 loop filter" .-> CMP
+  RES -- "code $x[n]$" --> ALIGN
+  ACC -- "gain $w_k$" --> GC["Gain code correction<br/>$w_k\,x[n]$"]
+  RES --> GC
+  GC --> DTC
 ${CLASSES}
   class GMAC,SCALE,ACC focus`
 
@@ -95,27 +117,36 @@ ${CLASSES}
 // §2 Fractional residue
 // ───────────────────────────────────────────────────────────────────────────
 
-/** 一階累加器 residue generator：加法器 + 暫存器；carry → divider、餘數 → DTC code（F-04.1）。 */
+/**
+ * 一階累加器 residue generator：加法器 + 暫存器；carry → divider、餘數 → DTC code（F-04.1）。
+ * 下半部是兩條 edge 在 PD 相遇（全站約定，docs/assumptions.md §2a）：feedback（divider）edge 早到 x·T_vco；
+ * DTC 在 reference 路徑上，把 reference edge 也提前 x·T_vco（從基準延遲 T_0 往回扣：τ_DTC = T_0 − x·T_vco，這張圖畫的是 gain 剛好正確的情形）。
+ * divider 的輸出直接進 PD，不經過 DTC。
+ */
 export const RESIDUE_ACCUMULATOR = String.raw`flowchart TB
   KF["FCW 小數字 $K_\mathrm{F}$<br/>$\mathrm{frac} = K_\mathrm{F} / M$"] -- "＋" --> ADD(("＋"))
   REG["$z^{-1}$ 暫存器<br/>$B_\mathrm{dsm}$ bits<br/>$M = 2^{B_\mathrm{dsm}}$"] -- "＋ $s[n-1]$" --> ADD
   ADD -- "$t[n] = s[n-1] + K_\mathrm{F}$" --> WRAP["溢位判斷（mod $M$）<br/>$t[n] \ge M$ 時 $y[n] = 1$<br/>否則 $y[n] = 0$<br/>$s[n] = t[n] - M\,y[n]$"]
   WRAP -- "餘數 $s[n]$<br/>存回暫存器" --> REG
-  WRAP -- "carry $y[n]$" --> DIV["Divider<br/>這一拍除 $N_\mathrm{int} + y[n]$"]
   WRAP -- "餘數 $s[n]$" --> NORM["$\div M$<br/>$x[n] = s[n] / M$"]
-  DIV -- "edge 早到<br/>$s[n]/M$ 個 $T_\mathrm{vco}$<br/>$r[n] = -s[n]/M$" --> DTC["DTC：插入延遲<br/>$\tau_\mathrm{DTC}[n] = x[n]\,T_\mathrm{vco}$"]
+  WRAP -- "carry $y[n]$" --> DIV["Divider（回授路徑）<br/>這一拍除 $N_\mathrm{int} + y[n]$"]
+  REFCLK["Reference clock"] --> DTC["DTC（reference 路徑）<br/>$\tau_\mathrm{DTC}[n] = T_0 - x[n]\,T_\mathrm{vco}$"]
   NORM -- "code $x[n] \in [0, 1)$" --> DTC
-  DTC -- "補償後的 edge" --> PD["PD"]
+  DTC -- "reference edge 也提前<br/>$x[n]\,T_\mathrm{vco}$" --> PD["PD：量 $t_\mathrm{ref}' - t_\mathrm{fb}$<br/>兩條 edge 對齊"]
+  DIV -- "feedback edge 早到<br/>$s[n]/M$ 個 $T_\mathrm{vco}$<br/>$r[n] = -s[n]/M$" --> PD
 ${CLASSES}
   class ADD,WRAP,REG focus`
 
-/** DTC gain 誤差的數學模型：需要 a·x、實際補 w·x，PD 只看到 (a − w)·x（F-04.2）。 */
+/**
+ * DTC gain 誤差的數學模型：需要 a·x、實際補 w·x，PD 只看到 (a − w)·x（F-04.2）。
+ * 兩條線就是 PD 的兩個輸入：feedback edge 早到 a·x（＋）、DTC 把 reference edge 提前 w·x（−）；e = t_ref′ − t_fb = (a − w)·x。
+ */
 export const GAIN_ERROR_MODEL = String.raw`flowchart TB
   X["code $x[n] = s[n] / M$<br/>已知，無因次"] --> A["$\times a$<br/>真正需要的 gain<br/>類比、未知"]
   X --> W["$\times w$<br/>DTC 目前用的 gain<br/>數位、可調"]
-  A -- "＋ $a\,x[n]$<br/>edge 早到的時間" --> SUB(("＋"))
-  W -- "$-w\,x[n]$<br/>DTC 補回的延遲" --> SUB
-  SUB -- "$e_\mathrm{det}[n] = (a - w)\,x[n]$<br/>$= \delta\,x[n]$" --> PD["PD / comparator<br/>只看得到這個殘差"]
+  A -- "＋ $a\,x[n]$<br/>feedback edge<br/>早到的時間" --> SUB(("＋"))
+  W -- "$-w\,x[n]$<br/>DTC 的補償量：<br/>reference edge 提前" --> SUB
+  SUB -- "$e_\mathrm{det}[n] = (a - w)\,x[n]$<br/>$= \delta\,x[n]$" --> PD["PD 輸出<br/>comparator 只看得到<br/>這個殘差"]
 ${CLASSES}
   class W focus`
 
@@ -146,12 +177,16 @@ export const RTL_DATAFLOW = String.raw`flowchart LR
   end
   FAST -- "總和 $S_k$<br/>每 $N$ 個<br/>sample 一次" --> SLOW`
 
-/** 系統圖 C：雜訊／回授等效模型（含 H_PD）。上半段是 sample rate，「(1/N)·Σ」以下是 block rate。 */
+/**
+ * 系統圖 C：雜訊／回授等效模型（含 H_PD）。上半段是 sample rate，「(1/N)·Σ」以下是 block rate。
+ * 全站約定（docs/assumptions.md §2a 第 5 點）：DTC 的殘餘時間誤差 δ_k·x[n] 從 PD 的 reference 輸入端進來，H_PD 是它到 PD 輸出的轉移函數（正號：e = +H_PD{δx}）；
+ * 加法點的輸出 e[n] 就是 comparator 看到的 PD 輸出。
+ */
 export const NOISE_FEEDBACK = String.raw`flowchart TB
   A["真實 gain $a$"] -- "＋" --> SUB(("＋"))
   SUB -- "$\delta_k = a - w_k$" --> MUL(("$\times$"))
   XC["code $x[n]$"] --> MUL
-  MUL -- "$\delta_k\,x[n]$（fs）" --> HPD["$H_\mathrm{PD}(z)$<br/>PLL 誤差路徑"]
+  MUL -- "$\delta_k\,x[n]$（fs）" --> HPD["$H_\mathrm{PD}(z)$：PLL 誤差路徑<br/>PD 的 reference 輸入<br/>到 PD 輸出"]
   HPD -- "＋ $\delta_k\,u[n]$" --> ADDN(("＋"))
   VN["雜訊 $v[n]$"] -- "＋" --> ADDN
   BOFF["comparator offset<br/>$b_\mathrm{off}$"] -- "＋" --> ADDN
@@ -171,9 +206,10 @@ export const NOISE_FEEDBACK = String.raw`flowchart TB
  * 右欄是「block 結束之後、每個 block 一次」的 (4)(5)；(3) 是兩欄之間的箭頭。
  * （Mermaid 的限制：subgraph 內的節點只要連到 subgraph 外面，它自己的 direction 就失效，所以兩欄之間的箭頭畫在 subgraph 與 subgraph 之間。）
  * subgraph 標題只寫文字（含公式的標題會被縮得看不見）；block k 涵蓋的 sample 範圍寫在 GMAC 方塊上。
+ * 左欄的標題不寫「一個 block 之內」：多那兩個字，標題在瀏覽器裡剛好被折成兩行（「一次」掉到第二行、貼在第一個方塊上面）。
  */
 export const LATENCY_TIMELINE = String.raw`flowchart LR
-  subgraph BLK["一個 block 之內：每個 sample 一次"]
+  subgraph BLK["block 之內：每個 sample 一次"]
     direction TB
     S["Sample clock $f_s$"] -- "(1) sample $n$<br/>code $x[n-D]$ 已對齊" --> C["Comparator"]
     C -- "(2) $b[n]$<br/>累加 $S \leftarrow S + q\,x_\mathrm{ref}$" --> G["GMAC（block $k$）<br/>sample $n = kN \ldots kN+N-1$"]
@@ -273,9 +309,9 @@ export const NEGATE_DATAPATH = String.raw`flowchart LR
 ${CLASSES}
   class SE,XOR,CTL focus`
 
-/** 硬體 0/1 → ±1 的映射方塊，以及忘了映射的 bug 路徑（F-04.7）。 */
+/** 硬體 0/1 → ±1 的映射方塊，以及忘了映射的 bug 路徑（F-04.7）。comparator 的輸入是 PD 的輸出 e[n]（全站約定）。 */
 export const BIT_MAPPING = String.raw`flowchart TB
-  E["PD 誤差 $e[n]$"] --> CMP["1-bit comparator<br/>$e[n] \ge 0$ 時 $b[n] = 1$<br/>否則 $b[n] = 0$"]
+  E["PD 輸出 $e[n]$"] --> CMP["1-bit comparator<br/>$e[n] \ge 0$ 時 $b[n] = 1$<br/>否則 $b[n] = 0$"]
   CMP -- "$b[n] \in \{0, 1\}$" --> MAP["映射 $q = 2b - 1$<br/>$0 \to -1$，$1 \to +1$"]
   MAP -- "$q[n] \in \{-1, +1\}$" --> G1["GMAC<br/>$G = (1/N)\sum q[n]\,x_\mathrm{ref}[n]$"]
   G1 --> R1["$E[G] \approx K\,\delta$<br/>固定點 $w^* = a$"]

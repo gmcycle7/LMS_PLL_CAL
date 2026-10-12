@@ -7,6 +7,13 @@
  *   T(s)    = L/(1+L) = (2ζω_n s + ω_n²)/(s² + 2ζω_n s + ω_n²)  （→ PLL output，low-pass）
  *   這只是教學參考：§6.1 的數值例子（ζ=0.7、ω=0.3ω_n ⇒ H ≈ −0.0815 + j0.0376）就是用它。
  *
+ * ── 注入點與正負號（全站架構約定，docs/assumptions.md §2a）──────────────────
+ *   DTC 在 reference 輸入端，回授路徑上只有 divider。DTC 的殘餘誤差 φ_dtc 在 PD 的 **reference 輸入端**注入：
+ *     e_PD = φ_dtc − θ_fb，θ_fb = L·e_PD（θ_fb：折算到 PD 輸入的輸出相位 θ_out）
+ *       ⇒  e_PD = +H_PD·φ_dtc，θ_out = +T·φ_dtc（H_PD + T = 1）
+ *   PD 的輸出 e_PD 同時送進 loop filter 與校正迴路的 1-bit comparator（LMS 的輸入就是這個節點）。
+ *   本檔的 H_PD、T 就是這兩個帶正號的轉移函數；|H_PD|、|T|、jitter、spur dBc 與注入在哪一側無關。
+ *
  * ── 離散時間（DT）時域模擬模型：採用「直接 DPLL 差分方程」參數化（validation.md E44）──
  *   假設 PLL 迴路與 comparator 同一取樣率 f_s（T_s = 1/f_s），Ω 一律為 rad/sample：
  *     L(z) = (K_p + K_i/(1 − z⁻¹)) · z^{−(1+d)}/(1 − z⁻¹)

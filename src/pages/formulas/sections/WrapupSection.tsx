@@ -112,7 +112,7 @@ export function WrapupSection() {
         answer={
           <>
             <p>
-              code 在迴路裡出現<strong>兩次</strong>：一次在 GMAC 的乘法（<Tex>{String.raw`G\to k_xG`}</Tex>），一次在 DTC 把係數變成延遲的地方（<Tex>{String.raw`w\to w/k_x`}</Tex>）。所以{' '}
+              code 在迴路裡出現<strong>兩次</strong>：一次在 GMAC 的乘法（<Tex>{String.raw`G\to k_xG`}</Tex>），一次在 DTC 把係數變成補償量（從基準延遲往回扣的時間）的地方（<Tex>{String.raw`w\to w/k_x`}</Tex>）。所以{' '}
               <Tex>{String.raw`C=E[xu]\to k_x^2C`}</Tex>，<Tex>{String.raw`\mu`}</Tex> 要除以 <Tex>{'k_x^2'}</Tex>：
             </p>
             <TexBlock>{String.raw`\mu'=\frac{${T13_SETUP.mu}}{${u.scale.kx ** 2}}=${texNum(u.scale.muScaled)},\qquad g'=\mu'K_qC'=${texNum(u.scale.gScaled, 5)}=g`}</TexBlock>

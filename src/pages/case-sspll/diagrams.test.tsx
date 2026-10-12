@@ -58,7 +58,7 @@ const SECTION_FILES = readdirSync(join(DIR, 'sections')).filter((f) => f.endsWit
 const SECTION_SRC = SECTION_FILES.map((f) => readFileSync(join(DIR, 'sections', f), 'utf8')).join('\n')
 const INDEX_SRC = readFileSync(join(DIR, 'index.tsx'), 'utf8')
 
-/** 本章原有的圖（§2 的 SSPLL 架構圖）；其餘都是這次新增的 */
+/** 本章原有的圖（§2 的 SSPLL 架構圖；2026-10 起依 docs/assumptions.md §2a 重畫：PD 的輸出獨立成一個節點）；其餘都是後來新增的 */
 const EXISTING_IDS = ['sspll']
 
 interface FlowEdge {
@@ -269,12 +269,25 @@ describe('案例頁 /case/sspll 的方塊圖：訊號名稱、正負號、取樣
     expect(inj.edge('MP', 'SU').text).toContain('feedback 端')
     expect(inj.edge('SU', 'H').text).toContain('u[n]')
     expect(inj.edge('H', 'OUT').text).toContain(String.raw`e_{PD}[n] = (h_{PD} * u)[n]`)
+    // 比較點就是 PD 的輸入端；H_PD 的輸出是 PD 的輸出，同時給 loop filter 與比較器
+    expect(inj.edge('SU', 'H').text).toContain('PD 輸入端')
+    expect(inj.node('OUT').text).toContain('PD 輸出')
+    expect(inj.node('OUT').text).toContain('loop filter 與 1-bit 比較器')
     // §3 主迴路：u 以「+」、y 以「−」進入加法點；加法點的輸出（e_PD）同時送往迴路與比較器
     const hpd = await flow('hpd-loop')
     expect(signsInto(hpd.edges, 'S')).toEqual({ U: '＋', VCO: '−' })
     expect(hpd.edge('VCO', 'S').text).toContain('y[n]')
     expect(hpd.edge('S', 'LF').text).toBe('$e_{PD}[n]$')
     expect(hpd.edge('S', 'CMP').text).toBe('$e_{PD}[n]$')
+    // 藍色的圓就是 PD：它的輸出只有兩個去處——loop filter 與比較器；比較器沒有別的輸入
+    expect(hpd.node('S').text).toBe('PD')
+    expect(hpd.node('S').classes ?? []).toContain('focus')
+    expect(hpd.edges.filter((e) => e.start === 'S').map((e) => e.end).sort()).toEqual(['CMP', 'LF'])
+    expect(hpd.edges.filter((e) => e.end === 'CMP').map((e) => e.start)).toEqual(['S'])
+    expect(hpd.node('CMP').text).toContain('取的是 PD 的輸出')
+    // 圖上也寫明兩個輸入端：u 折算到 PD 的 reference 輸入（＋），y 回到 feedback 輸入（−）
+    expect((hpd.node('U').text ?? '').replace(/<br\s*\/?>/g, '')).toContain('折算到 PD 的reference 輸入')
+    expect(hpd.edge('VCO', 'S').text.replace(/<br\s*\/?>/g, '')).toContain('回到 feedback 輸入')
     expect(hpd.subs[0].title).toContain('$L(z)$')
     expect([...hpd.subs[0].nodes].sort()).toEqual(['LF', 'VCO'])
     // §4 平均迴路：δ[k] 以「+」、μ·K_q·C·δ[k] 以「−」
@@ -297,6 +310,169 @@ describe('案例頁 /case/sspll 的方塊圖：訊號名稱、正負號、取樣
     expect(sim.node('ID').text).toContain(String.raw`\rho\cdot\Delta + \varepsilon_p`)
     expect(sim.node('DT').text).toContain(String.raw`(1 - a)(1 + w_g)\cdot(\rho\cdot\Delta + w_p)`)
     expect(sim.node('CMP').text).toContain(String.raw`\mathrm{sign}(e_{PD} + v + u_{os})`)
+  })
+
+  it('SSPLL: 架構照 docs/assumptions.md §2a——DTC 在 reference 輸入端、回授路徑上只有 PMUX、校正迴路取 PD 的輸出；DTC 的延遲是 T_0 減補償量', async () => {
+    const sp = await flow('sspll')
+    const has = (a: string, b: string) => sp.edges.some((e) => e.start === a && e.end === b)
+    const into = (k: string) => sp.edges.filter((e) => e.end === k).map((e) => e.start).sort()
+    const outOf = (k: string) => sp.edges.filter((e) => e.start === k).map((e) => e.end).sort()
+    // 訊號路徑：REF → DTC → PD → （PD 輸出）→ loop filter → VCO；回授：VCO → PMUX → PD
+    for (const [a, b] of [['REF', 'DTC'], ['DTC', 'PD'], ['PD', 'E'], ['E', 'LF'], ['LF', 'VCO'], ['VCO', 'PMUX'], ['PMUX', 'PD']]) expect(has(a, b), `${a} → ${b}`).toBe(true)
+    // DTC 不在回授路徑上；reference 不會繞過 DTC 直接進 PD
+    expect(has('PMUX', 'DTC')).toBe(false)
+    expect(has('VCO', 'DTC')).toBe(false)
+    expect(has('REF', 'PD')).toBe(false)
+    expect(outOf('PMUX')).toEqual(['PD'])
+    expect(outOf('REF')).toEqual(['DTC'])
+    expect(into('DTC')).toEqual(['ACC', 'LMS', 'REF']) // reference、累加器的 code、LMS 的權重
+    expect(into('PD')).toEqual(['DTC', 'PMUX'])
+    expect(into('PMUX')).toEqual(['ACC', 'VCO']) // carry／相位索引控制 PMUX
+    // PD 量的是 t_ref′ − t_fb：兩條進來的線分別標 reference edge 與 feedback edge
+    expect(sp.edge('DTC', 'PD').text.replace(/<br\s*\/?>/g, ' ')).toBe("reference edge $t_{ref}'$")
+    expect(sp.edge('PMUX', 'PD').text.replace(/<br\s*\/?>/g, ' ')).toBe('feedback edge $t_{fb}$')
+    expect(sp.node('PD').text).toContain('SSPD（phase detector）')
+    expect(sp.node('PD').text).toContain("$t_{ref}' - t_{fb}$")
+    // 校正迴路的輸入是 PD 的輸出：PD 只接到「PD 輸出」這個節點，它再分給 loop filter 與 1-bit 比較器；比較器沒有別的輸入
+    expect(outOf('PD')).toEqual(['E'])
+    expect(sp.node('E').text).toBe('PD 輸出 $e_{PD} = h_{PD} * u$')
+    expect(sp.node('E').classes ?? []).toContain('focus')
+    expect(outOf('E')).toEqual(['CMP', 'LF'])
+    expect(into('CMP')).toEqual(['E'])
+    expect(into('LF')).toEqual(['E'])
+    expect(sp.edge('E', 'CMP').text).toBe('同一個 $e_{PD}$')
+    expect(sp.node('CMP').text).toContain(String.raw`q = \mathrm{sign}(e_{PD} + v)`)
+    // GMAC：比較器輸出 × regressor；LMS 的 9 個權重回到 reference 端的 DTC
+    expect(into('GMAC')).toEqual(['CMP', 'XR'])
+    expect(sp.node('XR').text).toContain('regressor $x_i[n]$')
+    expect(sp.node('XR').text).toContain('累加器的') // regressor 沒有從累加器拉線過來（會和別的線交叉），所以節點上寫明來源
+    expect(outOf('LMS')).toEqual(['DTC'])
+    // DTC 只能延遲：延遲 = T_0 − 補償量；補償量的式子（模型）沒有變。PMUX 的偏差以「早到」為正
+    expect(sp.node('DTC').text).toContain('input DTC（reference 端）')
+    expect(sp.node('DTC').text).toContain('延遲 $= T_0 -$ 補償量')
+    expect(sp.node('DTC').text).toContain(String.raw`補償量 $= (1 - a)(1 + w_g)\cdot\rho\Delta$`)
+    expect(sp.node('DTC').text).not.toMatch(/延遲 \$= \(1 - a\)/)
+    expect(sp.node('PMUX').text).toContain('8 相 PMUX（feedback 端）')
+    expect(sp.node('PMUX').text).toContain(String.raw`早到 $\varepsilon_k$`)
+    expect(diagramById('sspll').def.caption).toContain('和送進 loop filter 的是同一個訊號')
+    expect(diagramById('sspll').def.alt).toContain('回授路徑上沒有 DTC')
+    // 這個接法給出的就是模型的注入式：t_ref′ = T_0 − 補償量、t_fb = −(ρΔ + ε_p)（早到）⇒ t_ref′ − t_fb − T_0 = u
+    expect(SIM_LOOP_CODE.inject).toBe('u = c * Dl + eps[p] - gain * (c * Dl + W[l][p])')
+    for (const [rho, eps, a, wg, wp, T0] of [[0.3, 0.2, 0.05, 0.02, 0.1, 40], [0.9, -0.3, 0.05, 0.08, -0.25, 12.5], [0, 0.1, 0, 0, 0, 7.8125]]) {
+      const Dl = 7.8125
+      const gain = (1 - a) * (1 + wg)
+      const comp = gain * (rho * Dl + wp) // DTC 的補償量
+      const tRef = T0 - comp // DTC 之後的 reference edge
+      const tFb = -(rho * Dl + eps) // feedback edge：早到 ρΔ + ε_p
+      const u = rho * Dl + eps - gain * (rho * Dl + wp) // SIM_LOOP_CODE.inject
+      expect(tRef - tFb - T0).toBeCloseTo(u, 12)
+      // 這幾組數字裡，補得不夠（w_g < a、0 < w_p < ε_p）的那一組 reference 還是太晚，誤差為正
+      if (wg < a && wp < eps) expect(u).toBeGreaterThan(0)
+    }
+    // 全站的系統地圖是同一種接法：ref → dtc → pd、div → pd、沒有 div → dtc；LMS 的輸入分接在 PD → loop filter 那條線上
+    const wires = systemMapModel(MAP_FOCUS).wires
+    const wire = (a: string, b: string) => wires.find((w) => w.from === a && w.to === b)
+    for (const [a, b] of [['ref', 'dtc'], ['dtc', 'pd'], ['pd', 'lf'], ['div', 'pd'], ['gc', 'dtc']]) expect(wire(a, b), `${a} → ${b}`).toBeTruthy()
+    expect(wire('div', 'dtc')).toBeUndefined()
+    expect(wire('ref', 'pd')).toBeUndefined()
+    expect(wire('pd', 'cmp')?.tag?.tapOn).toEqual(['pd', 'lf'])
+    // 其他畫到硬體的圖：比較器接 SSPD 的 hold 節點（PD 輸出）；權重修正的是 DTC 的補償量；P-only 的 y 回到 PD 的 feedback 輸入
+    const hw = await flow('hardware')
+    expect(hw.node('SSPD').text).toContain('PD 輸出 $e_{PD}$')
+    expect(hw.edges.filter((e) => e.end === 'CMP').map((e) => e.start)).toEqual(['SSPD'])
+    expect(hw.node('COR').text).toContain('修正 DTC 的補償量')
+    expect((await flow('p-only')).node('O').text).toContain('feedback 輸入（−）')
+    // 沒有任何一張圖把 DTC 畫在 PMUX／divider 之後，也沒有圖說 DTC「插入延遲」
+    for (const d of DIAGRAMS) {
+      expect(d.chart, d.id).not.toMatch(/PMUX\s*-->\s*DTC|DIV\s*-->\s*DTC|修正 DTC 的延遲/)
+      expect(d.caption + (d.alt ?? ''), d.id).not.toMatch(/divider 之後|插入延遲/)
+    }
+    // 正文：§2 寫出哪一條 edge 被延遲（T_0、補償量、t_ref′ − t_fb）；章首不再說地圖把 DTC 畫在 divider 之後；§3 的 u 在 reference 輸入端、y 從 feedback 輸入端回來
+    const src = (f: string) => readFileSync(join(DIR, 'sections', f), 'utf8')
+    const s2 = src('S02Architecture.tsx')
+    expect(s2).toContain(String.raw`\tau_{DTC}[n]=T_0-\underbrace{\rho[n]\,\Delta}_{\text{補償量}}`)
+    expect(s2).toContain(String.raw`t_{ref}'[n]-t_{fb}[n]`)
+    expect(s2).toContain('只能延遲、不能提前')
+    expect(s2).toContain('reference edge')
+    expect(s2).toContain('也就是送進 loop filter 的同一個訊號')
+    expect(s2).toContain(String.raw`e_{GOS}[n]=(a-w_g)\,\rho[n]\,\Delta`)
+    expect(s2).toContain(String.raw`e_{PHOS}[n]=\sum_k(\varepsilon_k-w_k)\,\mathbf 1\{p[n]=k\}`)
+    expect(s2).not.toMatch(/理想的延遲|實際的延遲|修正延遲|從同一個比較點取出/)
+    const s1 = src('S01Roadmap.tsx')
+    expect(s1).not.toMatch(/divider 之後|只差正負號/)
+    expect(s1).toContain('回授路徑上只有地圖的「Divider / PMUX」')
+    const s3 = src('S03Hpd.tsx')
+    expect(s3).toContain('reference 輸入端')
+    expect(s3).toContain('feedback 輸入端')
+    expect(s3).toContain('e_{PD}[n]=u[n]-y[n]')
+    expect(s3).toContain(String.raw`E_{PD}=\frac{1}{1+L}\,U`) // 正號：e_PD = +H_PD·u
+    expect(s3).toContain(String.raw`Y=L\,E_{PD}=T\,U`) // 正號：迴路的修正（輸出）= +T·u
+    expect(s3).not.toMatch(/-\s*T\\,U|-H_\{PD\}\\,U/)
+    expect(SECTION_SRC).not.toMatch(/DTC 在回授|回授路徑上的 DTC|divider 的 edge 經過 DTC|推回理想時刻/)
+    // §2 的因果要寫對：DTC 在 reference 輸入端所以動不到 feedback edge（不是「因為只能延遲所以不去動它」）；ρ 越大延遲越短；T_0 至少要有補償量的最大值
+    expect(s2).toContain('動不到 feedback edge')
+    expect(s2).toContain('越大，DTC 的延遲越短')
+    expect(s2).toContain('延遲不能是負的')
+    expect(s2).toContain('被提前（少延遲）的時間')
+    expect(s2).not.toMatch(/code 越大|不去動 feedback edge/)
+    // 極性約定：本章的更新式是 w ← w + μ·q·r；「ε_k 記成晚到為正」的實作註記才出現減號的版本
+    expect(s2).toContain(String.raw`w\leftarrow w+\mu\,q\,r`)
+    expect(s2).toContain(String.raw`w_k\leftarrow w_k-\mu\,q\,r`)
+    expect(s2.indexOf('晚到為正')).toBeGreaterThan(0)
+    expect(s2.indexOf(String.raw`w_k\leftarrow w_k-\mu\,q\,r`)).toBeGreaterThan(s2.indexOf('晚到為正'))
+    // 那個註記照算一次：ε′ = 晚到為正、w′ 加在 DTC 的延遲上 ⇒ t_ref′ − t_fb − T_0 = w′ − ε′；w′ ← w′ − μ·q·r 才往 ε′ 靠近，用加號會越走越遠
+    for (const [epsLate, wLate] of [[0.3, 0.1], [0.3, 0.5], [-0.2, 0.05]]) {
+      const T0 = 40
+      const rhoD = 0.4 * 7.8125
+      const tRef = T0 - rhoD + wLate // DTC 的延遲 = T_0 − ρΔ + w′
+      const tFb = -rhoD + epsLate // feedback edge：早到 ρΔ、再晚到 ε′
+      const e = tRef - tFb - T0
+      expect(e).toBeCloseTo(wLate - epsLate, 12)
+      const q = Math.sign(e)
+      expect(Math.abs(wLate - 0.01 * q - epsLate)).toBeLessThan(Math.abs(wLate - epsLate))
+      expect(Math.abs(wLate + 0.01 * q - epsLate)).toBeGreaterThan(Math.abs(wLate - epsLate))
+    }
+    // 其他提到接法的段落：§0.1、§14、§18、F-CS.1 的條件、實驗 A 的假設
+    expect(src('S00Conclusion.tsx')).toContain('PD 的輸出（1-bit 比較器取的就是它，和送進 loop filter 的是同一個訊號）')
+    expect(src('S14ClosedLoop.tsx')).toMatch(/DTC 的延遲是 <Tex>\{'T_0'\}<\/Tex> 減掉補償量/)
+    expect(src('S16Wrapup.tsx')).toContain('那就是 PD 的輸出')
+    expect(src('S16Wrapup.tsx')).toContain('再併進 DTC 的補償量')
+    const f1 = FORMULAS.find((f) => f.id === 'F-CS.1')!
+    expect(f1.tex).toContain(String.raw`e_{PD}=h_{PD}*u`)
+    expect(f1.conditions).toContain('折算到 PD 的 reference 輸入端')
+    expect(f1.conditions).toContain('$e_{PD}=u-y$')
+    expect(readFileSync(join(DIR, 'experiments', 'HpdExplorer.tsx'), 'utf8')).toContain('折算到 PD 的 reference 輸入端')
+    // 整個資料夾（測試以外的每一個檔案）都沒有舊接法的說法：和 src/data/architectureConvention.test.tsx 同一組規則
+    const OLD_ARCHITECTURE: RegExp[] = [
+      /DTC\s*(?:畫)?在\s*(?:divider|除頻器|回授|feedback)[^。；\n]{0,6}(?:之後|後面|路徑)|(?:divider|除頻器)\s*(?:之後|後面)的\s*DTC/,
+      /(?:divider|除頻器|feedback|回授)[^。；\n]{0,10}edge[^。；\n]{0,6}(?:經過|送進|進入)\s*DTC/,
+      /DTC[^。；\n]{0,8}(?:插入|施加|多施加)[^。；\n]{0,6}(?:的)?\s*(?:延遲|delay)/,
+      /推回(?:理想|正確)/,
+      /(?:feedback|回授)\s*(?:側|端|比較路徑)[^。；\n]{0,8}(?:注入|加進)/,
+      /注入點在\s*PD\s*比較端/,
+      /e_\{?\\?(?:mathrm\{)?PD\}?\}?\s*=\s*-\s*\(|e_PD\s*=\s*[−-]\s*\(/,
+      /(?:θ_out|\\theta_\{?\\?(?:mathrm\{)?out\}?\}?)\s*=\s*[−-]\s*T/,
+      /(?:e_PD|e_\{\\mathrm\{PD\}\})\s*=\s*[−-]\s*H/,
+    ]
+    const sourceFiles = [
+      ...readdirSync(DIR).filter((f) => /\.tsx?$/.test(f) && !/\.test\./.test(f)).map((f) => join(DIR, f)),
+      ...SECTION_FILES.map((f) => join(DIR, 'sections', f)),
+      ...readdirSync(join(DIR, 'experiments')).filter((f) => f.endsWith('.tsx')).map((f) => join(DIR, 'experiments', f)),
+    ]
+    expect(sourceFiles.length).toBeGreaterThan(25)
+    for (const file of sourceFiles) {
+      const text = readFileSync(file, 'utf8')
+      for (const re of OLD_ARCHITECTURE) expect(re.test(text), `${file}：${re.source}`).toBe(false)
+    }
+    // 符號表收了這次新出現的符號
+    expect(SYMBOLS.some((x) => x.symbol.includes('T_0') && x.symbol.includes(String.raw`\tau_{DTC}`))).toBe(true)
+    expect(SYMBOLS.some((x) => x.symbol.includes("t_{ref}'") && x.symbol.includes('t_{fb}'))).toBe(true)
+    // ε_k 以「早到」為正、u 與 e_PD 的說明照新的接法寫
+    const symbolsSrc = readFileSync(join(DIR, 'symbols.tsx'), 'utf8')
+    expect(symbolsSrc).toContain('以 feedback edge「早到」為正')
+    expect(symbolsSrc).toContain('注入在相位比較點（PD 的輸入端）的時間誤差：該補的量減掉 DTC 實際補上的量')
+    expect(symbolsSrc).toContain('PD 的輸出：送進 loop filter、也送進比較器的殘差')
+    expect(symbolsSrc).not.toMatch(/PD／比較器輸入的殘差/)
   })
 
   it('SSPLL: 取樣率——校正迴路的圖把 sample rate（n）與 block rate（k）分在兩個框；LMS 更新式的符號是「+」', async () => {
@@ -339,6 +515,9 @@ describe('案例頁 /case/sspll 的方塊圖：訊號名稱、正負號、取樣
     expect(ps.edge('D', 'DTC').text).toContain(String.raw`\rho[n] = 8\varphi[n] - p[n]`)
     expect(ps.node('OH').text).toContain(String.raw`\mathbf{1}\{p[n] = k\}`)
     expect(ps.node('X0').text).toContain(String.raw`x_0[n] = \rho[n]`)
+    // 粗調在 PMUX（feedback 端，挪 p·Δ）；細調是 reference 端 DTC 的補償量 ρ·Δ（不是「DTC 的延遲」）
+    expect(ps.node('PM').text).toContain(String.raw`粗調：$p[n]\cdot\Delta$`)
+    expect(ps.node('DTC').text).toContain(String.raw`細調：補償量 $\rho[n]\cdot\Delta$`)
     // 照圖做一次（α = P/Q，用整數運算避免浮點累加誤差）：φ[n] = frac(φ[n−1] + α)，p = floor(8φ)，ρ = 8φ − p
     for (const [P, Q] of [[137, 1000], [21, 1000], [3, 10], [1, 50]] as const) {
       const ref = phaseSequence(P / Q, 60, 'right')
@@ -779,7 +958,7 @@ describe('案例頁 /case/sspll：頁面真的把圖畫出來，符號表在最�
     expect(fig.getAttribute('aria-label')).toMatch(/系統方塊圖/)
     // aria-label 是純文字：方塊名稱裡的 `$...$` 只拿掉分隔符號
     for (const b of MAP_FOCUS) expect(fig.getAttribute('aria-label'), b).toContain(stripMathDelimiters(SYSTEM_BLOCK_LABEL[b]))
-    // 資料模型：被標成主角的方塊恰好是本章的 MAP_FOCUS（整個主 PLL 迴路 + 小數累加器與 regressor + 比較器、對齊、GMAC）
+    // 資料模型：被標成主角的方塊恰好是本章的 MAP_FOCUS（reference 輸入端的 DTC + 整個主 PLL 迴路 + 小數累加器與 regressor + 比較器、對齊、GMAC）
     const model = systemMapModel(MAP_FOCUS)
     expect(model.blocks.filter((b) => b.focused).map((b) => b.id).sort()).toEqual([...MAP_FOCUS].sort())
     // DOM：手排的 SVG 立刻就在，主角方塊帶 is-focus／data-focus，其餘方塊沒有
@@ -790,6 +969,10 @@ describe('案例頁 /case/sspll：頁面真的把圖畫出來，符號表在最�
     expect(container.querySelectorAll('g.c-sysmap-block:not(.is-focus)')).toHaveLength(model.blocks.length - MAP_FOCUS.length)
     expect(container.textContent).toMatch(/藍色方塊是本章的主角/)
     expect(container.textContent).toMatch(/input DTC/)
+    // 地圖和本章的晶片是同一種接法：章首的說明講 PD 的輸出，不再說「DTC 畫在 divider 之後」
+    expect(container.textContent).toMatch(/LMS 校正迴路的輸入取自 PD 的輸出/)
+    expect(container.textContent).not.toMatch(/divider 之後/)
+    expect(fig.getAttribute('aria-label')).toMatch(/DTC 在 reference 輸入端；LMS 的輸入取自 PD 的輸出/)
     // 系統地圖不再交給 Mermaid 畫
     await new Promise((r) => setTimeout(r, 50))
     expect(spy).not.toHaveBeenCalled()

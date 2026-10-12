@@ -75,16 +75,26 @@ export function WrapUpSection() {
     <>
       <Section kind="diagram" level={2} title="9. 連結到 PLL：這些數學對應哪些硬體">
         <p>
-          回到章首的系統地圖：本章的每個符號在硬體上都有位置。下圖把 comparator 到 gain accumulator 這一段畫出來，並標上本章的符號；
+          回到章首的系統地圖：本章的每個符號在硬體上都有位置。下圖把從 reference clock 到 gain accumulator 的整條路畫出來（主 PLL 迴路加上 LMS 校正迴路），並標上本章的符號；
           <Tex>{'x[n]'}</Tex> 是 regressor（本章取 <Tex>{'x\\equiv1'}</Tex>），<Tex>{'G_k'}</Tex> 是第 <Tex>{'k'}</Tex> 個 block 的平均，<Tex>{'\\mu'}</Tex> 是學習率。
         </p>
         <Fig name="hwMap">
-          這張圖是直式的，由上往下順著箭頭走。先看從 DTC 到 GMAC 的前半段（每個 sample <Tex>{'n'}</Tex> 動一次）：DTC gain 的誤差在 PD 處變成時間誤差 <Tex>{'s'}</Tex>，加上 jitter <Tex>{'v[n]'}</Tex>，BBPD 把它切成一個位元{' '}
-          <Tex>{'b[n]'}</Tex>，映射成 <Tex>{'q[n]=\\pm1'}</Tex> 後進 GMAC 累加。再看 GMAC 之後的後半段（每個 block <Tex>{'k'}</Tex> 才動一次）：累加滿 <Tex>{'N'}</Tex> 個 sample 得到{' '}
-          <Tex>{'S_N'}</Tex>，除以 <Tex>{'N'}</Tex>、乘 <Tex>{'\\mu'}</Tex>，加進 gain accumulator 得到新的 <Tex>{'w'}</Tex>，再回去修正 DTC。藍色三格（BBPD、位元映射、GMAC）就是本章分析的部分。
-          最後看兩條虛線：regressor <Tex>{'x[n]'}</Tex> 出現在兩個地方——它乘在誤差上（<Tex>{'s=(a-w_k)\\,x[n]'}</Tex>），GMAC 累加時又乘在 <Tex>{'q[n]'}</Tex> 上（
-          <Tex>{'S_N=\\sum q[n]\\,x[n]'}</Tex>）；本章固定 <Tex>{'x\\equiv1'}</Tex>，所以兩條虛線都只是乘 1。一般的 <Tex>{'x[n]'}</Tex> 到誤差之間還要經過 PLL 的 error
-          path（Ch06），這裡先不畫。下表逐列說明每個符號對應的硬體與注意事項。
+          這張圖是直式的，由上往下順著箭頭走。先看最上面的兩條 edge 怎麼在 PD 相遇：reference clock 先經過 DTC 才進 PD；DTC 只能延遲、不能提前，所以它從固定的基準延遲{' '}
+          <Tex>{'T_0'}</Tex> 往回扣，扣掉的 <Tex>{'w_k\\,x[n]'}</Tex> 就是它的補償量（reference edge 少延遲這麼多，<Tex>{String.raw`\tau_{\mathrm{DTC}}=T_0-w_k\,x[n]`}</Tex>）；
+          回授路徑上只有 divider、不經過 DTC，小數除頻讓它的 feedback edge 比理想時刻早到 <Tex>{'a\\,x[n]'}</Tex>。PD 量的是 reference edge 減 feedback edge：{' '}
+          <Tex>{String.raw`e[n]=t_{\mathrm{ref}}'-t_{\mathrm{fb}}=(a-w_k)\,x[n]+v[n]=s+v[n]`}</Tex>——圖上進 PD 的三條線寫的就是這三項：DTC 那條是{' '}
+          <Tex>{'-w_k\\,x[n]'}</Tex>、divider 那條是 <Tex>{'+a\\,x[n]'}</Tex>、jitter 那條是 <Tex>{'+v[n]'}</Tex>。補償不足（<Tex>{'w_k<a'}</Tex>）時 reference 還是太晚，
+          <Tex>{'s'}</Tex> 為正（<Tex>{'e[n]'}</Tex> 平均偏正，單看一次仍然被 <Tex>{'v[n]'}</Tex> 蓋過）；<Tex>{'T_0'}</Tex> 是常數，被 PLL 當成靜態相位偏移吸收，所以{' '}
+          <Tex>{'e[n]'}</Tex> 的式子裡沒有它。再看 PD 下面的圓角方塊「PD 輸出 <Tex>{'e[n]'}</Tex>」：同一個 <Tex>{'e[n]'}</Tex> 從這裡一路送進 loop filter（主 PLL 迴路），
+          另一路用虛線分接給 1-bit comparator——LMS 校正迴路的輸入是 PD 的輸出，也就是送進 loop filter 的同一個訊號，不是從 DTC 或 divider 拉出來的。
+          接著看從 comparator 到 GMAC 的前半段（每個 sample <Tex>{'n'}</Tex> 動一次）：comparator 把 <Tex>{'e[n]'}</Tex> 切成一個位元 <Tex>{'b[n]'}</Tex>，映射成{' '}
+          <Tex>{'q[n]=\\pm1'}</Tex> 後進 GMAC 累加。再看 GMAC 之後的後半段（每個 block <Tex>{'k'}</Tex> 才動一次）：累加滿 <Tex>{'N'}</Tex> 個 sample 得到{' '}
+          <Tex>{'S_N'}</Tex>，除以 <Tex>{'N'}</Tex>、乘 <Tex>{'\\mu'}</Tex>，加進 gain accumulator 得到新的 <Tex>{'w'}</Tex>，沿著最右邊那條線回去控制 reference 端的 DTC。
+          藍色三格（comparator、位元映射、GMAC）就是本章分析的部分。最後看兩個 regressor 方塊（同一個訊號 <Tex>{'x[n]'}</Tex>，分開畫只是為了讓線不要交叉）：
+          它出現在兩個地方——乘上 <Tex>{'w_k'}</Tex> 之後控制 DTC（feedback edge 早到的 <Tex>{'a\\,x[n]'}</Tex> 也是同一個 <Tex>{'x[n]'}</Tex>，所以 PD 看到的是{' '}
+          <Tex>{'s=(a-w_k)\\,x[n]'}</Tex>），GMAC 累加時又乘在 <Tex>{'q[n]'}</Tex> 上（<Tex>{'S_N=\\sum q[n]\\,x[n]'}</Tex>）；本章固定 <Tex>{'x\\equiv1'}</Tex>，所以這兩條虛線都只是乘 1。
+          圖上 <Tex>{'e[n]'}</Tex> 的式子寫的是注入 PD 的誤差本身：主 PLL 迴路（PD → loop filter → divider → PD 那一圈）會跟著反應，一般的 <Tex>{'x[n]'}</Tex>{' '}
+          實際留在 PD 輸出的是經過 PLL error path 濾波之後的結果（Ch06），圖上的式子沒有把這個濾波寫進去。下表逐列說明每個符號對應的硬體與注意事項。
         </Fig>
         <div className="table-wrap">
           <table className="ch05-table">
@@ -101,7 +111,8 @@ export function WrapUpSection() {
                   <Tex>{'s'}</Tex>
                 </td>
                 <td>
-                  DTC gain 誤差在 PD 處造成的時間誤差 <Tex>{'(a-w)\\,x'}</Tex>（經 PLL error path，見 Ch06）
+                  DTC 補償的殘差在 PD 輸出留下的時間誤差 <Tex>{'(a-w)\\,x'}</Tex>：feedback edge 早到 <Tex>{'a\\,x'}</Tex>，reference 端 DTC 的補償量是{' '}
+                  <Tex>{'w\\,x'}</Tex>（從基準延遲 <Tex>{'T_0'}</Tex> 少延遲這麼多）；補償不足（<Tex>{'w<a'}</Tex>）時為正（經 PLL error path，見 Ch06）
                 </td>
                 <td>
                   本章 <Tex>{'x\\equiv1'}</Tex>；一般 <Tex>{'x'}</Tex> 時 <Tex>{'E[q\\,x]'}</Tex> 需對 code 分布平均
@@ -130,7 +141,8 @@ export function WrapUpSection() {
                   <Tex>{'q'}</Tex>
                 </td>
                 <td>
-                  BBPD（1-bit TDC）輸出位元 <Tex>{'b'}</Tex>，映射 <Tex>{'q=2b-1'}</Tex>
+                  1-bit comparator（BBPD／1-bit TDC）取 PD 輸出 <Tex>{'e'}</Tex> 的正負號，輸出位元 <Tex>{'b'}</Tex>，映射 <Tex>{'q=2b-1'}</Tex>
+                  （bang-bang PLL 的 PD 本身就是這個 comparator；類比的 PD，例如 SSPD，則是在它的輸出上另外接一個 comparator）
                 </td>
                 <td>
                   未映射會造成 <Tex>{'\\tfrac12E[x]'}</Tex> 的偏差（T04 反面測試）
@@ -239,7 +251,7 @@ export function WrapUpSection() {
           <Tex>{'\\eta_k'}</Tex> 是 <Tex>{'G_k'}</Tex> 扣掉平均後的零均值雜訊，<Tex>{'\\sigma_w'}</Tex> 是收斂之後係數 <Tex>{'w'}</Tex> 還在抖動的 RMS（coefficient noise）。
         </p>
         <Fig name="blockLoop">
-          這張圖是{figNo('hwMap')}的線性化版本：「BBPD + 位元映射 + GMAC 平均」整段換成藍色的等效增益 <Tex>{'K_q'}</Tex>，加上一個雜訊注入點 <Tex>{'\\eta_k'}</Tex>。先順著迴路繞一圈：
+          這張圖是{figNo('hwMap')}的線性化版本：「comparator + 位元映射 + GMAC 平均」整段換成藍色的等效增益 <Tex>{'K_q'}</Tex>，加上一個雜訊注入點 <Tex>{'\\eta_k'}</Tex>。先順著迴路繞一圈：
           <Tex>{'\\delta_k'}</Tex> 乘 <Tex>{'K_q'}</Tex>、乘 <Tex>{'\\mu'}</Tex>、進累加器，再以<strong>負號</strong>回到第一個加法點——繞一圈的增益是{' '}
           <Tex>{'g=\\mu K_q'}</Tex>，所以每個 block 誤差剩下 <Tex>{'p_{\\mathrm{cal}}=1-g'}</Tex> 倍。再看雜訊：<Tex>{'\\eta_k'}</Tex> 是平均 <Tex>{'N'}</Tex> 次之後的雜訊，變異數只有約{' '}
           <Tex>{'1/N'}</Tex>，它被迴路濾過之後就是 <Tex>{'\\sigma_w'}</Tex>。圖上的累加器 <Tex>{'1/(z-1)'}</Tex> 是「把輸入一直加起來、下一個 block 才輸出」的簡寫，也就是更新式 <Tex>{'w_{k+1}=w_k+\\mu G_k'}</Tex>；所有的線都是 block 速率（

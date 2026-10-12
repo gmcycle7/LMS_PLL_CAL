@@ -333,6 +333,9 @@ describe('Ch09 方塊圖：正負號、箭頭方向、取樣率與正文公式�
     }
     expect(edge(e, 'V', 'S').text).toBe('＋')
     expect(v.get('E')?.text).toContain(String.raw`$e[n] = \mathbf u[n]^T \boldsymbol\delta_k + v[n]$`)
+    // 架構約定（docs/assumptions.md §2a）：comparator 取的 e[n] 就是 PD 的輸出
+    expect(v.get('E')?.text).toContain('PD 的輸出')
+    edge(e, 'E', 'CMP')
     expect(FORMULAS.find((f) => f.id === 'F-09.1')?.tex).toContain(String.raw`\boldsymbol\delta_k=\mathbf a-\mathbf w_k`)
   })
 
@@ -347,6 +350,7 @@ describe('Ch09 方塊圖：正負號、箭頭方向、取樣率與正文公式�
     expect(edge(e, 'DOT', 'SE').text).toBe('＋')
     expect(edge(e, 'V', 'SE').text).toBe('＋')
     expect(edge(e, 'SE', 'DET').text).toContain('e[n]')
+    expect(edge(e, 'SE', 'DET').text).toContain('PD 輸出') // 偵測器的輸入就是 PD 的輸出 e[n]（docs/assumptions.md §2a）
     // 偵測器 → 相關（regressor 同時進內積與相關器）→ GMAC 平均
     edge(e, 'U', 'DOT')
     edge(e, 'U', 'COR')
@@ -639,9 +643,11 @@ describe('Ch09 方塊圖：正負號、箭頭方向、取樣率與正文公式�
     expect(v.get('DOT')?.text).toContain(String.raw`$d[n] = \tilde{\mathbf x}[n]^T (\boldsymbol\theta - \mathbf w_k)$`) // 真值減係數
     edge(e, 'X', 'DOT')
     edge(e, 'DOT', 'H')
-    expect(edge(e, 'H', 'S').text).toBe('＋')
+    expect(edge(e, 'H', 'S').text).toBe('＋') // e_PD = +H_PD·φ_dtc（正號）
     expect(edge(e, 'V', 'S').text).toBe('＋')
-    expect(edge(e, 'S', 'G').text).toBe(String.raw`$e_{\mathrm{PD}}[n]$`)
+    // 加法點之後是「PD 的輸出」e_PD[n]：GMAC 的誤差輸入與 loop filter 取自同一個節點
+    edge(e, 'S', 'PDO')
+    expect(v.get('PDO')?.text).toContain(String.raw`$e_{\mathrm{PD}}[n]$`)
     expect(v.get('G')?.text).toContain(String.raw`$\mathbf G_k = (1/N) \sum e_{\mathrm{PD}}[n] \cdot \mathbf r[n]$`)
     // GMAC regressor 的兩種接法
     expect(edge(e, 'X', 'G').text).toContain(String.raw`raw：$\mathbf r = \tilde{\mathbf x}$`)
@@ -653,6 +659,38 @@ describe('Ch09 方塊圖：正負號、箭頭方向、取樣率與正文公式�
     expect(fb.stroke).toBe('dotted')
     expect(fb.text).toContain(String.raw`$\mathbf w_k$`)
     expect(fb.text).toContain('每個 block 才更新一次') // register：w_(k+1) 到下一個 block 才生效
+    expect(fb.text).toContain('送回 DTC 的 code')
+  })
+
+  it('圖 9.17 的架構（docs/assumptions.md §2a）：DTC 在 reference 輸入端——殘餘誤差在 PD 的 reference 輸入注入；LMS 的輸入取自 PD 的輸出，不是 DTC 或 divider', async () => {
+    const { v, e } = await flow(CHART_GAUGE_LMS_PATH)
+    // DTC 補償後的殘餘誤差 d[n] 在 PD 的 reference 輸入端注入，經 H_PD 到 PD 的輸出
+    expect(v.get('DOT')?.text).toContain('DTC 補償後的殘餘誤差')
+    expect(edge(e, 'DOT', 'H').text).toContain('PD 的 reference 輸入端')
+    expect(v.get('H')?.text).toContain('PD 的 reference 輸入')
+    expect(v.get('H')?.text).toContain('PD 的輸出')
+    // 「PD 的輸出」是一個節點，從它分出兩條線：loop filter 與 GMAC（LMS 的輸入）
+    expect(v.get('PDO')?.text).toContain('PD 的輸出')
+    expect(edge(e, 'PDO', 'LF').text).toContain('同一個訊號')
+    expect(v.get('LF')?.text).toContain('loop filter')
+    expect(edge(e, 'PDO', 'G').text).toContain('LMS 的輸入')
+    expect(e.filter((x) => x.start === 'PDO').map((x) => x.end).sort()).toEqual(['G', 'LF'])
+    // GMAC 的誤差輸入只有 PD 輸出一條；其餘兩條是 regressor（raw／filtered），沒有任何一條來自 DTC 殘餘誤差節點、H 或加法點
+    expect(e.filter((x) => x.end === 'G').map((x) => x.start).sort()).toEqual(['HF', 'PDO', 'X'])
+    for (const from of ['DOT', 'H', 'S', 'V']) expect(e.some((x) => x.start === from && x.end === 'G'), `${from} → GMAC`).toBe(false)
+    // 回授路徑上只有 divider（或 PMUX）：這張圖沒有 divider，更沒有「divider → DTC」或「DTC 在回授路徑」的線
+    for (const x of v.values()) expect(x.text ?? '', x.id).not.toMatch(/divider|Divider|除頻|回授路徑/)
+  })
+
+  it('架構約定（docs/assumptions.md §2a）：本章沒有任何一張圖把 DTC 畫在 divider／PMUX 之後（沒有 divider → DTC 的線）；DTC 只出現在 reference 端的殘餘誤差節點', async () => {
+    const isDtc = (t: string | undefined) => /DTC/.test(t ?? '')
+    const isDivider = (t: string | undefined) => /divider|Divider|PMUX|除頻/.test(t ?? '')
+    for (const [name, chart] of FLOW_CHARTS) {
+      const { v, e } = await flow(chart)
+      for (const x of e) expect(isDivider(v.get(x.start)?.text) && isDtc(v.get(x.end)?.text), `${name}: ${x.start} → ${x.end}`).toBe(false)
+      // 舊寫法的殘留：「DTC 端的誤差」「DTC 插入延遲」「推回理想時刻」
+      expect(chart, name).not.toMatch(/DTC 端的誤差|DTC 插入|推回|DTC 在回授/)
+    }
   })
 
   it('圖 9.18：有恢復力的迴圈倍數是 1 − g·λ，null 方向的迴圈倍數是 1（pole = 1）；兩者的回授都以 + 進入加法點', async () => {
@@ -829,6 +867,54 @@ describe('Ch09 頁面與版面：系統地圖、方塊圖的位置、章末符�
     expect(win('BAD')[1]).toBe(win('NEXT')[1]) // 兩個結論在同一列
   }, 120000)
 
+  it('圖 9.17 的版面（真正的 renderer）：沒有翻面；主路徑在左、regressor 那一側在右；任何兩條不共用節點的線都不相交（回授的虛線不橫過「PD 的輸出 → GMAC」）', async () => {
+    // 這張圖只靠「宣告順序」排版：先宣告主路徑（DOT → H → ＋ → PD 的輸出；「→ GMAC」在「→ loop filter」之前），再宣告 X → GMAC、X → HF，X → DOT 放在 X 的最後一條。
+    // 若照訊號的順序從 X → DOT 寫起（2026-10-12 第一版），dagre 會把回授的虛線排在「PD 的輸出」與 GMAC 之間，橫過「LMS 的輸入取自這裡」那條線。
+    // jsdom 的文字大小是替身，但節點的左右順序（dagre 的 order 階段）與尺寸無關，和真實瀏覽器相同。
+    mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', suppressErrorRendering: true, forceLegacyMathML: true })
+    const { svg } = await mermaid.render('ch09-order-gauge-lms-path', sanitizeMermaidSource(CHART_GAUGE_LMS_PATH))
+    const host = document.createElement('div')
+    host.innerHTML = svg
+    const at = (id: string): [number, number] => {
+      const g = host.querySelector(`g.node[id^="flowchart-${id}-"]`)
+      const m = /translate\(\s*(-?[\d.]+)[ ,]+(-?[\d.]+)\s*\)/.exec(g?.getAttribute('transform') ?? '')
+      expect(m, `找不到 ${id} 的位置`).toBeTruthy()
+      return [Number(m![1]), Number(m![2])]
+    }
+    // 由上到下：x̃ → 殘餘誤差 → H_PD → ＋ → PD 的輸出 → GMAC → 累加器（迴圈沒有被翻面）
+    const chain = ['X', 'DOT', 'H', 'S', 'PDO', 'G', 'ACC']
+    for (let i = 0; i + 1 < chain.length; i++) expect(at(chain[i])[1], `${chain[i]} 在 ${chain[i + 1]} 上方`).toBeLessThan(at(chain[i + 1])[1])
+    expect(at('LF')[1]).toBe(at('G')[1]) // loop filter 與 GMAC 同一列：「PD 的輸出」往下分成兩條
+    // 主路徑（殘餘誤差、＋、PD 的輸出、loop filter、雜訊）在左，regressor 那一側（x̃、HF、GMAC）在右——手機上先看到的是主路徑
+    for (const left of ['DOT', 'S', 'PDO', 'LF', 'V']) for (const right of ['X', 'HF', 'G']) expect(at(left)[0], `${left} 在 ${right} 左邊`).toBeLessThan(at(right)[0])
+    // 每條線的折線（path 的座標點）；兩條線只要不共用節點，就不應相交
+    const { v, e } = await flow(CHART_GAUGE_LMS_PATH)
+    const lines = e.map((x) => {
+      const p = host.querySelector(`path[id^="L_${x.start}_${x.end}_"]`)
+      expect(p, `${x.start} → ${x.end} 的 path`).toBeTruthy()
+      const nums = ((p as Element).getAttribute('d') ?? '').match(/-?\d+(?:\.\d+)?(?:e-?\d+)?/g)?.map(Number) ?? []
+      expect(nums.length, `${x.start} → ${x.end} 的座標`).toBeGreaterThanOrEqual(4)
+      const pts: Array<[number, number]> = []
+      for (let i = 0; i + 1 < nums.length; i += 2) pts.push([nums[i], nums[i + 1]])
+      return { ...x, pts }
+    })
+    const side = (p: [number, number], q: [number, number], r: [number, number]) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]))
+    const hit = (a: [number, number], b: [number, number], c: [number, number], d: [number, number]) => side(a, b, c) * side(a, b, d) < 0 && side(c, d, a) * side(c, d, b) < 0
+    const crossings: string[] = []
+    for (let i = 0; i < lines.length; i++)
+      for (let j = i + 1; j < lines.length; j++) {
+        const [p, q] = [lines[i], lines[j]]
+        if ([p.start, p.end].some((n) => n === q.start || n === q.end)) continue
+        let crossed = false
+        for (let a = 0; a + 1 < p.pts.length && !crossed; a++) for (let b = 0; b + 1 < q.pts.length && !crossed; b++) crossed = hit(p.pts[a], p.pts[a + 1], q.pts[b], q.pts[b + 1])
+        if (crossed) crossings.push(`${p.start}→${p.end} × ${q.start}→${q.end}`)
+      }
+    expect(crossings).toEqual([])
+    // 回授的虛線（累加器 → 殘餘誤差）走主路徑的外側：它最左的一點比圖上每個節點的中心都靠左
+    const fbMinX = Math.min(...lines.find((x) => x.start === 'ACC' && x.end === 'DOT')!.pts.map((p) => p[0]))
+    for (const id of v.keys()) expect(fbMinX, `回授線在 ${id} 的左邊`).toBeLessThan(at(id)[0])
+  }, 120000)
+
   it('版面（真正的 renderer）：LR 的圖不超過 6 欄、TB 的圖不超過 11 列，節點一個都沒少', async () => {
     // 守住兩個實際踩過的陷阱：交叉的回授迴圈被 dagre 排成一條 10 欄的長鏈、沒有連線的兩個 subgraph 被排成左右並列——
     // 兩者都會讓圖被縮到看不清楚。jsdom 的文字大小是替身，但「排在第幾欄／第幾列」（rank）與真實瀏覽器相同。
@@ -1003,6 +1089,53 @@ describe('Ch09 頁面與版面：系統地圖、方塊圖的位置、章末符�
     } finally {
       Element.prototype.scrollIntoView = original
     }
+
+    // ── 架構約定（docs/assumptions.md §2a）：DTC 在 reference 輸入端、LMS 的輸入是 PD 的輸出、PD 量 t_ref′ − t_fb ──
+    // 章首的地圖說明：comparator 取的是 PD 的輸出（送進 loop filter 的同一個訊號），DTC 不在回授路徑上
+    expect(note?.textContent).toContain('comparator 取的是')
+    expect(note?.textContent).toContain('PD 的輸出')
+    expect(note?.textContent).toContain('loop filter')
+    expect(note?.textContent).toContain('DTC 在 reference clock 進來的位置')
+    // 開場（物理圖像第一次出現）：feedback edge 早到 a·x、reference 端 DTC 從 T_0 往回扣補償量 w·x、PD 量 t_ref′ − t_fb
+    const intro = at('#ch09-intro').textContent ?? ''
+    expect(intro).toContain('reference clock')
+    expect(intro).toContain('回授路徑上只有 divider')
+    expect(intro).toContain('補償量')
+    expect(intro).toContain('reference 端的 DTC 只能延遲、不能提前')
+    expect(intro).toContain(String.raw`\tau_{\mathrm{DTC}}[n]=T_0-w\,x[n]`)
+    // 顯示公式排成兩行（375px 的手機上一行放不下，會多一條橫向捲軸）：e[n] = t_ref′ − t_fb，換行後 = (a − w)x + v，兩行是同一條等式
+    expect(intro).toContain(String.raw`\begin{aligned}e[n]&=t_{\mathrm{ref}}'[n]-t_{\mathrm{fb}}[n]\\&=(a-w)\,x[n]+v[n]\end{aligned}`)
+    // 「提前」一定跟著「少延遲」的說明（DTC 做不出負的延遲）；補償不足 ⇒ reference 太晚 ⇒ 誤差為正
+    expect(intro).toContain('reference edge 被提前——也就是少延遲——的時間')
+    expect(intro).toMatch(/補償不足（.*）時 reference 還是太晚，誤差為正/)
+    // H_PD 作用在 DTC 的殘餘誤差上，出來的才是 PD 的輸出（不是「PD 的輸出再經過 H_PD」）
+    expect(intro).toContain('DTC 補償後的殘餘誤差要先經過')
+    expect(intro).toContain('才成為 PD 的輸出')
+    expect(intro).not.toMatch(/會經過\s*H/)
+    // §9.2：殘餘誤差在 PD 的 reference 輸入端注入，e_PD = φ_dtc − θ_fb ⇒ e_PD = +H_PD·φ_dtc（正號）
+    const gaugeText = at('#ch09-gauge').textContent ?? ''
+    expect(gaugeText).toContain('reference 輸入端')
+    expect(gaugeText).toContain(String.raw`e_{\mathrm{PD}}=\phi_{\mathrm{dtc}}-\theta_{\mathrm{fb}}`)
+    expect(gaugeText).toContain(String.raw`\theta_{\mathrm{fb}}=L\,e_{\mathrm{PD}}`)
+    expect(gaugeText).toContain(String.raw`e_{\mathrm{PD}}=\frac{1}{1+L}\,\phi_{\mathrm{dtc}}=H_{\mathrm{PD}}\,\phi_{\mathrm{dtc}}`)
+    expect(gaugeText).toContain('GMAC 取的是同一個')
+    // 圖 9.17 的走讀：reference 輸入端注入、PD 輸出分給 loop filter 與 GMAC、w_k 送回 DTC 的 code
+    const walk17 = at('[data-diagram="gauge-lms-path"]').nextElementSibling?.textContent ?? ''
+    for (const t of ['reference 輸入端注入', 'PD 的輸出', 'loop filter', '同一個', '不是從 DTC 或 divider 另外拉出來的', '送回 DTC 的 code']) expect(walk17, t).toContain(t)
+    // 圖上的 d[n] 就是推導裡的 φ_dtc；PMUX 的 phase offset 在回授路徑、校正由 reference 端的 DTC 補，PD 量 reference − feedback ⇒ 剩下 a_i − w_i 與 b − w_b（正負號和 d = x̃ᵀ(θ − w) 一致）
+    for (const t of [String.raw`\phi_{\mathrm{dtc}}`, '回授路徑的 PMUX', 'feedback edge 早到', 'reference 端的 DTC 補上', 'PD 量的是 reference edge 減 feedback edge', 'a_i-w_i', 'b-w_b', '折算到 PD 的 reference 輸入端']) expect(walk17, t).toContain(t)
+    // 其餘提到「誤差從哪裡來」的地方也都說是 PD 的輸出：§9 的誤差模型與圖 9.4 的走讀、程式碼導覽的圖說、「連結到 PLL 硬體」
+    const meanText = at('#ch09-mean').textContent ?? ''
+    expect(meanText).toContain('在 PLL 裡它就是 PD 的輸出，也是送進 loop filter 的同一個訊號')
+    expect(meanText).toContain('加上雜訊成為 PD 的輸出')
+    expect(at('#ch09-code').textContent).toContain('GMAC 取的就是這個 PD 輸出')
+    expect(at('#ch09-pll').textContent).toContain('BBPD 的輸出同時驅動 loop filter，也是 GMAC 取用的')
+    // 舊寫法不可殘留：DTC 在回授路徑、DTC 延遲 feedback edge、負號的 θ_out = −Tφ_dtc
+    const page = container.textContent ?? ''
+    for (const old of ['DTC 在回授', '插入延遲', '推回理想', '回授側注入', 'feedback 側注入', String.raw`\theta_{\mathrm{out}}=-T`, String.raw`e_{\mathrm{PD}}=-H_{\mathrm{PD}}`]) expect(page, old).not.toContain(old)
+    // 符號表：t_ref′／t_fb、T_0／τ_DTC、φ_dtc／θ_fb 與 e[n] 是 PD 的輸出
+    const symText = symbols.textContent ?? ''
+    for (const t of [String.raw`t_{\mathrm{ref}}'[n],\ t_{\mathrm{fb}}[n]`, String.raw`T_0,\ \tau_{\mathrm{DTC}}[n]`, String.raw`\phi_{\mathrm{dtc}},\ \theta_{\mathrm{fb}}`, 'PD 的輸出', '補償量', '也就是少延遲', '就是以時間為單位的']) expect(symText, t).toContain(t)
 
     // 沒有 KaTeX 錯誤、沒有 React 警告
     expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)

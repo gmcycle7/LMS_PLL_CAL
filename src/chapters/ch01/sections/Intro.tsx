@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { ClaimTag, Prereq, Section, SourceTag, StepDerivation, SystemMap, Tex, TexBlock } from '@/components'
 import { mean } from '@/simulation/core'
 import { batchL1, batchL2 } from '@/simulation/models/lossCompare'
-import { BlockDiagram, Erratum, f, texNum } from '../common'
+import { BlockDiagram, Erratum, PllLink, f, texNum } from '../common'
 import { SYSTEM_MAP_CAPTION, SYSTEM_MAP_FOCUS } from '../diagrams'
 
 /** 黑盒子：乾淨資料與含雜訊資料（規格 §1、入門課 Lesson 1） */
@@ -41,7 +41,7 @@ export function IntroSection() {
         </p>
         <SystemMap focus={SYSTEM_MAP_FOCUS} caption={SYSTEM_MAP_CAPTION} />
         <p>
-          <strong>你在這裡</strong>：上圖是整個 PLL 加上 LMS 校正迴路，每一章開頭都是同一張。藍色方塊是本章的主角——GMAC（gain multiply-accumulate：把誤差乘上輸入再累加）、
+          <strong>你在這裡</strong>：上圖是整個 PLL 加上 LMS 校正迴路，每一章開頭都是同一張。主迴路是 reference clock 先經過 DTC、再進 phase detector（PD）、loop filter、VCO；回授路徑上只有 divider（或 PMUX）。LMS 校正迴路的輸入是 PD 的輸出——送進 loop filter 的同一個訊號，1-bit comparator 取的就是它的正負號。藍色方塊是本章的主角——GMAC（gain multiply-accumulate：把誤差乘上輸入再累加）、
           步長（<Tex>{String.raw`\div N`}</Tex>、<Tex>{String.raw`\times\mu`}</Tex>）與 gain accumulator（存係數 <Tex>{'w'}</Tex> 的暫存器）合起來就是「修正猜測」這個動作，
           1-bit comparator 則決定修正時用的是誤差本身，還是只有它的正負號。本章把這四塊從 PLL 裡拿出來，放進一個沒有 PLL 動態的最簡單模型（一個輸入、一個係數），
           回答一件事：這條修正規則到底在最小化什麼？§1 用誤差本身，§2 換成只有正負號（comparator 的情況）。
@@ -172,6 +172,30 @@ export function IntroSection() {
           <Tex>{'x_n'}</Tex> 乘上 <Tex>{'w_n'}</Tex> 得到預測 <Tex>{String.raw`\hat y_n`}</Tex>。兩條路在右邊的加法點相遇，量測進「＋」、預測進「−」：圖上的這個加法點就是 F-01.1 的{' '}
           <Tex>{String.raw`e_n=y_n-\hat y_n`}</Tex>。最後看藍色方塊：它拿 <Tex>{'e_n'}</Tex> 和 <Tex>{'x_n'}</Tex> 算出新的 <Tex>{'w_{n+1}'}</Tex>，沿著「下一筆」那條線送回乘法器——這條回授線讓它成為一個迴路。
         </BlockDiagram>
+        <PllLink>
+          把這張圖放回 PLL（之後各章都用這個物理圖像）：
+          <ul>
+            <li>
+              輸入 <Tex>{'x_n'}</Tex> 是 DTC 的 code：小數除頻累加器的餘數，正規化後介於 0 與 1 之間。它先乘上 <Tex>{'w_n'}</Tex>（gain correction），才去控制 reference 端的 DTC。
+            </li>
+            <li>
+              黑盒子的 <Tex>{'ax_n'}</Tex> 是 feedback（divider）edge 比理想時刻早到的時間。<Tex>{'a'}</Tex> 是 DTC 的真實 gain：要把這段時間完全補掉，
+              <Tex>{'w'}</Tex> 必須等於它。
+            </li>
+            <li>
+              預測 <Tex>{String.raw`\hat y_n=w_nx_n`}</Tex> 是 DTC 的補償量。reference 端的 DTC 只能延遲、不能提前，所以它從一個固定的基準延遲 <Tex>{'T_0'}</Tex>{' '}
+              往回扣：<Tex>{String.raw`\tau_{\mathrm{DTC}}=T_0-w_nx_n`}</Tex>。code 越大延遲越短，reference edge 等於被提前（少延遲）了 <Tex>{'w_nx_n'}</Tex>。
+              <Tex>{'T_0'}</Tex> 是常數，被 PLL 當成靜態相位偏移吸收，不影響 LMS。
+            </li>
+            <li>
+              圖上相減的加法點就是 PD：它量的是（延遲後的）reference edge 減 feedback edge。以理想時刻當零點（
+              <Tex>{'T_0'}</Tex> 已被吸收），feedback edge 在 <Tex>{String.raw`t_{\mathrm{fb}}=-ax_n`}</Tex>、reference edge 在{' '}
+              <Tex>{String.raw`t_{\mathrm{ref}}'=-w_nx_n`}</Tex>，再加上量測雜訊 <Tex>{'v_n'}</Tex>，所以{' '}
+              <Tex>{String.raw`e_n=t_{\mathrm{ref}}'-t_{\mathrm{fb}}=(a-w_n)\,x_n+v_n`}</Tex>——和圖上的 <Tex>{String.raw`y_n-\hat y_n`}</Tex>{' '}
+              是同一個式子。補償不足（<Tex>{'w_n<a'}</Tex>）時 reference 還是太晚，扣掉雜訊後誤差為正。這個 PD 輸出同時送進 loop filter 與 LMS 的 1-bit comparator，所以 LMS 看到的就是 PD 的輸出。
+            </li>
+          </ul>
+        </PllLink>
       </Section>
 
       <Section kind="intuition" title="1.1 Least／Mean／Squares 逐字拆解" level={2} id="ch01-s11">

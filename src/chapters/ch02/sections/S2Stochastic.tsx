@@ -238,7 +238,7 @@ export function S2Stochastic() {
         <Diagram id="block-timing">
           <p>
             {tm(
-              String.raw`先看最上面的說明條：整個 block 裡，comparator 看到的都是同一個係數 $w_k$（$k$ 是 block 的編號）。再看中間的迴圈：每個 sample（編號 $n$）comparator 送出一個正負號 $q[n]=\operatorname{sign}(e[n])$（誤差的正負號，$\pm1$；§3 的主角），乘上當時的 code $x[n]$ 後加進 GMAC 的累加器，一共 $N$ 筆。最後看下面的箭頭：block 結束時，GMAC 把平均值 $G_k$ 交出去，係數才更新一次，下一個 block 改用新的 $w$。`,
+              String.raw`先看最上面的說明條：整個 block 裡用的都是同一個係數 $w_k$（$k$ 是 block 的編號），comparator 看到的每一筆誤差都是用它算出來的。再看中間的迴圈：每個 sample（編號 $n$）comparator 送出一個正負號 $q[n]=\operatorname{sign}(e[n])$（誤差的正負號，$\pm1$；§3 的主角），乘上當時的 code $x[n]$ 後加進 GMAC 的累加器，一共 $N$ 筆。最後看下面的箭頭：block 結束時，GMAC 把平均值 $G_k$ 交出去，係數才更新一次，下一個 block 改用新的 $w$。`,
             )}
           </p>
           <p>

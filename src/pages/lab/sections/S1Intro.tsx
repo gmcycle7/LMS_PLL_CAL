@@ -7,9 +7,9 @@ const T = String.raw
 const STAGE_ROWS: { stage: string; eq: string; level: 'L1' | 'L2' | 'L4' | 'L5'; ch: { to: string; label: string }[]; fn: string; assume: string }[] = [
   { stage: '① FCW → DSM', eq: T`r[n]=\sum_{m\le n}\bigl(y[m]-K/M\bigr)`, level: 'L2', ch: [{ to: '/ch/04', label: 'Ch04' }], fn: 'dsm.ts：DsmStream', assume: '理想數位 DSM、零初值；$f_s=f_{\\mathrm{ref}}$' },
   { stage: '② residue → code', eq: T`x=(r-o)\,s`, level: 'L2', ch: [{ to: '/ch/04', label: 'Ch04' }, { to: '/ch/11', label: 'Ch11' }], fn: 'dsm.ts：normalizationParams', assume: '$o$、$s$ 取自整段 record；unit_rms 保留 DC' },
-  { stage: '③ DTC', eq: T`e_{\mathrm{DTC}}=(a-w_{\mathrm{app}})x+o_{\mathrm{DTC}}+c_2x^2+c_3x^3`, level: 'L2', ch: [{ to: '/ch/11', label: 'Ch11' }], fn: 'blockLms.ts：inner loop', assume: '靜態非線性；沒有 settling / glitch' },
-  { stage: '④ PLL error path', eq: T`u_{\mathrm{pd}}=H_{\mathrm{PD}}\{e_{\mathrm{DTC}}\},\ H_{\mathrm{PD}}=\tfrac{1}{1+L}`, level: 'L2', ch: [{ to: '/ch/06', label: 'Ch06' }, { to: '/ch/07', label: 'Ch07' }], fn: 'unifiedLab.ts：pllDesign；pll.ts：designDtLoop', assume: '線性、時不變 DT 迴路；狀態跨 block 持續' },
-  { stage: '⑤ Comparator', eq: T`q=\mathrm{sign}(u_{\mathrm{pd}}+b+v)`, level: 'L1', ch: [{ to: '/ch/05', label: 'Ch05' }], fn: 'blockLms.ts：inner loop', assume: '$v$ iid Gaussian；tie 取 $+1$' },
+  { stage: '③ DTC', eq: T`e_{\mathrm{DTC}}=(a-w_{\mathrm{app}})x+o_{\mathrm{DTC}}+c_2x^2+c_3x^3`, level: 'L2', ch: [{ to: '/ch/11', label: 'Ch11' }], fn: 'blockLms.ts：inner loop', assume: 'DTC 在 reference 輸入端；靜態非線性；沒有 settling / glitch' },
+  { stage: '④ PLL error path', eq: T`u_{\mathrm{pd}}=H_{\mathrm{PD}}\{e_{\mathrm{DTC}}\},\ H_{\mathrm{PD}}=\tfrac{1}{1+L}`, level: 'L2', ch: [{ to: '/ch/06', label: 'Ch06' }, { to: '/ch/07', label: 'Ch07' }], fn: 'unifiedLab.ts：pllDesign；pll.ts：designDtLoop', assume: '$e_{\\mathrm{DTC}}$ 從 PD 的 reference 輸入進來，$u_{\\mathrm{pd}}$ 是 PD 的輸出；線性、時不變 DT 迴路；狀態跨 block 持續' },
+  { stage: '⑤ Comparator', eq: T`q=\mathrm{sign}(u_{\mathrm{pd}}+b+v)`, level: 'L1', ch: [{ to: '/ch/05', label: 'Ch05' }], fn: 'blockLms.ts：inner loop', assume: '輸入取自 PD 的輸出 $u_{\\mathrm{pd}}$；$v$ iid Gaussian；tie 取 $+1$' },
   { stage: '⑥ GMAC', eq: T`G_k=\tfrac1N\sum_{n\in k}q[n]\,x_{\mathrm{ref}}[n]`, level: 'L2', ch: [{ to: '/ch/04', label: 'Ch04' }, { to: '/ch/09', label: 'Ch09' }], fn: 'blockLms.ts：GMAC update', assume: 'average（或 sum）；raw / delayed / filtered regressor' },
   { stage: '⑦ Gain register', eq: T`w_{\mathrm{app}}=\mathrm{phys}(w_{k-d})`, level: 'L5', ch: [{ to: '/ch/13', label: 'Ch13' }], fn: 'blockLms.ts：gain register', assume: '開啟定點時才是 L5；否則理想浮點' },
   { stage: '⑧ 更新迴路', eq: T`w_{k+1}=w_k+\mu G_k`, level: 'L1', ch: [{ to: '/ch/08', label: 'Ch08' }, { to: '/ch/14', label: 'Ch14' }], fn: 'blockLms.ts：runBlockLms', assume: '更新延遲 $d$ 個 block' },
@@ -36,13 +36,19 @@ export function S1Intro() {
             第 0 章的黑盒子是 <Tex>{'y=a\\,x'}</Tex>：你看得到輸入 <Tex>x</Tex> 和輸出 <Tex>y</Tex>，要猜 <Tex>a</Tex>。在 fractional-N PLL 裡，
             <Tex>x</Tex> 是 DSM 的 residue（你自己產生的 code，完全已知），<Tex>a</Tex> 是 DTC 的 gain 誤差，<Tex>{'y-wx=(a-w)x'}</Tex> 是 DTC 沒抵銷乾淨的時間誤差。校正就是 LMS：一直調 <Tex>w</Tex> 直到誤差與 code 不再相關。
           </p>
+          <p>
+            接法照全站的約定：<strong>DTC 在 reference 的輸入端</strong>（Reference clock → DTC → phase detector），回授路徑上只有 divider。以一階 DSM 為例：小數除頻讓 feedback（divider）edge 每個週期比理想時刻早到一段時間，大小是{' '}
+            <Tex>{'a\\,|x|'}</Tex>。DTC 只能延遲、不能提前，所以它從一個固定的基準延遲往回扣，讓 reference edge 跟著提早它的<strong>補償量</strong> <Tex>{'w\\,|x|'}</Tex>。phase detector 量的是兩條 edge 的時間差{' '}
+            <Tex>{"t_{\\mathrm{ref}}'-t_{\\mathrm{fb}}"}</Tex>，剩下 <Tex>{'(a-w)\\,|x|'}</Tex>：補償不足（<Tex>{'w<a'}</Tex>）時 reference 還是太晚。把 code 的正負號收進 <Tex>x</Tex>，就是黑盒子的{' '}
+            <Tex>{'(a-w)\\,x'}</Tex>（基準延遲與正負號的細節在 §4.3）。
+          </p>
           <p>和黑盒子不同的是，你看不到乾淨的誤差，只看得到它經過三道關卡之後的樣子：</p>
           <ol>
             <li>
-              <strong>主 PLL 會動它</strong>：PLL 自己會把看得到的相位誤差修掉，所以 phase detector 看到的是「被 PLL 修過之後剩下的」（high-pass，<Tex>{'H_{\\mathrm{PD}}'}</Tex>），不是原本的誤差。
+              <strong>主 PLL 會動它</strong>：PLL 自己會把看得到的相位誤差修掉，所以 phase detector 的輸出是「被 PLL 修過之後剩下的」（high-pass，<Tex>{'H_{\\mathrm{PD}}'}</Tex>），不是原本的誤差。
             </li>
             <li>
-              <strong>只剩 1 bit</strong>：comparator 只回答「早了還是晚了」，而且輸入端有比訊號大一百倍的雜訊。
+              <strong>只剩 1 bit</strong>：校正迴路的輸入就是 phase detector 的輸出（送進 loop filter 的同一個訊號），但 comparator 只取它的正負號——只回答「早了還是晚了」，而且輸入端有比訊號大一百倍的雜訊。
             </li>
             <li>
               <strong>係數只有幾個 bit</strong>：<Tex>w</Tex> 最後要寫進一個 6-bit 的暫存器。
@@ -62,12 +68,17 @@ export function S1Intro() {
           </p>
           <Diagram
             chart={PIPELINE_CHART}
-            caption="同一個 DTC 誤差分兩條路：藍色那條經 PD 的 error path（high-pass）到 comparator，是校正迴路看到的；棕色那條經 output transfer（low-pass）到輸出，是使用者看到的。編號對應 Lab 裡的九張 stage 卡片。"
-            ariaLabel="FCW 到輸出端的九級訊號流程圖"
+            caption="同一個 DTC 殘差（DTC 在 reference 輸入端）分兩條路：藍色那條到 PD 的輸出（high-pass），comparator 取的就是它，是校正迴路看到的；棕色那條經 output transfer（low-pass）到輸出，是使用者看到的。編號對應 Lab 裡的九張 stage 卡片。"
+            ariaLabel="FCW 到輸出端的九級訊號流程圖：DTC 在 reference 輸入端，comparator 的輸入是 PD 的輸出"
           >
             <p>
               先看 DTC 之後的分岔：同一個 <Tex>{'e_{\\mathrm{DTC}}[n]'}</Tex>（DTC 沒抵銷乾淨的時間誤差）一份送進藍色的 <Tex>{'H_{\\mathrm{PD}}'}</Tex>（第 4 級），一份送進棕色的 <Tex>T</Tex>（第 9
               級）。校正迴路是藍色那條路接下去的一圈：第 4 → 5 → 6 → 8 → 7 級，再回到第 3 級的 DTC；第 9 級只是「旁觀」，不在迴路裡。
+            </p>
+            <p>
+              這張圖畫的是訊號怎麼流，不是電路怎麼接。電路上 DTC 在 reference 的輸入端（Reference clock → DTC → phase detector），所以 <Tex>{'e_{\\mathrm{DTC}}'}</Tex> 是從 PD 的 reference
+              輸入進到主迴路的；回授路徑上只有 divider。第 4 級的輸出 <Tex>{'u_{\\mathrm{pd}}[n]'}</Tex> 就是 <strong>PD 的輸出</strong>——送進 loop filter 的同一個訊號；第 5 級的 comparator 取的是它的正負號（主迴路的接法見 §4.4
+              的圖）。
             </p>
             <p>
               圖上帶 <Tex>{'[n]'}</Tex> 的訊號每個 comparator sample 更新一次；帶下標 <Tex>k</Tex> 的（<Tex>{'G_k'}</Tex>、<Tex>{'w_k'}</Tex>）每 <Tex>N</Tex> 個 sample 才更新一次。圖上的{' '}

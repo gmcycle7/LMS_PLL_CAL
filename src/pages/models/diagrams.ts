@@ -43,11 +43,13 @@ export const LEVEL_CHART = String.raw`flowchart LR
  * §3：參考 Block Sign-LMS 的兩層迴圈（F-15.1、F-15.2；blockLms.ts 的 core:blockLmsInnerLoop / blockLmsGmacUpdate）。
  * 內層（索引 $n$）：$dt = (a - w_{\mathrm{app}})\,x + \mathrm{nl}(x)$ → $H_{\mathrm{PD}}$（有狀態）→ $+\,b + v$ → sign → $q\,x_{\mathrm{ref}}$ 累加。
  * 外層（索引 $k$）：$G_k = \frac{1}{N}\sum$ → $w_{k+1} = w_k + \mu\,G_k$ → 晚 $d$ 個 block、量化後才作用到 DTC。
+ * 架構照 docs/assumptions.md §2a：DTC 在 reference 的輸入端，$dt$ 是它補償之後剩下的時間誤差 $t_{\mathrm{ref}}' - t_{\mathrm{fb}}$（開迴路），
+ * 在 PD 的 reference 輸入端進入主 PLL；$H_{\mathrm{PD}}$ 的輸出就是 PD 的輸出（送進 loop filter 的同一個訊號），comparator 取的是它。
  */
 export const CHART_BLOCK_SIGN_LMS = String.raw`flowchart TB
   subgraph FS["內層迴圈：每個 comparator sample 做一次（索引 $n$）"]
-    X(["code $x[n]$"]) --> DTC["DTC 誤差<br/>$(a - w_{\mathrm{app}})\cdot x$<br/>$+ c_2\cdot x^2 + c_3\cdot x^3 + o$"]
-    DTC --> HPD["PLL error path $H_{\mathrm{PD}}(z)$<br/>狀態跨 block 持續"]
+    X(["code $x[n]$"]) --> DTC["DTC 的殘餘誤差<br/>（進 PD 的 reference 輸入端）<br/>$(a - w_{\mathrm{app}})\cdot x$<br/>$+ c_2\cdot x^2 + c_3\cdot x^3 + o$"]
+    DTC --> HPD["PLL error path $H_{\mathrm{PD}}(z)$<br/>殘餘誤差 $\to$ PD 的輸出<br/>狀態跨 block 持續"]
     HPD -- "＋" --> S(("＋"))
     BV(["offset $b$ 與雜訊 $v[n]$<br/>$v$ 的 RMS $= \sigma_v$"]) -- "＋" --> S
     S -- "$e[n]$" --> CMP["1-bit comparator<br/>$e \ge 0$ 時 $q = +1$，否則 $q = -1$"]
@@ -66,11 +68,12 @@ export const CHART_BLOCK_SIGN_LMS = String.raw`flowchart TB
 /**
  * §9：GMAC 到 gain register 的 RTL datapath，以及 §16.1 前 8 項檢查各自落在哪一塊（F-16.1、F-16.3、F-16.4、F-16.5）。
  * $S_k$ 是 $N$ 筆的總和（整數）；$\hat G_k$ 是右移之後的值；$\ell = \log_2 N - F_G$。
+ * 兩端照 docs/assumptions.md §2a 標明：comparator bit 是 PD 輸出 $e[n]$ 的正負號；gain register 的 code 送到 reference 端的 DTC（補償量 $w\cdot x$）。
  */
 export const CHART_GMAC_DATAPATH = String.raw`flowchart TB
   subgraph R1["輸入整理：每個 sample"]
     direction LR
-    B(["comparator bit $b[n]$<br/>0 或 1"]) --> MAP["檢查 1：映射成 $\pm 1$<br/>$q = 2b - 1$"]
+    B(["comparator bit $b[n]$<br/>PD 輸出 $e[n]$ 的正負號<br/>0 或 1"]) --> MAP["檢查 1：映射成 $\pm 1$<br/>$q = 2b - 1$"]
     X(["code $x_{\mathrm{int}}[n]$<br/>$B_x$-bit 有號整數"]) --> DLY["檢查 2：對齊<br/>$z^{-D}$，用 $x_{\mathrm{int}}[n-D]$"]
     MAP -- "$q[n]$" --> NEG["條件取負<br/>$q = -1$ 時取 $-x$<br/>先符號延伸到<br/>$B_x + 1$ bits"]
     DLY -- "$x_{\mathrm{int}}[n-D]$" --> NEG
@@ -82,7 +85,7 @@ export const CHART_GMAC_DATAPATH = String.raw`flowchart TB
   subgraph R3["更新 gain register"]
     direction LR
     MU["$\times \mu$<br/>shift 型：$\mu = 2^{-m}$"] -- "$\mu\cdot\hat G_k$" --> REG["檢查 6、8：gain register<br/>$w_{k+1} = w_k + \mu\cdot\hat G_k$<br/>內部小數 bit、saturate"]
-    REG -- "高位的實體 code" --> DTC(["DTC"])
+    REG -- "高位的實體 code" --> DTC(["reference 端的 DTC<br/>補償量 $= w\cdot x$"])
   end
   R1 -- "$q\cdot x_{\mathrm{int}}$" --> R2
   R2 -- "$\hat G_k$" --> R3

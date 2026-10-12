@@ -359,7 +359,7 @@ export function HpdExplorer() {
       }
       assumptions={[
         '線性化的取樣資料迴路（每個 $T_{ref}$ 一拍）；$L(z)$ 嚴格 proper，所以 $h_{PD}[0]=1$',
-        '誤差在相位比較點注入：$H_{PD}=1/(1+L)$；$\\lvert T\\rvert$ 的 −3 dB 為設計頻寬',
+        '誤差在相位比較點注入（折算到 PD 的 reference 輸入端，$e_{PD}=u-y$）：$H_{PD}=1/(1+L)$ 是誤差到 PD 輸出的響應；$\\lvert T\\rvert$ 的 −3 dB 為設計頻寬',
         'L2 的設計：$K_i=\\omega_n^2$、$K_p=2\\zeta\\omega_n$，$\\zeta$ 由 sampled-data PM、$\\omega_n$ 由頻寬解出；L3 的 $b=((1+\\sin PM)/\\cos PM)^2$',
         'loop-gain 倍率在設計之後才乘上（模擬 PVT，不重新設計）；分數延遲依模型而定，這裡只開放整數拍',
         '$f_{ref}=4$ GHz；所有例子為 illustrative，非晶片量測',

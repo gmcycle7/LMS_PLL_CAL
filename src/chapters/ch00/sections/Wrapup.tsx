@@ -189,7 +189,7 @@ export function RecapSection() {
                 固定 <Tex>{'x'}</Tex>：等比數列與穩定條件（<Tex>{'\\delta=a-w'}</Tex>，<ErratumRef eid="E39" />）
               </>
             ),
-            tex: String.raw`\boxed{\delta_{n+1}=(1-\mu x^2)\,\delta_n,\quad 0<\mu<\tfrac{2}{x^2}}` },
+            tex: String.raw`\boxed{\delta_{n+1}=(1-\mu x^2)\delta_n,\;\; 0<\mu<\tfrac{2}{x^2}}` },
           {
             label: (
               <>

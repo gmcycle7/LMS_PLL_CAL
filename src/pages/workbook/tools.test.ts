@@ -126,7 +126,11 @@ describe('查表＋線性內插', () => {
     const tex = phiLookupSteps(phiLookup(0.37)).map((s) => s.tex)
     expect(tex[0]).toContain('= 0.7')
     expect(tex[1]).toContain('0.6554 - 0.6179 = 0.0375')
-    expect(tex[2]).toContain('0.6179 + 0.7\\times0.0375 = 0.6179 + 0.02625 = 0.6442')
+    // 第 3 步排成三行（aligned，桌機的半欄卡片才放得下）；把換行與對齊符號拿掉、接回一行之後，數字與運算和原來寫成一行時一模一樣
+    const oneLine = (t: string) => t.replace(/\\begin\{aligned\}|\\end\{aligned\}/g, '').replace(/\\\\\s*/g, ' ').replace(/&/g, '')
+    expect(oneLine(tex[2])).toBe(String.raw`\Phi(0.37) \approx \Phi(z_0) + t\,\bigl[\Phi(z_1) - \Phi(z_0)\bigr] = 0.6179 + 0.7\times0.0375 = 0.6179 + 0.02625 = 0.6442`)
+    expect(oneLine(tex[2])).toContain('0.6179 + 0.7\\times0.0375 = 0.6179 + 0.02625 = 0.6442')
+    expect(tex[2].split(String.raw`\\`)).toHaveLength(3)
     const neg = phiLookupSteps(phiLookup(-0.37)).map((s) => s.tex)
     expect(neg[neg.length - 1]).toContain('1 - 0.6442 = 0.3558')
   })

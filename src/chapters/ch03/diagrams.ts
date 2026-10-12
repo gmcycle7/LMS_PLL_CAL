@@ -375,18 +375,37 @@ ${CLASSDEFS}
  * 圖 3-21｜本章的 L0 模型畫回 PLL 硬體：哪一條線是 x、e、w，哪些方塊被理想化掉。
  * 對應的式子：e[i] = a·x[i] − w[k]·x[i] + v[i] = δ[k]·x[i] + v[i]；w[k+1] = w[k] + μ·(1/N)·Σ e[i]·x[i]
  * （N = 1 時就是第 1–7 節的 w[n+1] = w[n] + μ·e[n]·x[n]）。sample 索引 i、block 索引 k。
+ *
+ * 架構（docs/assumptions.md §2a）：DTC 在 reference 輸入端（Reference → DTC → PD），回授路徑上只有 divider；
+ * feedback edge 早到 a·x（對 e 的貢獻 +a·x），reference 端的 DTC 從基準延遲 T_0 往回扣 w·x（對 e 的貢獻 −w·x）；
+ * PD 量 t_ref′ − t_fb。LMS 的輸入是 PD 的輸出 e[i]，和送進 loop filter 的是同一個訊號。
+ *
+ * 主迴路是閉合的：PD → loop filter／VCO → divider → PD（「VCO 輸出（回授）」那條線）；回授路徑上只有 divider，沒有 DTC。
+ *
+ * 版面注意（dagre 的排版對宣告順序很敏感）：圖裡有兩個迴圈——校正迴路 W → DTC → PD → … → ACC → W，
+ * 以及主迴路 PD → LF → DIV → PD。第一個宣告的節點是 W，所以 dagre 把「ACC → W」當成回頭的那一條，主鏈才會由上往下走；
+ * 主迴路回頭的那一條是「DIV → PD」（divider 排在 loop filter 下面，feedback edge 由下往上回到 PD），
+ * 所以畫出來就是 Reference → DTC → PD → loop filter／VCO → divider → PD 一圈，在圖的左半；
+ * X → DIV 排在 X → W 前面，carry 那條長線走最左邊、gain correction 與長長的 w 回授線在右，整張圖沒有任何交叉。
+ * 乘法點的第二個輸入用獨立的 X2（同一個 x[i]）而不是一條從 X 拉下來的長虛線，否則那條虛線會和回授線交叉。
  */
 export const CHART_PLL_MAPPING = T`${INIT}
 flowchart TB
+  W["Gain correction<br/>$\times\, w[k]$"]
   X["DSM／DTC code<br/>$x[i]$（sample rate）"]
-  X --> W["DTC 實際補掉的量<br/>$\times\, w[k]$（gain correction）"]
-  X --> A["要被抵消的時間誤差<br/>$\times\, a$（未知）"]
-  A -- "$+\,a \cdot x[i]$" --> PD(("＋"))
-  W -- "$-\,w[k] \cdot x[i]$" --> PD
+  X -- "carry 控制除數<br/>餘數 $x[i]$ 留在<br/>feedback edge 上" --> DIV["Divider ／ PMUX<br/>（回授路徑）"]
+  X --> W
+  REF["Reference clock"] --> DTC["DTC（reference 端）<br/>$\tau_{\mathrm{DTC}} = T_0 - w[k] \cdot x[i]$"]
+  W --> DTC
+  DTC -- "$-\,w[k] \cdot x[i]$<br/>補償量：reference edge 少延遲" --> PD
+  DIV -- "$+\,a \cdot x[i]$<br/>feedback edge 早到<br/>（$a$ 未知）" --> PD
   V(["PD／reference 雜訊<br/>$v[i]$"]) -- "$+\,v[i]$" --> PD
-  PD -- "$e[i] = \delta[k] \cdot x[i] + v[i]$" --> IDEAL["本章的理想化（L0）<br/>error path $= 1$、沒有延遲<br/>comparator 換成線性（多 bit）"]
+  PD["Phase detector（PD）<br/>$e[i] = t'_{\mathrm{ref}}[i] - t_{\mathrm{fb}}[i]$<br/>$= \delta[k] \cdot x[i] + v[i]$"]
+  PD -- "$e[i]$" --> LF["Loop filter → VCO／DCO<br/>（主迴路，本章不展開）"]
+  LF -- "VCO 輸出<br/>（回授）" --> DIV
+  PD -- "$e[i]$：LMS 取 PD 的輸出" --> IDEAL["本章的理想化（L0）<br/>error path $= 1$、沒有延遲<br/>comparator 換成<br/>線性（多 bit）"]
   IDEAL -- "$e[i]$" --> MUL(("$\times$"))
-  X -. "同一個 $x[i]$" .-> MUL
+  X2["同一個 $x[i]$"] -.-> MUL
   MUL -- "$e[i] \cdot x[i]$" --> GMAC["GMAC<br/>累加 $N$ 筆"]
   GMAC -- "每 $N$ 筆一次（block rate）" --> SCALE["$\div N$、$\times\, \mu$"]
   SCALE --> ACC["Gain accumulator<br/>$w[k+1] = w[k] + \mu \cdot (1/N) \cdot \sum e[i] \cdot x[i]$"]

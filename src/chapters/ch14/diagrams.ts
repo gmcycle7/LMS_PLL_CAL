@@ -69,15 +69,18 @@ export const CHART_CAL_LOOP = String.raw`flowchart TB
 /**
  * §14.1：sample rate（n）→ block rate（k）。
  * e[n] = δ_k·u[n] + v[n]（u[n] = c·x[n] + s·x[n−1]），q[n] = sign(e[n])，G_k = (1/N)Σ q[n]x[n]，w_(k+1) = w_k + μ·G_k。
+ * 架構（docs/assumptions.md §2a）：e[n] 是 PD 的輸出，也就是送進 loop filter 的同一個節點（SUMV）；
+ * comparator 與 loop filter 都從這個節點分接，不是從 DTC 或 divider 取。
  */
 export const CHART_SAMPLE_TO_BLOCK = String.raw`flowchart TB
   subgraph FS["sample rate：每個 comparator 樣本做一次（索引 $n$，頻率 $f_s$）"]
     direction LR
-    XC(["code $x[n]$"]) --> PATH["PLL 誤差路徑<br/>$u[n] = c\,x[n] + s\,x[n-1]$"]
-    PATH -- "$u[n]$" --> PROD["$\delta_k\,u[n]$<br/>（誤差 $\delta_k$ 乘上 $u[n]$）"]
+    XC(["DTC code $x[n]$"]) --> PATH["PLL 誤差路徑<br/>（DTC 到 PD 輸出）<br/>$u[n] = c\,x[n] + s\,x[n-1]$"]
+    PATH -- "$u[n]$" --> PROD["PD 輸出的訊號部分<br/>$\delta_k\,u[n]$（誤差 $\delta_k$ 乘上 $u[n]$）"]
     VN(["$v[n]$：雜訊，RMS $= \sigma_v$"]) -- "＋" --> SUMV(("＋"))
     PROD -- "＋" --> SUMV
-    SUMV -- "$e[n] = \delta_k\,u[n] + v[n]$" --> CMP["1-bit comparator<br/>$q[n] = \mathrm{sign}(e[n])$"]
+    SUMV -- "PD 輸出 $e[n] = \delta_k\,u[n] + v[n]$" --> CMP["1-bit comparator<br/>$q[n] = \mathrm{sign}(e[n])$"]
+    SUMV -. "同一個 $e[n]$" .-> LF["Loop filter<br/>（PLL 主迴路）"]
     CMP -- "$q[n] = \pm 1$" --> MUL(("$\times$"))
     XC -- "$x[n]$" --> MUL
   end

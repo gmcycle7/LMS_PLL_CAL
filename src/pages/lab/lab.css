@@ -364,10 +364,12 @@
   color: var(--warn);
 }
 
-/* 九級卡片 */
+/* 九級卡片：一張卡片至少 30rem 寬，結果欄放不下兩張就自動變成單欄。
+   依卡片所在的欄寬決定、不是依視窗寬度：桌機 1280px 時結果欄只有約 550px，硬排兩欄會讓每張卡片只剩 247px，
+   九張卡片的表格全部被切掉、各多一條橫向捲軸（數值的單位與標籤都看不到）。 */
 .lab-stages {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr));
   gap: 12px;
 }
 .lab-stage {
@@ -396,10 +398,27 @@
   font-size: 0.84rem;
 }
 .lab-stage-table th {
-  width: 46%;
+  width: 42%;
+}
+/* 數值欄是文字（設計的描述、「未偵測到…」）時可以換行；數字照舊不拆開 */
+.lab-stage-table td.lab-num-text {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .lab-stage-info {
   margin: 0.3rem 0;
+}
+/* 交叉比對明細（五欄）：桌機 1280px 的結果欄約 550px，預設的字級與留白會讓表比欄寬多出 33px——
+   最後一欄的說明被切掉、底下多一條橫向捲軸。字與留白各收一點，五欄剛好放得下。 */
+.lab-check-table {
+  font-size: 0.82rem;
+}
+.lab-check-table th,
+.lab-check-table td {
+  padding: 5px 6px;
+}
+.lab-check-table .lab-num {
+  font-size: 0.78rem;
 }
 .lab-stage-assume {
   margin-top: 4px;

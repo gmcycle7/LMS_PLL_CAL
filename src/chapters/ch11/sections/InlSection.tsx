@@ -209,7 +209,7 @@ export function InlSection() {
         <StepDerivation
           steps={[
             { tex: String.raw`\operatorname{erf}\!\Big(\frac{e}{\sqrt2\sigma_v}\Big)\approx K_q\Big(e-\frac{e^3}{6\sigma_v^2}\Big)`, why: m('erf 泰勒展開到三次（先備知識框），$K_q=\\sqrt{2/\\pi}/\\sigma_v$。') },
-            { tex: String.raw`E[G](w)\approx K_q\Big(E[x\,e]-\frac{E[x\,e^3]}{6\sigma_v^2}\Big)`, why: m('乘上 $x$ 再取期望值（期望值線性）。') },
+            { tex: String.raw`E[G]\approx K_q\Big(E[x\,e]-\frac{E[x\,e^3]}{6\sigma_v^2}\Big)`, why: m('乘上 $x$ 再取期望值（期望值線性）。$E[G]$ 仍然是 $w$ 的函數，下一行把 $w$ 寫出來。') },
             { tex: String.raw`w=w_1+\Delta,\quad w_1=1.34:\qquad e=e_0-\Delta\,x`, why: m('在 MSE 解附近找修正量 $\\Delta=w-w_1$（不是全站的 $\\delta=a-w$）；$e$ 對 $w$ 是線性的，$e_0$ 是 $w_1$ 處的殘差。') },
             { tex: String.raw`E[x\,e]=\underbrace{E[x\,e_0]}_{=0}-\Delta\,E[x^2]=-2\Delta`, why: m('$w_1$ 的定義就是 $E[x\\,e_0]=0$。') },
             { tex: String.raw`E[x\,e^3]\approx E[x\,e_0^3]=${texNum(exe3, 6)}`, why: m('$\\Delta\\propto1/\\sigma_v^2$ 很小，$E[xe^3]$ 的一階修正是更高階的小量，先忽略；數值取上表最後一欄的平均。') },

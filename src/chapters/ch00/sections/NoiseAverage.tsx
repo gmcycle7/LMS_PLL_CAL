@@ -409,7 +409,7 @@ export function NoiseAverageSection() {
           </>
         }
       >
-        {String.raw`\operatorname{Var}(w_\infty)=\frac{\mu^2x^2\sigma_v^2}{1-p^2}=\frac{\mu\,\sigma_v^2}{2-\mu x^2}`}
+        {String.raw`\begin{aligned}\operatorname{Var}(w_\infty)&=\frac{\mu^2x^2\sigma_v^2}{1-p^2}\\&=\frac{\mu\,\sigma_v^2}{2-\mu x^2}\end{aligned}`}
       </TexBlock>
       <p>
         先看數字：<Tex>{`x=${texNum(SS_X)},\\ \\sigma_v=${texNum(SS_SIGMA)}`}</Tex> 時，
@@ -453,7 +453,7 @@ export function NoiseAverageSection() {
                     ),
                   },
                   {
-                    tex: String.raw`\operatorname{Var}(\delta_{n+1})=p^2\operatorname{Var}(\delta_n)+\mu^2x^2\sigma_v^2`,
+                    tex: String.raw`\begin{aligned}\operatorname{Var}(\delta_{n+1})&=p^2\operatorname{Var}(\delta_n)\\&\quad+\mu^2x^2\sigma_v^2\end{aligned}`,
                     why: (
                       <>
                         <Tex>{'\\delta_n'}</Tex> 只由過去的雜訊 <Tex>{'v_0,\\dots,v_{n-1}'}</Tex> 決定，與 <Tex>{'v_n'}</Tex> 獨立 <Tex>{'\\Rightarrow'}</Tex>{' '}

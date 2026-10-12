@@ -141,7 +141,7 @@ const DEFAULT_STEPS: Record<string, string[]> = {
   'HC-08.6': [
     String.raw`\frac{180^\circ}{4d+2}=\frac{180^\circ}{4\times2+2}=\frac{180^\circ}{10}=18^\circ`,
     String.raw`g^{*}(2)=2\sin18^\circ=2\times0.30902=0.61803`,
-    String.raw`GM_d=\frac{g^{*}}{g}=\frac{0.61803}{0.3}=2.06011`,
+    String.raw`GM_d=\frac{0.61803}{0.3}=2.06011`,
     String.raw`GM_d\,[\mathrm{dB}]=20\log_{10}(2.06011)=6.2778\ \mathrm{dB}`,
     String.raw`\varphi=\arcsin\frac g2=\arcsin\frac{0.3}{2}=\arcsin(0.15)=8.62693^\circ`,
     String.raw`PM_d=90^\circ-(2d+1)\,\varphi=90^\circ-5\times8.62693^\circ=90^\circ-43.1346^\circ=46.865^\circ`,
@@ -165,7 +165,7 @@ const DEFAULT_STEPS: Record<string, string[]> = {
     String.raw`p=1-g=1-0.079788=0.92021`,
     String.raw`g^{*}(1)=2\sin\frac{180^\circ}{4\times1+2}=2\sin30^\circ=2\times0.5=1`,
     String.raw`\mu_{\max}=\frac{g^{*}(1)}{K}=\frac{1}{0.0079788\ \mathrm{fs}^{-1}}=125.33\ \mathrm{fs}`,
-    String.raw`GM_d=\frac{g^{*}}{g}=\frac{1}{0.079788}=12.5331`,
+    String.raw`GM_d=\frac{1}{0.079788}=12.5331`,
     String.raw`GM_d\,[\mathrm{dB}]=20\log_{10}(12.5331)=21.961\ \mathrm{dB}`,
     String.raw`\varphi=\arcsin\frac g2=\arcsin\frac{0.079788}{2}=\arcsin(0.039894)=2.28638^\circ`,
     String.raw`PM_d=90^\circ-(2d+1)\,\varphi=90^\circ-3\times2.28638^\circ=90^\circ-6.85913^\circ=83.141^\circ`,
@@ -597,6 +597,26 @@ describe('Ch08 handcalcs：(a2) 每一步的算式都對得起來（人照著按
       const got = h.solve(defaultValues(h)).steps.map((s) => s.tex)
       expect(got, h.id).toEqual(DEFAULT_STEPS[h.id])
     }
+  })
+
+  it('HC-08.6／HC-08.8 的 GM_d 那一步：算式只留代入的數字（375px 的卡片才放得下，不會多一條只差幾 px 的捲軸），通式 GM_d = g*/g 改寫在同一步的說明與題目的 formulaTex 裡', () => {
+    for (const id of ['HC-08.6', 'HC-08.8']) {
+      const def = handcalc(id)
+      const step = solveDefault(id).steps.find((s) => s.tex.startsWith('GM_d='))
+      expect(step, id).toBeTruthy()
+      expect(step!.tex, id).toMatch(/^GM_d=\\frac\{[\d.]+\}\{[\d.]+\}=[\d.]+$/)
+      expect(step!.why, id).toContain(String.raw`$GM_d=\frac{g^{*}}{g}$`)
+      expect(def.formulaTex, id).toContain(String.raw`GM_d=\frac{g^{*}(d)}{g}`)
+    }
+  })
+
+  it('HC-08.8 的通式分成兩行（aligned，和 HC-08.7 相同）：七個式子排成一行比桌機的正文欄寬，會多出一條橫向捲軸；七個式子都還在', () => {
+    const tex = handcalc('HC-08.8').formulaTex
+    expect(tex.startsWith(String.raw`\begin{aligned}&`) && tex.endsWith(String.raw`\end{aligned}`)).toBe(true)
+    const rows = tex.slice(String.raw`\begin{aligned}`.length, -String.raw`\end{aligned}`.length).split(/\\\\(?:\[[^\]]*\])?/)
+    expect(rows).toHaveLength(2)
+    expect(rows[0].split(String.raw`,\qquad `)).toEqual([String.raw`&K_q=\frac{\sqrt{2/\pi}}{\sigma_v}`, 'K=K_qC', String.raw`g=\mu K`, 'p=1-g'])
+    expect(rows[1].split(String.raw`,\qquad `)).toEqual([String.raw`&\mu_{\max}(d)=\frac{g^{*}(d)}{K}`, String.raw`GM_d=\frac{g^{*}(d)}{g}`, String.raw`PM_d=90^\circ-(2d+1)\arcsin\frac g2`])
   })
 
   it.each(HANDCALCS.map((h) => [h.id, h] as const))('%s：預設值與 20 組隨機題的每一步，等號兩邊的數字都對得起來', (id, def) => {

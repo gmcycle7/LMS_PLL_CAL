@@ -333,6 +333,12 @@ describe('Models 頁「帶入手算」（docs/teaching-style.md §7）', () => {
     expect(reading.toFixed(2)).toBe('-75.30')
     expect(rbwKHz).toBe(195.3125)
     expect(peak.toFixed(2)).toBe('-132.91')
+    // 手算的中間步驟不能為了版面省掉：2 n_bins / n_seg = 2×5/512 = 10/512 = 0.019531（排成兩行，不是刪掉 10/512）；RBW 以 Hz 取 log
+    const stepTex = h.solve(d).steps.map((x) => x.tex)
+    const fracStep = stepTex.find((t) => t.includes(String.raw`\frac{2\,n_\mathrm{bins}}{n_\mathrm{seg}}`))!
+    expect(fracStep).toContain(String.raw`\frac{2\times5}{512}=\frac{10}{512}`)
+    expect(fracStep).toContain('=0.019531')
+    expect(stepTex.some((t) => t.includes(String.raw`10\log_{10}(195312.5)=52.907\ \mathrm{dB}`))).toBe(true)
     // n_seg 加倍：主瓣雜訊 −3.01 dB、tone 的峰值 PSD +3.01 dB（dBc/Hz 不是 tone 的單位）
     const twice = values(h, { ...d, log2Seg: d.log2Seg + 1 })
     close(twice[0] - lobe, -10 * Math.log10(2), 1e-9, 1e-9, 'lobe −3 dB')

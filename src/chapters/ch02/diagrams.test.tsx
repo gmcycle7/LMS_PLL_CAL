@@ -27,6 +27,7 @@ import { DIAGRAMS, DIAGRAM_BY_ID, type Ch02Diagram, type DiagramKind } from './d
 import { HANDCALCS } from './handcalcs'
 import Chapter02 from './index'
 import { SYSTEM_FOCUS } from './sections/Intro'
+import { SYMBOLS } from './sections/Symbols'
 
 /**
  * Ch02 的方塊圖測試（docs/teaching-style.md §8）。
@@ -206,7 +207,8 @@ describe('Ch02 方塊圖：原始碼（真正的 mermaid parser）', () => {
         expect(v.text.trim().length, `${d.id}/${v.id} 沒有文字`).toBeGreaterThan(0)
         for (const c of v.classes) expect(g.classes, `${d.id}/${v.id} 用了未定義的 class ${c}`).toContain(c)
       }
-      for (const v of g.vertices.filter((x) => x.type === 'circle' && x.text === '＋')) {
+      // 加法點是 ＋ 圓形；PLL 校正迴圈的 PD 也是一個減法器（reference 減 feedback），畫成寫著 PD 的圓形，進入它的線同樣要標正負號
+      for (const v of g.vertices.filter((x) => x.type === 'circle' && (x.text === '＋' || x.text === 'PD'))) {
         summing++
         const ins = g.into(v.id)
         expect(ins.length, `${d.id}/${v.id} 加法點至少要有兩個輸入`).toBeGreaterThanOrEqual(2)
@@ -216,7 +218,7 @@ describe('Ch02 方塊圖：原始碼（真正的 mermaid parser）', () => {
       // 每張圖都有上色的重點方塊
       expect(g.vertices.some((v) => v.classes.length > 0), `${d.id} 沒有上色的方塊`).toBe(true)
     }
-    expect(summing).toBe(21) // 每個加法點都是 ＋ 圓形，進入它的線都標了正負號
+    expect(summing).toBe(21) // 每個加法點（含 PLL 校正迴圈的 PD 圓形）進入它的線都標了正負號
   }, 120_000)
 
   it('狀態圖與時序圖也不過大（狀態 ≤ 6、參與者 ≤ 4），而且不是空圖', async () => {
@@ -480,16 +482,47 @@ describe('Ch02 方塊圖：和公式、模型一致（正負號、極性、圖�
     }
   })
 
-  it('PLL 校正迴圈（§6）：e = y − ŷ（y = a·x + v、ŷ = w_k·x）；G_k = (1/N)Σq·x、w_{k+1} = w_k + μ·G_k；照圖走一個 block 和逐 sample 的 signErrorStep() 加總相同', async () => {
+  it('PLL 校正迴圈（§6）：DTC 在 reference 端（Reference clock → DTC → PD），回授只有 divider → PD；LMS 的輸入取自 PD 的輸出 e[n]；e = y − ŷ（y = a·x + v、ŷ = w_k·x）；G_k = (1/N)Σq·x、w_{k+1} = w_k + μ·G_k；照圖走一個 block 和逐 sample 的 signErrorStep() 加總相同', async () => {
     const g = await flow(chartOf('pll-loop'))
-    // 加法點的正負號與極性（沿用 e = y − ŷ）
-    expect(g.edge('TRUE', 'S').text).toBe('＋ $y[n]$')
-    expect(g.edge('GC', 'S').text).toBe(String.raw`$-$ $\hat y[n]$`)
+    // ── 架構（docs/assumptions.md §2a）：Reference clock → DTC → PD；VCO 的回授 divider → PD；DTC 不在回授路徑上 ──
+    expect(g.node('REF').text).toBe('Reference clock')
+    // DTC 只能延遲、不能提前：方塊上寫的是它的延遲 τ_DTC = T_0 − w_k·x（從基準延遲往回扣，code 越大延遲越短）與補償量 ŷ = w_k·x；
+    // 不寫沒有 T_0 的「提前」，也不寫「插入延遲」，更不會提到 feedback／divider
+    expect(g.node('DTC').text).toContain('reference 端的 DTC')
+    expect(g.node('DTC').text).toContain(String.raw`延遲 $\tau_{\mathrm{DTC}} = T_0 - w_k\,x[n]$`)
+    expect(g.node('DTC').text).toContain(String.raw`補償量 $\hat y = w_k\,x[n]$`)
+    expect(g.node('DTC').text).not.toMatch(/提前|插入|推回|feedback|divider/)
+    expect(g.node('FB').text).toContain('divider')
+    expect(g.node('FB').text).toContain('feedback edge')
+    expect(g.node('FB').text).toContain('早到')
+    expect(g.node('S').type).toBe('circle')
+    expect(g.node('S').text).toBe('PD')
+    expect(g.edge('REF', 'DTC')).toBeTruthy() // REF → DTC
+    expect(g.into('DTC').map((e) => e.start).sort()).toEqual(['REF', 'X', 'Z']) // DTC 的輸入：reference edge、code、校正後的 w_k
+    expect(g.edge('DTC', 'S')).toBeTruthy() // DTC → PD
+    expect(g.edge('FB', 'S')).toBeTruthy() // divider（feedback）→ PD
+    expect(g.into('S').map((e) => e.start).sort()).toEqual(['DTC', 'FB', 'V']) // PD 只有 reference（經 DTC）、feedback 與雜訊三路輸入
+    expect(g.edges.some((e) => e.start === 'FB' && e.end === 'DTC')).toBe(false) // 沒有 divider → DTC
+    expect(g.edges.some((e) => e.start === 'REF' && e.end === 'S')).toBe(false) // reference 不繞過 DTC 直接進 PD
+    expect(g.edges.filter((e) => e.start === 'FB').map((e) => e.end)).toEqual(['S']) // 回授路徑上只有 divider，下一站就是 PD
+    // ── LMS 校正迴路的輸入是 PD 的輸出：comparator 的唯一來源是 PD，而且 PD 的另一條出線是送進 loop filter 的同一個 e[n] ──
+    expect(g.into('CMP').map((e) => e.start)).toEqual(['S'])
+    expect(g.edges.filter((e) => e.start === 'S').map((e) => e.end).sort()).toEqual(['CMP', 'LF'])
+    expect(g.edge('S', 'LF').text).toBe('$e[n]$')
+    expect(g.node('LF').text).toContain('loop filter → VCO')
+    // VCO → divider → PD 那一段回授沒有畫成線（畫了會讓 DTC 或 divider 被排到 PD 下面），在主迴路方塊上用文字註明；主迴路方塊沒有出線
+    expect(g.node('LF').text).toMatch(/主迴路：VCO 再經[\s\S]*divider 回到 PD/)
+    expect(g.edges.filter((e) => e.start === 'LF')).toEqual([])
+    // 圖上沒有任何節點把 DTC 寫在回授路徑上，也沒有「插入延遲／推回」的說法
+    for (const v of g.vertices) expect(v.text, v.id).not.toMatch(/DTC 在回授|divider 之後|插入|推回/)
+    // 加法點（PD）的正負號與極性（沿用 e = y − ŷ：feedback 早到 y 以 ＋ 進來，DTC 補償 ŷ 以 − 進來）
+    expect(g.edge('FB', 'S').text).toBe('＋ $y[n]$')
+    expect(g.edge('DTC', 'S').text).toBe(String.raw`$-$ $\hat y[n]$`)
     expect(g.edge('V', 'S').text).toBe('＋')
     expect(g.edge('S', 'CMP').text).toBe(String.raw`$e[n] = (a - w_k)\,x[n] + v[n]$`)
     expect(g.node('CMP').text).toContain(String.raw`$q[n] = \operatorname{sign}(e[n])$`)
-    // 同一個 code x[n]：真實誤差、DTC 補償、GMAC 的輸入
-    expect(g.edges.filter((e) => e.start === 'X').map((e) => e.end).sort()).toEqual(['GC', 'GMAC', 'TRUE'])
+    // 同一個 code x[n]：feedback 的早到量、DTC 補償、GMAC 的輸入
+    expect(g.edges.filter((e) => e.start === 'X').map((e) => e.end).sort()).toEqual(['DTC', 'FB', 'GMAC'])
     expect(g.into('GMAC').map((e) => e.start).sort()).toEqual(['CMP', 'X'])
     expect(g.node('GMAC').text).toContain(String.raw`$G_k = \frac{1}{N}\sum q[n]\,x[n]$`)
     // block 速率：G_k → ×μ → 加法點（另一個輸入是 z⁻¹ 送回來的 w_k）→ w_{k+1} → z⁻¹ → w_k 送回 DTC
@@ -497,7 +530,7 @@ describe('Ch02 方塊圖：和公式、模型一致（正負號、極性、圖�
     expect(g.edge('MU', 'ACC').text).toBe(String.raw`＋ $\mu\,G_k$`)
     expect(g.edge('Z', 'ACC').text).toBe('＋ $w_k$')
     expect(g.edge('ACC', 'Z').text).toBe('$w_{k+1}$')
-    expect(g.edge('Z', 'GC').text).toBe('$w_k$')
+    expect(g.edge('Z', 'DTC').text).toBe('$w_k$')
     expect(g.node('Z').text).toContain('每個 block 一次')
     expect(g.vertices.filter((v) => v.classes.includes('focus')).map((v) => v.id).sort()).toEqual(['CMP', 'GMAC'])
     expect(g.node('V').classes).toEqual(['warn'])
@@ -514,10 +547,17 @@ describe('Ch02 方塊圖：和公式、模型一致（正負號、極性、圖�
     let G = 0
     let dwSum = 0
     for (let n = 0; n < N; n++) {
-      const y = a * xs[n] + vs[n] // 真實的時間誤差 + 雜訊
-      const yhat = wk * xs[n] // DTC 補償
-      const e = y - yhat // 圖上的加法點
+      const y = a * xs[n] + vs[n] // feedback（divider）edge 的早到量 a·x + 雜訊
+      const yhat = wk * xs[n] // DTC 的補償量：reference edge 被提前（少延遲）的時間
+      const e = y - yhat // 圖上的 PD
       close(e, (a - wk) * xs[n] + vs[n], 1e-12)
+      // 時間軸版本（docs/assumptions.md §2a）：reference 端的 DTC 只能延遲，τ_DTC = T_0 − w_k·x；feedback edge 比理想時刻早 a·x。
+      // PD 量 t_ref′ − t_fb，T_0 是常數（靜態相位偏移）：結果和 e = (a − w_k)·x 完全相同，和 T_0 無關
+      for (const T0 of [0, 7.5, 1234]) {
+        const tRefPrime = 100 * n + T0 - wk * xs[n] // 經過 DTC 之後的 reference edge
+        const tFb = 100 * n + T0 - a * xs[n] // 比理想時刻（100n + T_0）早到 a·x 的 feedback edge
+        close(tRefPrime - tFb, (a - wk) * xs[n], 1e-9)
+      }
       G += (Math.sign(e) * xs[n]) / N
       dwSum += signErrorStep({ w: wk, x: xs[n], y, mu: mu / N, tie: 'plus' }).dw // 每個 sample 的更新量（步長 μ/N）
     }
@@ -525,6 +565,36 @@ describe('Ch02 方塊圖：和公式、模型一致（正負號、極性、圖�
     expect(G).toBeGreaterThan(0) // a > w_k ⇒ G_k > 0 ⇒ w 往 a 走（極性正確）
     expect(wk + mu * G).toBeGreaterThan(wk)
     expect(wk + mu * G).toBeLessThan(a + 0.5)
+
+    // 看圖說明的「把兩條 edge 寫成相對同一個理想時刻 t_id」：t_fb = t_id − y、t_ref′ = t_id − ŷ ⇒ t_ref′ − t_fb = y − ŷ。
+    // 所以進 PD 的兩條線標的是「早到的時間對 e 的貢獻」（y：＋、ŷ：−），PD 本身仍然是 reference 減 feedback；
+    // 補償不足（w_k < a）而且 x > 0 時 reference 比 feedback 晚（e > 0），x < 0 時反過來
+    for (const x of [-2, -1, 1, 2]) {
+      const tId = 5000
+      const [yEarly, yhatEarly] = [a * x, wk * x]
+      const tFb = tId - yEarly
+      const tRefPrime = tId - yhatEarly
+      close(tRefPrime - tFb, yEarly - yhatEarly, 1e-9)
+      expect(Math.sign(tRefPrime - tFb)).toBe(Math.sign(x)) // a > w_k
+    }
+
+    // 看圖說明最後一句：校正迴路的極性接反 ⇒ pole 由 1 − μK 變成 1 + μK（w 離開 a）。兩種接反的方式（無雜訊、整個 block 的平均）：
+    const blockG = (err: (x: number) => number, q: (e: number) => number) => [-2, -1, 1, 2].reduce((acc, x) => acc + (q(err(x)) * x) / 4, 0)
+    for (const w of [2.5, 3.5]) {
+      const right = blockG((x) => (a - w) * x, Math.sign) // 正確的接法：τ_DTC = T_0 − w·x、q = sign(e)
+      expect(Math.sign(right)).toBe(Math.sign(a - w)) // w 往 a 走
+      // (i) comparator 的輸出接反：q = −sign(e) ⇒ G_k 變號，w 離開 a
+      const flippedQ = blockG((x) => (a - w) * x, (e) => -Math.sign(e))
+      close(flippedQ, -right, 1e-12)
+      expect(Math.sign(flippedQ)).toBe(-Math.sign(a - w))
+      // (ii) 送進 DTC 的 code 方向反了：τ_DTC = T_0 + w·x ⇒ t_ref′ − t_fb = (a + w)·x，w 越大誤差越大；
+      // 不論 w 在 a 的哪一邊，G_k 都 > 0（w 一直往上跑，離開 a）
+      const tId = 5000
+      for (const x of [-2, -1, 1, 2]) close(tId + w * x - (tId - a * x), (a + w) * x, 1e-9)
+      const flippedCode = blockG((x) => (a + w) * x, Math.sign)
+      expect(flippedCode).toBeGreaterThan(0)
+      expect(Math.abs(a + (w + 1))).toBeGreaterThan(Math.abs(a + w))
+    }
   })
 
   it('Sign-Error 迴圈（F-02.6）：和 LMS 只差 sign(·)；照圖走一步和 signErrorStep() 相同', async () => {
@@ -889,6 +959,19 @@ describe('Ch02 方塊圖：頁面（SystemMap、位置、看圖說明）', () =>
       const note = container.querySelector('[data-system-map-note]')!
       expect(map.nextElementSibling).toBe(note)
       expect(note.textContent).toMatch(/藍色的方塊.*這一章加上的是.*更新式/)
+      // comparator 的輸入取自 PD 的輸出，不是 DTC 或 divider。地圖用成對的同名標籤畫這條線：分接點在 PD → loop filter 那條線上，
+      // 一個標籤在分接點旁（「PD 輸出 e[n] …」），另一個在 comparator 的輸入旁（「e[n]（PD 輸出）」）——正文照這個畫法描述
+      expect(note.textContent).toMatch(/comparator 的輸入是從 PD 的輸出分接出來的.*送進 loop filter 的同一個誤差.*不是從 DTC 或 divider/)
+      expect(note.textContent).toMatch(/PD 與 loop filter 之間那條線上有一個分接點.*同名的標籤.*就是同一條線/)
+      const tapWire = systemMapModel(SYSTEM_FOCUS).wires.find((w) => w.from === 'pd' && w.to === 'cmp')!
+      expect(tapWire.tag?.tapOn).toEqual(['pd', 'lf'])
+      expect(tapWire.tag?.source.text).toContain(String.raw`PD 輸出 $e[n]$`)
+      expect(tapWire.tag?.dest.text).toBe(String.raw`$e[n]$（PD 輸出）`)
+      // 地圖本身就是約定的接法：Reference clock → DTC → PD，divider → PD，沒有 divider → DTC
+      const wires = systemMapModel(SYSTEM_FOCUS).wires.map((w) => `${w.from}>${w.to}`)
+      for (const w of ['ref>dtc', 'dtc>pd', 'pd>lf', 'vco>div', 'div>pd']) expect(wires).toContain(w)
+      expect(wires).not.toContain('div>dtc')
+      expect(wires).not.toContain('ref>pd')
       expect(follows(map, container.querySelector('#ch02-s1')!)).toBe(true)
 
       // ── 每一張圖：順序、圖說、說明、對應公式 ──
@@ -911,6 +994,57 @@ describe('Ch02 方塊圖：頁面（SystemMap、位置、看圖說明）', () =>
         }
         if (d.beforeHandCalc) expect(follows(slot, container.querySelector(`[id="handcalc-${d.beforeHandCalc}"]`)!), d.id).toBe(true)
       }
+
+      // ── §6 的 PLL 校正迴圈：文字照全站的 DTC 在 reference 端的約定（docs/assumptions.md §2a） ──
+      const pllWalk = container.querySelector('[data-diagram="pll-loop"] .ch02-diagram-walk')!
+      const pllText = pllWalk.textContent!
+      const pllTex = Array.from(pllWalk.querySelectorAll('annotation')).map((x) => x.textContent ?? '')
+      const pllCaption = DIAGRAM_BY_ID['pll-loop'].caption
+      expect(pllCaption).toContain('DTC 在 reference 端')
+      expect(pllCaption).toContain('回授路徑只有 divider')
+      expect(pllCaption).toContain('comparator 取的是 PD 的輸出')
+      expect(pllText).toContain('Reference clock') // 圖的起點
+      expect(pllText).toContain('reference 端的 DTC')
+      expect(pllText).toContain('feedback edge 比理想時刻早到') // divider 的 feedback edge 早到 y = a·x
+      expect(pllText).toContain('reference edge 提前') // DTC 把 reference edge 提前（補償量），不是延遲 feedback
+      expect(pllText).toContain('補償量')
+      expect(pllText).toContain('reference 還是太晚') // 補償不足（w < a）→ e 為正
+      expect(pllText).toContain('PD 的輸出') // LMS 的輸入是 PD 的輸出
+      expect(pllText).toContain('loop filter')
+      expect(pllText).toContain('不是從 DTC 或 divider 拉出來的')
+      expect(pllText).toContain('reference 減 feedback') // 極性約定：PD 量 reference 減 feedback
+      expect(pllTex).toContain(String.raw`\tau_{\rm DTC}[n]=T_0-w_k\,x[n]`) // 從基準延遲 T_0 往回扣
+      expect(pllTex).toContain(String.raw`e[n]=t'_{\rm ref}[n]-t_{\rm fb}[n]`) // PD 量（延遲後的）reference edge 減 feedback edge
+      expect(pllTex).toContain(String.raw`e[n]=(a-w_k)\,x[n]+v[n]`) // 數學不變
+      expect(pllText).toContain('回授路徑上只有 divider') // feedback edge 直接進 PD，不經過 DTC
+      expect(pllText).toContain('不經過 DTC')
+      expect(pllText).toContain('DTC 只能延遲、不能提前') // 「提前」一定跟著 T_0 的說明
+      expect(pllText).toContain('code 越大，延遲越短')
+      // 為什麼 reference 那條線標 −、feedback 那條線標 ＋：兩條 edge 都寫成相對同一個理想時刻，再相減
+      expect(pllTex).toContain(String.raw`t_{\rm fb}=t_{\rm id}-y`)
+      expect(pllTex).toContain(String.raw`t'_{\rm ref}=t_{\rm id}-\hat y`)
+      expect(pllTex).toContain(String.raw`t'_{\rm ref}-t_{\rm fb}=y-\hat y`)
+      expect(pllText).toContain('不是 PD 兩個輸入端的極性')
+      expect(pllTex).toContain('x[n]>0') // 補償不足時 e 為正的前提：本章的 code 可以是 ±A
+      expect(pllText).toContain('VCO 再經 divider 回到 PD') // 圖上沒畫的那一段回授
+      // 極性接反的例子：comparator 輸出接反、DTC 的 code 方向反了（不是「PD 的兩個輸入接反」——那樣主迴路自己就鎖不住）
+      expect(pllTex).toContain(String.raw`q=-\operatorname{sign}(e)`)
+      expect(pllTex).toContain(String.raw`T_0+w_k\,x[n]`)
+      expect(pllTex).toContain(String.raw`1+\mu K`)
+      // 舊的說法不見了：DTC 在回授路徑、DTC 延遲 feedback、DTC 插入延遲
+      expect(pllText).not.toMatch(/DTC 實際補償|插入延遲|推回|DTC 在回授|divider 之後|兩個輸入接反/)
+      // 章末符號表：ŷ 是 reference 端 DTC 的補償量（從 T_0 往回扣），a·x 是 feedback edge 早到的時間，e 是 PD 的輸出
+      const symRows = Array.from(container.querySelectorAll('.ch02-symbols .c-symbols tbody tr'))
+      expect(symRows).toHaveLength(SYMBOLS.length)
+      const symText = (sym: string) => symRows.find((tr) => tr.querySelector('annotation')?.textContent === sym)!.textContent!
+      expect(symText(String.raw`\hat y_n=w_nx_n`)).toMatch(/reference 端 DTC 的補償量.*往回扣.*reference edge 少延遲的時間/)
+      expect(symText(String.raw`x_n,\;y_n`)).toMatch(/divider 的 feedback edge 比理想時刻早到的時間/)
+      expect(symText('e_n=y_n-w_nx_n')).toContain('PD 的輸出')
+      for (const tr of symRows) expect(tr.textContent, tr.querySelector('annotation')?.textContent ?? '').not.toMatch(/插入延遲|推回|DTC 在回授|divider 之後/)
+      // 本章符號對照表：e[n] 是 PD 的輸出，comparator 取的就是送進 loop filter 的同一個 e[n]
+      const sixTable = container.querySelector('#ch02-s6')!.parentElement!.querySelector('.ch02-table')!
+      expect(sixTable.textContent).toContain('PD 的輸出')
+      expect(sixTable.textContent).toContain('送進 loop filter 的同一個')
 
       // ── 每個 boxed 公式之前都有一張說明它的圖 ──
       const covered = new Set(list.flatMap((d) => d.formulas ?? []))

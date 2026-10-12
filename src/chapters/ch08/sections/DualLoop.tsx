@@ -84,9 +84,15 @@ export function DualLoop() {
   return (
     <Section kind="formula" title="§8.4 主 PLL 與 LMS 的耦合：雙迴路與時間尺度分離" level={2} id="ch08-dual-loop">
       <p>
-        到目前為止都假設 GMAC 量到的是「當下的」<Tex>{'K\\delta_k'}</Tex>。實際上 DTC 誤差先進入<strong>主 PLL</strong>，PD 看到的是 PLL 處理過的殘差——主迴路有自己的狀態（loop
-        filter、VCO 相位），也就是有<strong>記憶</strong>。於是有兩個迴路疊在一起：快的主 PLL、慢的 calibration。工程上常說「calibration 比 PLL 慢很多，所以可以假設 PLL 已經穩態」——這就是
-        <strong>時間尺度分離（quasi-static）</strong>。本節用最簡單的二維模型檢查這句話什麼時候會錯。
+        {rich(String.raw`到目前為止都假設 GMAC 量到的是「當下的」$K\delta_k$。實際上 DTC 的殘餘誤差是從 PD 的 reference 輸入端進入`)}
+        <strong>主 PLL</strong>
+        {rich(
+          String.raw`，而 comparator 取的是 PD 的輸出（送進 loop filter 的同一個訊號）。把 DTC 殘差換算成相位，記成 $\phi_{\mathrm{dtc}}$。PD 量的是 reference 減 feedback；feedback 那條線只經過 divider，送回來的就是輸出相位 $\theta_{\mathrm{out}}$（相位都折算到同一個參考）。主迴路把 $\phi_{\mathrm{dtc}}$ 變成 $\theta_{\mathrm{out}}=T\,\phi_{\mathrm{dtc}}$（$T$ 是閉迴路轉移函數），所以 PD 的輸出是 $e_{\mathrm{PD}}=\phi_{\mathrm{dtc}}-\theta_{\mathrm{out}}=(1-T)\,\phi_{\mathrm{dtc}}=H_{\mathrm{PD}}\,\phi_{\mathrm{dtc}}$，其中 $H_{\mathrm{PD}}=1-T$ 是主 PLL 的 error transfer（兩個式子都是正號）。GMAC 看到的因此是 PLL 處理過的殘差——主迴路有自己的狀態（loop filter、VCO 相位），也就是有`,
+        )}
+        <strong>記憶</strong>
+        {rich(String.raw`。於是有兩個迴路疊在一起：快的主 PLL、慢的 calibration。工程上常說「calibration 比 PLL 慢很多，所以可以假設 PLL 已經穩態」——這就是`)}
+        <strong>時間尺度分離（quasi-static）</strong>
+        。本節用最簡單的二維模型檢查這句話什麼時候會錯。
       </p>
       <p>
         {rich(
@@ -173,7 +179,7 @@ export function DualLoop() {
           <Expand title="Jury 判據的一步一步推導">
             <StepDerivation
               steps={[
-                { tex: String.raw`a_1=-(1+r_s),\quad a_0=r_s+\mu b_sc_s`, why: rich(String.raw`對照 $z^2+a_1z+a_0$。`) },
+                { tex: String.raw`a_1=-(1+r_s),\;a_0=r_s+\mu b_sc_s`, why: rich(String.raw`對照 $z^2+a_1z+a_0$。`) },
                 { tex: String.raw`P(1)=1-(1+r_s)+r_s+\mu b_sc_s=\mu b_sc_s>0`, why: rich(String.raw`條件一：$\mu$ 與 $b_sc_s$ 同號（極性正確）。`) },
                 { tex: String.raw`P(-1)=2(1+r_s)+\mu b_sc_s>0`, why: rich(String.raw`條件二：$|r_s|<1$ 時自動成立。`) },
                 { tex: String.raw`|r_s+\mu b_sc_s|<1\;\Rightarrow\;\mu b_sc_s<1-r_s`, why: '條件三：真正的上界。' },
@@ -466,7 +472,7 @@ export function DualLoop() {
             steps={[
               { tex: String.raw`z=1+\varepsilon:\;(1+\varepsilon-r_s)\,\varepsilon+\mu b_sc_s=0`, why: rich(String.raw`把慢根寫成 $1$ 附近的小偏移，代入 $(z-r_s)(z-1)+\mu b_sc_s=0$。`) },
               { tex: String.raw`\varepsilon(1-r_s)+\varepsilon^2=-\mu b_sc_s`, why: '展開。' },
-              { tex: String.raw`\varepsilon=-\frac{\mu b_sc_s}{1-r_s}-\frac{(\mu b_sc_s)^2}{(1-r_s)^3}+O(\mu^3)`, why: '逐階代入（第一階就是 quasi-static）。' },
+              { tex: String.raw`\begin{aligned}\varepsilon&=-\frac{\mu b_sc_s}{1-r_s}\\&\quad-\frac{(\mu b_sc_s)^2}{(1-r_s)^3}+O(\mu^3)\end{aligned}`, why: '逐階代入（第一階就是 quasi-static）。' },
               { tex: String.raw`\frac{\text{二階項}}{\text{一階項}}=\frac{\mu b_sc_s}{(1-r_s)^2}\ll1`, why: rich(String.raw`相對修正小才可信：$\mu b_sc_s\ll(1-r_s)^2$，與複數門檻 $(1-r_s)^2/4$ 同一個尺度。`) },
             ]}
           />

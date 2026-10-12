@@ -120,7 +120,8 @@ export function handCalcRows({ a, w0, x, mu, steps }: HandCalcParams): HandCalcR
     const { e, dw, w: wNext } = conventionalStep({ w, x, y, mu }) // 預測 → 比較 → 修正
     const delta = a - w // 參數誤差，全站極性 δ = a − w（勘誤 E39）
     const deltaNext = a - wNext
-    rows.push({ n, w, x, y, yhat: w * x, e, dw, wNext, delta, deltaNext, ratio: delta === 0 ? Number.NaN : deltaNext / delta })
+    const ratio = delta === 0 ? Number.NaN : deltaNext / delta // δ_{n+1}/δ_n
+    rows.push({ n, w, x, y, yhat: w * x, e, dw, wNext, delta, deltaNext, ratio })
     w = wNext
   }
   return rows

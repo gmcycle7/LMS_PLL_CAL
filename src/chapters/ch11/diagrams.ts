@@ -49,30 +49,56 @@ ${STYLE}
   class LEFT warn`
 
 /**
- * 誤差從哪些硬體進來（硬體視角，含 LMS 迴圈與主迴路的 DC null）。
- * 加法點的正負號：DTC 的真實 delay 以「＋」進、校正電路的補償量 w·x 以「−」進（合起來是 (a − w)·x，即 e = y − ŷ、δ = a − w），
- * 其餘來源（b、ε_cc、v，以及主迴路加回來的 φ）都以「＋」進 —— 和 F-11.1、§11.1 的 q = sign(e_det + φ + v) 一致。
- * 由上往下排（TB）：左右展開的話連線標籤會讓圖寬到 1600px 以上，桌機放不下；W 要由第一行宣告，Mermaid 才會把
- * 「UPD → W」當成回授線（否則 COMP → SUM 會被反轉）。
- * 「DSM ~~~ W」是隱形連線（圖上看不到、不代表訊號）：把 W 排在 DSM 的下一排，W → COMP 才不會從 DSM 的方塊後面穿過去。
+ * 誤差從哪些硬體進來（硬體視角，含 LMS 迴圈與主迴路的 DC null）。接法照全站約定（docs/assumptions.md §2a）：
+ *   主迴路：Reference clock → DTC → PD → loop filter／VCO → divider → PD；回授路徑上只有 divider
+ *   （loop filter 與 VCO 併成一個方塊，節點數才不超過 14；divider 的輸入是 VCO 的輸出，不是憑空出現的 edge）；
+ *   小數除頻：DSM 的 carry 控制 divider，餘數 x 經 gain correction（補償量 w·x）控制 reference 端的 DTC，同一個 x 也是 GMAC 的 regressor；
+ *   LMS 的輸入是 PD 的輸出 e[n]——圖上獨立畫成一個節點 E，同時接到 loop filter 與 1-bit comparator（同一個節點）。
+ * PD 是減法點：e = t_ref′ − t_fb。reference 端的 DTC 只能延遲，所以從基準延遲 T₀ 往回扣：t_ref′ = T₀ − w·x + d(x)
+ * （w·x 是補償量；d(x) 是 INL，也就是延遲偏離直線的量）；feedback edge 早到 a·x：t_fb = −a·x。
+ * 相減得 (a − w)·x + d(x) + T₀；T₀ 是常數（PLL 鎖的是延遲後的 reference），不算進誤差 —— 剩下的就是 F-11.1 的 gain 項與 INL 項。
+ * 其餘來源（b、ε_cc、v）都以「＋」進 PD。主迴路的修正不另外拉一條線進 PD：它走真正的回授路徑（VCO → divider），
+ * VCO 的相位讓 feedback edge 再早到 φ（t_fb = −a·x − φ），相減後就是 e 裡的「＋φ」—— 和 §11.1 的
+ * q = sign(e_det + φ + v)、φ ← φ − k_φ·q 一致（q > 0 表示 feedback edge 太早，VCO 放慢，φ 變小）。
+ * 版面（由上往下，TB；左右展開的話連線標籤會讓圖寬到 1600px 以上）：
+ *  - GC 要是第一個節點，Mermaid 才會把「UPD → GC」當成回授線；主迴路的回授線是「DIV → PD」，divider 排在 loop filter 下面，和一般的 PLL 方塊圖一樣。
+ *  - 「E ~~~ DSM」是隱形連線（圖上看不到、不代表訊號）：把 DSM 排在 PD 輸出的下一排，它到 divider、GMAC 的線才短；
+ *    「Q ---> GMAC」多佔一排，GMAC 才會排在 divider 下面。少了任何一個，連線就會交叉（diagrams.test.tsx 會檢查）。
+ *  - 誤差來源 B、ECC、V 比 DTC 先宣告：DTC 才會排在 gain correction 的正下方。
  */
 export const CHART_ERROR_SOURCES = String.raw`flowchart TB
-  W["gain 暫存器 $w$"] --> COMP["校正電路的<br/>補償量 $w \cdot x$"]
-  DSM["DSM residue<br/>code $x[n]$"] --> COMP
-  DSM --> DTC["DTC 的 delay<br/>$= a \cdot x + d(x)$"]
-  DSM ~~~ W
-  DTC -- "＋" --> SUM(("$\Sigma$"))
-  COMP -- "−" --> SUM
-  B["PD / comparator<br/>offset $b$"] -- "＋" --> SUM
-  ECC["code-correlated<br/>干擾 $\varepsilon_{cc}$<br/>$= \kappa \cdot x$"] -- "＋" --> SUM
-  V["隨機雜訊 $v$"] -- "＋" --> SUM
-  SUM -- "$e[n]$" --> Q["1-bit comparator<br/>$q = \operatorname{sign}(e)$"]
-  Q -. "$q$（若 comparator 就是主 PLL 的 BBPD）" .-> LF["主 PLL loop filter<br/>（積分路徑：DC null）"]
-  LF -. "＋ $\varphi$（static phase offset）" .-> SUM
-  Q -- "$q[n]$" --> GMAC["GMAC<br/>$G = (1/N) \cdot \sum q \cdot x$"]
-  DSM -. "$x[n]$ 當 regressor" .-> GMAC
-  GMAC -- "$G$" --> UPD["$w \leftarrow w + \mu \cdot G$<br/>每 $N$ 個 sample 更新一次"]
-  UPD --> W
+  GC["gain correction<br/>補償量 $w \cdot x$"]
+  REF["Reference clock"]
+  B["PD / comparator<br/>offset $b$"]
+  ECC["code-correlated<br/>干擾 $\varepsilon_{cc}$<br/>$= \kappa \cdot x$"]
+  V["隨機雜訊 $v$"]
+  DTC["reference 端的 DTC<br/>$t_\mathrm{ref}' = T_0 - w \cdot x + d(x)$"]
+  PD(("PD"))
+  E(["PD 的輸出 $e[n]$"])
+  Q["1-bit comparator<br/>$q = \operatorname{sign}(e)$"]
+  LF["主 PLL loop filter 與 VCO<br/>（積分路徑：DC null）"]
+  DSM["DSM／累加器<br/>餘數 code $x[n]$"]
+  DIV["Divider<br/>feedback edge 早到<br/>$t_\mathrm{fb} = -a \cdot x$"]
+  GMAC["GMAC<br/>$G = (1/N) \cdot \sum q \cdot x$"]
+  UPD["$w \leftarrow w + \mu \cdot G$<br/>每 $N$ 個 sample 更新一次"]
+  B -- "＋" --> PD
+  ECC -- "＋" --> PD
+  V -- "＋" --> PD
+  REF --> DTC
+  GC --> DTC
+  DTC -- "＋ $t_\mathrm{ref}'$" --> PD
+  PD --> E
+  E -- "給 LMS 校正迴路" --> Q
+  E -- "給主迴路" --> LF
+  E ~~~ DSM
+  LF -. "VCO 輸出：feedback edge 再早到 $\varphi$" .-> DIV
+  DIV -- "$-\ t_\mathrm{fb}$" --> PD
+  DSM -- "carry" --> DIV
+  Q -- "$q[n]$" ---> GMAC
+  DSM -. "當 regressor" .-> GMAC
+  GMAC -- "$G$" --> UPD
+  UPD -- "$w$" --> GC
+  DSM -- "餘數 $x[n]$" --> GC
 ${STYLE}
   class GMAC focus`
 
@@ -375,11 +401,15 @@ ${STYLE}
 
 /* ───────────────────────── §11.4 near-integer ───────────────────────── */
 
-/** e_PD = (a − w)·(h ∗ x) + β + v；gain 誤差經過 H_PD（決定 C），β 不經過（決定 B）。上列是誤差路徑，下列是 GMAC 的相關器。 */
+/**
+ * e_PD = (a − w)·(h ∗ x) + β + v；gain 誤差經過 H_PD（決定 C），β 不經過（決定 B）。上列是誤差路徑，下列是 GMAC 的相關器。
+ * 全站約定（docs/assumptions.md §2a 第 5 點）：DTC 的殘餘誤差在 PD 的 reference 輸入端注入，e_PD = +H_PD·φ_dtc（正號）；
+ * comparator 取的是 PD 的輸出 e_PD[n]。
+ */
 export const CHART_NEAR_INTEGER_PATH = String.raw`flowchart TB
-  subgraph PATH["誤差怎麼到達 PD"]
+  subgraph PATH["誤差怎麼到達 PD 的輸出"]
     direction LR
-    X["code $x[n]$"] --> G["DTC gain 誤差<br/>$\times (a - w)$"]
+    X["code $x[n]$"] --> G["DTC gain 誤差 $\times (a - w)$<br/>從 PD 的 reference 輸入注入"]
     G --> H["主 PLL 誤差路徑 $H_\mathrm{PD}(z)$<br/>脈衝響應 $h$"]
     H -- "＋ $(a - w) \cdot (h * x)[n]$" --> S(("＋"))
     BETA["其他確定性誤差 $\beta[n]$<br/>直接到 PD，不經過 $H_\mathrm{PD}$"] -- "＋" --> S
@@ -392,7 +422,7 @@ export const CHART_NEAR_INTEGER_PATH = String.raw`flowchart TB
     M --> AVG["GMAC 的平均<br/>$E[G] \approx K_q \cdot ((a - w) \cdot C + B)$"]
     AVG --> FP["令 $E[G] = 0$<br/>$w^* = a + B / C$"]
   end
-  PATH -- "$e_\mathrm{PD}[n]$" --> CORR
+  PATH -- "PD 的輸出 $e_\mathrm{PD}[n]$" --> CORR
 ${STYLE}
   class H focus
   class BETA warn`
@@ -568,7 +598,7 @@ export const CH11_DIAGRAMS = [
     title: '誤差從哪些硬體進來（硬體視角）',
     section: 'ch11-diagram',
     chart: CHART_ERROR_SOURCES,
-    caption: String.raw`Comparator 前的誤差 $e[n]$ 是多個來源的總和；GMAC 只看到 $q$ 與 $x$ 的相關，看不到來源。虛線：若 comparator 就是主 PLL 的 BBPD，主迴路的積分路徑會把 DC 消掉（勘誤 E03，§11.1）。`,
+    caption: String.raw`Reference 經 DTC 才進 PD，回授路徑上只有 divider；PD 的輸出 $e[n]$ 是所有來源的總和，同一個節點分給主迴路的 loop filter 與 1-bit comparator。GMAC 只看到 $q$ 與 $x$ 的相關，看不到來源。虛線：主迴路經 VCO、divider 回到 PD，積分路徑讓 feedback edge 再早到 $\varphi$，把 DC 消掉（勘誤 E03，§11.1）。`,
   },
   {
     id: 'error-budget',
@@ -696,7 +726,7 @@ export const CH11_DIAGRAMS = [
     title: String.raw`加上主 PLL 的誤差路徑：$C$ 與 $B$ 各走哪條路`,
     section: 'ch11-near-integer',
     chart: CHART_NEAR_INTEGER_PATH,
-    caption: String.raw`上面的框是誤差路徑：gain 誤差要先經過藍色的 $H_\mathrm{PD}$ 才到 PD（決定 $C$），直接耦合的干擾 $\beta$ 不經過 $H_\mathrm{PD}$（紅色，決定 $B$）；下面的框是 GMAC：把 $q$ 與同一個 $x$ 做相關。`,
+    caption: String.raw`上面的框是誤差路徑：gain 誤差從 PD 的 reference 輸入注入，要先經過藍色的 $H_\mathrm{PD}$ 才出現在 PD 的輸出（決定 $C$），直接耦合的干擾 $\beta$ 不經過 $H_\mathrm{PD}$（紅色，決定 $B$）；下面的框是 GMAC：comparator 取 PD 輸出的正負號 $q$，再與同一個 $x$ 做相關。`,
   },
   {
     id: 'near-integer-why',

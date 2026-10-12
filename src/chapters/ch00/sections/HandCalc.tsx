@@ -277,7 +277,7 @@ export function HandCalcSection() {
             <StepDerivation
               steps={[
                 {
-                  tex: String.raw`\delta_n=p^n\delta_0,\qquad p=1-\mu x^2=${texNum(pole)}`,
+                  tex: String.raw`\delta_n=p^n\delta_0,\quad p=1-\mu x^2=${texNum(pole)}`,
                   why: (
                     <>
                       每一步乘上同一個 <Tex>{'p'}</Tex>（§0.6 證明）。
