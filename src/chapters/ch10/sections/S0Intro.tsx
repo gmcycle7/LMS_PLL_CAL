@@ -139,7 +139,7 @@ export function S0Intro() {
       <Prereq title="期望值、相關與自相關矩陣（correlation matrix）">
         <p>
           <Tex>{'E[\\cdot]'}</Tex>（期望值）可以想成「做非常多次再平均」。兩個 regressor 的相關 <Tex>{String.raw`E[u_1u_2]`}</Tex> 是乘積的長期平均：
-          如果 <Tex>{String.raw`u_1`}</Tex>、<Tex>{String.raw`u_2`}</Tex> 常常同號，平均是正的；完全無關則是 0。把所有配對排成矩陣：
+          如果 <Tex>{String.raw`u_1`}</Tex>、<Tex>{String.raw`u_2`}</Tex> 常常同號，平均是正的；兩者無關、而且平均都是 0（本章模型裡的 regressor 都是零均值）時則是 0。把所有配對排成矩陣：
         </p>
         <TexBlock>
           {String.raw`\mathbf R=E[\mathbf u\mathbf u^T]=\begin{bmatrix}E[u_1^2]&E[u_1u_2]\\E[u_2u_1]&E[u_2^2]\end{bmatrix}=\begin{bmatrix}1&\rho\\\rho&1\end{bmatrix}\quad(\text{unit RMS regressors})`}
@@ -161,7 +161,10 @@ export function S0Intro() {
           {String.raw`\begin{aligned}\det\begin{bmatrix}1-\lambda&\rho\\\rho&1-\lambda\end{bmatrix}&=(1-\lambda)^2-\rho^2=0\\&\Rightarrow\ 1-\lambda=\pm\rho\\&\Rightarrow\ \lambda_1=1+\rho,\ \ \mathbf v_1=\tfrac{1}{\sqrt2}\begin{bmatrix}1\\1\end{bmatrix};\qquad\lambda_2=1-\rho,\ \ \mathbf v_2=\tfrac{1}{\sqrt2}\begin{bmatrix}1\\-1\end{bmatrix}\end{aligned}`}
         </TexBlock>
         <p>
-          <Tex>{String.raw`\mathbf v_1`}</Tex> 是「兩個參數一起錯同一方向」（共模），<Tex>{String.raw`\mathbf v_2`}</Tex> 是「一個多、一個少」（差模）。
+          <Tex>{String.raw`\mathbf v_1`}</Tex> 是「兩個參數一起錯同一方向」（共模），<Tex>{String.raw`\mathbf v_2`}</Tex> 是「一個多、一個少」（差模）。這個配對對任何{' '}
+          <Tex>{String.raw`\rho`}</Tex> 都成立；哪一個 eigenvalue 比較大要看正負號：<Tex>{String.raw`\rho\ge0`}</Tex> 時 <Tex>{String.raw`\lambda_{\max}=\lambda_1`}</Tex>，<Tex>{String.raw`\rho<0`}</Tex> 時{' '}
+          <Tex>{String.raw`\lambda_{\max}=\lambda_2`}</Tex>，合起來是 <Tex>{String.raw`\lambda_{\max,\min}=1\pm|\rho|`}</Tex>。本章正文的例子都取 <Tex>{String.raw`\rho\ge0`}</Tex>，所以共模是 <Tex>{String.raw`\lambda_{\max}`}</Tex>、差模是{' '}
+          <Tex>{String.raw`\lambda_{\min}`}</Tex>。
           例如 <Tex>{String.raw`\rho=0.8`}</Tex> 時 <Tex>{String.raw`\lambda=${tn(c.eig[0])},\ ${tn(c.eig[1])}`}</Tex>；<Tex>{String.raw`\rho=0.99`}</Tex>{' '}
           時 <Tex>{String.raw`\lambda=${tn(NUM.rho099.eig[0])},\ ${tn(NUM.rho099.eig[1])}`}</Tex>，兩者的比值 <Tex>{String.raw`\kappa=\lambda_{\max}/\lambda_{\min}=${tn(NUM.rho099.cond, 5)}`}</Tex>（condition number，也叫
           eigenvalue spread；越大代表兩個方向「看得清楚的程度」差越多）。

@@ -1,20 +1,16 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { StrictMode } from 'react'
-import { act, render, waitFor, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { act, cleanup, waitFor } from '@testing-library/react'
 import { renderTex } from '@/components'
 import { plotMath } from '@/components/plotMath'
 import { unicodeMathIn } from '@/components/mermaidTestUtils'
-import { SettingsProvider } from '@/app/settings'
 import type { PresetEntry } from '@/data/types'
-import Chapter04 from './index'
 import { CH04_DIAGRAMS } from './diagrams'
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
 import { DEFAULT_FLOW_CASE, DEFAULT_FLOW_SHARED, FLOW_MC_RUNS, flowAnalyticCheck, flowConfig, flowMonteCarlo } from './experiments/SignalFlowExperiment'
-import { DEFAULT_FP_CASE, DEFAULT_FP_SHARED, buildLoopParams } from './experiments/FixedPointExperiment'
-import { ar1MeanSe, compareEncodings, runFixedGmacLoop } from '@/simulation/models/gmac'
+import { DEFAULT_FP_CASE, DEFAULT_FP_SHARED, SINGLE_SEED_HINT, buildLoopParams, roundingPredictionOk } from './experiments/FixedPointExperiment'
+import { DITHER_MIN, ROUNDING_MODES, ar1MeanSe, compareEncodings, ditherMinFor, halfEvenTieAmplitude, roundingMeanError, runFixedGmacLoop } from '@/simulation/models/gmac'
 import { DEFAULT_ENCODING } from './experiments/BitEncodingExperiment'
 import { runBlockLms } from '@/simulation/models/blockLms'
 import { handGmac } from './sections/GmacMath'
@@ -23,6 +19,7 @@ import { clearVsNoClear } from './sections/HardwareNotes'
 import { DEFAULT_RESIDUE } from './sections/Residue'
 import { CH04_SYMBOLS } from './sections/Symbols'
 import { residueSignals } from './residue'
+import { PAGE_TIMEOUT, WAIT, caseButtons, proseText, renderAt, shellOf, texText } from './pageTestUtils'
 
 const P = vi.hoisted(() => ({
   react: vi.fn(async () => undefined),
@@ -52,18 +49,16 @@ vi.mock('mermaid', () => ({
   },
 }))
 
-function renderAt(url = '/ch/04', strict = false) {
-  const tree = (
-    <SettingsProvider>
-      <MemoryRouter initialEntries={[url]}>
-        <Chapter04 />
-      </MemoryRouter>
-    </SettingsProvider>
-  )
-  return render(strict ? <StrictMode>{tree}</StrictMode> : tree)
-}
-
-afterEach(() => localStorage.clear())
+afterEach(() => {
+  // 先卸載頁面，再清掉 mock 的呼叫紀錄。Plotly mock（react／purge…）與 applyPlotMath 的紀錄會留住每次呼叫的引數——圖的 DOM 節點連著整頁的 DOM、
+  // 還有整組資料陣列；Plot 卸載時呼叫的 Plotly.purge(gd) 也會被記下來，所以順序是「卸載 → 清紀錄」（不清的話每渲染一次整頁就多留約 0.5 GB）。
+  // 另外，整頁渲染之後 worker 的 heap 並不會完全回到原點（jsdom 下每頁還會留住數百 MB），所以需要整頁渲染的測試分成兩個檔案、
+  // 各用一個 worker：StrictMode 與實驗互動在 ch04.interaction.test.tsx。全部擠在同一個檔案時 heap 會撞到 4 GB 的上限（JavaScript heap out of memory）。
+  cleanup()
+  localStorage.clear()
+  PM.calls.length = 0
+  for (const m of [P.react, P.purge, P.toImage, P.downloadImage, P.Plots.resize]) m.mockClear()
+})
 
 function loadPreset(id: string): PresetEntry {
   return JSON.parse(readFileSync(join(process.cwd(), 'src', 'data', 'presets', `${id}.json`), 'utf8')) as PresetEntry
@@ -88,42 +83,6 @@ function plotStrings(value: unknown, key: string | null = null, depth = 0, out: 
 
 function headings(root: ParentNode): string[] {
   return Array.from(root.querySelectorAll('h1, h2, h3, h4')).map((h) => (h.textContent ?? '').trim())
-}
-
-/** KaTeX 節點換成它的 TeX 原始碼（annotation）：含公式的指標名稱、警告、交叉比對附註可以直接比對文字 */
-function texText(el: Element): string {
-  const c = el.cloneNode(true) as Element
-  c.querySelectorAll('.katex').forEach((k) => k.replaceWith(k.querySelector('annotation')?.textContent ?? ''))
-  return c.textContent ?? ''
-}
-
-/**
- * 程式碼區塊以外的文字（程式碼裡的 template literal 本來就有 $）。
- * TestBadge 的提示框（.c-tip-list）逐字列出測試名稱，名稱本身可能含有「`$...$`」這種字樣（例如別頁的顯示層測試），
- * 那是原文照錄、不是沒轉成 KaTeX 的公式，所以和程式碼一樣排除。
- */
-function proseText(el: Element): string {
-  const c = el.cloneNode(true) as Element
-  c.querySelectorAll('pre, code, .c-code, .c-tip-list').forEach((k) => k.remove())
-  return c.textContent ?? ''
-}
-
-/** 某個實驗的 ExperimentShell（整頁約 10 萬個 DOM 節點：輪詢時只複製這一塊，不要每次複製整頁） */
-function shellOf(root: ParentNode, experimentId: string): HTMLElement {
-  const el = root.querySelector<HTMLElement>(`#exp-${experimentId}`)
-  if (!el) throw new Error(`找不到實驗 ${experimentId}`)
-  return el
-}
-
-/**
- * jsdom 整頁渲染的逾時（ms）。單獨跑一個測試約 15–25 秒；同一個 worker 連續渲染多次、或機器同時在跑其他測試時會慢好幾倍，
- * 所以給寬鬆的上限——逾時只是保護，判定仍由下面的斷言決定。
- */
-const PAGE_TIMEOUT = 240_000
-const WAIT = { timeout: 90_000 }
-
-function caseButtons(root: ParentNode, experimentId: string): HTMLButtonElement[] {
-  return Array.from(root.querySelectorAll<HTMLButtonElement>(`#exp-${experimentId} .c-case-btn`))
 }
 
 describe('Ch04 頁面（jsdom smoke test）', () => {
@@ -241,6 +200,56 @@ describe('Ch04 頁面（jsdom smoke test）', () => {
     for (const t of [String.raw`$w_k$ [fs/code]`, String.raw`block $k$`, String.raw`bipolar $\pm1$`, String.raw`$a(k)$`, String.raw`$E[S]/2^{\ell}$（真實平均，輸出 LSB）`, String.raw`$y[n]$`, String.raw`$E[\delta_k]/\delta_0$`, String.raw`累加 $S$（running sum）`]) {
       expect(plotTexts, t).toContain(t)
     }
+    // 外部審查 R11：half-even 的 0 另需「恰好一半」時商的奇偶各半——條件在 Engineer 模式就看得到（公式標籤、推導、精確／近似標籤、F-04.11 的說明、面板 B）
+    const foldOf = (title: string) => texText(Array.from(container.querySelectorAll('details.ch04-fold')).find((d) => (d.querySelector('summary')?.textContent ?? '').includes(title))!)
+    expect(texText(container.querySelector('[id="formula-F-04.10"]')!)).toContain('右移 rounding 的平均誤差（輸出 LSB；均勻餘數，half-even 另需「恰好一半」時商 j 的奇偶各半）')
+    const roundFold = foldOf('四種 rounding 的平均誤差')
+    expect(roundFold).toContain(String.raw`Q_\mathrm{half\,even}:\;\bar\varepsilon=\tfrac12\Bigl[P\bigl(\rho=2^{\ell-1},\,j\text{ 奇}\bigr)-P\bigl(\rho=2^{\ell-1},\,j\text{ 偶}\bigr)\Bigr]\;\xlongequal{\text{奇偶各半}}\;0`)
+    expect(roundFold).toContain('只有「餘數均勻」不夠')
+    expect(roundFold).toContain(String.raw`例：\ell=2 時 S=0,1,2,3（j=0）的誤差是 0,-\tfrac14,-\tfrac12,+\tfrac14，平均 -\tfrac18；S=4,5,6,7（j=1）是 0,-\tfrac14,+\tfrac12,+\tfrac14，平均 +\tfrac18；兩圈合起來才是 0`)
+    expect(roundFold).toContain(String.raw`floor、half-up、toward-0 在「餘數均勻」的前提下精確；half-even 還要「恰好一半」時 j 的奇偶各半才精確為 0，只有餘數均勻時只能保證 |\bar\varepsilon_\mathrm{half\,even}|\le2^{-\ell-1}`)
+    expect(roundFold).toContain(String.raw`half-even 剩下的誤差不超過約 0.0072\times2^{-\ell} 個 LSB`)
+    // 「σ_S 夠大」是在 S 近似 Gaussian 的前提下說的；只有 RMS 大並不夠（審查的反例：商恆為偶數）
+    expect(roundFold).toContain(String.raw`S 是 N 個獨立項的和、近似 Gaussian，\sigma_S\gtrsim2^\ell 時餘數幾乎均勻`)
+    expect(roundFold).toContain(String.raw`只有 \sigma_S 大並不夠：把上面例子的 S=0,1,2,3 各加上 8 的任意整數倍，\sigma_S 可以任意大、餘數仍然均勻，但 j 永遠是偶數，half-even 的平均仍是 -\tfrac18`)
+    // 清理（R11 的延伸）：toward-0 的平台寬 2 個 LSB，dither 比的下限是其他三種的兩倍（實驗的比對條件與模型的警告用同一個下限）
+    expect(roundFold).toContain(String.raw`|S|<2^\ell 全部輸出 0，這個平台寬 2 個 LSB（其他三種是 1 個），所以需要的 dither 比 \sigma_S/2^\ell 是其他三種的兩倍（約 ${2 * DITHER_MIN}，下方實驗的偏差比對與模型的警告用這個下限）`)
+    const biasFold = foldOf('閉迴路：平均誤差變成係數偏差')
+    expect(biasFold).toContain(String.raw`half-even 的 \delta^*=0 不靠 F-04.10 的「恰好一半」條件：它是奇函數 Q(-S)=-Q(S)`)
+    expect(biasFold).toContain(String.raw`dither 不夠（\sigma_S/2^\ell\lesssim${DITHER_MIN}）時 half-even 和 floor 一樣會停在 dead zone`)
+    expect(foldOf('第二個截斷點')).toContain('half-even 則為 0（和 F-04.10 一樣，另需恰好一半時商的奇偶各半）')
+    const fpShell = texText(shellOf(container, 'gmac-fixed-point'))
+    expect(fpShell).toContain(String.raw`half-even \approx0、toward-zero 在 0 附近`) // 面板 B 的圖說
+    expect(fpShell).toContain(String.raw`half-even 那一列的 0：除了餘數均勻，還要「恰好一半」時商的奇偶各半（F-04.10）。上圖的離散 Gaussian 模型在 \sigma_S/2^\ell\ge1 時，half-even 的曲線偏離 0 不超過約 0.0072\times2^{-\ell} 個 LSB`)
+    expect(fpShell.includes('half-even 為 0')).toBe(false)
+    expect(fpShell.includes('（或 half-even）')).toBe(false)
+    expect((container.textContent ?? '').includes('這一格的貢獻是')).toBe(false) // Research 的補充在 Engineer 模式不顯示
+    // 手算 HC-04.7 的附註：half-even 在閉迴路沒有固定偏差的理由是奇對稱，開迴路的 0 才需要 F-04.10 的條件
+    expect(texText(container.querySelector('[id="handcalc-HC-04.7"]')!)).toContain(String.raw`half-even 在閉迴路沒有固定偏差：它是奇函數 Q(-S)=-Q(S)，平衡點 \delta=0 時 S 的分布對 0 對稱，平均輸出就是 0（開迴路的平均誤差為 0 則要 F-04.10 的條件）`)
+    // 章末符號表列出商 j
+    expect(texText(symbols)).toContain(String.raw`右移留下的商 j=\lfloor S/2^\ell\rfloor 與丟掉的餘數 \rho=S\bmod2^\ell`)
+    // 模型警告裡 toward-0 的「回復斜率 χ」在符號表查得到定義（和 floor 的 χ(s) 不是同一個式子）
+    expect(texText(symbols)).toContain(String.raw`toward-0 的是 \sum_{k\ne0}\varphi(k/s)/s，同樣的 s 下小得多，所以它需要的 dither 比加倍`)
+    // 外部審查 R06b：把 δ_k 寫在 h 外面要 w 在 h 的記憶長度內近似不變（Ch06 的 F-06.1）；式子本身不變
+    const hw = foldOf('把迴路走一圈：一階平均模型')
+    expect(hw).toContain(String.raw`e[n]=\delta_k\,u[n]+b_\mathrm{off}+v[n],\qquad u[n]=(h*x)[n]`)
+    expect(hw).toContain(String.raw`把 \delta_k 寫在 h 外面，是 w 在 h 的記憶長度內近似不變（每個 block 只動一點）時的近似，Ch06 的 F-06.1（h 沒有記憶的 identity path 則是等式）`)
+    expect(hw).toContain('雜訊 iid Gaussian 且與 code 獨立、w 在 h 的記憶長度內近似不變（第 1 步）')
+    // 清理（R06b）：§4 的小訊號平均在推導旁寫出「w 在 h 的記憶長度內近似不變」這個前提（identity path 時是等式），和 §3 的推導、登錄的 F-04.4 一致
+    expect(foldOf(String.raw`E[G_k]\approx K_qC\,\delta_k`)).toContain(
+      String.raw`第 3 步的 e=\delta_ku+v 在 PLL 誤差路徑有記憶（u\ne x）時另需 w 在 h 的記憶長度內近似不變（§3 推導的第 1 步，Ch06 的 F-06.1）；identity path（u=x）時是等式`,
+    )
+    // 清理（R11）：四種取整那張圖的圖說、章末總表的 rounding 那一列、程式碼標題都指出 half-even 的 0 另有條件
+    expect(figCaptions.map((c) => texText(c)).join('\n')).toContain(String.raw`再看最下面一排的平均誤差 \bar\varepsilon（餘數均勻時）：floor 偏負（紅色），half-even 為 0（綠色；它還多一個條件，見圖下的說明）`)
+    expect(texText(container.querySelector('#ch04-wrap')!)).toContain(String.raw`（餘數均勻時；half-even 的 0 另需「恰好一半」時商的奇偶各半，F-04.10；閉迴路的 \delta^*=0 靠的是奇對稱，不靠這個條件）`)
+    expect(Array.from(container.querySelectorAll('.c-code-title')).map((t) => texText(t))).toContain('均勻餘數下的平均誤差（F-04.10 的程式版；half-even 的 0 另需「恰好一半」時商的奇偶各半）')
+    // 清理（版面）：比桌機欄寬長的獨立公式排成對齊的兩行（內容不變），不再需要橫向捲軸
+    expect(texText(container.querySelector('[id="formula-F-04.9"]')!)).toContain(
+      String.raw`\begin{aligned}&\boxed{B_\mathrm{acc}=1+\bigl\lceil\log_2(NM_x+1)\bigr\rceil},\\[4pt]&B_\mathrm{acc}^\mathrm{sym}\le B_x+\lceil\log_2N\rceil\;(N=2^m\text{ 時取等號}),\qquad B_\mathrm{acc}^\mathrm{full}=B_x+\lfloor\log_2N\rfloor+1\end{aligned}`,
+    )
+    expect(texText(container.querySelector('[id="formula-F-04.6"]')!)).toContain(
+      String.raw`\begin{aligned}E[S_N]&=Nm_q=79.7871,&\mathrm{sd}(S_N)&=\sqrt{N(1-m_q^2)}=99.9968;\\E[G]&=m_q=0.00797871,&\mathrm{sd}(G)&=\sqrt{\tfrac{1-m_q^2}{N}}=0.00999968\end{aligned}`,
+    )
     // React 不應報錯（key、DOM 巢狀、hooks 規則…）
     expect(errSpy.mock.calls.map((c) => String(c[0]).slice(0, 200))).toEqual([])
     errSpy.mockRestore()
@@ -254,6 +263,17 @@ describe('Ch04 頁面（jsdom smoke test）', () => {
     const texErrors = Array.from(r.container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.textContent)
     expect(texErrors).toEqual([])
     expect(Array.from(r.container.querySelectorAll('details.ch04-fold')).every((d) => (d as HTMLDetailsElement).open)).toBe(true)
+    // 外部審查 R11：Research 的補充——half-even 的 tie 項（週期是餘數的兩倍）與它的大小
+    expect(r.container.textContent).toContain('的奇偶各半才精確為 0')
+    expect(r.container.textContent).toContain('half-even 的')
+    const researchBox = Array.from(r.container.querySelectorAll('#ch04-fixed .c-callout')).find((c) => (c.querySelector('.c-callout-title')?.textContent ?? '').startsWith('Research：dither 不夠時會怎樣？'))!
+    const research = texText(researchBox)
+    expect(research).toContain(String.raw`\bar\varepsilon_\mathrm{half\,even}^\mathrm{tie}(m)\approx-2^{-\ell}e^{-\pi^2s^2/2}\sin\pi m`)
+    expect(research).toContain(String.raw`s=1 時振幅約 0.0072\times2^{-\ell}（half-up 的 2^{-\ell-1} 的 1.4\%）`)
+    expect(research).toContain(String.raw`看的是 S\bmod2^{\ell+1}，週期是餘數的兩倍`)
+    expect(research).toContain('dither 不夠時同樣有 dead zone')
+    // 清理（版面）：χ(s) 的定義與四個數值分成兩行（原本的 floor 推導與數字不變）
+    expect(research).toContain(String.raw`\begin{aligned}\chi(s)&=\frac{dE[\lfloor X\rfloor]}{dm}\Big|_{m=\frac12}=1+2\sum_{k\ge1}(-1)^ke^{-2\pi^2k^2s^2}:\\&\chi(1)=1,\;\chi(0.5)=0.986,\;\chi(0.25)=0.432,\;\chi(0.142)=0.0114\end{aligned}`)
     r.unmount()
     localStorage.setItem('lmspll.mode', 'beginner')
     const b = renderAt()
@@ -264,6 +284,9 @@ describe('Ch04 頁面（jsdom smoke test）', () => {
     // Beginner 模式下每個登錄的公式仍有錨點（Formula Reference 頁的連結不會落空），先備知識框也都在
     for (const fm of FORMULAS) expect(b.container.querySelector(`[id="formula-${fm.id}"]`), fm.id).not.toBeNull()
     for (const t of ['Z transform', '期望值', 'Gaussian 分布', 'pole 與單位圓', '二補數']) expect(b.container.textContent).toContain(t)
+    // 外部審查 R11：Beginner 模式推導收合，half-even 多出來的條件仍寫在 F-04.10 的標籤與看圖說明裡
+    expect(b.container.querySelector('[id="formula-F-04.10"]')!.textContent).toContain('奇偶各半')
+    expect(b.container.querySelector('#ch04-fixed')!.textContent).toContain('half-even 平均為 0（另外需要「恰好一半」時')
     b.unmount()
   }, PAGE_TIMEOUT)
 
@@ -281,63 +304,6 @@ describe('Ch04 頁面（jsdom smoke test）', () => {
     expect(texText(shell)).toContain('GMAC（sum 模式）：S_k=\\sum q\\,x_\\mathrm{ref}（N=16）')
     // 模型原本的 Unicode 寫法不再出現（TestBadge 提示框逐字列出的測試名稱不算，見 proseText）
     expect(proseText(shell)).not.toMatch(/σ_v|x_ref|w\* − a/)
-  }, PAGE_TIMEOUT)
-})
-
-describe('Ch04 在 React StrictMode（dev server）下', () => {
-  it('反面測試：effect 連跑兩次時 preset 的 case 不會重複加入——預設 gmac-fixed-point 只有 A/B，不會多出 Case C', async () => {
-    const { container } = renderAt('/ch/04', true)
-    await waitFor(() => expect(caseButtons(container, 'gmac-fixed-point').length).toBeGreaterThanOrEqual(2), WAIT)
-    await act(async () => {
-      await new Promise((r) => setTimeout(r, 200))
-    })
-    expect(caseButtons(container, 'gmac-fixed-point').map((b) => b.textContent?.trim())).toEqual(['Case A', 'Case B'])
-    expect(caseButtons(container, 'gmac-signal-flow').map((b) => b.textContent?.trim())).toEqual(['Case A'])
-  }, PAGE_TIMEOUT)
-
-  it('?preset=gmac-fp-negate-bug（2 個 case）：載入後剛好是 A（正確取負）與 B（取負 bug），不會被預設的 case 蓋掉', async () => {
-    const { container } = renderAt('/ch/04?preset=gmac-fp-negate-bug', true)
-    await waitFor(() => expect(caseButtons(container, 'gmac-fixed-point').length).toBeGreaterThanOrEqual(2), WAIT)
-    await act(async () => {
-      await new Promise((r) => setTimeout(r, 200))
-    })
-    expect(caseButtons(container, 'gmac-fixed-point').map((b) => b.textContent?.trim())).toEqual(['Case A', 'Case B'])
-    // 共用參數與 case 參數都來自 preset：full range code、B_acc = 17、B 為 inplace 取負
-    const shell = container.querySelector('#exp-gmac-fixed-point')!
-    await waitFor(() => expect(texText(shell)).toMatch(/B_\\mathrm\{acc\}=17，取負 bug/), WAIT)
-    expect(texText(shell)).toContain('full range（含 -2^{B_x-1}）')
-  }, PAGE_TIMEOUT)
-})
-
-describe('Ch04 實驗互動（jsdom）', () => {
-  it('?preset=gmac-fp-w-truncation：三個 case；切到 B 顯示 W 截斷的警告、R 與 F-04.18 的預測，Fixed-Point 交叉比對一致', async () => {
-    const { container } = renderAt('/ch/04?preset=gmac-fp-w-truncation')
-    await waitFor(() => expect(caseButtons(container, 'gmac-fixed-point').map((b) => b.textContent?.trim())).toEqual(['Case A', 'Case B', 'Case C']), WAIT)
-    act(() => caseButtons(container, 'gmac-fixed-point')[1].click())
-    const shell = container.querySelector('#exp-gmac-fixed-point')!
-    await waitFor(() => expect(texText(shell)).toContain('取整到 W 的 LSB \\Delta_W=0.1563\\,\\mathrm{fs}（R=\\Delta_W/(\\mu\\Delta_G)=8）'), WAIT)
-    expect(texText(shell)).toContain('\\Rightarrow w^*-a\\approx\\bar\\varepsilon_W\\Delta_W/g=-2.653\\,\\mathrm{fs}（F-04.18）')
-    expect(shell.textContent).not.toMatch(/Δ_W = |ε̄_W|w\* − a/) // 模型原本的 Unicode 寫法不再出現
-    expect(texText(shell)).toContain('Case B：R=\\Delta_W/(\\mu\\Delta_G)、\\mu\\sigma_G/\\Delta_W')
-    expect(texText(shell)).toMatch(/Case B：w_\\mathrm\{fixed\}-w_\\mathrm\{float\}=-2\.578\\pm0\.0716\\,\\mathrm\{fs\}（AR\(1\) SE），預測（\\div N rounding 0 \+ W 取整 -2\.653）=-2\.653\\,\\mathrm\{fs\}/)
-    expect(shell.querySelector('.katex-error, .c-tex-error')).toBeNull()
-    expect(proseText(shell)).not.toContain('$')
-    // 舊 preset（case 沒有 wLsb / wRounding 欄位）載入後，控制項拿到的是預設值而不是 undefined
-    const lsb = Array.from(shell.querySelectorAll('input')).find((i) => /Δ_W（W 的 LSB/.test(i.getAttribute('aria-label') ?? ''))
-    expect(lsb).toBeTruthy()
-    expect((lsb as HTMLInputElement).value).not.toMatch(/NaN|undefined/)
-  }, PAGE_TIMEOUT)
-
-
-  it('gmac-fixed-point：打開 Monte Carlo 開關後顯示多 seed 結果；gmac-bit-encoding 的 Monte Carlo 自動執行', async () => {
-    const { container } = renderAt()
-    const enc = shellOf(container, 'gmac-bit-encoding')
-    const fp = shellOf(container, 'gmac-fixed-point')
-    await waitFor(() => expect(texText(enc)).toContain('bug：Monte Carlo 平均 w（6 seeds）'), WAIT)
-    const sw = within(fp).getByRole('switch', { name: /Monte Carlo（目前 case 另跑 6 seeds/ })
-    act(() => sw.click())
-    await waitFor(() => expect(texText(fp)).toMatch(/Case A：Monte Carlo w_\\mathrm\{fixed\}-w_\\mathrm\{float\}（6 seeds）/), WAIT)
-    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
   }, PAGE_TIMEOUT)
 })
 
@@ -382,6 +348,162 @@ describe('Ch04 資料與輔助計算', () => {
     expect(FORMULAS.find((f) => f.id === 'F-04.3')!.conditions).toContain(String.raw`$b=1\Leftrightarrow e\ge0$（tie 判 $+1$）`)
     expect(FORMULAS.find((f) => f.id === 'F-04.18')!.conditions).toContain(String.raw`$=-(1-2^{-(\ell+\ell_W)})\,\Delta_W/(2g)$`)
   })
+
+  it('F-04.4（外部審查 R06b）：小訊號平均另需「w 在 h 的記憶長度內近似常數」（identity path 不需要）；式子與 approx 標籤不變', () => {
+    const f0404 = FORMULAS.find((f) => f.id === 'F-04.4')!
+    expect(f0404.claim).toBe('approx')
+    expect(f0404.tex).toBe(String.raw`E[G_k\mid\delta_k]=\frac1N\sum_n x_\mathrm{ref}[n]\,\mathrm{erf}\!\Bigl(\frac{\delta_k u[n]}{\sqrt2\,\sigma_v}\Bigr)\approx K_qC\,\delta_k=K\delta_k`)
+    for (const t of [
+      String.raw`$v\sim\mathcal N(0,\sigma_v^2)$ iid 且與 code 獨立`,
+      String.raw`$|\delta_k u|\ll\sigma_v$（erf 一階泰勒）`,
+      String.raw`$u=h*x$（$h$ 為 PLL 誤差路徑 $H_\mathrm{PD}$ 的脈衝響應）`,
+      '$w$ 在 $h$ 的記憶長度內近似常數（時間尺度分離，Ch06 的 F-06.1）',
+      String.raw`才能把 PD 看到的誤差寫成 $\delta_k\,u[n]$`,
+      String.raw`$h$ 沒有記憶的 identity path（$u=x$）不需要這個前提`,
+      String.raw`$C=E[x_\mathrm{ref}\,u]$`,
+    ])
+      expect(f0404.conditions, t).toContain(t)
+  })
+
+  it('F-04.10（外部審查 R11）：half-even 的 0 另需「恰好一半」時商的奇偶各半；式子、標籤不變，條件寫在 conditions', () => {
+    const f0410 = FORMULAS.find((f) => f.id === 'F-04.10')!
+    expect(f0410.claim).toBe('approx')
+    expect(f0410.title).toBe('右移 rounding 的平均誤差（均勻餘數）')
+    expect(f0410.tex).toContain(String.raw`\bar\varepsilon_\mathrm{half\,even}=0`)
+    expect(roundingMeanError(4, 'half_even')).toBe(0)
+    for (const t of [
+      String.raw`$S=2^\ell j+\rho$`,
+      String.raw`餘數 $\rho=S\bmod2^\ell$ 均勻`,
+      String.raw`half-even 的 $0$ 另需「恰好一半（$\rho=2^{\ell-1}$）時商 $j$ 的奇偶各半」`,
+      String.raw`$S\bmod2^{\ell+1}$ 均勻`,
+      '對稱時自動成立',
+      String.raw`$\bar\varepsilon_\mathrm{half\,even}=\tfrac12\bigl[P(\rho=2^{\ell-1},\,j\text{ 奇})-P(\rho=2^{\ell-1},\,j\text{ 偶})\bigr]$`,
+      String.raw`$|\bar\varepsilon_\mathrm{half\,even}|\le2^{-\ell-1}$`,
+      String.raw`toward-zero 為 $-\mathrm{sign}(S)\,(1-2^{-\ell})/2$`,
+    ])
+      expect(f0410.conditions, t).toContain(t)
+    // 閉迴路的敘述（奇對稱 ⇒ δ* = 0）不變：F-04.18 仍寫 half-even 時為 0
+    expect(FORMULAS.find((f) => f.id === 'F-04.18')!.conditions).toContain(String.raw`half-even 時為 $0$`)
+    // 頁面引用的振幅：e^{−π²/2} ≈ 0.0072（gmac.test.ts 與面板 B 的精確模型比對）
+    expect(halfEvenTieAmplitude(1).toPrecision(2)).toBe('0.0072')
+    expect((200 * halfEvenTieAmplitude(1)).toPrecision(2)).toBe('1.4')
+  })
+
+  it('定點實驗的偏差預測適用條件（外部審查 R11）：half-even 在 dither 不足時也不適用（迴路停在 dead zone）；toward-0 的下限加倍；dither 足夠時照常比對', () => {
+    // 反例：half-even、σ_S/2^ℓ = 0.142。平衡點的預測是 0，但迴路從上方接近時停在 +1.6 fs（dead zone），模型同時發出 dead zone 警告
+    const c = { ...DEFAULT_FP_CASE, accBits: 20, gFracBits: 0, rounding: 'half_even' as const }
+    const shared = { ...DEFAULT_FP_SHARED, log2N: 14, w0: 8 }
+    const r = runFixedGmacLoop(buildLoopParams(shared, c, 3))
+    expect(r.analytic.ditherRatio).toBeCloseTo(0.142, 3)
+    expect(r.analytic.ditherRatio).toBeLessThan(DITHER_MIN)
+    expect(r.analytic.biasPred).toBe(0)
+    expect(r.stats.biasDiff).toBeGreaterThan(0.5)
+    expect(r.stats.biasDiff).toBeGreaterThan(4 * r.stats.biasDiffSe)
+    expect(r.stats.biasDiff).toBeCloseTo(1.618, 2) // +1.618 ± 0.025 fs
+    expect(r.warnings.join('\n')).toMatch(/dead zone/)
+    expect([r.stats.accOverflow, r.stats.wSat, r.stats.wWrap]).toEqual([0, 0, 0]) // 其他適用條件都滿足：只有 dither 這一關擋得住
+    expect(r.analytic.linearValid).toBe(true)
+    expect(roundingPredictionOk(r.analytic, c)).toBe(false)
+    // 從下方接近時停在另一側（−1.67 fs）：不是固定偏差，是 dead zone
+    const below = runFixedGmacLoop(buildLoopParams({ ...shared, w0: 0 }, c, 3))
+    expect(below.stats.biasDiff).toBeLessThan(-0.5)
+    expect(roundingPredictionOk(below.analytic, c)).toBe(false)
+    // 同樣的設定改成 floor：原本就不適用（行為不變）
+    const fl = { ...c, rounding: 'floor' as const }
+    expect(roundingPredictionOk(runFixedGmacLoop({ ...buildLoopParams(shared, fl, 3), numBlocks: 20 }).analytic, fl)).toBe(false)
+    // 正常對照：預設的 half-even case（σ_S/2^ℓ = 2.273）適用，模擬與預測 0 相符
+    const c2 = { ...DEFAULT_FP_CASE, rounding: 'half_even' as const }
+    const ok = runFixedGmacLoop(buildLoopParams(DEFAULT_FP_SHARED, c2, 1))
+    expect(ok.analytic.ditherRatio).toBeCloseTo(2.273, 3)
+    expect(roundingPredictionOk(ok.analytic, c2)).toBe(true)
+    expect(ok.analytic.biasPred).toBe(0)
+    expect(Math.abs(ok.stats.biasDiff)).toBeLessThanOrEqual(4 * ok.stats.biasDiffSe + 0.02)
+    expect(ok.warnings.join('\n')).not.toMatch(/dead zone/)
+    // 第二個取整點同理：W 用 half-even 但 μσ_G/Δ_W 不足時不適用；足夠時適用；sum 模式（不右移）與浮點 W 不受這一關限制
+    const an = (ditherRatio: number, ditherRatioW: number, ell = 8) => ({ ell, ditherRatio, ditherRatioW })
+    const he = { rounding: 'half_even', wRounding: 'half_even' } as const
+    expect(roundingPredictionOk(an(2.273, 0.1), { gmMode: 'average', wLsb: 1.25, ...he })).toBe(false)
+    expect(roundingPredictionOk(an(2.273, 1.137), { gmMode: 'average', wLsb: 0.15625, ...he })).toBe(true)
+    expect(roundingPredictionOk(an(2.273, DITHER_MIN), { gmMode: 'average', wLsb: 0.15625, ...he })).toBe(true)
+    expect(roundingPredictionOk(an(0.1, Infinity), { gmMode: 'average', wLsb: 0, ...he })).toBe(false)
+    expect(roundingPredictionOk(an(0.1, Infinity), { gmMode: 'sum', wLsb: 0, ...he })).toBe(true)
+    expect(roundingPredictionOk(an(0.1, Infinity, 0), { gmMode: 'average', wLsb: 0, ...he })).toBe(true) // ℓ ≤ 0：沒有右移
+    // toward-0：|S| < 2^ℓ 全部輸出 0，0 附近的平台寬 2 個 LSB（floor / half-even 是 1 個），所以 dither 比的下限加倍。
+    // 反例：σ_S/2^ℓ = 0.284（已經超過 DITHER_MIN）時迴路仍停在出發的那一側——從下方 −2.64 fs、從上方 +3.21 fs，預測是 0；
+    // 模型的 dead zone 警告用同一個下限（gmac.ts 的 ditherMinFor），所以這時也會發出 toward-zero 專屬的警告
+    expect([ditherMinFor('floor'), ditherMinFor('half_up'), ditherMinFor('half_even'), ditherMinFor('toward_zero')]).toEqual([DITHER_MIN, DITHER_MIN, DITHER_MIN, 2 * DITHER_MIN])
+    const tz = { ...DEFAULT_FP_CASE, accBits: 20, gFracBits: 0, rounding: 'toward_zero' as const }
+    const tzBelow = runFixedGmacLoop(buildLoopParams({ ...DEFAULT_FP_SHARED, log2N: 12, w0: 0 }, tz, 3))
+    const tzAbove = runFixedGmacLoop(buildLoopParams({ ...DEFAULT_FP_SHARED, log2N: 12, w0: 8 }, tz, 3))
+    expect(tzBelow.analytic.ditherRatio).toBeCloseTo(0.284, 3)
+    expect(tzBelow.analytic.ditherRatio).toBeGreaterThan(DITHER_MIN)
+    expect([tzBelow.analytic.biasPred, tzAbove.analytic.biasPred]).toEqual([0, 0])
+    expect(tzBelow.stats.biasDiff).toBeCloseTo(-2.641, 2) // −2.641 ± 0.096 fs
+    expect(tzBelow.stats.biasDiff).toBeLessThan(-4 * tzBelow.stats.biasDiffSe)
+    expect(tzAbove.stats.biasDiff).toBeCloseTo(3.209, 2) // +3.209 ± 0.173 fs
+    expect(tzAbove.stats.biasDiff).toBeGreaterThan(4 * tzAbove.stats.biasDiffSe)
+    for (const res of [tzBelow, tzAbove]) {
+      expect([res.stats.accOverflow, res.stats.wSat, res.stats.wWrap]).toEqual([0, 0, 0])
+      expect(res.analytic.linearValid).toBe(true)
+      expect(roundingPredictionOk(res.analytic, tz)).toBe(false)
+      expect(res.warnings.join('\n')).toContain('σ_S/2^ℓ = 0.284 < 0.5（toward-zero 的下限是 floor 的兩倍）')
+    }
+    // 實驗的「不適用」與模型的 dead zone 警告一致：四種模式 × 三個 dither 比（0.568、0.284、0.142）× 兩個取整點，
+    // 取整這一關判成不適用 ⇔ 警告清單裡有 dead zone 的訊息（toward-0 在 0.25 ≤ dither 比 < 0.5 不再只有實驗說 n/a 而模型沒有警告）
+    let combos = 0
+    for (const mode of ROUNDING_MODES) {
+      for (const log2N of [10, 12, 14]) {
+        const cc = { ...DEFAULT_FP_CASE, accBits: 20, gFracBits: 0, rounding: mode }
+        const res = runFixedGmacLoop({ ...buildLoopParams({ ...DEFAULT_FP_SHARED, log2N }, cc, 3), numBlocks: 10 })
+        expect(roundingPredictionOk(res.analytic, cc), `${mode} log2N=${log2N}`).toBe(!/dead zone/.test(res.warnings.join('\n')))
+        combos++
+      }
+      for (const wLsb of [0.3125, 0.625, 1.25]) {
+        const cc = { ...DEFAULT_FP_CASE, gFracBits: 4, rounding: 'half_even' as const, wLsb, wRounding: mode }
+        const res = runFixedGmacLoop({ ...buildLoopParams(DEFAULT_FP_SHARED, cc, 3), numBlocks: 10 })
+        expect(roundingPredictionOk(res.analytic, cc), `W ${mode} Δ_W=${wLsb}`).toBe(!/dead zone/.test(res.warnings.join('\n')))
+        combos++
+      }
+    }
+    expect(combos).toBe(24)
+    // 單一 seed 的比對標成不相符時附上的提示（AR(1) 標準誤偏小）：純文字、沒有落單的 $
+    expect(SINGLE_SEED_HINT).toContain('Monte Carlo')
+    expect(SINGLE_SEED_HINT).not.toContain('$')
+    // 對照：同樣的設定下 floor 與 half-even 適用，而且和各自的預測相符（平台只有 1 個 LSB 寬）
+    for (const rounding of ['floor', 'half_even'] as const) {
+      const cc = { ...tz, rounding }
+      const res = runFixedGmacLoop(buildLoopParams({ ...DEFAULT_FP_SHARED, log2N: 12, w0: 8 }, cc, 3))
+      expect(roundingPredictionOk(res.analytic, cc), rounding).toBe(true)
+      expect(Math.abs(res.stats.biasDiff - res.analytic.biasPred), rounding).toBeLessThanOrEqual(4 * res.stats.biasDiffSe + 0.05 * Math.abs(res.analytic.biasPred))
+    }
+    // 正常對照：預設的 dither（σ_S/2^ℓ = 2.273）下 toward-0 適用，模擬與預測 0 相符
+    const tz2 = { ...DEFAULT_FP_CASE, rounding: 'toward_zero' as const }
+    const tzOk = runFixedGmacLoop(buildLoopParams(DEFAULT_FP_SHARED, tz2, 1))
+    expect(roundingPredictionOk(tzOk.analytic, tz2)).toBe(true)
+    expect(Math.abs(tzOk.stats.biasDiff)).toBeLessThanOrEqual(4 * tzOk.stats.biasDiffSe + 0.02)
+    // 門檻的兩側、兩個取整點
+    expect(roundingPredictionOk(an(0.49, Infinity), { gmMode: 'average', wLsb: 0, rounding: 'toward_zero', wRounding: 'half_even' })).toBe(false)
+    expect(roundingPredictionOk(an(0.5, Infinity), { gmMode: 'average', wLsb: 0, rounding: 'toward_zero', wRounding: 'half_even' })).toBe(true)
+    expect(roundingPredictionOk(an(2.273, 0.284), { gmMode: 'average', wLsb: 0.625, rounding: 'half_even', wRounding: 'toward_zero' })).toBe(false)
+    expect(roundingPredictionOk(an(2.273, 0.284), { gmMode: 'average', wLsb: 0.625, rounding: 'half_even', wRounding: 'floor' })).toBe(true)
+    expect(roundingPredictionOk(an(2.273, 0.568), { gmMode: 'average', wLsb: 0.3125, rounding: 'half_even', wRounding: 'toward_zero' })).toBe(true)
+    expect(roundingPredictionOk(an(0.284, Infinity), { gmMode: 'sum', wLsb: 0, rounding: 'toward_zero', wRounding: 'toward_zero' })).toBe(true) // sum 模式不右移、浮點 W 不取整
+    // 本章附的定點 preset 全部維持適用（half-even 的 case 都有足夠的 dither）：比對結果不因為這個條件改變
+    const dir = join(process.cwd(), 'src', 'data', 'presets')
+    let checked = 0
+    for (const file of readdirSync(dir).filter((f) => /^gmac-fp-.*\.json$/.test(f))) {
+      const p = JSON.parse(readFileSync(join(dir, file), 'utf8')) as PresetEntry
+      if (p.experiment !== 'gmac-fixed-point') continue
+      const { cases, seed, ...sh } = p.params as { cases: Partial<typeof DEFAULT_FP_CASE>[]; seed: number }
+      for (const cs of cases) {
+        const cc = { ...DEFAULT_FP_CASE, ...cs }
+        const res = runFixedGmacLoop({ ...buildLoopParams({ ...DEFAULT_FP_SHARED, ...sh }, cc, seed), numBlocks: 20 })
+        expect(roundingPredictionOk(res.analytic, cc), `${file} ${JSON.stringify(cs)}`).toBe(true)
+        checked++
+      }
+    }
+    expect(checked).toBe(14)
+  }, 60000)
 
   it('presets：本章三個實驗的 preset 都在 /ch/04，參數鍵都是實驗認得的欄位', () => {
     const dir = join(process.cwd(), 'src', 'data', 'presets')

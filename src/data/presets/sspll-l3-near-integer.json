@@ -11,6 +11,6 @@
     "tau": 0.001,
     "nTau": 25
   },
-  "expected": "ergodic：κ_PHOS = −2.06×10⁻⁵（|κ| ≪ τ = 10⁻³：dead zone，最差 mode 1）；單線近似 −0.00596 過度悲觀；κ_GOS = 12C = +0.1235。精確週期 α = 1/500：κ_PHOS = −2.07×10⁻⁵；大訊號 κ∞ = −0.841（穩健反向）。golden 的閉迴路 LMS（6000 blocks）：raw 的 PHOS 誤差漂到 11.6 ps，1diff 收斂到 22 fs。改成 1diff：κ_PHOS = +0.0094（慢，但為正）。",
+  "expected": "ergodic：κ_PHOS = −2.06×10⁻⁵（|κ_PHOS| ≪ τ = 10⁻³：dead zone，最差 mode 1）；單線近似 −0.00596 過度悲觀；κ_GOS = 12C = +0.1235。精確週期 α = 1/500：κ_PHOS = −2.07×10⁻⁵；大訊號 κ∞ = −0.841（穩健反向）。golden 的閉迴路 LMS（6000 blocks）：raw 的 PHOS 誤差漂到 11.6 ps，1diff 收斂到 22 fs。改成 1diff：κ_PHOS = +0.0094（慢，但為正）。",
   "source": "simulation"
 }

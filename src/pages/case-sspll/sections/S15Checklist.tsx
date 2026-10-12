@@ -77,7 +77,7 @@ export function S15Checklist() {
           <strong>{Math.ceil(pvt('L2')[1])} MHz</strong>。L3 為 {fx(pvt('L3')[0], 1)}–{fx(pvt('L3')[1], 1)} MHz。
         </li>
         <li>
-          <strong>近整數 dead zone。</strong> <Tex>{r`\alpha f_{ref}\lesssim`}</Tex> 帶的下緣（L2 約 {fx(lowEdge('L2'), 0)} MHz、L3 約 {fx(lowEdge('L3'), 0)} MHz）屬於 <Tex>{r`\lvert\kappa\rvert\lesssim5\times10^{-3}`}</Tex> 的 dead zone：小訊號會漂移，大訊號會反向。
+          <strong>近整數 dead zone。</strong> <Tex>{r`\alpha f_{ref}\lesssim`}</Tex> 帶的下緣（L2 約 {fx(lowEdge('L2'), 0)} MHz、L3 約 {fx(lowEdge('L3'), 0)} MHz）屬於 <Tex>{r`\lvert\kappa_{PHOS}\rvert\lesssim5\times10^{-3}`}</Tex> 的 dead zone：小訊號會漂移，大訊號會反向。
           <strong>全部列入</strong>，也就是 keep-out 從 0 MHz 開始。
         </li>
         <li>

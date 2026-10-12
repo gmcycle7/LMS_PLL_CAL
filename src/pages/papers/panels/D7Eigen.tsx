@@ -74,8 +74,9 @@ export function D7Eigen() {
               tex: r`|1-\mu\lambda_i|<1\ \ \forall i\quad\Longleftrightarrow\quad 0<\mu<\frac{2}{\lambda_{\max}}`,
               why: (
                 <>
-                  最嚴格的是最大的 <Tex>{r`\lambda`}</Tex>；而最慢的是最小的 <Tex>{r`\lambda`}</Tex>：兩者的比值（eigenvalue
-                  spread）決定「穩定」與「夠快」能不能同時做到。
+                  最嚴格的是最大的 <Tex>{r`\lambda`}</Tex>；步長不太大（<Tex>{r`\mu\le2/(\lambda_{\max}+\lambda_{\min})`}</Tex>）時最慢的是最小的{' '}
+                  <Tex>{r`\lambda`}</Tex>，更大時最大的 <Tex>{r`\lambda`}</Tex> 那個 mode 會因為過衝（pole 是負的，而且 <Tex>{r`|1-\mu\lambda_{\max}|>|1-\mu\lambda_{\min}|`}</Tex>
+                  ）而變成最慢的：兩者的比值（eigenvalue spread）決定「穩定」與「夠快」能不能同時做到。下面的 <Tex>{r`p_{\mathrm{slow}}`}</Tex> 指絕對值最大的那個 pole。
                 </>
               ),
             },

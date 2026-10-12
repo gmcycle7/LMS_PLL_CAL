@@ -201,7 +201,7 @@ export const HANDCALCS: HandCalcDef[] = [
           },
           {
             tex: String.raw`\sum_i x_iv_i=${dot(x, v)}=${plus(xv)}=${texNum(sxv)}`,
-            why: '雜訊有沒有「跟著 $x$ 走」？把 $x_i v_i$ 加起來：正負抵消成 0 才算不相關。',
+            why: '雜訊有沒有「跟著 $x$ 走」？把 $x_i v_i$ 加起來：正負抵消成 0 才算與 $x$ 正交。',
           },
           {
             tex: String.raw`w^*-a=\frac{\sum_i x_iv_i}{\sum_i x_i^2}=\frac{${texNum(sxv)}}{${texNum(sxx)}}=${texNum(bias, S)}`,
@@ -225,7 +225,7 @@ export const HANDCALCS: HandCalcDef[] = [
               ]
             : []),
           sxv === 0
-            ? String.raw`$\sum x_iv_i=0$：這組雜訊剛好與 $x$ 不相關（正交），最小平方解就是真值 $a$。`
+            ? String.raw`$\sum x_iv_i=0$：這組雜訊剛好與 $x$ 正交，最小平方解就是真值 $a$。`
             : propC !== null
               ? String.raw`$v_i=${texNum(propC)}\,x_i$：雜訊完全跟著 $x$ 走，bias 正好是 $${texNum(propC)}$——LMS 會很穩定地學到 $a+${texNumP(propC)}$ 這個「錯的」答案（思考題 4、Ch11）。`
               : String.raw`bias $=${texNum(bias)}$：只有三筆資料時 $\sum x_iv_i$ 很難剛好是 0；雜訊與 $x$ 獨立、零均值時，筆數越多 bias 越小。`,
@@ -302,7 +302,7 @@ export const HANDCALCS: HandCalcDef[] = [
           },
           {
             tex: String.raw`E[e^*x]=E[xy]-w^*E[x^2]=${texNum(Exy, S)}-${texNumP(m.wStar, S)}\times${texNum(Exx, S)}=${texNum(Exy, S)}-${texNumP(m.wStar * Exx, S)}=${texNum(neq)}`,
-            why: 'Normal equation（F-01.5）：因為 $e^*x=(y-w^*x)\\,x=xy-w^*x^2$，取平均就是這一行。在最佳解處誤差與輸入不相關——再調 $w$ 也消不掉任何「跟著 $x$ 走」的成分。手算時 $w^*$ 四捨五入過，會剩下一點尾數，不是算錯。',
+            why: 'Normal equation（F-01.5）：因為 $e^*x=(y-w^*x)\\,x=xy-w^*x^2$，取平均就是這一行。在最佳解處誤差與輸入正交——再調 $w$ 也消不掉任何「跟著 $x$ 走」的成分。手算時 $w^*$ 四捨五入過，會剩下一點尾數，不是算錯。',
           },
           {
             tex: String.raw`\frac{E[xy]^2}{E[x^2]}=\frac{${texNumP(Exy, S)}^2}{${texNum(Exx, S)}}=\frac{${texNum(Exy * Exy, S)}}{${texNum(Exx, S)}}=${texNum(proj, S)}`,
@@ -335,7 +335,7 @@ export const HANDCALCS: HandCalcDef[] = [
               : String.raw`斜率 $${texNum(slope, 4)}>0$：$w$ 在最低點的右邊，往左走成本下降——LMS 會把 $w$ 調小。`,
           jMin === 0
             ? '$J(w^*)=0$：資料完全落在一條過原點的直線上（沒有雜訊），誤差可以被調到 0。'
-            : String.raw`$J(w^*)=${texNum(jMin, 4)}>0$：不管 $w$ 怎麼調都剩下這麼多成本；若雜訊與 $x$ 不相關，它就是 $\tfrac12E[v^2]$。`,
+            : String.raw`$J(w^*)=${texNum(jMin, 4)}>0$：不管 $w$ 怎麼調都剩下這麼多成本；若 $E[xv]=0$（雜訊與 $x$ 正交），它就是 $\tfrac12E[v^2]$。`,
         ],
       }
     },

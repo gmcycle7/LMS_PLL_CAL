@@ -42,7 +42,8 @@ export function D4Excitation() {
               tex: r`E[G]=0\quad\Longrightarrow\quad w^*=a+\frac{B}{C}`,
               why: (
                 <>
-                  平均更新量為 0 的點就是固定點；偏差 <Tex>{'B/C'}</Tex> 在 <Tex>{r`C\to0`}</Tex> 時被放大。
+                  平均更新量為 0 的點就是固定點；偏差 <Tex>{'B/C'}</Tex> 在 <Tex>{r`C\to0`}</Tex> 時被放大。這是上一步線性化的結果：<Tex>{'B/C'}</Tex> 大到讓 comparator 飽和（把{' '}
+                  <Tex>{'w^*'}</Tex> 代回去後，comparator 前的確定性殘差超過約 <Tex>{r`0.3\,\sigma_v`}</Tex>）時，<Tex>{'a+B/C'}</Tex> 只是線性外推，不再是 Sign-LMS 的固定點（Ch11 §11.4）。
                 </>
               ),
             },

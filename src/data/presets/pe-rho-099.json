@@ -20,7 +20,7 @@
     "chains": 64,
     "seed": 20261010
   },
-  "expected": "λ = 1.99 / 0.01、κ = 199；快 pole 0.005、慢 pole 0.995；慢模式 95% 衰減 598 blocks（ln 0.05/ln 0.995 = 597.65）。這是 mean recursion 的結論（勘誤 E23）：N = 16 時 mean-square 半徑 0.99003 < 1；若用 §5 的物理 K_q = 0.00797885 fs⁻¹ 而 μ = 0.5 fs，則需 75,091 blocks（勘誤 E05）。",
+  "expected": "λ = 1.99 / 0.01、κ = 199；快 pole 0.005、慢 pole 0.995；慢模式 95% 衰減 598 blocks（ln 0.05/ln 0.995 = 597.65）。這是 mean recursion 的結論（勘誤 E23）：N = 16 時 mean-square 半徑 0.99003 < 1；若用 §5 的物理 K_q = 0.00797885 fs⁻¹ 而 μ = 0.5 fs，小訊號平均遞迴則需 75,091 blocks（勘誤 E05）。",
   "tests": ["T10", "T11"],
   "source": "illustrative"
 }

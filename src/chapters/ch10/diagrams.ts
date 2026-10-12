@@ -558,7 +558,7 @@ export const CH10_DIAGRAMS: readonly Ch10Diagram[] = [
     formula: 'F-10.3',
     before: 'formula-F-10.3',
     chart: CHART_EIGEN_MODES,
-    caption: 'Eigen 分解把兩條互相耦合的迴路拆成兩條互不相干的一階迴路：共模（綠）快，差模（紅）慢。',
+    caption: String.raw`Eigen 分解把兩條互相耦合的迴路拆成兩條互不相干的一階迴路。圖畫的是 $\rho\ge0$：共模（綠）快，差模（紅）慢；$\rho<0$ 時兩者對調。`,
     alt: '誤差向量經 Vᵀ 拆成共模與差模，各自乘上自己的 pole，再經 V 轉回參數座標',
   },
   {

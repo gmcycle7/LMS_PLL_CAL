@@ -21,12 +21,16 @@ import {
   DITHER_MIN,
   accumulatorSizing,
   accumulatorTrace,
+  ditherMinFor,
   floorRestoringSlope,
+  halfEvenTieAmplitude,
   roundingMeanError,
   roundingTransfer,
+  towardZeroRestoringSlope,
   type AccScenario,
   type CodeKind,
   type CodeRange,
+  type FixedLoopAnalytic,
   type FixedLoopMc,
   type FixedLoopParams,
   type FixedLoopResult,
@@ -126,6 +130,25 @@ export const DEFAULT_FP_CASE: FpCase = {
 export function normalizeFpCase(c: Partial<FpCase>): FpCase {
   return { ...DEFAULT_FP_CASE, ...c }
 }
+
+/**
+ * 偏差預測（F-04.11、F-04.18）在「取整」這一關是否適用：兩個取整點都要有足夠的 dither
+ * （下限是 gmac.ts 的 ditherMinFor：DITHER_MIN，toward-0 加倍——模型的 dead zone 警告用同一個下限，所以這裡判成不適用時警告清單一定有對應的訊息）。
+ * half-even / toward-0 也不例外——它們的平衡點雖然是 δ = 0，dither 不夠時迴路一樣停在 dead zone，到不了這個點。
+ * 高於下限時，單一 seed 的 4 SE 比對仍有幾個百分點的機會標成不相符：AR(1) 近似的標準誤偏小（預測恰為 0 的 half-even 與 toward-0，
+ * 誤差 ÷ SE 的 RMS 約 1.1–2.5 而不是 1；16 個 seed × 兩個 w₀ 的 32 次裡各有 0–3 次超過 4 SE，和 dither 比無關）。要確認請開 Monte Carlo。
+ */
+export function roundingPredictionOk(
+  an: Pick<FixedLoopAnalytic, 'ell' | 'ditherRatio' | 'ditherRatioW'>,
+  c: Pick<FpCase, 'gmMode' | 'wLsb' | 'rounding' | 'wRounding'>,
+): boolean {
+  const shiftOk = c.gmMode === 'sum' || an.ell <= 0 || an.ditherRatio >= ditherMinFor(c.rounding)
+  const wOk = c.wLsb <= 0 || an.ditherRatioW >= ditherMinFor(c.wRounding)
+  return shiftOk && wOk
+}
+
+/** 單一 seed 的比對標成不相符時附在說明後面：這個比對用的 AR(1) 標準誤偏小，相符的設定偶爾也會超過 4 SE（見 roundingPredictionOk 的說明）。 */
+export const SINGLE_SEED_HINT = '。單一 seed 的標準誤（AR(1) 近似）偏小，相符的設定偶爾也會超過 4 SE：請打開面板 C 的 Monte Carlo，用多個 seed 確認'
 
 const ROUND_SHORT: Record<RoundingMode, string> = { floor: 'floor', half_up: 'half-up', toward_zero: 'toward-0', half_even: 'half-even' }
 
@@ -273,20 +296,22 @@ export function FixedPointExperiment() {
   // ── 交叉比對 ──
   const an = activeLoop?.analytic
   const st = activeLoop?.stats
-  // 偏差預測（F-04.11 + F-04.15）適用：無 a 跳變、無累加器 overflow、無 rail / wrap、小訊號；rounding 部分另需 σ_S/2^ℓ ≥ 1
-  const shiftOk = !!an && (ac.gmMode === 'sum' || an.ell <= 0 || ac.rounding === 'half_even' || ac.rounding === 'toward_zero' || an.ditherRatio >= DITHER_MIN)
-  // 第二個取整點（μ·G → W）：half-even / toward-zero 沒有平均誤差；floor / half-up 需要 μσ_G/Δ_W ≳ DITHER_MIN 讓餘數均勻
-  const wOk = !!an && (ac.wLsb <= 0 || ac.wRounding === 'half_even' || ac.wRounding === 'toward_zero' || an.ditherRatioW >= DITHER_MIN)
-  const roundingOk = shiftOk && wOk
+  // 偏差預測（F-04.11 + F-04.15 + F-04.18）適用：無 a 跳變、無累加器 overflow、無 rail / wrap、小訊號；
+  // 兩個取整點另需足夠的 dither（σ_S/2^ℓ、μσ_G/Δ_W ≥ ditherMinFor(模式)：DITHER_MIN，toward-0 加倍），half-even / toward-0 也不例外（roundingPredictionOk）
+  const roundingOk = !!an && roundingPredictionOk(an, ac)
   const biasValid = !!(an && st && s.aStepBlock < 0 && roundingOk && st.accOverflow === 0 && an.linearValid && st.wSat === 0 && st.wWrap === 0 && Number.isFinite(an.biasPred))
+  const fixedOk = biasValid && Math.abs(st!.biasDiff - an!.biasPred) <= 4 * st!.biasDiffSe + 0.05 * Math.abs(an!.biasPred)
   const fixedCheck: CheckEntry = !activeLoop
     ? { status: 'n/a', note: '計算中' }
     : biasValid
       ? {
-          status: Math.abs(st!.biasDiff - an!.biasPred) <= 4 * st!.biasDiffSe + 0.05 * Math.abs(an!.biasPred) ? 'ok' : 'mismatch',
-          note: R`Case ${cases.activeId}：$w_\mathrm{fixed}-w_\mathrm{float}=${tx(st!.biasDiff, 4)}\pm${tx(st!.biasDiffSe, 3)}\,\mathrm{fs}$（AR(1) SE），預測（$\div N$ rounding $${tx(an!.biasPredRound, 4)}$${ac.wLsb > 0 ? R` + $W$ 取整 $${tx(an!.biasPredW, 4)}$` : ''}${an!.pMin > 0 ? R` + 取負 bug，$p_\mathrm{min}=${tx(an!.pMin, 4)}$` : ''}）$=${tx(an!.biasPred, 4)}\,\mathrm{fs}$`,
+          status: fixedOk ? 'ok' : 'mismatch',
+          note: R`Case ${cases.activeId}：$w_\mathrm{fixed}-w_\mathrm{float}=${tx(st!.biasDiff, 4)}\pm${tx(st!.biasDiffSe, 3)}\,\mathrm{fs}$（AR(1) SE），預測（$\div N$ rounding $${tx(an!.biasPredRound, 4)}$${ac.wLsb > 0 ? R` + $W$ 取整 $${tx(an!.biasPredW, 4)}$` : ''}${an!.pMin > 0 ? R` + 取負 bug，$p_\mathrm{min}=${tx(an!.pMin, 4)}$` : ''}）$=${tx(an!.biasPred, 4)}\,\mathrm{fs}$${fixedOk ? '' : SINGLE_SEED_HINT}`,
         }
-      : { status: 'n/a', note: R`偏差預測只在 $\sigma_S/2^\ell\ge${DITHER_MIN}$（或 half-even）、$\mu\sigma_G/\Delta_W\ge${DITHER_MIN}$（或 $W$ 用 half-even）、無 accumulator overflow / gain rail / $W$ wrap / $a$ 跳變、小訊號時適用` }
+      : {
+          status: 'n/a',
+          note: R`偏差預測只在 $\sigma_S/2^\ell\ge${ditherMinFor(ac.rounding)}$、$\mu\sigma_G/\Delta_W\ge${ditherMinFor(ac.wRounding)}$（half-even 也一樣：dither 不夠時迴路停在 dead zone；toward-0 在 $0$ 附近的平台寬 $2$ 個 LSB，下限加倍成 $${2 * DITHER_MIN}$）、無 accumulator overflow / gain rail / $W$ wrap / $a$ 跳變、小訊號時適用`,
+        }
   const mcActive = s.mc && mcRes && mcRes.caseIndex === Math.max(0, activeIdx) ? mcRes : null
   const mcCheck: CheckEntry = !s.mc
     ? { status: 'n/a', note: `未啟用：打開面板 C 的「Monte Carlo（${MC_RUNS} seeds）」才會對目前的 case 跑多 seed（gmac.test.ts 另有 12-seed 驗證）` }
@@ -327,7 +352,7 @@ export function FixedPointExperiment() {
             name: R`Case ${cases.activeId}：$\sigma_S/2^\ell$（dither 比）`,
             value: an.ditherRatio,
             digits: 4,
-            note: R`$\ge1$：餘數幾乎均勻；$\ge${DITHER_MIN}$：偏差預測仍可用（floor 的回復斜率 $\chi=${tx(floorRestoringSlope(an.ditherRatio), 3)}$）；更小：dead zone`,
+            note: R`$\ge1$：餘數幾乎均勻；$\ge${ditherMinFor(ac.rounding)}$：偏差預測仍可用（floor 的回復斜率 $\chi=${tx(floorRestoringSlope(an.ditherRatio), 3)}$${ac.rounding === 'toward_zero' ? R`；toward-0 在 $0$ 附近的平台寬 $2$ 個 LSB，下限是 floor 的兩倍，它自己的回復斜率是 $${tx(towardZeroRestoringSlope(an.ditherRatio), 3)}$` : ''}）；更小：dead zone`,
           },
           ...(ac.wLsb > 0
             ? [
@@ -443,7 +468,7 @@ export function FixedPointExperiment() {
         R`comparator：$b=[e\ge0]$，$e=(a-w)\,x+v$，$v\sim\mathcal N(0,\sigma_v^2)$ iid；identity error path、$x_\mathrm{ref}=x$、$d=0$`,
         R`average 模式以算術右移 $\ell=\log_2N-F_G$ bits 實作 $\div N$（$N$ 為 2 的冪）；sum 模式不右移`,
         R`gain accumulator $W$：$\Delta_W=0$ 時為浮點高解析；$\Delta_W>0$ 時更新量 $\mu G$ 先取整到 $\Delta_W$ 的格點（第二個截斷點，F-04.18）。實體 DTC gain code 的量化見 Ch13；實際作用 gain $=\mathrm{clamp}(W,\,w_\mathrm{min},\,w_\mathrm{max})$`,
-        R`偏差預測（F-04.11 + F-04.15 + F-04.18）假設雜訊足以當 dither（$\sigma_S/2^\ell$ 與 $\mu\sigma_G/\Delta_W\gtrsim${DITHER_MIN}$）與 $K_q$ 小訊號線性化；回復時間預測（F-04.12）假設線性小訊號`,
+        R`偏差預測（F-04.11 + F-04.15 + F-04.18）假設雜訊足以當 dither（$\sigma_S/2^\ell$ 與 $\mu\sigma_G/\Delta_W\gtrsim${DITHER_MIN}$；toward-0 要 $\gtrsim${2 * DITHER_MIN}$）與 $K_q$ 小訊號線性化；回復時間預測（F-04.12）假設線性小訊號`,
         'Monte Carlo（opt-in）：對目前 case 以 deriveSeed(seed, mc-i) 另跑 6 個 seed，比較跨 seed 平均與預測',
       ]}
       params={{ ...s, seed, active_case: cases.activeId, ...ac }}
@@ -676,7 +701,7 @@ export function FixedPointExperiment() {
         height={260}
         csvName="ch04-rounding-transfer"
         caption={mt(
-          R`$\sigma_S/2^\ell\gtrsim1$ 時：floor 平坦地少約半個 LSB、half-up 多 $2^{-\ell-1}$、half-even 為 0、toward-zero 在 0 附近由 $+\tfrac12$ 翻到 $-\tfrac12$（等效增益下降）。$\sigma_S=0$ 時是階梯與 dead zone。`,
+          R`$\sigma_S/2^\ell\gtrsim1$ 時：floor 平坦地少約半個 LSB、half-up 多 $2^{-\ell-1}$、half-even $\approx0$、toward-zero 在 0 附近由 $+\tfrac12$ 翻到 $-\tfrac12$（等效增益下降）。$\sigma_S=0$ 時是階梯與 dead zone。`,
         )}
       />
       <div className="table-wrap">
@@ -711,6 +736,11 @@ export function FixedPointExperiment() {
           </tbody>
         </table>
       </div>
+      <p className="small muted">
+        {mt(
+          R`half-even 那一列的 $0$：除了餘數均勻，還要「恰好一半」時商的奇偶各半（F-04.10）。上圖的離散 Gaussian 模型在 $\sigma_S/2^\ell\ge1$ 時，half-even 的曲線偏離 $0$ 不超過約 $${tx(halfEvenTieAmplitude(1), 2)}\times2^{-\ell}$ 個 LSB；$E[S]=0$（閉迴路的平衡點）時由奇對稱 $Q(-S)=-Q(S)$ 保證為 $0$。`,
+        )}
+      </p>
 
       <div className="ch04-panel-title">C. 閉迴路：定點 GMAC vs 浮點 GMAC（同 seed）</div>
       {task.running && <p className="small muted">計算中…（Web Worker）</p>}

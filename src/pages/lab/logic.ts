@@ -433,6 +433,23 @@ export function compareCrossCheck(cases: { id: string; cc: CrossCheck }[]): Cros
   return { analytic: col('analytic'), monteCarlo: col('monteCarlo'), fixedPoint: col('fixedPoint') }
 }
 
+/**
+ * 「時間常數 τ = −1/ln ρ」那一列（技術審查 R02）。
+ * d = 0：平均誤差的大小每個 block 剛好乘上 ρ = |1 − g|，τ 就是 1/e 時間（精確）。
+ * d ≥ 1：ρ 是 z^{d+1} − z^d + g = 0 的最大根模，只決定「漸近」的衰減率；有重根或複數根時 ρ^k 不是平均誤差的包絡
+ * （例：d = 1、g = 0.25 是重根 0.5，δ_k = 0.75, 0.5, 0.3125, …，而 ρ^k = 0.5, 0.25, 0.125, …），所以標成近似並加註。
+ */
+export function tauMetricRow(tauBlocks: number, updateDelay: number): MetricRow {
+  if (updateDelay <= 0) return { name: '$\\tau=-1/\\ln\\rho$', value: tauBlocks, unit: 'block', claim: 'exact', note: '$d=0$：平均誤差的大小每個 block 剛好乘上 $\\rho$' }
+  return {
+    name: '$\\tau=-1/\\ln\\rho$（漸近衰減率）',
+    value: tauBlocks,
+    unit: 'block',
+    claim: 'approx',
+    note: '$d\\ge1$：$\\rho$ 只決定漸近的衰減率，$\\rho^k$ 不是平均誤差的包絡（重根、複數根）；逐 block 的暫態可能比 $\\tau$ 慢',
+  }
+}
+
 /** ExperimentShell 的主要指標（含解析值與容差；細項在各級卡片）。 */
 export function pipelineMetrics(r: PipelineResult): MetricRow[] {
   const an = r.analytic
@@ -444,7 +461,7 @@ export function pipelineMetrics(r: PipelineResult): MetricRow[] {
     { name: '$C=E[x_{\\mathrm{ref}}u_x]$', value: an.Cest, claim: 'approx', formulaId: 'F-LAB.6', note: '$>0$ 才有正確的更新極性' },
     { name: '$g=\\mu K$', value: an.g, claim: 'approx', formulaId: 'F-LAB.7' },
     { name: '$\\rho$（含更新延遲）', value: an.rhoMean, claim: 'exact', formulaId: 'F-LAB.7', note: '$<1$ 才（平均）收斂' },
-    { name: '$\\tau=-1/\\ln\\rho$', value: an.tauBlocks, unit: 'block', claim: 'exact' },
+    tauMetricRow(an.tauBlocks, r.params.updateDelay),
     {
       name: 'mean $w$（後半段）',
       value: m.meanW,

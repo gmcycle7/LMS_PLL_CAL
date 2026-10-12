@@ -354,6 +354,80 @@ describe('Trace、code pattern 與誤差模型', () => {
   }, 20000)
 })
 
+// 技術審查 R06b：F-07.1 的 e_PD[n] = (a − w)·u[n] + v[n]（u = h * x）只有 w 凍結時是等式。
+// 模擬核心照電路的順序算：先乘 (a − w_k)，再進「狀態跨 block 保留」的 H_PD；trace.u 另用一顆同係數的濾波器算 h * x。
+// 下面三個測試把「本站的閉迴路模擬不用這個近似」這句話（Ch07 §7.4、docs/assumptions.md 第 8 點）釘在真正的核心上。
+describe('R06b：模擬核心先乘 (a − w_k) 再過 H_PD；e = (a − w)·u 只有 w 凍結時成立', () => {
+  /** 兩拍反例：h = [1, −1]（u[n] = x[n] − x[n−1]）、x ≡ 1、a = 1、N = 1、μ = 1、無雜訊 */
+  const TWO_TAP: BlockLmsConfigInput = {
+    seed: 1,
+    gm_accum_samples: 1,
+    num_blocks: 6,
+    gain_initial: 0,
+    gain_true: 1,
+    gain_step: 1,
+    code_normalization: 'none',
+    pd_noise_rms_fs: 0,
+    pll_error_path: { kind: 'fir', parameters: { taps: [1, -1] } },
+    seeded_pattern: { kind: 'sinusoid', parameters: { amplitude: 1, omega: 0, phase_deg: 0 } },
+    record: { sample_trace_blocks: 6, decimate: 1 },
+  }
+  /** Type-II 誤差路徑（ω_nT_s = 0.05、ζ = 0.7）、單頻 code Ω = π/6、無雜訊；μ 由呼叫端決定 */
+  const type2 = (mu: number): BlockLmsConfigInput => ({
+    seed: 1,
+    gm_accum_samples: 64,
+    num_blocks: 8,
+    gain_initial: 1.25,
+    gain_true: 3,
+    gain_step: mu,
+    code_normalization: 'none',
+    pd_noise_rms_fs: 0,
+    pll_error_path: { kind: 'type2_dt', parameters: { wn_ts: 0.05, zeta: 0.7 } },
+    seeded_pattern: { kind: 'sinusoid', parameters: { amplitude: 1, omega: Math.PI / 6, phase_deg: 0 } },
+    record: { sample_trace_blocks: 8, decimate: 1 },
+  })
+  /** −0 → +0（toEqual 以 Object.is 比較數字） */
+  const list = (a: ArrayLike<number>): number[] => Array.from(a, (v) => v + 0)
+  /** 逐 sample 的 e[n] − (a − w_{k(n)})·u[n]；w_{k(n)} 是該 sample 所在 block 實際作用的係數 */
+  const residual = (r: ReturnType<typeof runBlockLms>): number[] => {
+    const N = r.config.gm_accum_samples
+    return list(r.trace.e).map((e, n) => e - (r.config.gain_true - r.blocks.wPhys[Math.floor(n / N)]) * r.trace.u[n] + 0)
+  }
+
+  it('兩拍反例：w 在 0 與 1 之間來回跳，從第二個 sample 起 e 與 (a − w)·u 差 ±1（不是等式）', () => {
+    const r = runBlockLms(TWO_TAP)
+    expect(list(r.trace.x)).toEqual([1, 1, 1, 1, 1, 1])
+    expect(list(r.trace.u)).toEqual([1, 0, 0, 0, 0, 0]) // h * x：只有第一拍不是 0
+    expect(list(r.blocks.w)).toEqual([0, 1, 0, 1, 0, 1, 0])
+    // 真實電路：e[n] = (a − w[n])·x[n] − (a − w[n−1])·x[n−1] = w[n−1] − w[n]（第一拍 w[−1] 視為沒有訊號 ⇒ e[0] = 1）
+    expect(list(r.trace.e)).toEqual([1, -1, 1, -1, 1, -1])
+    // 簡化式 (a − w[n])·u[n] = [1, 0, 0, 0, 0, 0]：第二拍起差的就是「上一拍的 w 還留在 h 的記憶裡」那一項
+    expect(residual(r)).toEqual([0, -1, 1, -1, 1, -1])
+  })
+
+  it('對照（w 凍結，μ = 0）：e = (a − w)·u 逐 sample 成立——兩拍路徑的殘差恰為 0，Type-II 路徑只剩捨入誤差', () => {
+    const fir = runBlockLms({ ...TWO_TAP, gain_step: 0 })
+    expect(list(fir.blocks.w)).toEqual([0, 0, 0, 0, 0, 0, 0])
+    expect(list(fir.trace.e)).toEqual([1, 0, 0, 0, 0, 0])
+    expect(residual(fir)).toEqual([0, 0, 0, 0, 0, 0])
+    const iir = runBlockLms(type2(0))
+    expect(iir.trace.e.length).toBe(512)
+    expect(list(iir.blocks.w)).toEqual(Array<number>(9).fill(1.25))
+    expect(Math.max(...Array.from(iir.trace.u, Math.abs))).toBeGreaterThan(1) // u 不是 0：比較有意義
+    expect(Math.max(...residual(iir).map(Math.abs))).toBeLessThan(1e-12) // 實測 2.2e-14
+  })
+
+  it('反面對照：同一個 Type-II 設定讓 w 每個 block 更新（μ = 0.5），殘差比捨入誤差大十個數量級', () => {
+    const r = runBlockLms(type2(0.5))
+    expect(r.blocks.w[1]).not.toBe(r.blocks.w[0])
+    const res = residual(r)
+    // 第一個 block 裡 w 還沒動過：等式仍然成立
+    expect(Math.max(...res.slice(0, 64).map(Math.abs))).toBeLessThan(1e-12)
+    // w 第一次更新之後，H_PD 的記憶（約 28 個 sample）裡還留著舊的 w
+    expect(Math.max(...res.slice(64).map(Math.abs))).toBeGreaterThan(1e-2) // 實測 0.0428
+  })
+})
+
 describe('定點 gain register（L5）', () => {
   it('quantize_physical：wPhys 為 LSB 整數倍、平均接近 a；超出範圍時飽和（anti-windup 警告）', () => {
     const r = runBlockLms({ num_blocks: 600, gain_register: { quantize_physical: true }, record: { sample_trace_blocks: 0, decimate: 1 } })

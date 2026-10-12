@@ -298,7 +298,9 @@ export function Wrapup() {
               <Tex>{'F(z)'}</Tex> 要包含 GMAC 的 sample→observe latency；不要只用 quasi-static 的 <Tex>{'F(1)'}</Tex>——把 PLL 調快（
               <Tex>{'r_s\\to0'}</Tex>）並不會讓二狀態模型的界限從一半變回 quasi-static 的值（<ErratumNote id="E19" />）。
             </li>
-            <li>時域模擬至少數百個 block，疊上 <Tex>{'\\rho^k'}</Tex> 包絡；複數 pole 的發散很慢、很像收斂。</li>
+            <li>
+              時域模擬至少數百個 block，疊上 <Tex>{'\\rho^k'}</Tex> 參考線比斜率（<Tex>{'\\rho'}</Tex> 只給漸近速率，<Tex>{'\\rho^k'}</Tex> 不是誤差的上界）；複數 pole 的發散很慢、很像收斂。
+            </li>
             <li>最後用真實 sign-LMS（含 comparator noise、量化）的 Monte Carlo 確認（PM Lab、Calibration Lab）。</li>
           </ol>
         </Callout>
@@ -380,7 +382,7 @@ export function Wrapup() {
           <>
             時間尺度分離（quasi-static）把 <Tex>{'F(z)'}</Tex> 換成 <Tex>{'F(1)'}</Tex>，看不到觀測路徑的相位；二狀態例子的完整界限永遠只有一半（<Tex>{'GM'}</Tex> 少約 6 dB），與主 PLL 快慢無關——原因是那一個 block 的 sample→observe latency。
           </>,
-          <>{rich(String.raw`複數 pole 的發散很慢：至少跑 300 blocks、畫 $\rho^k$ 包絡，不要被短視窗的「假收斂」騙。`)}</>,
+          <>{rich(String.raw`複數 pole 的發散很慢：至少跑 300 blocks、疊上 $\rho^k$ 參考線看斜率（$\rho^k$ 只給漸近速率，不是誤差的包絡），不要被短視窗的「假收斂」騙。`)}</>,
           <>這些都是線性化平均模型；真實 sign-LMS 在線性不穩時會變成有界 limit cycle——仍然是失敗，只是不會「爆掉」。</>,
         ]}
       />

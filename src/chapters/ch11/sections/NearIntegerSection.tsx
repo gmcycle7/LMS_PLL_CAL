@@ -19,9 +19,9 @@ import {
 } from '@/components'
 import { isWorkerCancelled, useWorkerTask } from '@/workers'
 import biasSrc from '@/simulation/models/bias.ts?raw'
-import { nearIntegerSensitivity, type NearIntegerParams, type NearIntegerResult } from '@/simulation/models/bias'
+import { LIN_RATIO_LIMIT, LIN_RESIDUAL_LIMIT, nearIntegerSensitivity, type NearIntegerParams, type NearIntegerResult } from '@/simulation/models/bias'
 import { F } from '../formulas'
-import { Erratum, ModeDetails, num, m, texNum } from '../common'
+import { Erratum, ModeDetails, gappedSeries, num, m, positiveOrGap, texNum } from '../common'
 import { Fig, FigRef } from '../Fig'
 import { Hand } from '../Hand'
 
@@ -45,7 +45,7 @@ const DEFAULT: P = { wnTs: 0.02, zeta: 0.707, loopDelay: 1, kappaDirect: 0.01, s
 const NI_LAYOUT: Partial<Layout> = {
   xaxis: { title: { text: String.raw`FCW $\mathrm{frac}$（越小越接近整數）` } },
   yaxis: { title: { text: '$C$' }, type: 'log' },
-  yaxis2: { title: { text: String.raw`$|w^*-a|$（t.u.）` }, overlaying: 'y', side: 'right', type: 'log', showgrid: false },
+  yaxis2: { title: { text: String.raw`線性候選 $|B/C|$（t.u.）` }, overlaying: 'y', side: 'right', type: 'log', showgrid: false },
 }
 
 function NearIntegerExperiment() {
@@ -69,17 +69,35 @@ function NearIntegerExperiment() {
 
   const data: Data[] = useMemo(() => {
     if (!res) return []
+    // 兩個 y 軸都是 log 軸，畫不出 ≤ 0 的值：改成 null 讓線在那裡斷開（直接給負值時 Plotly 會把線拉到圖的最下面，變成一根一根的直線）
     return [
-      { x: res.frac, y: res.Cfreq, mode: 'lines', name: String.raw`$C$（頻域：$\sum_k |X_k|^2 \cdot \mathrm{Re}\,H_\mathrm{PD}$）`, line: { color: tokens.series[0], width: 2 } },
-      { x: res.frac, y: res.C, mode: 'markers', name: String.raw`$C$（時域：序列通過 $H_\mathrm{PD}$）`, marker: { color: tokens.series[0], size: 6, symbol: 'circle-open' } },
+      { x: res.frac, y: res.Cfreq.map(positiveOrGap), mode: 'lines', name: String.raw`$C$（頻域：$\sum_k |X_k|^2 \cdot \mathrm{Re}\,H_\mathrm{PD}$）`, line: { color: tokens.series[0], width: 2 } },
+      { x: res.frac, y: res.C.map(positiveOrGap), mode: 'markers', name: String.raw`$C$（時域：序列通過 $H_\mathrm{PD}$）`, marker: { color: tokens.series[0], size: 6, symbol: 'circle-open' } },
       {
         x: res.frac,
-        y: res.CinBand.map((v) => -v),
+        y: res.CinBand.map((v) => positiveOrGap(-v)),
         mode: 'lines',
         name: String.raw`$-C_\mathrm{in\text{-}band}$（頻寬內諧波，$\mathrm{Re}\,H_\mathrm{PD} \lt 0$）`,
         line: { color: tokens.series[3], dash: 'dot' },
       },
-      { x: res.frac, y: res.bias.map((v) => Math.abs(v)), mode: 'lines+markers', name: String.raw`$|w^*-a| = |B/C|$（右軸）`, yaxis: 'y2', line: { color: tokens.series[2] }, marker: { size: 4 } },
+      // 右軸：線性候選 |B/C|，依「代回完整 erf 平均」的檢查結果分成兩條（通過 = 可當作 |w* − a|；未通過 = 只是線性外推）
+      ...[true, false].flatMap((keep): Data[] => {
+        const idx = res.frac.map((_, i) => i).filter((i) => res.linValid[i] === keep && Number.isFinite(res.bias[i]))
+        if (idx.length === 0) return []
+        // 同一類的點不相鄰時（中間夾著另一類的 FCW）在那裡斷開，線才不會跨過另一類的點
+        const line = gappedSeries(idx, res.frac, res.bias.map((v) => Math.abs(v)))
+        return [
+          {
+            x: line.x,
+            y: line.y,
+            mode: 'lines+markers',
+            name: keep ? String.raw`$|w^*-a|\approx|B/C|$（通過代回檢查，右軸）` : String.raw`$|B/C|$：線性外推，未通過檢查（右軸）`,
+            yaxis: 'y2',
+            line: keep ? { color: tokens.series[2] } : { color: tokens.series[2], dash: 'dash' },
+            marker: keep ? { size: 4 } : { symbol: 'circle-open', size: 6 },
+          },
+        ]
+      }),
     ]
   }, [res, tokens])
 
@@ -88,13 +106,54 @@ function NearIntegerExperiment() {
   if (res && res.frac.length) {
     const i0 = 0
     const iLast = res.frac.length - 1
+    const iv = res.linValid.indexOf(true) // 通過代回檢查的最小 frac（沒有時 −1）
+    const nOk = res.linValid.filter(Boolean).length
+    const fin = (v: number) => (Number.isFinite(v) ? v : null) // 非有限值在指標表顯示「—」
     metrics.push(
       { name: `$C$（frac $=${texNum(res.frac[i0], 3)}$，頻域）`, value: res.Cfreq[i0], formulaId: 'F-11.14', analytic: res.C[i0], tolerance: 1e-6, toleranceMode: 'rel', note: 'analytic 欄 = 時域值' },
       { name: `其中頻寬內諧波的貢獻（frac $=${texNum(res.frac[i0], 3)}$）`, value: res.CinBand[i0], note: String.raw`$\mathrm{Re}\,H_\mathrm{PD}<0\Rightarrow$ 負；與頻寬外的正貢獻幾乎抵銷` },
-      { name: `$w^*-a$（frac $=${texNum(res.frac[i0], 3)}$）`, value: res.bias[i0], unit: 't.u.', claim: 'approx' },
+      {
+        name: `線性候選 $B/C$（frac $=${texNum(res.frac[i0], 3)}$）`,
+        value: fin(res.bias[i0]),
+        unit: 't.u.',
+        claim: 'approx',
+        formulaId: 'F-11.14',
+        note: res.linValid[i0]
+          ? '通過代回檢查：可當作 $w^*-a$'
+          : res.Cfreq[i0] > 0
+            ? '未通過代回檢查：只是線性外推，不能當作 $w^*-a$（看下兩列）'
+            : String.raw`$C\le0$：$a+B/C$ 是 repelling 的點，不是固定點`,
+      },
+      {
+        name: String.raw`$\max_n|e_\mathrm{det}|/\sigma_v$（同一點，代入 $w=a+B/C$）`,
+        value: fin(res.linRatio[i0]),
+        formulaId: 'F-11.3',
+        note: String.raw`門檻 $\le${LIN_RATIO_LIMIT}$（勘誤 E01）`,
+      },
+      {
+        name: String.raw`殘餘比 $\gamma_\mathrm{lin}$（同一點）`,
+        value: fin(res.linResidual[i0]),
+        analytic: 0,
+        tolerance: LIN_RESIDUAL_LIMIT,
+        toleranceMode: 'abs',
+        note: String.raw`固定點的定義是 $\gamma_\mathrm{lin}=0$；門檻 $|\gamma_\mathrm{lin}|\le${LIN_RESIDUAL_LIMIT}$`,
+      },
+      { name: '通過檢查的最小 frac', value: iv >= 0 ? res.frac[iv] : null, note: `${nOk}／${res.frac.length} 個 FCW 通過` },
+      { name: String.raw`該處 $w^*-a\approx B/C$`, value: iv >= 0 ? res.bias[iv] : null, unit: 't.u.', claim: 'approx', formulaId: 'F-11.14' },
       { name: `$C$（frac $=${texNum(res.frac[iLast], 3)}$）`, value: res.Cfreq[iLast] },
-      { name: `$w^*-a$（frac $=${texNum(res.frac[iLast], 3)}$）`, value: res.bias[iLast], unit: 't.u.' },
-      { name: String.raw`GMAC 斜率 $S=K_q\,C$（frac 最小處）`, value: res.slope[i0], unit: String.raw`$\mathrm{t.u.}^{-1}$`, formulaId: 'F-11.15', note: String.raw`越小 $\Rightarrow$ 收斂越慢、對 bias 越敏感` },
+      {
+        name: res.linValid[iLast] ? String.raw`$w^*-a\approx B/C$（frac $=${texNum(res.frac[iLast], 3)}$）` : `線性候選 $B/C$（frac $=${texNum(res.frac[iLast], 3)}$，未通過檢查）`,
+        value: fin(res.bias[iLast]),
+        unit: 't.u.',
+        claim: 'approx',
+      },
+      {
+        name: String.raw`GMAC 斜率 $S=K_q\,C$（frac 最小處）`,
+        value: res.slope[i0],
+        unit: String.raw`$\mathrm{t.u.}^{-1}$`,
+        formulaId: 'F-11.15',
+        note: String.raw`小訊號斜率（$|e_\mathrm{det}|\ll\sigma_v$）；越小 $\Rightarrow$ 收斂越慢、對 bias 越敏感`,
+      },
       { name: String.raw`低 frac 冪次 $d\ln C/d\ln\mathrm{frac}$（最小 6 點擬合）`, value: res.lowFracExponent, note: String.raw`$\mathrm{frac}\ll\omega_nT_s/2\pi$ 時 $\to2$` },
       { name: '時域 vs 頻域最大相對差', value: res.maxRelDiff, note: `時域略過 ${res.skip} 個暫態 sample，取整數個週期` },
     )
@@ -103,12 +162,25 @@ function NearIntegerExperiment() {
       warnings.push(
         String.raw`$C\le0$（frac $=${neg.map((f) => texNum(f, 3)).join(',\\ ')}$）：更新極性錯誤，$w^*=a+B/C$ 是 repelling 的點，正 learning rate 會使平均誤差發散（見 Ch06 與 SSPLL 案例）。`,
       )
+    // C > 0 但線性候選沒有通過代回檢查的 FCW：B/C 只是線性外推
+    const bad = res.frac.map((_, i) => i).filter((i) => res.Cfreq[i] > 0 && !res.linValid[i])
+    if (bad.length) {
+      const fMax = Math.max(...bad.map((i) => res.frac[i]))
+      const maxRatio = Math.max(...bad.map((i) => res.linRatio[i]))
+      const maxGamma = Math.max(...bad.map((i) => Math.abs(res.linResidual[i])))
+      warnings.push(
+        String.raw`線性化條件不成立：${res.frac.length} 個 FCW 中有 ${bad.length} 個未通過（其中 frac 最大的是 $${texNum(fMax, 3)}$）。把 $w=a+B/C$ 代回完整的 erf 平均，$\max|e_\mathrm{det}|/\sigma_v$ 最大 $${texNum(maxRatio, 3)}$（門檻 ${LIN_RATIO_LIMIT}）、殘餘比 $|\gamma_\mathrm{lin}|$ 最大 $${texNum(maxGamma, 3)}$（門檻 ${LIN_RESIDUAL_LIMIT}）。這些 FCW 的 $B/C$ 只是線性外推，不能當作 Sign-LMS 的固定點（F-11.3；Ch06 F-06.19）。把 $\sigma_v$ 加大或把 $|\kappa_d|$ 縮小可以回到線性範圍。`,
+      )
+    }
   }
   if (res) warnings.push(...res.warnings)
   if (err) warnings.push(`計算失敗：${err}`)
 
   const freqCheck: CheckEntry = res && res.frac.length
-    ? { status: res.maxRelDiff < 1e-6 ? 'ok' : 'mismatch', note: `頻域（週期穩態 Parseval）vs 時域（濾波 + 整數週期平均）：最大相對差 ${num(res.maxRelDiff, 2)}` }
+    ? {
+        status: res.maxRelDiff < 1e-6 ? 'ok' : 'mismatch',
+        note: String.raw`只驗證 $C$：頻域（週期穩態 Parseval）vs 時域（濾波 + 整數週期平均）最大相對差 ${num(res.maxRelDiff, 2)}。不檢查 $a+B/C$ 是不是固定點（看指標表的 $\gamma_\mathrm{lin}$）`,
+      }
     : { status: 'n/a', note: running ? '計算中…' : '—' }
 
   return (
@@ -123,11 +195,13 @@ function NearIntegerExperiment() {
           first-order DSM residue（16-bit、標準化為 <Tex>{'E[x]=0,\\ E[x^2]=1'}</Tex>）通過 type-II DPLL 的 <Tex>{String.raw`H_\mathrm{PD}(z)`}</Tex>，計算{' '}
           <Tex>{String.raw`C=E[x\,(h_\mathrm{PD}*x)]`}</Tex>。兩條獨立路徑：時域（序列從靜止狀態濾波、略過暫態、取整數個週期平均）與頻域（一個週期的 DFT，
           <Tex>{String.raw`C=\sum_k|X_k|^2\,\mathrm{Re}\,H_\mathrm{PD}(e^{j\Omega_k})`}</Tex>）。干擾 <Tex>{String.raw`\kappa_d\,x`}</Tex> 直接耦合到 PD（不經過{' '}
-          <Tex>{String.raw`H_\mathrm{PD}`}</Tex>），所以 <Tex>{String.raw`B=\kappa_dE[x^2]=\kappa_d`}</Tex>。
+          <Tex>{String.raw`H_\mathrm{PD}`}</Tex>），所以 <Tex>{String.raw`B=\kappa_dE[x^2]=\kappa_d`}</Tex>。每個 FCW 再把線性候選 <Tex>{'w=a+B/C'}</Tex>{' '}
+          代回完整的 comparator 平均 <Tex>{String.raw`E[x\,\operatorname{erf}(e_\mathrm{det}/(\sqrt2\sigma_v))]`}</Tex>，檢查它是不是真的固定點。
         </>
       }
       assumptions={[
-        '$K_q$ 線性化；$B$ 固定（直接耦合的 code-correlated DJ）——示意用的干擾模型',
+        String.raw`$K_q$ 線性化只在 $\max_n|e_\mathrm{det}|/\sigma_v\le${LIN_RATIO_LIMIT}$ 且 $|\gamma_\mathrm{lin}|\le${LIN_RESIDUAL_LIMIT}$ 的 FCW 成立（逐點檢查，圖上以實心／空心點區分）；$B$ 固定（直接耦合的 code-correlated DJ）——示意用的干擾模型`,
+        String.raw`平均模型：$w$ 在 $H_\mathrm{PD}$ 的記憶長度內視為常數（時間尺度分離，同 Ch06 F-06.19）`,
         String.raw`主 PLL：designDtLoop 的 DPLL 差分方程（勘誤 E44 的 DT 模型），$H_\mathrm{PD}=1/(1+L)$`,
         String.raw`first-order DSM、16-bit 累加器：residue 週期 $P=2^{16}/\gcd(K,2^{16})$；時域視窗 = 整數個 $P$`,
       ]}
@@ -137,11 +211,30 @@ function NearIntegerExperiment() {
       warnings={warnings}
       crossCheck={{
         analytic: freqCheck,
-        monteCarlo: { status: 'n/a', note: '確定性序列（無隨機性），不需要 Monte Carlo' },
-        fixedPoint: 'not-implemented',
+        monteCarlo: {
+          status: 'not-implemented',
+          note: String.raw`$C$ 是確定性序列的時間平均，不需要 Monte Carlo；含 comparator 雜訊（$\sigma_v$）的 Sign-LMS 閉迴路沒有在這個實驗模擬（$B=0$ 的 basin 實驗見 Ch06 §7 的 Polarity Explorer）`,
+        },
+        fixedPoint: { status: 'not-implemented', note: '定點（bit-true）運算版本不在本實驗範圍；這一欄不是「$w^*$ 是不是固定點」的檢查' },
       }}
       exportData={(): Record<string, ArrayLike<number>> =>
-        res ? { frac: res.frac, period: res.period, C_time: res.C, C_freq: res.Cfreq, C_in_band: res.CinBand, w_minus_a: res.bias, slope: res.slope } : {}
+        res
+          ? {
+              frac: res.frac,
+              period: res.period,
+              C_time: res.C,
+              C_freq: res.Cfreq,
+              C_in_band: res.CinBand,
+              // 線性候選 B/C（全部 FCW）：只有 lin_valid = 1 的列可以當作 w* − a，其餘是線性外推（審查 R01）
+              B_over_C_linear: res.bias,
+              slope: res.slope,
+              uMax: res.uMax,
+              lin_ratio: res.linRatio,
+              gmac_at_linear: res.gAtLinear,
+              gamma_lin: res.linResidual,
+              lin_valid: res.linValid.map((v) => (v ? 1 : 0)),
+            }
+          : {}
       }
       actions={{ onReset: () => setP(DEFAULT), running }}
       controls={
@@ -155,19 +248,31 @@ function NearIntegerExperiment() {
       }
     >
       <Plot
-        title="$C$ 與 $|w^*-a|$ 隨 FCW 小數部分變化（log–log）"
+        title="$C$ 與線性候選 $|B/C|$ 隨 FCW 小數部分變化（log–log）"
         data={data}
         layout={NI_LAYOUT}
         height={320}
         xLog
         csvName="bias-near-integer"
-        caption={String.raw`實線 = 頻域、圓圈 = 時域（兩者應重合）；點線 = 頻寬內諧波的負貢獻大小。$\mathrm{frac}\to0$ 時 $C$ 約以 $\mathrm{frac}^2$ 下降（冪次見指標），bias $B/C$ 約以 $1/\mathrm{frac}^2$ 上升。`}
+        caption={String.raw`實線 = 頻域、圓圈 = 時域（兩者應重合）；點線 = 頻寬內諧波的負貢獻大小。右軸：實心點是通過代回檢查的 FCW，$|B/C|$ 就是 $|w^*-a|$；空心點＋虛線是線性外推（代回完整的 erf 平均後 GMAC 不為 0），不能當作固定點。$\mathrm{frac}\to0$ 時 $C$ 約以 $\mathrm{frac}^2$ 下降（冪次見指標），線性候選 $B/C$ 約以 $1/\mathrm{frac}^2$ 上升（離開線性範圍之後，它只是外推值，不再是 $w^*-a$）。${
+          res && res.Cfreq.some((c) => c <= 0) ? String.raw`$C\le0$ 的 FCW 在 log 軸上畫不出來，$C$ 的線在那裡斷開（是哪幾個 FCW，見警告）。` : ''
+        }`}
       />
       {res && res.frac.length > 0 && (
         <p className="small muted">
           {m(
             `你會發現：frac $=${texNum(res.frac[0], 3)}$ 時，頻寬內諧波貢獻 $${texNum(res.CinBand[0], 4)}$、頻寬外 $${texNum(res.Cfreq[0] - res.CinBand[0], 4)}$，兩者幾乎抵銷，只剩 $C=${texNum(res.Cfreq[0], 4)}$。`,
           )}
+          {res.Cfreq[0] > 0 &&
+            !res.linValid[0] &&
+            m(
+              String.raw`但把 $a+B/C$ 代回去，comparator 要承受 $${texNum(res.linRatio[0], 3)}\,\sigma_v$ 的確定性殘差，${res.linRatio[0] > 1 ? '早已飽和' : '已經離開線性區'}（$\gamma_\mathrm{lin}=${texNum(res.linResidual[0], 3)}$）：這個 FCW 的 $B/C=${texNum(res.bias[0], 4)}$ 只是線性外推。`,
+            )}
+          {res.linValid.includes(true) &&
+            !res.linValid[0] &&
+            m(
+              String.raw`通過檢查的最小 frac 是 $${texNum(res.frac[res.linValid.indexOf(true)], 3)}$，那裡 $w^*-a\approx${texNum(res.bias[res.linValid.indexOf(true)], 3)}$。`,
+            )}
         </p>
       )}
     </ExperimentShell>
@@ -221,16 +326,82 @@ export function NearIntegerSection() {
         <StepDerivation
           steps={[
             { tex: String.raw`e_\mathrm{PD}[n]=(a-w)\,(h*x)[n]+\beta[n]+v[n]`, why: m('gain 誤差造成的 timing error 從 PD 的 reference 輸入端注入，經過 PLL 誤差路徑 $h$ 才出現在 PD 的輸出（正號）；$\\beta$ 是到達 PD 的其他確定性誤差。') },
-            { tex: String.raw`E[q\,x]\approx K_q\big((a-w)\,E[x\,(h*x)]+E[x\,\beta]\big)`, why: 'comparator 線性化（F-11.3），再用期望值的線性。' },
+            { tex: String.raw`E[q\,x]\approx K_q\big((a-w)\,E[x\,(h*x)]+E[x\,\beta]\big)`, why: m('comparator 線性化（F-11.3，§11.A），再用期望值的線性。條件也一樣：$w^*$ 處每個 sample 的整個確定性殘差 $(a-w^*)(h*x)[n]+\\beta[n]$ 都要遠小於 $\\sigma_v$（見下面的說明框）。') },
             { tex: String.raw`=K_q\big((a-w)\,C+B\big)`, why: m('記 $C=E[x\\,(h*x)]$、$B=E[x\\beta]$（靜態時 $B$ 就是 F-11.4 的分子）。') },
             { tex: String.raw`w^*=a+\frac{B}{C}`, why: m('令平均 GMAC 為 0。$h=1$ 時 $C=E[x^2]$，回到 F-11.4。') },
-            { tex: String.raw`S\equiv-\frac{\partial E[G]}{\partial w}=K_q\,C`, why: m('本章的斜率定義（符號表）：$S>0$ ⇔ $C>0$ ⇔ 固定點是吸引的；$C\\le0$ 時是 repelling（極性錯誤，Ch06）。') },
+            { tex: String.raw`S\equiv-\frac{\partial E[G]}{\partial w}=K_q\,C`, why: m('本章的斜率定義（符號表）：$S>0$ ⇔ $C>0$ ⇔ 固定點在小訊號範圍內（$|e_\\mathrm{det}|\\ll\\sigma_v$）是吸引的；$C\\le0$ 時是 repelling（極性錯誤，Ch06）。誤差大到 comparator 飽和時，$C>0$ 也可能把 $w$ 往外推（Ch06 F-06.19 的 basin 半徑 $\\delta_c$）。') },
             { tex: String.raw`\frac{\partial w^*}{\partial B}=\frac1C,\qquad\frac{\partial w^*}{\partial C}=-\frac{B}{C^2}`, why: m('對 $B$、$C$ 微分：$C$ 越小，同樣的干擾造成越大的 bias，而且對 $C$ 的變化以 $1/C^2$ 敏感。') },
           ]}
         />
       </ModeDetails>
-      <TexBlock id="F-11.14">{F.nearInteger}</TexBlock>
-      <TexBlock id="F-11.15">{F.sensitivity}</TexBlock>
+      <TexBlock id="F-11.14" label="Near-integer 固定點（MSE：精確；Sign：一階近似，條件見下）">
+        {F.nearInteger}
+      </TexBlock>
+      <TexBlock id="F-11.15" label={m('敏感度與小訊號斜率（$|e_\\mathrm{det}|\\ll\\sigma_v$）')}>
+        {F.sensitivity}
+      </TexBlock>
+      <Callout kind="warn" title={m('$a+B/C$ 什麼時候才是 Sign-LMS 的固定點？')}>
+        <p>
+          {m('F-11.14 的推導在第二步用了 comparator 的線性化（F-11.3，§11.A），所以它繼承同一個條件：在 $w^*$ 處，每一個 sample 的')}
+          <strong>整個</strong>
+          {m('確定性殘差都要遠小於 $\\sigma_v$。把 $a-w^*=-B/C$ 代回誤差模型，要檢查的量是')}
+        </p>
+        {/* 兩行：條件那一行在手機上也要直接看得到（不能藏在橫向捲動後面） */}
+        <TexBlock>{String.raw`\begin{gathered}e_\mathrm{det}[n]=-\frac{B}{C}\,(h*x)[n]+\beta[n]\\[0.5em]\frac{\max_n|e_\mathrm{det}[n]|}{\sigma_v}\le${LIN_RATIO_LIMIT}\end{gathered}`}</TexBlock>
+        <p>
+          {m(
+            `${LIN_RATIO_LIMIT} 是本章 Lab 與綜合手算 HC-11.8 用的同一個門檻（勘誤 E01）。和靜態的情況（§11.A）相比，gain 誤差那一項由 $-(B/E[x^2])\\,x$ 變成 $-(B/C)\\,(h*x)$，它跟著 $1/C$ 一起變大：「bias 被放大」和「線性化失效」是同一件事的兩面，放大到某個程度，公式就不能再用。`,
+          )}
+        </p>
+        <p>
+          {m(
+            '超出範圍時，comparator 先在 sawtooth 跳變後的尖峰上飽和，後面的小尾巴還在線性區。$C$ 本來就是「尖峰的正貢獻」和「尾巴的負貢獻」幾乎抵銷後剩下的小量；尖峰被 erf 壓扁之後，恢復力比線性模型預測的小，甚至反向。所以平均 GMAC 在 $a+B/C$ 不是 0，$w$ 不會停在那裡；超出很多時，在實際的 gain 範圍內找不到任何吸引的固定點，$w$ 會一路往外漂（',
+          )}
+          <a href="#/ch/06">Ch06</a>
+          {m(
+            ' §6.4：mean-field 特性 F-06.19 與 basin 半徑 $\\delta_c$）。這時 $a+B/C$ 只能叫做「線性外推」。MSE-LMS 的 GMAC 用多位元的 $e$，沒有 erf；在同一個平均模型（$w$ 慢變）下 F-11.14 對它是精確的。',
+          )}
+        </p>
+        <p>{m('下面的實驗對每個 FCW 直接檢查：把 $w=a+B/C$ 代回完整的 comparator 平均（F-11.2），看還剩下多少。')}</p>
+        <TexBlock>{String.raw`\begin{gathered}\gamma_\mathrm{lin}=\frac{E\big[x\,\operatorname{erf}\!\big(e_\mathrm{det}/(\sqrt2\,\sigma_v)\big)\big]}{K_q\,B}\\[0.4em]\big(e_\mathrm{det}\text{ 取 }w=a+B/C\text{ 時的值}\big)\end{gathered}`}</TexBlock>
+        <p>
+          {m(
+            `分子是 $w=a+B/C$ 處真正的平均 GMAC（固定點的定義是它等於 0），分母 $K_qB$ 是 $w=a$ 時干擾造成的平均 GMAC（線性化值），所以 $\\gamma_\\mathrm{lin}$ 表示「代回去之後，還有幾成沒有被抵銷」。$\\max_n|e_\\mathrm{det}|/\\sigma_v\\le${LIN_RATIO_LIMIT}$ 而且 $|\\gamma_\\mathrm{lin}|\\le${LIN_RESIDUAL_LIMIT}$ 的 FCW，才把 $a+B/C$ 當作固定點（真正的零點離它約 6% 以內）；其餘的標成「線性外推」。只看第一個條件不夠：$C$ 很小時，尖峰只被壓扁一點點就足以破壞抵銷。`,
+          )}{' '}
+          <ClaimTag kind="approx" />
+        </p>
+        <ModeDetails title={m('估計：near-integer 時 $|B/C|$ 最大可以到多少？')}>
+          <StepDerivation
+            steps={[
+              {
+                tex: String.raw`\text{residue 在 }[0,1)\text{ 均勻分布}:\ \sigma_x\approx\tfrac{1}{\sqrt{12}}\;\Rightarrow\;\text{跳變高度}=1\approx\sqrt{12}\,\sigma_x=2\sqrt3\,\sigma_x`,
+                why: m('first-order DSM 的 residue 是 sawtooth：兩次跳變之間是斜坡，跳變的高度是全幅。$\\sigma_x$ 是 code 的標準差；標準化後（$\\sigma_x=1$）跳變高度約 3.46。'),
+              },
+              {
+                tex: String.raw`\max_n\big|(h*x)[n]\big|\approx h[0]\cdot2\sqrt3\,\sigma_x=2\sqrt3\,\sigma_x`,
+                why: m(
+                  'type-II 迴路把斜坡完全追掉（$H_\\mathrm{PD}$ 在 $z=1$ 有兩個零點），$(h*x)$ 只剩每次跳變的 step response；它的第一個 sample 就是跳變本身（$h[0]=1$），之後才衰減。前提是 $\\mathrm{frac}\\ll\\omega_nT_s/2\\pi$：下一次跳變來之前，上一次的響應已經衰減完。',
+                ),
+              },
+              {
+                tex: String.raw`\begin{aligned}\frac{|B|}{C}\cdot2\sqrt3\,\sigma_x&\lesssim${LIN_RATIO_LIMIT}\,\sigma_v\\[0.3em]\Rightarrow\;\frac{|B|}{C}&\lesssim\frac{${LIN_RATIO_LIMIT}}{2\sqrt3}\,\frac{\sigma_v}{\sigma_x}\approx0.087\,\frac{\sigma_v}{\sigma_x}\end{aligned}`,
+                why: m(
+                  '$C\\ll E[x^2]$ 時 $\\beta$ 相對很小，$\\max|e_\\mathrm{det}|\\approx|B/C|\\cdot\\max|h*x|$。實驗的預設值（$B=0.01$、$\\sigma_v=\\sigma_x=1$）：需要 $C\\gtrsim0.01/0.087\\approx0.115$。',
+                ),
+              },
+              {
+                tex: String.raw`\begin{aligned}\frac{E[G]}{K_q}&\approx B-(w-a)\,C+c\,(w-a)^3\;\Rightarrow\;\gamma_\mathrm{lin}\approx\frac{c\,B^2}{C^3}\\[0.4em]w^*-a&=\frac{B}{C}\,(1+s),\qquad s=\gamma_\mathrm{lin}\,(1+s)^3\end{aligned}`,
+                why: m(
+                  '把 erf 展開到三次項（§11.2 情境 (2) 用過的同一個展開）；$C\\ll E[x^2]$ 時 $c\\approx E[x\\,(h*x)^3]/(6\\sigma_v^2)>0$（尖峰被壓扁）。把 $w-a=B/C$ 代進 $E[G]/K_q$ 的式子、再除以 $B$，就得到 $\\gamma_\\mathrm{lin}$；第二行是令 $E[G]=0$ 的解：真正的零點離 $a$ 的距離是 $B/C$ 的 $(1+s)$ 倍。$\\gamma_\\mathrm{lin}=0.05$ 時 $s\\approx6\\%$；$\\gamma_\\mathrm{lin}>4/27\\approx0.15$ 時 $s$ 的方程沒有解，也就是附近沒有固定點。',
+                ),
+              },
+            ]}
+          />
+          <p className="small muted">
+            <ClaimTag kind="approx" /> {m('這四步都是量級估計；每個 FCW 是否通過，以下面實驗逐點代回完整 erf 平均的結果為準。')}
+          </p>
+        </ModeDetails>
+      </Callout>
       <div className="table-wrap">
         <table className="ch11-table">
           <thead>
@@ -259,6 +430,11 @@ export function NearIntegerSection() {
           </tbody>
         </table>
       </div>
+      <p className="small">
+        {m(
+          '表中的 $B/C$ 是線性化（F-11.3）的結果。以 near-integer 的 sawtooth、標準化的 code（$\\sigma_x=1$）、$\\sigma_v=1$ 為例，要檢查的是 $2\\sqrt3\\,|B/C|/\\sigma_v$：$C=0.1$ 那一列是 $2\\sqrt3\\times0.1\\approx0.35$（剛超過門檻 0.3），$C=0.01$ 那一列是 $2\\sqrt3\\times1\\approx3.5$（遠遠超出，只是線性外推）；$C=1$ 那一列沒有問題。',
+        )}
+      </p>
       <CodeBlock
         source={biasSrc}
         region="nearIntegerSensitivity"
@@ -286,8 +462,8 @@ export function NearIntegerSection() {
       <p>
         <FigRef id="near-integer-why" /> 是這一節的因果鏈，先看圖再讀下面的推導。由上往下：FCW（frequency control word）的小數部分 frac 越小，DSM residue 的
         sawtooth 越慢，越多諧波掉進迴路頻寬內；頻寬內的諧波對 <Tex>{'C'}</Tex> 的貢獻是負的、頻寬外是正的，兩者相加幾乎抵銷（藍色方塊）。最下面一列是{' '}
-        <Tex>{'C'}</Tex> 變小的三個後果：恢復斜率 <Tex>{'S=K_qC'}</Tex> 變小（收斂慢）、同樣的 <Tex>{'B'}</Tex> 被 <Tex>{'1/C'}</Tex> 放大、
-        <Tex>{'C\\le0'}</Tex> 時極性反轉。圖上的 <Tex>{String.raw`\Omega_k`}</Tex> 是第 <Tex>{'k'}</Tex> 條諧波的頻率（rad/sample），
+        <Tex>{'C'}</Tex> 變小的三個後果：恢復斜率 <Tex>{'S=K_qC'}</Tex> 變小（收斂慢）、同樣的 <Tex>{'B'}</Tex> 被 <Tex>{'1/C'}</Tex> 放大（這是線性化的
+        bias：大到超出線性範圍，<Tex>{'a+B/C'}</Tex> 就不再是固定點，見上面的說明框）、<Tex>{'C\\le0'}</Tex> 時極性反轉。圖上的 <Tex>{String.raw`\Omega_k`}</Tex> 是第 <Tex>{'k'}</Tex> 條諧波的頻率（rad/sample），
         <Tex>{String.raw`\Omega_n=\omega_nT_s`}</Tex> 是主迴路的自然頻率，<Tex>{String.raw`|X_k|^2`}</Tex> 是該諧波的功率。
       </p>
       <Fig id="near-integer-why" />
@@ -310,12 +486,15 @@ export function NearIntegerSection() {
         <Tex>{String.raw`\Omega_k<\Omega_n`}</Tex> 的負貢獻。
       </p>
       <p>
-        同時，若有干擾直接耦合到 PD 而不經過 <Tex>{String.raw`H_\mathrm{PD}`}</Tex>，<Tex>{'B'}</Tex> 並不會跟著變小，於是 bias <Tex>{'B/C'}</Tex> 爆增。下面用真實的 DSM 序列與 DPLL
+        同時，若有干擾直接耦合到 PD 而不經過 <Tex>{String.raw`H_\mathrm{PD}`}</Tex>，<Tex>{'B'}</Tex> 並不會跟著變小，於是線性化的 bias <Tex>{'B/C'}</Tex> 快速變大 —— 直到它大到讓線性化本身失效為止（上面的說明框）。下面用真實的 DSM 序列與 DPLL
         以兩種獨立算法計算 <Tex>{'C'}</Tex>（並把頻寬內的負貢獻單獨畫出來）。<FigRef id="near-integer-check" /> 是實驗的計算流程：先看最上面三個方塊，FCW 的小數部分 <Tex>{String.raw`\mathrm{frac}`}</Tex> 乘上 <Tex>{'2^{16}'}</Tex> 是 16-bit 累加器的整數碼{' '}
         <Tex>{'K'}</Tex>，first-order DSM 的 residue 每 <Tex>{String.raw`P=2^{16}/\gcd(K,2^{16})`}</Tex> 個 sample 重複一次；兩支都從同一個標準化的 residue{' '}
         <Tex>{'x[n]'}</Tex>（<Tex>{'E[x]=0,\\ E[x^2]=1'}</Tex>）出發。再看中間分成左右的兩支：時域那一支讓序列真的通過 <Tex>{String.raw`H_\mathrm{PD}`}</Tex>{' '}
         再取整數個週期平均，頻域那一支只取一個週期做 DFT，把 <Tex>{String.raw`|X_k|^2`}</Tex> 乘上 <Tex>{String.raw`\mathrm{Re}\,H_\mathrm{PD}`}</Tex> 相加（就是上面 Parseval 的那一行）。最後看下面的六角形：兩個{' '}
         <Tex>{'C'}</Tex> 的相對差夠小才採用，這是下面實驗「Analytic」欄的交叉檢查。
+        {m(
+          `採用 $C$ 之後還有第二個六角形：把線性候選 $a+B/C$ 代回完整的 erf 平均，$\\max|e_\\mathrm{det}|/\\sigma_v\\le${LIN_RATIO_LIMIT}$ 且 $|\\gamma_\\mathrm{lin}|\\le${LIN_RESIDUAL_LIMIT}$ 才當作固定點（綠色），否則標成「線性外推」（紅色）。這一步檢查的是固定點，和「Analytic」欄檢查的 $C$ 是兩件事。`,
+        )}
       </p>
       <Fig id="near-integer-check" />
       <NearIntegerExperiment />
@@ -324,6 +503,12 @@ export function NearIntegerSection() {
         region="nearIntegerC"
         path="src/simulation/models/bias.ts"
         title="nearIntegerC：同一個 $C$ 的時域與頻域算法（互為交叉比對）"
+      />
+      <CodeBlock
+        source={biasSrc}
+        region="nearIntegerLinearCheck"
+        path="src/simulation/models/bias.ts"
+        title="nearIntegerLinearCheck：把 $a+B/C$ 代回完整的 erf 平均"
       />
       <Callout kind="info" title="Near-grid 不能只用固定 ppm 概括（規格 §11.4）">
         <ol>

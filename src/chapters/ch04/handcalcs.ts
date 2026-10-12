@@ -146,7 +146,8 @@ export const HANDCALCS: HandCalcDef[] = [
     title: '一階 DSM 累加器走 5 拍：residue、DTC 需要的補償量、gain 誤差的殘差',
     page: '/ch/04',
     formulaId: 'F-04.1',
-    formulaTex: R`t[n]=s[n-1]+K_\mathrm{F},\quad s[n]=t[n]-M\,y[n];\qquad r[n]=\sum_{m=0}^{n}\Bigl(y[m]-\frac{K_\mathrm{F}}{M}\Bigr)=-\frac{s[n]}{M};\qquad\tau_\mathrm{need}[n]=\frac{s[n]}{M}\,T_\mathrm{vco},\quad e_\mathrm{det}[n]=(a-w)\,x[n]`,
+    // 兩行（桌機 1280px 的欄寬放不下一行；內容與原本的一行相同，只在第二個分號換行）
+    formulaTex: R`\begin{aligned}&t[n]=s[n-1]+K_\mathrm{F},\quad s[n]=t[n]-M\,y[n];\qquad r[n]=\sum_{m=0}^{n}\Bigl(y[m]-\frac{K_\mathrm{F}}{M}\Bigr)=-\frac{s[n]}{M};\\[10pt]&\tau_\mathrm{need}[n]=\frac{s[n]}{M}\,T_\mathrm{vco},\quad e_\mathrm{det}[n]=(a-w)\,x[n]\end{aligned}`,
     level: 'beginner',
     claim: 'exact',
     inputs: [
@@ -244,7 +245,8 @@ export const HANDCALCS: HandCalcDef[] = [
     title: '親手累加一個 GMAC block（$N=4$）：$S$、$G$ 與兩種更新',
     page: '/ch/04',
     formulaId: 'F-04.3',
-    formulaTex: R`e[n]=\delta\,x[n]+v[n],\quad b[n]=\bigl[e[n]\ge0\bigr],\quad q[n]=2b[n]-1;\qquad S=\sum_{n=0}^{N-1}q[n]\,x[n],\quad G=\frac{S}{N};\qquad w_\mathrm{avg}=w+\mu G,\quad w_\mathrm{sum}=w+\mu S`,
+    // 兩行（桌機欄寬放不下一行）：第一行是每個 sample 的三步，第二行是一個 block 的總和、平均與兩種更新
+    formulaTex: R`\begin{aligned}&e[n]=\delta\,x[n]+v[n],\quad b[n]=\bigl[e[n]\ge0\bigr],\quad q[n]=2b[n]-1;\\&S=\sum_{n=0}^{N-1}q[n]\,x[n],\quad G=\frac{S}{N};\qquad w_\mathrm{avg}=w+\mu G,\quad w_\mathrm{sum}=w+\mu S\end{aligned}`,
     level: 'beginner',
     claim: 'exact',
     inputs: [
@@ -440,7 +442,8 @@ export const HANDCALCS: HandCalcDef[] = [
       return {
         steps: [
           {
-            tex: R`q[n]=2b[n]-1:\quad ${b.map((bi, n) => `q[${n}]=2\\times${ti(bi)}-1=${ti(q[n])}`).join(R`,\;`)}`,
+            // 四拍排成兩行（每行兩拍）：一行放不下桌機的欄寬
+            tex: R`\begin{aligned}q[n]=2b[n]-1:\quad&${b.map((bi, n) => `q[${n}]=2\\times${ti(bi)}-1=${ti(q[n])}`).map((t, n) => (n === 2 ? R`\\&${t}` : t)).join(R`,\;`)}\end{aligned}`,
             why: '正確的映射：$b=1\\to q=+1$、$b=0\\to q=-1$。',
           },
           {
@@ -794,7 +797,7 @@ export const HANDCALCS: HandCalcDef[] = [
           { symbol: R`\delta^*`, label: 'floor 造成的係數偏差 $a-w^*$', value: deltaStar, unit: R`\mathrm{fs}` },
         ],
         notes: [
-          R`四種取整的輸出：floor $${ti(qFloor)}$、half-up $${ti(qHalfUp)}$、toward-0 $${ti(qZero)}$、half-even $${ti(qEven)}$。half-even 的平均誤差是 0，所以改用它偏差就消失；half-up 只剩 $2^{-\ell-1}=${texNum(1 / (2 * d))}$ LSB。`,
+          R`四種取整的輸出：floor $${ti(qFloor)}$、half-up $${ti(qHalfUp)}$、toward-0 $${ti(qZero)}$、half-even $${ti(qEven)}$。half-even 在閉迴路沒有固定偏差：它是奇函數 $Q(-S)=-Q(S)$，平衡點 $\delta=0$ 時 $S$ 的分布對 $0$ 對稱，平均輸出就是 $0$（開迴路的平均誤差為 $0$ 則要 F-04.10 的條件）；half-up 只剩 $2^{-\ell-1}=${texNum(1 / (2 * d))}$ LSB。`,
           '偏差和 $\\mu$ 無關（調小 $\\mu$ 救不了）；每多保留 2 個小數位元，$\\Delta_G$ 變 $1/4$，偏差約變成 $1/4$。',
           R`適用條件一：GMAC 的雜訊要夠當 dither（$\sigma_S/2^\ell\gtrsim${DITHER_MIN}$，$\sigma_S\approx\sqrt{N\,E[x_\mathrm{int}^2]}$）。以對稱 uniform code 估計：$\sigma_S=\sqrt{N\,M_x(M_x+1)/3}=${texNum(sigmaSUniform, 4)}$，$\sigma_S/2^\ell=${texNum(ditherUniform, 3)}$——${
             ditherUniform >= DITHER_MIN ? '夠' : R`不夠：這種 code 下迴路會停在 dead zone 裡（$\delta$ 落在 $0$ 到約 $\Delta_G/K$ 之間的某處，看 $w$ 從哪一邊接近），上面的 $\delta^*$ 不再是可靠的預測`
@@ -814,7 +817,8 @@ export const HANDCALCS: HandCalcDef[] = [
     title: '綜合題：一條定點 GMAC datapath 從頭算到尾（增益、穩定、位元數、兩個截斷點）',
     page: '/ch/04',
     formulaId: 'F-04.18',
-    formulaTex: R`E[x^2]=\frac{M_x(M_x+1)}{3\cdot4^{B_x-1}},\quad K=\frac{\sqrt{2/\pi}}{\sigma_v}E[x^2],\quad g=\mu K<g_\mathrm{crit}(d)=2\sin\frac{\pi}{4d+2};\qquad w^*-a=\frac{\bar\varepsilon\,\Delta_G}{K}+\frac{\bar\varepsilon_W\Delta_W}{g}`,
+    // 兩行（桌機欄寬放不下一行）：第一行是增益與穩定檢查，第二行是兩個截斷點的偏差
+    formulaTex: R`\begin{aligned}&E[x^2]=\frac{M_x(M_x+1)}{3\cdot4^{B_x-1}},\quad K=\frac{\sqrt{2/\pi}}{\sigma_v}E[x^2],\quad g=\mu K<g_\mathrm{crit}(d)=2\sin\frac{\pi}{4d+2};\\[10pt]&w^*-a=\frac{\bar\varepsilon\,\Delta_G}{K}+\frac{\bar\varepsilon_W\Delta_W}{g}\end{aligned}`,
     level: 'engineer',
     claim: 'approx',
     inputs: [

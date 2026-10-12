@@ -265,7 +265,7 @@ export function S2Polarity() {
               </p>
               <p>
                 要讓「期望 <Tex>{'z'}</Tex>」有裕度（例如 6），需要 <Tex>{`M\\ge 36/(2N\\Delta^2K^2)=${tx(requiredBlocks(K * c85, delta, N, 6), 4)}`}</Tex>。
-                <Tex>{'C'}</Tex> 接近 0 的 FCW 本來就是 keep-out 的候選：恢復力弱、固定點 bias 被 <Tex>{'B/C'}</Tex> 放大。
+                <Tex>{'C'}</Tex> 接近 0 的 FCW 本來就是 keep-out 的候選：恢復力弱、線性化的固定點 bias <Tex>{'B/C'}</Tex> 被放大（大到 comparator 飽和時它不再是固定點，§5.1）。
               </p>
             </>
           }

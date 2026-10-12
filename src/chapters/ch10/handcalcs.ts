@@ -891,7 +891,24 @@ export const HANDCALCS: HandCalcDef[] = [
             : String.raw`$\rho(\mathbf A)=${texNum(rhoA)}>1$：發散。連單一 loop 的 pole（$${texNum(single[0])}$、$${texNum(single[1])}$）都有不在單位圓內的，先檢查對角斜率的極性與步長。`,
         )
       } else {
-        notes.push(String.raw`$\rho(\mathbf A)=${texNum(rhoA)}<1$：穩定，需要 $k_{95}=${stepsToDecay(rhoA)}$ 個 block（F-10.5）。`)
+        // ρ(A) < 1 只保證最後會收斂；「幾個 block」要分 A 是否正規（審查 R02）。數字一律取自 analyzeRule，不在這裡另算。
+        const head = String.raw`$\rho(\mathbf A)=${texNum(rhoA)}<1$：穩定。`
+        const kAsym = an.blocks95Asymptotic ?? stepsToDecay(rhoA)
+        if (an.blocks95Basis === 'norm') {
+          notes.push(
+            head +
+              String.raw`但 $\mathbf A$ 不是正規矩陣（$\mathbf A\mathbf A^T\ne\mathbf A^T\mathbf A$，$\mathbf J$ 不對稱時通常如此），F-10.5 的 $\lceil\ln0.05/\ln\rho\rceil=${kAsym}$ 只是下界；逐 block 算 $\|\mathbf A^k\|_2\le0.05$，最壞的初始方向要 $${an.blocks95}$ 個 block` +
+              (an.blocks95 === kAsym ? '（這組數字剛好和下界一樣）' : '') +
+              String.raw`。這一步不用手算，原因見 §10.3.1。`,
+          )
+        } else if (an.blocks95Basis === 'lower-bound') {
+          notes.push(head + String.raw`$\mathbf A$ 不是正規矩陣（$\mathbf A\mathbf A^T\ne\mathbf A^T\mathbf A$），F-10.5 的 $${kAsym}$ 個 block 只是下界，實際更久。`)
+        } else {
+          notes.push(
+            head +
+              String.raw`$\mathbf A$ 是正規矩陣（$\mathbf A\mathbf A^T=\mathbf A^T\mathbf A$，對稱矩陣都是），最慢的模式決定整體，需要 $k_{95}=${an.blocks95 ?? kAsym}$ 個 block（F-10.5）。`,
+          )
+        }
       }
       return { steps, results, notes }
     },

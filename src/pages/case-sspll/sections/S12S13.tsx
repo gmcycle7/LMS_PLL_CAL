@@ -1,7 +1,10 @@
 import { Callout, ModeGate, Section, StepDerivation, Tex } from '@/components'
 import { eqOffset } from '@/simulation/models/sspll'
 import { LOOP_KEYS, PARAMS, PRED, SIM_CFG, offsetPoint, type LoopKey } from '../data'
-import { Claim, DataTable, Diagram, Formula, Hand, ModelCode, Sci, Src, fmtFs, fx, r, tx } from '../common'
+import { Claim, DataTable, Diagram, Formula, Hand, ModelCode, Sci, Src, fmtFs, fx, r, tx, txs } from '../common'
+
+/** pole = 1 − 1/N_τ 的精確 e-folding 時間 [blocks]：−1/ln|1 − 1/N_τ|（N_τ 只是它在小步長時的近似，所以叫「名義」值） */
+const eFold = (n: number): number => -1 / Math.log(Math.abs(1 - 1 / n))
 
 /** §12 有限步長 */
 export function S12FiniteStep() {
@@ -13,18 +16,24 @@ export function S12FiniteStep() {
   }
   const ex2 = fm['L2|tau25'].examples
   const ex3 = fm['L3|tau25'].examples
+  // L2 帶緣的例子：整個複數代進判據，和「只代實部」的差別
+  const [exRe, exIm] = ex2[0][1]
+  const exTau = 25
   return (
     <Section kind="formula" level={2} title="12. 有限步長：$\mathrm{Re}\,\kappa>0$ 還不夠" id="cs-12">
       <p>
-        §4 的結論「<Tex>{r`\mathrm{Re}\,\mathrm{eig}(C)>0`}</Tex> 就收斂」只在步長很小時成立。原因是 <Tex>{'C'}</Tex> 的特徵值可以是複數：實部把誤差拉回來，虛部讓誤差旋轉；步長一大，旋轉造成的 overshoot 可能比拉回來的量還多。
+        §4 的結論「<Tex>{r`\mathrm{Re}\,\mathrm{eig}(C)>0`}</Tex> 就收斂」只在步長很小時成立。原因是 <Tex>{'C'}</Tex> 的特徵值可以是複數：實部把誤差拉回來，虛部讓誤差旋轉；步長一大，旋轉造成的 overshoot 可能比拉回來的量還多。§8 的表格與上下界列的是實部 <Tex>{r`\mathrm{Re}\,\kappa_m`}</Tex>；這一節要用整個複數{' '}
+        <Tex>{r`\kappa_m=8\lambda_m`}</Tex>。
       </p>
       <Diagram id="finite-step" />
       <p>
-        先看迴圈：這是 §4 <Tex>{r`\delta_{k+1}=\delta_k-\mu K_qC\delta_k`}</Tex> 沿著一個特徵方向的版本，<Tex>{r`\theta_k`}</Tex> 是誤差在那個方向上的分量（一個複數），每個 block 被扣掉 <Tex>{r`\kappa/N_\tau`}</Tex> 倍的自己。這裡把步長換成比較好懂的量：<Tex>{r`N_\tau`}</Tex>{' '}
-        是沒有迴路（<Tex>{r`H\equiv1`}</Tex>、<Tex>{r`\kappa=1`}</Tex>）時 LMS 的時間常數，單位是 block；<Tex>{r`N_\tau`}</Tex> 越小，步長越大。再看菱形：迴圈每轉一圈，誤差的大小乘上 <Tex>{r`\lvert1-\kappa/N_\tau\rvert`}</Tex>，它要小於 1 才會縮小。走到「否」有兩種情況：<Tex>{r`\mathrm{Re}\,\kappa\le0`}</Tex>（§4 說的反號），或者 <Tex>{r`\mathrm{Re}\,\kappa>0`}</Tex> 但 <Tex>{r`\lvert\kappa\rvert^2`}</Tex> 太大（這一節要講的新情況）。圖上的迴圈就是下面推導的第 1 步，菱形裡的不等式是第 3 步的結論。
+        先看迴圈：這是 §4 <Tex>{r`\delta_{k+1}=\delta_k-\mu K_qC\delta_k`}</Tex> 沿著一個特徵方向的版本，<Tex>{r`\theta_k`}</Tex> 是誤差在那個方向上的分量（一個複數），每個 block 被扣掉 <Tex>{r`\kappa/N_\tau`}</Tex> 倍的自己。這裡把步長換成比較好懂的量 <Tex>{r`N_\tau`}</Tex>（單位是 block）：沒有迴路（<Tex>{r`H\equiv1`}</Tex>、<Tex>{r`\kappa=1`}</Tex>）時，LMS 每個 block 修掉誤差的{' '}
+        <Tex>{r`1/N_\tau`}</Tex>，也就是誤差乘上 <Tex>{r`1-1/N_\tau`}</Tex>；<Tex>{r`N_\tau`}</Tex> 越小，步長越大。<Tex>{r`N_\tau`}</Tex> 習慣上叫做開迴路的名義時間常數，這是小步長時的近似說法：誤差降到 <Tex>{'1/e'}</Tex> 實際要{' '}
+        <Tex>{r`-1/\ln\lvert1-1/N_\tau\rvert`}</Tex> 個 block——<Tex>{r`N_\tau=25`}</Tex> 時是 {fx(eFold(25), 2)}，<Tex>{r`N_\tau=5`}</Tex> 時是 {fx(eFold(5), 2)} 而不是 5（<Tex>{`0.8^5=${tx(0.8 ** 5, 3)}<1/e=${tx(Math.exp(-1), 3)}`}</Tex>）。再看菱形：迴圈每轉一圈，誤差的大小乘上 <Tex>{r`\lvert1-\kappa/N_\tau\rvert`}</Tex>，它要小於 1 才會縮小。走到「否」有兩種情況：<Tex>{r`\mathrm{Re}\,\kappa\le0`}</Tex>（§4 說的反號），或者 <Tex>{r`\mathrm{Re}\,\kappa>0`}</Tex> 但 <Tex>{r`\lvert\kappa\rvert^2`}</Tex> 太大（這一節要講的新情況）。圖上的迴圈就是下面推導的第 1 步，菱形裡的不等式是第 3 步的結論。
       </p>
       <p>
-        寫成式子：block 更新 <Tex>{r`\theta_{k+1}=(I-\mu K_qC)\theta_k`}</Tex>。以 sim 的正規化（開迴路時間常數 <Tex>{r`N_\tau`}</Tex> blocks，<Tex>{r`\kappa=8\lambda`}</Tex>）：
+        寫成式子：block 更新 <Tex>{r`\theta_{k+1}=(I-\mu K_qC)\theta_k`}</Tex>。以 sim 的正規化（<Tex>{r`\mu K_q=8/N_\tau`}</Tex>、<Tex>{r`\kappa=8\lambda`}</Tex>，所以沿特徵方向 <Tex>{r`\mu K_q\lambda=\kappa/N_\tau`}</Tex>）；下面只用到每個 block 的乘數，沒有用到「
+        <Tex>{r`N_\tau`}</Tex> 個 block 降到 <Tex>{'1/e'}</Tex>」的近似，所以對任何步長都成立：
       </p>
       <StepDerivation
         steps={[
@@ -42,7 +51,9 @@ export function S12FiniteStep() {
       <p>
         例：L2 在 {fx(ex2[0][0], 1)} MHz 的 <Tex>{`\\kappa=${tx(ex2[0][1][0], 4)}+${tx(ex2[0][1][1], 4)}j`}</Tex>；L3 在 {fx(ex3[0][0], 1)} MHz 的 <Tex>{`\\kappa=${tx(ex3[0][1][0], 4)}+${tx(ex3[0][1][1], 4)}j`}</Tex>。
         <Claim kind="exact" />
-        一階差分有 disc constant（§11.1），所以不會有這個問題。另外要記得兩個隱含前提：Bussgang 小訊號（<Tex>{r`\lvert e\rvert\ll\sigma_v`}</Tex>），以及 LMS 適應與迴路暫態的時間尺度分離。
+        以 L2 這一點為例：<Tex>{`\\lvert\\kappa\\rvert^2/(2N_\\tau)=${tx((exRe * exRe + exIm * exIm) / (2 * exTau), 4)}`}</Tex> 比 <Tex>{`\\mathrm{Re}\\,\\kappa=${tx(exRe, 4)}`}</Tex> 大，所以 <Tex>{`N_\\tau=${exTau}`}</Tex> 時不穩定。如果只把 §8 的實部代進去，會算成{' '}
+        <Tex>{`(\\mathrm{Re}\\,\\kappa)^2/(2N_\\tau)\\approx${txs((exRe * exRe) / (2 * exTau), 2)}`}</Tex>，誤判成穩定。一階差分有 disc constant（§11.1），所以不會有這個問題。另外要記得 §4.2 的推導就用到的兩個前提：Bussgang 小訊號（<Tex>{r`\lvert e\rvert\ll\sigma_v`}</Tex>），以及 LMS
+        適應與迴路暫態的時間尺度分離（§4.2 把 <Tex>{r`\delta_j`}</Tex> 提到卷積外面的那一步）。
       </p>
       <ModeGate min="engineer">
         <ModelCode region="blockMeanStable" title="有限步長的平均穩定判據（實驗 B 的「有限步長」指標）" />

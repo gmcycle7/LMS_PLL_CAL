@@ -364,7 +364,7 @@ export function LossesSection() {
             不依賴 JavaScript 的 <code>Math.sign(0) === 0</code>
           </strong>
           。這不是吹毛求疵：§2.3 的資料 <Tex>{String.raw`\{0,0,0,10\}`}</Tex> 有重複的 0，<Tex>{'e=0'}</Tex> 會真的發生，三種慣例的穩態時間平均差了{' '}
-          <Tex>{String.raw`O(\mu)`}</Tex>（§2.3.1 精確算出 <Tex>{String.raw`\mu/2,\ \mu,\ 0`}</Tex>）；而且 IEEE double 連加{' '}
+          <Tex>{String.raw`O(\mu)`}</Tex>（§2.3.1 算出小步長時約為 <Tex>{String.raw`\mu/2,\ \mu,\ 0`}</Tex>）；而且 IEEE double 連加{' '}
           <Tex>{String.raw`\pm\mu`}</Tex> 會讓「剛好 0」變成 <Tex>{texNum(IEEE_RESIDUE, 3)}</Tex>（例如{' '}
           <Tex>{String.raw`0.2+0.2+0.2-0.2-0.2-0.2`}</Tex>，由程式即時計算），慣例悄悄失效（見 MSE vs MAE Lab 的長時間研究）。
         </p>

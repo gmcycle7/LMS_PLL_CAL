@@ -80,13 +80,14 @@ export const CHART_PHASE_BOOKKEEPING = chart([
 /**
  * §7.1：平均後的校正迴路（block rate k）——comparator、乘法器、平均器合起來平均而言是一個增益 K_q·C。
  * δ_k = a − w_k、E[G_k] ≈ K_q·C·δ_k、w_{k+1} = w_k + μ·G_k ⇒ δ_{k+1} = (1 − μ·K_q·C)·δ_k：一圈的增益 g = μ·K_q·C，pole p = 1 − g。
+ * 連線上的 E[G_k] 寫 \approx（小訊號線性化的平均值，和圖下方的走圖文字、F-07.11、Ch04／Ch06 的同一張圖一致），不寫等號。
  * 上下排列：左右排列時四段連線標籤把圖撐到約 1200 px 寬（桌機縮成 0.7 倍），改成直向之後回授線走右側，字級維持 15 px。
  */
 export const CHART_MEAN_LOOP = chart([
   'flowchart TB',
   r`  A(["DTC 真正的<br/>gain $a$"]) -- "$+a$" --> S(("＋"))`,
   r`  S -- "$\delta_k = a - w_k$" --> KC["comparator、乘法器、<br/>平均器<br/>平均而言：乘上<br/>$K_q\cdot C$"]`,
-  r`  KC -- "$E[G_k] = K_q\cdot C\cdot\delta_k$" --> MU["乘上 learning rate<br/>$\mu$"]`,
+  r`  KC -- "$E[G_k] \approx K_q\cdot C\cdot\delta_k$" --> MU["乘上 learning rate<br/>$\mu$"]`,
   r`  MU -- "$\mu\cdot G_k$" --> ACC["累加器 $\tfrac{1}{z-1}$<br/>$w_{k+1} = w_k + \mu\cdot G_k$"]`,
   r`  ACC -- "$-w_k$" --> S`,
   '  class KC focus',
@@ -241,12 +242,14 @@ export const CHART_THREE_REGRESSORS = chart([
 /**
  * §7.4：filtered-x 的閉迴路（F-07.10）——sample rate n 的相乘、block rate k 的平均與累加，w_k 送回 reference 端的 DTC（校正迴路的回授）。
  * 真實路徑 P 是「reference 端的 DTC → PD」：它的輸出就是 PD 的輸出 e_PD，comparator 的輸入線從這裡拉（docs/assumptions.md §2a 第 3 點）。
+ * P 裡的式子寫「≈」（F-06.1）：這張圖是 w_k 每個 block 都在更新的閉迴路，真實電路先乘 (a − w_k) 再經過 h，只有 w 在 h 的記憶長度內近似不變時
+ * 才能把 (a − w_k) 提到卷積外面。w 凍結的圖（CHART_SIGNAL_MODEL、CHART_GRADIENT、CHART_TYPE2_LOOP）維持等號；CHART_RTL_REGRESSORS 本來就照真實順序畫。
  * 宣告順序是排版的一部分：P 先單獨宣告，dagre 打斷迴圈時才會反轉回授線（ACC → P）而不是 q[n] 那條；
  * 再先連 X → HAT、後連 X → P，模型那一支排在左邊，w_k 回授線從最右側繞回 P，不會穿過模型那一支。
  */
 export const CHART_FX_LOOP = chart([
   'flowchart TB',
-  r`  P["真實路徑：reference 端的 DTC 到 PD<br/>PD 的輸出（含雜訊）<br/>$e_{\mathrm{PD}}[n] = (a - w_k)\cdot(h * x)[n] + v[n]$"]`,
+  r`  P["真實路徑：reference 端的 DTC 到 PD<br/>PD 的輸出（含雜訊）<br/>$e_{\mathrm{PD}}[n] \approx (a - w_k)\cdot(h * x)[n] + v[n]$"]`,
   r`  X(["code $x[n]$"]) --> HAT["模型 $\hat H$<br/>$u_f = \hat h * x$"]`,
   '  X --> P',
   r`  P -- "PD 的輸出 $e_{\mathrm{PD}}[n]$" --> CMP["comparator<br/>$q = \mathrm{sign}(e_{\mathrm{PD}})$"]`,

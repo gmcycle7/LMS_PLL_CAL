@@ -52,7 +52,7 @@ def coef_noise_tf(mu: float, p: float, omega: float | np.ndarray) -> np.ndarray:
 
 
 def coef_noise_psd(mu: float, p: float, omega: float | np.ndarray, s_eta: float | np.ndarray) -> np.ndarray:
-    """``S_w(e^{jΩ}) = μ² S_η / |1 − p e^{−jΩ}|²``（two-sided，per rad/sample）。"""
+    """``S_w(e^{jΩ}) = μ² S_η / |1 − p e^{−jΩ}|²``（two-sided DTFT 形式：σ² = (1/2π)∫S dΩ，即每 cycle/block；Ω 為 rad/block）。"""
     om = np.asarray(omega)
     return mu * mu * np.asarray(s_eta) / np.abs(1.0 - p * np.exp(-1j * om)) ** 2
 

@@ -307,6 +307,37 @@ export function chain(lhs: string, e: Ex, opt: ChainOpt = {}): ChainOut {
   }
 }
 
+/** 在最外層（不在大括號裡）的等號處切開；回傳各段（已去掉頭尾空白）。 */
+function splitTopLevelEq(tex: string): string[] {
+  const out: string[] = []
+  let depth = 0
+  let cur = ''
+  for (const ch of tex) {
+    if (ch === '{') depth++
+    else if (ch === '}') depth--
+    if (ch === '=' && depth === 0) {
+      out.push(cur.trim())
+      cur = ''
+    } else cur += ch
+  }
+  out.push(cur.trim())
+  return out
+}
+
+/**
+ * 把很長的一步排成對齊的幾行（桌機的內文欄約 850 px，一整行放不下時才用）：算式的內容與順序完全不變，只多了換行。
+ * 所有行對齊第一個等號；before 是「要在它前面換行」的等號序號（最外層的等號由 1 起算；第 1 個是對齊點，不會在它前面換行）。
+ * 例：`a = b = c = d` 配 before = [2] ⇒ 第一行 `a = b`，第二行 `= c = d`。等號不夠多時，多出來的序號略過。
+ */
+export function breakChain<T extends { tex: string }>(c: T, before: number[]): T {
+  const segs = splitTopLevelEq(c.tex)
+  const cuts = new Set(before.filter((i) => i >= 2 && i < segs.length))
+  if (!cuts.size) return c
+  let body = `${segs[0]} &= ${segs[1]}`
+  for (let i = 2; i < segs.length; i++) body += cuts.has(i) ? ` \\\\ &= ${segs[i]}` : ` = ${segs[i]}`
+  return { ...c, tex: `\\begin{aligned}${body}\\end{aligned}` }
+}
+
 /**
  * 把 raw（度）折回 (−180°, 180°] 的那一段 TeX：不必折返時只有 θ；否則寫出
  * 「raw − 360° = θ」或「raw − k×360° = raw − (360k)° = θ」。

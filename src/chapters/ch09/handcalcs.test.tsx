@@ -371,6 +371,80 @@ describe('Ch09 帶入手算：(a) 預設值重現本章 worked example／模型�
     expect(def.solve(values(def, { c: 0 })).steps.some((s) => s.tex.includes(String.raw`\ne`))).toBe(false)
   })
 
+  it('HC-09.8（審查 C01）：g > g⋆ = 1 時說明指出最慢的是共模（σ_v = 100 fs、μ = 150 fs、ρ = .5 ⇒ g = 1.197、pole −0.795／0.402、14 vs. 4 blocks）；g ≤ g⋆ 時沒有這一句', () => {
+    const def = ch09HandCalc('HC-09.8')
+    const big = { sigmaV: 100, mu: 150, rho: 0.5, N0: 100 }
+    expect(def.validate?.(big)).toBeNull() // gλ_max = 1.795 < 2：仍在穩定範圍
+    const sol = def.solve(big)
+    const g = 150 * KQ_SIGMA100
+    expect(g).toBeCloseTo(1.19683, 5)
+    const modes = eigenModes(corr2(0.5), g)
+    expect(modes.poles[0]).toBeCloseTo(-0.79524, 5)
+    expect(modes.poles[1]).toBeCloseTo(0.40159, 5)
+    expect(modes.k95).toEqual([14, 4])
+    // 題目的 k₉₅ 仍然是「慢模式」的（標籤如此）；新增的說明給出整體要等的 14 個 blocks
+    expect(sol.results.find((r) => r.symbol === 'k_{95}')?.value).toBe(4)
+    expect(sol.results.find((r) => r.symbol === 'k_{95}')?.label).toContain('慢模式')
+    const notes = sol.notes?.join('\n') ?? ''
+    expect(notes).toContain(String.raw`>g^\star=1$`)
+    expect(notes).toContain('最慢的反而是共模')
+    expect(notes).toContain(String.raw`$k_{95}=14$ 個 blocks`)
+    expect(notes).toContain(String.raw`比上面慢模式的 $4$ 個還久`)
+    expect(notes).toContain(String.raw`$1-g\lambda_{\max}=-0.79524$`)
+    // 「速度看 gλ_min」帶著條件
+    expect(notes).toContain(String.raw`速度看 $g\lambda_{\min}$（$g\le g^\star=2/(\lambda_{\max}+\lambda_{\min})=1$ 時，F-09.7）`)
+    // 對照：範例（g = 0.004）與 g = g⋆ 附近以下都沒有「最慢的反而是共模」
+    for (const v of [defaultValues(def), { sigmaV: 100, mu: 100, rho: 0.5, N0: 100 }, { sigmaV: 100, mu: 200, rho: 0, N0: 20 }]) {
+      const n = def.solve(v).notes?.join('\n') ?? ''
+      expect(n, JSON.stringify(v)).not.toContain('最慢的反而是共模')
+      expect(n).toContain(String.raw`（$g\le g^\star=2/(\lambda_{\max}+\lambda_{\min})=1$ 時，F-09.7）`)
+    }
+    // g 只比 g⋆ 大一點（μ = 126.6 fs ⇒ g = 1.0101、pole −0.51518／0.49494）：|p_fast| > |p_slow|，但取上整後兩個模式都是 5 個 blocks
+    // ⇒ 說明不可以寫「比慢模式的 5 個還久」
+    const near = def.solve({ sigmaV: 100, mu: 126.6, rho: 0.5, N0: 100 })
+    const gNear = 126.6 * KQ_SIGMA100
+    expect(k95Of(1 - gNear * 1.5)).toBe(5)
+    expect(k95Of(1 - gNear * 0.5)).toBe(5)
+    expect(near.results.find((r) => r.symbol === 'k_{95}')?.value).toBe(5)
+    const nearNotes = near.notes?.join('\n') ?? ''
+    expect(nearNotes).toContain(String.raw`$g=1.0101>g^\star=1$`)
+    expect(nearNotes).toContain(String.raw`$|p_{\text{fast}}|=0.51518>|p_{\text{slow}}|=0.49494$——最慢的反而是共模。`)
+    expect(nearNotes).toContain(String.raw`取上整之後共模也是 $k_{95}=5$ 個 blocks，和上面慢模式的一樣`)
+    expect(nearNotes).not.toContain('還久')
+    // 幾乎等於 g⋆（μ = 125.3315 fs ⇒ g = 1.0000007）：5 位有效數字會把兩邊都顯示成一樣的數（「1 > 1」「0.5 > 0.5」），
+    // 所以顯示到看得出差別為止
+    const tie = def.solve({ sigmaV: 100, mu: 125.3315, rho: 0.5, N0: 100 }).notes?.join('\n') ?? ''
+    expect(125.3315 * KQ_SIGMA100).toBeCloseTo(1.0000007, 7)
+    expect(tie).toContain(String.raw`$g=1.000001>g^\star=1$`)
+    expect(tie).toContain(String.raw`$|p_{\text{fast}}|=0.500001>|p_{\text{slow}}|=0.5$`)
+    expect(tie).not.toMatch(/\$g=1>g\^\\star=1\$/)
+    // 所有出現這一句的輸入：畫面上「a > b」兩邊的數字都真的不同，而且左邊比較大
+    for (const v of [big, { sigmaV: 100, mu: 126.6, rho: 0.5, N0: 100 }, { sigmaV: 100, mu: 125.3315, rho: 0.5, N0: 100 }, { sigmaV: 100, mu: 240, rho: 0.02, N0: 50 }]) {
+      const n = def.solve(v).notes?.join('\n') ?? ''
+      const mG = /\$g=([\d.]+)>g\^\\star=1\$/.exec(n)
+      const mP = /\|p_\{\\text\{fast\}\}\|=([\d.]+)>\|p_\{\\text\{slow\}\}\|=([\d.]+)\$/.exec(n)
+      expect(mG, JSON.stringify(v)).toBeTruthy()
+      expect(mP, JSON.stringify(v)).toBeTruthy()
+      expect(Number(mG![1])).toBeGreaterThan(1)
+      expect(Number(mP![1])).toBeGreaterThan(Number(mP![2]))
+    }
+  })
+
+  it('HC-09.3（審查 C01）：g > g⋆ 時說明指出名字叫「快」的共模反而最慢（不說「名字對調」——「快／慢」一律指 λ_max／λ_min 的模式）', () => {
+    const def = ch09HandCalc('HC-09.3')
+    const notes = def.solve({ rho: 0.5, g: 1.2 }).notes?.join('\n') ?? ''
+    expect(notes).toContain(String.raw`$g>g^\star=2/(\lambda_{\max}+\lambda_{\min})=1$`)
+    expect(notes).toContain(String.raw`$|p_{\text{fast}}|=0.8>|p_{\text{slow}}|=0.4$`)
+    expect(notes).toContain('名字叫「快」的共模')
+    expect(notes).toContain('反而是最慢的模式')
+    expect(notes).toContain(String.raw`$k_{95}=14$ 個 blocks`)
+    expect(notes).not.toContain('名字對調')
+    // 對照：範例（g = 0.5 ≤ g⋆）仍是「整體收斂時間由 λ_min 決定」
+    const base = def.solve(defaultValues(def)).notes?.join('\n') ?? ''
+    expect(base).toContain(String.raw`慢模式（差模）要 $598$ 個：整體收斂時間由 $\lambda_{\min}$ 決定`)
+    expect(base).not.toContain('反而是最慢的模式')
+  })
+
   it('T11: HC-09.8（勘誤 E05）：σ_v = 100 fs、μ = 0.5 fs、ρ = .99 ⇒ K_q = 0.00797885 fs⁻¹、k₉₅ = 75,091；N₀ = 100 ⇒ 退化窗口 60.6%、√(2/N₀) = 0.1414', () => {
     const def = ch09HandCalc('HC-09.8')
     const sol = def.solve(defaultValues(def))
@@ -737,6 +811,8 @@ const USER_CASES: Record<string, Record<string, number>[]> = {
     { sigmaV: 100, mu: 200, rho: 0, N0: 20 }, // p_slow < 0
     { sigmaV: 1000, mu: 0.01, rho: 0.999, N0: 100000 }, // p_slow = 1 − 8e-9；((1−ρ)/2)^N₀ 在 double 裡是 0
     { sigmaV: 137.5, mu: 3.3, rho: 0.97, N0: 64 },
+    { sigmaV: 100, mu: 150, rho: 0.5, N0: 100 }, // g = 1.197 > g⋆ = 1：最慢的是共模（審查 C01 的說明會出現）
+    { sigmaV: 100, mu: 126.6, rho: 0.5, N0: 100 }, // g = 1.0101：|p_fast| > |p_slow| 但兩個 k₉₅ 取上整後都是 5
   ],
 }
 

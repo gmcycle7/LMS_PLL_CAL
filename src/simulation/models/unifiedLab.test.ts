@@ -245,6 +245,45 @@ describe('T13 / T14 / T15 錨點（golden vectors）', () => {
   }, 60_000)
 })
 
+describe('審查 R02：含延遲的 τ 只是漸近衰減率', () => {
+  it('「LMS 更新」卡片：d = 0 時 τ 標 exact；d ≥ 1 時改名為漸近衰減率、標 approx，並說明 ρ^k 不是包絡', () => {
+    const tauRow = (updateDelay: number) => {
+      const r = runPipeline({ ...SMALL, updateDelay })
+      return r.stages.find((st) => st.id === 'update')!.metrics.find((m) => m.name.includes('\\tau=-1/\\ln\\rho'))!
+    }
+    const d0 = tauRow(0)
+    expect(d0.claim).toBe('exact')
+    expect(d0.name).not.toContain('漸近')
+    const d1 = tauRow(1)
+    expect(d1.claim).toBe('approx')
+    expect(d1.name).toContain('漸近衰減率')
+    expect(d1.note).toContain('不是平均誤差的包絡')
+    // 數值本身不變：仍是 −1/ln ρ
+    expect(Number.isFinite(d1.value as number)).toBe(true)
+  })
+
+  it('反例（g = 1/4、d = 1，雙根 1/2）：τ = 1/ln 2 ≈ 1.4427，但 δ_k = (1 + k/2)·2^{-k} 要到 k = 7 才低於 5%', () => {
+    const delta = (k: number) => (1 + k / 2) * 2 ** -k
+    expect(-1 / Math.log(0.5)).toBeCloseTo(1.4426950408889634, 12)
+    expect(Math.ceil(Math.log(0.05) / Math.log(0.5))).toBe(5)
+    expect(delta(5)).toBe(0.109375)
+    expect(delta(6)).toBe(0.0625)
+    expect(delta(7)).toBe(0.03515625)
+    // 直接遞推 δ[k+1] = δ[k] − g·δ[k−1]，歷史 δ[−1] = δ[0] = 1
+    let prev = 1
+    let cur = 1
+    const seq = [cur]
+    for (let k = 0; k < 8; k++) {
+      const nxt = cur - 0.25 * prev
+      prev = cur
+      cur = nxt
+      seq.push(cur)
+    }
+    for (let k = 0; k <= 8; k++) expect(seq[k]).toBeCloseTo(delta(k), 14)
+    expect(seq.findIndex((v) => Math.abs(v) < 0.05)).toBe(7)
+  })
+})
+
 describe('跨級一致性：replay 與 runBlockLms 逐位元相同', () => {
   const cases: [string, Partial<LabParams>][] = [
     ['MASH + Type-II + raw', {}],

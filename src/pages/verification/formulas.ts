@@ -60,7 +60,7 @@ export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-VF.5',
     title: '把 Student-t 統計量換成尾機率相同的等效 z',
-    tex: r`t=\frac{\hat\theta-\theta}{\widehat{\mathrm{SE}}}\sim t_\nu,\qquad z_{\rm eq}=\operatorname{sign}(t)\,\Big|\Phi^{-1}\!\big(F_\nu(-|t|)\big)\Big|,\qquad|z_{\rm eq}|\le z_{\rm crit}\iff|t|\le t_{\rm crit}=-F_\nu^{-1}\!\big(\Phi(-z_{\rm crit})\big)`,
+    tex: r`\begin{aligned}&t=\frac{\hat\theta-\theta}{\widehat{\mathrm{SE}}}\sim t_\nu,\qquad z_{\rm eq}=\operatorname{sign}(t)\,\Big|\Phi^{-1}\!\big(F_\nu(-|t|)\big)\Big|\\[2pt]&|z_{\rm eq}|\le z_{\rm crit}\iff|t|\le t_{\rm crit}=-F_\nu^{-1}\!\big(\Phi(-z_{\rm crit})\big)\end{aligned}`,
     conditions: 'SE 由 ν + 1 個獨立且近似常態的樣本估計（例如 R 條 chain：ν = R − 1）；ν → ∞ 時 z_eq = t、t_crit = z_crit；z_crit = 4、ν = 23 時 t_crit ≈ 4.877',
     claim: 'exact',
     level: 'L0',
@@ -83,7 +83,7 @@ export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-VF.7',
     title: 'lag-1 自相關估計量的有限樣本偏差',
-    tex: r`r_1=\frac{\sum_{i=1}^{n-1}c_ic_{i+1}}{\sum_{i=1}^{n}c_i^2},\ \ c_i=x_i-\bar x:\qquad E[r_1]\approx p-\frac{1+3p}{n}\ \ (R=1),\qquad E[r_1]\approx p-\frac{1+2p}{n}-\frac{p}{nR}\ \ (R\text{ 條 chain 合併})`,
+    tex: r`\begin{aligned}&r_1=\frac{\sum_{i=1}^{n-1}c_ic_{i+1}}{\sum_{i=1}^{n}c_i^2},\ \ c_i=x_i-\bar x:\\[2pt]&E[r_1]\approx p-\frac{1+3p}{n}\ \ (R=1),\qquad E[r_1]\approx p-\frac{1+2p}{n}-\frac{p}{nR}\ \ (R\text{ 條 chain 合併})\end{aligned}`,
     conditions: '平穩 AR(1)；分子分母各自對 R 條獨立 chain 加總後再相除；誤差 O(1/n²)。程式用有限 n 的精確期望值比（ar1Lag1Expectation）',
     claim: 'approx',
     level: 'L1',
@@ -106,7 +106,7 @@ export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-VF.9',
     title: '兩點分布的樣本變異數：標準誤，以及它與樣本平均完全相依',
-    tex: r`s^2=\frac{n}{n-1}\,\hat p\,(1-\hat p),\qquad\mathrm{SE}(s^2)\approx\sqrt{\frac{\mu_4-\sigma^4}{n}}=|1-2p|\sqrt{\frac{p(1-p)}{n}},\qquad\mu_4=p(1-p)\,[1-3p(1-p)]`,
+    tex: r`\begin{aligned}&s^2=\frac{n}{n-1}\,\hat p\,(1-\hat p),\qquad\mathrm{SE}(s^2)\approx\sqrt{\frac{\mu_4-\sigma^4}{n}}=|1-2p|\sqrt{\frac{p(1-p)}{n}}\\[2pt]&\mu_4=p(1-p)\,[1-3p(1-p)]\end{aligned}`,
     conditions: 'y 只取兩個相鄰的值（T17：32 / 33）；s² 是 p̂ 的函數，所以「變異」的 z 與「平均」的 z 幾乎相同，不是獨立證據',
     claim: 'exact',
     level: 'L5',

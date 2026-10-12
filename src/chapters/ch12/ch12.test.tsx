@@ -7,6 +7,7 @@ import { extractRegion, plotMath } from '@/components'
 import type { PresetEntry } from '@/data/types'
 import calNoiseSrc from '@/simulation/models/calNoise.ts?raw'
 import { calLoop, codeSpectraAnalytic, mixingCrossCheck, runNoiseLab, simulateMixing } from '@/simulation/models/calNoise'
+import { FORMULAS as CH06_FORMULAS } from '@/chapters/ch06/formulas'
 import Chapter12 from './index'
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
@@ -141,6 +142,28 @@ describe('第 12 章（jsdom smoke）', () => {
     expect(follows(hands[hands.length - 2], last)).toBe(true)
     expect(Array.from(container.querySelectorAll('[data-experiment]')).every((e) => follows(e, last))).toBe(true)
     expect(container.querySelectorAll('.c-handcalc .katex-error, .c-handcalc .c-tex-error').length).toBe(0)
+    // 技術審查 R06c：F-12.1 的小訊號判據旁邊（同一小節）寫明適用範圍；Engineer 模式就看得到兩個 tap 的反例
+    const linearize = container.querySelector('#ch12-linearize') as HTMLElement
+    expect(linearize.textContent).toContain('適用範圍')
+    expect(linearize.textContent).toMatch(/path 有記憶/)
+    const counter = Array.from(linearize.querySelectorAll('.c-callout-title')).filter((t) => (t.textContent ?? '').includes('反例'))
+    expect(counter.length).toBe(1)
+    const counterTex = Array.from((counter[0].parentElement as HTMLElement).querySelectorAll('annotation')).map((a) => a.textContent ?? '')
+    // 反例的數字由 common.tsx 的 TWO_TAP 計算：C = 0.001、u_max = 1.001、−K·δw = −0.00798、實際只有它的 1.93×10⁻²² 倍
+    expect(counterTex.some((t) => t.includes(String.raw`u[n]=0.001\,x[n]+x[n-1]`))).toBe(true)
+    expect(counterTex.some((t) => t.includes('u_{\\max}=1.001'))).toBe(true)
+    expect(counterTex.some((t) => t.includes(String.raw`-0.798\times0.001\times10=-0.00798`))).toBe(true)
+    expect(counterTex.some((t) => t.includes(String.raw`1.93\times10^{-22}`))).toBe(true)
+    expect(counterTex.some((t) => t.includes(String.raw`=-1.541\times10^{-24}`) && t.includes(String.raw`=-1.539\times10^{-24}`))).toBe(true)
+    expect(counterTex.some((t) => t.includes('0.607'))).toBe(true)
+    expect(counterTex.some((t) => t.includes(String.raw`|\delta w|\,u_{\max}=10.01`))).toBe(true)
+    // 「判據的量化」（三階展開的首項）是 Research 模式的內容：Engineer 模式不顯示
+    expect(linearize.textContent).not.toContain('判據的量化')
+    // 技術審查 C03：F-12.4 旁邊寫明 DTFT 形式的 S_w 是「每 cycle/block」的密度（不是每 rad/block）
+    const psd = container.querySelector('#ch12-psd') as HTMLElement
+    expect(psd.textContent).toContain('注意取樣率與單位')
+    expect(psd.textContent).toMatch(/它是「每 cycle\/block」的密度/)
+    expect(psd.textContent).toMatch(/它不是每 rad\/block 的密度/)
     // 不得把 f_3dB 標成「Noise BW」（E06）：所有表頭與 KPI 標籤都不使用這個字樣（內文只在「反面例子」中引用）
     const labels = Array.from(container.querySelectorAll('th, .ch12-kpi-label')).map((e) => e.textContent ?? '')
     expect(labels.some((t) => /Noise BW/i.test(t))).toBe(false)
@@ -298,6 +321,14 @@ describe('第 12 章（jsdom smoke）', () => {
     expect(bad).toEqual([])
     // Research 模式：全部的方塊圖（含 colored η 那一張）+ 系統地圖
     expect(container.querySelectorAll('figure.c-mermaid').length).toBe(1 + CH12_CHARTS.length)
+    // R06c：Research 模式多一段「判據的量化」（線性化相對誤差的首項），數字來自 common.tsx 的 TWO_TAP_SMALL
+    const lin = container.querySelector('#ch12-linearize')!
+    expect(lin.textContent).toContain('判據的量化')
+    const linTex = Array.from(lin.querySelectorAll('annotation[encoding="application/x-tex"]')).map((a) => a.textContent ?? '')
+    expect(linTex.some((t) => t.includes(String.raw`\Big(h_0^2+3\sum_{m\ge1}h_m^2\Big)`))).toBe(true)
+    expect(linTex).toContain('-0.045')
+    expect(linTex).toContain('-0.044')
+    expect(linTex).toContain(String.raw`-1.5\times10^{-8}`)
     expect(container.querySelectorAll('.katex').length).toBeGreaterThan(300)
   }, T_TEST)
 
@@ -313,6 +344,10 @@ describe('第 12 章（jsdom smoke）', () => {
     const first = folds[0] as HTMLDetailsElement
     expect(first.open).toBe(false)
     fireEvent.click(first.querySelector('summary') as HTMLElement)
+    // 技術審查 R06c：適用範圍的那一段三種模式都看得到；兩個 tap 的反例（Callout）從 Engineer 模式才出現
+    const linearize = container.querySelector('#ch12-linearize') as HTMLElement
+    expect(linearize.textContent).toContain('適用範圍')
+    expect(Array.from(linearize.querySelectorAll('.c-callout-title')).some((t) => (t.textContent ?? '').includes('反例'))).toBe(false)
   }, T_TEST)
 })
 
@@ -326,6 +361,95 @@ describe('第 12 章：資料與程式碼一致性', () => {
       expect(f.page).toBe('/ch/12')
       expect(src.includes(`id="${f.id}"`), f.id).toBe(true)
     }
+  })
+
+  it('R06c: F-12.1 的登錄條件寫明推導模型（±1 code、無記憶 path）與一般 path 要看的量（整個波形的峰值）；claim 仍是 approx', () => {
+    const f = FORMULAS.find((x) => x.id === 'F-12.1')!
+    expect(f.claim).toBe('approx')
+    expect(f.tex).toBe(String.raw`G_k\approx -K\,\delta w_k+\eta_k,\qquad K=K_qC,\quad \delta w_k=w_k-w^*`)
+    const c = f.conditions ?? ''
+    expect(c).toMatch(/x=\\pm1/)
+    expect(c).toMatch(/無記憶/)
+    expect(c).toMatch(/u\[n\]=C\\,x\[n\]/)
+    expect(c).toMatch(/u_\{\\max\}/)
+    expect(c).toMatch(/F-06\.19/)
+    expect(c).toContain(String.raw`|C\,\delta w|\ll\sigma_v`)
+    expect(c).toContain(String.raw`|\delta w|\,u_{\max}\ll\sigma_v`)
+    // 兩種不能簡化的情況分開講：code 不是 ±1 時 |u[n]| 不再是常數 |C|；「C 小不代表 u 小」只屬於有記憶的 path
+    expect(c).toContain(String.raw`$|u[n]|$ 不再是常數 $|C|$`)
+    expect(c).toContain(String.raw`path 有記憶時 $C=E[x\,u]$ 小甚至不代表 $u$ 小`)
+    // 條件裡引用的第 6 章公式確實存在
+    const ch06 = new Set(CH06_FORMULAS.map((x) => x.id))
+    for (const id of ['F-06.1', 'F-06.19']) expect(ch06.has(id), id).toBe(true)
+    // 章末符號表：C 那一列註明本章的 path 模型；u 與它的峰值有自己的一列
+    const rowC = CH12_SYMBOLS.find((r) => r.symbol === 'C')!
+    expect(rowC.note).toBeTruthy()
+    expect(CH12_SYMBOLS.some((r) => r.symbol === String.raw`u[n],\ u_{\max}` && r.firstSeen === '§12.1' && r.unit === '1')).toBe(true)
+    // LMS Noise Lab 的假設、§12.9 的程式碼對照圖說也說明條件屬於無記憶 path
+    const src = chapterSources()
+    expect(src).toContain(String.raw`本 Lab 的 path 無記憶（$u=Cx$、$x=\pm1$），所以條件是 $|C\,\delta w|\ll\sigma_v$`)
+    expect(src).toContain(String.raw`兩者在小訊號（$|C\,\delta w|\ll\sigma_v$：comparator 前的殘差遠小於 comparator 雜訊）`)
+    // 同一句圖說的後半：穩定的迴路（|p| < 1）在大偏差時線性版是指數收斂，不是發散（數值見 calNoise.test.ts）
+    expect(src).not.toContain('線性版會指數發散')
+    expect(src).toContain(String.raw`偏差每個 block 平均乘上 $p$（$|p|<1$ 時指數收斂，$|p|>1$ 時才指數發散）`)
+    // §12.1 正文的「適用範圍」和登錄條件同一個說法
+    expect(src).toContain(String.raw`code 不是 $\pm1$ 時，$|u[n]|$ 跟著 $|x[n]|$ 變，不再是常數 $|C|$`)
+  })
+
+  it('C03: DTFT 形式的 PSD 是「每 cycle/block（或 cycle/sample）」的密度——登錄表、符號表、顯示的核心程式碼都不再標成每 rad', () => {
+    const PLAIN = /\$|\\[a-zA-Z]+|[\u0370-\u03ff²³∫≈]/ // 登錄表的 units 是純文字（與 ch14/formulas.test.ts 相同的規則）
+    const PER_RAD = /\/\(rad\/(block|sample)\)/
+    // (a) F-12.4：單位與第 14 章 F-14.11 相同的寫法；條件寫出正規化與「每 cycle/block」
+    const f4 = FORMULAS.find((x) => x.id === 'F-12.4')!
+    expect(f4.claim).toBe('exact')
+    expect(f4.units).toEqual({ S_w: 'fs^2/(cycle/block)，two-sided', Omega: 'rad/block' })
+    expect(f4.conditions).toContain(String.raw`\tfrac1{2\pi}\int`)
+    expect(f4.conditions).toContain('cycle/block')
+    expect(f4.conditions).toContain(String.raw`$S_w/(2\pi)$`)
+    expect(f4.conditions).not.toContain('兩邊 DTFT')
+    // (b) 本章沒有任何 units 把密度標成每 rad；units 的值都是純文字
+    for (const f of FORMULAS) {
+      for (const u of Object.values(f.units ?? {})) {
+        expect(u, f.id).not.toMatch(PER_RAD)
+        expect(u, f.id).not.toMatch(PLAIN)
+      }
+    }
+    expect(FORMULAS.find((x) => x.id === 'F-12.14')!.units).toEqual({
+      'S_w^(f_s)': 'fs^2/(cycle/sample)，two-sided',
+      'S_w^(f_u)': 'fs^2/(cycle/block)，two-sided',
+      theta: 'rad/sample',
+    })
+    // (c) 符號表：五個 DTFT 形式的 PSD 都是每 cycle；沒有任何一列的單位是每 rad
+    const unitOf = (symbol: string) => CH12_SYMBOLS.find((r) => r.symbol === symbol)?.unit ?? ''
+    expect(unitOf(String.raw`S_\eta(e^{j\Omega})`)).toBe(String.raw`1/(\mathrm{cycle/block})`)
+    expect(unitOf(String.raw`S_w(e^{j\Omega})`)).toBe(String.raw`\mathrm{fs}^2/(\mathrm{cycle/block})`)
+    expect(unitOf(String.raw`S_w^{(f_s)}(e^{j\theta})`)).toBe(String.raw`\mathrm{fs}^2/(\mathrm{cycle/sample})`)
+    expect(unitOf(String.raw`u[n],\ \bar R_u,\ \bar S_u`)).toMatch(/cycle\/sample/)
+    expect(unitOf(String.raw`S_x,\ S_{\delta t}`)).toBe(String.raw`1/(\mathrm{cycle/sample}),\ \mathrm{fs}^2/(\mathrm{cycle/sample})`)
+    for (const r of CH12_SYMBOLS) expect(r.unit ?? '', r.symbol).not.toMatch(/rad\/(block|sample)/)
+    // 對照組：頻率變數本身的單位仍是 rad；單邊 per-Hz 的單位與 F-12.10 的換算（只乘 2/f_r，沒有 2π）不變
+    expect(unitOf(String.raw`\Omega,\ \theta`)).toBe(String.raw`\mathrm{rad}`)
+    expect(unitOf(String.raw`S^{(1)}(f)`)).toBe(String.raw`\mathrm{fs}^2/\mathrm{Hz}`)
+    const f10 = FORMULAS.find((x) => x.id === 'F-12.10')!
+    expect(f10.units).toEqual({ 'S^(1)': 'fs^2/Hz', L: 'dBc/Hz' })
+    expect(f10.tex).toContain(String.raw`S^{(1)}(f)=\frac{2}{f_r}\,S\big(e^{j2\pi f/f_r}\big)`)
+    // (d) Formula 頁顯示的核心程式碼（#region core:swPsd）的註解
+    const region = extractRegion(calNoiseSrc, 'swPsd')
+    expect(region).toContain('每 cycle/block')
+    expect(region).not.toMatch(PER_RAD)
+    expect(region).toContain('return (2 / fu) * swDtft((2 * Math.PI * f) / fu, mu, p, sEta, r)') // per-Hz 換算沒有多乘 2π
+    // 手算題 HC-12.2：DTFT 形式那一步印的單位仍是 fs²，說明補上「每 cycle/block」
+    const hand = readFileSync(resolve(CH_DIR, 'handcalcs.ts'), 'utf8')
+    expect(hand).toContain('所以這個數字是「每 cycle/block」的密度')
+    // (e) §12.5 Research 模式整份顯示的 Python golden（CodeBlock 沒有指定 region）：coef_noise_psd 的 docstring 也不能寫成每 rad
+    expect(chapterSources()).toContain('golden/lms_pll_golden/noise.py?raw')
+    const py = readFileSync(resolve(process.cwd(), 'golden/lms_pll_golden/noise.py'), 'utf8')
+    expect(py).not.toMatch(/per rad/i)
+    expect(py).not.toMatch(PER_RAD)
+    const doc = py.split('\n').find((_, i, all) => i > 0 && all[i - 1].startsWith('def coef_noise_psd(')) ?? ''
+    expect(doc).toContain('每 cycle/block')
+    expect(doc).toContain('σ² = (1/2π)∫S dΩ')
+    expect(doc).toContain('Ω 為 rad/block') // 對照：頻率變數本身的單位仍是 rad/block
   })
 
   it('頁面引用的 core region 都存在於 calNoise.ts', () => {

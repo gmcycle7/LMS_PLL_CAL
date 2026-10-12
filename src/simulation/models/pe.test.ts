@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { cond, createRng, eigSym, matVec, svd } from '@/simulation/core'
+import { cond, createRng, eigSym, matScale, matVec, svd, type Matrix } from '@/simulation/core'
 import {
   KQ_SIGMA100,
   bussgangMeanG,
@@ -14,7 +14,9 @@ import {
   gaugeNullVector,
   gaugeRegressorsRaw,
   lmsHandSteps,
+  meanFieldTrajectory,
   meanSquareDiagGaussian,
+  meanSquareMap,
   meanSquareRadius,
   meanSquareTrajectory,
   meanTrajectory,
@@ -24,6 +26,7 @@ import {
   pm1DegenerateProb,
   pm1WindowLminStats,
   runPeChain,
+  signJitterSteadyState,
   simulatePeLab,
   slidingWindowPe,
   stepsToDecay,
@@ -191,6 +194,120 @@ describe('pe：閉式 2×2 eigen 分解與平均遞迴（§9）', () => {
     expect(o.p).toBeCloseTo(0.99, 14)
     expect(o.p).toBeCloseTo((199 - 1) / (199 + 1), 12)
   })
+
+  it('F-09.5: κ(R) 只由 |ρ| 決定（ρ = ±.5 ⇒ 3、ρ = ±.99 ⇒ 199、ρ = ±1 ⇒ ∞）；(1+ρ)/(1−ρ) 在 ρ < 0 時是 1/κ', () => {
+    const cases: [number, number][] = [
+      [0.5, 3],
+      [-0.5, 3],
+      [0.99, 199],
+      [-0.99, 199],
+    ]
+    for (const [rho, expected] of cases) {
+      const kappa = eigenModes(corr2(rho), 0.5).kappa
+      expect(kappa, `ρ = ${rho}`).toBeCloseTo(expected, 9)
+      expect(kappa).toBeGreaterThanOrEqual(1) // condition number 的定義：大的除以小的
+      expect(cond(corr2(rho))).toBeCloseTo(expected, 9)
+      // 登錄式（F-09.5）：κ = (1 + |ρ|)/(1 − |ρ|)，λ_max,min = 1 ± |ρ|
+      expect((1 + Math.abs(rho)) / (1 - Math.abs(rho))).toBeCloseTo(expected, 9)
+      const { values } = eig2x2(1, rho, 1)
+      expect(values[0]).toBeCloseTo(1 + Math.abs(rho), 12)
+      expect(values[1]).toBeCloseTo(1 - Math.abs(rho), 12)
+    }
+    for (const rho of [1, -1]) {
+      const modes = eigenModes(corr2(rho), 0.5)
+      expect(modes.kappa, `ρ = ${rho}`).toBe(Infinity)
+      expect(modes.nullCount).toBe(1)
+      expect(cond(corr2(rho))).toBe(Infinity)
+    }
+    // 反例（審查 R07）：少了絕對值的 (1 + ρ)/(1 − ρ) 是 λ₁/λ₂，不是 κ——ρ = −.5 時是 1/3，ρ = −1（R 奇異）時是 0
+    expect((1 + -0.5) / (1 - -0.5)).toBeCloseTo(1 / 3, 12)
+    expect((1 + -0.5) / (1 - -0.5)).toBeCloseTo(1 / eigenModes(corr2(-0.5), 0.5).kappa, 12)
+    expect((1 + -1) / (1 - -1)).toBe(0)
+  })
+
+  it('F-09.5: 負相關時快慢模式對調（ρ = −.5：共模 pole 0.75 慢、差模 pole 0.25 快、k95 = 11）；ρ = +.99 的結果不變', () => {
+    // λ₁ = 1 + ρ 配 (1,1)/√2、λ₂ = 1 − ρ 配 (1,−1)/√2 的配對不變；ρ < 0 時較大的是 λ₂
+    const c = eig2x2(1, -0.5, 1)
+    expect(c.values[0]).toBeCloseTo(1.5, 12)
+    expect(c.values[1]).toBeCloseTo(0.5, 12)
+    expect(c.vectors[0][0]).toBeCloseTo(Math.SQRT1_2, 12) // v_max = (1, −1)/√2（差模）
+    expect(c.vectors[1][0]).toBeCloseTo(-Math.SQRT1_2, 12)
+    expect(c.vectors[0][1]).toBeCloseTo(Math.SQRT1_2, 12) // v_min = (1, 1)/√2（共模）
+    expect(c.vectors[1][1]).toBeCloseTo(Math.SQRT1_2, 12)
+    const a = peAnalytic({ rho: -0.5, dist: 'gaussian', g: 0.5, N: 16, N0: 100 })
+    expect(a.pFast).toBeCloseTo(0.25, 12)
+    expect(a.pSlow).toBeCloseTo(0.75, 12)
+    expect(a.k95Slow).toBe(11) // ⌈ln 0.05/ln 0.75⌉ = ⌈10.41⌉
+    expect(a.gOpt).toBeCloseTo(1, 12)
+    expect(a.pOpt).toBeCloseTo(0.5, 12)
+    expect(a.modes.kappa).toBeCloseTo(3, 9)
+    // 時域：共模 (1,1) 每個 block 乘 0.75（慢），差模 (1,−1) 每個 block 乘 0.25（快）
+    const common = meanTrajectory(corr2(-0.5), 0.5, [1, 1], 3)
+    const diff = meanTrajectory(corr2(-0.5), 0.5, [1, -1], 3)
+    ;[1, 0.75, 0.5625, 0.421875].forEach((v, k) => {
+      expect(common[0][k]).toBeCloseTo(v, 12)
+      expect(common[1][k]).toBeCloseTo(v, 12)
+    })
+    ;[1, 0.25, 0.0625, 0.015625].forEach((v, k) => {
+      expect(diff[0][k]).toBeCloseTo(v, 12)
+      expect(diff[1][k]).toBeCloseTo(-v, 12)
+    })
+    // 對照（正相關，本章的例子）：共模是快模式，數字不變
+    const b = peAnalytic({ rho: 0.99, dist: 'gaussian', g: 0.5, N: 16, N0: 100 })
+    expect(b.modes.kappa).toBeCloseTo(199, 9)
+    expect(b.pSlow).toBeCloseTo(0.995, 12)
+    expect(b.k95Slow).toBe(598)
+    expect(b.pOpt).toBeCloseTo(0.99, 12)
+    const cp = eig2x2(1, 0.99, 1)
+    expect(cp.vectors[0][0]).toBeCloseTo(Math.SQRT1_2, 12) // v_max = (1, 1)/√2（共模）
+    expect(cp.vectors[1][0]).toBeCloseTo(Math.SQRT1_2, 12)
+  })
+
+  it('F-09.7: g > g⋆ = 2/(λ_max+λ_min) 時最慢的是 λ_max 的模式（ρ = .5、g = 1.2：pole −0.8／0.4 ⇒ 14 vs. 4 blocks）；g ≤ g⋆ 時才是 λ_min', () => {
+    // 反例（審查 C01）：「最小 eigenvalue 決定收斂速度」只在 g ≤ g⋆ 成立
+    const m = eigenModes(corr2(0.5), 1.2)
+    expect(m.lambdas[0]).toBeCloseTo(1.5, 12)
+    expect(m.lambdas[1]).toBeCloseTo(0.5, 12)
+    expect(m.poles[0]).toBeCloseTo(-0.8, 12) // λ_max 的模式：負的（每個 block 變號）
+    expect(m.poles[1]).toBeCloseTo(0.4, 12) // λ_min 的模式
+    expect(m.k95).toEqual([14, 4])
+    const a = peAnalytic({ rho: 0.5, dist: 'gaussian', g: 1.2, N: 16, N0: 100 })
+    expect(a.meanRadius).toBeCloseTo(0.8, 12) // max|p_i| 是快模式的
+    expect(a.gOpt).toBeCloseTo(1, 12)
+    expect(1.2).toBeLessThan(2 / m.lambdas[0]) // 仍在穩定範圍內（上限 2/1.5 = 1.333）
+    // 軌跡（不只看 pole）：沿共模 (1,1) 出發第 14 個 block 才 ≤ 5%；沿差模 (1,−1) 第 4 個 block 就到
+    const common = meanTrajectory(corr2(0.5), 1.2, [1, 1], 14)
+    expect(Math.abs(common[0][13])).toBeCloseTo(Math.pow(0.8, 13), 12)
+    expect(Math.abs(common[0][13])).toBeGreaterThan(0.05)
+    expect(Math.abs(common[0][14])).toBeLessThanOrEqual(0.05)
+    expect(common[0][1]).toBeCloseTo(-0.8, 12)
+    const diff = meanTrajectory(corr2(0.5), 1.2, [1, -1], 4)
+    expect(Math.abs(diff[0][3])).toBeGreaterThan(0.05) // 0.4³ = 0.064
+    expect(Math.abs(diff[0][4])).toBeLessThanOrEqual(0.05) // 0.4⁴ = 0.0256
+    // 對照：g = 0.5（< g⋆ = 1）⇒ 最慢的是 λ_min（0.75、11 blocks）；g = g⋆ = 1 ⇒ 兩個 |p| 相等（0.5、5 blocks）
+    const small = eigenModes(corr2(0.5), 0.5)
+    expect(small.poles[0]).toBeCloseTo(0.25, 12)
+    expect(small.poles[1]).toBeCloseTo(0.75, 12)
+    expect(small.k95).toEqual([3, 11])
+    const tie = eigenModes(corr2(0.5), 1)
+    expect(tie.poles[0]).toBeCloseTo(-0.5, 12)
+    expect(tie.poles[1]).toBeCloseTo(0.5, 12)
+    expect(tie.k95).toEqual([5, 5])
+    // 一般性：0 < g < 2/λ_max 內，|1 − gλ_max| > |1 − gλ_min| ⇔ g > 2/(λ_max + λ_min)
+    const rng = createRng(20261012)
+    for (let i = 0; i < 300; i++) {
+      const l1 = 0.01 + 2.99 * rng.uniform()
+      const l2 = 0.01 + 2.99 * rng.uniform()
+      const lmax = Math.max(l1, l2)
+      const lmin = Math.min(l1, l2)
+      const g = (2 / lmax) * (0.001 + 0.998 * rng.uniform())
+      const gStar = optimalScalarGain(lmax, lmin).g
+      if (Math.abs(g - gStar) < 1e-9) continue
+      expect(Math.abs(1 - g * lmax) > Math.abs(1 - g * lmin), `λ = ${lmax}, ${lmin}; g = ${g}`).toBe(g > gStar)
+      // 不論 g 取多少，max|p| 都不會小於 (κ − 1)/(κ + 1)
+      expect(Math.max(Math.abs(1 - g * lmax), Math.abs(1 - g * lmin))).toBeGreaterThanOrEqual(optimalScalarGain(lmax, lmin).p - 1e-12)
+    }
+  })
 })
 
 describe('pe：mean-square 遞迴（勘誤 E23）', () => {
@@ -310,6 +427,112 @@ describe('pe：1-bit（Sign-LMS）的 mean-square（F-09.18）', () => {
     const se = (mu * mu * 2) / N / Math.sqrt(res.chainsUsed)
     expect(Math.abs(res.msNorm[1] - pred)).toBeLessThan(6 * se)
   })
+
+  // ── 迴路自己的穩態抖動：F-09.18 固定點的閉式（PE / Eigen Lab 的 1-bit 小訊號警告用它；審查 R06a 的後續） ──
+
+  /** 把 F-09.18 的映射（meanSquareMap 的 sign 分支，σ_v = 1、每個 block 注入 μ²R/N）從 P = 0 迭代到固定點，回傳 tr(R·P∞) = E[s_δ²] */
+  const iterateJitter = (rho: number, g: number, N: number, dist: 'gaussian' | 'pm1' = 'gaussian', iters = 6000): number => {
+    const mu = g / comparatorKq(1)
+    const Q = matScale(corr2(rho), (mu * mu) / N)
+    let P: Matrix = [
+      [0, 0],
+      [0, 0],
+    ]
+    for (let i = 0; i < iters; i++) P = meanSquareMap(dist, rho, g, N, P, Q, 'sign')
+    return P[0][0] + 2 * rho * P[0][1] + P[1][1]
+  }
+
+  it('signJitterSteadyState：E[s_δ²] = (πg/2N)·Σλ_i/(2 − g(1 − 1/N)λ_i) 與迭代 meanSquareMap 的固定點一致（ρ 正負、兩種 regressor 分布）', () => {
+    const grid: [number, number, number][] = [
+      [0.99, 0.5, 1],
+      [0.99, 0.5, 16],
+      [0.99, 0.5, 32],
+      [0.5, 0.3, 8],
+      [-0.5, 0.3, 8],
+      [0, 0.2, 2],
+      [0.5, 1.2, 64],
+      [-0.9, 0.7, 4],
+    ]
+    for (const [rho, g, N] of grid) {
+      const closed = signJitterSteadyState(eig2x2(1, rho, 1).values, g, N)
+      // 手寫的同一個式子（不經過被測函式）
+      const byHand = ((Math.PI * g) / (2 * N)) * [1 + Math.abs(rho), 1 - Math.abs(rho)].reduce((acc, l) => acc + l / (2 - g * (1 - 1 / N) * l), 0)
+      expect(closed, `ρ=${rho} g=${g} N=${N}`).toBeCloseTo(byHand, 13)
+      // sign 的 q² ≡ 1：沒有四階動差，所以固定點與 regressor 分布無關
+      for (const dist of ['gaussian', 'pm1'] as const) expect(iterateJitter(rho, g, N, dist) / closed, `ρ=${rho} g=${g} N=${N} ${dist}`).toBeCloseTo(1, 9)
+    }
+    // 章內「多小才算小」說明框與實驗室警告顯示的數字（ρ = .99、g = .5）
+    const lam = eig2x2(1, 0.99, 1).values
+    expect(signJitterSteadyState(lam, 0.5, 1)).toBeCloseTo(Math.PI / 4, 12) // N = 1：(π/4)·tr(R)/2 = π/4
+    expect(signJitterSteadyState(lam, 0.5, 32)).toBeCloseTo(0.0472634883, 9)
+    // N = 16（實驗室預設的 block 長度）：√E[s_δ²] = 0.303，剛超過 0.3 的門檻；N = 17 就回到門檻內
+    expect(Math.sqrt(signJitterSteadyState(lam, 0.5, 16))).toBeCloseTo(0.30295, 4)
+    expect(Math.sqrt(signJitterSteadyState(lam, 0.5, 17))).toBeLessThan(0.3)
+    // 只和 |ρ| 有關（λ_max、λ_min 相同）
+    expect(signJitterSteadyState(eig2x2(1, -0.99, 1).values, 0.5, 16)).toBeCloseTo(signJitterSteadyState(lam, 0.5, 16), 14)
+  })
+
+  it('signJitterSteadyState 的邊界：λ = 0 的方向不注入雜訊；平均或均方不收斂 ⇒ ∞；g = 0 ⇒ 0；N 越大越小、g 越大越大', () => {
+    // ρ = 1：λ = (2, 0)。只有共模有抖動：(π·0.5/32)·2/(2 − 0.5·(15/16)·2) = 0.092400…；與迭代（零方向的 P 留在 0）一致
+    const rho1 = signJitterSteadyState([2, 0], 0.5, 16)
+    expect(rho1).toBeCloseTo(((Math.PI * 0.5) / 32) * (2 / (2 - 0.9375)), 14)
+    expect(rho1).toBeCloseTo(0.0924, 4)
+    expect(iterateJitter(1, 0.5, 16) / rho1).toBeCloseTo(1, 9)
+    // N = 1 的均方倍數是 1 − 2gλ：gλ_max ≥ 1 就不收斂（與 meanSquareRadius 的判斷一致）
+    expect(signJitterSteadyState([1.99, 0.01], 0.6, 1)).toBe(Infinity)
+    expect(meanSquareRadius('gaussian', 0.99, 0.6, 1, 'sign')).toBeGreaterThan(1)
+    expect(Number.isFinite(signJitterSteadyState([1.99, 0.01], 0.5, 1))).toBe(true)
+    expect(meanSquareRadius('gaussian', 0.99, 0.5, 1, 'sign')).toBeLessThan(1)
+    // 平均遞迴發散（gλ_max ≥ 2）
+    expect(signJitterSteadyState([1.99, 0.01], 1.1, 64)).toBe(Infinity)
+    expect(signJitterSteadyState([1.99, 0.01], 0, 16)).toBe(0)
+    // 實驗室警告的建議「加大 N 或減小 g」：估計值對 N 遞減、對 g 遞增（平均穩定的範圍內）
+    for (const rho of [0, 0.5, 0.99]) {
+      const lam = eig2x2(1, rho, 1).values
+      let prevN = Infinity
+      for (const N of [2, 4, 16, 64, 256, 4096]) {
+        const v = signJitterSteadyState(lam, 0.5, N)
+        expect(v, `ρ=${rho} N=${N}`).toBeLessThan(prevN)
+        prevN = v
+      }
+      let prevG = 0
+      for (const g of [0.01, 0.1, 0.3, 0.5, 0.9]) {
+        const v = signJitterSteadyState(lam, g, 64)
+        expect(v, `ρ=${rho} g=${g}`).toBeGreaterThan(prevG)
+        prevG = v
+      }
+    }
+  })
+
+  it('signJitterSteadyState 與本站的 MC chain（runPeChain、sign detector）一致：小訊號區（ρ = .5、g = .3、N = 64，√E[s_δ²] ≈ 0.095）穩態的 E[δᵀRδ]/σ_v² 相差不到 5%', () => {
+    const rho = 0.5
+    const g = 0.3
+    const N = 64
+    const sigmaV = 100
+    const pred = signJitterSteadyState(eig2x2(1, rho, 1).values, g, N)
+    expect(Math.sqrt(pred)).toBeCloseTo(0.0953, 4) // (π·0.3/128)·(1.5/1.55703 + 0.5/1.85234) = 0.0090809
+    const mu = g / comparatorKq(sigmaV)
+    const chains = 60
+    const burn = 100 // 慢模式的時間常數 1/(gλ_min) ≈ 6.7 blocks
+    const blocks = 2100
+    const perChain: number[] = []
+    for (let c = 0; c < chains; c++) {
+      const ur = createRng(4000 + 7 * c)
+      const vr = createRng(880000 + 13 * c)
+      let acc = 0
+      let cnt = 0
+      runPeChain({ dist: 'gaussian', detector: 'sign', rho, sigmaV, mu, N, delta0: [0, 0], blocks }, ur, vr, (k, d1, d2) => {
+        if (k < burn) return
+        acc += (d1 * d1 + 2 * rho * d1 * d2 + d2 * d2) / (sigmaV * sigmaV)
+        cnt++
+      })
+      perChain.push(acc / cnt)
+    }
+    const mean = perChain.reduce((a, b) => a + b, 0) / chains
+    const se = Math.sqrt(perChain.reduce((a, b) => a + (b - mean) ** 2, 0) / (chains - 1) / chains)
+    expect(se / mean).toBeLessThan(0.01) // MC 自己的統計誤差 < 1%
+    expect(Math.abs(mean / pred - 1)).toBeLessThan(0.05)
+  }, 60000)
 })
 
 describe('pe：1-bit comparator 的 mean-field（Bussgang）', () => {
@@ -339,6 +562,136 @@ describe('pe：1-bit comparator 的 mean-field（Bussgang）', () => {
     expect(Math.abs(a1 / M - g1)).toBeLessThan(5 / Math.sqrt(M))
     expect(Math.abs(a2 / M - g2)).toBeLessThan(5 / Math.sqrt(M))
   })
+
+  // ── 審查 R06a：F-09.3 的 1-bit 式（K_q 線性化）只是小訊號近似；linear detector 才是精確的等式 ──
+
+  it('R06a: δ₀ = σ_v 時 K_q 線性化（F-09.3 的 1-bit 式）高估一步修正量：精確 0.94358 vs. 線性式 0.92021', () => {
+    // 單一參數、u ~ N(0,1)、v ~ N(0,1)、δ₀ = 1、μ = 0.1（本站的 2 參數模型：ρ = 0、δ₀ = (1, 0)）
+    // Price／Bussgang：E[sign(uδ₀ + v)·u] = √(2/π)·δ₀/√(σ_v² + δ₀²) = 1/√π
+    expect(bussgangMeanG('gaussian', 0, 1, 1, 0)[0]).toBeCloseTo(1 / Math.sqrt(Math.PI), 12)
+    expect(1 / Math.sqrt(Math.PI)).toBeCloseTo(0.5641895835477563, 15)
+    const exact = meanFieldTrajectory({ dist: 'gaussian', rho: 0, sigmaV: 1, mu: 0.1, delta0: [1, 0], steps: 1 })[0][1]
+    expect(exact).toBeCloseTo(0.9435810416452244, 12) // 1 − 0.1/√π（δ₀ 是確定值 ⇒ 第一步的 mean-field 就是精確平均）
+    const lin = meanTrajectory(corr2(0), 0.1 * comparatorKq(1), [1, 0], 1)[0][1]
+    expect(lin).toBeCloseTo(0.9202115439197135, 12) // 1 − 0.1·√(2/π)
+    expect(exact - lin).toBeCloseTo(0.0233694977, 9)
+    expect(exact - lin).toBeGreaterThan(0.02)
+    // 線性化把這一步的修正量高估成 √2 倍
+    expect((1 - lin) / (1 - exact)).toBeCloseTo(Math.SQRT2, 12)
+  })
+
+  it('R06a: 用本站的 MC chain（runPeChain、sign detector）走一步：平均落在精確值 5 SE 內，離線性式超過 50 SE', () => {
+    const ur = createRng(12345)
+    const vr = createRng(67890)
+    const M = 200000
+    let sum = 0
+    for (let c = 0; c < M; c++) {
+      runPeChain({ dist: 'gaussian', detector: 'sign', rho: 0, sigmaV: 1, mu: 0.1, N: 1, delta0: [1, 0], blocks: 1 }, ur, vr, (k, d1) => {
+        if (k === 1) sum += d1
+      })
+    }
+    const mean = sum / M
+    // δ₁ = 1 − 0.1·q·u，Var(q·u) = E[u²] − (E[qu])² = 1 − 1/π ⇒ 每條 chain 的 sd = 0.08256
+    const se = (0.1 * Math.sqrt(1 - 1 / Math.PI)) / Math.sqrt(M)
+    expect(se).toBeCloseTo(1.846e-4, 6)
+    expect(Math.abs(mean - 0.9435810416452244)).toBeLessThan(5 * se)
+    expect(Math.abs(mean - 0.9202115439197135)).toBeGreaterThan(50 * se)
+  })
+
+  it('R06a 對照（小訊號）：δ₀ = 0.05σ_v 時兩者只差 0.12%；Bussgang 增益 ÷ K_q = 1/√(1 + s_δ²)（s_δ = 0.1、0.3、1 ⇒ 0.9950、0.9578、0.7071）', () => {
+    const kq = comparatorKq(1)
+    const lin = meanTrajectory(corr2(0), 0.1 * kq, [0.05, 0], 1)[0][1]
+    const mf = meanFieldTrajectory({ dist: 'gaussian', rho: 0, sigmaV: 1, mu: 0.1, delta0: [0.05, 0], steps: 1 })[0][1]
+    expect(lin).toBeCloseTo(0.046010577195985676, 14)
+    expect(mf).toBeCloseTo(0.046015554643718086, 14)
+    expect((0.05 - mf) / (0.05 - lin)).toBeCloseTo(0.9987523, 6)
+    expect(Math.abs((0.05 - mf) / (0.05 - lin) - 1)).toBeLessThan(2e-3)
+    const expected = [0.9950371902, 0.9578262852, 0.7071067812]
+    ;[0.1, 0.3, 1].forEach((sRatio, i) => {
+      const ratio = bussgangMeanG('gaussian', 0, 1, sRatio, 0)[0] / (kq * sRatio)
+      expect(ratio).toBeCloseTo(1 / Math.sqrt(1 + sRatio * sRatio), 12)
+      expect(ratio).toBeCloseTo(expected[i], 9)
+    })
+    // 有相關時量的是 s_δ = √(δᵀRδ)/σ_v，不是 ‖δ‖：沿差模（λ_min = 0.01）的 δ = (1, −1)/√2·σ_v 只有 s_δ = 0.1
+    const [g1, g2] = bussgangMeanG('gaussian', 0.99, 1, Math.SQRT1_2, -Math.SQRT1_2)
+    expect(g1 / (kq * 0.01 * Math.SQRT1_2)).toBeCloseTo(1 / Math.sqrt(1.01), 12)
+    expect(g2 / (kq * 0.01 * -Math.SQRT1_2)).toBeCloseTo(1 / Math.sqrt(1.01), 12)
+  })
+
+  it('R06a 對照（linear detector）：E[δ₁] = (1 − μ)δ₀ 不論誤差大小都精確（δ₀ = 1 與 δ₀ = 10 的 MC 都在 5 SE 內）', () => {
+    const M = 200000
+    for (const d0 of [1, 10]) {
+      const ur = createRng(2468)
+      const vr = createRng(1357)
+      let sum = 0
+      for (let c = 0; c < M; c++) {
+        runPeChain({ dist: 'gaussian', detector: 'linear', rho: 0, sigmaV: 1, mu: 0.1, N: 1, delta0: [d0, 0], blocks: 1 }, ur, vr, (k, d1) => {
+          if (k === 1) sum += d1
+        })
+      }
+      // δ₁ = δ₀ − μ·u(uδ₀ + v)：Var = μ²(2δ₀² + 1) ⇒ SE = 0.1·√(2δ₀² + 1)/√M（δ₀ = 1：3.873e-4；δ₀ = 10：3.170e-3）
+      const se = (0.1 * Math.sqrt(2 * d0 * d0 + 1)) / Math.sqrt(M)
+      expect(Math.abs(sum / M - 0.9 * d0), `δ₀ = ${d0}`).toBeLessThan(5 * se)
+      expect(meanTrajectory(corr2(0), 0.1, [d0, 0], 1)[0][1]).toBeCloseTo(0.9 * d0, 12)
+    }
+  })
+
+  it('R06a: 迴路自己的穩態抖動也會破壞小訊號條件——ρ = .99、g = .5 的 1-bit 迴路，N = 1 時第 598 個 block 的慢模式平均明顯高於 0.995⁵⁹⁸；N = 32 時才相符', () => {
+    const kq = comparatorKq(1)
+    const linear = Math.pow(0.995, 598) // 線性式（F-09.3 的 1-bit 式）的預測：0.04991
+    expect(linear).toBeCloseTo(0.04991169, 8)
+    /** F-09.18（小訊號）的穩態 E[s_δ²] = tr(R·P∞)/σ_v²（s_δ = √(δᵀRδ)/σ_v）：頁面上「多小才算小」那一段顯示的估計值 */
+    const jitter = (N: number): number => {
+      const mu = 0.5 / kq
+      const Q = matScale(corr2(0.99), (mu * mu) / N)
+      let P: Matrix = [
+        [0, 0],
+        [0, 0],
+      ]
+      for (let i = 0; i < 6000; i++) P = meanSquareMap('gaussian', 0.99, 0.5, N, P, Q, 'sign')
+      return P[0][0] + 2 * 0.99 * P[0][1] + P[1][1]
+    }
+    /** 閉式（eigen 座標）：P_ii = μ²/(N(2g − g²λ_i(1 − 1/N)))，E[s_δ²] = Σλ_i·P_ii */
+    const jitterClosed = (N: number): number => {
+      const mu = 0.5 / kq
+      return [1.99, 0.01].reduce((acc, l) => acc + (l * mu * mu) / (N * (2 * 0.5 - 0.25 * l * (1 - 1 / N))), 0)
+    }
+    expect(jitter(1)).toBeCloseTo(Math.PI / 4, 10) // g·π/4·tr(R) = 0.7854：已經不是 ≪ 1
+    expect(jitter(1)).toBeCloseTo(jitterClosed(1), 10)
+    expect(jitter(32)).toBeCloseTo(0.0472634883, 9)
+    expect(jitter(32)).toBeCloseTo(jitterClosed(32), 10)
+    const run = (N: number, chains: number) => {
+      const ur = createRng(11)
+      const vr = createRng(1011)
+      let s1 = 0
+      let s2 = 0
+      let q = 0
+      for (let c = 0; c < chains; c++) {
+        runPeChain({ dist: 'gaussian', detector: 'sign', rho: 0.99, sigmaV: 1, mu: 0.5 / kq, N, delta0: [1, 0], blocks: 598 }, ur, vr, (k, d1, d2) => {
+          if (k !== 598) return
+          const c2 = (d1 - d2) / Math.SQRT2 // 慢模式（差模）座標
+          s1 += c2
+          s2 += c2 * c2
+          q += d1 * d1 + 2 * 0.99 * d1 * d2 + d2 * d2 // δᵀRδ = s_δ²·σ_v²
+        })
+      }
+      const mean = s1 / chains
+      const sd = Math.sqrt((s2 - chains * mean * mean) / (chains - 1))
+      // 初值的慢模式座標是 1/√2
+      return { ratio: mean / Math.SQRT1_2, se: sd / Math.sqrt(chains) / Math.SQRT1_2, meanQ: q / chains }
+    }
+    // 反例：N = 1。抖動本身讓 E[s_δ²] > 1（比小訊號估計的 0.785 還大），慢模式的平均比線性式慢
+    const n1 = run(1, 8000)
+    expect(n1.meanQ).toBeGreaterThan(1)
+    expect(n1.meanQ).toBeGreaterThan(jitter(1))
+    expect(n1.ratio).toBeGreaterThan(0.08)
+    expect(n1.ratio - linear).toBeGreaterThan(4 * n1.se)
+    // 對照：N = 32。E[s_δ²] ≈ 0.047（與小訊號估計相符），慢模式的平均與線性式在 4 SE 內一致
+    const n32 = run(32, 300)
+    expect(n32.meanQ).toBeLessThan(0.1)
+    expect(Math.abs(n32.meanQ / jitter(32) - 1)).toBeLessThan(0.3)
+    expect(Math.abs(n32.ratio - linear)).toBeLessThan(4 * n32.se)
+  }, 60000)
 })
 
 describe('pe：§9.1 有限窗口 PE', () => {

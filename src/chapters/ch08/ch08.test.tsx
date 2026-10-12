@@ -14,13 +14,16 @@ import {
   pmFirstOrder,
   peakAbs,
   pmWithDelay,
+  simulateDelayRecursion,
   simulateFullModel,
   stableIntervalsNumeric,
   type ObservationSystem,
 } from '@/simulation/models/stability'
 import Chapter08 from './index'
-import { PmLab } from './experiments/PmLab'
+import { PmLab, stepCaption } from './experiments/PmLab'
 import { DualLoopLab } from './experiments/DualLoopLab'
+import { dualLoopRhoReference } from './sections/DualLoop'
+import { STABILITY_CHECK_CHART } from './diagrams'
 import { FORMULAS, formula } from './formulas'
 import { HANDCALCS } from './handcalcs'
 
@@ -82,6 +85,14 @@ describe('Ch08 smoke test（jsdom）', () => {
       expect(proseText).not.toContain('$')
       expect(proseText).not.toContain('\\n')
       expect(proseText).not.toMatch(/NaN|undefined/)
+      // 技術審查 R02：ρ^k 是漸近速率的參考線，不再稱為誤差的「包絡」（只有 d = 0 的 PM Lab 圖說保留「解析包絡 1 ± ρ^k」）
+      expect(proseText).not.toMatch(/[ρk]\s*包絡|包絡\s*ρ/)
+      expect(proseText).toContain('參考線比斜率')
+      expect(proseText).toContain('不是誤差的上界')
+      // 細節（本例最多高 2.2%、重根 μ = 0.05 到 k = 300 是 34 倍）放在 Engineer 以上
+      expect(proseText.includes('不要拿它當誤差的上界')).toBe(mode !== 'beginner')
+      expect(proseText.includes('不是「完整模型快一倍」')).toBe(mode !== 'beginner')
+      expect(proseText).toContain('由漸近衰減率換算的時間常數，不是逐 block 數出來的收斂時間')
       // KaTeX 沒有語法錯誤
       expect(container.querySelectorAll('.c-tex-error')).toHaveLength(0)
       expect(container.querySelectorAll('.katex-error')).toHaveLength(0)
@@ -417,6 +428,158 @@ describe('Ch08 數學一律是 LaTeX（圖內文字與控制項）', () => {
     expect(total).toBeGreaterThan(1500)
     expect(offenders).toEqual([])
     expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+  }, SLOW)
+})
+
+describe('技術審查 R02：ρ^k 只是漸近速率，不是 d ≥ 1 或雙迴路誤差的包絡', () => {
+  const ratios = (delta: ArrayLike<number>, rho: number) => Array.from(delta, (v, k) => Math.abs(v) / rho ** k)
+
+  it('更新延遲遞迴：d = 0 時 |δ_k| = ρ^k（包絡精確）；d = 1、g = 0.25 是重根 0.5，δ_k = (1 + k/2)·2^(−k)，60 個 block 全部在 ρ^k 之外', () => {
+    for (const g of [0.5, 1.5]) {
+      const rho = delayStable(g, 0).rho
+      expect(rho).toBeCloseTo(Math.abs(1 - g), 12)
+      const r = ratios(simulateDelayRecursion(g, 0, 60, 1).delta, rho)
+      for (const v of r) expect(v).toBeCloseTo(1, 9)
+    }
+    const rho = delayStable(0.25, 1).rho
+    expect(rho).toBeCloseTo(0.5, 7)
+    const run = simulateDelayRecursion(0.25, 1, 60, 1).delta
+    expect(Array.from(run.slice(0, 6))).toEqual([1, 0.75, 0.5, 0.3125, 0.1875, 0.109375])
+    for (let k = 0; k <= 60; k++) expect(run[k] / 0.5 ** k).toBeCloseTo(1 + k / 2, 9)
+    const r = ratios(run, 0.5)
+    expect(r.slice(1).every((v) => v > 1)).toBe(true)
+    expect(r[60]).toBeCloseTo(31, 9)
+    // τ = −1/ln ρ = 1.44 blocks，但誤差要到第 3 個 block 才低於 1/e、第 7 個 block 才低於 5%
+    expect(-1 / Math.log(rho)).toBeCloseTo(1.4427, 4)
+    const lastAbove = (level: number) => Array.from(run).reduce((last, v, k) => (Math.abs(v) > level ? k : last), 0)
+    expect(lastAbove(Math.exp(-1)) + 1).toBe(3)
+    expect(lastAbove(0.05) + 1).toBe(7)
+    // 複數根（d = 1、g = 0.8）：有 14 個 block 在 ρ^k 之外，最多高到 2g/√(4g − 1) = 1.0787 倍
+    const r08 = ratios(simulateDelayRecursion(0.8, 1, 60, 1).delta, delayStable(0.8, 1).rho)
+    expect(r08.slice(1).filter((v) => v > 1 + 1e-12)).toHaveLength(14)
+    expect(Math.max(...r08)).toBeGreaterThan(1.07)
+    expect(Math.max(...r08)).toBeLessThanOrEqual(1.6 / Math.sqrt(2.2) + 1e-12)
+    // 暫態也可能比 τ 快：d = 3、g = 0.2 的 τ = 6.18 blocks，誤差第 4 個 block 起就低於 1/e
+    const run3 = simulateDelayRecursion(0.2, 3, 200, 1).delta
+    expect(-1 / Math.log(delayStable(0.2, 3).rho)).toBeCloseTo(6.18, 2)
+    expect(Array.from(run3).reduce((last, v, k) => (Math.abs(v) > Math.exp(-1) ? k : last), 0) + 1).toBe(4)
+  })
+
+  it('PM Lab 的圖說：d = 0 才叫「解析包絡」；d ≥ 1 說明是漸近速率的參考線、不是包絡', () => {
+    expect(stepCaption(false, true, 0)).toContain('解析包絡')
+    expect(stepCaption(false, true, 0)).not.toContain('參考線')
+    for (const d of [1, 2, 6]) {
+      const cap = stepCaption(false, true, d)
+      expect(cap).not.toContain('解析包絡')
+      expect(cap).toContain('只是漸近速率的參考線，不是包絡')
+      expect(cap).toContain(String.raw`\delta_k/\delta_0=(1+k/2)\,2^{-k}`)
+    }
+    // 裁切時兩句都留；沒畫點線時不提點線
+    expect(stepCaption(true, true, 1)).toMatch(/^發散的曲線已裁切.*不是包絡/)
+    expect(stepCaption(true, false, 1)).not.toMatch(/點線|包絡/)
+    expect(stepCaption(false, false, 0)).not.toMatch(/點線|包絡/)
+    expect(stepCaption(false, false, 0).length).toBeGreaterThan(0)
+  })
+
+  it('PM Lab：d = 1、g = 0.25 時 τ 那一列標「漸近衰減率／近似」、圖例是「漸近速率參考線」；回到 d = 0 才是「時間常數／精確」與「包絡」', async () => {
+    const { container, getByLabelText } = wrap(<PmLab />, '/ch/08', 'engineer')
+    const set = (label: string, value: string) =>
+      act(() => {
+        fireEvent.change(getByLabelText(label), { target: { value } })
+      })
+    const tauRow = () => Array.from(container.querySelectorAll('.c-metric-table tbody tr')).find((tr) => (tr.textContent ?? '').includes(String.raw`\tau=-1/\ln\rho`))
+    const rhoLineNames = () => {
+      const calls = P.react.mock.calls as unknown as [unknown, { name?: string }[]][]
+      return calls.flatMap((c) => c[1].map((t) => t.name ?? '')).filter((nm) => /1\s*±/.test(nm)) // Plot 把 `$1 \pm \rho^k$` 轉成 1±ρ^k
+    }
+    const settle = () =>
+      act(async () => {
+        await new Promise((r) => setTimeout(r, 50))
+      })
+    await settle()
+    P.react.mockClear() // 前面的測試也畫過 PM Lab：只看這一題的圖
+    set('g（正規化 loop gain）', '0.5')
+    await waitFor(() => expect(tauRow()?.textContent ?? '').toContain('1.4427'))
+    expect(tauRow()?.textContent).toContain('時間常數')
+    expect(tauRow()?.textContent).toContain('精確')
+    expect(tauRow()?.textContent).not.toContain('漸近')
+    await waitFor(() => expect(rhoLineNames().some((nm) => nm.includes('包絡'))).toBe(true))
+    expect(rhoLineNames().some((nm) => nm.includes('參考線'))).toBe(false)
+    expect(container.textContent).toContain('解析包絡')
+
+    await settle()
+    P.react.mockClear()
+    set('d（更新延遲 blocks）', '1')
+    set('g（正規化 loop gain）', '0.25')
+    await waitFor(() => expect(tauRow()?.textContent ?? '').toContain('漸近衰減率'))
+    // 數字不變（ρ = 0.5 ⇒ 1.4427），變的是標籤：不再標「精確」
+    expect(tauRow()?.textContent).toContain('1.4427')
+    expect(tauRow()?.textContent).toContain('近似')
+    expect(tauRow()?.textContent).not.toContain('精確')
+    expect(tauRow()?.textContent).toContain('不是平均誤差的包絡')
+    await waitFor(() => expect(rhoLineNames().some((nm) => nm.includes('漸近速率參考線'))).toBe(true))
+    expect(rhoLineNames().some((nm) => nm.includes('包絡'))).toBe(false)
+    expect(container.textContent).not.toContain('解析包絡')
+    expect(container.textContent).toContain('只是漸近速率的參考線，不是包絡')
+    expect(container.querySelectorAll('.c-tex-error, .katex-error')).toHaveLength(0)
+    expect(errorSpy).not.toHaveBeenCalled()
+  }, SLOW)
+
+  it('雙迴路：Gallery #5 的 |δ_k| 最多比 ρ^k 高 2.2%（上限 1/√(1 − μ_c/μ)）；重根 μ = 0.05 是 δ_k = (1 + k/9)·0.9^k，k = 300 時是 ρ^k 的 34 倍', () => {
+    const p = { r: 0.8, b: 0.2, c: 1, mu: 1.2 }
+    const ref = dualLoopRhoReference(p, 300)
+    // 複數 pole 的解是 M·ρ^k·cos(kθ − ψ)，M = 1/√(1 − μ_c/μ)（由 δ_0 = δ_1 = 1 定出），μ_c = (1 − r_s)²/(4 b_s c_s) = 0.05
+    const M = 1 / Math.sqrt(1 - 0.05 / 1.2)
+    expect(M).toBeCloseTo(1.0215, 4)
+    expect(ref.maxRatio).toBeLessThanOrEqual(M + 1e-12)
+    expect(ref.maxRatio).toBeGreaterThan(1.021)
+    expect(((ref.maxRatio - 1) * 100).toFixed(1)).toBe('2.2')
+    const rho = analyzeDualLoop(p).rho
+    const over = Array.from(simulateFullModel(p, 300).delta, (v, k) => Math.abs(v) / rho ** k).filter((v) => v > 1 + 1e-12)
+    expect(over).toHaveLength(39)
+    // 重根
+    expect(ref.muDouble).toBe(0.05)
+    expect(ref.zDouble).toBeCloseTo(0.9, 12)
+    expect(analyzeDualLoop({ ...p, mu: 0.05 }).rho).toBeCloseTo(0.9, 6)
+    const dbl = simulateFullModel({ ...p, mu: 0.05 }, 300).delta
+    for (let k = 0; k <= 300; k++) expect(dbl[k] / 0.9 ** k).toBeCloseTo(1 + k / 9, 8)
+    expect(ref.doubleRatio).toBeCloseTo(1 + 300 / 9, 8)
+    expect(ref.doubleRatio.toFixed(0)).toBe('34')
+    // 重根那一列的 τ = −1/ln 0.9 = 9.49 blocks 只是漸近時間常數：(1 + k/9)·0.9^k 在 k = 20 還是 0.392 > 1/e，k = 21 才是 0.365；
+    // 簡化模型（pole 0.95）的 τ = 19.50 blocks 反而接近
+    expect((1 + 20 / 9) * 0.9 ** 20).toBeGreaterThan(Math.exp(-1))
+    expect((1 + 21 / 9) * 0.9 ** 21).toBeLessThan(Math.exp(-1))
+    expect(ref.doubleBelowE).toBe(21)
+    const dblRow = analyzeDualLoop({ ...p, mu: 0.05 })
+    expect(-1 / Math.log(dblRow.rho)).toBeCloseTo(9.49, 2)
+    expect(dblRow.simplifiedPole).toBeCloseTo(0.95, 12)
+    expect(-1 / Math.log(dblRow.simplifiedPole)).toBeCloseTo(19.5, 2)
+    // 實數相異根（μ = 0.02）也會高出一個常數倍：A = (1 − z_2)/(z_1 − z_2) = 1.1455
+    const a02 = analyzeDualLoop({ ...p, mu: 0.02 })
+    const [z1, z2] = a02.poles.map((z) => z.re).sort((x, y) => y - x)
+    const tr02 = simulateFullModel({ ...p, mu: 0.02 }, 300).delta
+    expect(tr02[300] / a02.rho ** 300).toBeCloseTo((1 - z2) / (z1 - z2), 6)
+    expect((1 - z2) / (z1 - z2)).toBeCloseTo(1.1455, 4)
+  })
+
+  it('Dual-Loop Explorer 與穩定性檢查流程圖：點線叫「ρ^k 參考線」，不叫包絡', async () => {
+    expect(STABILITY_CHECK_CHART).toContain(String.raw`疊上 $\rho^k$ 參考線`)
+    expect(STABILITY_CHECK_CHART).not.toContain('包絡')
+    for (const url of ['/ch/08', '/ch/08?preset=dual-loop-second-order']) {
+      P.react.mockClear()
+      const { container, unmount } = wrap(<DualLoopLab />, url, 'engineer')
+      await waitFor(() => {
+        const names = (P.react.mock.calls as unknown as [unknown, { name?: string }[]][]).flatMap((c) => c[1].map((t) => t.name ?? ''))
+        expect(names.some((nm) => nm.includes('參考線（漸近速率'))).toBe(true)
+        expect(names.some((nm) => nm.includes('包絡'))).toBe(false)
+      })
+      const text = container.textContent ?? ''
+      expect(text).toMatch(/只給漸近速率，不是 /)
+      expect(text).toContain('的包絡')
+      expect(text).not.toMatch(/要看包絡|\$/)
+      unmount()
+    }
+    expect(errorSpy).not.toHaveBeenCalled()
   }, SLOW)
 })
 

@@ -9,7 +9,7 @@
  *   x_ref 的四種做法（下方 #region core:raw / delayed / filtered / secondDiff，頁面以 CodeCompare 並排）：
  *     raw        x_ref[n] = x[n]
  *     delayed    x_ref[n] = x[n − D]                    （D 級 shift register + MUX）
- *     filtered   x_ref[n] = u_f[n − D]，u_f = ĥ * x     （Ĥ 為 H 的模型；D 可補 Ĥ 漏算的 latency）
+ *     filtered   x_ref[n] = u_f[n − D]，u_f = ĥ * x     （Ĥ 為 H 的模型；D 補 Ĥ 沒有包含的串聯純延遲；平均相關是 F-07.12 的 C_{f,D}）
  *     secondDiff x_ref[n] = K₂·(x[n] − 2x[n−1] + x[n−2])（Ĥ₂(z) = K₂(1 − z⁻¹)²，K₂ = 1/(ω̂_nT_s)²：Type-II 的低頻近似）
  *
  *   平均相關（決定更新極性與 pole）：
@@ -900,7 +900,7 @@ export interface FxLabAnalysis {
   freq: PhaseProfile & { sxx: Float64Array | null }
   /** 單頻 code 時的 H(e^{jΩ}) 與 Ĥ(e^{jΩ}) */
   tone: { omega: number; H: Complex; Hhat: Complex; thetaDeg: number; marginDeg: number; best: ReturnType<typeof bestToneDelay> } | null
-  /** 解釋性警告（C ≤ 0 的極性、C ≈ 0、Ĥ ≠ H 時的 E45 提醒、Ĥ 建構問題） */
+  /** 解釋性警告（C ≤ 0 的極性、C ≈ 0、Ĥ ≠ H 或 filtered-x 的 D ≠ 0 時「有效相關不是 E[u²]」的提醒、Ĥ 建構問題） */
   warnings: string[]
   /** 經驗相關使用的樣本數 L（不含 transient） */
   samples: number
@@ -1143,9 +1143,13 @@ export function analyzeFxLab(p: FxLabParams): FxLabAnalysis {
   if (!Number.isFinite(cAct)) {
     warnings.push(`C 不是有限數（${cAct}）：誤差路徑或 Ĥ 的輸出發散，無法判斷極性；請檢查迴路是否穩定`)
   } else if (cAct < -tolC) {
+    // filtered-x 的 regressor 是 u_f[n − D]：D ≠ 0 時相關是 C_{f,D} = E[u[n]·u_f[n − D]]（F-07.12），多出來的相位 ΩD 也會讓它變號——
+    // 即使 Ĥ = H。D = 0 的字串維持原樣（Ĥ ≠ H 才可能走到這裡，原因是模型誤差，E45）。
     warnings.push(
       p.mode === 'filtered'
-        ? `C ≤ 0：E[u·u_f] = ${cAct.toPrecision(4)} < 0，Ĥ 與 H 在激勵頻帶的相位差超過 90°（E45）：filtered-x 一樣會反向更新`
+        ? D === 0
+          ? `C ≤ 0：E[u·u_f] = ${cAct.toPrecision(4)} < 0，Ĥ 與 H 在激勵頻帶的相位差超過 90°（E45）：filtered-x 一樣會反向更新`
+          : `C ≤ 0：E[u[n]·u_f[n−D]] = ${cAct.toPrecision(4)} < 0（D = ${D}）：regressor 多延遲 D 個 sample，每個頻率多出相位 ΩD，殘餘相位（Ĥ 與 H 的相位差再加 ΩD）在激勵頻帶超過 90°：filtered-x 一樣會反向更新（F-07.12）`
         : `C ≤ 0：更新極性錯誤（C = ${cAct.toPrecision(4)}），正 learning rate 會使平均誤差發散；只減小 μ 不會改變符號`,
     )
   } else if (!(cAct > tolC)) {
@@ -1154,9 +1158,16 @@ export function analyzeFxLab(p: FxLabParams): FxLabAnalysis {
     )
   }
   if (p.mode === 'raw' && D !== 0) warnings.push(`raw-x 模式忽略 D = ${D}（請改用 delayed-x 或 filtered-x）`)
-  if (p.mode === 'filtered' && !hat.exact) {
+  if (p.mode === 'filtered' && (!hat.exact || D !== 0)) {
+    // 有效相關不是 E[u²] 的兩個原因：模型誤差（Ĥ ≠ H，E45）與 regressor 的額外延遲（D ≠ 0，F-07.12）
     const eu2 = Eu2.analytic ?? Eu2.empirical
-    warnings.push(`Ĥ ≠ H：有效相關是 E[u·u_f] = ${cAct.toPrecision(4)}，不是 E[u²] = ${eu2.toPrecision(4)}（E45）`)
+    warnings.push(
+      D === 0
+        ? `Ĥ ≠ H：有效相關是 E[u·u_f] = ${cAct.toPrecision(4)}，不是 E[u²] = ${eu2.toPrecision(4)}（E45）`
+        : hat.exact
+          ? `D = ${D} ≠ 0：有效相關是 E[u[n]·u_f[n−D]] = ${cAct.toPrecision(4)}，不是 E[u²] = ${eu2.toPrecision(4)}（F-07.12）`
+          : `Ĥ ≠ H、D = ${D} ≠ 0：有效相關是 E[u[n]·u_f[n−D]] = ${cAct.toPrecision(4)}，不是 E[u²] = ${eu2.toPrecision(4)}（E45）`,
+    )
   }
 
   return {

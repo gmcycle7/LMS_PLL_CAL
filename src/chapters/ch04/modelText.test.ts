@@ -48,9 +48,11 @@ const FP_CASES: Partial<FixedLoopParams>[] = [
   { mu: 1000 }, // g ≥ 2
   { sigmaV: 0 }, // 沒有雜訊
   { log2N: 14, gFracBits: 0, accBits: 20 }, // ÷N 的 dead zone
+  { log2N: 12, gFracBits: 0, accBits: 20, rounding: 'toward_zero' }, // ÷N 的 dead zone（toward-zero：下限加倍，σ_S/2^ℓ = 0.284 也警告）
   { gFracBits: 4, rounding: 'half_even', wLsb: 0.15625, wRounding: 'floor' }, // W floor（preset gmac-fp-w-truncation 的 Case B）
   { gFracBits: 4, rounding: 'half_even', wLsb: 0.15625, wRounding: 'half_up' },
   { gFracBits: 4, rounding: 'half_even', wLsb: 1.25, wRounding: 'floor' }, // W 的 dead zone
+  { gFracBits: 4, rounding: 'half_even', wLsb: 0.625, wRounding: 'toward_zero' }, // W 的 dead zone（toward-zero：μσ_G/Δ_W = 0.284）
   { aTrue: 20, antiWindup: true }, // a 超出實體範圍
   { aTrue: 20, antiWindup: false },
   { aTrue: 20, antiWindup: false, regOverflow: 'wrap' }, // gain 暫存器 wrap（沒有數學，原樣）
@@ -143,6 +145,22 @@ describe('Ch04 模型文字 → LaTeX（modelText.ts）', () => {
     expect(sum.warnings.map(texifyModelText).join('\n')).toMatch(/gm_mode=sum 時有效增益放大 \$N\$ 倍（\$N=16\$：\$g=6\.383\$；若沿用 average 模式的 \$\\mu\$，需改為 \$\\mu\/N=0\.625\$）/)
     // sum 模式的假設：模型把總和也寫成 G_k，頁面改用本站的 S_k（勘誤 E07 / E18）
     expect(sum.assumptions.map(texifyModelText).join('\n')).toContain(String.raw`GMAC（sum 模式）：$S_k=\sum q\,x_\mathrm{ref}$（$N=16$），$w_{k+1}=w_k+\mu S_k$`)
+  })
+
+  it('toward-zero 的 dead zone 警告（下限加倍）：兩個取整點各一句，數字原樣沿用', () => {
+    const shift = runFixedGmacLoop({ ...FP_BASE, log2N: 12, gFracBits: 0, accBits: 20, rounding: 'toward_zero' }).warnings.find((w) => w.includes('dead zone'))!
+    expect(shift).toContain('σ_S/2^ℓ = 0.284 < 0.5（toward-zero 的下限是 floor 的兩倍）')
+    expect(texifyModelText(shift)).toBe(
+      String.raw`$\sigma_S/2^\ell=0.284<0.5$（toward-zero 的下限是 floor 的兩倍）：$|S|<2^\ell$ 時 toward-zero 一律輸出 $0$，$0$ 兩側的平台合起來寬 $2$ 個 LSB——平衡點 $\delta=0$ 附近的回復斜率只剩 $\chi\approx0.0057$（$1$ = 沒有取整），迴路實際上停在 dead zone 裡，偏差預測（F-04.11）不再適用。請保留更多小數位元 $F_G$`,
+    )
+    const wq = runFixedGmacLoop({ ...FP_BASE, gFracBits: 4, rounding: 'half_even', wLsb: 0.625, wRounding: 'toward_zero' }).warnings.find((w) => w.includes('dead zone'))!
+    expect(texifyModelText(wq)).toBe(
+      String.raw`$\mu\sigma_G/\Delta_W=0.284<0.5$（toward-zero 的下限是 floor 的兩倍）：更新量的絕對值小於一個 $W$-LSB 時 toward-zero 一律取成 $0$，$0$ 兩側的平台合起來寬 $2$ 個 LSB——平衡點 $\delta=0$ 附近的回復斜率只剩 $\chi\approx0.0057$，迴路停在 dead zone 裡，偏差預測（F-04.18）不再適用（實體 gain 量化的完整討論見 Ch13）`,
+    )
+    // 極小的斜率以科學記號印出時也能轉換（σ_S/2^ℓ = 0.142：χ ≈ 9.8e-11）
+    const tiny = runFixedGmacLoop({ ...FP_BASE, log2N: 14, gFracBits: 0, accBits: 20, rounding: 'toward_zero', numBlocks: 20 }).warnings.find((w) => w.includes('dead zone'))!
+    expect(tiny).toContain('χ ≈ 9.8e-11')
+    expect(texifyModelText(tiny)).toContain(String.raw`$\chi\approx9.8\times10^{-11}$`)
   })
 
   it('不在對照表裡的句子、已含 $ 的字串原樣回傳；數字格式', () => {

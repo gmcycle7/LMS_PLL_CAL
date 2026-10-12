@@ -5,7 +5,9 @@ import { FORMULAS } from './formulas'
 import { mathTextProblems } from './mathTextTestUtils'
 import {
   DEFAULT_PARAMS,
+  comparatorGain,
   evaluateThesis,
+  fixedToneRadius,
   impulseEnergyClosed,
   impulseEnergyClosedD1,
   impulseEnergyLyapunov,
@@ -56,5 +58,44 @@ describe('Dashboard 公式登錄（F-DB.n）', () => {
     expect(r.betaRad).toBeCloseTo(2 * Math.PI * p.foutGHz * 1e9 * p.Tmag * r.AtPeak * 1e-15, 18)
     expect(r.spurDbc).toBeCloseTo(20 * Math.log10(Math.PI * p.foutGHz * 1e9 * p.Tmag * r.AtPeak * 1e-15), 10)
     expect(r.spurDbc).toBeCloseTo(-93.8, 1) // T15
+  })
+
+  it('F-DB.6（R12 的對照）：兩個固定同頻單頻 code 的特徵值 λ± = cos θ ± √(ρ² − sin²θ)，與計算核心的 fixedToneRadius 一致', () => {
+    const f6 = FORMULAS.find((f) => f.id === 'F-DB.6')!
+    expect(f6.claim).toBe('exact')
+    expect(f6.conditions).toContain('固定單頻 code')
+    expect(f6.conditions).toContain(String.raw`$\rho=\cos(\psi_2-\psi_1)$`)
+    const Kq = comparatorGain(DEFAULT_PARAMS.sigmaV)
+    const base = { ...DEFAULT_PARAMS, twoParam: true, update: 'scalar' as const, d: 0 }
+    // ρ = 0.9、θ = 30°、g′ = 1：兩個實特徵值
+    const th = (30 * Math.PI) / 180
+    const lam = [Math.cos(th) + Math.sqrt(0.81 - 0.25), Math.cos(th) - Math.sqrt(0.81 - 0.25)]
+    expect(lam[0]).toBeCloseTo(1.614356881139227, 12)
+    expect(lam[1]).toBeCloseTo(0.11769392642965038, 12)
+    expect(lam[0] + lam[1]).toBeCloseTo(2 * Math.cos(th), 12) // λ₊ + λ₋ = 2 cos θ
+    expect(lam[0] * lam[1]).toBeCloseTo(1 - 0.81, 12) // λ₊ λ₋ = 1 − ρ²
+    const radius = Math.max(...lam.map((l) => Math.abs(1 - l)))
+    expect(radius).toBeCloseTo(0.8823060735703496, 12)
+    expect(fixedToneRadius({ ...base, mu: 1 / Kq, rho: 0.9, phiDeg: 30 })).toBeCloseTo(radius, 12)
+    // ρ = 0、θ = 60°、g′ = 1.5：共軛複數特徵值 e^{±j60°}，|1 − 1.5 e^{j60°}| = √1.75
+    expect(Math.hypot(1 - 1.5 * Math.cos(Math.PI / 3), 1.5 * Math.sin(Math.PI / 3))).toBeCloseTo(Math.sqrt(1.75), 14)
+    expect(fixedToneRadius({ ...base, mu: 1.5 / Kq, rho: 0, phiDeg: 60 })).toBeCloseTo(Math.sqrt(1.75), 12)
+    // θ = 0° 時回到本模型的 C(1 ± ρ)
+    const p0 = { ...base, mu: 0.75 / Kq, rho: 0.5, phiDeg: 0 }
+    expect(fixedToneRadius(p0)).toBeCloseTo(evaluateThesis(p0).maxRadius, 12)
+    // F-DB.4 的條件寫明交叉相關假設，並指到 F-DB.6
+    const f4 = FORMULAS.find((f) => f.id === 'F-DB.4')!
+    expect(f4.claim).toBe('approx')
+    expect(f4.conditions).toContain(String.raw`$E[x_i[n-D]\,u_j[n]]=C\,\tilde R_{ij}$`)
+    expect(f4.conditions).toContain('F-DB.6')
+  })
+
+  it('F-DB.5（R14）：條件寫明單參數、DTC-referred、和預算比；雙參數時 random 部分不是這個封閉式', () => {
+    const f5 = FORMULAS.find((f) => f.id === 'F-DB.5')!
+    expect(f5.claim).toBe('approx')
+    for (const need of ['單參數', 'DTC-referred', 'F-12.17', '不是校正前後的比較']) expect(f5.conditions, need).toContain(need)
+    const two = evaluateThesis({ ...DEFAULT_PARAMS, twoParam: true, rho: 0 })
+    expect(two.sigmaDtRand).toBeCloseTo(Math.SQRT2 * 0.39918614299092875, 10)
+    expect(two.sigmaDt).toBeGreaterThan(Math.sqrt(DEFAULT_PARAMS.Px * (two.deltaW ** 2 + two.sigmaW ** 2)) + 0.1)
   })
 })

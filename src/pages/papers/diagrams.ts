@@ -82,7 +82,7 @@ export const CHART_CONVENTION_BRIDGE = String.raw`flowchart TB
   S --> GI["$g_i = s\,\lambda_i$<br/>第 $i$ 個 eigen-mode 的 loop gain"]
   GI --> P["$p_i = 1 - g_i$<br/>無延遲時的 pole"]
   P --> Q{"每個 mode 的 $|p_i|$<br/>都小於 1 嗎？"}
-  Q -- "是" --> OK["平均（mean）收斂<br/>最慢的是 $\lambda_{\min}$ 那個 mode"]
+  Q -- "是" --> OK["平均（mean）收斂<br/>最慢的是 $|p_i|$ 最大的 mode"]
   Q -- "否" --> BAD["平均不收斂<br/>先檢查 $s\,\lambda_{\max}$ 是否超過 2"]
   ${FOCUS}
   ${PASS}

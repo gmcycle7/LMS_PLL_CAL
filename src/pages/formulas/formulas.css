@@ -305,9 +305,14 @@
 .fr-table td > .c-texblock {
   margin: 2px 0;
 }
+/*
+ * padding-right：表格的公式欄寬由最寬的那條公式決定，所以那條公式一定「剛好排滿」；最後一個字的上標或斜體比行框多凸出 1–2px，
+ * 就會冒出一條只能捲 2px、沒有用途的捲軸（和下方手機規則同一個原因）。右邊留 3px，凸出的部分落在留白裡。
+ */
 .fr-table .c-texblock-math .katex-display {
   margin: 0.25em 0;
   text-align: left;
+  padding-right: 3px;
 }
 .fr-table .c-texblock-math .katex-display > .katex {
   text-align: left;
@@ -322,9 +327,12 @@
 .fr-sym-cell {
   white-space: nowrap;
 }
-.fr-sym-table td:nth-child(2),
-.fr-sym-table td:nth-child(4) {
+.fr-sym-table td:nth-child(2) {
   min-width: 14em;
+}
+/* 「全站約定」欄：這張表在桌機上本來就橫向捲動，這一欄只拿得到 min-width；14em 時較長的約定會排成三百 px 高的細長條 */
+.fr-sym-table td:nth-child(4) {
+  min-width: min(22em, 36vw);
 }
 .fr-example {
   font-size: 0.86rem;
@@ -340,8 +348,12 @@ td.fr-spec-orig {
 .fr-quick-table td:nth-child(2) {
   min-width: 17em;
 }
+/* 「使用條件」與「代入數字」欄：同上（附錄 A 在桌機上也橫向捲動）；13em／12em 時 Sign-Error、Filtered-x、單頻三列高約 310px */
 .fr-quick-table td:nth-child(3) {
-  min-width: 13em;
+  min-width: min(22em, 36vw);
+}
+.fr-quick-table td.fr-example {
+  min-width: min(19em, 30vw);
 }
 .fr-quick-topic {
   min-width: 7em;
@@ -398,12 +410,29 @@ tr.fr-focus > td:first-child {
 .fr-reg-summary {
   margin: 4px 0 8px;
 }
+/* 公式欄：寬度由最寬的那條獨立公式決定；全部都很短時至少留 26em 給下面的使用條件換行（窄視窗不超過視窗寬的六成） */
 .fr-reg-formula {
-  min-width: 18em;
+  min-width: min(26em, 60vw);
 }
+/*
+ * 使用條件：放在公式的正下方（同一格）。原本另外佔一欄，但登錄表在桌機上要橫向捲動，那一欄只拿得到 12em（約 165px）的最小寬度，
+ * 四五百字的條件排成六七百 px 高的細長條。放進公式那一格之後，條件用公式欄的寬度換行，不必橫向捲動就讀得到。
+ */
 .fr-reg-cond {
-  min-width: 12em;
+  margin-top: 4px;
   font-size: 0.86rem;
+}
+.fr-reg-cond-label {
+  display: inline-block;
+  margin-right: 0.6em;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 .fr-f-title {
   font-weight: 600;

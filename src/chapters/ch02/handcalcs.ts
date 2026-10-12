@@ -231,7 +231,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: 'Sign-Error 固定步長：走幾步、最後在哪兩點之間跳',
     page: PAGE,
     formulaId: 'F-02.10',
-    formulaTex: String.raw`\delta_0=a-w_0,\quad h=\mu|x|,\quad n_c=\Big\lfloor\frac{|\delta_0|}{h}\Big\rfloor,\quad \rho=|\delta_0|-n_c\,h,\quad w_n\in\big\{a-\operatorname{sgn}(\delta_0)\,\rho,\ \ a+\operatorname{sgn}(\delta_0)(h-\rho)\big\}\ \ (n\ge n_c)`,
+    formulaTex: String.raw`\begin{gathered}\delta_0=a-w_0,\quad h=\mu|x|,\quad n_c=\Big\lfloor\frac{|\delta_0|}{h}\Big\rfloor,\quad \rho=|\delta_0|-n_c\,h\\[4pt]w_n\in\big\{a-\operatorname{sgn}(\delta_0)\,\rho,\ \ a+\operatorname{sgn}(\delta_0)(h-\rho)\big\}\ \ (n\ge n_c)\end{gathered}`,
     level: 'beginner',
     claim: 'exact',
     inputs: [
@@ -614,7 +614,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: String.raw`單邊突波（outlier）：LMS 被拉走多少、Sign-Error 被拉走多少`,
     page: PAGE,
     formulaId: 'F-02.18',
-    formulaTex: String.raw`\psi_{\rm LMS}(a)=E[v]\,E[x],\quad \psi_{\rm SE}(a)=E[\operatorname{sign}v]\,E[x];\qquad x\equiv A:\ \ w^*_{\rm LMS}=a+\frac{E[v]}{A},\quad w^*_{\rm SE}=a+\frac{\operatorname{med}(v)}{A},\quad \operatorname{med}(v)\approx\sigma_v\,\Phi^{-1}\!\Big(\frac{1}{2(1-p_{\rm out})}\Big)`,
+    formulaTex: String.raw`\begin{gathered}\psi_{\rm LMS}(a)=E[v]\,E[x],\quad \psi_{\rm SE}(a)=E[\operatorname{sign}v]\,E[x]\\[4pt]x\equiv A:\ \ w^*_{\rm LMS}=a+\frac{E[v]}{A},\quad w^*_{\rm SE}=a+\frac{\operatorname{med}(v)}{A}\\[4pt]\operatorname{med}(v)\approx\sigma_v\,\Phi^{-1}\!\Big(\frac{1}{2(1-p_{\rm out})}\Big)\end{gathered}`,
     level: 'research',
     claim: 'approx',
     inputs: [
@@ -836,7 +836,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: String.raw`綜合：1-bit 校正迴路的增益、pole、時間常數與穩態抖動`,
     page: PAGE,
     formulaId: 'F-02.13',
-    formulaTex: String.raw`K_q=\sqrt{\tfrac{2}{\pi}}\,\frac{1}{\sigma_v},\quad K_{\rm SE}=K_q\,E[x^2],\quad p=1-\mu K_{\rm SE},\quad \tau=\frac{-1}{\ln|p|},\quad \operatorname{Var}(w)\approx\frac{\mu\,\sigma_\eta^2}{K\,(2-\mu K)},\quad \frac{\operatorname{Var}_{\rm SE}}{\operatorname{Var}_{\rm LMS}}\bigg|_{\text{同 }\mu K}=\frac{\pi}{2}`,
+    formulaTex: String.raw`\begin{gathered}K_q=\sqrt{\tfrac{2}{\pi}}\,\frac{1}{\sigma_v},\quad K_{\rm SE}=K_q\,E[x^2],\quad p=1-\mu K_{\rm SE},\quad \tau=\frac{-1}{\ln|p|}\\[4pt]\operatorname{Var}(w)\approx\frac{\mu\,\sigma_\eta^2}{K\,(2-\mu K)},\quad \frac{\operatorname{Var}_{\rm SE}}{\operatorname{Var}_{\rm LMS}}\bigg|_{\text{同 }\mu K}=\frac{\pi}{2}\end{gathered}`,
     level: 'engineer',
     claim: 'approx',
     inputs: [

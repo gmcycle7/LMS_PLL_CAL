@@ -188,6 +188,7 @@ describe('verification：勘誤工具', () => {
       texOk(m.fix, `${eid} fix`)
     }
     expect(Object.entries(ERRATA_MATH).filter(([, m]) => m.spec === null).map(([eid]) => eid)).toEqual(['E25', 'E36', 'E43'])
+    for (const [eid, m] of Object.entries(ERRATA_MATH)) if (m.addendum !== undefined) inlineOk(m.addendum, `${eid} addendum`)
     // 摘要裡引用的關鍵數字真的出現在原文（抽查）
     const text = (eid: string) => {
       const e = erratumById(eid)!
@@ -198,6 +199,23 @@ describe('verification：勘誤工具', () => {
     expect(text('E06')).toContain('20.29')
     expect(text('E14')).toContain('2.4212')
     expect(text('E47')).toContain('8.36')
+  })
+
+  it('技術審查 R05：E01 的原文（歷史紀錄）仍寫「由 E[x·sign(e)]=0 決定」，卡片用 addendum 說明無雜訊、離散 code 時是變號點而不是根；errata.json 與 docs/validation.md 的原文一致', () => {
+    const e = erratumById('E01')!
+    expect(e.problem).toContain('無雜訊時 Sign-LMS 的固定點由 E[x·sign(e)]=0 決定')
+    expect(read('docs/validation.md')).toContain(e.problem)
+    const m = ERRATA_MATH.E01
+    expect(m.fix).toContain(String.raw`\text{由正變負（跳過 }0\text{）}`)
+    expect(m.addendum).toBeDefined()
+    for (const need of ['階梯函數', '變號的位置', '加權中位數', String.raw`由 $+0.4$ 直接跳到 $-1.2$`, '數值不變']) expect(m.addendum, need).toContain(need)
+    // 無雜訊 GMAC 的兩個平台值（原文的數值證據）：w ∈ (1.1, 1.4) 時 +0.4、w > 1.4 時 −1.2；用整數（全部乘 10）重算
+    const G10 = (w10: number) => [-2, -1, 0, 1, 2].reduce((acc, x) => acc + x * Math.sign((10 - w10) * x + x ** 3), 0) / 5
+    expect(G10(13)).toBeCloseTo(0.4, 12)
+    expect(G10(15)).toBeCloseTo(-1.2, 12)
+    expect(e.evidence).toContain('w∈(1.1,1.4) 時 G=+0.4，w>1.4 時 G=-1.2')
+    // 只有需要的勘誤才有 addendum（目前只有 E01）
+    expect(Object.entries(ERRATA_MATH).filter(([, x]) => x.addendum !== undefined).map(([eid]) => eid)).toEqual(['E01'])
   })
 
   it('errataMath 的數字不是另外編的：摘要與公式中的每個小數、每個三位以上的整數，都逐字出現在該勘誤的原文裡', () => {
@@ -216,6 +234,13 @@ describe('verification：勘誤工具', () => {
       }
     }
     expect(checked).toBeGreaterThan(60)
+    // 補充（addendum）裡的數字同樣要出現在原文
+    for (const [eid, m] of Object.entries(ERRATA_MATH)) {
+      if (!m.addendum) continue
+      const e = erratumById(eid)!
+      const source = `${e.location} ${e.problem} ${e.correction} ${e.evidence}`.replace(/−/g, '-')
+      for (const n of m.addendum.match(/(?<![\w.{^_])\d+\.\d+/g) ?? []) expect(source.includes(n), `${eid}：addendum 的「${n}」不在原文中`).toBe(true)
+    }
     // 例外清單本身也要站得住腳：四捨五入後與原文的數字一致
     expect((0.00797885).toFixed(5)).toBe('0.00798')
     expect((20289.0 / 1000).toFixed(3)).toBe('20.289')

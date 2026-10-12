@@ -3,7 +3,7 @@
   "title": "1-bit comparator、物理 K_q：μ = 0.5 fs 需要 75,091 blocks（勘誤 E05）",
   "page": "/ch/09",
   "experiment": "pe-eigen-lab",
-  "description": "同樣的「μ = 0.5」，改成 1-bit comparator（σ_v = 100 fs ⇒ K_q = 0.00797885 fs⁻¹）且 μ 以物理單位 fs 輸入：g = μK_q = 0.00399，慢 pole 0.99996011。",
+  "description": "同樣的「μ = 0.5」，改成 1-bit comparator（σ_v = 100 fs ⇒ K_q = 0.00797885 fs⁻¹）且 μ 以物理單位 fs 輸入：g = μK_q = 0.00399，慢 pole 0.99996011（1-bit 的 K_q 是小訊號增益：平均遞迴的 pole 以 |uᵀδ_k| ≪ σ_v 為前提）。",
   "params": {
     "rho": 0.99,
     "dist": "gaussian",
@@ -19,7 +19,7 @@
     "chains": 32,
     "seed": 20261010
   },
-  "expected": "K_q = 0.00797885 fs⁻¹、g = 0.0039894；慢 pole 0.99996011，k₉₅ = 75,091 blocks（不是 598）。把 K_q 模式切回「正規化」並設 g = 0.5，對應 μ = 62.666 fs。",
+  "expected": "K_q = 0.00797885 fs⁻¹、g = 0.0039894；小訊號平均遞迴的慢 pole 0.99996011，k₉₅ = 75,091 blocks（不是 598）。把 K_q 模式切回「正規化」並設 g = 0.5，對應 μ = 62.666 fs。",
   "tests": ["T11"],
   "source": "illustrative"
 }

@@ -7,6 +7,10 @@
  * 模型（時間量一律 fs；code / regressor 正規化、無因次）：
  *   x_i[n]   單頻 code（第 i 個校正參數的 regressor），E[x_i²] = P_x，E[x_1 x_2] = ρ·P_x
  *   u[n]     = (h * x)[n]：經 PLL error path 的有效 regressor；單頻時 C = E[x u] = P_x |H| cos(φ + ΩD)
+ *   雙參數的額外假設：E[x_i[n−D]·u_j[n]] = C·R̃_ij。零延遲的 ρ 保證不了這件事：兩個固定的同頻單頻 code（ρ = cos ψ）的真值是
+ *     P_x|H|cos(θ + ψ_j − ψ_i) = C·R̃_ij − P_x|H| sin θ sin(ψ_j − ψ_i)，只有 θ = φ + ΩD = 0°（或 |ρ| = 1）時才等於 C·R̃；
+ *     要對任何 path 都成立，需要每個延遲 m 都有 E[x_1[n]x_2[n+m]] = ρ·E[x_1[n]x_1[n+m]]（固定單頻 code 做不到）。
+ *     計算核心維持 C·R̃；fixedToneRadius() 另外算固定同頻單頻 code 的 max|z| 當對照，judge() 據此加註（F-DB.6）。
  *   e[n]     = (a − w)·u[n] + ε_det[n] + v[n]，v ~ N(0, σ_v²)            （勘誤 E12：干擾記為 ε_det）
  *   q[n]     = sign(e[n]) ∈ {±1}（硬體 0/1 先映射 q = 2b − 1）
  *   G_k      = s·(1/N)·Σ q x，s = 1（average）或 N（sum）                 （勘誤 E18）
@@ -51,7 +55,7 @@ export interface ThesisParams {
   d: number
   /** 是否同時校正第二個參數（2×2 模型） */
   twoParam: boolean
-  /** 兩個 regressor 的相關係數 ρ */
+  /** 兩個 regressor 的零延遲相關係數 ρ（E[x_1 x_2] = ρ·P_x） */
   rho: number
   update: UpdateKind
   /** code 相關的 deterministic 干擾 B = E[x_1 ε_det] [fs] */
@@ -116,6 +120,23 @@ export const PARAM_RANGE: Record<keyof Omit<ThesisParams, 'gmacMode' | 'update' 
 /** λ̃ 小於此值視為 0（不可辨識） */
 export const LAMBDA_EPS = 1e-12
 
+/**
+ * 線性化指標（linearityInit / linearityBias：gain 殘差的 RMS 除以 σ_v）的門檻。illustrative 的設計規則，
+ * 和 Ch11 的 LIN_RATIO_LIMIT（max|e_det|/σ_v ≤ 0.3）是同一個數字。
+ */
+export const LINEARITY_LIMIT = 0.3
+/** 極性裕度低於這個角度就亮「注意」[deg]（illustrative） */
+export const POLARITY_MARGIN_WARN_DEG = 30
+/**
+ * 門檻比較用的容差：剛好落在門檻上的值（例如 θ = −60° 的 M_pol = 30°）經過 cos / asin 會變成 29.999999999999993 或 30.00000000000001，
+ * 不留容差的話同一個角度有時「通過」、有時亮「注意」，還會印出「30° < 30°」。剛好等於門檻一律算在門檻內。
+ */
+const THRESHOLD_EPS = 1e-9
+/** 線性化指標是否超過門檻（留浮點容差；mcBridge 的提醒共用同一個判斷） */
+export function exceedsLinearityLimit(x: number): boolean {
+  return x > LINEARITY_LIMIT * (1 + THRESHOLD_EPS)
+}
+
 // #region core:comparatorGain
 /**
  * 1-bit comparator 的統計小訊號增益（規格 §5.1，T04）：
@@ -144,7 +165,9 @@ export function polarityOf(p: Pick<ThesisParams, 'Px' | 'Hmag' | 'phiDeg' | 'ome
   const cosTheta = Math.abs(raw) < 1e-12 ? 0 : raw // θ = ±90° 時視為 C = 0（避免 6e-17 的假正值）
   const C = p.Px * p.Hmag * cosTheta // 平均恢復力的大小與方向
   const marginDeg = (Math.asin(Math.max(-1, Math.min(1, cosTheta))) * 180) / Math.PI // M = arcsin(cos θ)
-  return { thetaDeg: wrap180((thetaRad * 180) / Math.PI), cosTheta, C, marginDeg }
+  // 顯示用的角度：先四捨五入到 10⁻⁹ 度再折返，−150° + 5 × 30° 才會是 0° 而不是 −2.5e−14°（C 與裕度由上面的 cos θ 算，不受影響）
+  const thetaDeg = wrap180(Math.round(((thetaRad * 180) / Math.PI) * 1e9) / 1e9)
+  return { thetaDeg, cosTheta, C, marginDeg }
 }
 // #endregion
 
@@ -182,12 +205,51 @@ export function delayMarginBlocks(g: number, d: number): number {
   return ((pm * Math.PI) / 180) / (2 * Math.asin(g / 2))
 }
 
-/** 平均誤差包絡 r^k 降到 5% 所需的 block 數 ⌈ln 0.05 / ln r⌉（T11：r = 0.995 → 598） */
+/**
+ * 單一實數 pole 的 |p|^k 降到 5% 所需的 block 數 ⌈ln 0.05 / ln r⌉（T11：r = 0.995 → 598）。
+ * d ≥ 1 時 max|z| 只給漸近速率：max|z|^k 不是平均誤差的包絡（重根、複數根），有限時間的 block 數見 settleDelayed。
+ */
 export function blocksTo95(r: number): number {
   if (!(r < 1)) return Infinity
   if (r <= 1e-12) return 1
   return Math.ceil(Math.log(0.05) / Math.log(r))
 }
+
+/** settleDelayed 逐 block 遞推的步數上限（超過就改列 ⌈ln 0.05 / ln max|z|⌉ 的漸近估計，並標成近似） */
+export const SETTLE_MAX_STEPS = 2_000_000
+
+// #region core:settleDelayed
+/**
+ * 有 commit 延遲時的 95% 收斂 block 數：照平均遞迴 y_{k+1} = y_k − g·y_{k−d} 逐 block 數出來。
+ * 初始歷史 y_j = 1（j ≤ 0；和 trajectory() 的軌跡圖同一個約定），回傳 1 + max{k : |y_k| > frac}，
+ * 也就是暫態最後一次超過初值 5% 的下一個 block。B ≠ 0 只是把固定點移開，「相對於固定點的暫態」仍是同一條 y_k，所以數字不變。
+ * d = 0 時 y_k = (1 − g)^k，就是 blocksTo95(|1 − g|)。
+ * 停止規則：連續 d + 1 個 |y|（整個狀態）都 ≤ frac·10⁻³ 就停。之後不會再超過 frac 的依據是「量到的」上界、不是證明：
+ * 這個遞迴的狀態最多再放大 sup_j ‖F^j‖_∞ = 1 + d·g 倍（d ≤ 8、0 < g ≤ g* 逐點量測，最大 2.48，出現在 j = d），
+ * 離 frac 還有約 400 倍的餘裕；thesisModel.test.ts 以格點（d = 0…8）和長時間的暴力遞推比對。
+ * maxSteps 內沒有停（極慢的 mode）：回傳 blocksTo95(max|z|) 並標 exact = false。
+ */
+export function settleDelayed(g: number, d: number, frac = 0.05, maxSteps = SETTLE_MAX_STEPS): { blocks: number; exact: boolean } {
+  const r = spectralRadiusOf(g, d)
+  if (!(r < 1)) return { blocks: Infinity, exact: true } // 不穩定（或 g ≤ 0）：不收斂
+  if (d === 0) return { blocks: blocksTo95(r), exact: true }
+  const L = d + 1
+  // 環形緩衝（和 trajectory() 相同）：步驟 n 開始時 ring[n % L] = y_n，ring[(n+1) % L] = y_{n−d}
+  const ring = new Float64Array(L).fill(1)
+  let lastAbove = 0
+  let small = 0
+  for (let n = 0; n < maxSteps; n++) {
+    const next = ring[n % L] - g * ring[(n + 1) % L] // y_{n+1} = y_n − g·y_{n−d}
+    ring[(n + 1) % L] = next
+    const a = Math.abs(next)
+    if (a > frac) lastAbove = n + 1 // ← 不是「第一次低於」：之後再超過也算
+    if (a <= frac * 1e-3) {
+      if (++small >= L) return { blocks: lastAbove + 1, exact: true }
+    } else small = 0
+  }
+  return { blocks: blocksTo95(r), exact: false }
+}
+// #endregion
 
 export interface ImpulseEnergy {
   /** Σ_m y_m² */
@@ -380,7 +442,12 @@ export interface ModeResult {
   radius: number
   pmDeg: number
   delayMarginBlocks: number
+  /** 95% 收斂 block 數：這個 mode 的平均暫態（初始歷史 = 初值）最後一次超過初值 5% 的下一個 block（settleDelayed） */
   t95Blocks: number
+  /** t95Blocks 是否逐 block 數出來（false = 極慢的 mode，只列漸近估計） */
+  t95Exact: boolean
+  /** 只看 max|z| 的 ⌈ln 0.05 / ln max|z|⌉（d ≥ 1 時只是漸近估計） */
+  t95Asymptotic: number
   /** Σ y²：Lyapunov 方程的精確解（d = 0 時即封閉式 1/(g(2 − g))） */
   energy: number
   /** Σ y²：照定義直接加總（交叉比對用；未收斂時為部分和） */
@@ -397,6 +464,20 @@ export interface ModeResult {
   f3dbHz: number
   /** one-sided ENBW [Hz] */
   enbwHz: number
+}
+
+/**
+ * 弱方向與強方向：可辨識 mode 裡 λ̃ 最小、最大的那兩個（可辨識的 mode 不到兩個時回傳 undefined）。
+ * modes 的順序固定是 (1, 1)/√2（λ̃ = 1 + ρ）、(1, −1)/√2（λ̃ = 1 − ρ），所以 ρ < 0 時弱方向是第一個。
+ * 要比「弱 / 強」時一律用這個函式，不要用固定的索引：modes[1] 對 modes[0] 的雜訊比在 ρ < 0 時是 1/√κ，不是 √κ。
+ * λ̃ 相同（ρ = 0）時沒有強弱之分，回傳原本的順序（strong = 第一個、weak = 最後一個）。
+ */
+export function weakStrongModes(modes: readonly ModeResult[]): { weak: ModeResult; strong: ModeResult; weakIndex: number; strongIndex: number } | undefined {
+  const idx = modes.map((_, i) => i).filter((i) => modes[i].identifiable)
+  if (idx.length < 2) return undefined
+  const weakIndex = idx.reduce((a, b) => (modes[b].lam <= modes[a].lam ? b : a))
+  const strongIndex = idx.reduce((a, b) => (modes[b].lam > modes[a].lam ? b : a))
+  return { weak: modes[weakIndex], strong: modes[strongIndex], weakIndex, strongIndex }
 }
 
 export interface ConditionCheck {
@@ -452,13 +533,23 @@ export interface ThesisResult {
   betaRad: number
   /** spur ≈ 20 log10(π f_out |T| A_t) [dBc]（小角度近似） */
   spurDbc: number
-  /** 最慢 mode 的 95% 收斂 block 數與時間 */
+  /** 最慢 mode 的 95% 收斂 block 數：平均暫態（相對於固定點；初始歷史 = 初值）最後一次超過初值 5% 的下一個 block */
   slowT95Blocks: number
+  /** slowT95Blocks 是否逐 block 數出來（false = 有極慢的 mode 只列漸近估計） */
+  slowT95Exact: boolean
   slowT95Seconds: number
-  /** |w0 − a|·√P_x/σ_v：線性化（K_q）是否成立的指標 */
+  /** |w0 − a|·|H|·√P_x/σ_v：初始的 gain 殘差 (a − w_0)·u 的 RMS 除以 σ_v——線性化（K_q）在暫態開頭是否成立的指標 */
   linearityInit: number
-  /** |B|/(√P_x σ_v)：Sign-LMS 固定點 ≈ a + B/C 是否成立的指標（勘誤 E01） */
+  /**
+   * Sign-LMS 固定點 ≈ a + B/C 是否成立的指標（勘誤 E01）：把線性候選點 w = a + B/C 代回去，gain 那一項 (a − w)·u = −Δw·u 的 RMS 除以 σ_v，
+   * |Δw|·|H|·√P_x/σ_v = |B|/(√P_x·σ_v·|cos θ|)。θ = 0° 時就是 |B|/(√P_x σ_v)；C 越小（|cos θ| → 0），同樣的 B 需要越大的 Δw，
+   * comparator 前的確定性殘差跟著放大 1/|cos θ| 倍（Ch11 §11.4 把 a + B/C 代回去檢查的同一件事）。C = 0 時為 ∞。
+   */
   linearityBias: number
+  /** 雙參數的交叉相關假設 E[x_i u_j] = C·R̃_ij 不是自動成立：twoParam、|ρ| < 1、sin θ ≠ 0、0 < Ω < π、C > 0 */
+  crossAssumptionActive: boolean
+  /** 對照：兩個固定同頻單頻 code 的 max|z|（F-DB.6）；crossAssumptionActive 為 false 時是 NaN */
+  fixedToneRadius: number
   checks: ConditionCheck[]
   /** 失敗原因（ExperimentShell 以 danger 顯示） */
   warnings: string[]
@@ -490,6 +581,35 @@ function modeBasis(p: ThesisParams): { lam: number; v0: number }[] {
   ]
 }
 
+// #region core:fixedToneRadius
+/**
+ * 對照值（F-DB.6）：兩個固定的同頻單頻 code（x_i = A cos(Ωn + ψ_i)、ρ = cos(ψ_2 − ψ_1)）的 max|z|。
+ * E[x_i[n−D] u_j[n]] = P_x|H| cos(θ + ψ_j − ψ_i)，特徵值 λ± = P_x|H|(cos θ ± √(ρ² − sin²θ))；
+ * M = μR̃⁻¹ 時特徵值是 P_x|H| e^{±jθ}（等於把 ρ 換成 0）。g′ = μ s K_q P_x |H|（不含 cos θ）。
+ */
+export function fixedToneRadius(p: Pick<ThesisParams, 'sigmaV' | 'N' | 'gmacMode' | 'mu' | 'Px' | 'Hmag' | 'phiDeg' | 'omega' | 'D' | 'd' | 'rho' | 'update'>): number {
+  const scale = p.gmacMode === 'sum' ? p.N : 1
+  const gp = p.mu * scale * comparatorGain(p.sigmaV) * p.Px * p.Hmag // g′
+  const c = polarityOf(p).cosTheta
+  const rhoE = p.update === 'precond' ? 0 : p.rho
+  const disc = rhoE * rhoE - (1 - c * c) // ρ² − sin²θ
+  if (disc >= 0) {
+    const s = Math.sqrt(disc) // 兩個實特徵值：各自是一個純量迴路
+    return Math.max(spectralRadiusOf(gp * (c + s), p.d), spectralRadiusOf(gp * (c - s), p.d))
+  }
+  // 共軛複數特徵值：兩個因式相乘成實係數多項式 w² + 2g′cosθ·w + g′²(1 − ρ²)，w = z^{d+1} − z^d
+  const n = 2 * p.d + 2
+  const co = new Array<number>(n + 1).fill(0) // 最高次在前
+  co[0] += 1
+  co[1] -= 2
+  co[2] += 1 // w²
+  co[p.d + 1] += 2 * gp * c
+  co[p.d + 2] -= 2 * gp * c // 2g′cosθ·w
+  co[n] += gp * gp * (1 - rhoE * rhoE)
+  return Math.max(...polyRoots(co).map(cAbs))
+}
+// #endregion
+
 // #region core:evaluateThesis
 /** 由同一組參數算出六個條件的所有指標（局部線性化平均模型；不同學習模式共用此函式）。 */
 export function evaluateThesis(p: ThesisParams): ThesisResult {
@@ -507,6 +627,7 @@ export function evaluateThesis(p: ThesisParams): ThesisResult {
     const identifiable = lam > LAMBDA_EPS && uPower > 0
     const mg = p.update === 'precond' && p.twoParam ? (identifiable ? modePrecond(g, lam, q) : { gain: NaN, noise: NaN, drive: NaN }) : modeScalar(g, lam, q)
     const radius = Number.isFinite(mg.gain) ? spectralRadiusOf(mg.gain, p.d) : NaN
+    const st = Number.isFinite(mg.gain) ? settleDelayed(mg.gain, p.d) : { blocks: Infinity, exact: true } // 95% 收斂：逐 block 數（d = 0 時即封閉式）
     const ie = Number.isFinite(mg.gain) ? impulseEnergy(mg.gain, p.d) : { energy: NaN, steps: 0, converged: false } // 算法一：直接加總
     const energy = Number.isFinite(mg.gain) ? impulseEnergyLyapunov(mg.gain, p.d) : NaN // 算法二：Lyapunov（採用）
     const variance = mg.noise === 0 ? 0 : mg.noise * energy // 穩態 Var = q_i Σ y²
@@ -521,7 +642,9 @@ export function evaluateThesis(p: ThesisParams): ThesisResult {
       radius,
       pmDeg: phaseMarginDeg(mg.gain, p.d),
       delayMarginBlocks: delayMarginBlocks(mg.gain, p.d),
-      t95Blocks: blocksTo95(radius),
+      t95Blocks: st.blocks,
+      t95Exact: st.exact,
+      t95Asymptotic: blocksTo95(radius),
       energy,
       energySum: ie.energy,
       energyConverged: ie.converged,
@@ -551,8 +674,10 @@ export function evaluateThesis(p: ThesisParams): ThesisResult {
   const AtPeak = Math.SQRT2 * sigmaDtDet // 單頻 code：peak = √2 × RMS
   const betaRad = p.Tmag * fsToRad(AtPeak, p.foutGHz * 1e9) // β = 2π f_out |T| A_t [rad]
   const spurDbc = 20 * Math.log10(betaRad / 2) // 小角度：每根 sideband = β/2 ⇒ 20 log10(π f_out |T| A_t)
-  const slow = active.length ? active.reduce((a, b) => (b.radius > a.radius ? b : a)) : undefined
-  const slowT95Blocks = slow ? slow.t95Blocks : Infinity
+  const slowT95Blocks = active.length ? Math.max(...active.map((m) => m.t95Blocks)) : Infinity // d = 0 時就是 max|z| 最大的那個 mode
+  // 雙參數的交叉相關假設需要另外確認的情況（θ = 0°、|ρ| = 1、Ω = 0 或 π、C ≤ 0 時不必：前兩者假設成立，後兩者另有判定）
+  const crossAssumptionActive =
+    p.twoParam && p.Px > 0 && p.Hmag > 0 && Math.abs(p.rho) < 1 - 1e-12 && 1 - pol.cosTheta * pol.cosTheta > 1e-9 && Math.abs(Math.sin(p.omega)) > 1e-9 && pol.C > 0
   const res: Omit<ThesisResult, 'checks' | 'warnings' | 'notes' | 'crossCheck'> = {
     params: p,
     Kq,
@@ -581,9 +706,12 @@ export function evaluateThesis(p: ThesisParams): ThesisResult {
     betaRad,
     spurDbc,
     slowT95Blocks,
+    slowT95Exact: active.every((m) => m.t95Exact),
     slowT95Seconds: slowT95Blocks / fuHz,
-    linearityInit: (Math.abs(p.w0MinusA) * Math.sqrt(p.Px)) / p.sigmaV,
-    linearityBias: p.Px > 0 ? Math.abs(p.B) / (Math.sqrt(p.Px) * p.sigmaV) : Infinity,
+    linearityInit: (Math.abs(p.w0MinusA) * p.Hmag * Math.sqrt(p.Px)) / p.sigmaV, // (a − w_0)·u 的 RMS：u = h*x 的 RMS 是 |H|√P_x
+    linearityBias: p.Px > 0 && pol.cosTheta !== 0 ? Math.abs(p.B) / (Math.sqrt(p.Px) * p.sigmaV * Math.abs(pol.cosTheta)) : Infinity, // |Δw|·|H|·√P_x/σ_v
+    crossAssumptionActive,
+    fixedToneRadius: crossAssumptionActive ? fixedToneRadius(p) : NaN,
   }
   const { checks, warnings, notes } = judge(res)
   return { ...res, checks, warnings, notes, crossCheck: analyticCrossCheck(res) }
@@ -614,6 +742,9 @@ function judge(r: Omit<ThesisResult, 'checks' | 'warnings' | 'notes' | 'crossChe
     warnings.push(reason)
   } else if (r.kappa > 100) {
     const amp = Math.sqrt(r.kappa)
+    // 弱方向（λ̃ 最小）自己的 95% 收斂 block 數；步長大或有延遲時，最慢的可能反而是強方向（loop gain 太接近穩定上限）
+    const weakMode = r.modes.filter((m) => m.identifiable).reduce((a, b) => (b.lam < a.lam ? b : a))
+    const weakIsSlowest = weakMode.t95Blocks >= r.slowT95Blocks
     checks.push({
       id: 'identifiability',
       state: 'warn',
@@ -621,7 +752,13 @@ function judge(r: Omit<ThesisResult, 'checks' | 'warnings' | 'notes' | 'crossChe
       reason:
         p.update === 'precond'
           ? String.raw`$\kappa=${t4(r.kappa)}>100$：preconditioner 讓所有 mode 一樣快，但弱方向的雜訊被放大，RMS 比強方向大 $\sqrt\kappa=${t4(amp)}$ 倍。`
-          : String.raw`$\kappa=${t4(r.kappa)}>100$：弱方向的 loop gain 只剩 $g\,\tilde\lambda_{\min}$，95% 收斂要 $${t4(r.slowT95Blocks)}$ 個 block；改用 preconditioner 會加快，但弱方向雜訊放大 $\sqrt\kappa=${t4(amp)}$ 倍。`,
+          : String.raw`$\kappa=${t4(r.kappa)}>100$：弱方向的 loop gain 只剩 $g\,\tilde\lambda_{\min}$，95% 收斂要 $${t4(weakMode.t95Blocks)}$ 個 block` +
+            (weakIsSlowest
+              ? ''
+              : Number.isFinite(r.slowT95Blocks)
+                ? String.raw`（這組設定下最慢的不是它：強方向的 loop gain 太接近穩定上限，要 $${t4(r.slowT95Blocks)}$ 個 block）`
+                : '（這組設定下強方向的 loop gain 已經達到或超過穩定上限 $g^*$，不收斂；見條件 3）') +
+            String.raw`；改用 preconditioner 會加快，但弱方向雜訊放大 $\sqrt\kappa=${t4(amp)}$ 倍。`,
     })
   } else {
     checks.push({
@@ -642,7 +779,7 @@ function judge(r: Omit<ThesisResult, 'checks' | 'warnings' | 'notes' | 'crossChe
     const reason = String.raw`$C=0$：$\theta=${t4(pol.thetaDeg)}^\circ$（或 $|H|=0$、$P_x=0$），平均恢復力為零，$w$ 只會隨 GMAC 雜訊 random walk。`
     checks.push({ id: 'polarity', state: 'fail', summary: '$C=0$', reason })
     warnings.push(reason)
-  } else if (pol.marginDeg < 30) {
+  } else if (pol.marginDeg < POLARITY_MARGIN_WARN_DEG - THRESHOLD_EPS) {
     checks.push({
       id: 'polarity',
       state: 'warn',
@@ -687,6 +824,20 @@ function judge(r: Omit<ThesisResult, 'checks' | 'warnings' | 'notes' | 'crossChe
       summary: `$\\max|z|=${t4(worst.radius)},\\ \\mathrm{PM}=${t4(minPm)}^\\circ$`,
       reason: String.raw`所有可辨識 mode 的特徵根都在單位圓內（$g^*=${t4(r.gStar)}$）。`,
     })
+  }
+  // 雙參數且 θ ≠ 0°：上面的判定以交叉相關假設 E[x_i u_j] = C·R̃_ij 為前提。把固定同頻單頻 code 的對照值寫進說明；
+  // 模型說穩定、對照卻不穩定時，燈號降為「注意」（不改成「未通過」：計算核心仍是 C·R̃，也不知道使用者的 code 是哪一種）。
+  // 只後處理 ok / warn：'fail' 的原因同時放在 warnings，不可再改。
+  if (r.crossAssumptionActive && worst && worst.radius < 1) {
+    const st = checks[checks.length - 1] // 剛推入的 stability（ok 或 warn）
+    const ft = r.fixedToneRadius
+    if (!(ft < 1)) {
+      st.state = 'warn'
+      st.summary = `$\\max|z|=${t4(worst.radius)}$（固定同頻 code：$${t4(ft)}$）`
+      st.reason += String.raw`但這是在雙參數的交叉相關假設 $E[x_i[n-D]\,u_j[n]]=C\,\tilde R_{ij}$ 之下：$\theta=${t4(pol.thetaDeg)}^\circ\ne0^\circ$ 時，兩個固定的同頻單頻 code 不滿足這個假設，它們的 $\max|z|=${t4(ft)}\ge1$，不收斂。這個燈號不能當成實體 code 的穩定保證（見下方「近似的適用範圍」；完整的 Jacobian 在 Ch10）。`
+    } else {
+      st.reason += String.raw`（雙參數：以交叉相關假設 $E[x_i[n-D]\,u_j[n]]=C\,\tilde R_{ij}$ 為前提；兩個固定的同頻單頻 code 的對照值是 $\max|z|=${t4(ft)}$，見下方「近似的適用範圍」。）`
+    }
   }
 
   // 4. Variance：每個係數自己的 RMS，乘上 code RMS 換算成 DTC-referred timing error √P_x·σ_w
@@ -740,12 +891,12 @@ function judge(r: Omit<ThesisResult, 'checks' | 'warnings' | 'notes' | 'crossChe
       summary: `$\\Delta w=${t4(r.deltaW)}\\,\\mathrm{fs}$`,
       reason: String.raw`$\Delta w=B/C=${t4(r.deltaW)}\,\mathrm{fs}$；deterministic DTC error $\sqrt{P_x}\,|\Delta w|=${t4(r.sigmaDtDet)}\,\mathrm{fs}$，大於預算 ${fsTex(budget)}。$C$ 越小，同樣的 $B$ 造成越大的 bias（Ch11）。`,
     })
-  } else if (r.linearityBias > 0.3) {
+  } else if (exceedsLinearityLimit(r.linearityBias)) {
     checks.push({
       id: 'bias',
       state: 'warn',
       summary: `$\\Delta w=${t4(r.deltaW)}\\,\\mathrm{fs}$`,
-      reason: String.raw`$|B|/(\sqrt{P_x}\,\sigma_v)=${t4(r.linearityBias)}>0.3$：deterministic residual 相對雜訊不夠小，Sign-LMS 的固定點不再是 $a+B/C$（勘誤 E01）。`,
+      reason: String.raw`$|\Delta w|\,|H|\sqrt{P_x}/\sigma_v=|B|/(\sqrt{P_x}\,\sigma_v\,|\cos\theta|)=${t4(r.linearityBias)}>0.3$：把 $w=a+B/C$ 代回去，gain 那一項 $(a-w)\,u$ 的 RMS 相對 $\sigma_v$ 不夠小，comparator 可能已經離開線性區；$a+B/C$ 是線性化的值，Sign-LMS 的固定點可能不再是它（勘誤 E01）。$C$ 越小，同樣的 $B$ 需要越大的 $\Delta w$，這個比值跟著放大 $1/|\cos\theta|$ 倍（Ch11 §11.4）。`,
     })
   } else {
     checks.push({
@@ -759,7 +910,12 @@ function judge(r: Omit<ThesisResult, 'checks' | 'warnings' | 'notes' | 'crossChe
   // 6. System-level
   const upstream = checks.some((c) => c.state === 'fail' && (c.id === 'identifiability' || c.id === 'polarity' || c.id === 'stability'))
   if (upstream || !Number.isFinite(r.sigmaDt)) {
-    checks.push({ id: 'system', state: 'fail', summary: '—', reason: '前面的條件未滿足（不可辨識、極性錯誤或不穩定）：校正本身不成立，談不上改善 PLL 輸出。' })
+    checks.push({
+      id: 'system',
+      state: 'fail',
+      summary: '—',
+      reason: String.raw`前面的條件未滿足（不可辨識、極性錯誤或不穩定）：校正本身不成立，沒有穩態的 $\sigma_{\delta t}$ 與 spur 可以和預算比。`,
+    })
   } else {
     const spurOk = !(r.spurDbc > p.spurLimit)
     const jitOk = r.sigmaDt <= budget
@@ -770,15 +926,15 @@ function judge(r: Omit<ThesisResult, 'checks' | 'warnings' | 'notes' | 'crossChe
         id: 'system',
         state: 'ok',
         summary: sysSummary,
-        reason: String.raw`合計 $\sigma_{\delta t}=${t4(r.sigmaDt)}\,\mathrm{fs}\le${t4(budget)}\,\mathrm{fs}$，spur 不超過 $${t4(p.spurLimit)}\,\mathrm{dBc}$。`,
+        reason: String.raw`合計 DTC-referred $\sigma_{\delta t}=${t4(r.sigmaDt)}\,\mathrm{fs}\le${t4(budget)}\,\mathrm{fs}$，spur 不超過 $${t4(p.spurLimit)}\,\mathrm{dBc}$：在預算內（不是和校正前比較）。`,
       })
     } else {
       const parts: string[] = []
       if (!jitOk) {
         const each = r.sigmaDtRand <= budget && r.sigmaDtDet <= budget
         parts.push(
-          String.raw`合計 $\sqrt{\sigma_{\mathrm{rand}}^2+\sigma_{\mathrm{det}}^2}=${t4(r.sigmaDt)}\,\mathrm{fs}>${t4(budget)}\,\mathrm{fs}$` +
-            (each ? '（variance 與 bias 各自都在預算內，合起來卻超出——system-level 是獨立的條件）' : ''),
+          String.raw`合計 DTC-referred $\sqrt{\sigma_{\mathrm{rand}}^2+\sigma_{\mathrm{det}}^2}=${t4(r.sigmaDt)}\,\mathrm{fs}>${t4(budget)}\,\mathrm{fs}$` +
+            (each ? '（variance 與 bias 各自都在預算內，合起來卻超出——條件 4、5 過關不保證條件 6，system-level 要另外檢查）' : ''),
         )
       }
       if (!spurOk)
@@ -786,10 +942,26 @@ function judge(r: Omit<ThesisResult, 'checks' | 'warnings' | 'notes' | 'crossChe
       checks.push({ id: 'system', state: 'fail', summary: sysSummary, reason: parts.join('；') + '。' })
     }
   }
+  // 雙參數且 θ ≠ 0°，而固定同頻單頻 code 的對照值不收斂：「在預算內」的結論對那種 code 不適用（降為「注意」）
+  if (r.crossAssumptionActive && !(r.fixedToneRadius < 1)) {
+    const sys = checks[checks.length - 1]
+    if (sys.id === 'system' && sys.state === 'ok') {
+      sys.state = 'warn'
+      sys.reason += String.raw`前提是雙參數的交叉相關假設成立：兩個固定的同頻單頻 code 在這組參數下不收斂（條件 3 的對照值 $\max|z|=${t4(r.fixedToneRadius)}$），這個結論對它們不適用。`
+    }
+  }
 
-  if (r.linearityInit > 0.3)
+  if (r.crossAssumptionActive)
     notes.push(
-      String.raw`$|w_0-a|\sqrt{P_x}/\sigma_v=${t4(r.linearityInit)}>0.3$：初始誤差相對雜訊太大，comparator 會飽和（erf 不再線性），實際 Sign-LMS 前段是固定速率的線性漂移，比這裡的指數預測慢（Ch05 / Ch14）。`,
+      String.raw`雙參數模型除了 $\rho$，還假設交叉相關也以同一個 $C$ 縮放：$E[x_i[n-D]\,u_j[n]]=C\,\tilde R_{ij}$。零延遲的 $\rho$ 保證不了這件事。目前 $\theta=\phi+\Omega D=${t4(pol.thetaDeg)}^\circ\ne0^\circ$：如果兩個 regressor 是固定的同頻單頻 code（相位差 $\psi$，$\rho=\cos\psi$），真正的矩陣是 $E[x_i[n-D]\,u_j[n]]=P_x|H|\cos(\theta+\psi_j-\psi_i)$，比 $C\,\tilde{\mathbf R}$ 多一個反對稱項 $\pm P_x|H|\sin\theta\sqrt{1-\rho^2}$。` +
+        (p.update === 'precond'
+          ? String.raw`$\mathbf M=\mu\tilde{\mathbf R}^{-1}$ 時，pole 由 $1-g$ 變成 $1-g'e^{\pm j\theta}$，其中 $g'=\mu\,s\,K_qP_x|H|$（$d=0$；F-DB.6）。`
+          : String.raw`特徵值由 $C(1\pm\rho)$ 變成 $P_x|H|\big(\cos\theta\pm\sqrt{\rho^2-\sin^2\theta}\big)$（F-DB.6；根號內為負時是一對共軛複數）。`) +
+        String.raw`同一組參數下，這種 code 的 $\max|z|=${t4(r.fixedToneRadius)}$（本模型：$${t4(r.maxRadius)}$）；兩個係數的平均軌跡會互相耦合，固定點與 $\sigma_w$ 一般也不同。本模型的數字適用於 $\theta=0^\circ$（例如把 $D$ 調到 $\phi+\Omega D=0^\circ$），或兩個 code 在每一個延遲的交叉相關都是自相關的 $\rho$ 倍（固定的單頻 code 做不到；兩個互相獨立、頻譜相同的窄頻隨機 code 的線性混合可以）。其他情況請用 Ch10 的完整 Jacobian $\mathbf C=E[\mathbf x\,\mathbf u^T]$。`,
+    )
+  if (exceedsLinearityLimit(r.linearityInit))
+    notes.push(
+      String.raw`$|w_0-a|\,|H|\sqrt{P_x}/\sigma_v=${t4(r.linearityInit)}>0.3$：初始誤差（經 error path 之後的 $(a-w_0)\,u$）相對雜訊太大，comparator 會飽和（erf 不再線性），實際 Sign-LMS 前段是固定速率的線性漂移，比這裡的指數預測慢（Ch05 / Ch14）。`,
     )
   if (p.gmacMode === 'sum')
     notes.push(String.raw`GMAC sum 模式：$G$ 是 $N$ 筆總和，等效 $g$ 與雜訊都乘上 $s=N=${p.N}$（$\mu$ 必須同步除以 $N$，勘誤 E18）。`)
@@ -843,6 +1015,7 @@ function analyticCrossCheck(r: Omit<ThesisResult, 'checks' | 'warnings' | 'notes
   if (energyCompared > 0) parts.push(String.raw`$\sum y^2$：${d === 0 ? '封閉式' : 'Lyapunov 方程'} = 直接加總（相對誤差 $<10^{-8}$）`)
   if (energySkipped > 0) parts.push(String.raw`極慢的 mode 直接加總在 $3\times10^{5}$ 步內未收斂，$\sigma_w$ 只採 Lyapunov 解（該 mode 未做加總比對）`)
   if (d === 0) parts.push(String.raw`$f_{3\mathrm{dB}}$：封閉式 = 數值掃描`)
+  if (r.crossAssumptionActive) parts.push(String.raw`雙參數的交叉相關假設 $E[x_iu_j]=C\,\tilde R_{ij}$ 不在這個比對範圍內`)
   return { ok: true, note: parts.join('；') }
 }
 

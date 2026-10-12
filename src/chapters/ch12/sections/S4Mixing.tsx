@@ -399,7 +399,7 @@ S^{(1)}_{\delta t}(f)&=\underbrace{m^2\,S^{(1)}_{w,\mathrm{zoh}}(f)}_{\text{常�
         <Diagram chart={CHART_PSD_UNITS} caption={String.raw`PSD 的三次換算：先換成單邊每赫茲（乘 $2/f_r$），再換成輸出相位，最後才是 phase noise $\mathcal L(f)$。注意每一格的單位。`}>
           <p>
             {md(
-              String.raw`先由上往下看主線：DTFT 形式的 PSD 乘上 $2/f_r$ 變成單邊 per-Hz；再乘上 $(2\pi f_{\mathrm{out}})^2|T|^2$ 變成輸出相位的 PSD（$f_{\mathrm{out}}$ 是 PLL 輸出頻率，$T$ 是下一節的 PLL 轉移函數）；除以 2 再取 dB 就是 $\mathcal L(f)$。再看前兩格裡各寫的一行積分：兩種形式算變異數的方式不同——DTFT 形式要對 $\Omega$ 積分再除以 $2\pi$，單邊 per-Hz 直接對 $f$ 積分。`,
+              String.raw`先由上往下看主線：DTFT 形式的 PSD 乘上 $2/f_r$ 變成單邊 per-Hz；再乘上 $(2\pi f_{\mathrm{out}})^2|T|^2$ 變成輸出相位的 PSD（$f_{\mathrm{out}}$ 是 PLL 輸出頻率，$T$ 是下一節的 PLL 轉移函數）；除以 2 再取 dB 就是 $\mathcal L(f)$。再看前兩格裡各寫的一行積分：兩種形式算變異數的方式不同——DTFT 形式要對 $\Omega$ 積分再除以 $2\pi$，等於對 $\Omega/2\pi$（每個 sample 轉幾圈）積分，所以第一格的單位是「每 cycle/sample」（block 量是「每 cycle/block」），不是每 rad/sample；單邊 per-Hz 直接對 $f$ 積分。第一個箭頭的 $2/f_r$ 裡，$1/f_r$ 把「每 cycle/sample」換成「每 Hz」（cycle/sample 乘 sample/s 就是 Hz），$2$ 把負頻率折到正頻率，所以不會多出 $2\pi$。`,
             )}
           </p>
           <p>

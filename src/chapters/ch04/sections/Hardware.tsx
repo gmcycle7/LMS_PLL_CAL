@@ -266,7 +266,7 @@ export function HardwareSection() {
       <DerivationFold title="把迴路走一圈：一階平均模型">
         <StepDerivation
           steps={[
-            { tex: R`e[n]=\delta_k\,u[n]+b_\mathrm{off}+v[n],\qquad u[n]=(h*x)[n]`, why: mt(R`block $k$ 內 $w$ 固定為 $w_k$；PLL 的作用整理成誤差路徑 $h$（假設 $H_\mathrm{PD}$ 線性、狀態跨 block 延續）；$b_\mathrm{off}$ 為 comparator offset。`) },
+            { tex: R`e[n]=\delta_k\,u[n]+b_\mathrm{off}+v[n],\qquad u[n]=(h*x)[n]`, why: mt(R`block $k$ 內 $w$ 固定為 $w_k$；PLL 的作用整理成誤差路徑 $h$（假設 $H_\mathrm{PD}$ 線性、狀態跨 block 延續）；把 $\delta_k$ 寫在 $h$ 外面，是 $w$ 在 $h$ 的記憶長度內近似不變（每個 block 只動一點）時的近似，Ch06 的 F-06.1（$h$ 沒有記憶的 identity path 則是等式）；$b_\mathrm{off}$ 為 comparator offset。`) },
             { tex: R`E\bigl[q[n]\bigr]=\mathrm{erf}\!\Bigl(\frac{\delta_k u[n]+b_\mathrm{off}}{\sqrt2\,\sigma_v}\Bigr)\approx K_q\bigl(\delta_k u[n]+b_\mathrm{off}\bigr)`, why: mt(R`Gaussian 雜訊下 sign 的平均是 $\mathrm{erf}$；小訊號時取泰勒一階（§4 有完整推導）。`) },
             { tex: R`E[G_k]=\frac1N\sum_n x_\mathrm{ref}[n]\,E\bigl[q[n]\bigr]\approx K_q C\,\delta_k+K_q\,b_\mathrm{off}\,E[x_\mathrm{ref}]`, why: mt(R`期望值是線性的；把 $\frac1N\sum x_\mathrm{ref}u$ 記成 $C$、$\frac1N\sum x_\mathrm{ref}$ 記成 $E[x_\mathrm{ref}]$。`) },
             { tex: R`\delta_{k+1}=a-w_{k+1}=\delta_k-\mu G_k`, why: mt(R`更新 $w_{k+1}=w_k+\mu G_k$，兩邊用 $a$ 去減（$\delta=a-w$ 極性）。`) },
@@ -275,7 +275,7 @@ export function HardwareSection() {
           result={R`p=1-g,\quad g=\mu K=\mu K_qC\;(\text{average});\quad g=N\mu K\;(\text{sum});\qquad \delta_\infty=-\frac{b_\mathrm{off}E[x_\mathrm{ref}]}{C}`}
         />
         <p className="small">
-          <ClaimTag kind="approx" /> 小訊號（<Tex>{R`|\delta u+b_\mathrm{off}|\ll\sigma_v`}</Tex>）、雜訊 iid Gaussian 且與 code 獨立。最後一項是 comparator offset 造成的固定點偏移：令{' '}
+          <ClaimTag kind="approx" /> 小訊號（<Tex>{R`|\delta u+b_\mathrm{off}|\ll\sigma_v`}</Tex>）、雜訊 iid Gaussian 且與 code 獨立、<Tex>w</Tex> 在 <Tex>h</Tex> 的記憶長度內近似不變（第 1 步）。最後一項是 comparator offset 造成的固定點偏移：令{' '}
           <Tex>{R`E[\delta_{k+1}]=E[\delta_k]=\delta_\infty`}</Tex> 解出上面的 <Tex>{R`\delta_\infty`}</Tex>，<Tex>{R`b_\mathrm{off}=0`}</Tex> 或零均值 code 時消失；若主 PLL 的 integral path 強制{' '}
           <Tex>{R`E[q]=0`}</Tex>，offset 會被吸收（勘誤 E03，Ch11）。單位：<Tex>{R`K_q`}</Tex> 為 <Tex>{R`\mathrm{fs}^{-1}`}</Tex>、<Tex>{R`C`}</Tex> 無因次、<Tex>{R`\mu`}</Tex> 為 fs，所以{' '}
           <Tex>g</Tex> 無因次 <Erratum id="E13" />。

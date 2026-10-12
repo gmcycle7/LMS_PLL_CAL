@@ -274,8 +274,9 @@ export function S5Architectures() {
           以「最壞初始方向的誤差範數降到 5%」（<Tex>{String.raw`\|\boldsymbol\Phi_k\|_2\le0.05`}</Tex>，<Tex>{String.raw`\boldsymbol\Phi_k`}</Tex> 是前 k 個 block 的轉移矩陣乘積）計算，需要{' '}
           {nint(s.gsBlocks)} 個 block（{nint((s.gsBlocks ?? 0) / 2)} 輪）。它比只看漸近收縮率的 <Tex>{String.raw`\ln0.05/\ln\rho^2=${tn(s.gsNaiveSweeps, 4)}`}</Tex> 輪多一些，因為第一步先把{' '}
           <Tex>{String.raw`\delta_2`}</Tex> 的誤差「複製」到 <Tex>{String.raw`\delta_1`}</Tex>（<Tex>{String.raw`\delta_1'=-\rho\delta_2`}</Tex>），誤差向量的長度先變成{' '}
-          <Tex>{String.raw`\sqrt{1+\rho^2}=${tn(s.gsNormFactor, 4)}`}</Tex> 倍才開始衰減。下方比較表的 sequential 列用的就是這個定義；其他規則用最慢 pole 的{' '}
-          <Tex>{String.raw`\lceil\ln0.05/\ln|p|\rceil`}</Tex>（F-10.5）。
+          <Tex>{String.raw`\sqrt{1+\rho^2}=${tn(s.gsNormFactor, 4)}`}</Tex> 倍才開始衰減。下方比較表每一列用的都是這個定義（降到 5% 以下、且之後不再超過）。其他五種規則在這個例子裡的{' '}
+          <Tex>{String.raw`\mathbf A_{\mathrm{cal}}`}</Tex> 都是對稱矩陣，<Tex>{String.raw`\|\mathbf A^k\|_2=\rho(\mathbf A)^k`}</Tex>，所以正好等於最慢 pole 的{' '}
+          <Tex>{String.raw`\lceil\ln0.05/\ln|p|\rceil`}</Tex>（F-10.5）；sequential 的轉移矩陣不對稱，才會比漸近收縮率多幾輪（§10.3.1）。
         </p>
         <ModeGate min="engineer">
           <Deriv

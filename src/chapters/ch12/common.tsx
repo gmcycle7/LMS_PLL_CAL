@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { HandCalc, Mermaid, StepDerivation, mathText, type Step } from '@/components'
 import { useSettings, type LearningMode } from '@/app/settings'
 import errata from '@/data/errata.json'
+import { erfc } from '@/simulation/core'
 import { HANDCALCS } from './handcalcs'
 import {
   CODE_LABEL_TEX,
@@ -23,6 +24,77 @@ export const EX = calLoop(EX_INPUT)
 export const SPUR = (() => {
   const beta = spurBeta(13e9, 0.5, 1)
   return { fOut: 13e9, at: 0.5, beta, dbc: spurDbcSmallAngle(beta), dbcBessel: spurDbcBessel(beta) }
+})()
+
+/**
+ * §12.1「適用範圍」的反例（技術審查 R06c）：±1 iid code、兩個 tap 的 path u[n] = c0·x[n] + c1·x[n−1]。
+ * 固定點 w* = a、沒有 offset 時 comparator 的輸入是 e[n] = −δw·u[n] + v[n]（v 為 Gaussian，RMS σ_v），
+ * 所以 E[q·x | δw] = E[x·erf(−δw·u/(√2σ_v))]。把 (x[n], x[n−1]) 四種組合各算一次 erf 再平均：
+ *   E[G | δw] = −½[erf(d(c1 + c0)) − erf(d(c1 − c0))]，d = δw/(√2σ_v)。
+ * 用 erfc 相減（erf(a) − erf(b) = erfc(b) − erfc(a)），避免兩個接近 1 的數相減把結果消光。
+ * c1 = 0 時退回無記憶 path 的 −erf(c0·δw/(√2σ_v))（F-12.1 推導的第三步）。
+ */
+export function twoTapMeanG(c0: number, c1: number, dw: number, sigmaV: number): number {
+  const d = dw / (Math.SQRT2 * sigmaV)
+  return -0.5 * (erfc(d * (c1 - c0)) - erfc(d * (c1 + c0)))
+}
+/** 反例的數字（c0 = 0.001、c1 = 1、δw = 10 fs、σ_v = 1 fs）：|C·δw| = 0.01 fs 看似小訊號，|δw|·u_max = 10.01 fs 卻早已飽和。 */
+export const TWO_TAP = (() => {
+  const c0 = 0.001
+  const c1 = 1
+  const dw = 10
+  const sigmaV = 1
+  // K = K_q·C 與 N、f_s、μ 無關；這裡借用本章的 calLoop，確保和正文用的是同一個 K_q
+  const K = calLoop({ N: EX_INPUT.N, fs: EX_INPUT.fs, mu: 1, sigmaV, C: c0 }).K
+  const linear = -K * dw // F-12.1 的線性預測 −K·δw
+  const exact = twoTapMeanG(c0, c1, dw, sigmaV)
+  return {
+    c0,
+    c1,
+    dw,
+    sigmaV,
+    /** C = E[x·u] = c0（x[n] 與 x[n−1] 獨立） */
+    C: c0,
+    K,
+    linear,
+    exact,
+    /** 實際恢復力 ÷ F-12.1 的線性預測 */
+    ratio: exact / linear,
+    /** u 的峰值 |c0| + |c1| */
+    uMax: Math.abs(c0) + Math.abs(c1),
+    /** c0·d ≪ 1 時的近似 −K·δw·exp(−(c1·δw)²/(2σ_v²))：兩個 erf 的差 ≈ erf 在 c1·d 的斜率 × 2·c0·d */
+    gauss: linear * Math.exp(-((c1 * dw) ** 2) / (2 * sigmaV * sigmaV)),
+    /** δw = 1 fs 時「實際 ÷ 線性」（≈ e^{−1/2}）：線性範圍其實只到 |δw| ≪ σ_v/u_max */
+    at1: twoTapMeanG(c0, c1, 1, sigmaV) / -K,
+  }
+})()
+
+/**
+ * 線性化 E[G] ≈ −K·δw 的相對誤差首項（±1 iid code、FIR path u[n] = Σ_m h_m·x[n−m]、Gaussian v）：
+ *   erf(z) ≈ (2/√π)(z − z³/3) ⇒ E[x·erf(δw·u/(√2σ_v))] ≈ √(2/π)·(δw/σ_v)·[E[x·u] − δw²·E[x·u³]/(6σ_v²)]，
+ *   E[x·u] = h_0、E[x·u³] = h_0·(h_0² + 3·Σ_{m≥1} h_m²)（x[n] 與前幾拍的 code 獨立、x² = 1），所以
+ *   E[G | δw] ≈ −K·δw·[1 − δw²·(h_0² + 3·Σ_{m≥1} h_m²)/(6σ_v²)]，K = K_q·h_0。
+ * 回傳方括號裡的第二項（負數）。無記憶 path（只有 h_0 = C）時是 −(C·δw)²/(6σ_v²)。
+ */
+export function cubicRelError(taps: readonly number[], dw: number, sigmaV: number): number {
+  const tail = taps.slice(1).reduce((s, h) => s + h * h, 0)
+  return -(dw * dw * (taps[0] * taps[0] + 3 * tail)) / (6 * sigmaV * sigmaV)
+}
+/** §12.1 Research 段落的數字：同一條兩個 tap 的 path，偏差縮小到 δw = 0.3 fs（展開還有效的範圍）。 */
+export const TWO_TAP_SMALL = (() => {
+  const { c0, c1, sigmaV, K } = TWO_TAP
+  const dw = 0.3
+  return {
+    dw,
+    /** 首項（三階展開） */
+    lead: cubicRelError([c0, c1], dw, sigmaV),
+    /** 完整 erf 平均的相對誤差：E[G]/(−K·δw) − 1 */
+    exact: twoTapMeanG(c0, c1, dw, sigmaV) / (-K * dw) - 1,
+    /** 對照：同樣的 δw、無記憶 path u = c0·x 的首項 */
+    scalarLead: cubicRelError([c0], dw, sigmaV),
+    /** 反例的 δw = 10 fs 代進首項：遠超出展開有效的範圍 */
+    leadAtCounterexample: cubicRelError([c0, c1], TWO_TAP.dw, sigmaV),
+  }
 })()
 
 /** 三種 code 表的條件：f_x = 100 kHz、A = 1、in-band 0…1 MHz、type-II PLL f_3dB,T = 1 MHz、ζ = 0.707、jitter 1 kHz–100 MHz */

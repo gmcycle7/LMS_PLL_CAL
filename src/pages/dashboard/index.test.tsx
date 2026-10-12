@@ -29,6 +29,9 @@ afterEach(() => {
 // 整頁約 5 萬個 DOM 節點（KaTeX），jsdom 首次渲染需數秒；其他 agent 同時跑測試時更慢
 vi.setConfig({ testTimeout: 60_000 })
 
+/** R12：雙參數模型的交叉相關假設（體檢的提醒、指標表、eigen-mode 表旁都用同一個寫法） */
+const CROSS_TEX = String.raw`E[x_i[n-D]\,u_j[n]]=C\,\tilde R_{ij}`
+
 
 /**
  * 符號表在頁末（docs/teaching-style.md §5）：全頁只有一張，包在 id="symbols" 裡，是頁面的最後一個區塊（在頁尾說明之後）；
@@ -157,6 +160,36 @@ function expectReferenceSideDtc(container: HTMLElement, map: HTMLElement, loopFi
   expect(texIn(symbols)).toContain(String.raw`t_{\mathrm{ref}}'[n],\ t_{\mathrm{fb}}[n]`)
 }
 
+/**
+ * R02：95% 收斂那一列——d = 0 時是封閉式；有 commit 延遲時是照平均遞迴逐 block 數出來的（和上方的軌跡圖同一條遞迴），
+ * 並在 eigen-mode 表下方（Engineer 以上）就地用重根的例子說明。和「預設六個條件全部通過」共用同一次渲染，看完把參數改回預設。
+ */
+async function expectSettlingRow(check: HTMLElement) {
+  const row = () => Array.from(check.querySelectorAll('.c-metric-table tbody tr')).find((tr) => (tr.textContent ?? '').includes('95% 收斂（最慢 mode）')) as HTMLElement
+  const value = () => row().querySelector('td.num')?.textContent
+  // 預設 d = 0：37 個 block，封閉式
+  expect(value()).toBe('37')
+  expect(texIn(row())).toContain(String.raw`\lceil\ln0.05/\ln|1-g_i|\rceil`)
+  expect(plainText(check)).not.toContain('是重根')
+  // d = 1、μ 調到 g = 0.25（μ = 0.25/K_q = 31.33 fs）：重根 z = 0.5，7 個 block；只看 max|z| 是 5
+  const dInput = check.querySelector('input[aria-label="d（係數 commit 延遲）"]') as HTMLInputElement
+  const muInput = check.querySelector('input[aria-label="mu（學習率）"]') as HTMLInputElement
+  fireEvent.change(dInput, { target: { value: '1' } })
+  fireEvent.change(muInput, { target: { value: String((0.25 * 100) / Math.sqrt(2 / Math.PI)) } })
+  await waitFor(() => expect(texIn(row()).some((t) => t.includes(String.raw`\delta_{k+1}=\delta_k-g_i\,\delta_{k-d}`))).toBe(true))
+  expect(value()).toBe('7')
+  expect(texIn(row()).some((t) => t.includes(String.raw`\lceil\ln0.05/\ln\max|z|\rceil=5`))).toBe(true)
+  // 就地說明與重根的例子：0.109、0.0625、0.0352 ⇒ 7，而 ⌈ln 0.05 / ln 0.5⌉ = 5
+  expect(plainText(check)).toContain('是重根')
+  const tex = texIn(check)
+  for (const need of ['0.109', '0.0625', '0.0352', '7', String.raw`\lceil\ln0.05/\ln0.5\rceil=5`]) expect(tex, need).toContain(need)
+  // 改回預設
+  fireEvent.change(dInput, { target: { value: '0' } })
+  fireEvent.change(muInput, { target: { value: '10' } })
+  await waitFor(() => expect(value()).toBe('37'))
+  expect(check.querySelectorAll('.dash-check-table .dash-state-ok').length).toBe(6)
+}
+
 describe('DashboardPage（jsdom smoke）', () => {
   it('渲染不出錯：Hero、從這裡開始（/ch/00）、六個條件、三條路線、15 題、模式、勘誤；四張方塊圖與頁末的符號表', async () => {
     const { container } = renderPage()
@@ -187,6 +220,58 @@ describe('DashboardPage（jsdom smoke）', () => {
     const presets = galleryPresets()
     expect(gal.querySelectorAll('.dash-gal-card')).toHaveLength(presets.length)
     if (presets.length > 0) expect(gal.querySelector('.dash-gal-link')?.getAttribute('href')).toBe(`${presets[0].page}?preset=${presets[0].id}`)
+    // R13：六個條件要「逐一檢查」，但不是互相獨立（首段、流程圖導讀、本頁必記）
+    const thesisText = container.querySelector('#dash-thesis')?.textContent ?? ''
+    expect(thesisText).toContain('逐一檢查')
+    expect(thesisText).toContain('不是互相獨立')
+    expect(thesisText).toContain('前五個都通過，仍可能在第六個失敗') // 真正成立的單向敘述保留
+    expect(thesisText).not.toContain('彼此獨立：滿足其中五個')
+    expect(thesisText).not.toContain('它們互相獨立')
+    const recapText = container.querySelector('#dash-recap')?.textContent ?? ''
+    expect(recapText).toContain('不是互相獨立')
+    expect(recapText).not.toContain('六個條件互相獨立：')
+    // R14：卡片 6 是「殘餘誤差在預算內」（DTC-referred），不再用「真正改善 PLL 輸出」當名稱；Hero 的膠囊與體檢表同名
+    const sysCard = container.querySelector('#dash-cond-system') as HTMLElement
+    expect(sysCard.querySelector('.dash-cond-title')?.textContent).toContain('殘餘誤差在預算內')
+    expect(plainText(sysCard)).toContain('DTC-referred')
+    expect(plainText(sysCard)).toContain('不和校正前比')
+    expect(plainText(sysCard)).not.toMatch(/改善|變好/)
+    expect(texIn(sysCard)).toContain(String.raw`\begin{gathered}\sigma_{\delta t}=\sqrt{P_x\,(\Delta w^2+\sigma_w^2)}\le\sigma_{\delta t,\max}\\[2pt]\mathrm{Spur}\approx20\log_{10}\!\left(\pi f_{\mathrm{out}}|T|A_t\right)\le\mathrm{Spur}_{\max}\end{gathered}`)
+    const pills = Array.from(container.querySelectorAll('.dash-hero .dash-pill'), (b) => b.textContent ?? '')
+    expect(pills).toHaveLength(6)
+    expect(pills[5]).toContain('殘餘誤差在預算內')
+    const rows = Array.from(container.querySelectorAll('#dash-check .dash-check-table tbody tr td:first-child'), (td) => (td.textContent ?? '').trim())
+    expect(rows[5]).toBe('6. 殘餘誤差在預算內')
+    // 首段保留規格的主旨句，並緊接著說明本頁實際檢查的是比較窄的「在預算內」
+    expect(thesisText).toContain('真正改善 PLL output jitter / spur')
+    expect(thesisText).toContain('這比「真正改善輸出」窄')
+    // 卡片 3 的判據排成兩行（一行比 1280px 桌機上的卡片寬，結尾的 (g = μK_qC) 要捲動才看得到）
+    expect(texIn(container.querySelector('#dash-cond-stability .dash-cond-tex'))).toEqual([
+      String.raw`\begin{gathered}p=1-\mu K_q C\\[2pt]0<g<2\sin\frac{\pi}{4d+2}\quad(g=\mu K_qC)\end{gathered}`,
+    ])
+    // 本頁必記第 1 點：句尾的公式和句號綁在一起（.dash-glue），句號不會單獨掉到下一行
+    const point1 = container.querySelector('#dash-recap .c-recap-points li') as HTMLElement
+    const tail = point1.lastElementChild as HTMLElement
+    expect(tail.className).toBe('dash-glue')
+    expect(texIn(tail)).toEqual(['C>0'])
+    expect(plainText(tail)).toBe('。')
+    expect(point1.lastChild).toBe(tail)
+    // Hero 的手算表下方：「w_n → a。」同樣綁住
+    const heroGlue = Array.from(container.querySelectorAll('.dash-start .dash-glue')).find((g) => texIn(g).includes(String.raw`w_n\to a`)) as HTMLElement
+    expect(plainText(heroGlue)).toBe('。')
+    // 本頁必記第 4 點：快與安靜的取捨要帶條件（小步長；沒有 commit 延遲時分界在 g = 1）
+    const point4 = container.querySelectorAll('#dash-recap .c-recap-points li')[3] as HTMLElement
+    expect(plainText(point4)).toContain('快與安靜要取捨')
+    expect(plainText(point4)).toContain('小步長')
+    expect(texIn(point4)).toContain(String.raw`g\ll1`)
+    expect(texIn(point4)).toContain('g=1')
+    // 「同時校正第二個參數」開關的說明是一整句（一個元素）：不會被 flex 拆成「文字／ρ／文字」三段
+    const toggleMeta = container.querySelector('#dash-check .c-toggle .c-param-meta') as HTMLElement
+    expect(toggleMeta.children).toHaveLength(1)
+    expect(toggleMeta.childNodes).toHaveLength(1)
+    expect(plainText(toggleMeta)).toContain('零延遲相關係數')
+    expect(plainText(toggleMeta)).toContain('的 regressor 當抽象例子')
+    expect(texIn(toggleMeta)).toEqual([String.raw`\rho`])
     // 方塊圖與頁末的符號表（兩個 helper 見上）
     expectDiagrams(container)
     expectSymbolsAtEnd(container)
@@ -215,12 +300,13 @@ describe('DashboardPage（jsdom smoke）', () => {
 
   // 注意：整頁有約 2 萬個 DOM 節點（KaTeX 的 HTML + MathML），document 層級的 getByRole / getByLabelText 會非常慢，
   // 因此以下一律先用 querySelector 找到段落，再在段落內查詢。
-  it('預設（T13）六個條件全部通過；改成 φ = 120° 後極性燈號變成未通過並顯示原因', async () => {
+  it('預設（T13）六個條件全部通過；有 commit 延遲時 95% 收斂逐 block 數；改成 φ = 120° 後極性燈號變成未通過並顯示原因', async () => {
     const { container } = renderPage('engineer')
     const polarityCard = container.querySelector('#dash-cond-polarity') as HTMLElement
     expect(within(polarityCard).getByRole('img', { name: '通過' })).toBeTruthy()
     const check = container.querySelector('#dash-check') as HTMLElement
     expect(check.querySelectorAll('.dash-check-table .dash-state-ok').length).toBe(6)
+    await expectSettlingRow(check)
     const phiInput = check.querySelector('input[aria-label="phi（error path 相位）"]') as HTMLInputElement
     expect(phiInput).toBeTruthy()
     fireEvent.change(phiInput, { target: { value: '120' } })
@@ -245,6 +331,17 @@ describe('DashboardPage（jsdom smoke）', () => {
     plain.querySelectorAll('.katex, pre, code, .c-code, .c-tip, script, style').forEach((el) => el.remove())
     expect(plain.textContent ?? '').not.toMatch(/undefined|NaN|\$/)
     expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+    // R12：Beginner 模式也看得到雙參數的適用範圍提醒（開關與 φ 都不在 ModeGate 內）；看完把參數改回預設
+    const check = container.querySelector('#dash-check') as HTMLElement
+    const toggle = check.querySelector('input[role="switch"]') as HTMLInputElement
+    const phi = check.querySelector('input[aria-label="phi（error path 相位）"]') as HTMLInputElement
+    fireEvent.click(toggle)
+    fireEvent.change(phi, { target: { value: '50' } })
+    await waitFor(() => expect(Array.from(check.querySelectorAll('.c-callout')).some((c) => texIn(c).includes(CROSS_TEX))).toBe(true))
+    expect(plainText(check)).toContain('對照：兩個固定同頻單頻 code 的')
+    fireEvent.change(phi, { target: { value: '0' } })
+    fireEvent.click(toggle)
+    await waitFor(() => expect(plainText(check)).not.toContain('對照：兩個固定同頻單頻 code 的'))
     const modes = container.querySelector('#dash-modes') as HTMLElement
     fireEvent.click(within(modes).getByRole('button', { name: /切換到 Research/ }))
     await waitFor(() => expect(spine()).toMatch(/推導 5（Research）/))
@@ -300,5 +397,50 @@ describe('DashboardPage（jsdom smoke）', () => {
     fireEvent.click(toggle)
     await waitFor(() => expect(check.querySelector('.dash-mc')?.textContent).toMatch(/只有一個校正係數/))
     expect(check.querySelector('.dash-mc-bar')).toBeNull()
+    // R12：θ = 0° 時雙參數假設成立，不加註；把 φ 調到 50°（θ ≠ 0°）就出現「近似的適用範圍」與對照值
+    const crossCallout = () => Array.from(check.querySelectorAll('.c-callout')).find((c) => texIn(c).includes(CROSS_TEX))
+    const metricText = () => plainText(check.querySelector('.c-metric-table') as Element)
+    expect(crossCallout()).toBeUndefined()
+    expect(metricText()).not.toContain('對照：兩個固定同頻單頻 code 的')
+    const phi = check.querySelector('input[aria-label="phi（error path 相位）"]') as HTMLInputElement
+    fireEvent.change(phi, { target: { value: '50' } })
+    await waitFor(() => expect(crossCallout()).toBeTruthy())
+    expect(plainText(crossCallout() as Element)).toContain('F-DB.6')
+    expect(metricText()).toContain('對照：兩個固定同頻單頻 code 的')
+    // 預設步長很小：模型 0.9487、固定同頻 code 0.9507，兩者都穩定 ⇒ 六個燈號仍是通過
+    expect(texIn(check).some((t) => t.includes('0.9507'))).toBe(true)
+    expect(check.querySelectorAll('.dash-check-table .dash-state-ok').length).toBe(6)
+    // Engineer 模式：條件就寫在 eigen-mode 表（特徵方向、g_i）旁邊
+    expect(plainText(check)).toContain('來自交叉相關假設')
+    // 這一句裡的 g_i 要跟著更新矩陣走：一般 LMS 是 g·λ̃_i，preconditioned 是 g（和上面 eigen-mode 表的 g_i 欄一致）
+    const eigenNote = () => Array.from(check.querySelectorAll('p.small.muted')).find((el) => (el.textContent ?? '').includes('來自交叉相關假設')) as HTMLElement
+    expect(texIn(eigenNote())).toContain(String.raw`g_i=g\,\tilde\lambda_i`)
+    const updateSel = check.querySelector('select[aria-label="更新矩陣 M"]') as HTMLSelectElement
+    fireEvent.change(updateSel, { target: { value: '1' } }) // SelectControl 的 option 值是索引：1 = preconditioned
+    await waitFor(() => expect(texIn(eigenNote())).toContain('g_i=g'))
+    expect(texIn(eigenNote())).not.toContain(String.raw`g_i=g\,\tilde\lambda_i`)
+    fireEvent.change(updateSel, { target: { value: '0' } })
+    await waitFor(() => expect(texIn(eigenNote())).toContain(String.raw`g_i=g\,\tilde\lambda_i`))
+    // 圖說也註明曲線的前提
+    expect(plainText(check.querySelector('figure.c-plot') as Element)).toMatch(/雙參數且.*曲線以交叉相關假設.*為前提/)
+    // 調回 φ = 0°：提醒與對照列消失
+    fireEvent.change(phi, { target: { value: '0' } })
+    await waitFor(() => expect(crossCallout()).toBeUndefined())
+    expect(metricText()).not.toContain('對照：兩個固定同頻單頻 code 的')
+    // R07：eigen-mode 表下方的「弱 / 強方向」雜訊比依 λ̃ 的大小決定。ρ = −0.5、preconditioner：√κ = √3 = 1.732
+    //（固定用第二個 mode 除以第一個的舊寫法在 ρ < 0 時會顯示 1/√κ = 0.5774）
+    const ratioNote = () => Array.from(check.querySelectorAll('p.small.muted')).find((el) => (el.textContent ?? '').includes('弱方向 / 強方向的雜訊 RMS 比')) as HTMLElement
+    const rhoInput = check.querySelector('input[aria-label="rho（regressor 零延遲相關係數）"]') as HTMLInputElement
+    expect(texIn(ratioNote())).toContain(String.raw`\sigma_{\xi,\mathrm{weak}}/\sigma_{\xi,\mathrm{strong}}=1`) // ρ = 0：兩個 mode 一樣
+    fireEvent.change(updateSel, { target: { value: '1' } })
+    for (const rho of ['0.5', '-0.5']) {
+      fireEvent.change(rhoInput, { target: { value: rho } })
+      await waitFor(() => expect(texIn(check).some((t) => t.includes(`1\\pm\\rho=${rho === '0.5' ? '1.5,\\ 0.5' : '0.5,\\ 1.5'}`))).toBe(true))
+      await waitFor(() => expect(texIn(ratioNote())).toContain(String.raw`\sigma_{\xi,\mathrm{weak}}/\sigma_{\xi,\mathrm{strong}}=1.732`))
+      expect(texIn(ratioNote())).toContain(String.raw`\sqrt{\kappa}=1.732`)
+    }
+    expect(texIn(ratioNote()).join(' ')).not.toMatch(/\\sigma_\{\\xi,[-+]\}/)
+    expect(plainText(ratioNote())).toContain('較小的 mode')
+    expect(texIn(check).some((t) => t.includes('0.5774'))).toBe(false)
   })
 })

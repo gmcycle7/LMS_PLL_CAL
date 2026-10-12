@@ -261,7 +261,8 @@ export function PrereqEigen() {
       <p>
         為什麼重要：把誤差 <Tex>{r`\boldsymbol\delta`}</Tex> 拆成沿這兩個方向的分量，遞迴{' '}
         <Tex>{r`\boldsymbol\delta_{k+1}=(\mathbf I-\mu\mathbf R)\boldsymbol\delta_k`}</Tex> 就變成兩條互不干擾的純量遞迴{' '}
-        <Tex>{r`c_{i,k+1}=(1-\mu\lambda_i)c_{i,k}`}</Tex>，每條都是等比數列。最慢的那條由最小的 <Tex>{r`\lambda`}</Tex> 決定。
+        <Tex>{r`c_{i,k+1}=(1-\mu\lambda_i)c_{i,k}`}</Tex>，每條都是等比數列。步長不太大時，最慢的那條是 <Tex>{r`\lambda`}</Tex> 最小的那一條（步長太大時，<Tex>{r`\lambda`}</Tex> 最大的那條會因為過衝而拖得更久；分界是{' '}
+        <Tex>{r`\mu=2/(\lambda_{\max}+\lambda_{\min})`}</Tex>）。
       </p>
     </Prereq>
   )

@@ -34,7 +34,11 @@ export function ParabolaSection() {
     // lossCompare.ts 的 mseParabola：w*、J(w*) 與 w = wT 的斜率 dJ/dw = w·E[x²] − E[xy] = −E[e·x]（手算題 HC-01.2 用同一個函式）
     const par = mseParabola(Ex2, Exy, Ey2, wT)
     const J = (w: number) => 0.5 * mean(X.map((x, i) => (Y[i] - w * x) ** 2))
-    return { Ex2, Exy, Ey2, wStar: par.wStar, Jmin: par.jMin, J, wT, slope: par.slope, check: batchL2(X, Y) }
+    // §1.2.1「正交 ≠ 不相關」的數字（審查 C09）：最佳解的誤差 e* = y − w*·x 與 x 相乘再平均是 0，
+    // 但 e* 的平均 E[e*] = −2/45、輸入的平均 E[x] = 7/3 都不是 0，所以 E[e*x] = 0 ≠ E[e*]·E[x] = −14/135
+    const Ex = mean(X)
+    const Ee = mean(X.map((x, i) => Y[i] - par.wStar * x))
+    return { Ex2, Exy, Ey2, wStar: par.wStar, Jmin: par.jMin, J, wT, slope: par.slope, check: batchL2(X, Y), Ex, Ee }
   }, [])
 
   const plot = useMemo<Data[]>(() => {
@@ -325,11 +329,12 @@ export function ParabolaSection() {
           <p>
             <Tex>{'E[xy]'}</Tex> 是「<Tex>{'x'}</Tex> 乘 <Tex>{'y'}</Tex>」的平均。若 <Tex>{'x'}</Tex> 大的時候 <Tex>{'y'}</Tex>{' '}
             也大、<Tex>{'x'}</Tex> 為負時 <Tex>{'y'}</Tex> 也為負，乘積多半是正的，<Tex>{'E[xy]'}</Tex> 就是大的正數；若兩者毫無關係且其中一個平均為 0，
-            正負乘積互相抵消，<Tex>{'E[xy]=0'}</Tex>，本章稱為<strong>不相關（uncorrelated）</strong>。
+            正負乘積互相抵消，<Tex>{'E[xy]=0'}</Tex>，稱為<strong>正交（orthogonal）</strong>。
           </p>
           <p className="small">
-            用語提醒：嚴格說 <Tex>{'E[xy]=0'}</Tex> 叫<strong>正交（orthogonal）</strong>，「不相關」是指 <Tex>{'E[xy]=E[x]\\,E[y]'}</Tex>；
-            只要其中一個量的平均為 0，兩者就是同一件事（本章的雜訊 <Tex>{'v'}</Tex> 零均值，所以不區分）。§1.2.1 的「正交原理」用的就是這個詞。
+            用語提醒：<Tex>{'E[xy]=0'}</Tex> 叫正交；<strong>不相關（uncorrelated）</strong>是指 <Tex>{'E[xy]=E[x]\\,E[y]'}</Tex>（Ch00 §0.7 的定義）。
+            只要其中一個量的平均為 0，兩者就是同一件事——所以雜訊 <Tex>{'v'}</Tex> 零均值時，<Tex>{'E[xv]=0'}</Tex> 說成正交或不相關都可以。但 §1.2.1 的最佳誤差{' '}
+            <Tex>{'e^*'}</Tex> 平均不一定是 0（輸入 <Tex>{'x'}</Tex> 的平均也不一定是 0），那裡要說「正交」（正交原理）。
           </p>
           <ul>
             <li>
@@ -395,13 +400,14 @@ export function ParabolaSection() {
         <p>
           <ClaimTag kind="exact" />{' '}
           <strong>
-            只有在雜訊與輸入不相關（<Tex>{'E[xv]=0'}</Tex>）時，最小平方解才等於真值 <Tex>{'a'}</Tex>。
+            只有在雜訊與輸入正交（<Tex>{'E[xv]=0'}</Tex>：相乘再平均等於 0）時，最小平方解才等於真值 <Tex>{'a'}</Tex>。
           </strong>
           規格 §1 沒寫出這個條件{' '}
           <SpecNote>
             <Tex>{'w^*=a'}</Tex> 需 <Tex>{'E[xv]=0'}</Tex> 且 <Tex>{'E[x^2]>0'}</Tex>
           </SpecNote>
-          。典型成立的情況：<Tex>{'v'}</Tex> 零均值且與 <Tex>{'x'}</Tex> 獨立（§1.4 手算例 <Tex>{'v=0'}</Tex> 也成立）。反例：若量測誤差裡有一部分「跟著{' '}
+          。典型成立的情況：<Tex>{'v'}</Tex> 零均值且與 <Tex>{'x'}</Tex> 獨立——其實 <Tex>{'v'}</Tex> 零均值、與 <Tex>{'x'}</Tex> 不相關（Ch00 §0.7
+          的定義）就足夠（§1.4 手算例 <Tex>{'v=0'}</Tex> 也成立）。反例：若量測誤差裡有一部分「跟著{' '}
           <Tex>{'x'}</Tex> 走」，例如 <Tex>{String.raw`v=0.5\,x+u`}</Tex>（<Tex>{'u'}</Tex> 與 <Tex>{'x'}</Tex> 獨立、零均值），則{' '}
           <Tex>{String.raw`E[xv]=0.5E[x^2]`}</Tex>，<Tex>{String.raw`w^*=a+0.5`}</Tex>——LMS 會非常穩定地收斂到<strong>錯的答案</strong>。這正是 Part C 的 bias 問題（
           <Link to="/ch/11">Ch11：GMAC 歸零不代表 DTC Error 為零</Link>）。
@@ -413,7 +419,7 @@ export function ParabolaSection() {
         </ChapterHandCalc>
       </Section>
 
-      <Section kind="formula" title="1.2.1 Normal equation：最佳解處「誤差與輸入不相關」" level={3} id="ch01-s121">
+      <Section kind="formula" title="1.2.1 Normal equation：最佳解處「誤差與輸入正交」" level={3} id="ch01-s121">
         <p>
           §1.2 用「斜率為 0」找到最低點。同一個條件還有另一種讀法，而且硬體更喜歡：不用算成本，只要檢查
           <strong>誤差和輸入還有沒有「一起動」</strong>。做法是把每一筆的誤差乘上輸入、再取平均——這種「相乘再平均」的電路叫相關器（correlator）。
@@ -428,6 +434,15 @@ export function ParabolaSection() {
         <TexBlock id="F-01.5" label="Normal equation（正交原理）">
           {String.raw`\boxed{E[e^*x]=0}`}
         </TexBlock>
+        <p className="small">
+          <ClaimTag kind="exact" /> 名稱與成立條件：<Tex>{'E[e^*x]=0'}</Tex>（相乘再平均等於 0）叫做誤差與輸入<strong>正交（orthogonal）</strong>。只要{' '}
+          <Tex>{'E[x^2]>0'}</Tex> 它就成立，不需要對雜訊做任何假設——就算 <Tex>{String.raw`E[xv]\ne0`}</Tex>、<Tex>{String.raw`w^*\ne a`}</Tex> 也一樣。它和「不相關」（
+          <Tex>{String.raw`E[e^*x]=E[e^*]\,E[x]`}</Tex>，<Link to="/ch/00">Ch00</Link> §0.7 的定義）不是同一句話：兩者只有在 <Tex>{'E[x]=0'}</Tex> 或{' '}
+          <Tex>{'E[e^*]=0'}</Tex> 時才相同。§1.2 的三筆資料就不同：<Tex>{'E[e^*x]=0'}</Tex>，但 <Tex>{String.raw`E[e^*]=${texNum(m.Ee, 4)}`}</Tex>、
+          <Tex>{String.raw`E[x]=${texNum(m.Ex, 4)}`}</Tex>，<Tex>{String.raw`E[e^*]\,E[x]=${texNum(m.Ee * m.Ex, 4)}\ne0`}</Tex>。若 <Tex>{'v'}</Tex> 零均值且與{' '}
+          <Tex>{'x'}</Tex> 獨立，則 <Tex>{'w^*=a'}</Tex>、<Tex>{'e^*=v'}</Tex>、<Tex>{'E[e^*]=0'}</Tex>：這時正交也就是不相關，所以常被簡稱為「不相關」。
+          相關器累加的是 <Tex>{String.raw`e\cdot x`}</Tex> 本身，不會先扣掉平均，所以它檢查的是正交（PLL 的 GMAC 也一樣不扣平均，只是誤差先取了正負號，見下面的「連結到 PLL」）。
+        </p>
         <p>
           白話：如果誤差和輸入還「一起動」（<Tex>{'E[ex]\\ne0'}</Tex>），代表誤差裡還有一部分可以用調 <Tex>{'w'}</Tex> 解釋掉，
           就還沒到最低點。LMS 的平均更新量 <Tex>{String.raw`\mu E[e\,x]`}</Tex> 正是在「量測還剩多少相關」，相關歸零就停。

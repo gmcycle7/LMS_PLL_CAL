@@ -363,14 +363,16 @@ export function S8Hardware() {
     {
       no: 9,
       title: 'Clocks 與 CDC：多 bit gain 跨 clock domain',
-      what: 'comparator、GMAC、calibration register、DTC control 常在不同 clock domain；多 bit gain code 跨 domain 需要 handshake 或 gray code。',
+      what: md(
+        'comparator、GMAC、calibration register、DTC control 常在不同 clock domain；多 bit gain code 跨 domain 需要 handshake。只有電路保證每次更新最多變 $\\pm1$ 個 code 時，才能改用 gray code（相鄰的兩個 code 才只差 1 個 bit；一次跳 3 個 code 的 $31\\to34$ 仍有 3 個 bit 不同，見 Ch13 §13.6）。',
+      ),
       why: (
         <>
           多 bit 暫存器在轉換瞬間被取樣，可能讀到新舊 bit 的混合：6-bit 由 <Tex>{'31=011111_2'}</Tex> 變 <Tex>{'32=100000_2'}</Tex> 時 6 個 bit 全部翻轉，可能讀到 <Tex>{'63'}</Tex> 或 <Tex>{'0'}</Tex>——一次{' '}
           <Tex>{'32\\,\\mathrm{LSB}'}</Tex> 的 DTC 跳動，形成 spur 或瞬間失鎖。延遲本身則等同 <Tex>{'d'}</Tex> 或 <Tex>{'D'}</Tex>。
         </>
       ),
-      verify: md('CDC lint、gray / handshake 檢查；把同步器延遲折算成 $d$、$D$ 後重算 $\\rho$ 與 $C_D$。'),
+      verify: md('CDC lint；確認 gain code 每次更新的最大跳動量：電路保證 $\\le1$ 個 code 才可用 gray code，否則用 handshake；把同步器延遲折算成 $d$、$D$ 後重算 $\\rho$ 與 $C_D$。'),
       site: md('本站只以 $d$、$D$ 模型化延遲；metastability 與多 bit 取樣錯誤未建模（Backlog R9）'),
       status: 'none',
     },
@@ -499,7 +501,7 @@ export function S8Hardware() {
               why: '$+2^{B_x-1+L}$ 恰好比 $A=B_x+L$ 時的上限 $2^{B_x-1+L}-1$ 多 1，所以要再多一個 bit。一般的 $N$ 則是 $B_x+\\lfloor\\log_2N\\rfloor+1$；兩種範圍可以合寫成 $B_\\mathrm{acc}=1+\\lceil\\log_2(NM_x+1)\\rceil$，$M_x=\\max|q\\,x_\\mathrm{int}|$（F-16.1）。',
             },
             {
-              tex: String.raw`B_x=6,\;N=4096:\;31\times4096=126976\le2^{17}-1=131071\;\Rightarrow\;${ex.sym}\text{ bits};\quad 32\times4096=${ex.wrapFull.exact}>131071\;\Rightarrow\;\text{full 需 }${ex.full}\text{ bits}`,
+              tex: String.raw`\begin{aligned}B_x=6,\;N=4096:\quad&31\times4096=126976\le2^{17}-1=131071\;\Rightarrow\;${ex.sym}\text{ bits}\\&32\times4096=${ex.wrapFull.exact}>131071\;\Rightarrow\;\text{full 需 }${ex.full}\text{ bits}\end{aligned}`,
               why: '代入數字（由 accBitsExact 計算）；golden vector negative_tests.json 的 gmac_bits_required 為 18。',
             },
             {
@@ -509,7 +511,7 @@ export function S8Hardware() {
           ]}
         />
         <TexBlock id="F-16.1" label="GMAC accumulator 位元數（精確）">
-          {String.raw`B_\mathrm{acc}=\min\{A:\,2^{A-1}-1\ge N\max(q x)^+,\;2^{A-1}\ge N\max(q x)^-\}=1+\bigl\lceil\log_2(N M_x+1)\bigr\rceil\;\le\;B_x+\lceil\log_2N\rceil\;(\text{symmetric})`}
+          {String.raw`\begin{aligned}B_\mathrm{acc}&=\min\{A:\,2^{A-1}-1\ge N\max(q x)^+,\;2^{A-1}\ge N\max(q x)^-\}\\&=1+\bigl\lceil\log_2(N M_x+1)\bigr\rceil\;\le\;B_x+\lceil\log_2N\rceil\;(\text{symmetric})\end{aligned}`}
         </TexBlock>
         <TexBlock id="F-16.2" label="二補數 wrap">
           {String.raw`\mathrm{wrap}_A(v)=\bigl((v+2^{A-1})\bmod 2^A\bigr)-2^{A-1}`}
@@ -623,7 +625,8 @@ export function S8Hardware() {
           </table>
         </div>
         <p className="small">
-          平均誤差欄由 gmac.ts 的 <code>roundingMeanError</code> 計算；floor / half up 的 <Tex>{'\\delta^*'}</Tex> 由本頁的精確 mean-field 計算。blockLms 的 L5 模式對 gain 增量也用同一組 rounding 規則：
+          平均誤差欄由 gmac.ts 的 <code>roundingMeanError</code> 計算（half_even 的 0 除了餘數均勻，還要「恰好一半」時商的奇偶各半，見 <ChLink to="/ch/04">Ch04</ChLink> §5.3；它對 <Tex>{'w'}</Tex> 的影響{' '}
+          <Tex>{'\\approx0'}</Tex> 靠的是上面的對稱性論證——half_even 把 <Tex>{'Y'}</Tex> 與 <Tex>{'-Y'}</Tex> 取整後只差一個負號（奇函數），平衡點 <Tex>{'\\delta=0'}</Tex> 時 <Tex>{'Y'}</Tex> 的分布對 0 對稱，平均輸出就是 0——不靠這個條件）；floor / half up 的 <Tex>{'\\delta^*'}</Tex> 由本頁的精確 mean-field 計算。blockLms 的 L5 模式對 gain 增量也用同一組 rounding 規則：
         </p>
         <ModeGate min="engineer">
           <CodeBlock

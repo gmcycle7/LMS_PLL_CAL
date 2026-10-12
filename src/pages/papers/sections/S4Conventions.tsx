@@ -313,7 +313,7 @@ export function S4Conventions() {
       </Callout>
       <Hand id="HC-PR.2" />
       <h3 className="papers-subhead">本站 block sign-GMAC：把 1-bit 也換算進來</h3>
-      <TexBlock id="F-PR.3">{r`G_k=\frac1N\sum_{n\in k}q[n]\,x[n],\quad E[G_k]\approx K_q\,C\,\delta_k\ \Longrightarrow\ \delta_{k+1}\approx(1-\mu K_qC)\,\delta_k,\qquad s_{\mathrm{GMAC}}=\mu K_q\ \big(\times N\ \text{若誤用 sum 模式}\big)`}</TexBlock>
+      <TexBlock id="F-PR.3">{r`\begin{aligned}&G_k=\frac1N\sum_{n\in k}q[n]\,x[n],\quad E[G_k]\approx K_q\,C\,\delta_k\ \Longrightarrow\ \delta_{k+1}\approx(1-\mu K_qC)\,\delta_k\\[2pt]&s_{\mathrm{GMAC}}=\mu K_q\ \big(\times N\ \text{若誤用 sum 模式}\big)\end{aligned}`}</TexBlock>
       <p>
         <Tex>{r`\mu`}</Tex> 的單位是 fs、<Tex>{'K_q'}</Tex> 是 <Tex>{r`\mathrm{fs^{-1}}`}</Tex>，乘起來才是無因次的 loop gain（
         <ErratumNote id="E13" />

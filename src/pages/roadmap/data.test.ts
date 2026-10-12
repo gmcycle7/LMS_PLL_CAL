@@ -176,6 +176,9 @@ describe('Roadmap 資料：誠實與完整', () => {
 
   it('每個公式都有 LaTeX 版的使用條件（本頁顯示用），而且 KaTeX 可解析', () => {
     expect(Object.keys(CONDITIONS_TEX).sort()).toEqual(FORMULAS.map((f) => f.id).sort())
+    // 技術審查 R10：本頁 F-SS.5 的 κ_1 是實數（Σ w_ℓ·Re H_PD），就是案例頁複數 κ_1 = 8λ_1 的實部；兩個版本的條件都要寫明
+    expect(CONDITIONS_TEX['F-SS.5']).toContain(String.raw`是實數，即案例頁（F-CS.13）的複數 $\kappa_1=8\lambda_1$ 的實部 $\mathrm{Re}\,\kappa_1$`)
+    expect(FORMULAS.find((f) => f.id === 'F-SS.5')?.conditions).toContain('的複數 κ_1 = 8λ_1 的實部 Re κ_1')
     for (const f of FORMULAS) {
       const tex = allMathIn(CONDITIONS_TEX[f.id])
       expect(tex.length, f.id).toBeGreaterThan(0)

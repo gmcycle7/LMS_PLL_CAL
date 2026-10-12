@@ -57,7 +57,7 @@ import {
   simulateGeneral,
   simulateQuasiStatic,
 } from '@/simulation/models/stability'
-import { comparatorKq, corr2, gaugeAnalysis, meanTrajectory, peAnalytic, type Detector, type RegressorDist } from '@/simulation/models/pe'
+import { comparatorKq, corr2, gaugeAnalysis, meanTrajectory, peAnalytic, stepsToDecay as peStepsToDecay, type Detector, type RegressorDist } from '@/simulation/models/pe'
 import { analyzeMimo, DEFAULT_RULE, type JhatSource, type MimoRule, type RuleConfig } from '@/simulation/models/mimo'
 import { analyzeBias, type BiasAlgorithm, type CodeDistKind, type DcNullMode } from '@/simulation/models/bias'
 import { calLoop, mixingCrossCheck, REGIME_LABEL, simulateMixing, swDtft, zohGain, type GmMode } from '@/simulation/models/calNoise'
@@ -81,6 +81,7 @@ import {
   type ToggleOrder,
 } from '@/simulation/models/quantizer'
 import type { DsmKind } from '@/simulation/models/dsm'
+import { diagMath } from '@/chapters/ch07/experiments/diagText'
 import { texArg, texNum } from './format'
 
 /* ───────────────────────── 型別 ───────────────────────── */
@@ -803,11 +804,20 @@ const previewDelayFx: Previewer = (prm) => {
           r.an.hat.exact
             ? {
                 tex: `\\text{${c.id}}:\\ \\hat H=H\\Rightarrow\\theta=\\Omega D=${th},\\ C=E[u_f\\,u]=|H|^2\\cos\\theta=${t(magH * magH, 5)}\\times\\cos(${th})=${t(r.C)}`,
-                why: 'filtered-x：用模型 $\\hat H$ 濾過的 code 當 regressor；$\\hat H=H$ 時相位完全抵銷，$C=E[u^2]\\ge0$。',
+                why:
+                  'filtered-x：用模型 $\\hat H$ 濾過的 code 當 regressor；$\\hat H=H$ 時模型的相位完全抵銷，只剩 $\\theta=\\Omega D$：' +
+                  (c.D === 0
+                    ? '$D=0$ 時 $C=E[u^2]\\ge0$。'
+                    : `這裡 $D=${c.D}\\ne0$，$C=E[u[n]\\,u_f[n-D]]=|H|^2\\cos(\\Omega D)=E[u^2]\\cos(\\Omega D)$：$\\cos(\\Omega D)<1$ 時比 $E[u^2]$ 小，$\\cos(\\Omega D)<0$ 時是負的（F-07.12）；$D=0$ 時才保證是 $E[u^2]\\ge0$。`),
               }
             : {
-                tex: `\\text{${c.id}}:\\ \\theta=\\angle H-\\angle\\hat H+\\Omega D=${th},\\ C=E[u_f\\,u]=|H||\\hat H|\\cos\\theta=${t(magH, 5)}\\times${t(magG, 5)}\\times\\cos(${th})=${t(r.C)}`,
-                why: '$\\hat H\\ne H$：有效相關是 $E[u\\,u_f]$，不是 $E[u^2]$；模型與真實路徑的相位差超過 $90^\\circ$ 時，filtered-x 一樣會反向更新（勘誤 E45）。',
+                // 兩行：一行最長約 1000px，超過 Inspector 的欄寬（約 840px）
+                tex: `\\begin{aligned}\\text{${c.id}}:\\ &\\theta=\\angle H-\\angle\\hat H+\\Omega D=${th}\\\\&C=E[u_f\\,u]=|H||\\hat H|\\cos\\theta=${t(magH, 5)}\\times${t(magG, 5)}\\times\\cos(${th})=${t(r.C)}\\end{aligned}`,
+                why:
+                  (c.D === 0
+                    ? '$\\hat H\\ne H$：有效相關是 $E[u\\,u_f]$，不是 $E[u^2]$；模型與真實路徑的相位差超過 $90^\\circ$ 時，'
+                    : `$\\hat H\\ne H$、$D=${c.D}\\ne0$：有效相關是 $E[u[n]\\,u_f[n-D]]$，不是 $E[u^2]$；殘餘相位 $\\theta$（模型與真實路徑的相位差再加 $\\Omega D$）超過 $90^\\circ$ 時，`) +
+                  'filtered-x 一樣會反向更新（勘誤 E45）。',
               },
         )
       } else {
@@ -817,7 +827,7 @@ const previewDelayFx: Previewer = (prm) => {
         })
       }
     } else {
-      steps.push({ tex: `\\text{${c.id}}:\\ C_{\\text{ref}}=\\frac{1}{2\\pi}\\int_{-\\pi}^{\\pi}S_x(\\Omega)\\,\\mathrm{Re}\\{H\\,G^*\\}\\,d\\Omega=${t(r.C)}`, why: '寬頻 code：每個頻率的相關加起來（Parseval）；$G$ 是 regressor 路徑（延遲或 $\\hat H$）。' })
+      steps.push({ tex: `\\text{${c.id}}:\\ C_{\\text{ref}}=\\frac{1}{2\\pi}\\int_{-\\pi}^{\\pi}S_x(\\Omega)\\,\\mathrm{Re}\\{H\\,G^*\\}\\,d\\Omega=${t(r.C)}`, why: '寬頻 code：每個頻率的相關加起來（Parseval）；$G$ 是 regressor 路徑（延遲 $z^{-D}$、$\\hat H$，或兩者串聯 $\\hat H z^{-D}$）。' })
     }
   }
   const kqOk = Number.isFinite(Kq) // σ_v = 0：hard limiter，K_q 與平均 pole 沒有定義
@@ -837,7 +847,8 @@ const previewDelayFx: Previewer = (prm) => {
     if (Math.abs(r.pole) >= 1) return { kind: 'danger' as const, text: `${who}：$g=\\mu K_qC=${t(1 - r.pole)}\\ge2$，振盪發散（降低 $\\mu$）。` }
     return { kind: 'ok' as const, text: `${who}：$C=${t(r.C, 4)}>0$，$p=${t(r.pole)}$。` }
   })
-  for (const w of analyses[0].an.warnings.slice(0, 3)) verdicts.push({ kind: 'info', text: w })
+  // analyzeFxLab 的警告是純文字（用 Unicode 拼數學：「E[u[n]·u_f[n−D]] = …」「Ĥ ≠ H」）；和第 7 章的 Lab 用同一個轉換改成 `$…$`（轉不完整時原樣回傳）
+  for (const w of analyses[0].an.warnings.slice(0, 3)) verdicts.push({ kind: 'info', text: diagMath(w) })
   return {
     experiment: 'delay-fx-lab',
     modelFns: ['filteredX.analyzeFxLab', 'filteredX.pathTransfer', 'filteredX.buildHat', 'blockLms.generateCodePattern'],
@@ -849,7 +860,7 @@ const previewDelayFx: Previewer = (prm) => {
     stepsTitle: '手算：三種 regressor 的有效相關與 pole',
     chart: { title: '$C_D$ 對 code delay $D$（Case A 的路徑與 code）', xLabel: '$D$（sample）', yLabel: '$C_D$', series: [{ name: sw.analytic ? '$C_D$（封閉式）' : '$C_D$（時間平均）', x: Array.from(analyses[0].an.sweep.D), y: swY, mode: 'lines+markers' }], hLines: [{ y: 0, name: '$C = 0$' }] },
     verdicts,
-    notes: ['code 正規化為 $E[x^2]=1$；$K_q$ 用小訊號近似（$|\\delta|\\ll\\sigma_v$）。', '閉迴路 Block Sign-LMS（paired seed）在原頁面的 worker 執行；這裡只算平均 pole。'],
+    notes: ['code 正規化為 $E[x^2]=1$；$K_q$ 用小訊號近似（$|\\delta\\,u|\\ll\\sigma_v$：comparator 前的確定性殘差遠小於雜訊，$u$ 是 code 經過誤差路徑後的訊號）。', '閉迴路 Block Sign-LMS（paired seed）在原頁面的 worker 執行；這裡只算平均 pole。'],
     seed,
   }
 }
@@ -1067,15 +1078,20 @@ const previewPeEigen: Previewer = (p) => {
   const an = peAnalytic({ rho, dist, g, N, N0, detector }) // ← 差異：每個 eigenvalue λ_i = 1 ± ρ 各一個 pole p_i = 1 − gλ_i（另含 k₉₅、mean-square 半徑）
   const traj = meanTrajectory(corr2(rho), g, d0, blocks) // E[δ_{k+1}] = (I − gR)E[δ_k]
   // #endregion
+  // 技術審查 R06a：linear detector 的平均遞迴是等式；1-bit（sign）時 K_q 是小訊號增益，g、pole、k₉₅ 都只是
+  // |uᵀδ_k| ≪ σ_v 的小訊號線性化（Ch09 F-09.3、PeEigenLab 的 claimMean 同一個規則）
+  const signDet = detector === 'sign'
+  const claimMean: ClaimKind = signDet ? 'approx' : 'exact'
+  const smallSignalNote = '1-bit：小訊號（$|\\mathbf u^T\\boldsymbol\\delta_k|\\ll\\sigma_v$）'
   const metrics: PreviewMetric[] = [
     { key: 'lamMax', label: '\\lambda_{\\max}=1+|\\rho|', value: an.modes.lambdas[0], claim: 'exact', note: 'T10' },
     { key: 'lamMin', label: '\\lambda_{\\min}=1-|\\rho|', value: an.modes.lambdas[1], claim: 'exact' },
     { key: 'kappa', label: '\\kappa=\\lambda_{\\max}/\\lambda_{\\min}', value: an.modes.kappa, claim: 'exact' },
-    { key: 'g', label: 'g=\\mu K_q', value: g, claim: 'exact', note: detector === 'linear' ? 'linear detector：$K_q\\equiv1$' : kqMode === 'normalized' ? '正規化輸入（$\\mu=g/K_q$）' : `物理單位：$K_q=${t(Kq)}\\,\\mathrm{fs^{-1}}$` },
-    { key: 'pFast', label: 'p_{\\text{fast}}=1-g\\lambda_{\\max}', value: an.pFast, claim: 'exact' },
-    { key: 'pSlow', label: 'p_{\\text{slow}}=1-g\\lambda_{\\min}', value: an.pSlow, claim: 'exact', note: 'T11' },
-    { key: 'k95Slow', label: 'k_{95}=\\lceil\\ln0.05/\\ln|p_{\\text{slow}}|\\rceil', value: an.k95Slow, unit: '\\text{blocks}', claim: 'exact' },
-    { key: 'k95SlowReal', label: '\\ln0.05/\\ln|p_{\\text{slow}}|', value: an.k95SlowReal, claim: 'exact' },
+    { key: 'g', label: 'g=\\mu K_q', value: g, claim: claimMean, note: detector === 'linear' ? 'linear detector：$K_q\\equiv1$' : kqMode === 'normalized' ? '正規化輸入（$\\mu=g/K_q$）；$K_q$ 是小訊號增益' : `物理單位：$K_q=${t(Kq)}\\,\\mathrm{fs^{-1}}$（小訊號增益）` },
+    { key: 'pFast', label: 'p_{\\text{fast}}=1-g\\lambda_{\\max}', value: an.pFast, claim: claimMean, ...(signDet ? { note: smallSignalNote } : {}) },
+    { key: 'pSlow', label: 'p_{\\text{slow}}=1-g\\lambda_{\\min}', value: an.pSlow, claim: claimMean, note: signDet ? `T11；${smallSignalNote}` : 'T11' },
+    { key: 'k95Slow', label: 'k_{95}=\\lceil\\ln0.05/\\ln|p_{\\text{slow}}|\\rceil', value: an.k95Slow, unit: '\\text{blocks}', claim: claimMean, ...(signDet ? { note: smallSignalNote } : {}) },
+    { key: 'k95SlowReal', label: '\\ln0.05/\\ln|p_{\\text{slow}}|', value: an.k95SlowReal, claim: claimMean },
     { key: 'msRadius', label: '\\rho_{\\text{MS}}', value: an.msRadius, claim: detector === 'linear' ? 'exact' : 'approx', note: `mean-square 半徑（$N=${N}$；勘誤 E23）` },
     { key: 'gOpt', label: 'g^*=2/(\\lambda_{\\max}+\\lambda_{\\min})', value: an.gOpt, claim: 'exact', note: '單一 scalar 步長的最佳值' },
   ]
@@ -1085,14 +1101,22 @@ const previewPeEigen: Previewer = (p) => {
   const verdicts: Verdict[] = []
   if (lamMinZero) verdicts.push({ kind: 'danger', text: `$\\lambda_{\\min}=0$：不可辨識——$\\rho=${t(rho)}$ 時兩個 regressor 完全相同（或相反），$(1,${rho > 0 ? '-1' : '1'})$ 方向永遠學不到，停在初值。` })
   else if (an.meanRadius >= 1) verdicts.push({ kind: 'danger', text: `$\\max|p_i|=${t(an.meanRadius)}\\ge1$：$g$ 太大，快模式發散。` })
-  else verdicts.push({ kind: 'ok', text: `平均遞迴穩定；慢模式要 $${t(an.k95Slow)}$ 個 block 才衰減 95%（$\\kappa=${t(an.modes.kappa, 4)}$）。` })
+  else {
+    verdicts.push({ kind: 'ok', text: `${signDet ? '小訊號的平均遞迴穩定' : '平均遞迴穩定'}；慢模式要 $${t(an.k95Slow)}$ 個 block 才衰減 95%（$\\kappa=${t(an.modes.kappa, 4)}$）。` })
+    // 技術審查 C01：g 超過 g* = 2/(λ_max+λ_min) 時 |p_fast| > |p_slow|——λ_max 的模式過衝（pole 為負），整體收斂改由它決定
+    if (Math.abs(an.pFast) > Math.abs(an.pSlow) + 1e-12)
+      verdicts.push({
+        kind: 'warn',
+        text: `$g=${t(g)}>g^*=2/(\\lambda_{\\max}+\\lambda_{\\min})=${t(an.gOpt)}$：快模式（$\\lambda_{\\max}$）過衝，$|p_{\\text{fast}}|=${t(Math.abs(an.pFast))}>|p_{\\text{slow}}|=${t(Math.abs(an.pSlow))}$，整體的 95% 衰減改由它決定：$\\lceil\\ln0.05/\\ln|p_{\\text{fast}}|\\rceil=${t(peStepsToDecay(an.pFast, 0.05))}$ 個 block（不是慢模式的 $${t(an.k95Slow)}$）。`,
+      })
+  }
   if (Math.abs(rho) < 1 && an.meanRadius < 1 && an.msRadius > 1 + 1e-9) verdicts.push({ kind: 'warn', text: `mean-square 半徑 $${t(an.msRadius, 5)}\\ge1$：平均收斂但均方發散（勘誤 E23；把 $N$ 加大）。` })
   return {
     experiment: 'pe-eigen-lab',
     modelFns: ['pe.peAnalytic', 'pe.eigenModes', 'pe.eig2x2', 'pe.meanSquareRadius', 'pe.meanTrajectory'],
     level: 'L3',
-    claim: 'exact',
-    summary: `$R=\\begin{bmatrix}1&${t(rho)}\\\\${t(rho)}&1\\end{bmatrix}$、$g=${t(g)}$：慢 pole $${t(an.pSlow)}$，${lamMinZero ? '$\\lambda_{\\min}=0$，那個方向永遠不收斂' : `$k_{95}=${t(an.k95Slow)}$ blocks`}。`,
+    claim: claimMean,
+    summary: `$R=\\begin{bmatrix}1&${t(rho)}\\\\${t(rho)}&1\\end{bmatrix}$、$g=${t(g)}$：${signDet ? '小訊號的' : ''}慢 pole $${t(an.pSlow)}$，${lamMinZero ? '$\\lambda_{\\min}=0$，那個方向永遠不收斂' : `$k_{95}=${t(an.k95Slow)}$ blocks`}。`,
     metrics,
     steps: [
       { tex: `\\det(R-\\lambda I)=(1-\\lambda)^2-\\rho^2=0\\Rightarrow\\lambda=1\\pm\\rho=${t(snap(an.modes.lambdas[0]))},\\ ${t(snap(an.modes.lambdas[1]))}`, why: '2×2 對稱矩陣的 eigenvalue（Jacobi 數值結果與閉式一致）。' },
@@ -1104,17 +1128,17 @@ const previewPeEigen: Previewer = (p) => {
         ? { tex: `\\lambda_{\\min}=0\\;\\Rightarrow\\;\\kappa=\\frac{\\lambda_{\\max}}{\\lambda_{\\min}}\\to\\infty`, why: '完全缺乏 persistent excitation：有一個方向 GMAC 完全沒有反應。' }
         : { tex: `\\kappa=\\frac{\\lambda_{\\max}}{\\lambda_{\\min}}=\\frac{${t(an.modes.lambdas[0])}}{${t(an.modes.lambdas[1])}}=${t(an.modes.kappa)}`, why: 'condition number：快慢模式差幾倍。' },
       {
-        tex: `E[\\delta_{k+1}]=(I-gR)\\,E[\\delta_k],\\quad g=\\mu K_q=${detector === 'sign' && kqMode === 'physical' ? `${ta(muInput)}\\times${ta(Kq)}=` : ''}${t(g)}`,
-        why: `平均遞迴（勘誤 E05：$K_q$ 要寫出來）。${detector === 'linear' ? 'linear detector：$K_q\\equiv1$。' : kqMode === 'normalized' ? '這裡輸入的就是正規化後的 $g$。' : '物理單位：$\\mu$ 是 fs、$K_q$ 是 $\\mathrm{fs^{-1}}$。'}`,
+        tex: `E[\\delta_{k+1}]${signDet ? '\\approx' : '='}(I-gR)\\,E[\\delta_k],\\quad g=\\mu K_q=${detector === 'sign' && kqMode === 'physical' ? `${ta(muInput)}\\times${ta(Kq)}=` : ''}${t(g)}`,
+        why: `平均遞迴（勘誤 E05：$K_q$ 要寫出來）。${detector === 'linear' ? 'linear detector：$K_q\\equiv1$，等號精確。' : `${kqMode === 'normalized' ? '這裡輸入的就是正規化後的 $g$。' : '物理單位：$\\mu$ 是 fs、$K_q$ 是 $\\mathrm{fs^{-1}}$。'}1-bit comparator 的 $K_q=\\sqrt{2/\\pi}/\\sigma_v$ 是小訊號增益，所以這一行是 $\\approx$：前提是 $|\\mathbf u^T\\boldsymbol\\delta_k|\\ll\\sigma_v$（第 9 章 F-09.3），下面的 pole 與 $k_{95}$ 都是小訊號區的值。`}`,
       },
-      { tex: `p_i=1-g\\lambda_i:\\ ${t(snap(an.pFast))},\\ ${t(an.pSlow)}`, why: '在 eigenvector 座標下兩個模式各自獨立衰減。' },
+      { tex: `p_i=1-g\\lambda_i:\\ ${t(snap(an.pFast))},\\ ${t(an.pSlow)}`, why: `在 eigenvector 座標下兩個模式各自獨立衰減${signDet ? '（1-bit：小訊號區的局部 pole）' : ''}。` },
       lamMinZero
         ? { tex: `p_{\\text{slow}}=1-g\\cdot0=1\\;\\Rightarrow\\;|p_{\\text{slow}}|^k=1\\ \\ \\forall k\\quad(k_{95}\\ \\text{不存在})`, why: 'pole 恰好在 1：那個方向的誤差永遠停在初值，不發散也不收斂——這就是「不可辨識」。' }
         : { tex: `k_{95}=\\left\\lceil\\frac{\\ln0.05}{\\ln|p_{\\text{slow}}|}\\right\\rceil=\\lceil${t(an.k95SlowReal)}\\rceil=${t(an.k95Slow)}`, why: '$|p|^k\\le0.05$ 取對數（$\\ln|p|<0$，不等號翻轉）。' },
     ],
     stepsTitle: '手算：eigenvalue、pole 與 95% 衰減步數',
     chart: {
-      title: '平均軌跡 $E[\\boldsymbol\\delta_k]$（meanTrajectory）',
+      title: signDet ? '平均軌跡 $E[\\boldsymbol\\delta_k]$（meanTrajectory；小訊號線性化）' : '平均軌跡 $E[\\boldsymbol\\delta_k]$（meanTrajectory）',
       xLabel: '$k$（block）',
       yLabel: '$E[\\delta_i]$',
       series: [
@@ -1124,7 +1148,13 @@ const previewPeEigen: Previewer = (p) => {
       hLines: [{ y: 0, name: '0' }],
     },
     verdicts,
-    notes: ['L3 模型：兩個單位功率 regressor、相關係數 $\\rho$；這是 mean recursion，個別軌跡（尤其 ±1 code）會呈階梯狀。', 'Monte Carlo（chains、滑動窗口 $\\lambda_{\\min}$）在原頁面的 worker 執行。'],
+    notes: [
+      'L3 模型：兩個單位功率 regressor、相關係數 $\\rho$；這是 mean recursion，個別軌跡（尤其 ±1 code）會呈階梯狀。',
+      ...(signDet
+        ? ['1-bit comparator：$g$、兩個 pole 與 $k_{95}$ 都是小訊號線性化（$|\\mathbf u^T\\boldsymbol\\delta_k|\\ll\\sigma_v$，初始誤差與迴路自己的穩態抖動都要滿足）的值，所以標「近似」；誤差大到 comparator 飽和時實際收斂比它慢（第 9 章 F-09.3、F-09.16）。']
+        : []),
+      'Monte Carlo（chains、滑動窗口 $\\lambda_{\\min}$）在原頁面的 worker 執行。',
+    ],
   }
 }
 
@@ -1316,7 +1346,24 @@ const previewMimo: Previewer = (p) => {
       }),
     )
     metrics.push({ key: `rho:${id}`, label: `${seq ? '\\rho(\\Phi_{\\text{sweep}})^{1/(PK)}' : '\\rho(I+MJ)'}${tag}`, value: a.spectralRadius, claim: 'exact', note: seq ? '換算成每個 block 的等效值' : undefined })
-    if (a.blocks95 !== null) metrics.push({ key: `k95:${id}`, label: `k_{95}${tag}`, value: a.blocks95, unit: '\\text{blocks}', claim: 'exact' })
+    // k95 = 最壞初始方向的 ‖δ_k‖ 降到 5% 以下且不再超過的 block 數（analyzeRule 的 blocks95）。A 正規時就是 ⌈ln 0.05/ln ρ⌉；
+    // 非正規時那個式子只是下界（blocks95Basis = 'norm'：逐 block 算 ‖A^j‖₂；'lower-bound'：沒算完，只能列下界）
+    if (a.blocks95 !== null)
+      metrics.push({
+        key: `k95:${id}`,
+        label: `k_{95}${tag}`,
+        value: a.blocks95,
+        unit: '\\text{blocks}',
+        claim: a.blocks95Basis === 'lower-bound' ? 'approx' : 'exact',
+        note:
+          a.blocks95Basis === 'norm' && !seq
+            ? `$A=I+MJ$ 非正規（$AA^T\\ne A^TA$）：逐 block 算 $\\|A^j\\|_2\\le0.05$（最壞初始方向）；只看 $\\rho$ 的 $\\lceil\\ln0.05/\\ln\\rho\\rceil=${a.blocks95Asymptotic}$ ${a.blocks95 === a.blocks95Asymptotic ? '是下界，這裡剛好相同' : '只是下界'}`
+            : a.blocks95Basis === 'norm'
+              ? '最壞初始方向的誤差長度降到 5% 以下、之後不再超過（逐 block 計算）'
+              : a.blocks95Basis === 'lower-bound'
+                ? '$A=I+MJ$ 非正規（$AA^T\\ne A^TA$）：這是 $\\lceil\\ln0.05/\\ln\\rho\\rceil$ 的下界，實際更久'
+                : undefined,
+      })
     const Mn = a.Mn
     // 「單一 loop 的 pole」只對每個參數各用自己那條 GMAC 的規則（scalar / diagonal / NLMS）有意義；
     // 完整或 regularized 的 M 本來就是矩陣，拿它的對角線去算「單獨調」沒有物理意義
@@ -1349,7 +1396,7 @@ const previewMimo: Previewer = (p) => {
     }
     const singlesStable = single ? single.every((v) => Math.abs(v) < 1) : false
     const who = `Case ${id}（${RULE_TEX[a.rule]}）`
-    if (a.stable) verdicts.push({ kind: 'ok', text: `${who}：$\\rho=${t(a.spectralRadius)}<1$，收斂${a.blocks95 !== null ? `（$k_{95}=${a.blocks95}$）` : ''}。` })
+    if (a.stable) verdicts.push({ kind: 'ok', text: `${who}：$\\rho=${t(a.spectralRadius)}<1$，收斂${a.blocks95 !== null ? `（$k_{95}${a.blocks95Basis === 'lower-bound' ? '\\ge' : '='}${a.blocks95}$）` : ''}。` })
     else if (Math.abs(a.spectralRadius - 1) <= 1e-9)
       verdicts.push({ kind: 'warn', text: `${who}：$${seq ? '\\rho(\\Phi_{\\text{sweep}})' : '\\rho(I+MJ)'}=1$：臨界——有一個模式完全不衰減（通常是 $\\lambda_{\\min}=0$ 的不可辨識方向），不可宣稱收斂。` })
     else
@@ -1368,7 +1415,7 @@ const previewMimo: Previewer = (p) => {
     steps,
     stepsTitle: '手算：單一 loop 的 pole 對一起更新的 $\\operatorname{eig}(\\mathbf I+\\mathbf M\\mathbf J)$',
     chart: trajSeries.length
-      ? { title: '$\\|E[\\boldsymbol\\delta_k]\\|$：平均遞迴 $\\boldsymbol\\delta_{k+1}=(\\mathbf I+\\mathbf M\\mathbf J)\\boldsymbol\\delta_k$', xLabel: '$k$（block）', yLabel: '$\\|\\boldsymbol\\delta_k\\|$（fs）', yLog: true, series: trajSeries }
+      ? { title: '$\\|E[\\boldsymbol\\delta_k]\\|$：平均遞迴 $\\boldsymbol\\delta_{k+1}=(\\mathbf I+\\mathbf M\\mathbf J)\\boldsymbol\\delta_k$', xLabel: '$k$（block）', yLabel: '$\\|\\boldsymbol{\\delta}_k\\|$（fs）', yLog: true, series: trajSeries }
       : undefined,
     verdicts,
     notes: ['L3 模型：$K_q$ 正規化為 1（$M_n=K_qM$）；平均遞迴不含 GMAC 雜訊。', 'Monte Carlo 軌跡與穩態共變異（Lyapunov）在原頁面。'],
@@ -1452,12 +1499,16 @@ const previewBias: Previewer = (p) => {
   if (an0?.zeroSet) metrics.push({ key: 'wSign0', label: 'w^*_{\\text{Sign}}\\ (\\sigma_v=0)', value: an0.zeroSet.lo === an0.zeroSet.hi ? an0.zeroSet.lo : `$[${t(an0.zeroSet.lo)},\\ ${t(an0.zeroSet.hi)}]$`, claim: 'exact', note: '$|x|$ 加權中位數（無雜訊）' })
   else if (an0) metrics.push({ key: 'wSign0', label: 'w^*_{\\text{Sign}}\\ (\\sigma_v=0)', value: an0.wStar, claim: 'exact' })
   if (Number.isFinite(an.validityRatio)) metrics.push({ key: 'validity', label: '\\max|e_{\\det}|/\\sigma_v', value: an.validityRatio, claim: 'exact', note: '越小，Sign-LMS 越接近 MSE 解' })
-  metrics.push({ key: 'slope', label: '-\\partial E[G]/\\partial w\\,|_{w^*}', value: an.slope, claim: 'approx', note: deadZone ? '跨過整段 dead zone 的割線斜率（區間內 $E[G]\\equiv0$，切線斜率為 0）' : undefined })
+  metrics.push({ key: 'slope', label: '-\\partial E[G]/\\partial w\\,|_{w^*}', value: an.slope, claim: 'approx', note: deadZone ? '跨過整段 dead zone 的割線斜率（區間內 $E[G]\\equiv0$，切線斜率為 0）' : an.crossing?.kind === 'jump' ? '跨過跳變的割線斜率（差分寬度 $\\pm0.02\\,(1+|w^*|)$）：$E[G](w)$ 是階梯，在 $w^*$ 沒有切線斜率' : undefined })
 
   const steps: PreviewStep[] = [
     { tex: `e_{\\det}(x;w)=(a-w)x+b+d(x),\\qquad d(x)=c_2x^2+c_3x^3+\\kappa x`, why: '確定性誤差：增益誤差 + offset $b$ + INL 與 code 相關干擾 $d(x)$（勘誤 E12 的符號）。' },
     {
-      tex: `E[x]=${t(snap(mo.Ex))},\\quad E[x^2]=${t(mo.Ex2)},\\quad E[x^3]=${t(snap(mo.Ex3))},\\quad E[x^4]=${t(mo.Ex4)}${dcMode !== 'none' ? `,\\quad \\mathrm{Var}(x)=${t(mo.varX)}` : ''}`,
+      // DC null 模式多一項 Var(x)：放到第二行（五項排成一行約 850px，超過 Inspector 的欄寬）
+      tex:
+        dcMode !== 'none'
+          ? `\\begin{aligned}&E[x]=${t(snap(mo.Ex))},\\quad E[x^2]=${t(mo.Ex2)},\\quad E[x^3]=${t(snap(mo.Ex3))},\\quad E[x^4]=${t(mo.Ex4)}\\\\&\\mathrm{Var}(x)=${t(mo.varX)}\\end{aligned}`
+          : `E[x]=${t(snap(mo.Ex))},\\quad E[x^2]=${t(mo.Ex2)},\\quad E[x^3]=${t(snap(mo.Ex3))},\\quad E[x^4]=${t(mo.Ex4)}`,
       why: `${an.distLabel} 的動差（${an.continuous ? '數值積分' : '離散分布直接加權平均'}）。`,
     },
   ]
@@ -1497,33 +1548,72 @@ const previewBias: Previewer = (p) => {
         (jitter ? '$\\sigma_v(x)$ 隨 code 改變時，每個 code 的資訊量以 $1/\\sigma_v(x)$ 加權，code 置中也消不掉 offset 造成的 bias（勘誤 E17）。' : ''),
     })
   }
+  // 無雜訊、離散 code：E[G](w) 是階梯，在 w* 由 gLeft 跳到 gRight（analyzeBias 的 crossing）；固定點是「變號的位置」，那一點本身的值依 tie 慣例而定
+  const jump = an.crossing?.kind === 'jump'
+  const jumpWhy = jump && an.crossing ? `$E[G](w)$ 是階梯函數：在 $w^*$ 由 $${t(snap(an.crossing.gLeft, 1, 1e-9))}$ 直接跳到 $${t(snap(an.crossing.gRight, 1, 1e-9))}$（變號），固定點指的是這個位置；$w$ 不會停住，而是在它兩側來回跳。` : ''
   const medianWhy = '無雜訊時 comparator 是 hard limiter：$x\\operatorname{sign}(e_{\\det})=|x|\\operatorname{sign}(t(x)-w)$，其中 $t(x)=a+\\kappa+(b+c_2x^2+c_3x^3)/x$ 是讓第 $x$ 個 code 誤差為 0 的 gain。固定點是 $t(x)$ 的 $|x|$ 加權中位數（MAE 解），不是 MSE 的 $x^2$ 加權平均（勘誤 E01）。'
   if (algorithm === 'sign' && !noisy) {
     if (an.zeroSet)
       steps.push({
-        tex: `\\sigma_v=0:\\ E[G](w)=E\\big[|x|\\operatorname{sign}(t(x)-w)\\big]=0\\Rightarrow w^*${deadZone ? `\\in${dzTex}` : `=${t(an.zeroSet.lo)}`}`,
-        why: medianWhy + (deadZone ? '這裡累積權重剛好在兩個 $t(x)$ 之間達到一半：整段區間都是解（dead zone），$w$ 停在哪裡由初值與 $\\mu$ 決定。' : ''),
+        // dead zone：整段區間真的滿足 E[G] = 0；單一中位數：E[G] 是階梯，在 w* 由正跳到負（不是「等於 0」的根）
+        tex: deadZone
+          ? `\\sigma_v=0:\\ E[G](w)=E\\big[|x|\\operatorname{sign}(t(x)-w)\\big]=0\\Rightarrow w^*\\in${dzTex}`
+          : `\\begin{aligned}&\\sigma_v=0:\\ E[G](w)=E\\big[|x|\\operatorname{sign}(t(x)-w)\\big]\\\\&\\text{在 }w^*\\text{ 由正變負}\\Rightarrow w^*=${t(an.zeroSet.lo)}\\end{aligned}`,
+        why: medianWhy + (deadZone ? '這裡累積權重剛好在兩個 $t(x)$ 之間達到一半：整段區間都是解（dead zone），$w$ 停在哪裡由初值與 $\\mu$ 決定。' : jumpWhy),
       })
     else
       steps.push({
-        tex: `\\sigma_v=0:\\ E[G](w)=E\\big[x\\operatorname{sign}(e_{\\det}(x;w)${dcMode === 'none' ? '' : '+\\varphi'})\\big]=0\\Rightarrow w^*=${t(an.wStar)}`,
-        why: '無雜訊時 $E[q\\mid x]=\\operatorname{sign}(\\cdot)$，$E[G](w)$ 是分段常數（或分段平滑）的函數；以二分法找它變號的位置。',
+        tex: jump
+          ? `\\begin{aligned}&\\sigma_v=0:\\ E[G](w)=E\\big[x\\operatorname{sign}(e_{\\det}(x;w)${dcMode === 'none' ? '' : '+\\varphi'})\\big]\\\\&\\text{在 }w^*\\text{ 由正變負}\\Rightarrow w^*=${t(an.wStar)}\\end{aligned}`
+          : `\\sigma_v=0:\\ E[G](w)=E\\big[x\\operatorname{sign}(e_{\\det}(x;w)${dcMode === 'none' ? '' : '+\\varphi'})\\big]=0\\Rightarrow w^*=${t(an.wStar)}`,
+        why: '無雜訊時 $E[q\\mid x]=\\operatorname{sign}(\\cdot)$，$E[G](w)$ 是分段常數（或分段平滑）的函數；以二分法找它變號的位置。' + jumpWhy,
       })
   } else if (an0?.zeroSet) {
     steps.push({
-      tex: `\\sigma_v=0:\\ E\\big[|x|\\operatorname{sign}(t(x)-w)\\big]=0\\Rightarrow w^*${an0.zeroSet.lo === an0.zeroSet.hi ? `=${t(an0.zeroSet.lo)}` : `\\in[${t(an0.zeroSet.lo)},\\ ${t(an0.zeroSet.hi)}]`}`,
-      why: `對照：${medianWhy}`,
+      tex:
+        an0.zeroSet.lo === an0.zeroSet.hi
+          ? `\\begin{aligned}&\\sigma_v=0:\\ E\\big[|x|\\operatorname{sign}(t(x)-w)\\big]\\\\&\\text{在 }w^*\\text{ 由正變負}\\Rightarrow w^*=${t(an0.zeroSet.lo)}\\end{aligned}`
+          : `\\sigma_v=0:\\ E\\big[|x|\\operatorname{sign}(t(x)-w)\\big]=0\\Rightarrow w^*\\in[${t(an0.zeroSet.lo)},\\ ${t(an0.zeroSet.hi)}]`,
+      why: `對照：${medianWhy}` + (an0.zeroSet.lo === an0.zeroSet.hi && an0.crossing?.kind === 'jump' ? `無雜訊時這個期望值是 $w$ 的階梯函數，在 $w^*$ 由 $${t(snap(an0.crossing.gLeft, 1, 1e-9))}$ 直接跳到 $${t(snap(an0.crossing.gRight, 1, 1e-9))}$（變號），固定點指的是這個位置。` : ''),
     })
   }
   const residual = an.residual
   const verdicts: Verdict[] = []
   const gainBias = an.wStar - model.a
+  // 誤差的自然大小（浮點殘渣歸零用，技術審查 C04）：e = (a − w*)x + b + d(x) 各項的大小相加（|a x| + |w* x| + |b| + w = a 時的殘差）。
+  // 不能拿 e(x;w*) 自己的最大值當尺度——整張表都是殘渣時（例：只有 κx，w* = a + κ，每個 code 的 e 恰為 0），殘渣會被當成真的數字。
+  const curve = an.residualCurve
+  const xAbsMax = curve.x.reduce((mx, x) => Math.max(mx, Math.abs(x)), 0)
+  const eNat = Math.max(1e-300, (Math.abs(model.a) + (Number.isFinite(an.wStar) ? Math.abs(an.wStar) : 0)) * xAbsMax + Math.abs(model.b) + curve.eAtA.reduce((mx, e) => Math.max(mx, Math.abs(e)), 0))
+  const E_DUST = 1e-9
+  /** 每個 code（連續分布時是整條殘差曲線）在 w* 的殘差都是 0：comparator 看不到任何殘差 */
+  const residualAllZero = curve.eStar.length > 0 && curve.eStar.every((e) => Math.abs(e) <= E_DUST * eNat)
+  const eShown = (e: number) => snap(e, eNat, E_DUST)
+  // 同一件事的另一個顯示：max|e_det|/σ_v 那一列在殘差恆為 0 時也只剩浮點殘渣（1.7e-16），顯示成 0
+  if (residualAllZero) {
+    const mv = metrics.find((x) => x.key === 'validity')
+    if (mv) mv.value = 0
+  }
+  const dustSnapped = !!residual && residual.some((r) => r.eStar !== 0 && eShown(r.eStar) === 0)
   if (an.status === 'unidentifiable') verdicts.push({ kind: 'danger', text: '$\\lambda_{\\min}=0$：不可辨識——$E[x^2]=0$（或 GMAC 對 $w$ 的斜率為 0），固定點不存在唯一解。' })
-  else if (an.status === 'no-root') verdicts.push({ kind: 'danger', text: '$E[G](w)$ 在搜尋範圍內沒有零點：GMAC 永遠推向同一邊（例如 offset 大過所有 code 的 gain 誤差）。' })
+  else if (an.status === 'no-root') verdicts.push({ kind: 'danger', text: '$E[G](w)$ 在搜尋範圍內不變號（沒有零交越）：GMAC 永遠推向同一邊（例如 offset 大過所有 code 的 gain 誤差）。' })
   else if (deadZone) verdicts.push({ kind: 'warn', text: `$\\sigma_v=0$：$E[G](w)=0$ 的解是整段區間 $${dzTex}$（dead zone），固定點不唯一——$w$ 停在哪裡取決於初值與 $\\mu$；加入雜訊（dither）才有唯一的零交越。` })
   else if (Math.abs(gainBias) <= 1e-9 * (1 + Math.abs(model.a)))
     verdicts.push({ kind: 'ok', text: `GMAC 在 $w^*=a=${t(model.a)}$ 歸零：這組設定下沒有 gain bias${dcMode === 'shared_bbpd' ? '（offset 被主迴路吸收成 static phase offset）' : ''}。` })
-  else verdicts.push({ kind: 'ok', text: `GMAC 在 $w^*=${t(an.wStar)}$ 歸零，但 $w^*-a=${t(gainBias, 4)}\\ne0$、殘差 $e(x;w^*)\\ne0$：GMAC 歸零 ≠ DTC 誤差歸零。` })
+  else {
+    const head = jump ? `GMAC 的平均在 $w^*=${t(an.wStar)}$ 由正變負（$w$ 在兩側來回跳，時間平均歸零）` : `GMAC 在 $w^*=${t(an.wStar)}$ 歸零`
+    if (residualAllZero)
+      // 例：只有 κx（w* = a + κ）、或 ±1 code 的三次 INL（x³ = x）：e(x;w*) 在用到的每個 code 上都恰為 0，不能寫成「殘差 ≠ 0」
+      verdicts.push({
+        kind: 'ok',
+        text:
+          `${head}，$w^*-a=${t(gainBias, 4)}\\ne0$，但每個 code 的殘差 $e(x;w^*)$ 都是 0：comparator 看不到任何殘差，只靠 $(x,q)$ 發現不了這個偏移。` +
+          (model.kappa !== 0
+            ? '$\\kappa x$ 與真正的 gain 共線（不可辨識）：它若是耦合進來的干擾，DTC 自己的誤差是 $-\\kappa x\\ne0$——GMAC 歸零 ≠ DTC 誤差歸零。'
+            : '在用到的 code 上 $b+d(x)$ 剛好與 $x$ 成正比，等於換了一個等效 gain。'),
+      })
+    else verdicts.push({ kind: 'ok', text: `${head}，但 $w^*-a=${t(gainBias, 4)}\\ne0$、殘差 $e(x;w^*)$ 不全為 0：GMAC 歸零 ≠ DTC 誤差歸零。` })
+  }
   for (const w of an.warnings.slice(0, 3)) verdicts.push({ kind: 'info', text: w })
   const fixedTxt =
     algorithm === 'mse'
@@ -1542,12 +1632,23 @@ const previewBias: Previewer = (p) => {
     stepsTitle: '手算：GMAC 的固定點（MSE 與 Sign 的差別）',
     table: residual
       ? {
-          caption: `每個 code 在固定點的殘差（analyzeBias 的 residual 表${dcMode === 'none' ? '' : '；$e$ 已含主迴路的 DC 偏移 $\\varphi^*$'}）`,
+          caption:
+            `每個 code 在固定點的殘差（analyzeBias 的 residual 表${dcMode === 'none' ? '' : '；$e$ 已含主迴路的 DC 偏移 $\\varphi^*$'}）` +
+            (jump
+              ? '。$e=0$ 的 code 剛好落在 comparator 的 tie 上（數值解留下的 $10^{-13}$ 量級浮點殘渣顯示成 0）'
+              : dustSnapped
+                ? '。數學上恰為 0 的殘差（浮點運算留下 $10^{-16}$ 量級的殘渣）顯示成 0'
+                : ''),
           head: ['$x$', '$P(x)$', '$e(x;w^*)$', '$x\\,e(x;w^*)$'],
-          rows: residual.map((r) => [r.x, r.p, r.eStar, r.xe]),
+          // 數學上恰為 0 的殘差顯示成 0（技術審查 C04）：無雜訊的階梯（jump）時 w* 是某些 code 的 t(x)，二分法的 w* 只準到 1e-13；
+          // 其他情形（例：只有 κx）是 (a + κ − w*)·x 的浮點殘渣 1e-16。門檻是誤差自然大小 eNat 的 1e-9 倍。
+          rows: residual.map((r) => {
+            const e = eShown(r.eStar)
+            return [r.x, r.p, e, e === 0 ? 0 : r.xe]
+          }),
         }
       : undefined,
-    chart: { title: '平均 GMAC $E[G](w)$（零點就是固定點）', xLabel: '$w$', yLabel: '$E[G]$', series: [{ name: '$E[G](w)$', x: an.curve.w, y: an.curve.G }], hLines: [{ y: 0, name: '0' }] },
+    chart: { title: '平均 GMAC $E[G](w)$（零交越就是固定點）', xLabel: '$w$', yLabel: '$E[G]$', series: [{ name: '$E[G](w)$', x: an.curve.w, y: an.curve.G }], hLines: [{ y: 0, name: '0' }] },
     verdicts,
     notes: ['L1（mode none）／L2（DC null）模型；$x$ 依指定分布、identity path、Gaussian comparator noise。', 'Monte Carlo（多 chains、95% CI）在原頁面的 worker 執行。'],
   }
@@ -1786,7 +1887,7 @@ const previewMixing: Previewer = (p) => {
   const steps: PreviewStep[] = [
     {
       tex: hasDc
-        ? `x=m+A\\cos(2\\pi f_xt),\\ \\delta w=B\\cos(2\\pi f_wt)\\;\\Rightarrow\\;\\delta t=x\\cdot\\delta w=mB\\cos(2\\pi f_wt)+AB\\cos(2\\pi f_xt)\\cos(2\\pi f_wt)`
+        ? `\\begin{aligned}&x=m+A\\cos(2\\pi f_xt),\\ \\delta w=B\\cos(2\\pi f_wt)\\\\&\\Rightarrow\\;\\delta t=x\\cdot\\delta w=mB\\cos(2\\pi f_wt)+AB\\cos(2\\pi f_xt)\\cos(2\\pi f_wt)\\end{aligned}`
         : `\\delta t=x\\cdot\\delta w=AB\\cos(2\\pi f_xt)\\cos(2\\pi f_wt)`,
       why:
         'DTC 時間誤差 = code × 係數誤差：時域相乘（頻域就是卷積）。$\\delta w$ 是 block-rate 的量，要先以 ZOH 展開到 sample rate 才能和 $x$ 相乘（勘誤 E09）。' +
@@ -1963,7 +2064,7 @@ const previewQuant: Previewer = (p) => {
     })
   steps.push(
     {
-      tex: `\\text{(D) }\\Delta\\Sigma\\text{: } v[n]=w^*+r[n-1],\\ y=Q(v),\\ r[n]=v-y:\\ r=${Array.from(Dr.r.slice(0, 5), (v) => t(v, 4)).join(',\\ ')},\\dots`,
+      tex: `\\begin{aligned}&\\text{(D) }\\Delta\\Sigma\\text{: } v[n]=w^*+r[n-1],\\ y=Q(v),\\ r[n]=v-y:\\\\&r=${Array.from(Dr.r.slice(0, 5), (v) => t(v, 4)).join(',\\ ')},\\dots\\end{aligned}`,
       why: `誤差回授讓 $y[n]=w^*+r[n-1]-r[n]$；${Dr.period > 0 ? `常數輸入時 $r$ 也是週期 ${Dr.period} 的循環` : '這組設定在 1024 次更新內沒有偵測到週期'}${rot >= 0 ? `，輸出與 (B) 是同一個循環、只差 ${rot} 個 sample 的相位（勘誤 E15：靜態目標下 $\\Delta\\Sigma$ 並不比 toggle 少 tone）` : ''}。`,
     },
     {

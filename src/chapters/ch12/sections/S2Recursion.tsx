@@ -3,7 +3,7 @@ import type { Data, Layout } from 'plotly.js-dist-min'
 import { Callout, ClaimTag, CodeBlock, ModeGate, Plot, Prereq, Section, Tex, TexBlock } from '@/components'
 import calNoiseSrc from '@/simulation/models/calNoise.ts?raw'
 import { calLoop, sigmaW2Colored, swDtft } from '@/simulation/models/calNoise'
-import { Diagram, EX, EX_INPUT, Erratum, Hand, Steps, md, sig } from '../common'
+import { Diagram, EX, EX_INPUT, Erratum, Hand, Steps, TWO_TAP, TWO_TAP_SMALL, md, sig } from '../common'
 import { CHART_COEF_LOOP, CHART_COLORED_ETA, CHART_GMAC_LINEAR, CHART_PSD_FILTER, CHART_UPDATE_LOOP, CHART_VAR_LOOP } from '../diagrams'
 
 const ACF_LAYOUT: Partial<Layout> = { xaxis: { title: { text: String.raw`lag $\ell$ [blocks]` } }, yaxis: { title: { text: String.raw`$R_w$ [$\mathrm{fs}^2$]` } } }
@@ -102,7 +102,9 @@ export function S2Recursion() {
             },
             {
               tex: String.raw`E[q\,x\mid w_k]\approx\sqrt{\tfrac{2}{\pi}}\,\frac{C(a-w_k)}{\sigma_v}=K_qC\,(a-w_k)`,
-              why: md(String.raw`泰勒一階 $\operatorname{erf}(z)\approx 2z/\sqrt\pi$，條件是 $|C(a-w)|\ll\sigma_v$（小訊號）。`),
+              why: md(
+                String.raw`泰勒一階 $\operatorname{erf}(z)\approx 2z/\sqrt\pi$，條件是 $|C(a-w)|\ll\sigma_v$（小訊號）。$|C(a-w)|$ 就是 comparator 看到的確定性訊號 $C(a-w)\,x[n]$ 的振幅（因為 $|x|=1$、path 無記憶）。`,
+              ),
             },
             {
               tex: String.raw`a-w_k=(a-w^*)-\delta w_k\ \Rightarrow\ E[G_k\mid w_k]\approx-K\,\delta w_k\quad(w^*=a)`,
@@ -123,6 +125,53 @@ export function S2Recursion() {
           <Tex>{`3\\sigma_w=${sig(3 * EX.sigmaW, 3)}\\ \\mathrm{fs}\\ll\\sigma_v=100\\ \\mathrm{fs}`}</Tex>，成立得非常好。條件依勘誤 <Erratum id="E30" /> 寫明：
           {md(String.raw`unit-RMS $\pm1$ code、identity path（$C=1$）、average-mode GMAC、白色 Gaussian $v$、近平衡 $\sigma_\eta^2\approx1/N$。`)}
         </p>
+        <p>
+          <strong>適用範圍。</strong>
+          {md(
+            String.raw`「小訊號」要看的是 comparator 前整個確定性殘差的大小。把 code 經過誤差路徑之後、在 comparator 前造成的訊號記成 $u[n]$（每 1 fs 的 gain 誤差造成多少 fs；第 6 章的 F-06.1），comparator 的輸入就是 $e[n]=(a-w)\,u[n]+v[n]$（path 有記憶時，還要 $w$ 在 path 的記憶長度內近似不變，這個寫法才成立）；本節 $w^*=a$、沒有 offset，確定性殘差是 $-\delta w\,u[n]$。本節的模型 $x=\pm1$、$u[n]=C\,x[n]$ 讓 $|u[n]|$ 永遠等於 $|C|$，所以條件才能只寫成 $|C\,\delta w|\ll\sigma_v$。如果 code 不是 $\pm1$，或 path 有記憶（comparator 前的訊號還含有前幾拍的 code，第 6、7 章），就不能這樣簡化。code 不是 $\pm1$ 時，$|u[n]|$ 跟著 $|x[n]|$ 變，不再是常數 $|C|$；path 有記憶時差得更多：$C=E[x\,u]$ 只量到 $u$ 裡面和 $x[n]$ 相關的那一部分，$C$ 小不代表 $u$ 小。兩種情況都要改看 $|\delta w|\,u_{\max}\ll\sigma_v$（$u_{\max}=\max_n|u[n]|$ 是 $u$ 的峰值；這是充分條件）。第 6 章的近整數 FCW 就是實例：$C\to0^+$，但 $u$ 的峰值並不小（§6.4、F-06.19）。`,
+          )}
+        </p>
+        <ModeGate min="engineer">
+          <Callout kind="warn" title={md(String.raw`反例：$|C\,\delta w|$ 很小，comparator 卻已經飽和`)}>
+            <p>
+              {md(
+                String.raw`取 $\pm1$ iid code，path 有兩個 tap：$u[n]=${TWO_TAP.c0}\,x[n]+x[n-1]$（幾乎是整條路徑晚一個 sample）。$x[n]$ 與 $x[n-1]$ 獨立，所以 $C=E[x\,u]=${TWO_TAP.C}$；但 $u$ 的峰值 $u_{\max}=${sig(TWO_TAP.uMax, 4)}$。令 $\delta w=${TWO_TAP.dw}$ fs、$\sigma_v=${TWO_TAP.sigmaV}$ fs：$|C\,\delta w|=${sig(TWO_TAP.C * TWO_TAP.dw, 3)}$ fs $\ll\sigma_v$，照 F-12.1 的寫法是小訊號，$E[G]\approx-K\,\delta w=-K_qC\,\delta w=-${sig(TWO_TAP.K / TWO_TAP.C, 3)}\times${TWO_TAP.C}\times${TWO_TAP.dw}=${sig(TWO_TAP.linear, 3)}$。`,
+              )}
+            </p>
+            <p>
+              {md(
+                String.raw`實際上 comparator 的輸入是 $-\delta w\,u[n]+v[n]\approx-${TWO_TAP.dw}\,x[n-1]+v[n]$（單位 fs）：確定性的部分是雜訊 RMS 的 $${sig(TWO_TAP.dw / TWO_TAP.sigmaV, 3)}$ 倍，$q[n]$ 幾乎完全由 $x[n-1]$ 決定，而 $x[n-1]$ 與 $x[n]$ 獨立，所以 $E[q\,x]\approx0$。把 $(x[n],x[n-1])$ 的四種組合各算一次 erf 再平均（記 $d=\delta w/(\sqrt2\,\sigma_v)$）：`,
+              )}
+            </p>
+            <TexBlock>
+              {String.raw`\begin{aligned}
+E[G\mid\delta w]&=-\tfrac12\Big[\operatorname{erf}\big(${sig(TWO_TAP.c1 + TWO_TAP.c0, 4)}\,d\big)-\operatorname{erf}\big(${sig(TWO_TAP.c1 - TWO_TAP.c0, 4)}\,d\big)\Big]=${sig(TWO_TAP.exact, 4)}\\
+&\approx-K\,\delta w\,e^{-\delta w^2/(2\sigma_v^2)}=${sig(TWO_TAP.gauss, 4)}
+\end{aligned}`}
+            </TexBlock>
+            <p>
+              {md(
+                String.raw`第二行的近似：兩個 erf 的引數只差 $${sig(2 * TWO_TAP.c0, 3)}\,d$，差值約等於 erf 在 $d$ 的斜率 $\tfrac{2}{\sqrt\pi}e^{-d^2}$ 乘上這個差。結果只有 F-12.1 預測值的 $${sig(TWO_TAP.ratio, 3)}$ 倍：恢復力等於消失。斜率 $K=K_qC$ 本身沒有錯（$\delta w\to0$ 時仍然成立），錯的是適用範圍：這條 path 要 $|\delta w|\,u_{\max}\ll\sigma_v$，也就是 $|\delta w|\ll1$ fs 才是線性，$\delta w=1$ fs 時恢復力已經只剩線性值的 $${sig(TWO_TAP.at1, 3)}$ 倍。用整個波形的判據一眼就看得出來：$|\delta w|\,u_{\max}=${sig(TWO_TAP.dw * TWO_TAP.uMax, 4)}$ fs $\gg\sigma_v$。任意大小偏差的完整 erf 平均是第 6 章的 F-06.19。`,
+              )}
+            </p>
+          </Callout>
+        </ModeGate>
+        <ModeGate min="research">
+          <p>
+            <strong>判據的量化。</strong>
+            {md(
+              String.raw`$\pm1$ iid code、FIR path $u[n]=\sum_{m\ge0}h_m\,x[n-m]$（所以 $C=E[x\,u]=h_0$）：把 erf 多展開一階，$\operatorname{erf}(z)\approx\tfrac{2}{\sqrt\pi}\big(z-z^3/3\big)$，再對 code 平均，用到 $E[x\,u]=h_0$ 與 $E[x\,u^3]=h_0\big(h_0^2+3\sum_{m\ge1}h_m^2\big)$：`,
+            )}
+          </p>
+          <TexBlock>
+            {String.raw`E[G\mid\delta w]\approx-K\,\delta w\,\Big[1-\frac{\delta w^2}{6\sigma_v^2}\Big(h_0^2+3\sum_{m\ge1}h_m^2\Big)\Big],\qquad K=K_q\,h_0`}
+          </TexBlock>
+          <p>
+            {md(
+              String.raw`方括號裡的第二項是線性化的相對誤差（首項）。決定它大小的是 $h_0^2+3\sum_{m\ge1}h_m^2=3E[u^2]-2C^2$（$E[u^2]=\sum_{m\ge0}h_m^2$ 是 $u$ 的功率），不是只有 $C$：無記憶 path 時相對誤差是 $-(C\,\delta w)^2/(6\sigma_v^2)$，條件就是本節的 $|C\,\delta w|\ll\sigma_v$；有記憶時，後面那些 tap 帶進來的 code 和 $x[n]$ 獨立，不貢獻斜率，卻以三倍的權重把 comparator 推向飽和。上面反例的 path 在 $\delta w=${TWO_TAP_SMALL.dw}$ fs、$\sigma_v=${TWO_TAP.sigmaV}$ fs 時，首項是 $${sig(TWO_TAP_SMALL.lead, 3)}$（完整的 erf 平均給出的相對誤差是 $${sig(TWO_TAP_SMALL.exact, 3)}$）；同樣的 $\delta w$ 換成無記憶的 $u=${TWO_TAP.c0}\,x$，只有 $${sig(TWO_TAP_SMALL.scalarLead, 2)}$。這個展開也只在 $|\delta w|\,u_{\max}\lesssim\sigma_v$ 內有意義：把反例的 $\delta w=${TWO_TAP.dw}$ fs 代進去，首項是 $${sig(TWO_TAP_SMALL.leadAtCounterexample, 3)}$，早就不能用；更大的偏差要用 F-06.19 的完整平均。`,
+            )}
+          </p>
+        </ModeGate>
       </Section>
 
       <Section kind="formula" title="§12.1 係數誤差的遞迴" level={3} id="ch12-recursion">
@@ -275,9 +324,12 @@ export function S2Recursion() {
         <TexBlock id="F-12.4" label="block-rate 係數 PSD">
           {String.raw`\boxed{S_w(e^{j\Omega})=\frac{\mu^2}{|1-pe^{-j\Omega}|^2}S_\eta(e^{j\Omega})}\qquad\Omega=2\pi f/f_u\ \ (\text{rad/block})`}
         </TexBlock>
-        <Callout kind="info" title="注意取樣率">
+        <Callout kind="info" title="注意取樣率與單位">
           這個 PSD 定義在 <strong>block rate</strong> <Tex>{String.raw`f_u=f_s/N=${sig(EX.fu / 1e3, 7)}\ \mathrm{kHz}`}</Tex>，<Tex>{String.raw`\Omega`}</Tex> 的單位是 rad/block。
           之後要乘上 sample-rate 的 code 時，必須先轉換（§12.6、<Erratum id="E29" />）。
+          {md(
+            String.raw`單位：這個 DTFT 形式的 $S_w$ 要「對 $\Omega$ 積分再除以 $2\pi$」才是變異數（$\sigma_w^2=\tfrac1{2\pi}\int_{-\pi}^{\pi}S_w\,d\Omega$），等於對 $\Omega/2\pi$（每個 block 轉幾圈，cycle/block）積分，所以它是「每 cycle/block」的密度，單位 $\mathrm{fs}^2/(\text{cycle/block})$；它不是每 rad/block 的密度——能直接對 $\Omega$ 積分的是 $S_w/(2\pi)$，本站不用。`,
+          )}
           {md(
             String.raw`下面的手算題與 §12.5 會用到「單邊、每 Hz」的版本 $S_w^{(1)}(f)=\tfrac{2}{f_u}S_w(e^{j2\pi f/f_u})$：上標 $(1)$ 表示 one-sided，單位是 $\mathrm{fs}^2/\mathrm{Hz}$，對 $f$ 從 $0$ 積到 $f_u/2$ 就是變異數（換算的推導在 §12.6 的 F-12.10）。`,
           )}

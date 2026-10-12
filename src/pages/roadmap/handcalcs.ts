@@ -210,7 +210,8 @@ export const HANDCALCS: HandCalcDef[] = [
     title: r`R2：係數保持 $N$ 個 sample 不變時，相隔 $m$ 個 sample 的平均相關`,
     page: PAGE,
     formulaId: 'F-R2.2',
-    formulaTex: r`\bar R_{\delta t}[m]=\bar R_x[m]\cdot\bar R_w[m]\ \ (\gcd(P,N)=1),\qquad \frac{\bar R_w[m]}{\sigma_w^2}=\Big(1-\frac{m'}{N}\Big)p^{q}+\frac{m'}{N}\,p^{q+1},\quad m=qN+m',\ 0\le m'<N`,
+    // 兩行（桌機欄寬約 845px，一行排不下會出現橫向捲軸）：分解式；係數的正規化自相關
+    formulaTex: r`\begin{aligned}&\bar R_{\delta t}[m]=\bar R_x[m]\cdot\bar R_w[m]\ \ (\gcd(P,N)=1)\\[2pt]&\frac{\bar R_w[m]}{\sigma_w^2}=\Big(1-\frac{m'}{N}\Big)p^{q}+\frac{m'}{N}\,p^{q+1},\quad m=qN+m',\ 0\le m'<N\end{aligned}`,
     level: 'beginner',
     claim: 'exact',
     inputs: [
@@ -716,7 +717,8 @@ export const HANDCALCS: HandCalcDef[] = [
     title: r`R9：最壞情況下第幾筆開始溢位？wrap 與 saturate 各存到多少？`,
     page: PAGE,
     formulaId: 'F-R9.1',
-    formulaTex: r`M=\max|q\,x|,\quad U=2^{W_\mathrm{acc}-1}-1,\quad n_{\mathrm{safe}}=\Big\lfloor\frac UM\Big\rfloor,\qquad \mathrm{wrap}_W(T)=\big((T+2^{W-1})\bmod2^W\big)-2^{W-1},\quad \mathrm{sat}_W(T)=\min(T,\ U)\ \ (T\ge0)`,
+    // 兩行（一行排不下會出現橫向捲軸）：最大值、上限與安全的累加筆數；wrap 與 saturate
+    formulaTex: r`\begin{aligned}&M=\max|q\,x|,\quad U=2^{W_\mathrm{acc}-1}-1,\quad n_{\mathrm{safe}}=\Big\lfloor\frac UM\Big\rfloor\\[2pt]&\mathrm{wrap}_W(T)=\big((T+2^{W-1})\bmod2^W\big)-2^{W-1},\quad \mathrm{sat}_W(T)=\min(T,\ U)\ \ (T\ge0)\end{aligned}`,
     level: 'beginner',
     claim: 'exact',
     inputs: [
@@ -894,7 +896,7 @@ export const HANDCALCS: HandCalcDef[] = [
                 why: r`計算機的 $\tanh$ 鍵（hyp + tan）；沒有的話用 $\tanh y=\tfrac{e^{2y}-1}{e^{2y}+1}$。`,
               },
           {
-            tex: r`\sigma_{w,\min}^2(N)=\frac{L_\varepsilon}{2K^2f_sT_{\max}}\cdot\frac{\tanh y}{y}=\frac{${n(L)}}{2\times${n(K * K)}\times${n(total, 10)}}\times${n(th)}=${n(floor2)}\times${n(th)}=${n(cont2)}\ \mathrm{fs^2}`,
+            tex: r`\begin{aligned}\sigma_{w,\min}^2(N)&=\frac{L_\varepsilon}{2K^2f_sT_{\max}}\cdot\frac{\tanh y}{y}=\frac{${n(L)}}{2\times${n(K * K)}\times${n(total, 10)}}\times${n(th)}\\&=${n(floor2)}\times${n(th)}=${n(cont2)}\ \mathrm{fs^2}\end{aligned}`,
             why: r`tanh 律（F-R10.1）：前面的分數是多 block 極限，$\tanh(y)/y\le1$ 是有限 block 數的修正。`,
           },
           { tex: r`\sigma_{w,\min}(N)=\sqrt{${n(cont2)}}=${n(row.sigmaWContinuous)}\ \mathrm{fs}`, why: '開根號，和第 11 步的整數 $B$ 結果比較。' },

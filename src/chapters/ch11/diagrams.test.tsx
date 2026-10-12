@@ -9,6 +9,7 @@ import { mermaidMathDelimiters, sanitizeMermaidSource } from '@/components/merma
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import {
   KQ_FACTOR,
+  LIN_RESIDUAL_LIMIT,
   SERVO_SHAPE_FRACTION,
   autoMu,
   buildCodeDistribution,
@@ -452,6 +453,11 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     // 「四個 code 的 e 都不是 0」
     expect(five.values.filter((x) => Math.abs(eDet(x, 1.34, CUBIC)) > 0.1)).toHaveLength(4)
     expect(g.node('LEFT').text).toContain(String.raw`$\pm 0.24$ 與 $\pm 0.12$`)
+    // 審查 C04：第五個 code（x = 0）的殘差是 0，而且不論 w 是多少都是 0 —— 正文不能寫「沒有一個是 0」
+    for (const w of [-3, 0, 1, 1.34, 1.4, 7]) expect(Math.abs(eDet(0, w, CUBIC))).toBe(0)
+    expect(five.values.filter((x) => eDet(x, mseFixedPoint(CUBIC, five), CUBIC) === 0)).toEqual([0])
+    expect(g.node('Z0').text).toContain('$e = 0$')
+    expect(g.node('LEFT').text).toContain('四個 code')
     // 圖說「由上到下」：w → 五個 code → 平均 → 結論；中間那一排的五個 code 由左到右依 x = −2 … +2 排列
     const lay = await layout(D.CHART_GMAC_ZERO)
     lay.increasing('y', 'W', ['M2', 'M1', 'Z0', 'P1', 'P2'], 'AVG', ['ZERO', 'LEFT'])
@@ -906,6 +912,11 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     expect(g.node('RES').text).toContain(String.raw`$x = \pm 1$：$\mp ${fmt(Math.abs(e1))}$；$x = \pm 2$：$\pm ${fmt(e2)}$`)
     expect(g.node('ORT').text).toContain(String.raw`$E[x \cdot e_0] = 0$`)
     expect(expectation(five, (x) => x * eDet(x, 1.34, CUBIC))).toBeCloseTo(0, 12)
+    // 審查 C04：殘差留在「四個非零 code」上（x = 0 的殘差是 0），圖與圖說都不寫「每個 code」
+    expect(g.node('RES').text).toContain('四個非零 code')
+    expect(g.node('RES').text).not.toContain('每個 code')
+    expect(CHARTS.find((d) => d.id === 'best-fit')?.caption).toContain('四個非零 code')
+    expect(CHARTS.find((d) => d.id === 'best-fit')?.caption).not.toContain('每個 code')
     // 由上往下：INL → 投影 → 共線／正交兩支（左藍右紅）→ 各自的結論
     const lay = await layout(D.CHART_BEST_FIT)
     lay.increasing('y', 'D', 'SPLIT', ['PAR', 'ORT'], ['ABS', 'RES'])
@@ -997,6 +1008,9 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     expect(y.node('SAW').text).toContain(String.raw`$\Omega_1 = 2\pi \cdot \mathrm{frac}$`)
     expect(y.node('CS').text).toContain(String.raw`$C \propto \mathrm{frac}^2$`)
     expect(y.node('SL').text).toContain(String.raw`$S = K_q \cdot C$`)
+    // 審查 R01：「bias 被放大」是線性化的說法，放大到超出線性範圍就不再是固定點
+    expect(y.node('BI').text).toContain(String.raw`線性化的 bias $= B / C$ 被放大`)
+    expect(y.node('BI').text).toContain('不再是固定點')
     expect(y.node('NG').text).toContain(String.raw`$C \le 0$`)
     const layY = await layout(D.CHART_NEAR_INTEGER_WHY)
     layY.increasing('y', 'F', 'SAW', ['IN', 'OUT'], 'CS', ['SL', 'BI', 'NG'])
@@ -1020,6 +1034,20 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     expect(g.edge('CHK', 'OUT').text).toBe('是')
     expect(g.edge('CHK', 'BAD').text).toBe('否')
     expect(g.node('OUT').text).toContain(String.raw`$w^* - a = B / C$`)
+    // 審查 R01：C 通過交叉檢查之後，B/C 還只是「線性候選」；第二個六角形把它代回完整的 erf 平均，門檻與手算、Lab 相同
+    expect(g.node('OUT').text).toContain('線性候選')
+    expect(g.edge('OUT', 'LIN')).toBeTruthy()
+    expect(g.node('LIN').text).toContain(String.raw`\le ${LINEAR_OK_RATIO}$`)
+    expect(g.node('LIN').text).toContain(String.raw`$|\gamma_\mathrm{lin}| \le ${LIN_RESIDUAL_LIMIT}$`)
+    expect(g.edge('LIN', 'FPOK').text).toBe('是')
+    expect(g.edge('LIN', 'FPEX').text).toBe('否')
+    expect(g.node('FPEX').text).toContain('線性外推')
+    expect(g.node('FPOK').classes).toContain('ok')
+    expect(g.node('FPEX').classes).toContain('warn')
+    expect(g.node('OUT').classes).not.toContain('ok') // 採用 C ≠ 固定點已驗證
+    expect(D.CHART_NEAR_INTEGER_CHECK).toMatch(/^flowchart TB/)
+    // 模型：實驗的預設第一點走「否」那一支，frac ≈ 0.05 走「是」那一支
+    expect(nearIntegerSweep({ fracs: [3e-4, 0.05], wnTs: 0.02, zeta: 0.707, loopDelay: 1, kappaDirect: 0.01, sigmaV: 1 }).linValid).toEqual([false, true])
     // 模型：16-bit first-order DSM 的週期 P = 2¹⁶/gcd(K, 2¹⁶)；兩條路的 C 相對差小於 10⁻⁶（圖上六角形的門檻）
     const r = nearIntegerSweep({ fracs: [0.0625, 0.25], wnTs: 0.05, zeta: 0.707, loopDelay: 1, kappaDirect: 0.01, sigmaV: 1, length: 2048 })
     expect(r.period).toEqual([2 ** 16 / 4096, 2 ** 16 / 16384]) // K = 4096、16384
@@ -1027,7 +1055,7 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     expect(r.bias[0]).toBeCloseTo(0.01 / r.Cfreq[0], 12) // w* − a = B/C
     // 由上往下：frac → residue → 標準化 → 時域／頻域兩支（時域在左）→ 兩個 C 的比對 → 結論
     const lay = await layout(D.CHART_NEAR_INTEGER_CHECK)
-    lay.increasing('y', 'FRAC', 'DSM', 'NORM', ['T1', 'F1'], ['T2', 'F2'], 'CHK', ['OUT', 'BAD'])
+    lay.increasing('y', 'FRAC', 'DSM', 'NORM', ['T1', 'F1'], ['T2', 'F2'], 'CHK', ['OUT', 'BAD'], 'LIN', ['FPOK', 'FPEX'])
     lay.increasing('x', 'T1', 'F1')
     lay.increasing('x', 'T2', 'F2')
   })
@@ -1049,6 +1077,8 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     expect(g.node('Q2').text).toContain(String.raw`$K_q \cdot E[x^2]$`)
     expect(g.node('BAD').text).toContain(String.raw`$C \le 0$`)
     expect(g.node('SMALL').text).toContain(String.raw`bias $= B / C$ 被放大`)
+    // 審查 R01：和敏感度鏈（near-integer-why 的 BI）用同一句話——B/C 是線性化的 bias，不是無條件的固定點
+    expect(g.node('SMALL').text).toContain(String.raw`線性化的 bias $= B / C$ 被放大`)
     // 模型：靜態路徑 a = 1、5-level code、σ_v = 1。G(w) 對 w 遞減，所以 Ŝ = (G(w−Δ) − G(w+Δ))/(2Δ) 為正，且 ≈ K_q·E[x²]
     const stat = model({ sigmaV: 1 })
     const delta = 0.05
@@ -1128,6 +1158,8 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
     expect(g.node('B1').text).toContain(String.raw`bias $= b \cdot E[x] / E[x^2]$`)
     expect(g.node('B1').text).toContain(String.raw`$E[x] \ne 0$`)
     expect(g.node('B2').text).toContain(String.raw`bias $= E[x \cdot d] / E[x^2]$`)
+    expect(g.node('B2').text).not.toContain('每個 code') // 審查 C04：x = 0 的 code 沒有殘差
+    expect(g.node('B2').text).toContain('仍留下殘差')
     expect(g.node('B3').text).toContain(String.raw`$w^* = a + \kappa$`)
     const h = await parseFlow(D.CHART_HANDCALC_FLOW)
     expect(h.node('S5').text).toContain(String.raw`\le ${LINEAR_OK_RATIO}$`)

@@ -55,7 +55,7 @@ export const UNIT_TOPICS: UnitTopic[] = [
     id: 'psd',
     title: 'PSD 正規化：DTFT 形式、單邊 per-Hz 與 ℒ(f)',
     label: String.raw`PSD 正規化：DTFT 形式、單邊 per-Hz 與 $\mathcal L(f)$`,
-    keywords: String.raw`PSD S(e^{j\Omega}) S^{(1)}(f) one-sided two-sided per-Hz per-rad Parseval \mathcal L(f) dBc/Hz 單邊 雙邊 2/f_r 功率頻譜密度 power spectral density phase noise 相位雜訊 window Welch 變數代換 白雜訊 white`,
+    keywords: String.raw`PSD S(e^{j\Omega}) S^{(1)}(f) one-sided two-sided per-Hz per-rad cycle/sample cycle/block Parseval \mathcal L(f) dBc/Hz 單邊 雙邊 2/f_r 功率頻譜密度 power spectral density phase noise 相位雜訊 window Welch 變數代換 白雜訊 white`,
     errata: ['E28'],
   },
   {

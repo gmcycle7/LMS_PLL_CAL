@@ -10,6 +10,7 @@ import {
   TOGGLE_PATTERN_5,
   bernoulliMoments,
   createPrbs,
+  deltaSigmaDitherStep,
   efbConstant,
   efbPeriod,
   isRotation,
@@ -27,6 +28,7 @@ import {
   toggleCycle,
   validateQuantParams,
   zohLines,
+  type QState,
   type QuantLabParams,
   type QuantizerSetup,
 } from './quantizer'
@@ -817,5 +819,199 @@ describe('ΔΣ + dither、時變 w_H、mixing', () => {
     expect(g.W0).toBe(162 * 2 ** RATIONAL_EXTRA_BITS)
     const rng = createRng(3)
     expect(Number.isInteger(Math.round((32.4 + 0.1 * rng.normal()) * g.D))).toBe(true)
+  })
+})
+
+/**
+ * 審查 C02：F-13.12 的等式 (1/N)Σ(y − w_H) = (r[−1] − r[N−1])/N 只要求 r 原封不動存回去；
+ * 上界的常數則要看 r 的範圍：沒有 overload 時 r[n]（n ≥ 0）落在寬度 1 + A 的區間
+ * （round-half-up：|r| ≤ ½ + A/2；floor：−A/2 ≤ r ≤ 1 + A/2），所以 r[−1] 也在裡面時 |Σ| ≤ 1 + A。
+ * 常數 1 只在 A = 0（方法 D）而且 r[−1] 在範圍內時成立。期望值另外用 Python 的 Fraction（不 import 站內程式）算過。
+ */
+describe('F-13.12 telescoping：等式與上界的條件（審查 C02）', () => {
+  /** 前 N 項的部分和 Σ_{n<N}(y[n] − w)（N = 1 … L）。 */
+  const partialSums = (y: ArrayLike<number>, w: number) => {
+    const out: number[] = []
+    let acc = 0
+    for (let n = 0; n < y.length; n++) {
+      acc += y[n] - w
+      out.push(acc)
+    }
+    return out
+  }
+
+  it('反例（不用亂數）：A = 2、w_H = 32.4、r[−1] = 0、d[0] = −0.99 ⇒ u = 31.41、y = 31、r[0] = 1.4；沒有 overload，N = 1 的誤差 −1.4 卻超過 1/N', () => {
+    const grid = makeGrid(32.4, 'rational', 0)
+    const ctx = makeCtx({ ...SETUP, ditherLsb: 2 }, grid, 'deltaSigmaDither', 1)
+    const s: QState = { n: 0, r: 0, wFreeze: grid.W0, overflow: 0, windup: 0 }
+    const d0 = Math.round(-0.99 * ctx.D)
+    const y = deltaSigmaDitherStep(grid.W0, s, { ...ctx, dither: () => d0 })
+    expect((grid.W0 + d0) / ctx.D).toBeCloseTo(31.41, 5) // u = v + d
+    expect(y).toBe(31)
+    expect(s.r / ctx.D).toBeCloseTo(1.4, 12)
+    expect(s.overflow).toBe(0)
+    // 等式在整數單位下逐位元成立：y − w_H = r[−1] − r[0]
+    expect(y * ctx.D - grid.W0).toBe(0 - s.r)
+    // 常數 1 不成立；(1 + A)/N = 3 成立，r[0] 也還在 |r| ≤ ½ + A/2 = 1.5 之內
+    expect(y - 32.4).toBeCloseTo(-1.4, 12)
+    expect(Math.abs(y - 32.4)).toBeGreaterThan(1)
+    expect(Math.abs(y - 32.4)).toBeLessThanOrEqual(1 + 2)
+    expect(Math.abs(s.r / ctx.D)).toBeLessThanOrEqual(0.5 + 2 / 2)
+    expect([ctx.rLo / ctx.D, ctx.rHi / ctx.D]).toEqual([-1.5, 1.5])
+  })
+
+  it('同一件事用站內亂數：A = 2 RPDF、N = 1，seed 1…200 裡有些 seed 的 |y[0] − 32.4| > 1（精確機率 1/20），但都不超過 ½ + A/2 = 1.5，也都沒有 overload', () => {
+    let over1 = 0
+    for (let seed = 1; seed <= 200; seed++) {
+      const sim = runConst('deltaSigmaDither', 32.4, 1, { ditherLsb: 2 }, seed)
+      const err = Math.abs(sim.y[0] - 32.4)
+      if (err > 1) over1++
+      expect(err, `seed ${seed}`).toBeLessThanOrEqual(1.5 + 1e-12)
+      expect(sim.overflow, `seed ${seed}`).toBe(0)
+    }
+    expect(over1).toBeGreaterThan(0)
+    // y = 31 需要 d < −0.9（機率 0.1/2 = 1/20）；200 個 seed 的期望值 10，容許 ±4 個標準差（√(200·0.05·0.95) ≈ 3.1）
+    expect(Math.abs(over1 - 10)).toBeLessThan(13)
+  })
+
+  it('一般上界：r 落在寬度 1 + A 的區間，r[−1] = 0 時 |Σ(y − w_H)| ≤ max(|lo|, hi)；常數 1 在 round-half-up 的 A = 2 與 floor 的 A = 1 都不成立', () => {
+    const worst: Record<string, number> = {}
+    for (const rounding of ['nearest', 'floor'] as const) {
+      for (const A of [0, 1, 2]) {
+        const lo = (rounding === 'nearest' ? -0.5 : 0) - A / 2
+        const hi = (rounding === 'nearest' ? 0.5 : 1) + A / 2
+        let w = 0
+        for (const ditherPdf of ['uniform', 'triangular'] as const) {
+          for (let seed = 1; seed <= 5; seed++) {
+            const sim = runConst('deltaSigmaDither', 32.4, 4000, { ditherLsb: A, rounding, ditherPdf }, seed)
+            const tag = `${rounding} A=${A} ${ditherPdf} seed ${seed}`
+            expect(sim.overflow, tag).toBe(0)
+            let rMin = Infinity
+            let rMax = -Infinity
+            for (const r of sim.r) {
+              if (r < rMin) rMin = r
+              if (r > rMax) rMax = r
+            }
+            expect(rMin, tag).toBeGreaterThanOrEqual(lo - 1e-12)
+            expect(rMax, tag).toBeLessThanOrEqual(hi + 1e-12)
+            expect(rMax - rMin, tag).toBeLessThanOrEqual(1 + A + 1e-12)
+            const sums = partialSums(sim.y, 32.4)
+            let idErr = 0
+            for (let n = 0; n < sums.length; n++) {
+              idErr = Math.max(idErr, Math.abs(sums[n] + sim.r[n])) // Σ_{n<N}(y − w) = r[−1] − r[N−1] = −r[N−1]
+              w = Math.max(w, Math.abs(sums[n]))
+            }
+            expect(idErr, tag).toBeLessThan(1e-9)
+          }
+        }
+        expect(w, `${rounding} A=${A}`).toBeLessThanOrEqual(Math.max(-lo, hi) + 1e-9)
+        expect(w, `${rounding} A=${A}`).toBeLessThanOrEqual(1 + A + 1e-9)
+        worst[`${rounding} ${A}`] = w
+      }
+    }
+    // 實測最壞的 N·|平均誤差|：round-half-up 0.4 / 0.8 / 1.4，floor 0.8 / 1.4 / 1.8（A = 0 / 1 / 2）
+    expect(worst['nearest 0']).toBeCloseTo(0.4, 9)
+    expect(worst['floor 0']).toBeCloseTo(0.8, 9)
+    expect(worst['nearest 1']).toBeLessThanOrEqual(1)
+    expect(worst['nearest 2']).toBeGreaterThan(1)
+    expect(worst['floor 1']).toBeGreaterThan(1) // floor 時連 Lab 預設的 A = 1 都超過 1
+    expect(worst['floor 2']).toBeGreaterThan(1)
+  })
+
+  it('常數是 1 + A，不是 r 的半寬：起點 r[−1] 放在範圍的兩端時（有 dither、沒有 overload），|Σ(y − w_H)| 到 1.8（A = 1）與 2.8（A = 2），超過 max(|lo|, hi) 但不超過 1 + A', () => {
+    // 上一題從 r[−1] = 0 出發，|Σ| = |r[N−1]| 只會到 r 的範圍邊界；公式登錄寫的 (1 + A)/N 要用範圍的「寬度」才蓋得住這一題
+    for (const rounding of ['nearest', 'floor'] as const) {
+      for (const A of [1, 2]) {
+        const lo = (rounding === 'nearest' ? -0.5 : 0) - A / 2
+        const hi = (rounding === 'nearest' ? 0.5 : 1) + A / 2
+        for (const rInit of [lo, hi]) {
+          let worst = 0
+          for (let seed = 1; seed <= 5; seed++) {
+            const grid = makeGrid(32.4, 'rational', 0)
+            const ctx = makeCtx({ ...SETUP, ditherLsb: A, rounding }, grid, 'deltaSigmaDither', seed)
+            const sim = simulateStrategy('deltaSigmaDither', new Float64Array(4000).fill(grid.W0), ctx, { freezeW: grid.W0, rInit, integer: true })
+            const tag = `${rounding} A=${A} r[-1]=${rInit} seed ${seed}`
+            expect(sim.overflow, tag).toBe(0)
+            const sums = partialSums(sim.y, 32.4)
+            for (let n = 0; n < sums.length; n++) {
+              expect(Math.abs(sums[n] - (rInit - sim.r[n])), `${tag} N=${n + 1}`).toBeLessThan(1e-9) // 等式照樣成立
+              worst = Math.max(worst, Math.abs(sums[n]))
+            }
+          }
+          const tag = `${rounding} A=${A} r[-1]=${rInit}`
+          // 32.4 = 162/5：r 落在間隔 1/5 的格點上，所以最壞值比 1 + A 少 0.2（獨立用 Fraction 與對抗式 dither 算過，連續 dither 的上確界就是 1 + A）
+          expect(worst, tag).toBeCloseTo(A + 0.8, 9)
+          expect(worst, tag).toBeGreaterThan(Math.max(-lo, hi))
+          expect(worst, tag).toBeLessThanOrEqual(1 + A)
+        }
+      }
+    }
+  })
+
+  it('正常對照（方法 D、r[−1] 在範圍內）：每個 N 都有 |Σ(y − w_H)| ≤ 1，而且等號取得到（32.5、r[−1] = ½、N = 2）', () => {
+    const targets = [32.4, 32.25, 32.6, 32.5, 20.4, 12.375, 31.3]
+    const cases = [
+      { rounding: 'nearest' as const, rInits: [-0.5, -0.25, 0, 0.125, 0.25, 0.5] },
+      { rounding: 'floor' as const, rInits: [0, 0.125, 0.5, 0.875] },
+    ]
+    const max: Record<string, number> = { nearest: 0, floor: 0 }
+    for (const { rounding, rInits } of cases) {
+      for (const target of targets) {
+        // r[−1] 只取二進位分數：efbConstant 會把 r[−1] 取整到 1/D 的格點，−0.3、1/7 這類值會讓浮點比對差到 1e-6
+        for (const rInit of rInits) {
+          const o = efbConstant({ target, steps: 600, rInit, rounding })
+          const sums = partialSums(o.y, target)
+          for (let n = 0; n < sums.length; n++) {
+            expect(Math.abs(sums[n]), `${rounding} w=${target} r[-1]=${rInit} N=${n + 1}`).toBeLessThanOrEqual(1 + 1e-9)
+            expect(Math.abs(sums[n] - (rInit - o.r[n])), `${rounding} w=${target} r[-1]=${rInit} N=${n + 1}`).toBeLessThan(1e-9)
+            max[rounding] = Math.max(max[rounding], Math.abs(sums[n]))
+          }
+        }
+      }
+    }
+    expect(max.nearest).toBeCloseTo(1, 9)
+    expect(max.floor).toBeCloseTo(0.9, 9)
+    // 釘住幾個極端：預設起點 r[−1] = 0 時最多 0.4；r[−1] = −½ 時 0.9；r[−1] = +½ 時剛好 1
+    expect(Math.max(...partialSums(efbConstant({ target: 32.4, steps: 600 }).y, 32.4).map(Math.abs))).toBeCloseTo(0.4, 9)
+    const o313 = efbConstant({ target: 31.3, steps: 3, rInit: -0.5 })
+    expect(o313.y).toEqual([31, 31, 31])
+    expect(partialSums(o313.y, 31.3)[2]).toBeCloseTo(-0.9, 9)
+    const o325 = efbConstant({ target: 32.5, steps: 2, rInit: 0.5 })
+    expect(o325.y).toEqual([33, 33])
+    expect(o325.r).toEqual([0, -0.5])
+    expect(partialSums(o325.y, 32.5)[1]).toBe(1)
+  })
+
+  it('「r[−1] 也要在範圍內」的反例（沒有 dither、沒有 overload）：32.25、r[−1] = 1、N = 6 的平均誤差 0.25 > 1/6；32.5、r[−1] = 1、N = 1 的誤差 1.5 > 1', () => {
+    const a = efbConstant({ target: 32.25, steps: 6, rInit: 1 })
+    expect(a.y).toEqual([33, 33, 32, 32, 32, 33])
+    expect(a.r[5]).toBe(-0.5)
+    const sumA = partialSums(a.y, 32.25)[5]
+    expect(sumA).toBe(1.5) // = r[−1] − r[5] = 1 − (−0.5)
+    expect(sumA / 6).toBe(0.25)
+    expect(sumA / 6).toBeGreaterThan(1 / 6)
+    const b = efbConstant({ target: 32.5, steps: 1, rInit: 1 })
+    expect(b.y).toEqual([34])
+    expect(b.r).toEqual([-0.5])
+    expect(b.y[0] - 32.5).toBe(1.5)
+  })
+
+  it('等式的適用範圍（overload，反面測試）：w_H = 63.3、N = 50：saturate 時等式還在（Σ = −15 = −r[49]，r 無界）；anti-windup 的夾限與 wrap 丟掉的進位都讓 Σ ≠ r[−1] − r[N−1]', () => {
+    const grid = makeGrid(63.3, 'rational', 0)
+    const W = new Float64Array(50).fill(grid.W0)
+    const run = (setup: QuantizerSetup) => simulateStrategy('deltaSigma', W, makeCtx(setup, grid, 'deltaSigma', 1), { freezeW: grid.W0, integer: true })
+    const sum = (y: ArrayLike<number>) => partialSums(y, 63.3)[49]
+    const sat = run(SETUP)
+    expect(sum(sat.y)).toBeCloseTo(-15, 9)
+    expect(0 - sat.r[49]).toBeCloseTo(-15, 9)
+    expect(sat.overflow).toBe(49)
+    const aw = run({ ...SETUP, antiWindup: true })
+    expect(sum(aw.y)).toBeCloseTo(-15, 9)
+    expect(0 - aw.r[49]).toBeCloseTo(-0.5, 9)
+    expect(aw.windup).toBe(49)
+    const wrap = run({ ...SETUP, overflow: 'wrap' })
+    expect(sum(wrap.y)).toBeCloseTo(-960, 9)
+    expect(0 - wrap.r[49]).toBeCloseTo(0, 9)
+    expect(wrap.overflow).toBe(15)
   })
 })

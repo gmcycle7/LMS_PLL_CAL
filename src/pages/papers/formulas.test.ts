@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import katex from 'katex'
 import { pageById } from '@/app/registry'
 import { cAbs, cArg, createRng, erf, polyRoots } from '@/simulation/core'
+import { LIN_RATIO_LIMIT, nearIntegerSweep } from '@/simulation/models/bias'
 import { conventionalStep } from '@/simulation/models/lms'
 import {
   blockSignGmacStep,
@@ -76,6 +77,9 @@ describe('公式登錄 F-PR.n（Papers / Reading 頁）', () => {
     expect(withMath).toBeGreaterThan(30)
     // 關鍵條件仍在（改寫成 LaTeX 後內容不變）
     expect(formulaById('F-PR.3').conditions).toContain(String.raw`$|\delta|\ll\sigma_v$`)
+    // 技術審查 R06c：小訊號條件看的是 comparator 前的整個確定性殘差 δ·u[n]；|δ| ≪ σ_v 只是 identity path、±1 code（|u| = 1）的特例
+    expect(formulaById('F-PR.3').conditions).toContain(String.raw`comparator 前的確定性殘差 $\delta\,u[n]$`)
+    expect(formulaById('F-PR.3').conditions).toContain(String.raw`$|u|=1$、$C=1$`)
     expect(formulaById('F-PR.3').conditions).toContain(String.raw`$\delta=a-w$`)
     expect(formulaById('F-PR.4').conditions).toContain(String.raw`$0<g\le2$`)
     expect(formulaById('F-PR.9').conditions).toContain(String.raw`$p>3-2\sqrt2$`)
@@ -309,6 +313,86 @@ describe('F-PR.n 的獨立數值驗算', () => {
     const f0 = 1 - g * (1 + rho)
     expect(f0).toBeCloseTo(ex.pFast, 15)
     expect(stepsToDecay(Math.abs(ex.pFast))).toBe(1)
+  })
+
+  it('技術審查 R01：F-PR.10 的 w* = a + B/C 是線性化的結果——B/C 大到讓 comparator 飽和時只是線性外推', () => {
+    const f = formulaById('F-PR.10')!
+    expect(f.claim).toBe('approx')
+    expect(f.conditions).toContain('小訊號線性化')
+    expect(f.conditions).toContain('線性外推')
+    expect(f.conditions).toContain(String.raw`$0.3\,\sigma_v$`)
+    // 線性模型內的數字不變（正常對照）：C 減半，bias、τ、σ_w² 都加倍
+    const base = { B: 0.05, mu: 10, sigmaV: 100, N: 4096 }
+    const a = weakExcitation({ ...base, C: 1 })
+    const b = weakExcitation({ ...base, C: 0.5 })
+    expect(a.bias).toBeCloseTo(0.05, 14)
+    expect(b.bias / a.bias).toBeCloseTo(2, 12)
+    expect(f.conditions).toContain(String.raw`$${LIN_RATIO_LIMIT}\,\sigma_v$`) // 條件裡的門檻就是 Ch11 的 LIN_RATIO_LIMIT
+    // 反例（Ch11 §11.4 實驗的預設值，本站的 nearIntegerSweep；另以獨立的 NumPy/SciPy 重算）：frac = 20/65536、σ_v = 1、κ_d = 0.01
+    // C = 0.00279 > 0，線性公式給 B/C = 3.58；把它代回去，comparator 前的確定性殘差是 12.4σ_v（門檻的 41 倍），
+    // 完整 erf 平均的 GMAC 是 +0.0488（不是 0，是 K_q·B 的 6.1 倍）：a + B/C 不是 Sign-LMS 的固定點
+    const ni = nearIntegerSweep({ fracs: [3e-4, 0.05], wnTs: 0.02, zeta: 0.707, loopDelay: 1, kappaDirect: 0.01, sigmaV: 1 })
+    expect(ni.Cfreq[0]).toBeCloseTo(0.002793967734, 9)
+    expect(ni.bias[0]).toBeCloseTo(weakExcitation({ ...base, B: 0.01, C: ni.Cfreq[0] }).bias, 9) // 同一條 B/C
+    expect(ni.bias[0]).toBeCloseTo(3.5791394, 6)
+    expect(ni.uMax[0]).toBeCloseTo(2 * Math.sqrt(3), 6) // sawtooth 經 type-II 迴路：max|h*x| = 2√3（標準化 code）
+    expect(ni.linRatio[0]).toBeCloseTo(12.381202, 5)
+    expect(ni.linRatio[0] / LIN_RATIO_LIMIT).toBeCloseTo(41.27, 2)
+    expect(ni.gAtLinear[0]).toBeCloseTo(0.04881877, 7)
+    expect(ni.linValid[0]).toBe(false)
+    // 正常對照：frac ≈ 0.05 時 B/C = 0.0097，代回去的殘差只有 0.002σ_v，erf 平均的 GMAC ≈ 0：線性公式可用
+    expect(ni.bias[1]).toBeCloseTo(0.00969568947, 10)
+    expect(ni.linRatio[1]).toBeLessThan(LIN_RATIO_LIMIT / 100)
+    expect(Math.abs(ni.gAtLinear[1])).toBeLessThan(1e-10)
+    expect(ni.linValid[1]).toBe(true)
+  })
+
+  it('技術審查 C01：F-PR.11 的 p_slow 是 |p| 最大的 pole——步長超過 2/(λ_max+λ_min) 時最慢的是 λ_max 的 mode', () => {
+    const f = formulaById('F-PR.11')!
+    expect(f.claim).toBe('exact')
+    expect(f.conditions).toContain(String.raw`\max_i|p_i|`)
+    expect(f.conditions).toContain(String.raw`\mu\le2/(\lambda_{\max}+\lambda_{\min})`)
+    // 直接迭代 2×2 的 δ ← (I − gR)δ，數到誤差長度最後一次超過 5% 的下一步
+    const settle = (rho: number, g: number, d0: [number, number]) => {
+      let [a, b] = d0
+      const n0 = Math.hypot(a, b)
+      let last = 0
+      for (let k = 1; k <= 5000; k++) {
+        ;[a, b] = [a - g * (a + rho * b), b - g * (rho * a + b)]
+        if (Math.hypot(a, b) > 0.05 * n0) last = k
+      }
+      return last + 1
+    }
+    // 反例：ρ = 0.5（λ = 1.5、0.5）、g = 1.2（穩定上限 2/1.5 = 1.333）⇒ p = −0.8、0.4
+    const ex = eigenExample(0.5, 1.2, 0.5)
+    expect(ex.pFast).toBeCloseTo(-0.8, 12)
+    expect(ex.pSlow).toBeCloseTo(0.4, 12)
+    expect(Math.abs(ex.pFast)).toBeGreaterThan(Math.abs(ex.pSlow))
+    expect(ex.stepsSlow).toBe(4) // 只看 λ_min 的 mode：4 步
+    expect(stepsToDecay(Math.abs(ex.pFast))).toBe(14) // λ_max 的 mode：14 步
+    expect(settle(0.5, 1.2, [1, 1])).toBe(14) // 沿 λ_max 的方向 [1, 1]
+    expect(settle(0.5, 1.2, [1, -1])).toBe(4) // 沿 λ_min 的方向 [1, −1]
+    expect(settle(0.5, 1.2, [1, 0])).toBe(12) // 一般的初值 [1, 0]：‖δ_k‖ = (1/√2)·√(0.64^k + 0.16^k)，k = 11 是 0.0607、k = 12 是 0.0486，由 |p| 最大的 mode 主導
+    // 分界 g = 2/(λ_max+λ_min) = 1：|p| 相等
+    const tie = eigenExample(0.5, 1, 0.5)
+    expect(Math.abs(tie.pFast)).toBeCloseTo(Math.abs(tie.pSlow), 12)
+    // 正常對照：步長不太大（g = 0.5 ≤ 1）時最慢的是 λ_min 的 mode
+    const ok = eigenExample(0.5, 0.5, 0.5)
+    expect(ok.pFast).toBeCloseTo(0.25, 12)
+    expect(ok.pSlow).toBeCloseTo(0.75, 12)
+    expect(ok.stepsSlow).toBe(11)
+    expect(settle(0.5, 0.5, [1, -1])).toBe(11)
+    expect(settle(0.5, 0.5, [1, 1])).toBe(3)
+    // 掃一遍：max(|1 − gλ_max|, |1 − gλ_min|) 由誰決定，只看 g 與 2/(λ_max+λ_min) 的大小
+    for (const rho of [0.1, 0.5, 0.9, 0.99]) {
+      const lmax = 1 + rho
+      const lmin = 1 - rho
+      for (let i = 1; i < 200; i++) {
+        const g = ((2 / lmax) * i) / 200
+        if (Math.abs(g - 2 / (lmax + lmin)) < 1e-9) continue
+        expect(Math.abs(1 - g * lmax) > Math.abs(1 - g * lmin), `rho=${rho}, g=${g}`).toBe(g > 2 / (lmax + lmin))
+      }
+    }
   })
 
   it('T16: F-PR.12：多組有理數目標 × 隨機週期 dither：週期 P ≤ M·L，且輸出從 transient 之後確實每 P 個重複', () => {

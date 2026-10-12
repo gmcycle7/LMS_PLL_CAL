@@ -381,7 +381,7 @@ export function bw3dbNumeric(p: number, fu: number): number {
 
 // #region core:swPsd
 /**
- * Block-rate 雙邊 DTFT PSD：S_w(e^{jΩ}) = μ²S_η(e^{jΩ})/|1 − p e^{−jΩ}|² [fs²/(rad/block)]。
+ * Block-rate 雙邊 DTFT PSD：S_w(e^{jΩ}) = μ²S_η(e^{jΩ})/|1 − p e^{−jΩ}|² [fs²，每 cycle/block：σ_w² = (1/2π)∫S_w dΩ]。
  * sEta = σ_η²；r ≠ 0 時 S_η 為 AR(1) 形狀 σ_η²(1 − r²)/(1 − 2r cosΩ + r²)（白色：r = 0）。
  */
 export function swDtft(omega: number, mu: number, p: number, sEta: number, r = 0): number {

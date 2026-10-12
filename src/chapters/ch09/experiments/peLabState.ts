@@ -141,7 +141,29 @@ export function switchDetector(s: PeLabState, next: Detector): PeLabState {
 }
 
 /**
- * 「執行至收斂」要用的 blocks 數：涵蓋慢模式 95% 衰減再多 25%（⌈1.25·k₉₅⌉），並夾在合法範圍內。
+ * 顯示用的 pole p = 1 − gλ：gλ = 1 時數學上精確為 0，但 λ 來自 Jacobi 迭代（例如 ρ = ±1 的 1.9999999999999996）
+ * 會留下 2.2×10⁻¹⁶ 的浮點殘渣。相對於運算元（1 與 gλ）不到 1e-12 的差視為 0。
+ * 只用在畫面上的數字與圖例；模型（peAnalytic）的 pole 不動。
+ */
+export function shownPole(p: number, gLambda: number): number {
+  return Math.abs(p) <= 1e-12 * Math.max(1, Math.abs(gLambda)) ? 0 : p
+}
+
+/** 1-bit 小訊號條件的門檻：s_δ = √(δᵀRδ)/σ_v 超過它就提醒（s_δ = 0.3 時有效增益比 K_q 少約 4%，F-09.3 的條件） */
+export const S_DELTA_LIMIT = 0.3
+
+/**
+ * 「執行至收斂」要等的 k₉₅：兩個模式都降到 5%，也就是 |p| 最大的那個模式的 k₉₅（技術審查 C01）。
+ * g ≤ g⋆ = 2/(λ_max + λ_min) 時是 λ_min 的慢模式；g⋆ < g < 2/λ_max 時 λ_max 的模式過衝（pole 為負），
+ * |p_fast| > |p_slow|，要等的換成它（例：ρ = .5、g = 1.2：14 個 block，不是慢模式的 4 個）。
+ * 快模式不衰減（|p_fast| ≥ 1：平均遞迴發散，沒有「收斂」可等）時仍回傳慢模式的 k₉₅——圖的長度照舊，發散由警告說明。
+ */
+export function k95ForConvergence(k95Fast: number, k95Slow: number): number {
+  return Number.isFinite(k95Fast) ? Math.max(k95Fast, k95Slow) : k95Slow
+}
+
+/**
+ * 「執行至收斂」要用的 blocks 數：涵蓋 k₉₅（k95ForConvergence：最慢的那個模式）再多 25%（⌈1.25·k₉₅⌉），並夾在合法範圍內。
  * k₉₅ = ∞（λ_min = 0 或 |p| ≥ 1）時永遠到不了 ⇒ 回傳上限，reachable = false（頁面的警告會解釋原因）。
  */
 export function blocksForConvergence(k95: number): { blocks: number; reachable: boolean } {

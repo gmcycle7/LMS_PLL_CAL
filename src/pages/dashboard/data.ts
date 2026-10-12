@@ -76,10 +76,13 @@ export const SIX_CONDITIONS: ConditionDef[] = [
     zh: '動態穩定',
     en: 'Loop stability',
     ask: '方向對了，步子會不會太大、更新會不會太晚，導致係數震盪甚至發散？',
-    tex: String.raw`p=1-\mu K_q C,\qquad 0<g<2\sin\frac{\pi}{4d+2}\quad(g=\mu K_qC)`,
+    // 兩行：排成一行（457px）比 1280px 桌機上的卡片（407px）寬，結尾的 (g = μK_qC) 要橫向捲動才看得到；內容與原來的一行相同
+    tex: String.raw`\begin{gathered}p=1-\mu K_q C\\[2pt]0<g<2\sin\frac{\pi}{4d+2}\quad(g=\mu K_qC)\end{gathered}`,
     claim: 'exact',
-    claimNote: '局部線性化平均模型、$d$ 個 block 的 commit 延遲；$d=0$ 時為 $0<g<2$',
-    failure: '$g$ 太大：震盪發散；GMAC 用 sum 卻沒把 $\\mu$ 除以 $N$：$g$ 放大 $N$ 倍。Mean 穩定不代表 mean-square 穩定；雙迴路的完整界限只有簡化模型的一半。',
+    claimNote:
+      '局部線性化平均模型、$d$ 個 block 的 commit 延遲；$d=0$ 時為 $0<g<2$。$\\mu>0$、$K_q>0$ 時，下限 $0<g$ 就是條件 2 的 $C>0$（穩定 $\\Rightarrow$ 極性正確，反過來不成立）',
+    failure:
+      '$g$ 太大：震盪發散；GMAC 用 sum 卻沒把 $\\mu$ 除以 $N$：$g$ 放大 $N$ 倍。Mean 穩定不代表 mean-square 穩定。雙迴路：在 Ch08 §8.4 的二狀態模型裡（誤差晚一個 block 才被 GMAC 看到），完整的 $\\mu$ 上界只有 quasi-static 簡化模型（把主 PLL 當成瞬間到穩態）的一半；這是該模型的結果，不是所有 PLL 雙迴路的通則。',
     hardware: 'REG_LMS_MU、GMAC right shift、commit pipeline latency、主 PLL 頻寬',
     pages: ['ch03', 'ch08', 'ch14'],
     tests: ['T02', 'T03', 'T08', 'T09'],
@@ -115,7 +118,7 @@ export const SIX_CONDITIONS: ConditionDef[] = [
     tex: String.raw`w^*=a+\frac{B}{C},\qquad B=E\!\left[x\,\varepsilon_{\mathrm{det}}\right]`,
     claim: 'exact',
     claimNote: 'MSE-LMS 的線性固定點；Sign-LMS 只在殘差 $\\ll\\sigma_v$ 時近似成立（勘誤 E01）',
-    failure: 'comparator offset、DTC INL、code-correlated 干擾讓 $B\\ne0$；$C\\to0$ 時同樣的 $B$ 造成更大的 bias。$E[G]=0$ 只代表 GMAC 看不到殘差，不代表殘差為零。',
+    failure: 'comparator offset、DTC INL、code-correlated 干擾讓 $B\\ne0$；$C\\to0$ 時同樣的 $B$ 造成更大的 bias（線性化的 $B/C$：大到 comparator 飽和時它只是線性外推，$a+B/C$ 不再是 Sign-LMS 的固定點，Ch11 §11.4）。$E[G]=0$ 只代表 GMAC 看不到殘差，不代表殘差為零。',
     hardware: 'comparator offset、DTC INL、主迴路 DC null（shared BBPD）',
     pages: ['ch11'],
     tests: ['T12'],
@@ -127,13 +130,15 @@ export const SIX_CONDITIONS: ConditionDef[] = [
   {
     id: 'system',
     n: 6,
-    zh: '真正改善 PLL 輸出',
-    en: 'System-level performance',
-    ask: '校正收斂之後，PLL 輸出的 jitter 與 spur 真的變好了嗎？',
-    tex: String.raw`\delta t[n]=x[n]\,\delta w[n],\qquad \mathrm{Spur}\approx20\log_{10}\!\left(\pi f_{\mathrm{out}}|T|A_t\right)`,
+    // 名稱是純文字（Hero 的膠囊、體檢表、chip、HC-DB.6 的判定列都原樣印出），不放 $…$
+    zh: '殘餘誤差在預算內',
+    en: 'System-level budget (timing error, spur)',
+    ask: '校正收斂之後，剩下的 DTC-referred timing error $\\sigma_{\\delta t}$ 與單 tone spur，都在預算內嗎？',
+    tex: String.raw`\begin{gathered}\sigma_{\delta t}=\sqrt{P_x\,(\Delta w^2+\sigma_w^2)}\le\sigma_{\delta t,\max}\\[2pt]\mathrm{Spur}\approx20\log_{10}\!\left(\pi f_{\mathrm{out}}|T|A_t\right)\le\mathrm{Spur}_{\max}\end{gathered}`,
     claim: 'approx',
-    claimNote: '線性化 DTC gain error、單 tone、小角度調變',
-    failure: '低頻的 gain noise 乘上寬頻 DSM code 會變成寬頻 timing error；6-bit 量化的 limit cycle 會產生 tone。各項單獨過關，合起來仍可能超出 jitter / spur 預算。',
+    claimNote:
+      '單參數、線性化 DTC gain error、單 tone、小角度調變；$\\sigma_{\\delta t}$ 是 DTC-referred（還沒經過 PLL 的 $T(f)$，不是輸出 jitter；$|T|$ 只用在 spur）；只和預算比，不和校正前比',
+    failure: '低頻的 gain noise 乘上寬頻 DSM code 會變成寬頻 timing error；6-bit 量化的 limit cycle 會產生 tone。各項單獨過關，合起來仍可能超出 timing error / spur 預算。',
     hardware: 'DTC 輸出、PLL output transfer $T$、6-bit gain register、sign-off matrix',
     pages: ['ch12', 'ch13', 'signoff', 'lab'],
     tests: ['T13', 'T15', 'T16', 'T17'],

@@ -353,7 +353,7 @@ export const CHART_BEST_FIT = String.raw`flowchart TB
   SPLIT -- "與 $x$ 共線的部分" --> PAR["$(E[x \cdot d] / E[x^2]) \cdot x$<br/>$= (0.68 / 2) \cdot x = 0.34 \cdot x$"]
   SPLIT -- "與 $x$ 正交的部分" --> ORT["$e_0(x) = 0.1 \cdot x^3 - 0.34 \cdot x$<br/>$E[x \cdot e_0] = 0$"]
   PAR --> ABS["被單一 gain 吸收<br/>$w^* = a + 0.34 = 1.34$"]
-  ORT --> RES["GMAC 看不到，留在每個 code 上<br/>$x = \pm 1$：$\mp 0.24$；$x = \pm 2$：$\pm 0.12$"]
+  ORT --> RES["GMAC 看不到，留在四個非零 code 上<br/>$x = \pm 1$：$\mp 0.24$；$x = \pm 2$：$\pm 0.12$"]
 ${STYLE}
   class PAR,ABS focus
   class ORT,RES warn`
@@ -435,7 +435,7 @@ export const CHART_NEAR_INTEGER_WHY = String.raw`flowchart TB
   IN --> CS["$C = \sum |X_k|^2 \cdot \mathrm{Re}\,H_\mathrm{PD}(\Omega_k)$<br/>正負幾乎抵銷，$C \propto \mathrm{frac}^2$"]
   OUT --> CS
   CS --> SL["恢復斜率 $S = K_q \cdot C$ 變小<br/>收斂時間 $\propto 1 / (\mu \cdot S)$ 變長"]
-  CS --> BI["直接耦合的 $B$ 不變<br/>bias $= B / C$ 被放大"]
+  CS --> BI["直接耦合的 $B$ 不變<br/>線性化的 bias $= B / C$ 被放大<br/>大到超出線性範圍就不再是固定點"]
   CS --> NG["$C \le 0$ 時極性錯誤<br/>$a + B / C$ 變成 repelling"]
 ${STYLE}
   class CS focus
@@ -446,6 +446,8 @@ ${STYLE}
  *   時域：x 通過 H_PD(z) 得 u = h ∗ x，略過暫態後取整數個週期，C = mean(x·u)；
  *   頻域：取一個週期做 DFT，C = Σ_k |X_k|²·Re H_PD(e^{jΩ_k})，Ω_k = 2πk/P（Parseval，只有實部進來）。
  * 兩條路互為交叉檢查：相對差小於 10⁻⁶ 才標「一致」（experiment 的 freqCheck）。
+ * 採用 C 之後，再把線性候選 a + B/C 代回完整的 erf 平均（nearIntegerLinearCheck）：
+ * max|e_det|/σ_v ≤ 0.3 且 |γ_lin| ≤ 0.05 才當作固定點；否則只是線性外推。這一步檢查的是固定點，和上面檢查 C 是兩件事。
  */
 export const CHART_NEAR_INTEGER_CHECK = String.raw`flowchart TB
   FRAC["FCW 的小數部分 $\mathrm{frac}$<br/>16-bit DSM：$K = \mathrm{frac} \cdot 2^{16}$"] --> DSM["first-order DSM 的 residue $x[n]$<br/>週期 $P = 2^{16} / \gcd(K, 2^{16})$"]
@@ -456,17 +458,20 @@ export const CHART_NEAR_INTEGER_CHECK = String.raw`flowchart TB
   F1 --> F2["$C = \sum_k |X_k|^2 \cdot \mathrm{Re}\,H_\mathrm{PD}(e^{j\Omega_k})$<br/>$\Omega_k = 2\pi k / P$"]
   T2 --> CHK{{"兩個 $C$ 的相對差<br/>小於 $10^{-6}$ ？"}}
   F2 --> CHK
-  CHK -- "是" --> OUT["採用 $C(\mathrm{frac})$<br/>再算 bias：$w^* - a = B / C$"]
+  CHK -- "是" --> OUT["採用 $C(\mathrm{frac})$<br/>線性候選：$w^* - a = B / C$"]
   CHK -- "否" --> BAD["標示 mismatch<br/>多半是暫態還沒衰減完"]
+  OUT --> LIN{{"代回完整的 $\operatorname{erf}$ 平均<br/>$\max|e_\mathrm{det}| / \sigma_v \le 0.3$ 且 $|\gamma_\mathrm{lin}| \le 0.05$？"}}
+  LIN -- "是" --> FPOK["$a + B / C$ 可當作固定點<br/>線性化成立"]
+  LIN -- "否" --> FPEX["只是線性外推<br/>不能當作固定點"]
 ${STYLE}
   class T1,F2 focus
-  class OUT ok
-  class BAD warn`
+  class FPOK ok
+  class BAD,FPEX warn`
 
 /**
  * 規格 §11.4 建議的量測流程（校正流程圖）：每個 FCW 凍結 gain，在 w ± Δ 各量一次平均 GMAC，
  * 本章的斜率估計 Ŝ = (G₋ − G₊)/(2Δ)（= −Ŝ_GMAC，勘誤 E13；bias.ts 的 SlopeProbeResult.slope 就是這個式子）。
- * Ŝ ≤ 0 ⇒ 極性錯誤；Ŝ 為正但遠小於靜態值 K_q·E[x²] ⇒ C 很小，bias B/C 被放大、收斂變慢。
+ * Ŝ ≤ 0 ⇒ 極性錯誤；Ŝ 為正但遠小於靜態值 K_q·E[x²] ⇒ C 很小，線性化的 bias B/C 被放大（超出線性範圍後不再是固定點，審查 R01）、收斂變慢。
  */
 export const CHART_SLOPE_MEASURE = String.raw`flowchart TB
   F0["選一個 FCW<br/>等 LMS 收斂，記下 $w$"] --> F1["凍結 gain 在 $w + \Delta$<br/>量平均 GMAC：$G_+$"]
@@ -476,7 +481,7 @@ export const CHART_SLOPE_MEASURE = String.raw`flowchart TB
   F3 --> Q1{{"$\hat S$ 大於 0？"}}
   Q1 -- "否" --> BAD["極性錯誤：$C \le 0$<br/>正的 $\mu$ 會讓 $w$ 遠離 $a + B / C$"]
   Q1 -- "是" --> Q2{{"$\hat S$ 遠小於靜態值 $K_q \cdot E[x^2]$？"}}
-  Q2 -- "是" --> SMALL["$C$ 很小：bias $= B / C$ 被放大<br/>收斂時間 $\propto 1 / (\mu \cdot \hat S)$ 變長"]
+  Q2 -- "是" --> SMALL["$C$ 很小：線性化的 bias $= B / C$ 被放大<br/>收斂時間 $\propto 1 / (\mu \cdot \hat S)$ 變長"]
   Q2 -- "否" --> GOOD["斜率正常<br/>$C$ 接近 $E[x^2]$，bias 約 $B / E[x^2]$"]
   BAD --> NEXT["換下一個 FCW<br/>最後用真實閉迴路確認"]
   SMALL --> NEXT
@@ -536,7 +541,7 @@ export const CHART_VERDICT_TREE = String.raw`flowchart TB
   Q2 -- "否" --> Q3{{"多出來的是哪一項？"}}
   Q2 -- "是" --> OKN["$w^* = a$<br/>每個 code 的 $e_\mathrm{det}$ 都是 0"]
   Q3 -- "offset $b$" --> B1["$E[x] \ne 0$ 且 DC 未被主迴路消除時<br/>bias $= b \cdot E[x] / E[x^2]$（§11.1）"]
-  Q3 -- "INL $d(x)$" --> B2["bias $= E[x \cdot d] / E[x^2]$<br/>每個 code 仍留下殘差（§11.2）"]
+  Q3 -- "INL $d(x)$" --> B2["bias $= E[x \cdot d] / E[x^2]$<br/>GMAC 歸零後仍留下殘差（§11.2）"]
   Q3 -- "$\varepsilon_{cc} = \kappa \cdot x$" --> B3["$w^* = a + \kappa$<br/>與 gain 不可辨識（§11.3）"]
   B1 --> Q4{{"Sign-LMS 的線性化檢查<br/>$\max|e_\mathrm{det}(x; w^*)| / \sigma_v \le 0.3$？"}}
   B2 --> Q4
@@ -694,7 +699,7 @@ export const CH11_DIAGRAMS = [
     title: String.raw`一條直線只能吸收 INL 裡「與 $x$ 共線」的部分（MSE 觀點）`,
     section: 'ch11-inl',
     chart: CHART_BEST_FIT,
-    caption: String.raw`先看藍色的分支：INL 中和 $x$ 成正比的 $0.34x$ 被 gain 吃掉；再看紅色的分支：剩下的殘差與 $x$ 正交，GMAC 的平均看不到它，但它留在每個 code 上。`,
+    caption: String.raw`先看藍色的分支：INL 中和 $x$ 成正比的 $0.34x$ 被 gain 吃掉；再看紅色的分支：剩下的殘差與 $x$ 正交，GMAC 的平均看不到它，但它留在四個非零 code 上。`,
   },
   {
     id: 'mean-vs-median',
@@ -734,15 +739,15 @@ export const CH11_DIAGRAMS = [
     title: String.raw`Near-integer 的敏感度鏈：frac 變小 → $C$ 變小 → 三個後果`,
     section: 'ch11-near-integer',
     chart: CHART_NEAR_INTEGER_WHY,
-    caption: String.raw`由上往下：sawtooth 的諧波分成頻寬內（負貢獻）與頻寬外（正貢獻）兩群，相加後幾乎抵銷（藍色）；最下面一列是 $C$ 變小的三個後果。`,
+    caption: String.raw`由上往下：sawtooth 的諧波分成頻寬內（負貢獻）與頻寬外（正貢獻）兩群，相加後幾乎抵銷（藍色）；最下面一列是 $C$ 變小的三個後果。中間那個後果只在線性範圍內成立：$B/C$ 大到 comparator 飽和時，$a+B/C$ 就不再是固定點（F-11.14 後面的說明框）。`,
   },
   {
     id: 'near-integer-check',
     name: 'CHART_NEAR_INTEGER_CHECK',
-    title: String.raw`同一個 $C$ 的兩條獨立算法：時域與頻域`,
+    title: String.raw`先用兩條獨立算法算同一個 $C$，再把 $a+B/C$ 代回去檢查`,
     section: 'ch11-near-integer',
     chart: CHART_NEAR_INTEGER_CHECK,
-    caption: String.raw`從同一個標準化的 DSM residue 出發，分成兩支。時域那一支：序列真的通過 $H_\mathrm{PD}$（藍色），再取整數個週期平均；頻域那一支：取一個週期做 DFT，把每條諧波的功率乘上 $\mathrm{Re}\,H_\mathrm{PD}$（藍色）再相加。兩個 $C$ 的相對差夠小才採用，這是下面實驗的交叉檢查。`,
+    caption: String.raw`從同一個標準化的 DSM residue 出發，分成兩支。時域那一支：序列真的通過 $H_\mathrm{PD}$（藍色），再取整數個週期平均；頻域那一支：取一個週期做 DFT，把每條諧波的功率乘上 $\mathrm{Re}\,H_\mathrm{PD}$（藍色）再相加。兩個 $C$ 的相對差夠小才採用，這是下面實驗的交叉檢查。採用 $C$ 之後的第二個六角形把線性候選 $a+B/C$ 代回完整的 erf 平均：通過才當作固定點（綠色），否則只是線性外推（紅色）。`,
   },
   {
     id: 'slope-measure',
@@ -750,7 +755,7 @@ export const CH11_DIAGRAMS = [
     title: String.raw`量測流程：凍結 gain，在 $w\pm\Delta$ 各量一次斜率 $\hat S$`,
     section: 'ch11-near-integer',
     chart: CHART_SLOPE_MEASURE,
-    caption: String.raw`先看藍色的 $\hat S$ 怎麼算：兩次凍結 gain 的平均 GMAC 相減，再除以 $2\Delta$；再看兩個六角形怎麼判讀：$\hat S\le0$ 是極性錯誤，$\hat S$ 為正但遠小於 $K_qE[x^2]$ 代表 $C$ 很小、bias 被放大。`,
+    caption: String.raw`先看藍色的 $\hat S$ 怎麼算：兩次凍結 gain 的平均 GMAC 相減，再除以 $2\Delta$；再看兩個六角形怎麼判讀：$\hat S\le0$ 是極性錯誤，$\hat S$ 為正但遠小於 $K_qE[x^2]$ 代表 $C$ 很小、線性化的 bias $B/C$ 被放大（大到超出線性範圍時 $a+B/C$ 不再是固定點，見 F-11.14 後面的說明框）。`,
   },
   {
     id: 'mc-gaps',

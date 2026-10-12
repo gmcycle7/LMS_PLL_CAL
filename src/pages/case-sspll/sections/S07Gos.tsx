@@ -1,6 +1,6 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import { Callout, ModeGate, ParamControl, Section, SelectControl, StepDerivation, Tex, mathText } from '@/components'
-import { gammaEff, gosConjectureScan, sawtoothLinePower } from '@/simulation/models/sspll'
+import { gammaEff, gosConjectureScan, kappaRational, sawtoothLinePower } from '@/simulation/models/sspll'
 import { FREF_MHZ, GOS_SCAN, LOOP_KEYS, LOOPS, PARAMS, PRED, WORKED, type LoopKey } from '../data'
 import { Claim, DataTable, Diagram, Formula, Kappa, ModelCompare, Sci, Src, fx, r, tx } from '../common'
 
@@ -60,6 +60,8 @@ function GosScanWidget() {
 export function S07Gos() {
   const rowNear = PRED.selected.L2.find((x) => x.alpha === 0.123)
   const scanRows = Object.entries(GOS_SCAN).filter(([k, v]) => !k.startsWith('_') && typeof v === 'object')
+  // 有理數 β 的例子：α = 1/16（β = 1/2）時 L2 的精確週期解——κ_GOS = C_GOS/var(ρ) 與 12·C_GOS 差 4/3 倍
+  const { kG: kG16, varRho: var16 } = kappaRational(LOOPS.L2, 1, 16)
   return (
     <Section kind="formula" level={2} title="7. GOS：鋸齒 regressor" id="cs-7">
       <h3>7.1 Fourier 級數（一步一步）</h3>
@@ -84,16 +86,40 @@ export function S07Gos() {
             why: <>每個正弦拆成 <Tex>{r`\pm m\beta`}</Tex> 兩條線，各自的功率是 <Tex>{r`(1/2\pi m)^2`}</Tex>。</>,
           },
           { tex: r`C_{GOS}=\textstyle\sum_{m\ge1}\frac{\mathrm{Re}\,\Gamma_{\rm eff}(\mathrm{frac}(m\beta))}{2\pi^2m^2}`, why: <>代入 §4.3 的對角項公式。DC 項 <Tex>{'1/2'}</Tex> 乘上 <Tex>{r`\Gamma(0)=0`}</Tex>。</> },
-          { tex: r`\begin{aligned}\textstyle\sum_{m\ge1}\frac{1}{2\pi^2m^2}&=\textstyle\frac{1}{2\pi^2}\cdot\frac{\pi^2}{6}\\[2pt]&=\tfrac1{12}=\mathrm{var}(\rho)\end{aligned}`, why: <><Tex>{r`\sum 1/m^2=\pi^2/6`}</Tex>；權重加總恰好等於 <Tex>{r`\rho`}</Tex> 的變異數。</> },
+          { tex: r`\begin{aligned}\textstyle\sum_{m\ge1}\frac{1}{2\pi^2m^2}&=\textstyle\frac{1}{2\pi^2}\cdot\frac{\pi^2}{6}\\[2pt]&=\tfrac1{12}=\mathrm{var}(\rho)\end{aligned}`, why: <><Tex>{r`\sum 1/m^2=\pi^2/6`}</Tex>；權重加總是 <Tex>{r`\tfrac1{12}`}</Tex>，也就是在 <Tex>{'[0,1)'}</Tex> 上均勻分布的鋸齒的變異數（<Tex>{r`\beta`}</Tex> 為無理數時 <Tex>{r`\rho`}</Tex> 就是這樣分布）。</> },
         ]}
       />
       <Formula id="F-CS.11" />
       <p>
         <Claim kind="exact">
-          <Tex>{r`\alpha`}</Tex> 為無理數時精確；有理數且 <Tex>{r`8\mid Q`}</Tex> 時，golden 的 exact periodic 與諧波和誤差 <Tex>{r`\le8.3\times10^{-10}`}</Tex>
+          <Tex>{r`C_{GOS}`}</Tex> 的諧波和：<Tex>{r`\alpha`}</Tex> 為無理數時精確；有理數且 <Tex>{r`8\mid Q`}</Tex> 時也等於 exact periodic 的 <Tex>{r`C_{GOS}`}</Tex>（golden 核對 4 個長週期的 <Tex>{r`\alpha`}</Tex>，誤差 <Tex>{r`\le8.3\times10^{-10}`}</Tex>）
         </Claim>
-        正規化 <Tex>{r`\kappa_{GOS}=12C_{GOS}`}</Tex>，<Tex>{r`H\equiv1`}</Tex> 時為 1。另外 <Tex>{r`C(\beta)=C(1-\beta)`}</Tex>（譜線對稱），所以 <Tex>{'k/8'}</Tex> 兩側的<strong>線性</strong>行為相同。
+        正規化：<Tex>{r`\kappa_{GOS}=C_{GOS}/\mathrm{var}(\rho)`}</Tex>。分母 <Tex>{r`\mathrm{var}(\rho)`}</Tex> 是把 <Tex>{r`\rho`}</Tex> 去掉平均值之後、沒有迴路（<Tex>{r`H\equiv1`}</Tex>）時的斜率，所以 <Tex>{r`H\equiv1`}</Tex> 時{' '}
+        <Tex>{r`\kappa_{GOS}=1`}</Tex>。<Tex>{r`\beta`}</Tex> 為無理數（或週期很長）時 <Tex>{r`\mathrm{var}(\rho)=\tfrac1{12}`}</Tex>，於是 <Tex>{r`\kappa_{GOS}=12C_{GOS}`}</Tex>；本頁標成 <Tex>{'12C'}</Tex> 的數字都乘這個固定的 12。另外{' '}
+        <Tex>{r`C(\beta)=C(1-\beta)`}</Tex>（譜線對稱），所以 <Tex>{'k/8'}</Tex> 兩側的<strong>線性</strong>行為相同。
       </p>
+      <ModeGate min="engineer">
+        <ul>
+          <li>
+            <strong>
+              有理數的 <Tex>{r`\beta`}</Tex>：<Tex>{r`\mathrm{var}(\rho)`}</Tex> 比 <Tex>{r`\tfrac1{12}`}</Tex> 小。
+            </strong>
+            <Tex>{r`\beta=a/b`}</Tex>（最簡分數；<Tex>{r`8\mid Q`}</Tex> 時 <Tex>{'b=Q/8'}</Tex>）時，<Tex>{r`\rho`}</Tex> 一個週期只取 <Tex>{r`0,\tfrac1b,\dots,\tfrac{b-1}{b}`}</Tex> 這 <Tex>{'b'}</Tex> 個值，
+            <Tex>{r`\mathrm{var}(\rho)=\frac{b^2-1}{12b^2}`}</Tex>。例：<Tex>{r`\alpha=\tfrac1{16}`}</Tex>（{fx(FREF_MHZ / 16, 0)} MHz）時 <Tex>{r`\beta=\tfrac12`}</Tex>，<Tex>{r`\rho`}</Tex> 在 <Tex>{'0'}</Tex> 與 <Tex>{r`\tfrac12`}</Tex> 之間交替，平均{' '}
+            <Tex>{r`\tfrac14`}</Tex>，<Tex>{r`\mathrm{var}(\rho)=\tfrac1{16}`}</Tex>。<Tex>{r`C_{GOS}`}</Tex> 的公式不變：少掉的 <Tex>{r`\tfrac1{12b^2}`}</Tex> 是 <Tex>{'m'}</Tex> 為 <Tex>{'b'}</Tex> 的倍數的那些諧波，它們折到 DC，被{' '}
+            <Tex>{r`\Gamma_{\rm eff}(0)=0`}</Tex> 乘掉。所以 <Tex>{r`\kappa_{GOS}=\frac{b^2}{b^2-1}\cdot12C_{GOS}`}</Tex>：<Tex>{'b=2'}</Tex> 是 <Tex>{r`\tfrac43`}</Tex> 倍（L2 在這一點：<Tex>{`12C=${tx(kG16 * 12 * var16, 4)}`}</Tex>、
+            <Tex>{`\\kappa_{GOS}=${tx(kG16, 4)}`}</Tex>），<Tex>{'b=8'}</Tex> 多 <Tex>{r`1.6\%`}</Tex>，<Tex>{'b=1000'}</Tex>（sign map 大多數的格點）只差 <Tex>{r`10^{-6}`}</Tex>。兩者只差一個正的倍數，符號相同。§8.3 的表、實驗 B 的「精確週期」列與 golden sign map
+            除以實際的 <Tex>{r`\mathrm{var}(\rho)`}</Tex>；其餘標成 <Tex>{'12C'}</Tex> 的數字用固定的 12。
+          </li>
+          <li>
+            <strong>
+              「<Tex>{r`H\equiv1`}</Tex> 時為 1」比的是去掉平均值的 <Tex>{r`\rho`}</Tex>。
+            </strong>
+            第 4 步能丟掉 DC 項，是因為閉迴路的 <Tex>{r`\Gamma_{\rm eff}(0)=0`}</Tex>。沒有迴路時 <Tex>{r`\Gamma_{\rm eff}(0)=1`}</Tex>，DC 項留著：拿原始的 <Tex>{r`\rho`}</Tex> 直接算，會得到{' '}
+            <Tex>{r`C=E[\rho^2]=\tfrac14+\tfrac1{12}=\tfrac13`}</Tex>，<Tex>{'12C=4'}</Tex> 而不是 1。所以這裡的開迴路基準只算 AC 功率 <Tex>{r`\mathrm{var}(\rho)`}</Tex>；§10 的時域 sim 的 GOS 參考保留了 DC，那裡的數字因此與 <Tex>{'12C'}</Tex> 約差 4 倍。
+          </li>
+        </ul>
+      </ModeGate>
       <p className="small muted">
         記號：<Tex>{r`\alpha`}</Tex> 是有理數時寫成最簡分數 <Tex>{r`\alpha=P/Q`}</Tex>，regressor 每 <Tex>{'Q'}</Tex> 拍重複一次；<Tex>{r`8\mid Q`}</Tex> 表示 <Tex>{'Q'}</Tex> 是 8 的倍數（這時 PMUX 的 8 個相位被選到的次數一樣多），<Tex>{r`8\nmid Q`}</Tex> 表示不是。後面幾節會一直用到這個區分。
       </p>

@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { Callout, ClaimTag, Quiz, Recap, Section, StepDerivation } from '@/components'
 import { eigSym } from '@/simulation/core'
 import { KQ_SIGMA100, eigenModes, corr2, gaugeNullVector, meanSquareRadius, pm1DegenerateProb, stepsToDecay } from '@/simulation/models/pe'
-import { Diagram, Erratum, FigRef, HandCalcBox, m, texNum } from '../shared'
+import { Diagram, Erratum, FigRef, HandCalcBox, formulaTex, m, texNum } from '../shared'
 
 /** P 相 one-hot ＋ 共用 offset 的解析 R_x = [[1, 1ᵀ/P], [1/P, I/P]]（iid 等機率） */
 function onehotRx(P: number): number[][] {
@@ -127,13 +127,14 @@ export function Wrapup() {
         <p>
           重點：<strong>穩定性由 {m`\lambda_{\max}`} 決定，可辨識性與速度由 {m`\lambda_{\min}`} 決定。</strong>任何只改 {m`\mu`}、{m`N`} 的作法都改變不了 {m`\lambda_{\min}`}；
           要嘛改激發，要嘛改參數化。
-          <ClaimTag kind="exact" />（mean recursion 下）
+          <ClaimTag kind="exact" />（mean recursion 下；「速度由 {m`\lambda_{\min}`} 決定」指 {m`g\le g^\star=2/(\lambda_{\max}+\lambda_{\min})`}，{m`g`} 更大時最慢的是
+          {m`\lambda_{\max}`} 的模式，F-09.7）
         </p>
       </Section>
 
       <Section kind="example" title="綜合手算：把這一課串起來" level={2} id="ch09-synthesis">
         <p>
-          做思考題之前，先把整章的三件事用同一組數字串起來：<strong>穩定</strong>看 {m`g\lambda_{\max}`}、<strong>速度</strong>看 {m`g\lambda_{\min}`}、
+          做思考題之前，先把整章的三件事用同一組數字串起來：<strong>穩定</strong>看 {m`g\lambda_{\max}`}、<strong>速度</strong>看 {m`g\lambda_{\min}`}（{m`g\le g^\star`} 時）、
           <strong>PE</strong> 看每一個窗口。這一題用的是物理單位（1-bit comparator 的 {m`\sigma_v`} 與 {m`\mu`} 都以 {m`\mathrm{fs}`} 計），
           所以第一步就是把 {m`\mu`} 換成無因次的 {m`g=\mu K_q`}（<Erratum id="E05" />）。
         </p>
@@ -142,7 +143,7 @@ export function Wrapup() {
         </Diagram>
         <p>
           <FigRef id="synthesis-flow" /> 怎麼看：先看 ①②——{m`\sigma_v`}（comparator 前雜訊的標準差）決定 {m`K_q`}，{m`K_q`} 把帶單位的 {m`\mu`} 換成無因次的 {m`g`}。
-          再看 ③④——穩定只看 {m`g\lambda_{\max}`}；⑤⑥——速度只看 {m`g\lambda_{\min}`}。最後 ⑦⑧——長期平均沒問題，不代表每一個長度 {m`N_0`} 的窗口都沒問題。
+          再看 ③④——穩定只看 {m`g\lambda_{\max}`}；⑤⑥——速度看 {m`g\lambda_{\min}`}（{m`g\le g^\star=2/(\lambda_{\max}+\lambda_{\min})`} 時，最慢的就是這個模式）。最後 ⑦⑧——長期平均沒問題，不代表每一個長度 {m`N_0`} 的窗口都沒問題。
           圖上 ①–⑧ 的每一格，就是下面手算題裡的一到兩個步驟（⑥ 是 F-09.6、⑦ 是 F-09.11、⑧ 是 F-09.12）。
         </p>
         <HandCalcBox id="HC-09.8">
@@ -248,9 +249,9 @@ export function Wrapup() {
       <Recap
         title="本課必記"
         formulas={[
-          { label: <>平均遞迴（{m`K_q`} 明寫；mean，不是 mean-square）</>, tex: String.raw`E[\boldsymbol\delta_{k+1}]=(\mathbf I-\mu K_q\mathbf R)E[\boldsymbol\delta_k]` },
+          { label: <>平均遞迴（linear 精確、1-bit 是小訊號近似；{m`K_q`} 明寫；mean，不是 mean-square）</>, tex: formulaTex('F-09.3') },
           { label: 'Eigen-mode pole', tex: String.raw`p_i=1-\mu K_q\lambda_i(\mathbf R),\qquad k_{95}=\lceil\ln0.05/\ln|p|\rceil` },
-          { label: String.raw`$2\times2$ 例子`, tex: String.raw`\lambda=1\pm\rho,\ \mathbf v=(1,\pm1)/\sqrt2,\ \kappa=\frac{1+\rho}{1-\rho}\quad(\rho=.99:\ 1.99,\ 0.01,\ 199)` },
+          { label: String.raw`$2\times2$ 例子`, tex: String.raw`\lambda=1\pm\rho,\ \mathbf v=(1,\pm1)/\sqrt2,\ \kappa=\frac{1+|\rho|}{1-|\rho|}\quad(\rho=.99:\ 1.99,\ 0.01,\ 199)` },
           {
             label: 'PE（有限窗口；每一個 $k$）',
             tex: String.raw`\alpha\mathbf I\preceq\mathbf S_k=\sum_{n=k}^{k+N_0-1}\mathbf u[n]\mathbf u^T[n]\preceq\beta\mathbf I\iff\lambda_{\min}(\mathbf S_k)\ge\alpha\ \text{且}\ \lambda_{\max}(\mathbf S_k)\le\beta`,
@@ -258,11 +259,14 @@ export function Wrapup() {
           { label: 'Gauge', tex: String.raw`\tilde{\mathbf x}^T\mathbf n=0,\ \mathbf n=(1,-1,-1,-1,-1);\quad H_{\mathrm{PD}}(1)=0\Rightarrow\dim\mathcal N(\mathbf R_u)=2` },
         ]}
         points={[
-          <>穩定看 {m`\lambda_{\max}`}（{m`0<g<2/\lambda_{\max}`}），速度看 {m`\lambda_{\min}`}；{m`\kappa`} 大時任何單一 {m`\mu`} 都快不起來。</>,
+          <>
+            穩定看 {m`\lambda_{\max}`}（{m`0<g<2/\lambda_{\max}`}），速度看 {m`\lambda_{\min}`}（{m`g\le g^\star=2/(\lambda_{\max}+\lambda_{\min})`} 時；{m`g`} 更大，最慢的換成
+            {m`\lambda_{\max}`} 的模式）；{m`\kappa`} 大時任何單一 {m`\mu`} 都快不起來。
+          </>,
           <>{m`\lambda_{\min}=0`} 的方向不可辨識：pole {m`=1`}，誤差永遠停在初值。加大 {m`\mu`}、加長 {m`N`}、跑更久都沒用。</>,
           <>
             規格的「{m`\mu=0.5\to${texNum(facts.pSlow)}\to${facts.k95}`}」是 {m`g=\mu K_q=0.5`}、mean recursion 的結論；物理 {m`K_q`}（{m`\sigma_v=100\,\mathrm{fs}`}、{m`\mu=0.5\,\mathrm{fs}`}）時是{' '}
-            {facts.k95Phys.toLocaleString('en-US')} blocks，linear detector、{m`N=1`}
+            {facts.k95Phys.toLocaleString('en-US')} blocks（1-bit，小訊號近似），linear detector、{m`N=1`}
             Gaussian 時均方發散。
           </>,
           <>PE 是對<strong>每一個窗口</strong>的要求；量過幾段時間的 {m`\lambda_{\min}(\mathbf R_k)`} 不等於證明 PE（{m`\pm1`} code、{m`\rho=0.99`}、{m`N_0=100`} 時 {m`${texNum(facts.degPct, 3)}\%`} 的窗口退化）。</>,

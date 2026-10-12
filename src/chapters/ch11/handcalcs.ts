@@ -3,6 +3,7 @@ import type { HandCalcDef } from '@/data/types'
 import { normCdf } from '@/simulation/core'
 import {
   KQ_FACTOR,
+  LIN_RATIO_LIMIT,
   autoMu,
   buildCodeDistribution,
   codeMoments,
@@ -39,12 +40,15 @@ const PAGE = '/ch/11'
 const TU = String.raw`\mathrm{t.u.}`
 const PER_TU = String.raw`\mathrm{t.u.}^{-1}`
 
-/** F-11.9 二階修正的適用上限：max|e_0|/σ_v ≤ 1.2（本章例子相當於 σ_v ≥ 0.2；再小泰勒展開就不收斂）。 */
+/**
+ * F-11.9 二階修正的適用上限：max|e_0|/σ_v ≤ 1.2（本章例子相當於 σ_v ≥ 0.2；再小的話 erf 只取到三次項的低階截斷就不準了。
+ * erf 的 Maclaurin 級數本身對任何有限引數都收斂，失準的是截斷）。
+ */
 export const SECOND_ORDER_MAX_RATIO = 1.2
 /** 常見標準常態表的範圍 |z| ≤ 3.49。 */
 export const PHI_TABLE_MAX = 3.49
-/** Lab 判斷「一階線性化可信」的門檻 max|e_det|/σ_v ≤ 0.3（勘誤 E01）。 */
-export const LINEAR_OK_RATIO = 0.3
+/** Lab 判斷「一階線性化可信」的門檻 max|e_det|/σ_v ≤ 0.3（勘誤 E01）；與 bias.ts 的 LIN_RATIO_LIMIT 是同一個數字。 */
+export const LINEAR_OK_RATIO = LIN_RATIO_LIMIT
 /**
  * 中間量顯示的有效位數：比答案（5 位）多一位。K_q = 0.797885/σ_v 這類常數若只顯示 5 位，
  * 讀者照著畫面上的數字再乘一次，末位會和下一步顯示的結果差 1（例如 1.5958 × 0.24 = 0.38299 ≠ 0.38298）。
@@ -310,7 +314,7 @@ export const HANDCALCS: HandCalcDef[] = [
         steps: [
           {
             tex: String.raw`E[x]=\tfrac14\big(${plus(xs, SUM)}\big)=\tfrac{${texNum(chop(total(xs)), SUM)}}{4}=${texNum(Ex, SUM)}`,
-            why: `4 個 code 等機率，各 $1/4$。${Ex === 0 ? '$E[x]=0$：這組 code 已經置中，offset 與 code 不相關。' : '$E[x]\\neq0$：code 沒有置中，常數 offset 會和 code「相關」。'}`,
+            why: `4 個 code 等機率，各 $1/4$。${Ex === 0 ? '$E[x]=0$：這組 code 已經置中，常數 offset 與 code 正交（$E[x\\,b]=b\\,E[x]=0$）。' : '$E[x]\\neq0$：code 沒有置中，常數 offset 與 code 不正交（$E[x\\,b]=b\\,E[x]$，$b\\neq0$ 時不是 0；它與 code 的共變異數則永遠是 0）。'}`,
           },
           {
             tex: String.raw`E[x^2]=\tfrac14\big(${plus(xs.map((x) => x * x), SUM)}\big)=\tfrac{${texNum(total(xs.map((x) => x * x)), SUM)}}{4}=${texNum(mo.Ex2, SUM)}`,
@@ -451,7 +455,7 @@ export const HANDCALCS: HandCalcDef[] = [
       const w1 = mseFixedPoint(m, FIVE)
       const ratio = Math.max(...FIVE.values.map((x) => Math.abs(eDet(x, w1, m)))) / sigma
       if (ratio > SECOND_ORDER_MAX_RATIO * (1 + 1e-9))
-        return String.raw`$\max|e_0|/\sigma_v=${texNum(ratio, 4)}>${SECOND_ORDER_MAX_RATIO}$：殘差已經比雜訊大，erf 的泰勒展開不收斂，二階修正會給出荒謬的值（本章例子在 $\sigma_v=0.05$ 時算出大於 1.4）。請加大 $\sigma_v$，或改用 Lab 的 mean-field 根。`
+        return String.raw`$\max|e_0|/\sigma_v=${texNum(ratio, 4)}>${SECOND_ORDER_MAX_RATIO}$：殘差已經比雜訊大，erf 只取到三次項的低階截斷不再準確，二階修正不可靠（erf 的泰勒級數本身對任何有限引數都收斂，失準的是截斷；殘差再大就會給出荒謬的值，本章例子在 $\sigma_v=0.05$ 時算出大於 1.4）。請加大 $\sigma_v$，或改用 Lab 的 mean-field 根。`
       return null
     },
     solve: ({ a, c3, sigma, eps }) => {
@@ -559,7 +563,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: '無雜訊 Sign-LMS：$|x|$ 加權中位數（對照 MSE 的 $x^2$ 加權平均）',
     page: PAGE,
     formulaId: 'F-11.10',
-    formulaTex: String.raw`t(x)=a+\frac{b}{x}+c_3x^2,\qquad E[G](w)=\sum_{x\neq0}p\,|x|\operatorname{sign}\big(t(x)-w\big)=0\ \ (\text{加權中位數}),\\[0.4em] w^*_\mathrm{MSE}=\frac{\sum p\,x^2\,t(x)}{\sum p\,x^2}\ \ (\text{加權平均})`,
+    formulaTex: String.raw`t(x)=a+\frac{b}{x}+c_3x^2,\qquad E[G](w)=\sum_{x\neq0}p\,|x|\operatorname{sign}\big(t(x)-w\big)\ \text{由正變負的位置}=w^*\ \ (\text{加權中位數}),\\[0.4em] w^*_\mathrm{MSE}=\frac{\sum p\,x^2\,t(x)}{\sum p\,x^2}\ \ (\text{加權平均})`,
     level: 'beginner',
     claim: 'exact',
     inputs: [
@@ -712,6 +716,16 @@ export const HANDCALCS: HandCalcDef[] = [
           String.raw`$C$ 只有 $E[x^2]$ 的 $${texNum(C / px, 3)}$ 倍：同一個干擾造成的 bias 放大 $${texNum(amp, 4)}$ 倍，而恢復斜率 $S$ 縮小同樣的倍數，所以同一個 $\mu$ 下收斂也慢 $${texNum(amp, 4)}$ 倍。`,
         )
       else notes.push('$C\\ge E[x^2]$：主迴路沒有削弱 code 的相關（甚至因 peaking 而略為放大），bias 不比靜態式大。')
+      if (ni.attracting && C < px) {
+        // 線性化檢查（F-11.3）：near-integer 的 sawtooth 跳變高度 2√3·σ_x（零均值 code：σ_x = √E[x²]）原封不動通過 H_PD（h[0] = 1）
+        const eMax = Math.abs(ni.bias) * 2 * Math.sqrt(3) * Math.sqrt(px)
+        const rEst = eMax / sigma
+        notes.push(
+          rEst > LINEAR_OK_RATIO
+            ? String.raw`線性化檢查（F-11.3）：near-integer 的 sawtooth（零均值的 code）每次跳變的高度是 $2\sqrt3\sqrt{E[x^2]}$，它會原封不動通過 $H_\mathrm{PD}$（$h[0]=1$），所以 $\max|e_\mathrm{det}|\approx|w^*-a|\cdot2\sqrt3\sqrt{E[x^2]}=${texNum(eMax, MID)}$，是 $\sigma_v$ 的 $${texNum(rEst, 4)}$ 倍，超過門檻 ${LINEAR_OK_RATIO}：這個 $a+B/C$ 只是線性外推，Sign-LMS 的平均 GMAC 在這一點並沒有歸零。超出不多時，真正的固定點在附近、離 $a$ 再遠一些；超出很多時，在實際的 gain 範圍內找不到吸引的固定點，$w$ 會一路往外漂（§11.4 的說明框、Ch06 F-06.19）。要回到線性範圍，至少需要 $\sigma_v\gtrsim${texNum((rEst * sigma) / LINEAR_OK_RATIO, 3)}$ 或 $|\kappa_d|\lesssim${texNum((Math.abs(kd) * LINEAR_OK_RATIO) / rEst, 3)}$；$C$ 很小時還要看下方實驗的殘餘比 $\gamma_\mathrm{lin}$。`
+            : String.raw`線性化檢查（F-11.3）：以 near-integer 的 sawtooth 估計，$|w^*-a|\cdot2\sqrt3\sqrt{E[x^2]}/\sigma_v=${texNum(rEst, 4)}\le${LINEAR_OK_RATIO}$，第一個條件通過；$C$ 遠小於 $E[x^2]$ 時還要看下方實驗的殘餘比 $\gamma_\mathrm{lin}$（$|\gamma_\mathrm{lin}|\le0.05$ 才把 $a+B/C$ 當作 Sign-LMS 的固定點）。`,
+        )
+      }
       notes.push('靜態結果 $a+\\kappa_d$ 與 $E[x^2]$ 無關（分子分母約掉），而且只靠 $(x,q)$ 無法分辨 $(a,\\kappa_d)$ 與 $(a+\\kappa_d,0)$ 這兩個世界（F-11.13，不可辨識）。')
       return {
         steps: [
@@ -743,6 +757,7 @@ export const HANDCALCS: HandCalcDef[] = [
     },
     tips: [
       '預設值是 §11.4 表格的 $B=0.01$、$C=0.01$ 那一列：$w^*-a=1$、$\\partial w^*/\\partial C=-100$。把 $C$ 改成 1、0.1、$-0.01$ 可重現其餘三列。',
+      '預設值的 $w^*-a=1$ 在 $\\sigma_v=1$ 下遠遠超出線性化範圍（補充觀察的「線性化檢查」：3.46，門檻 0.3）。算術沒有錯，但它描述的是線性模型；對 near-integer 的 sawtooth，Sign-LMS 不會停在 $w=2$。把 $\\sigma_v$ 改成 20 再算一次：指標變成 0.173，第一個條件通過。',
       '$E[x^2]=1$ 對應下方 Near-integer 實驗的標準化 code（$E[x]=0$、$E[x^2]=1$），此時 $B=\\kappa_d$。',
       '把 $C$ 設成和 $E[x^2]$ 一樣大，兩個固定點相同：這就是 §11.3 的 $w^*=a+\\kappa$。',
     ],

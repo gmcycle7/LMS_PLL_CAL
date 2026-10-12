@@ -62,7 +62,20 @@ const ROWS: SymbolEntry[] = [
     firstSeen: '§12.1',
     note: md(String.raw`feedback edge 早到 $a\,x[n]$，DTC 補償 $w_k\,x[n]$，剩下 $(a-w_k)\,x[n]$`),
   },
-  { symbol: 'C', meaning: md(String.raw`有效 code 相關 $E[x\,u]$（$u$：code 在 comparator 前造成的訊號；identity path、unit-RMS code 時 $=1$）`), unit: '1', firstSeen: '§12.0' },
+  {
+    symbol: 'C',
+    meaning: md(String.raw`有效 code 相關 $E[x\,u]$（$u$：code 在 comparator 前造成的訊號；identity path、unit-RMS code 時 $=1$）`),
+    unit: '1',
+    firstSeen: '§12.0',
+    note: md(String.raw`本章的推導與 Lab 用無記憶 path $u=Cx$（$x=\pm1$）：comparator 前殘差的振幅就是 $|C\,\delta w|$。path 有記憶時 $C$ 小不代表 $u$ 小（§12.1 的「適用範圍」）`),
+  },
+  {
+    symbol: String.raw`u[n],\ u_{\max}`,
+    meaning: md(String.raw`code 在 comparator 前造成的訊號（code 經過誤差路徑之後的結果，每 1 fs 的 gain 誤差造成多少 fs；本章 $u[n]=C\,x[n]$）與它的峰值 $\max_n|u[n]|$`),
+    unit: '1',
+    firstSeen: '§12.1',
+    note: md(String.raw`和第 6 章的 $u$（F-06.1）是同一個量；小訊號的一般條件是 $|\delta w|\,u_{\max}\ll\sigma_v$（充分條件）。和 §12.6 multirate 推導裡的插零序列 $u[n]$ 是不同的量`),
+  },
   { symbol: String.raw`K=K_qC`, meaning: md(String.raw`GMAC 斜率：平均 $G$ 對 $\delta w$ 的斜率（取負號）`), unit: String.raw`\mathrm{fs}^{-1}`, firstSeen: '§12.0' },
   {
     symbol: String.raw`\mu`,
@@ -98,14 +111,16 @@ const ROWS: SymbolEntry[] = [
   {
     symbol: String.raw`S_\eta(e^{j\Omega})`,
     meaning: md(String.raw`GMAC 雜訊 $\eta$ 的雙邊 DTFT PSD（block rate）；$\eta$ 在 block 之間獨立（白色）時是常數 $\sigma_\eta^2$`),
-    unit: String.raw`1/(\mathrm{rad/block})`,
+    unit: String.raw`1/(\mathrm{cycle/block})`,
     firstSeen: '§12.3',
   },
   {
     symbol: String.raw`S_w(e^{j\Omega})`,
-    meaning: md(String.raw`$\delta w$ 的雙邊 DTFT PSD（block rate）；$\sigma^2=\frac1{2\pi}\int_{-\pi}^{\pi}S\,d\Omega$`),
-    unit: String.raw`\mathrm{fs}^2/(\mathrm{rad/block})`,
+    meaning: md(String.raw`$\delta w$ 的雙邊 DTFT PSD（block rate）；$\sigma^2=\frac1{2\pi}\int_{-\pi}^{\pi}S\,d\Omega$（等於對 $\Omega/2\pi$ 積分）`),
+    unit: String.raw`\mathrm{fs}^2/(\mathrm{cycle/block})`,
     firstSeen: '§12.3',
+    // 技術審查 C03：這個 note 不要寫「§12.n」（ch12.test.tsx 以每列第一個 §12.n 檢查「首次出現」欄都有標示）
+    note: md(String.raw`「每 cycle/block」的密度；能直接對 $\Omega$ 積分的每 rad/block 密度是 $S_w/(2\pi)$（本站不用）。換成單邊 per-Hz 只乘 $2/f_u$（cycle/block 乘 block/s 就是 Hz），不會多出 $2\pi$`),
   },
   {
     symbol: String.raw`S^{(1)}(f)`,
@@ -117,7 +132,7 @@ const ROWS: SymbolEntry[] = [
   {
     symbol: String.raw`S_w^{(f_s)}(e^{j\theta})`,
     meaning: md(String.raw`$\delta w$ 以 ZOH 保持到 sample rate 後的（時間平均）PSD`),
-    unit: String.raw`\mathrm{fs}^2/(\mathrm{rad/sample})`,
+    unit: String.raw`\mathrm{fs}^2/(\mathrm{cycle/sample})`,
     firstSeen: '§12.6',
     note: <Erratum id="E09" />,
   },
@@ -138,9 +153,9 @@ const ROWS: SymbolEntry[] = [
   {
     symbol: String.raw`u[n],\ \bar R_u,\ \bar S_u`,
     meaning: md(String.raw`（§12.6 的 multirate 推導）插零上取樣後的序列：$n=kN$ 時放 $\delta w_k$，其餘放 0；$\bar R_u$、$\bar S_u$ 是它對 $n$ 取時間平均的自相關與 PSD`),
-    unit: String.raw`\mathrm{fs},\ \mathrm{fs}^2,\ \mathrm{fs}^2/(\mathrm{rad/sample})`,
+    unit: String.raw`\mathrm{fs},\ \mathrm{fs}^2,\ \mathrm{fs}^2/(\mathrm{cycle/sample})`,
     firstSeen: '§12.6',
-    note: md(String.raw`和 $C=E[x\,u]$ 裡的 $u$（code 在 comparator 前造成的訊號）是不同的量`),
+    note: md(String.raw`和 $C=E[x\,u]$ 裡的 $u$（code 在 comparator 前造成的訊號，見上面 $u[n],\ u_{\max}$ 那一列）是不同的量`),
   },
   {
     symbol: String.raw`b[r],\ B(e^{j\theta})`,
@@ -187,7 +202,7 @@ const ROWS: SymbolEntry[] = [
   {
     symbol: String.raw`S_x,\ S_{\delta t}`,
     meaning: md(String.raw`code $x[n]$ 與 timing error $\delta t[n]$ 的 PSD（sample rate；DTFT 形式，加上標 $(1)$ 是單邊 per-Hz）`),
-    unit: String.raw`1/(\mathrm{rad/sample}),\ \mathrm{fs}^2/(\mathrm{rad/sample})`,
+    unit: String.raw`1/(\mathrm{cycle/sample}),\ \mathrm{fs}^2/(\mathrm{cycle/sample})`,
     firstSeen: '§12.6',
   },
   {

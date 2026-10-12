@@ -41,6 +41,8 @@ const ATOMS: AtomRule[] = [
   [/× z\^−(\d+)/y, (m) => r`\times z^{-${m[1]}}`],
   [/×(?=\d)/y, r`\times`],
   // ── 符號 ──
+  // filtered-x 的 regressor 再延遲 D（analyzeFxLab 在 D ≠ 0 時的訊息，F-07.12）；要排在 E[u·u_f] 之前
+  [/E\[u\[n\]·u_f\[n−D\]\]/y, r`E[u[n]\,u_f[n-D]]`],
   [/E\[u·u_f\]/y, r`E[u\,u_f]`],
   [/E\[u²\]/y, r`E[u^2]`],
   [/\|Ĥ\|/y, r`|\hat H|`],
@@ -145,6 +147,23 @@ const FIXED_PREFIX = /^C (?:≤|≈) 0/
 
 /** runBlockLms 的警告中，Lab 會顯示在閉迴路區的那幾類（極性、沒有恢復力、Ĥ ≠ H、不穩定／發散／limit cycle） */
 export const CLOSED_LOOP_WARNING = /^C ≤ 0|^C ≈ 0|filtered-x 模型|^g ≥|發散|limit cycle|不穩定/
+
+/** runBlockLms 的「C ≤ 0」警告固定以這句建議結尾（共用核心的字串，別的頁面以樣式比對，所以模型端不改） */
+const GENERIC_POLARITY_FIX = '，需 delay alignment 或 filtered-x）'
+
+/**
+ * 閉迴路的「C ≤ 0」警告結尾一律建議「需 delay alignment 或 filtered-x」。Case 本身已經是 delayed-x 或 filtered-x 時，
+ * 這句話等於建議「改用現在這一種」——Lab 依 Case 的 regressor 換成對得上的建議（仍是純文字，之後照常經過 diagMath）：
+ *   raw-x：原句不動；delayed-x：換一個 D，或改用 filtered-x；filtered-x：修 Ĥ 的相位或 regressor 的額外延遲 D（F-07.12）。
+ * 其他警告、或結尾不是這句話的字串原樣回傳。
+ */
+export function closedLoopAdvice(warning: string, mode: 'raw' | 'delayed' | 'filtered' | undefined): string {
+  if (!warning.startsWith('C ≤ 0') || !warning.endsWith(GENERIC_POLARITY_FIX) || mode === undefined || mode === 'raw') return warning
+  const head = `${warning.slice(0, -GENERIC_POLARITY_FIX.length)}）。`
+  return mode === 'delayed'
+    ? `${head}這個 Case 已經是 delayed-x：要換一個 D，讓殘餘相位回到 ±90° 以內（F-07.4），或改用 filtered-x`
+    : `${head}這個 Case 已經是 filtered-x：要修正的是模型 Ĥ 的相位，或 regressor 的額外延遲 D（F-07.12）`
+}
 
 const cache = new Map<string, string>()
 

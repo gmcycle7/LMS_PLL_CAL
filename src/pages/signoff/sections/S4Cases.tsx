@@ -155,7 +155,7 @@ export function S4Cases() {
           title="Near-integer 的固定點敏感度"
           steps={[
             { tex: String.raw`E[G(w)]\approx K_q\big(C\,(a-w)+B_\text{bias}\big)`, why: String.raw`線性化：恢復力項 + 與 code 相關的干擾 bias 項 $B_\text{bias}=bE[x]+E[x\,d(x)]+E[x\,\varepsilon_{cc}]$（E12 的命名）。` },
-            { tex: String.raw`E[G(w^*)]=0\ \Rightarrow\ w^*=a+\frac{B_\text{bias}}{C}`, why: '固定點的定義。' },
+            { tex: String.raw`E[G(w^*)]=0\ \Rightarrow\ w^*\approx a+\frac{B_\text{bias}}{C}`, why: String.raw`固定點的定義是 $E[G(w^*)]=0$；把上一步線性化的 $E[G]$ 代進去解出來，所以是 $\approx$（線性化在 $w^*$ 處也要成立，見下面的說明）。` },
             { tex: String.raw`\frac{\partial w^*}{\partial C}=-\frac{B_\text{bias}}{C^2}`, why: String.raw`對 $C$ 微分：$C\to0$ 時敏感度以 $1/C^2$ 爆增。` },
             { tex: String.raw`C<0:\ \ \frac{\partial E[G]}{\partial w}=-K_qC>0\ \Rightarrow\ w^*\text{ 是 repelling point}`, why: String.raw`斜率變號：$w$ 比 $w^*$ 大一點時 $E[G]>0$，更新 $w\leftarrow w+\mu G$ 把它推得更遠——固定點在代數上仍存在，但迴路會離開它（不可達）。` },
             { tex: String.raw`C=0:\ \ E[G(w)]\approx K_qB_\text{bias}\ \ (\text{與 }w\text{ 無關})\ \Rightarrow\ \text{沒有固定點}`, why: String.raw`恢復力項消失後，GMAC 只剩與 $w$ 無關的 bias：$B_\text{bias}\ne0$ 時 $w$ 以每個 block $\mu K_qB_\text{bias}$ 的速度一路漂到 rail。這是 keep-out FCW 的典型失效樣貌。` },
@@ -163,6 +163,7 @@ export function S4Cases() {
         />
         <p>
           所以 FCW sweep 要同時報 <Tex>{'\\hat C(\\mathrm{FCW})'}</Tex> 與 <Tex>{'|B_\\text{bias}/\\hat C|'}</Tex>；兩者任一不合格的 FCW 進 keep-out 清單。
+          <Tex>{'|B_\\text{bias}/\\hat C|'}</Tex> 是線性化的值（第一步用了 <Tex>{'E[q]\\approx K_qs'}</Tex>）：把 <Tex>{'w=a+B_\\text{bias}/\\hat C'}</Tex> 代回去，comparator 前的確定性殘差 <Tex>{'e_\\text{det}[n]'}</Tex>（不含雜訊 <Tex>{'v'}</Tex> 的部分）也跟著 <Tex>{'1/\\hat C'}</Tex> 變大。它大到讓 comparator 飽和（<Tex>{String.raw`\max_n|e_\text{det}[n]|>0.3\,\sigma_v`}</Tex>）時，<Tex>{'a+B_\\text{bias}/\\hat C'}</Tex> 只是線性外推，不能再當作固定點（Sign-LMS 可能沒有吸引的固定點），這種 FCW 也進 keep-out（<a href="#/ch/11">Ch11 §11.4</a>）。
           PE 則看滑動窗資訊矩陣的 <Tex>{'\\lambda_{\\min}'}</Tex>——但有限窗只能證明「量過的窗」，不能證明未來所有窗（規格 §9.1）。
         </p>
         <ErratumNote id="E12">

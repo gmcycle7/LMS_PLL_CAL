@@ -20,7 +20,7 @@ import { presetsForExperiment, useUrlPreset } from '@/app/presets'
 import modelSrc from '../thesisModel.ts?raw'
 import { SIX_CONDITIONS } from '../data'
 import { EXPERIMENT_ID, THESIS_PRESETS, builtinPreset, presetParams, sanitizeParams } from '../presets'
-import { DEFAULT_PARAMS, evaluateThesis, suggestHorizon, trajectory, type ThesisParams, type ThesisResult } from '../thesisModel'
+import { DEFAULT_PARAMS, blocksTo95, evaluateThesis, settleDelayed, suggestHorizon, trajectory, weakStrongModes, type ThesisParams, type ThesisResult } from '../thesisModel'
 import { MC_GAIN_TRUE_FS } from '../mcBridge'
 import { Rich, StateIcon, plainTip, withAlpha } from '../ui'
 import { ThesisControls } from './Controls'
@@ -33,6 +33,8 @@ export interface EvaluatedCase {
 }
 
 const MODEL_PATH = 'src/pages/dashboard/thesisModel.ts'
+/** eigen-mode 表下方「弱 / 強方向」那一句的括號：哪一個 mode 是弱方向取決於 ρ 的正負號 */
+const WEAK_IS = String.raw`弱方向是 $\tilde\lambda_i$ 較小的 mode：$\rho$ 為正時是 $(1,\,-1)/\sqrt2$，為負時是 $(1,\,1)/\sqrt2$`
 const f = (x: number, d = 4) => (Number.isFinite(x) ? Number(x.toPrecision(d)).toString() : Number.isNaN(x) ? '—' : x > 0 ? '∞' : '−∞')
 /** MetricTable 用：NaN → null（顯示「—」），±∞ → 字串 */
 const mv = (x: number): number | string | null => (Number.isFinite(x) ? x : Number.isNaN(x) ? null : x > 0 ? '∞' : '−∞')
@@ -40,16 +42,19 @@ const mv = (x: number): number | string | null => (Number.isFinite(x) ? x : Numb
 /** 假設清單（ExperimentShell 以 mathText 顯示：`$…$` 內為 TeX） */
 const ASSUMPTIONS = [
   String.raw`局部線性化：$E[q\mid e_{\mathrm{det}}]\approx K_q\,e_{\mathrm{det}}$，需要 deterministic residual 遠小於 $\sigma_v$（大誤差時 comparator 飽和）`,
+  String.raw`時間尺度分離：係數 $w$ 在 PLL error path 的記憶長度內近似常數，誤差才能寫成 $(a-w_k)\,u[n]$、$u=h*x$（Ch06 的 F-06.1；$w$ 變得快時要回到 $h*((a-w)\,x)$）`,
   String.raw`單頻 code $x=A\cos\Omega n$，$P_x=A^2/2$；$C=P_x|H|\cos(\phi+\Omega D)$（多頻 code 要用 $E[x\,(h*x)]$ 整體計算）`,
   String.raw`近平衡、$q$ 近似 iid $\pm1$：$\sigma_\eta^2\approx P_x/N$（勘誤 E30：精確為 $(1-m^2)P_x/N$）；GMAC 雜訊在 block 之間獨立（white）`,
   String.raw`每個 GMAC block 涵蓋許多個 code 週期（$\Omega N\gg2\pi$）：block 內的平均 $\approx$ 長期平均`,
-  String.raw`雙參數：$\tilde{\mathbf R}=\begin{bmatrix}1&\rho\\\rho&1\end{bmatrix}$，兩個 regressor 經相同 path，交叉相關也以同一個 $C$ 縮放（$E[x_iu_j]=C\,\tilde R_{ij}$，這是簡化模型）；$\varepsilon_{\mathrm{det}}$ 的 code 相關部分沿 $x_1$ 方向（$E[x_2\varepsilon_{\mathrm{det}}]=\rho B$）`,
+  String.raw`雙參數：$\tilde{\mathbf R}=\begin{bmatrix}1&\rho\\\rho&1\end{bmatrix}$，$\rho$ 是零延遲的相關係數（$E[x_1x_2]=\rho P_x$）。本模型另外假設交叉相關也以同一個 $C$ 縮放：$E[x_i[n-D]\,u_j[n]]=C\,\tilde R_{ij}$（簡化模型）。「兩個 regressor 經過同一條 path」保證不了這一點：它在 $\theta=\phi+\Omega D=0^\circ$ 時成立；$\theta\ne0^\circ$ 時的充分條件是每一個延遲 $m$ 的交叉相關都是自相關的 $\rho$ 倍，$E[x_1[n]\,x_2[n+m]]=\rho\,E[x_1[n]\,x_1[n+m]]$，兩個固定的同頻單頻 code（$|\rho|<1$）做不到。這時體檢會加註，並列出這種 code 的 $\max|z|$ 作對照（F-DB.6）；完整的 Jacobian 見 Ch10`,
+  String.raw`$\varepsilon_{\mathrm{det}}$ 的 code 相關部分沿 $x_1$ 方向（$E[x_2\varepsilon_{\mathrm{det}}]=\rho B$）`,
   String.raw`preconditioner $\mathbf M=\mu\tilde{\mathbf R}^{-1}$ 假設 $\tilde{\mathbf R}$ 已知；不修正 path 極性`,
   String.raw`$\delta=a-w$（全站極性）；$\delta w=w-w^*$；時間單位一律 fs`,
   String.raw`spur：單 tone、小角度近似 $20\log_{10}(\pi f_{\mathrm{out}}|T|A_t)$；$A_t=A\,|\Delta w|$ 只計 gain bias 造成的 code tone，$\varepsilon_{\mathrm{det}}$ 本身（例如 INL 殘差）的輸出貢獻未計入`,
-  String.raw`$\sigma_{\delta t}$ 為 DTC-referred（gain-equivalent × code），不是 PLL 輸出 jitter；random 與 deterministic 部分以平方和合併（互不相關）`,
+  String.raw`$\sigma_{\delta t}$ 為 DTC-referred（gain-equivalent × code），不是 PLL 輸出 jitter；random 與 deterministic 部分以平方和合併（互不相關）。條件 6 只檢查它與單 tone spur 是否在預算內：不和校正前（初始誤差 $w_0-a$）比較，也不把隨機部分經 $T(f)$ 積分成輸出 jitter（$|T|$ 只進入 spur）`,
+  String.raw`95% 收斂：每個 mode 的平均暫態（相對於固定點；初始歷史 $=$ 初值，與軌跡圖相同）最後一次超過初值 5% 的下一個 block。$d=0$ 時 $=\lceil\ln0.05/\ln|1-g_i|\rceil$；$d\ge1$ 時 $\max|z|$ 只決定漸近速率，$\max|z|^k$ 不是誤差的包絡（重根、複數根），所以逐 block 數出來`,
   String.raw`identifiability 以有效 regressor 的自相關 $\mathbf R=E[\mathbf u\mathbf u^T]=|H|^2P_x\,\tilde{\mathbf R}$ 判斷（規格 §0）`,
-  String.raw`判定門檻（$\kappa>100$、極性裕度 $M_{\mathrm{pol}}<30^\circ$、$\mathrm{PM}<45^\circ$）為 illustrative 設計規則，不是 sign-off 標準`,
+  String.raw`判定門檻（$\kappa>100$、極性裕度 $M_{\mathrm{pol}}<30^\circ$、$\mathrm{PM}<45^\circ$，以及線性化指標 $>0.3$：gain 殘差的 RMS 除以 $\sigma_v$，固定點取 $|\Delta w|\,|H|\sqrt{P_x}/\sigma_v$、起點取 $|w_0-a|\,|H|\sqrt{P_x}/\sigma_v$）為 illustrative 設計規則，不是 sign-off 標準`,
   String.raw`Monte Carlo 交叉比對：共用的 sample-level block Sign-LMS 模型（單參數、$B=0$、Gaussian comparator noise）；比對條件 2–4，不含 bias 與定點量化`,
 ]
 
@@ -71,9 +76,36 @@ function metricsFor(r: ThesisResult, mc?: McOutcome): MetricRow[] {
       value: mv(r.maxRadius),
       claim: 'exact',
       ...(p.d === 0 && !p.twoParam ? { analytic: Math.abs(1 - r.g), tolerance: 1e-12, note: String.raw`$d=0$：特徵根 $=1-g$` } : {}),
+      ...(p.twoParam ? { note: String.raw`雙參數：以 $E[x_i[n-D]\,u_j[n]]=C\,\tilde R_{ij}$ 為前提` } : {}),
     },
+    // 雙參數且 θ ≠ 0°：列出兩個固定同頻單頻 code 的 max|z| 當對照（F-DB.6）。不設 formulaId：MetricTable 會把它變成 href="#formula-…"，HashRouter 會當成路由
+    ...(r.crossAssumptionActive
+      ? [
+          {
+            name: String.raw`對照：兩個固定同頻單頻 code 的 $\max|z|$`,
+            value: mv(r.fixedToneRadius),
+            claim: 'exact' as const,
+            note: String.raw`$E[x_i[n-D]\,u_j[n]]=P_x|H|\cos(\theta+\psi_j-\psi_i)$、$\rho=\cos\psi$（F-DB.6）；$\theta=0^\circ$ 時與上一列相同`,
+          },
+        ]
+      : []),
     { name: String.raw`$g^*(d)=2\sin\frac{\pi}{4d+2}$`, value: mv(r.gStar), claim: 'exact' },
-    { name: '95% 收斂（最慢 mode）', value: mv(r.slowT95Blocks), unit: 'blocks', claim: 'exact' },
+    {
+      name: '95% 收斂（最慢 mode）',
+      value: mv(r.slowT95Blocks),
+      unit: 'blocks',
+      claim: r.slowT95Exact ? 'exact' : 'approx',
+      // 不收斂（∞）時不加備註；其餘說明這個數字是怎麼數出來的
+      ...(Number.isFinite(r.slowT95Blocks)
+        ? {
+            note: !r.slowT95Exact
+              ? String.raw`極慢的 mode：改列 $\lceil\ln0.05/\ln\max|z|\rceil$ 的漸近估計`
+              : p.d === 0
+                ? String.raw`$d=0$：$\lceil\ln0.05/\ln|1-g_i|\rceil$`
+                : String.raw`$d\ge1$：由平均遞迴 $\delta_{k+1}=\delta_k-g_i\,\delta_{k-d}$（初始歷史 $=$ 初值，與上圖相同）數到暫態最後一次超過 5% 的下一個 block；只看 $\max|z|$ 的 $\lceil\ln0.05/\ln\max|z|\rceil=${blocksTo95(r.maxRadius)}$ 只是漸近估計`,
+          }
+        : {}),
+    },
     { name: '95% 收斂時間', value: mv(r.slowT95Seconds), unit: 's' },
     { name: String.raw`$\lambda_{\min}(\mathbf R)$，$\mathbf R=|H|^2P_x\,\tilde{\mathbf R}$`, value: mv(r.lamMin), claim: 'exact' },
     { name: String.raw`$\kappa=\lambda_{\max}/\lambda_{\min}$`, value: mv(r.kappa), claim: 'exact' },
@@ -182,13 +214,20 @@ export function HealthCheck({ cases, evaluated }: { cases: UseCasesResult<Thesis
     [],
   )
   const diverged = traj.filter((x) => x.t.diverged).map((x) => x.e.id)
+  // 雙參數且 θ ≠ 0° 的 case：畫出來的平均軌跡以交叉相關假設為前提（圖說要講）
+  const crossCases = evaluated.filter((e) => e.result.crossAssumptionActive).map((e) => e.id)
+  // d ≥ 1 時 k_95 的例子（重根）：d = 1、g = 1/4 ⇒ δ_k = (1 + k/2)·2^{−k}；數字由同一個函式現算
+  const dblRoot = useMemo(() => ({ y: [5, 6, 7].map((k) => (1 + k / 2) * 2 ** -k), blocks: settleDelayed(0.25, 1).blocks, asym: blocksTo95(0.5) }), [])
   // 演算法比較：同一組參數分別用 M = μI 與 M = μR̃⁻¹（只在 2 參數時有意義）
   const cmp = useMemo(() => {
     const p = r.params
     if (!p.twoParam) return undefined
     return { scalar: evaluateThesis({ ...p, update: 'scalar' }), precond: evaluateThesis({ ...p, update: 'precond' }) }
   }, [r.params])
-  const slow = r.modes.filter((m) => m.identifiable)
+  // 弱 / 強方向依 λ̃ 的大小決定（ρ < 0 時弱方向是 (1, 1)/√2，不是固定的第二個 mode）
+  const ws = weakStrongModes(r.modes)
+  const noiseRatio =
+    ws && Number.isFinite(ws.weak.variance) && Number.isFinite(ws.strong.variance) && ws.strong.variance > 0 ? Math.sqrt(ws.weak.variance / ws.strong.variance) : NaN
 
   return (
     <ExperimentShell
@@ -317,7 +356,10 @@ export function HealthCheck({ cases, evaluated }: { cases: UseCasesResult<Thesis
         height={320}
         caption={
           String.raw`虛線為固定點 $\Delta w=B/C$；陰影為從 0 開始累積的 $\pm1\sigma$（穩態寬度為 $\sigma_w$）。` +
-          (diverged.length ? ` Case ${diverged.join('、')} 在線性模型下發散，已截斷（真實 Sign-LMS 會因 erf 飽和變成線性漂移，見 Ch06）。` : '')
+          (diverged.length ? ` Case ${diverged.join('、')} 在線性模型下發散，已截斷（真實 Sign-LMS 會因 erf 飽和變成線性漂移，見 Ch06）。` : '') +
+          (crossCases.length
+            ? String.raw` Case ${crossCases.join('、')} 是雙參數且 $\theta\ne0^\circ$：曲線以交叉相關假設 $E[x_iu_j]=C\,\tilde R_{ij}$ 為前提（見上方「近似的適用範圍」）。`
+            : '')
         }
       />
 
@@ -371,15 +413,33 @@ export function HealthCheck({ cases, evaluated }: { cases: UseCasesResult<Thesis
             </tbody>
           </table>
         </div>
-        {slow.length > 1 && (
+        {r.params.d >= 1 && (
           <p className="small muted">
             <Rich
-              text={`弱方向 / 強方向的雜訊 RMS 比 $\\sigma_{\\xi,-}/\\sigma_{\\xi,+}=${f(Math.sqrt(r.modes[1].variance / r.modes[0].variance))}$；`}
+              text={String.raw`$d\ge1$ 時 $k_{95}$ 由各 mode 的平均遞迴 $\delta_{k+1}=\delta_k-g_i\,\delta_{k-d}$ 逐 block 數出，不是 $\lceil\ln0.05/\ln\max|z|\rceil$：$\max|z|^k$ 不是誤差的包絡。例：$d=1$、$g=0.25$ 是重根 $z=0.5$，$\delta_k=(1+k/2)\,2^{-k}$，在 $k=5,6,7$ 是 $${f(dblRoot.y[0], 3)}$、$${f(dblRoot.y[1], 3)}$、$${f(dblRoot.y[2], 3)}$，要 $${dblRoot.blocks}$ 個 block，而 $\lceil\ln0.05/\ln0.5\rceil=${dblRoot.asym}$。`}
+            />
+          </p>
+        )}
+        {r.params.twoParam && (
+          <p className="small muted">
+            <Rich
+              text={String.raw`特徵方向 $(1,\pm1)/\sqrt2$ 與 ${r.params.update === 'precond' ? '$g_i=g$' : String.raw`$g_i=g\,\tilde\lambda_i$`} 來自交叉相關假設 $E[x_i[n-D]\,u_j[n]]=C\,\tilde R_{ij}$：$\theta=0^\circ$ 時對任何同頻 code 都成立；$\theta\ne0^\circ$ 時要另外確認（見下方「假設」與 F-DB.6）。`}
+            />
+          </p>
+        )}
+        {ws && (
+          <p className="small muted">
+            <Rich
+              text={
+                Number.isFinite(noiseRatio)
+                  ? String.raw`弱方向 / 強方向的雜訊 RMS 比 $\sigma_{\xi,\mathrm{weak}}/\sigma_{\xi,\mathrm{strong}}=${f(noiseRatio)}$（${WEAK_IS}）；`
+                  : String.raw`弱方向 / 強方向的雜訊 RMS 比 $\sigma_{\xi,\mathrm{weak}}/\sigma_{\xi,\mathrm{strong}}$：迴路不穩定，沒有穩態值（${WEAK_IS}）；`
+              }
             />
             {r.params.update === 'precond' ? (
               <Rich text={`preconditioner 下理論值為 $\\sqrt{\\kappa}=${f(Math.sqrt(r.kappa))}$。`} />
             ) : (
-              <Rich text={String.raw`一般 LMS 下兩者相近，但弱方向的收斂慢了 $\tilde\lambda_{\max}/\tilde\lambda_{\min}$ 倍。`} />
+              <Rich text={String.raw`一般 LMS 在小步長（$g\,\tilde\lambda_{\max}\ll1$）時兩者相近，但弱方向的收斂約慢 $\tilde\lambda_{\max}/\tilde\lambda_{\min}$ 倍；步長大時各 mode 實際要幾個 block 看上表的 $k_{95}$（例如 $d=0$、$g>1$ 時最慢的反而是強方向）。`} />
             )}
           </p>
         )}
@@ -441,7 +501,7 @@ export function HealthCheck({ cases, evaluated }: { cases: UseCasesResult<Thesis
                 <>
                   <tr>
                     <td>
-                      目前參數：最慢 mode 95% 收斂 <ClaimTag kind="exact" />
+                      目前參數：最慢 mode 95% 收斂 <ClaimTag kind={cmp.scalar.slowT95Exact && cmp.precond.slowT95Exact ? 'exact' : 'approx'} />
                     </td>
                     <td className="num">{f(cmp.scalar.slowT95Blocks)} blocks</td>
                     <td className="num">{f(cmp.precond.slowT95Blocks)} blocks</td>
@@ -495,10 +555,22 @@ export function HealthCheck({ cases, evaluated }: { cases: UseCasesResult<Thesis
           caption="網站實際執行的程式碼（src/pages/dashboard/thesisModel.ts）；標記「← 差異」的行就是兩種演算法唯一的不同。"
         />
         <details className="dash-details">
-          <summary>更多核心程式碼：極性、特徵根、脈衝響應能量</summary>
+          <summary>更多核心程式碼：極性、特徵根、95% 收斂、雙參數對照、脈衝響應能量</summary>
           <div className="dash-details-body">
             <CodeBlock source={modelSrc} region="polarity" path={MODEL_PATH} title={String.raw`polarityOf：$C=P_x|H|\cos(\phi+\Omega D)$`} />
             <CodeBlock source={modelSrc} region="loopPoles" path={MODEL_PATH} title={String.raw`特徵多項式、$g^*$、phase margin`} />
+            <CodeBlock
+              source={modelSrc}
+              region="settleDelayed"
+              path={MODEL_PATH}
+              title={String.raw`settleDelayed：有 commit 延遲時的 $k_{95}$（照平均遞迴逐 block 數，不是 $\lceil\ln0.05/\ln\max|z|\rceil$）`}
+            />
+            <CodeBlock
+              source={modelSrc}
+              region="fixedToneRadius"
+              path={MODEL_PATH}
+              title={String.raw`fixedToneRadius：兩個固定同頻單頻 code 的 $\max|z|$（雙參數假設的對照，F-DB.6）`}
+            />
             <p className="small">
               <Rich text={String.raw`同一個量 $\sum_m y_m^2$（白雜訊經校正迴路後的功率增益，$\sigma_w^2=q\sum_m y_m^2$）用兩種獨立的方法算，結果必須相同——這就是上方「交叉比對 Analytic」那一格在檢查的事：`} />
             </p>

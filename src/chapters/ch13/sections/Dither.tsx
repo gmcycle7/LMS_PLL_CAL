@@ -239,7 +239,11 @@ export function DitherSection() {
               <Tex>{String.raw`34-32.4=1.6\,\mathrm{LSB}`}</Tex>。要永不 overload 需 <Tex>{String.raw`A\le w_H<2^B-1-A`}</Tex>（距離 0 與 63 各留 <Tex>{'A'}</Tex> LSB），否則 dither 被截斷、平均跑掉（實驗中會出現警告）。
             </li>
             <li>
-              <strong>切換次數</strong>：每次 code 改變都是一次 DTC switching kick（§13.6）。E 的 toggle rate 與 D 同級，但每次跳動可能超過 1 LSB（本例 {fx(100 * jumps.p2, 1)}% 的更新跳 2 LSB、{fx(100 * jumps.p3, 1)}% 跳 3 LSB 以上；由模擬 trace 計算）。
+              <strong>平均追蹤的常數變大</strong>：§13.4 的 telescoping 等式（F-13.12）照樣成立，但 <Tex>{'r'}</Tex> 的範圍由 <Tex>{String.raw`|r|\le\tfrac12`}</Tex> 變寬成 <Tex>{String.raw`|r|\le\tfrac12+\tfrac A2`}</Tex>（寬度 <Tex>{'1+A'}</Tex>）。起點 <Tex>{'r[-1]'}</Tex> 也在這個範圍內、沒有 overload 時，<Tex>{'N'}</Tex> 個 sample 的平均誤差上界由{' '}
+              <Tex>{'1/N'}</Tex> 變成 <Tex>{'(1+A)/N'}</Tex>——仍以 <Tex>{'1/N'}</Tex> 變小，只是常數變大（<Tex>{'A=1'}</Tex> 時是 <Tex>{'2/N'}</Tex>）。 <ClaimTag kind="exact" />
+            </li>
+            <li>
+              <strong>切換次數</strong>：每次 code 改變都是一次 DTC switching kick（§13.6）。E 的 toggle rate 與 D 同級，但每次跳動可能超過 1 LSB（本例 {fx(100 * jumps.p2, 1)}% 的更新跳 2 LSB、{fx(100 * jumps.p3, 1)}% 跳 3 LSB 以上；由模擬 trace 計算）。一次跳 2 LSB 以上，也代表 gray 碼「只翻 1 個 bit」的保證不成立，code 跨到非同步的 clock domain 時要改用 handshake（§13.6 第 4 點）。
             </li>
             <li>
               <strong>頻帶內仍很小</strong>：dither 也經過 <Tex>{String.raw`1-z^{-1}`}</Tex>，低頻誤差功率與 D 同量級——若 PLL 的 <Tex>{'T(f)'}</Tex> 會濾掉高頻，E 的代價就很小；若後面的 mixing 把高頻搬回通帶（§13.5 第 6 點），就要靠模擬判斷。

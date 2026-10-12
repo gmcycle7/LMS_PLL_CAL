@@ -239,8 +239,18 @@ class TexCalc {
   }
 }
 
+/**
+ * 排成多行的步驟（\begin{aligned} … \\ … \end{aligned}，桌機上一行排不下時用）只是換行：
+ * 拿掉最外層的環境、對齊記號 & 與換行之後，內容與單行的寫法相同，照樣逐段驗算。
+ */
+function unwrapAligned(tex: string): string {
+  const m = /^\\begin\{aligned\}([\s\S]*)\\end\{aligned\}$/.exec(tex)
+  return m ? m[1].replace(/\\\\(?:\[[^\]]*\])?/g, '').replace(/&/g, '') : tex
+}
+
 /** 以頂層的 `=`（或 ≈）把一步切成段 */
-function splitTopLevel(tex: string): string[] {
+function splitTopLevel(texRaw: string): string[] {
+  const tex = unwrapAligned(texRaw)
   const out: string[] = []
   let depth = 0
   let cur = ''

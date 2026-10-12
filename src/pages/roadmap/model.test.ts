@@ -802,6 +802,38 @@ describe('SSPLL｜使用者的 L1 / L2 設計點：與離線分析的參考數�
     }
   })
 
+  it('技術審查 R09：「H_PD ≡ 1 時 12C ≈ 1」比的是去掉平均值的 ρ（不計 DC）；保留 DC 是 12·E[ρ²] ≈ 4；有理數的 β 時 12·var(ρ) = 1 − 1/b²', () => {
+    const ONE = { b: [1], a: [1] } // H_PD ≡ 1（沒有迴路）
+    // 直接由序列算 ρ[n] = frac(8nα) 的平均、變異數與 E[ρ²]（不經過 DFT）
+    const direct = (j: number, Q: number) => {
+      let s = 0
+      let s2 = 0
+      for (let n = 0; n < Q; n++) {
+        const acc = (n * j) % Q
+        const rho = (8 * acc) / Q - Math.floor((8 * acc) / Q)
+        s += rho
+        s2 += rho * rho
+      }
+      const mean = s / Q
+      return { mean, var: s2 / Q - mean * mean, e2: s2 / Q }
+    }
+    // 長週期（β = 97/1000，最簡分母 b = 1000）：不計 DC 時 12C = 1 − 10⁻⁶ ≈ 1；保留 DC 是 3.994 ≈ 4（不是 1）
+    const long = pmuxKappa(ONE, 1097, 8000)
+    const dl = direct(1097, 8000)
+    expect(long.twelveCGos).toBeCloseTo(1 - 1e-6, 10)
+    expect(long.twelveCGos).toBeCloseTo(12 * dl.var, 10) // 模型只加 k ≥ 1 的譜線：就是 12·var(ρ)
+    expect(12 * dl.e2).toBeCloseTo(3.994002, 6) // 12·(b−1)(2b−1)/(6b²)
+    expect(dl.mean).toBeCloseTo(0.4995, 12)
+    // 正常對照與反例：β = a/b 時 var(ρ) = (b²−1)/(12b²)，所以 12·var(ρ) = 1 − 1/b²——b 小的時候「≈ 1」差很多
+    for (const [j, Q, b] of [[137, 1000, 125], [5, 64, 8], [1, 24, 3], [1, 16, 2]] as const) {
+      const r = pmuxKappa(ONE, j, Q)
+      expect(r.twelveCGos, `α=${j}/${Q}`).toBeCloseTo(1 - 1 / (b * b), 10)
+      expect(direct(j, Q).var, `α=${j}/${Q}`).toBeCloseTo((b * b - 1) / (12 * b * b), 12)
+    }
+    expect(pmuxKappa(ONE, 1, 16).twelveCGos).toBeCloseTo(0.75, 12) // α = 1/16：ρ 在 0 與 1/2 之間交替，var(ρ) = 1/16
+    expect(direct(1, 16)).toEqual({ mean: 0.25, var: 0.0625, e2: 0.125 })
+  })
+
   it('反面：α = 1/4（8 ∤ Q）不是 circulant；α = k/8 時 ρ[n] 為常數，GOS 沒有激發（12C = 0）', () => {
     const r = pmuxKappa(H2, 1024, 4096)
     expect(r.Qred).toBe(4)

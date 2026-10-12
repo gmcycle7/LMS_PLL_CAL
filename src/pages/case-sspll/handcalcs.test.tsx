@@ -270,7 +270,17 @@ function shownDecimals(seg: string): number | null {
 }
 
 /**
+ * 太長的步驟排成對齊的多行（`\begin{aligned}A&=B\\&=C\end{aligned}`，1280px 的欄位才放得下，不必橫向捲動）：
+ * 去掉排版用的外殼（aligned、換行 `\\`、對齊點 `&`），剩下的就是同一串「A=B=C」。不是這種寫法的 TeX 原樣回傳。
+ */
+function unwrapAligned(tex: string): string {
+  const m = /^\\begin\{aligned\}([\s\S]*)\\end\{aligned\}$/.exec(tex)
+  return m ? m[1].replace(/\\\\(?:\[[^\]]*\])?/g, '').replace(/&/g, '') : tex
+}
+
+/**
  * 一步的 TeX「符號式 = 代入數字 =（中間結果 =）結果」：每一段數字用畫面上的數字重算，都要等於最後一段。
+ * 多行（aligned）的步驟先用 unwrapAligned 還原成一行再檢查。
  * - 乘除、函數：容許 6 位有效數字的捨入（相對 3×10⁻⁵）；
  * - 純加減（只有十進位數與 + −）：運算元要寫到不比結果粗的小數位（否則畫面上的數字加不出結果的後幾位），
  *   而且相加後與結果的差不超過捨入（每個數各 ±0.5 個「結果最後一位」）；
@@ -279,7 +289,7 @@ function shownDecimals(seg: string): number | null {
  */
 function checkStepTex(tex: string, label: string): number[] {
   const finals: number[] = []
-  for (const eq of splitTop(tex, '\\qquad')) {
+  for (const eq of splitTop(unwrapAligned(tex), '\\qquad')) {
     const segs = splitTop(eq.replace(/,\s*$/, ''), '=')
     const nums = segs.map((x) => ({ seg: x, v: evalTex(x) })).filter((x): x is { seg: string; v: number } => x.v !== null)
     expect(nums.length, `${label}：要有「代入數字」與「結果」兩段以上的數字：${eq}`).toBeGreaterThanOrEqual(2)
@@ -621,6 +631,18 @@ describe('SSPLL 案例頁的帶入手算（HC-CS.1 – HC-CS.8）', () => {
     close(sol84.results[2].value, WORKED.c_ReH_84MHz, 2e-7)
     close(sol84.results[3].value, WORKED.c_W1_ReH, 2e-7)
     expect(sol84.notes?.join(' ')).toContain('-0.13953')
+    // κ₁ 是複數（F-CS.13）：單線近似與完整的諧波和比的都是實部，式子寫成 Re κ₁（不是 κ₁ ≈ 實數）
+    const steps = def.solve(v).steps
+    const last = steps[steps.length - 1].tex
+    expect(last.startsWith(String.raw`\mathrm{Re}\,\kappa_1\approx W_1\,\mathrm{Re}\,H_{PD}=`)).toBe(true)
+    expect(last.endsWith('=-0.194956')).toBe(true)
+    expect(def.formulaTex).toContain(String.raw`\mathrm{Re}\,\kappa_1\approx W_1`)
+    expect(def.formulaTex).not.toMatch(/(?<!\\mathrm\{Re\}\\,)\\kappa_1\\approx/)
+    expect(def.solve(v).results[3].label).toContain(String.raw`$\mathrm{Re}\,\kappa_1$`)
+    expect(def.solve(v).notes?.join(' ')).toContain(String.raw`\mathrm{Re}\,\kappa_1=-0.13961`) // 83.8 MHz
+    expect(sol84.notes?.join(' ')).toContain(String.raw`\mathrm{Re}\,\kappa_1=-0.13953`) // 84 MHz
+    close(analyseAlpha(loop, fn).kappaM[0].re, -0.13961, 0, 6e-6)
+    close(analyseAlpha(loop, fn).kappaM[0].im, 0.30988, 0, 6e-6) // 虛部不小：只有實部能和單線近似比
     // f/f_ref 在 ¼、½ 附近：多一條 alias 的提醒（單線近似看不到 mode-2／mode-4 折回帶內）；其他頻率沒有
     expect(def.solve(v).notes?.length).toBe(3)
     for (const f of [1000, 2000, 1950]) {
@@ -722,6 +744,20 @@ describe('SSPLL 案例頁的帶入手算（HC-CS.1 – HC-CS.8）', () => {
     expect(notes[0]).toContain('一定反號')
     expect(notes[0]).toContain('-0.20529')
     expect(notes[0]).toContain('-0.19495')
+    // 界限夾的是 Re κ₁（κ₁ 是複數，不能和實數比大小）
+    expect(notes[0]).toContain(String.raw`$-0.2053\le\mathrm{Re}\,\kappa_1\le-0.1355$`)
+    expect(notes[0]).toContain(String.raw`單線近似 $\mathrm{Re}\,\kappa_1\approx W_1\mathrm{Re}\,H_{PD}=`)
+    // 帶緣對照：α = 0.03175（127 MHz，在帶內）的界限 [−0.0598, 0.0100] 跨過 0——很小的是 Re κ₁，|κ₁| 其實是 0.65
+    const edge = def.solve(withDefaults(def, { alpha: 0.03175 })).notes ?? []
+    const bEdge = phosM1Bounds(loop, 0.03175)
+    close(bEdge.lower, -0.0598, 0, 6e-5)
+    close(bEdge.upper, 0.01, 0, 6e-5)
+    expect(edge[0]).toContain('界限跨過 0')
+    expect(edge[0]).toContain(String.raw`\lvert\mathrm{Re}\,\kappa_1\rvert`)
+    expect(edge[0]).not.toContain(String.raw`\lvert\kappa_1\rvert`)
+    const kEdge = analyseAlpha(loop, 0.03175).kappaM[0]
+    expect(Math.abs(kEdge.re)).toBeLessThan(0.01)
+    expect(Math.hypot(kEdge.re, kEdge.im)).toBeGreaterThan(0.6)
     expect(notes[1]).toContain('672')
     expect(notes[notes.length - 1]).toContain('任何 $\\alpha$ 都安全')
     // α = 0.137（§7.1 的例子）：548 MHz 在帶外、β = 0.096
@@ -1000,7 +1036,7 @@ describe('SSPLL 案例頁的帶入手算（HC-CS.1 – HC-CS.8）', () => {
     const s8 = d8.solve(defaultValues(d8)).steps
     expect(s8.length).toBe(11)
     expect(s8[2].tex).toContain('8\\times0.021-\\lfloor8\\times0.021\\rfloor=0.168-0=0.168')
-    expect(s8[3].tex).toContain('\\min(0.168,\\ 1-0.168)\\times4000=\\min(0.168,\\ 0.832)\\times4000=0.168\\times4000=672')
+    expect(unwrapAligned(s8[3].tex)).toContain('\\min(0.168,\\ 1-0.168)\\times4000=\\min(0.168,\\ 0.832)\\times4000=0.168\\times4000=672')
     expect(s8[4].tex).toContain('2\\times(2-0.28771696)')
     expect(s8[8].tex).toBe('f_{rot}-f_{inv}=84-134.8201=-50.8201\\ \\mathrm{MHz}')
     expect(s8[9].tex).toBe('\\tfrac{K_i}{2}=\\tfrac{0.038253471}{2}=0.0191267')
@@ -1014,6 +1050,36 @@ describe('SSPLL 案例頁的帶入手算（HC-CS.1 – HC-CS.8）', () => {
     expect(values(d8, withDefaults(d8, { alpha: 0.98 }))[0]).toBe(80) // 不是 80.00000000000007
     expect(d8.solve(withDefaults(d8, { alpha: 0.496 })).notes?.[1]).toContain('b=\\min(\\beta,1-\\beta)')
     expect(d8.solve(withDefaults(d8, { Kp: 0.1, Ki: 0.5 })).notes?.[0]).toContain('只看基波無法判定符號')
+  })
+
+  it('SSPLL: 太長的步驟排成對齊的多行（1280px 的欄位放得下，不必橫向捲動）——內容和排成一行時相同，只多了換行與對齊點', () => {
+    // 預設值下原本比欄位寬的四步：HC-CS.3 的 closed form 驗算（分子、分母）、HC-CS.8 的 f_saw 與 min g
+    const d3 = hc('HC-CS.3')
+    const s3 = d3.solve(defaultValues(d3)).steps
+    const d8 = hc('HC-CS.8')
+    const s8 = d8.solve(defaultValues(d8)).steps
+    const wide: [string, string, number][] = [
+      [s3[13].tex, '(2-K)(1-\\cos\\Omega)=(2-K)\\cdot2\\sin^2\\frac{\\Omega}{2}=(2-0.38883636)\\times2\\times0.0157073^2=1.61116\\times2\\times0.00024672=0.000795012', 2],
+      [s3[14].tex, '\\lvert1-(1-K)e^{-j\\Omega}\\rvert^2=K^2+4(1-K)\\sin^2\\frac{\\Omega}{2}=0.38883636^2+4\\times(1-0.38883636)\\times0.00024672=0.151194+0.000603145=0.151797', 3],
+      [s8[3].tex, 'f_{saw}=\\min(\\beta,\\ 1-\\beta)\\,f_{ref}=\\min(0.168,\\ 1-0.168)\\times4000=\\min(0.168,\\ 0.832)\\times4000=0.168\\times4000=672\\ \\mathrm{MHz}', 2],
+      [s8[10].tex, '\\min_\\Omega g=\\min\\Big\\{K_p-\\frac{K_i}{2},\\ 2-K_p-\\frac{K_i}{2}\\Big\\}=\\min\\{0.28771696-0.0191267,\\ 2-0.28771696-0.0191267\\}=\\min\\{0.26859,\\ 1.69316\\}=0.26859', 3],
+    ]
+    for (const [tex, oneLine, lines] of wide) {
+      expect(tex.startsWith('\\begin{aligned}') && tex.endsWith('\\end{aligned}'), tex).toBe(true)
+      expect(tex.split('\\\\').length, tex).toBe(lines)
+      expect(unwrapAligned(tex), tex).toBe(oneLine) // 沒有少掉任何一項、數字或單位
+      // 每一行都從對齊點「&=」開始（第一行是「左式&=」），所以等號上下對齊
+      const rows = tex.slice('\\begin{aligned}'.length, -'\\end{aligned}'.length).split('\\\\')
+      expect(rows[0].split('&=').length, tex).toBe(2)
+      for (const row of rows.slice(1)) expect(row.startsWith('&='), tex).toBe(true)
+      expect(renderTex(tex, true), tex).not.toMatch(/katex-error|c-tex-error/)
+      expect(checkStepTex(tex, 'aligned')).toHaveLength(1)
+    }
+    // 還原工具本身：不是 aligned 的 TeX 原樣回傳；換行後面的間距（\\[4pt]）一併去掉
+    expect(unwrapAligned('a=1+1=2')).toBe('a=1+1=2')
+    expect(unwrapAligned('\\begin{aligned}a&=1+1\\\\[4pt]&=2\\end{aligned}')).toBe('a=1+1=2')
+    expect(checkStepTex('\\begin{aligned}a&=2\\times3\\\\&=6\\end{aligned}', 'ok')).toEqual([6])
+    expect(() => checkStepTex('\\begin{aligned}a&=2\\times3\\\\&=7\\end{aligned}', 'bad')).toThrow() // 多行也照樣抓得到算錯的步驟
   })
 
   it('SSPLL: 各題的分支（反號／不反號、d > 1、near-grid、帶外…）與 20 個隨機題目的步驟、說明、結論都能渲染', () => {

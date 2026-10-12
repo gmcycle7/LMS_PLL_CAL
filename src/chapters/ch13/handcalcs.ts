@@ -221,7 +221,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: 'Freeze：最近的 code、static error，再換成 fs',
     page: '/ch/13',
     formulaId: 'F-13.2',
-    formulaTex: String.raw`y=Q_B(w^*)=\Big\lfloor w^*+\tfrac12\Big\rfloor,\qquad \delta w=y-w^*\;\;(\delta=a-w=-\delta w),\qquad E[\delta w^2]=(\delta w)^2,\qquad \delta w\,[\mathrm{fs}]=\Delta_\mathrm{LSB}\cdot\delta w\,[\mathrm{LSB}]`,
+    formulaTex: String.raw`\begin{gathered}y=Q_B(w^*)=\Big\lfloor w^*+\tfrac12\Big\rfloor,\qquad \delta w=y-w^*\;\;(\delta=a-w=-\delta w),\qquad E[\delta w^2]=(\delta w)^2\\[4pt]\delta w\,[\mathrm{fs}]=\Delta_\mathrm{LSB}\cdot\delta w\,[\mathrm{LSB}]\end{gathered}`,
     level: 'beginner',
     claim: 'exact',
     inputs: [
@@ -272,7 +272,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: 'Toggle pattern：進位次數 $h$、停在上一階的時間比例與平均',
     page: '/ch/13',
     formulaId: 'F-13.3',
-    formulaTex: String.raw`p=w^*-\lfloor w^*\rfloor,\quad h=\mathrm{round}(pL_t),\quad y[n']=\lfloor w^*\rfloor+\Big\lfloor\tfrac{(n'+1)h}{L_t}\Big\rfloor-\Big\lfloor\tfrac{n'h}{L_t}\Big\rfloor,\quad \overline y=\lfloor w^*\rfloor+\frac{h}{L_t},\quad \overline{e^2}=\frac{h}{L_t}\Big(1-\frac{h}{L_t}\Big)+\big(\overline y-w^*\big)^2`,
+    formulaTex: String.raw`\begin{gathered}p=w^*-\lfloor w^*\rfloor,\quad h=\mathrm{round}(pL_t),\quad y[n']=\lfloor w^*\rfloor+\Big\lfloor\tfrac{(n'+1)h}{L_t}\Big\rfloor-\Big\lfloor\tfrac{n'h}{L_t}\Big\rfloor\\[4pt]\overline y=\lfloor w^*\rfloor+\frac{h}{L_t},\quad \overline{e^2}=\frac{h}{L_t}\Big(1-\frac{h}{L_t}\Big)+\big(\overline y-w^*\big)^2\end{gathered}`,
     level: 'beginner',
     claim: 'exact',
     inputs: [
@@ -455,7 +455,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: 'Stochastic rounding：平均、變異數、RMS、白色 PSD 高度與平均的收斂',
     page: '/ch/13',
     formulaId: 'F-13.6',
-    formulaTex: String.raw`p=w^*-\lfloor w^*\rfloor,\qquad E[y]=\lfloor w^*\rfloor+p,\qquad \mathrm{Var}(y)=p(1-p),\qquad \sigma_y=\sqrt{p(1-p)},\qquad S_e^{(1)}(f)=\frac{2p(1-p)}{f_u},\qquad \sigma_{\bar y}=\frac{\sigma_y}{\sqrt N}`,
+    formulaTex: String.raw`\begin{gathered}p=w^*-\lfloor w^*\rfloor,\qquad E[y]=\lfloor w^*\rfloor+p,\qquad \mathrm{Var}(y)=p(1-p),\qquad \sigma_y=\sqrt{p(1-p)}\\[4pt]S_e^{(1)}(f)=\frac{2p(1-p)}{f_u},\qquad \sigma_{\bar y}=\frac{\sigma_y}{\sqrt N}\end{gathered}`,
     level: 'engineer',
     claim: 'exact',
     inputs: [
@@ -510,7 +510,7 @@ export const HANDCALCS: HandCalcDef[] = [
     title: `一階 ΔΣ（Error Feedback）手算 ${EFB_STEPS} 列：$v$、$y$、$r$ 的表`,
     page: '/ch/13',
     formulaId: 'F-13.7',
-    formulaTex: String.raw`v[n]=w_H+r[n-1],\qquad y[n]=Q_B\big(v[n]\big),\qquad r[n]=v[n]-y[n]\;\;\Rightarrow\;\;y[n]=w_H+r[n-1]-r[n],\qquad\sum_{n=0}^{N-1}\big(y[n]-w_H\big)=r[-1]-r[N-1]`,
+    formulaTex: String.raw`\begin{gathered}v[n]=w_H+r[n-1],\qquad y[n]=Q_B\big(v[n]\big),\qquad r[n]=v[n]-y[n]\\[4pt]\Rightarrow\;\;y[n]=w_H+r[n-1]-r[n],\qquad\sum_{n=0}^{N-1}\big(y[n]-w_H\big)=r[-1]-r[N-1]\end{gathered}`,
     level: 'beginner',
     claim: 'exact',
     inputs: [

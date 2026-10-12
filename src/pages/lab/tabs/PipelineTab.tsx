@@ -21,7 +21,7 @@ import {
 } from '@/components'
 import { DEFAULT_LAB_PARAMS, convergenceBlocks, labParamErrors, type LabParams, type PipelineResult, type ToneReport } from '@/simulation/models/unifiedLab'
 import { fmtHz, md, sig, StatusPill, texHz, texNum } from '../common'
-import { AUTO_RUN_MAX_SAMPLES, buildLabReport, collectWarnings, EXP, isInformational, labKey, pipelineCrossCheck, pipelineExport, pipelineMetrics } from '../logic'
+import { AUTO_RUN_MAX_SAMPLES, buildLabReport, collectWarnings, EXP, isInformational, labKey, pipelineCrossCheck, pipelineExport, pipelineMetrics, tauMetricRow } from '../logic'
 import { ParamPanel } from '../ParamPanel'
 import { LAB_UNITS } from '../paramMeta'
 import { useLab, type LabAnalysis } from '../store'
@@ -46,7 +46,7 @@ const NOT_RUN: CrossCheck = {
 }
 
 /** 即時解析（analyzeLab，不跑迴路）的指標 */
-function previewRows(a: LabAnalysis): MetricRow[] {
+function previewRows(a: LabAnalysis, updateDelay: number): MetricRow[] {
   const an = a.analytic
   return [
     { name: '$f_{\\mathrm{out}}$', value: a.fOutHz, unit: 'Hz', claim: 'exact', formulaId: 'F-LAB.1' },
@@ -54,7 +54,7 @@ function previewRows(a: LabAnalysis): MetricRow[] {
     { name: '$K_q=\\sqrt{2/\\pi}/\\sigma_v$', value: an.Kq, unit: '$\\mathrm{fs}^{-1}$', claim: 'approx', formulaId: 'F-LAB.5' },
     { name: '$g=\\mu K$', value: an.g, claim: 'approx', formulaId: 'F-LAB.7', note: `臨界值 $g_{\\mathrm{crit}}=${texNum(an.gCritical)}$` },
     { name: '$\\rho$（含更新延遲）', value: an.rhoMean, claim: 'exact', formulaId: 'F-LAB.7' },
-    { name: '$\\tau$', value: an.tauBlocks, unit: 'block', claim: 'exact' },
+    tauMetricRow(an.tauBlocks, updateDelay),
     { name: '$\\mathrm{PM}_{\\mathrm{cal}}$', value: an.pmDeg, unit: 'deg', claim: 'exact' },
     { name: '$\\sigma_{w,\\mathrm{pred}}$', value: an.sigmaWPred, unit: 'fs', claim: 'approx', formulaId: 'F-LAB.8' },
     { name: '$w^*$（mean-field 固定點）', value: an.wStarMeanField, unit: 'fs', claim: 'approx', note: `線性化固定點 $w^*_{\\mathrm{lin}}=${texNum(an.wStarLinear, 6)}\\,\\mathrm{fs}$；兩者差很多表示 comparator 已離開小訊號區` },
@@ -273,7 +273,7 @@ export function PipelineTab() {
 
   const metrics = useMemo(() => (shown ? pipelineMetrics(shown) : []), [shown])
   const crossCheck = useMemo(() => (shown ? pipelineCrossCheck(shown) : NOT_RUN), [shown])
-  const pRows = useMemo(() => (previewCur ? previewRows(previewCur) : []), [previewCur])
+  const pRows = useMemo(() => (previewCur ? previewRows(previewCur, params.updateDelay) : []), [previewCur, params.updateDelay])
 
   const fW = useMemo(() => (shown ? figW(shown, pal, cur) : null), [shown, pal, cur])
   const fG = useMemo(() => (shown ? figG(shown, pal) : null), [shown, pal])

@@ -161,8 +161,7 @@ export function RegistrySection({ rows, searching, focusId }: { rows: RegistryRo
             <thead>
               <tr>
                 <th>ID</th>
-                <th>名稱與公式</th>
-                <th>使用條件</th>
+                <th>名稱、公式與使用條件</th>
                 <th>標籤</th>
                 <th>規格</th>
                 <th>位置</th>
@@ -172,7 +171,7 @@ export function RegistrySection({ rows, searching, focusId }: { rows: RegistryRo
             {groups.map((g) => (
               <tbody key={g.page + g.rows[0].id}>
                 <tr className="fr-group-row">
-                  <th colSpan={7} scope="colgroup">
+                  <th colSpan={6} scope="colgroup">
                     {g.nav} <span className="muted small">（{g.page}）</span>
                   </th>
                 </tr>
@@ -181,21 +180,27 @@ export function RegistrySection({ rows, searching, focusId }: { rows: RegistryRo
                     <td data-label="ID" className="nowrap mono">
                       {f.id}
                     </td>
-                    <td data-label="名稱與公式" className="fr-reg-formula">
+                    {/*
+                      使用條件放在公式的正下方（同一格），不另外佔一欄：公式欄的寬度由最寬的那條獨立公式決定（桌機約 440–800px），
+                      條件用同樣的寬度換行。另外佔一欄時它只拿得到最小寬度，四五百字的條件會排成六七百 px 高的細長條，
+                      而且常常要先橫向捲動才看得到。
+                    */}
+                    <td data-label="名稱、公式與使用條件" className="fr-reg-formula">
                       <div className="fr-f-title">{mathText(f.title)}</div>
                       <TexBlock>{f.tex}</TexBlock>
                       {showSource && mode === 'research' && <code className="fr-tex-src">{f.tex}</code>}
-                    </td>
-                    <td data-label="使用條件" className="fr-reg-cond">
-                      {mathText(f.conditions)}
-                      {f.units && (
-                        <div className="fr-units small muted">
-                          單位：
-                          {Object.entries(f.units)
-                            .map(([k, v]) => `${k} [${v}]`)
-                            .join('、')}
-                        </div>
-                      )}
+                      <div className="fr-reg-cond">
+                        <span className="fr-reg-cond-label">使用條件</span>
+                        {mathText(f.conditions)}
+                        {f.units && (
+                          <div className="fr-units small muted">
+                            單位：
+                            {Object.entries(f.units)
+                              .map(([k, v]) => `${k} [${v}]`)
+                              .join('、')}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td data-label="標籤">
                       <span className="fr-tag-col">
@@ -234,7 +239,7 @@ export function RegistrySection({ rows, searching, focusId }: { rows: RegistryRo
       )}
       {!searching && (
         <p className="small muted">
-          TeX 由各章作者登錄；「名稱」與「使用條件」欄是各章登錄時填的說明文字（其中的行內 LaTeX 會以 KaTeX 顯示，其餘照原樣列出，所以可能含 Unicode 數學符號）。標籤定義見頁首；模型層級 L0–L6 見 §6 術語表。
+          TeX 由各章作者登錄；「名稱」與「使用條件」是各章登錄時填的說明文字（其中的行內 LaTeX 會以 KaTeX 顯示，其餘照原樣列出，所以可能含 Unicode 數學符號）。標籤定義見頁首；模型層級 L0–L6 見 §6 術語表。
           公式的完整推導、圖與互動實驗在各章頁面上；這裡只做索引與交叉查核。
         </p>
       )}

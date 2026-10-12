@@ -24,9 +24,67 @@ export function S4Gradient() {
         </p>
       </Prereq>
 
-      <TexBlock id="F-07.1" label={<>Ch06 的模型：DTC gain 誤差經過 PLL 誤差路徑 <Tex>{'h'}</Tex> 到達 PD</>}>
+      <TexBlock id="F-07.1" label={<>Ch06 的模型，先把 <Tex>{'w'}</Tex> 凍結（固定不動）：DTC gain 誤差經過 PLL 誤差路徑 <Tex>{'h'}</Tex> 到達 PD</>}>
         {r`e_{\mathrm{PD}}[n]=(a-w)\,u[n]+v[n],\qquad u[n]=(h*x)[n]`}
       </TexBlock>
+      <p>
+        <ClaimTag kind="exact" /> 前提：這一節把 <Tex>{'w'}</Tex> 當成固定不動的常數。<Tex>{'h'}</Tex> 是 LTI，不隨時間變的係數可以提到卷積外面，所以{' '}
+        {/* 外層的大括號讓這條恆等式不會在行尾被拆成兩半 */}
+        <Tex>{r`{h*\big((a-w)\,x\big)=(a-w)\,(h*x)}`}</Tex>，上式是等式。LMS 真的在更新時，<Tex>{'w'}</Tex> 每個 block 都在變，舊的 <Tex>{'w'}</Tex> 還留在 <Tex>{'h'}</Tex>{' '}
+        的記憶裡，這條式子就只是近似——Ch06 的 F-06.1：<Tex>{r`e_{\mathrm{PD}}[n]\approx(a-w_k)\,u[n]+v[n]`}</Tex>，要 <Tex>{'w'}</Tex> 在 <Tex>{'h'}</Tex>{' '}
+        的記憶長度內幾乎不變（LMS 比主 PLL 慢很多）才成立；記憶長度是脈衝響應 <Tex>{'h[k]'}</Tex> 衰減的時間尺度——大約過了這麼多個 sample，舊輸入留下的影響就縮小到{' '}
+        {/* 公式和句號綁在一起：桌機上這一行剛好排滿時，句號不會自己掉到下一行 */}
+        <span className="nowrap">
+          <Tex>{r`1/e\approx37\%`}</Tex>。
+        </span>
+      </p>
+      <ModeGate min="engineer">
+        <Callout kind="warn" title={r`兩拍的反例：$w$ 一跳，等號就不成立`}>
+          <p>
+            取 <Tex>{'h=[1,-1]'}</Tex>（也就是 <Tex>{'u[n]=x[n]-x[n-1]'}</Tex>）、<Tex>{r`x[n]\equiv1`}</Tex>、<Tex>{'a=1'}</Tex>；<Tex>{'w'}</Tex> 上一拍（上一個 sample）是{' '}
+            <Tex>{'0'}</Tex>、這一拍跳到 <Tex>{'1'}</Tex>。
+          </p>
+          {/* 每一行都短（標籤自己一行、式子不縮排）：手機（375 px）上這個框只有 294 px 寬，最長的一行要留十幾 px 的餘裕，
+              否則只超出兩三 px 會多一條沒有用途的橫向捲軸（scripts/scroll-audit.mjs 的 TINY） */}
+          <TexBlock>{r`\begin{aligned}
+&\text{真實電路（先乘後濾）：}\\
+&\big(h*((a-w)\,x)\big)[n]\\
+&\quad=(a-w[n])\,x[n]\\
+&\quad\quad-(a-w[n-1])\,x[n-1]\\
+&\quad=0\times1-1\times1=-1\\
+&\text{F-07.1 的寫法（先濾後乘）：}\\
+&(a-w[n])\,u[n]=0\times(1-1)=0
+\end{aligned}`}</TexBlock>
+          <p>
+            差的 <Tex>{'-1'}</Tex> 就是上一拍的 <Tex>{'w'}</Tex> 還留在 <Tex>{'h'}</Tex> 的記憶裡的那一項。兩種寫法相減的一般式：
+          </p>
+          {/* 第三行在手機的框（294 px）裡寬了約 40 px：只在手機把這一條公式縮小一級（chapter.css 的 .ch07-eq-phone），不為了半個符號多一條橫向捲軸；桌機不變 */}
+          <div className="ch07-eq-phone">
+            <TexBlock>{r`\begin{aligned}
+&\sum_{m\ge0}h[m]\,(a-w[n-m])\,x[n-m]\\
+&\quad-\;(a-w[n])\,u[n]\\
+&=\sum_{m\ge1}h[m]\,\big(w[n]-w[n-m]\big)\,x[n-m]
+\end{aligned}`}</TexBlock>
+          </div>
+          <p>
+            <Tex>{'w'}</Tex> 不動時右邊恆為 <Tex>{'0'}</Tex>（等式）；<Tex>{'w'}</Tex> 在 <Tex>{'h'}</Tex> 的記憶長度內只動一點點時右邊很小（近似）。只說「<Tex>{'w'}</Tex>{' '}
+            在一個 block 內固定」還不夠：每個 block 開頭的幾拍，<Tex>{'h'}</Tex> 的記憶還伸在上一個 block 裡。判斷方式：LMS 的時間常數大約是 <Tex>{'N/g'}</Tex> 拍（
+            <Tex>{r`g=\mu K_qC`}</Tex> 是每個 block 修正掉的誤差比例），它要遠大於 <Tex>{'h'}</Tex> 的記憶長度。
+          </p>
+          <p>
+            例：<Tex>{r`\omega_nT_s=0.05`}</Tex>、<Tex>{r`\zeta=0.7`}</Tex>、<Tex>{'d=0'}</Tex> 的 Type-II 誤差路徑（7.5 節的 DT 模型），兩個 pole 的半徑都是{' '}
+            <Tex>{r`\sqrt{0.93}\approx0.964`}</Tex>，脈衝響應的包絡每拍乘 <Tex>{'0.964'}</Tex>，記憶長度約 <Tex>{r`1/(1-0.964)\approx28`}</Tex> 拍。單頻 code{' '}
+            <Tex>{r`\Omega=\pi/6`}</Tex>，讓 <Tex>{'w_k'}</Tex> 照指數軌跡 <Tex>{r`{w_k=a\,\big(1-(1-g)^k\big)}`}</Tex> 走向 <Tex>{'a'}</Tex>，從 <Tex>{'w'}</Tex>{' '}
+            第一次更新之後算起，比較兩種寫法的差的 RMS 與 <Tex>{r`(a-w_k)\,u[n]`}</Tex> 的 RMS：<Tex>{'g=0.1'}</Tex>、<Tex>{'N=4096'}</Tex>（<Tex>{r`N/g\approx4\times10^4`}</Tex>{' '}
+            拍，遠大於 28 拍）時比值約 <Tex>{r`8\times10^{-4}`}</Tex>；<Tex>{'g=0.5'}</Tex>、<Tex>{'N=1'}</Tex>（<Tex>{'N/g=2'}</Tex> 拍，遠小於 28 拍）時約{' '}
+            <Tex>{'0.8'}</Tex>——差的部分已經和式子本身同一個量級，近似完全失效。
+          </p>
+          <p>
+            本站的閉迴路模擬照真實電路的順序計算（先乘 <Tex>{'(a-w_k)'}</Tex>，再進狀態跨 block 保留的濾波器），不用這個近似；用到這個前提的是平均模型的結論（
+            <Tex>{'C'}</Tex>、pole <Tex>{r`p=1-\mu K_qC`}</Tex>、F-07.11 的 <Tex>{r`E[G_k]`}</Tex>）。
+          </p>
+        </Callout>
+      </ModeGate>
       <h3 className="ch07-subhead">步驟 1：PD 端的均方誤差，對 <Tex>{'w'}</Tex> 微分</h3>
       <p>
         先用圖看結論：同一個 PD 誤差 <Tex>{r`e_{\mathrm{PD}}[n]`}</Tex>，拿去乘 <Tex>{'u[n]'}</Tex> 還是乘 <Tex>{'x[n]'}</Tex>，平均出來的東西不一樣。
@@ -48,7 +106,7 @@ export function S4Gradient() {
             why: (
               <>
                 Ch06 的模型：reference 端的 DTC 補償之後留下的 gain 誤差 <Tex>{'(a-w)x'}</Tex> 經過誤差路徑 <Tex>{'h'}</Tex>、再加上雜訊 <Tex>{'v'}</Tex>，就是 PD 的輸出{' '}
-                <Tex>{r`e_{\mathrm{PD}}`}</Tex>（comparator 取的就是它）。
+                <Tex>{r`e_{\mathrm{PD}}`}</Tex>（comparator 取的就是它）。這裡的 <Tex>{'w'}</Tex> 是凍結的常數（上面的前提）。
               </>
             ),
           },
@@ -57,7 +115,8 @@ export function S4Gradient() {
             tex: r`\frac{\partial e_{\mathrm{PD}}}{\partial w}=-u[n]`,
             why: (
               <>
-                <Tex>{'v'}</Tex> 與 <Tex>{'w'}</Tex> 無關；<Tex>{'(a-w)u'}</Tex> 對 <Tex>{'w'}</Tex> 微分得 <Tex>{'-u'}</Tex>。
+                <Tex>{'v'}</Tex> 與 <Tex>{'w'}</Tex> 無關；<Tex>{'(a-w)u'}</Tex> 對 <Tex>{'w'}</Tex> 微分得 <Tex>{'-u'}</Tex>。這是對凍結的 <Tex>{'w'}</Tex>{' '}
+                微分：問的是「把 <Tex>{'w'}</Tex> 固定在稍微不同的值，<Tex>{r`e_{\mathrm{PD}}`}</Tex> 會差多少」。
               </>
             ),
           },
@@ -68,7 +127,7 @@ export function S4Gradient() {
       />
       <TexBlock id="F-07.9">{r`J(w)=\tfrac12E\big[e_{\mathrm{PD}}^2\big],\qquad \frac{dJ}{dw}=-E\big[e_{\mathrm{PD}}\,u\big]`}</TexBlock>
       <p>
-        代回去看它為什麼永遠往對的方向走（<Tex>{'v'}</Tex> 零均值、與 <Tex>{'x'}</Tex> 獨立）：
+        代回去看它為什麼永遠往對的方向走（<Tex>{'w'}</Tex> 凍結、<Tex>{'v'}</Tex> 零均值、與 <Tex>{'x'}</Tex> 獨立）：
       </p>
       <TexBlock>{r`\begin{aligned}
 E[e_{\mathrm{PD}}\,u]&=(a-w)\,E[u^2]+E[v\,u]&&\text{代入 }e_{\mathrm{PD}}\\
@@ -77,7 +136,10 @@ E[e_{\mathrm{PD}}\,u]&=(a-w)\,E[u^2]+E[v\,u]&&\text{代入 }e_{\mathrm{PD}}\\
 \end{aligned}`}</TexBlock>
       <p>
         對照 raw-x GMAC 算的是 <Tex>{r`E[e_{\mathrm{PD}}\,x]=(a-w)\,E[x\,u]=(a-w)\,C`}</Tex>：它是「用錯 regressor 的梯度」。
-        <Tex>{r`C=E[xu]`}</Tex> 可以是負的（Ch06），<Tex>{r`E[u^2]`}</Tex> 永遠不會。 <ClaimTag kind="exact" />
+        <Tex>{r`C=E[xu]`}</Tex> 可以是負的（Ch06），<Tex>{r`E[u^2]`}</Tex> 永遠不會。 <ClaimTag kind="exact" />{' '}
+        <span className="small">
+          （指凍結 <Tex>{'w'}</Tex> 的 cost <Tex>{'J(w)'}</Tex>；LMS 逐 block 更新時再加上 F-07.1 下面的慢適應前提）
+        </span>
       </p>
 
       <h3 className="ch07-subhead">步驟 2：硬體只有 1-bit comparator，<Tex>{'u'}</Tex> 也看不到 → 用模型 <Tex>{r`\hat H`}</Tex> 產生 <Tex>{'u_f'}</Tex></h3>
@@ -97,7 +159,8 @@ E[e_{\mathrm{PD}}\,u]&=(a-w)\,E[u^2]+E[v\,u]&&\text{代入 }e_{\mathrm{PD}}\\
         <Tex>{r`u_f=\hat h*x`}</Tex> 在<strong>每一個</strong>頻率都帶著模型的振幅與相位。三種做法只差在「GMAC 實際拿來相乘的訊號」，之後統稱
         <Tex>{r`x_{\mathrm{ref}}[n]`}</Tex>：A 是 <Tex>{'x[n]'}</Tex>、B 是 <Tex>{'x[n-D]'}</Tex>、C 是 <Tex>{'u_f[n]'}</Tex>。每個框最後的方塊是那種做法算出來的相關：
         <Tex>{'C'}</Tex>、<Tex>{'C_D'}</Tex>、<Tex>{r`E[u\,u_f]`}</Tex>。（C 後面還可以再串一個 B 的延遲，變成稍後 F-07.10 的 <Tex>{'u_f[n-D]'}</Tex>，用來補
-        <Tex>{r`\hat H`}</Tex> 漏算的 latency；圖上畫的是 <Tex>{'D=0'}</Tex>。）
+        <Tex>{r`\hat H`}</Tex> 沒有包含的串聯純延遲——真實路徑比模型多一個 <Tex>{r`z^{-L}`}</Tex> 時取 <Tex>{'D=L'}</Tex>。圖上畫的是 <Tex>{'D=0'}</Tex>；<Tex>{r`D\ne0`}</Tex>{' '}
+        時這個方塊裡的相關要換成 <Tex>{r`E\big[u[n]\,u_f[n-D]\big]`}</Tex>，也就是下面 F-07.11 的 <Tex>{r`C_{f,D}`}</Tex>。）
       </p>
       <Prereq title="高斯分布、累積分布函數與誤差函數 erf（Ch05 的 comparator 小訊號增益）">
         <p>
@@ -114,7 +177,8 @@ E[e_{\mathrm{PD}}\,u]&=(a-w)\,E[u^2]+E[v\,u]&&\text{代入 }e_{\mathrm{PD}}\\
             tex: r`q[n]=\mathrm{sign}\big(s[n]+v[n]\big),\qquad s[n]=(a-w)\,u[n]`,
             why: (
               <>
-                comparator 只看誤差的正負號；<Tex>{'s'}</Tex> 是由 code 決定的確定部分（固定 <Tex>{'w'}</Tex>，在一個 block 內近似成立）。
+                comparator 只看誤差的正負號；<Tex>{'s'}</Tex> 是由 code 決定的確定部分（<Tex>{'w'}</Tex> 在一個 block 內固定為 <Tex>{'w_k'}</Tex>；<Tex>{'h'}</Tex>{' '}
+                的記憶會伸進上一個 block，所以這是 F-06.1 的近似，<Tex>{'w'}</Tex> 每個 block 只動一點點時成立）。
               </>
             ),
           },
@@ -143,14 +207,16 @@ E[e_{\mathrm{PD}}\,u]&=(a-w)\,E[u^2]+E[v\,u]&&\text{代入 }e_{\mathrm{PD}}\\
         result={r`E[q\,u_f]\approx K_q\,(a-w)\,E[u\,u_f]\ \overset{\hat H=H}{=}\ K_q\,(a-w)\,E[u^2],\qquad E[u^2]\ge0`}
       />
       <TexBlock id="F-07.11" label="Filtered-x 的平均 GMAC 與 pole">
-        {r`E[G_k]\approx K_q\,(a-w_k)\,E[u\,u_f],\qquad p_f=1-\mu K_q\,E[u\,u_f],\qquad K_q=\frac{\sqrt{2/\pi}}{\sigma_v}`}
+        {r`\begin{aligned}E[G_k]&\approx K_q\,(a-w_k)\,C_{f,D},\qquad p_f=1-\mu K_q\,C_{f,D},\qquad K_q=\frac{\sqrt{2/\pi}}{\sigma_v}\\C_{f,D}&\equiv E\big[u[n]\,u_f[n-D]\big]\overset{D=0}{=}E[u\,u_f]\end{aligned}`}
       </TexBlock>
       <p>
-        <ClaimTag kind="approx" /> 小誤差 <Tex>{r`|s|\ll\sigma_v`}</Tex>、Gaussian <Tex>{'v'}</Tex>、長時間平均。
-        <Tex>{r`\hat H=H`}</Tex> 時 <Tex>{r`E[u^2]\ge0`}</Tex>，所以 <Tex>{r`E[G_k]`}</Tex> 與 <Tex>{r`a-w_k`}</Tex> <strong>同號</strong>：
+        <ClaimTag kind="approx" /> 小誤差 <Tex>{r`|s|\ll\sigma_v`}</Tex>、Gaussian <Tex>{'v'}</Tex>、長時間平均、<Tex>{'w'}</Tex> 在 <Tex>{'h'}</Tex> 的記憶長度內近似不變（F-06.1）。步驟 3
+        推導的是沒有額外延遲的 regressor <Tex>{'u_f[n]'}</Tex>（<Tex>{'D=0'}</Tex>），這時 <Tex>{r`C_{f,0}=E[u\,u_f]`}</Tex>；步驟 4 的硬體形式（F-07.10）可以把 regressor 再延遲{' '}
+        <Tex>{'D'}</Tex> 個 sample，推導的每一步照舊，只是 <Tex>{'u_f[n]'}</Tex> 換成 <Tex>{'u_f[n-D]'}</Tex>，相關變成 <Tex>{r`C_{f,D}=E\big[u[n]\,u_f[n-D]\big]`}</Tex>。
+        <Tex>{r`\hat H=H`}</Tex> 而且 <Tex>{'D=0'}</Tex> 時 <Tex>{r`C_{f,0}=E[u^2]\ge0`}</Tex>，所以 <Tex>{r`E[G_k]`}</Tex> 與 <Tex>{r`a-w_k`}</Tex> <strong>同號</strong>：
         <Tex>{'w'}</Tex> 太小就往上修、太大就往下修，<Tex>{r`0<p_f<1`}</Tex>（只要 <Tex>{r`\mu K_qE[u^2]<1`}</Tex>）。
-        <Tex>{r`\hat H\ne H`}</Tex> 時一定要用 <Tex>{r`E[u\,u_f]`}</Tex>，不是 <Tex>{r`E[u^2]`}</Tex> 也不是 <Tex>{r`E[u_f^2]`}</Tex>——下一節（7.5）專門處理。{' '}
-        <ErratumNote id="E45" />
+        <Tex>{r`\hat H\ne H`}</Tex> 或 <Tex>{r`D\ne0`}</Tex> 時一定要用 <Tex>{r`C_{f,D}`}</Tex>，不是 <Tex>{r`E[u^2]`}</Tex> 也不是 <Tex>{r`E[u_f^2]`}</Tex>——下一節（7.5）專門處理。本章的圖、表與手算裡，沒有另外標{' '}
+        <Tex>{'D'}</Tex> 的 filtered-x 都是 <Tex>{'D=0'}</Tex>。 <ErratumNote id="E45" />
       </p>
 
       <h3 className="ch07-subhead">步驟 4：可實作的 block 形式</h3>
@@ -167,9 +233,9 @@ E[e_{\mathrm{PD}}\,u]&=(a-w)\,E[u^2]+E[v\,u]&&\text{代入 }e_{\mathrm{PD}}\\
       />
       <p>
         沿著迴圈走一圈。先看 code 往真實路徑走的那一路（reference 端的 DTC，一直到 PD）：還沒校正掉的 <Tex>{'(a-w_k)'}</Tex> 乘上 <Tex>{'(h*x)[n]'}</Tex>，加上 <Tex>{'v[n]'}</Tex> 得到 PD 的輸出
-        <Tex>{r`e_{\mathrm{PD}}[n]`}</Tex>；comparator 取的就是這個 PD 輸出（送進 loop filter 的同一個訊號），輸出 <Tex>{'q[n]'}</Tex>。再看 code 往藍色模型走的那一路：<Tex>{r`u_f=\hat h*x`}</Tex> 再延遲 <Tex>{'D'}</Tex>。兩路在乘法器相遇，這裡還是
+        <Tex>{r`e_{\mathrm{PD}}[n]`}</Tex>（方塊裡寫的是 F-06.1 的近似式：真實電路是先乘 <Tex>{'(a-w_k)'}</Tex>、再經過 <Tex>{'h'}</Tex>，<Tex>{'w_k'}</Tex> 每個 block 只動一點時兩者幾乎相同）；comparator 取的就是這個 PD 輸出（送進 loop filter 的同一個訊號），輸出 <Tex>{'q[n]'}</Tex>。再看 code 往藍色模型走的那一路：<Tex>{r`u_f=\hat h*x`}</Tex> 再延遲 <Tex>{'D'}</Tex>。兩路在乘法器相遇，這裡還是
         sample rate（索引 <Tex>{'n'}</Tex>）；平均器每 <Tex>{'N'}</Tex> 個 sample 才吐出一個 <Tex>{'G_k'}</Tex>，之後都是 block rate（索引 <Tex>{'k'}</Tex>）：乘上
-        <Tex>{r`\mu`}</Tex> 進累加器，新的 <Tex>{'w_k'}</Tex> 送回 reference 端的 DTC（決定下一個 block 的補償量 <Tex>{'w_k\\,x[n]'}</Tex>），也就是回到真實路徑的起點。圖上的平均器與累加器，分別就是下面 F-07.10 的前兩個式子。只要 <Tex>{r`E[u\,u_f]>0`}</Tex>，
+        <Tex>{r`\mu`}</Tex> 進累加器，新的 <Tex>{'w_k'}</Tex> 送回 reference 端的 DTC（決定下一個 block 的補償量 <Tex>{'w_k\\,x[n]'}</Tex>），也就是回到真實路徑的起點。圖上的平均器與累加器，分別就是下面 F-07.10 的前兩個式子。只要 <Tex>{r`C_{f,D}>0`}</Tex>（<Tex>{'D=0'}</Tex> 時就是 <Tex>{r`E[u\,u_f]>0`}</Tex>），
         <Tex>{r`w_k<a`}</Tex> 時 <Tex>{'G_k'}</Tex> 的平均是正的、<Tex>{'w'}</Tex> 被往上推，迴圈是負回授。
       </p>
       <TexBlock id="F-07.10" label={<>Filtered-x 的 block 更新（<Tex>{'n'}</Tex>：comparator sample；<Tex>{'k'}</Tex>：GMAC block）</>}>
@@ -203,7 +269,7 @@ E[e_{\mathrm{PD}}\,u]&=(a-w)\,E[u^2]+E[v\,u]&&\text{代入 }e_{\mathrm{PD}}\\
         {r`\rho_{\mathrm{ref}}=\frac{E[x_{\mathrm{ref}}\,u]}{\sqrt{E[x_{\mathrm{ref}}^2]\,E[u^2]}}\in[-1,1]`}
       </TexBlock>
       <p>
-        <Tex>{r`\rho`}</Tex> 的符號就是更新極性。單頻時 delayed-x 的 <Tex>{r`\rho=\cos\theta`}</Tex>；<Tex>{r`\hat H=H`}</Tex> 的 filtered-x 恆為 1。<ClaimTag kind="exact" />{' '}
+        <Tex>{r`\rho`}</Tex> 的符號就是更新極性。單頻時 delayed-x 的 <Tex>{r`\rho=\cos\theta`}</Tex>；<Tex>{r`\hat H=H`}</Tex>、<Tex>{'D=0'}</Tex> 的 filtered-x 恆為 1。<ClaimTag kind="exact" />{' '}
         大小則告訴你「同樣的收斂速度下，雜訊要多平均幾倍」：穩態抖動 <Tex>{r`\sigma_w\propto1/(\sqrt N\,|\rho|)`}</Tex>，所以 <Tex>{r`\rho=0.5`}</Tex> 需要 4 倍的
         <Tex>{'N'}</Tex>（<ClaimTag kind="approx" />；推導在 Engineer 模式）。
       </p>
@@ -233,7 +299,7 @@ E[e_{\mathrm{PD}}\,u]&=(a-w)\,E[u^2]+E[v\,u]&&\text{代入 }e_{\mathrm{PD}}\\
               tex: r`E[x_{\mathrm{ref}}u]^2\le E[x_{\mathrm{ref}}^2]\,E[u^2]`,
               why: (
                 <>
-                  整理即得；等號成立若且唯若存在 <Tex>{'t'}</Tex> 使 <Tex>{r`u=t\,x_{\mathrm{ref}}`}</Tex>，也就是 regressor 與 <Tex>{'u'}</Tex> 成比例（<Tex>{r`\hat H\propto H`}</Tex>）。
+                  整理即得；等號成立若且唯若存在 <Tex>{'t'}</Tex> 使 <Tex>{r`u=t\,x_{\mathrm{ref}}`}</Tex>，也就是 regressor 與 <Tex>{'u'}</Tex> 成比例（<Tex>{r`\hat H\propto H`}</Tex>、<Tex>{'D=0'}</Tex>）。
                 </>
               ),
             },

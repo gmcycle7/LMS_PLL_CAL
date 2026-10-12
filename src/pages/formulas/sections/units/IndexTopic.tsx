@@ -94,7 +94,7 @@ export function IndexTopic() {
       </p>
       <Mermaid
         chart={CHART_RATE_DOMAINS}
-        caption="兩條時間軸：$e[n]$、$q[n]$ 在 sample rate（索引 $n$，$f_s$）；$G_k$、$w_k$、$\delta_k$ 在 block rate（索引 $k$，$f_u=f_s/N$）。藍色的累加是 sample → block，綠色的 ZOH 是 block → sample；虛線的 $\delta_k$ 在整個 block 內保持不變，其實也是一次 ZOH。"
+        caption="兩條時間軸：$e[n]$、$q[n]$ 在 sample rate（索引 $n$，$f_s$）；$G_k$、$w_k$、$\delta_k$ 在 block rate（索引 $k$，$f_u=f_s/N$）。藍色的累加是 sample → block，綠色的 ZOH 是 block → sample；虛線的 $\delta_k$ 在整個 block 內保持不變，其實也是一次 ZOH。$e[n]$ 那一格寫 $\approx$：PD 路徑有記憶，$w_k$ 還在更新時，把 $\delta_k$ 提到路徑外面只在 $w$ 於路徑的記憶長度內近似常數時成立（F-06.1；$w$ 凍結時是等式，F-07.1）。"
       />
       <Prereq title="離散時間的角頻率：rad/sample 與 rad/block">
         <p>

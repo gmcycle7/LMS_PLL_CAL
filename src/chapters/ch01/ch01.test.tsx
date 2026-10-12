@@ -27,6 +27,8 @@ import {
   sanitizeMseMaeParams,
   signErrorFixedPointCheck,
   signErrorMcCheck,
+  TRY_MU1,
+  TRY_MU1_LATTICE_MEAN,
 } from './experiments/MseMaeLab'
 import { IntroSection } from './sections/Intro'
 import { MedianExampleSection } from './sections/MedianExample'
@@ -44,6 +46,31 @@ const P = vi.hoisted(() => ({
 }))
 vi.mock('plotly.js-dist-min', () => ({ default: P }))
 vi.mock('mermaid', () => ({ default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: '<svg></svg>' })) } }))
+
+// ───── 記憶體：整章渲染一次約 400 MB 的 DOM，這個檔案會渲染十次以上；測試結束後必須讓它被回收，否則會頂到 Node 的 heap 上限（約 4 GB）─────
+// 兩個地方會把「已卸載的整棵 DOM 樹」留住（都與斷言無關，清掉不影響任何測試）：
+// (1) 模擬的 Plotly 函式把每一次呼叫的引數留在 mock.calls 裡，而 Plotly.react／purge 的第一個引數就是圖表的 DOM 節點；
+// (2) jsdom 的 querySelector（nwsapi）替每一個用過的 selector 字串快取上一次查詢的起點與結果節點——本檔用過的 selector 有上百種，
+//     每一種都會釘住某一次渲染。這裡只清空 nwsapi 公開的兩個快取（不換掉實例：它在 document 上掛了事件監聽，換掉反而整個留著）；
+//     jsdom 把實例放在 document 的內部物件上，找不到時什麼都不做。
+interface SelectorEngine {
+  selectResolvers?: { clear?: () => void }
+  matchResolvers?: { clear?: () => void }
+}
+function releaseDetachedDom() {
+  for (const fn of [P.react, P.purge, P.toImage, P.downloadImage, P.Plots.resize]) fn.mockClear()
+  for (const sym of Object.getOwnPropertySymbols(document)) {
+    const impl = (document as unknown as Record<symbol, unknown>)[sym] as { _nwsapi?: SelectorEngine; _nwsapiDontThrow?: SelectorEngine } | null
+    if (!impl || typeof impl !== 'object') continue
+    for (const engine of [impl._nwsapi, impl._nwsapiDontThrow]) {
+      engine?.selectResolvers?.clear?.()
+      engine?.matchResolvers?.clear?.()
+    }
+  }
+}
+// 測試前後各清一次：卸載（RTL 的 cleanup）時 Plot 會再呼叫一次 Plotly.purge，那一筆要等下一個測試開始前才清得到
+beforeEach(releaseDetachedDom)
+afterEach(releaseDetachedDom)
 
 function renderAt(node: React.ReactNode, path = '/ch/01', mode: 'beginner' | 'engineer' | 'research' = 'engineer') {
   try {
@@ -89,6 +116,28 @@ function strictTexErrors(root: HTMLElement): string[] {
 
 /** 元素內所有 KaTeX 公式的原始碼（MathML annotation） */
 const texOf = (root: Element | null): string[] => Array.from(root?.querySelectorAll('.katex-mathml annotation') ?? []).map((a) => a.textContent ?? '')
+
+/** 去掉 KaTeX 的 MathML 重複文字，只留顯示出來的字 */
+const shownText = (el: Element | null): string => {
+  if (!el) return ''
+  const clone = el.cloneNode(true) as HTMLElement
+  clone.querySelectorAll('.katex-mathml').forEach((m) => m.remove())
+  return clone.textContent ?? ''
+}
+
+/** 審查 R08：畫面上 F-01.16 的公式、標籤、緊接在後的那一段（結論標籤）、§2.3.1 全部的 TeX 與文字、圖 2-6 的導讀 */
+function r08Shown() {
+  const f16 = document.getElementById('formula-F-01.16')!
+  const s231 = document.getElementById('ch01-s231')!
+  return {
+    formula: texOf(f16.querySelector('.c-texblock-math')),
+    label: texOf(f16.querySelector('.c-texblock-label')),
+    claim: f16.nextElementSibling?.querySelector('.c-claim')?.className ?? '',
+    section: texOf(s231),
+    text: shownText(s231),
+    read: shownText(document.querySelector('[data-diagram="D-01.18"] .ch01-diagram-read')),
+  }
+}
 
 describe('Ch01 頁面（jsdom smoke）', () => {
   it('完整章節可渲染：章末符號表（章首只留一行）、勘誤連結、兩個實驗、程式碼比較、思考題與必記', () => {
@@ -148,6 +197,32 @@ describe('Ch01 頁面（jsdom smoke）', () => {
     expect(screen.getAllByText(/2\.3\.2 有連續雜訊時/).length).toBeGreaterThan(0)
     // 公式 ID 都有錨點（F-01.17 只在 Research 模式出現）
     for (const fm of FORMULAS.filter((x) => x.id !== 'F-01.17')) expect(document.getElementById(`formula-${fm.id}`), fm.id).toBeTruthy()
+    // 審查 R08：F-01.16 右式是小步長近似。Engineer 模式在公式旁就看得到限制（≈、μ ≪ 10）、被忽略的修正量（4.7e−24）與步長不小的反例（μ = 5：25/13 ≈ 1.923，不是 2.5）
+    const r08 = r08Shown()
+    expect(r08.formula.some((t) => t.includes(String.raw`\mu\ll10:\ \overline{w}\approx\begin{cases}`))).toBe(true)
+    expect(r08.formula.some((t) => t.includes(String.raw`\overline{w}=\begin{cases}`))).toBe(false)
+    expect(r08.label).toContain(String.raw`\mu\ll10`)
+    expect(r08.section.some((t) => t.includes(String.raw`4.7\times10^{-24}`))).toBe(true)
+    expect(r08.section).toContain(String.raw`25/13\approx1.923`)
+    expect(r08.section).toContain(String.raw`\mu/2=2.5`)
+    expect(r08.section).toContain(String.raw`\{0,5,10\}`)
+    expect(r08.text).toMatch(/右式的.{0,20}則是小步長（.{0,10}）的近似/)
+    expect(r08.text).toMatch(/步長不小時不能這樣忽略/)
+    expect(r08.text).toMatch(/直接解格點鏈/)
+    expect(r08.text).not.toMatch(/精確計算|只會改變/)
+    // 有限鏈公式留在 Research 模式
+    expect(r08.section.some((t) => t.includes(String.raw`3^{1+10/\mu}-1`))).toBe(false)
+    // 公式旁的結論標籤與登錄一致：近似
+    expect(r08.claim).toMatch(/c-claim-approx/)
+    // 圖 2-6 的導讀：圖只畫前幾格、鏈在 w = 10 附近到頭、另外兩種慣例在 w = 10 那一格也會變
+    expect(r08.read).toMatch(/圖只畫前幾格.*附近就到頭了.*幾乎走不到那裡/)
+    expect(r08.read).toMatch(/圖上這幾格只有.{0,6}的箭頭會變（.{0,3}剛好等於 10\s*的那一格也會變，但幾乎到不了/)
+    expect(texOf(document.querySelector('[data-diagram="D-01.18"] .ch01-diagram-read'))).toEqual(
+      expect.arrayContaining([String.raw`3^{-10/\mu}`, String.raw`3^{-50}\approx1.4\times10^{-24}`, String.raw`\overline w\approx\mu/2`]),
+    )
+    // §2.2 引用同一個結果時也說是小步長的近似
+    expect(shownText(document.getElementById('ch01-s22'))).toMatch(/三種慣例的穩態時間平均差了.{0,12}（§2\.3\.1 算出小步長時約為/)
+    expect(shownText(document.getElementById('ch01-s22'))).not.toMatch(/精確算出/)
   }, HEAVY)
 
   it('Research 模式顯示 Markov 鏈與污染資料段落；Beginner 模式收合推導', () => {
@@ -159,9 +234,31 @@ describe('Ch01 頁面（jsdom smoke）', () => {
     expect(bad).toEqual([])
     expect(strictTexErrors(r1.container)).toEqual([])
     expect(screen.getAllByText(/流量平衡/).length).toBeGreaterThan(0)
+    // 審查 R08：Research 模式的推導把忽略的上邊界補回來——有限鏈公式、μ = 5 的 π = (9, 3, 1)/13、另外兩種慣例
+    const res = r08Shown()
+    expect(res.section.some((t) => t.includes(String.raw`\frac{\mu}{2}-\frac{10+\mu}{3^{1+10/\mu}-1}`))).toBe(true)
+    expect(res.section.some((t) => t.includes(String.raw`(+1):\quad\overline w&=\mu-\frac{10+\mu}{3^{1+10/\mu}-1}`))).toBe(true)
+    expect(res.section.some((t) => t.includes(String.raw`(-1):\quad\overline w&=-\frac{10+\mu}{3^{1+10/\mu}-1}`))).toBe(true)
+    expect(res.text).toMatch(/另外兩種慣例.{0,40}（式子左邊括號裡的數字）：tie 發生在.{0,4}等於資料值的每一格/)
+    expect(res.section).toContain(String.raw`\pi=\tfrac{1}{13}(9,3,1)`)
+    expect(res.section).toContain(String.raw`\overline w=\tfrac{25}{13}\approx1.923`)
+    expect(res.section).toContain(String.raw`M=10/\mu`)
+    expect(res.section).toContain('M=50')
+    expect(res.section.some((t) => t.startsWith(String.raw`\overline w\approx\mu\sum_{k\ge0}k\,\pi_k`))).toBe(true)
+    expect(res.text).toMatch(/以下先忽略，最後三步再補回來/)
+    expect(res.text).toMatch(/把忽略的上邊界補回來/)
     r1.unmount()
     const r2 = renderAt(<Chapter01 />, '/ch/01', 'beginner')
     expect(strictTexErrors(r2.container)).toEqual([])
+    // 審查 R08：Beginner 模式也看得到「≈、μ ≪ 10」與一句白話的限制；反例與有限鏈公式不出現
+    const beg = r08Shown()
+    expect(beg.formula.some((t) => t.includes(String.raw`\mu\ll10:\ \overline{w}\approx\begin{cases}`))).toBe(true)
+    expect(beg.label).toContain(String.raw`\mu\ll10`)
+    expect(beg.section.some((t) => t.includes(String.raw`4.7\times10^{-24}`))).toBe(true)
+    expect(beg.text).toMatch(/幾乎走不到 10，所以推導時把那一端忽略了/)
+    expect(beg.section.some((t) => t.includes('1.923'))).toBe(false)
+    expect(beg.section.some((t) => t.includes(String.raw`3^{1+10/\mu}-1`))).toBe(false)
+    expect(beg.claim).toMatch(/c-claim-approx/)
     // F-01.18（連續雜訊下的抖動）在所有模式都顯示
     expect(document.getElementById('formula-F-01.18')).toBeTruthy()
     expect(screen.queryByText(/2\.4 （Research）/)).toBeNull()
@@ -1013,5 +1110,205 @@ describe('Ch01 架構約定（docs/assumptions.md §2a）', () => {
       const src = readFileSync(f, 'utf8')
       for (const re of [...bad, ...oldPolarity]) expect(src, `${f} ${re}`).not.toMatch(re)
     }
+  })
+})
+
+// ───────────────────────── 外部審查（docs/reviews/2026-10-12-codex-review.md）R08、C09 ─────────────────────────
+
+describe('審查 R08：F-01.16 右式（μ/2、μ、0）是小步長近似，不是精確式', () => {
+  const FOUR: LossDataParams = { model: 'four_point', a: 0, xDist: 'const', xScale: 1, sigma: 0, outlierProb: 0, outlierSize: 0, outlierSign: 'positive', n: 4000, seed: 7 }
+
+  it('公式登錄與反例一致：claim 是 approx、公式用 ≈ 並寫出 μ ≪ 10、條件列出修正量 (10 + μ)/(3^{1+10/μ} − 1) 與 μ = 5 的 25/13；登錄引用的每個數字都由格點鏈重算', () => {
+    const f16 = FORMULAS.find((fm) => fm.id === 'F-01.16')!
+    expect(f16.claim).toBe('approx')
+    expect(f16.tex).toContain(String.raw`\approx`)
+    expect(f16.tex).toContain(String.raw`\mu\ll10`)
+    expect(f16.tex).not.toContain(String.raw`\overline{w}=\tfrac{\mu}{2}`)
+    expect(f16.tex).toContain(String.raw`\big|\,\overline{w}-w_{L1}\big|=O(\mu|x|)`) // 左式（E40 的容忍帶）不變
+    expect(f16.conditions).toContain(String.raw`\mu\ll10`)
+    expect(f16.conditions).toContain(String.raw`3^{1+10/\mu}-1`)
+    expect(f16.conditions).toContain(String.raw`$10/\mu$ 為正整數時`) // 單一修正量的適用條件跟著公式走
+    expect(f16.conditions).toContain(String.raw`量級 $3^{-10/\mu}$`) // 「小於」只對 sign(0) = 0 成立，登錄裡只說量級
+    expect(f16.conditions).toMatch(/小步長近似/)
+    expect(f16.conditions).toMatch(/直接解格點鏈/)
+    expect(f16.conditions).toMatch(/見 F-01\.18/)
+    expect(f16.erratumId).toBe('E40')
+    // 條件裡寫的數字：μ = 0.2 約 4.7e−24、μ = 1 約 6.2e−5、μ = 5 是 25/13 ≈ 1.923 而非 2.5
+    const corr = (mu: number) => (10 + mu) / (3 ** (1 + 10 / mu) - 1)
+    expect(f16.conditions).toContain(String.raw`$\mu=0.2$ 約 $4.7\times10^{-24}$`)
+    expect(corr(0.2).toExponential(1)).toBe('4.7e-24')
+    expect(f16.conditions).toContain(String.raw`$\mu=1$ 約 $6.2\times10^{-5}$`)
+    expect(corr(1).toExponential(1)).toBe('6.2e-5')
+    expect(f16.conditions).toContain(String.raw`$25/13\approx1.923$ 而非 $2.5$`)
+    const big = signErrorLatticeStationary(FOUR, { w0: 0, mu: 5, tie: 'zero' })!
+    expect(big.mean).toBeCloseTo(25 / 13, 12)
+    expect(big.mean.toFixed(3)).toBe('1.923')
+    expect(big.mean).toBeCloseTo(5 / 2 - corr(5), 12)
+    // 三種慣例在 μ = 1（10/μ 是整數）都少同一個修正量
+    const at1 = (['zero', 'plus', 'minus'] as const).map((tie) => signErrorLatticeStationary(FOUR, { w0: 0, mu: 1, tie })!.mean)
+    expect(at1[0]).toBeCloseTo(0.5 - corr(1), 12)
+    expect(at1[1]).toBeCloseTo(1 - corr(1), 12)
+    expect(at1[2]).toBeCloseTo(-corr(1), 12)
+    // F-01.15（精確）與 F-01.18（近似）不受影響
+    expect(FORMULAS.find((fm) => fm.id === 'F-01.15')!.claim).toBe('exact')
+    expect(FORMULAS.find((fm) => fm.id === 'F-01.18')!.claim).toBe('approx')
+  })
+
+  it('MSE vs MAE Lab：Sign-Error 兩列的解析值是格點鏈的解（標籤仍是精確），附註說明它不是 F-01.16 右式；Gaussian x 沒有格點鏈時不出現這句話', () => {
+    const r = renderAt(<MseMaeLab />)
+    const rows = Array.from(r.container.querySelectorAll('.c-metric-table tbody tr'))
+    const pick = (re: RegExp) => rows.find((tr) => re.test(shownText(tr.querySelector('td'))))!
+    for (const re of [/Sign-Error 時間平均（IEEE double/, /Sign-Error 定點（整數 code）時間平均/]) {
+      const row = pick(re)
+      expect(shownText(row.querySelector('td')), String(re)).toContain('analytic = 格點鏈數值解（不是 F-01.16 右式的小步長近似）；容忍度')
+      expect(row.querySelector('.c-claim')?.className, String(re)).toMatch(/c-claim-exact/)
+      expect(row.querySelector('a[href="#formula-F-01.16"]'), String(re)).toBeTruthy()
+      // 預設 μ = 0.2、w0 = 1：解析值 0.1（= μ/2，差 4.7e−24）
+      expect(row.querySelector('td[data-label="解析值"]')?.textContent, String(re)).toBe('0.1')
+    }
+    r.unmount()
+    const g = renderAt(<MseMaeLab />, '/ch/01?preset=mse-mae-outliers-regression')
+    expect(g.container.textContent).not.toContain('格點鏈數值解')
+    const gRow = Array.from(g.container.querySelectorAll('.c-metric-table tbody tr')).find((tr) => /Sign-Error 時間平均（IEEE double/.test(shownText(tr.querySelector('td'))))!
+    expect(gRow.querySelector('td[data-label="解析值"]')?.textContent).toBe('')
+    expect(shownText(gRow.querySelector('td'))).toMatch(/^Sign-Error 時間平均（IEEE double.*容忍度/)
+    g.unmount()
+  })
+
+  it('MSE vs MAE Lab「試試看 (2)」：把 μ 調到 1（預設 w0 = 1、sign(0) = 0）⇒ 指標表的解析值真的顯示 0.499938，不是 μ/2 = 0.5；文字引用的數字由同一個格點鏈函式算出', async () => {
+    expect(TRY_MU1).toBe(1)
+    expect(MSE_MAE_DEFAULTS.w0).toBe(1)
+    expect(MSE_MAE_DEFAULTS.tie).toBe('zero')
+    expect(TRY_MU1_LATTICE_MEAN).toBeCloseTo(44281 / 88573, 12)
+    expect(TRY_MU1_LATTICE_MEAN).toBe(signErrorLatticeStationary(FOUR, { w0: MSE_MAE_DEFAULTS.w0, mu: TRY_MU1, tie: 'zero' })!.mean)
+    const r = renderAt(<MseMaeLab />)
+    const tryTex = texOf(r.container.querySelector('.ch01-try'))
+    expect(tryTex).toContain('0.499938')
+    expect(tryTex).toContain(String.raw`\mu/2=0.5`)
+    expect(tryTex).toContain(String.raw`\mu\ll10`)
+    expect(shownText(r.container.querySelector('.ch01-try'))).toMatch(/看定點時間平均變成約.*的近似.*指標表的解析值（格點鏈）是.*被忽略的上邊界開始看得見/)
+    // 真的照做一次：在 μ 的輸入框打 1
+    const muInput = r.container.querySelector('input[aria-label="μ（學習率）"]:not([type="range"])') as HTMLInputElement
+    expect(muInput).toBeTruthy()
+    act(() => {
+      fireEvent.change(muInput, { target: { value: '1' } })
+    })
+    const analytic = () => {
+      const row = Array.from(r.container.querySelectorAll('.c-metric-table tbody tr')).find((tr) => /Sign-Error 定點（整數 code）時間平均/.test(shownText(tr.querySelector('td'))))!
+      return row.querySelector('td[data-label="解析值"]')?.textContent
+    }
+    await waitFor(() => expect(analytic()).toBe('0.499938'), { timeout: 60_000 })
+    expect(strictTexErrors(r.container)).toEqual([])
+  })
+
+  it('同一類的另一句（思考題 3，{1,2,3,100}）：「時間平均落在區間中點」也是忽略格點鏈遠端的小步長近似——標籤是近似；μ = 0.05、0.01 只差不到 1e−10，μ = 0.2 已是 2.50053', () => {
+    const Q3: LossDataParams = { ...FOUR, values: [1, 2, 3, 100] }
+    const meanAt = (p: LossDataParams, mu: number) => signErrorLatticeStationary(p, { w0: 0, mu, tie: 'zero' })!.mean
+    // 期望值由獨立的有理數計算得到（Python Fraction，格點 1…100 整條鏈、不截斷）：
+    // μ = 1/5 → 2.5005292561011467；μ = 1/20 → 2.5 + 1.0266e−11；μ = 1/100 → 2.5 + 1.4e−50
+    expect(meanAt(Q3, 0.2)).toBeCloseTo(2.5005292561011467, 12)
+    expect(meanAt(Q3, 0.2) - 2.5).toBeGreaterThan(5e-4) // 步長不小時看得出來：不是中點
+    expect(meanAt(Q3, 0.05) - 2.5).toBeGreaterThan(0.9e-11)
+    expect(meanAt(Q3, 0.05) - 2.5).toBeLessThan(1.2e-11)
+    for (const mu of [0.05, 0.01]) expect(Math.abs(meanAt(Q3, mu) - 2.5)).toBeLessThan(1e-10) // 文字說的「只差不到 10^{-10}」
+    // 正常對照：兩端離區間一樣遠的資料 {1,2,3,4}（格點對 2.5 對稱）⇒ 任何步長的時間平均都是中點（只剩 double 的捨入）
+    const SYM: LossDataParams = { ...FOUR, values: [1, 2, 3, 4] }
+    for (const mu of [1, 0.5, 0.2, 0.05]) expect(Math.abs(meanAt(SYM, mu) - 2.5), `μ=${mu}`).toBeLessThan(1e-13)
+    // 畫面：解析最後的附註
+    const { container } = renderAt(<WrapupSection />)
+    const quiz = Array.from(container.querySelectorAll('.c-quiz')).find((q) => q.textContent?.includes('思考題 3')) as HTMLElement
+    act(() => {
+      fireEvent.click(within(quiz).getByText('看答案與解析'))
+    })
+    const note = Array.from(quiz.querySelectorAll('.c-quiz-answer p')).find((el) => (el.textContent ?? '').includes('區間中點')) as HTMLElement
+    expect(note).toBeTruthy()
+    expect(note.querySelector('.c-claim')?.className).toMatch(/c-claim-approx/)
+    const txt = shownText(note)
+    expect(txt).toMatch(/時間平均落在區間中點，只是因為這組資料在區間兩側對稱/)
+    expect(txt).toMatch(/而且步長很小——和 F-01\.16\s*的右式一樣，這是忽略格點鏈遠端的近似/)
+    expect(txt).toMatch(/上面兩個步長與中點只差不到.{0,8}，但.{0,8}時時間平均已是/)
+    expect(txt).toMatch(/偶數筆資料時，MAE 本身並不偏好區間內的任何一點/)
+    expect(txt).not.toMatch(/剛好是區間中點/)
+    expect(texOf(note)).toEqual(expect.arrayContaining([String.raw`P(y<2)=P(y>3)`, '10^{-10}', String.raw`\mu=0.2`, '2.50053']))
+    // 解析裡兩個步長顯示的時間平均仍是 2.5（4 位有效數字）
+    const means = texOf(quiz.querySelector('.c-quiz-answer')).flatMap((t) => Array.from(t.matchAll(/overline w=([0-9.]+)/g), (m) => Number(m[1])))
+    expect(means).toEqual([2.5, 2.5])
+    expect(strictTexErrors(container)).toEqual([])
+  })
+})
+
+describe('審查 C09：normal equation E[e*x] = 0 是「正交」；等於「不相關」還需要 E[x] = 0 或 E[e*] = 0', () => {
+  it.each(['engineer', 'beginner'] as const)('§1.2／§1.2.1（%s 模式）：標題與正文以正交為主詞，公式旁有名稱、成立條件與三筆資料的數字；先備知識與 w* = a 的條件同步', async (mode) => {
+    const { container } = renderAt(<ParabolaSection />, '/ch/01', mode)
+    // <Plot> 載入 Plotly 之後會再更新一次狀態：先讓它跑完
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0))
+    })
+    const s121 = document.getElementById('ch01-s121')!
+    const title = s121.querySelector('.c-section-title')!.textContent ?? ''
+    expect(title).toBe('1.2.1 Normal equation：最佳解處「誤差與輸入正交」')
+    expect(title).not.toContain('不相關')
+    // 名稱與成立條件就在 F-01.5 的正下方，所有模式都看得到（不是收在推導或先備知識裡）
+    const note = document.getElementById('formula-F-01.5')!.nextElementSibling as HTMLElement
+    expect(note.closest('details')).toBeNull()
+    const noteText = shownText(note)
+    expect(noteText).toMatch(/名稱與成立條件/)
+    expect(noteText).toMatch(/叫做誤差與輸入正交（orthogonal）/)
+    expect(noteText).toMatch(/不需要對雜訊做任何假設/)
+    expect(noteText).toMatch(/不是同一句話：兩者只有在.{0,12}或.{0,12}時才相同/)
+    expect(noteText).toMatch(/相關器累加的是.{0,6}本身，不會先扣掉平均，所以它檢查的是正交/)
+    // GMAC 累加的是誤差的正負號乘上輸入（下面的「連結到 PLL」）：同樣不扣平均，但不能說它累加的是 e·x 本身
+    expect(noteText).toMatch(/（PLL 的 GMAC 也一樣不扣平均，只是誤差先取了正負號，見下面的「連結到 PLL」）/)
+    expect(noteText).not.toMatch(/相關器（以及 PLL 的 GMAC）累加的是/)
+    expect(noteText).toMatch(/零均值且與.{0,4}獨立，則/)
+    expect(shownText(document.querySelector('#ch01-s121 .ch01-pll'))).toMatch(/^連結到 PLL/)
+    expect(note.querySelector('.c-claim')?.className).toMatch(/c-claim-exact/)
+    const tex = texOf(note)
+    expect(tex).toEqual(expect.arrayContaining(['E[e^*x]=0', 'E[x^2]>0', String.raw`E[e^*x]=E[e^*]\,E[x]`, 'E[x]=0', 'E[e^*]=0']))
+    // 三筆資料 x = (1, 2, 4)、y = (3.2, 5.7, 12.5)：E[e*] = −2/45、E[x] = 7/3、E[e*]E[x] = −14/135（即時計算）
+    expect(tex).toContain('E[e^*]=-0.04444')
+    expect(tex).toContain('E[x]=2.333')
+    expect(tex).toContain(String.raw`E[e^*]\,E[x]=-0.1037\ne0`)
+    // 舊說法不再出現
+    expect(shownText(container)).not.toMatch(/誤差與輸入不相關/)
+    expect(shownText(container)).not.toMatch(/本章稱為不相關|本章的雜訊.{0,6}零均值，所以不區分/)
+    // §1.2 的先備知識：E[xy] = 0 叫正交；不相關是 E[xy] = E[x]E[y]；零均值時才是同一件事
+    const pre = shownText(document.querySelector('#ch01-s12 .c-prereq'))
+    expect(pre).toMatch(/稱為正交（orthogonal）/)
+    expect(pre).toMatch(/不相關（uncorrelated）是指/)
+    expect(pre).toMatch(/雜訊.{0,4}零均值時，.{0,10}說成正交或不相關都可以/)
+    expect(pre).toMatch(/最佳誤差.{0,6}平均不一定是 0（輸入.{0,4}的平均也不一定是 0），那裡要說「正交」/)
+    // w* = a 的條件是 E[xv] = 0（正交）；v 零均值、與 x 不相關就足夠
+    const s12 = shownText(document.getElementById('ch01-s12'))
+    expect(s12).toMatch(/只有在雜訊與輸入正交（.{0,10}：相乘再平均等於 0）時，最小平方解才等於真值/)
+    expect(s12).toMatch(/零均值、與.{0,4}不相關（Ch00 §0\.7\s*的定義）就足夠/)
+    // F-01.5 本身不變；相關器的說法（相關 E[e x]、相關歸零就停）保留
+    expect(texOf(document.getElementById('formula-F-01.5')!.querySelector('.c-texblock-math'))).toEqual([String.raw`\boxed{E[e^*x]=0}`])
+    expect(shownText(document.getElementById('formula-F-01.5')!.querySelector('.c-texblock-label'))).toBe('Normal equation（正交原理）')
+    expect(shownText(s121)).toMatch(/相關歸零就停/)
+    expect(Array.from(container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.textContent)).toEqual([])
+    expect(strictTexErrors(container)).toEqual([])
+  })
+
+  it('公式登錄 F-01.5／F-01.4 與「本課必記」：公式與標籤不變，條件改以正交為主詞並寫出何時等於不相關', () => {
+    const f5 = FORMULAS.find((fm) => fm.id === 'F-01.5')!
+    expect(f5.claim).toBe('exact')
+    expect(f5.title).toBe('Normal equation（正交原理）')
+    expect(f5.tex).toBe(String.raw`E[e^*x]=E\big[(y-w^*x)\,x\big]=0`)
+    expect(f5.conditions).toMatch(/正交/)
+    expect(f5.conditions).toMatch(/E\[x\]=0/)
+    expect(f5.conditions).toMatch(/E\[e\^\*\]=0/)
+    expect(f5.conditions).toMatch(/只需 \$E\[x\^2\]>0\$/)
+    expect(f5.conditions).not.toMatch(/誤差與輸入不相關/)
+    const f4 = FORMULAS.find((fm) => fm.id === 'F-01.4')!
+    expect(f4.claim).toBe('exact')
+    expect(f4.tex).toBe(String.raw`w^*=\frac{E[xy]}{E[x^2]}=a+\frac{E[xv]}{E[x^2]}`)
+    expect(f4.conditions).toMatch(/E\[xv\]=0/)
+    expect(f4.conditions).toMatch(/正交/)
+    const { container } = renderAt(<WrapupSection />)
+    const label = Array.from(container.querySelectorAll('.c-recap-label')).find((el) => (el.textContent ?? '').includes('Normal equation'))!
+    expect(label.textContent).toBe('Normal equation：最佳解處誤差與輸入正交')
+    expect(label.textContent).not.toContain('不相關')
+    expect(texOf(label.parentElement)).toContain(String.raw`\boxed{E[e^*x]=0}`)
   })
 })

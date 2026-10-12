@@ -209,6 +209,12 @@ export function ModelSection() {
         <p>
           <strong>獨立</strong>時 <Tex>{'E[xy]=E[x]E[y]'}</Tex>，所以零均值雜訊 <Tex>{'v'}</Tex> 與 code 獨立就有 <Tex>{'E[xv]=0'}</Tex>。
         </p>
+        <p className="small">
+          用語：<Tex>{'E[xy]=0'}</Tex> 叫做 <Tex>{'x'}</Tex> 與 <Tex>{'y'}</Tex> <strong>正交（orthogonal）</strong>；<strong>不相關（uncorrelated）</strong>是另一件事，指共變異數為
+          0，也就是 <Tex>{'E[xy]=E[x]\\,E[y]'}</Tex>（<a href="#/ch/00">Ch00</a> §0.7、<a href="#/ch/01">Ch01</a> §1.2.1）。只要其中一個量的平均是 0，兩者就相同。GMAC
+          累加的是乘積本身，不會先扣掉平均，所以「GMAC 歸零」檢查的是正交。例：常數 offset <Tex>{'b'}</Tex> 與 code 的共變異數永遠是 0，但{' '}
+          <Tex>{'E[x\\,b]=b\\,E[x]'}</Tex> 只有在 <Tex>{'E[x]=0'}</Tex>（或 <Tex>{'b=0'}</Tex>）時才是 0 —— §11.1 的 offset bias 就是這樣來的。
+        </p>
       </Prereq>
       <Prereq title={String.raw`Gaussian、$\Phi$ 與 $\operatorname{erf}$：comparator 的機率`}>
         <p>
@@ -218,7 +224,8 @@ export function ModelSection() {
         <TexBlock>{String.raw`\operatorname{erf}(z)=\frac{2}{\sqrt\pi}\int_0^z e^{-t^2}dt,\qquad 2\Phi(z)-1=\operatorname{erf}\!\big(z/\sqrt2\big)`}</TexBlock>
         <p>
           泰勒展開（只用微積分）：<Tex>{String.raw`e^{-t^2}=1-t^2+\tfrac{t^4}{2}-\cdots`}</Tex> 逐項積分得{' '}
-          <Tex>{String.raw`\operatorname{erf}(z)=\tfrac{2}{\sqrt\pi}\big(z-\tfrac{z^3}{3}+\tfrac{z^5}{10}-\cdots\big)`}</Tex>。第一項就是 comparator 的小訊號增益
+          <Tex>{String.raw`\operatorname{erf}(z)=\tfrac{2}{\sqrt\pi}\big(z-\tfrac{z^3}{3}+\tfrac{z^5}{10}-\cdots\big)`}</Tex>。這個級數對任何有限的{' '}
+          <Tex>{'z'}</Tex> 都收斂；但只取前一、兩項時，只有 <Tex>{'|z|'}</Tex> 小才準（§11.2 的表會看到 <Tex>{'|z|'}</Tex> 大時三次截斷完全失準）。第一項就是 comparator 的小訊號增益
           <Tex>{'K_q'}</Tex>，第二項（三次項）決定 Sign-LMS 固定點的修正（§11.2）。例：<Tex>{String.raw`s=1,\ \sigma_v=100`}</Tex> 時{' '}
           <Tex>{String.raw`E[q]=\operatorname{erf}(0.01/\sqrt2)=${texNum(eq, 8)}`}</Tex>（Ch05）。
         </p>

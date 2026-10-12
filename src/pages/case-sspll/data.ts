@@ -454,4 +454,4 @@ export function mapIntervalsBelow(col: number[] | null | undefined, fMHz: number
 
 /** pred_vs_sim.json 的 lms_note（英文）的中文說明：golden 閉迴路 LMS 的執行條件（含 `$...$` 行內公式，顯示時要經過 mathText） */
 export const LMS_NOTE_ZH =
-  'golden（Python）的閉迴路 sign-error block LMS：真 1-bit 比較器、$\\sigma_v=200$ fs（插圖值）、$N=512$、6000 blocks、2 條雜訊 lane、開迴路時間常數 25 blocks。fs 值來自無界的線性模型：超過約 $T_{vco}/8=7.8$ ps（16 GHz，插圖值）就代表硬體上的 DTC 飽和或失鎖。'
+  'golden（Python）的閉迴路 sign-error block LMS：真 1-bit 比較器、$\\sigma_v=200$ fs（插圖值）、$N=512$、6000 blocks、2 條雜訊 lane、開迴路名義時間常數 25 blocks。fs 值來自無界的線性模型：超過約 $T_{vco}/8=7.8$ ps（16 GHz，插圖值）就代表硬體上的 DTC 飽和或失鎖。'

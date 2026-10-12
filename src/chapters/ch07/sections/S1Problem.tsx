@@ -80,7 +80,7 @@ export function S1Problem() {
         <Tex>{String.raw`t_{\mathrm{ref}}'-t_{\mathrm{fb}}`}</Tex>：需要 <Tex>{'a\\,x[n]'}</Tex>、實際補 <Tex>{'w\\,x[n]'}</Tex>，如果 PLL 完全不反應，PD 看到的就是
         <Tex>{'(a-w)\\,x[n]'}</Tex>（補償不足、<Tex>{'w<a'}</Tex> 時 reference edge 還是太晚：<Tex>{'x[n]>0'}</Tex> 時誤差為正，也就是誤差和 <Tex>{'x[n]'}</Tex> 同號）。但 PLL 迴路會跟著修正這個時間誤差，所以 PD 輸出端實際留下的是它經過誤差路徑
         <Tex>{'H'}</Tex> 之後的 <Tex>{'(a-w)\\,u[n]'}</Tex>。真實電路是先乘 <Tex>{'(a-w)'}</Tex>、再經過 <Tex>{'H'}</Tex>；因為 <Tex>{'w'}</Tex> 每個 block 才更新一次、每次只動一點點，先乘後濾和先濾後乘幾乎沒有差別，
-        圖上畫成後者是為了直接看到 <Tex>{'u[n]'}</Tex>。
+        圖上畫成後者是為了直接看到 <Tex>{'u[n]'}</Tex>。嚴格地說，<Tex>{'w'}</Tex> 固定不動時兩者完全相等；<Tex>{'w'}</Tex> 在更新時只是近似（Ch06 的 F-06.1），成立條件寫在 7.4 節的 F-07.1 下面。
       </p>
 
       <Prereq title="期望值（expectation）、時間平均與相關（correlation）">

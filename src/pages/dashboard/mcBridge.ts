@@ -11,7 +11,7 @@
  */
 import type { BlockLmsConfigInput, BlockLmsMonteCarloResult } from '@/simulation/models/blockLms'
 import { meanCI, studentTInv } from '@/simulation/core'
-import { evaluateThesis, trajectory, type ThesisParams, type ThesisResult } from './thesisModel'
+import { evaluateThesis, exceedsLinearityLimit, trajectory, type ThesisParams, type ThesisResult } from './thesisModel'
 
 /** 模擬用的真實 gain a [fs]（任意值：線性化模型只依賴 δ = a − w） */
 export const MC_GAIN_TRUE_FS = 3
@@ -32,7 +32,7 @@ export interface McPlanOk {
   /** 統計用的後半段 block 數（blockLms 的 metrics 取 block ⌈(K+1)/2⌉…K） */
   lateBlocks: number
   totalSamples: number
-  /** 解析模型的時間常數 −1/ln ρ [blocks]（不收斂時為 NaN） */
+  /** 解析模型的時間常數 −1/ln max|z| [blocks]（不收斂時為 NaN）；d ≥ 1 時是漸近的衰減速率，只用來決定模擬長度 */
   tauBlocks: number
   /** 解析模型是否預測收斂 */
   expectStable: boolean
@@ -136,7 +136,7 @@ export function planMonteCarlo(r: ThesisResult, seed: number, runs = MC_RUNS, bu
     )
   if (p.B !== 0)
     notes.push(String.raw`Monte Carlo 以 $B=0$ 模擬（共用模型沒有可獨立設定的 $E[x\,\varepsilon_{\mathrm{det}}]$）：比對的是極性、穩定與 variance；bias $\Delta w=B/C$ 請見 Ch11。`)
-  if (r.linearityInit > 0.3)
+  if (exceedsLinearityLimit(r.linearityInit))
     notes.push(String.raw`初始誤差相對 $\sigma_v$ 太大：comparator 飽和使真實收斂比線性模型慢，暫態比對可能不一致（這是線性化的適用範圍，不是程式錯誤）。`)
   const config = toBlockLmsConfig(p, numBlocks, seed)
   return {
@@ -204,6 +204,24 @@ export function perRunMse(mc: McStats, lateCount: number): number[] {
   })
 }
 
+/**
+ * 後半段統計窗（block start … numBlocks）裡，線性平均模型還沒衰減完的暫態：δ_0·max_k |y_k|，
+ * y_{k+1} = y_k − g·y_{k−d}、初始歷史 y_j = 1（j ≤ 0；和 trajectory()、settleDelayed() 同一條遞迴）。
+ * d = 0 時就是 δ_0·|1 − g|^start。d ≥ 1 時不能用 δ_0·max|z|^start 代替：max|z|^k 只是漸近速率，不是暫態的包絡
+ * （例：d = 1、g = 1/4 是重根 z = 1/2，y_k = (1 + k/2)·2^{−k}，k = 10 時是 2^{−10} 的 6 倍）。
+ */
+export function lateTransientBound(g: number, d: number, delta0: number, start: number, numBlocks: number): number {
+  const L = d + 1
+  const ring = new Float64Array(L).fill(1) // 步驟 n 開始時 ring[n % L] = y_n，ring[(n+1) % L] = y_{n−d}
+  let peak = start <= 0 ? 1 : 0
+  for (let n = 0; n < numBlocks; n++) {
+    const next = ring[n % L] - g * ring[(n + 1) % L]
+    ring[(n + 1) % L] = next
+    if (n + 1 >= start) peak = Math.max(peak, Math.abs(next))
+  }
+  return delta0 * peak
+}
+
 /** 解析值 vs Monte Carlo：每一列都有「統計信賴區間 + 模型容許誤差」的明確判定規則。 */
 export function compareMonteCarlo(r: ThesisResult, plan: McPlanOk, mc: McStats): McComparison {
   const p = r.params
@@ -253,7 +271,9 @@ export function compareMonteCarlo(r: ThesisResult, plan: McPlanOk, mc: McStats):
     // (2) 固定點：B = 0 時應該是 a（極性正確 ⇒ 平均誤差歸零）
     const bias = Array.from(mc.perRun.bias)
     const ciB = bias.every(Number.isFinite) ? meanCI(bias, MC_CI_LEVEL) : { mean: NaN, lo: -Infinity, hi: Infinity }
-    const residual = delta0 * Math.pow(r.maxRadius, lateWindow(plan.numBlocks).start) // 後半段開頭還沒衰減完的暫態
+    // 後半段還沒衰減完的暫態（線性平均模型）：d = 0 是 δ_0·|1 − g|^start；d ≥ 1 照遞迴算（max|z|^k 不是包絡）
+    const lateStart = lateWindow(plan.numBlocks).start
+    const residual = p.d === 0 ? delta0 * Math.pow(r.maxRadius, lateStart) : lateTransientBound(r.modes[0].gain, p.d, delta0, lateStart, plan.numBlocks)
     const allowB = MC_MODEL_TOL * r.sigmaW + residual
     rows.push({
       id: 'mean',

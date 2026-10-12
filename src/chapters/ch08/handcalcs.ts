@@ -437,7 +437,7 @@ export const HANDCALCS: HandCalcDef[] = [
           ],
           notes: [
             verdict,
-            String.raw`振盪週期 $360^\circ/${deg(angleDeg, 4)}=${texNum(360 / angleDeg, 4)}$ blocks，包絡每個 block 乘上 $|z|=${texNum(st.rho)}$——拿上一題手算的 $\delta_k$ 對照看看。`,
+            String.raw`振盪週期 $360^\circ/${deg(angleDeg, 4)}=${texNum(360 / angleDeg, 4)}$ blocks；兩個根是一對共軛複數，所以振盪的包絡正比於 $|z|^k$（比例常數由初始條件決定，不一定是 $1$），每個 block 乘上 $|z|=${texNum(st.rho)}$——拿上一題手算的 $\delta_k$ 對照看看。`,
           ],
         }
       }
@@ -663,7 +663,7 @@ export const HANDCALCS: HandCalcDef[] = [
           { tex: String.raw`z_2=\frac{-a_1-\sqrt\Delta}{2}=\frac{${ex(-a1)}-${texNum(sq)}}{2}=${texNum(clean(z2))}`, why: String.raw`快根（靠近 $r_s$）：觀測狀態自己的模態。` },
           {
             tex: String.raw`\rho=\max\big(|z_1|,|z_2|\big)=\max(${texNum(Math.abs(z1))},\,${texNum(Math.abs(clean(z2)))})=${texNum(an.rho)}`,
-            why: String.raw`Spectral radius：絕對值最大的根決定收斂速度。`,
+            why: String.raw`Spectral radius：絕對值最大的根決定長期（漸近）的收斂速度。`,
           },
           ...tail,
         ],

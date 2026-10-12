@@ -695,7 +695,7 @@ describe('Ch01 方塊圖：圖上的數字與模型一致（錯的圖比沒有�
     expect(slope(5)).toBeGreaterThan(0) // 下面多：斜率為正 ⇒ w 往下移
   })
 
-  it('圖 2-5／圖 2-6：LMS 停在平均 2.5；Sign-Error 的格點鏈每往右一格機率乘 1/3（= ¼ ÷ ¾）、π₀ = ⅔、時間平均 μ/2', () => {
+  it('圖 2-5／圖 2-6：LMS 停在平均 2.5；Sign-Error 的格點鏈每往右一格機率乘 1/3（= ¼ ÷ ¾）、π₀ = ⅔、時間平均 ≈ μ/2（μ ≪ 10）', () => {
     const mu = 0.2
     expect(lmsSteadyState(FOUR, mu).mean).toBeCloseTo(2.5, 12)
     const lat = signErrorLatticeStationary(FOUR, { w0: 0, mu, tie: 'zero' })!
@@ -711,7 +711,8 @@ describe('Ch01 方塊圖：圖上的數字與模型一致（錯的圖比沒有�
     expect(c).toMatch(/S1 --> S0: 抽到 0（3\/4），往下/)
     expect(c.match(/3\/4/g)).toHaveLength(4)
     expect(c.match(/1\/4/g)).toHaveLength(3)
-    // 另外兩種 tie 慣例只改 w = 0 那一格：時間平均變成 μ 與 0（F-01.16）
+    // 另外兩種 tie 慣例：圖上畫出的格點只有 w = 0 的箭頭會變（w = 10 那一格也會變，但幾乎到不了）；
+    // μ = 0.2 時時間平均是 μ 與 0，誤差約 5e-24（F-01.16，近似）
     expect(signErrorLatticeStationary(FOUR, { w0: 0, mu, tie: 'plus' })!.mean).toBeCloseTo(mu, 10)
     expect(signErrorLatticeStationary(FOUR, { w0: 0, mu, tie: 'minus' })!.mean).toBeCloseTo(0, 10)
   })

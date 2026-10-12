@@ -212,7 +212,7 @@ export const FORMULAS: FormulaEntry[] = [
     id: 'F-SS.5',
     title: '8 相 PMUX 的 PHOS mode-1：基波權重與「一定反號」條件',
     tex: String.raw`W_1=\frac{64\sin^2(\pi/8)}{\pi^2}\approx0.9496,\qquad \mathrm{Re}\{H_{\mathrm{PD}}(\alpha f_{\mathrm{ref}})\}<-\frac{1-W_1}{W_1}\max_f\mathrm{Re}\{H_{\mathrm{PD}}\}\ \Rightarrow\ \kappa_1<0`,
-    conditions: 'raw-x GMAC、相關器延遲 D = 0、線性小訊號；無理數 α 或 α = j/Q 且 8 | Q（平均更新矩陣為 circulant）；κ_1 = Σ_{ℓ≡1 (8)} w_ℓ Re H_PD(ℓα)',
+    conditions: 'raw-x GMAC、相關器延遲 D = 0、線性小訊號；無理數 α 或 α = j/Q 且 8 | Q（平均更新矩陣為 circulant）；κ_1 = Σ_{ℓ≡1 (8)} w_ℓ Re H_PD(ℓα) 是實數，即案例頁（F-CS.13）的複數 κ_1 = 8λ_1 的實部 Re κ_1',
     claim: 'exact',
     level: 'L2',
     specSection: '9.2',
@@ -256,7 +256,7 @@ export const CONDITIONS_TEX: Record<string, string> = {
   'F-SS.2': String.raw`無額外延遲；有延遲 $d$ 時反號條件為 $K_L\sin\!\big(\Omega(d+\tfrac12)\big)>2\sin(\Omega/2)$`,
   'F-SS.3': String.raw`$L=\big(K_p+\tfrac{K_i}{1-z^{-1}}\big)\tfrac{z^{-1}}{1-z^{-1}}$（pll.ts designDtLoop 的 dpll 形式）`,
   'F-SS.4': String.raw`主迴路穩定、$L$ 嚴格因果、$H_{\mathrm{PD}}$ 分子為 $(1-z^{-1})^n$；$0\le\beta_x<1$；反號需要 code 能量集中在反號帶內（例如單頻）`,
-  'F-SS.5': String.raw`raw-x GMAC、相關器延遲 $D=0$、線性小訊號；無理數 $\alpha$ 或 $\alpha=j/Q$ 且 $8\mid Q$（平均更新矩陣為 circulant）；$\kappa_1=\sum_{\ell\equiv1\,(8)}w_\ell\,\mathrm{Re}\{H_{\mathrm{PD}}(e^{j2\pi\ell\alpha})\}$`,
+  'F-SS.5': String.raw`raw-x GMAC、相關器延遲 $D=0$、線性小訊號；無理數 $\alpha$ 或 $\alpha=j/Q$ 且 $8\mid Q$（平均更新矩陣為 circulant）；$\kappa_1=\sum_{\ell\equiv1\,(8)}w_\ell\,\mathrm{Re}\{H_{\mathrm{PD}}(e^{j2\pi\ell\alpha})\}$ 是實數，即案例頁（F-CS.13）的複數 $\kappa_1=8\lambda_1$ 的實部 $\mathrm{Re}\,\kappa_1$`,
   'F-SS.6': String.raw`$r[n]=x[n]-x[n-1]$（$G=1-z^{-1}$）、$L=\big(K_p+\tfrac{K_i}{1-z^{-1}}\big)\tfrac{z^{-1}}{1-z^{-1}}$、$D=0$；$\mathrm{Re}\{H_{\mathrm{PD}}\overline G\}$ 與左式同號`,
 }
 

@@ -7,6 +7,7 @@
  * - 平均遞迴 E[δ_{k+1}] = (I − μK_q R)·E[δ_k]；K_q 一律明寫（勘誤 E05 / E08）：
  *     linear detector（conventional LMS，多位元 e）：K_q ≡ 1，μ 無因次；
  *     sign detector（1-bit comparator）：K_q = √(2/π)/σ_v [fs⁻¹]，μ 的單位是 fs。
+ *   linear detector 時是精確的等式；sign detector 時是 |uᵀδ_k| ≪ σ_v 的小訊號近似（精確條件平均見 bussgangMeanG）。
  *   g = μK_q 是無因次 loop gain；λ_i 只代表 R 的 eigenvalue（勘誤 E22：正則化參數另用 ε）。
  * - 598 blocks 這類數字是 **mean（ensemble）** 遞迴的結論，不是 mean-square（勘誤 E23）；
  *   本檔同時提供 mean-square 遞迴（四階動差）讓頁面並列顯示。
@@ -165,7 +166,8 @@ export function optimalScalarGain(lmax: number, lmin: number): { g: number; p: n
 
 // #region core:meanRecursion
 /**
- * 平均遞迴 E[δ_{k+1}] = (I − μK_q R)·E[δ_k]（理想匹配、u 與 δ_k 獨立；勘誤 E05：K_q 明寫）。
+ * 平均遞迴 E[δ_{k+1}] = (I − μK_q R)·E[δ_k]（理想匹配、u 與 δ_k 獨立；勘誤 E05：K_q 明寫。
+ * linear detector：精確；sign detector：|uᵀδ_k| ≪ σ_v 的小訊號近似）。
  * 回傳每個分量的時間序列 out[i][k]，k = 0 … steps。
  */
 export function meanTrajectory(R: Matrix, g: number, delta0: ArrayLike<number>, steps: number): Float64Array[] {
@@ -372,6 +374,31 @@ export function meanSquareTrajectory(p: {
     }
   }
   return out
+}
+
+/**
+ * 1-bit（sign detector）迴路自己的穩態抖動：F-09.18（meanSquareMap 的 sign 分支，每個 block 注入 μ²R/N）固定點的閉式。
+ * 回傳 E[s_δ²] = tr(R·P∞)/σ_v²，s_δ = √(δᵀRδ)/σ_v（comparator 輸入端「參數誤差造成的訊號」與雜訊的 RMS 比）。
+ *   eigen 座標的對角元素 d_i = E[c_i²]：d_i ← m_i·d_i + μ²λ_i/N，m_i = 1 − 2gλ_i + g²(1 − 1/N)λ_i²
+ *   ⇒ d_i(∞) = μ²/(N·g·(2 − g(1 − 1/N)λ_i))，tr(R·P∞) = Σ_i λ_i·d_i(∞)
+ *   μ = g/K_q、K_q = √(2/π)/σ_v ⇒ μ²/σ_v² = πg²/2 ⇒ E[s_δ²] = (πg/(2N))·Σ_i λ_i/(2 − g(1 − 1/N)λ_i)
+ * 與 σ_v、regressor 分布無關（sign 的 q² ≡ 1，沒有四階動差）。λ_i = 0 的方向沒有雜訊注入，貢獻 0。
+ * g = 0（不更新）時沒有抖動，回傳 0；任何 λ_i > 0 的模式平均不收斂（|1 − gλ_i| ≥ 1）或均方不收斂（|m_i| ≥ 1）時回傳 Infinity。
+ * [近似｜小訊號線性化]：結果要 ≪ 1 才自洽。ρ = .99、g = .5：N = 1 ⇒ π/4（MC 實測約 1.6）；N = 32 ⇒ 0.0473（MC 0.048）。
+ */
+export function signJitterSteadyState(lambdas: ArrayLike<number>, g: number, N: number): number {
+  if (g === 0) return 0
+  const shrink = 1 - 1 / N
+  let sum = 0
+  for (let i = 0; i < lambdas.length; i++) {
+    const l = lambdas[i]
+    if (!(l > 0)) continue
+    const x = g * l
+    const m = 1 - 2 * x + shrink * x * x // 這個模式的均方每個 block 的倍數
+    if (!(Math.abs(1 - x) < 1) || !(Math.abs(m) < 1)) return Infinity
+    sum += l / (2 - shrink * x)
+  }
+  return ((Math.PI * g) / (2 * N)) * sum
 }
 
 // ───────────────────────── Regressor 產生與 GMAC（MC 用） ─────────────────────────

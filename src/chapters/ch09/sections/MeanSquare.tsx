@@ -24,7 +24,7 @@ export function MeanSquare() {
         「慢 pole 0.995、約 598 blocks」描述的是 <strong>許多次實驗的平均</strong> {m`E[\boldsymbol\delta_k]`}。GMAC 的 {m`N`} 足夠大時，單一軌跡也大致照這個走；
         但若 conventional（linear detector）LMS 以 per-sample（{m`N=1`}）更新、regressor 為 Gaussian，{m`g=0.5`} 在 <strong>mean-square</strong>
         意義下是發散的（均方每個 block 的放大倍數 {m`\rho_{\mathrm{MS}}\approx${texNum(table[0].gauss, 3)}>1`}）；{m`\pm1`} sparse-flip code 的個別軌跡則呈<strong>階梯式</strong>歸零，只有 ensemble 平均依
-        {m`0.995^k`} 衰減。
+        {m`0.995^k`} 衰減。標籤裡的「精確」指 linear detector 的平均遞迴；1-bit 時同一組數字（{m`g=\mu K_q=0.5`}）只是小訊號區 {m`s_\delta\ll1`} 的近似（F-09.3）。
       </Callout>
 
       <p>
@@ -242,7 +242,7 @@ export function MeanSquare() {
         <Callout kind="info" title="工程上的讀法">
           <ul>
             <li>
-              規格 §9 / T11 的 0.995 與 598 是 <strong>mean recursion</strong> 的結論（[精確｜mean recursion]）。
+              規格 §9 / T11 的 0.995 與 598 是 <strong>mean recursion</strong> 的結論（[精確｜mean recursion]：linear detector 時精確；1-bit 時是小訊號近似，F-09.3）。
             </li>
             <li>要把它當成「單一晶片的收斂時間」，需要 GMAC block 夠長（本例 {m`N\ge2`} 時 {m`\rho_{\mathrm{MS}}<1`}，{m`N\ge16`} 時已接近 {m`0.995^2`}），
               或用 Monte Carlo 的分位數（10/50/90%）來描述。</li>

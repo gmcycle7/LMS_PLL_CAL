@@ -22,7 +22,7 @@
     "jitterSlope": 0,
     "jitterRef": -2
   },
-  "expected": "MSE-LMS（conventional）：w* = a + c₃E[x⁴]/E[x²] = 1 + 0.1·6.8/2 = 1.34（精確）。本 preset 的 Sign-LMS（σ_v = 1）：mean-field w* = 1.340346 ≈ 1.34 + 3.456×10⁻⁴/σ_v²，MC 95% CI 應包含 1.340346。殘差 e(x; 1.34) = (−0.12, +0.24, 0, −0.24, +0.12)：GMAC 歸零但 e ≠ 0。注意：±1 code 時為 1.10，unit Gaussian code 為 1.30（MSE）；無雜訊 Sign-Error LMS 的固定點為 1.40（|x| 加權中位數）。（勘誤 E01、E11）",
+  "expected": "MSE-LMS（conventional）：w* = a + c₃E[x⁴]/E[x²] = 1 + 0.1·6.8/2 = 1.34（精確）。本 preset 的 Sign-LMS（σ_v = 1）：mean-field w* = 1.340346 ≈ 1.34 + 3.456×10⁻⁴/σ_v²，MC 95% CI 應包含 1.340346。殘差 e(x; 1.34) = (−0.12, +0.24, 0, −0.24, +0.12)：GMAC 歸零，但殘差並非全部為 0（只有 x = 0 那一點是 0，其餘四個 code 都不是 0）。注意：±1 code 時為 1.10，unit Gaussian code 為 1.30（MSE）；無雜訊 Sign-Error LMS 的固定點為 1.40（|x| 加權中位數）。（勘誤 E01、E11）",
   "tests": [
     "T12"
   ],

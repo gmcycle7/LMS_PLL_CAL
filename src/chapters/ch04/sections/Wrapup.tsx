@@ -141,6 +141,8 @@ export function WrapupSection() {
               <td>floor ／ half-up ／ toward-0 ／ half-even</td>
               <td>
                 <Tex>{R`\bar\varepsilon=-\tfrac{1-2^{-\ell}}{2},\;2^{-\ell-1},\;\mp\tfrac{1-2^{-\ell}}{2}\,(\text{依 }\mathrm{sign}\,S),\;0`}</Tex>
+                <br />
+                <span className="small muted">{mt(R`（餘數均勻時；half-even 的 $0$ 另需「恰好一半」時商的奇偶各半，F-04.10；閉迴路的 $\delta^*=0$ 靠的是奇對稱，不靠這個條件）`)}</span>
               </td>
               <td>{mt(R`half-even；或足夠的 $F_G$`)}</td>
             </tr>

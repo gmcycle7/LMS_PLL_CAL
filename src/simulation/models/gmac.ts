@@ -349,6 +349,10 @@ export function shiftRound(v: number, ell: number, mode: RoundingMode): number {
 /**
  * 餘數 v mod 2^ℓ 均勻分布（GMAC 雜訊足以當 dither）時，shiftRound 的平均誤差 E[Q(v) − v/2^ℓ]（單位：輸出 LSB）。
  * toward_zero 依 v 的符號而不同（sign = +1 或 −1）。
+ * half_even 的 0 還需要「恰好一半（tie：餘數 = 2^{ℓ−1}）時商 ⌊v/2^ℓ⌋ 的奇偶各半」
+ *   充分條件：v mod 2^{ℓ+1} 均勻；v 的分布對 0 對稱時自動成立。
+ *   只有餘數均勻時是 ½·[P(tie 且商為奇) − P(tie 且商為偶)]，|ε̄| ≤ 2^{−ℓ−1}；
+ *   例：ℓ = 2、v ∈ {0, 1, 2, 3}（商都是 0）⇒ −1/8。
  */
 export function roundingMeanError(ell: number, mode: RoundingMode, sign: 1 | -1 = 1): number {
   if (ell <= 0) return 0
@@ -361,7 +365,7 @@ export function roundingMeanError(ell: number, mode: RoundingMode, sign: 1 | -1 
     case 'toward_zero':
       return sign > 0 ? -(1 - tiny) / 2 : (1 - tiny) / 2 // 對稱，但朝 0 縮
     case 'half_even':
-      return 0
+      return 0 // 需要 tie 時商的奇偶各半（見上方說明）
   }
 }
 // #endregion
@@ -639,12 +643,61 @@ export function floorRestoringSlope(s: number): number {
 }
 
 /**
- * 偏差預測（F-04.11、F-04.18）可用的 dither 比下限（σ_S/2^ℓ 或 μσ_G/Δ_W）。
+ * 偏差預測（F-04.11、F-04.18）可用的 dither 比下限（σ_S/2^ℓ 或 μσ_G/Δ_W）；floor / half-up / half-even 用這個值，toward_zero 加倍（ditherMinFor）。
  * 平衡點本身不靠 dither（見 floorRestoringSlope），但 χ(0.25) ≈ 0.43、χ(0.14) ≈ 0.01：低於約 0.2 時迴路在有限時間內到不了平衡點。
  * 多 seed 模擬（gmac.test.ts）：÷N 的右移在 0.57 時與預測相符（−6.13 ± 0.04 vs −6.06 fs），0.14 時偏離（−4.35 ± 0.09 vs −6.06 fs）；
  * μ·G → W 的取整在 0.57 時相符（−5.66 ± 0.05 vs −5.69 fs）。
  */
 export const DITHER_MIN = 0.25
+
+/**
+ * toward_zero 取整在平衡點 m = 0 的回復斜率（連續格點極限；s 的定義同 floorRestoringSlope）。
+ * trunc(x) = sign(x)·⌊|x|⌋ ⇒ E[trunc(X)] = Σ_{k≥1} [P(X ≥ k) − P(X ≤ −k)]，對 m 微分後在 m = 0：
+ *   χ_tz(s) = Σ_{k≠0} (1/s)·φ(k/s)   （X 的密度在「0 以外的整數點」的總和；floor 在 m = ½ 是半整數點的總和）
+ * |X| < 1 全部輸出 0，0 兩側的平台合起來寬 2 個 LSB，平衡點離最近的台階有 1 個 LSB（floor / half-even 只有 ½ 個），
+ * 所以同樣的 s 下回復斜率小得多：s = 0.284 時 0.006、0.40 時 0.09、0.5 時 0.22、0.57 時 0.30；
+ * s 很大時 → 1 − φ(0)/s（少掉 k = 0 那一項），比 floor 慢很多才接近 1（s = 2.27 時 0.82）。
+ */
+export function towardZeroRestoringSlope(s: number): number {
+  if (!(s > 0)) return 0
+  if (!Number.isFinite(s)) return 1
+  const span = Math.ceil(8 * s) + 1
+  let acc = 0
+  for (let k = 1; k <= span; k++) acc += (2 * normPdf(k / s)) / s
+  return acc
+}
+
+/** 取整點在平衡點附近的回復斜率（1 = 和沒有取整一樣，0 = dead zone）：toward_zero 用 χ_tz，其餘三種都是 floor 的 χ（平台寬 1 個 LSB、平衡點在平台中央）。 */
+export function roundingRestoringSlope(s: number, mode: RoundingMode): number {
+  return mode === 'toward_zero' ? towardZeroRestoringSlope(s) : floorRestoringSlope(s)
+}
+
+/**
+ * 偏差預測可用的 dither 比下限（σ_S/2^ℓ 或 μσ_G/Δ_W），依 rounding 模式而定。
+ * floor / half-up / half-even：平衡點落在 1 個 LSB 寬的平台中央，離最近的台階約 ½ 個 LSB ⇒ DITHER_MIN
+ *   （連續格點極限下，half-even 在 m = 0 的回復斜率和 floor 在 m = ½ 的 χ(s) 是同一個式子：0.25 時 0.43、0.142 時 0.01）。
+ * toward-0：|S| < 2^ℓ 全部輸出 0，0 兩側的平台合起來寬 2 個 LSB，平衡點 δ = 0 離最近的台階 1 個 LSB ⇒ 下限加倍
+ *   （回復斜率見 towardZeroRestoringSlope：s ≲ 0.6 時 ≈ ½·χ(s/2)）。
+ *   模擬（seed 1–6、w₀ 在 a 的下方與上方各一次）：σ_S/2^ℓ = 0.284 時 12 次都停在出發的那一側（−3.2 ～ −2.1 與 +3.2 ～ +3.7 fs，預測是 0）、
+ *   0.40 時 12 次裡 5 次偏離超過 4 SE；μ·G → W 的取整在 μσ_G/Δ_W = 0.284 時同樣 12 次都偏離。
+ * 閉迴路的警告（fixedLoopWarnings）與 Ch04 定點實驗的比對條件（roundingPredictionOk）用同一個下限。
+ */
+export function ditherMinFor(mode: RoundingMode): number {
+  return mode === 'toward_zero' ? 2 * DITHER_MIN : DITHER_MIN
+}
+
+/**
+ * half-even 在「恰好一半」（tie）那一格留下的平均誤差的振幅，以 2^{−ℓ} 個輸出 LSB 為單位（近似｜Gaussian S、Poisson summation 的第一項）。
+ * tie 的貢獻是 ½·[P(tie 且商為奇) − P(tie 且商為偶)]；S 為平均 2^ℓ·m、標準差 s·2^ℓ 的離散 Gaussian 時
+ *   ε̄_tie(m) ≈ −2^{−ℓ}·e^{−π²s²/2}·sin(πm)
+ * 看的是 S mod 2^{ℓ+1}（週期是餘數的兩倍），所以指數是餘數那一項 e^{−2π²s²} 把 s 換成 s/2。s = 1 時約 0.0072（half-up 的 2^{−ℓ−1} 的 1.4%）；
+ * m = 0（S 對 0 對稱）時恆為 0。這只是 tie 這一格：餘數不均勻的那一項約 e^{−2π²s²}/π 個 LSB（不隨 ℓ 縮小），
+ * s ≥ 1、ℓ ≤ 16 時比 tie 這一項小兩個數量級以上；s 更小時兩項都要算（直接用 roundingTransfer）。
+ * gmac.test.ts 與 roundingTransfer 的逐點精確值比對。
+ */
+export function halfEvenTieAmplitude(s: number): number {
+  return Math.exp(-((Math.PI * s) ** 2) / 2)
+}
 
 // #region core:quantizeIncrement
 /**
@@ -674,6 +727,7 @@ export function quantizeIncrement(dW: number, wLsb: number, mode: RoundingMode):
  * Q_W 的平均誤差 E[Q_W(μG) − μG]（單位 Δ_W）。μG 落在間距 μΔ_G 的格點上；令 R = Δ_W/(μΔ_G) = p/q（最簡分數），
  * 則餘數只會是 Δ_W·{0, 1/p, …, (p − 1)/p}，更新量夠「散」（μσ_G ≳ Δ_W）時這 p 個值均勻出現：
  *   floor：−(1 − 1/p)/2；half_up：p 為偶數時 +1/(2p)（恰好一半那一格永遠進位），否則 0；half_even / toward_zero：0
+ *   half_even 的 0：p 為奇數時沒有「恰好一半」的餘數，只需餘數均勻；p 為偶數時還需要 tie 時商的奇偶各半（同 roundingMeanError），否則 |ε̄_W| ≤ 1/(2p)
  * RTL 的右移對應 R = 2^{ℓ_W}（p = R、q = 1）；p = 1（每個更新量都剛好在 W 的格點上）時沒有誤差；
  * 找不到 q ≤ 1024 的分數時以連續均勻餘數近似（floor ≈ −½）。
  */
@@ -916,7 +970,7 @@ export interface FixedLoopAnalytic {
   meanIncErr: number
   /** 只計 W 取整的預測偏差 w* − a = ε̄_WΔ_W/g [fs]（F-04.18） */
   biasPredW: number
-  /** dither 比 μσ_G/Δ_W：≳ DITHER_MIN 時更新量的餘數近似均勻（wLsb = 0 時為 Infinity） */
+  /** dither 比 μσ_G/Δ_W：≥ ditherMinFor(wRounding) 時偏差預測（F-04.18）可用（DITHER_MIN；toward_zero 加倍）；wLsb = 0 時為 Infinity */
   ditherRatioW: number
   /** 最負 code 出現的機率（negate = 'inplace' 時才會造成偏差；其他情況為 0） */
   pMin: number
@@ -924,7 +978,7 @@ export interface FixedLoopAnalytic {
   biasPred: number
   /** 收斂附近 S 的標準差（code LSB）≈ √(N·E[x_int²]) */
   sigmaS: number
-  /** dither 比 σ_S/2^ℓ：≥ DITHER_MIN 時偏差預測可用（≥ 1 時餘數幾乎均勻、回復斜率 χ ≈ 1） */
+  /** dither 比 σ_S/2^ℓ：≥ ditherMinFor(rounding) 時偏差預測（F-04.11）可用（DITHER_MIN；toward_zero 加倍）。≥ 1 時餘數幾乎均勻，floor / half-up / half-even 的回復斜率 χ ≈ 1 */
   ditherRatio: number
   /** 線性化（K_q 小訊號）是否有效：|ε̄/K|·max|x| ≪ σ_v */
   linearValid: boolean
@@ -1279,9 +1333,12 @@ function fixedLoopWarnings(p: FixedLoopParams, an: FixedLoopAnalytic, st: FixedL
       `floor（算術右移直接截斷）在 G ≈ 0 附近平均少 ${fmtN((1 - 2 ** -an.ell) / 2)} 個 G-LSB：迴路會停在 E[G] = +(1 − 2^−ℓ)Δ_G/2 ≈ ½Δ_G 的位置 ⇒ w* − a ≈ ${fmtN(an.biasPredRound)} fs（ε̄Δ_G/K）。改用 round-half-even 或保留更多小數位元 F_G`,
     )
   }
-  if (p.gmMode === 'average' && an.ell > 0 && an.ditherRatio < DITHER_MIN) {
+  // dead zone：下限依 rounding 模式而定（ditherMinFor：toward_zero 在 0 附近的平台寬 2 個 LSB，下限加倍），回復斜率也用該模式自己的（roundingRestoringSlope）
+  if (p.gmMode === 'average' && an.ell > 0 && an.ditherRatio < ditherMinFor(p.rounding)) {
     w.push(
-      `σ_S/2^ℓ = ${fmtN(an.ditherRatio, 3)} < ${DITHER_MIN}：GMAC 雜訊遠小於右移後的 1 個 LSB，取整後的 G 幾乎都是同一個值——平衡點附近的回復斜率只剩 χ ≈ ${fmtN(floorRestoringSlope(an.ditherRatio), 2)}（1 = 沒有取整），迴路實際上停在 dead zone 裡，偏差預測（F-04.11）不再適用。請保留更多小數位元 F_G`,
+      p.rounding === 'toward_zero'
+        ? `σ_S/2^ℓ = ${fmtN(an.ditherRatio, 3)} < ${ditherMinFor(p.rounding)}（toward-zero 的下限是 floor 的兩倍）：|S| < 2^ℓ 時 toward-zero 一律輸出 0，0 兩側的平台合起來寬 2 個 LSB——平衡點 δ = 0 附近的回復斜率只剩 χ ≈ ${fmtN(roundingRestoringSlope(an.ditherRatio, p.rounding), 2)}（1 = 沒有取整），迴路實際上停在 dead zone 裡，偏差預測（F-04.11）不再適用。請保留更多小數位元 F_G`
+        : `σ_S/2^ℓ = ${fmtN(an.ditherRatio, 3)} < ${DITHER_MIN}：GMAC 雜訊遠小於右移後的 1 個 LSB，取整後的 G 幾乎都是同一個值——平衡點附近的回復斜率只剩 χ ≈ ${fmtN(floorRestoringSlope(an.ditherRatio), 2)}（1 = 沒有取整），迴路實際上停在 dead zone 裡，偏差預測（F-04.11）不再適用。請保留更多小數位元 F_G`,
     )
   }
   const wLsb = p.wLsb !== undefined && p.wLsb > 0 ? p.wLsb : 0
@@ -1290,9 +1347,12 @@ function fixedLoopWarnings(p: FixedLoopParams, an: FixedLoopAnalytic, st: FixedL
       `更新量 μ·G 以 ${ROUNDING_LABEL[p.wRounding ?? 'half_even']} 取整到 W 的 LSB Δ_W = ${fmtN(wLsb)} fs（R = Δ_W/(μΔ_G) = ${fmtN(an.wRatio)}）：平均誤差 ${fmtN(an.meanIncErr)} fs／block ⇒ w* − a ≈ ε̄_WΔ_W/g = ${fmtN(an.biasPredW)} fs（F-04.18）。這個偏差 ∝ 1/g：μ 調小反而更大。請增加 W 的小數位元（Δ_W ≤ 2g × 可容忍偏差）或改用 round-half-even`,
     )
   }
-  if (wLsb > 0 && an.ditherRatioW < DITHER_MIN) {
+  const wMode = p.wRounding ?? 'half_even'
+  if (wLsb > 0 && an.ditherRatioW < ditherMinFor(wMode)) {
     w.push(
-      `μσ_G/Δ_W = ${fmtN(an.ditherRatioW, 3)} < ${DITHER_MIN}：每個 block 的更新量雜訊遠小於一個 W-LSB，取整後絕大多數更新是 0 或 ±1 LSB——平衡點附近的回復斜率只剩 χ ≈ ${fmtN(floorRestoringSlope(an.ditherRatioW), 2)}，迴路停在 dead zone 裡，偏差預測（F-04.18）不再適用（實體 gain 量化的完整討論見 Ch13）`,
+      wMode === 'toward_zero'
+        ? `μσ_G/Δ_W = ${fmtN(an.ditherRatioW, 3)} < ${ditherMinFor(wMode)}（toward-zero 的下限是 floor 的兩倍）：更新量的絕對值小於一個 W-LSB 時 toward-zero 一律取成 0，0 兩側的平台合起來寬 2 個 LSB——平衡點 δ = 0 附近的回復斜率只剩 χ ≈ ${fmtN(roundingRestoringSlope(an.ditherRatioW, wMode), 2)}，迴路停在 dead zone 裡，偏差預測（F-04.18）不再適用（實體 gain 量化的完整討論見 Ch13）`
+        : `μσ_G/Δ_W = ${fmtN(an.ditherRatioW, 3)} < ${DITHER_MIN}：每個 block 的更新量雜訊遠小於一個 W-LSB，取整後絕大多數更新是 0 或 ±1 LSB——平衡點附近的回復斜率只剩 χ ≈ ${fmtN(floorRestoringSlope(an.ditherRatioW), 2)}，迴路停在 dead zone 裡，偏差預測（F-04.18）不再適用（實體 gain 量化的完整討論見 Ch13）`,
     )
   }
   const aMax = Math.max(p.aTrue, p.aStepBlock >= 0 ? p.aStepValue : p.aTrue)

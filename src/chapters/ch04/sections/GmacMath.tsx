@@ -223,7 +223,8 @@ export function GmacMathSection() {
           result={R`E[G_k]\approx K\,\delta_k,\quad K=K_qC\;[\mathrm{fs}^{-1}]`}
         />
         <p className="small">
-          <ClaimTag kind="approx" /> 小訊號近似，相對誤差約 <Tex>{R`(\delta u/\sigma_v)^2/6`}</Tex>。<Tex>K</Tex> 的單位是 <Tex>{R`\mathrm{fs}^{-1}`}</Tex>、
+          <ClaimTag kind="approx" /> 小訊號近似，相對誤差約 <Tex>{R`(\delta u/\sigma_v)^2/6`}</Tex>。第 3 步的 <Tex>{R`e=\delta_ku+v`}</Tex> 在 PLL 誤差路徑有記憶（<Tex>{R`u\ne x`}</Tex>）時另需{' '}
+          <Tex>w</Tex> 在 <Tex>h</Tex> 的記憶長度內近似不變（§3 推導的第 1 步，Ch06 的 F-06.1）；identity path（<Tex>{R`u=x`}</Tex>）時是等式。<Tex>K</Tex> 的單位是 <Tex>{R`\mathrm{fs}^{-1}`}</Tex>、
           <Tex>{R`\mu`}</Tex> 的單位是 <Tex>{R`\mathrm{fs}`}</Tex>，乘起來 <Tex>{R`g=\mu K`}</Tex> 無因次 <Erratum id="E13" />
           。若 <Tex>{R`C\le0`}</Tex>（PLL 路徑相位 &gt; 90° 或 code 錯位），平均更新方向相反（Ch06、Ch07）。
         </p>
@@ -376,7 +377,7 @@ export function GmacMathSection() {
           <Tex>{R`N=${N5}`}</Tex> 為例 <SourceTag kind="illustrative" />：
         </p>
         <TexBlock id="F-04.6">
-          {R`E[S_N]=Nm_q=${tx(N5 * m, 6)},\;\mathrm{sd}(S_N)=\sqrt{N(1-m_q^2)}=${tx(Math.sqrt(N5 * (1 - m * m)), 6)};\quad E[G]=m_q=${tx(m, 6)},\;\mathrm{sd}(G)=\sqrt{\tfrac{1-m_q^2}{N}}=${tx(Math.sqrt((1 - m * m) / N5), 6)}`}
+          {R`\begin{aligned}E[S_N]&=Nm_q=${tx(N5 * m, 6)},&\mathrm{sd}(S_N)&=\sqrt{N(1-m_q^2)}=${tx(Math.sqrt(N5 * (1 - m * m)), 6)};\\E[G]&=m_q=${tx(m, 6)},&\mathrm{sd}(G)&=\sqrt{\tfrac{1-m_q^2}{N}}=${tx(Math.sqrt((1 - m * m) / N5), 6)}\end{aligned}`}
         </TexBlock>
         <p>
           兩者差 <Tex>N</Tex> 倍，但「方向判斷」<Tex>{R`P(S_N>0)=P(G>0)`}</Tex> 與尺度無關。histogram 或信賴區間的軸一定要標明是 sum 還是 average。<Tex>N</Tex> 為偶數時 <Tex>{R`S_N=0`}</Tex> 的 tie 必須另訂規則{' '}

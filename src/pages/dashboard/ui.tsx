@@ -1,4 +1,4 @@
-import { useCallback, useMemo, type ReactNode } from 'react'
+import { Children, Fragment, isValidElement, useCallback, useMemo, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Mermaid, mathText, stripMathDelimiters, usePersistentState } from '@/components'
 import { pageById } from '@/app/registry'
@@ -11,7 +11,55 @@ import { erratumById } from './summaries'
  * 直接使用共用的 mathText（與 ExperimentShell 的 warnings、MetricTable 的名稱同一套切法），不另寫一份。
  */
 export function Rich({ text }: { text: string }) {
-  return <>{mathText(text)}</>
+  return <>{gluePunctuation(mathText(text))}</>
+}
+
+/** 緊跟在行內公式後面、不該出現在行首的標點（句號、逗號、頓號、分號、冒號、右括號、右引號…） */
+const CLOSING_PUNCT = /^[。，、；：！？）」』〉》】]+/
+/** 公式超過這個字數就不綁：綁住之後整條公式不能在中間斷行，太長的在手機上會撐出欄寬（22 個字約 200px） */
+export const GLUE_MAX_GLYPHS = 22
+/** 公式排出來大約有幾個字：指令（\sigma、\mathbf…）各算一個字，間距指令、大括號、上下標符號、空白不算 */
+export function texGlyphs(tex: string): number {
+  return tex
+    .replace(/\\[a-zA-Z]+/g, 'x')
+    .replace(/\\[^a-zA-Z]/g, '')
+    .replace(/[{}^_\s]/g, '').length
+}
+
+/**
+ * 把行內公式和緊跟在後面的標點綁在同一行（<span class="dash-glue">，white-space: nowrap）。
+ * KaTeX 的行內公式是不可斷行的 inline-block，瀏覽器允許在它後面換行（不管下一個字是不是句號），
+ * 所以公式剛好排到行尾時，「。」會單獨掉到下一行的開頭。輸入是 mathText() 的結果；純文字原樣回傳。
+ */
+export function gluePunctuation(node: ReactNode): ReactNode {
+  if (!isValidElement(node) || node.type !== Fragment) return node
+  const parts = Children.toArray((node.props as { children?: ReactNode }).children)
+  const out: ReactNode[] = []
+  for (let i = 0; i < parts.length; i++) {
+    const cur = parts[i]
+    const next = parts[i + 1]
+    const tex = isValidElement(cur) ? (cur.props as { children?: unknown }).children : undefined
+    const m = typeof tex === 'string' && texGlyphs(tex) <= GLUE_MAX_GLYPHS && typeof next === 'string' ? CLOSING_PUNCT.exec(next) : null
+    if (!m) {
+      out.push(cur)
+      continue
+    }
+    out.push(
+      <span key={`glue${i}`} className="dash-glue">
+        {cur}
+        {m[0]}
+      </span>,
+    )
+    const rest = (next as string).slice(m[0].length)
+    if (rest) out.push(rest)
+    i++ // 下一段文字已經處理
+  }
+  return <>{out}</>
+}
+
+/** 直接寫在 JSX 裡的「公式 + 標點」：<Glue><Tex>{'w_k'}</Tex>）；</Glue>（和 Rich 自動做的事相同） */
+export function Glue({ children }: { children: ReactNode }) {
+  return <span className="dash-glue">{children}</span>
 }
 
 /**

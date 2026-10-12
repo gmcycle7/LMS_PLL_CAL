@@ -25,6 +25,8 @@ export function S7Lab() {
     const Kq = kqFromSigma(100)
     const C120 = toneCorrelation({ A: 1, mag: 1, phiRad: radOf(120), omega })
     const C120d8 = toneCorrelation({ A: 1, mag: 1, phiRad: radOf(120), omega, delay: 8 })
+    // regressor 選 filtered-x u、D 留在 8：Lab 算的是 E[u_D·u] = (A|H|)²/2·cos(ΩD)（explorerModel 的 Cfx）
+    const Cfx8 = toneCorrelation({ A: 1, mag: 1, phiRad: 0, omega, delay: 8 })
     const p10 = calPole(10, Kq, C120)
     const p1 = calPole(1, Kq, C120)
     const des = designPolarityLoop({ type: 'typeII', zeta: 0.7, bwRatio: 0.01, loopDelay: 0 })
@@ -32,6 +34,7 @@ export function S7Lab() {
     return {
       C120,
       C120d8,
+      Cfx8,
       p10,
       p1,
       grow1: Math.pow(p1, 400),
@@ -112,8 +115,9 @@ export function S7Lab() {
             <Tex>{`${fx(n.C120d8, 3)}`}</Tex>（delay alignment，第 07 章的主題）。
           </li>
           <li>
-            GMAC regressor 改成 filtered-x <Tex>{'u'}</Tex>：<Tex>{'C'}</Tex> 變成 <Tex>{'E[u^2]\\ge0'}</Tex>，任何 <Tex>{'\\phi'}</Tex> 都收斂（前提是{' '}
-            <Tex>{'\\hat H=H'}</Tex>）。
+            先把 <Tex>{'D'}</Tex> 調回 0，再把 GMAC regressor 改成 filtered-x <Tex>{'u'}</Tex>：<Tex>{'C'}</Tex> 變成 <Tex>{'E[u^2]\\ge0'}</Tex>，任何{' '}
+            <Tex>{'\\phi'}</Tex> 都收斂（前提是 <Tex>{'\\hat H=H'}</Tex>、<Tex>{'D=0'}</Tex>）。<Tex>{'D'}</Tex> 留在上一步的 8 時，Lab 算的是{' '}
+            <Tex>{`E[u_D\\,u]=\\tfrac{A^2|H|^2}{2}\\cos(\\Omega D)=${fx(n.Cfx8, 3)}`}</Tex>，filtered-x 一樣會反向更新（第 07 章）。
           </li>
           <li>
             <Tex>{'\\Omega'}</Tex> 設成 <Tex>{'\\pi'}</Tex>（3.14159265…）：<Tex>{'\\phi'}</Tex> 會被吸附到 <Tex>{'0^\\circ'}</Tex> 或 <Tex>{'180^\\circ'}</Tex>，並出現 E46

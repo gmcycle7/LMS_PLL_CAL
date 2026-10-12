@@ -737,7 +737,8 @@ export function S6MultiTone() {
           小訊號結論（<Tex>{'D=0'}</Tex>、<Tex>{'|\\delta|\\,u_{\\max}\\ll\\sigma_v'}</Tex>）：理想的一階 residue 在近整數時不會讓 Type-II 變號，而是讓恢復力以{' '}
           <Tex>{'\\mathrm{frac}^2'}</Tex> 的速度消失。
         </strong>{' '}
-        <Tex>{'C\\to0^+'}</Tex> 的後果是 LMS 停滯，而固定點 <Tex>{'w^*=a+B/C'}</Tex> 對任何 bias <Tex>{'B'}</Tex> 極度敏感（§11.4、第 11 章）。但這個結論有兩個重要的但書：
+        <Tex>{'C\\to0^+'}</Tex> 的後果是 LMS 停滯，而線性化的固定點 <Tex>{'w^*\\approx a+B/C'}</Tex> 對任何 bias <Tex>{'B'}</Tex> 極度敏感——<Tex>{'B/C'}</Tex>{' '}
+        大到超出線性範圍時，<Tex>{'{a+B/C}'}</Tex> 只是線性外推，不再是固定點（第 11 章 §11.4 的代回檢查）。但這個結論有兩個重要的但書：
         誤差一大（下一個框）或 regressor 錯開一個 sample（再下一個框），符號還是會翻。
       </p>
       <p>

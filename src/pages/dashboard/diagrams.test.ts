@@ -204,6 +204,23 @@ describe('Dashboard 的方塊圖（真正的 mermaid）', () => {
     expect(D.CONDITION_FLOW_CHART).toMatch(/class OK ok/)
   })
 
+  it('R14：條件 ⑥ 在圖上是「殘餘誤差在預算內」（合計 σ_δt 與 spur），不再寫「改善 PLL 輸出」；實體的 PLL 輸出節點保留', async () => {
+    expect(CONDITION_MAP_NAMES[5]).toBe('殘餘誤差在預算內')
+    expect(D.CONDITION_FLOW_CHART).not.toContain('改善')
+    expect(CONDITION_MAP_CHART).not.toContain('改善')
+    const flowG = await flow(D.CONDITION_FLOW_CHART)
+    expect(node(flowG, 'Q6')).toContain(R`$\sigma_{\delta t}$`)
+    expect(node(flowG, 'Q6')).toContain('合計')
+    expect(node(flowG, 'F6')).not.toContain('jitter')
+    expect(node(flowG, 'F6')).toContain('超標')
+    const mapG = await flow(CONDITION_MAP_CHART)
+    expect(node(mapG, 'C6')).toContain(R`$\sigma_{\delta t}$`)
+    expect(node(mapG, 'OUT')).toContain('PLL 輸出') // 這一格畫的是實體路徑，不是檢查
+    expect(edgeText(mapG, 'DTC', 'OUT')).toBe(R`$\delta t = x\cdot\delta w$，經 $T$`)
+    expect(CONDITION_MAP_LEGEND[5].knobs).toContain('DTC-referred')
+    expect(CONDITION_MAP_LEGEND[5].knobs).toContain('單 tone spur')
+  })
+
   it('block 方程式：δ_k = a − w_k（a 為＋、回授的 w_k 為−）、G_k = K_q·(C·δ_k + B) + η_k、w_(k+1) = w_k + μ·G_k', async () => {
     const g = await flow(D.BLOCK_EQUATION_CHART)
     // 加法點 = 圓形節點；每條進來的邊都標了正負號

@@ -161,8 +161,13 @@ describe('RegistrySection（jsdom）', () => {
       { ...ALL_FORMULAS[1], conditions: '純文字條件：0 < g < 2' },
     ]
     const { container } = mountAt(<RegistrySection rows={fake} searching focusId={null} />)
-    const cells = container.querySelectorAll('td.fr-reg-cond')
+    // 使用條件放在公式的正下方（同一格 td.fr-reg-formula 內），不另外佔一欄：表頭只剩六欄
+    const cells = container.querySelectorAll('td.fr-reg-formula > .fr-reg-cond')
     expect(cells.length).toBe(2)
+    expect(container.querySelectorAll('td.fr-reg-cond')).toHaveLength(0)
+    expect(Array.from(container.querySelectorAll('.fr-reg-table thead th')).map((th) => th.textContent)).toEqual(['ID', '名稱、公式與使用條件', '標籤', '規格', '位置', '勘誤'])
+    expect(q(container, 'tr.fr-group-row th').getAttribute('colspan')).toBe('6')
+    for (const c of Array.from(cells)) expect(c.querySelector('.fr-reg-cond-label')?.textContent).toBe('使用條件')
     expect(cells[0].querySelectorAll('.katex').length).toBe(2)
     expect(cells[0].textContent).toContain('average mode')
     expect(cells[1].querySelectorAll('.katex').length).toBe(0)

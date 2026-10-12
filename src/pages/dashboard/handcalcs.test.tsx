@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { fireEvent, render } from '@testing-library/react'
 import { HandCalc, checkAnswer, defaultValues, randomValues, renderTex, texNum } from '@/components'
 import type { HandCalcDef, HandCalcSolution } from '@/data/types'
+import { SIX_CONDITIONS } from './data'
 import { FORMULAS } from './formulas'
 import { BETA_SMALL_ANGLE_MAX, HANDCALCS, handcalc } from './handcalcs'
 import { mathTextProblems } from './mathTextTestUtils'
@@ -303,6 +304,116 @@ describe('Dashboard handcalcs：預設值＝規格的 worked example／golden ve
     expect(values(hot).every(Number.isFinite)).toBe(true)
   })
 
+  it('C01：HC-DB.4 對照一般 LMS 時，最慢的不一定是弱方向——g > 1 時強方向過衝，最慢的是強方向', () => {
+    const def = handcalc('HC-DB.4')
+    // 反例：g = 1.2、ρ = 0.5 ⇒ 強方向 pole 1 − 1.8 = −0.8（14 個 block）、弱方向 pole 0.4（4 個）、preconditioner pole −0.2（2 個）
+    expect([0.8, 0.4, 0.2].map((p) => Math.ceil(Math.log(0.05) / Math.log(p)))).toEqual([14, 4, 2])
+    const hot = def.solve({ mu: 10, N: 4096, g: 1.2, rho: 0.5 })
+    const note = hot.notes?.join(' ') ?? ''
+    expect(note).toMatch(/最慢的反而是強方向/)
+    expect(note).toContain('$14$')
+    expect(note).toContain('$4$')
+    expect(note).toContain('$2$')
+    expect(note).toContain(String.raw`$g\,\tilde\lambda_+=1.8$`)
+    expect(note).not.toContain('弱方向衰減 95% 要 $14$')
+    expect(note).not.toContain('快與安靜不能兼得') // g > 1 時 preconditioner 又快又安靜
+    // σ_w 的比值：((2−g)² − g²ρ²)/((2−g)²(1−ρ²)) 開根號 = 0.7638 < 1
+    const ratio = Math.sqrt(((2 - 1.2) ** 2 - 1.2 ** 2 * 0.25) / ((2 - 1.2) ** 2 * 0.75))
+    expect(ratio).toBeCloseTo(0.7637626158, 9)
+    expect(note).toContain(`$${texNum(ratio, 3)}$ 倍`)
+    for (const text of hot.notes ?? []) expect(mathTextProblems(text), text).toEqual([])
+    // 正常對照：g = 0.5、ρ = 0.99（T11）——文字不變：弱方向 598、preconditioner 5
+    const cool = def.solve({ mu: 10, N: 4096, g: 0.5, rho: 0.99 }).notes?.join(' ') ?? ''
+    expect(cool).toContain('弱方向衰減 95% 要 $598$ 個 block')
+    expect(cool).toContain('preconditioner 只要 $5$ 個 block')
+    expect(cool).toContain('快與安靜不能兼得')
+    expect(cool).not.toMatch(/強方向過衝/)
+    // practice 的組合（g ≤ 0.5）都落在「弱方向最慢」這一邊
+    for (const v of practiceGrid(def)) expect(def.solve(v).notes?.join(' '), JSON.stringify(v)).not.toMatch(/強方向過衝/)
+    // g 略大於 1：兩個方向取整後的 block 數相同（|pole| 0.515 對 0.495，都是 5 個），仍然要走「強方向最慢」這一支——
+    // 否則會印出「代價是 σ_w 變成…（0.993 倍）。快與安靜不能兼得」這種自相矛盾的句子
+    expect([0.515, 0.495].map((p) => Math.ceil(Math.log(0.05) / Math.log(p)))).toEqual([5, 5])
+    const tie = def.solve({ mu: 10, N: 4096, g: 1.01, rho: 0.5 }).notes?.join(' ') ?? ''
+    expect(tie).toMatch(/最慢的反而是強方向/)
+    expect(tie).toContain('（弱方向 $5$ 個，取整後相同）')
+    expect(tie).not.toContain('代價是')
+    expect(tie).not.toContain('快與安靜不能兼得')
+    expect(tie).toContain(`$${texNum(Math.sqrt(((2 - 1.01) ** 2 - 1.01 ** 2 * 0.25) / ((2 - 1.01) ** 2 * 0.75)), 3)}$ 倍`) // 0.993
+    // 格點：只要一般 LMS 穩定（g·λ̃₊ < 2），「代價是…不能兼得」出現 ⇔ g < 1 ⇔ σ_w 的比值 > 1；「反而比較小」出現 ⇔ g > 1 ⇔ 比值 < 1；
+    // g = 1 是分界（比值恰好是 1、preconditioner 仍然比較快），不說「代價」
+    let seenCost = 0
+    let seenQuieter = 0
+    let seenBoundary = 0
+    for (const rho of [0.1, 0.3, 0.5, 0.8, 0.9, 0.99])
+      for (let i = 1; i <= 39; i++) {
+        const g = i === 20 ? 1 : i * 0.05
+        if (g * (1 + rho) >= 2 - 1e-9) continue
+        const text = def.solve({ mu: 10, N: 4096, g, rho }).notes?.join(' ') ?? ''
+        const ratio = Math.sqrt(((2 - g) ** 2 - g * g * rho * rho) / ((2 - g) ** 2 * (1 - rho * rho))) // σ_w(precond)/σ_w(一般 LMS)
+        const tag = `g=${g.toFixed(2)} rho=${rho}`
+        if (g === 1) {
+          seenBoundary++
+          expect(ratio, tag).toBeCloseTo(1, 12)
+          expect(text, tag).toContain('$g=1$ 剛好是分界')
+          expect(text, tag).not.toContain('代價是')
+          expect(text, tag).not.toContain('快與安靜不能兼得')
+          expect(text, tag).not.toMatch(/強方向過衝/)
+        } else if (g < 1) {
+          seenCost++
+          expect(text, tag).toContain('快與安靜不能兼得')
+          expect(text, tag).not.toMatch(/強方向過衝/)
+          expect(ratio, tag).toBeGreaterThan(1)
+        } else {
+          seenQuieter++
+          expect(text, tag).toMatch(/最慢的反而是強方向/)
+          expect(text, tag).toContain('反而比較小')
+          expect(text, tag).not.toContain('代價是')
+          expect(ratio, tag).toBeLessThan(1)
+        }
+      }
+    expect(seenCost).toBeGreaterThan(50)
+    expect(seenQuieter).toBeGreaterThan(20)
+    expect(seenBoundary).toBe(6) // g = 1 時 g(1 + ρ) = 1 + ρ < 2：六個 ρ 的一般 LMS 都穩定
+  })
+
+  it('C01：HC-DB.4 的分界與退化情況——g = 1（σ_w 相同、preconditioner 較快）與 ρ = 0（兩種更新是同一件事）不說「代價」', () => {
+    const def = handcalc('HC-DB.4')
+    // g = 1、ρ = 0.5：一般 LMS 的兩個 pole 是 1 − 1.5 = −0.5 與 1 − 0.5 = 0.5（都是 5 個 block）；preconditioner 的 pole 是 0（1 個 block）
+    expect(Math.ceil(Math.log(0.05) / Math.log(0.5))).toBe(5)
+    // σ_w²：q = μ²/N = 100/4096；一般 LMS ½(q/(2 − 1.5) + q/(2 − 0.5)) = (4/3)q；preconditioner ½(q/1.5 + q/0.5) = (4/3)q
+    const sigma = Math.sqrt(((4 / 3) * 100) / 4096)
+    expect(sigma).toBeCloseTo(0.1804219591, 9)
+    const sol = def.solve({ mu: 10, N: 4096, g: 1, rho: 0.5 })
+    expectClose(values(sol)[4], sigma, 1e-12)
+    const tie = sol.notes?.join(' ') ?? ''
+    expect(tie).toContain(String.raw`每個係數的 $\sigma_w=0.1804\ \mathrm{fs}$，弱方向衰減 95% 要 $5$ 個 block`)
+    expect(tie).toContain(String.raw`preconditioner 只要 $1$ 個 block，$\sigma_w$ 也是 $0.1804\ \mathrm{fs}$`)
+    expect(tie).toContain('$g=1$ 剛好是分界')
+    expect(tie).not.toContain('代價是')
+    expect(tie).not.toContain('1$ 倍')
+    expect(tie).not.toContain('快與安靜不能兼得')
+    // ρ = 0：R̃ = I，兩個 mode 的 λ̃ 都是 1，兩種更新完全相同（任何 g 都一樣）
+    for (const g of [0.5, 1, 1.5]) {
+      const flat = def.solve({ mu: 10, N: 4096, g, rho: 0 }).notes?.join(' ') ?? ''
+      const sw = 10 / Math.sqrt(4096 * g * (2 - g))
+      const blocks = g === 1 ? 1 : Math.ceil(Math.log(0.05) / Math.log(Math.abs(1 - g)))
+      expect(flat, `g=${g}`).toContain(String.raw`$\rho=0$ 時 $\tilde{\mathbf R}=\mathbf I$，preconditioner 和一般 LMS 是同一個更新`)
+      expect(flat, `g=${g}`).toContain(String.raw`同樣是 $${texNum(sw, 4)}\ \mathrm{fs}$，衰減 95% 同樣要 $${blocks}$ 個 block`)
+      expect(flat, `g=${g}`).not.toContain('代價是')
+      expect(flat, `g=${g}`).not.toContain('快與安靜不能兼得')
+      expect(flat, `g=${g}`).not.toMatch(/強方向過衝/)
+    }
+    for (const v of [{ mu: 10, N: 4096, g: 1, rho: 0.5 }, { mu: 10, N: 4096, g: 0.5, rho: 0 }])
+      for (const text of def.solve(v).notes ?? []) expect(mathTextProblems(text), text).toEqual([])
+  })
+
+  it('R12：HC-DB.4 註明這一題取 θ = 0°（交叉相關就是 C·R̃）', () => {
+    const def = handcalc('HC-DB.4')
+    expect(def.formulaTex).toContain(String.raw`P_x=|H|=1,\ \theta=0^\circ`)
+    expect(def.tips?.join('')).toContain(String.raw`這一題取 $\theta=0^\circ$`)
+    expect(def.tips?.join('')).toContain('F-DB.6')
+  })
+
   it('HC-DB.4 對 golden「preconditioner_variance」：Var(ξ) = γ/(K_q² N λ(2 − γ))（γ = 0.5、1、1.5）', () => {
     const v = golden('preconditioner_variance')
     const def = handcalc('HC-DB.4')
@@ -366,12 +477,15 @@ describe('Dashboard handcalcs：預設值＝規格的 worked example／golden ve
     const sol = solveDefault('HC-DB.6')
     expect(values(sol)).toEqual([r.g, r.sigmaW, r.deltaW, r.sigmaDt])
     expectGolden(golden('T13'), 'sigma_w_fs', sol.results[1].value)
-    expect(sol.notes?.[0]).toMatch(/1\. 資訊足夠：通過.*6\. 真正改善 PLL 輸出：通過/)
+    expect(sol.notes?.[0]).toMatch(/1\. 資訊足夠：通過.*6\. 殘餘誤差在預算內：通過/)
+    // 判定列的名稱直接取自條件卡片（不會各寫各的）
+    SIX_CONDITIONS.forEach((c, i) => expect(sol.notes?.[0], c.id).toContain(`${i + 1}. ${c.zh}：`))
+    expect(sol.notes?.join('')).not.toMatch(/真正改善|變好/)
     expect(sol.notes).toHaveLength(2) // 全部通過時沒有額外的失敗原因
     // 預算太小 ⇒ 第六個條件未通過，並在說明中點出，同時引用體檢給的原因
     const def = handcalc('HC-DB.6')
     const tight = def.solve({ ...defaultValues(def), B: 0.5, budget: 0.5 })
-    expect(tight.notes?.join('')).toMatch(/6\. 真正改善 PLL 輸出：未通過/)
+    expect(tight.notes?.join('')).toMatch(/6\. 殘餘誤差在預算內：未通過/)
     expect(tight.notes?.join('')).toMatch(/超出預算/)
     expect(tight.notes?.join('')).toMatch(/條件 6（未通過）：/)
     // timing error 在預算內、但 spur 超過體檢預設的上限：不能只說「在預算內」
@@ -379,7 +493,7 @@ describe('Dashboard handcalcs：預設值＝規格的 worked example／golden ve
     const rs = evaluateThesis({ ...DEFAULT_PARAMS, B: 5, jitterBudget: 10 })
     expect(rs.sigmaDt).toBeLessThan(10)
     expect(rs.spurDbc).toBeGreaterThan(DEFAULT_PARAMS.spurLimit)
-    expect(spurOnly.notes?.join('')).toMatch(/6\. 真正改善 PLL 輸出：未通過/)
+    expect(spurOnly.notes?.join('')).toMatch(/6\. 殘餘誤差在預算內：未通過/)
     expect(spurOnly.notes?.join('')).toContain(String.raw`\approx20\log_{10}(\pi f_{\mathrm{out}}|T|A_t)`)
     // 反面：極性錯誤、步子太大
     expect(def.validate?.({ ...defaultValues(def), phi: 120 })).toMatch(/條件 2/)

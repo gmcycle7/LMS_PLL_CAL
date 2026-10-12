@@ -460,7 +460,7 @@ function isDtTransfer(h: ArrayLike<Complex> | DtTransfer): h is DtTransfer {
  * @param omega 遞增的 Ω 格點 [rad/sample]。若 omega[0] ≥ 0，視為只給 [0, π] 半邊，
  *   並假設 x 與 h 為實數（S_xx 偶對稱、Re{H e^{jΩD}} 偶對稱），結果 = (1/π)∫_0^π。
  *   均勻且涵蓋整個週期（[0, π] 或 [−π, π]）的格點對平滑週期函數有極高精度。
- * @param sxx DTFT 形式的雙邊 PSD（σ_x² = (1/2π)∫S_xx dΩ），單位 [x²/(rad/sample)]；
+ * @param sxx DTFT 形式的雙邊 PSD（σ_x² = (1/2π)∫S_xx dΩ），單位 [x²/(cycle/sample)]（對 Ω/2π 積分；不是每 rad/sample）；
  *   注意這不是 welch 的 one-sided x²/Hz（換算見 dtftPsdToOnesided、E28）。
  * @param h H(e^{jΩ}) 的值（與 omega 同長），或 {b, a}（z⁻¹ 升冪）
  * @param delay D [samples]（GMAC 用 x[n − D]）

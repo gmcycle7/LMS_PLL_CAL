@@ -33,7 +33,7 @@ const SYMBOLS: SymbolEntry[] = [
   { symbol: 'd(x)=c_2x^2+c_3x^3', meaning: m('DTC INL：延遲偏離直線的量（code-dependent delay）；$c_2$、$c_3$ 是二階、三階係數'), unit: '\\mathrm{t.u.}', firstSeen: '§11.0', note: <>{m('規格 §11.2 的 $c$ 改記 $c_3$')} <Erratum id="E12" /></> },
   { symbol: '\\varepsilon_{cc}[n]=\\kappa\\,x[n]', meaning: m('code-correlated deterministic error（DJ）；$\\kappa$ 是耦合係數'), unit: '\\mathrm{t.u.}', firstSeen: '§11.0', note: <>{m('規格 §11 的 $u[n]$ 改名，避免與 $u=h*x$ 衝突')} <Erratum id="E12" /></> },
   { symbol: 'v[n],\\ \\sigma_v', meaning: m('Gaussian 雜訊與其標準差（與 $x$ 獨立）'), unit: '\\mathrm{t.u.}', firstSeen: '§11.0', note: <>{m('$\\sigma_v(x)$ 隨 code 時見')} <Erratum id="E17" /></> },
-  { symbol: 'q[n]=\\operatorname{sign}(e[n])', meaning: m('1-bit comparator 輸出（$\\pm1$）'), unit: '—', firstSeen: '開場', note: m('MC 的 tie：$\\operatorname{sign}(0)=+1$') },
+  { symbol: 'q[n]=\\operatorname{sign}(e[n])', meaning: m('1-bit comparator 輸出（$\\pm1$）'), unit: '—', firstSeen: '開場', note: m('MC 的 tie：$\\operatorname{sign}(0)=+1$；mean-field 取 $\\operatorname{sign}(0)=0$（只有 $\\sigma_v=0$ 的離散 code 才有差別，§11.2）') },
   { symbol: 'G_k', meaning: m('block 平均 GMAC $\\frac1N\\sum q\\,x$（MSE 時 $q\\to e$）'), unit: '—', firstSeen: '§11.A' },
   { symbol: 'K_q=\\sqrt{2/\\pi}/\\sigma_v', meaning: 'comparator 小訊號增益（平均輸出對輸入的斜率）', unit: '\\mathrm{t.u.}^{-1}', firstSeen: '§11.0' },
   { symbol: 't(x)', meaning: m('per-code 零誤差 gain：$e_\\mathrm{det}(x;t)=0$'), unit: '\\mathrm{t.u.}', firstSeen: '先算一次' },
@@ -46,10 +46,18 @@ const SYMBOLS: SymbolEntry[] = [
   { symbol: '\\beta[n]', meaning: m('到達 PD 的其他確定性誤差（不經過 $H_\\mathrm{PD}$ 的部分）'), unit: '\\mathrm{t.u.}', firstSeen: '§11.4' },
   { symbol: 'C=E[x\\,(h*x)]', meaning: '經 PLL 誤差路徑的有效相關（同 Ch06）', unit: '—', firstSeen: '§11.4', note: m('不是 §11 分子的 $E[x\\varepsilon_{cc}]$') },
   { symbol: 'B_\\mathrm{bias}', meaning: m('干擾 bias 項 $bE[x]+E[xd]+E[x\\varepsilon_{cc}]$'), unit: '\\mathrm{t.u.}', firstSeen: '§11.4' },
+  {
+    symbol: '\\gamma_\\mathrm{lin}',
+    meaning: m('線性候選點 $a+B/C$ 代回完整 erf 平均後剩下的平均 GMAC，除以 $K_qB$（固定點 ⇔ $\\gamma_\\mathrm{lin}=0$；$|\\gamma_\\mathrm{lin}|\\le0.05$ 才接受）'),
+    unit: '—',
+    firstSeen: '§11.4',
+    note: m('不是 Ch10 的 loop gain $\\gamma$'),
+  },
+  { symbol: '\\sigma_x', meaning: m('code $x$ 的標準差（§11.4 的實驗把 code 標準化成 $\\sigma_x=1$）；first-order DSM residue 的 sawtooth 每次跳變的高度是 $2\\sqrt3\\,\\sigma_x$'), unit: '—', firstSeen: '§11.4' },
   { symbol: '\\Omega,\\ \\Omega_k,\\ \\Omega_n', meaning: m('離散時間頻率、第 $k$ 條諧波的頻率、主迴路自然頻率 $\\omega_nT_s$'), unit: '\\mathrm{rad/sample}', firstSeen: '§11.4' },
   {
     symbol: 'S=-\\partial E[G]/\\partial w',
-    meaning: m('GMAC 的恢復斜率（$S>0$ 才是吸引的固定點）；Sign：$S\\approx K_qE[x^2]$，MSE：$S=E[x^2]$'),
+    meaning: m('GMAC 的恢復斜率（$S>0$ 才是吸引的固定點；這是小訊號 $|e_\\mathrm{det}|\\ll\\sigma_v$ 的斜率）；Sign：$S\\approx K_qE[x^2]$，MSE：$S=E[x^2]$'),
     note: (
       <>
         {m('與全站的 $K=K_qC$ 是同一個量；規格 §11.4 與 Ch04／Ch08 量測用的 $S_\\mathrm{GMAC}=\\partial E[G]/\\partial w=-S$（正確極性時為負）')} <Erratum id="E13" />

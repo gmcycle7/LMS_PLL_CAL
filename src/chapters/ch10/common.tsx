@@ -129,9 +129,21 @@ export function nint(x: number | null | undefined): string {
   return Math.round(x).toLocaleString('en-US')
 }
 
-/** 矩陣 → TeX bmatrix。比最大元素小 12 個數量級以上的元素視為浮點殘餘、顯示為 0（例如 8.7e−19）。 */
-export function texMat(A: number[][], digits = 4): string {
-  const scale = Math.max(0, ...A.flat().map((v) => (Number.isFinite(v) ? Math.abs(v) : 0)))
+/**
+ * pole、$\rho(\mathbf A)$ 這類「和 1 比大小」的無因次量：絕對值小於 10⁻¹² 的是浮點殘餘，顯示成 0。
+ * 例：deadbeat（$\gamma=1$）的 pole $1-\gamma=0$ 會被算成 1.1e−16 或 5.6e−17。只用在顯示，不改模型的數值。
+ */
+export function chop(x: number, tol = 1e-12): number {
+  return Math.abs(x) < tol ? 0 : x
+}
+
+/**
+ * 矩陣 → TeX bmatrix。比最大元素小 12 個數量級以上的元素視為浮點殘餘、顯示為 0（例如 8.7e−19）。
+ * minScale：矩陣本來的量級（例如 $\mathbf A=\mathbf I+\mathbf M\mathbf J$ 是 1）。整個矩陣數學上是 0 時（deadbeat），
+ * 最大元素自己就是殘餘，要靠它才清得掉。
+ */
+export function texMat(A: number[][], digits = 4, minScale = 0): string {
+  const scale = Math.max(minScale, ...A.flat().map((v) => (Number.isFinite(v) ? Math.abs(v) : 0)))
   const clean = (v: number) => (Number.isFinite(v) && Math.abs(v) < 1e-12 * scale ? 0 : v)
   return `\\begin{bmatrix}${A.map((r) => r.map((v) => tn(clean(v), digits)).join('&')).join('\\\\')}\\end{bmatrix}`
 }

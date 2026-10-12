@@ -379,6 +379,119 @@ describe('Ch10 帶入手算：(a) 預設值 = 模型函式 = 文中 worked examp
     expectRenderable(def, sol, 'HC-10.7 complex')
   })
 
+  it('審查 R02：HC-10.7 的 J 不對稱（J = [[−1, 2], [0, −1]]、μ = 0.5 ⇒ 重根 0.5）——F-10.5 的 5 只是下界，最壞方向要 9 個 block', () => {
+    const def = handcalc('HC-10.7')
+    const v = { j11: -1, j12: 2, j21: 0, j22: -1, mu: 0.5 }
+    expect(def.validate?.(v)).toBeNull()
+    const sol = def.solve(v)
+    const [p1, p2, rhoA] = values(sol)
+    expectClose(p1, 0.5)
+    expectClose(p2, 0.5)
+    expectClose(rhoA, 0.5)
+    const notes = sol.notes?.join(' ') ?? ''
+    expect(notes).toMatch(/穩定/)
+    expect(notes).toMatch(/不是正規矩陣/)
+    expect(notes).toMatch(/下界/)
+    expect(notes).toContain(String.raw`\lceil\ln0.05/\ln\rho\rceil=5$`)
+    expect(notes).toContain('要 $9$ 個 block')
+    expect(notes).not.toContain('k_{95}=5')
+    expectRenderable(def, sol, 'HC-10.7 non-normal')
+    // 對照：正規的 J（旋轉型）⇒ 27 個 block，就是 F-10.5，沒有「下界」
+    const rot = def.solve({ j11: -1, j12: 2, j21: -2, j22: -1, mu: 0.2 })
+    const rotNotes = rot.notes?.join(' ') ?? ''
+    expect(rotNotes).toContain('k_{95}=27$')
+    expect(rotNotes).toMatch(/是正規矩陣/)
+    expect(rotNotes).not.toMatch(/下界/)
+    // 對照：對稱的 J（J₁₂ = J₂₁ = 0.5）⇒ A 對稱，F-10.5 精確：ρ = 1 − 0.2·0.5 = 0.9 ⇒ 29
+    const sym = def.solve({ j11: -1, j12: 0.5, j21: 0.5, j22: -1, mu: 0.2 })
+    expect(sym.notes?.join(' ')).toContain(`k_{95}=${k95(0.9)}$`)
+    expect(k95(0.9)).toBe(29)
+    expect(sym.notes?.join(' ')).not.toMatch(/下界/)
+  })
+
+  it('審查 R02：HC-10.7「換一題」的所有組合（J₁₂、J₂₁ 各自抽）——穩定時寫出的 block 數 = 逐 block 算 ‖A^k‖₂ 的結果', () => {
+    const def = handcalc('HC-10.7')
+    const choices = (key: string) => [...new Set(def.inputs.find((i) => i.key === key)!.practice!.choices as number[])]
+    /** 2×2 的 2-norm（封閉式）：σ_max² = (‖X‖_F² + √(‖X‖_F⁴ − 4 det²))/2 */
+    const norm2x2 = (a: number, b: number, c: number, d: number) => {
+      const f2 = a * a + b * b + c * c + d * d
+      const det = a * d - b * c
+      return Math.sqrt((f2 + Math.sqrt(Math.max(0, f2 * f2 - 4 * det * det))) / 2)
+    }
+    let stable = 0
+    let nonNormal = 0
+    let moved = 0
+    for (const j11 of choices('j11'))
+      for (const j12 of choices('j12'))
+        for (const j21 of choices('j21'))
+          for (const j22 of choices('j22'))
+            for (const mu of choices('mu')) {
+              const v = { j11, j12, j21, j22, mu }
+              expect(def.validate?.(v)).toBeNull()
+              const sol = def.solve(v)
+              const rhoA = sol.results[2].value
+              const text = sol.notes?.join(' ') ?? ''
+              if (!(rhoA < 1 - 1e-9)) {
+                expect(text).not.toMatch(/穩定。/)
+                continue
+              }
+              stable++
+              // 暴力：A = I + μJ 連乘 4000 次，記下最後一個 ‖A^k‖₂ > 0.05 的 k
+              const A = [1 + mu * j11, mu * j12, mu * j21, 1 + mu * j22]
+              let [a, b, c, d] = [1, 0, 0, 1]
+              let last = 0
+              for (let k = 1; k <= 4000; k++) {
+                ;[a, b, c, d] = [A[0] * a + A[1] * c, A[0] * b + A[1] * d, A[2] * a + A[3] * c, A[2] * b + A[3] * d]
+                if (norm2x2(a, b, c, d) > 0.05) last = k
+              }
+              expect(norm2x2(a, b, c, d)).toBeLessThan(1e-9)
+              const brute = last + 1
+              const asym = k95(rhoA)
+              const mNorm = /要 \$(\d+)\$ 個 block/.exec(text)
+              const mPole = /k_\{95\}=(\d+)\$/.exec(text)
+              const tag = JSON.stringify(v)
+              if (mNorm) {
+                nonNormal++
+                expect(text, tag).toMatch(/下界/)
+                expect(Number(mNorm[1]), tag).toBe(brute)
+                expect(text, tag).toContain(String.raw`\rceil=${asym}$`)
+                if (brute > asym) moved++
+              } else {
+                expect(mPole, tag).not.toBeNull()
+                expect(Number(mPole![1]), tag).toBe(brute)
+                expect(brute, tag).toBe(asym)
+                // 2×2 的正規矩陣只有對稱或「旋轉 + 縮放」兩種
+                expect(j12 === j21 || (j12 === -j21 && j11 === j22), tag).toBe(true)
+              }
+            }
+    // 3×5×5×3×4 = 900 組，其中 506 組穩定；不對稱的 J 佔多數，而且其中 336 組的 block 數比 F-10.5 多
+    expect(stable).toBe(506)
+    expect(nonNormal).toBeGreaterThan(300)
+    expect(moved).toBe(336)
+  })
+
+  it('審查 C01：HC-10.2 輸入 ρ = 0.5、μK_q = 1.2 ⇒ poles 0.4 / −0.8，最慢的是快模式（k₉₅ = 14），說明文字要講出來', () => {
+    const def = handcalc('HC-10.2')
+    const v = { rho: 0.5, muKq: 1.2 }
+    expect(def.validate?.(v)).toBeNull()
+    const sol = def.solve(v)
+    const [pSlow, pFast, k, muTilde] = values(sol)
+    expectClose(pSlow, 0.4)
+    expectClose(pFast, -0.8)
+    expect(k).toBe(14)
+    expect(k).toBe(k95(-0.8))
+    expect(k95(0.4)).toBe(4)
+    expectClose(muTilde, 2.4)
+    const dom = sol.steps.find((st) => st.tex.includes(String.raw`|p|_{\max}=\max`))!
+    expect(dom.tex).toContain('=0.8')
+    expect(dom.why).toMatch(/最慢收斂的不一定是/)
+    expectRenderable(def, sol, 'HC-10.2 fast-led')
+    // 對照：預設數字（ρ = .99、μK_q = .5）最慢的是慢模式
+    const d = solveDefault('HC-10.2')
+    expect(d.steps.find((st) => st.tex.includes(String.raw`|p|_{\max}=\max`))!.why).toMatch(/這裡是慢模式/)
+    expect(d.results[2].value).toBe(598)
+  })
+
   it('T11: HC-10.8 的範例數字 ⇒ k₉₅ = 598 / 5 / 65（golden T11 與文中 598 / 5 / 65），慢模式變異 = §10.4 表格（Lyapunov 數值解）', () => {
     const v = golden('T11')
     const [ks, kf, kr, vs, vf, vr] = values(solveDefault('HC-10.8'))

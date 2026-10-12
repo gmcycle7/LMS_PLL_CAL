@@ -297,7 +297,7 @@ export function S5SecondDiff() {
           steps={[
             { tex: r`u_f[n]=K_2\big(x[n]-2x[n-1]+x[n-2]\big),\qquad K_2=\frac{1}{(\hat\omega_nT_s)^2}`, why: '二次差分 regressor（F-07.14）。' },
             {
-              tex: r`E[u\,u_f]=K_2\sum_k h[k]\,E\big[x[n-k]\,(x[n]-2x[n-1]+x[n-2])\big]=K_2\sum_kh[k]\big(R_x[k]-2R_x[k-1]+R_x[k-2]\big)`,
+              tex: r`\begin{aligned}E[u\,u_f]&=K_2\sum_k h[k]\,E\big[x[n-k]\,(x[n]-2x[n-1]+x[n-2])\big]\\&=K_2\sum_kh[k]\big(R_x[k]-2R_x[k-1]+R_x[k-2]\big)\end{aligned}`,
               why: <>代入 <Tex>{r`u=h*x`}</Tex>；<Tex>{r`E[x[n-k]x[n-j]]=R_x[k-j]`}</Tex>（自相關是偶函數）。</>,
             },
             {
@@ -326,7 +326,7 @@ export function S5SecondDiff() {
           result={r`E[u\,u_f]=K_2\Big[\underbrace{-2(1-\rho_x)\,h[1]}_{d=0:\ 2(1-\rho_x)(K_p+K_i)>0;\ \ d\ge1:\ 0}+(1-\rho_x)^2\Big(1+\sum_{k\ge2}h[k]\rho_x^{k-2}\Big)\Big]`}
         />
         <TexBlock id="F-07.16" label={<>AR(1) code 下二次差分 regressor 的確切相關</>}>
-          {r`E[u\,u_f]=K_2\Big[(1-\rho_x)^2h[0]-2(1-\rho_x)h[1]+(1-\rho_x)^2\sum_{k\ge2}h[k]\rho_x^{k-2}\Big],\qquad E[u_f^2]=2K_2^2(1-\rho_x)(3-\rho_x)`}
+          {r`\begin{aligned}E[u\,u_f]&=K_2\Big[(1-\rho_x)^2h[0]-2(1-\rho_x)h[1]+(1-\rho_x)^2\sum_{k\ge2}h[k]\rho_x^{k-2}\Big],\\E[u_f^2]&=2K_2^2(1-\rho_x)(3-\rho_x)\end{aligned}`}
         </TexBlock>
         <p>
           所以 <Tex>{'d=0'}</Tex> 時只剩 <Tex>{r`O(1-\rho_x)`}</Tex> 的小正值，<Tex>{r`d\ge1`}</Tex> 時連這一項都消失，剩下的括號因 DC null 幾乎完全抵消（<Tex>{r`O((1-\rho_x)^3)`}</Tex>），

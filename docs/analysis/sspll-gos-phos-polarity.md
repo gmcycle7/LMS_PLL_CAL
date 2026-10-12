@@ -33,7 +33,7 @@ sign-error LMS 的平均梯度，等於「regressor 在每一條譜線上的功�
 - **PHOS（8 相 PMUX 偏差）**：regressor 是 8 個 one-hot，矩陣是 circulant。mode-1 有 95%（$W_1=0.9496$）的權重落在 PMUX 的旋轉頻率 $\alpha f_{ref}$。
   - 當 $\alpha f_{ref}$ 落在反號帶內，PHOS LMS 就會反號（數字見下表）。
   - $\alpha\approx\tfrac14$、$\tfrac12$ 附近有 alias 造成的 dead zone。
-  - $\alpha\to0$ 時也是 dead zone（$\lvert\kappa\rvert\lesssim5\times10^{-3}$）。
+  - $\alpha\to0$ 時也是 dead zone（$\lvert\kappa_{PHOS}\rvert\lesssim5\times10^{-3}$；$\kappa_{PHOS}=\min_m\mathrm{Re}\,\kappa_m$，PHOS 各模態的 $\kappa_m$ 是複數，談正負與門檻時看實部，見 §8.1）。
 - **GOS（DTC 增益誤差）**：regressor 是鋸齒波 $\rho[n]$，功率分散到全頻帶的高次諧波。
   - 在相關器延遲 $D=0$ 時，三個迴路都**沒有**反號。
   - 11 個迴路、每個 152,096 個有理 $\beta$ 都沒找到反例，但目前沒有證明。**【研究假說】**
@@ -50,7 +50,7 @@ sign-error LMS 的平均梯度，等於「regressor 在每一條譜線上的功�
 | PM／$\lvert T\rvert$ peaking | 78.79°／0 dB | 60.00°／2.127 dB | 58.58°／1.736 dB |
 | $\mathrm{Re}H_{PD}<0$ 的頻帶 | 無 | $0$–$134.820\ \mathrm{MHz}$，最低 $-0.2053$ @ 83.8 MHz | $0$–$117.278\ \mathrm{MHz}$，最低 $-0.1616$ @ 67.3 MHz |
 | PHOS mode-1「一定反號」區（嚴格界限） | 無 | $32.68$–$125.33\ \mathrm{MHz}$ | $27.72$–$105.09\ \mathrm{MHz}$ |
-| PHOS 反號（$\alpha=j/4096$ 精確 map，$\tau=10^{-2}$） | 無 | $29.3$–$124.0\ \mathrm{MHz}$，最差 $\kappa=-0.1397$ @ 83.0 MHz | $23.4$–$103.5\ \mathrm{MHz}$，最差 $-0.0957$ @ 67.4 MHz |
+| PHOS 反號（$\alpha=j/4096$ 精確 map，$\tau=10^{-2}$） | 無 | $29.3$–$124.0\ \mathrm{MHz}$，最差 $\kappa_{PHOS}=-0.1397$ @ 83.0 MHz | $23.4$–$103.5\ \mathrm{MHz}$，最差 $-0.0957$ @ 67.4 MHz |
 | PHOS alias dead zone（$\tau=10^{-3}$） | 無 | 980–987、1013–1020、1960–1975、1980–1987 MHz | 無 |
 | GOS（$D=0$） | 不反號 | 不反號；near-grid 為 dead zone | 不反號；near-grid 為 dead zone |
 | 大訊號（1-bit，$A\to\infty$）反向 α 數（fine grid 500 點） | 34（全部是 GOS，在 $k/8$ 正下方） | 83 | 75 |
@@ -82,7 +82,7 @@ sign-error LMS 的平均梯度，等於「regressor 在每一條譜線上的功�
 | $p[n]$ | PMUX 相位索引 $\lfloor8\varphi[n]\rfloor\in\{0..7\}$ | – | §2 | |
 | $\rho[n]$ | DTC 細部殘差 $8\varphi[n]-p[n]\in[0,1)$ | 以 $\Delta$ 為單位 | §2 | GOS 的 regressor |
 | $\beta$ | $\mathrm{frac}(8\alpha)$，鋸齒 $\rho$ 的基頻 | cycles/sample | §7 | |
-| $a,\ w_g$ | DTC 增益誤差（GOS）、其估計 | – | §2 | 理想模型 $e_{GOS}=(a-w_g)\rho\Delta$ |
+| $a,\ w_g$ | DTC 增益誤差（GOS）、其估計 | – | §2 | 理想模型（只留一階，略去 $a\,w_g$）$e_{GOS}=(a-w_g)\rho\Delta$；不略去時零點在 $w_g=a/(1-a)$ |
 | $\varepsilon_k,\ w_k$ | 第 $k$ 個 PMUX 相位的偏差、其估計 | s（fs） | §2 | |
 | $\delta$ | 權重誤差：$\delta_g=a-w_g$，$\delta_k=\varepsilon_k-w_k$ | – | §4 | **本章採 $\delta=$ 真值 − 估計**（validation.md 的極性衝突以此為準） |
 | $x_i[n]$ | regressor：$x_0=\rho$，$x_{1+k}=\mathbb 1\{p[n]=k\}$ | – | §2 | |
@@ -100,10 +100,10 @@ sign-error LMS 的平均梯度，等於「regressor 在每一條譜線上的功�
 | $K_q$ | Bussgang 增益 $\sqrt{2/\pi}/\sigma_v$ | fs$^{-1}$ | §4 | 數值 $3.989\times10^{-3}\ \mathrm{fs}^{-1}$ |
 | $\Gamma_{\rm eff}(f)$ | 有效 kernel $H_{PD}(f)\,\overline{G(f)}$ | – | §4 | |
 | $C$ | 9×9 平均 GMAC 矩陣 $C_{ij}=\langle r_i\,(h_{PD}*x_j)\rangle$ | – | §4 | |
-| $\lambda_m$ | PHOS 8×8 circulant 的 DFT 模態特徵值，$m=0..7$ | – | §8 | |
-| $\kappa$ | 正規化斜率：$\kappa_m=8\lambda_m$、$\kappa_{PHOS}=8\min_m\mathrm{Re}\lambda_m$、$\kappa_{GOS}=C_{GOS}/\mathrm{var}(\rho)=12C_{GOS}$ | – | §4 | $H\equiv1$ 時 $\kappa=1$ |
+| $\lambda_m$ | PHOS 8×8 circulant 的 DFT 模態特徵值，$m=0..7$；一般是複數，$\lambda_{8-m}=\overline{\lambda_m}$ | – | §8 | |
+| $\kappa$ | 正規化斜率：$\kappa_m=8\lambda_m$（複數；談正負與上下界時取實部）、$\kappa_{PHOS}=\min_m\mathrm{Re}\,\kappa_m=8\min_m\mathrm{Re}\,\lambda_m$、$\kappa_{GOS}=C_{GOS}/\mathrm{var}(\rho)$（$\beta$ 為無理數時 $\mathrm{var}(\rho)=\tfrac1{12}$，即 $12C_{GOS}$）。整個複數只在有限步長判據（§12）使用 | – | §4 | $H\equiv1$ 時 $\kappa=1$（GOS 的基準是去掉平均值的 $\rho$） |
 | $\tau$ | 判定 dead zone 的門檻（$\kappa<-\tau$ 才算反號） | – | §8 | $10^{-3}$ 或 $10^{-2}$ |
-| $N_\tau$ | 開迴路（$H\equiv1$）時 LMS 的時間常數 | block | §12 | sim 取 25 |
+| $N_\tau$ | 開迴路（$H\equiv1$、$\kappa=1$）時 LMS 的名義時間常數：每個 block 誤差乘上 $1-1/N_\tau$（降到 $1/e$ 實際要 $-1/\ln\lvert1-1/N_\tau\rvert$ 個 block） | block | §12 | sim 取 25 |
 | $W_1$ | mode-1 基波權重 $64\sin^2(\pi/8)/\pi^2$ | – | §8 | $0.94964$ |
 | $D$ | 相關器延遲：$r[n]=x[n-D]$ | sample | §7 | 正確值為 0 |
 | $u_{os}$ | 比較器／PD 的 DC offset | fs | §13 | |
@@ -132,7 +132,7 @@ flowchart LR
 
 **兩個誤差的注入點**：
 
-- **GOS**：DTC 在 reference 端。DTC 只能延遲、不能提前，所以它的延遲是固定的基準延遲 $T_0$ 減掉「補償量」（$T_0$ 是常數，被 PLL 當成靜態相位偏移吸收）；實際的補償量是 $(1-a)(1+w_g)\rho\Delta$，理想值是 $\rho\Delta$。理想模型下，比較點（PD 的輸入端）多出 $e_{GOS}[n]=(a-w_g)\,\rho[n]\,\Delta$。
+- **GOS**：DTC 在 reference 端。DTC 只能延遲、不能提前，所以它的延遲是固定的基準延遲 $T_0$ 減掉「補償量」（$T_0$ 是常數，被 PLL 當成靜態相位偏移吸收）；實際的補償量是 $(1-a)(1+w_g)\rho\Delta$，理想值是 $\rho\Delta$。理想模型下，比較點（PD 的輸入端）多出 $e_{GOS}[n]=(a-w_g)\,\rho[n]\,\Delta$。（理想模型＝只留一階：$\rho\Delta-(1-a)(1+w_g)\rho\Delta=(a-w_g+a\,w_g)\rho\Delta$，略去 $a\,w_g$，條件是 $\lvert a\rvert\ll1$、$\lvert w_g\rvert\ll1$；不略去時零點在 $w_g=a/(1-a)$，例如 $a=0.03$ 時是 $0.03093$。同一個理想模型也略去 $w_k$ 被 DTC 總增益乘到的那一項：$(1-a)(1+w_g)\,w_k=w_k-(a-w_g+a\,w_g)\,w_k$。§10 的 sim 與 §14 的 `run_sign_lms` 用的是沒有略去這些項的物理注入模型。）
 - **PHOS**：PMUX 在 feedback 端。選到第 $k$ 相時，feedback edge 多早到一個固定的時間偏差 $\varepsilon_k$（晚到就是負值）；這個偏差經由 reference 端的 DTC 在補償量裡加上 $w_k$ 補回來。所以 $e_{PHOS}[n]=\sum_k(\varepsilon_k-w_k)\,\mathbb 1\{p[n]=k\}$。
 
 **極性約定**：PD 量的是「DTC 之後的 reference edge 減 feedback edge」（$t_{ref}'-t_{fb}$），所以 reference 端與 feedback 端的誤差在比較點的符號相反；本文把兩邊都換算成「該補的量減掉 DTC 實際補上的量」（網站的全站約定見 [assumptions.md §2a](../assumptions.md)，案例頁 `/case/sspll` §2 用同一個寫法）。1-bit 比較器取的是 PD（SSPD）的輸出，也就是送進 loop filter 的同一個節點。`analysis/sspll` 的 Python 模型把同一個式子記成「需要的 reference delay − 實際的 DTC delay」——也就是把 $\rho\Delta$、$\varepsilon_k$ 讀成 feedback edge 晚到、DTC 的延遲隨 code 變長、PD 取 $t_{fb}-t_{ref}'$；兩種讀法互為鏡像（edge 的早晚與 PD 的正負號同時反過來，再差一個常數 $T_0$），$u[n]$ 的式子、$C$ 矩陣與所有數值結論完全相同。你的電路是哪一種讀法，只影響 DTC code 要不要取補數與更新式的正負號（見案例頁 §2 的「極性約定」）。我們規定：在 $H_{PD}\equiv1$（沒有迴路）時，$w\leftarrow w+\mu\,q\,r$ 會往正確方向更新，並用這個規定吸收兩邊的符號。實作時，GOS 與 PHOS 的更新符號要**各自**依 $H\equiv1$ 推導，因為 PHOS 的修正是透過 reference 端的 DTC 加上去的，誤差卻來自 feedback 端。
@@ -230,7 +230,7 @@ E[q\mid e] &= P(e+v>0)-P(e+v<0) && \text{(1)}\\
 &= \mathrm{erf}\!\left(\frac{e}{\sqrt2\,\sigma_v}\right) && \text{(2)}\\
 &\approx \sqrt{\tfrac{2}{\pi}}\frac{e}{\sigma_v}\;=\;K_q\,e && \text{(3)}\\
 E[G_i] &= E\Big[\tfrac1N\textstyle\sum_n q[n]\,r_i[n]\Big]\approx K_q\,\langle r_i\,e_{PD}\rangle && \text{(4)}\\
-e_{PD} &= h_{PD}*\Big(\textstyle\sum_j \delta_j\,x_j\Big)=\textstyle\sum_j \delta_j\,(h_{PD}*x_j) && \text{(5)}\\
+e_{PD} &= h_{PD}*\Big(\textstyle\sum_j \delta_j\,x_j\Big)\;\overset{\delta_j\ \text{固定}}{=}\;\textstyle\sum_j \delta_j\,(h_{PD}*x_j) && \text{(5)}\\
 E[G_i] &\approx K_q\textstyle\sum_j \underbrace{\langle r_i\,(h_{PD}*x_j)\rangle}_{C_{ij}}\,\delta_j = K_q\,(C\delta)_i && \text{(6)}\\
 \delta_{k+1} &= \delta_k-\mu K_q\,C\,\delta_k && \text{(7)}
 \end{aligned}
@@ -240,7 +240,7 @@ $$
 2. $v$ 是高斯，$P(v>-e)-P(v<-e)$ 正好寫成 erf。
 3. Bussgang 線性化：$\lvert e\rvert\ll\sigma_v$ 時取 erf 的泰勒一階。例：$\sigma_v=200$ fs 時 $K_q=3.989\times10^{-3}\ \mathrm{fs}^{-1}$。
 4. 一個 block 的 GMAC 輸出取期望，代入 (3)。block 夠長時，樣本平均可以換成時間平均。
-5. 理想模型下的殘差：每個權重誤差 $\delta_j$ 乘上它的 regressor，再通過迴路。LTI 系統可以逐項通過。
+5. 理想模型下的殘差：每個權重誤差 $\delta_j$ 乘上它的 regressor，再通過迴路。第二個等號把 $\delta_j$ 當成常數提到卷積外面：$h_{PD}$ 是 LTI，但只有不隨時間變的係數才能提出來；權重在更新時這個等號只是近似，前提是權重在 $h_{PD}$ 的記憶長度內幾乎不變（時間尺度分離）。以預設的 $N=512$、$N_\tau=25$ 為例：LMS 的名義時間常數是 $512\times25=12800$ 拍，有迴路時每個模態再除以 $\mathrm{Re}\,\kappa$；用 raw regressor、8 個相位被選到的次數一樣多時 $\mathrm{Re}\,\kappa$ 是 $\mathrm{Re}\,H_{PD}$ 的加權平均，不超過它的最大值（約 1.24），所以至少約一萬拍，而三個標稱迴路的脈衝響應只有 14、40、49 拍（$\sum\lvert h_{PD}\rvert$ 的 99.9%）——慢 200 倍以上。換成 §11 的其他 regressor（步長另外對功率正規化）或 $\alpha$ 是分母很小的有理數時，每個 block 修掉的比例會再大幾倍，最極端的是 $\alpha=\tfrac12$ 配 filtered-x 的 $8/N_\tau$，仍然慢 30 倍以上。時域模擬照實際順序計算（先乘、再通過迴路），不用這個近似。
 6. 把 (5) 代入 (4)，定義 $C$。
 7. 權重更新 $w\leftarrow w+\mu G$，而 $\delta=$ 真值 − $w$，所以 $\delta$ 減少 $\mu E[G]$。
 
@@ -250,7 +250,7 @@ $$
 \boxed{\ \text{小 }\mu\text{ 時，平均收斂}\iff \mathrm{Re}\,\mathrm{eig}(C)>0\ \text{（在可觀測子空間）}\ }
 $$
 
-**【精確｜指定模型】**（指 Bussgang 線性化與穩態平均下）。若某個 eigenvalue 的實部 $<0$，那個方向的誤差會指數成長，這就是反號。有限步長的條件更嚴，見 §12。
+**【精確｜指定模型】**（指 Bussgang 線性化、穩態平均、權重慢變（時間尺度分離）下）。若某個 eigenvalue 的實部 $<0$，那個方向的誤差會指數成長，這就是反號。有限步長的條件更嚴，見 §12。
 
 <details><summary><b>先備知識：矩陣、特徵值、可觀測子空間（點開）</b></summary>
 
@@ -540,9 +540,14 @@ $$
 2. 鋸齒波的 Fourier 級數（標準結果，可以對 $x$ 在 $(0,1)$ 上積分驗證）。
 3. 每個正弦拆成 $\pm m\beta$ 兩條線，各自的功率是 $(1/2\pi m)^2$。
 4. 代入 §4.3 的 (6)。DC 項 $1/2$ 乘上 $\Gamma(0)=0$。
-5. $\sum 1/m^2=\pi^2/6$；權重加總恰好等於 $\rho$ 的變異數。
+5. $\sum 1/m^2=\pi^2/6$；權重加總是 $\tfrac1{12}$，也就是在 $[0,1)$ 上均勻分布的鋸齒的變異數（$\beta$ 為無理數時 $\rho$ 就是這樣分布）。
 
-**【精確｜指定模型】**（$\alpha$ 為無理數時精確。有理數且 $8\mid Q$ 時，golden 的 exact periodic 與諧波和誤差 $\le8.3\times10^{-10}$）。正規化 $\kappa_{GOS}=12C_{GOS}$，$H\equiv1$ 時為 1。另外 $C(\beta)=C(1-\beta)$（譜線對稱），所以 $k/8$ 兩側的行為相同。
+**【精確｜指定模型】**（$C_{GOS}$ 的諧波和：$\alpha$ 為無理數時精確；有理數且 $8\mid Q$ 時也等於 exact periodic 的 $C_{GOS}$——golden 核對 4 個長週期的 $\alpha$，誤差 $\le8.3\times10^{-10}$）。正規化：$\kappa_{GOS}=C_{GOS}/\mathrm{var}(\rho)$。分母 $\mathrm{var}(\rho)$ 是把 $\rho$ 去掉平均值之後、沒有迴路（$H\equiv1$）時的斜率，所以 $H\equiv1$ 時 $\kappa_{GOS}=1$。$\beta$ 為無理數（或週期很長）時 $\mathrm{var}(\rho)=\tfrac1{12}$，於是 $\kappa_{GOS}=12C_{GOS}$；本文標成 $12C$ 的數字都乘這個固定的 12。
+
+- **有理數的 $\beta$：$\mathrm{var}(\rho)$ 比 $\tfrac1{12}$ 小。** $\beta=a/b$（最簡分數；$8\mid Q$ 時 $b=Q/8$）時，$\rho$ 一個週期只取 $0,\tfrac1b,\dots,\tfrac{b-1}{b}$ 這 $b$ 個值，$\mathrm{var}(\rho)=\frac{b^2-1}{12b^2}$。例：$\alpha=\tfrac1{16}$（250 MHz）時 $\beta=\tfrac12$，$\rho$ 在 $0$ 與 $\tfrac12$ 之間交替，平均 $\tfrac14$，$\mathrm{var}(\rho)=\tfrac1{16}$。$C_{GOS}$ 的公式不變：少掉的 $\tfrac1{12b^2}$ 是 $m$ 為 $b$ 的倍數的那些諧波，它們折到 DC，被 $\Gamma_{\rm eff}(0)=0$ 乘掉。所以 $\kappa_{GOS}=\frac{b^2}{b^2-1}\cdot12C_{GOS}$：$b=2$ 是 $\tfrac43$ 倍（L2 在這一點：$12C=0.8859$、$\kappa_{GOS}=1.1812$），$b=8$ 多 $1.6\%$，$b=1000$（sign map 大多數的格點）只差 $10^{-6}$。兩者只差一個正的倍數，符號相同。§8.3 的表與 golden sign map 除以實際的 $\mathrm{var}(\rho)$；其餘標成 $12C$ 的數字用固定的 12。
+- **「$H\equiv1$ 時為 1」比的是去掉平均值的 $\rho$。** (4) 能丟掉 DC 項，是因為閉迴路的 $\Gamma_{\rm eff}(0)=0$。沒有迴路時 $\Gamma_{\rm eff}(0)=1$，DC 項留著：拿原始的 $\rho$ 直接算，會得到 $C=E[\rho^2]=\tfrac14+\tfrac1{12}=\tfrac13$，$12C=4$ 而不是 1。所以這裡的開迴路基準只算 AC 功率 $\mathrm{var}(\rho)$；§10 的時域 sim 的 GOS 參考保留了 DC，那裡的數字因此與 $12C$ 約差 4 倍。
+
+另外 $C(\beta)=C(1-\beta)$（譜線對稱），所以 $k/8$ 兩側的行為相同。
 
 **先算一次（L2，$\alpha=0.137$，$\beta=0.096$）**：
 
@@ -620,12 +625,14 @@ $$
 
 **【精確｜指定模型】**（無理數 $\alpha$ 或 $8\mid Q$。golden：circulant 誤差 $\le1.1\times10^{-15}$；ergodic 與 periodic 的 $\lambda$ 差 $\le2.5\times10^{-8}$；$\lvert\lambda_0\rvert\le1.8\times10^{-16}$）
 
+**$\kappa_m$ 是複數；談正負時看實部。** $\Gamma_{\rm eff}$ 是複數，所以 $\lambda_m$、$\kappa_m$ 一般也是複數，而且 $\lambda_{8-m}=\overline{\lambda_m}$（$C$ 是實數矩陣；mode 7 是 mode 1 的共軛，$\lambda_4$ 是實數）。§4 說過，決定誤差放大或縮小的是 $\mathrm{Re}\,\lambda$，所以反號、上下界、sign map 與門檻 $\tau$ 看的都是實部：下面一律寫成 $\mathrm{Re}\,\kappa_m$，最差的那個記作 $\kappa_{PHOS}=\min_m\mathrm{Re}\,\kappa_m$。虛部 $\mathrm{Im}\,\kappa_m$ 讓誤差旋轉，到 §12 的有限步長判據才用到；那裡要代整個複數，不能只代實部。
+
 **共模是精確的 null**：對任何 $\alpha$（包括 $8\nmid Q$、occupancy 不均）都成立。因為 $H(1)=0$，全 1 向量同時是右 null（$C\mathbf1=\langle x\,(h*1)\rangle=0$）與左 null（$\mathbf 1^TC=0$）。物理上，共模就是一個靜態相位偏移，迴路會把它吃掉，所以它無害也不可觀測。**【精確｜指定模型】**
 
 **權重集中在基波**：$w_1=W_1=64\sin^2(\pi/8)/\pi^2=0.94964$。所以
 
 $$
-\boxed{\ \kappa_1\approx0.9496\,\mathrm{Re}\,H_{PD}(\alpha f_{ref})+\text{（剩下 5\% 散在高頻）}\ }
+\boxed{\ \mathrm{Re}\,\kappa_1\approx0.9496\,\mathrm{Re}\,H_{PD}(\alpha f_{ref})+\text{（剩下 5\% 散在高頻）}\ }
 $$
 
 mode-1 的 regressor 就是「PMUX 以 $\alpha f_{ref}$ 旋轉」這件事本身。旋轉頻率落在反號帶，mode-1 就反號。
@@ -640,9 +647,9 @@ mode-1 的 regressor 就是「PMUX 以 $\alpha f_{ref}$ 旋轉」這件事本身
 | −15 | 1260 MHz | 0.00422 | 1.17226 | +0.00495 |
 | 17 | 1428 MHz | 0.00329 | 1.17640 | +0.00387 |
 | 其他 | | 0.01175 | | +0.0120 |
-| **合計** $\kappa_1=8\mathrm{Re}\lambda_1$ | | 1 | | **−0.13953** |
+| **合計** $\mathrm{Re}\,\kappa_1=8\,\mathrm{Re}\,\lambda_1$ | | 1 | | **−0.13953** |
 
-這是三方調和後的最差點附近，$-0.1395$；L2 在 $j/4096$ 網格上的最差值是 $-0.1397$ @ 83.0 MHz。同一點其他模態為 $\kappa_{2..4}=0.401,\ 0.830,\ 0.944$，全部 restoring，所以只有 mode-1（以及 mode-7，它是 mode-1 的共軛）反號。
+這是三方調和後的最差點附近，$\mathrm{Re}\,\kappa_1=-0.1395$（完整的複數是 $\kappa_1=-0.1395+0.3116j$；虛部不改變反號與否，§12 才用到）；L2 在 $j/4096$ 網格上的最差值是 $-0.1397$ @ 83.0 MHz。同一點其他模態為 $\mathrm{Re}\,\kappa_{2..4}=0.401,\ 0.830,\ 0.944$，全部 restoring，所以只有 mode-1（以及 mode-7，它是 mode-1 的共軛）反號。
 
 ### 8.2 嚴格的 mode-1 界限：「一定反號」與「不可能反號」
 
@@ -650,13 +657,13 @@ mode-1 的 regressor 就是「PMUX 以 $\alpha f_{ref}$ 旋轉」這件事本身
 
 $$
 \begin{aligned}
-\kappa_1 &= W_1\,\mathrm{Re}\Gamma(\alpha)+\textstyle\sum_{\ell\ne1}w_\ell\,\mathrm{Re}\Gamma(\ell\alpha) && \text{(1)}\\
-W_1\mathrm{Re}\Gamma(\alpha)+(1-W_1)\min_f\mathrm{Re}\Gamma\;\le\;&\kappa_1\;\le\;W_1\mathrm{Re}\Gamma(\alpha)+(1-W_1)\max_f\mathrm{Re}\Gamma && \text{(2)}\\
+\mathrm{Re}\,\kappa_1 &= W_1\,\mathrm{Re}\Gamma(\alpha)+\textstyle\sum_{\ell\ne1}w_\ell\,\mathrm{Re}\Gamma(\ell\alpha) && \text{(1)}\\
+W_1\mathrm{Re}\Gamma(\alpha)+(1-W_1)\min_f\mathrm{Re}\Gamma\;\le\;&\mathrm{Re}\,\kappa_1\;\le\;W_1\mathrm{Re}\Gamma(\alpha)+(1-W_1)\max_f\mathrm{Re}\Gamma && \text{(2)}\\
 \text{一定反號} &\iff \mathrm{Re}\,H(\alpha f_{ref})<-\frac{(1-W_1)\max\mathrm{Re}H}{W_1} && \text{(3)}
 \end{aligned}
 $$
 
-1. 把基波從和裡拿出來。
+1. §8.1 的 (4) 兩邊取實部（權重是實數），再把基波從和裡拿出來。$\kappa_1$ 是複數，不能和實數比大小；能夾的是實部，而反號正好只看實部。
 2. 其餘權重和為 $1-W_1$，每一項夾在 $\mathrm{Re}\Gamma$ 的全域最小與最大之間。
 3. 上界 $<0$ 就保證反號。
 
@@ -687,12 +694,12 @@ $\alpha=j/4096$（$j=1..2048$），exact periodic，floor 約定，理想注入�
 
 ### 8.4 三種「特殊 α」
 
-**(a) 近整數（$\alpha\to0$）：dead zone，不是穩健反號。** one-hot 變成每 $1/(8\alpha)$ 拍換一次相的階梯，$C\approx(\text{rate})\cdot S_\infty\cdot\sum\Delta^2/2$ 加上對 $1/(8\alpha)$ 指數小的尾項。Type-II 的 $S_\infty=0$，只剩符號不定的尾項。L2 在 15.6 MHz 時 $\kappa_{1..4}=+0.00043,\ +0.00001,\ -0.00253,\ -0.0042$：最負的是 m3、m4，不是 m1。這就是報告之間「反號帶下緣 3.9／16／22.5 MHz」說法不同的根因：門檻不同（$10^{-12}$ 或 $10^{-3}$），統計的模態也不同。**【近似｜需驗證】**（數值是精確的，但它的符號會隨 step response 的尾巴、$\sigma_v$、探測幅度而變，實務上一律當作「不收斂、會漂移」）
+**(a) 近整數（$\alpha\to0$）：dead zone，不是穩健反號。** one-hot 變成每 $1/(8\alpha)$ 拍換一次相的階梯，$C\approx(\text{rate})\cdot S_\infty\cdot\sum\Delta^2/2$ 加上對 $1/(8\alpha)$ 指數小的尾項。Type-II 的 $S_\infty=0$，只剩符號不定的尾項。L2 在 15.6 MHz 時 $\mathrm{Re}\,\kappa_{1..4}=+0.00043,\ +0.00001,\ -0.00253,\ -0.0042$：最負的是 m3、m4，不是 m1。這就是報告之間「反號帶下緣 3.9／16／22.5 MHz」說法不同的根因：門檻不同（$10^{-12}$ 或 $10^{-3}$），統計的模態也不同。**【近似｜需驗證】**（數值是精確的，但它的符號會隨 step response 的尾巴、$\sigma_v$、探測幅度而變，實務上一律當作「不收斂、會漂移」）
 
 **(b) 有理數 α 的週期效應。**
 
 - $8\mid Q$：occupancy 均勻，$C$ 是 circulant，與 ergodic 公式一致（golden 在 $Q=4096$、$8192$ 時差 $\le2.5\times10^{-8}$）。
-- $8\nmid Q$：occupancy 不均勻，GOS–PHOS 有耦合（§9）。例：$\alpha=1/50$ 時 L2 的 $8\lambda_{min}=-0.1385$；若改用同一紀錄的開迴路參考正規化（sim 的做法，參考值是 0.12 而不是 1/8），得到 $-0.1443$。sim 報告的「−0.1447 @ α=0.020」與 regressors 報告的「−0.140 @ 84 MHz」之間的差異，**全部**來自這個正規化與 α 本身不同。**【精確｜指定模型】**
+- $8\nmid Q$：occupancy 不均勻，GOS–PHOS 有耦合（§9）。例：$\alpha=1/50$ 時 L2 的 $8\min_m\operatorname{Re}\lambda_m=-0.1385$（特徵值是複數，取實部最小的那一個）；若改用同一紀錄的開迴路參考正規化（sim 的做法，參考值是 0.12 而不是 1/8），得到 $-0.1443$。sim 報告的「−0.1447 @ α=0.020」與 regressors 報告的「−0.140 @ 84 MHz」之間的差異，**全部**來自這個正規化與 α 本身不同。**【精確｜指定模型】**
 - **PE failure**：$\alpha=1/4$ 只走訪 4 個相、$\alpha=1/2$ 只走訪 2 個相；$\alpha=k/8$ 時 $\rho\equiv0$，GOS 不可觀測。
 
 **(c) $\alpha\approx\tfrac14,\tfrac12$ 的 alias 區。** 設 $\alpha=\tfrac14+\delta$，每拍 $p$ 前進 $2+8\delta$：
@@ -700,7 +707,7 @@ $\alpha=j/4096$（$j=1..2048$），exact periodic，floor 約定，理想注入�
 - m4 的 regressor $(-1)^{p[n]}=e^{j\pi p[n]}$ 是頻率 $4\delta$ 的**方波**，基波權重是 $8/\pi^2=0.8106$。
 - 在 $\alpha=\tfrac12+\delta$ 附近，m2 是頻率 $2\delta$ 的階梯相量（基波權重同樣 0.81），m4 是 $4\delta$。
 
-因為 $0.81\min\mathrm{Re}H+0.19\max\mathrm{Re}H>0$（L2 與 L3 都成立），**alias 區的反號永遠不能保證**，只會是近乎抵消的 dead zone。在 $8\mid Q$ 的網格上 $\lvert\kappa\rvert\lesssim5\times10^{-3}$；$8\nmid Q$ 的有理數可以到 $-0.0085$（L2，$\alpha=15/59$），其次 $13/53$：$-0.0078$。L2 在 $Q\le400$、mode-1 帶緣以上有 480 個 PHOS 反號的有理數，**全部**位於 $\tfrac14$ 或 $\tfrac12$ 的 ±0.02 以內；L3 則一個都沒有。**【精確｜指定模型】**（界限部分）
+因為 $0.81\min\mathrm{Re}H+0.19\max\mathrm{Re}H>0$（L2 與 L3 都成立），**alias 區的反號永遠不能保證**，只會是近乎抵消的 dead zone。在 $8\mid Q$ 的網格上 $\lvert\kappa_{PHOS}\rvert\lesssim5\times10^{-3}$；$8\nmid Q$ 的有理數可以到 $-0.0085$（L2，$\alpha=15/59$），其次 $13/53$：$-0.0078$。L2 在 $Q\le400$、mode-1 帶緣以上有 480 個 PHOS 反號的有理數，**全部**位於 $\tfrac14$ 或 $\tfrac12$ 的 ±0.02 以內；L3 則一個都沒有。**【精確｜指定模型】**（界限部分）
 
 ---
 
@@ -849,7 +856,7 @@ periodic 理論與 sim 的反號 α 個數**完全相同**（`test_SSPLL_large_s
 
 ### 10.5 閉迴路 sign-error LMS（真 1-bit 比較器）
 
-設定：$\sigma_v=200$ fs、$N=512$、6000 blocks、2 條雜訊 lane、開迴路時間常數 $N_\tau=25$ blocks；PHOS 起始誤差 173 fs rms（§14 的 `run_sign_lms`）。
+設定：$\sigma_v=200$ fs、$N=512$、6000 blocks、2 條雜訊 lane、開迴路名義時間常數 $N_\tau=25$ blocks；PHOS 起始誤差 173 fs rms（§14 的 `run_sign_lms`）。
 
 | 案例 | raw | 1diff | fx exact | P-only（raw） | P-only + ac |
 |---|---|---|---|---|---|
@@ -898,7 +905,7 @@ $$
 - 證據：小訊號 fine 500 點 0 反號（sim 與理論）；網站 2000 點 map 上 PHOS 與 GOS 都是 0 反號；大訊號（fine 500 點）$A$ = 1 ps、5 ps、∞ 都是 0。
 - 低 PM 也安全：L2 在 PM 40／35／30° 時 $K_i/K_p=0.317/0.388/0.480<2$，margin 為 0.170／0.144／0.119。
 
-**更強的保證（有限步長）**：若 $\mathrm{Re}\Gamma\ge c\lvert\Gamma\rvert^2$ 對所有 $f$ 成立，由 Cauchy–Schwarz 可得 $\mathrm{Re}\lambda\ge c\lvert\lambda\rvert^2/(v^HRv)$（$R$ 為 regressor 相關矩陣）。所以只要 $\mu K_q\lambda_{max}(R)<2c$，block 更新就平均穩定，與 α 無關。一階差分的 disc constant 為 $c=$ 0.403（L1）、0.423（L2）、0.459（L3）。若 PHOS occupancy 均勻，並以 raw regressor 在 $H\equiv1$ 時的時間常數 $N_\tau$ 表示步長（$\mu K_q\lambda_{max}(R)=1/N_\tau$），條件就是 $N_\tau>1/(2c)\approx1.2$ blocks。**【精確｜指定模型】**
+**更強的保證（有限步長）**：若 $\mathrm{Re}\Gamma\ge c\lvert\Gamma\rvert^2$ 對所有 $f$ 成立，由 Cauchy–Schwarz 可得 $\mathrm{Re}\lambda\ge c\lvert\lambda\rvert^2/(v^HRv)$（$R$ 為 regressor 相關矩陣）。所以只要 $\mu K_q\lambda_{max}(R)<2c$，block 更新就平均穩定，與 α 無關。一階差分的 disc constant 為 $c=$ 0.403（L1）、0.423（L2）、0.459（L3）。若 PHOS occupancy 均勻，並以 raw regressor 在 $H\equiv1$ 時的名義時間常數 $N_\tau$（§12）表示步長（$\mu K_q\lambda_{max}(R)=1/N_\tau$），條件就是 $N_\tau>1/(2c)\approx1.2$ blocks。**【精確｜指定模型】**
 
 **直覺**：$x[n]-x[n-1]$ 只在 PMUX 換相、或鋸齒 wrap 的那一拍非零。$h_{PD}[0]=1$ 代表那一拍 PD 看到的就是誤差步階本身，與迴路後面的動態無關，所以符號一定對。
 
@@ -1100,7 +1107,9 @@ def C_periodic(P: int, Q: int, Geff: Callable, side: str = 'right', return_cov: 
 
 ## 12. 有限步長：$\mathrm{Re}\,\kappa>0$ 還不夠
 
-block 更新 $\theta_{k+1}=(I-\mu K_qC)\theta_k$。以 sim 的正規化（開迴路時間常數 $N_\tau$ blocks，$\kappa=8\lambda$）：
+§8 的表格與上下界列的是實部 $\mathrm{Re}\,\kappa_m$；這一節要用整個複數 $\kappa_m=8\lambda_m$。
+
+block 更新 $\theta_{k+1}=(I-\mu K_qC)\theta_k$。以 sim 的正規化（$\mu K_q=8/N_\tau$、$\kappa=8\lambda$，所以 $\mu K_q\lambda=\kappa/N_\tau$；$N_\tau$ 是開迴路的名義時間常數，單位 block——$H\equiv1$、$\kappa=1$ 時每個 block 誤差乘上 $1-1/N_\tau$，降到 $1/e$ 實際要 $-1/\ln\lvert1-1/N_\tau\rvert$ 個 block：$N_\tau=25$ 是 24.50、$N_\tau=5$ 是 4.48；下面的不等式不依賴這個近似）：
 
 $$
 \begin{aligned}
@@ -1121,7 +1130,7 @@ $$
 | L2 | 2（127.0 MHz：$\kappa=0.0059+0.6546j$；1959.0 MHz：$0.0004+0.1952j$） | 4 | 10（127.0–132.8 MHz 與 1957–1959 MHz） |
 | L3 | 1（106.4 MHz：$0.0025+0.5673j$） | 4 | 8 |
 
-**【精確｜指定模型】** 一階差分有 disc constant（§11.1），所以不會有這個問題。另外要記得兩個隱含前提：Bussgang 小訊號（$\lvert e\rvert\ll\sigma_v$），以及 LMS 適應與迴路暫態的時間尺度分離。
+**【精確｜指定模型】** 以 L2 的 127.0 MHz 為例：$\lvert\kappa\rvert^2/(2N_\tau)=0.0086$ 比 $\mathrm{Re}\,\kappa=0.0059$ 大，所以 $N_\tau=25$ 時不穩定；如果只把 §8 的實部代進去，會算成 $(\mathrm{Re}\,\kappa)^2/(2N_\tau)\approx7.0\times10^{-7}$，誤判成穩定。一階差分有 disc constant（§11.1），所以不會有這個問題。另外要記得 §4.2 的推導就用到的兩個前提：Bussgang 小訊號（$\lvert e\rvert\ll\sigma_v$），以及 LMS 適應與迴路暫態的時間尺度分離（§4.2 把 $\delta_j$ 提到卷積外面的那一步）。
 
 ---
 
@@ -1205,7 +1214,7 @@ CPPLL 的 static offset 遠大於 $\sigma_v$，1-bit 比較器會完全飽和，
         W += mu_p * G[:, 1:]                            # PHOS updates
 ```
 
-在這段程式裡，不同對策**只差在 `R` 是怎麼來的**：`regs()` 呼叫的是上一節的 `apply_variant`。P-only 則是把 `loop` 換成 `make_P_only_L2(...)` 或 `make_P_only_L3(...)`。注入模型 `inj(X)` 是 $u=c\Delta+\varepsilon_p-(1-a)(1+w_g)(c\Delta+w_p)$，step size 以 $H\equiv1$ 時的時間常數 25 blocks 決定，並對 regressor 功率做 NLMS 式正規化。
+在這段程式裡，不同對策**只差在 `R` 是怎麼來的**：`regs()` 呼叫的是上一節的 `apply_variant`。P-only 則是把 `loop` 換成 `make_P_only_L2(...)` 或 `make_P_only_L3(...)`。注入模型 `inj(X)` 是 $u=c\Delta+\varepsilon_p-(1-a)(1+w_g)(c\Delta+w_p)$，step size 以 $H\equiv1$ 時的名義時間常數 25 blocks 決定，並對 regressor 功率做 NLMS 式正規化。
 
 ---
 
@@ -1221,7 +1230,7 @@ CPPLL 的 static offset 遠大於 $\sigma_v$，1-bit 比較器會完全飽和，
 6. **step size**：若不是 1diff 或 fx，帶緣附近要滿足 $\mathrm{Re}\kappa>\lvert\kappa\rvert^2/(2N_\tau)$。1diff 有 disc constant，$N_\tau>1.2$ blocks 即可。
 7. **大訊號**：raw／ac 的 keep-out 必須用 $A\to\infty$ 的 map 列；1diff 與 fx 在大訊號下也是 0 反號。
 8. **飽和保護**：加 weight clamp（DTC range）與 lock detector，因為「發散」在硬體上是飽和或失鎖。
-9. **極性**：在 $H\equiv1$（或 $\alpha f_{ref}$ 遠高於迴路頻寬、$\mathrm{Re}H\approx1$ 的頻道，例如 α=0.137 時 $\kappa=+1.06$）驗證更新方向正確。**不要**在帶內頻道用經驗翻正負號，否則帶外所有頻道都會變成錯號。
+9. **極性**：在 $H\equiv1$（或 $\alpha f_{ref}$ 遠高於迴路頻寬、$\mathrm{Re}H\approx1$ 的頻道，例如 α=0.137 時 $\kappa_{PHOS}=+1.06$）驗證更新方向正確。**不要**在帶內頻道用經驗翻正負號，否則帶外所有頻道都會變成錯號。
 
 ### 15.2 α keep-out 配方（給 raw 或 `ac` regressor 用）
 
@@ -1233,7 +1242,7 @@ CPPLL 的 static offset 遠大於 $\sigma_v$，1-bit 比較器會完全飽和，
 
 **步驟 2：PVT margin。** 對每個 loop-gain 角落重做步驟 1 再取聯集。L2 在 ×0.6–×1.5 時，帶緣從 101.0 移到 172.7 MHz，所以 keep-out 上緣至少要到 **173 MHz**。L3 為 84.9–158.2 MHz。
 
-**步驟 3：近整數 dead zone。** $\alpha f_{ref}\lesssim$ 帶的下緣（L2 約 30 MHz、L3 約 23 MHz）屬於 $\lvert\kappa\rvert\lesssim5\times10^{-3}$ 的 dead zone：小訊號會漂移，大訊號會反向。**全部列入**，也就是 keep-out 從 0 MHz 開始。
+**步驟 3：近整數 dead zone。** $\alpha f_{ref}\lesssim$ 帶的下緣（L2 約 30 MHz、L3 約 23 MHz）屬於 $\lvert\kappa_{PHOS}\rvert\lesssim5\times10^{-3}$ 的 dead zone：小訊號會漂移，大訊號會反向。**全部列入**，也就是 keep-out 從 0 MHz 開始。
 
 **步驟 4：alias 區。** 對每一條重要的線 $\ell$（權重 $w_\ell$）檢查 $\mathrm{frac}(\ell\alpha)f_{ref}$ 是否落在反號帶：
 
@@ -1273,7 +1282,7 @@ CPPLL 的 static offset 遠大於 $\sigma_v$，1-bit 比較器會完全飽和，
 
 **(B)**。
 
-- 反號只對 mode-1（以及 mode-7）成立，其他模態（$\kappa_{2..4}>0$）仍是正的。整個翻號會讓 m2–m4 發散。
+- 反號只對 mode-1（以及 mode-7）成立，其他模態（$\mathrm{Re}\,\kappa_{2..4}>0$）仍是正的。整個翻號會讓 m2–m4 發散。
 - 換到別的頻道後，m1 也會跟著錯。
 - (A)、(D) 由 PSD 定理保證；(C) 在物理上可行，但無法追蹤 PVT。
 </details>
@@ -1302,7 +1311,7 @@ $$
 
 $$
 \boxed{\text{Type-II 低頻：}\ \mathrm{Re}H_{PD}\approx-\frac{\Omega^2}{K_i}}\qquad
-\boxed{\kappa_1\approx0.9496\,\mathrm{Re}H_{PD}(\alpha f_{ref})}\qquad
+\boxed{\mathrm{Re}\,\kappa_1\approx0.9496\,\mathrm{Re}H_{PD}(\alpha f_{ref})}\qquad
 \boxed{\text{1diff 安全}\iff1-\cos\Omega+\mathrm{Re}\{(1-e^{-j\Omega})L\}\ge0}
 $$
 
@@ -1339,7 +1348,7 @@ $$
 
 1. **GOS 在 $D=0$ 不反號**：11 個迴路、每個 152,096 個 β、0 個反例，但沒有一般證明。**【研究假說】**
 2. **大訊號判據的範圍有限**：只沿 6 個方向算割線斜率與 $\kappa_\infty$，不是完整的非線性穩定域；吸引域邊界與模態耦合都沒有涵蓋。實際的反號幅度門檻約為 $\sigma_v$，而 200 fs 是插圖值。
-3. **dead zone 的符號沒有意義**：近整數、$\tfrac14$、$\tfrac12$ 附近的 $\lvert\kappa\rvert\lesssim5\times10^{-3}$（$8\nmid Q$ 時可到 $8.5\times10^{-3}$），符號隨 step response 尾巴、$\sigma_v$、探測幅度而變。
+3. **dead zone 的符號沒有意義**：近整數、$\tfrac14$、$\tfrac12$ 附近的 $\lvert\kappa_{PHOS}\rvert\lesssim5\times10^{-3}$（$8\nmid Q$ 時可到 $8.5\times10^{-3}$），符號隨 step response 尾巴、$\sigma_v$、探測幅度而變。
 4. **$8\nmid Q$ 的「一定反號」**只有數值證據（非 normal 矩陣）。
 5. **1diff 的硬體前提**：GOS 與 PHOS 兩條路徑的延遲對齊尚未在電路上驗證。比較器前級極點 ≤0.25 GHz（L3）會失效；sampler 的 charge-sharing 記憶由 physics 審查檢查到 κ≤0.5 仍安全，本文只重跑了比較器極點與 LPTV 兩項。
 6. **P-only**：$C_1\gg C_2$ 模型與精確 $R\parallel C_2$ 的 BW 不同（268 MHz 對 298 MHz）；放開積分路徑時的 transient 沒有模擬。

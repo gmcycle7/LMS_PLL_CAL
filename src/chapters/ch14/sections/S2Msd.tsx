@@ -22,6 +22,9 @@ import { CHART_E48_REGIMES, CHART_MSD_SPLIT, CHART_POLE_REGIMES, CHART_SAMPLE_TO
 import { Hand } from '../Hand'
 import { BIAS2, ErratumNote, md, nf, Steps, tx } from '../shared'
 
+/** §14.1 圖說用的 block 長度（第 10 課／T13 的 N）：「N 個樣本只有 1 個受影響」與 2/N、1/√N 兩個數字都由它算出。 */
+const S2B_N = 4096
+
 const E48_PARAMS: LinearityCheckParams = { seed: 48014, sigmaV: 100, N: 4096, mu: 10, B: 30, ratios: [0.1, 0.2, 0.3, 0.5, 1, 2, 4], chains: 1500 }
 
 /** E48 適用範圍表：δ0/σ_v 變大時線性公式低估多少（worker 計算，exact-binomial Sign-GMAC）。 */
@@ -135,13 +138,35 @@ export function S2Msd() {
       <Diagram chart={CHART_SAMPLE_TO_BLOCK} caption="從 sample rate 到 block rate：標著 sample rate 的框每個 comparator 樣本做一次，標著 block rate 的框每 $N$ 個樣本才做一次；comparator 與 loop filter 取同一個 PD 輸出 $e[n]$；右邊的長虛線表示誤差在一個 block 內不變。">
         <p>
           <strong>先看</strong>標著 sample rate 的框（索引 <Tex>{'n'}</Tex>），由上到下：DTC 的 code <Tex>{'x[n]'}</Tex> 經過 PLL 誤差路徑（從 DTC 到 PD 的輸出）變成 <Tex>{'u[n]'}</Tex>，乘上這個 block 的誤差 <Tex>{'\\delta_k'}</Tex> 就是 PD 輸出裡的訊號部分，再和 RMS 為 <Tex>{'\\sigma_v'}</Tex> 的雜訊 <Tex>{'v[n]'}</Tex> 在加法點相加（兩條線都是正號），
-          得到 <strong>PD 的輸出</strong> <Tex>{'e[n]=\\delta_k\\,u[n]+v[n]'}</Tex>。這個加法點就是送進 loop filter 的那個節點（往右的短虛線是它進 PLL 主迴路的一支），comparator 從<strong>同一個節點</strong>分接：它取的是 PD 的輸出 <Tex>{'e[n]'}</Tex>，不是 DTC 或 divider 的訊號。comparator 只輸出正負號 <Tex>{'q[n]=\\pm1'}</Tex>，再乘上 code <Tex>{'x[n]'}</Tex>。<strong>再看</strong>標著 block rate 的框（索引 <Tex>{'k'}</Tex>，更新率 <Tex>{'f_u=f_s/N'}</Tex>）：GMAC 把 <Tex>{'N'}</Tex> 個{' '}
+          得到 <strong>PD 的輸出</strong> <Tex>{'e[n]\\approx\\delta_k\\,u[n]+v[n]'}</Tex>。這個加法點就是送進 loop filter 的那個節點（往右的短虛線是它進 PLL 主迴路的一支），comparator 從<strong>同一個節點</strong>分接：它取的是 PD 的輸出 <Tex>{'e[n]'}</Tex>，不是 DTC 或 divider 的訊號。comparator 只輸出正負號 <Tex>{'q[n]=\\pm1'}</Tex>，再乘上 code <Tex>{'x[n]'}</Tex>。<strong>再看</strong>標著 block rate 的框（索引 <Tex>{'k'}</Tex>，更新率 <Tex>{'f_u=f_s/N'}</Tex>）：GMAC 把 <Tex>{'N'}</Tex> 個{' '}
           <Tex>{'q[n]x[n]'}</Tex> 平均成一個數 <Tex>{'G_k'}</Tex>，乘 <Tex>{'\\mu'}</Tex> 加進暫存器。右邊那條長虛線是回授：整個 block 內 <Tex>{'w_k'}</Tex> 不變（新的 <Tex>{'w_{k+1}'}</Tex> 要到下個 block 才生效，這就是「無更新延遲 <Tex>{'d=0'}</Tex>」的意思），所以 <Tex>{'\\delta_k'}</Tex> 在 <Tex>{'N'}</Tex> 個樣本內也不變。
         </p>
         <p>
-          圖上加法點輸出的「<Tex>{'e[n]=\\delta_k\\,u[n]+v[n]'}</Tex>」是 PD 的輸出，也就是 comparator 的輸入；藍色方塊輸出的「<Tex>{'G_k\\approx K\\delta_k+\\eta_k'}</Tex>」是下面推導的第 1 步：平均值對誤差的斜率 <Tex>{'K=K_qC'}</Tex>（<Tex>{'K_q=\\sqrt{2/\\pi}/\\sigma_v'}</Tex> 是 comparator 的小訊號增益，<Tex>{'C=E[x\\,u]'}</Tex>{' '}
+          圖上加法點輸出的「<Tex>{'e[n]\\approx\\delta_k\\,u[n]+v[n]'}</Tex>」是 PD 的輸出，也就是 comparator 的輸入；藍色方塊輸出的「<Tex>{'G_k\\approx K\\delta_k+\\eta_k'}</Tex>」是下面推導的第 1 步：平均值對誤差的斜率 <Tex>{'K=K_qC'}</Tex>（<Tex>{'K_q=\\sqrt{2/\\pi}/\\sigma_v'}</Tex> 是 comparator 的小訊號增益，<Tex>{'C=E[x\\,u]'}</Tex>{' '}
           是 <Tex>{'x'}</Tex> 與 <Tex>{'u'}</Tex> 的有效相關），<Tex>{'\\eta_k'}</Tex> 是平均不掉的隨機部分；block rate 框裡的更新式則是第 2 步。
         </p>
+        <p>
+          PD 輸出那條式子寫 <Tex>{'\\approx'}</Tex> 而不是等號：只說「<Tex>{'\\delta_k'}</Tex> 在一個 block 內不變」還不夠，因為誤差路徑有記憶——<Tex>{'u[n]'}</Tex> 用到上一個樣本{' '}
+          <Tex>{'x[n-1]'}</Tex>。每個 block 的第一個樣本，<Tex>{'x[n-1]'}</Tex> 那一項乘的還是上一個 block 的誤差 <Tex>{'\\delta_{k-1}'}</Tex>；其餘 <Tex>{'N-1'}</Tex> 個樣本才是等式。<Tex>{`N=${S2B_N}`}</Tex>{' '}
+          個樣本只有 1 個受影響，所以本章的 L1 模型直接把它當成等式來算。
+        </p>
+        <ModeGate min="engineer">
+          <p>
+            寫成式子：真實電路是先乘後濾（DTC 先留下殘餘誤差 <Tex>{'\\delta\\,x[n]'}</Tex>，再經過誤差路徑），圖上與 L1 模型是先濾後乘（先算 <Tex>{'u[n]'}</Tex>，再乘 <Tex>{'\\delta_k'}</Tex>）。block <Tex>{'k'}</Tex>{' '}
+            的第一個樣本，上一個樣本還在 block <Tex>{'k-1'}</Tex> 裡：
+          </p>
+          {/* 第二個等號折成兩行：寫成一行在 375 px 的手機上會超出欄位；多出來的那一項自己一行也比較醒目 */}
+          <TexBlock>{String.raw`\begin{aligned}
+e[n]&=c\,\delta_k\,x[n]+s\,\delta_{k-1}\,x[n-1]+v[n]\\
+&=\delta_k\,u[n]+v[n]\\
+&\quad+s\,(\delta_{k-1}-\delta_k)\,x[n-1]
+\end{aligned}`}</TexBlock>
+          <p>
+            <Tex>{'w'}</Tex> 凍結（固定不動）時 <Tex>{'\\delta_{k-1}=\\delta_k'}</Tex>，兩種順序完全相同；逐 block 更新時差的只有最後一行那一項，而且只出現在這一個樣本。它最多讓一個 <Tex>{'q[n]'}</Tex> 變號，所以同一個 block 的{' '}
+            <Tex>{'G_k'}</Tex> 最多差 <Tex>{`2/N\\approx${tx(2 / S2B_N, 2)}`}</Tex>，遠小於 <Tex>{'\\eta_k'}</Tex> 的 RMS <Tex>{`1/\\sqrt N\\approx${tx(1 / Math.sqrt(S2B_N), 3)}`}</Tex>。一般的誤差路徑記憶更長，條件是{' '}
+            <Tex>{'w'}</Tex> 在路徑的記憶長度內近似常數（時間尺度分離；第 6 章的 F-06.1，7.4 節有兩拍的反例）。本章 Lab 的 sample-level 對照（blockLms）照真實電路的順序計算，不用這個近似。
+          </p>
+        </ModeGate>
       </Diagram>
       <Diagram chart={CHART_MSD_SPLIT} caption="把遞迴展開後的兩條路：一條是初始誤差留下來的部分，另一條是累積的雜訊；兩條路互不干擾，平方後各自變成一塊。">
         <p>

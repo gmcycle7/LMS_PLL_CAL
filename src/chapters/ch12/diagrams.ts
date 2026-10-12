@@ -365,7 +365,7 @@ ${CLASSES}
 
 /** PSD 的換算：DTFT 形式 → 單邊 per-Hz（F-12.10）→ 輸出相位 PSD（F-12.16）→ ℒ(f) */
 export const CHART_PSD_UNITS = String.raw`flowchart TB
-  A["DTFT 形式 $S(e^{j\Omega})$<br/>雙邊<br/>變異數 $\sigma^2 = \frac{1}{2\pi}\int S\,d\Omega$"] -- "$\times\,2/f_r$" --> B["單邊 per-Hz：$S^{(1)}(f)$<br/>變異數 $\sigma^2 = \int S^{(1)}\,df$，<br/>由 $0$ 積到 $f_r/2$<br/>單位：$\mathrm{fs}^2/\mathrm{Hz}$"]
+  A["DTFT 形式 $S(e^{j\Omega})$<br/>雙邊<br/>變異數 $\sigma^2 = \frac{1}{2\pi}\int S\,d\Omega$<br/>單位：$\mathrm{fs}^2$，每 cycle/sample<br/>（block 量：每 cycle/block）"] -- "$\times\,2/f_r$" --> B["單邊 per-Hz：$S^{(1)}(f)$<br/>變異數 $\sigma^2 = \int S^{(1)}\,df$，<br/>由 $0$ 積到 $f_r/2$<br/>單位：$\mathrm{fs}^2/\mathrm{Hz}$"]
   B -- "$\delta t$ 的 PSD 才做這一步：<br/>$\times\,(2\pi f_{\mathrm{out}})^2|T|^2$（fs 換成秒）" --> C["輸出相位 PSD：$S_\phi^{(1)}(f)$<br/>單位：$\mathrm{rad}^2/\mathrm{Hz}$"]
   C -- "$\div\,2$，再取 $10\log_{10}$" --> D["$\mathcal L(f)$：單邊帶 phase noise<br/>單位：dBc/Hz"]
   A -.- NOTE["$f_r$ 是這個序列自己的取樣率<br/>block 量用 $f_u$，sample 量用 $f_s$"]

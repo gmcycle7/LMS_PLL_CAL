@@ -297,8 +297,9 @@ export function WrapSection() {
         </div>
         <p>
           <strong>連結到 PLL：</strong>殘差 <Tex>{String.raw`e_\mathrm{det}(x;w^*)`}</Tex> 是 code 的確定函數，而 code 是 DSM 的確定序列 —— 所以殘差不是白雜訊，而是會在 fractional
-          frequency 及其諧波產生 spur 的 pattern。GMAC 歸零只保證這個 pattern 與 <Tex>{'x'}</Tex> 不相關，不保證它與 <Tex>{'x^2'}</Tex>、<Tex>{'x^3'}</Tex>{' '}
-          不相關。要壓低它，需要更多校正自由度（例如對 <Tex>{'x^3'}</Tex> 也做一個 LMS 係數 —— 這就進入 Ch09–10 的多參數 LMS 與 PE 問題）。
+          frequency 及其諧波產生 spur 的 pattern。GMAC 歸零只保證這個 pattern 與 <Tex>{'x'}</Tex> 正交（MSE-LMS：
+          <Tex>{String.raw`E[x\,e_\mathrm{det}]=0`}</Tex>；Sign-LMS 在一階近似下也是），不保證它與 <Tex>{'x^2'}</Tex>、<Tex>{'x^3'}</Tex>{' '}
+          正交。要壓低它，需要更多校正自由度（例如對 <Tex>{'x^3'}</Tex> 也做一個 LMS 係數 —— 這就進入 Ch09–10 的多參數 LMS 與 PE 問題）。
         </p>
       </Section>
 
@@ -390,7 +391,7 @@ export function WrapSection() {
       <Recap
         title="這一課最重要的公式"
         formulas={[
-          { tex: String.raw`\boxed{E[x\,e]=0\;\not\Rightarrow\;e[n]=0}`, label: 'GMAC 歸零只代表「與 code 不相關」' },
+          { tex: String.raw`\boxed{E[x\,e]=0\;\not\Rightarrow\;e[n]=0}`, label: 'GMAC 歸零只代表誤差「與 code 正交」（$E[x]=0$ 時也就是不相關）' },
           { tex: F.fixedPoint, label: m('MSE 精確；Sign 需 $\\max_x|e_\\mathrm{det}(x;w^*)|\\ll\\sigma_v$（勘誤 E01）') },
           { tex: String.raw`E[q\mid x]=\operatorname{erf}\!\Big(\frac{e_\mathrm{det}}{\sqrt2\sigma_v}\Big)\approx K_q\Big(e_\mathrm{det}-\frac{e_\mathrm{det}^3}{6\sigma_v^2}\Big)`, label: 'Sign-LMS 的 mean-field 與它的修正項' },
           { tex: String.raw`\text{MSE}:\ w^*=\frac{E[x^2t(x)]}{E[x^2]}\qquad\text{無雜訊 Sign}:\ w^*=\operatorname{med}_{|x|}t(x)`, label: '平均 vs 中位數（1.34 vs 1.4）' },
@@ -405,7 +406,7 @@ export function WrapSection() {
           </>,
           <>{m('Offset 造成的假 gain bias 取決於架構：靜態 $bE[x]/E[x^2]$、共用 BBPD 時消失、線性 PD + 獨立 comparator 時反而更大。')}</>,
           <>{m('Code centering 只在 $\\sigma_v>0$ 且與 code 無關（無雜訊時是 dead zone）、comparator 未飽和、且 DTC 參數一起重新定義時才有效。')}</>,
-          <>{m('與 code 共線的確定性干擾（$\\varepsilon_{cc}=\\kappa x$、$\\pm1$ code 的 $x^3$）無法用單一 regressor 分辨；$C\\to0$（near-integer）時任何 bias 都被 $1/C$ 放大。')}</>,
+          <>{m('與 code 共線的確定性干擾（$\\varepsilon_{cc}=\\kappa x$、$\\pm1$ code 的 $x^3$）無法用單一 regressor 分辨；$C\\to0$（near-integer）時線性化的 bias $B/C$ 被 $1/C$ 放大，放大到 $\\max|e_\\mathrm{det}|>0.3\\,\\sigma_v$ 之後 $a+B/C$ 不能再當作 Sign-LMS 的固定點（$w$ 可能停不下來，Ch06 F-06.19）。')}</>,
         ]}
       />
       <p className="small muted">

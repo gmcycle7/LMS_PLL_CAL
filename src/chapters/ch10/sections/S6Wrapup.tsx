@@ -41,7 +41,7 @@ export function S6Wrapup() {
         <ul>
           <li>
             <ClaimTag kind="exact" /> 在線性 Gaussian 模型 <Tex>{String.raw`\mathbf G=K_q\mathbf C\boldsymbol\delta+\boldsymbol\eta`}</Tex> 下：poles{' '}
-            <Tex>{String.raw`=\operatorname{eig}(\mathbf I+\mathbf M\mathbf J)`}</Tex>、<Tex>{String.raw`k_{95}`}</Tex>、F-10.4 的 <Tex>{String.raw`1-\gamma`}</Tex>、F-10.6 / F-10.7 的變異、Lyapunov
+            <Tex>{String.raw`=\operatorname{eig}(\mathbf I+\mathbf M\mathbf J)`}</Tex>、<Tex>{String.raw`k_{95}`}</Tex>（整個誤差向量以 <Tex>{String.raw`\|\mathbf A^k\|_2\le0.05`}</Tex> 計；<Tex>{String.raw`\mathbf A_{\mathrm{cal}}`}</Tex> 對稱時就是 F-10.5，見下面「598 / 5 / 65」那一點）、F-10.4 的 <Tex>{String.raw`1-\gamma`}</Tex>、F-10.6 / F-10.7 的變異、Lyapunov
             共變異、T18 的 1.2 / 0.4、F-10.10（<Tex>{String.raw`\hat{\mathbf J}=\mathbf J`}</Tex> 時）。這些都是<strong>平均（mean）遞迴</strong>或<strong>二階動差</strong>的結論，不是「每條軌跡」的保證。
           </li>
           <li>
@@ -58,7 +58,10 @@ export function S6Wrapup() {
             <Tex>{'N'}</Tex> 個 sample」為前提。本章的線性 block 模型裡雜訊是加成的（<Tex>{String.raw`-\mathbf M\boldsymbol\eta_k`}</Tex>），所以均方（mean-square）穩定條件與平均穩定條件相同（
             <Tex>{String.raw`\rho(\mathbf A_{\mathrm{cal}})<1`}</Tex>），代價只反映在穩態共變異 F-10.15。若改成每個 sample 都更新（<Tex>{'N=1'}</Tex>）的 conventional 多位元 LMS，regressor
             本身的隨機性會變成乘性雜訊，<Tex>{String.raw`\mu=0.5`}</Tex> 在 mean-square 意義下會發散——那是第 9 章的內容
-            <Erratum id="E23" title="docs/validation.md 勘誤 E23：598 是 mean recursion；per-sample Gaussian regressor 的 mean-square 可能發散（第 9 章）" />。
+            <Erratum id="E23" title="docs/validation.md 勘誤 E23：598 是 mean recursion；per-sample Gaussian regressor 的 mean-square 可能發散（第 9 章）" />。這三個數字還用到{' '}
+            <Tex>{String.raw`\mathbf A_{\mathrm{cal}}`}</Tex> 對稱（<Tex>{String.raw`\mathbf R`}</Tex> 對稱、<Tex>{String.raw`\hat{\mathbf J}=\mathbf J`}</Tex>）：此時最慢 pole 的 F-10.5 就是整個誤差向量的{' '}
+            <Tex>{'k_{95}'}</Tex>。<Tex>{String.raw`\mathbf A_{\mathrm{cal}}`}</Tex> 不對稱（一般 <Tex>{String.raw`\mathbf J`}</Tex>、<Tex>{String.raw`\hat{\mathbf J}\ne\mathbf J`}</Tex>、各 loop 增益不同）時 F-10.5 只是下界，要改用{' '}
+            <Tex>{String.raw`\|\mathbf A^k\|_2\le0.05`}</Tex>（§10.3.1）。
           </li>
           <li>
             <ClaimTag kind="research" /> 本章是<strong>靜態</strong> plant：沒有 PLL 迴路動態、update latency（第 8 章）、定點量化（第 13 章）、PVT 漂移下的 gain scheduling。
@@ -214,7 +217,7 @@ export function S6Wrapup() {
             ),
             tex: String.raw`E[\mathbf G_k]\approx K_q\mathbf R\boldsymbol\delta_k,\quad G_i\approx K_q\textstyle\sum_jR_{ij}\delta_j`,
           },
-          { label: '誤差遞迴與迴路矩陣', tex: String.raw`\boldsymbol\delta_{k+1}=(\mathbf I+\mathbf M\mathbf J)\boldsymbol\delta_k-\mathbf M\boldsymbol\eta_k,\quad\mathbf J=-K_q\mathbf R` },
+          { label: '誤差遞迴與迴路矩陣（線性模型；1-bit 時是小訊號近似，由它算出的 pole 只在小訊號區成立）', tex: String.raw`\boldsymbol\delta_{k+1}=(\mathbf I+\mathbf M\mathbf J)\boldsymbol\delta_k-\mathbf M\boldsymbol\eta_k,\quad\mathbf J=-K_q\mathbf R` },
           { label: 'Scalar vs 完整反矩陣', tex: String.raw`\mathbf M=\mu\mathbf I:\ p_i=1-\mu K_q\lambda_i;\qquad\mathbf M=\gamma(K_q\mathbf R)^{-1}:\ p_i=1-\gamma` },
           {
             label: (
@@ -238,7 +241,9 @@ export function S6Wrapup() {
             每個 GMAC 都看到「所有」參數的誤差（經 <Tex>{String.raw`R_{ij}`}</Tex>）：<Tex>{'w_i'}</Tex> 正確不代表 <Tex>{'G_i=0'}</Tex>。
           </>,
           <>
-            收斂速度被 <Tex>{String.raw`\lambda_{\min}`}</Tex> 卡住（<Tex>{String.raw`\kappa=\lambda_{\max}/\lambda_{\min}`}</Tex>）；NLMS 與 diagonal 正規化都不會修正相關性。
+            一般 LMS 的收斂速度被 eigenvalue spread <Tex>{String.raw`\kappa=\lambda_{\max}/\lambda_{\min}`}</Tex> 卡住：步長不太大（<Tex>{String.raw`\mu K_q\le2/(\lambda_{\max}+\lambda_{\min})`}</Tex>）時最慢的是{' '}
+            <Tex>{String.raw`\lambda_{\min}`}</Tex> 的慢模式，步長再大就換成 <Tex>{String.raw`\lambda_{\max}`}</Tex> 的模式正負交替地拖著；怎麼調 <Tex>{String.raw`\mu`}</Tex>，<Tex>{String.raw`\max_i|p_i|`}</Tex> 都不會小於{' '}
+            <Tex>{String.raw`(\kappa-1)/(\kappa+1)`}</Tex>。NLMS 與 diagonal 正規化都不會修正相關性。
           </>,
           <>
             完整反矩陣讓所有 <Tex>{String.raw`p_i=1-\gamma`}</Tex>，但沿慢方向把雜訊放大 <Tex>{String.raw`1/\lambda_{\min}`}</Tex>；<Tex>{String.raw`\lambda_{\min}=0`}</Tex>{' '}

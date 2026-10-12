@@ -832,9 +832,21 @@ interface ChainLink {
   value: number
 }
 
+/**
+ * 排成對齊兩行的步驟（`\begin{aligned}a&=b\\&=c\end{aligned}`）：拿掉換行與對齊記號，還原成一行的「a=b=c」。
+ * 這樣換行不會讓任何一段數字躲過下面的重新計算。
+ */
+function unalign(stepTex: string): string {
+  if (!stepTex.startsWith(String.raw`\begin{aligned}`)) return stepTex
+  return stepTex
+    .replace(/\\begin\{aligned\}|\\end\{aligned\}/g, '')
+    .replace(/\\\\(?:\[[^\]]*\])?/g, '')
+    .replace(/&/g, '')
+}
+
 /** 一步的 TeX → 每條等式鏈裡「看得出數值」的片段（符號式跳過） */
 function numericChains(stepTex: string): ChainLink[][] {
-  return splitTop(stepTex, ',\\qquad').map((part) => {
+  return splitTop(unalign(stepTex), ',\\qquad').map((part) => {
     const links: ChainLink[] = []
     for (const seg of splitTop(part.replace(/\\approx/g, '='), '=')) {
       try {

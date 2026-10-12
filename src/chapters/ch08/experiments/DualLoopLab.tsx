@@ -187,8 +187,9 @@ function useTwoStateModel(cases: UseCasesResult<DualLoopParams>, steps: number, 
       time.push({ x: k, y: finiteSeries(Array.from(full, shape)), name: String.raw`Case ${cs.id} 完整：${deltaName}（$\mu=${tsig(cs.params.mu)}$）`, mode: 'lines', line: { color, width: 2 } })
       time.push({ x: k, y: finiteSeries(Array.from(simp, shape)), name: `Case ${cs.id} quasi-static：${deltaName}`, mode: 'lines', line: { color, width: 1.5, dash: 'dash' } })
     }
+    // ρ^k 只是漸近速率的參考線，不是 |δ_k| 的包絡：峰值可高出一個常數倍（預設 μ = 1.2 約 2%），重根（預設的 r_s、b_s、c_s 在 μ = 0.05）是 (1 + k/9)·0.9^k（技術審查 R02）
     const env = finiteSeries(Array.from(k, (kk) => a.rho ** kk))
-    time.push({ x: k, y: env, name: String.raw`$\rho^k$ 包絡（$\rho = ${fx(a.rho, 4)}$）`, mode: 'lines', line: { color: tokens.textFaint, dash: 'dot', width: 1 } })
+    time.push({ x: k, y: env, name: String.raw`$\rho^k$ 參考線（漸近速率，$\rho = ${fx(a.rho, 4)}$）`, mode: 'lines', line: { color: tokens.textFaint, dash: 'dot', width: 1 } })
     if (signed) time.push({ x: k, y: env.map((e) => (e === null ? null : -e)), name: String.raw`$-\rho^k$`, mode: 'lines', line: { color: tokens.textFaint, dash: 'dot', width: 1 }, showlegend: false })
 
     // ── z 平面 ──
@@ -304,7 +305,15 @@ function useTwoStateModel(cases: UseCasesResult<DualLoopParams>, steps: number, 
         ? { name: String.raw`$GM$（完整：數值 phase crossover vs $20\log_{10}\frac{1}{g_{\mathrm{eff}}}$）`, value: gmFull, analytic: gmCf.gmFullDb, tolerance: 1e-6, unit: 'dB', formulaId: 'F-08.16', claim: 'exact', digits: 6 }
         : { name: String.raw`$GM$（完整）`, value: null, unit: 'dB', formulaId: 'F-08.16', note: marginNote ?? String.raw`$\mu=0$ 或沒有 phase crossover` },
       { name: String.raw`$GM$（quasi-static）$=20\log_{10}\frac{2}{g_{\mathrm{eff}}}$`, value: finiteOrNull(gmCf.gmSimplifiedDb), unit: 'dB', formulaId: 'F-08.16', claim: 'approx', note: String.raw`恆比完整模型多 $20\log_{10}2=${tx(20 * Math.log10(2), 2)}$ dB（2 倍，E19）` },
-      { name: String.raw`$\tau$ 完整 $=-1/\ln\rho$`, value: a.rho < 1 ? -1 / Math.log(a.rho) : null, unit: 'blocks' },
+      {
+        name: String.raw`$\tau$ 完整 $=-1/\ln\rho$（漸近衰減率）`,
+        value: a.rho < 1 ? -1 / Math.log(a.rho) : null,
+        unit: 'blocks',
+        note:
+          a.rho < 1
+            ? String.raw`$\rho$ 只決定漸近的衰減率：$\rho^k$ 每 $\tau$ 個 block 降到 $1/e$，但 $\rho^k$ 不是 $|\delta_k|$ 的包絡（重根、複數根）`
+            : String.raw`$\rho\ge1$：誤差不衰減，$\tau$ 沒有定義`,
+      },
       { name: String.raw`$\tau$ quasi-static $=-1/\ln|1-g_{\mathrm{eff}}|$`, value: Math.abs(a.simplifiedPole) < 1e-12 ? 0 : Math.abs(a.simplifiedPole) < 1 ? -1 / Math.log(Math.abs(a.simplifiedPole)) : null, unit: 'blocks', claim: 'approx' },
       { name: String.raw`$|\delta_{N_{\mathrm{blk}}}|/\delta_0$，$N_{\mathrm{blk}}=${steps}$（完整 / quasi-static）`, value: `${sig(Math.abs(lastFull), 4)} / ${sig(Math.abs(lastSimp), 4)}` },
       {
@@ -312,7 +321,7 @@ function useTwoStateModel(cases: UseCasesResult<DualLoopParams>, steps: number, 
         value: finiteOrNull(lastPeak),
         digits: 5,
         note: topPole
-          ? String.raw`複數 pole：振盪週期 $2\pi/\arg z\approx${tsig((2 * Math.PI) / Math.atan2(topPole.im, topPole.re), 4)}$ blocks；單一時間點的 $|\delta_k|$ 可能剛好在零交越附近，要看峰值或 $\rho^k$ 包絡`
+          ? String.raw`複數 pole：振盪週期 $2\pi/\arg z\approx${tsig((2 * Math.PI) / Math.atan2(topPole.im, topPole.re), 4)}$ blocks；單一時間點的 $|\delta_k|$ 可能剛好在零交越附近，要看每個週期的峰值，或拿峰值和 $\rho^k$ 參考線比斜率`
           : '實數 poles',
       },
     ]
@@ -382,7 +391,7 @@ function useGeneralModel(gen: GeneralState, steps: number, tokens: ThemeTokens, 
       { x: k, y: finiteSeries(Array.from(sim.delta, (v) => (signed ? v : Math.abs(v)))), name: String.raw`完整：${deltaName}（$\rho = ${fx(an.rho, 4)}$）`, mode: 'lines', line: { color: tokens.series[0], width: 2 } },
       { x: k, y: finiteSeries(simp), name: signed ? String.raw`quasi-static：$(1 - \mu F(1))^k$` : String.raw`quasi-static：$|1 - \mu F(1)|^k$`, mode: 'lines', line: { color: tokens.series[1], width: 1.5, dash: 'dash' } },
       { x: k, y: finiteSeries(sim.sNorm), name: String.raw`$\|s_k\|$（觀測狀態）`, mode: 'lines', line: { color: tokens.series[2], width: 1 } },
-      { x: k, y: finiteSeries(Array.from(k, (kk) => an.rho ** kk)), name: String.raw`$\rho^k$ 包絡`, mode: 'lines', line: { color: tokens.textFaint, width: 1, dash: 'dot' } },
+      { x: k, y: finiteSeries(Array.from(k, (kk) => an.rho ** kk)), name: String.raw`$\rho^k$ 參考線（漸近速率）`, mode: 'lines', line: { color: tokens.textFaint, width: 1, dash: 'dot' } },
     ]
     const zPlane: Data[] = [
       unitCircleTrace(tokens.textMuted),
@@ -597,7 +606,7 @@ export function DualLoopLab() {
         String.raw`$s$ 為抽象觀測狀態（不是 VCO 控制電壓）；$s_{k+1}=r_ss_k+b_s\delta_k$、$G_k=c_ss_k$、$\delta_{k+1}=\delta_k-\mu G_k$（$\delta=a-w$）`,
         String.raw`$\mu$ 為 $K\equiv1$ 的正規化步長（勘誤 E13）；記號依勘誤 E31（$r_s,b_s,c_s$；$\mathbf A_s,\mathbf b_s,\mathbf c_s^{\mathsf T},d_s$）`,
         String.raw`確定性線性模型；初值 $s_0=0$、$\delta_0=1$（目標在 $k=0$ 跳一步）`,
-        String.raw`時域至少 300 blocks 並疊 $\rho^k$ 包絡：複數 pole 的振盪會讓短視窗誤判為收斂`,
+        String.raw`時域至少 300 blocks 並疊上 $\rho^k$ 參考線：複數 pole 的振盪會讓短視窗誤判為收斂。$\rho^k$ 只給漸近速率（log 軸上的斜率），不是 $|\delta_k|$ 的包絡`,
       ]}
       params={vm.params}
       units={{ mu: '無因次（正規化）', steps: 'blocks', r_s: '無因次', b_s: '無因次', c_s: '無因次' }}
@@ -659,7 +668,7 @@ export function DualLoopLab() {
             reg="num_blocks（behavioral）"
             hint={rich(String.raw`建議 $\ge300$：複數 pole 的發散很慢`)}
           />
-          <ToggleControl label={rich(String.raw`時域用 log 軸（$|\delta_k|$）`)} ariaLabel="時域用 log 軸" value={logY} onChange={setLogY} hint={rich(String.raw`log 軸上指數成長／衰減是直線（斜率 $\log_{10}\rho$）；關掉則顯示帶正負號的 $\delta_k$ 與 $\pm\rho^k$ 包絡`)} />
+          <ToggleControl label={rich(String.raw`時域用 log 軸（$|\delta_k|$）`)} ariaLabel="時域用 log 軸" value={logY} onChange={setLogY} hint={rich(String.raw`log 軸上指數成長／衰減是直線（斜率 $\log_{10}\rho$）；關掉則顯示帶正負號的 $\delta_k$ 與 $\pm\rho^k$ 參考線`)} />
         </>
       }
     >
@@ -685,7 +694,9 @@ export function DualLoopLab() {
         yLog={logY}
         csvName="dual-loop-time"
         layout={timeLayout}
-        caption={rich(String.raw`實線：完整模型；虛線：quasi-static；點線：$\rho^k$ 包絡（log 軸上斜率 $=\log_{10}\rho$）。複數 pole 時 $|\delta_k|$ 會週期性地掉到接近 0（零交越）——判斷收斂要看包絡或每個週期的峰值，不要看單一時間點。`)}
+        caption={rich(
+          String.raw`實線：完整模型；虛線：quasi-static；點線：$\rho^k$ 參考線（log 軸上斜率 $=\log_{10}\rho$）。$\rho^k$ 只給漸近速率，不是 $|\delta_k|$ 的包絡：長期來看峰值和它同斜率，但可以高出一個常數倍，重根時還多一個 $k$ 的因子。複數 pole 時 $|\delta_k|$ 會週期性地掉到接近 0（零交越）——判斷收斂還是發散，要看每個週期的峰值是往下還是往上走（長期和點線同斜率），不要看單一時間點。`,
+        )}
       />
       <div className="grid-2">
         <Plot title={String.raw`Bode：$|L_{\mathrm{cal}}(e^{j\omega})|$（完整 vs quasi-static）`} ariaLabel="Bode 大小圖：完整與 quasi-static" data={vm.plots.bodeMag} xLog height={300} csvName="dual-loop-bode-mag" layout={BODE_MAG_LAYOUT} caption={rich(String.raw`完整模型多一個 pole：高頻增益比 quasi-static 低，但那裡的相位更差（右圖）。`)} />

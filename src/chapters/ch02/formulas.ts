@@ -86,7 +86,7 @@ export const FORMULAS: FormulaEntry[] = [
     id: 'F-02.8',
     title: '三種固定點條件',
     tex: String.raw`\text{LMS: }E[e\,x]=0,\qquad\text{Sign-Error: }E[\operatorname{sign}(e)\,x]=0,\qquad\text{Sign-Sign: }E[\operatorname{sign}(e)\operatorname{sign}(x)]=0`,
-    conditions: '平均更新為零的點（mean-field）；雜訊對稱或 $x$ 分布對稱時三者重合，否則一般不同',
+    conditions: String.raw`平均更新為零的點（mean-field）；雜訊對稱或 $x$ 分布對稱時三者重合，否則一般不同。「$=0$」是資料連續分布時的寫法：資料只取有限個值時，Sign-Error 與 Sign-Sign 的平均更新是 $w$ 的階梯函數，可以直接由正跳到負，固定點是它變號的位置`,
     claim: 'exact',
     level: 'L0',
     specSection: '2.3',

@@ -9,6 +9,7 @@ import {
   accumulatorSizing,
   biasFixedPoint,
   floorRestoringSlope,
+  halfEvenTieAmplitude,
   incrementMeanError,
   negateExtended,
   negateInplace,
@@ -119,6 +120,8 @@ export function FixedPointSection() {
   const golden = useMemo(() => sliceGoldenGmac(goldenQuantSrc), [])
   const wt = useMemo(() => wTruncNumbers(), [])
   const rhoRows = useMemo(() => [1, 0.5, DITHER_MIN, 0.142].map((sv) => ({ s: sv, rho: floorRestoringSlope(sv) })), [])
+  // half-even 在「恰好一半」那一格留下的誤差振幅（s = σ_S/2^ℓ = 1；單位 2^{−ℓ} 個 LSB）：e^{−π²/2} ≈ 0.0072
+  const tieAmp = halfEvenTieAmplitude(1)
   // §5.2 位元切法的例子（B_x = 6、N = 1024、F_G = 4）與 §5.4 最負 code（6-bit 的 −32）：數字由 gmac.ts 計算
   const shift = { sizing: accumulatorSizing(6, 1024, 'symmetric'), ...biasRows[2] }
   const negOk = negateExtended(-(2 ** 5), 0)
@@ -179,7 +182,7 @@ export function FixedPointSection() {
         </p>
       </DerivationFold>
       <TexBlock id="F-04.9" label="GMAC accumulator 位元數（最壞情況的最少有號位元數，精確）">
-        {R`\boxed{B_\mathrm{acc}=1+\bigl\lceil\log_2(NM_x+1)\bigr\rceil},\qquad B_\mathrm{acc}^\mathrm{sym}\le B_x+\lceil\log_2N\rceil\;(N=2^m\text{ 時取等號}),\qquad B_\mathrm{acc}^\mathrm{full}=B_x+\lfloor\log_2N\rfloor+1`}
+        {R`\begin{aligned}&\boxed{B_\mathrm{acc}=1+\bigl\lceil\log_2(NM_x+1)\bigr\rceil},\\[4pt]&B_\mathrm{acc}^\mathrm{sym}\le B_x+\lceil\log_2N\rceil\;(N=2^m\text{ 時取等號}),\qquad B_\mathrm{acc}^\mathrm{full}=B_x+\lfloor\log_2N\rfloor+1\end{aligned}`}
       </TexBlock>
       <p>
         規格 golden 的例子：6-bit code、<Tex>{R`N=4096`}</Tex>，對稱範圍需要 <Tex>{R`${g6.bitsExact}`}</Tex> bits（full range 需要 <Tex>{R`${g6full.bitsExact}`}</Tex>）。
@@ -252,13 +255,13 @@ export function FixedPointSection() {
       </p>
       <MermaidFig
         chart={ROUNDING_MODES}
-        caption={R`右移 $\ell$ bits 的四種取整（例：$S=-300$、$\ell=8$）。先看第二排：四種做法的差別只在怎麼處理被丟掉的餘數 $\rho$；再看最下面一排的平均誤差 $\bar\varepsilon$：floor 偏負（紅色），half-even 為 0（綠色）。`}
+        caption={R`右移 $\ell$ bits 的四種取整（例：$S=-300$、$\ell=8$）。先看第二排：四種做法的差別只在怎麼處理被丟掉的餘數 $\rho$；再看最下面一排的平均誤差 $\bar\varepsilon$（餘數均勻時）：floor 偏負（紅色），half-even 為 0（綠色；它還多一個條件，見圖下的說明）。`}
         ariaLabel="右移取整的四種模式：floor、half-up、half-even、toward-0，以及各自的平均誤差"
       />
       <p>
         <strong>先看</strong>最上面兩格：累加器內容 <Tex>S</Tex> 拆成「留下來的高位元」<Tex>j</Tex> 與「被右移丟掉的低 <Tex>{R`\ell`}</Tex> bits」<Tex>{R`\rho`}</Tex>，即 <Tex>{R`S=2^\ell j+\rho`}</Tex>；例子 <Tex>{R`S=-300`}</Tex>、<Tex>{R`\ell=8`}</Tex> 得到{' '}
         <Tex>{R`j=-2`}</Tex>、<Tex>{R`\rho=212`}</Tex>。<strong>再看</strong>第二排四個方塊：floor 直接丟掉 <Tex>{R`\rho`}</Tex>（得 <Tex>{R`-2`}</Tex>），其餘三種看 <Tex>{R`\rho`}</Tex> 有沒有超過一半（<Tex>{R`2^{\ell-1}=128`}</Tex>）再決定進位（得 <Tex>{R`-1`}</Tex>）。
-        <strong>最後看</strong>最下面一排：<Tex>{R`\bar\varepsilon`}</Tex> 是「取整後的值 <Tex>{R`Q`}</Tex> 減掉取整前的 <Tex>{R`S/2^\ell`}</Tex>」在餘數均勻時的平均（單位：輸出 LSB）；floor 平均少半個 LSB，所以標紅色，half-even 平均為 0，所以標綠色。
+        <strong>最後看</strong>最下面一排：<Tex>{R`\bar\varepsilon`}</Tex> 是「取整後的值 <Tex>{R`Q`}</Tex> 減掉取整前的 <Tex>{R`S/2^\ell`}</Tex>」在餘數均勻時的平均（單位：輸出 LSB）；floor 平均少半個 LSB，所以標紅色，half-even 平均為 0（另外需要「恰好一半」時 <Tex>j</Tex> 是奇數和偶數的機會各半，見下面的推導），所以標綠色。
         圖上的 <Tex>j</Tex>、<Tex>{R`\rho`}</Tex>、<Tex>Q</Tex>、<Tex>{R`\bar\varepsilon`}</Tex> 就是下面推導的 <Tex>{R`S=2^\ell j+\rho`}</Tex>、<Tex>{R`Q(S)`}</Tex> 與 <Tex>{R`\bar\varepsilon`}</Tex>（F-04.10）。
       </p>
       <DerivationFold title="四種 rounding 的平均誤差">
@@ -269,15 +272,24 @@ export function FixedPointSection() {
             { tex: R`\rho\text{ 均勻}\;\Rightarrow\;\bar\varepsilon_\mathrm{floor}=-\frac{1}{2^\ell}\cdot\frac{1}{2^\ell}\sum_{\rho=0}^{2^\ell-1}\rho=-\frac{2^\ell-1}{2\cdot2^\ell}=-\frac{1-2^{-\ell}}{2}`, why: mt(R`GMAC 雜訊夠大（$\sigma_S\gtrsim2^\ell$）時餘數近似均勻分布；等差數列求和 $\sum_{\rho=0}^{2^\ell-1}\rho=2^\ell(2^\ell-1)/2$。`) },
             { tex: R`Q_\mathrm{half\,up}=\Bigl\lfloor\frac{S+2^{\ell-1}}{2^\ell}\Bigr\rfloor:\;\varepsilon(\rho)=\begin{cases}-\rho/2^\ell,&\rho<2^{\ell-1}\\1-\rho/2^\ell,&\rho\ge2^{\ell-1}\end{cases}`, why: '餘數小於一半時捨去，大於或等於一半時進位（輸出多 1 個 LSB）。' },
             { tex: R`\bar\varepsilon_\mathrm{half\,up}=\frac{1}{2^\ell}\Bigl[\underbrace{2^{\ell-1}}_{\text{進位的格數}}-\frac{1}{2^\ell}\sum_{\rho=0}^{2^\ell-1}\rho\Bigr]=\frac{1}{2^\ell}\Bigl[2^{\ell-1}-\frac{2^\ell-1}{2}\Bigr]=2^{-\ell-1}`, why: mt(R`對均勻餘數平均：進位的那半邊每格貢獻 $+1$，所有格子都貢獻 $-\rho/2^\ell$；兩者幾乎抵消，只剩「恰好一半」那一格永遠進位造成的半格。`) },
-            { tex: R`Q_\mathrm{half\,even}:\;\bar\varepsilon=0`, why: '恰好一半時進位到偶數，奇偶各半，所以這一格也抵消（convergent rounding）。' },
-            { tex: R`Q_\mathrm{toward\,0}=\mathrm{sign}(S)\Bigl\lfloor\frac{|S|}{2^\ell}\Bigr\rfloor:\;\bar\varepsilon=-\mathrm{sign}(S)\,\frac{1-2^{-\ell}}{2}`, why: '正數像 floor、負數像 ceil：兩邊都往 0 縮。沒有固定偏差，但在 0 附近形成 dead zone、降低等效增益。' },
+            {
+              tex: R`Q_\mathrm{half\,even}:\;\bar\varepsilon=\tfrac12\Bigl[P\bigl(\rho=2^{\ell-1},\,j\text{ 奇}\bigr)-P\bigl(\rho=2^{\ell-1},\,j\text{ 偶}\bigr)\Bigr]\;\xlongequal{\text{奇偶各半}}\;0`,
+              why: mt(
+                R`和 half-up 只差「恰好一半」那一格（$\rho=2^{\ell-1}$）：half-even 進位到偶數，所以 $j$ 為奇數時進位（誤差 $+\tfrac12$）、$j$ 為偶數時捨去（誤差 $-\tfrac12$）；其餘的格子 $\rho$ 與 $2^\ell-\rho$ 的誤差是 $-\rho/2^\ell$ 與 $+\rho/2^\ell$，餘數均勻時兩兩抵消。所以這裡多用了一個假設：這一格出現時 $j$ 是奇數和偶數的機會各半（充分條件：$S\bmod2^{\ell+1}$ 也均勻）；只有「餘數均勻」不夠。例：$\ell=2$ 時 $S=0,1,2,3$（$j=0$）的誤差是 $0,-\tfrac14,-\tfrac12,+\tfrac14$，平均 $-\tfrac18$；$S=4,5,6,7$（$j=1$）是 $0,-\tfrac14,+\tfrac12,+\tfrac14$，平均 $+\tfrac18$；兩圈合起來才是 $0$（convergent rounding）。`,
+              ),
+            },
+            { tex: R`Q_\mathrm{toward\,0}=\mathrm{sign}(S)\Bigl\lfloor\frac{|S|}{2^\ell}\Bigr\rfloor:\;\bar\varepsilon=-\mathrm{sign}(S)\,\frac{1-2^{-\ell}}{2}`, why: mt(R`正數像 floor、負數像 ceil：兩邊都往 0 縮。沒有固定偏差，但在 0 附近形成 dead zone、降低等效增益：$|S|<2^\ell$ 全部輸出 $0$，這個平台寬 $2$ 個 LSB（其他三種是 $1$ 個），所以需要的 dither 比 $\sigma_S/2^\ell$ 是其他三種的兩倍（約 $${2 * DITHER_MIN}$，下方實驗的偏差比對與模型的警告用這個下限）。`) },
           ]}
         />
         <p className="small">
-          <ClaimTag kind="exact" /> 在「餘數均勻」的前提下精確；<ClaimTag kind="approx" /> 這個前提需要 GMAC 雜訊當 dither（下方 Research 說明有效範圍）。
+          <ClaimTag kind="exact" /> floor、half-up、toward-0 在「餘數均勻」的前提下精確；half-even 還要「恰好一半」時 <Tex>j</Tex> 的奇偶各半才精確為 0，只有餘數均勻時只能保證{' '}
+          <Tex>{R`|\bar\varepsilon_\mathrm{half\,even}|\le2^{-\ell-1}`}</Tex>。<ClaimTag kind="approx" /> 這些前提需要 GMAC 雜訊當 dither：<Tex>S</Tex> 是 <Tex>N</Tex> 個獨立項的和、近似 Gaussian，<Tex>{R`\sigma_S\gtrsim2^\ell`}</Tex> 時餘數幾乎均勻，「恰好一半」時{' '}
+          <Tex>j</Tex> 的奇偶也近似各半（half-even 剩下的誤差不超過約 <Tex>{R`${tx(tieAmp, 2)}\times2^{-\ell}`}</Tex> 個 LSB；下方 Research 說明有效範圍）。只有 <Tex>{R`\sigma_S`}</Tex>{' '}
+          大並不夠：把上面例子的 <Tex>{R`S=0,1,2,3`}</Tex> 各加上 <Tex>8</Tex> 的任意整數倍，<Tex>{R`\sigma_S`}</Tex> 可以任意大、餘數仍然均勻，但 <Tex>j</Tex> 永遠是偶數，half-even 的平均仍是{' '}
+          <Tex>{R`-\tfrac18`}</Tex>。閉迴路的平衡點不靠這個條件，見下面 F-04.11 推導後的說明。
         </p>
       </DerivationFold>
-      <TexBlock id="F-04.10" label="右移 rounding 的平均誤差（輸出 LSB，均勻餘數）">
+      <TexBlock id="F-04.10" label={mt(R`右移 rounding 的平均誤差（輸出 LSB；均勻餘數，half-even 另需「恰好一半」時商 $j$ 的奇偶各半）`)}>
         {R`\bar\varepsilon_\mathrm{floor}=-\frac{1-2^{-\ell}}{2},\quad\bar\varepsilon_\mathrm{half\,up}=2^{-\ell-1},\quad\bar\varepsilon_\mathrm{half\,even}=0,\quad\bar\varepsilon_\mathrm{toward\,0}=-\mathrm{sign}(S)\frac{1-2^{-\ell}}{2}`}
       </TexBlock>
       <p>
@@ -311,7 +323,9 @@ export function FixedPointSection() {
         />
         <p className="small">
           <ClaimTag kind="approx" /> 平均模型 + 小訊號 + 均勻餘數。<Tex>K</Tex> 越小（雜訊越大、code 越小）偏差越大——偏差和 <Tex>{R`\mu`}</Tex> 無關，所以「調小 <Tex>{R`\mu`}</Tex>」救不了；
-          要嘛保留更多 <Tex>{R`F_G`}</Tex>，要嘛改用 round-half-even。
+          要嘛保留更多 <Tex>{R`F_G`}</Tex>，要嘛改用 round-half-even。half-even 的 <Tex>{R`\delta^*=0`}</Tex> 不靠 F-04.10 的「恰好一半」條件：它是奇函數 <Tex>{R`Q(-S)=-Q(S)`}</Tex>，而{' '}
+          <Tex>{R`\delta=0`}</Tex> 時 comparator 只看到雜訊，<Tex>{R`q=\pm1`}</Tex> 各半且與 code 無關，<Tex>S</Tex> 的分布對 0 對稱，所以 <Tex>{R`E[Q(S)]=0`}</Tex>（前提：comparator 雜訊對 0 對稱、沒有 offset，取負正確，累加器不溢位）。
+          這只保證平衡點在 <Tex>{R`\delta=0`}</Tex>；dither 不夠（<Tex>{R`\sigma_S/2^\ell\lesssim${DITHER_MIN}`}</Tex>）時 half-even 和 floor 一樣會停在 dead zone，到不了這個點。
         </p>
       </DerivationFold>
       <TexBlock id="F-04.11" label="Rounding 偏差造成的係數偏移">
@@ -394,17 +408,28 @@ export function FixedPointSection() {
             <Tex>{R`m=\tfrac12`}</Tex> 時每個 <Tex>{R`\sin(\pi k)=0`}</Tex>：只要雜訊分布對稱，「真值恰好半個 LSB」永遠讓 floor 的平均輸出為 0，所以 F-04.11 的平衡點對任何 dither 都成立。
             dither 決定的是平衡點附近的<strong>回復斜率</strong>（把上式對 <Tex>m</Tex> 微分）：
           </p>
-          <TexBlock>{R`\chi(s)=\frac{dE[\lfloor X\rfloor]}{dm}\Big|_{m=\frac12}=1+2\sum_{k\ge1}(-1)^ke^{-2\pi^2k^2s^2}:\qquad ${rhoRows.map((r) => `\\chi(${tx(r.s, 3)})=${tx(r.rho, 3)}`).join(',\\;')}`}</TexBlock>
+          <TexBlock>{R`\begin{aligned}\chi(s)&=\frac{dE[\lfloor X\rfloor]}{dm}\Big|_{m=\frac12}=1+2\sum_{k\ge1}(-1)^ke^{-2\pi^2k^2s^2}:\\&${rhoRows.map((r) => `\\chi(${tx(r.s, 3)})=${tx(r.rho, 3)}`).join(',\\;')}\end{aligned}`}</TexBlock>
           <p>
             局部的 loop gain 變成 <Tex>{R`g\,\chi(s)`}</Tex>。<Tex>{R`s\gtrsim0.5`}</Tex> 幾乎沒有影響；<Tex>{R`s\approx${tx(rhoRows[3].s, 3)}`}</Tex> 時 <Tex>{R`\chi\approx${tx(rhoRows[3].rho, 2)}`}</Tex>，時間常數拉長約 {Math.round(1 / rhoRows[3].rho)} 倍，迴路實際上停在進入 dead zone 的地方
             （多 seed 模擬 <Tex>{R`-4.35\pm0.09`}</Tex> vs 平衡點 <Tex>{R`-6.06\,\mathrm{fs}`}</Tex>）。收斂附近 <Tex>{R`\sigma_S\approx\sqrt{N\,E[x_\mathrm{int}^2]}`}</Tex>。<Tex>{R`\sigma_v\to0`}</Tex>{' '}
             時沒有 dither，rounding 變成確定性的 dead zone / limit cycle 問題（Ch13）。<ClaimTag kind="exact" /> 級數與 <Tex>{R`\chi(s)`}</Tex> 在「Gaussian、連續格點」下精確（<code>floorRestoringSlope</code>）；
             <ClaimTag kind="approx" /> 套用到離散的 <Tex>S</Tex> 與閉迴路。
           </p>
+          <p>
+            half-even 多出來的條件（F-04.10：「恰好一半」時 <Tex>j</Tex> 的奇偶各半）看的是 <Tex>{R`S\bmod2^{\ell+1}`}</Tex>，週期是餘數的兩倍，所以要兩倍的 <Tex>{R`\sigma_S`}</Tex>{' '}
+            才有同樣的均勻程度（把第一條式子指數裡的 <Tex>{R`\sigma_S`}</Tex> 換成 <Tex>{R`\sigma_S/2`}</Tex>）。<Tex>S</Tex> 是平均 <Tex>{R`2^\ell m`}</Tex> 的離散 Gaussian 時，「恰好一半」（tie）這一格的貢獻是
+          </p>
+          <TexBlock>{R`\bar\varepsilon_\mathrm{half\,even}^\mathrm{tie}(m)\approx-2^{-\ell}e^{-\pi^2s^2/2}\sin\pi m`}</TexBlock>
+          <p>
+            <Tex>{R`s=1`}</Tex> 時振幅約 <Tex>{R`${tx(tieAmp, 2)}\times2^{-\ell}`}</Tex>（half-up 的 <Tex>{R`2^{-\ell-1}`}</Tex> 的 <Tex>{R`${tx(200 * tieAmp, 2)}\%`}</Tex>）；此時餘數不均勻的那一項約{' '}
+            <Tex>{R`10^{-9}`}</Tex> 個 LSB（它不隨 <Tex>{R`\ell`}</Tex> 縮小，<Tex>{R`\ell\le16`}</Tex> 時比 tie 這一項小兩個數量級以上），所以 half-even 剩下的誤差由 tie 這一項決定；<Tex>s</Tex>{' '}
+            更小時兩項都要算（面板 B 是逐點的精確值）。<Tex>{R`m=0`}</Tex> 時恆為 0：half-even 是奇函數，<Tex>S</Tex> 的分布對 0 對稱時 <Tex>{R`E[Q(S)]=0`}</Tex>，所以閉迴路的平衡點{' '}
+            <Tex>{R`\delta=0`}</Tex> 和 floor 的平衡點一樣不靠 dither；dither 不夠時同樣有 dead zone。<ClaimTag kind="approx" /> Gaussian <Tex>S</Tex>、只取第一個 Fourier 項（<code>halfEvenTieAmplitude</code>）。
+          </p>
         </Callout>
       </ModeGate>
       <CodeBlock source={gmacSrc} region="shiftRound" path={GMAC_PATH} title="右移 + rounding（四種模式）" />
-      <CodeBlock source={gmacSrc} region="roundingMeanError" path={GMAC_PATH} title="均勻餘數下的平均誤差（F-04.10 的程式版）" />
+      <CodeBlock source={gmacSrc} region="roundingMeanError" path={GMAC_PATH} title={R`均勻餘數下的平均誤差（F-04.10 的程式版；half-even 的 $0$ 另需「恰好一半」時商的奇偶各半）`} />
 
       <h3>4. 最負 code 的取負 bug：偏差有多大？</h3>
       <p>
@@ -503,7 +528,7 @@ export function FixedPointSection() {
             { tex: R`\mu\,Q(G_k)=j_k\cdot\mu\Delta_G,\qquad j_k\in\mathbb Z`, why: mt(R`取整後的 $G$ 是 $\Delta_G$ 的整數倍，所以更新量落在間距 $\mu\Delta_G$ 的格點上。`) },
             { tex: R`\Delta_W=R\cdot\mu\Delta_G,\qquad R=2^{\ell_W}`, why: mt(R`$W$ 的格點比更新量的格點粗 $R$ 倍：等於把更新量再右移 $\ell_W$ bits 才加進 $W$。`) },
             { tex: R`Q_W^\mathrm{floor}(\mu G)-\mu G=-\frac{\rho_W}{R}\,\Delta_W,\qquad\rho_W=j_k\bmod R\in\{0,\dots,R-1\}`, why: mt(R`和 §5.3 的第 1–2 步一樣：floor 丟掉一個非負的餘數（這次單位是 $\Delta_W$）。`) },
-            { tex: R`\bar\varepsilon_W=-\frac{1}{R}\cdot\frac1R\sum_{\rho_W=0}^{R-1}\rho_W=-\frac{1-1/R}{2}\quad[\Delta_W]`, why: mt(R`餘數均勻時取平均（等差數列和 $R(R-1)/2$）；half-even 則為 0。`) },
+            { tex: R`\bar\varepsilon_W=-\frac{1}{R}\cdot\frac1R\sum_{\rho_W=0}^{R-1}\rho_W=-\frac{1-1/R}{2}\quad[\Delta_W]`, why: mt(R`餘數均勻時取平均（等差數列和 $R(R-1)/2$）；half-even 則為 0（和 F-04.10 一樣，另需恰好一半時商的奇偶各半）。`) },
             { tex: R`E[W_{k+1}-W_k]=\mu\,E[G]+\bar\varepsilon_W\Delta_W=\mu K\delta+\bar\varepsilon_W\Delta_W`, why: mt(R`每個 block 的平均更新 = 理想更新 + 取整的平均誤差；代入 $E[G]\approx K\delta$（這裡「$\div N$」的右移用 half-even，$\bar\varepsilon=0$）。`) },
             { tex: R`E[W_{k+1}-W_k]=0\;\Rightarrow\;\delta^*=-\frac{\bar\varepsilon_W\Delta_W}{\mu K}=-\frac{\bar\varepsilon_W\Delta_W}{g}`, why: mt(R`固定點：平均更新為 0；$g=\mu K$。`) },
             { tex: R`\text{floor: }w^*-a=-\delta^*=-\frac{(1-1/R)\,\Delta_W}{2g}\approx-\frac{\Delta_W}{2g}`, why: mt(R`$w$ 停在 $a$ 下方「半個 $W$-LSB 除以 loop gain」的地方。$\Delta_W$ 是固定的硬體格點，所以 $\mu$（也就是 $g$）越小偏差越大。`) },

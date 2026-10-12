@@ -12,7 +12,9 @@ export const FORMULAS: FormulaEntry[] = [
     id: 'F-12.1',
     title: '線性化 GMAC（近最佳點）',
     tex: String.raw`G_k\approx -K\,\delta w_k+\eta_k,\qquad K=K_qC,\quad \delta w_k=w_k-w^*`,
-    conditions: String.raw`小訊號（$|C\,\delta w|\ll\sigma_v$）、Gaussian comparator noise、average-mode GMAC；$\delta w$ 與 §0 的 $\delta=a-w$ 極性相反`,
+    // 技術審查 R06c：小訊號判據 |C·δw| ≪ σ_v 只在「±1 code、無記憶 path u = C·x」成立（|u[n]| = |C|）；
+    // path 有記憶時 C = E[x·u] 小不代表 u 小，一般條件要看整個波形 |δw|·u_max（第 6 章 F-06.19 是完整的 erf 平均）。
+    conditions: String.raw`推導模型：$x=\pm1$ code、無記憶 path $u[n]=C\,x[n]$（identity path $\times\,C$）、Gaussian comparator noise、average-mode GMAC。小訊號是指 comparator 前整個確定性殘差（$w^*=a$ 時是 $-\delta w\,u[n]$）都遠小於 $\sigma_v$；這個模型 $|u[n]|=|C|$，所以條件是 $|C\,\delta w|\ll\sigma_v$。code 不是 $\pm1$ 或 path 有記憶（$u$ 是 code 經 path 濾波的結果，F-06.1）時，$|u[n]|$ 不再是常數 $|C|$（path 有記憶時 $C=E[x\,u]$ 小甚至不代表 $u$ 小），要改用 $|\delta w|\,u_{\max}\ll\sigma_v$（$u_{\max}=\max_n|u[n]|$，充分條件；任意大小的偏差用 F-06.19）。$\delta w$ 與 §0 的 $\delta=a-w$ 極性相反`,
     claim: 'approx',
     level: 'L1',
     specSection: '12',
@@ -45,12 +47,13 @@ export const FORMULAS: FormulaEntry[] = [
     id: 'F-12.4',
     title: '係數雜訊 PSD（block rate）',
     tex: String.raw`S_w(e^{j\Omega})=\frac{\mu^2S_\eta(e^{j\Omega})}{|1-pe^{-j\Omega}|^2}=\frac{\mu^2S_\eta}{1-2p\cos\Omega+p^2}`,
-    conditions: String.raw`$\eta$ 廣義平穩；$\Omega$ 為 rad/block（取樣率 $f_u$），兩邊 DTFT 形式 $\sigma^2=\tfrac1{2\pi}\int S\,d\Omega$`,
+    // 技術審查 C03：σ² = (1/2π)∫S dΩ = ∫S d(Ω/2π) ⇒ S_w 是「每 cycle/block」的密度（不是每 rad/block；那是 S_w/2π）。
+    conditions: String.raw`$\eta$ 廣義平穩；$\Omega$ 為 rad/block（取樣率 $f_u$）；雙邊 DTFT 形式：$\sigma^2=\tfrac1{2\pi}\int_{-\pi}^{\pi}S\,d\Omega$，等於對 $\Omega/2\pi$（cycle/block）由 $-\tfrac12$ 積到 $\tfrac12$，所以 $S_w$ 是「每 cycle/block」的密度；能直接對 $\Omega$ 積分的每 rad/block 密度是 $S_w/(2\pi)$（本站不用）`,
     claim: 'exact',
     level: 'L4',
     specSection: '12',
     page,
-    units: { S_w: 'fs^2/(rad/block)' },
+    units: { S_w: 'fs^2/(cycle/block)，two-sided', Omega: 'rad/block' },
     erratumId: 'E29',
   },
   {
@@ -165,6 +168,7 @@ export const FORMULAS: FormulaEntry[] = [
     level: 'L4',
     specSection: '12.2',
     page,
+    units: { 'S_w^(f_s)': 'fs^2/(cycle/sample)，two-sided', 'S_w^(f_u)': 'fs^2/(cycle/block)，two-sided', theta: 'rad/sample' },
     erratumId: 'E29',
   },
   {

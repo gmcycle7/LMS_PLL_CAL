@@ -169,6 +169,24 @@ describe('解析數字對 golden（§15.3 範例）', () => {
   })
 })
 
+describe('審查 R02：JSON Lab 解析表的時間常數', () => {
+  it('d = 0 標 exact；cal_update_delay_blocks ≥ 1 時改名為漸近衰減率、標 approx（ρ^k 不是包絡）', () => {
+    const base = runPreset('block-lms-json-spec').config
+    const row = (d: number) => {
+      const cfg = { ...base, cal_update_delay_blocks: d }
+      return analyticRows(analyzeBlockLms(cfg).analytic, cfg).find((r) => r.key === 'tauBlocks')!
+    }
+    const d0 = row(0)
+    expect(d0.claim).toBe('exact')
+    expect(d0.label).toBe('時間常數')
+    const d1 = row(1)
+    expect(d1.claim).toBe('approx')
+    expect(d1.label).toContain('漸近衰減率')
+    expect(d1.note).toContain('不是平均誤差的包絡')
+    expect(d1.tex).toBe(d0.tex)
+  })
+})
+
 describe('模擬指標、交叉比對與 preset 預期', () => {
   it('T13: §15.3 原文模擬：平均 w 在 w* 的 4×SE 內、σ_w 與 0.3992 fs 相符；交叉比對 analytic = ok', () => {
     const r = runPreset('block-lms-json-spec')

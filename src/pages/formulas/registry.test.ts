@@ -137,6 +137,21 @@ describe('registry：全站公式登錄（import.meta.glob 的實際結果）', 
     expect(st.withErratum).toBeGreaterThan(40)
   })
 
+  it('技術審查 C03：DTFT 形式 PSD 的單位全站一致——每 cycle/block 或 cycle/sample；沒有任何一條把密度標成「每 rad」', () => {
+    const bad: string[] = []
+    for (const f of ALL_FORMULAS) for (const [k, v] of Object.entries(f.units ?? {})) if (/\/\(rad\/(block|sample)\)/.test(v)) bad.push(`${f.id}: ${k} [${v}]`)
+    expect(bad).toEqual([])
+    expect(formulaById('F-12.4')?.units?.S_w).toBe('fs^2/(cycle/block)，two-sided')
+    expect(formulaById('F-14.11')?.units?.S_w).toBe(formulaById('F-12.4')?.units?.S_w)
+    // 正常對照：頻率變數本身的單位仍是 rad/block、rad/sample（只有密度的分母改成 cycle）
+    expect(formulaById('F-12.4')?.units?.Omega).toBe('rad/block')
+    expect(formulaById('F-06.11')?.units?.S_xx).toContain('cycle/sample')
+    expect(formulaById('F-06.11')?.units?.Omega).toBe('rad/sample')
+    // 單邊 per-Hz 的換算式不變（不可多乘 2π）
+    expect(formulaById('F-12.10')?.tex).toContain(String.raw`S^{(1)}(f)=\frac{2}{f_r}`)
+    expect(formulaById('F-12.10')?.units).toEqual({ 'S^(1)': 'fs^2/Hz', L: 'dBc/Hz' })
+  })
+
   it('搜尋 haystack：TeX、中文標題、勘誤、頁面名稱都找得到同一條公式', () => {
     const find = (q: string) => ALL_FORMULAS.filter((f) => matchesAll(f.haystack, tokenize(q))).map((f) => f.id)
     expect(find('F-12.9')).toContain('F-12.9')

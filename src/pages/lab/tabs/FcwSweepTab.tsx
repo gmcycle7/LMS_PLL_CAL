@@ -13,7 +13,7 @@ const ASSUMPTIONS = [
   '每個 FCW 點獨立分析：其他參數與「共用參數」相同，只換 $\\alpha$（frac）',
   '$C=E[x_{\\mathrm{ref}}u_x]$ 用整段 code record 平均（一階 DSM 取整數個週期，至少 $2^{17}$ 個樣本、上限 $2^{19}$）；主 PLL 濾波器的暫態先略過',
   '$K=K_qC$、$g=\\mu K$、$\\rho$ 來自線性化平均模型；$\\lambda_{\\min}$ 是每個 GMAC block 的 $\\tfrac1N\\sum u_x^2$ 的最小值（§9.1 的有限窗口定義，單參數）',
-  'bias 是線性化固定點 $w^*_{\\mathrm{lin}}-a=(E[x_{\\mathrm{ref}}H\\{d\\}]+bE[x_{\\mathrm{ref}}])/C$；$C\\le0$ 時 $w^*$ 是排斥點（到不了）',
+  'bias 是線性化固定點 $w^*_{\\mathrm{lin}}-a=(E[x_{\\mathrm{ref}}H\\{d\\}]+bE[x_{\\mathrm{ref}}])/C$；$C\\le0$ 時 $w^*$ 是排斥點（到不了）。線性化只在把 $w^*_{\\mathrm{lin}}$ 代回去後、comparator 前的確定性殘差仍遠小於 $\\sigma_v$ 時可信：$C\\to0^+$ 時 bias 會大到超出這個範圍，$w^*_{\\mathrm{lin}}$ 就只是線性外推（Ch11 §11.4），這時以閉迴路的點為準',
   'fractional spur 用一階 DSM 的封閉式，並假設校正後還留有 $\\Delta a$ 的 gain 誤差（可調）；MASH 與開了 dither 的 code 沒有封閉式，該欄空白',
   'GMAC 斜率量測：凍結 $w=w^*\\pm\\Delta w$，兩邊用同一串 comparator 雜訊（common random numbers），95% CI 來自各 block 的差值',
 ]
@@ -233,7 +233,7 @@ export function FcwSweepTab() {
             />
           )}
           <ModeGate min="engineer">
-            {fBias && <Plot title="線性化 bias $w^*_{\mathrm{lin}}-a$（虛線：$\pm\sigma_{w,\mathrm{pred}}$）" csvName="fcw-sweep-bias" data={fBias.data} layout={fBias.layout} xLog={xLog} height={280} caption="bias 來自 offset / INL / code 平均經 $H_{\mathrm{PD}}$ 後與 regressor 的相關，除以 $C$——所以 $C\to0$ 時 bias 被放大（§11.4）。點是閉迴路的實際 mean $w-a$（有開的話）。" />}
+            {fBias && <Plot title="線性化 bias $w^*_{\mathrm{lin}}-a$（虛線：$\pm\sigma_{w,\mathrm{pred}}$）" csvName="fcw-sweep-bias" data={fBias.data} layout={fBias.layout} xLog={xLog} height={280} caption="bias 來自 offset / INL / code 平均經 $H_{\mathrm{PD}}$ 後與 regressor 的相關，除以 $C$——所以 $C\to0$ 時 bias 被放大（§11.4）；放大到 comparator 飽和時這條線只是線性外推，以閉迴路的點為準。點是閉迴路的實際 mean $w-a$（有開的話）。" />}
             {fSpur && <Plot title="fractional spur（假設殘餘 $\Delta a$）與輸出靈敏度" csvName="fcw-sweep-spur" data={fSpur.data} layout={fSpur.layout} xLog={xLog} height={280} caption="spur 振幅 $=|\Delta a|\,s\,A_1|T(f_1)|$：$f_1=\alpha f_{\mathrm{ref}}$ 落在 PLL 頻寬內（近整數）時 $|T|\approx1$，spur 最大；頻寬外被 $T$ 壓低。dBc 用 $20\log_{10}(\beta/2)$。這是行為模型的估計，不是量測。" />}
             {fSlope && <Plot title="GMAC 斜率：$S=-(G_+-G_-)/(2\Delta w)$（MC，95% CI）vs $K=K_qC$" csvName="fcw-sweep-slope" data={fSlope.data} layout={fSlope.layout} xLog={xLog} height={300} caption="這是 sign-off 的「freeze $\pm\Delta w$」量測（§16.2）在模型裡的版本：斜率為正才是負回授。mean-field 斜率是同一段 code 樣本、對 comparator 雜訊取期望的值，MC 應落在它的 CI 內。" />}
           </ModeGate>

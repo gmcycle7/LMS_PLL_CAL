@@ -3,7 +3,7 @@
   "title": "同上，comparator tie → +1",
   "page": "/ch/01",
   "experiment": "mse-vs-mae",
-  "description": "勘誤 E40：sign(0) = +1 時 Sign-Error 的時間平均變成 μ；IEEE double 連加會讓 tie 失效。",
+  "description": "勘誤 E40：sign(0) = +1 時 Sign-Error 的時間平均變成約 μ（μ ≪ 10 的近似）；IEEE double 連加會讓 tie 失效。",
   "params": {
     "model": "four_point",
     "mu": 0.2,
@@ -13,6 +13,6 @@
     "huberDelta": 1,
     "seed": 7
   },
-  "expected": "lattice 精確時間平均 = μ = 0.2；定點版本與之一致（5σ 內）；IEEE 版本因 5.55e−17 殘差而接近 0（仍在 μ|x| 的容忍帶內，E40）。",
+  "expected": "lattice 精確時間平均 ≈ μ = 0.2；定點版本與之一致（5σ 內）；IEEE 版本因 5.55e−17 殘差而接近 0（仍在 μ|x| 的容忍帶內，E40）。",
   "source": "simulation"
 }

@@ -97,17 +97,22 @@ export const SYMBOLS: SymbolEntry[] = [
     symbol: 'e[n]',
     meaning: (
       <>
-        PD 的輸出：<Tex>{String.raw`t_\mathrm{ref}^{\prime}[n]-t_\mathrm{fb}[n]=\delta_k\,u[n]+v[n]`}</Tex>（<Tex>{String.raw`t_\mathrm{ref}^{\prime}`}</Tex> 是 DTC 延遲後的 reference edge）；就是送進 loop filter 的同一個節點，comparator 取它的正負號
+        PD 的輸出：<Tex>{String.raw`t_\mathrm{ref}^{\prime}[n]-t_\mathrm{fb}[n]\approx\delta_k\,u[n]+v[n]`}</Tex>（<Tex>{String.raw`t_\mathrm{ref}^{\prime}`}</Tex> 是 DTC 延遲後的 reference edge）；就是送進 loop filter 的同一個節點，comparator 取它的正負號
       </>
     ),
     unit: '\\mathrm{fs}',
     firstSeen: '章首、先備知識',
+    note: (
+      <>
+        寫 <Tex>{'\\approx'}</Tex>：<Tex>{'w'}</Tex> 逐 block 更新時，每個 block 的第一個樣本不是等式（14.1 節）；<Tex>{'w'}</Tex> 固定不動時是等式
+      </>
+    ),
   },
   {
     symbol: 'q[n],\\ v[n]',
     meaning: (
       <>
-        1-bit comparator 輸出 <Tex>{'q=\\mathrm{sign}(\\delta u+v)=\\pm1'}</Tex>（輸入是 PD 的輸出 <Tex>{'e[n]=\\delta u+v'}</Tex>）與 comparator 前的雜訊樣本
+        1-bit comparator 輸出 <Tex>{'q=\\mathrm{sign}(e)=\\pm1'}</Tex>（輸入是 PD 的輸出 <Tex>{'e[n]\\approx\\delta u+v'}</Tex>）與 comparator 前的雜訊樣本
       </>
     ),
     unit: '—,\\ \\mathrm{fs}',

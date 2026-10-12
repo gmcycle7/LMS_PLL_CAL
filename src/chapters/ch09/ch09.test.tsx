@@ -8,6 +8,7 @@ import peSrc from '@/simulation/models/pe.ts?raw'
 import mimoPy from '../../../golden/lms_pll_golden/mimo.py?raw'
 import { gaugeAnalysis, gaugeDriftStd, peAnalytic, simulatePeLab } from '@/simulation/models/pe'
 import { designDtLoop } from '@/simulation/models/pll'
+import { richProblems } from '@/pages/formulas/testUtils'
 import Chapter09 from './index'
 import { CH09_DIAGRAMS, SYSTEM_FOCUS } from './diagrams'
 import { FORMULAS } from './formulas'
@@ -151,6 +152,93 @@ describe('Ch09 smoke test（jsdom）', () => {
     expect(reactWarnings()).toEqual([])
     // 各模式（含 ModeGate 才顯示的內容）都沒有 KaTeX 解析錯誤
     expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+
+    // ── 審查 R06a：平均遞迴對 linear 是等式、對 1-bit 是小訊號近似——三種模式都在公式旁看得到（不靠展開推導或切到 Research）──
+    const f093 = container.querySelector('[id="formula-F-09.3"]') as HTMLElement
+    const f092 = container.querySelector('[id="formula-F-09.2"]') as HTMLElement
+    for (const el of [f092, f093]) {
+      expect(el.textContent).toContain('≈') // 1-bit 那一列
+      expect(el.textContent).toContain(String.raw`\approx`)
+      expect(el.textContent).toContain(String.raw`|\mathbf u^T\boldsymbol\delta_k|\ll\sigma_v`) // 條件寫在式子裡
+      expect(el.textContent).toContain('linear')
+      expect(el.textContent).toContain('1-bit')
+    }
+    // 緊接在後的說明框（不在 ModeGate 裡）：條件用哪個量判斷、反例的數字（由 pe.ts 即時計算）
+    const howSmall = Array.from(container.querySelectorAll('.callout')).find((el) => el.textContent?.includes('多小才算小')) as HTMLElement
+    expect(howSmall).toBeTruthy()
+    expect(follows(f093, howSmall)).toBe(true)
+    expect(follows(howSmall, container.querySelector('[data-diagram="coupled-mean"]') as Element)).toBe(true)
+    const small = howSmall.textContent ?? ''
+    expect(small).toContain(String.raw`s_\delta=\frac{\sqrt{\boldsymbol\delta^T\mathbf R\boldsymbol\delta}}{\sigma_v}`)
+    expect(small).toContain(String.raw`\frac{K_q}{\sqrt{1+s_\delta^2}}\,\mathbf R\boldsymbol\delta`)
+    for (const n of ['0.5\\%', '4.2\\%', '29\\%', '=0.94358', '=0.92021', '0.0234', '=0.9']) expect(small, n).toContain(n)
+    // 迴路自己的穩態抖動：F-09.18 的小訊號估計 E[s_δ²]（N = 1：π/4 → 0.79；N = 32：0.047）
+    expect(small).toContain('穩態抖動')
+    expect(small).toContain('0.79')
+    expect(small).toContain('0.047')
+    expect(howSmall.querySelector('.c-claim-approx')).toBeTruthy()
+    expect(howSmall.querySelector('.c-claim-exact')).toBeNull()
+    // 物理單位的 75,091 是 1-bit 的數字：標成近似，並寫出小訊號前提
+    const phys = Array.from(container.querySelectorAll('.callout')).find((el) => el.textContent?.includes('換成物理單位')) as HTMLElement
+    expect(phys.textContent).toContain('75,091')
+    expect(phys.querySelector('.c-claim-approx')).toBeTruthy()
+    expect(phys.querySelector('.c-claim-exact')).toBeNull()
+    expect(phys.textContent).toContain(String.raw`|\mathbf u^T\boldsymbol\delta_k|\ll\sigma_v=100\,\mathrm{fs}`)
+    // 衍生的 pole（F-09.4）與最佳 g⋆（F-09.7）旁邊也看得到 1-bit 的適用範圍（claim 仍是線性遞迴上的精確代數）
+    const meanSec = container.querySelector('#ch09-mean')?.textContent ?? ''
+    expect(meanSec).toContain('的局部 pole，見 F-09.3 下面的說明')
+    expect(meanSec).toContain('同樣只在小訊號區成立')
+    expect((container.querySelector('[id="formula-F-09.4"]') as HTMLElement).nextElementSibling?.textContent).toContain('的局部 pole')
+    // 「本課必記」與章末符號表的說法一致
+    const recap = container.querySelector('.c-recap')?.textContent ?? ''
+    expect(recap).toContain('linear 精確、1-bit 是小訊號近似')
+    expect(recap).toContain(String.raw`\approx(\mathbf I-\mu K_q\mathbf R)\,E[\boldsymbol\delta_k]`)
+    expect(recap).toContain('blocks（1-bit，小訊號近似）')
+    expect(symbols.textContent).toContain('linear detector 時是精確的等式，1-bit 時是')
+    // 說明框新引進的符號 s_δ 也列在章末符號表；它和本章原有的 s（±1 code 的符號）、s[n]（step response）不是同一個量，
+    // 所以用帶下標的寫法，全頁不可出現裸的「s ≪ 1」「s = 0.3」這種寫法
+    const sRow = Array.from(symbols.querySelectorAll('tbody tr')).find((tr) => tr.querySelector('td')?.textContent?.includes(String.raw`s_\delta`))
+    expect(sRow, '符號表的 s_δ 列').toBeTruthy()
+    expect(sRow?.textContent).toContain(String.raw`s_\delta=\sqrt{\boldsymbol\delta^T\mathbf R\boldsymbol\delta}/\sigma_v`)
+    expect(sRow?.textContent).toContain(String.raw`s_\delta\ll1`)
+    expect(sRow?.textContent).toContain('是不同的量')
+    expect(meanSec).toContain(String.raw`s_\delta\ll1`)
+    for (const bare of [String.raw`s\ll1`, 's=0.1', 's=0.3', String.raw`E[s^2]`, String.raw`\sqrt{1+s^2}`]) expect(container.textContent, bare).not.toContain(bare)
+
+    // ── 審查 C01：「λ_min 決定最慢的模式」只在 g ≤ g⋆ 成立；每一處都帶著條件 ──
+    const page = container.textContent ?? ''
+    expect(page).not.toContain('決定最慢的模式有多慢')
+    expect(page).toContain('會因為過衝（pole 是負的）而變成最慢的')
+    expect(page).toContain(String.raw`g\le2/(\lambda_{\max}+\lambda_{\min})`)
+    const mainline = Array.from(container.querySelectorAll('.callout')).find((el) => el.textContent?.includes('本課主線'))
+    expect(mainline?.textContent).toContain('不太大時；精確的條件見後面的 F-09.7')
+    expect(container.querySelector('#ch09-compare')?.textContent).toContain(String.raw`g\le g^\star=2/(\lambda_{\max}+\lambda_{\min})`)
+    expect(recap).toContain(String.raw`g\le g^\star=2/(\lambda_{\max}+\lambda_{\min})`)
+    // 實驗室上方的「試試看」與實驗室的行為一致：「執行至收斂」等的是最慢的模式；g > g⋆ 與 1-bit 穩態抖動都有警告可看
+    const tips = container.querySelector('#ch09-lab-pe')?.textContent ?? ''
+    expect(tips).toContain('讓最慢的模式降到 5% 的那一刻落在圖內')
+    expect(tips).toContain('最慢的換成過衝的快模式')
+    expect(tips).toContain(String.raw`\sqrt{E[s_\delta^2]}\approx0.89`) // √(π/4)：1-bit、g = 0.5、N = 1
+
+    // ── 審查 C09：E[u₁u₂] = 0 叫「正交」；「不相關」是 E[u₁u₂] = E[u₁]E[u₂]，其中一個平均為 0 時兩者才相同（與 Ch01 的用語一致）──
+    const prereq = container.querySelector('#ch09-prereq')?.textContent ?? ''
+    expect(prereq).toContain('正交（orthogonal）')
+    expect(prereq).toContain('只要其中一個的平均為 0，這也就是不相關（uncorrelated')
+    expect(prereq).toContain(String.raw`E[u_1u_2]=E[u_1]\,E[u_2]`)
+    expect(prereq).toContain('不扣平均')
+    expect(prereq).not.toContain('：不相關（uncorrelated），互相不干擾')
+    expect(prereq).not.toContain('互不相干')
+    const rhoRow = Array.from(symbols.querySelectorAll('tbody tr')).find((tr) => tr.textContent?.includes('兩個 regressor 的相關係數'))
+    expect(rhoRow, '符號表的 ρ 列').toBeTruthy()
+    expect(rhoRow?.textContent).toContain('不扣平均')
+    expect(rhoRow?.textContent).toContain('正交')
+
+    // ── T11 的 [精確｜mean recursion] 標籤：「精確」指 linear detector；1-bit 時是小訊號近似（與 F-09.3 的 R06a 修正一致）──
+    const ms = container.querySelector('#ch09-ms')?.textContent ?? ''
+    expect(ms).toContain('標籤裡的「精確」指 linear detector 的平均遞迴')
+    expect(ms).toContain('只是小訊號區')
+    expect(ms).toContain('的近似（F-09.3）')
+    if (mode !== 'beginner') expect(ms).toContain('[精確｜mean recursion]：linear detector 時精確；1-bit 時是小訊號近似，F-09.3')
   }, PAGE_TIMEOUT)
 
   it('每個 FORMULAS 的 id 在任何模式（此處用 beginner）都有對應的 TexBlock 錨點；id 唯一且格式為 F-09.x', () => {
@@ -168,6 +256,51 @@ describe('Ch09 smoke test（jsdom）', () => {
     // 勘誤欄位只用本章負責的條目
     for (const f of FORMULAS) if (f.erratumId) expect(['E04', 'E05', 'E08', 'E22', 'E23']).toContain(f.erratumId)
   }, PAGE_TIMEOUT)
+
+  it('公式登錄（審查 R06a）：F-09.3 是 linear 精確／1-bit 小訊號近似的混合式，標 approx；衍生的 F-09.4／.6／.7 仍是指定模型內的精確代數，條件寫明 1-bit 只在小訊號區', () => {
+    const f = (id: string) => {
+      const x = FORMULAS.find((e) => e.id === id)
+      expect(x, id).toBeTruthy()
+      return x!
+    }
+    // F-09.3：一條式子、兩個關係符號
+    expect(f('F-09.3').claim).toBe('approx')
+    expect(f('F-09.3').tex).toContain(String.raw`\begin{cases}=(\mathbf I-\mu K_q\mathbf R)\,E[\boldsymbol\delta_k]&\text{linear`)
+    expect(f('F-09.3').tex).toContain(String.raw`\approx(\mathbf I-\mu K_q\mathbf R)\,E[\boldsymbol\delta_k]&\text{1-bit`)
+    expect(f('F-09.3').tex).toContain(String.raw`|\mathbf u^T\boldsymbol\delta_k|\ll\sigma_v`)
+    for (const t of ['linear detector', '等號精確，不限誤差大小', '小訊號近似', 'F-09.16', '穩態抖動', String.raw`$s_\delta=0.3$ 時少約 $4\%$`, String.raw`$s_\delta=1$ 時少 $29\%$`, '勘誤 E05/E08', '勘誤 E23'])
+      expect(f('F-09.3').conditions, t).toContain(t)
+    expect(f('F-09.3').erratumId).toBe('E05')
+    // 登錄裡寫死的兩個百分比：1 − 1/√(1 + s_δ²)
+    expect(100 * (1 - 1 / Math.sqrt(1 + 0.3 * 0.3))).toBeCloseTo(4.2, 1)
+    expect(100 * (1 - 1 / Math.sqrt(2))).toBeCloseTo(29.3, 1)
+    // F-09.2：本來就是 approx；章內只顯示 TeX，所以 TeX 自己帶著 linear／1-bit 的區別
+    expect(f('F-09.2').claim).toBe('approx')
+    expect(f('F-09.2').tex).toContain(String.raw`\approx K_q\,\mathbf R\,\boldsymbol\delta_k`)
+    expect(f('F-09.2').tex).toContain(String.raw`=K_q\,\mathbf R\,\boldsymbol\delta_k,\ \ K_q\equiv1`)
+    expect(f('F-09.2').conditions).toContain('小訊號近似')
+    expect(f('F-09.2').erratumId).toBe('E05')
+    // F-09.4／F-09.6／F-09.7：claim 不變（線性遞迴上的精確代數），條件指出 1-bit 的適用範圍
+    expect(f('F-09.4').claim).toBe('exact')
+    expect(f('F-09.4').conditions).toContain('小訊號')
+    expect(f('F-09.4').conditions).toContain('F-09.3')
+    expect(f('F-09.4').tex).toContain(String.raw`p_i=1-\mu K_q\lambda_i(\mathbf R)`)
+    expect(f('F-09.6').claim).toBe('exact')
+    expect(f('F-09.6').conditions).toContain('小訊號')
+    expect(f('F-09.6').conditions).toContain(String.raw`$75{,}091$`)
+    expect(f('F-09.6').conditions).toContain(String.raw`$|p|$ 最大的那個模式`) // 審查 C01：整體要等的是 |p| 最大的模式
+    expect(f('F-09.7').claim).toBe('exact')
+    expect(f('F-09.7').conditions).toContain('F-09.3')
+    expect(f('F-09.7').conditions).toContain(String.raw`$g^\star<g<2/\lambda_{\max}$ 時換成 $\lambda_{\max}$ 的模式`)
+    // 不可連帶改動：Bussgang 精確條件平均（exact）與 1-bit 均方遞迴（approx）
+    expect(f('F-09.16').claim).toBe('exact')
+    expect(f('F-09.16').conditions).toContain('mean-field 近似')
+    expect(f('F-09.18').claim).toBe('approx')
+    for (const id of ['F-09.2', 'F-09.3', 'F-09.4', 'F-09.5', 'F-09.6', 'F-09.7']) expect(richProblems(f(id).conditions), id).toEqual([])
+    // 登錄條件裡的小訊號比用 s_δ（與章內說明框、符號表同一個符號），並在同一句裡定義
+    expect(f('F-09.3').conditions).toContain(String.raw`$K_q\mathbf R\boldsymbol\delta/\sqrt{1+s_\delta^2}$，$s_\delta=\sqrt{\boldsymbol\delta^T\mathbf R\boldsymbol\delta}/\sigma_v$`)
+    expect(f('F-09.3').conditions).not.toMatch(/\$s=/)
+  })
 
   it('頁面引用的 #region core:* 都存在於 pe.ts（顯示的就是執行的程式碼）', () => {
     const regions = listRegions(peSrc)

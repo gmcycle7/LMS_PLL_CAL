@@ -352,7 +352,7 @@ describe('lossCompare：同一組資料上的三種演算法與穩態', () => {
     expect(ta.std ** 2 / ss.variance).toBeLessThan(1.1)
   })
 
-  it('E40：lattice 鏈精確解——y = [0,0,0,10]、μ = 0.2 的 Sign-Error 時間平均：zero → μ/2、plus → μ、minus → 0', () => {
+  it('E40：lattice 鏈精確解——y = [0,0,0,10]、μ = 0.2 的 Sign-Error 時間平均：zero → μ/2、plus → μ、minus → 0（μ ≪ 10 的近似，這個步長下差約 5e−24；見下面審查 R08 的測試）', () => {
     const mu = 0.2
     const z = signErrorLatticeStationary(FOUR, { w0: 0, mu, tie: 'zero' })!
     const pl = signErrorLatticeStationary(FOUR, { w0: 0, mu, tie: 'plus' })!
@@ -368,6 +368,127 @@ describe('lossCompare：同一組資料上的三種演算法與穩態', () => {
     expect(off[0]).toBeCloseTo(off[2], 12)
     // 均落在中位數 0 附近的 O(μ) 帶內
     for (const m of [z.mean, pl.mean, mi.mean, ...off]) expect(Math.abs(m)).toBeLessThanOrEqual(mu + 1e-12)
+  })
+
+  // ───── 審查 R08：F-01.16 右式（μ/2、μ、0）是「把格點鏈當成向右無限延伸」的小步長近似，不是精確式 ─────
+  // 鏈在另一個資料值 w = 10 到頭。10/μ = M 為正整數、w0 = 0 時（獨立以有理數解 πP = π 核對過）：
+  //   sign(0) = 0：格點 0…M，π_k ∝ 3^{−k}
+  //   sign(0) = +1：格點 0…M+1，權重 1, 4·3^{−k}（k = 1…M）, 3^{−M}；sign(0) = −1 是同一條鏈往下移一格
+  //   三種慣例的時間平均都比右式少 (M + 1)μ/(3^{M+1} − 1) = (10 + μ)/(3^{1 + 10/μ} − 1)
+  const lat3 = (mu: number, w0 = 0) => (['zero', 'plus', 'minus'] as TieRule[]).map((tie) => signErrorLatticeStationary(FOUR, { w0, mu, tie })!)
+  const upperCorr = (mu: number) => (10 + mu) / (3 ** (1 + 10 / mu) - 1)
+  const expectVec = (got: number[], want: number[]) => {
+    expect(got).toHaveLength(want.length)
+    want.forEach((v, k) => expect(got[k], `[${k}]`).toBeCloseTo(v, 12))
+  }
+
+  it('審查 R08 反例：μ = 5、w0 = 0——w 只待在 {0, 5, 10}，π = (9, 3, 1)/13，時間平均 25/13 ≈ 1.923 而不是 μ/2 = 2.5；plus → 115/26、minus → −15/26（不是 5 與 0）', () => {
+    const [z, pl, mi] = lat3(5)
+    expectVec(z.grid, [0, 5, 10])
+    expectVec(z.pi, [9 / 13, 3 / 13, 1 / 13])
+    expect(z.mean).toBeCloseTo(25 / 13, 12)
+    expect(z.mean).toBeCloseTo(1.9230769230769231, 12)
+    expect(Math.abs(z.mean - 5 / 2)).toBeGreaterThan(0.5) // F-01.16 右式在這裡差了 23%
+    expectVec(pl.grid, [0, 5, 10, 15])
+    expectVec(pl.pi, [9 / 26, 12 / 26, 4 / 26, 1 / 26])
+    expect(pl.mean).toBeCloseTo(115 / 26, 12)
+    expect(pl.mean).toBeCloseTo(4.423076923076923, 12)
+    expectVec(mi.grid, [-5, 0, 5, 10])
+    expectVec(mi.pi, [9 / 26, 12 / 26, 4 / 26, 1 / 26])
+    expect(mi.mean).toBeCloseTo(-15 / 26, 12)
+    expect(mi.mean).toBeCloseTo(-0.5769230769230769, 12)
+    // 獨立核對：π 滿足 πP = π（zero tie 的三狀態轉移矩陣；w = 10 那一格抽到 10 是 e = 0、不動，抽到 0 往下，不會再往上）
+    const Pm = [
+      [0.75, 0.25, 0],
+      [0.75, 0, 0.25],
+      [0, 0.75, 0.25],
+    ]
+    for (let j = 0; j < 3; j++) expect(z.pi.reduce((acc, q, i) => acc + q * Pm[i][j], 0)).toBeCloseTo(z.pi[j], 12)
+    // 右邊界上的 tie 也跟著慣例變：plus 會多走到 10 + μ = 15，minus 的最上面一格仍是 10（一定往下）
+    expect(pl.grid[pl.grid.length - 1]).toBeCloseTo(15, 12)
+    expect(mi.grid[mi.grid.length - 1]).toBeCloseTo(10, 12)
+    // 左式不受影響：三種慣例的時間平均離中位數 0 都不超過 μ|x| = 5
+    for (const r of [z, pl, mi]) expect(Math.abs(r.mean)).toBeLessThanOrEqual(5)
+  })
+
+  it('審查 R08：10/μ 為正整數時的有限鏈公式——zero → μ/2 − c、plus → μ − c、minus → −c，c = (10 + μ)/(3^{1 + 10/μ} − 1)', () => {
+    // 期望值是用有理數獨立算出的（Python Fraction 解 πP = π），不是從被測函式抄回來的
+    const exact: Record<number, [number, number, number]> = {
+      10: [2.5, 7.5, -2.5],
+      5: [1.9230769230769231, 4.423076923076923, -0.5769230769230769],
+      2.5: [1.1983471074380165, 2.4483471074380163, -0.05165289256198347],
+      2: [0.9835164835164835, 1.9835164835164836, -0.016483516483516484],
+      1: [0.49993790432750385, 0.9999379043275038, -6.209567249613313e-5],
+      0.5: [0.2499999989962098, 0.4999999989962098, -1.0037901968733158e-9],
+    }
+    for (const mu of [10, 5, 2.5, 2, 1, 0.5]) {
+      const c = upperCorr(mu)
+      const [z, pl, mi] = lat3(mu)
+      expect(z.mean, `zero μ=${mu}`).toBeCloseTo(mu / 2 - c, 12)
+      expect(pl.mean, `plus μ=${mu}`).toBeCloseTo(mu - c, 12)
+      expect(mi.mean, `minus μ=${mu}`).toBeCloseTo(-c, 12)
+      expectVec([z.mean, pl.mean, mi.mean], exact[mu])
+      // 有限鏈的 π_0（zero）= (2/3)/(1 − 3^{−(M+1)})，只有 M 大時才是 2/3
+      expect(z.pi[z.grid.findIndex((g) => Math.abs(g) < 1e-9)]).toBeCloseTo(2 / 3 / (1 - 3 ** -(1 + 10 / mu)), 12)
+    }
+    // 修正量的大小：μ = 1 約 6.2e−5（Lab 的 μ 範圍內看得見）、μ = 2 約 1.6e−2、μ = 5 約 0.58
+    expect(upperCorr(1)).toBeCloseTo(6.209567249613313e-5, 15)
+    expect(upperCorr(2)).toBeCloseTo(3 / 182, 12)
+    expect(upperCorr(5)).toBeCloseTo(15 / 26, 12)
+  })
+
+  it('審查 R08 正常對照：小步長（μ = 0.2、0.02）時 μ/2、μ、0 準到 double 解析度以下——修正量 4.7e−24 與 9.2e−239', () => {
+    for (const mu of [0.2, 0.02]) {
+      const [z, pl, mi] = lat3(mu)
+      expect(z.mean).toBeCloseTo(mu / 2, 12)
+      expect(pl.mean).toBeCloseTo(mu, 12)
+      expect(mi.mean).toBeCloseTo(0, 12)
+      expect(upperCorr(mu)).toBeLessThan(1e-20)
+      expect(upperCorr(mu)).toBeGreaterThan(0)
+    }
+    // 章內（MedianExample.tsx 的 UPPER_CORR_SS）與公式登錄 F-01.16 引用的數字
+    expect(upperCorr(0.2) / 4.73604893493503e-24).toBeCloseTo(1, 10)
+    expect(upperCorr(0.2).toExponential(1)).toBe('4.7e-24')
+    expect((3 ** -50).toExponential(1)).toBe('1.4e-24') // 圖 2-6 導讀的 3^{−10/μ}
+    expect(upperCorr(0.02)).toBeLessThan(1e-200)
+    // zero tie 待在 w ≥ 10 的機率 = π_M = (2/3)·3^{−M}/(1 − 3^{−(M+1)}) < 3^{−10/μ}（μ = 5：1/13 < 1/9）
+    const big = lat3(5)[0]
+    expect(big.pi[2]).toBeCloseTo(1 / 13, 12)
+    expect(big.pi[2]).toBeLessThan(3 ** -2)
+    // 另外兩種慣例不適用「小於」：plus 在 w ≥ 10 的機率是 5/26 > 1/9（量級仍是 3^{−10/μ}），minus 是 1/26
+    const [, plBig, miBig] = lat3(5)
+    expect(plBig.pi[2] + plBig.pi[3]).toBeCloseTo(5 / 26, 12)
+    expect(plBig.pi[2] + plBig.pi[3]).toBeGreaterThan(3 ** -2)
+    expect(miBig.pi[3]).toBeCloseTo(1 / 26, 12)
+  })
+
+  it('審查 R08：單一修正量只在 10/μ 為正整數時成立——μ = 3（格點 0, 3, 6, 9, 12）是 228/161、57/20、−15/242，與公式不同；O(μ|x|) 的帶仍成立', () => {
+    const mu = 3
+    const [z, pl, mi] = lat3(mu)
+    expectVec(z.grid, [0, 3, 6, 9, 12])
+    expectVec(z.pi, [108 / 161, 36 / 161, 12 / 161, 4 / 161, 1 / 161]) // 最上面一格 w = 12 > 10：兩種 y 都往下
+    expect(z.mean).toBeCloseTo(228 / 161, 12)
+    expect(z.mean).toBeCloseTo(1.4161490683229814, 12)
+    expect(pl.mean).toBeCloseTo(2.85, 12)
+    expect(mi.mean).toBeCloseTo(-15 / 242, 12)
+    expect(mi.mean).toBeCloseTo(-0.06198347107438017, 12)
+    // 把 10/μ 不是整數的 μ 硬代進單一修正量公式會錯（差 0.028）
+    expect(Math.abs(z.mean - (mu / 2 - upperCorr(mu)))).toBeGreaterThan(0.02)
+    // 三種慣例離各自的小步長值的距離也不一樣：−0.0839、−0.15、−0.0620
+    expect(z.mean - mu / 2).toBeCloseTo(-0.0838509316770186, 12)
+    expect(pl.mean - mu).toBeCloseTo(-0.15, 12)
+    expect(mi.mean - 0).toBeCloseTo(-0.06198347107438017, 12)
+    for (const r of [z, pl, mi]) expect(Math.abs(r.mean)).toBeLessThanOrEqual(mu)
+  })
+
+  it('審查 R08：MSE vs MAE Lab「試試看 (2)」引用的數字——預設 w0 = 1、μ = 1、sign(0) = 0 的解析值是 44281/88573，顯示成 0.499938，不是 μ/2 = 0.5', () => {
+    const r = signErrorLatticeStationary(FOUR, { w0: 1, mu: 1, tie: 'zero' })!
+    expect(r.mean).toBeCloseTo(44281 / 88573, 12)
+    expect(r.mean).toBeCloseTo(0.4999379043275038, 12)
+    expect(Number(r.mean.toPrecision(6))).toBe(0.499938)
+    expect(0.5 - r.mean).toBeCloseTo(upperCorr(1), 12)
+    // w0 = 0 與 w0 = 1 是同一個格點（都是 μ 的整數倍），結果相同
+    expect(lat3(1)[0].mean).toBeCloseTo(r.mean, 14)
   })
 
   it('E40：定點（整數 code）Monte Carlo 時間平均與 lattice 精確值一致；IEEE double 連加會讓 tie 慣例失效', () => {

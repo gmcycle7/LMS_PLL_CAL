@@ -314,7 +314,9 @@ export function analyticRows(an: BlockLmsAnalytic, cfg: BlockLmsConfig): Analyti
     { key: 'fuHz', label: 'Block update rate', tex: String.raw`f_u=f_s/N`, value: an.fuHz, unit: 'Hz', claim: 'exact' },
     { key: 'f3dbHz', label: '$-3\\,\\mathrm{dB}$ 頻寬（exact，$d=0$）', tex: String.raw`f_\mathrm{3dB}=\frac{f_u}{2\pi}\arccos\!\Bigl(1-\frac{(1-p)^2}{2p}\Bigr)`, value: an.f3dbHz, unit: 'Hz', claim: 'exact', note: '$p<3-2\\sqrt2$ 時不存在（E27）；不是 Noise BW（E06）' },
     { key: 'enbwHz', label: 'One-sided ENBW（$d=0$）', tex: String.raw`\mathrm{ENBW}=\frac{f_u(1-p)}{2(1+p)}`, value: an.enbwHz, unit: 'Hz', claim: 'exact', note: '$\\sigma_w^2=S_w^{(1)}(0)\\cdot\\mathrm{ENBW}$（E06）' },
-    { key: 'tauBlocks', label: '時間常數', tex: String.raw`\tau=-1/\ln\rho`, value: an.tauBlocks, unit: 'blocks', claim: 'exact' },
+    d <= 0
+      ? { key: 'tauBlocks', label: '時間常數', tex: String.raw`\tau=-1/\ln\rho`, value: an.tauBlocks, unit: 'blocks', claim: 'exact', note: '$d=0$：平均誤差每個 block 剛好乘上 $\\rho$' }
+      : { key: 'tauBlocks', label: '時間常數（漸近衰減率）', tex: String.raw`\tau=-1/\ln\rho`, value: an.tauBlocks, unit: 'blocks', claim: 'approx', note: `$d=${d}$：$\\rho$ 只決定漸近的衰減率，$\\rho^k$ 不是平均誤差的包絡；逐 block 的暫態可能比 $\\tau$ 慢` },
     {
       key: 'wStarLinear',
       label: '線性化固定點',

@@ -34,7 +34,7 @@ export function evenNTie(N = 100, sOverSigma = 0.01) {
   return { N, strict, tie, split: strict + tie / 2 }
 }
 
-/** |x| 加權中位數：無雜訊 Sign-LMS 的固定點 E[x·sign(e)] = 0（勘誤 E01 的 1.4） */
+/** |x| 加權中位數：無雜訊 Sign-LMS 的固定點——E[x·sign(e)] 由正變負的位置（不是等於 0 的點；勘誤 E01 的 1.4） */
 export function signLmsNoiseFreeGain(values: number[], probs: number[], a: number, c3: number): number {
   // e = (a − w)x + c3 x³ = x[(a + c3 x²) − w]；x·sign(e) = |x|·sign(s_x − w)，s_x = a + c3 x²
   const items = values

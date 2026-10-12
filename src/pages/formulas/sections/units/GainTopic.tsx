@@ -43,10 +43,11 @@ export function MuUnitsTopic() {
         }
         steps={[
           {
-            tex: String.raw`e[n]=(a-w_k)\,u[n]+v[n]\ \Rightarrow\ [a]=[w]=\frac{[e]}{[u]}=\mathrm{fs}`,
+            tex: String.raw`e[n]\approx(a-w_k)\,u[n]+v[n]\ \Rightarrow\ [a]=[w]=\frac{[e]}{[u]}=\mathrm{fs}`,
             why: (
               <>
-                PD 誤差 <Tex>{'e'}</Tex> 是時間（fs）；<Tex>{'u'}</Tex> 無因次，所以時間單位由係數 <Tex>{'a,w'}</Tex> 承載。
+                PD 誤差 <Tex>{'e'}</Tex> 是時間（fs）；<Tex>{'u'}</Tex> 無因次，所以時間單位由係數 <Tex>{'a,w'}</Tex> 承載。（<Tex>{String.raw`\approx`}</Tex> 是 F-06.1 的近似：<Tex>{'w'}</Tex> 在 PD
+                路徑的記憶長度內近似常數；單位的結論與這個近似無關。）
               </>
             ),
           },

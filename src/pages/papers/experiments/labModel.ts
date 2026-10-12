@@ -5,6 +5,7 @@
 import {
   CONVENTIONS,
   corr2Eigs,
+  countedStepsToDecay,
   criticalGain,
   criticalGainNumeric,
   delaySpectralRadius,
@@ -155,6 +156,12 @@ export interface LabResult {
   muBookMax: number
   stepsSlow: number
   stepsFast: number
+  /**
+   * 逐 step 數出來的 95% 衰減步數（bridge.ts 的 countedStepsToDecay；d = 0 時與 stepsSlow／stepsFast 相同）。
+   * 不衰減時為 ∞；極慢的 mode 沒有在步數上限內數完時為 NaN（畫面上就不列）。
+   */
+  countedSlow: number
+  countedFast: number
   pmFast: number
   /** 與目前設定有相同 s 的四種寫法步長 */
   equivalents: Record<Convention, number>
@@ -259,6 +266,8 @@ export function analyzeLab(p: LabParams): LabResult {
     muBookMax,
     stepsSlow: stepsToDecay(radiusSlow),
     stepsFast: stepsToDecay(radiusFast),
+    countedSlow: countedStepsToDecay(gSlow, p.d),
+    countedFast: countedStepsToDecay(gFast, p.d),
     pmFast: pmWithDelayDeg(gFast, p.d),
     equivalents,
     bounds,

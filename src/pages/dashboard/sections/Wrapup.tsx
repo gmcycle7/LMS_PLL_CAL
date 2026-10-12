@@ -57,7 +57,7 @@ export const Wrapup = memo(function Wrapup() {
             />
             <p>
               預設參數（<Tex>{`B=${DEFAULT_PARAMS.B}\\,\\mathrm{fs},\\ C=${f(base.polarity.C)}`}</Tex>）下 <Tex>{`\\Delta w=${f(base.deltaW)}\\,\\mathrm{fs}`}</Tex>。
-              這就是條件 5 必須獨立檢查的原因。
+              這就是條件 5 必須另外檢查的原因。
             </p>
           </>
         }
@@ -136,14 +136,26 @@ export const Wrapup = memo(function Wrapup() {
           { label: '3. 動態穩定', tex: String.raw`p=1-\mu K_qC,\qquad 0<g<2\sin\frac{\pi}{4d+2}` },
           { label: '4. 統計精度', tex: String.raw`\sigma_w^2=\frac{\mu^2\sigma_\eta^2}{1-p^2}` },
           { label: '5. 正確的固定點', tex: String.raw`w^*=a+\frac{B}{C}` },
-          { label: '6. 系統層級', tex: String.raw`\delta t=x\,\delta w,\qquad \mathrm{Spur}\approx20\log_{10}(\pi f_{\mathrm{out}}|T|A_t)` },
+          {
+            label: String.raw`6. 殘餘誤差在預算內（DTC-referred $\sigma_{\delta t}$、單 tone spur）`,
+            tex: String.raw`\begin{gathered}\sigma_{\delta t}=\sqrt{P_x\,(\Delta w^2+\sigma_w^2)}\le\sigma_{\delta t,\max}\\[2pt]\mathrm{Spur}\approx20\log_{10}(\pi f_{\mathrm{out}}|T|A_t)\le\mathrm{Spur}_{\max}\end{gathered}`,
+          },
         ]}
         points={[
-          <Rich key="1" text="六個條件互相獨立：$E[G]=0$、PM 夠大、$\sigma_w$ 夠小，都不代表其他條件成立。" />,
+          <Rich
+            key="1"
+            text="六個條件要逐一檢查：只看 $E[G]=0$、PM 夠大或 $\sigma_w$ 夠小，都不能取代完整的檢查（三者都成立時，bias 與 system-level 仍可能不過）。它們也不是互相獨立的：$\mu>0$、$K_q>0$ 時，穩定條件 $0<g=\mu K_qC<g^*(d)$ 已經包含極性的 $C>0$。"
+          />,
           <Rich key="2" text="極性 $C$ 同時出現在 pole（$p=1-\mu K_qC$）與 bias（$B/C$）：$C$ 變小，收斂變慢、bias 變大、$\sigma_w$ 也變大。" />,
           <Rich key="3" text="更新晚 $d$ 個 block，可用 loop gain 從 2 縮到 $2\sin\frac{\pi}{4d+2}$；GMAC 用 sum 卻沒除以 $N$，等於 $g$ 乘上 $N$。" />,
-          <Rich key="4" text="Preconditioner 讓弱方向變快，代價是弱方向雜訊放大 $\sqrt{\kappa}$；快與安靜要取捨。" />,
-          <Rich key="5" text="$\sigma_w$ 是 gain-equivalent 的係數雜訊，要乘上 code 並經過 output transfer $T$，才是 PLL 輸出的 jitter / spur。" />,
+          <Rich
+            key="4"
+            text="Preconditioner 讓弱方向變快，代價是弱方向的雜訊 RMS 比強方向大 $\sqrt{\kappa}$ 倍；小步長（$g\ll1$）時每個係數的 $\sigma_w$ 也比一般 LMS 大，快與安靜要取捨（沒有 commit 延遲時分界在 $g=1$，更大反而比較小）。"
+          />,
+          <Rich
+            key="5"
+            text="$\sigma_w$ 是 gain-equivalent 的係數雜訊，要乘上 code 並經過 output transfer $T$，才是 PLL 輸出的 jitter / spur。本頁的條件 6 只算到 DTC-referred 的 $\sigma_{\delta t}$ 與單 tone spur，而且只和預算比、不和校正前比。"
+          />,
         ]}
       />
     </section>

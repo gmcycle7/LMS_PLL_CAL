@@ -106,6 +106,15 @@ export function delayTable(g: number) {
 }
 
 /**
+ * §4.6「三種 regressor 的 C」filtered-x 那一列的例子（技術審查 R03）：
+ * 預設參數（MASH 1-1-1 的 code、type-II 的主 PLL、unit_rms）改用 filtered-x、Ĥ = H_PD（g_m = 1、D_x = 0），
+ * GMAC 的 code delay D = 0、1、2 時 analyzeLab 算出的 C = E[x_ref·u_x] = R_u[D]，以及 D = 1 時的 pole p = 1 − μK_qC。
+ * analyzeLab 一次約 0.1 秒，不適合在頁面 render 時跑三次，所以寫成兩位小數的常數；logic.test.ts 用 analyzeLab 逐一核對。
+ * （MASH 1-1-1 的 residue 近似 (1 − z⁻¹)² 整形的白雜訊：R[0] : R[1] : R[2] = 6 : −4 : 1，正規化後就是 1、−0.67、0.17。）
+ */
+export const FX_DELAY_EXAMPLE = { delays: [0, 1, 2], C: [1.0, -0.67, 0.17], poleAtD1: 1.05 } as const
+
+/**
  * 「固定點隨 block 擺動」的手算例（§5.2 的 mean-field 段落）：一階 DSM、α = 0.3、B = 20 bit、unit_rms、無 PLL（H_PD = 1）、
  * comparator offset b。residue 用封閉式 r[n] = −((n+1)K mod M)/M 直接算（(n+1)K < 2^53，整數運算精確），
  * 取第 k 個 GMAC block（N 個樣本）自己的 E_k[x]、E_k[x²]，準靜態固定點 w*_k = a + b·E_k[x]/E_k[x²]。

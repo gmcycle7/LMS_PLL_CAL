@@ -158,7 +158,7 @@ export function S5Wrap() {
               <Tex>{'\\sigma_w'}</Tex> 的抖動與 INL）。
             </>,
             <>
-              <strong>穩定不等於學得到</strong>：<Tex>{'\\rho<1'}</Tex> 但 <Tex>{'\\lambda_{\\min}\\approx0'}</Tex> 或 <Tex>{'C\\to0^+'}</Tex> 時，迴路「穩定」卻要等上千個 block，bias 還被 <Tex>{'1/C'}</Tex> 放大。
+              <strong>穩定不等於學得到</strong>：<Tex>{'\\rho<1'}</Tex> 但 <Tex>{'\\lambda_{\\min}\\approx0'}</Tex> 或 <Tex>{'C\\to0^+'}</Tex> 時，迴路「穩定」卻要等上千個 block，線性化的 bias 還被 <Tex>{'1/C'}</Tex> 放大（放大到 comparator 飽和時，它就不再是固定點，Ch11 §11.4）。
             </>,
             <>
               <strong>每個「一致」都要有判據</strong>：跨級一致性是逐位元（容差 0）；mean <Tex>w</Tex> 用 AR(1) 的標準誤差；<Tex>{'\\sigma_w'}</Tex> 樣本不夠就標「不適用」而不是硬給綠燈。

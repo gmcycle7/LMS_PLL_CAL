@@ -1203,7 +1203,12 @@ export function analyzePllPolarity(p: PllPolarityParams): PllPolarityResult {
       `C ≤ 0：更新極性錯誤（C_D = ${empirical.toPrecision(4)}，以 σ_x² = ${sigma2.toPrecision(4)} 正規化），正 learning rate 會使平均誤差發散；只減小 μ 不會改變符號，需 delay alignment 或 filtered-x（第 07 章）。`,
     )
   } else if (cls === 'zero') {
-    warnings.push(`C ≈ 0：GMAC 沒有平均恢復力（C_D = ${empirical.toPrecision(3)}），w 會隨雜訊漂移；固定點 w* = a + B/C 對任何 bias B 都極度敏感（§11.4）。`)
+    // 技術審查 R01：a + B/C 是 comparator 線性化（Ch11 F-11.3）的式子。C → 0 時 B/C 變大，大到超出線性範圍就不再是固定點，
+    // 所以寫成「線性化的固定點 w* ≈ a + B/C」，並把條件放在同一句的括號裡（用語同 Ch06 §6.4、Ch11 §11.4）。
+    // 這一句的形狀由 ch06 explorerModel.ts 的 MODEL_TEXT_RULES 以 regex 比對（…都極度敏感（§11.4 …）。；括號內不可再有「）」），要改必須兩邊一起改。
+    warnings.push(
+      `C ≈ 0：GMAC 沒有平均恢復力（C_D = ${empirical.toPrecision(3)}），w 會隨雜訊漂移；線性化的固定點 w* ≈ a + B/C 對任何 bias B 都極度敏感（§11.4 的代回檢查：B/C 大到超出線性範圍時只是線性外推，不再是固定點）。`,
+    )
   }
   if (period !== null && period > L / 4) {
     warnings.push(`code 週期約 ${Math.round(period)} samples，分析長度 ${L} 只涵蓋 ${(L / period).toFixed(1)} 個週期：C 的時間平均尚未收斂（E46 的有限長度 ripple）。`)

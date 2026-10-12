@@ -146,7 +146,7 @@ export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-16.1',
     title: 'GMAC accumulator 位元數（精確）',
-    tex: String.raw`B_\mathrm{acc}=\min\{A:\,2^{A-1}-1\ge N\max(q x)^+,\;2^{A-1}\ge N\max(q x)^-\}=1+\bigl\lceil\log_2(N M_x+1)\bigr\rceil\;\le\;B_x+\lceil\log_2N\rceil\;(\text{symmetric})`,
+    tex: String.raw`\begin{aligned}B_\mathrm{acc}&=\min\{A:\,2^{A-1}-1\ge N\max(q x)^+,\;2^{A-1}\ge N\max(q x)^-\}\\&=1+\bigl\lceil\log_2(N M_x+1)\bigr\rceil\;\le\;B_x+\lceil\log_2N\rceil\;(\text{symmetric})\end{aligned}`,
     conditions: String.raw`$M_x=\max|q\,x_\mathrm{int}|$：symmetric code（不含 $-2^{B_x-1}$）為 $2^{B_x-1}-1$，此時經驗法則 $B_x+\lceil\log_2N\rceil$ 一定足夠，$N$ 為 2 的冪時恰好相等（其他 $N$ 可能少 1 bit）；full range 條件取負會到 $+2^{B_x-1}$（$M_x=2^{B_x-1}$），需要 $B_x+\lfloor\log_2N\rfloor+1$ bits，$N$ 為 2 的冪時比法則多 1 bit`,
     claim: 'exact',
     level: 'L5',

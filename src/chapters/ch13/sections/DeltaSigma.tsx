@@ -254,7 +254,7 @@ export function DeltaSigmaSection() {
       <Fold title="ΔΣ 的「平均追蹤」：telescoping（伸縮相消）" openFrom="beginner">
         <Mermaid
           chart={CHART_TELESCOPING}
-          caption="同一個迴圈換個畫法。先看藍色方塊：$r$ 其實是「$w_H$ 減 $y$」的累加器；再看下面：累加器的內容永遠有界，所以 $N$ 次的總誤差只剩頭尾兩個 $r$，平均誤差隨 $1/N$ 變小。"
+          caption="同一個迴圈換個畫法。先看藍色方塊：$r$ 其實是「$w_H$ 減 $y$」的累加器；再看下面：$N$ 次的總誤差只剩頭尾兩個 $r$。沒有 overload 時累加器的內容有界，所以平均誤差隨 $1/N$ 變小。"
         />
         <p className="small ch13-figwalk">
           圖上累加器的式子 <Tex>{String.raw`r[n]=r[n-1]+(w_H[n]-y[n])`}</Tex> 只是把 <Tex>{'r=v-y'}</Tex> 與 <Tex>{'v=w_H+r[n-1]'}</Tex> 合成一行；圖上的{' '}
@@ -264,12 +264,15 @@ export function DeltaSigmaSection() {
           steps={[
             { tex: String.raw`\sum_{n=0}^{N-1}\big(y[n]-w_H[n]\big)=\sum_{n=0}^{N-1}\big(r[n-1]-r[n]\big)`, why: tx(String.raw`把 $y-w_H=r[n-1]-r[n]$ 加總。`) },
             { tex: String.raw`=r[-1]-r[0]+r[0]-r[1]+\cdots+r[N-2]-r[N-1]=r[-1]-r[N-1]`, why: '相鄰項互相抵消，只剩頭尾。' },
-            { tex: String.raw`\Big|\frac1N\sum_{n=0}^{N-1}(y[n]-w_H[n])\Big|\le\frac{|r[-1]|+|r[N-1]|}{N}\le\frac1N`, why: tx(String.raw`round-half-up 時 $|r|\le\tfrac12$（沒有 overload 時）。`) },
+            { tex: String.raw`\Big|\frac1N\sum_{n=0}^{N-1}(y[n]-w_H[n])\Big|\le\frac{|r[-1]|+|r[N-1]|}{N}\le\frac1N`, why: tx(String.raw`第一個不等號是三角不等式。第二個要用方法 D 的條件：沒有 dither、沒有 overload、round-half-up 時，$n\ge0$ 的 $r[n]$ 都在 $[-\tfrac12,\tfrac12)$；起點也要 $|r[-1]|\le\tfrac12$（本章預設 $r[-1]=0$），兩項相加才不超過 1。floor 時 $r\in[0,1)$（$r[-1]$ 也要在這個範圍內），直接用 $|r[-1]-r[N-1]|<1$，結論相同。`) },
           ]}
         />
         <TexBlock id="F-13.12">{String.raw`\frac1N\sum_{n=0}^{N-1}\big(y[n]-w_H[n]\big)=\frac{r[-1]-r[N-1]}{N}`}</TexBlock>
         <p>
-          <ClaimTag kind="exact" /> 對<strong>任何</strong>時變的 <Tex>{'w_H[n]'}</Tex> 都成立：ΔΣ 的輸出平均永遠追得上內部的高解析值。這是它勝過 Freeze 與 toggle 的地方（PVT 追蹤，§13.5）。
+          <ClaimTag kind="exact" /> 這個等式對<strong>任何</strong>時變的 <Tex>{'w_H[n]'}</Tex> 都成立；只要沒有 overload（<Tex>{'r'}</Tex> 有界），ΔΣ 的輸出平均就追得上內部的高解析值。這是它勝過 Freeze 與 toggle 的地方（PVT 追蹤，§13.5）。
+        </p>
+        <p className="small">
+          {tx(String.raw`常數要小心：上界 $1/N$ 裡的 1 是方法 D 的結果，用了三個條件——沒有 dither、沒有 overload、起點 $r[-1]$ 也在 $[-\tfrac12,\tfrac12]$ 內。只知道「$r$ 有界」只能說平均誤差以 $1/N$ 變小。§13.4E 加上峰對峰寬度 $A$ 的 dither $d[n]$（$u=v+d$、$y=Q_6(u)$、$r=v-y$）之後等式照樣成立，但 $r$ 的範圍變寬成 $|r|\le\tfrac12+\tfrac A2$，上界變成 $(1+A)/N$（一樣要沒有 overload，而且 $r[-1]$ 也在這個範圍內）。例如 $A=2$、$w_H=32.4$、$r[-1]=0$、$d[0]=-0.99$：$u=31.41$、$y=31$、$r[0]=1.4$，$N=1$ 的誤差是 $-1.4\,\mathrm{LSB}$，沒有 overload，大小卻超過 $1/N=1$；它仍在 $(1+A)/N=3$ 之內。`)}
         </p>
       </Fold>
       <Hand id="HC-13.5">

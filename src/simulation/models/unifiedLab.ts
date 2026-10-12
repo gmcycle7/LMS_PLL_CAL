@@ -1777,7 +1777,16 @@ function buildStages(x: {
         { name: 'pole $p=1-g$（$d=0$）', value: an.p, claim: 'approx' },
         { name: '$\\rho$（含延遲 $d$）', value: an.rhoMean, claim: 'exact', note: '$z^{d+1}-z^d+g=0$ 的最大根模' },
         { name: '$\\mathrm{PM}_{\\mathrm{cal}}$', value: an.pmDeg, unit: 'deg', claim: 'exact', note: '$90^\\circ-(2d+1)\\arcsin(g/2)$' },
-        { name: '$\\tau=-1/\\ln\\rho$', value: an.tauBlocks, unit: 'block', claim: 'exact' },
+        // d = 0：|δ_k| 每個 block 剛好乘上 ρ，τ 是精確的時間常數；d ≥ 1：ρ 只是漸近衰減率（ρ^k 不是包絡），見審查 R02
+        p.updateDelay <= 0
+          ? { name: '$\\tau=-1/\\ln\\rho$', value: an.tauBlocks, unit: 'block', claim: 'exact' as const }
+          : {
+              name: '$\\tau=-1/\\ln\\rho$（漸近衰減率）',
+              value: an.tauBlocks,
+              unit: 'block',
+              claim: 'approx' as const,
+              note: '$d\\ge1$：$\\rho$ 只決定漸近的衰減率，$\\rho^k$ 不是平均誤差的包絡；逐 block 的暫態可能比 $\\tau$ 慢',
+            },
         { name: '$f_u=f_s/N$', value: an.fuHz, unit: 'Hz', claim: 'exact' },
         { name: 'cal $-3\\,\\mathrm{dB}$（exact）', value: an.f3dbHz, unit: 'Hz', claim: 'exact', note: 'E27：$3-2\\sqrt2\\le p<1$ 才存在' },
         { name: 'cal ENBW（one-sided）', value: an.enbwHz, unit: 'Hz', claim: 'exact', note: 'E06：積分雜訊用這個，不是 $-3\\,\\mathrm{dB}$' },

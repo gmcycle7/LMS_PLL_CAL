@@ -2,9 +2,13 @@ import { useMemo } from 'react'
 import { Callout, ClaimTag, ModeGate, ModelLevel, Prereq, Section, SourceTag, Tex, TexBlock } from '@/components'
 import { ChLink, Diagram, ErratumNote, md, sig, Steps, texHz, texNum } from '../common'
 import { CHART_OUTPUT_SPLIT, CHART_TWO_PATHS, CHART_UPDATE_LOOP } from '../diagrams'
-import { anchorNumbers, delayTable, dsmHandExample, pllNumbers, spurNumbers } from '../numbers'
+import { anchorNumbers, delayTable, dsmHandExample, FX_DELAY_EXAMPLE, pllNumbers, spurNumbers } from '../numbers'
 
 const T = String.raw
+
+/** §4.6 表格下方的例子：Ĥ = H_PD 但 D ≠ 0 時 C = R_u[D] 可以是負的（數字見 numbers.ts 的 FX_DELAY_EXAMPLE，由測試核對） */
+const signed2 = (v: number) => `${v < 0 ? '-' : '+'}${Math.abs(v).toFixed(2)}`
+const FX_DELAY_NOTE = `本頁的預設參數（MASH 1-1-1 的 code、type-II 的主 PLL）改用 filtered-x、$\\hat H=H_{\\mathrm{PD}}$（$g_m=1$、$D_x=0$），$D=${FX_DELAY_EXAMPLE.delays.join(',\\,')}$ 時 $C\\approx${FX_DELAY_EXAMPLE.C.map(signed2).join(',\\ ')}$：$D=1$ 就讓極性反過來（$p=1-\\mu K_qC\\approx${FX_DELAY_EXAMPLE.poleAtD1.toFixed(2)}>1$）。`
 
 /** §3：先用數字走一遍（全部由模型函式即時計算，見 numbers.ts）。 */
 function HandCalc() {
@@ -568,7 +572,10 @@ function Derivations() {
             { tex: T`e_{\det}[n]\approx\delta\,u_x[n]+u_d[n]+b,\qquad u_x=H_{\mathrm{PD}}\{x\},\ u_d=H_{\mathrm{PD}}\{d(x)\}`, why: '濾波器是線性的；$w$ 每個 block 才動一點，在 $H_{\\mathrm{PD}}$ 的記憶長度內近似常數，可以提到外面。' },
             { tex: T`E[G]=E\bigl[q\,x_{\mathrm{ref}}\bigr]\approx K_q\,E\bigl[x_{\mathrm{ref}}\,e_{\det}\bigr]`, why: '先對雜訊 $v$ 取期望值（§4.5），$x_{\\mathrm{ref}}$ 與 $v$ 獨立。' },
             { tex: T`E[G]\approx K_q\Bigl(\delta\,\underbrace{E[x_{\mathrm{ref}}u_x]}_{C}+\underbrace{E[x_{\mathrm{ref}}u_d]+b\,E[x_{\mathrm{ref}}]}_{B}\Bigr)`, why: '把 $e_{\\det}$ 的三項代進去，期望值是線性的。' },
-            { tex: T`E[G]=0\ \Rightarrow\ \delta^*=-\frac BC\ \Rightarrow\ w^*=a+\frac BC`, why: '迴路停在 $E[G]=0$ 的地方；那裡 $w$ 不一定等於 $a$（第 11 章：GMAC 歸零不代表 DTC 誤差為零）。' },
+            {
+              tex: T`E[G]=0\ \Rightarrow\ \delta^*\approx-\frac BC\ \Rightarrow\ w^*\approx a+\frac BC`,
+              why: '迴路停在 $E[G]=0$ 的地方；那裡 $w$ 不一定等於 $a$（第 11 章：GMAC 歸零不代表 DTC 誤差為零）。這裡解的是上一步線性化的 $E[G]$，所以是 $\\approx$（FCW Sweep 分頁把它記成 $w^*_{\\mathrm{lin}}$）：$C\\to0^+$ 讓 $B/C$ 大到 comparator 飽和時，它只是線性外推，不是固定點（Ch11 §11.4）。',
+            },
           ]}
         />
         <TexBlock id="F-LAB.6" label={md('$C$ 是「GMAC 用的 regressor」與「PD 實際看到的 code」的相關。$C>0$ 才是負回授。')}>
@@ -624,13 +631,14 @@ function Derivations() {
               <tr>
                 <th scope="row">filtered-x</th>
                 <td>
-                  <Tex>{'\\hat H\\{x\\}[n-D]'}</Tex>
+                  <Tex>{'\\hat u[n-D]'}</Tex>，<Tex>{'\\hat u=\\hat H\\{x\\}'}</Tex>
                 </td>
                 <td>
-                  <Tex>{'E[\\hat u\\,u_x]'}</Tex>；<Tex>{'\\hat H=H'}</Tex> 時 <Tex>{'=E[u_x^2]\\ge0'}</Tex>
+                  <Tex>{'C_{f,D}=E\\bigl[\\hat u[n-D]\\,u_x[n]\\bigr]'}</Tex>；<Tex>{'\\hat H=H_{\\mathrm{PD}}'}</Tex> 且 <Tex>{'D=0'}</Tex> 時 <Tex>{'=E[u_x^2]\\ge0'}</Tex>；
+                  <Tex>{'\\hat H=H_{\\mathrm{PD}}'}</Tex> 但 <Tex>{'D\\ne0'}</Tex> 時 <Tex>{'=R_u[D]'}</Tex>，可以是負的
                 </td>
                 <td>
-                  模型 <Tex>{'\\hat H'}</Tex> 的增益符號或延遲錯了（<ErratumNote id="E45" />）
+                  模型 <Tex>{'\\hat H'}</Tex> 的增益符號或延遲錯了（<ErratumNote id="E45" />），或 <Tex>D</Tex> 設錯（<Tex>{'\\hat H'}</Tex> 完全正確也一樣）
                 </td>
                 <td>一個數位濾波器</td>
               </tr>
@@ -640,6 +648,11 @@ function Derivations() {
         <p className="small">
           <Tex>{'h[k]'}</Tex> 是 <Tex>{'H_{\\mathrm{PD}}'}</Tex> 的 impulse response、<Tex>{'R_x[k]'}</Tex> 是 code 的自相關。因為 <Tex>{'L(z)'}</Tex> 至少延遲一拍，<Tex>{'h[0]=1'}</Tex>：白色的 code（
           <Tex>{'R_x[k]=0,\\ k\\ne0'}</Tex>）恆有 <Tex>{'C=\\sigma_x^2>0'}</Tex>。這就是為什麼 MASH / 隨機 code 的極性很穩，而慢速的鋸齒 code 會出問題。
+        </p>
+        <p className="small">
+          {md(
+            `filtered-x 那一列：$\\hat u=\\hat H\\{x\\}$ 是「模型濾過的 code」（$\\hat H$ 的 impulse response 記作 $\\hat h[l]$），$R_u[k]=E\\bigl[u_x[n]\\,u_x[n-k]\\bigr]$ 是 $u_x$ 的自相關。一般式是 $C_{f,D}=\\sum_k\\sum_l h[k]\\,\\hat h[l]\\,R_x[k-l-D]$（第 7 章 F-07.12）。「模型正確就保證 $C\\ge0$」只在 $D=0$ 時成立：${FX_DELAY_NOTE}`,
+          )}
         </p>
       </Section>
 
@@ -669,7 +682,7 @@ function Derivations() {
         <Prereq title="差分方程、pole 與單位圓">
           <p>
             {md(
-              '一階遞迴 $\\delta_{k+1}=p\\,\\delta_k$ 的解是等比數列 $\\delta_k=p^k\\delta_0$：$|p|<1$ 才會趨近 0（第 3 章）。階數比較高的遞迴（例如有延遲）沒有這麼直接，但可以「猜」解的形式 $\\delta_k=z^k$ 代進去，得到一個 $z$ 的多項式方程（**特徵方程**）。它的每個根 $z_i$（可以是複數）對應一個模態 $z_i^k$，而 $|z_i^k|=|z_i|^k$——所以「每個根的絕對值都小於 1」，也就是所有根都落在複數平面上半徑 1 的圓（**單位圓**）內，才會收斂。這些根叫 **pole**。最大的 $|z_i|$ 記作 $\\rho$，它決定最慢的衰減：$\\rho^k=e^{-k/\\tau}$，$\\tau=-1/\\ln\\rho$。根是複數時，衰減的同時還會來回振盪（振鈴）。',
+              '一階遞迴 $\\delta_{k+1}=p\\,\\delta_k$ 的解是等比數列 $\\delta_k=p^k\\delta_0$：$|p|<1$ 才會趨近 0（第 3 章）。階數比較高的遞迴（例如有延遲）沒有這麼直接，但可以「猜」解的形式 $\\delta_k=z^k$ 代進去，得到一個 $z$ 的多項式方程（**特徵方程**）。它的每個根 $z_i$（可以是複數）對應一個模態 $z_i^k$，而 $|z_i^k|=|z_i|^k$——所以「每個根的絕對值都小於 1」，也就是所有根都落在複數平面上半徑 1 的圓（**單位圓**）內，才會收斂。這些根叫 **pole**。最大的 $|z_i|$ 記作 $\\rho$，它決定最慢的（漸近的）衰減率：$\\rho^k=e^{-k/\\tau}$，$\\tau=-1/\\ln\\rho$。根是複數時，衰減的同時還會來回振盪（振鈴）。只有一階（$d=0$）時 $|\\delta_k|=\\rho^k|\\delta_0|$ 是等式；有延遲時 $\\rho^k$ 不是 $|\\delta_k|$ 的包絡（重根會多出一個隨 $k$ 成長的因子，複數根會振鈴），實際的暫態可能比 $\\tau$ 慢。',
             )}
           </p>
         </Prereq>

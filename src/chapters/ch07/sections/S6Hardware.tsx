@@ -199,9 +199,15 @@ export function S6Hardware() {
                 <Tex>{r`\hat H`}</Tex>：<Tex>{r`\omega_n`}</Tex>、<Tex>{r`\zeta`}</Tex>、loop latency、<Tex>{r`K_{\mathrm{DCO}}`}</Tex>
               </td>
               <td>
-                任何 code，只要被激勵頻帶上 <Tex>{r`|\angle H-\angle\hat H|<90^\circ`}</Tex>（充分條件；真正判據是 F-07.12 的加權積分 &gt; 0）
+                任何 code，只要被激勵頻帶上殘餘相位 <Tex>{r`|\angle H-\angle\hat H+\Omega D|<90^\circ`}</Tex>（<Tex>{'D=0'}</Tex> 時就是{' '}
+                <span className="nowrap">
+                  <Tex>{r`|\angle H-\angle\hat H|<90^\circ`}</Tex>；
+                </span>
+                充分條件，真正判據是 F-07.12 的加權積分 &gt; 0）
               </td>
-              <td>模型誤差（尤其 latency，E45）；IIR 的定點 limit cycle 與 bit growth</td>
+              <td>
+                模型誤差（尤其 latency，E45）；<Tex>{'D'}</Tex> 設錯（<Tex>{r`\hat H=H`}</Tex> 時要 <Tex>{'D=0'}</Tex>）；IIR 的定點 limit cycle 與 bit growth
+              </td>
             </tr>
             <tr>
               <td>
@@ -270,7 +276,7 @@ export function S6Hardware() {
         由 <Tex>{r`\rho=C/\sqrt{E[x_{\mathrm{ref}}^2]E[u^2]}`}</Tex> 的封閉式計算；delayed-x 在 <Tex>{r`D\in[0,400]`}</Tex> 中取最大。
         單頻時 delayed-x 的 <Tex>{r`\rho=\cos\theta`}</Tex>：整數 <Tex>{'D'}</Tex> 一格是 <Tex>{'\\Omega'}</Tex>，最佳殘餘相位 <Tex>{r`|\theta|\le\Omega/2`}</Tex>，所以
         <Tex>{r`\rho\ge\cos(\Omega/2)`}</Tex>（低頻 tone 幾乎是 1，但 <Tex>{'D'}</Tex> 要夠長；<Tex>{r`\Omega=\pi/6`}</Tex> 時至少 <Tex>{r`\cos15^\circ=0.966`}</Tex>）。
-        寬頻時只有 filtered-x（<Tex>{r`\hat H=H`}</Tex>）恆為 1。二次差分只在低頻 tone 接近 1，
+        寬頻時只有 filtered-x（<Tex>{r`\hat H=H`}</Tex>、<Tex>{'D=0'}</Tex>）恆為 1。二次差分只在低頻 tone 接近 1，
         在中頻 tone 變號，在寬頻 code 接近 0（7.5 節）。<ClaimTag kind="exact" /> <SourceTag />
       </p>
 
@@ -285,7 +291,7 @@ export function S6Hardware() {
       <p>
         先看起點與第一個六角形：確認 raw-x 的 <Tex>{'C'}</Tex> 是正是負——可以用公式算，也可以在 bring-up 時量 GMAC 斜率（7.10 節）。<Tex>{r`C>0`}</Tex> 而且 <Tex>{r`\rho`}</Tex>
         不太小，就什麼都不用加（例如高頻的 MASH code）。再看第二個六角形：code 是窄頻才輪得到便宜的做法——低頻 tone 配 Type-II 用二次差分，其他窄頻 code 用 delayed-x（<Tex>{'D'}</Tex> 由 F-07.4 的
-        <Tex>{r`D^\star`}</Tex> 取整數）。寬頻 code 直接走到藍色的 filtered-x，然後一定要過最後一個六角形：圖上問的 <Tex>{r`E[u\,u_f]>0`}</Tex> 就是 F-07.12 的積分；不成立就走到紅色方塊修模型，最常見的原因是
+        <Tex>{r`D^\star`}</Tex> 取整數）。寬頻 code 直接走到藍色的 filtered-x，然後一定要過最後一個六角形：圖上問的 <Tex>{r`E[u\,u_f]>0`}</Tex> 就是 F-07.12 的積分（<Tex>{'D=0'}</Tex>；regressor 有額外延遲時問的是 <Tex>{r`C_{f,D}>0`}</Tex>）；不成立就走到紅色方塊修模型，最常見的原因是
         latency 算錯（E45）。綠色方塊是可以收工的終點；方向對了之後，還要到 Ch08 檢查 loop gain <Tex>{'g'}</Tex> 的穩定範圍。
       </p>
 

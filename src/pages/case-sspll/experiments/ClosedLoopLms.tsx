@@ -5,7 +5,8 @@ import { presetsForExperiment, useUrlPreset } from '@/app/presets'
 import { isWorkerCancelled, useWorkerTask } from '@/workers'
 import { analyseAlpha, eqOffset, gosOffsetBias, type LoopModels, type SspllLmsCase, type SspllLmsCompareParams, type SspllLmsCompareResult, type SspllLmsResult, type SspllLoop } from '@/simulation/models/sspll'
 import { FREF_MHZ, LMS_NOTE_ZH, LOOPS, LOOP_LABEL, P_ONLY, PRED, SIM_CFG, type LmsTrace, type LoopKey } from '../data'
-import { DataTable, fmtFs, fp, fx, txs } from '../common'
+import { DataTable, fmtFs, fp, fx, tx, txs } from '../common'
+import { hpdMemorySamples } from '../sections/S04MeanUpdate'
 
 export const LMS_EXPERIMENT_ID = 'sspll-closed-loop'
 
@@ -187,8 +188,8 @@ export function predictCmDrift(variant: string, muPps: number, uOsFs: number, si
 
 /**
  * 小訊號平均模型對閉迴路的預測（有限步長）：沿 PHOS 的每個模態，誤差每個 block 乘上 1 − κ_m/N_τ,eff，
- * N_τ,eff = 8/(μ_p K_q) 是實際步長（含 NLMS 式正規化）對應的開迴路時間常數。
- * ρ = max_m |1 − κ_m/N_τ,eff|：ρ > 1 發散、ρ < 1 收斂；|ρ − 1| < 3/B 時時間常數比模擬長度還長，判為邊際（不比對）。
+ * N_τ,eff = 8/(μ_p K_q) 是實際步長（含 NLMS 式正規化）對應的開迴路名義時間常數（步長的倒數）。
+ * ρ = max_m |1 − κ_m/N_τ,eff|：ρ > 1 發散、ρ < 1 收斂；|ρ − 1| < 3/B 時模擬長度不到約 3 個時間常數（模態的實際值 −1/ln ρ），判為邊際（不比對）。
  */
 export function predictPhosVerdict(kappaM: { re: number; im: number }[], muPps: number, sigmaPs: number, nBlocks: number): { rho: number; tauEff: number; verdict: 'diverge' | 'converge' | 'marginal' } {
   const tauEff = 8 / (muPps * (Math.sqrt(2 / Math.PI) / sigmaPs))
@@ -238,6 +239,9 @@ export function ClosedLoopLms() {
   )
 
   const alpha = P.fMHz / FREF_MHZ
+  // 小訊號預測的前提（§4.2 的時間尺度分離）：LMS 的名義時間常數 N·N_τ [拍] 要遠大於主迴路 h_PD 的記憶長度（標稱迴路 14／40／49 拍）
+  const hpdMem = useMemo(() => hpdMemorySamples(LOOPS[P.loop]), [P.loop])
+  const lmsSamples = P.nBlk * P.tauBlocks
   // golden 存檔只在相同的執行條件下才可比（否則不疊圖、也不做 Monte Carlo 交叉比對）
   const goldenComparable = P.nBlk === GOLDEN_LMS_COND.nBlk && P.tauBlocks === GOLDEN_LMS_COND.tauBlocks && P.uOsFs === GOLDEN_LMS_COND.uOsFs
   const cases = useMemo(() => {
@@ -246,7 +250,8 @@ export function ClosedLoopLms() {
       const kind = kinds[slot]
       const setup = lmsCaseSetup(P.loop, kind)
       if (!setup) return []
-      // 小訊號預測（ergodic）：κ_PHOS、κ_GOS
+      // 小訊號預測（ergodic）：κ_PHOS，以及 GOS 的 12·C_GOS（pred.kappaGos 是固定乘 12 的值；var(ρ) = 1/12 時才等於 κ_GOS = C_GOS/var(ρ)，
+      // 例如 α = 1/16 時 12C = 0.886 而 κ_GOS = 1.181——所以畫面上標成 12C_GOS，不標成 κ_GOS）
       const pred = analyseAlpha(setup.loop, alpha, setup.variant === 'ac' || setup.variant === 'zm' ? 'raw' : setup.variant, setup.models, 2048)
       return [{ slot, kind, setup, pred, golden: goldenComparable ? goldenTrace(P.loop, alpha, setup.goldenSuffix) : null, colorIndex: i }]
     })
@@ -306,7 +311,7 @@ export function ClosedLoopLms() {
   const divergenceWhy = (c: (typeof cases)[number], res: SspllLmsResult): string => {
     const k = c.pred.kappaPhos
     if (k < -1e-2) return '$<0$：regressor 的功率落在 $\\mathrm{Re}\\,\\Gamma_{\\rm eff}<0$ 的頻率，平均梯度反號，誤差沿該模態指數成長（減小步長只會變慢，不會變號）'
-    if (k < -1e-3) return '$<0$，但 $\\lvert\\kappa\\rvert<10^{-2}$：alias／近整數的 dead zone 等級——平均梯度方向是錯的，只是很弱；誤差被雜訊推大後由大訊號反向（1-bit 比較器看「持續時間」）接手放大'
+    if (k < -1e-3) return '$<0$，但 $\\lvert\\kappa_{PHOS}\\rvert<10^{-2}$：alias／近整數的 dead zone 等級——平均梯度方向是錯的，只是很弱；誤差被雜訊推大後由大訊號反向（1-bit 比較器看「持續時間」）接手放大'
     if (k <= 1e-3) return '（dead zone：小訊號幾乎沒有恢復力，誤差被雜訊推大後進入大訊號反向區）'
     const v = predictPhosVerdict(c.pred.kappaM, res.muP, SIM_CFG.sigmaPs, P.nBlocks)
     if (v.rho >= 1)
@@ -339,10 +344,10 @@ export function ClosedLoopLms() {
     else if (res.finalGosFs > Math.max(2 * gos0, 50)) {
       const why =
         c.pred.beta !== 0 && c.pred.kappaGos < -1e-3
-          ? `小訊號預測 $\\kappa_{GOS}=${c.pred.kappaGos.toFixed(4)}<0$：鋸齒 regressor 的平均梯度反號`
+          ? `小訊號預測 $12\\,C_{GOS}=${c.pred.kappaGos.toFixed(4)}<0$（$\\kappa_{GOS}=C_{GOS}/\\mathrm{var}(\\rho)$ 與它同號）：鋸齒 regressor 的平均梯度反號`
           : phosDiverged
             ? 'PHOS 發散後 PD 的殘差被它主導，GOS 的更新失去意義'
-            : `小訊號預測 $\\kappa_{GOS}=${c.pred.beta === 0 ? '0' : txs(c.pred.kappaGos, 3)}$：near-grid 的 dead zone、比較器 offset 或大訊號反向`
+            : `小訊號預測 $12\\,C_{GOS}=${c.pred.beta === 0 ? '0' : txs(c.pred.kappaGos, 3)}$：near-grid 的 dead zone、比較器 offset 或大訊號反向`
       warnings.push(`${tag}的 GOS 不收斂：$\\lvert$GOS 誤差$\\rvert$ 由 ${fx(gos0, 1)} fs 變成 ${fp(res.finalGosFs, 4)} fs。${why}。`)
     }
   }
@@ -362,7 +367,7 @@ export function ClosedLoopLms() {
       value: c.pred.kappaPhos,
       digits: 4,
       formulaId: 'F-CS.13',
-      note: `${c.pred.kappaPhos < -1e-3 ? '預測：PHOS 反號' : c.pred.kappaPhos > 1e-3 ? '預測：PHOS 收斂' : '預測：dead zone'}；$\\kappa_{GOS}=${c.pred.beta === 0 ? '\\text{—}' : txs(c.pred.kappaGos, 4)}$`,
+      note: `${c.pred.kappaPhos < -1e-3 ? '預測：PHOS 反號' : c.pred.kappaPhos > 1e-3 ? '預測：PHOS 收斂' : '預測：dead zone'}；GOS 的 $12\\,C_{GOS}=${c.pred.beta === 0 ? '\\text{—}' : txs(c.pred.kappaGos, 4)}$（ergodic，固定乘 12；§7.1）`,
     })
     if (res) {
       const v = predictPhosVerdict(c.pred.kappaM, res.muP, SIM_CFG.sigmaPs, P.nBlocks)
@@ -371,7 +376,7 @@ export function ClosedLoopLms() {
         value: v.rho,
         digits: 5,
         formulaId: 'F-CS.18',
-        note: `$N_{\\tau,\\mathrm{eff}}=8/(\\mu_pK_q)=${fx(v.tauEff, 1)}$ blocks（含 regressor 功率正規化）；${v.verdict === 'diverge' ? '$>1$：預測發散' : v.verdict === 'converge' ? '$<1$：預測收斂' : '$\\approx1$：邊際（dead zone 或時間常數比模擬長）'}`,
+        note: `$N_{\\tau,\\mathrm{eff}}=8/(\\mu_pK_q)=${fx(v.tauEff, 1)}$ blocks（含 regressor 功率正規化）；${v.verdict === 'diverge' ? '$>1$：預測發散' : v.verdict === 'converge' ? '$<1$：預測收斂' : '$\\approx1$：邊際（dead zone，或模擬長度不到約 3 個時間常數）'}`,
       })
     }
     metrics.push({
@@ -442,7 +447,7 @@ export function ClosedLoopLms() {
     analytic = checked === 0 ? 'n/a' : bad === 0 ? 'ok' : 'mismatch'
     analyticNote =
       P.uOsFs === 0
-        ? `小訊號平均模型 $\\max_m\\lvert1-\\kappa_m/N_{\\tau,\\mathrm{eff}}\\rvert\\gtrless1$ vs 閉迴路的 PHOS 誤差是否變大：${checked} 個比對、${bad} 個不一致${marginal ? `；${marginal} 個是邊際（dead zone 或時間常數比模擬長），不比對` : ''}`
+        ? `小訊號平均模型 $\\max_m\\lvert1-\\kappa_m/N_{\\tau,\\mathrm{eff}}\\rvert\\gtrless1$ vs 閉迴路的 PHOS 誤差是否變大：${checked} 個比對、${bad} 個不一致${marginal ? `；${marginal} 個是邊際（dead zone，或模擬長度不到約 3 個時間常數），不比對` : ''}`
         : checked === 0
           ? 'offset 的共模漂移公式只在 $\\lvert u_{os}\\rvert\\le\\sigma_v/4$（小訊號）時適用；目前沒有可比對的 case'
           : `PHOS 共模漂移 vs forcing 公式 $B\\,\\mu_p\\,E[q]\\sum_k\\langle r_k\\rangle/8$（${checked} 個比對、${bad} 個不一致）`
@@ -515,7 +520,8 @@ export function ClosedLoopLms() {
       assumptions={[
         '每個 reference cycle 一步；32-bit 一階累加器；物理注入模型 $u=\\rho\\Delta+\\varepsilon_p-(1-a)(1+w_g)(\\rho\\Delta+w_p)$',
         `插圖值：$\\sigma_v=${fx(SIM_CFG.sigmaPs * 1000, 0)}$ fs、$\\Delta=T_{vco}/8=${SIM_CFG.deltaPs}$ ps（$f_{vco}=16$ GHz）、$a=${SIM_CFG.a}$、$\\varepsilon_k$ 取 golden 的 seed 7（rms ${fx(EPS_RMS_FS, 0)} fs）`,
-        '步長以開迴路（$H\\equiv1$）時間常數 $N_\\tau$ 決定，並對 regressor 功率做 NLMS 式正規化；權重初值為 0',
+        '步長以 $N_\\tau$ 設定：raw regressor 時 $\\mu_p=8/(N_\\tau K_q)$，開迴路（$H\\equiv1$、$\\kappa=1$，也就是 PMUX 的 8 個相位被選到的次數一樣多）每個 block 把 PHOS 誤差乘上 $1-1/N_\\tau$（$N_\\tau$ 是名義時間常數，見 §12）；其他 regressor 再對功率做 NLMS 式正規化；權重初值為 0',
+        `小訊號預測（$\\kappa_{PHOS}$、$12\\,C_{GOS}$、有限步長的平均模型）用到 §4.2 的兩個前提：Bussgang 小訊號（$\\lvert e_{PD}\\rvert\\ll\\sigma_v$），以及 LMS 比主迴路慢很多（時間尺度分離）。目前名義時間常數 $N\\cdot N_\\tau=${Math.round(lmsSamples)}$ 拍，是 ${P.loop} 的 $h_{PD}$ 記憶長度（${hpdMem} 拍）的 $${tx(lmsSamples / hpdMem, lmsSamples / hpdMem < 10 ? 1 : 0)}$ 倍；把 $N$ 與 $N_\\tau$ 調得很小時這個前提不成立，預測只能當參考。時域模擬照實際順序計算（先乘、再通過迴路），不用這兩個近似`,
         '線性、無界的 SSPD 與無限的 DTC range：ps 級的「發散值」在硬體上是飽和／cycle slip／失鎖',
         '比較器除指定的 $u_{os}$ 外沒有 offset；沒有 DTC INL、字長、FLL 等效應；沒有 fixed-point 模型（Fixed-Point 交叉比對未實作）',
         `golden 存檔的條件：$N=${GOLDEN_LMS_COND.nBlk}$、$N_\\tau=${GOLDEN_LMS_COND.tauBlocks}$、無 offset、6000 blocks $\\times$ 2 lanes；設定不同時不疊圖、不比對`,
@@ -591,7 +597,7 @@ export function ClosedLoopLms() {
           })}
           <ParamControl label="block 數" value={P.nBlocks} onChange={(nBlocks) => set({ nBlocks })} min={50} max={20000} integer clampOnBlur unit="blocks" hint="golden 存檔用 6000" />
           <ParamControl label={mathText('$N$（每 block 的 sample 數）')} ariaLabel="N" value={P.nBlk} onChange={(nBlk) => set({ nBlk })} min={64} max={4096} integer clampOnBlur unit="samples" reg="GMAC 累加長度" />
-          <ParamControl label={mathText('$N_\\tau$（開迴路時間常數）')} ariaLabel="N_tau" value={P.tauBlocks} onChange={(tauBlocks) => set({ tauBlocks })} min={2} max={500} log unit="blocks" reg="LMS 步長" />
+          <ParamControl label={mathText('$N_\\tau$（開迴路名義時間常數）')} ariaLabel="N_tau" value={P.tauBlocks} onChange={(tauBlocks) => set({ tauBlocks })} min={2} max={500} log unit="blocks" reg="LMS 步長" />
           <ParamControl label={mathText('比較器 offset $u_{os}$')} ariaLabel="比較器 offset" value={P.uOsFs} onChange={(uOsFs) => set({ uOsFs })} min={-500} max={500} step={5} unit="fs" reg="比較器／SSPD 的 DC 工作點" hint={mathText('25 fs $\\approx$ 1 mV（$A=0.4$ V、16 GHz，插圖值）')} />
           <ParamControl label="雜訊 lane 數（取中位數）" value={P.lanes} onChange={(lanes) => set({ lanes })} min={1} max={4} integer clampOnBlur hint="golden 存檔用 2" />
         </>

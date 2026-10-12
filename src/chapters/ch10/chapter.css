@@ -98,6 +98,10 @@
   color: var(--ok);
   font-weight: 600;
 }
+/* 表格「狀態」欄裡的失敗原因（一整句話）：給它夠寬的欄位，不要在窄欄裡折成十幾行、把那一列撐得很高（表格本身可以橫向捲動） */
+.ch10-status-msg {
+  min-width: 24em;
+}
 
 /* ===== 矩陣編輯器 ===== */
 .ch10-matrix {
@@ -275,9 +279,13 @@
   margin: 0;
 }
 
-/* 實驗結果欄不寬（約 440px）：兩張並排的圖在窄欄裡會被圖例擠扁，所以每張至少 340px 寬，放不下就上下堆疊 */
+/* 實驗結果欄不寬（約 440px）：兩張並排的圖在窄欄裡會被圖例擠扁，所以每張至少 340px 寬，放不下就上下堆疊。
+   欄位本身比 340px 窄（375px 的手機只有約 330px）時，下限改成欄寬（min(340px, 100%)），否則圖會把整頁撐寬出現橫向捲軸。 */
 .ch10-plot-pair {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr));
   gap: 16px;
+}
+.ch10-plot-pair > * {
+  min-width: 0;
 }

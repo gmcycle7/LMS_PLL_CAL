@@ -447,6 +447,37 @@ describe('Ch09 方塊圖：正負號、箭頭方向、取樣率與正文公式�
     expect(eigenModes(corr2(1), 0.5).poles[1]).toBeCloseTo(1, 12)
   })
 
+  it('F-09.5: 登錄式的 κ 用 |ρ|（負相關時不會小於 1），λ₁,₂ = 1 ± ρ 的配對與 claim 不變', () => {
+    const f = FORMULAS.find((x) => x.id === 'F-09.5')
+    expect(f?.tex).toContain(String.raw`\kappa=\frac{\lambda_{\max}}{\lambda_{\min}}=\frac{1+|\rho|}{1-|\rho|}`)
+    expect(f?.tex).not.toContain(String.raw`\frac{1+\rho}{1-\rho}`)
+    // 固定配對（共模 v₁、差模 v₂）對任何 ρ 都成立，不改
+    expect(f?.tex).toContain(String.raw`\lambda_{1,2}=1\pm\rho`)
+    expect(f?.tex).toContain(String.raw`\mathbf v_1=\tfrac1{\sqrt2}\begin{bmatrix}1\\1\end{bmatrix}`)
+    expect(f?.tex).toContain(String.raw`\mathbf v_2=\tfrac1{\sqrt2}\begin{bmatrix}1\\-1\end{bmatrix}`)
+    expect(f?.conditions).toContain(String.raw`$-1\le\rho\le1$`)
+    expect(f?.conditions).toContain(String.raw`$|\rho|<1$`)
+    expect(f?.conditions).toContain(String.raw`$\rho<0$ 時 $\lambda_{\max}=\lambda_2$`)
+    expect(f?.conditions).toContain(String.raw`$\lambda_{\max,\min}=1\pm|\rho|$`)
+    expect(f?.conditions).toContain(String.raw`$\kappa=199$`)
+    expect(f?.conditions).toContain(String.raw`$\rho=-0.5\Rightarrow\lambda_{\max,\min}=1.5,\ 0.5$，$\kappa=3$`)
+    expect(f?.claim).toBe('exact')
+    // 登錄式與模型（排序後的 eigenvalue 比值）一致：正負相關都一樣
+    for (const rho of [-0.5, 0.5, -0.99, 0.99, -0.3, 0]) {
+      const modes = eigenModes(corr2(rho), 0.5)
+      expect(modes.kappa, `ρ = ${rho}`).toBeCloseTo((1 + Math.abs(rho)) / (1 - Math.abs(rho)), 9)
+      expect(modes.lambdas[0]).toBeCloseTo(1 + Math.abs(rho), 12)
+      expect(modes.lambdas[1]).toBeCloseTo(1 - Math.abs(rho), 12)
+    }
+    // 登錄條件裡寫死的例子
+    const neg = eigenModes(corr2(-0.5), 0.5)
+    expect(neg.lambdas[0]).toBeCloseTo(1.5, 12)
+    expect(neg.lambdas[1]).toBeCloseTo(0.5, 12)
+    expect(neg.kappa).toBeCloseTo(3, 9)
+    // |ρ| = 1：R 奇異，κ = ∞
+    for (const rho of [1, -1]) expect(eigenModes(corr2(rho), 0.5).kappa).toBe(Infinity)
+  })
+
   it('圖 9.8（F-09.7）：g⋆ = 2/(λ_max + λ_min)、收斂率 (κ − 1)/(κ + 1)；快模式那一格才有 g 的上限 2/λ_max', async () => {
     const { v, e } = await flow(CHART_SCALAR_GAIN)
     expect(v.get('F')?.text).toContain(String.raw`$|1 - g \cdot \lambda_{\max}|$`)
@@ -1051,6 +1082,31 @@ describe('Ch09 頁面與版面：系統地圖、方塊圖的位置、章末符�
     expect(before(at('[data-diagram="matrix-machine"]'), prereq.querySelector('.c-prereq') as Element)).toBe(true)
     // 耦合圖在框起來的平均遞迴（F-09.3）之後、對角化（F-09.4）之前
     expect(before(at('[id="formula-F-09.3"]'), at('[data-diagram="coupled-mean"]'))).toBe(true)
+    // ── 審查 R07：κ 的閉式用 |ρ|；適用範圍緊接在 F-09.5 後面（beginner 模式也看得到，不在 ModeGate 裡）──
+    expect(at('[id="formula-F-09.5"]').textContent).toContain(String.raw`\kappa=\frac{\lambda_{\max}}{\lambda_{\min}}=\frac{1+|\rho|}{1-|\rho|}`)
+    expect(at('.c-recap').textContent).toContain(String.raw`\kappa=\frac{1+|\rho|}{1-|\rho|}`)
+    expect(container.textContent).not.toContain(String.raw`\kappa=\frac{1+\rho}{1-\rho}`)
+    const scope = at('[id="formula-F-09.5"]').nextElementSibling
+    expect(scope?.tagName).toBe('P')
+    for (const t of ['適用範圍', String.raw`-1\le\rho\le1`, String.raw`|\rho|<1`, String.raw`\kappa=\infty`, String.raw`\rho<0`, String.raw`\lambda_{\max}=\lambda_2=1+|\rho|`, '差模變成快模式、共模變成慢模式'])
+      expect(scope?.textContent, t).toContain(t)
+    // 例子的數字由 eigenModes(corr2(−0.5)) 算出：λ_max = 1.5、λ_min = 0.5、κ = 3；漏掉絕對值會得到 1/3
+    for (const t of [String.raw`\rho=-0.5`, String.raw`\lambda_{\max}=1.5`, String.raw`\lambda_{\min}=0.5`, String.raw`\kappa=3`, String.raw`(1+\rho)/(1-\rho)=1/3<1`, String.raw`\lambda_1/\lambda_2`])
+      expect(scope?.textContent, t).toContain(t)
+    expect(scope?.querySelector('.c-claim-exact')).toBeTruthy()
+    // 先備知識：λ_max = 1 + ρ 的說法帶著 ρ ≥ 0 的條件；ρ = −1 與 ρ = +1 一樣不可辨識
+    expect(at('[data-diagram="matrix-machine"]').nextElementSibling?.textContent).toContain('時兩者對調')
+    expect(at('#ch09-prereq').textContent).toContain(String.raw`\lambda_{\max,\min}=1\pm|\rho|`)
+    expect(at('#ch09-mean').textContent).toContain('也一樣不可辨識，只是角色對調')
+    expect(at('#ch09-mean').textContent).toContain(String.raw`e=u_1(\delta_1-\delta_2)+v`)
+    // 實驗室：ρ 的提示與橢圓圖說和登錄式一致（v₁、v₂ 依 eigenvalue 由大到小；ρ < 0 時長軸是 F-09.5 的差模）
+    const lab = at('#exp-pe-eigen-lab').textContent ?? ''
+    expect(lab).toContain(String.raw`\lambda_{\max,\min}=1\pm|\rho|`)
+    expect(lab).toContain('依 eigenvalue 由大到小排')
+    expect(lab).toContain('也就是 F-09.5 的差模')
+    // 符號表：κ ≥ 1、−1 ≤ ρ ≤ 1 與 λ_i 的排序說明
+    expect(at('#symbols').textContent).toContain(String.raw`\rho<0`)
+
     // 每張圖都在推導（DerivBox）之外：beginner 模式推導預設收合，圖不可以跟著被收起來
     for (const el of blocks) expect(el.closest('details'), el.getAttribute('data-diagram') ?? '').toBeNull()
     // 由模型算出的圖說數字：圖 9.2 的「差了 199 倍」

@@ -202,7 +202,12 @@ export function LabControls({ scenario: s, setScenario, cases }: LabControlsProp
           unit="samples"
           reg="REG_GMAC_DLY / gm_code_delay_samples"
           disabled={c.mode === 'raw'}
-          hint={c.mode === 'raw' ? <>raw-x 不使用 <Tex>{'D'}</Tex></> : c.mode === 'filtered' ? <>filtered-x 時 <Tex>{'D'}</Tex> 可補 <Tex>{r`\hat H`}</Tex> 漏算的 latency</> : <>延遲的是 code（相位 <Tex>{r`+\Omega D`}</Tex>）</>}
+          hint={c.mode === 'raw' ? <>raw-x 不使用 <Tex>{'D'}</Tex></> : c.mode === 'filtered' ? (
+              <>
+                filtered-x 時 <Tex>{'D'}</Tex> 補的是 <Tex>{r`\hat H`}</Tex> 沒有包含的串聯純延遲；<Tex>{r`\hat H=H`}</Tex> 時應設 <Tex>{'D=0'}</Tex>。<Tex>{r`D\ne0`}</Tex> 時相關是{' '}
+                <Tex>{r`C_{f,D}`}</Tex>（F-07.12），可能變小甚至變負
+              </>
+            ) : <>延遲的是 code（相位 <Tex>{r`+\Omega D`}</Tex>）</>}
         />
         <ParamControl
           label={<Tex>{r`\mu\ (\text{gain\_step})`}</Tex>}
@@ -254,7 +259,12 @@ export function LabControls({ scenario: s, setScenario, cases }: LabControlsProp
                 clampOnBlur
                 unit="samples"
                 reg="filtered_x_model.path（模型的 loop latency）"
-                hint={<>負值 = 模型漏算 latency（可用 <Tex>{'D'}</Tex> 補回）</>}
+                hint={
+                  <>
+                    負值 = 模型漏算 loop latency。它在迴路內部，不是串在路徑上的純延遲：白色這類寬頻 code 下加 <Tex>{'D'}</Tex> 只會讓相關變小，不能用 <Tex>{'D'}</Tex>{' '}
+                    補回（低通的有色 code 在少數組合下，小的 <Tex>{'D'}</Tex> 能讓相關多幾個百分點，一樣補不回）；單頻 code 時 <Tex>{'D'}</Tex> 只是像 delayed-x 一樣轉那一個頻率的相位
+                  </>
+                }
               />
             )}
             <ParamControl

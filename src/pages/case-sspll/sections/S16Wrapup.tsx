@@ -51,7 +51,7 @@ export function S16Quiz() {
         answer={
           <ul>
             <li>
-              <strong>(B) 是錯的。</strong>反號只對 mode-1（以及 mode-7）成立，其他模態（<Tex>{r`\kappa_{2..4}>0`}</Tex>）仍是正的。整個翻號會讓 m2–m4 發散。
+              <strong>(B) 是錯的。</strong>反號只對 mode-1（以及 mode-7）成立，其他模態（<Tex>{r`\mathrm{Re}\,\kappa_{2..4}>0`}</Tex>）仍是正的。整個翻號會讓 m2–m4 發散。
             </li>
             <li>換到別的頻道後，m1 也會跟著錯。</li>
             <li>(A)、(D) 由 PSD 定理保證；(C) 在物理上可行，但無法追蹤 PVT。</li>
@@ -109,7 +109,7 @@ export function S17Recap() {
             { tex: r`\boxed{H_{PD}=\frac{1}{1+L}}\qquad\boxed{\mathrm{Re}H_{PD}<0\iff\mathrm{Re}L<-1\iff\mathrm{Re}T>1}`, label: '誤差到 PD 的轉移函數與反號恆等式' },
             { tex: r`\boxed{C_{ij}=\sum_\nu\overline{c^i_\nu}c^j_\nu\,\Gamma_{\rm eff}(f_\nu),\ \ \Gamma_{\rm eff}=H_{PD}\overline G}`, label: r`LMS 的平均梯度矩陣：regressor 功率對 $\Gamma_{\rm eff}$ 的加權和` },
             { tex: r`\boxed{\text{Type-II 低頻：}\ \mathrm{Re}H_{PD}\approx-\frac{\Omega^2}{K_i}}\qquad\boxed{f_{inv}=\frac{f_{ref}}{\pi}\arcsin\sqrt{\frac{K_i}{2(2-K_p)}}}`, label: 'Type-II 的反號帶從 DC 開始，上緣有 closed form' },
-            { tex: `\\boxed{\\kappa_1\\approx${tx(W1, 4)}\\,\\mathrm{Re}H_{PD}(\\alpha f_{ref})}`, label: 'PHOS mode-1：PMUX 旋轉頻率落在帶內就反號' },
+            { tex: `\\boxed{\\mathrm{Re}\\,\\kappa_1\\approx${tx(W1, 4)}\\,\\mathrm{Re}H_{PD}(\\alpha f_{ref})}`, label: 'PHOS mode-1：PMUX 旋轉頻率落在帶內就反號' },
             { tex: r`\boxed{\text{1diff 安全}\iff1-\cos\Omega+\mathrm{Re}\{(1-e^{-j\Omega})L\}\ge0\quad(\text{Type-II：}K_i\le2K_p,\ K_p+\tfrac{K_i}{2}\le2)}`, label: '一階差分 regressor 的安全條件' },
           ]}
           points={[
@@ -178,7 +178,7 @@ export function S17Recap() {
             <Claim kind="approx" />
           </li>
           <li>
-            <strong>dead zone 的符號沒有意義</strong>：近整數、<Tex>{r`\tfrac14`}</Tex>、<Tex>{r`\tfrac12`}</Tex> 附近的 <Tex>{r`\lvert\kappa\rvert\lesssim5\times10^{-3}`}</Tex>，符號隨 step response 尾巴、<Tex>{r`\sigma_v`}</Tex>、探測幅度而變。
+            <strong>dead zone 的符號沒有意義</strong>：近整數、<Tex>{r`\tfrac14`}</Tex>、<Tex>{r`\tfrac12`}</Tex> 附近的 <Tex>{r`\lvert\kappa_{PHOS}\rvert\lesssim5\times10^{-3}`}</Tex>，符號隨 step response 尾巴、<Tex>{r`\sigma_v`}</Tex>、探測幅度而變。
           </li>
           <li>
             <strong>

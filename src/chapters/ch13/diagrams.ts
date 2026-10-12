@@ -176,13 +176,17 @@ export const CHART_NTF_PATHS = String.raw`flowchart TB
   NTF -. "Nyquist $f = f_u/2$" .-> HI["$|\mathrm{NTF}|^2 = 4$，也就是 $+6\,\mathrm{dB}$<br/>誤差被推到高頻"]${STYLE}
   class NTF focus`
 
-/** 同一個迴圈換個畫法：r 是 (w_H − y) 的累加器，有界 ⇒ 平均追得上（F-13.12）。 */
+/**
+ * 同一個迴圈換個畫法：r 是 (w_H − y) 的累加器，有界 ⇒ 平均追得上（F-13.12）。
+ * 圖上的常數 1/N 是方法 D 的結果：沒有 dither、沒有 overload，而且起點 r[−1] 也在 |r| ≤ ½ 內；
+ * 方法 E 加了峰對峰 A 的 dither 之後是 (1 + A)/N（等式不變，見 §13.4 的說明與公式登錄）。
+ */
 export const CHART_TELESCOPING = String.raw`flowchart TB
   WH["$w_H[n]$"] -- "＋" --> D0(("＋"))
   Y["$y[n]$"] -- "−" --> D0
   D0 -- "$w_H[n] - y[n]$" --> ACC["累加器 $1/(1 - z^{-1})$<br/>$r[n] = r[n-1] + (w_H[n] - y[n])$"]
-  ACC -- "$r[n]$，沒有 overload 時 $|r| \le \tfrac12$" --> B["$N$ 次加總只剩頭尾<br/>$\sum (y - w_H) = r[-1] - r[N-1]$"]
-  B --> AVG["除以 $N$<br/>平均誤差的大小 $\le 1/N$"]${STYLE}
+  ACC -- "$r[n]$，方法 D 沒有 overload 時 $|r| \le \tfrac12$" --> B["$N$ 次加總只剩頭尾<br/>$\sum (y - w_H) = r[-1] - r[N-1]$"]
+  B --> AVG["除以 $N$<br/>$r[-1]$ 也在這個範圍內時<br/>平均誤差的大小 $\le 1/N$"]${STYLE}
   class ACC focus`
 
 /** limit cycle 週期怎麼算（F-13.8、勘誤 E15）。 */
@@ -365,13 +369,17 @@ export const CHART_ANTIWINDUP = String.raw`flowchart TB
   Z -- "＋ $r[n-1]$" --> A1${STYLE}
   class CL focus`
 
-/** 跨 clock domain：31 → 32 時 6 個 bit 同時翻轉；gray 碼只翻 1 個 bit。 */
+/**
+ * 跨 clock domain：31 → 32 時二進位 6 個 bit 同時翻轉；gray 碼只有相鄰的 code 才只翻 1 個 bit，31 → 34 仍翻 3 個 bit。
+ * 版面（flowchart LR）由上到下三列：二進位 31 → 32、gray 碼 31 → 32、gray 碼 31 → 34；圖說用「最上面／中間／最下面」。
+ */
 export const CHART_CDC = String.raw`flowchart LR
   A["code domain（$f_u$）<br/>$y$：31 $\to$ 32"] -- "二進位 011111 → 100000<br/>6 個 bit 同時翻" --> S{"DTC domain 剛好在<br/>轉換瞬間取樣？"}
   S -- "是" --> BAD["可能讀到 0 到 63 的任何值<br/>gain 瞬間錯很多"]
   S -- "否" --> GOOD["讀到正確的 32"]
-  A -- "改用 gray 碼 010000 → 110000<br/>只翻 1 個 bit" --> SAFE["最壞只差 1 LSB<br/>或用 handshake 同步"]${STYLE}
-  class BAD warn
+  A -- "改用 gray 碼 010000 → 110000<br/>相鄰 code：只翻 1 個 bit" --> SAFE["只會讀到 31 或 32<br/>最壞差 1 LSB"]
+  M["一次跳 3 LSB<br/>$y$：31 $\to$ 34"] -- "gray 碼 010000 → 110011<br/>翻 3 個 bit" --> MIX["可能讀到 28 到 35<br/>要改用 handshake"]${STYLE}
+  class BAD,MIX warn
   class SAFE ok`
 
 /* ───────────────────────── 章末 ───────────────────────── */
@@ -399,7 +407,7 @@ export const CHART_HARDWARE_MAP = String.raw`flowchart TB
   subgraph CAL["校正邏輯（code 更新率）"]
     LMS["LMS accumulator $w_H$<br/>（$B+F$ bit，$f_u$ domain）"] --> QS["量化策略<br/>$Q_B$ / toggle / PRBS / $\Delta\Sigma$ / dither"]
   end
-  QS -- "6-bit code（CDC：同步 / gray）" --> REG["DTC gain register<br/>（$f_s$ domain，ZOH $N_{\mathrm{upd}}$）"]
+  QS -- "6-bit code（CDC：同步 / handshake）" --> REG["DTC gain register<br/>（$f_s$ domain，ZOH $N_{\mathrm{upd}}$）"]
   REG --> DTC["DTC（reference 端）<br/>延遲 $= T_0 - \Delta_{\mathrm{LSB}} \cdot y \cdot x[n]$"]
   DSM["DSM residue $x[n]$"] --> DTC
   REF["Reference clock"] --> DTC
