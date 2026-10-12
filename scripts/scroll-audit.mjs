@@ -13,6 +13,8 @@
  *   VERT     直向只超出 7–60px —— 為了兩三行放一條直向捲軸，通常沒有用途（把高度上限放寬或拿掉）
  *   ok       內容真的放不下：橫向超出 > 6px 的表格／程式碼／公式，或直向超出 > 60px 的限高清單／JSON／程式碼
  * 預設用 Research 模式並展開所有 <details>。
+ * 加上 --formulas 會另外列出「比欄位寬、要橫向捲動的獨立公式」（WIDE-FORMULA，屬於 ok 類，預設不印）：
+ * 桌機上這種公式通常可以拆成對齊的兩行，就不需要捲軸。
  */
 import { rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -37,7 +39,7 @@ async function withRetry(label, fn, tries = 5) {
     try {
       return await fn()
     } catch (e) {
-      const transient = /Execution context was destroyed|detached Frame|Target closed|Cannot find context|Session closed|Navigating frame was detached/i.test(String(e))
+      const transient = /Execution context was destroyed|detached Frame|Target closed|Cannot find context|Session closed|Navigating frame was detached|Navigation timeout|TimeoutError|Waiting for selector/i.test(String(e))
       if (!transient || i >= tries) throw e
       console.error(`（${label}：頁面在途中被重新載入，重試第 ${i} 次）`)
       await new Promise((r) => setTimeout(r, 2000))
@@ -59,7 +61,7 @@ try {
       const page = await browser.newPage()
       await page.setViewport(vp)
       await page.evaluateOnNewDocument((m) => localStorage.setItem('lmspll.mode', m), mode)
-      await page.goto(`${base}/#${route}`, { waitUntil: 'networkidle2', timeout: 120000 })
+      await page.goto(`${base}/#${route}`, { waitUntil: 'domcontentloaded', timeout: 120000 })
       await page.waitForSelector('article.page', { timeout: 60000 })
       try {
         return await page.evaluate(async () => {
@@ -115,6 +117,11 @@ try {
     for (const r of rows) all.push({ route, ...r })
     const bad = rows.filter((r) => r.kind !== 'ok')
     console.log(`\n${route}：${rows.length} 個可捲動的區塊，其中 ${bad.length} 個需要看（DIAGRAM ${bad.filter((r) => r.kind === 'DIAGRAM').length}、TINY ${bad.filter((r) => r.kind === 'TINY').length}、VERT ${bad.filter((r) => r.kind === 'VERT').length}）`)
+    if (args.formulas !== undefined) {
+      const wide = rows.filter((r) => r.kind === 'ok' && /katex-display/.test(r.where) && r.dx > 0)
+      console.log(`  （比欄位寬的獨立公式：${wide.length} 條）`)
+      for (const r of wide) console.log(`  WIDE-FORMULA x+${r.dx}  ${r.w}x${r.h}  ${r.where}  「${r.text}」`)
+    }
     for (const r of bad) console.log(`  ${r.kind.padEnd(7)} x+${r.dx} y+${r.dy}  ${r.w}x${r.h}  ${r.where}  「${r.text}」`)
   }
 } finally {

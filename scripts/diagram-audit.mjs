@@ -29,7 +29,7 @@ async function withRetry(label, fn, tries = 5) {
     try {
       return await fn()
     } catch (e) {
-      const transient = /Execution context was destroyed|detached Frame|Target closed|Cannot find context|Session closed|Navigating frame was detached/i.test(String(e))
+      const transient = /Execution context was destroyed|detached Frame|Target closed|Cannot find context|Session closed|Navigating frame was detached|Navigation timeout|TimeoutError|Waiting for selector/i.test(String(e))
       if (!transient || i >= tries) throw e
       console.error(`（${label}：頁面在途中被重新載入，重試第 ${i} 次）`)
       await new Promise((r) => setTimeout(r, 2000))
@@ -52,7 +52,7 @@ try {
       const page = await browser.newPage()
       await page.setViewport(vp)
       await page.evaluateOnNewDocument((m) => localStorage.setItem('lmspll.mode', m), mode)
-      await page.goto(`${base}/#${route}`, { waitUntil: 'networkidle2', timeout: 120000 })
+      await page.goto(`${base}/#${route}`, { waitUntil: 'domcontentloaded', timeout: 120000 })
       await page.waitForSelector('article.page', { timeout: 60000 })
       try {
         return await page.evaluate(async () => {
