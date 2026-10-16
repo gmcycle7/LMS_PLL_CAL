@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { HandCalc, checkAnswer, randomValues, texNum, texNumP } from '@/components'
+import { checkSummary } from './HandCalc'
 import { ALL_HANDCALCS, handcalcById } from '@/app/handcalcs'
 
 describe('texNum', () => {
@@ -64,8 +65,30 @@ describe('HandCalc', () => {
     fireEvent.click(screen.getByText('對答案'))
     expect(container.querySelectorAll('.c-handcalc-verdict.ok').length).toBe(1)
     expect(container.querySelectorAll('.c-handcalc-verdict.bad').length).toBe(1)
+    // 結果播報（sr-only live 區）與輸入框 → 結果的 aria-describedby
+    const live = container.querySelector('.c-handcalc-practice .c-sr-only[aria-live="polite"]')!
+    expect(live.textContent).toBe('2 題中 1 題正確')
+    const verdictId = inputs[1].getAttribute('aria-describedby')!
+    expect(document.getElementById(verdictId)?.textContent).toMatch(/還差一點/)
     fireEvent.click(screen.getByText('看詳解'))
     expect(container.querySelectorAll('.c-step').length).toBeGreaterThan(0)
+  })
+
+  it('checkSummary：單題／多題／未填數字的播報文字', () => {
+    const results = [{ symbol: 'a', value: 1 }, { symbol: 'b', value: 2 }]
+    expect(checkSummary(results.slice(0, 1), { 0: '1' })).toBe('✓ 正確')
+    expect(checkSummary(results.slice(0, 1), { 0: '5' })).toBe('✗ 還差一點')
+    expect(checkSummary(results.slice(0, 1), {})).toBe('請輸入數字')
+    expect(checkSummary(results, { 0: '1', 1: '2' })).toBe('2 題全部正確')
+    expect(checkSummary(results, { 0: '1' })).toBe('2 題中 1 題正確，1 題未填數字')
+  })
+
+  it('輸入不合法時錯誤訊息以 aria-describedby 接到輸入框', () => {
+    render(<HandCalc def={def} />)
+    const mu = screen.getByLabelText(/學習率/) as HTMLInputElement
+    fireEvent.change(mu, { target: { value: 'abc' } })
+    const errId = mu.getAttribute('aria-describedby')!
+    expect(document.getElementById(errId)?.textContent).toBe('請輸入數字')
   })
 
   it('換一題：同 seed 可重現，且題目有有限解', () => {

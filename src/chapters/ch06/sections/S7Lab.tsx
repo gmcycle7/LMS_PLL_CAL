@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { ClaimTag, CodeBlock, ModeGate, ModelLevel, Section, StepDerivation, Tex, TestBadge } from '@/components'
+import { ClaimTag, CodeBlock, ModeGate, ModelLevel, Section, StepDerivation, Tex, TestBadge, ChRef } from '@/components'
 import polaritySrc from '@/simulation/models/polarity.ts?raw'
 import { presetHref, presetsForExperiment } from '@/app/presets'
 import { impulseResponse } from '@/simulation/signal'
@@ -112,12 +112,12 @@ export function S7Lab() {
           </li>
           <li>
             <Tex>{'\\phi=120^\\circ,\\;\\Omega=\\pi/6'}</Tex>，把 <Tex>{'D'}</Tex> 調到 8：<Tex>{'\\phi+\\Omega D=360^\\circ'}</Tex>，<Tex>{'C'}</Tex> 回到{' '}
-            <Tex>{`${fx(n.C120d8, 3)}`}</Tex>（delay alignment，第 07 章的主題）。
+            <Tex>{`${fx(n.C120d8, 3)}`}</Tex>（delay alignment，<ChRef ch="07">第 07 章</ChRef>的主題）。
           </li>
           <li>
             先把 <Tex>{'D'}</Tex> 調回 0，再把 GMAC regressor 改成 filtered-x <Tex>{'u'}</Tex>：<Tex>{'C'}</Tex> 變成 <Tex>{'E[u^2]\\ge0'}</Tex>，任何{' '}
             <Tex>{'\\phi'}</Tex> 都收斂（前提是 <Tex>{'\\hat H=H'}</Tex>、<Tex>{'D=0'}</Tex>）。<Tex>{'D'}</Tex> 留在上一步的 8 時，Lab 算的是{' '}
-            <Tex>{`E[u_D\\,u]=\\tfrac{A^2|H|^2}{2}\\cos(\\Omega D)=${fx(n.Cfx8, 3)}`}</Tex>，filtered-x 一樣會反向更新（第 07 章）。
+            <Tex>{`E[u_D\\,u]=\\tfrac{A^2|H|^2}{2}\\cos(\\Omega D)=${fx(n.Cfx8, 3)}`}</Tex>，filtered-x 一樣會反向更新（<ChRef ch="07">第 07 章</ChRef>）。
           </li>
           <li>
             <Tex>{'\\Omega'}</Tex> 設成 <Tex>{'\\pi'}</Tex>（3.14159265…）：<Tex>{'\\phi'}</Tex> 會被吸附到 <Tex>{'0^\\circ'}</Tex> 或 <Tex>{'180^\\circ'}</Tex>，並出現 E46
@@ -196,7 +196,7 @@ export function S7Lab() {
                 tex: String.raw`p_k\equiv p:\quad v_k=\mu^2\sigma_\eta^2\,\frac{1-p^{2k}}{1-p^2}\;\xrightarrow{|p|<1}\;\sigma_w^2=\frac{\mu^2\sigma_\eta^2}{1-p^2}`,
                 why: (
                   <>
-                    等比數列求和；<Tex>{'|p|<1'}</Tex> 時收斂到穩態雜訊（第 12 章的 <Tex>{'\\sigma_w'}</Tex>），<Tex>{'|p|>1'}</Tex> 時連變異數也指數成長。
+                    等比數列求和；<Tex>{'|p|<1'}</Tex> 時收斂到穩態雜訊（<ChRef ch="12">第 12 章</ChRef>的 <Tex>{'\\sigma_w'}</Tex>），<Tex>{'|p|>1'}</Tex> 時連變異數也指數成長。
                   </>
                 ),
               },

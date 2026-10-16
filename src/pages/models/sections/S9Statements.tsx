@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { ClaimTag, Section, Tex } from '@/components'
+import { ClaimTag, Section, Tex, ChRef } from '@/components'
 import { ChLink, ErratumNote, md, sig } from '../common'
 import { SPEC_NUMBERS, gCritical } from '../refNumbers'
 
@@ -64,7 +64,7 @@ export const STATEMENTS: Statement[] = [
     fromSpec: true,
     why: (
       <>
-        GMAC 平均為零只代表到了固定點 <Tex>{'w^*'}</Tex>；offset、INL、截斷（§9.2）都會讓 <Tex>{'w^*\\ne a'}</Tex>。spur 還取決於 gain noise 乘上 code 後經 PLL transfer 的結果（Ch12）<ErratumNote id="E01" />。
+        GMAC 平均為零只代表到了固定點 <Tex>{'w^*'}</Tex>；offset、INL、截斷（§9.2）都會讓 <Tex>{'w^*\\ne a'}</Tex>。spur 還取決於 gain noise 乘上 code 後經 PLL transfer 的結果（<ChRef ch="12">Ch12</ChRef>）<ErratumNote id="E01" />。
       </>
     ),
   },
@@ -90,7 +90,7 @@ export const STATEMENTS: Statement[] = [
     ok: false,
     why: (
       <>
-        有 <Tex>{'d=1'}</Tex> 個 block 延遲時臨界增益是 <Tex>{`2\\sin(\\pi/6)=${sig(gCritical(1), 4)}`}</Tex>，<Tex>{'g=1.5'}</Tex> 已經不穩定（§3.4、Ch08）。
+        有 <Tex>{'d=1'}</Tex> 個 block 延遲時臨界增益是 <Tex>{`2\\sin(\\pi/6)=${sig(gCritical(1), 4)}`}</Tex>，<Tex>{'g=1.5'}</Tex> 已經不穩定（§3.4、<ChRef ch="08">Ch08</ChRef>）。
       </>
     ),
   },

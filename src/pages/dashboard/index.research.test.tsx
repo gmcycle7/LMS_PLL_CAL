@@ -4,6 +4,7 @@ import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
 import { PAGE_PATHS, renderPage, texIn } from './indexTestUtils'
 import { UNICODE_MATH } from './mathTextTestUtils'
+import { FOLD_IDS } from './sections/ThesisFold'
 
 /**
  * 首頁的第二組 jsdom 測試（接續 index.test.tsx）：URL preset、載入反例，以及 Research 模式整頁展開後的檢查
@@ -31,16 +32,87 @@ afterEach(() => {
 // 整頁約 5 萬個 DOM 節點（KaTeX），jsdom 首次渲染需數秒；其他 agent 同時跑測試時更慢
 vi.setConfig({ testTimeout: 60_000 })
 
+/** jsdom 沒有 scrollIntoView：記下被捲到的元素 id（index.test.tsx 的 Beginner 測試用同樣的做法） */
+function stubScrollIntoView() {
+  const ids: string[] = []
+  const proto = Element.prototype as Element & { scrollIntoView?: () => void }
+  const original = proto.scrollIntoView
+  proto.scrollIntoView = function (this: Element) {
+    ids.push(this.id)
+  }
+  return {
+    ids,
+    restore() {
+      proto.scrollIntoView = original
+    },
+  }
+}
+
 describe('DashboardPage（jsdom smoke，第二組）', () => {
   it('URL preset 參數會先經 sanitizeParams 檢查（不存在的 preset 不影響頁面）', () => {
     const { container } = renderPage('engineer', '/?preset=does-not-exist')
     expect(container.querySelectorAll('#dash-check .dash-check-table .dash-state-ok').length).toBe(6)
   })
 
-  it('內建 preset 可由網址載入（#/?preset=thesis-phase120 ⇒ 極性未通過）', async () => {
-    const { container } = renderPage('engineer', '/?preset=thesis-phase120')
-    const polarityCard = container.querySelector('#dash-cond-polarity') as HTMLElement
-    await waitFor(() => expect(within(polarityCard).getByRole('img', { name: '未通過' })).toBeTruthy())
+  it('內建 preset 可由網址載入（#/?preset=thesis-phase120 ⇒ 極性未通過），並捲到體檢', async () => {
+    const scrolled = stubScrollIntoView()
+    try {
+      const { container } = renderPage('engineer', '/?preset=thesis-phase120')
+      const polarityCard = container.querySelector('#dash-cond-polarity') as HTMLElement
+      await waitFor(() => expect(within(polarityCard).getByRole('img', { name: '未通過' })).toBeTruthy())
+      expect(scrolled.ids).toEqual(['dash-check'])
+    } finally {
+      scrolled.restore()
+    }
+  })
+
+  it('Beginner 的深連結：?preset= 先展開卡片、捲到體檢並套用參數；指到卡片裡的 ?f=／?a= 一開始就展開；卡片外的不展開；FOLD_IDS 恰好涵蓋卡片裡的 id', async () => {
+    const scrolled = stubScrollIntoView()
+    try {
+      // ?preset=：第一次造訪的預設模式是 Beginner，分享出去的體檢連結必須看得到體檢（卡片展開、捲到 #dash-check、極性未通過）
+      const a = renderPage('beginner', '/?preset=thesis-phase120')
+      const fold = a.container.querySelector('details.dash-fold') as HTMLDetailsElement
+      expect(fold).not.toBeNull()
+      await waitFor(() => expect(a.container.querySelector('#dash-check')).not.toBeNull())
+      expect(fold.open).toBe(true)
+      await waitFor(() => expect(scrolled.ids).toEqual(['dash-check']))
+      // 參數由剛掛上的 HealthCheck 套用，再經 useDeferredValue 重算：jsdom 裡這一輪渲染很慢，等久一點、用便宜的選擇器
+      await waitFor(() => expect(a.container.querySelector('#dash-cond-polarity [role="img"][aria-label="未通過"]')).not.toBeNull(), { timeout: 15_000 })
+      // FOLD_IDS：卡片裡每個 dash-／formula-／handcalc-／exp- 開頭的 id 都符合規則（深連結與頁內跳轉才會先展開）；卡片外的都不符合
+      const inside: string[] = []
+      const outside: string[] = []
+      for (const el of Array.from(a.container.querySelectorAll('[id]'))) {
+        if (el === fold || !/^(dash-|formula-|handcalc-|exp-|symbols)/.test(el.id)) continue // 卡片本身（dash-fold）不算在裡面
+        ;(fold.contains(el) ? inside : outside).push(el.id)
+      }
+      expect(inside.length).toBeGreaterThan(20)
+      expect(outside.length).toBeGreaterThan(20)
+      for (const id of inside) expect(FOLD_IDS.test(id), `卡片裡的 ${id} 應符合 FOLD_IDS`).toBe(true)
+      for (const id of outside) expect(FOLD_IDS.test(id), `卡片外的 ${id} 不應符合 FOLD_IDS`).toBe(false)
+      expect(inside).toContain('formula-F-DB.1')
+      expect(inside).toContain('handcalc-HC-DB.1')
+      expect(outside).toContain('handcalc-HC-DB.6')
+      a.unmount()
+      // 不存在的 preset：卡片維持收合、不捲動
+      scrolled.ids.length = 0
+      const b = renderPage('beginner', '/?preset=does-not-exist')
+      expect((b.container.querySelector('details.dash-fold') as HTMLDetailsElement).open).toBe(false)
+      expect(b.container.querySelector('#dash-check')).toBeNull()
+      expect(scrolled.ids).toEqual([])
+      b.unmount()
+      // ?f=F-DB.1（公式速查頁的深連結）：一開始就展開，PageFrame 的 AnchorDeepLink 才找得到 #formula-F-DB.1
+      const c = renderPage('beginner', '/?f=F-DB.1')
+      expect((c.container.querySelector('details.dash-fold') as HTMLDetailsElement).open).toBe(true)
+      await waitFor(() => expect(c.container.querySelector('[id="formula-F-DB.1"]')).not.toBeNull())
+      c.unmount()
+      // ?a= 指到卡片外（15 個問題的第 3 題）：不展開
+      const d = renderPage('beginner', '/?a=dash-q-3')
+      expect((d.container.querySelector('details.dash-fold') as HTMLDetailsElement).open).toBe(false)
+      expect(d.container.querySelector('#dash-q-3')).not.toBeNull()
+      d.unmount()
+    } finally {
+      scrolled.restore()
+    }
   })
 
   it('條件卡片的「載入反例」：按下後該條件的燈號變成未通過，其他無關條件仍通過', async () => {
@@ -119,9 +191,15 @@ describe('DashboardPage（jsdom smoke，第二組）', () => {
     expect(texIn(container.querySelector('#dash-spine')).some((t) => t.includes(String.raw`\sqrt{P_x}\,\sigma_w=0.3992\,\mathrm{fs}`))).toBe(true)
   })
 
-  it('帶入手算：六題在三種模式下都顯示在頁面上（HandCalc），各自放在對應推導的正後方、綜合題在思考題之前', () => {
+  it('帶入手算：六題在三種模式下都顯示在頁面上（HandCalc），各自放在對應推導的正後方、綜合題在思考題之前', async () => {
     for (const mode of ['beginner', 'engineer', 'research'] as const) {
       const { container, unmount } = renderPage(mode)
+      // Beginner 把六個條件／一條方程式／動手體檢收成一張卡片，展開才渲染（index.test.tsx 的「Beginner：…收成一張卡片」）：先展開
+      if (mode === 'beginner') {
+        expect(container.querySelectorAll('section.c-handcalc')).toHaveLength(1) // 只有「本頁必記」的綜合題 HC-DB.6 在卡片外
+        fireEvent.click(container.querySelector('details.dash-fold > summary') as HTMLElement)
+        await waitFor(() => expect(container.querySelector('#dash-spine')).not.toBeNull())
+      } else expect(container.querySelector('details.dash-fold')).toBeNull()
       for (const h of HANDCALCS) expect(container.querySelector(`section.c-handcalc[id="handcalc-${h.id}"]`), `${mode} ${h.id}`).toBeTruthy()
       expect(container.querySelectorAll('section.c-handcalc')).toHaveLength(HANDCALCS.length)
       // 頁面上的順序：推導 1 → HC-DB.1、推導 2 → HC-DB.2、推導 3 → HC-DB.3、推導 4 → HC-DB.5、（Research：推導 5–7）→ HC-DB.4，最後是綜合題 HC-DB.6

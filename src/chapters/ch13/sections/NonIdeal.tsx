@@ -10,6 +10,7 @@ import {
   StepDerivation,
   Tex,
   useThemeTokens,
+  ChRef,
 } from '@/components'
 import {
   STRATEGIES,
@@ -290,7 +291,7 @@ export function NonIdealSection() {
           <Tex>{'w_H'}</Tex> 固定不動時（LMS 凍結後）B、C、D 只在相鄰的兩個 code 之間切換，條件成立；<Tex>{'w_H'}</Tex> 還在動時，會切換的四種策略都不保證 <Tex>{String.raw`|\Delta y|\le1`}</Tex>（上表的 D、E 已經出現，B、C 只是這次沒出現），除非電路另外限制一次最多改變 1 個 code（本站沒有模擬這種限制）。
         </li>
         <li>
-          非同步，而且一次可能跳 2 LSB 以上（E；以及 <Tex>{'w_H'}</Tex> 還在動、又沒有上述限制的 B、C、D）：gray 碼的保證不成立，要用 handshake——6-bit code 先在暫存器裡保持不動，用一條單 bit 的 request 訊號（單一個 bit 沒有新舊混合的問題）經同步器通知 DTC domain 取樣，收到 acknowledge 之後才允許下一次更新——或使用 asynchronous FIFO。handshake 的等待時間要算進更新延遲（第 4 章的 latency 計算、第 8 章的 phase margin）。
+          非同步，而且一次可能跳 2 LSB 以上（E；以及 <Tex>{'w_H'}</Tex> 還在動、又沒有上述限制的 B、C、D）：gray 碼的保證不成立，要用 handshake——6-bit code 先在暫存器裡保持不動，用一條單 bit 的 request 訊號（單一個 bit 沒有新舊混合的問題）經同步器通知 DTC domain 取樣，收到 acknowledge 之後才允許下一次更新——或使用 asynchronous FIFO。handshake 的等待時間要算進更新延遲（<ChRef ch="04">第 4 章</ChRef>的 latency 計算、<ChRef ch="08">第 8 章</ChRef>的 phase margin）。
         </li>
       </ol>
       <p className="small">

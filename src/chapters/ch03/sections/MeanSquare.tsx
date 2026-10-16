@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { Data, Layout } from 'plotly.js-dist-min'
-import { Callout, ClaimTag, ModeGate, Plot, Prereq, Section, Tex, TexBlock, useThemeTokens } from '@/components'
+import { Callout, ClaimTag, ModeGate, Plot, Prereq, Section, Tex, TexBlock, useThemeTokens, ChRef } from '@/components'
 import { meanSquareFactor } from '@/simulation/models/lms'
 import { analyticTrajectory, stabilityBounds, xMoments } from '@/simulation/models/scalarStability'
 import { Erratum, FBlock, Fig, HC, num, StepsBox, T, tnum, tx, Verdict } from '../common'
@@ -201,7 +201,7 @@ export function MeanSquareSection() {
           <Tex>{T`E[\delta^2]`}</Tex> 才分得出來：A 是 100、B 是 1。
         </p>
         <Callout kind="warn" title={<>{tx`名詞：這裡的 $E[\delta^2]$ 是 MSD，不是 MSE`} <Erratum id="E42" /></>}>
-          <Tex>{T`E[\delta_n^2]`}</Tex> 是<strong>係數均方偏差</strong>（mean-square deviation, MSD），量的是 <Tex>w</Tex> 離 <Tex>a</Tex> 多遠；第 1 章的 MSE 成本是{' '}
+          <Tex>{T`E[\delta_n^2]`}</Tex> 是<strong>係數均方偏差</strong>（mean-square deviation, MSD），量的是 <Tex>w</Tex> 離 <Tex>a</Tex> 多遠；<ChRef ch="01">第 1 章</ChRef>的 MSE 成本是{' '}
           <Tex>{T`J=E[e^2]`}</Tex>，量的是預測誤差。iid <Tex>x</Tex>、雜訊零均值且與 <Tex>x</Tex> 獨立時兩者的關係是 <Tex>{T`E[e^2]=P_x\,E[\delta^2]+\sigma_v^2`}</Tex>（<Tex>{T`\sigma_v^2`}</Tex> 是量測雜訊的變異數；本節後面推導）。
           規格 §3.1 的「均方誤差」指的是 MSD；本站圖例一律分開標示「MSD <Tex>{T`E[\delta^2]`}</Tex>」與「MSE <Tex>{T`E[e^2]`}</Tex>」。
         </Callout>
@@ -374,8 +374,7 @@ E[t^{k+1}]&=\int_{-\infty}^{\infty}t^{k}\,\big(t\varphi(t)\big)\,dt=\int_{-\inft
         </Callout>
         <ModeGate min="research">
           <p className="small">
-            Research：小 <Tex>\mu</Tex> 時 <Tex>{T`\text{MSD}_\infty\approx\mu\sigma_v^2/2`}</Tex>（與分布無關）；分母的修正項 <Tex>{T`\mu M_4/(2P_x)`}</Tex> 才看得到分布的形狀。
-            第 12 章的線性 block 模型 <Tex>{T`\delta_{k+1}=p\,\delta_k+\mu\eta_k`}</Tex> 給出 <Tex>{T`\operatorname{Var}=\mu^2\sigma_\eta^2/(1-p^2)`}</Tex>，是同一個 <Tex>{T`\text{不動點}=\text{注入量}\div(1-\text{每步因子})`}</Tex> 的結構。
+            Research：小 <Tex>\mu</Tex> 時 <Tex>{T`\text{MSD}_\infty\approx\mu\sigma_v^2/2`}</Tex>（與分布無關）；分母的修正項 <Tex>{T`\mu M_4/(2P_x)`}</Tex> 才看得到分布的形狀。 <ChRef ch="12">第 12 章</ChRef>的線性 block 模型 <Tex>{T`\delta_{k+1}=p\,\delta_k+\mu\eta_k`}</Tex> 給出 <Tex>{T`\operatorname{Var}=\mu^2\sigma_\eta^2/(1-p^2)`}</Tex>，是同一個 <Tex>{T`\text{不動點}=\text{注入量}\div(1-\text{每步因子})`}</Tex> 的結構。
           </p>
         </ModeGate>
       </Section>

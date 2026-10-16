@@ -16,6 +16,7 @@ import {
   TexBlock,
   useThemeTokens,
   type MetricRow,
+  ChRef,
 } from '@/components'
 import type { DsmKind } from '@/simulation/models/dsm'
 import residueSrc from '../residue.ts?raw'
@@ -357,7 +358,7 @@ export function ResidueSection() {
         {R`\tau_\mathrm{need}[n]=\frac{s[n]}{M}T_\mathrm{vco},\qquad\tau_\mathrm{DTC}[n]=T_0-w\,x[n],\qquad \boxed{e_\mathrm{det}[n]=(a-w)\,x[n]=\delta\,x[n]}`}
       </TexBlock>
       <p>
-        這正是 Ch00–Ch03 的 <Tex>{R`y=ax`}</Tex> 黑盒子：<Tex>x</Tex> 已知（DSM 累加器），<Tex>a</Tex> 未知（DTC 的類比 gain 隨 PVT 變）。
+        這正是 <ChRef ch="00">Ch00</ChRef>–<ChRef ch="03">Ch03</ChRef> 的 <Tex>{R`y=ax`}</Tex> 黑盒子：<Tex>x</Tex> 已知（DSM 累加器），<Tex>a</Tex> 未知（DTC 的類比 gain 隨 PVT 變）。
         數字感 <SourceTag kind="illustrative" />：<Tex>{R`f_\mathrm{vco}=${FVCO_GHZ}\,\mathrm{GHz}\Rightarrow T_\mathrm{vco}=${tx(tvco, 6)}\,\mathrm{fs}`}</Tex>；DTC gain 只錯 1%，
         PD 殘差最大就有 <Tex>{R`${tx(exMax, 4)}\,\mathrm{fs}`}</Tex>（上例 64 拍的最大值），比典型 comparator 雜訊 <Tex>{R`\sigma_v=100\,\mathrm{fs}`}</Tex> 還大。
         這就是為什麼 DTC gain 必須在背景持續校正。
@@ -375,7 +376,7 @@ export function ResidueSection() {
       </HandCalcBox>
       <Callout kind="warn" title="code 的 DC 成分會在後面出問題">
         <Tex>{R`x[n]=s[n]/M\in[0,1)`}</Tex> 的平均約 <Tex>{R`\tfrac12`}</Tex>，<strong>不是零均值</strong>。在 §4 我們會看到：如果 comparator 的 0/1 沒有映射成 <Tex>{R`\pm1`}</Tex>，這個 DC 會直接變成 gain
-        偏差；Ch11 也會看到 comparator offset 與 PLL 的 DC null 如何和它交互作用（勘誤 E03）。實務上常把累加器 MSB 反相，得到以 0 為中心的有號 code。
+        偏差；<ChRef ch="11">Ch11</ChRef> 也會看到 comparator offset 與 PLL 的 DC null 如何和它交互作用（勘誤 E03）。實務上常把累加器 MSB 反相，得到以 0 為中心的有號 code。
       </Callout>
       <ResidueExplorer />
     </Section>

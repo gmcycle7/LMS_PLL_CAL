@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, CodeBlock, CodeCompare, getTestStatus, Section, StepDerivation, TestBadge, Tex } from '@/components'
+import { Callout, ClaimTag, CodeBlock, CodeCompare, getTestStatus, Section, StepDerivation, TestBadge, Tex, ChRef } from '@/components'
 import acceptanceSrc from '@/simulation/models/acceptance.ts?raw'
 import calNoiseSrc from '@/simulation/models/calNoise.ts?raw'
 import comparatorSrc from '@/simulation/models/comparator.ts?raw'
@@ -152,7 +152,7 @@ export function HowItWorks() {
 
       <h3>同一個公式，兩種語言（一）：T13 的 <Tex>{r`\sigma_w`}</Tex></h3>
       <p>
-        左邊是網站第 12 章實際執行的 TypeScript（<code>calNoise.ts</code> 的 <code>#region core:calLoop</code>），右邊是 Python golden（<code>noise.py</code>
+        左邊是網站<ChRef ch="12">第 12 章</ChRef>實際執行的 TypeScript（<code>calNoise.ts</code> 的 <code>#region core:calLoop</code>），右邊是 Python golden（<code>noise.py</code>
         ，以函式名稱從原始檔切出——Python 檔沒有 region 標記，但顯示的仍是實際檔案內容）。兩者各自算出 <Tex>{r`\sigma_w=\mu\sqrt{\sigma_\eta^2/(1-p^2)}`}</Tex>，在{' '}
         <Tex>{r`10^{-12}`}</Tex> 內一致（§V.2 的 T13 列）。
       </p>

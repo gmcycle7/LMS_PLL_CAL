@@ -20,7 +20,8 @@ import {
   type CppllMapping,
   type SspllLoop,
 } from '@/simulation/models/sspll'
-import { FREF_MHZ, HPD, HPD_GRID_MHZ, LOOPS, LOOP_LABEL, type LoopKey } from '../data'
+import { FREF_MHZ, HPD_GRID_MHZ, LOOPS, LOOP_LABEL, type LoopKey } from '../data'
+import { useSspllData } from '../lazyData'
 import { fp, fx, loopTex, r } from '../common'
 
 export const HPD_EXPERIMENT_ID = 'sspll-hpd'
@@ -169,7 +170,8 @@ export function HpdExplorer() {
     }
   }, [dP])
   const loop = built.ok ? built.loop : LOOPS[dP.loop]
-  const golden = HPD[dP.loop]
+  // golden 的 hpd_L*.json（約 150 KB）按需載入：還沒到時圖上只有 TS port 的實線，到了之後才加上點線與比對指標
+  const { data: golden } = useSspllData('hpd', dP.loop, `exp-${HPD_EXPERIMENT_ID}`)
   // JSON 的 f_MHz 只存 6 位有效數字；TS port 與 golden 的比較用未捨入的精確格點
   const grid = HPD_GRID_MHZ
 
@@ -187,7 +189,7 @@ export function HpdExplorer() {
   const edgeScan = an.bands.length ? an.bands[0].fHi * FREF_MHZ : null
   const edgeClosed = built.ok ? closedFormEdgeMHz(dP, loop) : null
   const goldenMaxDiff = useMemo(() => {
-    if (!nominal) return null
+    if (!nominal || !golden) return null
     let m = 0
     for (let i = 0; i < grid.length; i++) m = Math.max(m, Math.abs(an.sw.reH[i] - golden.ReH[i]))
     return m
@@ -286,7 +288,7 @@ export function HpdExplorer() {
         }) as Data,
     )
     traces.push({ x: grid, y: an.sw.reH, name: '$\\mathrm{Re}\\,H_{\\mathrm{PD}}$（TS port，即時）', mode: 'lines', line: { color: tokens.series[0], width: 2.2 } })
-    traces.push({ x: grid, y: golden.ReH, name: `$\\mathrm{Re}\\,H_{\\mathrm{PD}}$（golden JSON，標稱 ${loopTex(dP.loop)}）`, mode: 'lines', line: { color: tokens.textMuted, dash: 'dot', width: 1.6 } })
+    if (golden) traces.push({ x: grid, y: golden.ReH, name: `$\\mathrm{Re}\\,H_{\\mathrm{PD}}$（golden JSON，標稱 ${loopTex(dP.loop)}）`, mode: 'lines', line: { color: tokens.textMuted, dash: 'dot', width: 1.6 } })
     // 低頻漸近式
     const asym: (number | null)[] = []
     let hasAsym = false
@@ -324,7 +326,7 @@ export function HpdExplorer() {
     () => [
       { x: grid, y: an.sw.absH, name: '$|H_{\\mathrm{PD}}|$', mode: 'lines', line: { color: tokens.series[0], width: 2 } },
       { x: grid, y: an.sw.absT, name: '$|T|$（$-3$ dB = 設計頻寬）', mode: 'lines', line: { color: tokens.series[1], width: 2 } },
-      { x: grid, y: golden.absH, name: `$|H_{\\mathrm{PD}}|$（golden JSON，標稱 ${loopTex(dP.loop)}）`, mode: 'lines', line: { color: tokens.textMuted, dash: 'dot' } },
+      ...(golden ? [{ x: grid, y: golden.absH, name: `$|H_{\\mathrm{PD}}|$（golden JSON，標稱 ${loopTex(dP.loop)}）`, mode: 'lines', line: { color: tokens.textMuted, dash: 'dot' } } as Data] : []),
       { x: [grid[0], grid[grid.length - 1]], y: [1, 1], name: '1（$|T|>1$ = peaking）', mode: 'lines', line: { color: tokens.textMuted, dash: 'dash', width: 1 } },
       { x: [grid[0], grid[grid.length - 1]], y: [Math.SQRT1_2, Math.SQRT1_2], name: '$1/\\sqrt{2}$（$-3$ dB）', mode: 'lines', line: { color: tokens.textMuted, dash: 'dashdot', width: 1 } },
     ],
@@ -333,7 +335,9 @@ export function HpdExplorer() {
   const phData: Data[] = useMemo(
     () => [
       { x: grid, y: an.sw.phaseDeg, name: '$\\angle H_{\\mathrm{PD}}$ [deg]（TS port，即時）', mode: 'lines', line: { color: tokens.series[4] ?? tokens.series[0], width: 2 } },
-      { x: grid, y: golden.ReH.map((re, i) => (Math.atan2(golden.ImH[i], re) * 180) / Math.PI), name: `$\\angle H_{\\mathrm{PD}}$（golden JSON，標稱 ${loopTex(dP.loop)}）`, mode: 'lines', line: { color: tokens.textMuted, dash: 'dot' } },
+      ...(golden
+        ? [{ x: grid, y: golden.ReH.map((re, i) => (Math.atan2(golden.ImH[i], re) * 180) / Math.PI), name: `$\\angle H_{\\mathrm{PD}}$（golden JSON，標稱 ${loopTex(dP.loop)}）`, mode: 'lines', line: { color: tokens.textMuted, dash: 'dot' } } as Data]
+        : []),
       { x: [grid[0], grid[grid.length - 1]], y: [90, 90], name: '$\\pm90^\\circ$（$\\mathrm{Re}\\,H_{\\mathrm{PD}}=0$）', mode: 'lines', line: { color: tokens.textMuted, dash: 'dash' } },
       { x: [grid[0], grid[grid.length - 1]], y: [-90, -90], showlegend: false, mode: 'lines', line: { color: tokens.textMuted, dash: 'dash' } },
     ],
@@ -385,7 +389,7 @@ export function HpdExplorer() {
         abs_T: an.sw.absT,
         re_L: an.sw.reL,
         re_Gamma_1diff: an.sw.reGamma['1diff'],
-        golden_re_Hpd: golden.ReH,
+        ...(golden ? { golden_re_Hpd: golden.ReH } : {}),
       })}
       controls={
         <>

@@ -1,20 +1,10 @@
 import type { ReactNode } from 'react'
-import { HandCalc } from '@/components'
+import { AnchorLink, HandCalc } from '@/components'
 import { HANDCALCS } from './handcalcs'
 
-/** 捲到某一題（HashRouter 下不能用純 #anchor 連結，否則會改到路由）。 */
+/** 捲到某一題（共用的 AnchorLink：不會改到 HashRouter 的路由，中鍵／複製連結也能用）。 */
 export function HandLink({ id }: { id: string }) {
-  return (
-    <a
-      href={`#handcalc-${id}`}
-      onClick={(e) => {
-        e.preventDefault()
-        document.getElementById(`handcalc-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }}
-    >
-      {id}
-    </a>
-  )
+  return <AnchorLink id={`handcalc-${id}`}>{id}</AnchorLink>
 }
 
 /**

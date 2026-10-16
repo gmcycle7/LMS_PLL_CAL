@@ -1,6 +1,7 @@
 import { texNum, texNumP } from '@/components'
 import type { HandCalcDef, HandCalcStep } from '@/data/types'
 import { svd } from '@/simulation/core'
+import { SETTLE_MAX_STEPS } from '@/pages/dashboard/thesisModel'
 import { cornerJudge, failureUpperBound, gCrit, identifiabilityThreshold, kq, requiredBlocks, secantRatio, slopeStdErr, trialsForZeroFailure, twoParamJlin, type CornerRowResult } from './judges'
 
 /**
@@ -130,6 +131,78 @@ function cornerGainSteps(sub: 'F' | 'S', name: string, sigmaV: number, theta: nu
       why: sub === 'F' ? String.raw`無因次迴路增益（fs 乘 fs$^{-1}$）。硬體只有一個 $\mu$，所以兩個 corner 用的是同一個數字。` : String.raw`同一個 $\mu$ 在最慢的 corner 只有這麼小的迴路增益。`,
     },
   ]
+}
+
+/**
+ * d = 1 的 k95（逐 block）：y_{k+1} = y_k − g_S·y_{k−1}、y_0 = y_{−1} = 1 有封閉解（z_{1,2} 是 z² − z + g_S = 0 的根）：
+ *   兩個實根（g_S < 1/4）：y_k = (z_1^{k+2} − z_2^{k+2})/(z_1 − z_2)
+ *   重根 z = 1/2（g_S = 1/4）：y_k = (k + 2)/2^{k+1}
+ *   共軛複根（g_S > 1/4）：y_k = ρ^{k+1}·sin((k + 2)φ)/sin φ，ρ = √g_S，cos φ = 1/(2ρ)
+ * 三種都滿足 y_{−1} = y_0 = 1。紙筆只驗證夾住 5% 的兩項：k1 = k95 − 1（最後一次超過）與 k2 = k95（之後不再超過）。
+ */
+function exactSettleSteps(g: number, rhoS: number, k95: number): HandCalcStep[] {
+  const k1 = k95 - 1
+  const steps: HandCalcStep[] = []
+  /** 顯示 |y| 時，位數要多到看得出它在 0.05 的哪一側（離 0.05 越近、需要的位數越多） */
+  const near = (y: number): string => {
+    const gap = Math.abs(Math.abs(y) - 0.05)
+    return texNum(y, gap > 0 ? Math.min(12, Math.max(5, 2 + Math.ceil(-Math.log10(gap)))) : 12)
+  }
+  const side = (y: number): string => (Math.abs(y) > 0.05 ? '>' : String.raw`\le`)
+  const disc = clean(1 - 4 * g)
+  if (disc > 0) {
+    const root = Math.sqrt(disc)
+    const z1 = rhoS
+    const z2 = 1 - z1
+    steps.push({
+      tex: String.raw`z_1=\rho_S,\quad z_2=1-z_1=1-${nearOne(z1)}=${texNum(z2, 6)}`,
+      why: String.raw`兩個實根相加等於 $1$（$z^2-z+g_S=0$ 的係數）。平均遞迴 $y_{k+1}=y_k-g_S\,y_{k-1}$ 從 $y_0=y_{-1}=1$ 出發的解是 $y_k=\dfrac{z_1^{\,k+2}-z_2^{\,k+2}}{z_1-z_2}$（$k=-1$ 與 $k=0$ 代入都得 $1$）。`,
+    })
+    for (const [k, why] of [
+      [k1, String.raw`最後一次還超過 $0.05$ 的 block：用計算機的 $y^x$ 鍵算兩個冪。$z_2$ 的冪小得多，常常可以忽略。`],
+      [k95, String.raw`下一個 block 就降到 $0.05$ 以下。實根時每一步都減去一個正數 $g_S\,y_{k-1}$，$y_k$ 單調遞減，所以之後不會再超過 $0.05$。`],
+    ] as const) {
+      const n1 = z1 ** (k + 2)
+      const n2 = z2 ** (k + 2)
+      const y = (n1 - n2) / root
+      // z_2 的冪比 z_1 的冪小 8 個數量級以上：6 位有效數字內等於 0，直接寫 0（z_2 ≈ z_1 的重根附近才會有感）
+      const tiny = Math.abs(n2) < 1e-8 * Math.abs(n1)
+      steps.push({
+        tex: String.raw`y_{${k}}=\frac{z_1^{${k + 2}}-z_2^{${k + 2}}}{z_1-z_2}=\frac{${texNum(n1, 6)}-${tiny ? '0' : texNum(n2, 6)}}{${texNum(root, 6)}}=${near(y)}${side(y)}0.05`,
+        why,
+      })
+    }
+    return steps
+  }
+  if (disc === 0) {
+    for (const [k, why] of [
+      [k1, String.raw`重根 $z=\tfrac12$ 時 $y_k=(k+2)/2^{k+1}$（$k=-1,0$ 代入都得 $1$）。這是最後一次還超過 $0.05$ 的 block。`],
+      [k95, String.raw`下一個 block 降到 $0.05$ 以下；$y_k$ 單調遞減，之後不會再超過。`],
+    ] as const) {
+      const y = (k + 2) / 2 ** (k + 1)
+      steps.push({ tex: String.raw`y_{${k}}=\frac{${k}+2}{2^{${k}+1}}=\frac{${k + 2}}{${2 ** (k + 1)}}=${near(y)}${side(y)}0.05`, why })
+    }
+    return steps
+  }
+  // 共軛複根：ρ = √g_S，cos φ = 1/(2ρ)
+  const phi = Math.acos(1 / (2 * rhoS))
+  steps.push({
+    tex: String.raw`\varphi=\arccos\frac{1}{2\rho_S}=\arccos\frac{1}{2\times${nearOne(rhoS)}}=\arccos(${texNum(1 / (2 * rhoS), 6)})=${deg(phi * RAD2DEG, 6)}`,
+    why: String.raw`複根 $z=\rho_S e^{\pm j\varphi}$ 的相角（兩根相加 $=1$ ⇒ $2\rho_S\cos\varphi=1$）。從 $y_0=y_{-1}=1$ 出發的解是 $y_k=\dfrac{\rho_S^{\,k+1}\sin((k+2)\varphi)}{\sin\varphi}$（$k=-1$ 與 $k=0$ 代入都得 $1$）。`,
+  })
+  for (const [k, why] of [
+    [k1, String.raw`最後一次還超過 $0.05$ 的 block（計算機切到 DEG 模式；取絕對值，複根的 $y_k$ 正負交替）。`],
+    [k95, String.raw`下一個 block 降到 $0.05$ 以下。複根時 $y_k$ 正負交替，紙筆只能驗證這兩項夾住 $0.05$；「之後不再超過」要檢查之後的每個 block——判斷器逐 block 數到暫態消失為止。`],
+  ] as const) {
+    const A = rhoS ** (k + 1)
+    const sn = Math.abs(Math.sin((k + 2) * phi))
+    const y = (A * sn) / Math.sin(phi)
+    steps.push({
+      tex: String.raw`|y_{${k}}|=\frac{\rho_S^{${k + 1}}\left|\sin(${k + 2}\varphi)\right|}{\sin\varphi}=\frac{${texNum(A, 6)}\times${texNum(sn, 6)}}{${texNum(Math.sin(phi), 6)}}=${near(y)}${side(y)}0.05`,
+      why,
+    })
+  }
+  return steps
 }
 
 export const HANDCALCS: HandCalcDef[] = [
@@ -422,11 +495,11 @@ export const HANDCALCS: HandCalcDef[] = [
     title: String.raw`同一個 $\mu$ 過兩個 corner：最快的 $PM_d$ 夠嗎？最慢的 $B$ 次內收斂嗎？`,
     page: '/signoff',
     formulaId: 'F-SO.5',
-    // 兩行（一行排不下會出現橫向捲軸）：每個 corner 的 g 與最快 corner 的 PM；最慢 corner 的 ρ 與 k95
-    formulaTex: String.raw`\begin{aligned}&g_c=\mu K_q(\sigma_{v,c})\cos\theta_c,\qquad PM_d(g_F)=90^\circ-(2d+1)\arcsin\frac{g_F}{2}\ge PM_t\\[2pt]&\rho_S=\begin{cases}|1-g_S|&d=0\\[2pt]\max|z|:\ z^2-z+g_S=0&d=1\end{cases},\qquad k_{95}=\Big\lceil\frac{\ln0.05}{\ln\rho_S}\Big\rceil\le B\end{aligned}`,
+    // 四行（一行排不下會出現橫向捲軸；每一行都不比第一行寬）：每個 corner 的 g 與最快 corner 的 PM；最慢 corner 的 ρ；k95 的定義；k95 用的平均遞迴（d = 0 時 k95 = ⌈ln 0.05/ln ρ⌉，見步驟）
+    formulaTex: String.raw`\begin{aligned}&g_c=\mu K_q(\sigma_{v,c})\cos\theta_c,\qquad PM_d(g_F)=90^\circ-(2d+1)\arcsin\frac{g_F}{2}\ge PM_t\\[2pt]&\rho_S=\begin{cases}|1-g_S|&d=0\\[2pt]\max|z|:\ z^2-z+g_S=0&d=1\end{cases}\\[2pt]&k_{95}=1+\max\{k:\ |y_k|>0.05\}\le B\\[2pt]&y_{k+1}=y_k-g_S\,y_{k-d},\quad y_0=y_{-1}=1\end{aligned}`,
     level: 'engineer',
-    // g、PM_d、ρ_S 在線性化一階模型內是精確的；k95 用 ρ_S 的漸近衰減率估計（d = 1 時 ρ_S^k 不是誤差的包絡：重根、複數根），所以整題標「近似」
-    claim: 'approx',
+    // g、PM_d、ρ_S 與 k95（平均遞迴逐 block 數、判斷器同一個函式）在線性化一階模型內都是精確的；⌈ln 0.05/ln ρ_S⌉ 只是步驟裡另列的「漸近估計」
+    claim: 'exact',
     inputs: [
       { key: 'sigmaF', symbol: String.raw`\sigma_{v,F}`, label: '最快的 corner：comparator 雜訊', unit: String.raw`\mathrm{fs}`, default: 70, min: 1, max: 10000, practice: { choices: [50, 70, 80, 100] } },
       { key: 'thetaF', symbol: String.raw`\theta_F`, label: '最快的 corner：有效相位', unit: String.raw`^\circ`, default: 10, min: -180, max: 180, practice: { choices: [0, 10, 20, 30] } },
@@ -507,25 +580,40 @@ export const HANDCALCS: HandCalcDef[] = [
         steps.push({ tex: String.raw`\rho_S=0\ \Rightarrow\ k_{95}=1`, why: String.raw`deadbeat（$g_S=1$、$d=0$）：一次更新就到位，不需要（也不能）取 $\ln0$；但至少要 $1$ 次更新。` })
       } else {
         const lnRho = Math.log(rhoS)
-        steps.push(
-          { tex: String.raw`\ln\rho_S=\ln(${nearOne(rhoS)})=${texNum(lnRho)}`, why: String.raw`計算機按 $\ln$；$\rho$ 接近 $1$ 時 $\ln\rho\approx-(1-\rho)$。` },
-          {
-            tex: String.raw`k_{95}=\Big\lceil\frac{\ln0.05}{\ln\rho_S}\Big\rceil=\Big\lceil\frac{${texNum(LN_005)}}{${texNum(lnRho)}}\Big\rceil=\left\lceil${ceilArg(LN_005 / lnRho, S.settle95)}\right\rceil=${int(S.settle95)}`,
-            why:
-              (d === 0 ? String.raw`$d=0$ 時平均誤差的大小每個 block 剛好乘上 $\rho_S$：$\rho_S^{\,k}\le0.05$` : String.raw`用 $\rho_S$ 的漸近衰減率估計：$\rho_S^{\,k}\le0.05$`) +
-              String.raw` ⇒ $k\ge\ln0.05/\ln\rho_S$（兩個負數相除得正數），再無條件進位。和 $B=${int(B)}$ 比：${S.ok.settle ? '來得及' : '來不及'}。` +
-              (d === 1
-                ? String.raw`$d=1$ 時這只是估計：實際的誤差是兩個模式的組合，$\rho_S^{\,k}$ 不是它的包絡，逐 block 算出來的 block 數可能比它多、也可能比它少（相對差距在 $g_S=\tfrac14$ 附近最大：那裡是重根 $z=\tfrac12$，公式給 $5$，從定值的初始歷史逐 block 算要 $7$）。`
-                : ''),
-          },
-        )
+        steps.push({ tex: String.raw`\ln\rho_S=\ln(${nearOne(rhoS)})=${texNum(lnRho)}`, why: String.raw`計算機按 $\ln$；$\rho$ 接近 $1$ 時 $\ln\rho\approx-(1-\rho)$。` })
+        const asymRatio = ceilArg(LN_005 / lnRho, S.settleAsym)
+        const asymFrac = String.raw`\Big\lceil\frac{\ln0.05}{\ln\rho_S}\Big\rceil=\Big\lceil\frac{${texNum(LN_005)}}{${texNum(lnRho)}}\Big\rceil=\left\lceil${asymRatio}\right\rceil=${int(S.settleAsym)}`
+        const budget = String.raw`和 $B=${int(B)}$ 比：${S.ok.settle ? '來得及' : '來不及'}。`
+        if (d === 0) {
+          steps.push({
+            tex: String.raw`k_{95}=${asymFrac}`,
+            why: String.raw`$d=0$ 時平均誤差的大小每個 block 剛好乘上 $\rho_S$：$\rho_S^{\,k}\le0.05$ ⇒ $k\ge\ln0.05/\ln\rho_S$（兩個負數相除得正數），再無條件進位。` + budget,
+          })
+        } else {
+          steps.push({
+            tex: String.raw`k_{95}^{(\rho)}=${asymFrac}`,
+            why: String.raw`$\rho$ 漸近估計：只用 $\rho_S$ 的漸近衰減率，解 $\rho_S^{\,k}\le0.05$。$d=1$ 時這只是估計——實際的誤差是兩個模式的組合，$\rho_S^{\,k}$ 不是它的包絡，逐 block 數出來的 $k_{95}$ 可能比它多、也可能比它少（相對差距在 $g_S=\tfrac14$ 附近最大：那裡是重根 $z=\tfrac12$，估計給 $5$，從定值的初始歷史逐 block 數要 $7$）。判定 $k_{95}\le B$ 用的是下面逐 block 的 $k_{95}$。`,
+          })
+          if (S.settle95Exact) {
+            steps.push(...exactSettleSteps(S.g, rhoS, S.settle95))
+            steps.push({
+              tex: String.raw`k_{95}=k_\text{last}+1=${int(S.settle95 - 1)}+1=${int(S.settle95)}`,
+              why: String.raw`$k_{95}$ 定義為「最後一次 $|y_k|>0.05$ 的 block」的下一個 block（和判斷器、首頁同一個函式 settleDelayed，從 $y_0=y_{-1}=1$ 起逐 block 數）。` + (S.settle95 === S.settleAsym ? String.raw`這一題和 $\rho$ 漸近估計相同。` : String.raw`這一題和 $\rho$ 漸近估計差 $${int(Math.abs(S.settle95 - S.settleAsym))}$ 個 block。`) + budget,
+            })
+          } else {
+            steps.push({
+              tex: String.raw`k_{95}\ge k_{95}^{(\rho)}=${int(S.settleAsym)}`,
+              why: String.raw`這個 mode 極慢：平均遞迴在 $${texNum(SETTLE_MAX_STEPS, 2)}$ 步內還沒衰減完，$k_{95}$ 只能列 $\rho$ 漸近估計當下界（$\ge$）。` + budget,
+            })
+          }
+        }
       }
       const muMax = (2 * Math.sin(((90 - pmT) / m) * DEG2RAD)) / F.K
       const fastOk = F.ok.stable && F.ok.pm
       const notes: string[] = []
       if (!F.ok.stable) notes.push(String.raw`最快的 corner：$g_F=${texNum(F.g, 4)}\ge g_\text{crit}(${int(d)})=${texNum(gc, 4)}$，不穩定（$PM_d\le0$）——一階模型的「$0<g<2$」在有更新延遲時不適用。`)
       else if (!F.ok.pm) notes.push(String.raw`最快的 corner：$PM_d=${deg(F.pm, 4)}<PM_t$，裕度不足。要 $PM_d\ge PM_t$，$\mu$ 不能超過 $\frac{2\sin\big(\frac{90^\circ-PM_t}{2d+1}\big)}{K_F}=${texNum(muMax, 4)}$ fs。`)
-      if (!S.ok.settle) notes.push(String.raw`最慢的 corner：$k_{95}=${int(S.settle95)}>B=${int(B)}$，來不及收斂。可以加大 $\mu$（但上限由最快的 corner 決定：$\mu\le${texNum(muMax, 4)}$ fs）、延長 $B$，或每個 corner 量 $\hat K_c$ 後用各自的 $\mu_c=g/\hat K_c$。`)
+      if (!S.ok.settle) notes.push(String.raw`最慢的 corner：$k_{95}${S.settle95Exact ? '=' : String.raw`\ge`}${int(S.settle95)}>B=${int(B)}$，來不及收斂。可以加大 $\mu$（但上限由最快的 corner 決定：$\mu\le${texNum(muMax, 4)}$ fs）、延長 $B$，或每個 corner 量 $\hat K_c$ 後用各自的 $\mu_c=g/\hat K_c$。`)
       if (fastOk && S.ok.settle) notes.push(String.raw`兩個 corner 都通過：最快的 $PM_d=${deg(F.pm, 4)}\ge PM_t$，最慢的 $k_{95}=${int(S.settle95)}\le B$。在不違反 $PM_t$ 的前提下，$\mu$ 最大可以到 $${texNum(muMax, 4)}$ fs。`)
       if (!fastOk && !S.ok.settle) notes.push(String.raw`兩頭都不合格：這組 corner 沒有任何單一的 $\mu$ 能同時滿足 $PM_t$ 與 $B$——要縮小 $K$ 的散佈、延長 $B$ 或放寬 $PM_t$。`)
       notes.push(String.raw`這一題只手算 $PM$ 與收斂時間兩個判準；完整的 sign-off 還要對每個 corner 檢查 $\sigma_w$ 預算，而且中間的 corner 也都要過（下面的 Corner 判斷器一次算完）。`)
@@ -544,6 +632,7 @@ export const HANDCALCS: HandCalcDef[] = [
       String.raw`範例（Corner 判斷器預設的 FF 125°C 與 near-grid FCW 兩列，$\mu=10$ fs、$d=1$）：$g_F=0.11225$、$\varphi_F=3.2174^\circ$、$PM_1=80.35^\circ$；$g_S=0.039894$、$\rho_S=0.95837$、$k_{95}=71\le120$——和判斷器表格的同兩列一致。`,
       String.raw`$\ln0.05=-2.9957$（「95%」就是剩下 $0.05$）。$\rho_S$ 至少留 5 位有效數字：$\rho_S$ 差 $0.001$，$k_{95}$ 就差好幾個 block。`,
       String.raw`$d=1$ 的二次式 $z^2-z+g=0$：兩根相加 $=1$、相乘 $=g$。$g\le\tfrac14$ 是兩個實根（取大的）；$g>\tfrac14$ 是共軛複根，$|z|=\sqrt g$，到 $g=1=g_\text{crit}(1)$ 時剛好碰到單位圓。`,
+      String.raw`$d=1$ 時 $\rho$ 漸近估計與逐 block 的 $k_{95}$ 不一定相同：$g_S=\tfrac14$（重根 $z=\tfrac12$）估計給 $5$、逐 block 要 $7$；$g_S=0.8$ 則估計給 $27$、逐 block 是 $26$。判定 $k_{95}\le B$ 用逐 block 的那個，所以 $B=6$ 時，只看估計會誤判通過。`,
       String.raw`把 $d$ 從 $1$ 改成 $0$ 再算一次：$PM$ 多了 $2\varphi_F$，$\rho_S$ 從 $0.95837$ 變成 $1-g_S=0.96011$——延遲不只吃掉相位，也改變收斂速度（$g$ 很小時反而快一點點；$g$ 一大就變成振盪衰減，到 $g_\text{crit}(d)$ 發散）。`,
     ],
   },

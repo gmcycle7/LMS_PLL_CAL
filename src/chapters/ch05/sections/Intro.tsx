@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, Section, SourceTag, SystemMap, Tex } from '@/components'
+import { Callout, ClaimTag, Section, SourceTag, SystemMap, Tex, ChRef } from '@/components'
 import { normPdf } from '@/simulation/core'
 import { directionOutcomeExact, meanQ, pPlus, sumMoments, varQ } from '@/simulation/models/comparator'
 import { Erratum, Fig, fx, int, sig } from '../common'
@@ -66,7 +66,7 @@ export function IntroSection() {
 
       <Section kind="diagram" level={2} title="0. 模型：一個固定誤差 + 雜訊 → 1-bit → 累加">
         <p>
-          把章首系統地圖裡藍色的那一段單獨拿出來，就是下面這張圖。它是 PLL 校正迴路（Ch04）裡「PD → GMAC」的最小模型（comparator 取的是 PD 的輸出，也就是送進 loop filter 的同一個訊號）：把 regressor{' '}
+          把章首系統地圖裡藍色的那一段單獨拿出來，就是下面這張圖。它是 PLL 校正迴路（<ChRef ch="04">Ch04</ChRef>）裡「PD → GMAC」的最小模型（comparator 取的是 PD 的輸出，也就是送進 loop filter 的同一個訊號）：把 regressor{' '}
           <Tex>{'x'}</Tex>（乘在誤差上的已知訊號，例如 DTC code）固定成 <Tex>{'x\\equiv1'}</Tex>，問題就只剩下「
           <strong>一個很小的偏移，經過 1-bit 量化之後，平均還保留多少？</strong>」。之後章節的 <Tex>{'K_q'}</Tex>、loop gain、noise 全部從這裡出發。
         </p>

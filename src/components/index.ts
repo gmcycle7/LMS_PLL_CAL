@@ -22,7 +22,7 @@ export type {
 // 數學與圖
 export { Tex, TexBlock, MathText, mathText, stripMathDelimiters, renderTex, type TexBlockProps } from './Tex'
 export { Mermaid, type MermaidProps } from './Mermaid'
-export { Plot, loadPlotly, type PlotProps } from './Plot'
+export { Plot, loadPlotly, PLOT_NEAR_MARGIN, type PlotProps } from './Plot'
 export {
   PlotRegistryProvider,
   createPlotRegistry,
@@ -31,7 +31,7 @@ export {
   type PlotImageSource,
   type PlotRegistry,
 } from './plotRegistry'
-export { buildThemedLayout, buildExportLayout, filterLogData, tracesToColumns, mergeDeep } from './plotUtils'
+export { buildThemedLayout, buildExportLayout, filterLogData, tracesToColumns, mergeDeep, applyDashCycle, withAlpha, DASH_CYCLE, LEGEND_INSIDE_MAX } from './plotUtils'
 
 // 參數控制
 export {
@@ -47,7 +47,8 @@ export { parseNumberInput, roundSig, formatInput } from './paramMath'
 export { CaseSelector } from './CaseSelector'
 
 // 標籤與版面
-export { ClaimTag, ModelLevel, SourceTag } from './Tags'
+export { ClaimTag, ModelLevel, SourceTag, TipBadge, type TipBadgeProps } from './Tags'
+export { ScrollRegion, type ScrollRegionProps } from './ScrollRegion'
 export {
   CLAIM_LABEL,
   CLAIM_DESCRIPTION,
@@ -134,3 +135,6 @@ export { DiagramFrame, type DiagramFrameProps, type DiagramSize } from './Diagra
 // 圖內數學（Plotly 的 pseudo-HTML 轉換；Mermaid 的 KaTeX 前處理）
 export { plotMath, texToPlotly, applyPlotMath } from './plotMath'
 export { sanitizeMermaidSource, mermaidMathDelimiters, hasUnsupportedMarkdown, withReadableMinWidth } from './mermaidSource'
+
+// 連結：公式 ID 連結、頁內錨點連結、章節交叉參照（src/components/links）
+export * from './links'

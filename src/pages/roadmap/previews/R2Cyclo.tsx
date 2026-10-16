@@ -15,6 +15,7 @@ import {
   useThemeTokens,
   type ExperimentPreset,
   type MetricRow,
+  ChRef,
 } from '@/components'
 import modelSrc from '../model.ts?raw'
 import { roadmapHandCalc } from '../handcalcs'
@@ -196,12 +197,12 @@ export default function R2Preview() {
         result={String.raw`\gcd(P,N)=1\;\Rightarrow\;\bar R_{\delta t}[m]=\bar R_x[m]\cdot\bar R_w[m]\qquad(\text{F-R2.2})`}
       />
       <p>
-        <ClaimTag kind="exact" /> 互質時，第 12 章「<Tex>{'x'}</Tex> 與 <Tex>{'\\delta w'}</Tex> 獨立平穩、<Tex>{'S_{\\delta t}=S_x\\circledast S_w'}</Tex>」的時間平均公式是精確的；
+        <ClaimTag kind="exact" /> 互質時，<ChRef ch="12">第 12 章</ChRef>「<Tex>{'x'}</Tex> 與 <Tex>{'\\delta w'}</Tex> 獨立平穩、<Tex>{'S_{\\delta t}=S_x\\circledast S_w'}</Tex>」的時間平均公式是精確的；
         <Tex>{'\\gcd>1'}</Tex> 時，block 邊界只看得到一部分 code 相位，近似會偏（上方實驗量化偏多少）。其中 ZOH 的時間平均自相關是
       </p>
       <TexBlock>{String.raw`\bar R_w[m]=\sigma_w^2\Big[\Big(1-\frac{m'}{N}\Big)p^{q}+\frac{m'}{N}p^{q+1}\Big],\qquad m=qN+m',\ 0\le m'<N`}</TexBlock>
       <p className="small">
-        （<Tex>{'r<N-m^\\prime'}</Tex> 時沒有跨到下一個 block，否則多跨一個。）它的 DTFT 就是第 12 章的 Fejér 權重 <Tex>{String.raw`\frac1N\big[\frac{\sin(N\Omega/2)}{\sin(\Omega/2)}\big]^2S_w^{(f_u)}(e^{jN\Omega})`}</Tex>。
+        （<Tex>{'r<N-m^\\prime'}</Tex> 時沒有跨到下一個 block，否則多跨一個。）它的 DTFT 就是<ChRef ch="12">第 12 章</ChRef>的 Fejér 權重 <Tex>{String.raw`\frac1N\big[\frac{\sin(N\Omega/2)}{\sin(\Omega/2)}\big]^2S_w^{(f_u)}(e^{jN\Omega})`}</Tex>。
       </p>
 
       <HandCalc def={roadmapHandCalc('HC-RM.2')} />

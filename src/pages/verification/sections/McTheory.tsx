@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, CodeBlock, ModeGate, Prereq, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeBlock, ModeGate, Prereq, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import { normSf } from '@/simulation/core'
 import acceptanceSrc from '@/simulation/models/acceptance.ts?raw'
 import { pPlus } from '@/simulation/models/comparator'
@@ -68,7 +68,7 @@ export function McTheory() {
             下面的 <Tex>{r`\mathrm{SE}=\sigma/\sqrt n`}</Tex> 只用到這兩條。
           </li>
         </ul>
-        <p className="small">對 comparator：<Tex>{'X_i'}</Tex> 就是「第 <Tex>{'i'}</Tex> 個決策是否為 <Tex>{'+1'}</Tex>」，<Tex>{'p=P(q=+1)'}</Tex>（Ch05）。</p>
+        <p className="small">對 comparator：<Tex>{'X_i'}</Tex> 就是「第 <Tex>{'i'}</Tex> 個決策是否為 <Tex>{'+1'}</Tex>」，<Tex>{'p=P(q=+1)'}</Tex>（<ChRef ch="05">Ch05</ChRef>）。</p>
       </Prereq>
       <Prereq title="常態分布、$\Phi$ 與「幾個 $\sigma$」">
         <p>
@@ -135,7 +135,7 @@ export function McTheory() {
         </ul>
         <p>
           <strong>AR(1)（一階自迴歸，first-order autoregressive）</strong>是最簡單的相關序列：下一個值 = 上一個值乘 <Tex>{'p'}</Tex>，再加一個獨立的新擾動。校正迴路的係數雜訊{' '}
-          <Tex>{r`\delta w_{k+1}=p\,\delta w_k+\mu\eta_k`}</Tex> 正是這種形式（Ch12；T13 的 <Tex>{`p=${fmtNum(nums.lp.p, 5)}`}</Tex>）：
+          <Tex>{r`\delta w_{k+1}=p\,\delta w_k+\mu\eta_k`}</Tex> 正是這種形式（<ChRef ch="12">Ch12</ChRef>；T13 的 <Tex>{`p=${fmtNum(nums.lp.p, 5)}`}</Tex>）：
         </p>
         <StepDerivation
           steps={steps([

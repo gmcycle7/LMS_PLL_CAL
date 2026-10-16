@@ -1,4 +1,4 @@
-import { Callout, ClaimTag, CodeBlock, Mermaid, Prereq, SourceTag, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeBlock, Mermaid, Prereq, SourceTag, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import calNoiseSrc from '@/simulation/models/calNoise.ts?raw'
 import comparatorSrc from '@/simulation/models/comparator.ts?raw'
 import { refValues, T13_SETUP } from '../../refValues'
@@ -241,7 +241,7 @@ export function MuUnitsTopic() {
               </td>
             </tr>
             <tr>
-              <td data-label="出處">Sign-Error LMS（Ch02）</td>
+              <td data-label="出處">Sign-Error LMS（<ChRef ch="02">Ch02</ChRef>）</td>
               <td data-label="更新式">
                 <Tex>{String.raw`w\leftarrow w+\mu\operatorname{sign}(e)\,x`}</Tex>
               </td>
@@ -256,7 +256,7 @@ export function MuUnitsTopic() {
               </td>
             </tr>
             <tr>
-              <td data-label="出處">Sign-Sign LMS（Ch02）</td>
+              <td data-label="出處">Sign-Sign LMS（<ChRef ch="02">Ch02</ChRef>）</td>
               <td data-label="更新式">
                 <Tex>{String.raw`w\leftarrow w+\mu\operatorname{sign}(e)\operatorname{sign}(x)`}</Tex>
               </td>
@@ -297,7 +297,7 @@ export function MuUnitsTopic() {
               </td>
             </tr>
             <tr>
-              <td data-label="出處">Ch08 §8.2–8.4、T09</td>
+              <td data-label="出處"><ChRef ch="08">Ch08</ChRef> §8.2–8.4、T09</td>
               <td data-label="更新式">
                 <Tex>{String.raw`\delta_{k+1}=\delta_k-\mu\,(\cdots)`}</Tex>
               </td>
@@ -331,7 +331,7 @@ export function MuUnitsTopic() {
       <Collapsible
         title={
           <>
-            核心程式碼：網站怎麼算 <Tex>{String.raw`K,\ g,\ p,\ \sigma_w`}</Tex>（calLoop，第 12 章與本頁共用）
+            核心程式碼：網站怎麼算 <Tex>{String.raw`K,\ g,\ p,\ \sigma_w`}</Tex>（calLoop，<ChRef ch="12">第 12 章</ChRef>與本頁共用）
           </>
         }
       >
@@ -410,7 +410,7 @@ export function CodeUnitsTopic() {
       </p>
       <TexBlock>{String.raw`w_{\mathrm{code}}=\frac{w}{\Delta_{\mathrm{LSB}}}\qquad\text{例：}\Delta_{\mathrm{LSB}}=${u.lsbFs}\,\mathrm{fs/LSB}\ \Rightarrow\ \sigma_w=${texNum(r.loop.sigmaW)}\,\mathrm{fs}=${texNum(u.sigmaWLsb)}\,\mathrm{LSB}`}</TexBlock>
       <p className="small">
-        這個例子裡係數雜訊約 <Tex>{texNum(u.sigmaWLsb, 2)}</Tex> 個 LSB，量化誤差（<Tex>{String.raw`\le0.5`}</Tex> LSB）被雜訊淹沒；反過來若 <Tex>{String.raw`\Delta_{\mathrm{LSB}}\gg\sigma_w`}</Tex>，係數會卡在量化階上形成 limit cycle（第 13 章）。
+        這個例子裡係數雜訊約 <Tex>{texNum(u.sigmaWLsb, 2)}</Tex> 個 LSB，量化誤差（<Tex>{String.raw`\le0.5`}</Tex> LSB）被雜訊淹沒；反過來若 <Tex>{String.raw`\Delta_{\mathrm{LSB}}\gg\sigma_w`}</Tex>，係數會卡在量化階上形成 limit cycle（<ChRef ch="13">第 13 章</ChRef>）。
         <Tex>{String.raw`\Delta_{\mathrm{LSB}}`}</Tex> 的數值是示例。
       </p>
 

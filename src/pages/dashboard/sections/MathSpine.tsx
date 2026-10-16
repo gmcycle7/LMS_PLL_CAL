@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react'
-import { Callout, ClaimTag, HandCalc, Mermaid, ModeGate, Prereq, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, HandCalc, Mermaid, ModeGate, Prereq, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import { useSettings } from '@/app/settings'
 import { SIX_CONDITIONS } from '../data'
 import { BLOCK_EQUATION_CHART, CONDITION_MAP_CHART, CONDITION_MAP_LEGEND } from '../diagrams'
@@ -293,7 +293,7 @@ export const MathSpine = memo(function MathSpine() {
             <Tex>{'C\\to0'}</Tex>）時，同樣的干擾 <Tex>{'B'}</Tex> 會被放大成很大的 bias。若 <Tex>{'C<0'}</Tex>，<Tex>{'w^*'}</Tex> 是排斥點，根本到不了。
             這是 MSE-LMS 的線性固定點 <ClaimTag kind="exact" />；1-bit Sign-LMS 只在殘差遠小於 <Tex>{'\\sigma_v'}</Tex> 時近似成立（
             <ErratumLink eid="E01" />）：<Tex>{'B/C'}</Tex> 是線性化的 bias，大到讓 comparator 飽和時它只是線性外推，<Tex>{'a+B/C'}</Tex> 不再是 Sign-LMS
-            的固定點（Ch11 §11.4；體檢的條件 5 會亮「注意」）。若 comparator 就是主 PLL 的 BBPD（type-II 迴路強制 <Tex>{'E[q]=0'}</Tex>），offset 造成的 bias 會被吸收、分母改成{' '}
+            的固定點（<ChRef ch="11">Ch11</ChRef> §11.4；體檢的條件 5 會亮「注意」）。若 comparator 就是主 PLL 的 BBPD（type-II 迴路強制 <Tex>{'E[q]=0'}</Tex>），offset 造成的 bias 會被吸收、分母改成{' '}
             <Tex>{'\\mathrm{Var}(x)'}</Tex>（<ErratumLink eid="E03" />）。
           </p>
         </div>
@@ -319,7 +319,7 @@ export const MathSpine = memo(function MathSpine() {
           <p>
             T13：<Tex>{`\\sigma_w=\\sqrt{\\frac{${DEFAULT_PARAMS.mu}^2\\cdot ${DEFAULT_PARAMS.Px}/${DEFAULT_PARAMS.N}}{1-${f(1 - t13.g)}^2}}=${f(t13.sigmaW, 4)}\\,\\mathrm{fs}`}</Tex>
             。它是 <strong>gain-equivalent</strong> 的係數雜訊，不是 PLL 輸出 jitter：乘上 code（隨機部分是 <Tex>{'x\\,\\delta w'}</Tex>）並和 bias 那一項合起來，才是條件 6 檢查的
-            DTC-referred <Tex>{'\\sigma_{\\delta t}'}</Tex>（推導 4）；再經過 output transfer <Tex>{'T(f)'}</Tex> 才是輸出 jitter，本頁不算這一步（Ch12 的 F-12.17）。
+            DTC-referred <Tex>{'\\sigma_{\\delta t}'}</Tex>（推導 4）；再經過 output transfer <Tex>{'T(f)'}</Tex> 才是輸出 jitter，本頁不算這一步（<ChRef ch="12">Ch12</ChRef> 的 F-12.17）。
             <ClaimTag kind="approx" />
           </p>
           <p className="small muted">
@@ -371,12 +371,12 @@ export const MathSpine = memo(function MathSpine() {
           </p>
           <p className="small muted">
             四個提醒：(1) <Tex>{'\\sigma_{\\delta t}'}</Tex> 是 <strong>DTC-referred</strong> 的量，還沒經過 PLL 的頻率響應，不能直接叫 output jitter（規格 §12.1 的提醒）；(2)
-            隨機部分的頻譜形狀——低頻的 <Tex>{'\\delta w'}</Tex> 乘上寬頻 code 之後變成寬頻——在 Ch12，而且 block rate 的 <Tex>{'\\delta w_k'}</Tex> 要先以 ZOH 展開到
+            隨機部分的頻譜形狀——低頻的 <Tex>{'\\delta w'}</Tex> 乘上寬頻 code 之後變成寬頻——在 <ChRef ch="12">Ch12</ChRef>，而且 block rate 的 <Tex>{'\\delta w_k'}</Tex> 要先以 ZOH 展開到
             sample rate 才能套卷積公式（<ErratumLink eid="E09" />）；(3) variance 與 bias
             各自在預算內，平方和仍可能超出預算，所以條件 6 必須另外檢查；(4) 條件 6 問的是「在不在預算內」，不是「比校正前好」：它不看初始誤差{' '}
             <Tex>{'w_0-a'}</Tex>。例如 gain 本來就正確（<Tex>{'w_0=a'}</Tex>、<Tex>{'B=0'}</Tex>）時，不校正的 gain-error timing 是 0；開著固定步長的追蹤反而多出{' '}
             <Tex>{`\\sqrt{P_x}\\,\\sigma_w=${f(t13.sigmaDt, 4)}\\,\\mathrm{fs}`}</Tex> 的隨機誤差，卻仍在 <Tex>{`${DEFAULT_PARAMS.jitterBudget}\\,\\mathrm{fs}`}</Tex>{' '}
-            的預算內、判定通過（freeze 與持續追蹤的取捨在 Ch13、Ch14）。
+            的預算內、判定通過（freeze 與持續追蹤的取捨在 <ChRef ch="13">Ch13</ChRef>、<ChRef ch="14">Ch14</ChRef>）。
           </p>
         </div>
       </details>
@@ -428,12 +428,12 @@ export const MathSpine = memo(function MathSpine() {
               </table>
             </div>
             <p className="small muted">
-              只晚一個 block，可用的 loop gain 就從 <Tex>{f(gStar[0].g)}</Tex> 掉到 <Tex>{f(gStar[1].g)}</Tex>。Ch08 §8.4 的雙迴路<strong>二狀態模型</strong>
+              只晚一個 block，可用的 loop gain 就從 <Tex>{f(gStar[0].g)}</Tex> 掉到 <Tex>{f(gStar[1].g)}</Tex>。<ChRef ch="08">Ch08</ChRef> §8.4 的雙迴路<strong>二狀態模型</strong>
               （主 PLL 的觀測是一階狀態，誤差晚一個 block 才被 GMAC 看到）是同一個機制：在那個模型裡，完整的 <Tex>{'\\mu'}</Tex> 上界恰好是 quasi-static（把主 PLL
               當成瞬間到穩態）上界的一半——換算成等效 loop gain（<Tex>{'\\mu'}</Tex> 乘上觀測路徑的 DC 增益），正是上表的 <Tex>{f(gStar[0].g)}</Tex> 掉到{' '}
               <Tex>{f(gStar[1].g)}</Tex>；主 PLL 沒有記憶時，它就是這裡的 <Tex>{'d=1'}</Tex>（本頁 Q10、<ErratumLink eid="E19" />）。這個「一半」是該指定模型的結果，不是所有 PLL
-              雙迴路的通則：觀測路徑不同，比例就不一定是一半（Ch08 的二階觀測例子差距更大；拿掉那一個 block 的 latency，quasi-static 反而可能偏保守）。
-              <ClaimTag kind="exact" />（Ch08 §8.4 的二狀態模型）
+              雙迴路的通則：觀測路徑不同，比例就不一定是一半（<ChRef ch="08">Ch08</ChRef> 的二階觀測例子差距更大；拿掉那一個 block 的 latency，quasi-static 反而可能偏保守）。
+              <ClaimTag kind="exact" />（<ChRef ch="08">Ch08</ChRef> §8.4 的二狀態模型）
             </p>
           </div>
         </details>
@@ -615,7 +615,7 @@ export const MathSpine = memo(function MathSpine() {
                 <Tex>{'\\theta=0^\\circ'}</Tex> 時回到 <Tex>{'C(1\\pm\\rho)'}</Tex>。例：<Tex>{'\\rho=0'}</Tex>、<Tex>{'\\theta=60^\\circ'}</Tex>、
                 <Tex>{`\\mu K_qP_x|H|=${f(ft.gp)}`}</Tex>。本模型的 pole 是 <Tex>{`1-${f(ft.gp)}\\cos60^\\circ=${f(ft.model, 4)}`}</Tex>；兩個固定的正交 code 的 pole 是{' '}
                 <Tex>{`1-${f(ft.gp)}\\,e^{\\pm j60^\\circ}=${f(ft.re, 4)}\\mp j${f(ft.im, 4)}`}</Tex>，<Tex>{`|z|=\\sqrt{${f(ft.abs2, 4)}}\\approx${f(ft.fixed, 4)}`}</Tex>，會發散。同樣的{' '}
-                <Tex>{'\\rho'}</Tex>、同樣的 <Tex>{'C'}</Tex>，結論相反；這類情況要用完整的 Jacobian（Ch10）。下方的體檢遇到雙參數且{' '}
+                <Tex>{'\\rho'}</Tex>、同樣的 <Tex>{'C'}</Tex>，結論相反；這類情況要用完整的 Jacobian（<ChRef ch="10">Ch10</ChRef>）。下方的體檢遇到雙參數且{' '}
                 <Tex>{'\\theta\\ne0^\\circ'}</Tex> 時會列出這個對照值。<ClaimTag kind="exact" />
               </p>
             </Callout>

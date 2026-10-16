@@ -1198,8 +1198,11 @@ describe('Ch14 頁面上的手算題位置', () => {
     before('handcalc-HC-14.8', 'ch14-quiz')
     expect(el('handcalc-HC-14.8').closest('#ch14-synthesis')).toBeTruthy()
     // 內文指回手算題的連結（§14.3 → HC-14.5、§14.4 → HC-14.8）
-    const links = Array.from(container.querySelectorAll('a[href^="#handcalc-"]')).map((a) => a.getAttribute('href'))
-    expect(links).toEqual(expect.arrayContaining(['#handcalc-HC-14.5', '#handcalc-HC-14.8']))
+    // AnchorLink 的 href 是 '#/ch/14?a=handcalc-HC-14.5'（可複製、中鍵可用），不再是會被 HashRouter 當成路由的 '#handcalc-…'
+    const links = Array.from(container.querySelectorAll('a[href*="handcalc-HC-14."]')).map((a) => a.getAttribute('href') ?? '')
+    expect(links.some((h) => h.includes('a=handcalc-HC-14.5'))).toBe(true)
+    expect(links.some((h) => h.includes('a=handcalc-HC-14.8'))).toBe(true)
+    expect(links.every((h) => !h.startsWith('#handcalc-'))).toBe(true)
     // KaTeX 全部可解析；F-14.5 的程式碼 region 有顯示
     expect(Array.from(container.querySelectorAll('.katex-error')).map((e) => e.textContent)).toEqual([])
     expect(container.textContent).toContain('core:slewLimited')

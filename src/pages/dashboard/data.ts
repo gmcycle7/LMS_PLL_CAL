@@ -176,15 +176,19 @@ export interface RouteDef {
   steps: RouteStep[]
 }
 
-/** 規格 §19.1：網站首頁應呈現的三條主要學習路線 */
+/**
+ * 規格 §19.1：網站首頁應呈現的三條主要學習路線。
+ * 數學路線在規格的六步之前多了 STEP 1「黑盒子」（Ch00 入門課）：第一次來的人先手算兩步，再進規格的 MSE → … → MIMO。
+ */
 export const ROUTES: RouteDef[] = [
   {
     id: 'math',
     title: '數學路線',
     en: 'Math route',
-    blurb: '只需要微積分：從平方誤差與導數出發，第一次用到期望值、特徵值時再補先備知識。',
+    blurb: '只需要微積分：先用黑盒子手算兩步，再從平方誤差與導數出發；第一次用到期望值、特徵值時再補先備知識。',
     steps: [
-      { label: 'MSE', zh: '平方誤差', page: 'ch01', also: ['ch00'], sections: '§1–2' },
+      { label: 'Black Box', zh: '黑盒子：預測→比較→修正', page: 'ch00', sections: '入門' },
+      { label: 'MSE', zh: '平方誤差', page: 'ch01', sections: '§1–2' },
       { label: 'Gradient', zh: '梯度下降', page: 'ch02', sections: '§1.1' },
       { label: 'Scalar Stability', zh: '純量穩定性', page: 'ch03', sections: '§3' },
       { label: 'Sign-LMS', zh: '1-bit 更新', page: 'ch02', also: ['ch05'], sections: '§2.2、§5' },
@@ -220,6 +224,43 @@ export const ROUTES: RouteDef[] = [
       { label: 'Fixed Point', zh: 'RTL 細節', page: 'models', also: ['ch13'], sections: '§16.1' },
       { label: 'Sign-off', zh: '驗證矩陣', page: 'signoff', also: ['verification'], sections: '§16.2' },
     ],
+  },
+]
+
+export interface OutcomeDef {
+  /** registry 的 PageGroup（GROUP_LABEL 的標題：Part A｜LMS 數學基礎…） */
+  part: 'A' | 'B' | 'C'
+  /** 學完這個 Part 之後能做的事（$…$ 為 TeX），每句連到一章 */
+  can: { text: string; page: string }[]
+  /** 卡片色條（--series-n） */
+  color: string
+}
+
+/** Hero 下方的「學完你能做什麼」：三個 Part 各兩句可以驗證的能力，各自連到教那件事的章節 */
+export const OUTCOMES: OutcomeDef[] = [
+  {
+    part: 'A',
+    can: [
+      { text: '用紙筆手算 LMS 兩步（預測 → 比較 → 修正）', page: 'ch00' },
+      { text: '看一眼 $\\mu$ 與 $x$ 就判斷更新會不會發散', page: 'ch03' },
+    ],
+    color: '--series-1',
+  },
+  {
+    part: 'B',
+    can: [
+      { text: '算出自己 PLL 的 comparator gain $K_q$ 與該累加幾筆 $N$', page: 'ch05' },
+      { text: '判斷 PLL error transfer 的相位會不會讓 GMAC 的更新極性反過來', page: 'ch06' },
+    ],
+    color: '--series-3',
+  },
+  {
+    part: 'C',
+    can: [
+      { text: '估出係數雜訊 $\\sigma_w$ 與它在輸出造成的 spur', page: 'ch12' },
+      { text: '用數字決定 6-bit gain register 要 freeze、toggle 還是 dither', page: 'ch13' },
+    ],
+    color: '--series-5',
   },
 ]
 

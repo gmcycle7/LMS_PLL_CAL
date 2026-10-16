@@ -1,4 +1,4 @@
-import { Callout, ClaimTag, Mermaid, ModelLevel, Section, SystemMap, Tex, TestBadge } from '@/components'
+import { Callout, ClaimTag, Mermaid, ModelLevel, Section, SystemMap, Tex, TestBadge, ChRef } from '@/components'
 import { useSettings } from '@/app/settings'
 import { CHART_HANDCALC_FLOW, CH07_SYSTEM_FOCUS } from './diagrams'
 import { Hand } from './Hand'
@@ -21,7 +21,7 @@ export default function Chapter07() {
   return (
     <div className="ch07">
       <p className="ch07-lead">
-        Ch06 證明了：PLL 的誤差路徑 <Tex>{r`H_{\mathrm{PD}}`}</Tex> 可以讓 GMAC 的相關 <Tex>{'C=E[xu]'}</Tex>（原始 code <Tex>{'x'}</Tex> 與 comparator 實際看到的 code <Tex>{'u'}</Tex> 相乘後的平均）變號，LMS 往錯的方向更新，而且
+        <ChRef ch="06">Ch06</ChRef> 證明了：PLL 的誤差路徑 <Tex>{r`H_{\mathrm{PD}}`}</Tex> 可以讓 GMAC 的相關 <Tex>{'C=E[xu]'}</Tex>（原始 code <Tex>{'x'}</Tex> 與 comparator 實際看到的 code <Tex>{'u'}</Tex> 相乘後的平均）變號，LMS 往錯的方向更新，而且
         <strong>減小 learning rate 改不了符號</strong>。本章比較兩種修法：把 GMAC 的 code <strong>延遲</strong>幾個 sample（delay alignment），
         或用 PLL 誤差路徑的<strong>模型</strong>把 code 濾一次（filtered-x）。我們會推導它們何時有效、何時失效，算出硬體成本，並在同一個 seed
         下比較閉迴路。

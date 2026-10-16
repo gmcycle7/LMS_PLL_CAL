@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ModeGate, SourceTag, StepDerivation, Tex } from '@/components'
+import { Callout, ModeGate, SourceTag, StepDerivation, Tex, ChRef } from '@/components'
 import { criticalGain, criticalGainNumeric, criticalOmega, delaySpectralRadius, pmWithDelayDeg } from '../bridge'
 import { BridgeCode, ErratumNote, FormulaAnchor, Hand, PrereqPm, PrereqPole, num, r } from '../common'
 
@@ -28,7 +28,7 @@ export function D3Delay() {
   return (
     <div className="papers-derived">
       <p>
-        <SourceTag kind="illustrative" /> 本站 Ch08 的推導：把校正迴路當成開迴路 <Tex>{r`L(z)=g\,z^{-d}/(z-1)`}</Tex>，<Tex>{'d'}</Tex> 是更新延遲（block）。
+        <SourceTag kind="illustrative" /> 本站 <ChRef ch="08">Ch08</ChRef> 的推導：把校正迴路當成開迴路 <Tex>{r`L(z)=g\,z^{-d}/(z-1)`}</Tex>，<Tex>{'d'}</Tex> 是更新延遲（block）。
         這裡要說明的是：<strong>極性正確只是必要條件</strong>；步子太大，或有延遲，極性正確的迴路照樣發散。這是本站自己的結論，不是對 D3 內容的轉述。
       </p>
       <PrereqPole />

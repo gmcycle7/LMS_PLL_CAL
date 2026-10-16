@@ -1,4 +1,4 @@
-import { Callout, Mermaid, ModeGate, SourceTag, Tex } from '@/components'
+import { Callout, Mermaid, ModeGate, SourceTag, Tex, ChRef } from '@/components'
 import type { PresetEntry } from '@/data/types'
 import { ALL_PRESETS } from '@/app/presets'
 import { PREVIEWABLE_EXPERIMENTS } from '../data'
@@ -43,7 +43,7 @@ export function Intro() {
       <div className="gal-question">
         <div className="gal-question-label">一個問題</div>
         <p>
-          你讀完第 8 章，想自己重現「靜態預測穩定、完整模型卻發散」。那一頁有十幾個滑桿——到底要把 <Tex>{'r,\\ b,\\ c,\\ \\mu'}</Tex> 設成多少，又應該看到什麼數字才算「重現成功」？
+          你讀完<ChRef ch="08">第 8 章</ChRef>，想自己重現「靜態預測穩定、完整模型卻發散」。那一頁有十幾個滑桿——到底要把 <Tex>{'r,\\ b,\\ c,\\ \\mu'}</Tex> 設成多少，又應該看到什麼數字才算「重現成功」？
         </p>
       </div>
       <p>

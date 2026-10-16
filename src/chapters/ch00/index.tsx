@@ -1,5 +1,4 @@
-import { Callout, ClaimTag, ModelLevel, Section, SourceTag, SystemMap, TestBadge, Tex } from '@/components'
-import { MODE_LABEL, useSettings } from '@/app/settings'
+import { Callout, ClaimTag, ModelLevel, Section, SourceTag, SystemMap, TestBadge, Tex, ChRef } from '@/components'
 import { BlackBoxSection, LoopSection, UpdateFormulaSection } from './sections/BlackBox'
 import { HAND_CALC_PARAMS, HandCalcSection } from './sections/HandCalc'
 import { WhyExSection } from './sections/WhyEx'
@@ -26,7 +25,6 @@ const LEGEND_COLOURS = [
 ]
 
 export default function Chapter00() {
-  const { mode } = useSettings()
   const muMax = fixedXMuMax(DEFAULT_BASE.x)
   return (
     <div className="ch00" id={CHAPTER_TOP_ANCHOR}>
@@ -64,10 +62,6 @@ export default function Chapter00() {
         <li>為什麼有雜訊還學得會（期望值與 <Tex>{'1/\\sqrt N'}</Tex>）。</li>
         <li>LMS 和 PLL / DTC 校正、SerDes 等化器、降噪耳機、AI 訓練的關係。</li>
       </ol>
-      <Callout kind="info" title={null}>
-        目前學習模式：<strong>{MODE_LABEL[mode]}</strong>。Beginner 只看直覺、手算與圖（推導預設收合，一鍵展開）；Engineer 預設展開推導並顯示更多程式碼與指標；
-        Research 另外顯示精確有理數驗算、隨機輸入的三種穩定界限等細節。三種模式用的是同一份計算程式。
-      </Callout>
       <Callout kind="info" title="本章的方塊圖怎麼讀">
         每個主要概念都先畫一張方塊圖、再寫公式；每張圖下面有一段「怎麼看圖」，告訴你先看哪裡、圖上的哪個訊號就是公式裡的哪個符號。圖上的寫法只有四條規則：
         <ul className="ch00-legend">
@@ -83,7 +77,7 @@ export default function Chapter00() {
             <strong>
               <Tex>{'z^{-1}'}</Tex> 是暫存器
             </strong>
-            ：它的輸出是「上一拍寫進去的值」，也就是延遲一筆資料（Z transform 到 Ch03 才正式介紹，這裡把它當成一個暫存器就好）。
+            ：它的輸出是「上一拍寫進去的值」，也就是延遲一筆資料（Z transform 到 <ChRef ch="03">Ch03</ChRef> 才正式介紹，這裡把它當成一個暫存器就好）。
           </li>
           <li>
             <strong>顏色</strong>：

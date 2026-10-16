@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { TipBadge } from './Tags'
 import { getTestStatus, TEST_STATUS_LABEL, type TestStatus } from './testStatus'
 
 export { getTestStatus, TEST_STATUS_LABEL, type TestStatus, type TestStatusInfo } from './testStatus'
@@ -10,31 +10,30 @@ const ICON: Record<TestStatus, string> = { pass: '✓', partial: '◐', fail: '�
  */
 export function TestBadge({ id, file }: { id: string; file?: unknown }) {
   const info = getTestStatus(id, file)
-  const tipId = useId()
   const summary =
     info.status === 'missing'
       ? `${id}：尚無測試結果（pending）。`
       : `${id}：TS ${info.tsPassed} 通過 / ${info.tsFailed} 失敗；Python ${info.pyPassed} 通過 / ${info.pyFailed} 失敗。`
   return (
-    <span
-      className={`c-badge c-has-tip c-test c-test-${info.status}`}
-      tabIndex={0}
-      aria-describedby={tipId}
+    <TipBadge
+      className={`c-test c-test-${info.status}`}
       data-status={info.status}
+      tip={
+        <>
+          {summary}
+          {info.names.length > 0 && (
+            <span className="c-tip-list">
+              {info.names.map((n) => (
+                <span key={n} className="c-tip-item">
+                  {n}
+                </span>
+              ))}
+            </span>
+          )}
+        </>
+      }
     >
       <span aria-hidden="true">{ICON[info.status]}</span> {id} {TEST_STATUS_LABEL[info.status]}
-      <span className="c-tip" role="tooltip" id={tipId}>
-        {summary}
-        {info.names.length > 0 && (
-          <span className="c-tip-list">
-            {info.names.map((n) => (
-              <span key={n} className="c-tip-item">
-                {n}
-              </span>
-            ))}
-          </span>
-        )}
-      </span>
-    </span>
+    </TipBadge>
   )
 }

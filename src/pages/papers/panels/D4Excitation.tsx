@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, ModeGate, SourceTag, StepDerivation, Tex } from '@/components'
+import { Callout, ClaimTag, ModeGate, SourceTag, StepDerivation, Tex, ChRef } from '@/components'
 import { eigenExample, weakExcitation } from '../bridge'
 import { BridgeCode, ErratumNote, FormulaAnchor, Num, PrereqEigen, num, r } from '../common'
 
@@ -18,7 +18,7 @@ export function D4Excitation() {
     <div className="papers-derived">
       <p>
         <SourceTag kind="illustrative" /> 規格書把 D4 列為 DTC code randomization 與 near-integer 校正的參考。本站<strong>沒有</strong>轉述 D4
-        的做法；這裡只推導本站自己的結論： 為什麼「激勵」（excitation）變弱時，校正會在 bias、速度、雜訊三方面一起變差（Ch11 §11.4、Ch09）。
+        的做法；這裡只推導本站自己的結論： 為什麼「激勵」（excitation）變弱時，校正會在 bias、速度、雜訊三方面一起變差（<ChRef ch="11">Ch11</ChRef> §11.4、<ChRef ch="09">Ch09</ChRef>）。
       </p>
       <FormulaAnchor id="F-PR.10">
         <StepDerivation
@@ -43,7 +43,7 @@ export function D4Excitation() {
               why: (
                 <>
                   平均更新量為 0 的點就是固定點；偏差 <Tex>{'B/C'}</Tex> 在 <Tex>{r`C\to0`}</Tex> 時被放大。這是上一步線性化的結果：<Tex>{'B/C'}</Tex> 大到讓 comparator 飽和（把{' '}
-                  <Tex>{'w^*'}</Tex> 代回去後，comparator 前的確定性殘差超過約 <Tex>{r`0.3\,\sigma_v`}</Tex>）時，<Tex>{'a+B/C'}</Tex> 只是線性外推，不再是 Sign-LMS 的固定點（Ch11 §11.4）。
+                  <Tex>{'w^*'}</Tex> 代回去後，comparator 前的確定性殘差超過約 <Tex>{r`0.3\,\sigma_v`}</Tex>）時，<Tex>{'a+B/C'}</Tex> 只是線性外推，不再是 Sign-LMS 的固定點（<ChRef ch="11">Ch11</ChRef> §11.4）。
                 </>
               ),
             },
@@ -166,7 +166,7 @@ export function D4Excitation() {
           <p>
             <ClaimTag kind="research" /> 讓 code 更「隨機」（降低不同參數 regressor 之間的相關、避開 <Tex>{'C'}</Tex> 很小的 FCW）在上面的模型裡會同時改善
             bias、速度與雜訊； 但真實晶片中 code randomization 也會改變 DTC 的使用範圍、spur 與 jitter。是否值得，要用 behavioral simulation
-            與量測決定（Ch09、Ch11、Lab）。 D4 的具體做法與量測結果請直接讀原文。
+            與量測決定（<ChRef ch="09">Ch09</ChRef>、<ChRef ch="11">Ch11</ChRef>、Lab）。 D4 的具體做法與量測結果請直接讀原文。
           </p>
         </Callout>
       </ModeGate>

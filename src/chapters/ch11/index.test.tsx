@@ -32,6 +32,8 @@ function wrap(node: React.ReactNode, url = '/ch/11') {
   )
 }
 
+// 第一次造訪的預設是 Beginner；這個檔案的斷言是照 Engineer 模式寫的（個別測試會另外設定自己的模式）
+beforeEach(() => localStorage.setItem('lmspll.mode', 'engineer'))
 afterEach(() => {
   localStorage.clear()
 })
@@ -463,7 +465,7 @@ describe('Ch11 smoke tests（jsdom）', () => {
     const first = container.querySelector('.c-metric-table tbody tr') as HTMLElement
     expect(first.textContent).toContain('的變號點')
     expect(first.textContent).toContain('加權中位數')
-    expect(first.querySelector('a[href="#formula-F-11.10"]')).toBeTruthy()
+    expect(first.querySelector('a[data-formula-link="F-11.10"]')).toBeTruthy()
     expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
     expect(text).not.toMatch(/\$/)
     unmount()

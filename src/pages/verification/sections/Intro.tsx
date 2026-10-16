@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, ModelLevel, Prereq, Section, SourceTag, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, ModelLevel, Prereq, Section, SourceTag, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import { runScalarLms, fixedXPole } from '@/simulation/models/lms'
 import { ACCEPTANCE_INPUTS, MC_PLAN, toleranceBound } from '@/simulation/models/acceptance'
 import { Diagram, Expand, FBlock, M, steps, useAcceptance } from '../common'
@@ -41,7 +41,7 @@ export function Intro() {
     <>
       <Section kind="intuition" title="這一頁要回答的問題：網站上的數字，怎麼知道是對的？" level={2} id="ver-intro">
         <p>
-          前面 15 章（Ch00–Ch14）有上百個互動圖與數字：<Tex>{'w_2=2.28'}</Tex>、<Tex>{r`K_q=0.00797885\,\mathrm{fs^{-1}}`}</Tex>、<Tex>{r`\sigma_w=0.399\,\mathrm{fs}`}</Tex>……
+          前面 15 章（<ChRef ch="00">Ch00</ChRef>–<ChRef ch="14">Ch14</ChRef>）有上百個互動圖與數字：<Tex>{'w_2=2.28'}</Tex>、<Tex>{r`K_q=0.00797885\,\mathrm{fs^{-1}}`}</Tex>、<Tex>{r`\sigma_w=0.399\,\mathrm{fs}`}</Tex>……
           你是 IC 設計者，最怕的是「模擬器畫得很漂亮，但公式其實寫錯」。這一頁把規格書 §17 列出的 18 個
           <strong>驗收值（Acceptance Reference Values，T01–T18）</strong>當成「出廠測試向量」，用三個<strong>互相獨立的證人</strong>同時作證：
         </p>
@@ -85,7 +85,7 @@ export function Intro() {
 
       <Section kind="example" title="§V.1 先算一次：$2.28$ 和 $2.2800000000000002$ 算不算一樣？" level={2} id="ver-handcalc">
         <p>
-          T01 是第 0 章的手算例子：<Tex>{r`a=3,\ w_0=1,\ x=2,\ \mu=0.1`}</Tex>，更新 <Tex>{r`w_{n+1}=w_n+\mu(a-w_n)x^2`}</Tex>，所以誤差每步乘上{' '}
+          T01 是<ChRef ch="00">第 0 章</ChRef>的手算例子：<Tex>{r`a=3,\ w_0=1,\ x=2,\ \mu=0.1`}</Tex>，更新 <Tex>{r`w_{n+1}=w_n+\mu(a-w_n)x^2`}</Tex>，所以誤差每步乘上{' '}
           <Tex>{`p=1-\\mu x^2=${fmtNum(pole)}`}</Tex>。精確解是等比數列：
         </p>
         <TexBlock>{r`w_n=a-(a-w_0)\,p^n=3-2\left(\tfrac35\right)^n=\frac{3\cdot5^n-2\cdot3^n}{5^n}`}</TexBlock>

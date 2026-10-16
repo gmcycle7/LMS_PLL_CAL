@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, Quiz, Recap, Section, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, Quiz, Recap, Section, Tex, TexBlock, ChRef } from '@/components'
 import { accumulatorSizing, roundingMeanError, sumAverageTable } from '@/simulation/models/gmac'
 import { firstOrderAccumulator } from '../residue'
 import { wTruncNumbers } from './FixedPoint'
@@ -351,16 +351,16 @@ export function WrapupSection() {
       <Callout kind="info" title="連結到 PLL 與下一章">
         <ul>
           <li>
-            <strong>Ch05</strong>：<Tex>{R`K_q=\sqrt{2/\pi}/\sigma_v`}</Tex> 從哪來、1 fs 誤差埋在 100 fs 雜訊裡要累加多少筆（tie 規則，勘誤 E02 / E07）。
+            <strong><ChRef ch="05">Ch05</ChRef></strong>：<Tex>{R`K_q=\sqrt{2/\pi}/\sigma_v`}</Tex> 從哪來、1 fs 誤差埋在 100 fs 雜訊裡要累加多少筆（tie 規則，勘誤 E02 / E07）。
           </li>
           <li>
-            <strong>Ch06 / Ch07</strong>：<Tex>{R`C=E[x_\mathrm{ref}u]`}</Tex> 會因 PLL 的 <Tex>{R`H_\mathrm{PD}`}</Tex> 相位或 code 錯位而變號——本章假設 <Tex>{R`C>0`}</Tex>。
+            <strong><ChRef ch="06">Ch06</ChRef> / <ChRef ch="07">Ch07</ChRef></strong>：<Tex>{R`C=E[x_\mathrm{ref}u]`}</Tex> 會因 PLL 的 <Tex>{R`H_\mathrm{PD}`}</Tex> 相位或 code 錯位而變號——本章假設 <Tex>{R`C>0`}</Tex>。
           </li>
           <li>
-            <strong>Ch08</strong>：本章 latency 計算器的 <Tex>{R`g_\mathrm{crit}=2\sin\frac{\pi}{4d+2}`}</Tex> 與真正的 calibration phase margin。
+            <strong><ChRef ch="08">Ch08</ChRef></strong>：本章 latency 計算器的 <Tex>{R`g_\mathrm{crit}=2\sin\frac{\pi}{4d+2}`}</Tex> 與真正的 calibration phase margin。
           </li>
           <li>
-            <strong>Ch12 / Ch13</strong>：GMAC 雜訊經 <Tex>{R`\mu`}</Tex> 變成 gain noise（<Tex>{R`\sigma_w`}</Tex>）、實體 gain 只有 6 bits 時的量化與 limit cycle。
+            <strong><ChRef ch="12">Ch12</ChRef> / <ChRef ch="13">Ch13</ChRef></strong>：GMAC 雜訊經 <Tex>{R`\mu`}</Tex> 變成 gain noise（<Tex>{R`\sigma_w`}</Tex>）、實體 gain 只有 6 bits 時的量化與 limit cycle。
           </li>
         </ul>
         <p className="small">

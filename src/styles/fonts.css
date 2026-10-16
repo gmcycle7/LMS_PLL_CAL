@@ -1,0 +1,45 @@
+/*
+ * 自行託管的拉丁字型（只含拉丁字母、數字與 ASCII 標點；不載入任何 CJK 網頁字型，一套就是數 MB）。
+ *   --font-sans：Inter（可變字重）負責拉丁字母、數字、連字號；中文由系統字型（PingFang TC／微軟正黑體／Noto Sans CJK）負責。
+ *   --font-mono：JetBrains Mono（400／700／400 斜體）。
+ * 之前宣告的 Noto Sans TC／JetBrains Mono 從未載入，拉丁字母被 PingFang TC 接管，
+ * 連字號比字母 n 還寬（0.60 em），「Sign-LMS」讀起來像「Sign−LMS」。
+ *
+ * 檔案來自 @fontsource-variable/inter 與 @fontsource/jetbrains-mono 的 latin 子集；Vite 會把 woff2 加上內容雜湊再輸出，可長期快取。
+ * 這裡不直接 import 套件的 CSS，因為那會把 cyrillic／greek／vietnamese／latin-ext 的檔案與舊式 woff 全部複製進 dist。
+ *
+ * Inter 的 unicode-range 比套件預設的 latin 窄：刻意不含 U+2014–2015（破折號）、U+2018–201F（引號）、
+ * U+2026（刪節號）與 U+2000–200B 的空格——這些標點在中文行文裡要用 CJK 字型的全形字面（全站約 6,500 處），
+ * 換成 Inter 的西文字面會讓中文標點變窄、刪節號掉到基線。連字號與短破折號（U+2010–2013）、減號（U+2212）仍由 Inter 負責。
+ */
+@font-face {
+  font-family: 'Inter Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('@fontsource-variable/inter/files/inter-latin-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2010-2013, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('@fontsource/jetbrains-mono/files/jetbrains-mono-latin-700-normal.woff2') format('woff2');
+}
+/* 程式碼註解（.hljs-comment）是斜體 */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: italic;
+  font-display: swap;
+  font-weight: 400;
+  src: url('@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-italic.woff2') format('woff2');
+}

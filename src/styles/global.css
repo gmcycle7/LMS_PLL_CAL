@@ -1,6 +1,7 @@
 /* ===== Design tokens ===== */
 :root {
-  --font-sans: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* 拉丁字母／數字／連字號由自行託管的 Inter 負責，中文由各平台系統字型負責（字型檔見 fonts.css；不載入 CJK 網頁字型） */
+  --font-sans: 'Inter Variable', 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans CJK TC', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
 
   --bg: #f7f8fa;
@@ -9,7 +10,7 @@
   --surface-3: #e5e9ef;
   --text: #1b2430;
   --text-muted: #5b6676;
-  --text-faint: #8a94a3;
+  --text-faint: #646f7f; /* 對 bg／surface／surface-2／warn-soft 皆 ≥ 4.5:1（styles.test.ts 守住） */
   --border: #d9dee6;
   --border-strong: #b9c1cd;
 
@@ -42,6 +43,16 @@
   --series-5: #7b4fb8;
   --series-6: #3d8fa8;
 
+  /* 程式碼語法色：獨立於圖表序列色（序列色是給圖形用的，不保證對文字 ≥ 4.5:1）。
+     每個值對 surface／surface-2／warn-soft（標記行底色）皆 ≥ 4.5:1，styles.test.ts 逐一驗證。 */
+  --code-keyword: #7b4fb8;
+  --code-string: #1d7a46;
+  --code-number: #8f5a00;
+  --code-title: #1f5fa8;
+  --code-type: #1b7183;
+  --code-attr: #bf3a50;
+  --code-comment: var(--text-faint);
+
   /* 方塊圖（Mermaid 與系統地圖共用；mermaidTheme.ts 會讀這些值） */
   --diagram-node: #ffffff;
   --diagram-node-border: #93a4ba;
@@ -69,7 +80,7 @@
   --surface-3: #27323e;
   --text: #e6ebf1;
   --text-muted: #a3aebb;
-  --text-faint: #75818f;
+  --text-faint: #8794a3; /* 對 bg／surface／surface-2／warn-soft 皆 ≥ 4.5:1 */
   --border: #2c3744;
   --border-strong: #3d4a59;
 
@@ -97,8 +108,15 @@
   --series-2: #f07a8a;
   --series-3: #5cc98b;
   --series-4: #f0b44c;
-  --series-5: #b48cec;
+  --series-5: #ee63b2;
   --series-6: #6fc4dc;
+
+  --code-keyword: #b48cec;
+  --code-string: #5cc98b;
+  --code-number: #f0b44c;
+  --code-title: #6aa8ec;
+  --code-type: #6fc4dc;
+  --code-attr: #f07a8a;
 
   --diagram-node: #1f2935;
   --diagram-node-border: #55667a;
@@ -132,6 +150,9 @@ body {
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
+  /* 全站關掉「上下文替代」（calt）：Inter 會把 -> 畫成箭頭，JetBrains Mono 會把 >=／!=／::／... 畫成連字。
+     這是教學網站，畫面上的字元要和作者輸入的一樣；此屬性會繼承，所以各元件自己宣告 font-family: var(--font-mono) 也一併生效。 */
+  font-variant-ligatures: no-contextual;
 }
 
 a {
@@ -174,6 +195,8 @@ pre,
 kbd {
   font-family: var(--font-mono);
   font-size: 0.88em;
+  /* JetBrains Mono 會把 >= 畫成 ≥、<= 畫成 ≤；教學用的程式碼要看到實際輸入的字元 */
+  font-variant-ligatures: none;
 }
 code {
   background: var(--surface-2);
@@ -202,7 +225,8 @@ table {
 th,
 td {
   border: 1px solid var(--border);
-  padding: 6px 10px;
+  /* 左右 8px：Inter 的數字比 PingFang 寬（15px 下一個 9 位小數的欄寬多 4–10px），10px 時 /ch/02 的逐步數值表會剛好多出 4px 的橫向捲軸 */
+  padding: 6px 8px;
   text-align: left;
   vertical-align: top;
 }
@@ -214,6 +238,17 @@ td.num,
 th.num {
   text-align: right;
   font-variant-numeric: tabular-nums;
+  /* Inter 的等寬數字（tabular-nums）每個 0.648em，比 PingFang 的 0.575em 寬 13%（PingFang 的數字本來就等寬），
+     數值欄因此變寬；數字靠右對齊，左右各少 2px 看不出來，但 /ch/11 的 Monte Carlo 對照表（4 個數值欄）剛好差 3px 就不再溢出 */
+  padding-left: 6px;
+  padding-right: 6px;
+}
+/* 手機：表格欄位少一點留白——有幾張表本來就只差 1–5px 放不下，只為這幾 px 多出一條橫向捲軸沒有用途 */
+@media (max-width: 480px) {
+  th,
+  td {
+    padding: 5px 6px;
+  }
 }
 .table-wrap {
   overflow-x: auto;
@@ -320,7 +355,9 @@ ol {
   color: var(--text-faint);
   line-height: 1.5;
 }
-.nav-toggle {
+/* 漢堡鈕只在窄螢幕有用（抽屜式目錄）。.btn 的 display:inline-flex 排在後面、優先權相同，
+   所以這裡要用 .btn.nav-toggle 才壓得過它，否則桌面也會出現一顆按了沒反應的 ☰。 */
+.btn.nav-toggle {
   display: none;
 }
 .nav-scrim {
@@ -332,6 +369,12 @@ ol {
   padding: calc(var(--topbar-h) + 24px) 32px 64px;
 }
 
+/*
+ * 備忘（長章節一頁 6–10 萬個 DOM 節點）：不要替 .c-section／.c-recap 加 content-visibility:auto。實測（/ch/05，正式建置、4× CPU）LCP 4.4→2.1 s、layout 2.6→1.7 s，
+ * 但畫面外的段落在第一次排版前只有佔位高度（比實際小 3–5 倍），所有 `scrollIntoView({ behavior: 'smooth' })` 的頁內跳轉
+ * （「本章符號表在最後 ↓」等）都會落在 1–2.6 萬 px 之外：13 章裡有 12 章的按鈕失效。
+ * 要加就得先把所有頁內跳轉改成共用的「捲到目標並重複對齊直到版面穩定」的 helper。
+ */
 .page {
   max-width: var(--content-max);
   margin: 0 auto;
@@ -361,7 +404,7 @@ ol {
 }
 
 @media (max-width: 900px) {
-  .nav-toggle {
+  .btn.nav-toggle {
     display: inline-flex;
   }
   .sidebar {
@@ -404,12 +447,29 @@ ol {
     gap: 6px;
     min-width: 0;
   }
+  .topbar-controls .select-label {
+    min-width: 0;
+  }
+  /* 選單寬度由最長的選項決定、不設固定上限（≤480px 時 Layout 把選項換成 Beginner／Engineer／Research 短標籤，
+     原本 104px 的上限會把「Engineer 工程」截成「Engineer …」）；螢幕窄到放不下時才縮窄並顯示 … */
   .topbar-controls select {
-    max-width: 104px;
+    min-width: 0;
+    max-width: 100%;
     padding-left: 6px;
     padding-right: 4px;
     font-size: 0.8rem;
     text-overflow: ellipsis;
+  }
+}
+
+/* 320px（舊款小手機）：四個元件總寬只差幾 px，把間距再收一點，兩個選單才不會被截成「Resear…」 */
+@media (max-width: 340px) {
+  .topbar {
+    gap: 6px;
+    padding: 0 8px;
+  }
+  .topbar-controls {
+    gap: 4px;
   }
 }
 
@@ -524,6 +584,7 @@ input[type='range'] {
 }
 .mono {
   font-family: var(--font-mono);
+  font-variant-ligatures: none;
 }
 .nowrap {
   white-space: nowrap;

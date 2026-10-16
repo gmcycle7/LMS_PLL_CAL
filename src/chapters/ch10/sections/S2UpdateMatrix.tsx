@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import type { Data } from 'plotly.js-dist-min'
-import { Callout, ClaimTag, ModeGate, ParamControl, Plot, Section, StepDerivation, Tex, TexBlock, TestBadge, mathText, useThemeTokens } from '@/components'
+import { Callout, ClaimTag, ModeGate, ParamControl, Plot, Section, StepDerivation, Tex, TexBlock, TestBadge, mathText, useThemeTokens, ChRef } from '@/components'
 import { DEFAULT_RULE, analyzeRule, buildPlant, corrMatrix, type RuleConfig } from '@/simulation/models/mimo'
 import { Deriv, Erratum, Fig, FigRef, Hand, TagRow, TryIt, chop, n, nint, texMat, tn } from '../common'
 import { NUM, SIGMA_KQ1 } from '../numbers'
@@ -342,7 +342,7 @@ export function S2UpdateMatrix() {
         </p>
         <ModeGate min="engineer">
           <p className="small muted">
-            多小才算小：看 <Tex>{String.raw`s_\delta=\sqrt{\boldsymbol\delta^T\mathbf R\boldsymbol\delta}/\sigma_v`}</Tex>（第 9 章 F-09.3 的符號；它的平方平均就是 §10.9 的有效性指標）。Gaussian regressor 時 comparator 的平均增益是{' '}
+            多小才算小：看 <Tex>{String.raw`s_\delta=\sqrt{\boldsymbol\delta^T\mathbf R\boldsymbol\delta}/\sigma_v`}</Tex>（<ChRef ch="09">第 9 章</ChRef> F-09.3 的符號；它的平方平均就是 §10.9 的有效性指標）。Gaussian regressor 時 comparator 的平均增益是{' '}
             <Tex>{String.raw`K_q/\sqrt{1+s_\delta^2}`}</Tex>（§10.2 的 F-10.13）：<Tex>{String.raw`s_\delta=${tn(sd.s[0])}`}</Tex> 時比 <Tex>{'K_q'}</Tex> 少 {n(100 * (1 - sd.gain[0]), 2)}%，<Tex>{String.raw`s_\delta=${tn(sd.s[1])}`}</Tex> 少{' '}
             {n(100 * (1 - sd.gain[1]), 2)}%，<Tex>{String.raw`s_\delta=${tn(sd.s[2])}`}</Tex> 少 {n(100 * (1 - sd.gain[2]), 2)}%；每個模式的有效 loop gain 跟著變小。這個條件要對初始誤差成立，也要對迴路自己的穩態抖動成立。
           </p>
@@ -427,7 +427,7 @@ export function S2UpdateMatrix() {
         <p>
           兩個 eigenvalue 的比值是 <Tex>{String.raw`\kappa=\lambda_{\max}/\lambda_{\min}`}</Tex>：<strong>即使 <Tex>{String.raw`\mu`}</Tex> 選到最大合法值，慢模式 pole 也大於</strong>{' '}
           <Tex>{String.raw`1-2/\kappa`}</Tex>（因為 <Tex>{String.raw`\mu K_q\lambda_{\min}<2\lambda_{\min}/\lambda_{\max}`}</Tex>）。兩個模式一起看，<Tex>{String.raw`\max_i|p_i|`}</Tex> 最小只能到{' '}
-          <Tex>{String.raw`(\kappa-1)/(\kappa+1)`}</Tex>，在 <Tex>{String.raw`\mu K_q=2/(\lambda_{\max}+\lambda_{\min})`}</Tex> 時達到（第 9 章 F-09.7）；<Tex>{String.raw`\rho=0.99`}</Tex> 時{' '}
+          <Tex>{String.raw`(\kappa-1)/(\kappa+1)`}</Tex>，在 <Tex>{String.raw`\mu K_q=2/(\lambda_{\max}+\lambda_{\min})`}</Tex> 時達到（<ChRef ch="09">第 9 章</ChRef> F-09.7）；<Tex>{String.raw`\rho=0.99`}</Tex> 時{' '}
           <Tex>{String.raw`\kappa=${tn(r.cond, 5)}`}</Tex>，最好也只有 {n(r.bestMaxPole)}。<Tex>{String.raw`\kappa`}</Tex> 很大時，怎麼調 <Tex>{String.raw`\mu`}</Tex> 都快不起來。
         </p>
 
@@ -517,7 +517,7 @@ export function S2UpdateMatrix() {
           }
         >
           <p>
-            規格 §10.1 的 0.995、598、0.5、5 只在 <Tex>{'K_q=1'}</Tex>（或 <Tex>{String.raw`\mu`}</Tex> 已吸收 <Tex>{'K_q'}</Tex>）時成立。下表先用正規化數字，再換成第 5 章的實體{' '}
+            規格 §10.1 的 0.995、598、0.5、5 只在 <Tex>{'K_q=1'}</Tex>（或 <Tex>{String.raw`\mu`}</Tex> 已吸收 <Tex>{'K_q'}</Tex>）時成立。下表先用正規化數字，再換成<ChRef ch="05">第 5 章</ChRef>的實體{' '}
             <Tex>{String.raw`K_q=${tn(NUM.Kq, 6)}\ \mathrm{fs}^{-1}`}</Tex>。
           </p>
         </Callout>

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, MetricTable, ModeGate, SourceTag, StepDerivation, Tex, TexBlock, type MetricRow } from '@/components'
+import { Callout, ClaimTag, MetricTable, ModeGate, SourceTag, StepDerivation, Tex, TexBlock, type MetricRow, ChRef } from '@/components'
 import { calNoise, poleFromEnbw, poleFromF3db } from '../bridge'
 import { BridgeCode, ErratumNote, FormulaAnchor, Hand, PageChips, PrereqExpectation, PrereqGaussianKq, PrereqPole, r, texNum } from '../common'
 
@@ -42,7 +42,7 @@ export function D1Noise() {
   return (
     <div className="papers-derived">
       <p>
-        <SourceTag kind="illustrative" /> 以下是本站 Ch12 的推導與數字（參數 <Tex>{r`\sigma_v=100\ \mathrm{fs}`}</Tex>、<Tex>{'N=4096'}</Tex>、
+        <SourceTag kind="illustrative" /> 以下是本站 <ChRef ch="12">Ch12</ChRef> 的推導與數字（參數 <Tex>{r`\sigma_v=100\ \mathrm{fs}`}</Tex>、<Tex>{'N=4096'}</Tex>、
         <Tex>{r`\mu=10\ \mathrm{fs}`}</Tex>、unit-RMS code、identity path <Tex>{'C=1'}</Tex>、<Tex>{r`f_s=4\ \mathrm{GHz}`}</Tex>；
         <ErratumNote id="E30">補上的前提</ErratumNote>）。它們<strong>不是</strong> D1 的結果；讀 D1 時拿來當「本站的版本」對照。
       </p>
@@ -61,7 +61,7 @@ export function D1Noise() {
               tex: r`G_k=K_qC\,(w^*-w_k)+\eta_k=-K_qC\,\delta w_k+\eta_k`,
               why: (
                 <>
-                  小訊號線性化：GMAC 的平均值與誤差成正比（Ch05 的 <Tex>{'K_q'}</Tex>），<Tex>{r`\eta_k`}</Tex> 是扣掉平均後剩下的零均值雜訊。
+                  小訊號線性化：GMAC 的平均值與誤差成正比（<ChRef ch="05">Ch05</ChRef> 的 <Tex>{'K_q'}</Tex>），<Tex>{r`\eta_k`}</Tex> 是扣掉平均後剩下的零均值雜訊。
                 </>
               ),
             },
@@ -107,7 +107,7 @@ export function D1Noise() {
       <BridgeCode region="calNoise" caption="上表的每個數字都由這段程式計算（與 Ch12 的公式相同；測試對照 golden/vectors/T13.json、T14.json）" />
       <p className="small muted">
         想把 <Tex>{r`\sigma_w`}</Tex>、時間常數、<Tex>{r`-3\ \mathrm{dB}`}</Tex> 頻率與 ENBW 用自己的 <Tex>{r`\mu`}</Tex>、<Tex>{r`\sigma_v`}</Tex>、
-        <Tex>{'N'}</Tex> 從頭手算一次，請做 Ch12 的帶入手算題（同一組 T13／T14 數字）；本頁不重複，只在下面多做一題「反過來讀文獻」。
+        <Tex>{'N'}</Tex> 從頭手算一次，請做 <ChRef ch="12">Ch12</ChRef> 的帶入手算題（同一組 T13／T14 數字）；本頁不重複，只在下面多做一題「反過來讀文獻」。
         <PageChips ids={['ch12', 'workbook']} />
       </p>
       <Callout kind="warn" title="「頻寬 12.9 kHz」有四種定義，不能混用">

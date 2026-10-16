@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { ClaimTag, CodeBlock, ModeGate, Prereq, Quiz, StepDerivation, Tex, TexBlock } from '@/components'
+import { ClaimTag, CodeBlock, ModeGate, Prereq, Quiz, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import polaritySrc from '@/simulation/models/polarity.ts?raw'
 import { lfilter } from '@/simulation/signal'
 import { calPole, empiricalLargeErrorGain, kqFromSigma, toneCorrelation, toneLargeErrorGain, tonePath } from '@/simulation/models/polarity'
@@ -37,7 +37,7 @@ export function S3GmacPole() {
       }
     >
       <p>
-        現在把 §2 的結果接上第 05 章的 comparator。硬體 GMAC 做的事很簡單：每個 sample 依 comparator 的正負號對 code 做
+        現在把 §2 的結果接上<ChRef ch="05">第 05 章</ChRef>的 comparator。硬體 GMAC 做的事很簡單：每個 sample 依 comparator 的正負號對 code 做
         conditional negate，再累加 <Tex>{'N'}</Tex> 個 sample：
       </p>
       <TexBlock>{String.raw`G_k=\frac1N\sum_{n\in\text{block }k}q[n]\,x[n-D],\qquad w_{k+1}=w_k+\mu\,G_k`}</TexBlock>
@@ -57,8 +57,7 @@ export function S3GmacPole() {
           code <Tex>{'x'}</Tex> 則是已知、確定的序列，在求期望值時可以當常數提出來（期望值是線性的：<Tex>{'E[cX+Y]=cE[X]+E[Y]'}</Tex>）。
         </p>
         <p>
-          對確定性的週期 code，「很多次的平均」由「很長時間的平均」代替：<Tex>{'E[x\\,u]\\equiv\\lim_{M\\to\\infty}\\frac1M\\sum_{n}x[n]u[n]'}</Tex>。
-          第 05 章已證明：<Tex>{'E[q\\mid s]=\\mathrm{erf}\\big(s/(\\sqrt2\\sigma_v)\\big)\\approx K_q\\,s'}</Tex>，<Tex>{'K_q=\\sqrt{2/\\pi}/\\sigma_v'}</Tex>（<Tex>{'|s|\\ll\\sigma_v'}</Tex>）。
+          對確定性的週期 code，「很多次的平均」由「很長時間的平均」代替：<Tex>{'E[x\\,u]\\equiv\\lim_{M\\to\\infty}\\frac1M\\sum_{n}x[n]u[n]'}</Tex>。 <ChRef ch="05">第 05 章</ChRef>已證明：<Tex>{'E[q\\mid s]=\\mathrm{erf}\\big(s/(\\sqrt2\\sigma_v)\\big)\\approx K_q\\,s'}</Tex>，<Tex>{'K_q=\\sqrt{2/\\pi}/\\sigma_v'}</Tex>（<Tex>{'|s|\\ll\\sigma_v'}</Tex>）。
         </p>
       </Prereq>
       <Prereq title="相關（correlation）是什麼？">
@@ -99,7 +98,7 @@ export function S3GmacPole() {
               tex: String.raw`E\big[q[n]\big]=\mathrm{erf}\!\Big(\frac{e_{\det}[n]}{\sqrt2\,\sigma_v}\Big)\approx K_q\,e_{\det}[n],\quad e_{\det}[n]=(a-w_k)\,u[n]`,
               why: (
                 <>
-                  第 05 章的 comparator 公式；小訊號 <Tex>{'|e_{\\det}|\\ll\\sigma_v'}</Tex> 時用切線（一階泰勒）近似。
+                  <ChRef ch="05">第 05 章</ChRef>的 comparator 公式；小訊號 <Tex>{'|e_{\\det}|\\ll\\sigma_v'}</Tex> 時用切線（一階泰勒）近似。
                 </>
               ),
             },
@@ -124,7 +123,7 @@ export function S3GmacPole() {
         <TexBlock id="F-06.2">{String.raw`\boxed{E[G_k]\approx K_q\,(a-w_k)\,C_D}`}</TexBlock>
         <p className="ch06-tags">
           <ClaimTag kind="approx" />
-          <span className="small">小訊號、Gaussian 雜訊、長時間平均。若 GMAC 用的是 <Tex>{'u'}</Tex> 而不是 <Tex>{'x'}</Tex>，<Tex>{'C'}</Tex> 會變成 <Tex>{'E[u^2]\\ge0'}</Tex>——這就是 filtered-x 的想法（第 07 章）。</span>
+          <span className="small">小訊號、Gaussian 雜訊、長時間平均。若 GMAC 用的是 <Tex>{'u'}</Tex> 而不是 <Tex>{'x'}</Tex>，<Tex>{'C'}</Tex> 會變成 <Tex>{'E[u^2]\\ge0'}</Tex>——這就是 filtered-x 的想法（<ChRef ch="07">第 07 章</ChRef>）。</span>
         </p>
       </StepBox>
 
@@ -176,7 +175,7 @@ export function S3GmacPole() {
               tex: String.raw`|p|<1\iff 0<\mu K_qC<2`,
               why: (
                 <>
-                  等比數列 <Tex>{'r^k\\to0\\iff|r|<1'}</Tex>（第 03 章）。
+                  等比數列 <Tex>{'r^k\\to0\\iff|r|<1'}</Tex>（<ChRef ch="03">第 03 章</ChRef>）。
                 </>
               ),
             },
@@ -185,7 +184,7 @@ export function S3GmacPole() {
         <TexBlock id="F-06.3">{String.raw`\boxed{p=1-\mu K_qC}`}</TexBlock>
         <p className="ch06-tags">
           <ClaimTag kind="exact" />
-          <span className="small">在「線性化平均模型」中精確（指定模型：block rate、average-mode GMAC、無更新延遲；更新延遲見第 08 章）。</span>
+          <span className="small">在「線性化平均模型」中精確（指定模型：block rate、average-mode GMAC、無更新延遲；更新延遲見<ChRef ch="08">第 08 章</ChRef>）。</span>
         </p>
       </StepBox>
       <p>
@@ -303,7 +302,7 @@ export function S3GmacPole() {
       <p>
         修正極性的正確方法是改變 <Tex>{'C'}</Tex> 本身：把 code 延遲 <Tex>{'D'}</Tex> 讓 <Tex>{'\\cos(\\phi+\\Omega D)>0'}</Tex>（delay alignment；<Tex>{'\\phi'}</Tex>{' '}
         是主 PLL 路徑在 code 頻率 <Tex>{'\\Omega'}</Tex> 的相位，§4 推導），
-        或乘上模型化的 <Tex>{'u_f=\\hat h*x'}</Tex>（filtered-x）——第 07 章。直接把 <Tex>{'\\mu'}</Tex> 變號也能「修好」單一頻率，但{' '}
+        或乘上模型化的 <Tex>{'u_f=\\hat h*x'}</Tex>（filtered-x）——<ChRef ch="07">第 07 章</ChRef>。直接把 <Tex>{'\\mu'}</Tex> 變號也能「修好」單一頻率，但{' '}
         <Tex>{'C'}</Tex> 的符號會隨 FCW、code 頻譜與迴路頻寬改變（§6.4），所以這不是可靠的設計。
       </p>
 
@@ -340,7 +339,7 @@ export function S3GmacPole() {
                 tex: String.raw`E\big[q[n]\big]=\mathrm{erf}\!\Big(\frac{\delta\,u[n]}{\sqrt2\,\sigma_v}\Big)`,
                 why: (
                   <>
-                    第 05 章的精確式（<Tex>{'e_{\\det}=\\delta\\,u[n]'}</Tex>）；這一步還沒有做任何近似。
+                    <ChRef ch="05">第 05 章</ChRef>的精確式（<Tex>{'e_{\\det}=\\delta\\,u[n]'}</Tex>）；這一步還沒有做任何近似。
                   </>
                 ),
               },

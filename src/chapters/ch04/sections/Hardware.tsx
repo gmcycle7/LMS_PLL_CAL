@@ -10,6 +10,7 @@ import {
   StepDerivation,
   Tex,
   TexBlock,
+  ChRef,
 } from '@/components'
 import { APPLY_MODES, AVERAGE_LOOP, LATENCY_TIMELINE, NOISE_FEEDBACK, RTL_DATAFLOW } from '../diagrams'
 import { ROOT_MAX_DELAY, latencyCalc, type ApplyMode, type CriticalGainMethod, type LatencyParams } from '../latency'
@@ -135,7 +136,7 @@ function LatencyCalculator() {
         <ClaimTag kind="exact" /> <Tex>{R`g_\mathrm{crit}`}</Tex> 由平均模型的特徵方程決定：等 block 邊界生效時延遲是整數 <Tex>{R`d=d_\mathrm{cfg}+\lceil P_c/N\rceil`}</Tex>，
         <Tex>{R`g_\mathrm{crit}=2\sin\frac{\pi}{4d+2}`}</Tex>（F-04.14）；block 中途生效時延遲是 <Tex>{R`d+d_\mathrm{f}`}</Tex>（<Tex>{R`d=d_\mathrm{cfg}+\lfloor P_c/N\rfloor`}</Tex>、
         <Tex>{R`d_\mathrm{f}=(P_c\bmod N)/N`}</Tex>），<Tex>{R`d=0`}</Tex> 用 F-04.17 的封閉式，<Tex>{R`d\ge1`}</Tex> 直接對特徵方程求根（見下方推導）。這只是一階平均模型的界，
-        不是整顆 PLL 的 sign-off（Ch08 有完整的 phase margin 分析）。實務上另一個做法：每個 block 開頭先丟掉 <Tex>{R`P_c`}</Tex> 個 sample 不累加，等新 gain 生效後才開始累加——這樣 <Tex>{R`d=0`}</Tex>，
+        不是整顆 PLL 的 sign-off（<ChRef ch="08">Ch08</ChRef> 有完整的 phase margin 分析）。實務上另一個做法：每個 block 開頭先丟掉 <Tex>{R`P_c`}</Tex> 個 sample 不累加，等新 gain 生效後才開始累加——這樣 <Tex>{R`d=0`}</Tex>，
         代價是每個 block 只用到 <Tex>{R`N-P_c`}</Tex> 筆資料（GMAC 雜訊的標準差變成 <Tex>{R`\sqrt{N/(N-P_c)}`}</Tex> 倍）。
       </p>
     </div>
@@ -248,7 +249,7 @@ export function HardwareSection() {
           。誤差函數 <Tex>{R`\mathrm{erf}(z)=\frac{2}{\sqrt\pi}\int_0^ze^{-t^2}dt`}</Tex>
           ，兩者的關係是 <Tex>{R`2\Phi(z)-1=\mathrm{erf}(z/\sqrt2)`}</Tex>
           （變數代換 <Tex>{R`t=\sqrt2 s`}</Tex>）。 在 0 附近泰勒展開：
-          <Tex>{R`e^{-t^2}\approx1\;\Rightarrow\;\mathrm{erf}(z)\approx\frac{2}{\sqrt\pi}z`}</Tex>。§4 會用它一步一步推出 GMAC 的平均；Ch05 有完整的 comparator 統計。
+          <Tex>{R`e^{-t^2}\approx1\;\Rightarrow\;\mathrm{erf}(z)\approx\frac{2}{\sqrt\pi}z`}</Tex>。§4 會用它一步一步推出 GMAC 的平均；<ChRef ch="05">Ch05</ChRef> 有完整的 comparator 統計。
         </p>
       </Prereq>
       <Prereq title="pole 與單位圓：等比數列的推廣">
@@ -277,7 +278,7 @@ export function HardwareSection() {
         <p className="small">
           <ClaimTag kind="approx" /> 小訊號（<Tex>{R`|\delta u+b_\mathrm{off}|\ll\sigma_v`}</Tex>）、雜訊 iid Gaussian 且與 code 獨立、<Tex>w</Tex> 在 <Tex>h</Tex> 的記憶長度內近似不變（第 1 步）。最後一項是 comparator offset 造成的固定點偏移：令{' '}
           <Tex>{R`E[\delta_{k+1}]=E[\delta_k]=\delta_\infty`}</Tex> 解出上面的 <Tex>{R`\delta_\infty`}</Tex>，<Tex>{R`b_\mathrm{off}=0`}</Tex> 或零均值 code 時消失；若主 PLL 的 integral path 強制{' '}
-          <Tex>{R`E[q]=0`}</Tex>，offset 會被吸收（勘誤 E03，Ch11）。單位：<Tex>{R`K_q`}</Tex> 為 <Tex>{R`\mathrm{fs}^{-1}`}</Tex>、<Tex>{R`C`}</Tex> 無因次、<Tex>{R`\mu`}</Tex> 為 fs，所以{' '}
+          <Tex>{R`E[q]=0`}</Tex>，offset 會被吸收（勘誤 E03，<ChRef ch="11">Ch11</ChRef>）。單位：<Tex>{R`K_q`}</Tex> 為 <Tex>{R`\mathrm{fs}^{-1}`}</Tex>、<Tex>{R`C`}</Tex> 無因次、<Tex>{R`\mu`}</Tex> 為 fs，所以{' '}
           <Tex>g</Tex> 無因次 <Erratum id="E13" />。
         </p>
       </DerivationFold>

@@ -1,4 +1,4 @@
-import { Callout, ClaimTag, CodeBlock, MathText, ModeGate, Quiz, Section, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeBlock, MathText, ModeGate, Quiz, Section, Tex, TexBlock, ChRef } from '@/components'
 import { studentTInv } from '@/simulation/core'
 import judgesSrc from '../judges.ts?raw'
 import {
@@ -139,6 +139,14 @@ export function S4Cases() {
           預設值是下面 Corner 判斷器預設的兩列：最快的 FF 125°C（<Tex>{'\\sigma_v=70\\,\\mathrm{fs}'}</Tex>、<Tex>{'\\theta=10^\\circ'}</Tex>）與最慢的 near-grid FCW（<Tex>{'\\sigma_v=100\\,\\mathrm{fs}'}</Tex>、<Tex>{'\\theta=60^\\circ'}</Tex>），<Tex>{'\\mu=10\\,\\mathrm{fs}'}</Tex>、<Tex>{'d=1'}</Tex>。
           把 <Tex>{'B'}</Tex> 改成 50，或把 <Tex>{'\\mu'}</Tex> 改成 40，看哪一個 corner 先不合格。
         </HandCalcSlot>
+        <p>
+          <strong>
+            收斂時間 <Tex>{'k_{95}'}</Tex> 怎麼數：
+          </strong>
+          平均誤差照 <Tex>{'y_{k+1}=y_k-g\\,y_{k-d}'}</Tex> 逐 block 遞推（初始歷史 <Tex>{'y_j=1'}</Tex>），取最後一次 <Tex>{'|y_k|>0.05'}</Tex> 的下一個 block；和 <a href="#/">首頁</a>「六條件一分鐘體檢」的收斂 block 數是同一個函式。
+          <Tex>{'d=0'}</Tex> 時它等於 <Tex>{'\\lceil\\ln0.05/\\ln\\rho\\rceil'}</Tex>；<Tex>{'d\\ge1'}</Tex> 時 <Tex>{'\\rho^k'}</Tex> 不是誤差的包絡，那個式子只當「<Tex>{'\\rho'}</Tex> 漸近估計」另列、不拿來判定
+          （例：<Tex>{'d=1'}</Tex>、<Tex>{'g=0.25'}</Tex> 是重根 <Tex>{'z=0.5'}</Tex>，估計給 5，逐 block 要 7，所以 <Tex>{'B=6'}</Tex> 時只看 <Tex>{'\\rho'}</Tex> 會誤判通過）。
+        </p>
         <p className="small muted">
           單一 corner 的 <Tex>{'PM_d'}</Tex>、<Tex>{'g_\\text{crit}(d)'}</Tex> 與 <Tex>{'\\mu_{\\max}'}</Tex> 的手算題在 <a href="#/ch/08">Ch08</a>；corner 區間與 <Tex>{'B'}</Tex> 的下限在 <a href="#/ch/14">Ch14</a>。本頁這一題把兩者接起來：同一個 <Tex>{'\\mu'}</Tex> 要同時過兩個 corner。
         </p>
@@ -343,7 +351,7 @@ export function S4Cases() {
             <li>每個狀態（coarse／fine／track／freeze）寫出 <Tex>{'(\\mu,N)'}</Tex> 與<strong>有統計意義</strong>的切換條件（例如 <Tex>{'|\\bar G|<z\\sigma_\\eta/\\sqrt m'}</Tex>）。</li>
             <li>coarse 階段的大步長落在 erf 飽和區（勘誤 E48），用 MC 而非線性公式驗證收斂時間。</li>
             <li>每個 mode（injection、VCO band、PMUX pattern）各自的極性與 <Tex>{'C'}</Tex> 都要量；relock 後回到規格內的時間要有上界。</li>
-            <li>量化策略以 spur 與總誤差功率定量比較（§6 的 EFB 判斷器、Ch13）。</li>
+            <li>量化策略以 spur 與總誤差功率定量比較（§6 的 EFB 判斷器、<ChRef ch="13">Ch13</ChRef>）。</li>
           </ul>
         </Callout>
         <Quiz

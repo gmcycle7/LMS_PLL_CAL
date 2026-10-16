@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { ClaimTag, Prereq, Section, SourceTag, StepDerivation, SystemMap, Tex, TexBlock } from '@/components'
+import { ClaimTag, Prereq, Section, SourceTag, StepDerivation, SystemMap, Tex, TexBlock, ChRef } from '@/components'
 import { mean } from '@/simulation/core'
 import { batchL1, batchL2 } from '@/simulation/models/lossCompare'
 import { BlockDiagram, Erratum, PllLink, f, texNum } from '../common'
@@ -284,7 +284,7 @@ export function IntroSection() {
           />
           <p className="small">
             實務上用樣本平均 <Tex>{String.raw`\frac1N\sum_{n=1}^N X_n`}</Tex> 估計 <Tex>{'E[X]'}</Tex>；<Tex>{'N'}</Tex>{' '}
-            越大越準（誤差大約以 <Tex>{String.raw`1/\sqrt N`}</Tex> 下降，Ch05 會用中央極限定理說明）。
+            越大越準（誤差大約以 <Tex>{String.raw`1/\sqrt N`}</Tex> 下降，<ChRef ch="05">Ch05</ChRef> 會用中央極限定理說明）。
           </p>
         </Prereq>
       </Section>

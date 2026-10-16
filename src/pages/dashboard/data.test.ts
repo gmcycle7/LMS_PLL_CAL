@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { PAGES, pageById } from '@/app/registry'
 import { ALL_PRESETS, presetHref } from '@/app/presets'
 import type { PresetEntry } from '@/data/types'
-import { CHAPTER_META, CLAIM_EXAMPLES, QUESTIONS, ROUTES, SIX_CONDITIONS, conditionsForPage, questionsForPage, shortCode } from './data'
+import { CHAPTER_META, CLAIM_EXAMPLES, OUTCOMES, QUESTIONS, ROUTES, SIX_CONDITIONS, conditionsForPage, questionsForPage, shortCode } from './data'
 import { renderTex } from '@/components'
 import { CONDITION_ORDER, DEFAULT_PARAMS, evaluateThesis } from './thesisModel'
 import { ERRATA, T_IDS, readErrata, summarizeErrata, summarizeTests, erratumById } from './summaries'
@@ -50,6 +50,7 @@ describe('Dashboard 內容資料與 registry 一致', () => {
       ...ROUTES.flatMap((r) => r.steps.flatMap((s) => [s.page, ...(s.also ?? [])])),
       ...SIX_CONDITIONS.flatMap((c) => c.pages),
       ...QUESTIONS.flatMap((q) => q.pages),
+      ...OUTCOMES.flatMap((o) => o.can.map((c) => c.page)),
       ...Object.keys(CHAPTER_META),
     ]
     for (const id of refs) expect(ids.has(id), id).toBe(true)
@@ -57,13 +58,44 @@ describe('Dashboard 內容資料與 registry 一致', () => {
     for (const p of PAGES) if (p.id !== 'dashboard') expect(CHAPTER_META[p.id], p.id).toBeDefined()
   })
 
-  it('三條學習路線與規格 §19.1 的步驟完全相同', () => {
+  it('三條學習路線與規格 §19.1 的步驟相同；數學路線在規格的六步之前多了 STEP 1 = Ch00 入門課', () => {
     // 規格 §19.1 原文
     const math = 'MSE → Gradient → Scalar Stability → Sign-LMS → PE → MIMO'
     const pll = 'DSM Code → DTC → PD → GMAC → H(z) → Polarity → Dual Loop'
     const chip = 'Noise → Bias → Quantization → Spur/Jitter → Fixed Point → Sign-off'
     for (const s of [math, pll, chip]) expect(spec).toContain(s)
-    expect(ROUTES.map((r) => r.steps.map((s) => s.label).join(' → '))).toEqual([math, pll, chip])
+    const chain = (r: (typeof ROUTES)[number]) => r.steps.map((s) => s.label).join(' → ')
+    expect(ROUTES.map((r) => r.id)).toEqual(['math', 'pll', 'chip'])
+    expect(chain(ROUTES[0])).toBe(`Black Box → ${math}`)
+    expect(chain(ROUTES[1])).toBe(pll)
+    expect(chain(ROUTES[2])).toBe(chip)
+    // STEP 1 是 Ch00（第一次來建議先走前三步：Ch00 → Ch01 → Ch02）；Ch00 不再只出現在「也見」
+    expect(ROUTES[0].steps.slice(0, 3).map((s) => s.page)).toEqual(['ch00', 'ch01', 'ch02'])
+    expect(ROUTES[0].steps.some((s) => s.also?.includes('ch00'))).toBe(false)
+    expect(ROUTES[0].steps[0].zh).not.toMatch(/\$/) // 步驟卡片的文字是純文字（不經 Rich），不放公式
+  })
+
+  it('學完你能做什麼：Part A / B / C 各兩句，每句連到存在的章節且屬於該 Part；關鍵能力都在', () => {
+    expect(OUTCOMES.map((o) => o.part)).toEqual(['A', 'B', 'C'])
+    for (const o of OUTCOMES) {
+      expect(o.can).toHaveLength(2)
+      for (const c of o.can) {
+        const page = pageById(c.page)
+        expect(page, `${o.part} → ${c.page}`).toBeDefined()
+        expect(page?.group, `${c.page} 應屬於 Part ${o.part}`).toBe(o.part)
+        expect(balanced(c.text), c.text).toBe(true)
+        expect(mathTextProblems(c.text), c.text).toEqual([])
+      }
+      expect(o.color).toMatch(/^--series-[1-6]$/)
+    }
+    const all = OUTCOMES.flatMap((o) => o.can.map((c) => c.text)).join('\n')
+    // A：手算兩步、μ 會不會發散；B：K_q、N、GMAC 極性；C：σ_w、spur、6-bit dither
+    for (const need of ['手算 LMS 兩步', '$\\mu$', '發散', '$K_q$', '$N$', '極性', '$\\sigma_w$', 'spur', '6-bit', 'dither']) expect(all, need).toContain(need)
+    expect(OUTCOMES.map((o) => o.can.map((c) => c.page))).toEqual([
+      ['ch00', 'ch03'],
+      ['ch05', 'ch06'],
+      ['ch12', 'ch13'],
+    ])
   })
 
   it('附錄 E 的 15 個問題逐字取自規格，編號 1–15，每題至少一個回答頁', () => {
@@ -92,6 +124,7 @@ describe('Dashboard 內容資料與 registry 一致', () => {
       ...Object.values(CHAPTER_META).map((m) => m.summary),
       ...CLAIM_EXAMPLES.map((c) => c.text),
       ...ROUTES.map((r) => r.blurb),
+      ...OUTCOMES.flatMap((o) => o.can.map((c) => c.text)),
     ]
     for (const t of texts) expect(balanced(t), t).toBe(true)
   })
@@ -219,6 +252,8 @@ describe('Dashboard 內容資料：數學一律 LaTeX（docs/teaching-style.md �
       ...QUESTIONS.map((q) => q.text),
       ...Object.values(CHAPTER_META).map((m) => m.summary),
       ...CONDITION_MAP_LEGEND.map((r) => r.knobs),
+      ...OUTCOMES.flatMap((o) => o.can.map((c) => c.text)),
+      ...ROUTES.flatMap((r) => [r.blurb, ...r.steps.flatMap((s) => [s.zh, s.sections])]),
     ]
     expect(texts.length).toBeGreaterThan(60)
     for (const t of texts) expect(mathTextProblems(t), t).toEqual([])

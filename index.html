@@ -5,6 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <title>LMS × Fractional-N PLL Calibration Lab</title>
+    <!-- 在第一次繪製之前就套用深淺主題，避免深色使用者每次載入先閃一下淺色畫面；之後由 src/app/settings.tsx 接手 -->
+    <script>
+      ;(function () {
+        var t = null
+        try {
+          t = localStorage.getItem('lmspll.theme')
+        } catch (e) {
+          /* localStorage 不可用（隱私模式／被封鎖）：仍然跟隨系統深淺 */
+        }
+        try {
+          if (t !== 'light' && t !== 'dark') {
+            t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+          }
+          document.documentElement.dataset.theme = t
+          // 樣式表載入前瀏覽器會先用預設畫布色：meta color-scheme 讓那一瞬間就是深色畫布（作者 CSS 的 color-scheme 之後會覆蓋它）
+          var m = document.createElement('meta')
+          m.name = 'color-scheme'
+          m.content = t
+          document.head.appendChild(m)
+        } catch (e) {
+          /* 其他錯誤：維持 CSS 預設的淺色 */
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

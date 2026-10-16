@@ -26,7 +26,8 @@ describe('MetricTable', () => {
     expect(rows[0].textContent).toContain('-3.56e-7')
     expect(screen.getByText('NaN').className).toContain('c-bad')
     expect(screen.getByText('Not implemented')).toBeTruthy()
-    expect(screen.getByText('F-5.1').getAttribute('href')).toBe('#formula-F-5.1')
+    // 不能是 '#formula-…'：HashRouter 會把它當成路由而顯示「找不到此頁面」。連結是公式速查頁的真網址（中鍵、複製連結都能用）
+    expect(screen.getByText('F-5.1').getAttribute('href')).toBe('#/formulas?f=F-5.1')
     expect(screen.getByText('精確｜指定模型')).toBeTruthy()
   })
 

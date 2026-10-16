@@ -4,19 +4,17 @@
  *   (2) analysis/sspll/golden/results/*.json —— golden 的其他輸出（手算例、GOS 掃描、sim 的 dither 結果）；
  *   (3) src/simulation/models/sspll.ts —— TS port 的即時計算（sspll.test.ts 與 (1)(2) 交叉比對）。
  * 這個檔案只做型別標註與少量彙整，不手寫任何結果。
+ *
+ * 載入方式：這裡只同步 import 頁面第一次渲染就要用的檔案（params.json、pred_vs_sim.json、worked_examples 等）。
+ * 最大的兩組——hpd_L*.json（H_PD 網格）與 signmap_L*.json（α sign map），合計約 1.3 MB——改由 ./lazyData 按需載入
+ * （`useSspllData`），只有實驗 A、實驗 B 與 §15 的 near-grid 區間用到它們；這裡只留下它們的型別（HpdJson、SignMapJson）。
  */
 import paramsJson from '@/data/sspll/params.json'
-import hpdL1 from '@/data/sspll/hpd_L1.json'
-import hpdL2 from '@/data/sspll/hpd_L2.json'
-import hpdL3 from '@/data/sspll/hpd_L3.json'
-import mapL1 from '@/data/sspll/signmap_L1.json'
-import mapL2 from '@/data/sspll/signmap_L2.json'
-import mapL3 from '@/data/sspll/signmap_L3.json'
 import predJson from '@/data/sspll/pred_vs_sim.json'
 import workedJson from '../../../analysis/sspll/golden/results/worked_examples.json'
 import gosScanJson from '../../../analysis/sspll/golden/results/gos_dense_scan.json'
 import ditherJson from '../../../analysis/sspll/golden/results/sim_dither_extract.json'
-import { joint as docJoint, phos as docPhos } from '../../../analysis/sspll/golden/results/doc_numbers.json'
+import docNumbers from './docNumbers.json'
 import {
   F_REF,
   discConstant,
@@ -340,14 +338,17 @@ interface DocPhos {
 }
 
 export const PARAMS = paramsJson as unknown as ParamsJson
-export const HPD: Record<LoopKey, HpdJson> = { L1: hpdL1 as unknown as HpdJson, L2: hpdL2 as unknown as HpdJson, L3: hpdL3 as unknown as HpdJson }
-export const SIGNMAP: Record<LoopKey, SignMapJson> = { L1: mapL1 as unknown as SignMapJson, L2: mapL2 as unknown as SignMapJson, L3: mapL3 as unknown as SignMapJson }
 export const PRED = predJson as unknown as PredJson
 export const WORKED = workedJson as unknown as WorkedJson
 export const GOS_SCAN = gosScanJson as unknown as Record<string, GosScanRow>
 export const DITHER = ditherJson as unknown as DitherJson
-export const DOC_JOINT = docJoint as unknown as DocJoint
-export const DOC_PHOS = docPhos as unknown as DocPhos
+/**
+ * analysis/sspll/golden/results/doc_numbers.json 裡本頁用到的兩段（joint、phos；S08、S09）。
+ * 整個 doc_numbers.json 有 283 KB，Vite 對這種大 JSON 的具名 import 不做 tree-shaking（連沒用到的段落都會打進 chunk，實測多出約 180 KB），
+ * 所以頁面讀的是 ./docNumbers.json——只含這兩段；docNumbers.test.ts 逐位比對它與 doc_numbers.json 一致。
+ */
+export const DOC_JOINT = docNumbers.joint as unknown as DocJoint
+export const DOC_PHOS = docNumbers.phos as unknown as DocPhos
 
 /** f_ref [MHz] */
 export const FREF_MHZ = F_REF / 1e6

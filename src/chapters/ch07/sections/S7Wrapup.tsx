@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, Mermaid, ModeGate, Quiz, Recap, Section, SourceTag, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, Mermaid, ModeGate, Quiz, Recap, Section, SourceTag, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import { cArg } from '@/simulation/core'
 import { freqz } from '@/simulation/signal'
 import { designDtLoop } from '@/simulation/models/pll'
@@ -263,7 +263,7 @@ export function S7Wrapup() {
         </p>
         <p>
           本章只處理「方向對不對」（polarity）與「每單位雜訊的恢復力」（<Tex>{'\\rho'}</Tex>）。方向對了之後，校正迴路本身還有自己的 phase margin：GMAC
-          算出的修正量晚幾個 block 才生效（更新延遲），會縮小 <Tex>{'g'}</Tex> 的穩定範圍——這是 Ch08 的主題
+          算出的修正量晚幾個 block 才生效（更新延遲），會縮小 <Tex>{'g'}</Tex> 的穩定範圍——這是 <ChRef ch="08">Ch08</ChRef> 的主題
           （<Tex>{r`L_{\mathrm{cal}}(z)=g/(z-1)`}</Tex>；GMAC 更新晚 <Tex>{r`d_{\mathrm{upd}}`}</Tex> 個 block 生效時臨界 <Tex>{r`g_{\mathrm{crit}}=2\sin\frac{\pi}{4d_{\mathrm{upd}}+2}`}</Tex>，
           規格 §8.3 記為 <Tex>{'d'}</Tex>；本章的 <Tex>{'d'}</Tex> 是 PLL loop latency，兩者不同）。filtered-x 的 <Tex>{'D'}</Tex> 與 <Tex>{r`\hat H`}</Tex> 的 latency
           不是這一種延遲：它們在 regressor 那一側（前饋），不在校正迴路的回授路徑上。在平均模型裡（<Tex>{'w'}</Tex> 慢變）它們只改變相關 <Tex>{r`C_{f,D}`}</Tex>（F-07.12）——同一個{' '}
@@ -362,7 +362,7 @@ export function S7Wrapup() {
         </ModeGate>
         <p className="small muted">
           下一個值得研究的問題：<Tex>{r`\hat H`}</Tex> 能不能線上學？（用 code 與 PD 誤差的互相關估計 <Tex>{'h'}</Tex>，即 FxLMS 的 secondary-path identification；
-          需要額外的 excitation 與第二個 LMS，兩個迴路的時間尺度分離見 Ch08 §8.4。）<ClaimTag kind="research" />
+          需要額外的 excitation 與第二個 LMS，兩個迴路的時間尺度分離見 <ChRef ch="08">Ch08</ChRef> §8.4。）<ClaimTag kind="research" />
         </p>
         <p className="small muted">
           數字複習：T07 的 <Tex>{r`C_4=${tx(toneCorrCodeDelay({ A: 1, mag: 1, phiRad: -120 * RAD, omega: Math.PI / 6 }, 4), 4)}`}</Tex>、

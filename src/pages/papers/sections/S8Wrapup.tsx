@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Quiz, Recap, Section, Tex, TexBlock, mathText } from '@/components'
+import { Quiz, Recap, Section, Tex, TexBlock, mathText, ChRef } from '@/components'
 import { meanSquareFactor } from '@/simulation/models/lms'
 import { CONVENTION_SHORT, corr2Eigs, criticalGain, delaySpectralRadius, gainScale, muForScale } from '../bridge'
 import { Hand, num, r } from '../common'
@@ -109,7 +109,7 @@ export function S8Wrapup() {
           answer={
             <>
               <TexBlock>{r`\frac{E[\delta_{n+1}^2]}{E[\delta_n^2]}=1-2\mu E[x^2]+\mu^2E[x^4]=1-2\cdot${QUIZ.q2.mu}\cdot${QUIZ.q2.Ex2}+${QUIZ.q2.mu}^2\cdot${QUIZ.q2.Ex4}=${num(q.q2.ms, 4)},\qquad \frac{E[\delta_{n+1}]}{E[\delta_n]}=1-\mu E[x^2]=${num(q.q2.mean, 4)}`}</TexBlock>
-              平均一步歸零，均方卻每步加倍：mean 收斂不能推出 mean-square 收斂（見本頁 §6、Ch03）。
+              平均一步歸零，均方卻每步加倍：mean 收斂不能推出 mean-square 收斂（見本頁 §6、<ChRef ch="03">Ch03</ChRef>）。
             </>
           }
         />
@@ -148,13 +148,13 @@ export function S8Wrapup() {
           answer={
             <>
               <TexBlock>{r`g^*(${QUIZ.q3.d})=2\sin\frac{\pi}{${4 * QUIZ.q3.d + 2}}=${num(q.q3.gStar, 5)}<${QUIZ.q3.g},\qquad |z|_{\max}=${num(q.q3.radius, 5)}>1`}</TexBlock>
-              <Tex>{r`\pm90^\circ`}</Tex> 只保證方向對；有延遲時 loop gain 的上限從 <Tex>{'2'}</Tex> 縮到 <Tex>{r`g^*(d)`}</Tex>（本頁 D3 面板、Ch08）。
+              <Tex>{r`\pm90^\circ`}</Tex> 只保證方向對；有延遲時 loop gain 的上限從 <Tex>{'2'}</Tex> 縮到 <Tex>{r`g^*(d)`}</Tex>（本頁 D3 面板、<ChRef ch="08">Ch08</ChRef>）。
             </>
           }
         />
         <Quiz
           title="思考題 4：可以拿論文的數字驗證本站嗎？"
-          question={<>D4 的題名寫 74 fs jitter；本站 Ch12 算出的係數 RMS 也是 fs 等級。可以用 D4 的數字當本站 Ch12 的驗證嗎？</>}
+          question={<>D4 的題名寫 74 fs jitter；本站 <ChRef ch="12">Ch12</ChRef> 算出的係數 RMS 也是 fs 等級。可以用 D4 的數字當本站 <ChRef ch="12">Ch12</ChRef> 的驗證嗎？</>}
           options={[
             { label: '可以，單位都是 fs' },
             { label: '不行：一個是晶片量測的輸出 jitter，一個是 illustrative 參數下 gain-equivalent 的係數雜訊，模型與物理量都不同', correct: true },
@@ -169,7 +169,7 @@ export function S8Wrapup() {
           answer={
             <>
               本站的數字由本站模型推導並以 golden model 交叉驗算，文獻不是它的量測來源（本頁 §1）。從係數雜訊到輸出 jitter 還要經過 code 混頻、ZOH 與 PLL output
-              transfer（Ch12）。
+              transfer（<ChRef ch="12">Ch12</ChRef>）。
             </>
           }
         />

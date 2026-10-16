@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, ModeGate, SourceTag, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, ModeGate, SourceTag, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import { comparatorKq, fxToneCorrelation, multiToneCorrelation, multiToneEmpirical, toneCorrelation, type Tone } from '../bridge'
 import { BridgeCompare, ErratumNote, FormulaAnchor, PageChips, PrereqCorrelation, PrereqPsd, clean, num, r } from '../common'
 
@@ -43,7 +43,7 @@ export function D2Polarity() {
   return (
     <div className="papers-derived">
       <p>
-        <SourceTag kind="illustrative" /> 以下是本站 Ch06–Ch07 的推導：單一參數、慢速、小訊號下的<strong>相關判據</strong>。D2 處理的是一般（多參數、寬頻）的
+        <SourceTag kind="illustrative" /> 以下是本站 <ChRef ch="06">Ch06</ChRef>–<ChRef ch="07">Ch07</ChRef> 的推導：單一參數、慢速、小訊號下的<strong>相關判據</strong>。D2 處理的是一般（多參數、寬頻）的
         FxLMS； 本站的結果只是它最簡單的特例，<strong>不是</strong> D2 的定理。
       </p>
       <PrereqCorrelation />
@@ -166,7 +166,7 @@ export function D2Polarity() {
         </table>
       </div>
       <p className="small muted">
-        想用自己的振幅與相位手算這張表：兩個 tone 的加權和、共用一個 code 延遲時的相關，以及 filtered-x 模型相位誤差，在 Ch06、Ch07 都有帶入手算題；本頁不重複。
+        想用自己的振幅與相位手算這張表：兩個 tone 的加權和、共用一個 code 延遲時的相關，以及 filtered-x 模型相位誤差，在 <ChRef ch="06">Ch06</ChRef>、<ChRef ch="07">Ch07</ChRef> 都有帶入手算題；本頁不重複。
         <PageChips ids={['ch06', 'ch07', 'workbook']} />
       </p>
       <PrereqPsd />
@@ -251,7 +251,7 @@ export function D2Polarity() {
           </table>
         </div>
         <Callout kind="info" title="讀 D2 時要對照的地方">
-          本站的判據都是「單一參數、相關的符號」；多參數時要看的是矩陣 <Tex>{r`E[\mathbf x\mathbf u^T]`}</Tex> 的特徵值（Ch10），不再只是一個數的正負。 D2
+          本站的判據都是「單一參數、相關的符號」；多參數時要看的是矩陣 <Tex>{r`E[\mathbf x\mathbf u^T]`}</Tex> 的特徵值（<ChRef ch="10">Ch10</ChRef>），不再只是一個數的正負。 D2
           的題名提到的 Toeplitz 矩陣與 pseudospectrum，就是處理這個一般情況的數學工具；它的條件與本站結果之間的關係，請以原文為準。
         </Callout>
       </ModeGate>

@@ -14,6 +14,7 @@ import {
   Tex,
   TexBlock,
   useThemeTokens,
+  ChRef,
 } from '@/components'
 import biasSrc from '@/simulation/models/bias.ts?raw'
 import { KQ_FACTOR, buildCodeDistribution, comparatorMean, eDet, signFixedPoint, type ErrorModel } from '@/simulation/models/bias'
@@ -83,7 +84,7 @@ export function FixedPointSection() {
         <Tex>{'\\mu'}</Tex> 是學習率（step size；Sign-LMS 時它把無因次的 <Tex>{'G_k'}</Tex> 換算成 gain 的單位 t.u.）。
       </p>
       <p>
-        <Tex>{'\\mu'}</Tex> 很小時，<Tex>{'w'}</Tex> 跟著「平均更新量」<Tex>{'\\mu\\,E[G](w)'}</Tex> 慢慢走（Ch12 再處理它在平均值附近的抖動）。所以 LMS 最後停下來的地方，就是
+        <Tex>{'\\mu'}</Tex> 很小時，<Tex>{'w'}</Tex> 跟著「平均更新量」<Tex>{'\\mu\\,E[G](w)'}</Tex> 慢慢走（<ChRef ch="12">Ch12</ChRef> 再處理它在平均值附近的抖動）。所以 LMS 最後停下來的地方，就是
         <strong>平均 GMAC 等於 0 的 w</strong>：
       </p>
       <TexBlock>{String.raw`\boxed{E[G](w^*)=E\big[q\,x\big]\Big|_{w=w^*}=0}\qquad(\text{還需 }dE[G]/dw<0\text{ 才是吸引的固定點})`}</TexBlock>
@@ -94,8 +95,8 @@ export function FixedPointSection() {
       <p className="small">
         這裡的「穩定／吸引」是<strong>平均動態（mean-field）的局部吸引</strong>：另外還需要離散更新本身不發散，也就是{' '}
         <Tex>{String.raw`0<g=\mu S<2`}</Tex>（<Tex>{String.raw`S=-dE[G]/dw`}</Tex> 是平均 GMAC 對 <Tex>{'w'}</Tex> 的恢復斜率，<Tex>{'g'}</Tex> 是正規化的 loop
-        gain；Ch03、Ch08），而有限的 <Tex>{'\\mu'}</Tex> 會讓 <Tex>{'w'}</Tex> 在{' '}
-        <Tex>{'w^*'}</Tex> 附近隨機抖動（Ch12）。本章只回答「平均停在哪裡」。
+        gain；<ChRef ch="03">Ch03</ChRef>、<ChRef ch="08">Ch08</ChRef>），而有限的 <Tex>{'\\mu'}</Tex> 會讓 <Tex>{'w'}</Tex> 在{' '}
+        <Tex>{'w^*'}</Tex> 附近隨機抖動（<ChRef ch="12">Ch12</ChRef>）。本章只回答「平均停在哪裡」。
       </p>
       <p className="small">
         {m(

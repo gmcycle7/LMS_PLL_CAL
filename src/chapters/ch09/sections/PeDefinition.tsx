@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, Prereq, Section, StepDerivation, TexBlock } from '@/components'
+import { Callout, ClaimTag, Prereq, Section, StepDerivation, TexBlock, ChRef } from '@/components'
 import { eig2x2, pm1DegenerateProb, sampleEigRelStd, slidingWindowPe } from '@/simulation/models/pe'
 import { DerivBox, Diagram, FigRef, HandCalcBox, formulaTex, m, num, texMatrix, texNum } from '../shared'
 
@@ -261,7 +261,7 @@ export function PeDefinition() {
       <Callout kind="info" title="連結到 PLL">
         Near-integer FCW 讓 DSM residue 變成週期很長、近乎常數的序列；多段 DTC gain / INL 係數若由同一個 code 的不同函數驅動，
         其 regressor 往往高度相關（{m`\rho\to1`}）。這時 calibration 迴路穩定，但某些組合（差模）幾乎不動。對策是改善激發（code randomization、
-        dither、training sequence；規格附錄 R5），或改用 preconditioner（第 10 章）。
+        dither、training sequence；規格附錄 R5），或改用 preconditioner（<ChRef ch="10">第 10 章</ChRef>）。
       </Callout>
     </Section>
   )

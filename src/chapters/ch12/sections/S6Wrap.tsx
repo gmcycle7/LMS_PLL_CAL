@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, CodeCompare, ModeGate, Quiz, Recap, Section, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeCompare, ModeGate, Quiz, Recap, Section, Tex, TexBlock, ChRef } from '@/components'
 import calNoiseSrc from '@/simulation/models/calNoise.ts?raw'
 import { calLoop, spurBeta, spurDbcSmallAngle } from '@/simulation/models/calNoise'
 import { Diagram, EX, EX_INPUT, Hand, SPUR, codeTable, md, sig } from '../common'
@@ -71,7 +71,7 @@ export function S6Wrap() {
               <tr>
                 <td>(c) 逐 sample（runBlockLms）</td>
                 <td>{md('真的產生 $N$ 個 code、$v$、$q$，GMAC 累加')}</td>
-                <td>任何 code / path / 延遲 / 量化（第 13 章）</td>
+                <td>任何 code / path / 延遲 / 量化（<ChRef ch="13">第 13 章</ChRef>）</td>
                 <td>無（L1 模型本身）</td>
                 <td>{md('慢（每 block $N$ 個 sample，約慢三個數量級）')}</td>
               </tr>
@@ -267,13 +267,13 @@ export function S6Wrap() {
         </Diagram>
         <div className="ch12-hw">
           <Callout kind="info" title={md(String.raw`REG_GAIN_STEP（$\mu$）`)}>
-            決定 <Tex>{'p'}</Tex> 與 <Tex>{String.raw`\sigma_w`}</Tex>：<Tex>{String.raw`\sigma_w\propto\sqrt\mu`}</Tex>、<Tex>{String.raw`\tau\propto1/\mu`}</Tex>。常見做法是 coarse（大 <Tex>{String.raw`\mu`}</Tex>）→ fine（小 <Tex>{String.raw`\mu`}</Tex>）的 gear-shifting（第 14 章）。
+            決定 <Tex>{'p'}</Tex> 與 <Tex>{String.raw`\sigma_w`}</Tex>：<Tex>{String.raw`\sigma_w\propto\sqrt\mu`}</Tex>、<Tex>{String.raw`\tau\propto1/\mu`}</Tex>。常見做法是 coarse（大 <Tex>{String.raw`\mu`}</Tex>）→ fine（小 <Tex>{String.raw`\mu`}</Tex>）的 gear-shifting（<ChRef ch="14">第 14 章</ChRef>）。
           </Callout>
           <Callout kind="info" title={md('REG_GMAC_N（$N$）')}>
             {md(String.raw`$\sigma_\eta^2\approx1/N$；average 與 sum 模式的 $\mu$ 差 $N$ 倍——RTL 若用 sum 而 $\mu$ 照 average 設計，$g$ 放大 $N$ 倍而發散（本例 $g=${sig(q.sumG, 4)}$，勘誤 E18）。`)}
           </Callout>
           <Callout kind="info" title="DTC gain register 位寬">
-            <Tex>{String.raw`\sigma_w`}</Tex>（{EX.sigmaW.toFixed(2)} fs）若遠小於 gain LSB，量化誤差與 limit cycle 會主導（第 13 章），這時的「雜訊」是確定性的 spur 而不是 skirt。
+            <Tex>{String.raw`\sigma_w`}</Tex>（{EX.sigmaW.toFixed(2)} fs）若遠小於 gain LSB，量化誤差與 limit cycle 會主導（<ChRef ch="13">第 13 章</ChRef>），這時的「雜訊」是確定性的 spur 而不是 skirt。
           </Callout>
           <Callout kind="info" title="PLL 頻寬與 code 設計">
             Code centering（零均值）消除 <Tex>{String.raw`m\,\delta w`}</Tex> 直通；寬頻（白化）的 code 讓 gain noise 落到 PLL 頻寬外。

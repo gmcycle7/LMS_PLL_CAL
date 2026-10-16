@@ -11,7 +11,7 @@
  *   <kind>:<n>     該種元素的前 n 個（逐一捲到畫面中、等方塊圖畫完再截）；kind 見 SELECTORS
  *   all-mermaid    該頁全部方塊圖
  * 其他選項：
- *   --mode beginner|engineer|research   學習模式（預設 engineer，和訪客第一次看到的一樣）
+ *   --mode beginner|engineer|research   學習模式（預設 beginner，和訪客第一次看到的一樣）
  *   --only 3,7,12                       只截指定序號的元素（序號與 diagram-audit 相同，從 1 起算）
  * 截元素之前會把收合的 <details> 全部展開。
  * 檔名：<route>__<viewport>-<theme>__<shot>-<i>.png
@@ -30,7 +30,7 @@ const routes = (args.routes ?? '/').split(',')
 const themes = (args.theme ?? 'light').split(',')
 const viewports = (args.viewport ?? 'desktop').split(',')
 const shots = (args.shots ?? 'top').split(',')
-const mode = args.mode ?? 'engineer'
+const mode = args.mode ?? 'beginner'
 const only = args.only ? new Set(args.only.split(',').map(Number)) : null
 const chrome = args.chrome ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 
@@ -132,7 +132,18 @@ try {
                     .waitForFunction((el) => !!el.querySelector('.c-mermaid-svg svg') || !!el.querySelector('.c-mermaid-error'), { timeout: 30000 }, h)
                     .catch(() => undefined)
                 }
-                if (kind === 'plot' || kind === 'exp') await sleep(2500)
+                if (kind === 'plot' || kind === 'exp') {
+                  // Plot 接近可視範圍才載入與繪製：先把元素裡每張圖逐一捲到畫面上，等 .main-svg 出現再截
+                  const gds = await h.$$('.c-plot-gd')
+                  for (const gd of gds) {
+                    await gd.evaluate((el) => el.scrollIntoView({ block: 'center' }))
+                    await page
+                      .waitForFunction((el) => !!el.querySelector('.main-svg') || !!el.parentElement?.querySelector('.c-plot-error'), { timeout: 30000 }, gd)
+                      .catch(() => undefined)
+                  }
+                  await h.evaluate((el) => el.scrollIntoView({ block: 'center' }))
+                  await sleep(kind === 'exp' ? 2500 : 800)
+                }
                 await sleep(500)
                 const box = await h.boundingBox()
                 if (!box || box.width < 2 || box.height < 2) continue

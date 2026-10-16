@@ -130,6 +130,12 @@ describe('Ch14 符號表放在章末（docs/teaching-style.md §5）', () => {
       fireEvent.click(back)
       expect(scrolled).toEqual(['symbols', 'symbols', 'ch14-top'])
       expect(container.querySelector('[id="ch14-top"]')).toBe(container.querySelector('.ch14'))
+      // 目錄的小節連結是真的連結（href = 目前路由 + ?a=id，中鍵／複製連結都能用），不是會被 HashRouter 當成路由的 #ch14-…
+      const tocLink = within(toc).getByText('14.8 策略比較') as HTMLAnchorElement
+      expect(tocLink.getAttribute('href')).toMatch(/\?a=ch14-compare$/)
+      expect(fireEvent.click(tocLink)).toBe(false)
+      expect(scrolled.at(-1)).toBe('ch14-compare')
+      expect(container.querySelector('nav[aria-label="本章目錄"] a[href^="#ch14-"]')).toBeNull()
     } finally {
       proto.scrollIntoView = saved
     }

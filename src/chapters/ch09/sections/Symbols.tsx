@@ -1,4 +1,4 @@
-import { SymbolTable, type SymbolEntry } from '@/components'
+import { SymbolTable, type SymbolEntry, ChRef } from '@/components'
 import { Erratum, m, scrollToSymbols } from '../shared'
 
 /**
@@ -17,7 +17,7 @@ const SYMBOLS: SymbolEntry[] = [
       </>
     ),
   },
-  { symbol: 'M', meaning: <>同時校正的參數個數（開場與 §9 的例子 {m`M=2`}；§9.2 的四相＋global offset {m`M=5`}）</>, unit: String.raw`\text{整數}`, firstSeen: '§9', note: <>粗體 {m`\mathbf M`}（例如 {m`\mathbf M=\mu\mathbf I`}）是第 10 章的步長矩陣，不是個數</> },
+  { symbol: 'M', meaning: <>同時校正的參數個數（開場與 §9 的例子 {m`M=2`}；§9.2 的四相＋global offset {m`M=5`}）</>, unit: String.raw`\text{整數}`, firstSeen: '§9', note: <>粗體 {m`\mathbf M`}（例如 {m`\mathbf M=\mu\mathbf I`}）是<ChRef ch="10">第 10 章</ChRef>的步長矩陣，不是個數</> },
   { symbol: String.raw`\mathbf a,\ \mathbf w_k`, meaning: <>真實參數／第 {m`k`} 個 GMAC block 使用的校正係數</>, unit: String.raw`\text{依校正對象（例如 fs）}`, firstSeen: '§9' },
   {
     symbol: String.raw`\boldsymbol\delta_k=\mathbf a-\mathbf w_k`,

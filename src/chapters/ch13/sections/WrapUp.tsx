@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { ClaimTag, Mermaid, ModeGate, Quiz, Recap, Section, StepDerivation, Tex, TexBlock } from '@/components'
+import { ClaimTag, Mermaid, ModeGate, Quiz, Recap, Section, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import { bernoulliMoments, efbConstant, efbPeriod, lineSpectrum, makeGrid } from '@/simulation/models/quantizer'
 import { Erratum, Hand, fx, tx } from '../common'
 import { CHART_HARDWARE_MAP, CHART_SYNTHESIS_FLOW } from '../diagrams'
@@ -153,7 +153,7 @@ export function WrapUp() {
         </p>
         <ul>
           <li>
-            <Tex>{String.raw`\Delta_\mathrm{LSB}`}</Tex>：DTC gain DAC 的 LSB（fs / unit code）。LSB 越小，量化誤差越不重要；與第 12 章的 <Tex>{String.raw`\sigma_w`}</Tex> 比較才能判斷誰主導。
+            <Tex>{String.raw`\Delta_\mathrm{LSB}`}</Tex>：DTC gain DAC 的 LSB（fs / unit code）。LSB 越小，量化誤差越不重要；與<ChRef ch="12">第 12 章</ChRef>的 <Tex>{String.raw`\sigma_w`}</Tex> 比較才能判斷誰主導。
           </li>
           <li>
             <Tex>{'f_u'}</Tex>：每個 reference cycle 更新（toggle / limit-cycle 的 code tone 在 <Tex>{String.raw`kf_\mathrm{ref}/5`}</Tex>，本身在 <Tex>{'T(f)'}</Tex> 之外；但它與 DSM residue 的諧波混頻後，差頻會落回通帶——§13.5b

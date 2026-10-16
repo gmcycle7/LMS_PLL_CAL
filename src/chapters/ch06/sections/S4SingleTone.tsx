@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Prereq, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Prereq, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import polaritySrc from '@/simulation/models/polarity.ts?raw'
 import {
   calPole,
@@ -57,7 +57,7 @@ export function S4SingleTone() {
         最簡單、也最能看清楚機制的情況：code 是單一頻率的正弦 <Tex>{'x[n]=A\\cos(\\Omega n)'}</Tex>，路徑在這個頻率的響應是{' '}
         <Tex>{'H(e^{j\\Omega})=|H|e^{j\\phi}'}</Tex>。這裡 <Tex>{'A'}</Tex> 是 code 的振幅，<Tex>{'\\Omega'}</Tex> 是離散角頻率（每個 sample 相位前進多少，單位{' '}
         <Tex>{'\\mathrm{rad/sample}'}</Tex>），<Tex>{'|H|'}</Tex> 是主 PLL 路徑在這個頻率的增益，<Tex>{'\\phi'}</Tex> 是它加上的相位。我們順便保留 GMAC 的 code delay{' '}
-        <Tex>{'D'}</Tex>（第 07 章要用）。
+        <Tex>{'D'}</Tex>（<ChRef ch="07">第 07 章</ChRef>要用）。
       </p>
 
       <Prereq title="積化和差：兩個餘弦相乘">
@@ -237,7 +237,7 @@ export function S4SingleTone() {
             ))}
           </tbody>
           <caption>
-            polarity margin <Tex>{'M=90^\\circ-|\\mathrm{wrap}_{180}(\\phi+\\Omega D)|'}</Tex>（規格 §8.1 的自訂指標；第 08 章）。<Tex>{'\\phi=90^\\circ'}</Tex>{' '}
+            polarity margin <Tex>{'M=90^\\circ-|\\mathrm{wrap}_{180}(\\phi+\\Omega D)|'}</Tex>（規格 §8.1 的自訂指標；<ChRef ch="08">第 08 章</ChRef>）。<Tex>{'\\phi=90^\\circ'}</Tex>{' '}
             的「時域」欄只剩捨入誤差。
           </caption>
         </table>
@@ -254,7 +254,7 @@ export function S4SingleTone() {
       <Callout kind="warn" title={String.raw`$\pm90^\circ$ 不是 Bode phase margin`}>
         <p>
           這裡的 <Tex>{'\\pm90^\\circ'}</Tex> 是<strong>單頻相關性的符號界線</strong>：主 PLL 在這個頻率把誤差轉了多少相位。它和主 PLL 自己的 phase margin、
-          也和 LMS 迴路 <Tex>{'L_{\\mathrm{cal}}(z)=g/(z-1)'}</Tex> 的 phase margin 都不是同一件事（第 08 章）。主 PLL 本身很穩定，
+          也和 LMS 迴路 <Tex>{'L_{\\mathrm{cal}}(z)=g/(z-1)'}</Tex> 的 phase margin 都不是同一件事（<ChRef ch="08">第 08 章</ChRef>）。主 PLL 本身很穩定，
           GMAC 的更新方向仍然可能是錯的。
         </p>
       </Callout>

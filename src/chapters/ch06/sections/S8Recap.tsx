@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { ClaimTag, Quiz, Recap, Tex, TexBlock } from '@/components'
+import { ClaimTag, Quiz, Recap, Tex, TexBlock, ChRef } from '@/components'
 import { calPole, ctHpd, kqFromSigma, naiveCtWhiteCorrelation, toneCorrelation } from '@/simulation/models/polarity'
 import { ChapterDiagram, ChapterHandCalc, ChapterSection, fx, radOf } from '../shared'
 
@@ -16,7 +16,7 @@ export function S8Recap() {
   return (
     <ChapterSection id="ch06-s8" kicker="§8" title="比較、綜合手算、思考題與本課必記">
       <h3>
-        怎麼讓 <Tex>{'C'}</Tex> 變回正的？三種 regressor 的比較（第 07 章詳述）
+        怎麼讓 <Tex>{'C'}</Tex> 變回正的？三種 regressor 的比較（<ChRef ch="07">第 07 章</ChRef>詳述）
       </h3>
       <p>
         極性錯了，要改的是 GMAC 拿來相乘的那個訊號（regressor），不是 <Tex>{'\\mu'}</Tex>。常見的選擇有三種，先看圖再看表：
@@ -295,7 +295,7 @@ export function S8Recap() {
       </div>
       <p>
         <strong>下一個值得研究的問題：</strong>既然 raw <Tex>{'x'}</Tex> 會被 PLL 的相位「騙」，那是加幾個 delay register 就好（delay alignment），
-        還是要在 GMAC 前放一個 PLL 模型（filtered-x）？兩者對多頻 DSM code、模型誤差與 FCW 改變的強健性差在哪裡？→ 第 07 章。
+        還是要在 GMAC 前放一個 PLL 模型（filtered-x）？兩者對多頻 DSM code、模型誤差與 FCW 改變的強健性差在哪裡？→ <ChRef ch="07">第 07 章</ChRef>。
       </p>
     </ChapterSection>
   )

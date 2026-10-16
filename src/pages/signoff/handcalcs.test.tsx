@@ -92,13 +92,14 @@ const INDEPENDENT: Record<string, (v: Record<string, number>) => number[]> = {
       const disc = 1 - 4 * gS
       rhoS = disc >= 0 ? Math.max(Math.abs((1 + Math.sqrt(disc)) / 2), Math.abs((1 - Math.sqrt(disc)) / 2)) : Math.hypot(0.5, Math.sqrt(-disc) / 2)
     }
-    // k95：不用 ln，直接連乘到 ρᵏ ≤ 0.05
-    let k = 1
-    let r = rhoS
-    while (r > 0.05) {
-      r *= rhoS
-      k++
+    // k95：不用 ln、不用 ρᵏ——直接跑平均遞迴 y_{k+1} = y_k − g_S·y_{k−d}（初始歷史 y_j = 1），取「最後一次 |y| > 0.05」的下一個 block
+    const y = new Array<number>(d + 1).fill(1)
+    let last = 0
+    for (let n = 1; n < 20000; n++) {
+      y.push(y[y.length - 1] - gS * y[y.length - 1 - d])
+      if (Math.abs(y[y.length - 1]) > 0.05) last = n
     }
+    const k = last + 1
     return [gF, pm, rhoS, k]
   },
 }
@@ -394,7 +395,8 @@ describe('Sign-off 手算題：預設值 = 本頁 worked example，答案 = judg
     expect(k95).toBe(slow.settle95)
     // PM 與封閉式獨立的數值 crossover 相符（judges.pmNumeric）
     close(pm, J.pmNumeric(gF, C.d), 1e-9)
-    // k95 的意義：ρ^k95 ≤ 0.05 < ρ^(k95 − 1)
+    // 預設題的 g_S = 0.0399 離重根很遠：逐 block 的 k95 = ρ 漸近估計 = 71（ρ^k95 ≤ 0.05 < ρ^(k95 − 1)）；兩者不同的反例見下面的 R02／A6 測試
+    expect(slow.settleAsym).toBe(k95)
     expect(rhoS ** k95).toBeLessThanOrEqual(0.05)
     expect(rhoS ** (k95 - 1)).toBeGreaterThan(0.05)
     expect(k95).toBe(71)
@@ -643,52 +645,157 @@ describe('Sign-off 手算題：渲染', () => {
     expect(container.querySelector('.callout-warn')?.textContent).toContain('不可辨識')
   })
 
-  it('技術審查 R02：HC-SO.4 的 k95——d = 0 時是精確值，d = 1 時只是用 ρ_S 的漸近衰減率估計（ρ_S^k 不是誤差的包絡）', () => {
+  // 逐 block 的平均遞迴 y_{k+1} = y_k − g·y_{k−d}（初始歷史都是 1）：回傳 y_{−1}…y_n（索引 k + 1）
+  const trajectory = (g: number, d: number, n = 4000): number[] => {
+    const y = new Array<number>(d + 1).fill(1)
+    for (let k = 1; k <= n; k++) y.push(y[y.length - 1] - g * y[y.length - 1 - d])
+    return y.slice(d) // y[0] = y_0
+  }
+  /** 1 + 最後一次 |y_k| > 5% 的 k */
+  const settle = (g: number, d: number) => {
+    const y = trajectory(g, d)
+    let last = 0
+    y.forEach((v, k) => {
+      if (k > 0 && Math.abs(v) > 0.05) last = k
+    })
+    return last + 1
+  }
+  // 讓最慢的 corner 的 g_S 恰好等於指定值：θ_S = 0、σ_S = 100 ⇒ g_S = μ·K_q(100)
+  const hcAt = (def: HandCalcDef, gS: number, d: number, B = 10000) => ({ ...defaultValues(def), sigmaF: 100, thetaF: 0, sigmaS: 100, thetaS: 0, mu: gS / J.kq(100), d, B, pmT: 0 })
+  const stepStarting = (def: HandCalcDef, v: Record<string, number>, prefix: string) => def.solve(v).steps.find((s) => s.tex.startsWith(prefix))
+
+  it('技術審查 R02／A6：HC-SO.4 的 k95 是逐 block 數出來的（和判斷器同一個函式）；⌈ln0.05/ln ρ_S⌉ 另列成「ρ 漸近估計」步驟——d = 1、g_S = 1/4 時 5 vs 7', () => {
     const def = handcalc('HC-SO.4')
-    // 逐 block 的平均遞迴 δ_{k+1} = δ_k − g·δ_{k−d}（初始歷史都是 1）：1 + 最後一次 |δ_k| > 5% 的 k
-    const settle = (g: number, d: number) => {
-      const y = new Array<number>(d + 1).fill(1)
-      let last = 0
-      for (let k = 1; k < 4000; k++) {
-        y.push(y[y.length - 1] - g * y[y.length - 1 - d])
-        if (Math.abs(y[y.length - 1]) > 0.05) last = k
-      }
-      return last + 1
-    }
-    const k95Why = (v: Record<string, number>) => def.solve(v).steps.find((s) => s.tex.startsWith('k_{95}='))!.why as string
-    // 讓最慢的 corner 的 g_S 恰好等於指定值：θ_S = 0、σ_S = 100 ⇒ g_S = μ·K_q(100)
-    const at = (gS: number, d: number) => ({ ...defaultValues(def), sigmaF: 100, thetaF: 0, sigmaS: 100, thetaS: 0, mu: gS / J.kq(100), d, B: 10000, pmT: 0 })
-    // 反例：d = 1、g_S = 1/4 是重根 z = 1/2——公式給 5，逐 block 算要 7（相對差 40%，是 d = 1 時最大的）
-    const dbl = def.solve(at(0.25, 1))
+    // 反例：d = 1、g_S = 1/4 是重根 z = 1/2——ρ 漸近估計給 5，逐 block 數要 7（相對差 40%，是 d = 1 時最大的）
+    const v = hcAt(def, 0.25, 1)
+    const dbl = def.solve(v)
     close(dbl.results[2].value, 0.5, 1e-6)
-    expect(dbl.results[3].value).toBe(5)
+    expect(dbl.results[3].value).toBe(7) // 答案是逐 block 的（舊版這裡是 5）
     expect(settle(0.25, 1)).toBe(7)
-    const why1 = k95Why(at(0.25, 1))
-    expect(why1).toContain('漸近衰減率估計')
-    expect(why1).toContain(String.raw`$\rho_S^{\,k}$ 不是它的包絡`)
-    expect(why1).toContain(String.raw`公式給 $5$，從定值的初始歷史逐 block 算要 $7$`)
-    expect(why1).not.toContain('誤差包絡')
-    expect(why1).not.toContain('越接近')
-    // 「相對差距在 1/4 附近最大」：掃 d = 1 的 g ∈ (0, 1)，相對差的最大值就是 2/5，出現在 0.25 附近
+    const asym = stepStarting(def, v, 'k_{95}^{(\\rho)}=')!
+    expect(asym.tex).toContain(String.raw`\left\lceil4.3219\right\rceil=5`)
+    expect(asym.why).toContain('漸近衰減率')
+    expect(asym.why).toContain(String.raw`$\rho_S^{\,k}$ 不是它的包絡`)
+    expect(asym.why).toContain(String.raw`估計給 $5$，從定值的初始歷史逐 block 數要 $7$`)
+    expect(asym.why).not.toContain('誤差包絡')
+    expect(asym.why).not.toContain('越接近')
+    // 之後是逐 block 的驗證：重根 y_k = (k + 2)/2^{k+1}，y_6 = 0.0625 > 0.05 ≥ y_7 = 0.035156
+    const tex = dbl.steps.map((s) => s.tex)
+    expect(tex).toContain(String.raw`y_{6}=\frac{6+2}{2^{6+1}}=\frac{8}{128}=0.0625>0.05`)
+    expect(tex).toContain(String.raw`y_{7}=\frac{7+2}{2^{7+1}}=\frac{9}{256}=0.035156\le0.05`)
+    expect(tex[tex.length - 1]).toBe(String.raw`k_{95}=k_\text{last}+1=6+1=7`)
+    // B = 6：舊判法（漸近估計 5 ≤ 6）給綠燈，逐 block 的 7 > 6 來不及；B = 7 才來得及
+    expect(def.solve({ ...v, B: 6 }).notes!.join('')).toContain('來不及收斂')
+    expect(def.solve({ ...v, B: 7 }).notes!.join('')).toContain('兩個 corner 都通過')
+    // 「相對差距在 1/4 附近最大」：掃 d = 1 的 g ∈ (0, 1)，答案都等於暴力遞推，相對差的最大值就是 2/5
     let worst = { rel: 0, g: 0 }
     for (let i = 1; i < 199; i++) {
       const g = i / 200
-      const formula = def.solve(at(g, 1)).results[3].value
-      const rel = Math.abs(settle(g, 1) - formula) / formula
+      const r = def.solve(hcAt(def, g, 1)).results[3].value
+      expect(r, `g=${g}`).toBe(settle(g, 1))
+      const asymG = Math.ceil(Math.log(0.05) / Math.log(J.delayPoles(g, 1).rho))
+      const rel = Math.abs(r - asymG) / asymG
       if (rel > worst.rel) worst = { rel, g }
     }
     expect(worst.rel).toBeCloseTo(0.4, 12)
     expect(Math.abs(worst.g - 0.25)).toBeLessThan(0.02)
-    // 另一個方向：公式也可能多算（g_S = 0.8：公式 27、逐 block 26）
-    expect(def.solve(at(0.8, 1)).results[3].value).toBe(27)
+    // 另一個方向：g_S = 0.8 時估計 27、逐 block 26
+    const v8 = hcAt(def, 0.8, 1)
+    expect(def.solve(v8).results[3].value).toBe(26)
+    expect(stepStarting(def, v8, 'k_{95}^{(\\rho)}=')!.tex).toContain(String.raw`=27`)
     expect(settle(0.8, 1)).toBe(26)
-    // 正常對照：d = 0 時公式就是逐 block 的結果，說明文字不加「估計」
-    for (const g of [0.005, 0.039894, 0.25, 0.5, 0.9]) expect(def.solve(at(g, 0)).results[3].value, `g=${g}`).toBe(settle(g, 0))
-    const why0 = k95Why(at(0.25, 0))
-    expect(why0).toContain('剛好乘上')
-    expect(why0).not.toContain('估計')
-    // 預設題（g_S = 0.039894、d = 1）：公式 71，逐 block 也是 71
-    expect(def.solve(defaultValues(def)).results[3].value).toBe(71)
+    // 正常對照：d = 0 時估計就是逐 block 的結果，只有一個 k_{95} 步驟，說明文字不叫「估計」
+    for (const g of [0.005, 0.039894, 0.25, 0.5, 0.9]) expect(def.solve(hcAt(def, g, 0)).results[3].value, `g=${g}`).toBe(settle(g, 0))
+    const v0 = hcAt(def, 0.25, 0)
+    const k0 = stepStarting(def, v0, 'k_{95}=')!
+    expect(k0.why).toContain('剛好乘上')
+    expect(k0.why).not.toContain('估計')
+    expect(stepStarting(def, v0, 'k_{95}^{(\\rho)}=')).toBeUndefined()
+    // 預設題（g_S = 0.039894、d = 1）：估計 71、逐 block 也是 71，步驟兩個都列
+    const dflt = def.solve(defaultValues(def))
+    expect(dflt.results[3].value).toBe(71)
     expect(settle(10 * J.kq(100) * Math.cos(Math.PI / 3), 1)).toBe(71)
+    expect(dflt.steps.at(-1)!.why).toContain('和 $\\rho$ 漸近估計相同')
+  })
+
+  it('A6：HC-SO.4 d = 1 的逐 block 驗證步驟——實根、重根、複根三種，畫面上 y_{k95−1} > 0.05 ≥ y_{k95} 的數字都等於暴力遞推', () => {
+    const def = handcalc('HC-SO.4')
+    // g_S：0.039894（預設）、0.15、0.2（實根）；0.25（重根）；0.3、0.5、0.8（複根）
+    for (const g of [0.039894, 0.15, 0.2, 0.249, 0.25, 0.3, 0.5, 0.8]) {
+      const v = hcAt(def, g, 1)
+      expect(def.validate!(v), `g=${g}`).toBeNull()
+      const sol = def.solve(v)
+      const k2 = sol.results[3].value
+      const k1 = k2 - 1
+      expect(k2, `g=${g}`).toBe(settle(g, 1))
+      const y = trajectory(g, 1)
+      const shown = sol.steps.filter((s) => /^\|?y_\{\d+\}\|?=/.test(s.tex))
+      expect(shown, `g=${g}`).toHaveLength(2)
+      shown.forEach((s, i) => {
+        const k = i === 0 ? k1 : k2
+        expect(s.tex.startsWith(`${s.tex.includes('|y_') ? '|' : ''}y_{${k}}`), s.tex).toBe(true)
+        const m = /=([0-9.]+)(>|\\le)0\.05$/.exec(s.tex)
+        expect(m, s.tex).toBeTruthy()
+        // 畫面上的數字就是 |y_k|（複根時是絕對值）：與暴力遞推相符到顯示的位數
+        close(Number(m![1]), Math.abs(y[k]), 1e-4, 1e-9, `g=${g} k=${k}`)
+        // 方向：k95 − 1 在 0.05 之上、k95 在 0.05 之下（或剛好）
+        expect(m![2] === '>', `g=${g} k=${k}`).toBe(i === 0)
+        expect(Math.abs(y[k]) > 0.05, `g=${g} k=${k}`).toBe(i === 0)
+      })
+      // 每個等號只做一次基本運算的精神：冪、除法的中間量都在式子裡；根與相角的步驟與題目其他地方一致
+      const text = sol.steps.map((s) => s.tex).join('\n')
+      if (g < 0.25) expect(text).toContain('z_2=1-z_1')
+      if (g > 0.25) expect(text).toContain(String.raw`\varphi=\arccos`)
+      if (g === 0.25) expect(text).toContain('2^{')
+      expect(sol.steps.at(-1)!.tex).toBe(String.raw`k_{95}=k_\text{last}+1=${k1}+1=${k2}`)
+    }
+    // 複根的說明誠實：紙筆只能驗證夾住 5% 的兩項
+    const cplx = def.solve(hcAt(def, 0.5, 1)).steps.map((s) => s.why).join('')
+    expect(cplx).toContain('正負交替')
+    expect(cplx).toContain('逐 block 數到暫態消失為止')
+    // 實根的說明：單調遞減，所以之後不會再超過
+    expect(def.solve(hcAt(def, 0.15, 1)).steps.map((s) => s.why).join('')).toContain('單調遞減')
+  })
+
+  it('A6：HC-SO.4 極慢的 mode（逐 block 在 2×10⁶ 步內數不完）改列漸近估計當下界，標 ≥ 並說明；題目照樣可以渲染', () => {
+    const def = handcalc('HC-SO.4')
+    const v = { ...hcAt(def, 1e-6, 1), B: 1000 }
+    expect(def.validate!(v)).toBeNull()
+    const sol = def.solve(v)
+    expect(sol.results[3].value).toBe(J.cornerJudge([{ name: 's', sigmaV: 100, thetaDeg: 0 }], { mu: v.mu, d: 1, pmTargetDeg: 0, B: 1000, N: 4096, sigmaWMax: Infinity })[0].settleAsym)
+    expect(sol.steps.at(-1)!.tex).toMatch(/^k_\{95\}\\ge k_\{95\}\^\{\(\\rho\)\}=\d+$/)
+    expect(sol.steps.at(-1)!.why).toContain('下界')
+    expect(sol.notes!.join('')).toContain(String.raw`$k_{95}\ge`)
+    expect(sol.notes!.join('')).toContain('來不及收斂')
+    const { container, unmount } = render(<HandCalc def={withValues(def, v)} />)
+    expect(container.querySelector('.katex-error')).toBeNull()
+    unmount()
+  })
+
+  it('A6：HC-SO.4 的 practice 範圍（13824 種組合）逐 block 的 k95 都等於暴力遞推，而且判定與 ρ 漸近估計一致（沒有任何「換一題」會因這次修正而翻盤）', () => {
+    const def = handcalc('HC-SO.4')
+    const lists = def.inputs.map((i) => i.practice!.choices!)
+    const keys = def.inputs.map((i) => i.key)
+    const total = lists.reduce((n, l) => n * l.length, 1)
+    expect(total).toBe(13824)
+    const cache = new Map<string, number>()
+    const idx = new Array<number>(lists.length).fill(0)
+    let differ = 0
+    for (let c = 0; c < total; c++) {
+      const v = Object.fromEntries(keys.map((k, i) => [k, lists[i][idx[i]]]))
+      const sol = def.solve(v)
+      const gS = v.mu * J.kq(v.sigmaS) * Math.cos(v.thetaS * RAD)
+      const key = `${gS}|${v.d}`
+      if (!cache.has(key)) cache.set(key, settle(gS, v.d))
+      expect(sol.results[3].value, key).toBe(cache.get(key))
+      const asym = Math.max(1, Math.ceil(Math.log(0.05) / Math.log(sol.results[2].value)))
+      if (asym !== sol.results[3].value) differ++
+      expect(asym <= v.B, `${JSON.stringify(v)}：估計 ${asym}、逐 block ${sol.results[3].value}`).toBe(sol.results[3].value <= v.B)
+      for (let i = 0; i < idx.length; i++) {
+        if (++idx[i] < lists[i].length) break
+        idx[i] = 0
+      }
+    }
+    expect(differ).toBe(0) // practice 的 g_S 都在 0.17 以下（實根、遠離重根）：估計與逐 block 的數字本來就相同
   })
 })

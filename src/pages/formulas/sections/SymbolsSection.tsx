@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Callout, Prereq, Section, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, Prereq, Section, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import { erf } from '@/simulation/core'
 import { refValues } from '../refValues'
 import { SYMBOL_GROUP_LABEL, SYMBOL_GROUP_ORDER, GLOBAL_SYMBOLS, SYMBOL_COLLISIONS, type GlobalSymbol, type SymbolCollision } from '../symbols'
@@ -129,7 +129,7 @@ export function SymbolsSection({ rows, collisions, searching }: { rows: GlobalSy
             <TexBlock>{String.raw`u[1]=h[0]x[1]+h[1]x[0]=${convH[0]}\cdot${convX[1]}+(${convH[1]})\cdot${convX[0]}=${texNum(convU[1])},\qquad u[2]=${convH[0]}\cdot${convX[2]}+(${convH[1]})\cdot${convX[1]}=${texNum(convU[2])}`}</TexBlock>
             <p>
               相關 <Tex>{'E[xu]'}</Tex> 是「兩個量相乘之後的長時間平均」：兩者多半同號時為正、多半反號時為負。GMAC 平均往哪個方向推係數，就看{' '}
-              <Tex>{'C=E[xu]'}</Tex> 的正負——PLL 的 error path（<Tex>{String.raw`H_{\mathrm{PD}}`}</Tex>）是一個濾波器，它會改變 <Tex>{'C'}</Tex>，甚至讓它變號（第 6 章）。
+              <Tex>{'C=E[xu]'}</Tex> 的正負——PLL 的 error path（<Tex>{String.raw`H_{\mathrm{PD}}`}</Tex>）是一個濾波器，它會改變 <Tex>{'C'}</Tex>，甚至讓它變號（<ChRef ch="06">第 6 章</ChRef>）。
             </p>
           </Prereq>
         </div>

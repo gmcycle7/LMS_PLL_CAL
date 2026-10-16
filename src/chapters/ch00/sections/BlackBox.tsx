@@ -9,6 +9,7 @@ import {
   StepDerivation,
   Tex,
   TexBlock,
+  ChRef,
 } from '@/components'
 import { useSettings } from '@/app/settings'
 import { conventionalStep } from '@/simulation/models/lms'
@@ -506,7 +507,7 @@ export function UpdateFormulaSection() {
       </div>
       <p className="small">
         <ClaimTag kind="exact" /> 這是演算法的定義，不是近似。<SourceTag kind="illustrative" /> 本章所有數字都是教學例，沒有單位（無因次）；
-        在 PLL 校正中 <Tex>{'a,w'}</Tex> 的單位是 fs／code，<Tex>{'\\mu'}</Tex> 的單位要跟著 scaling 一起寫清楚（見 Ch04、Ch12）。
+        在 PLL 校正中 <Tex>{'a,w'}</Tex> 的單位是 fs／code，<Tex>{'\\mu'}</Tex> 的單位要跟著 scaling 一起寫清楚（見 <ChRef ch="04">Ch04</ChRef>、<ChRef ch="12">Ch12</ChRef>）。
       </p>
     </Section>
   )

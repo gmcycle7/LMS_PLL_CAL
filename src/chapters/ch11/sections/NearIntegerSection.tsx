@@ -16,6 +16,7 @@ import {
   useThemeTokens,
   type CheckEntry,
   type MetricRow,
+  ChRef,
 } from '@/components'
 import { isWorkerCancelled, useWorkerTask } from '@/workers'
 import biasSrc from '@/simulation/models/bias.ts?raw'
@@ -313,12 +314,12 @@ export function NearIntegerSection() {
       </p>
       <p className="small">
         <Erratum id="E12" note="此處 C = E[x(h*x)] 同 §6；B 為干擾 bias 項" />
-        注意符號：這裡的 <Tex>{'C'}</Tex> 是 Ch06 的有效相關 <Tex>{String.raw`C=E[x\,(h*x)]`}</Tex>（gain 誤差經過主 PLL 誤差路徑 <Tex>{'h'}</Tex> 才出現在 PD 的輸出），<Tex>{'B'}</Tex> 是 F-11.4
+        注意符號：這裡的 <Tex>{'C'}</Tex> 是 <ChRef ch="06">Ch06</ChRef> 的有效相關 <Tex>{String.raw`C=E[x\,(h*x)]`}</Tex>（gain 誤差經過主 PLL 誤差路徑 <Tex>{'h'}</Tex> 才出現在 PD 的輸出），<Tex>{'B'}</Tex> 是 F-11.4
         的分子 <Tex>{String.raw`B_\mathrm{bias}=bE[x]+E[xd]+E[x\varepsilon_{cc}]`}</Tex>。規格書兩處都寫成 <Tex>{'E[x\\,u]'}</Tex>，但它們不是同一個量。
       </p>
       <p className="small">
         <Erratum id="E13" note="K = K_qC = −∂E[G]/∂w；規格 §11.4 的 S = ∂E[G]/∂w" />
-        斜率的正負號：規格書 §11.4 把 GMAC 斜率寫成 <Tex>{String.raw`S_\mathrm{GMAC}=\partial E[G]/\partial w`}</Tex>（正確極性時為<strong>負</strong>，Ch04／Ch08 與 Sign-off
+        斜率的正負號：規格書 §11.4 把 GMAC 斜率寫成 <Tex>{String.raw`S_\mathrm{GMAC}=\partial E[G]/\partial w`}</Tex>（正確極性時為<strong>負</strong>，<ChRef ch="04">Ch04</ChRef>／<ChRef ch="08">Ch08</ChRef> 與 Sign-off
         頁沿用這個量測定義）。本章為了讓「越大越好」的直覺成立，用 <Tex>{String.raw`S\equiv-\partial E[G]/\partial w=K_qC`}</Tex>，它就是全站的{' '}
         <Tex>{'K'}</Tex>（勘誤 E13）：<Tex>{String.raw`S=K=-S_\mathrm{GMAC}`}</Tex>，<Tex>{'S>0'}</Tex> 才有恢復力。
       </p>
@@ -516,12 +517,12 @@ export function NearIntegerSection() {
             有效 GMAC 敏感度 / 極性：<Tex>{String.raw`S=-\partial E[G]/\partial w\approx K_qC`}</Tex> 的大小與正負號（<Tex>{'S\\le0'}</Tex> ⇒ 極性錯誤）。
           </li>
           <li>
-            PE 的最小 eigenvalue（Ch09）：多參數時 <Tex>{'C'}</Tex> 變成矩陣 <Tex>{'\\mathbf C'}</Tex>，看 <Tex>{String.raw`\lambda_\mathrm{min}`}</Tex>。
+            PE 的最小 eigenvalue（<ChRef ch="09">Ch09</ChRef>）：多參數時 <Tex>{'C'}</Tex> 變成矩陣 <Tex>{'\\mathbf C'}</Tex>，看 <Tex>{String.raw`\lambda_\mathrm{min}`}</Tex>。
           </li>
           <li>
-            Gain bias、calibration noise（固定 <Tex>{'\\mu'}</Tex> 時 <Tex>{String.raw`\sigma_w\propto1/\sqrt S`}</Tex>，Ch12）、收斂時間（<Tex>{String.raw`\propto1/(\mu S)`}</Tex> blocks）。
+            Gain bias、calibration noise（固定 <Tex>{'\\mu'}</Tex> 時 <Tex>{String.raw`\sigma_w\propto1/\sqrt S`}</Tex>，<ChRef ch="12">Ch12</ChRef>）、收斂時間（<Tex>{String.raw`\propto1/(\mu S)`}</Tex> blocks）。
           </li>
-          <li>Fractional spur / output jitter（Ch12、Ch13）。</li>
+          <li>Fractional spur / output jitter（<ChRef ch="12">Ch12</ChRef>、<ChRef ch="13">Ch13</ChRef>）。</li>
         </ol>
         <p>
           先看 <FigRef id="slope-measure" /> 的上半：選一個 FCW、等 LMS 收斂後把 gain 凍結在 <Tex>{'w+\\Delta'}</Tex> 與 <Tex>{'w-\\Delta'}</Tex>（<Tex>{String.raw`\Delta`}</Tex>{' '}

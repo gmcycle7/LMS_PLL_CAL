@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from 'react'
-import { Callout, ClaimTag, Tex } from '@/components'
+import { Callout, ClaimTag, Tex, ChRef } from '@/components'
 import { ALL_PRESETS } from '@/app/presets'
 import { PAGES } from '@/app/registry'
 import { auditSlots, experimentName, invalidGalleryIndices, PREVIEWABLE_EXPERIMENTS, type SlotAudit as SlotAuditRow } from '../data'
@@ -37,7 +37,7 @@ export function SlotAudit({ audit }: { audit: SlotAuditRow[] }) {
           <strong>頁面在網站目錄中</strong>：<code>preset.page</code> 是 <code>src/app/registry.ts</code> 的路由，否則「載入並執行」會落到「找不到此頁面」。
         </li>
         <li>
-          <strong>頁面與實驗與規格一致</strong>：例如 #3 必須在 Ch06 的 <code>polarity-explorer</code>。
+          <strong>頁面與實驗與規格一致</strong>：例如 #3 必須在 <ChRef ch="06">Ch06</ChRef> 的 <code>polarity-explorer</code>。
         </li>
         <li>
           <strong>T-id 齊全</strong>：preset 的 <code>tests</code> 包含規格 §17 對應的編號。

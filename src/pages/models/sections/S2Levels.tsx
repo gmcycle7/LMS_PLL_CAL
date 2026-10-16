@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Callout, ClaimTag, ModelLevel, Section, Tex, type ModelLevelId } from '@/components'
+import { Callout, ClaimTag, ModelLevel, Section, Tex, type ModelLevelId, ChRef } from '@/components'
 import { ChLink, Diagram, ErratumNote, md } from '../common'
 import { LEVEL_CHART } from '../diagrams'
 
@@ -186,7 +186,7 @@ export function S2Levels() {
       <Section kind="assumptions" title="怎麼選層級？" level={3}>
         <ul>
           <li>
-            問「<Tex>{'\\mu'}</Tex> 該設多大、<Tex>{'N'}</Tex> 該設多大」→ <ModelLevel level="L1" /> 的封閉式就夠（Ch12、Ch14），再用 L1 Monte Carlo 驗證。
+            問「<Tex>{'\\mu'}</Tex> 該設多大、<Tex>{'N'}</Tex> 該設多大」→ <ModelLevel level="L1" /> 的封閉式就夠（<ChRef ch="12">Ch12</ChRef>、<ChRef ch="14">Ch14</ChRef>），再用 L1 Monte Carlo 驗證。
           </li>
           <li>
             問「PLL 的 phase shift 會不會讓更新反向」→ 至少 <ModelLevel level="L2" />：必須有<strong>狀態持續</strong>的 <Tex>{'H_\\mathrm{PD}(z)'}</Tex>，不能每個 block 重置。

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Callout, ClaimTag, CodeBlock, ModeGate, Prereq, Section, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeBlock, ModeGate, Prereq, Section, Tex, TexBlock, ChRef } from '@/components'
 import jsonLabSrc from '../experiments/jsonLabModel.ts?raw'
 import { ar1EffectiveSamples, ar1RelSeStd, ar1SeMean } from '../experiments/jsonLabModel'
 import { ChLink, HandCalcSlot, Steps, md, texNum } from '../common'
@@ -128,7 +128,7 @@ export function S6Outputs() {
       </div>
       <Section kind="assumptions" title="為什麼要這麼多輸出？" level={3}>
         <p>
-          因為單一數字可以騙人：<strong>GMAC 歸零</strong>不代表 bias 為零（§3.5）；<strong><Tex>{'\\sigma_w'}</Tex> 很小</strong>不代表 output jitter 小（gain noise 要再乘 code、經 <Tex>{'T(z)'}</Tex>，Ch12）；<strong>一條 FFT 沒有峰</strong>不代表沒有 spur（§8）；
+          因為單一數字可以騙人：<strong>GMAC 歸零</strong>不代表 bias 為零（§3.5）；<strong><Tex>{'\\sigma_w'}</Tex> 很小</strong>不代表 output jitter 小（gain noise 要再乘 code、經 <Tex>{'T(z)'}</Tex>，<ChRef ch="12">Ch12</ChRef>）；<strong>一條 FFT 沒有峰</strong>不代表沒有 spur（§8）；
           <strong>8 個 seed 都收斂</strong>不代表全域穩定（§10）。每個結論都要能追溯到「哪個模型、哪組參數、哪個 seed、哪一版程式」。
         </p>
       </Section>

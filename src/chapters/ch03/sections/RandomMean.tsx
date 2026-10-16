@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, ModeGate, Prereq, Section, SourceTag, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, ModeGate, Prereq, Section, SourceTag, Tex, TexBlock, ChRef } from '@/components'
 import { createRng, erf, normSf } from '@/simulation/core'
 import { meanPole } from '@/simulation/models/lms'
 import { drawX, stabilityBounds, xMoments, type XDist } from '@/simulation/models/scalarStability'
@@ -227,7 +227,7 @@ export function RandomMeanSection() {
         <Callout kind="info" title={<>精確式，不是 independence approximation <Erratum id="E38" /></>}>
           規格 §3.1 寫「假設 <Tex>{T`x_n`}</Tex> 為 iid、且和前一輪係數誤差獨立」。後半句其實是<strong>自動成立</strong>的（上面第 3 步），所以對 iid 純量 <Tex>x</Tex>（<Tex>{T`M_4`}</Tex> 有限、雜訊零均值且與 <Tex>x</Tex> 獨立），
           mean 與 mean-square 遞迴都是 <strong>[精確｜指定模型]</strong>。反過來，若 regressor 有時間相關——例如 tapped delay line，或第 6–7 章經過 PLL error path 的{' '}
-          <Tex>{T`u=h*x`}</Tex>（<Tex>h</Tex> 是 error path 的脈衝響應、<Tex>{T`*`}</Tex> 是卷積，也就是把 <Tex>x</Tex> 的過去幾筆加權相加；第 6 章從頭說明）——<Tex>{T`x_n`}</Tex> 與 <Tex>{T`\delta_n`}</Tex> 不再獨立，同樣的公式降為 <strong>[近似｜需驗證]</strong>。
+          <Tex>{T`u=h*x`}</Tex>（<Tex>h</Tex> 是 error path 的脈衝響應、<Tex>{T`*`}</Tex> 是卷積，也就是把 <Tex>x</Tex> 的過去幾筆加權相加；<ChRef ch="06">第 6 章</ChRef>從頭說明）——<Tex>{T`x_n`}</Tex> 與 <Tex>{T`\delta_n`}</Tex> 不再獨立，同樣的公式降為 <strong>[近似｜需驗證]</strong>。
           （<strong>相關</strong> correlation：相鄰 sample 彼此有關，例如 <Tex>{T`E[x_nx_{n-1}]\ne0`}</Tex>；此時 <Tex>{T`x_n`}</Tex> 透過 <Tex>{T`x_{n-1}`}</Tex> 與 <Tex>{T`\delta_n`}</Tex> 牽連在一起。）
         </Callout>
       </Section>

@@ -1,4 +1,4 @@
-import { SymbolTable, Tex, mathText, type SymbolEntry } from '@/components'
+import { SymbolTable, Tex, mathText, type SymbolEntry, ChRef } from '@/components'
 import { Erratum, scrollBackFromSymbols, tn } from '../common'
 import { NUM } from '../numbers'
 
@@ -304,7 +304,7 @@ export function S7Symbols() {
         caption={
           <>
             「首次出現」為本頁段落編號（規格對應段落見各節標題旁）。單位約定：時間誤差一律 fs；code / regressor 已正規化（無因次）。本章例子常把 <Tex>{'K_q'}</Tex> 正規化為 1（即取{' '}
-            <Tex>{String.raw`\sigma_v=\sqrt{2/\pi}\ \mathrm{fs}`}</Tex>），此時會明寫；換成第 5 章的{' '}
+            <Tex>{String.raw`\sigma_v=\sqrt{2/\pi}\ \mathrm{fs}`}</Tex>），此時會明寫；換成<ChRef ch="05">第 5 章</ChRef>的{' '}
             <Tex>{String.raw`K_q=${tn(NUM.Kq, 6)}\ \mathrm{fs}^{-1}`}</Tex>（<Tex>{String.raw`\sigma_v=100\ \mathrm{fs}`}</Tex>）時數字會差兩個數量級。
           </>
         }

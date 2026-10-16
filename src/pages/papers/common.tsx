@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ClaimTag, CodeBlock, CodeCompare, HandCalc, Mermaid, ModeGate, Prereq, Tex, TexBlock, mathText } from '@/components'
+import { ClaimTag, CodeBlock, CodeCompare, HandCalc, Mermaid, ModeGate, Prereq, Tex, TexBlock, mathText, ChRef } from '@/components'
 import bridgeSrc from './bridge.ts?raw'
 import { formulaById } from './formulas'
 import { handcalc } from './handcalcs'
@@ -327,7 +327,7 @@ export function PrereqGaussianKq() {
       </p>
       <TexBlock>{r`E[q]=2\Phi(s/\sigma_v)-1\approx 2\,\Phi'(0)\,\frac{s}{\sigma_v}=\sqrt{\frac2\pi}\,\frac{s}{\sigma_v}=K_q\,s,\qquad K_q=\frac{\sqrt{2/\pi}}{\sigma_v}`}</TexBlock>
       <p>
-        約等號是泰勒一階展開（<Tex>{r`\Phi'(0)=1/\sqrt{2\pi}`}</Tex>），只在 <Tex>{r`|s|\ll\sigma_v`}</Tex> 時成立（Ch05）。
+        約等號是泰勒一階展開（<Tex>{r`\Phi'(0)=1/\sqrt{2\pi}`}</Tex>），只在 <Tex>{r`|s|\ll\sigma_v`}</Tex> 時成立（<ChRef ch="05">Ch05</ChRef>）。
       </p>
     </Prereq>
   )

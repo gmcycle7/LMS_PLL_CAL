@@ -185,6 +185,7 @@
 }
 
 .ch06-case-badge {
+  color: var(--accent-text);
   display: inline-block;
   min-width: 1.6em;
   text-align: center;

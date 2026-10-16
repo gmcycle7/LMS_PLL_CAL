@@ -7,25 +7,8 @@ import { S5Negative } from './sections/S5Negative'
 import { S6Limits } from './sections/S6Limits'
 import { S7Wrap } from './sections/S7Wrap'
 import { PAGE_TOP_ANCHOR, SymbolsJump, SymbolsSection } from './sections/S12Symbols'
-import type { MouseEvent } from 'react'
 import { RichText, TOC, scrollToAnchor } from './shared'
 import './signoff.css'
-
-/**
- * 頁內公式錨點：網站用 HashRouter，`#formula-F-SO.4` 這種 hash 會被當成路由而顯示「找不到此頁面」。
- * 共用的 MetricTable「公式」欄會產生 `<a href="#formula-…">`，這裡在頁面根節點攔截，改成捲動到該公式
- * （公式若在 Beginner 模式收合的 <details> 內，先展開）。
- */
-function onFormulaAnchorClick(e: MouseEvent<HTMLDivElement>) {
-  const a = (e.target as HTMLElement | null)?.closest?.('a[href^="#formula-"]')
-  if (!a) return
-  e.preventDefault()
-  const id = decodeURIComponent((a.getAttribute('href') ?? '').slice(1))
-  const el = document.getElementById(id)
-  if (!el) return
-  for (let p: HTMLElement | null = el.parentElement; p; p = p.parentElement) if (p instanceof HTMLDetailsElement) p.open = true
-  scrollToAnchor(id)
-}
 
 /**
  * Sign-off Checklist / Design Review（規格 §16.2 Sign-off Matrix、§16.3「何時可以宣稱穩定」、§17 反面測試、附錄 B）。
@@ -36,7 +19,7 @@ function onFormulaAnchorClick(e: MouseEvent<HTMLDivElement>) {
  */
 export default function SignoffPage() {
   return (
-    <div className="so-page" id={PAGE_TOP_ANCHOR} onClick={onFormulaAnchorClick}>
+    <div className="so-page" id={PAGE_TOP_ANCHOR}>
       <nav className="so-toc" aria-label="本頁目錄">
         {TOC.map((t) => (
           <a

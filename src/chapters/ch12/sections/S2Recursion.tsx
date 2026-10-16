@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { Data, Layout } from 'plotly.js-dist-min'
-import { Callout, ClaimTag, CodeBlock, ModeGate, Plot, Prereq, Section, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeBlock, ModeGate, Plot, Prereq, Section, Tex, TexBlock, ChRef } from '@/components'
 import calNoiseSrc from '@/simulation/models/calNoise.ts?raw'
 import { calLoop, sigmaW2Colored, swDtft } from '@/simulation/models/calNoise'
 import { Diagram, EX, EX_INPUT, Erratum, Hand, Steps, TWO_TAP, TWO_TAP_SMALL, md, sig } from '../common'
@@ -47,7 +47,7 @@ export function S2Recursion() {
     <>
       <Section kind="formula" title="§12.1 線性化：GMAC 輸出 = 恢復力 + 雜訊" level={3} id="ch12-linearize">
         <p>
-          第 5 章已經知道：1-bit comparator 在雜訊下的平均輸出是一條 S 曲線，小訊號時近似直線，斜率 <Tex>{String.raw`K_q=\sqrt{2/\pi}/\sigma_v`}</Tex>。
+          <ChRef ch="05">第 5 章</ChRef>已經知道：1-bit comparator 在雜訊下的平均輸出是一條 S 曲線，小訊號時近似直線，斜率 <Tex>{String.raw`K_q=\sqrt{2/\pi}/\sigma_v`}</Tex>。
           本章關心的是「收斂之後」：<Tex>{'w'}</Tex> 已經在固定點 <Tex>{'w^*'}</Tex> 附近，所以用相對固定點的偏差{' '}
           <Tex>{String.raw`\delta w_k=w_k-w^*`}</Tex> 來寫。
         </p>
@@ -429,7 +429,7 @@ E[G\mid\delta w]&=-\tfrac12\Big[\operatorname{erf}\big(${sig(TWO_TAP.c1 + TWO_TA
           <ClaimTag kind="exact" />（在 F-12.1 的線性模型下）。<Tex>{String.raw`\mu`}</Tex> 小時 <Tex>{String.raw`2-\mu K\approx2`}</Tex>，所以{' '}
           <Tex>{String.raw`\sigma_w^2\approx\mu\sigma_\eta^2/(2K)`}</Tex>：<strong>
             <Tex>{String.raw`\sigma_w\propto\sqrt\mu`}</Tex>，收斂時間 <Tex>{String.raw`\tau\propto1/\mu`}</Tex>
-          </strong>——這就是 learning rate 的基本取捨（第 14 章會最佳化它）。這裡的 <Tex>{String.raw`\tau=-1/\ln p`}</Tex> 是收斂時間常數：偏差衰減到{' '}
+          </strong>——這就是 learning rate 的基本取捨（<ChRef ch="14">第 14 章</ChRef>會最佳化它）。這裡的 <Tex>{String.raw`\tau=-1/\ln p`}</Tex> 是收斂時間常數：偏差衰減到{' '}
           <Tex>{String.raw`1/e\approx37\%`}</Tex> 需要的 block 數（因為 <Tex>{String.raw`p^{\tau}=e^{-1}`}</Tex>）。
         </p>
         <div className="table-wrap">

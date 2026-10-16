@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { ClaimTag, ModelLevel, SourceTag } from '@/components'
+import { AnchorLink, ClaimTag, ModelLevel, SourceTag } from '@/components'
 import { md } from './shared'
 import { S1Intro } from './sections/S1Intro'
 import { S2Msd } from './sections/S2Msd'
@@ -45,12 +45,7 @@ export default function Chapter14() {
         {TOC.map((t, i) => (
           <span key={t.id}>
             {i > 0 && ' · '}
-            <a href={`#${t.id}`} onClick={(e) => {
-              e.preventDefault()
-              document.getElementById(t.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-            }}>
-              {t.label}
-            </a>
+            <AnchorLink id={t.id}>{t.label}</AnchorLink>
           </span>
         ))}
         {' · '}

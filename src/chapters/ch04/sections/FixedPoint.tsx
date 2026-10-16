@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Section, SourceTag, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Section, SourceTag, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import gmacSrc from '@/simulation/models/gmac.ts?raw'
 import goldenQuantSrc from '../../../../golden/lms_pll_golden/quantization.py?raw'
 import {
@@ -379,7 +379,7 @@ export function FixedPointSection() {
         表中 <Tex>{R`\delta^*>0`}</Tex>：<Tex>w</Tex> 停在 <Tex>a</Tex> <strong>下方</strong>。gmac.test.ts 以 12 個 seeds、每個 3000 blocks 驗證（量的是{' '}
         <Tex>{R`w^*-a=-\delta^*`}</Tex>，以定點 − 浮點的 paired 差估計）：<Tex>{R`F_G=2`}</Tex> 時 <Tex>{R`-1.516\pm0.010\,\mathrm{fs}`}</Tex> vs 預測{' '}
         <Tex>{R`${tx(-b2.deltaStar, 4)}\,\mathrm{fs}`}</Tex>；<Tex>{R`F_G=4`}</Tex> 時 <Tex>{R`-0.370\pm0.004`}</Tex> vs <Tex>{R`${tx(-biasRows[2].deltaStar, 4)}\,\mathrm{fs}`}</Tex>。對照：同條件下{' '}
-        <Tex>{R`\sigma_w=\mu\sqrt{\sigma_\eta^2/(1-p^2)}\approx${tx(b2.sigmaW, 3)}\,\mathrm{fs}`}</Tex>（<Tex>{R`\sigma_w`}</Tex> 是 <Tex>w</Tex> 在穩態的標準差，<Tex>{R`\sigma_\eta`}</Tex> 是單一個 block 的 <Tex>G</Tex> 的標準差；Ch12 推導），所以 <Tex>{R`F_G=2`}</Tex> 的 floor 偏差比穩態抖動還大。
+        <Tex>{R`\sigma_w=\mu\sqrt{\sigma_\eta^2/(1-p^2)}\approx${tx(b2.sigmaW, 3)}\,\mathrm{fs}`}</Tex>（<Tex>{R`\sigma_w`}</Tex> 是 <Tex>w</Tex> 在穩態的標準差，<Tex>{R`\sigma_\eta`}</Tex> 是單一個 block 的 <Tex>G</Tex> 的標準差；<ChRef ch="12">Ch12</ChRef> 推導），所以 <Tex>{R`F_G=2`}</Tex> 的 floor 偏差比穩態抖動還大。
       </p>
       <p className="small">
         <ClaimTag kind="approx" /> 表的最後兩欄：<Tex>{R`\sigma_S/2^\ell`}</Tex> 是「雜訊有幾個輸出 LSB 大」。它不必大於 1——平衡點 <Tex>{R`E[G]=\tfrac12\Delta_G`}</Tex> 靠的是對稱性而不是均勻餘數（下方 Research 說明）；
@@ -412,7 +412,7 @@ export function FixedPointSection() {
           <p>
             局部的 loop gain 變成 <Tex>{R`g\,\chi(s)`}</Tex>。<Tex>{R`s\gtrsim0.5`}</Tex> 幾乎沒有影響；<Tex>{R`s\approx${tx(rhoRows[3].s, 3)}`}</Tex> 時 <Tex>{R`\chi\approx${tx(rhoRows[3].rho, 2)}`}</Tex>，時間常數拉長約 {Math.round(1 / rhoRows[3].rho)} 倍，迴路實際上停在進入 dead zone 的地方
             （多 seed 模擬 <Tex>{R`-4.35\pm0.09`}</Tex> vs 平衡點 <Tex>{R`-6.06\,\mathrm{fs}`}</Tex>）。收斂附近 <Tex>{R`\sigma_S\approx\sqrt{N\,E[x_\mathrm{int}^2]}`}</Tex>。<Tex>{R`\sigma_v\to0`}</Tex>{' '}
-            時沒有 dither，rounding 變成確定性的 dead zone / limit cycle 問題（Ch13）。<ClaimTag kind="exact" /> 級數與 <Tex>{R`\chi(s)`}</Tex> 在「Gaussian、連續格點」下精確（<code>floorRestoringSlope</code>）；
+            時沒有 dither，rounding 變成確定性的 dead zone / limit cycle 問題（<ChRef ch="13">Ch13</ChRef>）。<ClaimTag kind="exact" /> 級數與 <Tex>{R`\chi(s)`}</Tex> 在「Gaussian、連續格點」下精確（<code>floorRestoringSlope</code>）；
             <ClaimTag kind="approx" /> 套用到離散的 <Tex>S</Tex> 與閉迴路。
           </p>
           <p>
@@ -556,7 +556,7 @@ export function FixedPointSection() {
         多 seed 模擬（gmac.test.ts，8 個 seed、每個 2000 blocks）：<Tex>{R`-2.68\pm0.02\,\mathrm{fs}`}</Tex> 與 <Tex>{R`\mu`}</Tex> 減半後的 <Tex>{R`-5.66\pm0.05\,\mathrm{fs}`}</Tex>——偏差加倍，比 §5.3 的截斷偏差（
         <Tex>{R`${tx(-biasRows[2].deltaStar, 3)}\,\mathrm{fs}`}</Tex>）大得多；half-even 時為 <Tex>{R`-0.02\pm0.02\,\mathrm{fs}`}</Tex>。對照：每個 block 的更新量標準差 <Tex>{R`\mu\sigma_G=${tx(wt.sigmaInc, 4)}\,\mathrm{fs}`}</Tex>，
         <Tex>{R`\mu\sigma_G/\Delta_W=${tx(wt.ditherW, 3)}`}</Tex>。設計規則：若要 floor 的偏差小於 <Tex>{R`\delta_\mathrm{tol}=${wt.tolFs}\,\mathrm{fs}`}</Tex>，需要{' '}
-        <Tex>{R`\Delta_W\le2g\,\delta_\mathrm{tol}=${tx(wt.wLsbMax, 3)}\,\mathrm{fs}`}</Tex>；實體 DTC gain 的 LSB 若為 <Tex>{R`${wt.physLsb}\,\mathrm{fs}`}</Tex>（Ch13 的 <Tex>{R`\Delta_\mathrm{LSB}`}</Tex> <Erratum id="E13" />），
+        <Tex>{R`\Delta_W\le2g\,\delta_\mathrm{tol}=${tx(wt.wLsbMax, 3)}\,\mathrm{fs}`}</Tex>；實體 DTC gain 的 LSB 若為 <Tex>{R`${wt.physLsb}\,\mathrm{fs}`}</Tex>（<ChRef ch="13">Ch13</ChRef> 的 <Tex>{R`\Delta_\mathrm{LSB}`}</Tex> <Erratum id="E13" />），
         <Tex>W</Tex> 至少要在它下面再保留 <Tex>{R`\lceil\log_2(${wt.physLsb}/${tx(wt.wLsbMax, 3)})\rceil=${wt.fracBits}`}</Tex> 個小數位元。<ClaimTag kind="approx" />
       </p>
       <CodeBlock source={gmacSrc} region="quantizeIncrement" path={GMAC_PATH} title={R`更新量取整到 $W$ 的 LSB（第二個截斷點）`} />

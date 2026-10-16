@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import katex from 'katex'
 import { join } from 'node:path'
 import { binomCdf, erf, meanCI } from '@/simulation/core'
+import { runBlockLmsMonteCarlo } from '@/simulation/models/blockLms'
 import * as J from './judges'
 
 /* ── golden vectors（golden/vectors/*.json）：|actual − expected| ≤ abs + rel·|expected| ── */
@@ -395,40 +396,136 @@ describe('Corner、延遲與雜訊增益', () => {
     expect(J.delayPoles(0.5 * J.gCrit(1), 1).rho).toBeCloseTo(Math.SQRT1_2, 12) // d = 1、g = 0.5：|z| = 1/√2
   })
 
-  it('技術審查 R02：k95 = ⌈ln 0.05/ln ρ⌉ 在 d = 0 精確；d ≥ 1 只是漸近估計，逐 block 算可能更多也可能更少', () => {
-    // 逐 block 的平均遞迴 δ_{k+1} = δ_k − g·δ_{k−d}，初始歷史都是 1：1 + 最後一次 |δ_k| > 5% 的 k
-    const settle = (g: number, d: number) => {
-      const y = new Array<number>(d + 1).fill(1)
-      let last = 0
-      for (let k = 1; k < 5000; k++) {
-        y.push(y[y.length - 1] - g * y[y.length - 1 - d])
-        if (Math.abs(y[y.length - 1]) > 0.05) last = k
-      }
-      return last + 1
+  // 逐 block 的平均遞迴 δ_{k+1} = δ_k − g·δ_{k−d}，初始歷史都是 1：1 + 最後一次 |δ_k| > 5% 的 k（獨立於 settleDelayed 的寫法：不用環形緩衝、不用停止規則，直接跑 5000 步）
+  const brute = (g: number, d: number) => {
+    const y = new Array<number>(d + 1).fill(1)
+    let last = 0
+    for (let k = 1; k < 5000; k++) {
+      y.push(y[y.length - 1] - g * y[y.length - 1 - d])
+      if (Math.abs(y[y.length - 1]) > 0.05) last = k
     }
-    const k95 = (g: number, d: number) =>
-      J.cornerJudge([{ name: 'x', sigmaV: 100, thetaDeg: 0 }], { mu: g / J.kq(100), d, pmTargetDeg: 0, B: Infinity, N: 4096, sigmaWMax: Infinity })[0].settle95
+    return last + 1
+  }
+  const oneCorner = (g: number, d: number, B = Infinity) =>
+    J.cornerJudge([{ name: 'x', sigmaV: 100, thetaDeg: 0 }], { mu: g / J.kq(100), d, pmTargetDeg: 0, B, N: 4096, sigmaWMax: Infinity })[0]
+
+  it('技術審查 R02／A6：k95 逐 block 數（判定用），⌈ln 0.05/ln ρ⌉ 另列成「ρ 漸近估計」——d = 0 兩者相同，d ≥ 1 可能多也可能少', () => {
     // 反例（Corner 判斷器假設欄寫的那一組）：d = 1、g = 1/4 是重根 z = 1/2，δ_k = (1 + k/2)·2^{−k}
     expect(J.delayPoles(0.25, 1).rho).toBeCloseTo(0.5, 6)
-    expect(k95(0.25, 1)).toBe(5)
-    expect(settle(0.25, 1)).toBe(7)
+    const dbl = oneCorner(0.25, 1)
+    expect(dbl.settleAsym).toBe(5)
+    expect(dbl.settle95).toBe(7)
+    expect(dbl.settle95Exact).toBe(true)
+    expect(brute(0.25, 1)).toBe(7)
     expect((1 + 5 / 2) * 2 ** -5).toBe(0.109375) // k = 5 還有 10.9%
     expect((1 + 6 / 2) * 2 ** -6).toBeGreaterThan(0.05)
     expect((1 + 7 / 2) * 2 ** -7).toBeLessThan(0.05)
-    // 兩個方向都會錯（獨立的 NumPy 重算：公式／逐 block）
+    // 兩個方向都會差（獨立的 NumPy 重算：漸近估計／逐 block）
     const cases: [number, number, number, number][] = [
       [4 / 27, 2, 8, 11],
       [27 / 256, 3, 11, 16],
       [0.33 * J.gCrit(3), 3, 14, 8],
       [0.8, 1, 27, 26],
     ]
-    for (const [g, d, formula, actual] of cases) {
-      expect(k95(g, d), `公式 g=${g}, d=${d}`).toBe(formula)
-      expect(settle(g, d), `逐 block g=${g}, d=${d}`).toBe(actual)
+    for (const [g, d, asym, actual] of cases) {
+      const r = oneCorner(g, d)
+      expect(r.settleAsym, `漸近估計 g=${g}, d=${d}`).toBe(asym)
+      expect(r.settle95, `逐 block g=${g}, d=${d}`).toBe(actual)
+      expect(brute(g, d), `暴力遞推 g=${g}, d=${d}`).toBe(actual)
+      expect(r.settle95Exact).toBe(true)
     }
-    // 正常對照：d = 0 時兩者相同
-    for (const g of [0.005, 0.0797884561, 0.25, 0.5, 0.9, 1.5]) expect(settle(g, 0), `g=${g}`).toBe(k95(g, 0))
-    expect(k95(0.005, 0)).toBe(598) // T11
+    // 正常對照：d = 0 時兩者相同，都等於 T11 的封閉式
+    for (const g of [0.005, 0.0797884561, 0.25, 0.5, 0.9, 1.5]) {
+      const r = oneCorner(g, 0)
+      expect(r.settle95, `g=${g}`).toBe(brute(g, 0))
+      expect(r.settleAsym, `g=${g}`).toBe(r.settle95)
+    }
+    expect(oneCorner(0.005, 0).settle95).toBe(598) // T11
+    // deadbeat（g = 1、d = 0）：ρ = 0，ln 0 = −∞，但仍需要 1 次更新
+    expect(oneCorner(1, 0).settle95).toBe(1)
+    expect(oneCorner(1, 0).settleAsym).toBe(1)
+    // 不穩定：k95 與漸近估計都是 ∞（不當成有限的數字比大小）
+    const bad = oneCorner(1.2 * J.gCrit(1), 1)
+    expect([bad.settle95, bad.settleAsym, bad.settle95Exact]).toEqual([Infinity, Infinity, true])
+  })
+
+  it('A6：d = 1 在整個 g ∈ (0, 1) 掃一遍，cornerJudge 的 k95 都等於暴力遞推；漸近估計與它的相對差最大 40%（出現在 g = 1/4 附近）', () => {
+    let worst = { rel: 0, g: 0 }
+    for (let i = 1; i < 100; i++) {
+      const g = i / 100
+      const r = oneCorner(g, 1)
+      expect(r.settle95, `g=${g}`).toBe(brute(g, 1))
+      const rel = Math.abs(r.settleAsym - r.settle95) / r.settleAsym
+      if (rel > worst.rel) worst = { rel, g }
+    }
+    expect(worst.rel).toBeCloseTo(0.4, 12)
+    expect(Math.abs(worst.g - 0.25)).toBeLessThan(0.02)
+  })
+
+  it('A6：pass/fail 用逐 block 的 k95——d = 1、g = 1/4、B = 6：漸近估計 5 ≤ 6 會誤判通過，逐 block 的 7 > 6 不合格；反過來 g = 0.8、B = 26：估計 27 > 26 會誤判不合格，逐 block 的 26 剛好合格', () => {
+    const a = oneCorner(0.25, 1, 6)
+    expect(a.settleAsym <= 6).toBe(true) // 舊的判法會給綠燈
+    expect(a.ok.settle).toBe(false)
+    expect(oneCorner(0.25, 1, 7).ok.settle).toBe(true)
+    const b = oneCorner(0.8, 1, 26)
+    expect(b.settleAsym <= 26).toBe(false)
+    expect(b.ok.settle).toBe(true)
+    expect(oneCorner(0.8, 1, 25).ok.settle).toBe(false)
+    // d = 0 時兩種判法永遠一致（沒有翻盤的可能）
+    for (const g of [0.005, 0.0797884561, 0.25, 0.5, 0.9, 1.5])
+      for (const B of [1, 5, 20, 100, 598, 1000]) {
+        const r = oneCorner(g, 0, B)
+        expect(r.ok.settle, `g=${g}, B=${B}`).toBe(r.settleAsym <= B)
+      }
+  })
+
+  it('A6：逐 block 沒有數完（極慢的 mode）時 settle95Exact = false，settle95 退回漸近估計當下界；步數上限可由 settleMaxSteps 指定', () => {
+    const slow = oneCorner(1e-6, 1) // ρ ≈ 1 − 10⁻⁶：衰減到停止規則的門檻要約 10⁷ 步 > SETTLE_MAX_STEPS = 2×10⁶
+    expect(slow.settle95Exact).toBe(false)
+    expect(slow.settle95).toBe(slow.settleAsym)
+    expect(slow.settle95).toBeGreaterThan(2_000_000)
+    expect(oneCorner(1e-6, 1, 100_000).ok.settle).toBe(false) // 下界已經超過 B 的上限（100000）：一定不合格
+    const capped = J.cornerJudge([{ name: 'x', sigmaV: 100, thetaDeg: 0 }], { mu: 0.01 / J.kq(100), d: 1, pmTargetDeg: 0, B: Infinity, N: 4096, sigmaWMax: Infinity, settleMaxSteps: 50 })[0]
+    expect(capped.settle95Exact).toBe(false)
+    expect(capped.settle95).toBe(capped.settleAsym)
+    // 正常大小的 mode 都數得完
+    expect(oneCorner(0.0399, 1).settle95Exact).toBe(true)
+  })
+
+  it('A6：cornerFeasibleScan 的格點判定（步數上限 50B + 5000）與逐點的 cornerJudge（完整上限）完全一致', () => {
+    const corners = [
+      { name: 'TT', sigmaV: 100, thetaDeg: 0 },
+      { name: 'SS', sigmaV: 140, thetaDeg: 25 },
+      { name: 'FF', sigmaV: 70, thetaDeg: 10 },
+      { name: 'grid', sigmaV: 100, thetaDeg: 60 },
+    ]
+    for (const d of [0, 1, 3]) {
+      for (const B of [6, 20, 120, 1000]) {
+        const o = { d, pmTargetDeg: 60, B, N: 4096, sigmaWMax: 1 }
+        const scan = J.cornerFeasibleScan(corners, o, 120, [10])
+        scan.mu.forEach((mu, i) => {
+          const rows = J.cornerJudge(corners, { mu, ...o })
+          expect(scan.ok[i], `d=${d}, B=${B}, μ=${mu}`).toBe(rows.every((r) => Object.values(r.ok).every(Boolean)))
+        })
+      }
+    }
+  })
+
+  it('A6：Corner 預設的四個 corner（d = 1、μ = 10）——每個 corner 的逐 block k95 與漸近估計都列出來；d = 3、μ = 30 時兩者開始不同（TT 24 → 21、FF 53 → 47），B = 120 下判定不變', () => {
+    const corners = [
+      { name: 'TT 25°C', sigmaV: 100, thetaDeg: 0 },
+      { name: 'SS −40°C', sigmaV: 140, thetaDeg: 25 },
+      { name: 'FF 125°C', sigmaV: 70, thetaDeg: 10 },
+      { name: 'near-grid FCW', sigmaV: 100, thetaDeg: 60 },
+    ]
+    const base = { pmTargetDeg: 60, B: 120, N: 4096, sigmaWMax: 1 }
+    const d1 = J.cornerJudge(corners, { mu: 10, d: 1, ...base })
+    expect(d1.map((r) => r.settle95)).toEqual([33, 54, 22, 71])
+    expect(d1.map((r) => r.settleAsym)).toEqual([33, 54, 22, 71])
+    const d3 = J.cornerJudge(corners, { mu: 30, d: 3, ...base })
+    expect(d3.map((r) => r.settle95)).toEqual([21, 15, 47, 12])
+    expect(d3.map((r) => r.settleAsym)).toEqual([24, 15, 53, 12])
+    for (const r of [...d1, ...d3]) expect(r.ok.settle).toBe(r.settleAsym <= 120)
   })
 
   it('T08: g = 1、d = 0 ⇒ pole 0、PM 60°；d = 1 時剛好臨界', () => {
@@ -481,6 +578,89 @@ describe('Corner、延遲與雜訊增益', () => {
     const e = J.effectiveSamples(10000, 0.9)
     expect(e.forMean).toBeCloseTo((10000 * 0.1) / 1.9, 10)
     expect(e.forVariance).toBeCloseTo((10000 * 0.19) / 1.81, 10)
+  })
+})
+
+describe('Corner 判斷器的 Monte Carlo 交叉比對（blockLms 真實 block sign-LMS，8 seeds）', () => {
+  const corners = [
+    { name: 'TT 25°C', sigmaV: 100, thetaDeg: 0 },
+    { name: 'SS −40°C', sigmaV: 140, thetaDeg: 25 },
+    { name: 'FF 125°C', sigmaV: 70, thetaDeg: 10 },
+    { name: 'near-grid FCW', sigmaV: 100, thetaDeg: 60 },
+  ]
+  const base = { pmTargetDeg: 60, B: 120, N: 4096, sigmaWMax: 1 }
+  const plan = (cs: typeof corners, mu: number, d: number) => J.cornerMcPlan(cs, J.cornerJudge(cs, { mu, d, ...base }), d, 20261010)
+
+  it('T08: 挑 k95 最大的穩定 corner（預設是 near-grid FCW，k95 = 71）；δ0 = 0.2σ_v、μ_eff = g/K_q、8 seeds、涵蓋 k95', () => {
+    const p = plan(corners, 10, 1)!
+    expect(p.name).toBe('near-grid FCW')
+    expect(p.index).toBe(3)
+    expect(p.k95).toBe(71)
+    expect(p.runs).toBe(8)
+    expect(p.setup).toMatchObject({ d: 1, sigmaV: 100, N: J.CORNER_MC_N, delta0: 20, seed: 20261010 })
+    expect(p.setup.g).toBeCloseTo(10 * J.kq(100) * Math.cos(Math.PI / 3), 12)
+    expect(p.setup.blocks).toBeGreaterThan(71) // 117：1.5·k95 + 10
+    expect(p.truncated).toBe(false)
+    const cfg = J.cornerMcConfig(p)
+    expect(cfg.cal_update_delay_blocks).toBe(1)
+    expect(cfg.gain_step).toBeCloseTo(p.setup.g / J.kq(100), 12)
+    expect(cfg.pd_noise_rms_fs).toBe(100)
+    expect(cfg.gain_true).toBe(20)
+    // 只挑「極性正確且穩定」的：把最慢的換成極性錯誤的 corner ⇒ 改挑剩下 k95 最大的 SS −40°C（54）
+    const bad = [...corners.slice(0, 3), { name: 'rev', sigmaV: 100, thetaDeg: 100 }]
+    const p2 = plan(bad, 10, 1)!
+    expect([p2.name, p2.k95]).toEqual(['SS −40°C', 54])
+    // 全部不能比：極性錯誤、或 g ≥ g_crit(d) 的 corner 沒有線性遞迴可比（sign-LMS 的 |G| ≤ 1 讓實際誤差有界，limit cycle）
+    expect(plan([{ name: 'rev', sigmaV: 100, thetaDeg: 100 }], 10, 1)).toBeNull()
+    expect(plan([{ name: 'fast', sigmaV: 100, thetaDeg: 0 }], 200, 1)).toBeNull()
+  })
+
+  it('T08: 預設 case——8 seeds 的 blockLms 平均軌跡 δ_MC,k = δ0 − mean(w_k) 與逐 block 遞迴在 Student-t·SE＋線性化容許量內一致；第 71 個 block 的 |δ|/δ0 兩者相差在 4 se 內', () => {
+    const p = plan(corners, 10, 1)!
+    const res = runBlockLmsMonteCarlo({ config: J.cornerMcConfig(p), runs: p.runs })
+    expect(res.seeds).toHaveLength(8)
+    expect(res.analytic.g).toBeCloseTo(p.setup.g, 9) // blockLms 由實際 code 估計的 g 就是設定的 g
+    const c = J.compareCornerMc(p, res)
+    expect(c.cmp.pass).toBe(true)
+    expect(c.cmp.worstRatio).toBeLessThan(1)
+    expect(c.atK95).not.toBeNull()
+    expect(c.atK95!.k).toBe(71)
+    expect(c.atK95!.lin).toBeCloseTo(0.04895, 4) // y_71 = 0.04895 < 0.05
+    expect(Math.abs(c.atK95!.mc - c.atK95!.lin)).toBeLessThanOrEqual(4 * c.atK95!.se)
+  })
+
+  it('T08: 這個比對不是空的——拿錯的模型去比，同一份 MC 結果會被判不一致：g 乘 1.6（預設 case）；d 少算一個 block（d = 3、μ = 30 的 g = 0.34 才分得出；預設的 g = 0.04 太小，d = 1 與 d = 0 的軌跡幾乎相同）', () => {
+    const p = plan(corners, 10, 1)!
+    const res = runBlockLmsMonteCarlo({ config: J.cornerMcConfig(p), runs: p.runs })
+    expect(J.compareCornerMc(p, res).cmp.pass).toBe(true)
+    expect(J.compareCornerMc({ ...p, setup: { ...p.setup, g: 1.6 * p.setup.g } }, res).cmp.pass).toBe(false)
+    // blockLms 回報的有效 g 與設定的 g 不符（設定沒有套用）也判不一致
+    expect(J.compareCornerMc(p, { ...res, analytic: { ...res.analytic, g: 1.01 * p.setup.g } }).cmp.pass).toBe(false)
+    // d 少算一個 block：預設的 g = 0.04 太小，d = 1 與 d = 0 的平均軌跡幾乎重合（8 seeds 分不出來，比值約 0.25）；d = 3、μ = 30（FF 125°C 的 g = 0.34）才看得出，比值 > 1
+    expect(J.compareCornerMc({ ...p, setup: { ...p.setup, d: 0 } }, res).cmp.worstRatio).toBeLessThan(1)
+    const p3 = plan(corners, 30, 3)!
+    const res3 = runBlockLmsMonteCarlo({ config: J.cornerMcConfig(p3), runs: p3.runs })
+    expect(J.compareCornerMc(p3, res3).cmp.pass).toBe(true)
+    expect(J.compareCornerMc({ ...p3, setup: { ...p3.setup, d: 2 } }, res3).cmp.pass).toBe(false)
+  })
+
+  it('T08: d = 3、μ = 30（FF 125°C 最慢，k95 = 47）與 d = 0 的大步長（g = 1.6、k95 = 6）也一致；k95 超過 MC 範圍時標 truncated', () => {
+    for (const [mu, d] of [[30, 3], [200, 0]] as const) {
+      const p = plan(corners, mu, d)!
+      const res = runBlockLmsMonteCarlo({ config: J.cornerMcConfig(p), runs: p.runs })
+      const c = J.compareCornerMc(p, res)
+      expect(c.cmp.pass, `μ=${mu}, d=${d}`).toBe(true)
+      expect(c.atK95?.k, `μ=${mu}, d=${d}`).toBe(p.k95)
+    }
+    expect(plan(corners, 30, 3)!.k95).toBe(47)
+    // μ = 2 fs：g = 0.008、k95 = 371 > 300 個 block：只比對前 300 個 block，atK95 為 null
+    const slow = plan(corners, 2, 1)!
+    expect([slow.setup.blocks, slow.truncated]).toEqual([J.CORNER_MC_MAX_BLOCKS, true])
+    expect(slow.k95).toBeGreaterThan(J.CORNER_MC_MAX_BLOCKS)
+    const res = runBlockLmsMonteCarlo({ config: J.cornerMcConfig(slow), runs: slow.runs })
+    const c = J.compareCornerMc(slow, res)
+    expect(c.cmp.pass).toBe(true)
+    expect(c.atK95).toBeNull()
   })
 })
 

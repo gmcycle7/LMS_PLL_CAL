@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Section, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Section, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import mimoSrc from '@/simulation/models/mimo.ts?raw'
 import mimoPy from '../../../../golden/lms_pll_golden/mimo.py?raw'
 import { RULE_SHORT, type MimoRule } from '@/simulation/models/mimo'
@@ -253,7 +253,7 @@ export function S5Architectures() {
           由 <code>propagateLinearMoments()</code> 以 sequential 規則（<Tex>{String.raw`\gamma=0.5`}</Tex>、每階段 {seqPhaseLen} blocks、<Tex>{'K_q'}</Tex> 正規化為 1、無雜訊平均）計算；
           階段 1 每個 block 把 <Tex>{String.raw`\delta_1+\delta_2`}</Tex> 乘上 <Tex>{String.raw`1-\gamma=0.5`}</Tex>（表中數字四捨五入到{' '}
           <Tex>{String.raw`10^{-6}`}</Tex>；階段 1 結束時的殘餘 <Tex>{String.raw`4\times0.5^{${seqPhaseLen}}\approx${tn(4 * Math.pow(0.5, seqPhaseLen), 2)}`}</Tex> 已可忽略）。誰先校，誰就吸收全部的不可辨識誤差——
-          這和第 9 章的 gauge freedom 是同一件事：<Tex>{String.raw`\mathbf R`}</Tex> 的 null space 方向 <Tex>{String.raw`[1,-1]^T`}</Tex> 的分量由「初值 + 校正順序」決定。
+          這和<ChRef ch="09">第 9 章</ChRef>的 gauge freedom 是同一件事：<Tex>{String.raw`\mathbf R`}</Tex> 的 null space 方向 <Tex>{String.raw`[1,-1]^T`}</Tex> 的分量由「初值 + 校正順序」決定。
         </p>
         <p>
           <Tex>{String.raw`\rho<1`}</Tex> 時多跑幾輪（round-robin）會收斂，但就是 Gauss–Seidel 迭代（解聯立方程的古典方法：每次只解一個未知數，其他未知數先用目前的值代入，輪流重複）：<Tex>{String.raw`\gamma=1`}</Tex>、每階段一步解出該座標時，每一輪（sweep）誤差只收縮{' '}
@@ -377,7 +377,7 @@ export function S5Architectures() {
           把上表和前面幾節的結論排成一張流程，選更新矩陣時可以照著問：
         </p>
         <Fig id="choose-m">
-          由上往下問三個問題。第一：<Tex>{String.raw`\lambda_{\min}`}</Tex> 是不是接近 0？是的話兩個參數根本分不開，換哪一種更新矩陣都沒有用（§10.6 的陷阱；第 9 章的 PE 條件）。第二：
+          由上往下問三個問題。第一：<Tex>{String.raw`\lambda_{\min}`}</Tex> 是不是接近 0？是的話兩個參數根本分不開，換哪一種更新矩陣都沒有用（§10.6 的陷阱；<ChRef ch="09">第 9 章</ChRef>的 PE 條件）。第二：
           <Tex>{String.raw`\mathbf J`}</Tex> 的 eigenvalue 實部是不是全為負？不是的話（T18），scalar LMS 在某個方向的極性是反的，要靠反矩陣把它轉回來。第三：<Tex>{String.raw`\kappa`}</Tex> 大不大、等不等得起慢模式？等得起就用最簡單的；等不起才用
           regularized preconditioner，並用 <Tex>{String.raw`\lambda_{\mathrm{reg}}`}</Tex> 在速度（F-10.8）、雜訊（F-10.7）與 <Tex>{String.raw`\hat{\mathbf J}`}</Tex> 誤差（勘誤 E24）之間取捨。圖上的 <Tex>{String.raw`\lambda_{\min}`}</Tex>、
           <Tex>{String.raw`\kappa`}</Tex> 就是 §10.3 的最小 eigenvalue 與 condition number。Sequential 不在圖上：它省硬體，但不會讓慢模式變快，而且有上面的吸收陷阱。

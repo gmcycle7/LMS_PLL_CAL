@@ -339,7 +339,7 @@ export const HANDCALCS: HandCalcDef[] = [
     formulaId: 'F-CS.10',
     formulaTex: r`\begin{gathered}L=\frac{Kz^{-d}}{1-z^{-1}}:\quad \mathrm{Re}\,L=-\frac{K\sin\theta}{2\sin(\Omega/2)},\quad \mathrm{Im}\,L=-\frac{K\cos\theta}{2\sin(\Omega/2)},\quad \theta=\big(d-\tfrac12\big)\Omega\\[4pt]\mathrm{Re}\,H_{PD}=\frac{1+\mathrm{Re}\,L}{(1+\mathrm{Re}\,L)^2+(\mathrm{Im}\,L)^2}\approx\frac{\Omega^2}{K^2}\big[1-K(d-\tfrac12)\big]\quad(\Omega\ll K)\end{gathered}`,
     level: 'research',
-    claim: 'exact',
+    claim: 'approx',
     inputs: [
       { key: 'K', symbol: 'K', label: '迴路增益（每 sample）', default: HC_NOMINAL.K, min: 0, max: 2, practice: { choices: [0.2, 0.25, 0.3, 0.45, 0.5] } },
       { key: 'd', symbol: 'd', label: '迴路延遲（拍；本文標稱 1）', default: 1, min: 1, max: 8, integer: true, practice: { choices: [1, 2, 3] } },
@@ -543,7 +543,7 @@ export const HANDCALCS: HandCalcDef[] = [
     formulaId: 'F-CS.4',
     formulaTex: r`\begin{gathered}\mathrm{Re}\,L_2=-\frac{K_p}{2}-\frac{K_i}{4\sin^2(\Omega/2)},\qquad \mathrm{Im}\,L_2=-\frac{K_p}{2}\cot\frac{\Omega}{2}\\[4pt]\mathrm{Re}\,H_{PD}=\frac{1+\mathrm{Re}\,L}{(1+\mathrm{Re}\,L)^2+(\mathrm{Im}\,L)^2},\qquad \mathrm{Re}\,\kappa_1\approx W_1\,\mathrm{Re}\,H_{PD}(\alpha f_{ref}),\quad W_1=\frac{64\sin^2(\pi/8)}{\pi^2}\end{gathered}`,
     level: 'research',
-    claim: 'exact',
+    claim: 'approx',
     inputs: [
       { key: 'f', symbol: 'f', label: r`要看的頻率（例如 PMUX 的旋轉頻率 $\alpha f_{ref}$）`, unit: r`\mathrm{MHz}`, default: 83.8, min: 0, max: 1e5, practice: { choices: [20, 40, 60, 80, 100, 160, 200, 400] } },
       { key: 'fref', symbol: 'f_{ref}', label: 'reference 頻率', unit: r`\mathrm{MHz}`, default: HC_FREF_MHZ, min: 1, max: 1e5 },
@@ -724,7 +724,7 @@ export const HANDCALCS: HandCalcDef[] = [
     formulaId: 'F-CS.19',
     formulaTex: r`\begin{gathered}E[q]=\mathrm{erf}\!\Big(\frac{u_{os}}{\sqrt2\,\sigma_v}\Big),\qquad K_q(u_{os})=\sqrt{\tfrac{2}{\pi}}\,\frac{e^{-u_{os}^2/2\sigma_v^2}}{\sigma_v}\\[4pt]\delta^{\star}_{GOS}=-\frac{E[q]\,\langle\rho\rangle}{K_q(u_{os})\,C_{GOS}},\qquad C_{GOS}=\frac{\kappa_{GOS}}{12}\end{gathered}`,
     level: 'research',
-    claim: 'exact',
+    claim: 'approx',
     inputs: [
       { key: 'uos', symbol: 'u_{os}', label: '比較器看到的 DC offset（換算成時間）', unit: r`\mathrm{fs}`, default: 25, min: -1e5, max: 1e5, practice: { choices: [10, 20, 25, 40, 50] } },
       { key: 'sigma', symbol: r`\sigma_v`, label: '比較器輸入端的雜訊 rms', unit: r`\mathrm{fs}`, default: 200, min: 0, max: 1e5, practice: { choices: [100, 200, 400] } },

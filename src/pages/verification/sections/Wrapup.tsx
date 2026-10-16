@@ -1,4 +1,4 @@
-import { Quiz, Recap, Section, Tex, TexBlock } from '@/components'
+import { Quiz, Recap, Section, Tex, TexBlock, ChRef } from '@/components'
 import { ar1SampleVarianceFactor, equivalentZ, falseAlarmRate, falseAlarmRateT, MC_PLAN, SWEEP_SCORE_CRIT } from '@/simulation/models/acceptance'
 import { pPlus } from '@/simulation/models/comparator'
 import { useAcceptance } from '../common'
@@ -218,7 +218,7 @@ export function Wrapup() {
           <>
             <TexBlock>{`\\frac{p-\\tfrac12}{\\sqrt{p(1-p)/n}}\\ge4\\ \\Rightarrow\\ n\\ge\\Big(\\frac{4\\sqrt{p(1-p)}}{p-\\tfrac12}\\Big)^2=\\Big(\\frac{4\\times${fmtNum(sig, 5)}}{${fmtNum(p - 0.5, 4)}}\\Big)^2\\approx${texNum(n4, 3)}`}</TexBlock>
             <p>
-              這和第 5 章的結論一致：<Tex>{r`1\,\mathrm{fs}`}</Tex> 的誤差埋在 <Tex>{r`100\,\mathrm{fs}`}</Tex> 的雜訊裡，資訊還在，但要累積很多次（訊號 <Tex>{r`\propto n`}</Tex>、雜訊{' '}
+              這和<ChRef ch="05">第 5 章</ChRef>的結論一致：<Tex>{r`1\,\mathrm{fs}`}</Tex> 的誤差埋在 <Tex>{r`100\,\mathrm{fs}`}</Tex> 的雜訊裡，資訊還在，但要累積很多次（訊號 <Tex>{r`\propto n`}</Tex>、雜訊{' '}
               <Tex>{r`\propto\sqrt n`}</Tex>）。
             </p>
           </>

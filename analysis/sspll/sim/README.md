@@ -44,7 +44,7 @@
 | closed-loop −3 dB of $T=L/(1+L)$ | 320 MHz（所有迴路都經過**時域**正弦注入驗證，量到 $\lvert T\rvert=0.7071$） |
 | $f_{vco}$ | **16 GHz，僅供插圖** → $T_{vco}=62.5$ ps，$\Delta=T_{vco}/8=7.8125$ ps；另用 12 / 24 GHz 驗證結論與它無關 |
 | DTC 增益誤差 $a$ | 3%（實際 DTC 增益 = $(1-a)$ × nominal） |
-| PMUX 相位 offset $\varepsilon_k$ | seed 7，$\mathcal N(0,250\,\text{fs})$ 去均值後為 [+29, +103, −40, −194, −85, −219, +43, +364] fs（非共模 rms 173 fs） |
+| PMUX 相位 offset $\varepsilon_k$（以 feedback edge **早到**為正） | seed 7，$\mathcal N(0,250\,\text{fs})$ 去均值後為 [+29, +103, −40, −194, −85, −219, +43, +364] fs（非共模 rms 173 fs） |
 | 比較器雜訊 $\sigma_v$ | **200 fs（插圖用）**；另驗證 100 / 400 fs |
 | 量測 $S$ 用的擾動 $\delta$ | ±30 fs（0.15 σ_v） |
 | 分數累加器 | 32-bit，$\alpha$ 量化到 $2^{-32}$ |
@@ -55,11 +55,11 @@
 
 $$p[n]=\lfloor 8\,\mathrm{frac}(n\alpha)\rfloor,\qquad c[n]=\rho[n]=8\,\mathrm{frac}(n\alpha)-p[n]\in[0,1).$$
 
-比較節點的注入時序誤差（ps；「需要的 reference delay − 實際 DTC delay」，等於 VCO 修正前的 $t_{fb}-t_{ref}$）：
+比較節點的注入時序誤差（ps）。讀法照全站約定（`docs/assumptions.md` §2a、網站 `/case/sspll` §2）：PMUX 第 $p$ 相的 feedback edge 比理想時刻**早到** $c\Delta+\varepsilon_p$（$\varepsilon_p>0$ 代表早到），所以**需要的補償量**是 $c\Delta+\varepsilon_p$；reference 端的 DTC 只能延遲，它從固定的基準延遲 $T_0$ 往回扣，**實際的補償量**是 $(1-a)(1+w_g)\big(c\Delta+w_p\big)$。$u$＝需要的補償量 − 實際的補償量，也就是 VCO 修正前的 $t_{ref}'-t_{fb}$（去掉常數 $T_0$；reference 端太晚時為正）：
 
 $$u[n]=c[n]\Delta+\varepsilon_{p[n]}-(1-a)(1+w_g)\big(c[n]\Delta+w_{p[n]}\big).$$
 
-固定點是 $w_g^*=a/(1-a)$、$w_k^*=\varepsilon_k$。在 $w=0$ 時 $u=a\rho\Delta+\varepsilon_p$，也就是使用者的 $e=(a-w_g)\rho+(\varepsilon_k-w_k)$ 的一階形式。極性定義成 $H_{PD}\equiv1$ 時更新方向是正確的；這點有直接檢查：開迴路參考值 $-S$ 全部為正。
+固定點是 $w_g^*=a/(1-a)$、$w_k^*=\varepsilon_k$。（如果你的電路把 $\varepsilon_p$ 記成 PMUX 多出來的延遲，也就是晚到為正，那麼 $\varepsilon_p$ 與 $w_p$ 都要變號、$w_k$ 改成加在 DTC 的延遲上，更新式變成 $w_k\leftarrow w_k-\mu_p G_k$；$u$ 的式子與本資料夾所有數值都不變，只是正負號的約定不同。）在 $w=0$ 時 $u=a\rho\Delta+\varepsilon_p$，也就是使用者的 $e=(a-w_g)\rho+(\varepsilon_k-w_k)$ 的一階形式。極性定義成 $H_{PD}\equiv1$ 時更新方向是正確的；這點有直接檢查：開迴路參考值 $-S$ 全部為正。
 
 PLL（明確的狀態空間遞迴，不是 `lfilter`）：
 

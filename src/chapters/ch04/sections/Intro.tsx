@@ -1,4 +1,4 @@
-import { Callout, ClaimTag, ModeGate, Section, SourceTag, SystemMap, Tex, type SystemBlock } from '@/components'
+import { Callout, ClaimTag, ModeGate, Section, SourceTag, SystemMap, Tex, type SystemBlock, ChRef } from '@/components'
 import { CONCEPT_FAST_LOOP, CONCEPT_LMS_LOOP } from '../diagrams'
 import { Erratum, FigRef, JumpTo, MermaidFig } from '../common'
 import { SymbolsLink } from './Symbols'
@@ -61,7 +61,7 @@ export function IntroSection() {
         </p>
         <p>
           下面是全站共用的<strong>系統地圖</strong>。<strong>藍色方塊</strong>就是這一課要從頭走到尾的訊號路徑：FCW → DSM 累加器 → divider 與 fractional residue <Tex>{R`x[n]`}</Tex> → gain correction → DTC → PD →
-          （PD 的輸出 <Tex>{R`e[n]`}</Tex>）→ 1-bit comparator → code alignment → GMAC → 「<Tex>{R`\div N`}</Tex>、<Tex>{R`\times\mu`}</Tex>」→ gain accumulator；沒上色的 reference、loop filter、VCO、quantizer 與雜訊源留給 Ch06、Ch08、Ch12、Ch13。
+          （PD 的輸出 <Tex>{R`e[n]`}</Tex>）→ 1-bit comparator → code alignment → GMAC → 「<Tex>{R`\div N`}</Tex>、<Tex>{R`\times\mu`}</Tex>」→ gain accumulator；沒上色的 reference、loop filter、VCO、quantizer 與雜訊源留給 <ChRef ch="06">Ch06</ChRef>、<ChRef ch="08">Ch08</ChRef>、<ChRef ch="12">Ch12</ChRef>、<ChRef ch="13">Ch13</ChRef>。
           這一課新增的是：把每個藍色方塊拆開成 RTL 級的方塊圖，標出每條線上的訊號名稱、位元寬度，以及它是每個 sample 動一次還是每個 block 動一次。
         </p>
         <SystemMap focus={CH04_SYSTEM_FOCUS} caption={CH04_SYSTEM_CAPTION} />
@@ -94,7 +94,7 @@ export function IntroSection() {
         </p>
         <p>
           DTC 方塊裡的 <Tex>{R`\text{delay}=T_0-w_k\,x[n]+d(x)`}</Tex> 先讀成一句話：DTC 只能延遲、不能提前，所以它先有一個固定的基準延遲 <Tex>{R`T_0`}</Tex>，code 越大就<strong>少延遲</strong>一點；少掉的那一段 <Tex>{R`w_k\,x[n]`}</Tex> 叫做 DTC 的<strong>補償量</strong>（§2 說明為什麼是「少延遲」）。
-          另外兩個縮寫：BBPD 是 bang-bang PD（輸出只有 1 bit 的相位檢測器）；<Tex>{R`d(x)`}</Tex> 是 DTC 的非線性誤差（積分非線性 INL）：這個 code 的延遲偏離直線的量，多延遲為正，所以它在式子裡是加號。本章先當作 0，Ch11 才處理（那裡的 <Tex>{R`d(x)`}</Tex> 是同一個定義）。
+          另外兩個縮寫：BBPD 是 bang-bang PD（輸出只有 1 bit 的相位檢測器）；<Tex>{R`d(x)`}</Tex> 是 DTC 的非線性誤差（積分非線性 INL）：這個 code 的延遲偏離直線的量，多延遲為正，所以它在式子裡是加號。本章先當作 0，<ChRef ch="11">Ch11</ChRef> 才處理（那裡的 <Tex>{R`d(x)`}</Tex> 是同一個定義）。
         </p>
         <MermaidFig
           chart={CONCEPT_FAST_LOOP}
@@ -105,7 +105,7 @@ export function IntroSection() {
           <strong>再看 <FigRef chart={CONCEPT_LMS_LOOP} />（把藍色方塊展開）：</strong>這張圖由上往下，就是校正迴路走一圈。最上面是上一張圖裡 reference 輸入端的那個 DTC（Reference clock 的方塊不再重畫）：DTC 延遲後的 reference edge 送進 PD；PD 的另一個輸入是 divider 的 feedback edge，同樣畫在上一張圖，這裡只在 PD 方塊上註明。<strong>先看</strong> PD 下面的加法點：PD 量到的時間誤差（單位 fs）加上雜訊 <Tex>{R`v[n]`}</Tex>（RMS 為 <Tex>{R`\sigma_v`}</Tex>）就是 PD 的輸出 <Tex>{R`e[n]`}</Tex>。
           章首的系統地圖把 <Tex>{R`v[n]`}</Tex> 畫成 comparator 的另一個輸入（註明「折算到輸入端」）：comparator 的輸入就是 PD 輸出這個節點，所以兩種畫法是同一件事——<Tex>{R`v[n]`}</Tex> 是折算到這個節點的等效雜訊，<Tex>{R`e[n]`}</Tex> 已經包含它。
           虛線把它分接給 1-bit comparator——comparator 取的是 PD 的輸出 <Tex>{R`e[n]`}</Tex>，也就是送進 loop filter 的同一個訊號（上一張圖的膠囊形節點；這張圖不再重畫 loop filter，只在線上註明）。它被切成一個 bit <Tex>{R`b[n]`}</Tex>、變成 <Tex>{R`q[n]=2b[n]-1`}</Tex>。
-          <strong>再看</strong> code：<Tex>{R`x[n]`}</Tex> 經過 code alignment 延遲 <Tex>D</Tex> 個 sample 變成 <Tex>{R`x_\mathrm{ref}[n]`}</Tex>（GMAC 實際拿來相乘的、和誤差對齊的 code；圖上的 filtered-x 是進階做法，先把 code 通過一個估計出來的 PLL 誤差路徑再拿來相乘，Ch07 詳述，這一課先看 <Tex>{R`x[n-D]`}</Tex>）。兩者相乘累加成 <Tex>{R`S_k`}</Tex>，除以 <Tex>N</Tex>、乘 <Tex>{R`\mu`}</Tex>，加進 gain accumulator。
+          <strong>再看</strong> code：<Tex>{R`x[n]`}</Tex> 經過 code alignment 延遲 <Tex>D</Tex> 個 sample 變成 <Tex>{R`x_\mathrm{ref}[n]`}</Tex>（GMAC 實際拿來相乘的、和誤差對齊的 code；圖上的 filtered-x 是進階做法，先把 code 通過一個估計出來的 PLL 誤差路徑再拿來相乘，<ChRef ch="07">Ch07</ChRef> 詳述，這一課先看 <Tex>{R`x[n-D]`}</Tex>）。兩者相乘累加成 <Tex>{R`S_k`}</Tex>，除以 <Tex>N</Tex>、乘 <Tex>{R`\mu`}</Tex>，加進 gain accumulator。
           <strong>最後看</strong>最下面：gain <Tex>{R`w_k`}</Tex> 送到 gain code correction，乘上 code 變成補償量 <Tex>{R`w_k\,x[n]`}</Tex>，再沿右邊那條長線回到最上面 reference 端的 DTC——迴路在這裡閉合。
         </p>
         <MermaidFig
@@ -131,7 +131,7 @@ export function IntroSection() {
               <Tex>{R`(a-w)\,x[n]`}</Tex>，後面的數學完全相同；差別只在「被延遲的是哪一條 edge」（§2）。
             </li>
             <li>
-              DTC 方塊的延遲寫成 <Tex>{R`T_0-w_k\,x[n]+d(x)`}</Tex>：<Tex>{R`T_0`}</Tex> 是固定的基準延遲；<Tex>x</Tex> 是無因次 code，時間單位（fs）由 gain <Tex>w</Tex> 承載 <Erratum id="E13" />；<Tex>d(x)</Tex> 是可開關的 DTC 非線性（Ch11）。
+              DTC 方塊的延遲寫成 <Tex>{R`T_0-w_k\,x[n]+d(x)`}</Tex>：<Tex>{R`T_0`}</Tex> 是固定的基準延遲；<Tex>x</Tex> 是無因次 code，時間單位（fs）由 gain <Tex>w</Tex> 承載 <Erratum id="E13" />；<Tex>d(x)</Tex> 是可開關的 DTC 非線性（<ChRef ch="11">Ch11</ChRef>）。
             </li>
             <li>
               LMS 校正迴路的輸入明確畫成從 PD 的輸出 <Tex>{R`e[n]`}</Tex> 分接（和送進 loop filter 的是同一個節點），並加上 noise 注入點 <Tex>{R`v[n]`}</Tex>（規格 §4 要求）。
@@ -141,7 +141,7 @@ export function IntroSection() {
         <ModeGate min="engineer">
           <p className="small">
             <ClaimTag kind="approx" /> 「<Tex>{R`e_\mathrm{PD}=e_\mathrm{PLL}+\delta\,x`}</Tex>」（主迴路殘差，加上 DTC gain 誤差 <Tex>{R`\delta=a-w`}</Tex> 乘 code；<Tex>a</Tex> 是真正需要的 gain，§2）這個線性疊加只在 PD 線性範圍內成立；BBPD 本身就是 1-bit
-            comparator 時，主 PLL 的 integral path 會強制 <Tex>{R`E[q]=0`}</Tex>（<Tex>q</Tex> 的長期平均為 0；期望值 <Tex>{R`E[\cdot]`}</Tex> 的說明框在 §3），offset 與 code 的 DC 會被吸收（勘誤 E03，見 Ch11）。
+            comparator 時，主 PLL 的 integral path 會強制 <Tex>{R`E[q]=0`}</Tex>（<Tex>q</Tex> 的長期平均為 0；期望值 <Tex>{R`E[\cdot]`}</Tex> 的說明框在 §3），offset 與 code 的 DC 會被吸收（勘誤 E03，見 <ChRef ch="11">Ch11</ChRef>）。
           </p>
         </ModeGate>
       </Section>

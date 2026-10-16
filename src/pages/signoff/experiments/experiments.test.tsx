@@ -2,7 +2,8 @@ import { fireEvent, render, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { SettingsProvider } from '@/app/settings'
-import { CornerJudgeExperiment } from './CornerJudge'
+import { cornerFeasibleScan, cornerJudge } from '../judges'
+import { CORNER_JUDGE_DEFAULT, CORNER_LOCAL_PRESETS, CornerJudgeExperiment, refLineName } from './CornerJudge'
 import { EvidenceLabExperiment } from './EvidenceLab'
 import { FixedPointJudgeExperiment } from './FixedPointJudge'
 import { MimoJudgeExperiment } from './MimoJudgeLab'
@@ -126,13 +127,14 @@ describe('所有 preset 都能載入，且每個狀態的警告／指標／標�
       ['Polarity', () => <PolarityPerturbExperiment />, ['ok', 'ok', 'not-implemented']],
       ['SSPLL', () => <SspllJacobianExperiment />, ['ok', 'ok', 'not-implemented']],
       ['Evidence', () => <EvidenceLabExperiment />, ['ok', 'ok', 'n/a']],
-      ['Corner', () => <CornerJudgeExperiment />, ['ok', 'not-implemented', 'not-implemented']],
+      ['Corner', () => <CornerJudgeExperiment />, ['ok', 'ok', 'n/a']],
       ['Fixed-point', () => <FixedPointJudgeExperiment />, ['ok', 'n/a', 'ok']],
       ['MIMO', () => <MimoJudgeExperiment />, ['ok', 'not-implemented', 'not-implemented']],
     ]
     for (const [name, make, want] of expected) {
       const { container, unmount } = mount(make())
-      await waitFor(() => expect(crossCheck(container), name).toEqual(want))
+      // Corner 的 Monte Carlo 欄在參數停 300 ms 後才啟動、再跑 8 seeds 的 blockLms：給它較長的時間
+      await waitFor(() => expect(crossCheck(container), name).toEqual(want), { timeout: 20_000 })
       unmount()
     }
   })
@@ -176,6 +178,123 @@ describe('其他判斷器的失效模式（解釋型警告）', () => {
     await waitFor(() => expect(warningTexts(container).some((t) => t.startsWith('C ≤ 0：「low-BW mode」'))).toBe(true))
     expect(warningTexts(container).some((t) => t.startsWith('在掃描範圍內沒有任何'))).toBe(true)
     noTexErrors(container)
+  })
+
+  it('A6：Corner 結果表多一欄「ρ 漸近估計」；k95 欄是逐 block 的數字（d = 3、μ = 30：TT 25°C 21 vs 估計 24、FF 125°C 47 vs 53）', async () => {
+    const { container } = mount(<CornerJudgeExperiment />)
+    const cells = () =>
+      Array.from(container.querySelectorAll('.so-corner-table tbody tr')).map((tr) => {
+        const tds = Array.from(tr.querySelectorAll('td'))
+        return { name: tds[0].textContent, k95: tds[5].textContent, asym: tds[6].textContent }
+      })
+    const heads = Array.from(container.querySelectorAll('.so-corner-table thead th')).map((th) => th.textContent ?? '')
+    expect(heads).toHaveLength(9)
+    expect(heads[5]).toContain('k')
+    expect(heads[6]).toContain('漸近')
+    expect(heads[6]).toContain('估計')
+    expect(cells().map((c) => [c.k95, c.asym])).toEqual([['33', '33'], ['54', '54'], ['22', '22'], ['71', '71']])
+    loadPreset(container, 'commit latency d = 3')
+    await waitFor(() => expect(cells().map((c) => c.k95)).toEqual(['21', '15', '47', '12']))
+    expect(cells().map((c) => c.asym)).toEqual(['24', '15', '53', '12'])
+    // 判定不變：B = 120 都來得及；沒有「只看 ρ 會誤判」的警告
+    expect(warningTexts(container).some((t) => t.includes('只看'))).toBe(false)
+    noTexErrors(container)
+  })
+
+  it('A6：本地四個 preset 都沒有 pass/fail 翻盤——逐 block 的 k95 與 ρ 漸近估計對 B 的判定相同，格點上的可行 μ 區間也相同', () => {
+    for (const pr of CORNER_LOCAL_PRESETS) {
+      const p = { ...CORNER_JUDGE_DEFAULT, ...(pr.params as Partial<typeof CORNER_JUDGE_DEFAULT>) }
+      const o = { d: p.d, pmTargetDeg: p.pmTargetDeg, B: p.B, N: p.N, sigmaWMax: p.sigmaWMax }
+      const rows = cornerJudge(p.corners, { mu: p.mu, ...o })
+      for (const r of rows) expect(r.ok.settle, `${pr.name}：${r.name}`).toBe(r.settleAsym <= p.B)
+      const scan = cornerFeasibleScan(p.corners, o, undefined, [p.mu])
+      // 舊判法（漸近估計）在同一組格點上的可行集合
+      const asymOk = scan.mu.map((mu) => cornerJudge(p.corners, { mu, ...o }).every((r) => r.ok.polarity && r.ok.stable && r.ok.pm && r.ok.noise && r.settleAsym <= p.B))
+      expect(scan.ok, pr.name).toEqual(asymOk)
+    }
+    // 四個 preset 的可行區間（格點）：預設 6.033–26.59 fs、d = 3 時 5.802–13.17 fs，另外兩個為空
+    const band = (i: number) => {
+      const p = { ...CORNER_JUDGE_DEFAULT, ...(CORNER_LOCAL_PRESETS[i].params as Partial<typeof CORNER_JUDGE_DEFAULT>) }
+      const sc = cornerFeasibleScan(p.corners, { d: p.d, pmTargetDeg: p.pmTargetDeg, B: p.B, N: p.N, sigmaWMax: p.sigmaWMax }, undefined, [p.mu])
+      return [sc.lo, sc.hi]
+    }
+    expect(band(0)[0]).toBeCloseTo(6.0331, 3)
+    expect(band(0)[1]).toBeCloseTo(26.588, 2)
+    expect(band(1).every(Number.isNaN)).toBe(true)
+    expect(band(2)[0]).toBeCloseTo(5.8021, 3)
+    expect(band(2)[1]).toBeCloseTo(13.169, 2)
+    expect(band(3).every(Number.isNaN)).toBe(true)
+  })
+
+  it('A6：d ≥ 1 時只看 ρ 會誤判通過——μ 調到某個 corner 在 d = 1 剛好是重根（g = 1/4）、B = 6：警告寫明逐 block 的 k95 = 7 > 6，估計 5 ≤ 6', async () => {
+    const { container } = mount(<CornerJudgeExperiment />)
+    // 只留一個 corner（TT 25°C，σ_v = 100 fs、θ = 0°）：g = μ·K_q(100)，μ = 0.25/K_q(100) = 31.33 fs
+    const last = () => container.querySelectorAll<HTMLButtonElement>('.so-toolbar .btn')[1]
+    for (let i = 0; i < 3; i++) fireEvent.click(last())
+    const mu = container.querySelector('input[aria-label="μ（learning rate）"]:not([type=range])') as HTMLInputElement
+    fireEvent.change(mu, { target: { value: String(0.25 / Math.sqrt(2 / Math.PI) * 100) } })
+    const b = container.querySelector('input[aria-label="B（允許的更新次數）"]:not([type=range])') as HTMLInputElement
+    fireEvent.change(b, { target: { value: '6' } })
+    await waitFor(() => expect(warningTexts(container).some((t) => t.includes('只看'))).toBe(true))
+    const row = Array.from(container.querySelectorAll('.so-corner-table tbody tr td')).map((td) => td.textContent)
+    expect(row[5]).toBe('7')
+    expect(row[6]).toBe('5')
+    expect(row.at(-1)).toContain('收斂') // 判定欄寫明「收斂」不合格
+    noTexErrors(container)
+  })
+
+  it('A6：極慢的 mode（逐 block 數不完）——k95 欄寫「≥」、附警告；ρ 漸近估計欄仍是數字', async () => {
+    const { container } = mount(<CornerJudgeExperiment />)
+    const setNum = (label: string, v: number) => fireEvent.change(container.querySelector(`input[aria-label="${label}"]:not([type=range])`) as HTMLInputElement, { target: { value: String(v) } })
+    setNum('corner 4 的 σ_v', 1000)
+    setNum('corner 4 的有效相位 θ', 89.99)
+    await waitFor(() => expect(warningTexts(container).some((t) => t.includes('極慢的 mode'))).toBe(true))
+    const tds = Array.from(container.querySelectorAll('.so-corner-table tbody tr:last-child td'))
+    expect(tds[5].textContent).toContain('≥')
+    expect(tds[6].textContent).not.toContain('≥')
+    expect(tds[5].textContent?.endsWith(tds[6].textContent ?? '?')).toBe(true) // 「≥」後面接的就是 ρ 漸近估計的數字（極慢時下界 = 估計）
+    noTexErrors(container)
+  })
+
+  it('A6：Monte Carlo 欄是真的比對（blockLms 8 seeds）：每個 preset 都等到有結論；ok 的說明寫出 corner、k95、最差比值', async () => {
+    const { container } = mount(<CornerJudgeExperiment />)
+    const mcCell = () => container.querySelectorAll<HTMLElement>('.c-exp-crosscheck .c-check')[1]
+    await waitFor(() => expect(mcCell().className).toContain('c-check-ok'), { timeout: 20_000 })
+    const note = mcCell().getAttribute('title') ?? ''
+    expect(note).toContain('near-grid FCW')
+    expect(note).toContain('$k_{95}=71$')
+    expect(note).toContain('8 個 seeds')
+    expect(/最差為容許值的 \$0\.\d+\$ 倍/.test(note), note).toBe(true)
+    expect(/第 \$71\$ 個 block：MC \$\|\\delta\|\/\\delta_0=[\d.]+\\pm[\d.]+\$（se），遞迴 \$0\.0\d+\$/.test(note), note).toBe(true)
+    // 每個 preset 都有結論：d = 3、B = 20 是 ok；θ = 100° 的 corner 極性錯誤，仍用其餘穩定的 corner 比對（SS −40°C）
+    for (const [name, who] of [
+      ['commit latency d = 3', 'FF 125°C'],
+      ['B 太小', 'near-grid FCW'],
+      ['有效相位超過 90°', 'SS −40°C'],
+    ] as const) {
+      loadPreset(container, name)
+      await waitFor(() => expect(mcCell().getAttribute('title') ?? '', name).toContain(who), { timeout: 20_000 })
+      await waitFor(() => expect(mcCell().className, name).toContain('c-check-ok'), { timeout: 20_000 })
+    }
+    expect(crossCheck(container)[2]).toBe('n/a')
+    noTexErrors(container)
+  }, 60_000)
+
+  it('A6：Monte Carlo 欄沒有可比對的 corner（全部極性錯誤）時寫 n/a 並說明原因，Fixed-Point 欄一律 n/a 並指向 Fixed-point 判斷器', async () => {
+    const { container } = mount(<CornerJudgeExperiment />)
+    for (let i = 0; i < 3; i++) fireEvent.click(container.querySelectorAll<HTMLButtonElement>('.so-toolbar .btn')[1])
+    fireEvent.change(container.querySelector('input[aria-label="corner 1 的有效相位 θ"]:not([type=range])') as HTMLInputElement, { target: { value: '120' } })
+    await waitFor(() => expect(crossCheck(container)).toEqual(['ok', 'n/a', 'n/a']))
+    const cells = container.querySelectorAll<HTMLElement>('.c-exp-crosscheck .c-check')
+    expect(cells[1].getAttribute('title')).toContain('沒有「極性正確且穩定」的 corner')
+    expect(cells[2].getAttribute('title')).toBe('量化見本頁 Fixed-point 判斷器')
+    noTexErrors(container)
+  })
+
+  it('A6：掃描圖的 ρ = 0.05^{1/B} 線——d = 0 是判定線（B 內衰減 95%），d ≥ 1 只標成漸近參考線', () => {
+    expect(refLineName(0, 120)).toBe(String.raw`$\rho = 0.05^{1/B}$（$B = 120$ 內衰減 95%）`)
+    expect(refLineName(1, 120)).toBe(String.raw`$\rho = 0.05^{1/B}$（漸近參考線，$B = 120$）`)
+    expect(refLineName(3, 6)).toContain('漸近參考線')
   })
 
   it('T16: Fixed-point：預設 17-bit wrap 翻號；F = 10 bit 時 EFB 週期 512 與封閉式一致', async () => {

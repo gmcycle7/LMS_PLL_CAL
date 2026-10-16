@@ -100,7 +100,8 @@ describe('Sign-off 實驗：圖內字串與控制項的數學都是 LaTeX', () =
     const { container } = mount(<CornerJudgeExperiment />)
     await waitFor(() => expect(strings().some((s) => s.includes('穩定邊界'))).toBe(true), { timeout: 60_000 })
     checkAll(container, [String.raw`$\mu$ [fs]`, String.raw`$\rho$`, String.raw`$\rho = 1$（穩定邊界）`])
-    expect(strings().some((s) => /^\$\\rho = 0\.05\^\{1\/B\}\$（\$B = \d+\$ 內衰減 95%）$/.test(s))).toBe(true)
+    // 預設 d = 1：判定改用逐 block 的 k95，這條線只剩漸近參考的意義（d = 0 的圖例見 experiments.test.tsx 的 refLineName）
+    expect(strings().some((s) => /^\$\\rho = 0\.05\^\{1\/B\}\$（漸近參考線，\$B = \d+\$）$/.test(s))).toBe(true)
     expect(strings().some((s) => /^目前 \$\\mu = [\d.e-]+\$ fs$/.test(s))).toBe(true)
     expect(strings().some((s) => /^TT 25°C：\$\\rho\(\\mu\)\$$/.test(s))).toBe(true)
   })

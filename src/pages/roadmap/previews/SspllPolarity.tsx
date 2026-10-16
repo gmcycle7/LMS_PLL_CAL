@@ -15,6 +15,7 @@ import {
   useThemeTokens,
   type ExperimentPreset,
   type MetricRow,
+  ChRef,
 } from '@/components'
 import modelSrc from '../model.ts?raw'
 import {
@@ -398,7 +399,7 @@ export default function SspllPreview() {
       <StepDerivation
         title={mt(String.raw`一步一步推導（二）：哪些 code 會真的反號（raw-x GMAC 的 $C$）`)}
         steps={[
-          { tex: String.raw`C=E\Big[x[n]\sum_{k\ge0}h[k]\,x[n-k]\Big]=\sum_{k\ge0}h[k]\,R_x[k]`, why: <>第 6 章：<Tex>{'u=h_{\\mathrm{PD}}*x'}</Tex>，期望值與加總交換。</> },
+          { tex: String.raw`C=E\Big[x[n]\sum_{k\ge0}h[k]\,x[n-k]\Big]=\sum_{k\ge0}h[k]\,R_x[k]`, why: <><ChRef ch="06">第 6 章</ChRef>：<Tex>{'u=h_{\\mathrm{PD}}*x'}</Tex>，期望值與加總交換。</> },
           { tex: String.raw`\text{白色 code }R_x[k]=\delta[k]:\quad C=h[0]=1`, why: <><Tex>{'L'}</Tex> 嚴格因果（至少延遲一拍），所以 <Tex>{'h_{\\mathrm{PD}}[0]=1'}</Tex>。</> },
           { tex: String.raw`\text{AR(1) code }R_x[k]=\beta_x^{|k|}:\quad C=\sum_{k\ge0}h[k]\beta_x^k=H_{\mathrm{PD}}(z)\big|_{z^{-1}=\beta_x}`, why: <>Z transform 的定義，只是把 <Tex>{'z^{-1}'}</Tex> 換成實數 <Tex>{'\\beta_x'}</Tex>。</> },
           { tex: String.raw`H_{\mathrm{PD}}=\frac{(1-z^{-1})^n}{\prod_i(1-p_iz^{-1})}\ \Rightarrow\ C=\frac{(1-\beta_x)^n}{\prod_i(1-p_i\beta_x)}>0`, why: <>分子 <Tex>{'(1-\\beta_x)^n>0'}</Tex>；分母中共軛 pole 成對給 <Tex>{'|1-p\\beta_x|^2>0'}</Tex>、實 pole <Tex>{'|p_i|<1'}</Tex> 給 <Tex>{'1-p_i\\beta_x>0'}</Tex>。</> },

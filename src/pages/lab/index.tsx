@@ -1,5 +1,5 @@
-import { useRef, type KeyboardEvent, type MouseEvent } from 'react'
-import { Callout, ClaimTag, ModelLevel, SourceTag, TestBadge, Tex } from '@/components'
+import { useRef, type KeyboardEvent } from 'react'
+import { AnchorLink, Callout, ClaimTag, ModelLevel, SourceTag, TestBadge, Tex } from '@/components'
 import { Diagram, ErratumNote } from './common'
 import { CHART_TAB_MAP } from './diagrams'
 import { TAB_LABEL, TAB_ORDER, type TabId } from './logic'
@@ -141,26 +141,10 @@ function LabTabs() {
  *       E13（單位）、E30（T13 前提）、E32 / E33（極性）、E34 / E35（符號與索引）、E44（CT/DT）、E45（filtered-x）；頁內以「勘誤 Exx」連到 #/verification。
  * 文字規範：數學一律 KaTeX；JSX 屬性字串內的 TeX 用單一反斜線、JS 字串用雙反斜線（index.test.tsx 會檢查）。
  */
-/**
- * 頁內錨點（公式 ID、「跳到 Lab」）：網站用 HashRouter，`#formula-F-LAB.6` 這種 hash 會被當成路由而顯示「找不到此頁面」。
- * 這裡攔截本頁內所有 `<a href="#formula-…">`（共用的 MetricTable「公式」欄會產生）與 `<a href="#lab-…">`，改成捲動到該元素。
- */
-function onAnchorClick(e: MouseEvent<HTMLDivElement>) {
-  const target = e.target as HTMLElement | null
-  const a = target?.closest?.('a[href^="#formula-"], a[href^="#lab-"]')
-  if (!a) return
-  e.preventDefault()
-  const el = document.getElementById((a.getAttribute('href') ?? '').slice(1))
-  if (!el) return
-  // 目標若在收合的 <details> 內，先展開
-  for (let p: HTMLElement | null = el.parentElement; p; p = p.parentElement) if (p instanceof HTMLDetailsElement) p.open = true
-  if (typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-}
-
 export default function LabPage() {
   return (
     <LabProvider>
-      <div className="lab-page" onClick={onAnchorClick}>
+      <div className="lab-page">
         <div className="c-tag-row lab-head-tags" id={PAGE_TOP_ANCHOR}>
           <ModelLevel level="L1" />
           <ModelLevel level="L2" />
@@ -177,7 +161,7 @@ export default function LabPage() {
         </div>
         <Callout kind="info" title="這一頁怎麼讀">
           <p>
-            想直接動手：<a href="#lab-experiments">跳到第 7 節的 Lab</a>。想先知道每個數字怎麼來：照順序讀第 1–6 節（每個推導一步一行，只需要微積分）。本站與規格書不同之處以「
+            想直接動手：<AnchorLink id="lab-experiments">跳到第 7 節的 Lab</AnchorLink>。想先知道每個數字怎麼來：照順序讀第 1–6 節（每個推導一步一行，只需要微積分）。本站與規格書不同之處以「
             <ErratumNote id="E13" />」這樣的小註標示，點了會到驗證頁。
           </p>
         </Callout>

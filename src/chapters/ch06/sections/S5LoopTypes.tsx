@@ -12,6 +12,7 @@ import {
   Tex,
   TexBlock,
   useThemeTokens,
+  ChRef,
 } from '@/components'
 import polaritySrc from '@/simulation/models/polarity.ts?raw'
 import pllSrc from '@/simulation/models/pll.ts?raw'
@@ -728,7 +729,7 @@ export function S5LoopTypes() {
             result={String.raw`\operatorname{Re}H\approx\kappa\Big(\frac{\Omega}{\omega_cT_s}\Big)^2,\qquad\kappa=1-K\big(d+\tfrac12\big)`}
           />
           <p>
-            穩定需要 <Tex>{'K<2\\sin(\\pi/(4d+2))'}</Tex>（與第 08 章 §8.3 的更新延遲是同一個特徵方程 <Tex>{'z^{d+1}-z^d+K=0'}</Tex>）。
+            穩定需要 <Tex>{'K<2\\sin(\\pi/(4d+2))'}</Tex>（與<ChRef ch="08">第 08 章</ChRef> §8.3 的更新延遲是同一個特徵方程 <Tex>{'z^{d+1}-z^d+K=0'}</Tex>）。
             <Tex>{'d=0'}</Tex> 時 <Tex>{'\\kappa<0'}</Tex> 需要 <Tex>{'K>2'}</Tex>，已經不穩定，所以 <Tex>{'d=0'}</Tex> 的 Type-I 在低頻永遠不變號（與 F-06.7
             一致）；但{' '}
             <Tex>{'d=1'}</Tex> 時 <Tex>{'2/3<K<1'}</Tex> 就是「穩定、但慢速 code 會變號」的區間。CT 解讀：等效延遲{' '}

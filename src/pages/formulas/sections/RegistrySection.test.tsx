@@ -143,7 +143,7 @@ describe('RegistrySection（jsdom）', () => {
     expect(fireEvent.click(link, { metaKey: true })).toBe(true)
     expect(J.jumps).toEqual([])
     expect(fireEvent.click(link)).toBe(false)
-    expect(loc()).toBe(f.page)
+    expect(loc()).toBe(`${f.page}?f=${id}`) // 帶 ?f=：目標頁載好後會捲到這條公式
     expect(J.jumps).toEqual([id])
   })
 

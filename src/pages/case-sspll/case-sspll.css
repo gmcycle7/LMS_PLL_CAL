@@ -235,3 +235,15 @@
 .case-sspll #symbols {
   scroll-margin-top: 4.5rem;
 }
+
+/* 按需載入的資料還沒到：佔住圖的位置（高度由元件的 minHeight 指定），資料到了版面不跳動 */
+.case-sspll .cs-data-pending {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0.8rem 0;
+  border: 1px dashed var(--border, rgba(127, 127, 127, 0.4));
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: var(--text-muted, #666);
+}

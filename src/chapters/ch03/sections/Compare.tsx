@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { Data, Layout } from 'plotly.js-dist-min'
-import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Plot, Section, Tex, TexBlock, useThemeTokens } from '@/components'
+import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Plot, Section, Tex, TexBlock, useThemeTokens, ChRef } from '@/components'
 import lmsSrc from '@/simulation/models/lms.ts?raw'
 import stabilitySrc from '@/simulation/models/scalarStability.ts?raw'
 import lmsPySrc from '../../../../golden/lms_pll_golden/lms.py?raw'
@@ -231,7 +231,7 @@ export function CompareSection() {
           再看 PD 的輸出：<Tex>{T`e[i]`}</Tex> 分成兩路。往左下那一路進 loop filter 與 VCO／DCO，VCO 的輸出再經 divider 回到 PD——這一圈就是 PLL 的主迴路（本章不展開），回授路徑上只有 divider，沒有 DTC。
           往右下那一路就是 <strong>LMS 校正迴路的輸入</strong>——comparator 取的是 PD 的輸出 <Tex>{T`e[i]`}</Tex>，也就是送進 loop filter 的同一個訊號，不是從 DTC 或 divider 拉出來的。
           接著看褐色那一格，它列的是本章先拿掉的東西：真實硬體裡主迴路是閉合的，feedback edge 會跟著動，所以 PD 輸出裡的不是 <Tex>{T`\delta\,x`}</Tex>，而是 <Tex>{T`\delta\,u`}</Tex>——
-          <Tex>{T`u=h*x`}</Tex> 是被 PLL 的 error path 濾過的 code（第 6–7 章）；<Tex>w</Tex> 的更新有延遲（第 8 章）；comparator 只留下 1 bit 的正負號（第 5 章）；accumulator 的輸出還有位元數限制（第 13 章）。本章把它們全部理想化，才得到乾淨的{' '}
+          <Tex>{T`u=h*x`}</Tex> 是被 PLL 的 error path 濾過的 code（第 6–7 章）；<Tex>w</Tex> 的更新有延遲（<ChRef ch="08">第 8 章</ChRef>）；comparator 只留下 1 bit 的正負號（<ChRef ch="05">第 5 章</ChRef>）；accumulator 的輸出還有位元數限制（<ChRef ch="13">第 13 章</ChRef>）。本章把它們全部理想化，才得到乾淨的{' '}
           <Tex>{T`1-\mu x^2`}</Tex>。最後往下看藍色方塊：
           <Tex>{T`e[i]\,x[i]`}</Tex> 由 GMAC 累加 <Tex>N</Tex> 筆，每個 block 做一次「<Tex>{T`\div N`}</Tex>、<Tex>{T`\times\mu`}</Tex>」，加進 gain accumulator：
           <Tex>{T`w[k+1]=w[k]+\mu\cdot\tfrac1N\sum_i e[i]\,x[i]`}</Tex>，新的 <Tex>{T`w[k]`}</Tex> 再沿著右邊那條長線回到 gain correction，由它去控制 reference 端的 DTC。<Tex>{T`N=1`}</Tex> 時 <Tex>{T`k=n`}</Tex>，這就是第 1–7 節的{' '}
@@ -273,7 +273,7 @@ export function CompareSection() {
                   <Tex>{T`v_n`}</Tex>
                 </td>
                 <td>Comparator 前的 PD / reference / thermal noise</td>
-                <td>1-bit comparator 的非線性在第 5 章用 <Tex>{T`K_q`}</Tex> 線性化</td>
+                <td>1-bit comparator 的非線性在<ChRef ch="05">第 5 章</ChRef>用 <Tex>{T`K_q`}</Tex> 線性化</td>
               </tr>
               <tr>
                 <td>
@@ -338,7 +338,7 @@ export function CompareSection() {
           </p>
         </Callout>
         <Callout kind="warn" title="適用範圍">
-          這是 conventional（多 bit 誤差）block LMS 的精確結果。1-bit Sign-LMS 的 GMAC 輸出還要經過 comparator 統計（第 5 章 <Tex>{T`K_q`}</Tex> 線性化，
+          這是 conventional（多 bit 誤差）block LMS 的精確結果。1-bit Sign-LMS 的 GMAC 輸出還要經過 comparator 統計（<ChRef ch="05">第 5 章</ChRef> <Tex>{T`K_q`}</Tex> 線性化，
           <ClaimTag kind="approx" />），而且 PLL error path 讓 regressor 變成相關的 <Tex>{T`u=h*x`}</Tex>（第 6–7 章）。本章給的是「理想情況下最好也只能到這裡」的基準。
         </Callout>
       </Section>

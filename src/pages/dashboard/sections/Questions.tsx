@@ -1,5 +1,5 @@
 import { memo, useMemo, type ReactNode } from 'react'
-import { ClaimTag, Tex, TexBlock } from '@/components'
+import { ClaimTag, Tex, TexBlock, ChRef } from '@/components'
 import { useSettings } from '@/app/settings'
 import { QUESTIONS } from '../data'
 import { computePreviews, type Previews } from '../previews'
@@ -60,7 +60,7 @@ function answer(n: number, P: Previews): ReactNode {
           <p>
             固定 <Tex>{`x=${P.fixedX.x}`}</Tex> 時 <Tex>{'\\delta_{n+1}=(1-\\mu x^2)\\delta_n'}</Tex>：<Tex>{`0<\\mu<${f(P.fixedX.muOneStep)}`}</Tex> 單調收斂、
             <Tex>{`\\mu=${f(P.fixedX.muOneStep)}`}</Tex> 一步到位、<Tex>{`${f(P.fixedX.muOneStep)}<\\mu<${f(P.fixedX.muMax)}`}</Tex> 震盪收斂、
-            <Tex>{`\\mu=${f(P.fixedX.muMax)}`}</Tex> 臨界（<Tex>{'p=-1'}</Tex>）、更大就發散。加上 block 延遲後臨界增益再縮小（Ch08）。
+            <Tex>{`\\mu=${f(P.fixedX.muMax)}`}</Tex> 臨界（<Tex>{'p=-1'}</Tex>）、更大就發散。加上 block 延遲後臨界增益再縮小（<ChRef ch="08">Ch08</ChRef>）。
           </p>
           <ClaimTag kind="exact" />
         </>
@@ -117,14 +117,14 @@ function answer(n: number, P: Previews): ReactNode {
         <>
           <StepLine tex={String.raw`z^2-(1+r)z+r+\mu bc=0,\qquad r=${P.dual.r},\ b=${P.dual.b},\ c=${P.dual.c},\ \mu=${P.dual.mu}\ \Rightarrow\ |z|=${f(P.dual.absZ)}>1`} />
           <p>
-            這是 Ch08 §8.4 <strong>二狀態模型</strong>的特徵方程（主 PLL 的觀測是一階狀態，誤差晚一個 block 才被 GMAC 看到）。時間尺度分離（quasi-static）給{' '}
+            這是 <ChRef ch="08">Ch08</ChRef> §8.4 <strong>二狀態模型</strong>的特徵方程（主 PLL 的觀測是一階狀態，誤差晚一個 block 才被 GMAC 看到）。時間尺度分離（quasi-static）給{' '}
             <Tex>{`0<\\mu<2(1-r)/(bc)=${f(P.dual.muMaxSimplified)}`}</Tex>，這個模型的完整界限只有 <Tex>{`0<\\mu<(1-r)/(bc)=${f(P.dual.muMaxFull)}`}</Tex>：差的那一半來自
             sample→observe 的一個 block latency；觀測路徑不同的雙迴路，比例不一定是一半。只有 <Tex>{'\\mu bc\\ll(1-r)^2/4'}</Tex> 時才能分開分析{' '}
             <ErratumLink eid="E19" />。
           </p>
           <ClaimTag kind="exact" />{' '}
           <span className="small muted">
-            （Ch08 二狀態模型，
+            （<ChRef ch="08">Ch08</ChRef> 二狀態模型，
             <Glue>
               <Tex>{'|r|<1'}</Tex>、
             </Glue>

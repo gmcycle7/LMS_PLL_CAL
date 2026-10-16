@@ -1,4 +1,5 @@
 import { useId, useState, type ReactNode } from 'react'
+import { ScrollRegion } from './ScrollRegion'
 import { Tex, TexBlock, mathText } from './Tex'
 import './code.css'
 
@@ -22,7 +23,7 @@ export function SymbolTable({ rows, title = '本章符號', caption }: { rows: S
   return (
     <div className="c-symbols">
       <div className="c-symbols-title">{mathText(title)}</div>
-      <div className="table-wrap">
+      <ScrollRegion className="table-wrap" label="符號表（可左右捲動）">
         <table>
           <thead>
             <tr>
@@ -47,7 +48,7 @@ export function SymbolTable({ rows, title = '本章符號', caption }: { rows: S
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollRegion>
       {caption && <div className="c-code-caption">{caption}</div>}
     </div>
   )
@@ -92,6 +93,9 @@ export function Quiz({ title = '思考題', question, options, answer }: QuizPro
         </div>
       )}
       {correct !== null && <div className={`c-quiz-verdict ${correct ? 'ok' : 'bad'}`}>{correct ? '答對了！' : '再想想看。'}</div>}
+      <div className="c-sr-only" aria-live="polite">
+        {correct !== null && <span key={picked ?? -1}>{correct ? '作答結果：答對了' : '作答結果：再想想看'}</span>}
+      </div>
       <button type="button" className="btn" onClick={() => setShown((v) => !v)} aria-expanded={shown}>
         {shown ? '收起解析' : '看答案與解析'}
       </button>

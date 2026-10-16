@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, CodeBlock, Derivation, ModeGate, Prereq, Quiz, Section, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeBlock, Derivation, ModeGate, Prereq, Quiz, Section, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import lmsSrc from '@/simulation/models/lms.ts?raw'
 import sgdSrc from '@/simulation/models/sgd.ts?raw'
 import { conventionalStep, signErrorStep, type TieRule } from '@/simulation/models/lms'
@@ -96,7 +96,7 @@ export function S3SignError() {
         <p>
           PLL 校正裡，誤差 <Tex>{'e'}</Tex> 是一個幾 fs 的時間差，量它的大小需要 TDC；但一顆 comparator / bang-bang PD 只輸出
           <Tex>{'q=\\operatorname{sign}(e)\\in\\{+1,-1\\}'}</Tex>（<Tex>{'\\operatorname{sign}'}</Tex> 取正負號：正數給 <Tex>{'+1'}</Tex>、負數給 <Tex>{'-1'}</Tex>；<Tex>{'q'}</Tex> 就是這顆 comparator 的 1-bit 輸出）。
-          如果更新只能用 <Tex>{'q'}</Tex>，等於在最小化什麼？答案是絕對誤差 <Tex>{'|e|'}</Tex>（MAE，Ch01）。
+          如果更新只能用 <Tex>{'q'}</Tex>，等於在最小化什麼？答案是絕對誤差 <Tex>{'|e|'}</Tex>（MAE，<ChRef ch="01">Ch01</ChRef>）。
         </p>
       </Section>
 
@@ -414,7 +414,7 @@ export function S3SignError() {
         <p>
           <ClaimTag kind="approx" /> 數字：<Tex>{'\\mu_0=0.4,\\ n_0=20,\\ D=3'}</Tex>：<Tex>{'D/(\\mu_0n_0)=0.375'}</Tex>，實際只要 {reach.ok} 步；
           但 <Tex>{'\\mu_0=0.01,\\ n_0=10'}</Tex>：<Tex>{'D/(\\mu_0n_0)=30'}</Tex>，需要 <Tex>{'\\approx10\\,\\mathrm{e}^{30}'}</Tex> 步（程式在 <Tex>{'5\\times10^6'}</Tex> 步內{Number.isFinite(reach.slow) ? `需要 ${reach.slow} 步` : '走不到'}）。
-          工程規則：<strong>先用固定的 <Tex>{'\\mu'}</Tex> 粗調到 <Tex>{'w^*'}</Tex> 附近，再開始衰減</strong>（gear-shift：每 <Tex>{'n_0'}</Tex> 步右移一位，並設下限 <Tex>{'\\mu_{\\min}'}</Tex> 以保留追蹤 PVT 漂移的能力，Ch14）。
+          工程規則：<strong>先用固定的 <Tex>{'\\mu'}</Tex> 粗調到 <Tex>{'w^*'}</Tex> 附近，再開始衰減</strong>（gear-shift：每 <Tex>{'n_0'}</Tex> 步右移一位，並設下限 <Tex>{'\\mu_{\\min}'}</Tex> 以保留追蹤 PVT 漂移的能力，<ChRef ch="14">Ch14</ChRef>）。
         </p>
         <Diagram id="gear-shift">
           <p>

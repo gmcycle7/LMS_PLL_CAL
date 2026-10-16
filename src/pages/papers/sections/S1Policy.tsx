@@ -1,4 +1,4 @@
-import { Callout, ClaimTag, ModeGate, Section, SourceTag, Tex } from '@/components'
+import { Callout, ClaimTag, ModeGate, Section, SourceTag, Tex, ChRef } from '@/components'
 import { PAPERS } from '../references'
 import { calNoise } from '../bridge'
 import { Diagram, PageChips, Question, num, r } from '../common'
@@ -12,7 +12,7 @@ export function S1Policy() {
   return (
     <Section kind="intuition" level={2} title="1. 這一頁的規則：「論文說的」和「本站推的」要分開" id="papers-policy">
       <Question>
-        一篇 ISSCC 論文的題名寫著 74 fs jitter；本站 Ch12 算出 <Tex>{r`\sigma_w\approx${num(sigmaW, 3)}\ \mathrm{fs}`}</Tex>。這兩個數字可以放在一起比嗎？
+        一篇 ISSCC 論文的題名寫著 74 fs jitter；本站 <ChRef ch="12">Ch12</ChRef> 算出 <Tex>{r`\sigma_w\approx${num(sigmaW, 3)}\ \mathrm{fs}`}</Tex>。這兩個數字可以放在一起比嗎？
       </Question>
       <p>
         <strong>不行。</strong>前者是作者在他們的晶片、他們的量測條件下得到的 <em>output jitter</em>（量測值）；後者是本站在 illustrative

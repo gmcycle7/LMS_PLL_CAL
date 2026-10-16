@@ -13,6 +13,7 @@ import {
   Tex,
   TexBlock,
   useThemeTokens,
+  ChRef,
 } from '@/components'
 import { mean } from '@/simulation/core'
 import { batchL2, mseParabola } from '@/simulation/models/lossCompare'
@@ -332,7 +333,7 @@ export function ParabolaSection() {
             正負乘積互相抵消，<Tex>{'E[xy]=0'}</Tex>，稱為<strong>正交（orthogonal）</strong>。
           </p>
           <p className="small">
-            用語提醒：<Tex>{'E[xy]=0'}</Tex> 叫正交；<strong>不相關（uncorrelated）</strong>是指 <Tex>{'E[xy]=E[x]\\,E[y]'}</Tex>（Ch00 §0.7 的定義）。
+            用語提醒：<Tex>{'E[xy]=0'}</Tex> 叫正交；<strong>不相關（uncorrelated）</strong>是指 <Tex>{'E[xy]=E[x]\\,E[y]'}</Tex>（<ChRef ch="00">Ch00</ChRef> §0.7 的定義）。
             只要其中一個量的平均為 0，兩者就是同一件事——所以雜訊 <Tex>{'v'}</Tex> 零均值時，<Tex>{'E[xv]=0'}</Tex> 說成正交或不相關都可以。但 §1.2.1 的最佳誤差{' '}
             <Tex>{'e^*'}</Tex> 平均不一定是 0（輸入 <Tex>{'x'}</Tex> 的平均也不一定是 0），那裡要說「正交」（正交原理）。
           </p>
@@ -406,7 +407,7 @@ export function ParabolaSection() {
           <SpecNote>
             <Tex>{'w^*=a'}</Tex> 需 <Tex>{'E[xv]=0'}</Tex> 且 <Tex>{'E[x^2]>0'}</Tex>
           </SpecNote>
-          。典型成立的情況：<Tex>{'v'}</Tex> 零均值且與 <Tex>{'x'}</Tex> 獨立——其實 <Tex>{'v'}</Tex> 零均值、與 <Tex>{'x'}</Tex> 不相關（Ch00 §0.7
+          。典型成立的情況：<Tex>{'v'}</Tex> 零均值且與 <Tex>{'x'}</Tex> 獨立——其實 <Tex>{'v'}</Tex> 零均值、與 <Tex>{'x'}</Tex> 不相關（<ChRef ch="00">Ch00</ChRef> §0.7
           的定義）就足夠（§1.4 手算例 <Tex>{'v=0'}</Tex> 也成立）。反例：若量測誤差裡有一部分「跟著{' '}
           <Tex>{'x'}</Tex> 走」，例如 <Tex>{String.raw`v=0.5\,x+u`}</Tex>（<Tex>{'u'}</Tex> 與 <Tex>{'x'}</Tex> 獨立、零均值），則{' '}
           <Tex>{String.raw`E[xv]=0.5E[x^2]`}</Tex>，<Tex>{String.raw`w^*=a+0.5`}</Tex>——LMS 會非常穩定地收斂到<strong>錯的答案</strong>。這正是 Part C 的 bias 問題（
@@ -655,7 +656,7 @@ export function ParabolaSection() {
         <p>
           <ClaimTag kind="exact" /> LMS 是用<strong>單筆隨機梯度</strong> <Tex>{String.raw`-e_nx_n`}</Tex> 近似平均成本{' '}
           <Tex>{'J'}</Tex> 的梯度，每一步都不是「直接解出全資料最佳解」。單筆梯度的期望值等於真正的梯度（無偏），
-          所以平均而言往下坡走；但每一步都帶著雜訊，這是之後 Ch03（mean vs mean-square）與 Ch12（係數雜訊）的源頭。
+          所以平均而言往下坡走；但每一步都帶著雜訊，這是之後 <ChRef ch="03">Ch03</ChRef>（mean vs mean-square）與 <ChRef ch="12">Ch12</ChRef>（係數雜訊）的源頭。
         </p>
       </Section>
     </>

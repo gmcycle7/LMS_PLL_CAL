@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, CodeBlock, ModeGate, Prereq, Section, SourceTag, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeBlock, ModeGate, Prereq, Section, SourceTag, Tex, TexBlock, ChRef } from '@/components'
 import calNoiseSrc from '@/simulation/models/calNoise.ts?raw'
 import {
   dtPsdOneSided,
@@ -324,7 +324,7 @@ export function S5Spur() {
       <Section kind="assumptions" title="隨機 vs 相干：noise skirt 不是 spur" level={3}>
         <p>
           <strong>隨機</strong>的係數波動（LMS 的 <Tex>{String.raw`\delta w`}</Tex>）產生連續頻譜，在輸出是 phase-noise 的<strong>裙擺（skirt）</strong>，單位 dBc/Hz；
-          只有<strong>相干 / 週期</strong>成分（例如 <Tex>{String.raw`\delta w`}</Tex> 被某個週期性干擾調變、或量化的 limit cycle，第 13 章）才會產生離散 spur，單位 dBc。
+          只有<strong>相干 / 週期</strong>成分（例如 <Tex>{String.raw`\delta w`}</Tex> 被某個週期性干擾調變、或量化的 limit cycle，<ChRef ch="13">第 13 章</ChRef>）才會產生離散 spur，單位 dBc。
           同樣的總功率，兩者讀數完全不同。看到頻譜上有東西時，先照下面的流程分類：
         </p>
         <Diagram chart={CHART_SKIRT_OR_SPUR} caption="先分清楚是相干還是隨機，再決定用哪一個公式、報哪一種單位。">

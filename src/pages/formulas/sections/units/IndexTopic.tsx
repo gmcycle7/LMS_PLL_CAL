@@ -1,4 +1,4 @@
-import { Callout, ClaimTag, CodeBlock, Mermaid, Prereq, SourceTag, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeBlock, Mermaid, Prereq, SourceTag, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import calNoiseSrc from '@/simulation/models/calNoise.ts?raw'
 import { refValues, T13_SETUP } from '../../refValues'
 import { texHz, texNum } from '../../format'
@@ -156,7 +156,7 @@ w[n]&=w_{\lfloor (n-n_c)/N\rfloor} &&\text{（回到 sample 軸；}n_c\text{：c
       <Callout kind="warn" title="三個「延遲」是三個不同的量">
         <p>
           <Tex>{'D'}</Tex>（samples）是為了對齊 code 與 PD 誤差而刻意加的延遲，影響的是更新<strong>極性</strong>（<Tex>{'C_D'}</Tex>，第 6–7 章）；<Tex>{'d'}</Tex>（blocks）是算出{' '}
-          <Tex>{'G'}</Tex> 到係數生效之間多等的 block 數，影響的是<strong>穩定範圍</strong>（<Tex>{String.raw`g^*(d)=2\sin\frac{\pi}{4d+2}`}</Tex>，第 8 章）；<Tex>{'n_c'}</Tex>{' '}
+          <Tex>{'G'}</Tex> 到係數生效之間多等的 block 數，影響的是<strong>穩定範圍</strong>（<Tex>{String.raw`g^*(d)=2\sin\frac{\pi}{4d+2}`}</Tex>，<ChRef ch="08">第 8 章</ChRef>）；<Tex>{'n_c'}</Tex>{' '}
           （samples）是硬體的 commit／apply latency，<Tex>{String.raw`n_c\ge N`}</Tex> 時就等效成 <Tex>{String.raw`d\ge1`}</Tex>。規格 §16.1 的「Code <Tex>{'n-d'}</Tex>」指的是 <Tex>{'D'}</Tex>（
           <ErratumTag eid="E34" />）。
         </p>

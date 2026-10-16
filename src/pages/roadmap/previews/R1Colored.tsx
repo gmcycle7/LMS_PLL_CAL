@@ -17,6 +17,7 @@ import {
   useThemeTokens,
   type ExperimentPreset,
   type MetricRow,
+  ChRef,
 } from '@/components'
 import modelSrc from '../model.ts?raw'
 import { roadmapHandCalc } from '../handcalcs'
@@ -188,7 +189,7 @@ function R1Experiment() {
       source="simulation"
       description={
         <>
-          線性化遞迴 <Tex>{String.raw`\delta w_{k+1}=p\,\delta w_k+\mu\eta_k`}</Tex>，<Tex>{'\\eta'}</Tex> 為 AR(1)。三種算法（封閉式、Lyapunov、Monte Carlo）＋ PSD 積分四方比對；<Tex>{'\\rho=0'}</Tex> 即第 12 章的 T13。
+          線性化遞迴 <Tex>{String.raw`\delta w_{k+1}=p\,\delta w_k+\mu\eta_k`}</Tex>，<Tex>{'\\eta'}</Tex> 為 AR(1)。三種算法（封閉式、Lyapunov、Monte Carlo）＋ PSD 積分四方比對；<Tex>{'\\rho=0'}</Tex> 即<ChRef ch="12">第 12 章</ChRef>的 T13。
         </>
       }
       assumptions={[
@@ -336,13 +337,13 @@ export default function R1Preview() {
         </table>
       </div>
       <p className="small muted">
-        表中每個數字都由 <code>sigmaW2Colored</code> 即時計算。<Tex>{'\\rho=0'}</Tex> 那一列就是第 12 章的 0.399 fs（T13）；它是 gain-equivalent noise，不是 output jitter。
+        表中每個數字都由 <code>sigmaW2Colored</code> 即時計算。<Tex>{'\\rho=0'}</Tex> 那一列就是<ChRef ch="12">第 12 章</ChRef>的 0.399 fs（T13）；它是 gain-equivalent noise，不是 output jitter。
       </p>
 
       <StepDerivation
         title={mt(String.raw`一步一步推導：AR(1) 雜訊下的 $\sigma_w^2$（$\delta w=w-w^*$）`)}
         steps={[
-          { tex: String.raw`\delta w_{k+1}=p\,\delta w_k+\mu\eta_k,\qquad p=1-\mu K`, why: <>第 12 章的線性化遞迴（F-12.2）；極性 <Tex>{'\\delta w=w-w^*'}</Tex>（勘誤 E33）。</> },
+          { tex: String.raw`\delta w_{k+1}=p\,\delta w_k+\mu\eta_k,\qquad p=1-\mu K`, why: <><ChRef ch="12">第 12 章</ChRef>的線性化遞迴（F-12.2）；極性 <Tex>{'\\delta w=w-w^*'}</Tex>（勘誤 E33）。</> },
           { tex: String.raw`\delta w_k=\mu\sum_{i=0}^{\infty}p^{i}\,\eta_{k-1-i}`, why: <>把遞迴反覆代入自己；<Tex>{'|p|<1'}</Tex> 時初值的影響 <Tex>{'p^k\\delta w_0\\to0'}</Tex>。</> },
           { tex: String.raw`E[\delta w_k^2]=\mu^2\sum_{i=0}^{\infty}\sum_{j=0}^{\infty}p^{i}p^{j}\,E[\eta_{k-1-i}\eta_{k-1-j}]`, why: '平方展開成雙重和，再取期望值（期望值是線性的，可以和加總交換）。' },
           { tex: String.raw`=\mu^2\sigma_\eta^2\sum_{i,j\ge0}p^{i+j}\rho^{|i-j|}`, why: <>代入 AR(1) 的自相關 <Tex>{'R_\\eta[i-j]=\\sigma_\\eta^2\\rho^{|i-j|}'}</Tex>。</> },

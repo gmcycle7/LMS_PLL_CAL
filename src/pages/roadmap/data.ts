@@ -650,7 +650,7 @@ export const DOCS: DocEntry[] = [
   { path: 'docs/validation.md', title: '規格驗算與勘誤', purpose: '逐項重算規格中的公式與數值；網站一律採用修正後版本', page: 'verification' },
   { path: 'docs/implementation_plan.md', title: '實作計畫', purpose: 'P0–P5 的交付、依賴、驗收與風險（本頁下方）' },
   { path: 'docs/assumptions.md', title: '模型假設與已知限制', purpose: 'L0–L6 模型層級、全站共用假設、架構限制', page: 'models' },
-  { path: 'docs/dev-conventions.md', title: '開發約定', purpose: '介面合約、單位與極性、測試命名（Txx:）、presets 與公式登錄' },
+  { path: 'docs/dev-conventions.md', title: '開發約定', purpose: '目錄結構、共用元件、單位與極性、測試、審查腳本' },
   { path: 'docs/teaching-style.md', title: '教學風格', purpose: '微積分起點、逐步推導、LaTeX、核心程式碼並排、符號表、思考題' },
   { path: 'docs/dev/infra-api.md', title: '基礎模組 API', purpose: 'core / signal / models / components / workers / golden 的用法' },
   { path: 'golden/README.md', title: 'Python golden model', purpose: '獨立的 NumPy / SciPy 實作與 golden/vectors/*.json' },

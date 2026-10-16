@@ -1,4 +1,4 @@
-import { Callout, ClaimTag, ModelLevel, Prereq, Section, SourceTag, SystemMap, Tex, TexBlock, TestBadge } from '@/components'
+import { Callout, ClaimTag, ModelLevel, Prereq, Section, SourceTag, SystemMap, Tex, TexBlock, TestBadge, ChRef } from '@/components'
 import { Fig, SymbolsLink, TagRow, tn } from '../common'
 import { SYSTEM_MAP_FOCUS } from '../diagrams'
 import { NUM } from '../numbers'
@@ -25,7 +25,7 @@ export function S0Intro() {
         <ol>
           <li>
             <strong>變得非常慢</strong>：單一 loop 把無因次的 loop gain 設成 <Tex>{String.raw`\mu K_q=0.5`}</Tex>（learning rate <Tex>{String.raw`\mu`}</Tex> 乘上 comparator 的小訊號增益{' '}
-            <Tex>{'K_q'}</Tex>，第 5 章）時，{NUM.rho099.blocksFull} 個 block 就收斂（一個 block = GMAC 累加 <Tex>{'N'}</Tex> 個 sample、更新一次係數）；兩個高度相關的 loop（regressor 的相關係數{' '}
+            <Tex>{'K_q'}</Tex>，<ChRef ch="05">第 5 章</ChRef>）時，{NUM.rho099.blocksFull} 個 block 就收斂（一個 block = GMAC 累加 <Tex>{'N'}</Tex> 個 sample、更新一次係數）；兩個高度相關的 loop（regressor 的相關係數{' '}
             <Tex>{String.raw`\rho=0.99`}</Tex>）合在一起卻要 {NUM.rho099.blocksScalar} 個 block；
           </li>
           <li>

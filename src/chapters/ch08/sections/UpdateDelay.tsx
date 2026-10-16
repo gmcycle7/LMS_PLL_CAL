@@ -16,6 +16,7 @@ import {
   TexBlock,
   TestBadge,
   useThemeTokens,
+  ChRef,
 } from '@/components'
 import stabilitySrc from '@/simulation/models/stability.ts?raw'
 import { polyRoots } from '@/simulation/core'
@@ -433,7 +434,7 @@ export function UpdateDelay() {
           />
           <p className="small">
             這也解釋了為什麼「把 <Tex>{'\\mu'}</Tex> 調小」永遠能救回延遲造成的不穩：<Tex>{'g^*(d)>0'}</Tex> 對每個 <Tex>{'d'}</Tex> 都成立，所有快根都在半徑 <Tex>{'g^{1/d}'}</Tex> 附近，慢根在 <Tex>{'1-g'}</Tex>；代價是收斂時間{' '}
-            <Tex>{'\\tau\\approx1/g'}</Tex> 變長、noise 頻寬變窄（Ch12、Ch14 的取捨）。
+            <Tex>{'\\tau\\approx1/g'}</Tex> 變長、noise 頻寬變窄（<ChRef ch="12">Ch12</ChRef>、<ChRef ch="14">Ch14</ChRef> 的取捨）。
           </p>
         </Expand>
       </ModeGate>

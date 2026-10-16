@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, CodeBlock, ModeGate, Section, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeBlock, ModeGate, Section, Tex, TexBlock, ChRef } from '@/components'
 import optimizerSrc from '@/simulation/models/optimizer.ts?raw'
 import { comparatorKq, cornerInterval, gmacMeanField, gmacModel, slopeTruncationBias } from '@/simulation/models/optimizer'
 import { CornerIntervalExperiment } from '../experiments/CornerInterval'
@@ -153,7 +153,7 @@ B=12:\ \epsilon^{1/12}&=0.01^{1/12}=${tx(root, 5)}\\
               <td>
                 <Tex>{'K_{\\min}\\uparrow'}</Tex>
               </td>
-              <td>硬體（Ch07、Ch09）</td>
+              <td>硬體（<ChRef ch="07">Ch07</ChRef>、<ChRef ch="09">Ch09</ChRef>）</td>
             </tr>
             <tr>
               <td>{md(String.raw`放寬 $\epsilon$ 或 PM`)}</td>
@@ -174,7 +174,7 @@ B=12:\ \epsilon^{1/12}&=0.01^{1/12}=${tx(root, 5)}\\
               <td>
                 <Tex>{'d\\to0'}</Tex> 時 PM 公式才成立
               </td>
-              <td>pipeline 設計（Ch08 §8.3）</td>
+              <td>pipeline 設計（<ChRef ch="08">Ch08</ChRef> §8.3）</td>
             </tr>
           </tbody>
         </table>

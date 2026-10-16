@@ -432,11 +432,18 @@ def regressors(c, p):
 def e_inj(c, p, wg, W, cfg, extra=None):
     """Injected timing error at the comparison node (ps), shape (N, n_a, nl).
        c,p: (N, n_a); wg: (n_a, nl); W: (n_a, nl, 8).
-       Physical model:
-         required reference delay = c*Delta + eps_p        (PMUX phase p is late by eps_p)
-         actual DTC delay        = (1-a)(1+w_g)(c*Delta + w_p)
+       Physical model (same reading as docs/assumptions.md section 2a and /case/sspll section 2):
+         the feedback edge of PMUX phase p arrives EARLY by c*Delta + eps_p (eps_p > 0 means early), so
+         required compensation = c*Delta + eps_p
+         actual compensation   = (1-a)(1+w_g)(c*Delta + w_p)
+                                 (the reference-side DTC can only delay: it is backed off from a fixed
+                                  base delay T_0 by this amount)
+         u = required - actual = t_ref' - t_fb  (up to the constant T_0; positive when the reference edge
+                                                  is too late)
        -> fixed point w_g* = a/(1-a), w_p* = eps_p; for w=0: u = a c Delta + eps_p
-          (the user's convention e = (a-w_g) rho + (eps_k - w_k) to first order)."""
+          (the user's convention e = (a-w_g) rho + (eps_k - w_k) to first order).
+       Reading eps_p as a LATE edge (and w_p as added delay) only flips the sign convention of eps_p and w_p
+       and the sign of the w_p update; the expression for u below and every number are unchanged."""
     D = cfg['Delta']
     a = cfg['a']
     eps = cfg['eps']

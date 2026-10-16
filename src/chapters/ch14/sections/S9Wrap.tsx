@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { ClaimTag, Quiz, Recap, Section, Tex, TexBlock } from '@/components'
+import { ClaimTag, Quiz, Recap, Section, Tex, TexBlock, ChRef } from '@/components'
 import { cornerInterval, loopGainK, msdAfterBlocks, optimizeMu } from '@/simulation/models/optimizer'
 import { Diagram } from '../Diagram'
 import { CHART_HAND_FLOW } from '../diagrams'
@@ -299,7 +299,7 @@ export function S9Wrap() {
                 <td>
                   <Tex>{'\\delta_B'}</Tex> 的 RMS
                 </td>
-                <td>gain-equivalent 殘差；要經 code 乘法與 PLL transfer 才變成 output jitter／spur（Ch12）</td>
+                <td>gain-equivalent 殘差；要經 code 乘法與 PLL transfer 才變成 output jitter／spur（<ChRef ch="12">Ch12</ChRef>）</td>
               </tr>
             </tbody>
           </table>

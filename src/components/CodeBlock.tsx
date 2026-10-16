@@ -4,6 +4,7 @@ import typescript from 'highlight.js/lib/languages/typescript'
 import python from 'highlight.js/lib/languages/python'
 import { diffLines, extractRegion } from './codeRegion'
 import './code.css'
+import { ScrollRegion } from './ScrollRegion'
 import { mathText } from './Tex'
 
 hljs.registerLanguage('typescript', typescript)
@@ -99,8 +100,9 @@ export function CodeBlock({ source, region, lang = 'typescript', title, path, hi
           {copied ? '已複製' : '複製'}
         </button>
       </figcaption>
-      {/* 高度上限約 25 行。只多出幾行的程式碼直接整段顯示：為了一兩行放一條捲軸沒有用途。 */}
-      <pre className={`c-code-pre${lines.length <= CODE_FULL_LINES ? ' is-full' : ''}`}>
+      {/* 高度上限約 25 行。只多出幾行的程式碼直接整段顯示：為了一兩行放一條捲軸沒有用途。
+          會捲動（長或寬）時可用鍵盤聚焦（ScrollRegion）。 */}
+      <ScrollRegion as="pre" label="程式碼（可捲動）" className={`c-code-pre${lines.length <= CODE_FULL_LINES ? ' is-full' : ''}`}>
         <code className={`hljs language-${lang}`}>
           {lines.map((html, i) => (
             <span key={i} className={`c-code-line${marked.has(i + 1) ? ' c-code-mark' : ''}`}>
@@ -112,7 +114,7 @@ export function CodeBlock({ source, region, lang = 'typescript', title, path, hi
             </span>
           ))}
         </code>
-      </pre>
+      </ScrollRegion>
       {caption && <div className="c-code-caption">{mathText(caption)}</div>}
     </figure>
   )

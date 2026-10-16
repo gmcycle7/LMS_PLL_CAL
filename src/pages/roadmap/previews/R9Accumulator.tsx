@@ -16,6 +16,7 @@ import {
   useThemeTokens,
   type ExperimentPreset,
   type MetricRow,
+  ChRef,
 } from '@/components'
 import modelSrc from '../model.ts?raw'
 import { roadmapHandCalc } from '../handcalcs'
@@ -162,8 +163,7 @@ export default function R9Preview() {
       <Prereq title="Two’s complement：W 個 bit 能表示什麼">
         <p>
           {mt('$W$')}-bit two’s complement 的範圍是 <Tex>{'[-2^{W-1},\\ 2^{W-1}-1]'}</Tex>：負的那邊多一個。<Tex>{'-x=\\bar x+1'}</Tex>（各 bit 反相再加一），
-          所以最負值 <Tex>{'-2^{W-1}'}</Tex> 取負後是 <Tex>{'+2^{W-1}'}</Tex>，在同樣的 {mt('$W$')} 個 bit 裡放不下。溢位時硬體只保留低 {mt('$W$')} 個 bit，相當於對 <Tex>{'2^W'}</Tex> 取模（wrap）。
-          第 4 章 §5 有逐 bit 的例子（<PageRef id="ch04">第 4 章</PageRef>）。
+          所以最負值 <Tex>{'-2^{W-1}'}</Tex> 取負後是 <Tex>{'+2^{W-1}'}</Tex>，在同樣的 {mt('$W$')} 個 bit 裡放不下。溢位時硬體只保留低 {mt('$W$')} 個 bit，相當於對 <Tex>{'2^W'}</Tex> 取模（wrap）。 <ChRef ch="04">第 4 章</ChRef> §5 有逐 bit 的例子（<PageRef id="ch04">第 4 章</PageRef>）。
         </p>
       </Prereq>
       <StepDerivation

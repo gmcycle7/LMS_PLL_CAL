@@ -95,6 +95,18 @@ export function Claim({ kind, children }: { kind: ClaimKind; children?: ReactNod
   )
 }
 
+/**
+ * 按需載入的資料（./lazyData）還沒到時，佔住圖的位置：高度與圖相同，資料到了版面不會跳動。
+ * `what` 是資料的名稱（例如「sign map」）；載入失敗時改說明原因，不會一直顯示「載入中」。
+ */
+export function DataPending({ status, what, height }: { status: 'idle' | 'loading' | 'ready' | 'error'; what: string; height: number }) {
+  return (
+    <div className="cs-data-pending" style={{ minHeight: height }} role="status">
+      {status === 'error' ? `${what} 載入失敗，請檢查網路連線後重新整理頁面。` : `${what} 載入中…`}
+    </div>
+  )
+}
+
 /** 簡單資料表（外層可水平捲動）；caption、表頭與儲存格為字串時支援 `$...$` 行內公式（ReactNode 原樣輸出） */
 export function DataTable({ head, rows, caption, className }: { head: ReactNode[]; rows: ReactNode[][]; caption?: ReactNode; className?: string }) {
   return (

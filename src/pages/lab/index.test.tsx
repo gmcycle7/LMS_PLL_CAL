@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
-import { extractRegion, listRegions } from '@/components'
+import { extractRegion, FormulaLink, listRegions } from '@/components'
 import blockSrc from '@/simulation/models/blockLms.ts?raw'
 import labSrc from '@/simulation/models/unifiedLab.ts?raw'
 import { unicodeMathIn } from '@/components/mermaidTestUtils'
@@ -480,12 +480,25 @@ describe('分頁', () => {
     expect(sh.querySelectorAll('details.lab-group').length).toBe(9)
   })
 
-  it('頁內錨點不會被當成路由：點公式 ID 連結時 preventDefault 並捲到該公式', () => {
+  it('頁內錨點不會被當成路由：「跳到第 7 節的 Lab」與公式 ID 連結點擊時 preventDefault 並捲到目標，href 是真的路由網址', () => {
     const { container } = renderPage('/lab?preset=lab-negative-sum-mode', 'engineer', false)
-    const a = document.createElement('a')
-    a.setAttribute('href', '#formula-F-LAB.6')
-    a.textContent = 'F-LAB.6'
-    container.querySelector('.lab-page')?.appendChild(a)
+    // 「跳到第 7 節的 Lab」：AnchorLink（href = 目前路由 + ?a=）
+    const jump = container.querySelector('a[data-anchor-link="lab-experiments"]') as HTMLAnchorElement
+    expect(jump).toBeTruthy()
+    expect(jump.getAttribute('href')).toMatch(/^#\/lab\?.*a=lab-experiments$/)
+    const section = container.querySelector('[id="lab-experiments"]') as HTMLElement
+    const sectionSpy = vi.fn()
+    section.scrollIntoView = sectionSpy
+    const ev0 = new MouseEvent('click', { bubbles: true, cancelable: true })
+    jump.dispatchEvent(ev0)
+    expect(ev0.defaultPrevented).toBe(true)
+    expect(sectionSpy).toHaveBeenCalledTimes(1)
+    // 公式 ID 連結（共用 MetricTable 的「公式」欄用的就是 FormulaLink）
+    const holder = document.createElement('div')
+    document.body.appendChild(holder)
+    const view = render(<FormulaLink id="F-LAB.6" />, { container: holder })
+    const a = view.getByText('F-LAB.6')
+    expect(a.getAttribute('href')).toBe('#/formulas?f=F-LAB.6')
     const target = container.querySelector('[id="formula-F-LAB.6"]') as HTMLElement
     const spy = vi.fn()
     target.scrollIntoView = spy
@@ -493,6 +506,8 @@ describe('分頁', () => {
     a.dispatchEvent(ev)
     expect(ev.defaultPrevented).toBe(true)
     expect(spy).toHaveBeenCalledTimes(1)
+    view.unmount()
+    holder.remove()
   })
 })
 

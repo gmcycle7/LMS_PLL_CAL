@@ -182,16 +182,16 @@ describe('連結、錨點與 console', () => {
         fireEvent.click(within(card as HTMLElement).getByRole('button', { name: /展開數學預覽/ }))
       }
       expect(container.querySelectorAll('.c-handcalc').length).toBe(9)
-      // 公式錨點：MetricTable 的公式欄 → 「7. 本頁公式登錄」
-      const hrefs = new Set(Array.from(container.querySelectorAll('a[href^="#formula-"]')).map((a) => a.getAttribute('href')!.slice(1)))
+      // 公式連結：MetricTable 的公式欄（FormulaLink）→ 「7. 本頁公式登錄」的同名錨點
+      const hrefs = new Set(Array.from(container.querySelectorAll('a[data-formula-link]')).map((a) => `formula-${a.getAttribute('data-formula-link')}`))
       expect(hrefs.size).toBeGreaterThan(8)
       for (const id of hrefs) {
         expect(document.getElementById(id), id).toBeTruthy()
         expect(FORMULAS.some((f) => `formula-${f.id}` === id), id).toBe(true)
       }
-      // 站內連結只有三種形式：HashRouter 路徑（#/…）、Link（/…）、本頁錨點（#formula-…）
+      // 站內連結只有兩種形式：HashRouter 路徑（#/…，含公式連結的 #/formulas?f=…）、Link（/…）；沒有 '#formula-…' 這種會被當成路由的 hash
       for (const a of Array.from(container.querySelectorAll('a[href]'))) {
-        expect(a.getAttribute('href'), a.textContent ?? '').toMatch(/^(#\/[a-z0-9/-]*(\?[a-z]+=[\w.-]+)?|\/[a-z0-9/-]*|#formula-F-[\w.]+)$/i)
+        expect(a.getAttribute('href'), a.textContent ?? '').toMatch(/^(#\/[a-z0-9/-]*(\?[a-z]+=[\w.-]+)?|\/[a-z0-9/-]*)$/i)
       }
     } finally {
       spy.mockRestore()
@@ -202,7 +202,7 @@ describe('連結、錨點與 console', () => {
     expect(real).toEqual([])
   })
 
-  it('指標表的公式連結（#formula-F-…）不會被 HashRouter 當成路由：點擊後留在本頁並捲到公式登錄的同名錨點', () => {
+  it('指標表的公式連結是 FormulaLink：href 是公式速查頁的真網址，點擊後留在本頁並捲到公式登錄的同名錨點', () => {
     const scrolled: Element[] = []
     const proto = Element.prototype as unknown as { scrollIntoView?: () => void }
     const original = proto.scrollIntoView
@@ -210,17 +210,21 @@ describe('連結、錨點與 console', () => {
       scrolled.push(this)
     }
     try {
+      window.history.replaceState(null, '', '#/roadmap')
       const { container } = withProviders(<RoadmapPage />, 'engineer', '/roadmap?item=R1')
-      const link = container.querySelector('#rm-item-R1 .c-metric-table a[href="#formula-F-R1.1"]') as HTMLAnchorElement
+      const link = container.querySelector('#rm-item-R1 .c-metric-table a[data-formula-link="F-R1.1"]') as HTMLAnchorElement
       expect(link).toBeTruthy()
+      expect(link.getAttribute('href')).toBe('#/formulas?f=F-R1.1')
       scrolled.length = 0
-      // fireEvent.click 回傳 false 表示預設行為（把 hash 換成 #formula-…）被取消
+      // fireEvent.click 回傳 false 表示預設行為（跳到公式速查頁）被取消：本頁就有這條公式
       expect(fireEvent.click(link)).toBe(false)
       expect(scrolled.map((e) => e.id)).toEqual(['formula-F-R1.1'])
+      expect(window.location.hash).toBe('#/roadmap?f=F-R1.1')
       // 一般連結不受影響
       const other = container.querySelector('#rm-item-SSPLL a[href="#/case/sspll"]') as HTMLAnchorElement
       expect(fireEvent.click(other)).toBe(true)
     } finally {
+      window.history.replaceState(null, '', '#/')
       if (original) proto.scrollIntoView = original
       else delete proto.scrollIntoView
     }

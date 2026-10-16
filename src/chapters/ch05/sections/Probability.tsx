@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { Data } from 'plotly.js-dist-min'
-import { Callout, ClaimTag, ModeGate, Plot, Prereq, Section, Tex, TexBlock, useThemeTokens } from '@/components'
+import { Callout, ClaimTag, ModeGate, Plot, Prereq, Section, Tex, TexBlock, useThemeTokens, ChRef } from '@/components'
 import { erf, normCdf, normPdf } from '@/simulation/core'
 import { meanGmacEncoding, meanQ, pPlus, signLmsFixedPointEncoding } from '@/simulation/models/comparator'
 import { Erratum, Fig, HandCalcBlock, Steps, fx, linspace, texNum, vline } from '../common'
@@ -198,7 +198,7 @@ export function ProbabilitySection() {
         {String.raw`\boxed{m\equiv m_q\equiv E[q]=2\Phi\!\left(\frac{s-\theta}{\sigma_v}\right)-1=\operatorname{erf}\!\left(\frac{s-\theta}{\sqrt2\,\sigma_v}\right)}\;\xrightarrow{\;\theta=0\;}\;\operatorname{erf}\!\left(\frac{s}{\sqrt2\,\sigma_v}\right)`}
       </TexBlock>
       <p className="ch05-note">
-        全站符號表把這個平均寫成 <Tex>{'m_q'}</Tex>（避免和 Ch12 的 code DC 混淆）；本章只有這一個平均值，公式裡簡寫成 <Tex>{'m'}</Tex>，兩者是同一個量。
+        全站符號表把這個平均寫成 <Tex>{'m_q'}</Tex>（避免和 <ChRef ch="12">Ch12</ChRef> 的 code DC 混淆）；本章只有這一個平均值，公式裡簡寫成 <Tex>{'m'}</Tex>，兩者是同一個量。
         <Erratum id="E34" />
       </p>
       <Steps

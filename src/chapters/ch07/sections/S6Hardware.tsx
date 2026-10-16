@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from 'react'
-import { ClaimTag, CodeBlock, CodeCompare, Mermaid, ModeGate, Section, SourceTag, Tex } from '@/components'
+import { ClaimTag, CodeBlock, CodeCompare, Mermaid, ModeGate, Section, SourceTag, Tex, ChRef } from '@/components'
 import fxSrc from '@/simulation/models/filteredX.ts?raw'
 import pySrc from '../../../../golden/lms_pll_golden/polarity.py?raw'
 import {
@@ -119,7 +119,7 @@ export function S6Hardware() {
       />
       <p>
         先看 code 往 DTC 走的那一路（reference 端的 DTC、PLL 誤差路徑、comparator）：DTC 在 reference 輸入端，它的補償量是 <Tex>{r`w_k\,x[n]`}</Tex>（DTC 只能延遲，所以 RTL
-        送進 DTC 的數位 code 是把 <Tex>{r`w_k\,x[n]`}</Tex> 從一個固定的中心值往回扣——<Tex>{'x[n]'}</Tex> 越大，延遲越短；Ch04），補償之後留下 <Tex>{r`(a-w_k)\,x[n]`}</Tex>，經過 PLL 的誤差路徑、加上雜訊，成為 PD 的輸出
+        送進 DTC 的數位 code 是把 <Tex>{r`w_k\,x[n]`}</Tex> 從一個固定的中心值往回扣——<Tex>{'x[n]'}</Tex> 越大，延遲越短；<ChRef ch="04">Ch04</ChRef>），補償之後留下 <Tex>{r`(a-w_k)\,x[n]`}</Tex>，經過 PLL 的誤差路徑、加上雜訊，成為 PD 的輸出
         <Tex>{r`e_{\mathrm{PD}}[n]`}</Tex>；comparator 取的就是這個 PD 輸出，也就是送進 loop filter 的同一個訊號。這部分四種做法完全相同，輸出是 <Tex>{'q[n]'}</Tex>。再看 code 分出去的四條支路：直接接線的 raw、shift register 加 tap
         MUX（7.3 節的 delay line）、模型 <Tex>{r`\hat H`}</Tex>（後面可再接一個延遲）、二次差分（7.5 節）。藍色的選擇器從四者中選一個，圖上它的輸出就是公式裡的
         <Tex>{r`x_{\mathrm{ref}}[n]`}</Tex>；GMAC 與更新式 <Tex>{r`w\leftarrow w+\mu G_k`}</Tex> 完全不用改，累加器的 <Tex>{'w_k'}</Tex> 送回 reference 端的 DTC。
@@ -164,7 +164,7 @@ export function S6Hardware() {
                 code 頻帶上 <Tex>{r`|\angle H|<90^\circ`}</Tex>（例如高頻 DSM code，<Tex>{r`H_{\mathrm{PD}}\approx1`}</Tex>）
               </td>
               <td>
-                低頻／窄頻 code 經 Type-II 後相位 <Tex>{r`\approx180^\circ\Rightarrow C<0`}</Tex>（Ch06）
+                低頻／窄頻 code 經 Type-II 後相位 <Tex>{r`\approx180^\circ\Rightarrow C<0`}</Tex>（<ChRef ch="06">Ch06</ChRef>）
               </td>
             </tr>
             <tr>
@@ -292,7 +292,7 @@ export function S6Hardware() {
         先看起點與第一個六角形：確認 raw-x 的 <Tex>{'C'}</Tex> 是正是負——可以用公式算，也可以在 bring-up 時量 GMAC 斜率（7.10 節）。<Tex>{r`C>0`}</Tex> 而且 <Tex>{r`\rho`}</Tex>
         不太小，就什麼都不用加（例如高頻的 MASH code）。再看第二個六角形：code 是窄頻才輪得到便宜的做法——低頻 tone 配 Type-II 用二次差分，其他窄頻 code 用 delayed-x（<Tex>{'D'}</Tex> 由 F-07.4 的
         <Tex>{r`D^\star`}</Tex> 取整數）。寬頻 code 直接走到藍色的 filtered-x，然後一定要過最後一個六角形：圖上問的 <Tex>{r`E[u\,u_f]>0`}</Tex> 就是 F-07.12 的積分（<Tex>{'D=0'}</Tex>；regressor 有額外延遲時問的是 <Tex>{r`C_{f,D}>0`}</Tex>）；不成立就走到紅色方塊修模型，最常見的原因是
-        latency 算錯（E45）。綠色方塊是可以收工的終點；方向對了之後，還要到 Ch08 檢查 loop gain <Tex>{'g'}</Tex> 的穩定範圍。
+        latency 算錯（E45）。綠色方塊是可以收工的終點；方向對了之後，還要到 <ChRef ch="08">Ch08</ChRef> 檢查 loop gain <Tex>{'g'}</Tex> 的穩定範圍。
       </p>
 
       <h3 className="ch07-subhead">核心程式碼並排：四種 regressor 只差一行</h3>

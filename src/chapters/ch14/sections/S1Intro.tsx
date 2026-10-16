@@ -1,6 +1,6 @@
 import { Fragment, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Callout, ClaimTag, Prereq, Section, SourceTag, SystemMap, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, Prereq, Section, SourceTag, SystemMap, Tex, TexBlock, ChRef } from '@/components'
 import { loopGainK, msdAfterBlocks, msdSplit } from '@/simulation/models/optimizer'
 import { Diagram } from '../Diagram'
 import { CH14_SYSTEM_FOCUS, CHART_CAL_LOOP, CHART_COMPARATOR_GAIN } from '../diagrams'
@@ -125,7 +125,7 @@ export function S1Intro() {
         </p>
         <TexBlock>{String.raw`C=E[x[n]\,u[n]]=c\,E[x[n]^2]+s\,E[x[n]x[n-1]]=c\cdot1+s\cdot0=|H|\cos\theta`}</TexBlock>
         <p>
-          <Tex>{'C'}</Tex> 稱為有效相關。延遲一拍的分量 <Tex>{'s'}</Tex> 與 <Tex>{'x[n]'}</Tex> 獨立、平均為 0，所以不提供恢復力；<Tex>{'\\theta>90^\\circ'}</Tex> 時 <Tex>{'C<0'}</Tex>，更新方向反了（Ch06）。
+          <Tex>{'C'}</Tex> 稱為有效相關。延遲一拍的分量 <Tex>{'s'}</Tex> 與 <Tex>{'x[n]'}</Tex> 獨立、平均為 0，所以不提供恢復力；<Tex>{'\\theta>90^\\circ'}</Tex> 時 <Tex>{'C<0'}</Tex>，更新方向反了（<ChRef ch="06">Ch06</ChRef>）。
         </p>
       </Prereq>
 
@@ -145,7 +145,7 @@ PM&=\pi+\angle L(e^{j\omega_c})=\tfrac{\pi}{2}-\tfrac{\omega_c}{2}=90^\circ-\arc
           第 2 行把 <Tex>{'e^{j\\omega/2}'}</Tex> 提出來（Euler：<Tex>{'e^{jx}-e^{-jx}=2j\\sin x'}</Tex>）；第 3 行的 <Tex>{'1/j=e^{-j\\pi/2}'}</Tex> 給出 <Tex>{'-90^\\circ'}</Tex>；最後把弧度換成度。
         </p>
         <p>
-          <Tex>{'g=1'}</Tex>（<Tex>{'p=0'}</Tex>）時 <Tex>{'PM=60^\\circ'}</Tex>；<Tex>{'g\\to2'}</Tex> 時 <Tex>{'PM\\to0^\\circ'}</Tex>。細節見 Ch08。§14.2 (f) 有這個開迴路的方塊圖（把回授線剪開、量出 <Tex>{'L(z)'}</Tex> 的位置）。
+          <Tex>{'g=1'}</Tex>（<Tex>{'p=0'}</Tex>）時 <Tex>{'PM=60^\\circ'}</Tex>；<Tex>{'g\\to2'}</Tex> 時 <Tex>{'PM\\to0^\\circ'}</Tex>。細節見 <ChRef ch="08">Ch08</ChRef>。§14.2 (f) 有這個開迴路的方塊圖（把回授線剪開、量出 <Tex>{'L(z)'}</Tex> 的位置）。
         </p>
       </Prereq>
 

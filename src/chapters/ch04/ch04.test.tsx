@@ -133,10 +133,10 @@ describe('Ch04 頁面（jsdom smoke test）', () => {
     expect(scrolled).toEqual(['symbols', 'ch04-system'])
     delete proto.scrollIntoView
     window.scrollTo = origScrollTo
-    // 本章自己寫的內容沒有會改到路由的 href="#xxx"（「#/…」是 HashRouter 的路由連結，不算；
-    // 實驗框內共用 MetricTable 的「#formula-…」連結不屬於本章，另行回報）
+    // 整頁（含實驗框內共用 MetricTable 的「公式」欄）沒有會改到路由的 href="#xxx"（「#/…」是 HashRouter 的路由連結，不算）；
+    // 公式連結是 FormulaLink：href 為 '#/formulas?f=…'
     const hashAnchors = Array.from(container.querySelectorAll('a[href^="#"]')).filter((a) => !a.getAttribute('href')!.startsWith('#/'))
-    expect(hashAnchors.filter((a) => !a.closest('[id^="exp-"]')).map((a) => a.getAttribute('href'))).toEqual([])
+    expect(hashAnchors.map((a) => a.getAttribute('href'))).toEqual([])
     const hs = headings(container)
     for (const t of ['§1 完整概念系統', '§2 Fractional residue', '§3 硬體對應', '§4 GMAC 的數學', '§5 定點 GMAC', '§6 RTL 檢查清單', '§7 比較表']) {
       expect(hs.some((h) => h.startsWith(t))).toBe(true)

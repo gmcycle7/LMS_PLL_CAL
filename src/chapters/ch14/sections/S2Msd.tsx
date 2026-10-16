@@ -13,6 +13,7 @@ import {
   Tex,
   TexBlock,
   useThemeTokens,
+  ChRef,
 } from '@/components'
 import { isWorkerCancelled, useWorkerTask } from '@/workers'
 import optimizerSrc from '@/simulation/models/optimizer.ts?raw'
@@ -164,7 +165,7 @@ e[n]&=c\,\delta_k\,x[n]+s\,\delta_{k-1}\,x[n-1]+v[n]\\
           <p>
             <Tex>{'w'}</Tex> 凍結（固定不動）時 <Tex>{'\\delta_{k-1}=\\delta_k'}</Tex>，兩種順序完全相同；逐 block 更新時差的只有最後一行那一項，而且只出現在這一個樣本。它最多讓一個 <Tex>{'q[n]'}</Tex> 變號，所以同一個 block 的{' '}
             <Tex>{'G_k'}</Tex> 最多差 <Tex>{`2/N\\approx${tx(2 / S2B_N, 2)}`}</Tex>，遠小於 <Tex>{'\\eta_k'}</Tex> 的 RMS <Tex>{`1/\\sqrt N\\approx${tx(1 / Math.sqrt(S2B_N), 3)}`}</Tex>。一般的誤差路徑記憶更長，條件是{' '}
-            <Tex>{'w'}</Tex> 在路徑的記憶長度內近似常數（時間尺度分離；第 6 章的 F-06.1，7.4 節有兩拍的反例）。本章 Lab 的 sample-level 對照（blockLms）照真實電路的順序計算，不用這個近似。
+            <Tex>{'w'}</Tex> 在路徑的記憶長度內近似常數（時間尺度分離；<ChRef ch="06">第 6 章</ChRef>的 F-06.1，7.4 節有兩拍的反例）。本章 Lab 的 sample-level 對照（blockLms）照真實電路的順序計算，不用這個近似。
           </p>
         </ModeGate>
       </Diagram>

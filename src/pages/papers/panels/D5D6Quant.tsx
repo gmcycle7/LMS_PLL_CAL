@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, MetricTable, ModeGate, SourceTag, StepDerivation, TestBadge, Tex, mathText, type MetricRow } from '@/components'
+import { Callout, ClaimTag, MetricTable, ModeGate, SourceTag, StepDerivation, TestBadge, Tex, mathText, type MetricRow, ChRef } from '@/components'
 import { cycleLines, ditherCompare, efCycle, prbs7, prbs7Words, prbsHalfLsbDither, prbsWordDither, type CycleLines, type EfCycle } from '../bridge'
 import { BridgeCode, BridgeCompare, ErratumNote, FormulaAnchor, Hand, PrereqPsd, num, r, texNum } from '../common'
 
@@ -86,7 +86,7 @@ export function D5Quant() {
   return (
     <div className="papers-derived">
       <p>
-        <SourceTag kind="illustrative" /> 本站 Ch13 的例子：6-bit gain register 的目標是 <Tex>{r`w_H=${WH.value}\ \mathrm{LSB}=${WH.num}/${WH.den}`}</Tex>
+        <SourceTag kind="illustrative" /> 本站 <ChRef ch="13">Ch13</ChRef> 的例子：6-bit gain register 的目標是 <Tex>{r`w_H=${WH.value}\ \mathrm{LSB}=${WH.num}/${WH.den}`}</Tex>
         ，用一階 error-feedback（ΔΣ）quantizer <Tex>{r`v[n]=w_H+r[n-1],\ y[n]=Q(v[n]),\ r[n]=v[n]-y[n]`}</Tex>（round-half-up{' '}
         <Tex>{r`Q(v)=\lfloor v+\tfrac12\rfloor`}</Tex>、<Tex>{'r[-1]=0'}</Tex>）。先看沒有 dither 的情況；所有運算以整數分子精確執行。
       </p>
@@ -130,7 +130,7 @@ export function D5Quant() {
       </div>
       <p className="small muted">
         主 tone 在 <Tex>{`${d.plainLines.maxLineK}f_u/${P}`}</Tex>（<ErratumNote id="E47" />
-        ）。以 code 更新率取樣時只有這 {lineRows.length} 條獨立譜線；ZOH 到更高取樣率才會出現更高的諧波（Ch13）。
+        ）。以 code 更新率取樣時只有這 {lineRows.length} 條獨立譜線；ZOH 到更高取樣率才會出現更高的諧波（<ChRef ch="13">Ch13</ChRef>）。
       </p>
       <FormulaAnchor id="F-PR.12">
         <StepDerivation
@@ -191,7 +191,7 @@ export function D5Quant() {
       <p>dither <Tex>{r`\xi[n]`}</Tex> 有兩種常見的接法，程式上只差一行：</p>
       <ul>
         <li>
-          <strong>只加在量化器輸入</strong>（本站 Ch13 的策略 E）：<Tex>{r`y[n]=Q(v[n]+\xi[n]),\ r[n]=v[n]-y[n]`}</Tex>，所以{' '}
+          <strong>只加在量化器輸入</strong>（本站 <ChRef ch="13">Ch13</ChRef> 的策略 E）：<Tex>{r`y[n]=Q(v[n]+\xi[n]),\ r[n]=v[n]-y[n]`}</Tex>，所以{' '}
           <Tex>{r`y[n]=w_H+r[n-1]-r[n]`}</Tex>。<Tex>{r`\xi`}</Tex> 藏在 <Tex>{'r'}</Tex> 裡，和量化誤差一起被 <Tex>{r`1-z^{-1}`}</Tex> 塑形，DC 誤差恆為 0。
         </li>
         <li>

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, Quiz, Recap, Section, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, Quiz, Recap, Section, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import { refValues, T13_SETUP } from '../refValues'
 import { errataCoverage } from '../coverage'
 import { SEVERITY_LABEL } from '../errata'
@@ -91,7 +91,7 @@ export function WrapupSection() {
             </p>
             <p>
               更重要的是：這個數字<strong>還不是</strong> output jitter。<Tex>{String.raw`\sigma_w`}</Tex> 是 gain-equivalent 的係數雜訊，要先乘上 code（<Tex>{String.raw`\delta t=x\,\delta w`}</Tex>）、
-              再經過 PLL 的 low-pass <Tex>{'T'}</Tex>，才是輸出看到的時間誤差（第 12 章）。
+              再經過 PLL 的 low-pass <Tex>{'T'}</Tex>，才是輸出看到的時間誤差（<ChRef ch="12">第 12 章</ChRef>）。
             </p>
           </>
         }
@@ -176,7 +176,7 @@ export function WrapupSection() {
             −3 dB corner 不是 noise bandwidth：corner 以下只有一半的雜訊。而且 <Tex>{String.raw`p<3-2\sqrt2`}</Tex> 時 corner 根本不存在。
           </>,
           <>
-            單位全部正確，不代表迴路會收斂：還要 <Tex>{'C>0'}</Tex>（極性，第 6–7 章）、<Tex>{'0<g<g^*(d)'}</Tex>（穩定，第 8 章）、足夠的 PE（第 9 章）。
+            單位全部正確，不代表迴路會收斂：還要 <Tex>{'C>0'}</Tex>（極性，第 6–7 章）、<Tex>{'0<g<g^*(d)'}</Tex>（穩定，<ChRef ch="08">第 8 章</ChRef>）、足夠的 PE（<ChRef ch="09">第 9 章</ChRef>）。
           </>,
         ]}
       />

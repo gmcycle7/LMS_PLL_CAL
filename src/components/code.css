@@ -31,6 +31,7 @@
 .c-code-copy {
   padding: 1px 8px;
   font-size: 0.78rem;
+  min-height: 24px;
 }
 .c-code-pre {
   margin: 0;
@@ -135,36 +136,36 @@
   }
 }
 
-/* highlight.js tokens using site tokens (both themes) */
+/* highlight.js tokens：用 global.css 的 --code-* 語法色（深淺主題各自對程式碼底色 ≥ 4.5:1），不要再借圖表序列色 */
 .hljs-keyword,
 .hljs-built_in,
 .hljs-literal {
-  color: var(--series-5);
+  color: var(--code-keyword);
 }
 .hljs-string,
 .hljs-regexp {
-  color: var(--series-3);
+  color: var(--code-string);
 }
 .hljs-number {
-  color: var(--series-4);
+  color: var(--code-number);
 }
 .hljs-comment {
-  color: var(--text-faint);
+  color: var(--code-comment);
   font-style: italic;
 }
 .hljs-title,
 .hljs-title.function_,
 .hljs-title.class_ {
-  color: var(--series-1);
+  color: var(--code-title);
 }
 .hljs-type,
 .hljs-params {
-  color: var(--series-6);
+  color: var(--code-type);
 }
 .hljs-attr,
 .hljs-property,
 .hljs-variable {
-  color: var(--series-2);
+  color: var(--code-attr);
 }
 
 /* ===== Teaching components ===== */
@@ -199,6 +200,14 @@
   padding: 3px 6px;
   border-radius: var(--radius-sm);
   cursor: pointer;
+  min-height: 24px;
+}
+.c-quiz-opt input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex: 0 0 auto;
+  align-self: center;
 }
 .c-quiz-opt.ok {
   background: var(--ok-soft);
@@ -310,7 +319,7 @@
   font-weight: 700;
   padding: 1px 8px;
   border-radius: 999px;
-  background: var(--series-3);
+  background: var(--ok);
   color: var(--surface);
   white-space: nowrap;
 }

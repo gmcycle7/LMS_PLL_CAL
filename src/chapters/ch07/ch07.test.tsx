@@ -103,6 +103,8 @@ function renderChapter(url = '/ch/07') {
   )
 }
 
+// 第一次造訪的預設是 Beginner；這個檔案的斷言是照 Engineer 模式寫的（個別測試會另外設定自己的模式）
+beforeEach(() => localStorage.setItem('lmspll.mode', 'engineer'))
 afterEach(() => {
   localStorage.clear()
   P.react.mockClear()

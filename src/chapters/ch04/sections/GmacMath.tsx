@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Prereq, Section, SourceTag, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Prereq, Section, SourceTag, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import { erf } from '@/simulation/core'
 import gmacSrc from '@/simulation/models/gmac.ts?raw'
 import {
@@ -224,9 +224,9 @@ export function GmacMathSection() {
         />
         <p className="small">
           <ClaimTag kind="approx" /> 小訊號近似，相對誤差約 <Tex>{R`(\delta u/\sigma_v)^2/6`}</Tex>。第 3 步的 <Tex>{R`e=\delta_ku+v`}</Tex> 在 PLL 誤差路徑有記憶（<Tex>{R`u\ne x`}</Tex>）時另需{' '}
-          <Tex>w</Tex> 在 <Tex>h</Tex> 的記憶長度內近似不變（§3 推導的第 1 步，Ch06 的 F-06.1）；identity path（<Tex>{R`u=x`}</Tex>）時是等式。<Tex>K</Tex> 的單位是 <Tex>{R`\mathrm{fs}^{-1}`}</Tex>、
+          <Tex>w</Tex> 在 <Tex>h</Tex> 的記憶長度內近似不變（§3 推導的第 1 步，<ChRef ch="06">Ch06</ChRef> 的 F-06.1）；identity path（<Tex>{R`u=x`}</Tex>）時是等式。<Tex>K</Tex> 的單位是 <Tex>{R`\mathrm{fs}^{-1}`}</Tex>、
           <Tex>{R`\mu`}</Tex> 的單位是 <Tex>{R`\mathrm{fs}`}</Tex>，乘起來 <Tex>{R`g=\mu K`}</Tex> 無因次 <Erratum id="E13" />
-          。若 <Tex>{R`C\le0`}</Tex>（PLL 路徑相位 &gt; 90° 或 code 錯位），平均更新方向相反（Ch06、Ch07）。
+          。若 <Tex>{R`C\le0`}</Tex>（PLL 路徑相位 &gt; 90° 或 code 錯位），平均更新方向相反（<ChRef ch="06">Ch06</ChRef>、<ChRef ch="07">Ch07</ChRef>）。
         </p>
       </DerivationFold>
       <TexBlock id="F-04.3" label="GMAC 的總和與平均（勘誤 E07 / E18 的記號）">
@@ -382,7 +382,7 @@ export function GmacMathSection() {
         <p>
           兩者差 <Tex>N</Tex> 倍，但「方向判斷」<Tex>{R`P(S_N>0)=P(G>0)`}</Tex> 與尺度無關。histogram 或信賴區間的軸一定要標明是 sum 還是 average。<Tex>N</Tex> 為偶數時 <Tex>{R`S_N=0`}</Tex> 的 tie 必須另訂規則{' '}
           <Erratum id="E07" />
-          （Ch05）。
+          （<ChRef ch="05">Ch05</ChRef>）。
         </p>
       </Callout>
 
