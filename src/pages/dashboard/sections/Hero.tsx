@@ -7,16 +7,18 @@ import { handExample } from '../previews'
 import { summarizeErrata, summarizeTests } from '../summaries'
 import { Glue, scrollToId } from '../ui'
 
-const TOC: { id: string; label: string }[] = [
+/** 本頁段落的目錄（與 index.tsx 的段落順序相同） */
+export const TOC: { id: string; label: string }[] = [
+  { id: 'dash-outcomes', label: '學完你能做什麼' },
   { id: 'dash-map', label: '系統地圖' },
   { id: 'dash-routes', label: '三條學習路線' },
+  { id: 'dash-modes', label: '學習模式' },
   { id: 'dash-thesis', label: '六個條件' },
   { id: 'dash-spine', label: '一條方程式' },
   { id: 'dash-check', label: '動手體檢' },
   { id: 'dash-chapters', label: '章節地圖' },
   { id: 'dash-gallery', label: '12 個實驗' },
   { id: 'dash-questions', label: '15 個問題' },
-  { id: 'dash-modes', label: '學習模式' },
   { id: 'dash-verify', label: '驗證與勘誤' },
   { id: 'dash-recap', label: '本頁必記' },
   { id: 'symbols', label: '符號表' },
@@ -24,8 +26,11 @@ const TOC: { id: string; label: string }[] = [
 
 const fmt = (x: number, d = 4) => Number(x.toPrecision(d)).toString()
 
-/** Hero：網站目標、最終教學主旨、「從這裡開始」卡片與快速統計 */
-export const Hero = memo(function Hero() {
+/**
+ * Hero：網站目標、最終教學主旨、「從這裡開始」卡片與快速統計。
+ * onJump：頁內跳轉（預設 scrollToId）；Beginner 模式由 index.tsx 傳入會先展開收合卡片的版本（六個條件、一條方程式、動手體檢都收在裡面）。
+ */
+export const Hero = memo(function Hero({ onJump = scrollToId }: { onJump?: (id: string) => void }) {
   const h = useMemo(() => handExample(), [])
   const errata = useMemo(() => summarizeErrata(), [])
   const tests = useMemo(() => summarizeTests(), [])
@@ -59,7 +64,7 @@ export const Hero = memo(function Hero() {
           <strong>最終教學主旨：</strong>成功的 calibration 必須<strong>同時</strong>滿足六個條件——
           <div className="dash-thesis-pills">
             {SIX_CONDITIONS.map((c) => (
-              <button key={c.id} type="button" className="dash-pill" onClick={() => scrollToId(`dash-cond-${c.id}`)}>
+              <button key={c.id} type="button" className="dash-pill" onClick={() => onJump(`dash-cond-${c.id}`)}>
                 <span className="dash-pill-n" style={{ background: `var(${c.color})` }}>
                   {c.n}
                 </span>
@@ -155,7 +160,7 @@ export const Hero = memo(function Hero() {
         </Callout>
         <nav className="dash-toc" aria-label="本頁段落">
           {TOC.map((t) => (
-            <button key={t.id} type="button" onClick={() => scrollToId(t.id)}>
+            <button key={t.id} type="button" onClick={() => onJump(t.id)}>
               {t.label}
             </button>
           ))}

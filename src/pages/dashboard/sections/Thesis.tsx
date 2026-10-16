@@ -1,5 +1,5 @@
 import { memo, type CSSProperties } from 'react'
-import { ClaimTag, TestBadge, Tex, TexBlock } from '@/components'
+import { ClaimTag, TestBadge, Tex, TexBlock, ChRef } from '@/components'
 import type { CaseId } from '@/components'
 import { CLAIM_EXAMPLES, SIX_CONDITIONS } from '../data'
 import { CONDITION_FLOW_CHART } from '../diagrams'
@@ -34,7 +34,7 @@ export const ThesisSection = memo(function ThesisSection({
       </p>
       <p className="small muted">
         最後一項在本頁落實成一個算得出來的檢查（卡片 6）：校正後剩下的 DTC-referred timing error <Tex>{'\\sigma_{\\delta t}'}</Tex> 與單 tone spur 是否<strong>在預算內</strong>。這比「真正改善輸出」窄：沒有和校正前比較，隨機誤差也沒有經{' '}
-        <Tex>{'T(f)'}</Tex> 積分成輸出 jitter（Ch12 的 F-12.17）。
+        <Tex>{'T(f)'}</Tex> 積分成輸出 jitter（<ChRef ch="12">Ch12</ChRef> 的 F-12.17）。
       </p>
       <DiagramWalk
         chart={CONDITION_FLOW_CHART}

@@ -1,6 +1,6 @@
 import { memo, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { HandCalc, Quiz, Recap, StepDerivation, Tex } from '@/components'
+import { HandCalc, Quiz, Recap, StepDerivation, Tex, ChRef } from '@/components'
 import { handcalc } from '../handcalcs'
 import { DEFAULT_PARAMS, blocksTo95, evaluateThesis, polarityOf } from '../thesisModel'
 import { Rich } from '../ui'
@@ -105,7 +105,7 @@ export const Wrapup = memo(function Wrapup() {
               </table>
             </div>
             <p className="small muted">
-              只對這一個頻率成立；換一個 <Tex>{'\\Omega'}</Tex>，同一個 <Tex>{'D'}</Tex> 可能又翻號——這是 Ch07 要 filtered-x 的原因。
+              只對這一個頻率成立；換一個 <Tex>{'\\Omega'}</Tex>，同一個 <Tex>{'D'}</Tex> 可能又翻號——這是 <ChRef ch="07">Ch07</ChRef> 要 filtered-x 的原因。
             </p>
           </>
         }

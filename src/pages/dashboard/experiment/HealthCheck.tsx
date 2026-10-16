@@ -15,6 +15,7 @@ import {
   type CaseId,
   type MetricRow,
   type UseCasesResult,
+  ChRef,
 } from '@/components'
 import { presetsForExperiment, useUrlPreset } from '@/app/presets'
 import modelSrc from '../thesisModel.ts?raw'
@@ -78,7 +79,7 @@ function metricsFor(r: ThesisResult, mc?: McOutcome): MetricRow[] {
       ...(p.d === 0 && !p.twoParam ? { analytic: Math.abs(1 - r.g), tolerance: 1e-12, note: String.raw`$d=0$：特徵根 $=1-g$` } : {}),
       ...(p.twoParam ? { note: String.raw`雙參數：以 $E[x_i[n-D]\,u_j[n]]=C\,\tilde R_{ij}$ 為前提` } : {}),
     },
-    // 雙參數且 θ ≠ 0°：列出兩個固定同頻單頻 code 的 max|z| 當對照（F-DB.6）。不設 formulaId：MetricTable 會把它變成 href="#formula-…"，HashRouter 會當成路由
+    // 雙參數且 θ ≠ 0°：列出兩個固定同頻單頻 code 的 max|z| 當對照（F-DB.6）。不設 formulaId：這一列是對照值，不是 F-DB.6 本身
     ...(r.crossAssumptionActive
       ? [
           {
@@ -494,7 +495,7 @@ export function HealthCheck({ cases, evaluated }: { cases: UseCasesResult<Thesis
                 <td>需要的知識 / 硬體</td>
                 <td>每個參數一個乘法，不需要模型</td>
                 <td>
-                  需估計 <Tex>{'\\tilde{\\mathbf R}'}</Tex>（或 Jacobian）與矩陣乘法；估錯可能讓某個 mode 變號（T18 反例，Ch10）
+                  需估計 <Tex>{'\\tilde{\\mathbf R}'}</Tex>（或 Jacobian）與矩陣乘法；估錯可能讓某個 mode 變號（T18 反例，<ChRef ch="10">Ch10</ChRef>）
                 </td>
               </tr>
               {cmp && (

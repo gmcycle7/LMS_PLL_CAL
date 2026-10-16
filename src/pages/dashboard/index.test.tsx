@@ -1,6 +1,7 @@
 import { fireEvent, waitFor, within } from '@testing-library/react'
 import { ROUTES, QUESTIONS, SIX_CONDITIONS } from './data'
 import { galleryPresets } from './sections/Gallery'
+import { TOC } from './sections/Hero'
 import { DASH_SYMBOLS } from './sections/Symbols'
 import { DASH_CHARTS, DASH_SYSTEM_FOCUS } from './diagrams'
 import { precedes, plainText, renderPage, texIn } from './indexTestUtils'
@@ -204,6 +205,33 @@ describe('DashboardPage（jsdom smoke）', () => {
     expect(container.querySelectorAll('.dash-route')).toHaveLength(ROUTES.length)
     expect(container.querySelectorAll('.dash-q')).toHaveLength(QUESTIONS.length)
     expect(container.querySelectorAll('.dash-mode')).toHaveLength(3)
+    // 段落順序（入口頁：先說學完能做什麼、從哪開始、怎麼選模式，再進研究級的六條件區）；Hero 的目錄照同一個順序
+    const ORDER = ['dash-outcomes', 'dash-map', 'dash-routes', 'dash-modes', 'dash-thesis', 'dash-spine', 'dash-check', 'dash-chapters', 'dash-gallery', 'dash-questions', 'dash-verify', 'dash-recap', 'symbols']
+    expect(TOC.map((t) => t.id)).toEqual(ORDER)
+    const sections = ORDER.map((id) => container.querySelector(`#${id}`))
+    for (let i = 0; i < sections.length; i++) {
+      expect(sections[i], ORDER[i]).not.toBeNull()
+      if (i > 0) expect(precedes(sections[i - 1], sections[i]), `${ORDER[i - 1]} → ${ORDER[i]}`).toBe(true)
+    }
+    expect(precedes(hero, sections[0])).toBe(true)
+    expect(Array.from(container.querySelectorAll('.dash-toc button'), (b) => b.textContent)).toEqual(TOC.map((t) => t.label))
+    // Engineer：沒有 Beginner 的收合卡片，六個條件直接展開
+    expect(container.querySelector('details.dash-fold')).toBeNull()
+    // 學完你能做什麼：三張卡片（Part A / B / C），各兩句、每句連到教那件事的章節；數學以 KaTeX 排版（μ、K_q、N、σ_w）
+    const outcomes = container.querySelector('#dash-outcomes') as HTMLElement
+    const cards = Array.from(outcomes.querySelectorAll('.dash-outcome')) as HTMLElement[]
+    expect(cards.map((c) => c.querySelector('h3')?.textContent)).toEqual(['Part A｜LMS 數學基礎', 'Part B｜PLL 校正實作', 'Part C｜誤差與晶片限制'])
+    expect(cards.map((c) => Array.from(c.querySelectorAll('a'), (a) => a.getAttribute('href')))).toEqual([
+      ['/ch/00', '/ch/03'],
+      ['/ch/05', '/ch/06'],
+      ['/ch/12', '/ch/13'],
+    ])
+    for (const c of cards) expect(c.querySelectorAll('li')).toHaveLength(2)
+    const outcomeText = plainText(outcomes)
+    for (const need of ['手算 LMS 兩步', '會不會發散', '極性反過來', 'spur', '6-bit', 'dither']) expect(outcomeText, need).toContain(need)
+    const outcomeTex = texIn(outcomes)
+    for (const need of [String.raw`\mu`, 'K_q', 'N', String.raw`\sigma_w`]) expect(outcomeTex, need).toContain(need)
+    expect(outcomeText).not.toMatch(/\$|undefined|NaN/)
     // 勘誤數與 errata.json 一致，並連到 /verification
     const e = summarizeErrata()
     expect(within(container.querySelector('#dash-verify') as HTMLElement).getByText(`規格勘誤 ${e.total} 項`)).toBeTruthy()
@@ -290,12 +318,78 @@ describe('DashboardPage（jsdom smoke）', () => {
     expect(new Set(DASH_SYMBOLS.map((r) => r.symbol)).size).toBe(DASH_SYMBOLS.length)
   })
 
-  it('路線步驟由 registry 組成，每一步都是可點擊的章節連結', () => {
+  it('路線步驟由 registry 組成，每一步都是可點擊的章節連結；數學路線的 STEP 1 是 Ch00 入門課', () => {
     const { container } = renderPage()
     const route = container.querySelector('.dash-route') as HTMLElement
     const links = within(route).getAllByRole('link')
     expect(links.length).toBeGreaterThanOrEqual(ROUTES[0].steps.length)
-    expect(links[0].getAttribute('href')).toBe('/ch/01')
+    expect(links[0].getAttribute('href')).toBe('/ch/00')
+    expect(links[1].getAttribute('href')).toBe('/ch/01')
+    const step1 = route.querySelector('.dash-step-card') as HTMLElement
+    expect(step1.querySelector('.dash-step-n')?.textContent).toBe('STEP 1')
+    expect(step1.querySelector('.dash-step-label')?.textContent).toBe('Black Box')
+    expect(step1.querySelector('.dash-step-meta')?.textContent).toContain('Ch00')
+    // 「第一次來建議先走數學路線的前三步」：前三步就是 Ch00 → Ch01 → Ch02
+    expect(Array.from(route.querySelectorAll('.dash-step-card'), (a) => a.getAttribute('href')).slice(0, 3)).toEqual(['/ch/00', '/ch/01', '/ch/02'])
+    expect(container.querySelector('#dash-routes')?.textContent).toContain('先走數學路線的前三步')
+  })
+
+  it('Beginner：六個條件／一條方程式／動手體檢收成一張卡片，展開才渲染；頁內跳轉與「載入反例」會先展開再捲；參數在收合後保留', async () => {
+    const { container } = renderPage('beginner')
+    const fold = () => container.querySelector('details.dash-fold') as HTMLDetailsElement
+    const summary = () => fold().querySelector('summary') as HTMLElement
+    // 收合：卡片在「三種學習模式」之後、「章節地圖」之前，標題照規定寫；裡面的三個段落都還沒渲染
+    expect(fold()).not.toBeNull()
+    expect(fold().open).toBe(false)
+    expect(summary().textContent).toContain('給讀完 Part B 的人：六條件一分鐘體檢（展開）')
+    expect(precedes(container.querySelector('#dash-modes'), fold()) && precedes(fold(), container.querySelector('#dash-chapters'))).toBe(true)
+    for (const id of ['dash-thesis', 'dash-spine', 'dash-check']) expect(container.querySelector(`#${id}`), id).toBeNull()
+    expect(container.querySelectorAll('.dash-cond-card')).toHaveLength(0)
+    // Engineer / Research 沒有這張卡片（index.test 的其他測試用 engineer 渲染，直接找得到 #dash-check）
+    // Hero 目錄的「動手體檢」：先展開、內容渲染出來之後才捲到 #dash-check（jsdom 沒有 scrollIntoView，這裡記下被捲到的 id）
+    const scrolled: string[] = []
+    const proto = Element.prototype as Element & { scrollIntoView?: () => void }
+    const original = proto.scrollIntoView
+    proto.scrollIntoView = function (this: Element) {
+      scrolled.push(this.id)
+    }
+    try {
+      const hero = container.querySelector('.dash-hero') as HTMLElement
+      fireEvent.click(within(hero).getByRole('button', { name: '動手體檢' }))
+      await waitFor(() => expect(container.querySelector('#dash-check')).not.toBeNull())
+      expect(fold().open).toBe(true)
+      expect(summary().textContent).toContain('（收合）')
+      await waitFor(() => expect(scrolled).toEqual(['dash-check']))
+      expect(container.querySelectorAll('.dash-cond-card')).toHaveLength(SIX_CONDITIONS.length)
+      expect(container.querySelector('#dash-thesis .c-mermaid')).toBeTruthy()
+      // 展開後的順序：六個條件 → 一條方程式 → 動手體檢，全部在卡片裡
+      expect(precedes(container.querySelector('#dash-thesis'), container.querySelector('#dash-spine'))).toBe(true)
+      expect(precedes(container.querySelector('#dash-spine'), container.querySelector('#dash-check'))).toBe(true)
+      expect(fold().contains(container.querySelector('#dash-check'))).toBe(true)
+      // 「載入反例」（卡片 6）：套用 preset、捲到體檢，燈號變成未通過
+      const sysCard = () => container.querySelector('#dash-cond-system') as HTMLElement
+      fireEvent.click(sysCard().querySelector('.dash-cond-example') as HTMLButtonElement)
+      await waitFor(() => expect(within(sysCard()).getByRole('img', { name: '未通過' })).toBeTruthy())
+      expect(scrolled).toEqual(['dash-check', 'dash-check'])
+      // 段落最後的「收合」按鈕：內容卸載、捲回卡片；再展開：Case 的參數還在（反例仍然讓卡片 6 未通過）
+      // （不用 getByRole 掃整個卡片：體檢裡上千個節點會讓 jsdom 的 getComputedStyle 在某些樣式表上拋錯）
+      const endBtn = fold().querySelector('.dash-fold-end button') as HTMLButtonElement
+      expect(endBtn.textContent).toContain('收合「六條件一分鐘體檢」')
+      fireEvent.click(endBtn)
+      await waitFor(() => expect(container.querySelector('#dash-check')).toBeNull())
+      expect(fold().open).toBe(false)
+      expect(scrolled).toEqual(['dash-check', 'dash-check', 'dash-fold'])
+      fireEvent.click(summary())
+      await waitFor(() => expect(within(sysCard()).getByRole('img', { name: '未通過' })).toBeTruthy())
+      // 收合狀態下按 Hero 的條件膠囊：展開並捲到那張卡片
+      fireEvent.click(summary())
+      await waitFor(() => expect(container.querySelector('#dash-cond-polarity')).toBeNull())
+      fireEvent.click(within(container.querySelector('.dash-hero') as HTMLElement).getByRole('button', { name: /更新方向正確/ }))
+      await waitFor(() => expect(scrolled.at(-1)).toBe('dash-cond-polarity'))
+      expect(fold().open).toBe(true)
+    } finally {
+      proto.scrollIntoView = original
+    }
   })
 
   // 注意：整頁有約 2 萬個 DOM 節點（KaTeX 的 HTML + MathML），document 層級的 getByRole / getByLabelText 會非常慢，
@@ -324,6 +418,9 @@ describe('DashboardPage（jsdom smoke）', () => {
     const { container } = renderPage('beginner')
     const dInput = () => container.querySelector('input[aria-label="D（GMAC code delay）"]')
     const spine = () => (container.querySelector('#dash-spine') as HTMLElement).textContent ?? ''
+    // Beginner 把六個條件／一條方程式／動手體檢收在卡片裡：先展開（見上一個測試），再檢查裡面的呈現
+    fireEvent.click(container.querySelector('details.dash-fold > summary') as HTMLElement)
+    await waitFor(() => expect(container.querySelector('#dash-spine')).not.toBeNull())
     expect(dInput()).toBeNull()
     expect(spine()).not.toMatch(/推導 5（Research）/)
     // Beginner 模式的文字同樣不得出現 undefined / NaN / 未配對的 $

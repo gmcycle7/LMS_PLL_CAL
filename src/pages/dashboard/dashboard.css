@@ -1111,3 +1111,121 @@ button.dash-chip {
   padding-left: 6px;
   padding-right: 6px;
 }
+
+/* ---------- 學完你能做什麼（Hero 下方的一列卡片） ---------- */
+.dash-outcomes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.dash-outcome {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px 12px;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--outcome-c, var(--accent));
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  min-width: 0;
+}
+.dash-outcome-title {
+  margin: 0;
+  font-size: 1rem;
+}
+.dash-outcome-lead {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-faint);
+  letter-spacing: 0.02em;
+}
+.dash-outcome-list {
+  margin: 0;
+  padding-left: 1.2em;
+  font-size: 0.92rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dash-outcome-list .dash-chip {
+  margin-left: 6px;
+  vertical-align: baseline;
+}
+@media (max-width: 760px) {
+  .dash-outcomes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------- Beginner：六個條件／一條方程式／動手體檢收成一張卡片 ---------- */
+/* 卡片本身是 summary；展開的內容不加框、不加內距，裡面的段落和 Engineer 模式一樣寬（否則條件卡片的公式會多出幾 px 的橫向捲動） */
+.dash-fold {
+  margin: 28px 0;
+}
+.dash-fold-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 12px;
+  align-items: baseline;
+  padding: 14px 18px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  list-style: none;
+}
+.dash-fold-summary::-webkit-details-marker {
+  display: none;
+}
+.dash-fold-summary::before {
+  content: '▸';
+  grid-row: 1 / span 2;
+  align-self: start;
+  color: var(--accent);
+  font-size: 1.1rem;
+  line-height: 1.4;
+}
+.dash-fold[open] > .dash-fold-summary::before {
+  content: '▾';
+}
+.dash-fold[open] > .dash-fold-summary {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.dash-fold-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+.dash-fold-state {
+  font-weight: 600;
+  color: var(--accent);
+}
+.dash-fold-desc {
+  grid-column: 2;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+.dash-fold-summary:hover .dash-fold-title,
+.dash-fold-summary:focus-visible .dash-fold-title {
+  color: var(--accent);
+}
+.dash-fold-summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.dash-fold-body {
+  padding: 0;
+}
+.dash-fold-end {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0 4px;
+}
+@media (max-width: 760px) {
+  .dash-fold-summary {
+    padding: 12px 14px;
+  }
+}
