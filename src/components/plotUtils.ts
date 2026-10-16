@@ -3,7 +3,7 @@ import type { ThemeTokens } from './theme'
 import type { CsvColumns } from './types'
 
 /**
- * Plot 元件的純函式部分（可在 node 環境測試）：log 軸過濾、主題 layout、CSV 欄位。
+ * Plot 元件的純函式部分（可在 node 環境測試）：log 軸過濾、主題 layout、線型循環、CSV 欄位。
  */
 
 type Obj = Record<string, unknown>
@@ -134,10 +134,98 @@ export interface ThemedLayoutOptions {
   yLog?: boolean
   /** 使用者 layout（優先於主題預設） */
   layout?: Partial<Layout>
+  /**
+   * 會出現在圖例裡的 trace 數（showlegend ≠ false）。≤ LEGEND_INSIDE_MAX 時圖例放進繪圖區上方角落內側，
+   * 否則放在繪圖區上方一列（圖例太多時不壓縮資料區）。未提供時視為「很多」（放上方）。
+   */
+  legendEntries?: number
+  /**
+   * 圖例放內側時用哪個角落（pickLegendCorner 依資料決定）：未提供時放右上角；
+   * null 表示兩個上方角落都有資料 → 即使 trace 很少也放到繪圖區上方，不蓋住曲線。
+   */
+  legendCorner?: LegendCorner | null
+  /** log 軸資料跨越的十進位數（logSpanDecades）；決定只標 10 的整數次方還是也標 2、5。未提供時視為很寬 */
+  xLogDecades?: number
+  yLogDecades?: number
 }
 
-function axisStyle(t: ThemeTokens): Obj {
-  return {
+/** 圖例放進繪圖區內側的 trace 數上限 */
+export const LEGEND_INSIDE_MAX = 3
+
+/** `#rrggbb` / `#rgb` → `rgba(r,g,b,alpha)`；不是 hex（例如已是 rgba 字串）時原樣回傳 */
+export function withAlpha(color: string, alpha: number): string {
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color.trim())
+  if (!m) return color
+  const h = m[1].length === 3 ? [...m[1]].map((c) => c + c).join('') : m[1]
+  const n = parseInt(h, 16)
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`
+}
+
+/** log 軸跨越至少這麼多個十進位時只標 10 的整數次方（Bode／PSD 圖慣例）；更窄的軸需要 2、5 才讀得出數值 */
+export const LOG_POWER_TICKS_MIN_DECADES = 1.7
+
+/**
+ * log 軸的主刻度間距：≥ 1.7 個十進位 → 只標 10 的整數次方（dtick 1）；1–1.7 個十進位 → 1、2、5（'D2'）；
+ * 不到一個十進位 → 交給 Plotly（線性刻度，標完整數字）。範圍不明時當作很寬。
+ * 縮放後 Plot 元件會用目前的軸範圍重新呼叫（plotly_relayout），放大到一個十進位內仍有刻度數字。
+ */
+export function logAxisDtick(spanDecades: number | undefined): number | string | undefined {
+  if (spanDecades === undefined || !Number.isFinite(spanDecades)) return 1
+  if (spanDecades >= LOG_POWER_TICKS_MIN_DECADES) return 1
+  if (spanDecades >= 1) return 'D2'
+  return undefined
+}
+
+function numericValues(v: unknown): number[] {
+  if (!isArray1D(v)) return []
+  const out: number[] = []
+  for (let i = 0; i < v.length; i++) {
+    const n = typeof v[i] === 'number' ? (v[i] as number) : typeof v[i] === 'string' ? Number(v[i]) : NaN
+    if (Number.isFinite(n)) out.push(n)
+  }
+  return out
+}
+
+/** 主軸（x／y；沒指定 xaxis／yaxis 或指向 'x'／'y'）的 trace 才算進資料範圍 */
+function onPrimaryAxis(t: Obj, axis: 'x' | 'y'): boolean {
+  const ref = t[`${axis}axis`]
+  return ref === undefined || ref === axis
+}
+
+/** trace 在某軸上的數值：只有 y 的 trace 在 x 軸補上隱含的 x0 + i·dx */
+function axisValues(t: Obj, axis: 'x' | 'y'): number[] {
+  if (axis === 'y' || isArray1D(t.x)) return numericValues(t[axis])
+  const n = isArray1D(t.y) ? t.y.length : 0
+  const x0 = typeof t.x0 === 'number' ? t.x0 : 0
+  const dx = typeof t.dx === 'number' ? t.dx : 1
+  return Array.from({ length: n }, (_, i) => x0 + i * dx)
+}
+
+/**
+ * log 軸上資料跨越的十進位數：log10(max) − log10(min)（只看 > 0 的有限值）。
+ * 呼叫端在 layout 給了 range（log 軸的 range 本身就是 log10 單位）時以它為準。沒有資料時回傳 undefined。
+ */
+export function logSpanDecades(data: readonly Data[], axis: 'x' | 'y', range?: unknown): number | undefined {
+  if (Array.isArray(range) && range.length === 2 && typeof range[0] === 'number' && typeof range[1] === 'number') {
+    return Math.abs(range[1] - range[0])
+  }
+  let lo = Infinity
+  let hi = -Infinity
+  for (const trace of data) {
+    const t = trace as Obj
+    if (!FILTERABLE_TYPES.has(t.type) || !onPrimaryAxis(t, axis)) continue
+    for (const v of axisValues(t, axis)) {
+      if (v <= 0) continue
+      if (v < lo) lo = v
+      if (v > hi) hi = v
+    }
+  }
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return undefined
+  return Math.log10(hi) - Math.log10(lo)
+}
+
+function axisStyle(t: ThemeTokens, log = false, decades?: number): Obj {
+  const ax: Obj = {
     gridcolor: t.border,
     linecolor: t.borderStrong,
     zerolinecolor: t.borderStrong,
@@ -146,15 +234,152 @@ function axisStyle(t: ThemeTokens): Obj {
     title: { font: { color: t.text } },
     automargin: true,
   }
+  if (log) {
+    // 寬的 log 軸只標 10 的整數次方（Bode／PSD 圖的慣例），2、5 等次刻度只留淡格線不印數字；
+    // 手機寬度下「10⁻² 2 5 10⁻¹ 2 5」會擠成一團。只跨一兩個十進位的軸仍標 2、5（logAxisDtick）
+    const dtick = logAxisDtick(decades)
+    if (dtick !== undefined) ax.dtick = dtick
+    ax.minor = { showgrid: true, gridcolor: withAlpha(t.border, 0.5), ticks: '', dtick: 'D1' }
+  }
+  return ax
+}
+
+/** 圖例放在繪圖區上方一列（水平）；trace 很多或呼叫端自己定位時用這個 */
+function legendAbove(t: ThemeTokens): Obj {
+  return { orientation: 'h', x: 0, xanchor: 'left', y: 1.02, yanchor: 'bottom', bgcolor: 'rgba(0,0,0,0)', font: { color: t.text } }
+}
+
+/** 圖例放進繪圖區內側時可用的角落（上方兩角；下方常有 x 軸附近的曲線起點與 0 線） */
+export type LegendCorner = 'top-right' | 'top-left'
+
+/** 圖例放在繪圖區上方角落內側，半透明底色讓文字壓在格線上仍可讀 */
+function legendInside(t: ThemeTokens, corner: LegendCorner): Obj {
+  const right = corner === 'top-right'
+  return { orientation: 'v', x: right ? 1 : 0, xanchor: right ? 'right' : 'left', y: 1, yanchor: 'top', bgcolor: withAlpha(t.surface, 0.8), font: { color: t.text } }
+}
+
+const LEGEND_POSITION_KEYS = ['orientation', 'x', 'y', 'xanchor', 'yanchor']
+
+/**
+ * 圖例最後放哪裡：呼叫端自己定位（orientation / x / y / anchor 任一）→ 以上方為底；
+ * trace ≤ LEGEND_INSIDE_MAX 且 legendCorner 不是 null → 該角落內側；否則上方。
+ * Plot 元件也用它決定工具列的位置（圖例在上方時工具列移到繪圖區頂端，才不會蓋住圖例）。
+ */
+export function legendPlacement(opts: Pick<ThemedLayoutOptions, 'layout' | 'legendEntries' | 'legendCorner'>): 'above' | LegendCorner {
+  const userLegend = isPlainObject(opts.layout?.legend) ? (opts.layout!.legend as Obj) : null
+  if (userLegend && LEGEND_POSITION_KEYS.some((k) => userLegend[k] !== undefined)) return 'above'
+  if (opts.legendEntries === undefined || opts.legendEntries > LEGEND_INSIDE_MAX) return 'above'
+  const corner = opts.legendCorner === undefined ? 'top-right' : opts.legendCorner
+  return corner ?? 'above'
+}
+
+/** 內側圖例大約佔資料範圍的比例（寬、高各 30%）：角落的這塊區域裡有資料點就不放 */
+export const LEGEND_CORNER_FRACTION = 0.3
+/** 內側圖例（估計寬度）超過繪圖區寬度的這個比例時放上方（手機上圖例會蓋掉半張圖） */
+export const LEGEND_INSIDE_MAX_WIDTH_FRACTION = 0.4
+
+/**
+ * 圖例寬度的粗估（px，字級 12）：CJK 字 12px、其他 6.5px，加樣本線與邊距。
+ * 名稱裡的 `$...$` TeX 先粗略去掉標記（`\Omega` 之類的指令算一個字、`{}^_$` 不算），HTML 標籤也不算。
+ */
+export function estimateLegendWidth(names: readonly string[]): number {
+  let widest = 0
+  for (const name of names) {
+    const plain = name
+      .replace(/<[^>]+>/g, '')
+      .replace(/\\[a-zA-Z]+/g, 'x')
+      .replace(/[\\{}^_$]/g, '')
+    let w = 0
+    for (const ch of plain) w += ch.codePointAt(0)! > 0x2e80 ? 12 : 6.5
+    widest = Math.max(widest, w)
+  }
+  return widest + 46
+}
+
+export interface LegendCornerOptions {
+  xLog?: boolean
+  yLog?: boolean
+  /** 使用者 layout（讀 xaxis／yaxis 的 range） */
+  layout?: Partial<Layout>
+  /** 繪圖區（容器）寬度 px；0 或未提供表示不知道 */
+  plotWidth?: number
+}
+
+/**
+ * 圖例可以放在哪個上方角落而不蓋到資料：先看右上，再看左上；兩邊都有資料（例如滿寬的水平參考線、
+ * 收斂到上緣的曲線）或圖例太寬就回傳 null（放繪圖區上方）。只看主軸上的 scatter／bar 資料；
+ * 有 heatmap 等整面填滿的 trace 時也回傳 null。範圍以資料 min／max（或呼叫端的 range）正規化，log 軸取 log10。
+ */
+export function pickLegendCorner(data: readonly Data[], opts: LegendCornerOptions = {}): LegendCorner | null {
+  const traces = data.filter((tr) => {
+    const t = tr as Obj
+    return t.visible !== false
+  })
+  if (traces.some((tr) => !FILTERABLE_TYPES.has((tr as Obj).type))) return null
+  if (opts.plotWidth && opts.plotWidth > 0) {
+    const names = traces.filter((tr) => (tr as Obj).showlegend !== false).map((tr) => (typeof (tr as Obj).name === 'string' ? ((tr as Obj).name as string) : ''))
+    if (estimateLegendWidth(names) > LEGEND_INSIDE_MAX_WIDTH_FRACTION * opts.plotWidth) return null
+  }
+  const l = (opts.layout ?? {}) as Obj
+  const axisRange = (axis: 'x' | 'y'): [number, number] | null => {
+    const ax = isPlainObject(l[`${axis}axis`]) ? (l[`${axis}axis`] as Obj) : {}
+    const r = ax.range
+    return Array.isArray(r) && r.length === 2 && typeof r[0] === 'number' && typeof r[1] === 'number' ? [r[0], r[1]] : null
+  }
+  const scale = (axis: 'x' | 'y') => (opts[`${axis}Log`] ? (v: number) => (v > 0 ? Math.log10(v) : NaN) : (v: number) => v)
+  const sx = scale('x')
+  const sy = scale('y')
+  const pts: [number, number][] = []
+  for (const tr of traces) {
+    const t = tr as Obj
+    if (!onPrimaryAxis(t, 'x') || !onPrimaryAxis(t, 'y')) return null
+    const xs = axisValues(t, 'x').map(sx)
+    const ys = axisValues(t, 'y').map(sy)
+    const n = Math.min(xs.length, ys.length)
+    for (let i = 0; i < n; i++) if (Number.isFinite(xs[i]) && Number.isFinite(ys[i])) pts.push([xs[i], ys[i]])
+  }
+  if (pts.length === 0) return 'top-right'
+  const ext = (idx: 0 | 1, axis: 'x' | 'y'): [number, number] => {
+    const r = axisRange(axis)
+    if (r) return [Math.min(r[0], r[1]), Math.max(r[0], r[1])]
+    let lo = Infinity
+    let hi = -Infinity
+    for (const p of pts) {
+      if (p[idx] < lo) lo = p[idx]
+      if (p[idx] > hi) hi = p[idx]
+    }
+    return [lo, hi]
+  }
+  const [x0, x1] = ext(0, 'x')
+  const [y0, y1] = ext(1, 'y')
+  // 範圍退化（所有點同一個 x 或同一個 y）：Plotly 會把範圍往兩邊撐開，資料落在正中間，角落是空的
+  if (x1 - x0 === 0 || y1 - y0 === 0) return 'top-right'
+  const xw = x1 - x0
+  const yw = y1 - y0
+  const yTop = y1 - LEGEND_CORNER_FRACTION * yw
+  const xRight = x1 - LEGEND_CORNER_FRACTION * xw
+  const xLeft = x0 + LEGEND_CORNER_FRACTION * xw
+  let rightBusy = false
+  let leftBusy = false
+  for (const [x, y] of pts) {
+    if (y < yTop) continue
+    if (x > xRight) rightBusy = true
+    if (x < xLeft) leftBusy = true
+    if (rightBusy && leftBusy) return null
+  }
+  return rightBusy ? 'top-left' : 'top-right'
 }
 
 /**
  * 依主題 token 產生 Plotly layout：透明背景、主題文字色、--series-1..6 colorway、
- * 水平圖例置於繪圖區上方（手機上不壓縮繪圖寬度）。使用者 layout 會深層覆寫這些預設值；
- * xLog / yLog 會強制對應主軸為 log。
+ * 圖例（≤ 3 條且上方角落沒有資料時放繪圖區角落內側，否則水平置於繪圖區上方）。使用者 layout 會深層覆寫這些預設值；
+ * 呼叫端自己定位圖例（orientation / x / y / anchor 任一）時，一律以「上方水平」為底再覆寫，
+ * 既有的位置設定不會因 trace 數改變而跑掉。xLog / yLog 會強制對應主軸為 log。
  */
 export function buildThemedLayout(t: ThemeTokens, opts: ThemedLayoutOptions): Partial<Layout> {
   const user = normalizeTitles((opts.layout ?? {}) as Obj)
+  const userLegend = isPlainObject(user.legend) ? user.legend : null
+  const placement = legendPlacement(opts)
   const base: Obj = {
     autosize: true,
     height: opts.height,
@@ -162,14 +387,14 @@ export function buildThemedLayout(t: ThemeTokens, opts: ThemedLayoutOptions): Pa
     plot_bgcolor: 'rgba(0,0,0,0)',
     font: { family: t.fontSans, color: t.text, size: 12 },
     colorway: t.series,
-    // 工具列（modebar）由 CSS 移到圖的上方自己一列，上邊界只需要放得下一列圖例
+    // 工具列（modebar）浮在圖內右上角、只在 hover 時出現；上邊界放得下它，圖例在內側時不會被蓋到
     margin: { l: 56, r: 16, t: 30, b: 44, pad: 0 },
     hovermode: 'closest',
     hoverlabel: { bgcolor: t.surface, bordercolor: t.border, font: { color: t.text, family: t.fontSans } },
-    legend: { orientation: 'h', x: 0, xanchor: 'left', y: 1.02, yanchor: 'bottom', bgcolor: 'rgba(0,0,0,0)', font: { color: t.text } },
-    modebar: { bgcolor: 'rgba(0,0,0,0)', color: t.textMuted, activecolor: t.accent },
-    xaxis: axisStyle(t),
-    yaxis: axisStyle(t),
+    legend: placement === 'above' ? legendAbove(t) : legendInside(t, placement),
+    modebar: { bgcolor: withAlpha(t.surface, 0.85), color: t.textMuted, activecolor: t.accent },
+    xaxis: axisStyle(t, opts.xLog, opts.xLogDecades),
+    yaxis: axisStyle(t, opts.yLog, opts.yLogDecades),
   }
   // 次座標軸（xaxis2、yaxis2…）也套用主題樣式
   for (const k of Object.keys(user)) {
@@ -178,7 +403,6 @@ export function buildThemedLayout(t: ThemeTokens, opts: ThemedLayoutOptions): Pa
   const merged = mergeDeep(base, user)
   // 預設圖例貼在繪圖區上方（yanchor: 'bottom'）。呼叫端只改 y 想把圖例放到 x 軸下方時，
   // 錨點要跟著換成 'top'，否則圖例會往上長、蓋住座標軸與資料。
-  const userLegend = isPlainObject(user.legend) ? user.legend : null
   if (userLegend && typeof userLegend.y === 'number' && userLegend.yanchor === undefined && userLegend.y <= 0) {
     merged.legend = { ...(merged.legend as Obj), yanchor: 'top' }
   }
@@ -186,6 +410,31 @@ export function buildThemedLayout(t: ThemeTokens, opts: ThemedLayoutOptions): Pa
   if (opts.yLog) merged.yaxis = { ...(merged.yaxis as Obj), type: 'log', exponentformat: (merged.yaxis as Obj).exponentformat ?? 'power' }
   merged.height = opts.height
   return merged as Partial<Layout>
+}
+
+/** 第 4 條 trace 起輪流套用的線型（前三條維持實線，整體看起來就是 solid → dash → dot → dashdot） */
+export const DASH_CYCLE = ['dash', 'dot', 'dashdot'] as const
+const DASH_FROM = 3
+
+/**
+ * 色覺冗餘：同一張圖只靠顏色分辨曲線時，紅綠色覺差異者（與黑白列印）分不開。
+ * 從第 4 條 trace 起，呼叫端沒指定 line.dash 的折線依序補上 dash / dot / dashdot。
+ * 不用 'solid' 開頭的 4 循環：colorway 6 色，若第 7 條又回到實線就會和第 1 條（同色實線）完全相同；
+ * 這樣排列可保證前 9 條的（顏色, 線型）都不重複。
+ * 只處理 scatter / scattergl 且有畫線的 trace；已指定 dash、line.width = 0（填色帶的邊）或只有 markers 的一律不動。
+ */
+export function applyDashCycle(data: readonly Data[]): Data[] {
+  if (data.length <= DASH_FROM) return [...data]
+  return data.map((trace, i) => {
+    if (i < DASH_FROM) return trace
+    const t = trace as Obj
+    if (!FILTERABLE_TYPES.has(t.type) || t.type === 'bar') return trace
+    const mode = typeof t.mode === 'string' ? t.mode : 'lines'
+    if (!mode.includes('lines')) return trace
+    const line = isPlainObject(t.line) ? t.line : {}
+    if (line.dash !== undefined || line.width === 0) return trace
+    return { ...t, line: { ...line, dash: DASH_CYCLE[(i - DASH_FROM) % DASH_CYCLE.length] } } as Data
+  })
 }
 
 /**

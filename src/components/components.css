@@ -41,6 +41,12 @@
   gap: 6px;
 }
 
+/* 可捲動區域（程式碼、寬表格、JSON）：內容比框大時才可聚焦（ScrollRegion.tsx），用方向鍵捲 */
+.c-scroll:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
 /* ===== Badge + tooltip ===== */
 .c-badge {
   display: inline-flex;
@@ -57,6 +63,8 @@
   white-space: nowrap;
   vertical-align: middle;
   cursor: default;
+  /* 觸控目標（WCAG 2.5.8）：點一下顯示 tooltip */
+  min-height: 24px;
 }
 .c-badge:focus-visible {
   outline: 2px solid var(--accent);
@@ -91,6 +99,12 @@
 .c-has-tip:focus > .c-tip,
 .c-has-tip:focus-within > .c-tip {
   display: block;
+}
+/* 按 Esc 關掉 tooltip（WCAG 1.4.13）：Tags.tsx 加上 is-dismissed，滑鼠移開後重設 */
+.c-has-tip.is-dismissed:hover > .c-tip,
+.c-has-tip.is-dismissed:focus > .c-tip,
+.c-has-tip.is-dismissed:focus-within > .c-tip {
+  display: none;
 }
 .c-tip-list {
   display: block;
@@ -605,23 +619,31 @@
   position: relative;
   width: 100%;
   min-width: 0;
-  /* 上方留一列給 Plotly 的工具列，免得它蓋住圖例 */
-  margin-top: 24px;
 }
+/* 工具列浮在圖內右上角，滑鼠移到圖上才出現；觸控裝置沒有 hover，一直顯示。
+   --c-plot-top 由 Plot.tsx 設定：圖例在繪圖區上方時等於上邊界高度（工具列移到繪圖區頂端，不蓋住可點擊的圖例），
+   圖例在內側時為 0（工具列留在紙面右上角的上邊界裡） */
 .c-plot-gd .modebar-container {
-  top: -24px !important;
+  top: var(--c-plot-top, 0px) !important;
 }
 .c-plot-gd .modebar {
-  opacity: 0.55;
+  opacity: 0;
   transition: opacity 0.15s;
 }
 .c-plot-frame:hover .modebar,
 .c-plot-gd .modebar:focus-within {
   opacity: 1;
 }
+/* 觸控裝置沒有 hover，工具列一直顯示；放在圖內會遮住上方圖例的第一列，所以在圖上方留一條自己的列 */
 @media (hover: none) {
+  .c-plot-frame {
+    margin-top: 28px;
+  }
+  .c-plot-gd .modebar-container {
+    top: -28px !important;
+  }
   .c-plot-gd .modebar {
-    opacity: 0.85;
+    opacity: 1;
   }
 }
 .c-plot-gd {
@@ -687,6 +709,13 @@
   min-width: 0;
   width: 100%;
   margin: 0;
+  /* 軌道仍然細，但可點的範圍至少 24px 高（觸控裝置 32px） */
+  min-height: 24px;
+}
+@media (pointer: coarse) {
+  .c-param-slider {
+    min-height: 32px;
+  }
 }
 .c-param-input-wrap {
   display: flex;
@@ -741,8 +770,8 @@
   -webkit-appearance: none;
   position: relative;
   flex: 0 0 auto;
-  width: 34px;
-  height: 20px;
+  width: 40px;
+  height: 24px;
   margin: 0;
   border-radius: 999px;
   border: 1px solid var(--border-strong);
@@ -755,8 +784,8 @@
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 14px;
-  height: 14px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   background: var(--surface);
   box-shadow: var(--shadow);
@@ -767,7 +796,7 @@
   border-color: var(--accent);
 }
 .c-toggle-input:checked::after {
-  transform: translateX(14px);
+  transform: translateX(16px);
 }
 .c-toggle-input:focus-visible {
   outline: 2px solid var(--accent);
@@ -1227,7 +1256,8 @@
   }
   .c-derivation-chevron,
   .c-toggle-input,
-  .c-toggle-input::after {
+  .c-toggle-input::after,
+  .c-plot-gd .modebar {
     transition: none;
   }
 }
@@ -1240,11 +1270,15 @@
   .c-exp {
     padding: 12px;
   }
-  /* iOS 在 < 16px 的輸入框聚焦時會自動放大頁面 */
-  .c-param-input,
-  .c-seed-input,
-  .c-select-input,
-  .c-exp-presets select {
+}
+/* iOS 在 < 16px 的輸入框聚焦時會自動放大頁面。選擇器要比 global.css 的 input[type='text']（0,1,1）更具體 */
+@media (max-width: 900px), (pointer: coarse) {
+  .c-param .c-param-input,
+  .c-seed .c-seed-input,
+  .c-param .c-select-input,
+  .c-exp-presets select,
+  .c-handcalc .c-handcalc-input input,
+  .c-handcalc .c-handcalc-answer input {
     font-size: 16px;
   }
 }
@@ -1307,4 +1341,97 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
+}
+
+/* ===== ModePicker / skip link ===== */
+/* （app-shell scope 附加：模式選擇器、skip link、側欄清單、章節頁模式提示；只用 global.css 的 token） */
+.c-skip-link {
+  position: absolute;
+  top: -100px;
+  left: 8px;
+  z-index: 100;
+  padding: 8px 14px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.c-skip-link:focus {
+  top: 8px;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.c-nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.c-mode-hint {
+  margin: -0.2em 0 1.2em;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.c-modepicker {
+  margin: 0 0 24px;
+  padding: 14px 16px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+}
+.c-modepicker h2 {
+  margin: 0 0 4px;
+  padding: 0;
+  border: 0;
+  font-size: 1.05rem;
+}
+.c-modepicker > p {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+.c-modepicker-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.c-modepicker-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  line-height: 1.5;
+  text-align: left;
+  cursor: pointer;
+}
+.c-modepicker-card:hover,
+.c-modepicker-card:focus-visible {
+  border-color: var(--accent);
+}
+.c-modepicker-card strong {
+  color: var(--accent);
+}
+.c-modepicker-card span {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.c-modepicker-dismiss {
+  margin-top: 10px;
+}
+@media (max-width: 700px) {
+  .c-modepicker-cards {
+    grid-template-columns: 1fr;
+  }
+}
+/* skip link 的目標 <main id="main" tabindex="-1">：程式聚焦後瀏覽器會在整個內容欄畫一圈焦點框，沒有用途（下一個 Tab 才是真正的落點） */
+#main:focus {
+  outline: none;
 }

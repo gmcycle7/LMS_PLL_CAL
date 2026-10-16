@@ -1,5 +1,6 @@
 import { isValidElement, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { useOptionalSettings } from './optionalSettings'
+import { ScrollRegion } from './ScrollRegion'
 import { Tex, mathText } from './Tex'
 import { ClaimTag, ModelLevel } from './Tags'
 import { IconChevron } from './icons'
@@ -109,7 +110,7 @@ export function Derivation({
         return derivation
       case 'symbols':
         return isSymbolRows(symbols) ? (
-          <div className="table-wrap">
+          <ScrollRegion className="table-wrap" label="符號表（可左右捲動）">
             <table className="c-derivation-table">
               <thead>
                 <tr>
@@ -130,13 +131,13 @@ export function Derivation({
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollRegion>
         ) : (
           (symbols as ReactNode)
         )
       case 'units':
         return isUnitRecord(units) ? (
-          <div className="table-wrap">
+          <ScrollRegion className="table-wrap" label="單位表（可左右捲動）">
             <table className="c-derivation-table">
               <thead>
                 <tr>
@@ -153,7 +154,7 @@ export function Derivation({
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollRegion>
         ) : (
           (units as ReactNode)
         )

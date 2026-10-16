@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import type { HandCalcDef, HandCalcSolution } from '@/data/types'
 import { checkAnswer, defaultValues, inputError, randomValues, texNum } from './handcalcMath'
 import { formatInput, parseNumberInput } from './paramMath'
@@ -22,6 +22,21 @@ export interface HandCalcProps {
 
 type Solved = { ok: true; sol: HandCalcSolution } | { ok: false; error: string }
 
+/** 「對答案」給螢幕閱讀器的一句結果，例如「2 題中 1 題正確，1 題未填數字」 */
+export function checkSummary(results: HandCalcSolution['results'], answers: Record<number, string>): string {
+  let ok = 0
+  let missing = 0
+  results.forEach((r, idx) => {
+    const user = parseNumberInput(answers[idx] ?? '')
+    if (user === null) missing++
+    else if (checkAnswer(user, r).ok) ok++
+  })
+  const n = results.length
+  if (n === 1) return missing ? '請輸入數字' : ok ? '✓ 正確' : '✗ 還差一點'
+  if (ok === n) return `${n} 題全部正確`
+  return `${n} 題中 ${ok} 題正確${missing ? `，${missing} 題未填數字` : ''}`
+}
+
 /**
  * 「帶入手算」：使用者輸入自己的數字，逐步看到數字代進公式的每一步；
  * 或切到「自己算算看」，先用紙筆／計算機算，再輸入答案檢查。
@@ -34,6 +49,9 @@ export function HandCalc({ def, initialMode = 'steps', compact }: HandCalcProps)
   const [checked, setChecked] = useState(false)
   const [revealed, setRevealed] = useState(false)
   const [seed, setSeed] = useState(1)
+  // 每按一次「對答案」播報一次（key 換掉，同樣的結果也會再唸）
+  const [checkSeq, setCheckSeq] = useState(0)
+  const baseId = useId()
 
   const parsed = useMemo(() => {
     const values: Record<string, number> = {}
@@ -113,13 +131,18 @@ export function HandCalc({ def, initialMode = 'steps', compact }: HandCalcProps)
               onChange={(e) => onInput(i.key, e.target.value)}
               aria-label={`${i.label}（${i.key}）`}
               aria-invalid={!!parsed.errors[i.key]}
+              aria-describedby={parsed.errors[i.key] ? `${baseId}-err-${i.key}` : undefined}
             />
             {i.unit && (
               <span className="c-handcalc-unit">
                 <Tex>{i.unit}</Tex>
               </span>
             )}
-            {parsed.errors[i.key] && <span className="c-handcalc-err">{parsed.errors[i.key]}</span>}
+            {parsed.errors[i.key] && (
+              <span className="c-handcalc-err" id={`${baseId}-err-${i.key}`}>
+                {parsed.errors[i.key]}
+              </span>
+            )}
           </label>
         ))}
       </div>
@@ -161,10 +184,14 @@ export function HandCalc({ def, initialMode = 'steps', compact }: HandCalcProps)
       {solved.ok && mode === 'practice' && (
         <div className="c-handcalc-practice">
           <p className="small">用紙筆和計算機算出下面的量，填入後按「對答案」。容許一般手算的四捨五入誤差。</p>
+          <div className="c-sr-only" aria-live="polite">
+            {checked && <span key={checkSeq}>{checkSummary(solved.sol.results, answers)}</span>}
+          </div>
           {solved.sol.results.map((r, idx) => {
             const raw = answers[idx] ?? ''
             const user = parseNumberInput(raw)
             const verdict = checked && user !== null ? checkAnswer(user, r) : null
+            const verdictId = `${baseId}-verdict-${idx}`
             return (
               <div key={idx} className="c-handcalc-answer">
                 <label>
@@ -182,6 +209,7 @@ export function HandCalc({ def, initialMode = 'steps', compact }: HandCalcProps)
                       setChecked(false)
                     }}
                     aria-label={`你的答案：${r.label ?? r.symbol}`}
+                    aria-describedby={checked ? verdictId : undefined}
                   />
                   {r.unit && (
                     <span className="c-handcalc-unit">
@@ -189,9 +217,13 @@ export function HandCalc({ def, initialMode = 'steps', compact }: HandCalcProps)
                     </span>
                   )}
                 </label>
-                {checked && user === null && <span className="c-handcalc-verdict bad">請輸入數字</span>}
+                {checked && user === null && (
+                  <span className="c-handcalc-verdict bad" id={verdictId}>
+                    請輸入數字
+                  </span>
+                )}
                 {verdict && (
-                  <span className={`c-handcalc-verdict ${verdict.ok ? 'ok' : 'bad'}`}>
+                  <span className={`c-handcalc-verdict ${verdict.ok ? 'ok' : 'bad'}`} id={verdictId}>
                     {verdict.ok ? '✓ 正確' : `✗ 還差一點（相對誤差 ${Number.isFinite(verdict.relError) ? (verdict.relError * 100).toPrecision(3) + '%' : '很大'}）`}
                   </span>
                 )}
@@ -199,7 +231,14 @@ export function HandCalc({ def, initialMode = 'steps', compact }: HandCalcProps)
             )
           })}
           <div className="c-handcalc-actions">
-            <button type="button" className="btn btn-primary" onClick={() => setChecked(true)}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                setChecked(true)
+                setCheckSeq((n) => n + 1)
+              }}
+            >
               對答案
             </button>
             <button type="button" className="btn" onClick={() => setRevealed((v) => !v)} aria-expanded={revealed}>

@@ -3,6 +3,8 @@ import { fmtNum } from './format'
 import { evaluateMetric, formatMetricValue } from './metrics'
 import type { MetricRow } from './types'
 import { mathText } from './Tex'
+import { ScrollRegion } from './ScrollRegion'
+import { FormulaLink } from './links'
 
 export interface MetricTableProps {
   rows: MetricRow[]
@@ -19,7 +21,7 @@ export function MetricTable({ rows, caption }: MetricTableProps) {
   const hasFormula = rows.some((r) => r.formulaId)
   const hasClaim = rows.some((r) => r.claim)
   return (
-    <div className="table-wrap c-metric-wrap">
+    <ScrollRegion className="table-wrap c-metric-wrap" label="指標表（可左右捲動）">
       <table className="c-metric-table">
         {caption && <caption>{mathText(caption)}</caption>}
         <thead>
@@ -48,7 +50,7 @@ export function MetricTable({ rows, caption }: MetricTableProps) {
                 <td className={`num mono${nonFinite ? ' c-bad' : ''}`}>{formatMetricValue(r.value, digits)}</td>
                 <td>{r.unit ? mathText(r.unit) : ''}</td>
                 {hasFormula && (
-                  <td>{r.formulaId ? <a href={`#formula-${r.formulaId}`}>{r.formulaId}</a> : ''}</td>
+                  <td>{r.formulaId ? <FormulaLink id={r.formulaId} /> : ''}</td>
                 )}
                 {hasClaim && <td>{r.claim ? <ClaimTag kind={r.claim} /> : ''}</td>}
                 {hasAnalytic && (
@@ -84,6 +86,6 @@ export function MetricTable({ rows, caption }: MetricTableProps) {
           })}
         </tbody>
       </table>
-    </div>
+    </ScrollRegion>
   )
 }

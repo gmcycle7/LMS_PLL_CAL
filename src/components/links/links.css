@@ -1,0 +1,24 @@
+/* 連結元件（FormulaLink／AnchorLink／ChRef）的樣式 */
+
+/* 公式 ID（F-LAB.1）窄欄時不要在連字號斷成兩行；表格在 .table-wrap 內捲動 */
+a[data-formula-link] {
+  white-space: nowrap;
+}
+
+/* 章節交叉參照：內文裡一段話可能有好幾個，用點狀底線讓它在不靠顏色的情況下也看得出是連結 */
+a.c-chref {
+  text-decoration: underline dotted;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+a.c-chref:hover,
+a.c-chref:focus-visible {
+  text-decoration-style: solid;
+}
+
+/* 捲到的目標短暫標示（anchor.ts 加上、2.4 秒後拿掉）；不是動畫，所以不受 prefers-reduced-motion 影響。
+   outline 會沿著元素自己的圓角走，所以不另外設 border-radius（否則目標的圓角會變 2.4 秒） */
+[data-link-target='true'] {
+  outline: 3px solid var(--accent);
+  outline-offset: 4px;
+}

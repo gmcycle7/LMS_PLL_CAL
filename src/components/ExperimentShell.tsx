@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { APP_VERSION, GIT_COMMIT } from './buildInfo'
 import { Callout } from './Callout'
 import { downloadText, toCsv } from './download'
@@ -14,6 +14,7 @@ import { randomSeed } from './hooks'
 import { CHECK_LABEL } from './labels'
 import { MetricTable } from './MetricTable'
 import { createPlotRegistry, PlotRegistryProvider, type PlotRegistry } from './plotRegistry'
+import { ScrollRegion } from './ScrollRegion'
 import { buildReportHtml } from './report'
 import { ClaimTag, ModelLevel, SourceTag } from './Tags'
 import { TestBadge } from './TestBadge'
@@ -111,8 +112,15 @@ function SeedControl({ seed, onSeedChange }: { seed: number; onSeedChange?: (s: 
   )
 }
 
-function ActionBar({ actions }: { actions: ExperimentActions }) {
+/** ActionBar 回報給外框的使用者動作（給 live 區播報用） */
+type ActionKind = 'run' | 'step' | 'stop'
+
+function ActionBar({ actions, onAction }: { actions: ExperimentActions; onAction: (kind: ActionKind) => void }) {
   const { onReset, onStep, onRun, onRunToConvergence, onStop, onFreeze, running = false, frozen = false } = actions
+  const wrap = (kind: ActionKind, fn: () => void) => () => {
+    onAction(kind)
+    fn()
+  }
   return (
     <div className="c-exp-actions" role="group" aria-label="模擬控制">
       {onReset && (
@@ -121,24 +129,24 @@ function ActionBar({ actions }: { actions: ExperimentActions }) {
         </button>
       )}
       {onStep && (
-        <button type="button" className="btn" onClick={onStep} disabled={running}>
+        <button type="button" className="btn" onClick={wrap('step', onStep)} disabled={running}>
           單步 Step
         </button>
       )}
       {onRun &&
         (running && onStop ? (
-          <button type="button" className="btn btn-primary" onClick={onStop}>
+          <button type="button" className="btn btn-primary" onClick={wrap('stop', onStop)}>
             <span className="c-spinner" aria-hidden="true" />
             停止 Stop
           </button>
         ) : (
-          <button type="button" className="btn btn-primary" onClick={onRun} disabled={running}>
+          <button type="button" className="btn btn-primary" onClick={wrap('run', onRun)} disabled={running}>
             {running && <span className="c-spinner" aria-hidden="true" />}
             {running ? '執行中…' : '執行 Run'}
           </button>
         ))}
       {onRunToConvergence && (
-        <button type="button" className="btn" onClick={onRunToConvergence} disabled={running}>
+        <button type="button" className="btn" onClick={wrap('run', onRunToConvergence)} disabled={running}>
           執行至收斂 Run-to-Convergence
         </button>
       )}
@@ -152,11 +160,20 @@ function ActionBar({ actions }: { actions: ExperimentActions }) {
           {frozen ? '已凍結 Frozen' : '凍結 Freeze'}
         </button>
       )}
-      <span className="c-sr-only" aria-live="polite">
-        {running ? '模擬執行中' : ''}
-      </span>
     </div>
   )
+}
+
+/**
+ * 模擬結束時給螢幕閱讀器的一句摘要：更新了幾個指標、有幾則警告。
+ * 指標名稱是 LaTeX（例如 $\\sigma_w$），念不出來也不能用 Unicode 拼，所以不放名稱與數值；數值在下面的指標表裡。
+ * 例如「模擬完成：7 個指標已更新；1 則警告」。
+ */
+export function finishSummary(metrics: MetricRow[] | undefined, warnings: string[]): string {
+  const n = metrics?.filter((m) => typeof m.value === 'number' && Number.isFinite(m.value)).length ?? 0
+  let text = n > 0 ? `模擬完成：${n} 個指標已更新` : '模擬完成'
+  if (warnings.length > 0) text += `；${warnings.length} 則警告`
+  return text
 }
 
 function CrossCheckRow({ crossCheck }: { crossCheck?: CrossCheck }) {
@@ -210,6 +227,37 @@ export function ExperimentShell(props: ExperimentShellProps) {
   const [busy, setBusy] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
   const [summaryOpen, setSummaryOpen] = useState(false)
+
+  // 螢幕閱讀器播報：使用者按下執行／單步後的「執行中」與結束摘要（含主要指標或警告數）、停止、匯出錯誤。
+  // 同一段文字要能再唸一次，所以每則訊息換一個 key（live 區內的節點被換掉才算「新增」）。
+  const [notice, setNotice] = useState<{ seq: number; text: string }>({ seq: 0, text: '' })
+  const announce = (text: string) => setNotice((n) => ({ seq: n.seq + 1, text }))
+  const running = actions?.running ?? false
+  // 按下執行／單步後等結果：有 running 的實驗等它變回 false；同步算完的實驗（沒給 running）在下一次 render 就播報
+  const pendingRun = useRef(false)
+  const latest = useRef({ metrics, warnings })
+  latest.current = { metrics, warnings }
+  const onAction = (kind: ActionKind) => {
+    if (kind === 'stop') {
+      pendingRun.current = false
+      announce('模擬已停止')
+      return
+    }
+    pendingRun.current = true
+    if (kind === 'run') announce('模擬執行中')
+  }
+  useEffect(() => {
+    if (!pendingRun.current || running) return
+    // 結果（metrics / warnings）常在 running 變 false 的下一次 render 才到，延後一個 tick 再讀
+    const t = setTimeout(() => {
+      pendingRun.current = false
+      announce(finishSummary(latest.current.metrics, latest.current.warnings))
+    }, 0)
+    return () => clearTimeout(t)
+  })
+  useEffect(() => {
+    if (exportError) announce(exportError)
+  }, [exportError])
   const presetId = useId()
   const Heading = `h${headingLevel}` as 'h2' | 'h3' | 'h4'
 
@@ -298,6 +346,9 @@ export function ExperimentShell(props: ExperimentShellProps) {
           </div>
           {description && <div className="c-exp-desc">{mathText(description)}</div>}
         </header>
+        <div className="c-sr-only" aria-live="polite" data-testid="exp-live">
+          {notice.text && <span key={notice.seq}>{notice.text}</span>}
+        </div>
 
         {warnings.length > 0 && (
           <div className="c-exp-warnings">
@@ -311,7 +362,7 @@ export function ExperimentShell(props: ExperimentShellProps) {
 
         {hasToolbar && (
           <div className="c-exp-toolbar">
-            {actions && <ActionBar actions={actions} />}
+            {actions && <ActionBar actions={actions} onAction={onAction} />}
             {seed !== undefined && <SeedControl seed={seed} onSeedChange={onSeedChange} />}
             {presets && presets.length > 0 && onLoadPreset && (
               <div className="c-exp-presets">
@@ -412,5 +463,9 @@ export const SUMMARY_JSON_FULL_LINES = 24
 
 function SummaryJson({ text }: { text: string }) {
   const short = text.split('\n').length <= SUMMARY_JSON_FULL_LINES
-  return <pre className={`c-exp-json${short ? ' is-full' : ''}`}>{text}</pre>
+  return (
+    <ScrollRegion as="pre" label="模擬條件 JSON（可捲動）" className={`c-exp-json${short ? ' is-full' : ''}`}>
+      {text}
+    </ScrollRegion>
+  )
 }

@@ -1,8 +1,8 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { ExperimentShell, type ExperimentShellProps } from './ExperimentShell'
+import { ExperimentShell, finishSummary, type ExperimentShellProps } from './ExperimentShell'
 import { downloadText } from './download'
 import { usePlotRegistry } from './plotRegistry'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 vi.mock('./download', async (importOriginal) => {
   const orig = await importOriginal<typeof import('./download')>()
@@ -166,7 +166,82 @@ describe('ExperimentShell', () => {
       />,
     )
     fireEvent.click(screen.getByText('下載 CSV'))
-    expect(screen.getByText(/資料匯出失敗：尚未執行模擬/)).toBeTruthy()
+    expect(document.querySelector('.c-exp-export .c-param-warn')?.textContent).toMatch(/資料匯出失敗：尚未執行模擬/)
+    // 匯出錯誤也會透過 live 區播報
+    expect(screen.getByTestId('exp-live').textContent).toMatch(/資料匯出失敗：尚未執行模擬/)
+  })
+
+  it('live 區播報：按下執行後「執行中」、running 變回 false 後播結束摘要（主要指標與警告數）；停止', async () => {
+    const actions = { onRun: vi.fn(), onStop: vi.fn(), running: false }
+    const { rerender } = render(<ExperimentShell {...base({ actions })} />)
+    const live = screen.getByTestId('exp-live')
+    expect(live.getAttribute('aria-live')).toBe('polite')
+    expect(live.textContent).toBe('')
+    // 自動執行（running 自己變 true，沒有人按鈕）不播報
+    rerender(<ExperimentShell {...base({ actions: { ...actions, running: true } })} />)
+    rerender(<ExperimentShell {...base({ actions, metrics: [{ name: 'n', value: 1 }] })} />)
+    await new Promise((r) => setTimeout(r, 10))
+    expect(live.textContent).toBe('')
+    fireEvent.click(screen.getByText('執行 Run'))
+    expect(actions.onRun).toHaveBeenCalledTimes(1)
+    expect(live.textContent).toBe('模擬執行中')
+    rerender(<ExperimentShell {...base({ actions: { ...actions, running: true } })} />)
+    await new Promise((r) => setTimeout(r, 10))
+    expect(live.textContent).toBe('模擬執行中')
+    rerender(
+      <ExperimentShell
+        {...base({
+          actions,
+          metrics: [
+            { name: 'misses', value: null },
+            { name: '$w_2$', value: 2.28, unit: '$\\mathrm{fs}$', analytic: 2.28, tolerance: 1e-12 },
+          ],
+          warnings: ['C ≤ 0'],
+        })}
+      />,
+    )
+    await waitFor(() => expect(live.textContent).toBe('模擬完成：1 個指標已更新；1 則警告'))
+    // 沒有指標與警告時只說「模擬完成」
+    fireEvent.click(screen.getByText('執行 Run'))
+    rerender(<ExperimentShell {...base({ actions: { ...actions, running: true } })} />)
+    rerender(<ExperimentShell {...base({ actions })} />)
+    await waitFor(() => expect(live.textContent).toBe('模擬完成'))
+    // 停止
+    fireEvent.click(screen.getByText('執行 Run'))
+    rerender(<ExperimentShell {...base({ actions: { ...actions, running: true } })} />)
+    fireEvent.click(screen.getByText('停止 Stop'))
+    expect(actions.onStop).toHaveBeenCalledTimes(1)
+    expect(live.textContent).toBe('模擬已停止')
+    rerender(<ExperimentShell {...base({ actions })} />)
+    await new Promise((r) => setTimeout(r, 10))
+    expect(live.textContent).toBe('模擬已停止')
+    // 播報文字是純文字（不含 $、反斜線與 HTML）
+    expect(finishSummary([{ name: '$\\sigma_v$', value: 0.5, unit: '$\\mathrm{fs}$' }], [])).toBe('模擬完成：1 個指標已更新')
+    expect(finishSummary([{ name: 'n', value: 'Not implemented' }], ['a', 'b'])).toBe('模擬完成；2 則警告')
+  })
+
+  it('同步算完的實驗（沒給 running）：按執行後下一次 render 就播結束摘要；單步只播摘要', async () => {
+    function SyncExp() {
+      const [n, setN] = useState(0)
+      return <ExperimentShell {...base({ actions: { onRun: () => setN((k) => k + 1), onStep: () => setN((k) => k + 1) }, metrics: [{ name: 'steps', value: n }] })} />
+    }
+    render(<SyncExp />)
+    const live = screen.getByTestId('exp-live')
+    fireEvent.click(screen.getByText('執行 Run'))
+    await waitFor(() => expect(live.textContent).toBe('模擬完成：1 個指標已更新'))
+    fireEvent.click(screen.getByText('單步 Step'))
+    await waitFor(() => expect(live.textContent).toBe('模擬完成：1 個指標已更新'))
+  })
+
+  it('模擬條件 JSON 太長時可聚焦捲動（ScrollRegion）', () => {
+    const params = Object.fromEntries(Array.from({ length: 40 }, (_, i) => [`p${i}`, i]))
+    render(<ExperimentShell {...base({ params })} />)
+    const details = screen.getByText('模擬條件摘要').closest('details')!
+    details.open = true
+    fireEvent(details, new Event('toggle'))
+    const pre = details.querySelector('pre.c-exp-json')!
+    expect(pre.className).toContain('c-scroll')
+    expect(pre.className).not.toContain('is-full')
   })
 
   it('沒有 exportData 時不顯示「下載 CSV」', () => {
