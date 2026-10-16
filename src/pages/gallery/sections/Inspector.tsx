@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ClaimTag, ExperimentShell, ModeGate, ParamControl, SelectControl, Tex, ToggleControl, type MetricRow } from '@/components'
+import { ClaimTag, ExperimentShell, FormulaLink, ModeGate, ParamControl, SelectControl, Tex, ToggleControl, type MetricRow } from '@/components'
 import type { PresetEntry } from '@/data/types'
 import { ALL_PRESETS, presetById } from '@/app/presets'
 import { experimentName, GALLERY_EXPECTED_KEYS, levelsOf, PREVIEWABLE_EXPERIMENTS } from '../data'
@@ -104,7 +104,7 @@ export default function Inspector({ selected, onSelect }: { selected: string; on
       description={
         <>
           目前的 preset 屬於「{experimentName(preset.experiment)}」。Gallery 把它的 <code>params</code> 直接交給 <code>src/simulation/models</code> 的函式重算，再逐項到「預期結果」文字中找相符的數字（判據{' '}
-          <a href="#formula-F-GA.1">F-GA.1</a>）。
+          <FormulaLink id="F-GA.1" />）。
           {requiredKeys.length > 0 ? ` 這個 preset 宣告了 ${requiredKeys.length} 個必備數值，任一個找不到就判 mismatch。` : ' 這個 preset 沒有宣告必備數值，所以只報告找得到的相符數字。'}
         </>
       }
@@ -233,7 +233,7 @@ export default function Inspector({ selected, onSelect }: { selected: string; on
           <div className="table-wrap">
             <table className="gal-table gal-num-table gal-reliability">
               <caption className="small muted">
-                可靠度（<a href="#formula-F-GA.2">F-GA.2</a>、<a href="#formula-F-GA.3">F-GA.3</a>）：以沒有注入誤差的重算值計算，<Tex>{`\\varepsilon_{\\max}=${texNum(epsMaxPct, 4)}\\%`}</Tex>、<Tex>{`k_{\\mathrm{tol}}=${texNum(tolK, 3)}`}</Tex>
+                可靠度（<FormulaLink id="F-GA.2" />、<FormulaLink id="F-GA.3" />）：以沒有注入誤差的重算值計算，<Tex>{`\\varepsilon_{\\max}=${texNum(epsMaxPct, 4)}\\%`}</Tex>、<Tex>{`k_{\\mathrm{tol}}=${texNum(tolK, 3)}`}</Tex>
               </caption>
               <thead>
                 <tr>

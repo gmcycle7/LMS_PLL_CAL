@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-12T08:16:08.193Z",
-  "commit": "db56ad4",
+  "generatedAt": "2026-10-16T03:36:53.672Z",
+  "commit": "527d28f",
   "note": "由 `npm run verify` 產生；status=pass 代表 TypeScript 與 Python golden 測試皆通過。",
   "tests": {
     "T01": {
@@ -376,7 +376,7 @@
     "T08": {
       "status": "pass",
       "ts": {
-        "passed": 35,
+        "passed": 39,
         "failed": 0,
         "names": [
           "ch08.test.tsx › Ch08 實驗元件（單獨渲染） T08: URL preset pm-d2-unstable → 警告說明 g > g*(d=2)",
@@ -404,6 +404,10 @@
           "handcalcs.test.tsx › Sign-off 手算題：預設值 = 本頁 worked example，答案 = judges.ts 的實際函式 T08: HC-SO.4 的預設值是 Corner 判斷器預設的最快（FF 125°C）與最慢（near-grid FCW）兩列：g、PM、ρ、k95 與判斷器逐位元相同",
           "judges.test.ts › §17 反面測試的數學特徵 vs golden/vectors/negative_tests.json T08: 「公式錯 UI 卻成功」——正確 PM 與數值 crossover 相符，漏掉 /2 的公式不符",
           "judges.test.ts › Corner、延遲與雜訊增益 T08: g = 1、d = 0 ⇒ pole 0、PM 60°；d = 1 時剛好臨界",
+          "judges.test.ts › Corner 判斷器的 Monte Carlo 交叉比對（blockLms 真實 block sign-LMS，8 seeds） T08: 挑 k95 最大的穩定 corner（預設是 near-grid FCW，k95 = 71）；δ0 = 0.2σ_v、μ_eff = g/K_q、8 seeds、涵蓋 k95",
+          "judges.test.ts › Corner 判斷器的 Monte Carlo 交叉比對（blockLms 真實 block sign-LMS，8 seeds） T08: 預設 case——8 seeds 的 blockLms 平均軌跡 δ_MC,k = δ0 − mean(w_k) 與逐 block 遞迴在 Student-t·SE＋線性化容許量內一致；第 71 個 block 的 |δ|/δ0 兩者相差在 4 se 內",
+          "judges.test.ts › Corner 判斷器的 Monte Carlo 交叉比對（blockLms 真實 block sign-LMS，8 seeds） T08: 這個比對不是空的——拿錯的模型去比，同一份 MC 結果會被判不一致：g 乘 1.6（預設 case）；d 少算一個 block（d = 3、μ = 30 的 g = 0.34 才分得出；預設的 g = 0.04 太小，d = 1 與 d = 0 的軌跡幾乎相同）",
+          "judges.test.ts › Corner 判斷器的 Monte Carlo 交叉比對（blockLms 真實 block sign-LMS，8 seeds） T08: d = 3、μ = 30（FF 125°C 最慢，k95 = 47）與 d = 0 的大步長（g = 1.6、k95 = 6）也一致；k95 超過 MC 範圍時標 truncated",
           "acceptance.test.ts › acceptance：T01–T18 每個 key 都與 golden vector 一致（呼叫各章模型） T08: g = 1 ⇒ pole 0、PM 60°、ω_c = π/3（封閉式 = 數值 crossover）",
           "optimizer.test.ts › 最佳 μ：第 10 課設計計算器的重算 T08: 一階 calibration loop：g = 1 ⇒ pole 0、PM 60°；PM 表與 golden T08 一致（F-14.14）",
           "stability.test.ts › stability：§8.2 L_cal(z) = g/(z − 1) T08: g = 1 ⇒ pole 0、PM 60°、ω_c = π/3（golden vector）",

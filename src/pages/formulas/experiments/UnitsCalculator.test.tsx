@@ -60,7 +60,7 @@ afterEach(() => {
   }
 })
 
-/** 與頁面相同的外層：攔截 #formula-… 連結 */
+/** 與頁面相同的外層：攔截公式連結（a[data-formula-link]） */
 function Harness() {
   const onClick = useFormulaAnchorHandler()
   return (
@@ -349,11 +349,12 @@ describe('UnitsCalculator（jsdom）', () => {
     expect(count(root2, '.callout-danger')).toBe(0)
   })
 
-  it('指標表的「公式」欄（href="#formula-…"）被攔截成頁面切換，不會變成不存在的路由', () => {
+  it('指標表的「公式」欄（FormulaLink）：公式在別頁時被攔截成頁面切換，直接到該章的公式（href 本身是 #/formulas?f=…，中鍵／複製連結用）', () => {
     const { container, loc } = mountAt(<Harness />)
-    const a = q<HTMLAnchorElement>(container, '#fr-units-calculator a[href="#formula-F-12.9"]')
+    const a = q<HTMLAnchorElement>(container, '#fr-units-calculator a[data-formula-link="F-12.9"]')
+    expect(a.getAttribute('href')).toBe('#/formulas?f=F-12.9')
     expect(fireEvent.click(a)).toBe(false) // preventDefault 生效
-    expect(loc()).toBe('/ch/12')
+    expect(loc()).toBe('/ch/12?f=F-12.9') // 帶 ?f=，目標頁載好後會捲到那條公式
     expect(J.jumps).toEqual(['F-12.9'])
   })
 })

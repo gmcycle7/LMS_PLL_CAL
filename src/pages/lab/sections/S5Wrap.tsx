@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ModeGate, Quiz, Recap, Tex, TexBlock } from '@/components'
+import { Callout, ModeGate, Quiz, Recap, Tex, TexBlock, ChRef } from '@/components'
 import { makeTone } from '@/simulation/models/unifiedLab'
 import { ChLink, md, texNum } from '../common'
 import { anchorNumbers, seNumbers, spurNumbers } from '../numbers'
@@ -126,7 +126,7 @@ export function S5Wrap() {
               <TexBlock>{T`\mathrm{SE}(\bar w)\approx\frac{\sigma_w}{\sqrt m}\sqrt{\frac{1+\rho}{1-\rho}}=${texNum(se.naive, 3)}\times${texNum(se.ratio, 3)}=${texNum(se.se, 3)}\ \mathrm{fs}`}</TexBlock>
               <p>
                 1000 個 block 只相當於約 <Tex>{texNum(se.nEffMean, 3)}</Tex> 個獨立樣本。<Tex>{`${dev}\\,\\mathrm{fs}`}</Tex> 是 <Tex>{texNum(dev / se.se, 3)}</Tex> 個標準誤差，完全在抽樣誤差內。要回答「有沒有 bias」，用 Monte
-                Carlo 分頁跑 16 個以上的 seed 看信賴區間。第三個選項也是錯的：有 INL、offset 或 0/1 編碼錯誤時 sign-LMS 的固定點確實會偏（第 11 章）。
+                Carlo 分頁跑 16 個以上的 seed 看信賴區間。第三個選項也是錯的：有 INL、offset 或 0/1 編碼錯誤時 sign-LMS 的固定點確實會偏（<ChRef ch="11">第 11 章</ChRef>）。
               </p>
             </>
           }
@@ -158,7 +158,7 @@ export function S5Wrap() {
               <Tex>{'\\sigma_w'}</Tex> 的抖動與 INL）。
             </>,
             <>
-              <strong>穩定不等於學得到</strong>：<Tex>{'\\rho<1'}</Tex> 但 <Tex>{'\\lambda_{\\min}\\approx0'}</Tex> 或 <Tex>{'C\\to0^+'}</Tex> 時，迴路「穩定」卻要等上千個 block，線性化的 bias 還被 <Tex>{'1/C'}</Tex> 放大（放大到 comparator 飽和時，它就不再是固定點，Ch11 §11.4）。
+              <strong>穩定不等於學得到</strong>：<Tex>{'\\rho<1'}</Tex> 但 <Tex>{'\\lambda_{\\min}\\approx0'}</Tex> 或 <Tex>{'C\\to0^+'}</Tex> 時，迴路「穩定」卻要等上千個 block，線性化的 bias 還被 <Tex>{'1/C'}</Tex> 放大（放大到 comparator 飽和時，它就不再是固定點，<ChRef ch="11">Ch11</ChRef> §11.4）。
             </>,
             <>
               <strong>每個「一致」都要有判據</strong>：跨級一致性是逐位元（容差 0）；mean <Tex>w</Tex> 用 AR(1) 的標準誤差；<Tex>{'\\sigma_w'}</Tex> 樣本不夠就標「不適用」而不是硬給綠燈。

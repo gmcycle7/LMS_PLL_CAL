@@ -14,6 +14,7 @@ import {
   useThemeTokens,
   type ExperimentPreset,
   type MetricRow,
+  ChRef,
 } from '@/components'
 import modelSrc from '../model.ts?raw'
 import { roadmapHandCalc } from '../handcalcs'
@@ -232,7 +233,7 @@ export default function R5Preview() {
         <p>
           <Tex>{String.raw`\mathbf R=\begin{bmatrix}a&b\\b&c\end{bmatrix}`}</Tex> 的 eigenvalue 是 <Tex>{'\\det(\\mathbf R-\\lambda\\mathbf I)=0'}</Tex> 的根：
           <Tex>{'\\lambda^2-(a+c)\\lambda+(ac-b^2)=0'}</Tex>，也就是 <Tex>{'\\lambda^2-\\mathrm{tr}\\,\\lambda+\\det=0'}</Tex>。兩根的乘積是 det、和是 trace。
-          <Tex>{'\\lambda_{\\min}'}</Tex> 是「最難被激發的方向」收到多少能量（第 9 章）：它為 0 就有一個方向完全看不見。
+          <Tex>{'\\lambda_{\\min}'}</Tex> 是「最難被激發的方向」收到多少能量（<ChRef ch="09">第 9 章</ChRef>）：它為 0 就有一個方向完全看不見。
         </p>
       </Prereq>
 

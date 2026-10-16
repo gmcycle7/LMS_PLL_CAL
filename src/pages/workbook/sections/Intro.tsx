@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { Callout, HandCalc, Tex, TexBlock, texNum } from '@/components'
+import { Callout, HandCalc, Tex, TexBlock, texNum, ChRef } from '@/components'
 import type { HandCalcDef } from '@/data/types'
 import { kq } from '@/simulation/models/comparator'
 import { fixedXPole } from '@/simulation/models/lms'
@@ -125,7 +125,7 @@ export function Intro({ all, groups, demo }: IntroProps) {
           <div className="wb-demo">
             <h3>先試一題</h3>
             <p className="small muted">
-              這是第 00 章的第一題。試著把 <Tex>{String.raw`\mu`}</Tex> 改成 <Tex>0.2</Tex> 看每一步怎麼變，再切到「自己算算看」。
+              這是<ChRef ch="00">第 00 章</ChRef>的第一題。試著把 <Tex>{String.raw`\mu`}</Tex> 改成 <Tex>0.2</Tex> 看每一步怎麼變，再切到「自己算算看」。
             </p>
             <Diagram
               chart={CHART_DEMO_ORDER}

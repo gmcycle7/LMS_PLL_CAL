@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Section, StepDerivation, Tex, TexBlock, mathText } from '@/components'
+import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Section, StepDerivation, Tex, TexBlock, mathText, ChRef } from '@/components'
 import { conventionalStep } from '@/simulation/models/lms'
 import lmsSrc from '@/simulation/models/lms.ts?raw'
 import bridgeSrc from '../bridge.ts?raw'
@@ -122,7 +122,7 @@ export function S4Conventions() {
         </table>
       </div>
       <p className="small muted">
-        三欄由三段不同的程式碼（下方 CodeCompare）實際執行得到；{mathText(CONVENTION_SHORT.half)}那一欄就是 Ch00–Ch03 使用的 <code>conventionalStep</code>。
+        三欄由三段不同的程式碼（下方 CodeCompare）實際執行得到；{mathText(CONVENTION_SHORT.half)}那一欄就是 <ChRef ch="00">Ch00</ChRef>–<ChRef ch="03">Ch03</ChRef> 使用的 <code>conventionalStep</code>。
       </p>
       <Diagram
         chart={CHART_CONVENTION_BRIDGE}
@@ -356,7 +356,7 @@ export function S4Conventions() {
         </div>
         <p className="small muted">
           主動控制文獻的更新式正負號取決於誤差的定義（控制路徑的輸出與干擾在誤差感測點是相加還是相減），不同教材的寫法因此可能差一個負號；
-          判斷極性時要回到「誤差對係數的偏微分」的符號，而不是只比對更新式的長相（本站 Ch06 的 <Tex>{'C>0'}</Tex> 判據）。
+          判斷極性時要回到「誤差對係數的偏微分」的符號，而不是只比對更新式的長相（本站 <ChRef ch="06">Ch06</ChRef> 的 <Tex>{'C>0'}</Tex> 判據）。
         </p>
         <Callout kind="warn" title="最容易撞名的三個符號">
           <ul>

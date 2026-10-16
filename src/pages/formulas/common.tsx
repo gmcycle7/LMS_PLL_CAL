@@ -137,7 +137,7 @@ export function FormulaLink({ id, children }: { id: string; children?: ReactNode
       onClick={(e) => {
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return // 讓瀏覽器自己開新分頁
         e.preventDefault()
-        navigate(f.page)
+        navigate(`${f.page}?f=${encodeURIComponent(id)}`)
         jumpToFormula(id, { onSwitchMode: setMode ? () => setMode('research') : undefined, isResearch: mode === 'research' })
       }}
     >
@@ -147,8 +147,10 @@ export function FormulaLink({ id, children }: { id: string; children?: ReactNode
 }
 
 /**
- * 攔截容器內所有 `<a href="#formula-F-xx.y">` 的點擊（共用的 MetricTable「公式」欄會產生這種連結）。
- * 在 HashRouter 下，'#formula-…' 會被當成路由而顯示「找不到此頁面」；這裡改成：切到該公式所在的頁面，再捲到錨點。
+ * 攔截容器內所有公式連結（共用的 MetricTable「公式」欄用 <FormulaLink>，帶 data-formula-link）的點擊。
+ * FormulaLink 自己先處理「本頁就有這條公式」（捲過去並 preventDefault，這裡看到 defaultPrevented 就不動）；
+ * 剩下的是公式在別頁：這裡直接切到該公式所在的頁面，再捲到錨點（比 FormulaLink 的預設 href '#/formulas?f=…' 少一步，
+ * 因為本頁有完整的公式登錄）。
  * 用法：<div onClick={useFormulaAnchorHandler()}>…</div>
  */
 export function useFormulaAnchorHandler(): (e: ReactMouseEvent<HTMLElement>) => void {
@@ -158,16 +160,16 @@ export function useFormulaAnchorHandler(): (e: ReactMouseEvent<HTMLElement>) => 
     (e: ReactMouseEvent<HTMLElement>) => {
       if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
       const target = e.target as Element | null
-      const a = target?.closest?.('a[href^="#formula-"]')
+      const a = target?.closest?.('a[data-formula-link]')
       if (!a) return
-      e.preventDefault() // 一律攔下：否則 HashRouter 會把它當成不存在的路由
-      const id = decodeURIComponent((a.getAttribute('href') ?? '').slice('#formula-'.length))
+      e.preventDefault() // 一律攔下：直接切頁，不經過 FormulaLink 的 '#/formulas?f=…'（同一頁的搜尋會把整頁過濾成一條公式）
+      const id = a.getAttribute('data-formula-link') ?? ''
       const f = formulaById(id)
       if (!f) {
         showToast(`公式 ${id} 不在全站公式登錄中（可能是章節尚未登錄這個 ID）。`)
         return
       }
-      navigate(f.page)
+      navigate(`${f.page}?f=${encodeURIComponent(id)}`)
       jumpToFormula(id, { onSwitchMode: setMode ? () => setMode('research') : undefined, isResearch: mode === 'research' })
     },
     [navigate, mode, setMode],

@@ -1,6 +1,6 @@
-# 基礎模組 API 與使用注意事項（由各模組作者回報彙整）
+# 基礎模組 API 與使用注意事項
 
-> 實際程式碼為準；此文件幫助快速找到可用函式。
+> 實際程式碼為準；此文件幫助快速找到可用函式，以及使用時要注意的行為。目錄結構與一般約定見 `docs/dev-conventions.md`。各節依模組分成「Public API」（簽名清單）、「使用注意事項」與「設計決定與補充」（和 dev-conventions 概要簽名不同或補充之處）。
 
 ## src/simulation/core（@/simulation/core）
 
@@ -71,91 +71,83 @@ units.ts
 
 ### 使用注意事項
 
-**Randomness**
-- Make one root per experiment, `const rng = createRng(seed)`, and give each noise source its own `rng.fork('comparator-noise')`, `rng.fork('dither')`, and so on.
-- A fork depends only on the parent seed and the label, never on how many numbers were already drawn. So adding draws in one place does not change other streams.
-- `createRng(child.seed)` reproduces a fork exactly. `fork(1)` and `fork('1')` are the same stream.
-- Seeds are reduced to 32 bits and fractional parts are dropped.
+**隨機性**
+- 每個實驗建立一個根亂數 `const rng = createRng(seed)`，每個雜訊來源各自 `rng.fork('comparator-noise')`、`rng.fork('dither')` 等。
+- fork 出來的序列只取決於父 seed 與標籤，與父亂數已經抽了幾個數無關，所以在某處多抽幾個數不會改變其他序列。
+- `createRng(child.seed)` 可以精確重現一個 fork；`fork(1)` 與 `fork('1')` 是同一條序列。
+- seed 會被縮成 32 位元，小數部分捨去。
 
-**Normal distribution**
-- normCdf is accurate in both tails. For an upper tail use normSf(z) or normCdf(−z), never 1 − normCdf(z).
-- Example: P(q=+1) = normCdf(s/σ), and E[q] = erf(s/(√2σ)) = 2Φ−1.
+**常態分布**
+- `normCdf` 在兩端尾巴都準。上尾請用 `normSf(z)` 或 `normCdf(−z)`，不要寫 `1 − normCdf(z)`。
+- 例：`P(q=+1) = normCdf(s/σ)`，`E[q] = erf(s/(√2σ)) = 2Φ−1`。
 
-**Binomial**
-- binomSf(k, n, p) gives P(X > k) with full relative precision in the tail.
-- For the comparator, the exact P(G_N > 0) is binomSf(floor(N/2), N, p). When N is even, G_N = 0 ties are excluded.
-- The CLT formula from spec §5 is normCdf(m·√N/√(1−m²)). Tests check it against the table: 0.5318, 0.5996, 0.7875, 0.9500, 0.9900.
-- binomCdf costs O(10·√(npq)) operations, about 0.1 ms at n = 1e6. Avoid n above about 1e8.
+**二項分布**
+- `binomSf(k, n, p)` 回傳 `P(X > k)`，尾端也保有完整的相對精度。
+- comparator 的精確 `P(G_N > 0)` 是 `binomSf(floor(N/2), N, p)`；N 為偶數時 `G_N = 0` 的平手不計入。
+- 規格 §5 的 CLT 式是 `normCdf(m·√N/√(1−m²))`；測試以表格核對：0.5318、0.5996、0.7875、0.9500、0.9900。
+- `binomCdf` 的成本約 `O(10·√(npq))`，n = 1e6 時約 0.1 ms；n 不要超過約 1e8。
 
-**Linear algebra**
-- inv and solve throw an Error whose message contains '矩陣奇異（singular）'. Catch it and show the explanation, e.g. λ_min = 0 or no persistent excitation. det never throws; it returns 0 or a tiny value. cond returns Infinity when σ_min is exactly 0.
-- eigSym: eigenvalues are sorted descending. Eigenvectors are columns, each with its largest-magnitude component made positive.
-  - Example: for R = [[1,.99],[.99,1]] you get values [1.99, 0.01] with columns [1,1]/√2 and [1,−1]/√2.
-  - eigSym throws if the input is clearly asymmetric; use eigvals for general matrices.
-- eigvals(A)[0] is the dominant eigenvalue, and spectralRadius(A) = |eigvals(A)[0]|. Stability means spectralRadius < 1.
-- Complex eigenvalues and roots come out as exact conjugate pairs.
-- pinvReg(A, λ) is the regularized preconditioner, (R+λI)⁻¹-style.
+**線性代數**
+- `inv` 與 `solve` 遇到奇異矩陣會丟出訊息含「矩陣奇異（singular）」的 `Error`，要接住並顯示原因（例如 `λ_min = 0` 或缺乏 persistent excitation）。`det` 不會丟例外，奇異時回傳 0 或很小的值；`cond` 在 `σ_min` 恰為 0 時回傳 `Infinity`。
+- `eigSym`：特徵值由大到小排序；特徵向量是各欄，每欄絕對值最大的分量取正號。
+  - 例：`R = [[1,.99],[.99,1]]` 得到 values `[1.99, 0.01]`，欄向量 `[1,1]/√2` 與 `[1,−1]/√2`。
+  - 輸入明顯不對稱時會丟例外；一般矩陣請用 `eigvals`。
+- `eigvals(A)[0]` 是主特徵值，`spectralRadius(A) = |eigvals(A)[0]|`；穩定的條件是 `spectralRadius < 1`。
+- 複數特徵值與根一定以精確的共軛對出現。
+- `pinvReg(A, λ)` 是正則化的 preconditioner（`(R+λI)⁻¹` 型式）。
 
-**Polynomials**
-- Coefficients are in descending powers. The update-delay characteristic equation z^{d+1} − z^d + g becomes `polyRoots([1, -1, 0, g])` for d = 2.
-- Leading zeros are stripped, and trailing zeros become exact roots at z = 0.
-- A repeated root of multiplicity m is only accurate to about ε^{1/m} (about 1e-5 for a triple root), which is unavoidable.
+**多項式**
+- 係數是降冪。更新延遲的特徵式 `z^{d+1} − z^d + g`，d = 2 時寫成 `polyRoots([1, -1, 0, g])`。
+- 前導零會被去掉，尾端的零變成 `z = 0` 的精確根。
+- 重數 m 的重根只能準到約 `ε^{1/m}`（三重根約 1e-5），這是數值上無法避免的。
 
-**Statistics**
-- variance and std default to ddof = 1.
-- meanCI uses Student-t and assumes iid samples. With correlated noise, compute effectiveSampleSize first.
-- meanCI returns NaN half-width when n < 2.
-- wilsonCI is for success-rate confidence intervals such as P(correct direction).
-- autocorr is biased and normalized (same as statsmodels acf with adjusted=False). A constant series returns all NaN.
-- histogram follows np.histogram: the last bin includes the right edge, and values outside `range` are counted in `.outside`.
+**統計**
+- `variance` 與 `std` 預設 `ddof = 1`。
+- `meanCI` 用 Student-t 並假設樣本 iid；雜訊有相關時先用 `effectiveSampleSize` 估有效樣本數。n < 2 時半寬回傳 NaN。
+- `wilsonCI` 用於成功率的信賴區間，例如 `P(方向正確)`。
+- `autocorr` 是有偏、正規化的（等同 statsmodels 的 `acf(adjusted=False)`）；常數序列回傳全部 NaN。
+- `histogram` 與 `np.histogram` 一致：最後一個 bin 包含右端點，`range` 之外的值計入 `.outside`。
 
-**Units and formatting**
-- fmtSI adds SI prefixes only for these units: s, Hz, rad, rad/s, V, A, W, F, H, Ω, J, S, C. Examples: fmtSI(976562.5, 'Hz') gives '976.6 kHz'; fmtSI(1.5e-12, 's') gives '1.5 ps'.
-- Units that already carry a scale are printed as-is: 'fs', 'dB', 'dBc', 'dBc/Hz', 'LSB', '%'. For example fmtSI(0.399, 'fs') gives '0.399 fs'.
-- fmt switches to exponent form when |x| ≥ 1e6 or |x| < 1e-4 (e.g. '1.235e6', '7.979e-5') and drops trailing zeros.
-- Convert time to phase only with fsToRad(tFs, fOutHz) and radToFs, never with a hand-written 1e-15. Example: fsToRad(0.5, 13e9) = 4.0841e-5 rad, and 20·log10(β/2) = −93.80 dBc.
-- wrap180 maps to (−180, 180], so wrap180(−180) = 180.
+**單位與格式**
+- `fmtSI` 只對這些單位加 SI 前綴：s、Hz、rad、rad/s、V、A、W、F、H、Ω、J、S、C。例：`fmtSI(976562.5, 'Hz')` 得 `'976.6 kHz'`，`fmtSI(1.5e-12, 's')` 得 `'1.5 ps'`。
+- 本身已帶尺度的單位原樣輸出：`'fs'`、`'dB'`、`'dBc'`、`'dBc/Hz'`、`'LSB'`、`'%'`。例：`fmtSI(0.399, 'fs')` 得 `'0.399 fs'`。
+- `fmt` 在 `|x| ≥ 1e6` 或 `|x| < 1e-4` 時改用指數形式（例如 `'1.235e6'`、`'7.979e-5'`），並去掉尾端的零。
+- 時間與相位的換算只用 `fsToRad(tFs, fOutHz)` 與 `radToFs`，不要手寫 `1e-15`。例：`fsToRad(0.5, 13e9) = 4.0841e-5 rad`，`20·log10(β/2) = −93.80 dBc`。
+- `wrap180` 的範圍是 (−180, 180]，所以 `wrap180(−180) = 180`。
 
-**Complex**
-- cToString(z) gives text like '0.9 + j0.4796' for tables.
+**複數**
+- `cToString(z)` 產生表格用的文字，例如 `'0.9 + j0.4796'`。
 
-**Cross-cutting**
-- Nothing in core imports React or the DOM, so it is safe to use in Web Workers.
-- No matrix function mutates its input.
+**共通**
+- core 不 import React 或 DOM，可以在 Web Worker 內使用。
+- 沒有任何矩陣函式會修改輸入。
 
-### 與約定的差異
+### 設計決定與補充
 
-No API in the conventions was left out or changed. Differences and additions:
+`docs/dev-conventions.md` §4 的簽名都有實作，沒有刪減或改名；下列是實作時決定的細節與額外的 export。
 
-1. **Wider input types.** Many functions take ArrayLike<number> where the contract says number[], so a Float64Array works too.
-
-2. **Extra exports.** These were added beyond the contract:
-   - rng: uniformArray, uint32, deriveSeed, normalizeSeed, seedState, xoshiro128ss
-   - special: erfcx, normSf, betaIncRegPair, binomSf, studentT*
-   - linalg: luDecompose, cholesky, pinv, rank, dot/norm2/outer/normFro/diag/clone/isSymmetric, sortByModulusDesc
-   - poly: polyTrim/polyDer/polyMul/polyAdd/polyFromRoots/polyResidual/ratvalC
-   - stats: sum, minMax, quantiles, median, effectiveSampleSize, covariance, correlation
-   - units: fromDb10/20, wrapPi, fsToRad/radToFs, isSiPrefixable
-   - complex: cAbs2/cSqrt/cExp/cLog/cIsClose/cToString, all appended without touching existing exports
-
-3. **Orders and shapes the contract left open:**
-   - eigvals and polyRoots sort by |z| descending; ties go real-part descending, then imaginary descending, so the +j root of a conjugate pair comes first.
-   - svd returns the thin SVD (k = min(m, n)).
-   - histogram also returns `centers` and `outside`.
-   - meanCI and wilsonCI return objects (fields listed in public_api); wilsonCI's level defaults to 0.95.
-
-4. **Standard normal only.** normPdf, normCdf and normInv take no mean or σ arguments. Use normCdf((x − μ)/σ).
-
-5. **pinvReg is computed through the SVD** as V diag(σ/(σ²+λ)) Uᵀ, not by inverting AᵀA+λI. For λ > 0 this is mathematically identical, and tests confirm it against the direct formula. For λ = 0 it becomes the Moore–Penrose pinv.
-
-6. **Accuracy beyond the minimum requested:**
-   - binomPmf uses Loader's saddle-point method with n·p and n·q held as double-double.
-   - betaIncReg's prefactor uses the same saddle-point form.
-   - eigvals uses EISPACK balancing with permutation, so triangular, defective and nilpotent matrices give exact eigenvalues.
-
-7. **T-id test names.** Tests named T04 (special.test.ts), T09 (linalg.test.ts and poly.test.ts), T10 and T18 (linalg.test.ts) exist in core, because these reference values are pure math claims. scripts/verify.mjs will count them alongside any chapter tests with the same IDs.
-
-8. **Display minus sign.** fmt and cToString use the ASCII '-' and show infinity as '∞' / '-∞'.
+1. **較寬的輸入型別**：許多函式接受 `ArrayLike<number>` 而不只是 `number[]`，所以 `Float64Array` 也能直接傳。
+2. **額外的 export**（概要簽名沒有列出）：
+   - rng：`uniformArray`、`uint32`、`deriveSeed`、`normalizeSeed`、`seedState`、`xoshiro128ss`
+   - special：`erfcx`、`normSf`、`betaIncRegPair`、`binomSf`、`studentT*`
+   - linalg：`luDecompose`、`cholesky`、`pinv`、`rank`、`dot`／`norm2`／`outer`／`normFro`／`diag`／`clone`／`isSymmetric`、`sortByModulusDesc`
+   - poly：`polyTrim`／`polyDer`／`polyMul`／`polyAdd`／`polyFromRoots`／`polyResidual`／`ratvalC`
+   - stats：`sum`、`minMax`、`quantiles`、`median`、`effectiveSampleSize`、`covariance`、`correlation`
+   - units：`fromDb10`／`fromDb20`、`wrapPi`、`fsToRad`／`radToFs`、`isSiPrefixable`
+   - complex：`cAbs2`／`cSqrt`／`cExp`／`cLog`／`cIsClose`／`cToString`
+3. **概要簽名沒有規定的順序與形狀**：
+   - `eigvals` 與 `polyRoots` 依 `|z|` 由大到小排序；相同時實部大的在前，再依虛部大的在前，所以共軛對的 `+j` 根排在前面。
+   - `svd` 回傳 thin SVD（`k = min(m, n)`）。
+   - `histogram` 另外回傳 `centers` 與 `outside`。
+   - `meanCI` 與 `wilsonCI` 回傳物件（欄位見上面的 API 清單）；`wilsonCI` 的 `level` 預設 0.95。
+4. **只有標準常態**：`normPdf`、`normCdf`、`normInv` 沒有平均與 σ 參數，請用 `normCdf((x − μ)/σ)`。
+5. **`pinvReg` 經由 SVD 計算**：`V diag(σ/(σ²+λ)) Uᵀ`，而不是去反轉 `AᵀA+λI`。λ > 0 時兩者數學上相同（測試以直接公式核對）；λ = 0 時就是 Moore–Penrose 偽逆。
+6. **超過最低要求的精度**：
+   - `binomPmf` 用 Loader 的 saddle-point 方法，`n·p` 與 `n·q` 以 double-double 保存。
+   - `betaIncReg` 的前置因子用同一種 saddle-point 形式。
+   - `eigvals` 使用 EISPACK 的 balancing（含排列），所以三角、defective 與 nilpotent 矩陣也能得到精確的特徵值。
+7. **T-id 測試名稱**：core 內也有以 T-id 開頭命名的測試——T04（`special.test.ts`）、T09（`linalg.test.ts` 與 `poly.test.ts`）、T10 與 T18（`linalg.test.ts`），因為這些參考值是純數學的聲明；`scripts/verify.mjs` 會把它們和各章同 ID 的測試一起計入。
+8. **負號**：`fmt` 與 `cToString` 使用 ASCII 的 `-`，無限大顯示為 `∞`／`-∞`。
 
 ## src/simulation/signal（@/simulation/signal）
 
@@ -211,51 +203,49 @@ corr.ts:
 
 ### 使用注意事項
 
-- Import from '@/simulation/signal'. The functions are pure, with no React or DOM, so they are safe to call in a Web Worker.
-- Coefficient conventions:
-  - Discrete-time filters (lfilter, StreamFilter, freqz, impulseResponse) take b and a as ascending powers of z^-1. This is the opposite of core/poly.ts, which uses descending polynomials.
-  - freqs and the inputs to bilinear take descending powers of s.
-  - freqz takes Ω in rad/sample (Ω = 2πf/fs). Use freqzHz(b, a, fHz, fs) to pass Hz instead.
-  - For block-rate loops, use f_u, not f_s, as the sample rate.
-- Example: discretise the PD transfer from validation E44 with
-  const { b, a } = bilinear([1, 0, 0], [1, 2*zeta*wn, wn*wn], fs)
-  then const pd = new StreamFilter(b, a) and call pd.step(x) once per sample.
-- PSD conventions:
-  - welch and periodogram default to a one-sided density PSD in x²/Hz. DC and Nyquist bins are not doubled.
-  - Σ psd·df is the total power. integratePsd(f, psd, fL, fH) gives σ² over a band; for example, a time-error PSD in s²/Hz integrates to jitter² in s².
-  - Phase noise: L = psdToDbcHz(S_phi_onesided).
-  - If you have a DTFT-form PSD, where σ² = (1/2π)∫S dΩ, convert it with dtftPsdToOnesided(S, fs) first. Skipping this shifts L(f) by 10log10(fs/2) (validation E28).
-  - Per dev-conventions §5, every PSD plot must be labelled with window, nperseg, ENBW, one-sided/two-sided and units. All of these are fields on PsdResult (window, nperseg, nSegments, enbwHz, onesided, units, df). Show PsdResult.warnings in the UI.
-- Spur and tone measurement (spec §15.5) has three modes:
-  - Whole-record FFT: periodogram(x, fs, { window }). With scaling: 'spectrum', a coherent tone reads A²/2 in its bin.
-  - Welch PSD: welch(...).
-  - Coherent tone measurement: toneFit(x, fs, f0) returns amplitudePeak (peak, not RMS), phase (x ≈ A cos(2πf0 n/fs + φ)) and rmsResidual. Use toneFitMulti for the 90/110 kHz sideband pair.
-  - For an SSB spur in dBc from a phase tone fit, use 20log10(A_peak/2), which equals psdToDbcHz(A²/2).
-- findTones is approximate and depends on the window. Tone power is the sum of PSD bins over the main lobe times df (lobe capped at lobeHalfWidthBins: default 4, which suits Blackman-Harris; Hann needs only 2; scale it up when zero-padding). Raw periodograms produce false peaks of 10–20 dB prominence. Use Welch plus minProminenceDb ≥ 15–20, and use toneFit when the frequency is known.
-- xcorr sign convention: R[ℓ] = mean_n x[n-ℓ]·y[n]. A positive lag means y lags x, so if y is x delayed by D samples, the peak is at ℓ = +D. The signal is not de-meaned for you, the mean is over overlapping samples only (count in counts), and NaN means there is no overlap.
-- lfilter supports segmented filtering: pass zf back in as zi. StreamFilter produces bit-identical output to lfilter. lfilterZi(b, a) scaled by x[0] removes the start-up transient.
-- Windows default to periodic. Use hann(n, true) for symmetric FIR design.
-- Measured performance in Node:
-  - welch on 1M samples with nperseg 4096: about 28 ms.
-  - fft of 2^20 points: about 78 ms.
-  - First Bluestein call on a 1,000,003-point prime length: about 0.5 ms per… about 0.5 s, mostly building the plan, which is then cached.
-  - toneFit on 1M samples: about 0.1 s.
-  - Put anything longer than about 1M samples in a Worker.
-- I suggest no changes to shared code. One small inconsistency: `core/stats.autocorr` (owned by core) may use a different normalisation from xcorr. Chapter text should name which one it uses.
+- 從 `'@/simulation/signal'` 匯入。這些函式是純函式，不依賴 React 或 DOM，可以在 Web Worker 內呼叫。
+- 係數約定：
+  - 離散時間濾波器（`lfilter`、`StreamFilter`、`freqz`、`impulseResponse`）的 `b`、`a` 是 `z^-1` 的升冪，和 `core/poly.ts` 的降冪相反。
+  - `freqs` 與 `bilinear` 的輸入是 `s` 的降冪。
+  - `freqz` 的 Ω 單位是 rad/sample（Ω = 2πf/fs）；要直接給 Hz 用 `freqzHz(b, a, fHz, fs)`。
+  - block 速率的迴圈，取樣率要用 `f_u` 而不是 `f_s`。
+- 範例：把驗算 E44 的 PD 轉移函數離散化：`const { b, a } = bilinear([1, 0, 0], [1, 2*zeta*wn, wn*wn], fs)`，然後 `const pd = new StreamFilter(b, a)`，每個 sample 呼叫一次 `pd.step(x)`。
+- PSD 約定：
+  - `welch` 與 `periodogram` 預設回傳單邊密度 PSD，單位 x²/Hz；DC 與 Nyquist 不乘 2。
+  - `Σ psd·df` 是總功率。`integratePsd(f, psd, fL, fH)` 給出頻帶內的 σ²；例如單位 s²/Hz 的時間誤差 PSD 積分後是 jitter²（s²）。
+  - 相位雜訊：`L = psdToDbcHz(S_phi_onesided)`。
+  - 若手上是 DTFT 形式的 PSD（`σ² = (1/2π)∫S dΩ`），先用 `dtftPsdToOnesided(S, fs)` 轉換；漏掉會讓 `L(f)` 差 `10log10(fs/2)`（驗算 E28）。
+  - 依 dev-conventions §5，每張 PSD 圖都要標示 window、nperseg、ENBW、單邊／雙邊與單位；這些都是 `PsdResult` 的欄位（`window`、`nperseg`、`nSegments`、`enbwHz`、`onesided`、`units`、`df`）。`PsdResult.warnings` 要顯示在 UI。
+- 突波與單音量測（規格 §15.5）有三種方式：
+  - 整段紀錄的 FFT：`periodogram(x, fs, { window })`。`scaling: 'spectrum'` 時，相干單音在它的 bin 讀到 `A²/2`。
+  - Welch PSD：`welch(...)`。
+  - 相干單音量測：`toneFit(x, fs, f0)` 回傳 `amplitudePeak`（峰值，不是 RMS）、`phase`（`x ≈ A cos(2πf0 n/fs + φ)`）與 `rmsResidual`。90／110 kHz 邊帶對用 `toneFitMulti`。
+  - 相位單音換算成單邊帶 spur 的 dBc：`20log10(A_peak/2)`，等於 `psdToDbcHz(A²/2)`。
+- `findTones` 是近似的，結果依賴窗函數。單音功率是主瓣內 PSD bin 的和乘以 `df`（主瓣上限 `lobeHalfWidthBins`，預設 4，適合 Blackman-Harris；Hann 只要 2；補零時要等比例加大）。原始 periodogram 會產生 10–20 dB 突出量的假峰；請用 Welch 加 `minProminenceDb ≥ 15–20`，頻率已知時用 `toneFit`。
+- `xcorr` 的正負號：`R[ℓ] = mean_n x[n-ℓ]·y[n]`。正的 lag 表示 y 落後 x；若 y 是 x 延遲 D 個 sample，峰值在 `ℓ = +D`。它不會替你去平均值；平均只在重疊的樣本上取（個數在 `counts`），沒有重疊時回傳 NaN。
+- `lfilter` 支援分段濾波：把 `zf` 當下一段的 `zi`。`StreamFilter` 的輸出和 `lfilter` 逐位元相同。把 `lfilterZi(b, a)` 乘上 `x[0]` 可以消除啟動暫態。
+- 窗函數預設是 periodic；設計對稱 FIR 時用 `hann(n, true)`。
+- 實測效能（Node）：
+  - 1M 點、`nperseg = 4096` 的 `welch`：約 28 ms。
+  - 2^20 點的 `fft`：約 78 ms。
+  - 長度為質數 1,000,003 的第一次 Bluestein 呼叫：約 0.5 s，主要花在建立 plan，之後會快取。
+  - 1M 點的 `toneFit`：約 0.1 s。
+  - 超過約 1M 點的工作放進 Worker。
+- `core/stats.autocorr` 的正規化可能和 `xcorr` 不同；章節文字要寫明用的是哪一個。
 
-### 與約定的差異
+### 設計決定與補充
 
-1. The task text and the conventions write welch's detrend option two ways ('constant' vs 'mean'). Both are accepted and treated as the same thing. The result reports 'constant'. I also added 'linear', 'none' and false.
-2. bilinear differs from SciPy in one degenerate case. When the leading digital numerator coefficient is ≤ 1e-14, SciPy's normalize() drops it (and warns). In z^-1 form that shifts the filter one sample early. I keep the full-length numerator, which is the mathematically correct filter. This only happens when the analog numerator has a zero at exactly s = K. It is documented in JSDoc. In every tested case the results match SciPy to 1e-12.
-3. I added these extras beyond the dev-conventions §4 listing; they are additive and break no listed signature:
-   - Results: PsdResult also carries scaling, fs, df, enbwBins, noverlap, nfft, nSegments, unusedSamples and warnings.
-   - Options: a scaling: 'spectrum' option.
-   - Functions: toneFitMulti, lfilterZi, freqzHz, dtftPsdToOnesided, fftReal, fftfreq, rfftfreq, fftshift, isPow2, getWindow.
-   - On StreamFilter: process(), getState() and setState().
-   - xcorr also returns counts.
-4. Two-sided PSD output uses fftfreq order (0, positive frequencies, negative frequencies), the same as SciPy. Call fftshift before plotting it or passing it to integratePsd.
-5. Within the signal folder I import sibling files through the '@/simulation/signal/...' alias, as the task asked. From core I import only '@/simulation/core/complex'.
-6. testSignals.ts is a non-test helper file used only by the tests. It is not exported from the barrel.
+1. `welch` 的 `detrend` 選項在規格與約定中有兩種寫法（`'constant'` 與 `'mean'`），兩者都接受並視為同一件事，結果回報 `'constant'`；另外支援 `'linear'`、`'none'` 與 `false`。
+2. `bilinear` 在一個退化情形與 SciPy 不同：當數位分子的首項係數 ≤ 1e-14 時，SciPy 的 `normalize()` 會把它丟掉（並警告），在 `z^-1` 形式下等於把濾波器提前一個 sample；這裡保留完整長度的分子，數學上才是正確的濾波器。只有類比分子在 `s = K` 恰有零點時才會發生，JSDoc 裡有說明。所有測試過的情形都和 SciPy 吻合到 1e-12。
+3. 超出 dev-conventions §4 清單的額外項目（都是附加的，不改動列出的簽名）：
+   - 結果：`PsdResult` 另外帶有 `scaling`、`fs`、`df`、`enbwBins`、`noverlap`、`nfft`、`nSegments`、`unusedSamples`、`warnings`。
+   - 選項：`scaling: 'spectrum'`。
+   - 函式：`toneFitMulti`、`lfilterZi`、`freqzHz`、`dtftPsdToOnesided`、`fftReal`、`fftfreq`、`rfftfreq`、`fftshift`、`isPow2`、`getWindow`。
+   - `StreamFilter` 另有 `process()`、`getState()`、`setState()`。
+   - `xcorr` 另外回傳 `counts`。
+4. 雙邊 PSD 的輸出順序和 SciPy 一樣是 `fftfreq` 順序（0、正頻率、負頻率）；畫圖或傳給 `integratePsd` 前先 `fftshift`。
+5. signal 資料夾內的檔案互相以 `'@/simulation/signal/...'` 別名 import；從 core 只 import `'@/simulation/core/complex'`。
+6. `testSignals.ts` 是只給測試用的輔助檔，不從 barrel 匯出。
 
 ## src/simulation/models：pll / dsm / dtc / blockLms
 
@@ -334,85 +324,73 @@ The worker-callable functions take one cloneable params object and return clonea
 
 ### 使用注意事項
 
-**Units and conventions**
-- Ω is always rad/sample on the comparator rate f_s. Never substitute Ω into ctHpd or ctT (E44). For DT phase and polarity work, use designDtLoop with loopFreqResponse, or errorPathTransfer with freqz.
-- The §6.1 example is ctHpd(0.3, {zeta: 0.7, wn: 1}), which returns −0.0815 + j0.0376. The DPLL phases from E44 are reproduced in pll.test.ts.
+**單位與約定**
+- Ω 一律是 comparator 速率 `f_s` 上的 rad/sample。不要把 Ω 代進 `ctHpd` 或 `ctT`（E44）。離散時間的相位與極性分析請用 `designDtLoop` 搭配 `loopFreqResponse`，或 `errorPathTransfer` 搭配 `freqz`。
+- 規格 §6.1 的例子是 `ctHpd(0.3, {zeta: 0.7, wn: 1})`，回傳 `−0.0815 + j0.0376`；E44 的 DPLL 相位在 `pll.test.ts` 重現。
 
-**Worker usage**
-- errorPathFilter and createHpdFilter return objects with methods, so they cannot cross a worker boundary. Send errorPathTransfer(spec), which returns {b, a}, or designDtLoop(spec) instead.
-- To run a config in the worker: SimWorkerClient.run('blockLms', 'runBlockLms', partialConfig). Missing fields take the §15.3 defaults, and invalid input throws a Traditional Chinese multi-line Error.
-- Validate JSON in the UI with parseBlockLmsConfig(text) and show errors[] verbatim.
-- Do not mutate DEFAULT_BLOCK_LMS_CONFIG; spread it or use structuredClone.
+**Worker 用法**
+- `errorPathFilter` 與 `createHpdFilter` 回傳帶方法的物件，不能跨 worker 邊界；改送 `errorPathTransfer(spec)`（回傳 `{b, a}`）或 `designDtLoop(spec)`。
+- 在 worker 內跑一組設定：`SimWorkerClient.run('blockLms', 'runBlockLms', partialConfig)`。缺的欄位用規格 §15.3 的預設，輸入不合法時丟出多行的繁體中文 `Error`。
+- UI 以 `parseBlockLmsConfig(text)` 驗證 JSON，並把 `errors[]` 原文顯示。
+- 不要修改 `DEFAULT_BLOCK_LMS_CONFIG`；用 spread 或 `structuredClone`。
 
-**Correlation helpers**
-- corrFromPsd expects a two-sided DTFT PSD where σ² = (1/2π)∫S dΩ. This is not Welch's one-sided x²/Hz; convert with dtftPsdToOnesided (E28).
-- A grid starting at 0 is treated as [0, π] with even symmetry.
-- For a single tone, corrSingleTone already applies the doubled formula at Ω = 0 or π (E46).
+**相關係數 C 的輔助函式**
+- `corrFromPsd` 要的是雙邊 DTFT PSD（`σ² = (1/2π)∫S dΩ`），不是 Welch 的單邊 x²/Hz；先用 `dtftPsdToOnesided` 對應轉換（E28）。
+- 從 0 開始的頻率格點視為 [0, π]、偶對稱。
+- 單音用 `corrSingleTone`，它在 Ω = 0 或 π 已經套用兩倍公式（E46）。
 
-**Result shapes and how to read them**
-- Block-level series:
-  - blocks.w has length num_blocks + 1, with w[0] = w0.
-  - Block k uses wPhys[max(0, k − d)], where d is the update delay.
-  - G is the average G (dimensionless), or the sum in sum mode.
-- Metrics:
-  - All metrics use the last half of blocks.
-  - settlingBlock is null if the run never stays inside the 4σ band.
-  - NaN means not defined, for example sigmaWPred when the loop is unstable or σ_v = 0. JSON.stringify turns NaN into null, so handle that when exporting reports.
-- Analytic gains:
-  - analytic.K is the per-sample average-G slope K_q·C, halved for the unipolar bug.
-  - analytic.g additionally includes ×N in sum mode.
-  - pmDeg = 90° − (2d+1)·asin(g/2).
-  - f3dbHz and enbwHz are given only for d = 0, and NaN where E27 says no −3 dB point exists.
-- Fixed points:
-  - wStarMeanField is the exact Gaussian-noise mean-field fixed point for the actual code sequence and path (E01/E03 aware). It is different from wStarLinear, the MSE-like linearised value.
-  - Use metrics.biasPred against metrics.bias for the Analytic vs Monte Carlo cross-check, and metrics.sigmaWRatio for σ_w.
-- Warnings:
-  - The required warning phrases are emitted verbatim: 'C ≤ 0：更新極性錯誤，正 learning rate 會使平均誤差發散', 'g ≥ 2：一階模型不穩定' and 'gm_mode=sum 時有效增益放大 N 倍'.
-  - Warnings are also emitted for: C ≈ 0, update-delay instability, σ_v = 0, H_PD(1) = 0 DC suppression (E03), predicted bias, Ĥ ≠ H, LSB much larger than σ_w, saturation and wrap events, and limit-cycle behaviour.
-  - Pass all warnings to ExperimentShell.
+**結果的形狀與讀法**
+- block 層級的序列：
+  - `blocks.w` 的長度是 `num_blocks + 1`，`w[0] = w0`。
+  - 第 k 個 block 用 `wPhys[max(0, k − d)]`，d 是更新延遲。
+  - `G` 是平均 G（無因次），sum 模式下是總和。
+- 指標：
+  - 所有 metrics 都取後半段 block。
+  - 若從未停在 4σ 帶內，`settlingBlock` 為 null。
+  - NaN 表示未定義，例如迴路不穩或 σ_v = 0 時的 `sigmaWPred`。`JSON.stringify` 會把 NaN 變成 null，匯出報告時要處理。
+- 解析增益：
+  - `analytic.K` 是每個 sample 平均 G 的斜率 `K_q·C`，遇到 unipolar bug 時減半。
+  - `analytic.g` 另外包含 sum 模式的 ×N。
+  - `pmDeg = 90° − (2d+1)·asin(g/2)`。
+  - `f3dbHz` 與 `enbwHz` 只在 d = 0 時給出；E27 說沒有 −3 dB 點的情形為 NaN。
+- 固定點：
+  - `wStarMeanField` 是對實際 code 序列與路徑、高斯雜訊下的精確 mean-field 固定點（考慮 E01／E03），和 MSE 類的線性化值 `wStarLinear` 不同。
+  - Analytic 對 Monte Carlo 的交叉比對用 `metrics.biasPred` 對 `metrics.bias`；σ_w 用 `metrics.sigmaWRatio`。
+- 警告：
+  - 規定的警告字句逐字輸出：`'C ≤ 0：更新極性錯誤，正 learning rate 會使平均誤差發散'`、`'g ≥ 2：一階模型不穩定'`、`'gm_mode=sum 時有效增益放大 N 倍'`。
+  - 另外還會對這些情形發警告：`C ≈ 0`、更新延遲造成的不穩、σ_v = 0、`H_PD(1) = 0` 的 DC 抑制（E03）、預測偏差、`Ĥ ≠ H`、LSB 遠大於 σ_w、飽和與 wrap 事件、limit-cycle。
+  - 全部警告都傳給 `ExperimentShell`。
 
-**Fixed-point lab and code sequences**
-- quantize_physical = true is the L5 model. limitCyclePeriod and limitCycleCount are computed only in that mode.
-- For example, σ_v = 0, a = 3.05, μ = 0.05 gives a period-2 toggle between 3.0 and 3.125 fs with mean 3.0625 instead of 3.05. This is a good §13 demonstration.
-- To plot the exact code the Lab uses, call generateCodePattern({pattern, length, seed, normalization}). runDsm uses a different dither stream; it is seeded with createRng(seed).fork('dsm-dither').
-- DSM residue units are T_vco (VCO periods): residue = Σ(y − in/M), exactly bounded. First-order residue lies in (−1, 0] with zero initial state; MASH has |r| < 2.
-- PSD plots: dsmSpectra and analyzeDsm return PsdResult objects whose window, nperseg, ENBW, one-sided flag and units fields satisfy the §5 labelling rule.
+**定點實驗與 code 序列**
+- `quantize_physical = true` 是 L5 模型；`limitCyclePeriod` 與 `limitCycleCount` 只在這個模式計算。
+- 例：σ_v = 0、a = 3.05、μ = 0.05 時，w 在 3.0 與 3.125 fs 之間以週期 2 來回切換，平均 3.0625 而不是 3.05，是 §13 很好的示範。
+- 要畫出 Lab 實際用的 code，呼叫 `generateCodePattern({pattern, length, seed, normalization})`。`runDsm` 用另一條 dither 序列，種子是 `createRng(seed).fork('dsm-dither')`。
+- DSM 的餘數單位是 `T_vco`（VCO 週期）：`residue = Σ(y − in/M)`，嚴格有界。一階 DSM 初始狀態為 0 時餘數落在 (−1, 0]；MASH 的 `|r| < 2`。
+- PSD 圖：`dsmSpectra` 與 `analyzeDsm` 回傳的 `PsdResult` 帶有 window、nperseg、ENBW、單邊旗標與單位欄位，符合 dev-conventions §5 的標示規則。
 
-**T-ids and performance**
-- T-ids covered with 'Txx:' test titles: T06 and T07 (pll.test.ts and blockLms.test.ts) and T13 (the blockLms Monte Carlo test).
-- runBlockLms costs about 35 ns per sample. Pass record.sample_trace_blocks: 0 for sweeps and Monte Carlo runs. Each Monte Carlo run re-does the normalisation pre-scan, which is about 0.1 s for 8M samples.
+**T-id 與效能**
+- 以 `'Txx:'` 開頭命名、涵蓋的 T-id：T06 與 T07（`pll.test.ts`、`blockLms.test.ts`）、T13（`blockLms` 的 Monte Carlo 測試）。
+- `runBlockLms` 約 35 ns／sample。掃描與 Monte Carlo 時傳 `record.sample_trace_blocks: 0`。每次 Monte Carlo 都會重做正規化的預掃描，8M 個 sample 約 0.1 s。
 
-### 與約定的差異
+### 設計決定與補充
 
-1. **MASH 1-1-1 slope.** The task asked for about 40 dB/dec at low frequency for y − frac. That is mathematically wrong: y − in/M = −(1−z⁻¹)³·s3/M, so the slope is 60 dB/dec. The DTC phase residue (the accumulated error) is −(1−z⁻¹)²·s3/M, which is 40 dB/dec. Python confirms 59.7 and 39.8 dB/dec, and the tests assert these correct values.
-
-2. **DT loop method.** I chose the direct DPLL difference equation from validation.md E44 as the default: L(z) = (Kp + Ki/(1−z⁻¹))·z^{−(1+d)}/(1−z⁻¹), with Kp = 2ζω_nT_s and Ki = (ω_nT_s)². The loop delay is explicit and h_PD[0] = 1. A bilinear (Tustin) variant is available as an option for comparison.
-
-3. **Comparator noise generator.** blockLms draws its noise with a local Ziggurat built on rng.uint32() from createRng(seed).fork('comparator-noise'), not rng.normal().
-   - rng.normal() costs about 35 to 50 ns per sample and dominated run time; the Ziggurat makes the whole run about twice as fast.
-   - It is still fully seed-determined, and it is validated by KS, moment and tail tests.
-   - Suggest moving it to core/rng.
-
-4. **Sum mode with the average-mode μ (g = 326.8, pole −325.8).** The simulated w does not diverge numerically, because sign-LMS has |G| ≤ N. It settles into a bounded period-2 oscillation of tens of thousands of fs. The test asserts that behaviour, the analytic instability and a dedicated warning instead of numeric divergence. Divergence detection (|w| > 1e12 fs) is still there as a safety net.
-
-5. **unipolar_unmapped_bug.** With a zero-mean code (the default iid ±1), the bug only halves the gain; σ_w and the fixed point are unchanged. The bias shows up only when E[x_ref] ≠ 0. The negative test therefore uses a Gaussian code with mean 0.5 and normalisation 'none'. The result is w* ≈ 63.23 fs instead of 3 fs, which Python's mean-field confirms.
-
-6. **Schema extensions.**
-   - **code_normalization:** adds 'standardize'. 'unit_rms' scales so that E[x²] = 1 without removing the mean, which keeps the §11.1 offset effect visible. Statistics are taken over the whole record.
-   - **gain_register:** adds lsb_fs (default 0.125 fs, per E13's gain_lsb_fs) and signed (default false). When quantize_physical is false, no register quantisation is applied at all. When it is true, the same rounding mode applies to both the update increment and the physical code.
-   - **Regressor modes:** the raw regressor mode ignores gm_code_delay_samples and warns. In filtered mode the delay D applies to u_f.
-   - **filtered_x_model:** {path: 'same_as_path' | errorPath, gain_mismatch, extra_delay_samples}.
-   - **Pattern parameters:** the DSM patterns take {frac, bits, dither, signal: 'residue' | 'quant_error', initial_state}. The gaussian pattern takes an ar1 parameter.
-   - **New fields:** an 'iir' error-path kind, and a mode field (free string).
-
-7. **Error-path params key style.** The error-path parameter keys in pll.ts use snake_case (magnitude, phase_deg, omega, taps, pole, wn_ts, zeta, loop_delay, method, b, a). They are the same keys as the JSON's pll_error_path.parameters, so a config can be passed straight through. Everything else in pll.ts is camelCase.
-
-8. **DSM dither definition.** An LSB dither d ∈ {0, 1} is added to the stage-1 input, so the mean shifts by half an LSB (fracEff = (K+½)/M). The residue is measured against the dithered input, so it stays exactly bounded.
-
-9. **Suggested moves to shared code (I did not touch it):**
-   - Ziggurat normal → core/rng
-   - detectPeriod and psdSlopeDbPerDecade → signal
-   - codeStats / streaming statistics → core/stats
+1. **MASH 1-1-1 的斜率**：原本要求 `y − frac` 在低頻約 40 dB/dec，這在數學上不對：`y − in/M = −(1−z⁻¹)³·s3/M`，斜率是 60 dB/dec。DTC 的相位餘數（累積誤差）是 `−(1−z⁻¹)²·s3/M`，才是 40 dB/dec。Python 實測 59.7 與 39.8 dB/dec，測試斷言的是這兩個正確的值。
+2. **DT 迴路方法**：預設採驗算 E44 的直接 DPLL 差分方程式：`L(z) = (Kp + Ki/(1−z⁻¹))·z^{−(1+d)}/(1−z⁻¹)`，`Kp = 2ζω_nT_s`、`Ki = (ω_nT_s)²`；迴路延遲明確，`h_PD[0] = 1`。另提供 bilinear（Tustin）變體做比較。
+3. **Comparator 雜訊產生器**：`blockLms` 用區域的 Ziggurat（定義在 `blockLms.ts` 的 `createZigguratNormal`，建立在 `createRng(seed).fork('comparator-noise')` 的 `rng.uint32()` 上）產生雜訊，而不是 `rng.normal()`。
+   - `rng.normal()` 每個 sample 約 35 到 50 ns，主導了執行時間；Ziggurat 讓整個模擬約快一倍。
+   - 結果仍完全由 seed 決定，並通過 KS、動差與尾端測試。
+4. **Sum 模式用平均模式的 μ（g = 326.8，極點 −325.8）**：模擬的 w 在數值上不會發散，因為 sign-LMS 的 `|G| ≤ N`；它會落在幾萬 fs 的有界週期 2 振盪。測試斷言的是這個行為、解析上的不穩，以及專屬的警告，而不是數值發散。發散偵測（`|w| > 1e12 fs`）仍保留作為安全網。
+5. **`unipolar_unmapped_bug`**：code 零平均（預設 iid ±1）時，這個 bug 只會讓增益減半，σ_w 與固定點不變；只有 `E[x_ref] ≠ 0` 才出現偏差。所以負面測試用平均 0.5、`normalization: 'none'` 的高斯 code，結果 `w* ≈ 63.23 fs` 而不是 3 fs，Python 的 mean-field 也確認。
+6. **Schema 的擴充**：
+   - `code_normalization`：加入 `'standardize'`。`'unit_rms'` 讓 `E[x²] = 1` 但不去除平均，這樣 §11.1 的 offset 效應才看得到；統計取整段紀錄。
+   - `gain_register`：加入 `lsb_fs`（預設 0.125 fs，對應 E13 的 `gain_lsb_fs`）與 `signed`（預設 false）。`quantize_physical` 為 false 時完全不做暫存器量化；為 true 時，更新量與物理 code 用同一種捨入模式。
+   - Regressor 模式：raw 模式忽略 `gm_code_delay_samples` 並警告；filtered 模式下延遲 D 套用在 `u_f`。
+   - `filtered_x_model`：`{path: 'same_as_path' | errorPath, gain_mismatch, extra_delay_samples}`。
+   - Pattern 參數：DSM 類 pattern 取 `{frac, bits, dither, signal: 'residue' | 'quant_error', initial_state}`；gaussian pattern 取 `ar1`。
+   - 新欄位：`'iir'` error-path 種類，以及 `mode` 欄位（自由字串）。
+7. **Error-path 參數的 key 風格**：`pll.ts` 的 error-path 參數 key 用 snake_case（`magnitude`、`phase_deg`、`omega`、`taps`、`pole`、`wn_ts`、`zeta`、`loop_delay`、`method`、`b`、`a`），和 JSON 的 `pll_error_path.parameters` 完全相同，設定可以直接傳進去；`pll.ts` 的其餘部分是 camelCase。
+8. **DSM dither 的定義**：LSB dither `d ∈ {0, 1}` 加在第一級輸入，平均因此偏移半個 LSB（`fracEff = (K+½)/M`）；餘數是對加了 dither 的輸入量的，所以仍嚴格有界。
+9. **仍留在 models 的通用工具**：Ziggurat 常態（`blockLms.ts`）、`detectPeriod` 與 `psdSlopeDbPerDecade`（`dsm.ts`）、`codeStats`（`dsm.ts`）目前都定義在各自的模型檔內，沒有放進 `core`／`signal`；要在別的模型使用時從該檔 import。
 
 ## src/components（@/components）與 src/workers（@/workers）
 
@@ -426,13 +404,17 @@ MATH / DIAGRAMS
 - Mermaid({ chart: string; caption?: string; ariaLabel?: string }). Loads mermaid lazily with securityLevel 'strict'. Renders are queued one at a time with unique ids. It re-renders when the theme changes (one 'base' theme whose colours come from the design tokens; see mermaidTheme.ts). A parse error shows a danger callout.
 
 PLOT
-- Plot({ data: Plotly.Data[]; layout?; config?; height?=320; title?; csvName?; xLog?; yLog?; caption?; ariaLabel?; className? })
+- Plot({ data: Plotly.Data[]; layout?; config?; height?=360; title?; csvName?; xLog?; yLog?; caption?; ariaLabel?; className? })
   - Lazy-loads Plotly, updates with Plotly.react, resizes via ResizeObserver, and calls Plotly.purge on unmount.
-  - Modebar: zoom, pan, zoom in/out, autoscale, reset, plus 下載 PNG / 下載 SVG / 下載 CSV.
-  - xLog/yLog drop ≤0 points and show "已略去 N 個 ≤0 的點（log 軸）".
-- loadPlotly()
+  - Modebar: zoom, pan, reset, plus 下載 PNG / 下載 SVG / 下載 CSV. It floats inside the plot at the top-right and appears on hover (always visible on touch devices, in a 28 px strip above the plot). When the legend is above the plot, Plot sets `--c-plot-top` on the `.c-plot-gd` element to the computed top margin (`_fullLayout._size.t`, legend included) so the modebar sits at the top of the data area instead of covering the clickable legend; with an inside legend it stays at the paper top (0).
+  - xLog/yLog drop ≤0 points and show "已略去 N 個 ≤0 的點（log 軸）". Log axes label only the powers of ten (`dtick: 1`) and keep the 2…9 minor gridlines without labels.
+  - Legend: ≤ LEGEND_INSIDE_MAX (3) legend entries → inside the plot area on a semi-transparent `--surface`, in the first top corner that holds no data (`pickLegendCorner`: top-right, else top-left; the corner box is LEGEND_CORNER_FRACTION = 30 % of the data range in each direction, log axes compared in log10, a caller `xaxis.range` / `yaxis.range` is used when given). When both top corners hold data (a curve converging to the top edge, a full-width reference line), when the estimated legend width exceeds 40 % of the plot width (phones), or when a trace uses a secondary axis / is a heatmap, the legend goes above the plot instead. More than 3 entries → horizontal above the plot. A caller `layout.legend` that sets orientation / x / y / xanchor / yanchor always starts from the "above" base (the yanchor:'top' fix for y ≤ 0 still applies). `legendPlacement(opts)` returns the resolved placement.
+  - Log axes (xLog / yLog): minor gridlines at 2…9 without labels; the major tick spacing follows the span in decades (`logAxisDtick`): ≥ LOG_POWER_TICKS_MIN_DECADES (1.7) → powers of ten only (dtick 1), 1–1.7 → 1, 2, 5 ('D2'), < 1 → Plotly's automatic linear-style ticks. The initial span comes from the data (`logSpanDecades`, or the caller's axis `range`); on zoom (`plotly_relayout`) Plot re-evaluates the visible span and calls `Plotly.relayout` with the new dtick, so a zoomed-in decade still has tick numbers. Axes where the caller sets dtick / tickvals / tickmode / nticks are left alone.
+  - Colour-vision redundancy: from the 4th trace on, scatter traces without `line.dash` get dash / dot / dashdot in turn (`applyDashCycle`); traces with an explicit dash, `line.width: 0` or markers-only mode are left alone.
+  - Lazy rendering (wave 1, performance[1]): Plotly is loaded and `Plotly.react` is called only once the figure is within PLOT_NEAR_MARGIN (700 px) of the viewport (IntersectionObserver); the fixed-height "圖表載入中…" placeholder keeps the layout stable. Once a page contains a Plot that is not yet near, Plotly is prefetched in `requestIdleCallback` (fallback: 1.5 s timer) so the first scroll-to-chart draws immediately. `beforeprint` and the registry `capture` (HTML report) force rendering; `capture` awaits the first draw (15 s cap). jsdom has no IntersectionObserver, so tests render immediately. `scripts/screenshots.mjs` scrolls each `.c-plot-gd` into view and waits for `.main-svg` before a `plot:N` / `exp:N` shot.
+- loadPlotly(); PLOT_NEAR_MARGIN
 - PlotRegistryProvider({ registry?, children }), createPlotRegistry() → { register, captureAll(): Promise<{ plots: { title, dataUrl }[]; failed: string[] }>, size }, usePlotRegistry()
-- Pure helpers: filterLogData(data, xLog, yLog) → { data, dropped }; buildThemedLayout(tokens, { height, xLog?, yLog?, layout? }); buildExportLayout(layout, tokens, title?); tracesToColumns(data) → CsvColumns; mergeDeep(a, b)
+- Pure helpers: filterLogData(data, xLog, yLog) → { data, dropped }; buildThemedLayout(tokens, { height, xLog?, yLog?, layout?, legendEntries? }); buildExportLayout(layout, tokens, title?); tracesToColumns(data) → CsvColumns; mergeDeep(a, b); applyDashCycle(data); withAlpha(hex, alpha); DASH_CYCLE; LEGEND_INSIDE_MAX
 
 CONTROLS
 - ParamControl({ label; ariaLabel?; value; onChange; min; max; step?; unit?; log?; hint?; reg?; digits?=6; integer?; clampOnBlur?; allowOutOfRange?; disabled?; id? })
@@ -487,14 +469,12 @@ WORKERS (import from '@/workers')
 
 ### 使用注意事項
 
-Note for whoever relays this to the user: the browser pane was used for visual checks. A tab the user had opened (a ChatGPT share page) became active during testing. I did not interact with it and did my checks in my own background tab, which I closed at the end.
-
 GENERAL
-- Import with `import { ... } from '@/components'` and `import { useWorkerTask, isWorkerCancelled } from '@/workers'`. Do not deep-import component files.
-- src/components/Showcase.tsx is an unrouted example that uses almost every component. Every curve in it is computed from a formula.
-- TeX is a JS string, so escape backslashes or use String.raw: <Tex>{String.raw`w_{n+1}=w_n+\mu e_n x_n`}</Tex>.
-- <TexBlock id="F-3.1"> creates the anchor #formula-F-3.1. MetricTable `formulaId` links to that anchor.
-- Section defaults to an h3 heading; pass level={2} for top-level chapter sections.
+- 匯入：`import { ... } from '@/components'`、`import { useWorkerTask, isWorkerCancelled } from '@/workers'`；不要深層 import 元件檔。
+- `src/components/Showcase.tsx` 是沒有掛路由的示範，用到幾乎所有元件，圖上的每條曲線都由公式算出。
+- TeX 是 JS 字串，反斜線要跳脫或用 `String.raw`：`<Tex>{String.raw`w_{n+1}=w_n+\mu e_n x_n`}</Tex>`。
+- `<TexBlock id="F-03.1">` 會建立錨點 `#formula-F-03.1`；`MetricTable` 的 `formulaId` 連到這個錨點。
+- `Section` 預設是 h3 標題；章節最上層的段落傳 `level={2}`。
 
 PLOT
 - Wrap `data` and `layout` in useMemo; every new array causes another Plotly.react call.
@@ -505,54 +485,51 @@ PLOT
 - A Plot inside an ExperimentShell is registered automatically and its PNG goes into the HTML report.
 
 PARAMCONTROL
-- An illegal value shows a warning and is not applied unless you pass allowOutOfRange.
-- Use `integer` together with `clampOnBlur` for N and bit counts.
-- `log` needs min > 0. The log slider gives 3 significant digits; typed values keep full precision.
-- Put the hardware register or behavioral parameter name in `reg` (e.g. 'REG_GMAC_N[15:0]').
+- 不合法的值會顯示警告而且不會套用，除非傳 `allowOutOfRange`。
+- N 與位元數這類整數，`integer` 搭配 `clampOnBlur`。
+- `log` 需要 `min > 0`。對數滑桿給 3 位有效數字；打字輸入的值保留完整精度。
+- 暫存器或 behavioral 參數名稱放在 `reg`（例如 `'REG_GMAC_N[15:0]'`）。
 
 EXPERIMENTSHELL
-- `warnings` must explain the cause (e.g. "C ≤ 0：polarity…"); they render as danger callouts.
-- If you omit `crossCheck`, all three columns show "Not implemented". Do not claim 'ok' unless it is actually computed.
-- `exportData` is called only when the user exports. It may throw; the error is shown inline.
-- Keep `params` to small scalars: they appear in the summary, JSON and report. Put arrays in `exportData`.
-- Seeds are uint32. Use createRng(seed) from core/rng once it exists.
+- `warnings` 必須說明原因（例如「C ≤ 0：polarity…」），會以 danger callout 顯示。
+- 省略 `crossCheck` 時三欄都顯示「Not implemented」；沒有真的算過就不要標 `'ok'`。
+- `exportData` 只在使用者匯出時呼叫，可以丟例外（錯誤會就地顯示）。
+- `params` 只放小的純量：它們會出現在摘要、JSON 與報告；陣列放在 `exportData`。
+- seed 是 uint32；隨機一律用 `createRng(seed)`（core/rng）。
 
 TESTBADGE
-- It reads src/data/verification-status.json at build time, so status changes need a rebuild or HMR. Only 'pass' displays "verified". At the moment T01 and T02 show 'partial'.
+- `TestBadge` 在建置時讀 `src/data/verification-status.json`（`npm run verify` 產生），狀態改變後要重新 build 或等 HMR。只有 `'pass'` 才顯示「verified」；`missing` 顯示「pending」。
 
 HOOKS
-- Prefix usePersistentState keys with 'lmspll.' and pass a validate type guard for objects.
-- useCases + CaseSelector give paired A/B/C comparisons with a shared seed.
+- `usePersistentState` 的 key 以 `'lmspll.'` 開頭，物件型別要傳 `validate` 型別守衛。
+- `useCases` + `CaseSelector` 提供 A/B/C 並排比較，共用同一個 seed。
 
 WORKERS
-- Put a heavy pure function in src/simulation/models/<name>.ts as a named export that takes one structured-cloneable params object, for example `export function simulateBlockLms(p: BlockLmsParams): BlockLmsResult`.
-- Then call it: `const task = useWorkerTask<BlockLmsParams, BlockLmsResult>('blockLms', 'simulateBlockLms', { restartOnRun: true })` and `task.run(p).then(setRes).catch(e => { if (!isWorkerCancelled(e)) setErr(e) })`.
-- Return freshly allocated typed arrays. Their buffers are transferred and become detached in the worker.
-- Do not keep module-level mutable state: cancel terminates and recreates the worker.
-- No functions or class instances in params or results; the inline fallback deliberately enforces the same structuredClone rules.
-- Module and function names must be plain identifiers. *.test.ts files are excluded from the glob.
-- Under jsdom/vitest the hook runs inline automatically. In hook tests, pass `{ loader }` to inject fake modules.
+- 重運算的純函式放在 `src/simulation/models/<name>.ts`，以具名 export 提供，只收一個可 structured clone 的 params 物件，例如 `export function simulateBlockLms(p: BlockLmsParams): BlockLmsResult`。
+- 呼叫：`const task = useWorkerTask<BlockLmsParams, BlockLmsResult>('blockLms', 'simulateBlockLms', { restartOnRun: true })`，再 `task.run(p).then(setRes).catch(e => { if (!isWorkerCancelled(e)) setErr(e) })`。
+- 回傳新配置的 typed array：它們的 buffer 會被 transfer，在 worker 內就失效了。
+- 不要在模組層級保留可變狀態：cancel 會終止並重建 worker。
+- params 與結果不可以有函式或 class 實例；inline 後備路徑刻意套用同一套 structuredClone 規則。
+- 模組與函式名稱必須是單純的識別字；`*.test.ts` 不在 glob 內。
+- 在 jsdom／vitest 下 hook 自動 inline 執行；hook 的測試可傳 `{ loader }` 注入假的模組。
 
-SUGGESTED FOLLOW-UP (outside my ownership)
-- vitest warns that `environmentMatchGlobs` is deprecated (vite.config.ts); consider migrating to `workspace`.
+### 設計決定與補充
 
-### 與約定的差異
+以下都是補充或收緊；`docs/dev-conventions.md` §2–§3 列出的 API 沒有被刪除。
 
-All of these are additions or tightening; none of the APIs in dev-conventions.md §2–§3 were removed.
 1. Plot `data` is typed `Plotly.Data[]`. Plotly.Data is already a union of Partial<...> types, so this is the same as `Partial<Plotly.Data>[]`.
 2. Plot titles are drawn as HTML above the chart, not inside the Plotly layout. This avoids overlap with the horizontal top legend and the modebar. Exports (PNG, SVG, report) put the title into the layout and use an opaque `--surface` background so dark-theme exports stay readable.
 3. Because of point 2, the PNG button is a custom "下載 PNG" button (Plotly.downloadImage with format png) rather than the built-in 'toImage' button.
 4. Plot "下載 CSV" exports the original, unfiltered trace data at full precision. Points dropped for log axes are still included.
 5. Plot reads theme colors by watching the `data-theme` attribute on `<html>`, not `useSettings().resolvedTheme`. SettingsProvider sets the attribute in a parent effect, and child effects run first, so reading at the theme switch would get the old colors. Mermaid does use `resolvedTheme` as specified.
-6. Components work outside `<SettingsProvider>`: they fall back to defaults instead of throwing.
-7. ParamControl adds `integer`, `allowOutOfRange`, `ariaLabel`, `disabled` and `id`. By default an out-of-range typed value shows "超出合法範圍 [min, max]，未套用" and is not passed to onChange. `clampOnBlur` clamps and applies it on blur; `allowOutOfRange` passes it through with "（仍套用；結果僅供探索）". The numeric input is type="text" with inputMode set, so values like '1e-5' and '0.' can be typed. Full-width digits and U+2212 '−' are accepted.
-8. ExperimentShell adds `description`, `headingLevel` and `actions.onStop` (when running, the Run button becomes 停止). `crossCheck` entries may be `{ status, note }`. `exportData` may return typed arrays. Presets may have a `description`.
-9. MetricRow adds `toleranceMode` ('abs' | 'rel'), `digits` and `note`. `value` may be a string or null.
-10. The JSON export uses the snake_case keys from spec §20.3. `metrics` is a name → value map, and `metric_details` carries the full rows.
-11. Derivation opens by default only in research mode; beginner and engineer start collapsed. A manual toggle overrides this.
-12. Extras not in the original list: CaseSelector, useThemeTokens/cssVar, and the pure export functions.
-13. Showcase.tsx is a living demo and is not routed. The temporary preview HTML used for browser testing was deleted.
-14. No files outside src/components/** and src/workers/** were changed.
+6. 元件在 `<SettingsProvider>` 外也能運作：退回預設值而不是丟例外。
+7. `ParamControl` 另有 `integer`、`allowOutOfRange`、`ariaLabel`、`disabled` 與 `id`。預設情況下，超出範圍的輸入會顯示「超出合法範圍 [min, max]，未套用」，不會傳給 `onChange`；`clampOnBlur` 會在失焦時夾住並套用；`allowOutOfRange` 則放行並顯示「（仍套用；結果僅供探索）」。數字輸入框是 `type="text"` 並設定 `inputMode`，所以能打 `'1e-5'`、`'0.'`；全形數字與 U+2212 的「−」也接受。
+8. `ExperimentShell` 另有 `description`、`headingLevel` 與 `actions.onStop`（執行中時 Run 按鈕變成「停止」）；`crossCheck` 的項目可以是 `{ status, note }`；`exportData` 可以回傳 typed array；presets 可以有 `description`。
+9. `MetricRow` 另有 `toleranceMode`（`'abs' | 'rel'`）、`digits` 與 `note`；`value` 可以是字串或 null。
+10. JSON 匯出使用規格 §20.3 的 snake_case key；`metrics` 是「名稱 → 數值」的對照，`metric_details` 帶完整的列。
+11. `Derivation` 預設只在 Research 模式展開，Beginner 與 Engineer 預設收合；使用者手動切換優先，`defaultOpen` 可覆寫。
+12. 約定清單之外的額外項目：`CaseSelector`、`useThemeTokens`／`cssVar`，以及純函式的匯出工具。
+13. `Showcase.tsx` 是活的示範，沒有掛路由。
 
 ## golden/（Python golden model 與 vectors）
 
@@ -573,106 +550,61 @@ EXPORTER golden/export_vectors.py: build_vectors()->dict[name,vector]; build_ind
 
 VECTOR JSON schema: {id, description_zh, spec_section, inputs, expected, tolerance:{abs?,rel?}, tolerance_overrides?:{key:{abs?,rel?}}, notes}; pass iff |actual−expected| ≤ abs + rel·|expected| elementwise; expected values are numbers / (nested) number arrays / {re,im}; no NaN/Inf. Files: T01..T18.json, delay_bounds, comparator_table, quantizer_first_order, preconditioner_variance, msd_after_blocks, negative_tests, index.json (lists all files).
 
-SCRIPT scripts/verify.mjs (Node ESM, no deps): `node scripts/verify.mjs [--no-run] [--strict]`. Runs `npx vitest run --reporter=default --reporter=json --outputFile=outputs/vitest-results.json` and `python3 -m pytest golden -q --junitxml=outputs/pytest-results.xml` (PYTHON env var overrides python3; continues if either fails; deletes stale reports first), writes src/data/verification-status.json with the existing schema {generatedAt ISO, commit (git short or 'uncommitted'), note (preserved), tests:{Txx:{status:'pass'|'partial'|'fail'|'missing', ts:{passed,failed,names[]}, py:{passed,failed,names[]}}}}; prints summary table + unmapped-test counts + warnings; exit 1 iff any T-id is 'fail' (or, with --strict, any unmapped failure / suite load error / missing report).
+SCRIPT `scripts/verify.mjs`（Node ESM，無相依套件）：`node scripts/verify.mjs [--no-run] [--strict]`（等於 `npm run verify`）。執行 `npx vitest run --reporter=default --reporter=json --outputFile=outputs/vitest-results.json` 與 `python3 -m pytest golden -q --junitxml=outputs/pytest-results.xml`（環境變數 `PYTHON` 可取代 `python3`；兩邊任一邊失敗仍會繼續；先刪掉舊報告），然後寫入 `src/data/verification-status.json`，格式為 `{generatedAt (ISO), commit (git short 或 'uncommitted'), note (沿用舊值), tests: {Txx: {status: 'pass'|'partial'|'fail'|'missing', ts: {passed, failed, names[]}, py: {passed, failed, names[]}}}}`；印出摘要表、未對應 T-id 的測試數與警告；只有某個 T-id 是 `fail` 時結束碼才是 1（`--strict` 另外把未對應的失敗、測試檔載入錯誤、缺少報告也算失敗）。只有 `golden/` 的 pytest 會對應到 T-id；`analysis/sspll/golden` 另外用 `npm run golden:sspll` 跑。
 
 ### 使用注意事項
 
-HOW TO GET COUNTED BY VERIFY: name a TS test `it('T05: …')`. The T-id has to start the it() title itself; putting it in a describe() does not count. Python tests use `test_T05_…`. Each T-id needs at least one passing test on both sides to show 'pass'.
+**怎麼被 verify 計入**
+- TS 測試命名為 `it('T05: …')`：T-id 要在 `it()` 自己的標題開頭，寫在 `describe()` 不算。Python 測試命名為 `test_T05_…`。
+- 每個 T-id 在兩邊各要有至少一個通過的測試，才會顯示 `pass`；只有一邊是 `partial`。
 
-READING VECTORS (e.g. in src/tests/golden.test.ts):
-- Path: `new URL('../../golden/vectors/T13.json', import.meta.url)` with readFileSync.
-- Comparison: |a−e| ≤ (tol.abs ?? 0) + (tol.rel ?? 0)·|e|. A key listed in `tolerance_overrides` uses its own tolerance.
-- Integer keys (N thresholds, blocks_95, period, ef_cycle) must match exactly.
-- golden/README.md §5 has a TS snippet.
+**讀取 vectors**
+- 各章的測試以 `readFileSync(join(process.cwd(), 'golden/vectors', 'T13.json'), 'utf8')` 讀取（`process.cwd()` 是 repo 根目錄）；Verification 頁用 `src/pages/verification/golden.ts` 靜態匯入。
+- 比對規則：`|a−e| ≤ (tol.abs ?? 0) + (tol.rel ?? 0)·|e|`；列在 `tolerance_overrides` 的 key 用自己的容忍度。
+- 整數類的 key（N 門檻、`blocks_95`、`period`、`ef_cycle`）必須完全相同。
+- `golden/README.md` §5 有 TypeScript 範例。
 
-SPEC FINDINGS, all confirmed numerically (please reflect them in the chapters):
-- T14 (bandwidth): "約 12.9 kHz" only fits two of the four definitions.
-  - Fits: −ln(p)/(2π)·f_u = 12.924 kHz and the exact discrete-time −3 dB of μ/(z−p) = 12.931 kHz (cos Ω = (1+p²−2(1−p)²)/(2p)).
-  - Does not fit: (1−p)/(2π)·f_u = 12.401 kHz, i.e. 12.4 kHz, even though the spec writes both approximations as ≈.
-  - Does not fit: one-sided ENBW = f_u(1−p)/(2(1+p)) = 20.29 kHz ≈ (π/2)·f_3dB.
-  - p = 0.9202115439197135; f_u = 976562.5 Hz.
-- T05 (ties when N is even): the spec never says how to count G_N = 0.
-  - The CLT table (53.2/60.0/78.8/95/99%) matches the exact binomial when ties count half, or when N is odd.
-  - Counting only strict G_N > 0 gives 49.2% at N=100, so it does not match the table.
-  - At N=42500: CLT 0.950005, split 0.950002, strict 0.949501.
-  - Exact thresholds for 95%: odd N=42499, even-split N=42500, even-strict N=42750. The CLT continuous solution is 42497.29; for 99% it is 85007.26 (odd exact 85011).
-- §5: E[q] = erf(0.01/√2) = 0.0079787126, while K_q·s = 0.0079788456 (relative difference (s/σ)²/6).
-- T13: σ_w = 0.3991861 fs and p = 0.92021154. With x = ±1 the exact σ_η² is (1−m²)/N, not 1/N; the difference is negligible here. A Monte Carlo of the real block sign-GMAC agrees.
-- §10.1: "反矩陣元素約 ±25" refers to M = 0.5R⁻¹ (25.126 / −24.874). R⁻¹ itself is about ±50.
-- §13.4 / T16 (first-order error-feedback quantizer on a constant 32.4):
-  - With round-to-nearest and r[−1]=0 the output has period 5: [32,33,32,33,32], with r cycling 0.4, −0.2, 0.2, −0.4, 0.
-  - This is a cyclic shift of the spec's pattern. Floor quantization gives exactly [32,32,33,32,33].
-  - A constant 32+p/q (lowest terms) gives period q.
-  - Implement it in exact or fixed-point arithmetic so floating-point error cannot flip a rounding tie.
-- T16 spectral lines: |DFT|/5 at f_toggle/5 is (√5−1)/10 = 0.1236 LSB; at 2f_toggle/5 it is (√5+1)/10 = 0.3236 LSB.
-- T12 (sign-LMS): with finite σ the sign-LMS fixed point is 1.34 + 3.456e−4/σ² (from the erf third-order term), not exactly 1.34.
-- §8.3: g_crit = 2 sin(π/(4d+2)) is verified for d = 0..6 by root finding. The critical root lies at angle π/(2d+1).
-- §8.4: simplified range 0<μ<2(1−r)/(bc) = 2; full range 0<μ<(1−r)/(bc) = 1 (Jury).
-- §3 uses δ = w−a while §0 uses δ = a−w; the poles are the same.
+**規格歧義與勘誤**：由 golden 測試確認的規格歧義與勘誤（例如 T05 偶數 N 的平手算法、T14 頻寬的四種定義、§13.4 的量化器週期）寫在 `docs/validation.md` 與 `golden/README.md` §6；負面測試的參考數字在 `golden/vectors/negative_tests.json`。
 
-NEGATIVE-TEST REFERENCE NUMBERS (negative_tests.json):
-- Reversed polarity: pole = 1 + μK = 1.0797885.
-- Sum-mode GMAC without the /N: g is multiplied by N (326.8 for N=4096).
-- Wrong 0/1 encoding: at w = a the mean update is E[x]/2. With a DC code {−1…1.5} the fixed point moves by +41.27 fs.
-- Code misalignment with φ=0, Ω=π/6, D=4: C_D = −0.25.
-- 6-bit × 4096 GMAC needs 18 bits; a 17-bit register wraps 126976 → −4096 and flips the sign.
+**TS 端的 Monte Carlo**
+- 用 `createRng(seed)`，以 ±4 SE 或 Wilson CI 對照 vectors 裡的解析期望值。
+- `x = ±1` iid 且 comparator 雜訊為高斯時，`Σq·x` 恰好是 `2·Binomial(N, Φ((a−w)/σ)) − N`，所以 block sign-LMS 的多條鏈可以快速而精確地模擬（對應 `noise.simulate_block_sign_lms_bpsk`）。
 
-MONTE CARLO IN TS: use createRng(seed) and compare against the vectors' analytic expected values with ±4 SE or a Wilson CI.
-- For x = ±1 iid with Gaussian comparator noise, Σq·x is exactly 2·Binomial(N, Φ((a−w)/σ)) − N. That is a fast exact way to simulate block sign-LMS chains (noise.simulate_block_sign_lms_bpsk).
+### 設計決定與補充
 
-SUGGESTED ADDITION TO SHARED CODE: a TS `compareToGolden(vector, key, actual)` helper in src/tests/ implementing the tolerance rule above.
+1. **`verify.mjs` 的 T-id 對應比「T\d\d 出現在名稱任何位置」嚴格**，依 `docs/dev-conventions.md` §6：
+   - TS 測試只在**它自己的標題**（不含 `describe`）以 `Txx:` 開頭時才計入；也接受 `Txx/Tyy:`、`Txx, Tyy：` 與全形的 `：`。
+   - Python 測試只在函式名稱以 `test_Txx_` 開頭時才計入。
+   - 原因：用整串名稱比對時，`describe('linalg：規格 T09 / T10 / T18 參考值')` 會把底下每個測試都對應到三個 ID；`Tags.test.tsx` 裡 `TestBadge T02 → partial` 這類 UI 徽章測試也會被誤算成 T02／T03 的數值驗證。
+   - 名稱中的 ID 若在 T01–T18 以外（例如 `Tags.test.tsx` 裡的 T99）會被忽略並警告。
+2. `verify.mjs` 在要求的 json reporter 旁邊加上 `--reporter=default`，讓主控台顯示進度；JSON 檔路徑不變。另外多了兩個旗標：`--no-run`（只解析 `outputs/` 內既有的報告）與 `--strict`；失敗測試在 `names[]` 裡加上 ` [FAILED]` 後綴；schema 其餘不變，既有的 `note` 會保留。
+3. Vector JSON 多了選用的逐 key 欄位 `tolerance_overrides`（給精確整數門檻與混合尺度的 key 用），以及 `golden/vectors/index.json`；必要的 key 與規格一致。
+4. Monte Carlo 結果刻意不放進 vectors（TS 與 Python 的 RNG 不同）。vectors 只放確定性的期望值，TS 端要用信賴區間檢查自己的 Monte Carlo。
+5. 負面測試掛在相關的 T-id 下，才會被 verify 計入：
+   - 錯誤的 0/1 編碼 → T04
+   - comparator 極性反轉 → T06
+   - code 沒對齊 → T07
+   - 缺乏 PE（ρ=1）→ T10
+   - GMAC 的 sum 與 average 縮放 → T13
+6. 有些延伸檢查掛在 T-id 下，因為它們測的就是那一列自己的聲明：
+   - 以 Monte Carlo 驗證 mean-square 上界 → T03
+   - 雙迴路簡化範圍與完整範圍 → T09
+   - §10.1 的 preconditioner 範例 → T11
+   - 一階 EF 量化器的週期 → T16
+   - 正則化偽逆的修正 → T18
+7. 其他延伸檢查命名為 `test_S<節>_…`（例如 §8.3 delay 界限 d=0..6、§10.1 preconditioned 變異數、§14 E[δ_B²]、§6.2 multi-frequency 判準）或 `test_NEG_…`（定點 overflow、aliasing、PD 與輸出路徑混淆、錯誤公式偵測、gauge freedom、comparator 飽和）。它們沒有 T-id，verify 會報為「unmapped」。
+8. `golden/requirements.txt` 列出 numpy、scipy、pytest。
 
-### 與約定的差異
+## 後續新增的共用元件（教學用）
 
-1) T-id matching in verify.mjs is stricter than "regex T\d\d anywhere". I follow docs/dev-conventions.md §6 instead:
-   - a TS test counts only when its own title (not the describe) starts with `Txx:`. `Txx/Tyy:`, `Txx, Tyy：` and full-width `：` are also accepted.
-   - a Python test counts only when its function name starts with `test_Txx_`.
-   - Reason: with whole-name matching, `describe('linalg：規格 T09 / T10 / T18 參考值')` mapped every child test to all three IDs. UI badge tests like `TestBadge T02 → partial` in Tags.test.tsx were also falsely marking T02/T03 as numerically verified.
-   - Test names that use IDs outside T01–T18 (e.g. T99 in Tags.test.tsx) are ignored with a warning.
-2) verify.mjs adds `--reporter=default` next to the requested json reporter so progress shows in the console; the JSON file path is unchanged.
-   - It also adds two flags: `--no-run` (only parse the existing outputs/) and `--strict`.
-   - Failed test names in `names[]` get a ` [FAILED]` suffix.
-   - The schema is otherwise unchanged and the existing `note` is preserved.
-3) Vector JSON adds an optional `tolerance_overrides` per-key field, used for exact integer thresholds and mixed-scale keys, plus an extra `golden/vectors/index.json`. The required keys are exactly as specified.
-4) Monte Carlo results are deliberately left out of the vectors because the TS RNG differs. The vectors hold only deterministic expected values, and TS should check its own MC against them with confidence intervals.
-5) Negative tests are named under the related T-id so they count in verify:
-   - wrong 0/1 encoding → T04
-   - reversed comparator polarity → T06
-   - code misalignment → T07
-   - missing PE (ρ=1) → T10
-   - GMAC sum-vs-average scaling → T13
-6) Some extras are named under a T-id because they test that row's own claim:
-   - mean-square bound by Monte Carlo → T03
-   - dual-loop simplified vs full ranges → T09
-   - §10.1 preconditioner example → T11
-   - first-order EF quantizer period → T16
-   - regularized pseudo-inverse fix → T18
-7) Other extras are named `test_S<section>_…` (e.g. §8.3 delay bound d=0..6, §10.1 preconditioned variance, §14 E[δ_B²], §6.2 multi-frequency criterion) or `test_NEG_…` (fixed-point overflow, aliasing, PD-vs-output path confusion, wrong-formula detection, gauge freedom, comparator saturation). These have no T-id and verify reports them as "unmapped".
-8) Added golden/requirements.txt (numpy, scipy, pytest).
-9) docs/validation.md does not exist and I don't own docs/, so I did not create it. The errata are in golden/README.md §6 and in the notes below.
-
-## 後續新增（主控者）
-
-- `@/components` 新增教學元件：`CodeBlock`（`source` 為 `?raw` 匯入的原始檔、`region` 擷取 `#region core:<name>`、`lang` 'typescript'|'python'、`path`、`highlight`、`caption`）、`CodeCompare`（`items: {label, source, region, lang, note}[]`，寬螢幕並排、窄螢幕分頁；行內 `// ← 差異：…` 自動高亮）、`SymbolTable`（`rows: {symbol(TeX), meaning, unit?(TeX), firstSeen?, note?}[]`）、`Quiz`（`question`, `options?: {label, correct?}[]`, `answer`）、`Recap`（`formulas: {tex, label?, id?}[]`, `points: ReactNode[]`）、`Prereq`（可展開的先備知識框）、`StepDerivation`（`steps: {tex, why}[]`, `result?`：一步一行 + 理由）。
-- `src/simulation/models/lms.ts`（Ch00–Ch03 共用，唯讀）：`conventionalStep / signErrorStep / signSignStep / huberStep`、`STEP`、`runScalarLms`、`sgn(tie)`、`fixedXPole / fixedXMuMax / classifyPole / POLE_BEHAVIOUR_LABEL`、`meanPole / meanSquareFactor / meanSquareMuMax`、`gaussianLyapunov / gaussianAlmostSureMuMax`、`batchOptima`、`lossValue / averageCost`，皆有 `#region core:*` 可直接以 CodeBlock 顯示（regions：sign, huberPsi, conventionalStep, signErrorStep, signSignStep, huberStep, runScalarLms, fixedXPole, meanSquareFactors, batchOptima）。
+- `@/components` 的教學元件：`CodeBlock`（`source` 為 `?raw` 匯入的原始檔、`region` 擷取 `#region core:<name>`、`lang` 'typescript'|'python'、`title`、`path`、`highlight`、`caption`）、`CodeCompare`（`items: {label, source, region, lang, title?, path?, highlight?, note?}[]`、`layout` 'columns'（預設）|'tabs'、`caption`；寬螢幕並排、窄螢幕分頁；行內 `// ← 差異：…` 自動高亮）、`SymbolTable`（`rows: {symbol(TeX), meaning, unit?(TeX), firstSeen?, note?}[]`、`title?`、`caption?`）、`Quiz`（`title?`, `question`, `options?: {label, correct?}[]`, `answer`）、`Recap`（`title?`, `formulas?: {tex, label?, id?}[]`, `points?: ReactNode[]`）、`Prereq`（`title`, `children`, `defaultOpen?`：可展開的先備知識框）、`StepDerivation`（`steps: {tex, why}[]`, `title?`, `result?`：一步一行 + 理由）。
+- `src/simulation/models/lms.ts`（Ch00–Ch03 共用）：`conventionalStep / signErrorStep / signSignStep / huberStep`、`STEP`、`runScalarLms`、`sgn(tie)`、`fixedXPole / fixedXMuMax / classifyPole / POLE_BEHAVIOUR_LABEL`、`meanPole / meanSquareFactor / meanSquareMuMax`、`gaussianLyapunov / gaussianAlmostSureMuMax`、`batchOptima`、`lossValue / averageCost`，皆有 `#region core:*` 可直接以 CodeBlock 顯示（regions：sign, huberPsi, conventionalStep, signErrorStep, signSignStep, huberStep, runScalarLms, fixedXPole, meanSquareFactors, batchOptima）。
 - 顯示程式碼的寫法：`import lmsSrc from '@/simulation/models/lms.ts?raw'` → `<CodeBlock source={lmsSrc} region="signErrorStep" path="src/simulation/models/lms.ts" />`。Python golden：`import pySrc from '../../../golden/lms_pll_golden/lms.py?raw'`（相對路徑）。
-
-## 規格驗算時各章節稽核者給的實作建議
-
-- **partA**：LMS Playground 要用有理數或高精度直接重算 T01（w1=9/5、w2=57/25）；以 double 比對時容忍度需約 1e-12，因為 w2=2.2800000000000002。圖上同時標出 pole p=1−μx^2 的區段：單調 0<μ<1/x^2、一步 μ=1/x^2、交替 1/x^2<μ<2/x^2、邊界與發散。加入零均值雜訊時，顯示穩態 var(w)=μσ_v^2/(2−μx^2)。Mean/Mean-Square 實驗必須同時畫三條線並分別貼標籤：解析的 E[δ_n]=(1−μP_x)^n δ0、解析的 E[δ_n^2]=g(μ)^n δ0^2（g=1−2μP_x+μ^2E[x^4]），以及 sample path 的中位數與 10/90% 分位數；並預設展示 μ=0.5、0.8、1.5、2.3 這幾個「路徑看似收斂、但均方發散」的區間（a.s. 界約 2.4213）。不要拿長時間的 δ^2 樣本平均當作 T03 的通過判據，改用封閉式或單步 MC 估計 E[(1−μx^2)^2]。MSE vs MAE 實驗要提供 sign(0) 慣例切換（數學 0 或 comparator ±1），用 y=[0,0,0,10] 展示：LMS 穩態 std 為 √(μ·18.75/(2−μ))，Sign-Error 則在中位數 0 附近 ±μ 的帶內抖動，時間平均依慣例約為 0、μ/2 或 μ（μ ≪ 10 的小步長近似，忽略格點鏈的上邊界；F-01.16 已標 approx）。另外加一個 bipolar ±1 regressor 的 preset，說明此時 mean 界與 MS 界相等（|x| 為常數時 Jensen 不等式取等號）。
-- **comparator**：Comparator Lab 應該在 sample level 模擬 e=s+v、v~N(0,σ_v²)，並明確加入 threshold θ（P(+1)=Φ((s−θ)/σ_v)；θ=s 時退化成 50%）。累加量要標明是 sum S_N 還是 average，tie rule 要做成可選項（G=0 不更新、random tie-break、sign(0)=+1）。每個 N 同時顯示三組數字：exact binomial 的 P(G>0)/P(G=0)/P(G<0)（標 [精確｜指定模型]）、CLT（標 [近似｜需驗證]，並註明它等於 P(G>0)+½P(G=0)），以及帶 Wilson CI 的 Monte Carlo。必須展示的 edge case：奇偶 N 的鋸齒（N=100 嚴格 49.2% vs N=101 為 53.2%；N=2 只有 25.4%），以及 s/σ_v 變大時 K_q 線性化失效（s/σ≈0.246 時 K_q·s 高估 1%，0.56 時高估 5%），把 erf S 曲線與切線疊圖。大 N（≥1e4）的 MC 改用 K~Binomial(N,p) 抽樣以保持互動流暢，逐 sample 的 q_i 累加動畫只在小 N 啟用。API 的 metrics 要把理論值（p_positive=0.503989）和該 seed 的經驗估計分開；例如 10000 samples 的經驗 p_positive 標準誤約 0.005，不可把理論值當模擬輸出。
-- **polarity**：Polarity Explorer 要把 u 實際送過一個有狀態、不在每個 block 重置的 DT filter，或明確限定 Ω∈(0,π) 的 (|H|,φ) 單頻模型；q=sign(δu+v)、G 用 block average（另提供 sum×N 切換），更新律固定為 w_{k+1}=w_k+μG_k。顯示 pole 需要 μ、σ_v（K_q）、A 這些輸入，目前 §19 的控制項沒有。單元測試可用：T07 在 μK_qC=0.02 時 analytic pole 0.98、MC 0.9801；T06 為 1.0100、MC 1.0097。若使用 §6.1 的 CT H_PD(s)，要標示「[近似｜ω_nT≪1]」並讓使用者選 ω_nT 與 loop latency d，因為 polarity 邊界在 ω_nT=0.3、d=1 時會由 ω_n 移到 1.49ω_n。要示範的邊界情況：Ω→0 或 π（2 倍誤差、有限 N 的 ripple 上界 (A²|H|/2)/(N|sinΩ|)）；θ=±90°（C=0 時 random walk）；以及 C<0 時 sign-LMS 先局部指數發散，再以約 μ(2A/π)|cosθ| 的速率線性漂移（MC 1.556 vs 1.596 fs/block）。C_D vs D 圖要畫出以 2π/Ω 為週期的正相關窗（T07 為 D∈{2..6} mod 12），並示範 phase lead 例如 +155.2° 只能靠 ΩD≡204.8° 的單頻 wrap 補償（Ω=0.03 rad/sample 時 D≈119），換一個頻率就失效。多頻 C_D 建議以 Σ_k h[k]R_xx[k-D] 當 ground truth，再與兩側 PSD、(1/2π)∫S=R[0] 正規化的積分交叉比對，並加上 e^{+jΩD} 的符號回歸測試（隨機 FIR+ARMA 在 D=4 時正確值 -2.4335、MC -2.4348±0.0061，錯號會得 -0.5886）。
-- **margin**：Phase Margin Lab 應直接以 L(z)=g·z^{−d}/(z−1) 建模：poles 用 z^{d+1}−z^d+g=0 求根，並同時顯示 ω_c=2asin(g/2)、PM_d=90°−(2d+1)asin(g/2)、GM=20log10(2/g)（d=0 時），以及 delay margin=PM_rad/ω_c（單位 blocks），讓使用者看到 g=1 的 PM 60° 剛好只容忍 1 個 block，而 g=1.5 的 PM 41.4° 連 1 個 block（0.426）都撐不住。Nyquist/Bode 必須處理 z=1 的 integrator pole（Nyquist 要 indentation，|L| 在 ω→0 時要 clip）。g=2（d=0）與 g=g*（d≥1）要標成「臨界／marginal」，不可顯示為穩定；回歸測試應涵蓋 d=0..6 的 g* 表（2, 1, 0.618034, 0.445042, 0.347296, 0.284630, 0.241073）。Dual-Loop Explorer 必須跑完整的 2×2 時域遞迴至少 300 blocks，並疊畫 ρ^k 包絡線：μ=1.2 時 |δ| 在 k=100 只有 0.43（複數 pole 振盪造成的假象），到 k=300 才到 204，短視窗會誤判為收斂。圖上要並列簡化 pole 1−μbc/(1−r)（標 [近似｜時間尺度分離]）與 full eigenvalues 及一般界限 0<μbc<1−r（標 [精確｜指定模型]），並標出本例在 μ>(1−r)²/(4bc)=0.05 後 poles 變成複數。Polarity Explorer 建議用 M=arcsin(cosθ) 計算，並顯示有效增益比例 cosθ=sin M；θ=±90°（C=0）與 θ=180° 這兩種 edge case 要另外標示。
-- **mimo**：MIMO / PE Lab 應模擬 block sign-GMAC，明確提供 N、σ_v（推出 K_q）、μ 或 γ、ρ 與 regressor 分佈（Gaussian 或 ±1/DSM codes），並同時以兩種單位顯示（正規化 K_q=1 的 μK_q，以及物理單位 fs、fs^-1）；poles 一律由實際使用的 M 與 J_true 計算 eig(I+MJ)，不要直接套公式。旁邊要並列 mean pole、mean-square spectral radius（N=1 Gaussian、ρ=.99、μ=.5 時為 1.98），以及 MC ensemble mean 與 3 條個別軌跡；±1 codes 的軌跡呈階梯狀，正好說明 598 是 ensemble 預測，不是每條軌跡的行為。Variance 面板要把 γ/(K_q²Nλ_i(2−γ)) 與 MC（固定 seed、95% CI）並列，同時顯示有效性指標 nγπ/(2N(2−γ))（例如 γ=1.5、N=64 時為 0.147，解析值高估 16%），以及 per-parameter variance c·[R^{-1}]_jj，避免和 eigen-mode variance 混淆。Gauge 實驗要分別在 raw-x domain（1 個零 eigenvalue）與經 H_PD(1)=0 的 u-domain（2 個零 eigenvalue）計算 R；也要展示 M=μI 時 null 分量凍結在初值，收斂後 b 與 a_i 的分配取決於初值與 M。Jacobian 面板要讓使用者調整 Δ/σ_v（截斷偏差：0.3σ_v 時 −1.5%，σ_v 時 −14.4%）、Ĵ 誤差與 regularization ε；T18 反例加上標籤「mismatched correlator，−J 非 PSD，任何 μ>0 皆發散」。所有閉式 eigen/pole 值標成 [精確｜指定模型]，variance 與 central-difference J 則標成 [近似｜需驗證]。
-- **bias**：Bias & INL Lab 必須真的模擬 q=sign(e_det+v)，並提供一個可設為 0 的 σ_v 滑桿。用 root-finding 求 Σp_x·x·erf(e_det(x;w)/(√2σ_v))=0 得到 mean-field 固定點，同時疊上 MSE-LMS 的 1.34 [精確] 與無雜訊 Sign-LMS 的 1.4 [精確]，再畫出 w*(σ_v) 曲線：0.01 時 1.3966，0.1 時 1.3666，0.3 時 1.3439，1 時 1.3403。MC 要用固定 seeds 並顯示 95% CI。驗收值應以 mean-field 為準，不要直接用 1.34：σ_v=1 時 3.5e-4 的偏差在大量 MC 下是可以偵測到的。Lab 要有「Comparator 為主 PLL 的 BBPD（integral 強制 E[q]=0）」toggle，示範 offset bias 消失，以及分母從 E[x²] 變成 Var(x)。另外提供 code-dependent σ_v(x) 選項，示範 centering 失效（0.9601），以及無雜訊加 offset 的 dead zone：x∈{0..3}、b=1 時 w∈[a+b/3, a+b/2)。Near-integer 實驗中，C≤0 時 w*=a+B/C 要標示為不可達的 repelling point，GMAC 斜率 S 要在收斂後的 w* 處量測，並與 -K_qC 比較，顯示線性化 validity flag。
-- **noise**：LMS Noise Lab 要同時提供三個引擎互相對照：(a) 線性 recursion δ_{k+1}=pδ_k+μη_k；(b) 真正的非線性 block sign-LMS（x=±1 時可用 G=(2·Binomial(N,Φ((a−w)/σ_v))−N)/N，這是 exact 結果，又能快速跑數千條 chain）；(c) 一般 x 分布下的 sample-level comparator 模擬。σ_w 要以多 seeds 的 95% CI 顯示，本例應落在 0.399 fs 附近。BW 欄位要分開顯示 exact −3 dB（12.93 kHz）、−ln p 近似、(1−p) 近似（12.40 kHz，標出 −4.1% 誤差）以及 ENBW（20.29 kHz），各自掛上 [精確]/[近似] 標籤，不要用同一個「Noise BW」字樣。p 滑桿必須能展示這些 edge cases：p→1（τ=−1/ln p 很長）、p<3−2√2（沒有 −3 dB 點）、−1<p≤0（flat/high-pass）、μK≥2（發散）。Code Mixing Lab 要把 block-rate 的 δw 以 ZOH 展開到 f_s 後再與 x 相乘，頻率軸要標明 f_u 或 f_s，並示範 white x 會把 low-pass 的 gain noise 攤成寬頻 δt；0.399 fs 一律標成 gain-equivalent，不能標成 output jitter。Spur 實驗應使用 coherent sampling，以 peak amplitude 量測，同時顯示 20log10(β/2) 與 Bessel exact 值（兩者皆為 −93.80 dBc），並畫出 f_out±90 kHz、±110 kHz 四根 spur，|T| 要讓使用者可調而非寫死為 1。
-- **quant**：Quantized Gain Lab 必須以 code 更新率 f_upd 為主時基，並提供可選的 ZOH/sample-and-hold 到 f_s=N·f_upd 的模式。前者只會看到 f_upd/5（0.03056 LSB²）與 2f_upd/5（0.20944 LSB²）兩條線；後者會出現帶 sinc² 權重的 k·f_upd/5 諧波。這兩種模式要分開標示，並說明 2f/5 才是主 Spur。比較五種策略時要明確展示：常數 32.4 下 1st-order EFB 與 deterministic toggle 是同一個週期 5 循環（只差相位），而所有無偏的兩階方案總誤差功率都是 p(1−p)=0.24 LSB²，差別只在頻譜分佈；freeze 則是 0.16 LSB² 全在 DC。只有 time-varying w_H 或 dither 會讓 D 與 B 不同；例如 dither A=1 LSB 時輸出變成 31–34 四階，總功率升到約 0.32 LSB²，但譜線消失。Limit Cycle Period Detector 必須支援 exact/fixed-point 模式：F 個小數 bit 時週期為 2^F/gcd（F=10 → 512、F=16 → 32768）。float 模式要用整數輸出序列比對週期，不能比對浮點 r。UI 也要讓使用者選 Q6 = round/floor 與 tie 規則，並在 w_H 超出 [0,63] 時顯示 overload 警示。§14 的 E[δ_B²] 與 μ 區間計算器要同時顯示線性 analytic 與 1-bit Sign-LMS Monte Carlo（固定 seed、95% CI），在 |δ0|/σ_v 超過約 0.3 時自動標成 [近似｜失效風險]；ε 輸入欄位要明示為相對比例，並顯示非空條件 B ≥ ln ε/ln(1−K_min/K_max)；p²=1 時改用 δ0²+Bμ²σ_η² 的極限。T16 建議加上兩條譜線功率的 reference；T17 以 1e6 樣本測試時，容差可設 mean ±0.001、variance ±0.0002（95% CI）。
-- **notation**：在 §0 建立一份全站共用的 symbol/unit registry，作為唯一來源：δ=a−w、δw=w−w*、K=K_qC、g=μK、S=−K，以及 u、w、μ 的單位（fs、無因次、LSB 加上 Δ_LSB）。每個 lab 的 slider 和 tooltip 都從這份 registry 讀取，並在畫面上同時顯示 raw μ（含單位）和 normalized g。GMAC 一定要做 sum/average 切換，並明確顯示 μ=10 fs、N=4096 時 sum mode 的 g=326.8（pole −325.8）會發散。也要提供 sign(0) 和 tie 規則的選項，讓 N=100 時 exact 的 49.2%/57.1% 和 CLT 的 53.2% 可以並列。§12 的 coefficient noise 要以多速率方式模擬：block-rate AR(1)，再經 ZOH 加 commit latency 升到 sample rate，最後乘上 code。頻寬需同時標示 −3 dB exact（12.93 kHz）、近似公式（12.40/12.92 kHz）和 ENBW（20.29 kHz）。§13 的量化實驗應指出：常數 32.4 時，1st-order ΔΣ 與 periodic toggle 產生完全相同的 period-5 pattern，主 tone 在 2f/5（|X2|=0.324 > |X1|=0.124）。§10 的 MIMO 例子要標明「K_q 正規化為 1」，並區分 eigen-mode variance 和每個參數的 variance（127.8/0.64 vs 64.2）。每個 preset（特別是 INL 1.34、T13 σ_w=0.399 fs）都必須連同 code 分布、path、gm_mode 一起存檔，避免換了預設分布後仍顯示舊的期望值。
 
 - **字串內的行內公式**：`mathText(node)` / `<MathText>` / `stripMathDelimiters(text)`（`@/components`）。所有共用元件的字串屬性（ExperimentShell title/description/warnings/assumptions/crossCheck note、MetricRow name/note、MetricTable caption、Plot title/caption、Section/Derivation/Callout/Prereq/Quiz/Recap 標題、CodeBlock/CodeCompare title/caption/label/note）都已自動套用：字串中的 `$...$` 會以 KaTeX 顯示（`\$` 為字面金額符號）。JS 字串記得跳脫反斜線或用 `String.raw`。
 - 全域樣式已加 `.katex { position: relative }`：寬表格（`.table-wrap`）內的公式不會再把頁面撐出水平捲軸。
 
-- **帶入手算**：`HandCalc({ def, initialMode?, compact? })`、`texNum(x, sig)` / `texNumP(x, sig)`（負數加括號，代入用）、`checkAnswer`、`randomValues(def, seed)`、`defaultValues(def)`（`@/components`）；型別 `HandCalcDef / HandCalcInput / HandCalcStep / HandCalcResult / HandCalcSolution`（`@/data/types`）；彙整 `ALL_HANDCALCS / handcalcById / handcalcsForPage`（`@/app/handcalcs`，以 glob 收集 `src/chapters/*/handcalcs.ts` 與 `src/pages/*/handcalcs.ts` 的 `HANDCALCS`）。範本：`src/chapters/ch00/handcalcs.ts`。ID 格式 `HC-<章>.<序>`（案例頁用 `HC-CS.n`）。
+- **帶入手算**：`HandCalc({ def, initialMode?, compact? })`、`texNum(x, sig)` / `texNumP(x, sig)`（負數加括號，代入用）、`checkAnswer`、`randomValues(def, seed)`、`defaultValues(def)`（`@/components`）；型別 `HandCalcDef / HandCalcInput / HandCalcStep / HandCalcResult / HandCalcSolution`（`@/data/types`）；彙整 `ALL_HANDCALCS / handcalcById / handcalcsForPage`（`@/app/handcalcs`，以 glob 收集 `src/chapters/*/handcalcs.ts` 與 `src/pages/*/handcalcs.ts` 的 `HANDCALCS`）。範本：`src/chapters/ch00/handcalcs.ts`。ID 格式 `HC-<章>.<序>`；工具頁與案例頁用兩個字母的代號（`HC-CS`、`HC-DB`、`HC-MD`、`HC-PR`、`HC-RM`、`HC-SO`）。
 
 - **系統地圖**：`SystemMap({ focus: SystemBlock[], caption? })`（`@/components`）— 全站共用的 PLL + LMS 校正系統方塊圖，`focus` 的方塊標成藍色。`SystemBlock` = 'ref' | 'pd' | 'lf' | 'vco' | 'div' | 'fcw' | 'dsm' | 'res' | 'gc' | 'dtc' | 'cmp' | 'align' | 'gmac' | 'scale' | 'acc' | 'qnt' | 'noise'。手排的 SVG（三條泳道、連線只走水平／垂直、不交叉），不經過 Mermaid；架構依 `docs/assumptions.md` §2a：DTC 在 reference 輸入端（REF → DTC → PD）、回授只有 divider，LMS 的輸入 `e[n]` 從 PD 輸出分接、用成對的標籤（`SystemMapWire.tag`）接到 comparator；`systemMapModel(focus)` 回傳純資料 `{ blocks: [{ id, title, sub, lane, focused, x, y, w, h }], wires }`（測試檢查本章主角時用），另有 `SYSTEM_MAP_BLOCKS`、`SYSTEM_MAP_WIRES`、`SYSTEM_MAP_SIZE`。
 - **方塊圖外框**：`DiagramFrame`（`Mermaid` 與 `SystemMap` 共用）— DOM 為 `figure.c-mermaid > .c-mermaid-frame > .c-mermaid-svg > svg`＋`button.c-mermaid-zoom`（放大檢視）＋`figcaption`；圖還沒畫好時沒有 `.c-mermaid-svg`。外觀由 `mermaidTheme.ts` 統一（配色來自 global.css 的 `--diagram-*`）。
@@ -681,6 +613,17 @@ SUGGESTED ADDITION TO SHARED CODE: a TS `compareToGolden(vector, key, actual)` h
 - **Mermaid 更新**：`Mermaid` 元件會先以 `sanitizeMermaidSource`（`src/components/mermaidSource.ts`）把單獨的 `+`／`-` 標籤換成「＋」「−」，避免 Mermaid 11 畫出「Unsupported markdown: list」；圖說支援 `$...$`；瀏覽器中接近可視範圍才 render（IntersectionObserver），jsdom 中立即 render。測試工具 `@/components/mermaidTestUtils`：`installMermaidSvgShim()`、`renderMermaidForTest(chart) → { svg, text, nodeCount }`（不從 `@/components` 匯出，只給測試用）。
 
 - **圖內數學的 LaTeX（2026-10-11）**：
-  - `Mermaid`：雙引號標籤內的 `$...$` 由 KaTeX 排版（`forceLegacyMathML`；前處理 `mermaidMathDelimiters` 會把每個含公式的標籤合併成單一 `$$...$$`，文字包成 `\text{}`、`<br/>` 多行用 `gathered`）。`renderMermaidForTest(chart)` 回傳 `{ svg, text, nodeCount, mathCount }`（`text` 已去掉 MathML 複本；TeX 語法錯誤會讓它丟出例外）。SVG 會加上 `min-width`（自然寬度的 70%，至少 480px），窄螢幕在容器內橫向捲動。
+  - `Mermaid`：雙引號標籤內的 `$...$` 由 KaTeX 排版（`forceLegacyMathML`；前處理 `mermaidMathDelimiters` 會把每個含公式的標籤合併成單一 `$$...$$`，文字包成 `\text{}`、`<br/>` 多行用 `gathered`）。`renderMermaidForTest(chart)` 回傳 `{ svg, text, nodeCount, mathCount }`（`text` 已去掉 MathML 複本；TeX 語法錯誤會讓它丟出例外）。SVG 會加上 `min-width`（自然寬度的 70%，至少 480px，但不超過自然寬度；`withReadableMinWidth`），窄螢幕在容器內橫向捲動。
   - `Plot`：對 `data`／`layout` 自動套用 `applyPlotMath`（`src/components/plotMath.ts`）：`name`／`text`／`title`／`ticktext`／`hovertemplate`／`texttemplate`／`hovertext`／`label` 等欄位裡的 `$...$` 轉成 Plotly pseudo-HTML（`<i>`、`<sub>`、`<sup>`、Unicode 符號）。可用 `plotMath(str)`／`texToPlotly(tex)` 在測試中檢查轉換結果（不應殘留 `\`、`{`、`}`、`$`）。
   - `ParamControl`／`SelectControl`／`ToggleControl` 的 label／hint／unit 與 `MetricRow.unit` 也支援 `$...$`。
+
+## 2026-10-16 新增的共用元件與 app 層（整站改善第一批）
+
+- **ModePicker**（`src/components/ModePicker.tsx`，由 `PageFrame` 掛在每頁頂端）：localStorage 還沒有 `lmspll.mode` 時顯示一次三卡片選擇器；選了就寫入並消失，「先用 Beginner 看看」也會存成 beginner。**第一次造訪的預設模式是 Beginner**（`src/app/settings.tsx`）；測試若依 Engineer 模式斷言，先 `localStorage.setItem('lmspll.mode', 'engineer')`。`PageFrame` 另在章節頁顯示一行目前模式的提示（`MODE_HINT`）。
+- **連結元件**（`src/components/links/`，從 `@/components` 匯出）：HashRouter 下 `href="#id"` 會被當成路由，所以站內**不得再寫 `href="#…"`**（`noRawAnchors.test.ts` 會擋）。`<FormulaLink id="F-05.1">` 本頁有該公式就捲過去並把 `?f=` 寫進網址，否則前往 `/formulas?f=`；`<AnchorLink id="handcalc-HC-14.5">` 是頁內錨點版（`?a=`）；`<ChRef ch="05" sec="§5.3">` 是章節交叉參照（`07b` → 案例頁；不存在的章只顯示文字）；`<AnchorDeepLink/>`（`PageFrame` 已掛）讓貼上的 `?f=`／`?a=` 網址在頁面載好後捲到目標。
+- **Plot 延後載入**：見上方 Plot 一節（接近可視範圍才載入 Plotly；報告擷圖與列印會強制渲染）。
+- **ScrollRegion**（`src/components/ScrollRegion.tsx`）：會橫向捲動的表格／程式碼用它包，內容真的放不下時才成為鍵盤可聚焦的區域（`MetricTable` 與 `CodeBlock` 已用）。
+- **app 層**：`src/app/lazyRetry.ts` 在 lazy chunk 載入失敗（部署後舊 hash）時重試一次、再失敗就以 sessionStorage 守門做一次整頁重載；`index.html` 的行內腳本在第一次繪製前就套用 `data-theme`（深色不再閃白）；`Layout` 有 skip link（按鈕，聚焦 `<main id="main">`）、換頁時聚焦 h1 並以 role=status 播報、手機抽屜支援 Esc／scrim／inert；`src/app/navigation.tsx` 提供換頁資訊。
+- **即時播報**：`ExperimentShell`（執行中／完成：N 個指標已更新；M 則警告）、`HandCalc`（對答案結果）、`Quiz`（作答結果：答對了／再想想看）各有 sr-only 的 `aria-live` 區。播報文字不放 LaTeX 也不用 Unicode 拼數學（各章的「KaTeX 以外的可見文字」測試會檢查）。
+- **審查腳本**：`scripts/screenshots.mjs` 的 `--mode` 預設改為 beginner（和第一次造訪相同）；`scripts/check-bundle-size.mjs` 與 `scripts/verify-status-check.mjs` 在 CI（`.github/workflows/ci.yml`、`verify-status.yml`）使用。
+

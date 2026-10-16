@@ -1,4 +1,4 @@
-import { Callout, ClaimTag, ModeGate, Prereq, Tex } from '@/components'
+import { Callout, ClaimTag, ModeGate, Prereq, Tex, ChRef } from '@/components'
 import { CONDITIONS, ITEMS, ITEM_STATUS_DESC, type Condition, type ItemStatus } from '../data'
 import { Diagram, mt, n4, PageRef, Rich, StatusBadge } from '../common'
 import { CHART_R1_LOOP, CHART_SIX_CONDITIONS, CHART_STATUS_FLOW } from '../diagrams'
@@ -78,7 +78,7 @@ export function Intro() {
 
       <h3>先算一次：一個「簡化」差多少？</h3>
       <p>
-        第 12 章的 <Tex>{'\\sigma_w\\approx0.399'}</Tex> fs（T13）假設相鄰 GMAC block 的雜訊互相獨立。如果它們有相關係數 <Tex>{'\\rho'}</Tex>（R1），答案會變成多少？
+        <ChRef ch="12">第 12 章</ChRef>的 <Tex>{'\\sigma_w\\approx0.399'}</Tex> fs（T13）假設相鄰 GMAC block 的雜訊互相獨立。如果它們有相關係數 <Tex>{'\\rho'}</Tex>（R1），答案會變成多少？
         先用數字算一次（推導在 R1 的預覽裡）：
       </p>
       <Diagram
@@ -87,7 +87,7 @@ export function Intro() {
         ariaLabel="R1 的訊號流方塊圖：白雜訊經一階回授產生相鄰 block 相關的 GMAC 雜訊，乘上步長後進入 pole 為 p 的一階校正迴路，輸出係數誤差"
       >
         <p>
-          <strong>先看</strong>下半部（第 12 章已經有的）：
+          <strong>先看</strong>下半部（<ChRef ch="12">第 12 章</ChRef>已經有的）：
           {mt(String.raw`第 $k$ 個 block 的 GMAC 雜訊 $\eta_k$ 乘上步長 $\mu$ 後加進係數誤差 $\delta w_k=w_k-w^*$（係數離它停下來的位置 $w^*$ 多遠）；誤差每個 block 乘上 pole $p=1-\mu K$，其中 $K=K_qC$ 是 GMAC 平均輸出對誤差的斜率。寫成式子是 $\delta w_{k+1}=p\,\delta w_k+\mu\,\eta_k$。`)}
         </p>
         <p>

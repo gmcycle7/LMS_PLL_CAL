@@ -53,10 +53,12 @@
 
 ## 6. 難度分層
 
-- Beginner 模式：顯示直覺、手算、圖；推導預設收合但一鍵展開。
-- Engineer 模式：推導、假設、單位、硬體對應預設展開。
-- Research 模式：額外顯示嚴格條件、反例、Monte Carlo 細節、相關文獻。
-- 三種模式共用同一計算核心，只改變呈現。
+三種模式共用同一計算核心，只改變呈現。內容用 `ModeGate min="engineer"`／`min="research"` 分層（目前模式低於 `min` 就不渲染）；沒有包 `ModeGate` 的內容所有模式都看得到。
+
+- Beginner 模式：只看到沒有包 `ModeGate` 的內容——直覺、手算、方塊圖、互動實驗；推導框（`Derivation`）預設收合，但一鍵可展開。
+- Engineer 模式：再加上 `min="engineer"` 的內容——推導、假設、單位、硬體對應；**每個公式旁的適用／限制條件要在這個模式就看得到**，不要只放在 Research。
+- Research 模式：再加上 `min="research"` 的內容——嚴格條件、反例、Monte Carlo 細節、相關文獻。
+- `Derivation` 預設只在 Research 模式展開（使用者手動切換優先），個別推導框可以用 `defaultOpen` 覆寫。
 
 ## 7. 帶入手算（使用者要求：「可以手算會比較有感覺」）
 
@@ -93,4 +95,4 @@
   - `stateDiagram-v2` 的自我轉移（`A --> A`）會畫成又長又細的尖角，盡量把那句話寫進狀態的說明文字裡。
   - 沒有「反向箭頭」的連線語法（`A <-- B` 不是合法的邊），回授要寫成來源 → 目的。
   - 很大的菱形（判斷式太長）改用六角形 `{{"…"}}`，比較不佔高度。
-- 改完圖要**實際看一次**：`node scripts/screenshots.mjs --routes /ch/NN --shots all-mermaid` 截圖逐張檢查（文字有沒有被切掉或重疊、連線有沒有不必要的交叉、字會不會太小）。
+- 改完圖要**實際看一次**：`node scripts/screenshots.mjs --routes /ch/NN --shots all-mermaid` 截圖逐張檢查（文字有沒有被切掉或重疊、連線有沒有不必要的交叉、字會不會太小），再用 `node scripts/diagram-audit.mjs --routes /ch/NN` 確認寬度。這幾支腳本的旗標與「改了畫面要附上哪些檢查」見 `docs/dev-conventions.md` §8。

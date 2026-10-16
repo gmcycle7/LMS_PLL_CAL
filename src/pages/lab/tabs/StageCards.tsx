@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react'
-import { Callout, ClaimTag, ModelLevel, Tex } from '@/components'
+import { Callout, ClaimTag, ModelLevel, Tex, ChRef } from '@/components'
 import { bernoulliMoments, efbConstant, efbPeriod, toggleCycle } from '@/simulation/models/quantizer'
 import type { CheckItem, PipelineChecks, PipelineResult, StageReport } from '@/simulation/models/unifiedLab'
 import { ChLink, fmtHz, md, sig, StatusPill, texifyShared, texNum } from '../common'
@@ -171,7 +171,7 @@ export function QuantWhatIf({ result }: { result: PipelineResult }) {
         量化策略 what-if（開迴路）：目標 <Tex>{`w_H/\\Delta=${texNum(rows.target, 6)}\\ \\mathrm{LSB}`}</Tex>
       </h4>
       <p className="small">
-        閉迴路模擬只用 rounding。這裡把同 seed 浮點的收斂值當成固定目標，用第 13 章的函式（<code>toggleCycle</code>、<code>bernoulliMoments</code>、<code>efbConstant</code>）算四種策略的平均誤差與誤差功率；頻譜與
+        閉迴路模擬只用 rounding。這裡把同 seed 浮點的收斂值當成固定目標，用<ChRef ch="13">第 13 章</ChRef>的函式（<code>toggleCycle</code>、<code>bernoulliMoments</code>、<code>efbConstant</code>）算四種策略的平均誤差與誤差功率；頻譜與
         spur 的比較在 <ChLink to="/ch/13">第 13 章</ChLink>。
       </p>
       {!rows.inRange && (

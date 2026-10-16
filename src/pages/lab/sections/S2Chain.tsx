@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, ModeGate, ModelLevel, Prereq, Section, SourceTag, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, ModeGate, ModelLevel, Prereq, Section, SourceTag, Tex, TexBlock, ChRef } from '@/components'
 import { ChLink, Diagram, ErratumNote, md, sig, Steps, texHz, texNum } from '../common'
 import { CHART_OUTPUT_SPLIT, CHART_TWO_PATHS, CHART_UPDATE_LOOP } from '../diagrams'
 import { anchorNumbers, delayTable, dsmHandExample, FX_DELAY_EXAMPLE, pllNumbers, spurNumbers } from '../numbers'
@@ -802,8 +802,8 @@ function Derivations() {
           <li>{md('**飽和與 wrap**：unsigned 的 6-bit、$\\Delta=0.125\\,\\mathrm{fs}$ 只能表示 $[0,\\,7.875]\\,\\mathrm{fs}$；$a$ 超出範圍時會卡在端點（saturate）或跳到另一端（wrap，RTL bug）。')}</li>
         </ul>
         <p className="small">
-          閉迴路內只模擬 rounding（nearest / truncate / stochastic）。<Tex>{'\\Delta\\Sigma'}</Tex>、toggle 等策略在 <ChLink to="/ch/13">第 13 章</ChLink> 是開迴路比較；Lab 的 register 卡片下方有一張用第 13
-          章函式算的「what-if」表。交叉比對的 Fixed-Point 欄是「定點 vs 同一個 seed 的浮點」。
+          閉迴路內只模擬 rounding（nearest / truncate / stochastic）。<Tex>{'\\Delta\\Sigma'}</Tex>、toggle 等策略在 <ChLink to="/ch/13">第 13 章</ChLink> 是開迴路比較；Lab 的 register 卡片下方有一張用<ChRef ch="13">第 13
+          章</ChRef>函式算的「what-if」表。交叉比對的 Fixed-Point 欄是「定點 vs 同一個 seed 的浮點」。
         </p>
       </Section>
 

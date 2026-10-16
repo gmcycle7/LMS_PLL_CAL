@@ -1,4 +1,4 @@
-import { Callout, ClaimTag, ModeGate, ModelLevel, Section, SourceTag, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, ModeGate, ModelLevel, Section, SourceTag, Tex, TexBlock, ChRef } from '@/components'
 import { ChLink, Diagram, ErratumNote, md, Question } from '../common'
 import { PIPELINE_CHART } from '../diagrams'
 
@@ -33,7 +33,7 @@ export function S1Intro() {
 
         <Section kind="intuition" title="直覺：還是那個黑盒子，只是中間多了三道關卡">
           <p>
-            第 0 章的黑盒子是 <Tex>{'y=a\\,x'}</Tex>：你看得到輸入 <Tex>x</Tex> 和輸出 <Tex>y</Tex>，要猜 <Tex>a</Tex>。在 fractional-N PLL 裡，
+            <ChRef ch="00">第 0 章</ChRef>的黑盒子是 <Tex>{'y=a\\,x'}</Tex>：你看得到輸入 <Tex>x</Tex> 和輸出 <Tex>y</Tex>，要猜 <Tex>a</Tex>。在 fractional-N PLL 裡，
             <Tex>x</Tex> 是 DSM 的 residue（你自己產生的 code，完全已知），<Tex>a</Tex> 是 DTC 的 gain 誤差，<Tex>{'y-wx=(a-w)x'}</Tex> 是 DTC 沒抵銷乾淨的時間誤差。校正就是 LMS：一直調 <Tex>w</Tex> 直到誤差與 code 不再相關。
           </p>
           <p>

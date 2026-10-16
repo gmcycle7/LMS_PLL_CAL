@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type MouseEvent } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Callout, ClaimTag, ModelLevel, ModeGate, Section, SourceTag, SymbolTable } from '@/components'
 import './roadmap.css'
@@ -60,20 +60,8 @@ export default function RoadmapPage() {
     setScrollTo(id)
   }, [])
 
-  /**
-   * 指標表的公式欄是 `<a href="#formula-F-R1.1">`。本站用 HashRouter，瀏覽器若真的把 hash 換成 `#formula-…`，
-   * 路由會把它當成不存在的頁面。這裡攔下來，改成在本頁內捲到「7. 本頁公式登錄」的同名錨點。
-   */
-  const onFormulaAnchor = useCallback((e: MouseEvent<HTMLElement>) => {
-    const a = (e.target as HTMLElement).closest?.('a[href^="#formula-"]')
-    if (!a) return
-    e.preventDefault()
-    const el = document.getElementById((a.getAttribute('href') ?? '').slice(1))
-    el?.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
-  }, [])
-
   return (
-    <article className="rm" onClick={onFormulaAnchor}>
+    <article className="rm">
       <div className="c-tag-row">
         <ClaimTag kind="research" />
         <SourceTag kind="illustrative" />

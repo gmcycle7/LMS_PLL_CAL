@@ -1,4 +1,4 @@
-import { Callout, Mermaid, ModeGate, Section, Tex } from '@/components'
+import { Callout, Mermaid, ModeGate, Section, Tex, ChRef } from '@/components'
 import { useSettings } from '@/app/settings'
 import { LEVEL_LABEL, PAPERS_BY_ORDER, READING_PATH_CHART, type ReadingLevel } from '../references'
 import { JumpLink, PageChips, Question, RichText, r } from '../common'
@@ -61,7 +61,7 @@ export function S2ReadingPath() {
       <Mermaid chart={READING_PATH_CHART} caption="建議閱讀順序（D1–D7 為規格書附錄 D 的編號；標「本站」的方塊是本站的預備章節）" ariaLabel="文獻閱讀路線圖" />
       {mode === 'beginner' && (
         <Callout kind="info" title="入門模式：只讀一份的話">
-          先讀 <strong>D7 講義</strong>，同時打開本站 Ch03 對照；講義裡的 <Tex>{r`1-\mu\lambda_i`}</Tex> 就是本站的 pole。其他論文等你讀完 Part B 再回來。
+          先讀 <strong>D7 講義</strong>，同時打開本站 <ChRef ch="03">Ch03</ChRef> 對照；講義裡的 <Tex>{r`1-\mu\lambda_i`}</Tex> 就是本站的 pole。其他論文等你讀完 Part B 再回來。
         </Callout>
       )}
       <p className="small muted">
@@ -120,7 +120,7 @@ export function S2ReadingPath() {
       </Callout>
       <ModeGate min="research">
         <p className="small muted">
-          Research：D2（Toeplitz 矩陣的漸近 pseudospectrum）需要的線性代數超出本站 Ch09–Ch10 的範圍；建議先讀 Strang 的特徵值章節與 Oppenheim & Schafer 的
+          Research：D2（Toeplitz 矩陣的漸近 pseudospectrum）需要的線性代數超出本站 <ChRef ch="09">Ch09</ChRef>–<ChRef ch="10">Ch10</ChRef> 的範圍；建議先讀 Strang 的特徵值章節與 Oppenheim & Schafer 的
           DTFT， 再讀 D2 的必要條件推導。
         </p>
       </ModeGate>

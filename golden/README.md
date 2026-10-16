@@ -62,7 +62,7 @@ golden/
 | 數值求根 / 積分 | 與封閉式交叉比對（PM crossover、delay 臨界增益、−3 dB、ENBW、PSD 積分）。 |
 | Monte Carlo | 固定 seed（`np.random.default_rng(20261010 + offset)`），容忍度為 ±4 個標準誤、Wilson interval 或四階矩變異 CI；近似式另加明列的模型誤差上限（例如 §14 sign-GMAC 的 2%）。 |
 
-## 5. Vectors 格式（給 `src/tests/golden.test.ts`）
+## 5. Vectors 格式（給各章的測試 `src/chapters/chNN/*.test.ts(x)` 與 `src/pages/verification/golden.ts`）
 
 `golden/vectors/index.json` 列出所有檔案。每個 vector：
 
@@ -99,9 +99,9 @@ interface GoldenVector {
   tolerance_overrides?: Record<string, Tol>
 }
 
-// 檔案位於 src/tests/ 時：
+// 各章測試從 repo 根目錄讀（vitest 的 cwd 是 repo 根目錄）：
 const load = (name: string): GoldenVector =>
-  JSON.parse(readFileSync(new URL(`../../golden/vectors/${name}.json`, import.meta.url), 'utf8')) as GoldenVector
+  JSON.parse(readFileSync(join(process.cwd(), 'golden/vectors', `${name}.json`), 'utf8')) as GoldenVector
 
 function expectClose(actual: number, v: GoldenVector, key: string, index?: number) {
   const tol = v.tolerance_overrides?.[key] ?? v.tolerance

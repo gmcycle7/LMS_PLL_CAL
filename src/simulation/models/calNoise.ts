@@ -708,7 +708,8 @@ export function besselJ(n: number, x: number): number {
 // #region core:spur
 /**
  * 調變指數 β = 2π·f_out·|T|·A_t [rad]。
- * A_t：DTC 端 δt tone 的 peak [fs]；經 PLL 的 |T(f_m)| 之後，output timing tone 的 peak 是 |T|·A_t（|T| = 1 時兩者相同，T15）。
+ * A_t：DTC 端 δt tone 的 peak [fs]；經 PLL 的 |T(f_m)| 之後，output timing tone 的 peak 是 |T|·A_t
+ * （|T| = 1 時兩者相同，T15）。
  */
 export function spurBeta(fOutHz: number, atPeakFs: number, tMag = 1): number {
   return fsToRad(atPeakFs * tMag, fOutHz) // 2π f_out (|T| A_t)·1e−15

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, MetricTable, ModeGate, SourceTag, StepDerivation, Tex, type MetricRow } from '@/components'
+import { Callout, ClaimTag, MetricTable, ModeGate, SourceTag, StepDerivation, Tex, type MetricRow, ChRef } from '@/components'
 import { meanPole, meanSquareFactor, meanSquareMuMax } from '@/simulation/models/lms'
 import { comparatorKq, eigenExample } from '../bridge'
 import { BridgeCode, ErratumNote, FormulaAnchor, PrereqEigen, PrereqExpectation, num, r } from '../common'
@@ -34,7 +34,7 @@ export function D7Eigen() {
   return (
     <div className="papers-derived">
       <p>
-        <SourceTag kind="illustrative" /> 本站 Ch03、Ch09、Ch10 的推導。講義（D7）的 eigenvalue 分析是同一套數學；以下數字由本站程式計算，用來和講義的結論對照，
+        <SourceTag kind="illustrative" /> 本站 <ChRef ch="03">Ch03</ChRef>、<ChRef ch="09">Ch09</ChRef>、<ChRef ch="10">Ch10</ChRef> 的推導。講義（D7）的 eigenvalue 分析是同一套數學；以下數字由本站程式計算，用來和講義的結論對照，
         不是講義上的數字。
       </p>
       <PrereqExpectation />
@@ -141,13 +141,13 @@ export function D7Eigen() {
         <ClaimTag kind="exact" />
         （iid 純量 <Tex>{'x'}</Tex>）。<Tex>{r`\mu=1`}</Tex> 時平均誤差每步乘 {num(d.atOne.mean, 4)}（一步歸零），但均方誤差每步乘 {num(d.atOne.ms, 4)}：只看
         mean 的「收斂」會誤判。數值由 <code>src/simulation/models/lms.ts</code> 的 <code>meanPole</code>、<code>meanSquareFactor</code>、
-        <code>meanSquareMuMax</code> 計算（與 Ch03 同一份程式）。
+        <code>meanSquareMuMax</code> 計算（與 <ChRef ch="03">Ch03</ChRef> 同一份程式）。
       </p>
       <ModeGate min="research">
         <Callout kind="info" title="Research：第三種收斂">
           單一樣本路徑的 almost-sure 收斂由 <Tex>{r`E[\ln|1-\mu x^2|]<0`}</Tex> 決定，界限比 mean-square 寬得多；在兩者之間，<Tex>{r`E[\delta_n^2]`}</Tex>{' '}
           發散但幾乎每條路徑收斂 （<ErratumNote id="E14" />
-          ，數值見 Ch03）。講義或論文只寫「收斂」時，要確認是哪一種。
+          ，數值見 <ChRef ch="03">Ch03</ChRef>）。講義或論文只寫「收斂」時，要確認是哪一種。
         </Callout>
       </ModeGate>
     </div>

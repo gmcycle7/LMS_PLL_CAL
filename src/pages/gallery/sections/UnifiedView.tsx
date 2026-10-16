@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
-import { Callout, ClaimTag, Mermaid, ModeGate, Prereq, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, Mermaid, ModeGate, Prereq, Tex, TexBlock, ChRef } from '@/components'
 import { QUESTION_LABEL, type QuestionId, type SlotAudit } from '../data'
 import { CHART_UNIFIED_LOOP, THREE_QUESTIONS } from '../diagrams'
 import { Diagram, ErratumChip, LevelBadges, PageLink, Rich, Steps } from '../common'
@@ -19,7 +19,7 @@ export function UnifiedView({ audit }: { audit: SlotAudit[] }) {
   return (
     <>
       <p>
-        12 個 preset 橫跨第 1 章到第 13 章，看起來各講各的；其實它們都在回答同一個校正迴路的三個問題。把係數誤差寫成 <Tex>{'\\delta=a-w'}</Tex>，在收斂點附近把 GMAC 的平均輸出對{' '}
+        12 個 preset 橫跨<ChRef ch="01">第 1 章</ChRef>到<ChRef ch="13">第 13 章</ChRef>，看起來各講各的；其實它們都在回答同一個校正迴路的三個問題。把係數誤差寫成 <Tex>{'\\delta=a-w'}</Tex>，在收斂點附近把 GMAC 的平均輸出對{' '}
         <Tex>{'\\delta'}</Tex> 做一階泰勒展開，每一個例子都可以整理成同一種遞迴。先看這個迴路長什麼樣子：
       </p>
       <Diagram

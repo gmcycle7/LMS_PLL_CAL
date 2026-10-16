@@ -1,4 +1,4 @@
-import { Callout, CodeBlock, CodeCompare, ModeGate, Section, Tex } from '@/components'
+import { Callout, CodeBlock, CodeCompare, ModeGate, Section, Tex, ChRef } from '@/components'
 import blockSrc from '@/simulation/models/blockLms.ts?raw'
 import dsmSrc from '@/simulation/models/dsm.ts?raw'
 import pllSrc from '@/simulation/models/pll.ts?raw'
@@ -81,7 +81,7 @@ export function S4Code() {
                   趨近 <Tex>{'90^\\circ'}</Tex>：<Tex>C</Tex> 變小但不變號
                 </td>
                 <td>
-                  趨近 <Tex>{'180^\\circ'}</Tex>：單頻的 code 會讓 <Tex>C</Tex> 變號（第 6 章）
+                  趨近 <Tex>{'180^\\circ'}</Tex>：單頻的 code 會讓 <Tex>C</Tex> 變號（<ChRef ch="06">第 6 章</ChRef>）
                 </td>
               </tr>
               <tr>

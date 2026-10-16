@@ -14,6 +14,7 @@ import {
   useThemeTokens,
   type ExperimentPreset,
   type MetricRow,
+  ChRef,
 } from '@/components'
 import modelSrc from '../model.ts?raw'
 import { roadmapHandCalc } from '../handcalcs'
@@ -237,7 +238,7 @@ export default function R10Preview() {
       <StepDerivation
         title={mt(String.raw`一步一步推導：固定 $\mu$ 時，$\sigma_w$ 與校正時間的取捨（tanh 律）`)}
         steps={[
-          { tex: String.raw`\sigma_w^2=\frac{\mu^2\sigma_\eta^2}{1-p^2}=\frac{g}{K^2N(2-g)}`, why: <>第 12 章的白雜訊結果，<Tex>{'\\sigma_\\eta^2=1/N'}</Tex>、<Tex>{'\\mu=g/K'}</Tex>、<Tex>{'1-p^2=g(2-g)'}</Tex>。</> },
+          { tex: String.raw`\sigma_w^2=\frac{\mu^2\sigma_\eta^2}{1-p^2}=\frac{g}{K^2N(2-g)}`, why: <><ChRef ch="12">第 12 章</ChRef>的白雜訊結果，<Tex>{'\\sigma_\\eta^2=1/N'}</Tex>、<Tex>{'\\mu=g/K'}</Tex>、<Tex>{'1-p^2=g(2-g)'}</Tex>。</> },
           { tex: String.raw`|E[\delta_B]|=(1-g)^B|\delta_0|\le\varepsilon|\delta_0|`, why: <>線性模型的平均誤差；<Tex>{'\\varepsilon'}</Tex> 是相對比例（勘誤 E16）。</> },
           { tex: String.raw`B=\frac{f_sT}{N}\;\Rightarrow\;u:=\frac{N}{f_sT}=\frac1B`, why: <>時間全部用完：每個 block <Tex>{'N'}</Tex> 個 comparator sample。</> },
           { tex: String.raw`g=1-\varepsilon^{u}`, why: <><Tex>{'\\sigma_w^2'}</Tex> 隨 <Tex>{'g'}</Tex> 遞增，所以取剛好滿足時間的最小 <Tex>{'g'}</Tex>。</> },
@@ -275,7 +276,7 @@ export default function R10Preview() {
           <li>
             Spur：係數雜訊經 code 混頻後的 PSD（<PageRef id="ch12">第 12 章</PageRef>）乘上 <Tex>{'(2\\pi f_{\\mathrm{out}})^2|T(f)|^2'}</Tex> 再與 PN mask 比較；量化 limit cycle 的譜線（R3）另計。
           </li>
-          <li>多 corner：<Tex>{'K^{(c)}'}</Tex> 在各 corner 不同，<Tex>{'\\mu'}</Tex> 必須同時滿足所有 corner（第 14 章的 corner-based 區間）。</li>
+          <li>多 corner：<Tex>{'K^{(c)}'}</Tex> 在各 corner 不同，<Tex>{'\\mu'}</Tex> 必須同時滿足所有 corner（<ChRef ch="14">第 14 章</ChRef>的 corner-based 區間）。</li>
           <li>更新延遲 <Tex>{'d>0'}</Tex>：PM 條件變成 <Tex>{'(2d+1)\\arcsin(g/2)\\le90^\\circ-PM_{\\min}'}</Tex>。<ClaimTag kind="research" /></li>
         </ul>
       </ModeGate>

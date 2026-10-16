@@ -14,6 +14,7 @@ import {
   useThemeTokens,
   type ExperimentPreset,
   type MetricRow,
+  ChRef,
 } from '@/components'
 import modelSrc from '../model.ts?raw'
 import { roadmapHandCalc } from '../handcalcs'
@@ -206,7 +207,7 @@ export default function R8Preview() {
       <TryIt
         items={[
           <>預設（T13 的 <Tex>{'\\mu=10'}</Tex> fs）：比最佳 <Tex>{'\\mu^*'}</Tex> 大很多，RMS 被 GMAC 雜訊主導。</>,
-          <>把 <Tex>{'\\sigma_\\zeta'}</Tex> 拉到 0.5 fs/block：星號往右移（漂移快就要大步長），第 14 章的近似開始失準。</>,
+          <>把 <Tex>{'\\sigma_\\zeta'}</Tex> 拉到 0.5 fs/block：星號往右移（漂移快就要大步長），<ChRef ch="14">第 14 章</ChRef>的近似開始失準。</>,
           String.raw`把 $\mu$ 設到曲線左側：RMS 由「追不上漂移」主導——曲線左右兩側的斜率是 $-\tfrac12$ 與 $+\tfrac12$。`,
         ]}
       />

@@ -1,4 +1,4 @@
-import { Callout, ClaimTag, ModelLevel, Section, SourceTag, SymbolTable, Tex, TestBadge, type SymbolEntry } from '@/components'
+import { Callout, ClaimTag, ModelLevel, Section, SourceTag, SymbolTable, Tex, TestBadge, type SymbolEntry, ChRef } from '@/components'
 import { useSettings } from '@/app/settings'
 import { ErratumNote, JumpButton, PageChip, SYMBOLS_ANCHOR, SymbolsLink, TOP_ANCHOR, r } from './common'
 import { FORMULAS } from './formulas'
@@ -161,7 +161,7 @@ export const SYMBOLS: SymbolEntry[] = [
     firstSeen: '§3 D3',
     note: (
       <>
-        與 Ch07 的 code 延遲 <Tex>{'D'}</Tex>（samples）不同
+        與 <ChRef ch="07">Ch07</ChRef> 的 code 延遲 <Tex>{'D'}</Tex>（samples）不同
       </>
     ),
   },
@@ -246,7 +246,7 @@ export default function PapersPage() {
             <li>
               讀論文前先換算寫法：很多教科書的 <Tex>{r`\mu`}</Tex> 是本站的一半（§4）。
             </li>
-            <li>只讀一份的話，先讀 D7 講義，同時打開本站 Ch03 對照（§2）。</li>
+            <li>只讀一份的話，先讀 D7 講義，同時打開本站 <ChRef ch="03">Ch03</ChRef> 對照（§2）。</li>
           </ol>
         </Callout>
       )}
