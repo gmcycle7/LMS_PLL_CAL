@@ -30,6 +30,9 @@ export default defineConfig({
     globals: true,
     // 多個 agent／開發者同時跑測試時避免 CPU 嚴重超額（18 核機器上 load average 曾達 200）
     maxWorkers: 8,
+    // 整章的 jsdom 測試會把好幾份章節 DOM 留在記憶體裡（見 docs/dev/infra-api.md「測試」一節）；
+    // 預設約 4 GB 的 heap 在滿載時偶爾會爆（Worker exited unexpectedly），先把上限提高，第二批會把巨型測試拆開。
+    poolOptions: { forks: { execArgv: ['--max-old-space-size=6144'] } },
     // 整章／整頁的 jsdom smoke test 要渲染上百個 KaTeX 與手算題，5 s 預設值在平行執行時不夠
     testTimeout: 60_000,
     minWorkers: 1,
