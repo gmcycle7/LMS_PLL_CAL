@@ -11,10 +11,12 @@ import CaseSspllPage from './index'
 import { FORMULAS } from './formulas'
 import { SYMBOLS } from './symbols'
 import { DIAGRAMS, MAP_FOCUS } from './diagrams'
-import { FREF_MHZ, HPD, LMS_NOTE_ZH, LOOPS, PRED, SIGNMAP, SIM_CFG, mapIndex, mapIntervalsBelow } from './data'
+import { FREF_MHZ, LMS_NOTE_ZH, LOOPS, PRED, SIM_CFG, mapIndex, mapIntervalsBelow, type HpdJson, type LoopKey, type SignMapJson } from './data'
+import { loadAllSspllData } from './lazyData'
 import { MODEL_SRC, PY_SOURCES, fp, fs, fx, intervalsText, signClass, tx, txs } from './common'
 import { HANDCALCS } from './handcalcs'
 import { LMS_WORST_RATE, hpdMemorySamples } from './sections/S04MeanUpdate'
+import { nearGridIntervals } from './sections/S15Checklist'
 import { HPD_DEFAULTS, HPD_EXPERIMENT_ID, buildHpdLoop, closedFormEdgeMHz, mergeHpdParams } from './experiments/HpdExplorer'
 import { SIGNMAP_EXPERIMENT_ID, SIGN_DEFAULTS, classify, gosExactNote, mergeSignParams, modeSetup } from './experiments/SignMapExplorer'
 import {
@@ -35,6 +37,14 @@ import {
   predictPhosVerdict,
   type LmsCaseKind,
 } from './experiments/ClosedLoopLms'
+
+// hpd_L*.json 與 signmap_L*.json 是按需載入的（./lazyData）：這個檔案的測試先把它們全部載進快取，
+// 頁面第一次渲染就拿得到 golden 資料，與靜態 import 時的行為相同。
+let HPD: Record<LoopKey, HpdJson>
+let SIGNMAP: Record<LoopKey, SignMapJson>
+beforeAll(async () => {
+  ;({ HPD, SIGNMAP } = await loadAllSspllData())
+}, 60_000)
 
 const P = vi.hoisted(() => ({
   react: vi.fn(async () => undefined),
@@ -282,6 +292,9 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
       expect(container.querySelectorAll(`${sel} .katex`).length, sel).toBeGreaterThan(0)
     }
     expect(proseText(container)).not.toMatch(/\$[^$\n]{1,80}\$/) // 沒有漏掉沒渲染的 `$...$`
+    // §15 的 near-grid 區間來自按需載入的 signmap_L2.json（beforeAll 已載入）：頁面上是數字，不是「載入中」
+    expect(proseText(container)).toContain('L2 raw 的大訊號 map：466.5–508.5、1468.5–1499.5 MHz；ac 時為 490.5–513.5、1487.5–1512.5 MHz')
+    expect(container.querySelector('.cs-data-pending')).toBeNull()
     // 程式碼：region 都擷取成功、有差異行高亮、TS 與 Python 都出現
     expect(screen.queryByText(/找不到程式碼 region/)).toBeNull()
     expect(screen.queryByText(/程式碼載入錯誤/)).toBeNull()
@@ -668,11 +681,11 @@ describe('SSPLL 案例頁的公式登錄、presets 與實驗輔助函式', () =>
     expect(f14.tex).toContain(String.raw`\le\ \mathrm{Re}\,\kappa_1\ \le`)
     expect(f14.tex).not.toContain(String.raw`\le\ \kappa_1\ \le`)
     expect(f14.conditions).toContain(String.raw`\mathrm{Re}\,\kappa_1<0`)
-    // C07 + R10：遞迴與不等式不變（對任何 N_τ > 0 精確）；N_τ 是名義時間常數
+    // C07 + R10：遞迴與不等式不變（對任何 N_τ > 0 精確）；N_τ 是名義時間常數。A7a：整條式子建立在 F-CS.2 的線性化平均模型上，所以標成近似
     const f18 = by('F-CS.18')
-    expect(f18.claim).toBe('exact')
+    expect(f18.claim).toBe('approx')
     expect(f18.tex).toBe(String.raw`\theta_{k+1}=\Big(1-\frac{\kappa}{N_\tau}\Big)\theta_k,\qquad\Big\lvert1-\frac{\kappa}{N_\tau}\Big\rvert<1\iff\mathrm{Re}\,\kappa>\frac{\lvert\kappa\rvert^2}{2N_\tau}`)
-    for (const frag of ['名義時間常數', '$-1/\\ln\\lvert1-1/N_\\tau\\rvert$', '24.50', '4.48', String.raw`\mathrm{Im}\,\kappa`, String.raw`$N_\tau\equiv8/(\mu K_q)$`]) expect(f18.conditions, frag).toContain(frag)
+    for (const frag of ['名義時間常數', '$-1/\\ln\\lvert1-1/N_\\tau\\rvert$', '24.50', '4.48', String.raw`\mathrm{Im}\,\kappa`, String.raw`$N_\tau\equiv8/(\mu K_q)$`, '對任何 $N_\\tau>0$ 都精確']) expect(f18.conditions, frag).toContain(frag)
     expect(LMS_NOTE_ZH).toContain('名義時間常數')
     expect(LMS_NOTE_ZH).toContain('25 blocks')
     // 用語：SSPLL 頁（與顯示給讀者的 sspll.ts 註解）裡的「時間常數」只以「名義時間常數」出現——N_τ 是步長的倒數，不是精確的 e-folding 時間
@@ -702,7 +715,7 @@ describe('SSPLL 案例頁的公式登錄、presets 與實驗輔助函式', () =>
       const rows = m![1].split(String.raw`\\[4pt]`)
       expect(rows, id).toHaveLength(2)
       expect(rows.join(sep), id).toBe(want)
-      expect(f.claim, id).toBe('exact')
+      expect(f.claim, id).toBe(id === 'F-CS.12' ? 'approx' : 'exact') // F-CS.12 是 β→0 的漸近式（A7a：標成近似）
       expect(f.conditions, id).not.toMatch(/右邊|左邊/) // 拆成上下兩行之後，條件裡不能再用「右邊的式子」指第二行
       const { container, unmount } = render(<MathText>{`$${f.tex}$`}</MathText>)
       expect(container.querySelectorAll('.katex-error, .c-tex-error').length, id).toBe(0)
@@ -1029,12 +1042,11 @@ describe('SSPLL 案例頁的公式登錄、presets 與實驗輔助函式', () =>
     // dead zone（近整數 α = 0.002）：ρ ≈ 1 ⇒ 邊際
     expect(predictPhosVerdict(analyseAlpha(LOOPS.L2, 0.002).kappaM, muP, SIM_CFG.sigmaPs, 1500).verdict).toBe('marginal')
     // signmap 區間：L2 的 near-grid 大訊號 keep-out（文件 §15.2 步驟 5）
-    const near = (col: number[]) => [...mapIntervalsBelow(col, SIGNMAP.L2.f_MHz, -1e-3, 420, 580), ...mapIntervalsBelow(col, SIGNMAP.L2.f_MHz, -1e-3, 1420, 1580)]
-    expect(near(SIGNMAP.L2.LSinf)).toEqual([
+    expect(nearGridIntervals(SIGNMAP.L2, 'LSinf')).toEqual([
       [466.5, 508.5],
       [1468.5, 1499.5],
     ])
-    expect(near(SIGNMAP.L2.LSinf_ac)).toEqual([
+    expect(nearGridIntervals(SIGNMAP.L2, 'LSinf_ac')).toEqual([
       [490.5, 513.5],
       [1487.5, 1512.5],
     ])

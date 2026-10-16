@@ -50,7 +50,7 @@
 - 未實作 FastAPI 後端（規格 §20.1 的建議）；Python 只用於 golden-model 回歸測試。
 - 未實作 bit-true RTL、SystemVerilog assertions、AMS co-simulation（Backlog R9）。
 
-## 4. 已知限制清單（2026-10-10）
+## 4. 已知限制清單（2026-10-16 修訂）
 
 **尚未實作（頁面上皆明確標示 `Not implemented`／pending，不標成 verified）**
 - Bit-true 定點交叉比對：多數實驗的 Fixed-Point 欄為 `Not implemented`；只有 Ch04（GMAC 定點累加器）、Ch13（量化策略）、`blockLms` 的 gain register 有定點模型，且都不是 RTL bit-true。
@@ -63,12 +63,13 @@
 - 首頁（Dashboard）的雙參數健康檢查假設交叉相關矩陣是 `E[x_i[n−D]·u_j[n]] = C·R̃_ij`（`R̃ = [[1, ρ], [ρ, 1]]`，`ρ` 是兩個 regressor 的零延遲相關係數，`C` 含路徑相位與 code delay）。`θ = φ + Ω·D = 0°` 時這是精確的；兩個固定的同頻單頻 code 在 `θ ≠ 0°` 時不滿足它——真值是 `P_x·|H|·cos(θ + ψ_j − ψ_i)`，特徵值 `P_x·|H|·(cos θ ± √(ρ² − sin²θ))`（F-DB.6）；`ρ² < sin²θ` 時是一對複數，同一個 `μ` 下的 `max|z|` 可以和 `C·R̃` 的結果差很多，甚至 `≥ 1`。計算核心維持 `C·R̃`，頁面另外列出固定同頻 code 的對照值並加註；`θ ≠ 0°` 時那個燈號不能當成實體 code 的穩定保證，完整的判斷要用實際的 Jacobian（Ch10）。
 - SSPLL 案例：GOS 在 `D = 0` 不反號是數值結論（猜想，無一般證明）；PHOS mode-1「一定反號」的嚴格界限只對 `8 | Q` 或無理數 α 成立；反號帶緣只在標稱 loop gain 下成立，PVT 會移動帶緣；未建模 DTC INL、SSPD／DTC 範圍飽和、FLL 交互作用、comparator hysteresis。一階差分 regressor 對 Type-I 迴路在延遲 5 拍時不安全（使用者的設計約 1 拍，不受影響）。
 
-**和 §2a 架構約定有關、刻意保留的差異（數字不動，頁面上都有說明）**
+**和 §2a 架構約定有關、刻意保留的差異（數字不動，頁面上都有說明；前兩條是 2026-10-12 加的，第三條是 2026-10-16 加的）**
 - Unified Lab（`blockLms.ts`／`unifiedLab.ts`，`/lab` 頁）的 code 是 DSM 的原始餘數 `r[n] = −s[n]/M`（未置中的一階 DSM 為 `x ≤ 0`），和 §2a 的 `x = s/M ≥ 0` 差一個負號。模型的 `e_DTC = (a − w_app)·x` 因此和 §2a 的 `t_ref′ − t_fb` 反號：`/lab` 畫出與匯出的 `x`、`e_DTC`、`u_pd`、`t_out`、`q` 是鏡像的，`o_DTC`、`c₂`、`b` 的正負號是相對模型的 `e_DTC` 定義的。`w_k` 的收斂、`G_k`、jitter RMS、PSD、spur dBc 不受影響（gain 項與 regressor 一起變號）。改成 `x = −r` 會動到帶 offset／`c₂` 的 preset 與 golden vector，所以保留；`/lab` §4.3 與兩個檔頭有說明。
 - Ch11 勘誤 E17 的 code-dependent jitter 例子沿用勘誤的數字：jitter 最小的 code 取 `x_j = −2`（`σ_v` 隨 code 變大）。reference 端的 DTC 延遲是 `T_0 − w·x`，code 越大延遲越短，物理上 jitter 最小的應該是最大的 code（`x_j = +2`）；鏡像之後固定點由 `0.9601` 變成 `1.0399`（偏移大小不變、方向相反）。Ch11 該例（code-dependent jitter 的加權圖）下方的「方向的提醒」與互動實驗的 `x_j` 控制項都有說明，preset `bias-jitter-centering` 與 E17 的數字不動。
+- 案例頁 `/case/sspll` 的 `ε_k`（PMUX 第 `k` 相的 phase offset）以 feedback edge **早到**為正，和 `ρΔ` 一樣是 DTC 該補的量，`w_k` 加在 DTC 的補償量裡；§2a 第 5 點的「相位」則是以**晚到**為正（那是 edge 的相位誤差，這裡的 `ε_k` 是 DTC 該補的時間，兩者的對象不同）。`analysis/sspll` 的 `sim/sim.py`（`e_inj` 的 docstring）與 `sim/README.md` 從 2026-10-16 起照同一個讀法寫（早到、補償量、`u = t_ref′ − t_fb`）；之前寫的是「PMUX 第 `p` 相晚到 `ε_p`」。`u = cΔ + ε_p − (1−a)(1+w_g)(cΔ + w_p)` 的式子與所有數字不變，哪一種讀法才對由真實電路決定；改讀成「晚到為正」只會改變 `ε_k` 的正負號約定，以及案例頁 §2「極性約定」框裡 `w_k ← w_k − μqr` 的那一句註記，不影響任何結論。
 
 **呈現與驗證方式的限制**
 - 版面檢查以 jsdom 測試與瀏覽器 DOM 量測（桌面與 375 px）為主，沒有逐頁人工截圖審閱；列印的練習卷未在實體紙張上驗證（很長的代入式可能超出直式頁寬，建議橫式或縮放 80%）。
-- 方塊圖（Mermaid）的節點文字與 Plotly 圖內的軸標題、圖例無法渲染 KaTeX，保留 Unicode 數學符號；方塊圖的版面（節點重疊、換行）只在 jsdom 以估計字寬驗證，並在瀏覽器抽查數頁，未逐張人工審閱；其餘文字以 LaTeX 為原則（多數章節有測試檢查標題、指標名稱、警告中沒有 Unicode 拼湊的公式，但未逐字人工審閱）。
+- 方塊圖（Mermaid）的節點、連線與群組標題和 Plotly 的軸標題、圖例都已用 LaTeX 排版（Mermaid 經 KaTeX，Plotly 經 `plotMath.ts` 轉成 Plotly 能畫的偽 HTML），但 Plotly 的部分只支援斜體、上下標與常用符號，不是完整的 KaTeX；方塊圖的版面（節點重疊、換行）只在 jsdom 以估計字寬驗證，並在瀏覽器抽查數頁，未逐張人工審閱；其餘文字以 LaTeX 為原則（多數章節有測試檢查標題、指標名稱、警告中沒有 Unicode 拼湊的公式，但未逐字人工審閱）。
 - 手算題顯示的每一步採精確十進位運算（等同紙筆結果），答案框則是模擬函式的回傳值；兩者由測試逐題比對一致。極端輸入（12 位以上刻意相消的小數）下兩者可能在末幾位不同。
 - 所有晶片數值皆為 illustrative；文獻（Papers 頁）只作背景閱讀，不是本站數值的量測來源。

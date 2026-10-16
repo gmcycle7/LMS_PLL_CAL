@@ -179,7 +179,7 @@ export function S04MeanUpdate() {
       </p>
       <TexBlock>{r`\boxed{\ \text{小 }\mu\text{ 時，平均收斂}\iff \mathrm{Re}\,\mathrm{eig}(C)>0\ \text{（在可觀測子空間）}\ }`}</TexBlock>
       <p>
-        <Claim kind="exact">指 Bussgang 線性化、穩態平均、權重慢變（時間尺度分離）下</Claim>
+        <Claim kind="approx">指 Bussgang 線性化、穩態平均、權重慢變（時間尺度分離）下</Claim>
         若某個 eigenvalue 的實部 <Tex>{'<0'}</Tex>，那個方向的誤差會指數成長，這就是反號。這裡說的是「平均收斂」（mean convergence）；有限步長的條件更嚴（§12），大訊號與比較器 offset 另外處理（§10、§13）。
       </p>
       <Prereq title="矩陣、特徵值、可觀測子空間">

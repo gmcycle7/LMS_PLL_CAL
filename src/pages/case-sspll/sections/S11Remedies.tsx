@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from 'react'
-import { Callout, CodeCompare, ModeGate, Section, StepDerivation, Tex, mathText } from '@/components'
+import { Callout, CodeCompare, ModeGate, Section, StepDerivation, Tex, mathText, ChRef } from '@/components'
 import {
   analyseAlpha,
   gammaEff,
@@ -486,7 +486,7 @@ export function S11Remedies() {
       />
       <p>
         <Claim kind="exact" />
-        在 generic <Tex>{r`\alpha`}</Tex>，PMUX 指標每拍都在換，錯一拍等於把 regressor 換成另一相。二階差分在 <Tex>{r`f_{ref}/4`}</Tex> 以下、<Tex>{r`H\approx1`}</Tex> 的頻段相位接近 <Tex>{r`\pi`}</Tex>，會把原本安全的 <Tex>{r`\alpha`}</Tex> 反向。（第 7 章 §7.5 的「Type-II 二次差分 regressor」是<strong>低頻</strong>近似：在 Type-II 的帶內它確實像 filtered-x——L2 在 84 MHz 的{' '}
+        在 generic <Tex>{r`\alpha`}</Tex>，PMUX 指標每拍都在換，錯一拍等於把 regressor 換成另一相。二階差分在 <Tex>{r`f_{ref}/4`}</Tex> 以下、<Tex>{r`H\approx1`}</Tex> 的頻段相位接近 <Tex>{r`\pi`}</Tex>，會把原本安全的 <Tex>{r`\alpha`}</Tex> 反向。（<ChRef ch="07">第 7 章</ChRef> §7.5 的「Type-II 二次差分 regressor」是<strong>低頻</strong>近似：在 Type-II 的帶內它確實像 filtered-x——L2 在 84 MHz 的{' '}
         <Tex>{`\\kappa_{PHOS}=${fs(twoDiff.inBand, 3).replace('−', '-')}`}</Tex>——但帶外的頻道被它弄反，例如 548 MHz 的 <Tex>{`\\kappa_{PHOS}=${fs(twoDiff.outBand, 3).replace('−', '-')}`}</Tex>。PMUX 的旋轉頻率會隨頻道跑遍整個頻帶，所以不能用。）
       </p>
 

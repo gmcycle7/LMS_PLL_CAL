@@ -14,8 +14,9 @@ import {
   type LoopModels,
   type SspllLoop,
 } from '@/simulation/models/sspll'
-import { FREF_MHZ, LOOPS, LOOP_LABEL, P_ONLY, PRED, REMEDY, SIGNMAP, SIM_CFG, mapIndex, type LoopKey, type SignMapJson } from '../data'
-import { fp, fs, fx, tx, txs } from '../common'
+import { FREF_MHZ, LOOPS, LOOP_LABEL, P_ONLY, PRED, REMEDY, SIM_CFG, mapIndex, type LoopKey, type SignMapJson } from '../data'
+import { useSspllData } from '../lazyData'
+import { DataPending, fp, fs, fx, tx, txs } from '../common'
 
 export const SIGNMAP_EXPERIMENT_ID = 'sspll-signmap'
 
@@ -125,7 +126,7 @@ export function gosExactNote(varRho: number, kG: number): string {
 
 const CLASS_TEXT: Record<SignClass, string> = { inverted: '反號（不收斂）', dead: 'dead zone（幾乎沒有恢復力）', restoring: 'restoring（收斂）' }
 
-const HEAT_ROWS: { key: keyof SignMapJson; label: string }[] = [
+export const HEAT_ROWS: { key: keyof SignMapJson; label: string }[] = [
   { key: 'LSinf_Ponly_ac', label: '大訊號 $\\kappa_\\infty$：P-only + ac' },
   { key: 'kP_Ponly', label: 'PHOS：P-only' },
   { key: 'kP_2diff', label: 'PHOS：2diff' },
@@ -143,6 +144,11 @@ const HEAT_ROWS: { key: keyof SignMapJson; label: string }[] = [
   { key: 'kP', label: 'PHOS：raw（最差模態）' },
   { key: 'kG', label: 'GOS：raw' },
 ]
+
+/** 熱圖有幾列（P-only 的兩欄只有 L2、L3 有）；資料還沒載入時用它預留圖的高度，載入完版面不跳動 */
+export function heatRowCount(loop: LoopKey): number {
+  return HEAT_ROWS.length - (loop === 'L1' ? 2 : 0)
+}
 
 const COL_NEG = '#c0392b'
 const COL_DEAD = '#b9b9b9'
@@ -185,7 +191,8 @@ export function SignMapExplorer() {
   const alpha = dP.fMHz / FREF_MHZ
   const fFold = Math.min(dP.fMHz, FREF_MHZ - dP.fMHz)
   const setup = useMemo(() => modeSetup(dP.loop, dP.mode, dP.kHat), [dP.loop, dP.mode, dP.kHat])
-  const map = SIGNMAP[dP.loop]
+  // golden 的 signmap_L*.json（約 300 KB）按需載入：還沒到時，TS port 的即時結果照常顯示，兩張 sign map 圖與「golden signmap」比對先留白
+  const { data: map, status: mapStatus } = useSspllData('signmap', dP.loop, `exp-${SIGNMAP_EXPERIMENT_ID}`)
 
   // ergodic（無理數極限）諧波和：PHOS 各模態 + GOS
   const an = useMemo(() => analyseAlpha(setup.loop, alpha, setup.variant, setup.models), [setup, alpha])
@@ -203,10 +210,10 @@ export function SignMapExplorer() {
   const kern = useMemo(() => (dP.mode === 'fxTypeI' ? kernelMin(setup.loop, setup.variant, setup.models, 4001) : null), [dP.mode, setup])
 
   const iMap = mapIndex(dP.fMHz)
-  const onGrid = Math.abs(map.f_MHz[iMap] - fFold) < 1e-9
-  const jsonP = onGrid ? (column(map, setup.colP)?.[iMap] ?? null) : null
-  const jsonG = onGrid ? (column(map, setup.colG)?.[iMap] ?? null) : null
-  const jsonLS = onGrid ? (column(map, setup.colLS)?.[iMap] ?? null) : null
+  const onGrid = map !== null && Math.abs(map.f_MHz[iMap] - fFold) < 1e-9
+  const jsonP = map && onGrid ? (column(map, setup.colP)?.[iMap] ?? null) : null
+  const jsonG = map && onGrid ? (column(map, setup.colG)?.[iMap] ?? null) : null
+  const jsonLS = map && onGrid ? (column(map, setup.colLS)?.[iMap] ?? null) : null
 
   // 時域 sim（golden 存檔）：α 在 0.001 格點上、raw／1diff 才有
   const simRow = useMemo(() => {
@@ -349,6 +356,7 @@ export function SignMapExplorer() {
 
   // ── 圖 2：sign map 曲線 ──
   const lineData: Data[] = useMemo(() => {
+    if (!map) return []
     const f = map.f_MHz
     const t: Data[] = []
     const add = (key: keyof SignMapJson | null, name: string, color: string, dash?: 'dot' | 'dash' | 'dashdot') => {
@@ -393,6 +401,7 @@ export function SignMapExplorer() {
 
   // ── 圖 3：sign map 熱圖 ──
   const heat = useMemo(() => {
+    if (!map) return { data: [] as Data[], n: 0 }
     const rows = HEAT_ROWS.filter((row) => Array.isArray(map[row.key])).map((row) => ({ ...row, label: plotMath(row.label) })) // y 軸的類別名稱不經 applyPlotMath，這裡先轉
     const z = rows.map((row) => (map[row.key] as number[]).map((v) => (v < -dP.tau ? -1 : v > dP.tau ? 1 : 0)))
     const data: Data[] = [
@@ -457,7 +466,10 @@ export function SignMapExplorer() {
       metrics={metrics}
       warnings={warnings}
       crossCheck={{
-        analytic: analyticOk === null ? { status: 'n/a', note: '$\\alpha$ 不在可比對的格點上' } : { status: analyticOk ? 'ok' : 'mismatch', note: 'ergodic 諧波和 vs 精確週期／golden signmap' },
+        analytic:
+          analyticOk === null
+            ? { status: 'n/a', note: map ? '$\\alpha$ 不在可比對的格點上' : mapStatus === 'error' ? 'golden signmap 載入失敗' : 'golden signmap 載入中' }
+            : { status: analyticOk ? 'ok' : 'mismatch', note: 'ergodic 諧波和 vs 精確週期／golden signmap' },
         monteCarlo: simRow ? { status: Math.abs(simRow.sim - simRow.theory) < 3.5e-3 ? 'ok' : 'mismatch', note: 'golden 存檔的時域 sim vs 理論（非本頁即時模擬）' } : { status: 'n/a', note: '只有 $\\alpha$ 在 0.001 格點且 raw／1diff 才有 sim 存檔' },
         fixedPoint: 'n/a',
       }}
@@ -465,10 +477,13 @@ export function SignMapExplorer() {
       presets={presets}
       onLoadPreset={(pr) => setP((prev) => mergeSignParams(prev, pr.params))}
       exportData={() => {
-        const out: Record<string, ArrayLike<number | string | null>> = { f_MHz: map.f_MHz }
-        for (const row of HEAT_ROWS) {
-          const v = map[row.key]
-          if (Array.isArray(v)) out[String(row.key)] = v as number[]
+        const out: Record<string, ArrayLike<number | string | null>> = {}
+        if (map) {
+          out.f_MHz = map.f_MHz
+          for (const row of HEAT_ROWS) {
+            const v = map[row.key]
+            if (Array.isArray(v)) out[String(row.key)] = v as number[]
+          }
         }
         out.live_mode = ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'GOS']
         out.live_re_kappa = [...an.kappaM.map((k) => k.re), an.kappaGos]
@@ -548,14 +563,18 @@ export function SignMapExplorer() {
         layout={{ yaxis: { title: { text: '$\\kappa$' } }, barmode: 'overlay' }}
         caption="長條是實部 $\mathrm{Re}\,\kappa_m$（最右邊是 GOS 的 $12\,C_{GOS}$），顏色看正負：藍＝restoring、紅＝反號、灰＝dead zone；菱形是虛部 $\mathrm{Im}\,\kappa_m$（有限步長判據用）；✕ 是有理數 $\alpha$ 的精確週期值（$8\nmid Q$ 時是 Rayleigh quotient，不是特徵值）。GOS 的 ✕ 除以這個週期實際的 $\mathrm{var}(\rho)$，小 $Q$ 時是長條（$12C$）的 $\frac{b^2}{b^2-1}$ 倍（$b$ 是 $\beta$ 的最簡分母）；$C_{GOS}$ 本身相同。"
       />
-      <Plot
-        title="golden sign map：$\kappa$ 對 $\alpha f_{ref}$（星號／菱形 = 目前的 $\alpha$，TS port 即時值）"
-        data={lineData}
-        layout={lineLayout}
-        xLog={P.logX}
-        height={340}
-        csvName="sspll-signmap-lines"
-      />
+      {map ? (
+        <Plot
+          title="golden sign map：$\kappa$ 對 $\alpha f_{ref}$（星號／菱形 = 目前的 $\alpha$，TS port 即時值）"
+          data={lineData}
+          layout={lineLayout}
+          xLog={P.logX}
+          height={340}
+          csvName="sspll-signmap-lines"
+        />
+      ) : (
+        <DataPending status={mapStatus} what="golden sign map" height={340} />
+      )}
       <div className="cs-legend" aria-label="熱圖圖例">
         <span>
           <span className="cs-swatch" style={{ background: COL_POS }} />
@@ -570,7 +589,11 @@ export function SignMapExplorer() {
           反號（{mathText('$\\kappa<-\\tau$')}）
         </span>
       </div>
-      <Plot title={`sign map 熱圖（${dP.loop}，$\\tau=${dP.tau}$）：每一列是一種 regressor／模態`} data={heat.data} layout={heatLayout} height={90 + 24 * heat.n} csvName="sspll-signmap-heat" />
+      {map ? (
+        <Plot title={`sign map 熱圖（${dP.loop}，$\\tau=${dP.tau}$）：每一列是一種 regressor／模態`} data={heat.data} layout={heatLayout} height={90 + 24 * heat.n} csvName="sspll-signmap-heat" />
+      ) : (
+        <DataPending status={mapStatus} what="sign map 熱圖" height={90 + 24 * heatRowCount(dP.loop)} />
+      )}
     </ExperimentShell>
   )
 }

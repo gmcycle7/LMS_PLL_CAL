@@ -1,7 +1,24 @@
 import { Section, Tex } from '@/components'
 import { W1 } from '@/simulation/models/sspll'
-import { BAND, LOOP_KEYS, PARAMS, REMEDY, SIGNMAP, SURE_GOLDEN, mapIntervalsBelow } from '../data'
+import { BAND, LOOP_KEYS, PARAMS, REMEDY, SURE_GOLDEN, mapIntervalsBelow, type SignMapJson } from '../data'
+import { useSspllData } from '../lazyData'
 import { DataTable, Diagram, Hand, Src, fx, intervalsText, r, tx } from '../common'
+
+/**
+ * near-grid（α ≈ 1/8、3/8：α·f_ref ≈ 500、1500 MHz）的大訊號反號區間（門檻 κ < −10⁻³），直接由 signmap_L2.json 的 LSinf（raw）或 LSinf_ac（ac）欄取出。
+ * 兩段頻率窗 [420, 580]、[1420, 1580] MHz 各自取區間再接起來。
+ */
+export function nearGridIntervals(map: Pick<SignMapJson, 'f_MHz' | 'LSinf' | 'LSinf_ac'>, column: 'LSinf' | 'LSinf_ac'): [number, number][] {
+  const col = map[column]
+  return [...mapIntervalsBelow(col, map.f_MHz, -1e-3, 420, 580), ...mapIntervalsBelow(col, map.f_MHz, -1e-3, 1420, 1580)]
+}
+
+/** 行內的 near-grid 區間文字。signmap_L2.json（約 300 KB）按需載入：還沒到時先顯示「載入中」，到了之後換成數字 */
+export function NearGridIntervals({ column }: { column: 'LSinf' | 'LSinf_ac' }) {
+  const { data, status } = useSspllData('signmap', 'L2', 'cs-15')
+  if (!data) return <span className="muted">{status === 'error' ? '（資料載入失敗）' : '（載入中…）'}</span>
+  return <>{intervalsText(nearGridIntervals(data, column))}</>
+}
 
 /** §15 設計 checklist 與 α keep-out 配方。 */
 export function S15Checklist() {
@@ -10,10 +27,6 @@ export function S15Checklist() {
   const pvt = (k: 'L2' | 'L3') => [S[`${k}_gain0.6`].bands[0][1], S[`${k}_gain1.5`].bands[0][1]]
   const lowEdge = (k: 'L2' | 'L3') => PARAMS.map_j4096[k]['bands_tau0.01'][0]?.[0]
   const hi2 = BAND.L2?.hi ?? NaN
-  // near-grid（α ≈ 1/8、3/8：α·f_ref ≈ 500、1500 MHz）的大訊號反號區間，直接由 signmap_L2.json 的 LSinf／LSinf_ac 欄取出
-  const nearGrid = (col: number[]) => [...mapIntervalsBelow(col, SIGNMAP.L2.f_MHz, -1e-3, 420, 580), ...mapIntervalsBelow(col, SIGNMAP.L2.f_MHz, -1e-3, 1420, 1580)]
-  const ngRaw = nearGrid(SIGNMAP.L2.LSinf)
-  const ngAc = nearGrid(SIGNMAP.L2.LSinf_ac)
   return (
     <Section kind="assumptions" level={2} title="15. 設計 checklist 與 $\alpha$ keep-out 配方" id="cs-15">
       <h3>15.1 設計 checklist</h3>
@@ -86,7 +99,7 @@ export function S15Checklist() {
           <Tex>{`\\lvert\\alpha-\\tfrac14\\rvert f_{ref}<${tx(hi2 / 4, 1)}`}</Tex> MHz、<Tex>{`\\lvert\\alpha-\\tfrac12\\rvert f_{ref}<${tx(hi2 / 2, 1)}`}</Tex> MHz。
         </li>
         <li>
-          <strong>near-grid GOS（只在大訊號或有 offset 時）。</strong> <Tex>{r`\alpha\approx k/8`}</Tex>（<Tex>{r`\beta=\mathrm{frac}(8\alpha)\to0`}</Tex> 或 <Tex>{r`\to1`}</Tex>）時，GOS 小訊號是 dead zone，大訊號會反向。L2 raw 的大訊號 map：{intervalsText(ngRaw)} MHz；<code>ac</code> 時為 {intervalsText(ngAc)} MHz（Type-II 只去平均還不夠）。L1 只有這一類（{web.L1.n_large_signal_inverted}{' '}
+          <strong>near-grid GOS（只在大訊號或有 offset 時）。</strong> <Tex>{r`\alpha\approx k/8`}</Tex>（<Tex>{r`\beta=\mathrm{frac}(8\alpha)\to0`}</Tex> 或 <Tex>{r`\to1`}</Tex>）時，GOS 小訊號是 dead zone，大訊號會反向。L2 raw 的大訊號 map：<NearGridIntervals column="LSinf" /> MHz；<code>ac</code> 時為 <NearGridIntervals column="LSinf_ac" /> MHz（Type-II 只去平均還不夠）。L1 只有這一類（{web.L1.n_large_signal_inverted}{' '}
           點；改用 <code>ac</code> 後剩 {web.L1.n_large_signal_inverted_ac} 點）。
         </li>
         <li>

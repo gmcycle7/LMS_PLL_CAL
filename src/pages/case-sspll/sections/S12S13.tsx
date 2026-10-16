@@ -50,7 +50,7 @@ export function S12FiniteStep() {
       <DataTable className="cs-num" head={['', ...taus.map((t) => <Tex key={t}>{`N_\\tau=${t}`}</Tex>)]} rows={(['L2', 'L3'] as LoopKey[]).map((k) => [k, ...taus.map((t) => exTxt(k, t))])} />
       <p>
         例：L2 在 {fx(ex2[0][0], 1)} MHz 的 <Tex>{`\\kappa=${tx(ex2[0][1][0], 4)}+${tx(ex2[0][1][1], 4)}j`}</Tex>；L3 在 {fx(ex3[0][0], 1)} MHz 的 <Tex>{`\\kappa=${tx(ex3[0][1][0], 4)}+${tx(ex3[0][1][1], 4)}j`}</Tex>。
-        <Claim kind="exact" />
+        <Claim kind="approx">同 F-CS.18：小訊號線性化平均模型內的判斷</Claim>
         以 L2 這一點為例：<Tex>{`\\lvert\\kappa\\rvert^2/(2N_\\tau)=${tx((exRe * exRe + exIm * exIm) / (2 * exTau), 4)}`}</Tex> 比 <Tex>{`\\mathrm{Re}\\,\\kappa=${tx(exRe, 4)}`}</Tex> 大，所以 <Tex>{`N_\\tau=${exTau}`}</Tex> 時不穩定。如果只把 §8 的實部代進去，會算成{' '}
         <Tex>{`(\\mathrm{Re}\\,\\kappa)^2/(2N_\\tau)\\approx${txs((exRe * exRe) / (2 * exTau), 2)}`}</Tex>，誤判成穩定。一階差分有 disc constant（§11.1），所以不會有這個問題。另外要記得 §4.2 的推導就用到的兩個前提：Bussgang 小訊號（<Tex>{r`\lvert e\rvert\ll\sigma_v`}</Tex>），以及 LMS
         適應與迴路暫態的時間尺度分離（§4.2 把 <Tex>{r`\delta_j`}</Tex> 提到卷積外面的那一步）。
