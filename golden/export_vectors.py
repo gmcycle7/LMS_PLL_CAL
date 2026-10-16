@@ -635,6 +635,45 @@ def build_index(vectors: dict[str, dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _tol_of(vec: dict[str, Any], key: str) -> tuple[float, float]:
+    tol = dict(vec.get('tolerance') or {})
+    tol.update((vec.get('tolerance_overrides') or {}).get(key, {}))
+    return float(tol.get('abs', 0.0)), float(tol.get('rel', 0.0))
+
+
+def _close(a: Any, b: Any, abs_tol: float, rel_tol: float) -> bool:
+    """逐元素比對（和 TS 測試的規則相同：|a − b| ≤ abs + rel·|b|）；非數值要完全相等。"""
+    if isinstance(a, bool) or isinstance(b, bool):
+        return a == b
+    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+        return abs(a - b) <= abs_tol + rel_tol * abs(b)
+    if isinstance(a, list) and isinstance(b, list):
+        return len(a) == len(b) and all(_close(x, y, abs_tol, rel_tol) for x, y in zip(a, b))
+    if isinstance(a, dict) and isinstance(b, dict):
+        return a.keys() == b.keys() and all(_close(a[k], b[k], abs_tol, rel_tol) for k in a)
+    return a == b
+
+
+def vector_mismatch(on_disk: dict[str, Any], fresh: dict[str, Any]) -> str | None:
+    """
+    磁碟上的 vector 和剛算出來的是否「同一份」：中繼資料（id、說明、容忍度…）要完全相同，
+    inputs 與 expected 的數值用這個 vector 自己的容忍度比對——不同平台／NumPy 版本的浮點最後幾位會不同，
+    但只要在 TS 測試的容忍度內就不算過期。回傳第一個不一致的欄位說明；一致時回傳 None。
+    """
+    for meta in ('id', 'description_zh', 'spec_section', 'tolerance', 'tolerance_overrides', 'notes'):
+        if on_disk.get(meta) != fresh.get(meta):
+            return f'{meta} 不同'
+    for section in ('inputs', 'expected'):
+        a, b = on_disk.get(section, {}), fresh.get(section, {})
+        if a.keys() != b.keys():
+            return f'{section} 的 key 不同'
+        for key in a:
+            abs_tol, rel_tol = _tol_of(fresh, key)
+            if not _close(a[key], b[key], abs_tol, rel_tol):
+                return f'{section}.{key} 超出容忍度'
+    return None
+
+
 def dumps(obj: Any) -> str:
     return json.dumps(obj, ensure_ascii=False, indent=2, allow_nan=False) + '\n'
 
@@ -663,12 +702,16 @@ def main(argv: list[str] | None = None) -> int:
         stale = []
         for name, vec in vectors.items():
             path = args.out / f'{name}.json'
-            if not path.exists() or json.loads(path.read_text(encoding='utf-8')) != json.loads(dumps(vec)):
-                stale.append(name)
+            if not path.exists():
+                stale.append(f'{name}（缺少）')
+                continue
+            why = vector_mismatch(json.loads(path.read_text(encoding='utf-8')), json.loads(dumps(vec)))
+            if why:
+                stale.append(f'{name}（{why}）')
         if stale:
             print('過期或缺少的 vectors：' + ', '.join(stale))
             return 1
-        print(f'{len(vectors)} 個 vectors 皆為最新')
+        print(f'{len(vectors)} 個 vectors 皆為最新（數值以各 vector 自己的容忍度比對）')
         return 0
     paths = write_all(args.out)
     for p in paths:
