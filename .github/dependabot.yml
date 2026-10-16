@@ -1,0 +1,69 @@
+# 每週一（台北時間早上 9 點）檢查依賴更新。minor／patch 依「風險相近」分組成一個 PR，
+# major 不分組（一個套件一個 PR，才方便單獨評估與回退）。
+#
+# 為什麼 mermaid／katex／plotly 自成一組：它們一動，407 張方塊圖的自然寬度與上百個 LaTeX 字串
+# 的輸出都可能改變（見 docs/dev-conventions.md 與 scripts/diagram-audit.mjs、scripts/scroll-audit.mjs），
+# 合併前必須用那兩支腳本和 `scripts/screenshots.mjs --shots all-mermaid` 前後對照，不能和一般工具鏈升級混在一起。
+#
+# Dependabot 會把一個套件放進「檔案裡第一個符合的 group」，所以下面的順序有意義。
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '09:00'
+      timezone: Asia/Taipei
+    open-pull-requests-limit: 5
+    groups:
+      diagram-math:
+        patterns:
+          - mermaid
+          - katex
+          - '@types/katex'
+          - plotly.js-dist-min
+          - '@types/plotly.js-dist-min'
+        update-types: [minor, patch]
+      react:
+        patterns:
+          - react
+          - react-dom
+          - react-router-dom
+          - '@types/react'
+          - '@types/react-dom'
+        update-types: [minor, patch]
+      tooling:
+        dependency-type: development
+        update-types: [minor, patch]
+      runtime:
+        dependency-type: production
+        update-types: [minor, patch]
+
+  # golden model 的 requirements 只有下限（numpy>=2.0 等），Dependabot 只會在版本被鎖住或下限落後時開 PR；
+  # 有需要時改成 `==` 鎖版本，更新才會有明確的 diff。
+  - package-ecosystem: pip
+    directory: /golden
+    schedule:
+      interval: weekly
+      day: monday
+      time: '09:00'
+      timezone: Asia/Taipei
+    open-pull-requests-limit: 3
+    groups:
+      python:
+        patterns: ['*']
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '09:00'
+      timezone: Asia/Taipei
+    open-pull-requests-limit: 3
+    groups:
+      actions:
+        patterns: ['*']
+        update-types: [minor, patch]

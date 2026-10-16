@@ -1,7 +1,16 @@
 name: Deploy to GitHub Pages
 
+# 正常路徑：CI（ci.yml）在 main 上成功之後才部署，而且建置的就是 CI 測過的那個 commit。
+#   - 只接受 push 事件觸發的 CI（event == push）。pull request 的 CI 即使 head 分支叫 main
+#     （例如 fork 的 main）也不會進到這裡，所以這個有 pages 寫入權限的 workflow 不會
+#     checkout 來自 PR 的程式碼。
+#   - CI 失敗或被取消（新的 push 取代它）時不部署。
+# 緊急路徑：workflow_dispatch 直接建置並部署所選分支，不等 CI。只在 CI 本身壞掉、
+#   又必須先把站上線時使用，事後要補修 CI。
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -16,9 +25,16 @@ concurrency:
 
 jobs:
   build:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # workflow_run 在預設分支的最新狀態上執行，所以明確 checkout CI 測過的 commit。
+          # workflow_dispatch 沒有 workflow_run，退回目前的 github.sha。
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22

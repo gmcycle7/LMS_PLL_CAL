@@ -1,0 +1,135 @@
+name: CI
+
+# 每個 pull request 與每次 push 到 main 都會跑。deploy.yml 會等這支 workflow 在 main 上成功才部署
+# （workflow_run），所以壞掉的 commit 不會上線；緊急時仍可手動觸發 deploy.yml（workflow_dispatch）。
+#
+# Jobs（互相獨立、平行執行）：
+#   fast    型別檢查、eslint、vite build、bundle 大小預算、verification 快照格式（約 3–4 分鐘）
+#   audit   npm audit（只看會進網站的套件）。目前 continue-on-error，見該 job 的說明
+#   python  Python golden model：pytest golden、export_vectors.py --check、SSPLL golden（約 1–2 分鐘）
+#   unit    Vitest 的 node 環境測試（*.test.ts，約 106 檔、2,400 項；本機 CPU 時間約 190 s）
+#   ci-ok   把上面幾個 job 彙整成一個狀態，之後設 branch protection 只要勾這一個
+#
+# 目前「不在」CI 裡的測試：jsdom 環境的整章／整頁 smoke test（*.test.tsx，約 117 檔、3,150 項、
+# 本機 CPU 時間約 2,200 s）。它們一次渲染整章的 KaTeX、Mermaid、手算題與 inline worker，
+# 單一測試的逾時設在 120–600 s（見各檔的 vi.setConfig）；GitHub runner 只有 2–4 vCPU，
+# 又比開發機慢，直接放進來會讓 PR 要等半小時以上，還會因逾時偶發失敗。
+# 下一個 wave 會把它們用 `vitest run --shard=i/N` 的 matrix 切開（或改成 nightly + push to main），
+# 穩定之後再加進這裡。在那之前，改到章節或元件的 PR 請在本機跑 `npx vitest run <相關檔案>`。
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# 同一個分支／PR 有新的 push 時取消舊的執行。main 也一樣：舊 commit 的 CI 被取消，
+# 就不會觸發它的部署，避免「舊 commit 的部署比新 commit 晚完成」。
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 22
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  fast:
+    name: fast (typecheck, lint, build, bundle size)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npx tsc -b --noEmit
+      - name: Lint
+        run: npx eslint .
+      - name: Build
+        run: npx vite build
+      # 預算與收緊方式見 scripts/check-bundle-size.mjs 檔頭。先跑 --self-test 確保判定邏輯本身沒壞。
+      - name: Bundle size budget
+        run: |
+          node scripts/check-bundle-size.mjs --self-test
+          node scripts/check-bundle-size.mjs dist
+      # 網站上的 verified 徽章讀 src/data/verification-status.json；這裡只檢查快照的格式與有沒有失敗項目。
+      # 快照是否過期（程式改了但沒重跑 `npm run verify`）由每週的 verify-status.yml 檢查。
+      - name: Verification snapshot sanity
+        run: |
+          node scripts/verify-status-check.mjs --self-test
+          node scripts/verify-status-check.mjs --sanity
+
+  audit:
+    name: audit (production dependencies)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # TODO: 目前 `npm audit --omit=dev --audit-level=high` 會失敗（react-router-dom、mermaid、katex 等
+    # 在 ^ 範圍內已有修正版，見 maintainability 評論的依賴升級 PR）。為了不讓每個 PR 一開始就紅燈，
+    # 先 continue-on-error：這個 job 仍會顯示失敗，但不會擋住 workflow、也不會擋部署。
+    # 升級完、`npm audit --omit=dev --audit-level=high` 在本機回傳 0 之後，刪掉下面這一行，並把 audit 加進 ci-ok 的 needs。
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      # npm audit 只讀 package-lock.json，不需要 npm ci。
+      - run: npm audit --omit=dev --audit-level=high
+
+  python:
+    name: python (golden model)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: golden/requirements.txt
+      - run: pip install -r golden/requirements.txt
+      - name: Golden model tests
+        run: python3 -m pytest golden -q
+      # 確認提交的 golden/vectors/*.json 與目前的 Python 模型一致（Vitest 讀的就是這些檔案）。
+      - name: Golden vectors are up to date
+        run: python3 golden/export_vectors.py --check
+      - name: SSPLL golden model tests
+        working-directory: analysis/sspll/golden
+        run: python3 -m pytest -q
+
+  unit:
+    name: unit (vitest, node environment)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      # vite.config.ts 的 environmentMatchGlobs 讓 *.test.tsx 跑 jsdom、*.test.ts 跑 node。
+      # 這裡只跑 node 的那些（排除 *.test.tsx），jsdom 的整章 smoke test 見檔頭說明。
+      # 若 vite.config.ts 改成 vitest projects，這一行改成 `npx vitest run --project unit`。
+      - name: Vitest (node environment)
+        run: npx vitest run --exclude '**/*.test.tsx'
+
+  ci-ok:
+    name: ci-ok
+    if: always()
+    needs: [fast, python, unit]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every job to succeed
+        run: |
+          echo "fast=${{ needs.fast.result }} python=${{ needs.python.result }} unit=${{ needs.unit.result }}"
+          test "${{ needs.fast.result }}" = success
+          test "${{ needs.python.result }}" = success
+          test "${{ needs.unit.result }}" = success
