@@ -35,7 +35,7 @@ jobs:
           # workflow_run 在預設分支的最新狀態上執行，所以明確 checkout CI 測過的 commit。
           # workflow_dispatch 沒有 workflow_run，退回目前的 github.sha。
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
