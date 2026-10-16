@@ -25,6 +25,13 @@ export const SYMBOLS: SymbolEntry[] = [
   { symbol: 'd', meaning: '更新／commit 延遲', unit: '\\text{blocks}', firstSeen: '§4' },
   { symbol: 'g=\\mu K,\\ p=1-g', meaning: '無因次迴路增益與一階 pole', unit: '—', firstSeen: '§3' },
   { symbol: 'g_\\text{crit}(d)', meaning: '更新延遲 $d$ 時的臨界增益 $2\\sin\\frac{\\pi}{4d+2}$', unit: '—', firstSeen: '§4' },
+  {
+    symbol: 'k_{95}',
+    meaning: '收斂到初值 5% 以內的 block 數：平均遞迴 $y_{k+1}=y_k-g\\,y_{k-d}$（$y_j=1,\\ j\\le0$）最後一次 $|y_k|>0.05$ 的下一個 block，逐 block 數出來',
+    unit: '\\text{blocks}',
+    firstSeen: '§4',
+    note: '$d=0$ 時等於 $\\lceil\\ln0.05/\\ln\\rho\\rceil$；$d\\ge1$ 時那個式子只是「$\\rho$ 漸近估計」（$\\rho^k$ 不是包絡），不拿來判定。$\\rho$ 是 $z^{d+1}-z^d+g=0$ 的最大根絕對值',
+  },
   { symbol: '\\sigma_\\eta^2', meaning: 'GMAC block 雜訊變異數（$\\pm1$ code、近平衡時 $\\approx1/N$）', unit: '—', firstSeen: '§2' },
   { symbol: '\\mathrm{se},\\ z', meaning: '估計值的標準誤、判決用的信心倍數', unit: '—', firstSeen: '§0' },
   { symbol: '\\mathbf J,\\ \\hat{\\mathbf J}', meaning: '多參數 Jacobian $\\partial E[\\mathbf G]/\\partial\\mathbf w$ 與其量測值', unit: '\\mathrm{fs}^{-1}', firstSeen: '§2.5' },

@@ -31,6 +31,9 @@ import {
   type Rng,
 } from '@/simulation/core'
 import { corrSingleTone, ctHpd, ctT, polarityMarginDeg, singleToneFir } from '@/simulation/models/pll'
+import { settleDelayed, SETTLE_MAX_STEPS } from '@/pages/dashboard/thesisModel'
+import { buildSignLmsMcConfig, compareMcToLinear, simulateDelayRecursion, type McComparison, type SignLmsMcSetup } from '@/simulation/models/stability'
+import type { BlockLmsConfigInput, BlockLmsMonteCarloResult } from '@/simulation/models/blockLms'
 
 /** 一個實驗每次重算可用的 comparator sample 上限（超過就自動減少 block 數／掃描點數並提示）。 */
 export const SAMPLE_BUDGET = 200_000
@@ -756,7 +759,14 @@ export interface CornerRowResult {
   g: number
   rho: number
   pm: number
+  /**
+   * k₉₅：平均遞迴 y_{k+1} = y_k − g·y_{k−d}（初始歷史 y_j = 1）最後一次 |y_k| > 0.05 的下一個 block——pass/fail 用的就是它
+   * （和首頁同一個 settleDelayed）。不穩定時 ∞。settle95Exact = false 時逐 block 沒有數完（極慢的 mode），這個數字只是下界／漸近估計，畫面要寫「≥」。
+   */
   settle95: number
+  settle95Exact: boolean
+  /** ρ 的漸近估計 max(1, ⌈ln 0.05/ln ρ⌉)：d = 0 與 k₉₅ 相同；d ≥ 1 時 ρ^k 不是包絡，可能比 k₉₅ 多、也可能少（只顯示，不判定） */
+  settleAsym: number
   sigmaW: number
   ok: { polarity: boolean; stable: boolean; pm: boolean; settle: boolean; noise: boolean }
 }
@@ -765,19 +775,23 @@ export interface CornerRowResult {
 /**
  * 同一組 (μ, d) 必須通過「所有」corner：K_c = K_q(σ_v,c)·cos θ_c，g_c = μK_c，
  *   極性：K_c > 0；穩定：ρ_c < 1（z^{d+1} − z^d + g_c 的根）；PM_c ≥ PM_t；
- *   收斂：k₉₅ = max(1, ⌈ln 0.05/ln ρ_c⌉) ≤ B；雜訊：σ_w,c = μσ_η√(Σh²) ≤ 預算（σ_η² ≈ 1/N）。
+ *   收斂：k₉₅ ≤ B，k₉₅ 是平均遞迴 y_{k+1} = y_k − g_c·y_{k−d} 逐 block 數出來的（settleDelayed，初始歷史 y_j = 1）；
+ *         ⌈ln 0.05/ln ρ_c⌉ 只在 d = 0 精確，d ≥ 1 時 ρ^k 不是包絡，所以只當「ρ 漸近估計」另列、不拿來判定；
+ *   雜訊：σ_w,c = μσ_η√(Σh²) ≤ 預算（σ_η² ≈ 1/N）。
  */
 export function cornerJudge(
   corners: CornerSpec[],
-  o: { mu: number; d: number; pmTargetDeg: number; B: number; N: number; sigmaWMax: number },
+  o: { mu: number; d: number; pmTargetDeg: number; B: number; N: number; sigmaWMax: number; settleMaxSteps?: number },
 ): CornerRowResult[] {
   return corners.map((c) => {
     const K = kq(c.sigmaV) * Math.cos((c.thetaDeg * Math.PI) / 180)
     const g = o.mu * K
     const { rho } = delayPoles(g, o.d)
     const pm = pmDeg(g, o.d)
-    // ρ = 0（deadbeat，g = 1、d = 0）時 ln ρ = −∞ ⇒ 商為 0；但仍需要「一次」更新才到位，所以至少 1
-    const settle95 = rho < 1 ? Math.max(1, Math.ceil(Math.log(0.05) / Math.log(rho))) : Infinity
+    // 漸近估計：ρ = 0（deadbeat，g = 1、d = 0）時 ln ρ = −∞ ⇒ 商為 0；但仍需要「一次」更新才到位，所以至少 1
+    const settleAsym = rho < 1 ? Math.max(1, Math.ceil(Math.log(0.05) / Math.log(rho))) : Infinity
+    // 判定用的 k₉₅：d = 0 時就是上面的封閉式；d ≥ 1 逐 block 數（沒數完時 exact = false，回傳漸近估計當下界）
+    const { blocks: settle95, exact: settle95Exact } = rho < 1 ? settleDelayed(g, o.d, 0.05, o.settleMaxSteps ?? SETTLE_MAX_STEPS) : { blocks: Infinity, exact: true }
     const sigmaW = rho < 1 ? o.mu * Math.sqrt((1 / o.N) * noiseGainSum(g, o.d)) : Infinity
     return {
       name: c.name,
@@ -786,6 +800,8 @@ export function cornerJudge(
       rho,
       pm,
       settle95,
+      settle95Exact,
+      settleAsym,
       sigmaW,
       ok: {
         polarity: K > 0,
@@ -835,13 +851,98 @@ export function cornerFeasibleScan(
   const n = mu.length
   const rho = corners.map(() => new Array<number>(n).fill(NaN))
   const ok = new Array<boolean>(n).fill(false)
+  // 格點上只需要知道 k₉₅ ≤ B 與否：能通過的 mode 在 ~20B 步內就衰減到停止規則的門檻，數不完的一定是極慢（k₉₅ ≫ B）的 mode，
+  // 逐 block 的步數上限因此取 50B + 5000（極端的 K 散佈、很小的 g 時不會把掃描拖到秒級）；單點的 cornerJudge 仍用 settleDelayed 的完整上限。
+  const settleMaxSteps = Math.min(SETTLE_MAX_STEPS, 50 * o.B + 5000)
   for (let i = 0; i < n; i++) {
-    const rows = cornerJudge(corners, { ...o, mu: mu[i] })
+    const rows = cornerJudge(corners, { ...o, mu: mu[i], settleMaxSteps })
     rows.forEach((r, c) => (rho[c][i] = r.rho))
     ok[i] = rows.length > 0 && rows.every((r) => r.ok.polarity && r.ok.stable && r.ok.pm && r.ok.settle && r.ok.noise)
   }
   const idx = ok.map((v, i) => (v ? i : -1)).filter((i) => i >= 0)
   return { mu, rho, ok, lo: idx.length ? mu[idx[0]] : NaN, hi: idx.length ? mu[idx[idx.length - 1]] : NaN }
+}
+
+/* ───────────────────── Corner 判斷器的 Monte Carlo 交叉比對 ───────────────────── */
+
+/** 交叉比對跑 8 個 seeds（blockLms 的 deriveSeed(seed, i)，i = 0…7）。 */
+export const CORNER_MC_RUNS = 8
+/** MC 的每 block 樣本數：平均軌跡與 N 無關（N 只決定雜訊），取 512 讓 8 seeds × 300 block 約 120 萬個 comparator sample。 */
+export const CORNER_MC_N = 512
+/** MC 最多跑幾個 block。 */
+export const CORNER_MC_MAX_BLOCKS = 300
+/** 初始誤差 δ₀ = 0.2σ_v：K_q 線性化的相對誤差約 δ₀²/(6σ_v²) ≈ 0.7%（compareMcToLinear 的容許量已含這一項）。 */
+export const CORNER_MC_DELTA0_RATIO = 0.2
+
+export interface CornerMcPlan {
+  /** 被比對的 corner 名稱與在 corners 中的序號 */
+  name: string
+  index: number
+  /** buildSignLmsMcConfig 的輸入：g = 該 corner 的 μK_c（K_q cos θ 吸收進 μ_eff = g/K_q），identity path、iid ±1 code */
+  setup: SignLmsMcSetup
+  runs: number
+  /** 該 corner 的 k₉₅（逐 block） */
+  k95: number
+  /** blocks 涵蓋不到 k₉₅（k₉₅ ≥ blocks）：只比對前 blocks 個 block */
+  truncated: boolean
+}
+
+/**
+ * 挑出要做 Monte Carlo 的 corner：所有「極性正確且穩定」的 corner 中 k₉₅ 最大者（決定「收斂」這一項判定的那一個）。
+ * 沒有這樣的 corner（全部極性錯誤或不穩定）時回傳 null——線性化的平均模型發散，sign-LMS 的 |G| ≤ 1 讓實際誤差有界（limit cycle），比對沒有意義。
+ */
+export function cornerMcPlan(corners: CornerSpec[], rows: CornerRowResult[], d: number, seed: number): CornerMcPlan | null {
+  let best = -1
+  rows.forEach((r, i) => {
+    if (r.ok.polarity && r.ok.stable && (best < 0 || r.settle95 > rows[best].settle95)) best = i
+  })
+  if (best < 0) return null
+  const r = rows[best]
+  const sigmaV = corners[best].sigmaV
+  const blocks = Math.min(CORNER_MC_MAX_BLOCKS, Math.max(40, Math.ceil(1.5 * r.settle95) + 10))
+  return {
+    name: corners[best].name,
+    index: best,
+    setup: { g: r.g, d, sigmaV, N: CORNER_MC_N, delta0: CORNER_MC_DELTA0_RATIO * sigmaV, blocks, seed: seed >>> 0 },
+    runs: CORNER_MC_RUNS,
+    k95: r.settle95,
+    truncated: !(r.settle95 < blocks),
+  }
+}
+
+/** blockLms 的設定（average 模式、iid ±1 code、identity path、bipolar comparator）：μ = g/K_q(σ_v)，cal_update_delay_blocks = d */
+export function cornerMcConfig(plan: CornerMcPlan): BlockLmsConfigInput {
+  return buildSignLmsMcConfig(plan.setup)
+}
+
+export interface CornerMcCheck {
+  plan: CornerMcPlan
+  /** Student-t·SE（Bonferroni）＋線性化容許量 的逐 block 比較（stability.compareMcToLinear，和 Ch08 PM Lab 同一個函式） */
+  cmp: McComparison
+  /** 第 k₉₅ 個 block 的 |δ|/δ₀：MC 平均（se 為 8 seeds 的標準誤）與逐 block 遞迴；blocks 涵蓋不到 k₉₅ 時為 null */
+  atK95: { k: number; mc: number; se: number; lin: number } | null
+  /** blockLms 回報的有效 g（由實際 code 估計 C）：應等於 plan.setup.g */
+  gEff: number
+}
+
+/**
+ * 把 blockLms 的 Monte Carlo 結果（wMean、wStd，跨 seeds）和「逐 block 的平均遞迴」比對：
+ * δ_MC,k = δ₀ − mean(w_k) 對 δ_k = δ_{k−1} − g·δ_{k−1−d}（k − d < 0 時的歷史 = δ₀，與 blockLms 的 DTC 時序相同）。
+ * pass 只看 compareMcToLinear（全部 block）；有效 g 與指定 g 差超過 10⁻⁶ 時視為不一致（設定沒有套用）。
+ */
+export function compareCornerMc(plan: CornerMcPlan, res: Pick<BlockLmsMonteCarloResult, 'wMean' | 'wStd' | 'analytic'>): CornerMcCheck {
+  const { g, d, delta0, blocks, sigmaV } = plan.setup
+  const deltaMc = Array.from(res.wMean, (w) => delta0 - w)
+  const lin = simulateDelayRecursion(g, d, blocks, delta0).delta
+  const cmp = compareMcToLinear(deltaMc, res.wStd, plan.runs, lin, delta0, sigmaV)
+  const gEff = res.analytic.g
+  const gMatch = Math.abs(gEff - g) <= 1e-6 * Math.max(1, Math.abs(g))
+  const k = plan.k95
+  const atK95 =
+    Number.isFinite(k) && k < deltaMc.length
+      ? { k, mc: Math.abs(deltaMc[k]) / delta0, se: res.wStd[k] / Math.sqrt(plan.runs) / delta0, lin: Math.abs(lin[k]) / delta0 }
+      : null
+  return { plan, cmp: gMatch ? cmp : { ...cmp, pass: false }, atK95, gEff }
 }
 
 /** 週期序列的 DFT 幅度 |X_k|/T（k = 0..T−1；O(T²)，只用於 T ≤ 1024 的 limit cycle）。 */

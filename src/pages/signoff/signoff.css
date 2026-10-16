@@ -412,9 +412,23 @@
   }
 }
 
+/* Corner 判斷器的結果表有 9 欄：縮小欄距，讓實驗的結果欄（約 530 px）放得下、不必橫向捲動 */
+.so-corner-table {
+  font-size: 0.87rem;
+}
+.so-corner-table th,
+.so-corner-table td {
+  padding: 5px 5px;
+}
+/* 表頭的中文只在明確的 <br> 換行：欄寬吃緊時，不讓瀏覽器把「漸近」拆成一字一行 */
+.so-corner-table th {
+  word-break: keep-all;
+}
+
+/* 欄數隨實驗「參數」欄的寬度自動決定：每個 ParamControl 至少 210 px，窄的參數欄（桌機雙欄版面）排成單欄，不會互相壓住 */
 .so-corner-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
   gap: 6px 10px;
   align-items: end;
   padding: 6px 0;

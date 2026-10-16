@@ -133,14 +133,15 @@ describe('Sign-off 頁（jsdom smoke）', () => {
     const internal = hrefs.filter((h) => h.startsWith('#/') || h.startsWith('/'))
     expect(internal.length).toBeGreaterThan(80)
     for (const h of internal) expect(paths.has(h.replace(/^#/, '').split('?')[0]), h).toBe(true)
-    // 其餘的 href 只能是本頁公式錨點（MetricTable 的 #formula-F-SO.n），而且錨點存在
-    for (const h of hrefs.filter((x) => !internal.includes(x))) {
-      expect(h, h).toMatch(/^#formula-F-SO\.\d+$/)
-      expect(container.querySelector(`[id="${h.slice(1)}"]`), h).toBeTruthy()
+    // 其餘的 href 只能是本頁的公式連結（MetricTable 的 FormulaLink：'#/formulas?f=F-SO.n'，已被上面的 internal 檢查掉）；沒有 '#formula-…'
+    expect(hrefs.filter((x) => !internal.includes(x)), '不是路由的 href').toEqual([])
+    for (const a of Array.from(container.querySelectorAll('a[data-formula-link]'))) {
+      expect(container.querySelector(`[id="formula-${a.getAttribute('data-formula-link')}"]`), a.getAttribute('data-formula-link') ?? '').toBeTruthy()
     }
-    // HashRouter 下 '#formula-…' 會被當成路由：頁面根節點必須攔截，改成捲到公式（不可讓瀏覽器照預設行為換 hash）
-    const formulaLink = container.querySelector('[data-experiment="signoff-polarity-perturb"] a[href="#formula-F-SO.4"]') as HTMLAnchorElement
+    // 公式連結：本頁有這條公式就攔截、捲過去（不讓瀏覽器照預設行為換 hash）
+    const formulaLink = container.querySelector('[data-experiment="signoff-polarity-perturb"] a[data-formula-link="F-SO.4"]') as HTMLAnchorElement
     expect(formulaLink).toBeTruthy()
+    expect(formulaLink.getAttribute('href')).toBe('#/formulas?f=F-SO.4')
     const target = container.querySelector('[id="formula-F-SO.4"]') as HTMLElement
     const scrolled = vi.fn()
     target.scrollIntoView = scrolled
@@ -277,6 +278,14 @@ describe('Sign-off 頁（jsdom smoke）', () => {
     const cornerText = container.querySelector('#so-corner')?.textContent ?? ''
     expect(cornerText).toContain('漸近衰減率估計')
     expect(cornerText).not.toContain('以 spectral radius 的包絡估計')
+    // A6：k95 逐 block 數（和首頁同一個函式），⌈ln0.05/ln ρ⌉ 另列成「ρ 漸近估計」、不拿來判定；符號表有 k95 這一列
+    expect(cornerText).toContain('怎麼數')
+    expect(cornerText).toContain('逐 block 要 7')
+    expect(cornerText).toContain('漸近估計')
+    expect(cornerText).toContain('Fixed-point 判斷器')
+    const k95Row = SYMBOLS.find((r) => r.symbol === 'k_{95}')
+    expect(k95Row?.firstSeen).toBe('§4')
+    expect(String(k95Row?.note)).toContain('漸近估計')
     // §8（docs/assumptions.md §2a）：DTC 在 reference 輸入端，殘差在 PD 的 reference 輸入注入，θ_out = +T·φ_dtc（正號）
     const strat = container.querySelector('#so-strategy') as HTMLElement
     const stratWalk = fig('從 gain code 偏差到輸出').closest('.so-diagram')?.querySelector('.so-diagram-walk')?.textContent ?? ''
