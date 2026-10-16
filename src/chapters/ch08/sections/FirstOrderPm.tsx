@@ -16,6 +16,7 @@ import {
   TexBlock,
   TestBadge,
   useThemeTokens,
+  ChRef,
 } from '@/components'
 import stabilitySrc from '@/simulation/models/stability.ts?raw'
 import { calLoopGain, loopMargins, pmFirstOrder, simulateDelayRecursion } from '@/simulation/models/stability'
@@ -372,7 +373,7 @@ export function FirstOrderPm() {
             {rich(String.raw`$g=1.5$ 的 $PM$ 還有 $${tx(g15.pmDeg, 1)}^\circ$，看起來不差——但 $DM$ 只有 $${tx(g15.delayMarginBlocks, 3)}$ block，`)}<strong>只要 pipeline 多一個 block 就發散</strong>（下一節）。PM 小的代價不是「慢」，是「對延遲脆弱」。
           </li>
           <li>
-            實際設計還要另外檢查：低恢復力（<Tex>{'C'}</Tex> 小）、GMAC noise（Ch12：<Tex>{'\\sigma_w\\propto\\mu/\\sqrt{N(1-p^2)}'}</Tex>）、bias（Ch11）、輸入激勵（Ch09）。
+            實際設計還要另外檢查：低恢復力（<Tex>{'C'}</Tex> 小）、GMAC noise（<ChRef ch="12">Ch12</ChRef>：<Tex>{'\\sigma_w\\propto\\mu/\\sqrt{N(1-p^2)}'}</Tex>）、bias（<ChRef ch="11">Ch11</ChRef>）、輸入激勵（<ChRef ch="09">Ch09</ChRef>）。
             <ClaimTag kind="approx" />
           </li>
         </ul>

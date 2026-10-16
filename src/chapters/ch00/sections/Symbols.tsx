@@ -1,4 +1,4 @@
-import { Section, SymbolTable, Tex, type SymbolEntry } from '@/components'
+import { Section, SymbolTable, Tex, type SymbolEntry, ChRef } from '@/components'
 import { ErratumNote, ErratumRef, PageLink, scrollToId } from '../common'
 
 /** 章末符號表外層的 DOM id（docs/teaching-style.md §5：全站每一章都用 `symbols`）。 */
@@ -316,7 +316,7 @@ export const SYMBOLS: SymbolEntry[] = [
     firstSeen: '§0.10',
     note: (
       <>
-        <Tex>{'w^*-a'}</Tex> 就是 calibration bias（Ch11）
+        <Tex>{'w^*-a'}</Tex> 就是 calibration bias（<ChRef ch="11">Ch11</ChRef>）
       </>
     ),
   },

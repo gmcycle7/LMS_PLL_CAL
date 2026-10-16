@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import { buildCodeDistribution, fixedPoint, meanGmacSign, mseFixedPoint, type ErrorModel } from '@/simulation/models/bias'
 import { F } from '../formulas'
 import { CODE_KIND_TEX, Erratum, chop, num, m, texNum } from '../common'
@@ -125,7 +125,7 @@ export function CorrelatedSection() {
             <tr>
               <td>額外 training sequence</td>
               <td>在 DTC 端加入一個耦合路徑看不到的已知 test code（或 dither）<Tex>{'s[n]'}</Tex>，改用 <Tex>{'s'}</Tex> 當 GMAC regressor</td>
-              <td>動態範圍、額外的 spur（Ch12）</td>
+              <td>動態範圍、額外的 spur（<ChRef ch="12">Ch12</ChRef>）</td>
             </tr>
             <tr>
               <td>Chopping / code randomization</td>
@@ -149,7 +149,7 @@ export function CorrelatedSection() {
       </div>
       <ModeGate min="engineer">
         <p className="small">
-          數學上這和 Ch09 的 gauge freedom 是同一件事：把 <Tex>{'(a,\\kappa)'}</Tex> 當成兩個未知數，資料只依賴 <Tex>{'a+\\kappa'}</Tex>。兩個參數各自的 regressor 都是{' '}
+          數學上這和 <ChRef ch="09">Ch09</ChRef> 的 gauge freedom 是同一件事：把 <Tex>{'(a,\\kappa)'}</Tex> 當成兩個未知數，資料只依賴 <Tex>{'a+\\kappa'}</Tex>。兩個參數各自的 regressor 都是{' '}
           <Tex>{'x'}</Tex>，所以它們的「資訊矩陣」（regressor 兩兩相乘的期望值）是
         </p>
         <TexBlock>{String.raw`\mathbf R=E\!\left[\begin{bmatrix}x\\x\end{bmatrix}\begin{bmatrix}x&x\end{bmatrix}\right]=E[x^2]\begin{bmatrix}1&1\\1&1\end{bmatrix}`}</TexBlock>

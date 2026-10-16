@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { ClaimTag, CodeBlock, ModeGate, Quiz, Recap, Section, StepDerivation, Tex, TexBlock } from '@/components'
+import { ClaimTag, CodeBlock, ModeGate, Quiz, Recap, Section, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import biasSrc from '@/simulation/models/bias.ts?raw'
 import goldenPy from '../../../../golden/lms_pll_golden/bias.py?raw'
 import { analyzeBias, buildCodeDistribution, codeMoments, fixedPoint, mseFixedPoint, signWeightedMedian, type ErrorModel } from '@/simulation/models/bias'
@@ -160,7 +160,7 @@ export function WrapSection() {
           回到開場的問題：GMAC 歸零了，DTC error 是零嗎？<FigRef id="verdict-tree" /> 把整章濃縮成一棵判斷樹。先看最上面兩個問題：先確認恢復斜率{' '}
           <Tex>{'S=K_qC'}</Tex> 是正的（真的收斂，而不是極性錯誤），再問 comparator 前是不是只有 gain 誤差與零均值雜訊 —— 兩題都答「是」才走到綠色的{' '}
           <Tex>{'w^*=a'}</Tex>。再看下半：多出來的每一項各對應本章的一節；最後的藍色六角形是 Sign-LMS 專屬的線性化檢查（勘誤 E01）。樹的前兩層對應下表的
-          Convergence，其餘對應 Accuracy；PLL performance 要到 Ch12 之後才能回答。
+          Convergence，其餘對應 Accuracy；PLL performance 要到 <ChRef ch="12">Ch12</ChRef> 之後才能回答。
         </p>
         <Fig id="verdict-tree" />
         <div className="table-wrap">
@@ -195,7 +195,7 @@ export function WrapSection() {
               <tr>
                 <td>PLL performance</td>
                 <td>殘差 pattern 經 PLL 後的 jitter、fractional spur？</td>
-                <td>Ch12（noise / spur）、Ch13（量化）、Unified Lab</td>
+                <td><ChRef ch="12">Ch12</ChRef>（noise / spur）、<ChRef ch="13">Ch13</ChRef>（量化）、Unified Lab</td>
                 <td>所有 PVT / FCW 都合格（需 sign-off）</td>
               </tr>
             </tbody>
@@ -411,7 +411,7 @@ export function WrapSection() {
       />
       <p className="small muted">
         下一個值得研究的問題：如果同時用 <Tex>{'x'}</Tex> 與 <Tex>{'x^3'}</Tex> 兩個 regressor 做二參數 Sign-LMS，三階 INL 能被完全消除嗎？對 5-level code，<Tex>{'E[x^4]'}</Tex>、
-        <Tex>{'E[x^6]'}</Tex> 組成的資訊矩陣條件數是多少？（提示：Ch09 的 PE 與 Ch10 的 preconditioner。）
+        <Tex>{'E[x^6]'}</Tex> 組成的資訊矩陣條件數是多少？（提示：<ChRef ch="09">Ch09</ChRef> 的 PE 與 <ChRef ch="10">Ch10</ChRef> 的 preconditioner。）
       </p>
       <TexBlock>{String.raw`\mathbf R=\begin{bmatrix}E[x^2]&E[x^4]\\E[x^4]&E[x^6]\end{bmatrix}=\begin{bmatrix}${texNum(q.mo5.Ex2)}&${texNum(q.mo5.Ex4)}\\${texNum(q.mo5.Ex4)}&${texNum(q.mo5.Ex6)}\end{bmatrix}`}</TexBlock>
     </>

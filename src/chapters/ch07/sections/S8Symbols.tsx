@@ -1,4 +1,4 @@
-import { SymbolTable, Tex, type SymbolEntry } from '@/components'
+import { SymbolTable, Tex, type SymbolEntry, ChRef } from '@/components'
 import { ErratumNote } from '../ErratumNote'
 
 const r = String.raw
@@ -132,7 +132,7 @@ export const SYMBOLS: SymbolEntry[] = [
     meaning: <>comparator 輸入中由 code 決定的部分（訊號；雜訊是 <Tex>{'v'}</Tex>）</>,
     unit: r`\mathrm{fs}`,
     firstSeen: '§7.4',
-    note: <>與 Ch05 的 <Tex>{'s'}</Tex> 相同；不要和 §7.5 連續時間原型 <Tex>{r`H_{\mathrm{PD}}(s)`}</Tex> 的 Laplace 變數 <Tex>{'s'}</Tex> 混淆</>,
+    note: <>與 <ChRef ch="05">Ch05</ChRef> 的 <Tex>{'s'}</Tex> 相同；不要和 §7.5 連續時間原型 <Tex>{r`H_{\mathrm{PD}}(s)`}</Tex> 的 Laplace 變數 <Tex>{'s'}</Tex> 混淆</>,
   },
   { symbol: r`\eta_k,\ \sigma_w`, meaning: <>GMAC 每個 block 的平均雜訊；穩態時 <Tex>{'w'}</Tex> 的標準差（抖動）</>, unit: r`-,\ \mathrm{fs}`, firstSeen: '§7.4', note: 'Ch12 的主題' },
   {

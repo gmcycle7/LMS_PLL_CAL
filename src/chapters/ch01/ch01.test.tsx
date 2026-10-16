@@ -1162,7 +1162,7 @@ describe('審查 R08：F-01.16 右式（μ/2、μ、0）是小步長近似，不
       const row = pick(re)
       expect(shownText(row.querySelector('td')), String(re)).toContain('analytic = 格點鏈數值解（不是 F-01.16 右式的小步長近似）；容忍度')
       expect(row.querySelector('.c-claim')?.className, String(re)).toMatch(/c-claim-exact/)
-      expect(row.querySelector('a[href="#formula-F-01.16"]'), String(re)).toBeTruthy()
+      expect(row.querySelector('a[data-formula-link="F-01.16"]'), String(re)).toBeTruthy()
       // 預設 μ = 0.2、w0 = 1：解析值 0.1（= μ/2，差 4.7e−24）
       expect(row.querySelector('td[data-label="解析值"]')?.textContent, String(re)).toBe('0.1')
     }

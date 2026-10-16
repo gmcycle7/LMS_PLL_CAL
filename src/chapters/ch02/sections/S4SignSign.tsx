@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { Data } from 'plotly.js-dist-min'
-import { Callout, ClaimTag, CodeBlock, Derivation, ModeGate, Plot, Prereq, Quiz, Section, SourceTag, StepDerivation, Tex, TexBlock, useThemeTokens } from '@/components'
+import { Callout, ClaimTag, CodeBlock, Derivation, ModeGate, Plot, Prereq, Quiz, Section, SourceTag, StepDerivation, Tex, TexBlock, useThemeTokens, ChRef } from '@/components'
 import sgdSrc from '@/simulation/models/sgd.ts?raw'
 import { meanFieldAnalysis, meanFieldDrift, noiseOps, ratioFixedPoints, xMoments, type MeanFieldInput, type XKind } from '@/simulation/models/sgd'
 import { ALGO_SERIES, ChapterLink, Diagram, ErrataNote, HandCalcSlot, f4, range, DerivFold, tm } from '../common'
@@ -98,7 +98,7 @@ export function S4SignSign() {
             所以「平均」只看數值的大小（一個 outlier 就能把它拉走），「中位數」只看排序（outlier 再大也只算一票）。<Tex>{'c_i\\equiv1'}</Tex> 時就是一般的平均與中位數。
           </p>
           <p>
-            先算一次（Ch01 的例子）：<Tex>{String.raw`r=\{0,\,0,\,0,\,10\}`}</Tex>、權重都是 1。平均 <Tex>{String.raw`(0+0+0+10)/4=${f4(dc.lms)}`}</Tex>；
+            先算一次（<ChRef ch="01">Ch01</ChRef> 的例子）：<Tex>{String.raw`r=\{0,\,0,\,0,\,10\}`}</Tex>、權重都是 1。平均 <Tex>{String.raw`(0+0+0+10)/4=${f4(dc.lms)}`}</Tex>；
             中位數：比 <Tex>{'m=0'}</Tex> 大的只有 1 票、不比它大的有 3 票，所以 <Tex>{String.raw`m=${f4(dc.signSign[0])}`}</Tex>。把那個 10 換成 1000，平均變成 250，中位數還是 0。
           </p>
         </Prereq>

@@ -1,4 +1,4 @@
-import { Callout, ClaimTag, CodeBlock, Mermaid, ModeGate, Quiz, Recap, Section, SourceTag, StepDerivation, Tex } from '@/components'
+import { Callout, ClaimTag, CodeBlock, Mermaid, ModeGate, Quiz, Recap, Section, SourceTag, StepDerivation, Tex, ChRef } from '@/components'
 import pyStability from '../../../../golden/lms_pll_golden/stability.py?raw'
 import { useMemo } from 'react'
 import { analyzeGeneral, comparatorKq, delayCriticalGain, pmFirstOrder, pmWithDelay, stableIntervalsNumeric, type ObservationSystem } from '@/simulation/models/stability'
@@ -70,7 +70,7 @@ export function Wrapup() {
               </tr>
               <tr>
                 <td>修正方法</td>
-                <td>delay alignment、filtered-x（Ch07）</td>
+                <td>delay alignment、filtered-x（<ChRef ch="07">Ch07</ChRef>）</td>
                 <td>{rich(String.raw`降 $\mu$、縮短 pipeline、改善觀測動態`)}</td>
               </tr>
             </tbody>
@@ -198,7 +198,7 @@ export function Wrapup() {
                   REG_CAL_MU（或 shift 量） <Tex>{'\\times'}</Tex> comparator 統計增益 <Tex>{'\\times'}</Tex> 相關
                 </td>
                 <td>
-                  <Tex>{'K_q=\\sqrt{2/\\pi}/\\sigma_v'}</Tex>（Ch05）；<Tex>{'C'}</Tex> 由 Ch06 或量測斜率 <Tex>{'S_{\\mathrm{GMAC}}'}</Tex>
+                  <Tex>{'K_q=\\sqrt{2/\\pi}/\\sigma_v'}</Tex>（<ChRef ch="05">Ch05</ChRef>）；<Tex>{'C'}</Tex> 由 <ChRef ch="06">Ch06</ChRef> 或量測斜率 <Tex>{'S_{\\mathrm{GMAC}}'}</Tex>
                 </td>
               </tr>
               <tr>
@@ -408,7 +408,7 @@ export function Wrapup() {
       <ModeGate min="engineer">
         <Callout kind="info" title="下一個值得研究的問題">
           <ul>
-            <li>Ch09：迴路穩定不代表每個參數都學得到（Persistent Excitation、eigenvalue）。</li>
+            <li><ChRef ch="09">Ch09</ChRef>：迴路穩定不代表每個參數都學得到（Persistent Excitation、eigenvalue）。</li>
             <li>{rich(String.raw`Ch12：選了 $g$ 之後，GMAC noise 怎麼變成 $\sigma_w$ 與 output jitter（$g$ 越大越吵）。`)}</li>
             <li>{rich(String.raw`Ch14：PM、noise、收斂時間三者一起決定最佳 $\mu$ 與 $N$。`)}</li>
             <li>{rich(String.raw`附錄 R7：真正的 Fractional-N PLL closed-loop state-space 取代本章抽象的 $F(z)$。`)}</li>

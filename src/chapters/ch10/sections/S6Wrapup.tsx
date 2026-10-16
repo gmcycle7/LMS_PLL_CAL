@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Callout, ClaimTag, Quiz, Recap, Section, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, Quiz, Recap, Section, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import { DEFAULT_RULE, analyzeRule, buildPlant, corrMatrix, inspectMatrix, kqFromSigma, stepsToDecay, stepsToDecayReal } from '@/simulation/models/mimo'
 import { inv } from '@/simulation/core'
 import { Erratum, Fig, Hand, n, tn } from '../common'
@@ -57,14 +57,14 @@ export function S6Wrapup() {
             <ClaimTag kind="exact" /> 598 / 5 / 65 這些 block 數是 <strong>mean recursion</strong>（很多次實驗的平均誤差）的結果，而且以「一個 block 平均{' '}
             <Tex>{'N'}</Tex> 個 sample」為前提。本章的線性 block 模型裡雜訊是加成的（<Tex>{String.raw`-\mathbf M\boldsymbol\eta_k`}</Tex>），所以均方（mean-square）穩定條件與平均穩定條件相同（
             <Tex>{String.raw`\rho(\mathbf A_{\mathrm{cal}})<1`}</Tex>），代價只反映在穩態共變異 F-10.15。若改成每個 sample 都更新（<Tex>{'N=1'}</Tex>）的 conventional 多位元 LMS，regressor
-            本身的隨機性會變成乘性雜訊，<Tex>{String.raw`\mu=0.5`}</Tex> 在 mean-square 意義下會發散——那是第 9 章的內容
+            本身的隨機性會變成乘性雜訊，<Tex>{String.raw`\mu=0.5`}</Tex> 在 mean-square 意義下會發散——那是<ChRef ch="09">第 9 章</ChRef>的內容
             <Erratum id="E23" title="docs/validation.md 勘誤 E23：598 是 mean recursion；per-sample Gaussian regressor 的 mean-square 可能發散（第 9 章）" />。這三個數字還用到{' '}
             <Tex>{String.raw`\mathbf A_{\mathrm{cal}}`}</Tex> 對稱（<Tex>{String.raw`\mathbf R`}</Tex> 對稱、<Tex>{String.raw`\hat{\mathbf J}=\mathbf J`}</Tex>）：此時最慢 pole 的 F-10.5 就是整個誤差向量的{' '}
             <Tex>{'k_{95}'}</Tex>。<Tex>{String.raw`\mathbf A_{\mathrm{cal}}`}</Tex> 不對稱（一般 <Tex>{String.raw`\mathbf J`}</Tex>、<Tex>{String.raw`\hat{\mathbf J}\ne\mathbf J`}</Tex>、各 loop 增益不同）時 F-10.5 只是下界，要改用{' '}
             <Tex>{String.raw`\|\mathbf A^k\|_2\le0.05`}</Tex>（§10.3.1）。
           </li>
           <li>
-            <ClaimTag kind="research" /> 本章是<strong>靜態</strong> plant：沒有 PLL 迴路動態、update latency（第 8 章）、定點量化（第 13 章）、PVT 漂移下的 gain scheduling。
+            <ClaimTag kind="research" /> 本章是<strong>靜態</strong> plant：沒有 PLL 迴路動態、update latency（<ChRef ch="08">第 8 章</ChRef>）、定點量化（<ChRef ch="13">第 13 章</ChRef>）、PVT 漂移下的 gain scheduling。
             這些疊加後的最佳更新矩陣是 Roadmap R4 的研究題目。
           </li>
           <li>
@@ -285,7 +285,7 @@ export function S6Wrapup() {
                 </td>
                 <td>每個校正參數一個 GMAC accumulator（conditional negate + 累加），全部共用同一個 BBPD/comparator 的 q</td>
                 <td>
-                  sum vs average 的 <Tex>{'N'}</Tex> 倍差異（第 5 章、勘誤 E18）會直接乘進 <Tex>{String.raw`\mathbf M`}</Tex>
+                  sum vs average 的 <Tex>{'N'}</Tex> 倍差異（<ChRef ch="05">第 5 章</ChRef>、勘誤 E18）會直接乘進 <Tex>{String.raw`\mathbf M`}</Tex>
                 </td>
               </tr>
               <tr>
@@ -296,7 +296,7 @@ export function S6Wrapup() {
                   DSM residue、PHOS one-hot、DTC gain code 經 PLL error path，在 PD 輸出 <Tex>{'e[n]'}</Tex> 看到的統計
                 </td>
                 <td>
-                  隨 FCW、PVT 改變；<Tex>{String.raw`H_{\mathrm{PD}}(1)=0`}</Tex> 時 common-mode 不可觀察（第 9 章、勘誤 E04）
+                  隨 FCW、PVT 改變；<Tex>{String.raw`H_{\mathrm{PD}}(1)=0`}</Tex> 時 common-mode 不可觀察（<ChRef ch="09">第 9 章</ChRef>、勘誤 E04）
                 </td>
               </tr>
               <tr>
@@ -342,7 +342,7 @@ export function S6Wrapup() {
         <Callout kind="info" title="下一個值得研究的問題">
           <p>
             在 PLL 動態、update latency、定點 <Tex>{String.raw`\mathbf M`}</Tex> 與 PVT 漂移同時存在時，如何同時最佳化收斂時間、穩態共變異與乘法器數量？這是{' '}
-            <Link to="/roadmap">Research Backlog R4（多參數最佳更新矩陣）</Link>。下一章（第 11 章）處理另一個問題：GMAC 歸零的點 <Tex>{String.raw`\mathbf w^*`}</Tex> 本身就可能不等於{' '}
+            <Link to="/roadmap">Research Backlog R4（多參數最佳更新矩陣）</Link>。下一章（<ChRef ch="11">第 11 章</ChRef>）處理另一個問題：GMAC 歸零的點 <Tex>{String.raw`\mathbf w^*`}</Tex> 本身就可能不等於{' '}
             <Tex>{String.raw`\mathbf a`}</Tex>（bias / INL）。
           </p>
         </Callout>

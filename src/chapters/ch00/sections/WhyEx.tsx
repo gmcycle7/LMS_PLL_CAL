@@ -13,6 +13,7 @@ import {
   Tex,
   TexBlock,
   useThemeTokens,
+  ChRef,
 } from '@/components'
 import { useSettings } from '@/app/settings'
 import {
@@ -451,7 +452,7 @@ export function WhyExSection() {
               tex: String.raw`c\,z^n\,(z-p)=0\;\Rightarrow\;z=p`,
               why: (
                 <>
-                  非零解要求 <Tex>{'z-p=0'}</Tex>。這個 <Tex>{'z'}</Tex> 就叫 pole（特徵根）；高階系統有好幾個 pole，在 Ch03、Ch08 會用 Z transform 正式處理。
+                  非零解要求 <Tex>{'z-p=0'}</Tex>。這個 <Tex>{'z'}</Tex> 就叫 pole（特徵根）；高階系統有好幾個 pole，在 <ChRef ch="03">Ch03</ChRef>、<ChRef ch="08">Ch08</ChRef> 會用 Z transform 正式處理。
                 </>
               ),
             },

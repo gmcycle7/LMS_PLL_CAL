@@ -1,4 +1,4 @@
-import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Prereq, Quiz, Section, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Prereq, Quiz, Section, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import lmsSrc from '@/simulation/models/lms.ts?raw'
 import sgdSrc from '@/simulation/models/sgd.ts?raw'
 import { Diagram, ErrataNote, DerivFold, tm } from '../common'
@@ -30,7 +30,7 @@ export function S2Stochastic() {
           </li>
           <li>
             <strong>相關（correlation）</strong> <Tex>{'E[e\\,x]'}</Tex>：兩個訊號乘積的平均。<Tex>{'e'}</Tex> 傾向與 <Tex>{'x'}</Tex> 同號時 <Tex>{'E[ex]>0'}</Tex>，代表誤差裡還殘留「跟著 <Tex>{'x'}</Tex> 走」的成分（<Tex>{'w'}</Tex> 太小）；
-            GMAC 在硬體裡估計的就是這個量（Ch04）。
+            GMAC 在硬體裡估計的就是這個量（<ChRef ch="04">Ch04</ChRef>）。
           </li>
           <li>
             <strong>變異數（variance）</strong> <Tex>{'\\operatorname{Var}(X)=E[(X-E[X])^2]=E[X^2]-E[X]^2'}</Tex>：偏離平均的程度；標準差 <Tex>{'\\sigma=\\sqrt{\\operatorname{Var}}'}</Tex>。
@@ -71,7 +71,7 @@ export function S2Stochastic() {
           />
         </DerivFold>
         <p>
-          <ClaimTag kind="exact" /> 若雜訊與 <Tex>{'x'}</Tex> 相關，或 <Tex>{'E[v]\\neq0'}</Tex> 而 <Tex>{'E[x]\\neq0'}</Tex>（例如 comparator offset 配上非零均值的 code），谷底就不在 <Tex>{'a'}</Tex>——這是 Ch11 bias 的根源。
+          <ClaimTag kind="exact" /> 若雜訊與 <Tex>{'x'}</Tex> 相關，或 <Tex>{'E[v]\\neq0'}</Tex> 而 <Tex>{'E[x]\\neq0'}</Tex>（例如 comparator offset 配上非零均值的 code），谷底就不在 <Tex>{'a'}</Tex>——這是 <ChRef ch="11">Ch11</ChRef> bias 的根源。
         </p>
       </Section>
 
@@ -195,7 +195,7 @@ export function S2Stochastic() {
                   <strong>
                     Block GMAC：累加 <Tex>{'N'}</Tex> 筆 <Tex>{'q\\,x'}</Tex> 再更新一次
                   </strong>
-                  （Ch04、Ch14）
+                  （<ChRef ch="04">Ch04</ChRef>、<ChRef ch="14">Ch14</ChRef>）
                 </td>
               </tr>
               <tr>

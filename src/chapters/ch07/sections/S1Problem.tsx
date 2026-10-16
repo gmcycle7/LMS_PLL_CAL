@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, Mermaid, Prereq, Section, SourceTag, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, Mermaid, Prereq, Section, SourceTag, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import { polarityMarginDeg } from '@/simulation/models/pll'
 import { residualPhaseDeg, toneCorrCodeDelay } from '@/simulation/models/filteredX'
 import { CHART_MEAN_LOOP, CHART_PHASE_BOOKKEEPING, CHART_SIGNAL_MODEL } from '../diagrams'
@@ -42,7 +42,7 @@ export function S1Problem() {
   return (
     <Section kind="intuition" level={2} title="7.1 一個問題：只加幾個 delay register，能不能把極性救回來？" id="ch07-problem">
       <div className="ch07-question">
-        <strong>這一課要回答的問題：</strong>上一章（Ch06）看到，PLL 誤差路徑如果讓 PD 端的訊號相對 code 落後
+        <strong>這一課要回答的問題：</strong>上一章（<ChRef ch="06">Ch06</ChRef>）看到，PLL 誤差路徑如果讓 PD 端的訊號相對 code 落後
         <Tex>{String.raw`120^\circ`}</Tex>，GMAC 算出來的相關 <Tex>{'C'}</Tex> 會變負，LMS 就往錯的方向更新。如果我們
         <strong>完全不動 PLL</strong>，只在 GMAC 讀 code 的地方多放幾個 register（讓 GMAC 看「比較舊」的 code），
         能不能把方向修正回來？要放幾個？什麼時候這招會失效？
@@ -59,7 +59,7 @@ export function S1Problem() {
         caption="問題出在哪裡：comparator 看到的 code 經過紅色的 PLL 誤差路徑，GMAC 拿來相乘的 code 沒有；本章在 GMAC 這一側加上藍色的延遲，讓兩路重新對齊。"
       />
       <p>
-        <strong>怎麼看這張圖：</strong>先看經過紅色方塊的那一路。code <Tex>{'x[n]'}</Tex> 先經過 PLL 的誤差路徑 <Tex>{'H'}</Tex>（PLL 迴路會去修正 DTC 的時間誤差，PD 看到的是修正後剩下的殘差；Ch06），
+        <strong>怎麼看這張圖：</strong>先看經過紅色方塊的那一路。code <Tex>{'x[n]'}</Tex> 先經過 PLL 的誤差路徑 <Tex>{'H'}</Tex>（PLL 迴路會去修正 DTC 的時間誤差，PD 看到的是修正後剩下的殘差；<ChRef ch="06">Ch06</ChRef>），
         變成 comparator 實際看到的 code <Tex>{'u[n]'}</Tex>；再乘上還沒校正掉的 gain 誤差 <Tex>{String.raw`\delta=a-w`}</Tex>（<Tex>{'a'}</Tex> 是 DTC 真正的 gain、
         <Tex>{'w'}</Tex> 是 LMS 目前的校正係數，單位都是 fs per unit code）；圓形的加法點把它和 comparator 前的雜訊 <Tex>{'v[n]'}</Tex>（標準差 <Tex>{String.raw`\sigma_v`}</Tex>）相加
         （兩條輸入線都是正號），就是 PD 的輸出 <Tex>{String.raw`e_{\mathrm{PD}}[n]`}</Tex>（PD 誤差）。comparator 取的就是這個 PD 輸出——也就是送進 loop filter 的同一個訊號（章首系統地圖上
@@ -80,7 +80,7 @@ export function S1Problem() {
         <Tex>{String.raw`t_{\mathrm{ref}}'-t_{\mathrm{fb}}`}</Tex>：需要 <Tex>{'a\\,x[n]'}</Tex>、實際補 <Tex>{'w\\,x[n]'}</Tex>，如果 PLL 完全不反應，PD 看到的就是
         <Tex>{'(a-w)\\,x[n]'}</Tex>（補償不足、<Tex>{'w<a'}</Tex> 時 reference edge 還是太晚：<Tex>{'x[n]>0'}</Tex> 時誤差為正，也就是誤差和 <Tex>{'x[n]'}</Tex> 同號）。但 PLL 迴路會跟著修正這個時間誤差，所以 PD 輸出端實際留下的是它經過誤差路徑
         <Tex>{'H'}</Tex> 之後的 <Tex>{'(a-w)\\,u[n]'}</Tex>。真實電路是先乘 <Tex>{'(a-w)'}</Tex>、再經過 <Tex>{'H'}</Tex>；因為 <Tex>{'w'}</Tex> 每個 block 才更新一次、每次只動一點點，先乘後濾和先濾後乘幾乎沒有差別，
-        圖上畫成後者是為了直接看到 <Tex>{'u[n]'}</Tex>。嚴格地說，<Tex>{'w'}</Tex> 固定不動時兩者完全相等；<Tex>{'w'}</Tex> 在更新時只是近似（Ch06 的 F-06.1），成立條件寫在 7.4 節的 F-07.1 下面。
+        圖上畫成後者是為了直接看到 <Tex>{'u[n]'}</Tex>。嚴格地說，<Tex>{'w'}</Tex> 固定不動時兩者完全相等；<Tex>{'w'}</Tex> 在更新時只是近似（<ChRef ch="06">Ch06</ChRef> 的 F-06.1），成立條件寫在 7.4 節的 F-07.1 下面。
       </p>
 
       <Prereq title="期望值（expectation）、時間平均與相關（correlation）">
@@ -251,7 +251,7 @@ export function S1Problem() {
         </Hand>
         <Prereq title="一階遞迴的 pole：等比數列決定收斂或發散">
           <p>
-            Ch01–Ch03 的 LMS 平均誤差滿足一階遞迴（<Tex>{String.raw`\delta=a-w`}</Tex>，<Tex>{'k'}</Tex> 為 GMAC block）：
+            <ChRef ch="01">Ch01</ChRef>–<ChRef ch="03">Ch03</ChRef> 的 LMS 平均誤差滿足一階遞迴（<Tex>{String.raw`\delta=a-w`}</Tex>，<Tex>{'k'}</Tex> 為 GMAC block）：
           </p>
           <StepDerivation
             steps={[
@@ -300,7 +300,7 @@ export function S1Problem() {
         >
           <p>
             <Tex>{String.raw`\mu`}</Tex> 是 learning rate（每個 block 把 <Tex>{String.raw`\mu G_k`}</Tex> 加進 <Tex>{'w'}</Tex>），<Tex>{String.raw`\sigma_v`}</Tex> 是 comparator
-            前雜訊的標準差。Ch05 推導過 1-bit comparator 的小訊號增益 <Tex>{String.raw`K_q=\sqrt{2/\pi}/\sigma_v=${tx(Kq, 6)}\ \mathrm{fs^{-1}}`}</Tex>（輸入每偏 1 fs，
+            前雜訊的標準差。<ChRef ch="05">Ch05</ChRef> 推導過 1-bit comparator 的小訊號增益 <Tex>{String.raw`K_q=\sqrt{2/\pi}/\sigma_v=${tx(Kq, 6)}\ \mathrm{fs^{-1}}`}</Tex>（輸入每偏 1 fs，
             <Tex>{'q'}</Tex> 的平均值偏 <Tex>{'K_q'}</Tex>），所以平均 pole 是 <Tex>{String.raw`p=1-\mu K_qC`}</Tex>；其中 <Tex>{String.raw`g=\mu K_qC`}</Tex> 叫做校正迴路的 loop gain
             （每個 block 修掉的誤差比例，<Tex>{'p=1-g'}</Tex>）。先看圖，再代數字：
           </p>

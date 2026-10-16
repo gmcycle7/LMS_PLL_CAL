@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, ModeGate, Prereq, Quiz, Recap, Section, SourceTag, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, ModeGate, Prereq, Quiz, Recap, Section, SourceTag, Tex, TexBlock, ChRef } from '@/components'
 import {
   blockLoopLinear,
   directionExact,
@@ -94,7 +94,7 @@ export function WrapUpSection() {
           它出現在兩個地方——乘上 <Tex>{'w_k'}</Tex> 之後控制 DTC（feedback edge 早到的 <Tex>{'a\\,x[n]'}</Tex> 也是同一個 <Tex>{'x[n]'}</Tex>，所以 PD 看到的是{' '}
           <Tex>{'s=(a-w_k)\\,x[n]'}</Tex>），GMAC 累加時又乘在 <Tex>{'q[n]'}</Tex> 上（<Tex>{'S_N=\\sum q[n]\\,x[n]'}</Tex>）；本章固定 <Tex>{'x\\equiv1'}</Tex>，所以這兩條虛線都只是乘 1。
           圖上 <Tex>{'e[n]'}</Tex> 的式子寫的是注入 PD 的誤差本身：主 PLL 迴路（PD → loop filter → divider → PD 那一圈）會跟著反應，一般的 <Tex>{'x[n]'}</Tex>{' '}
-          實際留在 PD 輸出的是經過 PLL error path 濾波之後的結果（Ch06），圖上的式子沒有把這個濾波寫進去。下表逐列說明每個符號對應的硬體與注意事項。
+          實際留在 PD 輸出的是經過 PLL error path 濾波之後的結果（<ChRef ch="06">Ch06</ChRef>），圖上的式子沒有把這個濾波寫進去。下表逐列說明每個符號對應的硬體與注意事項。
         </Fig>
         <div className="table-wrap">
           <table className="ch05-table">
@@ -112,7 +112,7 @@ export function WrapUpSection() {
                 </td>
                 <td>
                   DTC 補償的殘差在 PD 輸出留下的時間誤差 <Tex>{'(a-w)\\,x'}</Tex>：feedback edge 早到 <Tex>{'a\\,x'}</Tex>，reference 端 DTC 的補償量是{' '}
-                  <Tex>{'w\\,x'}</Tex>（從基準延遲 <Tex>{'T_0'}</Tex> 少延遲這麼多）；補償不足（<Tex>{'w<a'}</Tex>）時為正（經 PLL error path，見 Ch06）
+                  <Tex>{'w\\,x'}</Tex>（從基準延遲 <Tex>{'T_0'}</Tex> 少延遲這麼多）；補償不足（<Tex>{'w<a'}</Tex>）時為正（經 PLL error path，見 <ChRef ch="06">Ch06</ChRef>）
                 </td>
                 <td>
                   本章 <Tex>{'x\\equiv1'}</Tex>；一般 <Tex>{'x'}</Tex> 時 <Tex>{'E[q\\,x]'}</Tex> 需對 code 分布平均
@@ -173,10 +173,10 @@ export function WrapUpSection() {
                   <Tex>{'K_q'}</Tex>
                 </td>
                 <td>
-                  Comparator 的等效增益，乘進 LMS loop gain <Tex>{'g=\\mu K_qC'}</Tex>（Ch08、Ch12）
+                  Comparator 的等效增益，乘進 LMS loop gain <Tex>{'g=\\mu K_qC'}</Tex>（<ChRef ch="08">Ch08</ChRef>、<ChRef ch="12">Ch12</ChRef>）
                 </td>
                 <td>
-                  <Tex>{'\\sigma_v'}</Tex> 是 PVT 相依的 <Tex>{'\\Rightarrow'}</Tex> loop gain 也跟著漂（Ch14 corner 分析）
+                  <Tex>{'\\sigma_v'}</Tex> 是 PVT 相依的 <Tex>{'\\Rightarrow'}</Tex> loop gain 也跟著漂（<ChRef ch="14">Ch14</ChRef> corner 分析）
                 </td>
               </tr>
             </tbody>
@@ -241,13 +241,13 @@ export function WrapUpSection() {
             各相均勻使用時平均只有 <Tex>{`N/${v.phases}`}</Tex> 個樣本帶有它的資訊，所以同樣的 95% 需要約{' '}
             <Tex>{`${v.phases}\\times${texInt(v.n95)}\\approx${texInt(v.oneHotN)}`}</Tex> 個 comparator 樣本（約{' '}
             <Tex>{`${fx(v.oneHotUs, 1)}\\,\\mu\\mathrm{s}`}</Tex>）。DTC gain 的 regressor 是 DTC residue（大小不一、可能不是零均值），等效樣本數要再乘上 regressor
-            的加權，而且 PLL error path 會改變它的相位——這些留到 Ch06、Ch09、Ch11。<ClaimTag kind="approx" /> <SourceTag kind="illustrative" />
+            的加權，而且 PLL error path 會改變它的相位——這些留到 <ChRef ch="06">Ch06</ChRef>、<ChRef ch="09">Ch09</ChRef>、<ChRef ch="11">Ch11</ChRef>。<ClaimTag kind="approx" /> <SourceTag kind="illustrative" />
           </p>
         </Callout>
         <p>
           <strong>預告：</strong>把本章的平均 <Tex>{'G_k=S_N/N\\approx K_q\\delta_k+\\eta_k'}</Tex> 放進 block 更新{' '}
           <Tex>{'w_{k+1}=w_k+\\mu G_k'}</Tex>（<Tex>{'k'}</Tex> = GMAC block；ChatGPT 課程寫作 <Tex>{'\\alpha'}</Tex>，本站統一寫 <Tex>{'\\mu'}</Tex>，
-          單位 fs <Erratum id="E13" />），馬上得到 Ch12 / Ch14 的設計數字。這裡 <Tex>{'\\delta_k=a-w_k'}</Tex> 是第 <Tex>{'k'}</Tex> 個 block 的剩餘誤差，
+          單位 fs <Erratum id="E13" />），馬上得到 <ChRef ch="12">Ch12</ChRef> / <ChRef ch="14">Ch14</ChRef> 的設計數字。這裡 <Tex>{'\\delta_k=a-w_k'}</Tex> 是第 <Tex>{'k'}</Tex> 個 block 的剩餘誤差，
           <Tex>{'\\eta_k'}</Tex> 是 <Tex>{'G_k'}</Tex> 扣掉平均後的零均值雜訊，<Tex>{'\\sigma_w'}</Tex> 是收斂之後係數 <Tex>{'w'}</Tex> 還在抖動的 RMS（coefficient noise）。
         </p>
         <Fig name="blockLoop">
@@ -265,7 +265,7 @@ export function WrapUpSection() {
           }
           steps={[
             { tex: String.raw`\delta_{k+1}=a-w_{k+1}=\delta_k-\mu G_k=\delta_k-\mu\big(K_q\delta_k+\eta_k\big)`, why: <>代入更新式與 <Tex>{'G_k'}</Tex> 的小訊號模型；<Tex>{'\\eta_k'}</Tex> 是 <Tex>{'G_k'}</Tex> 的零均值雜訊。</> },
-            { tex: String.raw`=(1-\mu K_q)\,\delta_k-\mu\eta_k,\qquad p_{\mathrm{cal}}\equiv1-g,\;g\equiv\mu K_q`, why: <>整理成一階遞迴；<Tex>{'g'}</Tex> 是無因次 loop gain（Ch12/Ch14 把 pole 寫成 <Tex>{'p'}</Tex>）。</> },
+            { tex: String.raw`=(1-\mu K_q)\,\delta_k-\mu\eta_k,\qquad p_{\mathrm{cal}}\equiv1-g,\;g\equiv\mu K_q`, why: <>整理成一階遞迴；<Tex>{'g'}</Tex> 是無因次 loop gain（<ChRef ch="12">Ch12</ChRef>/<ChRef ch="14">Ch14</ChRef> 把 pole 寫成 <Tex>{'p'}</Tex>）。</> },
             { tex: String.raw`\operatorname{Var}(\eta_k)=\operatorname{Var}(G)=\frac{1-m^2}{N}\approx\frac1N`, why: <>§3 的「平均」變異數（勘誤 E18：不是總和的 <Tex>{'N(1-m^2)'}</Tex>）。</> },
             { tex: String.raw`\sigma_w^2=\frac{\mu^2/N}{1-p_{\mathrm{cal}}^2}\;\Rightarrow\;\sigma_w=\frac{\mu}{\sqrt{N(1-p_{\mathrm{cal}}^2)}}`, why: <>與 §7 相同的穩態變異數推導；需 <Tex>{'|p_{\\mathrm{cal}}|<1\\iff0<\\mu<2/K_q'}</Tex>。</> },
           ]}
@@ -283,7 +283,7 @@ export function WrapUpSection() {
         <div className="table-wrap">
           <table className="ch05-table">
             <caption>
-              <Tex>{String.raw`\sigma_v=100\,\mathrm{fs},\ \mu=10\,\mathrm{fs}`}</Tex>（規格 §12.1 / T13 的設定）。詳細推導與驗證在 Ch12、Ch14。
+              <Tex>{String.raw`\sigma_v=100\,\mathrm{fs},\ \mu=10\,\mathrm{fs}`}</Tex>（規格 §12.1 / T13 的設定）。詳細推導與驗證在 <ChRef ch="12">Ch12</ChRef>、<ChRef ch="14">Ch14</ChRef>。
             </caption>
             <tbody>
               <tr>
@@ -365,7 +365,7 @@ export function WrapUpSection() {
         </div>
         <p>
           若硬體的更新晚一個 block 才生效（GMAC 結果要等下一個 block 才寫回），特徵方程變成 <Tex>{'z^2-z+g=0'}</Tex>，穩定範圍從{' '}
-          <Tex>{'0<g<2'}</Tex> 縮成 <Tex>{'0<g<1'}</Tex>：本例 <Tex>{`\\mu<1/K_q=${fx(v.muMax / 2, 2)}\\,\\mathrm{fs}`}</Tex>（Ch08 推導）。
+          <Tex>{'0<g<2'}</Tex> 縮成 <Tex>{'0<g<1'}</Tex>：本例 <Tex>{`\\mu<1/K_q=${fx(v.muMax / 2, 2)}\\,\\mathrm{fs}`}</Tex>（<ChRef ch="08">Ch08</ChRef> 推導）。
           <ClaimTag kind="exact" />
         </p>
         <p className="ch05-note">
@@ -424,7 +424,7 @@ export function WrapUpSection() {
                 <td>
                   迴路每個 block 都在改 <Tex>{'w'}</Tex>，<Tex>{'s=a-w'}</Tex> 跟著變：要用 pole、<Tex>{'\\sigma_w'}</Tex> 描述，而不是單一個機率
                 </td>
-                <td>§9 預告、Ch12、Ch14</td>
+                <td>§9 預告、<ChRef ch="12">Ch12</ChRef>、<ChRef ch="14">Ch14</ChRef></td>
               </tr>
               <tr>
                 <td>
@@ -437,7 +437,7 @@ export function WrapUpSection() {
                   正相關時 <Tex>{'\\operatorname{Var}(S_N)'}</Tex> 變大，等效的獨立樣本數 <Tex>{'N_{\\mathrm{eff}}<N'}</Tex>，表中正確率被高估（相鄰樣本的相關係數{' '}
                   <Tex>{'\\rho=0.99'}</Tex>、<Tex>{'N=4096'}</Tex> 時 <Tex>{`N_{\\mathrm{eff}}\\approx${texInt(v.corr[3].nEff)}`}</Tex>）
                 </td>
-                <td>章末延伸（Research 模式）、Ch12</td>
+                <td>章末延伸（Research 模式）、<ChRef ch="12">Ch12</ChRef></td>
               </tr>
               <tr>
                 <td>
@@ -461,7 +461,7 @@ export function WrapUpSection() {
                 <td>
                   <Tex>{'E[q]'}</Tex> 的正負號由 <Tex>{'s-\\theta'}</Tex> 決定；<Tex>{'|\\theta|>|s|'}</Tex> 且同號時，<Tex>{'N'}</Tex> 越大越確定判錯
                 </td>
-                <td>§6 preset「offset 蓋過誤差」、Ch11</td>
+                <td>§6 preset「offset 蓋過誤差」、<ChRef ch="11">Ch11</ChRef></td>
               </tr>
               <tr>
                 <td>
@@ -473,7 +473,7 @@ export function WrapUpSection() {
                 <td>
                   真實的 GMAC 是 <Tex>{'\\sum q_ix_i'}</Tex>：增益多一個相關量 <Tex>{'C'}</Tex>（<Tex>{'K=K_qC'}</Tex>），PLL error path 的相位還可能讓它變號
                 </td>
-                <td>Ch06–Ch08</td>
+                <td><ChRef ch="06">Ch06</ChRef>–<ChRef ch="08">Ch08</ChRef></td>
               </tr>
               <tr>
                 <td>
@@ -572,7 +572,7 @@ export function WrapUpSection() {
             <>
               <Tex>{`K_q=\\sqrt{2/\\pi}/200=${fx(v.K200, 6)}\\,\\mathrm{fs}^{-1}`}</Tex>（減半）。<Tex>{'N\\propto\\sigma_v^2'}</Tex>：約變 4 倍，精確最小奇數{' '}
               <Tex>{`N=${v.n95sig200 === null ? '\\text{—}' : texInt(v.n95sig200)}`}</Tex>。LMS 的 loop gain <Tex>{'g=\\mu K_qC'}</Tex> 也減半——若 <Tex>{'\\mu'}</Tex>{' '}
-              不跟著調整，收斂時間 <Tex>{'\\tau\\approx1/g'}</Tex> 約加倍（Ch14）。
+              不跟著調整，收斂時間 <Tex>{'\\tau\\approx1/g'}</Tex> 約加倍（<ChRef ch="14">Ch14</ChRef>）。
             </>
           }
         />

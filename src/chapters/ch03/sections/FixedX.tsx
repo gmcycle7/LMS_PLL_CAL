@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { Data, Layout } from 'plotly.js-dist-min'
-import { Callout, ClaimTag, mathText, ModeGate, Plot, Prereq, Section, SourceTag, Tex, TexBlock, useThemeTokens } from '@/components'
+import { Callout, ClaimTag, mathText, ModeGate, Plot, Prereq, Section, SourceTag, Tex, TexBlock, useThemeTokens, ChRef } from '@/components'
 import { fixedXMuMax, fixedXPole, runScalarLms } from '@/simulation/models/lms'
 import { Erratum, FBlock, Fig, HC, num, StepsBox, T, tnum, tx, Verdict } from '../common'
 import { CHART_ERROR_RECURSION, CHART_LMS_LOOP, CHART_POLE_REGIME, CHART_TAU_FLOW, figRef } from '../diagrams'
@@ -275,7 +275,7 @@ function FloatDeadbeatNote() {
         <Tex>{T`\delta_1`}</Tex> 是真正的 0。換成 <Tex>{T`x=0.3`}</Tex>、<Tex>{T`\mu=1/x^2\approx${tnum(v.mu, 8)}`}</Tex>：<Tex>{T`0.3`}</Tex> 在二進位是無窮循環小數，
         <code>fixedXPole</code> 算出 <Tex>{T`1-\mu x^2=${tnum(v.p, 3)}`}</Tex>（不是 0）；<code>runScalarLms</code> 的實際迭代得到{' '}
         <Tex>{T`\delta_1=${tnum(v.d1, 3)},\ \delta_2=${tnum(v.d2, 3)}`}</Tex>——數學上一步到位，數值上是「捨入誤差等級的殘差，下一步才被吸收」。
-        定點硬體（第 13 章）還要再加上係數量化，deadbeat 只是理想化的極限。
+        定點硬體（<ChRef ch="13">第 13 章</ChRef>）還要再加上係數量化，deadbeat 只是理想化的極限。
       </p>
     </Callout>
   )
@@ -408,7 +408,7 @@ export function FixedXSection() {
         </p>
         <Callout kind="warn" title={tx`$x=0$ 的情況`}>
           <Tex>{T`x=0`}</Tex> 時 <Tex>{T`p=1`}</Tex>（任何 <Tex>\mu</Tex>）：<Tex>{T`e_n=0`}</Tex>，<Tex>w</Tex> 永遠不動。不是「穩定」，而是<strong>沒有激勵、不可辨識</strong>
-          ——資料裡根本沒有 <Tex>a</Tex> 的資訊（第 9 章 Persistent Excitation 的最簡單版本）。
+          ——資料裡根本沒有 <Tex>a</Tex> 的資訊（<ChRef ch="09">第 9 章</ChRef> Persistent Excitation 的最簡單版本）。
         </Callout>
         <HC id="HC-03.1">
           {tx`把 $a$、$w_0$、$x$、$\mu$ 換成你自己的數字，先用紙筆算出 $p$、$\delta_2$ 與 $w_2$（只需要四則運算），再和下面的帶入過程逐步對照。試試 $\mu=0.25$、$0.4$、$0.5$、$0.6$，四種行為各算一次。`}
@@ -501,7 +501,7 @@ export function FixedXSection() {
           </p>
         </Prereq>
         <p className="small muted">
-          本章只有一個狀態（純量），pole 只會在實軸上。第 8 章加入更新延遲後，特徵方程式 <Tex>{T`z^{d+1}-z^d+g=0`}</Tex> 會有複數 pole；第 9–10 章多參數時 pole 變成矩陣的 eigenvalue。
+          本章只有一個狀態（純量），pole 只會在實軸上。<ChRef ch="08">第 8 章</ChRef>加入更新延遲後，特徵方程式 <Tex>{T`z^{d+1}-z^d+g=0`}</Tex> 會有複數 pole；第 9–10 章多參數時 pole 變成矩陣的 eigenvalue。
           <SourceTag kind="illustrative" />
         </p>
       </Section>

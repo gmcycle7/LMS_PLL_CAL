@@ -13,6 +13,7 @@ import {
   Tex,
   TexBlock,
   TestBadge,
+  ChRef,
 } from '@/components'
 import { conventionalStep } from '@/simulation/models/lms'
 import {
@@ -414,7 +415,7 @@ export function HandExampleSection() {
             <Tex>{'\\mu'}</Tex> 越小抖動越小，但收斂越慢
           </strong>
           （<Tex>{'|p|'}</Tex> 越接近 1）——
-          這是 LMS 永遠的取捨，Ch14 會把它變成最佳化問題。<ClaimTag kind="exact" />：
+          這是 LMS 永遠的取捨，<ChRef ch="14">Ch14</ChRef> 會把它變成最佳化問題。<ClaimTag kind="exact" />：
           <Tex>{'v_n'}</Tex> 與 <Tex>{'w_n'}</Tex> 獨立不是假設，而是自動成立（<Tex>{'w_n'}</Tex> 只由 <Tex>{'v_0,\\dots,v_{n-1}'}</Tex> 決定）
           <Erratum id="E38" />。注意區分兩個「均方」量 <Erratum id="E42" />：係數的 MSD{' '}
           <Tex>{String.raw`E[\delta_n^2]=\operatorname{Var}(w_n)+\big(p^n\delta_0\big)^2`}</Tex>（穩態時第二項 → 0，所以{' '}

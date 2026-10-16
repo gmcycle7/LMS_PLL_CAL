@@ -481,11 +481,11 @@ describe('MIMO LMS Lab：失敗情境要說明原因（負面測試）', () => {
     expect(rowA.textContent).toContain('非正規')
     expect(rowA.textContent).toContain('只是下界')
     expect(Array.from(rowA.querySelectorAll('annotation')).map((a) => a.textContent)).toEqual(expect.arrayContaining([String.raw`\|\mathbf A^j\|_2\le0.05`, '5']))
-    expect(rowA.querySelector('a[href="#formula-F-10.5"]')).toBeNull()
+    expect(rowA.querySelector('a[data-formula-link="F-10.5"]')).toBeNull()
     expect(rowA.textContent).toContain('精確')
     const rowB = rows.find((tr) => (tr.textContent ?? '').includes('Case B 95% 收斂 blocks'))!
     expect(rowB.querySelector('td.num')!.textContent).toBe('5')
-    expect(rowB.querySelector('a[href="#formula-F-10.5"]')).toBeTruthy()
+    expect(rowB.querySelector('a[data-formula-link="F-10.5"]')).toBeTruthy()
     expect(rowB.textContent).not.toContain('下界')
     // 「執行至收斂」：游標移到最慢的 case 的 k₉₅ = 9（修正前會停在 5，那時誤差還有 31%）
     fireEvent.click(button(exp, /執行至收斂/))

@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { Data } from 'plotly.js-dist-min'
-import { Callout, ClaimTag, ModeGate, Plot, Prereq, Section, Tex, TexBlock, useThemeTokens } from '@/components'
+import { Callout, ClaimTag, ModeGate, Plot, Prereq, Section, Tex, TexBlock, useThemeTokens, ChRef } from '@/components'
 import { normPdf } from '@/simulation/core'
 import { kq, kqLocal, linearizationRelError, meanQ, pPlus } from '@/simulation/models/comparator'
 import { Fig, HandCalcBlock, Steps, fx, hline, linspace, pct, texNum } from '../common'
@@ -66,7 +66,7 @@ export function GainSection() {
     >
       <p>
         後面所有的 LMS 迴路分析（pole <Tex>{'p_{\\mathrm{cal}}=1-\\mu K_qC'}</Tex>、noise、phase margin）都需要一個「comparator 的增益」。式中 <Tex>{'\\mu'}</Tex>{' '}
-        是學習率（每次更新的步長），<Tex>{'C'}</Tex> 是 regressor 與誤差路徑輸出的相關量（Ch06 詳述；本章 <Tex>{'x\\equiv1'}</Tex>，所以 <Tex>{'C=1'}</Tex>）。但 comparator 是不連續的階梯，
+        是學習率（每次更新的步長），<Tex>{'C'}</Tex> 是 regressor 與誤差路徑輸出的相關量（<ChRef ch="06">Ch06</ChRef> 詳述；本章 <Tex>{'x\\equiv1'}</Tex>，所以 <Tex>{'C=1'}</Tex>）。但 comparator 是不連續的階梯，
         它的增益從哪來？答案：
         <strong>
           不是單一樣本的增益，而是平均輸出 <Tex>{'E[q]'}</Tex> 對 <Tex>{'s'}</Tex> 的斜率 <Tex>{'dE[q]/ds'}</Tex>
@@ -212,7 +212,7 @@ export function GainSection() {
         當 <Tex>{'|s|\\gtrsim\\sigma_v'}</Tex>，<Tex>{'E[q]\\to\\pm1'}</Tex>：每次更新的平均步長被限制在 <Tex>{'\\mu\\cdot\\max|x|'}</Tex>，與誤差大小無關。
         因為 <Tex>{'|E[q]|<K_q|s|'}</Tex>（erf 在正半軸是凹函數），真正的平均修正量比線性模型小，所以用 <Tex>{'K_q'}</Tex> 算出的 pole、時間常數都會
         <strong>低估</strong>收斂所需時間：例如 <Tex>{`|s|/\\sigma_v=${fx(d.r5, 2)}`}</Tex> 時平均修正量已比 <Tex>{'K_qs'}</Tex> 少約 5%（F-05.11），
-        <Tex>{'|s|/\\sigma_v=2'}</Tex> 時只剩 <Tex>{`${fx(d.sat2, 3)}`}</Tex> 倍。Ch14 會把這個效應放進 coarse calibration 的時間估計。
+        <Tex>{'|s|/\\sigma_v=2'}</Tex> 時只剩 <Tex>{`${fx(d.sat2, 3)}`}</Tex> 倍。<ChRef ch="14">Ch14</ChRef> 會把這個效應放進 coarse calibration 的時間估計。
         <ClaimTag kind="approx" />
       </Callout>
       <ModeGate min="research">

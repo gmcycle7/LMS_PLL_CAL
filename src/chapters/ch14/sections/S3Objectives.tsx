@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { Data, Shape } from 'plotly.js-dist-min'
-import { Callout, ClaimTag, CodeBlock, ModeGate, Plot, Section, Tex, TexBlock, useThemeTokens } from '@/components'
+import { Callout, ClaimTag, CodeBlock, ModeGate, Plot, Section, Tex, TexBlock, useThemeTokens, ChRef } from '@/components'
 import optimizerSrc from '@/simulation/models/optimizer.ts?raw'
 import {
   OBJECTIVE_LABEL,
@@ -191,7 +191,7 @@ export function S3Objectives() {
 
       <h3>(d) 最小係數擾動／spur</h3>
       <p>
-        係數的抖動乘上 code 之後會出現在 PLL 輸出，週期性的成分就是 spur（Ch12），所以這個目標關心的是係數雜訊<strong>在某個頻率有多大</strong>，而不是總量。係數雜訊不是白的：它是 GMAC 白雜訊經過 <Tex>{'H(z)=\\mu/(z-p)'}</Tex> 的 low-pass（§12）。先看訊號怎麼流：
+        係數的抖動乘上 code 之後會出現在 PLL 輸出，週期性的成分就是 spur（<ChRef ch="12">Ch12</ChRef>），所以這個目標關心的是係數雜訊<strong>在某個頻率有多大</strong>，而不是總量。係數雜訊不是白的：它是 GMAC 白雜訊經過 <Tex>{'H(z)=\\mu/(z-p)'}</Tex> 的 low-pass（§12）。先看訊號怎麼流：
       </p>
       <Diagram chart={CHART_NOISE_SHAPING} caption="係數雜訊的來源：白雜訊先乘步長，再進一個帶回授的一階迴路；回授的倍數就是 pole。">
         <p>

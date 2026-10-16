@@ -1,4 +1,4 @@
-import { Callout, ClaimTag, CodeBlock, ModeGate, Section, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeBlock, ModeGate, Section, Tex, TexBlock, ChRef } from '@/components'
 import optimizerSrc from '@/simulation/models/optimizer.ts?raw'
 import { DEFAULT_CAL_SM } from '@/simulation/models/optimizer'
 import { Diagram } from '../Diagram'
@@ -112,7 +112,7 @@ export function S8StateMachine() {
             <tr>
               <td>Bad-FCW policy</td>
               <td>
-                <Tex>{'C\\approx0'}</Tex> 的 near-integer FCW（Ch11 §11.4）
+                <Tex>{'C\\approx0'}</Tex> 的 near-integer FCW（<ChRef ch="11">Ch11</ChRef> §11.4）
               </td>
               <td>freeze：該 FCW 期間暫停；ignore：照常更新</td>
               <td>

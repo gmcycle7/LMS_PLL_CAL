@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Callout, ClaimTag, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock, TestBadge, mathText } from '@/components'
+import { Callout, ClaimTag, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock, TestBadge, mathText, ChRef } from '@/components'
 import { Deriv, Erratum, Fig, Hand, TagRow, n, texMat, tn } from '../common'
 import { NUM } from '../numbers'
 
@@ -253,7 +253,7 @@ export function S4Jacobian() {
                 tex: String.raw`E[\mathbf G(\mathbf w)]\approx\mathbf J\,(\mathbf w-\mathbf w^*)`,
                 why: (
                   <>
-                    <Tex>{String.raw`\mathbf w^*`}</Tex> 是 <Tex>{String.raw`E[\mathbf G]=0`}</Tex> 的固定點（不一定等於 <Tex>{String.raw`\mathbf a`}</Tex>，見第 11 章 bias）；在{' '}
+                    <Tex>{String.raw`\mathbf w^*`}</Tex> 是 <Tex>{String.raw`E[\mathbf G]=0`}</Tex> 的固定點（不一定等於 <Tex>{String.raw`\mathbf a`}</Tex>，見<ChRef ch="11">第 11 章</ChRef> bias）；在{' '}
                     <Tex>{String.raw`\mathbf w^*`}</Tex> 附近一階泰勒展開。
                   </>
                 ),

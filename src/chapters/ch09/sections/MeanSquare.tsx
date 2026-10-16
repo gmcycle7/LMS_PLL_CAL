@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, ModeGate, Prereq, Section, StepDerivation, TexBlock } from '@/components'
+import { Callout, ClaimTag, ModeGate, Prereq, Section, StepDerivation, TexBlock, ChRef } from '@/components'
 import { corr2, eigenModes, meanSquareRadius } from '@/simulation/models/pe'
 import { DerivBox, Diagram, Erratum, FigRef, HandCalcBox, formulaTex, m, num, texNum } from '../shared'
 
@@ -246,7 +246,7 @@ export function MeanSquare() {
             </li>
             <li>要把它當成「單一晶片的收斂時間」，需要 GMAC block 夠長（本例 {m`N\ge2`} 時 {m`\rho_{\mathrm{MS}}<1`}，{m`N\ge16`} 時已接近 {m`0.995^2`}），
               或用 Monte Carlo 的分位數（10/50/90%）來描述。</li>
-            <li>有雜訊時 {m`\mathbf P_k`} 還會多一個注入項（linear：{m`\mu^2\sigma_v^2\mathbf R/N`}），收斂到非零的穩態——那是第 12 章的主題。</li>
+            <li>有雜訊時 {m`\mathbf P_k`} 還會多一個注入項（linear：{m`\mu^2\sigma_v^2\mathbf R/N`}），收斂到非零的穩態——那是<ChRef ch="12">第 12 章</ChRef>的主題。</li>
           </ul>
         </Callout>
       </ModeGate>

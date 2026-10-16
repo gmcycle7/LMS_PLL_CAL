@@ -14,6 +14,7 @@ import {
   Tex,
   TexBlock,
   useThemeTokens,
+  ChRef,
 } from '@/components'
 import { createRng } from '@/simulation/core'
 import quantSrc from '@/simulation/models/quantizer.ts?raw'
@@ -87,7 +88,7 @@ export function TimeVaryingSection() {
   return (
     <Section kind="explore" title={<>§13.5a 情境：<Tex>{'w_H'}</Tex> 含 LMS 更新雜訊時，策略才真正不同</>} level={2} id="ch13-time-varying">
       <p>
-        前面幾節都假設 <Tex>{String.raw`w_H`}</Tex> 是常數 32.4。真正的晶片裡 LMS 一直在更新，<Tex>{String.raw`w_H[n]=w^*+\delta w[n]`}</Tex> 會在 <Tex>{String.raw`w^*`}</Tex> 附近以 <Tex>{String.raw`\sigma_w`}</Tex> 的 RMS 隨機擺動（第 12 章）。
+        前面幾節都假設 <Tex>{String.raw`w_H`}</Tex> 是常數 32.4。真正的晶片裡 LMS 一直在更新，<Tex>{String.raw`w_H[n]=w^*+\delta w[n]`}</Tex> 會在 <Tex>{String.raw`w^*`}</Tex> 附近以 <Tex>{String.raw`\sigma_w`}</Tex> 的 RMS 隨機擺動（<ChRef ch="12">第 12 章</ChRef>）。
         <Erratum id="E15" /> 要求 §13.5 的五策略比較必須同時跑「<Tex>{String.raw`w_H`}</Tex> 常數」與「<Tex>{String.raw`w_H`}</Tex> 含 LMS 雜訊」兩種情境。
       </p>
       <Mermaid
@@ -95,7 +96,7 @@ export function TimeVaryingSection() {
         caption={String.raw`$w_H$ 會動的時候。先看上半：白雜訊經過一階 low-pass（AR(1)）變成 LMS 更新雜訊 $\delta w$，加在 $w^*$ 上就是 $w_H$；再看下半：輸出 $y$ 減掉 $w_H$ 是量化器自己造成的誤差 $\epsilon$，再加回 $\delta w$ 才是相對於 $w^*$ 的總誤差 $e$。`}
       />
       <p className="small ch13-figwalk">
-        圖上的 <Tex>{String.raw`\delta w[n]`}</Tex> 是 LMS 更新雜訊（第 12 章的係數雜訊，穩態 RMS 為 <Tex>{String.raw`\sigma_w`}</Tex>），<Tex>{String.raw`p_\mathrm{cal}`}</Tex> 是它的 pole，<Tex>{String.raw`\xi[n]`}</Tex> 是驅動它的白雜訊。圖上的{' '}
+        圖上的 <Tex>{String.raw`\delta w[n]`}</Tex> 是 LMS 更新雜訊（<ChRef ch="12">第 12 章</ChRef>的係數雜訊，穩態 RMS 為 <Tex>{String.raw`\sigma_w`}</Tex>），<Tex>{String.raw`p_\mathrm{cal}`}</Tex> 是它的 pole，<Tex>{String.raw`\xi[n]`}</Tex> 是驅動它的白雜訊。圖上的{' '}
         <Tex>{String.raw`\epsilon[n]=y[n]-w_H[n]`}</Tex> 是<strong>量化誤差</strong>（只看量化器，不含 LMS 雜訊），最下面的 <Tex>{String.raw`e[n]=\epsilon[n]+\delta w[n]`}</Tex> 對應下表的三欄：「頻帶內 <Tex>{'e'}</Tex>」、「LMS 地板 <Tex>{String.raw`\delta w`}</Tex>」與「頻帶內量化誤差 <Tex>{String.raw`\epsilon`}</Tex>」（訊號是相加的；功率只有在{' '}
         <Tex>{String.raw`\epsilon`}</Tex> 與 <Tex>{String.raw`\delta w`}</Tex> 不相關時才剛好相加，所以表中三欄各自量測）。方法 A（Freeze）不在圖上：它根本不看 <Tex>{'w_H'}</Tex>。
       </p>

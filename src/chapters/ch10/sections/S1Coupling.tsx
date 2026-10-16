@@ -1,4 +1,4 @@
-import { Callout, ClaimTag, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import { Deriv, Fig, FigRef, Hand, TagRow, n, tn } from '../common'
 import { NUM } from '../numbers'
 
@@ -39,7 +39,7 @@ export function S1Coupling() {
         </Fig>
         <ol>
           <li>
-            Comparator 增益（第 5 章）：<Tex>{String.raw`K_q=\sqrt{2/\pi}/\sigma_v=0.79788/100=${tn(Kq, 6)}\ \mathrm{fs}^{-1}`}</Tex>。
+            Comparator 增益（<ChRef ch="05">第 5 章</ChRef>）：<Tex>{String.raw`K_q=\sqrt{2/\pi}/\sigma_v=0.79788/100=${tn(Kq, 6)}\ \mathrm{fs}^{-1}`}</Tex>。
           </li>
           <li>
             GMAC<sub>1</sub> 的平均（下一段推導）：
@@ -141,7 +141,7 @@ export function S1Coupling() {
           <Tex>{String.raw`\operatorname{erf}\big(s/(\sqrt2\,\sigma_v)\big)=${tn(c.erfOne, 4)}`}</Tex>。最後看最下面分出的兩條路：<Tex>{String.raw`|s|\ll\sigma_v`}</Tex> 時 erf 幾乎是一條通過原點的直線，斜率就是{' '}
           <Tex>{'K_q'}</Tex>（藍色；<Tex>{String.raw`K_q s=${tn(c.G2lin, 4)}`}</Tex>，只比 erf 的值大 {n(100 * (c.G2lin / c.erfOne - 1), 2)}%）；<Tex>{'|s|'}</Tex> 大到和 <Tex>{String.raw`\sigma_v`}</Tex>{' '}
           差不多時曲線變平（紅色），「增益 = <Tex>{'K_q'}</Tex>」就不成立了。圖上「對雜訊取平均」那一格就是下面推導第 6 步的 <Tex>{String.raw`E[q\mid\mathbf u]`}</Tex>，藍色那一格就是第 7 步的{' '}
-          <Tex>{String.raw`K_q\,\mathbf u^T\boldsymbol\delta`}</Tex>；這條 erf 是怎麼來的，在緊接著的先備知識框（第 5 章的結果）。
+          <Tex>{String.raw`K_q\,\mathbf u^T\boldsymbol\delta`}</Tex>；這條 erf 是怎麼來的，在緊接著的先備知識框（<ChRef ch="05">第 5 章</ChRef>的結果）。
         </Fig>
         <Prereq title="回顧第 5 章：Gaussian 雜訊下 sign 的平均與 comparator 小訊號增益">
           <p>

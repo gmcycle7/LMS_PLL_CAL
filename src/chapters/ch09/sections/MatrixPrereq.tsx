@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { ClaimTag, Prereq, Section, StepDerivation, Tex, TexBlock } from '@/components'
+import { ClaimTag, Prereq, Section, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import { matVec } from '@/simulation/core'
 import { corr2, eig2x2 } from '@/simulation/models/pe'
 import { Diagram, FigRef, HandCalcLink, m, texNum, texVec } from '../shared'
@@ -77,7 +77,7 @@ export function MatrixPrereq() {
           <li>{m`E[u_1u_2]>0`}：多半同號（一起推同一個方向）。</li>
           <li>
             {m`E[u_1u_2]=0`}：<strong>正交（orthogonal）</strong>，兩個 regressor 互相不干擾。只要其中一個的平均為 0，這也就是不相關（uncorrelated，
-            {m`E[u_1u_2]=E[u_1]\,E[u_2]`}，第 0 章 §0.7 的定義）；本章的 {m`\rho`} 與 {m`\mathbf R`} 用的都是不扣平均的 {m`E[u_iu_j]`}。
+            {m`E[u_1u_2]=E[u_1]\,E[u_2]`}，<ChRef ch="00">第 0 章</ChRef> §0.7 的定義）；本章的 {m`\rho`} 與 {m`\mathbf R`} 用的都是不扣平均的 {m`E[u_iu_j]`}。
           </li>
           <li>{m`E[u_1u_2]<0`}：多半反號。</li>
         </ul>

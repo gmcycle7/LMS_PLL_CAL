@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Callout, ClaimTag, ModeGate, ModelLevel, Prereq, Section, SourceTag, SymbolTable, Tex, TestBadge } from '@/components'
+import { Callout, ClaimTag, ModeGate, ModelLevel, Prereq, Section, SourceTag, SymbolTable, Tex, TestBadge, ChRef } from '@/components'
 import './chapter.css'
 import { Erratum, SYMBOLS_ID, md, scrollToSymbols } from './common'
 import { CH12_SYMBOLS } from './symbols'
@@ -41,7 +41,7 @@ export default function Chapter12() {
         <TestBadge id="T15" />
       </div>
       <p>
-        規格 §12。前面幾章把 LMS 調到「平均正確」（第 3 章的 mean stability、第 5 章的 comparator 增益、第 8 章的 phase margin、第 11 章的 bias）。
+        規格 §12。前面幾章把 LMS 調到「平均正確」（<ChRef ch="03">第 3 章</ChRef>的 mean stability、<ChRef ch="05">第 5 章</ChRef>的 comparator 增益、<ChRef ch="08">第 8 章</ChRef>的 phase margin、<ChRef ch="11">第 11 章</ChRef>的 bias）。
         這一章處理收斂<strong>之後</strong>剩下的東西：comparator 的隨機判斷讓係數持續抖動，這個抖動經過「乘上 code」與「PLL 的轉移函數」才變成輸出的 jitter 或 spur。
       </p>
       <Callout kind="info" title="本章採用的勘誤">
@@ -65,8 +65,8 @@ export default function Chapter12() {
 
       <ModeGate min="engineer">
         <Callout kind="info" title="先備章節">
-          1-bit comparator 的小訊號統計增益 <Tex>{String.raw`K_q=\sqrt{2/\pi}/\sigma_v`}</Tex>（第 5 章；<Tex>{String.raw`\sigma_v`}</Tex> 是 comparator 前雜訊的 RMS）、一階 pole <Tex>{'p=1-g'}</Tex> 與 PM（第 8 章）、固定點 <Tex>{'w^*'}</Tex> 與 bias（第 11 章）、
-          <Tex>{String.raw`H_{\mathrm{PD}}`}</Tex> 與 polarity（第 6 章）。本章所有先備數學（期望值、Z-transform、PSD、卷積、Bessel）都在可展開的「先備知識」框內從頭說明。
+          1-bit comparator 的小訊號統計增益 <Tex>{String.raw`K_q=\sqrt{2/\pi}/\sigma_v`}</Tex>（<ChRef ch="05">第 5 章</ChRef>；<Tex>{String.raw`\sigma_v`}</Tex> 是 comparator 前雜訊的 RMS）、一階 pole <Tex>{'p=1-g'}</Tex> 與 PM（<ChRef ch="08">第 8 章</ChRef>）、固定點 <Tex>{'w^*'}</Tex> 與 bias（<ChRef ch="11">第 11 章</ChRef>）、
+          <Tex>{String.raw`H_{\mathrm{PD}}`}</Tex> 與 polarity（<ChRef ch="06">第 6 章</ChRef>）。本章所有先備數學（期望值、Z-transform、PSD、卷積、Bessel）都在可展開的「先備知識」框內從頭說明。
         </Callout>
       </ModeGate>
 

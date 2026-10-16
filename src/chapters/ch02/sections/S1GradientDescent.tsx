@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, CodeBlock, Derivation, ModeGate, Prereq, Quiz, Section, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeBlock, Derivation, ModeGate, Prereq, Quiz, Section, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import sgdSrc from '@/simulation/models/sgd.ts?raw'
 import { gradientDescent } from '@/simulation/models/sgd'
 import { Diagram, ErrataNote, HandCalcSlot, f4, DerivFold, tm } from '../common'
@@ -33,7 +33,7 @@ export function S1GradientDescent() {
         <p>把這一圈寫成公式就是：</p>
         <TexBlock id="F-02.1">{String.raw`\boxed{w_{n+1}=w_n-\mu\,J'(w_n)}\qquad(\mu>0\text{：步長})`}</TexBlock>
         <p>
-          這就是 <strong>Gradient Descent（梯度下降）</strong>。只有一個參數時「梯度」就是導數；多個參數時是偏導數排成的向量（Ch09–Ch10）。
+          這就是 <strong>Gradient Descent（梯度下降）</strong>。只有一個參數時「梯度」就是導數；多個參數時是偏導數排成的向量（<ChRef ch="09">Ch09</ChRef>–<ChRef ch="10">Ch10</ChRef>）。
         </p>
       </Section>
 

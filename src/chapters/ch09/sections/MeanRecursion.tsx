@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, Derivation, Prereq, Section, SourceTag, StepDerivation, TestBadge, TexBlock } from '@/components'
+import { Callout, ClaimTag, Derivation, Prereq, Section, SourceTag, StepDerivation, TestBadge, TexBlock, ChRef } from '@/components'
 import { matScale, matVec, type Matrix } from '@/simulation/core'
 import {
   KQ_SIGMA100,
@@ -131,7 +131,7 @@ export function MeanRecursion() {
       <p>
         這個迴圈裡有隨機的 {m`\mathbf u`} 與 {m`v`}，所以先問「平均來說」會怎麼走。結論是：{m`\mathbf G_k`} 的平均正比於
         {m`\mathbf R\boldsymbol\delta_k`}，比例常數記為 {m`K_q`}。linear 時 {m`K_q=1`}，而且是<strong>精確</strong>的等式，誤差多大都成立。
-        1-bit 時 {m`K_q=\sqrt{2/\pi}/\sigma_v`}，是第 5 章 comparator 的統計小訊號增益（{m`\sigma_v`} 是雜訊 {m`v`} 的標準差，假設 {m`v`} 是 Gaussian），
+        1-bit 時 {m`K_q=\sqrt{2/\pi}/\sigma_v`}，是<ChRef ch="05">第 5 章</ChRef> comparator 的統計小訊號增益（{m`\sigma_v`} 是雜訊 {m`v`} 的標準差，假設 {m`v`} 是 Gaussian），
         只在 comparator 輸入端由參數誤差造成的那一部分遠小於雜訊（{m`|\mathbf u^T\boldsymbol\delta_k|\ll\sigma_v`}）時<strong>近似</strong>成立。
         從 linear 換成 1-bit，多出來的就是這個小訊號條件；{m`\mathbf R`} 與它的 eigenvalue、eigenvector 都不變。
       </p>
@@ -147,7 +147,7 @@ export function MeanRecursion() {
             { tex: String.raw`=\mathbf R\boldsymbol\delta_k+\mathbf 0`, why: <>{m`v`} 零均值且與 {m`\mathbf u`} 獨立 {m`\Rightarrow E[\mathbf u v]=E[\mathbf u]E[v]=\mathbf 0`}。</> },
             {
               tex: String.raw`E[\mathrm{sign}(e)\,\mathbf u\mid\boldsymbol\delta_k]\approx K_q\mathbf R\boldsymbol\delta_k,\quad K_q=\sqrt{2/\pi}/\sigma_v`,
-              why: <>1-bit 時：comparator 的小訊號增益（第 5 章）；{m`|\mathbf u^T\boldsymbol\delta|\ll\sigma_v`} 時成立（本節末的「進階」框有 Bussgang 精確式）。</>,
+              why: <>1-bit 時：comparator 的小訊號增益（<ChRef ch="05">第 5 章</ChRef>）；{m`|\mathbf u^T\boldsymbol\delta|\ll\sigma_v`} 時成立（本節末的「進階」框有 Bussgang 精確式）。</>,
             },
             {
               tex: String.raw`E[\mathbf G_k\mid\boldsymbol\delta_k]\ \begin{cases}=\mathbf R\boldsymbol\delta_k=K_q\mathbf R\boldsymbol\delta_k,\ \ K_q\equiv1&\text{linear}\\[2pt]\approx K_q\mathbf R\boldsymbol\delta_k,\ \ K_q=\sqrt{2/\pi}/\sigma_v&\text{1-bit（}|\mathbf u^T\boldsymbol\delta_k|\ll\sigma_v\text{）}\end{cases}`,
@@ -436,7 +436,7 @@ export function MeanRecursion() {
       <TexBlock id="F-09.7">{formulaTex('F-09.7')}</TexBlock>
       <p>
         {m`\rho=0.99`}：{m`g^\star=${texNum(opt.g, 6)}`}，最好也只有 {m`${texNum(opt.p, 6)}`}/block，仍需 {m`k_{95}=${stepsToDecay(opt.p)}`}。
-        <strong>只要 {m`\kappa`} 很大，任何單一 {m`\mu`} 都快不起來</strong>——這是第 10 章 preconditioner 的動機。 <ClaimTag kind="exact" />（線性遞迴的結論；
+        <strong>只要 {m`\kappa`} 很大，任何單一 {m`\mu`} 都快不起來</strong>——這是<ChRef ch="10">第 10 章</ChRef> preconditioner 的動機。 <ClaimTag kind="exact" />（線性遞迴的結論；
         1-bit 時 {m`g^\star`} 與這個收斂率同樣只在小訊號區成立，而且 {m`g`} 越大、迴路自己的抖動越大，見 F-09.3 下面的說明）
       </p>
       <HandCalcBox id="HC-09.4">
@@ -445,9 +445,9 @@ export function MeanRecursion() {
         {m`a=2,\ b=0.6,\ d=1`}。
       </HandCalcBox>
       <p>
-        {m`\kappa`} 還有第二個代價：雜訊。如果硬要讓兩個方向一樣快（最小平方解，或第 10 章的 preconditioner），沿弱方向（{m`\lambda_{\min}`}）估計出來的參數，
+        {m`\kappa`} 還有第二個代價：雜訊。如果硬要讓兩個方向一樣快（最小平方解，或<ChRef ch="10">第 10 章</ChRef>的 preconditioner），沿弱方向（{m`\lambda_{\min}`}）估計出來的參數，
         標準差會是強方向（{m`\lambda_{\max}`}）的 {m`\sqrt{\lambda_{\max}/\lambda_{\min}}=\sqrt\kappa=\sqrt{${texNum(modes.kappa, 6)}}\approx${texNum(Math.sqrt(modes.kappa), 4)}`} 倍
-        （訊號能量少 {m`\kappa`} 倍 {m`\Rightarrow`} 標準差大 {m`\sqrt\kappa`} 倍；第 10 章用 preconditioner 的變異數公式推導）。單一 {m`\mu`} 的 LMS 沒有這個放大，
+        （訊號能量少 {m`\kappa`} 倍 {m`\Rightarrow`} 標準差大 {m`\sqrt\kappa`} 倍；<ChRef ch="10">第 10 章</ChRef>用 preconditioner 的變異數公式推導）。單一 {m`\mu`} 的 LMS 沒有這個放大，
         付出的就是上面那個「慢」。<strong>快與準不可兼得，根源都是 {m`\lambda_{\min}`} 太小。</strong> <ClaimTag kind="approx" />
       </p>
 
@@ -475,7 +475,7 @@ export function MeanRecursion() {
         <p>
           方向永遠是 {m`\mathbf R\boldsymbol\delta`}（所以 eigen 結構完全相同），只是大誤差時有效增益被 {m`\sqrt{\sigma_v^2+\boldsymbol\delta^T\mathbf R\boldsymbol\delta}`} 壓低。
           {m`\pm1`} code 也有精確式 {m`\sum_s\pi_s\,\mathrm{erf}\big((\delta_1+s\delta_2)/(\sqrt2\sigma_v)\big)(1,s)`}（{m`\mathrm{erf}`} 是高斯累積分布的另一種寫法：
-          {m`E[\mathrm{sign}(s_0+v)]=\mathrm{erf}\big(s_0/(\sqrt2\sigma_v)\big)`}，見第 5 章；{m`\pi_s=P(s)`}）。把它代進平均遞迴是
+          {m`E[\mathrm{sign}(s_0+v)]=\mathrm{erf}\big(s_0/(\sqrt2\sigma_v)\big)`}，見<ChRef ch="05">第 5 章</ChRef>；{m`\pi_s=P(s)`}）。把它代進平均遞迴是
           <strong> mean-field 近似</strong>（期望值與非線性函數不可交換）。 <ClaimTag kind="exact" />（條件平均） <ClaimTag kind="approx" />（mean-field 遞迴）
         </p>
       </Prereq>

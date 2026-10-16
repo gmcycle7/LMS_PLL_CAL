@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { Data, Layout } from 'plotly.js-dist-min'
-import { Callout, ClaimTag, CodeBlock, ModeGate, Plot, Prereq, Section, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeBlock, ModeGate, Plot, Prereq, Section, Tex, TexBlock, ChRef } from '@/components'
 import calNoiseSrc from '@/simulation/models/calNoise.ts?raw'
 import { swDtft, swOneSided, swZohOneSided } from '@/simulation/models/calNoise'
 import { Diagram, EX, Erratum, Hand, Steps, md, sig } from '../common'
@@ -317,7 +317,7 @@ S^{(1)}_{\delta t}(f)&=\underbrace{m^2\,S^{(1)}_{w,\mathrm{zoh}}(f)}_{\text{常�
         <Callout kind="info" title={md(String.raw`Code 有 DC 就有直通項 $m\,\delta w$`)}>
           若 <Tex>{String.raw`x=m+\tilde x`}</Tex>（例如非負的 DSM residue），則 <Tex>{String.raw`\delta t=m\,\delta w+\tilde x\,\delta w`}</Tex>，
           <Tex>{String.raw`S_{\delta t}=m^2S_w+\frac1{2\pi}S_{\tilde x}\circledast S_w`}</Tex>（交叉項因 <Tex>{String.raw`E[\tilde x]=0`}</Tex> 與獨立而消失）。
-          <Tex>{String.raw`m\,\delta w`}</Tex> 落在 PLL 的 low-pass <Tex>{'T'}</Tex> 通帶內，直接變成 output jitter——這是 code centering 的另一個理由（第 11 章是 bias 的理由）。
+          <Tex>{String.raw`m\,\delta w`}</Tex> 落在 PLL 的 low-pass <Tex>{'T'}</Tex> 通帶內，直接變成 output jitter——這是 code centering 的另一個理由（<ChRef ch="11">第 11 章</ChRef>是 bias 的理由）。
         </Callout>
       </Section>
 

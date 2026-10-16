@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { SymbolTable, Tex, type SymbolEntry } from '@/components'
+import { SymbolTable, Tex, type SymbolEntry, ChRef } from '@/components'
 import { md } from '../shared'
 
 /** 章末符號表的錨點（docs/teaching-style.md §5：符號表放在每章最後，外層 id="symbols"）。 */
@@ -141,7 +141,7 @@ export const SYMBOLS: SymbolEntry[] = [
     firstSeen: '§14.0',
     note: (
       <>
-        <Tex>{'|\\theta|\\ge90^\\circ\\Rightarrow C\\le0'}</Tex>：極性錯誤（Ch06）
+        <Tex>{'|\\theta|\\ge90^\\circ\\Rightarrow C\\le0'}</Tex>：極性錯誤（<ChRef ch="06">Ch06</ChRef>）
       </>
     ),
   },

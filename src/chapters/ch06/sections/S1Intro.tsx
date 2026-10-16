@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, Prereq, Section, SourceTag, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, Prereq, Section, SourceTag, Tex, TexBlock, ChRef } from '@/components'
 import { calPole, kqFromSigma, toneCorrelation, toneHandTable } from '@/simulation/models/polarity'
 import { ChapterDiagram, ChapterSection, f, fx, JumpTo, radOf } from '../shared'
 
@@ -108,8 +108,8 @@ export function S1Intro() {
           12 個乘積裡負的遠多於正的，平均是 <strong>負的</strong>。下一節會證明：GMAC 的平均輸出正比於這個 <Tex>{'C'}</Tex>，
           而更新的「方向」取決於它的正負號。先認識下表用到的幾個量：<Tex>{'\\delta=a-w'}</Tex> 是參數誤差（真實 gain <Tex>{'a'}</Tex> 減掉校正迴路目前的估計{' '}
           <Tex>{'w'}</Tex>）；<Tex>{'\\mu'}</Tex> 是 learning rate；<Tex>{'\\sigma_v'}</Tex> 是 comparator 前雜訊的 RMS，<Tex>{'K_q=\\sqrt{2/\\pi}/\\sigma_v'}</Tex>{' '}
-          是第 05 章推導的 comparator 小訊號增益；<Tex>{'p=1-\\mu K_qC'}</Tex> 是平均誤差每過一個 GMAC block 被乘上的倍數（pole）——<Tex>{'p<1'}</Tex> 誤差縮小，
-          <Tex>{'p>1'}</Tex> 誤差放大。代入第 05 章的數字（<Tex>{'\\mu=10\\,\\mathrm{fs}'}</Tex>、<Tex>{'\\sigma_v=100\\,\\mathrm{fs}'}</Tex>{' '}
+          是<ChRef ch="05">第 05 章</ChRef>推導的 comparator 小訊號增益；<Tex>{'p=1-\\mu K_qC'}</Tex> 是平均誤差每過一個 GMAC block 被乘上的倍數（pole）——<Tex>{'p<1'}</Tex> 誤差縮小，
+          <Tex>{'p>1'}</Tex> 誤差放大。代入<ChRef ch="05">第 05 章</ChRef>的數字（<Tex>{'\\mu=10\\,\\mathrm{fs}'}</Tex>、<Tex>{'\\sigma_v=100\\,\\mathrm{fs}'}</Tex>{' '}
           ⇒ <Tex>{`K_q=${f(Kq, 6)}\\,\\mathrm{fs}^{-1}`}</Tex>）：
         </p>
         <div className="table-wrap">

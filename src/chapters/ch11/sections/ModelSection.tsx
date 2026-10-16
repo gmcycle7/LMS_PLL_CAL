@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, CodeBlock, Prereq, Section, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeBlock, Prereq, Section, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import biasSrc from '@/simulation/models/bias.ts?raw'
 import { buildCodeDistribution, codeMoments, comparatorMean } from '@/simulation/models/bias'
 import { F } from '../formulas'
@@ -103,7 +103,7 @@ export function ModelSection() {
                 與 <Tex>{'x'}</Tex> 獨立、零均值
               </td>
               <td>
-                本身不會；只造成 <Tex>{'w'}</Tex> 的隨機抖動（Ch12），並決定 comparator 的小訊號增益{' '}
+                本身不會；只造成 <Tex>{'w'}</Tex> 的隨機抖動（<ChRef ch="12">Ch12</ChRef>），並決定 comparator 的小訊號增益{' '}
                 <Tex>{String.raw`K_q=\sqrt{2/\pi}/\sigma_v`}</Tex>（平均輸出對輸入的斜率，§11.A 推導）。但 Sign-LMS 的 <Tex>{'\\sigma_v'}</Tex> 大小會改變其他 bias
                 最後落在哪裡（例如三階 INL 的 1.34 ↔ 1.4，§11.2、勘誤 E01）
               </td>
@@ -145,7 +145,7 @@ export function ModelSection() {
                 <Tex>{String.raw`E[x\,v]=E[x]E[v]=0`}</Tex>
               </td>
               <td>
-                <strong>不造成 bias</strong>，只讓 <Tex>{'w'}</Tex> 抖動（<Tex>{'\\sigma_w'}</Tex>，Ch12）
+                <strong>不造成 bias</strong>，只讓 <Tex>{'w'}</Tex> 抖動（<Tex>{'\\sigma_w'}</Tex>，<ChRef ch="12">Ch12</ChRef>）
               </td>
             </tr>
             <tr>
@@ -227,7 +227,7 @@ export function ModelSection() {
           <Tex>{String.raw`\operatorname{erf}(z)=\tfrac{2}{\sqrt\pi}\big(z-\tfrac{z^3}{3}+\tfrac{z^5}{10}-\cdots\big)`}</Tex>。這個級數對任何有限的{' '}
           <Tex>{'z'}</Tex> 都收斂；但只取前一、兩項時，只有 <Tex>{'|z|'}</Tex> 小才準（§11.2 的表會看到 <Tex>{'|z|'}</Tex> 大時三次截斷完全失準）。第一項就是 comparator 的小訊號增益
           <Tex>{'K_q'}</Tex>，第二項（三次項）決定 Sign-LMS 固定點的修正（§11.2）。例：<Tex>{String.raw`s=1,\ \sigma_v=100`}</Tex> 時{' '}
-          <Tex>{String.raw`E[q]=\operatorname{erf}(0.01/\sqrt2)=${texNum(eq, 8)}`}</Tex>（Ch05）。
+          <Tex>{String.raw`E[q]=\operatorname{erf}(0.01/\sqrt2)=${texNum(eq, 8)}`}</Tex>（<ChRef ch="05">Ch05</ChRef>）。
         </p>
       </Prereq>
       <Prereq title="條件期望與「先固定 $x$ 再平均」（tower property）">

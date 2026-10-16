@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ClaimTag, CodeBlock, CodeCompare, ModeGate, Prereq, SourceTag, StepDerivation, Tex, TexBlock } from '@/components'
+import { ClaimTag, CodeBlock, CodeCompare, ModeGate, Prereq, SourceTag, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import polaritySrc from '@/simulation/models/polarity.ts?raw'
 import { freqz, impulseResponse } from '@/simulation/signal'
 import { isWorkerCancelled, useWorkerTask } from '@/workers'
@@ -738,7 +738,7 @@ export function S6MultiTone() {
           <Tex>{'\\mathrm{frac}^2'}</Tex> 的速度消失。
         </strong>{' '}
         <Tex>{'C\\to0^+'}</Tex> 的後果是 LMS 停滯，而線性化的固定點 <Tex>{'w^*\\approx a+B/C'}</Tex> 對任何 bias <Tex>{'B'}</Tex> 極度敏感——<Tex>{'B/C'}</Tex>{' '}
-        大到超出線性範圍時，<Tex>{'{a+B/C}'}</Tex> 只是線性外推，不再是固定點（第 11 章 §11.4 的代回檢查）。但這個結論有兩個重要的但書：
+        大到超出線性範圍時，<Tex>{'{a+B/C}'}</Tex> 只是線性外推，不再是固定點（<ChRef ch="11">第 11 章</ChRef> §11.4 的代回檢查）。但這個結論有兩個重要的但書：
         誤差一大（下一個框）或 regressor 錯開一個 sample（再下一個框），符號還是會翻。
       </p>
       <p>
@@ -940,7 +940,7 @@ export function S6MultiTone() {
           對硬體的意義：GMAC 的 code delay 必須與「DTC 誤差到 PD 取樣」的 pipeline latency <strong>精確</strong>對齊；近整數時 regressor 落後一個 sample
           就足以反轉極性（regressor 超前則一階項為 0，因為 <Tex>{'k<D'}</Tex> 的項不存在）。高頻成形的 MASH 1-1-1 residue 更敏感：相鄰 sample 強烈反相關（
           <Tex>{'R_x[1]<0'}</Tex>），<Tex>{'D=1'}</Tex> 就讓 <Tex>{'C_D'}</Tex> 變成很大的負值（把下方 sweep 的 <Tex>{'D'}</Tex> 設成 1 可以看到）——這和 PLL
-          的相位無關，純粹是 code 對齊問題。delay 的選法與強健性見第 07 章，SSPLL 的實例見 <a href="#/case/sspll">案例頁</a>。
+          的相位無關，純粹是 code 對齊問題。delay 的選法與強健性見<ChRef ch="07">第 07 章</ChRef>，SSPLL 的實例見 <a href="#/case/sspll">案例頁</a>。
         </p>
         <p className="small">
           想用自己的 <Tex>{'\\mathrm{frac}'}</Tex>、<Tex>{'\\omega_nT_s'}</Tex>、<Tex>{'D'}</Tex> 把上表的任何一格算出來？章末的綜合手算題{' '}

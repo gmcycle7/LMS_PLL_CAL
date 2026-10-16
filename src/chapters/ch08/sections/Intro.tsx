@@ -1,4 +1,4 @@
-import { Callout, ClaimTag, Mermaid, ModeGate, ModelLevel, Section, SourceTag, SystemMap, Tex, TestBadge } from '@/components'
+import { Callout, ClaimTag, Mermaid, ModeGate, ModelLevel, Section, SourceTag, SystemMap, Tex, TestBadge, ChRef } from '@/components'
 import { delayCriticalGain } from '@/simulation/models/stability'
 import { ErratumNote, fx, rich } from '../common'
 import { ROADMAP_CHART, SYSTEM_MAP_FOCUS } from '../diagrams'
@@ -43,7 +43,7 @@ export function Intro() {
         </p>
         <p>
           LMS 校正迴路完全一樣：GMAC 告訴你「方向」（polarity），學習率 <Tex>{'\\mu'}</Tex> 決定「轉多少」，pipeline 與主 PLL 決定「資訊有多舊」。
-          前面幾章（Ch05–Ch07）處理的是方向；這一章處理的是<strong>量 <Tex>{'\\times'}</Tex> 延遲</strong>——也就是控制理論的 phase margin。
+          前面幾章（<ChRef ch="05">Ch05</ChRef>–<ChRef ch="07">Ch07</ChRef>）處理的是方向；這一章處理的是<strong>量 <Tex>{'\\times'}</Tex> 延遲</strong>——也就是控制理論的 phase margin。
         </p>
         <Mermaid
           caption="本章的路線圖：由左到右，每一格比前一格多考慮一件事（延遲 → 觀測動態 → 任意線性觀測），穩定條件也跟著變嚴"

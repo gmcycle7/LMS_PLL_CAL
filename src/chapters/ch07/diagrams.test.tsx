@@ -841,6 +841,7 @@ describe('Ch07 頁面上的方塊圖', () => {
       return { svg: `<svg id="${id}" data-chart="${byChart.get(text) ?? 'UNKNOWN'}"><g></g></svg>`, diagramType: 'flowchart-v2' }
     })
     try {
+      localStorage.setItem('lmspll.mode', 'engineer') // 第一次造訪預設 Beginner；這個測試數的是 Engineer 模式的 23 張圖
       const { container } = render(
         <SettingsProvider>
           <MemoryRouter initialEntries={['/ch/07']}>

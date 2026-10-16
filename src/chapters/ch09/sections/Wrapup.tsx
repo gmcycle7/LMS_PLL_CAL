@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, Quiz, Recap, Section, StepDerivation } from '@/components'
+import { Callout, ClaimTag, Quiz, Recap, Section, StepDerivation, ChRef } from '@/components'
 import { eigSym } from '@/simulation/core'
 import { KQ_SIGMA100, eigenModes, corr2, gaugeNullVector, meanSquareRadius, pm1DegenerateProb, stepsToDecay } from '@/simulation/models/pe'
 import { Diagram, Erratum, FigRef, HandCalcBox, formulaTex, m, texNum } from '../shared'
@@ -94,7 +94,7 @@ export function Wrapup() {
                 <td className="ch09-left">不能</td>
               </tr>
               <tr>
-                <td className="ch09-left">Preconditioner {m`\mathbf M=\gamma(K_q\mathbf R)^{-1}`}（第 10 章：{m`\mathbf M`} 是矩陣步長、{m`\gamma`} 是無因次步長）</td>
+                <td className="ch09-left">Preconditioner {m`\mathbf M=\gamma(K_q\mathbf R)^{-1}`}（<ChRef ch="10">第 10 章</ChRef>：{m`\mathbf M`} 是矩陣步長、{m`\gamma`} 是無因次步長）</td>
                 <td className="ch09-left">等效 {m`\kappa\to1`}</td>
                 <td className="ch09-left">所有 pole {m`=1-\gamma`}</td>
                 <td className="ch09-left">慢方向雜訊被放大 {m`\propto1/\lambda_{\min}`}</td>
@@ -297,7 +297,7 @@ export function Wrapup() {
             F-09.19 的 {m`\tfrac54`} 換成 {m`1+\tfrac1P`}。
           </li>
           <li>
-            <strong>GMAC 的 {m`N`}：</strong> 不改變 {m`\mathbf R`}，但決定 mean-square 是否接近 mean（E23）以及雜訊大小（第 12 章）。
+            <strong>GMAC 的 {m`N`}：</strong> 不改變 {m`\mathbf R`}，但決定 mean-square 是否接近 mean（E23）以及雜訊大小（<ChRef ch="12">第 12 章</ChRef>）。
           </li>
           <li>
             <strong>Sign-off 時要量什麼：</strong> 行為模型輸出滑動窗口 {m`\lambda_{\min}(\mathbf R_k)`}、{m`\kappa(\mathbf R_k)`}、singular values，並跨 FCW／PVT 掃描；
@@ -305,7 +305,7 @@ export function Wrapup() {
           </li>
         </ul>
         <Callout kind="info" title="下一課">
-          第 10 章：既然單一 {m`\mu`} 受 {m`\kappa`} 限制，能不能用矩陣 {m`\mathbf M`} 讓每個模式一樣快？可以（preconditioner），但代價是把慢方向的雜訊放大——
+          <ChRef ch="10">第 10 章</ChRef>：既然單一 {m`\mu`} 受 {m`\kappa`} 限制，能不能用矩陣 {m`\mathbf M`} 讓每個模式一樣快？可以（preconditioner），但代價是把慢方向的雜訊放大——
           而且 <strong>preconditioner 不能製造缺失的資訊</strong>。
         </Callout>
       </Section>

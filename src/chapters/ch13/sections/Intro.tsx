@@ -11,6 +11,7 @@ import {
   SystemMap,
   Tex,
   TexBlock,
+  ChRef,
 } from '@/components'
 import { makeGrid, quantize, makeCtx } from '@/simulation/models/quantizer'
 import { DEFAULT_LAB_PARAMS, Erratum, LSB_FS_EXAMPLE, fx, n, tx } from '../common'
@@ -72,7 +73,7 @@ export function Intro() {
           ariaLabel="GMAC 平均進入 LMS accumulator，經量化策略成為 6-bit gain register，再與 DSM residue 一起經 Gain correction 控制 reference 端的 DTC；reference clock 經 DTC 進 PD，PD 的輸出同時送給 loop filter 與 1-bit comparator；loop filter 與 VCO 的輸出只經 divider 回到 PD，回授路徑上沒有 DTC；comparator 經 GMAC 回到 accumulator；code 誤差乘上 DSM residue 後經 PLL 到輸出"
         />
         <p className="small ch13-figwalk">
-          先看由上往下的主幹：GMAC 平均 <Tex>{'G_k'}</Tex>（第 4 章：一個 block 內 comparator 輸出乘上 code 的平均）更新 accumulator <Tex>{String.raw`\to`}</Tex> 藍色的量化策略 <Tex>{String.raw`\to`}</Tex> 6-bit register{' '}
+          先看由上往下的主幹：GMAC 平均 <Tex>{'G_k'}</Tex>（<ChRef ch="04">第 4 章</ChRef>：一個 block 內 comparator 輸出乘上 code 的平均）更新 accumulator <Tex>{String.raw`\to`}</Tex> 藍色的量化策略 <Tex>{String.raw`\to`}</Tex> 6-bit register{' '}
           <Tex>{String.raw`\to`}</Tex> Gain correction（乘上 DSM residue <Tex>{'x[n]'}</Tex>，得到<strong>補償量</strong> <Tex>{String.raw`\Delta_\mathrm{LSB}\cdot y\cdot x[n]`}</Tex>）<Tex>{String.raw`\to`}</Tex> reference 端的 DTC。再看圖的下半：reference clock 經 DTC 才進 PD；PD 下面那一圈是主 PLL 迴路——PD{' '}
           <Tex>{String.raw`\to`}</Tex> loop filter <Tex>{String.raw`\to`}</Tex> VCO <Tex>{String.raw`\to`}</Tex> divider <Tex>{String.raw`\to`}</Tex> 回到 PD，回授路徑上只有 divider，沒有 DTC。PD 的輸出{' '}
           <Tex>{String.raw`e_\mathrm{PD}[n]`}</Tex> 分兩路：往右下送進 loop filter，往左下給 1-bit comparator、再經 GMAC 回到最上面（圖左邊往上的那條線），這就是校正迴路——comparator 取的是 PD 的輸出，也就是送進 loop filter 的<strong>同一個訊號</strong>（系統地圖上標{' '}
@@ -97,7 +98,7 @@ export function Intro() {
           <Tex>{String.raw`w\leftarrow w+\mu\,q\,x`}</Tex>（<Tex>{String.raw`q=\mathrm{sign}(e_\mathrm{PD})`}</Tex>）看的是 PD 這個方向：補償不足時 <Tex>{String.raw`q\,x`}</Tex> 的平均為正，把 <Tex>{'w'}</Tex> 往上推。
         </p>
         <p className="small">
-          線性化之後寫成相位（和第 12 章的寫法相同）：相位以 edge 晚到為正，DTC 的殘餘誤差在 PD 的 reference 輸入是 <Tex>{String.raw`\phi_\mathrm{dtc}=-2\pi f_\mathrm{out}\,\delta t`}</Tex>（<Tex>{String.raw`f_\mathrm{out}`}</Tex> 是 PLL 的輸出頻率），到輸出是{' '}
+          線性化之後寫成相位（和<ChRef ch="12">第 12 章</ChRef>的寫法相同）：相位以 edge 晚到為正，DTC 的殘餘誤差在 PD 的 reference 輸入是 <Tex>{String.raw`\phi_\mathrm{dtc}=-2\pi f_\mathrm{out}\,\delta t`}</Tex>（<Tex>{String.raw`f_\mathrm{out}`}</Tex> 是 PLL 的輸出頻率），到輸出是{' '}
           <Tex>{String.raw`\theta_\mathrm{out}=T\,\phi_\mathrm{dtc}`}</Tex>（正號）。本章只用到 <Tex>{String.raw`|T|^2`}</Tex>、RMS 與 PSD，這個負號不影響任何數字。
         </p>
         <ModeGate min="engineer">
@@ -110,7 +111,7 @@ export function Intro() {
 
       <Section kind="example" title="先算一次：把 LSB 換成 fs" id="ch13-units">
         <p>
-          規格 §13 只寫「32.4 LSB」，沒有說 1 LSB 是多少 fs，所以 6-bit 的結果無法和第 12 章的 0.399 fs 比較（<Erratum id="E13" />）。本章補上
+          規格 §13 只寫「32.4 LSB」，沒有說 1 LSB 是多少 fs，所以 6-bit 的結果無法和<ChRef ch="12">第 12 章</ChRef>的 0.399 fs 比較（<Erratum id="E13" />）。本章補上
           <Tex>{String.raw`\Delta_\mathrm{LSB}`}</Tex>（1 個 gain LSB 對應的 DTC gain，單位 <Tex>{String.raw`\mathrm{fs/LSB}`}</Tex>），示例值取 <Tex>{String.raw`\Delta_\mathrm{LSB}=${LSB_FS_EXAMPLE}\,\mathrm{fs/LSB}`}</Tex>
           （與 Lab 的 <code>gain_lsb_fs</code> 預設一致，非量測值）。
         </p>
@@ -132,8 +133,8 @@ export function Intro() {
               tex: String.raw`\sigma_w^{(\mathrm{ch12})}=\frac{\mu}{\sqrt{N(1-p_\mathrm{cal}^2)}}=${fx(nums.sigmaWFs, 3)}\ \mathrm{fs}=\frac{${fx(nums.sigmaWFs, 3)}}{${LSB_FS_EXAMPLE}}=${fx(nums.sigmaWLsb, 2)}\ \mathrm{LSB}`,
               why: (
                 <>
-                  <Tex>{String.raw`\sigma_w`}</Tex> 是 LMS 更新雜訊讓係數在 <Tex>{'w^*'}</Tex> 附近擺動的 RMS（第 12 章）；<Tex>{String.raw`\mu`}</Tex> 是 LMS 步長、<Tex>{'N'}</Tex> 是 GMAC 的 block 長度、
-                  <Tex>{String.raw`\sigma_v`}</Tex> 是 comparator 前的雜訊、<Tex>{String.raw`p_\mathrm{cal}`}</Tex> 是第 12 章的係數 pole（那裡記為 <Tex>{'p'}</Tex>；本章的 <Tex>{'p'}</Tex> 另指小數部分，所以改名）。第 12 章 T13 例子（
+                  <Tex>{String.raw`\sigma_w`}</Tex> 是 LMS 更新雜訊讓係數在 <Tex>{'w^*'}</Tex> 附近擺動的 RMS（<ChRef ch="12">第 12 章</ChRef>）；<Tex>{String.raw`\mu`}</Tex> 是 LMS 步長、<Tex>{'N'}</Tex> 是 GMAC 的 block 長度、
+                  <Tex>{String.raw`\sigma_v`}</Tex> 是 comparator 前的雜訊、<Tex>{String.raw`p_\mathrm{cal}`}</Tex> 是<ChRef ch="12">第 12 章</ChRef>的係數 pole（那裡記為 <Tex>{'p'}</Tex>；本章的 <Tex>{'p'}</Tex> 另指小數部分，所以改名）。<ChRef ch="12">第 12 章</ChRef> T13 例子（
                   <Tex>{String.raw`\mu=10\,\mathrm{fs},\ N=4096,\ \sigma_v=100\,\mathrm{fs}\Rightarrow p_\mathrm{cal}=${fx(nums.pcal, 5)}`}</Tex>）的係數雜訊換成 LSB：在這個 <Tex>{String.raw`\Delta_\mathrm{LSB}`}</Tex> 下 LMS
                   雜訊遠大於 1 LSB，量化幾乎被淹沒。本章因此把 <Tex>{String.raw`\sigma_w/\Delta_\mathrm{LSB}`}</Tex> 當成關鍵參數（§13.5a 的時變情境用 <Tex>{String.raw`\sigma_w=0.2\,\mathrm{LSB}`}</Tex>，量化誤差與 LMS 雜訊同量級）。
                 </>

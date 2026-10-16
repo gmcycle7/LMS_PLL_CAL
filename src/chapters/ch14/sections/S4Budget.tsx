@@ -1,6 +1,6 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import type { Data } from 'plotly.js-dist-min'
-import { Callout, ClaimTag, CodeBlock, ModeGate, ParamControl, Plot, Section, SourceTag, Tex, TexBlock, useThemeTokens } from '@/components'
+import { Callout, ClaimTag, CodeBlock, ModeGate, ParamControl, Plot, Section, SourceTag, Tex, TexBlock, useThemeTokens, ChRef } from '@/components'
 import optimizerSrc from '@/simulation/models/optimizer.ts?raw'
 import { budgetSplit, loopGainK } from '@/simulation/models/optimizer'
 import { Diagram } from '../Diagram'
@@ -174,12 +174,12 @@ export function S4Budget() {
               <td>
                 好：固定的 pipeline latency 只佔 block 的一小部分，<Tex>{'d\\approx0'}</Tex>
               </td>
-              <td>差：latency 可能跨好幾個 block，PM 變小（Ch08 §8.3）</td>
+              <td>差：latency 可能跨好幾個 block，PM 變小（<ChRef ch="08">Ch08</ChRef> §8.3）</td>
             </tr>
             <tr>
               <td>Accumulator 位元數</td>
               <td>
-                多：<Tex>{'x=\\pm1'}</Tex> 的 sum-mode 累加值落在 <Tex>{'[-N,N]'}</Tex>，需 <Tex>{'\\lceil\\log_2(N+1)\\rceil+1'}</Tex> 位元（<Tex>{'N=4096'}</Tex> 時 14 bits；多位元 code 再加 code 位元，見 Ch16）
+                多：<Tex>{'x=\\pm1'}</Tex> 的 sum-mode 累加值落在 <Tex>{'[-N,N]'}</Tex>，需 <Tex>{'\\lceil\\log_2(N+1)\\rceil+1'}</Tex> 位元（<Tex>{'N=4096'}</Tex> 時 14 bits；多位元 code 再加 code 位元，見 <ChRef ch="04">Ch04</ChRef> §5）
               </td>
               <td>少</td>
             </tr>

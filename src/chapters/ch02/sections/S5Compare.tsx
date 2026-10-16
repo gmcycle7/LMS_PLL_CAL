@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Prereq, Quiz, Section, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Prereq, Quiz, Section, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import lmsSrc from '@/simulation/models/lms.ts?raw'
 import sgdSrc from '@/simulation/models/sgd.ts?raw'
 import { equalSpeedVarianceRatio, noisePdfAt, type MeanFieldInput, type NoiseKind, type XKind } from '@/simulation/models/sgd'
@@ -78,7 +78,7 @@ export function S5Compare() {
                   <Tex>{'x^2'}</Tex> 加權平均
                 </td>
                 <td>
-                  指數收斂後在 <Tex>{'w^*'}</Tex> 附近抖動，<Tex>{String.raw`\operatorname{Var}\approx\mu\sigma_v^2/2`}</Tex>；步長太大會發散（固定 <Tex>{'x'}</Tex>：<Tex>{'\\mu<2/x^2'}</Tex>；隨機 <Tex>{'x'}</Tex> 的 mean／mean-square 界見 Ch03）
+                  指數收斂後在 <Tex>{'w^*'}</Tex> 附近抖動，<Tex>{String.raw`\operatorname{Var}\approx\mu\sigma_v^2/2`}</Tex>；步長太大會發散（固定 <Tex>{'x'}</Tex>：<Tex>{'\\mu<2/x^2'}</Tex>；隨機 <Tex>{'x'}</Tex> 的 mean／mean-square 界見 <ChRef ch="03">Ch03</ChRef>）
                 </td>
                 <td>乘法器 <Tex>{'B_e\\times B_x'}</Tex> + 累加器</td>
                 <td>敏感（平方放大）</td>
@@ -218,7 +218,7 @@ export function S5Compare() {
         <p>
           Sign-Error 的 <Tex>{'\\operatorname{sign}(e)\\,x'}</Tex> 在硬體上是「<strong>conditional negation</strong>」：<Tex>{'q=+1'}</Tex> 時加 <Tex>{'x'}</Tex>、<Tex>{'q=-1'}</Tex> 時減 <Tex>{'x'}</Tex>
           （2&apos;s complement：XOR 每個位元再進位 1）。這就是 PLL 校正中 GMAC 的乘加單元（<ChapterLink ch="04">Ch04</ChapterLink>）。
-          若 comparator 輸出 0/1，必須先映射 <Tex>{'q=2b-1'}</Tex>，否則等於用了錯的 regressor（Ch05、Ch11）。
+          若 comparator 輸出 0/1，必須先映射 <Tex>{'q=2b-1'}</Tex>，否則等於用了錯的 regressor（<ChRef ch="05">Ch05</ChRef>、<ChRef ch="11">Ch11</ChRef>）。
         </p>
       </Section>
 
@@ -362,10 +362,10 @@ export function S5Compare() {
 
       <Callout kind="warn" title="注意假設">
         <ul className="ch02-try">
-          <li>本章的 <Tex>{'x'}</Tex> 與 <Tex>{'v'}</Tex> 都是 iid、彼此獨立；PLL 中的有效 regressor <Tex>{'u=h*x'}</Tex> 有時間相關，公式要改用 Ch06–Ch07 的相關函數。</li>
+          <li>本章的 <Tex>{'x'}</Tex> 與 <Tex>{'v'}</Tex> 都是 iid、彼此獨立；PLL 中的有效 regressor <Tex>{'u=h*x'}</Tex> 有時間相關，公式要改用 <ChRef ch="06">Ch06</ChRef>–<ChRef ch="07">Ch07</ChRef> 的相關函數。</li>
           <li>「固定點」是 mean-field（平均更新為零）的點；固定步長時真正的穩態平均還有 <Tex>{'O(\\mu)'}</Tex> 的偏移（實驗中以 <Tex>{"\\psi''\\operatorname{Var}/(2K)"}</Tex> 修正）。</li>
           <li>
-            <Tex>{'\\operatorname{sign}(0)'}</Tex> 的慣例與浮點捨入會造成 <Tex>{'O(\\mu)'}</Tex> 的差異 <ErrataNote id="E40" />；硬體的有限位寬（量化、limit cycle）在 Ch13。
+            <Tex>{'\\operatorname{sign}(0)'}</Tex> 的慣例與浮點捨入會造成 <Tex>{'O(\\mu)'}</Tex> 的差異 <ErrataNote id="E40" />；硬體的有限位寬（量化、limit cycle）在 <ChRef ch="13">Ch13</ChRef>。
           </li>
         </ul>
       </Callout>

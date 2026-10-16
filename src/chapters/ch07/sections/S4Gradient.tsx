@@ -1,4 +1,4 @@
-import { Callout, ClaimTag, CodeBlock, Derivation, Mermaid, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeBlock, Derivation, Mermaid, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
 import fxSrc from '@/simulation/models/filteredX.ts?raw'
 import { CHART_FX_LOOP, CHART_GRADIENT, CHART_RHO_READING, CHART_THREE_REGRESSORS } from '../diagrams'
 import { FoldSteps } from '../FoldSteps'
@@ -31,7 +31,7 @@ export function S4Gradient() {
         <ClaimTag kind="exact" /> 前提：這一節把 <Tex>{'w'}</Tex> 當成固定不動的常數。<Tex>{'h'}</Tex> 是 LTI，不隨時間變的係數可以提到卷積外面，所以{' '}
         {/* 外層的大括號讓這條恆等式不會在行尾被拆成兩半 */}
         <Tex>{r`{h*\big((a-w)\,x\big)=(a-w)\,(h*x)}`}</Tex>，上式是等式。LMS 真的在更新時，<Tex>{'w'}</Tex> 每個 block 都在變，舊的 <Tex>{'w'}</Tex> 還留在 <Tex>{'h'}</Tex>{' '}
-        的記憶裡，這條式子就只是近似——Ch06 的 F-06.1：<Tex>{r`e_{\mathrm{PD}}[n]\approx(a-w_k)\,u[n]+v[n]`}</Tex>，要 <Tex>{'w'}</Tex> 在 <Tex>{'h'}</Tex>{' '}
+        的記憶裡，這條式子就只是近似——<ChRef ch="06">Ch06</ChRef> 的 F-06.1：<Tex>{r`e_{\mathrm{PD}}[n]\approx(a-w_k)\,u[n]+v[n]`}</Tex>，要 <Tex>{'w'}</Tex> 在 <Tex>{'h'}</Tex>{' '}
         的記憶長度內幾乎不變（LMS 比主 PLL 慢很多）才成立；記憶長度是脈衝響應 <Tex>{'h[k]'}</Tex> 衰減的時間尺度——大約過了這麼多個 sample，舊輸入留下的影響就縮小到{' '}
         {/* 公式和句號綁在一起：桌機上這一行剛好排滿時，句號不會自己掉到下一行 */}
         <span className="nowrap">
@@ -96,7 +96,7 @@ export function S4Gradient() {
       <p>
         先看圖的前半段：<Tex>{'x[n]'}</Tex> 經過誤差路徑 <Tex>{'h'}</Tex> 變成 <Tex>{'u[n]'}</Tex>，乘上 <Tex>{'(a-w)'}</Tex>、加上雜訊 <Tex>{'v[n]'}</Tex>，就是上面 F-07.1 的
         <Tex>{r`e_{\mathrm{PD}}[n]`}</Tex>——圓形加法點的輸出就是 PD 的輸出，兩個乘法器都從這裡取訊號。再看兩個乘法器：標著「真正的梯度」的那一個把 <Tex>{r`e_{\mathrm{PD}}`}</Tex> 乘回 <Tex>{'u'}</Tex>——<Tex>{'u'}</Tex> 自己乘自己的平均是
-        <Tex>{r`E[u^2]`}</Tex>，不可能是負的；標著「raw-x」的那一個乘的是 <Tex>{'x'}</Tex>，平均出來是 Ch06 的 <Tex>{r`C=E[x\,u]`}</Tex>。下面的推導說明：對 PD 端的誤差功率 <Tex>{'J(w)'}</Tex>（推導第 2 步定義）微分，自然會得到綠色那一路——
+        <Tex>{r`E[u^2]`}</Tex>，不可能是負的；標著「raw-x」的那一個乘的是 <Tex>{'x'}</Tex>，平均出來是 <ChRef ch="06">Ch06</ChRef> 的 <Tex>{r`C=E[x\,u]`}</Tex>。下面的推導說明：對 PD 端的誤差功率 <Tex>{'J(w)'}</Tex>（推導第 2 步定義）微分，自然會得到綠色那一路——
         圖上綠色方塊前面的乘法器算的 <Tex>{r`E[e_{\mathrm{PD}}\,u]`}</Tex>，就是 F-07.9 裡梯度 <Tex>{r`dJ/dw`}</Tex> 的負值。
       </p>
       <FoldSteps
@@ -105,7 +105,7 @@ export function S4Gradient() {
             tex: r`e_{\mathrm{PD}}[n]=(a-w)\,u[n]+v[n],\qquad u=h*x`,
             why: (
               <>
-                Ch06 的模型：reference 端的 DTC 補償之後留下的 gain 誤差 <Tex>{'(a-w)x'}</Tex> 經過誤差路徑 <Tex>{'h'}</Tex>、再加上雜訊 <Tex>{'v'}</Tex>，就是 PD 的輸出{' '}
+                <ChRef ch="06">Ch06</ChRef> 的模型：reference 端的 DTC 補償之後留下的 gain 誤差 <Tex>{'(a-w)x'}</Tex> 經過誤差路徑 <Tex>{'h'}</Tex>、再加上雜訊 <Tex>{'v'}</Tex>，就是 PD 的輸出{' '}
                 <Tex>{r`e_{\mathrm{PD}}`}</Tex>（comparator 取的就是它）。這裡的 <Tex>{'w'}</Tex> 是凍結的常數（上面的前提）。
               </>
             ),
@@ -136,7 +136,7 @@ E[e_{\mathrm{PD}}\,u]&=(a-w)\,E[u^2]+E[v\,u]&&\text{代入 }e_{\mathrm{PD}}\\
 \end{aligned}`}</TexBlock>
       <p>
         對照 raw-x GMAC 算的是 <Tex>{r`E[e_{\mathrm{PD}}\,x]=(a-w)\,E[x\,u]=(a-w)\,C`}</Tex>：它是「用錯 regressor 的梯度」。
-        <Tex>{r`C=E[xu]`}</Tex> 可以是負的（Ch06），<Tex>{r`E[u^2]`}</Tex> 永遠不會。 <ClaimTag kind="exact" />{' '}
+        <Tex>{r`C=E[xu]`}</Tex> 可以是負的（<ChRef ch="06">Ch06</ChRef>），<Tex>{r`E[u^2]`}</Tex> 永遠不會。 <ClaimTag kind="exact" />{' '}
         <span className="small">
           （指凍結 <Tex>{'w'}</Tex> 的 cost <Tex>{'J(w)'}</Tex>；LMS 逐 block 更新時再加上 F-07.1 下面的慢適應前提）
         </span>
@@ -167,7 +167,7 @@ E[e_{\mathrm{PD}}\,u]&=(a-w)\,E[u^2]+E[v\,u]&&\text{代入 }e_{\mathrm{PD}}\\
           雜訊 <Tex>{r`v\sim\mathcal N(0,\sigma_v^2)`}</Tex>（Gaussian，鐘形曲線）。<Tex>{r`\Phi(z)=P(Z\le z)`}</Tex> 是標準常態的累積機率，
           <Tex>{r`\mathrm{erf}(z)=\frac{2}{\sqrt\pi}\int_0^ze^{-t^2}dt`}</Tex>，兩者關係 <Tex>{r`2\Phi(z)-1=\mathrm{erf}(z/\sqrt2)`}</Tex>。
           在 0 附近泰勒展開：<Tex>{r`\mathrm{erf}(z)=\frac{2}{\sqrt\pi}\big(z-\tfrac{z^3}{3}+\cdots\big)`}</Tex>，所以小訊號時
-          <Tex>{r`\mathrm{erf}(z)\approx\frac{2}{\sqrt\pi}z`}</Tex>（Ch05 有 1 fs vs 100 fs 的完整例子）。
+          <Tex>{r`\mathrm{erf}(z)\approx\frac{2}{\sqrt\pi}z`}</Tex>（<ChRef ch="05">Ch05</ChRef> 有 1 fs vs 100 fs 的完整例子）。
         </p>
       </Prereq>
       <FoldSteps
@@ -327,7 +327,7 @@ E[e_{\mathrm{PD}}\,u]&=(a-w)\,E[u^2]+E[v\,u]&&\text{代入 }e_{\mathrm{PD}}\\
                   tex: r`\delta_{k+1}=p\,\delta_k-\mu\,\eta_k,\qquad p=1-g,\ g=\mu K_qC`,
                   why: (
                     <>
-                      線性化：<Tex>{r`G_k=K_qC\delta_k+\eta_k`}</Tex>，<Tex>{r`\eta_k`}</Tex> 是 GMAC 的平均雜訊（Ch12）。
+                      線性化：<Tex>{r`G_k=K_qC\delta_k+\eta_k`}</Tex>，<Tex>{r`\eta_k`}</Tex> 是 GMAC 的平均雜訊（<ChRef ch="12">Ch12</ChRef>）。
                     </>
                   ),
                 },

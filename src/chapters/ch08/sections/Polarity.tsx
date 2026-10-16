@@ -9,6 +9,7 @@ import {
   StepDerivation,
   Tex,
   TexBlock,
+  ChRef,
 } from '@/components'
 import stabilitySrc from '@/simulation/models/stability.ts?raw'
 import {
@@ -192,7 +193,7 @@ export function Polarity() {
       <ModeGate min="engineer">
         <Expand title="工程補充：多頻 code 時 polarity margin 失去意義" badge="工程">
           <p>
-            多頻（DSM、PRBS）code 的相關是整個頻帶的加權積分 <Tex>{'C=\\frac{1}{2\\pi}\\int S_{xx}(\\Omega)\\,\\mathrm{Re}\\{H(e^{j\\Omega})e^{j\\Omega D}\\}\\,d\\Omega'}</Tex>（Ch06 §6.2）。
+            多頻（DSM、PRBS）code 的相關是整個頻帶的加權積分 <Tex>{'C=\\frac{1}{2\\pi}\\int S_{xx}(\\Omega)\\,\\mathrm{Re}\\{H(e^{j\\Omega})e^{j\\Omega D}\\}\\,d\\Omega'}</Tex>（<ChRef ch="06">Ch06</ChRef> §6.2）。
             此時沒有單一的 <Tex>{'\\theta'}</Tex>；可以用「等效相位」<Tex>{'\\theta_{\\mathrm{eq}}=\\arccos\\!\\big(C/C_{\\max}\\big)'}</Tex> 來報告，但真正的判據永遠是{' '}
             <Tex>{'C>0'}</Tex>（以及下一節的 PM）。
           </p>

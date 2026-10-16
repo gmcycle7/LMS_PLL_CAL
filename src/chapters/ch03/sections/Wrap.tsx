@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Quiz, Recap, Section, Tex, TexBlock } from '@/components'
+import { Quiz, Recap, Section, Tex, TexBlock, ChRef } from '@/components'
 import { fixedXPole, meanSquareFactor } from '@/simulation/models/lms'
 import { normInv } from '@/simulation/core'
 import {
@@ -220,7 +220,7 @@ export function RecapSection() {
         ]}
       />
       <p className="small muted">
-        下一個值得研究的問題：comparator 只給 1 bit（Sign-LMS）時，<Tex>{T`1-\mu x^2`}</Tex> 變成什麼？（第 5 章的 <Tex>{T`K_q`}</Tex>）；regressor 經過 PLL error path{' '}
+        下一個值得研究的問題：comparator 只給 1 bit（Sign-LMS）時，<Tex>{T`1-\mu x^2`}</Tex> 變成什麼？（<ChRef ch="05">第 5 章</ChRef>的 <Tex>{T`K_q`}</Tex>）；regressor 經過 PLL error path{' '}
         <Tex>{T`u=h*x`}</Tex> 後，<Tex>{T`P_x`}</Tex> 要換成什麼？（第 6–7 章的相關 <Tex>C</Tex>，可能是負的。）
       </p>
     </Section>
