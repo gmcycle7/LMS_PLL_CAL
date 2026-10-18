@@ -1,4 +1,4 @@
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import {
   applyDashCycle,
   buildExportLayout,
@@ -230,6 +230,21 @@ describe('logSpanDecades', () => {
     expect(logSpanDecades([{ y: [-1, 0] }], 'y')).toBeUndefined()
     expect(logSpanDecades([{ type: 'heatmap', z: [[1]] } as Data], 'x')).toBeUndefined()
   })
+
+  it('heatmap / histogram 自己的座標陣列也算進範圍（只看明確給的 x／y；類別字串不算）', () => {
+    // sign map 熱圖：x 跨 0.3…3000 MHz（4 個十進位），同圖只有一條「目前的 α」直線（0 個十進位）
+    const heat = [
+      { type: 'heatmap', x: [0.3, 3, 30, 300, 3000], y: ['GOS', 'PHOS'], z: [[1, -1, 0, 1, 1], [0, 0, 1, 1, -1]] } as Data,
+      { x: [80, 80], y: ['GOS', 'PHOS'], mode: 'lines' } as Data,
+    ]
+    expect(logSpanDecades(heat, 'x')).toBeCloseTo(4, 6)
+    expect(logSpanDecades([heat[1]], 'x')).toBe(0)
+    expect(logSpanDecades(heat, 'y')).toBeUndefined()
+    // histogram：x 是樣本，沒有 y；≤0 與非數值略過；沒有 x 時不補隱含座標
+    expect(logSpanDecades([{ type: 'histogram', x: [0, 1, 'a', 1000] } as Data], 'x')).toBeCloseTo(3, 6)
+    expect(logSpanDecades([{ type: 'histogram', y: [1, 10] } as Data], 'x')).toBeUndefined()
+    expect(logSpanDecades([{ type: 'histogram', y: [1, 10] } as Data], 'y')).toBeCloseTo(1, 6)
+  })
 })
 
 describe('pickLegendCorner', () => {
@@ -262,6 +277,19 @@ describe('pickLegendCorner', () => {
     expect(estimateLegendWidth(['<i>w</i>'])).toBe(6.5 + 46)
     // TeX 標記不算寬度：$H(e^{j\Omega})$ → H(ejx) 5 個字
     expect(estimateLegendWidth([String.raw`$H(e^{j\Omega})$`])).toBe(6 * 6.5 + 46)
+  })
+  it('類別軸（x 是字串標籤）：以出現順序當座標，最右邊的長條最高時圖例不放右上', () => {
+    // case-sspll「目前 α 的 κ_m」：m=1…m=7 之後是 GOS，GOS 那根最高且在最右邊（之前字串 x 被丟掉 → 一律右上，圖例蓋住 GOS）
+    const cats = ['m=1', 'm=2', 'm=3', 'm=4', 'm=5', 'm=6', 'm=7', 'GOS']
+    const bars: Data = { type: 'bar', x: cats, y: [-0.15, 0.4, 0.83, 0.95, 0.83, 0.4, -0.15, 1.2], name: 'Re κ' }
+    const marks: Data = { x: cats, y: [0.3, 0.65, 0.38, 0, -0.38, -0.65, -0.3, 0], mode: 'markers', name: 'Im κ' }
+    expect(pickLegendCorner([bars, marks])).toBeNull() // 右上有 GOS、左上有 m=3 → 上方
+    // 最高的長條在最左 → 左上有資料、右上空 → 右上
+    expect(pickLegendCorner([{ type: 'bar', x: ['a', 'b', 'c', 'd'], y: [4, 1, 1, 1], name: 'v' }])).toBe('top-right')
+    // 最高的在最右 → 左上
+    expect(pickLegendCorner([{ type: 'bar', x: ['a', 'b', 'c', 'd'], y: [1, 1, 1, 4], name: 'v' }])).toBe('top-left')
+    // 水平長條（y 是類別）：最長的在最上面一列且長到右邊 → 右上有資料
+    expect(pickLegendCorner([{ type: 'bar', orientation: 'h', y: ['a', 'b', 'c', 'd'], x: [1, 1, 1, 4], name: 'v' }])).toBe('top-left')
   })
 })
 

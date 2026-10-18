@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode, type Ref } from 'react'
 import { createPortal } from 'react-dom'
-import { mathText, stripMathDelimiters } from './Tex'
+import { accessibleText, mathText } from './Tex'
 
 /**
  * 所有方塊圖共用的外框（Mermaid 圖與手繪的系統地圖都用它）：
@@ -91,7 +91,7 @@ export function DiagramFrame({ caption, ariaLabel, className, ready = true, natu
   }
 
   return (
-    <figure className={`c-mermaid${className ? ` ${className}` : ''}`} aria-label={label ? stripMathDelimiters(label) : undefined} ref={figureRef}>
+    <figure className={`c-mermaid${className ? ` ${className}` : ''}`} aria-label={label ? accessibleText(label) : undefined} ref={figureRef}>
       <div className={frameClass}>
         {html !== undefined ? (
           <div {...scrollerProps} dangerouslySetInnerHTML={{ __html: html }} />
@@ -207,7 +207,7 @@ function DiagramZoom({ caption, label, naturalSize, html, children, onClose }: D
   }
 
   const innerStyle = (size ? { '--c-zoom-width': `${Math.round(size.width * zoom)}px` } : {}) as CSSProperties
-  const name = label ? stripMathDelimiters(label) : '方塊圖'
+  const name = label ? accessibleText(label) : '方塊圖'
 
   return createPortal(
     <div className="c-zoom" role="dialog" aria-modal="true" aria-label={`放大檢視：${name}`} ref={dialog} onKeyDown={onKeyDown}>

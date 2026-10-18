@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { HandCalc, checkAnswer, randomValues, texNum, texNumP } from '@/components'
 import { checkSummary } from './HandCalc'
+import { defaultValues } from './handcalcMath'
 import { ALL_HANDCALCS, handcalcById } from '@/app/handcalcs'
 
 describe('texNum', () => {
@@ -110,4 +111,30 @@ describe('HandCalc', () => {
       unmount()
     }
   }, 120_000)
+})
+
+describe('HandCalc：輸入框與答案欄的 aria-label 是可念形式', () => {
+  const rawNames = (root: HTMLElement) =>
+    Array.from(root.querySelectorAll('[aria-label]'))
+      .map((e) => e.getAttribute('aria-label')!)
+      .filter((v) => /[\\$]/.test(v))
+
+  it('HC-02.3：「要走的距離 $|a-w_0|$」念成「絕對值（a 減 w 0）」，答案欄也是', () => {
+    const def = handcalcById('HC-02.3')!
+    expect(def.inputs.some((i) => i.label.includes('$|a-w_0|$'))).toBe(true)
+    const { container } = render(<HandCalc def={def} initialMode="practice" />)
+    expect(screen.getByLabelText('要走的距離 絕對值（a 減 w 0）（D）')).toBeTruthy()
+    expect(screen.getByLabelText('你的答案：第 n 步的步長')).toBeTruthy()
+    expect(rawNames(container)).toEqual([])
+    // 畫面上的標籤仍是 KaTeX
+    expect(container.querySelector('.c-handcalc-input .c-handcalc-label .katex')).toBeTruthy()
+  })
+
+  it('答案欄沒有 label 時改念符號的可念形式（\\lvert1+L\\rvert^2 → 絕對值（1 加 L）平方）', () => {
+    const def = handcalcById('HC-CS.5')!
+    expect(def.solve(defaultValues(def)).results.some((r) => !r.label && r.symbol.includes('\\lvert'))).toBe(true)
+    const { container } = render(<HandCalc def={def} initialMode="practice" />)
+    expect(screen.getByLabelText('你的答案：絕對值（1 加 L）平方')).toBeTruthy()
+    expect(rawNames(container)).toEqual([])
+  })
 })

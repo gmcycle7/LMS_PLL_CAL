@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import type { Config, Data, Icon, Layout, ModeBarButtonAny, PlotlyHTMLElement } from 'plotly.js-dist-min'
+import type { Config, Data, Icon, Layout, ModeBarButtonAny, PlotlyHTMLElement } from 'plotly.js-cartesian-dist-min'
 import { downloadText, toCsv } from './download'
 import { applyPlotMath, plotMath } from './plotMath'
 import { safeFileName } from './format'
@@ -16,15 +16,20 @@ import {
   tracesToColumns,
 } from './plotUtils'
 import { useThemeTokens, type ThemeTokens } from './theme'
-import { mathText } from './Tex'
+import { accessibleText, mathText } from './Tex'
 
-type PlotlyApi = typeof import('plotly.js-dist-min')
+type PlotlyApi = typeof import('plotly.js-cartesian-dist-min')
 
 let plotlyPromise: Promise<PlotlyApi> | null = null
-/** 延遲載入 Plotly（約 3.5 MB），所有 Plot 共用同一個 promise */
+/**
+ * 延遲載入 Plotly，所有 Plot 共用同一個 promise。
+ * 用的是 cartesian bundle（scatter / bar / histogram / heatmap 等 2D trace；打包後 1.39 MB raw、0.47 MB gzip），
+ * 完整版 plotly.js-dist-min 是 4.67 MB / 1.42 MB gzip，站內沒有 3D、地圖、polar 或 WebGL 圖。
+ * bundle 裡有哪些 trace 與 API 由 plotlyBundle.test.ts 檢查；體積上限在 scripts/check-bundle-size.mjs。
+ */
 export function loadPlotly(): Promise<PlotlyApi> {
   if (!plotlyPromise) {
-    plotlyPromise = import('plotly.js-dist-min')
+    plotlyPromise = import('plotly.js-cartesian-dist-min')
       .then((m) => ((m as { default?: PlotlyApi }).default ?? (m as unknown as PlotlyApi)))
       .catch((err: unknown) => {
         plotlyPromise = null
@@ -44,7 +49,7 @@ const CAPTURE_WAIT_MS = 15_000
 let prefetchScheduled = false
 /**
  * 頁面上有 Plot、但首屏還沒捲到任何一張時，在主執行緒閒置時先把 Plotly 抓下來：
- * 之後捲到第一張圖就不必再等 1 MB 多的下載。只排程一次；下載失敗時 loadPlotly 會清掉 promise，
+ * 之後捲到第一張圖就不必再等約 0.47 MB（gzip）的下載。只排程一次；下載失敗時 loadPlotly 會清掉 promise，
  * 捲到圖時再重試。
  */
 function schedulePlotlyPrefetch() {
@@ -384,8 +389,9 @@ export function Plot({
     })
   }, [registry])
 
+  const figureName = ariaLabel ?? title
   return (
-    <figure className={`c-plot${className ? ` ${className}` : ''}`} ref={wrapRef} aria-label={ariaLabel ?? title}>
+    <figure className={`c-plot${className ? ` ${className}` : ''}`} ref={wrapRef} aria-label={figureName ? accessibleText(figureName) : undefined}>
       {title && <div className="c-plot-title">{mathText(title)}</div>}
       <div className="c-plot-frame" style={{ height }}>
         <div ref={gdRef} className="c-plot-gd" style={{ height }} />

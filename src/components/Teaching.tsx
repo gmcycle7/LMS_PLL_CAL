@@ -1,6 +1,6 @@
 import { useId, useState, type ReactNode } from 'react'
 import { ScrollRegion } from './ScrollRegion'
-import { Tex, TexBlock, mathText } from './Tex'
+import { Tex, TexBlock, accessibleText, hasInlineMath, mathText, nodeHasMath, nodeToAccessibleText } from './Tex'
 import './code.css'
 
 /* ---------- 本章符號表（docs/teaching-style.md §5） ---------- */
@@ -82,14 +82,24 @@ export function Quiz({ title = '思考題', question, options, answer }: QuizPro
       <div className="c-quiz-q">{question}</div>
       {options && (
         <div className="c-quiz-options" role="radiogroup">
-          {options.map((o, i) => (
-            <label key={i} className={`c-quiz-opt${picked === i ? (o.correct ? ' ok' : ' bad') : ''}`}>
-              <input type="radio" name={name} checked={picked === i} onChange={() => setPicked(i)} />
-              <span>
-                {String.fromCharCode(65 + i)}. {o.label}
-              </span>
-            </label>
-          ))}
+          {options.map((o, i) => {
+            const letter = String.fromCharCode(65 + i)
+            return (
+              <label key={i} className={`c-quiz-opt${picked === i ? (o.correct ? ' ok' : ' bad') : ''}`}>
+                {/* 選項含數學時，單選鈕的名稱不能只靠 <label> 的內容（KaTeX 會被丟掉，名稱只剩「A.」），另給可念的 aria-label */}
+                <input
+                  type="radio"
+                  name={name}
+                  checked={picked === i}
+                  onChange={() => setPicked(i)}
+                  aria-label={nodeHasMath(o.label) ? `${letter}. ${nodeToAccessibleText(o.label)}` : undefined}
+                />
+                <span>
+                  {letter}. {mathText(o.label)}
+                </span>
+              </label>
+            )
+          })}
         </div>
       )}
       {correct !== null && <div className={`c-quiz-verdict ${correct ? 'ok' : 'bad'}`}>{correct ? '答對了！' : '再想想看。'}</div>}
@@ -145,7 +155,8 @@ export function Recap({
 export function Prereq({ title, children, defaultOpen = false }: { title: string; children: ReactNode; defaultOpen?: boolean }) {
   return (
     <details className="c-prereq" open={defaultOpen}>
-      <summary>
+      {/* 標題含數學時，<summary> 的名稱（由內容算出）會漏掉公式，另給可念的 aria-label */}
+      <summary aria-label={hasInlineMath(title) ? `先備知識 ${accessibleText(title)}` : undefined}>
         <span className="c-prereq-badge">先備知識</span> {mathText(title)}
       </summary>
       <div className="c-prereq-body">{children}</div>

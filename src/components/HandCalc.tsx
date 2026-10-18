@@ -3,7 +3,7 @@ import type { HandCalcDef, HandCalcSolution } from '@/data/types'
 import { checkAnswer, defaultValues, inputError, randomValues, texNum } from './handcalcMath'
 import { formatInput, parseNumberInput } from './paramMath'
 import { ClaimTag } from './Tags'
-import { Tex, TexBlock, mathText } from './Tex'
+import { Tex, TexBlock, accessibleText, mathText, texToSpeech } from './Tex'
 import './code.css'
 
 const LEVEL_LABEL: Record<HandCalcDef['level'], string> = {
@@ -129,7 +129,7 @@ export function HandCalc({ def, initialMode = 'steps', compact }: HandCalcProps)
               inputMode="decimal"
               value={text[i.key] ?? ''}
               onChange={(e) => onInput(i.key, e.target.value)}
-              aria-label={`${i.label}（${i.key}）`}
+              aria-label={`${accessibleText(i.label)}（${i.key}）`}
               aria-invalid={!!parsed.errors[i.key]}
               aria-describedby={parsed.errors[i.key] ? `${baseId}-err-${i.key}` : undefined}
             />
@@ -208,7 +208,7 @@ export function HandCalc({ def, initialMode = 'steps', compact }: HandCalcProps)
                       setAnswers((a) => ({ ...a, [idx]: e.target.value }))
                       setChecked(false)
                     }}
-                    aria-label={`你的答案：${r.label ?? r.symbol}`}
+                    aria-label={`你的答案：${r.label ? accessibleText(r.label) : texToSpeech(r.symbol)}`}
                     aria-describedby={checked ? verdictId : undefined}
                   />
                   {r.unit && (

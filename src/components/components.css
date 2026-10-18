@@ -1079,6 +1079,7 @@
   margin: 8px 0;
 }
 .c-exp-toolbar {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1087,6 +1088,41 @@
   padding: 10px 0;
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
+}
+/* 共用進度條：貼在工具列底邊的 3px 細條（絕對定位，不佔版面、工具列不跳動）。確定式由 JS 設 width；不確定式來回移動 */
+.c-exp-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--surface-3);
+}
+.c-exp-progress-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: width 0.15s linear;
+}
+.c-exp-progress.is-indeterminate .c-exp-progress-fill {
+  width: 30%;
+  animation: c-exp-indeterminate 1.4s ease-in-out infinite;
+}
+@keyframes c-exp-indeterminate {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(334%);
+  }
+}
+.c-exp-progress-text {
+  font-size: 0.82em;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 .c-exp-actions {
   display: flex;
@@ -1124,7 +1160,7 @@
 }
 .c-exp-body {
   display: grid;
-  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  grid-template-columns: 300px minmax(0, 1fr);
   gap: 20px;
   align-items: start;
 }
@@ -1136,6 +1172,64 @@
   padding: 12px 14px;
   border-radius: var(--radius-sm);
   background: var(--surface-2);
+}
+/* 控制欄放得下（高度 ≤ 視窗 − 頂列）且 ≥ 1100px 兩欄時才黏住（ExperimentShell 以 ResizeObserver 判斷）；放不下就不黏、也不加內部捲軸 */
+.c-exp-controls[data-sticky='true'] {
+  position: sticky;
+  top: calc(var(--topbar-h) + 12px);
+}
+/* 手機按執行後 scrollIntoView 到結果區：留出固定頂列 */
+.c-exp-results {
+  scroll-margin-top: calc(var(--topbar-h) + 8px);
+}
+/* 參數分組（ControlGroup）：≤ 12 個控制項時只是帶小標題的區塊；> 12 個時每組一個 <details>，第一組展開 */
+.c-exp-group {
+  margin: 0 0 14px;
+}
+.c-exp-group:last-child {
+  margin-bottom: 0;
+}
+.c-exp-group-title,
+.c-exp-group > summary {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin: 0 0 8px;
+}
+.c-exp-group > summary {
+  cursor: pointer;
+  padding: 4px 0;
+  margin: 0;
+}
+.c-exp-group[open] > summary {
+  margin-bottom: 8px;
+}
+.c-exp-group + .c-exp-group,
+.c-param + .c-exp-group,
+.c-exp-group.is-auto {
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+/* 手機：按執行後黏在畫面底部的狀態列（執行中… ／ 完成）；ExperimentShell 只在 < 760px 且使用者按了執行時才掛上 */
+.c-exp-status {
+  position: fixed;
+  left: 50%;
+  /* iPhone 的 home 指示列（safe-area）之上 */
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 20;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
 }
 .c-exp-crosscheck {
   display: flex;
@@ -1253,6 +1347,14 @@
 @media (prefers-reduced-motion: reduce) {
   .c-spinner {
     animation-duration: 2.4s;
+  }
+  .c-exp-progress.is-indeterminate .c-exp-progress-fill {
+    animation: none;
+    width: 100%;
+    opacity: 0.45;
+  }
+  .c-exp-progress-fill {
+    transition: none;
   }
   .c-derivation-chevron,
   .c-toggle-input,
