@@ -17,7 +17,11 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
 export default defineConfig({
   base: './',
   plugins: [react()],
-  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __GIT_COMMIT__: JSON.stringify(gitCommit()),

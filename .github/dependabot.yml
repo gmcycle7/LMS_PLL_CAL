@@ -22,8 +22,8 @@ updates:
           - mermaid
           - katex
           - '@types/katex'
-          - plotly.js-dist-min
-          - '@types/plotly.js-dist-min'
+          - plotly.js-cartesian-dist-min
+          - '@types/plotly.js'
         update-types: [minor, patch]
       react:
         patterns:
