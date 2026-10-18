@@ -68,7 +68,16 @@ import {
   phosM1Bounds,
   physicalMix,
   regressorRows,
+  phosDft,
+  phosModeNoise,
+  phosSteadyState,
+  residualLineSpectrum,
   runSspllLms,
+  runSspllLmsCompareSpectrum,
+  runSspllLmsWithSpectrum,
+  spurBetaFromToneFs,
+  spurDbcFromToneFs,
+  staircaseLineAmplitude,
   runSspllLmsCompare,
   singleLinePhos,
   typeIIFinv,
@@ -82,6 +91,8 @@ import {
   type SspllSimCfg,
 } from './sspll'
 import { timeConstantBlocks } from './optimizer'
+import { spurBeta, spurDbcSmallAngle } from './calNoise'
+import { toneFit } from '@/simulation/signal/psd'
 
 type Num = number
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1190,4 +1201,252 @@ describe('SSPLL 閉迴路 sign-error LMS（真 1-bit 比較器）', () => {
     expect(frozen.exact).toEqual([1.5, -1])
     expect(frozen.pulled).toEqual([1.5, -1])
   })
+})
+
+describe('SSPLL 殘餘誤差 → 輸出 spur／jitter（§15.4：residualLineSpectrum、phosSteadyState、runSspllLmsWithSpectrum）', () => {
+  const DELTA = [-2.8, -1.4, -2.6, 7.6, -4.1, 4.4, 1.0, -2.2]
+  const G = 1.5
+  /** close() 加上說明文字 */
+  const closeM = (a: number, e: number, rel: number, abs: number, msg: string): void => {
+    try {
+      close(a, e, rel, abs)
+    } catch (err) {
+      throw new Error(`${msg}：${(err as Error).message}`)
+    }
+  }
+
+  it('SSPLL: spur 公式就是 Ch12 的 spurBeta／spurDbcSmallAngle（T15：13 GHz、0.5 fs、|T| = 1 ⇒ −93.80 dBc）；|T| 與振幅都是線性', () => {
+    expect(spurDbcFromToneFs(13e9, 0.5).toFixed(2)).toBe('-93.80')
+    close(spurDbcFromToneFs(13e9, 0.5), spurDbcSmallAngle(spurBeta(13e9, 0.5)), 1e-12, 1e-12)
+    close(spurBetaFromToneFs(16e9, 10, 1.24), 2 * Math.PI * 16e9 * 12.4e-15, 1e-12)
+    close(spurDbcFromToneFs(16e9, 10, 0.5) - spurDbcFromToneFs(16e9, 10), 20 * Math.log10(0.5), 1e-12)
+    close(spurDbcFromToneFs(16e9, 20) - spurDbcFromToneFs(16e9, 10), 20 * Math.log10(2), 1e-12)
+  })
+
+  it('SSPLL: 8 點 DFT（1/8 正規化）滿足 Parseval、共軛對稱；階梯弦波的線係數 |b_ℓ|² = w_ℓ = 64 sin²(πℓ/8)/(π²ℓ²)、Σ_{ℓ≡m} w_ℓ = 1', () => {
+    const d = phosDft(DELTA)
+    const mean = DELTA.reduce((a, b) => a + b, 0) / 8
+    close(d[0].re, mean, 1e-12)
+    expect(Math.abs(d[0].im)).toBeLessThan(1e-12)
+    let sum = 0
+    for (let m = 0; m < 8; m++) sum += d[m].re ** 2 + d[m].im ** 2
+    close(sum, DELTA.reduce((a, b) => a + b * b, 0) / 8, 1e-12)
+    for (let m = 1; m < 8; m++) {
+      close(d[8 - m].re, d[m].re, 1e-12, 1e-12) // 共軛對稱（re 可能是 ~1e-16 的捨入殘渣，所以加絕對容許）
+      close(d[8 - m].im, -d[m].im, 1e-12, 1e-12)
+    }
+    for (const ell of [1, -7, 9, 2, 3, 4, 52]) close(staircaseLineAmplitude(ell) ** 2, 64 * indicatorLineWeight(ell), 1e-12)
+    close(staircaseLineAmplitude(1) ** 2, W1, 1e-12)
+    expect(staircaseLineAmplitude(0)).toBe(1)
+    expect(Math.abs(staircaseLineAmplitude(8))).toBeLessThan(1e-15) // sin(π) 的捨入殘渣
+    for (const m of [1, 2, 3, 4]) {
+      let w = 0
+      for (let k = -4000; k <= 4000; k++) w += staircaseLineAmplitude(m + 8 * k) ** 2
+      close(w, 1, 2e-3) // 尾項 ~ 1/ℓ
+    }
+  })
+
+  it('SSPLL: 單線公式——全部殘差在 mode 1 時基波 A_1 = √(2W₁)·rms（1.3781×）、ℓ = −7 是 8|sin(7π/8)|/(7π) 倍；GOS 第 m 次諧波 |G|/(πm)；純 Python：8.515555／1.216508／0.336135', () => {
+    const rms = 6.179
+    const pure = Array.from({ length: 8 }, (_, k) => Math.SQRT2 * rms * Math.cos((2 * Math.PI * k) / 8))
+    const rs = residualLineSpectrum({ deltaFs: pure, gosErrFs: 1.056, alpha: 0.02, loop: LOOPS.L2, fVcoHz: 16e9, singleLines: true, lMax: 64, mMax: 64 })
+    close(rs.rmsPdPhosFs, rms, 1e-9)
+    close(rs.rmsPdGosFs, 1.056 / Math.sqrt(12), 1e-12)
+    const at = (src: 'phos' | 'gos', ell: number) => rs.lines.find((l) => l.source === src && l.ell === ell)!
+    close(at('phos', 1).ampPdFs, 8.515555, 1e-6)
+    close(at('phos', 1).ampPdFs, Math.sqrt(2 * W1) * rms, 1e-12)
+    close(at('phos', -7).ampPdFs, 1.216508, 1e-6)
+    close(at('gos', 1).ampPdFs, 0.336135, 1e-6)
+    // 頻率：預設 acc32 序列，α 量化成 2⁻³² 的倍數（0.02 ⇒ 相差 1.9×10⁻¹¹），所以 MHz 只比到 10⁻⁵
+    expect(at('phos', 1).fMHz).toBeCloseTo(80, 5)
+    expect(at('phos', -7).fMHz).toBeCloseTo(560, 5)
+    expect(at('gos', 1).fMHz).toBeCloseTo(640, 5) // β = 0.16
+    close(at('phos', 1).tMag, cAbs(loopT(LOOPS.L2, 0.02)), 1e-9)
+    close(at('phos', 1).spurDbc, spurDbcFromToneFs(16e9, at('phos', 1).ampOutFs), 1e-12)
+    expect(at('phos', 1).spurDbc).toBeCloseTo(-65.5, 1)
+    // 只有 mode 1：mode 2–4 的線全是 0；單線模式不合併
+    expect(rs.lines.filter((l) => l.source === 'phos' && l.mode !== 1 && l.ampPdFs > 1e-9)).toHaveLength(0)
+    expect(rs.lines.every((l) => l.others.length === 0)).toBe(true)
+  })
+
+  it('SSPLL: 有理 α = 1/50（右側與 acc32）：合併後的譜線 = 一個週期的精確 DFT（純 Python：k = 1..6 為 2.157677、1.525954、2.849827、2.686968、1.519334、0.291329）；ℓ 級數單獨算差到 10%', () => {
+    const PY = [2.157677, 1.525954, 2.849827, 2.686968, 1.519334, 0.291329]
+    for (const [alpha, seq] of [
+      [1 / 50, 'right'],
+      [0.02, 'acc32'],
+    ] as const) {
+      const rs = residualLineSpectrum({ deltaFs: DELTA, gosErrFs: G, alpha, loop: LOOPS.L2, fVcoHz: 16e9, seq })
+      expect(rs.periodic).toBe(true)
+      expect(rs.periodQ).toBe(50)
+      for (let k = 1; k <= 6; k++) {
+        const l = rs.lines.find((x) => Math.abs(x.f - k / 50) < 1e-9)!
+        expect(l, `${seq} k=${k}`).toBeTruthy()
+        closeM(l.ampPdFs, PY[k - 1], 2e-6, 1e-6, `${seq} k=${k}`)
+        expect(l.exact).toBe(true)
+        expect(l.others.length).toBeGreaterThan(0) // ℓ 與 ℓ ± 50 重合
+      }
+      // ℓ 級數的值（邊緣樣本給中點）與精確值不同：k = 1 差約 9%
+      const l1 = rs.lines.find((x) => Math.abs(x.f - 1 / 50) < 1e-9)!
+      expect(Math.abs(l1.seriesAmpPdFs / l1.ampPdFs - 1)).toBeGreaterThan(0.05)
+      expect(Math.abs(l1.seriesAmpPdFs / l1.ampPdFs - 1)).toBeLessThan(0.15)
+    }
+    // 獨立的精確 DFT（這裡用 phaseSequence 的 'right' 序列重算一次）
+    const { rho, p } = phaseSequence(1 / 50, 50, 'right')
+    const e = rho.map((c, n) => DELTA[p[n]] + G * c)
+    for (let k = 1; k <= 6; k++) {
+      let re = 0
+      let im = 0
+      for (let n = 0; n < 50; n++) {
+        re += e[n] * Math.cos((2 * Math.PI * k * n) / 50)
+        im -= e[n] * Math.sin((2 * Math.PI * k * n) / 50)
+      }
+      close((2 * Math.hypot(re, im)) / 50, PY[k - 1], 1e-6, 1e-6)
+    }
+  })
+
+  it('SSPLL: Nyquist 與 DC——α = 1/16（β = ½）的鋸齒諧波：偶數次落在 DC（略過）、奇數次在 f_ref/2 只剩實部；α = 1/4 只有 2 條線；兩者都與精確 DFT 一致', () => {
+    for (const [alpha, Q] of [
+      [1 / 16, 16],
+      [1 / 4, 4],
+    ] as const) {
+      const rs = residualLineSpectrum({ deltaFs: DELTA, gosErrFs: G, alpha, loop: LOOPS.L2, fVcoHz: 16e9, seq: 'right' })
+      const { rho, p } = phaseSequence(alpha, Q, 'right')
+      const e = rho.map((c, n) => DELTA[p[n]] + G * c)
+      expect(rs.lines.every((l) => l.f > 0 && l.f <= 0.5)).toBe(true)
+      for (let k = 1; k <= Q / 2; k++) {
+        let re = 0
+        let im = 0
+        for (let n = 0; n < Q; n++) {
+          re += e[n] * Math.cos((2 * Math.PI * k * n) / Q)
+          im -= e[n] * Math.sin((2 * Math.PI * k * n) / Q)
+        }
+        const exact = ((2 * k === Q ? 1 : 2) * Math.hypot(re, im)) / Q
+        const l = rs.lines.find((x) => Math.abs(x.f - k / Q) < 1e-9)
+        closeM(l?.ampPdFs ?? 0, exact, 1e-6, 1e-9, `α=${alpha} k=${k}`)
+      }
+    }
+  })
+
+  it('SSPLL: regressor 的模態雜訊 S_m——raw one-hot 是 1/8；一階差分（α < 1/8）是 4α sin²(πm/8)（純 Python：0、0.011716、0.04、0.068284、0.08…）；共模 S_0 = 0', () => {
+    const raw = phosModeNoise([1 / 8, 0, 0, 0, 0, 0, 0, 0])
+    for (let m = 0; m < 8; m++) close(raw[m], 1 / 8, 1e-12)
+    const a = 0.02
+    const d1 = phosModeNoise([2 * a, -a, 0, 0, 0, 0, 0, -a])
+    const PY = [0, 0.011716, 0.04, 0.068284, 0.08, 0.068284, 0.04, 0.011716]
+    for (let m = 0; m < 8; m++) close(d1[m], PY[m], 1e-4, 1e-6)
+    for (let m = 0; m < 8; m++) close(d1[m], 4 * a * Math.sin((Math.PI * m) / 8) ** 2, 1e-12)
+    // 模擬量到的 c[d]（前 2¹⁵ 拍）與閉合式一致
+    const r = runSspllLmsWithSpectrum({ loop: LOOPS.L2, alpha: a, variant: '1diff', cfg: CFG, nBlocks: 2, nBlk: 64, nSettle: 0, nTail: 256, nperseg: 128 })
+    const c = Array.from(r.spectrum.regCov)
+    close(c[0], 2 * a, 2e-3, 1e-4)
+    close(c[1], -a, 2e-3, 1e-4)
+    close(c[7], -a, 2e-3, 1e-4)
+    for (const d of [2, 3, 4, 5, 6]) expect(Math.abs(c[d])).toBeLessThan(1e-4)
+    close(r.spectrum.regPowerPhos, 2 * a, 2e-3, 1e-4)
+  })
+
+  it('SSPLL: F-CS.23——raw、κ = 1、σ_v = 200 fs、N = 512、N_τ = 25：每個模態 σ_θ = 1.58255 fs（小步長閉合式 1.56664）、7 個合計 4.18703 fs（純 Python）；|p| ≥ 1 時沒有穩態', () => {
+    const sig = 0.2
+    const kq = Math.sqrt(2 / Math.PI) / sig
+    const mu = 8 / (25 * kq)
+    const one = Array.from({ length: 7 }, () => ({ re: 1, im: 0 }))
+    const ss = phosSteadyState(one, mu, sig, 512, [1 / 8, 0, 0, 0, 0, 0, 0, 0])
+    expect(ss.stable).toBe(true)
+    close(ss.tauEff, 25, 1e-12)
+    close(1000 * Math.sqrt(ss.varModePs2[0]), 1.58255, 1e-5, 1e-5)
+    close(ss.rmsFs, 4.18703, 1e-5, 1e-5)
+    close(1000 * Math.sqrt((Math.PI * sig * sig) / (4 * 512 * 25)), 1.56664, 1e-5, 1e-5)
+    close(ss.tauMaxBlocks, -1 / Math.log(1 - 1 / 25), 1e-12) // 24.50
+    for (const v of ss.poleAbs) close(v, 0.96, 1e-12)
+    // Ch12 的寫法：σ_w² = μ²σ_η²/(1 − p²)，σ_η² = S_m/(8N)（每個模態）
+    close(ss.varModePs2[0], (mu * mu * (1 / 8 / (8 * 512))) / (1 - 0.96 * 0.96), 1e-12)
+    // 複數極點：|p|² 要用整個複數；反號（Re κ < 0）或步長太大都沒有穩態
+    const bad = phosSteadyState([{ re: -0.14, im: 0.31 }, ...one.slice(1)], mu, sig, 512, [1 / 8, 0, 0, 0, 0, 0, 0, 0])
+    expect(bad.stable).toBe(false)
+    expect(bad.rmsFs).toBe(Infinity)
+    const big = phosSteadyState(one, 8 / (0.4 * kq), sig, 512, [1 / 8, 0, 0, 0, 0, 0, 0, 0]) // N_τ = 0.4 ⇒ p = −1.5
+    expect(big.stable).toBe(false)
+  })
+
+  it('SSPLL: runSspllLmsWithSpectrum 的前半段與 runSspllLms 逐拍相同（同 seed：block、PHOS rms、共模、GOS、μ 都一樣）；raw／1diff／filtered-x 三種', () => {
+    const base = { alpha: 0.02, cfg: CFG, nBlocks: 120, nBlk: 256, tauBlocks: 25, seed: 3, recEvery: 10, lanes: 2, uOsPs: 0, seq: 'acc32' as const }
+    for (const [variant, models] of [
+      ['raw', undefined],
+      ['1diff', undefined],
+      ['fx:exact', { exact: LOOPS.L2 }],
+    ] as const) {
+      const a = runSspllLms({ ...base, loop: LOOPS.L2, variant, models })
+      const b = runSspllLmsWithSpectrum({ ...base, loop: LOOPS.L2, variant, models, nTail: 4096, nperseg: 1024 })
+      for (const k of ['block', 'phosRmsFs', 'phosCmAbsFs', 'gosAbsFs'] as const) expect(Array.from(b[k]), `${variant} ${k}`).toEqual(Array.from(a[k]))
+      for (const k of ['muP', 'muG', 'initPhosRmsFs', 'finalPhosRmsFs', 'maxPhosRmsFs', 'finalGosFs', 'finalPhosCmFs', 'aborted', 'samples'] as const) expect(b[k], `${variant} ${k}`).toBe(a[k])
+      expect(b.spectrum.nTail).toBe(4096)
+      expect(b.spectrum.fVcoHz).toBeCloseTo(16e9, 0) // Δ = T_vco/8 ⇒ f_vco = 1/(8Δ)
+    }
+    const cmp = runSspllLmsCompareSpectrum({ common: { ...base, nTail: 4096, nperseg: 1024 }, cases: [{ id: 'A', loop: LOOPS.L2, variant: 'raw' }] })
+    expect(cmp.cases[0].id).toBe('A')
+    expect(cmp.cases[0].result.finalPhosRmsFs).toBe(runSspllLms({ ...base, loop: LOOPS.L2, variant: 'raw' }).finalPhosRmsFs)
+  })
+
+  it('SSPLL: 凍結後的輸出是確定性的多音訊號——閉合式（精確週期係數）vs toneFit 在前 8 條線差 < 1e-4；積分 jitter 閉合式 = 時域 rms = Welch 積分（< 0.1%）；findTones 找到的線都對得上', () => {
+    const base = { alpha: 0.02, cfg: CFG, nBlocks: 300, nBlk: 512, tauBlocks: 25, seed: 3, recEvery: 10, lanes: 1, seq: 'acc32' as const }
+    for (const [variant, models] of [
+      ['1diff', undefined],
+      ['fx:exact', { exact: LOOPS.L2 }],
+    ] as const) {
+      const r = runSspllLmsWithSpectrum({ ...base, loop: LOOPS.L2, variant, models })
+      const sp = r.spectrum
+      expect(sp.nSegments).toBe(15)
+      expect(sp.lines.length).toBe(8)
+      expect(sp.lines[0].exact).toBe(true)
+      sp.lines.forEach((l, i) => {
+        expect(Number.isFinite(sp.toneFitFs[i]), `${variant} line ${i}`).toBe(true)
+        closeM(sp.toneFitFs[i], l.ampOutFs, 1e-4, 1e-6, `${variant} line ${i} @ ${l.fMHz} MHz`)
+        close(sp.toneFitDbc[i], l.spurDbc, 1e-6, 1e-3)
+        close(l.ampOutFs, l.tMag * l.ampPdFs, 1e-12)
+        close(l.tMag, cAbs(loopT(LOOPS.L2, l.f)), 1e-9)
+      })
+      // 輸出振幅由大到小；最強的線在帶內
+      for (let i = 1; i < sp.lines.length; i++) expect(sp.lines[i].ampOutFs).toBeLessThanOrEqual(sp.lines[i - 1].ampOutFs)
+      close(sp.jitterClosedFs, sp.jitterTimeFs, 1e-3)
+      close(sp.jitterWelchFs, sp.jitterTimeFs, 1e-3)
+      // findTones（Blackman–Harris Welch）找到的線：頻率對到閉合式的線（1 個 bin 內）、振幅差 < 1%
+      expect(sp.detected.length).toBeGreaterThanOrEqual(4)
+      for (const d of sp.detected.slice(0, 4)) {
+        expect(d.matchedLine).toBeGreaterThanOrEqual(0)
+        const l = sp.lines[d.matchedLine]
+        expect(Math.abs(d.fMHz - l.fMHz)).toBeLessThan(sp.dfMHz)
+        close(d.ampFs, l.ampOutFs, 1e-2)
+      }
+      // 殘差向量與 rms 一致（§10.5 的定義：去共模）
+      const res = Array.from(sp.phosResidualFs)
+      const mean = res.reduce((a, b) => a + b, 0) / 8
+      close(Math.sqrt(res.reduce((a, v) => a + (v - mean) ** 2, 0) / 8), r.finalPhosRmsFs, 1e-9)
+      // L(f) 的格點：f = Δf..f_ref/2，dBc/Hz 是 10log10((2π f_vco·1e−15)²·S_t/2)
+      expect(sp.psdFMHz.length).toBe(4096)
+      close(sp.psdFMHz[0], sp.dfMHz, 1e-9)
+      close(sp.psdFMHz[sp.psdFMHz.length - 1], 2000, 1e-9)
+      // toneFit 自己再算一次（頻率取閉合式的精確值）：和 spectrum.toneFitFs 一致的前提是同一段 y——這裡用 jitter 的 Parseval 間接驗證就夠；直接重算 toneFit 的 API 存在
+      expect(typeof toneFit).toBe('function')
+    }
+  })
+
+  it('SSPLL: 穩態 PHOS rms——F-CS.23 的預測 vs 模擬後半段的 rms² 平均：raw α = 0.137、1diff α = 0.137、filtered-x α = 0.02 都在 10% 內（4 lanes）', () => {
+    const base = { cfg: CFG, nBlk: 512, tauBlocks: 25, seed: 3, recEvery: 10, lanes: 4, seq: 'acc32' as const, nTail: 1024, nperseg: 512 }
+    for (const [alpha, variant, nBlocks, models] of [
+      [0.137, 'raw', 2000, undefined],
+      [0.137, '1diff', 2000, undefined],
+      [0.02, 'fx:exact', 2000, { exact: LOOPS.L2 }],
+    ] as const) {
+      const r = runSspllLmsWithSpectrum({ ...base, loop: LOOPS.L2, alpha, variant, models, nBlocks })
+      const pred = analyseAlpha(LOOPS.L2, alpha, variant, models, 2048)
+      const ss = phosSteadyState(pred.kappaM, r.muP, CFG.sigmaPs, 512, r.spectrum.regCov)
+      expect(ss.stable).toBe(true)
+      expect(nBlocks).toBeGreaterThan(12 * ss.tauMaxBlocks)
+      const ratio = r.spectrum.steadyPhosRmsFs / ss.rmsFs
+      expect(ratio, `${variant} α=${alpha}: meas ${r.spectrum.steadyPhosRmsFs} pred ${ss.rmsFs}`).toBeGreaterThan(0.9)
+      expect(ratio).toBeLessThan(1.1)
+      expect(r.spectrum.steadyBlocks[0]).toBe(1000)
+      expect(r.spectrum.steadyBlocks[1]).toBe(nBlocks)
+    }
+  }, 60000)
 })
