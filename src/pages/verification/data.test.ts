@@ -18,6 +18,7 @@ import {
   parseRefuted,
   parseValidationStats,
   passesFilter,
+  VALIDATION_STATS,
 } from './errata'
 import { ERRATA_MATH } from './errataMath'
 import { FORMULAS } from './formulas'
@@ -312,8 +313,9 @@ describe('verification：勘誤工具', () => {
       expect(it.location).not.toContain('反駁理由')
     }
     expect(parseRefuted('# 沒有這一節')).toEqual([])
-    // 「方法」一節的兩個數字也從原文解析（頁面不手寫 237 / 9）
+    // 「方法」一節的兩個數字：勘誤瀏覽器直接解析原文；頁首（首屏）用固定在 errata.ts 的 VALIDATION_STATS——文件改了這裡就會失敗，請同步更新常數
     expect(parseValidationStats(read('docs/validation.md'))).toEqual({ auditors: 9, claims: 237 })
+    expect(VALIDATION_STATS).toEqual(parseValidationStats(read('docs/validation.md')))
     expect(parseValidationStats('沒有數字')).toEqual({ auditors: null, claims: null })
     expect(parseRefuted('## 已反駁\n\n- 格式不符的一行\n- `x`（A）：loc — 反駁理由：why\n## 下一節\n- `y`（B）：l — 反駁理由：r')).toEqual([{ id: 'x', area: 'A', location: 'loc', reason: 'why' }])
   })

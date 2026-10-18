@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react'
 import { mathText, Mermaid, TexBlock } from '@/components'
+import { revealAnchor } from '@/components/links'
 import { useSettings, type LearningMode } from '@/app/settings'
 import {
   ACCEPTANCE_IDS,
@@ -222,9 +223,13 @@ export function steps(list: { tex: string; why: string }[]): { tex: string; why:
 /** 頁尾符號表外層的 DOM id（docs/teaching-style.md §5：符號表放在最後，頁首只留一行連結） */
 export const SYMBOLS_ANCHOR = 'symbols'
 
-/** 頁內捲動（不改網址）：HashRouter 下 href="#id" 會被當成路由；jsdom 沒有 scrollIntoView，用可選呼叫。 */
+/**
+ * 頁內捲動（不改網址）：HashRouter 下 href="#id" 會被當成路由。用共用的 revealAnchor（和本頁目錄、公式連結同一套）：
+ * 瞬間捲到、聚焦、短暫標示，之後兩秒內校正延後渲染造成的位移。不用 smooth 捲動：動畫會經過 §V.3–§V.6 每一個延後載入的區塊、
+ * 把它們全部觸發下載，而且途中版面長高會把動畫截在錯的位置（頁首「符號表」連結實測停在 §V.6 中間）。
+ */
 export function scrollToId(id: string) {
-  document.getElementById(id)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+  revealAnchor(id)
 }
 
 /** 連結樣式的按鈕：按了捲到本頁的某個區塊。 */

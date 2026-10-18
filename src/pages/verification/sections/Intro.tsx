@@ -4,13 +4,12 @@ import { runScalarLms, fixedXPole } from '@/simulation/models/lms'
 import { ACCEPTANCE_INPUTS, MC_PLAN, toleranceBound } from '@/simulation/models/acceptance'
 import { Diagram, Expand, FBlock, M, steps, useAcceptance } from '../common'
 import { CHART_TOLERANCE } from '../diagrams'
-import validationMd from '../../../../docs/validation.md?raw'
-import { ERRATA, parseValidationStats } from '../errata'
+import { ERRATA, VALIDATION_STATS } from '../errata'
 import { GOLDEN } from '../golden'
 import { exactDiffToFraction, fmtFull, fmtNum, texNum } from '../format'
 
 const r = String.raw
-const STATS = parseValidationStats(validationMd)
+const STATS = VALIDATION_STATS
 
 /** 頁首：這一頁要回答的問題、三個獨立證人、先算一次（T01 的浮點誤差）、容忍度規則（符號表在頁尾，見 sections/Symbols.tsx） */
 export function Intro() {
@@ -41,8 +40,7 @@ export function Intro() {
     <>
       <Section kind="intuition" title="這一頁要回答的問題：網站上的數字，怎麼知道是對的？" level={2} id="ver-intro">
         <p>
-          前面 15 章（<ChRef ch="00">Ch00</ChRef>–<ChRef ch="14">Ch14</ChRef>）有上百個互動圖與數字：<Tex>{'w_2=2.28'}</Tex>、<Tex>{r`K_q=0.00797885\,\mathrm{fs^{-1}}`}</Tex>、<Tex>{r`\sigma_w=0.399\,\mathrm{fs}`}</Tex>……
-          你是 IC 設計者，最怕的是「模擬器畫得很漂亮，但公式其實寫錯」。這一頁把規格書 §17 列出的 18 個
+          前面 15 章（<ChRef ch="00">Ch00</ChRef>–<ChRef ch="14">Ch14</ChRef>）有上百個互動圖與數字：<Tex>{'w_2=2.28'}</Tex>、<Tex>{r`K_q=0.00797885\,\mathrm{fs^{-1}}`}</Tex>、<Tex>{r`\sigma_w=0.399\,\mathrm{fs}`}</Tex>……你是 IC 設計者，最怕的是「模擬器畫得很漂亮，但公式其實寫錯」。這一頁把規格書 §17 列出的 18 個
           <strong>驗收值（Acceptance Reference Values，T01–T18）</strong>當成「出廠測試向量」，用三個<strong>互相獨立的證人</strong>同時作證：
         </p>
         <ol>
@@ -59,9 +57,7 @@ export function Intro() {
           </li>
         </ol>
         <p>
-          三者在指定容忍度內一致，才算過關；而且<strong>只有 TypeScript 與 Python 兩邊的自動測試都通過（status = pass）才會顯示 verified</strong>。
-          規格書本身也有錯——<code>docs/validation.md</code> 以 Python 重算{STATS.claims !== null ? ` ${STATS.claims} 項` : '每一項'}聲明，確認 {ERRATA.length} 項勘誤；網站一律採用修正後的版本，並在本頁最後列出全部勘誤，
-          其中 {Object.keys(st.evidenceByEid).length} 項的數值證據由本頁即時重算（{st.evidencePassed} / {st.evidence.length} 個數字與文件引用的一致）。
+          三者在指定容忍度內一致，才算過關；而且<strong>只有 TypeScript 與 Python 兩邊的自動測試都通過（status = pass）才會顯示 verified</strong>。規格書本身也有錯——<code>docs/validation.md</code> 以 Python 重算{STATS.claims !== null ? ` ${STATS.claims} 項` : '每一項'}聲明，確認 {ERRATA.length} 項勘誤；網站一律採用修正後的版本，並在本頁最後列出全部勘誤，其中 {Object.keys(st.evidenceByEid).length} 項的數值證據由本頁即時重算（{st.evidencePassed} / {st.evidence.length} 個數字與文件引用的一致）。
         </p>
         <Callout kind="info" title="本頁地圖">
           <ol style={{ margin: 0 }}>
@@ -78,8 +74,7 @@ export function Intro() {
           </ol>
         </Callout>
         <p className="small muted">
-          <ClaimTag kind="exact" /> 確定性比對（§V.1–§V.2）在指定模型下是精確的；<ClaimTag kind="approx" /> Monte Carlo 判定（§V.3）依賴中央極限定理，是近似。
-          模型層級：<ModelLevel level="L0" /> 到 <ModelLevel level="L5" />（各列自己標示）。
+          <ClaimTag kind="exact" /> 確定性比對（§V.1–§V.2）在指定模型下是精確的；<ClaimTag kind="approx" /> Monte Carlo 判定（§V.3）依賴中央極限定理，是近似。模型層級：<ModelLevel level="L0" /> 到 <ModelLevel level="L5" />（各列自己標示）。
         </p>
       </Section>
 
@@ -123,8 +118,7 @@ export function Intro() {
         </div>
         <Prereq title="浮點數（IEEE 754 double）：電腦裡的小數不是「真的」小數">
           <p>
-            double 用 64 個位元存一個數：1 個正負號、11 個指數位元、52 個小數位元，表示成 <Tex>{r`\pm1.b_1b_2\ldots b_{52}\times2^{E}`}</Tex>（二進位的科學記號）。
-            就像 <Tex>{r`\tfrac13=0.333\ldots`}</Tex> 在十進位寫不完，<Tex>{r`\tfrac15=0.2`}</Tex> 在<strong>二進位</strong>也寫不完（
+            double 用 64 個位元存一個數：1 個正負號、11 個指數位元、52 個小數位元，表示成 <Tex>{r`\pm1.b_1b_2\ldots b_{52}\times2^{E}`}</Tex>（二進位的科學記號）。就像 <Tex>{r`\tfrac13=0.333\ldots`}</Tex> 在十進位寫不完，<Tex>{r`\tfrac15=0.2`}</Tex> 在<strong>二進位</strong>也寫不完（
             <Tex>{r`0.2=0.001100110011\ldots_2`}</Tex>），所以只能存最接近的那個可表示的數。
           </p>
           <ul>
@@ -162,8 +156,7 @@ export function Intro() {
           <FBlock id="F-VF.2" />
           <p className="small">
             實測：上表四列中最大的 <Tex>{`|d_n|=${texNum(worstT01, 3)}`}</Tex>，{worstT01 <= boundT01 ? '確實在' : '超出了'}上界 <Tex>{texNum(boundT01, 3)}</Tex>
-            {worstT01 <= boundT01 ? ' 之內' : '（估計的常數 c 太小）'}。注意分母 <Tex>{'1-|p|'}</Tex>：pole 越接近 1（收斂越慢），
-            捨入誤差累積得越多。例如 T11 的慢模式 <Tex>{`p=${fmtNum(p11, 4)}`}</Tex>：<Tex>{`1/(1-|p|)=${fmtNum(1 / (1 - Math.abs(p11)), 4)}`}</Tex>，同一個 <Tex>{r`\eta`}</Tex> 會被放大兩百倍（它的{' '}
+            {worstT01 <= boundT01 ? ' 之內' : '（估計的常數 c 太小）'}。注意分母 <Tex>{'1-|p|'}</Tex>：pole 越接近 1（收斂越慢），捨入誤差累積得越多。例如 T11 的慢模式 <Tex>{`p=${fmtNum(p11, 4)}`}</Tex>：<Tex>{`1/(1-|p|)=${fmtNum(1 / (1 - Math.abs(p11)), 4)}`}</Tex>，同一個 <Tex>{r`\eta`}</Tex> 會被放大兩百倍（它的{' '}
             <Tex>{r`\mathbf R`}</Tex> 條件數 <Tex>{`\\kappa=${fmtNum(kappa10, 4)}`}</Tex> 也是同一個量級）；golden 檔對 T11 設的容忍度是 <Tex>{`\\varepsilon_{\\rm abs}=${texNum(GOLDEN.T11.tolerance.abs ?? 0, 2)}`}</Tex>，比 T01 寬。{' '}
             <ClaimTag kind="approx" />
           </p>

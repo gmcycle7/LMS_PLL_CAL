@@ -7,7 +7,7 @@ import { plotMath } from '@/components/plotMath'
 import { MC_PLAN } from '@/simulation/models/acceptance'
 import { AcceptanceProvider } from './common'
 import { McSweepLab } from './sections/McSweepLab'
-import { MonteCarloLab } from './sections/MonteCarloLab'
+import { MonteCarloLabBody } from './sections/MonteCarloLabBody'
 
 /**
  * Verification 頁的 Monte Carlo 實驗：圖內字串與控制項的數學一律是 LaTeX
@@ -120,7 +120,7 @@ describe('Verification 的 Monte Carlo 實驗：圖內字串與控制項的數�
   })
 
   it('單次 Monte Carlo（z 分數長條圖）：軸標題、門檻線名稱、hover 都是 `$…$`；「×」單位是 `$\\times$`', async () => {
-    const { container } = mount(<MonteCarloLab />)
+    const { container } = mount(<MonteCarloLabBody />)
     const view = within(container)
     const subset = container.querySelector('select.c-select-input') as HTMLSelectElement
     const only = Array.from(subset.options).find((o) => o.textContent === '只跑 T17')!

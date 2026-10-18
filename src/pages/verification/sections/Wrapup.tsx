@@ -240,8 +240,7 @@ export function Wrapup() {
             </p>
             <TexBlock>{`\\frac{E[s^2]}{\\sigma_w^2}\\Big|_{n=500}=${fmtNum(f500, 5)}\\quad(\\text{偏低 }${fmtNum((1 - f500) * 100, 3)}\\%)`}</TexBlock>
             <p>
-              <Tex>{`p=${fmtNum(p13 ?? Number.NaN, 5)}`}</Tex> 時相關時間約 <Tex>{`(1+p)/(1-p)\\approx${fmtNum(tau13, 3)}`}</Tex> 個 block；視窗只有它的 {fmtNum(500 / tau13, 2)} 倍，
-              樣本平均吃掉的變異就不能忽略（F-VF.6）。
+              <Tex>{`p=${fmtNum(p13 ?? Number.NaN, 5)}`}</Tex> 時相關時間約 <Tex>{`(1+p)/(1-p)\\approx${fmtNum(tau13, 3)}`}</Tex> 個 block；視窗只有它的 {fmtNum(500 / tau13, 2)} 倍，樣本平均吃掉的變異就不能忽略（F-VF.6）。
             </p>
           </>
         }
@@ -250,8 +249,7 @@ export function Wrapup() {
         <p>
           本頁的結構和晶片驗證完全相同：<strong>golden model</strong>（Python ↔ 系統工程師的 MATLAB 模型）、<strong>test vectors</strong>（JSON ↔ RTL testbench 的 stimulus/expected）、
           <strong>容忍度</strong>（浮點 ↔ 定點的 LSB 誤差預算）、<strong>Monte Carlo + 信賴區間</strong>（↔ PVT / 雜訊 corner）、<strong>多 seed 校準</strong>（↔ 確認量測腳本自己沒有系統誤差）、
-          <strong>mutation</strong>（↔ 故意注入 bug 檢查 testbench 的 coverage）。量測 PLL 的 jitter 或 spur 時也是同一件事：<Tex>{r`\delta w_k`}</Tex> 這種有相關時間的量，
-          短視窗量到的 RMS 會偏低（F-VF.6）——量測時間要遠大於校正迴路的時間常數。Part D 的 <a href="#/models">Behavioral Models &amp; RTL</a> 與 <a href="#/signoff">Sign-off Checklist</a>{' '}
+          <strong>mutation</strong>（↔ 故意注入 bug 檢查 testbench 的 coverage）。量測 PLL 的 jitter 或 spur 時也是同一件事：<Tex>{r`\delta w_k`}</Tex> 這種有相關時間的量，短視窗量到的 RMS 會偏低（F-VF.6）——量測時間要遠大於校正迴路的時間常數。Part D 的 <a href="#/models">Behavioral Models &amp; RTL</a> 與 <a href="#/signoff">Sign-off Checklist</a>{' '}
           把同一套方法延伸到 bit-true RTL（本頁 Fixed-Point 欄因此誠實標成 Not implemented）。
         </p>
       </Section>

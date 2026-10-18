@@ -1,6 +1,5 @@
 import { Fragment, useEffect, useState } from 'react'
-import { Callout, ClaimTag, CodeBlock, getTestStatus, ModelLevel, ModeGate, Section, SourceTag, TestBadge, Tex, type TestStatus } from '@/components'
-import acceptanceSrc from '@/simulation/models/acceptance.ts?raw'
+import { Callout, ClaimTag, getTestStatus, ModelLevel, ModeGate, Section, SourceTag, TestBadge, Tex, type TestStatus } from '@/components'
 import statusFile from '@/data/verification-status.json'
 import type { AcceptanceId } from '@/simulation/models/acceptance'
 import { ErratumChip, M, PassMark, useAcceptance, type AcceptanceRowResult } from '../common'
@@ -8,6 +7,10 @@ import { GOLDEN } from '../golden'
 import { fmtFull, fmtNum, fmtNumeric, pick, ratioTex, texNum, tolTex } from '../format'
 import type { HeadlineKey } from '../data'
 import { useSettings } from '@/app/settings'
+import { lazyPart, NearGate } from '../lazy'
+
+// acceptance.ts 的原始碼文字另成一個 lazy chunk（見 AcceptanceRegion.tsx）；首屏模組不能 import 它（lazyBoundary.test.ts 會檢查）
+const AcceptanceRegion = lazyPart(() => import('./AcceptanceRegion'))
 
 const STATUS_FILE = statusFile as { generatedAt?: string; commit?: string; note?: string }
 
@@ -156,13 +159,13 @@ function RowDetail({ row }: { row: AcceptanceRowResult }) {
       </p>
       {g.notes && <p className="small muted">Golden 註記（golden/vectors 原文）：{g.notes}</p>}
       <ModeGate min="engineer">
-        <CodeBlock
-          source={acceptanceSrc}
-          region={row.meta.id}
-          path="src/simulation/models/acceptance.ts"
-          title={`core:${row.meta.id}（本列實際執行的程式碼）`}
-          caption="這段只負責呼叫各章模型並整理成 golden 的 key；公式本身在各章的模型檔裡（上方「呼叫的章節模型」）。"
-        />
+        <NearGate label="本列實際執行的程式碼" minHeight={240} kind="code">
+          <AcceptanceRegion
+            region={row.meta.id}
+            title={`core:${row.meta.id}（本列實際執行的程式碼）`}
+            caption="這段只負責呼叫各章模型並整理成 golden 的 key；公式本身在各章的模型檔裡（上方「呼叫的章節模型」）。"
+          />
+        </NearGate>
       </ModeGate>
     </div>
   )

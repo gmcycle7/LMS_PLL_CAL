@@ -2,7 +2,7 @@ import { act, fireEvent, screen, within } from '@testing-library/react'
 import VerificationPage from './index'
 import { MC_PLAN } from '@/simulation/models/acceptance'
 import { FORMULAS } from './formulas'
-import { wrap } from './indexTestUtils'
+import { settleLazy, wrap } from './indexTestUtils'
 
 /**
  * Verification 頁的第二組 jsdom 測試（接續 index.test.tsx）：Monte Carlo 與多 seed 校準實驗、Research／Engineer 模式、勘誤卡片、§V.3、證據篩選。
@@ -17,7 +17,7 @@ const P = vi.hoisted(() => ({
   Plots: { resize: vi.fn() },
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
-vi.mock('plotly.js-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
 
 const mermaidMock = vi.hoisted(() => ({
   initialize: vi.fn(),
@@ -39,7 +39,8 @@ afterEach(() => {
 
 describe('verification 頁（jsdom smoke，第二組）', () => {
   it('Monte Carlo 實驗：按「執行 Run」後（jsdom 無 Worker ⇒ inline）只跑 T17，結果表顯示 3 項（平均、變異、lag-1 自相關）都通過', async () => {
-    wrap(<VerificationPage />, '/verification', 'engineer')
+    const { container } = wrap(<VerificationPage />, '/verification', 'engineer')
+    await settleLazy(container) // §V.3 是延後載入的區塊
     // 執行前：誠實顯示 idle，並列出將執行的全部檢查
     expect(screen.getByTestId('mc-idle')).toBeTruthy()
     expect(document.querySelectorAll('.ver-plan > li')).toHaveLength(MC_PLAN.length)
@@ -59,7 +60,8 @@ describe('verification 頁（jsdom smoke，第二組）', () => {
   }, 60000)
 
   it('多 seed 校準實驗：執行後列出每項的 z̄、s_z 與校準判定；合併的 KS 檢定通過', async () => {
-    wrap(<VerificationPage />, '/verification', 'engineer')
+    const { container } = wrap(<VerificationPage />, '/verification', 'engineer')
+    await settleLazy(container)
     expect(screen.getByTestId('sweep-idle')).toBeTruthy()
     // 用較少的 seed 加快測試：K = 12
     const kInput = screen.getByRole('textbox', { name: 'seed 個數 K' })
@@ -79,6 +81,7 @@ describe('verification 頁（jsdom smoke，第二組）', () => {
 
   it('research 模式也能渲染：顯示核心程式碼；每個登錄的公式 F-VF.n 恰有一個錨點；被反駁的 9 項也列出', async () => {
     const { container } = wrap(<VerificationPage />, '/verification', 'research')
+    await settleLazy(container)
     expect(screen.getAllByText(/core:runAcceptanceMonteCarlo/).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/core:equivalentZ/).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/core:ar1SampleBias/).length).toBeGreaterThan(0)
@@ -97,12 +100,14 @@ describe('verification 頁（jsdom smoke，第二組）', () => {
 
   it('engineer 模式：登錄的公式錨點同樣齊全（F-VF.7 的推導大綱只在 research 顯示，但公式本身在）', async () => {
     const { container } = wrap(<VerificationPage />, '/verification', 'engineer')
+    await settleLazy(container)
     for (const f of FORMULAS) expect(container.querySelectorAll(`[id="formula-${f.id}"]`).length, f.id).toBe(1)
     await act(async () => undefined)
   }, 120000)
 
   it('勘誤卡片：KaTeX 的「規格原文 → 修正」、即時重算的證據表（E02：8 個數字全部一致）、連回驗收表的比對', async () => {
-    wrap(<VerificationPage />, '/verification?e=E02', 'engineer')
+    const { container } = wrap(<VerificationPage />, '/verification?e=E02', 'engineer')
+    await settleLazy(container)
     const card = screen.getByTestId('erratum-E02')
     const math = within(card).getByTestId('erratum-math')
     expect(math.querySelectorAll('.katex-display').length).toBe(2) // 規格原文 + 修正
@@ -124,6 +129,7 @@ describe('verification 頁（jsdom smoke，第二組）', () => {
 
   it('§V.3 教學骨架（beginner 也看得到）：5 個先備知識框、手算表、五種驗證手段比較表；數字不會漏出 toPrecision 的「e+5」', async () => {
     const { container } = wrap(<VerificationPage />, '/verification', 'beginner')
+    await settleLazy(container)
     const mc = container.querySelector('#ver-mc') as HTMLElement
     const prereq = Array.from(mc.querySelectorAll('details.c-prereq > summary'))
       .map((x) => x.textContent ?? '')
@@ -154,7 +160,8 @@ describe('verification 頁（jsdom smoke，第二組）', () => {
   }, 60000)
 
   it('勘誤篩選「只看有即時重算證據」：數量與摘要一致，E36（純文字勘誤）被濾掉', async () => {
-    wrap(<VerificationPage />, '/verification', 'beginner')
+    const { container } = wrap(<VerificationPage />, '/verification', 'beginner')
+    await settleLazy(container)
     const box = screen.getByRole('search', { name: '勘誤篩選' })
     const cb = within(box).getByRole('checkbox', { name: /只看有即時重算證據/ })
     const n = Number(/（(\d+)）/.exec(cb.parentElement?.textContent ?? '')?.[1])
