@@ -485,7 +485,7 @@ export interface ConditionCheck {
   state: CheckState
   /** 關鍵數值（$…$ 內為 TeX，頁面以 KaTeX 顯示） */
   summary: string
-  /** 為什麼（失敗時說明原因與修正方向；`$…$` 內為 TeX）。同一句話也用在 ExperimentShell 的 warnings；tooltip 用 stripMathDelimiters */
+  /** 為什麼（失敗時說明原因與修正方向；`$…$` 內為 TeX）。同一句話也用在 ExperimentShell 的 warnings；tooltip 用 accessibleText */
   reason: string
 }
 
@@ -561,7 +561,7 @@ export interface ThesisResult {
 /**
  * TeX 用：4 位有效數字（大數的 e 記號改寫成 ×10ⁿ）。
  * 所有說明文字（reason / warnings / notes / crossCheck）裡的數學一律寫在 `$…$` 內，由共用元件的 mathText 以 KaTeX 顯示
- * （docs/teaching-style.md §3：字串屬性也要用 LaTeX）；tooltip 等純文字情境用 stripMathDelimiters。
+ * （docs/teaching-style.md §3：字串屬性也要用 LaTeX）；tooltip 等純文字情境（title、aria-label）用 accessibleText。
  */
 const t4 = (x: number) => {
   if (!Number.isFinite(x)) return x > 0 ? '\\infty' : x < 0 ? '-\\infty' : '\\text{—}'

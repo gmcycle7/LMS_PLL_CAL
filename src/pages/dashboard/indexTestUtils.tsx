@@ -42,3 +42,22 @@ export function plainText(el: Element): string {
 }
 
 export const precedes = (x: Element | null, y: Element | null) => !!x && !!y && !!(x.compareDocumentPosition(y) & Node.DOCUMENT_POSITION_FOLLOWING)
+
+/**
+ * jsdom 沒有 scrollIntoView：記下被捲到的元素 id（頁內跳轉的測試用）。用完要 restore()。
+ * 只有 Element.prototype 上有沒有這個函式的差別；不會真的捲動。
+ */
+export function stubScrollIntoView() {
+  const ids: string[] = []
+  const proto = Element.prototype as Element & { scrollIntoView?: () => void }
+  const original = proto.scrollIntoView
+  proto.scrollIntoView = function (this: Element) {
+    ids.push(this.id)
+  }
+  return {
+    ids,
+    restore() {
+      proto.scrollIntoView = original
+    },
+  }
+}

@@ -27,8 +27,7 @@ export const GallerySection = memo(function GallerySection() {
         12 個必備實驗：一鍵載入 <span className="dash-h2-kicker">規格 §19.2</span>
       </h2>
       <p className="dash-lead-sm">
-        不想從頭讀？每張卡片會<strong>帶著參數</strong>打開對應章節的互動實驗（網址含 <code>?preset=…</code>，可以直接分享）。卡片下方是載入後應該看到的關鍵結果，
-        你可以自己驗證它。全站目前有 {ALL_PRESETS.length} 個 presets、涵蓋 {experiments} 個互動實驗。 <SourceTag kind="illustrative" />
+        不想從頭讀？每張卡片會<strong>帶著參數</strong>打開對應章節的互動實驗（網址含 <code>?preset=…</code>，可以直接分享）。卡片下方是載入後應該看到的關鍵結果，你可以自己驗證它。全站目前有 {ALL_PRESETS.length} 個 presets、涵蓋 {experiments} 個互動實驗。 <SourceTag kind="illustrative" />
       </p>
       <ol className="dash-gal-grid">
         {items.map((p) => {

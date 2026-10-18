@@ -1,6 +1,6 @@
 import { Children, Fragment, isValidElement, useCallback, useMemo, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { Mermaid, mathText, stripMathDelimiters, usePersistentState } from '@/components'
+import { Mermaid, accessibleText, mathText, usePersistentState } from '@/components'
 import { pageById } from '@/app/registry'
 import type { CheckState, ConditionId } from './thesisModel'
 import { conditionById, shortCode } from './data'
@@ -75,9 +75,9 @@ export function DiagramWalk({ chart, caption, ariaLabel, children }: { chart: st
   )
 }
 
-/** tooltip（title 屬性）等純文字情境：拿掉 `$`，保留 TeX 原始碼（與共用元件的做法一致）。 */
+/** tooltip（title 屬性）等純文字情境：`$…$` 轉成可念的文字（accessibleText，與共用元件的做法一致）。 */
 export function plainTip(text: string): string {
-  return stripMathDelimiters(text)
+  return accessibleText(text)
 }
 
 /** 驗證頁的深連結：`#/verification?e=E05`（勘誤卡片）或 `?t=T05`（驗收列）；驗證頁會自動捲到該項。 */
@@ -90,8 +90,8 @@ export function verificationPath(id?: string): string {
 /** 規格與網站不同之處的小註記「勘誤 Exx」，連到驗證頁的勘誤總表（依 id 深連結到該條目）。 */
 export function ErratumLink({ eid }: { eid: string }) {
   const e = erratumById(eid)
-  // title 屬性是純文字：勘誤位置描述裡的 `$…$` 要先拿掉分隔符
-  const title = e ? `${e.eid}（${e.severity}）${e.area}：${stripMathDelimiters(e.location)}` : `${eid}：請見驗證頁`
+  // title 屬性是純文字：勘誤位置描述裡的 `$…$` 要先轉成可念的文字
+  const title = e ? `${e.eid}（${e.severity}）${e.area}：${accessibleText(e.location)}` : `${eid}：請見驗證頁`
   return (
     <Link to={verificationPath(eid)} className={`dash-erratum dash-sev-${e?.severity ?? 'low'}`} title={title}>
       勘誤 {eid}

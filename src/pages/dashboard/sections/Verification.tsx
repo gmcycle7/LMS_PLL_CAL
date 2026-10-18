@@ -32,8 +32,7 @@ export const VerificationPanel = memo(function VerificationPanel() {
         驗證與勘誤 <span className="dash-h2-kicker">規格 §17、docs/validation.md</span>
       </h2>
       <p className="dash-lead-sm">
-        規格書的每個公式與數值都被獨立重算過；推導不一致、定義不完整或適用條件沒寫清楚的地方列為勘誤，網站一律採用修正版，並在相關公式旁標示「勘誤 Exx」
-        （點一下會直接跳到驗證頁的那一條）。
+        規格書的每個公式與數值都被獨立重算過；推導不一致、定義不完整或適用條件沒寫清楚的地方列為勘誤，網站一律採用修正版，並在相關公式旁標示「勘誤 Exx」（點一下會直接跳到驗證頁的那一條）。
       </p>
       <div className="dash-verif">
         <div className="dash-panel">

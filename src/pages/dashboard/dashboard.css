@@ -3,9 +3,6 @@
 .dash {
   overflow-wrap: break-word;
 }
-.dash section {
-  scroll-margin-top: calc(var(--topbar-h) + 12px);
-}
 .dash-h2 {
   display: flex;
   align-items: baseline;
@@ -81,15 +78,24 @@
 .dash-pill:hover {
   border-color: var(--accent);
 }
-.dash-pill-n {
+.dash-pill-n,
+.dash-cond-n {
+  /* 條件色（--cond-c，序列色）只當識別：淡底加外框；數字用一般文字色。
+     序列色是給圖形用的，白字在 series-3／4／6 只有 3.4／2.3／3.7:1；文字色對淡底在兩個主題都 >= 4.5:1（badgeContrast.test.ts 逐一驗證）。 */
   display: inline-grid;
   place-items: center;
-  width: 20px;
-  height: 20px;
+  box-sizing: border-box;
+  border: 2px solid var(--cond-c);
   border-radius: 50%;
-  color: #fff;
+  background: var(--surface); /* 不支援 color-mix 的瀏覽器：純底色，數字一樣清楚 */
+  background: color-mix(in srgb, var(--cond-c) 14%, var(--surface));
+  color: var(--text);
+  font-weight: 800;
+}
+.dash-pill-n {
+  width: 22px;
+  height: 22px;
   font-size: 0.74rem;
-  font-weight: 700;
 }
 .dash-start {
   align-self: start;
@@ -280,8 +286,7 @@
 .dash-state-fail {
   background: var(--danger);
 }
-:root[data-theme='dark'] .dash-state,
-:root[data-theme='dark'] .dash-pill-n {
+:root[data-theme='dark'] .dash-state {
   color: var(--bg);
 }
 
@@ -470,18 +475,9 @@
   gap: 10px;
 }
 .dash-cond-n {
-  display: inline-grid;
-  place-items: center;
   width: 30px;
   height: 30px;
-  border-radius: 50%;
-  background: var(--cond-c);
-  color: #fff;
-  font-weight: 800;
   flex: 0 0 auto;
-}
-:root[data-theme='dark'] .dash-cond-n {
-  color: var(--bg);
 }
 .dash-cond-title {
   font-weight: 700;
@@ -743,6 +739,37 @@
   gap: 4px;
 }
 
+/* Beginner 的章節地圖：一章一列的表（已讀、章名、一句話） */
+.dash-ch-table {
+  font-size: 0.92rem;
+}
+.dash-ch-table th,
+.dash-ch-table td {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.dash-ch-table thead th:first-child {
+  white-space: nowrap;
+}
+.dash-ch-table .dash-ch-group th {
+  background: var(--surface-3);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+.dash-ch-table td {
+  vertical-align: baseline;
+}
+.dash-ch-check {
+  width: 1%;
+  text-align: center;
+}
+.dash-ch-table .dash-ch-nav {
+  font-weight: 600;
+}
+.dash-ch-table tr.is-done > td {
+  background: var(--ok-soft);
+}
+
 /* ---------- 15 個問題 ---------- */
 .dash-q-list {
   list-style: none;
@@ -806,6 +833,58 @@
   }
   .dash-q details {
     grid-column: 1;
+  }
+}
+/* Beginner：問題本身就是 summary，按一下才看到短答案 */
+.dash-qf {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.dash-qf-list {
+  gap: 6px;
+  /* 一欄的軌道要能縮到比內容的 min-content 窄：點開的答案裡有整行的公式與表格（min-content 約 700 px），
+     沒有 minmax(0, …) 時 720 px 以下的視窗整份清單會被撐寬、整頁橫向捲動（Engineer 的 .dash-q 是靠卡片內的 minmax(0, 1fr) 欄擋住的） */
+  grid-template-columns: minmax(0, 1fr);
+}
+.dash-qf-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 6px 12px;
+  cursor: pointer;
+  list-style: none;
+}
+.dash-qf-summary::-webkit-details-marker {
+  display: none;
+}
+.dash-qf-summary::after {
+  content: '▸';
+  color: var(--accent);
+  font-size: 1.1rem;
+  line-height: 1;
+}
+.dash-qf details[open] > .dash-qf-summary::after {
+  content: '▾';
+}
+.dash-qf-summary:hover .dash-q-text {
+  color: var(--accent);
+}
+.dash-qf-summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+.dash-qf-body {
+  padding: 0 12px 10px 52px;
+}
+.dash-qf-body .dash-q-answer {
+  margin-top: 0;
+}
+@media (max-width: 520px) {
+  .dash-qf-body {
+    padding-left: 12px;
   }
 }
 
@@ -1036,12 +1115,6 @@ button.dash-chip {
   font-family: inherit;
   cursor: pointer;
 }
-/* 以按鈕捲動到條件卡片 / 問題時，避開固定的 topbar */
-.dash-cond-card,
-.dash-q,
-.dash-mc {
-  scroll-margin-top: calc(var(--topbar-h) + 12px);
-}
 
 /* ---------- 方塊圖與導讀（ui.tsx 的 DiagramWalk；docs/teaching-style.md §8） ---------- */
 .dash-diagram {
@@ -1158,8 +1231,12 @@ button.dash-chip {
   }
 }
 
-/* ---------- Beginner：六個條件／一條方程式／動手體檢收成一張卡片 ---------- */
+/* ---------- Beginner：長的段落收成卡片（sections/FoldCard.tsx） ---------- */
 /* 卡片本身是 summary；展開的內容不加框、不加內距，裡面的段落和 Engineer 模式一樣寬（否則條件卡片的公式會多出幾 px 的橫向捲動） */
+.dash-foldcard {
+  margin: 12px 0;
+}
+/* 「六條件一分鐘體檢」那張：整段（一萬多 px）收在裡面，上下留大一點 */
 .dash-fold {
   margin: 28px 0;
 }
@@ -1188,16 +1265,19 @@ button.dash-chip {
   font-size: 1.1rem;
   line-height: 1.4;
 }
-.dash-fold[open] > .dash-fold-summary::before {
+.dash-foldcard[open] > .dash-fold-summary::before {
   content: '▾';
 }
-.dash-fold[open] > .dash-fold-summary {
+.dash-foldcard[open] > .dash-fold-summary {
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
 }
 .dash-fold-title {
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   font-weight: 700;
+}
+.dash-fold .dash-fold-title {
+  font-size: 1.15rem;
 }
 .dash-fold-state {
   font-weight: 600;
@@ -1218,6 +1298,14 @@ button.dash-chip {
 }
 .dash-fold-body {
   padding: 0;
+}
+/* 小卡片的內容（帶入手算、思考題、符號表）是自己有框的元件：和 summary 之間留一點空隙，並把 summary 的下緣收回圓角 */
+.dash-foldcard:not(.dash-fold) > .dash-fold-body {
+  padding-top: 12px;
+}
+.dash-foldcard:not(.dash-fold)[open] > .dash-fold-summary {
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
 }
 .dash-fold-end {
   display: flex;

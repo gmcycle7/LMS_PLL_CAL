@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react'
+import { memo, useMemo, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { Callout, SourceTag, Tex } from '@/components'
 import { PAGES } from '@/app/registry'
@@ -57,15 +57,14 @@ export const Hero = memo(function Hero({ onJump = scrollToId }: { onJump?: (id: 
         <p className="dash-subtitle">從微積分一路走到 DTC / GOS / PHOS 校正、noise、spur 與 sign-off 的互動教科書。</p>
         <p>
           這個網站把 LMS / Sign-LMS 的數學、DTC-based fractional-N PLL 的校正架構，以及晶片驗證需要的 noise、bias、quantization、spur
-          分析放在<strong>同一條推導鏈</strong>上。每一條曲線都由網站內的公式或模擬即時計算，可以調參、重跑、下載；每個結論都標明它是
-          精確、近似，還是研究假說。
+          分析放在<strong>同一條推導鏈</strong>上。每一條曲線都由網站內的公式或模擬即時計算，可以調參、重跑、下載；每個結論都標明它是精確、近似，還是研究假說。
         </p>
         <div className="dash-thesis-line">
           <strong>最終教學主旨：</strong>成功的 calibration 必須<strong>同時</strong>滿足六個條件——
           <div className="dash-thesis-pills">
             {SIX_CONDITIONS.map((c) => (
               <button key={c.id} type="button" className="dash-pill" onClick={() => onJump(`dash-cond-${c.id}`)}>
-                <span className="dash-pill-n" style={{ background: `var(${c.color})` }}>
+                <span className="dash-pill-n" style={{ '--cond-c': `var(${c.color})` } as CSSProperties}>
                   {c.n}
                 </span>
                 {c.zh}

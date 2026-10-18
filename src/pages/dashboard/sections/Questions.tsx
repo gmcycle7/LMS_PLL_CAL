@@ -1,7 +1,7 @@
-import { memo, useMemo, type ReactNode } from 'react'
+import { memo, useMemo, useState, type ReactNode } from 'react'
 import { ClaimTag, Tex, TexBlock, ChRef } from '@/components'
 import { useSettings } from '@/app/settings'
-import { QUESTIONS } from '../data'
+import { QUESTIONS, type QuestionDef } from '../data'
 import { computePreviews, type Previews } from '../previews'
 import { ConditionChip, ErratumLink, Glue, PageChip, Rich } from '../ui'
 
@@ -15,8 +15,7 @@ function answer(n: number, P: Previews): ReactNode {
         <>
           <p>
             LMS = <strong>L</strong>east <strong>M</strong>ean <strong>S</strong>quares：要最小化的是平均平方誤差{' '}
-            <Tex>{'J(w)=E[(y-wx)^2]'}</Tex>。平方可微、對大誤差懲罰重、最佳解是<strong>平均</strong>；絕對值的最佳解是<strong>中位數</strong>。
-            例：對 <Tex>{'y=[0,0,0,10]'}</Tex> 估一個常數，MSE 給 <Tex>{`${f(P.q1.mse)}`}</Tex>、MAE 給 <Tex>{`${f(P.q1.maeLow)}`}</Tex>。
+            <Tex>{'J(w)=E[(y-wx)^2]'}</Tex>。平方可微、對大誤差懲罰重、最佳解是<strong>平均</strong>；絕對值的最佳解是<strong>中位數</strong>。例：對 <Tex>{'y=[0,0,0,10]'}</Tex> 估一個常數，MSE 給 <Tex>{`${f(P.q1.mse)}`}</Tex>、MAE 給 <Tex>{`${f(P.q1.maeLow)}`}</Tex>。
           </p>
           <ClaimTag kind="exact" />
         </>
@@ -69,8 +68,7 @@ function answer(n: number, P: Previews): ReactNode {
       return (
         <>
           <p>
-            Gaussian <Tex>{'x'}</Tex>（<Tex>{'E[x^2]=1,\\ E[x^4]=3'}</Tex>）：平均 <Tex>{'E[\\delta]'}</Tex> 收斂要 <Tex>{`0<\\mu<${f(P.meanSquare.meanMuMax)}`}</Tex>；
-            均方 <Tex>{'E[\\delta^2]'}</Tex> 收斂要 <Tex>{`0<\\mu<2E[x^2]/E[x^4]=${f(P.meanSquare.msMuMax, 4)}`}</Tex>；而樣本路徑幾乎必然收斂的上限約{' '}
+            Gaussian <Tex>{'x'}</Tex>（<Tex>{'E[x^2]=1,\\ E[x^4]=3'}</Tex>）：平均 <Tex>{'E[\\delta]'}</Tex> 收斂要 <Tex>{`0<\\mu<${f(P.meanSquare.meanMuMax)}`}</Tex>；均方 <Tex>{'E[\\delta^2]'}</Tex> 收斂要 <Tex>{`0<\\mu<2E[x^2]/E[x^4]=${f(P.meanSquare.msMuMax, 4)}`}</Tex>；而樣本路徑幾乎必然收斂的上限約{' '}
             <Tex>{`${f(P.meanSquare.asMuMax, 5)}`}</Tex>。三種「穩定」是三件不同的事 <ErratumLink eid="E14" />。
           </p>
           <ClaimTag kind="exact" />
@@ -92,8 +90,7 @@ function answer(n: number, P: Previews): ReactNode {
         <>
           <p>
             Delay 只能加上與頻率成正比的相位 <Tex>{'\\Omega D'}</Tex>：<Tex>{'C_D=\\tfrac{A^2}{2}|H|\\cos(\\phi+\\Omega D)'}</Tex>。
-            <Tex>{'\\phi=-120^\\circ,\\ \\Omega=\\pi/6,\\ D=4'}</Tex> 得 <Tex>{`\\theta=${f(P.t07.thetaDeg)}^\\circ,\\ C_D=${f(P.t07.C)}`}</Tex>（最大）。
-            寬頻 code 的每個頻率需要不同的補償，這時要用 filtered-x：先把 code 經過路徑模型 <Tex>{'\\hat h'}</Tex> 再相關。
+            <Tex>{'\\phi=-120^\\circ,\\ \\Omega=\\pi/6,\\ D=4'}</Tex> 得 <Tex>{`\\theta=${f(P.t07.thetaDeg)}^\\circ,\\ C_D=${f(P.t07.C)}`}</Tex>（最大）。寬頻 code 的每個頻率需要不同的補償，這時要用 filtered-x：先把 code 經過路徑模型 <Tex>{'\\hat h'}</Tex> 再相關。
           </p>
           <ClaimTag kind="exact" /> <span className="small muted">（單頻）</span>
         </>
@@ -164,8 +161,7 @@ function answer(n: number, P: Previews): ReactNode {
         <>
           <p>
             <Tex>{'\\mathbf M=0.5\\,\\mathbf R^{-1}'}</Tex>（<Tex>{'K_q'}</Tex> 正規化為 1）讓所有 pole 變成 <Tex>{`${f(P.precond.pole)}`}</Tex>，
-            <Tex>{`${P.precond.blocks}`}</Tex> blocks 就收斂；但 <Tex>{'\\mathbf R^{-1}'}</Tex> 在弱方向的增益是 <Tex>{'1/\\lambda_{\\min}'}</Tex>，
-            雜訊 RMS 比強方向大 <Tex>{`\\sqrt{\\kappa}=${f(P.precond.noiseAmp, 4)}`}</Tex> 倍 <ErratumLink eid="E05" /> <ErratumLink eid="E21" />。
+            <Tex>{`${P.precond.blocks}`}</Tex> blocks 就收斂；但 <Tex>{'\\mathbf R^{-1}'}</Tex> 在弱方向的增益是 <Tex>{'1/\\lambda_{\\min}'}</Tex>，雜訊 RMS 比強方向大 <Tex>{`\\sqrt{\\kappa}=${f(P.precond.noiseAmp, 4)}`}</Tex> 倍 <ErratumLink eid="E05" /> <ErratumLink eid="E21" />。
           </p>
           <ClaimTag kind="approx" />
         </>
@@ -175,8 +171,7 @@ function answer(n: number, P: Previews): ReactNode {
         <>
           <StepLine tex={String.raw`\delta t[n]=x[n]\,\delta w[n],\qquad \sigma_w=\sqrt{\frac{\mu^2\sigma_\eta^2}{1-p^2}}=${f(P.noise.sigmaW, 4)}\ \mathrm{fs}`} />
           <p>
-            乘法會把頻譜「搬家」：低頻的係數雜訊乘上寬頻 DSM code，變成寬頻 timing error；再經 output transfer <Tex>{'T'}</Tex> 才是 PN。
-            0.5 fs peak 的 code-correlated tone 在 13 GHz 輸出約 <Tex>{`${f(P.noise.spur, 4)}\\,\\mathrm{dBc}`}</Tex>（<Tex>{'|T|=1'}</Tex>）。
+            乘法會把頻譜「搬家」：低頻的係數雜訊乘上寬頻 DSM code，變成寬頻 timing error；再經 output transfer <Tex>{'T'}</Tex> 才是 PN。0.5 fs peak 的 code-correlated tone 在 13 GHz 輸出約 <Tex>{`${f(P.noise.spur, 4)}\\,\\mathrm{dBc}`}</Tex>（<Tex>{'|T|=1'}</Tex>）。
             <Tex>{'\\sigma_w'}</Tex> 是 gain-equivalent，不能直接叫 output jitter（規格 §12.1）。頻寬要分清 <Tex>{'-3\\,\\mathrm{dB}'}</Tex> 與 ENBW{' '}
             <ErratumLink eid="E06" />；block rate 的 <Tex>{'\\delta w_k'}</Tex> 要先以 ZOH 展開到 sample rate 才能和 code 相乘 <ErratumLink eid="E09" />。
           </p>
@@ -204,10 +199,63 @@ function StepLine({ tex }: { tex: string }) {
   return <TexBlock>{tex}</TexBlock>
 }
 
-/** 規格附錄 E 的 15 個問題，每題連到回答它的章節，並附一段可展開的短答案 */
-export const QuestionsSection = memo(function QuestionsSection() {
+/**
+ * Beginner 的一題：問題本身就是 summary，按一下才看到短答案（連同公式與數字）與回答它的章節。
+ * 答案只在展開後才渲染（十五個答案共有上百條公式）；條件 chip 與 T-id 是 Engineer 以上的資訊，這裡不放。
+ */
+function QuestionFold({ q, P, defaultOpen }: { q: QuestionDef; P: Previews; defaultOpen: boolean }) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <li id={`dash-q-${q.n}`} className="dash-qf">
+      <details open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
+        <summary className="dash-qf-summary">
+          <span className="dash-q-n" aria-hidden="true">
+            {q.n}
+          </span>
+          <span className="dash-q-text">
+            <Rich text={q.text} />
+          </span>
+        </summary>
+        {open && (
+          <div className="dash-qf-body">
+            <div className="dash-q-answer">{answer(q.n, P)}</div>
+            <div className="dash-q-row">
+              <span className="small muted">詳細推導：</span>
+              {q.pages.map((id, i) => (
+                <PageChip key={id} id={id} primary={i === 0} />
+              ))}
+            </div>
+          </div>
+        )}
+      </details>
+    </li>
+  )
+}
+
+/**
+ * 規格附錄 E 的 15 個問題，每題連到回答它的章節，並附一段可展開的短答案。
+ * folded（Beginner）：只列問題，點哪一題才展開那一題的短答案；openQ 是網址 ?a=dash-q-N 指到的那一題（一開始就展開）。
+ */
+export const QuestionsSection = memo(function QuestionsSection({ folded = false, openQ = null }: { folded?: boolean; openQ?: number | null }) {
   const P = useMemo(() => computePreviews(), [])
   const { mode } = useSettings()
+  if (folded) {
+    return (
+      <section id="dash-questions" aria-labelledby="dash-questions-h">
+        <h2 id="dash-questions-h" className="dash-h2">
+          網站要回答的 15 個問題 <span className="dash-h2-kicker">規格 附錄 E</span>
+        </h2>
+        <p className="dash-lead-sm">
+          整個網站最後要能回答的 15 個問題：先想一想，再點開看短答案（數字都由網站程式即時計算），每題附上完整推導在哪一章。
+        </p>
+        <ol className="dash-q-list dash-qf-list">
+          {QUESTIONS.map((q) => (
+            <QuestionFold key={q.n} q={q} P={P} defaultOpen={q.n === openQ} />
+          ))}
+        </ol>
+      </section>
+    )
+  }
   return (
     <section id="dash-questions" aria-labelledby="dash-questions-h">
       <h2 id="dash-questions-h" className="dash-h2">

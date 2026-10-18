@@ -24,9 +24,7 @@ export const ThesisSection = memo(function ThesisSection({
         最終教學主旨：六個條件 <span className="dash-h2-kicker">規格 附錄 E</span>
       </h2>
       <p className="dash-lead-sm">
-        成功的 calibration 必須<strong>同時</strong>滿足：資訊足夠（identifiability）、更新方向正確（polarity）、動態穩定（stability）、
-        統計精度足夠（variance）、收斂到正確物理參數（bias），以及真正改善 PLL output jitter / spur（system-level performance）。
-        它們要<strong>逐一檢查</strong>：通過前面的不保證通過後面的（前五個都通過，仍可能在第六個失敗）。但六個條件不是互相獨立的——後面的判據建立在前面的結果上（例如在本頁的模型裡，動態穩定就已經保證更新方向正確）。每張卡片右上角的燈號是下方
+        成功的 calibration 必須<strong>同時</strong>滿足：資訊足夠（identifiability）、更新方向正確（polarity）、動態穩定（stability）、統計精度足夠（variance）、收斂到正確物理參數（bias），以及真正改善 PLL output jitter / spur（system-level performance）。它們要<strong>逐一檢查</strong>：通過前面的不保證通過後面的（前五個都通過，仍可能在第六個失敗）。但六個條件不是互相獨立的——後面的判據建立在前面的結果上（例如在本頁的模型裡，動態穩定就已經保證更新方向正確）。每張卡片右上角的燈號是下方
         <button type="button" className="btn btn-icon" style={{ margin: '0 4px', padding: '0 8px' }} onClick={() => scrollToId('dash-check')}>
           動手體檢
         </button>

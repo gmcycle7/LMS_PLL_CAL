@@ -18,7 +18,7 @@ const P = vi.hoisted(() => ({
   Plots: { resize: vi.fn() },
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
-vi.mock('plotly.js-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
 vi.mock('mermaid', () => ({ default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: '<svg></svg>' })) } }))
 
 // vi.fn() 會把每次呼叫的引數整份留在 mock.calls 裡；Plot 每次都把整張圖的資料（上千點的陣列）交給 P.react，所以每個測試之後清掉呼叫紀錄
@@ -91,7 +91,8 @@ describe('DashboardPage（jsdom smoke，第二組）', () => {
       for (const id of outside) expect(FOLD_IDS.test(id), `卡片外的 ${id} 不應符合 FOLD_IDS`).toBe(false)
       expect(inside).toContain('formula-F-DB.1')
       expect(inside).toContain('handcalc-HC-DB.1')
-      expect(outside).toContain('handcalc-HC-DB.6')
+      // 綜合題 HC-DB.6 不在這張卡片裡：它在「綜合手算」卡片（本頁必記那一段，收合時不渲染，規則見 foldIds.ts 與 index.beginner.test.tsx）
+      expect(outside).not.toContain('handcalc-HC-DB.6')
       a.unmount()
       // 不存在的 preset：卡片維持收合、不捲動
       scrolled.ids.length = 0
@@ -196,9 +197,12 @@ describe('DashboardPage（jsdom smoke，第二組）', () => {
       const { container, unmount } = renderPage(mode)
       // Beginner 把六個條件／一條方程式／動手體檢收成一張卡片，展開才渲染（index.test.tsx 的「Beginner：…收成一張卡片」）：先展開
       if (mode === 'beginner') {
-        expect(container.querySelectorAll('section.c-handcalc')).toHaveLength(1) // 只有「本頁必記」的綜合題 HC-DB.6 在卡片外
+        // 六題都收在卡片裡：HC-DB.1–5 在「六條件一分鐘體檢」，綜合題 HC-DB.6 在「綜合手算」（本頁必記那一段的三張卡片之一）
+        expect(container.querySelectorAll('section.c-handcalc')).toHaveLength(0)
         fireEvent.click(container.querySelector('details.dash-fold > summary') as HTMLElement)
         await waitFor(() => expect(container.querySelector('#dash-spine')).not.toBeNull())
+        for (const summary of Array.from(container.querySelectorAll('#dash-recap > details.dash-foldcard > summary'))) fireEvent.click(summary)
+        await waitFor(() => expect(container.querySelector('#dash-recap [data-handcalc="HC-DB.6"]')).not.toBeNull())
       } else expect(container.querySelector('details.dash-fold')).toBeNull()
       for (const h of HANDCALCS) expect(container.querySelector(`section.c-handcalc[id="handcalc-${h.id}"]`), `${mode} ${h.id}`).toBeTruthy()
       expect(container.querySelectorAll('section.c-handcalc')).toHaveLength(HANDCALCS.length)
@@ -256,7 +260,7 @@ describe('DashboardPage（jsdom smoke，第二組）', () => {
     const own = Array.from(container.querySelectorAll('[class*="dash-"][title], [class*="dash-"][aria-label], figure.c-plot[aria-label], .c-handcalc [aria-label]'))
     expect(own.length).toBeGreaterThan(20)
     for (const el of own) for (const a of ['title', 'aria-label']) expect(el.getAttribute(a) ?? '', `${a} on .${el.getAttribute('class')}`).not.toMatch(/\$/)
-    expect(container.querySelector('a.dash-erratum[href="/verification?e=E20"]')?.getAttribute('title')).toContain(String.raw`M_{\mathrm{polarity}}=90^\circ`)
+    expect(container.querySelector('a.dash-erratum[href="/verification?e=E20"]')?.getAttribute('title')).toContain('M polarity 等於 90 度 減 絕對值') // title 是 accessibleText 之後的可念文字
   })
 
   it('版面與無障礙：每張表格都在可水平捲動的 .table-wrap 內；每個輸入框與按鈕都有可讀的名稱；渲染過程沒有 console.error', () => {

@@ -146,8 +146,7 @@ export const MathSpine = memo(function MathSpine() {
       </Prereq>
       <Prereq title="高斯分布與 erf：comparator 的統計增益從哪來">
         <p>
-          零均值、標準差 <Tex>{'\\sigma'}</Tex> 的高斯雜訊 <Tex>{'v'}</Tex> 的機率密度是 <Tex>{'\\frac{1}{\\sqrt{2\\pi}\\sigma}e^{-v^2/(2\\sigma^2)}'}</Tex>。
-          Comparator 輸入是 <Tex>{'s+v'}</Tex>，輸出 +1 的機率是{' '}
+          零均值、標準差 <Tex>{'\\sigma'}</Tex> 的高斯雜訊 <Tex>{'v'}</Tex> 的機率密度是 <Tex>{'\\frac{1}{\\sqrt{2\\pi}\\sigma}e^{-v^2/(2\\sigma^2)}'}</Tex>。Comparator 輸入是 <Tex>{'s+v'}</Tex>，輸出 +1 的機率是{' '}
           <Glue>
             <Tex>{'P(v>-s)=\\Phi(s/\\sigma)'}</Tex>，
           </Glue>
@@ -156,13 +155,12 @@ export const MathSpine = memo(function MathSpine() {
         <TexBlock>{String.raw`\Phi(z)=\int_{-\infty}^{z}\frac{e^{-t^2/2}}{\sqrt{2\pi}}\,dt=\tfrac12\Big[1+\mathrm{erf}\big(z/\sqrt2\big)\Big],\qquad \mathrm{erf}(z)=\frac{2}{\sqrt\pi}\int_0^z e^{-t^2}dt`}</TexBlock>
         <p>
           所以 <Tex>{'E[q]=(+1)\\Phi+(-1)(1-\\Phi)=2\\Phi-1=\\mathrm{erf}\\big(s/(\\sqrt2\\sigma)\\big)'}</Tex>。erf 在 0 的導數是{' '}
-          <Tex>{'2/\\sqrt\\pi'}</Tex>（被積函數在 0 等於 1），泰勒一階得 <Tex>{'E[q]\\approx\\frac{2}{\\sqrt\\pi}\\cdot\\frac{s}{\\sqrt2\\sigma}=\\sqrt{2/\\pi}\\,s/\\sigma'}</Tex>。
-          只在 <Tex>{'|s|\\ll\\sigma'}</Tex> 時成立；<Tex>{'s'}</Tex> 大了 erf 會飽和。
+          <Tex>{'2/\\sqrt\\pi'}</Tex>（被積函數在 0 等於 1），泰勒一階得 <Tex>{'E[q]\\approx\\frac{2}{\\sqrt\\pi}\\cdot\\frac{s}{\\sqrt2\\sigma}=\\sqrt{2/\\pi}\\,s/\\sigma'}</Tex>。只在 <Tex>{'|s|\\ll\\sigma'}</Tex> 時成立；<Tex>{'s'}</Tex> 大了 erf 會飽和。
         </p>
       </Prereq>
       <Prereq title="相關（correlation）：兩個訊號「同進同退」的程度，以及單頻公式">
         <p>
-          兩個零均值訊號的相關是乘積的長時間平均 <Tex>{'E[x\\,u]'}</Tex>：同號的時候多，平均為正；一半同號一半異號，平均為 0；總是異號，平均為負。 GMAC
+          兩個零均值訊號的相關是乘積的長時間平均 <Tex>{'E[x\\,u]'}</Tex>：同號的時候多，平均為正；一半同號一半異號，平均為 0；總是異號，平均為負。GMAC
           做的就是這件事（把 <Tex>{'q\\cdot x'}</Tex> 累加起來），所以條件 2 的 <Tex>{'C=E[x\\,u]'}</Tex> 就是「code 和它造成的誤差有多同步」。單頻 code
           可以直接算出來：
         </p>
@@ -193,22 +191,18 @@ export const MathSpine = memo(function MathSpine() {
         <p>
           遞迴 <Tex>{'\\delta_{k+1}=p\\,\\delta_k'}</Tex> 的解是 <Tex>{'\\delta_k=p^k\\delta_0'}</Tex>：<Tex>{'|p|<1'}</Tex> 才會趨近 0；
           <Tex>{'p<0'}</Tex> 時正負交替（震盪）。更長的遞迴（例如 <Tex>{'\\delta_{k+1}=\\delta_k-g\\,\\delta_{k-d}'}</Tex>）就猜{' '}
-          <Tex>{'\\delta_k=z^k'}</Tex> 代進去，得到一個多項式（特徵方程）；所有根都在複數平面的<strong>單位圓內</strong>（<Tex>{'|z|<1'}</Tex>）才收斂。
-          這些根就叫 pole，Z transform 只是把這件事系統化。
+          <Tex>{'\\delta_k=z^k'}</Tex> 代進去，得到一個多項式（特徵方程）；所有根都在複數平面的<strong>單位圓內</strong>（<Tex>{'|z|<1'}</Tex>）才收斂。這些根就叫 pole，Z transform 只是把這件事系統化。
         </p>
       </Prereq>
       <Prereq title="矩陣的特徵值（$2\times2$ 就夠）">
         <p>
-          對稱矩陣 <Tex>{'\\mathbf R'}</Tex> 的特徵向量 <Tex>{'\\mathbf v'}</Tex> 滿足 <Tex>{'\\mathbf R\\mathbf v=\\lambda\\mathbf v'}</Tex>：沿這個方向，矩陣只做縮放。
-          對 <Tex>{'\\mathbf R=\\begin{bmatrix}1&\\rho\\\\\\rho&1\\end{bmatrix}'}</Tex>，解 <Tex>{'\\det(\\mathbf R-\\lambda\\mathbf I)=(1-\\lambda)^2-\\rho^2=0'}</Tex>{' '}
-          得 <Tex>{'\\lambda=1\\pm\\rho'}</Tex>，方向 <Tex>{'(1,\\pm1)/\\sqrt2'}</Tex>。<Tex>{'\\rho\\to1'}</Tex> 時 <Tex>{'\\lambda_{\\min}\\to0'}</Tex>：
-          兩個參數只有「和」看得見，「差」幾乎看不見。
+          對稱矩陣 <Tex>{'\\mathbf R'}</Tex> 的特徵向量 <Tex>{'\\mathbf v'}</Tex> 滿足 <Tex>{'\\mathbf R\\mathbf v=\\lambda\\mathbf v'}</Tex>：沿這個方向，矩陣只做縮放。對 <Tex>{'\\mathbf R=\\begin{bmatrix}1&\\rho\\\\\\rho&1\\end{bmatrix}'}</Tex>，解 <Tex>{'\\det(\\mathbf R-\\lambda\\mathbf I)=(1-\\lambda)^2-\\rho^2=0'}</Tex>{' '}
+          得 <Tex>{'\\lambda=1\\pm\\rho'}</Tex>，方向 <Tex>{'(1,\\pm1)/\\sqrt2'}</Tex>。<Tex>{'\\rho\\to1'}</Tex> 時 <Tex>{'\\lambda_{\\min}\\to0'}</Tex>：兩個參數只有「和」看得見，「差」幾乎看不見。
         </p>
       </Prereq>
       <Prereq title="頻寬：−3 dB 與 ENBW（PSD 的一句話版本）">
         <p>
-          PSD（power spectral density）是「每 Hz 有多少雜訊功率」；整條曲線積分就是總功率。濾波器的 −3 dB 頻率是 <Tex>{'|H|^2'}</Tex> 掉到 DC 一半的位置；
-          ENBW（equivalent noise bandwidth）則是「把 <Tex>{'|H(0)|^2'}</Tex> 當高度、通過同樣總雜訊功率的理想方波寬度」。兩者定義不同、數值也不同，不能混用（
+          PSD（power spectral density）是「每 Hz 有多少雜訊功率」；整條曲線積分就是總功率。濾波器的 −3 dB 頻率是 <Tex>{'|H|^2'}</Tex> 掉到 DC 一半的位置；ENBW（equivalent noise bandwidth）則是「把 <Tex>{'|H(0)|^2'}</Tex> 當高度、通過同樣總雜訊功率的理想方波寬度」。兩者定義不同、數值也不同，不能混用（
           <ErratumLink eid="E06" />）。
         </p>
       </Prereq>
@@ -290,8 +284,7 @@ export const MathSpine = memo(function MathSpine() {
           />
           <p>
             兩個重點：(1) 停下來的地方是 <Tex>{'E[G]=0'}</Tex>，<strong>不是</strong> <Tex>{'w=a'}</Tex>；(2) <Tex>{'C'}</Tex> 在分母：極性裕度小（
-            <Tex>{'C\\to0'}</Tex>）時，同樣的干擾 <Tex>{'B'}</Tex> 會被放大成很大的 bias。若 <Tex>{'C<0'}</Tex>，<Tex>{'w^*'}</Tex> 是排斥點，根本到不了。
-            這是 MSE-LMS 的線性固定點 <ClaimTag kind="exact" />；1-bit Sign-LMS 只在殘差遠小於 <Tex>{'\\sigma_v'}</Tex> 時近似成立（
+            <Tex>{'C\\to0'}</Tex>）時，同樣的干擾 <Tex>{'B'}</Tex> 會被放大成很大的 bias。若 <Tex>{'C<0'}</Tex>，<Tex>{'w^*'}</Tex> 是排斥點，根本到不了。這是 MSE-LMS 的線性固定點 <ClaimTag kind="exact" />；1-bit Sign-LMS 只在殘差遠小於 <Tex>{'\\sigma_v'}</Tex> 時近似成立（
             <ErratumLink eid="E01" />）：<Tex>{'B/C'}</Tex> 是線性化的 bias，大到讓 comparator 飽和時它只是線性外推，<Tex>{'a+B/C'}</Tex> 不再是 Sign-LMS
             的固定點（<ChRef ch="11">Ch11</ChRef> §11.4；體檢的條件 5 會亮「注意」）。若 comparator 就是主 PLL 的 BBPD（type-II 迴路強制 <Tex>{'E[q]=0'}</Tex>），offset 造成的 bias 會被吸收、分母改成{' '}
             <Tex>{'\\mathrm{Var}(x)'}</Tex>（<ErratumLink eid="E03" />）。

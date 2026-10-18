@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import { Callout, CodeBlock, ModeGate, ModelLevel, Plot, SourceTag, Tex, useThemeTokens, type CaseId, type CheckEntry } from '@/components'
 import { useWorkerTask } from '@/workers'
 import type { BlockLmsConfigInput, BlockLmsMonteCarloResult } from '@/simulation/models/blockLms'
@@ -144,7 +144,7 @@ export function MonteCarloPanel({ mc, r, caseId, seriesIndex, seed }: { mc: Mont
       </h4>
       <p className="small">
         上面的燈號來自<strong>線性化的解析模型</strong>。這裡把同一組參數交給全站共用的 block Sign-LMS 模擬器（Calibration Lab 用的同一份程式），逐 sample 產生
-        <Tex>{'q[n]=\\mathrm{sign}(e[n])'}</Tex>、累加 GMAC、更新係數，重複多個 seed，再看兩邊是否一致。 計算在 Web Worker 進行，不會卡住頁面。
+        <Tex>{'q[n]=\\mathrm{sign}(e[n])'}</Tex>、累加 GMAC、更新係數，重複多個 seed，再看兩邊是否一致。計算在 Web Worker 進行，不會卡住頁面。
       </p>
 
       {!plan.ok ? (

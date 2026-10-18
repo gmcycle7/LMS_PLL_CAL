@@ -35,8 +35,7 @@ export const ModesSection = memo(function ModesSection() {
         三種學習模式 <span className="dash-h2-kicker">規格 §18.2</span>
       </h2>
       <p className="dash-lead-sm">
-        右上角可以隨時切換。三種模式<strong>共用同一個計算核心</strong>：切換只改變預設展開哪些推導、顯示哪些參數與指標，同一組參數永遠得到同一個答案。
-        你的選擇只存在自己的瀏覽器。
+        右上角可以隨時切換。三種模式<strong>共用同一個計算核心</strong>：切換只改變預設展開哪些推導、顯示哪些參數與指標，同一組參數永遠得到同一個答案。你的選擇只存在自己的瀏覽器。
       </p>
       <div className="dash-modes">
         {MODES.map((m) => {

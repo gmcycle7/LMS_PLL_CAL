@@ -2,6 +2,7 @@ import { memo } from 'react'
 import { Link } from 'react-router-dom'
 import { SymbolTable, type SymbolEntry } from '@/components'
 import { ErratumLink, Rich, scrollToId } from '../ui'
+import { FoldCard } from './FoldCard'
 
 const R = (t: string) => <Rich text={t} />
 
@@ -86,11 +87,14 @@ export const DASH_SYMBOLS: SymbolEntry[] = [
   { symbol: "g'", meaning: R('不含 $\\cos\\theta$ 的 loop gain $g\'=\\mu\\,s\\,K_qP_x|H|$（$g=g\'\\cos\\theta$）；只用在雙參數假設的對照（F-DB.6）'), firstSeen: '動手體檢' },
 ]
 
-/** 頁首只留這一行：按了捲到頁末的符號表（HashRouter 下不能用 href="#symbols"，那會被當成路由）。 */
-export function SymbolsJump() {
+/**
+ * 頁首只留這一行：按了捲到頁末的符號表（HashRouter 下不能用 href="#symbols"，那會被當成路由）。
+ * onJump：頁內跳轉（預設 scrollToId）；Beginner 模式符號表收在卡片裡，index.tsx 傳入的版本會先展開再捲。
+ */
+export function SymbolsJump({ onJump = scrollToId }: { onJump?: (id: string) => void }) {
   return (
     <p className="dash-symbols-jump">
-      <button type="button" className="dash-linkbtn" onClick={() => scrollToId(SYMBOLS_ANCHOR)}>
+      <button type="button" className="dash-linkbtn" onClick={() => onJump(SYMBOLS_ANCHOR)}>
         本頁符號表在最後 ↓
       </button>
       <span className="dash-symbols-jump-note">每個符號第一次出現時，正文會先用一句話說明。</span>
@@ -98,8 +102,20 @@ export function SymbolsJump() {
   )
 }
 
-/** 頁末的符號表：排在「本頁必記」與頁尾說明之後，是整頁最後一個區塊。 */
-export const SymbolsSection = memo(function SymbolsSection() {
+/**
+ * 頁末的符號表：排在「本頁必記」與頁尾說明之後，是整頁最後一個區塊。
+ * folded（Beginner）：整張表（約 40 列、每列兩條公式）收成一張卡片，展開才渲染；符號表的內容主要是「一條方程式」那一節的符號，那一節在 Beginner 也是收合的。
+ */
+export const SymbolsSection = memo(function SymbolsSection({
+  folded = false,
+  open,
+  onOpenChange,
+}: {
+  folded?: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+}) {
+  const table = <SymbolTable title="本頁符號（$n$ 為 comparator sample、$k$ 為 GMAC block）" rows={DASH_SYMBOLS} />
   return (
     <section id={SYMBOLS_ANCHOR} className="dash-symbols" aria-labelledby="dash-symbols-h">
       <h2 id="dash-symbols-h" className="dash-h2">
@@ -112,7 +128,18 @@ export const SymbolsSection = memo(function SymbolsSection() {
           ↑ 回到頁首
         </button>
       </p>
-      <SymbolTable title="本頁符號（$n$ 為 comparator sample、$k$ 為 GMAC block）" rows={DASH_SYMBOLS} />
+      {folded ? (
+        <FoldCard
+          title={`${DASH_SYMBOLS.length} 個符號與單位`}
+          desc="每個符號的意思、單位與第一次出現的位置；多半是「六條件一分鐘體檢」那一段用到的，讀完 Part B 再來查就好。"
+          open={open}
+          onOpenChange={onOpenChange}
+        >
+          {table}
+        </FoldCard>
+      ) : (
+        table
+      )}
     </section>
   )
 })

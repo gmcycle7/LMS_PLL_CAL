@@ -4,39 +4,47 @@ import { HandCalc, Quiz, Recap, StepDerivation, Tex, ChRef } from '@/components'
 import { handcalc } from '../handcalcs'
 import { DEFAULT_PARAMS, blocksTo95, evaluateThesis, polarityOf } from '../thesisModel'
 import { Rich } from '../ui'
+import { FoldCard } from './FoldCard'
 
 const f = (x: number, d = 5) => Number(x.toPrecision(d)).toString()
 
-/** 思考題（附解析）與「本頁必記」 */
-export const Wrapup = memo(function Wrapup() {
-  const nums = useMemo(() => {
-    const base = evaluateThesis(DEFAULT_PARAMS)
-    // 思考題 2：φ = 120°、Ω = π/6，掃 D = 0..12
-    const sweep = Array.from({ length: 13 }, (_, D) => ({ D, ...polarityOf({ Px: 0.5, Hmag: 1, phiDeg: 120, omega: Math.PI / 6, D }) }))
-    const firstPositive = sweep.find((s) => s.C > 0)
-    const best = sweep.reduce((a, b) => (b.C > a.C ? b : a))
-    // 思考題 3：ρ = 0.99，強方向 gλ̃_max = 1
-    const rho = 0.99
-    const g = 1 / (1 + rho)
-    const weakPole = 1 - g * (1 - rho)
-    return { base, sweep, firstPositive, best, rho, g, weakPole, weakBlocks: blocksTo95(weakPole) }
-  }, [])
-  const { base, sweep, firstPositive, best } = nums
+/** 思考題 2、3 的數字（由模型即時算出，不寫死） */
+function computeNums() {
+  const base = evaluateThesis(DEFAULT_PARAMS)
+  // 思考題 2：φ = 120°、Ω = π/6，掃 D = 0..12
+  const sweep = Array.from({ length: 13 }, (_, D) => ({ D, ...polarityOf({ Px: 0.5, Hmag: 1, phiDeg: 120, omega: Math.PI / 6, D }) }))
+  const firstPositive = sweep.find((s) => s.C > 0)
+  const best = sweep.reduce((a, b) => (b.C > a.C ? b : a))
+  // 思考題 3：ρ = 0.99，強方向 gλ̃_max = 1
+  const rho = 0.99
+  const g = 1 / (1 + rho)
+  const weakPole = 1 - g * (1 - rho)
+  return { base, sweep, firstPositive, best, rho, g, weakPole, weakBlocks: blocksTo95(weakPole) }
+}
+type Nums = ReturnType<typeof computeNums>
 
+/** 綜合手算 HC-DB.6。inCard（Beginner）：卡片的 summary 已經寫了這題在做什麼，內文只留練習簿的連結。 */
+function HandcalcBlock({ inCard = false }: { inCard?: boolean }) {
   return (
-    <section id="dash-recap" aria-labelledby="dash-recap-h">
-      <h2 id="dash-recap-h" className="dash-h2">
-        綜合手算、思考題與本頁必記
-      </h2>
+    <div className="dash-handcalc" data-handcalc="HC-DB.6">
+      <p className="dash-handcalc-lead">
+        {!inCard && (
+          <>
+            <strong>綜合手算：</strong>把前面幾題串起來——給一組晶片數字，用紙筆和計算機把六個條件的關鍵數字一次算完，再和上面的「動手體檢」對答案。{' '}
+          </>
+        )}
+        需要更多練習題，到 <Link to="/workbook">手算練習簿</Link>。
+      </p>
+      <HandCalc def={handcalc('HC-DB.6')} />
+    </div>
+  )
+}
 
-      <div className="dash-handcalc" data-handcalc="HC-DB.6">
-        <p className="dash-handcalc-lead">
-          <strong>綜合手算：</strong>把前面幾題串起來——給一組晶片數字，用紙筆和計算機把六個條件的關鍵數字一次算完，再和上面的「動手體檢」對答案。 需要更多練習題，到{' '}
-          <Link to="/workbook">手算練習簿</Link>。
-        </p>
-        <HandCalc def={handcalc('HC-DB.6')} />
-      </div>
-
+/** 三題思考題（附解析） */
+function Quizzes({ nums }: { nums: Nums }) {
+  const { base, sweep, firstPositive, best } = nums
+  return (
+    <>
       <Quiz
         title="思考題 1"
         question={
@@ -56,8 +64,7 @@ export const Wrapup = memo(function Wrapup() {
               ]}
             />
             <p>
-              預設參數（<Tex>{`B=${DEFAULT_PARAMS.B}\\,\\mathrm{fs},\\ C=${f(base.polarity.C)}`}</Tex>）下 <Tex>{`\\Delta w=${f(base.deltaW)}\\,\\mathrm{fs}`}</Tex>。
-              這就是條件 5 必須另外檢查的原因。
+              預設參數（<Tex>{`B=${DEFAULT_PARAMS.B}\\,\\mathrm{fs},\\ C=${f(base.polarity.C)}`}</Tex>）下 <Tex>{`\\Delta w=${f(base.deltaW)}\\,\\mathrm{fs}`}</Tex>。這就是條件 5 必須另外檢查的原因。
             </p>
           </>
         }
@@ -73,8 +80,7 @@ export const Wrapup = memo(function Wrapup() {
           <>
             <p>
               <Tex>{'\\theta=\\phi+\\Omega D=120^\\circ+30^\\circ D'}</Tex>，需要 <Tex>{'\\cos\\theta>0'}</Tex>。<Tex>{'D=5'}</Tex> 時 <Tex>{'\\theta=270^\\circ'}</Tex>，
-              <Tex>{'C_D=0'}</Tex>（沒有恢復力，不算）；所以最少 <Tex>{`D=${firstPositive?.D ?? '—'}`}</Tex>（<Tex>{`\\theta\\equiv${f(firstPositive?.thetaDeg ?? NaN)}^\\circ`}</Tex>）。
-              最佳是 <Tex>{`D=${best.D}`}</Tex>（<Tex>{`\\theta\\equiv${f(best.thetaDeg)}^\\circ`}</Tex>，<Tex>{`C_D=${f(best.C)}`}</Tex> 最大）。
+              <Tex>{'C_D=0'}</Tex>（沒有恢復力，不算）；所以最少 <Tex>{`D=${firstPositive?.D ?? '—'}`}</Tex>（<Tex>{`\\theta\\equiv${f(firstPositive?.thetaDeg ?? NaN)}^\\circ`}</Tex>）。最佳是 <Tex>{`D=${best.D}`}</Tex>（<Tex>{`\\theta\\equiv${f(best.thetaDeg)}^\\circ`}</Tex>，<Tex>{`C_D=${f(best.C)}`}</Tex> 最大）。
             </p>
             <div className="table-wrap">
               <table>
@@ -127,37 +133,93 @@ export const Wrapup = memo(function Wrapup() {
           />
         }
       />
+    </>
+  )
+}
 
-      <Recap
-        title="本頁必記：六個條件的判據"
-        formulas={[
-          { label: '1. 資訊足夠', tex: String.raw`\lambda_{\min}(\mathbf R)>0` },
-          { label: '2. 更新方向正確（單頻）', tex: String.raw`C_D=P_x|H|\cos(\phi+\Omega D)>0` },
-          { label: '3. 動態穩定', tex: String.raw`p=1-\mu K_qC,\qquad 0<g<2\sin\frac{\pi}{4d+2}` },
-          { label: '4. 統計精度', tex: String.raw`\sigma_w^2=\frac{\mu^2\sigma_\eta^2}{1-p^2}` },
-          { label: '5. 正確的固定點', tex: String.raw`w^*=a+\frac{B}{C}` },
-          {
-            label: String.raw`6. 殘餘誤差在預算內（DTC-referred $\sigma_{\delta t}$、單 tone spur）`,
-            tex: String.raw`\begin{gathered}\sigma_{\delta t}=\sqrt{P_x\,(\Delta w^2+\sigma_w^2)}\le\sigma_{\delta t,\max}\\[2pt]\mathrm{Spur}\approx20\log_{10}(\pi f_{\mathrm{out}}|T|A_t)\le\mathrm{Spur}_{\max}\end{gathered}`,
-          },
-        ]}
-        points={[
-          <Rich
-            key="1"
-            text="六個條件要逐一檢查：只看 $E[G]=0$、PM 夠大或 $\sigma_w$ 夠小，都不能取代完整的檢查（三者都成立時，bias 與 system-level 仍可能不過）。它們也不是互相獨立的：$\mu>0$、$K_q>0$ 時，穩定條件 $0<g=\mu K_qC<g^*(d)$ 已經包含極性的 $C>0$。"
-          />,
-          <Rich key="2" text="極性 $C$ 同時出現在 pole（$p=1-\mu K_qC$）與 bias（$B/C$）：$C$ 變小，收斂變慢、bias 變大、$\sigma_w$ 也變大。" />,
-          <Rich key="3" text="更新晚 $d$ 個 block，可用 loop gain 從 2 縮到 $2\sin\frac{\pi}{4d+2}$；GMAC 用 sum 卻沒除以 $N$，等於 $g$ 乘上 $N$。" />,
-          <Rich
-            key="4"
-            text="Preconditioner 讓弱方向變快，代價是弱方向的雜訊 RMS 比強方向大 $\sqrt{\kappa}$ 倍；小步長（$g\ll1$）時每個係數的 $\sigma_w$ 也比一般 LMS 大，快與安靜要取捨（沒有 commit 延遲時分界在 $g=1$，更大反而比較小）。"
-          />,
-          <Rich
-            key="5"
-            text="$\sigma_w$ 是 gain-equivalent 的係數雜訊，要乘上 code 並經過 output transfer $T$，才是 PLL 輸出的 jitter / spur。本頁的條件 6 只算到 DTC-referred 的 $\sigma_{\delta t}$ 與單 tone spur，而且只和預算比、不和校正前比。"
-          />,
-        ]}
-      />
+/** 本頁必記：六個條件的判據與五個重點 */
+function RecapBlock() {
+  return (
+    <Recap
+      title="本頁必記：六個條件的判據"
+      formulas={[
+        { label: '1. 資訊足夠', tex: String.raw`\lambda_{\min}(\mathbf R)>0` },
+        { label: '2. 更新方向正確（單頻）', tex: String.raw`C_D=P_x|H|\cos(\phi+\Omega D)>0` },
+        { label: '3. 動態穩定', tex: String.raw`p=1-\mu K_qC,\qquad 0<g<2\sin\frac{\pi}{4d+2}` },
+        { label: '4. 統計精度', tex: String.raw`\sigma_w^2=\frac{\mu^2\sigma_\eta^2}{1-p^2}` },
+        { label: '5. 正確的固定點', tex: String.raw`w^*=a+\frac{B}{C}` },
+        {
+          label: String.raw`6. 殘餘誤差在預算內（DTC-referred $\sigma_{\delta t}$、單 tone spur）`,
+          tex: String.raw`\begin{gathered}\sigma_{\delta t}=\sqrt{P_x\,(\Delta w^2+\sigma_w^2)}\le\sigma_{\delta t,\max}\\[2pt]\mathrm{Spur}\approx20\log_{10}(\pi f_{\mathrm{out}}|T|A_t)\le\mathrm{Spur}_{\max}\end{gathered}`,
+        },
+      ]}
+      points={[
+        <Rich
+          key="1"
+          text="六個條件要逐一檢查：只看 $E[G]=0$、PM 夠大或 $\sigma_w$ 夠小，都不能取代完整的檢查（三者都成立時，bias 與 system-level 仍可能不過）。它們也不是互相獨立的：$\mu>0$、$K_q>0$ 時，穩定條件 $0<g=\mu K_qC<g^*(d)$ 已經包含極性的 $C>0$。"
+        />,
+        <Rich key="2" text="極性 $C$ 同時出現在 pole（$p=1-\mu K_qC$）與 bias（$B/C$）：$C$ 變小，收斂變慢、bias 變大、$\sigma_w$ 也變大。" />,
+        <Rich key="3" text="更新晚 $d$ 個 block，可用 loop gain 從 2 縮到 $2\sin\frac{\pi}{4d+2}$；GMAC 用 sum 卻沒除以 $N$，等於 $g$ 乘上 $N$。" />,
+        <Rich
+          key="4"
+          text="Preconditioner 讓弱方向變快，代價是弱方向的雜訊 RMS 比強方向大 $\sqrt{\kappa}$ 倍；小步長（$g\ll1$）時每個係數的 $\sigma_w$ 也比一般 LMS 大，快與安靜要取捨（沒有 commit 延遲時分界在 $g=1$，更大反而比較小）。"
+        />,
+        <Rich
+          key="5"
+          text="$\sigma_w$ 是 gain-equivalent 的係數雜訊，要乘上 code 並經過 output transfer $T$，才是 PLL 輸出的 jitter / spur。本頁的條件 6 只算到 DTC-referred 的 $\sigma_{\delta t}$ 與單 tone spur，而且只和預算比、不和校正前比。"
+        />,
+      ]}
+    />
+  )
+}
+
+/**
+ * 綜合手算、思考題（附解析）與「本頁必記」。
+ * folded（Beginner）：三塊各收成一張卡片，展開才渲染；綜合手算那張的展開狀態由上層控制（?a=handcalc-HC-DB.6 的深連結要先展開）。
+ */
+export const Wrapup = memo(function Wrapup({
+  folded = false,
+  handcalcOpen,
+  onHandcalcOpenChange,
+}: {
+  folded?: boolean
+  handcalcOpen?: boolean
+  onHandcalcOpenChange?: (open: boolean) => void
+}) {
+  const nums = useMemo(computeNums, [])
+  return (
+    <section id="dash-recap" aria-labelledby="dash-recap-h">
+      <h2 id="dash-recap-h" className="dash-h2">
+        綜合手算、思考題與本頁必記
+      </h2>
+      {folded ? (
+        <>
+          <p className="dash-lead-sm">三塊練習與回顧，按一下才展開：先自己算、自己想，再回來對答案。</p>
+          <FoldCard
+            title="綜合手算：把六個條件的關鍵數字一次算完"
+            desc="給一組晶片數字，用紙筆和計算機算出 comparator 增益、loop gain、pole、係數雜訊、偏差與 spur，再和「動手體檢」對答案。"
+            open={handcalcOpen}
+            onOpenChange={onHandcalcOpenChange}
+          >
+            <HandcalcBlock inCard />
+          </FoldCard>
+          <FoldCard
+            title="思考題（3 題，附解析）"
+            desc="GMAC 歸零代表 DTC gain 正確嗎？最少要加幾個 sample 的 delay？弱方向的 pole 與收斂時間是多少？每題先作答，再看解析。"
+          >
+            <Quizzes nums={nums} />
+          </FoldCard>
+          <FoldCard title="本頁必記：六個條件的判據" desc="六個條件各一行的判據，加上五個最容易記錯的重點。">
+            <RecapBlock />
+          </FoldCard>
+        </>
+      ) : (
+        <>
+          <HandcalcBlock />
+          <Quizzes nums={nums} />
+          <RecapBlock />
+        </>
+      )}
     </section>
   )
 })
