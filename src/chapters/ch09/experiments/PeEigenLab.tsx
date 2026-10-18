@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import {
   CaseSelector,
   ClaimTag,
@@ -672,8 +672,7 @@ export function PeEigenLab() {
       tests={['T10', 'T11']}
       description={
         <>
-          兩個參數、相關係數 {m`\rho`} 的 regressor。左上是 {m`\mathbf u`} 的散佈與 {m`\mathbf R`} 的 eigenvectors；其餘圖比較 mean recursion（{m`p_i=1-g\lambda_i`}）、mean-square 與 Monte Carlo。
-          解析量即時更新，MC 在 Web Worker 中執行。
+          兩個參數、相關係數 {m`\rho`} 的 regressor。左上是 {m`\mathbf u`} 的散佈與 {m`\mathbf R`} 的 eigenvectors；其餘圖比較 mean recursion（{m`p_i=1-g\lambda_i`}）、mean-square 與 Monte Carlo。解析量即時更新，MC 在 Web Worker 中執行。
         </>
       }
       assumptions={[

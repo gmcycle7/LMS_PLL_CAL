@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import { Callout, ClaimTag, ModeGate, Plot, Prereq, Section, SourceTag, SystemMap, Tex, TexBlock } from '@/components'
 import { dwStep } from '@/simulation/models/calNoise'
 import { Diagram, EX, Hand, md, sig } from '../common'
@@ -87,13 +87,11 @@ export function S1Intro() {
 
       <Section kind="intuition" title="直覺：恆溫器讀到的溫度一直在跳" level={3}>
         <p>
-          想像一台恆溫器：溫度計每秒讀一次，但讀數帶有很大的隨機誤差。控制器每次只根據「讀數比設定高還是低」去微調暖氣。就算房間真的已經在 25°C，
-          讀數還是一半高一半低，所以暖氣的旋鈕會<strong>永遠在設定點附近小幅亂動</strong>。旋鈕調得越積極（learning rate{' '}
+          想像一台恆溫器：溫度計每秒讀一次，但讀數帶有很大的隨機誤差。控制器每次只根據「讀數比設定高還是低」去微調暖氣。就算房間真的已經在 25°C，讀數還是一半高一半低，所以暖氣的旋鈕會<strong>永遠在設定點附近小幅亂動</strong>。旋鈕調得越積極（learning rate{' '}
           <Tex>{String.raw`\mu`}</Tex> 越大），亂動越大；每次先平均越多次讀數（<Tex>N</Tex> 越大），亂動越小。
         </p>
         <p>
-          LMS 校正迴路就是這台恆溫器：<Tex>{'w'}</Tex> 是旋鈕、GMAC 是「平均後的讀數」、comparator noise 是溫度計的誤差。
-          本章把「旋鈕亂動」精確算出來，然後追蹤它怎麼一路影響到 PLL 輸出。
+          LMS 校正迴路就是這台恆溫器：<Tex>{'w'}</Tex> 是旋鈕、GMAC 是「平均後的讀數」、comparator noise 是溫度計的誤差。本章把「旋鈕亂動」精確算出來，然後追蹤它怎麼一路影響到 PLL 輸出。
         </p>
         <Diagram
           chart={NOISE_CHAIN_CHART}
@@ -208,9 +206,7 @@ p&=1-g=${sig(EX.p, 6)}\\
             <Tex>{String.raw`E[X]=\sum_i x_iP_i`}</Tex>。它是線性的：<Tex>{String.raw`E[aX+bY]=aE[X]+bE[Y]`}</Tex>。
           </p>
           <p>
-            <strong>變異數</strong>量測「離平均多遠」：<Tex>{String.raw`\operatorname{Var}(X)=E[(X-E[X])^2]=E[X^2]-E[X]^2`}</Tex>；標準差（RMS 抖動）是它的平方根。
-            若 <Tex>{'X_1,\\dots,X_N'}</Tex> 彼此獨立、變異數都是 <Tex>{String.raw`\sigma^2`}</Tex>，則平均值的變異數是 <Tex>{String.raw`\sigma^2/N`}</Tex>——
-            這就是「平均 <Tex>{'N'}</Tex> 次，雜訊 RMS 降 <Tex>{String.raw`\sqrt N`}</Tex> 倍」。下面的 <Tex>{'V_k'}</Tex> 就是第 <Tex>{'k'}</Tex> 個 block 的{' '}
+            <strong>變異數</strong>量測「離平均多遠」：<Tex>{String.raw`\operatorname{Var}(X)=E[(X-E[X])^2]=E[X^2]-E[X]^2`}</Tex>；標準差（RMS 抖動）是它的平方根。若 <Tex>{'X_1,\\dots,X_N'}</Tex> 彼此獨立、變異數都是 <Tex>{String.raw`\sigma^2`}</Tex>，則平均值的變異數是 <Tex>{String.raw`\sigma^2/N`}</Tex>——這就是「平均 <Tex>{'N'}</Tex> 次，雜訊 RMS 降 <Tex>{String.raw`\sqrt N`}</Tex> 倍」。下面的 <Tex>{'V_k'}</Tex> 就是第 <Tex>{'k'}</Tex> 個 block 的{' '}
             <Tex>{String.raw`E[\delta w_k^2]`}</Tex>（平均為 0，所以就是變異數）。
           </p>
         </Prereq>
@@ -277,8 +273,7 @@ p&=1-g=${sig(EX.p, 6)}\\
         <ModeGate min="research">
           <Callout kind="info" title={md(String.raw`Research：$\sigma_\eta^2$ 的精確值`)}>
             對 <Tex>{'x=\\pm1'}</Tex>，<Tex>{String.raw`(qx)^2=1`}</Tex>，所以 <Tex>{String.raw`\operatorname{Var}(qx)=1-m^2`}</Tex>，
-            <Tex>{String.raw`m=E[qx]=\operatorname{erf}\!\big(C(a-w)/(\sqrt2\sigma_v)\big)`}</Tex>。在 <Tex>{'w=w^*'}</Tex> 附近 <Tex>{'m\\approx0'}</Tex>，
-            但係數本身在抖：<Tex>{String.raw`E[m^2]\approx K^2\sigma_w^2=${sig(EX.K ** 2 * EX.sigmaW2, 3)}`}</Tex>，所以 <Tex>{String.raw`1/N`}</Tex> 的相對誤差只有{' '}
+            <Tex>{String.raw`m=E[qx]=\operatorname{erf}\!\big(C(a-w)/(\sqrt2\sigma_v)\big)`}</Tex>。在 <Tex>{'w=w^*'}</Tex> 附近 <Tex>{'m\\approx0'}</Tex>，但係數本身在抖：<Tex>{String.raw`E[m^2]\approx K^2\sigma_w^2=${sig(EX.K ** 2 * EX.sigmaW2, 3)}`}</Tex>，所以 <Tex>{String.raw`1/N`}</Tex> 的相對誤差只有{' '}
             <Tex>{`${sig(EX.K ** 2 * EX.sigmaW2, 2)}`}</Tex> 量級（勘誤 E30 的條件）。
           </Callout>
         </ModeGate>

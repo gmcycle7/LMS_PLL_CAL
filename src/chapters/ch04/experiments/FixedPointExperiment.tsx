@@ -1,5 +1,5 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import {
   CaseSelector,
   ExperimentShell,
@@ -459,8 +459,7 @@ export function FixedPointExperiment() {
       claim="exact"
       description={
         <>
-          三個面板共用同一個位元級 datapath（<code>gmac.ts</code>）：A. 位元數計算器與一個 block 內的累加器軌跡；B. 右移 rounding 的平均轉移特性（精確）；
-          C. 閉迴路定點 vs 浮點（同 seed、同 code、同雜訊，Web Worker）。Case A/B/C 只改 datapath 的設定。
+          三個面板共用同一個位元級 datapath（<code>gmac.ts</code>）：A. 位元數計算器與一個 block 內的累加器軌跡；B. 右移 rounding 的平均轉移特性（精確）；C. 閉迴路定點 vs 浮點（同 seed、同 code、同雜訊，Web Worker）。Case A/B/C 只改 datapath 的設定。
         </>
       }
       assumptions={[

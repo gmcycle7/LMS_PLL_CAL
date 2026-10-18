@@ -80,20 +80,14 @@ export function WrapUpSection() {
         </p>
         <Fig name="hwMap">
           這張圖是直式的，由上往下順著箭頭走。先看最上面的兩條 edge 怎麼在 PD 相遇：reference clock 先經過 DTC 才進 PD；DTC 只能延遲、不能提前，所以它從固定的基準延遲{' '}
-          <Tex>{'T_0'}</Tex> 往回扣，扣掉的 <Tex>{'w_k\\,x[n]'}</Tex> 就是它的補償量（reference edge 少延遲這麼多，<Tex>{String.raw`\tau_{\mathrm{DTC}}=T_0-w_k\,x[n]`}</Tex>）；
-          回授路徑上只有 divider、不經過 DTC，小數除頻讓它的 feedback edge 比理想時刻早到 <Tex>{'a\\,x[n]'}</Tex>。PD 量的是 reference edge 減 feedback edge：{' '}
+          <Tex>{'T_0'}</Tex> 往回扣，扣掉的 <Tex>{'w_k\\,x[n]'}</Tex> 就是它的補償量（reference edge 少延遲這麼多，<Tex>{String.raw`\tau_{\mathrm{DTC}}=T_0-w_k\,x[n]`}</Tex>）；回授路徑上只有 divider、不經過 DTC，小數除頻讓它的 feedback edge 比理想時刻早到 <Tex>{'a\\,x[n]'}</Tex>。PD 量的是 reference edge 減 feedback edge：{' '}
           <Tex>{String.raw`e[n]=t_{\mathrm{ref}}'-t_{\mathrm{fb}}=(a-w_k)\,x[n]+v[n]=s+v[n]`}</Tex>——圖上進 PD 的三條線寫的就是這三項：DTC 那條是{' '}
           <Tex>{'-w_k\\,x[n]'}</Tex>、divider 那條是 <Tex>{'+a\\,x[n]'}</Tex>、jitter 那條是 <Tex>{'+v[n]'}</Tex>。補償不足（<Tex>{'w_k<a'}</Tex>）時 reference 還是太晚，
           <Tex>{'s'}</Tex> 為正（<Tex>{'e[n]'}</Tex> 平均偏正，單看一次仍然被 <Tex>{'v[n]'}</Tex> 蓋過）；<Tex>{'T_0'}</Tex> 是常數，被 PLL 當成靜態相位偏移吸收，所以{' '}
-          <Tex>{'e[n]'}</Tex> 的式子裡沒有它。再看 PD 下面的圓角方塊「PD 輸出 <Tex>{'e[n]'}</Tex>」：同一個 <Tex>{'e[n]'}</Tex> 從這裡一路送進 loop filter（主 PLL 迴路），
-          另一路用虛線分接給 1-bit comparator——LMS 校正迴路的輸入是 PD 的輸出，也就是送進 loop filter 的同一個訊號，不是從 DTC 或 divider 拉出來的。
-          接著看從 comparator 到 GMAC 的前半段（每個 sample <Tex>{'n'}</Tex> 動一次）：comparator 把 <Tex>{'e[n]'}</Tex> 切成一個位元 <Tex>{'b[n]'}</Tex>，映射成{' '}
+          <Tex>{'e[n]'}</Tex> 的式子裡沒有它。再看 PD 下面的圓角方塊「PD 輸出 <Tex>{'e[n]'}</Tex>」：同一個 <Tex>{'e[n]'}</Tex> 從這裡一路送進 loop filter（主 PLL 迴路），另一路用虛線分接給 1-bit comparator——LMS 校正迴路的輸入是 PD 的輸出，也就是送進 loop filter 的同一個訊號，不是從 DTC 或 divider 拉出來的。接著看從 comparator 到 GMAC 的前半段（每個 sample <Tex>{'n'}</Tex> 動一次）：comparator 把 <Tex>{'e[n]'}</Tex> 切成一個位元 <Tex>{'b[n]'}</Tex>，映射成{' '}
           <Tex>{'q[n]=\\pm1'}</Tex> 後進 GMAC 累加。再看 GMAC 之後的後半段（每個 block <Tex>{'k'}</Tex> 才動一次）：累加滿 <Tex>{'N'}</Tex> 個 sample 得到{' '}
-          <Tex>{'S_N'}</Tex>，除以 <Tex>{'N'}</Tex>、乘 <Tex>{'\\mu'}</Tex>，加進 gain accumulator 得到新的 <Tex>{'w'}</Tex>，沿著最右邊那條線回去控制 reference 端的 DTC。
-          藍色三格（comparator、位元映射、GMAC）就是本章分析的部分。最後看兩個 regressor 方塊（同一個訊號 <Tex>{'x[n]'}</Tex>，分開畫只是為了讓線不要交叉）：
-          它出現在兩個地方——乘上 <Tex>{'w_k'}</Tex> 之後控制 DTC（feedback edge 早到的 <Tex>{'a\\,x[n]'}</Tex> 也是同一個 <Tex>{'x[n]'}</Tex>，所以 PD 看到的是{' '}
-          <Tex>{'s=(a-w_k)\\,x[n]'}</Tex>），GMAC 累加時又乘在 <Tex>{'q[n]'}</Tex> 上（<Tex>{'S_N=\\sum q[n]\\,x[n]'}</Tex>）；本章固定 <Tex>{'x\\equiv1'}</Tex>，所以這兩條虛線都只是乘 1。
-          圖上 <Tex>{'e[n]'}</Tex> 的式子寫的是注入 PD 的誤差本身：主 PLL 迴路（PD → loop filter → divider → PD 那一圈）會跟著反應，一般的 <Tex>{'x[n]'}</Tex>{' '}
+          <Tex>{'S_N'}</Tex>，除以 <Tex>{'N'}</Tex>、乘 <Tex>{'\\mu'}</Tex>，加進 gain accumulator 得到新的 <Tex>{'w'}</Tex>，沿著最右邊那條線回去控制 reference 端的 DTC。藍色三格（comparator、位元映射、GMAC）就是本章分析的部分。最後看兩個 regressor 方塊（同一個訊號 <Tex>{'x[n]'}</Tex>，分開畫只是為了讓線不要交叉）：它出現在兩個地方——乘上 <Tex>{'w_k'}</Tex> 之後控制 DTC（feedback edge 早到的 <Tex>{'a\\,x[n]'}</Tex> 也是同一個 <Tex>{'x[n]'}</Tex>，所以 PD 看到的是{' '}
+          <Tex>{'s=(a-w_k)\\,x[n]'}</Tex>），GMAC 累加時又乘在 <Tex>{'q[n]'}</Tex> 上（<Tex>{'S_N=\\sum q[n]\\,x[n]'}</Tex>）；本章固定 <Tex>{'x\\equiv1'}</Tex>，所以這兩條虛線都只是乘 1。圖上 <Tex>{'e[n]'}</Tex> 的式子寫的是注入 PD 的誤差本身：主 PLL 迴路（PD → loop filter → divider → PD 那一圈）會跟著反應，一般的 <Tex>{'x[n]'}</Tex>{' '}
           實際留在 PD 輸出的是經過 PLL error path 濾波之後的結果（<ChRef ch="06">Ch06</ChRef>），圖上的式子沒有把這個濾波寫進去。下表逐列說明每個符號對應的硬體與注意事項。
         </Fig>
         <div className="table-wrap">
@@ -237,8 +231,7 @@ export function WrapUpSection() {
             </table>
           </div>
           <p>
-            <strong>Regressor 不是 1 的時候：</strong>若要校正的是 {v.phases} 相 PMUX 其中一相的 offset（one-hot regressor，<Tex>{'x\\in\\{0,1\\}'}</Tex>），只有選到那一相的樣本才進累加器；
-            各相均勻使用時平均只有 <Tex>{`N/${v.phases}`}</Tex> 個樣本帶有它的資訊，所以同樣的 95% 需要約{' '}
+            <strong>Regressor 不是 1 的時候：</strong>若要校正的是 {v.phases} 相 PMUX 其中一相的 offset（one-hot regressor，<Tex>{'x\\in\\{0,1\\}'}</Tex>），只有選到那一相的樣本才進累加器；各相均勻使用時平均只有 <Tex>{`N/${v.phases}`}</Tex> 個樣本帶有它的資訊，所以同樣的 95% 需要約{' '}
             <Tex>{`${v.phases}\\times${texInt(v.n95)}\\approx${texInt(v.oneHotN)}`}</Tex> 個 comparator 樣本（約{' '}
             <Tex>{`${fx(v.oneHotUs, 1)}\\,\\mu\\mathrm{s}`}</Tex>）。DTC gain 的 regressor 是 DTC residue（大小不一、可能不是零均值），等效樣本數要再乘上 regressor
             的加權，而且 PLL error path 會改變它的相位——這些留到 <ChRef ch="06">Ch06</ChRef>、<ChRef ch="09">Ch09</ChRef>、<ChRef ch="11">Ch11</ChRef>。<ClaimTag kind="approx" /> <SourceTag kind="illustrative" />
@@ -246,8 +239,7 @@ export function WrapUpSection() {
         </Callout>
         <p>
           <strong>預告：</strong>把本章的平均 <Tex>{'G_k=S_N/N\\approx K_q\\delta_k+\\eta_k'}</Tex> 放進 block 更新{' '}
-          <Tex>{'w_{k+1}=w_k+\\mu G_k'}</Tex>（<Tex>{'k'}</Tex> = GMAC block；ChatGPT 課程寫作 <Tex>{'\\alpha'}</Tex>，本站統一寫 <Tex>{'\\mu'}</Tex>，
-          單位 fs <Erratum id="E13" />），馬上得到 <ChRef ch="12">Ch12</ChRef> / <ChRef ch="14">Ch14</ChRef> 的設計數字。這裡 <Tex>{'\\delta_k=a-w_k'}</Tex> 是第 <Tex>{'k'}</Tex> 個 block 的剩餘誤差，
+          <Tex>{'w_{k+1}=w_k+\\mu G_k'}</Tex>（<Tex>{'k'}</Tex> = GMAC block；ChatGPT 課程寫作 <Tex>{'\\alpha'}</Tex>，本站統一寫 <Tex>{'\\mu'}</Tex>，單位 fs <Erratum id="E13" />），馬上得到 <ChRef ch="12">Ch12</ChRef> / <ChRef ch="14">Ch14</ChRef> 的設計數字。這裡 <Tex>{'\\delta_k=a-w_k'}</Tex> 是第 <Tex>{'k'}</Tex> 個 block 的剩餘誤差，
           <Tex>{'\\eta_k'}</Tex> 是 <Tex>{'G_k'}</Tex> 扣掉平均後的零均值雜訊，<Tex>{'\\sigma_w'}</Tex> 是收斂之後係數 <Tex>{'w'}</Tex> 還在抖動的 RMS（coefficient noise）。
         </p>
         <Fig name="blockLoop">
@@ -400,8 +392,7 @@ export function WrapUpSection() {
 
       <Section kind="assumptions" level={2} title="注意假設：本章的數字什麼時候不能直接用">
         <p>
-          本章標 <ClaimTag kind="exact" /> 的結果，都是在下面這個<strong>指定模型</strong>內精確；標 <ClaimTag kind="approx" /> 的另外用了 CLT 或小訊號展開。
-          規格 §5 特別提醒：表中的機率是「辨識<strong>一個固定非零偏移之符號</strong>」的機率，不是完整 LMS 迴路在 <Tex>{'N'}</Tex> 次後收斂的機率。
+          本章標 <ClaimTag kind="exact" /> 的結果，都是在下面這個<strong>指定模型</strong>內精確；標 <ClaimTag kind="approx" /> 的另外用了 CLT 或小訊號展開。規格 §5 特別提醒：表中的機率是「辨識<strong>一個固定非零偏移之符號</strong>」的機率，不是完整 LMS 迴路在 <Tex>{'N'}</Tex> 次後收斂的機率。
         </p>
         <div className="table-wrap">
           <table className="ch05-table">
@@ -661,8 +652,7 @@ export function WrapUpSection() {
           </p>
           <Prereq title="相關係數與 AR(1) 雜訊">
             <p>
-              兩個零均值、變異數 1 的隨機變數 <Tex>{'X,Y'}</Tex> 的<strong>相關係數</strong> <Tex>{'\\rho=E[XY]'}</Tex>（一般情形 <Tex>{'\\rho=\\operatorname{Cov}(X,Y)/(\\sigma_X\\sigma_Y)'}</Tex>）
-              量測「一起變大、一起變小」的程度：<Tex>{'\\rho=1'}</Tex> 完全同步、<Tex>{'0'}</Tex> 無關（Gaussian 時等於獨立）、<Tex>{'-1'}</Tex> 完全相反。
+              兩個零均值、變異數 1 的隨機變數 <Tex>{'X,Y'}</Tex> 的<strong>相關係數</strong> <Tex>{'\\rho=E[XY]'}</Tex>（一般情形 <Tex>{'\\rho=\\operatorname{Cov}(X,Y)/(\\sigma_X\\sigma_Y)'}</Tex>）量測「一起變大、一起變小」的程度：<Tex>{'\\rho=1'}</Tex> 完全同步、<Tex>{'0'}</Tex> 無關（Gaussian 時等於獨立）、<Tex>{'-1'}</Tex> 完全相反。
             </p>
             <p>
               <strong>AR(1)</strong>：<Tex>{'v_{i+1}=\\rho\\,v_i+\\sqrt{1-\\rho^2}\\,z_i'}</Tex>，<Tex>{'z_i'}</Tex> iid 標準常態。代入可得{' '}

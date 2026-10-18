@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import { Callout, ClaimTag, ModeGate, Plot, Prereq, Section, Tex, TexBlock, useThemeTokens, ChRef } from '@/components'
 import { meanSquareFactor } from '@/simulation/models/lms'
 import { analyticTrajectory, stabilityBounds, xMoments } from '@/simulation/models/scalarStability'
@@ -202,8 +202,7 @@ export function MeanSquareSection() {
         </p>
         <Callout kind="warn" title={<>{tx`名詞：這裡的 $E[\delta^2]$ 是 MSD，不是 MSE`} <Erratum id="E42" /></>}>
           <Tex>{T`E[\delta_n^2]`}</Tex> 是<strong>係數均方偏差</strong>（mean-square deviation, MSD），量的是 <Tex>w</Tex> 離 <Tex>a</Tex> 多遠；<ChRef ch="01">第 1 章</ChRef>的 MSE 成本是{' '}
-          <Tex>{T`J=E[e^2]`}</Tex>，量的是預測誤差。iid <Tex>x</Tex>、雜訊零均值且與 <Tex>x</Tex> 獨立時兩者的關係是 <Tex>{T`E[e^2]=P_x\,E[\delta^2]+\sigma_v^2`}</Tex>（<Tex>{T`\sigma_v^2`}</Tex> 是量測雜訊的變異數；本節後面推導）。
-          規格 §3.1 的「均方誤差」指的是 MSD；本站圖例一律分開標示「MSD <Tex>{T`E[\delta^2]`}</Tex>」與「MSE <Tex>{T`E[e^2]`}</Tex>」。
+          <Tex>{T`J=E[e^2]`}</Tex>，量的是預測誤差。iid <Tex>x</Tex>、雜訊零均值且與 <Tex>x</Tex> 獨立時兩者的關係是 <Tex>{T`E[e^2]=P_x\,E[\delta^2]+\sigma_v^2`}</Tex>（<Tex>{T`\sigma_v^2`}</Tex> 是量測雜訊的變異數；本節後面推導）。規格 §3.1 的「均方誤差」指的是 MSD；本站圖例一律分開標示「MSD <Tex>{T`E[\delta^2]`}</Tex>」與「MSE <Tex>{T`E[e^2]`}</Tex>」。
         </Callout>
         <Prereq title="變異數（variance）：為什麼均方趨近 0 同時保證平均與分散都趨近 0">
           <p>
@@ -218,8 +217,7 @@ export function MeanSquareSection() {
 
       <Section kind="formula" title="一步一步推導 MSD 遞迴">
         <p>
-          做法和上一節一樣，只是先把遞迴<strong>兩邊平方</strong>再取期望值，所以每一步乘上的倍數變成 <Tex>{T`g(\mu)=E\big[(1-\mu x^2)^2\big]`}</Tex>——我們叫它 <strong>MSD 每步因子</strong>。
-          下圖把 <Tex>g</Tex> 怎麼由輸入的兩個統計量組出來畫成訊號流：
+          做法和上一節一樣，只是先把遞迴<strong>兩邊平方</strong>再取期望值，所以每一步乘上的倍數變成 <Tex>{T`g(\mu)=E\big[(1-\mu x^2)^2\big]`}</Tex>——我們叫它 <strong>MSD 每步因子</strong>。下圖把 <Tex>g</Tex> 怎麼由輸入的兩個統計量組出來畫成訊號流：
         </p>
         <Fig
           chart={CHART_G_BUILD}
@@ -266,8 +264,7 @@ E[t^{k+1}]&=\int_{-\infty}^{\infty}t^{k}\,\big(t\varphi(t)\big)\,dt=\int_{-\inft
             <Tex>{T`E[t^8]=7\cdot15=105`}</Tex>。一般 <Tex>{T`x=\sigma t`}</Tex>：<Tex>{T`E[x^{2k}]=(2k-1)!!\,\sigma^{2k}`}</Tex>。
           </p>
           <p>
-            對照：<strong>Uniform</strong> <Tex>{T`U(-c,c)`}</Tex> 的密度是常數 <Tex>{T`1/(2c)`}</Tex>，直接積分 <Tex>{T`E[x^{2k}]=\frac{1}{2c}\int_{-c}^{c}x^{2k}dx=\frac{c^{2k}}{2k+1}`}</Tex>，
-            所以 <Tex>{T`P_x=c^2/3`}</Tex>、<Tex>{T`M_4=c^4/5`}</Tex>、<Tex>{T`\kappa=9/5`}</Tex>。<strong><Tex>{T`\pm A`}</Tex></strong>：<Tex>{T`x^2\equiv A^2`}</Tex>，<Tex>{T`\kappa=1`}</Tex>。
+            對照：<strong>Uniform</strong> <Tex>{T`U(-c,c)`}</Tex> 的密度是常數 <Tex>{T`1/(2c)`}</Tex>，直接積分 <Tex>{T`E[x^{2k}]=\frac{1}{2c}\int_{-c}^{c}x^{2k}dx=\frac{c^{2k}}{2k+1}`}</Tex>，所以 <Tex>{T`P_x=c^2/3`}</Tex>、<Tex>{T`M_4=c^4/5`}</Tex>、<Tex>{T`\kappa=9/5`}</Tex>。<strong><Tex>{T`\pm A`}</Tex></strong>：<Tex>{T`x^2\equiv A^2`}</Tex>，<Tex>{T`\kappa=1`}</Tex>。
           </p>
         </Prereq>
         <FBlock id="F-03.8" />
@@ -314,8 +311,7 @@ E[t^{k+1}]&=\int_{-\infty}^{\infty}t^{k}\,\big(t\varphi(t)\big)\,dt=\int_{-\inft
           <div>
             <FBlock id="F-03.13" />
             <p>
-              <Tex>{T`g(\mu)`}</Tex> 的最低點在 <Tex>{T`dg/d\mu=-2P_x+2\mu M_4=0`}</Tex>，即 <Tex>{T`\mu^\ast=P_x/M_4`}</Tex>（MS 界的一半），最小值 <Tex>{T`1-1/\kappa`}</Tex>。
-              Gaussian：<Tex>{T`\mu^\ast=1/3`}</Tex>、<Tex>{T`g^\ast=2/3`}</Tex>——MSD 每步最多只能縮小到 <Tex>{T`2/3`}</Tex>，不可能像固定 <Tex>x</Tex> 那樣一步到位（<Tex>{T`\kappa=1\Rightarrow g^\ast=0`}</Tex>）。
+              <Tex>{T`g(\mu)`}</Tex> 的最低點在 <Tex>{T`dg/d\mu=-2P_x+2\mu M_4=0`}</Tex>，即 <Tex>{T`\mu^\ast=P_x/M_4`}</Tex>（MS 界的一半），最小值 <Tex>{T`1-1/\kappa`}</Tex>。Gaussian：<Tex>{T`\mu^\ast=1/3`}</Tex>、<Tex>{T`g^\ast=2/3`}</Tex>——MSD 每步最多只能縮小到 <Tex>{T`2/3`}</Tex>，不可能像固定 <Tex>x</Tex> 那樣一步到位（<Tex>{T`\kappa=1\Rightarrow g^\ast=0`}</Tex>）。
             </p>
           </div>
         </div>
@@ -342,8 +338,7 @@ E[t^{k+1}]&=\int_{-\infty}^{\infty}t^{k}\,\big(t\varphi(t)\big)\,dt=\int_{-\inft
         <p>
           這是同一個迴圈「平方、再取平均」之後的樣子：<Tex>{T`E[\delta[n]^2]`}</Tex> 每繞一圈乘 <Tex>g</Tex>（和無雜訊時一樣），但加法點多了一個固定的注入量{' '}
           <Tex>{T`\mu^2P_x\sigma_v^2`}</Tex>（紅色）。<Tex>{T`g<1`}</Tex> 時每圈漏掉 <Tex>{T`1-g`}</Tex> 的比例，漏掉的和注入的平衡在{' '}
-          <Tex>{T`\text{MSD}_\infty=\text{注入}\div(1-g)`}</Tex>（<Tex>{T`\text{MSD}_\infty`}</Tex> 是<strong>穩態的係數均方偏差</strong>）；<Tex>{T`g\ge1`}</Tex> 時只進不出，沒有有限的穩態。
-          圖上的注入量就是推導第 4 步的 <Tex>{T`E[\mu^2x_n^2v_n^2]`}</Tex>，綠色兩格就是 F-03.11。
+          <Tex>{T`\text{MSD}_\infty=\text{注入}\div(1-g)`}</Tex>（<Tex>{T`\text{MSD}_\infty`}</Tex> 是<strong>穩態的係數均方偏差</strong>）；<Tex>{T`g\ge1`}</Tex> 時只進不出，沒有有限的穩態。圖上的注入量就是推導第 4 步的 <Tex>{T`E[\mu^2x_n^2v_n^2]`}</Tex>，綠色兩格就是 F-03.11。
         </p>
         <StepsBox
           title="有雜訊時的 MSD 遞迴與穩態值"
@@ -369,8 +364,7 @@ E[t^{k+1}]&=\int_{-\infty}^{\infty}t^{k}\,\big(t\varphi(t)\big)\,dt=\int_{-\inft
         </HC>
         <StationaryRmsPlot />
         <Callout kind="danger" title={tx`同一個 $\mu=2P_x/M_4$ 讓「有雜訊的穩態 MSD」爆掉`}>
-          有雜訊時，MS 條件不只是「收斂快慢」：<Tex>{T`\mu\ge2P_x/M_4`}</Tex> 時穩態 MSD 是無限大。規格 §3.1 的提醒成立：<strong>不可把「平均 pole 在單位圓內」直接標成「雜訊下完全穩定」</strong>。
-          但下一節會看到：MSD 無限大並不代表你在示波器上看到的那條軌跡會發散。
+          有雜訊時，MS 條件不只是「收斂快慢」：<Tex>{T`\mu\ge2P_x/M_4`}</Tex> 時穩態 MSD 是無限大。規格 §3.1 的提醒成立：<strong>不可把「平均 pole 在單位圓內」直接標成「雜訊下完全穩定」</strong>。但下一節會看到：MSD 無限大並不代表你在示波器上看到的那條軌跡會發散。
         </Callout>
         <ModeGate min="research">
           <p className="small">

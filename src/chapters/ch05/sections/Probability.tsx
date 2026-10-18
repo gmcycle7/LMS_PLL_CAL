@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import { Callout, ClaimTag, ModeGate, Plot, Prereq, Section, Tex, TexBlock, useThemeTokens, ChRef } from '@/components'
 import { erf, normCdf, normPdf } from '@/simulation/core'
 import { meanGmacEncoding, meanQ, pPlus, signLmsFixedPointEncoding } from '@/simulation/models/comparator'
@@ -11,8 +11,7 @@ export function GaussianPrereq() {
     <Prereq title={String.raw`Gaussian（常態）分布、$\Phi$、$\varphi$ 與 $\operatorname{erf}$——只用到積分`}>
       <p>
         <strong>機率密度 PDF</strong>：連續的隨機變數 <Tex>{'v'}</Tex> 落在區間 <Tex>{'[a,b]'}</Tex> 的機率是曲線下的面積{' '}
-        <Tex>{'P(a\\le v\\le b)=\\int_a^b f(t)\\,dt'}</Tex>，而且 <Tex>{'\\int_{-\\infty}^{\\infty}f=1'}</Tex>。
-        單一點的機率 <Tex>{'P(v=c)=\\int_c^c f=0'}</Tex>，所以連續雜訊下「剛好等於門檻」不會發生。
+        <Tex>{'P(a\\le v\\le b)=\\int_a^b f(t)\\,dt'}</Tex>，而且 <Tex>{'\\int_{-\\infty}^{\\infty}f=1'}</Tex>。單一點的機率 <Tex>{'P(v=c)=\\int_c^c f=0'}</Tex>，所以連續雜訊下「剛好等於門檻」不會發生。
       </p>
       <p>
         <strong>Gaussian</strong>（平均 0、標準差 <Tex>{'\\sigma'}</Tex>）：
@@ -55,8 +54,7 @@ export function ExpectationPrereq() {
   return (
     <Prereq title={String.raw`期望值 $E[\cdot]$ 與變異數 $\operatorname{Var}(\cdot)$：「做很多次的平均」`}>
       <p>
-        一個只會取幾個值的隨機變數 <Tex>{'X'}</Tex>，期望值就是「每個值乘上它出現的機率」再加總：<Tex>{String.raw`E[X]=\sum_x x\,P(X=x)`}</Tex>。
-        直覺：重複很多次、取平均，就會接近 <Tex>{'E[X]'}</Tex>。期望值是線性的：<Tex>{'E[aX+bY]=aE[X]+bE[Y]'}</Tex>（不需要獨立）。
+        一個只會取幾個值的隨機變數 <Tex>{'X'}</Tex>，期望值就是「每個值乘上它出現的機率」再加總：<Tex>{String.raw`E[X]=\sum_x x\,P(X=x)`}</Tex>。直覺：重複很多次、取平均，就會接近 <Tex>{'E[X]'}</Tex>。期望值是線性的：<Tex>{'E[aX+bY]=aE[X]+bE[Y]'}</Tex>（不需要獨立）。
       </p>
       <p>
         變異數（variance）衡量「離平均有多散」：<Tex>{String.raw`\operatorname{Var}(X)\equiv E\big[(X-E[X])^2\big]`}</Tex>。它的單位是 <Tex>{'X'}</Tex> 的平方，所以常取平方根變回原單位，叫
@@ -122,8 +120,7 @@ export function ProbabilitySection() {
     >
       <p className="ch05-note">先備知識（Gaussian／<Tex>{'\\Phi'}</Tex>／erf、期望值與變異數）在 §1 的手算表下方。</p>
       <p>
-        Comparator 的規則是 <Tex>{String.raw`q=+1\iff e\ge\theta`}</Tex>（規格 §15.2 的硬體慣例），其中 <Tex>{'e=s+v'}</Tex>。
-        因為 <Tex>{'v'}</Tex> 是連續的，<Tex>{'P(e=\\theta)=0'}</Tex>，所以單一樣本的 <Tex>{'\\operatorname{sign}(0)'}</Tex> 慣例不影響任何機率
+        Comparator 的規則是 <Tex>{String.raw`q=+1\iff e\ge\theta`}</Tex>（規格 §15.2 的硬體慣例），其中 <Tex>{'e=s+v'}</Tex>。因為 <Tex>{'v'}</Tex> 是連續的，<Tex>{'P(e=\\theta)=0'}</Tex>，所以單一樣本的 <Tex>{'\\operatorname{sign}(0)'}</Tex> 慣例不影響任何機率
         <Erratum id="E07">
           （規格 §0 的 <Tex>{'\\operatorname{sign}(0)'}</Tex> 與 §15.2 的 <Tex>{'e\\ge0\\Rightarrow+1'}</Tex> 不一致；對單一樣本無影響，但對累加後的{' '}
           <Tex>{'S_N=0'}</Tex> 有影響，見 §3）
@@ -245,8 +242,7 @@ export function ProbabilitySection() {
         <p>
           以 golden T04 的 code <Tex>{'x\\in\\{-1,-0.5,0,0.5,1,1.5\\}'}</Tex>（等機率、<Tex>{'E[x]=0.25'}</Tex>）、
           <Tex>{String.raw`\sigma_v=100\,\mathrm{fs}`}</Tex>、<Tex>{String.raw`a=300\,\mathrm{fs}`}</Tex> 為例：在真值 <Tex>{'w=a'}</Tex> 時平均更新量是{' '}
-          <Tex>{fx(T.wrongUpdate, 6)}</Tex>（不是 0），Sign-LMS 的平均固定點因此偏移 <strong>{fx(T.wrongShift, 2)} fs</strong>。
-          零均值 code 下 <Tex>{String.raw`E[b\,x]=\tfrac12E[x]+\tfrac12E[q\,x]=\tfrac12E[q\,x]`}</Tex>：只會讓增益減半、不會偏移，所以這個 bug
+          <Tex>{fx(T.wrongUpdate, 6)}</Tex>（不是 0），Sign-LMS 的平均固定點因此偏移 <strong>{fx(T.wrongShift, 2)} fs</strong>。零均值 code 下 <Tex>{String.raw`E[b\,x]=\tfrac12E[x]+\tfrac12E[q\,x]=\tfrac12E[q\,x]`}</Tex>：只會讓增益減半、不會偏移，所以這個 bug
           很容易在模擬中被掩蓋。
         </p>
       </Callout>

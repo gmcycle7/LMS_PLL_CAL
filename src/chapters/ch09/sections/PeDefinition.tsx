@@ -47,19 +47,15 @@ export function PeDefinition() {
       </Diagram>
       <p>
         <FigRef id="pe-window" /> 怎麼看：先看前幾個方塊——取連續 {m`N_0`} 筆 regressor（{m`N_0`} 是<strong>窗口長度</strong>；它和 GMAC 的 block 長度 {m`N`}
-        是兩個不同的量），每一筆做外積 {m`\mathbf u\mathbf u^T`}，全部加起來得到<strong>窗口能量矩陣</strong> {m`\mathbf S_k`}（這裡的下標 {m`k`} 是窗口的起點）；
-        除以 {m`N_0`} 就是這個窗口自己的相關矩陣 {m`\mathbf R_k`}。再看 eigenvalues——{m`\lambda_{\min}(\mathbf R_k)`} 是這個窗口裡「最弱的方向」的能量，
-        {m`\lambda_{\max}(\mathbf R_k)`} 是最強的方向。最後看藍色的判斷——PE 要求存在兩個固定的正數 {m`\alpha`}（下界）與 {m`\beta`}（上界），讓每一個窗口最弱的方向
-        至少有 {m`\alpha`}、最強的方向不超過 {m`\beta`}；通過之後窗口往後滑一格再檢查，永遠都要通過。圖上的「滑動窗口相加」就是下面 F-09.9 中間那個
-        {m`\sum`}；藍色菱形就是 F-09.9 的兩個不等號（因為 {m`\lambda(\mathbf S_k)=N_0\lambda(\mathbf R_k)`}，圖上寫成 {m`N_0\lambda_{\min}(\mathbf R_k)\ge\alpha`}）；
-        圖上的 {m`R_k`}、{m`\kappa(R_k)`}、{m`\sigma_i(U_k)`} 就是 F-09.10 的三個量。
+        是兩個不同的量），每一筆做外積 {m`\mathbf u\mathbf u^T`}，全部加起來得到<strong>窗口能量矩陣</strong> {m`\mathbf S_k`}（這裡的下標 {m`k`} 是窗口的起點）；除以 {m`N_0`} 就是這個窗口自己的相關矩陣 {m`\mathbf R_k`}。再看 eigenvalues——{m`\lambda_{\min}(\mathbf R_k)`} 是這個窗口裡「最弱的方向」的能量，
+        {m`\lambda_{\max}(\mathbf R_k)`} 是最強的方向。最後看藍色的判斷——PE 要求存在兩個固定的正數 {m`\alpha`}（下界）與 {m`\beta`}（上界），讓每一個窗口最弱的方向至少有 {m`\alpha`}、最強的方向不超過 {m`\beta`}；通過之後窗口往後滑一格再檢查，永遠都要通過。圖上的「滑動窗口相加」就是下面 F-09.9 中間那個
+        {m`\sum`}；藍色菱形就是 F-09.9 的兩個不等號（因為 {m`\lambda(\mathbf S_k)=N_0\lambda(\mathbf R_k)`}，圖上寫成 {m`N_0\lambda_{\min}(\mathbf R_k)\ge\alpha`}）；圖上的 {m`R_k`}、{m`\kappa(R_k)`}、{m`\sigma_i(U_k)`} 就是 F-09.10 的三個量。
       </p>
       <p>先用兩個只有 4 筆資料的小窗口感覺一下：</p>
 
       <h3>先算一次：兩個 {m`N_0=4`} 的窗口</h3>
       <p>
-        把窗口內每一筆 {m`\mathbf u[n]\mathbf u^T[n]`}（{m`2\times2`} 的表）加起來，得到<strong>窗口能量矩陣</strong> {m`\mathbf S_k=\sum_n\mathbf u[n]\mathbf u^T[n]`}。
-        例如 {m`\mathbf u=(1,-1)`} 貢獻 {m`\begin{bmatrix}1&-1\\-1&1\end{bmatrix}`}。下表的 {m`\mathbf S_k`} 與 eigenvalues 由 <code>eig2x2</code> /{' '}
+        把窗口內每一筆 {m`\mathbf u[n]\mathbf u^T[n]`}（{m`2\times2`} 的表）加起來，得到<strong>窗口能量矩陣</strong> {m`\mathbf S_k=\sum_n\mathbf u[n]\mathbf u^T[n]`}。例如 {m`\mathbf u=(1,-1)`} 貢獻 {m`\begin{bmatrix}1&-1\\-1&1\end{bmatrix}`}。下表的 {m`\mathbf S_k`} 與 eigenvalues 由 <code>eig2x2</code> /{' '}
         <code>slidingWindowPe</code> 計算：
       </p>
       <div className="table-wrap">
@@ -101,20 +97,17 @@ export function PeDefinition() {
         </table>
       </div>
       <p>
-        窗口 A 再長也沒用（只要一直是 {m`u_1=u_2`}）；窗口 B 只多了<strong>一筆</strong> {m`(1,-1)`}，{m`\lambda_{\min}`} 就從 0 變成正數。
-        PE 的定義就是把「每一個窗口都至少像 B，不可以像 A」寫成不等式： <ClaimTag kind="exact" />
+        窗口 A 再長也沒用（只要一直是 {m`u_1=u_2`}）；窗口 B 只多了<strong>一筆</strong> {m`(1,-1)`}，{m`\lambda_{\min}`} 就從 0 變成正數。PE 的定義就是把「每一個窗口都至少像 B，不可以像 A」寫成不等式： <ClaimTag kind="exact" />
       </p>
       <TexBlock id="F-09.9">{formulaTex('F-09.9')}</TexBlock>
       <p>
-        讀法：存在一個窗口長度 {m`N_0`} 和兩個正數 {m`\alpha,\beta`}，使得<strong>不管窗口從哪個時刻 {m`k`} 開始</strong>，窗口能量矩陣 {m`\mathbf S_k`} 在每個方向上的能量都
-        介於 {m`\alpha`} 與 {m`\beta`} 之間（{m`\preceq`} 的意思見下面的先備知識框）。上表的窗口 B 單獨來看 {m`\alpha=${texNum(hand[1].eig[1])}`}、{m`\beta=${texNum(hand[1].eig[0])}`} 就夠；窗口 A 則讓任何
+        讀法：存在一個窗口長度 {m`N_0`} 和兩個正數 {m`\alpha,\beta`}，使得<strong>不管窗口從哪個時刻 {m`k`} 開始</strong>，窗口能量矩陣 {m`\mathbf S_k`} 在每個方向上的能量都介於 {m`\alpha`} 與 {m`\beta`} 之間（{m`\preceq`} 的意思見下面的先備知識框）。上表的窗口 B 單獨來看 {m`\alpha=${texNum(hand[1].eig[1])}`}、{m`\beta=${texNum(hand[1].eig[0])}`} 就夠；窗口 A 則讓任何
         {m`\alpha>0`} 都不成立。
       </p>
 
       <Prereq title={String.raw`記號 $\mathbf A\preceq\mathbf B$（Loewner order）與 Rayleigh quotient`}>
         <p>
-          {m`\mathbf A\preceq\mathbf B`} 的意思是 {m`\mathbf B-\mathbf A`} 半正定：對所有 {m`\mathbf v`}，{m`\mathbf v^T\mathbf A\mathbf v\le\mathbf v^T\mathbf B\mathbf v`}。
-          搭配 Rayleigh quotient：
+          {m`\mathbf A\preceq\mathbf B`} 的意思是 {m`\mathbf B-\mathbf A`} 半正定：對所有 {m`\mathbf v`}，{m`\mathbf v^T\mathbf A\mathbf v\le\mathbf v^T\mathbf B\mathbf v`}。搭配 Rayleigh quotient：
         </p>
         <StepDerivation
           steps={[
@@ -134,8 +127,7 @@ export function PeDefinition() {
           ]}
         />
         <p>
-          白話：<strong>任何一個參數方向 {m`\mathbf v`}，在任何一個長度 {m`N_0`} 的窗口裡，regressor 投影到 {m`\mathbf v`} 上的能量都至少有 {m`\alpha`}</strong>。
-          上界 {m`\beta`} 則保證能量有限，使得存在不會發散的 {m`\mu`}（例如 {m`\mu<2N_0/\beta`}）。
+          白話：<strong>任何一個參數方向 {m`\mathbf v`}，在任何一個長度 {m`N_0`} 的窗口裡，regressor 投影到 {m`\mathbf v`} 上的能量都至少有 {m`\alpha`}</strong>。上界 {m`\beta`} 則保證能量有限，使得存在不會發散的 {m`\mu`}（例如 {m`\mu<2N_0/\beta`}）。
         </p>
       </DerivBox>
 
@@ -149,8 +141,7 @@ export function PeDefinition() {
       </Diagram>
       <p>
         <FigRef id="pe-contraction" /> 怎麼看：先看每一個箭頭——經過一個窗口（也就是一個 block），誤差向量的長度 {m`\|\boldsymbol\delta\|`}
-        至多乘上 {m`1-\mu\lambda_{\min}(\mathbf R_k)`}。再看藍色方塊——PE 保證每個窗口的 {m`\lambda_{\min}(\mathbf R_k)`} 都不小於 {m`\alpha/N_0`}，
-        所以每個箭頭都至少縮小同一個比例；{m`K`} 個窗口連乘（{m`K`} 是經過的窗口數），就是綠色方塊的指數收斂。圖上箭頭的倍數就是 F-09.17 的
+        至多乘上 {m`1-\mu\lambda_{\min}(\mathbf R_k)`}。再看藍色方塊——PE 保證每個窗口的 {m`\lambda_{\min}(\mathbf R_k)`} 都不小於 {m`\alpha/N_0`}，所以每個箭頭都至少縮小同一個比例；{m`K`} 個窗口連乘（{m`K`} 是經過的窗口數），就是綠色方塊的指數收斂。圖上箭頭的倍數就是 F-09.17 的
         {m`\big(1-\mu\lambda_{\min}(\mathbf R_k)\big)`}，綠色方塊就是下面推導的最後一行。
       </p>
       <StepDerivation
@@ -162,8 +153,7 @@ export function PeDefinition() {
       />
       <TexBlock id="F-09.17">{formulaTex('F-09.17')}</TexBlock>
       <p>
-        這是 deterministic 的保證（不必假設 {m`\mathbf u`} 是隨機的）。 <ClaimTag kind="exact" /> per-sample（{m`N=1`}）LMS 在 PE 下、{m`\mu`} 夠小時也指數收斂，
-        這是文獻上的經典結果（Anderson 1977；Bitmead &amp; Anderson 1980），本站未重新證明。 <ClaimTag kind="research" />
+        這是 deterministic 的保證（不必假設 {m`\mathbf u`} 是隨機的）。 <ClaimTag kind="exact" /> per-sample（{m`N=1`}）LMS 在 PE 下、{m`\mu`} 夠小時也指數收斂，這是文獻上的經典結果（Anderson 1977；Bitmead &amp; Anderson 1980），本站未重新證明。 <ClaimTag kind="research" />
       </p>
 
       <h3>
@@ -171,8 +161,7 @@ export function PeDefinition() {
       </h3>
       <p>
         行為模型對每個窗口輸出三個數：{m`\lambda_{\min}(\mathbf R_k)`}、{m`\kappa(\mathbf R_k)`}，以及<strong>資料矩陣</strong> {m`\mathbf U_k`} 的 singular values
-        {m`\sigma_i(\mathbf U_k)`}。{m`\mathbf U_k`} 是把窗口內 {m`N_0`} 筆 regressor 一列一列疊起來的 {m`N_0\times M`} 矩陣；singular value 是它把向量
-        「放大幾倍」（先備知識框）。這三個數就是 <FigRef id="pe-window" /> 裡 eigenvalues 與 {m`\kappa`} 那兩個方塊的輸出：
+        {m`\sigma_i(\mathbf U_k)`}。{m`\mathbf U_k`} 是把窗口內 {m`N_0`} 筆 regressor 一列一列疊起來的 {m`N_0\times M`} 矩陣；singular value 是它把向量「放大幾倍」（先備知識框）。這三個數就是 <FigRef id="pe-window" /> 裡 eigenvalues 與 {m`\kappa`} 那兩個方塊的輸出：
       </p>
       <TexBlock id="F-09.10">{formulaTex('F-09.10')}</TexBlock>
       <DerivBox title={<>為什麼 {m`\sigma_i(\mathbf U_k)^2=N_0\lambda_i(\mathbf R_k)`}</>}>
@@ -188,8 +177,7 @@ export function PeDefinition() {
       </DerivBox>
       <p>
         所以 {m`\lambda_{\min}(\mathbf R_k)`}、{m`\kappa(\mathbf R_k)`} 與資料矩陣的 singular values 是同一件事的三種說法：
-        {m`\lambda_{\min}`} 小 = 某個方向的能量少 = 該方向學得慢；{m`\lambda_{\min}=0`}（{m`\sigma_{\min}(\mathbf U_k)=0`}）= 該窗口內完全沒有那個方向的資訊。
-        另外 {m`\mathrm{rank}(\mathbf U_k)\le N_0`}：{m`N_0<M`} 的窗口必定退化。 <ClaimTag kind="exact" />
+        {m`\lambda_{\min}`} 小 = 某個方向的能量少 = 該方向學得慢；{m`\lambda_{\min}=0`}（{m`\sigma_{\min}(\mathbf U_k)=0`}）= 該窗口內完全沒有那個方向的資訊。另外 {m`\mathrm{rank}(\mathbf U_k)\le N_0`}：{m`N_0<M`} 的窗口必定退化。 <ClaimTag kind="exact" />
       </p>
       <HandCalcBox id="HC-09.6">
         自己編四筆 regressor（{m`\pm1`} 或任何數字），先手算窗口能量矩陣 {m`\mathbf S_k`} 的三個元素，再求它的 eigenvalues、{m`\kappa`} 與
@@ -198,18 +186,14 @@ export function PeDefinition() {
 
       <Callout kind="warn" title={String.raw`有限窗口的陷阱：量過幾段時間 $\ne$ 證明了 PE`}>
         <p>
-          只量某一段時間的 {m`\lambda_{\min}(\mathbf R_k)`}，<strong>不能</strong>證明所有未來窗口都滿足 PE。對隨機 code 甚至一定會出現壞窗口。
-          例：{m`\pm1`} sparse-flip code（{m`u_2=s\,u_1`}，{m`P(s=+1)=(1+\rho)/2`}）的窗口退化 {m`\iff`} 窗口內 {m`s`} 全同號（就像上面的窗口 A）；
+          只量某一段時間的 {m`\lambda_{\min}(\mathbf R_k)`}，<strong>不能</strong>證明所有未來窗口都滿足 PE。對隨機 code 甚至一定會出現壞窗口。例：{m`\pm1`} sparse-flip code（{m`u_2=s\,u_1`}，{m`P(s=+1)=(1+\rho)/2`}）的窗口退化 {m`\iff`} 窗口內 {m`s`} 全同號（就像上面的窗口 A）；
           {m`N_0`} 筆獨立樣本全為 {m`+1`} 的機率是 {m`\big(\tfrac{1+\rho}2\big)^{N_0}`}，全為 {m`-1`} 是 {m`\big(\tfrac{1-\rho}2\big)^{N_0}`}，兩者相加。先看這個窗口的 {m`\mathbf S_k`} 長什麼樣子：
         </p>
         <Diagram id="pm1-degenerate">
           看紅色與綠色兩個方塊：窗口只在 {m`s`} 全同號時退化，但 {m`\rho`} 越接近 1，全同號的機率就越高。
         </Diagram>
         <p>
-          <FigRef id="pm1-degenerate" /> 怎麼看：先看窗口的 {m`\mathbf S_k`}——{m`\pm1`} code 每一筆的 {m`\mathbf u\mathbf u^T`} 都是 {m`\begin{bmatrix}1&s\\s&1\end{bmatrix}`}，
-          所以整個窗口只由 {m`s=+1`} 的個數 {m`N_{+}`} 與 {m`s=-1`} 的個數 {m`N_{-}`}（{m`N_{+}+N_{-}=N_0`}）決定：對角線都是 {m`N_0`}，非對角線是 {m`N_{+}-N_{-}`}，eigenvalues 是 {m`N_0\pm|N_{+}-N_{-}|`}。
-          再看菱形——只有 {m`N_{+}=0`} 或 {m`N_{-}=0`}（{m`s`} 全同號）時 {m`\lambda_{\min}(\mathbf S_k)=N_0-|N_{+}-N_{-}|=2\min(N_{+},N_{-})`} 才是 0，這就是上面的窗口 A；
-          其他窗口至少有 2。圖上紅色方塊的機率就是下面 F-09.11：全為 {m`+1`} 加上全為 {m`-1`}。
+          <FigRef id="pm1-degenerate" /> 怎麼看：先看窗口的 {m`\mathbf S_k`}——{m`\pm1`} code 每一筆的 {m`\mathbf u\mathbf u^T`} 都是 {m`\begin{bmatrix}1&s\\s&1\end{bmatrix}`}，所以整個窗口只由 {m`s=+1`} 的個數 {m`N_{+}`} 與 {m`s=-1`} 的個數 {m`N_{-}`}（{m`N_{+}+N_{-}=N_0`}）決定：對角線都是 {m`N_0`}，非對角線是 {m`N_{+}-N_{-}`}，eigenvalues 是 {m`N_0\pm|N_{+}-N_{-}|`}。再看菱形——只有 {m`N_{+}=0`} 或 {m`N_{-}=0`}（{m`s`} 全同號）時 {m`\lambda_{\min}(\mathbf S_k)=N_0-|N_{+}-N_{-}|=2\min(N_{+},N_{-})`} 才是 0，這就是上面的窗口 A；其他窗口至少有 2。圖上紅色方塊的機率就是下面 F-09.11：全為 {m`+1`} 加上全為 {m`-1`}。
         </p>
         <TexBlock id="F-09.11">{formulaTex('F-09.11')}</TexBlock>
         <div className="table-wrap">
@@ -259,9 +243,7 @@ export function PeDefinition() {
         例如 {m`N_0=100`} 時約 {m`\pm${texNum(100 * sampleEigRelStd(100), 3)}\%`}；要把 {m`\lambda_{\min}=0.01`} 量到 {m`\pm1\%`} 需要 {m`N_0\approx2\times10^4`}。 <ClaimTag kind="approx" />
       </p>
       <Callout kind="info" title="連結到 PLL">
-        Near-integer FCW 讓 DSM residue 變成週期很長、近乎常數的序列；多段 DTC gain / INL 係數若由同一個 code 的不同函數驅動，
-        其 regressor 往往高度相關（{m`\rho\to1`}）。這時 calibration 迴路穩定，但某些組合（差模）幾乎不動。對策是改善激發（code randomization、
-        dither、training sequence；規格附錄 R5），或改用 preconditioner（<ChRef ch="10">第 10 章</ChRef>）。
+        Near-integer FCW 讓 DSM residue 變成週期很長、近乎常數的序列；多段 DTC gain / INL 係數若由同一個 code 的不同函數驅動，其 regressor 往往高度相關（{m`\rho\to1`}）。這時 calibration 迴路穩定，但某些組合（差模）幾乎不動。對策是改善激發（code randomization、dither、training sequence；規格附錄 R5），或改用 preconditioner（<ChRef ch="10">第 10 章</ChRef>）。
       </Callout>
     </Section>
   )

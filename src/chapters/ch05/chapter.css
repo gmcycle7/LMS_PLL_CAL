@@ -230,8 +230,6 @@
   margin-top: 28px;
   padding-top: 8px;
   border-top: 2px solid var(--border);
-  /* 捲過來時不要被固定的頂端列蓋住 */
-  scroll-margin-top: calc(var(--topbar-h, 52px) + 12px);
   min-width: 0;
 }
 .ch05-symbols-end:focus {

@@ -1,7 +1,7 @@
 /**
  * Lab 的 Plotly trace / layout 建構（純函式；所有數值都來自 analyzeFxLab 或 runFxComparison 的結果）。
  */
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import type { FxComparisonResult, FxLabAnalysis, RegressorMode } from '@/simulation/models/filteredX'
 import type { LabScenario } from './labState'
 import { txs } from '../util'

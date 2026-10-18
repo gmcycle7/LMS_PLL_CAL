@@ -128,7 +128,7 @@ export function ChapterSymbols() {
     <section id={SYMBOLS_ID} className="ch02-symbols" tabIndex={-1} aria-label="本章符號表">
       <h2 id="ch02-symbols-title">本章符號表</h2>
       <p className="ch02-note">
-        每個符號第一次出現時正文都有一句說明；這裡把它們收在一起，方便回頭查。<JumpTo target={TOP_ID}>回到章首 ↑</JumpTo>
+        每個符號第一次出現時正文都有一句說明；這裡把它們收在一起，方便回頭查。<JumpTo target={TOP_ID} className="no-print">回到章首 ↑</JumpTo>
       </p>
       <SymbolTable
         rows={SYMBOLS}

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import {
   ClaimTag,
   CodeBlock,
@@ -171,8 +171,7 @@ export function LossesSection() {
         <p className="ch01-lead">
           §1.1 說「平方」是為了不讓正負抵消。絕對值也做得到。<strong>選哪一種誤差指標，就決定了演算法要找的「最佳解」是哪一個，以及每一步怎麼更新</strong>
           （規格 §2）。把「一筆誤差 <Tex>{'e'}</Tex> 算多壞」寫成一個函數 <Tex>{String.raw`\rho(e)`}</Tex>，叫損失函數（loss）；下標 <Tex>{'2'}</Tex>、<Tex>{'1'}</Tex>、
-          <Tex>{'H'}</Tex> 分別代表平方（MSE，mean squared error）、絕對值（MAE，mean absolute error）與 Huber。<Tex>{String.raw`\delta_H`}</Tex> 是 Huber 的門檻：誤差比它小用平方、比它大改用直線
-          （注意它和 §1.4 的參數誤差 <Tex>{String.raw`\delta_n`}</Tex> 是兩回事）。我們比較三種損失：
+          <Tex>{'H'}</Tex> 分別代表平方（MSE，mean squared error）、絕對值（MAE，mean absolute error）與 Huber。<Tex>{String.raw`\delta_H`}</Tex> 是 Huber 的門檻：誤差比它小用平方、比它大改用直線（注意它和 §1.4 的參數誤差 <Tex>{String.raw`\delta_n`}</Tex> 是兩回事）。我們比較三種損失：
         </p>
         <TexBlock
           id="F-01.10"
@@ -185,14 +184,11 @@ export function LossesSection() {
           {String.raw`\rho_2(e)=\tfrac12e^2,\qquad \rho_1(e)=|e|,\qquad \rho_H(e)=\begin{cases}\tfrac12e^2,&|e|\le\delta_H\\ \delta_H\big(|e|-\tfrac12\delta_H\big),&|e|>\delta_H\end{cases}`}
         </TexBlock>
         <p>
-          換了損失，更新式要重推嗎？不用。§1.3 的推導只用到「損失對誤差的斜率」，把它記成 <Tex>{String.raw`\psi(e)=d\rho/de`}</Tex>（influence function：這筆誤差對更新量有多大的影響力），
-          三種演算法就只差在這一格：
+          換了損失，更新式要重推嗎？不用。§1.3 的推導只用到「損失對誤差的斜率」，把它記成 <Tex>{String.raw`\psi(e)=d\rho/de`}</Tex>（influence function：這筆誤差對更新量有多大的影響力），三種演算法就只差在這一格：
         </p>
         <BlockDiagram id="D-01.13">
-          三列的頭尾都一樣：左邊進來的是誤差 <Tex>{'e'}</Tex>，右邊乘上 <Tex>{String.raw`\mu x`}</Tex> 變成更新量。只要看中間藍色那一格：第一列讓 <Tex>{'e'}</Tex> 原樣通過；
-          第二列只留正負號 <Tex>{String.raw`\operatorname{sign}(e)`}</Tex>（<Tex>{'+1'}</Tex> 或 <Tex>{'-1'}</Tex>，大小被丟掉）；第三列用{' '}
-          <Tex>{String.raw`\operatorname{clip}(e,-\delta_H,\delta_H)`}</Tex> 把 <Tex>{'e'}</Tex> 截在 <Tex>{String.raw`[-\delta_H,\delta_H]`}</Tex> 之內（超出就取端點）。
-          圖上的三個藍色方塊就是 F-01.11 的 <Tex>{String.raw`\psi_2`}</Tex>、<Tex>{String.raw`\psi_1`}</Tex>、<Tex>{String.raw`\psi_H`}</Tex>，每一列最右邊就是{' '}
+          三列的頭尾都一樣：左邊進來的是誤差 <Tex>{'e'}</Tex>，右邊乘上 <Tex>{String.raw`\mu x`}</Tex> 變成更新量。只要看中間藍色那一格：第一列讓 <Tex>{'e'}</Tex> 原樣通過；第二列只留正負號 <Tex>{String.raw`\operatorname{sign}(e)`}</Tex>（<Tex>{'+1'}</Tex> 或 <Tex>{'-1'}</Tex>，大小被丟掉）；第三列用{' '}
+          <Tex>{String.raw`\operatorname{clip}(e,-\delta_H,\delta_H)`}</Tex> 把 <Tex>{'e'}</Tex> 截在 <Tex>{String.raw`[-\delta_H,\delta_H]`}</Tex> 之內（超出就取端點）。圖上的三個藍色方塊就是 F-01.11 的 <Tex>{String.raw`\psi_2`}</Tex>、<Tex>{String.raw`\psi_1`}</Tex>、<Tex>{String.raw`\psi_H`}</Tex>，每一列最右邊就是{' '}
           <Tex>{String.raw`\Delta w=\mu\,\psi(e)\,x`}</Tex>。
         </BlockDiagram>
         {atLeast('engineer') ? chain : <Derivation title="連鎖律：一般損失的更新式" derivation={chain} level="L0" claim="exact" />}
@@ -284,20 +280,17 @@ export function LossesSection() {
         id="ch01-s22"
       >
         <p>
-          <Tex>{'|e|'}</Tex> 的圖形是一個 V 字：右半邊斜率是 <Tex>{'+1'}</Tex>、左半邊是 <Tex>{'-1'}</Tex>，所以 <Tex>{String.raw`\psi_1(e)=\operatorname{sign}(e)`}</Tex>。
-          問題出在尖點 <Tex>{'e=0'}</Tex>：那裡沒有唯一的斜率。數學上，所有「還能當斜率用」的值組成一個集合，叫次梯度（subgradient），記作{' '}
+          <Tex>{'|e|'}</Tex> 的圖形是一個 V 字：右半邊斜率是 <Tex>{'+1'}</Tex>、左半邊是 <Tex>{'-1'}</Tex>，所以 <Tex>{String.raw`\psi_1(e)=\operatorname{sign}(e)`}</Tex>。問題出在尖點 <Tex>{'e=0'}</Tex>：那裡沒有唯一的斜率。數學上，所有「還能當斜率用」的值組成一個集合，叫次梯度（subgradient），記作{' '}
           <Tex>{String.raw`\partial|e|`}</Tex>；在 0 這個集合是整段 <Tex>{'[-1,1]'}</Tex>。程式和硬體不能回傳一個集合，必須挑一個值——這個選擇叫 tie 慣例：
         </p>
         <BlockDiagram id="D-01.14">
-          先看上面的菱形：誤差大於 0 走左邊得到 <Tex>{'+1'}</Tex>，小於 0 得到 <Tex>{'-1'}</Tex>，這兩條沒有爭議。再看藍色的菱形：剛好等於 0 時有三種選法——數學次梯度取 0（這一步不動），
-          硬體 comparator 只有兩個輸出，所以只能是 <Tex>{'+1'}</Tex> 或 <Tex>{'-1'}</Tex>。圖上最下面的三個方塊就是 F-01.12 大括號裡的三個值，也是 <code>lms.ts</code> 裡{' '}
+          先看上面的菱形：誤差大於 0 走左邊得到 <Tex>{'+1'}</Tex>，小於 0 得到 <Tex>{'-1'}</Tex>，這兩條沒有爭議。再看藍色的菱形：剛好等於 0 時有三種選法——數學次梯度取 0（這一步不動），硬體 comparator 只有兩個輸出，所以只能是 <Tex>{'+1'}</Tex> 或 <Tex>{'-1'}</Tex>。圖上最下面的三個方塊就是 F-01.12 大括號裡的三個值，也是 <code>lms.ts</code> 裡{' '}
           <code>sgn(v, tie)</code> 的 <code>zero</code>／<code>plus</code>／<code>minus</code>。
         </BlockDiagram>
         {atLeast('engineer') ? absDeriv : <Derivation title="$|e|$ 的導數" derivation={absDeriv} level="L0" claim="exact" />}
         <Prereq title="次梯度（subgradient）：尖點上的「斜率」">
           <p>
-            可微的凸函數在每一點都有一條切線，整條曲線都在切線上方。尖點沒有唯一切線，但仍有<strong>很多條</strong>「整條曲線都在它上方」的直線。
-            這些直線的斜率都叫<strong>次梯度</strong>：
+            可微的凸函數在每一點都有一條切線，整條曲線都在切線上方。尖點沒有唯一切線，但仍有<strong>很多條</strong>「整條曲線都在它上方」的直線。這些直線的斜率都叫<strong>次梯度</strong>：
           </p>
           <TexBlock>{String.raw`g\in\partial f(e_0)\iff f(e)\ge f(e_0)+g\,(e-e_0)\quad\text{對所有 }e`}</TexBlock>
           <StepDerivation
@@ -401,8 +394,7 @@ export function LossesSection() {
               ))}
             </tbody>
             <caption>
-              由 <code>signErrorFixedPointRun</code>（整數 code）與 <code>lms.ts</code> 的 <code>signErrorStep</code> 跑 {TIE_DEMO.steps} 步，列出最後 8 步出現過的值。
-              精確算術下 <Tex>{String.raw`\operatorname{sign}(0)=0`}</Tex> 會凍結在 3；comparator 慣例則在兩格之間來回。IEEE double 連加十次{' '}
+              由 <code>signErrorFixedPointRun</code>（整數 code）與 <code>lms.ts</code> 的 <code>signErrorStep</code> 跑 {TIE_DEMO.steps} 步，列出最後 8 步出現過的值。精確算術下 <Tex>{String.raw`\operatorname{sign}(0)=0`}</Tex> 會凍結在 3；comparator 慣例則在兩格之間來回。IEEE double 連加十次{' '}
               <Tex>{'0.2'}</Tex> 得到的不是 3，所以 <Tex>{'e=0'}</Tex> 根本不會發生，三種慣例給出同一個循環——慣例「悄悄失效」。這就是勘誤 E40 的數值證據。
             </caption>
           </table>
@@ -476,8 +468,7 @@ export function LossesSection() {
           <Tex>{'y'}</Tex> 從正常的 <Tex>{texNum(OUTLIER_DEMO.yNormal)}</Tex> 變成 <Tex>{texNum(OUTLIER_DEMO.y)}</Tex>（由同一組 step 函數即時計算）：
         </p>
         <BlockDiagram id="D-01.15">
-          先看左邊：這筆 outlier 讓誤差變成 <Tex>{String.raw`e=${texNum(outlier[0].out.e)}`}</Tex>，是上表的 <Tex>{texNum(outlier[0].out.e / oneStep[0].out.e)}</Tex> 倍。再看三條分支的藍色方塊各放行多少：
-          Conventional 放行整個 <Tex>{texNum(outlier[0].out.e)}</Tex>，<Tex>{'w'}</Tex> 一步從 <Tex>{texNum(OUTLIER_DEMO.w)}</Tex> 跳到 <Tex>{texNum(outlier[0].out.w)}</Tex>（紅色）；Sign-Error 與 Huber 都只放行{' '}
+          先看左邊：這筆 outlier 讓誤差變成 <Tex>{String.raw`e=${texNum(outlier[0].out.e)}`}</Tex>，是上表的 <Tex>{texNum(outlier[0].out.e / oneStep[0].out.e)}</Tex> 倍。再看三條分支的藍色方塊各放行多少：Conventional 放行整個 <Tex>{texNum(outlier[0].out.e)}</Tex>，<Tex>{'w'}</Tex> 一步從 <Tex>{texNum(OUTLIER_DEMO.w)}</Tex> 跳到 <Tex>{texNum(outlier[0].out.w)}</Tex>（紅色）；Sign-Error 與 Huber 都只放行{' '}
           <Tex>{'+1'}</Tex>，<Tex>{'w'}</Tex> 只走到 <Tex>{texNum(outlier[1].out.w)}</Tex>（綠色），和誤差是 <Tex>{texNum(oneStep[0].out.e)}</Tex> 時一模一樣。圖上每條分支最後的{' '}
           <Tex>{String.raw`\Delta w`}</Tex> 就是 F-01.11 的 <Tex>{String.raw`\mu\,\psi(e)\,x`}</Tex> 代入 <Tex>{String.raw`\mu=${OUTLIER_DEMO.mu},\ x=${OUTLIER_DEMO.x}`}</Tex>：
           <Tex>{String.raw`${outlier.map((o) => texNum(o.out.dw)).join(',\\ ')}`}</Tex>。
@@ -546,8 +537,7 @@ export function LossesSection() {
             Sign-Error 的 <Tex>{String.raw`E[\operatorname{sign}(e)\,x]=0`}</Tex>（以 <Tex>{'|x|'}</Tex> 加權的中位數）。理由：<Tex>{'x\\ne0'}</Tex> 時{' '}
             <Tex>{String.raw`\tfrac{\partial}{\partial w}\tfrac{|y-wx|}{|x|}=-\operatorname{sign}(e)\operatorname{sign}(x)`}</Tex>，所以 Sign-Sign 是{' '}
             <Tex>{String.raw`E\big|\tfrac{y}{x}-w\big|`}</Tex> 的隨機次梯度法——目標是 <Tex>{'y/x'}</Tex> 的<strong>不加權</strong>中位數。當{' '}
-            <Tex>{'|x|'}</Tex> 為常數（例如 <Tex>{String.raw`\pm1`}</Tex> code）時兩者相同。
-            數值例：<Tex>{String.raw`\Delta w=${texNum(oneStep[3].out.dw, 6)}`}</Tex>（<Tex>{'x=1'}</Tex> 時與 Sign-Error 一樣）。
+            <Tex>{'|x|'}</Tex> 為常數（例如 <Tex>{String.raw`\pm1`}</Tex> code）時兩者相同。數值例：<Tex>{String.raw`\Delta w=${texNum(oneStep[3].out.dw, 6)}`}</Tex>（<Tex>{'x=1'}</Tex> 時與 Sign-Error 一樣）。
           </p>
         </ModeGate>
       </Section>

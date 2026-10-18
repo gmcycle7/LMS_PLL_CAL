@@ -173,8 +173,7 @@ export function S5Architectures() {
 
         <h3 className="ch10-sub">Sequential Calibration：一次只校一個（Gauss–Seidel）</h3>
         <p>
-          另一種常見做法是分階段：先校 GOS，再校 PHOS，再校 DTC gain。每一階段只有一個 loop 在動，其他凍結——所以每一階段都是穩定的純量 LMS。問題在於：
-          被凍結的參數若還有誤差，正在校的那個參數會<strong>把別人的誤差吸收進來</strong>。
+          另一種常見做法是分階段：先校 GOS，再校 PHOS，再校 DTC gain。每一階段只有一個 loop 在動，其他凍結——所以每一階段都是穩定的純量 LMS。問題在於：被凍結的參數若還有誤差，正在校的那個參數會<strong>把別人的誤差吸收進來</strong>。
         </p>
         <Fig id="seq-fsm">
           先由上往下看兩個主要狀態：階段 1 只有 <Tex>{'w_1'}</Tex> 在更新（更新矩陣只剩 <Tex>{String.raw`M_{11}`}</Tex> 一個元素不是 0），階段 2 換成只有 <Tex>{'w_2'}</Tex>。再看三條箭頭：每個階段跑滿設定的 block
@@ -250,10 +249,8 @@ export function S5Architectures() {
           </table>
         </div>
         <p className="small muted">
-          由 <code>propagateLinearMoments()</code> 以 sequential 規則（<Tex>{String.raw`\gamma=0.5`}</Tex>、每階段 {seqPhaseLen} blocks、<Tex>{'K_q'}</Tex> 正規化為 1、無雜訊平均）計算；
-          階段 1 每個 block 把 <Tex>{String.raw`\delta_1+\delta_2`}</Tex> 乘上 <Tex>{String.raw`1-\gamma=0.5`}</Tex>（表中數字四捨五入到{' '}
-          <Tex>{String.raw`10^{-6}`}</Tex>；階段 1 結束時的殘餘 <Tex>{String.raw`4\times0.5^{${seqPhaseLen}}\approx${tn(4 * Math.pow(0.5, seqPhaseLen), 2)}`}</Tex> 已可忽略）。誰先校，誰就吸收全部的不可辨識誤差——
-          這和<ChRef ch="09">第 9 章</ChRef>的 gauge freedom 是同一件事：<Tex>{String.raw`\mathbf R`}</Tex> 的 null space 方向 <Tex>{String.raw`[1,-1]^T`}</Tex> 的分量由「初值 + 校正順序」決定。
+          由 <code>propagateLinearMoments()</code> 以 sequential 規則（<Tex>{String.raw`\gamma=0.5`}</Tex>、每階段 {seqPhaseLen} blocks、<Tex>{'K_q'}</Tex> 正規化為 1、無雜訊平均）計算；階段 1 每個 block 把 <Tex>{String.raw`\delta_1+\delta_2`}</Tex> 乘上 <Tex>{String.raw`1-\gamma=0.5`}</Tex>（表中數字四捨五入到{' '}
+          <Tex>{String.raw`10^{-6}`}</Tex>；階段 1 結束時的殘餘 <Tex>{String.raw`4\times0.5^{${seqPhaseLen}}\approx${tn(4 * Math.pow(0.5, seqPhaseLen), 2)}`}</Tex> 已可忽略）。誰先校，誰就吸收全部的不可辨識誤差——這和<ChRef ch="09">第 9 章</ChRef>的 gauge freedom 是同一件事：<Tex>{String.raw`\mathbf R`}</Tex> 的 null space 方向 <Tex>{String.raw`[1,-1]^T`}</Tex> 的分量由「初值 + 校正順序」決定。
         </p>
         <p>
           <Tex>{String.raw`\rho<1`}</Tex> 時多跑幾輪（round-robin）會收斂，但就是 Gauss–Seidel 迭代（解聯立方程的古典方法：每次只解一個未知數，其他未知數先用目前的值代入，輪流重複）：<Tex>{String.raw`\gamma=1`}</Tex>、每階段一步解出該座標時，每一輪（sweep）誤差只收縮{' '}

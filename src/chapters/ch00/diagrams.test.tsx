@@ -36,7 +36,7 @@ import { HAND_CALC_PARAMS } from './sections/HandCalc'
  */
 
 // Plotly 與本檔無關：整章渲染時以假物件取代
-vi.mock('plotly.js-dist-min', () => ({
+vi.mock('plotly.js-cartesian-dist-min', () => ({
   default: {
     react: vi.fn(async () => undefined),
     purge: vi.fn(),

@@ -25,7 +25,7 @@ const P = vi.hoisted(() => ({
   Plots: { resize: vi.fn() },
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
-vi.mock('plotly.js-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
 /** 每個 <Plot> 在轉成 Plotly 之前的原始 data / layout（含 `$...$`）：用來檢查圖內文字的數學都寫成 LaTeX */
 const PM = vi.hoisted(() => ({ calls: [] as { data: unknown; layout: unknown }[] }))
 vi.mock('@/components/plotMath', async (importOriginal) => {

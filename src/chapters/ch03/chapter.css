@@ -2,7 +2,6 @@
 
 .ch03 h2 {
   margin-top: 2.2rem;
-  scroll-margin-top: calc(var(--topbar-h) + 12px);
 }
 
 .ch03-lead {
@@ -249,17 +248,13 @@
   font-size: 0.92rem;
 }
 
-/* 章末的符號表（#symbols）：捲過去時不被頂端列蓋住 */
+/* 章末的符號表（#symbols） */
 .ch03-symbols {
   margin-top: 2.2rem;
-  scroll-margin-top: calc(var(--topbar-h) + 12px);
 }
 .ch03-symbols-back {
   margin: 8px 0 0;
   font-size: 0.9rem;
-}
-.ch03-lead {
-  scroll-margin-top: calc(var(--topbar-h) + 12px);
 }
 
 /*

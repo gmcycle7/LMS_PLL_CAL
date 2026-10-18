@@ -25,7 +25,7 @@ const P = vi.hoisted(() => ({
   Plots: { resize: vi.fn() },
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
-vi.mock('plotly.js-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
 
 // 圖內文字（軸標題、圖例名稱）的數學一律寫 `$...$`：<Plot> 先套用 applyPlotMath 再交給 Plotly，
 // 所以在轉換前記下作者寫的字串（chartStrings.testutil.ts），Plotly.react 看到的則是轉換後的 pseudo-HTML。

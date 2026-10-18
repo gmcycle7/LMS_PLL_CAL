@@ -166,8 +166,7 @@ export function HandExampleSection() {
         </p>
         <BlockDiagram id="D-01.10">
           先看上面那一列（第 0 筆）：從 <Tex>{'w_0=1'}</Tex> 出發，①預測 <Tex>{String.raw`\hat y_0`}</Tex>、②比較得到 <Tex>{'e_0'}</Tex>、③算修正量{' '}
-          <Tex>{String.raw`\Delta w_0`}</Tex>，加回去得到 <Tex>{'w_1'}</Tex>。再看下面那一列：把 <Tex>{'w_1'}</Tex> 當成新的起點，同樣三格再算一次。圖上的三格就是下面逐步推導與表格裡的三個量：
-          ①是 <Tex>{String.raw`\hat y_n=w_nx`}</Tex>、②是 <Tex>{String.raw`e_n=y-\hat y_n`}</Tex>、③是 <Tex>{String.raw`\Delta w_n=\mu e_nx`}</Tex>。注意第二列的誤差和修正量都比第一列小——越接近答案，步伐越小。
+          <Tex>{String.raw`\Delta w_0`}</Tex>，加回去得到 <Tex>{'w_1'}</Tex>。再看下面那一列：把 <Tex>{'w_1'}</Tex> 當成新的起點，同樣三格再算一次。圖上的三格就是下面逐步推導與表格裡的三個量：①是 <Tex>{String.raw`\hat y_n=w_nx`}</Tex>、②是 <Tex>{String.raw`e_n=y-\hat y_n`}</Tex>、③是 <Tex>{String.raw`\Delta w_n=\mu e_nx`}</Tex>。注意第二列的誤差和修正量都比第一列小——越接近答案，步伐越小。
         </BlockDiagram>
         <StepDerivation
           steps={[
@@ -260,8 +259,7 @@ export function HandExampleSection() {
         <BlockDiagram id="D-01.11">
           從最上面的加法點出發：真值 <Tex>{'a'}</Tex> 進「＋」、暫存器（最下面）裡的 <Tex>{'w_n'}</Tex> 沿著旁邊那條長長的回授線繞回來，進「−」，得到 <Tex>{String.raw`\delta_n`}</Tex>。由上往下繞一圈，會先後經過兩個藍色的乘法：
           <Tex>{String.raw`\times x`}</Tex>（參數誤差變成量測誤差 <Tex>{'e_n'}</Tex>）與 <Tex>{String.raw`\times\mu x`}</Tex>（LMS 的修正），乘起來是{' '}
-          <Tex>{String.raw`\mu x^2`}</Tex>。也就是說，每一步都修掉 <Tex>{String.raw`\delta_n`}</Tex> 的 <Tex>{String.raw`\mu x^2`}</Tex> 倍，剩下 <Tex>{String.raw`1-\mu x^2`}</Tex> 倍。
-          這個「每步剩下的倍數」記作 <Tex>{'p'}</Tex>，稱為這個迴路的 pole（極點）：圖上的 <Tex>{String.raw`\Delta w_n=\mu x^2\delta_n`}</Tex> 就是下面推導第 3 行的{' '}
+          <Tex>{String.raw`\mu x^2`}</Tex>。也就是說，每一步都修掉 <Tex>{String.raw`\delta_n`}</Tex> 的 <Tex>{String.raw`\mu x^2`}</Tex> 倍，剩下 <Tex>{String.raw`1-\mu x^2`}</Tex> 倍。這個「每步剩下的倍數」記作 <Tex>{'p'}</Tex>，稱為這個迴路的 pole（極點）：圖上的 <Tex>{String.raw`\Delta w_n=\mu x^2\delta_n`}</Tex> 就是下面推導第 3 行的{' '}
           <Tex>{String.raw`\delta_{n+1}=(1-\mu x^2)\delta_n`}</Tex>。本例 <Tex>{String.raw`p=1-0.1\times2^2=${texNum(st.pole, 6)}`}</Tex>。
         </BlockDiagram>
         {atLeast('engineer') ? closedForm : <Derivation title="封閉解推導" derivation={closedForm} level="L0" claim="exact" />}
@@ -278,8 +276,7 @@ export function HandExampleSection() {
         <p>
           <ClaimTag kind="exact" /> <TestBadge id="T02" /> 等比數列 <Tex>{'p^n\\to0'}</Tex> 若且唯若 <Tex>{'|p|<1'}</Tex>，即{' '}
           <Tex>{String.raw`-1<1-\mu x^2<1\iff 0<\mu<2/x^2`}</Tex>。<Tex>{'x=2'}</Tex> 時上限是{' '}
-          <Tex>{texNum(st.muMax, 6)}</Tex>，而 <Tex>{String.raw`\mu=1/x^2=${texNum(st.muOneStep, 6)}`}</Tex> 時 <Tex>{'p=0'}</Tex>，
-          一步就到答案。下表直接用模擬算出第 10 步的 <Tex>{'\\delta_{10}'}</Tex>，和封閉解 <Tex>{'p^{10}\\delta_0'}</Tex> 對照：
+          <Tex>{texNum(st.muMax, 6)}</Tex>，而 <Tex>{String.raw`\mu=1/x^2=${texNum(st.muOneStep, 6)}`}</Tex> 時 <Tex>{'p=0'}</Tex>，一步就到答案。下表直接用模擬算出第 10 步的 <Tex>{'\\delta_{10}'}</Tex>，和封閉解 <Tex>{'p^{10}\\delta_0'}</Tex> 對照：
         </p>
         <div className="table-wrap">
           <table className="ch01-table">
@@ -353,13 +350,11 @@ export function HandExampleSection() {
         id="ch01-s141"
       >
         <p>
-          真實量測有雜訊 <Tex>{String.raw`y_n=ax+v_n`}</Tex>（<Tex>{'v_n'}</Tex> 零均值、彼此獨立、標準差 <Tex>{'\\sigma_v'}</Tex>）。每一步的更新都帶著一點雜訊，
-          所以 <Tex>{'w_n'}</Tex> 變成隨機的。它的平均和抖動都可以精確算出來：
+          真實量測有雜訊 <Tex>{String.raw`y_n=ax+v_n`}</Tex>（<Tex>{'v_n'}</Tex> 零均值、彼此獨立、標準差 <Tex>{'\\sigma_v'}</Tex>）。每一步的更新都帶著一點雜訊，所以 <Tex>{'w_n'}</Tex> 變成隨機的。它的平均和抖動都可以精確算出來：
         </p>
         <Prereq title={String.raw`變異數 $\operatorname{Var}(\cdot)$ 與高斯分布：抖動有多大`}>
           <p>
-            <strong>變異數</strong>是「離平均有多遠」的平方再平均：<Tex>{String.raw`\operatorname{Var}(X)=E\big[(X-E[X])^2\big]`}</Tex>；
-            開根號就是<strong>標準差（std）</strong>，單位和 <Tex>{'X'}</Tex> 相同。本節只用三條性質：
+            <strong>變異數</strong>是「離平均有多遠」的平方再平均：<Tex>{String.raw`\operatorname{Var}(X)=E\big[(X-E[X])^2\big]`}</Tex>；開根號就是<strong>標準差（std）</strong>，單位和 <Tex>{'X'}</Tex> 相同。本節只用三條性質：
           </p>
           <StepDerivation
             steps={[
@@ -384,8 +379,7 @@ export function HandExampleSection() {
             ]}
           />
           <p className="small">
-            Gaussian（常態）分布 <Tex>{String.raw`\mathcal N(m,\sigma^2)`}</Tex>：平均 <Tex>{'m'}</Tex>、變異數 <Tex>{'\\sigma^2'}</Tex> 的鐘形分布，
-            機率密度 <Tex>{String.raw`\tfrac{1}{\sqrt{2\pi}\sigma}e^{-(t-m)^2/(2\sigma^2)}`}</Tex>；約 68% 的值落在 <Tex>{String.raw`m\pm\sigma`}</Tex>、95% 落在{' '}
+            Gaussian（常態）分布 <Tex>{String.raw`\mathcal N(m,\sigma^2)`}</Tex>：平均 <Tex>{'m'}</Tex>、變異數 <Tex>{'\\sigma^2'}</Tex> 的鐘形分布，機率密度 <Tex>{String.raw`\tfrac{1}{\sqrt{2\pi}\sigma}e^{-(t-m)^2/(2\sigma^2)}`}</Tex>；約 68% 的值落在 <Tex>{String.raw`m\pm\sigma`}</Tex>、95% 落在{' '}
             <Tex>{String.raw`m\pm2\sigma`}</Tex>。Gaussian 的線性組合仍是 Gaussian，所以本節的 <Tex>{'w_n'}</Tex> 也是 Gaussian。
           </p>
         </Prereq>
@@ -414,8 +408,7 @@ export function HandExampleSection() {
           <strong>
             <Tex>{'\\mu'}</Tex> 越小抖動越小，但收斂越慢
           </strong>
-          （<Tex>{'|p|'}</Tex> 越接近 1）——
-          這是 LMS 永遠的取捨，<ChRef ch="14">Ch14</ChRef> 會把它變成最佳化問題。<ClaimTag kind="exact" />：
+          （<Tex>{'|p|'}</Tex> 越接近 1）——這是 LMS 永遠的取捨，<ChRef ch="14">Ch14</ChRef> 會把它變成最佳化問題。<ClaimTag kind="exact" />：
           <Tex>{'v_n'}</Tex> 與 <Tex>{'w_n'}</Tex> 獨立不是假設，而是自動成立（<Tex>{'w_n'}</Tex> 只由 <Tex>{'v_0,\\dots,v_{n-1}'}</Tex> 決定）
           <Erratum id="E38" />。注意區分兩個「均方」量 <Erratum id="E42" />：係數的 MSD{' '}
           <Tex>{String.raw`E[\delta_n^2]=\operatorname{Var}(w_n)+\big(p^n\delta_0\big)^2`}</Tex>（穩態時第二項 → 0，所以{' '}

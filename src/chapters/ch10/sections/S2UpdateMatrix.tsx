@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import { Callout, ClaimTag, ModeGate, ParamControl, Plot, Section, StepDerivation, Tex, TexBlock, TestBadge, mathText, useThemeTokens, ChRef } from '@/components'
 import { DEFAULT_RULE, analyzeRule, buildPlant, corrMatrix, type RuleConfig } from '@/simulation/models/mimo'
 import { Deriv, Erratum, Fig, FigRef, Hand, TagRow, TryIt, chop, n, nint, texMat, tn } from '../common'
@@ -332,8 +332,7 @@ export function S2UpdateMatrix() {
           {String.raw`\boxed{\boldsymbol\delta_{k+1}=\mathbf A_{\mathrm{cal}}\,\boldsymbol\delta_k-\mathbf M\boldsymbol\eta_k,\qquad \mathbf A_{\mathrm{cal}}=\mathbf I-K_q\mathbf M\mathbf R=\mathbf I+\mathbf M\mathbf J}`}
         </TexBlock>
         <p>
-          取平均（<Tex>{String.raw`E[\boldsymbol\eta]=0`}</Tex>）得到 <Tex>{String.raw`E[\boldsymbol\delta_{k+1}]=\mathbf A_{\mathrm{cal}}E[\boldsymbol\delta_k]`}</Tex>：
-          平均誤差收斂 ⇔ <Tex>{String.raw`\mathbf A_{\mathrm{cal}}`}</Tex> 的所有 eigenvalue 在單位圓內。這是<strong>平均收斂（mean convergence）</strong>，不是「每條軌跡一定收斂」。
+          取平均（<Tex>{String.raw`E[\boldsymbol\eta]=0`}</Tex>）得到 <Tex>{String.raw`E[\boldsymbol\delta_{k+1}]=\mathbf A_{\mathrm{cal}}E[\boldsymbol\delta_k]`}</Tex>：平均誤差收斂 ⇔ <Tex>{String.raw`\mathbf A_{\mathrm{cal}}`}</Tex> 的所有 eigenvalue 在單位圓內。這是<strong>平均收斂（mean convergence）</strong>，不是「每條軌跡一定收斂」。
         </p>
         <p id="ch10-linear-model-note">
           F-10.2 的等號，是把 F-10.1 的 <Tex>{String.raw`\approx`}</Tex> 當成等式（線性模型 <Tex>{String.raw`\mathbf G=K_q\mathbf R\boldsymbol\delta+\boldsymbol\eta`}</Tex>）之後才有的。真正的 1-bit comparator 只有在小訊號{' '}
@@ -435,8 +434,7 @@ export function S2UpdateMatrix() {
           理想 Preconditioner：<Tex>{String.raw`\mathbf M=\gamma(K_q\mathbf R)^{-1}\Rightarrow p_i=1-\gamma`}</Tex>
         </h3>
         <p>
-          Scalar LMS 慢的原因可以用一句話說完：每個模式的 loop gain 等於「更新矩陣沿這個方向的增益」乘上「<Tex>{String.raw`\mathbf R`}</Tex> 沿這個方向的 eigenvalue」，而 scalar LMS 對所有方向都用同一個增益。
-          完整反矩陣的想法很直接：哪個方向的 eigenvalue 小，就把那個方向的增益調大，剛好補回來。
+          Scalar LMS 慢的原因可以用一句話說完：每個模式的 loop gain 等於「更新矩陣沿這個方向的增益」乘上「<Tex>{String.raw`\mathbf R`}</Tex> 沿這個方向的 eigenvalue」，而 scalar LMS 對所有方向都用同一個增益。完整反矩陣的想法很直接：哪個方向的 eigenvalue 小，就把那個方向的增益調大，剛好補回來。
         </p>
         <Fig id="mode-gain">
           先看 ① Scalar 那一框：兩個模式乘的是同一個 <Tex>{String.raw`m=\mu K_q=0.5`}</Tex>，loop gain 分別是 <Tex>{String.raw`0.5\times${tn(r.eig[0])}=${tn(1 - r.fast)}`}</Tex> 與{' '}
@@ -487,8 +485,7 @@ export function S2UpdateMatrix() {
           {String.raw`\boxed{\mathbf M=\gamma(K_q\mathbf R)^{-1}\ \Rightarrow\ \mathbf A_{\mathrm{cal}}=(1-\gamma)\mathbf I,\quad p_i=1-\gamma\ \ \forall i}`}
         </TexBlock>
         <p>
-          穩定需要 <Tex>{String.raw`0<\gamma<2`}</Tex>；<Tex>{String.raw`\gamma=1`}</Tex> 時一步到位（deadbeat）。直覺：<Tex>{String.raw`\mathbf R^{-1}`}</Tex> 把「看得不清楚」的方向放大、「看得很清楚」的方向縮小，
-          使每個方向的有效 loop gain 都是 <Tex>{String.raw`\gamma`}</Tex>。代價在 §10.4。
+          穩定需要 <Tex>{String.raw`0<\gamma<2`}</Tex>；<Tex>{String.raw`\gamma=1`}</Tex> 時一步到位（deadbeat）。直覺：<Tex>{String.raw`\mathbf R^{-1}`}</Tex> 把「看得不清楚」的方向放大、「看得很清楚」的方向縮小，使每個方向的有效 loop gain 都是 <Tex>{String.raw`\gamma`}</Tex>。代價在 §10.4。
         </p>
       </Section>
 

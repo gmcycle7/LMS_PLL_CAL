@@ -17,8 +17,7 @@ export function LabSection() {
       <Section kind="explore" title="三種收斂畫在同一張圖">
         <p>
           主圖的縱軸是 <Tex>{T`\log_{10}`}</Tex>，所以等比數列變成直線，斜率就是每步的對數縮放率：解析 MSD 的斜率是 <Tex>{T`\tfrac12\log_{10}g`}</Tex>、mean 是{' '}
-          <Tex>{T`\log_{10}|1-\mu P_x|`}</Tex>、典型路徑是 <Tex>{T`\lambda/\ln10`}</Tex>。Monte Carlo 在 Web Worker 中執行，每條路徑有自己的亂數串流，同一個 seed 完全可重現。
-          下面的「試試看」都有對應的 preset（實驗外框的 preset 下拉選單）。
+          <Tex>{T`\log_{10}|1-\mu P_x|`}</Tex>、典型路徑是 <Tex>{T`\lambda/\ln10`}</Tex>。Monte Carlo 在 Web Worker 中執行，每條路徑有自己的亂數串流，同一個 seed 完全可重現。下面的「試試看」都有對應的 preset（實驗外框的 preset 下拉選單）。
         </p>
         <Fig
           chart={CHART_MC_FLOW}
@@ -27,8 +26,7 @@ export function LabSection() {
         />
         <p>
           由上往下看：一個 seed 分出 <Tex>M</Tex> 條路徑（程式裡的變數叫 <code>paths</code>），每條路徑各自抽 <Tex>{T`x[n]`}</Tex>、走 <Tex>N</Tex> 步（<Tex>N</Tex> 是每條路徑的步數），並記下{' '}
-          <Tex>{T`\log_{10}|\delta[n]|`}</Tex>。「走一步」那一格就是第 4 節的累加器：無雜訊時在 log 域每步加上 <Tex>{T`\ln|1-\mu x[n]^2|`}</Tex>，所以 <Tex>{T`10^{-300}`}</Tex> 以下的數也不會 underflow。
-          最下面三個輸出：每個時間點把 <Tex>M</Tex> 條路徑排序，取 10%／50%／90% 分位數（主圖的色帶與中位數線）；低於 <Tex>{T`10^{-3}|\delta_0|`}</Tex> 的路徑比例（「收斂比例」圖）；以及直接平均{' '}
+          <Tex>{T`\log_{10}|\delta[n]|`}</Tex>。「走一步」那一格就是第 4 節的累加器：無雜訊時在 log 域每步加上 <Tex>{T`\ln|1-\mu x[n]^2|`}</Tex>，所以 <Tex>{T`10^{-300}`}</Tex> 以下的數也不會 underflow。最下面三個輸出：每個時間點把 <Tex>M</Tex> 條路徑排序，取 10%／50%／90% 分位數（主圖的色帶與中位數線）；低於 <Tex>{T`10^{-3}|\delta_0|`}</Tex> 的路徑比例（「收斂比例」圖）；以及直接平均{' '}
           <Tex>{T`\delta[n]^2`}</Tex> 的「天真 MC」。
         </p>
         <Fig
@@ -82,8 +80,7 @@ export function LabSection() {
           <Callout kind="info" title="Research：Monte Carlo 細節">
             <ul>
               <li>
-                無雜訊時每條路徑在 log 域累加 <Tex>{T`\ln|1-\mu x^2|`}</Tex>，所以 <Tex>{T`10^{-300}`}</Tex> 以下與 <Tex>{T`10^{+300}`}</Tex> 以上都能正確排序；有雜訊時改在線性域，
-                overflow 的路徑記為 <Tex>{T`+\infty`}</Tex>（仍計入分位數）。
+                無雜訊時每條路徑在 log 域累加 <Tex>{T`\ln|1-\mu x^2|`}</Tex>，所以 <Tex>{T`10^{-300}`}</Tex> 以下與 <Tex>{T`10^{+300}`}</Tex> 以上都能正確排序；有雜訊時改在線性域，overflow 的路徑記為 <Tex>{T`+\infty`}</Tex>（仍計入分位數）。
               </li>
               <li>
                 分位數以 NumPy「linear」內插；記錄點最多 401 個（路徑很多時自動減少，使記錄矩陣 <Tex>{T`\le4\times10^6`}</Tex> 格），以 Float32 儲存{' '}

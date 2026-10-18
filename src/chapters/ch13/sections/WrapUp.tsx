@@ -99,8 +99,7 @@ export function WrapUp() {
             options={[{ label: '5' }, { label: '1024' }, { label: String(q.p12), correct: true }, { label: '4096' }]}
             answer={
               <p>
-                <Tex>{String.raw`K=\mathrm{round}(32.4\cdot2^{12})=${q.K12},\ K\bmod4096=${q.K12 % 4096},\ \gcd=${4096 / q.p12}\Rightarrow\text{週期}=4096/${4096 / q.p12}=${q.p12}`}</Tex>。
-                實際值 <Tex>{String.raw`K/2^{12}=${fx(q.K12 / 4096, 10)}`}</Tex>，小數部分仍非常接近 0.4，所以主 tone 在 <Tex>{'2f_u/5'}</Tex> 附近，旁邊多出間距{' '}
+                <Tex>{String.raw`K=\mathrm{round}(32.4\cdot2^{12})=${q.K12},\ K\bmod4096=${q.K12 % 4096},\ \gcd=${4096 / q.p12}\Rightarrow\text{週期}=4096/${4096 / q.p12}=${q.p12}`}</Tex>。實際值 <Tex>{String.raw`K/2^{12}=${fx(q.K12 / 4096, 10)}`}</Tex>，小數部分仍非常接近 0.4，所以主 tone 在 <Tex>{'2f_u/5'}</Tex> 附近，旁邊多出間距{' '}
                 <Tex>{String.raw`f_u/${q.p12}`}</Tex> 的 sideband（§13.4 <Tex>{'F=10'}</Tex> 的例子同理）。<ClaimTag kind="exact" />
               </p>
             }

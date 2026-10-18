@@ -1,5 +1,5 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import {
   Callout,
   CodeBlock,
@@ -600,10 +600,7 @@ export function MseMaeLab() {
       description={
         <>
           同一個 seed 產生同一組 <Tex>{String.raw`(x_n,y_n)`}</Tex>，分別交給 <code>conventionalStep</code>、
-          <code>signErrorStep</code>、<code>huberStep</code>。比較批次最佳解（平均 vs 中位數 vs Huber）、母體最佳解，以及
-          固定步長下的時間平均與抖動。Sign-Error 的<strong>時間平均</strong>只會落在中位數附近約 <Tex>{String.raw`\pm\mu|x|`}</Tex> 的帶內
-          （會依 tie 慣例與算術偏移 <Tex>{String.raw`O(\mu)`}</Tex>）<Erratum id="E40" />；軌跡本身每步跳 <Tex>{String.raw`\pm\mu|x|`}</Tex>，
-          抖動的 std 在點質量資料是 <Tex>{String.raw`O(\mu|x|)`}</Tex>，有連續雜訊時約{' '}
+          <code>signErrorStep</code>、<code>huberStep</code>。比較批次最佳解（平均 vs 中位數 vs Huber）、母體最佳解，以及固定步長下的時間平均與抖動。Sign-Error 的<strong>時間平均</strong>只會落在中位數附近約 <Tex>{String.raw`\pm\mu|x|`}</Tex> 的帶內（會依 tie 慣例與算術偏移 <Tex>{String.raw`O(\mu)`}</Tex>）<Erratum id="E40" />；軌跡本身每步跳 <Tex>{String.raw`\pm\mu|x|`}</Tex>，抖動的 std 在點質量資料是 <Tex>{String.raw`O(\mu|x|)`}</Tex>，有連續雜訊時約{' '}
           <Tex>{String.raw`\sqrt{\mu/(4f_{\tilde v})}`}</Tex>（F-01.18）。
         </>
       }
@@ -776,8 +773,7 @@ export function MseMaeLab() {
         csvName="mse-mae-w"
         caption={
           <>
-            灰帶 = 母體中位數 <Tex>{String.raw`\pm\mu|x|`}</Tex>：Sign-Error <strong>時間平均</strong>的驗證容忍帶（勘誤 E40），不是軌跡的範圍——
-            有連續雜訊時軌跡的 std 約 <Tex>{String.raw`\sqrt{\mu/(4f_{\tilde v})}`}</Tex>，會明顯超出灰帶（見指標表）。長序列為顯示而抽點（<Tex>{String.raw`\le2500`}</Tex> 點）；CSV 為完整資料。
+            灰帶 = 母體中位數 <Tex>{String.raw`\pm\mu|x|`}</Tex>：Sign-Error <strong>時間平均</strong>的驗證容忍帶（勘誤 E40），不是軌跡的範圍——有連續雜訊時軌跡的 std 約 <Tex>{String.raw`\sqrt{\mu/(4f_{\tilde v})}`}</Tex>，會明顯超出灰帶（見指標表）。長序列為顯示而抽點（<Tex>{String.raw`\le2500`}</Tex> 點）；CSV 為完整資料。
           </>
         }
       />
@@ -882,8 +878,7 @@ export function MseMaeLab() {
         <Tex>{String.raw`\varepsilon=0.1,\ s=20`}</Tex>：LMS 被拉到 <Tex>{String.raw`a+\varepsilon s/A`}</Tex>，中位數幾乎不動。(4) 改用 gaussian{' '}
         <Tex>{'x'}</Tex>：三種母體最佳解都回到 <Tex>{'a'}</Tex>——outlier 只讓 LMS 抖得更大，不再偏移。(5) <code>contaminated</code>、const{' '}
         <Tex>{'x'}</Tex>、<Tex>{String.raw`A=2,\ \mu=0.6`}</Tex>（<Tex>{String.raw`\mu A^2=2.4>2`}</Tex>）：LMS 發散，Sign-Error 只是跳得很大——看警告怎麼解釋。(6) 留在{' '}
-        <code>contaminated</code>，把 <Tex>{'\\mu'}</Tex> 從 0.2 降到 0.002：Sign-Error 的 std 只縮小 <Tex>{String.raw`\sqrt{100}=10`}</Tex> 倍，不是 100 倍
-        （指標表的「擴散近似」列）。(7) 載入 preset「無雜訊 Sign-Error：sign(0) 慣例與算術」：定點版凍結在 3，IEEE 版在兩格之間來回——勘誤 E40 的數值證據。
+        <code>contaminated</code>，把 <Tex>{'\\mu'}</Tex> 從 0.2 降到 0.002：Sign-Error 的 std 只縮小 <Tex>{String.raw`\sqrt{100}=10`}</Tex> 倍，不是 100 倍（指標表的「擴散近似」列）。(7) 載入 preset「無雜訊 Sign-Error：sign(0) 慣例與算術」：定點版凍結在 3，IEEE 版在兩格之間來回——勘誤 E40 的數值證據。
       </TryIt>
 
       <CodeBlock

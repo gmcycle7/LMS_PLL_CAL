@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import {
   Callout,
   ClaimTag,
@@ -469,9 +469,7 @@ export function NearIntegerSection() {
       </p>
       <Fig id="near-integer-why" />
       <p>
-        為什麼 FCW 接近整數會讓 <Tex>{'C\\to0'}</Tex>？first-order DSM 的 residue 是基頻 <Tex>{String.raw`\Omega_1=2\pi\cdot\mathrm{frac}`}</Tex>（rad/sample）的 sawtooth，
-        諧波功率約 <Tex>{String.raw`\propto1/k^2`}</Tex>。type-II PLL 的 <Tex>{String.raw`H_\mathrm{PD}=1/(1+L)`}</Tex> 在低頻是 high-pass（<Tex>{String.raw`|H_\mathrm{PD}|\propto\Omega^2`}</Tex>）。
-        更關鍵的是<strong>相位</strong>：只有 <Tex>{String.raw`\mathrm{Re}\,H_\mathrm{PD}`}</Tex> 會進入 <Tex>{'C'}</Tex>，而在迴路頻寬內
+        為什麼 FCW 接近整數會讓 <Tex>{'C\\to0'}</Tex>？first-order DSM 的 residue 是基頻 <Tex>{String.raw`\Omega_1=2\pi\cdot\mathrm{frac}`}</Tex>（rad/sample）的 sawtooth，諧波功率約 <Tex>{String.raw`\propto1/k^2`}</Tex>。type-II PLL 的 <Tex>{String.raw`H_\mathrm{PD}=1/(1+L)`}</Tex> 在低頻是 high-pass（<Tex>{String.raw`|H_\mathrm{PD}|\propto\Omega^2`}</Tex>）。更關鍵的是<strong>相位</strong>：只有 <Tex>{String.raw`\mathrm{Re}\,H_\mathrm{PD}`}</Tex> 會進入 <Tex>{'C'}</Tex>，而在迴路頻寬內
       </p>
       <StepDerivation
         steps={[

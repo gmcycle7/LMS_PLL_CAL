@@ -33,7 +33,7 @@ const plotlyMock = vi.hoisted(() => ({
   Plots: { resize: vi.fn() },
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
-vi.mock('plotly.js-dist-min', () => ({ default: plotlyMock }))
+vi.mock('plotly.js-cartesian-dist-min', () => ({ default: plotlyMock }))
 
 // 記錄 <Plot> 交給 applyPlotMath 的原始 data／layout（還是 `$...$` 的 LaTeX，尚未轉成 Plotly 的 pseudo-HTML）：用來檢查圖內字串都是 LaTeX
 const plotCalls = vi.hoisted(() => ({ list: [] as { data: unknown; layout: unknown }[] }))

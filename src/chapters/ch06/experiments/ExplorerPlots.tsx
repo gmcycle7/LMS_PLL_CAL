@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react'
-import type { Data, Layout, Shape } from 'plotly.js-dist-min'
+import type { Data, Layout, Shape } from 'plotly.js-cartesian-dist-min'
 import { Plot, useThemeTokens } from '@/components'
 import { isToneEdge, toneCorrelation, type ClosedLoopCaseResult } from '@/simulation/models/polarity'
 import type { CaseSummary } from './PolarityExplorer'

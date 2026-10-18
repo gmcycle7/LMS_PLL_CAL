@@ -157,10 +157,6 @@
   color: var(--text-muted);
 }
 
-.ch01-chapter h2 {
-  scroll-margin-top: calc(var(--topbar-h) + 8px);
-}
-
 /* 資料流方塊內是不換行的行內 KaTeX：窄螢幕時讓單一方塊自己捲動，避免整頁水平捲動 */
 .ch01-flow-box {
   max-width: 100%;
@@ -233,17 +229,11 @@
   border-radius: 2px;
 }
 
-/* 「回到章首」捲到 §1.0 的 section：同樣留出頂端列的高度 */
-.ch01-chapter section.c-section {
-  scroll-margin-top: calc(var(--topbar-h) + 8px);
-}
-
-/* 章末符號表（id="symbols"）：捲動時不要被固定的頂端列蓋住 */
+/* 章末符號表（id="symbols"） */
 .ch01-symbols {
   margin-top: 28px;
   padding-top: 12px;
   border-top: 1px solid var(--border);
-  scroll-margin-top: calc(var(--topbar-h) + 8px);
 }
 .ch01-symbols:focus {
   outline: none;

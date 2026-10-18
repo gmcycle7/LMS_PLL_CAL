@@ -308,7 +308,6 @@
   margin-top: 2rem;
   padding-top: 0.5rem;
   border-top: 1px solid var(--border);
-  scroll-margin-top: calc(var(--topbar-h, 52px) + 12px); /* 固定的 topbar 不要蓋住捲動目標 */
 }
 
 /* 捲動目標本身不是互動元件：滑鼠點擊不畫外框，鍵盤跳過來時才畫 */

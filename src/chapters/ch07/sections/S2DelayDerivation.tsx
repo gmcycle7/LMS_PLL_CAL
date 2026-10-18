@@ -43,8 +43,7 @@ export function S2DelayDerivation() {
     >
       <Prereq title="離散時間頻率、頻率響應（frequency response）與歐拉公式">
         <p>
-          <strong>離散時間頻率</strong>（discrete-time frequency）<Tex>{'\\Omega'}</Tex> 的單位是 rad/sample：每經過一個 sample，
-          相位前進 <Tex>{'\\Omega'}</Tex>。若取樣率是 <Tex>{'f_s'}</Tex>、實際頻率是 <Tex>{'f'}</Tex>，則
+          <strong>離散時間頻率</strong>（discrete-time frequency）<Tex>{'\\Omega'}</Tex> 的單位是 rad/sample：每經過一個 sample，相位前進 <Tex>{'\\Omega'}</Tex>。若取樣率是 <Tex>{'f_s'}</Tex>、實際頻率是 <Tex>{'f'}</Tex>，則
           <Tex>{r`\Omega=2\pi f/f_s`}</Tex>，所以 <Tex>{r`0<\Omega<\pi`}</Tex> 對應 <Tex>{r`0<f<f_s/2`}</Tex>。
         </p>
         <p>
@@ -102,8 +101,7 @@ export function S2DelayDerivation() {
 
       <h3 className="ch07-subhead">先看圖：GMAC 的「相乘再平均」是一個相位偵測器</h3>
       <p>
-        推導之前先看訊號怎麼流。兩個<strong>同頻</strong>的 <Tex>{r`\cos`}</Tex> 相乘，會變成一個不隨時間變的常數，加上一個兩倍頻的 <Tex>{r`\cos`}</Tex>；平均器把兩倍頻的那一項平均掉，只留下常數——
-        而那個常數只和兩個訊號的<strong>相位差</strong>有關。這就是為什麼 GMAC 的輸出會隨 <Tex>{'D'}</Tex> 變號。
+        推導之前先看訊號怎麼流。兩個<strong>同頻</strong>的 <Tex>{r`\cos`}</Tex> 相乘，會變成一個不隨時間變的常數，加上一個兩倍頻的 <Tex>{r`\cos`}</Tex>；平均器把兩倍頻的那一項平均掉，只留下常數——而那個常數只和兩個訊號的<strong>相位差</strong>有關。這就是為什麼 GMAC 的輸出會隨 <Tex>{'D'}</Tex> 變號。
       </p>
       <Mermaid
         chart={CHART_MIXER_AVERAGE}
@@ -214,16 +212,14 @@ export function S2DelayDerivation() {
         符號約定：延遲 code 還是延遲 error？兩者的 <Tex>{r`\Omega D`}</Tex> 符號相反
       </h3>
       <p>
-        硬體上有兩個地方可以放 delay：在 GMAC 的 <strong>code 輸入</strong>（本站的 <Tex>{'D'}</Tex>、JSON 的 <code>gm_code_delay_samples</code>），
-        或在 <strong>comparator 輸出</strong>（讓 <Tex>{'q'}</Tex> 晚一點進 GMAC，等效於延遲 PD 誤差）。先看圖，再看只差一行的推導：
+        硬體上有兩個地方可以放 delay：在 GMAC 的 <strong>code 輸入</strong>（本站的 <Tex>{'D'}</Tex>、JSON 的 <code>gm_code_delay_samples</code>），或在 <strong>comparator 輸出</strong>（讓 <Tex>{'q'}</Tex> 晚一點進 GMAC，等效於延遲 PD 誤差）。先看圖，再看只差一行的推導：
       </p>
       <Mermaid
         chart={CHART_DELAY_SIDE}
         caption={r`同一個延遲方塊（藍色）放在乘法器的哪一側：做法 A 放在 code 側，殘餘相位是 $\phi+\Omega D$；做法 B 放在 comparator 輸出側，殘餘相位是 $\phi-\Omega D$。`}
       />
       <p>
-        先看做法 A：藍色的延遲在 code 這一側，乘法器算的是 <Tex>{r`q[n]\,x[n-D]`}</Tex>——code 被往後拉 <Tex>{r`\Omega D`}</Tex>，去追一個<strong>落後</strong>的誤差路徑。
-        再看做法 B：同一個延遲移到 comparator 輸出這一側，乘法器算的是 <Tex>{r`q[n-D]\,x[n]`}</Tex>——被往後拉的變成誤差，等於讓 code 相對<strong>提前</strong>了
+        先看做法 A：藍色的延遲在 code 這一側，乘法器算的是 <Tex>{r`q[n]\,x[n-D]`}</Tex>——code 被往後拉 <Tex>{r`\Omega D`}</Tex>，去追一個<strong>落後</strong>的誤差路徑。再看做法 B：同一個延遲移到 comparator 輸出這一側，乘法器算的是 <Tex>{r`q[n-D]\,x[n]`}</Tex>——被往後拉的變成誤差，等於讓 code 相對<strong>提前</strong>了
         <Tex>{r`\Omega D`}</Tex>，適合超前的誤差路徑。圖上兩個結果方塊裡的 <Tex>{r`\phi+\Omega D`}</Tex> 與 <Tex>{r`\phi-\Omega D`}</Tex>，就是 F-07.2 與下面 F-07.3 的
         <Tex>{r`\cos`}</Tex> 裡面的角度。
       </p>
@@ -312,11 +308,7 @@ export function S2DelayDerivation() {
       <Callout kind="warn" title="把延遲放錯邊會怎樣？">
         <p>
           <Tex>{r`\phi=-120^\circ`}</Tex> 時延遲 error 4 個 sample：<Tex>{r`\theta=-120^\circ-120^\circ=-240^\circ\equiv120^\circ`}</Tex>，
-          <Tex>{r`C'_4=${tx(toneCorrErrorDelay(tone, 4), 4)}`}</Tex>——和完全不延遲一樣是負的（反向更新）；
-          而延遲 code 4 個 sample 得到 <Tex>{r`C_4=${tx(toneCorrCodeDelay(tone, 4), 4)}`}</Tex>。
-          單頻時兩種做法都能「繞一圈」對齊（相位以 <Tex>{r`360^\circ`}</Tex> 為週期，延遲 error 8 個 sample 也行），但 <Tex>{'D'}</Tex> 不同；
-          RTL 或 behavioral model 把延遲方向寫反，是很常見的 bug。本章的 Lab 同時畫出兩條曲線。
-          這也是規格 §17 要求的反面測試「Code misalignment」：<Tex>{'H=1'}</Tex> 卻多延遲了 code 4 個 sample，
+          <Tex>{r`C'_4=${tx(toneCorrErrorDelay(tone, 4), 4)}`}</Tex>——和完全不延遲一樣是負的（反向更新）；而延遲 code 4 個 sample 得到 <Tex>{r`C_4=${tx(toneCorrCodeDelay(tone, 4), 4)}`}</Tex>。單頻時兩種做法都能「繞一圈」對齊（相位以 <Tex>{r`360^\circ`}</Tex> 為週期，延遲 error 8 個 sample 也行），但 <Tex>{'D'}</Tex> 不同；RTL 或 behavioral model 把延遲方向寫反，是很常見的 bug。本章的 Lab 同時畫出兩條曲線。這也是規格 §17 要求的反面測試「Code misalignment」：<Tex>{'H=1'}</Tex> 卻多延遲了 code 4 個 sample，
           <Tex>{r`C_4=\tfrac12\cos120^\circ=-0.25`}</Tex>。
         </p>
         <p className="small">
@@ -360,8 +352,7 @@ export function S2DelayDerivation() {
         <TexBlock id="F-07.5" label={<><Tex>{r`\Omega=0`}</Tex> 或 <Tex>{r`\pi`}</Tex> 的邊界（E46）</>}>{r`\begin{aligned}&C_D=A^2\,H(e^{j\Omega})\cos(\Omega D),\quad H(e^{j\Omega})\in\mathbb R\quad(\Omega\in\{0,\pi\});\\&\text{例：交替碼 }x[n]=A(-1)^n\Rightarrow C_D=A^2H(e^{j\pi})(-1)^D\end{aligned}`}</TexBlock>
         <p>
           這是一般公式的 <strong>2 倍</strong>。<ClaimTag kind="exact" /> 若用「<Tex>{'|H|'}</Tex>、<Tex>{'\\phi'}</Tex>、<Tex>{'\\Omega'}</Tex>
-          三個獨立滑桿」合成 <Tex>{'u'}</Tex>，在 <Tex>{r`\Omega=\pi`}</Tex> 選 <Tex>{r`\phi=120^\circ`}</Tex> 會得到實數濾波器不可能產生的訊號，
-          解析值與 Monte Carlo 也會差 2 倍。本章的 Lab 把 <Tex>{'\\Omega'}</Tex> 限制在 <Tex>{r`(0,\pi)`}</Tex> 內，並用真實的 2-tap FIR 產生
+          三個獨立滑桿」合成 <Tex>{'u'}</Tex>，在 <Tex>{r`\Omega=\pi`}</Tex> 選 <Tex>{r`\phi=120^\circ`}</Tex> 會得到實數濾波器不可能產生的訊號，解析值與 Monte Carlo 也會差 2 倍。本章的 Lab 把 <Tex>{'\\Omega'}</Tex> 限制在 <Tex>{r`(0,\pi)`}</Tex> 內，並用真實的 2-tap FIR 產生
           <Tex>{'H'}</Tex>。
         </p>
 
@@ -376,14 +367,12 @@ export function S2DelayDerivation() {
           caption={r`只平均一個 block 的 $N$ 個 sample：不隨 $n$ 變的項（藍色）照舊；兩倍頻的項（紅色）不再剛好抵消，變成一個乘上 $\sin(N\Omega)/(N\sin\Omega)$ 的 ripple。`}
         />
         <p>
-          先看藍色方塊：不隨 <Tex>{'n'}</Tex> 變的 <Tex>{r`\cos(\phi+\Omega D)`}</Tex> 不管平均幾個 sample 都原封不動。再看紅色方塊：兩倍頻的項這次只在 <Tex>{'N'}</Tex> 個 sample 上平均，
-          等比數列的和不再為零，結果等於「把 <Tex>{'n'}</Tex> 換成 block 的中點 <Tex>{r`n_0+(N-1)/2`}</Tex>」再乘上 <Tex>{r`\sin(N\Omega)/(N\sin\Omega)`}</Tex>。這兩項相加，就是下面 F-07.6 中括號裡的第一項與第二項；
+          先看藍色方塊：不隨 <Tex>{'n'}</Tex> 變的 <Tex>{r`\cos(\phi+\Omega D)`}</Tex> 不管平均幾個 sample 都原封不動。再看紅色方塊：兩倍頻的項這次只在 <Tex>{'N'}</Tex> 個 sample 上平均，等比數列的和不再為零，結果等於「把 <Tex>{'n'}</Tex> 換成 block 的中點 <Tex>{r`n_0+(N-1)/2`}</Tex>」再乘上 <Tex>{r`\sin(N\Omega)/(N\sin\Omega)`}</Tex>。這兩項相加，就是下面 F-07.6 中括號裡的第一項與第二項；
           <Tex>{'N'}</Tex> 越大、<Tex>{r`|\sin\Omega|`}</Tex> 越大，第二項（ripple）越小，長時間平均時趨近 0，回到 F-07.2。把上面的等比數列結果代入，單一 block 的相關部分確切等於：
         </p>
         <TexBlock id="F-07.6">{r`\bar G_k=\frac{A^2|H|}{2}\Big[\cos(\phi+\Omega D)+\cos\big(2\Omega n_0+\Omega(N-1)+\phi-\Omega D\big)\,\frac{\sin N\Omega}{N\sin\Omega}\Big]`}</TexBlock>
         <p>
-          ripple 上界 <Tex>{r`\tfrac{A^2|H|}{2}\min\!\big(1,\tfrac{1}{N|\sin\Omega|}\big)`}</Tex>（因為 <Tex>{r`|\sin N\Omega|\le N|\sin\Omega|`}</Tex>，
-          取 min 比 validation 引用的未截斷上界更緊）。下表（<Tex>{r`\phi=-120^\circ`}</Tex>、<Tex>{'A=|H|=1'}</Tex>、<Tex>{'D=0'}</Tex>、
+          ripple 上界 <Tex>{r`\tfrac{A^2|H|}{2}\min\!\big(1,\tfrac{1}{N|\sin\Omega|}\big)`}</Tex>（因為 <Tex>{r`|\sin N\Omega|\le N|\sin\Omega|`}</Tex>，取 min 比 validation 引用的未截斷上界更緊）。下表（<Tex>{r`\phi=-120^\circ`}</Tex>、<Tex>{'A=|H|=1'}</Tex>、<Tex>{'D=0'}</Tex>、
           <Tex>{'n_0=0'}</Tex>）由上式即時計算：
         </p>
         <div className="table-wrap">
@@ -423,8 +412,7 @@ export function S2DelayDerivation() {
           </table>
         </div>
         <p>
-          <Tex>{r`N|\sin\Omega|`}</Tex> 很小（<Tex>{'\\Omega'}</Tex> 接近 0 或 <Tex>{'\\pi'}</Tex>、或 <Tex>{'N'}</Tex> 太短）時，單一 block 的符號可能翻轉；
-          但 LMS 是很多 block 的累積，長時間仍回到 <Tex>{r`\cos(\phi+\Omega D)`}</Tex>。工程建議：讓 <Tex>{'N'}</Tex> 是 code 週期的整數倍，或
+          <Tex>{r`N|\sin\Omega|`}</Tex> 很小（<Tex>{'\\Omega'}</Tex> 接近 0 或 <Tex>{'\\pi'}</Tex>、或 <Tex>{'N'}</Tex> 太短）時，單一 block 的符號可能翻轉；但 LMS 是很多 block 的累積，長時間仍回到 <Tex>{r`\cos(\phi+\Omega D)`}</Tex>。工程建議：讓 <Tex>{'N'}</Tex> 是 code 週期的整數倍，或
           <Tex>{r`N\gg1/|\sin\Omega|`}</Tex>。<ClaimTag kind="exact" />
         </p>
       </ModeGate>

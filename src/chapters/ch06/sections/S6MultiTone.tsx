@@ -151,8 +151,7 @@ export function S6MultiTone() {
       <ChapterDiagram id="D-06.15">
         <p>
           圖上拿三條譜線當例子。先看每一列：一條頻率 <Tex>{'\\Omega_m'}</Tex> 的譜線有功率 <Tex>{'P_m'}</Tex>（單頻時 <Tex>{'P=A^2/2'}</Tex>，永遠是正的），乘上主 PLL
-          在那個頻率的 <Tex>{'\\operatorname{Re}H'}</Tex>——這就是 §4 的單頻結果（<Tex>{'D=0'}</Tex> 時 <Tex>{'\\tfrac{A^2}{2}|H|\\cos\\phi=\\tfrac{A^2}{2}\\operatorname{Re}H'}</Tex>）。
-          再看加法點：不同頻率的貢獻直接相加（不同頻率的正弦相乘後平均為 0，沒有交叉項）。對 Type-II，低頻那一列是負的（紅色）、高頻那一列是正的（綠色），
+          在那個頻率的 <Tex>{'\\operatorname{Re}H'}</Tex>——這就是 §4 的單頻結果（<Tex>{'D=0'}</Tex> 時 <Tex>{'\\tfrac{A^2}{2}|H|\\cos\\phi=\\tfrac{A^2}{2}\\operatorname{Re}H'}</Tex>）。再看加法點：不同頻率的貢獻直接相加（不同頻率的正弦相乘後平均為 0，沒有交叉項）。對 Type-II，低頻那一列是負的（紅色）、高頻那一列是正的（綠色），
           <Tex>{'C'}</Tex> 的正負就看誰的功率大。
         </p>
         <p>
@@ -171,8 +170,7 @@ export function S6MultiTone() {
       <Prereq title="功率頻譜密度 PSD、Wiener–Khinchin 與 Parseval">
         <p>
           PSD 是自相關的 DTFT：<Tex>{'S_{xx}(e^{j\\Omega})=\\sum_\\ell R_x[\\ell]e^{-j\\Omega\\ell}'}</Tex>，反過來{' '}
-          <Tex>{'R_x[\\ell]=\\frac{1}{2\\pi}\\int_{-\\pi}^{\\pi}S_{xx}(e^{j\\Omega})e^{j\\Omega\\ell}d\\Omega'}</Tex>（Wiener–Khinchin）。
-          它告訴你「功率分布在哪些頻率」：<Tex>{'S_{xx}\\ge0'}</Tex>，實數訊號的 <Tex>{'S_{xx}'}</Tex> 對 <Tex>{'\\Omega'}</Tex> 是偶函數。
+          <Tex>{'R_x[\\ell]=\\frac{1}{2\\pi}\\int_{-\\pi}^{\\pi}S_{xx}(e^{j\\Omega})e^{j\\Omega\\ell}d\\Omega'}</Tex>（Wiener–Khinchin）。它告訴你「功率分布在哪些頻率」：<Tex>{'S_{xx}\\ge0'}</Tex>，實數訊號的 <Tex>{'S_{xx}'}</Tex> 對 <Tex>{'\\Omega'}</Tex> 是偶函數。
         </p>
         <p>
           令 <Tex>{'\\ell=0'}</Tex> 得到 <strong>Parseval</strong>：<Tex>{'\\sigma_x^2=R_x[0]=\\frac{1}{2\\pi}\\int_{-\\pi}^{\\pi}S_{xx}\\,d\\Omega'}</Tex>——總功率 = 頻譜面積除以{' '}
@@ -188,8 +186,7 @@ export function S6MultiTone() {
             白色雜訊：<Tex>{'S=\\sigma_x^2'}</Tex>（平的），<Tex>{'R_x[\\ell]=\\sigma_x^2\\delta[\\ell]'}</Tex>。
           </li>
           <li>
-            單位注意 <Erratum id="E28" />：這裡是 DTFT 形式的雙邊密度（<Tex>{'\\sigma_x^2=\\int S_{xx}\\,d(\\Omega/2\\pi)'}</Tex>，也就是「每 cycle/sample」），
-            不是頻譜分析儀的 one-sided per-Hz；換算{' '}
+            單位注意 <Erratum id="E28" />：這裡是 DTFT 形式的雙邊密度（<Tex>{'\\sigma_x^2=\\int S_{xx}\\,d(\\Omega/2\\pi)'}</Tex>，也就是「每 cycle/sample」），不是頻譜分析儀的 one-sided per-Hz；換算{' '}
             <Tex>{'S^{(1)}(f)=2S(e^{j2\\pi f/f_s})/f_s'}</Tex>。
           </li>
         </ul>
@@ -261,8 +258,7 @@ export function S6MultiTone() {
       </ul>
       <TexBlock id="F-06.13">{String.raw`\boxed{S_{xx}=\sigma_x^2\;\Rightarrow\;C_D=h[D]\,\sigma_x^2,\qquad C_0=h[0]\,\sigma_x^2=\sigma_x^2}`}</TexBlock>
       <p className="small">
-        DT 主迴路嚴格因果（DCO 至少一個 sample 延遲）⇒ <Tex>{'h[0]=1'}</Tex>，白色 code 的 raw-x LMS 永遠有 <Tex>{'C=\\sigma_x^2>0'}</Tex>（E44 的精確結論）。
-        白色 code 的功率平均分布在所有頻率，絕大部分落在迴路頻寬之外，PLL 來不及追，所以 PD 幾乎原封不動地看到它。
+        DT 主迴路嚴格因果（DCO 至少一個 sample 延遲）⇒ <Tex>{'h[0]=1'}</Tex>，白色 code 的 raw-x LMS 永遠有 <Tex>{'C=\\sigma_x^2>0'}</Tex>（E44 的精確結論）。白色 code 的功率平均分布在所有頻率，絕大部分落在迴路頻寬之外，PLL 來不及追，所以 PD 幾乎原封不動地看到它。
       </p>
       <ChapterHandCalc
         id="HC-06.7"
@@ -387,16 +383,14 @@ export function S6MultiTone() {
           />
           <TexBlock id="F-06.16">{String.raw`\hat C_D=\sum_{m=0}^{L-1}\frac{|X[m]|^2}{L^2}\operatorname{Re}\{H(e^{j\Omega_m})e^{j\Omega_mD}\},\qquad\Omega_m=\frac{2\pi m}{L}`}</TexBlock>
           <p className="small">
-            這就是 F-06.11 在 DFT 格點上的版本（<Tex>{'S\\approx|X|^2/L'}</Tex>、<Tex>{'d\\Omega=2\\pi/L'}</Tex>）。與「線性」濾波的時域值只差 IIR 暫態造成的邊緣項，
-            實驗中兩者的差通常小於 <Tex>{'10^{-3}'}</Tex>。
+            這就是 F-06.11 在 DFT 格點上的版本（<Tex>{'S\\approx|X|^2/L'}</Tex>、<Tex>{'d\\Omega=2\\pi/L'}</Tex>）。與「線性」濾波的時域值只差 IIR 暫態造成的邊緣項，實驗中兩者的差通常小於 <Tex>{'10^{-3}'}</Tex>。
           </p>
         </StepBox>
       </ModeGate>
 
       <h3>6.4 近整數 FCW：residue 的能量跑到低頻，會發生什麼？</h3>
       <p>
-        FCW（frequency control word）是 PLL 的除頻比，寫成「整數 + 小數」，小數部分記作 <Tex>{'\\mathrm{frac}'}</Tex>。
-        一階 DSM 的 DTC phase residue 在 FCW 接近整數（<Tex>{'\\mathrm{frac}'}</Tex> 很小）時是一個很慢的鋸齒波：每 <Tex>{'1/\\mathrm{frac}'}</Tex> 個 reference
+        FCW（frequency control word）是 PLL 的除頻比，寫成「整數 + 小數」，小數部分記作 <Tex>{'\\mathrm{frac}'}</Tex>。一階 DSM 的 DTC phase residue 在 FCW 接近整數（<Tex>{'\\mathrm{frac}'}</Tex> 很小）時是一個很慢的鋸齒波：每 <Tex>{'1/\\mathrm{frac}'}</Tex> 個 reference
         cycle 線性地走完一趟、再跳回起點。它的基頻 <Tex>{'\\Omega_0=2\\pi\\,\\mathrm{frac}'}</Tex> 會掉到迴路頻寬以下——正是 Type-II{' '}
         <Tex>{'\\operatorname{Re}H<0'}</Tex> 的頻帶。
       </p>
@@ -444,8 +438,7 @@ export function S6MultiTone() {
         </p>
       </ChapterDiagram>
       <p>
-        要算 <Tex>{'C'}</Tex>，先要知道鋸齒 code 的自相關。白話：相隔 <Tex>{'\\ell'}</Tex> 個 sample 的兩個鋸齒值，大部分時候只差一小段（一起沿著斜坡走）；但只要中間折返過一次，
-        兩個值就差了一整個峰對峰。折返的機率正比於間隔——這讓自相關多出一個<strong>一次項</strong>，是鋸齒和平滑 code 最大的不同。
+        要算 <Tex>{'C'}</Tex>，先要知道鋸齒 code 的自相關。白話：相隔 <Tex>{'\\ell'}</Tex> 個 sample 的兩個鋸齒值，大部分時候只差一小段（一起沿著斜坡走）；但只要中間折返過一次，兩個值就差了一整個峰對峰。折返的機率正比於間隔——這讓自相關多出一個<strong>一次項</strong>，是鋸齒和平滑 code 最大的不同。
       </p>
       <ChapterDiagram id="D-06.20">
         <p>
@@ -459,8 +452,7 @@ export function S6MultiTone() {
       </ChapterDiagram>
       <Prereq title="鋸齒波的自相關（直接積分）與 Fourier 級數">
         <p>
-          峰對峰 1 的鋸齒 <Tex>{'s(\\theta)=\\theta-\\tfrac12'}</Tex>（<Tex>{'0\\le\\theta<1'}</Tex>，以週期 1 延伸；<Tex>{'\\theta'}</Tex> 以「週期」為單位）。相位等分布時，
-          相隔 <Tex>{'t'}</Tex> 個週期（<Tex>{'0\\le t<1'}</Tex>）的自相關是對 <Tex>{'\\theta'}</Tex> 的平均：
+          峰對峰 1 的鋸齒 <Tex>{'s(\\theta)=\\theta-\\tfrac12'}</Tex>（<Tex>{'0\\le\\theta<1'}</Tex>，以週期 1 延伸；<Tex>{'\\theta'}</Tex> 以「週期」為單位）。相位等分布時，相隔 <Tex>{'t'}</Tex> 個週期（<Tex>{'0\\le t<1'}</Tex>）的自相關是對 <Tex>{'\\theta'}</Tex> 的平均：
         </p>
         <StepDerivation
           steps={[
@@ -491,8 +483,7 @@ export function S6MultiTone() {
           ]}
         />
         <p className="small">
-          頻域看法：<Tex>{'s(\\theta)=-\\sum_{k\\ge1}\\frac{\\sin 2\\pi k\\theta}{\\pi k}'}</Tex>，第 <Tex>{'k'}</Tex> 次諧波功率 <Tex>{'P_k=\\frac{1}{2\\pi^2k^2}'}</Tex>，
-          總和 <Tex>{'\\sum P_k=\\frac{1}{2\\pi^2}\\cdot\\frac{\\pi^2}{6}=\\frac1{12}'}</Tex>。功率頻譜像 <Tex>{'1/\\Omega^2'}</Tex>：低頻多，但因為有
+          頻域看法：<Tex>{'s(\\theta)=-\\sum_{k\\ge1}\\frac{\\sin 2\\pi k\\theta}{\\pi k}'}</Tex>，第 <Tex>{'k'}</Tex> 次諧波功率 <Tex>{'P_k=\\frac{1}{2\\pi^2k^2}'}</Tex>，總和 <Tex>{'\\sum P_k=\\frac{1}{2\\pi^2}\\cdot\\frac{\\pi^2}{6}=\\frac1{12}'}</Tex>。功率頻譜像 <Tex>{'1/\\Omega^2'}</Tex>：低頻多，但因為有
           <strong>折返的跳變</strong>，高頻也拖著一條長尾巴（只衰減成 <Tex>{'1/k^2'}</Tex>）。
         </p>
       </Prereq>
@@ -541,8 +532,7 @@ export function S6MultiTone() {
             result={String.raw`\frac{R_x[\ell]}{\sigma_x^2}=1-6\,\frac{P^2}{P^2-1}\,t_\ell(1-t_\ell)`}
           />
           <p className="small">
-            和連續相位只差一個因子 <Tex>{'c_P=P^2/(P^2-1)'}</Tex>（<Tex>{'P=2'}</Tex>：<Tex>{'4/3'}</Tex>；<Tex>{'P=4'}</Tex>：<Tex>{'16/15'}</Tex>；<Tex>{'P\\ge8'}</Tex> 時小於 1.6%）。
-            程式的 <code>dsmPhaseGrid()</code> 依分析長度決定該用哪個 <Tex>{'P'}</Tex>：紀錄涵蓋完整週期時精確；<Tex>{'\\mathrm{frac}\\approx p/q'}</Tex>{' '}
+            和連續相位只差一個因子 <Tex>{'c_P=P^2/(P^2-1)'}</Tex>（<Tex>{'P=2'}</Tex>：<Tex>{'4/3'}</Tex>；<Tex>{'P=4'}</Tex>：<Tex>{'16/15'}</Tex>；<Tex>{'P\\ge8'}</Tex> 時小於 1.6%）。程式的 <code>dsmPhaseGrid()</code> 依分析長度決定該用哪個 <Tex>{'P'}</Tex>：紀錄涵蓋完整週期時精確；<Tex>{'\\mathrm{frac}\\approx p/q'}</Tex>{' '}
             而 20-bit 的真實週期比紀錄還長時，相位在紀錄內只在 <Tex>{'q'}</Tex> 個格點附近漂移，用等效格點數（近似）。Polarity Explorer 的「封閉式」列會註明用的是哪一種。
           </p>
           <CodeBlock source={polaritySrc} region="dsmPhaseGrid" path={PATH} title="DSM 在一段紀錄內實際走過的相位格點" />
@@ -555,8 +545,7 @@ export function S6MultiTone() {
       <ChapterDiagram id="D-06.21">
         <p>
           先看第一格：近整數時，<Tex>{'h[k]'}</Tex> 衰減完之前鋸齒還沒折返，所以自相關是 <Tex>{'k'}</Tex> 的二次式（常數項、一次項、二次項）。再看中間三格：每一項乘上{' '}
-          <Tex>{'h[k]'}</Tex> 再對 <Tex>{'k'}</Tex> 求和，各得到一個動差。Type-II 的 <Tex>{'m_0=0'}</Tex>（DC 誤差被完全追掉）與 <Tex>{'m_1=0'}</Tex>（斜坡誤差也被完全追掉）讓前兩項消失（棕色），
-          只剩二次項。
+          <Tex>{'h[k]'}</Tex> 再對 <Tex>{'k'}</Tex> 求和，各得到一個動差。Type-II 的 <Tex>{'m_0=0'}</Tex>（DC 誤差被完全追掉）與 <Tex>{'m_1=0'}</Tex>（斜坡誤差也被完全追掉）讓前兩項消失（棕色），只剩二次項。
         </p>
         <p>
           圖上進加法點的三條線，就是公式 <Tex>{'C/\\sigma_x^2\\approx m_0-6\\,\\mathrm{frac}\\,m_1+6\\,\\mathrm{frac}^2m_2'}</Tex> 的三項；代入{' '}
@@ -660,14 +649,12 @@ export function S6MultiTone() {
             </tbody>
             <caption>
               全部由 <code>sawtoothAutocorr</code> / <code>impulseMoments</code> / <code>lineCorrelation</code> 即時計算。最後一欄示範反面情況：鋸齒譜線只以{' '}
-              <Tex>{'1/k^2'}</Tex> 衰減，截斷會漏掉 <Tex>{'\\approx\\tfrac{6}{\\pi^2k_{\\max}}'}</Tex> 的高頻尾巴（那裡 <Tex>{'\\operatorname{Re}H\\approx+1'}</Tex>），
-              近整數時甚至把符號算錯。
+              <Tex>{'1/k^2'}</Tex> 衰減，截斷會漏掉 <Tex>{'\\approx\\tfrac{6}{\\pi^2k_{\\max}}'}</Tex> 的高頻尾巴（那裡 <Tex>{'\\operatorname{Re}H\\approx+1'}</Tex>），近整數時甚至把符號算錯。
             </caption>
           </table>
         </div>
         <p>
-          物理圖像：Type-II 對斜坡零穩態誤差（<Tex>{'m_0=m_1=0'}</Tex>），鋸齒的每一段斜坡都被完全追掉；PD 只看到折返跳變後的暫態，
-          它和鋸齒的相關只剩一個正的二階小量。對照 Type-I：<Tex>{'m_1=-1/K'}</Tex>（只追得掉 DC，追不掉斜坡），所以{' '}
+          物理圖像：Type-II 對斜坡零穩態誤差（<Tex>{'m_0=m_1=0'}</Tex>），鋸齒的每一段斜坡都被完全追掉；PD 只看到折返跳變後的暫態，它和鋸齒的相關只剩一個正的二階小量。對照 Type-I：<Tex>{'m_1=-1/K'}</Tex>（只追得掉 DC，追不掉斜坡），所以{' '}
           <Tex>{'C/\\sigma_x^2\\approx6\\,\\mathrm{frac}/K=\\tfrac{3}{\\pi}\\Delta'}</Tex>，是一階、衰減得比較慢。
         </p>
         <CodeBlock source={polaritySrc} region="sawtoothAutocorr" path={PATH} title="鋸齒自相關與脈衝響應動差（FCW sweep 的精確理論曲線）" />
@@ -738,8 +725,7 @@ export function S6MultiTone() {
           <Tex>{'\\mathrm{frac}^2'}</Tex> 的速度消失。
         </strong>{' '}
         <Tex>{'C\\to0^+'}</Tex> 的後果是 LMS 停滯，而線性化的固定點 <Tex>{'w^*\\approx a+B/C'}</Tex> 對任何 bias <Tex>{'B'}</Tex> 極度敏感——<Tex>{'B/C'}</Tex>{' '}
-        大到超出線性範圍時，<Tex>{'{a+B/C}'}</Tex> 只是線性外推，不再是固定點（<ChRef ch="11">第 11 章</ChRef> §11.4 的代回檢查）。但這個結論有兩個重要的但書：
-        誤差一大（下一個框）或 regressor 錯開一個 sample（再下一個框），符號還是會翻。
+        大到超出線性範圍時，<Tex>{'{a+B/C}'}</Tex> 只是線性外推，不再是固定點（<ChRef ch="11">第 11 章</ChRef> §11.4 的代回檢查）。但這個結論有兩個重要的但書：誤差一大（下一個框）或 regressor 錯開一個 sample（再下一個框），符號還是會翻。
       </p>
       <p>
         <strong>但書 1 的白話：</strong>近整數時的 <Tex>{'C>0'}</Tex>，其實是「一個正數」和「一個幾乎一樣大的負數」相加剩下的。1-bit comparator 在誤差大時會飽和，而且
@@ -948,10 +934,8 @@ export function S6MultiTone() {
         </p>
       </StepBox>
       <p>
-        反過來，若 code 的頻譜衰減得<strong>比 <Tex>{'1/\\Omega^2'}</Tex> 快</strong>——沒有跳變的平滑慢變 code（例如三角波 <Tex>{'P_k\\propto1/k^4'}</Tex>、慢正弦）——
-        低頻的負貢獻就贏了：三角波 <Tex>{'C/\\sigma_x^2\\approx-\\tfrac{12}{\\pi^2}\\Delta^2<0'}</Tex>，raw-x LMS 變號（用自相關的語言：平滑 code 的{' '}
-        <Tex>{'R_x[k]/\\sigma_x^2\\approx1-c\\,k^2'}</Tex> 沒有一次項，<Tex>{'C/\\sigma_x^2\\approx-c\\,m_2<0'}</Tex>）。哪些實際 code 屬於這一類（例如 regressor 經過抽取 / 平滑、
-        或 code 的不連續處被別的機制吸收）要看架構，屬 <ClaimTag kind="research" />。具體的 GOS / PHOS 例子見{' '}
+        反過來，若 code 的頻譜衰減得<strong>比 <Tex>{'1/\\Omega^2'}</Tex> 快</strong>——沒有跳變的平滑慢變 code（例如三角波 <Tex>{'P_k\\propto1/k^4'}</Tex>、慢正弦）——低頻的負貢獻就贏了：三角波 <Tex>{'C/\\sigma_x^2\\approx-\\tfrac{12}{\\pi^2}\\Delta^2<0'}</Tex>，raw-x LMS 變號（用自相關的語言：平滑 code 的{' '}
+        <Tex>{'R_x[k]/\\sigma_x^2\\approx1-c\\,k^2'}</Tex> 沒有一次項，<Tex>{'C/\\sigma_x^2\\approx-c\\,m_2<0'}</Tex>）。哪些實際 code 屬於這一類（例如 regressor 經過抽取 / 平滑、或 code 的不連續處被別的機制吸收）要看架構，屬 <ClaimTag kind="research" />。具體的 GOS / PHOS 例子見{' '}
         <a href="#/case/sspll">案例頁：SSPLL 的 GOS / PHOS 極性</a>。MASH 1-1-1 的 residue 被 <Tex>{'(1-z^{-1})^2'}</Tex> 推到高頻，
         <Tex>{'C/\\sigma_x^2\\approx1'}</Tex>。
       </p>

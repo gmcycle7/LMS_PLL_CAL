@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import {
   Callout,
   ClaimTag,
@@ -160,9 +160,7 @@ export function ToggleSection() {
         </p>
         <TexBlock>{String.raw`e[n]=\sum_{k=0}^{q-1}c_k\,e^{j2\pi kn/q},\qquad c_k=\frac1q\sum_{n=0}^{q-1}e[n]\,e^{-j2\pi kn/q}`}</TexBlock>
         <p>
-          <Tex>{'c_k'}</Tex> 就是頻率 <Tex>{String.raw`f=kf_u/q`}</Tex> 的成分。<Tex>{'e'}</Tex> 是實數時 <Tex>{String.raw`c_{q-k}=\overline{c_k}`}</Tex>（共軛），
-          正負頻率合起來是一條 <Tex>{String.raw`2|c_k|\cos(2\pi kn/q+\angle c_k)`}</Tex> 的實弦波，其功率（平方平均）為 <Tex>{String.raw`(2|c_k|)^2/2=2|c_k|^2`}</Tex>。
-          Parseval 定理：<Tex>{String.raw`\frac1q\sum_n|e[n]|^2=\sum_k|c_k|^2`}</Tex>，也就是「時域功率 = 各頻率功率的和」。
+          <Tex>{'c_k'}</Tex> 就是頻率 <Tex>{String.raw`f=kf_u/q`}</Tex> 的成分。<Tex>{'e'}</Tex> 是實數時 <Tex>{String.raw`c_{q-k}=\overline{c_k}`}</Tex>（共軛），正負頻率合起來是一條 <Tex>{String.raw`2|c_k|\cos(2\pi kn/q+\angle c_k)`}</Tex> 的實弦波，其功率（平方平均）為 <Tex>{String.raw`(2|c_k|)^2/2=2|c_k|^2`}</Tex>。Parseval 定理：<Tex>{String.raw`\frac1q\sum_n|e[n]|^2=\sum_k|c_k|^2`}</Tex>，也就是「時域功率 = 各頻率功率的和」。
         </p>
       </Prereq>
       <StepDerivation
@@ -182,8 +180,7 @@ export function ToggleSection() {
       <TexBlock id="F-13.4">{String.raw`c_k=\frac1q\sum_{n=0}^{q-1}e[n]e^{-j2\pi kn/q},\qquad P_k=2|c_k|^2\ (0<k<q/2),\qquad \sum_kP_k=\frac1q\sum_ne[n]^2`}</TexBlock>
       <Callout kind="ok" title="重點（勘誤 E47）">
         主 Spur 在 <strong><Tex>{String.raw`2f_u/5`}</Tex></strong>，比 <Tex>{String.raw`f_u/5`}</Tex> 高 {db(r.lS[2].power / r.lS[1].power)} dB；<Tex>{String.raw`f_u/5`}</Tex> 只佔總功率的{' '}
-        {fx((100 * r.lS[1].power) / r.parseval, 1)}%。在以 <Tex>{'f_u'}</Tex> 取樣的離散時間裡只有這兩條獨立譜線（<Tex>{String.raw`k=3,4`}</Tex> 是 <Tex>{String.raw`k=2,1`}</Tex> 的鏡像）。
-        同樣 3 個 32、2 個 33，換成 clustered 排列 <Tex>{'[32,32,32,33,33]'}</Tex> 會把 <Tex>{String.raw`${fx(r.lC[1].power, 5)}\,\mathrm{LSB}^2`}</Tex> 移到 <Tex>{String.raw`f_u/5`}</Tex>（下圖）。 <ClaimTag kind="exact" />
+        {fx((100 * r.lS[1].power) / r.parseval, 1)}%。在以 <Tex>{'f_u'}</Tex> 取樣的離散時間裡只有這兩條獨立譜線（<Tex>{String.raw`k=3,4`}</Tex> 是 <Tex>{String.raw`k=2,1`}</Tex> 的鏡像）。同樣 3 個 32、2 個 33，換成 clustered 排列 <Tex>{'[32,32,32,33,33]'}</Tex> 會把 <Tex>{String.raw`${fx(r.lC[1].power, 5)}\,\mathrm{LSB}^2`}</Tex> 移到 <Tex>{String.raw`f_u/5`}</Tex>（下圖）。 <ClaimTag kind="exact" />
       </Callout>
       <Plot
         title={String.raw`Toggle 誤差的譜線功率（以 $f_u$ 取樣）`}
@@ -206,8 +203,7 @@ export function ToggleSection() {
       {/* 不放在 ModeGate 內：F-13.5 的錨點在所有模式都要存在（Beginner 時 Fold 預設收合） */}
       <Fold title={<>code 以 ZOH 保持到更快的取樣率時：<Tex>{String.raw`\mathrm{sinc}^2`}</Tex> 權重（勘誤 E47）</>}>
         <p>
-          若 code 以 <Tex>{'f_u'}</Tex> 更新，但 DTC 以 <Tex>{String.raw`f_s=N_hf_u`}</Tex> 取樣（每個 code 保持 <Tex>{'N_h'}</Tex> 個 reference cycle；<Tex>{'N_h'}</Tex> 就是實驗裡的 <Tex>{String.raw`N_\mathrm{upd}`}</Tex>），
-          保持（zero-order hold）會把譜線複製到所有 <Tex>{String.raw`k f_u/5`}</Tex>（<Tex>{String.raw`k\ne5m`}</Tex>），並乘上離散 <Tex>{String.raw`\mathrm{sinc}^2`}</Tex> 權重：
+          若 code 以 <Tex>{'f_u'}</Tex> 更新，但 DTC 以 <Tex>{String.raw`f_s=N_hf_u`}</Tex> 取樣（每個 code 保持 <Tex>{'N_h'}</Tex> 個 reference cycle；<Tex>{'N_h'}</Tex> 就是實驗裡的 <Tex>{String.raw`N_\mathrm{upd}`}</Tex>），保持（zero-order hold）會把譜線複製到所有 <Tex>{String.raw`k f_u/5`}</Tex>（<Tex>{String.raw`k\ne5m`}</Tex>），並乘上離散 <Tex>{String.raw`\mathrm{sinc}^2`}</Tex> 權重：
         </p>
         <Mermaid
           chart={CHART_ZOH}

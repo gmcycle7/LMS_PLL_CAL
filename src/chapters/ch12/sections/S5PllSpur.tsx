@@ -109,16 +109,14 @@ export function S5Paths() {
           )}
         </p>
         <p>
-          <ClaimTag kind="approx" /> F-12.17 已經是 time-jitter PSD 的積分，相位尺度 <Tex>{String.raw`(2\pi f_{\mathrm{out}})^2`}</Tex> 在換回時間時抵消。
-          直接 PD noise 路徑與 LMS 的 cross-spectrum 在此忽略（Research Backlog R1）。<strong>PD error 小，不代表 output noise 小。</strong>
+          <ClaimTag kind="approx" /> F-12.17 已經是 time-jitter PSD 的積分，相位尺度 <Tex>{String.raw`(2\pi f_{\mathrm{out}})^2`}</Tex> 在換回時間時抵消。直接 PD noise 路徑與 LMS 的 cross-spectrum 在此忽略（Research Backlog R1）。<strong>PD error 小，不代表 output noise 小。</strong>
         </p>
       </Section>
 
       <Section kind="example" title="三種 code 的頻譜：0.399 / 0.282 / 0.009 fs 從哪來" level={3} id="ch12-three-codes">
         <p>
           同一個 <Tex>{`\\sigma_w=${sig(EX.sigmaW, 4)}\\ \\mathrm{fs}`}</Tex>，乘上三種不同的 code，在 <Tex>{String.raw`0\ldots f_{BW}=1\ \mathrm{MHz}`}</Tex>（理想 brick-wall
-          的「PLL 頻寬」）內剩下多少？下表由 <code>codeSpectraAnalytic()</code> 以 F-12.13 + F-12.14 數值積分算出；最後兩欄改用 type-II PLL（<Tex>{String.raw`f_{3\mathrm{dB},T}=1\ \mathrm{MHz},\ \zeta=0.707`}</Tex>，
-          積分 1 kHz–100 MHz）的 <Tex>{'|T|^2'}</Tex> 與 <Tex>{String.raw`|H_{\mathrm{PD}}|^2`}</Tex> 權重。
+          的「PLL 頻寬」）內剩下多少？下表由 <code>codeSpectraAnalytic()</code> 以 F-12.13 + F-12.14 數值積分算出；最後兩欄改用 type-II PLL（<Tex>{String.raw`f_{3\mathrm{dB},T}=1\ \mathrm{MHz},\ \zeta=0.707`}</Tex>，積分 1 kHz–100 MHz）的 <Tex>{'|T|^2'}</Tex> 與 <Tex>{String.raw`|H_{\mathrm{PD}}|^2`}</Tex> 權重。
         </p>
         <Diagram chart={CHART_CODE_EXITS} caption="三種 code 把功率放在不同的頻率，所以兩個出口看到的完全不同。一列一種 code，藍色是看到比較多的那個出口。">
           <p>
@@ -171,8 +169,7 @@ export function S5Paths() {
             <Tex>{'f_u/2'}</Tex> 以上的 ZOH image（step 能量，{pdSplit.img.toFixed(4)} fs），主瓣只貢獻 {pdSplit.main.toFixed(4)} fs。
           </li>
           <li>
-            <strong>單頻 code</strong>：功率減半（<Tex>{String.raw`\overline{\cos^2}=\tfrac12`}</Tex>，RMS 乘 <Tex>{String.raw`1/\sqrt2`}</Tex>），被搬到 100 kHz ± 十幾 kHz，仍在頻寬內；
-            output 值略大於 in-band 值，因為 type-II 的 <Tex>{'|T|'}</Tex> 在頻寬內有 peaking（<Tex>{`|T(f_x)|^2=${sig(pdSplit.t2fx, 4)}`}</Tex>）。
+            <strong>單頻 code</strong>：功率減半（<Tex>{String.raw`\overline{\cos^2}=\tfrac12`}</Tex>，RMS 乘 <Tex>{String.raw`1/\sqrt2`}</Tex>），被搬到 100 kHz ± 十幾 kHz，仍在頻寬內；output 值略大於 in-band 值，因為 type-II 的 <Tex>{'|T|'}</Tex> 在頻寬內有 peaking（<Tex>{`|T(f_x)|^2=${sig(pdSplit.t2fx, 4)}`}</Tex>）。
           </li>
           <li>
             <strong>
@@ -241,13 +238,11 @@ export function S5Spur() {
         </Diagram>
         <Prereq title="小角近似與 Bessel 展開">
           <p>
-            <Tex>{String.raw`\beta\ll1`}</Tex> 時 <Tex>{String.raw`\cos\beta\approx1`}</Tex>、<Tex>{String.raw`\sin\beta\approx\beta`}</Tex>（泰勒一階）。
-            精確版本是 Jacobi–Anger 展開 <Tex>{String.raw`e^{j\beta\sin\theta}=\sum_{n}J_n(\beta)e^{jn\theta}`}</Tex>，<Tex>{'J_n'}</Tex> 是 Bessel 函數（小 <Tex>{String.raw`\beta`}</Tex> 時{' '}
+            <Tex>{String.raw`\beta\ll1`}</Tex> 時 <Tex>{String.raw`\cos\beta\approx1`}</Tex>、<Tex>{String.raw`\sin\beta\approx\beta`}</Tex>（泰勒一階）。精確版本是 Jacobi–Anger 展開 <Tex>{String.raw`e^{j\beta\sin\theta}=\sum_{n}J_n(\beta)e^{jn\theta}`}</Tex>，<Tex>{'J_n'}</Tex> 是 Bessel 函數（小 <Tex>{String.raw`\beta`}</Tex> 時{' '}
             <Tex>{String.raw`J_0\approx1,\ J_1\approx\beta/2`}</Tex>）。
           </p>
           <p>
-            <strong>dBc</strong>：相對載波（carrier）的 dB。振幅比 <Tex>{'r'}</Tex> 寫成 <Tex>{String.raw`20\log_{10}r`}</Tex>、功率比寫成 <Tex>{String.raw`10\log_{10}r^2`}</Tex>，兩者是同一個數。
-            離散的 spur 用 dBc；連續的雜訊裙擺要說「每 1 Hz 頻寬內」相對載波多少，單位是 <strong>dBc/Hz</strong>（<Tex>{String.raw`\mathcal L(f)`}</Tex>）。
+            <strong>dBc</strong>：相對載波（carrier）的 dB。振幅比 <Tex>{'r'}</Tex> 寫成 <Tex>{String.raw`20\log_{10}r`}</Tex>、功率比寫成 <Tex>{String.raw`10\log_{10}r^2`}</Tex>，兩者是同一個數。離散的 spur 用 dBc；連續的雜訊裙擺要說「每 1 Hz 頻寬內」相對載波多少，單位是 <strong>dBc/Hz</strong>（<Tex>{String.raw`\mathcal L(f)`}</Tex>）。
           </p>
         </Prereq>
         <Steps
@@ -323,9 +318,7 @@ export function S5Spur() {
 
       <Section kind="assumptions" title="隨機 vs 相干：noise skirt 不是 spur" level={3}>
         <p>
-          <strong>隨機</strong>的係數波動（LMS 的 <Tex>{String.raw`\delta w`}</Tex>）產生連續頻譜，在輸出是 phase-noise 的<strong>裙擺（skirt）</strong>，單位 dBc/Hz；
-          只有<strong>相干 / 週期</strong>成分（例如 <Tex>{String.raw`\delta w`}</Tex> 被某個週期性干擾調變、或量化的 limit cycle，<ChRef ch="13">第 13 章</ChRef>）才會產生離散 spur，單位 dBc。
-          同樣的總功率，兩者讀數完全不同。看到頻譜上有東西時，先照下面的流程分類：
+          <strong>隨機</strong>的係數波動（LMS 的 <Tex>{String.raw`\delta w`}</Tex>）產生連續頻譜，在輸出是 phase-noise 的<strong>裙擺（skirt）</strong>，單位 dBc/Hz；只有<strong>相干 / 週期</strong>成分（例如 <Tex>{String.raw`\delta w`}</Tex> 被某個週期性干擾調變、或量化的 limit cycle，<ChRef ch="13">第 13 章</ChRef>）才會產生離散 spur，單位 dBc。同樣的總功率，兩者讀數完全不同。看到頻譜上有東西時，先照下面的流程分類：
         </p>
         <Diagram chart={CHART_SKIRT_OR_SPUR} caption="先分清楚是相干還是隨機，再決定用哪一個公式、報哪一種單位。">
           <p>
@@ -373,8 +366,7 @@ export function S5Spur() {
         </p>
         <ModeGate min="engineer">
           <Callout kind="warn" title="注意假設">
-            (1) 線性化 PLL 與 CT 原型 <Tex>{'T(s)'}</Tex>，只在 <Tex>{String.raw`f\ll f_s`}</Tex> 有效；(2) <Tex>{'x'}</Tex> 與 <Tex>{String.raw`\delta w`}</Tex> 獨立、平穩；
-            (3) 忽略直接 PD noise 與 LMS 的 cross-spectrum；(4) 0.399 fs 是 gain-equivalent，乘上 code、經過 <Tex>{'T'}</Tex> 後才是 output timing jitter。 <ClaimTag kind="approx" />
+            (1) 線性化 PLL 與 CT 原型 <Tex>{'T(s)'}</Tex>，只在 <Tex>{String.raw`f\ll f_s`}</Tex> 有效；(2) <Tex>{'x'}</Tex> 與 <Tex>{String.raw`\delta w`}</Tex> 獨立、平穩；(3) 忽略直接 PD noise 與 LMS 的 cross-spectrum；(4) 0.399 fs 是 gain-equivalent，乘上 code、經過 <Tex>{'T'}</Tex> 後才是 output timing jitter。 <ClaimTag kind="approx" />
             <Erratum id="E28" />
           </Callout>
         </ModeGate>

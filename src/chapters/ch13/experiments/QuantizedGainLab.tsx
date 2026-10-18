@@ -168,8 +168,7 @@ export function QuantizedGainLab() {
       headingLevel={3}
       description={
         <>
-          內部高解析 <Tex>{'w_H'}</Tex> <Tex>{String.raw`\to`}</Tex> 量化策略 <Tex>{String.raw`\to`}</Tex> 6-bit code <Tex>{'y'}</Tex>；Case A/B/C 共用 seed 與所有共用參數（paired comparison），下方另有同一情境下的五策略總表。
-          code 更新率 <Tex>{String.raw`f_u=f_s/N_\mathrm{upd}=${ntex(fu, 5)}\ \mathrm{Hz}`}</Tex>（目前 Case）。
+          內部高解析 <Tex>{'w_H'}</Tex> <Tex>{String.raw`\to`}</Tex> 量化策略 <Tex>{String.raw`\to`}</Tex> 6-bit code <Tex>{'y'}</Tex>；Case A/B/C 共用 seed 與所有共用參數（paired comparison），下方另有同一情境下的五策略總表。code 更新率 <Tex>{String.raw`f_u=f_s/N_\mathrm{upd}=${ntex(fu, 5)}\ \mathrm{Hz}`}</Tex>（目前 Case）。
         </>
       }
       assumptions={[

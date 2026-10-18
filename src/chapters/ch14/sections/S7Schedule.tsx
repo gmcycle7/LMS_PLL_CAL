@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import {
   Callout,
   ClaimTag,
@@ -114,8 +114,7 @@ export function S7Schedule() {
   return (
     <Section kind="explore" level={2} title={md(String.raw`14.6 步長排程：先大後小，為什麼一定比固定 $\mu$ 好？`)} id="ch14-schedule">
       <p>
-        固定 <Tex>{'\\mu'}</Tex> 的兩難：大 <Tex>{'\\mu'}</Tex> 收斂快但雜訊大，小 <Tex>{'\\mu'}</Tex> 雜訊小但收斂慢。最自然的解法——<strong>開始時用大步長，接近答案後換小步長</strong>（gear shifting）。
-        兩段式包含固定 <Tex>{'\\mu'}</Tex>（<Tex>{'\\mu_1=\\mu_2'}</Tex>）當特例，所以最佳化後<strong>不可能比固定 <Tex>{'\\mu'}</Tex> 差</strong>（線性模型內）。我們先算出「最好能好到哪裡」，再看兩段式能拿到多少。
+        固定 <Tex>{'\\mu'}</Tex> 的兩難：大 <Tex>{'\\mu'}</Tex> 收斂快但雜訊大，小 <Tex>{'\\mu'}</Tex> 雜訊小但收斂慢。最自然的解法——<strong>開始時用大步長，接近答案後換小步長</strong>（gear shifting）。兩段式包含固定 <Tex>{'\\mu'}</Tex>（<Tex>{'\\mu_1=\\mu_2'}</Tex>）當特例，所以最佳化後<strong>不可能比固定 <Tex>{'\\mu'}</Tex> 差</strong>（線性模型內）。我們先算出「最好能好到哪裡」，再看兩段式能拿到多少。
       </p>
       <Diagram chart={CHART_SCHEDULE_COMPARE} caption="三種步長排程並排：迴路其他部分完全相同，只有著色的那一塊「乘上多少」不同。">
         <p>
@@ -177,8 +176,7 @@ export function S7Schedule() {
         {String.raw`\boxed{\mu_k=\frac{1}{K(k+1+k_0)},\qquad P_B=\frac{\delta_0^2}{1+B\delta_0^2K^2/\sigma_\eta^2}\approx\frac{\sigma_\eta^2}{BK^2}}`}
       </TexBlock>
       <p>
-        <ClaimTag kind="exact" /> 線性模型、<Tex>{'K'}</Tex> 與 <Tex>{'\\delta_0^2'}</Tex> 已知時，這是 <Tex>{'B'}</Tex> 次更新的下界（每一步的最佳 <Tex>{'P_{k+1}'}</Tex> 對 <Tex>{'P_k'}</Tex> 單調遞增，所以逐步貪婪最佳 = 整體最佳）。
-        直覺：<Tex>{'\\mu_k\\propto1/k'}</Tex> 等於「把所有 <Tex>{'G'}</Tex> 平均起來」，每個 block 的資訊權重相同。與固定 <Tex>{'\\mu'}</Tex> 比較（F-14.8）：
+        <ClaimTag kind="exact" /> 線性模型、<Tex>{'K'}</Tex> 與 <Tex>{'\\delta_0^2'}</Tex> 已知時，這是 <Tex>{'B'}</Tex> 次更新的下界（每一步的最佳 <Tex>{'P_{k+1}'}</Tex> 對 <Tex>{'P_k'}</Tex> 單調遞增，所以逐步貪婪最佳 = 整體最佳）。直覺：<Tex>{'\\mu_k\\propto1/k'}</Tex> 等於「把所有 <Tex>{'G'}</Tex> 平均起來」，每個 block 的資訊權重相同。與固定 <Tex>{'\\mu'}</Tex> 比較（F-14.8）：
       </p>
       <TexBlock id="F-14.19" label={md(String.raw`固定 $\mu$ 損失多少`)}>
         {String.raw`\frac{E[\delta_B^2]^*_\text{fixed}}{P_B}\approx\frac{\sigma_\eta^2(1+\ln A)/(4BK^2)}{\sigma_\eta^2/(BK^2)}=\frac{1+\ln A}{4}`}
@@ -311,9 +309,7 @@ export function S7Schedule() {
       <ModeGate min="research">
         <Callout kind="info" title={md('延伸：$K$ 估錯時的 $1/k$ 排程')}>
           <p>
-            <ClaimTag kind="approx" /> 令 <Tex>{'\\mu_k=\\kappa/(K(k+1))'}</Tex>。確定部分 <Tex>{'\\prod_{j\\le k}(1-\\kappa/j)^2\\sim k^{-2\\kappa}'}</Tex>，雜訊部分 <Tex>{'\\sim\\kappa^2\\sigma_\\eta^2/(K^2(2\\kappa-1)k)'}</Tex>（需 <Tex>{'\\kappa>\\tfrac12'}</Tex>）。
-            所以 <strong><Tex>{'\\kappa<\\tfrac12'}</Tex>（<Tex>{'K'}</Tex> 高估超過 2 倍）時收斂慢於 <Tex>{'1/k'}</Tex></strong>（只有 <Tex>{'k^{-2\\kappa}'}</Tex>）；<Tex>{'\\kappa>\\tfrac12'}</Tex> 時仍是 <Tex>{'1/k'}</Tex>，但常數變大 <Tex>{'\\kappa^2/(2\\kappa-1)'}</Tex>（<Tex>{'\\kappa=1'}</Tex> 最佳）。
-            推導：<Tex>{'v_{k+1}\\approx(1-2\\kappa/k)v_k+\\kappa^2\\sigma_\\eta^2/(K^2k^2)'}</Tex>，代入 <Tex>{'v_k=c/k'}</Tex> 比較 <Tex>{'1/k^2'}</Tex> 係數得 <Tex>{'c(2\\kappa-1)=\\kappa^2\\sigma_\\eta^2/K^2'}</Tex>。這是 stochastic approximation 的經典結果，網站未另做 Monte Carlo 驗證。
+            <ClaimTag kind="approx" /> 令 <Tex>{'\\mu_k=\\kappa/(K(k+1))'}</Tex>。確定部分 <Tex>{'\\prod_{j\\le k}(1-\\kappa/j)^2\\sim k^{-2\\kappa}'}</Tex>，雜訊部分 <Tex>{'\\sim\\kappa^2\\sigma_\\eta^2/(K^2(2\\kappa-1)k)'}</Tex>（需 <Tex>{'\\kappa>\\tfrac12'}</Tex>）。所以 <strong><Tex>{'\\kappa<\\tfrac12'}</Tex>（<Tex>{'K'}</Tex> 高估超過 2 倍）時收斂慢於 <Tex>{'1/k'}</Tex></strong>（只有 <Tex>{'k^{-2\\kappa}'}</Tex>）；<Tex>{'\\kappa>\\tfrac12'}</Tex> 時仍是 <Tex>{'1/k'}</Tex>，但常數變大 <Tex>{'\\kappa^2/(2\\kappa-1)'}</Tex>（<Tex>{'\\kappa=1'}</Tex> 最佳）。推導：<Tex>{'v_{k+1}\\approx(1-2\\kappa/k)v_k+\\kappa^2\\sigma_\\eta^2/(K^2k^2)'}</Tex>，代入 <Tex>{'v_k=c/k'}</Tex> 比較 <Tex>{'1/k^2'}</Tex> 係數得 <Tex>{'c(2\\kappa-1)=\\kappa^2\\sigma_\\eta^2/K^2'}</Tex>。這是 stochastic approximation 的經典結果，網站未另做 Monte Carlo 驗證。
           </p>
         </Callout>
       </ModeGate>

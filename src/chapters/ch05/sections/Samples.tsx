@@ -49,8 +49,7 @@ export function SamplesSection() {
     >
       <p>
         §3 的 <Tex>{String.raw`P(\text{判對})\approx\Phi(\mathrm{SNR}_{\mathrm{stat}})`}</Tex> 把問題變成：要讓{' '}
-        <Tex>{'\\mathrm{SNR}_{\\mathrm{stat}}'}</Tex> 達到某個 <Tex>{'z'}</Tex> 值。例如 95% 對應 <Tex>{`z=\\Phi^{-1}(0.95)=${fx(z95, 4)}`}</Tex>。
-        這裡 <Tex>{'\\Phi^{-1}'}</Tex> 是 <Tex>{'\\Phi'}</Tex> 的<strong>反函數</strong>（把同一張常態表反過來查：給機率、回傳對應的 <Tex>{'z'}</Tex>）；
+        <Tex>{'\\mathrm{SNR}_{\\mathrm{stat}}'}</Tex> 達到某個 <Tex>{'z'}</Tex> 值。例如 95% 對應 <Tex>{`z=\\Phi^{-1}(0.95)=${fx(z95, 4)}`}</Tex>。這裡 <Tex>{'\\Phi^{-1}'}</Tex> 是 <Tex>{'\\Phi'}</Tex> 的<strong>反函數</strong>（把同一張常態表反過來查：給機率、回傳對應的 <Tex>{'z'}</Tex>）；
         <Tex>{'\\Phi'}</Tex> 嚴格遞增，所以反函數存在且唯一。驗算：<Tex>{`\\Phi(${fx(z95, 4)})=${fx(normCdf(z95), 4)}`}</Tex>。
       </p>
       <p>

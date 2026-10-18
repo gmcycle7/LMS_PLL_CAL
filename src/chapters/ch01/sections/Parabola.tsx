@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import {
   ClaimTag,
   CodeBlock,
@@ -329,12 +329,10 @@ export function ParabolaSection() {
         <Prereq title="相關（correlation）$E[xy]$：兩個量「一起動」的程度">
           <p>
             <Tex>{'E[xy]'}</Tex> 是「<Tex>{'x'}</Tex> 乘 <Tex>{'y'}</Tex>」的平均。若 <Tex>{'x'}</Tex> 大的時候 <Tex>{'y'}</Tex>{' '}
-            也大、<Tex>{'x'}</Tex> 為負時 <Tex>{'y'}</Tex> 也為負，乘積多半是正的，<Tex>{'E[xy]'}</Tex> 就是大的正數；若兩者毫無關係且其中一個平均為 0，
-            正負乘積互相抵消，<Tex>{'E[xy]=0'}</Tex>，稱為<strong>正交（orthogonal）</strong>。
+            也大、<Tex>{'x'}</Tex> 為負時 <Tex>{'y'}</Tex> 也為負，乘積多半是正的，<Tex>{'E[xy]'}</Tex> 就是大的正數；若兩者毫無關係且其中一個平均為 0，正負乘積互相抵消，<Tex>{'E[xy]=0'}</Tex>，稱為<strong>正交（orthogonal）</strong>。
           </p>
           <p className="small">
-            用語提醒：<Tex>{'E[xy]=0'}</Tex> 叫正交；<strong>不相關（uncorrelated）</strong>是指 <Tex>{'E[xy]=E[x]\\,E[y]'}</Tex>（<ChRef ch="00">Ch00</ChRef> §0.7 的定義）。
-            只要其中一個量的平均為 0，兩者就是同一件事——所以雜訊 <Tex>{'v'}</Tex> 零均值時，<Tex>{'E[xv]=0'}</Tex> 說成正交或不相關都可以。但 §1.2.1 的最佳誤差{' '}
+            用語提醒：<Tex>{'E[xy]=0'}</Tex> 叫正交；<strong>不相關（uncorrelated）</strong>是指 <Tex>{'E[xy]=E[x]\\,E[y]'}</Tex>（<ChRef ch="00">Ch00</ChRef> §0.7 的定義）。只要其中一個量的平均為 0，兩者就是同一件事——所以雜訊 <Tex>{'v'}</Tex> 零均值時，<Tex>{'E[xv]=0'}</Tex> 說成正交或不相關都可以。但 §1.2.1 的最佳誤差{' '}
             <Tex>{'e^*'}</Tex> 平均不一定是 0（輸入 <Tex>{'x'}</Tex> 的平均也不一定是 0），那裡要說「正交」（正交原理）。
           </p>
           <ul>
@@ -353,8 +351,7 @@ export function ParabolaSection() {
         </p>
         <BlockDiagram id="D-01.5">
           先看左邊的資料表拆成兩欄：①每筆的 <Tex>{'x_i^2'}</Tex>、②每筆的 <Tex>{'x_iy_i'}</Tex>。再看 ③④ 各自加總，最後 ⑤ 相除——整題只有一次除法。圖上的{' '}
-          <Tex>{String.raw`\Sigma x_i^2`}</Tex> 除以筆數就是公式裡的 <Tex>{'E[x^2]'}</Tex>，<Tex>{String.raw`\Sigma x_iy_i`}</Tex> 除以筆數就是 <Tex>{'E[xy]'}</Tex>；
-          分子分母同除以 3 會消掉，所以 <Tex>{String.raw`w^*=E[xy]/E[x^2]=\Sigma x_iy_i/\Sigma x_i^2`}</Tex>（下面的 F-01.4）。
+          <Tex>{String.raw`\Sigma x_i^2`}</Tex> 除以筆數就是公式裡的 <Tex>{'E[x^2]'}</Tex>，<Tex>{String.raw`\Sigma x_iy_i`}</Tex> 除以筆數就是 <Tex>{'E[xy]'}</Tex>；分子分母同除以 3 會消掉，所以 <Tex>{String.raw`w^*=E[xy]/E[x^2]=\Sigma x_iy_i/\Sigma x_i^2`}</Tex>（下面的 F-01.4）。
         </BlockDiagram>
         <TexBlock
           id="F-01.3"
@@ -428,8 +425,7 @@ export function ParabolaSection() {
         <BlockDiagram id="D-01.6">
           先看藍色的三格：誤差 <Tex>{'e'}</Tex> 和輸入 <Tex>{'x'}</Tex> 相乘，很多筆取平均，得到相關 <Tex>{'E[e\\,x]'}</Tex>。再看菱形：不是 0 就走下面「否」那條路回去再調{' '}
           <Tex>{'w'}</Tex>（調完得到新的誤差，再繞一圈），是 0 就停在綠色那一格。圖上綠色方塊裡的 <Tex>{String.raw`E[e^*x]=0`}</Tex> 就是下面的 normal equation（F-01.5），其中{' '}
-          <Tex>{'e^*=y-w^*x'}</Tex> 是最佳解的誤差；
-          「再調 <Tex>{'w'}</Tex>」那一格的 <Tex>{String.raw`\mu E[e\,x]`}</Tex> 是 §1.3 會算出來的 LMS 平均更新量。
+          <Tex>{'e^*=y-w^*x'}</Tex> 是最佳解的誤差；「再調 <Tex>{'w'}</Tex>」那一格的 <Tex>{String.raw`\mu E[e\,x]`}</Tex> 是 §1.3 會算出來的 LMS 平均更新量。
         </BlockDiagram>
         {atLeast('engineer') ? normalEq : <Derivation title="Normal equation" derivation={normalEq} level="L0" claim="exact" />}
         <TexBlock id="F-01.5" label="Normal equation（正交原理）">
@@ -441,12 +437,10 @@ export function ParabolaSection() {
           <Tex>{String.raw`E[e^*x]=E[e^*]\,E[x]`}</Tex>，<Link to="/ch/00">Ch00</Link> §0.7 的定義）不是同一句話：兩者只有在 <Tex>{'E[x]=0'}</Tex> 或{' '}
           <Tex>{'E[e^*]=0'}</Tex> 時才相同。§1.2 的三筆資料就不同：<Tex>{'E[e^*x]=0'}</Tex>，但 <Tex>{String.raw`E[e^*]=${texNum(m.Ee, 4)}`}</Tex>、
           <Tex>{String.raw`E[x]=${texNum(m.Ex, 4)}`}</Tex>，<Tex>{String.raw`E[e^*]\,E[x]=${texNum(m.Ee * m.Ex, 4)}\ne0`}</Tex>。若 <Tex>{'v'}</Tex> 零均值且與{' '}
-          <Tex>{'x'}</Tex> 獨立，則 <Tex>{'w^*=a'}</Tex>、<Tex>{'e^*=v'}</Tex>、<Tex>{'E[e^*]=0'}</Tex>：這時正交也就是不相關，所以常被簡稱為「不相關」。
-          相關器累加的是 <Tex>{String.raw`e\cdot x`}</Tex> 本身，不會先扣掉平均，所以它檢查的是正交（PLL 的 GMAC 也一樣不扣平均，只是誤差先取了正負號，見下面的「連結到 PLL」）。
+          <Tex>{'x'}</Tex> 獨立，則 <Tex>{'w^*=a'}</Tex>、<Tex>{'e^*=v'}</Tex>、<Tex>{'E[e^*]=0'}</Tex>：這時正交也就是不相關，所以常被簡稱為「不相關」。相關器累加的是 <Tex>{String.raw`e\cdot x`}</Tex> 本身，不會先扣掉平均，所以它檢查的是正交（PLL 的 GMAC 也一樣不扣平均，只是誤差先取了正負號，見下面的「連結到 PLL」）。
         </p>
         <p>
-          白話：如果誤差和輸入還「一起動」（<Tex>{'E[ex]\\ne0'}</Tex>），代表誤差裡還有一部分可以用調 <Tex>{'w'}</Tex> 解釋掉，
-          就還沒到最低點。LMS 的平均更新量 <Tex>{String.raw`\mu E[e\,x]`}</Tex> 正是在「量測還剩多少相關」，相關歸零就停。
+          白話：如果誤差和輸入還「一起動」（<Tex>{'E[ex]\\ne0'}</Tex>），代表誤差裡還有一部分可以用調 <Tex>{'w'}</Tex> 解釋掉，就還沒到最低點。LMS 的平均更新量 <Tex>{String.raw`\mu E[e\,x]`}</Tex> 正是在「量測還剩多少相關」，相關歸零就停。
         </p>
         <PllLink>
           GMAC（gain multiply-accumulate）在硬體裡累加的就是 <Tex>{String.raw`\sum_n q_n x_n`}</Tex>，其中{' '}
@@ -461,8 +455,7 @@ export function ParabolaSection() {
           最後一個問題：到了 <Tex>{'w^*'}</Tex>，成本是不是 0？不是。成本可以拆成兩塊——一塊跟 <Tex>{'w'}</Tex> 有關（調得掉），一塊跟 <Tex>{'w'}</Tex> 無關（調不掉）：
         </p>
         <BlockDiagram id="D-01.7">
-          先看上面那條路：你選的 <Tex>{'w'}</Tex> 減掉 <Tex>{'w^*'}</Tex>、平方、再乘上藍色的 <Tex>{String.raw`\tfrac12E[x^2]`}</Tex>——這是一個碗，<Tex>{'w=w^*'}</Tex> 時剛好是 0。
-          再看下面紅色那一格：雜訊底 <Tex>{'J(w^*)'}</Tex> 不經過任何含 <Tex>{'w'}</Tex> 的方塊，直接加到輸出。圖上兩條路相加，就是下面的 F-01.6：
+          先看上面那條路：你選的 <Tex>{'w'}</Tex> 減掉 <Tex>{'w^*'}</Tex>、平方、再乘上藍色的 <Tex>{String.raw`\tfrac12E[x^2]`}</Tex>——這是一個碗，<Tex>{'w=w^*'}</Tex> 時剛好是 0。再看下面紅色那一格：雜訊底 <Tex>{'J(w^*)'}</Tex> 不經過任何含 <Tex>{'w'}</Tex> 的方塊，直接加到輸出。圖上兩條路相加，就是下面的 F-01.6：
           <Tex>{String.raw`J(w)=J(w^*)+\tfrac12E[x^2](w-w^*)^2`}</Tex>。
         </BlockDiagram>
         {atLeast('engineer') ? square : <Derivation title="配方" derivation={square} level="L0" claim="exact" />}
@@ -470,8 +463,7 @@ export function ParabolaSection() {
           {String.raw`J(w)=J(w^*)+\tfrac12E[x^2]\,(w-w^*)^2`}
         </TexBlock>
         <p>
-          數字：<Tex>{String.raw`J(w^*)=${texNum(m.Jmin, 6)}`}</Tex>（上圖的虛線）。調 <Tex>{'w'}</Tex> 只能消掉「碗」的部分，消不掉雜訊底；
-          碗的曲率 <Tex>{'E[x^2]'}</Tex> 越大，偏離最佳解的代價越大——也越容易學（§1.4 的收斂速度正比於 <Tex>{String.raw`\mu E[x^2]`}</Tex>）。
+          數字：<Tex>{String.raw`J(w^*)=${texNum(m.Jmin, 6)}`}</Tex>（上圖的虛線）。調 <Tex>{'w'}</Tex> 只能消掉「碗」的部分，消不掉雜訊底；碗的曲率 <Tex>{'E[x^2]'}</Tex> 越大，偏離最佳解的代價越大——也越容易學（§1.4 的收斂速度正比於 <Tex>{String.raw`\mu E[x^2]`}</Tex>）。
         </p>
         <ModeGate min="engineer">
           <CodeBlock
@@ -518,18 +510,15 @@ export function ParabolaSection() {
           <Tex>{'\\mu'}</Tex> 倍。成本前面有沒有 <Tex>{String.raw`\tfrac12`}</Tex>，斜率就差 2 倍，走出來的步伐也差 2 倍：
         </p>
         <BlockDiagram id="D-01.8">
-          每一列由左到右都是同樣四格：單筆成本 → 對 <Tex>{'w'}</Tex> 微分 → 乘上負的步長 → 更新量 <Tex>{String.raw`\Delta w`}</Tex>。先比第一列和第二列：成本差 2 倍、步長也差 2 倍，
-          互相抵消，更新量都是 <Tex>{String.raw`\mu e x`}</Tex>（綠色）。再看第三列：成本沒有 <Tex>{String.raw`\tfrac12`}</Tex>、步長卻沒有減半，更新量變成{' '}
-          <Tex>{String.raw`2\mu ex`}</Tex>（紅色）。圖上第一列的 <Tex>{String.raw`\tfrac12e^2`}</Tex> 就是下面推導的單筆成本 <Tex>{String.raw`j_n=\tfrac12e_n^2`}</Tex>，
-          最後一格就是 F-01.7 的 <Tex>{String.raw`\mu e_nx_n`}</Tex>。
+          每一列由左到右都是同樣四格：單筆成本 → 對 <Tex>{'w'}</Tex> 微分 → 乘上負的步長 → 更新量 <Tex>{String.raw`\Delta w`}</Tex>。先比第一列和第二列：成本差 2 倍、步長也差 2 倍，互相抵消，更新量都是 <Tex>{String.raw`\mu e x`}</Tex>（綠色）。再看第三列：成本沒有 <Tex>{String.raw`\tfrac12`}</Tex>、步長卻沒有減半，更新量變成{' '}
+          <Tex>{String.raw`2\mu ex`}</Tex>（紅色）。圖上第一列的 <Tex>{String.raw`\tfrac12e^2`}</Tex> 就是下面推導的單筆成本 <Tex>{String.raw`j_n=\tfrac12e_n^2`}</Tex>，最後一格就是 F-01.7 的 <Tex>{String.raw`\mu e_nx_n`}</Tex>。
         </BlockDiagram>
         {atLeast('engineer') ? half : <Derivation title={String.raw`由 $j_n=\tfrac12e_n^2$ 推出 LMS`} derivation={half} level="L0" claim="exact" />}
         <TexBlock id="F-01.7" label="LMS 更新式（規格 §1.1）">
           {String.raw`\boxed{w_{n+1}=w_n+\mu\,e_nx_n}`}
         </TexBlock>
         <p>
-          單筆的更新量 <Tex>{String.raw`\Delta w=\mu ex`}</Tex> 會被雜訊推來推去，但把很多筆平均起來，方向非常清楚：永遠朝著 <Tex>{'w^*'}</Tex>，而且離得越遠推得越用力。
-          畫成方塊圖，就是一個一階的負回授迴路：
+          單筆的更新量 <Tex>{String.raw`\Delta w=\mu ex`}</Tex> 會被雜訊推來推去，但把很多筆平均起來，方向非常清楚：永遠朝著 <Tex>{'w^*'}</Tex>，而且離得越遠推得越用力。畫成方塊圖，就是一個一階的負回授迴路：
         </p>
         <BlockDiagram id="D-01.9">
           先看左邊的加法點：目標 <Tex>{'w^*'}</Tex> 進「＋」、目前的 <Tex>{'w'}</Tex> 進「−」，出來的是還差多遠 <Tex>{'w^*-w'}</Tex>。再看藍色方塊：乘上{' '}
@@ -644,8 +633,7 @@ export function ParabolaSection() {
             ]}
           />
           <p className="small">
-            若誤把 <Tex>{'J_2'}</Tex> 的曲率 <Tex>{'2P_x'}</Tex> 當成 LMS 的曲率，會得到 <Tex>{String.raw`0<\mu<1/P_x`}</Tex>——
-            例如 <Tex>{'x=2'}</Tex> 時算出 <Tex>{String.raw`1/x^2=0.25`}</Tex>，但實際 LMS 在 <Tex>{String.raw`\mu=0.4`}</Tex>{' '}
+            若誤把 <Tex>{'J_2'}</Tex> 的曲率 <Tex>{'2P_x'}</Tex> 當成 LMS 的曲率，會得到 <Tex>{String.raw`0<\mu<1/P_x`}</Tex>——例如 <Tex>{'x=2'}</Tex> 時算出 <Tex>{String.raw`1/x^2=0.25`}</Tex>，但實際 LMS 在 <Tex>{String.raw`\mu=0.4`}</Tex>{' '}
             仍收斂（<Tex>{String.raw`p=1-0.4\cdot4=-0.6`}</Tex>，下一節的實驗可以驗證）。
           </p>
         </ModeGate>
@@ -655,8 +643,7 @@ export function ParabolaSection() {
         </ChapterHandCalc>
         <p>
           <ClaimTag kind="exact" /> LMS 是用<strong>單筆隨機梯度</strong> <Tex>{String.raw`-e_nx_n`}</Tex> 近似平均成本{' '}
-          <Tex>{'J'}</Tex> 的梯度，每一步都不是「直接解出全資料最佳解」。單筆梯度的期望值等於真正的梯度（無偏），
-          所以平均而言往下坡走；但每一步都帶著雜訊，這是之後 <ChRef ch="03">Ch03</ChRef>（mean vs mean-square）與 <ChRef ch="12">Ch12</ChRef>（係數雜訊）的源頭。
+          <Tex>{'J'}</Tex> 的梯度，每一步都不是「直接解出全資料最佳解」。單筆梯度的期望值等於真正的梯度（無偏），所以平均而言往下坡走；但每一步都帶著雜訊，這是之後 <ChRef ch="03">Ch03</ChRef>（mean vs mean-square）與 <ChRef ch="12">Ch12</ChRef>（係數雜訊）的源頭。
         </p>
       </Section>
     </>

@@ -56,8 +56,7 @@ export function NoiseAverageSection() {
 
       <Prereq title={String.raw`期望值 $E[\cdot]$：「做很多次取平均」會得到什麼`}>
         <p>
-          <strong>期望值（expectation）</strong> <Tex>{'E[X]'}</Tex> 的白話意思：把同一個隨機實驗做非常多次，結果的平均值會趨近的那個數。
-          擲一顆公平骰子，<Tex>{`E[X]=\\frac{1+2+3+4+5+6}{6}=${texNum(DIE_MEAN)}`}</Tex>，單次的標準差（下一個先備知識框會定義）是{' '}
+          <strong>期望值（expectation）</strong> <Tex>{'E[X]'}</Tex> 的白話意思：把同一個隨機實驗做非常多次，結果的平均值會趨近的那個數。擲一顆公平骰子，<Tex>{`E[X]=\\frac{1+2+3+4+5+6}{6}=${texNum(DIE_MEAN)}`}</Tex>，單次的標準差（下一個先備知識框會定義）是{' '}
           <Tex>{`\\sqrt{35/12}\\approx${texNum(DIE_STD, 4)}`}</Tex>。下表是用固定 seed 真的擲骰子的結果：
         </p>
         <div className="table-wrap">
@@ -197,8 +196,7 @@ export function NoiseAverageSection() {
       </h3>
       <Prereq title={String.raw`變異數與 $1/\sqrt N$ 法則：為什麼平均 $N$ 筆，雜訊只降 $\sqrt N$ 倍`}>
         <p>
-          <strong>變異數（variance）</strong> <Tex>{'\\operatorname{Var}(X)=E[(X-E[X])^2]'}</Tex>：與平均值差距平方的平均，衡量「抖多大」；
-          它的平方根叫<strong>標準差</strong>（standard deviation, std）。兩個性質：
+          <strong>變異數（variance）</strong> <Tex>{'\\operatorname{Var}(X)=E[(X-E[X])^2]'}</Tex>：與平均值差距平方的平均，衡量「抖多大」；它的平方根叫<strong>標準差</strong>（standard deviation, std）。兩個性質：
           <Tex>{'\\operatorname{Var}(cX)=c^2\\operatorname{Var}(X)'}</Tex>；<Tex>{'X,Y'}</Tex> 獨立時{' '}
           <Tex>{'\\operatorname{Var}(X+Y)=\\operatorname{Var}(X)+\\operatorname{Var}(Y)'}</Tex>（交叉項 <Tex>{'2E\\big[(X-E[X])(Y-E[Y])\\big]=2\\big(E[XY]-E[X]E[Y]\\big)'}</Tex>{' '}
           因獨立（其實只要不相關）而為 0）。
@@ -233,11 +231,9 @@ export function NoiseAverageSection() {
       <Prereq title={String.raw`高斯分布（Gaussian）、$\Phi$、CLT 與四次矩 $E[x^4]=3\sigma^4$`}>
         <p>
           <strong>高斯（常態）分布</strong> <Tex>{'x\\sim\\mathcal N(0,\\sigma^2)'}</Tex> 的密度是{' '}
-          <Tex>{'f(x)=\\frac{1}{\\sqrt{2\\pi}\\sigma}e^{-x^2/(2\\sigma^2)}'}</Tex>，鐘形、對稱、平均 0、變異數 <Tex>{'\\sigma^2'}</Tex>。
-          很多微小獨立干擾加總後都近似高斯（中央極限定理 CLT：<Tex>{'N'}</Tex> 筆 iid 的和，減去平均、除以標準差後，分布趨近{' '}
+          <Tex>{'f(x)=\\frac{1}{\\sqrt{2\\pi}\\sigma}e^{-x^2/(2\\sigma^2)}'}</Tex>，鐘形、對稱、平均 0、變異數 <Tex>{'\\sigma^2'}</Tex>。很多微小獨立干擾加總後都近似高斯（中央極限定理 CLT：<Tex>{'N'}</Tex> 筆 iid 的和，減去平均、除以標準差後，分布趨近{' '}
           <Tex>{'\\mathcal N(0,1)'}</Tex>）。它的累積分布函數（CDF）記為{' '}
-          <Tex>{'\\Phi(z)=P(Z\\le z)=\\int_{-\\infty}^{z}\\tfrac{1}{\\sqrt{2\\pi}}e^{-t^2/2}\\,dt'}</Tex>（§0.9 會用到；沒有初等函數的封閉式，用數值計算）。
-          下面用到它的四次矩，以 <Tex>{'\\sigma=1'}</Tex> 為例（用分部積分）：
+          <Tex>{'\\Phi(z)=P(Z\\le z)=\\int_{-\\infty}^{z}\\tfrac{1}{\\sqrt{2\\pi}}e^{-t^2/2}\\,dt'}</Tex>（§0.9 會用到；沒有初等函數的封閉式，用數值計算）。下面用到它的四次矩，以 <Tex>{'\\sigma=1'}</Tex> 為例（用分部積分）：
         </p>
         <StepDerivation
           steps={[
@@ -386,8 +382,7 @@ export function NoiseAverageSection() {
         LMS 一邊學一邊平均：<Tex>{'w'}</Tex> 最後會抖多大？
       </h3>
       <p>
-        LMS 不會先平均再更新，而是每一筆都只更新一點點——<Tex>{'\\mu'}</Tex> 越小，等效上平均越多筆。固定 <Tex>{'x'}</Tex>、雜訊為 iid（每一筆互相獨立、分布相同）時，<Tex>{'w'}</Tex> 收斂後的抖動有精確公式。
-        先看雜訊是從哪裡灌進迴圈的：
+        LMS 不會先平均再更新，而是每一筆都只更新一點點——<Tex>{'\\mu'}</Tex> 越小，等效上平均越多筆。固定 <Tex>{'x'}</Tex>、雜訊為 iid（每一筆互相獨立、分布相同）時，<Tex>{'w'}</Tex> 收斂後的抖動有精確公式。先看雜訊是從哪裡灌進迴圈的：
       </p>
       <ChapterDiagram name="CHART_STEADY_STATE_NOISE">
         <p>

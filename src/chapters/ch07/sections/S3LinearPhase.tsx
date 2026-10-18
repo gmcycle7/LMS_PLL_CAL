@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import { Callout, ClaimTag, Mermaid, ModeGate, Plot, Prereq, Section, SourceTag, Tex, TexBlock } from '@/components'
 import { cAbs, cArg } from '@/simulation/core'
 import { freqz } from '@/simulation/signal'
@@ -155,9 +155,7 @@ export function S3LinearPhase() {
           Z 轉換把序列寫成冪級數：<Tex>{r`X(z)=\sum_n x[n]\,z^{-n}`}</Tex>（<Tex>{'z'}</Tex> 是複數變數）。延遲一個 sample 的序列
           <Tex>{r`x[n-1]`}</Tex> 的 Z 轉換是 <Tex>{r`\sum_n x[n-1]z^{-n}=z^{-1}\sum_m x[m]z^{-m}=z^{-1}X(z)`}</Tex>，所以在方塊圖裡
           <Tex>{r`z^{-1}`}</Tex> 就是一個 register，<Tex>{r`z^{-D}`}</Tex> 是 <Tex>{'D'}</Tex> 級 shift register。濾波器寫成
-          <Tex>{r`H(z)=B(z^{-1})/A(z^{-1})`}</Tex>（例如本章的 <Tex>{r`\hat H_2(z)=(1-z^{-1})^2`}</Tex> 就是 <Tex>{r`x[n]-2x[n-1]+x[n-2]`}</Tex>）。
-          把 <Tex>{r`z=e^{j\Omega}`}</Tex>（單位圓上的點）代入就得到頻率響應 <Tex>{r`H(e^{j\Omega})`}</Tex>，也就是 DTFT。
-          使 <Tex>{r`A(z^{-1})=0`}</Tex> 的 <Tex>{'z'}</Tex> 是 pole；所有 pole 都在單位圓內（<Tex>{r`|z|<1`}</Tex>），濾波器才穩定。
+          <Tex>{r`H(z)=B(z^{-1})/A(z^{-1})`}</Tex>（例如本章的 <Tex>{r`\hat H_2(z)=(1-z^{-1})^2`}</Tex> 就是 <Tex>{r`x[n]-2x[n-1]+x[n-2]`}</Tex>）。把 <Tex>{r`z=e^{j\Omega}`}</Tex>（單位圓上的點）代入就得到頻率響應 <Tex>{r`H(e^{j\Omega})`}</Tex>，也就是 DTFT。使 <Tex>{r`A(z^{-1})=0`}</Tex> 的 <Tex>{'z'}</Tex> 是 pole；所有 pole 都在單位圓內（<Tex>{r`|z|<1`}</Tex>），濾波器才穩定。
         </p>
       </Prereq>
       <FoldSteps
@@ -183,14 +181,12 @@ export function S3LinearPhase() {
         result={r`z^{-D}\;\longleftrightarrow\;e^{-j\Omega D}:\ |\cdot|=1,\quad\angle=-\Omega D`}
       />
       <p>
-        延遲不改變振幅，只加上一個<strong>與頻率成正比</strong>的相位 <Tex>{r`-\Omega D`}</Tex>（線性相位，linear phase；斜率 <Tex>{'-D'}</Tex> 就是 group delay）。
-        要讓<strong>每一個</strong>被激勵的頻率都對齊，需要
+        延遲不改變振幅，只加上一個<strong>與頻率成正比</strong>的相位 <Tex>{r`-\Omega D`}</Tex>（線性相位，linear phase；斜率 <Tex>{'-D'}</Tex> 就是 group delay）。要讓<strong>每一個</strong>被激勵的頻率都對齊，需要
       </p>
       <TexBlock>{r`\theta(\Omega)=\phi(\Omega)+\Omega D\equiv0\pmod{2\pi}\quad\text{對所有被激勵的 }\Omega\quad\Longleftrightarrow\quad\phi(\Omega)=-\Omega D\pmod{2\pi}`}</TexBlock>
       <p>
         也就是說，<strong>誤差路徑本身必須是一個純延遲</strong>。PLL 的 <Tex>{r`H_{\mathrm{PD}}`}</Tex> 不是：Type-II 迴路在低頻相位接近
-        <Tex>{r`180^\circ`}</Tex>（<Tex>{r`H_{\mathrm{PD}}\approx-(\Omega/\omega_nT_s)^2`}</Tex>），在高頻趨近 <Tex>{r`0^\circ`}</Tex>，中間是一條彎曲的相位曲線，
-        不可能用一條直線 <Tex>{r`-\Omega D`}</Tex> 抵消。 <ClaimTag kind="exact" />
+        <Tex>{r`180^\circ`}</Tex>（<Tex>{r`H_{\mathrm{PD}}\approx-(\Omega/\omega_nT_s)^2`}</Tex>），在高頻趨近 <Tex>{r`0^\circ`}</Tex>，中間是一條彎曲的相位曲線，不可能用一條直線 <Tex>{r`-\Omega D`}</Tex> 抵消。 <ClaimTag kind="exact" />
       </p>
       <p className="small muted">
         這裡與後面會用到的三個 PLL 參數：<Tex>{r`\omega_nT_s`}</Tex> 是主迴路的自然頻率（natural frequency）換算成每個 sample 轉幾 rad（大約是迴路頻寬的位置）；
@@ -251,8 +247,7 @@ export function S3LinearPhase() {
         Type-II PLL 的例子：要對齊一個低頻 tone，需要 <Tex>{r`D\approx119`}</Tex>
       </h3>
       <p>
-        用 E44 的離散時間 Type-II DPLL（<Tex>{r`\omega_nT_s=0.1`}</Tex>、<Tex>{r`\zeta=0.7`}</Tex>、<Tex>{'d=0'}</Tex>），
-        code tone 在 <Tex>{r`\Omega=0.03=0.3\,\omega_nT_s`}</Tex>：
+        用 E44 的離散時間 Type-II DPLL（<Tex>{r`\omega_nT_s=0.1`}</Tex>、<Tex>{r`\zeta=0.7`}</Tex>、<Tex>{'d=0'}</Tex>），code tone 在 <Tex>{r`\Omega=0.03=0.3\,\omega_nT_s`}</Tex>：
         <Tex>{r`\angle H_{\mathrm{PD}}=${tx(t2.phaseDeg, 3)}^\circ`}</Tex>、<Tex>{r`|H_{\mathrm{PD}}|=${tx(t2.mag, 4)}`}</Tex>。{' '}
         <ErratumNote id="E44">
           規格 §6.1 的 <Tex>{r`155.2^\circ`}</Tex> 是連續時間原型的值；DT 迴路在此為 <Tex>{r`${tx(t2.phaseDeg, 3)}^\circ`}</Tex>。
@@ -278,8 +273,7 @@ export function S3LinearPhase() {
         }
       />
       <p>
-        要 119 級的 code FIFO 才能對齊<strong>一個</strong>頻率；PLL 頻寬或 FCW 一變，<Tex>{'D'}</Tex> 就要重找。這就是規格說的
-        「同一 Delay 對別的頻率不一定有效」。 <SourceTag />
+        要 119 級的 code FIFO 才能對齊<strong>一個</strong>頻率；PLL 頻寬或 FCW 一變，<Tex>{'D'}</Tex> 就要重找。這就是規格說的「同一 Delay 對別的頻率不一定有效」。 <SourceTag />
       </p>
       <Hand id="HC-07.3">
         預設值就是上面的 Type-II 例子（答案 <Tex>{r`D^\star\approx119.04`}</Tex>、<Tex>{`D=${t2.best.D}`}</Tex>）。換成你自己的 <Tex>{r`\phi`}</Tex> 與
@@ -387,8 +381,7 @@ export function S3LinearPhase() {
       <Prereq title="功率譜密度（PSD）與自相關（autocorrelation）">
         <p>
           隨機（但統計性質不隨時間改變，wide-sense stationary）的 code 可以想成「無限多個頻率、每個頻率分到一點功率」。
-          <strong>自相關</strong> <Tex>{r`R_x[m]=E\big[x[n]\,x[n+m]\big]`}</Tex> 描述「相隔 <Tex>{'m'}</Tex> 個 sample 的兩個值有多像」；
-          它的 DTFT 就是 <strong>PSD</strong>（power spectral density）：
+          <strong>自相關</strong> <Tex>{r`R_x[m]=E\big[x[n]\,x[n+m]\big]`}</Tex> 描述「相隔 <Tex>{'m'}</Tex> 個 sample 的兩個值有多像」；它的 DTFT 就是 <strong>PSD</strong>（power spectral density）：
         </p>
         <TexBlock>{r`S_{xx}(e^{j\Omega})=\sum_m R_x[m]\,e^{-j\Omega m},\qquad R_x[m]=\frac1{2\pi}\int_{-\pi}^{\pi}S_{xx}(e^{j\Omega})\,e^{j\Omega m}\,d\Omega`}</TexBlock>
         <p>
@@ -496,20 +489,16 @@ export function S3LinearPhase() {
         <Callout kind="info" title="讀圖">
           <p>
             寬頻 code 的 <Tex>{r`R_x[m]`}</Tex> 隨 <Tex>{'m'}</Tex> 衰減，延遲通常只把 code 和 <Tex>{'u'}</Tex>「錯開」，相關變小甚至變號
-            {wide.stats.every((st) => st.cMin < 0) ? '（表中三種 code 的最小值都是負的）' : ''}。
-            Type-II 的 <Tex>{r`h_{\mathrm{PD}}[0]=1`}</Tex>（迴路至少延遲一拍才反應，所以誤差的第一個 sample 原封不動到達 PD；E44），白色 code 的 <Tex>{r`C_D=h_{\mathrm{PD}}[D]`}</Tex>：
+            {wide.stats.every((st) => st.cMin < 0) ? '（表中三種 code 的最小值都是負的）' : ''}。Type-II 的 <Tex>{r`h_{\mathrm{PD}}[0]=1`}</Tex>（迴路至少延遲一拍才反應，所以誤差的第一個 sample 原封不動到達 PD；E44），白色 code 的 <Tex>{r`C_D=h_{\mathrm{PD}}[D]`}</Tex>：
             <Tex>{r`C_0=${tx(wide.white0, 4)}`}</Tex>、<Tex>{r`C_1=${tx(wide.white1, 4)}`}</Tex>，最大值在 <Tex>{`D=${wide.whiteBest}`}</Tex>。
-            <Tex>{r`\rho_x\to1`}</Tex> 時 code 能量擠到 DC 附近、越來越像單一低頻 tone，才會在某個大 <Tex>{'D'}</Tex> 得到比 <Tex>{'C_0'}</Tex> 大的值
-            （<Tex>{r`\rho_x=${wide.stats[2].rho}`}</Tex>：<Tex>{`D=${wide.stats[2].bestD}`}</Tex>）——但那個 <Tex>{'D'}</Tex> 由 code 頻譜決定，
-            而且最佳 delayed-x 的正規化相關 <Tex>{r`\rho=C_D/\sqrt{E[x^2]E[u^2]}`}</Tex> 依序只有{' '}
+            <Tex>{r`\rho_x\to1`}</Tex> 時 code 能量擠到 DC 附近、越來越像單一低頻 tone，才會在某個大 <Tex>{'D'}</Tex> 得到比 <Tex>{'C_0'}</Tex> 大的值（<Tex>{r`\rho_x=${wide.stats[2].rho}`}</Tex>：<Tex>{`D=${wide.stats[2].bestD}`}</Tex>）——但那個 <Tex>{'D'}</Tex> 由 code 頻譜決定，而且最佳 delayed-x 的正規化相關 <Tex>{r`\rho=C_D/\sqrt{E[x^2]E[u^2]}`}</Tex> 依序只有{' '}
             {wide.stats.map((st, i) => (
               <span key={st.rho}>
                 {i > 0 ? '、' : ''}
                 <Tex>{tx(st.cBest / Math.sqrt(st.eu2), 3)}</Tex>
               </span>
             ))}
-            ，都小於 filtered-x 的 1（7.4 節），code 越低頻差距越大（Type-II 把低頻 code 大幅衰減，又把它的相位轉到接近 <Tex>{r`180^\circ`}</Tex>）。
-            Delay alignment 只對<strong>窄頻</strong> code 有意義。<ClaimTag kind="exact" />
+            ，都小於 filtered-x 的 1（7.4 節），code 越低頻差距越大（Type-II 把低頻 code 大幅衰減，又把它的相位轉到接近 <Tex>{r`180^\circ`}</Tex>）。Delay alignment 只對<strong>窄頻</strong> code 有意義。<ClaimTag kind="exact" />
           </p>
         </Callout>
       </ModeGate>

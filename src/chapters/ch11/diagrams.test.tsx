@@ -4,7 +4,7 @@ import { render, waitFor } from '@testing-library/react'
 import mermaid from 'mermaid'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
-import { renderTex, stripMathDelimiters, systemMapModel, SYSTEM_BLOCK_LABEL } from '@/components'
+import { accessibleText, renderTex, stripMathDelimiters, systemMapModel, SYSTEM_BLOCK_LABEL } from '@/components'
 import { mermaidMathDelimiters, sanitizeMermaidSource } from '@/components/mermaidSource'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import {
@@ -1196,7 +1196,7 @@ describe('Ch11 方塊圖：頁面元件（真正的 mermaid）', () => {
     // 圖裡面的標籤也是 KaTeX（不是 `$…$` 原文）
     expect(box.querySelectorAll('.c-mermaid-svg .katex').length).toBeGreaterThanOrEqual(15)
     expect(box.querySelector('.c-mermaid-svg')?.textContent ?? '').not.toContain('$')
-    expect(box.querySelector('figure')?.getAttribute('aria-label')).toBe(`${figLabel('dc-null')}：三種主迴路架構：\\varphi 由誰決定`)
+    expect(box.querySelector('figure')?.getAttribute('aria-label')).toBe(`${figLabel('dc-null')}：三種主迴路架構：phi 由誰決定`) // aria-label 是 accessibleText 之後的可念文字（\varphi → phi）
     const cap = box.querySelector('.ch11-figcap') as HTMLElement
     expect(cap.textContent).toContain(figLabel('dc-null'))
     expect(cap.querySelectorAll('.katex').length).toBeGreaterThanOrEqual(4)
@@ -1212,7 +1212,7 @@ describe('Ch11 方塊圖：頁面元件（真正的 mermaid）', () => {
     const map = figures[0]
     expect(map.getAttribute('aria-label')).toContain('系統方塊圖')
     // aria-label 是純文字：方塊名稱裡的 `$…$` 只去掉分隔符號
-    for (const b of SYSTEM_MAP_FOCUS) expect(map.getAttribute('aria-label')).toContain(stripMathDelimiters(SYSTEM_BLOCK_LABEL[b]))
+    for (const b of SYSTEM_MAP_FOCUS) expect(map.getAttribute('aria-label')).toContain(accessibleText(SYSTEM_BLOCK_LABEL[b]))
     const question = container.querySelector('.c-callout') as HTMLElement
     expect(question.textContent).toContain('這一課要回答的問題')
     expect(question.nextElementSibling).toBe(map)

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import {
   Callout,
   ClaimTag,
@@ -110,8 +110,7 @@ export function StochasticSection() {
         caption="方法 C 的方塊圖。和方法 B 比：計數器與固定 pattern 換成了藍色的亂數產生器與比較器，其餘相同；一樣沒有回授線。"
       />
       <p className="small ch13-figwalk">
-        先看藍色兩塊：亂數產生器每次吐出一個均勻落在 0 到 1 之間的數（圖上的 rand，程式碼的 <code>c.rand()</code>），比 <Tex>{'p'}</Tex> 小就進位。再看下半部：圖上的 <Tex>{'X[n]'}</Tex> 是「這一拍有沒有進位」的 0 / 1 隨機變數（Bernoulli，下面的先備知識），
-        輸出 <Tex>{String.raw`y[n]=32+X[n]`}</Tex>；圖上最後一格的 <Tex>{String.raw`E[y]`}</Tex> 與 <Tex>{String.raw`\mathrm{Var}(y)`}</Tex> 就是下面要手算的兩個動差（公式 F-13.6）。
+        先看藍色兩塊：亂數產生器每次吐出一個均勻落在 0 到 1 之間的數（圖上的 rand，程式碼的 <code>c.rand()</code>），比 <Tex>{'p'}</Tex> 小就進位。再看下半部：圖上的 <Tex>{'X[n]'}</Tex> 是「這一拍有沒有進位」的 0 / 1 隨機變數（Bernoulli，下面的先備知識），輸出 <Tex>{String.raw`y[n]=32+X[n]`}</Tex>；圖上最後一格的 <Tex>{String.raw`E[y]`}</Tex> 與 <Tex>{String.raw`\mathrm{Var}(y)`}</Tex> 就是下面要手算的兩個動差（公式 F-13.6）。
       </p>
       <Prereq title="期望值、變異數與 Bernoulli 隨機變數">
         <p>
@@ -145,8 +144,7 @@ export function StochasticSection() {
         公式最後一項的 <Tex>{String.raw`S_e^{(1)}(f)`}</Tex> 是 code 誤差 <Tex>{'e'}</Tex> 的 one-sided PSD（功率頻譜密度：每 Hz 有多少功率，單位 <Tex>{String.raw`\mathrm{LSB}^2/\mathrm{Hz}`}</Tex>；下面的先備知識會解釋）。
       </p>
       <p>
-        <ClaimTag kind="exact" /> 注意：<strong>總誤差功率 <Tex>{String.raw`${fx(m.variance, 2)}\,\mathrm{LSB}^2`}</Tex> 與 toggle 完全相同</strong>（任何只用 32/33、平均 32.4 的方案都是 <Tex>{String.raw`p(1-p)`}</Tex>）。差別只在頻譜：toggle 的
-        功率集中在兩條譜線；stochastic 的功率平均攤在 0 到 <Tex>{String.raw`f_u/2`}</Tex> 的所有頻率（白雜訊）。
+        <ClaimTag kind="exact" /> 注意：<strong>總誤差功率 <Tex>{String.raw`${fx(m.variance, 2)}\,\mathrm{LSB}^2`}</Tex> 與 toggle 完全相同</strong>（任何只用 32/33、平均 32.4 的方案都是 <Tex>{String.raw`p(1-p)`}</Tex>）。差別只在頻譜：toggle 的功率集中在兩條譜線；stochastic 的功率平均攤在 0 到 <Tex>{String.raw`f_u/2`}</Tex> 的所有頻率（白雜訊）。
       </p>
       <Hand id="HC-13.4">
         把 <Tex>{'w^*'}</Tex> 換成 32.25 或 32.5，先自己算 <Tex>{'p(1-p)'}</Tex> 與它的根號，再算「平均 <Tex>{'N'}</Tex> 次之後還剩多少誤差」——<Tex>{'p=0.5'}</Tex> 時 code noise 最大。
@@ -154,9 +152,7 @@ export function StochasticSection() {
 
       <Prereq title="功率頻譜密度（PSD）與白雜訊">
         <p>
-          PSD <Tex>{'S(f)'}</Tex> 告訴你「每 Hz 有多少功率」，單位是 <Tex>{String.raw`(\text{訊號單位})^2/\mathrm{Hz}`}</Tex>，本章為 <Tex>{String.raw`\mathrm{LSB}^2/\mathrm{Hz}`}</Tex>。把 PSD 在一段頻率上積分，就得到那段頻率的功率；
-          從 0 積到 <Tex>{'f_u/2'}</Tex> 就是總功率（one-sided 約定，dev-conventions §5）。<strong>白雜訊</strong>的 PSD 是常數：每個頻率的功率一樣多。
-          譜線（週期訊號）在 PSD 圖上會變成高度與視窗 ENBW 有關的尖峰，所以線功率要用 <Tex>{String.raw`\sum_{\text{lobe}}S\,\Delta f`}</Tex> 或精確 DFT 量（規格 §15.5）。
+          PSD <Tex>{'S(f)'}</Tex> 告訴你「每 Hz 有多少功率」，單位是 <Tex>{String.raw`(\text{訊號單位})^2/\mathrm{Hz}`}</Tex>，本章為 <Tex>{String.raw`\mathrm{LSB}^2/\mathrm{Hz}`}</Tex>。把 PSD 在一段頻率上積分，就得到那段頻率的功率；從 0 積到 <Tex>{'f_u/2'}</Tex> 就是總功率（one-sided 約定，dev-conventions §5）。<strong>白雜訊</strong>的 PSD 是常數：每個頻率的功率一樣多。譜線（週期訊號）在 PSD 圖上會變成高度與視窗 ENBW 有關的尖峰，所以線功率要用 <Tex>{String.raw`\sum_{\text{lobe}}S\,\Delta f`}</Tex> 或精確 DFT 量（規格 §15.5）。
         </p>
         <p>
           <strong>自相關（autocorrelation）</strong> <Tex>{String.raw`R_e[\ell]=E\big[e[n]\,e[n+\ell]\big]`}</Tex>：同一個訊號相隔 <Tex>{String.raw`\ell`}</Tex> 個 sample 的相關程度。PSD 就是它的 DTFT（Wiener–Khinchin）：
@@ -236,8 +232,7 @@ export function StochasticSection() {
 
       <Callout kind="warn" title="規格的 PRBS 警告：有限長度的「隨機」其實是週期的">
         <p>
-          硬體常用 N-bit LFSR（PRBS）代替真亂數。PRBS 每 <Tex>{'2^N-1'}</Tex> 個字重複一次，所以 code 誤差變成週期 <Tex>{'2^N-1'}</Tex> 的序列，
-          在 <Tex>{String.raw`k\,f_u/(2^N-1)`}</Tex> 出現細密的<strong>譜線</strong>；而且 LFSR 不會產生 0，所以亂數 <Tex>{'u'}</Tex>（方塊圖上的 rand，均勻落在 <Tex>{'[0,1)'}</Tex>）比 <Tex>{'p'}</Tex> 小的機率 <Tex>{String.raw`P(u<p)`}</Tex> 也不剛好等於 <Tex>{'p'}</Tex>：
+          硬體常用 N-bit LFSR（PRBS）代替真亂數。PRBS 每 <Tex>{'2^N-1'}</Tex> 個字重複一次，所以 code 誤差變成週期 <Tex>{'2^N-1'}</Tex> 的序列，在 <Tex>{String.raw`k\,f_u/(2^N-1)`}</Tex> 出現細密的<strong>譜線</strong>；而且 LFSR 不會產生 0，所以亂數 <Tex>{'u'}</Tex>（方塊圖上的 rand，均勻落在 <Tex>{'[0,1)'}</Tex>）比 <Tex>{'p'}</Tex> 小的機率 <Tex>{String.raw`P(u<p)`}</Tex> 也不剛好等於 <Tex>{'p'}</Tex>：
         </p>
         <div className="table-wrap">
           <table className="ch13-table" aria-label="PRBS 長度 N 對應的週期、輸出 33 的精確機率、平均偏差與譜線間距">

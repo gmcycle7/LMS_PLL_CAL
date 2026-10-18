@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Plot, Prereq, Section, StepDerivation, Tex, TexBlock, TestBadge, useThemeTokens } from '@/components'
 import biasSrc from '@/simulation/models/bias.ts?raw'
 import {

@@ -62,8 +62,7 @@ export default function Chapter06() {
       />
       <p className="ch06-map-note">
         <strong>你在這裡：</strong>最上面那條泳道的藍色方塊分成兩部分：reference 輸入端的 DTC，和它後面那一圈主 PLL 迴路（phase detector → loop filter → VCO → divider
-        → 回到 phase detector；回授路徑上只有 divider）。DTC 沒補乾淨的時間誤差從 PD 的 reference 輸入端進來，迴路就開始追、開始修。
-        下面兩個藍色方塊（1-bit comparator、GMAC）則是校正迴路裡「拿誤差的正負號去和原始 code <Tex>{'x[n]'}</Tex> 做相關」的部分；comparator 取的是 PD 的輸出——圖上那一對同名的標籤{' '}
+        → 回到 phase detector；回授路徑上只有 divider）。DTC 沒補乾淨的時間誤差從 PD 的 reference 輸入端進來，迴路就開始追、開始修。下面兩個藍色方塊（1-bit comparator、GMAC）則是校正迴路裡「拿誤差的正負號去和原始 code <Tex>{'x[n]'}</Tex> 做相關」的部分；comparator 取的是 PD 的輸出——圖上那一對同名的標籤{' '}
         <Tex>{'e[n]'}</Tex>，也就是送進 loop filter 的同一個訊號（本章記作 <Tex>{'e_{\\mathrm{PD}}[n]'}</Tex>；地圖上另外畫進 comparator 的雜訊{' '}
         <Tex>{'v[n]'}</Tex>，從 §2 的 F-06.1 起也併進 <Tex>{'e_{\\mathrm{PD}}'}</Tex> 裡）。前幾章把「DTC 的誤差」和「PD 的輸出」當成同一個東西；
         <strong>這一章補上兩者之間被省略的方塊</strong>——主 PLL 對 DTC 誤差的轉移函數 <Tex>{'H_{\\mathrm{PD}}=1/(1+L)'}</Tex>（從 PD 的 reference 輸入到 PD 的輸出；<Tex>{'L'}</Tex>{' '}
@@ -83,8 +82,7 @@ export default function Chapter06() {
         <p>
           <strong>帶入手算（{HANDCALCS.length} 題）</strong>
           ：每個重要公式後面都有一題，可以換成你自己的數字、先用紙筆和計算機算，再逐步對答案；也可以切到「自己算算看」或按「換一題」。全站題目彙整在{' '}
-          <Link to="/workbook">手算練習簿</Link>。步驟裡的中間值顯示 6 位有效數字，比答案框的 5 位多留一位「保護位數」：手算時也請把中間值多留一位，
-          最後一步再四捨五入，答案才不會因為連續捨入而差在最後一兩位。兩個很接近的數相減時前幾位會互相抵消（例如 HC-06.7 的{' '}
+          <Link to="/workbook">手算練習簿</Link>。步驟裡的中間值顯示 6 位有效數字，比答案框的 5 位多留一位「保護位數」：手算時也請把中間值多留一位，最後一步再四捨五入，答案才不會因為連續捨入而差在最後一兩位。兩個很接近的數相減時前幾位會互相抵消（例如 HC-06.7 的{' '}
           <Tex>{'C_1+C_2'}</Tex>），那幾步會自動多顯示幾位；每一步畫面上的數字照按計算機，都算得出下一個等號。
         </p>
         <ol>

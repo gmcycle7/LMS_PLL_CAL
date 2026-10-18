@@ -21,7 +21,7 @@ const P = vi.hoisted(() => ({
   Plots: { resize: vi.fn() },
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
-vi.mock('plotly.js-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
 vi.mock('mermaid', () => ({ default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: '<svg></svg>' })) } }))
 // <Plot> 把圖內文字交給 applyPlotMath 轉成斜體符號與上下標：這裡記下轉換前的 data／layout，檢查作者寫的是 `$...$` LaTeX。
 // 只在 PM.on 時記錄，而且每渲染完一個目標就取出字串、清空陣列（data 裡有幾千點的陣列，不要一直留著）。

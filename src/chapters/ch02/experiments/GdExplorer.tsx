@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import { ExperimentShell, ParamControl, Plot, SelectControl, Tex, useThemeTokens, type MetricRow } from '@/components'
 import { presetsForExperiment, useUrlPreset } from '@/app/presets'
 import { gradientDescent } from '@/simulation/models/sgd'

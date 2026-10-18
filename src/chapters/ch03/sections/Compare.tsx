@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Plot, Section, Tex, TexBlock, useThemeTokens, ChRef } from '@/components'
 import lmsSrc from '@/simulation/models/lms.ts?raw'
 import stabilitySrc from '@/simulation/models/scalarStability.ts?raw'
@@ -136,8 +136,7 @@ export function CompareSection() {
       <Section kind="diagram" title="比較表">
         <SummaryTable />
         <p>
-          規格 §0.1 的要求：<strong>不得寫「LMS 一定穩定」</strong>，必須說明是平均收斂、均方穩定、還是樣本路徑（機率 1）收斂。三者都是 <strong>[精確｜指定模型]</strong>——
-          模型是「iid 純量 <Tex>x</Tex>、無量化、量測雜訊零均值且與 <Tex>x</Tex> 獨立」；超出這個模型（相關 regressor、1-bit comparator、更新延遲、PLL 動態）就要回到各自的章節重新推導。
+          規格 §0.1 的要求：<strong>不得寫「LMS 一定穩定」</strong>，必須說明是平均收斂、均方穩定、還是樣本路徑（機率 1）收斂。三者都是 <strong>[精確｜指定模型]</strong>——模型是「iid 純量 <Tex>x</Tex>、無量化、量測雜訊零均值且與 <Tex>x</Tex> 獨立」；超出這個模型（相關 regressor、1-bit comparator、更新延遲、PLL 動態）就要回到各自的章節重新推導。
         </p>
         <p>實際設計時該看哪一個？照下圖由上往下問：</p>
         <Fig
@@ -206,8 +205,7 @@ export function CompareSection() {
       <h2 id="pll">8｜連到 PLL：code 分布、GMAC 累加與 sign-off 用語</h2>
       <Section kind="diagram" title="本章的符號在硬體裡是什麼">
         <p>
-          前七節的黑盒子 <Tex>{T`y=ax`}</Tex> 在 DTC-based fractional-N PLL 裡是什麼？把章首系統地圖裡和本章有關的方塊拉出來，並把本章「拿掉」的部分標成褐色，就是下面這張圖。接法和系統地圖相同：DTC 在 reference 的輸入端
-          （reference clock → DTC → PD），回授路徑上只有 divider／PMUX，而 LMS 校正迴路的輸入是 PD 的輸出：
+          前七節的黑盒子 <Tex>{T`y=ax`}</Tex> 在 DTC-based fractional-N PLL 裡是什麼？把章首系統地圖裡和本章有關的方塊拉出來，並把本章「拿掉」的部分標成褐色，就是下面這張圖。接法和系統地圖相同：DTC 在 reference 的輸入端（reference clock → DTC → PD），回授路徑上只有 divider／PMUX，而 LMS 校正迴路的輸入是 PD 的輸出：
         </p>
         <Fig
           chart={CHART_PLL_MAPPING}
@@ -217,8 +215,7 @@ export function CompareSection() {
         <p>
           先看最上面的藍色方塊：同一個 code <Tex>{T`x[i]`}</Tex>（<Tex>i</Tex> 是 sample 索引）走兩條路。左邊那條長線一路往下，通到 divider／PMUX（回授路徑）：DSM 的 carry 控制除數，但除數只能是整數，留下來的餘數讓
           feedback edge 比理想時刻<strong>早到</strong> <Tex>{T`a\,x[i]`}</Tex>，<Tex>a</Tex> 就是能把它完全抵消的理想校正 gain（未知）。右邊那條先經過 gain correction 乘上校正值{' '}
-          <Tex>{T`w[k]`}</Tex>（<Tex>k</Tex> 是 block 索引，block 內 <Tex>w</Tex> 不變），再去控制 <strong>reference 端</strong>的 DTC：reference clock 先經過 DTC 才進 PD。DTC 只能延遲、不能提前，
-          所以它從一個固定的基準延遲 <Tex>{T`T_0`}</Tex> 往回扣，<Tex>{T`\tau_{\text{DTC}}=T_0-w[k]\,x[i]`}</Tex>（數位端送進 DTC 的 code 是 <Tex>{T`C_0-w[k]\,x[i]`}</Tex>，<Tex>{T`C_0`}</Tex>{' '}
+          <Tex>{T`w[k]`}</Tex>（<Tex>k</Tex> 是 block 索引，block 內 <Tex>w</Tex> 不變），再去控制 <strong>reference 端</strong>的 DTC：reference clock 先經過 DTC 才進 PD。DTC 只能延遲、不能提前，所以它從一個固定的基準延遲 <Tex>{T`T_0`}</Tex> 往回扣，<Tex>{T`\tau_{\text{DTC}}=T_0-w[k]\,x[i]`}</Tex>（數位端送進 DTC 的 code 是 <Tex>{T`C_0-w[k]\,x[i]`}</Tex>，<Tex>{T`C_0`}</Tex>{' '}
           是固定的中心值）。被扣掉的 <Tex>{T`w[k]\,x[i]`}</Tex> 就是 DTC 的<strong>補償量</strong>：reference edge 被提前（少延遲）的時間。
         </p>
         <p>
@@ -228,9 +225,7 @@ export function CompareSection() {
           還是太晚，<Tex>e</Tex> 為正。<Tex>{T`T_0`}</Tex> 是常數，被 PLL 當成靜態相位偏移吸收，不影響任何會動的量，所以本章的數學一個字都不用改。
         </p>
         <p>
-          再看 PD 的輸出：<Tex>{T`e[i]`}</Tex> 分成兩路。往左下那一路進 loop filter 與 VCO／DCO，VCO 的輸出再經 divider 回到 PD——這一圈就是 PLL 的主迴路（本章不展開），回授路徑上只有 divider，沒有 DTC。
-          往右下那一路就是 <strong>LMS 校正迴路的輸入</strong>——comparator 取的是 PD 的輸出 <Tex>{T`e[i]`}</Tex>，也就是送進 loop filter 的同一個訊號，不是從 DTC 或 divider 拉出來的。
-          接著看褐色那一格，它列的是本章先拿掉的東西：真實硬體裡主迴路是閉合的，feedback edge 會跟著動，所以 PD 輸出裡的不是 <Tex>{T`\delta\,x`}</Tex>，而是 <Tex>{T`\delta\,u`}</Tex>——
+          再看 PD 的輸出：<Tex>{T`e[i]`}</Tex> 分成兩路。往左下那一路進 loop filter 與 VCO／DCO，VCO 的輸出再經 divider 回到 PD——這一圈就是 PLL 的主迴路（本章不展開），回授路徑上只有 divider，沒有 DTC。往右下那一路就是 <strong>LMS 校正迴路的輸入</strong>——comparator 取的是 PD 的輸出 <Tex>{T`e[i]`}</Tex>，也就是送進 loop filter 的同一個訊號，不是從 DTC 或 divider 拉出來的。接著看褐色那一格，它列的是本章先拿掉的東西：真實硬體裡主迴路是閉合的，feedback edge 會跟著動，所以 PD 輸出裡的不是 <Tex>{T`\delta\,x`}</Tex>，而是 <Tex>{T`\delta\,u`}</Tex>——
           <Tex>{T`u=h*x`}</Tex> 是被 PLL 的 error path 濾過的 code（第 6–7 章）；<Tex>w</Tex> 的更新有延遲（<ChRef ch="08">第 8 章</ChRef>）；comparator 只留下 1 bit 的正負號（<ChRef ch="05">第 5 章</ChRef>）；accumulator 的輸出還有位元數限制（<ChRef ch="13">第 13 章</ChRef>）。本章把它們全部理想化，才得到乾淨的{' '}
           <Tex>{T`1-\mu x^2`}</Tex>。最後往下看藍色方塊：
           <Tex>{T`e[i]\,x[i]`}</Tex> 由 GMAC 累加 <Tex>N</Tex> 筆，每個 block 做一次「<Tex>{T`\div N`}</Tex>、<Tex>{T`\times\mu`}</Tex>」，加進 gain accumulator：
@@ -287,8 +282,7 @@ export function CompareSection() {
         </div>
         <p>
           對照案例頁的 subsampling PLL（8 相 PMUX + input DTC）：<strong>GOS</strong> 迴路要學的 DTC gain error 就是本章這種「單一純量 <Tex>w</Tex> 追 <Tex>a</Tex>」的問題，
-          <Tex>{T`x_n`}</Tex> 是送進 DTC 的 code；<strong>PHOS</strong>（每一相各一個 phase offset）則是多參數問題，要到第 9–10 章。本章回答的是最理想的版本——「步長多大以內會收斂、是哪一種收斂」；
-          為什麼實際迴路的 LMS 還可能<strong>變號</strong>（極性由 <Tex>{T`u=h*x`}</Tex> 與 <Tex>x</Tex> 的相關決定），見{' '}
+          <Tex>{T`x_n`}</Tex> 是送進 DTC 的 code；<strong>PHOS</strong>（每一相各一個 phase offset）則是多參數問題，要到第 9–10 章。本章回答的是最理想的版本——「步長多大以內會收斂、是哪一種收斂」；為什麼實際迴路的 LMS 還可能<strong>變號</strong>（極性由 <Tex>{T`u=h*x`}</Tex> 與 <Tex>x</Tex> 的相關決定），見{' '}
           <a href="#/case/sspll">案例：SSPLL 的 GOS / PHOS 極性</a>與第 6–7 章。
         </p>
       </Section>
@@ -306,8 +300,7 @@ export function CompareSection() {
         />
         <p>
           先看「sample rate」那一框（block 內的第 <Tex>i</Tex> 筆）：block 內 <Tex>w</Tex> 不變，所以 <Tex>{T`\delta[k]`}</Tex> 是常數；每一筆的 <Tex>{T`e[i]\,x[i]=\delta[k]\,x[i]^2`}</Tex> 送進 GMAC 累加，
-          <Tex>N</Tex> 筆加完是 <Tex>{T`\delta[k]\sum x[i]^2`}</Tex>。再看「block rate」那一框：累加結果除以 <Tex>N</Tex>、乘 <Tex>\mu</Tex>（就是系統地圖的「<Tex>{T`\div N`}</Tex>、<Tex>{T`\times\mu`}</Tex>」那一格），
-          得到 <Tex>{T`\mu\,S[k]\,\delta[k]`}</Tex>，再從 <Tex>{T`\delta[k]`}</Tex> 裡減掉——這個迴圈每個 block 才繞一圈，增益是 <Tex>{T`1-\mu S[k]`}</Tex>。圖上的 <Tex>{T`S[k]`}</Tex> 就是上式的{' '}
+          <Tex>N</Tex> 筆加完是 <Tex>{T`\delta[k]\sum x[i]^2`}</Tex>。再看「block rate」那一框：累加結果除以 <Tex>N</Tex>、乘 <Tex>\mu</Tex>（就是系統地圖的「<Tex>{T`\div N`}</Tex>、<Tex>{T`\times\mu`}</Tex>」那一格），得到 <Tex>{T`\mu\,S[k]\,\delta[k]`}</Tex>，再從 <Tex>{T`\delta[k]`}</Tex> 裡減掉——這個迴圈每個 block 才繞一圈，增益是 <Tex>{T`1-\mu S[k]`}</Tex>。圖上的 <Tex>{T`S[k]`}</Tex> 就是上式的{' '}
           <Tex>{T`S_k`}</Tex>，block rate 的迴圈就是下面推導的第 1 步；紅色那一格是後面「Sum 還是 average」的警告：少了 <Tex>{T`\div N`}</Tex>，等效步長變成 <Tex>{T`N\mu`}</Tex>。
         </p>
         <StepsBox

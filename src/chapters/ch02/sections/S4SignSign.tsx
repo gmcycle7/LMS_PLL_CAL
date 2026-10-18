@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import { Callout, ClaimTag, CodeBlock, Derivation, ModeGate, Plot, Prereq, Quiz, Section, SourceTag, StepDerivation, Tex, TexBlock, useThemeTokens, ChRef } from '@/components'
 import sgdSrc from '@/simulation/models/sgd.ts?raw'
 import { meanFieldAnalysis, meanFieldDrift, noiseOps, ratioFixedPoints, xMoments, type MeanFieldInput, type XKind } from '@/simulation/models/sgd'
@@ -78,8 +78,7 @@ export function S4SignSign() {
           <strong>它最小化的是另一個成本，收斂到另一個點。</strong>
         </p>
         <HandCalcSlot id="HC-02.4">
-          到這裡三個更新式都出現了：LMS（F-02.5）、Sign-Error（F-02.6）、Sign-Sign（F-02.7）。用同一組 <Tex>{'w,\\ x,\\ y,\\ \\mu'}</Tex> 各走一步，
-          先自己算出三個新的 <Tex>{'w'}</Tex> 再對答案——特別試試負的 <Tex>{'x'}</Tex> 和 <Tex>{'|x|\\neq1'}</Tex>，才看得出三者的差別。
+          到這裡三個更新式都出現了：LMS（F-02.5）、Sign-Error（F-02.6）、Sign-Sign（F-02.7）。用同一組 <Tex>{'w,\\ x,\\ y,\\ \\mu'}</Tex> 各走一步，先自己算出三個新的 <Tex>{'w'}</Tex> 再對答案——特別試試負的 <Tex>{'x'}</Tex> 和 <Tex>{'|x|\\neq1'}</Tex>，才看得出三者的差別。
         </HandCalcSlot>
       </Section>
 
@@ -98,13 +97,11 @@ export function S4SignSign() {
             所以「平均」只看數值的大小（一個 outlier 就能把它拉走），「中位數」只看排序（outlier 再大也只算一票）。<Tex>{'c_i\\equiv1'}</Tex> 時就是一般的平均與中位數。
           </p>
           <p>
-            先算一次（<ChRef ch="01">Ch01</ChRef> 的例子）：<Tex>{String.raw`r=\{0,\,0,\,0,\,10\}`}</Tex>、權重都是 1。平均 <Tex>{String.raw`(0+0+0+10)/4=${f4(dc.lms)}`}</Tex>；
-            中位數：比 <Tex>{'m=0'}</Tex> 大的只有 1 票、不比它大的有 3 票，所以 <Tex>{String.raw`m=${f4(dc.signSign[0])}`}</Tex>。把那個 10 換成 1000，平均變成 250，中位數還是 0。
+            先算一次（<ChRef ch="01">Ch01</ChRef> 的例子）：<Tex>{String.raw`r=\{0,\,0,\,0,\,10\}`}</Tex>、權重都是 1。平均 <Tex>{String.raw`(0+0+0+10)/4=${f4(dc.lms)}`}</Tex>；中位數：比 <Tex>{'m=0'}</Tex> 大的只有 1 票、不比它大的有 3 票，所以 <Tex>{String.raw`m=${f4(dc.signSign[0])}`}</Tex>。把那個 10 換成 1000，平均變成 250，中位數還是 0。
           </p>
         </Prereq>
         <p>
-          有了「平均」與「中位數」這兩種中心，就可以用同一張圖看懂四種演算法各自收斂到哪裡。這裡順便把 §5 才正式介紹的 NLMS（normalized LMS）也放進來：
-          它把 LMS 的更新量除以 <Tex>{'\\varepsilon+x^2'}</Tex>（<Tex>{'\\varepsilon'}</Tex> 是避免除以零的小常數，這裡先取 <Tex>{'\\varepsilon=0'}</Tex>）。
+          有了「平均」與「中位數」這兩種中心，就可以用同一張圖看懂四種演算法各自收斂到哪裡。這裡順便把 §5 才正式介紹的 NLMS（normalized LMS）也放進來：它把 LMS 的更新量除以 <Tex>{'\\varepsilon+x^2'}</Tex>（<Tex>{'\\varepsilon'}</Tex> 是避免除以零的小常數，這裡先取 <Tex>{'\\varepsilon=0'}</Tex>）。
         </p>
         <Diagram id="ratio-view">
           <p>
@@ -129,8 +126,7 @@ export function S4SignSign() {
         <p>令平均更新為零，就得到四種「加權位置估計」：</p>
         <TexBlock id="F-02.9">{String.raw`\boxed{\begin{aligned}\text{LMS: }&E[x^2(r-w)]=0&&\Rightarrow\ w^*=\frac{E[x^2r]}{E[x^2]}\ \ (x^2\text{ 加權平均})\\ \text{Sign-Error: }&E[|x|\operatorname{sign}(r-w)]=0&&\Rightarrow\ w^*=|x|\text{ 加權中位數}\\ \text{Sign-Sign: }&E[\operatorname{sign}(r-w)]=0&&\Rightarrow\ w^*=\operatorname{med}(r)\ \ (\text{不加權中位數})\\ \text{NLMS}(\varepsilon\!=\!0)\text{: }&E[r-w]=0&&\Rightarrow\ w^*=E[r]\ \ (\text{不加權平均})\end{aligned}}`}</TexBlock>
         <p>
-          <ClaimTag kind="exact" />（純量；對應的成本分別是 <Tex>{'\\tfrac12E[e^2]'}</Tex>、<Tex>{'E|e|'}</Tex>、<Tex>{'E[|e|/|x|]=E|r-w|'}</Tex>、<Tex>{'\\tfrac12E[(r-w)^2]'}</Tex>。）
-          所以 Sign-Sign 不是 Sign-Error 的近似：它把每一筆資料<strong>同權</strong>投票，而 Sign-Error 讓 <Tex>{'|x|'}</Tex> 大（資訊量大、比值 <Tex>{'r'}</Tex> 較不受雜訊影響）的樣本票數較多。
+          <ClaimTag kind="exact" />（純量；對應的成本分別是 <Tex>{'\\tfrac12E[e^2]'}</Tex>、<Tex>{'E|e|'}</Tex>、<Tex>{'E[|e|/|x|]=E|r-w|'}</Tex>、<Tex>{'\\tfrac12E[(r-w)^2]'}</Tex>。）所以 Sign-Sign 不是 Sign-Error 的近似：它把每一筆資料<strong>同權</strong>投票，而 Sign-Error 讓 <Tex>{'|x|'}</Tex> 大（資訊量大、比值 <Tex>{'r'}</Tex> 較不受雜訊影響）的樣本票數較多。
         </p>
         <p className="ch02-note">
           {tm(
@@ -208,8 +204,7 @@ export function S4SignSign() {
 
       <Section kind="formula" title={tm('固定點條件一般不同：$E[ex]=0$ vs $E[\\operatorname{sign}(e)x]=0$')}>
         <p>
-          每個演算法都會停在「平均更新量為零」的地方。三種更新量分別是 <Tex>{'e\\,x'}</Tex>、<Tex>{'\\operatorname{sign}(e)\\,x'}</Tex>、<Tex>{'\\operatorname{sign}(e)\\operatorname{sign}(x)'}</Tex>，
-          所以三個演算法其實是三個不同的<strong>相關器</strong>（correlator：把兩個訊號相乘、再取平均）：
+          每個演算法都會停在「平均更新量為零」的地方。三種更新量分別是 <Tex>{'e\\,x'}</Tex>、<Tex>{'\\operatorname{sign}(e)\\,x'}</Tex>、<Tex>{'\\operatorname{sign}(e)\\operatorname{sign}(x)'}</Tex>，所以三個演算法其實是三個不同的<strong>相關器</strong>（correlator：把兩個訊號相乘、再取平均）：
         </p>
         <Diagram id="fixed-points">
           <p>
@@ -226,8 +221,7 @@ export function S4SignSign() {
           )}
         </p>
         <p>
-          什麼時候三個固定點剛好都等於真值 <Tex>{'a'}</Tex>？最快的判斷法：直接把 <Tex>{'w=a'}</Tex> 代進平均更新方向 <Tex>{'\\psi(w)'}</Tex>（§3）。
-          結論可以先畫成一張判斷流程：
+          什麼時候三個固定點剛好都等於真值 <Tex>{'a'}</Tex>？最快的判斷法：直接把 <Tex>{'w=a'}</Tex> 代進平均更新方向 <Tex>{'\\psi(w)'}</Tex>（§3）。結論可以先畫成一張判斷流程：
         </p>
         <Diagram id="psi-at-a">
           <p>
@@ -268,9 +262,7 @@ export function S4SignSign() {
           </li>
         </ol>
         <p>
-          工程意義：<strong>零均值、對稱的 code</strong>（<Tex>{'\\pm1'}</Tex> PRBS、去掉 DC 的 DSM 殘差）讓 1-bit 校正對 comparator 的不對稱雜訊免疫；
-          而 0/1 未映射成 <Tex>{'\\pm1'}</Tex> 的 code（<Tex>{'E[x]\\neq0'}</Tex>）會失去這個保護——<ChapterLink ch="11">Ch11</ChapterLink> 的 offset bias 就是這個機制
-          （comparator offset 讓 <Tex>{'E[\\operatorname{sign}v]\\neq0'}</Tex>）。
+          工程意義：<strong>零均值、對稱的 code</strong>（<Tex>{'\\pm1'}</Tex> PRBS、去掉 DC 的 DSM 殘差）讓 1-bit 校正對 comparator 的不對稱雜訊免疫；而 0/1 未映射成 <Tex>{'\\pm1'}</Tex> 的 code（<Tex>{'E[x]\\neq0'}</Tex>）會失去這個保護——<ChapterLink ch="11">Ch11</ChapterLink> 的 offset bias 就是這個機制（comparator offset 讓 <Tex>{'E[\\operatorname{sign}v]\\neq0'}</Tex>）。
         </p>
         <p>
           反過來，雜訊的平均與中位數不同<strong>而且</strong> <Tex>{'E[x]\\neq0'}</Tex> 時，三個固定點一般不同。下表用 §3 雜訊形狀表的偏斜雜訊（中心化指數）<Tex>{'v=\\sigma_v(T-1)'}</Tex>
@@ -320,12 +312,10 @@ export function S4SignSign() {
           </table>
         </div>
         <p>
-          偏斜的指數雜訊比較抽象；量測上更常見的不對稱是<strong>單邊突波</strong>（§3 提過的 outlier：每筆以機率 <Tex>{'p_{\\rm out}'}</Tex> 在 Gaussian 雜訊上多加一個 <Tex>{'s'}</Tex>）。
-          這時 <Tex>{'E[v]=p_{\\rm out}s'}</Tex> 可以很大，中位數卻幾乎不動——同一條 F-02.18，可以直接用手算出兩個固定點各被拉走多少：
+          偏斜的指數雜訊比較抽象；量測上更常見的不對稱是<strong>單邊突波</strong>（§3 提過的 outlier：每筆以機率 <Tex>{'p_{\\rm out}'}</Tex> 在 Gaussian 雜訊上多加一個 <Tex>{'s'}</Tex>）。這時 <Tex>{'E[v]=p_{\\rm out}s'}</Tex> 可以很大，中位數卻幾乎不動——同一條 F-02.18，可以直接用手算出兩個固定點各被拉走多少：
         </p>
         <HandCalcSlot id="HC-02.6">
-          這一題要查一次標準常態表（或用提示裡的近似式）。預設數字就是 §5 主實驗的「單邊 outlier」preset；換成你自己的 <Tex>{'\\sigma_v,\\ p_{\\rm out},\\ s'}</Tex>，
-          先算 LMS 與 Sign-Error 的固定點，再對答案，並看看把 <Tex>{'s'}</Tex> 加倍時誰會動。
+          這一題要查一次標準常態表（或用提示裡的近似式）。預設數字就是 §5 主實驗的「單邊 outlier」preset；換成你自己的 <Tex>{'\\sigma_v,\\ p_{\\rm out},\\ s'}</Tex>，先算 LMS 與 Sign-Error 的固定點，再對答案，並看看把 <Tex>{'s'}</Tex> 加倍時誰會動。
         </HandCalcSlot>
       </Section>
 
@@ -350,9 +340,7 @@ export function S4SignSign() {
             <>
               <p>
                 多參數時 Sign-Error 的平均方向 <Tex>{'E[\\operatorname{sign}(e)\\mathbf x]=-\\nabla E|e|'}</Tex> 仍是凸成本的（次）梯度；但 Sign-Sign 的
-                <Tex>{'E[\\operatorname{sign}(e)\\operatorname{sign}(\\mathbf x)]'}</Tex> 的 Jacobian 一般不對稱，因此<strong>不是任何純量成本的梯度</strong>，
-                「下山」的保證消失。文獻（例如 Sethares 等人對 signed-regressor LMS 的 excitation 條件分析）指出存在讓 signed-regressor 類演算法不收斂的輸入；
-                純量情況（本章）不會發生，因為一維的任何函數都可以積分成成本 <Tex>{'E|r-w|'}</Tex>。
+                <Tex>{'E[\\operatorname{sign}(e)\\operatorname{sign}(\\mathbf x)]'}</Tex> 的 Jacobian 一般不對稱，因此<strong>不是任何純量成本的梯度</strong>，「下山」的保證消失。文獻（例如 Sethares 等人對 signed-regressor LMS 的 excitation 條件分析）指出存在讓 signed-regressor 類演算法不收斂的輸入；純量情況（本章）不會發生，因為一維的任何函數都可以積分成成本 <Tex>{'E|r-w|'}</Tex>。
               </p>
               <p className="ch02-note">本站只在純量模型中驗證 Sign-Sign；多參數 Sign-Sign 的收斂性列為研究延伸，未實作數值驗證。</p>
             </>
@@ -379,8 +367,7 @@ export function S4SignSign() {
         ]}
         answer={
           <>
-            比值 <Tex>{'r=3,\\ 3.5,\\ 2.5'}</Tex>。LMS 是 <Tex>{'x^2'}</Tex> 加權平均 <Tex>{'57/21'}</Tex>；Sign-Error 是 <Tex>{'|x|'}</Tex> 加權中位數（2.5 的權重 4 已過半）；
-            Sign-Sign 是不加權中位數 3。第四個選項的 3 是 NLMS（不加權平均）。<Tex>{'\\mu'}</Tex> 不夠小時，sign 類演算法會在答案附近以 <Tex>{'\\pm\\mu|x|'}</Tex> 跳動。
+            比值 <Tex>{'r=3,\\ 3.5,\\ 2.5'}</Tex>。LMS 是 <Tex>{'x^2'}</Tex> 加權平均 <Tex>{'57/21'}</Tex>；Sign-Error 是 <Tex>{'|x|'}</Tex> 加權中位數（2.5 的權重 4 已過半）；Sign-Sign 是不加權中位數 3。第四個選項的 3 是 NLMS（不加權平均）。<Tex>{'\\mu'}</Tex> 不夠小時，sign 類演算法會在答案附近以 <Tex>{'\\pm\\mu|x|'}</Tex> 跳動。
           </>
         }
       />

@@ -28,8 +28,7 @@ export function S8Recap() {
         </p>
         <p>
           每個乘法器的輸出取 block 平均之後，就是那一種 GMAC 的平均輸出 <Tex>{'E[G]\\approx K_q\\,\\delta\\times(\\text{相關})'}</Tex>（§3 的 F-06.2）；<Tex>{'K_q'}</Tex> 與{' '}
-          <Tex>{'\\delta'}</Tex> 三種都一樣，所以最下面三格只寫出各自的「相關」，更新方向就看它的正負。
-          圖上最下面的三格就是下表「相關」那一欄：raw-x 是本章的 <Tex>{'C=E[x\\,u]'}</Tex>；delayed-x 是 <Tex>{'C_D=E\\big[x[n-D]\\,u[n]\\big]'}</Tex>（單頻時正比於{' '}
+          <Tex>{'\\delta'}</Tex> 三種都一樣，所以最下面三格只寫出各自的「相關」，更新方向就看它的正負。圖上最下面的三格就是下表「相關」那一欄：raw-x 是本章的 <Tex>{'C=E[x\\,u]'}</Tex>；delayed-x 是 <Tex>{'C_D=E\\big[x[n-D]\\,u[n]\\big]'}</Tex>（單頻時正比於{' '}
           <Tex>{'\\cos(\\phi+\\Omega D)'}</Tex>，一個 <Tex>{'D'}</Tex> 只能對準一個頻率）；filtered-x 是 <Tex>{'E[u\\,u_f]'}</Tex>，模型準（<Tex>{'\\hat h=h'}</Tex>）時等於{' '}
           <Tex>{'E[u^2]\\ge0'}</Tex>。
         </p>
@@ -173,8 +172,7 @@ export function S8Recap() {
         ]}
         answer={
           <p>
-            白色 code 的 <Tex>{'S_{xx}=\\sigma_x^2'}</Tex> ⇒ <Tex>{'C_D=h[D]\\sigma_x^2'}</Tex>（F-06.13）。<Tex>{'L(z)'}</Tex> 嚴格因果 ⇒ <Tex>{'h[0]=1'}</Tex>，
-            所以 <Tex>{'C=\\sigma_x^2'}</Tex>，與 <Tex>{'\\zeta'}</Tex>、頻寬無關。<Tex>{fx(naive01, 5)}</Tex> 是把 <Tex>{'\\Omega'}</Tex> 錯代入 CT{' '}
+            白色 code 的 <Tex>{'S_{xx}=\\sigma_x^2'}</Tex> ⇒ <Tex>{'C_D=h[D]\\sigma_x^2'}</Tex>（F-06.13）。<Tex>{'L(z)'}</Tex> 嚴格因果 ⇒ <Tex>{'h[0]=1'}</Tex>，所以 <Tex>{'C=\\sigma_x^2'}</Tex>，與 <Tex>{'\\zeta'}</Tex>、頻寬無關。<Tex>{fx(naive01, 5)}</Tex> 是把 <Tex>{'\\Omega'}</Tex> 錯代入 CT{' '}
             <Tex>{'H(j\\omega)'}</Tex>（<Tex>{'\\omega_nT_s=0.1'}</Tex>）再積分得到的錯誤值（E44）。
           </p>
         }
@@ -294,8 +292,7 @@ export function S8Recap() {
         </table>
       </div>
       <p>
-        <strong>下一個值得研究的問題：</strong>既然 raw <Tex>{'x'}</Tex> 會被 PLL 的相位「騙」，那是加幾個 delay register 就好（delay alignment），
-        還是要在 GMAC 前放一個 PLL 模型（filtered-x）？兩者對多頻 DSM code、模型誤差與 FCW 改變的強健性差在哪裡？→ <ChRef ch="07">第 07 章</ChRef>。
+        <strong>下一個值得研究的問題：</strong>既然 raw <Tex>{'x'}</Tex> 會被 PLL 的相位「騙」，那是加幾個 delay register 就好（delay alignment），還是要在 GMAC 前放一個 PLL 模型（filtered-x）？兩者對多頻 DSM code、模型誤差與 FCW 改變的強健性差在哪裡？→ <ChRef ch="07">第 07 章</ChRef>。
       </p>
     </ChapterSection>
   )

@@ -1,5 +1,5 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import {
   CaseSelector,
   Callout,
@@ -472,8 +472,7 @@ export function DitherSection() {
   return (
     <Section kind="explore" level={2} title="7. 雜訊像 dither：沒有雜訊不行，太多雜訊也不行">
       <p>
-        §5 說 <Tex>{'K_q=\\sqrt{2/\\pi}/\\sigma_v'}</Tex>，好像雜訊越小、增益越大越好。但 <Tex>{'\\sigma_v\\to0'}</Tex> 時 S 曲線變成階梯：
-        原點斜率無限大、其他地方為 0。把 comparator 放進最簡單的逐 sample Sign-LMS 迴路來看（<Tex>{'x\\equiv1'}</Tex>）：每來一個 sample，就把係數往 <Tex>{'q_n'}</Tex>{' '}
+        §5 說 <Tex>{'K_q=\\sqrt{2/\\pi}/\\sigma_v'}</Tex>，好像雜訊越小、增益越大越好。但 <Tex>{'\\sigma_v\\to0'}</Tex> 時 S 曲線變成階梯：原點斜率無限大、其他地方為 0。把 comparator 放進最簡單的逐 sample Sign-LMS 迴路來看（<Tex>{'x\\equiv1'}</Tex>）：每來一個 sample，就把係數往 <Tex>{'q_n'}</Tex>{' '}
         的方向推一小步，<Tex>{'w_{n+1}=w_n+\\mu q_n'}</Tex>。這裡 <Tex>{'\\mu'}</Tex> 是學習率（每一步的步長，單位 <Tex>{'\\mathrm{fs}'}</Tex>），<Tex>{'a'}</Tex> 是真值，
         <Tex>{'w_n'}</Tex> 是第 <Tex>{'n'}</Tex> 個 sample 時的係數，<Tex>{'\\delta_n=a-w_n'}</Tex> 是剩餘誤差。
       </p>
@@ -571,8 +570,7 @@ export function DitherSection() {
         先和{figNo('sampleLoop')}的迴路比：「加 <Tex>{'v_n'}</Tex>、取 sign」這一段換成藍色的 <Tex>{'\\times K_q'}</Tex>，後面多了一個雜訊注入點 <Tex>{'\\eta_n'}</Tex>；其餘（乘{' '}
         <Tex>{'\\mu'}</Tex>、累加、<Tex>{'z^{-1}'}</Tex>、負回授）一模一樣。原本的雜訊 <Tex>{'v_n'}</Tex> 沒有消失：它的效果已經算進 <Tex>{'K_q'}</Tex> 的大小與 <Tex>{'\\eta_n'}</Tex>{' '}
         裡了（這裡取 <Tex>{'\\theta=0'}</Tex>）。再順著迴路繞一圈：<Tex>{'\\delta_n'}</Tex> 先乘 <Tex>{'K_q'}</Tex>、再乘 <Tex>{'\\mu'}</Tex>，然後以負號回來，所以每一步誤差剩下{' '}
-        <Tex>{'(1-\\mu K_q)'}</Tex> 倍——這就是迴路的 pole <Tex>{'p_{\\mathrm{cal}}=1-g'}</Tex>，<Tex>{'g\\equiv\\mu K_q'}</Tex> 是繞一圈的無因次增益（loop gain）。
-        圖上第一個加法點是推導第一行的 <Tex>{'\\delta_n=a-w_n'}</Tex>，第二個是第二行的 <Tex>{'q_n\\approx K_q\\delta_n+\\eta_n'}</Tex>，第三個是更新式{' '}
+        <Tex>{'(1-\\mu K_q)'}</Tex> 倍——這就是迴路的 pole <Tex>{'p_{\\mathrm{cal}}=1-g'}</Tex>，<Tex>{'g\\equiv\\mu K_q'}</Tex> 是繞一圈的無因次增益（loop gain）。圖上第一個加法點是推導第一行的 <Tex>{'\\delta_n=a-w_n'}</Tex>，第二個是第二行的 <Tex>{'q_n\\approx K_q\\delta_n+\\eta_n'}</Tex>，第三個是更新式{' '}
         <Tex>{'w_{n+1}=w_n+\\mu q_n'}</Tex>；把它們代在一起就是第三行。
       </Fig>
       <Steps
@@ -595,8 +593,7 @@ export function DitherSection() {
       </TexBlock>
       <ModeGate min="engineer">
         <p>
-          更好的是：這個迴路可以<strong>精確</strong>解。<Tex>{'w'}</Tex> 只會落在格點 <Tex>{'w_k=w_0+k\\mu'}</Tex> 上（這裡 <Tex>{'k'}</Tex> 是格點編號，不是 block），
-          每步往上的機率 <Tex>{'u_k=\\Phi((a-\\theta-w_k)/\\sigma_v)'}</Tex>、往下 <Tex>{'\\bar u_k=1-u_k'}</Tex>——這是 birth–death Markov chain。
+          更好的是：這個迴路可以<strong>精確</strong>解。<Tex>{'w'}</Tex> 只會落在格點 <Tex>{'w_k=w_0+k\\mu'}</Tex> 上（這裡 <Tex>{'k'}</Tex> 是格點編號，不是 block），每步往上的機率 <Tex>{'u_k=\\Phi((a-\\theta-w_k)/\\sigma_v)'}</Tex>、往下 <Tex>{'\\bar u_k=1-u_k'}</Tex>——這是 birth–death Markov chain。
         </p>
         <Fig name="birthDeath">
           先看藍色的格點 <Tex>{'w_k'}</Tex>：下一步只有兩種可能，往上一格（機率 <Tex>{'u_k'}</Tex>）或往下一格（機率 <Tex>{'\\bar u_k'}</Tex>）；越靠近平衡點{' '}

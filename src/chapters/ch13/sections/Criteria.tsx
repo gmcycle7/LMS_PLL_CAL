@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import { Callout, ClaimTag, CodeBlock, Mermaid, ModeGate, Plot, Prereq, Section, SourceTag, StepDerivation, Tex, TexBlock, useThemeTokens } from '@/components'
 import { isWorkerCancelled, useWorkerTask } from '@/workers'
 import quantSrc from '@/simulation/models/quantizer.ts?raw'
@@ -308,8 +308,7 @@ export function CriteriaSection() {
         </div>
       )}
       <p className="small muted">
-        欄位 A = Freeze、B = Toggle、C = Stochastic、D = ΔΣ、E = ΔΣ + dither（dither 寬度 <Tex>{String.raw`${DEFAULT_LAB_PARAMS.ditherLsb}\,\mathrm{LSB}`}</Tex> 峰對峰、RPDF）。由 <code>runQuantCriteria()</code> 在 Web Worker 計算；
-        DC 誤差依 <Tex>{String.raw`\delta w=w-w^*`}</Tex> 約定。
+        欄位 A = Freeze、B = Toggle、C = Stochastic、D = ΔΣ、E = ΔΣ + dither（dither 寬度 <Tex>{String.raw`${DEFAULT_LAB_PARAMS.ditherLsb}\,\mathrm{LSB}`}</Tex> 峰對峰、RPDF）。由 <code>runQuantCriteria()</code> 在 Web Worker 計算；DC 誤差依 <Tex>{String.raw`\delta w=w-w^*`}</Tex> 約定。
       </p>
       <p>讀表之前先確認一件事：紀錄夠不夠長，表中的數字「解析得出來」嗎？</p>
       <Mermaid
@@ -333,8 +332,7 @@ export function CriteriaSection() {
       )}
       {rows && (
         <p className="small">
-          準則 5 的模擬結果：<Tex>{String.raw`N_\mathrm{upd}`}</Tex> 由 1 改成 {N_SLOW} 時，<Tex>{String.raw`\sigma_\mathrm{out}`}</Tex> 變大的策略：{rateTrend.up.join('、') || '無'}；變小的策略：{rateTrend.down.join('、') || '無'}。
-          直覺上「慢更新會把 toggle 的 tone 從 PLL 頻寬外搬進頻寬內，所以比較差」，但 code 誤差還要乘上 DSM residue <Tex>{String.raw`x[n]`}</Tex>：<Tex>{String.raw`N_\mathrm{upd}=1`}</Tex> 時，
+          準則 5 的模擬結果：<Tex>{String.raw`N_\mathrm{upd}`}</Tex> 由 1 改成 {N_SLOW} 時，<Tex>{String.raw`\sigma_\mathrm{out}`}</Tex> 變大的策略：{rateTrend.up.join('、') || '無'}；變小的策略：{rateTrend.down.join('、') || '無'}。直覺上「慢更新會把 toggle 的 tone 從 PLL 頻寬外搬進頻寬內，所以比較差」，但 code 誤差還要乘上 DSM residue <Tex>{String.raw`x[n]`}</Tex>：<Tex>{String.raw`N_\mathrm{upd}=1`}</Tex> 時，
           <Tex>{String.raw`2f_s/5`}</Tex> 的 code tone 與 <Tex>{'x'}</Tex> 的高次諧波（<Tex>{String.raw`kf_s/${DSM_PERIOD}`}</Tex>）之間有很多落在通帶內的差頻；<Tex>{String.raw`N_\mathrm{upd}=${N_SLOW}`}</Tex> 時 code 誤差在低頻，乘上沒有 DC 的{' '}
           <Tex>{'x'}</Tex> 反而被搬到 <Tex>{'x'}</Tex> 的 tone 旁邊（多半在通帶外）。哪個效應主導取決於策略、FCW 與 <Tex>{String.raw`T(f)`}</Tex>，只能逐案模擬。 <ClaimTag kind="approx" />
         </p>

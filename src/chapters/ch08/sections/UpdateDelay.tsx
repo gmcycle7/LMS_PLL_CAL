@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import {
   Callout,
   ClaimTag,
@@ -74,8 +74,7 @@ export function UpdateDelay() {
   return (
     <Section kind="formula" title="§8.3 更新延遲會縮小穩定範圍" level={2} id="ch08-delay">
       <p>
-        真實的 GMAC 不會在累加完的瞬間就把新係數送進 DTC：先要等 <Tex>{'N'}</Tex> 個 sample 累加完、做除法或 shift、寫入 shadow register，再在某個 block 邊界 commit 到 DTC。
-        如果第 <Tex>{'k'}</Tex> 個 block 量到的 <Tex>{'G_k'}</Tex> 其實是 <Tex>{'d'}</Tex> 個 block 前的係數造成的，迴路就多了 <Tex>{'d'}</Tex> 個 block 的純延遲。
+        真實的 GMAC 不會在累加完的瞬間就把新係數送進 DTC：先要等 <Tex>{'N'}</Tex> 個 sample 累加完、做除法或 shift、寫入 shadow register，再在某個 block 邊界 commit 到 DTC。如果第 <Tex>{'k'}</Tex> 個 block 量到的 <Tex>{'G_k'}</Tex> 其實是 <Tex>{'d'}</Tex> 個 block 前的係數造成的，迴路就多了 <Tex>{'d'}</Tex> 個 block 的純延遲。
       </p>
       <p>
         {rich(

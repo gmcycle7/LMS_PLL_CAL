@@ -80,8 +80,7 @@ function DistributionPrereq() {
           <strong>Gaussian（高斯／常態分布）</strong> <Tex>{T`x\sim\mathcal N(m,\sigma^2)`}</Tex>：鐘形曲線，<Tex>m</Tex> 是中心、<Tex>\sigma</Tex>（標準差）是寬度：
           <TexBlock>{T`p(x)=\frac{1}{\sqrt{2\pi}\,\sigma}\,e^{-(x-m)^2/(2\sigma^2)}`}</TexBlock>
           落在 <Tex>{T`m\pm\sigma`}</Tex> 內的機率是 <Tex>{T`${pct(1)}\%`}</Tex>、<Tex>{T`\pm2\sigma`}</Tex> 內 <Tex>{T`${pct(2)}\%`}</Tex>、<Tex>{T`\pm3\sigma`}</Tex> 內{' '}
-          <Tex>{T`${pct(3)}\%`}</Tex>。重點：它<strong>沒有上限</strong>——再大的 <Tex>{T`|x|`}</Tex> 都有（很小的）機率出現。<Tex>{T`\mathcal N(0,1)`}</Tex>（<Tex>{T`m=0,\ \sigma=1`}</Tex>）叫標準常態。
-          熱雜訊、許多獨立小擾動的總和都近似 Gaussian。
+          <Tex>{T`${pct(3)}\%`}</Tex>。重點：它<strong>沒有上限</strong>——再大的 <Tex>{T`|x|`}</Tex> 都有（很小的）機率出現。<Tex>{T`\mathcal N(0,1)`}</Tex>（<Tex>{T`m=0,\ \sigma=1`}</Tex>）叫標準常態。熱雜訊、許多獨立小擾動的總和都近似 Gaussian。
         </li>
         <li>
           <strong>Uniform（均勻分布）</strong> <Tex>{T`x\sim U(-c,c)`}</Tex>：在 <Tex>{T`[-c,c]`}</Tex> 內每個值機會均等，<Tex>{T`p(x)=\frac{1}{2c}`}</Tex>；<strong>有上限</strong>{' '}
@@ -119,8 +118,7 @@ export function RandomMeanSection() {
         </p>
         <TexBlock>{T`\delta_{n+1}=\underbrace{(1-\mu x_n^2)}_{f_n\ \text{（每步不同）}}\,\delta_n\qquad\Longrightarrow\qquad \delta_n=\delta_0\prod_{k=0}^{n-1}(1-\mu x_k^2)`}</TexBlock>
         <p>
-          現在 <Tex>{T`\delta_n`}</Tex> 是<strong>隨機變數</strong>：同一個 <Tex>\mu</Tex>、同一個 <Tex>{T`\delta_0`}</Tex>，換一組 <Tex>{T`x_0,x_1,\dots`}</Tex> 就得到不同的路徑。要談「收斂」，就必須先說清楚是哪一種：
-          本章會遇到三種——<strong>平均（mean）</strong>、<strong>均方（mean-square）</strong>、<strong>幾乎每條路徑（almost-sure）</strong>。
+          現在 <Tex>{T`\delta_n`}</Tex> 是<strong>隨機變數</strong>：同一個 <Tex>\mu</Tex>、同一個 <Tex>{T`\delta_0`}</Tex>，換一組 <Tex>{T`x_0,x_1,\dots`}</Tex> 就得到不同的路徑。要談「收斂」，就必須先說清楚是哪一種：本章會遇到三種——<strong>平均（mean）</strong>、<strong>均方（mean-square）</strong>、<strong>幾乎每條路徑（almost-sure）</strong>。
         </p>
         <p>
           畫成方塊圖：和{figRef(CHART_ERROR_RECURSION)} 的「合併之後」是同一個迴圈，只是固定的增益 <Tex>p</Tex> 換成了由 <Tex>{T`x[n]`}</Tex> 即時算出來的增益 <Tex>{T`f[n]`}</Tex>（time-varying gain，隨時間變的增益）。
@@ -177,8 +175,7 @@ export function RandomMeanSection() {
           <strong>動差</strong>（moment）：<Tex>{T`E[x^k]`}</Tex> 叫 <Tex>k</Tex> 階動差。統計課本的 <strong>kurtosis（峰度）</strong>通常先減掉平均：
           <Tex>{T`E[(x-m)^4]/\operatorname{Var}(x)^2`}</Tex>。本章的 <Tex>\kappa</Tex> 一律是<strong>不減平均</strong>的 <Tex>{T`E[x^4]/E[x^2]^2`}</Tex>，因為誤差遞迴裡出現的就是{' '}
           <Tex>{T`x^2`}</Tex> 與 <Tex>{T`x^4`}</Tex> 本身。<Tex>x</Tex> 零均值（Gaussian、對稱 Uniform、<Tex>{T`\pm A`}</Tex>）時兩者相同；<Tex>x</Tex> 帶有 DC 偏移（例如固定{' '}
-          <Tex>{T`x=2`}</Tex>：<Tex>{T`\kappa=1`}</Tex>；稀疏 code <Tex>{T`\{0\times9,\,3\}`}</Tex>：<Tex>{T`\kappa=${tnum(xMoments(EXAMPLE_DISTS[3].dist).kurtosis)}`}</Tex>）時不同，
-          套本章公式時要用 <Tex>{T`E[x^4]/E[x^2]^2`}</Tex>。<Tex>\kappa</Tex> 越大，代表 <Tex>{T`x^2`}</Tex> 起伏越劇烈（偶爾出現很大的值）。
+          <Tex>{T`x=2`}</Tex>：<Tex>{T`\kappa=1`}</Tex>；稀疏 code <Tex>{T`\{0\times9,\,3\}`}</Tex>：<Tex>{T`\kappa=${tnum(xMoments(EXAMPLE_DISTS[3].dist).kurtosis)}`}</Tex>）時不同，套本章公式時要用 <Tex>{T`E[x^4]/E[x^2]^2`}</Tex>。<Tex>\kappa</Tex> 越大，代表 <Tex>{T`x^2`}</Tex> 起伏越劇烈（偶爾出現很大的值）。
         </Callout>
       </Section>
 
@@ -217,32 +214,26 @@ export function RandomMeanSection() {
         </p>
         <p>
           有限個取值的 code 也是同一個公式，而且完全可以手算。例如等機率的五階 code <Tex>{T`\{-2,-1,0,1,2\}`}</Tex>：
-          <Tex>{T`P_x=\tfrac{4+1+0+1+4}{5}=${tnum(c5.Px)}`}</Tex>、<Tex>{T`M_4=\tfrac{16+1+0+1+16}{5}=${tnum(c5.M4)}`}</Tex>、<Tex>{T`\kappa=M_4/P_x^2=${tnum(c5.kurtosis)}`}</Tex>，
-          所以 mean 界是 <Tex>{T`2/P_x=${tnum(2 / c5.Px)}`}</Tex>；取 <Tex>{T`\mu=${tnum(CODE5_MU)}`}</Tex> 時 mean 因子 <Tex>{T`1-\mu P_x=${tnum(meanPole(CODE5_MU, c5.Px))}`}</Tex>，
+          <Tex>{T`P_x=\tfrac{4+1+0+1+4}{5}=${tnum(c5.Px)}`}</Tex>、<Tex>{T`M_4=\tfrac{16+1+0+1+16}{5}=${tnum(c5.M4)}`}</Tex>、<Tex>{T`\kappa=M_4/P_x^2=${tnum(c5.kurtosis)}`}</Tex>，所以 mean 界是 <Tex>{T`2/P_x=${tnum(2 / c5.Px)}`}</Tex>；取 <Tex>{T`\mu=${tnum(CODE5_MU)}`}</Tex> 時 mean 因子 <Tex>{T`1-\mu P_x=${tnum(meanPole(CODE5_MU, c5.Px))}`}</Tex>，
           <Tex>{T`E[\delta_n]`}</Tex> 每一步減半。<ClaimTag kind="exact" />
         </p>
         <HC id="HC-03.3">
           {tx`真實的 code 不是 Gaussian，而是有限個取值。把下面 5 個取值換成你的 code（例如 $\{-1,0,0,1,2\}$），先手算 $P_x$、$M_4$、$\kappa$ 與 mean 界（只需要四則運算），再對答案。`}
         </HC>
         <Callout kind="info" title={<>精確式，不是 independence approximation <Erratum id="E38" /></>}>
-          規格 §3.1 寫「假設 <Tex>{T`x_n`}</Tex> 為 iid、且和前一輪係數誤差獨立」。後半句其實是<strong>自動成立</strong>的（上面第 3 步），所以對 iid 純量 <Tex>x</Tex>（<Tex>{T`M_4`}</Tex> 有限、雜訊零均值且與 <Tex>x</Tex> 獨立），
-          mean 與 mean-square 遞迴都是 <strong>[精確｜指定模型]</strong>。反過來，若 regressor 有時間相關——例如 tapped delay line，或第 6–7 章經過 PLL error path 的{' '}
-          <Tex>{T`u=h*x`}</Tex>（<Tex>h</Tex> 是 error path 的脈衝響應、<Tex>{T`*`}</Tex> 是卷積，也就是把 <Tex>x</Tex> 的過去幾筆加權相加；<ChRef ch="06">第 6 章</ChRef>從頭說明）——<Tex>{T`x_n`}</Tex> 與 <Tex>{T`\delta_n`}</Tex> 不再獨立，同樣的公式降為 <strong>[近似｜需驗證]</strong>。
-          （<strong>相關</strong> correlation：相鄰 sample 彼此有關，例如 <Tex>{T`E[x_nx_{n-1}]\ne0`}</Tex>；此時 <Tex>{T`x_n`}</Tex> 透過 <Tex>{T`x_{n-1}`}</Tex> 與 <Tex>{T`\delta_n`}</Tex> 牽連在一起。）
+          規格 §3.1 寫「假設 <Tex>{T`x_n`}</Tex> 為 iid、且和前一輪係數誤差獨立」。後半句其實是<strong>自動成立</strong>的（上面第 3 步），所以對 iid 純量 <Tex>x</Tex>（<Tex>{T`M_4`}</Tex> 有限、雜訊零均值且與 <Tex>x</Tex> 獨立），mean 與 mean-square 遞迴都是 <strong>[精確｜指定模型]</strong>。反過來，若 regressor 有時間相關——例如 tapped delay line，或第 6–7 章經過 PLL error path 的{' '}
+          <Tex>{T`u=h*x`}</Tex>（<Tex>h</Tex> 是 error path 的脈衝響應、<Tex>{T`*`}</Tex> 是卷積，也就是把 <Tex>x</Tex> 的過去幾筆加權相加；<ChRef ch="06">第 6 章</ChRef>從頭說明）——<Tex>{T`x_n`}</Tex> 與 <Tex>{T`\delta_n`}</Tex> 不再獨立，同樣的公式降為 <strong>[近似｜需驗證]</strong>。（<strong>相關</strong> correlation：相鄰 sample 彼此有關，例如 <Tex>{T`E[x_nx_{n-1}]\ne0`}</Tex>；此時 <Tex>{T`x_n`}</Tex> 透過 <Tex>{T`x_{n-1}`}</Tex> 與 <Tex>{T`\delta_n`}</Tex> 牽連在一起。）
         </Callout>
       </Section>
 
       <Section kind="assumptions" title="Mean 只說了「平均」">
         <p>
-          <Tex>{T`\mu=1/P_x`}</Tex> 時 mean pole 為 0：<Tex>{T`E[\delta_1]=0`}</Tex>，「平均」一步歸零。但每一條路徑的 <Tex>{T`\delta_1=(1-\mu x_0^2)\delta_0`}</Tex> 幾乎都不是 0——
-          有的路徑 <Tex>{T`\delta_1>0`}</Tex>、有的 <Tex>{T`\delta_1<0`}</Tex>，<strong>正負互相抵消</strong>才讓平均等於 0。所以 mean 收斂只是最弱的保證：它甚至不保證誤差的大小會變小。
-          下一節用平方把正負號拿掉。
+          <Tex>{T`\mu=1/P_x`}</Tex> 時 mean pole 為 0：<Tex>{T`E[\delta_1]=0`}</Tex>，「平均」一步歸零。但每一條路徑的 <Tex>{T`\delta_1=(1-\mu x_0^2)\delta_0`}</Tex> 幾乎都不是 0——有的路徑 <Tex>{T`\delta_1>0`}</Tex>、有的 <Tex>{T`\delta_1<0`}</Tex>，<strong>正負互相抵消</strong>才讓平均等於 0。所以 mean 收斂只是最弱的保證：它甚至不保證誤差的大小會變小。下一節用平方把正負號拿掉。
         </p>
         <ModeGate min="engineer">
           <p>
             更極端的反例（第 4 節與 Stability Lab 的「稀疏 code」preset）：<Tex>{T`x\in\{0,\dots,0,3\}`}</Tex>（10 筆中 1 筆是 3），<Tex>{T`\mu=0.5`}</Tex>。mean pole{' '}
-            <Tex>{T`1-\mu P_x=${tnum(1 - 0.5 * xMoments(EXAMPLE_DISTS[3].dist).Px)}`}</Tex>，<Tex>{T`E[\delta_n]`}</Tex> 收斂；但每次抽到 3 就乘上 <Tex>{T`1-0.5\cdot9=-3.5`}</Tex>，
-            幾乎每條路徑都發散。平均收斂是靠正負號交替抵消出來的。
+            <Tex>{T`1-\mu P_x=${tnum(1 - 0.5 * xMoments(EXAMPLE_DISTS[3].dist).Px)}`}</Tex>，<Tex>{T`E[\delta_n]`}</Tex> 收斂；但每次抽到 3 就乘上 <Tex>{T`1-0.5\cdot9=-3.5`}</Tex>，幾乎每條路徑都發散。平均收斂是靠正負號交替抵消出來的。
           </p>
         </ModeGate>
       </Section>

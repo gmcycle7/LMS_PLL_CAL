@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Data } from 'plotly.js-dist-min'
-import { Callout, ClaimTag, ExperimentShell, ParamControl, Plot, SelectControl, Tex, stripMathDelimiters, useDebouncedValue, useThemeTokens, type MetricRow } from '@/components'
+import type { Data } from 'plotly.js-cartesian-dist-min'
+import { Callout, ClaimTag, ExperimentShell, ParamControl, Plot, SelectControl, Tex, accessibleText, useDebouncedValue, useThemeTokens, type MetricRow } from '@/components'
 import { presetsForExperiment, useUrlPreset } from '@/app/presets'
 import {
   ALGO_IDS,
@@ -224,8 +224,7 @@ export function FixedPointExplorer() {
       source="simulation"
       description={
         <>
-          畫出 <Tex>{String.raw`\psi(w)=E[\text{更新方向}]`}</Tex>（除以各自的斜率 <Tex>{'K'}</Tex>）。零交越就是固定點 <Tex>{'w^*'}</Tex>；
-          下方表格用 Worker 跑 Monte Carlo 驗證（後半段時間平均 <Tex>{'\\pm'}</Tex> 95% 信賴區間）。
+          畫出 <Tex>{String.raw`\psi(w)=E[\text{更新方向}]`}</Tex>（除以各自的斜率 <Tex>{'K'}</Tex>）。零交越就是固定點 <Tex>{'w^*'}</Tex>；下方表格用 Worker 跑 Monte Carlo 驗證（後半段時間平均 <Tex>{'\\pm'}</Tex> 95% 信賴區間）。
         </>
       }
       assumptions={[
@@ -325,7 +324,7 @@ export function FixedPointExplorer() {
                 <td className="num">{r.identifiable ? f4(r.wStar - dp.a, 4) : '—'}</td>
                 <td className="num">{Number.isFinite(r.K) ? f4(r.K) : tm(String.raw`$\infty$（無雜訊）`)}</td>
                 <td className="num">{st ? tm(String.raw`${f4(st.tavgMean, 5)} $\pm$ ${f4(st.tavgHalf, 2)}`) : mc.pending ? '計算中…' : '—'}</td>
-                <td title={reason ? stripMathDelimiters(reason) : undefined}>{ok === null ? (reason && st ? '未比較（原因見上方交叉比對）' : '—') : ok ? '✓' : '✗'}</td>
+                <td title={reason ? accessibleText(reason) : undefined}>{ok === null ? (reason && st ? '未比較（原因見上方交叉比對）' : '—') : ok ? '✓' : '✗'}</td>
               </tr>
             ))}
           </tbody>
@@ -336,18 +335,13 @@ export function FixedPointExplorer() {
       </p>
       {ident.length === 0 ? null : offTruth.length > 0 ? (
         <Callout kind="warn" title={allSame ? <>固定點彼此相同，但都不等於 <Tex>{'a'}</Tex></> : '固定點不同'}>
-          {offTruth.map((r) => `${ALGO_LABEL[r.algo]}：${f4(r.wStar, 5)}`).join('；')}（<Tex>{String.raw`a=${f4(dp.a)}`}</Tex>）。判斷法（F-02.18）：在 <Tex>{'w=a'}</Tex> 處誤差只剩 <Tex>{'e=v'}</Tex>，
-          而 <Tex>{'v'}</Tex> 與 <Tex>{'x'}</Tex> 獨立，所以平均更新方向拆成兩個期望值的乘積：
+          {offTruth.map((r) => `${ALGO_LABEL[r.algo]}：${f4(r.wStar, 5)}`).join('；')}（<Tex>{String.raw`a=${f4(dp.a)}`}</Tex>）。判斷法（F-02.18）：在 <Tex>{'w=a'}</Tex> 處誤差只剩 <Tex>{'e=v'}</Tex>，而 <Tex>{'v'}</Tex> 與 <Tex>{'x'}</Tex> 獨立，所以平均更新方向拆成兩個期望值的乘積：
           <Tex>{String.raw`\psi_{\rm LMS}(a)=E[v]\,E[x]`}</Tex>、<Tex>{String.raw`\psi_{\rm SE}(a)=E[\operatorname{sign}v]\,E[x]`}</Tex>、
-          <Tex>{String.raw`\psi_{\rm SS}(a)=E[\operatorname{sign}v]\,E[\operatorname{sign}x]`}</Tex>。
-          本例 <Tex>{String.raw`E[v]=${f4(ops.mean, 4)},\ E[\operatorname{sign}v]=1-2F_v(0)=${f4(signV, 4)},\ E[x]=${f4(m.m1, 4)}`}</Tex>：
-          LMS 只看雜訊的<strong>平均</strong>，sign 類演算法看的是<strong>中位數</strong>（<Tex>{'E[\\operatorname{sign}v]=0'}</Tex> 等價於中位數為 0）；
-          乘積不為 0 的那個演算法，固定點就會離開 <Tex>{'a'}</Tex>。
+          <Tex>{String.raw`\psi_{\rm SS}(a)=E[\operatorname{sign}v]\,E[\operatorname{sign}x]`}</Tex>。本例 <Tex>{String.raw`E[v]=${f4(ops.mean, 4)},\ E[\operatorname{sign}v]=1-2F_v(0)=${f4(signV, 4)},\ E[x]=${f4(m.m1, 4)}`}</Tex>：LMS 只看雜訊的<strong>平均</strong>，sign 類演算法看的是<strong>中位數</strong>（<Tex>{'E[\\operatorname{sign}v]=0'}</Tex> 等價於中位數為 0）；乘積不為 0 的那個演算法，固定點就會離開 <Tex>{'a'}</Tex>。
         </Callout>
       ) : (
         <Callout kind="ok" title={<>所選演算法的固定點都等於 <Tex>{'a'}</Tex></>}>
-          由 F-02.18：雜訊的平均與中位數都是 0（例如對稱雜訊），或 code 對稱
-          （<Tex>{'E[x]=0'}</Tex> 且 <Tex>{'E[\\operatorname{sign}x]=0'}</Tex>，例如 <Tex>{'\\pm A'}</Tex>、Gaussian code）時，<Tex>{'\\psi(a)=0'}</Tex> 對每個演算法都成立。
+          由 F-02.18：雜訊的平均與中位數都是 0（例如對稱雜訊），或 code 對稱（<Tex>{'E[x]=0'}</Tex> 且 <Tex>{'E[\\operatorname{sign}x]=0'}</Tex>，例如 <Tex>{'\\pm A'}</Tex>、Gaussian code）時，<Tex>{'\\psi(a)=0'}</Tex> 對每個演算法都成立。
         </Callout>
       )}
       <ul className="ch02-try">

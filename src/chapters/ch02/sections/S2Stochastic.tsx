@@ -12,8 +12,7 @@ export function S2Stochastic() {
 
       <Section kind="intuition" title="有雜訊時，「坡度」是什麼？">
         <p>
-          §1 的成本只用一筆資料。真實量測有雜訊 <Tex>{'v'}</Tex>（量測時混進來、我們控制不了的隨機擾動）：<Tex>{'y=ax+v'}</Tex>。單一筆 <Tex>{'(x,y)'}</Tex> 的坡度會被雜訊帶偏，我們真正想下的山是
-          「很多筆的平均成本」。問題是：平均需要很多筆資料，硬體每來一筆就想更新一次——可以只用一筆的坡度嗎？
+          §1 的成本只用一筆資料。真實量測有雜訊 <Tex>{'v'}</Tex>（量測時混進來、我們控制不了的隨機擾動）：<Tex>{'y=ax+v'}</Tex>。單一筆 <Tex>{'(x,y)'}</Tex> 的坡度會被雜訊帶偏，我們真正想下的山是「很多筆的平均成本」。問題是：平均需要很多筆資料，硬體每來一筆就想更新一次——可以只用一筆的坡度嗎？
         </p>
       </Section>
 
@@ -29,8 +28,7 @@ export function S2Stochastic() {
             <strong>獨立（independence）</strong>：<Tex>{'X'}</Tex> 的結果不影響 <Tex>{'Y'}</Tex> 的機率。獨立時 <Tex>{'E[XY]=E[X]E[Y]'}</Tex>。
           </li>
           <li>
-            <strong>相關（correlation）</strong> <Tex>{'E[e\\,x]'}</Tex>：兩個訊號乘積的平均。<Tex>{'e'}</Tex> 傾向與 <Tex>{'x'}</Tex> 同號時 <Tex>{'E[ex]>0'}</Tex>，代表誤差裡還殘留「跟著 <Tex>{'x'}</Tex> 走」的成分（<Tex>{'w'}</Tex> 太小）；
-            GMAC 在硬體裡估計的就是這個量（<ChRef ch="04">Ch04</ChRef>）。
+            <strong>相關（correlation）</strong> <Tex>{'E[e\\,x]'}</Tex>：兩個訊號乘積的平均。<Tex>{'e'}</Tex> 傾向與 <Tex>{'x'}</Tex> 同號時 <Tex>{'E[ex]>0'}</Tex>，代表誤差裡還殘留「跟著 <Tex>{'x'}</Tex> 走」的成分（<Tex>{'w'}</Tex> 太小）；GMAC 在硬體裡估計的就是這個量（<ChRef ch="04">Ch04</ChRef>）。
           </li>
           <li>
             <strong>變異數（variance）</strong> <Tex>{'\\operatorname{Var}(X)=E[(X-E[X])^2]=E[X^2]-E[X]^2'}</Tex>：偏離平均的程度；標準差 <Tex>{'\\sigma=\\sqrt{\\operatorname{Var}}'}</Tex>。
@@ -121,8 +119,7 @@ export function S2Stochastic() {
         <p>所以「沿著單筆梯度走」在平均上就是沿著真正的梯度走：</p>
         <TexBlock id="F-02.5">{String.raw`\boxed{w_{n+1}=w_n-\mu\hat g_n=w_n+\mu\,e_nx_n}`}</TexBlock>
         <p>
-          這正是 LMS。<strong>LMS = 對 <Tex>{'\\tfrac12E[e^2]'}</Tex> 的 Stochastic Gradient Descent。</strong>「Least Mean Squares」的 Mean 是目標（平均成本），
-          演算法本身每步只看一筆。 <ClaimTag kind="exact" />（iid 資料、<Tex>{'x'}</Tex> 與 <Tex>{'v'}</Tex> 獨立）
+          這正是 LMS。<strong>LMS = 對 <Tex>{'\\tfrac12E[e^2]'}</Tex> 的 Stochastic Gradient Descent。</strong>「Least Mean Squares」的 Mean 是目標（平均成本），演算法本身每步只看一筆。 <ClaimTag kind="exact" />（iid 資料、<Tex>{'x'}</Tex> 與 <Tex>{'v'}</Tex> 獨立）
         </p>
       </Section>
 
@@ -144,13 +141,10 @@ export function S2Stochastic() {
         </p>
         <TexBlock id="F-02.16">{String.raw`E[\delta^2]_\infty=\frac{\mu\,\sigma_v^2P_x}{2P_x-\mu E[x^4]}\;\approx\;\frac{\mu\sigma_v^2}{2}\quad(\mu\to0)`}</TexBlock>
         <p>
-          <ClaimTag kind="exact" /> 這裡 <Tex>{'E[\\delta^2]_\\infty'}</Tex> 是收斂之後參數誤差平方的平均（mean-square deviation，MSD），<Tex>{'E[x^4]'}</Tex> 是輸入四次方的平均（四階動差）。
-          推導與 mean / mean-square 穩定界在 <a href="#/ch/03">Ch03</a>（注意這是係數的 MSD，不是成本 MSE，<ErrataNote id="E42" />）。
-          要讓抖動變小，有兩條路：<strong>平均更多筆再更新</strong>（mini-batch：每累加 <Tex>{'B'}</Tex> 筆更新一次，梯度雜訊變異 <Tex>{'\\propto1/B'}</Tex>），或<strong>讓步長隨時間變小</strong>（§3 的遞減步長）。
+          <ClaimTag kind="exact" /> 這裡 <Tex>{'E[\\delta^2]_\\infty'}</Tex> 是收斂之後參數誤差平方的平均（mean-square deviation，MSD），<Tex>{'E[x^4]'}</Tex> 是輸入四次方的平均（四階動差）。推導與 mean / mean-square 穩定界在 <a href="#/ch/03">Ch03</a>（注意這是係數的 MSD，不是成本 MSE，<ErrataNote id="E42" />）。要讓抖動變小，有兩條路：<strong>平均更多筆再更新</strong>（mini-batch：每累加 <Tex>{'B'}</Tex> 筆更新一次，梯度雜訊變異 <Tex>{'\\propto1/B'}</Tex>），或<strong>讓步長隨時間變小</strong>（§3 的遞減步長）。
         </p>
         <p className="ch02-note" data-handcalc-pointer="s2">
-          <strong>想親手代數字？</strong>這一節的三條公式都有對應的手算題：單筆更新 <Tex>{'w+\\mu\\,e\\,x'}</Tex>（F-02.5）就是 §1 手算題 HC-02.1 走的那一步，§4 的 HC-02.4 再用同一組數字和 Sign-Error、Sign-Sign 並排比較；
-          谷底條件「平均梯度為零」（F-02.3）的有限資料版 <Tex>{'\\sum_ie_ix_i=0'}</Tex> 在 HC-02.5 用三筆資料算出 <Tex>{'w^*=\\sum x_iy_i/\\sum x_i^2'}</Tex>；穩態抖動（F-02.16）在章末的綜合題 HC-02.8 代數字。
+          <strong>想親手代數字？</strong>這一節的三條公式都有對應的手算題：單筆更新 <Tex>{'w+\\mu\\,e\\,x'}</Tex>（F-02.5）就是 §1 手算題 HC-02.1 走的那一步，§4 的 HC-02.4 再用同一組數字和 Sign-Error、Sign-Sign 並排比較；谷底條件「平均梯度為零」（F-02.3）的有限資料版 <Tex>{'\\sum_ie_ix_i=0'}</Tex> 在 HC-02.5 用三筆資料算出 <Tex>{'w^*=\\sum x_iy_i/\\sum x_i^2'}</Tex>；穩態抖動（F-02.16）在章末的綜合題 HC-02.8 代數字。
         </p>
       </Section>
 
@@ -264,9 +258,7 @@ export function S2Stochastic() {
         ]}
         answer={
           <>
-            <Tex>{'w_n'}</Tex> 由 <Tex>{'x_0\\ldots x_{n-1}'}</Tex> 決定；若 <Tex>{'x_n'}</Tex> 與 <Tex>{'x_{n-1}'}</Tex> 相關，<Tex>{'x_n'}</Tex> 就與 <Tex>{'w_n'}</Tex> 相關，
-            不能把 <Tex>{'w_n'}</Tex> 當成與第 <Tex>{'n'}</Tex> 筆無關的常數。此時公式降為 independence approximation <ClaimTag kind="approx" />（勘誤 E38）。
-            Part B 的有效 regressor <Tex>{'u=h*x'}</Tex> 正是這種情況。
+            <Tex>{'w_n'}</Tex> 由 <Tex>{'x_0\\ldots x_{n-1}'}</Tex> 決定；若 <Tex>{'x_n'}</Tex> 與 <Tex>{'x_{n-1}'}</Tex> 相關，<Tex>{'x_n'}</Tex> 就與 <Tex>{'w_n'}</Tex> 相關，不能把 <Tex>{'w_n'}</Tex> 當成與第 <Tex>{'n'}</Tex> 筆無關的常數。此時公式降為 independence approximation <ClaimTag kind="approx" />（勘誤 E38）。Part B 的有效 regressor <Tex>{'u=h*x'}</Tex> 正是這種情況。
           </>
         }
       />

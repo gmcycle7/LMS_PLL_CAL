@@ -4,7 +4,7 @@ import { render, waitFor } from '@testing-library/react'
 import mermaid from 'mermaid'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
-import { SYSTEM_BLOCK_LABEL, SYSTEM_MAP_BLOCKS, stripMathDelimiters, systemMapModel } from '@/components'
+import { SYSTEM_BLOCK_LABEL, SYSTEM_MAP_BLOCKS, accessibleText, systemMapModel } from '@/components'
 import { sanitizeMermaidSource } from '@/components/mermaidSource'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import {
@@ -96,7 +96,7 @@ const P = vi.hoisted(() => ({
   Plots: { resize: vi.fn() },
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
-vi.mock('plotly.js-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
 
 /**
  * 這次改版之前就有的四張圖（保留、依勘誤修正標籤、改成較窄的版面）；
@@ -988,8 +988,8 @@ describe('Ch04 頁面上的方塊圖（整頁渲染）', () => {
     expect(question.contains(map)).toBe(true)
     expect(map.compareDocumentPosition(system) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(map.getAttribute('aria-label')).toContain('DTC-based Fractional-N PLL 與 Sign-LMS 校正迴路的系統方塊圖')
-    // （aria-label 是純文字：方塊名稱裡的 `$...$` 已拿掉分隔符號）
-    for (const b of CH04_SYSTEM_FOCUS) expect(map.getAttribute('aria-label'), b).toContain(stripMathDelimiters(SYSTEM_BLOCK_LABEL[b]))
+    // （aria-label 是純文字：方塊名稱裡的 `$...$` 已轉成可念的文字 accessibleText）
+    for (const b of CH04_SYSTEM_FOCUS) expect(map.getAttribute('aria-label'), b).toContain(accessibleText(SYSTEM_BLOCK_LABEL[b]))
     expect(map.querySelector('figcaption')!.textContent).toMatch(/藍色是這一課從頭走到尾的訊號路徑/)
     // 手排的 SVG：17 個方塊都在，亮藍色（is-focus、data-focus）的剛好是本章的 12 個，其餘 5 個不亮
     const blocks = Array.from(map.querySelectorAll('g.c-sysmap-block'))

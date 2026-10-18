@@ -390,8 +390,7 @@ export function DelayFxLab() {
       headingLevel={3}
       description={
         <>
-          同一個 code、同一個 PLL 誤差路徑，比較 GMAC 用 <Tex>{'x[n]'}</Tex>、<Tex>{'x[n-D]'}</Tex> 或 <Tex>{r`u_f=\hat h*x`}</Tex> 當 regressor。
-          上半部（波形、相關 vs <Tex>{'D'}</Tex>、逐頻率相位）是目前選取 Case 的即時分析；下半部是 A/B/C 三組在<strong>同一個 seed</strong>下的閉迴路
+          同一個 code、同一個 PLL 誤差路徑，比較 GMAC 用 <Tex>{'x[n]'}</Tex>、<Tex>{'x[n-D]'}</Tex> 或 <Tex>{r`u_f=\hat h*x`}</Tex> 當 regressor。上半部（波形、相關 vs <Tex>{'D'}</Tex>、逐頻率相位）是目前選取 Case 的即時分析；下半部是 A/B/C 三組在<strong>同一個 seed</strong>下的閉迴路
           Block Sign-LMS（<code>runBlockLms</code>，Web Worker）。
         </>
       }
@@ -565,12 +564,10 @@ export function DelayFxLab() {
       <ModeGate min="research">
         {an && (
           <p className="ch07-note">
-            分析細節：經驗相關使用 {an.samples.toLocaleString()} 個 sample（略過前 {an.transient.toLocaleString()} 個暫態），SE 以 {an.seBatch.toLocaleString()}-sample batch means 估計（batch 至少 4 倍相關時間）
-            （單頻 code 為確定性 ripple 上界 <Tex>{r`|H||\hat H_{\mathrm{ref}}|/(N_{\mathrm{avg}}|\sin\Omega|)`}</Tex>，<Tex>{r`N_{\mathrm{avg}}`}</Tex> 為平均的 sample 數）；<Tex>{r`\hat H`}</Tex>：<code>{an.hat.description}</code>。閉迴路 crossCheck 的判準見
+            分析細節：經驗相關使用 {an.samples.toLocaleString()} 個 sample（略過前 {an.transient.toLocaleString()} 個暫態），SE 以 {an.seBatch.toLocaleString()}-sample batch means 估計（batch 至少 4 倍相關時間）（單頻 code 為確定性 ripple 上界 <Tex>{r`|H||\hat H_{\mathrm{ref}}|/(N_{\mathrm{avg}}|\sin\Omega|)`}</Tex>，<Tex>{r`N_{\mathrm{avg}}`}</Tex> 為平均的 sample 數）；<Tex>{r`\hat H`}</Tex>：<code>{an.hat.description}</code>。閉迴路 crossCheck 的判準見
             <code>closedLoopConsistent</code>（單一 seed 的假設檢定）：預測收斂且 block 數 <Tex>{r`\ge10\tau`}</Tex> 時，後半段 <Tex>{'M'}</Tex> 個 block 的平均
             <Tex>{r`\bar w`}</Tex> 的標準誤為 <Tex>{r`\mathrm{SE}=\sigma_w\sqrt{\tfrac{1+p}{(1-p)M}}`}</Tex>（相鄰 block 高度相關，不是 <Tex>{r`\sigma_w/\sqrt M`}</Tex>）；
-            <Tex>{r`|\bar w-w^\star|>5\,\mathrm{SE}`}</Tex> 判為 mismatch，另外要 <Tex>{r`|\bar w-w_0|>3\,\mathrm{SE}`}</Tex>（看得出 <Tex>{'w'}</Tex> 確實離開初值）才給 ok，否則 n/a。
-            預測發散時，要求 <Tex>{r`|w_{\mathrm{end}}-a|-|w_0-a|>3\sigma_{\mathrm{rw}}`}</Tex>，<Tex>{r`\sigma_{\mathrm{rw}}=\mu\sqrt{K\sigma_\eta^2}`}</Tex> 是沒有恢復力時隨機漫步的標準差。
+            <Tex>{r`|\bar w-w^\star|>5\,\mathrm{SE}`}</Tex> 判為 mismatch，另外要 <Tex>{r`|\bar w-w_0|>3\,\mathrm{SE}`}</Tex>（看得出 <Tex>{'w'}</Tex> 確實離開初值）才給 ok，否則 n/a。預測發散時，要求 <Tex>{r`|w_{\mathrm{end}}-a|-|w_0-a|>3\sigma_{\mathrm{rw}}`}</Tex>，<Tex>{r`\sigma_{\mathrm{rw}}=\mu\sqrt{K\sigma_\eta^2}`}</Tex> 是沒有恢復力時隨機漫步的標準差。
             <ClaimTag kind="approx" />
           </p>
         )}

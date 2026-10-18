@@ -1,5 +1,5 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useState, type ReactNode } from 'react'
-import type { Data, Layout, Shape } from 'plotly.js-dist-min'
+import type { Data, Layout, Shape } from 'plotly.js-cartesian-dist-min'
 import {
   Callout,
   ExperimentShell,

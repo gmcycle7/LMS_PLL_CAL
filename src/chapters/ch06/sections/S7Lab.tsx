@@ -87,8 +87,7 @@ export function S7Lab() {
         </p>
         <p>
           圖上的每一個箭頭就是 <JumpTo target="ch06-s3">§3 核心程式碼</JumpTo> <code>simulateSignLmsChain</code> 的一行：外層的 <code>for k</code> 是 block、內層的{' '}
-          <code>for i</code> 是 sample；loop 框外的兩行就是公式 <Tex>{'G_k=\\tfrac1N\\sum_n q[n]\\,x[n-D]'}</Tex> 與 <Tex>{'w_{k+1}=w_k+\\mu G_k'}</Tex>。
-          有一件事圖上看不出來、但程式有做到：主 PLL 的濾波器狀態<strong>跨 block 保留</strong>——<Tex>{'w'}</Tex> 在 block 邊界一跳，<Tex>{'H_{\\mathrm{PD}}'}</Tex>{' '}
+          <code>for i</code> 是 sample；loop 框外的兩行就是公式 <Tex>{'G_k=\\tfrac1N\\sum_n q[n]\\,x[n-D]'}</Tex> 與 <Tex>{'w_{k+1}=w_k+\\mu G_k'}</Tex>。有一件事圖上看不出來、但程式有做到：主 PLL 的濾波器狀態<strong>跨 block 保留</strong>——<Tex>{'w'}</Tex> 在 block 邊界一跳，<Tex>{'H_{\\mathrm{PD}}'}</Tex>{' '}
           的輸出要過幾拍才跟上，所以 F-06.1 的 <Tex>{'e_{\\mathrm{PD}}\\approx(a-w_k)\\,u+v'}</Tex> 只在 <Tex>{'w'}</Tex> 變得比主 PLL 慢時成立。pole{' '}
           <Tex>{'p=1-\\mu K_qC'}</Tex>（圖 6.6）描述的是 loop 框外、block rate 的平均行為。
         </p>
@@ -139,8 +138,7 @@ export function S7Lab() {
           </li>
           <li>
             同一個設定把 GMAC code delay <Tex>{'D'}</Tex> 調到 3：<Tex>{`C_D/\\sigma_x^2\\approx${fx(n.saw002d3, 3)}`}</Tex>——
-            <strong>變號</strong>（F-06.18：<Tex>{'D>\\mathrm{frac}/K_i'}</Tex>）。把 <Tex>{'\\mu'}</Tex> 調到 150 fs、新增一個 <Tex>{'D=0'}</Tex> 的 Case 對照：
-            同一個 seed 下 <Tex>{'D=0'}</Tex> 收斂、<Tex>{'D=3'}</Tex> 遠離 <Tex>{'a'}</Tex>。
+            <strong>變號</strong>（F-06.18：<Tex>{'D>\\mathrm{frac}/K_i'}</Tex>）。把 <Tex>{'\\mu'}</Tex> 調到 150 fs、新增一個 <Tex>{'D=0'}</Tex> 的 Case 對照：同一個 seed 下 <Tex>{'D=0'}</Tex> 收斂、<Tex>{'D=3'}</Tex> 遠離 <Tex>{'a'}</Tex>。
           </li>
         </ol>
       </Section>
@@ -162,8 +160,7 @@ export function S7Lab() {
       <ModeGate min="research">
         <StepBox title="（Research）交叉比對欄的 Monte Carlo 檢查在比什麼？" min="research">
           <p>
-            只比「MC 平均 <Tex>{'\\bar\\delta_k'}</Tex> 對 <Tex>{'\\delta_0p^k'}</Tex>」是不夠的：<Tex>{'C<0'}</Tex> 而雜訊主導時，每條 chain 往哪一邊發散由雜訊決定，
-            平均值接近 0，怎麼比都會過。所以實驗同時檢查線性隨機模型的<strong>兩個動差</strong>：
+            只比「MC 平均 <Tex>{'\\bar\\delta_k'}</Tex> 對 <Tex>{'\\delta_0p^k'}</Tex>」是不夠的：<Tex>{'C<0'}</Tex> 而雜訊主導時，每條 chain 往哪一邊發散由雜訊決定，平均值接近 0，怎麼比都會過。所以實驗同時檢查線性隨機模型的<strong>兩個動差</strong>：
           </p>
           <StepDerivation
             steps={[

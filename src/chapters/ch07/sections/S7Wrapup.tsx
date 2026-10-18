@@ -86,8 +86,7 @@ export function S7Wrapup() {
           title="思考題 1（計算）"
           question={
             <>
-              誤差路徑在 code 頻率 <Tex>{r`\Omega=45^\circ/\text{sample}`}</Tex> 的相位是 <Tex>{r`\phi=-90^\circ`}</Tex>。若在 GMAC 的 <strong>code</strong> 端延遲，
-              最小的正確 <Tex>{'D'}</Tex> 是多少？
+              誤差路徑在 code 頻率 <Tex>{r`\Omega=45^\circ/\text{sample}`}</Tex> 的相位是 <Tex>{r`\phi=-90^\circ`}</Tex>。若在 GMAC 的 <strong>code</strong> 端延遲，最小的正確 <Tex>{'D'}</Tex> 是多少？
             </>
           }
           options={[{ label: '1' }, { label: '2', correct: true }, { label: '6' }, { label: '8' }]}
@@ -122,8 +121,7 @@ export function S7Wrapup() {
           answer={
             <p>
               相位差 <Tex>{r`\angle H-\angle\hat H=\Omega\Delta=30^\circ\times3=90^\circ`}</Tex>，所以
-              <Tex>{r`E[u\,u_f]=|H|^2\tfrac{A^2}{2}\cos90^\circ=0`}</Tex>（F-07.12）：pole <Tex>{r`p_f=1`}</Tex>，沒有恢復力。<Tex>{r`\Delta=4`}</Tex> 才是 <Tex>{r`120^\circ`}</Tex>、發散。
-              「<Tex>{r`E[u^2]\ge0`}</Tex>」只在 <Tex>{r`\hat H=H`}</Tex>、<Tex>{'D=0'}</Tex> 時成立（E45）。對照：<Tex>{'H=1'}</Tex> 時 code 錯位 3 個 sample 也是
+              <Tex>{r`E[u\,u_f]=|H|^2\tfrac{A^2}{2}\cos90^\circ=0`}</Tex>（F-07.12）：pole <Tex>{r`p_f=1`}</Tex>，沒有恢復力。<Tex>{r`\Delta=4`}</Tex> 才是 <Tex>{r`120^\circ`}</Tex>、發散。「<Tex>{r`E[u^2]\ge0`}</Tex>」只在 <Tex>{r`\hat H=H`}</Tex>、<Tex>{'D=0'}</Tex> 時成立（E45）。對照：<Tex>{'H=1'}</Tex> 時 code 錯位 3 個 sample 也是
               <Tex>{r`C_3=${tx(q2, 4)}`}</Tex>。
             </p>
           }
@@ -145,8 +143,7 @@ export function S7Wrapup() {
             <p>
               二次差分只複製 <Tex>{r`H_{\mathrm{PD}}`}</Tex> 的<strong>低頻</strong>漸近線（相位 <Tex>{r`\pi-\Omega=${tx(q3.ph2, 0)}^\circ`}</Tex>），而
               <Tex>{r`\Omega=\pi/6`}</Tex> 已遠高於 <Tex>{r`\omega_nT_s`}</Tex>，真正的 <Tex>{r`\angle H_{\mathrm{PD}}=${tx(q3.phH, 1)}^\circ`}</Tex>：相位差
-              <Tex>{r`${tx(q3.err, 1)}^\circ`}</Tex>，超過 F-07.15 的邊界，<Tex>{r`E[u\,u_f]=${tx(q3.cSd, 2)}<0`}</Tex>（unit-power code、<Tex>{r`K_2=100`}</Tex>），極性反過來
-              （7.5 節的表；Lab preset「二次差分在中頻 tone 失效」）。這個頻率 <Tex>{r`H_{\mathrm{PD}}\approx1`}</Tex>，raw-x 的 <Tex>{r`C=${tx(q3.cRaw, 3)}`}</Tex> 已經是正的。
+              <Tex>{r`${tx(q3.err, 1)}^\circ`}</Tex>，超過 F-07.15 的邊界，<Tex>{r`E[u\,u_f]=${tx(q3.cSd, 2)}<0`}</Tex>（unit-power code、<Tex>{r`K_2=100`}</Tex>），極性反過來（7.5 節的表；Lab preset「二次差分在中頻 tone 失效」）。這個頻率 <Tex>{r`H_{\mathrm{PD}}\approx1`}</Tex>，raw-x 的 <Tex>{r`C=${tx(q3.cRaw, 3)}`}</Tex> 已經是正的。
               <Tex>{'\\mu'}</Tex> 只改變大小，改不了符號。
             </p>
           }
@@ -155,8 +152,7 @@ export function S7Wrapup() {
           title="思考題 4（正規化相關與校正時間）"
           question={
             <>
-              某 regressor 的正規化相關 <Tex>{r`\rho=0.5`}</Tex>。要和 filtered-x（<Tex>{r`\rho=1`}</Tex>）在<strong>同樣的收斂速度</strong> <Tex>{'g'}</Tex> 下得到同樣的
-              穩態抖動 <Tex>{r`\sigma_w`}</Tex>，GMAC 的 <Tex>{'N'}</Tex> 要變成幾倍？
+              某 regressor 的正規化相關 <Tex>{r`\rho=0.5`}</Tex>。要和 filtered-x（<Tex>{r`\rho=1`}</Tex>）在<strong>同樣的收斂速度</strong> <Tex>{'g'}</Tex> 下得到同樣的穩態抖動 <Tex>{r`\sigma_w`}</Tex>，GMAC 的 <Tex>{'N'}</Tex> 要變成幾倍？
             </>
           }
           options={[{ label: '2 倍' }, { label: '4 倍', correct: true }, { label: <>不需要，只要調 <Tex>{'\\mu'}</Tex></> }]}
@@ -189,8 +185,7 @@ export function S7Wrapup() {
           ]}
           points={[
             <>
-              延遲 <Tex>{'D'}</Tex> 個 sample = 線性相位 <Tex>{r`e^{-j\Omega D}`}</Tex>：只能把<strong>一個</strong>頻率的相位轉正（T07：<Tex>{r`-120^\circ+4\times30^\circ=0^\circ`}</Tex>），
-              正相關窗只有半個週期。
+              延遲 <Tex>{'D'}</Tex> 個 sample = 線性相位 <Tex>{r`e^{-j\Omega D}`}</Tex>：只能把<strong>一個</strong>頻率的相位轉正（T07：<Tex>{r`-120^\circ+4\times30^\circ=0^\circ`}</Tex>），正相關窗只有半個週期。
             </>,
             <>
               延遲放在 code 端是 <Tex>{r`+\Omega D`}</Tex>、放在 comparator 端是 <Tex>{r`-\Omega D`}</Tex>；寫反方向是常見 RTL bug。
@@ -204,8 +199,7 @@ export function S7Wrapup() {
               <Tex>{r`E[u\,u_f]`}</Tex>）；激勵頻帶上殘餘相位 <Tex>{r`|\angle H-\angle\hat H+\Omega D|<90^\circ`}</Tex> 是充分條件。latency 誤差最危險（線性相位隨頻率增長）。
             </>,
             <>
-              Type-II 的二次差分 <Tex>{r`(1-z^{-1})^2`}</Tex> 是幾乎免費的低頻 <Tex>{r`\hat H`}</Tex>，但只適合<strong>窄頻</strong>、低頻（<Tex>{r`\Omega\lesssim\omega_nT_s`}</Tex>）的 tone；
-              中頻 tone 變號，寬頻 code 即使低通也幾乎沒有恢復力（F-07.15／F-07.16）。
+              Type-II 的二次差分 <Tex>{r`(1-z^{-1})^2`}</Tex> 是幾乎免費的低頻 <Tex>{r`\hat H`}</Tex>，但只適合<strong>窄頻</strong>、低頻（<Tex>{r`\Omega\lesssim\omega_nT_s`}</Tex>）的 tone；中頻 tone 變號，寬頻 code 即使低通也幾乎沒有恢復力（F-07.15／F-07.16）。
             </>,
           ]}
         />
@@ -258,14 +252,11 @@ export function S7Wrapup() {
         />
         <p>
           先看兩個起點：把 <Tex>{'w'}</Tex> 手動固定在 <Tex>{r`w_0+\Delta w`}</Tex> 與 <Tex>{r`w_0-\Delta w`}</Tex>，各讀一次 GMAC 的長時間平均。因為 <Tex>{r`E[G_k]\approx K_qC\,(a-w)`}</Tex>，所以
-          <Tex>{r`G_+\approx K_qC\,(a-w_0-\Delta w)`}</Tex>、<Tex>{r`G_-\approx K_qC\,(a-w_0+\Delta w)`}</Tex>。再看藍色方塊：兩者相減，<Tex>{r`a-w_0`}</Tex> 互相抵消，只剩 <Tex>{r`-2K_qC\,\Delta w`}</Tex>，
-          除以 <Tex>{r`2\Delta w`}</Tex> 就是斜率 <Tex>{r`S\approx-K_qC`}</Tex>（和圖上藍色方塊寫的一樣是近似：小訊號線性化）。最後看六角形：<Tex>{r`K_q>0`}</Tex>，所以 <Tex>{r`S<0`}</Tex> 才表示 <Tex>{r`C>0`}</Tex>，可以閉迴路；否則回到 7.6 節的決策流程換一種 regressor。
+          <Tex>{r`G_+\approx K_qC\,(a-w_0-\Delta w)`}</Tex>、<Tex>{r`G_-\approx K_qC\,(a-w_0+\Delta w)`}</Tex>。再看藍色方塊：兩者相減，<Tex>{r`a-w_0`}</Tex> 互相抵消，只剩 <Tex>{r`-2K_qC\,\Delta w`}</Tex>，除以 <Tex>{r`2\Delta w`}</Tex> 就是斜率 <Tex>{r`S\approx-K_qC`}</Tex>（和圖上藍色方塊寫的一樣是近似：小訊號線性化）。最後看六角形：<Tex>{r`K_q>0`}</Tex>，所以 <Tex>{r`S<0`}</Tex> 才表示 <Tex>{r`C>0`}</Tex>，可以閉迴路；否則回到 7.6 節的決策流程換一種 regressor。
         </p>
         <p>
           本章只處理「方向對不對」（polarity）與「每單位雜訊的恢復力」（<Tex>{'\\rho'}</Tex>）。方向對了之後，校正迴路本身還有自己的 phase margin：GMAC
-          算出的修正量晚幾個 block 才生效（更新延遲），會縮小 <Tex>{'g'}</Tex> 的穩定範圍——這是 <ChRef ch="08">Ch08</ChRef> 的主題
-          （<Tex>{r`L_{\mathrm{cal}}(z)=g/(z-1)`}</Tex>；GMAC 更新晚 <Tex>{r`d_{\mathrm{upd}}`}</Tex> 個 block 生效時臨界 <Tex>{r`g_{\mathrm{crit}}=2\sin\frac{\pi}{4d_{\mathrm{upd}}+2}`}</Tex>，
-          規格 §8.3 記為 <Tex>{'d'}</Tex>；本章的 <Tex>{'d'}</Tex> 是 PLL loop latency，兩者不同）。filtered-x 的 <Tex>{'D'}</Tex> 與 <Tex>{r`\hat H`}</Tex> 的 latency
+          算出的修正量晚幾個 block 才生效（更新延遲），會縮小 <Tex>{'g'}</Tex> 的穩定範圍——這是 <ChRef ch="08">Ch08</ChRef> 的主題（<Tex>{r`L_{\mathrm{cal}}(z)=g/(z-1)`}</Tex>；GMAC 更新晚 <Tex>{r`d_{\mathrm{upd}}`}</Tex> 個 block 生效時臨界 <Tex>{r`g_{\mathrm{crit}}=2\sin\frac{\pi}{4d_{\mathrm{upd}}+2}`}</Tex>，規格 §8.3 記為 <Tex>{'d'}</Tex>；本章的 <Tex>{'d'}</Tex> 是 PLL loop latency，兩者不同）。filtered-x 的 <Tex>{'D'}</Tex> 與 <Tex>{r`\hat H`}</Tex> 的 latency
           不是這一種延遲：它們在 regressor 那一側（前饋），不在校正迴路的回授路徑上。在平均模型裡（<Tex>{'w'}</Tex> 慢變）它們只改變相關 <Tex>{r`C_{f,D}`}</Tex>（F-07.12）——同一個{' '}
           <Tex>{'\\mu'}</Tex> 下 <Tex>{r`g=\mu K_q\,C_{f,D}`}</Tex> 的大小，甚至正負號——不改變 <Tex>{'g'}</Tex> 的穩定上限。
         </p>
@@ -339,35 +330,27 @@ export function S7Wrapup() {
             </div>
             <p>
               讀表：(1) <Tex>{r`f_b`}</Tex> 是 <Tex>{r`\mathrm{Re}\{H_{\mathrm{PD}}\}`}</Tex> 由負變正的頻率——code 或 training tone 的能量若低於它，raw-x GMAC 的
-              <Tex>{r`C<0`}</Tex>，gain 校正會反向更新；loop latency 多 1–2 拍，<Tex>{r`f_b`}</Tex> 就從 {fx(wide[0].edgeMHz, 0)} MHz 上移到 {fx(wide[2].edgeMHz, 0)} MHz
-              （連續時間原型會告訴你邊界在 <Tex>{r`\omega_n/2\pi=${tx((wide[0].wnTs * WIDE.fsHz) / (2 * Math.PI) / 1e6, 0)}\ \mathrm{MHz}`}</Tex>，偏低）。
-              (2) {WIDE.toneHz / 1e6} MHz 的 tone（<Tex>{r`\Omega=${tx(wide[0].toneOmega, 4)}`}</Tex>）相位接近 <Tex>{r`180^\circ`}</Tex>，delay alignment 要 {wide[2].D}–{wide[0].D}
-              級的 code FIFO，而且只對這一個頻率有效。(3) DSM code 要看<strong>階數</strong>：MASH 1-1-1 的 residue 被 noise shaping 推到高頻
-              （<Tex>{r`H_{\mathrm{PD}}\approx1`}</Tex>），不論 FCW 是多少 raw-x 的 <Tex>{'\\rho'}</Tex> 都接近 1，不需要補償。一階 DSM（phase accumulator）的 residue
+              <Tex>{r`C<0`}</Tex>，gain 校正會反向更新；loop latency 多 1–2 拍，<Tex>{r`f_b`}</Tex> 就從 {fx(wide[0].edgeMHz, 0)} MHz 上移到 {fx(wide[2].edgeMHz, 0)} MHz（連續時間原型會告訴你邊界在 <Tex>{r`\omega_n/2\pi=${tx((wide[0].wnTs * WIDE.fsHz) / (2 * Math.PI) / 1e6, 0)}\ \mathrm{MHz}`}</Tex>，偏低）。(2) {WIDE.toneHz / 1e6} MHz 的 tone（<Tex>{r`\Omega=${tx(wide[0].toneOmega, 4)}`}</Tex>）相位接近 <Tex>{r`180^\circ`}</Tex>，delay alignment 要 {wide[2].D}–{wide[0].D}
+              級的 code FIFO，而且只對這一個頻率有效。(3) DSM code 要看<strong>階數</strong>：MASH 1-1-1 的 residue 被 noise shaping 推到高頻（<Tex>{r`H_{\mathrm{PD}}\approx1`}</Tex>），不論 FCW 是多少 raw-x 的 <Tex>{'\\rho'}</Tex> 都接近 1，不需要補償。一階 DSM（phase accumulator）的 residue
               卻是基頻 <Tex>{r`\mathrm{frac}\cdot f_{\mathrm{ref}}`}</Tex> 的 sawtooth：FCW 的小數越靠近整數（near-integer，規格 §11.4），基頻越低於
               <Tex>{r`f_b`}</Tex>，PD 端只剩 sawtooth 跳變的高頻邊緣，和原始 code 幾乎不相關——<Tex>{'\\rho'}</Tex> 從 {fx(wide[0].rhoDsm1[0], 2)} 掉到
               {' '}{fx(wide[0].rhoDsm1[2], 2)}（<Tex>{'d=0'}</Tex>）；<Tex>{`d=2,\\ \\mathrm{frac}=${WIDE.fracs[1]}`}</Tex> 時是 {fx(wide[2].rhoDsm1[1], 3)}
               {wide[2].rhoDsm1[1] < 0 ? <strong>（變號：raw-x 反向更新）</strong> : null}。
             </p>
             <p>
-              所以「GMAC 的極性對不對」取決於 <strong>code 的頻譜落在 <Tex>{r`f_b`}</Tex> 的哪一邊</strong>：同一顆晶片只是換了 channel（FCW）或 code pattern，
-              raw-x 的恢復力就可能消失甚至翻號；filtered-x（<Tex>{r`\hat H=H`}</Tex>）在每一格都是 <Tex>{r`\rho=1`}</Tex>。Lab 的 preset「FCW 與一階 DSM code」可以直接看閉迴路。
-              完整的 GOS／PHOS 分析見 <a href="#/case/sspll">案例頁：SSPLL 的 GOS / PHOS 極性</a>。 <ClaimTag kind="exact" /> <SourceTag kind="simulation" />
+              所以「GMAC 的極性對不對」取決於 <strong>code 的頻譜落在 <Tex>{r`f_b`}</Tex> 的哪一邊</strong>：同一顆晶片只是換了 channel（FCW）或 code pattern，raw-x 的恢復力就可能消失甚至翻號；filtered-x（<Tex>{r`\hat H=H`}</Tex>）在每一格都是 <Tex>{r`\rho=1`}</Tex>。Lab 的 preset「FCW 與一階 DSM code」可以直接看閉迴路。完整的 GOS／PHOS 分析見 <a href="#/case/sspll">案例頁：SSPLL 的 GOS / PHOS 極性</a>。 <ClaimTag kind="exact" /> <SourceTag kind="simulation" />
             </p>
             <p className="small muted">
-              假設：Type-II 迴路、<Tex>{r`\zeta=${WIDE.zeta}`}</Tex>、PD／comparator 與 PLL 同一取樣率（E44 的 DT 參考模型）；DSM 各欄是 20-bit、無 dither 的 DTC phase residue
-              （standardize），以 32,768 個 sample 的時間平均估計（MASH 一欄 <Tex>{r`\mathrm{frac}=0.3`}</Tex>；seed {WIDE.seed}）。這些是 illustrative 的行為模型數字，不是任何晶片的量測；實際迴路的 <Tex>{r`\zeta`}</Tex>、latency 與 pulse shape 要代入自己的設計值。
+              假設：Type-II 迴路、<Tex>{r`\zeta=${WIDE.zeta}`}</Tex>、PD／comparator 與 PLL 同一取樣率（E44 的 DT 參考模型）；DSM 各欄是 20-bit、無 dither 的 DTC phase residue（standardize），以 32,768 個 sample 的時間平均估計（MASH 一欄 <Tex>{r`\mathrm{frac}=0.3`}</Tex>；seed {WIDE.seed}）。這些是 illustrative 的行為模型數字，不是任何晶片的量測；實際迴路的 <Tex>{r`\zeta`}</Tex>、latency 與 pulse shape 要代入自己的設計值。
             </p>
           </Callout>
         </ModeGate>
         <p className="small muted">
-          下一個值得研究的問題：<Tex>{r`\hat H`}</Tex> 能不能線上學？（用 code 與 PD 誤差的互相關估計 <Tex>{'h'}</Tex>，即 FxLMS 的 secondary-path identification；
-          需要額外的 excitation 與第二個 LMS，兩個迴路的時間尺度分離見 <ChRef ch="08">Ch08</ChRef> §8.4。）<ClaimTag kind="research" />
+          下一個值得研究的問題：<Tex>{r`\hat H`}</Tex> 能不能線上學？（用 code 與 PD 誤差的互相關估計 <Tex>{'h'}</Tex>，即 FxLMS 的 secondary-path identification；需要額外的 excitation 與第二個 LMS，兩個迴路的時間尺度分離見 <ChRef ch="08">Ch08</ChRef> §8.4。）<ClaimTag kind="research" />
         </p>
         <p className="small muted">
           數字複習：T07 的 <Tex>{r`C_4=${tx(toneCorrCodeDelay({ A: 1, mag: 1, phiRad: -120 * RAD, omega: Math.PI / 6 }, 4), 4)}`}</Tex>、
-          <Tex>{r`C_0=${tx(toneCorrCodeDelay({ A: 1, mag: 1, phiRad: -120 * RAD, omega: Math.PI / 6 }, 0), 4)}`}</Tex>（<Tex>{'A=|H|=1'}</Tex>）；
-          思考題 1 的最佳 <Tex>{'D'}</Tex> = {fx(q1.D, 0)}。
+          <Tex>{r`C_0=${tx(toneCorrCodeDelay({ A: 1, mag: 1, phiRad: -120 * RAD, omega: Math.PI / 6 }, 0), 4)}`}</Tex>（<Tex>{'A=|H|=1'}</Tex>）；思考題 1 的最佳 <Tex>{'D'}</Tex> = {fx(q1.D, 0)}。
         </p>
       </Section>
     </>

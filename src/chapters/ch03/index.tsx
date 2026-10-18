@@ -131,8 +131,7 @@ export default function Chapter03() {
   return (
     <div className="ch03">
       <p className="ch03-lead" id="ch03-top">
-        這一課要回答：<strong>LMS 什麼時候會收斂？</strong>固定輸入時答案是一個等比數列，乾淨俐落；輸入變成隨機以後，「收斂」突然有了<strong>三種不同的意思</strong>，
-        而且它們的界限可以差好幾倍。我們會一路從高中的 <Tex>{T`r^n\to0`}</Tex> 推到 Lyapunov 指數，並用 Monte Carlo 親眼看到「均方發散、但每條路徑都收斂」。
+        這一課要回答：<strong>LMS 什麼時候會收斂？</strong>固定輸入時答案是一個等比數列，乾淨俐落；輸入變成隨機以後，「收斂」突然有了<strong>三種不同的意思</strong>，而且它們的界限可以差好幾倍。我們會一路從高中的 <Tex>{T`r^n\to0`}</Tex> 推到 Lyapunov 指數，並用 Monte Carlo 親眼看到「均方發散、但每條路徑都收斂」。
       </p>
       <div className="ch03-tags">
         <ModelLevel level="L0" />
@@ -239,13 +238,10 @@ export default function Chapter03() {
         </p>
         <Roadmap />
         <p>
-          <strong>帶入手算：</strong>每一段推導的後面都有一題「帶入手算」（HC-03.1–HC-03.8）。把數字換成你自己的，先用紙筆和一般的工程計算機算，再和網站一步一步對照——
-          每個等號只做一種運算（中間結果都寫出來，照著畫面上的數字就能按出下一個數），需要 <Tex>{T`\ln`}</Tex>、<Tex>{T`\sqrt{\ }`}</Tex> 或查 <Tex>{T`\Phi(z)`}</Tex> 表的地方都會說明怎麼做；
-          很小的 <Tex>\mu</Tex>（例如 <Tex>{T`10^{-6}`}</Tex>）或很多位的小數也可以直接打進去。
+          <strong>帶入手算：</strong>每一段推導的後面都有一題「帶入手算」（HC-03.1–HC-03.8）。把數字換成你自己的，先用紙筆和一般的工程計算機算，再和網站一步一步對照——每個等號只做一種運算（中間結果都寫出來，照著畫面上的數字就能按出下一個數），需要 <Tex>{T`\ln`}</Tex>、<Tex>{T`\sqrt{\ }`}</Tex> 或查 <Tex>{T`\Phi(z)`}</Tex> 表的地方都會說明怎麼做；很小的 <Tex>\mu</Tex>（例如 <Tex>{T`10^{-6}`}</Tex>）或很多位的小數也可以直接打進去。
         </p>
         <Callout kind="info" title={`目前是 ${mode === 'beginner' ? 'Beginner' : mode === 'engineer' ? 'Engineer' : 'Research'} 模式`}>
-          Beginner：直覺、手算、圖與思考題，逐步推導預設收合（一鍵展開）。Engineer：推導、假設、單位與程式碼預設展開。Research：另外顯示 Kesten heavy tail、Dawson 形式、Monte Carlo 細節與文獻。
-          三種模式共用同一個計算核心（<code>src/simulation/models/scalarStability.ts</code> 與 <code>lms.ts</code>）。
+          Beginner：直覺、手算、圖與思考題，逐步推導預設收合（一鍵展開）。Engineer：推導、假設、單位與程式碼預設展開。Research：另外顯示 Kesten heavy tail、Dawson 形式、Monte Carlo 細節與文獻。三種模式共用同一個計算核心（<code>src/simulation/models/scalarStability.ts</code> 與 <code>lms.ts</code>）。
         </Callout>
       </Section>
 

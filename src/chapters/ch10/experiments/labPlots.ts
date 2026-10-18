@@ -1,7 +1,7 @@
 /**
  * MIMO LMS Lab 的圖表資料產生器（純函式；所有點都來自模擬或解析結果）。
  */
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import type { Complex } from '@/simulation/core'
 import { RULE_SHORT, type Mat, type MimoCovResult, type MimoTrajCase, type RuleAnalysis, type RuleConfig } from '@/simulation/models/mimo'
 import { ellipsePoints } from './labState'

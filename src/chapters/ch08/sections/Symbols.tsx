@@ -77,7 +77,7 @@ export function ChapterSymbols() {
         }
       />
       <p className="small">
-        <button type="button" className="ch08-link-button" onClick={() => scrollToId(SYMBOLS_LINK_ID)}>
+        <button type="button" className="ch08-link-button no-print" onClick={() => scrollToId(SYMBOLS_LINK_ID)}>
           ↑ 回到章首
         </button>
       </p>

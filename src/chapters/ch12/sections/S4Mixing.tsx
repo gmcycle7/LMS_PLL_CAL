@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import { Callout, ClaimTag, CodeBlock, ModeGate, Plot, Prereq, Section, Tex, TexBlock, ChRef } from '@/components'
 import calNoiseSrc from '@/simulation/models/calNoise.ts?raw'
 import { swDtft, swOneSided, swZohOneSided } from '@/simulation/models/calNoise'
@@ -63,8 +63,7 @@ export function S4Mixing() {
       <Section kind="intuition" title="§12.6 乘號不是加號" level={3} id="ch12-mixing">
         <p>
           係數 <Tex>{'w'}</Tex> 是 DTC 的 <strong>gain</strong>：reference 端的 DTC 補償量 = <Tex>{'w\\cdot x[n]'}</Tex>（DTC 只能延遲、不能提前，所以實際延遲是從固定的基準延遲{' '}
-          <Tex>{'T_0'}</Tex> 往回扣：<Tex>{String.raw`\tau_{\mathrm{DTC}}[n]=T_0-w\,x[n]`}</Tex>）。所以 gain 的抖動不是「加」在輸出上，而是<strong>乘</strong>上當下的 code。
-          就像一首歌的音量旋鈕以 10 Hz 輕輕抖動：你聽到的不是一個 10 Hz 的聲音，而是每個音符旁邊多出 ±10 Hz 的邊帶。
+          <Tex>{'T_0'}</Tex> 往回扣：<Tex>{String.raw`\tau_{\mathrm{DTC}}[n]=T_0-w\,x[n]`}</Tex>）。所以 gain 的抖動不是「加」在輸出上，而是<strong>乘</strong>上當下的 code。就像一首歌的音量旋鈕以 10 Hz 輕輕抖動：你聽到的不是一個 10 Hz 的聲音，而是每個音符旁邊多出 ±10 Hz 的邊帶。
         </p>
         <p>
           {md(
@@ -87,10 +86,8 @@ export function S4Mixing() {
           {String.raw`\boxed{\delta t[n]=x[n]\,\delta w[n]},\qquad \delta w[n]=\delta w_{\lfloor (n-n_c)/N\rfloor}`}
         </TexBlock>
         <p>
-          第二式說明 block 與 sample 的關係：係數每 <Tex>N</Tex> 個 sample 才更新一次（zero-order hold，ZOH），<Tex>{'n_c'}</Tex> 是 commit / apply latency <Erratum id="E09" />。
-          極性：<Tex>{String.raw`\delta t`}</Tex> 是 reference 端的 DTC <strong>多補償</strong>的時間，reference edge 因此比該到的時刻早 <Tex>{String.raw`\delta t`}</Tex>；PD 量的是 reference edge 減 feedback
-          edge，所以殘餘 timing error 中對應的項是 <Tex>{String.raw`-x[n]\,\delta w[n]`}</Tex>，
-          和直接 PD 路徑做 cross-spectrum 時必須用一致的極性 <Erratum id="E33" />。
+          第二式說明 block 與 sample 的關係：係數每 <Tex>N</Tex> 個 sample 才更新一次（zero-order hold，ZOH），<Tex>{'n_c'}</Tex> 是 commit / apply latency <Erratum id="E09" />。極性：<Tex>{String.raw`\delta t`}</Tex> 是 reference 端的 DTC <strong>多補償</strong>的時間，reference edge 因此比該到的時刻早 <Tex>{String.raw`\delta t`}</Tex>；PD 量的是 reference edge 減 feedback
+          edge，所以殘餘 timing error 中對應的項是 <Tex>{String.raw`-x[n]\,\delta w[n]`}</Tex>，和直接 PD 路徑做 cross-spectrum 時必須用一致的極性 <Erratum id="E33" />。
         </p>
       </Section>
 
@@ -185,9 +182,7 @@ export function S4Mixing() {
       <Section kind="formula" title={String.raw`隨機 $\times$ 隨機：自相關相乘、PSD 卷積`} level={3}>
         <Prereq title="獨立與卷積">
           <p>
-            兩個隨機量<strong>獨立</strong>時，乘積的期望值等於期望值的乘積：<Tex>{String.raw`E[XY]=E[X]E[Y]`}</Tex>。
-            兩個函數的<strong>卷積</strong> <Tex>{String.raw`(f\circledast g)(\Omega)=\int f(\nu)g(\Omega-\nu)\,d\nu`}</Tex>：把一個頻譜「拖著另一個」掃過去。
-            時域相乘 ⇔ 頻域卷積（DTFT 版本要除以 <Tex>{'2\\pi'}</Tex>，積分範圍一個週期）。
+            兩個隨機量<strong>獨立</strong>時，乘積的期望值等於期望值的乘積：<Tex>{String.raw`E[XY]=E[X]E[Y]`}</Tex>。兩個函數的<strong>卷積</strong> <Tex>{String.raw`(f\circledast g)(\Omega)=\int f(\nu)g(\Omega-\nu)\,d\nu`}</Tex>：把一個頻譜「拖著另一個」掃過去。時域相乘 ⇔ 頻域卷積（DTFT 版本要除以 <Tex>{'2\\pi'}</Tex>，積分範圍一個週期）。
           </p>
           <p>
             <strong>Dirac delta</strong> <Tex>{String.raw`\delta(\nu-\nu_0)`}</Tex>：一根位於 <Tex>{String.raw`\nu_0`}</Tex>、無限窄、面積為 1 的尖峰，定義性質是「取樣」：
@@ -232,8 +227,7 @@ export function S4Mixing() {
           )}
         </p>
         <Callout kind="warn" title="兩個關鍵假設">
-          (1) <Tex>{'x'}</Tex> 與 <Tex>{String.raw`\delta w`}</Tex> 獨立——真實 LMS 中 <Tex>{String.raw`\delta w`}</Tex> 是由同一個 code 算出來的，兩者有相關；
-          (2) 卷積裡必須用 <strong>sample-rate</strong> 的 <Tex>{String.raw`S_w^{(f_s)}`}</Tex>（下一小節），不能直接放 block-rate 的 <Tex>{'S_w'}</Tex>。 <ClaimTag kind="approx" />
+          (1) <Tex>{'x'}</Tex> 與 <Tex>{String.raw`\delta w`}</Tex> 獨立——真實 LMS 中 <Tex>{String.raw`\delta w`}</Tex> 是由同一個 code 算出來的，兩者有相關；(2) 卷積裡必須用 <strong>sample-rate</strong> 的 <Tex>{String.raw`S_w^{(f_s)}`}</Tex>（下一小節），不能直接放 block-rate 的 <Tex>{'S_w'}</Tex>。 <ClaimTag kind="approx" />
           <Erratum id="E09" />
           <Erratum id="E29" />
         </Callout>
@@ -323,8 +317,7 @@ S^{(1)}_{\delta t}(f)&=\underbrace{m^2\,S^{(1)}_{w,\mathrm{zoh}}(f)}_{\text{常�
 
       <Section kind="formula" title="Multirate：block-rate 的係數雜訊怎麼放到 sample-rate 軸上" level={3} id="ch12-multirate">
         <p>
-          <Tex>{String.raw`\delta w_k`}</Tex> 每個 block 一個值（取樣率 <Tex>{'f_u'}</Tex>），code 每個 sample 一個值（取樣率 <Tex>{'f_s=Nf_u'}</Tex>）。
-          先看誰在什麼時候動：
+          <Tex>{String.raw`\delta w_k`}</Tex> 每個 block 一個值（取樣率 <Tex>{'f_u'}</Tex>），code 每個 sample 一個值（取樣率 <Tex>{'f_s=Nf_u'}</Tex>）。先看誰在什麼時候動：
         </p>
         <Diagram chart={CHART_BLOCK_TIMING} caption={String.raw`誰在什麼時候動：comparator 與 DTC 每個 sample 都在動，係數每個 block（$N$ 個 sample）才換一次。三條橫帶由上到下是 comparator 與 GMAC、LMS、DTC，每條橫帶由左往右是時間。`}>
           <p>
@@ -383,9 +376,7 @@ S^{(1)}_{\delta t}(f)&=\underbrace{m^2\,S^{(1)}_{w,\mathrm{zoh}}(f)}_{\text{常�
           )}
         />
         <Callout kind="danger" title={md(String.raw`反面測試：直接把 block-rate $S_w$ 放到 sample-rate 軸`)}>
-          若把 <Tex>{String.raw`S_w(e^{j\Omega})`}</Tex>（rad/block）當成 <Tex>{String.raw`S(e^{j\theta})`}</Tex>（rad/sample）代入 F-12.13，頻率軸錯 <Tex>{'N'}</Tex> 倍、
-          低頻 skirt 的位準也差了好幾個數量級（本例 <Tex>{'f=5\\ \\mathrm{kHz}'}</Tex> 處，正確的 <Tex>{'S^{(1)}'}</Tex> 是錯誤代入值的 {sig(wrongRatio, 4)} 倍，量級約 <Tex>{'N'}</Tex>）。序列本身是 cyclostationary，
-          F-12.14 是時間平均 PSD。<Erratum id="E09" />
+          若把 <Tex>{String.raw`S_w(e^{j\Omega})`}</Tex>（rad/block）當成 <Tex>{String.raw`S(e^{j\theta})`}</Tex>（rad/sample）代入 F-12.13，頻率軸錯 <Tex>{'N'}</Tex> 倍、低頻 skirt 的位準也差了好幾個數量級（本例 <Tex>{'f=5\\ \\mathrm{kHz}'}</Tex> 處，正確的 <Tex>{'S^{(1)}'}</Tex> 是錯誤代入值的 {sig(wrongRatio, 4)} 倍，量級約 <Tex>{'N'}</Tex>）。序列本身是 cyclostationary，F-12.14 是時間平均 PSD。<Erratum id="E09" />
           <Erratum id="E29" />
         </Callout>
       </Section>

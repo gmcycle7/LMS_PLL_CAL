@@ -1,4 +1,4 @@
-import type { Dash, Data, Layout } from 'plotly.js-dist-min'
+import type { Dash, Data, Layout } from 'plotly.js-cartesian-dist-min'
 import type { Complex } from '@/simulation/core'
 
 /**

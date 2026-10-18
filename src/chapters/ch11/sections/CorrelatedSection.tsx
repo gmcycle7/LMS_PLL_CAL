@@ -106,8 +106,7 @@ export function CorrelatedSection() {
       <Callout kind="warn" title={m('$w^*=a+\\kappa$ 是「錯」的嗎？要看你在乎哪個誤差')}>
         <p>
           若 <Tex>{String.raw`\varepsilon_{cc}`}</Tex> 也同樣出現在 PLL 輸出的相位誤差中（例如它本來就是 DTC 路徑上的 pattern-dependent delay），那麼 <Tex>{'w=a+\\kappa'}</Tex>{' '}
-          反而把它一起抵消了，對輸出 jitter 是好事。若它只出現在<strong>觀測路徑</strong>（例如只耦合到 comparator 的 threshold），那麼 <Tex>{'w=a+\\kappa'}</Tex> 就是把一個不存在的
-          誤差「校正」進 DTC，輸出端反而多了 <Tex>{'\\kappa x'}</Tex> 的 timing error。<ClaimTag kind="research" /> 需要以閉迴路模擬或實測確認耦合發生在哪個節點。
+          反而把它一起抵消了，對輸出 jitter 是好事。若它只出現在<strong>觀測路徑</strong>（例如只耦合到 comparator 的 threshold），那麼 <Tex>{'w=a+\\kappa'}</Tex> 就是把一個不存在的誤差「校正」進 DTC，輸出端反而多了 <Tex>{'\\kappa x'}</Tex> 的 timing error。<ClaimTag kind="research" /> 需要以閉迴路模擬或實測確認耦合發生在哪個節點。
         </p>
       </Callout>
 

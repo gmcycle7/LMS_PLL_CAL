@@ -1,4 +1,4 @@
-import { Mermaid, mathText, stripMathDelimiters } from '@/components'
+import { Mermaid, accessibleText, mathText } from '@/components'
 import { CH11_DIAGRAMS, type Ch11DiagramId } from './diagrams'
 
 /** 圖號：依 CH11_DIAGRAMS 的順序（= 頁面上出現的順序）編成「圖 11-n」。 */
@@ -25,7 +25,7 @@ export function Fig({ id }: { id: Ch11DiagramId }) {
   const label = figLabel(id)
   return (
     <div className="ch11-fig" id={`ch11-fig-${d.id}`}>
-      <Mermaid chart={d.chart} ariaLabel={`${label}：${stripMathDelimiters(d.title)}`} />
+      <Mermaid chart={d.chart} ariaLabel={`${label}：${accessibleText(d.title)}`} />
       <p className="c-figcaption ch11-figcap">
         <strong>
           {label}：{mathText(d.title)}

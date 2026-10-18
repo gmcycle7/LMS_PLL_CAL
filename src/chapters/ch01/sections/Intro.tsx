@@ -41,10 +41,7 @@ export function IntroSection() {
         </p>
         <SystemMap focus={SYSTEM_MAP_FOCUS} caption={SYSTEM_MAP_CAPTION} />
         <p>
-          <strong>你在這裡</strong>：上圖是整個 PLL 加上 LMS 校正迴路，每一章開頭都是同一張。主迴路是 reference clock 先經過 DTC、再進 phase detector（PD）、loop filter、VCO；回授路徑上只有 divider（或 PMUX）。LMS 校正迴路的輸入是 PD 的輸出——送進 loop filter 的同一個訊號，1-bit comparator 取的就是它的正負號。藍色方塊是本章的主角——GMAC（gain multiply-accumulate：把誤差乘上輸入再累加）、
-          步長（<Tex>{String.raw`\div N`}</Tex>、<Tex>{String.raw`\times\mu`}</Tex>）與 gain accumulator（存係數 <Tex>{'w'}</Tex> 的暫存器）合起來就是「修正猜測」這個動作，
-          1-bit comparator 則決定修正時用的是誤差本身，還是只有它的正負號。本章把這四塊從 PLL 裡拿出來，放進一個沒有 PLL 動態的最簡單模型（一個輸入、一個係數），
-          回答一件事：這條修正規則到底在最小化什麼？§1 用誤差本身，§2 換成只有正負號（comparator 的情況）。
+          <strong>你在這裡</strong>：上圖是整個 PLL 加上 LMS 校正迴路，每一章開頭都是同一張。主迴路是 reference clock 先經過 DTC、再進 phase detector（PD）、loop filter、VCO；回授路徑上只有 divider（或 PMUX）。LMS 校正迴路的輸入是 PD 的輸出——送進 loop filter 的同一個訊號，1-bit comparator 取的就是它的正負號。藍色方塊是本章的主角——GMAC（gain multiply-accumulate：把誤差乘上輸入再累加）、步長（<Tex>{String.raw`\div N`}</Tex>、<Tex>{String.raw`\times\mu`}</Tex>）與 gain accumulator（存係數 <Tex>{'w'}</Tex> 的暫存器）合起來就是「修正猜測」這個動作，1-bit comparator 則決定修正時用的是誤差本身，還是只有它的正負號。本章把這四塊從 PLL 裡拿出來，放進一個沒有 PLL 動態的最簡單模型（一個輸入、一個係數），回答一件事：這條修正規則到底在最小化什麼？§1 用誤差本身，§2 換成只有正負號（comparator 的情況）。
         </p>
         <TexBlock id="F-01.1" label="黑盒子模型（規格 §1）">
           {String.raw`y=ax+v,\qquad \hat y=wx,\qquad e=y-\hat y=y-wx`}
@@ -139,8 +136,7 @@ export function IntroSection() {
           <code>batchL1</code> 即時計算。）
         </p>
         <p>
-          上面的做法要先把資料全部收齊（批次，batch）。LMS 走另一條路：不存資料、不一次解完，而是每來一筆就把手上的猜測修一點（線上，online）。
-          硬體喜歡後者——只要一個暫存器記住 <Tex>{'w'}</Tex>。
+          上面的做法要先把資料全部收齊（批次，batch）。LMS 走另一條路：不存資料、不一次解完，而是每來一筆就把手上的猜測修一點（線上，online）。硬體喜歡後者——只要一個暫存器記住 <Tex>{'w'}</Tex>。
         </p>
         <BlockDiagram id="D-01.1">
           先看上面那一列：<Tex>{'N'}</Tex> 筆資料（<Tex>{'N'}</Tex> 是資料筆數，下標 <Tex>{'i'}</Tex> 是第幾筆）全部進記憶體，算出兩個總和再相除一次，就是剛才的{' '}
@@ -250,8 +246,7 @@ export function IntroSection() {
           是拿來平均的資料筆數（下面的先備知識框有完整說明）。把三個字照計算順序串起來：
         </p>
         <BlockDiagram id="D-01.3">
-          先看上面那一列：輸入 <Tex>{'x'}</Tex> 乘上你選的 <Tex>{'w'}</Tex> 得到預測，量測 <Tex>{'y'}</Tex> 減掉它就是這一筆資料的誤差 <Tex>{'e'}</Tex>。再看下面那一列，沿著三個藍色方塊往右：
-          平方（Squares）→ 很多筆取平均（Mean）→ 換不同的 <Tex>{'w'}</Tex> 找最小（Least）。注意名字的順序和計算的順序剛好相反。圖上「成本」那一格就是下面公式的{' '}
+          先看上面那一列：輸入 <Tex>{'x'}</Tex> 乘上你選的 <Tex>{'w'}</Tex> 得到預測，量測 <Tex>{'y'}</Tex> 減掉它就是這一筆資料的誤差 <Tex>{'e'}</Tex>。再看下面那一列，沿著三個藍色方塊往右：平方（Squares）→ 很多筆取平均（Mean）→ 換不同的 <Tex>{'w'}</Tex> 找最小（Least）。注意名字的順序和計算的順序剛好相反。圖上「成本」那一格就是下面公式的{' '}
           <Tex>{String.raw`J_2(w)=E[(y-wx)^2]`}</Tex>，最右邊的 <Tex>{'w^*'}</Tex> 就是 <Tex>{String.raw`\arg\min_wJ_2(w)`}</Tex>。
         </BlockDiagram>
         <TexBlock>{String.raw`\boxed{J_2(w)=E\big[(y-wx)^2\big],\qquad w^*=\arg\min_w J_2(w)}`}</TexBlock>
@@ -333,8 +328,7 @@ export function IntroSection() {
           </table>
         </div>
         <BlockDiagram id="D-01.4">
-          先看左邊兩個方塊：同樣四筆誤差，A 是 <Tex>{String.raw`\pm10`}</Tex>、B 是 <Tex>{String.raw`\pm1`}</Tex>。再看中間三種計分方式各自吐出什麼：
-          直接平均的那一條，兩個模型都得到 0（紅色，分不出來）；先取絕對值或先平方的兩條才分得出 B 比較好。圖上的 <Tex>{String.raw`\text{mean}(e^2)`}</Tex>{' '}
+          先看左邊兩個方塊：同樣四筆誤差，A 是 <Tex>{String.raw`\pm10`}</Tex>、B 是 <Tex>{String.raw`\pm1`}</Tex>。再看中間三種計分方式各自吐出什麼：直接平均的那一條，兩個模型都得到 0（紅色，分不出來）；先取絕對值或先平方的兩條才分得出 B 比較好。圖上的 <Tex>{String.raw`\text{mean}(e^2)`}</Tex>{' '}
           就是 §1.1 的「Mean Squares」<Tex>{'E[e^2]'}</Tex>；<Tex>{String.raw`\text{mean}(|e|)`}</Tex> 是 §2 才會用到的 <Tex>{'E|e|'}</Tex>。
         </BlockDiagram>
         <StepDerivation

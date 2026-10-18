@@ -24,8 +24,7 @@ export function S1Coupling() {
           <ClaimTag kind="approx" />
         </TagRow>
         <p>
-          兩個參數、regressor 相關係數 <Tex>{String.raw`\rho=0.8`}</Tex>：<Tex>{String.raw`\mathbf R=\begin{bmatrix}1&0.8\\0.8&1\end{bmatrix}`}</Tex>。
-          假設 <Tex>{String.raw`w_1`}</Tex> 已經完全正確（<Tex>{String.raw`\delta_1=0`}</Tex>），只有 <Tex>{String.raw`w_2`}</Tex> 差了{' '}
+          兩個參數、regressor 相關係數 <Tex>{String.raw`\rho=0.8`}</Tex>：<Tex>{String.raw`\mathbf R=\begin{bmatrix}1&0.8\\0.8&1\end{bmatrix}`}</Tex>。假設 <Tex>{String.raw`w_1`}</Tex> 已經完全正確（<Tex>{String.raw`\delta_1=0`}</Tex>），只有 <Tex>{String.raw`w_2`}</Tex> 差了{' '}
           <Tex>{String.raw`\delta_2=${c.delta[1]}\ \mathrm{fs}`}</Tex>。Comparator 雜訊 <Tex>{String.raw`\sigma_v=${NUM.sigmaV}\ \mathrm{fs}`}</Tex>。
         </p>
         <p>
@@ -357,8 +356,7 @@ export function S1Coupling() {
 
         <Deriv title="Research：不用小訊號近似的精確平均（Gaussian regressor，Bussgang 定理）" min="research">
           <p>
-            若 <Tex>{String.raw`\mathbf u\sim\mathcal N(\mathbf 0,\mathbf R_u)`}</Tex>，則 <Tex>{String.raw`s=\mathbf u^T\boldsymbol\delta+v`}</Tex> 也是 Gaussian，
-            且 <Tex>{String.raw`(\mathbf u,s)`}</Tex> 聯合 Gaussian。Bussgang 定理：對聯合 Gaussian 的 <Tex>{String.raw`\mathbf u`}</Tex> 與{' '}
+            若 <Tex>{String.raw`\mathbf u\sim\mathcal N(\mathbf 0,\mathbf R_u)`}</Tex>，則 <Tex>{String.raw`s=\mathbf u^T\boldsymbol\delta+v`}</Tex> 也是 Gaussian，且 <Tex>{String.raw`(\mathbf u,s)`}</Tex> 聯合 Gaussian。Bussgang 定理：對聯合 Gaussian 的 <Tex>{String.raw`\mathbf u`}</Tex> 與{' '}
             <Tex>{'s'}</Tex>，<Tex>{String.raw`E[\mathbf u\,g(s)]=\frac{E[\mathbf us]}{E[s^2]}E[s\,g(s)]`}</Tex>。
           </p>
           <StepDerivation
@@ -397,8 +395,7 @@ export function S1Coupling() {
           </TexBlock>
           <p>
             兩個推論：(1) 對 Gaussian regressor，<strong>耦合結構 <Tex>{String.raw`\mathbf C\boldsymbol\delta`}</Tex> 是精確的</strong>，不是近似；近似的只有「增益 =
-            <Tex>{'K_q'}</Tex>」。(2) 誤差大時有效增益 <Tex>{String.raw`K_q/\sqrt{1+\boldsymbol\delta^T\mathbf R_u\boldsymbol\delta/\sigma_v^2}`}</Tex> 變小，
-            所以 Sign-LMS 一開始比線性模型慢。上面例子 <Tex>{String.raw`\boldsymbol\delta=(0,10)`}</Tex>：精確{' '}
+            <Tex>{'K_q'}</Tex>」。(2) 誤差大時有效增益 <Tex>{String.raw`K_q/\sqrt{1+\boldsymbol\delta^T\mathbf R_u\boldsymbol\delta/\sigma_v^2}`}</Tex> 變小，所以 Sign-LMS 一開始比線性模型慢。上面例子 <Tex>{String.raw`\boldsymbol\delta=(0,10)`}</Tex>：精確{' '}
             <Tex>{String.raw`G_1=${tn(c.Gexact[0], 5)}`}</Tex> vs 線性 <Tex>{String.raw`${tn(c.G1lin, 5)}`}</Tex>（壓縮因子{' '}
             <Tex>{String.raw`1/\sqrt{1+100/10^4}=${tn(c.Gexact[0] / c.G1lin, 5)}`}</Tex>）。<Tex>{String.raw`\pm1`}</Tex> 碼則用列舉：{' '}
             <Tex>{String.raw`E[\mathbf G]=\sum_{\mathbf s}p(\mathbf s)\,\mathbf B\mathbf s\,\operatorname{erf}\big(\mathbf s^T\boldsymbol\delta/(\sqrt2\sigma_v)\big)`}</Tex>（程式碼{' '}

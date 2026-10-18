@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import { ClaimTag, ParamControl, Plot, Section, StepDerivation, Tex, TexBlock, useThemeTokens } from '@/components'
 import { AVERAGE_LOOP, CLEAR_BUG } from '../diagrams'
 import { DerivationFold, FigRef, MermaidFig, mt, tx } from '../common'
@@ -139,8 +139,7 @@ export function HardwareNotesSection() {
   return (
     <Section kind="assumptions" title="§6 RTL 檢查清單（規格 §16.1 第 1–8 項）" level={2} id="ch04-notes">
       <p>
-        規格 §16.1 列出 RTL 必須檢查的硬體細節。前 8 項都和本章的訊號流直接相關；下表把每一項「錯了會怎樣」寫成數學，並指出在哪裡可以親手看到。
-        第 9–12 項（CDC、lock / reacquire、injection modes、noise tracing）見 Behavioral Models & RTL 頁。
+        規格 §16.1 列出 RTL 必須檢查的硬體細節。前 8 項都和本章的訊號流直接相關；下表把每一項「錯了會怎樣」寫成數學，並指出在哪裡可以親手看到。第 9–12 項（CDC、lock / reacquire、injection modes、noise tracing）見 Behavioral Models & RTL 頁。
       </p>
       <div className="table-wrap">
         <table>
@@ -173,8 +172,7 @@ export function HardwareNotesSection() {
         第 7 項：忘了在 block 邊界清除 <Tex>S</Tex>
       </h3>
       <p>
-        如果 <Tex>S</Tex> 沒有在每個 block 結束時清為 0，第 <Tex>k</Tex> 次更新用到的是 <Tex>{R`S_0+S_1+\dots+S_k`}</Tex>。看起來只是「多累加了一點」，
-        其實把迴路從一階變成二階，而且<strong>對任何 <Tex>{R`\mu`}</Tex> 都不會收斂</strong>。
+        如果 <Tex>S</Tex> 沒有在每個 block 結束時清為 0，第 <Tex>k</Tex> 次更新用到的是 <Tex>{R`S_0+S_1+\dots+S_k`}</Tex>。看起來只是「多累加了一點」，其實把迴路從一階變成二階，而且<strong>對任何 <Tex>{R`\mu`}</Tex> 都不會收斂</strong>。
       </p>
       <MermaidFig
         chart={CLEAR_BUG}
@@ -184,8 +182,7 @@ export function HardwareNotesSection() {
       <p>
         兩欄畫的都是 <FigRef chart={AVERAGE_LOOP} /> 的順向路徑（由 gain 誤差 <Tex>{R`\delta_k`}</Tex> 到 <Tex>{R`w_k`}</Tex>；回授同樣是 <Tex>{R`\delta=a-w`}</Tex>，沒有重畫）。<strong>先看左欄</strong>：<Tex>{R`\delta_k`}</Tex> 乘 <Tex>K</Tex>、乘{' '}
         <Tex>{R`\mu`}</Tex>，經過 gain accumulator 這<strong>一個</strong>積分器，得到一階遞迴 <Tex>{R`\delta_{k+1}=(1-g)\,\delta_k`}</Tex>（<Tex>{R`g=\mu K`}</Tex>）。<strong>再看右欄</strong>的紅色方塊：<Tex>S</Tex>{' '}
-        沒清除，它輸出的是從開機到現在所有 block 的總和 <Tex>{R`S_0+S_1+\dots+S_k`}</Tex>——這正是一個累加器 <Tex>{R`1/(1-z^{-1})`}</Tex>。兩個積分器串在同一個迴路裡，相位落後加起來是 180°，
-        回授永遠來得太晚；右欄最下面的二階遞迴式就是下面的 F-04.13，它的特徵方程兩根都落在單位圓上（不衰減也不發散的邊界）。
+        沒清除，它輸出的是從開機到現在所有 block 的總和 <Tex>{R`S_0+S_1+\dots+S_k`}</Tex>——這正是一個累加器 <Tex>{R`1/(1-z^{-1})`}</Tex>。兩個積分器串在同一個迴路裡，相位落後加起來是 180°，回授永遠來得太晚；右欄最下面的二階遞迴式就是下面的 F-04.13，它的特徵方程兩根都落在單位圓上（不衰減也不發散的邊界）。
       </p>
       <DerivationFold title="累積總和讓 pole 落在單位圓上">
         <StepDerivation
@@ -219,8 +216,7 @@ export function HardwareNotesSection() {
         />
       </div>
       <p className="small">
-        另一個常見的 block 邊界錯誤是 off-by-one：只累加 <Tex>{R`N-1`}</Tex> 筆卻仍右移 <Tex>{R`\log_2N`}</Tex>，等效增益變成 <Tex>{R`(N-1)/N`}</Tex>（可忽略）；
-        但若多累加了下一個 block 的第一筆，而那一筆已經用了新的 <Tex>w</Tex>，就相當於 §3 的分數延遲。
+        另一個常見的 block 邊界錯誤是 off-by-one：只累加 <Tex>{R`N-1`}</Tex> 筆卻仍右移 <Tex>{R`\log_2N`}</Tex>，等效增益變成 <Tex>{R`(N-1)/N`}</Tex>（可忽略）；但若多累加了下一個 block 的第一筆，而那一筆已經用了新的 <Tex>w</Tex>，就相當於 §3 的分數延遲。
       </p>
     </Section>
   )

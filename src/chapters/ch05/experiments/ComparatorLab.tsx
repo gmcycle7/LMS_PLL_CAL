@@ -1,5 +1,5 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import {
   CaseSelector,
   ClaimTag,
@@ -477,8 +477,7 @@ export function ComparatorLab() {
       headingLevel={3}
       description={
         <>
-          <Tex>{'e=s+v'}</Tex>、<Tex>{'v\\sim\\mathcal N(0,\\sigma_v^2)'}</Tex>、<Tex>{'q=+1\\iff e\\ge\\theta'}</Tex>；累加 <Tex>{'S_N=\\sum q_i'}</Tex>。
-          解析曲線（exact binomial / CLT）與 Monte Carlo 使用<strong>同一條 tie rule</strong> <Erratum id="E02" />；histogram 與信賴帶可切換 sum／average 尺度{' '}
+          <Tex>{'e=s+v'}</Tex>、<Tex>{'v\\sim\\mathcal N(0,\\sigma_v^2)'}</Tex>、<Tex>{'q=+1\\iff e\\ge\\theta'}</Tex>；累加 <Tex>{'S_N=\\sum q_i'}</Tex>。解析曲線（exact binomial / CLT）與 Monte Carlo 使用<strong>同一條 tie rule</strong> <Erratum id="E02" />；histogram 與信賴帶可切換 sum／average 尺度{' '}
           <Erratum id="E18" />。Case A/B/C 會疊在「<Tex>{'P(\\text{判對})'}</Tex> vs <Tex>{'N'}</Tex>」圖上做比較。
         </>
       }
@@ -728,8 +727,7 @@ export function ComparatorLab() {
           csvName="ch05-lab-hist"
           caption={
             <>
-              bin 邊界放在 <Tex>{'S_N'}</Tex> 的格點中點（<Tex>{'S_N'}</Tex> 與 <Tex>{'N'}</Tex> 同奇偶、間距 2），所以每個 bin 包含整數個格點，精確 Binomial 的期望個數可以逐 bin 加總。
-              虛線 = 決策門檻 0；點線 = <Tex>{`E[${shared.axis === 'sum' ? 'S_N' : 'G'}]=${texNum((mcMo?.meanSum ?? 0) * scale, 5)}`}</Tex>。
+              bin 邊界放在 <Tex>{'S_N'}</Tex> 的格點中點（<Tex>{'S_N'}</Tex> 與 <Tex>{'N'}</Tex> 同奇偶、間距 2），所以每個 bin 包含整數個格點，精確 Binomial 的期望個數可以逐 bin 加總。虛線 = 決策門檻 0；點線 = <Tex>{`E[${shared.axis === 'sum' ? 'S_N' : 'G'}]=${texNum((mcMo?.meanSum ?? 0) * scale, 5)}`}</Tex>。
               {mcRes && mcRes.hist.outside > 0 ? (
                 <>
                   <Tex>{'E\\pm4.5\\,\\mathrm{SD}'}</Tex> 範圍外 {mcRes.hist.outside} 筆未畫出。

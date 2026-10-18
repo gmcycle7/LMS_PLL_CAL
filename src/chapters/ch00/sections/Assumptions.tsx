@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import { ClaimTag, CodeBlock, Derivation, Plot, Section, SourceTag, StepDerivation, Tex, TexBlock, useThemeTokens } from '@/components'
 import { useSettings } from '@/app/settings'
 import { correlatedNoiseBias } from '../model'
@@ -231,9 +231,7 @@ export function AssumptionsSection() {
         反例：雜訊「跟著 <Tex>{'x'}</Tex> 走」時，LMS 會很有信心地收斂到錯的答案
       </h3>
       <p>
-        §0.7 的關鍵一步是 <Tex>{'E[v\\,x]=0'}</Tex>。如果干擾和輸入<strong>相關</strong>（例如和 code 同步的電源／基板耦合，或 DTC 非線性裡「可以被一條直線擬合掉」的那部分），這一步就不成立。
-        最簡單的情況是干擾有一部分直接和輸入成正比。
-        先用數字看：把這種「與 code 相關的干擾」記為 <Tex>{'\\varepsilon_{cc}=\\kappa\\,x'}</Tex>（全站符號；規格 §11.3 原寫 <Tex>{'u=cx'}</Tex>，
+        §0.7 的關鍵一步是 <Tex>{'E[v\\,x]=0'}</Tex>。如果干擾和輸入<strong>相關</strong>（例如和 code 同步的電源／基板耦合，或 DTC 非線性裡「可以被一條直線擬合掉」的那部分），這一步就不成立。最簡單的情況是干擾有一部分直接和輸入成正比。先用數字看：把這種「與 code 相關的干擾」記為 <Tex>{'\\varepsilon_{cc}=\\kappa\\,x'}</Tex>（全站符號；規格 §11.3 原寫 <Tex>{'u=cx'}</Tex>，
         <ErratumRef eid="E12" />），於是 <Tex>{"v=\\kappa\\,x+v'"}</Tex>，其中 <Tex>{"v'"}</Tex>{' '}
         才是和 <Tex>{'x'}</Tex> 無關的雜訊。取 <Tex>{`a=${texNum(BIAS_DEMO.a)}`}</Tex>、<Tex>{`\\kappa=${texNum(biased.kappa)}`}</Tex>，用 <code>conventionalStep</code> 跑{' '}
         <Tex>{String(BIAS_DEMO.steps)}</Tex> 步（<Tex>{`\\mu=${texNum(BIAS_DEMO.mu)}`}</Tex>、<Tex>{'x=\\pm1'}</Tex>），後半段 <Tex>{'w'}</Tex> 的平均是{' '}
@@ -242,8 +240,7 @@ export function AssumptionsSection() {
       <ChapterDiagram name="CHART_CORRELATED_NOISE">
         <p>
           先看 <Tex>{'x'}</Tex> 分出去的兩條路：一條進深灰色的黑盒子乘上 <Tex>{'a'}</Tex>，另一條進紅色的干擾路徑乘上 <Tex>{'\\kappa'}</Tex>。兩條路的輸出在同一個相加點相加，再加上獨立雜訊{' '}
-          <Tex>{"v'"}</Tex>，才是量到的 <Tex>{'y'}</Tex>。再看 LMS 那一格：它手上只有 <Tex>{'x'}</Tex> 和 <Tex>{'y'}</Tex>，看不到相加點之前的兩條路，所以分不出哪一份來自 <Tex>{'a'}</Tex>、
-          哪一份來自 <Tex>{'\\kappa'}</Tex>。
+          <Tex>{"v'"}</Tex>，才是量到的 <Tex>{'y'}</Tex>。再看 LMS 那一格：它手上只有 <Tex>{'x'}</Tex> 和 <Tex>{'y'}</Tex>，看不到相加點之前的兩條路，所以分不出哪一份來自 <Tex>{'a'}</Tex>、哪一份來自 <Tex>{'\\kappa'}</Tex>。
         </p>
         <p>
           和 §0.1 的 <FigRef name="CHART_BLACKBOX_MODEL" /> 比：唯一多出來的就是紅色那條並聯的路。圖上相加點的輸出「<Tex>{"y = (a + \\kappa)\\,x + v'"}</Tex>」就是下面推導的最後一行；最後一格的{' '}
@@ -380,9 +377,7 @@ export function AssumptionsSection() {
       </Observe>
       <p className="small">
         <ClaimTag kind="exact" /> 在「<Tex>{'x_n,v_n'}</Tex> 為 iid、<Tex>{'0<\\mu<2/E[x^2]'}</Tex>」的模型下，
-        <Tex>{'E[w_n]\\to w^*'}</Tex>（平均收斂；每一條路徑仍會在 <Tex>{'w^*'}</Tex> 附近抖動）。<SourceTag kind="simulation" /> 表與圖由固定 seed 的模擬產生。
-        只用 <Tex>{'\\mathrm{sign}(e)'}</Tex> 的 Sign-LMS，固定點由 <Tex>{'E[\\mathrm{sign}(e)\\,x]=0'}</Tex> 決定，一般和上式不同（<ErratumRef eid="E01" />）；
-        offset、DTC 非線性、code-correlated jitter 各自造成多少 bias，見 <PageLink id="ch11" />。
+        <Tex>{'E[w_n]\\to w^*'}</Tex>（平均收斂；每一條路徑仍會在 <Tex>{'w^*'}</Tex> 附近抖動）。<SourceTag kind="simulation" /> 表與圖由固定 seed 的模擬產生。只用 <Tex>{'\\mathrm{sign}(e)'}</Tex> 的 Sign-LMS，固定點由 <Tex>{'E[\\mathrm{sign}(e)\\,x]=0'}</Tex> 決定，一般和上式不同（<ErratumRef eid="E01" />）；offset、DTC 非線性、code-correlated jitter 各自造成多少 bias，見 <PageLink id="ch11" />。
       </p>
       <Derivation
         title={

@@ -94,11 +94,11 @@ export function GmacMathSection() {
   return (
     <Section kind="formula" title="§4 GMAC 的數學：它在估計什麼？sum 和 average 差在哪？" level={2} id="ch04-gmac">
       <p>
-        GMAC（gradient multiply-accumulate）只做一件事：把一個 block 內的 <Tex>{R`q[n]\cdot x_\mathrm{ref}[n]`}</Tex> 加起來。 它的意義是「
+        GMAC（gradient multiply-accumulate）只做一件事：把一個 block 內的 <Tex>{R`q[n]\cdot x_\mathrm{ref}[n]`}</Tex> 加起來。它的意義是「
         <strong>
           用 <Tex>N</Tex> 個 sample 的平均，估計 comparator 輸出和 code 的相關
         </strong>
-        」。如果 DTC gain 太小（<Tex>{R`\delta>0`}</Tex>）， PD 殘差 <Tex>{R`\delta x`}</Tex> 和 code 同號，<Tex>q</Tex> 傾向和 <Tex>x</Tex> 同號，乘積平均為正，於是 <Tex>w</Tex> 往上加；反之往下減。
+        」。如果 DTC gain 太小（<Tex>{R`\delta>0`}</Tex>），PD 殘差 <Tex>{R`\delta x`}</Tex> 和 code 同號，<Tex>q</Tex> 傾向和 <Tex>x</Tex> 同號，乘積平均為正，於是 <Tex>w</Tex> 往上加；反之往下減。
       </p>
       <MermaidFig
         chart={GMAC_MEAN_MODEL}
@@ -111,8 +111,7 @@ export function GmacMathSection() {
         <Tex>N</Tex> 筆平均起來成為 <Tex>{R`G_k`}</Tex>。下面「先算一次」的表格，每一欄就是左欄的一個方塊。
       </p>
       <p>
-        <strong>再看右欄</strong>：對雜訊取期望值之後，「加雜訊 + sign」這個非線性組合平均起來像一個線性增益 <Tex>{R`K_q=\sqrt{2/\pi}/\sigma_v`}</Tex>（雜訊越大，同樣的誤差越難看出來，增益越小），
-        「兩個乘法 + 平均」變成相關 <Tex>{R`C=E[x_\mathrm{ref}u]`}</Tex>。所以 GMAC 的平均正比於 gain 誤差：<Tex>{R`E[G_k]\approx K_qC\,\delta_k`}</Tex>，比例係數記成 <Tex>{R`K=K_qC`}</Tex>（GMAC 對{' '}
+        <strong>再看右欄</strong>：對雜訊取期望值之後，「加雜訊 + sign」這個非線性組合平均起來像一個線性增益 <Tex>{R`K_q=\sqrt{2/\pi}/\sigma_v`}</Tex>（雜訊越大，同樣的誤差越難看出來，增益越小），「兩個乘法 + 平均」變成相關 <Tex>{R`C=E[x_\mathrm{ref}u]`}</Tex>。所以 GMAC 的平均正比於 gain 誤差：<Tex>{R`E[G_k]\approx K_qC\,\delta_k`}</Tex>，比例係數記成 <Tex>{R`K=K_qC`}</Tex>（GMAC 對{' '}
         <Tex>{R`\delta`}</Tex> 的平均斜率，單位 <Tex>{R`\mathrm{fs}^{-1}`}</Tex>）。這就是後面 F-04.4 要一步一步推導的結果。
       </p>
 
@@ -180,7 +179,7 @@ export function GmacMathSection() {
       <p>
         注意第 1 拍：<Tex>{R`\delta x=-2`}</Tex> 但雜訊 <Tex>{R`+1.5`}</Tex> 讓 <Tex>e</Tex> 只剩 <Tex>{R`-0.5`}</Tex>，方向還是對的；第 2 拍雜訊 <Tex>{R`-3`}</Tex> 把正確的 <Tex>{R`+2`}</Tex> 翻成{' '}
         <Tex>{R`-1`}</Tex>，<Tex>{R`q\,x=-1`}</Tex> 是「投錯票」。4 票裡 3 票對，所以平均是正的。average 模式把 <Tex>w</Tex> 從 1 推到 {f(h.wAvg)}
-        （更接近 <Tex>{R`a=3`}</Tex>）； sum 模式同一個 <Tex>{R`\mu`}</Tex> 卻推到 {f(h.wSum)}，<strong>直接衝過頭</strong>——這是 <Tex>{R`N=4`}</Tex> 的情形，<Tex>{R`N=4096`}</Tex> 時會放大 4096 倍。
+        （更接近 <Tex>{R`a=3`}</Tex>）；sum 模式同一個 <Tex>{R`\mu`}</Tex> 卻推到 {f(h.wSum)}，<strong>直接衝過頭</strong>——這是 <Tex>{R`N=4`}</Tex> 的情形，<Tex>{R`N=4096`}</Tex> 時會放大 4096 倍。
       </p>
       <HandCalcBox id="HC-04.2">
         把 <Tex>a</Tex>、<Tex>w</Tex>、四拍的 code 和雜訊換成你自己的數字（雜訊可以故意給大一點，看它翻掉幾票），照上面的表格在紙上累加一個 block，算出 <Tex>S</Tex>、<Tex>G</Tex> 和兩種更新後的{' '}
@@ -240,8 +239,7 @@ export function GmacMathSection() {
         Sum vs average：同一個 <Tex>{R`\mu`}</Tex>，loop gain 差 <Tex>N</Tex> 倍
       </h3>
       <p>
-        GMAC 累加器吐出來的是總和 <Tex>{R`S_k`}</Tex>，它的大小跟著 <Tex>N</Tex> 成長（累加越久數字越大）；更新式要的是平均 <Tex>{R`G_k=S_k/N`}</Tex>。RTL 上「<Tex>{R`\div N`}</Tex>」只是一個右移，
-        很容易被省掉，或在和「<Tex>{R`\times\mu`}</Tex>」合併時算錯位數。下圖把三種接法並排：
+        GMAC 累加器吐出來的是總和 <Tex>{R`S_k`}</Tex>，它的大小跟著 <Tex>N</Tex> 成長（累加越久數字越大）；更新式要的是平均 <Tex>{R`G_k=S_k/N`}</Tex>。RTL 上「<Tex>{R`\div N`}</Tex>」只是一個右移，很容易被省掉，或在和「<Tex>{R`\times\mu`}</Tex>」合併時算錯位數。下圖把三種接法並排：
       </p>
       <MermaidFig
         chart={SUM_VS_AVERAGE}
@@ -251,8 +249,7 @@ export function GmacMathSection() {
       <p>
         <strong>先看</strong>綠色路徑（average）：<Tex>{R`S_k`}</Tex> 先右移 <Tex>{R`\log_2N`}</Tex> bits 變成 <Tex>{R`G_k`}</Tex>，再乘 <Tex>{R`\mu`}</Tex>；每個 block 的修正量是{' '}
         <Tex>{R`\Delta w=w_{k+1}-w_k=\mu G_k`}</Tex>，loop gain <Tex>{R`g=\mu K`}</Tex> 和 <Tex>N</Tex> 無關。<strong>再看</strong>紅色路徑（sum）：少了右移，同一個 <Tex>{R`\mu`}</Tex> 乘到的是{' '}
-        <Tex>{R`S_k=NG_k`}</Tex>，修正量變成 <Tex>N</Tex> 倍，loop gain 也變成 <Tex>{R`N\mu K`}</Tex>，合法的 <Tex>{R`\mu`}</Tex> 範圍縮小 <Tex>N</Tex> 倍。<strong>最後看</strong>沒上色的那條：如果是刻意省掉右移，
-        把學習率改成 <Tex>{R`\mu/N`}</Tex> 就和 average 完全一樣——重點是文件必須寫清楚暫存器裡的「<Tex>{R`\mu`}</Tex>」是哪一種意義。圖上三條路徑最下面的 <Tex>g</Tex> 就是下面的 F-04.5。
+        <Tex>{R`S_k=NG_k`}</Tex>，修正量變成 <Tex>N</Tex> 倍，loop gain 也變成 <Tex>{R`N\mu K`}</Tex>，合法的 <Tex>{R`\mu`}</Tex> 範圍縮小 <Tex>N</Tex> 倍。<strong>最後看</strong>沒上色的那條：如果是刻意省掉右移，把學習率改成 <Tex>{R`\mu/N`}</Tex> 就和 average 完全一樣——重點是文件必須寫清楚暫存器裡的「<Tex>{R`\mu`}</Tex>」是哪一種意義。圖上三條路徑最下面的 <Tex>g</Tex> 就是下面的 F-04.5。
       </p>
       <DerivationFold title={mt(R`為什麼 sum 模式的 $g$ 放大 $N$ 倍`)}>
         <StepDerivation
@@ -285,7 +282,7 @@ export function GmacMathSection() {
           result={R`g_\mathrm{sum}=N\,\mu K_qC=N\,g_\mathrm{avg}`}
         />
         <p className="small">
-          <ClaimTag kind="exact" /> 在一階平均模型下精確。sign-LMS 的 <Tex>{R`|G|\le\max|x_\mathrm{ref}|`}</Tex> 有界，所以 <Tex>{R`g\gg2`}</Tex> 時模擬不會「數值爆掉」， 而是在 <Tex>a</Tex>{' '}
+          <ClaimTag kind="exact" /> 在一階平均模型下精確。sign-LMS 的 <Tex>{R`|G|\le\max|x_\mathrm{ref}|`}</Tex> 有界，所以 <Tex>{R`g\gg2`}</Tex> 時模擬不會「數值爆掉」，而是在 <Tex>a</Tex>{' '}
           兩側做大振幅來回跳（blockLms 的警告會說明）。
         </p>
       </DerivationFold>
@@ -434,8 +431,8 @@ export function GmacMathSection() {
       <Prereq title="二補數（two's complement）">
         <p>
           <Tex>B</Tex>-bit 二補數 <Tex>{R`b_{B-1}\dots b_1b_0`}</Tex> 代表的值是 <Tex>{R`-2^{B-1}b_{B-1}+\sum_{i=0}^{B-2}2^ib_i`}</Tex>
-          ：最高位元的權重是負的。 例：4-bit 的 <code>0101</code> <Tex>{R`=4+1=5`}</Tex>，
-          <code>1011</code> <Tex>{R`=-8+2+1=-5`}</Tex>。範圍是 <Tex>{R`[-2^{B-1},\,2^{B-1}-1]`}</Tex>，<strong>負的那一邊多一個</strong>。 超出範圍時硬體只保留低 B 位元，等於對 <Tex>{R`2^B`}</Tex>{' '}
+          ：最高位元的權重是負的。例：4-bit 的 <code>0101</code> <Tex>{R`=4+1=5`}</Tex>，
+          <code>1011</code> <Tex>{R`=-8+2+1=-5`}</Tex>。範圍是 <Tex>{R`[-2^{B-1},\,2^{B-1}-1]`}</Tex>，<strong>負的那一邊多一個</strong>。超出範圍時硬體只保留低 B 位元，等於對 <Tex>{R`2^B`}</Tex>{' '}
           取模後再映回這個範圍（wrap）。
         </p>
       </Prereq>
@@ -476,7 +473,7 @@ export function GmacMathSection() {
         <p className="small">
           <ClaimTag kind="exact" /> 以 6-bit 驗算：
           <Tex>{R`\text{negateExtended}(-32,b{=}0)=${negateExtended(-half6, 0)}`}</Tex>，<Tex>{R`\text{negateInplace}(-32,b{=}0)=${negateInplace(-half6, 0, 6)}`}</Tex>，
-          <Tex>{R`\text{wrapTwos}(32,6)=${wrapTwos(half6, 6)}`}</Tex>。 gmac.test.ts 對 6-bit 的全部 64 個 code 與 <Tex>{R`b\in\{0,1\}`}</Tex> 窮舉驗證：只有 <Tex>{R`-32`}</Tex> 這一個 code 會出錯。
+          <Tex>{R`\text{wrapTwos}(32,6)=${wrapTwos(half6, 6)}`}</Tex>。gmac.test.ts 對 6-bit 的全部 64 個 code 與 <Tex>{R`b\in\{0,1\}`}</Tex> 窮舉驗證：只有 <Tex>{R`-32`}</Tex> 這一個 code 會出錯。
         </p>
       </DerivationFold>
       <TexBlock id="F-04.8" label="條件取負（二補數）">
@@ -616,8 +613,7 @@ export function GmacMathSection() {
           golden 反面測試：在 <Tex>{R`w=a`}</Tex> 時每個 sample 的平均更新 <Tex>{R`E[b\,x]=E[x]/2`}</Tex>；code <Tex>{R`\{${dcCodes.join(',')}\}`}</Tex> 均勻時為 <Tex>{R`${tx(dcUpdate)}`}</Tex>（不是 0，所以 <Tex>{R`w=a`}</Tex> 不是固定點）。
         </li>
         <li>
-          <Tex>{R`x\sim\mathcal N(0.5,1)`}</Tex>、<Tex>{R`\sigma_v=100\,\mathrm{fs}`}</Tex>、<Tex>{R`a=${a}\,\mathrm{fs}`}</Tex>：線性化 <Tex>{R`w^*\approx${tx(bugLin, 5)}\,\mathrm{fs}`}</Tex>，
-          mean-field 精確根 <Tex>{R`w^*=${tx(bugEx.wStar, 6)}\,\mathrm{fs}`}</Tex>（F-04.16 封閉式；<Tex>{R`|\delta x|`}</Tex> 已經不遠小於 <Tex>{R`\sigma_v`}</Tex>，線性化低估）。下面的實驗直接模擬。
+          <Tex>{R`x\sim\mathcal N(0.5,1)`}</Tex>、<Tex>{R`\sigma_v=100\,\mathrm{fs}`}</Tex>、<Tex>{R`a=${a}\,\mathrm{fs}`}</Tex>：線性化 <Tex>{R`w^*\approx${tx(bugLin, 5)}\,\mathrm{fs}`}</Tex>，mean-field 精確根 <Tex>{R`w^*=${tx(bugEx.wStar, 6)}\,\mathrm{fs}`}</Tex>（F-04.16 封閉式；<Tex>{R`|\delta x|`}</Tex> 已經不遠小於 <Tex>{R`\sigma_v`}</Tex>，線性化低估）。下面的實驗直接模擬。
         </li>
         <li>
           <strong>單邊 code 更糟：</strong>§2 的 DSM code <Tex>{R`x=s/M\in[0,1)`}</Tex> 恆 <Tex>{R`\ge0`}</Tex>

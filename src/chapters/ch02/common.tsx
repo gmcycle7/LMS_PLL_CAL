@@ -151,11 +151,11 @@ export function Diagram({ id, children }: { id: DiagramId; children?: ReactNode 
  * 頁內跳轉（HashRouter 下不能用 href="#id"：那會改變路由）。改用按鈕 + scrollIntoView；
  * jsdom 沒有實作 scrollIntoView，所以先確認函式存在。捲過去之後把焦點移到目標，鍵盤與螢幕閱讀器才會跟著過去。
  */
-export function JumpTo({ target, children }: { target: string; children: ReactNode }) {
+export function JumpTo({ target, children, className }: { target: string; children: ReactNode; className?: string }) {
   return (
     <button
       type="button"
-      className="ch02-jump"
+      className={className ? `ch02-jump ${className}` : 'ch02-jump'}
       data-jump={target}
       onClick={() => {
         const el = document.getElementById(target)

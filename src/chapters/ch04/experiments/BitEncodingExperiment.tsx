@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import { Callout, ExperimentShell, ParamControl, Plot, Tex, useDebouncedValue, useThemeTokens, type CheckEntry, type MetricRow } from '@/components'
 import { isWorkerCancelled, useWorkerTask } from '@/workers'
 import { ar1MeanSe, type ComparatorEncoding, type EncodingCompareParams, type EncodingCompareResult } from '@/simulation/models/gmac'

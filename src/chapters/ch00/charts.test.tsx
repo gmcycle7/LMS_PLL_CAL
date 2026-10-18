@@ -16,7 +16,7 @@ import Chapter00 from './index'
  * 另外檢查 ParamControl 的 label／hint／unit：KaTeX 以外的文字也沒有 Unicode 拼的數學。
  */
 
-vi.mock('plotly.js-dist-min', () => ({
+vi.mock('plotly.js-cartesian-dist-min', () => ({
   default: {
     react: vi.fn(async () => undefined),
     purge: vi.fn(),

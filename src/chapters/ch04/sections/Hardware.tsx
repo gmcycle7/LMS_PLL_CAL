@@ -135,9 +135,7 @@ function LatencyCalculator() {
       <p className="small muted">
         <ClaimTag kind="exact" /> <Tex>{R`g_\mathrm{crit}`}</Tex> 由平均模型的特徵方程決定：等 block 邊界生效時延遲是整數 <Tex>{R`d=d_\mathrm{cfg}+\lceil P_c/N\rceil`}</Tex>，
         <Tex>{R`g_\mathrm{crit}=2\sin\frac{\pi}{4d+2}`}</Tex>（F-04.14）；block 中途生效時延遲是 <Tex>{R`d+d_\mathrm{f}`}</Tex>（<Tex>{R`d=d_\mathrm{cfg}+\lfloor P_c/N\rfloor`}</Tex>、
-        <Tex>{R`d_\mathrm{f}=(P_c\bmod N)/N`}</Tex>），<Tex>{R`d=0`}</Tex> 用 F-04.17 的封閉式，<Tex>{R`d\ge1`}</Tex> 直接對特徵方程求根（見下方推導）。這只是一階平均模型的界，
-        不是整顆 PLL 的 sign-off（<ChRef ch="08">Ch08</ChRef> 有完整的 phase margin 分析）。實務上另一個做法：每個 block 開頭先丟掉 <Tex>{R`P_c`}</Tex> 個 sample 不累加，等新 gain 生效後才開始累加——這樣 <Tex>{R`d=0`}</Tex>，
-        代價是每個 block 只用到 <Tex>{R`N-P_c`}</Tex> 筆資料（GMAC 雜訊的標準差變成 <Tex>{R`\sqrt{N/(N-P_c)}`}</Tex> 倍）。
+        <Tex>{R`d_\mathrm{f}=(P_c\bmod N)/N`}</Tex>），<Tex>{R`d=0`}</Tex> 用 F-04.17 的封閉式，<Tex>{R`d\ge1`}</Tex> 直接對特徵方程求根（見下方推導）。這只是一階平均模型的界，不是整顆 PLL 的 sign-off（<ChRef ch="08">Ch08</ChRef> 有完整的 phase margin 分析）。實務上另一個做法：每個 block 開頭先丟掉 <Tex>{R`P_c`}</Tex> 個 sample 不累加，等新 gain 生效後才開始累加——這樣 <Tex>{R`d=0`}</Tex>，代價是每個 block 只用到 <Tex>{R`N-P_c`}</Tex> 筆資料（GMAC 雜訊的標準差變成 <Tex>{R`\sqrt{N/(N-P_c)}`}</Tex> 倍）。
       </p>
     </div>
   )
@@ -195,8 +193,7 @@ export function HardwareSection() {
       <p>
         <strong>先看</strong>左欄上半部的兩個輸入（上下錯開排列，只是為了讓圖窄一點）：對齊後的有號 code <Tex>{R`x_\mathrm{ref}[n]`}</Tex>（<Tex>{R`B_x`}</Tex> bits）和 comparator 的位元 <Tex>{R`b[n]`}</Tex>。因為 <Tex>{R`q=2b-1`}</Tex> 只有{' '}
         <Tex>{R`\pm1`}</Tex>，「乘」只是照抄或取負（§4 的 F-04.8）。<strong>再看</strong>左欄最下面的 GMAC 累加器：它把 <Tex>N</Tex> 筆乘積加成總和 <Tex>{R`S_k`}</Tex>，需要 <Tex>{R`B_\mathrm{acc}`}</Tex> bits（方塊裡的 <Tex>{R`M_x`}</Tex>{' '}
-        是單筆乘積的最大絕對值，§5.1）。<strong>接著</strong>順著中間的箭頭到右欄，第一格是 normalize：「<Tex>{R`\div N`}</Tex>」做成算術右移，方塊裡的 <Tex>{R`F_G`}</Tex> 是右移後保留的小數位元數（§5.2）。<strong>最後</strong>乘上 <Tex>{R`\mu`}</Tex>、
-        加進高解析累加器 <Tex>W</Tex>、經過飽和保護後成為 gain register 的 <Tex>{R`w_k`}</Tex>。
+        是單筆乘積的最大絕對值，§5.1）。<strong>接著</strong>順著中間的箭頭到右欄，第一格是 normalize：「<Tex>{R`\div N`}</Tex>」做成算術右移，方塊裡的 <Tex>{R`F_G`}</Tex> 是右移後保留的小數位元數（§5.2）。<strong>最後</strong>乘上 <Tex>{R`\mu`}</Tex>、加進高解析累加器 <Tex>W</Tex>、經過飽和保護後成為 gain register 的 <Tex>{R`w_k`}</Tex>。
       </p>
       <p>
         每一格在 §5 都有對應的位元級模型（<code>gmac.ts</code>）。注意兩個規格原圖沒有畫出、但 RTL 一定要有的控制訊號：
@@ -214,8 +211,7 @@ export function HardwareSection() {
         ariaLabel="LMS 雜訊與回授等效模型"
       />
       <p>
-        <strong>先看</strong>最上面的加法點：真實 gain <Tex>a</Tex> 標「<Tex>+</Tex>」，從最下面繞回來的 <Tex>{R`w_k`}</Tex> 標「<Tex>-</Tex>」，輸出就是 <Tex>{R`\delta_k=a-w_k`}</Tex>。<strong>再順著箭頭往下走</strong>：
-        第一個乘法點乘的是送進 DTC 的 code <Tex>{R`x[n]`}</Tex>，得到時間誤差 <Tex>{R`\delta_k\,x[n]`}</Tex>（fs；這是 reference edge 補償後還差的量，從 PD 的 reference 輸入端進來）；經過 <Tex>{R`H_\mathrm{PD}`}</Tex> 變成 PD 輸出上的 <Tex>{R`\delta_k\,u[n]`}</Tex>；加上雜訊 <Tex>{R`v[n]`}</Tex> 與 offset 得到{' '}
+        <strong>先看</strong>最上面的加法點：真實 gain <Tex>a</Tex> 標「<Tex>+</Tex>」，從最下面繞回來的 <Tex>{R`w_k`}</Tex> 標「<Tex>-</Tex>」，輸出就是 <Tex>{R`\delta_k=a-w_k`}</Tex>。<strong>再順著箭頭往下走</strong>：第一個乘法點乘的是送進 DTC 的 code <Tex>{R`x[n]`}</Tex>，得到時間誤差 <Tex>{R`\delta_k\,x[n]`}</Tex>（fs；這是 reference edge 補償後還差的量，從 PD 的 reference 輸入端進來）；經過 <Tex>{R`H_\mathrm{PD}`}</Tex> 變成 PD 輸出上的 <Tex>{R`\delta_k\,u[n]`}</Tex>；加上雜訊 <Tex>{R`v[n]`}</Tex> 與 offset 得到{' '}
         <Tex>{R`e[n]`}</Tex>；sign 之後只剩 <Tex>{R`q[n]=\pm1`}</Tex>；第二個乘法點乘的是對齊後的 <Tex>{R`x_\mathrm{ref}[n]`}</Tex>。到這裡為止每個 sample 動一次；從「<Tex>{R`(1/N)\sum`}</Tex>」開始每個 block 才動一次。
       </p>
       <p>
@@ -248,7 +244,7 @@ export function HardwareSection() {
           <Tex>{R`\varphi(v/\sigma)/\sigma`}</Tex>。累積分布 <Tex>{R`\Phi(z)=P(v/\sigma\le z)=\int_{-\infty}^{z}\frac{1}{\sqrt{2\pi}}e^{-t^2/2}dt`}</Tex>
           。誤差函數 <Tex>{R`\mathrm{erf}(z)=\frac{2}{\sqrt\pi}\int_0^ze^{-t^2}dt`}</Tex>
           ，兩者的關係是 <Tex>{R`2\Phi(z)-1=\mathrm{erf}(z/\sqrt2)`}</Tex>
-          （變數代換 <Tex>{R`t=\sqrt2 s`}</Tex>）。 在 0 附近泰勒展開：
+          （變數代換 <Tex>{R`t=\sqrt2 s`}</Tex>）。在 0 附近泰勒展開：
           <Tex>{R`e^{-t^2}\approx1\;\Rightarrow\;\mathrm{erf}(z)\approx\frac{2}{\sqrt\pi}z`}</Tex>。§4 會用它一步一步推出 GMAC 的平均；<ChRef ch="05">Ch05</ChRef> 有完整的 comparator 統計。
         </p>
       </Prereq>
@@ -260,8 +256,7 @@ export function HardwareSection() {
         <p>
           高階遞迴（例如 <Tex>{R`\delta_{k+2}=a_1\delta_{k+1}+a_0\delta_k`}</Tex>）就猜 <Tex>{R`\delta_k=z^k`}</Tex>，代入得到<strong>特徵方程</strong>{' '}
           <Tex>{R`z^2-a_1z-a_0=0`}</Tex>；一般解是各根的等比數列相加 <Tex>{R`c_1z_1^k+c_2z_2^k`}</Tex>。根可能是複數 <Tex>{R`z=|z|e^{j\theta}`}</Tex>，
-          <Tex>{R`z^k=|z|^ke^{jk\theta}`}</Tex> 是包絡 <Tex>{R`|z|^k`}</Tex> 的振盪。所以「收斂 <Tex>{R`\Longleftrightarrow`}</Tex> 所有根都在<strong>單位圓</strong> <Tex>{R`|z|<1`}</Tex> 內」；
-          單根落在 <Tex>{R`|z|=1`}</Tex> 是不衰減也不發散的邊界（§6 第 7 項會遇到）；重根落在單位圓上則會線性成長。判斷「根是否全在單位圓內」而不必真的解出根的代數條件叫 Jury 條件（本節最後的推導會用到二次式的版本）。
+          <Tex>{R`z^k=|z|^ke^{jk\theta}`}</Tex> 是包絡 <Tex>{R`|z|^k`}</Tex> 的振盪。所以「收斂 <Tex>{R`\Longleftrightarrow`}</Tex> 所有根都在<strong>單位圓</strong> <Tex>{R`|z|<1`}</Tex> 內」；單根落在 <Tex>{R`|z|=1`}</Tex> 是不衰減也不發散的邊界（§6 第 7 項會遇到）；重根落在單位圓上則會線性成長。判斷「根是否全在單位圓內」而不必真的解出根的代數條件叫 Jury 條件（本節最後的推導會用到二次式的版本）。
         </p>
       </Prereq>
       <DerivationFold title="把迴路走一圈：一階平均模型">
@@ -287,9 +282,7 @@ export function HardwareSection() {
         Clock domain 與 latency：sample <Tex>n</Tex>、block <Tex>k</Tex>、commit、apply
       </h3>
       <p>
-        規格 §4.1 要求標出不同 clock domain。至少有四個時間尺度：comparator / code 的 <strong>sample clock</strong>（<Tex>{R`f_s`}</Tex>，索引 <Tex>n</Tex>）、
-        GMAC 的 <strong>block</strong>（<Tex>{R`f_u=f_s/N`}</Tex>，索引 <Tex>k</Tex>）、gain register 的 <strong>commit</strong>（有 pipeline 延遲 <Tex>{R`P_c`}</Tex>）、
-        以及 DTC control 真正<strong>套用</strong>新 gain 的時刻。
+        規格 §4.1 要求標出不同 clock domain。至少有四個時間尺度：comparator / code 的 <strong>sample clock</strong>（<Tex>{R`f_s`}</Tex>，索引 <Tex>n</Tex>）、GMAC 的 <strong>block</strong>（<Tex>{R`f_u=f_s/N`}</Tex>，索引 <Tex>k</Tex>）、gain register 的 <strong>commit</strong>（有 pipeline 延遲 <Tex>{R`P_c`}</Tex>）、以及 DTC control 真正<strong>套用</strong>新 gain 的時刻。
       </p>
       <MermaidFig
         chart={LATENCY_TIMELINE}
@@ -297,9 +290,7 @@ export function HardwareSection() {
         ariaLabel="clock domain 與 latency 時序圖"
       />
       <p>
-        <strong>先看左欄、由上往下讀</strong>（時間往下走）：箭頭 (1)(2) 每個 sample 重複一次，共 <Tex>N</Tex> 次——comparator 每拍送出一個位元，GMAC 把它和對齊的 code 累加。<strong>再看</strong>兩欄之間的箭頭 (3)：block 的最後一個 sample
-        （<Tex>{R`n=kN+N-1`}</Tex>）之後 <Tex>{R`S_k`}</Tex> 才完成，交給 update logic 並把累加器清為 0。<strong>最後看右欄</strong>（同樣由上往下）的箭頭 (4)(5)：算出新 gain 寫進 register 要花 <Tex>{R`P_c`}</Tex> 個 sample（commit pipeline），
-        DTC 真正開始用它是在 block <Tex>{R`k+1+d`}</Tex> 的開頭。<Tex>d</Tex> 就是「block <Tex>k</Tex> 量到的資訊，晚幾個 block 才反映在 PD 看到的誤差上」。
+        <strong>先看左欄、由上往下讀</strong>（時間往下走）：箭頭 (1)(2) 每個 sample 重複一次，共 <Tex>N</Tex> 次——comparator 每拍送出一個位元，GMAC 把它和對齊的 code 累加。<strong>再看</strong>兩欄之間的箭頭 (3)：block 的最後一個 sample（<Tex>{R`n=kN+N-1`}</Tex>）之後 <Tex>{R`S_k`}</Tex> 才完成，交給 update logic 並把累加器清為 0。<strong>最後看右欄</strong>（同樣由上往下）的箭頭 (4)(5)：算出新 gain 寫進 register 要花 <Tex>{R`P_c`}</Tex> 個 sample（commit pipeline），DTC 真正開始用它是在 block <Tex>{R`k+1+d`}</Tex> 的開頭。<Tex>d</Tex> 就是「block <Tex>k</Tex> 量到的資訊，晚幾個 block 才反映在 PD 看到的誤差上」。
       </p>
       <div className="table-wrap">
         <table>
@@ -360,9 +351,7 @@ export function HardwareSection() {
       />
       <p>
         <strong>先看</strong>不含延遲的部分：迴路繞一圈的增益是 <Tex>{R`g=\mu K`}</Tex>（無因次的 loop gain：<Tex>{R`\mu`}</Tex> 的 fs 乘上 <Tex>K</Tex> 的 <Tex>{R`\mathrm{fs}^{-1}`}</Tex>）。<Tex>{R`d=0`}</Tex> 時積分器每拍把{' '}
-        <Tex>{R`\mu K\delta_k`}</Tex> 加進 <Tex>w</Tex>，所以 <Tex>{R`\delta_{k+1}=(1-g)\,\delta_k`}</Tex>；<Tex>{R`p=1-g`}</Tex> 叫做平均 pole（誤差每個 block 乘上 <Tex>p</Tex>）。<strong>再看</strong>藍色方塊：有延遲時，
-        這一拍加進 <Tex>w</Tex> 的修正量是 <Tex>d</Tex> 個 block 以前量到的，所以 <Tex>{R`\delta_{k+1}=\delta_k-g\,\delta_{k-d}`}</Tex>——圖上的 <Tex>{R`z^{-d}`}</Tex> 就是公式裡下標的 <Tex>{R`k-d`}</Tex>。
-        延遲越長，迴路越容易「修過頭才發現」，能用的 <Tex>g</Tex> 上限（臨界增益 <Tex>{R`g_\mathrm{crit}`}</Tex>）就越小：
+        <Tex>{R`\mu K\delta_k`}</Tex> 加進 <Tex>w</Tex>，所以 <Tex>{R`\delta_{k+1}=(1-g)\,\delta_k`}</Tex>；<Tex>{R`p=1-g`}</Tex> 叫做平均 pole（誤差每個 block 乘上 <Tex>p</Tex>）。<strong>再看</strong>藍色方塊：有延遲時，這一拍加進 <Tex>w</Tex> 的修正量是 <Tex>d</Tex> 個 block 以前量到的，所以 <Tex>{R`\delta_{k+1}=\delta_k-g\,\delta_{k-d}`}</Tex>——圖上的 <Tex>{R`z^{-d}`}</Tex> 就是公式裡下標的 <Tex>{R`k-d`}</Tex>。延遲越長，迴路越容易「修過頭才發現」，能用的 <Tex>g</Tex> 上限（臨界增益 <Tex>{R`g_\mathrm{crit}`}</Tex>）就越小：
       </p>
       <TexBlock id="F-04.14" label={mt(R`更新延遲 $d$ 個 block 時，平均模型 $\delta_{k+1}=\delta_k-g\,\delta_{k-d}$ 的臨界增益（Ch08 詳述）`)}>
         {R`g_\mathrm{crit}(d)=2\sin\frac{\pi}{4d+2}\qquad(d=0:\,2;\;d=1:\,1;\;d=2:\,0.618)`}
@@ -406,8 +395,7 @@ export function HardwareSection() {
           />
           <p className="small">
             <ClaimTag kind="exact" /> 在平均線性模型下精確（latency.test.ts 以求根與獨立的時域遞迴驗證）。<strong>反直覺</strong>的地方：小的 <Tex>{R`d_\mathrm{f}`}</Tex> 讓 <Tex>{R`g_\mathrm{crit}`}</Tex>{' '}
-            先<strong>上升</strong>——舊 <Tex>w</Tex> 的那一小段權重等於對 <Tex>{R`\delta`}</Tex> 做兩點平均，壓低了 <Tex>{R`z=-1`}</Tex> 的振盪模態。但這不是好設計：
-            混合 block 讓 <Tex>{R`G_{k+1}`}</Tex> 的統計依賴 commit 時刻，<Tex>{R`P_c`}</Tex> 隨 PVT 或 clock 比例改變時迴路行為跟著變；實務上應該在 block 邊界 commit，並把 <Tex>d</Tex> 計入設計。
+            先<strong>上升</strong>——舊 <Tex>w</Tex> 的那一小段權重等於對 <Tex>{R`\delta`}</Tex> 做兩點平均，壓低了 <Tex>{R`z=-1`}</Tex> 的振盪模態。但這不是好設計：混合 block 讓 <Tex>{R`G_{k+1}`}</Tex> 的統計依賴 commit 時刻，<Tex>{R`P_c`}</Tex> 隨 PVT 或 clock 比例改變時迴路行為跟著變；實務上應該在 block 邊界 commit，並把 <Tex>d</Tex> 計入設計。
             <ClaimTag kind="approx" /> 真正的 sign-LMS 還有 comparator 的非線性與雜訊，<Tex>{R`g_\mathrm{crit}`}</Tex> 只是平均模型的界。
           </p>
         </DerivationFold>

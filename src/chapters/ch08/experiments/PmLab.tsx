@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import {
   Callout,
   CaseSelector,
@@ -492,8 +492,7 @@ export function PmLab() {
       tests={['T08']}
       description={
         <>
-          控制正規化 loop gain <Tex>{'g=\\mu K_qC'}</Tex> 與更新延遲 <Tex>{'d'}</Tex>（blocks），即時計算開迴路 Bode、Nyquist、閉迴路 poles、
-          step response 與穩定界限表。所有封閉式都和「數值求根／數值 crossover」交叉比對。
+          控制正規化 loop gain <Tex>{'g=\\mu K_qC'}</Tex> 與更新延遲 <Tex>{'d'}</Tex>（blocks），即時計算開迴路 Bode、Nyquist、閉迴路 poles、step response 與穩定界限表。所有封閉式都和「數值求根／數值 crossover」交叉比對。
         </>
       }
       assumptions={[

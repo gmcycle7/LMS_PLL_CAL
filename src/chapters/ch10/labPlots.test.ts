@@ -1,4 +1,4 @@
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import { applyPlotMath, plotMath } from '@/components/plotMath'
 import { unicodeMathIn } from '@/components/mermaidTestUtils'
 import {

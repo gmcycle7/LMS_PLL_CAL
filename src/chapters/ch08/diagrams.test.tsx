@@ -71,7 +71,7 @@ const P = vi.hoisted(() => ({
   Plots: { resize: vi.fn() },
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
-vi.mock('plotly.js-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
 
 // 整章渲染（數百個 KaTeX、8 題手算）與真正的 mermaid render 在多個測試行程同時跑時會慢很多：test 與 hook（RTL 自動 cleanup）都給足時間
 const SLOW = 240_000

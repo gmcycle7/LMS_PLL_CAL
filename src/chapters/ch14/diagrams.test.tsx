@@ -31,7 +31,7 @@ const P = vi.hoisted(() => ({
   Plots: { resize: vi.fn() },
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
-vi.mock('plotly.js-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
 // 頁面測試用的 Mermaid 元件替身：把原始碼放在 data-chart，方便核對「頁面上到底畫了哪些圖、順序為何」。
 // （章首的 SystemMap 是手排的 SVG、不經過 Mermaid 元件，所以它不是替身畫的，而是真的元件：figure.c-sysmap，沒有 data-chart。
 //  真正的 mermaid 套件沒有被 mock，下面照樣用它解析與渲染。）

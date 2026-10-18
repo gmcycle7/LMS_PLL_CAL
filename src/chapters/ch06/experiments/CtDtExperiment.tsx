@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import {
   ExperimentShell,
   mathText,
@@ -145,8 +145,7 @@ export function CtDtExperiment() {
       claim="exact"
       description={
         <>
-          橫軸 <Tex>{'\\nu=\\Omega/(\\omega_LT_s)'}</Tex>。虛線是把 <Tex>{'\\omega=\\Omega/T_s'}</Tex> 代入 CT 原型 <Tex>{'H(j\\omega)'}</Tex>；
-          實線是 DT 迴路 <Tex>{'H(e^{j\\Omega})'}</Tex>（Type-II 與 pll.ts designDtLoop 相同）。Re &lt; 0 的頻帶就是「單頻 code 會讓 raw-x LMS 變號」的頻帶。
+          橫軸 <Tex>{'\\nu=\\Omega/(\\omega_LT_s)'}</Tex>。虛線是把 <Tex>{'\\omega=\\Omega/T_s'}</Tex> 代入 CT 原型 <Tex>{'H(j\\omega)'}</Tex>；實線是 DT 迴路 <Tex>{'H(e^{j\\Omega})'}</Tex>（Type-II 與 pll.ts designDtLoop 相同）。Re &lt; 0 的頻帶就是「單頻 code 會讓 raw-x LMS 變號」的頻帶。
         </>
       }
       assumptions={[

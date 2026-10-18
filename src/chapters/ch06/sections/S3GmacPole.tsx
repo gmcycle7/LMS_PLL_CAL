@@ -53,8 +53,7 @@ export function S3GmacPole() {
 
       <Prereq title={String.raw`期望值 $E[\cdot]$ 與時間平均`}>
         <p>
-          <Tex>{'E[\\cdot]'}</Tex> 是「把同一個實驗重複很多次再平均」。comparator 雜訊 <Tex>{'v'}</Tex> 每次都不同，所以 <Tex>{'q'}</Tex> 是隨機的；
-          code <Tex>{'x'}</Tex> 則是已知、確定的序列，在求期望值時可以當常數提出來（期望值是線性的：<Tex>{'E[cX+Y]=cE[X]+E[Y]'}</Tex>）。
+          <Tex>{'E[\\cdot]'}</Tex> 是「把同一個實驗重複很多次再平均」。comparator 雜訊 <Tex>{'v'}</Tex> 每次都不同，所以 <Tex>{'q'}</Tex> 是隨機的；code <Tex>{'x'}</Tex> 則是已知、確定的序列，在求期望值時可以當常數提出來（期望值是線性的：<Tex>{'E[cX+Y]=cE[X]+E[Y]'}</Tex>）。
         </p>
         <p>
           對確定性的週期 code，「很多次的平均」由「很長時間的平均」代替：<Tex>{'E[x\\,u]\\equiv\\lim_{M\\to\\infty}\\frac1M\\sum_{n}x[n]u[n]'}</Tex>。 <ChRef ch="05">第 05 章</ChRef>已證明：<Tex>{'E[q\\mid s]=\\mathrm{erf}\\big(s/(\\sqrt2\\sigma_v)\\big)\\approx K_q\\,s'}</Tex>，<Tex>{'K_q=\\sqrt{2/\\pi}/\\sigma_v'}</Tex>（<Tex>{'|s|\\ll\\sigma_v'}</Tex>）。
@@ -301,8 +300,7 @@ export function S3GmacPole() {
       </div>
       <p>
         修正極性的正確方法是改變 <Tex>{'C'}</Tex> 本身：把 code 延遲 <Tex>{'D'}</Tex> 讓 <Tex>{'\\cos(\\phi+\\Omega D)>0'}</Tex>（delay alignment；<Tex>{'\\phi'}</Tex>{' '}
-        是主 PLL 路徑在 code 頻率 <Tex>{'\\Omega'}</Tex> 的相位，§4 推導），
-        或乘上模型化的 <Tex>{'u_f=\\hat h*x'}</Tex>（filtered-x）——<ChRef ch="07">第 07 章</ChRef>。直接把 <Tex>{'\\mu'}</Tex> 變號也能「修好」單一頻率，但{' '}
+        是主 PLL 路徑在 code 頻率 <Tex>{'\\Omega'}</Tex> 的相位，§4 推導），或乘上模型化的 <Tex>{'u_f=\\hat h*x'}</Tex>（filtered-x）——<ChRef ch="07">第 07 章</ChRef>。直接把 <Tex>{'\\mu'}</Tex> 變號也能「修好」單一頻率，但{' '}
         <Tex>{'C'}</Tex> 的符號會隨 FCW、code 頻譜與迴路頻寬改變（§6.4），所以這不是可靠的設計。
       </p>
 
@@ -313,8 +311,7 @@ export function S3GmacPole() {
 
       <h3>核心程式碼：這就是網站跑的 GMAC</h3>
       <p>
-        閉迴路模擬（§7 的實驗）用的就是下面兩段。注意標成「差異」的行：誤差 <Tex>{'e'}</Tex> 裡面是被 PLL 濾過的 <Tex>{'H_{\\mathrm{PD}}\\{\\delta x\\}'}</Tex>，
-        但 GMAC 乘的是 <Tex>{'x[n-D]'}</Tex>。
+        閉迴路模擬（§7 的實驗）用的就是下面兩段。注意標成「差異」的行：誤差 <Tex>{'e'}</Tex> 裡面是被 PLL 濾過的 <Tex>{'H_{\\mathrm{PD}}\\{\\delta x\\}'}</Tex>，但 GMAC 乘的是 <Tex>{'x[n-D]'}</Tex>。
       </p>
       <CodeBlock source={polaritySrc} region="signLmsBlock" path={PATH} title="block sign-error LMS（逐 sample）" />
       <CodeBlock source={polaritySrc} region="buildRegressor" path={PATH} title={String.raw`GMAC regressor：raw / delayed $x$ vs filtered-x $u$`} />
@@ -428,8 +425,7 @@ export function S3GmacPole() {
           <p>
             T06 的參數（<Tex>{'A=1,\\;\\phi=120^\\circ,\\;\\mu=10\\,\\mathrm{fs}'}</Tex>）：等分布公式給{' '}
             <Tex>{`E[x\\operatorname{sign}u]=-\\tfrac1\\pi=${fx(large.formula, 4)}`}</Tex>，漂移{' '}
-            <Tex>{`${fx(10 * Math.abs(large.formula), 3)}\\,\\mathrm{fs/block}`}</Tex>。但 <Tex>{'\\Omega=\\pi/6'}</Tex> 每 12 個 sample 重複一次，
-            相位只取 12 個值，<strong>不是</strong>等分布；其中 <Tex>{'n\\equiv5,11\\pmod{12}'}</Tex> 兩個 sample 剛好落在 <Tex>{'u=0'}</Tex>{' '}
+            <Tex>{`${fx(10 * Math.abs(large.formula), 3)}\\,\\mathrm{fs/block}`}</Tex>。但 <Tex>{'\\Omega=\\pi/6'}</Tex> 每 12 個 sample 重複一次，相位只取 12 個值，<strong>不是</strong>等分布；其中 <Tex>{'n\\equiv5,11\\pmod{12}'}</Tex> 兩個 sample 剛好落在 <Tex>{'u=0'}</Tex>{' '}
             的零交越（只剩雜訊，貢獻 0）。逐點加總：
           </p>
           <TexBlock>{String.raw`\frac1{12}\sum_{n=0}^{11}x[n]\operatorname{sign}(u[n])=\frac{-2\,(1+\tfrac{\sqrt3}{2}+\tfrac12-\tfrac12)}{12}=-\frac{2+\sqrt3}{12}=${fx(large.discrete, 4)}`}</TexBlock>
@@ -468,8 +464,7 @@ export function S3GmacPole() {
           <>
             <TexBlock>{String.raw`p=1-\mu K_qC=1-10\times0.008\times(-0.1)=1+0.008=1.008>1`}</TexBlock>
             <p>
-              原本 <Tex>{`\\mu=20:\\;p=${fx(calPole(20, 0.008, -0.1), 3)}`}</Tex>。減半只把每 block 的放大率從 1.6% 降到 0.8%，方向沒變，仍平均發散。
-              選項 1、4 是把 <Tex>{'C'}</Tex> 的負號弄丟的結果。
+              原本 <Tex>{`\\mu=20:\\;p=${fx(calPole(20, 0.008, -0.1), 3)}`}</Tex>。減半只把每 block 的放大率從 1.6% 降到 0.8%，方向沒變，仍平均發散。選項 1、4 是把 <Tex>{'C'}</Tex> 的負號弄丟的結果。
             </p>
           </>
         }

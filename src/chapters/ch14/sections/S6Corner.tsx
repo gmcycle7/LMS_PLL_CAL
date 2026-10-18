@@ -27,13 +27,11 @@ export function S6Corner() {
   return (
     <Section kind="formula" level={2} title={md(String.raw`14.5 Corner-based 可行區間：一個 $\mu$ 要通過所有 PVT／FCW corner`)} id="ch14-corner">
       <p>
-        晶片上 <Tex>{'K=K_qC'}</Tex> 不是一個數：<Tex>{'\\sigma_v'}</Tex> 隨溫度、製程變；<Tex>{'C=|H|\\cos\\theta'}</Tex> 隨 FCW、loop bandwidth 變。固定一個 <Tex>{'\\mu'}</Tex>（一個暫存器值），
-        它必須在<strong>最慢</strong>的 corner 收斂得夠快，又在<strong>最快</strong>的 corner 保持足夠 PM。以下 <Tex>{'K_i=K^{(i)}=-\\partial E[G]/\\partial w\\,\\big|_{\\text{corner }i}'}</Tex>，<Tex>{'i'}</Tex> 是 corner 編號（勘誤 E13）。
+        晶片上 <Tex>{'K=K_qC'}</Tex> 不是一個數：<Tex>{'\\sigma_v'}</Tex> 隨溫度、製程變；<Tex>{'C=|H|\\cos\\theta'}</Tex> 隨 FCW、loop bandwidth 變。固定一個 <Tex>{'\\mu'}</Tex>（一個暫存器值），它必須在<strong>最慢</strong>的 corner 收斂得夠快，又在<strong>最快</strong>的 corner 保持足夠 PM。以下 <Tex>{'K_i=K^{(i)}=-\\partial E[G]/\\partial w\\,\\big|_{\\text{corner }i}'}</Tex>，<Tex>{'i'}</Tex> 是 corner 編號（勘誤 E13）。
       </p>
       <ErratumNote id="E16">
         規格寫「要求 <Tex>{'B'}</Tex> 次更新將平均誤差降至 <Tex>{'\\epsilon'}</Tex>」，容易被讀成絕對誤差（fs）：若輸入 <Tex>{'\\epsilon=1\\,\\mathrm{fs}'}</Tex>，<Tex>{'\\mu_{\\min}'}</Tex> 會算成 0；<Tex>{'\\epsilon>1'}</Tex> 甚至為負。本站定義
-        <Tex>{'|E[\\delta_B]|\\le\\epsilon|\\delta_0|'}</Tex>，<Tex>{'\\epsilon'}</Tex> 是<strong>無因次相對縮減比</strong>（<Tex>{'0<\\epsilon<1'}</Tex>；絕對規格請換算 <Tex>{'\\epsilon=e_\\text{abs}/|\\delta_0|'}</Tex>），輸入欄拒絕 <Tex>{'\\epsilon\\ge1'}</Tex>；
-        並補上非空條件與「只約束平均、不約束 RMS」的提醒。
+        <Tex>{'|E[\\delta_B]|\\le\\epsilon|\\delta_0|'}</Tex>，<Tex>{'\\epsilon'}</Tex> 是<strong>無因次相對縮減比</strong>（<Tex>{'0<\\epsilon<1'}</Tex>；絕對規格請換算 <Tex>{'\\epsilon=e_\\text{abs}/|\\delta_0|'}</Tex>），輸入欄拒絕 <Tex>{'\\epsilon\\ge1'}</Tex>；並補上非空條件與「只約束平均、不約束 RMS」的提醒。
       </ErratumNote>
       <p>
         記號：<Tex>{'K_{\\min}'}</Tex>、<Tex>{'K_{\\max}'}</Tex> 是所有 corner 中最小、最大的 <Tex>{'K_i'}</Tex>；<Tex>{'\\epsilon'}</Tex> 是收斂要求的相對縮減比（<Tex>{'B'}</Tex> 次更新後平均誤差要縮到初始值的 <Tex>{'\\epsilon'}</Tex> 倍以內）。整個判斷流程如下圖，推導緊接在後。

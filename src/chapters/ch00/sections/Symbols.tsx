@@ -350,7 +350,7 @@ export function SymbolsSection() {
     <Section kind="formula" level={2} id={SYMBOLS_ANCHOR} title="§0.14 本章符號表">
       <p>
         全章用到的符號集中列在這裡，忘記某個符號時回來查。正文裡每個符號第一次出現時都已經用一句話說明過；「首次出現」欄告訴你是在哪一段。{' '}
-        <button type="button" className="ch00-link-button" onClick={() => scrollToId(CHAPTER_TOP_ANCHOR)}>
+        <button type="button" className="ch00-link-button no-print" onClick={() => scrollToId(CHAPTER_TOP_ANCHOR)}>
           ↑ 回到章首
         </button>
       </p>

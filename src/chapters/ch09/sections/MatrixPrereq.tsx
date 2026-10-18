@@ -54,8 +54,7 @@ export function MatrixPrereq() {
       <p>
         整節其實只要記住一個畫面：<strong>矩陣 {m`\mathbf R`} 是一台「丟一個向量進去、吐一個向量出來」的機器</strong>。這裡的 {m`\mathbf R`} 是
         <strong>相關矩陣</strong>（correlation matrix）{m`\begin{bmatrix}1&\rho\\\rho&1\end{bmatrix}`}：對角線的 1 是每個 regressor 自己的功率，
-        {m`\rho`}（相關係數，correlation coefficient）是兩個 regressor「同進同出」的程度，{m`\rho=1`} 表示完全一樣、{m`\rho=0`} 表示平均起來既不同向也不反向（正交，見下面的先備知識框）。
-        下圖取 {m`\rho=0.99`}，把三個不同的向量丟進去：
+        {m`\rho`}（相關係數，correlation coefficient）是兩個 regressor「同進同出」的程度，{m`\rho=1`} 表示完全一樣、{m`\rho=0`} 表示平均起來既不同向也不反向（正交，見下面的先備知識框）。下圖取 {m`\rho=0.99`}，把三個不同的向量丟進去：
       </p>
       <Diagram id="matrix-machine">
         比較三列的輸出：綠色與紅色那兩列「方向不變、只被縮放」，縮放的倍數差了 {m`${texNum(machine.ratio)}`} 倍。
@@ -63,15 +62,13 @@ export function MatrixPrereq() {
       <p>
         <FigRef id="matrix-machine" /> 怎麼看：先看輸入是 {m`(1,1)`} 與 {m`(1,-1)`} 的那兩列——{m`(1,1)`} 進去變成 {m`${texNum(machine.out[0][0])}\times(1,1)`}，{m`(1,-1)`} 進去變成
         {m`${texNum(machine.out[1][0])}\times(1,-1)`}，方向都沒變。這種「只被縮放」的向量叫 <strong>eigenvector</strong>，縮放的倍數叫
-        <strong>eigenvalue</strong>，記成 {m`\lambda`}。再看輸入是 {m`(1,0)`} 的那一列——進去之後變成 {m`(${texNum(machine.out[2][0])},\,${texNum(machine.out[2][1])})`}，
-        方向變了，所以它不是 eigenvector。圖上的「{m`\times\mathbf R`}」就是下面要講的矩陣乘向量 {m`\mathbf R\mathbf x`}；圖上的 1.99 與 0.01 就是後面公式裡的
+        <strong>eigenvalue</strong>，記成 {m`\lambda`}。再看輸入是 {m`(1,0)`} 的那一列——進去之後變成 {m`(${texNum(machine.out[2][0])},\,${texNum(machine.out[2][1])})`}，方向變了，所以它不是 eigenvector。圖上的「{m`\times\mathbf R`}」就是下面要講的矩陣乘向量 {m`\mathbf R\mathbf x`}；圖上的 1.99 與 0.01 就是後面公式裡的
         {m`\lambda_{\max}=1+\rho`} 與 {m`\lambda_{\min}=1-\rho`}（{m`\rho\ge0`} 時；{m`\rho<0`} 時兩者對調）。這一章的結論幾乎都來自這張圖：步長不太大時，LMS 沿著 {m`\lambda`} 大的方向學得快，沿著 {m`\lambda`} 小的方向學得慢。
       </p>
 
       <Prereq title={String.raw`期望值 $E[\cdot]$、相關（correlation）與相關矩陣 $\mathbf R$`}>
         <p>
-          {m`E[\cdot]`}（expectation，期望值）＝「做很多很多次再平均」。例如 {m`E[u_1u_2]`} 是 {m`u_1u_2`} 這個乘積的長期平均。
-          它告訴我們兩個 regressor 是否「同進同出」：
+          {m`E[\cdot]`}（expectation，期望值）＝「做很多很多次再平均」。例如 {m`E[u_1u_2]`} 是 {m`u_1u_2`} 這個乘積的長期平均。它告訴我們兩個 regressor 是否「同進同出」：
         </p>
         <ul>
           <li>{m`E[u_1u_2]>0`}：多半同號（一起推同一個方向）。</li>
@@ -82,8 +79,7 @@ export function MatrixPrereq() {
           <li>{m`E[u_1u_2]<0`}：多半反號。</li>
         </ul>
         <p>
-          四筆樣本 {m`(1,1),(-1,-1),(1,1),(1,-1)`} 的平均乘積是 {m`\tfrac{1+1+1-1}{4}=${texNum(e12)}`}。相關係數（correlation coefficient）
-          把功率正規化掉：
+          四筆樣本 {m`(1,1),(-1,-1),(1,1),(1,-1)`} 的平均乘積是 {m`\tfrac{1+1+1-1}{4}=${texNum(e12)}`}。相關係數（correlation coefficient）把功率正規化掉：
         </p>
         <TexBlock>{String.raw`\rho=\frac{E[u_1u_2]}{\sqrt{E[u_1^2]\,E[u_2^2]}}=\frac{${texNum(e12)}}{\sqrt{${texNum(e11)}\cdot${texNum(e22)}}}=${texNum(e12 / Math.sqrt(e11 * e22))},\qquad -1\le\rho\le1`}</TexBlock>
         <p>
@@ -91,10 +87,7 @@ export function MatrixPrereq() {
           {m`E[v]=0\ \Rightarrow\ E[v\,\mathbf u]=E[v]\,E[\mathbf u]=\mathbf 0`}。
         </p>
         <p>
-          <strong>條件期望（conditional expectation）</strong> {m`E[X\mid Y]`}：先把 {m`Y`} 當成「已經知道的固定值」，只對剩下的隨機性平均；結果是 {m`Y`} 的函數。
-          再對 {m`Y`} 平均一次就回到普通的期望值：{m`E\big[E[X\mid Y]\big]=E[X]`}（tower property，「先分組平均、再把各組平均起來」）。
-          例：兩班各 {m`${cond.n}`} 人，班平均分別是 {m`${cond.means[0]}`} 與 {m`${cond.means[1]}`} 分（這就是 {m`E[\text{分數}\mid\text{班級}]`}），
-          全體平均 {m`=\tfrac12\cdot${cond.means[0]}+\tfrac12\cdot${cond.means[1]}=${texNum(cond.total)}`}。本章用它來處理「先固定目前的參數誤差
+          <strong>條件期望（conditional expectation）</strong> {m`E[X\mid Y]`}：先把 {m`Y`} 當成「已經知道的固定值」，只對剩下的隨機性平均；結果是 {m`Y`} 的函數。再對 {m`Y`} 平均一次就回到普通的期望值：{m`E\big[E[X\mid Y]\big]=E[X]`}（tower property，「先分組平均、再把各組平均起來」）。例：兩班各 {m`${cond.n}`} 人，班平均分別是 {m`${cond.means[0]}`} 與 {m`${cond.means[1]}`} 分（這就是 {m`E[\text{分數}\mid\text{班級}]`}），全體平均 {m`=\tfrac12\cdot${cond.means[0]}+\tfrac12\cdot${cond.means[1]}=${texNum(cond.total)}`}。本章用它來處理「先固定目前的參數誤差
           {m`\boldsymbol\delta_k`}，只對這個 block 的 regressor 與雜訊平均」。
         </p>
         <p>
@@ -186,8 +179,7 @@ export function MatrixPrereq() {
         />
         <p>
           <strong>白話</strong>：{m`\mathbf v_1=(1,1)/\sqrt2`} 是「兩個參數一起偏」的 <strong>共模（common mode）</strong>，
-          {m`\mathbf v_2=(1,-1)/\sqrt2`} 是「一個偏高一個偏低」的 <strong>差模（differential mode）</strong>。{m`\rho`} 越接近 1，
-          差模的 eigenvalue {m`1-\rho`} 越小——輸入越少「照到」差模。 <ClaimTag kind="exact" />
+          {m`\mathbf v_2=(1,-1)/\sqrt2`} 是「一個偏高一個偏低」的 <strong>差模（differential mode）</strong>。{m`\rho`} 越接近 1，差模的 eigenvalue {m`1-\rho`} 越小——輸入越少「照到」差模。 <ClaimTag kind="exact" />
         </p>
         <p>一般的 {m`2\times2`} 對稱矩陣 {m`\begin{bmatrix}a&b\\b&d\end{bmatrix}`} 同樣解二次方程式：</p>
         <TexBlock>{String.raw`\lambda^2-(a+d)\lambda+(ad-b^2)=0\ \Rightarrow\ \lambda=\frac{a+d}{2}\pm\sqrt{\Big(\frac{a-d}{2}\Big)^2+b^2},\qquad \tan2\theta=\frac{2b}{a-d}`}</TexBlock>
@@ -206,8 +198,7 @@ export function MatrixPrereq() {
         <p>把 eigenvectors 排成矩陣的欄 {m`\mathbf Q=[\mathbf v_1\ \mathbf v_2]`}、eigenvalues 排成對角矩陣 {m`\boldsymbol\Lambda`}：</p>
         <TexBlock>{String.raw`\mathbf R\mathbf Q=\mathbf Q\boldsymbol\Lambda\ \Rightarrow\ \mathbf R=\mathbf Q\boldsymbol\Lambda\mathbf Q^T,\qquad \mathbf Q^T\mathbf Q=\mathbf I`}</TexBlock>
         <p>
-          {m`\mathbf Q^T\mathbf Q=\mathbf I`}（orthogonal）是因為 eigenvectors 互相垂直且長度為 1，所以 {m`\mathbf Q^{-1}=\mathbf Q^T`}。
-          任何向量 {m`\boldsymbol\delta`} 都可以拆成 {m`\boldsymbol\delta=\sum_ic_i\mathbf v_i`}，係數 {m`\mathbf c=\mathbf Q^T\boldsymbol\delta`}
+          {m`\mathbf Q^T\mathbf Q=\mathbf I`}（orthogonal）是因為 eigenvectors 互相垂直且長度為 1，所以 {m`\mathbf Q^{-1}=\mathbf Q^T`}。任何向量 {m`\boldsymbol\delta`} 都可以拆成 {m`\boldsymbol\delta=\sum_ic_i\mathbf v_i`}，係數 {m`\mathbf c=\mathbf Q^T\boldsymbol\delta`}
           （也就是 {m`c_i=\mathbf v_i^T\boldsymbol\delta`}，投影長度）。在這個座標裡 {m`\mathbf R`} 只是各軸各自縮放 {m`\lambda_i`} 倍。
         </p>
       </Prereq>
@@ -226,15 +217,12 @@ export function MatrixPrereq() {
 
       <Prereq title={String.raw`Condition number $\kappa$ 與 singular value`}>
         <p>
-          {m`\kappa=\lambda_{\max}/\lambda_{\min}`}（eigenvalue spread）。{m`\rho=0.99`}：{m`\kappa=1.99/0.01=199`}。
-          一般（不一定對稱的）矩陣 {m`\mathbf A`} 用 singular values：{m`\sigma_i(\mathbf A)=\sqrt{\lambda_i(\mathbf A^T\mathbf A)}`}、
+          {m`\kappa=\lambda_{\max}/\lambda_{\min}`}（eigenvalue spread）。{m`\rho=0.99`}：{m`\kappa=1.99/0.01=199`}。一般（不一定對稱的）矩陣 {m`\mathbf A`} 用 singular values：{m`\sigma_i(\mathbf A)=\sqrt{\lambda_i(\mathbf A^T\mathbf A)}`}、
           {m`\kappa=\sigma_{\max}/\sigma_{\min}`}。對稱半正定的 {m`\mathbf R`}，{m`\sigma_i=\lambda_i`}，兩種定義一致。
           {m`\lambda_{\min}=0`} 時 {m`\kappa=\infty`}（矩陣奇異，singular）。
         </p>
         <p>
-          驗算（由 <code>eig2x2</code> 計算）：{m`\mathbf R^T\mathbf R=\mathbf R^2`} 的 eigenvalues 是 {m`${texNum(sv.sq[0], 6)}`} 與 {m`${texNum(sv.sq[1], 6)}`}，
-          開根號得 {m`\sigma=${texNum(Math.sqrt(sv.sq[0]), 6)},\ ${texNum(Math.sqrt(sv.sq[1]), 6)}`}——正好等於 {m`\lambda=1.99,\ 0.01`}。
-          白話：{m`\sigma_{\max}`} 是矩陣能把向量「最多放大幾倍」，{m`\sigma_{\min}`} 是「最少放大幾倍」；{m`\kappa`} 大表示某些方向幾乎被壓扁。
+          驗算（由 <code>eig2x2</code> 計算）：{m`\mathbf R^T\mathbf R=\mathbf R^2`} 的 eigenvalues 是 {m`${texNum(sv.sq[0], 6)}`} 與 {m`${texNum(sv.sq[1], 6)}`}，開根號得 {m`\sigma=${texNum(Math.sqrt(sv.sq[0]), 6)},\ ${texNum(Math.sqrt(sv.sq[1]), 6)}`}——正好等於 {m`\lambda=1.99,\ 0.01`}。白話：{m`\sigma_{\max}`} 是矩陣能把向量「最多放大幾倍」，{m`\sigma_{\min}`} 是「最少放大幾倍」；{m`\kappa`} 大表示某些方向幾乎被壓扁。
         </p>
       </Prereq>
     </Section>

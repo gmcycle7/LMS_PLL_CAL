@@ -12,15 +12,12 @@ export function S4Gradient() {
   return (
     <Section kind="formula" level={2} title="7.4 Filtered-x：從「真正的梯度」推出來的 regressor" id="ch07-gradient">
       <p>
-        Delay alignment 是「看相位、湊延遲」的工程技巧。現在換個角度：如果我們老老實實地對 PD 端的誤差做 gradient descent，
-        LMS 應該乘上<strong>哪一個</strong>訊號？答案會自然地給出 Filtered-x。
+        Delay alignment 是「看相位、湊延遲」的工程技巧。現在換個角度：如果我們老老實實地對 PD 端的誤差做 gradient descent，LMS 應該乘上<strong>哪一個</strong>訊號？答案會自然地給出 Filtered-x。
       </p>
       <Prereq title="期望值可以和微分交換；連鎖律（chain rule）">
         <p>
-          期望值是「很多次的平均」，平均是線性運算：<Tex>{r`E[f+g]=E[f]+E[g]`}</Tex>、<Tex>{r`E[cf]=cE[f]`}</Tex>。
-          只要 <Tex>{'w'}</Tex> 是常數（不是隨機變數），就可以把對 <Tex>{'w'}</Tex> 的微分搬進期望值裡面：
-          <Tex>{r`\frac{d}{dw}E[f(w,\cdot)]=E\big[\tfrac{\partial f}{\partial w}\big]`}</Tex>。
-          連鎖律：<Tex>{r`\frac{d}{dw}\tfrac12e^2=e\,\frac{de}{dw}`}</Tex>。
+          期望值是「很多次的平均」，平均是線性運算：<Tex>{r`E[f+g]=E[f]+E[g]`}</Tex>、<Tex>{r`E[cf]=cE[f]`}</Tex>。只要 <Tex>{'w'}</Tex> 是常數（不是隨機變數），就可以把對 <Tex>{'w'}</Tex> 的微分搬進期望值裡面：
+          <Tex>{r`\frac{d}{dw}E[f(w,\cdot)]=E\big[\tfrac{\partial f}{\partial w}\big]`}</Tex>。連鎖律：<Tex>{r`\frac{d}{dw}\tfrac12e^2=e\,\frac{de}{dw}`}</Tex>。
         </p>
       </Prereq>
 
@@ -96,8 +93,7 @@ export function S4Gradient() {
       <p>
         先看圖的前半段：<Tex>{'x[n]'}</Tex> 經過誤差路徑 <Tex>{'h'}</Tex> 變成 <Tex>{'u[n]'}</Tex>，乘上 <Tex>{'(a-w)'}</Tex>、加上雜訊 <Tex>{'v[n]'}</Tex>，就是上面 F-07.1 的
         <Tex>{r`e_{\mathrm{PD}}[n]`}</Tex>——圓形加法點的輸出就是 PD 的輸出，兩個乘法器都從這裡取訊號。再看兩個乘法器：標著「真正的梯度」的那一個把 <Tex>{r`e_{\mathrm{PD}}`}</Tex> 乘回 <Tex>{'u'}</Tex>——<Tex>{'u'}</Tex> 自己乘自己的平均是
-        <Tex>{r`E[u^2]`}</Tex>，不可能是負的；標著「raw-x」的那一個乘的是 <Tex>{'x'}</Tex>，平均出來是 <ChRef ch="06">Ch06</ChRef> 的 <Tex>{r`C=E[x\,u]`}</Tex>。下面的推導說明：對 PD 端的誤差功率 <Tex>{'J(w)'}</Tex>（推導第 2 步定義）微分，自然會得到綠色那一路——
-        圖上綠色方塊前面的乘法器算的 <Tex>{r`E[e_{\mathrm{PD}}\,u]`}</Tex>，就是 F-07.9 裡梯度 <Tex>{r`dJ/dw`}</Tex> 的負值。
+        <Tex>{r`E[u^2]`}</Tex>，不可能是負的；標著「raw-x」的那一個乘的是 <Tex>{'x'}</Tex>，平均出來是 <ChRef ch="06">Ch06</ChRef> 的 <Tex>{r`C=E[x\,u]`}</Tex>。下面的推導說明：對 PD 端的誤差功率 <Tex>{'J(w)'}</Tex>（推導第 2 步定義）微分，自然會得到綠色那一路——圖上綠色方塊前面的乘法器算的 <Tex>{r`E[e_{\mathrm{PD}}\,u]`}</Tex>，就是 F-07.9 裡梯度 <Tex>{r`dJ/dw`}</Tex> 的負值。
       </p>
       <FoldSteps
         steps={[
@@ -144,10 +140,8 @@ E[e_{\mathrm{PD}}\,u]&=(a-w)\,E[u^2]+E[v\,u]&&\text{代入 }e_{\mathrm{PD}}\\
 
       <h3 className="ch07-subhead">步驟 2：硬體只有 1-bit comparator，<Tex>{'u'}</Tex> 也看不到 → 用模型 <Tex>{r`\hat H`}</Tex> 產生 <Tex>{'u_f'}</Tex></h3>
       <p>
-        兩個實際困難：(1) 校正迴路拿到的不是 PD 的輸出 <Tex>{r`e_{\mathrm{PD}}[n]`}</Tex> 本身，而是它經過 1-bit comparator 之後的正負號 <Tex>{r`q[n]=\mathrm{sign}(e_{\mathrm{PD}}[n])`}</Tex>；
-        (2) <Tex>{'u'}</Tex> 是 PLL 內部的訊號，GMAC 拿不到。解法：用 PLL 誤差路徑的<strong>模型</strong> <Tex>{r`\hat H`}</Tex> 把 code 濾一次，
-        <Tex>{r`u_f=\hat h*x`}</Tex>，當作 regressor——這就是 <strong>Filtered-x LMS</strong>（ANC 耳機的 FxLMS 用的是同一個想法：
-        喇叭到麥克風的 secondary path 也要先建模）。
+        兩個實際困難：(1) 校正迴路拿到的不是 PD 的輸出 <Tex>{r`e_{\mathrm{PD}}[n]`}</Tex> 本身，而是它經過 1-bit comparator 之後的正負號 <Tex>{r`q[n]=\mathrm{sign}(e_{\mathrm{PD}}[n])`}</Tex>；(2) <Tex>{'u'}</Tex> 是 PLL 內部的訊號，GMAC 拿不到。解法：用 PLL 誤差路徑的<strong>模型</strong> <Tex>{r`\hat H`}</Tex> 把 code 濾一次，
+        <Tex>{r`u_f=\hat h*x`}</Tex>，當作 regressor——這就是 <strong>Filtered-x LMS</strong>（ANC 耳機的 FxLMS 用的是同一個想法：喇叭到麥克風的 secondary path 也要先建模）。
       </p>
       <Mermaid
         chart={CHART_THREE_REGRESSORS}
@@ -165,8 +159,7 @@ E[e_{\mathrm{PD}}\,u]&=(a-w)\,E[u^2]+E[v\,u]&&\text{代入 }e_{\mathrm{PD}}\\
       <Prereq title="高斯分布、累積分布函數與誤差函數 erf（Ch05 的 comparator 小訊號增益）">
         <p>
           雜訊 <Tex>{r`v\sim\mathcal N(0,\sigma_v^2)`}</Tex>（Gaussian，鐘形曲線）。<Tex>{r`\Phi(z)=P(Z\le z)`}</Tex> 是標準常態的累積機率，
-          <Tex>{r`\mathrm{erf}(z)=\frac{2}{\sqrt\pi}\int_0^ze^{-t^2}dt`}</Tex>，兩者關係 <Tex>{r`2\Phi(z)-1=\mathrm{erf}(z/\sqrt2)`}</Tex>。
-          在 0 附近泰勒展開：<Tex>{r`\mathrm{erf}(z)=\frac{2}{\sqrt\pi}\big(z-\tfrac{z^3}{3}+\cdots\big)`}</Tex>，所以小訊號時
+          <Tex>{r`\mathrm{erf}(z)=\frac{2}{\sqrt\pi}\int_0^ze^{-t^2}dt`}</Tex>，兩者關係 <Tex>{r`2\Phi(z)-1=\mathrm{erf}(z/\sqrt2)`}</Tex>。在 0 附近泰勒展開：<Tex>{r`\mathrm{erf}(z)=\frac{2}{\sqrt\pi}\big(z-\tfrac{z^3}{3}+\cdots\big)`}</Tex>，所以小訊號時
           <Tex>{r`\mathrm{erf}(z)\approx\frac{2}{\sqrt\pi}z`}</Tex>（<ChRef ch="05">Ch05</ChRef> 有 1 fs vs 100 fs 的完整例子）。
         </p>
       </Prereq>
@@ -254,8 +247,7 @@ E[e_{\mathrm{PD}}\,u]&=(a-w)\,E[u^2]+E[v\,u]&&\text{代入 }e_{\mathrm{PD}}\\
 
       <h3 className="ch07-subhead">怎麼公平地比較不同的 regressor？正規化相關 <Tex>{'\\rho'}</Tex></h3>
       <p>
-        比較不同 regressor 不能只看 <Tex>{'C'}</Tex>：把 regressor 放大 10 倍，<Tex>{'C'}</Tex> 也放大 10 倍，但 GMAC 雜訊也放大 10 倍。
-        公平的比法是<strong>每單位 regressor 功率</strong>的恢復力——正規化相關（Lab 與後面的比較表都用它）：
+        比較不同 regressor 不能只看 <Tex>{'C'}</Tex>：把 regressor 放大 10 倍，<Tex>{'C'}</Tex> 也放大 10 倍，但 GMAC 雜訊也放大 10 倍。公平的比法是<strong>每單位 regressor 功率</strong>的恢復力——正規化相關（Lab 與後面的比較表都用它）：
       </p>
       <Mermaid
         chart={CHART_RHO_READING}

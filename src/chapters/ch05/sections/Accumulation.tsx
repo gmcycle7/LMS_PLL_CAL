@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import { Callout, ClaimTag, ModeGate, Plot, Prereq, Section, SelectControl, Tex, TexBlock, useThemeTokens } from '@/components'
 import {
   TIE_RULE_LABEL,
@@ -30,8 +30,7 @@ function SumPrereqs() {
     <>
       <Prereq title="獨立隨機變數相加：平均相加、變異數也相加">
         <p>
-          兩個隨機變數 <Tex>{'X,Y'}</Tex>（平均 <Tex>{'\\mu_X,\\mu_Y'}</Tex>）。<strong>獨立</strong>的意思是「知道一個不會改變另一個的機率」，
-          因而 <Tex>{'E[XY]=E[X]E[Y]'}</Tex>。
+          兩個隨機變數 <Tex>{'X,Y'}</Tex>（平均 <Tex>{'\\mu_X,\\mu_Y'}</Tex>）。<strong>獨立</strong>的意思是「知道一個不會改變另一個的機率」，因而 <Tex>{'E[XY]=E[X]E[Y]'}</Tex>。
         </p>
         <Steps
           title={
@@ -47,8 +46,7 @@ function SumPrereqs() {
           ]}
         />
         <p>
-          另外常用：<Tex>{'\\operatorname{Var}(cX)=c^2\\operatorname{Var}(X)'}</Tex>（常數提出來要平方）。所以「平均」<Tex>{'G=S_N/N'}</Tex> 的變異數是
-          總和的 <Tex>{'1/N^2'}</Tex>。
+          另外常用：<Tex>{'\\operatorname{Var}(cX)=c^2\\operatorname{Var}(X)'}</Tex>（常數提出來要平方）。所以「平均」<Tex>{'G=S_N/N'}</Tex> 的變異數是總和的 <Tex>{'1/N^2'}</Tex>。
         </p>
       </Prereq>
       <Prereq title="Binomial 分布：$N$ 次獨立的「成功／失敗」中成功幾次">
@@ -63,8 +61,7 @@ function SumPrereqs() {
       <Prereq title={String.raw`中央極限定理（CLT）：很多獨立小量的和 $\approx$ Gaussian`}>
         <p>
           若 <Tex>{'q_1,\\dots,q_N'}</Tex> 獨立同分布、平均 <Tex>{'m'}</Tex>、變異數 <Tex>{'\\sigma_q^2'}</Tex>，則標準化後的和{' '}
-          <Tex>{String.raw`\frac{S_N-Nm}{\sqrt N\,\sigma_q}`}</Tex> 在 <Tex>{'N'}</Tex> 大時分布趨近 <Tex>{'\\mathcal N(0,1)'}</Tex>。
-          它是<strong>近似</strong>：<Tex>{'N'}</Tex> 有限時有誤差（Berry–Esseen 定理給上界，見 Research 模式的 §3.5），而且 <Tex>{'S_N'}</Tex> 是離散格點，
+          <Tex>{String.raw`\frac{S_N-Nm}{\sqrt N\,\sigma_q}`}</Tex> 在 <Tex>{'N'}</Tex> 大時分布趨近 <Tex>{'\\mathcal N(0,1)'}</Tex>。它是<strong>近似</strong>：<Tex>{'N'}</Tex> 有限時有誤差（Berry–Esseen 定理給上界，見 Research 模式的 §3.5），而且 <Tex>{'S_N'}</Tex> 是離散格點，
           <Tex>{'S_N>0'}</Tex> 與 <Tex>{'S_N\\ge0'}</Tex> 在偶數 <Tex>{'N'}</Tex> 會差一個 tie 的機率 <Tex>{'P(S_N=0)'}</Tex>。
         </p>
       </Prereq>
@@ -183,8 +180,7 @@ export function AccumulationSection() {
         }
       >
         規格 §5 把總和寫成 <Tex>{'G_N=\\sum q_i'}</Tex>，但 §0 的 <Tex>{'G_k=\\frac1N\\sum q\\,x'}</Tex> 是<strong>平均</strong>、下標 <Tex>{'k'}</Tex> 是
-        block。本章一律寫 <Tex>{'S_N=\\sum_{i=1}^N q_i'}</Tex>（相當於 <Tex>{'x\\equiv1'}</Tex> 的 GMAC 總和），平均則是 <Tex>{'G=S_N/N'}</Tex>。
-        方向判斷與尺度無關，但 histogram 與信賴區間的軸差 <Tex>{'N'}</Tex> 倍。<Erratum id="E07" /> <Erratum id="E18" />
+        block。本章一律寫 <Tex>{'S_N=\\sum_{i=1}^N q_i'}</Tex>（相當於 <Tex>{'x\\equiv1'}</Tex> 的 GMAC 總和），平均則是 <Tex>{'G=S_N/N'}</Tex>。方向判斷與尺度無關，但 histogram 與信賴區間的軸差 <Tex>{'N'}</Tex> 倍。<Erratum id="E07" /> <Erratum id="E18" />
       </Callout>
       <SumPrereqs />
 
@@ -224,8 +220,7 @@ export function AccumulationSection() {
         <Tex>{'N'}</Tex> 倍。圖上兩格裡的 E 與 SD 就是 F-05.4 的四個式子。<Erratum id="E18" />
       </Fig>
       <p>
-        <Tex>{String.raw`N=10{,}000`}</Tex>（<Tex>{String.raw`s=1\,\mathrm{fs},\ \sigma_v=100\,\mathrm{fs}`}</Tex>）：sum 的 <Tex>{`E=${fx(base.mo.meanSum, 3)}`}</Tex>、<Tex>{`\\mathrm{SD}=${fx(base.mo.sdSum, 3)}`}</Tex>；
-        average 的 <Tex>{`E=${fx(base.mo.meanAvg, 7)}`}</Tex>、<Tex>{`\\mathrm{SD}=${fx(base.mo.sdAvg, 7)}`}</Tex>——比值（SNR）完全一樣。
+        <Tex>{String.raw`N=10{,}000`}</Tex>（<Tex>{String.raw`s=1\,\mathrm{fs},\ \sigma_v=100\,\mathrm{fs}`}</Tex>）：sum 的 <Tex>{`E=${fx(base.mo.meanSum, 3)}`}</Tex>、<Tex>{`\\mathrm{SD}=${fx(base.mo.sdSum, 3)}`}</Tex>；average 的 <Tex>{`E=${fx(base.mo.meanAvg, 7)}`}</Tex>、<Tex>{`\\mathrm{SD}=${fx(base.mo.sdAvg, 7)}`}</Tex>——比值（SNR）完全一樣。
       </p>
 
       <Steps
@@ -300,8 +295,7 @@ export function AccumulationSection() {
 
       <h3>3.2 CLT 近似：規格 §5 的公式從哪來</h3>
       <p>
-        Binomial 逐項加總是精確的，但不好手算，也看不出 <Tex>{'N'}</Tex> 要多大。<Tex>{'N'}</Tex> 大時可以把 <Tex>{'S_N'}</Tex> 當成 Gaussian（CLT），一次查表就得到答案。
-        兩條路線先並排看一次：
+        Binomial 逐項加總是精確的，但不好手算，也看不出 <Tex>{'N'}</Tex> 要多大。<Tex>{'N'}</Tex> 大時可以把 <Tex>{'S_N'}</Tex> 當成 Gaussian（CLT），一次查表就得到答案。兩條路線先並排看一次：
       </p>
       <Fig name="exactVsClt">
         先看上框（精確）：由 <Tex>{'p'}</Tex> 與 <Tex>{'N'}</Tex> 得到 <Tex>{'K'}</Tex> 的分布，把 <Tex>{'K>N/2'}</Tex> 的機率逐項相加；偶數 <Tex>{'N'}</Tex> 的 tie
@@ -355,8 +349,7 @@ export function AccumulationSection() {
         <table className="ch05-table">
           <caption>
             <Tex>{String.raw`s=1\,\mathrm{fs},\ \sigma_v=100\,\mathrm{fs}`}</Tex>、<Tex>{'q_i'}</Tex> iid。最後兩列是讓精確值跨過 95% / 99% 的最小奇數{' '}
-            <Tex>{'N'}</Tex>（CLT 連續解分別為 {fx(base.nClt95, 2)} 與 {fx(base.nClt99, 2)}）。這是辨識<strong>一個固定非零偏移之符號</strong>的機率，
-            不是完整 LMS 迴路收斂的機率。
+            <Tex>{'N'}</Tex>（CLT 連續解分別為 {fx(base.nClt95, 2)} 與 {fx(base.nClt99, 2)}）。這是辨識<strong>一個固定非零偏移之符號</strong>的機率，不是完整 LMS 迴路收斂的機率。
           </caption>
           <thead>
             <tr>
@@ -403,10 +396,7 @@ export function AccumulationSection() {
           <Tex>{'K_q'}</Tex> 是 §5 的小訊號增益：
         </p>
         <Fig name="tieRules">
-          先看最上面的菱形：<Tex>{'S_N\\ne0'}</Tex> 時四種 rule 完全一樣，只有平手時才分道揚鑣。再看四個分支的顏色：綠色的 half（擲硬幣）與 skip（不更新）對 <Tex>{'+1'}</Tex>、<Tex>{'-1'}</Tex> 兩邊一視同仁，不會把迴路推向任何一邊；
-          紅色的兩條——<Tex>{'\\operatorname{sign}(0)=+1'}</Tex>，以及 strict 在 <Tex>{'s>0'}</Tex> 時對應的硬體 <Tex>{'\\operatorname{sign}(0)=-1'}</Tex>——把平手一律判到同一邊，
-          等於把決策門檻偏了半格，平衡點因此偏移 <Tex>{'\\mp1/(NK_q)'}</Tex>（推導在 §3.4，Engineer 模式顯示）。
-          下表把每個分支的機率算出來。
+          先看最上面的菱形：<Tex>{'S_N\\ne0'}</Tex> 時四種 rule 完全一樣，只有平手時才分道揚鑣。再看四個分支的顏色：綠色的 half（擲硬幣）與 skip（不更新）對 <Tex>{'+1'}</Tex>、<Tex>{'-1'}</Tex> 兩邊一視同仁，不會把迴路推向任何一邊；紅色的兩條——<Tex>{'\\operatorname{sign}(0)=+1'}</Tex>，以及 strict 在 <Tex>{'s>0'}</Tex> 時對應的硬體 <Tex>{'\\operatorname{sign}(0)=-1'}</Tex>——把平手一律判到同一邊，等於把決策門檻偏了半格，平衡點因此偏移 <Tex>{'\\mp1/(NK_q)'}</Tex>（推導在 §3.4，Engineer 模式顯示）。下表把每個分支的機率算出來。
         </Fig>
         <div className="ch05-row">
           <SelectControl
@@ -520,8 +510,7 @@ export function AccumulationSection() {
         <div className="table-wrap">
           <table className="ch05-table">
             <caption>
-              <Tex>{String.raw`\sigma_v=100\,\mathrm{fs}`}</Tex>。「精確」為 exact binomial 下 <Tex>{'E[d](s^*)=0'}</Tex> 的二分法根；<Tex>{'N'}</Tex> 為奇數時三者皆為 0。
-              strict 是「tie 算錯」的評分慣例，硬體無法知道 <Tex>{'s'}</Tex> 的正負，這裡以它在 <Tex>{'s>0'}</Tex> 時對應的硬體{' '}
+              <Tex>{String.raw`\sigma_v=100\,\mathrm{fs}`}</Tex>。「精確」為 exact binomial 下 <Tex>{'E[d](s^*)=0'}</Tex> 的二分法根；<Tex>{'N'}</Tex> 為奇數時三者皆為 0。strict 是「tie 算錯」的評分慣例，硬體無法知道 <Tex>{'s'}</Tex> 的正負，這裡以它在 <Tex>{'s>0'}</Tex> 時對應的硬體{' '}
               <Tex>{'\\operatorname{sign}(0)=-1'}</Tex> 計算。
             </caption>
             <thead>
@@ -604,8 +593,7 @@ export function AccumulationSection() {
           {String.raw`P(S_N>0)+\tfrac12P(S_N=0)=P(S_{N-1}>0)\qquad(N\text{ 偶數，任意 }p)`}
         </TexBlock>
         <p>
-          這也解釋了 T05 的精確門檻：even-split 的 95% 門檻是 <Tex>{`${texInt(base.nEvenHalf95)}=${texInt(base.nOdd95)}+1`}</Tex>；若偶數 <Tex>{'N'}</Tex> 又用 strict
-          （tie 算錯），門檻要到 {int(base.nEvenStrict95)}——多付 {int(base.nEvenStrict95 - base.nOdd95)} 個樣本，還不如奇數的 {int(base.nOdd95)}。
+          這也解釋了 T05 的精確門檻：even-split 的 95% 門檻是 <Tex>{`${texInt(base.nEvenHalf95)}=${texInt(base.nOdd95)}+1`}</Tex>；若偶數 <Tex>{'N'}</Tex> 又用 strict（tie 算錯），門檻要到 {int(base.nEvenStrict95)}——多付 {int(base.nEvenStrict95 - base.nOdd95)} 個樣本，還不如奇數的 {int(base.nOdd95)}。
           <strong>
             硬體上用奇數 <Tex>{'N'}</Tex> 永遠不吃虧。
           </strong>
