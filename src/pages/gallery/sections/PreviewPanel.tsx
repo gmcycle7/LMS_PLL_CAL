@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
-import { Callout, ClaimTag, ModelLevel, ModeGate, Plot, SourceTag, stripMathDelimiters, Tex } from '@/components'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
+import { Callout, ClaimTag, ModelLevel, ModeGate, Plot, SourceTag, accessibleText, Tex } from '@/components'
 import type { PresetEntry } from '@/data/types'
 import { previewPreset, type PreviewChart, type PreviewOutcome, type PreviewResult } from '../previews'
 import { checkExpected, type ExpectedCheck } from '../consistency'
@@ -85,7 +85,7 @@ export function PreviewView({
           title={r.chart.title}
           csvName={`gallery-${preset.id}`}
           yLog={r.chart.yLog}
-          ariaLabel={`${stripMathDelimiters(r.chart.title)}：${r.chart.series.map((s) => stripMathDelimiters(s.name)).join('、')}`}
+          ariaLabel={`${accessibleText(r.chart.title)}：${r.chart.series.map((s) => accessibleText(s.name)).join('、')}`}
         />
       )}
       <ModeGate min="engineer">

@@ -1,7 +1,8 @@
-import { lazy, Suspense, useCallback, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Callout, ClaimTag, ModelLevel, SourceTag, Tex } from '@/components'
 import { ALL_PRESETS, presetById } from '@/app/presets'
+import { lazyPart, NearGate } from '../verification/lazy'
 import { PREVIEWABLE_EXPERIMENTS } from './data'
 import { AllPresets } from './sections/AllPresets'
 import { Coverage } from './sections/Coverage'
@@ -15,9 +16,11 @@ import { UnifiedView } from './sections/UnifiedView'
 import { Wrapup } from './sections/Wrapup'
 import './gallery.css'
 
-// previews.ts 連同十幾個模型模組、以及 §7 的原始碼文字都不小：各自切成 lazy chunk，頁面先顯示、它們在背景載入
-const Inspector = lazy(() => import('./sections/Inspector'))
-const CodeSection = lazy(() => import('./sections/CodeSection'))
+// previews.ts 連同十幾個模型模組（約 150 KB gzip）、以及 §7 的原始碼文字（約 160 KB gzip）都不小：
+// 各自切成 lazy chunk，而且要等占位區接近可視範圍（NearGate）才下載——只讀前面幾節的人不必付這 300 多 KB。
+// 規則：首屏模組（本檔與它靜態 import 的檔案）不能 import 這兩個檔案，lazyBoundary.test.ts 會檢查。
+const Inspector = lazyPart(() => import('./sections/Inspector'))
+const CodeSection = lazyPart(() => import('./sections/CodeSection'))
 
 const TOC: { id: string; label: string }[] = [
   { id: 'gal-s1', label: '1 這一頁在做什麼' },
@@ -60,8 +63,12 @@ export default function GalleryPage() {
   const linked = sp.get('inspect') ?? sp.get('preset')
   const linkedOk = !!linked && !!presetById(linked) && PREVIEWABLE_EXPERIMENTS.includes(presetById(linked)?.experiment ?? '')
   const [selected, setSelected] = useState<string>(() => (linkedOk && linked ? linked : defaultInspectId()))
+  // 按了「檢視」之後 Inspector 就不能再等使用者捲過去：標題在 NearGate 外面，捲動的目標一直都在。
+  // ?inspect=／?preset= 只決定 Inspector 一開始選哪個 preset（頁面不會因此捲到 §6），所以不強制載入：使用者捲到那裡時才下載，打開的就是網址指定的那個。
+  const [inspectorWanted, setInspectorWanted] = useState(false)
   const inspect = useCallback((id: string) => {
     setSelected(id)
+    setInspectorWanted(true)
     scrollToId('gal-s6')
   }, [])
   return (
@@ -120,9 +127,9 @@ export default function GalleryPage() {
           選一個 preset，看它的每一個重算值、代入數字的推導，以及和預期文字的逐項比對。工程師模式以上另有兩個控制項：<strong>容差倍數</strong> <Tex>{'k_{\\mathrm{tol}}'}</Tex>，以及<strong>注入相對誤差</strong>{' '}
           <Tex>{'\\varepsilon'}</Tex>——把所有重算值乘上 <Tex>{'(1+\\varepsilon)'}</Tex>，親眼確認比對真的會失敗。
         </p>
-        <Suspense fallback={<p className="small muted gal-loading">載入模型模組中…</p>}>
+        <NearGate label="Preset Inspector" minHeight={2200} force={inspectorWanted} className="gal-loading">
           <Inspector selected={selected} onSelect={setSelected} />
-        </Suspense>
+        </NearGate>
       </section>
 
       <section aria-labelledby="gal-s7" className="gal-section">
@@ -130,9 +137,9 @@ export default function GalleryPage() {
         <p>
           這一節把「載入 preset」「即時預覽」「比對」三件事的實際程式列出來，並把六種模型算 pole 的程式並排比較（差異行以底色標出）。
         </p>
-        <Suspense fallback={<p className="small muted gal-loading">載入原始碼中…</p>}>
+        <NearGate label="核心程式碼" minHeight={3800} className="gal-loading">
           <CodeSection />
-        </Suspense>
+        </NearGate>
       </section>
 
       <section aria-labelledby="gal-s8" className="gal-section">

@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import {
   ClaimTag,
   CodeCompare,
@@ -201,15 +201,12 @@ export default function R6Preview() {
     <div className="rm-preview">
       <Prereq title="PDF、CDF 與「微分就是密度」">
         <p>
-          累積分布 <Tex>{'F_v(t)=P(v\\le t)'}</Tex>，機率密度 <Tex>{"f_v(t)=F_v'(t)"}</Tex>（微積分基本定理）。<Tex>{'P(v>t)=1-F_v(t)'}</Tex>。
-          Gaussian 的 <Tex>{'F_v(t)=\\Phi(t/\\sigma_v)'}</Tex>，<Tex>{'f_v(0)=1/(\\sqrt{2\\pi}\\sigma_v)'}</Tex>。
+          累積分布 <Tex>{'F_v(t)=P(v\\le t)'}</Tex>，機率密度 <Tex>{"f_v(t)=F_v'(t)"}</Tex>（微積分基本定理）。<Tex>{'P(v>t)=1-F_v(t)'}</Tex>。Gaussian 的 <Tex>{'F_v(t)=\\Phi(t/\\sigma_v)'}</Tex>，<Tex>{'f_v(0)=1/(\\sqrt{2\\pi}\\sigma_v)'}</Tex>。
         </p>
       </Prereq>
       <Prereq title="兩狀態 Markov chain">
         <p>
-          狀態只有 <Tex>{'+1'}</Tex> 與 <Tex>{'-1'}</Tex>；每一步從 <Tex>{'-1'}</Tex> 跳到 <Tex>{'+1'}</Tex> 的機率 <Tex>{'t_+'}</Tex>、反向 <Tex>{'t_-'}</Tex>。
-          長時間後「流進 = 流出」：<Tex>{'\\pi_+t_-=\\pi_-t_+'}</Tex>，所以 <Tex>{'\\pi_+=t_+/(t_++t_-)'}</Tex>。轉移矩陣的另一個 eigenvalue 是 <Tex>{'\\nu=1-t_+-t_-'}</Tex>，
-          它就是相隔一步的相關係數；相隔 <Tex>{'k'}</Tex> 步為 <Tex>{'\\nu^k'}</Tex>。
+          狀態只有 <Tex>{'+1'}</Tex> 與 <Tex>{'-1'}</Tex>；每一步從 <Tex>{'-1'}</Tex> 跳到 <Tex>{'+1'}</Tex> 的機率 <Tex>{'t_+'}</Tex>、反向 <Tex>{'t_-'}</Tex>。長時間後「流進 = 流出」：<Tex>{'\\pi_+t_-=\\pi_-t_+'}</Tex>，所以 <Tex>{'\\pi_+=t_+/(t_++t_-)'}</Tex>。轉移矩陣的另一個 eigenvalue 是 <Tex>{'\\nu=1-t_+-t_-'}</Tex>，它就是相隔一步的相關係數；相隔 <Tex>{'k'}</Tex> 步為 <Tex>{'\\nu^k'}</Tex>。
         </p>
       </Prereq>
       <StepDerivation
@@ -237,8 +234,7 @@ export default function R6Preview() {
         result={String.raw`\mathcal I\big|_{H=0}=4f_v(0)^2=K_q^2\ (\text{Gaussian}),\qquad \text{遲滯：斜率}\uparrow\ \text{但}\ \nu\uparrow\qquad(\text{F-R6.3})`}
       />
       <p>
-        <ClaimTag kind="exact" /> S 曲線與 Markov 平穩分布在 iid 雜訊下精確；<ClaimTag kind="approx" /> <Tex>{'\\mathcal I'}</Tex> 用到大 <Tex>{'N'}</Tex> 的漸近變異。
-        Gaussian 時 <Tex>{'\\mathcal I'}</Tex> 隨 <Tex>{'H'}</Tex> 單調下降（下方實驗與 model.test.ts 在 <Tex>{'H/\\sigma_v\\in[0,4]'}</Tex> 數值確認；一般 PDF 未證明 <ClaimTag kind="research" />）。
+        <ClaimTag kind="exact" /> S 曲線與 Markov 平穩分布在 iid 雜訊下精確；<ClaimTag kind="approx" /> <Tex>{'\\mathcal I'}</Tex> 用到大 <Tex>{'N'}</Tex> 的漸近變異。Gaussian 時 <Tex>{'\\mathcal I'}</Tex> 隨 <Tex>{'H'}</Tex> 單調下降（下方實驗與 model.test.ts 在 <Tex>{'H/\\sigma_v\\in[0,4]'}</Tex> 數值確認；一般 PDF 未證明 <ClaimTag kind="research" />）。
         <ErratumNote eid="E07">{String.raw`tie（輸入恰為門檻）取 $+1$ 的慣例必須寫清楚。`}</ErratumNote>
       </p>
       <HandCalc def={roadmapHandCalc('HC-RM.6')} />
@@ -264,8 +260,7 @@ export default function R6Preview() {
       <ModeGate min="research">
         <h4>Research：robust GMAC</h4>
         <p>
-          impulsive noise 下可在 GMAC 前加 clipping：<Tex>{'\\psi_\\delta(e)'}</Tex>（Huber）在 <Tex>{'|e|\\le\\delta'}</Tex> 時像 LMS、之外像 Sign-LMS。1-bit comparator 本身就是 <Tex>{'\\delta\\to0'}</Tex> 的極端，
-          所以「robust」與「資訊量」之間的取捨要用同一個 <Tex>{'\\mathcal I'}</Tex> 架構比較。<ClaimTag kind="research" /> 未實作。
+          impulsive noise 下可在 GMAC 前加 clipping：<Tex>{'\\psi_\\delta(e)'}</Tex>（Huber）在 <Tex>{'|e|\\le\\delta'}</Tex> 時像 LMS、之外像 Sign-LMS。1-bit comparator 本身就是 <Tex>{'\\delta\\to0'}</Tex> 的極端，所以「robust」與「資訊量」之間的取捨要用同一個 <Tex>{'\\mathcal I'}</Tex> 架構比較。<ClaimTag kind="research" /> 未實作。
         </p>
       </ModeGate>
     </div>

@@ -317,7 +317,7 @@ export function S4Conventions() {
       <p>
         <Tex>{r`\mu`}</Tex> 的單位是 fs、<Tex>{'K_q'}</Tex> 是 <Tex>{r`\mathrm{fs^{-1}}`}</Tex>，乘起來才是無因次的 loop gain（
         <ErratumNote id="E13" />
-        ）。 所以「教科書的 <Tex>{r`\mu\lambda`}</Tex>」對應「本站的 <Tex>{r`g=\mu K_qC`}</Tex>」，<Tex>{'C'}</Tex> 扮演 eigenvalue
+        ）。所以「教科書的 <Tex>{r`\mu\lambda`}</Tex>」對應「本站的 <Tex>{r`g=\mu K_qC`}</Tex>」，<Tex>{'C'}</Tex> 扮演 eigenvalue
         的角色。下面這段就是本頁實驗用來把四種寫法換成同一個 <Tex>{'s'}</Tex>（<Tex>{r`g_i=s\lambda_i`}</Tex>）的程式：
       </p>
       <CodeBlock source={bridgeSrc} region="gainScale" path={BRIDGE_PATH} />
@@ -355,8 +355,7 @@ export function S4Conventions() {
           </table>
         </div>
         <p className="small muted">
-          主動控制文獻的更新式正負號取決於誤差的定義（控制路徑的輸出與干擾在誤差感測點是相加還是相減），不同教材的寫法因此可能差一個負號；
-          判斷極性時要回到「誤差對係數的偏微分」的符號，而不是只比對更新式的長相（本站 <ChRef ch="06">Ch06</ChRef> 的 <Tex>{'C>0'}</Tex> 判據）。
+          主動控制文獻的更新式正負號取決於誤差的定義（控制路徑的輸出與干擾在誤差感測點是相加還是相減），不同教材的寫法因此可能差一個負號；判斷極性時要回到「誤差對係數的偏微分」的符號，而不是只比對更新式的長相（本站 <ChRef ch="06">Ch06</ChRef> 的 <Tex>{'C>0'}</Tex> 判據）。
         </p>
         <Callout kind="warn" title="最容易撞名的三個符號">
           <ul>

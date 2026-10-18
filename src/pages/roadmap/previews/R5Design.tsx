@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import {
   ClaimTag,
   CodeCompare,
@@ -292,8 +292,7 @@ export default function R5Preview() {
       <ModeGate min="research">
         <h4>Research：E 與 D 以外</h4>
         <p>
-          A-optimal（最小化 <Tex>{'\\mathrm{tr}\\,\\mathbf R^{-1}'}</Tex>，即平均參數變異）直接對應 preconditioned LMS 的總雜訊（R4 的 <Tex>{'\\sum\\mathrm{Var}_i\\propto\\sum1/\\lambda_i'}</Tex>）；
-          它和 E-optimal 一樣受單位影響。<ErratumNote eid="E23">PE / mean 收斂與 mean-square 是不同的問題。</ErratumNote> <ClaimTag kind="research" /> 哪個指標最貼近晶片目標，是 R5 待回答的問題。
+          A-optimal（最小化 <Tex>{'\\mathrm{tr}\\,\\mathbf R^{-1}'}</Tex>，即平均參數變異）直接對應 preconditioned LMS 的總雜訊（R4 的 <Tex>{'\\sum\\mathrm{Var}_i\\propto\\sum1/\\lambda_i'}</Tex>）；它和 E-optimal 一樣受單位影響。<ErratumNote eid="E23">PE / mean 收斂與 mean-square 是不同的問題。</ErratumNote> <ClaimTag kind="research" /> 哪個指標最貼近晶片目標，是 R5 待回答的問題。
         </p>
       </ModeGate>
     </div>

@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import {
   CaseSelector,
   ClaimTag,
@@ -286,13 +286,10 @@ export default function R1Preview() {
     <div className="rm-preview">
       <Prereq title="期望值、變異數與自相關（只用「很多次的平均」）">
         <p>
-          <Tex>{'E[X]'}</Tex> 是「同一個實驗重複很多次後的平均」。變異數 <Tex>{'\\mathrm{Var}(X)=E[X^2]-(E[X])^2'}</Tex> 描述抖動大小；零均值時就是 <Tex>{'E[X^2]'}</Tex>。
-          期望值是線性的：<Tex>{'E[aX+bY]=aE[X]+bE[Y]'}</Tex>；若 <Tex>{'X,Y'}</Tex> 獨立，<Tex>{'E[XY]=E[X]E[Y]'}</Tex>。
+          <Tex>{'E[X]'}</Tex> 是「同一個實驗重複很多次後的平均」。變異數 <Tex>{'\\mathrm{Var}(X)=E[X^2]-(E[X])^2'}</Tex> 描述抖動大小；零均值時就是 <Tex>{'E[X^2]'}</Tex>。期望值是線性的：<Tex>{'E[aX+bY]=aE[X]+bE[Y]'}</Tex>；若 <Tex>{'X,Y'}</Tex> 獨立，<Tex>{'E[XY]=E[X]E[Y]'}</Tex>。
         </p>
         <p>
-          <strong>自相關（autocorrelation）</strong> <Tex>{'R_\\eta[\\ell]=E[\\eta_k\\eta_{k+\\ell}]'}</Tex>：相隔 <Tex>{'\\ell'}</Tex> 個 block 的兩個雜訊「平均起來有多同號」。
-          iid 雜訊只有 <Tex>{'\\ell=0'}</Tex> 不為零。AR(1) 雜訊 <Tex>{String.raw`\eta_{k+1}=\rho\eta_k+\sqrt{1-\rho^2}\,\sigma_\eta\xi_k`}</Tex>（<Tex>{'\\xi_k'}</Tex> 為 iid 標準常態）：
-          兩邊乘 <Tex>{'\\eta_k'}</Tex> 再取期望值，因為 <Tex>{'\\xi_k'}</Tex> 與 <Tex>{'\\eta_k'}</Tex> 獨立，得 <Tex>{'R_\\eta[1]=\\rho\\sigma_\\eta^2'}</Tex>；重複 <Tex>{'\\ell'}</Tex> 次得 <Tex>{'R_\\eta[\\ell]=\\sigma_\\eta^2\\rho^{|\\ell|}'}</Tex>。
+          <strong>自相關（autocorrelation）</strong> <Tex>{'R_\\eta[\\ell]=E[\\eta_k\\eta_{k+\\ell}]'}</Tex>：相隔 <Tex>{'\\ell'}</Tex> 個 block 的兩個雜訊「平均起來有多同號」。iid 雜訊只有 <Tex>{'\\ell=0'}</Tex> 不為零。AR(1) 雜訊 <Tex>{String.raw`\eta_{k+1}=\rho\eta_k+\sqrt{1-\rho^2}\,\sigma_\eta\xi_k`}</Tex>（<Tex>{'\\xi_k'}</Tex> 為 iid 標準常態）：兩邊乘 <Tex>{'\\eta_k'}</Tex> 再取期望值，因為 <Tex>{'\\xi_k'}</Tex> 與 <Tex>{'\\eta_k'}</Tex> 獨立，得 <Tex>{'R_\\eta[1]=\\rho\\sigma_\\eta^2'}</Tex>；重複 <Tex>{'\\ell'}</Tex> 次得 <Tex>{'R_\\eta[\\ell]=\\sigma_\\eta^2\\rho^{|\\ell|}'}</Tex>。
         </p>
       </Prereq>
       <Prereq title="等比級數（geometric series）">
@@ -303,8 +300,7 @@ export default function R1Preview() {
 
       <h4>{mt(String.raw`先算一次（T13 條件：$\sigma_v=100$ fs、$N=4096$、$\mu=10$ fs）`)}</h4>
       <p>
-        <Tex>{`K=\\sqrt{2/\\pi}/100=${n4(hc.K)}\\ \\mathrm{fs^{-1}}`}</Tex>，<Tex>{`p=1-\\mu K=${n4(hc.p)}`}</Tex>，<Tex>{'\\sigma_\\eta^2=1/4096'}</Tex>。白雜訊的 <Tex>{'\\sigma_w'}</Tex> 再乘上
-        放大因子的平方根 <Tex>{'\\sqrt{(1+p\\rho)/(1-p\\rho)}'}</Tex>：
+        <Tex>{`K=\\sqrt{2/\\pi}/100=${n4(hc.K)}\\ \\mathrm{fs^{-1}}`}</Tex>，<Tex>{`p=1-\\mu K=${n4(hc.p)}`}</Tex>，<Tex>{'\\sigma_\\eta^2=1/4096'}</Tex>。白雜訊的 <Tex>{'\\sigma_w'}</Tex> 再乘上放大因子的平方根 <Tex>{'\\sqrt{(1+p\\rho)/(1-p\\rho)}'}</Tex>：
       </p>
       <div className="table-wrap">
         <table aria-label="先算一次：T13 條件下三種相關係數的係數雜訊">
@@ -355,14 +351,12 @@ export default function R1Preview() {
       />
       <p>
         <ClaimTag kind="exact" /> 在線性化模型、AR(1) 雜訊下精確。<Tex>{'p\\rho>0'}</Tex>（迴路慢、雜訊同號相關）時放大；<Tex>{'p\\rho<0'}</Tex> 時縮小。
-        <Tex>{'p\\to1'}</Tex> 的極限下因子變成 <Tex>{'(1+\\rho)/(1-\\rho)'}</Tex>，正好是「有效獨立樣本數」縮小的倍數。
-        同一個封閉式在 <PageRef id="ch12">第 12 章</PageRef> §12.4 的 Research 框以「變異數遞迴的交叉項」推得（那裡把相關係數記作 <Tex>{'r'}</Tex>；本頁 R7 的觀測 pole 記作 <Tex>{'r_s'}</Tex>，為了不混淆，這裡把相關係數改記 <Tex>{'\\rho'}</Tex>）。
+        <Tex>{'p\\to1'}</Tex> 的極限下因子變成 <Tex>{'(1+\\rho)/(1-\\rho)'}</Tex>，正好是「有效獨立樣本數」縮小的倍數。同一個封閉式在 <PageRef id="ch12">第 12 章</PageRef> §12.4 的 Research 框以「變異數遞迴的交叉項」推得（那裡把相關係數記作 <Tex>{'r'}</Tex>；本頁 R7 的觀測 pole 記作 <Tex>{'r_s'}</Tex>，為了不混淆，這裡把相關係數改記 <Tex>{'\\rho'}</Tex>）。
       </p>
       <HandCalc def={roadmapHandCalc('HC-RM.1')} />
       <p>
         同一個量也能寫成狀態空間：<Tex>{String.raw`\mathbf s_k=[\delta w_k,\ \eta_k]^T`}</Tex>、
-        <Tex>{String.raw`\mathbf A=\begin{bmatrix}p&\mu\\0&\rho\end{bmatrix}`}</Tex>，穩態共變異滿足離散 Lyapunov 方程 <Tex>{String.raw`\mathbf P=\mathbf A\mathbf P\mathbf A^T+\mathbf Q`}</Tex>（F-R1.2）。
-        這是 R1 真正需要的工具：量測到的 <Tex>{'S_\\eta'}</Tex> 若能用有限階 ARMA 表示，就把它的狀態串在後面，同一條方程算出 <Tex>{'\\sigma_w^2'}</Tex>。
+        <Tex>{String.raw`\mathbf A=\begin{bmatrix}p&\mu\\0&\rho\end{bmatrix}`}</Tex>，穩態共變異滿足離散 Lyapunov 方程 <Tex>{String.raw`\mathbf P=\mathbf A\mathbf P\mathbf A^T+\mathbf Q`}</Tex>（F-R1.2）。這是 R1 真正需要的工具：量測到的 <Tex>{'S_\\eta'}</Tex> 若能用有限階 ARMA 表示，就把它的狀態串在後面，同一條方程算出 <Tex>{'\\sigma_w^2'}</Tex>。
       </p>
       <TexBlock>{String.raw`\mathbf P=\mathbf A\mathbf P\mathbf A^{T}+\mathbf Q\iff(\mathbf I-\mathbf A\otimes\mathbf A)\,\mathrm{vec}(\mathbf P)=\mathrm{vec}(\mathbf Q)`}</TexBlock>
 

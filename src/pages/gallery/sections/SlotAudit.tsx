@@ -1,5 +1,6 @@
 import { useMemo, type ReactNode } from 'react'
 import { Callout, ClaimTag, Tex, ChRef } from '@/components'
+import { revealAnchor } from '@/components/links'
 import { ALL_PRESETS } from '@/app/presets'
 import { PAGES } from '@/app/registry'
 import { auditSlots, experimentName, invalidGalleryIndices, PREVIEWABLE_EXPERIMENTS, type SlotAudit as SlotAuditRow } from '../data'
@@ -135,10 +136,13 @@ export function SlotAudit({ audit }: { audit: SlotAuditRow[] }) {
   )
 }
 
-/** 頁內捲動到某個元素（HashRouter 下 #anchor 會被當成路由，所以用按鈕 + scrollIntoView） */
+/**
+ * 頁內捲動到某個元素（HashRouter 下 #anchor 會被當成路由，所以用按鈕）。用共用的 revealAnchor（和本頁目錄、公式連結同一套）：
+ * 瞬間捲到、聚焦、短暫標示，之後兩秒內校正延後渲染造成的位移。不用 smooth 捲動：動畫會經過 §4／§6／§7 每一個延後載入的區塊、
+ * 把它們全部觸發下載，而且途中版面長高會把動畫截在錯的位置。
+ */
 export function scrollToId(domId: string) {
-  const el = document.getElementById(domId)
-  el?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+  revealAnchor(domId)
 }
 
 export function JumpButton({ domId, children }: { domId: string; children: ReactNode }) {

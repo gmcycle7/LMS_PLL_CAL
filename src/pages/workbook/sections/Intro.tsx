@@ -53,10 +53,24 @@ export interface IntroProps {
   groups: readonly ChapterGroup[]
   /** 示範用的題目（HC-00.1）；不存在時不顯示示範 */
   demo?: HandCalcDef
+  /**
+   * 題庫（各章的 handcalcs.ts）是否已經載入。題庫在背景載入（首屏不必等所有章節的手算內容），
+   * 載入前說明文字先畫出來，題數、各難度題數與例題連結先以「…」占位，載完才填入。預設 true。
+   */
+  ready?: boolean
+}
+
+/** 題庫還沒載入時，數字的占位符：寬度先留好 n 個數字，數字出現時前後的文字不會被推開（CLS） */
+export function Pending({ digits }: { digits: number }) {
+  return (
+    <span className="wb-pending" style={{ minWidth: `${digits}ch` }}>
+      …
+    </span>
+  )
 }
 
 /** §1 為什麼要手算、§2 怎麼用、各難度需要的計算機功能。 */
-export function Intro({ all, groups, demo }: IntroProps) {
+export function Intro({ all, groups, demo, ready = true }: IntroProps) {
   const counts = countByLevel(all)
   const firstOf = (level: Level) => all.find((d) => d.level === level)
   return (
@@ -64,7 +78,7 @@ export function Intro({ all, groups, demo }: IntroProps) {
       <section aria-labelledby="wb-s1" className="wb-section">
         <h2 id="wb-s1">1｜為什麼要自己算一次</h2>
         <p>
-          看懂推導，和「給我一組晶片數字，我算得出答案」是兩件事。這本練習簿把全站 {groups.length} 個章節／頁面的 <strong>{all.length} 題</strong>
+          看懂推導，和「給我一組晶片數字，我算得出答案」是兩件事。這本練習簿把全站 {ready ? groups.length : <Pending digits={2} />} 個章節／頁面的 <strong>{ready ? all.length : <Pending digits={3} />} 題</strong>
           「帶入手算」收在一起：每一題都是一條公式加上一組數字，用紙、筆和一般工程計算機就能算完，再和網站的模擬函式對答案。自己代一次數字，會得到三樣只讀公式得不到的東西：
         </p>
         <ol className="wb-why">
@@ -116,8 +130,7 @@ export function Intro({ all, groups, demo }: IntroProps) {
             <strong>先看</strong>
             前四個方塊：挑題、換成你自己的數字看代入、切到「自己算算看」用紙筆算、填答案。
             <strong>再看</strong>
-            藍色菱形：它就是「對答案」背後的判定，答案落在 <Tex>{String.raw`1\%`}</Tex> 相對誤差內（或和詳解只差 <Tex>{String.raw`10^{-9}`}</Tex> 以內）就算對；對了可以「換一題（隨機數字）」繼續練。
-            不對（或卡住了）走棕色的「看詳解」，把你的每個中間結果和詳解逐步對照，找出哪一步算錯再改正重填。
+            藍色菱形：它就是「對答案」背後的判定，答案落在 <Tex>{String.raw`1\%`}</Tex> 相對誤差內（或和詳解只差 <Tex>{String.raw`10^{-9}`}</Tex> 以內）就算對；對了可以「換一題（隨機數字）」繼續練。不對（或卡住了）走棕色的「看詳解」，把你的每個中間結果和詳解逐步對照，找出哪一步算錯再改正重填。
           </p>
         </Diagram>
 
@@ -172,9 +185,11 @@ export function Intro({ all, groups, demo }: IntroProps) {
                       {CALCULATOR_KEYS[level].tools}
                       <div className="small muted">{CALCULATOR_KEYS[level].note}</div>
                     </td>
-                    <td className="num">{counts[level]}</td>
+                    <td className="num">{ready ? counts[level] : <Pending digits={2} />}</td>
                     <td className="nowrap">
-                      {example ? (
+                      {!ready ? (
+                        <Pending digits={5} />
+                      ) : example ? (
                         <Link to={`/workbook?hc=${encodeURIComponent(example.id)}`} title={`${LEVEL_LABEL[level]}：${chapterOf(example).nav}`}>
                           {example.id}
                         </Link>

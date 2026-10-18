@@ -44,7 +44,7 @@ export function D2Polarity() {
     <div className="papers-derived">
       <p>
         <SourceTag kind="illustrative" /> 以下是本站 <ChRef ch="06">Ch06</ChRef>–<ChRef ch="07">Ch07</ChRef> 的推導：單一參數、慢速、小訊號下的<strong>相關判據</strong>。D2 處理的是一般（多參數、寬頻）的
-        FxLMS； 本站的結果只是它最簡單的特例，<strong>不是</strong> D2 的定理。
+        FxLMS；本站的結果只是它最簡單的特例，<strong>不是</strong> D2 的定理。
       </p>
       <PrereqCorrelation />
       <FormulaAnchor id="F-PR.5">
@@ -133,8 +133,7 @@ export function D2Polarity() {
       </p>
       <h4 className="papers-subhead">多頻：不能只看一個頻率</h4>
       <p>
-        兩個等振幅 tone：<Tex>{r`\Omega_1=\pi/6`}</Tex> 時 <Tex>{r`\phi_1=60^\circ`}</Tex>，<Tex>{r`\Omega_2=\pi/3`}</Tex> 時 <Tex>{r`\phi_2=150^\circ`}</Tex>。
-        不同頻率的交叉項平均為 0，所以 <Tex>{'C'}</Tex> 是兩項之和：
+        兩個等振幅 tone：<Tex>{r`\Omega_1=\pi/6`}</Tex> 時 <Tex>{r`\phi_1=60^\circ`}</Tex>，<Tex>{r`\Omega_2=\pi/3`}</Tex> 時 <Tex>{r`\phi_2=150^\circ`}</Tex>。不同頻率的交叉項平均為 0，所以 <Tex>{'C'}</Tex> 是兩項之和：
       </p>
       <div className="table-wrap">
         <table className="papers-table">
@@ -251,7 +250,7 @@ export function D2Polarity() {
           </table>
         </div>
         <Callout kind="info" title="讀 D2 時要對照的地方">
-          本站的判據都是「單一參數、相關的符號」；多參數時要看的是矩陣 <Tex>{r`E[\mathbf x\mathbf u^T]`}</Tex> 的特徵值（<ChRef ch="10">Ch10</ChRef>），不再只是一個數的正負。 D2
+          本站的判據都是「單一參數、相關的符號」；多參數時要看的是矩陣 <Tex>{r`E[\mathbf x\mathbf u^T]`}</Tex> 的特徵值（<ChRef ch="10">Ch10</ChRef>），不再只是一個數的正負。D2
           的題名提到的 Toeplitz 矩陣與 pseudospectrum，就是處理這個一般情況的數學工具；它的條件與本站結果之間的關係，請以原文為準。
         </Callout>
       </ModeGate>

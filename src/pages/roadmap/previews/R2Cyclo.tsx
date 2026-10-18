@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import {
   ClaimTag,
   CodeBlock,
@@ -171,15 +171,12 @@ export default function R2Preview() {
     <div className="rm-preview">
       <Prereq title="gcd、lcm 與中國餘數定理（CRT）">
         <p>
-          <Tex>{'\\gcd(P,N)'}</Tex> 是兩數的最大公因數，<Tex>{'\\mathrm{lcm}(P,N)=PN/\\gcd(P,N)'}</Tex> 是最小公倍數。若 <Tex>{'\\gcd(P,N)=1'}</Tex>（互質），
-          中國餘數定理說：<Tex>{'n=0,1,\\dots,PN-1'}</Tex> 這 <Tex>{'PN'}</Tex> 個整數，和所有餘數配對 <Tex>{'(n\\bmod P,\\ n\\bmod N)'}</Tex> 恰好一對一。
-          例：<Tex>{'P=2,N=3'}</Tex>，<Tex>{'n=0..5'}</Tex> 對應 (0,0)(1,1)(0,2)(1,0)(0,1)(1,2)，六種組合各出現一次。若 <Tex>{'P=2,N=4'}</Tex>，<Tex>{'n\\bmod 2'}</Tex> 由 <Tex>{'n\\bmod 4'}</Tex> 決定，只出現一半的組合。
+          <Tex>{'\\gcd(P,N)'}</Tex> 是兩數的最大公因數，<Tex>{'\\mathrm{lcm}(P,N)=PN/\\gcd(P,N)'}</Tex> 是最小公倍數。若 <Tex>{'\\gcd(P,N)=1'}</Tex>（互質），中國餘數定理說：<Tex>{'n=0,1,\\dots,PN-1'}</Tex> 這 <Tex>{'PN'}</Tex> 個整數，和所有餘數配對 <Tex>{'(n\\bmod P,\\ n\\bmod N)'}</Tex> 恰好一對一。例：<Tex>{'P=2,N=3'}</Tex>，<Tex>{'n=0..5'}</Tex> 對應 (0,0)(1,1)(0,2)(1,0)(0,1)(1,2)，六種組合各出現一次。若 <Tex>{'P=2,N=4'}</Tex>，<Tex>{'n\\bmod 2'}</Tex> 由 <Tex>{'n\\bmod 4'}</Tex> 決定，只出現一半的組合。
         </p>
       </Prereq>
       <Prereq title="自相關與 PSD（Wiener–Khinchin）">
         <p>
-          平穩序列的 PSD 是自相關的 DTFT：<Tex>{String.raw`S(e^{j\Omega})=\sum_m R[m]e^{-j\Omega m}`}</Tex>。週期性變化的（cyclostationary）序列沒有單一的 <Tex>{'R[m]'}</Tex>，
-          頻譜儀或 Welch 量到的是<strong>時間平均</strong>的 <Tex>{'\\bar R[m]'}</Tex> 的 DTFT。所以只要 <Tex>{'\\bar R'}</Tex> 算錯，量到的 PSD 就和預測不同。
+          平穩序列的 PSD 是自相關的 DTFT：<Tex>{String.raw`S(e^{j\Omega})=\sum_m R[m]e^{-j\Omega m}`}</Tex>。週期性變化的（cyclostationary）序列沒有單一的 <Tex>{'R[m]'}</Tex>，頻譜儀或 Welch 量到的是<strong>時間平均</strong>的 <Tex>{'\\bar R[m]'}</Tex> 的 DTFT。所以只要 <Tex>{'\\bar R'}</Tex> 算錯，量到的 PSD 就和預測不同。
         </p>
       </Prereq>
 

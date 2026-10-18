@@ -48,8 +48,7 @@ export function Docs() {
     <>
       <h3>規格勘誤（docs/validation.md）</h3>
       <p>
-        規格書經過逐項重算（共 {VALIDATION_DOC.checks} 項聲明），確認 <strong>{e.total}</strong> 項勘誤：high {e.bySeverity.high}、medium {e.bySeverity.medium}、low {e.bySeverity.low}；
-        另有 {VALIDATION_DOC.refuted} 項疑點經反駁後不列為勘誤。網站一律採用修正後的版本，並在對應位置標示「勘誤 Exx」，點擊即到 <PageRef id="verification" />（依編號列出完整的問題、修正與數值證據）。
+        規格書經過逐項重算（共 {VALIDATION_DOC.checks} 項聲明），確認 <strong>{e.total}</strong> 項勘誤：high {e.bySeverity.high}、medium {e.bySeverity.medium}、low {e.bySeverity.low}；另有 {VALIDATION_DOC.refuted} 項疑點經反駁後不列為勘誤。網站一律採用修正後的版本，並在對應位置標示「勘誤 Exx」，點擊即到 <PageRef id="verification" />（依編號列出完整的問題、修正與數值證據）。
       </p>
       <p className="small">
         high：

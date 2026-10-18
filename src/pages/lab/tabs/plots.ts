@@ -2,7 +2,7 @@
  * Lab 各分頁的圖表資料（純函式：模擬結果 → Plotly traces / layout）。
  * 所有曲線都直接取自 unifiedLab.ts 的結果，這裡只做排版；圖內的數學一律寫 `$...$`（LaTeX）；共用的 `Plot` 元件用 plotMath.ts 轉成斜體符號與上下標（Plotly 的 SVG 文字不能放 KaTeX）。
  */
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import { histogram } from '@/simulation/core'
 import type { FcwPoint, LinearPrediction, McSummary, PipelineResult, TrainingResult } from '@/simulation/models/unifiedLab'
 import { PE_ZERO_REL, timingPsdToDbc } from '../logic'

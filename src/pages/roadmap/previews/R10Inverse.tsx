@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import {
   ClaimTag,
   CodeBlock,
@@ -231,8 +231,7 @@ export default function R10Preview() {
     <div className="rm-preview">
       <Prereq title="指數、對數與 tanh">
         <p>
-          <Tex>{'\\varepsilon^u=e^{u\\ln\\varepsilon}=e^{-uL_\\varepsilon}'}</Tex>，其中 <Tex>{'L_\\varepsilon=\\ln(1/\\varepsilon)'}</Tex>（<Tex>{'\\varepsilon=0.01'}</Tex> 時約 4.6）。
-          雙曲正切 <Tex>{'\\tanh y=\\frac{e^{y}-e^{-y}}{e^{y}+e^{-y}}=\\frac{1-e^{-2y}}{1+e^{-2y}}'}</Tex>；泰勒展開 <Tex>{'\\tanh y=y-y^3/3+\\dots'}</Tex>，所以 <Tex>{'\\tanh(y)/y\\le1'}</Tex>、且 <Tex>{'y\\to0'}</Tex> 時趨近 1。
+          <Tex>{'\\varepsilon^u=e^{u\\ln\\varepsilon}=e^{-uL_\\varepsilon}'}</Tex>，其中 <Tex>{'L_\\varepsilon=\\ln(1/\\varepsilon)'}</Tex>（<Tex>{'\\varepsilon=0.01'}</Tex> 時約 4.6）。雙曲正切 <Tex>{'\\tanh y=\\frac{e^{y}-e^{-y}}{e^{y}+e^{-y}}=\\frac{1-e^{-2y}}{1+e^{-2y}}'}</Tex>；泰勒展開 <Tex>{'\\tanh y=y-y^3/3+\\dots'}</Tex>，所以 <Tex>{'\\tanh(y)/y\\le1'}</Tex>、且 <Tex>{'y\\to0'}</Tex> 時趨近 1。
         </p>
       </Prereq>
       <StepDerivation
@@ -248,12 +247,8 @@ export default function R10Preview() {
         result={String.raw`\sigma_{w,\min}^2(N)=\frac{L_\varepsilon}{2K^2f_sT}\cdot\frac{\tanh y}{y}\ \le\ \frac{\ln(1/\varepsilon)}{2K^2f_sT}\qquad(\text{F-R10.1})`}
       />
       <p>
-        <ClaimTag kind="approx" /> 結論：在線性模型裡，<Tex>{'N'}</Tex> 只透過 <Tex>{'\\tanh(y)/y'}</Tex> 影響 <Tex>{'\\sigma_w'}</Tex>；多 block（小 <Tex>{'y'}</Tex>）時幾乎與 <Tex>{'N'}</Tex> 無關，
-        所以規格的第一個可行性檢查是 <Tex>{'\\sigma_{w,\\max}^2\\ge\\ln(1/\\varepsilon)/(2K^2f_sT_{\\max})'}</Tex>。
-        <Tex>{'N'}</Tex> 的選擇改由其他約束決定：slew（sign-LMS 每 block 最多走 <Tex>{'\\mu'}</Tex>）、PM、PE 窗口、tracking（R8）與硬體位寬（R9）。
-        另一個極端是把全部 <Tex>{'f_sT'}</Tex> 個樣本平均一次（<Tex>{'N=f_sT'}</Tex>、<Tex>{'g=1'}</Tex>）：<Tex>{'\\sigma_w^2=1/(K^2f_sT)'}</Tex>，比多 block 極限小 <Tex>{'L_\\varepsilon/2'}</Tex> 倍（<Tex>{'\\varepsilon=0.01'}</Tex> 時 {n4(Math.log(100) / 2)} 倍）。
-        固定 <Tex>{'\\mu'}</Tex> 只有在 block 很少（<Tex>{'y\\to L_\\varepsilon/2'}</Tex>，即 <Tex>{'B\\to1'}</Tex>）時才沿 tanh 律接近它；<PageRef id="ch14">第 14 章</PageRef>的 <Tex>{'1/k'}</Tex> 步長排程則不論 <Tex>{'N'}</Tex> 都能達到。
-        注意這裡的 <Tex>{'\\sigma_w'}</Tex> 是「以這個 <Tex>{'g'}</Tex> 持續背景追蹤」的穩態值；<Tex>{'T_{\\max}'}</Tex> 只約束收斂時間，兩者是分開的規格。
+        <ClaimTag kind="approx" /> 結論：在線性模型裡，<Tex>{'N'}</Tex> 只透過 <Tex>{'\\tanh(y)/y'}</Tex> 影響 <Tex>{'\\sigma_w'}</Tex>；多 block（小 <Tex>{'y'}</Tex>）時幾乎與 <Tex>{'N'}</Tex> 無關，所以規格的第一個可行性檢查是 <Tex>{'\\sigma_{w,\\max}^2\\ge\\ln(1/\\varepsilon)/(2K^2f_sT_{\\max})'}</Tex>。
+        <Tex>{'N'}</Tex> 的選擇改由其他約束決定：slew（sign-LMS 每 block 最多走 <Tex>{'\\mu'}</Tex>）、PM、PE 窗口、tracking（R8）與硬體位寬（R9）。另一個極端是把全部 <Tex>{'f_sT'}</Tex> 個樣本平均一次（<Tex>{'N=f_sT'}</Tex>、<Tex>{'g=1'}</Tex>）：<Tex>{'\\sigma_w^2=1/(K^2f_sT)'}</Tex>，比多 block 極限小 <Tex>{'L_\\varepsilon/2'}</Tex> 倍（<Tex>{'\\varepsilon=0.01'}</Tex> 時 {n4(Math.log(100) / 2)} 倍）。固定 <Tex>{'\\mu'}</Tex> 只有在 block 很少（<Tex>{'y\\to L_\\varepsilon/2'}</Tex>，即 <Tex>{'B\\to1'}</Tex>）時才沿 tanh 律接近它；<PageRef id="ch14">第 14 章</PageRef>的 <Tex>{'1/k'}</Tex> 步長排程則不論 <Tex>{'N'}</Tex> 都能達到。注意這裡的 <Tex>{'\\sigma_w'}</Tex> 是「以這個 <Tex>{'g'}</Tex> 持續背景追蹤」的穩態值；<Tex>{'T_{\\max}'}</Tex> 只約束收斂時間，兩者是分開的規格。
         <ErratumNote eid="E16">{String.raw`$\varepsilon$ 必須是相對比例；以 fs 絕對值輸入會讓下界變成 0。`}</ErratumNote>
       </p>
       <HandCalc def={roadmapHandCalc('HC-RM.10')} />

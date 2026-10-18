@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ClaimTag, mathText, Mermaid, ModelLevel, StepDerivation, stripMathDelimiters, type CheckStatus, type ClaimKind, type ModelLevelId, type Step } from '@/components'
+import { ClaimTag, mathText, Mermaid, ModelLevel, StepDerivation, accessibleText, type CheckStatus, type ClaimKind, type ModelLevelId, type Step } from '@/components'
 import { useSettings, type LearningMode } from '@/app/settings'
 import { texNum } from '@/simulation/models/unifiedLab'
 
@@ -23,9 +23,9 @@ export function md(s: string): ReactNode {
   )
 }
 
-/** 純文字版（Plotly 圖例、aria-label、匯出檔）：拿掉 `$` 分隔符。 */
+/** 純文字版（Plotly 圖例、aria-label、匯出檔）：`$…$` 轉成可念的文字（accessibleText）。 */
 export function plain(s: string): string {
-  return stripMathDelimiters(s)
+  return accessibleText(s)
 }
 
 /** 與 useSettings().atLeast 相同，但在 SettingsProvider 之外不丟錯（預設 engineer）。 */

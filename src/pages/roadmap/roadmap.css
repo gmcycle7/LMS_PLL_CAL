@@ -161,7 +161,6 @@
   min-width: 0;
   /* 行內公式不會斷行：萬一比手機螢幕寬，讓卡片自己捲動，不要撐出整頁的水平捲軸 */
   overflow-x: auto;
-  scroll-margin-top: calc(var(--topbar-h) + 12px);
 }
 .rm-formula {
   min-width: 0;
@@ -410,9 +409,6 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: 3px;
-}
-.rm #symbols {
-  scroll-margin-top: 72px;
 }
 
 /*

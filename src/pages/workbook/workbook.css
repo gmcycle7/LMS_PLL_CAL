@@ -9,13 +9,6 @@
 .wb-section {
   margin-top: 8px;
 }
-.wb-section h2,
-.wb-group,
-.wb-item,
-.wb-tools,
-.wb-sheet {
-  scroll-margin-top: calc(var(--topbar-h) + 12px);
-}
 .wb-bad {
   color: var(--danger);
 }
@@ -240,6 +233,17 @@
 .wb-dock-head .btn {
   padding: 1px 10px;
   font-size: 0.8rem;
+}
+
+/* 題數之類的數字在題庫載入前的占位符（寬度由 style.minWidth 預留） */
+.wb-pending {
+  display: inline-block;
+  text-align: center;
+}
+
+/* 題庫還在背景載入（各章 handcalcs.ts）時，分頁面板裡只有這一行 */
+.wb-loading {
+  padding: 12px 0;
 }
 
 /* ── 分頁 ── */

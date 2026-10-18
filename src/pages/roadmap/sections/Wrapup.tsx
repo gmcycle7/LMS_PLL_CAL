@@ -93,8 +93,7 @@ export function Wrapup() {
         options={[{ label: '會，低頻反號就一定發散' }, { label: mt(String.raw`不會：白色 code 的 $C=h_{\mathrm{PD}}[0]=1>0$`), correct: true }, { label: mt(String.raw`要看 $\mu$ 的大小`) }]}
         answer={
           <>
-            <Tex>{'C=\\sum_kh[k]R_x[k]'}</Tex>，白色 code 只有 <Tex>{'R_x[0]\\ne0'}</Tex>，所以 <Tex>{'C=h[0]=1'}</Tex>（<Tex>{'L'}</Tex> 嚴格因果）。等價地，<Tex>{'\\frac1{2\\pi}\\int\\mathrm{Re}\\,H\\,d\\Omega=h[0]'}</Tex>：
-            低頻的負面積被高頻的正面積補回來。要反號，code 的能量必須集中在反號帶內（例如 PMUX 的相位旋轉）。<Tex>{'\\mu'}</Tex> 的大小只影響「多快」，不影響正負。
+            <Tex>{'C=\\sum_kh[k]R_x[k]'}</Tex>，白色 code 只有 <Tex>{'R_x[0]\\ne0'}</Tex>，所以 <Tex>{'C=h[0]=1'}</Tex>（<Tex>{'L'}</Tex> 嚴格因果）。等價地，<Tex>{'\\frac1{2\\pi}\\int\\mathrm{Re}\\,H\\,d\\Omega=h[0]'}</Tex>：低頻的負面積被高頻的正面積補回來。要反號，code 的能量必須集中在反號帶內（例如 PMUX 的相位旋轉）。<Tex>{'\\mu'}</Tex> 的大小只影響「多快」，不影響正負。
           </>
         }
       />
@@ -102,15 +101,13 @@ export function Wrapup() {
         title="思考題 3（計算，SSPLL）"
         question={
           <>
-            使用者的 L2 迴路（<Tex>{`K_p=${USER_L2.Kp},\\ K_i=${USER_L2.Ki}`}</Tex>）、FCW 小數 <Tex>{'\\alpha=0.021'}</Tex>，PMUX 以 84 MHz 旋轉，那裡 <Tex>{`\\mathrm{Re}\\{H_{\\mathrm{PD}}\\}=${n4(q3.reRot)}`}</Tex>。
-            只看基波（<Tex>{`W_1=${n4(PMUX_W1)}`}</Tex>）估計 PHOS mode-1 的 <Tex>{'\\kappa_1'}</Tex>；和把所有譜線都算進去的值比起來差多少？
+            使用者的 L2 迴路（<Tex>{`K_p=${USER_L2.Kp},\\ K_i=${USER_L2.Ki}`}</Tex>）、FCW 小數 <Tex>{'\\alpha=0.021'}</Tex>，PMUX 以 84 MHz 旋轉，那裡 <Tex>{`\\mathrm{Re}\\{H_{\\mathrm{PD}}\\}=${n4(q3.reRot)}`}</Tex>。只看基波（<Tex>{`W_1=${n4(PMUX_W1)}`}</Tex>）估計 PHOS mode-1 的 <Tex>{'\\kappa_1'}</Tex>；和把所有譜線都算進去的值比起來差多少？
           </>
         }
         answer={
           <>
             <TexBlock>{`W_1\\,\\mathrm{Re}\\{H_{\\mathrm{PD}}\\}=${n4(PMUX_W1)}\\times(${n4(q3.reRot)})=${n4(PMUX_W1 * q3.reRot)}`}</TexBlock>
-            把一個週期的所有譜線都加進去（<code>pmuxKappa</code>）得到 <Tex>{`\\kappa_1=${n4(q3.kappa)}`}</Tex>：其餘 5% 的功率落在高頻，那裡 <Tex>{'\\mathrm{Re}\\{H_{\\mathrm{PD}}\\}>1'}</Tex>，
-            所以實際值比基波估計「少負」約 <Tex>{`${n4(q3.kappa - PMUX_W1 * q3.reRot)}`}</Tex>，但仍然是負的——PHOS 反號。
+            把一個週期的所有譜線都加進去（<code>pmuxKappa</code>）得到 <Tex>{`\\kappa_1=${n4(q3.kappa)}`}</Tex>：其餘 5% 的功率落在高頻，那裡 <Tex>{'\\mathrm{Re}\\{H_{\\mathrm{PD}}\\}>1'}</Tex>，所以實際值比基波估計「少負」約 <Tex>{`${n4(q3.kappa - PMUX_W1 * q3.reRot)}`}</Tex>，但仍然是負的——PHOS 反號。
           </>
         }
       />
@@ -124,8 +121,7 @@ export function Wrapup() {
         options={[{ label: mt('夠：$6+12=18$') }, { label: `不夠：需要 ${acc.bitsRequired} bits`, correct: true }]}
         answer={
           <>
-            <Tex>{'q=-1,\\ x=-32\\Rightarrow qx=+32'}</Tex>；全部同號時總和 <Tex>{`32\\times4096=${acc.maxSum}=2^{17}`}</Tex>，比 18-bit 的正上限 <Tex>{'2^{17}-1'}</Tex> 多 1，wrap 成 <Tex>{'-2^{17}'}</Tex>（符號翻轉）。
-            限制 code 為對稱範圍（<Tex>{'\\pm31'}</Tex>）時 18 bits 才夠。
+            <Tex>{'q=-1,\\ x=-32\\Rightarrow qx=+32'}</Tex>；全部同號時總和 <Tex>{`32\\times4096=${acc.maxSum}=2^{17}`}</Tex>，比 18-bit 的正上限 <Tex>{'2^{17}-1'}</Tex> 多 1，wrap 成 <Tex>{'-2^{17}'}</Tex>（符號翻轉）。限制 code 為對稱範圍（<Tex>{'\\pm31'}</Tex>）時 18 bits 才夠。
           </>
         }
       />
@@ -138,8 +134,7 @@ export function Wrapup() {
         }
         answer={
           <>
-            用 lifting 矩陣 <Tex>{'\\mathbf A_{16}'}</Tex> 計算：<Tex>{`\\rho(\\mathbf A_{16})=${n4(rho16)}<1`}</Tex>，收斂。block 平均讓快迴路在更新之間幾乎走完暫態，耦合項 <Tex>{'-\\mu c_sS_N/N'}</Tex> 變小——
-            穩定性取決於多速率結構，不能只用單一速率的公式判斷。
+            用 lifting 矩陣 <Tex>{'\\mathbf A_{16}'}</Tex> 計算：<Tex>{`\\rho(\\mathbf A_{16})=${n4(rho16)}<1`}</Tex>，收斂。block 平均讓快迴路在更新之間幾乎走完暫態，耦合項 <Tex>{'-\\mu c_sS_N/N'}</Tex> 變小——穩定性取決於多速率結構，不能只用單一速率的公式判斷。
           </>
         }
       />

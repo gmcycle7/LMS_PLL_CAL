@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import {
   Callout,
   ClaimTag,
@@ -185,8 +185,7 @@ export default function R3Preview() {
       <Prereq title="floor、round、mod 與 gcd">
         <p>
           <Tex>{'\\lfloor v\\rfloor'}</Tex> 是不大於 <Tex>{'v'}</Tex> 的最大整數；round-half-up 為 <Tex>{'\\lfloor v+\\tfrac12\\rfloor'}</Tex>。
-          <Tex>{'a\\equiv b\\pmod S'}</Tex> 表示 <Tex>{'a-b'}</Tex> 是 <Tex>{'S'}</Tex> 的倍數。<Tex>{'nW\\equiv0\\pmod S'}</Tex> 的最小正整數解是 <Tex>{'n=S/\\gcd(W,S)'}</Tex>：
-          例如 <Tex>{'W=2,S=5'}</Tex> 要 5 次、<Tex>{'W=410,S=1024'}</Tex> 要 512 次。
+          <Tex>{'a\\equiv b\\pmod S'}</Tex> 表示 <Tex>{'a-b'}</Tex> 是 <Tex>{'S'}</Tex> 的倍數。<Tex>{'nW\\equiv0\\pmod S'}</Tex> 的最小正整數解是 <Tex>{'n=S/\\gcd(W,S)'}</Tex>：例如 <Tex>{'W=2,S=5'}</Tex> 要 5 次、<Tex>{'W=410,S=1024'}</Tex> 要 512 次。
         </p>
       </Prereq>
       <StepDerivation
@@ -203,8 +202,7 @@ export default function R3Preview() {
         result={String.raw`P=\frac{S}{\gcd(W\bmod S,\,S)},\qquad \frac1P\sum_{n=0}^{P-1}y[n]=w_H\qquad(\text{F-R3.1})`}
       />
       <p>
-        <ClaimTag kind="exact" /> 平均<strong>恰好</strong>正確，但誤差全部集中在 <Tex>{'k\\,f_u/P'}</Tex> 的離散譜線上——不是白雜訊。
-        rounding 方式與初值只改變循環的<strong>相位</strong>，不改變週期與譜線大小。
+        <ClaimTag kind="exact" /> 平均<strong>恰好</strong>正確，但誤差全部集中在 <Tex>{'k\\,f_u/P'}</Tex> 的離散譜線上——不是白雜訊。rounding 方式與初值只改變循環的<strong>相位</strong>，不改變週期與譜線大小。
         <ErratumNote eid="E15">規格 §13.4 只說「可能」產生週期序列；常數有理輸入時其實必然週期。</ErratumNote>
       </p>
       <Callout kind="info" title="帶入手算：這三條公式的手算題在第 13 章">
@@ -235,8 +233,7 @@ export default function R3Preview() {
       <ModeGate min="research">
         <h4>Research：為什麼一定要整數實作</h4>
         <p>
-          浮點的 <Tex>{'32.4'}</Tex> 不是精確的 <Tex>{'162/5'}</Tex>；累加 <Tex>{'r[n]'}</Tex> 時捨入誤差可能讓某一步剛好落在 tie 的另一邊，循環的相位（甚至週期）就跟 golden model 不同。
-          本站的 T16 golden vector 以精確 Fraction 產生；這裡的整數實作逐點吻合（見 model.test.ts）。
+          浮點的 <Tex>{'32.4'}</Tex> 不是精確的 <Tex>{'162/5'}</Tex>；累加 <Tex>{'r[n]'}</Tex> 時捨入誤差可能讓某一步剛好落在 tie 的另一邊，循環的相位（甚至週期）就跟 golden model 不同。本站的 T16 golden vector 以精確 Fraction 產生；這裡的整數實作逐點吻合（見 model.test.ts）。
           <ErratumNote eid="E49">{String.raw`「Static error $-0.4$ LSB」的符號依 $\delta$ 的極性而定。`}</ErratumNote>
         </p>
       </ModeGate>

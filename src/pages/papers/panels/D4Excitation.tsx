@@ -18,7 +18,7 @@ export function D4Excitation() {
     <div className="papers-derived">
       <p>
         <SourceTag kind="illustrative" /> 規格書把 D4 列為 DTC code randomization 與 near-integer 校正的參考。本站<strong>沒有</strong>轉述 D4
-        的做法；這裡只推導本站自己的結論： 為什麼「激勵」（excitation）變弱時，校正會在 bias、速度、雜訊三方面一起變差（<ChRef ch="11">Ch11</ChRef> §11.4、<ChRef ch="09">Ch09</ChRef>）。
+        的做法；這裡只推導本站自己的結論：為什麼「激勵」（excitation）變弱時，校正會在 bias、速度、雜訊三方面一起變差（<ChRef ch="11">Ch11</ChRef> §11.4、<ChRef ch="09">Ch09</ChRef>）。
       </p>
       <FormulaAnchor id="F-PR.10">
         <StepDerivation
@@ -165,8 +165,8 @@ export function D4Excitation() {
         <Callout kind="info" title="連到晶片設計（研究假說）">
           <p>
             <ClaimTag kind="research" /> 讓 code 更「隨機」（降低不同參數 regressor 之間的相關、避開 <Tex>{'C'}</Tex> 很小的 FCW）在上面的模型裡會同時改善
-            bias、速度與雜訊； 但真實晶片中 code randomization 也會改變 DTC 的使用範圍、spur 與 jitter。是否值得，要用 behavioral simulation
-            與量測決定（<ChRef ch="09">Ch09</ChRef>、<ChRef ch="11">Ch11</ChRef>、Lab）。 D4 的具體做法與量測結果請直接讀原文。
+            bias、速度與雜訊；但真實晶片中 code randomization 也會改變 DTC 的使用範圍、spur 與 jitter。是否值得，要用 behavioral simulation
+            與量測決定（<ChRef ch="09">Ch09</ChRef>、<ChRef ch="11">Ch11</ChRef>、Lab）。D4 的具體做法與量測結果請直接讀原文。
           </p>
         </Callout>
       </ModeGate>

@@ -34,8 +34,7 @@ export function D7Eigen() {
   return (
     <div className="papers-derived">
       <p>
-        <SourceTag kind="illustrative" /> 本站 <ChRef ch="03">Ch03</ChRef>、<ChRef ch="09">Ch09</ChRef>、<ChRef ch="10">Ch10</ChRef> 的推導。講義（D7）的 eigenvalue 分析是同一套數學；以下數字由本站程式計算，用來和講義的結論對照，
-        不是講義上的數字。
+        <SourceTag kind="illustrative" /> 本站 <ChRef ch="03">Ch03</ChRef>、<ChRef ch="09">Ch09</ChRef>、<ChRef ch="10">Ch10</ChRef> 的推導。講義（D7）的 eigenvalue 分析是同一套數學；以下數字由本站程式計算，用來和講義的結論對照，不是講義上的數字。
       </p>
       <PrereqExpectation />
       <PrereqEigen />
@@ -60,7 +59,7 @@ export function D7Eigen() {
               why: (
                 <>
                   取期望值：<Tex>{r`E[\mathbf u v]=0`}</Tex>，並假設 <Tex>{r`\mathbf u_k`}</Tex> 與 <Tex>{r`\boldsymbol\delta_k`}</Tex> 獨立（iid
-                  純量時自動成立、是精確式； 有時間相關的 regressor 時是近似，
+                  純量時自動成立、是精確式；有時間相關的 regressor 時是近似，
                   <ErratumNote id="E38" />
                   ）。
                 </>
@@ -96,7 +95,7 @@ export function D7Eigen() {
           <Tex>{r`K_q=${num(comparatorKq(D7_EX.sigmaV), 6)}\ \mathrm{fs^{-1}}`}</Tex>（<Tex>{r`\sigma_v=${D7_EX.sigmaV}\ \mathrm{fs}`}</Tex>），慢模式 pole 變成{' '}
           <Tex>{r`${num(d.phys.pSlow, 9)}`}</Tex>，95% 衰減要 <Tex>{r`${d.phys.stepsSlow}`}</Tex> 個 block（
           <ErratumNote id="E05" /> <ErratumNote id="E08" />
-          ）。 讀講義時也要確認它的 <Tex>{r`\mu`}</Tex> 是否已吸收了 regressor 的尺度。
+          ）。讀講義時也要確認它的 <Tex>{r`\mu`}</Tex> 是否已吸收了 regressor 的尺度。
         </p>
       </Callout>
       <h4 className="papers-subhead">Mean 收斂不等於 Mean-square 收斂</h4>

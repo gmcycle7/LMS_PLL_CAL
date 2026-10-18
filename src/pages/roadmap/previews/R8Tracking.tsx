@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import {
   ClaimTag,
   CodeCompare,
@@ -178,9 +178,7 @@ export default function R8Preview() {
     <div className="rm-preview">
       <Prereq title="Kalman filter 只用到一個想法：把兩個估計按變異數加權">
         <p>
-          有兩個獨立的估計：預測值（變異數 <Tex>{'P^-'}</Tex>）與量測（變異數 <Tex>{'\\sigma_y^2'}</Tex>）。以權重 <Tex>{'k'}</Tex> 混合，
-          新的變異數 <Tex>{'(1-k)^2P^-+k^2\\sigma_y^2'}</Tex> 對 <Tex>{'k'}</Tex> 微分等於 0，得 <Tex>{'k=P^-/(P^-+\\sigma_y^2)'}</Tex>，混合後變異數 <Tex>{'(1-k)P^-'}</Tex>。
-          random walk 再讓下一步的預測變異數加上 <Tex>{'\\sigma_\\zeta^2'}</Tex>。這就是 scalar Kalman 的全部。
+          有兩個獨立的估計：預測值（變異數 <Tex>{'P^-'}</Tex>）與量測（變異數 <Tex>{'\\sigma_y^2'}</Tex>）。以權重 <Tex>{'k'}</Tex> 混合，新的變異數 <Tex>{'(1-k)^2P^-+k^2\\sigma_y^2'}</Tex> 對 <Tex>{'k'}</Tex> 微分等於 0，得 <Tex>{'k=P^-/(P^-+\\sigma_y^2)'}</Tex>，混合後變異數 <Tex>{'(1-k)P^-'}</Tex>。random walk 再讓下一步的預測變異數加上 <Tex>{'\\sigma_\\zeta^2'}</Tex>。這就是 scalar Kalman 的全部。
         </p>
       </Prereq>
       <StepDerivation
@@ -198,8 +196,7 @@ export default function R8Preview() {
         result={String.raw`g^*=K_\infty=\frac{P^-}{P^-+\sigma_y^2}<1,\qquad V_{\min}=P^-\qquad(\text{F-R8.1})`}
       />
       <p>
-        <ClaimTag kind="exact" /> 在線性、Gaussian 小訊號模型下，「最佳的固定步長 LMS」就是「穩態的 Kalman filter」；而且 <Tex>{'g^*<1'}</Tex>（因為 <Tex>{'s<\\sigma_\\zeta^2+2\\sigma_y^2'}</Tex>），
-        自動滿足 <Tex>{'PM>60^\\circ'}</Tex>。小 <Tex>{'\\sigma_\\zeta'}</Tex> 時 <Tex>{'g^*\\approx\\sigma_\\zeta/\\sigma_y'}</Tex>，即 <PageRef id="ch14">第 14 章</PageRef> F-14.13 的 <Tex>{'\\mu^*\\approx\\sigma_\\zeta/\\sigma_\\eta'}</Tex>。
+        <ClaimTag kind="exact" /> 在線性、Gaussian 小訊號模型下，「最佳的固定步長 LMS」就是「穩態的 Kalman filter」；而且 <Tex>{'g^*<1'}</Tex>（因為 <Tex>{'s<\\sigma_\\zeta^2+2\\sigma_y^2'}</Tex>），自動滿足 <Tex>{'PM>60^\\circ'}</Tex>。小 <Tex>{'\\sigma_\\zeta'}</Tex> 時 <Tex>{'g^*\\approx\\sigma_\\zeta/\\sigma_y'}</Tex>，即 <PageRef id="ch14">第 14 章</PageRef> F-14.13 的 <Tex>{'\\mu^*\\approx\\sigma_\\zeta/\\sigma_\\eta'}</Tex>。
         <ErratumNote eid="E48">{String.raw`§14 的 $E[\delta_B^2]$ 公式在大 $|\delta_0|/\sigma_v$ 時對 Sign-LMS 失效；這裡只談穩態追蹤。`}</ErratumNote>
       </p>
       <HandCalc def={roadmapHandCalc('HC-RM.8')} />
@@ -226,8 +223,7 @@ export default function R8Preview() {
         <h4>Research：1-bit 觀測與多參數</h4>
         <p>
           Sign-GMAC 的觀測是 <Tex>{'q=\\mathrm{sign}(\\cdot)'}</Tex>，Kalman 的線性 Gaussian 假設只在 comparator 前的確定性殘差遠小於 <Tex>{'\\sigma_v'}</Tex> 時近似成立（<Tex>{'\\pm1'}</Tex> code、無記憶 path <Tex>{'u=Cx'}</Tex> 時即{' '}
-          <Tex>{'|C\\delta|\\ll\\sigma_v'}</Tex>）；大誤差時更新量被 <Tex>{'\\mu'}</Tex> 截斷（slew，見 R10）。
-          多參數時 Kalman 的增益矩陣 <Tex>{'\\mathbf P^-\\mathbf H^T(\\mathbf H\\mathbf P^-\\mathbf H^T+\\mathbf R_y)^{-1}'}</Tex> 會自動做 R4 的 preconditioning，但 PE 不足時 <Tex>{'\\mathbf P^-'}</Tex> 的弱方向會無限長大（需要 leaky / regularization）。
+          <Tex>{'|C\\delta|\\ll\\sigma_v'}</Tex>）；大誤差時更新量被 <Tex>{'\\mu'}</Tex> 截斷（slew，見 R10）。多參數時 Kalman 的增益矩陣 <Tex>{'\\mathbf P^-\\mathbf H^T(\\mathbf H\\mathbf P^-\\mathbf H^T+\\mathbf R_y)^{-1}'}</Tex> 會自動做 R4 的 preconditioning，但 PE 不足時 <Tex>{'\\mathbf P^-'}</Tex> 的弱方向會無限長大（需要 leaky / regularization）。
           <ClaimTag kind="research" /> 未實作。<ErratumNote eid="E14">mean / mean-square / almost-sure 三種穩定要分開講。</ErratumNote>
         </p>
       </ModeGate>

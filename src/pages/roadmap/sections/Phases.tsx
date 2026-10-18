@@ -7,8 +7,7 @@ export function Phases() {
   return (
     <>
       <p>
-        實作計畫（<code>docs/implementation_plan.md</code>，對應規格 §20.6）把網站分成六個階段。下面每張卡片的「驗收進度」由 <code>src/data/verification-status.json</code> 即時計算：
-        只有 TypeScript 與 Python golden 兩邊都通過的 T-id 才算 pass；沒有 T-id 的驗收項（build、瀏覽器、手機版、presets 下載）一律需要人工確認，本頁不會替它們打勾。
+        實作計畫（<code>docs/implementation_plan.md</code>，對應規格 §20.6）把網站分成六個階段。下面每張卡片的「驗收進度」由 <code>src/data/verification-status.json</code> 即時計算：只有 TypeScript 與 Python golden 兩邊都通過的 T-id 才算 pass；沒有 T-id 的驗收項（build、瀏覽器、手機版、presets 下載）一律需要人工確認，本頁不會替它們打勾。
       </p>
       <Mermaid chart={PHASE_CHART} caption="階段依賴（docs/implementation_plan.md）" ariaLabel="P0 到 P5 的依賴圖" />
       <div className="rm-phases">

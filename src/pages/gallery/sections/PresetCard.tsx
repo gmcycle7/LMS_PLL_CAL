@@ -1,12 +1,13 @@
-import { lazy, Suspense, useState } from 'react'
+import { Suspense, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ModeGate, SourceTag } from '@/components'
 import type { PresetEntry } from '@/data/types'
 import { presetHref } from '@/app/presets'
+import { lazyPart } from '../../verification/lazy'
 import { errataIn, experimentName, PREVIEWABLE_EXPERIMENTS } from '../data'
 import { ErrataList, LevelBadges, PageLink, Rich, TestBadges } from '../common'
 
-const PreviewPanel = lazy(() => import('./PreviewPanel'))
+const PreviewPanel = lazyPart(() => import('./PreviewPanel'))
 
 export function presetDomId(id: string): string {
   return `gal-preset-${id}`

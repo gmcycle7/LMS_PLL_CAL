@@ -791,7 +791,7 @@ function Derivations() {
       {/* ---------- 4.8 ---------- */}
       <Section kind="formula" title="4.8　Gain register：定點之後多了什麼" id="lab-s48">
         <p>
-          <ModelLevel level="L5" /> <ClaimTag kind="exact" />（bit-true 的 rounding / 飽和） 開啟「定點 gain register」後，<Tex>{'w_k'}</Tex> 存在 <Tex>{'B_{\\mathrm{int}}'}</Tex>-bit 的內部暫存器，送到 DTC 的只有高位的{' '}
+          <ModelLevel level="L5" /> <ClaimTag kind="exact" />（bit-true 的 rounding / 飽和）開啟「定點 gain register」後，<Tex>{'w_k'}</Tex> 存在 <Tex>{'B_{\\mathrm{int}}'}</Tex>-bit 的內部暫存器，送到 DTC 的只有高位的{' '}
           <Tex>{'B_{\\mathrm{phys}}'}</Tex> bits（一個 LSB 是 <Tex>{'\\Delta'}</Tex> fs）。多出來的現象：
         </p>
         <ul>

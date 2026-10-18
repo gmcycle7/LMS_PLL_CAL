@@ -242,7 +242,7 @@ export function PrereqExpectation() {
         <Tex>{r`E[aX+bY]=aE[X]+bE[Y]`}</Tex>，這是下面每個推導都在用的性質。
       </p>
       <p>
-        <strong>變異數</strong>（variance）量測「離平均有多散」：<Tex>{r`\mathrm{Var}(X)=E[(X-E[X])^2]=E[X^2]-(E[X])^2`}</Tex>。 例：<Tex>{r`q=\pm1`}</Tex>、
+        <strong>變異數</strong>（variance）量測「離平均有多散」：<Tex>{r`\mathrm{Var}(X)=E[(X-E[X])^2]=E[X^2]-(E[X])^2`}</Tex>。例：<Tex>{r`q=\pm1`}</Tex>、
         <Tex>{r`P(q=+1)=0.6\ \Rightarrow\ E[q]=0.6-0.4=0.2`}</Tex>、<Tex>{r`E[q^2]=1`}</Tex>、<Tex>{r`\mathrm{Var}(q)=1-0.2^2=0.96`}</Tex>。
       </p>
     </Prereq>
@@ -280,7 +280,7 @@ export function PrereqPole() {
       </p>
       <TexBlock>{r`z^{d+1}=z^{d}-g\quad\Longleftrightarrow\quad z^{d+1}-z^{d}+g=0`}</TexBlock>
       <p>
-        這個多項式的根叫做 <strong>pole</strong>。一般解是各個 <Tex>{r`z_i^k`}</Tex> 的線性組合，所以「全部 pole 都在單位圓內（<Tex>{r`|z|_{\max}<1`}</Tex>）」與「收斂」是同一件事。 Z transform 只是把這件事寫成 <Tex>{r`\sum_k\delta_k z^{-k}`}</Tex> 的形式。
+        這個多項式的根叫做 <strong>pole</strong>。一般解是各個 <Tex>{r`z_i^k`}</Tex> 的線性組合，所以「全部 pole 都在單位圓內（<Tex>{r`|z|_{\max}<1`}</Tex>）」與「收斂」是同一件事。Z transform 只是把這件事寫成 <Tex>{r`\sum_k\delta_k z^{-k}`}</Tex> 的形式。
       </p>
     </Prereq>
   )
@@ -290,8 +290,7 @@ export function PrereqCorrelation() {
   return (
     <Prereq title="相關（correlation）與積化和差">
       <p>
-        兩個訊號的相關 <Tex>{r`E[x\,u]`}</Tex> 就是「逐點相乘再平均」：一起變大變小時為正，步調相反時為負，互不相干時為 0。
-        正弦波相乘要用三角恆等式（積化和差）：
+        兩個訊號的相關 <Tex>{r`E[x\,u]`}</Tex> 就是「逐點相乘再平均」：一起變大變小時為正，步調相反時為負，互不相干時為 0。正弦波相乘要用三角恆等式（積化和差）：
       </p>
       <TexBlock>{r`\cos\alpha\cos\beta=\tfrac12\left[\cos(\alpha-\beta)+\cos(\alpha+\beta)\right]`}</TexBlock>
       <p>
@@ -311,8 +310,8 @@ export function PrereqPsd() {
       <TexBlock>{r`E[x^2]=\frac1{2\pi}\int_{-\pi}^{\pi}S_{xx}(e^{j\Omega})\,d\Omega\qquad(\text{雙邊、離散時間})`}</TexBlock>
       <p>
         <strong>週期</strong>為 <Tex>{'P'}</Tex> 的序列只含頻率 <Tex>{r`\Omega_k=2\pi k/P`}</Tex>：它的頻譜不是連續的「地毯」，而是一根根譜線（line
-        spectrum，也就是 spur）。 對一個週期做 DFT <Tex>{r`E_k=\sum_{n=0}^{P-1}e[n]e^{-j2\pi kn/P}`}</Tex>，<Tex>{r`|E_k|/P`}</Tex> 就是第 <Tex>{'k'}</Tex>{' '}
-        條線的複振幅大小； Parseval 定理保證各線功率加總等於 <Tex>{r`\frac1P\sum_n e[n]^2`}</Tex>。
+        spectrum，也就是 spur）。對一個週期做 DFT <Tex>{r`E_k=\sum_{n=0}^{P-1}e[n]e^{-j2\pi kn/P}`}</Tex>，<Tex>{r`|E_k|/P`}</Tex> 就是第 <Tex>{'k'}</Tex>{' '}
+        條線的複振幅大小；Parseval 定理保證各線功率加總等於 <Tex>{r`\frac1P\sum_n e[n]^2`}</Tex>。
       </p>
     </Prereq>
   )

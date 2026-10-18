@@ -28,8 +28,7 @@ export function D3Delay() {
   return (
     <div className="papers-derived">
       <p>
-        <SourceTag kind="illustrative" /> 本站 <ChRef ch="08">Ch08</ChRef> 的推導：把校正迴路當成開迴路 <Tex>{r`L(z)=g\,z^{-d}/(z-1)`}</Tex>，<Tex>{'d'}</Tex> 是更新延遲（block）。
-        這裡要說明的是：<strong>極性正確只是必要條件</strong>；步子太大，或有延遲，極性正確的迴路照樣發散。這是本站自己的結論，不是對 D3 內容的轉述。
+        <SourceTag kind="illustrative" /> 本站 <ChRef ch="08">Ch08</ChRef> 的推導：把校正迴路當成開迴路 <Tex>{r`L(z)=g\,z^{-d}/(z-1)`}</Tex>，<Tex>{'d'}</Tex> 是更新延遲（block）。這裡要說明的是：<strong>極性正確只是必要條件</strong>；步子太大，或有延遲，極性正確的迴路照樣發散。這是本站自己的結論，不是對 D3 內容的轉述。
       </p>
       <PrereqPole />
       <PrereqPm />
@@ -139,8 +138,7 @@ export function D3Delay() {
       <Hand id="HC-PR.5" />
       <ModeGate min="engineer">
         <Callout kind="info" title="雙迴路也一樣（Ch08，規格 §8.4）">
-          主 PLL 與校正迴路耦合時，完整 <Tex>{r`2\times2`}</Tex> 模型的穩定上界恰好是 quasi-static 一階模型的一半，而且與主迴路多快無關；原因是模型裡內建的一個 block 觀測延遲，
-          不只是時間尺度分離不足（
+          主 PLL 與校正迴路耦合時，完整 <Tex>{r`2\times2`}</Tex> 模型的穩定上界恰好是 quasi-static 一階模型的一半，而且與主迴路多快無關；原因是模型裡內建的一個 block 觀測延遲，不只是時間尺度分離不足（
           <ErratumNote id="E19" />
           ）。讀 D3 時，請注意它的「穩定」對應的是哪一個模型。
         </Callout>
