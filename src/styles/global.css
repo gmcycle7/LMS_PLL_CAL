@@ -288,7 +288,7 @@ ol {
   color: var(--text);
   white-space: nowrap;
 }
-.brand span {
+.brand .brand-lab {
   color: var(--accent);
   font-weight: 600;
 }
@@ -429,7 +429,7 @@ ol {
   .select-label span {
     display: none;
   }
-  .brand span {
+  .brand .brand-lab {
     display: none;
   }
 }
@@ -462,14 +462,18 @@ ol {
   }
 }
 
-/* 320px（舊款小手機）：四個元件總寬只差幾 px，把間距再收一點，兩個選單才不會被截成「Resear…」 */
-@media (max-width: 340px) {
+/* ≤359px（320px 舊款小手機到 359px）：☰、品牌、🔍 與兩個選單的總寬放不下，品牌只留「LMS」（「× PLL」收起來），
+   兩個選單才不會被截成「Engin…」「跟隨…」（≤900px 時「Calibration Lab」本來就是這樣收起來的） */
+@media (max-width: 359px) {
   .topbar {
     gap: 6px;
     padding: 0 8px;
   }
   .topbar-controls {
     gap: 4px;
+  }
+  .brand .brand-x {
+    display: none;
   }
 }
 

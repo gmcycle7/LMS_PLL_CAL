@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { GROUP_LABEL, PAGES, type PageGroup } from './registry'
 import { MODE_LABEL, MODE_SHORT, MODES, useSettings, type LearningMode, type ThemeChoice } from './settings'
 import { NavigationContext } from './navigation'
 import { useMediaQuery } from './useMediaQuery'
+import { SearchButton, loadSearchPalette } from '@/components/search'
 // skip link、sr-only 狀態區、側欄清單與模式選擇器的樣式在 components.css；章節 chunk 還沒載入（或載入失敗）時也要有，所以由 Layout 直接引入
 import '@/components/components.css'
 
@@ -15,6 +16,17 @@ const ZWSP = String.fromCharCode(0x200b)
 export const DRAWER_QUERY = '(max-width: 900px)'
 /** 頂列下拉選單改用短標籤的寬度（和 global.css 的 @media (max-width: 480px) 一致） */
 export const NARROW_QUERY = '(max-width: 480px)'
+
+/** 全站搜尋的面板：第一次開啟才載入它與索引（src/components/search） */
+const SearchPalette = lazy(loadSearchPalette)
+/** 這些頁面自己把 `/` 綁在頁內的搜尋框（公式速查頁）：`/` 留給它們，⌘K／Ctrl-K 仍然開全站搜尋 */
+export const ROUTES_WITH_OWN_SLASH: ReadonlySet<string> = new Set(['/formulas'])
+
+/** 正在打字（輸入框、文字區、下拉選單、contentEditable）：`/` 是要輸入的字元，不是快捷鍵 */
+function isTyping(target: EventTarget | null): boolean {
+  const t = target as HTMLElement | null
+  return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)
+}
 
 export function Layout({ children }: { children: ReactNode }) {
   const { mode, setMode, theme, setTheme } = useSettings()
@@ -82,6 +94,46 @@ export function Layout({ children }: { children: ReactNode }) {
     mainRef.current?.focus()
   }, [])
 
+  // 全站搜尋：🔍 鈕、`/`（不在輸入框裡時）與 ⌘K／Ctrl-K 開啟；關閉時焦點還給開啟前的元素（通常是 🔍 鈕）
+  const [searchOpen, setSearchOpen] = useState(false)
+  const searchButtonRef = useRef<HTMLButtonElement>(null)
+  const searchOpener = useRef<HTMLElement | null>(null)
+  const openSearch = useCallback(() => {
+    const el = document.activeElement
+    searchOpener.current = el instanceof HTMLElement && el !== document.body ? el : null
+    setNavOpen(false)
+    setSearchOpen(true)
+  }, [])
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false)
+    const el = searchOpener.current
+    searchOpener.current = null
+    ;(el && el.isConnected ? el : searchButtonRef.current)?.focus()
+  }, [])
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return
+      if ((e.key === 'k' || e.key === 'K') && (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey) {
+        e.preventDefault()
+        if (searchOpen) closeSearch()
+        else openSearch()
+        return
+      }
+      if (e.key === '/' && !e.metaKey && !e.ctrlKey && !e.altKey && !searchOpen && !isTyping(e.target) && !ROUTES_WITH_OWN_SLASH.has(location.pathname)) {
+        e.preventDefault()
+        openSearch()
+        return
+      }
+      // 面板自己會處理 Esc（並擋住冒泡）；這裡接的是面板還在載入（Suspense 的殼）時的 Esc
+      if (e.key === 'Escape' && searchOpen) {
+        e.preventDefault()
+        closeSearch()
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [searchOpen, location.pathname, openSearch, closeSearch])
+
   return (
     <NavigationContext.Provider value={navInfo}>
       <div className={`app-shell${navOpen ? ' nav-open' : ''}`}>
@@ -107,9 +159,10 @@ export function Layout({ children }: { children: ReactNode }) {
             </button>
           )}
           <NavLink to="/" className="brand">
-            LMS × PLL <span>Calibration Lab</span>
+            LMS<span className="brand-x"> × PLL</span> <span className="brand-lab">Calibration Lab</span>
           </NavLink>
           <div className="topbar-controls">
+            <SearchButton ref={searchButtonRef} open={searchOpen} onClick={() => (searchOpen ? closeSearch() : openSearch())} />
             <label className="select-label">
               <span>學習模式</span>
               <select value={mode} onChange={(e) => setMode(e.target.value as LearningMode)} aria-label="學習模式">
@@ -160,6 +213,24 @@ export function Layout({ children }: { children: ReactNode }) {
         <main id="main" className="content" tabIndex={-1} ref={mainRef}>
           {children}
         </main>
+        {searchOpen && (
+          <Suspense
+            fallback={
+              <div
+                className="c-search-backdrop"
+                onMouseDown={(e) => {
+                  if (e.target === e.currentTarget) closeSearch()
+                }}
+              >
+                <div className="c-search" role="dialog" aria-modal="true" aria-label="搜尋全站" aria-busy="true">
+                  <p className="c-search-empty">載入搜尋…</p>
+                </div>
+              </div>
+            }
+          >
+            <SearchPalette onClose={closeSearch} />
+          </Suspense>
+        )}
       </div>
     </NavigationContext.Provider>
   )

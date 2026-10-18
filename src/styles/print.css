@@ -1,0 +1,407 @@
+/*
+ * ===== 列印樣式（把一章存成 PDF／印出來）=====
+ *
+ * 螢幕版面是給「一直往下捲」的人設計的：固定的頂列與側欄、收合的推導、可橫向捲動的表格與圖、滑桿與按鈕。
+ * 印在紙上這些全都沒有用（頂列與側欄還會在每一頁重複，把正文蓋住一半），所以這份樣式做這幾件事：
+ *   1. 強制用淺色主題的 token（深色主題的淺色字印在白紙上看不見）；深色主題下已經畫好的 Mermaid／Plotly 圖（顏色是寫死的）整張反相成淺色版。
+ *   2. 拿掉只在螢幕上有意義的外框與控制項（頂列、側欄、模式選擇器、目錄、搜尋、滑桿、按鈕、放大鈕、工具列、modebar）。
+ *   3. 內容改成滿版：命名頁面 doc 給 16 mm 邊界；字級縮到 10.5 pt；圖、表、程式碼、獨立公式在頁寬內完整顯示、不裁切（程式碼長行換行、程式碼對照全部印出）。
+ *   4. 分頁規則：圖、公式、表格的列、手算步驟不從中間切開；標題不孤單留在頁底；章節的 h2 另起一頁。
+ *   5. 外部連結在文字後面印出網址（站內連結是 #/… 路由，印出來沒有意義，所以不印）。
+ *   6. 收合的內容在紙上沒有「點開」這回事：<details>、推導框、思考題解析由 printPrep.ts 在 beforeprint 時展開、afterprint 時還原；
+ *      Plotly 圖的縮放（viewBox）也由它準備，這裡負責依頁寬等比縮小。它也攔下 Ctrl／⌘+P：還沒畫的圖先畫完再列印。
+ *
+ * 載入順序：main.tsx 在 global.css 之後載入，但章節與元件的 CSS（components.css、各章 chapter.css）比它更晚，
+ * 所以會被後面的規則蓋回去的屬性，不是寫 !important，就是靠 body:not(.wb-print-sheet) 這個前綴（優先權比單一 class 高一級）；
+ * 每條規則都在 @media print 裡，螢幕不受影響。
+ * 練習卷（/workbook?tab=sheet）有自己的列印規則（workbook.css，全部以 body.wb-print-sheet 為前提，版面與頁數是它自己調過的）。
+ * 為了不動到它：第 1、2 段（token、隱藏外框——練習卷自己也隱藏同一批東西）以外的規則，選擇器一律以 body:not(.wb-print-sheet) 開頭，
+ * 練習卷分頁的列印結果因此和沒有這份樣式時完全一樣（styles.test.ts 守住這個前提）。
+ * styles.test.ts 守住：淺色 token 與 global.css 的 :root 一致、外框都被隱藏、所有 position: fixed 的元素都在隱藏清單裡。
+ */
+
+/* 命名頁面：只有套了 page: doc 的內容（章節與工具頁的 <main>）用 16 mm 邊界；練習卷不套用，維持它自己的邊界。
+   紙張大小與方向不在這裡指定，交給使用者在列印對話框選（A4／Letter、直式／橫式都可以）。 */
+@page doc {
+  margin: 16mm;
+}
+
+@media print {
+  /* ───────── 1. 淺色 token（值必須和 global.css 的 :root 一致，styles.test.ts 逐一比對） ───────── */
+  :root,
+  :root[data-theme='dark'] {
+    --bg: #f7f8fa;
+    --surface: #ffffff;
+    --surface-2: #f0f2f5;
+    --surface-3: #e5e9ef;
+    --text: #1b2430;
+    --text-muted: #5b6676;
+    --text-faint: #646f7f;
+    --border: #d9dee6;
+    --border-strong: #b9c1cd;
+    --accent: #1f5fa8;
+    --accent-soft: #e3edf9;
+    --accent-text: #ffffff;
+    --ok: #1d7a46;
+    --ok-soft: #e1f3e8;
+    --warn: #9a6200;
+    --warn-soft: #fdf1d8;
+    --danger: #b42318;
+    --danger-soft: #fde4e1;
+    --info: #2a6f97;
+    --info-soft: #e2f0f7;
+    --tag-exact: #1d7a46;
+    --tag-exact-soft: #e1f3e8;
+    --tag-approx: #9a6200;
+    --tag-approx-soft: #fdf1d8;
+    --tag-research: #6b3fa0;
+    --tag-research-soft: #efe6fa;
+    --series-1: #1f5fa8;
+    --series-2: #d1495b;
+    --series-3: #2a9d6f;
+    --series-4: #e09f3e;
+    --series-5: #7b4fb8;
+    --series-6: #3d8fa8;
+    --code-keyword: #7b4fb8;
+    --code-string: #1d7a46;
+    --code-number: #8f5a00;
+    --code-title: #1f5fa8;
+    --code-type: #1b7183;
+    --code-attr: #bf3a50;
+    --diagram-node: #ffffff;
+    --diagram-node-border: #93a4ba;
+    --diagram-line: #5f6f84;
+    --diagram-group: rgba(31, 95, 168, 0.045);
+    --diagram-group-border: #b4c2d4;
+    --diagram-dot: rgba(27, 36, 48, 0.075);
+    --diagram-shadow: rgba(15, 23, 42, 0.13);
+    --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.08);
+    color-scheme: light;
+  }
+
+  /* ───────── 2. 只在螢幕上有意義的東西 ───────── */
+  /* 固定在視窗的元素（頂列、側欄、目錄、搜尋、浮動按鈕…）印在紙上會在每一頁重複並蓋住正文，全部不印。
+     日後新增這類元素：加上 class="no-print"，或把它的 class 加進這份清單（styles.test.ts 會檢查所有 position: fixed 的選擇器）。 */
+  .no-print,
+  [data-no-print],
+  .c-skip-link,
+  .topbar,
+  .sidebar,
+  .nav-scrim,
+  .c-modepicker,
+  .page-pager,
+  .c-outline-col,
+  .c-outline-dock,
+  .c-outline-scrim,
+  .c-outline-sheet,
+  .c-search-backdrop,
+  .c-search-btn,
+  .c-exp-status,
+  .c-zoom,
+  .c-mermaid-zoom,
+  .wb-dock,
+  .modebar,
+  .modebar-container {
+    display: none !important;
+  }
+  /* 圖表以外的工具列與控制項：滑桿、執行／重設／下載、preset、換 seed、新增 Case、複製程式碼、切換標籤、看答案 */
+  .c-exp-toolbar,
+  .c-exp-export,
+  .c-exp-actions,
+  .c-param-slider,
+  .c-seed .btn,
+  .c-cases .btn,
+  .c-case-remove,
+  .c-code-copy,
+  .c-code-tabs,
+  .c-handcalc-actions,
+  .c-handcalc-intro,
+  .c-derivation-chevron,
+  .c-derivation-hint,
+  .c-quiz > .btn {
+    display: none !important;
+  }
+
+  /* ───────── 3. 版面：滿版、淺底、小一點的字（以下除了 html／body 底色、.content、.page 之外，全部以 body:not(.wb-print-sheet) 開頭） ───────── */
+  /* 瀏覽器預設不印背景色；callout 的底色、標籤的淡色底、表頭灰底都靠它，所以要求照印（使用者的「背景圖形」選項不影響結果） */
+  body:not(.wb-print-sheet) *,
+  body:not(.wb-print-sheet) *::before,
+  body:not(.wb-print-sheet) *::after {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  /* 下拉選單印成「目前選的那一項」的文字，不要箭頭與外框 */
+  body:not(.wb-print-sheet) select {
+    -webkit-appearance: none;
+    appearance: none;
+    border-color: transparent;
+    background: none;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  html:not(:has(body.wb-print-sheet)) {
+    /* 全站的 rem 都以它為基準：16 px → 14 px（10.5 pt），正文與公式一起縮。:has() 不支援的瀏覽器會丟棄這條，維持 16 px，只是字比較大 */
+    font-size: 14px;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+  body:not(.wb-print-sheet) {
+    font-size: 1rem;
+    line-height: 1.55;
+    color: var(--text);
+  }
+  .app-shell {
+    min-height: 0;
+  }
+  /* 練習卷以外的內容用命名頁面 doc（16 mm 邊界）；練習卷維持 workbook.css 自己的設定 */
+  body:not(.wb-print-sheet) .content {
+    page: doc;
+  }
+  .content {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .page,
+  .page[data-outline] {
+    max-width: none !important;
+    margin: 0 !important;
+    padding-right: 0 !important;
+  }
+  body:not(.wb-print-sheet) .page-header h1 {
+    margin-top: 0;
+  }
+  body:not(.wb-print-sheet) h1 {
+    font-size: 1.6rem;
+  }
+  body:not(.wb-print-sheet) h2 {
+    font-size: 1.28rem;
+  }
+  body:not(.wb-print-sheet) h3 {
+    font-size: 1.1rem;
+  }
+  body:not(.wb-print-sheet) a {
+    text-decoration: none;
+  }
+  /* 外部連結：文字後面印出網址（站內連結是 #/… 路由，印出來沒有意義，不印） */
+  body:not(.wb-print-sheet) main a[href^='http']::after {
+    content: ' (' attr(href) ')';
+    font-size: 0.82em;
+    color: var(--text-muted);
+    overflow-wrap: anywhere;
+    word-break: break-all;
+  }
+
+  /* 能橫向捲動的容器：紙上沒有捲軸，內容要完整攤開（寬表格靠較小的字與換行放進頁寬） */
+  body:not(.wb-print-sheet) .table-wrap,
+  body:not(.wb-print-sheet) .c-scroll,
+  body:not(.wb-print-sheet) .c-metric-wrap,
+  body:not(.wb-print-sheet) .katex-display,
+  body:not(.wb-print-sheet) .c-texblock-math,
+  body:not(.wb-print-sheet) .c-mermaid-svg,
+  body:not(.wb-print-sheet) .c-code,
+  body:not(.wb-print-sheet) .c-code-pre {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+  body:not(.wb-print-sheet) .katex-display {
+    /* 螢幕上為了避免 KaTeX 的上下標被切掉才留 4px；紙上不需要 */
+    padding: 2px 0;
+  }
+  /* 比頁寬長的公式：螢幕上 KaTeX 用 white-space: nowrap，放不下就橫向捲動；紙上改成可以在關係符號與運算符號之後換行
+     （KaTeX 把公式切成一串 .base，只有 .base 與 .base 之間能斷），不用知道紙張寬度，A4／Letter／橫式都適用。
+     方塊圖裡的公式不動：Mermaid 照不換行的寬度量好節點，換行會讓文字溢出節點。 */
+  body:not(.wb-print-sheet) .katex:not(.c-mermaid .katex),
+  body:not(.wb-print-sheet) .katex-html:not(.c-mermaid .katex-html) {
+    white-space: normal;
+  }
+  body:not(.wb-print-sheet) table {
+    font-size: 0.82rem;
+    min-width: 0 !important; /* 例如 ch02 的 .ch02-big-table 為螢幕設了 860px */
+  }
+  /* 寬表格：螢幕上數值欄用 white-space: nowrap 保持一列，紙上沒有橫向捲軸，一欄放不下就換行。
+     只要有一個元素比頁寬寬，Chrome 就會把整份文件等比縮小去配合它（實測 ch12 的 8 欄表讓全章的字從 10.5pt 縮成 9.0pt），所以不能有任何東西超出頁寬。 */
+  body:not(.wb-print-sheet) th,
+  body:not(.wb-print-sheet) td {
+    white-space: normal !important;
+    /* break-word 不是 anywhere：anywhere 會讓「Case」這種短欄名的最小寬度降到一個字，欄寬被擠成直排 */
+    overflow-wrap: break-word;
+    /* 螢幕上左右各 8px：欄多的表（ch02 的 10 欄比較表）光留白就吃掉 160px；紙上每欄各縮 6px（!important：各章的 td.num 等更具體的規則也要壓過） */
+    padding: 4px 5px !important;
+    /* 螢幕上為了不讓欄擠成一條線，有些欄寫了 min-width（/verification 的 .ver-wide 170px、.ver-mid 110px，9 欄加起來 1072px）；紙上改成由內容決定 */
+    min-width: 0 !important;
+  }
+  /* 欄數多的表（第 8 欄以後還有格子）：各欄的最小寬度加起來比頁寬還寬時，Chrome 會把整份文件等比縮小（ch02 的 10 欄表讓全章縮成 90%），
+     所以只把這種表的字與留白再縮一級。:has() 不支援的瀏覽器丟棄這條，退回上面的設定。 */
+  body:not(.wb-print-sheet) table:has(tr > :nth-child(8)) {
+    font-size: 0.72rem;
+  }
+  body:not(.wb-print-sheet) table:has(tr > :nth-child(8)) th,
+  body:not(.wb-print-sheet) table:has(tr > :nth-child(8)) td {
+    padding: 3px 3px !important;
+  }
+
+  /* 方塊圖：容器不能捲，svg 縮到頁寬（Mermaid 為了窄螢幕設了 min-width，紙上要拿掉；max-width 是圖的自然寬度，保留，圖才不會被放大）。
+     高度另外封頂在「一頁內容高減 180px」（100vh 在列印版面等於一頁內容高，A4／Letter／橫式都一樣；實測 puppeteer；180px = 圖框的 padding、
+     圖說最多四五行、上下 margin）：長寬比接近 1 的圖在滿頁寬時比一頁還高，Chrome 把整張圖（break-inside: avoid）擠到下一頁還放不下，
+     上一頁只留圖框的一條邊，下一頁整頁空白（ch12 實測）。width: auto 讓 max-height 套用時依長寬比（viewBox）縮窄，再置中。 */
+  body:not(.wb-print-sheet) .c-mermaid-frame {
+    background-image: none;
+  }
+  body:not(.wb-print-sheet) .c-mermaid-svg {
+    padding: 8px 6px !important;
+  }
+  body:not(.wb-print-sheet) .c-mermaid-svg > svg,
+  body:not(.wb-print-sheet) .c-sysmap-svg {
+    min-width: 0 !important;
+    width: auto;
+    height: auto;
+    max-height: calc(100vh - 180px);
+  }
+  body:not(.wb-print-sheet) .c-mermaid-svg > svg {
+    display: block;
+    margin: 0 auto;
+  }
+
+  /* 程式碼：不截高度、長行換行（行號欄寬 3.2em，換行後的續行縮排到行號之後） */
+  body:not(.wb-print-sheet) .c-code-pre code {
+    min-width: 0 !important;
+  }
+  body:not(.wb-print-sheet) .c-code-pre {
+    font-size: 0.74rem;
+  }
+  body:not(.wb-print-sheet) .c-code-line {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    padding-left: 3.2em;
+    text-indent: -3.2em;
+  }
+  /* 程式碼對照：螢幕上窄版是分頁（一次只看一份），紙上全部印出來並標明各自的名稱 */
+  body:not(.wb-print-sheet) .c-code-compare-tabs .c-code-compare-item,
+  body:not(.wb-print-sheet) .c-code-compare-columns .c-code-compare-item {
+    display: block !important;
+    margin-bottom: 8px;
+  }
+  body:not(.wb-print-sheet) .c-code-compare-columns .c-code-compare-body {
+    display: block !important;
+  }
+  body:not(.wb-print-sheet) .c-code-compare-label {
+    display: block !important;
+    margin: 6px 0 2px;
+  }
+
+  /* 比頁寬還寬的單一公式片段：printPrep.ts 在 beforeprint 量好它的寬度（--c-em：自己字級的幾 em）與所在欄位比頁面窄多少（--c-off），
+     這裡把字級縮到「頁面內容寬（100vw）減掉 --c-off」放得下的大小；放得下的片段取 1em（維持原樣），所以只縮需要縮的那一個。
+     4px 是 KaTeX 斜體與上標在片段右邊多凸出的量。 */
+  body:not(.wb-print-sheet) .katex-html > .base[data-print-wide] {
+    font-size: min(1em, calc((100vw - var(--c-off, 0px) - 4px) / var(--c-em)));
+  }
+
+  /* Plotly：螢幕上的圖寬度是 px（隨容器量好），印出來時容器變窄了、圖不會重畫，所以由 printPrep.ts 給 svg 加 viewBox，
+     這裡讓圖依頁寬等比縮放（只套用在 printPrep 標記過的圖；沒標記的維持原樣，最差也只是被切到） */
+  body:not(.wb-print-sheet) .c-plot-frame[data-print-fit],
+  body:not(.wb-print-sheet) .c-plot-frame[data-print-fit] > .c-plot-gd {
+    height: auto !important;
+  }
+  body:not(.wb-print-sheet) .c-plot-frame[data-print-fit] .plot-container,
+  body:not(.wb-print-sheet) .c-plot-frame[data-print-fit] .svg-container {
+    width: 100% !important;
+    max-width: var(--c-print-w);
+    height: auto !important;
+  }
+  body:not(.wb-print-sheet) .c-plot-frame[data-print-fit] .svg-container {
+    aspect-ratio: var(--c-print-ar);
+  }
+  body:not(.wb-print-sheet) .c-plot-frame[data-print-fit] svg.main-svg {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* 還沒畫好的圖：圖是接近可視範圍才畫的，第一次按列印時 beforeprint 才開始載入，來不及畫進這一次的預覽（瀏覽器不會等非同步的工作）。
+     用 Ctrl／⌘+P 列印時 printPrep.ts 會先等圖畫完（所以這裡通常不會出現）；從選單列印的人才會看到這個佔位框，
+     不要只印一句「圖表載入中…」，註明原因與補救辦法：關掉預覽、等幾秒、再印一次（那時圖都畫好了）。 */
+  body:not(.wb-print-sheet) .c-plot-placeholder[aria-busy='true'],
+  body:not(.wb-print-sheet) .c-mermaid-loading {
+    flex-direction: column;
+    gap: 4px;
+  }
+  body:not(.wb-print-sheet) .c-plot-placeholder[aria-busy='true']::after,
+  body:not(.wb-print-sheet) .c-mermaid-loading::after {
+    content: '圖還沒畫好：關閉預覽，等幾秒讓圖載入完，再列印一次。';
+    font-size: 0.85em;
+  }
+
+  /* 深色主題開啟的頁面：Mermaid 與 Plotly 的顏色在畫圖時就寫成深色版的固定值（深底淺字），不是 CSS 變數，上面把 token 改回淺色救不了它們
+     （淺色的軸標題、圖例印在白紙上幾乎看不見）。整張圖反相再把色相轉回來：深底淺字變成淺底深字，同色系的深淺配對（--series-*、--ok 等）
+     也換成淺色主題的對應色。手排的系統地圖（.c-sysmap）用 CSS 變數上色，已經跟著 token 變淺，所以只選 Mermaid 的 svg（id 以 c-mermaid- 開頭）。 */
+  :root[data-theme='dark'] svg[id^='c-mermaid-'],
+  :root[data-theme='dark'] .c-plot-gd .main-svg {
+    filter: invert(1) hue-rotate(180deg);
+  }
+
+  /* 實驗：滑桿不印（印出來只是一條沒用的線），保留參數名稱與數值 */
+  body:not(.wb-print-sheet) .c-exp-controls {
+    position: static !important;
+    background: none;
+    border: 1px solid var(--border);
+  }
+
+  /* ───────── 4. 分頁 ───────── */
+  body:not(.wb-print-sheet) h1,
+  body:not(.wb-print-sheet) h2,
+  body:not(.wb-print-sheet) h3,
+  body:not(.wb-print-sheet) h4,
+  body:not(.wb-print-sheet) summary,
+  body:not(.wb-print-sheet) .c-section-kicker,
+  body:not(.wb-print-sheet) .c-plot-title,
+  body:not(.wb-print-sheet) .c-quiz-title,
+  body:not(.wb-print-sheet) .c-callout-title,
+  body:not(.wb-print-sheet) .c-code-head,
+  body:not(.wb-print-sheet) .c-code-compare-label,
+  body:not(.wb-print-sheet) .c-code-compare-note,
+  body:not(.wb-print-sheet) .page nav > strong:first-child,
+  body:not(.wb-print-sheet) .c-texblock-label {
+    break-after: avoid;
+  }
+  body:not(.wb-print-sheet) p,
+  body:not(.wb-print-sheet) li {
+    orphans: 3;
+    widows: 3;
+  }
+  /* 不從中間切開：圖（連同圖說）、獨立公式、表格的每一列、手算標題與每一步、思考題、本章必記。
+     表格本身與程式碼區塊（<figure class="c-code">，所以上面寫 figure:not(.c-code)）允許在列／行之間換頁
+     （比一頁高的表若整個不准切，會把標題單獨留在上一頁、留下大片空白；ch08 的 67 行程式整段挪到下一頁，上一頁只剩一行說明），換頁後表頭重複 */
+  body:not(.wb-print-sheet) figure:not(.c-code),
+  body:not(.wb-print-sheet) .c-mermaid,
+  body:not(.wb-print-sheet) .c-plot,
+  body:not(.wb-print-sheet) .c-texblock,
+  body:not(.wb-print-sheet) .c-step,
+  body:not(.wb-print-sheet) .c-handcalc-head,
+  body:not(.wb-print-sheet) .c-handcalc-inputs,
+  body:not(.wb-print-sheet) .c-recap,
+  body:not(.wb-print-sheet) .c-quiz,
+  body:not(.wb-print-sheet) .page nav,
+  body:not(.wb-print-sheet) .c-code-line,
+  body:not(.wb-print-sheet) .c-metric-table tr,
+  body:not(.wb-print-sheet) tr,
+  body:not(.wb-print-sheet) .katex-display {
+    break-inside: avoid;
+  }
+  body:not(.wb-print-sheet) thead {
+    display: table-header-group;
+  }
+  /* 章節的 h2 另起一頁（只限章節頁：data-page 為 ch00–ch14 與 07b 案例 case-sspll；工具頁的 h2 不強制換頁）。
+     Section 元件（.c-section）的 h2 前面還有一行「直覺／公式／實驗」的 kicker，換頁要連 kicker 一起，所以對整個 .c-section 換頁；
+     這個規則用 :has()，不支援的瀏覽器會整條丟棄，所以獨立成一條，不和上面的選擇器混在同一個清單裡。 */
+  body:not(.wb-print-sheet) .page[data-page^='ch'] h2:not(.c-section-title),
+  body:not(.wb-print-sheet) .page[data-page='case-sspll'] h2:not(.c-section-title) {
+    break-before: page;
+  }
+  body:not(.wb-print-sheet) .page[data-page^='ch'] .c-section:has(> h2.c-section-title),
+  body:not(.wb-print-sheet) .page[data-page='case-sspll'] .c-section:has(> h2.c-section-title) {
+    break-before: page;
+  }
+}
