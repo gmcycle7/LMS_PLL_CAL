@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ClaimTag, mathText, Mermaid, ModelLevel, Section, SelectControl, TexBlock, ToggleControl } from '@/components'
 import { CLAIM_LABEL, type ClaimKind, type ModelLevelId } from '@/components'
 import { ALL_FORMULAS, registryStats, type RegistryRow } from '../registry'
 import { ErrataList, FormulaLink, Gate, MatchCount, NoMatch, useMode, shortPageLabel } from '../common'
 import { CHART_FORMULA_LINKS } from '../diagrams'
+import { useNarrow } from '../useNarrow'
 
 /**
  * (1) 全站公式登錄：import.meta.glob 收集所有 chapters/*\/formulas.ts 與 pages/*\/formulas.ts。
@@ -13,6 +14,8 @@ import { CHART_FORMULA_LINKS } from '../diagrams'
 
 const LEVELS: ModelLevelId[] = ['L0', 'L1', 'L2', 'L3', 'L4', 'L5', 'L6']
 const PAGE_SIZE = 60
+/** 登錄表的內容欄窄於這個寬度（px）就自動改成卡片檢視：兩欄表格在這個寬度以下，公式欄只剩 580px 不到，放不下的公式要折成三四行 */
+export const REGISTRY_CARDS_BELOW = 720
 
 export function registryDomId(id: string): string {
   return `fr-ref-${id.replace(/[^\w-]/g, '_')}`
@@ -26,6 +29,15 @@ export interface RegistryFilters {
 }
 
 export const DEFAULT_FILTERS: RegistryFilters = { page: 'all', claim: 'all', level: 'all', erratum: 'all' }
+
+/** 第一次 render（量到容器寬度之前）的猜測：手機寬度先用卡片，避免先畫一次表格再換掉 */
+function initialNarrow(): boolean {
+  try {
+    return typeof window !== 'undefined' && !!window.matchMedia?.('(max-width: 760px)').matches
+  } catch {
+    return false
+  }
+}
 
 /** 篩選器（純函式，方便測試） */
 export function applyRegistryFilters(rows: readonly RegistryRow[], f: RegistryFilters): RegistryRow[] {
@@ -41,13 +53,11 @@ export function applyRegistryFilters(rows: readonly RegistryRow[], f: RegistryFi
 export function RegistrySection({ rows, searching, focusId }: { rows: RegistryRow[]; searching: boolean; focusId: string | null }) {
   const { mode } = useMode()
   const [filters, setFilters] = useState<RegistryFilters>(DEFAULT_FILTERS)
-  const [cards, setCards] = useState<boolean>(() => {
-    try {
-      return typeof window !== 'undefined' && !!window.matchMedia?.('(max-width: 760px)').matches
-    } catch {
-      return false
-    }
-  })
+  // 卡片檢視：讀者按過開關就照讀者的；沒按過就依內容欄寬度自動決定（桌機視窗 1000px 時內容欄也只有 650px，所以不看視窗寬度）
+  const [cardsChoice, setCardsChoice] = useState<boolean | null>(null)
+  const bodyRef = useRef<HTMLDivElement | null>(null)
+  const narrow = useNarrow(bodyRef, REGISTRY_CARDS_BELOW, initialNarrow())
+  const cards = cardsChoice ?? narrow
   const [showSource, setShowSource] = useState(false)
   const [limit, setLimit] = useState(PAGE_SIZE)
 
@@ -89,9 +99,7 @@ export function RegistrySection({ rows, searching, focusId }: { rows: RegistryRo
     <Section kind="formula" level={2} id="fr-registry" title="4　全站公式登錄（Formula Registry）">
       {!searching && (
         <p>
-          所有章節與頁面登錄的公式（<span className="mono">src/chapters/*/formulas.ts</span>、<span className="mono">src/pages/*/formulas.ts</span>）在這裡自動彙整，
-          共 <strong>{ALL_FORMULAS.length}</strong> 條。每一條都有：ID、名稱、TeX、使用條件、結論標籤、模型層級、規格段落、所在頁面，以及（若與規格原文不同）勘誤編號。
-          點 <strong>前往</strong> 會切換到該頁並捲到公式本身（錨點 <span className="mono">#formula-ID</span>）。
+          所有章節與頁面登錄的公式（<span className="mono">src/chapters/*/formulas.ts</span>、<span className="mono">src/pages/*/formulas.ts</span>）在這裡自動彙整，共 <strong>{ALL_FORMULAS.length}</strong> 條。每一條都有：ID、名稱、TeX、使用條件、結論標籤、模型層級、規格段落、所在頁面，以及（若與規格原文不同）勘誤編號。點 <strong>前往</strong> 會切換到該頁並捲到公式本身（錨點 <span className="mono">#formula-ID</span>）。
         </p>
       )}
       {!searching && (
@@ -130,7 +138,7 @@ export function RegistrySection({ rows, searching, focusId }: { rows: RegistryRo
             ...errataOptions.map((e) => ({ value: e, label: e })),
           ]}
         />
-        <ToggleControl label="卡片檢視（窄螢幕）" value={cards} onChange={setCards} />
+        <ToggleControl label="卡片檢視（窄螢幕）" value={cards} onChange={setCardsChoice} />
         <Gate min="research">
           <ToggleControl label="顯示 TeX 原始碼" value={showSource} onChange={setShowSource} />
         </Gate>
@@ -153,77 +161,81 @@ export function RegistrySection({ rows, searching, focusId }: { rows: RegistryRo
           </span>
         </Gate>
       </div>
-      {filtered.length === 0 ? (
-        <NoMatch what="公式" />
-      ) : (
-        <div className={`table-wrap fr-reg-wrap${cards ? ' fr-cards' : ''}`}>
-          <table className="fr-table fr-reg-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>名稱、公式與使用條件</th>
-                <th>標籤</th>
-                <th>規格</th>
-                <th>位置</th>
-                <th>勘誤</th>
-              </tr>
-            </thead>
-            {groups.map((g) => (
-              <tbody key={g.page + g.rows[0].id}>
-                <tr className="fr-group-row">
-                  <th colSpan={6} scope="colgroup">
-                    {g.nav} <span className="muted small">（{g.page}）</span>
+      <div ref={bodyRef} className="fr-reg-body">
+        {filtered.length === 0 ? (
+          <NoMatch what="公式" />
+        ) : (
+          /*
+            兩欄、不橫向捲動：原本六欄的表格比內容欄寬 1.4 倍，最右邊的「標籤」「規格」被切在畫面外、也沒有任何提示。
+            現在左欄是「ID 與位置」（ID 在上、前往連結在下），右欄是整條公式：第一行是名稱，右上角是標籤、模型層級、規格段落與勘誤，
+            接著是公式本身與使用條件。公式欄拿到內容欄約 85% 的寬度，放不下的獨立公式在最外層的等號／運算子後面換行（formulas.css）。
+            外框不是捲動容器（.fr-reg-wrap { overflow: visible }）：表頭才能 position: sticky，黏在搜尋列下面。
+          */
+          <div className={`table-wrap fr-reg-wrap${cards ? ' fr-cards' : ''}`}>
+            <table className="fr-table fr-reg-table fr-sticky-head">
+              <thead>
+                <tr>
+                  <th>ID 與位置</th>
+                  <th>
+                    <span className="fr-reg-th">
+                      <span>名稱、公式與使用條件</span>
+                      <span className="fr-reg-th-side">標籤、規格、勘誤</span>
+                    </span>
                   </th>
                 </tr>
-                {g.rows.map((f) => (
-                  <tr key={f.id} id={registryDomId(f.id)} className={f.id === focusId ? 'fr-focus' : undefined} data-formula-row={f.id}>
-                    <td data-label="ID" className="nowrap mono">
-                      {f.id}
-                    </td>
-                    {/*
-                      使用條件放在公式的正下方（同一格），不另外佔一欄：公式欄的寬度由最寬的那條獨立公式決定（桌機約 440–800px），
-                      條件用同樣的寬度換行。另外佔一欄時它只拿得到最小寬度，四五百字的條件會排成六七百 px 高的細長條，
-                      而且常常要先橫向捲動才看得到。
-                    */}
-                    <td data-label="名稱、公式與使用條件" className="fr-reg-formula">
-                      <div className="fr-f-title">{mathText(f.title)}</div>
-                      <TexBlock>{f.tex}</TexBlock>
-                      {showSource && mode === 'research' && <code className="fr-tex-src">{f.tex}</code>}
-                      <div className="fr-reg-cond">
-                        <span className="fr-reg-cond-label">使用條件</span>
-                        {mathText(f.conditions)}
-                        {f.units && (
-                          <div className="fr-units small muted">
-                            單位：
-                            {Object.entries(f.units)
-                              .map(([k, v]) => `${k} [${v}]`)
-                              .join('、')}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td data-label="標籤">
-                      <span className="fr-tag-col">
-                        <ClaimTag kind={f.claim} />
-                        <ModelLevel level={f.level} />
-                      </span>
-                    </td>
-                    <td data-label="規格" className="nowrap">
-                      §{f.specSection}
-                    </td>
-                    <td data-label="位置" className="nowrap">
-                      <FormulaLink id={f.id}>前往 {f.pageId ? shortPageLabel(f.pageId, f.pageNav) : f.page}</FormulaLink>
-                    </td>
-                    <td data-label="勘誤">
-                      <ErrataList ids={f.erratumId ? [f.erratumId] : []} />
-                    </td>
+              </thead>
+              {groups.map((g) => (
+                <tbody key={g.page + g.rows[0].id}>
+                  <tr className="fr-group-row">
+                    <th colSpan={2} scope="colgroup">
+                      {g.nav} <span className="muted small">（{g.page}）</span>
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            ))}
-          </table>
-        </div>
-      )}
+                  {g.rows.map((f) => (
+                    <tr key={f.id} id={registryDomId(f.id)} className={f.id === focusId ? 'fr-focus' : undefined} data-formula-row={f.id}>
+                      <td data-label="ID 與位置" className="fr-reg-id">
+                        <div className="fr-reg-idbox">
+                          <span className="mono nowrap fr-reg-idtext">{f.id}</span>
+                          <FormulaLink id={f.id}>前往 {f.pageId ? shortPageLabel(f.pageId, f.pageNav) : f.page}</FormulaLink>
+                        </div>
+                      </td>
+                      {/*
+                        使用條件放在公式的正下方（同一格），不另外佔一欄：條件用公式欄的寬度換行，
+                        另外佔一欄時它只拿得到最小寬度，四五百字的條件會排成六七百 px 高的細長條。
+                      */}
+                      <td data-label="名稱、公式與使用條件" className="fr-reg-formula">
+                        <div className="fr-reg-head">
+                          <div className="fr-f-title">{mathText(f.title)}</div>
+                          <div className="fr-reg-meta">
+                            <ClaimTag kind={f.claim} />
+                            <ModelLevel level={f.level} />
+                            <span className="fr-reg-spec nowrap">規格 §{f.specSection}</span>
+                            {f.erratumId && <ErrataList ids={[f.erratumId]} />}
+                          </div>
+                        </div>
+                        <TexBlock>{f.tex}</TexBlock>
+                        {showSource && mode === 'research' && <code className="fr-tex-src">{f.tex}</code>}
+                        <div className="fr-reg-cond">
+                          <span className="fr-reg-cond-label">使用條件</span>
+                          {mathText(f.conditions)}
+                          {f.units && (
+                            <div className="fr-units small muted">
+                              單位：
+                              {Object.entries(f.units)
+                                .map(([k, v]) => `${k} [${v}]`)
+                                .join('、')}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              ))}
+            </table>
+          </div>
+        )}
+      </div>
       {filtered.length > visible.length && (
         <div className="fr-more">
           <span className="small muted">
@@ -239,8 +251,7 @@ export function RegistrySection({ rows, searching, focusId }: { rows: RegistryRo
       )}
       {!searching && (
         <p className="small muted">
-          TeX 由各章作者登錄；「名稱」與「使用條件」是各章登錄時填的說明文字（其中的行內 LaTeX 會以 KaTeX 顯示，其餘照原樣列出，所以可能含 Unicode 數學符號）。標籤定義見頁首；模型層級 L0–L6 見 §6 術語表。
-          公式的完整推導、圖與互動實驗在各章頁面上；這裡只做索引與交叉查核。
+          TeX 由各章作者登錄；「名稱」與「使用條件」是各章登錄時填的說明文字（其中的行內 LaTeX 會以 KaTeX 顯示，其餘照原樣列出，所以可能含 Unicode 數學符號）。標籤定義見頁首；模型層級 L0–L6 見 §6 術語表。公式的完整推導、圖與互動實驗在各章頁面上；這裡只做索引與交叉查核。
         </p>
       )}
     </Section>

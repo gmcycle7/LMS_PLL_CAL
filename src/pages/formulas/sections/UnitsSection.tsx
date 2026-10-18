@@ -22,8 +22,7 @@ export function UnitsSection({ topics, searching }: { topics: UnitTopic[]; searc
     <Section kind="formula" level={2} id="fr-units" title="2　單位與時間索引約定">
       {!searching && (
         <p>
-          同一個數字，換一個單位或換一條時間軸，意義就完全不同：<Tex>{String.raw`\mu=10`}</Tex> 是 10 fs 還是無因次的 10？「頻寬 12.9 kHz」是 corner 還是 noise bandwidth？PSD 是對 Hz 還是對 rad 積分？
-          這一段把全站的約定一條一條推導出來，每個數字都用同一套核心現場計算，最後附一個可以自己代數字的換算器。
+          同一個數字，換一個單位或換一條時間軸，意義就完全不同：<Tex>{String.raw`\mu=10`}</Tex> 是 10 fs 還是無因次的 10？「頻寬 12.9 kHz」是 corner 還是 noise bandwidth？PSD 是對 Hz 還是對 rad 積分？這一段把全站的約定一條一條推導出來，每個數字都用同一套核心現場計算，最後附一個可以自己代數字的換算器。
         </p>
       )}
       <div className="fr-section-bar">
@@ -59,8 +58,7 @@ function CalculatorTopic() {
   return (
     <Topic id="calculator" no="2.8" title="動手換算：單位與頻寬換算器">
       <p>
-        前面七個子題的公式全部接在一起：左邊輸入<strong>帶單位</strong>的量，右邊看每一步的數值與單位。預設值是 T13／T14 的條件；按「Run」會用固定 seed 跑 Monte Carlo，
-        檢查線性公式算出的 <Tex>{String.raw`\sigma_w`}</Tex> 與真正的 1-bit 迴路是否一致。
+        前面七個子題的公式全部接在一起：左邊輸入<strong>帶單位</strong>的量，右邊看每一步的數值與單位。預設值是 T13／T14 的條件；按「Run」會用固定 seed 跑 Monte Carlo，檢查線性公式算出的 <Tex>{String.raw`\sigma_w`}</Tex> 與真正的 1-bit 迴路是否一致。
       </p>
       <Callout kind="info" title="試試看">
         <ol className="fr-compact">
@@ -88,8 +86,7 @@ function CalculatorTopic() {
       <UnitsCalculator />
       <h4 className="fr-sub">核心程式碼：兩個 Monte Carlo 引擎只差這兩行</h4>
       <p className="small">
-        線性引擎模擬的是「公式假設的世界」（Gaussian 的 <Tex>{String.raw`\eta`}</Tex>、不會飽和的恢復力）；1-bit 引擎模擬的是「硬體實際做的事」（<Tex>{'N'}</Tex> 次比較、結果有界）。
-        兩者在小訊號時應該給出相同的 <Tex>{String.raw`\sigma_w`}</Tex>——這正是交叉比對在檢查的事（<ErratumTag eid="E30" />）。
+        線性引擎模擬的是「公式假設的世界」（Gaussian 的 <Tex>{String.raw`\eta`}</Tex>、不會飽和的恢復力）；1-bit 引擎模擬的是「硬體實際做的事」（<Tex>{'N'}</Tex> 次比較、結果有界）。兩者在小訊號時應該給出相同的 <Tex>{String.raw`\sigma_w`}</Tex>——這正是交叉比對在檢查的事（<ErratumTag eid="E30" />）。
       </p>
       <CodeCompare
         caption="src/pages/formulas/unitsModel.ts（本頁的換算器實際執行的程式）。1-bit 引擎的 signGmacBlock 來自第 14 章的 optimizer.ts：$\sum q\,x=2\,\mathrm{Bin}(N,\Phi(C\delta/\sigma_v))-N$。"

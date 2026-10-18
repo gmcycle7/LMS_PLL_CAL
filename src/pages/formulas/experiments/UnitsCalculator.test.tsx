@@ -8,7 +8,7 @@ import { DEFAULT_UNITS_PARAMS, unitsCalc } from '../unitsModel'
 import { buttonByText, count, mountAt, q, renderProblems } from '../domTestUtils'
 import { richProblems } from '../testUtils'
 
-vi.mock('plotly.js-dist-min', async () => ({ default: (await import('../domTestUtils')).PLOTLY_STUB }))
+vi.mock('plotly.js-cartesian-dist-min', async () => ({ default: (await import('../domTestUtils')).PLOTLY_STUB }))
 // 記下每一張圖「轉換之前」的圖內文字（軸標題、圖例名稱、註記…）：只存字串，不存資料與 DOM（避免抓住整頁的節點）
 const PLOT = vi.hoisted(() => ({ strings: new Set<string>() }))
 vi.mock('@/components/plotMath', async (importOriginal) => {

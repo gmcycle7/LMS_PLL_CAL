@@ -222,6 +222,21 @@ describe('全站符號總表（規格 §0 修正版）', () => {
     expect(enbw).toContain('20.29')
   })
 
+  it('例子裡一串數字不放在同一個 $…$：KaTeX 不會在逗號後換行，七個六位小數連成 337px，手機卡片（約 315px）放不下、卡片列要橫向捲動 22px', () => {
+    const d = GLOBAL_SYMBOLS.find((s) => s.key === 'd')!.example!(r)
+    const chunks = Array.from(d.matchAll(/\$([^$]*)\$/g), (m) => m[1])
+    for (const g of r.pm.gCrit) expect(chunks).toContain(texNum(g, 6)) // 每個數字各自一個 $…$（可在「、」換行）
+    expect(d).toContain('0.618034')
+    // 全表：沒有哪一段數學（$…$）含 4 個以上的「逗號分隔的小數」（那種串在手機上放不下）
+    const wide = GLOBAL_SYMBOLS.flatMap((s) => {
+      if (!s.example) return []
+      return Array.from(s.example(r).matchAll(/\$([^$]*)\$/g), (m) => m[1])
+        .filter((c) => (c.match(/\d+\.\d+/g) ?? []).length >= 4 && c.includes(','))
+        .map((c) => `${s.key}: ${c}`)
+    })
+    expect(wide).toEqual([])
+  })
+
   it('符號衝突表：每個字母至少兩個意義、TeX 可解析', () => {
     const problems: string[] = []
     for (const c of SYMBOL_COLLISIONS) {

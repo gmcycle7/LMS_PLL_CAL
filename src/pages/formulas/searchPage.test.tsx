@@ -1,9 +1,9 @@
-import { fireEvent, waitFor } from '@testing-library/react'
+import { act, fireEvent, waitFor } from '@testing-library/react'
 import FormulasPage from './index'
 import { ALL_FORMULAS } from './registry'
 import { buttonByText, count, mountAt, q, renderProblems, typeSearch } from './domTestUtils'
 
-vi.mock('plotly.js-dist-min', async () => ({ default: (await import('./domTestUtils')).PLOTLY_STUB }))
+vi.mock('plotly.js-cartesian-dist-min', async () => ({ default: (await import('./domTestUtils')).PLOTLY_STUB }))
 vi.mock('mermaid', () => ({ default: { initialize: () => undefined, render: async () => ({ svg: '<svg></svg>' }) } }))
 
 vi.setConfig({ testTimeout: 180_000 })
@@ -20,10 +20,57 @@ const status = (root: ParentNode) => q(root, '#fr-search-status').textContent ??
 const symbolKeys = (root: ParentNode) => Array.from(root.querySelectorAll('.fr-sym-table tr[data-symbol]')).map((r) => r.getAttribute('data-symbol'))
 
 describe('搜尋：一個搜尋框同時過濾六個段落（整頁）', () => {
+  it('搜尋列的實際高度存成 --fr-search-h（公式登錄表的 sticky 表頭用它避開搜尋列）：掛載時量一次，之後跟著 ResizeObserver 更新', () => {
+    let h = 52.4
+    const observers: (() => void)[] = []
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(cb: () => void) {
+          observers.push(cb)
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    )
+    const spy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      const height = this.classList.contains('fr-search') ? h : 0
+      return { x: 0, y: 0, top: 0, left: 0, right: 0, bottom: height, width: 0, height, toJSON: () => ({}) } as DOMRect
+    })
+    try {
+      const { container } = mountAt(<FormulasPage />)
+      const page = q(container, '[data-testid="formulas-page"]')
+      expect(page.style.getPropertyValue('--fr-search-h')).toBe('52px')
+      h = 85 // 內容欄變窄，目錄換到第二列
+      act(() => observers.forEach((cb) => cb()))
+      expect(page.style.getPropertyValue('--fr-search-h')).toBe('85px')
+    } finally {
+      spy.mockRestore()
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('ENBW → 各段只留符合的列；三種寫法結果相同；公式 ID 會被標示；沒有符合時說明原因；清除後恢復', () => {
     const { container } = mountAt(<FormulasPage />)
     const page = q(container, '[data-testid="formulas-page"]')
     expect(page.getAttribute('data-searching')).toBe('false')
+
+    // ── 搜尋列只有一列（搜尋框 + 目錄）：「符合 n 項」與清除鈕在搜尋框的外框裡，沒有第二層 meta 列
+    const bar = q(container, '.fr-search')
+    expect(container.querySelector('.fr-search-meta')).toBeNull()
+    // placeholder 要在 1280px 桌機（搜尋框約 420px）與 375px 手機（約 330px）都完整顯示：範例關鍵字在下面「試試」那一列，不重複寫在 placeholder 裡
+    expect(q(container, '#fr-search-input').getAttribute('placeholder')!.length).toBeLessThanOrEqual(24)
+    expect(Array.from(q(bar, '.fr-search-row').children).map((c) => c.className)).toEqual(['fr-search-label', 'fr-search-field', 'fr-toc'])
+    expect(Array.from(q(bar, '.fr-search-field').children).map((c) => c.id || c.tagName)).toEqual(['fr-search-input', 'fr-search-status'])
+    // 目錄鈕的序號在自己的 span（視窗 901–1000px 時 CSS 藏起來，搜尋列才排得進一列）；文字內容與原本相同（「4 公式登錄」）
+    expect(Array.from(container.querySelectorAll('.fr-toc-btn')).map((b) => b.textContent)).toEqual(['1 符號', '2 單位', '3 速查', '4 公式登錄', '5 限制', '6 術語', '7 思考題'])
+    expect(Array.from(container.querySelectorAll('.fr-toc-btn > .fr-toc-num')).map((n) => n.textContent)).toEqual(['1', '2', '3', '4', '5', '6', '7'])
+    // 沒在搜尋：操作說明是搜尋框的 aria-describedby（視覺上藏起來），同一句話顯示在下面不黏的「試試」那一列（螢幕閱讀器不重複唸）
+    expect(status(container)).toMatch(/^輸入關鍵字會同時過濾下面六個段落/)
+    expect(q(container, '#fr-search-input').getAttribute('aria-describedby')).toBe('fr-search-status')
+    expect(q(container, '.fr-examples .fr-examples-help').textContent).toBe(status(container))
+    expect(q(container, '.fr-examples .fr-examples-help').getAttribute('aria-hidden')).toBe('true')
 
     // ── ENBW：六段都有結果，頁首與思考題收起
     typeSearch(container, 'ENBW')
@@ -43,6 +90,8 @@ describe('搜尋：一個搜尋框同時過濾六個段落（整頁）', () => {
     expect(container.querySelector('[data-term="lms"]')).toBeNull()
     expect(container.querySelector('tr[data-formula-row="F-12.9"]')).toBeTruthy()
     expect(status(container)).toMatch(/^符合 \d+ 項$/)
+    expect(Array.from(q(bar, '.fr-search-field').children).map((c) => c.id || c.tagName)).toEqual(['fr-search-input', 'fr-search-status', 'BUTTON']) // 清除鈕也在框裡
+    expect(container.querySelector('.fr-examples')).toBeNull()
     // 目錄按鈕顯示每段的符合數；「7 思考題」在搜尋中停用
     const counts = Array.from(container.querySelectorAll('.fr-toc-count')).map((e) => Number(e.textContent))
     expect(counts.length).toBe(6)

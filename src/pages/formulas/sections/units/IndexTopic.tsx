@@ -6,6 +6,7 @@ import { Collapsible, ErratumTag, FormulaLinks, Gate, PageLinks } from '../../co
 import { CHART_RATE_DOMAINS } from '../../diagrams'
 import { TimelineDiagram } from './TimelineDiagram'
 import { Topic } from './Topic'
+import { TableWrap } from '../../TableWrap'
 
 /**
  * 2.1 時間索引 n / k / m 與取樣率；2.2 時間 fs ↔ 相位 rad ↔ UI。
@@ -22,7 +23,7 @@ export function IndexTopic() {
         <Tex>{String.raw`${texNum(100 * u.blockPeriodUs)}\,\mu\mathrm{s}`}</Tex>）？在 <Tex>{`N=${N}`}</Tex> 的系統裡兩者差了 {N} 倍。所以全站把時間軸分成三種索引，
         <strong>一條式子裡只能出現一種</strong>（規格附錄 B 第 5 點；<ErratumTag eid="E35" />）。
       </p>
-      <div className="table-wrap">
+      <TableWrap>
         <table className="fr-table fr-index-table">
           <thead>
             <tr>
@@ -87,10 +88,9 @@ export function IndexTopic() {
             </tr>
           </tbody>
         </table>
-      </div>
+      </TableWrap>
       <p>
-        <strong>先看圖：</strong>上面的表格說「哪個量用哪個索引」；下圖把同一件事畫成訊號流。上面那個 sample rate 區塊，每個 <Tex>{'n'}</Tex> 都有一筆 <Tex>{'e[n]'}</Tex>、<Tex>{'q[n]'}</Tex>——<Tex>{'e[n]'}</Tex> 是 phase detector 的輸出（送進 loop filter 的同一個訊號），1-bit comparator 取它的正負號得到 <Tex>{'q[n]'}</Tex>；
-        累加 <Tex>{'N'}</Tex> 筆之後才得到下面 block rate 區塊的一筆 <Tex>{'G_k'}</Tex>，更新 <Tex>{'w_k'}</Tex>；要回到 sample rate 就得用 ZOH 把 <Tex>{'w_k'}</Tex> 重複 <Tex>{'N'}</Tex> 次。
+        <strong>先看圖：</strong>上面的表格說「哪個量用哪個索引」；下圖把同一件事畫成訊號流。上面那個 sample rate 區塊，每個 <Tex>{'n'}</Tex> 都有一筆 <Tex>{'e[n]'}</Tex>、<Tex>{'q[n]'}</Tex>——<Tex>{'e[n]'}</Tex> 是 phase detector 的輸出（送進 loop filter 的同一個訊號），1-bit comparator 取它的正負號得到 <Tex>{'q[n]'}</Tex>；累加 <Tex>{'N'}</Tex> 筆之後才得到下面 block rate 區塊的一筆 <Tex>{'G_k'}</Tex>，更新 <Tex>{'w_k'}</Tex>；要回到 sample rate 就得用 ZOH 把 <Tex>{'w_k'}</Tex> 重複 <Tex>{'N'}</Tex> 次。
       </p>
       <Mermaid
         chart={CHART_RATE_DOMAINS}
@@ -222,7 +222,7 @@ export function TimePhaseTopic() {
         ]}
         result={String.raw`\phi=2\pi f\,\Delta t\qquad\Longleftrightarrow\qquad \Delta t=\frac{\phi}{2\pi f}`}
       />
-      <div className="table-wrap">
+      <TableWrap>
         <table className="fr-table fr-conv-table">
           <thead>
             <tr>
@@ -277,7 +277,7 @@ export function TimePhaseTopic() {
             </tr>
           </tbody>
         </table>
-      </div>
+      </TableWrap>
       <Callout kind="info" title="dB 的兩條規則">
         <p>
           <strong>振幅</strong>（fs、rad、V）取 <Tex>{String.raw`20\log_{10}`}</Tex>；<strong>功率或 PSD</strong>（<Tex>{String.raw`\mathrm{fs^2}`}</Tex>、
@@ -333,8 +333,7 @@ export function TimePhaseTopic() {
       </Collapsible>
       <Gate min="engineer">
         <p className="small">
-          <strong>工程提醒：</strong>PD 端量到的相位（以 <Tex>{String.raw`f_{\mathrm{ref}}`}</Tex> 計）乘上除頻比才是輸出端的相位；但只要一路用 fs，就不需要記這個倍率——這是全站預設用 fs 的原因。
-          Jitter RMS 由相位換回時間：<Tex>{String.raw`\sigma_t=\sigma_\phi/(2\pi f_{\mathrm{out}})`}</Tex>。
+          <strong>工程提醒：</strong>PD 端量到的相位（以 <Tex>{String.raw`f_{\mathrm{ref}}`}</Tex> 計）乘上除頻比才是輸出端的相位；但只要一路用 fs，就不需要記這個倍率——這是全站預設用 fs 的原因。Jitter RMS 由相位換回時間：<Tex>{String.raw`\sigma_t=\sigma_\phi/(2\pi f_{\mathrm{out}})`}</Tex>。
         </p>
       </Gate>
       <div className="fr-topic-foot small">

@@ -402,7 +402,8 @@ export const GLOBAL_SYMBOLS: GlobalSymbol[] = [
     meaning: '更新延遲：GMAC 結果到新 gain 生效的 block 數',
     unit: String.raw`\mathrm{blocks}`,
     convention: String.raw`$\delta_{k+1}=\delta_k-g\,\delta_{k-d}$，臨界 $g^*=2\sin\frac{\pi}{4d+2}$。§11 的 INL 函數 $d(x)$、§8.4 的直通項 $d_s$ 是不同的量`,
-    example: (r) => String.raw`$g^*(d)$，$d=0\ldots6$：$${r.pm.gCrit.map((g) => texNum(g, 6)).join(',\\ ')}$`,
+    // 每個數字各自一個 $…$、用「、」隔開：KaTeX 不會在逗號後換行，七個六位小數連成一串有 337px 寬，手機的卡片（約 315px）放不下
+    example: (r) => String.raw`$g^*(d)$，$d=0\ldots6$：${r.pm.gCrit.map((g) => `$${texNum(g, 6)}$`).join('、')}`,
     errata: ['E34', 'E31'],
     pages: ['ch08'],
   },

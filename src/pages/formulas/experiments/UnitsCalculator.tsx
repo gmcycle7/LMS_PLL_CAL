@@ -1,6 +1,6 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import type { Data, Layout, Shape } from 'plotly.js-dist-min'
+import type { Data, Layout, Shape } from 'plotly.js-cartesian-dist-min'
 import {
   CaseSelector,
   ExperimentShell,
@@ -36,6 +36,7 @@ import {
 import { UNITS_WORKER_FN, UNITS_WORKER_MODULE } from '../unitsLoader'
 import { runUnitsMcBatch, unitsCalc, unitsCurves, type UnitsCalcResult, type UnitsMcBatchParams, type UnitsMcResult } from '../unitsModel'
 import { UNITS_WORKER_OPTIONS } from './unitsWorker'
+import { TableWrap } from '../TableWrap'
 
 /**
  * 互動：單位與頻寬換算器（規格 §0 的單位約定 + §12.1 的 T13 / T14 / §12.4 的 T15）。
@@ -430,8 +431,7 @@ export function UnitsCalculator() {
         description={
           <>
             輸入帶單位的 <Tex>{String.raw`\mu`}</Tex>、<Tex>{String.raw`\sigma_v`}</Tex>、<Tex>{'N'}</Tex>、<Tex>{'f_s'}</Tex>，一路換算到無因次的{' '}
-            <Tex>{'g'}</Tex>、pole、係數雜訊與四個「頻寬」。預設值就是 T13／T14 的條件（<Tex>{String.raw`f_s=4\,\mathrm{GHz}`}</Tex>，與 4 GHz reference 的 SSPLL 相同）。
-            封閉式在指定的線性模型內是精確的；模型本身（小訊號 <Tex>{'K_q'}</Tex>、白色 <Tex>{String.raw`\eta`}</Tex>）是近似，所以另外用 1-bit Monte Carlo 驗算（
+            <Tex>{'g'}</Tex>、pole、係數雜訊與四個「頻寬」。預設值就是 T13／T14 的條件（<Tex>{String.raw`f_s=4\,\mathrm{GHz}`}</Tex>，與 4 GHz reference 的 SSPLL 相同）。封閉式在指定的線性模型內是精確的；模型本身（小訊號 <Tex>{'K_q'}</Tex>、白色 <Tex>{String.raw`\eta`}</Tex>）是近似，所以另外用 1-bit Monte Carlo 驗算（
             <ErratumTag eid="E06" /> <ErratumTag eid="E13" /> <ErratumTag eid="E18" /> <ErratumTag eid="E30" />）。
           </>
         }
@@ -621,7 +621,7 @@ export function UnitsCalculator() {
         }
       >
         <h4 className="fr-sub">Case {active.id} 的單位鏈：每一步都寫出單位</h4>
-        <div className="table-wrap">
+        <TableWrap>
           <table className="fr-table fr-chain-table">
             <thead>
               <tr>
@@ -697,12 +697,12 @@ export function UnitsCalculator() {
               />
             </tbody>
           </table>
-        </div>
+        </TableWrap>
 
         {results.length > 1 && (
           <>
             <h4 className="fr-sub">Case 比較</h4>
-            <div className="table-wrap">
+            <TableWrap>
               <table className="fr-table fr-cases-table">
                 <thead>
                   <tr>
@@ -766,7 +766,7 @@ export function UnitsCalculator() {
                   })}
                 </tbody>
               </table>
-            </div>
+            </TableWrap>
           </>
         )}
 
