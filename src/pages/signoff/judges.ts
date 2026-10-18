@@ -22,6 +22,7 @@ import {
   mean,
   normCdf,
   polyRoots,
+  radToFs,
   solve,
   svd,
   transpose,
@@ -142,7 +143,10 @@ export function slopeStdErr(delta: number, N: number, M: number): number {
 export type BitMapping = 'bipolar' | 'reversed' | 'unipolar'
 
 // #region core:mapBipolar
-/** 正確：q = 2b − 1 ∈ {−1, +1}（e ≥ 0 ⇒ b = 1；tie 規則同 §15.2／E07） */
+/**
+ * 正確：q = 2b − 1 ∈ {−1, +1}
+ * （e ≥ 0 ⇒ b = 1；tie 規則同 §15.2／E07）
+ */
 export function mapBipolar(b: number): number {
   return 2 * b - 1
 }
@@ -151,14 +155,18 @@ export function mapBipolar(b: number): number {
 // #region core:mapReversed
 /** 錯誤：comparator 兩端接反、或 PD 極性定義相反 */
 export function mapReversed(b: number): number {
-  return 1 - 2 * b // ← 差異：q 整個變號 ⇒ K = K_qC 變號 ⇒ 正 μ 平均發散
+  // 差異（下一行）：q 整個變號 ⇒ K = K_qC 變號
+  //   ⇒ 正 μ 平均發散
+  return 1 - 2 * b
 }
 // #endregion
 
 // #region core:mapUnipolar
 /** 錯誤：忘了把 0/1 映射成 ±1 */
 export function mapUnipolar(b: number): number {
-  return b // ← 差異：E[b·x] = ½E[q·x] + ½E[x]：斜率減半，且 E[x] ≠ 0 時固定點偏移
+  // 差異（下一行）：E[b·x] = ½E[q·x] + ½E[x]
+  //   ⇒ 斜率減半，且 E[x] ≠ 0 時固定點偏移
+  return b
 }
 // #endregion
 
@@ -1416,6 +1424,78 @@ export function linearSigmaWMc(p: { pole: number; mu: number; sigmaEta: number; 
 export function spurDbc(fOutHz: number, atFs: number): number {
   const beta = fsToRad(atFs, fOutHz)
   return 20 * Math.log10(beta / 2)
+}
+
+// #region core:spurInverse
+/**
+ * F-SO.13（F-12.18 反過來用）：頻譜儀在輸出量到的單邊 spur [dBc] → DTC／PMUX 端 timing tone 的 peak A_t [fs]。
+ *   spur ≈ 20·log10(β/2)  ⇒  β = 2·10^(spur/20)
+ *   β = 2π·f_out·|T(f_m)|·A_t  ⇒  A_t = β / (2π·f_out·|T(f_m)|)
+ * 小角（β ≪ 1）；|T| 取 tone 頻率 f_m 處的值——儀器量到的是經 |T| 的輸出量，不是 PD 端（F-12.16）。
+ */
+export function timingToneFromSpur(fOutHz: number, spurDbcValue: number, magT = 1): number {
+  const beta = 2 * 10 ** (spurDbcValue / 20)
+  return radToFs(beta, fOutHz) / magT
+}
+
+/**
+ * 單一相有殘差（one-hot、P 相）時，輸出在 frac(ℓα)·f_ref 那一根譜線的 peak 與該相 offset 殘差的比 κ_pat = A_ℓ/δ_P。
+ * 分數頻道的 PMUX 相位索引 p[n] = ⌊P·frac(αn)⌋（1/P 以下的殘量交給 DTC），指示函數 1{p[n] = j} 是 frac(αn) 的寬 1/P 方窗，
+ * Fourier 係數 |c_ℓ| = sin(πℓ/P)/(πℓ)（案例頁 F-CS.21 的 √w_ℓ 乘 1/P），實數 tone 的 peak 是 2|c_ℓ|·δ_P：
+ *   κ_pat(ℓ) = 2·|sin(πℓ/P)|/(πℓ)   （ℓ = 1：8 相 ⇒ 0.24362；P → ∞ 時 → 2/P）
+ * 只有 α = s/P（p[n] = sn mod P、DTC 殘量固定）時 ℓ ≡ 1 (mod P) 的線全疊在同一個頻率、
+ * 相干加總才是 2/P（8 相差 2.6%、0.22 dB）。§8.5 的推導。
+ */
+export function oneHotPatternFactor(phases: number, line = 1): number {
+  return (2 * Math.abs(Math.sin((Math.PI * line) / phases))) / (Math.PI * line)
+}
+// #endregion
+
+export interface ReadoutPlanInput {
+  /** comparator 前的雜訊 RMS [fs] */
+  sigmaV: number
+  /** 擾動相對雜訊的比例 Δ/σ_v（≤ 0.3 才沒有明顯的 erf 截斷，F-SO.2） */
+  deltaRatio: number
+  /** 有效相關 C（可為負：預期符號跟著變） */
+  C: number
+  /** 每個 GMAC block 的樣本數 */
+  N: number
+  /** reference 頻率 [Hz]：每個 reference 週期一個 comparator sample，block 時間 = N/f_ref */
+  fRefHz: number
+  /** 判決要求的信心倍數 */
+  z: number
+}
+
+export interface ReadoutPlan {
+  /** Δ = deltaRatio·σ_v [fs] */
+  delta: number
+  Kq: number
+  /** K = K_q·C [fs⁻¹] */
+  K: number
+  sigmaEta: number
+  /** 每側至少要讀的 block 數（F-SO.3，無條件進位） */
+  M: number
+  /** 用 M 個 block 時預期的標準誤與信心倍數（≥ z） */
+  se: number
+  zExpected: number
+  /** 一個 block 的時間 [s] */
+  tBlockS: number
+  /** 兩側各 M 個 block 的量測時間 [s]（不含每次改 w 後丟掉的 settling block） */
+  tMeasS: number
+}
+
+/**
+ * §8.5 矽上量測計畫：極性那一列「要讀幾個 block 的 Ḡ、花多少時間」（F-SO.3 的 M 反過來排時間）。
+ * 全部沿用本頁的函式：kq、requiredBlocks、slopeStdErr；K = 0 時 M = ∞（不可辨識）。
+ */
+export function polarityReadoutPlan(p: ReadoutPlanInput): ReadoutPlan {
+  const delta = p.deltaRatio * p.sigmaV
+  const Kq = kq(p.sigmaV)
+  const K = Kq * p.C
+  const M = requiredBlocks(K, delta, p.N, p.z)
+  const se = Number.isFinite(M) ? slopeStdErr(delta, p.N, M) : Infinity
+  const tBlockS = p.N / p.fRefHz
+  return { delta, Kq, K, sigmaEta: 1 / Math.sqrt(p.N), M, se, zExpected: Number.isFinite(se) ? Math.abs(K) / se : 0, tBlockS, tMeasS: 2 * M * tBlockS }
 }
 
 /** 三階 INL 例（§11.2、E01）：x ∈ {−2..2} 等機率、a = 1、c₃ = 0.1 時 MSE-LMS 固定點 a + c₃E[x⁴]/E[x²]。 */

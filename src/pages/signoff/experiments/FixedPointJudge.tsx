@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import { ExperimentShell, ParamControl, Plot, SelectControl, Tex, useThemeTokens, type ExperimentPreset, type MetricRow } from '@/components'
 import { useUrlPreset } from '@/app/presets'
 import {

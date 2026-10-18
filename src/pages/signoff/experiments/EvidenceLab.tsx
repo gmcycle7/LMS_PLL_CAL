@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import { ExperimentShell, ParamControl, Plot, Tex, useThemeTokens, type ExperimentPreset, type MetricRow } from '@/components'
 import { useUrlPreset } from '@/app/presets'
 import { binomCdf, mean, variance } from '@/simulation/core'
@@ -130,8 +130,7 @@ export function EvidenceLabExperiment() {
       tests={['T03']}
       description={
         <>
-          左半：把 sweep／seeds 的結果換算成失效機率上界（Clopper–Pearson）。右半：純量 iid Gaussian regressor 的 LMS <Tex>{'\\delta_{n+1}=(1-\\mu x_n^2)\\delta_n'}</Tex>，
-          比較三種穩定的解析判準與有限樣本路徑的「觀察」。
+          左半：把 sweep／seeds 的結果換算成失效機率上界（Clopper–Pearson）。右半：純量 iid Gaussian regressor 的 LMS <Tex>{'\\delta_{n+1}=(1-\\mu x_n^2)\\delta_n'}</Tex>，比較三種穩定的解析判準與有限樣本路徑的「觀察」。
         </>
       }
       assumptions={[

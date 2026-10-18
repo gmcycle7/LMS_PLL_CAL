@@ -64,8 +64,7 @@ export function S4Cases() {
       <Section kind="formula" level={2} title={String.raw`4. Corner：同一個 $\mu$ 要通過最慢與最快的 corner`} id="so-corner">
         <p>
           每個 corner（PVT、PLL BW、mode）都有自己的 <Tex>{'K^{(c)}=K_q(\\sigma_{v,c})\\,C_c'}</Tex>。硬體只有一組 <Tex>{'\\mu'}</Tex>：
-          <strong>最快</strong>的 corner（<Tex>{'K_{\\max}'}</Tex>）決定穩定與 PM 的上限，<strong>最慢</strong>的 corner（<Tex>{'K_{\\min}'}</Tex>）決定收斂時間與 bias 的下限。
-          再加上真實硬體的 commit latency <Tex>{'d'}</Tex>，一階模型的 <Tex>{'0<g<2'}</Tex> 就不再適用。
+          <strong>最快</strong>的 corner（<Tex>{'K_{\\max}'}</Tex>）決定穩定與 PM 的上限，<strong>最慢</strong>的 corner（<Tex>{'K_{\\min}'}</Tex>）決定收斂時間與 bias 的下限。再加上真實硬體的 commit latency <Tex>{'d'}</Tex>，一階模型的 <Tex>{'0<g<2'}</Tex> 就不再適用。
         </p>
         <Diagram
           chart={CHART_CORNER_JUDGE}
@@ -73,8 +72,7 @@ export function S4Cases() {
           ariaLabel="Corner 判準流程圖：corner 清單與同一組 mu、d、N 算出每個 corner 的恢復力 K 與迴路增益 g，依序檢查極性、穩定、相位裕度，穩定之後才檢查收斂時間與雜訊，所有 corner 的五項判準都通過才算這個 mu 可行"
         >
           <p>
-            先看最上面兩個圓角框：硬體只有<strong>一組</strong> <Tex>{'(\\mu,d,N)'}</Tex>，corner 卻有很多個，每個 corner 的 <Tex>{'\\sigma_{v,c}'}</Tex>、<Tex>{'\\theta_c'}</Tex> 不同，所以 <Tex>{'K_c'}</Tex> 與 <Tex>{'g_c=\\mu K_c'}</Tex> 也不同。
-            通常<strong>最快</strong>的 corner（<Tex>{'K_{\\max}'}</Tex>）先卡住穩定與 PM，<strong>最慢</strong>的（<Tex>{'K_{\\min}'}</Tex>）先卡住收斂時間與 bias。
+            先看最上面兩個圓角框：硬體只有<strong>一組</strong> <Tex>{'(\\mu,d,N)'}</Tex>，corner 卻有很多個，每個 corner 的 <Tex>{'\\sigma_{v,c}'}</Tex>、<Tex>{'\\theta_c'}</Tex> 不同，所以 <Tex>{'K_c'}</Tex> 與 <Tex>{'g_c=\\mu K_c'}</Tex> 也不同。通常<strong>最快</strong>的 corner（<Tex>{'K_{\\max}'}</Tex>）先卡住穩定與 PM，<strong>最慢</strong>的（<Tex>{'K_{\\min}'}</Tex>）先卡住收斂時間與 bias。
           </p>
           <p>
             藍色的「穩定」是其他兩項的前提：<Tex>{'z^{d+1}-z^d+g_c=0'}</Tex> 的根都在單位圓內（<Tex>{'\\rho<1'}</Tex>），<Tex>{'k_{95}'}</Tex>（收斂 95% 需要的 block 數）與 <Tex>{'\\sigma_w'}</Tex> 才有有限的值；不穩定的 corner 這兩項直接是 <Tex>{'\\infty'}</Tex>。
@@ -136,16 +134,14 @@ export function S4Cases() {
           §14.1 的 <Tex>{'\\mu'}</Tex> 區間中 <Tex>{'\\epsilon'}</Tex> 是「相對縮減比」（<Tex>{'0<\\epsilon<1'}</Tex>），不是絕對誤差；只約束平均誤差，RMS 要另外檢查。
         </ErratumNote>
         <HandCalcSlot id="HC-SO.4">
-          預設值是下面 Corner 判斷器預設的兩列：最快的 FF 125°C（<Tex>{'\\sigma_v=70\\,\\mathrm{fs}'}</Tex>、<Tex>{'\\theta=10^\\circ'}</Tex>）與最慢的 near-grid FCW（<Tex>{'\\sigma_v=100\\,\\mathrm{fs}'}</Tex>、<Tex>{'\\theta=60^\\circ'}</Tex>），<Tex>{'\\mu=10\\,\\mathrm{fs}'}</Tex>、<Tex>{'d=1'}</Tex>。
-          把 <Tex>{'B'}</Tex> 改成 50，或把 <Tex>{'\\mu'}</Tex> 改成 40，看哪一個 corner 先不合格。
+          預設值是下面 Corner 判斷器預設的兩列：最快的 FF 125°C（<Tex>{'\\sigma_v=70\\,\\mathrm{fs}'}</Tex>、<Tex>{'\\theta=10^\\circ'}</Tex>）與最慢的 near-grid FCW（<Tex>{'\\sigma_v=100\\,\\mathrm{fs}'}</Tex>、<Tex>{'\\theta=60^\\circ'}</Tex>），<Tex>{'\\mu=10\\,\\mathrm{fs}'}</Tex>、<Tex>{'d=1'}</Tex>。把 <Tex>{'B'}</Tex> 改成 50，或把 <Tex>{'\\mu'}</Tex> 改成 40，看哪一個 corner 先不合格。
         </HandCalcSlot>
         <p>
           <strong>
             收斂時間 <Tex>{'k_{95}'}</Tex> 怎麼數：
           </strong>
           平均誤差照 <Tex>{'y_{k+1}=y_k-g\\,y_{k-d}'}</Tex> 逐 block 遞推（初始歷史 <Tex>{'y_j=1'}</Tex>），取最後一次 <Tex>{'|y_k|>0.05'}</Tex> 的下一個 block；和 <a href="#/">首頁</a>「六條件一分鐘體檢」的收斂 block 數是同一個函式。
-          <Tex>{'d=0'}</Tex> 時它等於 <Tex>{'\\lceil\\ln0.05/\\ln\\rho\\rceil'}</Tex>；<Tex>{'d\\ge1'}</Tex> 時 <Tex>{'\\rho^k'}</Tex> 不是誤差的包絡，那個式子只當「<Tex>{'\\rho'}</Tex> 漸近估計」另列、不拿來判定
-          （例：<Tex>{'d=1'}</Tex>、<Tex>{'g=0.25'}</Tex> 是重根 <Tex>{'z=0.5'}</Tex>，估計給 5，逐 block 要 7，所以 <Tex>{'B=6'}</Tex> 時只看 <Tex>{'\\rho'}</Tex> 會誤判通過）。
+          <Tex>{'d=0'}</Tex> 時它等於 <Tex>{'\\lceil\\ln0.05/\\ln\\rho\\rceil'}</Tex>；<Tex>{'d\\ge1'}</Tex> 時 <Tex>{'\\rho^k'}</Tex> 不是誤差的包絡，那個式子只當「<Tex>{'\\rho'}</Tex> 漸近估計」另列、不拿來判定（例：<Tex>{'d=1'}</Tex>、<Tex>{'g=0.25'}</Tex> 是重根 <Tex>{'z=0.5'}</Tex>，估計給 5，逐 block 要 7，所以 <Tex>{'B=6'}</Tex> 時只看 <Tex>{'\\rho'}</Tex> 會誤判通過）。
         </p>
         <p className="small muted">
           單一 corner 的 <Tex>{'PM_d'}</Tex>、<Tex>{'g_\\text{crit}(d)'}</Tex> 與 <Tex>{'\\mu_{\\max}'}</Tex> 的手算題在 <a href="#/ch/08">Ch08</a>；corner 區間與 <Tex>{'B'}</Tex> 的下限在 <a href="#/ch/14">Ch14</a>。本頁這一題把兩者接起來：同一個 <Tex>{'\\mu'}</Tex> 要同時過兩個 corner。
@@ -171,8 +167,7 @@ export function S4Cases() {
         />
         <p>
           所以 FCW sweep 要同時報 <Tex>{'\\hat C(\\mathrm{FCW})'}</Tex> 與 <Tex>{'|B_\\text{bias}/\\hat C|'}</Tex>；兩者任一不合格的 FCW 進 keep-out 清單。
-          <Tex>{'|B_\\text{bias}/\\hat C|'}</Tex> 是線性化的值（第一步用了 <Tex>{'E[q]\\approx K_qs'}</Tex>）：把 <Tex>{'w=a+B_\\text{bias}/\\hat C'}</Tex> 代回去，comparator 前的確定性殘差 <Tex>{'e_\\text{det}[n]'}</Tex>（不含雜訊 <Tex>{'v'}</Tex> 的部分）也跟著 <Tex>{'1/\\hat C'}</Tex> 變大。它大到讓 comparator 飽和（<Tex>{String.raw`\max_n|e_\text{det}[n]|>0.3\,\sigma_v`}</Tex>）時，<Tex>{'a+B_\\text{bias}/\\hat C'}</Tex> 只是線性外推，不能再當作固定點（Sign-LMS 可能沒有吸引的固定點），這種 FCW 也進 keep-out（<a href="#/ch/11">Ch11 §11.4</a>）。
-          PE 則看滑動窗資訊矩陣的 <Tex>{'\\lambda_{\\min}'}</Tex>——但有限窗只能證明「量過的窗」，不能證明未來所有窗（規格 §9.1）。
+          <Tex>{'|B_\\text{bias}/\\hat C|'}</Tex> 是線性化的值（第一步用了 <Tex>{'E[q]\\approx K_qs'}</Tex>）：把 <Tex>{'w=a+B_\\text{bias}/\\hat C'}</Tex> 代回去，comparator 前的確定性殘差 <Tex>{'e_\\text{det}[n]'}</Tex>（不含雜訊 <Tex>{'v'}</Tex> 的部分）也跟著 <Tex>{'1/\\hat C'}</Tex> 變大。它大到讓 comparator 飽和（<Tex>{String.raw`\max_n|e_\text{det}[n]|>0.3\,\sigma_v`}</Tex>）時，<Tex>{'a+B_\\text{bias}/\\hat C'}</Tex> 只是線性外推，不能再當作固定點（Sign-LMS 可能沒有吸引的固定點），這種 FCW 也進 keep-out（<a href="#/ch/11">Ch11 §11.4</a>）。PE 則看滑動窗資訊矩陣的 <Tex>{'\\lambda_{\\min}'}</Tex>——但有限窗只能證明「量過的窗」，不能證明未來所有窗（規格 §9.1）。
         </p>
         <ErratumNote id="E12">
           §11 的干擾改名 <Tex>{'\\varepsilon_{cc}'}</Tex>（避免與 <Tex>{'u=h*x'}</Tex> 衝突）；§11.4 的 <Tex>{'C'}</Tex> 與 §6 相同，<Tex>{'B'}</Tex> 為 <Tex>{'B_\\text{bias}'}</Tex>。
@@ -221,8 +216,7 @@ export function S4Cases() {
         <TexBlock id="F-SO.10" label="累加器位元與 shift scaling">{String.raw`B_\text{acc}\ge B_x+\lceil\log_2N\rceil,\qquad G_\text{shift}=\frac{\sum q\,x}{2^s}=\frac{N}{2^s}\,G_\text{avg}`}</TexBlock>
         <Callout kind="warn" title="差 1 個 count 的角落：conditional negate 沒有飽和">
           若 RTL 的 conditional negate 輸出多 1 bit（不飽和），<Tex>{'q=-1'}</Tex> 遇到 <Tex>{'x=-2^{B_x-1}'}</Tex> 時乘積是 <Tex>{'+2^{B_x-1}'}</Tex>。<Tex>{'N'}</Tex> 筆全中的總和
-          <Tex>{String.raw`N\,2^{B_x-1}=${negMax}`}</Tex>（6-bit × 4096）比 {bits}-bit 可表示的最大值 <Tex>{`2^{${bits - 1}}-1=${2 ** (bits - 1) - 1}`}</Tex> 多 1，wrap 後變成 <Tex>{`${wrapTwos(negMax, bits)}`}</Tex>——
-          正的最大相關被讀成負的最大相關。簽核時要確認三者之一：code 範圍對稱、negate 有飽和，或再加 1 個 guard bit（規格 §16.1-3 的「guard bits」）。
+          <Tex>{String.raw`N\,2^{B_x-1}=${negMax}`}</Tex>（6-bit × 4096）比 {bits}-bit 可表示的最大值 <Tex>{`2^{${bits - 1}}-1=${2 ** (bits - 1) - 1}`}</Tex> 多 1，wrap 後變成 <Tex>{`${wrapTwos(negMax, bits)}`}</Tex>——正的最大相關被讀成負的最大相關。簽核時要確認三者之一：code 範圍對稱、negate 有飽和，或再加 1 個 guard bit（規格 §16.1-3 的「guard bits」）。
         </Callout>
         <p className="small muted">
           想用自己的 <Tex>{'B_x'}</Tex>、<Tex>{'N'}</Tex>、<Tex>{'B_\\text{acc}'}</Tex> 手算位元數、wrap 後的值與右移的比例：<a href="#/ch/04">Ch04</a> 的手算題（GMAC 累加器要幾個 bit、位元不夠時 wrap 成多少、sum 與 average 差幾倍）已經涵蓋，本頁不重複出題。
@@ -260,8 +254,7 @@ export function S4Cases() {
           ariaLabel="多參數線性化迴路方塊圖：係數誤差向量一路直通加法點，另一路先乘 Jacobian J 得到 GMAC 平均輸出，再乘更新矩陣 M，與直通項相加後經過一個 block 的延遲回到誤差向量；整圈的矩陣是 I 加 M J，單獨看對角元素會漏掉交叉項"
         >
           <p>
-            先看加法點的兩條進線：直通的 <Tex>{'\\boldsymbol\\delta\\mathbf w_k'}</Tex>（正號）加上走過 <Tex>{'\\mathbf J'}</Tex>、<Tex>{'\\mathbf M'}</Tex> 的修正量 <Tex>{'\\mathbf M\\mathbf J\\,\\boldsymbol\\delta\\mathbf w_k'}</Tex>（正號；穩定時 <Tex>{'\\mathbf J'}</Tex> 的 eigenvalue 為負，所以修正量實際上是往回拉）。
-            輸出 <Tex>{'\\boldsymbol\\delta\\mathbf w_{k+1}=(\\mathbf I+\\mathbf M\\mathbf J)\\boldsymbol\\delta\\mathbf w_k'}</Tex>，經過一個 block 延遲 <Tex>{'z^{-1}'}</Tex> 回到起點。
+            先看加法點的兩條進線：直通的 <Tex>{'\\boldsymbol\\delta\\mathbf w_k'}</Tex>（正號）加上走過 <Tex>{'\\mathbf J'}</Tex>、<Tex>{'\\mathbf M'}</Tex> 的修正量 <Tex>{'\\mathbf M\\mathbf J\\,\\boldsymbol\\delta\\mathbf w_k'}</Tex>（正號；穩定時 <Tex>{'\\mathbf J'}</Tex> 的 eigenvalue 為負，所以修正量實際上是往回拉）。輸出 <Tex>{'\\boldsymbol\\delta\\mathbf w_{k+1}=(\\mathbf I+\\mathbf M\\mathbf J)\\boldsymbol\\delta\\mathbf w_k'}</Tex>，經過一個 block 延遲 <Tex>{'z^{-1}'}</Tex> 回到起點。
           </p>
           <p>
             棕紅色的「只看對角」是常見的漏洞：它假設其他參數凍結，只剩 <Tex>{'1+M_{ii}J_{ii}'}</Tex>；藍色的 <Tex>{'\\rho(\\mathbf I+\\mathbf M\\mathbf J)'}</Tex> 才是一起更新時真正的判準。
@@ -278,9 +271,7 @@ export function S4Cases() {
           ]}
         />
         <p>
-          T18：<Tex>{'\\mathbf J=\\begin{bmatrix}-1&2\\\\2&-1\\end{bmatrix}'}</Tex>、<Tex>{'\\mathbf M=0.2\\mathbf I'}</Tex>：對角 pole <Tex>{t18.diagPoles.map((x) => tx(x, 4)).join(',\\ ')}</Tex>（各自穩定），
-          但 <Tex>{`\\mathrm{eig}(\\mathbf I+\\mathbf M\\mathbf J)=\\{${t18.eigA.map((z) => tx(z.re, 6)).join(',\\ ')}\\}`}</Tex>，<Tex>{`\\rho=${tx(t18.rho, 6)}>1`}</Tex>——一起更新時發散。
-          原因：<Tex>{'\\mathbf J'}</Tex> 的 eigenvalue <Tex>{t18.eigJ.map((z) => tx(z.re, 6)).join(',\\ ')}</Tex> 中有正值，沿那個方向的「恢復力」是負的。<ClaimTag kind="exact" />
+          T18：<Tex>{'\\mathbf J=\\begin{bmatrix}-1&2\\\\2&-1\\end{bmatrix}'}</Tex>、<Tex>{'\\mathbf M=0.2\\mathbf I'}</Tex>：對角 pole <Tex>{t18.diagPoles.map((x) => tx(x, 4)).join(',\\ ')}</Tex>（各自穩定），但 <Tex>{`\\mathrm{eig}(\\mathbf I+\\mathbf M\\mathbf J)=\\{${t18.eigA.map((z) => tx(z.re, 6)).join(',\\ ')}\\}`}</Tex>，<Tex>{`\\rho=${tx(t18.rho, 6)}>1`}</Tex>——一起更新時發散。原因：<Tex>{'\\mathbf J'}</Tex> 的 eigenvalue <Tex>{t18.eigJ.map((z) => tx(z.re, 6)).join(',\\ ')}</Tex> 中有正值，沿那個方向的「恢復力」是負的。<ClaimTag kind="exact" />
         </p>
         <TexBlock id="F-SO.7" label="多參數局部線性穩定判準">{String.raw`\rho\big(\mathbf I+\mathbf M\mathbf J_\text{true}\big)<1,\qquad \mathbf M=-\gamma(\hat{\mathbf J}^T\hat{\mathbf J}+\varepsilon_J\mathbf I)^{-1}\hat{\mathbf J}^T\ \overset{\hat{\mathbf J}=\mathbf J}{\Longrightarrow}\ p_i=1-\gamma\frac{\sigma_i^2}{\sigma_i^2+\varepsilon_J}`}</TexBlock>
         <ErratumNote id="E24">
@@ -300,8 +291,7 @@ export function S4Cases() {
             ]}
           />
           <p>
-            E24 的例子（<Tex>{'\\hat\\rho=0.996'}</Tex>、真實 <Tex>{'\\rho=0.99'}</Tex>、<Tex>{'\\gamma=1'}</Tex>）：<Tex>{'\\varepsilon_J=0'}</Tex> 時 <Tex>{`\\rho(\\hat{\\mathbf A})=${tx(Math.abs(rob0.rhoHat) < 1e-9 ? 0 : rob0.rhoHat, 3)}`}</Tex>（一步到位）看起來完美，
-            但 <Tex>{`\\|\\mathbf E\\|_2=${tx(rob0.normE, 5)}`}</Tex>，真實 <Tex>{`\\rho=${tx(rob0.rhoTrue, 5)}`}</Tex>（發散）。<Tex>{'\\varepsilon_J=10^{-4}'}</Tex> 時
+            E24 的例子（<Tex>{'\\hat\\rho=0.996'}</Tex>、真實 <Tex>{'\\rho=0.99'}</Tex>、<Tex>{'\\gamma=1'}</Tex>）：<Tex>{'\\varepsilon_J=0'}</Tex> 時 <Tex>{`\\rho(\\hat{\\mathbf A})=${tx(Math.abs(rob0.rhoHat) < 1e-9 ? 0 : rob0.rhoHat, 3)}`}</Tex>（一步到位）看起來完美，但 <Tex>{`\\|\\mathbf E\\|_2=${tx(rob0.normE, 5)}`}</Tex>，真實 <Tex>{`\\rho=${tx(rob0.rhoTrue, 5)}`}</Tex>（發散）。<Tex>{'\\varepsilon_J=10^{-4}'}</Tex> 時
             <Tex>{`\\rho(\\hat{\\mathbf A})=${tx(rob4.rhoHat, 5)}`}</Tex>、<Tex>{`\\|\\mathbf E\\|_2=${tx(rob4.normE, 5)}`}</Tex>：上界 <Tex>{tx(rob4.bound, 5)}</Tex> 不足以保證，但真實 <Tex>{`\\rho=${tx(rob4.rhoTrue, 5)}`}</Tex> 穩定——
             regularization 用一點設計裕度（慢模式變慢）換來對 <Tex>{'\\hat{\\mathbf J}'}</Tex> 誤差的穩健性。<ClaimTag kind="exact" />
           </p>
@@ -312,8 +302,7 @@ export function S4Cases() {
 
       <Section kind="formula" level={2} title="8. 校正策略與 output：最後驗收的是 PLL 輸出" id="so-strategy">
         <p>
-          GMAC 歸零只代表 LMS 停在 <Tex>{'w^*'}</Tex>。sign-off 最後要問：係數的殘差與抖動，經過 DTC 與主 PLL 之後，在<strong>輸出</strong>造成多少 PN、jitter 與 spur？
-          先把接法說清楚：feedback（divider）edge 比理想時刻早到 <Tex>{'a\\,x[n]'}</Tex>；DTC 在 reference 輸入端、只能延遲不能提前，所以它從固定的基準延遲 <Tex>{'T_0'}</Tex> 往回扣 <Tex>{'w\\,x[n]'}</Tex>（<Tex>{'\\tau_\\mathrm{DTC}=T_0-w\\,x[n]'}</Tex>；這個<strong>補償量</strong>讓 reference edge 少延遲、也就是提前這麼多）。PD 量的是（被 DTC 延遲後的）reference edge 減 feedback edge：<Tex>{'e[n]=t_\\mathrm{ref}\'[n]-t_\\mathrm{fb}[n]=(a-w)\\,x[n]+v[n]'}</Tex>。
+          GMAC 歸零只代表 LMS 停在 <Tex>{'w^*'}</Tex>。sign-off 最後要問：係數的殘差與抖動，經過 DTC 與主 PLL 之後，在<strong>輸出</strong>造成多少 PN、jitter 與 spur？先把接法說清楚：feedback（divider）edge 比理想時刻早到 <Tex>{'a\\,x[n]'}</Tex>；DTC 在 reference 輸入端、只能延遲不能提前，所以它從固定的基準延遲 <Tex>{'T_0'}</Tex> 往回扣 <Tex>{'w\\,x[n]'}</Tex>（<Tex>{'\\tau_\\mathrm{DTC}=T_0-w\\,x[n]'}</Tex>；這個<strong>補償量</strong>讓 reference edge 少延遲、也就是提前這麼多）。PD 量的是（被 DTC 延遲後的）reference edge 減 feedback edge：<Tex>{'e[n]=t_\\mathrm{ref}\'[n]-t_\\mathrm{fb}[n]=(a-w)\\,x[n]+v[n]'}</Tex>。
         </p>
         <Diagram
           chart={CHART_OUTPUT_PATH}
@@ -321,9 +310,7 @@ export function S4Cases() {
           ariaLabel="從 gain code 偏差到輸出 spur 與 jitter 的方塊圖：block 速率的係數偏差經零階保持展開到 sample 速率，乘上 code 得到 DTC 的補償誤差（reference 端的 DTC 多補償的時間），它留下的殘差（負的補償誤差）在 PD 的 reference 輸入注入，經過輸出 transfer T 並乘上負的 2 pi f_out 得到輸出相位，單一 tone 時換算調變指數與 spur，隨機分量換算成輸出相位雜訊與 jitter"
         >
           <p>
-            先看最上面：<Tex>{'\\delta w_k'}</Tex> 是 block 速率（索引 <Tex>{'k'}</Tex>）的係數偏差，每 <Tex>{'N'}</Tex> 個 sample 才換一次，所以要先以 ZOH 展開到 sample 速率（索引 <Tex>{'n'}</Tex>，含 commit latency <Tex>{'n_c'}</Tex>）才能乘上 code <Tex>{'x[n]'}</Tex>。
-            藍色的 <Tex>{'T=L/(1+L)'}</Tex> 是<strong>輸出路徑</strong>的 transfer——不是校正迴路看到的 <Tex>{'H_\\mathrm{PD}'}</Tex>；兩者混淆是 §9 反面測試的一項（PLL 誤差路徑與輸出路徑混淆）。
-            DTC 的殘差從 PD 的 reference 輸入進去（回授路徑上只有 divider），所以 <Tex>{'e_\\mathrm{PD}=H_\\mathrm{PD}\\,\\phi_\\mathrm{dtc}'}</Tex>、<Tex>{'\\theta_\\mathrm{out}=+T\\,\\phi_\\mathrm{dtc}'}</Tex>，兩者都是正號（<Tex>{'\\theta_\\mathrm{out}'}</Tex> 就是圖上的輸出相位 <Tex>{'\\varphi_\\mathrm{out}'}</Tex>）；圖上 <Tex>{'\\varphi_\\mathrm{out}'}</Tex> 的負號來自殘差本身：多補償 <Tex>{'\\delta t'}</Tex>，reference edge 就太早，殘差是 <Tex>{'-\\delta t'}</Tex>。
+            先看最上面：<Tex>{'\\delta w_k'}</Tex> 是 block 速率（索引 <Tex>{'k'}</Tex>）的係數偏差，每 <Tex>{'N'}</Tex> 個 sample 才換一次，所以要先以 ZOH 展開到 sample 速率（索引 <Tex>{'n'}</Tex>，含 commit latency <Tex>{'n_c'}</Tex>）才能乘上 code <Tex>{'x[n]'}</Tex>。藍色的 <Tex>{'T=L/(1+L)'}</Tex> 是<strong>輸出路徑</strong>的 transfer——不是校正迴路看到的 <Tex>{'H_\\mathrm{PD}'}</Tex>；兩者混淆是 §9 反面測試的一項（PLL 誤差路徑與輸出路徑混淆）。DTC 的殘差從 PD 的 reference 輸入進去（回授路徑上只有 divider），所以 <Tex>{'e_\\mathrm{PD}=H_\\mathrm{PD}\\,\\phi_\\mathrm{dtc}'}</Tex>、<Tex>{'\\theta_\\mathrm{out}=+T\\,\\phi_\\mathrm{dtc}'}</Tex>，兩者都是正號（<Tex>{'\\theta_\\mathrm{out}'}</Tex> 就是圖上的輸出相位 <Tex>{'\\varphi_\\mathrm{out}'}</Tex>）；圖上 <Tex>{'\\varphi_\\mathrm{out}'}</Tex> 的負號來自殘差本身：多補償 <Tex>{'\\delta t'}</Tex>，reference edge 就太早，殘差是 <Tex>{'-\\delta t'}</Tex>。
           </p>
           <p>
             最下面分兩條：單一 tone 的 <Tex>{'\\delta t'}</Tex> 變成相位調變，spur 看 <Tex>{'\\beta'}</Tex>；隨機的部分變成輸出相位雜訊。GMAC 歸零只是定義了 <Tex>{'w^*'}</Tex>，這兩個輸出指標才是最後的驗收。

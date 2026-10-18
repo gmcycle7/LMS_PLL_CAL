@@ -220,8 +220,7 @@ export function ReviewMatrix() {
   return (
     <Section kind="explore" level={2} title="1. Sign-off Matrix（規格 §16.2，互動）" id="so-matrix">
       <p>
-        每一列對應規格 §16.2 的一個 case（外加 SSPLL GOS／PHOS 極性檢查與 §17 反面測試），每個 case 拆成可以獨立驗收的檢查項目：<strong>必須驗證什麼、怎麼判斷（含數學判準）、本站哪個章節或實驗可以幫你</strong>。
-        你的狀態與備註只存在<strong>這個瀏覽器</strong>（localStorage；私密模式或停用儲存時不會保存，但頁面照常運作），可以匯出 Markdown 給 design review、或匯出 JSON 之後再匯入。
+        每一列對應規格 §16.2 的一個 case（外加 SSPLL GOS／PHOS 極性檢查與 §17 反面測試），每個 case 拆成可以獨立驗收的檢查項目：<strong>必須驗證什麼、怎麼判斷（含數學判準）、本站哪個章節或實驗可以幫你</strong>。你的狀態與備註只存在<strong>這個瀏覽器</strong>（localStorage；私密模式或停用儲存時不會保存，但頁面照常運作），可以匯出 Markdown 給 design review、或匯出 JSON 之後再匯入。
       </p>
 
       <div className="card">

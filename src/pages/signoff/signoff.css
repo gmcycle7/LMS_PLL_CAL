@@ -548,11 +548,6 @@
   margin-top: 1.8rem;
   padding-top: 0.8rem;
   border-top: 1px solid var(--border);
-  /* 固定的 topbar 不要蓋住捲動目標 */
-  scroll-margin-top: calc(var(--topbar-h, 52px) + 16px);
-}
-#so-top {
-  scroll-margin-top: calc(var(--topbar-h, 52px) + 16px);
 }
 
 /* 表格第一欄的短標籤（「1 方向」）不要被擠成一字一行 */
@@ -603,4 +598,66 @@
   .so-page .c-texblock-math .katex-display {
     padding-right: 3px;
   }
+}
+
+/* ---------- §8.5 矽上量測計畫與 DfT 清單（sections/S8Silicon.tsx） ---------- */
+/* 五欄的對照表：縮小字級與欄距，桌機（正文欄約 900 px）放得下；手機在 .table-wrap 內橫向捲動（內容真的放不下） */
+.so-plan {
+  font-size: 0.86rem;
+}
+.so-plan th,
+.so-plan td {
+  padding: 6px 7px;
+  vertical-align: top;
+}
+.so-plan th {
+  word-break: keep-all;
+}
+.so-plan td:first-child {
+  white-space: nowrap;
+  font-weight: 600;
+}
+.so-plan td {
+  min-width: 9em;
+}
+.so-plan code {
+  white-space: nowrap;
+}
+/* 手機：表格本來就要在 .table-wrap 內橫向捲動，讓每欄寬一點，列才不會因為一欄只有幾個字而拉得很高 */
+@media (max-width: 640px) {
+  .so-plan td {
+    min-width: 13em;
+  }
+}
+/* DfT 清單：兩欄卡片（手機單欄）；卡片裡只放行內公式，不放獨立公式（獨立公式在 420 px 的欄裡會比欄寬） */
+.so-dft {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+@media (max-width: 760px) {
+  .so-dft {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.so-dft-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  background: var(--surface);
+  min-width: 0;
+}
+.so-dft-item h4 {
+  margin: 0 0 4px;
+  font-size: 0.95rem;
+}
+.so-dft-item h4 code {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-left: 6px;
+}
+.so-dft-item p {
+  margin: 0;
+  font-size: 0.9rem;
 }

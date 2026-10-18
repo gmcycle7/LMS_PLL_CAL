@@ -135,4 +135,15 @@ export const FORMULAS: FormulaEntry[] = [
     specSection: '10.2',
     page: '/signoff',
   },
+  {
+    id: 'F-SO.13',
+    title: String.raw`從輸出 spur 反推 timing tone 的 peak 與單相 PHOS 殘差（F-12.18 反過來用）`,
+    tex: String.raw`\begin{aligned}&A_t=\frac{10^{\mathrm{spur}/20}}{\pi f_\text{out}\,|T(f_m)|}\\[2pt]&\delta_P=\frac{A_t}{\kappa_\text{pat}}\\[2pt]&\kappa_\text{pat}=\frac{2\sin(\pi/P)}{\pi}\\[2pt]&\quad(\text{單相 one-hot})\end{aligned}`,
+    conditions: String.raw`小角 $\beta=2\cdot10^{\mathrm{spur}/20}\ll1$（spur $\lesssim-20$ dBc；否則用 F-12.18 的 Bessel 精確式）；單邊 spur；$|T|$ 取 tone 頻率 $f_m$ 處的值——儀器量到的是經 $|T|$ 的輸出（F-12.16），不是 PD 端；$\kappa_\text{pat}$ 依 PMUX pattern 而定：$2\sin(\pi/P)/\pi$ 只對「單一相有殘差、$\alpha f_\text{ref}$ 的基波（$\ell=1$）」成立（$p[n]=\lfloor P\,\mathrm{frac}(\alpha n)\rfloor$、DTC 殘量均勻，就是 F-CS.21 的 $\sqrt{w_1}$ 乘 $2/P$；$\alpha=s/P$ 時相干加總成 $2/P$，8 相差 2.6%），多相殘差用 F-CS.21 的 DFT`,
+    claim: 'approx',
+    level: 'L4',
+    specSection: '12.4、16.2',
+    page: '/signoff',
+    units: { A_t: 'fs', spur: 'dBc', f_out: 'Hz', delta_P: 'fs', kappa_pat: '無因次' },
+  },
 ]

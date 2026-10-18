@@ -62,8 +62,7 @@ export function S3Claims() {
     <>
       <Section kind="assumptions" level={2} title="3. 何時可以宣稱穩定：每一種措辭的數學意義（規格 §16.3）" id="so-claims">
         <p>
-          規格 §0.1：不要寫「LMS 一定穩定」；必須說明是<strong>平均收斂</strong>、<strong>均方穩定</strong>、<strong>機率性有界</strong>、<strong>局部線性穩定</strong>還是<strong>全域非線性</strong>。
-          這些不是同義詞——同一個系統可以滿足其中一種而不滿足另一種。下表把每種措辭翻成數學定義，並寫出「要拿什麼證明」。
+          規格 §0.1：不要寫「LMS 一定穩定」；必須說明是<strong>平均收斂</strong>、<strong>均方穩定</strong>、<strong>機率性有界</strong>、<strong>局部線性穩定</strong>還是<strong>全域非線性</strong>。這些不是同義詞——同一個系統可以滿足其中一種而不滿足另一種。下表把每種措辭翻成數學定義，並寫出「要拿什麼證明」。
         </p>
         <div className="table-wrap">
           <table>
@@ -149,9 +148,7 @@ export function S3Claims() {
           result={String.raw`g_2(\mu)<1\ \Rightarrow\ \lambda(\mu)<0,\quad\text{但反過來不成立}`}
         />
         <p>
-          數值（即時計算）：mean 界 <Tex>{'2'}</Tex>、mean-square 界 <Tex>{tx(muMs, 6)}</Tex>、almost-sure 界 <Tex>{`\\mu_\\text{as}=${tx(muAs, 6)}`}</Tex>（數值積分 + 二分法）。
-          在 <Tex>{'\\mu=0.8'}</Tex>：<Tex>{`g_2=${tx(g08, 4)}>1`}</Tex>（均方發散）但 <Tex>{`\\lambda=${tx(lam08, 4)}<0`}</Tex>（幾乎每條路徑都收斂）。
-          這正是「200 個 seeds 都收斂，所以均方穩定」為什麼是錯的。<ClaimTag kind="exact" />
+          數值（即時計算）：mean 界 <Tex>{'2'}</Tex>、mean-square 界 <Tex>{tx(muMs, 6)}</Tex>、almost-sure 界 <Tex>{`\\mu_\\text{as}=${tx(muAs, 6)}`}</Tex>（數值積分 + 二分法）。在 <Tex>{'\\mu=0.8'}</Tex>：<Tex>{`g_2=${tx(g08, 4)}>1`}</Tex>（均方發散）但 <Tex>{`\\lambda=${tx(lam08, 4)}<0`}</Tex>（幾乎每條路徑都收斂）。這正是「200 個 seeds 都收斂，所以均方穩定」為什麼是錯的。<ClaimTag kind="exact" />
         </p>
         <ModeGate min="research">
           <Steps
@@ -222,8 +219,7 @@ export function S3Claims() {
           ariaLabel="證據強度流程圖：指定 sweep 共 n 次獨立試驗，數失效次數；零次失效用 rule of three 得失效機率上界，有失效用 Clopper-Pearson；結論只對與 sweep 同分布的條件成立，不能寫成所有條件都穩定"
         >
           <p>
-            先看藍色的兩個方塊，它們是兩種算法：沒有失效時有封閉解 <Tex>{'p_U=1-\\alpha^{1/n}\\approx-\\ln\\alpha/n'}</Tex>（<Tex>{'\\alpha=0.05'}</Tex> 時約 <Tex>{'3/n'}</Tex>）；有失效時用二項分布的 CDF 數值求解。綠色是可以寫進報告的句子，
-            紅色是常見的過度宣稱。
+            先看藍色的兩個方塊，它們是兩種算法：沒有失效時有封閉解 <Tex>{'p_U=1-\\alpha^{1/n}\\approx-\\ln\\alpha/n'}</Tex>（<Tex>{'\\alpha=0.05'}</Tex> 時約 <Tex>{'3/n'}</Tex>）；有失效時用二項分布的 CDF 數值求解。綠色是可以寫進報告的句子，紅色是常見的過度宣稱。
           </p>
         </Diagram>
         <Steps

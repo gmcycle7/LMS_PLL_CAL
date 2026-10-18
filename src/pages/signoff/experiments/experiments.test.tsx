@@ -10,7 +10,7 @@ import { MimoJudgeExperiment } from './MimoJudgeLab'
 import { PolarityPerturbExperiment } from './PolarityPerturb'
 import { SspllJacobianExperiment } from './SspllJacobian'
 
-vi.mock('plotly.js-dist-min', () => ({
+vi.mock('plotly.js-cartesian-dist-min', () => ({
   default: {
     react: vi.fn(async () => undefined),
     purge: vi.fn(),
@@ -144,7 +144,8 @@ describe('所有 preset 都能載入，且每個狀態的警告／指標／標�
     const mc = container.querySelectorAll('.c-exp-crosscheck .c-check')[1] as HTMLElement
     expect(mc.className).toContain('c-check-ok')
     const note = mc.getAttribute('title') ?? ''
-    const m = /相差 \$(-?[\d.]+(?:e[+-]?\d+)?)\$（容許 \$\\pm4\\,\\mathrm\{se\}=([\d.]+)\$）/.exec(note)
+    // title 是 accessibleText 之後的可念文字（$…$ 已轉成「正負 4 se 等於 3.6」這樣的字句）
+    const m = /相差 (-?[\d.]+(?:e[+-]?\d+)?)（容許 正負 4 se 等於 ([\d.]+)）/.exec(note)
     expect(m, note).toBeTruthy()
     expect(Math.abs(Number(m![1]))).toBeLessThanOrEqual(Number(m![2]))
     expect(Number(m![2])).toBeGreaterThan(0)
@@ -262,10 +263,10 @@ describe('其他判斷器的失效模式（解釋型警告）', () => {
     await waitFor(() => expect(mcCell().className).toContain('c-check-ok'), { timeout: 20_000 })
     const note = mcCell().getAttribute('title') ?? ''
     expect(note).toContain('near-grid FCW')
-    expect(note).toContain('$k_{95}=71$')
+    expect(note).toContain('k 95 等於 71') // title 是 accessibleText 之後的可念文字
     expect(note).toContain('8 個 seeds')
-    expect(/最差為容許值的 \$0\.\d+\$ 倍/.test(note), note).toBe(true)
-    expect(/第 \$71\$ 個 block：MC \$\|\\delta\|\/\\delta_0=[\d.]+\\pm[\d.]+\$（se），遞迴 \$0\.0\d+\$/.test(note), note).toBe(true)
+    expect(/最差為容許值的 0\.\d+ 倍/.test(note), note).toBe(true)
+    expect(/第 71 個 block：MC 絕對值（delta）除以 delta 0 等於 [\d.]+ 正負 [\d.]+（se），遞迴 0\.0\d+/.test(note), note).toBe(true)
     // 每個 preset 都有結論：d = 3、B = 20 是 ok；θ = 100° 的 corner 極性錯誤，仍用其餘穩定的 corner 比對（SS −40°C）
     for (const [name, who] of [
       ['commit latency d = 3', 'FF 125°C'],

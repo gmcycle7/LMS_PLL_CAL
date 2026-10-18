@@ -3,7 +3,7 @@ import mermaid from 'mermaid'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import * as D from './diagrams'
 import { CIRC, SIGNOFF_CHARTS } from './diagrams'
-import { centralDifference, cornerJudge, failureUpperBound, gCrit, kq, mimoJudge, negativeSignatures, polarityVerdict, slopeStdErr, spurDbc } from './judges'
+import { centralDifference, cornerJudge, failureUpperBound, gCrit, kq, mimoJudge, negativeSignatures, polarityReadoutPlan, polarityVerdict, requiredBlocks, slopeStdErr, spurDbc, timingToneFromSpur } from './judges'
 import { PILLARS } from './sections/S0Intro'
 import { hasMath, mathLabelCount, quotedLabels, renderProblems, unicodeMathInSource } from '../lab/diagramTestUtils'
 
@@ -76,7 +76,7 @@ describe('Sign-off 頁的方塊圖（真正的 mermaid）', () => {
     mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'default', suppressErrorRendering: true })
   })
 
-  it('清單：七張圖，diagrams.ts 匯出的每張圖都在清單裡，沒有重複', () => {
+  it('清單：八張圖，diagrams.ts 匯出的每張圖都在清單裡，沒有重複', () => {
     expect(SIGNOFF_CHARTS.map((c) => c.name)).toEqual([
       'CHART_SIGNOFF_FLOW',
       'CHART_FREEZE_MEASURE',
@@ -84,6 +84,7 @@ describe('Sign-off 頁的方塊圖（真正的 mermaid）', () => {
       'CHART_CORNER_JUDGE',
       'CHART_MIMO_LOOP',
       'CHART_OUTPUT_PATH',
+      'CHART_SILICON_LOOP',
       'CHART_NEGATIVE_CHECKS',
     ])
     const exported = Object.entries(D).filter(([, v]) => typeof v === 'string' && /^(flowchart|stateDiagram|sequenceDiagram)/.test(v as string))
@@ -92,7 +93,7 @@ describe('Sign-off 頁的方塊圖（真正的 mermaid）', () => {
     expect(new Set(SIGNOFF_CHARTS.map((c) => c.chart)).size).toBe(SIGNOFF_CHARTS.length)
   })
 
-  it('版面：七張都是直向（flowchart TB）。橫向（LR）的長鏈在桌機的正文欄（約 900 px）會寬出欄寬好幾倍、要橫向捲動（teaching-style §8「版面寬度」；diagram-audit 量過：TB 之後最寬 800 px）', () => {
+  it('版面：八張都是直向（flowchart TB）。橫向（LR）的長鏈在桌機的正文欄（約 900 px）會寬出欄寬好幾倍、要橫向捲動（teaching-style §8「版面寬度」；diagram-audit 量過：TB 之後最寬 800 px）', () => {
     for (const c of SIGNOFF_CHARTS) expect(c.chart, c.name).toMatch(/^flowchart TB\n/)
   })
 
@@ -321,6 +322,46 @@ describe('Sign-off 頁的方塊圖（真正的 mermaid）', () => {
     const exact = 20 * Math.log10(bessel(1, beta) / bessel(0, beta))
     expect(spurDbc(13e9, 0.5)).toBeCloseTo(20 * Math.log10(beta / 2), 10)
     expect(Math.abs(exact - spurDbc(13e9, 0.5))).toBeLessThan(1e-3)
+  })
+
+  it('矽上量測迴圈：數位側 freeze → 強制 w₀ ± Δ → 丟 settling → 讀 M 個 block → K̂、se → 判決；儀器側 spur（經 |T| 的輸出量）→ F-SO.13 反推 A_t → 和 w* 比對；兩個出口都回到下一個 channel', async () => {
+    const g = await flow(D.CHART_SILICON_LOOP)
+    const chain: [string, string][] = [['SEL', 'FRZ'], ['FRZ', 'DISC'], ['DISC', 'RD'], ['RD', 'EST'], ['EST', 'V'], ['V', 'REL'], ['V', 'KO'], ['REL', 'SA'], ['SA', 'INV'], ['INV', 'OK'], ['OK', 'NEXT'], ['KO', 'NEXT'], ['NEXT', 'SEL']]
+    for (const [a, b] of chain) expect(hasEdge(g, a, b), `${a} → ${b}`).toBe(true)
+    expect(g.vertices.find((v) => v.id === 'V')?.type).toBe('diamond')
+    expect(edgeText(g, 'V', 'REL')).toBe('是')
+    expect(edgeText(g, 'V', 'KO')).toBe('否')
+    // 通過的出口只能從「反推、比對」來；失敗的出口不接儀器量測（keep-out／反相 q 之前不用量 spur）
+    expect(g.edges.filter((e) => e.end === 'OK').map((e) => e.start)).toEqual(['INV'])
+    expect(g.edges.filter((e) => e.start === 'KO').map((e) => e.end)).toEqual(['NEXT'])
+    // 圖上的公式與頁面一致：Δ ≤ 0.3σ_v（F-SO.2）、M 的下限（F-SO.3）、K̂ 與 se（F-SO.1／F-SO.3）、判決、反推（F-SO.13）
+    expect(node(g, 'FRZ')).toContain(R`$w = w_0 \pm \Delta$`)
+    expect(node(g, 'FRZ')).toContain(R`$\Delta \le 0.3\,\sigma_v$`)
+    expect(node(g, 'RD')).toContain(R`$M \ge z^2/(2N\Delta^2K^2)$`)
+    expect(node(g, 'EST')).toContain(R`$\hat K = -(\bar G_+ - \bar G_-)/(2\Delta)$`)
+    expect(node(g, 'EST')).toContain(R`$\mathrm{se} = \sigma_\eta/(\Delta\sqrt{2M})$`)
+    expect(node(g, 'V')).toContain(R`$\hat K - z\cdot\mathrm{se} \gt 0$`)
+    expect(node(g, 'SA')).toContain(R`$\alpha f_{\mathrm{ref}}$`)
+    expect(node(g, 'SA')).toContain('不是 PD 端') // 技術審查的提醒：儀器量到的是經 |T| 的輸出量
+    expect(node(g, 'INV')).toContain(R`$A_t = 2\cdot10^{\mathrm{spur}/20}/(2\pi f_{\mathrm{out}}\lvert T\rvert)$`)
+    expect(node(g, 'INV')).toContain('F-SO.13')
+    expect(node(g, 'KO')).toContain('keep-out')
+    // 圖上沒有 sample 速率的 [n]（block 平均與暫存器讀出）；沒有特定晶片的名稱
+    expect(D.CHART_SILICON_LOOP).not.toMatch(/\[n\]/)
+    expect(D.CHART_SILICON_LOOP).toMatch(/class OK ok/)
+    expect(D.CHART_SILICON_LOOP).toMatch(/class KO warn/)
+    expect(D.CHART_SILICON_LOOP).toMatch(/class SA alt/)
+    // 數值：§8.5 表格的那一組（σ_v = 200 fs ⇒ Δ = 60 fs、C = 0.1、N = 1024、z = 3 ⇒ 每側 8 個 block）；圖上的 M 下限就是 requiredBlocks
+    const plan = polarityReadoutPlan({ sigmaV: 200, deltaRatio: 0.3, C: 0.1, N: 1024, fRefHz: 100e6, z: 3 })
+    expect(plan.delta).toBe(60)
+    expect(plan.M).toBe(8)
+    expect(plan.M).toBe(requiredBlocks(kq(200) * 0.1, 60, 1024, 3))
+    expect(plan.M).toBe(Math.max(1, Math.ceil(9 / (2 * 1024 * 60 ** 2 * (kq(200) * 0.1) ** 2))))
+    expect(plan.tMeasS).toBeCloseTo(2 * 8 * (1024 / 100e6), 15)
+    // 反推：−60 dBc @ 13 GHz、|T| = 1 ⇒ A_t = 2·10^(−3)/(2π·13e9) = 24.485 fs；再乘 |T| = 0.1 的帶外情況是 10 倍
+    expect(timingToneFromSpur(13e9, -60, 1)).toBeCloseTo((2e-3 / (2 * Math.PI * 13e9)) * 1e15, 9)
+    expect(timingToneFromSpur(13e9, -60, 0.1)).toBeCloseTo(10 * timingToneFromSpur(13e9, -60, 1), 9)
+    expect(spurDbc(13e9, timingToneFromSpur(13e9, -60, 1))).toBeCloseTo(-60, 12)
   })
 
   it('反面測試：公式與獨立 Monte Carlo 兩條路徑交叉比對；漏掉平方的 √(1 − p) 版本的 σ_w 比正確版本大 √(1 + p) 倍', async () => {

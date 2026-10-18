@@ -793,3 +793,97 @@ describe('證據強度與穩定性語意', () => {
     expectGolden(vec('T15'), 'spur_dbc', J.spurDbc(13e9, 0.5))
   })
 })
+
+describe('§8.5 矽上量測計畫：spur 反推與讀出計畫', () => {
+  it('timingToneFromSpur 是 spurDbc 的反函數（|T| = 1），|T| 只是除回去；T15 的 0.5 fs @ 13 GHz 來回一致', () => {
+    for (const [f, at] of [[13e9, 0.5], [13e9, 24.485], [4e9, 3], [20e9, 0.01]] as [number, number][]) {
+      expect(J.timingToneFromSpur(f, J.spurDbc(f, at), 1)).toBeCloseTo(at, 9)
+      expect(J.spurDbc(f, J.timingToneFromSpur(f, -60, 1))).toBeCloseTo(-60, 12)
+    }
+    // 封閉式：A_t = 2·10^(spur/20)/(2π f_out |T|)，單位 fs
+    expect(J.timingToneFromSpur(13e9, -60, 1)).toBeCloseTo((2e-3 / (2 * Math.PI * 13e9)) * 1e15, 9)
+    expect(J.timingToneFromSpur(13e9, -60, 1)).toBeCloseTo(24.485, 3)
+    expect(J.timingToneFromSpur(13e9, -60, 0.5)).toBeCloseTo(2 * J.timingToneFromSpur(13e9, -60, 1), 12)
+    // 每 20 dB 一個數量級；f_out 加倍 ⇒ 同樣 spur 對應一半的 A_t
+    expect(J.timingToneFromSpur(13e9, -40, 1) / J.timingToneFromSpur(13e9, -60, 1)).toBeCloseTo(10, 12)
+    expect(J.timingToneFromSpur(26e9, -60, 1) / J.timingToneFromSpur(13e9, -60, 1)).toBeCloseTo(0.5, 12)
+    // one-hot 單相殘差：α = s/P（p[n] = sn mod P、DTC 殘量固定）時 P 點 DFT 的每個 mode 複數振幅 δ_P/P、實數 peak 2/P；
+    // 分數頻道的 κ_pat 是它再乘 √w₁ = P sin(π/P)/π（案例頁 F-CS.21），見下一個測試
+    expect(J.oneHotPatternFactor(8)).toBeCloseTo((2 * Math.sin(Math.PI / 8)) / Math.PI, 15)
+    expect(J.oneHotPatternFactor(8)).toBeCloseTo(0.24362, 5)
+    expect(J.oneHotPatternFactor(16)).toBeCloseTo(0.12420, 5)
+    for (const P of [4, 8, 16]) {
+      const ind: number[] = Array.from({ length: P }, (_, n) => (n % P === 2 ? 1 : 0)) // 第 2 相 one-hot、p[n] = n mod P
+      for (let m = 1; m < P / 2; m++) {
+        let re = 0
+        let im = 0
+        for (let n = 0; n < P; n++) {
+          re += ind[n] * Math.cos((2 * Math.PI * m * n) / P)
+          im -= ind[n] * Math.sin((2 * Math.PI * m * n) / P)
+        }
+        const complexAmp = Math.hypot(re, im) / P // (1/P)·Σ：複數振幅 δ_P/P
+        expect(complexAmp).toBeCloseTo(1 / P, 12)
+        expect(2 * complexAmp).toBeCloseTo(2 / P, 12) // 實數 tone 的 peak 是兩倍：相干加總的 2/P
+        expect(J.oneHotPatternFactor(P)).toBeCloseTo(2 * complexAmp * ((P * Math.sin(Math.PI / P)) / Math.PI), 12) // (2/P)·√w₁
+      }
+      expect(ind.reduce((a, b) => a + b, 0) / P).toBeCloseTo(1 / P, 12) // m = 0 就是平均值（佔空比）
+    }
+  })
+
+  it('oneHotPatternFactor：分數頻道（p[n] = ⌊P·frac(αn)⌋，殘量交給 DTC）時 α·f_ref 那一根的 peak 是 2sin(π/P)/π 倍的 δ_P——時域直接投影驗證（8 相 0.24362 = (2/P)·√w₁，和案例頁 F-CS.21 一致）；只有 α = 1/P 才是 2/P；第 ℓ 條線是 2|sin(πℓ/P)|/(πℓ)', () => {
+    // 時域：one-hot 指示序列投影到 e^{-j2πℓαn}，實數 peak = 2|投影|/L（L 夠長時其他譜線的洩漏 < 1e-3）
+    const peakAt = (alpha: number, P: number, j: number, ell: number, L: number) => {
+      let re = 0
+      let im = 0
+      for (let n = 0; n < L; n++) {
+        if (Math.floor(((alpha * n) % 1) * P) === j) {
+          re += Math.cos(2 * Math.PI * ell * alpha * n)
+          im -= Math.sin(2 * Math.PI * ell * alpha * n)
+        }
+      }
+      return (2 * Math.hypot(re, im)) / L
+    }
+    for (const P of [4, 8, 16]) {
+      const k = J.oneHotPatternFactor(P)
+      expect(k).toBeCloseTo((2 * Math.sin(Math.PI / P)) / Math.PI, 15)
+      expect(k).toBeLessThan(2 / P)
+      for (const alpha of [Math.SQRT2 - 1, 0.021]) expect(Math.abs(peakAt(alpha, P, 2, 1, 200_000) - k), `P=${P} α=${alpha}`).toBeLessThan(2e-3)
+      expect(peakAt(1 / P, P, 2, 1, 10_000)).toBeCloseTo(2 / P, 9) // α = 1/P：p[n] = n mod P，ℓ ≡ 1 的線相干加總成 2/P
+      // 第 ℓ 條線（frac(ℓα)·f_ref）：2|sin(πℓ/P)|/(πℓ)；ℓ = P 是 DC 以外的零點
+      for (const ell of [2, 3, P - 1]) expect(Math.abs(peakAt(Math.SQRT2 - 1, P, 2, ell, 200_000) - J.oneHotPatternFactor(P, ell)), `P=${P} ℓ=${ell}`).toBeLessThan(2e-3)
+      expect(J.oneHotPatternFactor(P, P)).toBeCloseTo(0, 12)
+    }
+    // §8.5 的數字：8 相、−60 dBc @ 13 GHz、|T| = 1 ⇒ δ_P = 24.485/0.24362 = 100.50 fs（2/P 會少算 2.6%）
+    expect(J.timingToneFromSpur(13e9, -60, 1) / J.oneHotPatternFactor(8)).toBeCloseTo(100.5048, 3)
+    expect(20 * Math.log10((2 / 8) / J.oneHotPatternFactor(8))).toBeCloseTo(0.2244, 3)
+  })
+
+  it('polarityReadoutPlan：Δ = r·σ_v、K = K_q·C、M = requiredBlocks、se 與 z_expected 一致、時間 = 2M·N/f_ref；C = 0 ⇒ M = ∞', () => {
+    const p = J.polarityReadoutPlan({ sigmaV: 200, deltaRatio: 0.3, C: 0.1, N: 1024, fRefHz: 100e6, z: 3 })
+    expect(p.delta).toBe(60)
+    expect(p.Kq).toBe(J.kq(200))
+    expect(p.K).toBe(J.kq(200) * 0.1)
+    expect(p.sigmaEta).toBe(1 / 32)
+    expect(p.M).toBe(8)
+    expect(p.M).toBe(J.requiredBlocks(p.K, 60, 1024, 3))
+    expect(p.se).toBe(J.slopeStdErr(60, 1024, 8))
+    expect(p.zExpected).toBeCloseTo(p.K / p.se, 12)
+    expect(p.zExpected).toBeGreaterThanOrEqual(3)
+    expect(p.K / J.slopeStdErr(60, 1024, 7)).toBeLessThan(3)
+    expect(p.tBlockS).toBeCloseTo(10.24e-6, 15)
+    expect(p.tMeasS).toBeCloseTo(163.84e-6, 15)
+    // C 變號：M 不變（只看 |K|）、K 變號、z_expected 仍為正（|K|/se）
+    const n = J.polarityReadoutPlan({ sigmaV: 200, deltaRatio: 0.3, C: -0.1, N: 1024, fRefHz: 100e6, z: 3 })
+    expect(n.M).toBe(8)
+    expect(n.K).toBeCloseTo(-p.K, 15)
+    expect(n.zExpected).toBeCloseTo(p.zExpected, 12)
+    // 不可辨識
+    const z = J.polarityReadoutPlan({ sigmaV: 200, deltaRatio: 0.3, C: 0, N: 1024, fRefHz: 100e6, z: 3 })
+    expect(z.M).toBe(Infinity)
+    expect(z.tMeasS).toBe(Infinity)
+    expect(z.zExpected).toBe(0)
+    // M ∝ 1/(C²Δ²N)：C 減半 ⇒ 約 4 倍（整數進位）；N 4 倍 ⇒ 約 1/4
+    expect(J.polarityReadoutPlan({ sigmaV: 200, deltaRatio: 0.3, C: 0.05, N: 1024, fRefHz: 100e6, z: 3 }).M).toBe(31)
+    expect(J.polarityReadoutPlan({ sigmaV: 200, deltaRatio: 0.3, C: 0.1, N: 4096, fRefHz: 100e6, z: 3 }).M).toBe(2)
+  })
+})

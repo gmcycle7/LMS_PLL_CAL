@@ -52,14 +52,12 @@ function useIllustrations(): Record<number, ReactNode> {
       ),
       6: (
         <p>
-          <Tex>{'x\\in\\{-2,\\dots,2\\}'}</Tex> 等機率、<Tex>{'a=1'}</Tex>、<Tex>{'c_3=0.1'}</Tex>：MSE-LMS 固定點 <Tex>{tx(wMse, 6)}</Tex>，無雜訊 Sign-Error 固定點 <Tex>{tx(wSign, 6)}</Tex>（<Tex>{'|x|'}</Tex> 加權中位數）。
-          同一個 INL、兩種演算法、兩個答案。<ErratumTag id="E01" />
+          <Tex>{'x\\in\\{-2,\\dots,2\\}'}</Tex> 等機率、<Tex>{'a=1'}</Tex>、<Tex>{'c_3=0.1'}</Tex>：MSE-LMS 固定點 <Tex>{tx(wMse, 6)}</Tex>，無雜訊 Sign-Error 固定點 <Tex>{tx(wSign, 6)}</Tex>（<Tex>{'|x|'}</Tex> 加權中位數）。同一個 INL、兩種演算法、兩個答案。<ErratumTag id="E01" />
         </p>
       ),
       7: (
         <p>
-          <Tex>{'\\mathbf R=\\begin{bmatrix}1&0.99\\\\0.99&1\\end{bmatrix}'}</Tex>：<Tex>{`\\lambda=${tx(ev[0], 5)},\\ ${tx(ev[1], 5)}`}</Tex>，PE 成立（<Tex>{'\\lambda_{\\min}>0'}</Tex>），
-          但完整 preconditioning 時慢模式的雜訊是快模式的 <Tex>{tx(ev[0] / ev[1], 5)}</Tex> 倍。
+          <Tex>{'\\mathbf R=\\begin{bmatrix}1&0.99\\\\0.99&1\\end{bmatrix}'}</Tex>：<Tex>{`\\lambda=${tx(ev[0], 5)},\\ ${tx(ev[1], 5)}`}</Tex>，PE 成立（<Tex>{'\\lambda_{\\min}>0'}</Tex>），但完整 preconditioning 時慢模式的雜訊是快模式的 <Tex>{tx(ev[0] / ev[1], 5)}</Tex> 倍。
         </p>
       ),
       8: (
@@ -94,8 +92,7 @@ export function S6Limits() {
   return (
     <Section kind="assumptions" level={2} title="10. 附錄 B：數學與工程上的十項關鍵限制" id="so-limits">
       <p>
-        這十項是 sign-off 報告的「假設與限制」章節範本：每一項寫出它在數學上是什麼、在簽核時要怎麼處理、本站哪裡有對應的實驗。
-        報告中若某一項沒有處理，就應該在對應的 Matrix 項目寫明「豁免」與理由。
+        這十項是 sign-off 報告的「假設與限制」章節範本：每一項寫出它在數學上是什麼、在簽核時要怎麼處理、本站哪裡有對應的實驗。報告中若某一項沒有處理，就應該在對應的 Matrix 項目寫明「豁免」與理由。
       </p>
       <div className="so-limits">
         {LIMITATIONS.map((l) => (

@@ -195,6 +195,7 @@ export const TOC: { id: string; label: string }[] = [
   { id: 'so-fixed', label: '6. 非線性與定點' },
   { id: 'so-mimo', label: '7. 多參數' },
   { id: 'so-strategy', label: '8. 校正策略與輸出' },
+  { id: 'so-silicon', label: '8.5 矽上量測計畫與 DfT' },
   { id: 'so-negative', label: '9. 反面測試（§17）' },
   { id: 'so-limits', label: '10. 附錄 B 十項限制' },
   { id: 'so-wrap', label: '11. 思考題與必記' },
