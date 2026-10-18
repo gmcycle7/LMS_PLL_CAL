@@ -79,15 +79,16 @@ jsdom 量不到版面，所以改了畫面（版面、CSS、方塊圖、公式�
 
 - **方塊圖**：16 個章節頁共 408 張（每頁 20–38 張，含章首的系統地圖），參考頁（Dashboard、Models、Verification、Lab、Workbook、Gallery、Sign-off、Formulas、Papers、Roadmap）另有 43 張；數量是 Research 模式、展開所有收合區塊後，以 `scripts/diagram-audit.mjs` 逐頁實測的結果（Beginner／Engineer 模式下較少）。每張都對照該章公式審查過訊號名稱、箭頭方向與加法點的正負號，並在測試中以真正的 Mermaid 渲染。
 - **架構約定**（[docs/assumptions.md](docs/assumptions.md) §2a）：DTC 在 reference 輸入端（`Reference clock → DTC → Phase detector`），回授路徑上只有 divider／PMUX（`VCO → Divider → Phase detector`）；LMS 校正迴路的輸入是 PD 的輸出 `e[n]`，也就是送進 loop filter 的同一個節點。全站的方塊圖與文字都照這個接法；`e[n] = (a − w)·x[n] + v[n]` 與所有模型、手算數字、golden vector 不變。
-- **帶入手算**：161 題，每題的數值來自實際的模擬函式，並由獨立的 Python 重算驗證過每一步；「手算練習簿」可隨機出題、統計答對率、列印附詳解的練習卷。
+- **帶入手算**：164 題，每題的數值來自實際的模擬函式，並由獨立的 Python 重算驗證過每一步；「手算練習簿」可隨機出題、統計答對率、列印附詳解的練習卷。
 - **學習模式**：Beginner／Engineer／Research 共用同一計算核心，只改變呈現深度。
-- **可追溯性**：384 條公式有 ID 並彙整在 Formula 頁（分佈在 24 個頁面；精確／近似／研究假說的條數由 Formula 頁的簡介即時顯示）；218 個 preset 可由 Gallery 載入；每個實驗可下載 JSON／CSV／HTML 報告（含 seed、版本、假設）。
+- **站內搜尋**：頂列的 🔍 鈕（快捷鍵 `/`、⌘K／Ctrl+K）可搜尋公式、章節、實驗 preset、勘誤、術語與手算題；索引在第一次開啟時才載入。
+- **可追溯性**：388 條公式有 ID 並彙整在 Formula 頁（分佈在 24 個頁面；精確／近似／研究假說的條數由 Formula 頁的簡介即時顯示）；218 個 preset 可由 Gallery 載入；每個實驗可下載 JSON／CSV／HTML 報告（含 seed、版本、假設）。
 
 ## 驗證狀態（2026-10-12）
 
 | 項目 | 結果 |
 |---|---|
-| TypeScript 測試（Vitest） | 223 個檔案、5,553 項，全部通過（2026-10-12 外部技術審查修正後重跑） |
+| TypeScript 測試（Vitest） | 257 個檔案、6,153 項，全部通過（2026-10-19 wave 2 重跑） |
 | Python golden（pytest） | `golden/` 149 項 + `analysis/sspll/golden/` 64 項，全部通過 |
 | T01–T18（TS 與 Python 兩邊都要過才算 verified） | 18／18 pass |
 | 規格書驗算 | 237 項聲明重算，確認 49 項勘誤（[docs/validation.md](docs/validation.md)），網站一律採用修正版本 |

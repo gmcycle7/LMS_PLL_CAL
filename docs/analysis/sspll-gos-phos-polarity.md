@@ -1376,3 +1376,45 @@ $$
 | `src/data/sspll/pred_vs_sim.json` | 預測與模擬的對照、計數、LMS 軌跡 |
 
 背景研究（輸入資料，本文已逐項重算或比對）：`analysis/sspll/{loops,regressors,sim,reconcile,challenge_math,challenge_physics}`。
+
+---
+
+## 21. 補充（2026-10-16）：殘餘誤差 → 輸出 spur／jitter（頁面 §15.4、F-CS.21–23、HC-CS.9、實驗 C 的 spur 表）
+
+§10.5 的表只給 PD 端的殘差（fs）。sign-off 量的是 PLL 輸出的 spur 與 phase noise，所以補上「校準停下來之後輸出長什麼樣」。所有數字由 `src/simulation/models/sspll.ts` 的 `residualLineSpectrum`、`phosSteadyState`、`spurDbcFromToneFs`、`runSspllLmsWithSpectrum` 算出，`sspll.test.ts`、`outputSpur.test.tsx`、`handcalcs.test.tsx` 以純 Python（`python3 -I`，不用 numpy）的獨立重算核對；另以 NumPy 2.4 直接用 `params.json` 的 $K_p$、$K_i$ 建 $T=b_L/(a_L+b_L)$ 重算 §21.1–21.2 的每個數字（$\lvert T(80\ \mathrm{MHz})\rvert=1.240206$、$T_{peak}=2.1275$ dB、HC-CS.9、單線表、PVT 角落、F-CS.23、variance 條件），全部一致。
+
+### 21.1 PHOS 殘差 → 譜線（F-CS.21）
+
+凍結後注入點的 PHOS 誤差 $e[n]=\sum_k\delta_k\mathbf 1\{p[n]=k\}$，$\delta_k=\varepsilon_k-w_k$。8 點 DFT（$1/8$ 正規化）$\hat\delta_m=\tfrac18\sum_k\delta_ke^{-j2\pi mk/8}$ 把它寫成 $e[n]=\sum_m\hat\delta_m e^{j2\pi m\,p[n]/8}$；階梯弦波對 $\varphi$ 展開
+
+$$e^{j2\pi m\,p[n]/8}=\sum_{\ell\equiv m\,(8)}b_\ell\,e^{j2\pi\ell\alpha n},\qquad b_\ell=\frac{8\,(1-e^{-j2\pi\ell/8})}{j2\pi\ell},\qquad \lvert b_\ell\rvert^2=w_\ell=\frac{64\sin^2(\pi\ell/8)}{\pi^2\ell^2},$$
+
+與 §8.1 的 $w_\ell$ 相同，$\sum_{\ell\equiv m}w_\ell=1$。$\ell$ 與 $-\ell$ 成對 ⇒ 在 $\mathrm{frac}(\ell\alpha)f_{ref}$ 一條實數 tone，peak $A_\ell=2\lvert\hat\delta_m\rvert\sqrt{w_\ell}$（$m=\ell\bmod8$）。Parseval：$\sum_{m\ne0}\lvert\hat\delta_m\rvert^2=\tfrac18\sum_k(\delta_k-\bar\delta)^2$ 就是 §10.5 的 PHOS rms$^2$；$m=0$ 只有 DC（靜態相位）。
+
+輸出端：$y=T*u=u-e_{PD}$（$T=1-H_{PD}$），$A_{out,\ell}=\lvert T(f_\ell)\rvert A_\ell$；輸出相位峰值 $\Phi_\ell=2\pi f_{vco}A_{out,\ell}$（Ch12 F-12.16 的調變指數，那裡寫 $\beta$；本文的 $\beta$ 是 $\mathrm{frac}(8\alpha)$），單邊 spur $\approx20\log_{10}(\Phi_\ell/2)$（T15 的小角 PM：13 GHz、0.5 fs、$\lvert T\rvert=1$ ⇒ $-93.80$ dBc，`spurDbcFromToneFs` 與 Ch12 的 `spurBeta`／`spurDbcSmallAngle` 是同一條式子）。積分 jitter $\sigma_{t,out}^2=\sum_\ell A_{out,\ell}^2/2$。
+
+GOS（F-CS.22）：$u_{GOS}=(1-\mathrm{gain})\Delta\,\rho[n]$，§7.1 的鋸齒級數 ⇒ 第 $m$ 次諧波在 $\mathrm{frac}(m\beta)f_{ref}$，peak $\lvert\delta_g\rvert\Delta/(\pi m)$（$\lvert\delta_g\rvert\Delta$ 就是 §14 的「GOS 誤差」）。
+
+**有理 $\alpha$ 的兩個細節**（實驗 C 的預設 $\alpha=0.02=1/50$ 就是）：(a) $\ell$ 與 $\ell\pm Q$ 的線重合，要相干相加（係數 $\hat\delta_mb_\ell e^{j2\pi\ell\alpha n_0}$，折頻 $f_0>\tfrac12$ 時取共軛，Nyquist 只剩實部）；(b) 取樣剛好落在 PMUX 相位邊緣（$8\varphi[n]$ 為整數，$\alpha=1/50$ 時每 25 拍一次）時，one-hot 與鋸齒的 Fourier 級數在那些樣本收斂到跳變的中點，$\ell$ 級數不再精確——$k=1$ 的線差 9%。所以 `residualLineSpectrum` 對週期序列（$\alpha$ 的最簡分數近似 $P/Q$、$Q\le65{,}536$、在 65,536 拍內相位偏差 $<10^{-3}$ 週）的前 24 條線直接取一個週期的精確 Fourier 係數（$\ell$ 級數的值留在 `seriesAmpPdFs` 供對照），無理數 $\alpha$ 沒有邊緣樣本、級數本身精確。核對：$\alpha=1/50$、$\delta=[-2.8,-1.4,-2.6,7.6,-4.1,4.4,1.0,-2.2]$、$G=1.5$ fs 的精確週期 DFT $k=1..6$：2.157677、1.525954、2.849827、2.686968、1.519334、0.291329 fs（純 Python），TS 相同到 $10^{-6}$。
+
+**插圖數字**（L2、$\alpha=0.02$、$f_{vco}=16$ GHz）：一階差分收斂到 6.179 fs（§10.5 印成 6.2）；殘差全在 mode 1 時 $\lvert\hat\delta_1\rvert=4.369$、$A_1=\sqrt{2W_1}\,\mathrm{rms}=1.3781\times6.179=8.516$ fs，$\lvert T(80\ \mathrm{MHz})\rvert=1.2402$（帶內、在 peaking 區），$A_{out}=10.56$ fs，$\Phi=1.06\times10^{-3}$ rad，spur $=-65.5$ dBc；$\ell=-7$（560 MHz）$-91.8$ dBc、$\ell=9$（720 MHz）$-95.9$ dBc；GOS 1.056 fs 的基波（640 MHz）$-104$ dBc。輸出積分 jitter 7.49 fs（PHOS 7.49、GOS 0.11）。HC-CS.9（rms 6.2、$\lvert T\rvert$ 1.2402、peaking 2.13 dB）：$A_{out}=10.5969$ fs、spur $-65.471$ dBc、以峰值 peaking 估的 PVT 最壞情況 $-65.211$ dBc；validate 另外要求 $T_{peak}\ge20\log_{10}\lvert T(f_{rot})\rvert$（峰值是整條曲線的最大值；否則 $\mathrm{spur}_{max}$ 會比 spur 小）。對照：raw 的發散值 28.39 ps（golden `L2|0.02|raw`）代進同一條單線公式得 $\Phi=4.88$ rad（$\ge0.3$，小角 PM 不成立；28 ps 也已超過 $\Delta=7.81$ ps 的 DTC 範圍）——頁面寫成「$\Phi\approx4.9$ rad，是 DTC 飽和」（審查前誤寫為 $\approx1$ rad；實驗 C 跑 1500 blocks 時 raw 只發散到約 6 ps，凍結後最強的線 $\Phi\approx1.05$ rad，那是另一個數字）。
+
+**PVT 角落**（$K_p$、$K_i$ 同乘 $g$，與 `params.json` 的 `sensitivity.L2_gain*` 同定義：$f_{3dB}$ 204.70／260.29／320／402.94／498.77 MHz）：$\lvert T(80\ \mathrm{MHz})\rvert$ = 1.399／1.303／1.240／1.190／1.156（spur 位移 +1.05／+0.43／0／−0.36／−0.61 dB）；$\lvert T(548\ \mathrm{MHz})\rvert$ = 0.247／0.338／0.431／0.547／0.659（−4.8／−2.1／0／+2.1／+3.7 dB）。帶內頻道只動 ±1 dB，帶外頻道在 gain ×1.5 多進來 3.7 dB。
+
+### 21.2 校準還在跑時的權重雜訊（F-CS.23）
+
+GMAC 的 block 雜訊 $\eta_k=\tfrac1N\sum_nq\,r_k-E[\cdot]$，$q=\pm1$ 在 block 內獨立 ⇒ $\mathrm{cov}(\eta_k,\eta_j)=\tfrac1N\langle r_kr_j\rangle=\tfrac1Nc[(j-k)\bmod8]$（circulant）。DFT 對角化：$E\lvert\hat\eta_m\rvert^2=S_m/(8N)$，$S_m=\sum_dc[d]e^{-j2\pi md/8}$。raw one-hot：$c=[\tfrac18,0,\dots]$、$S_m=\tfrac18$；一階差分、$\alpha<\tfrac18$：$c[0]=2\alpha$、$c[\pm1]=-\alpha$ ⇒ $S_m=4\alpha\sin^2(\pi m/8)$（$\alpha=0.02$：$S_1$ 只有 raw 的 0.094 倍；模擬量到的 $c[d]$ 與此一致）。每個模態一條 Ch12 F-12.3／F-12.4 的一階遞迴 $\hat\theta_{m,k+1}=p_m\hat\theta_{m,k}+\mu_p\hat\eta_{m,k}$，$p_m=1-\kappa_m/N_\tau$（複數；$N_\tau=8/(\mu_pK_q)$ 用實際步長，$K=K_q\lambda_m=K_q\kappa_m/8$）：
+
+$$\sigma^2_{\theta,m}=\frac{\mu_p^2\,S_m/(8N)}{1-\lvert p_m\rvert^2},\qquad \mathrm{rms}^2_{PHOS}=\sum_{m=1}^{7}\sigma^2_{\theta,m}\ \xrightarrow{\text{raw},\ \kappa/N_\tau\ll1}\ \sum_{m=1}^{7}\frac{\pi\sigma_v^2}{4NN_\tau\,\mathrm{Re}\,\kappa_m}.$$
+
+數字（$\sigma_v=200$ fs、$N=512$、$N_\tau=25$、raw、$\kappa=1$）：$\sigma_{\theta,m}=1.5825$ fs（小步長閉合式 1.5666），7 個合計 4.187 fs。對照：raw、$\alpha=0.137$ 預測 3.95 fs（golden 6000 blocks 後的最終值 3.6 fs，一次抽樣）；1diff、$\alpha=0.02$（$\mathrm{Re}\,\kappa_1=0.091$，最慢模態時間常數 88 blocks）預測 7.24 fs（golden 6.2）。TS 模擬後半段所有 lane 的 rms$^2$ 平均（4 lanes、seed 3）／預測：2000 blocks 時 raw 0.137 比 1.007、1diff 0.137 比 0.993、1diff 0.02 比 1.014、fx 0.02 比 0.994；8000 blocks 時 1.014、1.014、1.012、0.986——都在 1.5% 內（`sspll.test.ts` 以 2000 blocks、門檻 10% 守住）。**【近似｜需驗證】**（Bussgang、$\hat\eta$ 白色；只在 TS 模擬上核對，沒有 golden 的對應）。
+
+variance 條件：mode-1 的雜訊 spur $\approx20\log_{10}(\pi f_{vco}\lvert T\rvert\cdot2\sqrt{W_1}\,\sigma_{\theta,1})$，raw、$\kappa=1$、80 MHz 給 $-74.3$ dBc；要壓到 $-80$ dBc 需 $\sigma_{\theta,1}\le0.82$ fs，即 $NN_\tau\ge4.6\times10^4$ 拍（預設 12,800 的 3.6 倍），或校準完就凍結權重。這對應 roadmap 的 variance（$\sigma_w$）、bias（凍結後的殘差）、system（$\lvert T\rvert$ 把 PD 端的數字搬到輸出端）三格。
+
+### 21.3 實驗 C 的擴充（`runSspllLmsWithSpectrum`）
+
+前半段與 `runSspllLms` 逐拍相同（同 seed 相同軌跡，`sspll.test.ts` 逐欄比對）；跑完 `nBlocks` 之後把 lane 0 的權重凍結（LMS 關閉、不抽雜訊）再跑 65,536 拍（128 個 $N=512$ 的 block；Worker 時間約多 0.25–0.4 s／case：預設的三個 case 由約 0.9–1.1 s 變成 1.6–2.3 s，vite-node 量測），記下 $y=u-e_{PD}=T*u$：Welch（Blackman–Harris、8192 點、50% 重疊 ⇒ 15 段、$\Delta f=0.49$ MHz）→ $\mathcal L(f)$ 與 findTones；在閉合式譜線的精確頻率做 toneFit。凍結後的輸出是確定性的多音訊號，閉合式（精確週期係數）與 toneFit 在前 8 條線差 $<10^{-4}$，閉合式積分 jitter＝時域 rms＝Welch 積分（$<0.1\%$）。頁面把它列成 spur 表（raw／1diff／fx 並排）與線譜圖，交叉比對欄多了「spur 表（門檻 0.2 dB）」與「穩態 PHOS rms vs F-CS.23（容許 50%，只在無 offset、$\lvert p_m\rvert<1$、模擬長度 $\ge12$ 倍最慢模態時間常數時比）」。$\Phi\ge0.3$ rad 的線（raw 發散的 28 ps）小角 PM 不成立，dBc 只當參考。
+
+### 21.4 沒有涵蓋
+
+線性化的 $T$（沒有 SSPD 正弦非線性、cycle slip）；reference spur（$kf_{ref}$ 偏移）；VCO 本身的 phase noise；PMUX offset 的 PVT 時變；校準還在跑時譜線旁的裙邊（頻寬約 $f_{ref}/(2\pi NN_\tau)\approx50$ kHz，比頻譜儀的 RBW 窄，看到的仍是一根 spur）。

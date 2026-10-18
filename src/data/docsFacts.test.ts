@@ -156,7 +156,7 @@ describe('docs/dev-conventions.md §8：審查腳本都有寫、腳本會讀的�
 
   it('「改了畫面要附上的檢查」的約定與升級渲染相關套件時的前後對照都寫在 §8', () => {
     expect(section).toContain('改了畫面的 PR 要附上這些檢查的結果')
-    expect(section).toContain('升級 `mermaid`、`katex`、`plotly.js-dist-min`')
+    expect(section).toContain('升級 `mermaid`、`katex`、`plotly.js-cartesian-dist-min`')
   })
 })
 
