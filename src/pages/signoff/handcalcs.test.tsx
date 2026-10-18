@@ -9,6 +9,7 @@ import { CORNER_JUDGE_DEFAULT } from './experiments/CornerJudge'
 import { SSPLL_DEFAULT } from './experiments/SspllJacobian'
 import { FORMULAS } from './formulas'
 import { HANDCALCS, handcalc } from './handcalcs'
+import { SILICON_EXAMPLE } from './sections/S8Silicon'
 import * as J from './judges'
 
 const ROOT = process.cwd()
@@ -79,6 +80,24 @@ const INDEPENDENT: Record<string, (v: Record<string, number>) => number[]> = {
     while (Math.pow(1 - pMax, nNeed) > alpha * (1 + 1e-12)) nNeed++
     return [-Math.expm1(Math.log(alpha) / n), nNeed]
   },
+  'HC-SO.5': ({ sigmaV, r, C, N, fRef, zt }) => {
+    const delta = r * sigmaV
+    const K = (SQ / sigmaV) * C
+    const zOf = (m: number) => Math.abs(K) * delta * Math.sqrt(2 * m * N)
+    // 不用 ⌈·⌉：直接找「z(M') ≥ z_t 的最小整數 M'」
+    let mMin = Math.max(1, Math.floor((zt / zOf(1)) ** 2) - 2)
+    while (zOf(mMin) < zt * (1 - 1e-12)) mMin++
+    // 時間：一個 block 是 N 個 reference 週期；兩側各 M 個 block；以 µs 表示（f_ref 以 MHz 輸入）
+    return [delta, K, mMin, (2 * mMin * N) / fRef]
+  },
+  'HC-SO.6': ({ spur, fOut, tDb, P }) => {
+    // 正向：spur = 20log10(π f_out |T| A_t)（T15 的形式）；反過來直接解 A_t，不經 β
+    const magT = 10 ** (tDb / 20)
+    const atS = 10 ** (spur / 20) / (Math.PI * fOut * 1e9 * magT)
+    const at = atS * 1e15
+    // 單相殘差：α·f_ref 那一根是寬 1/P 方窗的基波，|c₁| = sin(π/P)/π，peak = 2|c₁|δ_P ⇒ δ_P = π A_t/(2 sin(π/P))
+    return [2 * 10 ** (spur / 20), at, (at * Math.PI) / (2 * Math.sin(Math.PI / P))]
+  },
   'HC-SO.4': ({ sigmaF, thetaF, sigmaS, thetaS, mu, d }) => {
     const gF = (mu * SQ * Math.cos(thetaF * RAD)) / sigmaF
     const gS = (mu * SQ * Math.cos(thetaS * RAD)) / sigmaS
@@ -121,15 +140,18 @@ const INVALID: { hc: string; name: string; patch: Record<string, number>; expect
   { hc: 'HC-SO.4', name: '快慢填反', patch: { sigmaF: 200, sigmaS: 50, thetaS: 0 }, expect: /對調/ },
   { hc: 'HC-SO.4', name: 'g_F > 2（沒有 crossover）', patch: { mu: 200 }, expect: /沒有 gain crossover/ },
   { hc: 'HC-SO.4', name: 'g_S ≥ g_crit(1)（最慢的 corner 也不穩定）', patch: { mu: 150, sigmaS: 70, thetaS: 10 }, expect: /連最慢的 corner 都不穩定/ },
+  { hc: 'HC-SO.5', name: 'C = 0（不可辨識）', patch: { C: 0 }, expect: /不可辨識/ },
+  { hc: 'HC-SO.5', name: 'Δ/σ_v = 0.5（截斷偏差）', patch: { r: 0.5 }, expect: /截斷/ },
+  { hc: 'HC-SO.6', name: 'spur = −10 dBc（小角近似失準）', patch: { spur: -10 }, expect: /小角近似/ },
 ]
 
 describe('Sign-off 手算題：結構', () => {
-  it('四題、ID 連號 HC-SO.n、page 與公式 ID 正確；每個輸入都有手算友善的 practice 範圍；文字欄位不以 Unicode 拼公式', () => {
-    expect(HANDCALCS.map((h) => h.id)).toEqual(['HC-SO.1', 'HC-SO.2', 'HC-SO.3', 'HC-SO.4'])
+  it('六題、ID 連號 HC-SO.n、page 與公式 ID 正確；每個輸入都有手算友善的 practice 範圍；文字欄位不以 Unicode 拼公式', () => {
+    expect(HANDCALCS.map((h) => h.id)).toEqual(['HC-SO.1', 'HC-SO.2', 'HC-SO.3', 'HC-SO.4', 'HC-SO.5', 'HC-SO.6'])
     const formulaIds = new Set(FORMULAS.map((f) => f.id))
     for (const h of HANDCALCS) {
       expect(h.page).toBe('/signoff')
-      expect(h.level).toBe('engineer') // 四題都要用到 √、ln、cos 或 arcsin，沒有查表或複數運算
+      expect(h.level).toBe('engineer') // 六題都要用到 √、ln、cos、arcsin 或 10^x，沒有查表或複數運算
       expect(formulaIds.has(h.formulaId as string), h.id).toBe(true)
       expect(() => katex.renderToString(h.formulaTex, { throwOnError: true, strict: 'ignore', displayMode: true }), h.id).not.toThrow()
       for (const i of h.inputs) {
@@ -157,7 +179,7 @@ describe('Sign-off 手算題：結構', () => {
         expect(UNICODE_MATH.test(r.label as string), r.label).toBe(false)
       }
       // 難度誠實標示：engineer 題的步驟裡真的用到計算機函數
-      expect(sol.steps.some((s) => /\\sqrt|\\ln|\\cos|\\arcsin|e\^\{/.test(s.tex)), h.id).toBe(true)
+      expect(sol.steps.some((s) => /\\sqrt|\\ln|\\cos|\\arcsin|e\^\{|10\^\{/.test(s.tex)), h.id).toBe(true)
     }
     expect(handcalc('HC-SO.3').id).toBe('HC-SO.3')
     expect(() => handcalc('HC-SO.99')).toThrow(/找不到/)
@@ -193,7 +215,8 @@ describe('Sign-off 手算題：結構', () => {
     const s2 = read('S2Polarity.tsx')
     const s3 = read('S3Claims.tsx')
     const s4 = read('S4Cases.tsx')
-    const all = s2 + s3 + s4
+    const s8 = read('S8Silicon.tsx')
+    const all = s2 + s3 + s4 + s8
     for (const h of HANDCALCS) expect((all.match(new RegExp(`<HandCalcSlot id="${h.id.replace('.', '\\.')}">`, 'g')) ?? []).length, h.id).toBe(1)
     expect((all.match(/<HandCalcSlot id="/g) ?? []).length).toBe(HANDCALCS.length)
     const after = (src: string, a: string, b: string) => {
@@ -208,6 +231,10 @@ describe('Sign-off 手算題：結構', () => {
     after(s3, '<HandCalcSlot id="HC-SO.3">', '<EvidenceLabExperiment />')
     after(s4, 'id="F-SO.5"', '<HandCalcSlot id="HC-SO.4">') // §4 PM_d 與 g_crit
     after(s4, '<HandCalcSlot id="HC-SO.4">', '<CornerJudgeExperiment />')
+    after(s8, '要讀幾個 block 的 $\\bar G$ 才能以 $z=3$ 判定極性', '<HandCalcSlot id="HC-SO.5">') // §8.5 的量測計畫推導
+    after(s8, '<HandCalcSlot id="HC-SO.5">', '<TexBlock id="F-SO.13"') // 圖的導讀先以 <FormulaLink id="F-SO.13"> 指過去，錨點本身在推導之後
+    after(s8, '<TexBlock id="F-SO.13"', '<HandCalcSlot id="HC-SO.6">') // §8.5 spur 反推
+    after(s8, '<HandCalcSlot id="HC-SO.6">', 'region="spurInverse"')
     // 累加器位元（Ch04）、EFB 週期（Ch13）、各自／聯合 pole（Ch10）在原章節已有手算題：本頁放連結，不重複出題
     for (const [src, href] of [
       [s4, '#/ch/04'],
@@ -454,6 +481,73 @@ describe('Sign-off 手算題：預設值 = 本頁 worked example，答案 = judg
     expect(sd.results[3].value).toBe(1)
     expect(sd.steps.some((s) => /\\ln\\rho/.test(s.tex) || badNumber(s.tex))).toBe(false)
   })
+
+  it('HC-SO.5 的預設值是 §8.5 表格的極性那一列（σ_v = 200 fs、r = 0.3、C = 0.1、N = 1024、f_ref = 100 MHz、z_t = 3）：Δ = 60 fs、M_min = 8、T_meas = 163.84 µs，和 polarityReadoutPlan 逐位元相同', () => {
+    const def = handcalc('HC-SO.5')
+    const d = defaultValues(def)
+    expect(d).toEqual({ sigmaV: 200, r: 0.3, C: 0.1, N: 1024, fRef: 100, zt: 3 })
+    const E = SILICON_EXAMPLE.plan
+    expect(d).toEqual({ sigmaV: E.sigmaV, r: E.deltaRatio, C: E.C, N: E.N, fRef: E.fRefHz / 1e6, zt: E.z })
+    const plan = J.polarityReadoutPlan(E)
+    const [delta, K, mMin, tMeas] = values(def, d)
+    expect(delta).toBe(60)
+    expect(K).toBe(J.kq(200) * 0.1)
+    expect(mMin).toBe(plan.M)
+    expect(mMin).toBe(J.requiredBlocks(K, 60, 1024, 3))
+    expect(mMin).toBe(8)
+    close(tMeas, plan.tMeasS * 1e6, 1e-12)
+    close(tMeas, 163.84, 1e-12)
+    // M_min 的意義：M = 8 時 z ≥ 3，M = 7 時還不夠
+    expect(K / J.slopeStdErr(60, 1024, 8)).toBeGreaterThanOrEqual(3)
+    expect(K / J.slopeStdErr(60, 1024, 7)).toBeLessThan(3)
+    expect(plan.zExpected).toBeGreaterThanOrEqual(3)
+    // tips 與畫面上的數字
+    const tips = def.tips!.join('')
+    for (const t of ['0.0039894', '0.00039894', '1/32', '163.84', '10.24']) expect(tips, t).toContain(t)
+    const tex = def.solve(d).steps.map((s) => s.tex).join('\n')
+    for (const t of ['=60\\ \\mathrm{fs}', String.raw`\frac1{32}`, '=10.24', '=163.84', String.raw`\left\lceil7.6699\right\rceil=8`]) expect(tex, t).toContain(t)
+    // 預期符號：C > 0 ⇒ Ḡ₊ < Ḡ₋；C < 0 ⇒ 相反，M_min 不變（只看 |K|）
+    expect(def.solve(d).notes!.join('')).toContain(String.raw`\bar G_+<\bar G_-`)
+    const neg = def.solve({ ...d, C: -0.1 })
+    expect(neg.notes!.join('')).toContain('極性相反')
+    expect(neg.results[2].value).toBe(8)
+    // tips 裡的兩個「改一改」：C = 0.05 ⇒ 31；N = 4096 ⇒ 2
+    expect(values(def, { ...d, C: 0.05 })[2]).toBe(31)
+    expect(values(def, { ...d, N: 4096 })[2]).toBe(2)
+  })
+
+  it('HC-SO.6 的預設值是 §8.5 表格的 bias 那一列（−60 dBc、13 GHz、|T| = 0 dB、P = 8）：β = 0.002、A_t = 24.485 fs、κ_pat = 2sin(π/8)/π = 0.24362、δ_P = 100.50 fs；與 spurDbc 互為反函數', () => {
+    const def = handcalc('HC-SO.6')
+    const d = defaultValues(def)
+    expect(d).toEqual({ spur: -60, fOut: 13, tDb: 0, P: 8 })
+    const E = SILICON_EXAMPLE.spur
+    expect(d).toEqual({ spur: E.spurDbc, fOut: E.fOutHz / 1e9, tDb: 20 * Math.log10(E.magT), P: E.P })
+    const [beta, at, dP] = values(def, d)
+    close(beta, 0.002, 1e-12)
+    expect(at).toBe(J.timingToneFromSpur(13e9, -60, 1))
+    close(at, 24.485, 1e-4)
+    expect(dP).toBe(at / J.oneHotPatternFactor(8))
+    close(dP, 100.5048, 1e-5)
+    close(dP, (at * Math.PI) / (2 * Math.sin(Math.PI / 8)), 1e-12) // 不是 2/P 的 97.94 fs（分數頻道的基波差 √w₁ = 0.9745）
+    expect(Math.abs(dP - 97.94)).toBeGreaterThan(2)
+    // 反函數：A_t 代回正向的 spurDbc 得到 −60；T15 的例子（0.5 fs @ 13 GHz ⇒ −93.8 dBc）反推回 0.5 fs
+    close(J.spurDbc(13e9, at), -60, 1e-12)
+    close(J.timingToneFromSpur(13e9, J.spurDbc(13e9, 0.5)), 0.5, 1e-12)
+    // |T| = −20 dB：輸出同樣 −60 dBc，DTC 端的 A_t 是 10 倍（tips）
+    close(values(def, { ...d, tDb: -20 })[1], 10 * at, 1e-9)
+    expect(def.tips!.join('')).toContain('244.85')
+    // P = 16 ⇒ δ_P = π/(2 sin(π/16))·A_t = 8.05·A_t（不是 8·A_t）
+    close(values(def, { ...d, P: 16 })[2], (at * Math.PI) / (2 * Math.sin(Math.PI / 16)), 1e-12)
+    close(values(def, { ...d, P: 16 })[2] / at, 8.0516, 1e-4)
+    const tips = def.tips!.join('')
+    for (const t of ['0.002', '8.1681', '24.485', '0.24362', '100.5', '4.10', '8.05']) expect(tips, t).toContain(t)
+    expect(tips).not.toContain('97.94')
+    const tex = def.solve(d).steps.map((s) => s.tex).join('\n')
+    for (const t of ['=0.002\\ \\mathrm{rad}', '=8.1681\\times10^{10}', '=24.485\\ \\mathrm{fs}', String.raw`\sin(\pi/8)`, '=0.24362', '=100.5']) expect(tex, t).toContain(t)
+    expect(tex).not.toContain('97.94')
+    // 驗算註記：正向算回去就是輸入的 spur
+    expect(def.solve(d).notes![0]).toContain('-60')
+  })
 })
 
 describe('Sign-off 手算題：隨機 20 題與獨立重算一致', () => {
@@ -611,11 +705,12 @@ describe('Sign-off 手算題：渲染', () => {
     }
   })
 
-  it('無條件進位的答案不接受「少一」：M_min = 6 填 5、n_need = 299 填 298、k95 = 71 填 70 都判錯', () => {
+  it('無條件進位的答案不接受「少一」：M_min = 6 填 5、n_need = 299 填 298、k95 = 71 填 70、矽上的 M_min = 8 填 7 都判錯', () => {
     const cases: [string, number, number][] = [
       ['HC-SO.1', 3, 5],
       ['HC-SO.3', 1, 298],
       ['HC-SO.4', 3, 70],
+      ['HC-SO.5', 2, 7],
     ]
     for (const [id, idx, wrong] of cases) {
       const def = handcalc(id)

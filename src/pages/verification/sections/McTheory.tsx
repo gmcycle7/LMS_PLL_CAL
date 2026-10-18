@@ -64,8 +64,7 @@ export function McTheory() {
             <strong>標準差（standard deviation）</strong> <Tex>{r`\sigma=\sqrt{\operatorname{Var}(X)}`}</Tex>：和 <Tex>{'X'}</Tex> 同單位的「典型偏離量」。
           </li>
           <li>
-            兩個<strong>獨立</strong>的量：<Tex>{r`\operatorname{Var}(X+Y)=\operatorname{Var}(X)+\operatorname{Var}(Y)`}</Tex>；乘上常數：<Tex>{r`\operatorname{Var}(aX)=a^2\operatorname{Var}(X)`}</Tex>。
-            下面的 <Tex>{r`\mathrm{SE}=\sigma/\sqrt n`}</Tex> 只用到這兩條。
+            兩個<strong>獨立</strong>的量：<Tex>{r`\operatorname{Var}(X+Y)=\operatorname{Var}(X)+\operatorname{Var}(Y)`}</Tex>；乘上常數：<Tex>{r`\operatorname{Var}(aX)=a^2\operatorname{Var}(X)`}</Tex>。下面的 <Tex>{r`\mathrm{SE}=\sigma/\sqrt n`}</Tex> 只用到這兩條。
           </li>
         </ul>
         <p className="small">對 comparator：<Tex>{'X_i'}</Tex> 就是「第 <Tex>{'i'}</Tex> 個決策是否為 <Tex>{'+1'}</Tex>」，<Tex>{'p=P(q=+1)'}</Tex>（<ChRef ch="05">Ch05</ChRef>）。</p>
@@ -73,8 +72,7 @@ export function McTheory() {
       <Prereq title="常態分布、$\Phi$ 與「幾個 $\sigma$」">
         <p>
           <strong>標準常態分布</strong> <Tex>{r`\mathcal N(0,1)`}</Tex> 是平均 0、標準差 1 的鐘形分布，機率密度 <Tex>{r`\varphi(z)=\tfrac{1}{\sqrt{2\pi}}e^{-z^2/2}`}</Tex>。
-          <Tex>{r`\Phi(z)=\int_{-\infty}^{z}\varphi(t)\,dt`}</Tex> 是「落在 <Tex>{'z'}</Tex> 以下」的機率（累積分布函數，CDF）；它沒有初等函數的封閉式，程式用 <code>erfc</code> 計算。
-          「超過 <Tex>{r`\pm z`}</Tex> 個標準差」的機率是 <Tex>{r`2[1-\Phi(z)]`}</Tex>：
+          <Tex>{r`\Phi(z)=\int_{-\infty}^{z}\varphi(t)\,dt`}</Tex> 是「落在 <Tex>{'z'}</Tex> 以下」的機率（累積分布函數，CDF）；它沒有初等函數的封閉式，程式用 <code>erfc</code> 計算。「超過 <Tex>{r`\pm z`}</Tex> 個標準差」的機率是 <Tex>{r`2[1-\Phi(z)]`}</Tex>：
         </p>
         <div className="table-wrap">
           <table className="ver-table ver-handcalc">
@@ -234,8 +232,7 @@ export function McTheory() {
         <FBlock id="F-VF.4" />
         <p className="small">
           本頁有 {nIndep} 項應該通過、互相獨立的 <Tex>{'z'}</Tex> 檢查（反面項目與「非獨立」的 T17 變異不計；T13 與 T14 共用同一批樣本，嚴格說不完全獨立，但聯集上界{' '}
-          <Tex>{r`K\alpha`}</Tex> 不需要獨立）：<Tex>{`${nIndep}\\times${texNum(a4, 3)}\\approx${texNum(nIndep * a4, 2)}`}</Tex>，所以「模型全對、卻偶然有一項失敗」的機率不到千分之一。
-          反過來，門檻越寬，<strong>檢定力</strong>（模型真的錯時能抓到的機率）越低：
+          <Tex>{r`K\alpha`}</Tex> 不需要獨立）：<Tex>{`${nIndep}\\times${texNum(a4, 3)}\\approx${texNum(nIndep * a4, 2)}`}</Tex>，所以「模型全對、卻偶然有一項失敗」的機率不到千分之一。反過來，門檻越寬，<strong>檢定力</strong>（模型真的錯時能抓到的機率）越低：
         </p>
         <FBlock id="F-VF.11" />
         <p className="small">
@@ -291,8 +288,7 @@ export function McTheory() {
           />
           <FBlock id="F-VF.6" />
           <p className="small">
-            偏低 <Tex>{`${fmtNum((1 - nums.fVar) * 100, 2)}\\%`}</Tex> 聽起來很小，但 {nums.R} 條 chain 平均後的相對 SE 也只有約 <Tex>{`${fmtNum(nums.relSe * 100, 3)}\\%`}</Tex>，
-            所以不修正的話 <Tex>{'z'}</Tex> 會有 <Tex>{`${fmtNum((nums.fVar - 1) / nums.relSe, 2)}`}</Tex> 的系統性偏移——換很多個 seed 就看得出來（下方的校準實驗）。本頁的做法：期望值改成{' '}
+            偏低 <Tex>{`${fmtNum((1 - nums.fVar) * 100, 2)}\\%`}</Tex> 聽起來很小，但 {nums.R} 條 chain 平均後的相對 SE 也只有約 <Tex>{`${fmtNum(nums.relSe * 100, 3)}\\%`}</Tex>，所以不修正的話 <Tex>{'z'}</Tex> 會有 <Tex>{`${fmtNum((nums.fVar - 1) / nums.relSe, 2)}`}</Tex> 的系統性偏移——換很多個 seed 就看得出來（下方的校準實驗）。本頁的做法：期望值改成{' '}
             <Tex>{r`\sigma_w^2\cdot E[s^2]/\sigma^2`}</Tex> 再比。SE 則用 {nums.R} 條<strong>獨立</strong> chain 之間的離散程度估計，不需要知道相關結構。 <ClaimTag kind="exact" />
           </p>
 

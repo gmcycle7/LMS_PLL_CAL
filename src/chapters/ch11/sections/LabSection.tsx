@@ -61,9 +61,7 @@ export function LabSection() {
         <p>
           先看第 (1) 個差距的方塊圖（<FigRef id="finite-step-loop" />，全部是 block rate，索引 <Tex>{'k'}</Tex>）：<Tex>{String.raw`\delta w=w-w^*`}</Tex> 是 <Tex>{'w'}</Tex>{' '}
           離固定點的距離（注意不是全站的 <Tex>{String.raw`\delta=a-w`}</Tex>）。上半部的累加器（<Tex>{'\\times\\mu'}</Tex>、加法點、<Tex>{'z^{-1}'}</Tex>）就是{' '}
-          <Tex>{String.raw`\delta w_{k+1}=\delta w_k+\mu G_k`}</Tex>；最上面的加法點把三個東西合成 <Tex>{'G_k'}</Tex>（推導第 1–2 行）：抽樣雜訊 <Tex>{String.raw`\eta_k`}</Tex>（<Tex>{'+'}</Tex>）、
-          藍色的恢復力 <Tex>{String.raw`S\,\delta w_k`}</Tex>（<Tex>{'-'}</Tex>），以及紅色的曲率項 <Tex>{String.raw`\tfrac12G''(w^*)\,\delta w_k^2`}</Tex>（<Tex>{'+'}</Tex>）。
-          只看藍色那條負回授，就是下面推導的第 3 行（pole <Tex>{'1-g'}</Tex>）；再加上紅色那條，就是第 4–5 行的偏移。
+          <Tex>{String.raw`\delta w_{k+1}=\delta w_k+\mu G_k`}</Tex>；最上面的加法點把三個東西合成 <Tex>{'G_k'}</Tex>（推導第 1–2 行）：抽樣雜訊 <Tex>{String.raw`\eta_k`}</Tex>（<Tex>{'+'}</Tex>）、藍色的恢復力 <Tex>{String.raw`S\,\delta w_k`}</Tex>（<Tex>{'-'}</Tex>），以及紅色的曲率項 <Tex>{String.raw`\tfrac12G''(w^*)\,\delta w_k^2`}</Tex>（<Tex>{'+'}</Tex>）。只看藍色那條負回授，就是下面推導的第 3 行（pole <Tex>{'1-g'}</Tex>）；再加上紅色那條，就是第 4–5 行的偏移。
         </p>
         <Fig id="finite-step-loop" />
         <StepDerivation

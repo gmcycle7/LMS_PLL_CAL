@@ -159,8 +159,7 @@ export function QuizSection() {
           answer={
             <p>
               沒有 <Tex>{'\\tfrac12'}</Tex> 的成本曲率是 <Tex>{"\\tfrac{d^2}{dw^2}(y-wx)^2=2x^2"}</Tex>，GD 穩定界是 <Tex>{'2/\\text{曲率}=1/x^2'}</Tex>；但 LMS 更新量 <Tex>{'\\mu ex'}</Tex> 對應的是{' '}
-              <Tex>{'\\tfrac12e^2'}</Tex>（曲率 <Tex>{'x^2'}</Tex>），真正的界是 <Tex>{'2/x^2'}</Tex>（§0.6 的等比數列推導）。這就是 <ErratumRef eid="E41" />：
-              成本與更新量必須用同一個 scaling。
+              <Tex>{'\\tfrac12e^2'}</Tex>（曲率 <Tex>{'x^2'}</Tex>），真正的界是 <Tex>{'2/x^2'}</Tex>（§0.6 的等比數列推導）。這就是 <ErratumRef eid="E41" />：成本與更新量必須用同一個 scaling。
             </p>
           }
         />

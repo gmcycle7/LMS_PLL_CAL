@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import { Callout, ClaimTag, Mermaid, ModeGate, Plot, Section, SourceTag, Tex, TexBlock } from '@/components'
 import {
   analyticCorr,
@@ -94,8 +94,7 @@ export function S5Mismatch() {
   return (
     <Section kind="assumptions" level={2} title="7.5 模型不準怎麼辦？Filtered-x 的極性條件（E45）" id="ch07-mismatch">
       <p>
-        Filtered-x 的保證 <Tex>{r`E[u^2]\ge0`}</Tex> 只在 <Tex>{r`\hat H=H`}</Tex>、而且 regressor 沒有額外延遲（<Tex>{'D=0'}</Tex>）時成立。實際的 <Tex>{r`\hat H`}</Tex> 是設計者對 PLL 的<strong>模型</strong>：
-        loop bandwidth 隨 PVT 漂移、DCO gain <Tex>{r`K_{\mathrm{DCO}}`}</Tex> 估錯、pipeline latency 少算一拍……{' '}
+        Filtered-x 的保證 <Tex>{r`E[u^2]\ge0`}</Tex> 只在 <Tex>{r`\hat H=H`}</Tex>、而且 regressor 沒有額外延遲（<Tex>{'D=0'}</Tex>）時成立。實際的 <Tex>{r`\hat H`}</Tex> 是設計者對 PLL 的<strong>模型</strong>：loop bandwidth 隨 PVT 漂移、DCO gain <Tex>{r`K_{\mathrm{DCO}}`}</Tex> 估錯、pipeline latency 少算一拍……{' '}
         <ErratumNote id="E45">
           規格只給了 <Tex>{r`\hat H=H`}</Tex> 的情形；有模型誤差時，analytic pole 必須用 <Tex>{r`E[u\,u_f]`}</Tex>。
         </ErratumNote>
@@ -106,9 +105,7 @@ export function S5Mismatch() {
       />
       <p>
         先看 code 分出去的兩路：一路是真實的誤差路徑 <Tex>{'H'}</Tex>，它的輸出 <Tex>{'u[n]'}</Tex> 藏在 comparator 的 <Tex>{'q[n]'}</Tex> 裡；另一路是藍色的模型
-        <Tex>{r`\hat H`}</Tex>，它的輸出 <Tex>{'u_f[n]'}</Tex> 是 GMAC 的 regressor。再看後半段：GMAC 的平均等效在算 <Tex>{r`E[u\,u_f]`}</Tex>，把它拆到每個頻率就是「每個頻率一票」——
-        圖上那個方塊裡的 <Tex>{r`S_{xx}|H||\hat H|\cos(\angle H-\angle\hat H)`}</Tex>，正是下面 F-07.12 在 <Tex>{'D=0'}</Tex> 時的被積函數。振幅 <Tex>{r`|\hat H|`}</Tex> 只改變票的重量，
-        相位差 <Tex>{r`\angle H-\angle\hat H`}</Tex> 才決定票的正負；六角形問的就是下面定理的條件。
+        <Tex>{r`\hat H`}</Tex>，它的輸出 <Tex>{'u_f[n]'}</Tex> 是 GMAC 的 regressor。再看後半段：GMAC 的平均等效在算 <Tex>{r`E[u\,u_f]`}</Tex>，把它拆到每個頻率就是「每個頻率一票」——圖上那個方塊裡的 <Tex>{r`S_{xx}|H||\hat H|\cos(\angle H-\angle\hat H)`}</Tex>，正是下面 F-07.12 在 <Tex>{'D=0'}</Tex> 時的被積函數。振幅 <Tex>{r`|\hat H|`}</Tex> 只改變票的重量，相位差 <Tex>{r`\angle H-\angle\hat H`}</Tex> 才決定票的正負；六角形問的就是下面定理的條件。
       </p>
       <FoldSteps
         title={<>一般情形：<Tex>{r`E[u\,u_f]`}</Tex> 的時域與頻域形式</>}
@@ -178,8 +175,7 @@ export function S5Mismatch() {
       <Callout kind="ok" title="定理（充分條件）">
         <p>
           若在所有 <Tex>{r`S_{xx}|H||\hat H|>0`}</Tex> 的頻率上都有 <Tex>{r`|\angle H-\angle\hat H|<90^\circ`}</Tex>，則
-          <Tex>{r`E[u\,u_f]>0`}</Tex>：被積函數處處 <Tex>{r`\ge0`}</Tex>，而且至少在一段有 code 能量的頻帶（或一條譜線）上 <Tex>{r`>0`}</Tex>，
-          積分（面積）就一定是正的。<ClaimTag kind="exact" />（這裡是 <Tex>{'D=0'}</Tex>；regressor 另外延遲 <Tex>{'D'}</Tex> 時，把相位差換成殘餘相位{' '}
+          <Tex>{r`E[u\,u_f]>0`}</Tex>：被積函數處處 <Tex>{r`\ge0`}</Tex>，而且至少在一段有 code 能量的頻帶（或一條譜線）上 <Tex>{r`>0`}</Tex>，積分（面積）就一定是正的。<ClaimTag kind="exact" />（這裡是 <Tex>{'D=0'}</Tex>；regressor 另外延遲 <Tex>{'D'}</Tex> 時，把相位差換成殘餘相位{' '}
           <Tex>{r`\angle H-\angle\hat H+\Omega D`}</Tex>，結論換成 <Tex>{r`C_{f,D}>0`}</Tex>。）
         </p>
         <p className="small">
@@ -255,14 +251,11 @@ export function S5Mismatch() {
         </table>
       </div>
       <p className="small muted">
-        <Tex>{r`\mu=10\ \mathrm{fs}`}</Tex>、<Tex>{r`\sigma_v=100\ \mathrm{fs}`}</Tex>。<Tex>{r`\Delta=4`}</Tex> 時 <Tex>{r`E[u\,u_f]=\cos120^\circ=-0.5`}</Tex>：
-        filtered-x 一樣反向更新，而用 <Tex>{r`E[u^2]`}</Tex> 算的 pole 仍會顯示「穩定」——這正是 E45 要避免的「UI 顯示成功、模型其實錯」。
-        閉迴路驗證見 Lab 的 preset「E45：<Tex>{r`\hat H`}</Tex> 多算 latency」。 <ClaimTag kind="exact" /> <SourceTag />
+        <Tex>{r`\mu=10\ \mathrm{fs}`}</Tex>、<Tex>{r`\sigma_v=100\ \mathrm{fs}`}</Tex>。<Tex>{r`\Delta=4`}</Tex> 時 <Tex>{r`E[u\,u_f]=\cos120^\circ=-0.5`}</Tex>：filtered-x 一樣反向更新，而用 <Tex>{r`E[u^2]`}</Tex> 算的 pole 仍會顯示「穩定」——這正是 E45 要避免的「UI 顯示成功、模型其實錯」。閉迴路驗證見 Lab 的 preset「E45：<Tex>{r`\hat H`}</Tex> 多算 latency」。 <ClaimTag kind="exact" /> <SourceTag />
       </p>
       <Hand id="HC-07.6">
         上表的任何一列都可以用手算重現：預設值是 <Tex>{r`\Delta=4`}</Tex> 那一列。把 <Tex>{r`\Delta`}</Tex>、<Tex>{r`\Omega`}</Tex> 或增益比
-        <Tex>{r`r=|\hat H|/|H|`}</Tex> 換成你自己的數字，先用計算機算出 <Tex>{r`E[u\,u_f]`}</Tex> 和兩個 pole（正確的、誤用 <Tex>{r`E[u^2]`}</Tex> 的），再對答案——
-        注意增益誤差改不了符號，相位誤差才會。
+        <Tex>{r`r=|\hat H|/|H|`}</Tex> 換成你自己的數字，先用計算機算出 <Tex>{r`E[u\,u_f]`}</Tex> 和兩個 pole（正確的、誤用 <Tex>{r`E[u^2]`}</Tex> 的），再對答案——注意增益誤差改不了符號，相位誤差才會。
       </Hand>
 
       <ModeGate min="engineer">
@@ -330,13 +323,11 @@ export function S5Mismatch() {
         </div>
         <ul>
           <li>
-            <strong>頻寬誤差</strong>只在 <Tex>{r`\omega_n`}</Tex> 附近（相位從 <Tex>{r`180^\circ`}</Tex> 轉到 <Tex>{r`0^\circ`}</Tex> 的過渡帶）造成相位差，
-            兩端（低頻 <Tex>{r`\approx180^\circ`}</Tex>、高頻 <Tex>{r`\approx0^\circ`}</Tex>）不受影響——相當耐受（<Tex>{r`\hat\omega_n=1.5\,\omega_n`}</Tex> 時
+            <strong>頻寬誤差</strong>只在 <Tex>{r`\omega_n`}</Tex> 附近（相位從 <Tex>{r`180^\circ`}</Tex> 轉到 <Tex>{r`0^\circ`}</Tex> 的過渡帶）造成相位差，兩端（低頻 <Tex>{r`\approx180^\circ`}</Tex>、高頻 <Tex>{r`\approx0^\circ`}</Tex>）不受影響——相當耐受（<Tex>{r`\hat\omega_n=1.5\,\omega_n`}</Tex> 時
             <Tex>{r`\rho_{\mathrm{ref}}=${tx(prof.row('bw+50').whiteRho, 3)}`}</Tex>／<Tex>{tx(prof.row('bw+50').lowpassRho, 3)}</Tex>）。
           </li>
           <li>
-            <strong>latency 誤差</strong>是線性相位 <Tex>{r`\Omega\Delta`}</Tex>，<strong>頻率越高越大</strong>；DSM code 的能量正好集中在高頻，
-            是最危險的模型誤差：只多算 3 個 sample，白色 code 的 <Tex>{r`\rho_{\mathrm{ref}}=${tx(prof.row('extra-3').whiteRho, 3)}`}</Tex>
+            <strong>latency 誤差</strong>是線性相位 <Tex>{r`\Omega\Delta`}</Tex>，<strong>頻率越高越大</strong>；DSM code 的能量正好集中在高頻，是最危險的模型誤差：只多算 3 個 sample，白色 code 的 <Tex>{r`\rho_{\mathrm{ref}}=${tx(prof.row('extra-3').whiteRho, 3)}`}</Tex>
             {prof.row('extra-3').whiteRho < 0 ? '（已經變號）' : ''}。
           </li>
           <li>

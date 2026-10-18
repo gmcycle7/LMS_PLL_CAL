@@ -1,5 +1,5 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import { downloadText } from './download'
 import { Plot, PLOT_NEAR_MARGIN, resetPlotlyPrefetchForTests } from './Plot'
 import { createPlotRegistry, PlotRegistryProvider } from './plotRegistry'
@@ -14,7 +14,7 @@ const P = vi.hoisted(() => ({
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
 
-vi.mock('plotly.js-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
 vi.mock('./download', async (importOriginal) => {
   const orig = await importOriginal<typeof import('./download')>()
   return { ...orig, downloadText: vi.fn() }
@@ -98,6 +98,26 @@ describe('Plot', () => {
     await waitFor(() => expect(P.react).toHaveBeenCalledTimes(3))
     ;[, data, layout] = P.react.mock.calls.at(-1) as unknown as ReactCall
     expect(ax(layout, 'xaxis').dtick).toBe(1) // 主題預設仍在（Plotly 有 tickvals 時會用 tickvals）
+  })
+
+  it('heatmap 的 x 也算進 log 軸的十進位數：熱圖 + 一條直線（0 個十進位）仍只標 10 的整數次方；只在 layout 設 type:log 而沒給 xLog 時不管刻度', async () => {
+    // case-sspll 的 sign map：heatmap x 跨 0.5…1999.5 MHz（3.6 個十進位），同圖只有「目前的 α」直線 x = [80, 80]
+    const heat: Data[] = [
+      { type: 'heatmap', x: [0.5, 5, 50, 500, 1999.5], y: ['GOS', 'PHOS'], z: [[1, -1, 0, 1, 1], [0, 0, 1, 1, -1]] } as Data,
+      { x: [80, 80], y: ['GOS', 'PHOS'], mode: 'lines' } as Data,
+    ]
+    const ax = (l: Record<string, unknown>) => l.xaxis as { type?: string; dtick?: unknown; tickmode?: unknown }
+    const { rerender } = render(<Plot data={heat} xLog />)
+    await waitFor(() => expect(P.react).toHaveBeenCalled())
+    let [, , layout] = P.react.mock.calls.at(-1) as unknown as ReactCall
+    expect(ax(layout).type).toBe('log')
+    expect(ax(layout).dtick).toBe(1) // 少了 heatmap 的 x 只剩直線的 0 個十進位 → 交給 Plotly，刻度會隨像素寬度變
+    // 呼叫端只在 layout 設 type: 'log'（沒給 xLog）：Plot 不過濾也不管刻度（文件寫明的契約），dtick 交給 Plotly
+    rerender(<Plot data={heat} layout={{ xaxis: { type: 'log' } }} />)
+    await waitFor(() => expect(P.react).toHaveBeenCalledTimes(2))
+    ;[, , layout] = P.react.mock.calls.at(-1) as unknown as ReactCall
+    expect(ax(layout).type).toBe('log')
+    expect(ax(layout).dtick).toBeUndefined()
   })
 
   it('縮放（plotly_relayout）時依目前範圍換 log 軸刻度；工具列位置：圖例在上方時移到繪圖區頂端', async () => {

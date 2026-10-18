@@ -5,6 +5,7 @@ import { refValues, T13_SETUP } from '../../refValues'
 import { regimeLabelTex, texHz, texNum, texPct } from '../../format'
 import { Collapsible, ErratumTag, FormulaLinks, Gate, PageLinks, Rich } from '../../common'
 import { Topic } from './Topic'
+import { TableWrap } from '../../TableWrap'
 
 /**
  * 2.5 PSD 正規化；2.6 頻寬的四個數；2.7 Multirate。
@@ -22,9 +23,7 @@ export function PsdTopic() {
       </p>
       <Prereq title="功率頻譜密度（PSD）：變異數在頻率上怎麼分布">
         <p>
-          一個零平均的隨機序列 <Tex>{'y'}</Tex> 的「功率」就是它的變異數 <Tex>{String.raw`\sigma_y^2=E[y^2]`}</Tex>。PSD 回答的是：這些功率有多少落在慢的變化（低頻）、多少落在快的變化（高頻）。
-          它是一個「密度」：<strong>要對頻率積分才得到功率</strong>，就像線密度（kg/m）要對長度積分才得到質量。所以 PSD 的單位永遠是「<Tex>{'y'}</Tex> 的單位平方 ÷ 頻率的單位」，
-          而頻率的單位可以選 Hz，也可以選「每個樣本轉幾圈」的 <Tex>{String.raw`\Omega/2\pi`}</Tex>（cycle/sample；block 量是 cycle/block）——這就是兩種正規化的來源。DTFT 形式是對{' '}
+          一個零平均的隨機序列 <Tex>{'y'}</Tex> 的「功率」就是它的變異數 <Tex>{String.raw`\sigma_y^2=E[y^2]`}</Tex>。PSD 回答的是：這些功率有多少落在慢的變化（低頻）、多少落在快的變化（高頻）。它是一個「密度」：<strong>要對頻率積分才得到功率</strong>，就像線密度（kg/m）要對長度積分才得到質量。所以 PSD 的單位永遠是「<Tex>{'y'}</Tex> 的單位平方 ÷ 頻率的單位」，而頻率的單位可以選 Hz，也可以選「每個樣本轉幾圈」的 <Tex>{String.raw`\Omega/2\pi`}</Tex>（cycle/sample；block 量是 cycle/block）——這就是兩種正規化的來源。DTFT 形式是對{' '}
           <Tex>{String.raw`\Omega`}</Tex>（rad/sample）積分<strong>再除以</strong> <Tex>{String.raw`2\pi`}</Tex>，等於對 <Tex>{String.raw`\Omega/2\pi`}</Tex> 積分，所以它是「每 cycle/sample」的密度；能直接對{' '}
           <Tex>{String.raw`\Omega`}</Tex> 積分的「每 rad/sample」密度是 <Tex>{String.raw`S/(2\pi)`}</Tex>，本站不用。
         </p>
@@ -54,7 +53,7 @@ export function PsdTopic() {
         ]}
         result={String.raw`S^{(1)}(f)=\frac{2}{f_r}\,S\big(e^{j2\pi f/f_r}\big)\qquad\Big(\text{block 量：}f_r=f_u;\quad\text{sample 量：}f_r=f_s\Big)`}
       />
-      <div className="table-wrap">
+      <TableWrap>
         <table className="fr-table fr-psd-table">
           <thead>
             <tr>
@@ -95,12 +94,11 @@ export function PsdTopic() {
             </tr>
           </tbody>
         </table>
-      </div>
+      </TableWrap>
       <Callout kind="warn" title="忘了乘 $2/f_r$ 會差多少？">
         <p>
           把 DTFT 形式的數字直接當成 per-Hz 用，位準會偏 <Tex>{String.raw`10\log_{10}(f_r/2)`}</Tex>：block-rate（<Tex>{'f_u'}</Tex>）是{' '}
-          <Tex>{String.raw`${texNum(q.dbErrBlock, 3)}\,\mathrm{dB}`}</Tex>，sample-rate（<Tex>{String.raw`f_s=4\,\mathrm{GHz}`}</Tex>）是 <Tex>{String.raw`${texNum(q.dbErrSample, 3)}\,\mathrm{dB}`}</Tex>。
-          這種誤差大到不可能看不出來，但在串接「§12.2 的離散卷積 → §12.3 的 <Tex>{String.raw`\mathcal L(f)`}</Tex>」時很容易漏掉。
+          <Tex>{String.raw`${texNum(q.dbErrBlock, 3)}\,\mathrm{dB}`}</Tex>，sample-rate（<Tex>{String.raw`f_s=4\,\mathrm{GHz}`}</Tex>）是 <Tex>{String.raw`${texNum(q.dbErrSample, 3)}\,\mathrm{dB}`}</Tex>。這種誤差大到不可能看不出來，但在串接「§12.2 的離散卷積 → §12.3 的 <Tex>{String.raw`\mathcal L(f)`}</Tex>」時很容易漏掉。
         </p>
       </Callout>
       <h4 className="fr-sub">
@@ -176,10 +174,9 @@ export function BandwidthTopic() {
   return (
     <Topic id="bw" no="2.6" title="頻寬的四個數：exact −3 dB、$-\ln p$、$(1-p)$、ENBW">
       <p>
-        <strong>一個問題：</strong>規格 §12.1 寫「校正 Noise BW 約 12.9 kHz」。同一個迴路（<Tex>{String.raw`p=${texNum(lp.p, 5)}`}</Tex>、<Tex>{String.raw`f_u=${texHz(lp.fu, 6)}`}</Tex>）其實可以算出四個
-        不同的「頻寬」，12.9 kHz 只是其中兩個（<ErratumTag eid="E06" /> <ErratumTag eid="E10" /> <ErratumTag eid="E26" />）：
+        <strong>一個問題：</strong>規格 §12.1 寫「校正 Noise BW 約 12.9 kHz」。同一個迴路（<Tex>{String.raw`p=${texNum(lp.p, 5)}`}</Tex>、<Tex>{String.raw`f_u=${texHz(lp.fu, 6)}`}</Tex>）其實可以算出四個不同的「頻寬」，12.9 kHz 只是其中兩個（<ErratumTag eid="E06" /> <ErratumTag eid="E10" /> <ErratumTag eid="E26" />）：
       </p>
-      <div className="table-wrap">
+      <TableWrap>
         <table className="fr-table fr-bw-table">
           <thead>
             <tr>
@@ -264,7 +261,7 @@ export function BandwidthTopic() {
             </tr>
           </tbody>
         </table>
-      </div>
+      </TableWrap>
       <p>
         前三個都是同一件事（−3 dB corner）的精確值與兩個近似；第四個是完全不同的量。把 corner 當成 noise bandwidth 去乘 <Tex>{String.raw`S_w^{(1)}(0)`}</Tex>，得到{' '}
         <Tex>{String.raw`${texNum(lp.sigmaFromF3db)}\,\mathrm{fs}`}</Tex>，比正確的 <Tex>{String.raw`\sigma_w=${texNum(lp.sigmaW)}\,\mathrm{fs}`}</Tex> 低{' '}
@@ -278,15 +275,14 @@ export function BandwidthTopic() {
         </p>
         <TexBlock>{String.raw`y_{k+1}=p\,y_k+\mu\,\eta_k\ \xrightarrow{\ \text{Z 轉換}\ }\ z\,Y(z)=p\,Y(z)+\mu\,E(z)\ \Rightarrow\ H(z)\triangleq\frac{Y(z)}{E(z)}=\frac{\mu}{z-p}`}</TexBlock>
         <p>
-          讓分母為零的 <Tex>{'z=p'}</Tex> 叫 <strong>pole</strong>：系統被敲一下之後的反應是 <Tex>{'p^k'}</Tex> 型，<Tex>{String.raw`|p|<1`}</Tex> 才會衰減（穩定），<Tex>{'p<0'}</Tex> 時正負交替。
-          把 <Tex>{String.raw`z=e^{j\Omega}`}</Tex>（複數平面單位圓上的點）代入，<Tex>{String.raw`|H(e^{j\Omega})|`}</Tex> 就是角頻率 <Tex>{String.raw`\Omega`}</Tex> 的弦波通過系統後振幅被乘上的倍數——這叫頻率響應；
+          讓分母為零的 <Tex>{'z=p'}</Tex> 叫 <strong>pole</strong>：系統被敲一下之後的反應是 <Tex>{'p^k'}</Tex> 型，<Tex>{String.raw`|p|<1`}</Tex> 才會衰減（穩定），<Tex>{'p<0'}</Tex> 時正負交替。把 <Tex>{String.raw`z=e^{j\Omega}`}</Tex>（複數平面單位圓上的點）代入，<Tex>{String.raw`|H(e^{j\Omega})|`}</Tex> 就是角頻率 <Tex>{String.raw`\Omega`}</Tex> 的弦波通過系統後振幅被乘上的倍數——這叫頻率響應；
           <Tex>{String.raw`\Omega=0`}</Tex>（<Tex>{'z=1'}</Tex>）是 DC。
         </p>
       </Prereq>
       <Prereq title="等比級數、獨立變數的變異數相加、複數的長度">
         <p>
-          （1）<Tex>{String.raw`|r|<1`}</Tex> 時 <Tex>{String.raw`\sum_{k=0}^{\infty}r^k=\frac{1}{1-r}`}</Tex>（把部分和乘上 <Tex>{'1-r'}</Tex> 就會前後相消）。 （2）獨立、零平均的隨機變數相加，變異數相加：
-          <Tex>{String.raw`\operatorname{Var}\big(\sum_kh_k\eta_k\big)=\sigma_\eta^2\sum_kh_k^2`}</Tex>。 （3）單位圓上的點 <Tex>{String.raw`e^{j\Omega}=\cos\Omega+j\sin\Omega`}</Tex>；複數{' '}
+          （1）<Tex>{String.raw`|r|<1`}</Tex> 時 <Tex>{String.raw`\sum_{k=0}^{\infty}r^k=\frac{1}{1-r}`}</Tex>（把部分和乘上 <Tex>{'1-r'}</Tex> 就會前後相消）。（2）獨立、零平均的隨機變數相加，變異數相加：
+          <Tex>{String.raw`\operatorname{Var}\big(\sum_kh_k\eta_k\big)=\sigma_\eta^2\sum_kh_k^2`}</Tex>。（3）單位圓上的點 <Tex>{String.raw`e^{j\Omega}=\cos\Omega+j\sin\Omega`}</Tex>；複數{' '}
           <Tex>{String.raw`e^{j\Omega}-p`}</Tex> 的長度平方是 <Tex>{String.raw`(\cos\Omega-p)^2+\sin^2\Omega=1-2p\cos\Omega+p^2`}</Tex>。
         </p>
       </Prereq>
@@ -422,7 +418,7 @@ export function BandwidthTopic() {
       <h4 className="fr-sub">
         <Tex>{'p'}</Tex> 落在哪一段，「頻寬」的意義就不同（<ErratumTag eid="E27" />）
       </h4>
-      <div className="table-wrap">
+      <TableWrap>
         <table className="fr-table fr-regime-table">
           <thead>
             <tr>
@@ -474,7 +470,7 @@ export function BandwidthTopic() {
             ))}
           </tbody>
         </table>
-      </div>
+      </TableWrap>
       <p className="small">
         同一組 <Tex>{'N'}</Tex>、<Tex>{String.raw`\sigma_v`}</Tex>、<Tex>{'C'}</Tex>，只改 <Tex>{String.raw`\mu`}</Tex>（由 calLoop 計算）。<Tex>{'p<0'}</Tex> 時 ENBW 可以大於{' '}
         <Tex>{String.raw`f_u/2`}</Tex>：因為它以 DC 的 PSD 為基準，而 high-pass 的 DC 是最低點。<Tex>{String.raw`|p|\ge1`}</Tex> 時沒有穩態，任何「頻寬」都不該顯示。
@@ -564,7 +560,7 @@ export function MultirateTopic() {
           ]}
         />
       </Collapsible>
-      <div className="table-wrap">
+      <TableWrap>
         <table className="fr-table fr-zoh-table">
           <thead>
             <tr>
@@ -615,7 +611,7 @@ export function MultirateTopic() {
             </tr>
           </tbody>
         </table>
-      </div>
+      </TableWrap>
       <Callout kind="warn" title="三個常見的錯">
         <ol className="fr-compact">
           <li>
@@ -641,9 +637,7 @@ export function MultirateTopic() {
       <Gate min="research">
         <Callout kind="info" title="Research：時間平均 PSD 只是摘要">
           <p>
-            ZOH 之後的 <Tex>{String.raw`\delta w[n]`}</Tex> 是週期平穩（cyclostationary）過程：它的統計特性以 <Tex>{'N'}</Tex> 個 sample 為週期（block 邊界是特殊的時刻）。上面的公式是對 block 相位平均後的結果；
-            若 code <Tex>{'x[n]'}</Tex> 本身也有與 block 同步的週期結構（例如 DSM pattern 的週期與 <Tex>{'N'}</Tex> 有公因數），<Tex>{String.raw`x\,\delta w`}</Tex> 的頻譜會多出時間平均公式看不到的交叉項。
-            這屬於研究題目 R2（Roadmap 頁），本站只驗證了白色 code 的情況。
+            ZOH 之後的 <Tex>{String.raw`\delta w[n]`}</Tex> 是週期平穩（cyclostationary）過程：它的統計特性以 <Tex>{'N'}</Tex> 個 sample 為週期（block 邊界是特殊的時刻）。上面的公式是對 block 相位平均後的結果；若 code <Tex>{'x[n]'}</Tex> 本身也有與 block 同步的週期結構（例如 DSM pattern 的週期與 <Tex>{'N'}</Tex> 有公因數），<Tex>{String.raw`x\,\delta w`}</Tex> 的頻譜會多出時間平均公式看不到的交叉項。這屬於研究題目 R2（Roadmap 頁），本站只驗證了白色 code 的情況。
           </p>
         </Callout>
       </Gate>

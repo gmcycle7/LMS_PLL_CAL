@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Data, Shape } from 'plotly.js-dist-min'
+import type { Data, Shape } from 'plotly.js-cartesian-dist-min'
 import { Callout, ClaimTag, CodeBlock, ModeGate, Plot, Section, Tex, TexBlock, useThemeTokens, ChRef } from '@/components'
 import optimizerSrc from '@/simulation/models/optimizer.ts?raw'
 import {
@@ -150,9 +150,7 @@ export function S3Objectives() {
         {String.raw`\boxed{\mu^*\approx\frac{\ln A}{2BK},\qquad E[\delta_B^2]^*\approx\frac{\sigma_\eta^2(1+\ln A)}{4BK^2},\qquad A=\frac{4BK^2\delta_0^2}{\sigma_\eta^2}}`}
       </TexBlock>
       <p>
-        第 10 課條件：<Tex>{`A=${tx(asym.A, 5)}`}</Tex>，<Tex>{`\\mu^*\\approx${tx(asym.mu, 4)}\\,\\mathrm{fs}`}</Tex>、<Tex>{`\\text{RMS}\\approx${tx(Math.sqrt(asym.cost), 4)}\\,\\mathrm{fs}`}</Tex>；
-        精確數值最佳點 <Tex>{`\\mu^*=${tx(opts[0].r.mu, 5)}\\,\\mathrm{fs}`}</Tex>、RMS <Tex>{`${tx(Math.sqrt(opts[0].r.cost), 4)}\\,\\mathrm{fs}`}</Tex> <ClaimTag kind="approx" />。
-        注意 <Tex>{'\\mu^*'}</Tex> 只隨 <Tex>{'\\ln\\delta_0'}</Tex> 變：初始誤差大 10 倍，最佳 <Tex>{'\\mu'}</Tex> 只增加 <Tex>{'\\ln 100/(2BK)'}</Tex>。
+        第 10 課條件：<Tex>{`A=${tx(asym.A, 5)}`}</Tex>，<Tex>{`\\mu^*\\approx${tx(asym.mu, 4)}\\,\\mathrm{fs}`}</Tex>、<Tex>{`\\text{RMS}\\approx${tx(Math.sqrt(asym.cost), 4)}\\,\\mathrm{fs}`}</Tex>；精確數值最佳點 <Tex>{`\\mu^*=${tx(opts[0].r.mu, 5)}\\,\\mathrm{fs}`}</Tex>、RMS <Tex>{`${tx(Math.sqrt(opts[0].r.cost), 4)}\\,\\mathrm{fs}`}</Tex> <ClaimTag kind="approx" />。注意 <Tex>{'\\mu^*'}</Tex> 只隨 <Tex>{'\\ln\\delta_0'}</Tex> 變：初始誤差大 10 倍，最佳 <Tex>{'\\mu'}</Tex> 只增加 <Tex>{'\\ln 100/(2BK)'}</Tex>。
       </p>
       <Hand id="HC-14.5">
         F-14.8 只需要一次 <Tex>{'\\ln'}</Tex> 和一次開根號。先用第 10 課的數字算出 <Tex>{'A'}</Tex>、<Tex>{'\\mu^*'}</Tex> 和 RMS，再換成你自己晶片的 <Tex>{'\\sigma_v'}</Tex>、<Tex>{'N'}</Tex>、<Tex>{'T'}</Tex>。
@@ -166,9 +164,7 @@ export function S3Objectives() {
         {String.raw`\mu_\text{fast}=\frac1K\ (p=0),\qquad \sigma_w^2=\frac{\mu^2\sigma_\eta^2}{1-0}=\frac{\sigma_\eta^2}{K^2}`}
       </TexBlock>
       <p>
-        代價：穩態雜訊 <Tex>{`\\sigma_\\eta^2/K^2=${tx(m.sigmaEta2 / (K * K), 4)}\\,\\mathrm{fs^2}`}</Tex>（RMS {nf(Math.sqrt(m.sigmaEta2) / K, 3)} fs）——一個 block 的雜訊直接變成係數誤差
-        （<Tex>{'\\sigma_w^2=\\sigma_\\eta^2g/(K^2(2-g))'}</Tex> 隨 <Tex>{'g'}</Tex> 遞增，在 <Tex>{'PM\\ge60^\\circ'}</Tex> 的範圍 <Tex>{'g\\le1'}</Tex> 內以 <Tex>{'g=1'}</Tex> 最大）。而且 <Tex>{'g=1'}</Tex> 時 PM 只剩 <Tex>{'60^\\circ'}</Tex>，
-        任何 <Tex>{'K'}</Tex> 的低估（真實 <Tex>{'K'}</Tex> 比設計值大）都會讓 <Tex>{'g'}</Tex> 超過 1。
+        代價：穩態雜訊 <Tex>{`\\sigma_\\eta^2/K^2=${tx(m.sigmaEta2 / (K * K), 4)}\\,\\mathrm{fs^2}`}</Tex>（RMS {nf(Math.sqrt(m.sigmaEta2) / K, 3)} fs）——一個 block 的雜訊直接變成係數誤差（<Tex>{'\\sigma_w^2=\\sigma_\\eta^2g/(K^2(2-g))'}</Tex> 隨 <Tex>{'g'}</Tex> 遞增，在 <Tex>{'PM\\ge60^\\circ'}</Tex> 的範圍 <Tex>{'g\\le1'}</Tex> 內以 <Tex>{'g=1'}</Tex> 最大）。而且 <Tex>{'g=1'}</Tex> 時 PM 只剩 <Tex>{'60^\\circ'}</Tex>，任何 <Tex>{'K'}</Tex> 的低估（真實 <Tex>{'K'}</Tex> 比設計值大）都會讓 <Tex>{'g'}</Tex> 超過 1。
       </p>
 
       <h3>(c) 最小全程積分誤差</h3>
@@ -223,8 +219,7 @@ export function S3Objectives() {
       </Callout>
       <p>
         既然成本隨 <Tex>{'\\mu'}</Tex> 單調遞增，最佳解就是「滿足收斂要求的最小 <Tex>{'\\mu'}</Tex>」。收斂要求寫成：<Tex>{'B'}</Tex> 次更新後平均誤差要縮到初始值的 <Tex>{'\\epsilon'}</Tex> 倍以內（<Tex>{'\\epsilon'}</Tex> 是無因次的相對縮減比，
-        <Tex>{'0<\\epsilon<1'}</Tex>），也就是 <Tex>{'|E[\\delta_B]|=p^B|\\delta_0|\\le\\epsilon|\\delta_0|\\Rightarrow\\mu\\ge(1-\\epsilon^{1/B})/K'}</Tex>（§14.5 的單一 corner 版本）。
-        答案由<strong>限制條件</strong>決定，不是由導數為零決定。
+        <Tex>{'0<\\epsilon<1'}</Tex>），也就是 <Tex>{'|E[\\delta_B]|=p^B|\\delta_0|\\le\\epsilon|\\delta_0|\\Rightarrow\\mu\\ge(1-\\epsilon^{1/B})/K'}</Tex>（§14.5 的單一 corner 版本）。答案由<strong>限制條件</strong>決定，不是由導數為零決定。
       </p>
 
       <h3>(e) 最佳 PVT 追蹤</h3>
@@ -284,12 +279,10 @@ export function S3Objectives() {
       <Diagram chart={CHART_PM_LOOP} caption="PM 的來源：把校正迴路的回授線剪開，兩個方塊相乘就是開迴路；從 $|L|=1$ 的頻率算出 PM，再換算成迴路增益 $g$ 的上限。">
         <p>
           <strong>先看</strong>上面的迴圈：它就是 §14.0 的校正迴路，只是拿掉雜訊（雜訊不影響穩定性），並把「<Tex>{'\\times K'}</Tex>」與「<Tex>{'\\times\\mu'}</Tex>」合併成「<Tex>{'\\times g'}</Tex>」（<Tex>{'g=\\mu K'}</Tex>）；回授的 <Tex>{'w_k'}</Tex> 在加法點以負號相減。
-          <strong>再看</strong>虛線：把回授線剪開，從 <Tex>{'\\delta_k'}</Tex> 一路乘到 <Tex>{'w_k'}</Tex> 經過的就是「<Tex>{'\\times g'}</Tex>」與累加器 <Tex>{'1/(z-1)'}</Tex>，也就是開迴路 <Tex>{'L(z)=g/(z-1)'}</Tex>。<strong>最後看</strong>往下的那條鏈：先找 <Tex>{'|L|=1'}</Tex> 的頻率 <Tex>{'\\omega_c'}</Tex>，
-          再量那裡離 <Tex>{'-180^\\circ'}</Tex> 還有多遠就是 PM（藍色）；要求 <Tex>{'PM\\ge PM_t'}</Tex>，等於給 <Tex>{'g'}</Tex> 一個上限 <Tex>{'g_{\\max}'}</Tex>。
+          <strong>再看</strong>虛線：把回授線剪開，從 <Tex>{'\\delta_k'}</Tex> 一路乘到 <Tex>{'w_k'}</Tex> 經過的就是「<Tex>{'\\times g'}</Tex>」與累加器 <Tex>{'1/(z-1)'}</Tex>，也就是開迴路 <Tex>{'L(z)=g/(z-1)'}</Tex>。<strong>最後看</strong>往下的那條鏈：先找 <Tex>{'|L|=1'}</Tex> 的頻率 <Tex>{'\\omega_c'}</Tex>，再量那裡離 <Tex>{'-180^\\circ'}</Tex> 還有多遠就是 PM（藍色）；要求 <Tex>{'PM\\ge PM_t'}</Tex>，等於給 <Tex>{'g'}</Tex> 一個上限 <Tex>{'g_{\\max}'}</Tex>。
         </p>
         <p>
-          圖上藍色方塊的 <Tex>{'PM=90^\\circ-\\arcsin(g/2)'}</Tex> 就是章首先備知識推導出來的結果；下一個藍色方塊的 <Tex>{'g\\le2\\cos PM_t'}</Tex> 就是下面的 F-14.14，其中 <Tex>{'PM_t=60^\\circ'}</Tex> 給出 <Tex>{'g_{\\max}=1'}</Tex>、<Tex>{'\\mu\\le1/K'}</Tex>，也就是前面全貌圖最右邊的紅色方塊；
-          虛線連到的紅色方塊是 <Tex>{'g=2'}</Tex> 的極端：<Tex>{'PM=0^\\circ'}</Tex>、<Tex>{'p=-1'}</Tex>。
+          圖上藍色方塊的 <Tex>{'PM=90^\\circ-\\arcsin(g/2)'}</Tex> 就是章首先備知識推導出來的結果；下一個藍色方塊的 <Tex>{'g\\le2\\cos PM_t'}</Tex> 就是下面的 F-14.14，其中 <Tex>{'PM_t=60^\\circ'}</Tex> 給出 <Tex>{'g_{\\max}=1'}</Tex>、<Tex>{'\\mu\\le1/K'}</Tex>，也就是前面全貌圖最右邊的紅色方塊；虛線連到的紅色方塊是 <Tex>{'g=2'}</Tex> 的極端：<Tex>{'PM=0^\\circ'}</Tex>、<Tex>{'p=-1'}</Tex>。
         </p>
       </Diagram>
       <p>換算的結果就是前面全貌圖最右邊的紅色方塊：</p>
@@ -362,8 +355,7 @@ export function S3Objectives() {
         caption={md(String.raw`每條曲線的最低點（縱軸為 1）就是該目標的最佳 $\mu$；點線是各目標的最佳點（含 fastest 的 $\mu=1/K$）。spur 曲線只畫在滿足收斂要求的區域。`)}
       />
       <Callout kind="ok" title="結論">
-        <ClaimTag kind="exact" /> 在同一個線性模型裡，最佳 <Tex>{'\\mu'}</Tex> 從「{OBJECTIVE_LABEL[lowest.o]}」的 {nf(lowest.r.mu, 3)} fs 到「{OBJECTIVE_LABEL[highest.o]}」的 {nf(highest.r.mu, 4)} fs，
-        差了約 {nf(highest.r.mu / lowest.r.mu, 2)} 倍。<strong>規格書要先寫清楚「最佳化什麼」</strong>，否則「最佳 <Tex>{'\\mu'}</Tex>」沒有意義。
+        <ClaimTag kind="exact" /> 在同一個線性模型裡，最佳 <Tex>{'\\mu'}</Tex> 從「{OBJECTIVE_LABEL[lowest.o]}」的 {nf(lowest.r.mu, 3)} fs 到「{OBJECTIVE_LABEL[highest.o]}」的 {nf(highest.r.mu, 4)} fs，差了約 {nf(highest.r.mu / lowest.r.mu, 2)} 倍。<strong>規格書要先寫清楚「最佳化什麼」</strong>，否則「最佳 <Tex>{'\\mu'}</Tex>」沒有意義。
       </Callout>
       <ModeGate min="engineer">
         <CodeBlock source={optimizerSrc} region="objectiveCost" path="src/simulation/models/optimizer.ts" />

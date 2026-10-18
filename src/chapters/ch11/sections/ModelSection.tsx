@@ -14,8 +14,7 @@ export function ModelSection() {
   return (
     <Section kind="formula" title="11.0 總誤差模型：把每一項拆開看" level={2} id="ch11-model">
       <p>
-        把 comparator 前的誤差 —— 也就是 PD 的輸出 <Tex>{'e[n]'}</Tex>，送進 loop filter 的同一個節點 ——
-        寫成五項的和（PLL 的動態先吸收進誤差路徑，用靜態式表達；§11.4 再把 PLL 濾波加回來）。先看 <FigRef id="error-budget" />{' '}
+        把 comparator 前的誤差 —— 也就是 PD 的輸出 <Tex>{'e[n]'}</Tex>，送進 loop filter 的同一個節點 —— 寫成五項的和（PLL 的動態先吸收進誤差路徑，用靜態式表達；§11.4 再把 PLL 濾波加回來）。先看 <FigRef id="error-budget" />{' '}
         的左邊：code <Tex>{'x[n]'}</Tex> 分出三條路 —— gain 誤差、INL、code-correlated 干擾 —— 這三項都是 <Tex>{'x'}</Tex> 的函數；另外兩個來源（offset
         與雜訊）不經過 <Tex>{'x'}</Tex>。再看中間的加法點：五項全部以正號相加，和就是 <Tex>{'e[n]'}</Tex>，之後才進 comparator 與 GMAC。
       </p>

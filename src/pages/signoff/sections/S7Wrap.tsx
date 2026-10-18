@@ -35,8 +35,7 @@ export function S7Wrap() {
         ]}
         answer={
           <p>
-            <Tex>{`p_U=1-0.05^{1/100}=${tx(pu, 5)}`}</Tex>。這只對「同分布的隨機 FCW」成立；特定的 near-integer FCW 要另外列入 sweep。
-            「沒有發散」也不是均方穩定（heavy tail，§3）。
+            <Tex>{`p_U=1-0.05^{1/100}=${tx(pu, 5)}`}</Tex>。這只對「同分布的隨機 FCW」成立；特定的 near-integer FCW 要另外列入 sweep。「沒有發散」也不是均方穩定（heavy tail，§3）。
           </p>
         }
       />
@@ -72,8 +71,7 @@ export function S7Wrap() {
               <Tex>{'\\mathbf I+\\mu\\mathbf J'}</Tex> 的 eigenvalue 是 <Tex>{'1-\\mu\\lambda_i(-\\mathbf J)'}</Tex>；<Tex>{'\\lambda_{\\max}(-\\mathbf J)=1.5K_q'}</Tex>，所以 <Tex>{`0<\\mu<2/(1.5K_q)=${tx(muEdge, 5)}\\,\\mathrm{fs}`}</Tex>。
             </p>
             <p>
-              驗算（本頁 mimoJudge）：<Tex>{'\\mu=0.9\\mu_\\text{edge}'}</Tex> 時 <Tex>{`\\rho=${tx(inside.rho, 5)}`}</Tex>；<Tex>{'1.1\\mu_\\text{edge}'}</Tex> 時 <Tex>{`\\rho=${tx(outside.rho, 5)}`}</Tex>。
-              注意上限由 <Tex>{'\\lambda_{\\max}=K_q(1+\\rho_{12})'}</Tex> 決定，比只看對角元素 <Tex>{'K_q'}</Tex> 得到的 <Tex>{'2/K_q'}</Tex> 小——這就是「各自穩定 ≠ 一起穩定」的溫和版本。
+              驗算（本頁 mimoJudge）：<Tex>{'\\mu=0.9\\mu_\\text{edge}'}</Tex> 時 <Tex>{`\\rho=${tx(inside.rho, 5)}`}</Tex>；<Tex>{'1.1\\mu_\\text{edge}'}</Tex> 時 <Tex>{`\\rho=${tx(outside.rho, 5)}`}</Tex>。注意上限由 <Tex>{'\\lambda_{\\max}=K_q(1+\\rho_{12})'}</Tex> 決定，比只看對角元素 <Tex>{'K_q'}</Tex> 得到的 <Tex>{'2/K_q'}</Tex> 小——這就是「各自穩定 ≠ 一起穩定」的溫和版本。
             </p>
           </>
         }

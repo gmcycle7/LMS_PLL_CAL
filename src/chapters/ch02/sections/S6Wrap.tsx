@@ -134,8 +134,7 @@ export function S6Wrap() {
           <p>圖上每一格對應下面手算題的一到兩個步驟；箭頭的意思是「這一步要用到哪些前面算好的數」。綠色三格是最後要交出去的答案。</p>
         </Diagram>
         <HandCalcSlot id="HC-02.8">
-          給定 comparator 輸入端的雜訊 <Tex>{'\\sigma_v'}</Tex>、code 幅度 <Tex>{'A'}</Tex> 與步長 <Tex>{'\\mu'}</Tex>，先用紙筆和計算機走完整條流程（需要一次 <Tex>{'\\ln'}</Tex> 與兩次開根號），
-          再對答案；然後把 <Tex>{'\\mu'}</Tex> 減半，看 <Tex>{'\\tau'}</Tex> 與 <Tex>{'\\sigma_w'}</Tex> 各變成幾倍。
+          給定 comparator 輸入端的雜訊 <Tex>{'\\sigma_v'}</Tex>、code 幅度 <Tex>{'A'}</Tex> 與步長 <Tex>{'\\mu'}</Tex>，先用紙筆和計算機走完整條流程（需要一次 <Tex>{'\\ln'}</Tex> 與兩次開根號），再對答案；然後把 <Tex>{'\\mu'}</Tex> 減半，看 <Tex>{'\\tau'}</Tex> 與 <Tex>{'\\sigma_w'}</Tex> 各變成幾倍。
         </HandCalcSlot>
         <p className="ch02-note" data-handcalc-pointer="workbook">
           本章共 {HANDCALCS.length} 題帶入手算（{HANDCALCS[0].id}–{HANDCALCS[HANDCALCS.length - 1].id}），分別緊跟在對應的推導後面；全站的題目彙整在
@@ -153,9 +152,7 @@ export function S6Wrap() {
         options={[{ label: f4(q.l.w) }, { label: f4(q.se.w) }, { label: f4(q.ss.w), correct: true }, { label: f4(2 - 0.1) }]}
         answer={
           <>
-            <Tex>{String.raw`e=y-wx=-9-2\times(-3)=${f4(q.ss.e)}`}</Tex>。LMS：<Tex>{String.raw`2+0.1\times(${f4(q.l.e)})\times(-3)=${f4(q.l.w)}`}</Tex>；
-            Sign-Error：<Tex>{String.raw`2+0.1\times(-1)\times(-3)=${f4(q.se.w)}`}</Tex>；Sign-Sign：<Tex>{String.raw`2+0.1\times(-1)\times(-1)=${f4(q.ss.w)}`}</Tex>。
-            三者方向相同（都往真值 3 走），只有步伐大小不同：LMS 正比於 <Tex>{'|e||x|'}</Tex>，Sign-Error 正比於 <Tex>{'|x|'}</Tex>，Sign-Sign 固定 <Tex>{'\\mu'}</Tex>。
+            <Tex>{String.raw`e=y-wx=-9-2\times(-3)=${f4(q.ss.e)}`}</Tex>。LMS：<Tex>{String.raw`2+0.1\times(${f4(q.l.e)})\times(-3)=${f4(q.l.w)}`}</Tex>；Sign-Error：<Tex>{String.raw`2+0.1\times(-1)\times(-3)=${f4(q.se.w)}`}</Tex>；Sign-Sign：<Tex>{String.raw`2+0.1\times(-1)\times(-1)=${f4(q.ss.w)}`}</Tex>。三者方向相同（都往真值 3 走），只有步伐大小不同：LMS 正比於 <Tex>{'|e||x|'}</Tex>，Sign-Error 正比於 <Tex>{'|x|'}</Tex>，Sign-Sign 固定 <Tex>{'\\mu'}</Tex>。
           </>
         }
       />

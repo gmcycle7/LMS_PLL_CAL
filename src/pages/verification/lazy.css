@@ -1,0 +1,17 @@
+/* NearGate（lazy.tsx）的宿主元素：占位時是 .lazy-gate（「載入中…」，min-height 由 style 預留），內容掛載後變成 .lazy-gate-host。
+   宿主不能拿掉（React 會把內容整個重新掛載），所以它成了 .c-section-body 的第一個子元素：
+   components.css 給「區塊內第一個元素」的 margin-top: 0 要補給宿主裡的第一個元素，載入前後的版面才一樣。 */
+.lazy-gate-host {
+  min-width: 0;
+}
+.c-section-body > .lazy-gate-host:first-child > :first-child {
+  margin-top: 0;
+}
+
+/* 列印：beforeprint 會讓每個區塊開始掛載，但 chunk 是非同步下載的，瀏覽器不等它；還沒到的區塊只印一行「載入中…」，
+   不要為它留好幾千 px 的空白頁（min-height 寫在 style 上，所以要 !important）。 */
+@media print {
+  .lazy-gate {
+    min-height: 0 !important;
+  }
+}

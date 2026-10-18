@@ -310,8 +310,7 @@ export function WrapSection() {
           可不可信（<Tex>{String.raw`\max|e_\mathrm{det}|/\sigma_v\le0.3`}</Tex>，勘誤 E01）；(4) 要讓平均 pole 為 0.98，<Tex>{'\\mu'}</Tex> 該設多少。
         </p>
         <p>
-          <FigRef id="handcalc-flow" /> 是這一題的計算順序。先看 ①→③：code 的動差 → 三個 bias 項 → 固定點 <Tex>{'w^*'}</Tex>；再看 ③ 之後分出的兩條路 ——
-          一條（④⑤）檢查這個 <Tex>{'w^*'}</Tex> 對 Sign-LMS 可不可信，另一條（⑥⑦）算收斂速度需要的 <Tex>{'\\mu'}</Tex>。圖上每個編號對應下面手算題的一組步驟。
+          <FigRef id="handcalc-flow" /> 是這一題的計算順序。先看 ①→③：code 的動差 → 三個 bias 項 → 固定點 <Tex>{'w^*'}</Tex>；再看 ③ 之後分出的兩條路 —— 一條（④⑤）檢查這個 <Tex>{'w^*'}</Tex> 對 Sign-LMS 可不可信，另一條（⑥⑦）算收斂速度需要的 <Tex>{'\\mu'}</Tex>。圖上每個編號對應下面手算題的一組步驟。
         </p>
         <Fig id="handcalc-flow" />
         <Hand id="HC-11.8">{m('預設值就是 Gallery #7（答案 1.34、0.24、$\\mu\\approx0.0125$），可以直接和 §11.B 的 Lab 指標表對照。')}</Hand>
@@ -380,8 +379,7 @@ export function WrapSection() {
             <>
               <p>
                 在 1.34 處的殘差最大是 0.24，是 <Tex>{'\\sigma_v'}</Tex> 的 2.4 倍（在真正的固定點處是 {num(q.sig01Ratio, 3)} 倍）：comparator 的 S 曲線已經彎曲，一階{' '}
-                <Tex>{'K_q'}</Tex> 近似不成立。mean-field 精確根 = {num(q.sig01, 6)}（勘誤 E01 表的 1.36658）；
-                也不是 1.4，因為雜訊仍提供部分 dither。驗收應以 mean-field 根（或 MC 的信賴區間）為準，並把 <Tex>{'\\sigma_v'}</Tex>、code 分布、演算法一起寫進測試條件。
+                <Tex>{'K_q'}</Tex> 近似不成立。mean-field 精確根 = {num(q.sig01, 6)}（勘誤 E01 表的 1.36658）；也不是 1.4，因為雜訊仍提供部分 dither。驗收應以 mean-field 根（或 MC 的信賴區間）為準，並把 <Tex>{'\\sigma_v'}</Tex>、code 分布、演算法一起寫進測試條件。
               </p>
             </>
           }

@@ -40,7 +40,7 @@ const P = vi.hoisted(() => ({
   Plots: { resize: vi.fn() },
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
-vi.mock('plotly.js-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
 vi.mock('mermaid', () => ({ default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: '<svg></svg>' })) } }))
 
 /**

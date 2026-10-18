@@ -6,6 +6,7 @@ import { texNum, texPct } from '../../format'
 import { Collapsible, ErratumTag, FormulaLinks, Gate, PageLinks } from '../../common'
 import { CHART_UNIT_CHAIN } from '../../diagrams'
 import { Topic } from './Topic'
+import { TableWrap } from '../../TableWrap'
 
 /**
  * 2.3 μ、K_q、C、K、g 的單位與 sum / average；2.4 Code 正規化、LSB 與 0/1 → ±1。
@@ -23,7 +24,7 @@ export function MuUnitsTopic() {
       <Prereq title="因次分析：把單位當成代數符號一起算">
         <p>
           記號 <Tex>{'[y]'}</Tex> 表示「<Tex>{'y'}</Tex> 的單位」。規則只有三條：（1）相加、相等的兩項單位必須相同；（2）相乘時單位相乘、相除時單位相除；（3）
-          <Tex>{String.raw`\exp`}</Tex>、<Tex>{String.raw`\ln`}</Tex>、<Tex>{String.raw`\operatorname{erf}`}</Tex>、<Tex>{String.raw`\cos`}</Tex> 這類函數的引數必須無因次。 例：速度 × 時間 ={' '}
+          <Tex>{String.raw`\exp`}</Tex>、<Tex>{String.raw`\ln`}</Tex>、<Tex>{String.raw`\operatorname{erf}`}</Tex>、<Tex>{String.raw`\cos`}</Tex> 這類函數的引數必須無因次。例：速度 × 時間 ={' '}
           <Tex>{String.raw`\mathrm{(m/s)\times s=m}`}</Tex>。只要某一步的單位對不上，式子一定寫錯了。
         </p>
       </Prereq>
@@ -103,7 +104,7 @@ export function MuUnitsTopic() {
         這不是唯一自洽的寫法。只要 <Tex>{'g'}</Tex> 無因次，時間單位放在係數或放在 regressor 都可以；<strong>不行的是混用</strong>（規格 §0 寫「<Tex>{'u'}</Tex> 和 PD error 單位一致」，§12.1 又用{' '}
         <Tex>{String.raw`\mu=10\,\mathrm{fs}`}</Tex>，兩者湊在一起 <Tex>{'g'}</Tex> 會帶 <Tex>{String.raw`\mathrm{fs^2}`}</Tex>）：
       </p>
-      <div className="table-wrap">
+      <TableWrap>
         <table className="fr-table fr-units-table">
           <thead>
             <tr>
@@ -181,7 +182,7 @@ export function MuUnitsTopic() {
             </tr>
           </tbody>
         </table>
-      </div>
+      </TableWrap>
 
       <h4 className="fr-sub">Sum 與 Average：同一個 <Tex>{String.raw`\mu`}</Tex>，差 <Tex>{'N'}</Tex> 倍的迴路增益</h4>
       <p>
@@ -202,15 +203,14 @@ export function MuUnitsTopic() {
       <Callout kind="danger" title="反面例子：線性模型說「發散」，1-bit 硬體卻不會爆掉——反而更難發現">
         <p>
           <Tex>{String.raw`g=${texNum(r.loop.gSum)}`}</Tex> 的線性遞迴每個 block 誤差放大 <Tex>{String.raw`${texNum(Math.abs(r.loop.pSum))}`}</Tex> 倍。但真正的 1-bit GMAC 有界（
-          <Tex>{String.raw`|G^{\mathrm{sum}}|\le N`}</Tex>），所以係數不會變成無限大，而是在 <Tex>{String.raw`\pm\mu N`}</Tex> 的量級來回跳（數萬 fs 的 limit cycle）。暫存器看起來「有在動、沒有溢位」，其實完全沒在校正。
-          下面的換算器可以直接載入「Sum vs Average」preset 重現。
+          <Tex>{String.raw`|G^{\mathrm{sum}}|\le N`}</Tex>），所以係數不會變成無限大，而是在 <Tex>{String.raw`\pm\mu N`}</Tex> 的量級來回跳（數萬 fs 的 limit cycle）。暫存器看起來「有在動、沒有溢位」，其實完全沒在校正。下面的換算器可以直接載入「Sum vs Average」preset 重現。
         </p>
       </Callout>
 
       <h4 className="fr-sub">
         <Tex>{String.raw`\mu`}</Tex> 在各章代表什麼
       </h4>
-      <div className="table-wrap">
+      <TableWrap>
         <table className="fr-table fr-mu-table">
           <thead>
             <tr>
@@ -327,7 +327,7 @@ export function MuUnitsTopic() {
             </tr>
           </tbody>
         </table>
-      </div>
+      </TableWrap>
       <Collapsible
         title={
           <>

@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import {
   CaseSelector,
   ClaimTag,
@@ -635,8 +635,7 @@ export function IntroPlayground() {
         caption={
           <>
             實線：<code>runScalarLms</code> 模擬的 <Tex>{'|\\delta_n|=|a-w_n|'}</Tex>；虛線：解析 <Tex>{'|\\delta_0|\\,|p|^n'}</Tex>（無雜訊時兩者重合，在對數軸上是一條斜率{' '}
-            <Tex>{'\\log_{10}|p|'}</Tex> 的直線）；點線：有雜訊時的理論穩態 <Tex>{'\\operatorname{std}(w_\\infty)=\\sqrt{\\mu\\sigma_v^2/(2-\\mu x^2)}'}</Tex>。
-            縱軸下限取雜訊地板（最小理論 std 的 <Tex>{'1/30'}</Tex>）或倍精度極限（約 <Tex>{'10^{-17}'}</Tex>）；解析線只畫到離開這個範圍為止。
+            <Tex>{'\\log_{10}|p|'}</Tex> 的直線）；點線：有雜訊時的理論穩態 <Tex>{'\\operatorname{std}(w_\\infty)=\\sqrt{\\mu\\sigma_v^2/(2-\\mu x^2)}'}</Tex>。縱軸下限取雜訊地板（最小理論 std 的 <Tex>{'1/30'}</Tex>）或倍精度極限（約 <Tex>{'10^{-17}'}</Tex>）；解析線只畫到離開這個範圍為止。
           </>
         }
       />
@@ -730,8 +729,7 @@ export function IntroPlayground() {
         ]}
       />
       <p className="small">
-        <ClaimTag kind="exact" /> 固定 <Tex>{'x'}</Tex>、無雜訊時，pole <Tex>{'p=1-\\mu x^2'}</Tex> 與 <Tex>{'0<\\mu<2/x^2'}</Tex> 是精確結論。
-        若 <Tex>{'x'}</Tex> 每一步隨機變化，就要分成「平均收斂」「均方收斂」與「樣本路徑（almost-sure）收斂」三種不同的界限（見{' '}
+        <ClaimTag kind="exact" /> 固定 <Tex>{'x'}</Tex>、無雜訊時，pole <Tex>{'p=1-\\mu x^2'}</Tex> 與 <Tex>{'0<\\mu<2/x^2'}</Tex> 是精確結論。若 <Tex>{'x'}</Tex> 每一步隨機變化，就要分成「平均收斂」「均方收斂」與「樣本路徑（almost-sure）收斂」三種不同的界限（見{' '}
         <PageLink id="ch03" />，<ErratumRef eid="E14" />），不能直接套用。
       </p>
       <ModeGate min="engineer">

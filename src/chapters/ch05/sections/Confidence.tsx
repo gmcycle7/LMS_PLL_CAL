@@ -26,8 +26,7 @@ export function ConfidencePrereq() {
     <Prereq title="信賴區間：Monte Carlo 的判對率要怎麼附上誤差棒（Wilson score interval）">
       <p>
         Monte Carlo 做了 <Tex>{'T'}</Tex> 次獨立的 trial，其中 <Tex>{'k'}</Tex> 次判對，估計值 <Tex>{'\\hat P=k/T'}</Tex>。每次 trial 是一個「成功機率{' '}
-        <Tex>{'P'}</Tex>」的 Bernoulli，
-        所以 <Tex>{'k\\sim\\mathrm{Bin}(T,P)'}</Tex>、<Tex>{'\\operatorname{Var}(\\hat P)=P(1-P)/T'}</Tex>（§3 的同一套數學）。
+        <Tex>{'P'}</Tex>」的 Bernoulli，所以 <Tex>{'k\\sim\\mathrm{Bin}(T,P)'}</Tex>、<Tex>{'\\operatorname{Var}(\\hat P)=P(1-P)/T'}</Tex>（§3 的同一套數學）。
       </p>
       <Steps
         title={
@@ -46,8 +45,7 @@ export function ConfidencePrereq() {
         {String.raw`P\in\frac{\hat P+\frac{z^2}{2T}\pm z\sqrt{\frac{\hat P(1-\hat P)}{T}+\frac{z^2}{4T^2}}}{1+\frac{z^2}{T}}`}
       </TexBlock>
       <p>
-        例（數字為示意 <SourceTag kind="illustrative" />）：<Tex>{`T=${ex.T},\\;k=${ex.k}\\;\\Rightarrow\\;\\hat P=${fx(ex.ph, 4)}`}</Tex>，95% Wilson 區間 <Tex>{`[${fx(ex.w.lo, 4)},\\,${fx(ex.w.hi, 4)}]`}</Tex>；
-        常見的 Wald 區間 <Tex>{`\\hat P\\pm z\\sqrt{\\hat P(1-\\hat P)/T}=\\hat P\\pm${fx(ex.wald, 4)}`}</Tex> 在這裡幾乎一樣。差別出現在{' '}
+        例（數字為示意 <SourceTag kind="illustrative" />）：<Tex>{`T=${ex.T},\\;k=${ex.k}\\;\\Rightarrow\\;\\hat P=${fx(ex.ph, 4)}`}</Tex>，95% Wilson 區間 <Tex>{`[${fx(ex.w.lo, 4)},\\,${fx(ex.w.hi, 4)}]`}</Tex>；常見的 Wald 區間 <Tex>{`\\hat P\\pm z\\sqrt{\\hat P(1-\\hat P)/T}=\\hat P\\pm${fx(ex.wald, 4)}`}</Tex> 在這裡幾乎一樣。差別出現在{' '}
         <Tex>{'\\hat P'}</Tex> 接近 0 或 1、或 <Tex>{'T'}</Tex> 小時：
         <Tex>{'k=0,\\;T=20'}</Tex> 時 Wald 區間寬度為 0（荒謬），Wilson 給 <Tex>{`[0,\\,${fx(ex.small.hi, 3)}]`}</Tex>。實驗中「<Tex>{'P(\\text{判對})'}</Tex> vs{' '}
         <Tex>{'N'}</Tex>」的誤差棒與 KPI 都用 Wilson。
@@ -55,8 +53,7 @@ export function ConfidencePrereq() {
       <p>
         <strong>實驗怎麼判定「Monte Carlo 與解析一致」？</strong>反過來問：若解析值 <Tex>{'P'}</Tex> 是對的，判對次數 <Tex>{'k\\sim\\mathrm{Bin}(T,P)'}</Tex>{' '}
         會落在哪裡？本站用精確 Binomial 的尾機率找出接受域 <Tex>{'[k_{\\mathrm{lo}},k_{\\mathrm{hi}}]'}</Tex>，使{' '}
-        <Tex>{`P(k<k_{\\mathrm{lo}})<\\Phi(-4)`}</Tex> 且 <Tex>{`P(k>k_{\\mathrm{hi}})<\\Phi(-4)=${texNum(ex.tail, 3)}`}</Tex>（每一側都是「4 個標準差」的尾機率）。
-        MC 的計數落在裡面就標 <code>ok</code>，否則標 <code>mismatch</code>。
+        <Tex>{`P(k<k_{\\mathrm{lo}})<\\Phi(-4)`}</Tex> 且 <Tex>{`P(k>k_{\\mathrm{hi}})<\\Phi(-4)=${texNum(ex.tail, 3)}`}</Tex>（每一側都是「4 個標準差」的尾機率）。MC 的計數落在裡面就標 <code>ok</code>，否則標 <code>mismatch</code>。
       </p>
       <ul>
         <li>
@@ -64,8 +61,7 @@ export function ConfidencePrereq() {
           <Tex>{`TP\\pm4\\,\\mathrm{SD}=${texInt(ex.T * ex.ph)}\\pm${fx(4 * ex.sdMid, 1)}`}</Tex> 幾乎一樣。
         </li>
         <li>
-          稀有事件（飽和 preset：<Tex>{`P(\\text{判錯})=${texNum(1 - ex.pSat, 2)}`}</Tex>）：<Tex>{`\\mathrm{SD}=${fx(ex.sdSat, 3)}`}</Tex> 次，常態近似完全失效——只要剛好出現 1 次判錯
-          （機率約 <Tex>{`T(1-P)=${fx(100 * ex.pOne, 2)}\\%`}</Tex>，並不罕見），「<Tex>{'\\pm4\\,\\mathrm{SD}'}</Tex>」就會把它算成{' '}
+          稀有事件（飽和 preset：<Tex>{`P(\\text{判錯})=${texNum(1 - ex.pSat, 2)}`}</Tex>）：<Tex>{`\\mathrm{SD}=${fx(ex.sdSat, 3)}`}</Tex> 次，常態近似完全失效——只要剛好出現 1 次判錯（機率約 <Tex>{`T(1-P)=${fx(100 * ex.pOne, 2)}\\%`}</Tex>，並不罕見），「<Tex>{'\\pm4\\,\\mathrm{SD}'}</Tex>」就會把它算成{' '}
           <Tex>{`${fx(ex.zOne, 0)}\\sigma`}</Tex> 的異常。精確接受域是 <Tex>{`[${ex.accSat.kLo},\\,${ex.accSat.kHi}]`}</Tex>：0 或 1 次判錯都算一致。
           <ClaimTag kind="exact" />
         </li>

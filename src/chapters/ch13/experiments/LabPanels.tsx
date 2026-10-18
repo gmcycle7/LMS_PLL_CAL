@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import { ClaimTag, Plot, Tex, type ThemeTokens } from '@/components'
 import { isRotation, pllT2, STRATEGY_LABEL, type QuantLabResult, type StrategyRun } from '@/simulation/models/quantizer'
 import { Erratum, STRATEGY_COLOR, SpurAt, Unit, db, fx, n, ntex, num, texLabel } from '../common'

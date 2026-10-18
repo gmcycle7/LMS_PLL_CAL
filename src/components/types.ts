@@ -54,6 +54,17 @@ export interface ExperimentPreset {
   description?: string
 }
 
+/** 「執行 Run」的語意：compute = 背景計算（worker / 同步算完）；animate = 固定速度逐步播放（可「跳到結尾」） */
+export type RunKind = 'compute' | 'animate'
+
+/** 執行進度：done / total（例如 worker 回報「已完成 3/9 seeds」，或動畫的「第 112/408 步」） */
+export interface RunProgress {
+  done: number
+  total: number
+  /** 單位字（預設：animate 顯示「步」、compute 不顯示） */
+  unit?: string
+}
+
 export interface ExperimentActions {
   onReset?: () => void
   onStep?: () => void
@@ -65,6 +76,15 @@ export interface ExperimentActions {
   onFreeze?: () => void
   running?: boolean
   frozen?: boolean
+  /**
+   * 「執行 Run」的語意（預設 'compute'）：'animate' 時 Run 鈕旁多一顆「跳到結尾」（需 onSkipToEnd），
+   * 手機上按執行就捲到結果區（結果從第一步就在變）；compute 則等結果到了才捲
+   */
+  runKind?: RunKind
+  /** 執行進度：有給就畫確定式進度條（role=progressbar、aria-valuenow）、Run 鈕顯示進度文字；沒給而 running 時畫不確定式 */
+  progress?: RunProgress
+  /** 「跳到結尾」：停止動畫並直接給出終點的結果；必須和逐步執行共用同一個計算核心 */
+  onSkipToEnd?: () => void
 }
 
 /** CSV 匯出欄位：欄名 → 數列（可為 typed array；長度可不同，短欄以空白補齊） */

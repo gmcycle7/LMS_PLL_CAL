@@ -111,6 +111,17 @@ describe('Sign-off 內容資料的完整性', () => {
     for (const c of ALL_CASES) if (c.anchor) expect(anchors.has(c.anchor), c.anchor).toBe(true)
   })
 
+  it('§8.5 矽上量測計畫：極性、keep-out、clip、relock、PHOS 五個檢查項目都連回 #so-silicon（量完在 Matrix 記錄）', () => {
+    const byId = (id: string) => ALL_CASES.flatMap((c) => c.checks).find((k) => k.id === id)!
+    for (const id of ['basic-perturb', 'fcw-nearint', 'nl-clip', 'strat-relock', 'sspll-phos']) {
+      const k = byId(id)
+      expect(k, id).toBeTruthy()
+      expect(k.links.filter((l) => l.to === '#so-silicon').length, id).toBe(1)
+    }
+    expect(ALL_CASES.flatMap((c) => c.checks).filter((k) => k.links.some((l) => l.to === '#so-silicon'))).toHaveLength(5)
+    expect(TOC.find((t) => t.id === 'so-silicon')?.label).toContain('矽上量測計畫')
+  })
+
   it('引用的勘誤編號都存在於 docs/validation.md', () => {
     const ids = new Set<string>()
     for (const c of ALL_CASES) for (const k of c.checks) k.errata?.forEach((e) => ids.add(e))
@@ -226,7 +237,8 @@ describe('Sign-off 內容資料的完整性', () => {
     expect(new Set(ids).size).toBe(ids.length)
     const src = tsxSources()
     for (const id of ids) {
-      const n = (src.match(new RegExp(`id="${id.replace('.', '\\.')}"`, 'g')) ?? []).length
+      // 只數 TexBlock 的錨點：<FormulaLink id="F-SO.n"> 也寫 id="…"，是連結不是錨點
+      const n = (src.match(new RegExp(`<TexBlock id="${id.replace('.', '\\.')}"`, 'g')) ?? []).length
       expect(n, id).toBe(1)
     }
     for (const f of FORMULAS) expect(f.page).toBe('/signoff')

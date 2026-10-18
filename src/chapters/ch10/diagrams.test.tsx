@@ -1,7 +1,7 @@
 import { act, cleanup, render, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
-import { SYSTEM_BLOCK_LABEL, stripMathDelimiters, systemMapModel } from '@/components'
+import { SYSTEM_BLOCK_LABEL, accessibleText, systemMapModel } from '@/components'
 import { sanitizeMermaidSource } from '@/components/mermaidSource'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { DEFAULT_RULE, buildPlant, corrMatrix, propagateLinearMoments } from '@/simulation/models/mimo'
@@ -60,7 +60,7 @@ const P = vi.hoisted(() => ({
   Plots: { resize: vi.fn() },
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
-vi.mock('plotly.js-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
 
 // 互動實驗（MIMO LMS Lab）與方塊圖無關，而且很重（worker、Monte Carlo）：這個檔案用空元件代替，它自己的測試在 ch10.test.tsx。
 vi.mock('./experiments/MimoLab', () => ({ MimoLab: () => null }))
@@ -885,7 +885,7 @@ describe('Ch10 方塊圖：頁面', () => {
     expect(maps.length).toBe(1)
     const map = maps[0]
     // aria-label 是純文字：方塊名稱裡的 `$...$` 只拿掉分隔符號
-    for (const b of SYSTEM_MAP_FOCUS) expect(map.getAttribute('aria-label')).toContain(stripMathDelimiters(SYSTEM_BLOCK_LABEL[b]))
+    for (const b of SYSTEM_MAP_FOCUS) expect(map.getAttribute('aria-label')).toContain(accessibleText(SYSTEM_BLOCK_LABEL[b]))
     // 系統地圖是手排的 SVG（figure.c-sysmap）：藍色的方塊 = g.c-sysmap-block.is-focus，恰好是本章的三個方塊（GMAC、÷N×μ、gain accumulator），其他方塊都不是主角
     expect(map.classList.contains('c-sysmap')).toBe(true)
     expect(map.querySelector('svg.c-sysmap-svg')).toBeTruthy()

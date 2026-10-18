@@ -46,8 +46,7 @@ export function S6Wrapup() {
           </li>
           <li>
             <ClaimTag kind="approx" /> 把真正的 1-bit Sign-LMS 當成線性模型：需 Gaussian comparator noise、block 內 iid、近平衡（有效性指標{' '}
-            <Tex>{String.raw`E[\boldsymbol\delta^T\mathbf R\boldsymbol\delta]/\sigma_v^2\ll1`}</Tex>）、<Tex>{String.raw`\operatorname{Cov}(\boldsymbol\eta)\approx\mathbf R_x/N`}</Tex>。
-            對 Gaussian regressor，方向 <Tex>{String.raw`\mathbf C\boldsymbol\delta`}</Tex> 精確、只有增益被壓縮（F-10.13）。
+            <Tex>{String.raw`E[\boldsymbol\delta^T\mathbf R\boldsymbol\delta]/\sigma_v^2\ll1`}</Tex>）、<Tex>{String.raw`\operatorname{Cov}(\boldsymbol\eta)\approx\mathbf R_x/N`}</Tex>。對 Gaussian regressor，方向 <Tex>{String.raw`\mathbf C\boldsymbol\delta`}</Tex> 精確、只有增益被壓縮（F-10.13）。
           </li>
           <li>
             <ClaimTag kind="approx" /> 中央差分 <Tex>{String.raw`\hat{\mathbf J}`}</Tex>：同時有 1-bit 截斷（F-10.14）與 <Tex>{String.raw`O(1/(\Delta\sqrt{N_J}))`}</Tex> 雜訊；近奇異{' '}
@@ -64,8 +63,7 @@ export function S6Wrapup() {
             <Tex>{String.raw`\|\mathbf A^k\|_2\le0.05`}</Tex>（§10.3.1）。
           </li>
           <li>
-            <ClaimTag kind="research" /> 本章是<strong>靜態</strong> plant：沒有 PLL 迴路動態、update latency（<ChRef ch="08">第 8 章</ChRef>）、定點量化（<ChRef ch="13">第 13 章</ChRef>）、PVT 漂移下的 gain scheduling。
-            這些疊加後的最佳更新矩陣是 Roadmap R4 的研究題目。
+            <ClaimTag kind="research" /> 本章是<strong>靜態</strong> plant：沒有 PLL 迴路動態、update latency（<ChRef ch="08">第 8 章</ChRef>）、定點量化（<ChRef ch="13">第 13 章</ChRef>）、PVT 漂移下的 gain scheduling。這些疊加後的最佳更新矩陣是 Roadmap R4 的研究題目。
           </li>
           <li>
             「<Tex>{'K_q'}</Tex> 正規化為 1」的例子（598 / 5 / 65）必須換回實體單位才可用於設計：<Tex>{String.raw`\mu`}</Tex> 的單位是 fs、<Tex>{'K_q'}</Tex> 是{' '}

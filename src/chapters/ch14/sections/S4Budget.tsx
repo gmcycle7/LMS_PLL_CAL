@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import { Callout, ClaimTag, CodeBlock, ModeGate, ParamControl, Plot, Section, SourceTag, Tex, TexBlock, useThemeTokens, ChRef } from '@/components'
 import optimizerSrc from '@/simulation/models/optimizer.ts?raw'
 import { budgetSplit, loopGainK } from '@/simulation/models/optimizer'
@@ -77,8 +77,7 @@ export function S4Budget() {
         {String.raw`\boxed{E[\delta_B^2]^*\approx\frac{1+\ln(4TK^2\delta_0^2)}{4TK^2}}\qquad(\text{與 }N\text{ 無關})`}
       </TexBlock>
       <p>
-        <ClaimTag kind="approx" /> 直覺：資訊量只有 <Tex>{'T'}</Tex> 次 1-bit 比較；怎麼分批，只要重新最佳化 <Tex>{'\\mu'}</Tex>，結果幾乎一樣。<strong>真正決定 <Tex>{'N'}</Tex> 的是硬體與穩健性</strong>，不是雜訊。
-        （同一個結論的精確版：§14.6 的 Kalman 下界 <Tex>{'P_B=\\delta_0^2/(1+B\\delta_0^2K^2/\\sigma_\\eta^2)=\\delta_0^2/(1+T\\delta_0^2K^2)'}</Tex> 也只依賴 <Tex>{'T'}</Tex>。）
+        <ClaimTag kind="approx" /> 直覺：資訊量只有 <Tex>{'T'}</Tex> 次 1-bit 比較；怎麼分批，只要重新最佳化 <Tex>{'\\mu'}</Tex>，結果幾乎一樣。<strong>真正決定 <Tex>{'N'}</Tex> 的是硬體與穩健性</strong>，不是雜訊。（同一個結論的精確版：§14.6 的 Kalman 下界 <Tex>{'P_B=\\delta_0^2/(1+B\\delta_0^2K^2/\\sigma_\\eta^2)=\\delta_0^2/(1+T\\delta_0^2K^2)'}</Tex> 也只依賴 <Tex>{'T'}</Tex>。）
       </p>
       <p>
         <strong>換你算。</strong>回到 §14.2 的手算題 <HandLink id="HC-14.5" />，把 <Tex>{'N'}</Tex> 從 4096 改成 8192（<Tex>{'T'}</Tex> 不變）再用紙筆算一次：<Tex>{'B'}</Tex> 減半、<Tex>{'\\mu^*'}</Tex> 加倍，但 <Tex>{'A'}</Tex> 與{' '}
@@ -146,8 +145,7 @@ export function S4Budget() {
         </table>
       </div>
       <p className="small muted">
-        <SourceTag kind="illustrative" /> 線性模型、<Tex>{'\\theta=0'}</Tex>、<Tex>{`K=${tx(K, 4)}\\,\\mathrm{fs^{-1}}`}</Tex>、<Tex>{'PM\\ge60^\\circ'}</Tex>。最差情況：在 9 個 <Tex>{'K'}</Tex> 值（log 等距於 <Tex>{'[K/\\sqrt\\rho,\\ K\\sqrt\\rho]'}</Tex>）中取最大的 <Tex>{'E[\\delta_B^2]'}</Tex>，再對 <Tex>{'\\mu'}</Tex> 最小化（minimax），
-        且要求最大的 <Tex>{'K'}</Tex> 也滿足 <Tex>{'g\\le1'}</Tex>。
+        <SourceTag kind="illustrative" /> 線性模型、<Tex>{'\\theta=0'}</Tex>、<Tex>{`K=${tx(K, 4)}\\,\\mathrm{fs^{-1}}`}</Tex>、<Tex>{'PM\\ge60^\\circ'}</Tex>。最差情況：在 9 個 <Tex>{'K'}</Tex> 值（log 等距於 <Tex>{'[K/\\sqrt\\rho,\\ K\\sqrt\\rho]'}</Tex>）中取最大的 <Tex>{'E[\\delta_B^2]'}</Tex>，再對 <Tex>{'\\mu'}</Tex> 最小化（minimax），且要求最大的 <Tex>{'K'}</Tex> 也滿足 <Tex>{'g\\le1'}</Tex>。
       </p>
       <h3>{md('那 $N$ 到底怎麼選？硬體的取捨')}</h3>
       <div className="table-wrap">

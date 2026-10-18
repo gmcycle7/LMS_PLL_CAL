@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
@@ -283,5 +283,280 @@ describe('content-visibility', () => {
         .map((r) => `${f}: ${r.selector}`),
     )
     expect(offenders).toEqual([])
+  })
+})
+
+// ---------- 列印樣式（print.css） ----------
+describe('列印樣式（print.css）', () => {
+  const printCss = read('src/styles/print.css')
+  const rules = parseCss(printCss)
+  const inPrint = rules.filter((r) => r.media === 'print')
+  const hasDecl = (r: Rule, prop: string, re: RegExp) => re.test(r.decls[prop] ?? '')
+  /** 練習卷以外的列印規則都以這個前綴開頭（見 print.css 標頭）；比對選擇器時先拿掉它 */
+  const SCOPE = 'body:not(.wb-print-sheet)'
+  const rawSelectorsOf = (r: Rule) => r.selector.split(',').map((s) => s.trim())
+  const selectorsOf = (r: Rule) => rawSelectorsOf(r).map((s) => (s.startsWith(`${SCOPE} `) ? s.slice(SCOPE.length + 1) : s))
+  /** 找出「選擇器清單裡含 sel，且宣告了 prop」的列印規則 */
+  const printRuleFor = (sel: string, prop: string) => inPrint.filter((r) => selectorsOf(r).includes(sel) && prop in r.decls)
+  /** 所有被 display:none 隱藏的選擇器 */
+  const hidden = new Set(inPrint.filter((r) => hasDecl(r, 'display', /^none\b/)).flatMap(selectorsOf))
+
+  it('main.tsx 在 global.css 之後載入 print（樣式與列印前展開的處理器）', () => {
+    const main = read('src/main.tsx')
+    expect(main.indexOf("'./styles/print'")).toBeGreaterThan(main.indexOf("'./styles/global.css'"))
+    expect(existsSync(resolve(root, 'src/styles/print.ts'))).toBe(true)
+    expect(read('src/styles/print.ts')).toContain("import './print.css'")
+    expect(read('src/styles/print.ts')).toContain('installPrintPrep')
+  })
+
+  it('除了命名頁面 @page doc 之外，每一條規則都在 @media print 裡（不影響螢幕）', () => {
+    const outside = rules.filter((r) => r.media !== 'print').map((r) => r.selector)
+    expect(outside).toEqual(['@page doc'])
+  })
+
+  it('隱藏外框：頂列、側欄、遮罩、skip link、模式選擇器、上下頁、目錄、搜尋、放大鈕、modebar、浮動按鈕（display:none !important）', () => {
+    for (const sel of [
+      '.topbar',
+      '.sidebar',
+      '.nav-scrim',
+      '.c-skip-link',
+      '.c-modepicker',
+      '.page-pager',
+      '.c-outline-col',
+      '.c-outline-dock',
+      '.c-search-backdrop',
+      '.c-zoom',
+      '.c-mermaid-zoom',
+      '.modebar',
+      '.modebar-container',
+      '.wb-dock',
+      '.no-print',
+      '[data-no-print]', // printPrep.ts 替「↑ 回到章首」這類只在螢幕上有用的按鈕標上的屬性
+    ]) {
+      const hit = printRuleFor(sel, 'display')
+      expect(hit.length, `${sel} 沒有列印時隱藏的規則`).toBeGreaterThan(0)
+      expect(hit.every((r) => /^none !important$/.test(r.decls.display)), `${sel} 要寫 display: none !important（章節 CSS 比它晚載入）`).toBe(true)
+    }
+  })
+
+  it('實驗的控制項：滑桿、工具列（執行／重設／preset）、下載鈕、複製程式碼、程式碼分頁、看答案鈕都不印', () => {
+    for (const sel of ['.c-param-slider', '.c-exp-toolbar', '.c-exp-export', '.c-code-copy', '.c-code-tabs', '.c-quiz > .btn', '.c-handcalc-actions']) {
+      expect(hidden.has(sel), sel).toBe(true)
+    }
+  })
+
+  it('強制淺色：:root[data-theme=dark] 在列印時被改回與 global.css 淺色 :root 完全相同的 token', () => {
+    const globalRules = parseCss(read('src/styles/global.css'))
+    const light = globalRules.find((r) => r.media === null && r.selector === ':root')!.decls
+    const dark = globalRules.find((r) => r.media === null && r.selector === ":root[data-theme='dark']")!.decls
+    const forced = inPrint.find((r) => selectorsOf(r).includes(":root[data-theme='dark']") && selectorsOf(r).includes(':root'))
+    expect(forced, '缺少 :root, :root[data-theme=dark] 的列印規則').toBeDefined()
+    const darkTokens = Object.keys(dark).filter((k) => k.startsWith('--'))
+    expect(darkTokens.length).toBeGreaterThan(40)
+    for (const k of darkTokens) expect(forced!.decls[k], `${k}（深色主題會改它，列印要還原成淺色值）`).toBe(light[k])
+    expect(forced!.decls['color-scheme']).toBe('light')
+    // 列印規則的優先權不低於深色主題那條，而且 print.css 在 global.css 之後載入（上一個測試守住載入順序）→ 同優先權時後者勝
+    const darkSpec = specificity(":root[data-theme='dark']")
+    expect(cmpSpec(specificity(":root[data-theme='dark']"), darkSpec)).toBe(0)
+  })
+
+  it('背景色照印（print-color-adjust: exact），背景是白紙不是 --bg 的淡灰', () => {
+    const all = inPrint.find((r) => selectorsOf(r).includes('*'))!
+    expect(rawSelectorsOf(all)).toContain(`${SCOPE} *`)
+    expect(all.decls['print-color-adjust']).toBe('exact')
+    expect(all.decls['-webkit-print-color-adjust']).toBe('exact')
+    const page = inPrint.find((r) => selectorsOf(r).join() === 'html,body')!
+    expect(page.decls.background).toMatch(/^#fff\b/)
+  })
+
+  it('版面：內容滿版（.content 與 .page 拿掉 margin／padding／max-width），章節與工具頁用命名頁面 doc 的 16 mm 邊界，練習卷不套用', () => {
+    const content = inPrint.find((r) => rawSelectorsOf(r).join() === '.content')!
+    expect(content.decls.margin).toBe('0 !important')
+    expect(content.decls.padding).toBe('0 !important')
+    const page = inPrint.find((r) => rawSelectorsOf(r).includes('.page') && 'max-width' in r.decls)!
+    expect(page.decls['max-width']).toBe('none !important')
+    expect(selectorsOf(page)).toContain('.page[data-outline]') // PageOutline 的右欄會加 padding-right 與 max-width
+    expect(page.decls['padding-right']).toBe('0 !important')
+    const named = rules.find((r) => r.selector === '@page doc')!
+    expect(named.decls.margin).toBe('16mm')
+    const apply = inPrint.find((r) => rawSelectorsOf(r).includes(`${SCOPE} .content`) && 'page' in r.decls)!
+    expect(apply.decls.page).toBe('doc')
+    // 練習卷自己的列印規則（workbook.css）不由這裡處理：這裡不出現 .wb-sheet
+    expect(printCss).not.toContain('.wb-sheet {')
+    expect(printCss).not.toMatch(/\.wb-sheet[\s,.{]/)
+  })
+
+  it('練習卷（body.wb-print-sheet）不受影響：除了 token、隱藏外框、html／body 白底、.content／.page 重設（它自己的規則寫了同樣的值）、深色圖表反相之外，所有規則都以 body:not(.wb-print-sheet) 開頭', () => {
+    const exempt = (r: Rule) =>
+      rawSelectorsOf(r).every((s) => s.startsWith(':root') || s === '.app-shell' || s === 'html' || s === 'body' || s === '.content' || s === '.page' || s === '.page[data-outline]') ||
+      hasDecl(r, 'display', /^none !important$/) // 隱藏外框／控制項（練習卷自己的規則隱藏同一批東西）
+    const unscoped = inPrint.filter((r) => !exempt(r)).flatMap((r) => rawSelectorsOf(r).filter((s) => !s.startsWith(`${SCOPE} `) && s !== SCOPE && !s.startsWith('html:not(:has(body.wb-print-sheet))')))
+    expect(unscoped).toEqual([])
+    // 豁免名單裡的 token 規則只改 token，不碰版面；html／body 規則只改背景
+    const bg = inPrint.find((r) => rawSelectorsOf(r).join() === 'html,body')!
+    expect(Object.keys(bg.decls)).toEqual(['background'])
+  })
+
+  it('字級縮到 14px（10.5pt）、行高 1.55，淺色紙面', () => {
+    // :has() 不支援的瀏覽器丟棄 html 這條（維持 16px），所以限定練習卷的條件寫在它上面
+    const html = inPrint.find((r) => r.selector === 'html:not(:has(body.wb-print-sheet))')!
+    expect(html.decls['font-size']).toBe('14px')
+    const body = inPrint.find((r) => r.selector === SCOPE)!
+    expect(body.decls['line-height']).toBe('1.55')
+  })
+
+  it('分頁：標題不孤單留在頁底；圖、獨立公式、表格的列、手算的每一步、思考題不從中間切開；表頭跨頁重複', () => {
+    const after = inPrint.find((r) => hasDecl(r, 'break-after', /^avoid$/))!
+    for (const sel of ['h1', 'h2', 'h3', 'h4', 'summary']) expect(selectorsOf(after), sel).toContain(sel)
+    const inside = inPrint.find((r) => hasDecl(r, 'break-inside', /^avoid$/))!
+    for (const sel of ['figure:not(.c-code)', '.c-plot', '.c-mermaid', '.c-texblock', '.c-step', '.c-quiz', 'tr', '.katex-display']) expect(selectorsOf(inside), sel).toContain(sel)
+    expect(printRuleFor('thead', 'display')[0].decls.display).toBe('table-header-group')
+  })
+
+  it('目錄（.page nav）不從中間切開、標題列不單獨留在頁底；callout 的標題跟著內文走', () => {
+    const inside = inPrint.find((r) => hasDecl(r, 'break-inside', /^avoid$/))!
+    expect(selectorsOf(inside)).toContain('.page nav')
+    const after = inPrint.find((r) => hasDecl(r, 'break-after', /^avoid$/))!
+    for (const sel of ['.c-callout-title', '.page nav > strong:first-child']) expect(selectorsOf(after), sel).toContain(sel)
+  })
+
+  it('程式碼區塊（<figure class="c-code">）可以在行之間換頁，但標題列與「比較」的名稱／說明不單獨留在頁底；折行的長行不從中間切開', () => {
+    const avoided = inPrint.filter((r) => hasDecl(r, 'break-inside', /^avoid$/)).flatMap(selectorsOf)
+    expect(avoided).not.toContain('figure') // 裸的 figure 會把整段程式碼挪到下一頁，上一頁只剩一行說明（ch08 實測）
+    expect(avoided).toContain('.c-code-line')
+    const after = inPrint.find((r) => hasDecl(r, 'break-after', /^avoid$/))!
+    for (const sel of ['.c-code-head', '.c-code-compare-label', '.c-code-compare-note']) expect(selectorsOf(after), sel).toContain(sel)
+  })
+
+  it('不能把整個表格／整段程式碼／整張實驗結果設成 break-inside:avoid（比一頁高時 Chrome 會在前一頁留下孤單的標題與整頁空白）', () => {
+    const avoided = inPrint.filter((r) => hasDecl(r, 'break-inside', /^avoid/)).flatMap(selectorsOf)
+    for (const sel of ['table', '.c-code', '.c-exp', '.c-exp-results', '.c-handcalc', 'details', '.callout']) expect(avoided, sel).not.toContain(sel)
+  })
+
+  it('章節的 h2 另起一頁：只套用在章節頁（ch00–ch14 與 07b 案例），工具頁不套用；註冊表裡的頁面 id 與這兩個選擇器對得起來', async () => {
+    const forced = inPrint.filter((r) => hasDecl(r, 'break-before', /^page$/))
+    const plain = forced.find((r) => !r.selector.includes(':has('))!
+    expect(selectorsOf(plain).sort()).toEqual([".page[data-page='case-sspll'] h2:not(.c-section-title)", ".page[data-page^='ch'] h2:not(.c-section-title)"])
+    for (const r of forced) for (const sel of rawSelectorsOf(r)) expect(sel.startsWith(`${SCOPE} `), sel).toBe(true)
+    // Section 元件的 h2 前面有一行 kicker：換頁要連 kicker 一起（對 .c-section），而且 :has() 規則獨立成一條（不支援的瀏覽器整條丟棄，不連累上面那條）
+    const withHas = forced.filter((r) => r.selector.includes(':has('))
+    expect(withHas).toHaveLength(1)
+    expect(selectorsOf(withHas[0]).sort()).toEqual([".page[data-page='case-sspll'] .c-section:has(> h2.c-section-title)", ".page[data-page^='ch'] .c-section:has(> h2.c-section-title)"])
+    const { PAGES } = await import('@/app/registry')
+    for (const p of PAGES) {
+      const chapter = p.group === 'A' || p.group === 'B' || p.group === 'C'
+      const matched = p.id.startsWith('ch') || p.id === 'case-sspll'
+      expect(matched, `${p.id}（group ${p.group}）`).toBe(chapter)
+    }
+  })
+
+  it('外部連結後面印網址、站內 #/ 路由連結不印', () => {
+    const r = inPrint.find((x) => x.selector.includes("a[href^='http']::after"))!
+    expect(r.decls.content).toBe("' (' attr(href) ')'")
+    expect(printCss).not.toMatch(/a\[href\^=['"]#/)
+  })
+
+  it('能橫向捲動的容器（表格外框、程式碼、方塊圖、獨立公式）列印時 overflow:visible、不截高度', () => {
+    const r = inPrint.find((x) => selectorsOf(x).includes('.table-wrap') && 'overflow' in x.decls)!
+    for (const sel of ['.c-scroll', '.c-metric-wrap', '.katex-display', '.c-mermaid-svg', '.c-code-pre']) expect(selectorsOf(r), sel).toContain(sel)
+    expect(r.decls.overflow).toBe('visible !important')
+    expect(r.decls['max-height']).toBe('none !important')
+  })
+
+  it('不能有任何元素比頁寬寬（Chrome 會把整份文件等比縮小去配合它）：表格取消 min-width 與數值欄的 nowrap，長公式可換行（方塊圖裡的除外）', () => {
+    const table = inPrint.find((x) => selectorsOf(x).includes('table') && 'min-width' in x.decls)!
+    expect(table.decls['min-width']).toBe('0 !important')
+    const cell = inPrint.find((x) => selectorsOf(x).includes('th') && selectorsOf(x).includes('td') && 'white-space' in x.decls)!
+    expect(cell.decls['white-space']).toBe('normal !important')
+    expect(cell.decls['overflow-wrap']).toBe('break-word') // anywhere 會把短欄名擠成直排
+    const katex = inPrint.find((x) => selectorsOf(x).includes('.katex:not(.c-mermaid .katex)'))!
+    expect(selectorsOf(katex)).toContain('.katex-html:not(.c-mermaid .katex-html)')
+    expect(katex.decls['white-space']).toBe('normal')
+  })
+
+  it('表格每格的留白縮小；欄數多的表（第 8 欄以後還有格子）再縮一級字與留白，免得整份文件被 Chrome 縮小', () => {
+    const cell = inPrint.find((x) => selectorsOf(x).includes('th') && selectorsOf(x).includes('td') && 'padding' in x.decls)!
+    expect(cell.decls.padding).toBe('4px 5px !important')
+    expect(cell.decls['min-width']).toBe('0 !important') // /verification 的 .ver-wide（170px）、.ver-mid（110px）：9 欄加起來 1072px，Chrome 會把整頁縮到 63%
+    const wide = ['table:has(tr > :nth-child(8))', 'table:has(tr > :nth-child(8)) th', 'table:has(tr > :nth-child(8)) td']
+    const font = inPrint.find((x) => selectorsOf(x).includes(wide[0]) && 'font-size' in x.decls)!
+    const dense = inPrint.find((x) => selectorsOf(x).includes(wide[1]) && selectorsOf(x).includes(wide[2]))!
+    expect(parseFloat(font.decls['font-size'])).toBeLessThan(parseFloat(printRuleFor('table', 'font-size')[0].decls['font-size']))
+    expect(dense.decls.padding).toBe('3px 3px !important')
+    // :has() 不支援的瀏覽器會整條丟棄：不能和基本的表格規則放在同一個選擇器清單裡
+    expect(selectorsOf(cell).some((sel) => sel.includes(':has('))).toBe(false)
+    expect(selectorsOf(printRuleFor('table', 'min-width')[0]).some((sel) => sel.includes(':has('))).toBe(false)
+  })
+
+  it('比頁寬還寬的單一公式片段依 100vw 縮小字級（printPrep 量好 --c-em、--c-off）；放得下的取 1em 維持原樣', () => {
+    const r = inPrint.find((x) => selectorsOf(x).includes('.katex-html > .base[data-print-wide]'))!
+    expect(r.decls['font-size']).toBe('min(1em, calc((100vw - var(--c-off, 0px) - 4px) / var(--c-em)))')
+    // 100vw 在 Chrome 的列印版面等於頁面內容寬（扣掉 @page 邊界）：puppeteer page.pdf 實測 A4／Letter 都是
+    expect(r.decls.width).toBeUndefined()
+  })
+
+  it('方塊圖拿掉為窄螢幕設的 min-width；程式碼長行換行；程式碼對照在紙上全部印出', () => {
+    const svg = inPrint.find((x) => selectorsOf(x).includes('.c-mermaid-svg > svg') && 'min-width' in x.decls)!
+    expect(svg.decls['min-width']).toBe('0 !important')
+    expect(svg.decls['max-width']).toBeUndefined() // 保留 Mermaid 的自然寬度，免得小圖被放大成整頁
+    // 高度封頂在「一頁內容高（100vh = 紙張高度扣掉邊界）減掉圖框的 padding、圖說與 margin」：長寬比接近 1 的圖滿頁寬時比一頁還高，
+    // break-inside: avoid 的圖框會在上一頁留一條邊、下一頁整頁空白（ch12 實測）；width: auto 讓 max-height 依 viewBox 長寬比縮窄
+    expect(selectorsOf(svg)).toContain('.c-sysmap-svg')
+    expect(svg.decls.width).toBe('auto')
+    const cap = /^calc\(100vh - (\d+)px\)$/.exec(svg.decls['max-height'] ?? '')
+    expect(cap, 'max-height 要寫 calc(100vh - Npx)（A4／Letter／橫式都適用）').not.toBeNull()
+    expect(Number(cap![1])).toBeGreaterThanOrEqual(140) // 圖框 padding 16 + 邊框 + 上下 margin 36 + 圖說最多四五行
+    expect(Number(cap![1])).toBeLessThanOrEqual(240) // 再大就把橫式紙張（內容高約 670px）的圖縮得太小
+    const line = inPrint.find((x) => selectorsOf(x).includes('.c-code-line') && 'white-space' in x.decls)!
+    expect(line.decls['white-space']).toBe('pre-wrap')
+    const compare = inPrint.find((x) => selectorsOf(x).includes('.c-code-compare-tabs .c-code-compare-item'))!
+    expect(compare.decls.display).toBe('block !important')
+  })
+
+  it('Plotly 圖依頁寬縮放：只套用在 printPrep 標記過的圖（data-print-fit），沒標記的維持原樣', () => {
+    const plot = inPrint.filter((x) => selectorsOf(x).some((s) => s.includes('.c-plot-frame')))
+    expect(plot.length).toBeGreaterThanOrEqual(3)
+    for (const r of plot) for (const s of selectorsOf(r)) expect(s, s).toContain('[data-print-fit]')
+    const ar = plot.find((r) => 'aspect-ratio' in r.decls)!
+    expect(ar.decls['aspect-ratio']).toBe('var(--c-print-ar)')
+    // 只縮小、不放大：比頁寬窄的圖維持自然寬度
+    const w = plot.find((r) => 'max-width' in r.decls)!
+    expect(w.decls['max-width']).toBe('var(--c-print-w)')
+    expect(w.decls.width).toBe('100% !important')
+  })
+
+  it('圖還沒畫好時（第一次按列印才開始載入）印出原因與補救辦法，不是只有一句「圖表載入中…」', () => {
+    const r = inPrint.find((x) => selectorsOf(x).includes(".c-plot-placeholder[aria-busy='true']::after") && selectorsOf(x).includes('.c-mermaid-loading::after'))!
+    expect(r.decls.content).toMatch(/再列印一次/)
+  })
+
+  it('每個 position:fixed 的元素（日後新增的浮動目錄、搜尋、提示列…）都必須列在列印隱藏清單裡，否則會在每一頁重複並蓋住正文', () => {
+    const files: string[] = []
+    const walk = (dir: string) => {
+      for (const name of readdirSync(resolve(root, dir))) {
+        const rel = `${dir}/${name}`
+        if (statSync(resolve(root, rel)).isDirectory()) walk(rel)
+        else if (name.endsWith('.css') && rel !== 'src/styles/print.css') files.push(rel)
+      }
+    }
+    walk('src')
+    const classOf = (sel: string) => (sel.match(/\.([\w-]+)(?![\w-])/g) ?? []).pop()
+    // 只算「單一 class」的隱藏規則（.c-seed .btn 之類的後代選擇器只藏某個容器裡的按鈕，不代表 .btn 整個不印）
+    const hiddenClasses = new Set([...hidden].filter((s) => /^\.[\w-]+$/.test(s)).map((s) => classOf(s)))
+    const missing: string[] = []
+    let fixed = 0
+    for (const f of files) {
+      for (const r of parseCss(read(f))) {
+        if (r.media === 'print' || r.decls.position !== 'fixed') continue
+        for (const sel of r.selector.split(',').map((s) => s.trim())) {
+          fixed++
+          const cls = classOf(sel)
+          // 列印時根本不顯示的容器（練習卷的 body.wb-print-sheet 規則自己處理）不算；其餘必須有 class 且在清單裡
+          if (!cls || !hiddenClasses.has(cls)) missing.push(`${f}: ${sel}`)
+        }
+      }
+    }
+    expect(fixed).toBeGreaterThan(8) // 至少抓到 topbar、sidebar、遮罩、放大、搜尋、目錄…（解析壞掉時不會默默通過）
+    expect(missing, '這些 position:fixed 的元素列印時會在每一頁重複：到 print.css 隱藏清單加上它的 class，或在元素上加 class="no-print"').toEqual([])
   })
 })

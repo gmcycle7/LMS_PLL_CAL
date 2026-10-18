@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Data, Layout, Shape } from 'plotly.js-dist-min'
+import type { Data, Layout, Shape } from 'plotly.js-cartesian-dist-min'
 import {
   CaseSelector,
   ClaimTag,
@@ -594,8 +594,7 @@ export function StabilityLab() {
       tests={['T02', 'T03']}
       description={
         <>
-          純量 LMS <Tex>{T`\delta_{n+1}=(1-\mu x_n^2)\delta_n-\mu x_nv_n`}</Tex>，<Tex>{T`x_n`}</Tex> iid。解析：<Tex>{T`E[\delta_n]`}</Tex>、<Tex>{T`E[\delta_n^2]`}</Tex>（MSD）；
-          Monte Carlo（Web Worker）：<Tex>{T`|\delta_n|`}</Tex> 的中位數與 10/90% 分位數。
+          純量 LMS <Tex>{T`\delta_{n+1}=(1-\mu x_n^2)\delta_n-\mu x_nv_n`}</Tex>，<Tex>{T`x_n`}</Tex> iid。解析：<Tex>{T`E[\delta_n]`}</Tex>、<Tex>{T`E[\delta_n^2]`}</Tex>（MSD）；Monte Carlo（Web Worker）：<Tex>{T`|\delta_n|`}</Tex> 的中位數與 10/90% 分位數。
         </>
       }
       assumptions={[

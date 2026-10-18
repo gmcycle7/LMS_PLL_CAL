@@ -24,7 +24,7 @@ const P = vi.hoisted(() => ({
   Plots: { resize: vi.fn() },
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
-vi.mock('plotly.js-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
 
 // 記下每個 <Plot> 交給 applyPlotMath 的 data／layout（轉換前的字串），檢查圖內文字的數學都寫成 `$...$`
 const PM = vi.hoisted(() => ({ inputs: [] as { data: unknown; layout: unknown }[] }))

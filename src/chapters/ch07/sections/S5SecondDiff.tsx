@@ -145,8 +145,7 @@ export function S5SecondDiff() {
       </TexBlock>
 
       <p>
-        但真正要比的是 E44 的<strong>離散時間</strong> <Tex>{r`H_{\mathrm{PD}}(e^{j\Omega})`}</Tex>（含額外 loop latency <Tex>{'d'}</Tex>），不是 CT 原型。
-        令 <Tex>{r`\nabla\equiv1-z^{-1}`}</Tex>（一階差分，backward difference），<Tex>{r`K_p=2\zeta\omega_nT_s`}</Tex>、<Tex>{r`K_i=(\omega_nT_s)^2`}</Tex>
+        但真正要比的是 E44 的<strong>離散時間</strong> <Tex>{r`H_{\mathrm{PD}}(e^{j\Omega})`}</Tex>（含額外 loop latency <Tex>{'d'}</Tex>），不是 CT 原型。令 <Tex>{r`\nabla\equiv1-z^{-1}`}</Tex>（一階差分，backward difference），<Tex>{r`K_p=2\zeta\omega_nT_s`}</Tex>、<Tex>{r`K_i=(\omega_nT_s)^2`}</Tex>
         （PI loop filter 的比例係數與積分係數）。先看迴路的方塊圖：
       </p>
       <Mermaid
@@ -226,8 +225,7 @@ export function S5SecondDiff() {
             {' '}與 <Tex>{r`${tx(sd.band1.lo, 4)}`}</Tex>（<Tex>{'d=1'}</Tex>）
           </>
         ) : null}
-        。注意它不是「高頻一律錯」：<Tex>{r`\Omega\to\pi`}</Tex> 時 <Tex>{r`\angle\hat H_2=\pi-\Omega\to0`}</Tex>，又和 <Tex>{r`H_{\mathrm{PD}}\approx1`}</Tex> 對齊了。
-        相位差超過 <Tex>{r`90^\circ`}</Tex> 的是一段<strong>中頻帶</strong>
+        。注意它不是「高頻一律錯」：<Tex>{r`\Omega\to\pi`}</Tex> 時 <Tex>{r`\angle\hat H_2=\pi-\Omega\to0`}</Tex>，又和 <Tex>{r`H_{\mathrm{PD}}\approx1`}</Tex> 對齊了。相位差超過 <Tex>{r`90^\circ`}</Tex> 的是一段<strong>中頻帶</strong>
         {sd.band0 ? (
           <>
             {' '}
@@ -290,8 +288,7 @@ export function S5SecondDiff() {
         <p>
           上表是單頻。若 code 是寬頻的低通（例如 AR(1)，<Tex>{r`\rho_x`}</Tex> 接近 1），直覺上「能量大多在低頻，應該沒問題」——但 F-07.12 的權重是
           <Tex>{r`S_{xx}|H_{\mathrm{PD}}||\hat H_2|`}</Tex>：低頻 <Tex>{r`|H_{\mathrm{PD}}||\hat H_2|\approx(\Omega/\omega_nT_s)^4`}</Tex> 非常小，而
-          <Tex>{r`|\hat H_2|=4\sin^2(\Omega/2)/(\omega_nT_s)^2`}</Tex> 一直升到 Nyquist，於是 AR(1) 的高頻尾巴（<Tex>{r`S_{xx}\propto1/\Omega^2`}</Tex>）在中頻帶拿到和低頻差不多的票數。
-          AR(1) 可以在時域算出確切值：
+          <Tex>{r`|\hat H_2|=4\sin^2(\Omega/2)/(\omega_nT_s)^2`}</Tex> 一直升到 Nyquist，於是 AR(1) 的高頻尾巴（<Tex>{r`S_{xx}\propto1/\Omega^2`}</Tex>）在中頻帶拿到和低頻差不多的票數。AR(1) 可以在時域算出確切值：
         </p>
         <StepDerivation
           steps={[
@@ -329,8 +326,7 @@ export function S5SecondDiff() {
           {r`\begin{aligned}E[u\,u_f]&=K_2\Big[(1-\rho_x)^2h[0]-2(1-\rho_x)h[1]+(1-\rho_x)^2\sum_{k\ge2}h[k]\rho_x^{k-2}\Big],\\E[u_f^2]&=2K_2^2(1-\rho_x)(3-\rho_x)\end{aligned}`}
         </TexBlock>
         <p>
-          所以 <Tex>{'d=0'}</Tex> 時只剩 <Tex>{r`O(1-\rho_x)`}</Tex> 的小正值，<Tex>{r`d\ge1`}</Tex> 時連這一項都消失，剩下的括號因 DC null 幾乎完全抵消（<Tex>{r`O((1-\rho_x)^3)`}</Tex>），
-          符號由高階項決定、不受設計者控制。下表用 F-07.16 逐項計算，並與 7.5 節開頭的雙重和 <Tex>{r`\sum_k\sum_lh[k]\hat h[l]R_x[k-l]`}</Tex>（「封閉式」欄）、以及頻域正／負票（
+          所以 <Tex>{'d=0'}</Tex> 時只剩 <Tex>{r`O(1-\rho_x)`}</Tex> 的小正值，<Tex>{r`d\ge1`}</Tex> 時連這一項都消失，剩下的括號因 DC null 幾乎完全抵消（<Tex>{r`O((1-\rho_x)^3)`}</Tex>），符號由高階項決定、不受設計者控制。下表用 F-07.16 逐項計算，並與 7.5 節開頭的雙重和 <Tex>{r`\sum_k\sum_lh[k]\hat h[l]R_x[k-l]`}</Tex>（「封閉式」欄）、以及頻域正／負票（
           <Tex>{r`\frac1\pi\int_0^\pi S_{xx}\mathrm{Re}\{H\hat H_2^*\}d\Omega`}</Tex> 依被積函數正負拆開）交叉驗證（<Tex>{r`K_2=1/(\omega_nT_s)^2=${tx(SCALE, 0)}`}</Tex>）：
         </p>
         <div className="table-wrap">
@@ -378,8 +374,7 @@ export function S5SecondDiff() {
           </table>
         </div>
         <p className="small muted">
-          正票與負票的大小差不多、互相抵消，總和只剩一點點：正規化相關 <Tex>{r`\rho_{\mathrm{ref}}`}</Tex> 遠小於 1 甚至為負。二次差分只適合<strong>窄頻</strong>的低頻 tone，
-          不適合寬頻 code——即使那個 code 是「低通」的。閉迴路驗證見 Lab 的 preset「二次差分遇到寬頻低通 code」。 <ClaimTag kind="exact" />
+          正票與負票的大小差不多、互相抵消，總和只剩一點點：正規化相關 <Tex>{r`\rho_{\mathrm{ref}}`}</Tex> 遠小於 1 甚至為負。二次差分只適合<strong>窄頻</strong>的低頻 tone，不適合寬頻 code——即使那個 code 是「低通」的。閉迴路驗證見 Lab 的 preset「二次差分遇到寬頻低通 code」。 <ClaimTag kind="exact" />
         </p>
       </ModeGate>
 
@@ -387,10 +382,8 @@ export function S5SecondDiff() {
         <p>
           只要兩個 code 暫存器（<Tex>{'x[n-1]'}</Tex>、<Tex>{'x[n-2]'}</Tex>）、一個左移（<Tex>{r`\times2`}</Tex>）和兩個加法器；
           <Tex>{r`K_2=1/(\hat\omega_nT_s)^2`}</Tex> 只是正的增益，可以併入 <Tex>{'\\mu'}</Tex> 或用 barrel shift。代價是 regressor 多 2 個 bit 的動態範圍。
-          <strong>適用範圍</strong>：窄頻、低頻的 training tone（<Tex>{r`\Omega`}</Tex> 低於 F-07.15 的邊界，慢速 PVT tracking）。
-          code 能量若落在上面的中頻帶（例如 <Tex>{r`\Omega=\pi/6`}</Tex> 的 training tone，<Tex>{r`\angle H_{\mathrm{PD}}=${tx(sd.pi6.phH, 1)}^\circ`}</Tex>、相位差
-          <Tex>{r`${tx(sd.pi6.err, 1)}^\circ`}</Tex>），極性會{Math.abs(sd.pi6.err) > 90 ? <strong>反過來</strong> : '保持正確'}；
-          MASH 這種能量堆在 Nyquist 附近的 DSM code，二次差分的正規化相關是 <Tex>{r`\rho=${tx(sd.rhoSdMash, 2)}`}</Tex>
+          <strong>適用範圍</strong>：窄頻、低頻的 training tone（<Tex>{r`\Omega`}</Tex> 低於 F-07.15 的邊界，慢速 PVT tracking）。code 能量若落在上面的中頻帶（例如 <Tex>{r`\Omega=\pi/6`}</Tex> 的 training tone，<Tex>{r`\angle H_{\mathrm{PD}}=${tx(sd.pi6.phH, 1)}^\circ`}</Tex>、相位差
+          <Tex>{r`${tx(sd.pi6.err, 1)}^\circ`}</Tex>），極性會{Math.abs(sd.pi6.err) > 90 ? <strong>反過來</strong> : '保持正確'}；MASH 這種能量堆在 Nyquist 附近的 DSM code，二次差分的正規化相關是 <Tex>{r`\rho=${tx(sd.rhoSdMash, 2)}`}</Tex>
           {sd.rhoSdMash > 0 ? (
             <>
               （符號是對的，因為 Nyquist 附近 <Tex>{r`\angle\hat H_2=\pi-\Omega\to0`}</Tex>；但中頻帶的負票讓它明顯小於 1）
@@ -398,8 +391,7 @@ export function S5SecondDiff() {
           ) : (
             '（極性錯誤）'
           )}
-          ，不如直接用 raw-x（<Tex>{r`H_{\mathrm{PD}}\approx1`}</Tex>，<Tex>{r`\rho=${tx(sd.rhoRawMash, 2)}`}</Tex>；
-          同一段 MASH 序列的經驗值）。
+          ，不如直接用 raw-x（<Tex>{r`H_{\mathrm{PD}}\approx1`}</Tex>，<Tex>{r`\rho=${tx(sd.rhoRawMash, 2)}`}</Tex>；同一段 MASH 序列的經驗值）。
         </p>
       </Callout>
     </>

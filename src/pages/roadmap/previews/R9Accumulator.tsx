@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import {
   ClaimTag,
   CodeCompare,
@@ -162,8 +162,7 @@ export default function R9Preview() {
     <div className="rm-preview">
       <Prereq title="Two’s complement：W 個 bit 能表示什麼">
         <p>
-          {mt('$W$')}-bit two’s complement 的範圍是 <Tex>{'[-2^{W-1},\\ 2^{W-1}-1]'}</Tex>：負的那邊多一個。<Tex>{'-x=\\bar x+1'}</Tex>（各 bit 反相再加一），
-          所以最負值 <Tex>{'-2^{W-1}'}</Tex> 取負後是 <Tex>{'+2^{W-1}'}</Tex>，在同樣的 {mt('$W$')} 個 bit 裡放不下。溢位時硬體只保留低 {mt('$W$')} 個 bit，相當於對 <Tex>{'2^W'}</Tex> 取模（wrap）。 <ChRef ch="04">第 4 章</ChRef> §5 有逐 bit 的例子（<PageRef id="ch04">第 4 章</PageRef>）。
+          {mt('$W$')}-bit two’s complement 的範圍是 <Tex>{'[-2^{W-1},\\ 2^{W-1}-1]'}</Tex>：負的那邊多一個。<Tex>{'-x=\\bar x+1'}</Tex>（各 bit 反相再加一），所以最負值 <Tex>{'-2^{W-1}'}</Tex> 取負後是 <Tex>{'+2^{W-1}'}</Tex>，在同樣的 {mt('$W$')} 個 bit 裡放不下。溢位時硬體只保留低 {mt('$W$')} 個 bit，相當於對 <Tex>{'2^W'}</Tex> 取模（wrap）。 <ChRef ch="04">第 4 章</ChRef> §5 有逐 bit 的例子（<PageRef id="ch04">第 4 章</PageRef>）。
         </p>
       </Prereq>
       <StepDerivation
@@ -184,13 +183,11 @@ export default function R9Preview() {
         <ErratumNote eid="E13">{String.raw`$\mu$、$w$、$G$ 的單位與 LSB 換算必須寫清楚，否則位寬無從計算。`}</ErratumNote>
       </p>
       <p>
-        什麼時候溢位、溢位後存到什麼，也都能用整數算出來。最壞情況每筆都加 <Tex>{'M=\\max|q\\,x|'}</Tex>，第 <Tex>{'n'}</Tex> 筆後的總和是 <Tex>{'nM'}</Tex>；
-        正上限是 <Tex>{'U=2^{W_\\mathrm{acc}-1}-1'}</Tex>，所以最多放得下 <Tex>{'n_{\\mathrm{safe}}'}</Tex> 筆，第 <Tex>{'n_{\\mathrm{safe}}+1'}</Tex> 筆第一次溢位：
+        什麼時候溢位、溢位後存到什麼，也都能用整數算出來。最壞情況每筆都加 <Tex>{'M=\\max|q\\,x|'}</Tex>，第 <Tex>{'n'}</Tex> 筆後的總和是 <Tex>{'nM'}</Tex>；正上限是 <Tex>{'U=2^{W_\\mathrm{acc}-1}-1'}</Tex>，所以最多放得下 <Tex>{'n_{\\mathrm{safe}}'}</Tex> 筆，第 <Tex>{'n_{\\mathrm{safe}}+1'}</Tex> 筆第一次溢位：
       </p>
       <TexBlock>{String.raw`n_{\mathrm{safe}}=\Big\lfloor\frac{2^{W_\mathrm{acc}-1}-1}{\max|q\,x|}\Big\rfloor,\qquad \mathrm{sat}_W(v)=\min\big(2^{W-1}-1,\ \max(-2^{W-1},\ v)\big)`}</TexBlock>
       <p className="small muted">
-        golden negative test 的數字：<Tex>{`n_{\\mathrm{safe}}=\\lfloor65535/31\\rfloor=${GOLDEN_SAFE}`}</Tex>，block 才過一半（第 {GOLDEN_SAFE + 1} 筆）就溢位——wrap 從那一刻起輸出錯的值，saturate 則卡在上限（符號保留、大小錯）。
-        「需要幾個 bit」的手算在 <PageRef id="ch04">第 4 章</PageRef>（HC-04.6）；下面這一題算的是「第幾筆溢位、兩種處理各存到多少」。
+        golden negative test 的數字：<Tex>{`n_{\\mathrm{safe}}=\\lfloor65535/31\\rfloor=${GOLDEN_SAFE}`}</Tex>，block 才過一半（第 {GOLDEN_SAFE + 1} 筆）就溢位——wrap 從那一刻起輸出錯的值，saturate 則卡在上限（符號保留、大小錯）。「需要幾個 bit」的手算在 <PageRef id="ch04">第 4 章</PageRef>（HC-04.6）；下面這一題算的是「第幾筆溢位、兩種處理各存到多少」。
       </p>
       <HandCalc def={roadmapHandCalc('HC-RM.9')} />
       <R9Experiment />

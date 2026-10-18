@@ -518,9 +518,4 @@
   margin-top: 1.8rem;
   padding-top: 0.8rem;
   border-top: 1px solid var(--border);
-  /* 固定的 topbar 不要蓋住捲動目標 */
-  scroll-margin-top: calc(var(--topbar-h, 52px) + 16px);
-}
-#lab-top {
-  scroll-margin-top: calc(var(--topbar-h, 52px) + 16px);
 }

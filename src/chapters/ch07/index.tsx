@@ -22,8 +22,7 @@ export default function Chapter07() {
     <div className="ch07">
       <p className="ch07-lead">
         <ChRef ch="06">Ch06</ChRef> 證明了：PLL 的誤差路徑 <Tex>{r`H_{\mathrm{PD}}`}</Tex> 可以讓 GMAC 的相關 <Tex>{'C=E[xu]'}</Tex>（原始 code <Tex>{'x'}</Tex> 與 comparator 實際看到的 code <Tex>{'u'}</Tex> 相乘後的平均）變號，LMS 往錯的方向更新，而且
-        <strong>減小 learning rate 改不了符號</strong>。本章比較兩種修法：把 GMAC 的 code <strong>延遲</strong>幾個 sample（delay alignment），
-        或用 PLL 誤差路徑的<strong>模型</strong>把 code 濾一次（filtered-x）。我們會推導它們何時有效、何時失效，算出硬體成本，並在同一個 seed
+        <strong>減小 learning rate 改不了符號</strong>。本章比較兩種修法：把 GMAC 的 code <strong>延遲</strong>幾個 sample（delay alignment），或用 PLL 誤差路徑的<strong>模型</strong>把 code 濾一次（filtered-x）。我們會推導它們何時有效、何時失效，算出硬體成本，並在同一個 seed
         下比較閉迴路。
       </p>
       <div className="c-tag-row">
@@ -44,10 +43,8 @@ export default function Chapter07() {
       )}
       <SystemMap focus={CH07_SYSTEM_FOCUS} />
       <p>
-        <strong>你在這裡：</strong>藍色的三塊是本章的主角——小數殘量 <Tex>{'x[n]'}</Tex>（GMAC 的 regressor 從這裡來）、code alignment（delay／filtered-x，本章要設計的方塊）、
-        GMAC（把 comparator 的輸出 <Tex>{'q[n]'}</Tex> 和 regressor 相乘、累加；comparator 取的是 PD 的輸出 <Tex>{'e[n]'}</Tex>，也就是送進 loop filter 的同一個訊號）。沒有上色的主 PLL
-        迴路（DTC 在 reference 輸入端，回授路徑上只有 divider）決定了誤差路徑 <Tex>{r`H_{\mathrm{PD}}`}</Tex>，本章完全不動它；本章新增的只有
-        「GMAC 拿哪一個訊號當 regressor」這一件事：直接用 <Tex>{'x[n]'}</Tex>、先延遲 <Tex>{'D'}</Tex> 個 sample、或先經過 PLL 的模型 <Tex>{r`\hat H`}</Tex>。
+        <strong>你在這裡：</strong>藍色的三塊是本章的主角——小數殘量 <Tex>{'x[n]'}</Tex>（GMAC 的 regressor 從這裡來）、code alignment（delay／filtered-x，本章要設計的方塊）、GMAC（把 comparator 的輸出 <Tex>{'q[n]'}</Tex> 和 regressor 相乘、累加；comparator 取的是 PD 的輸出 <Tex>{'e[n]'}</Tex>，也就是送進 loop filter 的同一個訊號）。沒有上色的主 PLL
+        迴路（DTC 在 reference 輸入端，回授路徑上只有 divider）決定了誤差路徑 <Tex>{r`H_{\mathrm{PD}}`}</Tex>，本章完全不動它；本章新增的只有「GMAC 拿哪一個訊號當 regressor」這一件事：直接用 <Tex>{'x[n]'}</Tex>、先延遲 <Tex>{'D'}</Tex> 個 sample、或先經過 PLL 的模型 <Tex>{r`\hat H`}</Tex>。
       </p>
       <S1Problem />
       <S2DelayDerivation />
@@ -58,8 +55,7 @@ export default function Chapter07() {
       <Section kind="explore" level={2} title="7.7 動手觀察：Delay / Filtered-x Lab" id="ch07-lab">
         <p>
           三模式切換（raw-x / delayed-x / filtered-x）、<Tex>{r`\hat H`}</Tex> 的頻寬／latency／相位／增益誤差、<Tex>{'x'}</Tex>、<Tex>{'u'}</Tex>、
-          <Tex>{'x_D'}</Tex>、<Tex>{'u_f'}</Tex> 疊圖、相關 vs <Tex>{'D'}</Tex>，以及 A/B/C 同 seed 的閉迴路。可從 Experiment Gallery 的 #4
-          「<Tex>{r`\phi=-120^\circ`}</Tex>、<Tex>{'D=4'}</Tex>」直接載入。
+          <Tex>{'x_D'}</Tex>、<Tex>{'u_f'}</Tex> 疊圖、相關 vs <Tex>{'D'}</Tex>，以及 A/B/C 同 seed 的閉迴路。可從 Experiment Gallery 的 #4「<Tex>{r`\phi=-120^\circ`}</Tex>、<Tex>{'D=4'}</Tex>」直接載入。
         </p>
         <p className="small muted">
           注意振幅：Lab 把 code 正規化成 unit power（單頻時 <Tex>{r`A=\sqrt2`}</Tex>、<Tex>{r`A^2/2=1`}</Tex>），所以 7.1 節手算（<Tex>{'A=1'}</Tex>）的

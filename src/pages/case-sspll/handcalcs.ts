@@ -22,6 +22,10 @@ import {
   phosLambdaHarmonic,
   phosM1Bounds,
   singleLinePhos,
+  loopSummary,
+  loopT,
+  spurBetaFromToneFs,
+  spurDbcFromToneFs,
   toySignLmsStep,
   typeIIFinv,
   typeIIOneDiffG,
@@ -30,9 +34,10 @@ import {
   typeILatencyCriterion,
   typeIReH,
 } from '@/simulation/models/sspll'
+import { cAbs } from '@/simulation/core/complex'
 
 /**
- * 案例頁 /case/sspll 的「帶入手算」題（HC-CS.1 – HC-CS.8）。
+ * 案例頁 /case/sspll 的「帶入手算」題（HC-CS.1 – HC-CS.9）。
  *  1. solve() 的數值一律呼叫 src/simulation/models/sspll.ts 的實際函式（頁面的圖表與表格用的是同一批函式）；
  *     中間量（平方、開根號…）只是把那個函式的算式拆成紙筆做得到的步驟，handcalcs.test.tsx 逐題與獨立重算比對。
  *  2. 每一步的 tex 都是「符號式 = 代入數字 =（中間結果 =）結果」：每個等號只做一種運算（一次函數、一串乘除、或一串加減），
@@ -53,7 +58,7 @@ import {
  *
  * 題目在頁面上的位置（sections/*.tsx 用 common.tsx 的 <Hand id="…" /> 以 id 查表；順序與本陣列相同）：
  * HC-CS.1 → §4.1、HC-CS.2 → §5.2、HC-CS.3 → §6.1、HC-CS.4／HC-CS.5 → §6.2、HC-CS.6 → §11.1、HC-CS.7 → §13、
- * HC-CS.8（綜合）→ §15.3，也就是 §16 思考題之前。
+ * HC-CS.8（綜合）→ §15.3，HC-CS.9（殘餘 PHOS → 輸出 spur）→ §15.4，也就是 §16 思考題之前。
  */
 
 const r = String.raw
@@ -186,8 +191,15 @@ const EX = (() => {
     reH20: loopH(makeL2({ Kp, Ki }), 20 / HC_FREF_MHZ).re,
     s8,
     nearGridBias: gosOffsetBias(0.0803 / 12, 0.496, 25, 200),
+    // HC-CS.9：L2 在 80 MHz（α = 0.02）的 |T|（取 4 位小數當預設值）與 |T| 的峰值 peaking（dB，取 2 位小數；params.json 的 T_peak_dB = 2.13）
+    tMag80: Number(cAbs(loopT(makeL2({ Kp, Ki }), 0.02)).toFixed(4)),
+    tPeakDb: Number(loopSummary(makeL2({ Kp, Ki })).tPeakDb.toFixed(2)),
+    sqrt2W1: Math.sqrt(2 * W1),
   }
 })()
+
+/** §10.5 golden 閉迴路結果：L2、α = 0.02、一階差分 regressor 的最終 PHOS rms（pred_vs_sim.json 的 lms['L2|0.02|1diff']，印成 6.2 fs）——HC-CS.9 的預設值 */
+export const HC_PHOS_RMS_DEFAULT_FS = 6.2
 
 export const HANDCALCS: HandCalcDef[] = [
   // ───────────────────────────────────────────────────────────────────────────
@@ -913,6 +925,82 @@ export const HANDCALCS: HandCalcDef[] = [
       r`這題把前面幾題串起來：先算兩個頻率（PMUX 的旋轉、鋸齒的基頻），再和帶緣比（HC-CS.4），最後看對策（HC-CS.6）。想知道「反得多嚴重」，把 $f_{rot}$ 代進 HC-CS.5。`,
       r`$\lfloor x\rfloor$ 的例子：$8\times0.137=1.096$，所以 $\beta=0.096$（§7.1 的手算例）。`,
       r`範例數字（L2、$\alpha=0.021$）就是 §8.1 的手算例：$\alpha f_{ref}=84$ MHz 落在 $0$–$${texNum(EX.finv, 5)}$ MHz 的反號帶內。換成 $\alpha=0.137$（548 MHz）就在帶外。`,
+    ],
+  },
+
+  // ───────────────────────────────────────────────────────────────────────────
+  {
+    id: 'HC-CS.9',
+    title: r`校準完之後：殘餘 PHOS rms 變成多大的輸出 spur？`,
+    page: PAGE,
+    formulaId: 'F-CS.21',
+    formulaTex: r`\begin{gathered}\lvert\hat\delta_1\rvert=\frac{\delta_{rms}}{\sqrt2},\qquad A_1=2\sqrt{W_1}\,\lvert\hat\delta_1\rvert,\qquad A_{out}=\lvert T(f_{rot})\rvert\,A_1,\qquad \Phi=2\pi f_{vco}A_{out}\\[4pt]\mathrm{spur}=20\log_{10}\frac{\Phi}{2},\qquad \mathrm{spur}_{max}=\mathrm{spur}+20\log_{10}\frac{\lvert T\rvert_{max}}{\lvert T(f_{rot})\rvert},\quad \lvert T\rvert_{max}=10^{T_{peak}/20}\end{gathered}`,
+    level: 'engineer',
+    claim: 'approx',
+    inputs: [
+      { key: 'rms', symbol: r`\delta_{rms}`, label: r`校準停下來時的 PHOS 殘差 rms（§10.5 的表；預設是 L2、$\alpha=0.02$、一階差分的 6.2 fs）`, unit: r`\mathrm{fs}`, default: HC_PHOS_RMS_DEFAULT_FS, min: 0, max: 1e5, practice: { choices: [3, 5, 10, 20, 25] } },
+      { key: 'fvco', symbol: 'f_{vco}', label: 'VCO 頻率（插圖值 16 GHz）', unit: r`\mathrm{GHz}`, default: 16, min: 0, max: 1000, practice: { choices: [8, 12, 16, 20] } },
+      { key: 'tmag', symbol: r`\lvert T(f_{rot})\rvert`, label: r`閉迴路響應在 PMUX 旋轉頻率的大小（L2 在 80 MHz 為 $${texNum(EX.tMag80, 5)}$，實驗 A 的 $\lvert T\rvert$ 曲線可以讀到）`, default: EX.tMag80, min: 0, max: 10, practice: { choices: [0.5, 0.8, 1, 1.2] } },
+      { key: 'peak', symbol: 'T_{peak}', label: r`$\lvert T\rvert$ 整條曲線的最大 peaking（L2 標稱 $${texNum(EX.tPeakDb, 3)}$ dB；PVT 可能把峰移到 $f_{rot}$ 上）`, unit: r`\mathrm{dB}`, default: EX.tPeakDb, min: 0, max: 20, practice: { choices: [1, 2, 3] } },
+    ],
+    validate: ({ rms, fvco, tmag, peak }) => {
+      if (!(rms > 0)) return r`$\delta_{rms}$ 必須大於 0：沒有殘差就沒有 spur（$\log$ 無定義）。`
+      if (!(fvco > 0)) return r`$f_{vco}$ 必須大於 0：輸出相位 $\Phi=2\pi f_{vco}A_{out}$ 與 VCO 頻率成正比。`
+      if (!(tmag > 0)) return r`$\lvert T(f_{rot})\rvert$ 必須大於 0：$\lvert T\rvert=0$ 表示迴路把這條線完全擋掉，spur 為 $-\infty$ dBc（實際的 $\lvert T\rvert$ 在帶外也只是變小，不會是 0）。`
+      if (!(peak >= 0)) return r`$T_{peak}$ 不能是負的：它是 $\lvert T\rvert$ 整條曲線的最大值（dB），至少是 0 dB（$\lvert T(0)\rvert=1$）。`
+      // 峰值是整條曲線的最大值，當然不能低於 f_rot 這一點的 |T|；否則 spur_max 會比標稱的 spur 還小
+      const tDb = 20 * Math.log10(tmag)
+      if (peak < tDb - 1e-9) return r`$T_{peak}$ 不能小於 $20\log_{10}\lvert T(f_{rot})\rvert=${texNum(tDb, 4)}$ dB：它是 $\lvert T\rvert$ 整條曲線的最大值，至少包含 $f_{rot}$ 這一點（否則 $\mathrm{spur}_{max}$ 會比標稱的 spur 還小）。`
+      const beta = spurBetaFromToneFs(fvco * 1e9, EX.sqrt2W1 * rms * tmag)
+      if (beta >= 0.3)
+        return r`小角近似不成立：$\Phi=2\pi f_{vco}A_{out}=${texNum(beta, 3)}$ rad $\ge0.3$（殘差已是 ps 級：$A_{out}=${texNum(EX.sqrt2W1 * rms * tmag, 4)}$ fs）。這時 spur 要用 Bessel 式 $20\log_{10}(J_1(\Phi)/J_0(\Phi))$，而且硬體上 DTC 早已飽和（§10.5 的警告）；請把 $\delta_{rms}$ 改成校準收斂後的值（幾 fs 到幾十 fs）。`
+      return null
+    },
+    solve: ({ rms, fvco, tmag, peak }) => {
+      const d1 = rms / Math.SQRT2
+      const sw = Math.sqrt(W1)
+      const A1 = 2 * sw * d1
+      const Aout = tmag * A1
+      const beta = spurBetaFromToneFs(fvco * 1e9, Aout)
+      const half = beta / 2
+      const spur = spurDbcFromToneFs(fvco * 1e9, Aout)
+      const tMax = 10 ** (peak / 20)
+      const dDb = 20 * Math.log10(tMax / tmag)
+      const spurMax = spur + dDb
+      const pSum = sumDecimals(spurMax, [spur, dDb])
+      // |T|max 要顯示幾位：|T|max ≈ |T(f_rot)| 時 dB 差很小，log 把 |T|max 的捨入（相對誤差）放大 (20/ln10)/|dDb| 倍；
+      // 放大超過 3 倍就多寫幾位（同 angleSig 的作法），畫面上的 |T|max 按出來才是畫面上的 dB
+      const ampl = dDb !== 0 ? 20 / Math.LN10 / Math.abs(dDb) : 1
+      const tMaxTex = n(tMax, Math.min(12, 6 + Math.max(0, Math.ceil(Math.log10(Math.max(ampl / 3, 1))))))
+      // 把 GHz × fs 的乘積寫成 ×10^{-6}：2π f_vco A_out = 2π × (f_vco [GHz]) × (A_out [fs]) × 10^{-6} rad
+      return {
+        steps: [
+          { tex: r`\lvert\hat\delta_1\rvert=\frac{\delta_{rms}}{\sqrt2}=\frac{${ni(rms)}}{${n(Math.SQRT2)}}=${n(d1)}\ \mathrm{fs}`, why: r`最壞的情況：殘差全部落在 mode 1（§8 的 DFT 模態；rms$^2=\sum_{m\ne0}\lvert\hat\delta_m\rvert^2$，mode 1 與它的共軛 mode 7 平分，所以 $\lvert\hat\delta_1\rvert=\delta_{rms}/\sqrt2$）。實際分散到好幾個模態時每條線都比這個小。` },
+          { tex: r`A_1=2\sqrt{W_1}\,\lvert\hat\delta_1\rvert=2\times${n(sw)}\times${n(d1)}=${n(A1)}\ \mathrm{fs}`, why: r`mode 1 的 regressor 是 8 階的階梯弦波，它的基波（$\ell=1$，頻率 $f_{rot}=\alpha f_{ref}$）振幅是 $\sqrt{W_1}=\sin(\pi/8)/(\pi/8)=${n(sw)}$ 倍（§8 的 $W_1=${n(W1)}$ 開根號）；乘 2 是因為 $\ell=\pm1$ 兩條複數線合成一條實數 tone。` },
+          { tex: r`A_{out}=\lvert T(f_{rot})\rvert\,A_1=${ni(tmag)}\times${n(A1)}=${n(Aout)}\ \mathrm{fs}`, why: r`注入點的 tone 經過主迴路的閉迴路響應 $T=L/(1+L)$（F-CS.1）才到 VCO 輸出；帶內 $\lvert T\rvert\approx1$（甚至 peaking $>1$），帶外變小。` },
+          { tex: r`\Phi=2\pi f_{vco}A_{out}=2\pi\times${ni(fvco)}\times${n(Aout)}\times10^{-6}=${n(beta)}\ \mathrm{rad}`, why: r`時間誤差換成輸出相位：GHz 乘 fs 是 $10^{9}\times10^{-15}=10^{-6}$。這就是 Ch12 F-12.16 的 $\phi_{out}=2\pi f_{out}T\,\delta t$ 在一個 tone 上的峰值，也就是 PM 的調變指數（Ch12 寫成 $\beta$；本頁的 $\beta$ 已經是 $\mathrm{frac}(8\alpha)$，所以改用 $\Phi$）。` },
+          { tex: r`\tfrac{\Phi}{2}=\tfrac{${n(beta)}}{2}=${n(half)}`, why: r`小角 PM：每個單邊 sideband 的振幅是載波的 $\Phi/2$（$\cos(\Phi\sin\omega t)\approx1$、$\sin(\Phi\sin\omega t)\approx\Phi\sin\omega t$，T15 的作法）。` },
+          { tex: r`\mathrm{spur}=20\log_{10}\frac{\Phi}{2}=20\log_{10}(${n(half)})=${n(spur)}\ \mathrm{dBc}`, why: r`按 $\log$ 鍵再乘 20。心算：$\Phi/2=5\times10^{-4}$ 大約是 $-66$ dBc，每差 $\sqrt{10}$ 倍差 10 dB。` },
+          { tex: r`\lvert T\rvert_{max}=10^{T_{peak}/20}=10^{${n(peak / 20)}}=${tMaxTex}`, why: r`最壞情況：PVT 把 $\lvert T\rvert$ 的峰移到 $f_{rot}$ 上，這條線最多被放大到整條曲線的峰值（§15.4 的角落表用實際的 PVT 迴路算，數字更準）。` },
+          { tex: r`20\log_{10}\frac{\lvert T\rvert_{max}}{\lvert T(f_{rot})\rvert}=20\log_{10}\frac{${tMaxTex}}{${ni(tmag)}}=${n(dDb)}\ \mathrm{dB}`, why: r`增益比換成 dB。$f_{rot}$ 本來就在 peaking 區時這個差值很小；頻道在帶外（$\lvert T\rvert$ 很小）時可以差好幾 dB。` },
+          { tex: r`\mathrm{spur}_{max}=\mathrm{spur}+20\log_{10}\frac{\lvert T\rvert_{max}}{\lvert T(f_{rot})\rvert}=${fixedTex(spur, pSum)}+${fixedTex(dDb, pSum)}=${n(spurMax)}\ \mathrm{dBc}`, why: '兩個 dB 值相加。這是用 peaking 上限估的 PVT 最壞情況。' },
+        ],
+        results: [
+          { symbol: 'A_{out}', label: '輸出端 mode-1 基波的 peak 振幅', value: Aout, unit: r`\mathrm{fs}`, digits: 5 },
+          { symbol: r`\mathrm{spur}`, label: 'mode-1 基波的單邊 spur（標稱）', value: spur, unit: r`\mathrm{dBc}`, digits: 5, tolerance: { rel: 0.005, abs: 0.05 } },
+          { symbol: r`\mathrm{spur}_{max}`, label: 'PVT 最壞情況（峰值 peaking）', value: spurMax, unit: r`\mathrm{dBc}`, digits: 5, tolerance: { rel: 0.005, abs: 0.05 } },
+        ],
+        notes: [
+          r`反過來用：頻譜儀在 $f_{rot}$ 量到 $S$ dBc，就能反推 PHOS 殘差 $\lvert\hat\delta_1\rvert=10^{S/20}/(\pi f_{vco}\lvert T\rvert\cdot2\sqrt{W_1})$；本題的數字倒回去：$10^{${n(spur)}/20}/(\pi\times${ni(fvco)}\times10^{-6}\times${ni(tmag)}\times${n(2 * sw)})=${n(d1)}$ fs。`,
+          r`這只是 mode 1 的基波。mode 1 其餘 ${texNum(100 * (1 - W1), 2)}% 的功率散在 $\ell=-7,9,-15,\dots$（$\mathrm{frac}(\ell\alpha)f_{ref}$），mode 2–4 各有自己的線；GOS 殘差另外給 $\mathrm{frac}(m\beta)f_{ref}$ 上的鋸齒諧波（F-CS.22）。實驗 C 凍結權重後把全部譜線列成表。`,
+          beta < 0.03 ? r`$\Phi=${texNum(beta, 3)}$ rad $\ll1$：小角近似的誤差小於 0.01 dB。` : r`$\Phi=${texNum(beta, 3)}$ rad：小角近似大約差 $${texNum((20 / Math.LN10) * (beta * beta) / 8, 2)}$ dB（$J_1(\Phi)/J_0(\Phi)\approx(\Phi/2)(1+\Phi^2/8)$；Bessel 式 $20\log_{10}(J_1/J_0)$ 更準）。`,
+        ],
+      }
+    },
+    tips: [
+      r`$\log_{10}$ 的心算：$20\log_{10}(5\times10^{-4})=20\times(-3.30)=-66$ dBc；數字每乘 2 多 6 dB、每乘 $\sqrt{10}$ 多 10 dB。`,
+      r`範例數字（L2、$\alpha=0.02$、一階差分收斂到 $\delta_{rms}=6.2$ fs、$f_{vco}=16$ GHz）：$A_1=${texNum(EX.sqrt2W1 * HC_PHOS_RMS_DEFAULT_FS, 4)}$ fs、$\lvert T(80\ \mathrm{MHz})\rvert=${texNum(EX.tMag80, 5)}$、spur $\approx${texNum(spurDbcFromToneFs(16e9, EX.tMag80 * EX.sqrt2W1 * HC_PHOS_RMS_DEFAULT_FS), 4)}$ dBc。把 $\delta_{rms}$ 換成 §10.5 的 raw 發散值（28 ps）：validate 會擋下來——那不是 spur，是 DTC 飽和。`,
+      r`$\lvert T(f_{rot})\rvert$ 怎麼來：實驗 A 的「$\lvert T\rvert$」曲線在 $f_{rot}$ 讀值；或用 F-CS.1 自己算 $\lvert L\rvert/\lvert1+L\rvert$（HC-CS.5 已經算了 $\lvert1+L\rvert^2$）。`,
     ],
   },
 ]

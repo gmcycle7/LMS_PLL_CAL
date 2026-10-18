@@ -14,6 +14,8 @@ import {
   loopH,
   loopL,
   loopStable,
+  loopSummary,
+  loopT,
   makeL1,
   makeL2,
   nominalLoops,
@@ -28,9 +30,11 @@ import {
   typeILatencyCriterion,
   typeIReH,
 } from '@/simulation/models/sspll'
+import { cAbs } from '@/simulation/core/complex'
+import { spurBeta, spurDbcSmallAngle } from '@/simulation/models/calNoise'
 import { FORMULAS } from './formulas'
-import { PARAMS, WORKED } from './data'
-import { HANDCALCS, HC_FREF_MHZ, HC_NOMINAL } from './handcalcs'
+import { PARAMS, PRED, WORKED } from './data'
+import { HANDCALCS, HC_FREF_MHZ, HC_NOMINAL, HC_PHOS_RMS_DEFAULT_FS } from './handcalcs'
 
 const hc = (id: string): HandCalcDef => {
   const d = HANDCALCS.find((h) => h.id === id)
@@ -114,6 +118,13 @@ const INDEP: Record<string, (v: Record<string, number>) => number[]> = {
     const finv = finvIndep(Kp, Ki, fref)
     return [fRot, 8 * alpha - Math.floor(8 * alpha), finv, fRot - finv, Math.min(Kp - Ki / 2, 2 - Kp - Ki / 2)]
   },
+  // 純 Python 重算（python3 -I，不用 numpy）：rms 6.2、f_vco 16 GHz、|T| 1.2402、peak 2.13 dB ⇒
+  //   |δ̂₁| = 4.384062、A₁ = 8.544496、A_out = 10.596884 fs、Φ = 1.065315e−3 rad、spur = −65.47104 dBc、|T|max = 1.277909、spur_max = −65.21087 dBc
+  'HC-CS.9': ({ rms, fvco, tmag, peak }) => {
+    const Aout = tmag * Math.sqrt(2 * W1_INDEP) * rms
+    const spur = 20 * Math.log10(Math.PI * fvco * 1e9 * Aout * 1e-15)
+    return [Aout, spur, spur + 20 * Math.log10(10 ** (peak / 20) / tmag)]
+  },
 }
 
 // ── 畫面上的算式：把每一步的 TeX 重新求值（只用畫面上的數字） ───────────────────────────────
@@ -145,7 +156,7 @@ function splitTop(t: string, sep: string): string[] {
   return out
 }
 
-/** TeX → 只含數字、運算子與函數代號的字串（S sin、C cos、A arcsin、E erf、X exp、R sqrt、M min、F floor、P π） */
+/** TeX → 只含數字、運算子與函數代號的字串（S sin、C cos、A arcsin、E erf、G log10、X exp、R sqrt、M min、F floor、P π） */
 function normTex(seg: string): string {
   let t = seg
     .replace(/\\ \\mathrm\{[A-Za-z/]+\}(\^\{-?\d+\})?/g, '') // 單位
@@ -158,6 +169,7 @@ function normTex(seg: string): string {
     .replace(/\\lfloor/g, 'F(')
     .replace(/\\rfloor/g, ')')
     .replace(/\\mathrm\{erf\}/g, 'E')
+    .replace(/\\log_\{10\}/g, 'G')
     .replace(/\\arcsin/g, 'A')
     .replace(/\\sin/g, 'S')
     .replace(/\\cos/g, 'C')
@@ -189,13 +201,14 @@ function normTex(seg: string): string {
  */
 function evalTex(seg: string): number | null {
   const t = normTex(seg)
-  if (!/^[0-9.+\-*/^(),SCAEXRMFP]+$/.test(t) || !/[0-9]/.test(t)) return null
+  if (!/^[0-9.+\-*/^(),SCAEGXRMFP]+$/.test(t) || !/[0-9]/.test(t)) return null
   let pos = 0
   const FN: Record<string, (...a: number[]) => number> = {
     S: Math.sin,
     C: Math.cos,
     A: Math.asin,
     E: erfSeries,
+    G: Math.log10,
     X: Math.exp,
     R: Math.sqrt,
     M: Math.min,
@@ -206,7 +219,7 @@ function evalTex(seg: string): number | null {
     while (t[pos] === '+' || t[pos] === '-') v = t[pos++] === '+' ? v + term() : v - term()
     return v
   }
-  const startsAtom = (): boolean => pos < t.length && /[0-9.(SCAEXRMFP]/.test(t[pos])
+  const startsAtom = (): boolean => pos < t.length && /[0-9.(SCAEGXRMFP]/.test(t[pos])
   const term = (): number => {
     let v = unary()
     for (;;) {
@@ -415,11 +428,12 @@ const EXTRA: Record<string, Record<string, number>[]> = {
     { alpha: 0.7654321, fref: 3840.5, Kp: 0.777, Ki: 0.0123 },
     { Kp: 0.28771696, Ki: 0.575433921 },
   ],
+  'HC-CS.9': [{ rms: 3 }, { rms: 25, tmag: 0.5 }, { fvco: 8 }, { peak: 0, tmag: 0.8 }, { rms: 173.3 }, { tmag: 1.2, rms: 50, fvco: 20 }, { rms: 0.1 }, { tmag: 0.0431, peak: 2.94 }, { rms: 12.345, fvco: 13, tmag: 0.9876, peak: 1.5 }],
 }
 
-describe('SSPLL 案例頁的帶入手算（HC-CS.1 – HC-CS.8）', () => {
-  it('SSPLL: 題目清單——8 題、ID 連號、頁面 /case/sspll、公式 ID 已登錄、三種難度都有、預設值通過 validate', () => {
-    expect(HANDCALCS.map((h) => h.id)).toEqual(['HC-CS.1', 'HC-CS.2', 'HC-CS.3', 'HC-CS.4', 'HC-CS.5', 'HC-CS.6', 'HC-CS.7', 'HC-CS.8'])
+describe('SSPLL 案例頁的帶入手算（HC-CS.1 – HC-CS.9）', () => {
+  it('SSPLL: 題目清單——9 題、ID 連號、頁面 /case/sspll、公式 ID 已登錄、三種難度都有、預設值通過 validate', () => {
+    expect(HANDCALCS.map((h) => h.id)).toEqual(['HC-CS.1', 'HC-CS.2', 'HC-CS.3', 'HC-CS.4', 'HC-CS.5', 'HC-CS.6', 'HC-CS.7', 'HC-CS.8', 'HC-CS.9'])
     const formulaIds = new Set(FORMULAS.map((f) => f.id))
     for (const h of HANDCALCS) {
       expect(h.page).toBe('/case/sspll')
@@ -787,6 +801,56 @@ describe('SSPLL 案例頁的帶入手算（HC-CS.1 – HC-CS.8）', () => {
     for (const a of [0.002, 0.02, 0.123, 0.253, 0.496]) expect(gosBeta(a)).toBe(analyseAlpha(loop, a).beta)
   })
 
+  it('SSPLL: HC-CS.9 重現 §15.4——δ_rms = 6.2 fs（golden L2 α = 0.02 1diff）、|T(80 MHz)| = 1.2402、16 GHz ⇒ A_out = 10.5969 fs、spur = −65.471 dBc、peaking 2.13 dB ⇒ −65.211 dBc；與 Ch12 的 spurBeta／T15 同一條式子', () => {
+    const def = hc('HC-CS.9')
+    const v = defaultValues(def)
+    // 預設值就是網站的數字：§10.5 的 golden（印成 6.2 fs）、L2 在 80 MHz 的 |T|（4 位小數）、params.json 的 T_peak_dB（2 位小數）
+    expect(v.rms).toBe(HC_PHOS_RMS_DEFAULT_FS)
+    expect(PRED.lms['L2|0.02|1diff'].final_phos_rms_fs.toFixed(1)).toBe('6.2')
+    const L2 = nominalLoops().L2
+    expect(v.tmag).toBe(Number(cAbs(loopT(L2, 0.02)).toFixed(4)))
+    expect(v.tmag).toBe(1.2402)
+    expect(v.peak).toBe(Number(loopSummary(L2).tPeakDb.toFixed(2)))
+    expect(v.peak).toBe(2.13)
+    expect(Number(PARAMS.loops.L2.T_peak_dB.toFixed(2))).toBe(2.13)
+    expect(v.fvco).toBe(PARAMS.assumptions.f_vco_Hz_illustrative / 1e9)
+    const [Aout, spur, spurMax] = values(def, v)
+    // 純 Python 重算（測試檔頂端 INDEP 的註解）
+    close(Aout, 10.596884, 1e-6, 1e-9)
+    close(spur, -65.47104, 1e-6, 1e-9)
+    close(spurMax, -65.21087, 1e-6, 1e-9)
+    // 與 Ch12 的 spur 工具（calNoise：β = 2π f_out |T| A_t，spur = 20 log10(β/2)）同一條式子；T15：13 GHz、0.5 fs、|T| = 1 ⇒ −93.80 dBc
+    close(spur, spurDbcSmallAngle(spurBeta(16e9, Aout)), 1e-12, 1e-12)
+    expect(spurDbcSmallAngle(spurBeta(13e9, 0.5)).toFixed(2)).toBe('-93.80')
+    // 顯示的步驟：A_1 = 2√W₁·|δ̂₁| = √(2W₁)·δ_rms、Φ 用 GHz × fs = 10⁻⁶
+    const sol = def.solve(v)
+    expect(sol.steps[1].tex).toContain('2\\times0.974495\\times4.38406')
+    expect(sol.steps[3].tex).toContain('2\\pi\\times16\\times10.5969\\times10^{-6}')
+    expect(sol.steps[5].tex).toMatch(/20\\log_\{10\}\(0\.00053265\d\)=-65\.471/)
+    // |T|max ≈ |T(f_rot)| 時 log 把 |T|max 的捨入放大：第 7、8 步多寫幾位（這裡 0.26 dB ⇒ 8 位），畫面上的數字按出來才是畫面上的 dB
+    expect(sol.steps[6].tex).toMatch(/=10\^\{0\.1065\}=1\.2779092$/)
+    expect(sol.steps[7].tex).toContain('\\frac{1.2779092}{1.2402}=0.260165')
+    expect(sol.results.map((x) => x.unit)).toEqual(['\\mathrm{fs}', '\\mathrm{dBc}', '\\mathrm{dBc}'])
+    // 反推的 note 把 spur 倒回 |δ̂₁|
+    expect(sol.notes?.[0]).toContain('=4.38406$ fs')
+    // ps 級的發散值被擋下（小角近似失效、DTC 飽和）
+    expect(def.validate?.(withDefaults(def, { rms: 28400 }))).toMatch(/小角近似不成立.*DTC 早已飽和/)
+    expect(def.validate?.(withDefaults(def, { rms: 50, tmag: 1.4, fvco: 20, peak: 3 }))).toBeNull()
+    // 峰值 T_peak 是整條曲線的最大值：低於 20 log10|T(f_rot)| 時 spur_max 會比 spur 小——擋下（練習題的 |T| = 1.2 配 1 dB 就是這種組合）
+    expect(def.validate?.(withDefaults(def, { tmag: 1.2, peak: 1 }))).toMatch(/不能小於 \$20\\log_\{10\}\\lvert T\(f_\{rot\}\)\\rvert=1\.584/)
+    expect(def.validate?.(withDefaults(def, { peak: 0 }))).toMatch(/不能小於/)
+    expect(def.validate?.(withDefaults(def, { tmag: 1, peak: 0 }))).toBeNull()
+    for (const v of [defaultValues(def), withDefaults(def, { tmag: 0.5, peak: 1 }), withDefaults(def, { tmag: 1.2, peak: 2 })]) {
+      const [, s, sMax] = values(def, v)
+      expect(sMax, JSON.stringify(v)).toBeGreaterThanOrEqual(s)
+    }
+    // 其他頻道：548 MHz（|T| = 0.431）spur 低 9.2 dB、PVT 的 peaking 最多補回 9.4 dB
+    const t548 = Number(cAbs(loopT(L2, 0.137)).toFixed(4))
+    const [, s548, s548max] = values(def, withDefaults(def, { tmag: t548 }))
+    close(s548 - spur, 20 * Math.log10(t548 / 1.2402), 1e-9, 1e-9)
+    close(s548max - s548, 20 * Math.log10(10 ** (2.13 / 20) / t548), 1e-9, 1e-9)
+  })
+
   it('SSPLL: 步驟與提示裡的手算近似——sin、cos、arcsin 的誤差界限成立（不必按計算機的替代算法）', () => {
     // HC-CS.2／3：sin x ≈ x − x³/6，|x| ≤ 0.2 時誤差 < 3×10⁻⁶；cos x ≈ 1 − x²/2，|x| ≤ 0.2 時誤差 < 7×10⁻⁵
     for (const x of [0.0157, 0.05, 0.1, 0.2]) {
@@ -887,6 +951,15 @@ describe('SSPLL 案例頁的帶入手算（HC-CS.1 – HC-CS.8）', () => {
         [{ alpha: 1 }, /0<\\alpha<1/],
         [{ Ki: 0 }, /不是 Type-II/],
         [{ Kp: 1.5, Ki: 1.2 }, /主迴路不穩定/],
+      ],
+      'HC-CS.9': [
+        [{ rms: 0 }, /必須大於 0/],
+        [{ fvco: 0 }, /必須大於 0/],
+        [{ tmag: 0 }, /必須大於 0/],
+        [{ rms: 28000 }, /小角近似不成立/],
+        [{ rms: 2000 }, /DTC 早已飽和/],
+        [{ peak: 0 }, /不能小於/],
+        [{ tmag: 1.2, peak: 1 }, /不能小於/],
       ],
     }
     for (const def of HANDCALCS) {

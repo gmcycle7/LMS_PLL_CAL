@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import { Callout, ClaimTag, ModeGate, ParamControl, Plot, Prereq, Section, StepDerivation, Tex, TexBlock, mathText, useThemeTokens } from '@/components'
 import { DEFAULT_RULE, buildPlant, corrMatrix, logspace, tradeoffSweep, type RuleConfig } from '@/simulation/models/mimo'
 import { Advanced, Deriv, Erratum, Fig, FigRef, Hand, TagRow, TryIt, n, tn } from '../common'
@@ -344,8 +344,7 @@ export function S3Noise() {
             一般公式：任何與 <Tex>{String.raw`\mathbf R`}</Tex> 共用 eigenvectors 的 <Tex>{String.raw`\mathbf M`}</Tex>
           </h3>
           <p>
-            若 <Tex>{String.raw`\mathbf M_n=K_q\mathbf M`}</Tex> 沿 <Tex>{String.raw`\mathbf v_i`}</Tex> 的增益是 <Tex>{'m_i'}</Tex>（<Tex>{String.raw`\mathbf M_n\mathbf v_i=m_i\mathbf v_i`}</Tex>），
-            同樣的步驟給出 <Tex>{String.raw`\xi_{i,k+1}=p_i\xi_{i,k}-(m_i/K_q)\zeta_{i,k}`}</Tex>，再用 AR(1) 公式（<Tex>{String.raw`b=m_i/K_q,\ s^2=\lambda_i/N`}</Tex>）：
+            若 <Tex>{String.raw`\mathbf M_n=K_q\mathbf M`}</Tex> 沿 <Tex>{String.raw`\mathbf v_i`}</Tex> 的增益是 <Tex>{'m_i'}</Tex>（<Tex>{String.raw`\mathbf M_n\mathbf v_i=m_i\mathbf v_i`}</Tex>），同樣的步驟給出 <Tex>{String.raw`\xi_{i,k+1}=p_i\xi_{i,k}-(m_i/K_q)\zeta_{i,k}`}</Tex>，再用 AR(1) 公式（<Tex>{String.raw`b=m_i/K_q,\ s^2=\lambda_i/N`}</Tex>）：
           </p>
           <TexBlock
             id="F-10.7"
@@ -402,8 +401,7 @@ export function S3Noise() {
           <ClaimTag kind="exact" />
         </TagRow>
         <p>
-          折衷辦法：在求逆之前先加一個小常數 <Tex>{String.raw`\lambda_{\mathrm{reg}}`}</Tex>（規格寫 <Tex>{String.raw`\lambda`}</Tex>，與 eigenvalue 撞名，本章改名 <Erratum id="E22" />）。
-          效果是：大的 eigenvalue 幾乎不受影響，小的 eigenvalue 不再被放大成 <Tex>{String.raw`1/\lambda_i`}</Tex>，最多只放大到 <Tex>{String.raw`1/\lambda_{\mathrm{reg}}`}</Tex>。
+          折衷辦法：在求逆之前先加一個小常數 <Tex>{String.raw`\lambda_{\mathrm{reg}}`}</Tex>（規格寫 <Tex>{String.raw`\lambda`}</Tex>，與 eigenvalue 撞名，本章改名 <Erratum id="E22" />）。效果是：大的 eigenvalue 幾乎不受影響，小的 eigenvalue 不再被放大成 <Tex>{String.raw`1/\lambda_i`}</Tex>，最多只放大到 <Tex>{String.raw`1/\lambda_{\mathrm{reg}}`}</Tex>。
         </p>
         <Fig id="reg-compare">
           先看中間三格的增益 <Tex>{'m'}</Tex>：一般 LMS 是 0.5；完整反矩陣把它放大到 <Tex>{String.raw`\gamma/\lambda_{\min}=${tn(r.eigMn[0])}`}</Tex>；regularized（藍色）在分母多加{' '}

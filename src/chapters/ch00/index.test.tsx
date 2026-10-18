@@ -12,7 +12,7 @@ import { IntroPlayground } from './experiments/IntroPlayground'
 import { NoiseAverageLab } from './experiments/NoiseAverageLab'
 
 // 重量級外部函式庫：jsdom 中以假物件取代
-vi.mock('plotly.js-dist-min', () => ({
+vi.mock('plotly.js-cartesian-dist-min', () => ({
   default: {
     react: vi.fn(async () => undefined),
     purge: vi.fn(),

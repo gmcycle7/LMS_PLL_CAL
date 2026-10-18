@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import {
   ClaimTag,
   CodeBlock,
@@ -103,25 +103,21 @@ export function WhyExSection() {
       </p>
       <Prereq title="用到的微積分：chain rule 與 gradient descent（下坡法）">
         <p>
-          <strong>Chain rule</strong>：若 <Tex>{'j=f(u)'}</Tex> 且 <Tex>{'u=u(w)'}</Tex>，則 <Tex>{'\\dfrac{dj}{dw}=f\'(u)\\,\\dfrac{du}{dw}'}</Tex>。
-          例如 <Tex>{'\\frac{d}{dw}(3-2w)^2=2(3-2w)\\cdot(-2)'}</Tex>。
+          <strong>Chain rule</strong>：若 <Tex>{'j=f(u)'}</Tex> 且 <Tex>{'u=u(w)'}</Tex>，則 <Tex>{'\\dfrac{dj}{dw}=f\'(u)\\,\\dfrac{du}{dw}'}</Tex>。例如 <Tex>{'\\frac{d}{dw}(3-2w)^2=2(3-2w)\\cdot(-2)'}</Tex>。
         </p>
         <p>
           <strong>Gradient descent</strong>：想找讓 <Tex>{'j(w)'}</Tex> 最小的 <Tex>{'w'}</Tex>，就沿著斜率的反方向走一小步：
-          <Tex>{'w\\leftarrow w-\\mu\\,\\dfrac{dj}{dw}'}</Tex>。斜率為正（右邊比較高）就往左走，斜率為負就往右走；<Tex>{'\\mu'}</Tex> 是步長。
-          由泰勒一階展開 <Tex>{'j(w+\\Delta)\\approx j(w)+j\'(w)\\Delta'}</Tex>，取 <Tex>{'\\Delta=-\\mu j\'(w)'}</Tex> 得{' '}
+          <Tex>{'w\\leftarrow w-\\mu\\,\\dfrac{dj}{dw}'}</Tex>。斜率為正（右邊比較高）就往左走，斜率為負就往右走；<Tex>{'\\mu'}</Tex> 是步長。由泰勒一階展開 <Tex>{'j(w+\\Delta)\\approx j(w)+j\'(w)\\Delta'}</Tex>，取 <Tex>{'\\Delta=-\\mu j\'(w)'}</Tex> 得{' '}
           <Tex>{'j(w+\\Delta)\\approx j(w)-\\mu\\,[j\'(w)]^2\\le j(w)'}</Tex>：只要步長夠小，成本一定下降。
         </p>
       </Prereq>
 
       <h3>單筆成本：誤差平方的一半</h3>
       <p>
-        對第 <Tex>{'n'}</Tex> 筆資料，定義「這筆資料讓我們多不滿意」的分數 <Tex>{'j_n(w)=\\tfrac12e_n^2'}</Tex>。平方讓正負誤差都算成「不好」，
-        前面的 <Tex>{'\\tfrac12'}</Tex> 只是為了讓微分後的 2 剛好約掉。
+        對第 <Tex>{'n'}</Tex> 筆資料，定義「這筆資料讓我們多不滿意」的分數 <Tex>{'j_n(w)=\\tfrac12e_n^2'}</Tex>。平方讓正負誤差都算成「不好」，前面的 <Tex>{'\\tfrac12'}</Tex> 只是為了讓微分後的 2 剛好約掉。
       </p>
       <p>
-        有了分數，「學習」就變成一個幾何問題：把 <Tex>{'j_n'}</Tex> 想成一座山谷的高度，<Tex>{'w'}</Tex> 是我們站的位置，目標是走到谷底。下坡法每一步只做三件事——量腳下的斜率、
-        往斜率的反方向跨一步、站到新的位置：
+        有了分數，「學習」就變成一個幾何問題：把 <Tex>{'j_n'}</Tex> 想成一座山谷的高度，<Tex>{'w'}</Tex> 是我們站的位置，目標是走到谷底。下坡法每一步只做三件事——量腳下的斜率、往斜率的反方向跨一步、站到新的位置：
       </p>
       <ChapterDiagram name="CHART_GRADIENT_DESCENT">
         <p>
@@ -203,9 +199,7 @@ export function WhyExSection() {
       </h3>
       <p>
         沿用手算例子（<Tex>{`x=${X},\\ y=${Y}`}</Tex>）：
-        <Tex>{String.raw`\ e_0=${Y}-${W0}\times${X}=${texRes(e0)},\quad \frac{dj}{dw}\Big|_{w_0}=-e_0x=-${texNum(e0)}\times${X}=${texRes(g)}`}</Tex>。
-        斜率是負的（往右走成本會下降），所以 gradient descent 往右走 <Tex>{String.raw`\mu\times${num(-g)}=${texNum(w1 - W0)}`}</Tex>，
-        得到 <Tex>{`w_1=${texNum(w1)}`}</Tex>——和手算表完全一樣。
+        <Tex>{String.raw`\ e_0=${Y}-${W0}\times${X}=${texRes(e0)},\quad \frac{dj}{dw}\Big|_{w_0}=-e_0x=-${texNum(e0)}\times${X}=${texRes(g)}`}</Tex>。斜率是負的（往右走成本會下降），所以 gradient descent 往右走 <Tex>{String.raw`\mu\times${num(-g)}=${texNum(w1 - W0)}`}</Tex>，得到 <Tex>{`w_1=${texNum(w1)}`}</Tex>——和手算表完全一樣。
       </p>
       <Plot
         title={String.raw`單筆成本 $j(w)=\tfrac12(${Y}-${X}w)^2$：切線與一步更新`}
@@ -222,8 +216,7 @@ export function WhyExSection() {
         }
       />
       <Observe>
-        更新量 <Tex>{'\\mu e x'}</Tex> 不是隨便湊出來的：<Tex>{'e x'}</Tex> 就是「負的斜率」。誤差越大，山坡越陡，步伐越大；越接近谷底，
-        斜率越小，步伐自動變小。<Tex>{'x'}</Tex> 出現在公式裡，是因為它是 <Tex>{'\\hat y'}</Tex> 對 <Tex>{'w'}</Tex> 的槓桿{' '}
+        更新量 <Tex>{'\\mu e x'}</Tex> 不是隨便湊出來的：<Tex>{'e x'}</Tex> 就是「負的斜率」。誤差越大，山坡越陡，步伐越大；越接近谷底，斜率越小，步伐自動變小。<Tex>{'x'}</Tex> 出現在公式裡，是因為它是 <Tex>{'\\hat y'}</Tex> 對 <Tex>{'w'}</Tex> 的槓桿{' '}
         <Tex>{'\\partial\\hat y/\\partial w=x'}</Tex>：同樣的預測誤差，<Tex>{'|x|'}</Tex> 越大，表示 <Tex>{'w'}</Tex> 對它的責任越大。
       </Observe>
 
@@ -552,8 +545,7 @@ export function WhyExSection() {
             </ul>
             <p className="small">
               三個界限不一樣：在 <Tex>{`${texNum(randomBounds.ms, 4)}<\\mu<${texNum(randomBounds.as, 4)}`}</Tex> 之間，畫出來的單一路徑看起來收斂，
-              <Tex>{'E[\\delta^2]'}</Tex> 卻發散（<ErratumRef eid="E14" />）。
-              詳細推導與 Monte Carlo 見 <PageLink id="ch03" />。<ClaimTag kind="exact" />（在 iid 模型下）
+              <Tex>{'E[\\delta^2]'}</Tex> 卻發散（<ErratumRef eid="E14" />）。詳細推導與 Monte Carlo 見 <PageLink id="ch03" />。<ClaimTag kind="exact" />（在 iid 模型下）
             </p>
           </div>
         )}

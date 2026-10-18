@@ -230,10 +230,8 @@ export default function PapersPage() {
     <div className="papers">
       <p className="papers-lead" id={TOP_ANCHOR}>
         這一頁整理規格書附錄 D 的 {PAPERS.length} 份文獻與背景教科書。每一份都附上核對過的書目與 DOI 連結、為什麼讀、該搭配本站哪幾章，並把
-        <strong>「論文說的（已發表主張）」</strong>與<strong>「本站自己推的（derived on this site）」</strong>分開標示。本站的數字都由網站程式即時計算，
-        不是從任何文獻抄來的量測值。本頁自己推導的 {FORMULAS.length} 條換算／對照公式登錄為 {FORMULAS[0].id}–{FORMULAS[FORMULAS.length - 1].id}，可在{' '}
-        <PageChip id="formulas" /> 頁搜尋。另有 {HANDCALCS.length} 題「帶入手算」（{HANDCALCS[0].id}–{HANDCALCS[HANDCALCS.length - 1].id}）：每一題都從書上或論文上的數字出發，
-        用紙筆與計算機一步一步算到本站的 <Tex>{'g'}</Tex>、<Tex>{'p'}</Tex> 或步長上限，可以換成你自己的數字（全站的手算題彙整在 <PageChip id="workbook" />）。
+        <strong>「論文說的（已發表主張）」</strong>與<strong>「本站自己推的（derived on this site）」</strong>分開標示。本站的數字都由網站程式即時計算，不是從任何文獻抄來的量測值。本頁自己推導的 {FORMULAS.length} 條換算／對照公式登錄為 {FORMULAS[0].id}–{FORMULAS[FORMULAS.length - 1].id}，可在{' '}
+        <PageChip id="formulas" /> 頁搜尋。另有 {HANDCALCS.length} 題「帶入手算」（{HANDCALCS[0].id}–{HANDCALCS[HANDCALCS.length - 1].id}）：每一題都從書上或論文上的數字出發，用紙筆與計算機一步一步算到本站的 <Tex>{'g'}</Tex>、<Tex>{'p'}</Tex> 或步長上限，可以換成你自己的數字（全站的手算題彙整在 <PageChip id="workbook" />）。
       </p>
       <div className="c-tag-row">
         <SourceTag kind="literature" /> <SourceTag kind="illustrative" /> <ClaimTag kind="exact" /> <ModelLevel level="L1" /> <TestBadge id="T11" />{' '}
@@ -257,8 +255,7 @@ export default function PapersPage() {
       <S4Conventions />
       <Section kind="explore" level={2} title="5. 動手：把書上的步長換成本站的 loop gain" id="papers-lab">
         <p>
-          輸入書上的寫法與數字，看它在本站的模型裡等於多大的 <Tex>{'g'}</Tex>、哪個 eigen-mode 最慢、加了更新延遲之後還穩不穩定。四種寫法的換算表會同時列出，
-          方便直接對照文獻。
+          輸入書上的寫法與數字，看它在本站的模型裡等於多大的 <Tex>{'g'}</Tex>、哪個 eigen-mode 最慢、加了更新延遲之後還穩不穩定。四種寫法的換算表會同時列出，方便直接對照文獻。
         </p>
         <ConventionLab />
       </Section>

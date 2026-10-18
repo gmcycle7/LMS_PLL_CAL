@@ -102,8 +102,7 @@ export function S1Intro() {
         </p>
         <Diagram chart={CHART_COMPARATOR_GAIN} caption="comparator 的平均輸入輸出關係：誤差與雜訊相加後只留下正負號；重複很多次取平均，誤差小時是一條斜率 $K_q$ 的直線，誤差大時彎曲飽和。">
           <p>
-            <strong>先看</strong>最上面：要偵測的誤差 <Tex>{'\\delta'}</Tex> 與雜訊 <Tex>{'v'}</Tex> 在加法點相加（兩條線都是正號），得到 <Tex>{'e=\\delta+v'}</Tex>；comparator 只留下正負號 <Tex>{'q=\\pm1'}</Tex>。<strong>再看</strong>中間：同一個 <Tex>{'\\delta'}</Tex> 重複很多次，
-            每次的 <Tex>{'v'}</Tex> 不同，<Tex>{'q=+1'}</Tex> 的機率是 <Tex>{'\\Phi(\\delta/\\sigma_v)'}</Tex>，平均起來就是 <Tex>{'E[q]'}</Tex>。<strong>最後看</strong>最下面兩個出口：<Tex>{'|\\delta|\\ll\\sigma_v'}</Tex> 時是直線（藍色）；<Tex>{'|\\delta|'}</Tex> 大時 erf 彎曲後頂到 <Tex>{'\\pm1'}</Tex>（紅色，勘誤 E48 的 slew-limited 區）。
+            <strong>先看</strong>最上面：要偵測的誤差 <Tex>{'\\delta'}</Tex> 與雜訊 <Tex>{'v'}</Tex> 在加法點相加（兩條線都是正號），得到 <Tex>{'e=\\delta+v'}</Tex>；comparator 只留下正負號 <Tex>{'q=\\pm1'}</Tex>。<strong>再看</strong>中間：同一個 <Tex>{'\\delta'}</Tex> 重複很多次，每次的 <Tex>{'v'}</Tex> 不同，<Tex>{'q=+1'}</Tex> 的機率是 <Tex>{'\\Phi(\\delta/\\sigma_v)'}</Tex>，平均起來就是 <Tex>{'E[q]'}</Tex>。<strong>最後看</strong>最下面兩個出口：<Tex>{'|\\delta|\\ll\\sigma_v'}</Tex> 時是直線（藍色）；<Tex>{'|\\delta|'}</Tex> 大時 erf 彎曲後頂到 <Tex>{'\\pm1'}</Tex>（紅色，勘誤 E48 的 slew-limited 區）。
           </p>
           <p>
             圖上的 <Tex>{'E[q]=\\mathrm{erf}(\\delta/(\\sqrt2\\sigma_v))'}</Tex> 就是下面公式的第一個等號；藍色方塊的 <Tex>{'K_q'}</Tex> 就是最後一個等號（泰勒一階展開）得到的斜率。
@@ -119,8 +118,7 @@ export function S1Intro() {
 
       <Prereq title="相關（correlation）：$C$ 是什麼">
         <p>
-          兩個零均值訊號的相關 <Tex>{'E[x\\,u]'}</Tex> 衡量「<Tex>{'x'}</Tex> 大的時候 <Tex>{'u'}</Tex> 是不是也傾向大」。GMAC 把 comparator 輸出乘上原始 code <Tex>{'x'}</Tex> 再平均，所以它能看到的只有
-          「誤差 <Tex>{'\\delta u'}</Tex> 裡跟 <Tex>{'x'}</Tex> 相關的部分」。若 <Tex>{'x=\\pm1'}</Tex> 經過誤差路徑變成 <Tex>{'u=c\\,x[n]+s\\,x[n-1]'}</Tex>（本章的相位模型，<Tex>{'c=|H|\\cos\\theta,\\ s=|H|\\sin\\theta'}</Tex>；
+          兩個零均值訊號的相關 <Tex>{'E[x\\,u]'}</Tex> 衡量「<Tex>{'x'}</Tex> 大的時候 <Tex>{'u'}</Tex> 是不是也傾向大」。GMAC 把 comparator 輸出乘上原始 code <Tex>{'x'}</Tex> 再平均，所以它能看到的只有「誤差 <Tex>{'\\delta u'}</Tex> 裡跟 <Tex>{'x'}</Tex> 相關的部分」。若 <Tex>{'x=\\pm1'}</Tex> 經過誤差路徑變成 <Tex>{'u=c\\,x[n]+s\\,x[n-1]'}</Tex>（本章的相位模型，<Tex>{'c=|H|\\cos\\theta,\\ s=|H|\\sin\\theta'}</Tex>；
           <Tex>{'|H|'}</Tex> 是誤差路徑在 code 頻帶的增益、<Tex>{'\\theta'}</Tex> 是它的相位）：
         </p>
         <TexBlock>{String.raw`C=E[x[n]\,u[n]]=c\,E[x[n]^2]+s\,E[x[n]x[n-1]]=c\cdot1+s\cdot0=|H|\cos\theta`}</TexBlock>
@@ -151,8 +149,7 @@ PM&=\pi+\angle L(e^{j\omega_c})=\tfrac{\pi}{2}-\tfrac{\omega_c}{2}=90^\circ-\arc
 
       <Prereq title="PSD（功率頻譜密度）與信賴區間（只用到的部分）">
         <p>
-          PSD <Tex>{'S(e^{j\\Omega})'}</Tex> 告訴你訊號功率分布在哪些頻率：<Tex>{'\\sigma^2=\\frac1{2\\pi}\\int_{-\\pi}^{\\pi}S\\,d\\Omega'}</Tex>。白雜訊經過濾波器 <Tex>{'H'}</Tex> 後 PSD 乘上 <Tex>{'|H|^2'}</Tex>。
-          Monte Carlo 的平均值有誤差；95% 信賴區間 <Tex>{'\\approx\\bar X\\pm1.96\\,s/\\sqrt{R}'}</Tex>（<Tex>{'s'}</Tex> 是樣本標準差、<Tex>{'R'}</Tex> 是獨立重複次數；來自中央極限定理：很多獨立樣本的平均近似高斯）。
+          PSD <Tex>{'S(e^{j\\Omega})'}</Tex> 告訴你訊號功率分布在哪些頻率：<Tex>{'\\sigma^2=\\frac1{2\\pi}\\int_{-\\pi}^{\\pi}S\\,d\\Omega'}</Tex>。白雜訊經過濾波器 <Tex>{'H'}</Tex> 後 PSD 乘上 <Tex>{'|H|^2'}</Tex>。Monte Carlo 的平均值有誤差；95% 信賴區間 <Tex>{'\\approx\\bar X\\pm1.96\\,s/\\sqrt{R}'}</Tex>（<Tex>{'s'}</Tex> 是樣本標準差、<Tex>{'R'}</Tex> 是獨立重複次數；來自中央極限定理：很多獨立樣本的平均近似高斯）。
         </p>
       </Prereq>
 
@@ -235,8 +232,7 @@ E[\delta_3^2]&=0.81\times ${tx(rows[2].total, 6)}+${tx(noise, 4)}=${tx(rows[3].t
           </table>
         </div>
         <p>
-          觀察：{BIAS2} 每步乘 0.81（縮小 19%），variance 從 0 開始慢慢長，最後停在 <Tex>{`\\mu^2\\sigma_\\eta^2/(1-p^2)=${tx(msdAfterBlocks(0, p, mu, s2, 1e6), 4)}\\,\\mathrm{fs^2}`}</Tex>。
-          表格最後一欄與下一節的封閉式完全相同 <ClaimTag kind="exact" /> <SourceTag kind="illustrative" />。
+          觀察：{BIAS2} 每步乘 0.81（縮小 19%），variance 從 0 開始慢慢長，最後停在 <Tex>{`\\mu^2\\sigma_\\eta^2/(1-p^2)=${tx(msdAfterBlocks(0, p, mu, s2, 1e6), 4)}\\,\\mathrm{fs^2}`}</Tex>。表格最後一欄與下一節的封閉式完全相同 <ClaimTag kind="exact" /> <SourceTag kind="illustrative" />。
         </p>
         <Callout kind="info" title="你會發現">
           前幾個 block 幾乎全是 {BIAS2}；如果只跑 3 個 block，<Tex>{'\\mu'}</Tex> 應該再大一點。但 <Tex>{'B=32'}</Tex> 時 {BIAS2} 會被壓到很小，variance 反而成為主角——<strong>最佳 <Tex>{'\\mu'}</Tex> 取決於 <Tex>{'B'}</Tex></strong>。

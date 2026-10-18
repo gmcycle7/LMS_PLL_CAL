@@ -169,8 +169,7 @@ export function S8StateMachine() {
 &\approx${tx(verifyCost / trackMs, 3)}\times m_\text{track},\qquad m_\text{track}=\sigma_w^2+(r/g)^2=${tx(trackMs, 3)}\ \mathrm{fs^2}\ (\text{TRACK 每個 block 的均方誤差})
 \end{aligned}`}</TexBlock>
         <p>
-          所以下面的實驗一律用 DTC 實際誤差計算狀態機的 RMS（暫存器誤差另列一欄）。開機時的那一次 VERIFY 發生在評估視窗之前，不影響穩態數字；但 RESTART 之後、或失鎖重新鎖定之後的 VERIFY 都會被算進去。
-          這也是 <Tex>{'\\Delta'}</Tex> 不能任意加大、VERIFY 要排在非關鍵時段的原因（§14.5 的 <Tex>{'\\Delta^*'}</Tex> 取捨只考慮量測誤差，沒有算這一項）。
+          所以下面的實驗一律用 DTC 實際誤差計算狀態機的 RMS（暫存器誤差另列一欄）。開機時的那一次 VERIFY 發生在評估視窗之前，不影響穩態數字；但 RESTART 之後、或失鎖重新鎖定之後的 VERIFY 都會被算進去。這也是 <Tex>{'\\Delta'}</Tex> 不能任意加大、VERIFY 要排在非關鍵時段的原因（§14.5 的 <Tex>{'\\Delta^*'}</Tex> 取捨只考慮量測誤差，沒有算這一項）。
         </p>
       </Callout>
       <p>

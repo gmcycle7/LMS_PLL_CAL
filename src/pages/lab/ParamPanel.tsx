@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { ModelLevel, ParamControl, SelectControl, ToggleControl } from '@/components'
 import { LAB_PARAM_LABEL, LAB_RANGES, type LabParams, type StageId } from '@/simulation/models/unifiedLab'
-import { md, plain } from './common'
+import { md } from './common'
 import { PANEL_GROUPS, PARAM_META, unitOf, type ParamMeta } from './paramMeta'
 
 export type GroupId = StageId | 'sim'
@@ -27,7 +27,7 @@ function Control({ m, value, onChange, disabled, prefix }: { m: ParamMeta; value
     return (
       <ParamControl
         label={md(label)}
-        ariaLabel={`${prefix}${plain(label)}`}
+        ariaLabel={`${prefix}${label}`}
         value={value[m.key]}
         onChange={(v) => onChange({ [m.key]: v } as Partial<LabParams>)}
         min={r.min}
@@ -48,7 +48,7 @@ function Control({ m, value, onChange, disabled, prefix }: { m: ParamMeta; value
     return (
       <SelectControl<string>
         label={md(m.label)}
-        ariaLabel={`${prefix}${plain(m.label)}`}
+        ariaLabel={`${prefix}${m.label}`}
         value={value[m.key]}
         onChange={(v) => onChange({ [m.key]: v } as Partial<LabParams>)}
         options={m.options}
@@ -61,7 +61,7 @@ function Control({ m, value, onChange, disabled, prefix }: { m: ParamMeta; value
   return (
     <ToggleControl
       label={md(m.label)}
-      ariaLabel={`${prefix}${plain(m.label)}`}
+      ariaLabel={`${prefix}${m.label}`}
       value={value[m.key]}
       onChange={(v) => onChange({ [m.key]: v } as Partial<LabParams>)}
       hint={m.hint ? md(m.hint) : undefined}

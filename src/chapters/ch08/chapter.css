@@ -123,11 +123,6 @@
   border-radius: 2px;
 }
 
-/* 章末符號表：捲動定位時避開固定的 topbar */
-.ch08-symbols,
-.ch08-symbols-link {
-  scroll-margin-top: calc(var(--topbar-h, 52px) + 12px);
-}
 .ch08-symbols {
   margin-top: 32px;
   padding-top: 8px;

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import {
   Callout,
   ClaimTag,
@@ -193,8 +193,7 @@ export function DeltaSigmaSection() {
         <p>
           序列 <Tex>{'r[n]'}</Tex> 的 Z transform <Tex>{String.raw`R(z)=\sum_n r[n]z^{-n}`}</Tex>（<Tex>{'z'}</Tex> 是一個複數變數；只要把它當成「記錄延遲的記號」即可）。把序列延遲一格{' '}
           <Tex>{'r[n-1]'}</Tex>，代入定義、令 <Tex>{'m=n-1'}</Tex>：
-          <Tex>{String.raw`\sum_n r[n-1]z^{-n}=z^{-1}\sum_m r[m]z^{-m}=z^{-1}R(z)`}</Tex>。所以「延遲一個 sample」就是乘 <Tex>{String.raw`z^{-1}`}</Tex>。
-          頻率響應：把 <Tex>{String.raw`z=e^{j\Omega}`}</Tex>（單位圓上的點）代入，<Tex>{String.raw`\Omega=2\pi f/f_u`}</Tex> 是每個 sample 轉多少弧度（離散時間頻率；<Tex>{String.raw`\Omega=\pi`}</Tex> 對應 Nyquist <Tex>{'f_u/2'}</Tex>）。
+          <Tex>{String.raw`\sum_n r[n-1]z^{-n}=z^{-1}\sum_m r[m]z^{-m}=z^{-1}R(z)`}</Tex>。所以「延遲一個 sample」就是乘 <Tex>{String.raw`z^{-1}`}</Tex>。頻率響應：把 <Tex>{String.raw`z=e^{j\Omega}`}</Tex>（單位圓上的點）代入，<Tex>{String.raw`\Omega=2\pi f/f_u`}</Tex> 是每個 sample 轉多少弧度（離散時間頻率；<Tex>{String.raw`\Omega=\pi`}</Tex> 對應 Nyquist <Tex>{'f_u/2'}</Tex>）。
           <Tex>{String.raw`|H(e^{j\Omega})|^2`}</Tex> 就是頻率 <Tex>{'f'}</Tex> 的功率放大倍數。
         </p>
       </Prereq>
@@ -284,8 +283,7 @@ export function DeltaSigmaSection() {
         <p>
           規格寫「常數有理輸入時，仍<strong>可能</strong>產生週期性序列」——語氣太弱。對 <Tex>{String.raw`w_H=32.4=162/5`}</Tex>，一階 EFB
           <strong>必然</strong>進入週期 5 的 limit cycle：floor 版輸出 <Tex>{String.raw`[${r.flr.y.slice(0, 5).join(',')}]`}</Tex> 與方法 B
-          <strong>完全相同</strong>；round-half-up 版輸出 <Tex>{String.raw`[${r.near.y.slice(0, 5).join(',')}]`}</Tex>，是 B 的循環移位。兩者的頻譜、spur、總誤差功率（<Tex>{String.raw`${fx(r.pow, 2)}\,\mathrm{LSB}^2`}</Tex>）全都一樣。
-          所以對靜態目標，<strong>ΔΣ 並不比 toggle 少 tone</strong>。 <Erratum id="E15" /> <ClaimTag kind="exact" />
+          <strong>完全相同</strong>；round-half-up 版輸出 <Tex>{String.raw`[${r.near.y.slice(0, 5).join(',')}]`}</Tex>，是 B 的循環移位。兩者的頻譜、spur、總誤差功率（<Tex>{String.raw`${fx(r.pow, 2)}\,\mathrm{LSB}^2`}</Tex>）全都一樣。所以對靜態目標，<strong>ΔΣ 並不比 toggle 少 tone</strong>。 <Erratum id="E15" /> <ClaimTag kind="exact" />
         </p>
       </Callout>
 

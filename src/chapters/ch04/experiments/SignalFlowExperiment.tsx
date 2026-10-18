@@ -1,5 +1,5 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import {
   CaseSelector,
   ExperimentShell,
@@ -415,6 +415,14 @@ export function SignalFlowExperiment() {
         onRun: () => setRunning(true),
         onStop: () => setRunning(false),
         running,
+        // 300 ms 一步、共 K·(N+1) 個狀態（約 2 分鐘）：Run 鈕顯示進度，「跳到結尾」直接把游標放到最後一個 block 的最後一步。
+        // total 用「步數」= 狀態數 − 1，所以停在最後一個狀態時 done === total（進度條滿、跳到結尾鈕停用）。
+        runKind: 'animate',
+        progress: { done: k * (N + 1) + c, total: K * (N + 1) - 1 },
+        onSkipToEnd: () => {
+          setRunning(false)
+          setCur((p) => ({ ...p, k: K - 1, c: N }))
+        },
       }}
       exportData={() => {
         if (!res) return {}

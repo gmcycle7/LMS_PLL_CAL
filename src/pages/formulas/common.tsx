@@ -2,7 +2,7 @@ import { Fragment, useCallback, useState, type MouseEvent as ReactMouseEvent, ty
 import { Link, useNavigate } from 'react-router-dom'
 import { pageById } from '@/app/registry'
 import { useSettings, type LearningMode } from '@/app/settings'
-import { stripMathDelimiters, Tex } from '@/components'
+import { accessibleText, Tex } from '@/components'
 import { erratumById, erratumSummary } from './errata'
 import { formulaById } from './registry'
 import { jumpToFormula, showToast } from './jump'
@@ -132,7 +132,7 @@ export function FormulaLink({ id, children }: { id: string; children?: ReactNode
     <a
       href={`#${f.page}`}
       className="fr-formula-link"
-      title={`${stripMathDelimiters(f.title)}（${f.pageNav}）`}
+      title={`${accessibleText(f.title)}（${f.pageNav}）`}
       data-formula={id}
       onClick={(e) => {
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return // 讓瀏覽器自己開新分頁

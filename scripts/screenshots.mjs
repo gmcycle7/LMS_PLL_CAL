@@ -10,6 +10,7 @@
  *   top            頁面頂端一個視窗
  *   <kind>:<n>     該種元素的前 n 個（逐一捲到畫面中、等方塊圖畫完再截）；kind 見 SELECTORS
  *   all-mermaid    該頁全部方塊圖
+ * viewport：desktop（1280×900）、wide（1600×1000）、xwide（1720×950，頁內目錄會變成右側欄，要拍目錄欄用這個）、mobile（375×812，2 倍）
  * 其他選項：
  *   --mode beginner|engineer|research   學習模式（預設 beginner，和訪客第一次看到的一樣）
  *   --only 3,7,12                       只截指定序號的元素（序號與 diagram-audit 相同，從 1 起算）
@@ -37,6 +38,8 @@ const chrome = args.chrome ?? '/Applications/Google Chrome.app/Contents/MacOS/Go
 const VIEWPORT = {
   desktop: { width: 1280, height: 900, deviceScaleFactor: 1 },
   wide: { width: 1600, height: 1000, deviceScaleFactor: 1 },
+  // ≥ 1672 px：頁內目錄（PageOutline）才會變成右側欄（article.page[data-outline="column"]），其他寬度只有右下角的「目錄」鈕
+  xwide: { width: 1720, height: 950, deviceScaleFactor: 1 },
   mobile: { width: 375, height: 812, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
 }
 const SELECTORS = {

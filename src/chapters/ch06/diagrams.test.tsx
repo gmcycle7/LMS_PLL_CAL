@@ -54,7 +54,7 @@ const plotlyMock = vi.hoisted(() => ({
   Plots: { resize: vi.fn() },
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
-vi.mock('plotly.js-dist-min', () => ({ default: plotlyMock }))
+vi.mock('plotly.js-cartesian-dist-min', () => ({ default: plotlyMock }))
 
 // <Mermaid> 的替身。章首的系統地圖（<SystemMap>）是手排的 SVG、不經過 <Mermaid>，所以不會有 data-chart，用它的 DOM 與 systemMapModel() 檢查。
 // mermaid 套件本身沒有被 mock。

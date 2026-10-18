@@ -1,4 +1,4 @@
-import { CodeBlock, CodeCompare, Callout, ClaimTag, MathText, ModeGate, Quiz, Section, Tex, TexBlock } from '@/components'
+import { AnchorLink, CodeBlock, CodeCompare, Callout, ClaimTag, MathText, ModeGate, Quiz, Section, Tex, TexBlock } from '@/components'
 import { erf } from '@/simulation/core'
 import judgesSrc from '../judges.ts?raw'
 import { kq, requiredBlocks, secantRatio, slopeStdErr } from '../judges'
@@ -37,13 +37,10 @@ export function S2Polarity() {
           <strong>問題</strong>：晶片裡看不到 <Tex>{'a-w'}</Tex> 的正負，只看得到 GMAC 的輸出 <Tex>{'G_k'}</Tex>。你怎麼確定「GMAC 說往上調」時，真的應該往上調？
         </p>
         <p>
-          <strong>想法</strong>：把校正<strong>凍結</strong>（不讓 <Tex>{'w'}</Tex> 自己跑），人為把 <Tex>{'w'}</Tex> 往上推 <Tex>{'\\Delta'}</Tex>、量一陣子 GMAC；再往下推 <Tex>{'\\Delta'}</Tex>、再量。
-          如果 GMAC 的平均隨 <Tex>{'w'}</Tex> 增加而<strong>下降</strong>（斜率 <Tex>{'S<0'}</Tex>），代表 <Tex>{'w'}</Tex> 太大時 GMAC 會把它拉回來——這就是「恢復力」<Tex>{'K=-S>0'}</Tex>。
-          這是規格 §16.2 第一列的判斷方式，也是 §6 的 <Tex>{'S_\\mathrm{GMAC}=(G_+-G_-)/(2\\Delta w)'}</Tex>。
+          <strong>想法</strong>：把校正<strong>凍結</strong>（不讓 <Tex>{'w'}</Tex> 自己跑），人為把 <Tex>{'w'}</Tex> 往上推 <Tex>{'\\Delta'}</Tex>、量一陣子 GMAC；再往下推 <Tex>{'\\Delta'}</Tex>、再量。如果 GMAC 的平均隨 <Tex>{'w'}</Tex> 增加而<strong>下降</strong>（斜率 <Tex>{'S<0'}</Tex>），代表 <Tex>{'w'}</Tex> 太大時 GMAC 會把它拉回來——這就是「恢復力」<Tex>{'K=-S>0'}</Tex>。這是規格 §16.2 第一列的判斷方式，也是 §6 的 <Tex>{'S_\\mathrm{GMAC}=(G_+-G_-)/(2\\Delta w)'}</Tex>。
         </p>
         <Callout kind="info" title="為什麼一定要 freeze？">
-          若量測期間 <Tex>{'w'}</Tex> 還在更新，<Tex>{'w'}</Tex> 會被 LMS 自己拉回固定點，「<Tex>{'+\\Delta'}</Tex>」與「<Tex>{'-\\Delta'}</Tex>」兩個工作點就混在一起，量到的斜率被稀釋（甚至看起來為 0）。
-          另外每次改變 <Tex>{'w'}</Tex> 後要丟掉主 PLL settling 期間的 block，並<strong>交錯</strong>量測 <Tex>{'+\\Delta'}</Tex>／<Tex>{'-\\Delta'}</Tex>，讓慢漂移（PVT、<Tex>{'1/f'}</Tex>）在兩側相同而被差分抵消。
+          若量測期間 <Tex>{'w'}</Tex> 還在更新，<Tex>{'w'}</Tex> 會被 LMS 自己拉回固定點，「<Tex>{'+\\Delta'}</Tex>」與「<Tex>{'-\\Delta'}</Tex>」兩個工作點就混在一起，量到的斜率被稀釋（甚至看起來為 0）。另外每次改變 <Tex>{'w'}</Tex> 後要丟掉主 PLL settling 期間的 block，並<strong>交錯</strong>量測 <Tex>{'+\\Delta'}</Tex>／<Tex>{'-\\Delta'}</Tex>，讓慢漂移（PVT、<Tex>{'1/f'}</Tex>）在兩側相同而被差分抵消。矽上怎麼做（要哪些暫存器、讀出位寬、要讀幾個 block、花多少時間）見 <AnchorLink id="so-silicon">§8.5 矽上量測計畫</AnchorLink>。
         </Callout>
         <Diagram
           chart={CHART_FREEZE_MEASURE}
@@ -165,9 +162,7 @@ export function S2Polarity() {
           </table>
         </div>
         <p>
-          結論：<Tex>{'C=1'}</Tex> 時 8 個 block 就以 <Tex>{`z\\approx${tx(z1, 3)}`}</Tex> 的壓倒性信心判定極性；但有效相位接近 <Tex>{'90^\\circ'}</Tex>（<Tex>{'C\\approx0.087'}</Tex>）時同樣的量測只剩 <Tex>{`z\\approx${tx(z85, 3)}`}</Tex>，
-          而且這種「快要變號」的 FCW／corner 才是 sign-off 最需要量的地方。
-          表中 <Tex>{'z'}</Tex> 與所需 <Tex>{'M'}</Tex> 用小訊號 <Tex>{'K_qC'}</Tex> 估計；實際量到的 <Tex>{'\\hat K'}</Tex> 因 erf 截斷略小（本例比值 {nf(-sExact / K, 5)}，下一段推導）。
+          結論：<Tex>{'C=1'}</Tex> 時 8 個 block 就以 <Tex>{`z\\approx${tx(z1, 3)}`}</Tex> 的壓倒性信心判定極性；但有效相位接近 <Tex>{'90^\\circ'}</Tex>（<Tex>{'C\\approx0.087'}</Tex>）時同樣的量測只剩 <Tex>{`z\\approx${tx(z85, 3)}`}</Tex>，而且這種「快要變號」的 FCW／corner 才是 sign-off 最需要量的地方。表中 <Tex>{'z'}</Tex> 與所需 <Tex>{'M'}</Tex> 用小訊號 <Tex>{'K_qC'}</Tex> 估計；實際量到的 <Tex>{'\\hat K'}</Tex> 因 erf 截斷略小（本例比值 {nf(-sExact / K, 5)}，下一段推導）。
         </p>
       </Section>
 
@@ -219,8 +214,7 @@ export function S2Polarity() {
       <Section kind="explore" title="2.3 動手量：A／B／C 三組同 seed 對照">
         <p>
           預設三組：<strong>A</strong> 單頻 code、<Tex>{'\\phi=-120^\\circ'}</Tex>、<Tex>{'\\Omega=\\pi/6'}</Tex>、<Tex>{'D=4'}</Tex>（有效相位 <Tex>{'0^\\circ'}</Tex>，T07）；
-          <strong>B</strong> 同樣路徑但 <Tex>{'D=0'}</Tex>（有效相位 <Tex>{'-120^\\circ'}</Tex>，<Tex>{'C<0'}</Tex>）；<strong>C</strong> 對齊但 comparator 接反（<Tex>{'q=1-2b'}</Tex>）。
-          試試看：把 B 的 <Tex>{'D'}</Tex> 從 0 調到 2、4、6，看 <Tex>{'\\hat K'}</Tex> 何時變號；把 <Tex>{'\\Delta'}</Tex> 拉到 <Tex>{'\\sigma_v'}</Tex>，看 mean-field 與小訊號 <Tex>{'K_qC'}</Tex> 分開。
+          <strong>B</strong> 同樣路徑但 <Tex>{'D=0'}</Tex>（有效相位 <Tex>{'-120^\\circ'}</Tex>，<Tex>{'C<0'}</Tex>）；<strong>C</strong> 對齊但 comparator 接反（<Tex>{'q=1-2b'}</Tex>）。試試看：把 B 的 <Tex>{'D'}</Tex> 從 0 調到 2、4、6，看 <Tex>{'\\hat K'}</Tex> 何時變號；把 <Tex>{'\\Delta'}</Tex> 拉到 <Tex>{'\\sigma_v'}</Tex>，看 mean-field 與小訊號 <Tex>{'K_qC'}</Tex> 分開。
         </p>
         <PolarityPerturbExperiment />
       </Section>
@@ -290,8 +284,7 @@ export function S2Polarity() {
         />
         <ul>
           <li>
-            <Tex>{'c_G,c_P>0'}</Tex>：<Tex>{'\\mathbf R\\,\\mathrm{diag}(\\mathbf c)'}</Tex> 與對稱正定矩陣相似，eigenvalue 全為正——只有<strong>步長太大</strong>才會不穩（<Tex>{'1-\\mu K_q\\lambda_{\\max}<-1'}</Tex>）。以 <Tex>{'c_G=c_P=c'}</Tex>、<Tex>{'\\mu_G=\\mu_P=\\mu'}</Tex> 為例，<Tex>{'\\mathbf R'}</Tex> 的 eigenvalue 是 <Tex>{'1\\pm\\rho_{GP}'}</Tex>，所以 <Tex>{'\\lambda_{\\max}=c\\,(1+|\\rho_{GP}|)'}</Tex> 比對角元素 <Tex>{'c'}</Tex> 大：
-            單獨更新只要 <Tex>{'\\mu K_qc<2'}</Tex>，一起更新卻要 <Tex>{'\\mu K_qc\\,(1+|\\rho_{GP}|)<2'}</Tex>——所以「各自穩定、一起發散」是可能的。
+            <Tex>{'c_G,c_P>0'}</Tex>：<Tex>{'\\mathbf R\\,\\mathrm{diag}(\\mathbf c)'}</Tex> 與對稱正定矩陣相似，eigenvalue 全為正——只有<strong>步長太大</strong>才會不穩（<Tex>{'1-\\mu K_q\\lambda_{\\max}<-1'}</Tex>）。以 <Tex>{'c_G=c_P=c'}</Tex>、<Tex>{'\\mu_G=\\mu_P=\\mu'}</Tex> 為例，<Tex>{'\\mathbf R'}</Tex> 的 eigenvalue 是 <Tex>{'1\\pm\\rho_{GP}'}</Tex>，所以 <Tex>{'\\lambda_{\\max}=c\\,(1+|\\rho_{GP}|)'}</Tex> 比對角元素 <Tex>{'c'}</Tex> 大：單獨更新只要 <Tex>{'\\mu K_qc<2'}</Tex>，一起更新卻要 <Tex>{'\\mu K_qc\\,(1+|\\rho_{GP}|)<2'}</Tex>——所以「各自穩定、一起發散」是可能的。
           </li>
           <li>
             <Tex>{'c_Gc_P<0'}</Tex>：行列式為負 ⇒ 一個 eigenvalue 為負 ⇒ 對<strong>任何</strong> <Tex>{'\\mu>0'}</Tex> 都有一個發散模式。這就是「某個 SSPLL mode 下 PHOS 極性相反」的數學樣貌。
@@ -301,8 +294,7 @@ export function S2Polarity() {
           </li>
         </ul>
         <p className="small muted">
-          想親手算「各自的 pole」與「一起更新的 pole」：<a href="#/ch/10">Ch10</a> 的手算題（T18：用 trace 與 determinant 求 <Tex>{'\\mathrm{eig}(\\mathbf I+\\mu\\mathbf J)'}</Tex>）與 <a href="#/ch/09">Ch09</a> 的手算題（<Tex>{'\\lambda=1\\pm\\rho'}</Tex> 與兩個 pole）用的就是這裡的矩陣，本頁不重複出題；
-          全站題目彙整在<a href="#/workbook">手算練習簿</a>。
+          想親手算「各自的 pole」與「一起更新的 pole」：<a href="#/ch/10">Ch10</a> 的手算題（T18：用 trace 與 determinant 求 <Tex>{'\\mathrm{eig}(\\mathbf I+\\mu\\mathbf J)'}</Tex>）與 <a href="#/ch/09">Ch09</a> 的手算題（<Tex>{'\\lambda=1\\pm\\rho'}</Tex> 與兩個 pole）用的就是這裡的矩陣，本頁不重複出題；全站題目彙整在<a href="#/workbook">手算練習簿</a>。
         </p>
         <TexBlock id="F-SO.6" label="兩參數 Jacobian 的中央差分量測">{String.raw`\hat J_{ij}=\frac{\bar G_i(\mathbf w+\Delta_j\mathbf e_j)-\bar G_i(\mathbf w-\Delta_j\mathbf e_j)}{2\Delta_j},\qquad \text{各 loop 極性}\iff-\hat J_{ii}>z\,\mathrm{se}`}</TexBlock>
         <Steps
@@ -318,8 +310,7 @@ export function S2Polarity() {
         />
         <TexBlock id="F-SO.12" label="量測 Jacobian 的可辨識性門檻">{String.raw`|\sigma_i(\hat{\mathbf J})-\sigma_i(\mathbf J)|\le\|\hat{\mathbf J}-\mathbf J\|_F,\qquad \text{可辨識}\iff\sigma_{\min}(\hat{\mathbf J})>z\,\|\mathrm{se}\|_F`}</TexBlock>
         <p>
-          <Tex>{'1/z^2'}</Tex> 是<strong>不需要分布假設</strong>的保守上界（<Tex>{`z=3`}</Tex> 時 <Tex>{`\\le${tx(100 / 9, 3)}\\%`}</Tex>）；量測雜訊近似高斯時實際的誤判機率小得多。
-          反過來，沒過門檻<strong>不代表</strong> <Tex>{'\\mathbf J'}</Tex> 真的奇異——只代表這次量測分辨不出來：加大 <Tex>{'M'}</Tex>、<Tex>{'N'}</Tex> 讓 <Tex>{'\\|\\mathrm{se}\\|_F\\propto1/\\sqrt{MN}'}</Tex> 變小再量一次。
+          <Tex>{'1/z^2'}</Tex> 是<strong>不需要分布假設</strong>的保守上界（<Tex>{`z=3`}</Tex> 時 <Tex>{`\\le${tx(100 / 9, 3)}\\%`}</Tex>）；量測雜訊近似高斯時實際的誤判機率小得多。反過來，沒過門檻<strong>不代表</strong> <Tex>{'\\mathbf J'}</Tex> 真的奇異——只代表這次量測分辨不出來：加大 <Tex>{'M'}</Tex>、<Tex>{'N'}</Tex> 讓 <Tex>{'\\|\\mathrm{se}\\|_F\\propto1/\\sqrt{MN}'}</Tex> 變小再量一次。
           <ClaimTag kind="exact" />（Weyl 與 Markov 不等式；前提是 <Tex>{'\\hat{\\mathbf J}'}</Tex> 不偏、<Tex>{'\\mathrm{se}_{ij}'}</Tex> 為真實標準誤——實作以樣本估計值代入，<Tex>{'M'}</Tex> 很小時要再保守一些 <ClaimTag kind="approx" />）
         </p>
         <HandCalcSlot id="HC-SO.2">

@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { waitAndReveal } from '@/components'
 import { ACCEPTANCE_IDS, type AcceptanceId } from '@/simulation/models/acceptance'
 import { AcceptanceProvider, SymbolsLink } from './common'
 import { erratumById } from './errata'
@@ -22,26 +23,15 @@ export function parseDeepLink(params: URLSearchParams): { eid: string | null; ti
   return { eid, tid }
 }
 
-/** 等頁面（含 PageFrame 的 scrollTo(0, 0)）與 KaTeX 版面穩定後，把目標捲到視窗頂端並給焦點 */
+/**
+ * 等目標出現（勘誤卡片在 lazy 載入的 §V.6 裡，要等那一節的 chunk 下載完）才捲過去、給焦點。
+ * waitAndReveal 的第一次檢查排在 setTimeout 之後，所以一定晚於 PageFrame 的 scrollTo(0, 0)；
+ * 捲到之後版面還會變（Plotly／Mermaid 延後渲染、lazy 區塊長出來），它會在 2 秒內把目標拉回原位。
+ */
 function useScrollToId(domId: string | null) {
   useEffect(() => {
     if (!domId) return
-    let cancelled = false
-    const go = () => {
-      if (cancelled) return
-      const el = document.getElementById(domId)
-      if (!el) return
-      if (typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      if (el.hasAttribute('tabindex')) el.focus({ preventScroll: true }) // 勘誤卡片 tabIndex = −1：讓螢幕閱讀器跟上
-    }
-    // 子元件的 effect 先於 PageFrame（父層）的 scrollTo(0, 0)；延後執行，並在版面變動後再校正一次
-    const t1 = window.setTimeout(go, 120)
-    const t2 = window.setTimeout(go, 700)
-    return () => {
-      cancelled = true
-      window.clearTimeout(t1)
-      window.clearTimeout(t2)
-    }
+    return waitAndReveal(domId, { timeoutMs: 10_000 })
   }, [domId])
 }
 

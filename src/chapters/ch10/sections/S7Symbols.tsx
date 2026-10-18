@@ -309,7 +309,7 @@ export function S7Symbols() {
           </>
         }
       />
-      <p className="ch10-symbols-back small muted">
+      <p className="ch10-symbols-back small muted no-print">
         <button type="button" className="ch10-linklike" onClick={scrollBackFromSymbols}>
           ↑ 回到剛才閱讀的位置
         </button>

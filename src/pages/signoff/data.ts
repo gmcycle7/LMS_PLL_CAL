@@ -80,7 +80,7 @@ export const SIGNOFF_CASES: SignoffCase[] = [
         judge: String.raw`$\hat K=-\hat S$ 必須顯著大於 0（$\hat K-z\,\mathrm{se}>0$），並與解析 $K_qC$ 比對；每個 mode、每個 FCW 都要量。$\Delta$ 建議 $\le0.3\sigma_v$（截斷偏差 $\approx-\Delta^2/(6\sigma_v^2)$）。`,
         criterion: String.raw`\hat K=-\frac{\bar G(w+\Delta)-\bar G(w-\Delta)}{2\Delta}>z\cdot\frac{\sigma_\eta}{\Delta\sqrt{2M}}`,
         claim: 'approx',
-        links: [THIS('so-polarity', '本頁：Polarity Perturbation 實驗'), { to: '/ch/06', label: 'Ch06 Polarity Explorer' }, { to: '/ch/14', label: String.raw`Ch14 Corner 區間（量測 $\hat K$）` }],
+        links: [THIS('so-polarity', '本頁：Polarity Perturbation 實驗'), THIS('so-silicon', '本頁：矽上量測計畫（要讀幾個 block）'), { to: '/ch/06', label: 'Ch06 Polarity Explorer' }, { to: '/ch/14', label: String.raw`Ch14 Corner 區間（量測 $\hat K$）` }],
         spec: '§6、§16.2',
       },
       {
@@ -222,7 +222,7 @@ export const SIGNOFF_CASES: SignoffCase[] = [
         judge: String.raw`報告 $|B_\text{bias}/C|$ 隨 FCW 的曲線。它是線性化的值：把 $w=a+B_\text{bias}/C$ 代回去，comparator 前的確定性殘差 $\max_n|e_\text{det}[n]|>0.3\,\sigma_v$ 的 FCW 只是線性外推（Sign-LMS 可能沒有吸引的固定點，$w$ 漂到 rail），直接列入 keep-out；通過這個門檻、但 $C$ 很小的 FCW 還要再看 Ch11 §11.4 的殘餘比 $\gamma_\mathrm{lin}$。$C\le0$ 時 $w^*$ 是 repelling point（不可達），不是「偏差很大的解」。`,
         criterion: String.raw`w^*\approx a+\frac{B_\text{bias}}{C},\qquad C\to0^+\Rightarrow|w^*-a|\to\infty`,
         claim: 'approx',
-        links: [{ to: '/ch/11', label: 'Ch11 Near-integer 段落' }],
+        links: [{ to: '/ch/11', label: 'Ch11 Near-integer 段落' }, THIS('so-silicon', '本頁：矽上量測計畫（keep-out 怎麼量）')],
         spec: '§11.4',
         errata: ['E12'],
       },
@@ -344,7 +344,7 @@ export const SIGNOFF_CASES: SignoffCase[] = [
         verify: '超出調整範圍時的行為與復原路徑。',
         judge: String.raw`注入超出範圍的 PVT 步階：不可永遠卡在 rail；離開 rail 後回到正確固定點；saturation 計數器有上報。`,
         claim: 'research',
-        links: [{ to: '/lab', label: 'Calibration Lab' }, { to: '/models', label: 'Models（saturation 欄位）' }],
+        links: [{ to: '/lab', label: 'Calibration Lab' }, { to: '/models', label: 'Models（saturation 欄位）' }, THIS('so-silicon', '本頁：矽上量測計畫（飽和計數器）')],
         spec: '§16.1-8',
       },
       {
@@ -457,7 +457,7 @@ export const SIGNOFF_CASES: SignoffCase[] = [
         verify: '每個事件下 calibration register 的處置（保留、freeze、重置、重新 coarse）。',
         judge: '在 behavioral model 注入失鎖與 PVT 步階：校正不得在失鎖期間積分錯誤資訊；relock 後回到規格內的時間有上界。',
         claim: 'research',
-        links: [{ to: '/ch/14', label: 'Ch14' }, { to: '/lab', label: 'Calibration Lab' }],
+        links: [{ to: '/ch/14', label: 'Ch14' }, { to: '/lab', label: 'Calibration Lab' }, THIS('so-silicon', '本頁：矽上量測計畫（lock-detect 與 enable 時序）')],
         spec: '§16.1-10',
       },
       {
@@ -527,7 +527,7 @@ export const SIGNOFF_CASES: SignoffCase[] = [
         judge: String.raw`任何一相 $\hat J_{PP}$ 顯著 $>0$ ⇒ 該相在此模式下極性相反，必須反轉該 loop 的更新符號或修正 regressor 對應。`,
         criterion: String.raw`-\hat J_{PP}>z\,\mathrm{se}(\hat J_{PP})`,
         claim: 'approx',
-        links: [THIS('so-sspll', '本頁：SSPLL 兩參數 Jacobian'), { to: '/case/sspll', label: '案例頁' }],
+        links: [THIS('so-sspll', '本頁：SSPLL 兩參數 Jacobian'), THIS('so-silicon', '本頁：矽上量測計畫（PMUX 相位強制、spur 反推殘差）'), { to: '/case/sspll', label: '案例頁' }],
       },
       {
         id: 'sspll-cross',

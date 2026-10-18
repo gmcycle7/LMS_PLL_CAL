@@ -14,15 +14,12 @@ export function S2WhyU() {
       }
     >
       <p>
-        這一節要說清楚兩件事：（1）主 PLL 對 DTC 誤差的作用可以用一個<strong>線性非時變（LTI）</strong>系統描述；
-        （2）這個系統的轉移函數是 <Tex>{'H_{\\mathrm{PD}}=1/(1+L)'}</Tex>，其中 <Tex>{'L'}</Tex> 是主 PLL 的<strong>開迴路增益</strong>（訊號沿迴路繞一圈被乘上的倍數）。
-        先看一張圖，知道「濾波」在離散時間裡長什麼樣子；圖下面的四個先備知識框再從微積分程度開始講。
+        這一節要說清楚兩件事：（1）主 PLL 對 DTC 誤差的作用可以用一個<strong>線性非時變（LTI）</strong>系統描述；（2）這個系統的轉移函數是 <Tex>{'H_{\\mathrm{PD}}=1/(1+L)'}</Tex>，其中 <Tex>{'L'}</Tex> 是主 PLL 的<strong>開迴路增益</strong>（訊號沿迴路繞一圈被乘上的倍數）。先看一張圖，知道「濾波」在離散時間裡長什麼樣子；圖下面的四個先備知識框再從微積分程度開始講。
       </p>
 
       <ChapterDiagram id="D-06.2">
         <p>
-          先看藍色的 <Tex>{'z^{-1}'}</Tex> 方塊：每一個都把訊號延遲一個 sample，所以沿著延遲鏈依序拿到 <Tex>{'x[n]'}</Tex>、<Tex>{'x[n-1]'}</Tex>、<Tex>{'x[n-2]'}</Tex>。
-          再看每個「乘上 <Tex>{'h[k]'}</Tex>」的方塊：現在與過去的輸入各乘上一個固定的權重，全部加起來就是輸出 <Tex>{'u[n]'}</Tex>。
+          先看藍色的 <Tex>{'z^{-1}'}</Tex> 方塊：每一個都把訊號延遲一個 sample，所以沿著延遲鏈依序拿到 <Tex>{'x[n]'}</Tex>、<Tex>{'x[n-1]'}</Tex>、<Tex>{'x[n-2]'}</Tex>。再看每個「乘上 <Tex>{'h[k]'}</Tex>」的方塊：現在與過去的輸入各乘上一個固定的權重，全部加起來就是輸出 <Tex>{'u[n]'}</Tex>。
         </p>
         <p>
           圖上的權重 <Tex>{'h[0],h[1],h[2],\\dots'}</Tex> 就是公式 <Tex>{'u[n]=\\sum_{k\\ge0}h[k]\\,x[n-k]'}</Tex> 裡的<strong>脈衝響應</strong>（這個運算叫卷積，記作{' '}
@@ -33,22 +30,19 @@ export function S2WhyU() {
 
       <Prereq title="離散時間訊號、系統與 LTI（線性 + 非時變）">
         <p>
-          <strong>離散時間訊號</strong>就是一串數字 <Tex>{'x[0],x[1],x[2],\\dots'}</Tex>，相鄰兩個 sample 相隔 <Tex>{'T_s'}</Tex> 秒
-          （本章 <Tex>{'T_s=1/f_s'}</Tex>，<Tex>{'f_s'}</Tex> 是 comparator / PD 的取樣率）。<strong>系統</strong>是把輸入序列變成輸出序列的規則{' '}
+          <strong>離散時間訊號</strong>就是一串數字 <Tex>{'x[0],x[1],x[2],\\dots'}</Tex>，相鄰兩個 sample 相隔 <Tex>{'T_s'}</Tex> 秒（本章 <Tex>{'T_s=1/f_s'}</Tex>，<Tex>{'f_s'}</Tex> 是 comparator / PD 的取樣率）。<strong>系統</strong>是把輸入序列變成輸出序列的規則{' '}
           <Tex>{'u=\\mathcal T\\{x\\}'}</Tex>。
         </p>
         <ul>
           <li>
-            <strong>線性（linear）</strong>：<Tex>{'\\mathcal T\\{\\alpha x_1+\\beta x_2\\}=\\alpha\\,\\mathcal T\\{x_1\\}+\\beta\\,\\mathcal T\\{x_2\\}'}</Tex>。
-            白話：輸入放大 2 倍，輸出也放大 2 倍；兩個輸入一起來，輸出就是各自輸出的和。
+            <strong>線性（linear）</strong>：<Tex>{'\\mathcal T\\{\\alpha x_1+\\beta x_2\\}=\\alpha\\,\\mathcal T\\{x_1\\}+\\beta\\,\\mathcal T\\{x_2\\}'}</Tex>。白話：輸入放大 2 倍，輸出也放大 2 倍；兩個輸入一起來，輸出就是各自輸出的和。
           </li>
           <li>
             <strong>非時變（time-invariant）</strong>：輸入延遲 <Tex>{'m'}</Tex> 個 sample，輸出也只是延遲 <Tex>{'m'}</Tex> 個 sample。白話：系統的個性不隨時間改變。
           </li>
         </ul>
         <p>
-          例：<Tex>{'u[n]=x[n]-\\sqrt3\\,x[n-1]'}</Tex>（§1 的濾波器）是 LTI；<Tex>{'u[n]=x[n]^2'}</Tex> 不是線性。
-          線性化後的主 PLL（BBPD 以平均增益近似、迴路參數固定）就是一個 LTI 系統。
+          例：<Tex>{'u[n]=x[n]-\\sqrt3\\,x[n-1]'}</Tex>（§1 的濾波器）是 LTI；<Tex>{'u[n]=x[n]^2'}</Tex> 不是線性。線性化後的主 PLL（BBPD 以平均增益近似、迴路參數固定）就是一個 LTI 系統。
         </p>
       </Prereq>
 
@@ -128,8 +122,7 @@ export function S2WhyU() {
       <Prereq title="離散角頻率與頻率響應">
         <p>
           <strong>離散角頻率</strong> <Tex>{'\\Omega=\\omega T_s=2\\pi f/f_s'}</Tex>，單位 <Tex>{'\\mathrm{rad/sample}'}</Tex>；<Tex>{'\\Omega=\\pi'}</Tex>{' '}
-          是 Nyquist（每 2 個 sample 一個週期）。
-          複數的 Euler 公式 <Tex>{'e^{j\\theta}=\\cos\\theta+j\\sin\\theta'}</Tex>，所以 <Tex>{'\\cos\\theta=\\operatorname{Re}\\{e^{j\\theta}\\}'}</Tex>。
+          是 Nyquist（每 2 個 sample 一個週期）。複數的 Euler 公式 <Tex>{'e^{j\\theta}=\\cos\\theta+j\\sin\\theta'}</Tex>，所以 <Tex>{'\\cos\\theta=\\operatorname{Re}\\{e^{j\\theta}\\}'}</Tex>。
         </p>
         <StepDerivation
           steps={[
@@ -238,8 +231,7 @@ export function S2WhyU() {
           />
           <TexBlock id="F-06.6">{String.raw`\boxed{H_{\mathrm{PD}}=\frac{1}{1+L}}`}</TexBlock>
           <p>
-            <Tex>{'L'}</Tex> 在低頻很大（迴路有積分器），所以 <Tex>{'H_{\\mathrm{PD}}\\to0'}</Tex>：<strong>慢的誤差會被 PLL 追掉</strong>；
-            高頻 <Tex>{'L\\to0'}</Tex>，<Tex>{'H_{\\mathrm{PD}}\\to1'}</Tex>：快的誤差原封不動到 PD。中間（迴路頻寬附近）則有明顯的相位旋轉——問題就出在這裡。
+            <Tex>{'L'}</Tex> 在低頻很大（迴路有積分器），所以 <Tex>{'H_{\\mathrm{PD}}\\to0'}</Tex>：<strong>慢的誤差會被 PLL 追掉</strong>；高頻 <Tex>{'L\\to0'}</Tex>，<Tex>{'H_{\\mathrm{PD}}\\to1'}</Tex>：快的誤差原封不動到 PD。中間（迴路頻寬附近）則有明顯的相位旋轉——問題就出在這裡。
           </p>
         </StepBox>
 

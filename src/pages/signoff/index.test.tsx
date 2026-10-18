@@ -10,7 +10,10 @@ import { S3Claims } from './sections/S3Claims'
 import { STORAGE_KEY } from './review'
 import { FORMULAS } from './formulas'
 import { SIGNOFF_CHARTS } from './diagrams'
+import { accumulatorBitsRequired, oneHotPatternFactor, polarityReadoutPlan, timingToneFromSpur } from './judges'
+import { SILICON_EXAMPLE } from './sections/S8Silicon'
 import { SYMBOLS } from './symbols'
+import { FORMULA_IDS } from '@/pages/formulas/registry'
 
 const P = vi.hoisted(() => ({
   react: vi.fn(async () => undefined),
@@ -20,7 +23,7 @@ const P = vi.hoisted(() => ({
   Plots: { resize: vi.fn() },
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
-vi.mock('plotly.js-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
 vi.mock('mermaid', () => ({
   default: { initialize: vi.fn(), render: vi.fn(async (id: string) => ({ svg: `<svg id="${id}"></svg>`, diagramType: 'flowchart-v2' })) },
 }))
@@ -56,7 +59,7 @@ afterEach(() => {
 })
 
 describe('Sign-off 頁（jsdom smoke）', () => {
-  it('完整頁面可以渲染：符號表、各段落、六個實驗、四題手算、公式錨點、勘誤連到 #/verification?e=Exx，且沒有 KaTeX 解析錯誤與 console error', async () => {
+  it('完整頁面可以渲染：符號表、各段落、六個實驗、六題手算、公式錨點、勘誤連到 #/verification?e=Exx，且沒有 KaTeX 解析錯誤與 console error', async () => {
     localStorage.setItem('lmspll.mode', 'research') // Research 模式顯示全部內容（ModeGate）
     const errSpy = vi.spyOn(console, 'error')
     const { container } = render(wrap(<SignoffPage />))
@@ -74,6 +77,7 @@ describe('Sign-off 頁（jsdom smoke）', () => {
       '6. 非線性與定點：',
       '7. 多參數：',
       '8. 校正策略與 output：',
+      '8.5 矽上量測計畫與 DfT 清單：',
       '9. 反面測試（規格 §17）：確認系統會「失敗得正確」',
       '10. 附錄 B：數學與工程上的十項關鍵限制',
       '11. 思考題與本頁必記',
@@ -109,7 +113,7 @@ describe('Sign-off 頁（jsdom smoke）', () => {
       .map((e) => Array.from(e.childNodes).filter((n) => n.nodeType === 3).map((n) => n.textContent ?? '').join(''))
       .filter((t) => /\$[^$]+\$/.test(t))
     expect(leftover).toEqual([])
-    // 四題「帶入手算」依頁面順序出現（§2.2、§2.5、§3.5、§4），各自帶著「換你算」的引導與完整步驟
+    // 六題「帶入手算」依頁面順序出現（§2.2、§2.5、§3.5、§4、§8.5 兩題），各自帶著「換你算」的引導與完整步驟
     const hc = Array.from(container.querySelectorAll('section.c-handcalc'))
     expect(hc.map((el) => el.id)).toEqual(HANDCALCS.map((h) => `handcalc-${h.id}`))
     for (const el of hc) {
@@ -127,6 +131,11 @@ describe('Sign-off 頁（jsdom smoke）', () => {
     expect(before(formula('F-SO.12'), hc[1]) && before(hc[1], exp('signoff-sspll-jacobian'))).toBe(true)
     expect(before(formula('F-SO.8'), hc[2]) && before(hc[2], exp('signoff-evidence'))).toBe(true)
     expect(before(formula('F-SO.5'), hc[3]) && before(hc[3], exp('signoff-corner-judge'))).toBe(true)
+    // §8.5：量測計畫的推導 → HC-SO.5 → F-SO.13 → HC-SO.6 → 程式碼；兩題都在 §8.5 裡、§9 之前
+    const silicon = container.querySelector('#so-silicon') as HTMLElement
+    expect(silicon.contains(hc[4]) && silicon.contains(hc[5])).toBe(true)
+    expect(before(silicon.querySelector('.c-steps'), hc[4]) && before(hc[4], formula('F-SO.13')) && before(formula('F-SO.13'), hc[5])).toBe(true)
+    expect(before(hc[5], container.querySelector('#so-negative'))).toBe(true)
     // 站內連結（HashRouter 的 #/…，以及 <Link> 在 MemoryRouter 下的 /…）都指向已註冊的路由
     const paths = new Set(PAGES.map((p) => p.path))
     const hrefs = Array.from(container.querySelectorAll('a[href]')).map((a) => a.getAttribute('href') as string)
@@ -135,9 +144,16 @@ describe('Sign-off 頁（jsdom smoke）', () => {
     for (const h of internal) expect(paths.has(h.replace(/^#/, '').split('?')[0]), h).toBe(true)
     // 其餘的 href 只能是本頁的公式連結（MetricTable 的 FormulaLink：'#/formulas?f=F-SO.n'，已被上面的 internal 檢查掉）；沒有 '#formula-…'
     expect(hrefs.filter((x) => !internal.includes(x)), '不是路由的 href').toEqual([])
+    // 公式連結：本頁的 F-SO.n 都指向頁上的公式；§8.5 另外引用 Ch12 的 F-12.16／F-12.18（不在本頁，連到公式速查頁），ID 必須存在於全站登錄
     for (const a of Array.from(container.querySelectorAll('a[data-formula-link]'))) {
-      expect(container.querySelector(`[id="formula-${a.getAttribute('data-formula-link')}"]`), a.getAttribute('data-formula-link') ?? '').toBeTruthy()
+      const id = a.getAttribute('data-formula-link') as string
+      if (id.startsWith('F-SO.')) expect(container.querySelector(`[id="formula-${id}"]`), id).toBeTruthy()
+      else {
+        expect(FORMULA_IDS.has(id), id).toBe(true)
+        expect(a.getAttribute('href'), id).toBe(`#/formulas?f=${id}`)
+      }
     }
+    expect(Array.from(container.querySelectorAll('#so-silicon a[data-formula-link]')).map((a) => a.getAttribute('data-formula-link'))).toEqual(expect.arrayContaining(['F-12.16', 'F-12.18', 'F-CS.21', 'F-SO.13', 'F-SO.3', 'F-SO.2']))
     // 公式連結：本頁有這條公式就攔截、捲過去（不讓瀏覽器照預設行為換 hash）
     const formulaLink = container.querySelector('[data-experiment="signoff-polarity-perturb"] a[data-formula-link="F-SO.4"]') as HTMLAnchorElement
     expect(formulaLink).toBeTruthy()
@@ -204,7 +220,7 @@ describe('Sign-off 頁（jsdom smoke）', () => {
     expect(tocLast.textContent).toBe('本頁符號表')
   }, 120000)
 
-  it('方塊圖：七張圖各出現一次（依 SIGNOFF_CHARTS 的順序），都有圖說與導讀，並放在對應的公式／逐步推導之前（docs/teaching-style.md §8）', () => {
+  it('方塊圖：八張圖各出現一次（依 SIGNOFF_CHARTS 的順序），都有圖說與導讀，並放在對應的公式／逐步推導之前（docs/teaching-style.md §8）', () => {
     const { container } = render(wrap(<SignoffPage />))
     const precedes = (x: Element | null, y: Element | null) => !!x && !!y && !!(x.compareDocumentPosition(y) & Node.DOCUMENT_POSITION_FOLLOWING)
     const figs = Array.from(container.querySelectorAll('figure.c-mermaid')) as HTMLElement[]
@@ -229,6 +245,7 @@ describe('Sign-off 頁（jsdom smoke）', () => {
       ['Corner 判準流程圖', '#so-corner', '.c-steps'],
       ['多參數線性化迴路', '#so-mimo', '.c-steps'],
       ['從 gain code 偏差到輸出', '#so-strategy', '.c-steps'],
+      ['矽上量測迴圈', '#so-silicon', '.c-steps'],
       ['反面測試的流程圖', '#so-negative', '.so-limits'],
     ]
     expect(placed.map(([label]) => fig(label))).toEqual(figs) // 頁面上的順序與 SIGNOFF_CHARTS 相同
@@ -311,6 +328,73 @@ describe('Sign-off 頁（jsdom smoke）', () => {
     expect(precedes(fig('Corner 判準流程圖'), container.querySelector('[id="formula-F-SO.5"]'))).toBe(true)
     expect(precedes(fig('多參數線性化迴路'), container.querySelector('[id="formula-F-SO.7"]'))).toBe(true)
     expect(precedes(fig('freeze 加減 Delta'), container.querySelector('[id="formula-F-SO.1"]'))).toBe(true)
+    expect(precedes(fig('矽上量測迴圈'), container.querySelector('[id="formula-F-SO.13"]'))).toBe(true)
+  }, 120000)
+
+  it('§8.5 矽上量測計畫：五列對照表（判準→觀測量→暫存器→儀器→通過數字）、六項 DfT、數字由 judges 即時算出、儀器量到的是經 |T| 的輸出、Matrix 的五個項目連回來', () => {
+    localStorage.setItem('lmspll.mode', 'engineer')
+    const { container } = render(wrap(<SignoffPage />))
+    const sec = container.querySelector('#so-silicon') as HTMLElement
+    expect(sec).toBeTruthy()
+    // 表：五列、五欄；每一列的第一欄是判準名稱
+    const table = sec.querySelector('table.so-plan') as HTMLTableElement
+    expect(table.closest('.table-wrap')).toBeTruthy()
+    expect(Array.from(table.querySelectorAll('thead th')).map((th) => th.textContent)).toEqual(['判準', '晶片內觀測量', '暫存器／測試模式', '儀器上看什麼', '通過數字（illustrative）'])
+    const rows = Array.from(table.querySelectorAll('tbody tr'))
+    expect(rows.map((r) => r.getAttribute('data-plan'))).toEqual(['polarity', 'keepout', 'bias', 'clip', 'relock'])
+    for (const r of rows) expect(r.querySelectorAll('td')).toHaveLength(5)
+    // 極性那一列的數字 = polarityReadoutPlan（σ_v = 200 fs ⇒ Δ = 60 fs、C = 0.1、N = 1024、z = 3 ⇒ 每側 8 個 block、163.84 µs）
+    const plan = polarityReadoutPlan(SILICON_EXAMPLE.plan)
+    const polarity = rows[0].textContent ?? ''
+    expect(plan.M).toBe(8)
+    expect(polarity).toContain(`M\\ge${plan.M}`)
+    expect(polarity).toContain('163.8')
+    expect(polarity).toContain('cal_freeze')
+    expect(polarity).toContain('w_force')
+    expect(rows[0].querySelectorAll('code').length).toBeGreaterThanOrEqual(3) // 暫存器名稱以 <code> 顯示，不是字面上的 <code> 文字
+    expect(sec.textContent).not.toContain('<code>')
+    // bias 那一列：−60 dBc @ 13 GHz ⇒ A_t = 24.485 fs ⇒ κ_pat = 2sin(π/8)/π = 0.2436 ⇒ δ_P = 100.5 fs（timingToneFromSpur、oneHotPatternFactor；不是 2/P 的 97.94）
+    const at = timingToneFromSpur(13e9, -60, 1)
+    expect(rows[2].textContent).toContain(String(Number(at.toPrecision(4))))
+    expect(rows[2].textContent).toContain(String(Number((at / oneHotPatternFactor(8)).toPrecision(4))))
+    expect(rows[2].textContent).toContain('100.5')
+    expect(rows[2].textContent).toContain('0.2436')
+    expect(sec.textContent).not.toContain('97.94')
+    // 極性那一列的量測時間寫完整的 163.84 µs（2 × 8 × 10.24 是精確的乘積，不四捨五入成 163.8）
+    expect(polarity).toContain('163.84')
+    // keep-out：spur 在 α·f_ref、w 的漂移方向；clip：飽和計數器；relock：lock-detect 與 cal_en 的時序
+    expect(rows[1].textContent).toContain('keep-out')
+    expect(Array.from(rows[1].querySelectorAll('annotation')).some((a) => (a.textContent ?? '').includes(String.raw`\alpha f_\text{ref}`))).toBe(true)
+    expect(rows[3].textContent).toContain('sat_cnt')
+    expect(rows[4].textContent).toContain('lock_det')
+    expect(rows[4].textContent).toContain('cal_en')
+    // 儀器量到的是輸出（經 |T|），不是 PD 端：警告框、表格與 Engineer 模式的成立條件都要說
+    expect(sec.querySelector('.callout-warn')?.textContent).toContain('不是 PD 端')
+    expect(sec.querySelector('[data-conditions="F-SO.13"]')?.textContent).toContain('不是 PD 端')
+    expect(sec.querySelector('[data-conditions="F-SO.13"]')?.textContent).toContain('小角')
+    // DfT 六項（讀出位寬、可寫入 w、可凍結、可反相 q、可選 regressor、PMUX 相位強制）
+    const dft = Array.from(sec.querySelectorAll('[data-dft]'))
+    expect(dft.map((d) => d.getAttribute('data-dft'))).toEqual(['readout', 'wforce', 'freeze', 'qinv', 'regr', 'phase'])
+    expect(dft.map((d) => d.querySelector('h4 code')?.textContent)).toEqual(['gmac_rd', 'w_force', 'cal_freeze', 'q_inv', 'regr_sel', 'phase_force'])
+    expect(dft[0].textContent).toContain(`${accumulatorBitsRequired(6, 1024)}`) // 16 bit
+    // 不寫特定晶片的細節：沒有 4 GHz／16 GHz 之類的本案數字，數字都是 illustrative
+    expect(sec.textContent).not.toMatch(/4\s*GHz|16\s*GHz/)
+    expect(sec.querySelectorAll('.c-source-tag, [data-source="illustrative"]').length + (sec.textContent?.includes('illustrative') ? 1 : 0)).toBeGreaterThan(0)
+    // 圖、兩個逐步推導、兩題手算、一段程式碼都在這一節；圖在推導之前
+    expect(sec.querySelectorAll('figure.c-mermaid')).toHaveLength(1)
+    expect(sec.querySelectorAll('.c-steps')).toHaveLength(2)
+    expect(sec.querySelectorAll('section.c-handcalc')).toHaveLength(2)
+    expect(sec.querySelector('.c-code')).toBeTruthy()
+    // Matrix 的五個項目連回 §8.5（data.ts 的 links）
+    const back = Array.from(container.querySelectorAll('#so-matrix a[data-anchor="so-silicon"]'))
+    expect(back.length).toBe(5)
+    // §2 的 freeze 說明也指到 §8.5
+    expect(container.querySelector('#so-polarity a[data-anchor-link="so-silicon"]')).toBeTruthy()
+    // §8.5 引入的符號都在頁末符號表：κ_pat／δ_P、T_blk／T_meas、w_opt／ε_bias（firstSeen §8.5）；β／A_t 在 §8 就出現
+    const sym85 = SYMBOLS.filter((r) => r.firstSeen === '§8.5').map((r) => r.symbol)
+    for (const s of ['\\kappa_\\text{pat}', 'T_\\text{meas}', '\\varepsilon_\\text{bias}']) expect(sym85.some((x) => x.includes(s)), s).toBe(true)
+    expect(SYMBOLS.find((r) => r.symbol.includes('A_t'))?.firstSeen).toBe('§8')
+    for (const s of ['\\kappa_\\text{pat}', '\\varepsilon_\\text{bias}', 'T_\\text{meas}']) expect(Array.from(sec.querySelectorAll('annotation')).some((a) => (a.textContent ?? '').includes(s)), s).toBe(true)
   }, 120000)
 
   it('狀態改變會存進 localStorage（lmspll.signoff.*），判定與進度跟著更新', () => {

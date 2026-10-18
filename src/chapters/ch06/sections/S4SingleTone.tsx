@@ -125,14 +125,12 @@ export function S4SingleTone() {
       </Prereq>
 
       <p>
-        <strong>白話：正弦進、正弦出。</strong>PD 看到的 <Tex>{'u'}</Tex> 和原始的 <Tex>{'x'}</Tex> 是同一個頻率的兩個正弦，只差了振幅與相位。兩個同頻率的正弦相乘再平均，
-        結果只和它們的<strong>相位差</strong>有關：同相為正、相差 <Tex>{'90^\\circ'}</Tex> 為零、反相為負。
+        <strong>白話：正弦進、正弦出。</strong>PD 看到的 <Tex>{'u'}</Tex> 和原始的 <Tex>{'x'}</Tex> 是同一個頻率的兩個正弦，只差了振幅與相位。兩個同頻率的正弦相乘再平均，結果只和它們的<strong>相位差</strong>有關：同相為正、相差 <Tex>{'90^\\circ'}</Tex> 為零、反相為負。
       </p>
       <ChapterDiagram id="D-06.8">
         <p>
           先看從 code 分出去的兩條支路：一條（藍色）是主 PLL 路徑，把 <Tex>{'x'}</Tex> 的振幅乘上 <Tex>{'|H|'}</Tex>、相位加上 <Tex>{'\\phi'}</Tex>，變成{' '}
-          <Tex>{'u[n]'}</Tex>；另一條是 GMAC 自己的 code delay，把 <Tex>{'x'}</Tex> 延遲 <Tex>{'D'}</Tex> 個 sample，相位減掉 <Tex>{'\\Omega D'}</Tex>。兩者在「×」相乘之後分成兩項：
-          一個不隨時間變的常數項，和一個兩倍頻項。再看 block 平均：兩倍頻項正負相消被平均掉，只有常數項留下來。
+          <Tex>{'u[n]'}</Tex>；另一條是 GMAC 自己的 code delay，把 <Tex>{'x'}</Tex> 延遲 <Tex>{'D'}</Tex> 個 sample，相位減掉 <Tex>{'\\Omega D'}</Tex>。兩者在「×」相乘之後分成兩項：一個不隨時間變的常數項，和一個兩倍頻項。再看 block 平均：兩倍頻項正負相消被平均掉，只有常數項留下來。
         </p>
         <p>
           圖上兩條支路的相位一個是 <Tex>{'+\\phi'}</Tex>、一個是 <Tex>{'-\\Omega D'}</Tex>，兩者的差 <Tex>{'\\phi-(-\\Omega D)=\\phi+\\Omega D'}</Tex> 就是公式{' '}
@@ -253,16 +251,13 @@ export function S4SingleTone() {
       />
       <Callout kind="warn" title={String.raw`$\pm90^\circ$ 不是 Bode phase margin`}>
         <p>
-          這裡的 <Tex>{'\\pm90^\\circ'}</Tex> 是<strong>單頻相關性的符號界線</strong>：主 PLL 在這個頻率把誤差轉了多少相位。它和主 PLL 自己的 phase margin、
-          也和 LMS 迴路 <Tex>{'L_{\\mathrm{cal}}(z)=g/(z-1)'}</Tex> 的 phase margin 都不是同一件事（<ChRef ch="08">第 08 章</ChRef>）。主 PLL 本身很穩定，
-          GMAC 的更新方向仍然可能是錯的。
+          這裡的 <Tex>{'\\pm90^\\circ'}</Tex> 是<strong>單頻相關性的符號界線</strong>：主 PLL 在這個頻率把誤差轉了多少相位。它和主 PLL 自己的 phase margin、也和 LMS 迴路 <Tex>{'L_{\\mathrm{cal}}(z)=g/(z-1)'}</Tex> 的 phase margin 都不是同一件事（<ChRef ch="08">第 08 章</ChRef>）。主 PLL 本身很穩定，GMAC 的更新方向仍然可能是錯的。
         </p>
       </Callout>
 
       <h3>這個 2-tap 濾波器怎麼來的？</h3>
       <p>
-        §1 與 Polarity Explorer 的單頻模式都需要「在頻率 <Tex>{'\\Omega'}</Tex> 剛好給出 <Tex>{'|H|e^{j\\phi}'}</Tex>」的<strong>真實</strong>因果濾波器，
-        這樣時域模擬才能和公式交叉驗證。兩個實係數就夠了：
+        §1 與 Polarity Explorer 的單頻模式都需要「在頻率 <Tex>{'\\Omega'}</Tex> 剛好給出 <Tex>{'|H|e^{j\\phi}'}</Tex>」的<strong>真實</strong>因果濾波器，這樣時域模擬才能和公式交叉驗證。兩個實係數就夠了：
       </p>
       <StepDerivation
         steps={[
@@ -315,8 +310,7 @@ export function S4SingleTone() {
           <Tex>{'\\Omega=0'}</Tex> 或 <Tex>{'\\pi'}</Tex>
         </strong>{' '}
         時 <Tex>{'2\\Omega n'}</Tex> 是 <Tex>{'2\\pi'}</Tex> 的整數倍，
-        <Tex>{'\\cos(2\\Omega n+\\psi)=\\cos\\psi'}</Tex> 是常數，不會平均掉；而且實係數 <Tex>{'h'}</Tex> 在這兩個頻率的 <Tex>{'H'}</Tex> 必為實數
-        （<Tex>{'\\phi\\in\\{0^\\circ,180^\\circ\\}'}</Tex>）：
+        <Tex>{'\\cos(2\\Omega n+\\psi)=\\cos\\psi'}</Tex> 是常數，不會平均掉；而且實係數 <Tex>{'h'}</Tex> 在這兩個頻率的 <Tex>{'H'}</Tex> 必為實數（<Tex>{'\\phi\\in\\{0^\\circ,180^\\circ\\}'}</Tex>）：
       </p>
       <ChapterDiagram id="D-06.9">
         <p>

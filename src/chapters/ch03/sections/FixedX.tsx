@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import { Callout, ClaimTag, mathText, ModeGate, Plot, Prereq, Section, SourceTag, Tex, TexBlock, useThemeTokens, ChRef } from '@/components'
 import { fixedXMuMax, fixedXPole, runScalarLms } from '@/simulation/models/lms'
 import { Erratum, FBlock, Fig, HC, num, StepsBox, T, tnum, tx, Verdict } from '../common'
@@ -274,8 +274,7 @@ function FloatDeadbeatNote() {
         <Tex>{T`\mu=0.25,\ x=2`}</Tex> 時 <Tex>{T`1-\mu x^2=${tnum(v.exact)}`}</Tex>：<Tex>{T`0.25`}</Tex> 與 <Tex>{T`4`}</Tex> 都是 2 的冪次，IEEE double 可以精確表示，模擬的{' '}
         <Tex>{T`\delta_1`}</Tex> 是真正的 0。換成 <Tex>{T`x=0.3`}</Tex>、<Tex>{T`\mu=1/x^2\approx${tnum(v.mu, 8)}`}</Tex>：<Tex>{T`0.3`}</Tex> 在二進位是無窮循環小數，
         <code>fixedXPole</code> 算出 <Tex>{T`1-\mu x^2=${tnum(v.p, 3)}`}</Tex>（不是 0）；<code>runScalarLms</code> 的實際迭代得到{' '}
-        <Tex>{T`\delta_1=${tnum(v.d1, 3)},\ \delta_2=${tnum(v.d2, 3)}`}</Tex>——數學上一步到位，數值上是「捨入誤差等級的殘差，下一步才被吸收」。
-        定點硬體（<ChRef ch="13">第 13 章</ChRef>）還要再加上係數量化，deadbeat 只是理想化的極限。
+        <Tex>{T`\delta_1=${tnum(v.d1, 3)},\ \delta_2=${tnum(v.d2, 3)}`}</Tex>——數學上一步到位，數值上是「捨入誤差等級的殘差，下一步才被吸收」。定點硬體（<ChRef ch="13">第 13 章</ChRef>）還要再加上係數量化，deadbeat 只是理想化的極限。
       </p>
     </Callout>
   )
@@ -313,8 +312,7 @@ export function FixedXSection() {
 
       <Section kind="example" title={tx`先算一次（$\mu=0.1$）`}>
         <p>
-          <Tex>{T`a=3,\ w_0=1,\ x=2,\ \mu=0.1`}</Tex>。第一步：<Tex>{T`e_0=6-1\cdot2=4`}</Tex>，<Tex>{T`w_1=1+0.1\cdot4\cdot2=1.8`}</Tex>；
-          第二步：<Tex>{T`e_1=6-1.8\cdot2=2.4`}</Tex>，<Tex>{T`w_2=1.8+0.1\cdot2.4\cdot2=2.28`}</Tex>（T01）。下表由網站的 LMS 程式實際跑出；第四欄{' '}
+          <Tex>{T`a=3,\ w_0=1,\ x=2,\ \mu=0.1`}</Tex>。第一步：<Tex>{T`e_0=6-1\cdot2=4`}</Tex>，<Tex>{T`w_1=1+0.1\cdot4\cdot2=1.8`}</Tex>；第二步：<Tex>{T`e_1=6-1.8\cdot2=2.4`}</Tex>，<Tex>{T`w_2=1.8+0.1\cdot2.4\cdot2=2.28`}</Tex>（T01）。下表由網站的 LMS 程式實際跑出；第四欄{' '}
           <Tex>{T`\delta_n=a-w_n`}</Tex> 是估計值離真實參數<strong>還差多少</strong>（剩餘參數誤差），最右欄是相鄰兩步誤差的比值：
         </p>
         <HandCalcTable />
@@ -496,8 +494,7 @@ export function FixedXSection() {
           </p>
           <p>
             與連續時間的對照：連續系統的解是 <Tex>{T`e^{st}`}</Tex>，穩定 <Tex>{T`\iff\operatorname{Re}s<0`}</Tex>（左半平面）。每隔 <Tex>{T`T_s`}</Tex> 取樣一次，
-            <Tex>{T`e^{sT_s n}=(e^{sT_s})^n`}</Tex>，等於一個 pole 在 <Tex>{T`z=e^{sT_s}`}</Tex> 的離散系統；<Tex>{T`|z|=e^{\operatorname{Re}(s)T_s}<1\iff\operatorname{Re}s<0`}</Tex>。
-            所以「左半平面」對應到「單位圓內」。差別是：離散系統的 pole 還可以是<strong>負實數</strong>（<Tex>{T`-1<p<0`}</Tex>，每步變號），連續的一階系統做不到。
+            <Tex>{T`e^{sT_s n}=(e^{sT_s})^n`}</Tex>，等於一個 pole 在 <Tex>{T`z=e^{sT_s}`}</Tex> 的離散系統；<Tex>{T`|z|=e^{\operatorname{Re}(s)T_s}<1\iff\operatorname{Re}s<0`}</Tex>。所以「左半平面」對應到「單位圓內」。差別是：離散系統的 pole 還可以是<strong>負實數</strong>（<Tex>{T`-1<p<0`}</Tex>，每步變號），連續的一階系統做不到。
           </p>
         </Prereq>
         <p className="small muted">
@@ -508,8 +505,7 @@ export function FixedXSection() {
 
       <Section kind="explore" title="動手觀察：Fixed-x Pole Explorer">
         <p>
-          試試看：(1) 把 Case A 的 <Tex>\mu</Tex> 拉到 <Tex>{T`0.25`}</Tex>，看 <Tex>{T`\delta_1=0`}</Tex>；(2) 新增 Case B 設 <Tex>{T`\mu=0.4`}</Tex>，比較單調與震盪；(3) 把 <Tex>x</Tex> 改成 1，
-          穩定上限變成 <Tex>{T`2/x^2=2`}</Tex>——<strong>同一個 <Tex>\mu</Tex> 對不同幅度的 <Tex>x</Tex> 有完全不同的 pole</strong>，這就是後面要用 <Tex>{T`P_x=E[x^2]`}</Tex> 正規化的原因。
+          試試看：(1) 把 Case A 的 <Tex>\mu</Tex> 拉到 <Tex>{T`0.25`}</Tex>，看 <Tex>{T`\delta_1=0`}</Tex>；(2) 新增 Case B 設 <Tex>{T`\mu=0.4`}</Tex>，比較單調與震盪；(3) 把 <Tex>x</Tex> 改成 1，穩定上限變成 <Tex>{T`2/x^2=2`}</Tex>——<strong>同一個 <Tex>\mu</Tex> 對不同幅度的 <Tex>x</Tex> 有完全不同的 pole</strong>，這就是後面要用 <Tex>{T`P_x=E[x^2]`}</Tex> 正規化的原因。
         </p>
         <FixedXExplorer />
       </Section>

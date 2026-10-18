@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import {
   ExperimentShell,
   ModeGate,
@@ -230,8 +230,7 @@ export function CodeSpectraLab() {
       description={
         <>
           解析：<Tex>{String.raw`S^{(1)}_{\delta t}(f)=m^2S^{(1)}_{w,\mathrm{zoh}}(f)+\tfrac{A^2}{4}\big[S^{(1)}_{w,\mathrm{zoh}}(f-f_x)+S^{(1)}_{w,\mathrm{zoh}}(f+f_x)\big]+\sigma_x^2\sigma_w^2\tfrac{2}{f_s}`}</Tex>，其中{' '}
-          <Tex>{String.raw`S^{(1)}_{w,\mathrm{zoh}}(f)=\tfrac{2}{f_s}S_w^{(f_s)}(e^{j2\pi|f|/f_s})`}</Tex> 是 ZOH 後的單邊 per-Hz 係數 PSD（F-12.13、F-12.14、F-12.10），
-          再以 <Tex>{'|T|^2'}</Tex>、<Tex>{String.raw`|H_{\mathrm{PD}}|^2`}</Tex> 加權積分。模擬：逐 sample 產生 <Tex>{String.raw`x[n]\,\delta w_{\lfloor n/N\rfloor}`}</Tex>，整段 FFT 後加總{' '}
+          <Tex>{String.raw`S^{(1)}_{w,\mathrm{zoh}}(f)=\tfrac{2}{f_s}S_w^{(f_s)}(e^{j2\pi|f|/f_s})`}</Tex> 是 ZOH 後的單邊 per-Hz 係數 PSD（F-12.13、F-12.14、F-12.10），再以 <Tex>{'|T|^2'}</Tex>、<Tex>{String.raw`|H_{\mathrm{PD}}|^2`}</Tex> 加權積分。模擬：逐 sample 產生 <Tex>{String.raw`x[n]\,\delta w_{\lfloor n/N\rfloor}`}</Tex>，整段 FFT 後加總{' '}
           <Tex>{String.raw`0\ldots f_{BW}`}</Tex> 的 bin（Parseval）。
         </>
       }

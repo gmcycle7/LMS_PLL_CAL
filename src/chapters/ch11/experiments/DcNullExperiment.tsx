@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import { ExperimentShell, ParamControl, Plot, SelectControl, Tex, useDebouncedValue, useThemeTokens, type CheckEntry, type MetricRow } from '@/components'
 import { isWorkerCancelled, useWorkerTask } from '@/workers'
 import {

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import {
   Callout,
   ClaimTag,
@@ -79,8 +79,7 @@ export function FreezeSection() {
           證明：展開 <Tex>{String.raw`\overline{(e-\overline e)^2}=\overline{e^2}-2\overline e\cdot\overline e+\overline e^{\,2}=\overline{e^2}-\overline e^{\,2}`}</Tex>。Freeze 的功率全在 DC；後面的 toggle / ΔΣ 則是 DC 為 0、全部在交流。
         </p>
         <p>
-          <strong>期望值</strong> <Tex>{'E[X]'}</Tex>：隨機量 <Tex>{'X'}</Tex> 的每個可能值乘上其機率再加總（連續時是 <Tex>{String.raw`\int x\,f(x)\,dx`}</Tex>，<Tex>{'f'}</Tex> 為機率密度），直覺上就是「做很多次的平均」。
-          對確定的序列，本章用時間平均 <Tex>{String.raw`\overline e`}</Tex>；Freeze 的誤差是常數，所以 <Tex>{String.raw`E[\delta w^2]=\overline{e^2}=0.16`}</Tex>。§13.3 會再用 Bernoulli 例子詳細練習。
+          <strong>期望值</strong> <Tex>{'E[X]'}</Tex>：隨機量 <Tex>{'X'}</Tex> 的每個可能值乘上其機率再加總（連續時是 <Tex>{String.raw`\int x\,f(x)\,dx`}</Tex>，<Tex>{'f'}</Tex> 為機率密度），直覺上就是「做很多次的平均」。對確定的序列，本章用時間平均 <Tex>{String.raw`\overline e`}</Tex>；Freeze 的誤差是常數，所以 <Tex>{String.raw`E[\delta w^2]=\overline{e^2}=0.16`}</Tex>。§13.3 會再用 Bernoulli 例子詳細練習。
         </p>
       </Prereq>
       <StepDerivation

@@ -6,7 +6,7 @@
 //   node scripts/check-bundle-size.mjs --self-test # 只驗證本腳本的判定邏輯（不讀 dist）
 //
 // 預算（原始位元組，即磁碟上的檔案大小，不是 gzip）：
-//   plotly   檔名以 `plotly` 開頭的 chunk（plotly.js-dist-min，lazy-load）
+//   plotly   檔名以 `plotly` 開頭的 chunk（plotly.js-cartesian-dist-min，lazy-load）
 //   app      其餘 chunk 中最大的那一個（目前是主 chunk `index-*.js`）
 //   total    所有 JS chunk 的總和
 //
@@ -14,8 +14,12 @@
 // app（index-*.js 主 chunk）879,247 B、total 20,789,875 B／198 個檔案。main 527d28f 上主 chunk 原本是
 // 2,192,706 B，wave 1 把它拆小了（case-sspll 的 1.4 MB 資料改成 lazy 載入）；若主 chunk 又回到
 // 那個大小，這個檢查會失敗，那是刻意的。
-// 預算：plotly 5,000,000 B、app 1,200,000 B（兩個都是 review 定的上限；app 目前用了 73%）、
-// total 設在實測值 +10%（現在通過、之後變大就會失敗）。
+// wave 2（2026-10-16，improve-wave-2）把 plotly.js-dist-min 換成 plotly.js-cartesian-dist-min（同 2.35.2）：
+// plotly chunk 1,385,481 B（gzip 473,834 B；原本 4,674,997 B／gzip 1,416,632 B，即 raw −70.4%、gzip −66.6%）；
+// review 時整個 wave-2 工作樹建置出來 total 17,549,945 B／213 個檔案（含其他 scope 當時的修改）。
+// 預算：plotly 1,530,000 B（實測值 +10% = 1,524,029 B 進位到 0.01 MB；換回完整版或加進 gl2d／3D 的 bundle 都會超過）、
+// app 1,200,000 B（review 定的上限；目前用了 63%）、total 19,400,000 B（實測值 +10% = 19,304,940 B 進位到 0.1 MB；
+// wave 2 合併後請用 `node scripts/check-bundle-size.mjs` 重量一次，若其他 scope 加了大 chunk 要在 PR 裡說明並調整）。
 //
 // 如何收緊：
 //   1. 每次把 chunk 拆小之後，從 `node scripts/check-bundle-size.mjs` 的輸出讀到新的實測值，
@@ -33,9 +37,9 @@ import { gzipSync } from 'node:zlib'
 
 /** 預算（位元組）。見檔頭「數字來源」與「如何收緊」。 */
 export const BUDGETS = {
-  plotly: 5_000_000,
+  plotly: 1_530_000,
   app: 1_200_000,
-  total: 22_900_000,
+  total: 19_400_000,
 }
 
 const PLOTLY_NAME = /^plotly/i

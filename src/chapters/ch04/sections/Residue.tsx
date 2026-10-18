@@ -1,5 +1,5 @@
 import { useCallback, useDeferredValue, useMemo, useState } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import {
   Callout,
   ClaimTag,
@@ -126,8 +126,7 @@ function ResidueExplorer() {
       claim="exact"
       description={
         <>
-          由 <code>dsm.ts</code> 產生 carry <Tex>y[n]</Tex> 與 residue <Tex>r[n]</Tex>，換算成 fs：feedback（divider）edge 早到多少，reference 端的 DTC 就需要補償多少（<Tex>{R`\tau_\mathrm{need}`}</Tex>）。再假設 DTC gain 有相對誤差 <Tex>{R`\varepsilon`}</Tex>，
-          看 PD 會看到多大的殘差 <Tex>{R`(a-w)x[n]`}</Tex>。
+          由 <code>dsm.ts</code> 產生 carry <Tex>y[n]</Tex> 與 residue <Tex>r[n]</Tex>，換算成 fs：feedback（divider）edge 早到多少，reference 端的 DTC 就需要補償多少（<Tex>{R`\tau_\mathrm{need}`}</Tex>）。再假設 DTC gain 有相對誤差 <Tex>{R`\varepsilon`}</Tex>，看 PD 會看到多大的殘差 <Tex>{R`(a-w)x[n]`}</Tex>。
         </>
       }
       assumptions={[
@@ -201,9 +200,7 @@ export function ResidueSection() {
     <Section kind="formula" title="§2 Fractional residue：DTC 到底要補償什麼？" level={2} id="ch04-residue">
       <p>
         <strong>一個問題：</strong>divider 只能數整數個 VCO 週期，但我們要它平均除 <Tex>{R`N_\mathrm{int}+\mathrm{frac}`}</Tex>（<Tex>{R`N_\mathrm{int}`}</Tex> 是 FCW 的整數部分，
-        <Tex>{R`\mathrm{frac}\in[0,1)`}</Tex> 是小數部分）。 DSM 的做法是「這一拍除 <Tex>{R`N_\mathrm{int}`}</Tex>，下一拍除 <Tex>{R`N_\mathrm{int}+1`}</Tex>」輪流切換，讓平均剛好對。
-        代價是：每一拍 divider 送回 PD 的 edge（feedback edge）都比理想時刻早一點或晚一點。這個時間誤差是<strong>確定的、可以算出來的</strong>——它就在 DSM 累加器裡。
-        DTC 的工作就是把它補掉：DTC 在 reference 的輸入端，把 reference edge 也挪動同樣的量，PD 看到的兩條 edge 就重新對齊。
+        <Tex>{R`\mathrm{frac}\in[0,1)`}</Tex> 是小數部分）。DSM 的做法是「這一拍除 <Tex>{R`N_\mathrm{int}`}</Tex>，下一拍除 <Tex>{R`N_\mathrm{int}+1`}</Tex>」輪流切換，讓平均剛好對。代價是：每一拍 divider 送回 PD 的 edge（feedback edge）都比理想時刻早一點或晚一點。這個時間誤差是<strong>確定的、可以算出來的</strong>——它就在 DSM 累加器裡。DTC 的工作就是把它補掉：DTC 在 reference 的輸入端，把 reference edge 也挪動同樣的量，PD 看到的兩條 edge 就重新對齊。
       </p>
 
       <h3>先看方塊圖：一階累加器就是 residue generator</h3>
@@ -219,13 +216,10 @@ export function ResidueSection() {
       <p>
         <strong>先看</strong>最上面的加法點：每個 reference cycle（索引 <Tex>n</Tex>）把暫存器裡上一拍的內容 <Tex>{R`s[n-1]`}</Tex> 加上 <Tex>{R`K_\mathrm{F}`}</Tex>，得到 <Tex>{R`t[n]`}</Tex>。
         <strong>再看</strong>中間的溢位判斷：<Tex>{R`t[n]\ge M`}</Tex> 就輸出進位 <Tex>{R`y[n]=1`}</Tex>（divider 這一拍多除一個 VCO 週期）並減掉 <Tex>M</Tex>；留下的餘數 <Tex>{R`s[n]`}</Tex> 存回暫存器（圖上的{' '}
-        <Tex>{R`z^{-1}`}</Tex> 就是「延遲一拍」）。<strong>最後看</strong>下半部，兩條 edge 在 PD 相遇：divider 送回來的 feedback edge 比理想時刻早到 <Tex>{R`s[n]/M`}</Tex> 個 VCO 週期（一個 VCO 週期是 <Tex>{R`T_\mathrm{vco}=1/f_\mathrm{vco}`}</Tex>），
-        它直接進 PD，不經過 DTC。要讓兩條 edge 對齊，reference edge 也要提前同樣多，所以把同一個 <Tex>{R`s[n]`}</Tex> 除以 <Tex>M</Tex> 當成 code <Tex>{R`x[n]`}</Tex>，交給 reference 路徑上的 DTC。
+        <Tex>{R`z^{-1}`}</Tex> 就是「延遲一拍」）。<strong>最後看</strong>下半部，兩條 edge 在 PD 相遇：divider 送回來的 feedback edge 比理想時刻早到 <Tex>{R`s[n]/M`}</Tex> 個 VCO 週期（一個 VCO 週期是 <Tex>{R`T_\mathrm{vco}=1/f_\mathrm{vco}`}</Tex>），它直接進 PD，不經過 DTC。要讓兩條 edge 對齊，reference edge 也要提前同樣多，所以把同一個 <Tex>{R`s[n]`}</Tex> 除以 <Tex>M</Tex> 當成 code <Tex>{R`x[n]`}</Tex>，交給 reference 路徑上的 DTC。
       </p>
       <p>
-        DTC 只能延遲、不能提前，怎麼「提前」？做法是先給它一個固定的基準延遲 <Tex>{R`T_0`}</Tex>，再依 code <strong>少延遲</strong>一點：<Tex>{R`\tau_\mathrm{DTC}[n]=T_0-x[n]\,T_\mathrm{vco}`}</Tex>（code 越大，延遲越短）。少延遲的這一段就是 reference edge 被提前的時間，
-        叫做 DTC 的<strong>補償量</strong>。PD 量的是「DTC 延遲後的 reference edge」減「feedback edge」的時間差 <Tex>{R`t_\mathrm{ref}'-t_\mathrm{fb}`}</Tex>；<Tex>{R`T_0`}</Tex> 是常數，PLL 把它當成靜態相位偏移吸收掉，
-        所以 PD 看到的只剩兩個「提前量」的差——補償量剛好等於 feedback edge 早到的時間時，差是 0。
+        DTC 只能延遲、不能提前，怎麼「提前」？做法是先給它一個固定的基準延遲 <Tex>{R`T_0`}</Tex>，再依 code <strong>少延遲</strong>一點：<Tex>{R`\tau_\mathrm{DTC}[n]=T_0-x[n]\,T_\mathrm{vco}`}</Tex>（code 越大，延遲越短）。少延遲的這一段就是 reference edge 被提前的時間，叫做 DTC 的<strong>補償量</strong>。PD 量的是「DTC 延遲後的 reference edge」減「feedback edge」的時間差 <Tex>{R`t_\mathrm{ref}'-t_\mathrm{fb}`}</Tex>；<Tex>{R`T_0`}</Tex> 是常數，PLL 把它當成靜態相位偏移吸收掉，所以 PD 看到的只剩兩個「提前量」的差——補償量剛好等於 feedback edge 早到的時間時，差是 0。
       </p>
       <p className="small">
         圖和公式的對應：加法點輸出線上的 <Tex>{R`t[n]=s[n-1]+K_\mathrm{F}`}</Tex> 是下面推導的第 1 步；溢位判斷方塊裡的三行是第 2 步；divider 到 PD 那條線上的{' '}
@@ -236,8 +230,7 @@ export function ResidueSection() {
       <h3>先算一次（手算表）</h3>
       <p>
         取 4-bit 累加器 <Tex>{R`M=2^4=16`}</Tex>，FCW 小數字 <Tex>{R`K_\mathrm{F}=${HAND.KF}`}</Tex>，所以 <Tex>{R`\mathrm{frac}=${HAND.KF}/16=${frac}`}</Tex>{' '}
-        <SourceTag kind="illustrative" />。每一拍：先加 <Tex>{R`K_\mathrm{F}`}</Tex>，滿 16 就進位（carry <Tex>{R`y=1`}</Tex>）並減 16。表格由左到右就是 <FigRef chart={RESIDUE_ACCUMULATOR} /> 由上到下的訊號：
-        暫存器輸出 <Tex>{R`s[n-1]`}</Tex> → 加法點輸出 <Tex>{R`t`}</Tex> → carry <Tex>{R`y[n]`}</Tex> → 餘數 <Tex>{R`s[n]`}</Tex>。
+        <SourceTag kind="illustrative" />。每一拍：先加 <Tex>{R`K_\mathrm{F}`}</Tex>，滿 16 就進位（carry <Tex>{R`y=1`}</Tex>）並減 16。表格由左到右就是 <FigRef chart={RESIDUE_ACCUMULATOR} /> 由上到下的訊號：暫存器輸出 <Tex>{R`s[n-1]`}</Tex> → 加法點輸出 <Tex>{R`t`}</Tex> → carry <Tex>{R`y[n]`}</Tex> → 餘數 <Tex>{R`s[n]`}</Tex>。
       </p>
       <div className="table-wrap">
         <table>
@@ -282,9 +275,7 @@ export function ResidueSection() {
         </table>
       </div>
       <p className="small muted">
-        表格由下方 <code>firstOrderAccumulator</code> 實際計算。注意最後兩欄<strong>每一列都相等</strong>：逐拍累加的時間誤差，恰好等於 <Tex>{R`-s[n]/M`}</Tex>（累加器內容除以 <Tex>M</Tex> 再加負號）。
-        16 拍之後 <Tex>{R`s`}</Tex> 回到 0，序列以週期 <Tex>{R`M/\gcd(K_\mathrm{F},M)=16`}</Tex> 重複；16 拍中有 {rows.filter((r) => r.y === 1).length} 次 carry，
-        平均 <Tex>{R`${rows.filter((r) => r.y === 1).length}/16=${frac}=\mathrm{frac}`}</Tex>。
+        表格由下方 <code>firstOrderAccumulator</code> 實際計算。注意最後兩欄<strong>每一列都相等</strong>：逐拍累加的時間誤差，恰好等於 <Tex>{R`-s[n]/M`}</Tex>（累加器內容除以 <Tex>M</Tex> 再加負號）。16 拍之後 <Tex>{R`s`}</Tex> 回到 0，序列以週期 <Tex>{R`M/\gcd(K_\mathrm{F},M)=16`}</Tex> 重複；16 拍中有 {rows.filter((r) => r.y === 1).length} 次 carry，平均 <Tex>{R`${rows.filter((r) => r.y === 1).length}/16=${frac}=\mathrm{frac}`}</Tex>。
       </p>
       <CodeBlock source={residueSrc} region="firstOrderAccumulator" path="src/chapters/ch04/residue.ts" caption="手算表與交叉比對用的一階累加器（與 dsm.ts 逐點比對，見 residue.test.ts）" />
 
@@ -303,8 +294,7 @@ export function ResidueSection() {
           result={R`\tau_\mathrm{need}[n]=-r[n]\,T_\mathrm{vco}=\frac{s[n]}{M}\,T_\mathrm{vco}\in[0,\,T_\mathrm{vco})`}
         />
         <p className="small">
-          <ClaimTag kind="exact" /> 在「一階累加器、無 dither、<Tex>{R`f_s=f_\mathrm{ref}`}</Tex>」的指定模型下這是恆等式，不是近似。結果的 <Tex>{R`\tau_\mathrm{need}[n]`}</Tex> 是<strong>需要的補償量</strong>：feedback edge 早到多少，
-          reference edge 就要提前多少（reference 端的 DTC 從基準延遲 <Tex>{R`T_0`}</Tex> 少延遲這麼多）。
+          <ClaimTag kind="exact" /> 在「一階累加器、無 dither、<Tex>{R`f_s=f_\mathrm{ref}`}</Tex>」的指定模型下這是恆等式，不是近似。結果的 <Tex>{R`\tau_\mathrm{need}[n]`}</Tex> 是<strong>需要的補償量</strong>：feedback edge 早到多少，reference edge 就要提前多少（reference 端的 DTC 從基準延遲 <Tex>{R`T_0`}</Tex> 少延遲這麼多）。
         </p>
       </DerivationFold>
 
@@ -322,9 +312,7 @@ export function ResidueSection() {
           這就是一階 DSM 的 noise transfer function <Tex>{R`(1-z^{-1})`}</Tex>：量化誤差被一階差分「推到高頻」。離散時間頻率 <Tex>{R`\Omega`}</Tex> 是每個 sample
           前進的相位（rad/sample，<Tex>{R`\Omega=2\pi f/f_\mathrm{ref}`}</Tex>）；正弦序列 <Tex>{R`e^{j\Omega n}`}</Tex> 延遲一拍等於乘上 <Tex>{R`e^{-j\Omega}`}</Tex>，所以把{' '}
           <Tex>{R`z=e^{j\Omega}`}</Tex> 代入，
-          <Tex>{R`|1-e^{-j\Omega}|=2|\sin(\Omega/2)|`}</Tex>，低頻趨近 0（每 decade +20 dB）。residue <Tex>r</Tex> 是 <Tex>{R`y-\mathrm{frac}`}</Tex> 的累加
-          （乘上 <Tex>{R`1/(1-z^{-1})`}</Tex>），剛好把差分抵消，所以 <Tex>{R`r=-s/M`}</Tex>：residue 本身<strong>沒有</strong>被 noise shaping，它就是累加器內容。
-          MASH 1-1-1 則是 <Tex>{R`r=-(1-z^{-1})^2s_3/M`}</Tex>，範圍 <Tex>{R`|r|<2`}</Tex>（dsm.ts 檔頭）。
+          <Tex>{R`|1-e^{-j\Omega}|=2|\sin(\Omega/2)|`}</Tex>，低頻趨近 0（每 decade +20 dB）。residue <Tex>r</Tex> 是 <Tex>{R`y-\mathrm{frac}`}</Tex> 的累加（乘上 <Tex>{R`1/(1-z^{-1})`}</Tex>），剛好把差分抵消，所以 <Tex>{R`r=-s/M`}</Tex>：residue 本身<strong>沒有</strong>被 noise shaping，它就是累加器內容。MASH 1-1-1 則是 <Tex>{R`r=-(1-z^{-1})^2s_3/M`}</Tex>，範圍 <Tex>{R`|r|<2`}</Tex>（dsm.ts 檔頭）。
         </p>
       </Prereq>
 
@@ -336,8 +324,7 @@ export function ResidueSection() {
       <TexBlock>{R`\tau_\mathrm{DTC}[n]=T_0-w\,x[n]`}</TexBlock>
       <p>
         code 越大，延遲越短；數位端實際送進 DTC 的 code 是 <Tex>{R`C_0-w\,x[n]`}</Tex>（<Tex>{R`C_0`}</Tex> 是固定的中心值，等於把 code 取補數）。<Tex>{R`w\,x[n]`}</Tex> 就是 DTC 的<strong>補償量</strong>：reference edge 被提前（也就是少延遲）的時間。
-        <Tex>{R`T_0`}</Tex> 是常數，PLL 把它當成靜態相位偏移吸收掉，不影響任何會動的量。把它拿掉之後，以同一個理想時刻 <Tex>{R`t_\mathrm{id}[n]`}</Tex> 當基準，寫出兩條 edge 到達 PD 的時刻：第一行是 reference edge（被 DTC 提前 <Tex>{R`w\,x[n]`}</Tex>），第二行是 feedback edge（早到 <Tex>{R`a\,x[n]`}</Tex>）。
-        PD 量的是「DTC 延遲後的 reference edge」減「feedback edge」，也就是第三行：
+        <Tex>{R`T_0`}</Tex> 是常數，PLL 把它當成靜態相位偏移吸收掉，不影響任何會動的量。把它拿掉之後，以同一個理想時刻 <Tex>{R`t_\mathrm{id}[n]`}</Tex> 當基準，寫出兩條 edge 到達 PD 的時刻：第一行是 reference edge（被 DTC 提前 <Tex>{R`w\,x[n]`}</Tex>），第二行是 feedback edge（早到 <Tex>{R`a\,x[n]`}</Tex>）。PD 量的是「DTC 延遲後的 reference edge」減「feedback edge」，也就是第三行：
       </p>
       {/* 三行只放式子、說明寫在上面的文字裡：式子旁邊再加中文註解的話，手機（375 px）上這一塊會比欄寬多出兩百多 px，平白多一條橫向捲軸 */}
       <TexBlock>{R`\begin{aligned}t_\mathrm{ref}'[n]&=t_\mathrm{id}[n]-w\,x[n]\\t_\mathrm{fb}[n]&=t_\mathrm{id}[n]-a\,x[n]\\t_\mathrm{ref}'[n]-t_\mathrm{fb}[n]&=(a-w)\,x[n]\end{aligned}`}</TexBlock>
@@ -358,10 +345,7 @@ export function ResidueSection() {
         {R`\tau_\mathrm{need}[n]=\frac{s[n]}{M}T_\mathrm{vco},\qquad\tau_\mathrm{DTC}[n]=T_0-w\,x[n],\qquad \boxed{e_\mathrm{det}[n]=(a-w)\,x[n]=\delta\,x[n]}`}
       </TexBlock>
       <p>
-        這正是 <ChRef ch="00">Ch00</ChRef>–<ChRef ch="03">Ch03</ChRef> 的 <Tex>{R`y=ax`}</Tex> 黑盒子：<Tex>x</Tex> 已知（DSM 累加器），<Tex>a</Tex> 未知（DTC 的類比 gain 隨 PVT 變）。
-        數字感 <SourceTag kind="illustrative" />：<Tex>{R`f_\mathrm{vco}=${FVCO_GHZ}\,\mathrm{GHz}\Rightarrow T_\mathrm{vco}=${tx(tvco, 6)}\,\mathrm{fs}`}</Tex>；DTC gain 只錯 1%，
-        PD 殘差最大就有 <Tex>{R`${tx(exMax, 4)}\,\mathrm{fs}`}</Tex>（上例 64 拍的最大值），比典型 comparator 雜訊 <Tex>{R`\sigma_v=100\,\mathrm{fs}`}</Tex> 還大。
-        這就是為什麼 DTC gain 必須在背景持續校正。
+        這正是 <ChRef ch="00">Ch00</ChRef>–<ChRef ch="03">Ch03</ChRef> 的 <Tex>{R`y=ax`}</Tex> 黑盒子：<Tex>x</Tex> 已知（DSM 累加器），<Tex>a</Tex> 未知（DTC 的類比 gain 隨 PVT 變）。數字感 <SourceTag kind="illustrative" />：<Tex>{R`f_\mathrm{vco}=${FVCO_GHZ}\,\mathrm{GHz}\Rightarrow T_\mathrm{vco}=${tx(tvco, 6)}\,\mathrm{fs}`}</Tex>；DTC gain 只錯 1%，PD 殘差最大就有 <Tex>{R`${tx(exMax, 4)}\,\mathrm{fs}`}</Tex>（上例 64 拍的最大值），比典型 comparator 雜訊 <Tex>{R`\sigma_v=100\,\mathrm{fs}`}</Tex> 還大。這就是為什麼 DTC gain 必須在背景持續校正。
       </p>
       <KpiRow
         items={[
@@ -371,8 +355,7 @@ export function ResidueSection() {
         ]}
       />
       <HandCalcBox id="HC-04.1">
-        把 <Tex>{R`K_\mathrm{F}`}</Tex>、累加器位元數和 <Tex>{R`f_\mathrm{vco}`}</Tex> 換成你自己那顆 PLL 的數字，先在紙上讓累加器走 5 拍、算出 <Tex>{R`r[4]`}</Tex> 和最大的補償量，再展開下面的步驟對答案
-        （預設值就是上面手算表的 <Tex>{R`K_\mathrm{F}=${HAND.KF},\;M=${M}`}</Tex>）。
+        把 <Tex>{R`K_\mathrm{F}`}</Tex>、累加器位元數和 <Tex>{R`f_\mathrm{vco}`}</Tex> 換成你自己那顆 PLL 的數字，先在紙上讓累加器走 5 拍、算出 <Tex>{R`r[4]`}</Tex> 和最大的補償量，再展開下面的步驟對答案（預設值就是上面手算表的 <Tex>{R`K_\mathrm{F}=${HAND.KF},\;M=${M}`}</Tex>）。
       </HandCalcBox>
       <Callout kind="warn" title="code 的 DC 成分會在後面出問題">
         <Tex>{R`x[n]=s[n]/M\in[0,1)`}</Tex> 的平均約 <Tex>{R`\tfrac12`}</Tex>，<strong>不是零均值</strong>。在 §4 我們會看到：如果 comparator 的 0/1 沒有映射成 <Tex>{R`\pm1`}</Tex>，這個 DC 會直接變成 gain

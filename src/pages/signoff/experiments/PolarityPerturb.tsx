@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import {
   CaseSelector,
   ExperimentShell,
@@ -268,8 +268,7 @@ export function PolarityPerturbExperiment() {
       tests={['T06', 'T07']}
       description={
         <>
-          凍結 <Tex>{'w'}</Tex>，在 <Tex>{'w_0\\pm\\Delta'}</Tex> 交錯量 <Tex>{'M'}</Tex> 個 GMAC block，以中央差分得到 <Tex>{'\\hat K=-\\hat S'}</Tex>，再做三分法判決。
-          Case A／B／C 共用 seed（paired）：差異只來自參數。曲線同時畫出精確 mean-field（虛線）與 Monte Carlo（點 <Tex>{'\\pm2\\,\\mathrm{se}'}</Tex>）。
+          凍結 <Tex>{'w'}</Tex>，在 <Tex>{'w_0\\pm\\Delta'}</Tex> 交錯量 <Tex>{'M'}</Tex> 個 GMAC block，以中央差分得到 <Tex>{'\\hat K=-\\hat S'}</Tex>，再做三分法判決。Case A／B／C 共用 seed（paired）：差異只來自參數。曲線同時畫出精確 mean-field（虛線）與 Monte Carlo（點 <Tex>{'\\pm2\\,\\mathrm{se}'}</Tex>）。
         </>
       }
       assumptions={[

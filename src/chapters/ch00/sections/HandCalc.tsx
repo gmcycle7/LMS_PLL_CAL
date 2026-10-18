@@ -136,8 +136,7 @@ export function HandCalcSection() {
   return (
     <Section kind="example" level={2} id="ch00-hand" title="§0.4 先算一次：用數字手算兩步">
       <p>
-        黑盒子裡其實是 <Tex>{`a=${texNum(p.a)}`}</Tex>（我們假裝不知道）。從很差的猜測 <Tex>{`w_0=${texNum(p.w0)}`}</Tex> 開始，
-        每次都餵 <Tex>{`x=${texNum(p.x)}`}</Tex>，盒子回答 <Tex>{`y=${texNum(y)}`}</Tex>（先不加雜訊），學習率{' '}
+        黑盒子裡其實是 <Tex>{`a=${texNum(p.a)}`}</Tex>（我們假裝不知道）。從很差的猜測 <Tex>{`w_0=${texNum(p.w0)}`}</Tex> 開始，每次都餵 <Tex>{`x=${texNum(p.x)}`}</Tex>，盒子回答 <Tex>{`y=${texNum(y)}`}</Tex>（先不加雜訊），學習率{' '}
         <Tex>{`\\mu=${texNum(p.mu)}`}</Tex>。 <TestBadge id="T01" />
       </p>
       <p>每一筆資料都照同一個順序算四個數——先看流程，再看每一格怎麼代數字：</p>
@@ -241,8 +240,7 @@ export function HandCalcSection() {
       </Observe>
 
       <ChapterHandCalc id="HC-00.1">
-        上面的表是網站替你算的。現在把 <Tex>{'w_0,\\ x,\\ y,\\ \\mu'}</Tex> 換成你自己的數字，先用紙筆照「預測 → 比較 → 修正」算兩步，再切到「看帶入過程」逐行對照；
-        也可以按「換一題」讓網站出數字、你來算。
+        上面的表是網站替你算的。現在把 <Tex>{'w_0,\\ x,\\ y,\\ \\mu'}</Tex> 換成你自己的數字，先用紙筆照「預測 → 比較 → 修正」算兩步，再切到「看帶入過程」逐行對照；也可以按「換一題」讓網站出數字、你來算。
       </ChapterHandCalc>
 
       <TexBlock

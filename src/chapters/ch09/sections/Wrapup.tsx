@@ -62,9 +62,7 @@ export function Wrapup() {
         </Diagram>
         <p>
           <FigRef id="identifiable-tree" /> 怎麼用：挑一個你關心的參數方向 {m`\mathbf v`}（單一參數，或是「共模」「差模」這類組合）。先問 ①（結構）——PD 端的
-          regressor 在這個方向上有沒有投影？沒有的話（例如 gauge、{m`\rho=1`}），{m`\lambda=0`}，只能改參數化或另找觀測路徑。再問 ②（時間）——
-          是不是<strong>每一個</strong>窗口都有能量？有些窗口沒有的話，只有在好的窗口才學得到。最後問 ③（快慢）——{m`\kappa`} 很大時學得到，但要等很久。
-          圖上 ① 的「pole = 1」就是 F-09.4 在 {m`\lambda_i=0`} 時的 {m`p_i=1`}；② 就是 F-09.9 的 PE 定義；③ 的 {m`k_{95}\approx\ln20/(g\lambda_{\min})`}
+          regressor 在這個方向上有沒有投影？沒有的話（例如 gauge、{m`\rho=1`}），{m`\lambda=0`}，只能改參數化或另找觀測路徑。再問 ②（時間）——是不是<strong>每一個</strong>窗口都有能量？有些窗口沒有的話，只有在好的窗口才學得到。最後問 ③（快慢）——{m`\kappa`} 很大時學得到，但要等很久。圖上 ① 的「pole = 1」就是 F-09.4 在 {m`\lambda_i=0`} 時的 {m`p_i=1`}；② 就是 F-09.9 的 PE 定義；③ 的 {m`k_{95}\approx\ln20/(g\lambda_{\min})`}
           就是 F-09.6 的近似式。下表把圖上每一種對策（以及兩種常見但沒用的做法）的效果列出來：
         </p>
         <div className="table-wrap">
@@ -125,8 +123,7 @@ export function Wrapup() {
           </table>
         </div>
         <p>
-          重點：<strong>穩定性由 {m`\lambda_{\max}`} 決定，可辨識性與速度由 {m`\lambda_{\min}`} 決定。</strong>任何只改 {m`\mu`}、{m`N`} 的作法都改變不了 {m`\lambda_{\min}`}；
-          要嘛改激發，要嘛改參數化。
+          重點：<strong>穩定性由 {m`\lambda_{\max}`} 決定，可辨識性與速度由 {m`\lambda_{\min}`} 決定。</strong>任何只改 {m`\mu`}、{m`N`} 的作法都改變不了 {m`\lambda_{\min}`}；要嘛改激發，要嘛改參數化。
           <ClaimTag kind="exact" />（mean recursion 下；「速度由 {m`\lambda_{\min}`} 決定」指 {m`g\le g^\star=2/(\lambda_{\max}+\lambda_{\min})`}，{m`g`} 更大時最慢的是
           {m`\lambda_{\max}`} 的模式，F-09.7）
         </p>
@@ -135,16 +132,13 @@ export function Wrapup() {
       <Section kind="example" title="綜合手算：把這一課串起來" level={2} id="ch09-synthesis">
         <p>
           做思考題之前，先把整章的三件事用同一組數字串起來：<strong>穩定</strong>看 {m`g\lambda_{\max}`}、<strong>速度</strong>看 {m`g\lambda_{\min}`}（{m`g\le g^\star`} 時）、
-          <strong>PE</strong> 看每一個窗口。這一題用的是物理單位（1-bit comparator 的 {m`\sigma_v`} 與 {m`\mu`} 都以 {m`\mathrm{fs}`} 計），
-          所以第一步就是把 {m`\mu`} 換成無因次的 {m`g=\mu K_q`}（<Erratum id="E05" />）。
+          <strong>PE</strong> 看每一個窗口。這一題用的是物理單位（1-bit comparator 的 {m`\sigma_v`} 與 {m`\mu`} 都以 {m`\mathrm{fs}`} 計），所以第一步就是把 {m`\mu`} 換成無因次的 {m`g=\mu K_q`}（<Erratum id="E05" />）。
         </p>
         <Diagram id="synthesis-flow">
           跟著 ① → ⑧ 算：前兩格換單位，藍色菱形檢查穩定，接著算速度，最後兩格回到「每一個窗口」。
         </Diagram>
         <p>
-          <FigRef id="synthesis-flow" /> 怎麼看：先看 ①②——{m`\sigma_v`}（comparator 前雜訊的標準差）決定 {m`K_q`}，{m`K_q`} 把帶單位的 {m`\mu`} 換成無因次的 {m`g`}。
-          再看 ③④——穩定只看 {m`g\lambda_{\max}`}；⑤⑥——速度看 {m`g\lambda_{\min}`}（{m`g\le g^\star=2/(\lambda_{\max}+\lambda_{\min})`} 時，最慢的就是這個模式）。最後 ⑦⑧——長期平均沒問題，不代表每一個長度 {m`N_0`} 的窗口都沒問題。
-          圖上 ①–⑧ 的每一格，就是下面手算題裡的一到兩個步驟（⑥ 是 F-09.6、⑦ 是 F-09.11、⑧ 是 F-09.12）。
+          <FigRef id="synthesis-flow" /> 怎麼看：先看 ①②——{m`\sigma_v`}（comparator 前雜訊的標準差）決定 {m`K_q`}，{m`K_q`} 把帶單位的 {m`\mu`} 換成無因次的 {m`g`}。再看 ③④——穩定只看 {m`g\lambda_{\max}`}；⑤⑥——速度看 {m`g\lambda_{\min}`}（{m`g\le g^\star=2/(\lambda_{\max}+\lambda_{\min})`} 時，最慢的就是這個模式）。最後 ⑦⑧——長期平均沒問題，不代表每一個長度 {m`N_0`} 的窗口都沒問題。圖上 ①–⑧ 的每一格，就是下面手算題裡的一到兩個步驟（⑥ 是 F-09.6、⑦ 是 F-09.11、⑧ 是 F-09.12）。
         </p>
         <HandCalcBox id="HC-09.8">
           填入你的 {m`\sigma_v`}、{m`\mu`}、{m`\rho`} 與窗口長度 {m`N_0`}，用紙筆和工程計算機（{m`\sqrt{\ }`}、{m`\ln`}、{m`y^x`}）算出 {m`g`}、{m`k_{95}`}
@@ -224,8 +218,7 @@ export function Wrapup() {
           options={[{ label: '0' }, { label: '1' }, { label: '2', correct: true }, { label: '3' }]}
           answer={
             <p>
-              {m`E[(1-z^2)^2]=1-2\cdot1+3=2`}。平均倍數 {m`E[1-z^2]=0`}（平均意義下共模一步消失），但平方的平均 {m`=2>1`}：
-              均方每步約翻倍（{m`\rho=0.99`}、{m`g=0.5`} 時精確的 {m`\rho_{\mathrm{MS}}=${texNum(facts.msN1, 5)}`}）。<strong>mean 收斂不代表 mean-square 收斂</strong>（<Erratum id="E23" />）。
+              {m`E[(1-z^2)^2]=1-2\cdot1+3=2`}。平均倍數 {m`E[1-z^2]=0`}（平均意義下共模一步消失），但平方的平均 {m`=2>1`}：均方每步約翻倍（{m`\rho=0.99`}、{m`g=0.5`} 時精確的 {m`\rho_{\mathrm{MS}}=${texNum(facts.msN1, 5)}`}）。<strong>mean 收斂不代表 mean-square 收斂</strong>（<Erratum id="E23" />）。
             </p>
           }
         />
@@ -239,8 +232,7 @@ export function Wrapup() {
           options={[{ label: '0' }, { label: '1', correct: true }, { label: '2' }, { label: '3' }]}
           answer={
             <p>
-              1 個：{m`b`} 方向。u-domain 的 null space 是 {m`\mathrm{span}\{\mathbf e_b,\ (0,1,1,1,1)\}`}（2 維）；{m`\{a_0=0\}`} 與它的交集只剩 {m`\mathbf e_b`}，固定 {m`a_0`} 只消掉共模那一維。要完全可辨識，還得「此路徑不更新 {m`b`}」
-              或用獨立路徑量 {m`b`}（<Erratum id="E04" />）。上方 Gauge 實驗的約束表會即時顯示這個結果。
+              1 個：{m`b`} 方向。u-domain 的 null space 是 {m`\mathrm{span}\{\mathbf e_b,\ (0,1,1,1,1)\}`}（2 維）；{m`\{a_0=0\}`} 與它的交集只剩 {m`\mathbf e_b`}，固定 {m`a_0`} 只消掉共模那一維。要完全可辨識，還得「此路徑不更新 {m`b`}」或用獨立路徑量 {m`b`}（<Erratum id="E04" />）。上方 Gauge 實驗的約束表會即時顯示這個結果。
             </p>
           }
         />
@@ -281,8 +273,7 @@ export function Wrapup() {
             的相近函數驅動，差模能量很小。
           </li>
           <li>
-            <strong>PMUX / PHOS：</strong> one-hot 相位選擇天生滿足 {m`\sum_ix_i=1`}，與 global offset 形成 gauge；在主 PLL 鎖定（BBPD 的輸出同時驅動 loop filter，也是 GMAC 取用的 {m`e`}）的架構裡，
-            DC 被主迴路吃掉，{m`b`} 完全看不到。
+            <strong>PMUX / PHOS：</strong> one-hot 相位選擇天生滿足 {m`\sum_ix_i=1`}，與 global offset 形成 gauge；在主 PLL 鎖定（BBPD 的輸出同時驅動 loop filter，也是 GMAC 取用的 {m`e`}）的架構裡，DC 被主迴路吃掉，{m`b`} 完全看不到。
           </li>
           <li>
             <strong>相數不是 4（例如 8 相 PMUX）：</strong> 結論完全相同，只換數字。{m`P`} 相 one-hot ＋ 共用 offset 的
@@ -293,20 +284,17 @@ export function Wrapup() {
                 {m`P=${ph.P}`} 時為 {m`${texNum(ph.max, 6)},\ ${texNum(ph.mid, 6)}\ (\times${ph.midCount}),\ 0`}（{ph.nulls} 個零）
               </span>
             ))}
-            （由 <code>eigSym</code> 計算）。null vector 仍是 {m`(1,-1,\dots,-1)`}；經 {m`H_{\mathrm{PD}}(1)=0`} 後只剩 {m`P-1`} 個可辨識的相位差，
-            F-09.19 的 {m`\tfrac54`} 換成 {m`1+\tfrac1P`}。
+            （由 <code>eigSym</code> 計算）。null vector 仍是 {m`(1,-1,\dots,-1)`}；經 {m`H_{\mathrm{PD}}(1)=0`} 後只剩 {m`P-1`} 個可辨識的相位差，F-09.19 的 {m`\tfrac54`} 換成 {m`1+\tfrac1P`}。
           </li>
           <li>
             <strong>GMAC 的 {m`N`}：</strong> 不改變 {m`\mathbf R`}，但決定 mean-square 是否接近 mean（E23）以及雜訊大小（<ChRef ch="12">第 12 章</ChRef>）。
           </li>
           <li>
-            <strong>Sign-off 時要量什麼：</strong> 行為模型輸出滑動窗口 {m`\lambda_{\min}(\mathbf R_k)`}、{m`\kappa(\mathbf R_k)`}、singular values，並跨 FCW／PVT 掃描；
-            對任何零方向都要有明確的處理（約束、不更新、獨立路徑）。
+            <strong>Sign-off 時要量什麼：</strong> 行為模型輸出滑動窗口 {m`\lambda_{\min}(\mathbf R_k)`}、{m`\kappa(\mathbf R_k)`}、singular values，並跨 FCW／PVT 掃描；對任何零方向都要有明確的處理（約束、不更新、獨立路徑）。
           </li>
         </ul>
         <Callout kind="info" title="下一課">
-          <ChRef ch="10">第 10 章</ChRef>：既然單一 {m`\mu`} 受 {m`\kappa`} 限制，能不能用矩陣 {m`\mathbf M`} 讓每個模式一樣快？可以（preconditioner），但代價是把慢方向的雜訊放大——
-          而且 <strong>preconditioner 不能製造缺失的資訊</strong>。
+          <ChRef ch="10">第 10 章</ChRef>：既然單一 {m`\mu`} 受 {m`\kappa`} 限制，能不能用矩陣 {m`\mathbf M`} 讓每個模式一樣快？可以（preconditioner），但代價是把慢方向的雜訊放大——而且 <strong>preconditioner 不能製造缺失的資訊</strong>。
         </Callout>
       </Section>
     </>

@@ -2,7 +2,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import mermaid from 'mermaid'
 import { SettingsProvider } from '@/app/settings'
-import { SYSTEM_BLOCK_LABEL, stripMathDelimiters, systemMapModel } from '@/components'
+import { SYSTEM_BLOCK_LABEL, accessibleText, systemMapModel } from '@/components'
 import { mermaidMathDelimiters, sanitizeMermaidSource } from '@/components/mermaidSource'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { eigSym, matVec } from '@/simulation/core'
@@ -69,7 +69,7 @@ const P = vi.hoisted(() => ({
   Plots: { resize: vi.fn() },
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
-vi.mock('plotly.js-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
 
 /** 本章新增的方塊圖張數（不含章首的系統地圖）；頁面上的 Mermaid 圖總數 = 這個數 + 1 */
 const DIAGRAM_COUNT = 20
@@ -1037,7 +1037,7 @@ describe('Ch09 頁面與版面：系統地圖、方塊圖的位置、章末符�
     expect(map.getAttribute('aria-label')).toContain('DTC-based Fractional-N PLL 與 Sign-LMS 校正迴路的系統方塊圖')
     for (const b of SYSTEM_FOCUS) {
       // 方塊名稱可含 `$…$`：aria-label 是去掉 `$` 的純文字；圖說以 KaTeX 排版（文字部分照原樣，公式的 TeX 原始碼在 annotation 裡）
-      expect(map.getAttribute('aria-label')).toContain(stripMathDelimiters(SYSTEM_BLOCK_LABEL[b]))
+      expect(map.getAttribute('aria-label')).toContain(accessibleText(SYSTEM_BLOCK_LABEL[b]))
       const caption = map.querySelector('figcaption')?.textContent ?? ''
       for (const part of SYSTEM_BLOCK_LABEL[b].split(/\$[^$]+\$/)) if (part.trim()) expect(caption).toContain(part.trim())
       for (const tex of mathSegments(SYSTEM_BLOCK_LABEL[b])) expect(caption).toContain(tex)

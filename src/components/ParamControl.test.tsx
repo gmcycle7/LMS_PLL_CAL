@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { ParamControl, SelectControl, ToggleControl, type ParamControlProps } from './ParamControl'
+import { Tex } from './Tex'
 
 function setup(props: Partial<ParamControlProps> = {}) {
   const onChange = vi.fn()
@@ -225,5 +226,107 @@ describe('SelectControl / ToggleControl', () => {
     // 沒有 hint 時不產生空的說明列
     const none = render(<ToggleControl label="無說明" value onChange={() => {}} />)
     expect(none.container.querySelector('.c-param-meta')).toBeNull()
+  })
+})
+
+describe('無障礙名稱：TeX 轉成可念的文字（不含 `\\` 或 `$`）', () => {
+  /** 掃整棵樹：所有 aria-label／title／aria-valuetext／<option> 都不含 TeX 原始碼 */
+  function rawTexNames(root: HTMLElement): string[] {
+    const bad: string[] = []
+    for (const el of Array.from(root.querySelectorAll('*'))) {
+      for (const a of ['aria-label', 'title', 'aria-valuetext']) {
+        const v = el.getAttribute(a)
+        if (v && /[\\$]/.test(v)) bad.push(`${a}=${v}`)
+      }
+      if (el.tagName === 'OPTION' && /[\\$]/.test(el.textContent ?? '')) bad.push(`option=${el.textContent}`)
+    }
+    return bad
+  }
+
+  it('滑桿的 aria-label 與 aria-valuetext：標籤與單位裡的 `$...$` 念成 sigma v、fs 的負 1 次方', () => {
+    const { container } = render(
+      <>
+        <ParamControl label="$\sigma_v$（comparator 前雜訊）" value={0.5} onChange={() => {}} min={0.01} max={10} log unit="$\mathrm{fs}^{-1}$" />
+        <ParamControl label="$\mu$（Case A）" value={0.1} onChange={() => {}} min={0} max={1} step={0.01} unit="$\times$" />
+      </>,
+    )
+    const [log, lin] = screen.getAllByRole('slider')
+    expect(log.getAttribute('aria-label')).toBe('sigma v（comparator 前雜訊）（滑桿，log 刻度）')
+    expect(log.getAttribute('aria-valuetext')).toBe('0.5 fs 的負 1 次方')
+    expect(lin.getAttribute('aria-label')).toBe('mu（Case A）（滑桿）')
+    expect(lin.getAttribute('aria-valuetext')).toBe('0.1 乘')
+    expect(rawTexNames(container)).toEqual([])
+  })
+
+  it('ariaLabel 屬性與非字串標籤：輸入框的 aria-label 也是可念形式', () => {
+    const { container } = render(
+      <>
+        <ParamControl label={<span>J11</span>} ariaLabel="$J_{11}$（回授）" value={1} onChange={() => {}} min={0} max={2} />
+        <ParamControl label="$\rho_j$" ariaLabel="斜率 $\rho_j$" value={1} onChange={() => {}} min={0} max={2} />
+      </>,
+    )
+    expect(screen.getByLabelText('J 11（回授）')).toBeTruthy()
+    expect(screen.getByLabelText('斜率 rho j')).toBeTruthy()
+    expect(rawTexNames(container)).toEqual([])
+  })
+
+  it('SelectControl：aria-label 與 <option> 文字、ToggleControl：aria-label', () => {
+    const { container } = render(
+      <>
+        <SelectControl
+          label="迴路"
+          ariaLabel="迴路 $L$"
+          value={1}
+          onChange={() => {}}
+          options={[
+            { value: 1, label: '$\\mu$ 固定' },
+            { value: 2, label: '$\\mu_k$ 隨時間遞減' },
+          ]}
+        />
+        <ToggleControl label="gain" ariaLabel="基底 $\phi=x$" value onChange={() => {}} />
+      </>,
+    )
+    expect(screen.getByLabelText('迴路 L')).toBeTruthy()
+    expect(Array.from(container.querySelectorAll('option')).map((o) => o.textContent)).toEqual(['mu 固定', 'mu k 隨時間遞減'])
+    expect(screen.getByRole('switch').getAttribute('aria-label')).toBe('基底 phi 等於 x')
+    expect(rawTexNames(container)).toEqual([])
+  })
+
+  it('可見的標籤與單位仍以 KaTeX 排版（名稱用可念形式，畫面不變）', () => {
+    const { container } = render(<ParamControl label="$\sigma_v$" value={1} onChange={() => {}} min={0} max={2} unit="$\mathrm{fs}$" />)
+    expect(container.querySelector('.c-param-label .katex')).toBeTruthy()
+    expect(container.querySelector('.c-param-unit .katex')).toBeTruthy()
+    expect(container.querySelector('.c-param-label')?.textContent).not.toContain('$')
+  })
+
+  it('標籤含數學時輸入框另給 aria-label（KaTeX 在 <label> 的「由內容算名稱」裡會被丟掉，名稱會漏掉符號）', () => {
+    render(
+      <>
+        <ParamControl label="$\mu$（Case A）" value={0.1} onChange={() => {}} min={0} max={1} />
+        <ParamControl label="$\delta_0 = a - w_0$" value={1} onChange={() => {}} min={0} max={2} />
+        <ParamControl label="純文字標籤" value={1} onChange={() => {}} min={0} max={2} />
+        <ParamControl label={<Tex>{'J_{11}'}</Tex>} value={1} onChange={() => {}} min={0} max={2} />
+      </>,
+    )
+    const inputs = screen.getAllByRole('textbox')
+    expect(inputs.map((i) => i.getAttribute('aria-label'))).toEqual(['mu（Case A）', 'delta 0 等於 a 減 w 0', null, 'J 11'])
+    // 沒有數學的標籤維持 <label htmlFor> 的關聯，不另外加 aria-label（避免重複）
+    expect(screen.getByLabelText('純文字標籤')).toBe(inputs[2])
+    // 非字串標籤（<Tex>）也念得出符號，不再是「參數」
+    expect(screen.getAllByRole('slider')[3].getAttribute('aria-label')).toBe('J 11（滑桿）')
+  })
+
+  it('SelectControl／ToggleControl 的標籤含數學時也另給 aria-label', () => {
+    render(
+      <>
+        <SelectControl label="$\mu$ 的排程" value="a" onChange={() => {}} options={['a', 'b'] as const} />
+        <ToggleControl label="基底 $\phi=x$" value onChange={() => {}} />
+        <ToggleControl label="純文字" value onChange={() => {}} />
+      </>,
+    )
+    expect(screen.getByRole('combobox').getAttribute('aria-label')).toBe('mu 的排程')
+    const [t1, t2] = screen.getAllByRole('switch')
+    expect(t1.getAttribute('aria-label')).toBe('基底 phi 等於 x')
+    expect(t2.getAttribute('aria-label')).toBeNull()
   })
 })

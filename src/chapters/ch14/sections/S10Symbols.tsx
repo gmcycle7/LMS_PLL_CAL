@@ -290,7 +290,7 @@ export function S10Symbols() {
         caption={md(String.raw`本章極性一律 $\delta=a-w$；$K$、$\mu$ 的單位依 average-mode GMAC（$G$ 無因次）。「首次出現」欄是正文第一次用一句話說明該符號的地方。`)}
       />
       <p className="small">
-        <button type="button" className="ch14-linkbtn" onClick={() => scrollToId('ch14-top')}>
+        <button type="button" className="ch14-linkbtn no-print" onClick={() => scrollToId('ch14-top')}>
           ↑ 回到章首
         </button>
       </p>

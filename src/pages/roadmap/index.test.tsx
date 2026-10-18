@@ -17,7 +17,7 @@ const P = vi.hoisted(() => ({
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
 const M = vi.hoisted(() => ({ initialize: vi.fn(), render: vi.fn(async () => ({ svg: '<svg></svg>' })) }))
-vi.mock('plotly.js-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
 vi.mock('mermaid', () => ({ default: M }))
 
 // 假的 Plotly.react 會記住每一次呼叫的引數（DOM 節點與整組資料）：不清掉的話，前面每個測試渲染過的整頁

@@ -183,11 +183,6 @@
   border-top: 1px solid var(--border);
   min-width: 0;
 }
-/* 頁面上方有固定的 topbar：捲動到目標時留出它的高度，符號表的標題才不會被蓋住 */
-.ch11,
-.ch11-symbols {
-  scroll-margin-top: calc(var(--topbar-h, 52px) + 12px);
-}
 /* 只會被程式聚焦（tabindex = -1），不需要焦點外框 */
 .ch11-symbols:focus {
   outline: none;

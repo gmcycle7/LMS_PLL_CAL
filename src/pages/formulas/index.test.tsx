@@ -9,7 +9,7 @@ import { UNIT_TOPICS } from './searchIndex'
 import { ERRATA } from './errata'
 import { buttonByText, count, mountAt, q, renderProblems } from './domTestUtils'
 
-vi.mock('plotly.js-dist-min', async () => ({ default: (await import('./domTestUtils')).PLOTLY_STUB }))
+vi.mock('plotly.js-cartesian-dist-min', async () => ({ default: (await import('./domTestUtils')).PLOTLY_STUB }))
 vi.mock('mermaid', () => ({ default: { initialize: () => undefined, render: async () => ({ svg: '<svg></svg>' }) } }))
 
 // 整頁在 jsdom 約 10 萬個節點；其他 agent 同時跑測試時較慢
@@ -180,6 +180,33 @@ describe('FormulasPage（jsdom smoke：三種學習模式）', () => {
     expect(tables.filter((t) => !t.closest('.table-wrap')).map((t) => t.className)).toEqual([])
     const unlabeled = Array.from(container.querySelectorAll('table.fr-table tbody td')).filter((td) => !td.getAttribute('data-label'))
     expect(unlabeled.map((td) => `${td.closest('table')?.className}: ${td.textContent?.slice(0, 30)}`)).toEqual([])
+    // 寬表格的版面（1280px 視窗時符號表 1659px、速查表 1537px、登錄表 1291px，都放在 911px 的內容欄裡，右邊的欄被切在畫面外）：
+    // 欄數縮到 4／4／2，每一列的格數與表頭一致，分組列的 colspan 等於欄數；放得下就不捲動，放不下由 TableWrap（.fr-fade）提示
+    for (const [sel, cols] of [['.fr-sym-table', 4], ['.fr-quick-table', 4], ['.fr-reg-table', 2]] as const) {
+      const table = q(container, sel)
+      expect(table.querySelectorAll('thead th').length, sel).toBe(cols)
+      for (const tr of Array.from(table.querySelectorAll('tbody tr:not(.fr-group-row)'))) expect(tr.querySelectorAll(':scope > td').length, sel).toBe(cols)
+      for (const th of Array.from(table.querySelectorAll('tbody tr.fr-group-row th'))) expect(th.getAttribute('colspan'), sel).toBe(String(cols))
+    }
+    for (const sel of ['.fr-sym-table', '.fr-quick-table']) expect(q(container, sel).closest('.fr-fade > .c-scroll.table-wrap.fr-sticky-wrap'), sel).toBeTruthy()
+    for (const sel of ['.fr-sym-table', '.fr-quick-table', '.fr-reg-table']) expect(q(container, sel).classList.contains('fr-sticky-head'), sel).toBe(true) // 長表的欄位名稱黏在搜尋列下面
+    // 被併進別欄的內容一個字都沒少：符號表每一列的單位、規格原文、例、勘誤、頁面連結；速查表每一列的標籤、勘誤、站內公式
+    for (const sym of GLOBAL_SYMBOLS.slice(0, 30)) {
+      const row = q(container, `.fr-sym-table tr[data-symbol="${sym.key}"]`)
+      if (sym.unit) expect(row.querySelector('.fr-cell-sub')?.textContent, sym.key).toContain('單位')
+      if (sym.specOriginal) expect(row.querySelector('.fr-spec-orig')?.textContent, sym.key).toContain('規格原文')
+      expect(row.querySelectorAll('a.fr-erratum').length, sym.key).toBe(sym.errata.length)
+      expect(row.querySelectorAll('a.fr-page-link').length, sym.key).toBe(sym.pages.length)
+    }
+    for (const row of QUICK_REF) {
+      const tr = q(container, `.fr-quick-table tr[data-quick="${row.key}"]`)
+      expect(tr.querySelector(`.c-claim-${row.claim}`), row.key).toBeTruthy()
+      expect(tr.querySelectorAll('a.fr-erratum').length, row.key).toBe(row.errata.length)
+      expect(tr.querySelectorAll('a.fr-formula-link').length, row.key).toBe(row.related.length)
+    }
+    // 不印出「-0.000」這類負零（toFixed 把 −1e-17 格式化成 "-0.000"）：可見文字與 TeX 原始碼都檢查
+    expect((container.textContent ?? '').match(/[-−]0\.0+(?!\d)/g) ?? []).toEqual([])
+    expect(Array.from(container.querySelectorAll('annotation')).map((a) => a.textContent ?? '').filter((t) => /(?<![\d.])-0\.0+(?!\d)/.test(t))).toEqual([])
     // 顯示 TeX 原始碼（Research 才有的開關）
     fireEvent.click(switchByLabel(q(container, '#fr-registry'), /TeX 原始碼/))
     expect(count(container, 'code.fr-tex-src')).toBe(60)

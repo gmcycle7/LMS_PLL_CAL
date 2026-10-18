@@ -635,7 +635,7 @@ export interface MuRange {
   hi: number
   /** 區間為空（例如 bc ≤ 0 的極性錯誤） */
   empty: boolean
-  /** 為什麼是空的／適用條件。字串內的 `$…$` 是行內 TeX（UI 以 mathText 顯示成 KaTeX；純文字情境可用 stripMathDelimiters） */
+  /** 為什麼是空的／適用條件。字串內的 `$…$` 是行內 TeX（UI 以 mathText 顯示成 KaTeX；title／aria-label 用 accessibleText） */
   note: string
 }
 

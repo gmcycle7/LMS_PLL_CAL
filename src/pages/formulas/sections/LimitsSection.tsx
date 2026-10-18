@@ -13,8 +13,7 @@ export function LimitsSection({ rows, searching }: { rows: Limitation[]; searchi
     <Section kind="assumptions" level={2} id="fr-limits" title="5　附錄 B：數學與工程上的關鍵限制">
       {!searching && (
         <p>
-          規格附錄 B 的 10 條限制原文保留（第 10 條「PRBS 周期」依勘誤統一寫成「週期」），每條加上「為什麼」與一個算出來的反例；
-          後面 5 條是驗算時發現、規格沒有寫成限制但實際會讓數字錯掉的地方（標「本站補充」）。
+          規格附錄 B 的 10 條限制原文保留（第 10 條「PRBS 周期」依勘誤統一寫成「週期」），每條加上「為什麼」與一個算出來的反例；後面 5 條是驗算時發現、規格沒有寫成限制但實際會讓數字錯掉的地方（標「本站補充」）。
         </p>
       )}
       <div className="fr-section-bar">

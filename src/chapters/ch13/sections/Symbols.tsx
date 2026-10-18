@@ -88,7 +88,7 @@ export function SymbolsSection() {
         }
       />
       <p className="small">
-        <button type="button" className="ch13-linklike" data-testid="ch13-symbols-top" onClick={() => scrollToId(TOP_ID)}>
+        <button type="button" className="ch13-linklike no-print" data-testid="ch13-symbols-top" onClick={() => scrollToId(TOP_ID)}>
           ↑ 回到章首
         </button>
       </p>

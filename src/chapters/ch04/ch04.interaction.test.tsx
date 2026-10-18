@@ -14,7 +14,7 @@ const P = vi.hoisted(() => ({
   Plots: { resize: vi.fn() },
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
-vi.mock('plotly.js-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
 vi.mock('mermaid', () => ({
   default: {
     initialize: vi.fn(),
@@ -55,6 +55,20 @@ describe('Ch04 在 React StrictMode（dev server）下', () => {
 })
 
 describe('Ch04 實驗互動（jsdom）', () => {
+  it('gmac-signal-flow（300 ms／步的動畫）：Run 鈕顯示步數進度；「跳到結尾」把游標放到最後一個 block 的最後一步，進度滿、鈕停用', async () => {
+    const { container } = renderAt('/ch/04')
+    const shell = shellOf(container, 'gmac-signal-flow')
+    await waitFor(() => expect(within(shell).getByText('執行 Run').textContent).toMatch(/（0\/\d+ 步）/), WAIT)
+    const skip = within(shell).getByText('跳到結尾') as HTMLButtonElement
+    expect(skip.disabled).toBe(false)
+    act(() => skip.click())
+    await waitFor(() => expect(skip.disabled).toBe(true), WAIT)
+    const m = /（(\d+)\/(\d+) 步）/.exec(within(shell).getByText('執行 Run').textContent ?? '')
+    expect(m).not.toBeNull()
+    expect(m![1]).toBe(m![2])
+    expect(Number(m![2])).toBeGreaterThan(100)
+  }, PAGE_TIMEOUT)
+
   it('?preset=gmac-fp-w-truncation：三個 case；切到 B 顯示 W 截斷的警告、R 與 F-04.18 的預測，Fixed-Point 交叉比對一致', async () => {
     const { container } = renderAt('/ch/04?preset=gmac-fp-w-truncation')
     await waitFor(() => expect(caseButtons(container, 'gmac-fixed-point').map((b) => b.textContent?.trim())).toEqual(['Case A', 'Case B', 'Case C']), WAIT)

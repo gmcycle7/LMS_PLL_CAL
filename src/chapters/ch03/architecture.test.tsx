@@ -11,7 +11,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
 import Chapter03 from './index'
 
-vi.mock('plotly.js-dist-min', () => ({
+vi.mock('plotly.js-cartesian-dist-min', () => ({
   default: {
     react: vi.fn(async () => undefined),
     purge: vi.fn(),

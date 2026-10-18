@@ -1,6 +1,6 @@
 import { useId, useState, type ChangeEvent, type ReactNode } from 'react'
 import { fmtNum } from './format'
-import { mathText, stripMathDelimiters } from './Tex'
+import { accessibleText, mathText, nodeHasMath, nodeToAccessibleText } from './Tex'
 import {
   checkValue,
   clampValue,
@@ -45,9 +45,19 @@ export interface ParamControlProps {
 }
 
 function labelText(label: ReactNode, ariaLabel?: string): string {
-  if (ariaLabel) return ariaLabel
-  // 無障礙名稱是純文字：拿掉 `$` 分隔符，保留 TeX 原始碼
-  return typeof label === 'string' || typeof label === 'number' ? stripMathDelimiters(String(label)) : '參數'
+  // 無障礙名稱是純文字：`$...$` 與 <Tex> 換成可念的形式（\sigma_v → sigma v），不要讓螢幕閱讀器念反斜線
+  if (ariaLabel) return accessibleText(ariaLabel)
+  return nodeToAccessibleText(label) || '參數'
+}
+
+/**
+ * 輸入框／開關／下拉選單要不要另給 aria-label。
+ * 標籤是純文字時，`<label htmlFor>` 就是名稱，不重複給；標籤含數學時，KaTeX 在「由內容算名稱」裡會被丟掉
+ * （`$\mu$（Case A）` 的名稱只剩「（Case A）」，`$\delta_0$` 則是空字串），所以改給可念形式。
+ */
+function controlName(label: ReactNode, ariaLabel?: string): string | undefined {
+  if (ariaLabel) return accessibleText(ariaLabel)
+  return nodeHasMath(label) ? nodeToAccessibleText(label) : undefined
 }
 
 /**
@@ -150,7 +160,7 @@ export function ParamControl({
   const sliderMin = logOk ? Math.log10(min) : min
   const sliderMax = logOk ? Math.log10(max) : max
   const sliderValue = logOk ? toLogPosition(value, min, max) : Math.min(Math.max(value, min), max)
-  const valueText = `${fmtNum(value, digits)}${unit ? ` ${stripMathDelimiters(unit)}` : ''}`
+  const valueText = `${fmtNum(value, digits)}${unit ? ` ${accessibleText(unit)}` : ''}`
   const describedBy = [rangeId, hint ? hintId : null, warning ? warnId : null].filter(Boolean).join(' ')
 
   return (
@@ -186,7 +196,7 @@ export function ParamControl({
             onChange={onText}
             onBlur={onBlur}
             disabled={disabled}
-            aria-label={ariaLabel ?? (typeof label === 'string' ? undefined : name)}
+            aria-label={ariaLabel || typeof label !== 'string' || nodeHasMath(label) ? name : undefined}
             aria-invalid={warning ? true : undefined}
             aria-describedby={describedBy}
           />
@@ -264,7 +274,7 @@ export function SelectControl<T extends string | number>({
         className="c-select-input"
         value={idx >= 0 ? String(idx) : ''}
         disabled={disabled}
-        aria-label={ariaLabel}
+        aria-label={controlName(label, ariaLabel)}
         onChange={(e) => {
           const o = opts[Number(e.target.value)]
           if (o) onChange(o.value)
@@ -273,7 +283,8 @@ export function SelectControl<T extends string | number>({
         {idx < 0 && <option value="">（未選擇）</option>}
         {opts.map((o, i) => (
           <option key={`${String(o.value)}-${i}`} value={String(i)} disabled={o.disabled}>
-            {o.label}
+            {/* <option> 只能放純文字，不能放 KaTeX：標籤裡的 `$...$` 以可念形式顯示 */}
+            {accessibleText(o.label)}
           </option>
         ))}
       </select>
@@ -319,7 +330,7 @@ export function ToggleControl({ label, ariaLabel, value, onChange, hint, reg, di
           checked={value}
           disabled={disabled}
           aria-checked={value}
-          aria-label={ariaLabel}
+          aria-label={controlName(label, ariaLabel)}
           onChange={(e) => onChange(e.target.checked)}
         />
         <label className="c-param-label" htmlFor={id}>

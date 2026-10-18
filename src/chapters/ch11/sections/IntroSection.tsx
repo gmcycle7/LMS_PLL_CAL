@@ -162,8 +162,7 @@ export function IntroSection() {
           INL，也就是延遲偏離直線的量）；回授路徑上只有 divider，它的 edge 早到 <Tex>{'a\\,x'}</Tex>，也就是{' '}
           <Tex>{String.raw`t_\mathrm{fb}=-a\,x`}</Tex>。兩者相減：<Tex>{String.raw`(T_0-w\,x+d(x))-(-a\,x)=(a-w)\,x+d(x)+T_0`}</Tex>；常數{' '}
           <Tex>{'T_0'}</Tex> 只讓鎖定的相位整個平移，不算進誤差。PD／comparator 的 offset <Tex>{'b'}</Tex>、與 code 成正比的干擾{' '}
-          <Tex>{String.raw`\varepsilon_{cc}=\kappa x`}</Tex>、隨機雜訊 <Tex>{'v'}</Tex> 也在這裡加進來，總和就是 PD 的輸出 <Tex>{'e[n]'}</Tex> ——
-          下一節公式 F-11.1 的五項。
+          <Tex>{String.raw`\varepsilon_{cc}=\kappa x`}</Tex>、隨機雜訊 <Tex>{'v'}</Tex> 也在這裡加進來，總和就是 PD 的輸出 <Tex>{'e[n]'}</Tex> —— 下一節公式 F-11.1 的五項。
         </p>
         <p>
           再看 PD 下面：PD 的輸出分成兩路，一路送進主迴路的 loop filter，另一路給 LMS 校正迴路。comparator 取的是 PD 的輸出{' '}
@@ -181,8 +180,7 @@ export function IntroSection() {
         <p>
           GMAC 的硬體只做一件事：把 comparator 輸出 <Tex>{'q'}</Tex> 乘上 code <Tex>{'x'}</Tex> 再累加（<Tex>{'q=\\pm1'}</Tex> 時就是「依 <Tex>{'q'}</Tex> 選{' '}
           <Tex>{'+x'}</Tex> 或 <Tex>{'-x'}</Tex>」的
-          conditional negate + adder）。凡是和 <Tex>{'x'}</Tex> 相關的誤差，不論來自 DTC INL、comparator offset 還是 DSM pattern 耦合，在 GMAC 眼裡都和「gain 不對」
-          長得一樣。這就是本章所有 bias 的共同根源。
+          conditional negate + adder）。凡是和 <Tex>{'x'}</Tex> 相關的誤差，不論來自 DTC INL、comparator offset 還是 DSM pattern 耦合，在 GMAC 眼裡都和「gain 不對」長得一樣。這就是本章所有 bias 的共同根源。
         </p>
       </Section>
     </>

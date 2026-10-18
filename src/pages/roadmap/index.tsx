@@ -70,12 +70,10 @@ export default function RoadmapPage() {
         <ModelLevel level="L6" />
       </div>
       <p>
-        規格附錄 C 的十個研究題目（R1–R10），加上使用者實際遇到的 <a href="#/case/sspll">SSPLL 8 相 PMUX + input DTC 極性案例</a>（4 GHz reference、閉迴路頻寬 320 MHz），以及網站本身的實作階段 P0–P5。
-        每個題目列出：目標、為什麼重要、需要的數學、本站已經有的部分（連結）與還沒做的部分，並附一個可以動手算的<strong>數學預覽</strong>。
+        規格附錄 C 的十個研究題目（R1–R10），加上使用者實際遇到的 <a href="#/case/sspll">SSPLL 8 相 PMUX + input DTC 極性案例</a>（4 GHz reference、閉迴路頻寬 320 MHz），以及網站本身的實作階段 P0–P5。每個題目列出：目標、為什麼重要、需要的數學、本站已經有的部分（連結）與還沒做的部分，並附一個可以動手算的<strong>數學預覽</strong>。
       </p>
       <Callout kind="warn" title="誠實聲明">
-        這一頁上的研究項目沒有任何一個是 verified；狀態只有 partial / pending / not started / in analysis。預覽中的公式在註明的簡化模型內推導，並以「封閉式 vs 數值 vs Monte Carlo」交叉驗算，
-        但研究題目本身仍未完成。所有數值皆為 illustrative / simulation，不是量測。
+        這一頁上的研究項目沒有任何一個是 verified；狀態只有 partial / pending / not started / in analysis。預覽中的公式在註明的簡化模型內推導，並以「封閉式 vs 數值 vs Monte Carlo」交叉驗算，但研究題目本身仍未完成。所有數值皆為 illustrative / simulation，不是量測。
       </Callout>
       <SymbolsLink />
       <ModeGate min="engineer">
@@ -98,8 +96,7 @@ export default function RoadmapPage() {
 
       <Section kind="formula" title="2. 研究項目：目標、數學、已有與待辦" level={2} id="rm-items">
         <p className="small muted">
-          每張卡片下方的按鈕展開「數學預覽」：逐步推導、<strong>帶入手算</strong>（把你自己的數字代進這一頁的公式，用紙筆與工程計算機一步一步算，再對答案）、互動實驗（可匯出 CSV / JSON / HTML 報告）、核心程式碼與 Research 模式的延伸。
-          R3 的手算題在 <PageRef id="ch13">第 13 章</PageRef>、SSPLL 的在<a href="#/case/sspll">案例頁</a>，這裡不重複。
+          每張卡片下方的按鈕展開「數學預覽」：逐步推導、<strong>帶入手算</strong>（把你自己的數字代進這一頁的公式，用紙筆與工程計算機一步一步算，再對答案）、互動實驗（可匯出 CSV / JSON / HTML 報告）、核心程式碼與 Research 模式的延伸。R3 的手算題在 <PageRef id="ch13">第 13 章</PageRef>、SSPLL 的在<a href="#/case/sspll">案例頁</a>，這裡不重複。
         </p>
         {ITEMS.map((it) => (
           <ItemCard key={it.id} item={it} open={open.has(it.id)} onToggle={() => toggle(it.id)} />

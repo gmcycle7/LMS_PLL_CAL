@@ -1,10 +1,12 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { act, cleanup, fireEvent, render } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { ALL_HANDCALCS } from '@/app/handcalcs'
 import { SettingsProvider } from '@/app/settings'
 import { normCdf } from '@/simulation/core'
+import { preloadModule, resetModuleCache } from '../verification/lazy'
+import { loadBank } from './bank'
 import WorkbookPage, { STATS_KEY } from './index'
 import { EMPTY_FILTERS, buildWorksheet, countByLevel, filterHandcalcs, groupByChapter, practiceItem, type PracticeItem, type WorksheetOptions } from './logic'
 import { PRINT_BODY_CLASS } from './sections/Worksheet'
@@ -53,6 +55,10 @@ function fillAnswers(c: ParentNode, item: PracticeItem, good: boolean) {
   })
 }
 
+// 題庫（@/app/handcalcs）是頁面在背景載入的模組：先等它載完，下面的測試第一次 render 就拿得到題庫（「載入中」的狀態由最後一組測試另外檢查）
+beforeAll(async () => {
+  await preloadModule(loadBank)
+})
 beforeEach(() => {
   localStorage.clear()
 })
@@ -579,6 +585,71 @@ describe('練習卷', () => {
       }
       node = parent
     }
+  })
+})
+
+describe('題庫在背景載入（首屏不必等所有章節的手算內容）', () => {
+  // 每個測試之前讓題庫「重新載入一次」：模組本身已在 beforeAll 載過，所以不必再下載，但第一次 render 時 useModule 仍是 pending
+  beforeEach(() => {
+    resetModuleCache(loadBank)
+  })
+
+  it('載入前：說明與手算工具已畫出，題數以「…」占位（寬度預留）、題庫區是 aria-busy 的「載入中」，沒有題目也沒有篩選列；載完後全部補上', async () => {
+    const { container } = renderPage()
+    // ── 載入前（第一次 render）──
+    const panel = q(container, '#wb-tabpanel')!
+    expect(panel.getAttribute('aria-busy')).toBe('true')
+    expect(panel.textContent).toContain('載入全站手算題中')
+    expect(qa(container, '.wb-item')).toHaveLength(0)
+    expect(q(container, '[data-testid="wb-filter-count"]')).toBeNull()
+    expect(qa(container, '.wb-pending').length).toBeGreaterThanOrEqual(6) // 章節數、題數、目錄按鈕、三個難度的題數與例題連結
+    for (const el of qa<HTMLElement>(container, '.wb-pending')) {
+      expect(el.textContent).toBe('…')
+      expect(el.style.minWidth, '占位符要預留數字的寬度，數字出現時前後的文字才不會被推開').toMatch(/^\d+ch$/)
+    }
+    expect(q(container, '#wb-s1')?.parentElement?.textContent).not.toContain(`${ALL_HANDCALCS.length} 題`)
+    expect(q(container, '.wb-demo .c-handcalc')).toBeNull() // 示範題（HC-00.1）還沒載入
+    // 不依賴題庫的部分一開始就在：手算工具（Φ 表）、分頁、各章標題
+    expect(qa(container, '.wb-tools .wb-phi-table td[data-z]')).toHaveLength(31)
+    expect(qa(container, '[role="tab"]').length).toBe(3)
+    noKatexError(container)
+    expect(container.textContent).not.toMatch(/NaN|undefined/)
+
+    // ── 載完之後 ──
+    await waitFor(() => expect(q(container, '#wb-tabpanel')?.getAttribute('aria-busy')).toBeNull(), { timeout: 20000 })
+    expect(qa(container, '.wb-pending')).toHaveLength(0)
+    expect(container.textContent).not.toContain('載入全站手算題中')
+    expect(q(container, '#wb-s1')?.parentElement?.textContent).toContain(`${ALL_HANDCALCS.length} 題`)
+    const counts = countByLevel(ALL_HANDCALCS)
+    for (const level of ['beginner', 'engineer', 'research'] as const) {
+      expect(q(container, `.wb-level-table tr[data-level="${level}"] td.num`)?.textContent).toBe(String(counts[level]))
+    }
+    expect(q(container, '.wb-demo .c-handcalc')).toBeTruthy()
+    expect(itemIds(container)).toHaveLength(ALL_HANDCALCS.length)
+    expect(shownCount(container)).toBe(ALL_HANDCALCS.length)
+    noKatexError(container)
+  })
+
+  it('載入前就帶著 ?hc= 或 ?ch=&level=：題庫載完之後那一題才展開、篩選才套用（載入前不把網址參數當成不合法而丟掉）', async () => {
+    const def = GROUPS[3].items[0]
+    const g = GROUPS[2]
+    const { container } = renderPage(`/workbook?hc=${encodeURIComponent(def.id)}`)
+    expect(qa(container, '.wb-item')).toHaveLength(0)
+    await waitFor(() => expect(qa(container, '.wb-item.open').length).toBe(1), { timeout: 20000 })
+    expect(qa(container, '.wb-item.open')[0].getAttribute('data-handcalc')).toBe(def.id)
+    cleanup()
+    resetModuleCache(loadBank)
+    const filtered = renderPage(`/workbook?ch=${g.key}&level=beginner`)
+    await waitFor(() => expect(qa(filtered.container, '.wb-item').length).toBeGreaterThan(0), { timeout: 20000 })
+    expect(itemIds(filtered.container)).toEqual(filterHandcalcs(ALL_HANDCALCS, { ...EMPTY_FILTERS, chapter: g.key, level: 'beginner' }).map((d) => d.id))
+  })
+
+  it('載入前就帶著 ?tab=practice：沒有題庫時隨機練習不掛載，載完才出現第一張題目卡', async () => {
+    const { container } = renderPage('/workbook?tab=practice')
+    expect(q(container, '[data-testid="wb-practice-host"]')).toBeNull()
+    expect(q(container, '.wb-sheet')).toBeNull()
+    await waitFor(() => expect(q(container, '[data-testid="wb-practice-host"]')).toBeTruthy(), { timeout: 20000 })
+    expect(q(container, '.wb-practice-card')).toBeTruthy()
   })
 })
 

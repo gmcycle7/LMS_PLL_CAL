@@ -213,6 +213,10 @@ export function S17Recap() {
           <li>
             <strong>本頁的即時模擬（實驗 C）</strong>是線性、無界模型的 TS port，沒有做 fixed-point 交叉比對；它與 golden 用不同的隨機數，只在統計上一致。
           </li>
+          <li>
+            <strong>輸出 spur／jitter（§15.4）</strong>只用線性化的 <Tex>{'T'}</Tex> 與小角 PM：沒有 SSPD 的正弦非線性、沒有 reference spur、沒有 VCO 本身的 phase noise；PVT 只掃了 loop gain 的角落，PMUX offset 的時變沒有建模。穩態權重雜訊（F-CS.23）假設 GMAC 雜訊白色、由比較器主導，只在 TS 模擬上核對過（2000–8000 blocks、4 lanes 時 1.5% 內），沒有 golden 的對應。
+            <Claim kind="approx" />
+          </li>
         </ol>
       </Section>
 

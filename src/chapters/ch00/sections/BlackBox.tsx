@@ -131,8 +131,7 @@ export function BlackBoxSection() {
       <p>這裡有兩條路：</p>
       <ol>
         <li>
-          <strong>批次（batch）</strong>：先把所有資料收集起來，一次解出讓總平方誤差最小的 <Tex>{'w'}</Tex>，也就是
-          最小平方法（least squares）。這三筆資料的答案是{' '}
+          <strong>批次（batch）</strong>：先把所有資料收集起來，一次解出讓總平方誤差最小的 <Tex>{'w'}</Tex>，也就是最小平方法（least squares）。這三筆資料的答案是{' '}
           <Tex>{String.raw`\frac{${num(ls.sxy)}}{${num(ls.sxx)}}\approx ${num(ls.w, 5)}`}</Tex>（公式見下方 F-00.10）。
         </li>
         <li>
@@ -161,8 +160,7 @@ export function BlackBoxSection() {
         {String.raw`\hat a_{\mathrm{LS}}=\arg\min_w\sum_i\left(y_i-wx_i\right)^2=\frac{\sum_i x_iy_i}{\sum_i x_i^2}`}
       </TexBlock>
       <p>
-        硬體幾乎都選第二條路：資料（例如 PLL 中每個 reference cycle 的比較器輸出）永遠在進來、晶片沒有空間存一大堆資料、
-        也不想做除法，而且 <Tex>{'a'}</Tex> 還會隨溫度、電壓緩慢漂移（PVT drift），需要一直追蹤。
+        硬體幾乎都選第二條路：資料（例如 PLL 中每個 reference cycle 的比較器輸出）永遠在進來、晶片沒有空間存一大堆資料、也不想做除法，而且 <Tex>{'a'}</Tex> 還會隨溫度、電壓緩慢漂移（PVT drift），需要一直追蹤。
       </p>
 
       <Derivation
@@ -259,8 +257,7 @@ export function BlackBoxSection() {
                 </table>
               </div>
               <p className="small">
-                最後一欄幾乎是常數，所以差距大約與 <Tex>{'\\mu'}</Tex> 成正比（<ClaimTag kind="approx" />）：固定步長的線上演算法在有限資料上不會「精確」收斂，
-                而是在最佳解附近一個 <Tex>{'O(\\mu)'}</Tex> 的範圍內循環。<Tex>{'\\mu'}</Tex> 越小越準、但越慢——這是整個網站反覆出現的取捨。
+                最後一欄幾乎是常數，所以差距大約與 <Tex>{'\\mu'}</Tex> 成正比（<ClaimTag kind="approx" />）：固定步長的線上演算法在有限資料上不會「精確」收斂，而是在最佳解附近一個 <Tex>{'O(\\mu)'}</Tex> 的範圍內循環。<Tex>{'\\mu'}</Tex> 越小越準、但越慢——這是整個網站反覆出現的取捨。
               </p>
             </ModeGate>
           </>
@@ -353,8 +350,7 @@ export function LoopSection() {
       </ol>
       <ChapterDiagram name="CHART_LOOP">
         <p>
-          先從上方的「① 預測」開始，順著箭頭（順時針）看主線：<Tex>{'x[n]'}</Tex> 進「① 預測」變成 <Tex>{'\\hat y[n]'}</Tex>，和黑盒子送來的 <Tex>{'y[n]'}</Tex> 在右邊的「② 比較」相減得到 <Tex>{'e[n]'}</Tex>，再往左下進「③ 修正」。
-          再看兩條容易漏掉的線：<Tex>{'x[n]'}</Tex> 有<strong>第二條</strong>線直接接到「③ 修正」（修正量要用到它，下面馬上說明為什麼）；而「③ 修正」的輸出{' '}
+          先從上方的「① 預測」開始，順著箭頭（順時針）看主線：<Tex>{'x[n]'}</Tex> 進「① 預測」變成 <Tex>{'\\hat y[n]'}</Tex>，和黑盒子送來的 <Tex>{'y[n]'}</Tex> 在右邊的「② 比較」相減得到 <Tex>{'e[n]'}</Tex>，再往左下進「③ 修正」。再看兩條容易漏掉的線：<Tex>{'x[n]'}</Tex> 有<strong>第二條</strong>線直接接到「③ 修正」（修正量要用到它，下面馬上說明為什麼）；而「③ 修正」的輸出{' '}
           <Tex>{'w[n+1]'}</Tex> 繞回「① 預測」——這條回授線讓它成為一個迴圈。
         </p>
         <p>
@@ -364,8 +360,7 @@ export function LoopSection() {
 
       <h3>修正的方向怎麼決定？</h3>
       <p>
-        關鍵在於：要讓預測 <Tex>{'\\hat y=wx'}</Tex> 變大，<Tex>{'w'}</Tex> 該變大還是變小，取決於 <Tex>{'x'}</Tex> 的正負。
-        下表每一列都是用 <code>conventionalStep</code>（學習率 <Tex>{`\\mu=${mu}`}</Tex>）真正算出來的更新量 <Tex>{'\\Delta w=\\mu e x'}</Tex>：
+        關鍵在於：要讓預測 <Tex>{'\\hat y=wx'}</Tex> 變大，<Tex>{'w'}</Tex> 該變大還是變小，取決於 <Tex>{'x'}</Tex> 的正負。下表每一列都是用 <code>conventionalStep</code>（學習率 <Tex>{`\\mu=${mu}`}</Tex>）真正算出來的更新量 <Tex>{'\\Delta w=\\mu e x'}</Tex>：
       </p>
       <div className="table-wrap" id="ch00-direction-table">
         <table className="ch00-num-table">
@@ -441,8 +436,7 @@ export function UpdateFormulaSection() {
       <ChapterDiagram name="CHART_LMS_ACCUMULATOR">
         <p>
           先看左邊：<Tex>{'e[n]'}</Tex> 與 <Tex>{'x[n]'}</Tex> 進乘法器（圓圈 <Tex>{'\\times'}</Tex>），再乘上常數 <Tex>{'\\mu'}</Tex>（硬體上常做成右移 <Tex>{'k'}</Tex> 位元），得到這一筆的更新量{' '}
-          <Tex>{'\\mu\\,e[n]\\,x[n]'}</Tex>。再看右邊的迴圈：藍色暫存器現在存著 <Tex>{'w[n]'}</Tex>（同時也送去做這一筆的預測），它的輸出繞回相加點和更新量相加，得到 <Tex>{'w[n+1]'}</Tex>，
-          下一拍再寫回暫存器——「暫存器 + 相加點 + 回授線」就是累加器。
+          <Tex>{'\\mu\\,e[n]\\,x[n]'}</Tex>。再看右邊的迴圈：藍色暫存器現在存著 <Tex>{'w[n]'}</Tex>（同時也送去做這一筆的預測），它的輸出繞回相加點和更新量相加，得到 <Tex>{'w[n+1]'}</Tex>，下一拍再寫回暫存器——「暫存器 + 相加點 + 回授線」就是累加器。
         </p>
         <p>
           圖上相加點的兩個輸入 <Tex>{'(+)\\ w[n]'}</Tex> 與 <Tex>{'(+)\\ \\mu\\,e[n]\\,x[n]'}</Tex>，就是下面公式等號右邊的兩項；相加點的輸出 <Tex>{'w[n+1]'}</Tex> 是等號左邊。
@@ -506,8 +500,7 @@ export function UpdateFormulaSection() {
         </table>
       </div>
       <p className="small">
-        <ClaimTag kind="exact" /> 這是演算法的定義，不是近似。<SourceTag kind="illustrative" /> 本章所有數字都是教學例，沒有單位（無因次）；
-        在 PLL 校正中 <Tex>{'a,w'}</Tex> 的單位是 fs／code，<Tex>{'\\mu'}</Tex> 的單位要跟著 scaling 一起寫清楚（見 <ChRef ch="04">Ch04</ChRef>、<ChRef ch="12">Ch12</ChRef>）。
+        <ClaimTag kind="exact" /> 這是演算法的定義，不是近似。<SourceTag kind="illustrative" /> 本章所有數字都是教學例，沒有單位（無因次）；在 PLL 校正中 <Tex>{'a,w'}</Tex> 的單位是 fs／code，<Tex>{'\\mu'}</Tex> 的單位要跟著 scaling 一起寫清楚（見 <ChRef ch="04">Ch04</ChRef>、<ChRef ch="12">Ch12</ChRef>）。
       </p>
     </Section>
   )

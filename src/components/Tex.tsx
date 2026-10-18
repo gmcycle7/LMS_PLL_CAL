@@ -1,5 +1,9 @@
-import { memo, useMemo, type ReactNode } from 'react'
+import { Children, isValidElement, memo, useMemo, type ReactNode } from 'react'
 import katex from 'katex'
+import { INLINE_MATH, accessibleText, hasInlineMath, texToSpeech } from './speech'
+
+// 無障礙名稱用的可念形式（aria-label / title / aria-valuetext / <option>）；細節與規則見 speech.ts
+export { accessibleText, hasInlineMath, texToSpeech }
 
 /**
  * KaTeX 轉成 HTML 字串。throwOnError:false → 語法錯誤時顯示紅字原始碼而不是讓頁面崩潰。
@@ -55,9 +59,6 @@ export const TexBlock = memo(function TexBlock({ children, id, label }: TexBlock
   )
 })
 
-/** 配對的 `$...$`（`\\$` 為字面金額符號，不算分隔符） */
-const INLINE_MATH = /(?<!\\)\$((?:[^$\\]|\\.)+?)(?<!\\)\$/g
-
 /**
  * 讓「字串屬性」也能放 LaTeX：字串中的 `$...$` 以行內 KaTeX 顯示，其餘原樣輸出；非字串（ReactNode）原樣回傳。
  * 用於標題、指標名稱、警告、假設、圖說等只能傳字串的地方（docs/teaching-style.md §3：數學一律 LaTeX）。
@@ -79,7 +80,10 @@ export function mathText(node: ReactNode): ReactNode {
   return <>{parts}</>
 }
 
-/** 純文字情境（報告、aria-label、匯出標題）用：拿掉 `$` 分隔符，保留 TeX 原始碼。 */
+/**
+ * 純文字情境（報告、程式碼、id、匯出標題）用：拿掉 `$` 分隔符，保留 TeX 原始碼。
+ * 給螢幕閱讀器念的名稱（aria-label / title / aria-valuetext / <option>）不要用這個，改用 `accessibleText`（會把 TeX 轉成可念的文字）。
+ */
 export function stripMathDelimiters(text: string): string {
   return text.replace(INLINE_MATH, (_, tex: string) => tex).replace(/\\\$/g, '$')
 }
@@ -87,4 +91,46 @@ export function stripMathDelimiters(text: string): string {
 /** 元件版：<MathText>{'σ_w：$\\sigma_w$'}</MathText> */
 export function MathText({ children }: { children: ReactNode }) {
   return <>{mathText(children)}</>
+}
+
+/** 把相鄰的兩段文字接起來；兩邊都是西文字母／數字時補一個空白（避免 "Case" + "alpha" 黏在一起） */
+function glue(a: string, b: string): string {
+  return /[A-Za-z0-9]$/.test(a) && /^[A-Za-z0-9]/.test(b) ? `${a} ${b}` : a + b
+}
+
+function speakNode(node: ReactNode): { text: string; math: boolean } {
+  if (node === null || node === undefined || typeof node === 'boolean') return { text: '', math: false }
+  if (typeof node === 'string') return { text: accessibleText(node), math: hasInlineMath(node) }
+  if (typeof node === 'number') return { text: String(node), math: false }
+  if (isValidElement(node)) {
+    const props = node.props as { children?: ReactNode; 'aria-hidden'?: boolean | 'true' | 'false' }
+    if (props['aria-hidden'] === true || props['aria-hidden'] === 'true') return { text: '', math: false }
+    if (node.type === Tex || node.type === TexBlock) {
+      return { text: typeof props.children === 'string' ? texToSpeech(props.children) : '', math: true }
+    }
+    return speakNode(props.children)
+  }
+  let text = ''
+  let math = false
+  for (const child of Children.toArray(node)) {
+    const r = speakNode(child)
+    text = glue(text, r.text)
+    math ||= r.math
+  }
+  return { text, math }
+}
+
+/**
+ * ReactNode（字串、<Tex>、<MathText>、一般元素與陣列）→ 螢幕閱讀器念的純文字。
+ * 為什麼不能只靠畫面上的標籤：KaTeX 的 HTML 部分是 aria-hidden，MathML 部分在 Chrome 的「由內容算名稱」裡不會被算進去，
+ * 所以 `<label>$\mu$（Case A）</label>` 的名稱只剩「（Case A）」，`<label>$\delta_0$</label>` 則是空字串。
+ * 控制項（輸入框、滑桿、單選鈕、<summary>）的標籤含數學時，要另外給 aria-label，內容用這個函式產生。
+ */
+export function nodeToAccessibleText(node: ReactNode): string {
+  return speakNode(node).text.replace(/\s+/g, ' ').trim()
+}
+
+/** 這個 ReactNode 裡有沒有數學（字串中的 `$...$` 或 <Tex>）：有的話名稱不能只靠畫面上的標籤 */
+export function nodeHasMath(node: ReactNode): boolean {
+  return speakNode(node).math
 }

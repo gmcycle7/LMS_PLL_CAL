@@ -10,7 +10,7 @@ import { buttonByText, count, mountAt, q, renderProblems } from '../domTestUtils
  */
 const W = vi.hoisted(() => ({ mode: 'ok' as 'ok' | 'fail' | 'hang', created: 0, terminated: 0, posted: 0 }))
 
-vi.mock('plotly.js-dist-min', async () => ({ default: (await import('../domTestUtils')).PLOTLY_STUB }))
+vi.mock('plotly.js-cartesian-dist-min', async () => ({ default: (await import('../domTestUtils')).PLOTLY_STUB }))
 vi.mock('./unitsWorker', async () => {
   const { dispatch } = await import('@/workers/dispatch')
   const { unitsModuleLoader } = await import('../unitsLoader')

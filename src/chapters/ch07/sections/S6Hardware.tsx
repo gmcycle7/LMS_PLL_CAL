@@ -273,11 +273,8 @@ export function S6Hardware() {
         </table>
       </div>
       <p className="small muted">
-        由 <Tex>{r`\rho=C/\sqrt{E[x_{\mathrm{ref}}^2]E[u^2]}`}</Tex> 的封閉式計算；delayed-x 在 <Tex>{r`D\in[0,400]`}</Tex> 中取最大。
-        單頻時 delayed-x 的 <Tex>{r`\rho=\cos\theta`}</Tex>：整數 <Tex>{'D'}</Tex> 一格是 <Tex>{'\\Omega'}</Tex>，最佳殘餘相位 <Tex>{r`|\theta|\le\Omega/2`}</Tex>，所以
-        <Tex>{r`\rho\ge\cos(\Omega/2)`}</Tex>（低頻 tone 幾乎是 1，但 <Tex>{'D'}</Tex> 要夠長；<Tex>{r`\Omega=\pi/6`}</Tex> 時至少 <Tex>{r`\cos15^\circ=0.966`}</Tex>）。
-        寬頻時只有 filtered-x（<Tex>{r`\hat H=H`}</Tex>、<Tex>{'D=0'}</Tex>）恆為 1。二次差分只在低頻 tone 接近 1，
-        在中頻 tone 變號，在寬頻 code 接近 0（7.5 節）。<ClaimTag kind="exact" /> <SourceTag />
+        由 <Tex>{r`\rho=C/\sqrt{E[x_{\mathrm{ref}}^2]E[u^2]}`}</Tex> 的封閉式計算；delayed-x 在 <Tex>{r`D\in[0,400]`}</Tex> 中取最大。單頻時 delayed-x 的 <Tex>{r`\rho=\cos\theta`}</Tex>：整數 <Tex>{'D'}</Tex> 一格是 <Tex>{'\\Omega'}</Tex>，最佳殘餘相位 <Tex>{r`|\theta|\le\Omega/2`}</Tex>，所以
+        <Tex>{r`\rho\ge\cos(\Omega/2)`}</Tex>（低頻 tone 幾乎是 1，但 <Tex>{'D'}</Tex> 要夠長；<Tex>{r`\Omega=\pi/6`}</Tex> 時至少 <Tex>{r`\cos15^\circ=0.966`}</Tex>）。寬頻時只有 filtered-x（<Tex>{r`\hat H=H`}</Tex>、<Tex>{'D=0'}</Tex>）恆為 1。二次差分只在低頻 tone 接近 1，在中頻 tone 變號，在寬頻 code 接近 0（7.5 節）。<ClaimTag kind="exact" /> <SourceTag />
       </p>
 
       <h3 className="ch07-subhead">決策流程：我需要哪一種修法？</h3>

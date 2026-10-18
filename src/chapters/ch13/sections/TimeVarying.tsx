@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import {
   Callout,
   ClaimTag,
@@ -102,8 +102,7 @@ export function TimeVaryingSection() {
       </p>
       <Prereq title="AR(1) 隨機過程與高斯分布（第 12 章係數雜訊的模型）">
         <p className="small">
-          高斯（常態）分布 <Tex>{String.raw`\mathcal N(m,\sigma^2)`}</Tex> 的機率密度是 <Tex>{String.raw`f(x)=\frac{1}{\sigma\sqrt{2\pi}}e^{-(x-m)^2/(2\sigma^2)}`}</Tex>：平均 <Tex>{'m'}</Tex>、變異數 <Tex>{String.raw`\sigma^2`}</Tex> 的鐘形曲線。
-          本節用到「獨立、零平均、變異數 1」三個性質，以及對 <Tex>{'f(x)'}</Tex> 做積分求期望值。
+          高斯（常態）分布 <Tex>{String.raw`\mathcal N(m,\sigma^2)`}</Tex> 的機率密度是 <Tex>{String.raw`f(x)=\frac{1}{\sigma\sqrt{2\pi}}e^{-(x-m)^2/(2\sigma^2)}`}</Tex>：平均 <Tex>{'m'}</Tex>、變異數 <Tex>{String.raw`\sigma^2`}</Tex> 的鐘形曲線。本節用到「獨立、零平均、變異數 1」三個性質，以及對 <Tex>{'f(x)'}</Tex> 做積分求期望值。
         </p>
         <StepDerivation
           steps={[
@@ -162,8 +161,7 @@ export function TimeVaryingSection() {
       />
       <TexBlock id="F-13.13">{String.raw`E[p(1-p)]\approx p_0(1-p_0)-\sigma_w^2,\qquad P_\mathrm{in}^{(C)}=2E[p(1-p)]\frac{f_B}{f_u},\qquad P_\mathrm{in}^{(D)}\approx\frac{8\pi^2}{3}\sigma_r^2\Big(\frac{f_B}{f_u}\Big)^3`}</TexBlock>
       <p>
-        <ClaimTag kind="approx" /> 下表是實際模擬（<Tex>{String.raw`\sigma_w=${sigmaW}\,\mathrm{LSB}`}</Tex>、<Tex>{String.raw`p_\mathrm{cal}=${DEFAULT_LAB_PARAMS.pole}`}</Tex>、<Tex>{'F=16'}</Tex> bit 定點、{L} 次更新、同一 seed）。
-        「頻帶內量化誤差」直接對 <Tex>{String.raw`\epsilon=y-w_H`}</Tex> 做 Welch 再積分，不受 <Tex>{String.raw`\epsilon`}</Tex> 與 <Tex>{String.raw`\delta w`}</Tex> 交叉項的影響：模擬 C ={' '}
+        <ClaimTag kind="approx" /> 下表是實際模擬（<Tex>{String.raw`\sigma_w=${sigmaW}\,\mathrm{LSB}`}</Tex>、<Tex>{String.raw`p_\mathrm{cal}=${DEFAULT_LAB_PARAMS.pole}`}</Tex>、<Tex>{'F=16'}</Tex> bit 定點、{L} 次更新、同一 seed）。「頻帶內量化誤差」直接對 <Tex>{String.raw`\epsilon=y-w_H`}</Tex> 做 Welch 再積分，不受 <Tex>{String.raw`\epsilon`}</Tex> 與 <Tex>{String.raw`\delta w`}</Tex> 交叉項的影響：模擬 C ={' '}
         <Tex>{String.raw`${fx(C.lfQuantPower, 5)}`}</Tex>（白色近似 {fx(predC, 5)}，比值 {fx(C.lfQuantPower / predC, 2)}），D = <Tex>{ntex(Dm.lfQuantPower, 3)}</Tex>（白色近似 <Tex>{ntex(shaped, 3)}</Tex>——
         <Tex>{'r'}</Tex> 並不真的白，只有數量級可信）。這三個式子可以自己代數字算：<Tex>{String.raw`P_\mathrm{in}^{(D)}`}</Tex> 在上一節的手算題 HC-13.7，<Tex>{String.raw`E[p(1-p)]`}</Tex> 與{' '}
         <Tex>{String.raw`P_\mathrm{in}^{(C)}`}</Tex> 在章末的綜合手算 HC-13.8（那裡用的是可以筆算的近似 <Tex>{String.raw`p_0(1-p_0)-\sigma_w^2`}</Tex>，和這裡的數值積分差約 2%）。
@@ -235,7 +233,7 @@ export function TimeVaryingSection() {
       <Callout kind="ok" title="結論（由上表的模擬數字得出）">
         時變情境下，ΔΣ（D、E）的平均追蹤 <Tex>{String.raw`w_H`}</Tex>（telescoping），頻帶內量化誤差只有{' '}
         <Tex>{String.raw`${ntex(Dm.lfQuantPower, 2)}\,\mathrm{LSB}^2`}</Tex>，遠小於 LMS 地板 <Tex>{ntex(Dm.lfLmsPower, 2)}</Tex>；toggle 多一個 <Tex>{String.raw`1/L_t`}</Tex>{' '}
-        階梯（<Tex>{ntex(Bm.lfQuantPower, 2)}</Tex>）、stochastic 多一個白色地板（<Tex>{ntex(C.lfQuantPower, 2)}</Tex>）。 但 B、C、D 的總功率都在{' '}
+        階梯（<Tex>{ntex(Bm.lfQuantPower, 2)}</Tex>）、stochastic 多一個白色地板（<Tex>{ntex(C.lfQuantPower, 2)}</Tex>）。但 B、C、D 的總功率都在{' '}
         {fx(pw.lo, 3)}–{fx(pw.hi, 3)} <Tex>{String.raw`\mathrm{LSB}^2`}</Tex> 之間（E 因 dither 為 {fx(pw.e, 3)}），差別仍只在<strong>頻率分布</strong>——所以要不要選 ΔΣ，取決於下游（DSM residue mixing 與{' '}
         <Tex>{String.raw`T(f)`}</Tex>）對哪個頻帶敏感（§13.5b）。
       </Callout>

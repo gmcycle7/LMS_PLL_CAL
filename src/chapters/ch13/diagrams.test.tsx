@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import katex from 'katex'
 import mermaid from 'mermaid'
 import { SettingsProvider } from '@/app/settings'
-import { SYSTEM_BLOCK_LABEL, defaultValues, stripMathDelimiters, systemMapModel } from '@/components'
+import { SYSTEM_BLOCK_LABEL, defaultValues, accessibleText, systemMapModel } from '@/components'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { firstOrderPeriod, quantizeFcw, runDsm } from '@/simulation/models/dsm'
 import {
@@ -574,7 +574,7 @@ describe('Ch13 章首的系統地圖', () => {
     expect(figs.slice(1).some((f) => f.classList.contains('c-sysmap'))).toBe(false)
     expect(map.getAttribute('aria-label')).toContain('系統方塊圖')
     // aria-label 是純文字：方塊名稱裡的 `$...$` 只留 TeX 原始碼、拿掉分隔符號
-    for (const b of SYSTEM_MAP_FOCUS) expect(map.getAttribute('aria-label')).toContain(stripMathDelimiters(SYSTEM_BLOCK_LABEL[b]))
+    for (const b of SYSTEM_MAP_FOCUS) expect(map.getAttribute('aria-label')).toContain(accessibleText(SYSTEM_BLOCK_LABEL[b]))
     // 藍色（is-focus）的方塊就是 SYSTEM_MAP_FOCUS，其餘的方塊沒有標成主角
     const focused = Array.from(map.querySelectorAll('.c-sysmap-block.is-focus')).map((g) => g.getAttribute('data-block'))
     expect(focused.sort()).toEqual([...SYSTEM_MAP_FOCUS].sort())

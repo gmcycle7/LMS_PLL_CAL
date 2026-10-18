@@ -61,6 +61,6 @@ P0–P5 於 2026-10-10 完成。之後追加並已完成的項目（不在原計
 - 2026-10-11：每章的方塊圖（含章首的系統地圖），符號表移到章末；方塊圖與圖表內的數學改用 LaTeX。
 - 2026-10-12：方塊圖與全站的視覺整理（審查腳本、手排的系統地圖）；全站架構約定 §2a（DTC 在 reference 輸入端，見 `docs/assumptions.md`）；外部技術審查 25 點逐項重現、修正並驗收（`docs/reviews/`）。
 
-目前站內的規模（本節與 README 的數量由 `src/data/docsFacts.test.ts` 核對）：26 個頁面、384 條有 ID 的公式、218 個 preset、161 題帶入手算、49 項勘誤。
+目前站內的規模（本節與 README 的數量由 `src/data/docsFacts.test.ts` 核對）：26 個頁面、388 條有 ID 的公式、218 個 preset、164 題帶入手算、49 項勘誤。
 
-最近一次完整驗證（2026-10-12）：Vitest 223 檔 5,553 項全過；pytest 149 + 64 項全過；`npm run verify` 18／18 pass；typecheck、lint、build 通過。未完成與限制見 `docs/assumptions.md` §4。
+最近一次完整驗證（2026-10-19，wave 2）：Vitest 257 檔 6,153 項全過；pytest 149 + 64 項全過；`npm run verify` 18／18 pass；typecheck、lint、build 與 bundle 預算通過。未完成與限制見 `docs/assumptions.md` §4。

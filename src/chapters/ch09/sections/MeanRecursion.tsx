@@ -86,9 +86,7 @@ export function MeanRecursion() {
 
       <h3>1. 誤差：每個參數誤差乘上自己的 regressor 再相加</h3>
       <p>
-        要校正的參數有 {m`M`} 個時，comparator 前面仍然只有<strong>一個</strong>誤差 {m`e[n]`}（在 PLL 裡它就是 PD 的輸出，也是送進 loop filter 的同一個訊號）。先約定兩個時間索引：{m`n`} 是 comparator 的 sample 編號
-        （regressor {m`\mathbf u[n]`}、雜訊 {m`v[n]`}、誤差 {m`e[n]`} 每個 sample 都在變）；{m`k`} 是 GMAC block 的編號（一個 block 有 {m`N`} 個 sample，
-        校正係數 {m`\mathbf w_k`} 每個 block 才更新一次，所以參數誤差 {m`\boldsymbol\delta_k=\mathbf a-\mathbf w_k`} 在一個 block 內是固定的）。
+        要校正的參數有 {m`M`} 個時，comparator 前面仍然只有<strong>一個</strong>誤差 {m`e[n]`}（在 PLL 裡它就是 PD 的輸出，也是送進 loop filter 的同一個訊號）。先約定兩個時間索引：{m`n`} 是 comparator 的 sample 編號（regressor {m`\mathbf u[n]`}、雜訊 {m`v[n]`}、誤差 {m`e[n]`} 每個 sample 都在變）；{m`k`} 是 GMAC block 的編號（一個 block 有 {m`N`} 個 sample，校正係數 {m`\mathbf w_k`} 每個 block 才更新一次，所以參數誤差 {m`\boldsymbol\delta_k=\mathbf a-\mathbf w_k`} 在一個 block 內是固定的）。
         {m`v[n]`} 是 comparator 前的雜訊，假設零均值。
       </p>
       <Diagram id="error-model">
@@ -112,28 +110,20 @@ export function MeanRecursion() {
 
       <h3>2. GMAC、更新與平均</h3>
       <p>
-        GMAC 在一個 block（{m`N`} 個 sample）內累加 {m`t[n]\,\mathbf u[n]`}，其中 {m`t[n]`} 是偵測器的輸出：linear（conventional LMS）用 {m`t=e`}，
-        1-bit comparator 用 {m`t=\mathrm{sign}(e)`}。累加完除以 {m`N`} 得到的<strong>平均</strong>記為 {m`\mathbf G_k`}（{m`M`} 個參數各一個分量）；
-        block 結束時每個係數照自己的那個分量修正一次：{m`\mathbf w_{k+1}=\mathbf w_k+\mu\mathbf G_k`}。
+        GMAC 在一個 block（{m`N`} 個 sample）內累加 {m`t[n]\,\mathbf u[n]`}，其中 {m`t[n]`} 是偵測器的輸出：linear（conventional LMS）用 {m`t=e`}，1-bit comparator 用 {m`t=\mathrm{sign}(e)`}。累加完除以 {m`N`} 得到的<strong>平均</strong>記為 {m`\mathbf G_k`}（{m`M`} 個參數各一個分量）；block 結束時每個係數照自己的那個分量修正一次：{m`\mathbf w_{k+1}=\mathbf w_k+\mu\mathbf G_k`}。
       </p>
       <Diagram id="block-loop">
         看藍色的 GMAC 方塊：它之前的內積、偵測器、相關器每個 sample（{m`n`}）跑一次；它之後的 {m`\mathbf G_k`}、累加器與回授的 {m`\boldsymbol\delta_k`} 每個 block（{m`k`}）才更新一次。
       </Diagram>
       <p>
-        <FigRef id="block-loop" /> 怎麼看：先看 sample rate 的那一段——{m`\boldsymbol\delta_k`} 與 {m`\mathbf u[n]`} 做內積、加上雜訊成為 PD 的輸出 {m`e[n]`}，
-        經過偵測器變成 {m`t[n]`}，再乘回 {m`\mathbf u[n]`}。再看藍色的 GMAC——它把 {m`N`} 個乘積平均成一筆 {m`\mathbf G_k`}；{m`\mathbf G_k`} 乘上 {m`\mu`}
+        <FigRef id="block-loop" /> 怎麼看：先看 sample rate 的那一段——{m`\boldsymbol\delta_k`} 與 {m`\mathbf u[n]`} 做內積、加上雜訊成為 PD 的輸出 {m`e[n]`}，經過偵測器變成 {m`t[n]`}，再乘回 {m`\mathbf u[n]`}。再看藍色的 GMAC——它把 {m`N`} 個乘積平均成一筆 {m`\mathbf G_k`}；{m`\mathbf G_k`} 乘上 {m`\mu`}
         加進累加器，{m`z^{-1}`} 表示新的係數要到下一個 block 才生效。最後看回授——{m`\mathbf w_k`} 以<strong>負號</strong>進入加法點（真值 {m`\mathbf a`}
-        以正號），得到 {m`\boldsymbol\delta_k=\mathbf a-\mathbf w_k`}，繞回起點。圖上的「{m`(1/N)\Sigma`}」就是 F-09.2 的 {m`\mathbf G_k`}；
-        「{m`\times\mu`} → 加法點 → {m`z^{-1}`}」就是更新式 {m`\mathbf w_{k+1}=\mathbf w_k+\mu\mathbf G_k`}；回授的那個負號，就是
-        {m`\boldsymbol\delta_{k+1}=\boldsymbol\delta_k-\mu\mathbf G_k`} 裡的負號。（注意：真值 {m`\mathbf a`} 與它進入的那個加法點是<strong>數學模型</strong>，
-        不是電路——硬體裡沒有「真值」這條線，{m`\boldsymbol\delta_k`} 只能透過 {m`e[n]`} 間接看到。）
+        以正號），得到 {m`\boldsymbol\delta_k=\mathbf a-\mathbf w_k`}，繞回起點。圖上的「{m`(1/N)\Sigma`}」就是 F-09.2 的 {m`\mathbf G_k`}；「{m`\times\mu`} → 加法點 → {m`z^{-1}`}」就是更新式 {m`\mathbf w_{k+1}=\mathbf w_k+\mu\mathbf G_k`}；回授的那個負號，就是
+        {m`\boldsymbol\delta_{k+1}=\boldsymbol\delta_k-\mu\mathbf G_k`} 裡的負號。（注意：真值 {m`\mathbf a`} 與它進入的那個加法點是<strong>數學模型</strong>，不是電路——硬體裡沒有「真值」這條線，{m`\boldsymbol\delta_k`} 只能透過 {m`e[n]`} 間接看到。）
       </p>
       <p>
         這個迴圈裡有隨機的 {m`\mathbf u`} 與 {m`v`}，所以先問「平均來說」會怎麼走。結論是：{m`\mathbf G_k`} 的平均正比於
-        {m`\mathbf R\boldsymbol\delta_k`}，比例常數記為 {m`K_q`}。linear 時 {m`K_q=1`}，而且是<strong>精確</strong>的等式，誤差多大都成立。
-        1-bit 時 {m`K_q=\sqrt{2/\pi}/\sigma_v`}，是<ChRef ch="05">第 5 章</ChRef> comparator 的統計小訊號增益（{m`\sigma_v`} 是雜訊 {m`v`} 的標準差，假設 {m`v`} 是 Gaussian），
-        只在 comparator 輸入端由參數誤差造成的那一部分遠小於雜訊（{m`|\mathbf u^T\boldsymbol\delta_k|\ll\sigma_v`}）時<strong>近似</strong>成立。
-        從 linear 換成 1-bit，多出來的就是這個小訊號條件；{m`\mathbf R`} 與它的 eigenvalue、eigenvector 都不變。
+        {m`\mathbf R\boldsymbol\delta_k`}，比例常數記為 {m`K_q`}。linear 時 {m`K_q=1`}，而且是<strong>精確</strong>的等式，誤差多大都成立。1-bit 時 {m`K_q=\sqrt{2/\pi}/\sigma_v`}，是<ChRef ch="05">第 5 章</ChRef> comparator 的統計小訊號增益（{m`\sigma_v`} 是雜訊 {m`v`} 的標準差，假設 {m`v`} 是 Gaussian），只在 comparator 輸入端由參數誤差造成的那一部分遠小於雜訊（{m`|\mathbf u^T\boldsymbol\delta_k|\ll\sigma_v`}）時<strong>近似</strong>成立。從 linear 換成 1-bit，多出來的就是這個小訊號條件；{m`\mathbf R`} 與它的 eigenvalue、eigenvector 都不變。
       </p>
       <DerivBox title={<>推導 {m`E[\boldsymbol\delta_{k+1}]=(\mathbf I-\mu K_q\mathbf R)E[\boldsymbol\delta_k]`}（linear 是等號；1-bit 是小訊號近似）</>}>
         <StepDerivation
@@ -153,8 +143,7 @@ export function MeanRecursion() {
               tex: String.raw`E[\mathbf G_k\mid\boldsymbol\delta_k]\ \begin{cases}=\mathbf R\boldsymbol\delta_k=K_q\mathbf R\boldsymbol\delta_k,\ \ K_q\equiv1&\text{linear}\\[2pt]\approx K_q\mathbf R\boldsymbol\delta_k,\ \ K_q=\sqrt{2/\pi}/\sigma_v&\text{1-bit（}|\mathbf u^T\boldsymbol\delta_k|\ll\sigma_v\text{）}\end{cases}`,
               why: (
                 <>
-                  {m`\mathbf G_k`} 是 {m`N`} 個同分布 sample 的平均，期望值和單一 sample 的相同。把兩種偵測器寫成同一個形式 {m`K_q\mathbf R\boldsymbol\delta_k`}：
-                  linear 是等號；1-bit 仍然是上一步的近似，換一個寫法不會讓它變精確。
+                  {m`\mathbf G_k`} 是 {m`N`} 個同分布 sample 的平均，期望值和單一 sample 的相同。把兩種偵測器寫成同一個形式 {m`K_q\mathbf R\boldsymbol\delta_k`}：linear 是等號；1-bit 仍然是上一步的近似，換一個寫法不會讓它變精確。
                 </>
               ),
             },
@@ -162,8 +151,7 @@ export function MeanRecursion() {
               tex: String.raw`E[\boldsymbol\delta_{k+1}]=E[\boldsymbol\delta_k]-\mu\,E\big[E[\mathbf G_k\mid\boldsymbol\delta_k]\big]`,
               why: (
                 <>
-                  對 {m`\boldsymbol\delta_{k+1}=\boldsymbol\delta_k-\mu\mathbf G_k`} 取期望值（先對 block 內的 {m`\mathbf u`} 取條件期望，再對 {m`\boldsymbol\delta_k`} 平均：tower property）。
-                  這一步對兩種偵測器都精確。
+                  對 {m`\boldsymbol\delta_{k+1}=\boldsymbol\delta_k-\mu\mathbf G_k`} 取期望值（先對 block 內的 {m`\mathbf u`} 取條件期望，再對 {m`\boldsymbol\delta_k`} 平均：tower property）。這一步對兩種偵測器都精確。
                 </>
               ),
             },
@@ -183,9 +171,7 @@ export function MeanRecursion() {
       <TexBlock id="F-09.2">{formulaTex('F-09.2')}</TexBlock>
       <TexBlock id="F-09.3">{String.raw`\boxed{${formulaTex('F-09.3')}}`}</TexBlock>
       <Callout kind="warn" title={<>{m`K_q`} 必須明寫（<Erratum id="E05" /> <Erratum id="E08" />）</>}>
-        規格 §9 寫成 {m`\boldsymbol\delta_{k+1}=(\mathbf I-\mu\mathbf R)\boldsymbol\delta_k`}，等於假設 {m`K_q=1`}——conventional LMS 的確如此；
-        但 1-bit Sign-LMS 的 {m`K_q=\sqrt{2/\pi}/\sigma_v`} 帶單位 {m`\mathrm{fs}^{-1}`}。本章把 {m`g=\mu K_q`} 稱為 <strong>正規化 loop gain</strong>；
-        規格的「{m`\mu=0.5`}」在本站讀作 {m`g=\mu K_q=0.5`}。 <ClaimTag kind="exact" />（linear；1-bit 為小訊號近似 <ClaimTag kind="approx" />）
+        規格 §9 寫成 {m`\boldsymbol\delta_{k+1}=(\mathbf I-\mu\mathbf R)\boldsymbol\delta_k`}，等於假設 {m`K_q=1`}——conventional LMS 的確如此；但 1-bit Sign-LMS 的 {m`K_q=\sqrt{2/\pi}/\sigma_v`} 帶單位 {m`\mathrm{fs}^{-1}`}。本章把 {m`g=\mu K_q`} 稱為 <strong>正規化 loop gain</strong>；規格的「{m`\mu=0.5`}」在本站讀作 {m`g=\mu K_q=0.5`}。 <ClaimTag kind="exact" />（linear；1-bit 為小訊號近似 <ClaimTag kind="approx" />）
       </Callout>
       <Callout kind="info" title="1-bit 時這是小訊號近似：多小才算小？">
         <p>
@@ -200,15 +186,11 @@ export function MeanRecursion() {
         <p>
           例：單一參數、{m`u\sim\mathcal N(0,1)`}、{m`\delta_0=\sigma_v=1`}、{m`\mu=0.1`}。真實的一步平均是
           {m`E[\delta_1]=1-0.1/\sqrt\pi=${texNum(sign.stepExact, 5)}`}；F-09.3 的線性式給 {m`1-0.1\sqrt{2/\pi}=${texNum(sign.stepLin, 5)}`}。
-          {m`u`} 與 {m`\delta_0`} 的獨立性在這個例子完全成立，差的 {m`${texNum(sign.stepExact - sign.stepLin, 3)}`} 全部來自 comparator 的線性化。
-          linear detector 沒有這個問題：同樣的數字下 {m`E[\delta_1]=(1-\mu)\delta_0=${texNum(sign.stepLinDet)}`}，{m`\delta_0`} 再大也是精確的。
+          {m`u`} 與 {m`\delta_0`} 的獨立性在這個例子完全成立，差的 {m`${texNum(sign.stepExact - sign.stepLin, 3)}`} 全部來自 comparator 的線性化。linear detector 沒有這個問題：同樣的數字下 {m`E[\delta_1]=(1-\mu)\delta_0=${texNum(sign.stepLinDet)}`}，{m`\delta_0`} 再大也是精確的。
         </p>
         <p>
-          {m`\boldsymbol\delta_k`} 是隨機的，所以這個條件要對初始誤差成立，也要對迴路自己的穩態抖動成立。1-bit 每個 block 注入 {m`\mu^2\mathbf R/N`} 的雜訊
-          （下一節 F-09.18）；把 F-09.18 迭代到穩態，就得到抖動造成的 {m`E[s_\delta^2]`}。本章的 {m`\rho=0.99`}、Gaussian {m`\mathbf u`}、{m`g=0.5`}：
-          {m`N=1`} 時是 {m`${texNum(sign.jitterN1, 2)}`}——已經不是 {m`\ll1`}，這個估計自己的前提就不成立（Monte Carlo 的實際值更大，超過 {m`1`}），
-          實際的平均收斂比線性式慢；{m`N=32`} 時是 {m`${texNum(sign.jitterN32, 2)}`}，才回到小訊號區。{m`g`} 大而 {m`N`} 小時要先檢查這一項。
-          所以下面的 pole 與 {m`k_{95}`} 用在 1-bit 時是 {m`s_\delta\ll1`} 的局部結果，用在 linear detector 時才是精確的。 <ClaimTag kind="approx" />
+          {m`\boldsymbol\delta_k`} 是隨機的，所以這個條件要對初始誤差成立，也要對迴路自己的穩態抖動成立。1-bit 每個 block 注入 {m`\mu^2\mathbf R/N`} 的雜訊（下一節 F-09.18）；把 F-09.18 迭代到穩態，就得到抖動造成的 {m`E[s_\delta^2]`}。本章的 {m`\rho=0.99`}、Gaussian {m`\mathbf u`}、{m`g=0.5`}：
+          {m`N=1`} 時是 {m`${texNum(sign.jitterN1, 2)}`}——已經不是 {m`\ll1`}，這個估計自己的前提就不成立（Monte Carlo 的實際值更大，超過 {m`1`}），實際的平均收斂比線性式慢；{m`N=32`} 時是 {m`${texNum(sign.jitterN32, 2)}`}，才回到小訊號區。{m`g`} 大而 {m`N`} 小時要先檢查這一項。所以下面的 pole 與 {m`k_{95}`} 用在 1-bit 時是 {m`s_\delta\ll1`} 的局部結果，用在 linear detector 時才是精確的。 <ClaimTag kind="approx" />
         </p>
       </Callout>
 
@@ -220,11 +202,7 @@ export function MeanRecursion() {
         看紅色的兩條交叉線（係數是 {m`\rho`}）：每個 loop 的 GMAC 除了自己的誤差，還會讀到另一個參數的誤差。
       </Diagram>
       <p>
-        <FigRef id="coupled-mean" /> 怎麼看：先看不交叉的路——{m`E[\delta_1]`} 以係數 1 進第一個加法點，乘上 {m`g`} 之後從 {m`E[\delta_1]`} 自己身上扣掉
-        （標著 {m`-`} 的那條線），得到下一個 block 的 {m`E[\delta_1]`}；如果只有這條路，就是前幾章的單參數 LMS（每個 block 乘上 {m`1-g`}）。
-        再看紅色的交叉線——{m`E[\delta_2]`} 也以係數 {m`\rho`} 漏進同一個加法點，於是 loop 1 會去「修」其實是參數 2 造成的誤差，反過來也一樣。
-        圖只畫了一個 block：輸出延遲一個 block（{m`z^{-1}`}）之後，就是下一輪的輸入。圖上進入加法點的係數 {m`1`} 與 {m`\rho`} 就是 {m`\mathbf R`} 的對角與非對角元素；
-        兩個加法點的輸出就是 {m`\mathbf R\,E[\boldsymbol\delta]`} 的兩列 {m`\delta_1+\rho\delta_2`}、{m`\rho\delta_1+\delta_2`}
+        <FigRef id="coupled-mean" /> 怎麼看：先看不交叉的路——{m`E[\delta_1]`} 以係數 1 進第一個加法點，乘上 {m`g`} 之後從 {m`E[\delta_1]`} 自己身上扣掉（標著 {m`-`} 的那條線），得到下一個 block 的 {m`E[\delta_1]`}；如果只有這條路，就是前幾章的單參數 LMS（每個 block 乘上 {m`1-g`}）。再看紅色的交叉線——{m`E[\delta_2]`} 也以係數 {m`\rho`} 漏進同一個加法點，於是 loop 1 會去「修」其實是參數 2 造成的誤差，反過來也一樣。圖只畫了一個 block：輸出延遲一個 block（{m`z^{-1}`}）之後，就是下一輪的輸入。圖上進入加法點的係數 {m`1`} 與 {m`\rho`} 就是 {m`\mathbf R`} 的對角與非對角元素；兩個加法點的輸出就是 {m`\mathbf R\,E[\boldsymbol\delta]`} 的兩列 {m`\delta_1+\rho\delta_2`}、{m`\rho\delta_1+\delta_2`}
         （也就是 {m`E[\mathbf G]/K_q`}）；「{m`\times g`}」之後的減號就是 {m`\mathbf I-g\mathbf R`} 的那個負號。
       </p>
       <p>
@@ -233,11 +211,8 @@ export function MeanRecursion() {
       </p>
       <TexBlock>{String.raw`\frac{E[\mathbf G\mid\boldsymbol\delta]}{K_q}=\mathbf R\boldsymbol\delta=\begin{bmatrix}1&0.8\\0.8&1\end{bmatrix}\begin{bmatrix}0\\1\end{bmatrix}=${texVec(G08)}\quad\Rightarrow\quad E[G_1]=${texNum(G08[0])}\,K_q\,\delta_2`}</TexBlock>
       <p>
-        第 1 個 loop 明明沒有誤差（{m`\delta_1=0`}），它的 GMAC 卻讀到 {m`${texNum(G08[0])}K_q\delta_2`}——因為兩個 regressor 的相關係數是 {m`\rho=${texNum(G08[0])}`}，
-        第 2 個參數造成的誤差有 {m`${texNum(100 * G08[0])}\%`} 看起來像第 1 個參數的錯。於是 {m`g=0.5`} 走一步之後
-        {m`E[\boldsymbol\delta_1]=(${texNum(step08[0][1])},\ ${texNum(step08[1][1])})`}：<strong>原本正確的 {m`w_1`} 被拉離真值 {m`${texNum(Math.abs(step08[0][1]))}`}</strong>，
-        之後兩個 loop 才一起慢慢修回來（{m`\mathbf R`} 的 eigenvalues {m`\lambda=${texNum(modes08.lambdas[0])},\ ${texNum(modes08.lambdas[1])}`}，
-        慢的那個模式每個 block 只乘上 {m`${texNum(modes08.poles[1])}`}，要 {m`k_{95}=${modes08.k95[1]}`} 個 block 才剩 5%——{m`k_{95}`} 的算法在下面第 4 小節）。要把這種耦合「解開」，就要換到 {m`\mathbf R`} 的 eigenvector 座標。 <ClaimTag kind="exact" /> <SourceTag />
+        第 1 個 loop 明明沒有誤差（{m`\delta_1=0`}），它的 GMAC 卻讀到 {m`${texNum(G08[0])}K_q\delta_2`}——因為兩個 regressor 的相關係數是 {m`\rho=${texNum(G08[0])}`}，第 2 個參數造成的誤差有 {m`${texNum(100 * G08[0])}\%`} 看起來像第 1 個參數的錯。於是 {m`g=0.5`} 走一步之後
+        {m`E[\boldsymbol\delta_1]=(${texNum(step08[0][1])},\ ${texNum(step08[1][1])})`}：<strong>原本正確的 {m`w_1`} 被拉離真值 {m`${texNum(Math.abs(step08[0][1]))}`}</strong>，之後兩個 loop 才一起慢慢修回來（{m`\mathbf R`} 的 eigenvalues {m`\lambda=${texNum(modes08.lambdas[0])},\ ${texNum(modes08.lambdas[1])}`}，慢的那個模式每個 block 只乘上 {m`${texNum(modes08.poles[1])}`}，要 {m`k_{95}=${modes08.k95[1]}`} 個 block 才剩 5%——{m`k_{95}`} 的算法在下面第 4 小節）。要把這種耦合「解開」，就要換到 {m`\mathbf R`} 的 eigenvector 座標。 <ClaimTag kind="exact" /> <SourceTag />
       </p>
 
       <h3>3. 對角化：耦合的兩條遞迴變成兩條獨立的等比數列</h3>
@@ -249,10 +224,8 @@ export function MeanRecursion() {
         比較綠色與紅色兩個方塊：同一個 {m`g`}，兩個模式的 pole 不一樣；紅色（{m`\lambda`} 小）那一條決定你要等多久（{m`g`} 不太大時；條件寫在 F-09.4 下面）。
       </Diagram>
       <p>
-        <FigRef id="eigen-modes" /> 怎麼看：先看「旋轉」——把平均誤差投影到兩個 eigenvector，得到 {m`c_1`}（沿 {m`\mathbf v_1`}）與 {m`c_2`}（沿 {m`\mathbf v_2`}）。
-        再看綠色與紅色兩個方塊——每個分量各走各的，每個 block 只乘上自己的倍數 {m`p_i`}，中間沒有任何交叉線；{m`p_i`} 叫這個模式的 <strong>pole</strong>
-        （等比數列的公比）。最後「轉回」原座標，下一個 block 再走一圈。圖上的「旋轉」就是公式裡的 {m`\mathbf c_k=\mathbf Q^TE[\boldsymbol\delta_k]`}，
-        「轉回」就是 {m`E[\boldsymbol\delta_k]=\mathbf Q\mathbf c_k`}，兩個方塊裡的 {m`p_1`}、{m`p_2`} 就是 F-09.4 的 {m`p_i=1-\mu K_q\lambda_i`}
+        <FigRef id="eigen-modes" /> 怎麼看：先看「旋轉」——把平均誤差投影到兩個 eigenvector，得到 {m`c_1`}（沿 {m`\mathbf v_1`}）與 {m`c_2`}（沿 {m`\mathbf v_2`}）。再看綠色與紅色兩個方塊——每個分量各走各的，每個 block 只乘上自己的倍數 {m`p_i`}，中間沒有任何交叉線；{m`p_i`} 叫這個模式的 <strong>pole</strong>
+        （等比數列的公比）。最後「轉回」原座標，下一個 block 再走一圈。圖上的「旋轉」就是公式裡的 {m`\mathbf c_k=\mathbf Q^TE[\boldsymbol\delta_k]`}，「轉回」就是 {m`E[\boldsymbol\delta_k]=\mathbf Q\mathbf c_k`}，兩個方塊裡的 {m`p_1`}、{m`p_2`} 就是 F-09.4 的 {m`p_i=1-\mu K_q\lambda_i`}
         （{m`g=\mu K_q`}）。公式裡的 {m`\mathbf Q`} 是把 eigenvector {m`\mathbf v_1`}、{m`\mathbf v_2`} 當成欄排成的矩陣，{m`\boldsymbol\Lambda`} 是對角線上放
         {m`\lambda_1`}、{m`\lambda_2`} 的對角矩陣。本例的 {m`\mathbf v_1=(1,1)/\sqrt2`} 是共模、{m`\mathbf v_2=(1,-1)/\sqrt2`} 是差模。
       </p>
@@ -273,8 +246,7 @@ export function MeanRecursion() {
         等比數列 {m`p^k\to0\iff|p|<1`}，所以 <strong>平均收斂</strong>（mean convergence）{m`\iff`} 對所有 {m`i`}：{m`|1-g\lambda_i|<1`} {m`\iff`}
         {m`\lambda_{\min}>0`} 且 {m`0<g<2/\lambda_{\max}`}（{m`\lambda_i=0`} 的模式 {m`p_i=1`}，永遠不動）。注意：{m`\lambda_{\max}`} 限制了 {m`g`} 能多大；
         {m`g`} 不太大時（{m`g\le2/(\lambda_{\max}+\lambda_{\min})`}，就是下面第 5 小節的 {m`g^\star`}），最慢的是 {m`\lambda_{\min}`} 那個模式，pole 是
-        {m`1-g\lambda_{\min}`}。{m`g`} 再大，{m`\lambda_{\max}`} 的模式會因為過衝（pole 是負的）而變成最慢的。 <ClaimTag kind="exact" />（給定 {m`g`} 的線性遞迴；
-        用在 1-bit 時，這些 {m`p_i`} 只是小訊號區 {m`s_\delta\ll1`} 的局部 pole，見 F-09.3 下面的說明）
+        {m`1-g\lambda_{\min}`}。{m`g`} 再大，{m`\lambda_{\max}`} 的模式會因為過衝（pole 是負的）而變成最慢的。 <ClaimTag kind="exact" />（給定 {m`g`} 的線性遞迴；用在 1-bit 時，這些 {m`p_i`} 只是小訊號區 {m`s_\delta\ll1`} 的局部 pole，見 F-09.3 下面的說明）
       </p>
 
       <h3>
@@ -288,9 +260,7 @@ export function MeanRecursion() {
       </Diagram>
       <p>
         <FigRef id="k95-flow" /> 怎麼看：先看 ①——兩個 eigenvalue 是 {m`1\pm\rho`}；它們的比值 {m`\kappa=\lambda_{\max}/\lambda_{\min}`} 叫
-        <strong>condition number</strong>（eigenvalue spread），越大表示兩個方向差越多。再看 ②——同一個 {m`g`} 乘上不同的 {m`\lambda`}，得到快、慢兩個 pole。
-        ③ 檢查兩個 pole 的絕對值都小於 1。最後 ④——{m`k_{95}`} 是「慢模式衰減到只剩 5% 要幾個 block」。圖上 ① 的數字就是 F-09.5，④ 就是 F-09.6；
-        下面的表格與推導逐格驗算。
+        <strong>condition number</strong>（eigenvalue spread），越大表示兩個方向差越多。再看 ②——同一個 {m`g`} 乘上不同的 {m`\lambda`}，得到快、慢兩個 pole。③ 檢查兩個 pole 的絕對值都小於 1。最後 ④——{m`k_{95}`} 是「慢模式衰減到只剩 5% 要幾個 block」。圖上 ① 的數字就是 F-09.5，④ 就是 F-09.6；下面的表格與推導逐格驗算。
       </p>
       <TexBlock id="F-09.5">{formulaTex('F-09.5')}</TexBlock>
       <p>
@@ -298,8 +268,7 @@ export function MeanRecursion() {
         {m`-1\le\rho\le1`} 都成立。{m`\kappa`} 是「大的除以小的」，所以式中是 {m`|\rho|`}，而且需要 {m`|\rho|<1`}（{m`|\rho|=1`} 時
         {m`\lambda_{\min}=0`}、{m`\kappa=\infty`}，見第 6 小節）。本章的例子與手算都取 {m`\rho\ge0`}：{m`\lambda_{\max}=\lambda_1`}，共模是快模式。
         {m`\rho<0`}（兩個 regressor 多半反號）時角色對調：{m`\lambda_{\max}=\lambda_2=1+|\rho|`}，差模變成快模式、共模變成慢模式。例如 {m`\rho=-0.5`} 時
-        {m`\lambda_{\max}=${texNum(neg.lambdas[0])}`}、{m`\lambda_{\min}=${texNum(neg.lambdas[1])}`}、{m`\kappa=${texNum(neg.kappa)}`}，和 {m`\rho=+0.5`} 一樣；
-        漏掉絕對值會算成 {m`(1+\rho)/(1-\rho)=1/3<1`}，那是 {m`\lambda_1/\lambda_2`}，不是 {m`\lambda_{\max}/\lambda_{\min}`}。 <ClaimTag kind="exact" />
+        {m`\lambda_{\max}=${texNum(neg.lambdas[0])}`}、{m`\lambda_{\min}=${texNum(neg.lambdas[1])}`}、{m`\kappa=${texNum(neg.kappa)}`}，和 {m`\rho=+0.5`} 一樣；漏掉絕對值會算成 {m`(1+\rho)/(1-\rho)=1/3<1`}，那是 {m`\lambda_1/\lambda_2`}，不是 {m`\lambda_{\max}/\lambda_{\min}`}。 <ClaimTag kind="exact" />
       </p>
       <div className="table-wrap">
         <table className="ch09-table">
@@ -340,8 +309,7 @@ export function MeanRecursion() {
       <h4>先算一次：{m`\boldsymbol\delta_0=(1,0)`} 走四步</h4>
       <p>
         {m`(1,0)=\tfrac1{\sqrt2}\mathbf v_1+\tfrac1{\sqrt2}\mathbf v_2`}，兩個模式各佔一半。直接用 {m`\mathbf I-0.5\mathbf R=${texMatrix(A)}`}：
-        {m`\big(${texNum(A[0][0])}\cdot1+(${texNum(A[0][1])})\cdot0,\ \ ${texNum(A[1][0])}\cdot1+${texNum(A[1][1])}\cdot0\big)=(${texNum(steps[1].d[0])},\,${texNum(steps[1].d[1])})`}。
-        下表由 <code>meanTrajectory()</code> 算出：
+        {m`\big(${texNum(A[0][0])}\cdot1+(${texNum(A[0][1])})\cdot0,\ \ ${texNum(A[1][0])}\cdot1+${texNum(A[1][1])}\cdot0\big)=(${texNum(steps[1].d[0])},\,${texNum(steps[1].d[1])})`}。下表由 <code>meanTrajectory()</code> 算出：
       </p>
       <div className="table-wrap">
         <table className="ch09-table">
@@ -368,13 +336,11 @@ export function MeanRecursion() {
         </table>
       </div>
       <p>
-        一步之後共模分量只剩 {m`${texNum(modes.poles[0], 3)}\times${texNum(steps[0].c[0], 4)}=${texNum(steps[1].c[0], 2)}`}，誤差幾乎完全落在差模方向 {m`(1,-1)`} 上，
-        接下來每個 block 只縮小 {m`${texNum(100 * (1 - modes.poles[1]), 3)}\%`}。
+        一步之後共模分量只剩 {m`${texNum(modes.poles[0], 3)}\times${texNum(steps[0].c[0], 4)}=${texNum(steps[1].c[0], 2)}`}，誤差幾乎完全落在差模方向 {m`(1,-1)`} 上，接下來每個 block 只縮小 {m`${texNum(100 * (1 - modes.poles[1]), 3)}\%`}。
         <strong>迴路穩定，但大部分時間花在等最慢的那個模式。</strong>
       </p>
       <HandCalcBox id="HC-09.2">
-        換一組 {m`\rho`}、{m`g`} 與初始誤差，先照「直接乘」算一步，再用「拆成共模／差模」算 {m`k`} 步（需要 {m`\sqrt2`} 和 {m`y^x`} 鍵）。
-        範例數字就是上表：把 {m`k`} 改成 1–4 可以逐列對答案。
+        換一組 {m`\rho`}、{m`g`} 與初始誤差，先照「直接乘」算一步，再用「拆成共模／差模」算 {m`k`} 步（需要 {m`\sqrt2`} 和 {m`y^x`} 鍵）。範例數字就是上表：把 {m`k`} 改成 1–4 可以逐列對答案。
       </HandCalcBox>
 
       <h4>為什麼是 598 個 blocks？</h4>
@@ -400,13 +366,11 @@ export function MeanRecursion() {
       />
       <TexBlock id="F-09.6">{formulaTex('F-09.6')}</TexBlock>
       <HandCalcBox id="HC-09.3">
-        換一個 {m`\rho`} 與 {m`g`}，自己走一次「eigenvalue → {m`\kappa`} → pole → {m`k_{95}`}」（要按兩次 {m`\ln`}）。先猜猜看：{m`\rho`} 從 0.99 降到 0.9，
-        要等的 blocks 會少幾倍？
+        換一個 {m`\rho`} 與 {m`g`}，自己走一次「eigenvalue → {m`\kappa`} → pole → {m`k_{95}`}」（要按兩次 {m`\ln`}）。先猜猜看：{m`\rho`} 從 0.99 降到 0.9，要等的 blocks 會少幾倍？
       </HandCalcBox>
       <Callout kind="info" title={<>同樣的「{m`\mu=0.5`}」換成物理單位（<Erratum id="E05" />）</>}>
         若 {m`\mu=0.5\,\mathrm{fs}`}、1-bit comparator 的 {m`\sigma_v=100\,\mathrm{fs}`}：{m`K_q=${texNum(KQ_SIGMA100, 6)}\,\mathrm{fs}^{-1}`}，
-        {m`\mu K_q\lambda_{\min}=${texNum(0.5 * KQ_SIGMA100 * 0.01, 4)}`}，慢 pole {m`=${texNum(phys.poles[1], 9)}`}，
-        需要 <strong>{phys.k95[1].toLocaleString('en-US')}</strong> blocks（不是 598）。要得到 {m`g=0.5`} 必須
+        {m`\mu K_q\lambda_{\min}=${texNum(0.5 * KQ_SIGMA100 * 0.01, 4)}`}，慢 pole {m`=${texNum(phys.poles[1], 9)}`}，需要 <strong>{phys.k95[1].toLocaleString('en-US')}</strong> blocks（不是 598）。要得到 {m`g=0.5`} 必須
         {m`\mu=0.5/K_q=${texNum(0.5 / KQ_SIGMA100, 6)}\,\mathrm{fs}`}。 <ClaimTag kind="approx" />（1-bit：{m`K_q`} 是小訊號增益，前提是
         {m`|\mathbf u^T\boldsymbol\delta_k|\ll\sigma_v=100\,\mathrm{fs}`}；單位換算本身是精確的算術）
       </Callout>
@@ -420,8 +384,7 @@ export function MeanRecursion() {
       </Diagram>
       <p>
         <FigRef id="scalar-gain" /> 怎麼看：先看兩個分支——{m`g`} 加大時，慢模式每個 block 的倍數 {m`|1-g\lambda_{\min}|`} 一路變小（越來越快，直到
-        {m`g=1/\lambda_{\min}`}）；但快模式的 {m`|1-g\lambda_{\max}|`} 先變小，過了 {m`g=1/\lambda_{\max}`} 之後反而變大，到 {m`g=2/\lambda_{\max}`} 就等於 1（不再收斂）。
-        再看合流的地方——整體的收斂率是兩者之中較大的那個，所以兩者相等時最好。圖上藍色方塊的 {m`g^\star`} 與 {m`(\kappa-1)/(\kappa+1)`} 就是 F-09.7。
+        {m`g=1/\lambda_{\min}`}）；但快模式的 {m`|1-g\lambda_{\max}|`} 先變小，過了 {m`g=1/\lambda_{\max}`} 之後反而變大，到 {m`g=2/\lambda_{\max}`} 就等於 1（不再收斂）。再看合流的地方——整體的收斂率是兩者之中較大的那個，所以兩者相等時最好。圖上藍色方塊的 {m`g^\star`} 與 {m`(\kappa-1)/(\kappa+1)`} 就是 F-09.7。
       </p>
       <DerivBox title={<>推導最佳 scalar gain {m`g^\star`}</>}>
         <StepDerivation
@@ -436,8 +399,7 @@ export function MeanRecursion() {
       <TexBlock id="F-09.7">{formulaTex('F-09.7')}</TexBlock>
       <p>
         {m`\rho=0.99`}：{m`g^\star=${texNum(opt.g, 6)}`}，最好也只有 {m`${texNum(opt.p, 6)}`}/block，仍需 {m`k_{95}=${stepsToDecay(opt.p)}`}。
-        <strong>只要 {m`\kappa`} 很大，任何單一 {m`\mu`} 都快不起來</strong>——這是<ChRef ch="10">第 10 章</ChRef> preconditioner 的動機。 <ClaimTag kind="exact" />（線性遞迴的結論；
-        1-bit 時 {m`g^\star`} 與這個收斂率同樣只在小訊號區成立，而且 {m`g`} 越大、迴路自己的抖動越大，見 F-09.3 下面的說明）
+        <strong>只要 {m`\kappa`} 很大，任何單一 {m`\mu`} 都快不起來</strong>——這是<ChRef ch="10">第 10 章</ChRef> preconditioner 的動機。 <ClaimTag kind="exact" />（線性遞迴的結論；1-bit 時 {m`g^\star`} 與這個收斂率同樣只在小訊號區成立，而且 {m`g`} 越大、迴路自己的抖動越大，見 F-09.3 下面的說明）
       </p>
       <HandCalcBox id="HC-09.4">
         兩個 regressor 的功率不一定相等。輸入你自己的 {m`E[u_1^2]`}、{m`E[u_1u_2]`}、{m`E[u_2^2]`}，用 trace 與 determinant 手算
@@ -445,22 +407,17 @@ export function MeanRecursion() {
         {m`a=2,\ b=0.6,\ d=1`}。
       </HandCalcBox>
       <p>
-        {m`\kappa`} 還有第二個代價：雜訊。如果硬要讓兩個方向一樣快（最小平方解，或<ChRef ch="10">第 10 章</ChRef>的 preconditioner），沿弱方向（{m`\lambda_{\min}`}）估計出來的參數，
-        標準差會是強方向（{m`\lambda_{\max}`}）的 {m`\sqrt{\lambda_{\max}/\lambda_{\min}}=\sqrt\kappa=\sqrt{${texNum(modes.kappa, 6)}}\approx${texNum(Math.sqrt(modes.kappa), 4)}`} 倍
-        （訊號能量少 {m`\kappa`} 倍 {m`\Rightarrow`} 標準差大 {m`\sqrt\kappa`} 倍；<ChRef ch="10">第 10 章</ChRef>用 preconditioner 的變異數公式推導）。單一 {m`\mu`} 的 LMS 沒有這個放大，
-        付出的就是上面那個「慢」。<strong>快與準不可兼得，根源都是 {m`\lambda_{\min}`} 太小。</strong> <ClaimTag kind="approx" />
+        {m`\kappa`} 還有第二個代價：雜訊。如果硬要讓兩個方向一樣快（最小平方解，或<ChRef ch="10">第 10 章</ChRef>的 preconditioner），沿弱方向（{m`\lambda_{\min}`}）估計出來的參數，標準差會是強方向（{m`\lambda_{\max}`}）的 {m`\sqrt{\lambda_{\max}/\lambda_{\min}}=\sqrt\kappa=\sqrt{${texNum(modes.kappa, 6)}}\approx${texNum(Math.sqrt(modes.kappa), 4)}`} 倍（訊號能量少 {m`\kappa`} 倍 {m`\Rightarrow`} 標準差大 {m`\sqrt\kappa`} 倍；<ChRef ch="10">第 10 章</ChRef>用 preconditioner 的變異數公式推導）。單一 {m`\mu`} 的 LMS 沒有這個放大，付出的就是上面那個「慢」。<strong>快與準不可兼得，根源都是 {m`\lambda_{\min}`} 太小。</strong> <ClaimTag kind="approx" />
       </p>
 
       <h3>6. {m`\rho=1`}：完全不可辨識（反面測試）</h3>
       <p>
-        {m`\rho=1`} 時 {m`\lambda=${texNum(rho1.lambdas[0])},\ ${texNum(rho1.lambdas[1])}`}、{m`\kappa=\infty`}，慢 pole {m`p_2=${texNum(rho1.poles[1])}`}。
-        此時 {m`u_1=u_2`}，{m`e=u_1(\delta_1+\delta_2)+v`} 只含 <strong>和</strong>；差模分量 {m`c_2=(\delta_1-\delta_2)/\sqrt2`} 對 {m`e`}
+        {m`\rho=1`} 時 {m`\lambda=${texNum(rho1.lambdas[0])},\ ${texNum(rho1.lambdas[1])}`}、{m`\kappa=\infty`}，慢 pole {m`p_2=${texNum(rho1.poles[1])}`}。此時 {m`u_1=u_2`}，{m`e=u_1(\delta_1+\delta_2)+v`} 只含 <strong>和</strong>；差模分量 {m`c_2=(\delta_1-\delta_2)/\sqrt2`} 對 {m`e`}
         毫無影響，所以：
       </p>
       <TexBlock>{String.raw`c_{2,k}=1^k\,c_{2,0}=c_{2,0}\;\text{（永遠停在初值）}`}</TexBlock>
       <p>
-        從 {m`\boldsymbol\delta_0=(1,0)`} 出發，30 步後 {m`E[\boldsymbol\delta_{30}]=(${texNum(traj1[0][30], 5)},\ ${texNum(traj1[1][30], 5)})`}：
-        和歸零、差仍是 1。<strong>增加 {m`N`}、加大 {m`\mu`}、跑更久都沒有用</strong>——缺的是資訊，不是時間。這就是開場「{m`\mathbf u`} 永遠是 {m`(1,1)`}」的例子。
+        從 {m`\boldsymbol\delta_0=(1,0)`} 出發，30 步後 {m`E[\boldsymbol\delta_{30}]=(${texNum(traj1[0][30], 5)},\ ${texNum(traj1[1][30], 5)})`}：和歸零、差仍是 1。<strong>增加 {m`N`}、加大 {m`\mu`}、跑更久都沒有用</strong>——缺的是資訊，不是時間。這就是開場「{m`\mathbf u`} 永遠是 {m`(1,1)`}」的例子。
         {m`\rho=-1`} 也一樣不可辨識，只是角色對調：{m`u_1=-u_2`}，{m`e=u_1(\delta_1-\delta_2)+v`} 只含<strong>差</strong>，看不到的變成共模 {m`(1,1)/\sqrt2`}。
         <ClaimTag kind="exact" />
       </p>
@@ -487,8 +444,7 @@ export function MeanRecursion() {
         claim="approx"
         derivation={
           <p>
-            平均遞迴 {m`E[\boldsymbol\delta_{k+1}]=(\mathbf I-\mu K_q\mathbf R)E[\boldsymbol\delta_k]`} 對 linear detector 是精確的（只需要這個 block 的 {m`\mathbf u`}、{m`v`} 與 {m`\boldsymbol\delta_k`} 獨立，{m`v`} 零均值、與 {m`\mathbf u`} 獨立；不限誤差大小）；
-            對 1-bit 是小訊號近似（Gaussian {m`\mathbf u`} 的精確條件平均見 F-09.16；把它代回遞迴是 mean-field 近似）。它描述的是 <strong>ensemble 平均</strong>，不是單一軌跡、也不是均方值（見下一節）。
+            平均遞迴 {m`E[\boldsymbol\delta_{k+1}]=(\mathbf I-\mu K_q\mathbf R)E[\boldsymbol\delta_k]`} 對 linear detector 是精確的（只需要這個 block 的 {m`\mathbf u`}、{m`v`} 與 {m`\boldsymbol\delta_k`} 獨立，{m`v`} 零均值、與 {m`\mathbf u`} 獨立；不限誤差大小）；對 1-bit 是小訊號近似（Gaussian {m`\mathbf u`} 的精確條件平均見 F-09.16；把它代回遞迴是 mean-field 近似）。它描述的是 <strong>ensemble 平均</strong>，不是單一軌跡、也不是均方值（見下一節）。
           </p>
         }
         symbols={[

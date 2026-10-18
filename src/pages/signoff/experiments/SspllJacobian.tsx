@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import { ExperimentShell, ParamControl, Plot, Tex, TexBlock, useThemeTokens, type CsvColumns, type ExperimentPreset, type MetricRow } from '@/components'
 import { useUrlPreset } from '@/app/presets'
 import type { Matrix } from '@/simulation/core'
@@ -123,9 +123,7 @@ export function SspllJacobianExperiment() {
       tests={['T18']}
       description={
         <>
-          凍結兩個參數，每次只擾動一個（<Tex>{'w_j\\pm\\Delta_j'}</Tex>），同時記錄兩個 GMAC，得到 <Tex>{'\\hat{\\mathbf J}'}</Tex>。
-          判準：對角 <Tex>{'\\hat J_{ii}<0'}</Tex>（各自極性）、<Tex>{'\\rho(\\mathbf I+\\mathbf M\\hat{\\mathbf J})<1'}</Tex>（聯合穩定）、<Tex>{'\\sigma_{\\min}(\\hat{\\mathbf J})>z\\,\\|\\mathrm{se}\\|_F'}</Tex>（在量測誤差內可辨識）。
-          這是通用的量測流程；SSPLL 中 GOS／PHOS 為何會變號的物理見案例頁。
+          凍結兩個參數，每次只擾動一個（<Tex>{'w_j\\pm\\Delta_j'}</Tex>），同時記錄兩個 GMAC，得到 <Tex>{'\\hat{\\mathbf J}'}</Tex>。判準：對角 <Tex>{'\\hat J_{ii}<0'}</Tex>（各自極性）、<Tex>{'\\rho(\\mathbf I+\\mathbf M\\hat{\\mathbf J})<1'}</Tex>（聯合穩定）、<Tex>{'\\sigma_{\\min}(\\hat{\\mathbf J})>z\\,\\|\\mathrm{se}\\|_F'}</Tex>（在量測誤差內可辨識）。這是通用的量測流程；SSPLL 中 GOS／PHOS 為何會變號的物理見案例頁。
         </>
       }
       assumptions={[

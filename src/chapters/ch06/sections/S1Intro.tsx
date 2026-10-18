@@ -33,14 +33,10 @@ export function S1Intro() {
 
       <Section kind="intuition" title="先用一個比喻">
         <p>
-          想像你對著山谷喊一段有節奏的口令（這是 DTC 的 code <Tex>{'x[n]'}</Tex>），然後聽回音（這是 PD 看到的 <Tex>{'u[n]'}</Tex>）。
-          你想判斷「我喊的方向對不對」，所以把<strong>自己喊的口令</strong>和<strong>聽到的回音</strong>逐拍相乘再平均。
-          如果回音只是變小聲，相乘的平均仍然是正的；但如果回音<strong>晚了大半拍</strong>，你喊「高」的時候正好聽到上一拍的「低」，
-          相乘的平均就變成負的——你會得到完全相反的結論。
+          想像你對著山谷喊一段有節奏的口令（這是 DTC 的 code <Tex>{'x[n]'}</Tex>），然後聽回音（這是 PD 看到的 <Tex>{'u[n]'}</Tex>）。你想判斷「我喊的方向對不對」，所以把<strong>自己喊的口令</strong>和<strong>聽到的回音</strong>逐拍相乘再平均。如果回音只是變小聲，相乘的平均仍然是正的；但如果回音<strong>晚了大半拍</strong>，你喊「高」的時候正好聽到上一拍的「低」，相乘的平均就變成負的——你會得到完全相反的結論。
         </p>
         <p>
-          GMAC 就是這樣做的：它把 comparator 的正負號 <Tex>{'q[n]'}</Tex> 乘上<strong>原始</strong> code <Tex>{'x[n]'}</Tex>。
-          但誤差在到達 comparator 之前已經被主 PLL「濾過」了，comparator 看到的是 <Tex>{'u=h*x'}</Tex>，不是 <Tex>{'x'}</Tex>（<Tex>{'h'}</Tex> 是主 PLL 對 DTC
+          GMAC 就是這樣做的：它把 comparator 的正負號 <Tex>{'q[n]'}</Tex> 乘上<strong>原始</strong> code <Tex>{'x[n]'}</Tex>。但誤差在到達 comparator 之前已經被主 PLL「濾過」了，comparator 看到的是 <Tex>{'u=h*x'}</Tex>，不是 <Tex>{'x'}</Tex>（<Tex>{'h'}</Tex> 是主 PLL 對 DTC
           誤差的脈衝響應，<Tex>{'*'}</Tex> 是卷積：<Tex>{'u[n]'}</Tex> 是現在與過去幾拍的 <Tex>{'x'}</Tex> 的加權和；§2 會從頭解釋）。
         </p>
       </Section>
@@ -105,8 +101,7 @@ export function S1Intro() {
         </div>
         <TexBlock>{String.raw`C=\frac{1}{12}\sum_{n=0}^{11}x[n]\,u[n]=\frac{${fx(sum, 4)}}{12}=${fx(t.mean, 4)}`}</TexBlock>
         <p>
-          12 個乘積裡負的遠多於正的，平均是 <strong>負的</strong>。下一節會證明：GMAC 的平均輸出正比於這個 <Tex>{'C'}</Tex>，
-          而更新的「方向」取決於它的正負號。先認識下表用到的幾個量：<Tex>{'\\delta=a-w'}</Tex> 是參數誤差（真實 gain <Tex>{'a'}</Tex> 減掉校正迴路目前的估計{' '}
+          12 個乘積裡負的遠多於正的，平均是 <strong>負的</strong>。下一節會證明：GMAC 的平均輸出正比於這個 <Tex>{'C'}</Tex>，而更新的「方向」取決於它的正負號。先認識下表用到的幾個量：<Tex>{'\\delta=a-w'}</Tex> 是參數誤差（真實 gain <Tex>{'a'}</Tex> 減掉校正迴路目前的估計{' '}
           <Tex>{'w'}</Tex>）；<Tex>{'\\mu'}</Tex> 是 learning rate；<Tex>{'\\sigma_v'}</Tex> 是 comparator 前雜訊的 RMS，<Tex>{'K_q=\\sqrt{2/\\pi}/\\sigma_v'}</Tex>{' '}
           是<ChRef ch="05">第 05 章</ChRef>推導的 comparator 小訊號增益；<Tex>{'p=1-\\mu K_qC'}</Tex> 是平均誤差每過一個 GMAC block 被乘上的倍數（pole）——<Tex>{'p<1'}</Tex> 誤差縮小，
           <Tex>{'p>1'}</Tex> 誤差放大。代入<ChRef ch="05">第 05 章</ChRef>的數字（<Tex>{'\\mu=10\\,\\mathrm{fs}'}</Tex>、<Tex>{'\\sigma_v=100\\,\\mathrm{fs}'}</Tex>{' '}
@@ -160,8 +155,7 @@ export function S1Intro() {
         </p>
         <Callout kind="danger" title="直覺">
           <p>
-            相位轉超過 <Tex>{'90^\\circ'}</Tex> 時，GMAC 會把「推」誤認成「拉」：它以為誤差是正的，其實是負的，於是往<strong>錯誤的方向</strong>修正。
-            learning rate 只決定每一步走多遠，<strong>決定不了方向</strong>——所以調小 <Tex>{'\\mu'}</Tex> 沒用。 <SourceTag kind="illustrative" />
+            相位轉超過 <Tex>{'90^\\circ'}</Tex> 時，GMAC 會把「推」誤認成「拉」：它以為誤差是正的，其實是負的，於是往<strong>錯誤的方向</strong>修正。learning rate 只決定每一步走多遠，<strong>決定不了方向</strong>——所以調小 <Tex>{'\\mu'}</Tex> 沒用。 <SourceTag kind="illustrative" />
           </p>
         </Callout>
       </Section>

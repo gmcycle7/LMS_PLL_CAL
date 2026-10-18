@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { Dash, Data, Layout } from 'plotly.js-dist-min'
+import type { Dash, Data, Layout } from 'plotly.js-cartesian-dist-min'
 import {
   Callout,
   CaseSelector,

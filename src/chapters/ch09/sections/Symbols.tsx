@@ -89,8 +89,7 @@ const SYMBOLS: SymbolEntry[] = [
     symbol: String.raw`s_\delta`,
     meaning: (
       <>
-        comparator 輸入端由參數誤差造成的訊號（{m`\mathbf u^T\boldsymbol\delta`} 的 RMS）與雜訊的比：{m`s_\delta=\sqrt{\boldsymbol\delta^T\mathbf R\boldsymbol\delta}/\sigma_v`}；
-        1-bit 的小訊號條件就是 {m`s_\delta\ll1`}
+        comparator 輸入端由參數誤差造成的訊號（{m`\mathbf u^T\boldsymbol\delta`} 的 RMS）與雜訊的比：{m`s_\delta=\sqrt{\boldsymbol\delta^T\mathbf R\boldsymbol\delta}/\sigma_v`}；1-bit 的小訊號條件就是 {m`s_\delta\ll1`}
       </>
     ),
     unit: String.raw`\text{無因次}`,

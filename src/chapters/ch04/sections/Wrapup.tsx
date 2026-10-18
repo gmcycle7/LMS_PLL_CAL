@@ -180,8 +180,7 @@ export function WrapupSection() {
       />
       <p>
         <strong>先看</strong>從「七個輸入」往下的前兩條支線：由雜訊 <Tex>{R`\sigma_v`}</Tex> 算 comparator 增益 <Tex>{R`K_q`}</Tex>，由 code 位元數 <Tex>{R`B_x`}</Tex> 算 code 的均方 <Tex>{R`E[x^2]`}</Tex>，兩者相乘得到 <Tex>K</Tex>（這一題的{' '}
-        <Tex>{R`C=E[x^2]`}</Tex>），再乘 <Tex>{R`\mu`}</Tex> 得到 <Tex>g</Tex>，並且先拿 <Tex>g</Tex> 和臨界增益 <Tex>{R`g_\mathrm{crit}`}</Tex> 比一次，確認迴路穩定。<strong>再看</strong>另外兩條支線：一條直接給出累加器位元數 <Tex>{R`B_\mathrm{acc}`}</Tex>；另一條由 <Tex>{R`\log_2N`}</Tex> 與 <Tex>{R`F_G`}</Tex> 算右移量 <Tex>{R`\ell`}</Tex> 與刻度 <Tex>{R`\Delta_G`}</Tex>，接著分成兩個偏差——
-        偏差 ① 除以 <Tex>K</Tex>（F-04.11），偏差 ② 除以 <Tex>g</Tex>（F-04.18）。<strong>最後</strong>把兩個偏差相加。圖上每一格就是下面手算題的一到兩個步驟，可以邊算邊對照自己算到哪裡；虛線標出其餘幾個輸入用在哪裡（<Tex>{R`\mu`}</Tex> 接到 <Tex>g</Tex>、<Tex>{R`\mu`}</Tex> 與 <Tex>{R`\ell_W`}</Tex> 接到 <Tex>{R`\Delta_W`}</Tex>、<Tex>d</Tex> 接到穩定檢查）。
+        <Tex>{R`C=E[x^2]`}</Tex>），再乘 <Tex>{R`\mu`}</Tex> 得到 <Tex>g</Tex>，並且先拿 <Tex>g</Tex> 和臨界增益 <Tex>{R`g_\mathrm{crit}`}</Tex> 比一次，確認迴路穩定。<strong>再看</strong>另外兩條支線：一條直接給出累加器位元數 <Tex>{R`B_\mathrm{acc}`}</Tex>；另一條由 <Tex>{R`\log_2N`}</Tex> 與 <Tex>{R`F_G`}</Tex> 算右移量 <Tex>{R`\ell`}</Tex> 與刻度 <Tex>{R`\Delta_G`}</Tex>，接著分成兩個偏差——偏差 ① 除以 <Tex>K</Tex>（F-04.11），偏差 ② 除以 <Tex>g</Tex>（F-04.18）。<strong>最後</strong>把兩個偏差相加。圖上每一格就是下面手算題的一到兩個步驟，可以邊算邊對照自己算到哪裡；虛線標出其餘幾個輸入用在哪裡（<Tex>{R`\mu`}</Tex> 接到 <Tex>g</Tex>、<Tex>{R`\mu`}</Tex> 與 <Tex>{R`\ell_W`}</Tex> 接到 <Tex>{R`\Delta_W`}</Tex>、<Tex>d</Tex> 接到穩定檢查）。
       </p>
       <HandCalcBox id="HC-04.8">
         把七個數字換成你自己的設計（或按「換一題」），拿紙筆和工程計算機從第一步算到最後一步，再切到「自己算算看」對答案；預設值是 §5.6「第二個截斷點」的例子。
@@ -206,8 +205,7 @@ export function WrapupSection() {
           <>
             <TexBlock>{R`g_\mathrm{sum}=N\,g_\mathrm{avg}=256\times${tx(q1.gAvg, 6)}=${tx(q1.gSum, 6)},\qquad p=1-g=${tx(q1.poleSum, 6)}`}</TexBlock>
             <p>
-              <Tex>{R`|p|\gg1`}</Tex>：一階平均模型不穩定。sign-LMS 的 <Tex>{R`|S|\le N\max|x|`}</Tex> 有界，所以實際看到的是 <Tex>w</Tex> 在 <Tex>a</Tex> 兩側做大振幅擺盪，而不是數值無限大。
-              修正：右移補回來，或 <Tex>{R`\mu`}</Tex> 改成 <Tex>{R`10/256\,\mathrm{fs}`}</Tex>。
+              <Tex>{R`|p|\gg1`}</Tex>：一階平均模型不穩定。sign-LMS 的 <Tex>{R`|S|\le N\max|x|`}</Tex> 有界，所以實際看到的是 <Tex>w</Tex> 在 <Tex>a</Tex> 兩側做大振幅擺盪，而不是數值無限大。修正：右移補回來，或 <Tex>{R`\mu`}</Tex> 改成 <Tex>{R`10/256\,\mathrm{fs}`}</Tex>。
             </p>
           </>
         }
@@ -224,8 +222,7 @@ export function WrapupSection() {
           <>
             <p>
               <Tex>{R`-128`}</Tex> 取負是 <Tex>{R`+128`}</Tex>，所以 <Tex>{R`M_x=128`}</Tex>、<Tex>{R`|q\,x|\le128`}</Tex>，<Tex>{R`|S|\le1024\times128=${q2.full.maxPosSum}`}</Tex>。需要{' '}
-              <Tex>{R`2^{B-1}-1\ge${q2.full.maxPosSum}`}</Tex>，即 <Tex>{R`B=${q2.full.bitsExact}`}</Tex>（18 bits 的上限 131071 差 1）。
-              若 code 限制在 <Tex>{R`\pm127`}</Tex>（對稱），<Tex>{R`|S|\le${q2.sym.maxPosSum}`}</Tex>，<Tex>{R`B=${q2.sym.bitsExact}=8+\log_2 1024`}</Tex>。
+              <Tex>{R`2^{B-1}-1\ge${q2.full.maxPosSum}`}</Tex>，即 <Tex>{R`B=${q2.full.bitsExact}`}</Tex>（18 bits 的上限 131071 差 1）。若 code 限制在 <Tex>{R`\pm127`}</Tex>（對稱），<Tex>{R`|S|\le${q2.sym.maxPosSum}`}</Tex>，<Tex>{R`B=${q2.sym.bitsExact}=8+\log_2 1024`}</Tex>。
             </p>
           </>
         }
@@ -247,8 +244,7 @@ export function WrapupSection() {
           <>
             <TexBlock>{R`G_\mathrm{bug}=\tfrac12G+\tfrac12\bar x\;\Rightarrow\;E[G_\mathrm{bug}]\approx\tfrac12K\delta+\tfrac12E[x]=\tfrac12K\delta`}</TexBlock>
             <p>
-              <Tex>{R`E[x]=0`}</Tex> 時偏差項消失，只剩增益減半：<Tex>{R`g_\mathrm{bug}=g/2`}</Tex>，時間常數加倍。正因為「看起來還是收斂到對的值」，這個 bug 在零均值 code 的模擬裡很容易漏掉；
-              換成有 DC 的 DSM code 就會出現大偏差。
+              <Tex>{R`E[x]=0`}</Tex> 時偏差項消失，只剩增益減半：<Tex>{R`g_\mathrm{bug}=g/2`}</Tex>，時間常數加倍。正因為「看起來還是收斂到對的值」，這個 bug 在零均值 code 的模擬裡很容易漏掉；換成有 DC 的 DSM code 就會出現大偏差。
             </p>
           </>
         }
@@ -298,8 +294,7 @@ export function WrapupSection() {
         question={
           <>
             「<Tex>{R`\div N`}</Tex>」的右移用 half-even（沒有偏差）。更新量 <Tex>{R`\mu G`}</Tex> 加進 <Tex>W</Tex> 前用 floor 對齊 <Tex>W</Tex> 的 LSB{' '}
-            <Tex>{R`\Delta_W=${tx(q6.wLsb, 6)}\,\mathrm{fs}`}</Tex>；<Tex>{R`\mu=${q6.mu}\,\mathrm{fs}`}</Tex> 時 <Tex>{R`g=\mu K=${tx(q6.g, 4)}`}</Tex>、<Tex>{R`R=\Delta_W/(\mu\Delta_G)=${q6.R}`}</Tex>，
-            量到 <Tex>{R`w^*-a\approx${tx(q6.bias, 3)}\,\mathrm{fs}`}</Tex>。為了降低雜訊把 <Tex>{R`\mu`}</Tex> 減半（<Tex>{R`\Delta_W`}</Tex> 不變）。偏差會變成多少？
+            <Tex>{R`\Delta_W=${tx(q6.wLsb, 6)}\,\mathrm{fs}`}</Tex>；<Tex>{R`\mu=${q6.mu}\,\mathrm{fs}`}</Tex> 時 <Tex>{R`g=\mu K=${tx(q6.g, 4)}`}</Tex>、<Tex>{R`R=\Delta_W/(\mu\Delta_G)=${q6.R}`}</Tex>，量到 <Tex>{R`w^*-a\approx${tx(q6.bias, 3)}\,\mathrm{fs}`}</Tex>。為了降低雜訊把 <Tex>{R`\mu`}</Tex> 減半（<Tex>{R`\Delta_W`}</Tex> 不變）。偏差會變成多少？
           </>
         }
         options={[
@@ -315,8 +310,7 @@ export function WrapupSection() {
             </TexBlock>
             <p>
               F-04.18：偏差是「半個 <Tex>W</Tex>-LSB 除以 loop gain」。<Tex>{R`\Delta_W`}</Tex> 是固定的硬體格點，<Tex>g</Tex> 減半偏差就加倍（<Tex>{R`(1-1/R)`}</Tex> 由 {tx((1 - 1 / q6.R), 4)} 變成{' '}
-              {tx(1 - 1 / q6.Rhalf, 4)}，所以比 2 倍再多一點）。「與 <Tex>{R`\mu`}</Tex> 無關」只對「<Tex>{R`\div N`}</Tex>」那一次截斷成立（F-04.11），因為那裡的 LSB <Tex>{R`\mu\Delta_G`}</Tex> 跟著 <Tex>{R`\mu`}</Tex> 一起縮小。
-              修正：<Tex>W</Tex> 多留小數位元（<Tex>{R`\Delta_W\le2g\,\delta_\mathrm{tol}`}</Tex>），或用 half-even。
+              {tx(1 - 1 / q6.Rhalf, 4)}，所以比 2 倍再多一點）。「與 <Tex>{R`\mu`}</Tex> 無關」只對「<Tex>{R`\div N`}</Tex>」那一次截斷成立（F-04.11），因為那裡的 LSB <Tex>{R`\mu\Delta_G`}</Tex> 跟著 <Tex>{R`\mu`}</Tex> 一起縮小。修正：<Tex>W</Tex> 多留小數位元（<Tex>{R`\Delta_W\le2g\,\delta_\mathrm{tol}`}</Tex>），或用 half-even。
             </p>
           </>
         }

@@ -214,6 +214,46 @@ export const CHART_OUTPUT_PATH = String.raw`flowchart TB
   class SPUR,JIT alt`
 
 /**
+ * §8.5：矽上量測迴圈（每個 channel／mode／corner 跑一輪）。數位側：freeze 位元、強制 $w = w_0 \pm \Delta$、讀出 $M$ 個 block 的 $\bar G$、
+ * 算 $\hat K$ 與 $\mathrm{se}$ 做極性判決（F-SO.1、F-SO.3）；放開 $w$ 後讀 $w$ 軌跡與飽和計數器。儀器側：頻譜儀在輸出量 $\alpha f_{\mathrm{ref}}$ 的 spur——
+ * 它是經 $\lvert T\rvert$ 的輸出量（F-12.16），用 F-SO.13 反推 DTC／PMUX 端的 $A_t$，再和 freeze 後讀到的 $w^*$ 比對（bias）。
+ */
+export const CHART_SILICON_LOOP = String.raw`flowchart TB
+  SEL(["選一個 channel／mode／corner<br/>FCW、PMUX pattern、PVT"])
+  FRZ["freeze 位元設為 $1$，強制 $w = w_0 \pm \Delta$<br/>$\Delta \le 0.3\,\sigma_v$（F-SO.2）"]
+  DISC["丟掉主 PLL settling 的 block<br/>（$w$ 改變後經 $T$ 的暫態）"]
+  RD["讀出 $M$ 個 block 的 $\bar G$<br/>$M \ge z^2/(2N\Delta^2K^2)$（F-SO.3）"]
+  EST["$\hat K = -(\bar G_+ - \bar G_-)/(2\Delta)$<br/>$\mathrm{se} = \sigma_\eta/(\Delta\sqrt{2M})$"]
+  V{"$\hat K - z\cdot\mathrm{se} \gt 0$？<br/>（預期符號由模型的 $C$ 給）"}
+  REL["freeze 位元設為 $0$，放開 $w$<br/>讀 $w$ 軌跡與飽和計數器"]
+  SA["頻譜儀：輸出在 $\alpha f_{\mathrm{ref}}$ 的 spur（dBc）<br/>這是經 $\lvert T\rvert$ 的輸出量，不是 PD 端"]
+  INV["反推 $A_t = 2\cdot10^{\mathrm{spur}/20}/(2\pi f_{\mathrm{out}}\lvert T\rvert)$（F-SO.13）<br/>與 freeze 後讀到的 $w^*$ 比對（bias）"]
+  OK(["這個 channel 通過<br/>記錄 $\hat K$、$w^*$、spur、$M$"])
+  KO["否或無法判定：加大 $M$、$\Delta$<br/>或進 keep-out／反相 $q$／修 regressor"]
+  NEXT(["下一個 channel／mode／corner"])
+  SEL --> FRZ
+  FRZ --> DISC
+  DISC --> RD
+  RD --> EST
+  EST --> V
+  V -- "是" --> REL
+  V -- "否" --> KO
+  REL --> SA
+  SA --> INV
+  INV --> OK
+  OK --> NEXT
+  KO --> NEXT
+  NEXT -.-> SEL
+  ${FOCUS}
+  ${PASS}
+  ${WARN}
+  ${ALT}
+  class RD,INV focus
+  class OK ok
+  class KO warn
+  class SA alt`
+
+/**
  * §9：反面測試的兩道防線（TB 版面：兩條互不相連的流程左右並排）。左邊：故意注入錯誤，確認模擬／RTL／UI 都出現預期的數學特徵與解釋型警告。
  * 右邊：公式與獨立的時域 Monte Carlo 交叉比對（$\sigma_w = \mu\sigma_\eta/\sqrt{1-p^2}$ 對 MC；漏掉平方的 $\sqrt{1-p}$ 版本要被抓出來）。
  */
@@ -249,5 +289,6 @@ export const SIGNOFF_CHARTS: { name: string; section: string; chart: string }[] 
   { name: 'CHART_CORNER_JUDGE', section: '§4', chart: CHART_CORNER_JUDGE },
   { name: 'CHART_MIMO_LOOP', section: '§7', chart: CHART_MIMO_LOOP },
   { name: 'CHART_OUTPUT_PATH', section: '§8', chart: CHART_OUTPUT_PATH },
+  { name: 'CHART_SILICON_LOOP', section: '§8.5', chart: CHART_SILICON_LOOP },
   { name: 'CHART_NEGATIVE_CHECKS', section: '§9', chart: CHART_NEGATIVE_CHECKS },
 ]

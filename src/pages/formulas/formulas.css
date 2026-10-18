@@ -30,60 +30,98 @@
   overflow-wrap: normal;
 }
 
-/* ───────────── 搜尋列（黏在 topbar 下方） ───────────── */
+/*
+ * ───────────── 搜尋列（黏在 topbar 下方） ─────────────
+ * 一列：[搜尋] [搜尋框（右側是「符合 n 項」與清除）] [段落目錄]，整條約 50px（原本 113px，疊上 52px 的 topbar 是 165px 常駐，
+ * 700px 高的筆電螢幕占 24%）。內容欄放不下時 flex-wrap 讓目錄自己換到第二列（約 85px）。
+ * index.tsx 會把這條的實際高度存成 --fr-search-h，公式登錄表的表頭（position: sticky）用它算 top。
+ */
 .fr-search {
   position: sticky;
   top: var(--topbar-h, 52px);
   z-index: 5;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
-  padding: 10px 0 8px;
-  margin-bottom: 14px;
+  padding: 7px 0;
+  margin-bottom: 12px;
 }
 .fr-search-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px 10px;
 }
 .fr-search-label {
   font-weight: 600;
   font-size: 0.9rem;
   flex: 0 0 auto;
 }
+/* 外框畫在 field 上（輸入框、狀態文字、清除鈕共用一個框）；聚焦時整個框有 outline */
+.fr-search-field {
+  flex: 1 1 200px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+}
+.fr-search-field:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
 .fr .fr-search-input {
   flex: 1 1 auto;
   min-width: 0;
   font: inherit;
   font-size: 1rem; /* ≥ 16 px：iOS 聚焦時不會自動放大頁面 */
-  padding: 7px 10px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-strong);
-  background: var(--surface);
+  padding: 4px 4px 4px 10px;
+  border: 0;
+  background: transparent;
   color: var(--text);
+  outline: none;
 }
-.fr .fr-search-input:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+/* 搜尋框窄時（視窗 901–1000px 約 200–300px），placeholder 以「…」結尾，不要在字的中間被切掉 */
+.fr .fr-search-input::placeholder {
+  text-overflow: ellipsis;
 }
-.fr-search-clear {
+/* 瀏覽器自己的「×」和我們的「清除」鈕重複：只留一個 */
+.fr .fr-search-input::-webkit-search-cancel-button {
+  appearance: none;
+  display: none;
+}
+.fr .fr-search-clear {
   flex: 0 0 auto;
-}
-.fr-search-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px 12px;
-  margin-top: 6px;
+  padding: 0 8px;
+  font-size: 0.8rem;
+  line-height: 1.6;
 }
 .fr-search-status {
-  font-size: 0.82rem;
+  flex: 0 1 auto;
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8rem;
   color: var(--text-muted);
-  flex: 1 1 240px;
-  min-width: 0;
+}
+.fr-search-status.fr-count-zero {
+  color: var(--danger);
+}
+/* 沒在搜尋時，操作說明只留給螢幕閱讀器（aria-describedby）；視覺上同一句話在下面「試試」那一列 */
+.fr[data-searching='false'] .fr-search-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 .fr-toc {
   display: flex;
+  flex: 0 1 auto;
   flex-wrap: wrap;
   gap: 4px;
 }
@@ -140,7 +178,11 @@
   margin-top: 6px;
 }
 .fr-examples {
-  margin: -6px 0 14px;
+  margin: 0 0 14px;
+}
+.fr-examples-help {
+  flex: 1 1 100%;
+  margin-top: 2px;
 }
 .fr-chip-row {
   margin-top: 0;
@@ -296,7 +338,7 @@
 
 /* ───────────── 表格 ───────────── */
 .fr-table {
-  font-size: 0.9rem;
+  /* 字級、內距、格線沿用全站的 table / .table-wrap（global.css：0.94rem、6px 8px、1px 格線）；本頁不再自己縮到 0.9rem */
   margin: 0.5em 0;
 }
 .fr-table th {
@@ -304,6 +346,17 @@
 }
 .fr-table td > .c-texblock {
   margin: 2px 0;
+}
+/*
+ * 表格儲存格裡的 KaTeX（行內與獨立公式）：放不下時在最外層的等號／運算子後面換行，而不是把整欄撐寬或另外長出一條橫向捲軸
+ * （KaTeX 預設 white-space: nowrap；只有 .base 之間可以斷行，所以 a=b 這種式子不會被斷在中間的字上）。
+ * 沒有可斷的地方（一串用逗號隔開的數字）才會讓欄位比較寬。手機的卡片排版與本頁其他區塊的同一個做法見檔尾。
+ */
+.fr-table td .katex {
+  white-space: normal;
+}
+.fr-table td .katex-display > .katex > .katex-html > .base {
+  margin: 0.12em 0;
 }
 /*
  * padding-right：表格的公式欄寬由最寬的那條公式決定，所以那條公式一定「剛好排滿」；最後一個字的上標或斜體比行框多凸出 1–2px，
@@ -327,36 +380,51 @@
 .fr-sym-cell {
   white-space: nowrap;
 }
+/*
+ * 符號表（4 欄）與速查表（4 欄）：欄寬由內容決定，各欄只留一個「再窄就排成細長條」的下限（合計約 850–910px，放得進 911px 的內容欄）。
+ * 原本八欄／六欄，加上每欄 12–22em 的下限，表寬 1659px／1537px，右邊三欄被切在畫面外；真的放不下時（內容欄更窄）由 TableWrap 提示並可橫向捲動。
+ */
 .fr-sym-table td:nth-child(2) {
-  min-width: 14em;
+  min-width: 11em;
 }
-/* 「全站約定」欄：這張表在桌機上本來就橫向捲動，這一欄只拿得到 min-width；14em 時較長的約定會排成三百 px 高的細長條 */
+.fr-sym-table td:nth-child(3) {
+  min-width: 18em;
+}
 .fr-sym-table td:nth-child(4) {
-  min-width: min(22em, 36vw);
+  min-width: 7em;
 }
 .fr-example {
   font-size: 0.86rem;
-  min-width: 12em;
 }
 .fr-spec-orig {
   color: var(--text-muted);
   font-size: 0.85rem;
 }
-td.fr-spec-orig {
-  min-width: 9em;
+/* 儲存格裡的第二行（單位、規格原文、站內公式、結論標籤）與疊成一欄的小標籤 */
+.fr-cell-sub,
+.fr-spec-orig {
+  margin-top: 4px;
+}
+.fr-cell-sub {
+  font-size: 0.85rem;
+}
+.fr-cell-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
 }
 .fr-quick-table td:nth-child(2) {
-  min-width: 17em;
+  min-width: 16em;
 }
-/* 「使用條件」與「代入數字」欄：同上（附錄 A 在桌機上也橫向捲動）；13em／12em 時 Sign-Error、Filtered-x、單頻三列高約 310px */
 .fr-quick-table td:nth-child(3) {
-  min-width: min(22em, 36vw);
+  min-width: 13em;
 }
 .fr-quick-table td.fr-example {
-  min-width: min(19em, 30vw);
+  min-width: 11em;
 }
 .fr-quick-topic {
-  min-width: 7em;
+  min-width: 8em;
 }
 .fr-coll-list {
   margin: 0;
@@ -410,13 +478,120 @@ tr.fr-focus > td:first-child {
 .fr-reg-summary {
   margin: 4px 0 8px;
 }
-/* 公式欄：寬度由最寬的那條獨立公式決定；全部都很短時至少留 26em 給下面的使用條件換行（窄視窗不超過視窗寬的六成） */
-.fr-reg-formula {
-  min-width: min(26em, 60vw);
+/*
+ * ───────────── 公式登錄表：兩欄、不橫向捲動、表頭 sticky ─────────────
+ * 原本六欄（ID／名稱公式條件／標籤／規格／位置／勘誤）比內容欄寬 1.4–1.8 倍（1280px 視窗：1291px 的表放在 911px 的欄裡），
+ * 最右邊的「標籤」「規格」被切在畫面外，又沒有任何提示。現在：
+ *   ID 與位置（ID 在上、「前往」在下）｜名稱（左）與標籤、規格、勘誤（右）→ 公式 → 使用條件
+ * 左欄固定 9rem，公式欄拿剩下的（911px 的內容欄約 750px、1063px 約 900px；384 條公式裡 95% 的自然寬度 ≤ 700px）。
+ * 放不下的獨立公式在最外層的等號／運算子後面換行（和手機的做法相同），不是橫向捲動。
+ * 內容欄窄於 720px（或讀者打開「卡片檢視」）時整張表改成卡片：RegistrySection 加 .fr-cards。
+ */
+/* 外框不能是捲動容器（global.css 的 .table-wrap 是 overflow-x: auto），表頭的 position: sticky 才會相對於視窗 */
+.fr .fr-reg-wrap {
+  overflow: visible;
+}
+.fr-reg-table {
+  table-layout: fixed;
+  width: 100%;
 }
 /*
- * 使用條件：放在公式的正下方（同一格）。原本另外佔一欄，但登錄表在桌機上要橫向捲動，那一欄只拿得到 12em（約 165px）的最小寬度，
- * 四五百字的條件排成六七百 px 高的細長條。放進公式那一格之後，條件用公式欄的寬度換行，不必橫向捲動就讀得到。
+ * 黏在搜尋列下面的表頭（.fr-sticky-head：登錄表、符號表、速查表；上百列的長表捲動後欄位名稱不會消失）。
+ * sticky 的表頭在 border-collapse: collapse 時會把格線留在原地：改成 separate，格線畫在每一格的右邊與下邊。
+ * 外框（.table-wrap）是捲動容器時 sticky 只相對於外框：登錄表的外框是 overflow: visible（上面），
+ * 符號表與速查表的外框是 TableWrap，放得下的時候（data-fit="1"）改成 overflow: visible，放不下就照常橫向捲動、表頭不黏。
+ */
+.fr-sticky-head {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.fr-sticky-head th,
+.fr-sticky-head td {
+  border-width: 0 1px 1px 0;
+}
+.fr-sticky-head tr > :first-child {
+  border-left-width: 1px;
+}
+.fr-sticky-head thead th {
+  position: sticky;
+  top: calc(var(--topbar-h, 52px) + var(--fr-search-h, 50px));
+  z-index: 3;
+  border-top-width: 1px;
+  border-bottom-color: var(--border-strong);
+  box-shadow: 0 2px 3px -2px rgba(0, 0, 0, 0.25);
+}
+.fr-reg-table thead th:nth-child(1) {
+  width: 9rem;
+}
+/* 表頭右半的「標籤、規格、勘誤」和每一列右上角的那一組對齊 */
+.fr-reg-th {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 12px;
+}
+.fr-reg-th-side {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.fr-reg-formula {
+  min-width: 0;
+}
+.fr-reg-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+.fr-reg-head .fr-f-title {
+  flex: 1 1 14em;
+  min-width: 0;
+}
+.fr-reg-meta {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px 6px;
+  margin-left: auto;
+}
+.fr-reg-idbox {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.fr-reg-idtext {
+  font-size: 0.9rem;
+}
+/* 「前往 …」連結在 9rem 的欄裡偶爾放不下一行（例：前往 案例 SSPLL）：允許換行，不要把欄撐寬 */
+.fr-reg-id .fr-formula-link {
+  white-space: normal;
+}
+.fr-reg-spec {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+/* 卡片檢視：第一行是「ID／前往」，接著名稱與標籤、公式、使用條件；欄位名稱不必再印一次 */
+/* .fr 開頭：要比檔尾的 .fr-cards .fr-table td[data-label]::before（同樣的特異度、寫在後面）優先 */
+.fr .fr-cards .fr-reg-table td[data-label]::before {
+  display: none;
+}
+.fr-cards .fr-reg-idbox {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+.fr-cards .fr-reg-meta {
+  justify-content: flex-start;
+  margin-left: 0;
+}
+/*
+ * 使用條件：放在公式的正下方（同一格）。原本另外佔一欄，那一欄只拿得到 12em（約 165px）的最小寬度，
+ * 四五百字的條件排成六七百 px 高的細長條。放進公式那一格之後，條件用公式欄的寬度換行。
  */
 .fr-reg-cond {
   margin-top: 4px;
@@ -688,6 +863,71 @@ tr.fr-focus > td:first-child {
   stroke-width: 2;
 }
 
+/*
+ * ───────────── 寬表格的「還有內容」提示 ─────────────
+ * TableWrap（TableWrap.tsx）：表格比外框寬時，在還能捲動的那一側蓋一條漸層；捲到盡頭那一側就消失。
+ * 放得下的表格兩側都是 data-fade-*="0"，什麼都不畫。
+ */
+.fr-fade {
+  position: relative;
+  max-width: 100%;
+  min-width: 0;
+}
+/* 只超出 1–6px：多半是 padding 或四捨五入，隱藏捲軸（TableWrap 設 data-tiny） */
+.fr-fade[data-tiny='1'] > .c-scroll {
+  overflow-x: hidden;
+}
+/* 放得下的 sticky 表格：外框不是捲動容器，表頭才會黏在搜尋列下面（要寫在 data-tiny 之後） */
+.fr-fade[data-fit='1'] > .fr-sticky-wrap {
+  overflow: visible;
+}
+/*
+ * 放不下（data-fit 不是 1）時外框是橫向捲動容器：position: sticky 會相對於外框（它沒有直向捲動），
+ * 表頭被 top 的偏移（topbar + 搜尋列）整個推下去、蓋住前幾列。這時表頭回到正常位置，不黏。
+ */
+.fr-fade:not([data-fit='1']) .fr-sticky-head thead th {
+  position: static;
+  box-shadow: none;
+}
+.fr-fade::before,
+.fr-fade::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 36px;
+  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+.fr-fade::before {
+  left: 0;
+  background: linear-gradient(to right, var(--bg), color-mix(in srgb, var(--bg) 0%, transparent));
+}
+.fr-fade::after {
+  right: 0;
+  background: linear-gradient(to left, var(--bg), color-mix(in srgb, var(--bg) 0%, transparent));
+}
+.fr-fade[data-fade-start='1']::before,
+.fr-fade[data-fade-end='1']::after {
+  opacity: 0.92;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fr-fade::before,
+  .fr-fade::after {
+    transition: none;
+  }
+}
+/* 手機（≤ 640px）：TableWrap 裡的 .fr-table 全部是「一列一張卡片」的直向排版，沒有「欄」可以往右捲；
+   偶爾有一個切不開的數字串多出幾十 px 時，整排卡片的右緣被漸層蓋住反而像壞掉，所以這裡不畫 */
+@media (max-width: 640px) {
+  .fr-fade::before,
+  .fr-fade::after {
+    display: none;
+  }
+}
+
 /* ───────────── 卡片式表格：公式登錄的「卡片檢視」與窄螢幕 ───────────── */
 .fr-cards .fr-table,
 .fr-cards .fr-table tbody,
@@ -738,13 +978,32 @@ tr.fr-focus > td:first-child {
   box-shadow: inset 3px 0 0 var(--accent);
 }
 
+/*
+ * 視窗 901–1200px：側欄還在，內容欄只有 550–850px，「搜尋 + 搜尋框 + 七顆目錄鈕」在 1060px 以下排不進一列（搜尋列變 81px，疊上 topbar 是 133px）。
+ * 收掉「搜尋」兩個字（搜尋框有 aria-label 與 placeholder）、把目錄鈕的左右 padding 縮小；901–1100px 再藏起目錄鈕上的序號（.fr-toc-num）。
+ * 一列約 52px，搜尋框有 200px 以上。搜尋中（目錄鈕多了「符合 n 項」的數字）排不下時仍會自己換行，--fr-search-h 跟著量。
+ */
+@media (min-width: 901px) and (max-width: 1200px) {
+  .fr-search-label {
+    display: none;
+  }
+  .fr-toc {
+    gap: 3px;
+  }
+  .fr-toc-btn {
+    padding: 1px 6px;
+  }
+}
+@media (min-width: 901px) and (max-width: 1100px) {
+  .fr-toc-num {
+    display: none;
+  }
+}
+
 @media (max-width: 760px) {
   .fr-gloss,
   .fr-prereq-row {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .fr-search {
-    padding-top: 8px;
   }
   .fr-search-label {
     display: none;
@@ -752,45 +1011,45 @@ tr.fr-focus > td:first-child {
 }
 
 @media (max-width: 640px) {
-  /* 與 .fr-cards 相同的卡片排版，套用到本頁所有 fr-table */
-  .fr .fr-table,
-  .fr .fr-table tbody,
-  .fr .fr-table tr,
-  .fr .fr-table td,
-  .fr .fr-table th {
+  /* 與 .fr-cards 相同的卡片排版，套用到本頁所有 fr-table（公式登錄表除外：它的卡片檢視由 RegistrySection 依容器寬度與讀者的開關決定，見 .fr-cards） */
+  .fr .fr-table:not(.fr-reg-table),
+  .fr .fr-table:not(.fr-reg-table) tbody,
+  .fr .fr-table:not(.fr-reg-table) tr,
+  .fr .fr-table:not(.fr-reg-table) td,
+  .fr .fr-table:not(.fr-reg-table) th {
     display: block;
     width: auto;
     min-width: 0;
   }
-  .fr .fr-table thead {
+  .fr .fr-table:not(.fr-reg-table) thead {
     display: none;
   }
-  .fr .fr-table tr {
+  .fr .fr-table:not(.fr-reg-table) tr {
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     background: var(--surface);
     margin: 8px 0;
     padding: 6px 10px;
   }
-  .fr .fr-table tr.fr-group-row {
+  .fr .fr-table:not(.fr-reg-table) tr.fr-group-row {
     border: none;
     background: none;
     padding: 0;
     margin: 14px 0 4px;
   }
-  .fr .fr-table tr.fr-group-row th {
+  .fr .fr-table:not(.fr-reg-table) tr.fr-group-row th {
     border: none;
     border-radius: var(--radius-sm);
     padding: 4px 10px;
   }
-  .fr .fr-table td {
+  .fr .fr-table:not(.fr-reg-table) td {
     border: none;
     padding: 3px 0;
     background: none;
     box-shadow: none;
     white-space: normal;
   }
-  .fr .fr-table td[data-label]::before {
+  .fr .fr-table:not(.fr-reg-table) td[data-label]::before {
     content: attr(data-label);
     display: block;
     font-size: 0.72rem;
@@ -798,7 +1057,7 @@ tr.fr-focus > td:first-child {
     color: var(--text-muted);
     letter-spacing: 0.02em;
   }
-  .fr .fr-table tr.fr-focus {
+  .fr .fr-table:not(.fr-reg-table) tr.fr-focus {
     border-color: var(--accent);
     box-shadow: inset 3px 0 0 var(--accent);
   }
@@ -815,23 +1074,22 @@ tr.fr-focus > td:first-child {
     flex: 0 0 auto;
   }
   .fr-search-status {
-    flex-basis: 100%;
     font-size: 0.76rem;
   }
-  /* 沒在搜尋時把說明文字收起來，黏在上方的列只留輸入框與目錄 */
-  .fr[data-searching='false'] .fr-search-status {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
+  /* 「按 / 聚焦、Esc 清除」是鍵盤操作說明，手機上用不到（螢幕閱讀器仍然從搜尋框的 aria-describedby 讀得到） */
+  .fr-examples-help {
+    display: none;
   }
 }
 
 @media print {
   .fr-search {
     position: static;
+  }
+  /* 列印沒有捲動：sticky 的表頭回到正常位置（和搜尋列一樣）；print.css 讓 thead 每頁重印一次，不需要黏 */
+  .fr-sticky-head thead th {
+    position: static;
+    box-shadow: none;
   }
   .fr-examples,
   .fr-toc {

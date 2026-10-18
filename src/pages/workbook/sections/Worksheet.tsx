@@ -226,8 +226,7 @@ export function WorksheetBuilder({ all, groups, initial }: WorksheetBuilderProps
     <div className="wb-worksheet">
       <div className="wb-sheet-controls wb-noprint">
         <p>
-          選好範圍、題數與 seed，下方就是卷子的預覽；同一組選項（特別是同一個 <code>seed</code>）永遠產生同一張卷。按「列印／存成 PDF」時只會印出卷子：題目在前，
-          解答從新的一頁開始。
+          選好範圍、題數與 seed，下方就是卷子的預覽；同一組選項（特別是同一個 <code>seed</code>）永遠產生同一張卷。按「列印／存成 PDF」時只會印出卷子：題目在前，解答從新的一頁開始。
         </p>
 
         <fieldset className="wb-fieldset">

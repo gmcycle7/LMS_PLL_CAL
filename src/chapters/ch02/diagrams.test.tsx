@@ -4,7 +4,7 @@ import { cleanup, render } from '@testing-library/react'
 import mermaid from 'mermaid'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
-import { SYSTEM_BLOCK_LABEL, stripMathDelimiters, systemMapModel } from '@/components'
+import { SYSTEM_BLOCK_LABEL, accessibleText, systemMapModel } from '@/components'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { conventionalStep, signErrorStep, signSignStep, type TieRule } from '@/simulation/models/lms'
 import {
@@ -47,7 +47,7 @@ const P = vi.hoisted(() => ({
   Plots: { resize: vi.fn() },
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
-vi.mock('plotly.js-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
 vi.mock('@/components/Mermaid', async () => {
   const { createElement } = await import('react')
   return {
@@ -945,7 +945,7 @@ describe('Ch02 方塊圖：頁面（SystemMap、位置、看圖說明）', () =>
       expect(container.querySelectorAll('figure.c-sysmap')).toHaveLength(1)
       // 圖說與替代文字都列出本章的五個主角（數學的 $ 去掉後的文字）
       const caption = map.querySelector('figcaption')!.textContent!
-      for (const b of SYSTEM_FOCUS) expect(map.getAttribute('aria-label')).toContain(stripMathDelimiters(SYSTEM_BLOCK_LABEL[b]))
+      for (const b of SYSTEM_FOCUS) expect(map.getAttribute('aria-label')).toContain(accessibleText(SYSTEM_BLOCK_LABEL[b]))
       expect(caption).toContain('藍色是本章的主角')
       // 圖上被標成藍色的方塊（g.c-sysmap-block.is-focus）剛好就是 systemMapModel(SYSTEM_FOCUS) 的主角，其餘方塊都沒有標
       const focusedInDom = Array.from(map.querySelectorAll('g.c-sysmap-block.is-focus')).map((g) => g.getAttribute('data-block'))

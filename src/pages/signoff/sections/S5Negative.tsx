@@ -45,9 +45,7 @@ export function S5Negative() {
   return (
     <Section kind="assumptions" level={2} title="9. 反面測試（規格 §17）：確認系統會「失敗得正確」" id="so-negative">
       <p>
-        只測「正確設定會通過」抓不到最危險的錯誤：公式寫錯、極性接反、位元不夠，UI 卻照樣畫出一條漂亮的收斂曲線。規格 §17 要求另外做<strong>反面測試</strong>：
-        故意注入錯誤，確認模擬、RTL 與 UI 都出現預期的數學特徵與解釋型警告。下面每一項的「數學特徵」都由本頁程式即時計算，並在 <code>src/pages/signoff/judges.test.ts</code> 與 golden vectors
-        （<code>golden/vectors/negative_tests.json</code>、T04、T06、T07、T13）交叉比對。這些項目也已列入上方 Matrix 的第 9 個 case，可以逐項記錄「已執行」。
+        只測「正確設定會通過」抓不到最危險的錯誤：公式寫錯、極性接反、位元不夠，UI 卻照樣畫出一條漂亮的收斂曲線。規格 §17 要求另外做<strong>反面測試</strong>：故意注入錯誤，確認模擬、RTL 與 UI 都出現預期的數學特徵與解釋型警告。下面每一項的「數學特徵」都由本頁程式即時計算，並在 <code>src/pages/signoff/judges.test.ts</code> 與 golden vectors（<code>golden/vectors/negative_tests.json</code>、T04、T06、T07、T13）交叉比對。這些項目也已列入上方 Matrix 的第 9 個 case，可以逐項記錄「已執行」。
       </p>
       <div className="c-tag-row">
         <ClaimTag kind="exact" />
@@ -59,8 +57,7 @@ export function S5Negative() {
         ariaLabel="反面測試的流程圖：注入錯誤後模擬、RTL 與介面照常執行，應該出現預期的數學特徵與解釋型警告；另一條線是解析公式與獨立的時域 Monte Carlo 兩條路徑交叉比對，差距在容許誤差內才通過，否則表示公式或模擬有錯"
       >
         <p>
-          先看藍色的「數學特徵」：每一種錯誤都會留下可以事先算出來的指紋——例如極性反轉時 pole 變成 <Tex>{'1+\\mu K'}</Tex>（大於 1），sum 模式忘記 <Tex>{'/N'}</Tex> 時 <Tex>{'g'}</Tex> 乘上 <Tex>{'N'}</Tex>。
-          下面各項列的就是這些指紋，以及該看到的警告。
+          先看藍色的「數學特徵」：每一種錯誤都會留下可以事先算出來的指紋——例如極性反轉時 pole 變成 <Tex>{'1+\\mu K'}</Tex>（大於 1），sum 模式忘記 <Tex>{'/N'}</Tex> 時 <Tex>{'g'}</Tex> 乘上 <Tex>{'N'}</Tex>。下面各項列的就是這些指紋，以及該看到的警告。
         </p>
         <p>
           右邊那條是另一種防線：<Tex>{'\\sigma_w=\\mu\\sigma_\\eta/\\sqrt{1-p^2}'}</Tex> 對照獨立的時域模擬（<Tex>{'p=1-g'}</Tex> 是校正的 pole）。兩條路徑算的是同一個量；差距超過容許誤差，就代表其中一條寫錯了。
@@ -122,8 +119,7 @@ export function S5Negative() {
 
       <h3>「模型公式有錯，UI 卻顯示成功」：交叉比對要能抓到</h3>
       <p>
-        防線是<strong>獨立</strong>的第二條計算路徑：用時域模擬（而不是同一條公式）估 <Tex>{'\\sigma_w'}</Tex>，再與解析值比對容許誤差。下表兩列用<strong>同一個</strong> Monte Carlo 結果，
-        分別對照正確公式與分母寫成 <Tex>{'1-p'}</Tex> 的錯誤公式；PM 兩列對照數值求 crossover 的結果（T08）。
+        防線是<strong>獨立</strong>的第二條計算路徑：用時域模擬（而不是同一條公式）估 <Tex>{'\\sigma_w'}</Tex>，再與解析值比對容許誤差。下表兩列用<strong>同一個</strong> Monte Carlo 結果，分別對照正確公式與分母寫成 <Tex>{'1-p'}</Tex> 的錯誤公式；PM 兩列對照數值求 crossover 的結果（T08）。
       </p>
       <MetricTable rows={crossRows} caption="差距欄是「數值減解析值」；✓／✗ 依容許誤差判定（MC 用 95% CI 半寬）。" />
       <CodeBlock source={judgesSrc} region="linearSigmaWMc" path={PATH} title="獨立的時域估計（本頁執行的程式碼）" />

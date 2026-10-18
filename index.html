@@ -4,6 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <!-- KaTeX 字型預載（理由與檢查見 src/pages/verification/katexPreload.test.ts）：href 指向 node_modules，build 時 Vite 會換成和 katex.min.css 同一個雜湊檔名 -->
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/node_modules/katex/dist/fonts/KaTeX_Main-Regular.woff2" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/node_modules/katex/dist/fonts/KaTeX_Math-Italic.woff2" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/node_modules/katex/dist/fonts/KaTeX_Size1-Regular.woff2" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/node_modules/katex/dist/fonts/KaTeX_Size2-Regular.woff2" />
     <title>LMS × Fractional-N PLL Calibration Lab</title>
     <!-- 在第一次繪製之前就套用深淺主題，避免深色使用者每次載入先閃一下淺色畫面；之後由 src/app/settings.tsx 接手 -->
     <script>
@@ -33,5 +38,16 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // 樣式表載入後（render-blocking）才會跑到這裡：把預載的四個字型先解碼成可用的 FontFace，公式第一次排版時就不必再等
+      try {
+        document.fonts.load('1em KaTeX_Main').catch(function () {})
+        document.fonts.load('italic 1em KaTeX_Math').catch(function () {})
+        document.fonts.load('1em KaTeX_Size1').catch(function () {})
+        document.fonts.load('1em KaTeX_Size2').catch(function () {})
+      } catch (e) {
+        /* 沒有 FontFace API：公式照舊在第一次排版時才載入字型 */
+      }
+    </script>
   </body>
 </html>

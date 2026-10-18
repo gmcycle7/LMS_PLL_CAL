@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import {
   Callout,
   ClaimTag,

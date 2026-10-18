@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import { Callout, ClaimTag, CodeBlock, ModeGate, Plot, Prereq, Section, Tex, TexBlock, ChRef } from '@/components'
 import calNoiseSrc from '@/simulation/models/calNoise.ts?raw'
 import { calLoop, sigmaW2Colored, swDtft } from '@/simulation/models/calNoise'
@@ -47,8 +47,7 @@ export function S2Recursion() {
     <>
       <Section kind="formula" title="§12.1 線性化：GMAC 輸出 = 恢復力 + 雜訊" level={3} id="ch12-linearize">
         <p>
-          <ChRef ch="05">第 5 章</ChRef>已經知道：1-bit comparator 在雜訊下的平均輸出是一條 S 曲線，小訊號時近似直線，斜率 <Tex>{String.raw`K_q=\sqrt{2/\pi}/\sigma_v`}</Tex>。
-          本章關心的是「收斂之後」：<Tex>{'w'}</Tex> 已經在固定點 <Tex>{'w^*'}</Tex> 附近，所以用相對固定點的偏差{' '}
+          <ChRef ch="05">第 5 章</ChRef>已經知道：1-bit comparator 在雜訊下的平均輸出是一條 S 曲線，小訊號時近似直線，斜率 <Tex>{String.raw`K_q=\sqrt{2/\pi}/\sigma_v`}</Tex>。本章關心的是「收斂之後」：<Tex>{'w'}</Tex> 已經在固定點 <Tex>{'w^*'}</Tex> 附近，所以用相對固定點的偏差{' '}
           <Tex>{String.raw`\delta w_k=w_k-w^*`}</Tex> 來寫。
         </p>
         <p>
@@ -79,8 +78,7 @@ export function S2Recursion() {
         <Prereq title="Gaussian 分布、標準常態 CDF 與 erf">
           <p>
             雜訊 <Tex>{String.raw`v\sim\mathcal N(0,\sigma_v^2)`}</Tex> 的機率密度是 <Tex>{String.raw`\frac{1}{\sqrt{2\pi}\sigma_v}e^{-v^2/(2\sigma_v^2)}`}</Tex>。
-            <Tex>{String.raw`\Phi(z)=P(\mathcal N(0,1)\le z)`}</Tex>，且 <Tex>{String.raw`2\Phi(z)-1=\operatorname{erf}(z/\sqrt2)`}</Tex>。
-            小 <Tex>{'z'}</Tex> 時泰勒一階：<Tex>{String.raw`\operatorname{erf}(z)\approx\frac{2}{\sqrt\pi}z`}</Tex>。
+            <Tex>{String.raw`\Phi(z)=P(\mathcal N(0,1)\le z)`}</Tex>，且 <Tex>{String.raw`2\Phi(z)-1=\operatorname{erf}(z/\sqrt2)`}</Tex>。小 <Tex>{'z'}</Tex> 時泰勒一階：<Tex>{String.raw`\operatorname{erf}(z)\approx\frac{2}{\sqrt\pi}z`}</Tex>。
           </p>
         </Prereq>
         <Steps
@@ -206,9 +204,7 @@ E[G\mid\delta w]&=-\tfrac12\Big[\operatorname{erf}\big(${sig(TWO_TAP.c1 + TWO_TA
           {String.raw`\delta w_{k+1}=p\,\delta w_k+\mu\eta_k,\qquad p=1-\mu K=${sig(EX.p, 6)}\ (\text{本例})`}
         </TexBlock>
         <p>
-          白話：每個 block，舊的偏差只留下 <Tex>{'p'}</Tex> 倍（被 LMS 拉回），再被新的 GMAC 雜訊推一下 <Tex>{String.raw`\mu\eta_k`}</Tex>。
-          若改用 §0 的 <Tex>{String.raw`\delta=a-w`}</Tex>（<Tex>{'w^*=a'}</Tex> 時），遞迴變成 <Tex>{String.raw`\delta_{k+1}=p\delta_k-\mu\eta_k`}</Tex>：
-          pole 相同、雜訊項變號，變異數完全一樣，但與直接 PD 路徑做 cross-spectrum 時相關係數會反號（E33）。
+          白話：每個 block，舊的偏差只留下 <Tex>{'p'}</Tex> 倍（被 LMS 拉回），再被新的 GMAC 雜訊推一下 <Tex>{String.raw`\mu\eta_k`}</Tex>。若改用 §0 的 <Tex>{String.raw`\delta=a-w`}</Tex>（<Tex>{'w^*=a'}</Tex> 時），遞迴變成 <Tex>{String.raw`\delta_{k+1}=p\delta_k-\mu\eta_k`}</Tex>：pole 相同、雜訊項變號，變異數完全一樣，但與直接 PD 路徑做 cross-spectrum 時相關係數會反號（E33）。
         </p>
       </Section>
 
@@ -325,8 +321,7 @@ E[G\mid\delta w]&=-\tfrac12\Big[\operatorname{erf}\big(${sig(TWO_TAP.c1 + TWO_TA
           {String.raw`\boxed{S_w(e^{j\Omega})=\frac{\mu^2}{|1-pe^{-j\Omega}|^2}S_\eta(e^{j\Omega})}\qquad\Omega=2\pi f/f_u\ \ (\text{rad/block})`}
         </TexBlock>
         <Callout kind="info" title="注意取樣率與單位">
-          這個 PSD 定義在 <strong>block rate</strong> <Tex>{String.raw`f_u=f_s/N=${sig(EX.fu / 1e3, 7)}\ \mathrm{kHz}`}</Tex>，<Tex>{String.raw`\Omega`}</Tex> 的單位是 rad/block。
-          之後要乘上 sample-rate 的 code 時，必須先轉換（§12.6、<Erratum id="E29" />）。
+          這個 PSD 定義在 <strong>block rate</strong> <Tex>{String.raw`f_u=f_s/N=${sig(EX.fu / 1e3, 7)}\ \mathrm{kHz}`}</Tex>，<Tex>{String.raw`\Omega`}</Tex> 的單位是 rad/block。之後要乘上 sample-rate 的 code 時，必須先轉換（§12.6、<Erratum id="E29" />）。
           {md(
             String.raw`單位：這個 DTFT 形式的 $S_w$ 要「對 $\Omega$ 積分再除以 $2\pi$」才是變異數（$\sigma_w^2=\tfrac1{2\pi}\int_{-\pi}^{\pi}S_w\,d\Omega$），等於對 $\Omega/2\pi$（每個 block 轉幾圈，cycle/block）積分，所以它是「每 cycle/block」的密度，單位 $\mathrm{fs}^2/(\text{cycle/block})$；它不是每 rad/block 的密度——能直接對 $\Omega$ 積分的是 $S_w/(2\pi)$，本站不用。`,
           )}

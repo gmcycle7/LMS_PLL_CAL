@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import {
   Callout,
   CaseSelector,
@@ -8,7 +8,7 @@ import {
   Plot,
   SelectControl,
   Tex,
-  stripMathDelimiters,
+  accessibleText,
   useCases,
   useDebouncedValue,
   useThemeTokens,
@@ -418,8 +418,7 @@ export function SignLmsCompare() {
       source="simulation"
       description={
         <>
-          所有演算法吃<strong>完全相同</strong>的 <Tex>{'(x_n,y_n)'}</Tex>（同一個 seed）；Case A/B/C 可以換雜訊形狀、步長排程或 tie 慣例做對照。
-          表格的 bias/std 由 Worker 跑多個 seed 的 Monte Carlo。
+          所有演算法吃<strong>完全相同</strong>的 <Tex>{'(x_n,y_n)'}</Tex>（同一個 seed）；Case A/B/C 可以換雜訊形狀、步長排程或 tie 慣例做對照。表格的 bias/std 由 Worker 跑多個 seed 的 Monte Carlo。
         </>
       }
       assumptions={[
@@ -596,7 +595,7 @@ export function SignLmsCompare() {
                 <td className="num">{st && st.n ? f4(st.tavgStd, 3) : '…'}</td>
                 <td className="num">{c.schedule !== 'constant' ? '—（遞減步長）' : a.mf.deterministic && (a.algo === 'sign_error' || a.algo === 'sign_sign') ? tm(limitCycleLabel(a.algo, a.mu, c)) : a.pred.stable ? f4(a.pred.std, 3) : tm(unstableLabel(a.algo))}</td>
                 <td className="num">{Number.isFinite(a.pred.tau) ? f4(a.pred.tau, 3) : '—'}</td>
-                <td title={reason ? stripMathDelimiters(reason) : undefined}>{ok === null ? (reason && st ? '未比較（原因見上方交叉比對）' : '—') : ok ? '✓' : '✗'}</td>
+                <td title={reason ? accessibleText(reason) : undefined}>{ok === null ? (reason && st ? '未比較（原因見上方交叉比對）' : '—') : ok ? '✓' : '✗'}</td>
               </tr>
             ))}
           </tbody>
@@ -604,16 +603,13 @@ export function SignLmsCompare() {
       </div>
       {differ.length > 0 && (
         <Callout kind="warn" title={`Case ${cases.activeId}：固定點不同`}>
-          {differ.map((x) => `${ALGO_LABEL[x.algo]}：${f4(x.mf.wStar, 5)}`).join('；')}；LMS：{f4(lmsStar ?? NaN, 5)}。
-          判斷法（F-02.18）：在 <Tex>{'w=a'}</Tex> 處 <Tex>{'e=v'}</Tex> 與 <Tex>{'x'}</Tex> 獨立，所以
-          <Tex>{String.raw`\psi_{\rm LMS}(a)=E[v]E[x],\ \psi_{\rm SE}(a)=E[\operatorname{sign}v]\,E[x],\ \psi_{\rm SS}(a)=E[\operatorname{sign}v]\,E[\operatorname{sign}x]`}</Tex>。
-          只看平均的 LMS 與看中位數的 sign 類演算法，在雜訊的平均與中位數不同（偏斜或單邊 outlier）且 <Tex>{'E[x]\\neq0'}</Tex> 時才會分開。
+          {differ.map((x) => `${ALGO_LABEL[x.algo]}：${f4(x.mf.wStar, 5)}`).join('；')}；LMS：{f4(lmsStar ?? NaN, 5)}。判斷法（F-02.18）：在 <Tex>{'w=a'}</Tex> 處 <Tex>{'e=v'}</Tex> 與 <Tex>{'x'}</Tex> 獨立，所以
+          <Tex>{String.raw`\psi_{\rm LMS}(a)=E[v]E[x],\ \psi_{\rm SE}(a)=E[\operatorname{sign}v]\,E[x],\ \psi_{\rm SS}(a)=E[\operatorname{sign}v]\,E[\operatorname{sign}x]`}</Tex>。只看平均的 LMS 與看中位數的 sign 類演算法，在雜訊的平均與中位數不同（偏斜或單邊 outlier）且 <Tex>{'E[x]\\neq0'}</Tex> 時才會分開。
         </Callout>
       )}
       {detSign && (
         <Callout kind="info" title="無雜訊：sign 演算法是確定性的 limit cycle">
-          沒有雜訊時 Sign-Error 每步移動 <Tex>{'\\mu|x_n|'}</Tex>、Sign-Sign 每步移動 <Tex>{'\\mu'}</Tex>，到達 <Tex>{'a'}</Tex> 附近後在 <Tex>{'\\pm'}</Tex> 一步的帶內來回跳，
-          線性化的「穩態 std」公式不適用（表中改列帶寬）。tie 慣例與浮點捨入會改變跳動的位置（勘誤 E40）。
+          沒有雜訊時 Sign-Error 每步移動 <Tex>{'\\mu|x_n|'}</Tex>、Sign-Sign 每步移動 <Tex>{'\\mu'}</Tex>，到達 <Tex>{'a'}</Tex> 附近後在 <Tex>{'\\pm'}</Tex> 一步的帶內來回跳，線性化的「穩態 std」公式不適用（表中改列帶寬）。tie 慣例與浮點捨入會改變跳動的位置（勘誤 E40）。
         </Callout>
       )}
       <ul className="ch02-try">

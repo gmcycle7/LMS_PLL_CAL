@@ -168,9 +168,7 @@ export function QuizSection() {
         answer={
           <>
             <p>
-              他量到的是<strong>典型路徑</strong>（almost-sure，<Tex>{T`\lambda(0.8)<0`}</Tex>），不是 <Tex>{T`E[\delta^2]`}</Tex>。<Tex>{T`\delta_n^2`}</Tex> 是 heavy tail：20 條路徑幾乎不可能抽到主導期望值的稀有大值，
-              樣本平均與樣本 SE 都嚴重偏低。正確的驗證是封閉式 <Tex>{T`g(0.8)=${tnum(meanSquareFactor(0.8, 1, 3))}>1`}</Tex>，或單步 Monte Carlo 估計 <Tex>{T`E[(1-\mu x^2)^2]`}</Tex>（勘誤 E14）。
-              兩個說法並不矛盾：路徑會收斂，但有雜訊時穩態 RMS 是無限大，不能拿來做 RMS 預算。
+              他量到的是<strong>典型路徑</strong>（almost-sure，<Tex>{T`\lambda(0.8)<0`}</Tex>），不是 <Tex>{T`E[\delta^2]`}</Tex>。<Tex>{T`\delta_n^2`}</Tex> 是 heavy tail：20 條路徑幾乎不可能抽到主導期望值的稀有大值，樣本平均與樣本 SE 都嚴重偏低。正確的驗證是封閉式 <Tex>{T`g(0.8)=${tnum(meanSquareFactor(0.8, 1, 3))}>1`}</Tex>，或單步 Monte Carlo 估計 <Tex>{T`E[(1-\mu x^2)^2]`}</Tex>（勘誤 E14）。兩個說法並不矛盾：路徑會收斂，但有雜訊時穩態 RMS 是無限大，不能拿來做 RMS 預算。
             </p>
           </>
         }
@@ -188,8 +186,7 @@ export function QuizSection() {
             <TexBlock>{T`\text{(a)}\quad \Phi\!\Big(\frac{\ln10^{-3}-200\lambda}{s\sqrt{200}}\Big)=\Phi\!\Big(\frac{${tnum(Math.log(1e-3), 4)}-(${tnum(200 * v.lam23, 4)})}{${tnum(v.sd23 * Math.sqrt(200), 4)}}\Big)=\Phi(${tnum((Math.log(1e-3) - 200 * v.lam23) / (v.sd23 * Math.sqrt(200)), 3)})\approx${tnum(100 * v.frac200, 3)}\%`}</TexBlock>
             <TexBlock>{T`\text{(b)}\quad n\lambda+z_{0.9}\,s\sqrt n<0\iff n>\Big(\frac{z_{0.9}\,s}{\lambda}\Big)^2=\Big(\frac{${tnum(v.z90, 5)}\times${tnum(v.sd23, 4)}}{${tnum(Math.abs(v.lam23), 4)}}\Big)^2\approx${tnum(Math.ceil(v.n90), 5)}\ \text{步}`}</TexBlock>
             <p>
-              <Tex>{T`\lambda<0`}</Tex> 保證「最後會收斂」，但 <Tex>{T`|\lambda|`}</Tex> 很小而 <Tex>s</Tex> 很大時，200 步只有一半左右的路徑明顯變小，要上千步才有九成的路徑低於起點。
-              這是 CLT 近似（F-03.18），Stability Lab 的 Monte Carlo 可以直接驗證（preset「Gaussian、<Tex>{T`\mu=2.3`}</Tex>」）。同時別忘了：這個 <Tex>\mu</Tex> 的 mean 與 MSD 都是發散的。
+              <Tex>{T`\lambda<0`}</Tex> 保證「最後會收斂」，但 <Tex>{T`|\lambda|`}</Tex> 很小而 <Tex>s</Tex> 很大時，200 步只有一半左右的路徑明顯變小，要上千步才有九成的路徑低於起點。這是 CLT 近似（F-03.18），Stability Lab 的 Monte Carlo 可以直接驗證（preset「Gaussian、<Tex>{T`\mu=2.3`}</Tex>」）。同時別忘了：這個 <Tex>\mu</Tex> 的 mean 與 MSD 都是發散的。
             </p>
           </>
         }

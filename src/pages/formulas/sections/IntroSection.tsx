@@ -42,8 +42,7 @@ export function IntroSection() {
         <Tex>{texHz(r.loop.enbw)}</Tex>。看到一條公式時，你怎麼知道它用的是哪一種約定？
       </p>
       <p>
-        這一頁就是全站的「字典」：把所有章節的符號、單位、極性與時間索引收在同一個地方，並標出哪些地方因為驗算（<PageLink id="verification" /> 的 {ERRATA.length} 項勘誤）而與規格原文不同。
-        上方的搜尋框會<strong>同時過濾六個段落</strong>；中文、英文術語、TeX 原始碼（<span className="mono">\sigma_w</span>）或 Unicode 符號（<span className="mono">σ_w</span>）都可以輸入。
+        這一頁就是全站的「字典」：把所有章節的符號、單位、極性與時間索引收在同一個地方，並標出哪些地方因為驗算（<PageLink id="verification" /> 的 {ERRATA.length} 項勘誤）而與規格原文不同。上方的搜尋框會<strong>同時過濾六個段落</strong>；中文、英文術語、TeX 原始碼（<span className="mono">\sigma_w</span>）或 Unicode 符號（<span className="mono">σ_w</span>）都可以輸入。
       </p>
       <div className="fr-stats" role="list" aria-label="本頁收錄的內容">
         <span role="listitem">
@@ -71,15 +70,14 @@ export function IntroSection() {
             <strong>第一次來</strong>（Beginner）：先讀 §1 開頭的三條約定與手算例子，再讀 §2 的「先算一次」；推導預設收合，點標題就展開。
           </li>
           <li>
-            <strong>查東西</strong>（Engineer）：直接搜尋。輸入公式 ID（例如 <span className="mono">F-12.9</span>）會捲到那一條；每個符號都有「規格原文」欄可以對照改了什麼。
+            <strong>查東西</strong>（Engineer）：直接搜尋。輸入公式 ID（例如 <span className="mono">F-12.9</span>）會捲到那一條；每個符號的「全站約定」下面都附「規格原文」，可以對照改了什麼。
           </li>
           <li>
             <strong>審稿</strong>（Research）：公式登錄可以顯示 TeX 原始碼；頁尾有「勘誤覆蓋表」，列出 {ERRATA.length} 項勘誤各自出現在哪些表與哪些公式。
           </li>
         </ul>
         <p className="small">
-          每一條結論都帶標籤（<ClaimTag kind="exact" /> 在指定模型內可代數推導；<ClaimTag kind="approx" /> 用了獨立性、小訊號或長時間平均；<ClaimTag kind="research" /> 尚待模擬或量測）。
-          所有「代入數字」都由站內同一套模擬／解析核心即時計算，並在測試中與 Python golden vectors 交叉比對；晶片相關的數值都是示例，不是量測。
+          每一條結論都帶標籤（<ClaimTag kind="exact" /> 在指定模型內可代數推導；<ClaimTag kind="approx" /> 用了獨立性、小訊號或長時間平均；<ClaimTag kind="research" /> 尚待模擬或量測）。所有「代入數字」都由站內同一套模擬／解析核心即時計算，並在測試中與 Python golden vectors 交叉比對；晶片相關的數值都是示例，不是量測。
         </p>
       </Callout>
       <Gate min="engineer">

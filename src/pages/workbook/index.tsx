@@ -1,7 +1,9 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ClaimTag, Tex, randomSeed, usePersistentState } from '@/components'
-import { ALL_HANDCALCS, handcalcById } from '@/app/handcalcs'
+import type { HandCalcDef } from '@/data/types'
+import { preloadModule, useModule } from '../verification/lazy'
+import { loadBank } from './bank'
 import {
   EMPTY_STATS,
   countByLevel,
@@ -22,11 +24,21 @@ import {
 import { Browse, FilterBar } from './sections/Browse'
 import { HandTools, ToolsDock } from './sections/HandTools'
 import { CHART_BANK } from './diagrams'
-import { Intro } from './sections/Intro'
+import { Intro, Pending } from './sections/Intro'
 import { Diagram } from './sections/common'
 import { RandomPractice } from './sections/RandomPractice'
 import { WorksheetBuilder } from './sections/Worksheet'
 import './workbook.css'
+
+/**
+ * 全站手算題（各章 handcalcs.ts 的彙整，連同它們 solve() 呼叫的模型，約 600 KB gzip）在背景載入：
+ * 頁面先畫出標題、目錄、手算工具這些不依賴題庫的部分，題庫載完才補上題數、說明裡的例題與題庫本身。
+ * 首屏模組（本檔與它靜態 import 的檔案）不能靜態 import '@/app/handcalcs'，lazyBoundary.test.ts 會檢查。
+ */
+void preloadModule(loadBank)
+
+/** 題庫尚未載入時的空陣列（固定的參考，useMemo 的相依才不會每次都變） */
+const NO_DEFS: readonly HandCalcDef[] = []
 
 /** 作答統計存在 localStorage 的 key（usePersistentState；storage 不可用時只在這次瀏覽有效） */
 export const STATS_KEY = 'lmspll.workbook.stats'
@@ -55,7 +67,9 @@ function scrollToId(id: string) {
  */
 export default function WorkbookPage() {
   const [sp, setSp] = useSearchParams()
-  const all = ALL_HANDCALCS
+  const bank = useModule(loadBank)
+  const ready = bank !== null
+  const all = bank?.ALL_HANDCALCS ?? NO_DEFS
   const groups = useMemo(() => groupByChapter(all), [all])
   const chapterKeys = useMemo(() => groups.map((g) => g.key), [groups])
   const levelCounts = useMemo(() => countByLevel(all), [all])
@@ -63,7 +77,7 @@ export default function WorkbookPage() {
   const filters = useMemo(() => parseFilters(sp, chapterKeys), [sp, chapterKeys])
   const tab = parseTab(sp.get('tab'))
   const hc = sp.get('hc')
-  const focusId = hc && handcalcById(hc) ? hc : null
+  const focusId = hc && bank?.handcalcById(hc) ? hc : null
 
   const filtered = useMemo(() => filterHandcalcs(all, filters), [all, filters])
   const filteredGroups = useMemo(() => groupByChapter(filtered), [filtered])
@@ -136,7 +150,7 @@ export default function WorkbookPage() {
             3 手算工具
           </button>
           <button type="button" className="btn" onClick={() => jump('browse')}>
-            4 題庫（{all.length} 題）
+            4 題庫（{ready ? all.length : <Pending digits={3} />} 題）
           </button>
           <button type="button" className="btn" onClick={() => jump('practice')}>
             隨機練習
@@ -146,7 +160,7 @@ export default function WorkbookPage() {
           </button>
         </nav>
 
-        <Intro all={all} groups={groups} demo={handcalcById('HC-00.1')} />
+        <Intro all={all} groups={groups} demo={bank?.handcalcById('HC-00.1')} ready={ready} />
 
         <section aria-labelledby="wb-s3" className="wb-section">
           <h2 id="wb-s3">3｜手算工具：查表、近似與常數</h2>
@@ -175,8 +189,7 @@ export default function WorkbookPage() {
             </p>
             <p>
               <strong>再看</strong>
-              右邊：題庫瀏覽和隨機練習吃同一組篩選；練習卷則由你自己勾章節、難度與題數（虛線表示切到練習卷的那一刻會沿用目前的篩選當起點），印出來有空白作答區和逐步解答。
-              三條路最後都接到藍色的 <code>def.solve()</code>，它呼叫 <code>src/simulation</code> 的模型函式，所以詳解的數字和各章的互動實驗是同一份計算。
+              右邊：題庫瀏覽和隨機練習吃同一組篩選；練習卷則由你自己勾章節、難度與題數（虛線表示切到練習卷的那一刻會沿用目前的篩選當起點），印出來有空白作答區和逐步解答。三條路最後都接到藍色的 <code>def.solve()</code>，它呼叫 <code>src/simulation</code> 的模型函式，所以詳解的數字和各章的互動實驗是同一份計算。
             </p>
           </Diagram>
           <div className="wb-tabs" role="tablist" aria-label="題庫的使用方式">
@@ -195,17 +208,22 @@ export default function WorkbookPage() {
               </button>
             ))}
           </div>
-          {tab !== 'sheet' && <FilterBar filters={filters} onChange={setFilters} groups={groups} levelCounts={levelCounts} shown={filtered.length} total={all.length} />}
+          {ready && tab !== 'sheet' && <FilterBar filters={filters} onChange={setFilters} groups={groups} levelCounts={levelCounts} shown={filtered.length} total={all.length} />}
         </div>
 
-        <div role="tabpanel" id="wb-tabpanel" aria-labelledby={`wb-tab-${tab}`} className="wb-tabpanel" data-tab={tab}>
-          {tab === 'browse' && <Browse groups={filteredGroups} solved={stats.solved} focusId={focusId} />}
-          {practiceMounted && (
+        <div role="tabpanel" id="wb-tabpanel" aria-labelledby={`wb-tab-${tab}`} className="wb-tabpanel" data-tab={tab} aria-busy={!ready || undefined}>
+          {!ready && (
+            <p className="small muted wb-loading" role="status">
+              載入全站手算題中…
+            </p>
+          )}
+          {ready && tab === 'browse' && <Browse groups={filteredGroups} solved={stats.solved} focusId={focusId} />}
+          {ready && practiceMounted && (
             <div className="wb-noprint" hidden={tab !== 'practice'} data-testid="wb-practice-host">
               <RandomPractice pool={filtered} groups={groups} stats={stats} dispatch={dispatch} initialSeed={initialSeed} />
             </div>
           )}
-          {tab === 'sheet' && <WorksheetBuilder all={all} groups={groups} initial={sheetInitial} />}
+          {ready && tab === 'sheet' && <WorksheetBuilder all={all} groups={groups} initial={sheetInitial} />}
         </div>
       </section>
 

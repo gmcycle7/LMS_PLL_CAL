@@ -162,6 +162,14 @@ export interface ValidationStats {
   claims: number | null
 }
 
+/**
+ * docs/validation.md「方法」一節的兩個數字（稽核 agent 數、重算的聲明數）。頁首（首屏）只需要這兩個數字，
+ * 不值得為它把整份 validation.md（約 100 KB，gzip 後約 30 KB）放進首屏 chunk：這裡固定住，
+ * data.test.ts 會用 parseValidationStats 解析原文來核對——文件改了而這裡沒改，測試就失敗。
+ * 需要整份原文的勘誤瀏覽器（sections/ErrataBrowserBody.tsx，延後載入）仍然直接解析原文。
+ */
+export const VALIDATION_STATS: ValidationStats = { auditors: 9, claims: 237 }
+
 /** 從 docs/validation.md 的原始文字解析「N 個稽核 agent … 共 **M** 項」 */
 export function parseValidationStats(md: string): ValidationStats {
   const a = /(\d+)\s*個稽核 agent/.exec(md)

@@ -1,9 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import { Callout, ExperimentShell, ParamControl, Plot, SelectControl, mathText, useDebouncedValue, useThemeTokens, type CheckStatus, type ExperimentPreset, type MetricRow } from '@/components'
 import { presetsForExperiment, useUrlPreset } from '@/app/presets'
 import { isWorkerCancelled, useWorkerTask } from '@/workers'
-import { analyseAlpha, eqOffset, gosOffsetBias, type LoopModels, type SspllLmsCase, type SspllLmsCompareParams, type SspllLmsCompareResult, type SspllLmsResult, type SspllLoop } from '@/simulation/models/sspll'
+import {
+  analyseAlpha,
+  eqOffset,
+  gosOffsetBias,
+  phosSteadyState,
+  type LoopModels,
+  type ResidualLine,
+  type SspllLmsCase,
+  type SspllLmsCompareSpectrumParams,
+  type SspllLmsCompareSpectrumResult,
+  type SspllLmsResult,
+  type SspllLmsSpectrumResult,
+  type SspllLoop,
+  type SspllOutputSpectrum,
+} from '@/simulation/models/sspll'
 import { FREF_MHZ, LMS_NOTE_ZH, LOOPS, LOOP_LABEL, P_ONLY, PRED, SIM_CFG, type LmsTrace, type LoopKey } from '../data'
 import { DataTable, fmtFs, fp, fx, tx, txs } from '../common'
 import { hpdMemorySamples } from '../sections/S04MeanUpdate'
@@ -143,6 +157,64 @@ export const GOLDEN_LMS_COND = { nBlk: 512, tauBlocks: 25, uOsFs: 0 } as const
 /** Monte Carlo 交叉比對的容許倍率：TS 與 golden 用不同的隨機數，PHOS rms 在同一個 block 相差不到這個倍數才算一致 */
 export const LMS_MC_RATIO_TOL = 4
 
+/** 凍結權重後再跑的拍數：65,536 = 128 個 N = 512 的 block（Welch 8192 點、Blackman–Harris、50% 重疊 ⇒ 15 段、Δf ≈ 0.49 MHz） */
+export const LMS_TAIL = 65536
+export const LMS_NPERSEG = 8192
+/** spur 表每個 case 最多列幾條閉合式譜線（依輸出振幅） */
+export const LMS_MAX_LINES = 8
+/** 閉合式 vs toneFit 的容許差 [dB]（權重凍結後輸出是確定性的多音訊號，兩者只差數值誤差） */
+export const SPUR_TOL_DB = 0.2
+/** 小角 PM 的上限：一條 tone 的 Φ = 2π f_vco A_out 超過它就不報 dBc（殘差已是 ps 級：硬體上是 DTC 飽和） */
+export const SPUR_PHI_MAX = 0.3
+/** 穩態 PHOS rms 的量測 vs F-CS.23 的容許倍率（後半段的時間平均、2 條 lane：最慢模態只有十幾個有效樣本） */
+export const STEADY_RMS_TOL = 0.5
+/** 穩態比對只在模擬長度 ≥ 這麼多倍最慢模態的時間常數時才做（前半段丟掉、後半段至少 6 個時間常數） */
+export const STEADY_MIN_TAU = 12
+
+/** 譜線的來源標籤（`$...$` 版） */
+export function lineLabel(l: ResidualLine): string {
+  return l.source === 'phos' ? `PHOS mode ${l.mode}，$\\ell=${l.ell}$` : `GOS 諧波 $m=${l.mode}$`
+}
+
+/**
+ * spur 表的一致性：閉合式（週期序列的精確 Fourier 係數，或無理數 α 的 ℓ 級數）vs toneFit，只比輸出振幅 ≥ 1% 最大線、而且 ≥ 0.01 fs 的線；
+ * 回傳比對的線數與最大的 dB 差（沒有可比的線時 maxDb = 0）。
+ */
+export function spurAgreement(spec: SspllOutputSpectrum): { n: number; maxDb: number } {
+  const aMax = spec.lines.length ? spec.lines[0].ampOutFs : 0
+  let n = 0
+  let maxDb = 0
+  spec.lines.forEach((l, i) => {
+    const fit = spec.toneFitFs[i]
+    if (!(l.ampOutFs >= Math.max(0.01, 0.01 * aMax)) || !Number.isFinite(fit) || !(fit > 0)) return
+    n++
+    maxDb = Math.max(maxDb, Math.abs(20 * Math.log10(fit / l.ampOutFs)))
+  })
+  return { n, maxDb }
+}
+
+/**
+ * 穩態 PHOS rms（量測：後半段所有 lane 的 rms² 平均）vs F-CS.23 的預測。
+ * 只在沒有 offset、所有模態 |p_m| < 1、模擬長度 ≥ STEADY_MIN_TAU 倍最慢模態的時間常數、而且 PHOS 沒有發散時比對。
+ */
+export function steadyCheck(
+  kappaM: { re: number; im: number }[],
+  res: SspllLmsSpectrumResult,
+  nBlk: number,
+  nBlocks: number,
+  uOsFs: number,
+): { predFs: number; measFs: number; ratio: number; applicable: boolean; why: string; tauMax: number } {
+  const ss = phosSteadyState(kappaM, res.muP, SIM_CFG.sigmaPs, nBlk, res.spectrum.regCov)
+  const meas = res.spectrum.steadyPhosRmsFs
+  const diverged = res.finalPhosRmsFs > 2 * res.initPhosRmsFs || res.aborted
+  let why = ''
+  if (uOsFs !== 0) why = '有比較器 offset：穩態還有 forcing 的偏差，不比對'
+  else if (!ss.stable) why = '有模態 $\\lvert p_m\\rvert\\ge1$：沒有穩態'
+  else if (diverged) why = 'PHOS 發散，沒有穩態'
+  else if (nBlocks < STEADY_MIN_TAU * ss.tauMaxBlocks) why = `模擬長度 ${nBlocks} blocks 不到最慢模態時間常數（${ss.tauMaxBlocks.toFixed(0)} blocks）的 ${STEADY_MIN_TAU} 倍，後半段還沒進入穩態，不比對`
+  return { predFs: ss.rmsFs, measFs: meas, ratio: meas / ss.rmsFs, applicable: why === '' && Number.isFinite(meas), why, tauMax: ss.tauMaxBlocks }
+}
+
 /**
  * 本頁即時模擬 vs golden 存檔：取 golden 有記錄、且不超過即時模擬長度的最後一個 block，
  * 比較兩者的 PHOS 誤差 rms（即時模擬取最接近該 block 的記錄點）。沒有可比的 block 時回傳 null。
@@ -257,16 +329,17 @@ export function ClosedLoopLms() {
     })
   }, [P.loop, P.caseA, P.caseB, P.caseC, alpha, goldenComparable])
 
-  const totalSamples = cases.length * P.lanes * (4096 + P.nBlocks * P.nBlk)
-  const task = useWorkerTask<SspllLmsCompareParams, SspllLmsCompareResult>('sspll', 'runSspllLmsCompare', { restartOnRun: true })
-  const [run, setRun] = useState<{ key: string; result: SspllLmsCompareResult; ms: number | null } | null>(null)
+  // 每個 case：lanes 條 lane 各跑 settle + nBlocks 個 block，再加凍結後的尾段 LMS_TAIL 拍（只有 lane 0）
+  const totalSamples = cases.length * (P.lanes * (4096 + P.nBlocks * P.nBlk) + LMS_TAIL)
+  const task = useWorkerTask<SspllLmsCompareSpectrumParams, SspllLmsCompareSpectrumResult>('sspll', 'runSspllLmsCompareSpectrum', { restartOnRun: true })
+  const [run, setRun] = useState<{ key: string; result: SspllLmsCompareSpectrumResult; ms: number | null } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const runKey = JSON.stringify({ P, seed })
   const runTask = task.run
   const onRun = useCallback(() => {
     if (cases.length === 0 || totalSamples > LMS_MAX_SAMPLES) return
-    const params: SspllLmsCompareParams = {
-      common: { alpha, cfg: SIM_CFG, nBlocks: P.nBlocks, nBlk: P.nBlk, tauBlocks: P.tauBlocks, seed, recEvery: Math.max(1, Math.round(P.nBlocks / 150)), lanes: P.lanes, uOsPs: P.uOsFs / 1000, seq: 'acc32' },
+    const params: SspllLmsCompareSpectrumParams = {
+      common: { alpha, cfg: SIM_CFG, nBlocks: P.nBlocks, nBlk: P.nBlk, tauBlocks: P.tauBlocks, seed, recEvery: Math.max(1, Math.round(P.nBlocks / 150)), lanes: P.lanes, uOsPs: P.uOsFs / 1000, seq: 'acc32', nTail: LMS_TAIL, nperseg: LMS_NPERSEG, maxLines: LMS_MAX_LINES },
       cases: cases.map((c): SspllLmsCase => ({ id: c.slot, loop: c.setup.loop, variant: c.setup.variant, models: c.setup.models })),
     }
     const key = runKey
@@ -288,6 +361,11 @@ export function ClosedLoopLms() {
     if (totalSamples > LMS_AUTO_RUN_SAMPLES) return
     lastAuto.current = runKey
     onRun()
+    // dev 的 StrictMode 會把 effect 先清理再跑一次：useWorkerTask 的清理把第一次的計算取消了（結果永遠不會回來），
+    // 所以清理時解除這把鎖，重新掛載後同一組參數再跑一次。正常使用時參數一變 runKey 就變，不會重複跑。
+    return () => {
+      if (lastAuto.current === runKey) lastAuto.current = null
+    }
   }, [settledKey, runKey, totalSamples, onRun])
 
   const fresh = run !== null && run.key === runKey
@@ -352,10 +430,21 @@ export function ClosedLoopLms() {
     }
   }
 
+  // 凍結後的輸出：最強的線的 Φ ≥ 0.3 rad（還沒被判成發散的 case）：小角 PM 不成立，dBc 沒有意義
+  for (const c of cases) {
+    const res = resultOf(c.slot)
+    if (!res || res.finalPhosRmsFs > 2 * res.initPhosRmsFs || res.aborted) continue
+    const top = res.spectrum.lines[0]
+    if (top && top.betaRad >= SPUR_PHI_MAX)
+      warnings.push(
+        `${lmsCaseTag(c.slot, c.kind)}凍結後最強的輸出 tone（${fx(top.fMHz, 1)} MHz）的峰值相位 $\\Phi=2\\pi f_{vco}A_{out}=${fx(top.betaRad, 3)}$ rad $\\ge${SPUR_PHI_MAX}$：小角 PM 不成立，spur 表的 dBc 只能當參考（硬體上 $A_{out}=${fp(top.ampOutFs, 4)}$ fs 已接近 DTC range）。`,
+      )
+  }
+
   // ── 指標 ──
   const metrics: MetricRow[] = [
     { name: '$\\alpha$', value: alpha, digits: 6, note: `PMUX 旋轉頻率 ${fx(Math.min(P.fMHz, FREF_MHZ - P.fMHz), 2)} MHz` },
-    { name: '總 sample 數（含 settle）', value: totalSamples, digits: 9 },
+    { name: '總 sample 數（含 settle 與凍結後的尾段）', value: totalSamples, digits: 9, note: `尾段：每個 case 凍結權重後再跑 ${LMS_TAIL.toLocaleString()} 拍（${LMS_TAIL / P.nBlk} 個 block 的長度）` },
   ]
   if (P.uOsFs !== 0) metrics.push({ name: '比較器 offset 的 $E[q]=\\mathrm{erf}(u_{os}/\\sqrt2\\sigma_v)$', value: eq, digits: 4, formulaId: 'F-CS.19', claim: 'exact', note: '與權重誤差無關的 forcing 項' })
   for (const c of cases) {
@@ -415,6 +504,49 @@ export function ClosedLoopLms() {
           note: `步長 $\\mu_p=${txs(res.muP, 4)}$ ps、$\\mu_g=${txs(res.muG, 4)}$${drift ? (drift.valid ? '；解析值：$B\\,\\mu_p\\,E[q]\\,\\sum_k\\langle r_k\\rangle/8$' : '；$\\lvert u_{os}\\rvert>\\sigma_v/4$：小 offset 的漂移公式不適用，不比對') : ''}`,
         },
       )
+      // 凍結後的輸出：最強的 fractional spur（閉合式 vs toneFit）與積分 jitter
+      const sp = res.spectrum
+      const top = sp.lines[0]
+      if (top) {
+        const agree = spurAgreement(sp)
+        const small = top.betaRad < SPUR_PHI_MAX
+        metrics.push({
+          // 小角 PM 不成立（Φ ≥ 0.3 rad：發散的 case）時不報 dBc，改報那條線的峰值相位 Φ
+          name: small ? `${tag}：凍結後最強的 fractional spur（閉合式）` : `${tag}：凍結後最強的線的峰值相位 $\\Phi=2\\pi f_{vco}A_{out}$（$\\ge${SPUR_PHI_MAX}$ rad：小角 PM 不成立，不報 dBc）`,
+          value: small ? top.spurDbc : top.betaRad,
+          unit: small ? 'dBc' : 'rad',
+          digits: 4,
+          formulaId: 'F-CS.21',
+          claim: 'approx',
+          note: `在 ${fx(top.fMHz, 1)} MHz（${lineLabel(top)}；$\\lvert T\\rvert=${fx(top.tMag, 3)}$，$A_{out}=${fp(top.ampOutFs, 4)}$ fs）；toneFit ${Number.isFinite(sp.toneFitDbc[0]) ? `${fx(sp.toneFitDbc[0], 2)} dBc` : '—'}；${agree.n} 條線的閉合式 vs toneFit 最大差 ${fx(agree.maxDb, 3)} dB`,
+        })
+        metrics.push({
+          name: `${tag}：凍結後的輸出積分 jitter（時域 rms）`,
+          value: sp.jitterTimeFs,
+          unit: 'fs',
+          digits: 4,
+          analytic: sp.jitterClosedFs,
+          tolerance: 0.02,
+          toleranceMode: 'rel',
+          formulaId: 'F-CS.21',
+          claim: 'approx',
+          note: `解析值：閉合式譜線的 $\\sqrt{\\sum A_{out}^2/2}$（$\\lvert\\ell\\rvert\\le2048$、$m\\le2048$）；Welch 積分 ${fp(sp.jitterWelchFs, 4)} fs；注入點 PHOS 殘差 rms ${fx(Math.sqrt(Array.from(sp.phosResidualFs).reduce((a2, v, _i, arr) => a2 + (v - arr.reduce((x, y) => x + y, 0) / arr.length) ** 2, 0) / 8), 2)} fs、$\\lvert$GOS 誤差$\\rvert$ ${fx(sp.gosErrFs, 2)} fs`,
+        })
+      }
+      // 穩態 PHOS rms（校準還在跑時的權重雜訊）vs F-CS.23
+      const st = steadyCheck(c.pred.kappaM, res, P.nBlk, P.nBlocks, P.uOsFs)
+      metrics.push({
+        name: `${tag}：穩態 PHOS rms（block ${sp.steadyBlocks[0]}–${sp.steadyBlocks[1]}、所有 lane 的 rms² 平均）`,
+        value: Number.isFinite(st.measFs) ? st.measFs : '—',
+        unit: 'fs',
+        digits: 3,
+        formulaId: 'F-CS.23',
+        claim: 'approx',
+        ...(st.applicable ? { analytic: st.predFs, tolerance: STEADY_RMS_TOL, toleranceMode: 'rel' as const } : {}),
+        note: st.applicable
+          ? `解析值：F-CS.23 的 $\\sqrt{\\sum_{m=1}^{7}\\sigma^2_{\\theta,m}}$（$N_{\\tau,\\mathrm{eff}}$、該 regressor 的 $S_m$ 與 $\\kappa_m$）；最慢模態的時間常數 ${fx(st.tauMax, 0)} blocks；容許 ${STEADY_RMS_TOL * 100}%（後半段只有十幾個有效樣本）`
+          : `F-CS.23 預測 ${Number.isFinite(st.predFs) ? `${fx(st.predFs, 3)} fs` : '—'}；${st.why}`,
+      })
     }
   }
 
@@ -444,13 +576,33 @@ export function ClosedLoopLms() {
         if (Math.abs(res.finalPhosCmFs - d.predFs) > d.tolFs) bad++
       }
     }
-    analytic = checked === 0 ? 'n/a' : bad === 0 ? 'ok' : 'mismatch'
+    // 凍結後的 spur 表：閉合式 vs toneFit；穩態 PHOS rms vs F-CS.23（適用時）
+    let spurLines = 0
+    let spurBad = 0
+    let spurMaxDb = 0
+    let stChecked = 0
+    let stBad = 0
+    for (const c of cases) {
+      const res = resultOf(c.slot)
+      if (!res) continue
+      const a = spurAgreement(res.spectrum)
+      spurLines += a.n
+      spurMaxDb = Math.max(spurMaxDb, a.maxDb)
+      if (a.maxDb > SPUR_TOL_DB) spurBad++
+      const st = steadyCheck(c.pred.kappaM, res, P.nBlk, P.nBlocks, P.uOsFs)
+      if (st.applicable) {
+        stChecked++
+        if (Math.abs(st.ratio - 1) > STEADY_RMS_TOL) stBad++
+      }
+    }
+    const extra = `；凍結後的 spur 表：${spurLines} 條線的閉合式 vs toneFit 最大差 ${fx(spurMaxDb, 3)} dB（門檻 ${SPUR_TOL_DB}；${spurBad} 個 case 超出）；穩態 PHOS rms vs F-CS.23：${stChecked} 個比對、${stBad} 個不一致`
+    analytic = checked + spurLines + stChecked === 0 ? 'n/a' : bad + spurBad + stBad === 0 ? 'ok' : 'mismatch'
     analyticNote =
-      P.uOsFs === 0
+      (P.uOsFs === 0
         ? `小訊號平均模型 $\\max_m\\lvert1-\\kappa_m/N_{\\tau,\\mathrm{eff}}\\rvert\\gtrless1$ vs 閉迴路的 PHOS 誤差是否變大：${checked} 個比對、${bad} 個不一致${marginal ? `；${marginal} 個是邊際（dead zone，或模擬長度不到約 3 個時間常數），不比對` : ''}`
         : checked === 0
           ? 'offset 的共模漂移公式只在 $\\lvert u_{os}\\rvert\\le\\sigma_v/4$（小訊號）時適用；目前沒有可比對的 case'
-          : `PHOS 共模漂移 vs forcing 公式 $B\\,\\mu_p\\,E[q]\\sum_k\\langle r_k\\rangle/8$（${checked} 個比對、${bad} 個不一致）`
+          : `PHOS 共模漂移 vs forcing 公式 $B\\,\\mu_p\\,E[q]\\sum_k\\langle r_k\\rangle/8$（${checked} 個比對、${bad} 個不一致）`) + extra
   }
   // Monte Carlo：本頁即時模擬 vs golden（Python）存檔的軌跡，在同一個 block 比 PHOS rms
   let mc: CheckStatus = 'n/a'
@@ -497,7 +649,33 @@ export function ClosedLoopLms() {
       const xMax = Math.max(...xs)
       phos.push({ x: [0, xMax], y: [deltaFs, deltaFs], name: '$\\Delta=T_{\\mathrm{vco}}/8$（DTC 範圍；之上為飽和／失鎖）', mode: 'lines', line: { color: tokens.textMuted, dash: 'dash', width: 1 } })
     }
-    return { phos, gos }
+    // 凍結後的輸出 fractional spur：閉合式（×）與 Welch + findTones 找到的線（○）
+    const spur: Data[] = []
+    for (const c of cases) {
+      const color = tokens.series[c.colorIndex]
+      const res = fresh ? (run.result.cases.find((x) => x.id === c.slot)?.result ?? null) : null
+      if (!res) continue
+      const sp = res.spectrum
+      const name = `Case ${c.slot}：${LMS_CASE_TEX[c.kind]}`
+      spur.push({
+        x: sp.lines.map((l) => l.fMHz),
+        y: sp.lines.map((l) => l.spurDbc),
+        text: sp.lines.map((l) => `${lineLabel(l)}：$A_{out}=${fp(l.ampOutFs, 4)}$ fs`),
+        name: `${name}（閉合式）`,
+        mode: 'markers',
+        marker: { color, size: 11, symbol: 'x' },
+        hovertemplate: '%{text}<br/>%{x:.2f} MHz，%{y:.1f} dBc<extra></extra>',
+      })
+      spur.push({
+        x: sp.detected.map((d) => d.fMHz),
+        y: sp.detected.map((d) => d.spurDbc),
+        name: `${name}（Welch + findTones）`,
+        mode: 'markers',
+        marker: { color, size: 9, symbol: 'circle-open', line: { width: 1.5 } },
+        hovertemplate: '%{x:.2f} MHz，%{y:.1f} dBc<extra></extra>',
+      })
+    }
+    return { phos, gos, spur }
   }, [cases, fresh, run, tokens, deltaFs])
 
   const goldenRows = cases.filter((c) => c.golden)
@@ -513,8 +691,7 @@ export function ClosedLoopLms() {
       onSeedChange={setSeed}
       description={
         <>
-          在 Web Worker 裡跑時域模擬（<code>runSspllLmsCompare</code>，<code>simulator.py</code> 的 TS port；參數改變後自動重跑，也可以按「執行 Run」）。不同對策<strong>只差在 GMAC 用的 regressor</strong>（或把迴路換成 P-only）。
-          虛線是 golden（Python）存在 <code>pred_vs_sim.json</code> 的軌跡：兩邊的隨機數產生器不同，只能做統計上的比較。
+          在 Web Worker 裡跑時域模擬（<code>runSspllLmsCompare</code>，<code>simulator.py</code> 的 TS port；參數改變後自動重跑，也可以按「執行 Run」）。不同對策<strong>只差在 GMAC 用的 regressor</strong>（或把迴路換成 P-only）。虛線是 golden（Python）存在 <code>pred_vs_sim.json</code> 的軌跡：兩邊的隨機數產生器不同，只能做統計上的比較。
         </>
       }
       assumptions={[
@@ -526,6 +703,7 @@ export function ClosedLoopLms() {
         '比較器除指定的 $u_{os}$ 外沒有 offset；沒有 DTC INL、字長、FLL 等效應；沒有 fixed-point 模型（Fixed-Point 交叉比對未實作）',
         `golden 存檔的條件：$N=${GOLDEN_LMS_COND.nBlk}$、$N_\\tau=${GOLDEN_LMS_COND.tauBlocks}$、無 offset、6000 blocks $\\times$ 2 lanes；設定不同時不疊圖、不比對`,
         'TS 與 golden 使用不同的隨機數產生器（xoshiro128** vs numpy PCG64）：逐點數值不會相同',
+        `凍結後的輸出（§15.4）：模擬結束後把 lane 0 的權重凍結（LMS 關閉、不再抽雜訊）再跑 ${LMS_TAIL.toLocaleString()} 拍（${LMS_TAIL / P.nBlk} 個 block 的長度），輸出 $y=T*u=u-e_{PD}$；Welch（Blackman–Harris、${LMS_NPERSEG} 點、50% 重疊）找譜線，再在閉合式譜線的精確頻率做 toneFit；spur $=20\\log_{10}(\\Phi/2)$、$\\Phi=2\\pi f_{vco}A_{out}$（小角 PM，$f_{vco}=16$ GHz 插圖值）；閉合式對週期序列（有理 $\\alpha$）用一個週期的精確 Fourier 係數，否則用 F-CS.21／F-CS.22 的 $\\ell$ 級數`,
       ]}
       params={{ ...P, alpha }}
       units={{ fMHz: 'MHz', nBlocks: 'blocks', nBlk: 'samples/block', tauBlocks: 'blocks', uOsFs: 'fs' }}
@@ -557,6 +735,12 @@ export function ClosedLoopLms() {
             out[`${c.slot}_phos_rms_fs`] = res.phosRmsFs
             out[`${c.slot}_gos_abs_fs`] = res.gosAbsFs
             out[`${c.slot}_phos_cm_abs_fs`] = res.phosCmAbsFs
+            out[`${c.slot}_spur_f_MHz`] = res.spectrum.lines.map((l) => l.fMHz)
+            out[`${c.slot}_spur_closed_dbc`] = res.spectrum.lines.map((l) => l.spurDbc)
+            out[`${c.slot}_spur_tonefit_dbc`] = res.spectrum.toneFitDbc
+            out[`${c.slot}_spur_source`] = res.spectrum.lines.map((l) => `${l.source} m=${l.mode} ell=${l.ell}`)
+            out[`${c.slot}_psd_f_MHz`] = res.spectrum.psdFMHz
+            out[`${c.slot}_psd_dbc_hz`] = res.spectrum.psdDbcHz
           }
           if (c.golden) {
             out[`${c.slot}_golden_block`] = c.golden.trace.blocks
@@ -606,7 +790,7 @@ export function ClosedLoopLms() {
       {!fresh && (
         <Callout kind="info" title={task.running ? '即時模擬執行中…' : '即時模擬尚未完成'}>
           <p>
-            {goldenRows.length ? '目前圖上只有 golden（Python）存檔的軌跡。' : goldenComparable ? mathText('這組（迴路、$\\alpha$、regressor）沒有 golden 存檔，圖暫時是空的。') : '目前的設定與 golden 存檔的條件不同，不疊 golden 的軌跡；圖暫時是空的。'}參數穩定 0.5 秒後會自動用 TS port 在 Web Worker 裡重跑（預設 {LMS_DEFAULTS.nBlocks} blocks，約 1 秒）；總 sample
+            {goldenRows.length ? '目前圖上只有 golden（Python）存檔的軌跡。' : goldenComparable ? mathText('這組（迴路、$\\alpha$、regressor）沒有 golden 存檔，圖暫時是空的。') : '目前的設定與 golden 存檔的條件不同，不疊 golden 的軌跡；圖暫時是空的。'}參數穩定 0.5 秒後會自動用 TS port 在 Web Worker 裡重跑（預設 {LMS_DEFAULTS.nBlocks} blocks，約 2 秒：閉迴路約 1 秒，三個 case 凍結後的尾段與頻譜再約 1 秒）；總 sample
             數超過 {LMS_AUTO_RUN_SAMPLES.toLocaleString()} 時請按「執行 Run」。
           </p>
         </Callout>
@@ -629,6 +813,55 @@ export function ClosedLoopLms() {
             fmtFs(c.golden!.trace.final_gos_fs),
           ])}
         />
+      )}
+      {fresh && traces.spur.length > 0 && (
+        <>
+          <div className="cs-plots">
+            <Plot
+              title="凍結後的輸出 fractional spur：閉合式（$\times$）vs Welch＋findTones（$\circ$）"
+              data={traces.spur}
+              xLog
+              height={340}
+              csvName="sspll-lms-spur"
+              layout={{ xaxis: { title: { text: '離載波的頻率 [MHz]' } }, yaxis: { title: { text: '單邊 spur [dBc]' } } }}
+              caption={`每個 case 凍結權重後再跑 ${LMS_TAIL.toLocaleString()} 拍的輸出 $y=T*u$。${'$\\times$'} 是 F-CS.21／F-CS.22 的閉合式（有理 $\\alpha$ 時用週期序列的精確 Fourier 係數），${'$\\circ$'} 是 Welch PSD 上找到的譜線；兩者重合就是「輸出 = $\\lvert T\\rvert\\times$ 殘差的譜線」。$\\Phi\\ge${SPUR_PHI_MAX}$ rad 的線（發散的 case）小角 PM 不成立，dBc 只能當參考。`}
+            />
+          </div>
+          <DataTable
+            className="cs-num cs-spur"
+            caption={`凍結後的 spur 表：每個 case 依輸出振幅列前 ${Math.min(6, LMS_MAX_LINES)} 條。注入點的 $A$ 列「單線／注入點」兩個值：「單線」是 F-CS.21／F-CS.22 該成分單獨的振幅，「注入點」是同一頻率上所有成分相干相加（有理 $\\alpha$ 時 $\\ell$ 與 $\\ell\\pm Q$ 的線重合、取樣落在相位邊緣；括號裡的 $+n$ 是相加進來的其他成分數）後的精確值；$A_{out}$ 與 spur 列「閉合式／toneFit」，toneFit 在同一頻率對輸出做 coherent 最小平方。數字是插圖值（$f_{vco}=16$ GHz）。`}
+            head={['Case', '譜線（主要成分）', '$f$ [MHz]', '$A$ [fs] 單線／ 注入點', '$\\lvert T\\rvert$', '$A_{out}$ [fs] 閉合式／ toneFit', 'spur [dBc] 閉合式／ toneFit']}
+            rows={cases.flatMap((c) => {
+              const res = resultOf(c.slot)
+              if (!res) return []
+              const sp = res.spectrum
+              // 「x／y」兩個值各佔一行（textContent 仍是 x／y），表格才塞得進結果欄；4 位有效數字（ps 級的發散值不會把欄位撐寬）
+              const pair = (a: string, b: string) => (
+                <>
+                  {a}／<br />
+                  {b}
+                </>
+              )
+              return sp.lines.slice(0, 6).map((l, i) => [
+                `${c.slot}`,
+                `${lineLabel(l)}${l.others.length ? `（+${l.others.length}）` : ''}`,
+                fx(l.fMHz, 1),
+                pair(fp(l.mainAmpPdFs, 4), fp(l.ampPdFs, 4)),
+                fx(l.tMag, 3),
+                pair(fp(l.ampOutFs, 4), Number.isFinite(sp.toneFitFs[i]) ? fp(sp.toneFitFs[i], 4) : '—'),
+                l.betaRad < SPUR_PHI_MAX ? (
+                  pair(fx(l.spurDbc, 2), Number.isFinite(sp.toneFitDbc[i]) ? fx(sp.toneFitDbc[i], 2) : '—')
+                ) : (
+                  <>
+                    {mathText(`$\\Phi=${fx(l.betaRad, 2)}$`)}
+                    <br />
+                    rad
+                  </>
+                ),
+              ])
+            })}
+          />
+        </>
       )}
     </ExperimentShell>
   )

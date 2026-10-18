@@ -1,6 +1,6 @@
-import { lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
 import { Callout, ClaimTag, Mermaid, ModeGate, Prereq, Tex, TexBlock, ChRef } from '@/components'
+import { lazyPart, NearGate } from '../../verification/lazy'
 import { QUESTION_LABEL, type QuestionId, type SlotAudit } from '../data'
 import { CHART_UNIFIED_LOOP, THREE_QUESTIONS } from '../diagrams'
 import { Diagram, ErratumChip, LevelBadges, PageLink, Rich, Steps } from '../common'
@@ -8,8 +8,8 @@ import { JumpButton } from './SlotAudit'
 
 const QUESTION_ORDER: QuestionId[] = ['converge', 'where', 'noise']
 
-// 數值驗算表會呼叫 previewPreset（連同各模型模組）：切成 lazy chunk，不拖慢首屏
-const UnifiedCheck = lazy(() => import('./UnifiedCheck'))
+// 數值驗算表會呼叫 previewPreset（連同各模型模組）：切成 lazy chunk，接近可視範圍才下載，不拖慢首屏
+const UnifiedCheck = lazyPart(() => import('./UnifiedCheck'))
 
 /**
  * §4 的開場：12 個例子放在同一個框架下——線性化的誤差遞迴 δ_{k+1} = Aδ_k + b + μη_k，
@@ -70,9 +70,9 @@ export function UnifiedView({ audit }: { audit: SlotAudit[] }) {
         ]}
         result={String.raw`\rho(\mathbf A)<1,\qquad \boldsymbol\delta_\infty=(\mathbf I-\mathbf A)^{-1}\mathbf b,\qquad \sigma_w^2=\frac{\mu^2\sigma_\eta^2}{1-p^2}`}
       />
-      <Suspense fallback={<p className="small muted gal-loading">載入模型模組並驗算中…</p>}>
+      <NearGate label="模型模組與數值驗算" minHeight={470} className="gal-loading">
         <UnifiedCheck audit={audit} />
-      </Suspense>
+      </NearGate>
       <div className="gal-prereqs">
         <Prereq title="期望值 $E[\cdot]$ 與變異數：這裡只用到三條規則">
           <p>

@@ -77,8 +77,7 @@ export function WrapupSection() {
         </p>
         <BlockDiagram id="D-01.21">
           先看最上面的菱形：誤差是多位元（知道大小）還是只有 1 bit（只知道正負）。多位元時走左邊，再問資料有沒有 outlier；只有 1 bit 時走右邊，再問 regressor{' '}
-          <Tex>{'x'}</Tex> 的大小有沒有留著。藍色方塊是 PLL 校正迴路的位置：comparator 取 PD 輸出 <Tex>{'e'}</Tex> 的正負號 <Tex>{String.raw`\operatorname{sign}(e)`}</Tex>、DSM code 是多位元，所以是 Sign-Error LMS。
-          圖上四個方塊裡的更新量 <Tex>{String.raw`\Delta w`}</Tex> 取平均、令它為 0，就是下表的「固定點條件」；方塊裡的「目標」對應下表「最小化的成本」與「
+          <Tex>{'x'}</Tex> 的大小有沒有留著。藍色方塊是 PLL 校正迴路的位置：comparator 取 PD 輸出 <Tex>{'e'}</Tex> 的正負號 <Tex>{String.raw`\operatorname{sign}(e)`}</Tex>、DSM code 是多位元，所以是 Sign-Error LMS。圖上四個方塊裡的更新量 <Tex>{String.raw`\Delta w`}</Tex> 取平均、令它為 0，就是下表的「固定點條件」；方塊裡的「目標」對應下表「最小化的成本」與「
           <Tex>{String.raw`x\equiv1`}</Tex> 時的目標」兩列。
         </BlockDiagram>
         <div className="table-wrap">
@@ -262,10 +261,7 @@ export function WrapupSection() {
           </table>
         </div>
         <p>
-          <ClaimTag kind="exact" /> <ModelLevel level="L0" /> 本章所有結論都在「純量、無 PLL 動態、雜訊與 <Tex>{'x'}</Tex> 獨立」的 L0 模型下成立。
-          它們<strong>不</strong>代表：(1) 隨機 <Tex>{'x'}</Tex> 時的穩定界（mean vs mean-square 不同，見 <Link to="/ch/03">Ch03</Link>）；
-          (2) comparator 雜訊下 Sign-Error 近似於縮放後的 LMS（需要 Gaussian 雜訊遠大於誤差，見 <Link to="/ch/05">Ch05</Link>）；
-          (3) PLL error path 的相位會不會讓更新變號（<Link to="/ch/06">Ch06</Link>）。
+          <ClaimTag kind="exact" /> <ModelLevel level="L0" /> 本章所有結論都在「純量、無 PLL 動態、雜訊與 <Tex>{'x'}</Tex> 獨立」的 L0 模型下成立。它們<strong>不</strong>代表：(1) 隨機 <Tex>{'x'}</Tex> 時的穩定界（mean vs mean-square 不同，見 <Link to="/ch/03">Ch03</Link>）；(2) comparator 雜訊下 Sign-Error 近似於縮放後的 LMS（需要 Gaussian 雜訊遠大於誤差，見 <Link to="/ch/05">Ch05</Link>）；(3) PLL error path 的相位會不會讓更新變號（<Link to="/ch/06">Ch06</Link>）。
         </p>
         <PllLink>
           校正迴路的輸入是 PD 的輸出 <Tex>{'e'}</Tex>（送進 loop filter 的同一個訊號），1-bit comparator（BBPD）只取它的正負號{' '}
@@ -294,16 +290,11 @@ export function WrapupSection() {
 
       <Section kind="example" title="2.6.1 綜合手算：雜訊加上 outlier，兩種演算法各偏多少、各抖多少" level={3} id="ch01-s261">
         <p>
-          把整章串起來算一次。同一組帶 outlier 的量測（<Tex>{String.raw`x\equiv1`}</Tex>，只估一個常數）：Conventional LMS 追<strong>平均</strong>（§1.2、§2.3），
-          Sign-Error 追<strong>中位數</strong>（§2.3）；兩者的抖動分別來自 F-01.15 與 F-01.18。中位數那一步要查常態表（或用題目提示裡的手算近似），
-          公式是 §2.4（Research 模式才顯示）的 F-01.17——不用切換模式，步驟會直接帶你算。
+          把整章串起來算一次。同一組帶 outlier 的量測（<Tex>{String.raw`x\equiv1`}</Tex>，只估一個常數）：Conventional LMS 追<strong>平均</strong>（§1.2、§2.3），Sign-Error 追<strong>中位數</strong>（§2.3）；兩者的抖動分別來自 F-01.15 與 F-01.18。中位數那一步要查常態表（或用題目提示裡的手算近似），公式是 §2.4（Research 模式才顯示）的 F-01.17——不用切換模式，步驟會直接帶你算。
         </p>
         <BlockDiagram id="D-01.22">
-          題目有 14 個步驟，但只有兩條線：上面一列是 Conventional LMS，下面一列是 Sign-Error。每一列都是「先算偏移（目標被 outlier 拉走多少），再算抖動（在目標附近晃多大）」。
-          先看上面：偏移 <Tex>{String.raw`\varepsilon s`}</Tex> 與變異數裡的 <Tex>{String.raw`\varepsilon(1-\varepsilon)s^2`}</Tex> 都含有 outlier 的大小 <Tex>{'s'}</Tex>，
-          所以偏移與抖動這兩個答案（紅色）都跟著 <Tex>{'s'}</Tex> 變大。再看下面：四格裡完全沒有 <Tex>{'s'}</Tex>，只有 outlier 出現的機率 <Tex>{'\\varepsilon'}</Tex> 與雜訊的標準差{' '}
-          <Tex>{String.raw`\sigma_v`}</Tex>，偏移與抖動（綠色）都和 outlier 多大無關。
-          圈號對應下面題目的步驟；圖上的 <Tex>{String.raw`\Phi^{-1}`}</Tex> 是標準常態分布的反函數（查表）、<Tex>{String.raw`\varphi(z)`}</Tex> 是標準常態密度，
+          題目有 14 個步驟，但只有兩條線：上面一列是 Conventional LMS，下面一列是 Sign-Error。每一列都是「先算偏移（目標被 outlier 拉走多少），再算抖動（在目標附近晃多大）」。先看上面：偏移 <Tex>{String.raw`\varepsilon s`}</Tex> 與變異數裡的 <Tex>{String.raw`\varepsilon(1-\varepsilon)s^2`}</Tex> 都含有 outlier 的大小 <Tex>{'s'}</Tex>，所以偏移與抖動這兩個答案（紅色）都跟著 <Tex>{'s'}</Tex> 變大。再看下面：四格裡完全沒有 <Tex>{'s'}</Tex>，只有 outlier 出現的機率 <Tex>{'\\varepsilon'}</Tex> 與雜訊的標準差{' '}
+          <Tex>{String.raw`\sigma_v`}</Tex>，偏移與抖動（綠色）都和 outlier 多大無關。圈號對應下面題目的步驟；圖上的 <Tex>{String.raw`\Phi^{-1}`}</Tex> 是標準常態分布的反函數（查表）、<Tex>{String.raw`\varphi(z)`}</Tex> 是標準常態密度，
           <Tex>{String.raw`\tilde v`}</Tex> 是含 outlier 的總雜訊，最後兩個 std 分別來自 F-01.15 與 F-01.18。
         </BlockDiagram>
         <ChapterHandCalc id="HC-01.8">
@@ -421,8 +412,7 @@ export function WrapupSection() {
           question={
             <>
               真值 <Tex>{`a=${corr.a}`}</Tex>，量測 <Tex>{String.raw`y=ax+v`}</Tex>，但 <Tex>{String.raw`v=${corr.c}\,x+u`}</Tex>（<Tex>{'u'}</Tex>{' '}
-              與 <Tex>{'x'}</Tex> 獨立、零均值，<Tex>{'E[x^2]>0'}</Tex>）。
-              Conventional LMS（小 <Tex>{'\\mu'}</Tex>）長期平均收斂到？
+              與 <Tex>{'x'}</Tex> 獨立、零均值，<Tex>{'E[x^2]>0'}</Tex>）。Conventional LMS（小 <Tex>{'\\mu'}</Tex>）長期平均收斂到？
             </>
           }
           options={[

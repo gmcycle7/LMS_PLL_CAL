@@ -623,8 +623,7 @@ export function DualLoop() {
         answer={
           <>
             <Tex>{String.raw`r_s=0`}</Tex>：<Tex>{String.raw`s_{k+1}=b_s\delta_k\Rightarrow G_k=c_sb_s\delta_{k-1}`}</Tex>，更新式變成{' '}
-            <Tex>{String.raw`\delta_{k+1}=\delta_k-\mu b_sc_s\delta_{k-1}`}</Tex>——§8.3 的 <Tex>{'d=1'}</Tex>，需要 <Tex>{'\\mu b_sc_s<1'}</Tex>；quasi-static 卻說 <Tex>{'<2'}</Tex>。
-            比值對任何 <Tex>{'r_s'}</Tex> 都是 <Tex>{'\\tfrac12'}</Tex>（上表）。差異的來源是觀測路徑的那一個 block 的 sample→observe latency，而不是主迴路的快慢（勘誤 E19）。
+            <Tex>{String.raw`\delta_{k+1}=\delta_k-\mu b_sc_s\delta_{k-1}`}</Tex>——§8.3 的 <Tex>{'d=1'}</Tex>，需要 <Tex>{'\\mu b_sc_s<1'}</Tex>；quasi-static 卻說 <Tex>{'<2'}</Tex>。比值對任何 <Tex>{'r_s'}</Tex> 都是 <Tex>{'\\tfrac12'}</Tex>（上表）。差異的來源是觀測路徑的那一個 block 的 sample→observe latency，而不是主迴路的快慢（勘誤 E19）。
           </>
         }
       />

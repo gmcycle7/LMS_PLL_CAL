@@ -350,8 +350,7 @@ export function Wrapup() {
           title={String.raw`思考題 6（一般化 $F(z)$）`}
           question={
             <>
-              某觀測路徑 <Tex>{'F(z)=0.04(z+1)/(z^2-1.6z+0.68)'}</Tex>（<Tex>{'F(1)=1'}</Tex>，觀測 poles <Tex>{'0.8\\pm j0.2'}</Tex>）。quasi-static 說 <Tex>{'0<\\mu<2'}</Tex>。完整模型呢？
-              （用 Dual-Loop Explorer 的「二階觀測」preset 檢查）
+              某觀測路徑 <Tex>{'F(z)=0.04(z+1)/(z^2-1.6z+0.68)'}</Tex>（<Tex>{'F(1)=1'}</Tex>，觀測 poles <Tex>{'0.8\\pm j0.2'}</Tex>）。quasi-static 說 <Tex>{'0<\\mu<2'}</Tex>。完整模型呢？（用 Dual-Loop Explorer 的「二階觀測」preset 檢查）
             </>
           }
           answer={

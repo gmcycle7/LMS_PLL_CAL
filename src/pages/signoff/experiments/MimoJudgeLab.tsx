@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import { ExperimentShell, ParamControl, Plot, SelectControl, Tex, useThemeTokens, type CsvColumns, type ExperimentPreset, type MetricRow } from '@/components'
 import { useUrlPreset } from '@/app/presets'
 import type { Matrix } from '@/simulation/core'
@@ -163,8 +163,7 @@ export function MimoJudgeExperiment() {
       tests={['T18', 'T10']}
       description={
         <>
-          輸入量測到（或模型）的 <Tex>{'\\mathbf J=\\partial E[\\mathbf G]/\\partial\\mathbf w'}</Tex> 與更新矩陣 <Tex>{'\\mathbf M'}</Tex>，判斷 <Tex>{'\\boldsymbol\\delta\\mathbf w_{k+1}=(\\mathbf I+\\mathbf M\\mathbf J)\\boldsymbol\\delta\\mathbf w_k'}</Tex> 的穩定性。
-          regularized pseudoinverse 模式下，<Tex>{'\\mathbf M'}</Tex> 由帶誤差的 <Tex>{'\\hat{\\mathbf J}'}</Tex> 建構，但 poles 一律以真實 <Tex>{'\\mathbf J'}</Tex> 計算。
+          輸入量測到（或模型）的 <Tex>{'\\mathbf J=\\partial E[\\mathbf G]/\\partial\\mathbf w'}</Tex> 與更新矩陣 <Tex>{'\\mathbf M'}</Tex>，判斷 <Tex>{'\\boldsymbol\\delta\\mathbf w_{k+1}=(\\mathbf I+\\mathbf M\\mathbf J)\\boldsymbol\\delta\\mathbf w_k'}</Tex> 的穩定性。regularized pseudoinverse 模式下，<Tex>{'\\mathbf M'}</Tex> 由帶誤差的 <Tex>{'\\hat{\\mathbf J}'}</Tex> 建構，但 poles 一律以真實 <Tex>{'\\mathbf J'}</Tex> 計算。
         </>
       }
       assumptions={[

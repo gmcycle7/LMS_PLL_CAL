@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import {
   ClaimTag,
   CodeCompare,
@@ -215,8 +215,7 @@ export function SignTeaserSection() {
                 <Tex>{'e'}</Tex> 與 <Tex>{'x'}</Tex> 都只要正負號
               </td>
               <td>
-                只有一個係數時等於最小化 <Tex>{'E\\big[|e|/|x|\\big]'}</Tex>（因為 <Tex>{'\\tfrac{d}{dw}\\tfrac{|e|}{|x|}=-\\mathrm{sign}(e)\\,\\mathrm{sign}(x)'}</Tex>）；
-                多個係數時沒有對應的單一成本函數
+                只有一個係數時等於最小化 <Tex>{'E\\big[|e|/|x|\\big]'}</Tex>（因為 <Tex>{'\\tfrac{d}{dw}\\tfrac{|e|}{|x|}=-\\mathrm{sign}(e)\\,\\mathrm{sign}(x)'}</Tex>）；多個係數時沒有對應的單一成本函數
               </td>
               <td>
                 硬體最省；丟掉 <Tex>{'x'}</Tex> 的幅度資訊
@@ -241,8 +240,7 @@ export function SignTeaserSection() {
         }
       />
       <p className="small">
-        <SourceTag kind="simulation" /> 三者都走向 <Tex>{`a=${texNum(CMP.a)}`}</Tex>，但路徑不同：Sign 類的步伐不隨誤差縮小，所以接近答案後的抖動與收斂速度由 <Tex>{'\\mu'}</Tex> 直接決定。
-        兩者最後停的位置也不一定相同（MSE 的最佳點是平均、MAE 是中位數），<PageLink id="ch01" /> 與 <PageLink id="ch02" /> 會仔細比較。
+        <SourceTag kind="simulation" /> 三者都走向 <Tex>{`a=${texNum(CMP.a)}`}</Tex>，但路徑不同：Sign 類的步伐不隨誤差縮小，所以接近答案後的抖動與收斂速度由 <Tex>{'\\mu'}</Tex> 直接決定。兩者最後停的位置也不一定相同（MSE 的最佳點是平均、MAE 是中位數），<PageLink id="ch01" /> 與 <PageLink id="ch02" /> 會仔細比較。
       </p>
 
       <h3>
@@ -290,8 +288,7 @@ export function SignTeaserSection() {
         ))}
         ；<Tex>{`\\mu=${TIE.muT01}`}</Tex> 時，從 <Tex>{texNum(TIE.w0)}</Tex> 一路加 <Tex>{`\\mu x=${texNum(TIE.muT01 * TIE.x)}`}</Tex>{' '}
         在浮點下第一次越過時落在 <code>{String(t01Overshoot)}</code>（不是剛好 <Tex>{texNum(TIE.a)}</Tex>：0.1、0.2 都無法用二進位精確表示），<Tex>{'e'}</Tex>{' '}
-        永遠不會剛好是 0，三種慣例看起來一樣。
-        模擬不可依賴 <code>Math.sign(0) = 0</code> 的隱含行為；本站的 <code>sgn(v, tie)</code> 一律明確指定。
+        永遠不會剛好是 0，三種慣例看起來一樣。模擬不可依賴 <code>Math.sign(0) = 0</code> 的隱含行為；本站的 <code>sgn(v, tie)</code> 一律明確指定。
       </ErratumNote>
 
       <h3>1-bit 比較器 + 很多筆平均 = GMAC</h3>
@@ -307,8 +304,7 @@ export function SignTeaserSection() {
         <p>
           <strong>CLT</strong>：<Tex>{'N'}</Tex> 個 iid 的量 <Tex>{'Z_i'}</Tex>（平均 <Tex>{'m_Z'}</Tex>、變異數 <Tex>{'\\sigma_Z^2'}</Tex>）加總成{' '}
           <Tex>{'S_N=\\sum_{i=1}^{N}Z_i'}</Tex>，當 <Tex>{'N'}</Tex> 夠大時近似 <Tex>{'\\mathcal N(Nm_Z,\\,N\\sigma_Z^2)'}</Tex>（平均 <Tex>{'\\propto N'}</Tex>、標準差{' '}
-          <Tex>{'\\propto\\sqrt N'}</Tex>，正是 §0.7 的 <Tex>{'1/\\sqrt N'}</Tex> 法則）。這是近似，不是等式：<Tex>{'q=\\pm1'}</Tex> 的和其實是二項分布，
-          精確值與平手（tie）規則在 <PageLink id="ch05" />。
+          <Tex>{'\\propto\\sqrt N'}</Tex>，正是 §0.7 的 <Tex>{'1/\\sqrt N'}</Tex> 法則）。這是近似，不是等式：<Tex>{'q=\\pm1'}</Tex> 的和其實是二項分布，精確值與平手（tie）規則在 <PageLink id="ch05" />。
         </p>
       </Prereq>
       <p>
@@ -318,8 +314,7 @@ export function SignTeaserSection() {
         <p>
           先看「單獨一筆」那一框：很小的 <Tex>{'s'}</Tex>（圖上設 <Tex>{'s>0'}</Tex>；<Tex>{'s<0'}</Tex> 時左右對稱、方向相反）加上很大的雜訊 <Tex>{'v'}</Tex>（紅色）才是比較器真正看到的 <Tex>{'e'}</Tex>，所以單獨一個輸出 <Tex>{'q'}</Tex>{' '}
           幾乎是丟銅板。但比較器輸出 <Tex>{'+1'}</Tex> 的機率比一半多一點點，所以 <Tex>{'q'}</Tex> 的平均不是 0，而是一個很小的正數，記為 <Tex>{'m_q=E[q]'}</Tex>
-          ——這就是兩框之間那條線上寫的東西。再看「累加 N 筆」那一框：把 <Tex>{'N'}</Tex> 筆 <Tex>{'q'}</Tex> 加起來的<strong>總和</strong>記為 <Tex>{'S_N'}</Tex>。
-          最後看綠色那一格：只要 <Tex>{'S_N'}</Tex> 的平均 <Tex>{'Nm_q'}</Tex> 比它的標準差大得多，<Tex>{'S_N'}</Tex> 的正負號就幾乎一定和 <Tex>{'s'}</Tex> 相同。
+          ——這就是兩框之間那條線上寫的東西。再看「累加 N 筆」那一框：把 <Tex>{'N'}</Tex> 筆 <Tex>{'q'}</Tex> 加起來的<strong>總和</strong>記為 <Tex>{'S_N'}</Tex>。最後看綠色那一格：只要 <Tex>{'S_N'}</Tex> 的平均 <Tex>{'Nm_q'}</Tex> 比它的標準差大得多，<Tex>{'S_N'}</Tex> 的正負號就幾乎一定和 <Tex>{'s'}</Tex> 相同。
         </p>
         <p>
           圖上寫的每一個統計量，就是下面推導的一行：比較器那格的「<Tex>{'\\Phi(s/\\sigma_v)'}</Tex>」是第 1 步、兩框之間的「平均 <Tex>{'m_q'}</Tex>」是第 2 步、累加那格的「<Tex>{'S_N'}</Tex>{' '}
@@ -431,8 +426,7 @@ export function SignTeaserSection() {
       </p>
       <ChapterDiagram name="CHART_GMAC_BLOCK">
         <p>
-          先看「每個 sample」那一框：比較器輸出 <Tex>{'q[n]'}</Tex> 和 <Tex>{'x[n]'}</Tex> 相乘（硬體上就是 <FigRef name="CHART_LMS_VS_SIGN" /> 的條件變號），一筆一筆加進累加器。
-          再看兩框之間的那條線與「每個 block」那一框：累加器每 <Tex>{'N'}</Tex> 筆才把總和交出來一次，除以 <Tex>{'N'}</Tex> 得到 <Tex>{'G[k]'}</Tex>，乘上 <Tex>{'\\mu'}</Tex>{' '}
+          先看「每個 sample」那一框：比較器輸出 <Tex>{'q[n]'}</Tex> 和 <Tex>{'x[n]'}</Tex> 相乘（硬體上就是 <FigRef name="CHART_LMS_VS_SIGN" /> 的條件變號），一筆一筆加進累加器。再看兩框之間的那條線與「每個 block」那一框：累加器每 <Tex>{'N'}</Tex> 筆才把總和交出來一次，除以 <Tex>{'N'}</Tex> 得到 <Tex>{'G[k]'}</Tex>，乘上 <Tex>{'\\mu'}</Tex>{' '}
           後加進 gain register——這一框裡的「相加點加上 <Tex>{'z^{-1}'}</Tex>」和 §0.3 的 <FigRef name="CHART_LMS_ACCUMULATOR" /> 是同一個累加器，只是這裡的 <Tex>{'z^{-1}'}</Tex>{' '}
           延遲的是一個 block，不是一筆取樣。
         </p>
@@ -445,14 +439,12 @@ export function SignTeaserSection() {
         <TexBlock>{String.raw`G_k=\frac1N\sum_{n\in\text{block }k}q_n\,x_n,\qquad w_{k+1}=w_k+\mu\,G_k`}</TexBlock>
       </div>
       <Observe>
-        這就是 PLL 校正的核心：<strong>1-bit 誤差 <Tex>{'\\times'}</Tex> regressor，累加 <Tex>{'N'}</Tex> 筆，乘上 <Tex>{'\\mu'}</Tex>，更新 gain</strong>。它和本章的 LMS 只有兩個差別——誤差只剩正負號、
-        更新前先平均。<PageLink id="ch02" /> 會推導 Sign-Error LMS，<PageLink id="ch04" /> 畫出完整的 DSM → DTC → PD → GMAC 訊號流，
+        這就是 PLL 校正的核心：<strong>1-bit 誤差 <Tex>{'\\times'}</Tex> regressor，累加 <Tex>{'N'}</Tex> 筆，乘上 <Tex>{'\\mu'}</Tex>，更新 gain</strong>。它和本章的 LMS 只有兩個差別——誤差只剩正負號、更新前先平均。<PageLink id="ch02" /> 會推導 Sign-Error LMS，<PageLink id="ch04" /> 畫出完整的 DSM → DTC → PD → GMAC 訊號流，
         <PageLink id="ch05" /> 計算 1-bit 比較器的等效增益 <Tex>{'K_q=\\sqrt{2/\\pi}/\\sigma_v'}</Tex>。
       </Observe>
       <ModeGate min="research">
         <p className="small">
-          （Research）注意 Sign-Error 的固定點由 <Tex>{'E[\\mathrm{sign}(e)\\,x]=0'}</Tex> 決定，一般不等於 MSE 的 <Tex>{'E[e\\,x]=0'}</Tex>；
-          有雜訊時兩者的差距取決於 <Tex>{'\\sigma_v'}</Tex> 與殘差的相對大小（<ErratumRef eid="E01" />，<PageLink id="ch11" />）。
+          （Research）注意 Sign-Error 的固定點由 <Tex>{'E[\\mathrm{sign}(e)\\,x]=0'}</Tex> 決定，一般不等於 MSE 的 <Tex>{'E[e\\,x]=0'}</Tex>；有雜訊時兩者的差距取決於 <Tex>{'\\sigma_v'}</Tex> 與殘差的相對大小（<ErratumRef eid="E01" />，<PageLink id="ch11" />）。
         </p>
       </ModeGate>
     </Section>

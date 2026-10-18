@@ -20,12 +20,13 @@
  *
  * 不 import React / DOM；worker 可呼叫的函式（runSspllLms、runSspllLmsCompare）只收可 structured clone 的參數。
  */
-import { cAbs, cConj, cMul, type Complex } from '@/simulation/core/complex'
+import { cAbs, cConj, cExpj, cMul, type Complex } from '@/simulation/core/complex'
 import { eigSym, eigvals, type Matrix } from '@/simulation/core/linalg'
 import { polyRoots } from '@/simulation/core/poly'
 import { createRng } from '@/simulation/core/rng'
 import { erf } from '@/simulation/core/special'
 import { fft, ifft } from '@/simulation/signal/fft'
+import { findTones, integratePsd, toneFitMulti, welch } from '@/simulation/signal/psd'
 
 /** reference 頻率 [Hz] */
 export const F_REF = 4e9
@@ -2039,4 +2040,677 @@ export function analyseAlpha(loop: SspllLoop, alpha: number, variant = 'raw', mo
     m1Upper: W1 * ga + (1 - W1) * range.max,
     reGammaAtAlpha: ga,
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 殘餘誤差 → 輸出 spur／jitter（§15.4）：校準停下來之後，殘餘的 PHOS／GOS 在 PLL 輸出變成哪些譜線
+//   - PHOS 殘差 δ_k（k = 0..7）：e[n] = Σ_k δ_k 1{p[n] = k} = Σ_m δ̂_m e^{j2πm p[n]/8}（8 點 DFT，1/8 正規化），
+//     階梯指數 e^{j2πm p[n]/8} = Σ_{ℓ≡m (8)} b_ℓ e^{j2πℓφ[n]}，|b_ℓ|² = w_ℓ（F-CS.13 的權重），
+//     所以模態 m 在 frac(ℓα)·f_ref 各放一條線，實數 tone 的 peak 振幅是 2|δ̂_m|·|b_ℓ|（ℓ 與 −ℓ 成對）。
+//   - GOS 殘差 (1 − gain)·Δ·ρ[n]：鋸齒的第 m 次諧波在 frac(mβ)·f_ref，peak 振幅 |GOS 誤差|/(πm)（§7.1 的 Fourier 級數）。
+//   - 輸出端：y = T * u = u − e_PD（T = 1 − H_PD），每條線乘上 |T(f)|；相位 β = 2π f_vco·A_out、單邊 spur = 20 log10(β/2)
+//     （Ch12 F-12.16／T15 的小角近似；δt 以 fs 計）。
+//   這些函式只用在案例頁 §15.4 與實驗 C 的「凍結後的輸出」；閉迴路 LMS 本身（runSspllLms）沒有改。
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** 輸出端 timing tone（peak A [fs]）→ 單邊 PM spur [dBc]：β = 2π f_vco |T| A，spur = 20 log10(β/2)（小角：β ≪ 1） */
+export function spurDbcFromToneFs(fVcoHz: number, aPeakFs: number, tMag = 1): number {
+  return 20 * Math.log10(spurBetaFromToneFs(fVcoHz, aPeakFs, tMag) / 2)
+}
+
+/** 調變指數 β = 2π f_vco |T| A [rad]（A 以 fs 計） */
+export function spurBetaFromToneFs(fVcoHz: number, aPeakFs: number, tMag = 1): number {
+  return TWO_PI * fVcoHz * tMag * aPeakFs * 1e-15
+}
+
+/** 8 點 DFT（1/8 正規化）：δ̂_m = (1/8) Σ_k δ_k e^{−j2πmk/8}，m = 0..7；Parseval：Σ_m |δ̂_m|² = (1/8) Σ_k δ_k² */
+export function phosDft(delta: ArrayLike<number>): Complex[] {
+  const out: Complex[] = []
+  for (let m = 0; m < NPH; m++) {
+    let re = 0
+    let im = 0
+    for (let k = 0; k < NPH; k++) {
+      const th = (-TWO_PI * m * k) / NPH
+      re += delta[k] * Math.cos(th)
+      im += delta[k] * Math.sin(th)
+    }
+    out.push({ re: re / NPH, im: im / NPH })
+  }
+  return out
+}
+
+/** 階梯指數 e^{j2πm p[n]/8} 在線 ℓ（ℓ ≡ m mod 8）的複數係數大小 |b_ℓ| = 8|sin(πℓ/8)|/(π|ℓ|) = √w_ℓ；ℓ = 0 時為 1（只有 m = 0 用到） */
+export function staircaseLineAmplitude(ell: number): number {
+  if (ell === 0) return 1
+  return (NPH * Math.abs(Math.sin((Math.PI * ell) / NPH))) / (Math.PI * Math.abs(ell))
+}
+
+export interface ResidualLineComponent {
+  source: 'phos' | 'gos'
+  /** PHOS：模態 m（1..4；m 與 8−m 共軛成對，以 ≤ 4 的那個表示）；GOS：諧波次數 m */
+  mode: number
+  /** PHOS：譜線編號 ℓ（頻率 ℓα；m > 4 的線寫成模態 8−m 的 ℓ' = −ℓ）；GOS：ℓ = m（頻率 mβ） */
+  ell: number
+  /** 這一個成分單獨的 peak 振幅 [fs]（注入點）：PHOS 為 2|δ̂_m|√w_ℓ、GOS 為 |δ_gΔ|/(πm) */
+  ampPdFs: number
+}
+
+export interface ResidualLine extends ResidualLineComponent {
+  /** 折到 [0, ½] 的正規化頻率 */
+  f: number
+  fMHz: number
+  /** 注入點（PD 輸入端）這個頻率上實數 tone 的 peak 振幅 [fs]：週期序列時是精確的 Fourier 係數，否則是 ℓ 級數（重合成分相干相加） */
+  ampPdFs: number
+  /** 主要成分單獨的 peak 振幅 [fs]（F-CS.21／F-CS.22 的單線公式） */
+  mainAmpPdFs: number
+  /** ℓ 級數把重合成分相干相加後的 peak 振幅 [fs]（有理 α 時與精確值差在邊緣樣本與截斷；無理數 α 時就是 ampPdFs） */
+  seriesAmpPdFs: number
+  /** 是否用週期序列的精確 Fourier 係數（有理 α、而且這條線在前 nExact 條內） */
+  exact: boolean
+  /** 頻率重合、相干相加進來的其他成分（有理 α 時 ℓ 與 ℓ ± Q 的線、或 GOS 與 PHOS 的線落在同一頻率） */
+  others: ResidualLineComponent[]
+  /** |T(f)| */
+  tMag: number
+  /** 輸出端的 tone peak 振幅 [fs] = |T|·ampPd */
+  ampOutFs: number
+  /** 調變指數 β = 2π f_vco·ampOut [rad] */
+  betaRad: number
+  /** 單邊 spur [dBc]（小角 PM） */
+  spurDbc: number
+}
+
+export interface ResidualSpectrumInput {
+  /** PHOS 殘差 δ_k [fs]（k = 0..7；共模只給 DC，自動略過） */
+  deltaFs: ArrayLike<number>
+  /** GOS 誤差 (1 − gain)·Δ [fs]（code = 1 時的時間誤差；可帶正負號，只影響相位） */
+  gosErrFs: number
+  alpha: number
+  loop: SspllLoop
+  fVcoHz: number
+  /** 分數相位序列（預設 acc32，與閉迴路模擬相同；決定 α 的實際值與序列的週期） */
+  seq?: SeqKind
+  /** PHOS 譜線取到 |ℓ| ≤ lMax（預設 2048）；GOS 諧波取到 m ≤ mMax（預設 2048） */
+  lMax?: number
+  mMax?: number
+  fRefHz?: number
+  /** 相位的時間原點（拍）：第 n0 拍當作 toneFit 的 n = 0；只影響重合譜線的相干相加，預設 0 */
+  nOrigin?: number
+  /** 頻率相差不到這個值（正規化）的譜線視為重合、相干相加；預設 1e-7（f_ref = 4 GHz 時 400 Hz） */
+  mergeTol?: number
+  /** 序列為週期 Q 時，前 nExact 條線（依 ℓ 級數的振幅）改用一個週期的精確 Fourier 係數（預設 24；另受 2×10⁶/Q 限制） */
+  nExact?: number
+  /** true：只列單線（不合併、不算精確值）——F-CS.21／F-CS.22 在無理數 α 下的字面意思，給教學表用 */
+  singleLines?: boolean
+}
+
+export interface ResidualSpectrum {
+  /** 所有譜線（重合者已合併），依輸出振幅由大到小 */
+  lines: ResidualLine[]
+  /** δ̂_m（m = 0..7）[fs] */
+  dft: Complex[]
+  /** 注入點的 rms [fs]：PHOS（去共模）與 GOS（鋸齒 AC 部分 |GOS|/√12） */
+  rmsPdPhosFs: number
+  rmsPdGosFs: number
+  /** 輸出端的積分 jitter（所有線的 Σ A_out²/2 開根號）[fs] */
+  jitterOutFs: number
+  /** 只算 PHOS／只算 GOS 的輸出 jitter [fs]（成分各自獨立相加，不含重合線的交叉項） */
+  jitterOutPhosFs: number
+  jitterOutGosFs: number
+  /** 序列是否（在 65,536 拍內）是週期 Q 的：α 的最簡分數近似 P/Q（Q ≤ 65,536）夠準時才算；是的話前 nExact 條線用精確係數 */
+  periodic: boolean
+  periodQ: number
+}
+
+/**
+ * 殘餘 PHOS／GOS 的閉合式譜線（§15.4，F-CS.21／F-CS.22）。
+ * PHOS：線 ℓ = 1..lMax 的正頻率複數係數 c_ℓ = δ̂_m b_ℓ（m = ℓ mod 8；0 略過：b_ℓ = 0，只剩 DC），b_ℓ = 8(1 − e^{−j2πℓ/8})/(j2πℓ)；
+ * 實數 tone（ℓ 與 −ℓ 成對）的 peak = 2|c_ℓ|。GOS：ρ = ½ − Σ sin(2πmnβ)/(πm) ⇒ 第 m 次諧波的係數 c_m = j·δ_gΔ/(2πm)，peak = |δ_gΔ|/(πm)。
+ * 折頻：f0 > ½ 的線折到 1 − f0 時係數取共軛；f0 = ½（Nyquist）時 ℓ 與 −ℓ 落在同一點，peak = 2|Re c|；時間原點移到 nOrigin 時乘上 e^{j2πf0·nOrigin}。
+ * 折回同一頻率的線（有理 α：ℓ 與 ℓ ± Q；GOS 與 PHOS 偶然同頻）相干相加成一條。
+ * 有理 α（序列是週期 Q 的）時取樣會剛好落在 PMUX 相位邊緣上，one-hot 與鋸齒的 Fourier 級數在那些樣本收斂到跳變的中點，
+ * ℓ 級數就不再精確（α = 1/50 時差到 10%）；所以週期序列的前 nExact 條線改用一個週期的精確 Fourier 係數（直接對序列投影），
+ * ℓ 級數的值留在 seriesAmpPdFs 供對照（sspll.test.ts 以 α = 1/50 的精確週期 DFT 核對）。無理數 α 沒有邊緣樣本，級數本身就精確。
+ * 輸出端各乘 |T(f)|（線性化的閉迴路響應）。
+ */
+export function residualLineSpectrum(inp: ResidualSpectrumInput): ResidualSpectrum {
+  const lMax = inp.lMax ?? 2048
+  const mMax = inp.mMax ?? 2048
+  const fRef = inp.fRefHz ?? F_REF
+  const n0 = inp.nOrigin ?? 0
+  const tol = inp.mergeTol ?? 1e-7
+  const seq = inp.seq ?? 'acc32'
+  const single = inp.singleLines ?? false
+  const a = seq === 'acc32' ? accWord(inp.alpha) / 4294967296 : frac(inp.alpha)
+  const beta = frac(NPH * a)
+  const dft = phosDft(inp.deltaFs)
+  const G = inp.gosErrFs
+  // 折頻後的複數係數（相位以第 n0 拍為原點）；DC 線略過
+  interface Raw {
+    comp: ResidualLineComponent
+    f: number
+    c: Complex
+  }
+  const raw: Raw[] = []
+  const add = (comp: ResidualLineComponent, f0: number, c0: Complex): void => {
+    if (f0 < 1e-12 || f0 > 1 - 1e-12) return
+    const rot = cExpj(TWO_PI * f0 * n0)
+    let c = cMul(c0, rot)
+    if (Math.abs(f0 - 0.5) < 1e-12) c = { re: c.re, im: 0 } // Nyquist：ℓ 與 −ℓ 重合，只剩實部
+    else if (f0 > 0.5) c = cConj(c)
+    raw.push({ comp, f: foldFreq(f0), c })
+  }
+  for (let ell = 1; ell <= lMax; ell++) {
+    const m = ell % NPH
+    if (m === 0) continue
+    // b_ℓ = 8(1 − e^{−j2πℓ/8})/(j2πℓ)
+    const th = (TWO_PI * ell) / NPH
+    const b = { re: (NPH * Math.sin(th)) / (TWO_PI * ell), im: (-NPH * (1 - Math.cos(th))) / (TWO_PI * ell) }
+    const c = cMul(dft[m], b)
+    add({ source: 'phos', mode: m <= NPH / 2 ? m : NPH - m, ell: m <= NPH / 2 ? ell : -ell, ampPdFs: 2 * cAbs(c) }, frac(ell * a), c)
+  }
+  if (G !== 0 && beta > 0)
+    for (let m = 1; m <= mMax; m++) {
+      const c = { re: 0, im: G / (TWO_PI * m) }
+      add({ source: 'gos', mode: m, ell: m, ampPdFs: 2 * cAbs(c) }, frac(m * beta), c)
+    }
+  // 鏈式合併：和前一條線相差不到 tol 就併入同一組（真正不同的線至少相隔 1/Q ≥ 1/65536，遠大於 tol，不會被串起來）；
+  // 組的代表頻率取振幅最大的成分那一條
+  raw.sort((x, y) => x.f - y.f || y.comp.ampPdFs - x.comp.ampPdFs)
+  const groups: { f: number; fLast: number; wMax: number; c: Complex; comps: ResidualLineComponent[] }[] = []
+  for (const r of raw) {
+    const g = !single && groups.length ? groups[groups.length - 1] : null
+    const w = r.comp.ampPdFs
+    if (g && Math.abs(r.f - g.fLast) < tol) {
+      g.c = { re: g.c.re + r.c.re, im: g.c.im + r.c.im }
+      g.fLast = r.f
+      if (w > g.wMax) {
+        g.wMax = w
+        g.f = r.f
+      }
+      g.comps.push(r.comp)
+    } else groups.push({ f: r.f, fLast: r.f, wMax: w, c: { ...r.c }, comps: [r.comp] })
+  }
+  // 有理 α（序列週期 Q ≤ 65,536、在 65,536 拍內相位偏差 < 10⁻³ 週）：前 nExact 條線用一個週期的精確 Fourier 係數
+  const [P, Q] = limitDenominator(a, 1 << 16)
+  const periodic = !single && Math.abs(a - P / Q) * Math.max(Q, 65536) < 1e-3
+  const exactAmp = new Map<number, number>()
+  if (periodic) {
+    const nExact = Math.min(groups.length, inp.nExact ?? 24, Math.max(1, Math.floor(2e6 / Q)))
+    const order = groups.map((g, i) => ({ i, amp: 2 * cAbs(g.c) })).sort((x, y) => y.amp - x.amp).slice(0, nExact)
+    const at = makeSequence(inp.alpha, seq)
+    const sPh: PhaseSample = { c: 0, p: 0 }
+    const e = new Float64Array(Q)
+    for (let n = 0; n < Q; n++) {
+      at(n, sPh)
+      e[n] = inp.deltaFs[sPh.p] + G * sPh.c
+    }
+    for (const { i } of order) {
+      const k = Math.round(groups[i].f * Q)
+      if (k <= 0 || 2 * k > Q) continue
+      let re = 0
+      let im = 0
+      for (let n = 0; n < Q; n++) {
+        const th = (TWO_PI * k * n) / Q
+        re += e[n] * Math.cos(th)
+        im -= e[n] * Math.sin(th)
+      }
+      exactAmp.set(i, ((2 * k === Q ? 1 : 2) * Math.hypot(re, im)) / Q)
+    }
+  }
+  const lines: ResidualLine[] = groups.map((g, i) => {
+    g.comps.sort((x, y) => y.ampPdFs - x.ampPdFs)
+    const main = g.comps[0]
+    const series = 2 * cAbs(g.c)
+    const ex = exactAmp.get(i)
+    const ampPd = ex ?? series
+    const tMag = cAbs(loopT(inp.loop, Math.max(g.f, 1e-12)))
+    const ampOut = tMag * ampPd
+    return {
+      ...main,
+      f: g.f,
+      fMHz: (g.f * fRef) / 1e6,
+      ampPdFs: ampPd,
+      mainAmpPdFs: main.ampPdFs,
+      seriesAmpPdFs: series,
+      exact: ex !== undefined,
+      others: g.comps.slice(1),
+      tMag,
+      ampOutFs: ampOut,
+      betaRad: spurBetaFromToneFs(inp.fVcoHz, ampOut),
+      spurDbc: spurDbcFromToneFs(inp.fVcoHz, ampOut),
+    }
+  })
+  lines.sort((x, y) => y.ampOutFs - x.ampOutFs)
+  // 分來源的 jitter：各成分獨立相加（不含重合線的交叉項）
+  let sqPhos = 0
+  let sqGos = 0
+  for (const r of raw) {
+    const t = cAbs(loopT(inp.loop, Math.max(r.f, 1e-12)))
+    const v = (t * r.comp.ampPdFs) ** 2 / 2
+    if (r.comp.source === 'phos') sqPhos += v
+    else sqGos += v
+  }
+  let rmsPhos = 0
+  for (let m = 1; m < NPH; m++) rmsPhos += dft[m].re ** 2 + dft[m].im ** 2
+  return {
+    lines,
+    dft,
+    rmsPdPhosFs: Math.sqrt(rmsPhos),
+    rmsPdGosFs: beta > 0 ? Math.abs(G) / Math.sqrt(12) : 0,
+    jitterOutFs: Math.sqrt(lines.reduce((s, l) => s + (l.ampOutFs * l.ampOutFs) / 2, 0)),
+    jitterOutPhosFs: Math.sqrt(sqPhos),
+    jitterOutGosFs: Math.sqrt(sqGos),
+    periodic,
+    periodQ: Q,
+  }
+}
+
+/**
+ * PHOS regressor 的 circulant 共變異數列 c[d] = ⟨r_k r_{(k+d) mod 8}⟩（對 k 平均）的 DFT：S_m = Σ_d c[d] cos(2πmd/8)，m = 0..7。
+ * GMAC 的 block 雜訊 η_k = (1/N)Σ_n q r_k 的共變異數是 c/N（q = ±1、白色），DFT 模態把它對角化：E|η̂_m|² = S_m/(8N)。
+ * raw（one-hot）：c = [1/8, 0, …] ⇒ S_m = 1/8；一階差分、小 α：S_m ≈ 4α sin²(πm/8)（慢的模態分到的雜訊少很多）。
+ */
+export function phosModeNoise(regCov: ArrayLike<number>): Float64Array {
+  const S = new Float64Array(NPH)
+  for (let m = 0; m < NPH; m++) {
+    let s = 0
+    for (let d = 0; d < NPH; d++) s += regCov[d] * Math.cos((TWO_PI * m * d) / NPH)
+    S[m] = s
+  }
+  return S
+}
+
+export interface PhosSteadyState {
+  /** 各模態（m = 1..7）的穩態變異數 σ²_{θ,m} = E|θ̂_m|² [ps²]；不穩定時為 Infinity */
+  varModePs2: number[]
+  /** |p_m| = |1 − κ_m/N_τ,eff|（m = 1..7） */
+  poleAbs: number[]
+  /** 各模態每 block 的雜訊 E|η̂_m|² = S_m/(8N)（m = 0..7） */
+  noiseMode: Float64Array
+  /** 步長對應的 N_τ,eff = 8/(μ_p K_q) [blocks] */
+  tauEff: number
+  /** 最慢模態的實際時間常數 −1/ln|p_m| [blocks]（不穩定時為 Infinity） */
+  tauMaxBlocks: number
+  /** 所有模態 |p_m| < 1 */
+  stable: boolean
+  /** 穩態 PHOS rms（去共模）= √Σ_{m=1}^{7} σ²_{θ,m} [fs]；不穩定時為 Infinity */
+  rmsFs: number
+}
+
+/**
+ * 穩態的權重雜訊（F-CS.23；Ch12 F-12.4 的 σ_w² = μ²σ_η²/(1 − p²) 逐模態版本）：
+ *   θ̂_{m,k+1} = p_m θ̂_{m,k} + μ_p η̂_{m,k}，p_m = 1 − κ_m/N_τ,eff（複數），E|η̂_m|² = S_m/(8N)
+ *   ⇒ σ²_{θ,m} = μ_p² S_m/(8N) / (1 − |p_m|²)，PHOS rms² = Σ_{m≠0} σ²_{θ,m}。
+ * 前提同 F-CS.2（Bussgang、時間尺度分離）；q 在 block 內白色（比較器雜訊主導）。kappaM 是 analyseAlpha 的 κ_m（m = 1..7）。
+ */
+export function phosSteadyState(kappaM: readonly Complex[], muPps: number, sigmaPs: number, nBlk: number, regCov: ArrayLike<number>): PhosSteadyState {
+  const kq = Math.sqrt(2 / Math.PI) / sigmaPs
+  const tauEff = NPH / (muPps * kq)
+  const S = phosModeNoise(regCov)
+  const noiseMode = new Float64Array(NPH)
+  for (let m = 0; m < NPH; m++) noiseMode[m] = S[m] / (NPH * nBlk)
+  const varModePs2: number[] = []
+  const poleAbs: number[] = []
+  let sum = 0
+  let stable = true
+  let tauMax = 0
+  for (let m = 1; m < NPH; m++) {
+    const k = kappaM[m - 1]
+    const pAbs = Math.hypot(1 - k.re / tauEff, k.im / tauEff)
+    poleAbs.push(pAbs)
+    if (pAbs >= 1) {
+      stable = false
+      varModePs2.push(Infinity)
+      continue
+    }
+    const v = (muPps * muPps * noiseMode[m]) / (1 - pAbs * pAbs)
+    varModePs2.push(v)
+    sum += v
+    tauMax = Math.max(tauMax, -1 / Math.log(pAbs))
+  }
+  return { varModePs2, poleAbs, noiseMode, tauEff, tauMaxBlocks: stable ? tauMax : Infinity, stable, rmsFs: stable ? 1000 * Math.sqrt(sum) : Infinity }
+}
+
+export interface SspllLmsSpectrumParams extends SspllLmsParams {
+  /** 凍結權重後再跑的拍數（預設 65,536 = 128 個 N = 512 的 block；Welch 的段數由它決定） */
+  nTail?: number
+  /** Welch 的 segment 長度（預設 8192 ⇒ Δf = f_ref/8192 ≈ 0.49 MHz；nTail = 65,536 時 15 段） */
+  nperseg?: number
+  /** VCO 頻率 [Hz]（預設由 cfg.deltaPs 反推：Δ = T_vco/8） */
+  fVcoHz?: number
+  /** 表上最多列幾條閉合式譜線（依輸出振幅；預設 8） */
+  maxLines?: number
+}
+
+export interface DetectedOutputTone {
+  fMHz: number
+  /** peak 振幅 [fs]（findTones 的主瓣功率 → √(2P)） */
+  ampFs: number
+  spurDbc: number
+  /** 對應到 lines 的索引（頻率差 ≤ 1 個 bin），沒有對應時為 −1 */
+  matchedLine: number
+}
+
+export interface SspllOutputSpectrum {
+  nTail: number
+  nperseg: number
+  nSegments: number
+  dfMHz: number
+  fVcoHz: number
+  /** 凍結時（lane 0）的 PHOS 殘差 δ'_k = gain·W_k − ε_k [fs]（k = 0..7）與 |GOS 誤差| [fs] */
+  phosResidualFs: Float64Array
+  gosErrFs: number
+  /** 閉合式譜線（依輸出振幅排序，最多 maxLines 條） */
+  lines: ResidualLine[]
+  /** 閉合式的輸出積分 jitter（|ℓ| ≤ 128、m ≤ 128 的所有線）[fs] */
+  jitterClosedFs: number
+  /** 尾段時域 rms（去平均）[fs]——積分 jitter 的直接量測（Parseval） */
+  jitterTimeFs: number
+  /** Welch PSD 由 2Δf 積到 f_ref/2 的 jitter [fs] */
+  jitterWelchFs: number
+  /** toneFit（在 lines 的精確頻率做 coherent 最小平方）得到的 peak 振幅 [fs]，與 lines 同序；頻率與其他線重合的那一條為 NaN */
+  toneFitFs: Float64Array
+  /** toneFit 的 spur [dBc]（與 lines 同序） */
+  toneFitDbc: Float64Array
+  /** findTones（Blackman–Harris Welch）找到、且高於鄰近雜訊底的譜線 */
+  detected: DetectedOutputTone[]
+  /** 輸出的相位雜訊 L(f) [dBc/Hz]（Welch；f = 0 的 bin 略過） */
+  psdFMHz: Float64Array
+  psdDbcHz: Float64Array
+  /** regressor 的 circulant 共變異數列 c[d]（PHOS 8 條；前 2¹⁵ 拍）與 PHOS regressor 功率 */
+  regCov: Float64Array
+  regPowerPhos: number
+  /** 穩態 PHOS rms 的量測：後半段的紀錄點、所有 lane 的 rms² 平均開根號 [fs]，以及平均的 block 範圍 */
+  steadyPhosRmsFs: number
+  steadyBlocks: [number, number]
+}
+
+export interface SspllLmsSpectrumResult extends SspllLmsResult {
+  spectrum: SspllOutputSpectrum
+}
+
+/** findTones 的候選再過一道「峰值 ≥ 門檻 × 鄰近 bin 的中位數」（同 unifiedLab.significantTones，這裡只要一小段，不把整個 lab 拉進 worker） */
+function keepSignificantTones<T extends { index: number; peakPsd: number; lobe: [number, number] }>(psd: ArrayLike<number>, tones: T[], nSegments: number, halfSpan = 64): T[] {
+  const thrDb = nSegments >= 8 ? 8 : nSegments >= 4 ? 10 : 14
+  const thr = Math.pow(10, thrDb / 10)
+  return tones.filter((t) => {
+    const ref: number[] = []
+    for (let i = Math.max(0, t.lobe[0] - halfSpan); i < t.lobe[0]; i++) ref.push(psd[i])
+    for (let i = t.lobe[1] + 1; i <= Math.min(psd.length - 1, t.lobe[1] + halfSpan); i++) ref.push(psd[i])
+    if (ref.length < 8) return true
+    ref.sort((x, y) => x - y)
+    return t.peakPsd >= thr * ref[ref.length >> 1]
+  })
+}
+
+/**
+ * 閉迴路 sign-error block LMS ＋ 凍結後的輸出頻譜（實驗 C 的「spur 表」）。
+ * 前半段與 runSspllLms **逐拍相同**（同 seed 得到相同的軌跡；sspll.test.ts 逐欄比對），差別只在：
+ *   (1) 步長正規化的那一段多記下 PHOS regressor 的 circulant 共變異數列 c[d]（F-CS.23 的 S_m 用）；
+ *   (2) 記錄時另外累加後半段所有 lane 的 PHOS rms²（穩態變異數的量測）；
+ *   (3) 跑完 nBlocks 之後把 lane 0 的權重凍結（LMS 關閉、不抽雜訊），再跑 nTail 拍，記下輸出 y = u − e_PD = T * u，
+ *       做 Welch（Blackman–Harris）、findTones、以及在閉合式譜線頻率做 toneFit，並與 residualLineSpectrum 的閉合式比對。
+ * 時間：比 runSspllLms 多 nTail 拍（預設 65,536，相當於 128 個 N = 512 的 block）加上一次 Welch 與一次最小平方。
+ */
+export function runSspllLmsWithSpectrum(params: SspllLmsSpectrumParams): SspllLmsSpectrumResult {
+  const { loop, alpha, variant, models, cfg } = params
+  const nBlocks = params.nBlocks ?? 4000
+  const nBlk = params.nBlk ?? 512
+  const tau = params.tauBlocks ?? 25
+  const recEvery = params.recEvery ?? 20
+  const nSettle = params.nSettle ?? 4096
+  const lanes = params.lanes ?? 1
+  const uOs = params.uOsPs ?? 0
+  const seq = params.seq ?? 'acc32'
+  const nTail = params.nTail ?? 65536
+  const nperseg = Math.min(params.nperseg ?? 8192, nTail)
+  const fVcoHz = params.fVcoHz ?? 1e12 / (NPH * cfg.deltaPs)
+  const maxLines = params.maxLines ?? 8
+  const { sigmaPs: sig, deltaPs: Dl, a } = cfg
+  const eps = cfg.epsPs
+  const rowFn = makeRowFn(alpha, seq)
+
+  // 步長：與 runSspllLms 相同；另外記下 PHOS regressor 的 circulant 共變異數列 c[d]
+  const ccmp = Math.sqrt(2 / Math.PI) / sig
+  let muP = 8 / (tau * ccmp)
+  let muG = 12 / (tau * ccmp * Dl)
+  const regCov = new Float64Array(NPH)
+  let regPowerPhos = 0
+  {
+    const pre = makeRegressor(variant, rowFn, models)
+    const r = new Float64Array(NREG)
+    let s0 = 0
+    let s00 = 0
+    let sp = 0
+    let cnt = 0
+    for (let n = 0; n < 1 << 15; n++) {
+      pre(n, r)
+      if (n < 1 << 12) continue
+      s0 += r[0]
+      s00 += r[0] * r[0]
+      for (let k = 1; k < NREG; k++) sp += r[k] * r[k]
+      for (let d = 0; d < NPH; d++) for (let k = 0; k < NPH; k++) regCov[d] += r[1 + k] * r[1 + ((k + d) % NPH)]
+      cnt++
+    }
+    const var0 = s00 / cnt - (s0 / cnt) ** 2
+    regPowerPhos = sp / (cnt * NPH)
+    for (let d = 0; d < NPH; d++) regCov[d] /= cnt * NPH
+    muG *= 1 / 12 / Math.max(var0, 1e-12)
+    muP *= 1 / 8 / Math.max(regPowerPhos, 1e-12)
+  }
+
+  const rng = createRng(params.seed ?? 3)
+  const noise = Array.from({ length: lanes }, (_, l) => rng.fork(`comparator-noise-${l}`))
+  const wg = new Float64Array(lanes)
+  const W = Array.from({ length: lanes }, () => new Float64Array(NPH))
+  const filt = Array.from({ length: lanes }, () => new IirState(loop.bH, loop.aH))
+  const reg = makeRegressor(variant, rowFn, models)
+  const at = makeSequence(alpha, seq)
+  const ph: PhaseSample = { c: 0, p: 0 }
+  const r = new Float64Array(NREG)
+  const G = Array.from({ length: lanes }, () => new Float64Array(NREG))
+  const recBlock: number[] = []
+  const recRms: number[] = []
+  const recCm: number[] = []
+  const recGos: number[] = []
+  let steadySum = 0
+  let steadyCnt = 0
+  let steadyFrom = Infinity
+
+  const record = (b: number): void => {
+    const rms: number[] = []
+    const cm: number[] = []
+    const gos: number[] = []
+    for (let l = 0; l < lanes; l++) {
+      const gain = (1 - a) * (1 + wg[l])
+      let mean = 0
+      for (let k = 0; k < NPH; k++) mean += gain * W[l][k] - eps[k]
+      mean /= NPH
+      let ss = 0
+      for (let k = 0; k < NPH; k++) ss += (gain * W[l][k] - eps[k] - mean) ** 2
+      rms.push(Math.sqrt(ss / NPH) * 1000)
+      cm.push(Math.abs(mean) * 1000)
+      gos.push(Math.abs((gain - 1) * Dl) * 1000)
+      if (b >= nBlocks / 2) {
+        steadySum += (ss / NPH) * 1e6
+        steadyCnt++
+        steadyFrom = Math.min(steadyFrom, b)
+      }
+    }
+    recBlock.push(b)
+    recRms.push(median(rms))
+    recCm.push(median(cm))
+    recGos.push(median(gos))
+  }
+
+  const sample = (n: number, adapt: boolean): void => {
+    at(n, ph)
+    reg(n, r)
+    const c = ph.c
+    const p = ph.p
+    for (let l = 0; l < lanes; l++) {
+      const gain = (1 - a) * (1 + wg[l])
+      const u = c * Dl + eps[p] - gain * (c * Dl + W[l][p])
+      const e = filt[l].step(u)
+      if (!adapt) continue
+      const q = Math.sign(e + sig * noise[l].normal() + uOs)
+      const Gl = G[l]
+      for (let i = 0; i < NREG; i++) Gl[i] += q * r[i]
+    }
+  }
+
+  let n0 = 0
+  while (n0 < nSettle) {
+    for (let n = n0; n < n0 + nBlk; n++) sample(n, false)
+    n0 += nBlk
+  }
+  let aborted = false
+  let done = 0
+  for (let b = 0; b < nBlocks; b++) {
+    if (b % recEvery === 0) record(b)
+    for (let l = 0; l < lanes; l++) G[l].fill(0)
+    for (let n = n0; n < n0 + nBlk; n++) sample(n, true)
+    n0 += nBlk
+    done = b + 1
+    let big = 0
+    for (let l = 0; l < lanes; l++) {
+      wg[l] += (muG * G[l][0]) / nBlk
+      for (let k = 0; k < NPH; k++) {
+        W[l][k] += (muP * G[l][1 + k]) / nBlk
+        big = Math.max(big, Math.abs(W[l][k]))
+      }
+      big = Math.max(big, Math.abs(wg[l] * Dl))
+    }
+    if (!(big < 1e6)) {
+      aborted = true
+      break
+    }
+  }
+  record(done)
+  const samplesAdapt = n0 * lanes
+
+  // ── 凍結 lane 0 的權重，記下輸出 y = u − e_PD（T * u）[fs] ──
+  const gain0 = (1 - a) * (1 + wg[0])
+  const y = new Float64Array(nTail)
+  let ySum = 0
+  for (let i = 0; i < nTail; i++) {
+    const n = n0 + i
+    at(n, ph)
+    const u = ph.c * Dl + eps[ph.p] - gain0 * (ph.c * Dl + W[0][ph.p])
+    const e = filt[0].step(u)
+    y[i] = (u - e) * 1000
+    ySum += y[i]
+  }
+  const yMean = ySum / nTail
+  let ySq = 0
+  for (let i = 0; i < nTail; i++) ySq += (y[i] - yMean) ** 2
+  const jitterTimeFs = Math.sqrt(ySq / nTail)
+
+  const phosResidualFs = new Float64Array(NPH)
+  for (let k = 0; k < NPH; k++) phosResidualFs[k] = (gain0 * W[0][k] - eps[k]) * 1000
+  const gosErrFs = Math.abs(gain0 - 1) * Dl * 1000
+  // 殘差的正負號：u = (1 − gain)·Δ·ρ + Σ_k(ε_k − gain·W_k)·1{p = k} = −Σ_k δ'_k 1{p = k} + …；只影響相位（相干相加時要對）
+  const closed = residualLineSpectrum({ deltaFs: Array.from(phosResidualFs, (v) => -v), gosErrFs: (1 - gain0) * Dl * 1000, alpha, loop, fVcoHz, seq, nOrigin: n0 })
+  const lines = closed.lines.slice(0, maxLines)
+
+  // ── Welch（Blackman–Harris）→ L(f)、積分 jitter、findTones ──
+  const ws = welch(y, F_REF, { window: 'blackmanHarris', nperseg })
+  const phi2 = (TWO_PI * fVcoHz * 1e-15) ** 2
+  const psdFMHz = new Float64Array(ws.f.length - 1)
+  const psdDbcHz = new Float64Array(ws.f.length - 1)
+  for (let i = 1; i < ws.f.length; i++) {
+    psdFMHz[i - 1] = ws.f[i] / 1e6
+    psdDbcHz[i - 1] = 10 * Math.log10(Math.max((phi2 * ws.psd[i]) / 2, 1e-300))
+  }
+  const jitterWelchFs = Math.sqrt(integratePsd(ws.f, ws.psd, 2 * ws.df, F_REF / 2))
+  const found = keepSignificantTones(ws.psd, findTones(ws.f, ws.psd, { minProminenceDb: 20, maxTones: 24, lobeHalfWidthBins: 4, fMin: 2 * ws.df }), ws.nSegments).slice(0, 12)
+  const detected: DetectedOutputTone[] = found.map((t) => {
+    const amp = Math.sqrt(2 * t.power)
+    let best = -1
+    let bestDf = ws.df
+    closed.lines.forEach((l, i) => {
+      const d = Math.abs(l.fMHz * 1e6 - t.fCentroid)
+      if (d <= bestDf) {
+        best = i
+        bestDf = d
+      }
+    })
+    return { fMHz: t.fCentroid / 1e6, ampFs: amp, spurDbc: spurDbcFromToneFs(fVcoHz, amp), matchedLine: best >= 0 && best < lines.length ? best : -1 }
+  })
+
+  // ── toneFit：在閉合式譜線的精確頻率做 coherent 最小平方（頻率重合的線只保留第一條，其餘標 NaN）──
+  const fitFreqs: number[] = []
+  const fitIndex: number[] = []
+  for (const l of lines) {
+    const fHz = l.f * F_REF
+    if (fitFreqs.some((g) => Math.abs(g - fHz) < (1e-6 * F_REF) / nTail)) {
+      fitIndex.push(-1)
+      continue
+    }
+    fitFreqs.push(fHz)
+    fitIndex.push(fitFreqs.length - 1)
+  }
+  const fit = fitFreqs.length ? toneFitMulti(y, F_REF, fitFreqs) : null
+  const toneFitFs = new Float64Array(lines.length)
+  const toneFitDbc = new Float64Array(lines.length)
+  lines.forEach((_, i) => {
+    const j = fitIndex[i]
+    const amp = fit && j >= 0 ? fit.tones[j].amplitudePeak : NaN
+    toneFitFs[i] = amp
+    toneFitDbc[i] = Number.isFinite(amp) && amp > 0 ? spurDbcFromToneFs(fVcoHz, amp) : NaN
+  })
+
+  return {
+    variant,
+    alpha,
+    block: Float64Array.from(recBlock),
+    phosRmsFs: Float64Array.from(recRms),
+    phosCmAbsFs: Float64Array.from(recCm),
+    gosAbsFs: Float64Array.from(recGos),
+    muG,
+    muP,
+    initPhosRmsFs: recRms[0],
+    finalPhosRmsFs: recRms[recRms.length - 1],
+    maxPhosRmsFs: Math.max(...recRms),
+    finalGosFs: recGos[recGos.length - 1],
+    finalPhosCmFs: recCm[recCm.length - 1],
+    aborted,
+    samples: samplesAdapt,
+    spectrum: {
+      nTail,
+      nperseg,
+      nSegments: ws.nSegments,
+      dfMHz: ws.df / 1e6,
+      fVcoHz,
+      phosResidualFs,
+      gosErrFs,
+      lines,
+      jitterClosedFs: closed.jitterOutFs,
+      jitterTimeFs,
+      jitterWelchFs,
+      toneFitFs,
+      toneFitDbc,
+      detected,
+      psdFMHz,
+      psdDbcHz,
+      regCov,
+      regPowerPhos,
+      steadyPhosRmsFs: steadyCnt ? Math.sqrt(steadySum / steadyCnt) : NaN,
+      steadyBlocks: [Number.isFinite(steadyFrom) ? steadyFrom : done, done],
+    },
+  }
+}
+
+export interface SspllLmsCompareSpectrumParams {
+  common: Omit<SspllLmsSpectrumParams, 'loop' | 'variant' | 'models'>
+  cases: SspllLmsCase[]
+}
+
+export interface SspllLmsCompareSpectrumResult {
+  cases: { id: string; result: SspllLmsSpectrumResult }[]
+}
+
+/** 同一組 α、seed、雜訊設定下比較多個 regressor／迴路，並附上各自凍結後的輸出頻譜（給 Web Worker 呼叫；結果是 runSspllLmsCompare 的超集） */
+export function runSspllLmsCompareSpectrum(p: SspllLmsCompareSpectrumParams): SspllLmsCompareSpectrumResult {
+  return { cases: p.cases.map((c) => ({ id: c.id, result: runSspllLmsWithSpectrum({ ...p.common, loop: c.loop, variant: c.variant, models: c.models }) })) }
 }

@@ -191,7 +191,6 @@
 /* 方塊圖 + 「怎麼看這張圖」導讀（docs/teaching-style.md §8） */
 .ch00-diagram {
   margin: 18px 0;
-  scroll-margin-top: calc(var(--topbar-h, 52px) + 16px); /* 固定的 topbar 不要蓋住捲動目標 */
 }
 .ch00-diagram .c-mermaid {
   margin: 0 0 6px;
@@ -261,11 +260,6 @@
   vertical-align: -0.1em;
   margin-right: 4px;
   border: 1px solid rgba(0, 0, 0, 0.25);
-}
-
-/* 章末符號表 */
-#symbols {
-  scroll-margin-top: calc(var(--topbar-h, 52px) + 16px); /* 固定的 topbar 不要蓋住捲動目標 */
 }
 
 /* 應用卡片 */

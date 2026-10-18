@@ -54,7 +54,7 @@ const P = vi.hoisted(() => ({
   Plots: { resize: vi.fn() },
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
-vi.mock('plotly.js-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
 
 const M = vi.hoisted(() => ({
   initialize: vi.fn(),
@@ -434,6 +434,61 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
     expect(texIn(nTauHint)).toEqual([String.raw`H\equiv1`, String.raw`\kappa=1`, String.raw`1/N_\tau`])
   }, 120000)
 
+  it('SSPLL: §15.4 殘餘誤差 → 輸出 spur／jitter——§10.5 的橋接句、圖、三條公式、單線表（−65 dBc）、PVT 角落表、F-CS.23 的數字、HC-CS.9、reference spur 的一句話', () => {
+    const { container } = renderPage('/case/sspll', 'engineer')
+    const s15 = container.querySelector('#cs-15') as HTMLElement
+    const h3 = Array.from(s15.querySelectorAll('h3')).map((h) => h.textContent ?? '')
+    expect(h3.some((t) => t.startsWith('15.4 校準完之後'))).toBe(true)
+    expect(container.querySelector('#cs-15-4')).not.toBeNull()
+    // §10.5 的橋接句（按鈕捲到 §15.4）
+    const s10 = proseText(container.querySelector('#cs-10') as HTMLElement)
+    expect(s10).toContain('校準完之後這些殘差在 PLL 輸出長什麼樣')
+    expect(s10).toContain('§15.4 殘餘誤差 → 輸出 spur／jitter')
+    // 圖在三條公式之前；公式錨點存在
+    const fig = s15.querySelector('[data-diagram="output-spur"]') as HTMLElement
+    expect(fig).not.toBeNull()
+    for (const id of ['F-CS.21', 'F-CS.22', 'F-CS.23']) {
+      const el = s15.querySelector(`[id="formula-${id}"]`) as HTMLElement
+      expect(el, id).not.toBeNull()
+      expect(fig.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING, id).toBeTruthy()
+    }
+    const text = proseText(s15)
+    const tex = texIn(s15)
+    // 單線表：80 MHz 的 mode-1 基波約 −65.5 dBc（HC-CS.9 的預設）；|T(80 MHz)| = 1.2402；積分 jitter 註記
+    expect(text).toContain('PHOS mode 1，')
+    expect(text).toContain('1.2402')
+    expect(text).toMatch(/−65\.[45]/)
+    expect(text).toContain('單線公式（F-CS.21／F-CS.22）的前 7 條')
+    // raw 的 28 ps 發散值代進單線公式：Φ ≈ 4.9 rad（不是 ≈ 1），而且 28 ps > Δ = 7.81 ps
+    expect(tex).toContain('\\Phi\\approx4.9')
+    expect(tex).toContain('\\Delta=7.81')
+    expect(text).toContain('28 ps 已經超過 DTC 的範圍')
+    // PVT 角落表：×0.6…×1.5，548 MHz 在 ×1.5 多 3.7 dB
+    for (const g of ['0.6', '0.8', '1.25', '1.5']) expect(tex, g).toContain(`\\times${g}`)
+    expect(text).toContain('+3.68')
+    expect(text).toContain('在 gain ×1.5 時被多放進來 3.7 dB')
+    // F-CS.23 的數字：每個模態 1.57 fs（小步長閉合式）、7 個合計 4.2 fs；1diff 的雜訊比例
+    expect(tex.some((t) => t.includes('=1.57'))).toBe(true)
+    expect(text).toContain('7 個合計 4.2 fs')
+    expect(text).toContain('variance 條件的用法')
+    expect(text).toContain('reference spur')
+    expect(text).toContain('不在本頁範圍')
+    // HC-CS.9 在 §15.4 裡、在思考題之前
+    const hc9 = container.querySelector('#handcalc-HC-CS\\.9') as HTMLElement
+    expect(hc9).not.toBeNull()
+    expect(s15.contains(hc9)).toBe(true)
+    expect(hc9.compareDocumentPosition(container.querySelector('#cs-16') as HTMLElement) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(hc9.querySelectorAll('.c-step').length).toBeGreaterThanOrEqual(8)
+    // Ch12 的公式連結（F-12.16、F-12.4）用 FormulaLink（不是 href="#…"）
+    expect(s15.querySelector('[data-formula-link="F-12.16"]')).not.toBeNull()
+    expect(s15.querySelector('[data-formula-link="F-12.4"]')).not.toBeNull()
+    // 符號表多了 δ̂_m、Φ、S_m、σ_θ,m
+    const symText = texIn(container.querySelector('#symbols') as HTMLElement).join('\n')
+    for (const t of ['\\hat\\delta_m', '\\Phi', 'c[d],\\ S_m', '\\sigma_{\\theta,m}']) expect(symText, t).toContain(t)
+    expect(s15.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+    expect(text).not.toMatch(/NaN|undefined|Infinity/)
+  })
+
   it('SSPLL: Beginner 模式顯示入門四句話並收起程式碼；Research 模式顯示研究註記', () => {
     const a = renderPage('/case/sspll', 'beginner')
     expect(screen.getByText('入門模式：先抓住四句話')).toBeTruthy()
@@ -449,6 +504,10 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
     expect(text('cs-7')).toContain('去掉平均值之後')
     expect(text('cs-7')).not.toContain('折到 DC')
     expect(text('cs-8')).toContain('是複數；談正負時看實部')
+    // §15.4：reference spur 與 fractional spur 的那一句話在主文（Beginner 也看得到），成立條件的細節留給 Engineer
+    expect(text('cs-15')).toContain('reference spur')
+    expect(text('cs-15')).toContain('不在本頁範圍')
+    expect(text('cs-15')).not.toContain('成立條件（Engineer）')
     expect(text('cs-12')).toContain('名義時間常數')
     a.unmount()
     clearMockCalls()
@@ -530,6 +589,45 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
     // Fixed-Point 沒有實作：必須明確顯示
     expect(cc.textContent).toMatch(/Not implemented/)
     expect(expC().textContent).toMatch(/第 1400 block 的 PHOS rms，即時／golden 存檔的比值/)
+    // §15.4：凍結後的 spur 表——閉合式 vs toneFit 在 0.2 dB 內（分析交叉比對的註記）；穩態 PHOS rms vs F-CS.23（1diff、fx 適用；raw 發散不比）；spur 表與線譜圖出現
+    expect(cc.textContent).toMatch(/凍結後的 spur 表：\d+ 條線的閉合式 vs toneFit 最大差 0\.0\d* dB（門檻 0\.2；0 個 case 超出）/)
+    expect(cc.textContent).toMatch(/穩態 PHOS rms vs F-CS\.23：2 個比對、0 個不一致/)
+    const textC = expC().textContent ?? ''
+    expect(textC).toContain('凍結後最強的 fractional spur（閉合式）')
+    expect(textC).toContain('凍結後的輸出積分 jitter（時域 rms）')
+    expect(textC).toContain('穩態 PHOS rms（block 750–1500')
+    expect(textC).toContain('凍結後的 spur 表')
+    // raw 發散（28 ps）：已有「不收斂」的警告，不再多一條 Φ ≥ 0.3 rad 的警告；spur 表裡 A 的 dBc 欄改印 Φ（小角 PM 不成立）
+    expect(textC).toMatch(/Case A（raw）不收斂/)
+    expect(textC).not.toMatch(/Case A（raw）凍結後最強的輸出 tone/)
+    const spurTable = Array.from(expC().querySelectorAll('.cs-table caption')).find((c) => (c.textContent ?? '').includes('凍結後的 spur 表'))
+    expect(spurTable).toBeTruthy()
+    const spurRows = Array.from((spurTable!.parentElement as HTMLTableElement).querySelectorAll('tbody tr'))
+    expect(spurRows.length).toBe(18) // 3 個 case × 6 條
+    expect(spurRows[0].textContent).toMatch(/^A/)
+    expect(texIn(spurRows[0] as HTMLElement).some((t) => /^\\Phi=\d/.test(t))).toBe(true)
+    // 1diff（B）與 filtered-x（C）收斂：dBc 欄是「閉合式／toneFit」兩個數字，而且 toneFit 與閉合式在 0.2 dB 內；7 欄（A 欄是「單線／注入點」）
+    for (const row of [spurRows[6], spurRows[12]]) {
+      const cells = Array.from(row.querySelectorAll('td')).map((td) => td.textContent ?? '')
+      expect(cells.length).toBe(7)
+      const [closedS, fitS] = cells[6].split('／')
+      const closed = Number(closedS.replace('−', '-'))
+      const fit = Number(fitS.replace('−', '-'))
+      expect(Number.isFinite(closed), cells.join('|')).toBe(true)
+      expect(Number.isFinite(fit), cells.join('|')).toBe(true)
+      expect(Math.abs(closed - fit)).toBeLessThanOrEqual(0.2)
+      expect(closed).toBeLessThan(-40)
+      const [aOutS, aFitS] = cells[5].split('／')
+      expect(Math.abs(Number(aOutS) / Number(aFitS) - 1)).toBeLessThan(0.03)
+      const [singleS, mergedS] = cells[3].split('／')
+      expect(Number.isFinite(Number(singleS)) && Number.isFinite(Number(mergedS)), cells[3]).toBe(true)
+      // A_out = |T| × 注入點 A（3 位小數的捨入）
+      expect(Math.abs(Number(aOutS) - Number(cells[4]) * Number(mergedS)), cells.join('|')).toBeLessThan(2e-3 + 2e-3 * Number(aOutS))
+    }
+    // raw（A）發散：指標改報峰值相位 Φ（rad），不報 dBc
+    expect(textC).toContain('凍結後最強的線的峰值相位')
+    expect(textC).toContain('mode 1，')
+    expect(proseText(expC())).not.toMatch(/NaN|undefined|Infinity/)
     // R09：指標註記裡 GOS 的小訊號預測是固定乘 12 的 12·C_GOS（ergodic），不標成 κ_GOS（= C_GOS/var(ρ)，小 Q 時兩者不同）
     const texC = texIn(expC())
     for (const t of [String.raw`12\,C_{GOS}=1.109`, String.raw`12\,C_{GOS}=1.158`, String.raw`12\,C_{GOS}=1.357`]) expect(texC, t).toContain(t)
@@ -692,7 +790,9 @@ describe('SSPLL 案例頁的公式登錄、presets 與實驗輔助函式', () =>
     const dir = join(process.cwd(), 'src/pages/case-sspll')
     for (const f of ['formulas.ts', 'symbols.tsx', 'data.ts', 'sections/S04MeanUpdate.tsx', 'sections/S08Phos.tsx', 'sections/S11Remedies.tsx', 'sections/S12S13.tsx', 'sections/S14ClosedLoop.tsx', 'experiments/SignMapExplorer.tsx'])
       expect(readFileSync(join(dir, f), 'utf8'), f).not.toMatch(/(?<!名義)時間常數/)
-    expect(MODEL_SRC).not.toMatch(/(?<!名義)時間常數/)
+    // sspll.ts：N_τ 只叫「名義時間常數」；§15.4 的 phosSteadyState 另外回傳最慢模態的「實際時間常數」−1/ln|p_m|（和 N_τ 對照，名字裡一定帶「實際」）
+    expect(MODEL_SRC).not.toMatch(/(?<!名義|實際)時間常數/)
+    expect(MODEL_SRC).toContain('最慢模態的實際時間常數')
     // 實驗 C 另外用到「模態的實際時間常數」（−1/ln ρ），所以只檢查 N_τ 的稱呼
     const cl = readFileSync(join(dir, 'experiments/ClosedLoopLms.tsx'), 'utf8')
     expect(cl).toContain('開迴路名義時間常數')

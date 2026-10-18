@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import { Callout, ClaimTag, ModeGate, Plot, Prereq, Section, SourceTag, Tex, TexBlock, useThemeTokens } from '@/components'
 import { createRng } from '@/simulation/core'
 import { meanSquareFactor } from '@/simulation/models/lms'
@@ -84,8 +84,7 @@ function ProductTable() {
         </table>
       </div>
       <p>
-        這 8 筆的乘積 <Tex>{T`\prod f_k=${tnum(prod, 4)}`}</Tex>，<Tex>{T`|\delta_8|/|\delta_0|=e^{8\cdot(${tnum(meanLog, 4)})}`}</Tex>。平方的平均被少數大的 <Tex>{T`|f_k|`}</Tex> 拉高，
-        對數的平均則反映「典型」的一步。理論值：<Tex>{T`g(0.8)=${tnum(meanSquareFactor(0.8, 1, 3), 4)}`}</Tex>、<Tex>{T`\lambda(0.8)=${tnum(lyapunovExponent(0.8, GAUSS), 5)}`}</Tex>（
+        這 8 筆的乘積 <Tex>{T`\prod f_k=${tnum(prod, 4)}`}</Tex>，<Tex>{T`|\delta_8|/|\delta_0|=e^{8\cdot(${tnum(meanLog, 4)})}`}</Tex>。平方的平均被少數大的 <Tex>{T`|f_k|`}</Tex> 拉高，對數的平均則反映「典型」的一步。理論值：<Tex>{T`g(0.8)=${tnum(meanSquareFactor(0.8, 1, 3), 4)}`}</Tex>、<Tex>{T`\lambda(0.8)=${tnum(lyapunovExponent(0.8, GAUSS), 5)}`}</Tex>（
         <Tex>\lambda</Tex> 就是下一段要定義的「<Tex>{T`\ln|f|`}</Tex> 的平均」）。
         <SourceTag kind="illustrative" />
       </p>
@@ -175,9 +174,7 @@ export function AlmostSureSection() {
             <strong>對數</strong>：<Tex>{T`\ln(ab)=\ln a+\ln b`}</Tex>，所以 <Tex>{T`\ln\prod_k|f_k|=\sum_k\ln|f_k|`}</Tex>。乘積很難分析，總和很容易。
           </p>
           <p>
-            <strong>大數法則</strong>（law of large numbers）：<Tex>{T`Y_1,Y_2,\dots`}</Tex> iid、平均 <Tex>{T`m=E[Y]`}</Tex>，則樣本平均 <Tex>{T`\frac1n\sum_{k=1}^nY_k\to m`}</Tex>。
-            直覺：平均值的變異數是 <Tex>{T`\operatorname{Var}(Y)/n\to0`}</Tex>（獨立項的變異數相加，再除以 <Tex>{T`n^2`}</Tex>），所以越平均越集中在 <Tex>m</Tex>；
-            「強」大數法則更保證<strong>幾乎每一條</strong>樣本序列都如此（機率 1，almost surely）。擲公正銅板 <Tex>{T`Y\in\{0,1\}`}</Tex>，正面比例 <Tex>{T`\to0.5`}</Tex> 就是例子。
+            <strong>大數法則</strong>（law of large numbers）：<Tex>{T`Y_1,Y_2,\dots`}</Tex> iid、平均 <Tex>{T`m=E[Y]`}</Tex>，則樣本平均 <Tex>{T`\frac1n\sum_{k=1}^nY_k\to m`}</Tex>。直覺：平均值的變異數是 <Tex>{T`\operatorname{Var}(Y)/n\to0`}</Tex>（獨立項的變異數相加，再除以 <Tex>{T`n^2`}</Tex>），所以越平均越集中在 <Tex>m</Tex>；「強」大數法則更保證<strong>幾乎每一條</strong>樣本序列都如此（機率 1，almost surely）。擲公正銅板 <Tex>{T`Y\in\{0,1\}`}</Tex>，正面比例 <Tex>{T`\to0.5`}</Tex> 就是例子。
           </p>
         </Prereq>
         <p>先看圖：取對數之後，「一連串因子相乘」變成「一個累加器」。</p>
@@ -205,17 +202,14 @@ export function AlmostSureSection() {
         />
         <FBlock id="F-03.9" />
         <p>
-          <Tex>\lambda</Tex> 叫 <strong>Lyapunov 指數</strong>：典型路徑每一步的平均對數縮放率，<Tex>{T`e^{\lambda}`}</Tex> 是每步縮放倍率的<strong>幾何平均</strong>。
-          標準 Gaussian 的 <Tex>{T`\lambda(\mu)`}</Tex> 沒有初等封閉式；解 <Tex>{T`\lambda(\mu)=0`}</Tex>（數值求根）得到 <strong>almost-sure 界</strong>{' '}
+          <Tex>\lambda</Tex> 叫 <strong>Lyapunov 指數</strong>：典型路徑每一步的平均對數縮放率，<Tex>{T`e^{\lambda}`}</Tex> 是每步縮放倍率的<strong>幾何平均</strong>。標準 Gaussian 的 <Tex>{T`\lambda(\mu)`}</Tex> 沒有初等封閉式；解 <Tex>{T`\lambda(\mu)=0`}</Tex>（數值求根）得到 <strong>almost-sure 界</strong>{' '}
           <Tex>{T`\mu_\text{as}=${tnum(gb.asMax, 10)}`}</Tex>（與 scipy 一致到 <Tex>{T`10^{-9}`}</Tex>）。
           <ClaimTag kind="exact" />
         </p>
         <LambdaPlot />
         <ModeGate min="engineer">
           <p>
-            小 <Tex>\mu</Tex> 時三種判據一致：<Tex>{T`\ln|1-\mu P_x|\approx-\mu P_x`}</Tex>、<Tex>{T`\tfrac12\ln g\approx-\mu P_x`}</Tex>、<Tex>{T`\lambda\approx-\mu P_x`}</Tex>（泰勒一階）。
-            差別只出現在 <Tex>\mu</Tex> 不小時。收斂最快的典型路徑在 <Tex>{T`\mu\approx${tnum(fast.mu, 4)}`}</Tex>（<Tex>{T`\lambda=${tnum(fast.lambda, 4)}`}</Tex>），
-            而 MSD 最快在 <Tex>{T`\mu^\ast=1/3`}</Tex>（<Tex>{T`\tfrac12\ln g^\ast=${tnum(0.5 * Math.log(2 / 3), 4)}`}</Tex>）——「最佳步長」也取決於你用哪一種收斂來衡量。
+            小 <Tex>\mu</Tex> 時三種判據一致：<Tex>{T`\ln|1-\mu P_x|\approx-\mu P_x`}</Tex>、<Tex>{T`\tfrac12\ln g\approx-\mu P_x`}</Tex>、<Tex>{T`\lambda\approx-\mu P_x`}</Tex>（泰勒一階）。差別只出現在 <Tex>\mu</Tex> 不小時。收斂最快的典型路徑在 <Tex>{T`\mu\approx${tnum(fast.mu, 4)}`}</Tex>（<Tex>{T`\lambda=${tnum(fast.lambda, 4)}`}</Tex>），而 MSD 最快在 <Tex>{T`\mu^\ast=1/3`}</Tex>（<Tex>{T`\tfrac12\ln g^\ast=${tnum(0.5 * Math.log(2 / 3), 4)}`}</Tex>）——「最佳步長」也取決於你用哪一種收斂來衡量。
           </p>
         </ModeGate>
       </Section>
@@ -317,22 +311,18 @@ export function AlmostSureSection() {
         <Callout kind="warn" title={<>單一路徑收斂不推翻 mean-square 界 <Erratum id="E14" /></>}>
           <p>
             <Tex>{T`2/3<\mu<${tnum(gb.asMax, 5)}`}</Tex>（Gaussian、無雜訊）：<Tex>{T`E[\delta_n^2]\to\infty`}</Tex>，但幾乎每條路徑 <Tex>{T`|\delta_n|\to0`}</Tex>。
-            <Tex>{T`E[\delta_n^2]`}</Tex> 是「所有可能路徑的平方平均」，被<strong>機率極小、數值極大</strong>的少數路徑主導：這些路徑出現的機率趨近 0，但它們的 <Tex>{T`\delta^2`}</Tex> 增長得比機率下降更快。
-            單位步的「差距」是 <Tex>{T`\tfrac12\ln g-\lambda\ge0`}</Tex>；<Tex>{T`\mu=0.8`}</Tex> 時 <Tex>{T`=${tnum(0.5 * Math.log(f08.g) - f08.lambda, 4)}`}</Tex>（自然對數 / step）。
+            <Tex>{T`E[\delta_n^2]`}</Tex> 是「所有可能路徑的平方平均」，被<strong>機率極小、數值極大</strong>的少數路徑主導：這些路徑出現的機率趨近 0，但它們的 <Tex>{T`\delta^2`}</Tex> 增長得比機率下降更快。單位步的「差距」是 <Tex>{T`\tfrac12\ln g-\lambda\ge0`}</Tex>；<Tex>{T`\mu=0.8`}</Tex> 時 <Tex>{T`=${tnum(0.5 * Math.log(f08.g) - f08.lambda, 4)}`}</Tex>（自然對數 / step）。
           </p>
           <p>
-            工程上這代表：在這個區間<strong>不能</strong>宣稱「均方穩定」，也不能用少量 seeds 的 sample path 去「驗證」2/3 是錯的；你看到的只是典型路徑。
-            有雜訊時情況更微妙（下一段）。
+            工程上這代表：在這個區間<strong>不能</strong>宣稱「均方穩定」，也不能用少量 seeds 的 sample path 去「驗證」2/3 是錯的；你看到的只是典型路徑。有雜訊時情況更微妙（下一段）。
           </p>
         </Callout>
         <ModeGate min="research">
           <FBlock id="F-03.17" />
           <p>
             Research：有量測雜訊且 <Tex>{T`\lambda<0`}</Tex> 時，<Tex>{T`\delta_n`}</Tex> 會收斂到一個<strong>穩態分布</strong>（Kesten 型隨機遞迴 <Tex>{T`\delta_{n+1}=A_n\delta_n+B_n`}</Tex>，
-            <Tex>{T`A_n=1-\mu x_n^2`}</Tex>、<Tex>{T`B_n=-\mu x_nv_n`}</Tex>；就是第 3 節{figRef(CHART_NOISE_INJECTION)} 的迴圈，<Tex>{T`A_n`}</Tex> 是迴圈增益、<Tex>{T`B_n`}</Tex> 是雜訊注入），但它的尾巴是冪次：<Tex>{T`P(|\delta_\infty|>t)\sim Ct^{-\kappa_t}`}</Tex>。
-            因為 <Tex>{T`m(s)=E|A|^s`}</Tex> 滿足 <Tex>{T`m(0)=1`}</Tex>、<Tex>{T`m'(0)=\lambda<0`}</Tex>、<Tex>{T`\ln m(s)`}</Tex> 為凸，且 <Tex>{T`m(2)=g`}</Tex>：
-            <Tex>{T`g\ge1\iff\kappa_t\le2`}</Tex>（穩態變異數無限大）。<Tex>{T`\mu=0.8`}</Tex> 時 <Tex>{T`\kappa_t=${tnum(kt, 4)}`}</Tex>：分布存在、中位數有限，但二階動差不存在。
-            Stability Lab 開啟雜訊時會以 Hill estimator 從 Monte Carlo 估計 <Tex>{T`\kappa_t`}</Tex> 交叉比對。
+            <Tex>{T`A_n=1-\mu x_n^2`}</Tex>、<Tex>{T`B_n=-\mu x_nv_n`}</Tex>；就是第 3 節{figRef(CHART_NOISE_INJECTION)} 的迴圈，<Tex>{T`A_n`}</Tex> 是迴圈增益、<Tex>{T`B_n`}</Tex> 是雜訊注入），但它的尾巴是冪次：<Tex>{T`P(|\delta_\infty|>t)\sim Ct^{-\kappa_t}`}</Tex>。因為 <Tex>{T`m(s)=E|A|^s`}</Tex> 滿足 <Tex>{T`m(0)=1`}</Tex>、<Tex>{T`m'(0)=\lambda<0`}</Tex>、<Tex>{T`\ln m(s)`}</Tex> 為凸，且 <Tex>{T`m(2)=g`}</Tex>：
+            <Tex>{T`g\ge1\iff\kappa_t\le2`}</Tex>（穩態變異數無限大）。<Tex>{T`\mu=0.8`}</Tex> 時 <Tex>{T`\kappa_t=${tnum(kt, 4)}`}</Tex>：分布存在、中位數有限，但二階動差不存在。Stability Lab 開啟雜訊時會以 Hill estimator 從 Monte Carlo 估計 <Tex>{T`\kappa_t`}</Tex> 交叉比對。
             <ClaimTag kind="research" /> <SourceTag kind="literature" />（H. Kesten, Acta Math. 131, 1973；C. M. Goldie, Ann. Appl. Probab. 1, 1991；L. Guo, L. Ljung, G.-J. Wang, IEEE TAC 42(6), 1997）
           </p>
         </ModeGate>
@@ -366,8 +356,7 @@ export function AlmostSureSection() {
             推導概要：令 <Tex>{T`X=t^2\sim\chi^2_1`}</Tex>、<Tex>{T`a=1/c`}</Tex>，<Tex>{T`\lambda=\ln c+E\ln|X-a|`}</Tex>。對 <Tex>a</Tex> 微分得主值積分{' '}
             <Tex>{T`-\,\mathrm{PV}\,E[1/(X-a)]`}</Tex>；Gaussian 的 Hilbert 轉換是 Dawson 函數 <Tex>{T`F(z)=e^{-z^2}\int_0^ze^{s^2}ds`}</Tex>，得{' '}
             <Tex>{T`\tfrac{d}{dz}E\ln|X-a|=4F(z)`}</Tex>（<Tex>{T`z=\sqrt{a/2}`}</Tex>）。由 <Tex>{T`E\ln X=-\gamma-\ln2`}</Tex> 積分，再用{' '}
-            <Tex>{T`F(z)=\tfrac12\int_0^\infty e^{-t^2/4}\sin(zt)\,dt`}</Tex> 交換積分次序，得到上式。被積函數處處平滑，Simpson 積分誤差約 <Tex>{T`10^{-9}`}</Tex>；
-            它與 lms.ts 的直接積分（含對數奇點的代換）在單元測試中互相比對（差 &lt; <Tex>{T`10^{-5}`}</Tex>）。小 <Tex>c</Tex> 時改用漸近級數{' '}
+            <Tex>{T`F(z)=\tfrac12\int_0^\infty e^{-t^2/4}\sin(zt)\,dt`}</Tex> 交換積分次序，得到上式。被積函數處處平滑，Simpson 積分誤差約 <Tex>{T`10^{-9}`}</Tex>；它與 lms.ts 的直接積分（含對數奇點的代換）在單元測試中互相比對（差 &lt; <Tex>{T`10^{-5}`}</Tex>）。小 <Tex>c</Tex> 時改用漸近級數{' '}
             <Tex>{T`\lambda\approx-\sum_k(2k-1)!!\,c^k/k=-c-\tfrac32c^2-5c^3-\cdots`}</Tex>（首項 <Tex>{T`-\mu P_x`}</Tex>）。
           </p>
         </Section>

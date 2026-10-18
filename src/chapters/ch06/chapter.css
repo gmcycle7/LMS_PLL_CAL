@@ -38,7 +38,6 @@
 
 .ch06-section {
   margin: 40px 0 24px;
-  scroll-margin-top: calc(var(--topbar-h) + 12px);
 }
 .ch06-h2 {
   border-bottom: 1px solid var(--border);
@@ -276,7 +275,6 @@
 /* 方塊圖（docs/teaching-style.md §8）：圖 + 圖下方的「怎麼看這張圖」 */
 .ch06-diagram {
   margin: 18px 0;
-  scroll-margin-top: calc(var(--topbar-h) + 12px);
 }
 .ch06-diagram .c-mermaid {
   margin-bottom: 8px;
@@ -311,7 +309,6 @@
 }
 .ch06-symbols {
   margin: 40px 0 24px;
-  scroll-margin-top: calc(var(--topbar-h) + 12px);
 }
 
 /*

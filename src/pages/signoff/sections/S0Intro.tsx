@@ -49,14 +49,12 @@ export function S0Intro() {
         <SourceTag kind="illustrative" />
       </div>
       <Callout kind="warn" title="這一頁不能做什麼">
-        本頁的模型都是 L0–L5 的教學／行為模型（規格 §15.1），所有數值皆為 <strong>illustrative</strong>。它能幫你把 sign-off 的<strong>判準</strong>與<strong>措辭</strong>做對，
-        但不能取代 Spectre／AMS 模擬、bit-true RTL 與實測。規格開宗明義：不要把一階模型的穩定界限當成整顆 PLL 的 sign-off 結論。
+        本頁的模型都是 L0–L5 的教學／行為模型（規格 §15.1），所有數值皆為 <strong>illustrative</strong>。它能幫你把 sign-off 的<strong>判準</strong>與<strong>措辭</strong>做對，但不能取代 Spectre／AMS 模擬、bit-true RTL 與實測。規格開宗明義：不要把一階模型的穩定界限當成整顆 PLL 的 sign-off 結論。
       </Callout>
 
       <Section kind="intuition" level={2} title="0. 簽核（sign-off）要回答什麼？" id="so-intro">
         <p>
-          想像你是 design reviewer，設計者交來一句話：「LMS gain calibration 已驗證，穩定。」你該追問的不是「真的嗎？」，而是六個<strong>可以用數學判定</strong>的問題。
-          規格的最終主旨是：成功的校正必須<strong>同時</strong>滿足下面六項——任何一項沒過，其他五項做得再好都沒用。
+          想像你是 design reviewer，設計者交來一句話：「LMS gain calibration 已驗證，穩定。」你該追問的不是「真的嗎？」，而是六個<strong>可以用數學判定</strong>的問題。規格的最終主旨是：成功的校正必須<strong>同時</strong>滿足下面六項——任何一項沒過，其他五項做得再好都沒用。
         </p>
         <div className="table-wrap">
           <table className="so-pillars">
@@ -107,15 +105,13 @@ export function S0Intro() {
           </p>
         </Diagram>
         <p>
-          這一頁的結構：先用 <a href="#/signoff" onClick={(e) => { e.preventDefault(); scrollToAnchor('so-matrix') }}>互動 Sign-off Matrix</a> 列出每一項要驗證什麼、怎麼判斷、本站哪個實驗能幫你，並記錄你的進度（存在你自己的瀏覽器，可匯出 Markdown／JSON）；
-          接著逐列推導判準背後的數學（每一步都寫理由）；最後是規格 §17 的反面測試與附錄 B 的十項限制。
+          這一頁的結構：先用 <a href="#/signoff" onClick={(e) => { e.preventDefault(); scrollToAnchor('so-matrix') }}>互動 Sign-off Matrix</a> 列出每一項要驗證什麼、怎麼判斷、本站哪個實驗能幫你，並記錄你的進度（存在你自己的瀏覽器，可匯出 Markdown／JSON）；接著逐列推導判準背後的數學（每一步都寫理由）；最後是規格 §17 的反面測試與附錄 B 的十項限制。
         </p>
       </Section>
 
       <Section kind="example" title="0.1 入門版：先用一組數字走完四層檢查">
         <p>
-          如果六個條件一次看太多，先把簽核想成<strong>體檢的四個問題</strong>（入門課的四層檢查表）：方向對嗎 → 迴路增益會不會太大 → 雜訊抖多大 → 非理想把答案帶到哪。
-          下面用全站最常用的一組數字（<Tex>{'\\sigma_v=100\\,\\mathrm{fs}'}</Tex>、<Tex>{`N=${walk.N}`}</Tex>、<Tex>{`\\mu=${walk.mu}\\,\\mathrm{fs}`}</Tex>、<Tex>{'C=1'}</Tex>，測試 T13 的條件）各算一個數字——每一列的算法在後面的段落都有一步一步的推導。表中 <Tex>{'z'}</Tex> 是「信心倍數」（量到的值是標準誤的幾倍）、<Tex>{'\\Delta'}</Tex> 是 freeze 時人為加在 <Tex>{'w'}</Tex> 上的擾動、<Tex>{'M'}</Tex> 是每一側量測的 block 數、<Tex>{'K_q'}</Tex> 是 comparator 的小訊號增益。
+          如果六個條件一次看太多，先把簽核想成<strong>體檢的四個問題</strong>（入門課的四層檢查表）：方向對嗎 → 迴路增益會不會太大 → 雜訊抖多大 → 非理想把答案帶到哪。下面用全站最常用的一組數字（<Tex>{'\\sigma_v=100\\,\\mathrm{fs}'}</Tex>、<Tex>{`N=${walk.N}`}</Tex>、<Tex>{`\\mu=${walk.mu}\\,\\mathrm{fs}`}</Tex>、<Tex>{'C=1'}</Tex>，測試 T13 的條件）各算一個數字——每一列的算法在後面的段落都有一步一步的推導。表中 <Tex>{'z'}</Tex> 是「信心倍數」（量到的值是標準誤的幾倍）、<Tex>{'\\Delta'}</Tex> 是 freeze 時人為加在 <Tex>{'w'}</Tex> 上的擾動、<Tex>{'M'}</Tex> 是每一側量測的 block 數、<Tex>{'K_q'}</Tex> 是 comparator 的小訊號增益。
         </p>
         <div className="table-wrap">
           <table>
@@ -181,58 +177,49 @@ export function S0Intro() {
           </table>
         </div>
         <p className="small muted">
-          第 4 列的兩個數字分別來自三階 INL 例（<Tex>{'x\\in\\{-2,\\dots,2\\}'}</Tex>、<Tex>{'c_3=0.1'}</Tex>、MSE-LMS；Sign-LMS 的固定點依 <Tex>{'\\sigma_v'}</Tex> 落在 1.34 與 1.4 之間，勘誤 <ErratumTag id="E01" />）與常數目標 32.4 的一階 error-feedback quantizer。
-          四層都過了，才輪到後面比較細的問題：多個 corner、多個 FCW、多個參數一起更新、證據夠不夠。
+          第 4 列的兩個數字分別來自三階 INL 例（<Tex>{'x\\in\\{-2,\\dots,2\\}'}</Tex>、<Tex>{'c_3=0.1'}</Tex>、MSE-LMS；Sign-LMS 的固定點依 <Tex>{'\\sigma_v'}</Tex> 落在 1.34 與 1.4 之間，勘誤 <ErratumTag id="E01" />）與常數目標 32.4 的一階 error-feedback quantizer。四層都過了，才輪到後面比較細的問題：多個 corner、多個 FCW、多個參數一起更新、證據夠不夠。
         </p>
       </Section>
 
 
       <Prereq title="期望值、變異數與「平均的標準誤」">
         <p>
-          <Tex>{'E[X]'}</Tex>（期望值）是「同一實驗重做無限多次的平均」；變異數 <Tex>{'\\mathrm{Var}(X)=E[(X-E[X])^2]'}</Tex> 衡量散布。
-          若 <Tex>{'X_1,\\dots,X_M'}</Tex> 互相獨立、變異數都是 <Tex>{'\\sigma^2'}</Tex>，它們的平均 <Tex>{'\\bar X'}</Tex> 的變異數是：
+          <Tex>{'E[X]'}</Tex>（期望值）是「同一實驗重做無限多次的平均」；變異數 <Tex>{'\\mathrm{Var}(X)=E[(X-E[X])^2]'}</Tex> 衡量散布。若 <Tex>{'X_1,\\dots,X_M'}</Tex> 互相獨立、變異數都是 <Tex>{'\\sigma^2'}</Tex>，它們的平均 <Tex>{'\\bar X'}</Tex> 的變異數是：
         </p>
         <TexBlock>{String.raw`\mathrm{Var}(\bar X)=\mathrm{Var}\Big(\frac1M\sum_{i=1}^MX_i\Big)=\frac1{M^2}\sum_{i=1}^M\mathrm{Var}(X_i)=\frac{\sigma^2}{M}\ \Rightarrow\ \mathrm{se}(\bar X)=\frac{\sigma}{\sqrt M}`}</TexBlock>
         <p>
-          第二個等號用了「獨立 ⇒ 變異數相加」，常數 <Tex>{'1/M'}</Tex> 提出來要平方。這就是「多量幾次、誤差以 <Tex>{'1/\\sqrt M'}</Tex> 下降」。
-          兩個獨立估計相減時，變異數同樣相加：<Tex>{'\\mathrm{Var}(\\bar X-\\bar Y)=\\mathrm{Var}(\\bar X)+\\mathrm{Var}(\\bar Y)'}</Tex>。
+          第二個等號用了「獨立 ⇒ 變異數相加」，常數 <Tex>{'1/M'}</Tex> 提出來要平方。這就是「多量幾次、誤差以 <Tex>{'1/\\sqrt M'}</Tex> 下降」。兩個獨立估計相減時，變異數同樣相加：<Tex>{'\\mathrm{Var}(\\bar X-\\bar Y)=\\mathrm{Var}(\\bar X)+\\mathrm{Var}(\\bar Y)'}</Tex>。
         </p>
       </Prereq>
 
       <Prereq title="高斯分布、中央極限定理與信賴區間（CI）">
         <p>
-          很多獨立小量相加後近似高斯（鐘形）分布——中央極限定理（CLT）。高斯分布 95% 的機率落在平均 <Tex>{`\\pm${nf(z975, 4)}\\,\\sigma`}</Tex> 內（<Tex>{`\\Phi^{-1}(0.975)=${nf(z975, 6)}`}</Tex>，本頁即時計算）。
-          所以 95% 信賴區間是 <Tex>{'\\bar X\\pm1.96\\,\\mathrm{se}'}</Tex>。
+          很多獨立小量相加後近似高斯（鐘形）分布——中央極限定理（CLT）。高斯分布 95% 的機率落在平均 <Tex>{`\\pm${nf(z975, 4)}\\,\\sigma`}</Tex> 內（<Tex>{`\\Phi^{-1}(0.975)=${nf(z975, 6)}`}</Tex>，本頁即時計算）。所以 95% 信賴區間是 <Tex>{'\\bar X\\pm1.96\\,\\mathrm{se}'}</Tex>。
         </p>
         <p>
-          樣本少時 <Tex>{'\\sigma'}</Tex> 也要用樣本估計，倍數改用 Student-t：例如 8 個 seeds（自由度 7）時 <Tex>{`t_{0.975,7}=${nf(t7, 5)}`}</Tex>，比 1.96 大，因為「估計的 <Tex>{'\\sigma'}</Tex> 本身也有誤差」。
-          判決常用<strong>單邊</strong>：要宣稱 <Tex>{'K>0'}</Tex>，就要求 <Tex>{'\\hat K-z\\,\\mathrm{se}>0'}</Tex>，<Tex>{'z=3'}</Tex> 時單邊錯判機率 <Tex>{`\\Phi(-3)=${nf(100 * normCdf(-3), 3)}\\%`}</Tex>。
+          樣本少時 <Tex>{'\\sigma'}</Tex> 也要用樣本估計，倍數改用 Student-t：例如 8 個 seeds（自由度 7）時 <Tex>{`t_{0.975,7}=${nf(t7, 5)}`}</Tex>，比 1.96 大，因為「估計的 <Tex>{'\\sigma'}</Tex> 本身也有誤差」。判決常用<strong>單邊</strong>：要宣稱 <Tex>{'K>0'}</Tex>，就要求 <Tex>{'\\hat K-z\\,\\mathrm{se}>0'}</Tex>，<Tex>{'z=3'}</Tex> 時單邊錯判機率 <Tex>{`\\Phi(-3)=${nf(100 * normCdf(-3), 3)}\\%`}</Tex>。
         </p>
       </Prereq>
 
       <Prereq title="二項分布與「0 次失效」能推出什麼">
         <p>
-          每次試驗獨立、失效機率 <Tex>{'p'}</Tex>，做 <Tex>{'n'}</Tex> 次都沒失效的機率是 <Tex>{'(1-p)^n'}</Tex>。如果真實的 <Tex>{'p'}</Tex> 很大，「全部成功」就很不可能——
-          這讓我們能反推 <Tex>{'p'}</Tex> 的上界。例如 100 個 seeds 全過，95% 信心下 <Tex>{`p\\le ${nf(pu100, 4)}`}</Tex>（本頁 §3.5 推導）。注意這只對「與試驗同分布的條件」有效。
+          每次試驗獨立、失效機率 <Tex>{'p'}</Tex>，做 <Tex>{'n'}</Tex> 次都沒失效的機率是 <Tex>{'(1-p)^n'}</Tex>。如果真實的 <Tex>{'p'}</Tex> 很大，「全部成功」就很不可能——這讓我們能反推 <Tex>{'p'}</Tex> 的上界。例如 100 個 seeds 全過，95% 信心下 <Tex>{`p\\le ${nf(pu100, 4)}`}</Tex>（本頁 §3.5 推導）。注意這只對「與試驗同分布的條件」有效。
         </p>
       </Prereq>
 
       <Prereq title="矩陣、eigenvalue 與 spectral radius">
         <p>
-          向量遞迴 <Tex>{'\\mathbf s_{k+1}=\\mathbf A\\mathbf s_k'}</Tex>。若 <Tex>{'\\mathbf A\\mathbf v=\\lambda\\mathbf v'}</Tex>（<Tex>{'\\mathbf v'}</Tex> 是 eigenvector、<Tex>{'\\lambda'}</Tex> 是 eigenvalue），
-          那從 <Tex>{'\\mathbf v'}</Tex> 出發每走一步就乘 <Tex>{'\\lambda'}</Tex>：<Tex>{'\\mathbf s_k=\\lambda^k\\mathbf v'}</Tex>。一般初值可以拆成各 eigenvector 的組合，所以
+          向量遞迴 <Tex>{'\\mathbf s_{k+1}=\\mathbf A\\mathbf s_k'}</Tex>。若 <Tex>{'\\mathbf A\\mathbf v=\\lambda\\mathbf v'}</Tex>（<Tex>{'\\mathbf v'}</Tex> 是 eigenvector、<Tex>{'\\lambda'}</Tex> 是 eigenvalue），那從 <Tex>{'\\mathbf v'}</Tex> 出發每走一步就乘 <Tex>{'\\lambda'}</Tex>：<Tex>{'\\mathbf s_k=\\lambda^k\\mathbf v'}</Tex>。一般初值可以拆成各 eigenvector 的組合，所以
         </p>
         <TexBlock>{String.raw`\mathbf s_k\to\mathbf 0\ \ \forall\mathbf s_0\iff\rho(\mathbf A)\equiv\max_i|\lambda_i|<1`}</TexBlock>
         <p>
-          這是純量 <Tex>{'r^k\\to0\\iff|r|<1'}</Tex>（等比數列）的矩陣版。<Tex>{'\\lambda'}</Tex> 可以是複數（振盪）；<Tex>{'|\\lambda|'}</Tex> 是它到原點的距離，所以「穩定 ⇔ 所有 eigenvalue 在 unit circle 內」。
-          奇異值 <Tex>{'\\sigma_i'}</Tex> 是 <Tex>{'\\sqrt{\\lambda_i(\\mathbf J^T\\mathbf J)}'}</Tex>：它告訴你 <Tex>{'\\mathbf J'}</Tex> 在各方向「放大多少」，<Tex>{'\\sigma_{\\min}=0'}</Tex> 代表某個參數組合完全看不見。
+          這是純量 <Tex>{'r^k\\to0\\iff|r|<1'}</Tex>（等比數列）的矩陣版。<Tex>{'\\lambda'}</Tex> 可以是複數（振盪）；<Tex>{'|\\lambda|'}</Tex> 是它到原點的距離，所以「穩定 ⇔ 所有 eigenvalue 在 unit circle 內」。奇異值 <Tex>{'\\sigma_i'}</Tex> 是 <Tex>{'\\sqrt{\\lambda_i(\\mathbf J^T\\mathbf J)}'}</Tex>：它告訴你 <Tex>{'\\mathbf J'}</Tex> 在各方向「放大多少」，<Tex>{'\\sigma_{\\min}=0'}</Tex> 代表某個參數組合完全看不見。
         </p>
       </Prereq>
 
       <Prereq title="Comparator 的 erf 與 $K_q$（Ch05 的一句話版本）">
         <p>
-          comparator 看到 <Tex>{'e=s+v'}</Tex>，<Tex>{'v\\sim\\mathcal N(0,\\sigma_v^2)'}</Tex>，<Tex>{'q=\\mathrm{sign}(e)'}</Tex>，則 <Tex>{'E[q]=\\mathrm{erf}(s/(\\sqrt2\\sigma_v))'}</Tex>。
-          泰勒一階：<Tex>{'E[q]\\approx K_qs'}</Tex>，<Tex>{'K_q=\\sqrt{2/\\pi}/\\sigma_v'}</Tex>；<Tex>{'\\sigma_v=100\\,\\mathrm{fs}'}</Tex> 時 <Tex>{`K_q=${nf(k100, 6)}\\,\\mathrm{fs}^{-1}`}</Tex>。
+          comparator 看到 <Tex>{'e=s+v'}</Tex>，<Tex>{'v\\sim\\mathcal N(0,\\sigma_v^2)'}</Tex>，<Tex>{'q=\\mathrm{sign}(e)'}</Tex>，則 <Tex>{'E[q]=\\mathrm{erf}(s/(\\sqrt2\\sigma_v))'}</Tex>。泰勒一階：<Tex>{'E[q]\\approx K_qs'}</Tex>，<Tex>{'K_q=\\sqrt{2/\\pi}/\\sigma_v'}</Tex>；<Tex>{'\\sigma_v=100\\,\\mathrm{fs}'}</Tex> 時 <Tex>{`K_q=${nf(k100, 6)}\\,\\mathrm{fs}^{-1}`}</Tex>。
           <Tex>{'|s|'}</Tex> 接近 <Tex>{'\\sigma_v'}</Tex> 以後 erf 飽和，線性化失效（附錄 B 第 3 點）。
         </p>
       </Prereq>

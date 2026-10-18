@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import { Callout, ExperimentShell, ParamControl, Plot, SelectControl, Tex, useThemeTokens, type MetricRow } from '@/components'
 import { presetsForExperiment, useUrlPreset } from '@/app/presets'
 import { STEP, type TieRule } from '@/simulation/models/lms'
@@ -209,8 +209,7 @@ export function LimitCycleBand() {
       <Plot title={String.raw`$|\delta_n|=|a-w_n|$（log）`} data={dData} yLog height={240} csvName="sign-lms-band-delta" layout={{ xaxis: { title: { text: '$n$' } }, yaxis: { title: { text: String.raw`$|\delta_n|$` } } }} />
       {landed && (
         <Callout kind="warn" title={<>剛好踩到 <Tex>{'w=a'}</Tex>：<Tex>{'\\operatorname{sign}(0)'}</Tex> 的慣例決定結果</>}>
-          <Tex>{String.raw`|a-w_0|/h=${f4(Math.abs(p.a - p.w0) / (p.mu * Math.abs(p.x)))}`}</Tex> 是整數：精確算術下第 {lc.entryStep} 步剛好 <Tex>{'e=0'}</Tex>。
-          解析（精確算術）：
+          <Tex>{String.raw`|a-w_0|/h=${f4(Math.abs(p.a - p.w0) / (p.mu * Math.abs(p.x)))}`}</Tex> 是整數：精確算術下第 {lc.entryStep} 步剛好 <Tex>{'e=0'}</Tex>。解析（精確算術）：
           {lc.frozen ? (
             <Tex>{String.raw`\operatorname{sign}(0)=0\Rightarrow w_n=a=${f4(p.a)}\ \text{（凍結）}`}</Tex>
           ) : (

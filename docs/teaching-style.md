@@ -32,6 +32,7 @@
   - **方塊圖（Mermaid）**：節點與連線的雙引號標籤裡，數學一律寫 `$...$`，文字照常寫，例如 `A["誤差 $e[n] = y[n] - \\hat y[n]$"]`、`X -- "$\\mu$" --> Y`。共用的 `Mermaid` 元件會用 KaTeX 排版（和正文同一套樣式）。圖的原始碼用 `String.raw` 樣板字串，反斜線就不用寫兩次。限制：標籤內不要用 `\\\\`（Mermaid 會把它收成一個反斜線；換行用 `<br/>`）；`stateDiagram`／`sequenceDiagram` 的文字與 subgraph 標題是否支援公式，以 `renderMermaidForTest` 的結果為準（`mathCount`、文字中不可殘留 `$`），不支援就改用文字敘述或改畫成 flowchart。
   - **互動圖表（Plotly）**：軸標題、圖例名稱（trace `name`）、annotation、`ticktext`、`hovertemplate` 裡的數學也寫 `$...$`，例如 `'學習率 $\\mu$'`、`'$\\sigma_w$ (fs)'`、`'$|H_{\\mathrm{PD}}|$ (dB)'`。`Plot` 元件會轉成斜體符號與真正的上下標（`plotMath.ts`；分數以行內 `a/b` 顯示）。不支援的 TeX 指令會原樣顯示指令名稱，所以圖表字串只用基本指令（希臘字母、上下標、`\\frac`、`\\sqrt`、`\\hat`／`\\bar`、`\\mathrm`、`\\text`、常見運算符號）。
   - 下拉選單的 `<option>` 文字、匯出檔的欄名、aria-label 是純文字，不放公式。
+  - 無障礙名稱（aria-label、title、aria-valuetext、`<option>`）一律用 `accessibleText`，不用 `stripMathDelimiters`；`CodeCompare` 的分頁標籤可以含 `$…$`。
 - 重要結果用 `\boxed{}`；推導用 `\begin{aligned} … \end{aligned}`。
 - 有單位的量要寫單位（\(\mathrm{fs}\)、\(\mathrm{fs}^{-1}\)、\(\mathrm{Hz}\)），並註明時間索引 \(n\)（sample）／\(k\)（block）。
 - 盡量多數學分析：除了規格書的公式，補上中間推導、邊界情況、數值驗算，以及「如果假設不成立會怎樣」。

@@ -5,6 +5,7 @@ import { refValues } from '../refValues'
 import { SYMBOL_GROUP_LABEL, SYMBOL_GROUP_ORDER, GLOBAL_SYMBOLS, SYMBOL_COLLISIONS, type GlobalSymbol, type SymbolCollision } from '../symbols'
 import { texNum, texPct } from '../format'
 import { ErrataList, ErratumTag, Gate, MatchCount, NoMatch, PageLinks, Rich, useMode } from '../common'
+import { TableWrap } from '../TableWrap'
 
 /**
  * (2) 全站符號總表（規格 §0 的修正版）＋ 符號衝突速查。
@@ -28,8 +29,7 @@ export function SymbolsSection({ rows, collisions, searching }: { rows: GlobalSy
         <>
         <p>
           規格 §0 要求「全部網站使用同一套符號、極性與單位」。驗算後發現 §0 本身與後面章節有好幾處衝突（<Tex>{String.raw`\delta`}</Tex> 的極性、
-          <Tex>{'u'}</Tex> 的雙重意義、<Tex>{'K'}</Tex> 沒有定義、<Tex>{String.raw`\mu`}</Tex> 的單位…），所以這張表是<strong>修正後</strong>的全站約定：
-          「全站約定」欄就是網站實際採用的定義，「規格原文」欄列出被勘誤改掉的寫法，「例」欄的數字都由站內同一套模擬／解析核心即時算出。
+          <Tex>{'u'}</Tex> 的雙重意義、<Tex>{'K'}</Tex> 沒有定義、<Tex>{String.raw`\mu`}</Tex> 的單位…），所以這張表是<strong>修正後</strong>的全站約定：「全站約定」欄就是網站實際採用的定義；Engineer／Research 模式在它的下面附「規格原文」（被勘誤改掉的寫法），最後一行「例」的數字都由站內同一套模擬／解析核心即時算出。
         </p>
         <Callout kind="info" title="三條最常用、也最容易弄反的約定">
           <TexBlock>{String.raw`\boxed{\delta_k=a-w_k}\qquad\boxed{\delta w_k=w_k-w^*}\qquad\boxed{K=K_qC,\ \ g=\mu K,\ \ p=1-g}`}</TexBlock>
@@ -96,21 +96,18 @@ export function SymbolsSection({ rows, collisions, searching }: { rows: GlobalSy
           <Prereq title="矩陣、特徵值與 condition number（多參數那一組）">
             <p>
               對稱矩陣 <Tex>{String.raw`\mathbf R`}</Tex> 的特徵值 <Tex>{String.raw`\lambda`}</Tex> 與特徵向量 <Tex>{String.raw`\mathbf v`}</Tex> 滿足
-              <Tex>{String.raw`\mathbf R\mathbf v=\lambda\mathbf v`}</Tex>：沿著 <Tex>{String.raw`\mathbf v`}</Tex> 方向，矩陣只是把長度乘上 <Tex>{String.raw`\lambda`}</Tex>。
-              2×2 例 <Tex>{String.raw`\mathbf R=\begin{bmatrix}1&\rho\\\rho&1\end{bmatrix}`}</Tex>：
+              <Tex>{String.raw`\mathbf R\mathbf v=\lambda\mathbf v`}</Tex>：沿著 <Tex>{String.raw`\mathbf v`}</Tex> 方向，矩陣只是把長度乘上 <Tex>{String.raw`\lambda`}</Tex>。2×2 例 <Tex>{String.raw`\mathbf R=\begin{bmatrix}1&\rho\\\rho&1\end{bmatrix}`}</Tex>：
             </p>
             <TexBlock>{String.raw`\det(\mathbf R-\lambda\mathbf I)=(1-\lambda)^2-\rho^2=0\;\Rightarrow\;\lambda=1\pm\rho`}</TexBlock>
             <p>
-              <Tex>{String.raw`\rho=${r.mimo.rho}`}</Tex> 時 <Tex>{String.raw`\lambda=${texNum(r.mimo.lamMax)},\ ${texNum(r.mimo.lamMin)}`}</Tex>（由 eigSym 算出），
-              condition number <Tex>{String.raw`\lambda_{\max}/\lambda_{\min}=${texNum(r.mimo.lamMax / r.mimo.lamMin)}`}</Tex>：scalar <Tex>{String.raw`\mu`}</Tex> 下慢 mode
+              <Tex>{String.raw`\rho=${r.mimo.rho}`}</Tex> 時 <Tex>{String.raw`\lambda=${texNum(r.mimo.lamMax)},\ ${texNum(r.mimo.lamMin)}`}</Tex>（由 eigSym 算出），condition number <Tex>{String.raw`\lambda_{\max}/\lambda_{\min}=${texNum(r.mimo.lamMax / r.mimo.lamMin)}`}</Tex>：scalar <Tex>{String.raw`\mu`}</Tex> 下慢 mode
               的 pole 是 <Tex>{String.raw`1-\mu\lambda_{\min}`}</Tex>，非常接近 1。
             </p>
           </Prereq>
           <Prereq title="常態分布、$\Phi$ 與 $\operatorname{erf}$（comparator 那一組）">
             <p>
               Comparator 前的雜訊 <Tex>{'v'}</Tex> 假設服從常態（Gaussian）分布 <Tex>{String.raw`\mathcal N(0,\sigma_v^2)`}</Tex>：鐘形曲線，數值落在{' '}
-              <Tex>{String.raw`\pm\sigma_v`}</Tex> 以內的機率是 <Tex>{texPct(within1Sigma, 4)}</Tex>。<Tex>{String.raw`\Phi(z)`}</Tex> 是「標準常態變數不超過 <Tex>{'z'}</Tex> 的機率」，
-              一條從 0 升到 1 的 S 形曲線，<Tex>{String.raw`\Phi(0)=\tfrac12`}</Tex>。誤差函數 <Tex>{String.raw`\operatorname{erf}`}</Tex> 是同一條曲線換個尺度：
+              <Tex>{String.raw`\pm\sigma_v`}</Tex> 以內的機率是 <Tex>{texPct(within1Sigma, 4)}</Tex>。<Tex>{String.raw`\Phi(z)`}</Tex> 是「標準常態變數不超過 <Tex>{'z'}</Tex> 的機率」，一條從 0 升到 1 的 S 形曲線，<Tex>{String.raw`\Phi(0)=\tfrac12`}</Tex>。誤差函數 <Tex>{String.raw`\operatorname{erf}`}</Tex> 是同一條曲線換個尺度：
               <Tex>{String.raw`2\Phi(z)-1=\operatorname{erf}(z/\sqrt2)`}</Tex>。
             </p>
             <TexBlock>{String.raw`P(q=+1)=P(s+v>0)=\Phi\!\Big(\frac{s}{\sigma_v}\Big),\qquad E[q]=2\Phi\!\Big(\frac{s}{\sigma_v}\Big)-1=\operatorname{erf}\!\Big(\frac{s}{\sqrt2\,\sigma_v}\Big)\approx\sqrt{\frac2\pi}\,\frac{s}{\sigma_v}`}</TexBlock>
@@ -123,7 +120,7 @@ export function SymbolsSection({ rows, collisions, searching }: { rows: GlobalSy
           </Prereq>
           <Prereq title="卷積 $h*x$ 與相關 $E[xu]$（PLL 路徑那一組）">
             <p>
-              卷積 <Tex>{String.raw`u[n]=(h*x)[n]=\sum_kh[k]\,x[n-k]`}</Tex>：把現在與過去幾筆輸入各乘一個權重再加起來，這就是「濾波器」；權重 <Tex>{'h[k]'}</Tex> 叫 impulse response。 例：
+              卷積 <Tex>{String.raw`u[n]=(h*x)[n]=\sum_kh[k]\,x[n-k]`}</Tex>：把現在與過去幾筆輸入各乘一個權重再加起來，這就是「濾波器」；權重 <Tex>{'h[k]'}</Tex> 叫 impulse response。例：
               <Tex>{String.raw`h=[${convH.join(',')}]`}</Tex>（一階差分，high-pass）作用在 <Tex>{String.raw`x=[${convX.join(',')}]`}</Tex>：
             </p>
             <TexBlock>{String.raw`u[1]=h[0]x[1]+h[1]x[0]=${convH[0]}\cdot${convX[1]}+(${convH[1]})\cdot${convX[0]}=${texNum(convU[1])},\qquad u[2]=${convH[0]}\cdot${convX[2]}+(${convH[1]})\cdot${convX[1]}=${texNum(convU[2])}`}</TexBlock>
@@ -148,18 +145,19 @@ export function SymbolsSection({ rows, collisions, searching }: { rows: GlobalSy
       {shown.length === 0 ? (
         <NoMatch what="符號" />
       ) : (
-        <div className="table-wrap fr-sym-wrap">
-          <table className="fr-table fr-sym-table">
+        /*
+          四欄（原本八欄，1280px 視窗時表寬 1659px、放在 911px 的欄裡，右邊三欄被切在畫面外）：
+          「單位」併進「意義」的下一行；「規格原文」與「例」併進「全站約定」的下面（例的數字串不能斷行，需要 340px 左右，放在最寬的那一欄）；
+          「勘誤」與「主要頁面」併成一欄。內容一個字都沒少。
+        */
+        <TableWrap className="fr-sym-wrap" label="符號表（可左右捲動）" sticky>
+          <table className="fr-table fr-sym-table fr-sticky-head">
             <thead>
               <tr>
                 <th>符號</th>
-                <th>意義</th>
-                <th>單位</th>
-                <th>全站約定（修正版）</th>
-                {mode !== 'beginner' && <th>規格原文</th>}
-                <th>例（代入數字）</th>
-                <th>勘誤</th>
-                <th>主要頁面</th>
+                <th>意義與單位</th>
+                <th>{mode !== 'beginner' ? '全站約定（修正版）、規格原文與例（代入數字）' : '全站約定（修正版）與例（代入數字）'}</th>
+                <th>勘誤與頁面</th>
               </tr>
             </thead>
             {SYMBOL_GROUP_ORDER.map((g) => {
@@ -168,7 +166,7 @@ export function SymbolsSection({ rows, collisions, searching }: { rows: GlobalSy
               return (
                 <tbody key={g}>
                   <tr className="fr-group-row">
-                    <th colSpan={mode !== 'beginner' ? 8 : 7} scope="colgroup">
+                    <th colSpan={4} scope="colgroup">
                       {SYMBOL_GROUP_LABEL[g]}
                     </th>
                   </tr>
@@ -177,28 +175,32 @@ export function SymbolsSection({ rows, collisions, searching }: { rows: GlobalSy
                       <td data-label="符號" className="fr-sym-cell">
                         <Tex>{s.symbol}</Tex>
                       </td>
-                      <td data-label="意義">
+                      <td data-label="意義與單位">
                         <Rich text={s.meaning} />
+                        {s.unit && (
+                          <div className="fr-cell-sub">
+                            <span className="muted">單位</span> <Tex>{s.unit}</Tex>
+                          </div>
+                        )}
                       </td>
-                      <td data-label="單位" className="nowrap">
-                        {s.unit ? <Tex>{s.unit}</Tex> : <span className="muted">—</span>}
-                      </td>
-                      <td data-label="全站約定">
+                      <td data-label="全站約定與例">
                         <Rich text={s.convention} />
+                        {mode !== 'beginner' && s.specOriginal && (
+                          <div className="fr-spec-orig small">
+                            規格原文：<Rich text={s.specOriginal} />
+                          </div>
+                        )}
+                        {s.example && (
+                          <div className="fr-cell-sub fr-example">
+                            <span className="muted">例</span> <Rich text={s.example(r)} />
+                          </div>
+                        )}
                       </td>
-                      {mode !== 'beginner' && (
-                        <td data-label="規格原文" className="fr-spec-orig">
-                          {s.specOriginal ? <Rich text={s.specOriginal} /> : <span className="muted">（未改）</span>}
-                        </td>
-                      )}
-                      <td data-label="例" className="fr-example">
-                        {s.example ? <Rich text={s.example(r)} /> : <span className="muted">—</span>}
-                      </td>
-                      <td data-label="勘誤">
-                        <ErrataList ids={s.errata} />
-                      </td>
-                      <td data-label="頁面">
-                        <PageLinks ids={s.pages} />
+                      <td data-label="勘誤與頁面">
+                        <div className="fr-cell-stack">
+                          {s.errata.length > 0 && <ErrataList ids={s.errata} />}
+                          <PageLinks ids={s.pages} />
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -206,7 +208,7 @@ export function SymbolsSection({ rows, collisions, searching }: { rows: GlobalSy
               )
             })}
           </table>
-        </div>
+        </TableWrap>
       )}
       {coreOnly && <p className="small muted">Beginner 模式只列核心符號；按上方按鈕或在搜尋框輸入關鍵字即可查全部。</p>}
 
@@ -220,7 +222,7 @@ export function SymbolsSection({ rows, collisions, searching }: { rows: GlobalSy
         {collisions.length === 0 ? (
           <NoMatch what="符號衝突" />
         ) : (
-          <div className="table-wrap">
+          <TableWrap>
             <table className="fr-table fr-coll-table">
               <thead>
                 <tr>
@@ -251,7 +253,7 @@ export function SymbolsSection({ rows, collisions, searching }: { rows: GlobalSy
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableWrap>
         )}
       </Gate>
     </Section>

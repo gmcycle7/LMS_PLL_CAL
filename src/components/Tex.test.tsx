@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import { renderTex, Tex, TexBlock } from './Tex'
+import { accessibleText, nodeHasMath, nodeToAccessibleText, renderTex, Tex, TexBlock, MathText, texToSpeech } from './Tex'
 import { Section } from './Section'
 import { Callout } from './Callout'
 
@@ -67,5 +67,51 @@ describe('Section / Callout', () => {
     const el = screen.getByRole('alert')
     expect(el.className).toContain('callout-danger')
     expect(el.textContent).toContain('警告')
+  })
+})
+
+describe('無障礙名稱的可念形式（speech.ts 經由 Tex.tsx 匯出）', () => {
+  it('Tex.tsx 重新匯出 texToSpeech／accessibleText', () => {
+    expect(texToSpeech('\\sigma_v')).toBe('sigma v')
+    expect(accessibleText('$\\mu_k$ 與 $x$')).toBe('mu k 與 x')
+  })
+
+  it('nodeToAccessibleText：字串、<Tex>、<MathText>、元素與陣列都轉成純文字', () => {
+    expect(nodeToAccessibleText('學習率 $\\mu$')).toBe('學習率 mu')
+    expect(nodeToAccessibleText(<Tex>{'J_{11}'}</Tex>)).toBe('J 11')
+    expect(nodeToAccessibleText(<MathText>{'$\\sigma_v$（雜訊）'}</MathText>)).toBe('sigma v（雜訊）')
+    expect(
+      nodeToAccessibleText(
+        <>
+          頻寬誤差 <Tex>{'\\hat\\omega_n=1.5\\,\\omega_n'}</Tex>
+        </>,
+      ),
+    ).toBe('頻寬誤差 omega hat n 等於 1.5 omega n')
+    expect(nodeToAccessibleText(['Case', <Tex key="a">{'\\alpha'}</Tex>, ' 的值'])).toBe('Case alpha 的值')
+    expect(nodeToAccessibleText(42)).toBe('42')
+    expect(nodeToAccessibleText(null)).toBe('')
+    // aria-hidden 的內容不念
+    expect(nodeToAccessibleText(<span aria-hidden="true">裝飾</span>)).toBe('')
+  })
+
+  it('nodeHasMath：只有含 `$...$` 或 <Tex> 的節點才需要另給 aria-label', () => {
+    expect(nodeHasMath('純文字')).toBe(false)
+    expect(nodeHasMath('價格 \\$5')).toBe(false) // 跳脫的 `\$` 是字面金額，不是公式
+    expect(nodeHasMath('單一 $ 符號')).toBe(false)
+    expect(nodeHasMath('$x$')).toBe(true)
+    expect(nodeHasMath(<Tex>{'x'}</Tex>)).toBe(true)
+    expect(nodeHasMath(<b>粗體</b>)).toBe(false)
+    expect(nodeHasMath(['a', <i key="i"><Tex>{'x'}</Tex></i>])).toBe(true)
+  })
+
+  it('為什麼要另給名稱：KaTeX 在「由內容算名稱」裡只剩 MathML 的文字（這裡記錄 DOM 結構，不測瀏覽器）', () => {
+    const { container } = render(
+      <label>
+        <Tex>{'\\delta_0'}</Tex>
+      </label>,
+    )
+    // HTML 部分 aria-hidden（螢幕閱讀器不念），可讀的只有 .katex-mathml
+    expect(container.querySelector('.katex-html')?.getAttribute('aria-hidden')).toBe('true')
+    expect(container.querySelector('.katex-mathml math')).toBeTruthy()
   })
 })

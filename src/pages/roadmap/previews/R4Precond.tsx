@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import {
   ClaimTag,
   CodeBlock,
@@ -207,8 +207,7 @@ export default function R4Preview() {
       <Prereq title="SVD：把矩陣拆成「旋轉、拉伸、再旋轉」">
         <p>
           任何矩陣都能寫成 <Tex>{String.raw`\mathbf J=\mathbf U\boldsymbol\Sigma\mathbf V^T`}</Tex>，<Tex>{'\\mathbf U,\\mathbf V'}</Tex> 是正交矩陣（<Tex>{'\\mathbf V^T\\mathbf V=\\mathbf I'}</Tex>，只旋轉不拉伸），
-          <Tex>{'\\boldsymbol\\Sigma=\\mathrm{diag}(\\sigma_1,\\sigma_2,\\dots)'}</Tex> 是非負的拉伸量（singular values）。於是 <Tex>{String.raw`\mathbf J^T\mathbf J=\mathbf V\boldsymbol\Sigma^2\mathbf V^T`}</Tex>，
-          加上 <Tex>{'\\varepsilon\\mathbf I=\\mathbf V(\\varepsilon\\mathbf I)\\mathbf V^T'}</Tex> 再取反矩陣，只是把每個 <Tex>{'\\sigma_i^2'}</Tex> 換成 <Tex>{'1/(\\sigma_i^2+\\varepsilon)'}</Tex>。 <ChRef ch="10">第 10 章</ChRef>有 {mt('$2\\times2$')} 的逐步範例。
+          <Tex>{'\\boldsymbol\\Sigma=\\mathrm{diag}(\\sigma_1,\\sigma_2,\\dots)'}</Tex> 是非負的拉伸量（singular values）。於是 <Tex>{String.raw`\mathbf J^T\mathbf J=\mathbf V\boldsymbol\Sigma^2\mathbf V^T`}</Tex>，加上 <Tex>{'\\varepsilon\\mathbf I=\\mathbf V(\\varepsilon\\mathbf I)\\mathbf V^T'}</Tex> 再取反矩陣，只是把每個 <Tex>{'\\sigma_i^2'}</Tex> 換成 <Tex>{'1/(\\sigma_i^2+\\varepsilon)'}</Tex>。 <ChRef ch="10">第 10 章</ChRef>有 {mt('$2\\times2$')} 的逐步範例。
         </p>
       </Prereq>
       <StepDerivation

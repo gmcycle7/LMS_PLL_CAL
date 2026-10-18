@@ -50,8 +50,7 @@ export function S0Intro() {
         </p>
         <Callout kind="info" title="一句話直覺">
           <p>
-            一個 comparator 只會說「總誤差是正還是負」。如果兩個參數的 regressor 長得很像（相關係數 <Tex>{String.raw`\rho`}</Tex> 接近 1），GMAC 就很難分辨「是誰錯」；
-            它只看得清楚「兩個一起錯」的方向，看不清楚「一個多、一個少」的方向。
+            一個 comparator 只會說「總誤差是正還是負」。如果兩個參數的 regressor 長得很像（相關係數 <Tex>{String.raw`\rho`}</Tex> 接近 1），GMAC 就很難分辨「是誰錯」；它只看得清楚「兩個一起錯」的方向，看不清楚「一個多、一個少」的方向。
           </p>
         </Callout>
       </Section>
@@ -102,8 +101,7 @@ export function S0Intro() {
           {String.raw`\begin{bmatrix}1&0.8\\0.8&1\end{bmatrix}\begin{bmatrix}\delta_1\\\delta_2\end{bmatrix}=\begin{bmatrix}1\cdot\delta_1+0.8\,\delta_2\\0.8\,\delta_1+1\cdot\delta_2\end{bmatrix}`}
         </TexBlock>
         <p>
-          第一列告訴你：第 1 個分量不只看 <Tex>{String.raw`\delta_1`}</Tex>，還混進了 <Tex>{String.raw`0.8\,\delta_2`}</Tex>。這就是「耦合」的數學樣子。
-          單位矩陣 <Tex>{String.raw`\mathbf I`}</Tex> 對角是 1、其他是 0，乘任何向量都不變。
+          第一列告訴你：第 1 個分量不只看 <Tex>{String.raw`\delta_1`}</Tex>，還混進了 <Tex>{String.raw`0.8\,\delta_2`}</Tex>。這就是「耦合」的數學樣子。單位矩陣 <Tex>{String.raw`\mathbf I`}</Tex> 對角是 1、其他是 0，乘任何向量都不變。
         </p>
       </Prereq>
 
@@ -138,16 +136,14 @@ export function S0Intro() {
 
       <Prereq title="期望值、相關與自相關矩陣（correlation matrix）">
         <p>
-          <Tex>{'E[\\cdot]'}</Tex>（期望值）可以想成「做非常多次再平均」。兩個 regressor 的相關 <Tex>{String.raw`E[u_1u_2]`}</Tex> 是乘積的長期平均：
-          如果 <Tex>{String.raw`u_1`}</Tex>、<Tex>{String.raw`u_2`}</Tex> 常常同號，平均是正的；兩者無關、而且平均都是 0（本章模型裡的 regressor 都是零均值）時則是 0。把所有配對排成矩陣：
+          <Tex>{'E[\\cdot]'}</Tex>（期望值）可以想成「做非常多次再平均」。兩個 regressor 的相關 <Tex>{String.raw`E[u_1u_2]`}</Tex> 是乘積的長期平均：如果 <Tex>{String.raw`u_1`}</Tex>、<Tex>{String.raw`u_2`}</Tex> 常常同號，平均是正的；兩者無關、而且平均都是 0（本章模型裡的 regressor 都是零均值）時則是 0。把所有配對排成矩陣：
         </p>
         <TexBlock>
           {String.raw`\mathbf R=E[\mathbf u\mathbf u^T]=\begin{bmatrix}E[u_1^2]&E[u_1u_2]\\E[u_2u_1]&E[u_2^2]\end{bmatrix}=\begin{bmatrix}1&\rho\\\rho&1\end{bmatrix}\quad(\text{unit RMS regressors})`}
         </TexBlock>
         <p>
           <Tex>{String.raw`\mathbf R`}</Tex> 一定<strong>對稱</strong>（<Tex>{String.raw`E[u_1u_2]=E[u_2u_1]`}</Tex>），而且<strong>半正定</strong>：對任何向量{' '}
-          <Tex>{String.raw`\mathbf c`}</Tex>，<Tex>{String.raw`\mathbf c^T\mathbf R\mathbf c=E[(\mathbf c^T\mathbf u)^2]\ge0`}</Tex>（平方的平均不會是負的）。
-          所以 <Tex>{String.raw`|\rho|\le1`}</Tex>；<Tex>{String.raw`|\rho|>1`}</Tex> 的「<Tex>{String.raw`\mathbf R`}</Tex>」在物理上不存在，實驗會拒絕並說明。
+          <Tex>{String.raw`\mathbf c`}</Tex>，<Tex>{String.raw`\mathbf c^T\mathbf R\mathbf c=E[(\mathbf c^T\mathbf u)^2]\ge0`}</Tex>（平方的平均不會是負的）。所以 <Tex>{String.raw`|\rho|\le1`}</Tex>；<Tex>{String.raw`|\rho|>1`}</Tex> 的「<Tex>{String.raw`\mathbf R`}</Tex>」在物理上不存在，實驗會拒絕並說明。
         </p>
       </Prereq>
 
@@ -164,11 +160,9 @@ export function S0Intro() {
           <Tex>{String.raw`\mathbf v_1`}</Tex> 是「兩個參數一起錯同一方向」（共模），<Tex>{String.raw`\mathbf v_2`}</Tex> 是「一個多、一個少」（差模）。這個配對對任何{' '}
           <Tex>{String.raw`\rho`}</Tex> 都成立；哪一個 eigenvalue 比較大要看正負號：<Tex>{String.raw`\rho\ge0`}</Tex> 時 <Tex>{String.raw`\lambda_{\max}=\lambda_1`}</Tex>，<Tex>{String.raw`\rho<0`}</Tex> 時{' '}
           <Tex>{String.raw`\lambda_{\max}=\lambda_2`}</Tex>，合起來是 <Tex>{String.raw`\lambda_{\max,\min}=1\pm|\rho|`}</Tex>。本章正文的例子都取 <Tex>{String.raw`\rho\ge0`}</Tex>，所以共模是 <Tex>{String.raw`\lambda_{\max}`}</Tex>、差模是{' '}
-          <Tex>{String.raw`\lambda_{\min}`}</Tex>。
-          例如 <Tex>{String.raw`\rho=0.8`}</Tex> 時 <Tex>{String.raw`\lambda=${tn(c.eig[0])},\ ${tn(c.eig[1])}`}</Tex>；<Tex>{String.raw`\rho=0.99`}</Tex>{' '}
+          <Tex>{String.raw`\lambda_{\min}`}</Tex>。例如 <Tex>{String.raw`\rho=0.8`}</Tex> 時 <Tex>{String.raw`\lambda=${tn(c.eig[0])},\ ${tn(c.eig[1])}`}</Tex>；<Tex>{String.raw`\rho=0.99`}</Tex>{' '}
           時 <Tex>{String.raw`\lambda=${tn(NUM.rho099.eig[0])},\ ${tn(NUM.rho099.eig[1])}`}</Tex>，兩者的比值 <Tex>{String.raw`\kappa=\lambda_{\max}/\lambda_{\min}=${tn(NUM.rho099.cond, 5)}`}</Tex>（condition number，也叫
-          eigenvalue spread；越大代表兩個方向「看得清楚的程度」差越多）。
-          對稱矩陣的 eigenvalue 都是實數、eigenvector 互相垂直，可以寫成 <Tex>{String.raw`\mathbf R=\mathbf V\boldsymbol\Lambda\mathbf V^T`}</Tex>（
+          eigenvalue spread；越大代表兩個方向「看得清楚的程度」差越多）。對稱矩陣的 eigenvalue 都是實數、eigenvector 互相垂直，可以寫成 <Tex>{String.raw`\mathbf R=\mathbf V\boldsymbol\Lambda\mathbf V^T`}</Tex>（
           <Tex>{String.raw`\mathbf V`}</Tex> 的欄是 eigenvector、<Tex>{String.raw`\boldsymbol\Lambda=\operatorname{diag}(\lambda_i)`}</Tex>、
           <Tex>{String.raw`\mathbf V^T\mathbf V=\mathbf I`}</Tex>）。這是本章最常用的工具。兩個名詞：所有 eigenvalue 都{' '}
           <Tex>{String.raw`>0`}</Tex> 的對稱矩陣叫<strong>正定（positive definite）</strong>，此時反矩陣存在，而且{' '}

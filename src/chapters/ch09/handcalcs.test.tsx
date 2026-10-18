@@ -33,7 +33,7 @@ const P = vi.hoisted(() => ({
   Plots: { resize: vi.fn() },
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
-vi.mock('plotly.js-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
 
 const mermaidMock = vi.hoisted(() => ({
   initialize: vi.fn(),
@@ -1052,13 +1052,13 @@ describe('Ch09 帶入手算：(d) 渲染', () => {
 
   it('退化窗口（窗口 A）的詳解顯示 κ → ∞ 且沒有 KaTeX 錯誤', () => {
     const { container } = render(<HandCalc def={ch09HandCalc('HC-09.6')} />)
-    fireEvent.change(screen.getByLabelText(/第 1 筆的 \$u_2\$/), { target: { value: '1' } })
-    fireEvent.change(screen.getByLabelText(/第 1 筆的 \$u_1\$/), { target: { value: '-1' } })
-    fireEvent.change(screen.getByLabelText(/第 1 筆的 \$u_2\$/), { target: { value: '-1' } })
-    fireEvent.change(screen.getByLabelText(/第 2 筆的 \$u_1\$/), { target: { value: '1' } })
-    fireEvent.change(screen.getByLabelText(/第 2 筆的 \$u_2\$/), { target: { value: '1' } })
-    fireEvent.change(screen.getByLabelText(/第 3 筆的 \$u_1\$/), { target: { value: '-1' } })
-    fireEvent.change(screen.getByLabelText(/第 3 筆的 \$u_2\$/), { target: { value: '-1' } })
+    fireEvent.change(screen.getByLabelText(/第 1 筆的 u 2/), { target: { value: '1' } })
+    fireEvent.change(screen.getByLabelText(/第 1 筆的 u 1/), { target: { value: '-1' } })
+    fireEvent.change(screen.getByLabelText(/第 1 筆的 u 2/), { target: { value: '-1' } })
+    fireEvent.change(screen.getByLabelText(/第 2 筆的 u 1/), { target: { value: '1' } })
+    fireEvent.change(screen.getByLabelText(/第 2 筆的 u 2/), { target: { value: '1' } })
+    fireEvent.change(screen.getByLabelText(/第 3 筆的 u 1/), { target: { value: '-1' } })
+    fireEvent.change(screen.getByLabelText(/第 3 筆的 u 2/), { target: { value: '-1' } })
     expect(container.textContent).toContain('退化窗口')
     expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
     expect(container.querySelectorAll('.c-step').length).toBeGreaterThan(0)

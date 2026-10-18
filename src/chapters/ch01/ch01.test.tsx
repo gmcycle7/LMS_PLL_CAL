@@ -44,7 +44,7 @@ const P = vi.hoisted(() => ({
   Plots: { resize: vi.fn() },
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
-vi.mock('plotly.js-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
 vi.mock('mermaid', () => ({ default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: '<svg></svg>' })) } }))
 
 // ───── 記憶體：整章渲染一次約 400 MB 的 DOM，這個檔案會渲染十次以上；測試結束後必須讓它被回收，否則會頂到 Node 的 heap 上限（約 4 GB）─────
@@ -423,12 +423,32 @@ describe('LMS Playground', () => {
     expect(strictTexErrors(container)).toEqual([])
     // Freeze 後解析交叉比對改用 w_n = a − (a − w₀)p^{min(n, 3)}，仍然是 ok（不是 n/a）
     const shell = container.querySelector('[data-experiment="lms-playground"]') as HTMLElement
-    expect(shell.querySelector('.c-check-ok')?.getAttribute('title')).toMatch(/Freeze 自 \$n=3\$/)
+    expect(shell.querySelector('.c-check-ok')?.getAttribute('title')).toContain('Freeze 自 n 等於 3') // title 是 accessibleText 之後的可念文字（沒有 $ 與反斜線）
     expect(texOf(shell.querySelector('.c-check-ok'))).toContain('n=3')
     act(() => {
       fireEvent.click(screen.getByText('重設 Reset'))
     })
     expect(label()).toContain('= 0')
+  })
+
+  it('動畫（runKind=animate）：Run 鈕顯示「n/N 步」進度；「跳到結尾」把游標直接放到最後一步並停用自己；重設後恢復', () => {
+    const { container } = renderAt(<LmsPlayground />)
+    const label = () => container.querySelector('label[for="ch01-pg-cursor"]')?.textContent ?? ''
+    const N = PLAYGROUND_DEFAULTS.steps
+    expect(screen.getByText('執行 Run').textContent).toContain(`（2/${N} 步）`)
+    const skip = screen.getByText('跳到結尾') as HTMLButtonElement
+    expect(skip.disabled).toBe(false)
+    act(() => {
+      fireEvent.click(skip)
+    })
+    expect(label()).toContain(`= ${N}`)
+    expect(screen.getByText('執行 Run').textContent).toContain(`（${N}/${N} 步）`)
+    expect((screen.getByText('跳到結尾') as HTMLButtonElement).disabled).toBe(true)
+    act(() => {
+      fireEvent.click(screen.getByText('重設 Reset'))
+    })
+    expect(label()).toContain('= 0')
+    expect((screen.getByText('跳到結尾') as HTMLButtonElement).disabled).toBe(false)
   })
 
   it('警告：x = 0 不可辨識、μ < 0 極性錯誤、μ = 0.5 邊界', () => {

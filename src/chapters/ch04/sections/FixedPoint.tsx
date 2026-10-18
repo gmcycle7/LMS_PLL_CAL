@@ -140,15 +140,13 @@ export function FixedPointSection() {
       <p>
         <strong>先看</strong>左欄上面兩格的位元寬度：乘積 <Tex>{R`q\cdot x_\mathrm{int}`}</Tex> 要 <Tex>{R`B_x+1`}</Tex> bits（最負的 code 取負後會多出一個值，§5.4），累加 <Tex>N</Tex> 筆之後長成{' '}
         <Tex>{R`B_\mathrm{acc}`}</Tex> bits（§5.1）。<strong>再看</strong>兩個紅色方塊：截斷點 ① 把 <Tex>{R`S_k`}</Tex> 右移 <Tex>{R`\ell`}</Tex> bits，輸出 <Tex>{R`Q(G_k)`}</Tex> 的最小刻度（LSB）記成{' '}
-        <Tex>{R`\Delta_G`}</Tex>（§5.2、§5.3）；截斷點 ② 把更新量 <Tex>{R`\mu\,Q(G_k)`}</Tex> 對齊到 gain accumulator <Tex>W</Tex> 的最小刻度 <Tex>{R`\Delta_W`}</Tex>（§5.6）。每丟一次低位元，平均起來就少掉（或多出）一點，
-        這個平均取整誤差記成 <Tex>{R`\bar\varepsilon`}</Tex>（截斷點 ①，以 <Tex>{R`\Delta_G`}</Tex> 為單位）與 <Tex>{R`\bar\varepsilon_W`}</Tex>（截斷點 ②，以 <Tex>{R`\Delta_W`}</Tex> 為單位）——它們最後都會變成 gain 的固定偏差。
+        <Tex>{R`\Delta_G`}</Tex>（§5.2、§5.3）；截斷點 ② 把更新量 <Tex>{R`\mu\,Q(G_k)`}</Tex> 對齊到 gain accumulator <Tex>W</Tex> 的最小刻度 <Tex>{R`\Delta_W`}</Tex>（§5.6）。每丟一次低位元，平均起來就少掉（或多出）一點，這個平均取整誤差記成 <Tex>{R`\bar\varepsilon`}</Tex>（截斷點 ①，以 <Tex>{R`\Delta_G`}</Tex> 為單位）與 <Tex>{R`\bar\varepsilon_W`}</Tex>（截斷點 ②，以 <Tex>{R`\Delta_W`}</Tex> 為單位）——它們最後都會變成 gain 的固定偏差。
         <strong>最後看</strong>右欄下半的加法點與飽和方塊：這是高解析 gain accumulator <Tex>W</Tex> 自己的回授，<Tex>W</Tex> 被限制在 DTC 做得出來的範圍 <Tex>{R`[w_\mathrm{min},w_\mathrm{max}]`}</Tex> 內（§5.5）。
       </p>
 
       <h3>1. 累加器要幾個 bit？</h3>
       <p>
-        累加器要裝得下「最壞情況的總和」。最壞情況發生在剛開機或 PVT 突變、gain 誤差遠大於雜訊的時候：每一筆 <Tex>{R`q\cdot x_\mathrm{int}`}</Tex> 都同號，<Tex>N</Tex> 筆一路往同一個方向加。
-        下圖用規格 golden 的例子（6-bit 對稱 code、<Tex>{R`N=4096`}</Tex>）把這件事算一遍，並比較少給 1 bit 時兩種 overflow 行為：
+        累加器要裝得下「最壞情況的總和」。最壞情況發生在剛開機或 PVT 突變、gain 誤差遠大於雜訊的時候：每一筆 <Tex>{R`q\cdot x_\mathrm{int}`}</Tex> 都同號，<Tex>N</Tex> 筆一路往同一個方向加。下圖用規格 golden 的例子（6-bit 對稱 code、<Tex>{R`N=4096`}</Tex>）把這件事算一遍，並比較少給 1 bit 時兩種 overflow 行為：
       </p>
       <MermaidFig
         chart={ACCUMULATOR_SIZING}
@@ -185,8 +183,7 @@ export function FixedPointSection() {
         {R`\begin{aligned}&\boxed{B_\mathrm{acc}=1+\bigl\lceil\log_2(NM_x+1)\bigr\rceil},\\[4pt]&B_\mathrm{acc}^\mathrm{sym}\le B_x+\lceil\log_2N\rceil\;(N=2^m\text{ 時取等號}),\qquad B_\mathrm{acc}^\mathrm{full}=B_x+\lfloor\log_2N\rfloor+1\end{aligned}`}
       </TexBlock>
       <p>
-        規格 golden 的例子：6-bit code、<Tex>{R`N=4096`}</Tex>，對稱範圍需要 <Tex>{R`${g6.bitsExact}`}</Tex> bits（full range 需要 <Tex>{R`${g6full.bitsExact}`}</Tex>）。
-        如果只給 17 bits，最壞情況 <Tex>{R`31\times4096=126976`}</Tex> 會 wrap 成 <Tex>{R`${wrapped}`}</Tex>——<strong>不只變小，還變號</strong>，更新方向與正確方向相反。
+        規格 golden 的例子：6-bit code、<Tex>{R`N=4096`}</Tex>，對稱範圍需要 <Tex>{R`${g6.bitsExact}`}</Tex> bits（full range 需要 <Tex>{R`${g6full.bitsExact}`}</Tex>）。如果只給 17 bits，最壞情況 <Tex>{R`31\times4096=126976`}</Tex> 會 wrap 成 <Tex>{R`${wrapped}`}</Tex>——<strong>不只變小，還變號</strong>，更新方向與正確方向相反。
         <ClaimTag kind="exact" />
       </p>
       <HandCalcBox id="HC-04.6">
@@ -194,9 +191,7 @@ export function FixedPointSection() {
         成多少。
       </HandCalcBox>
       <Callout kind="warn" title="overflow 偏偏發生在迴路最需要正確方向的時候">
-        收斂附近 <Tex>q</Tex> 和 <Tex>x</Tex> 幾乎無關，<Tex>S</Tex> 像隨機漫步，標準差只有 <Tex>{R`\sqrt{N\,E[x_\mathrm{int}^2]}`}</Tex>，遠小於最壞情況。
-        但剛開機或 PVT 突變時 <Tex>{R`|\delta|\gg\sigma_v`}</Tex>，<Tex>{R`q\approx\mathrm{sign}(\delta x)`}</Tex>，<Tex>{R`S\approx N\,E|x_\mathrm{int}|`}</Tex> 線性成長——
-        這時 wrap 讓 gain 往錯的方向走。只用「穩態模擬沒看到 overflow」不能證明位元數夠（§16.3：要用最壞情況或明定的 sweep）。saturate 至少保住正負號。
+        收斂附近 <Tex>q</Tex> 和 <Tex>x</Tex> 幾乎無關，<Tex>S</Tex> 像隨機漫步，標準差只有 <Tex>{R`\sqrt{N\,E[x_\mathrm{int}^2]}`}</Tex>，遠小於最壞情況。但剛開機或 PVT 突變時 <Tex>{R`|\delta|\gg\sigma_v`}</Tex>，<Tex>{R`q\approx\mathrm{sign}(\delta x)`}</Tex>，<Tex>{R`S\approx N\,E|x_\mathrm{int}|`}</Tex> 線性成長——這時 wrap 讓 gain 往錯的方向走。只用「穩態模擬沒看到 overflow」不能證明位元數夠（§16.3：要用最壞情況或明定的 sweep）。saturate 至少保住正負號。
       </Callout>
       <CodeCompare
         items={[
@@ -227,8 +222,7 @@ export function FixedPointSection() {
         2. 「<Tex>{R`\div N`}</Tex>」就是右移：保留幾個小數位元？
       </h3>
       <p>
-        <Tex>N</Tex> 取 2 的冪時，<Tex>{R`S/N`}</Tex> 就是算術右移 <Tex>{R`\log_2N`}</Tex> bits，不需要除法器。但完全右移會把 <Tex>G</Tex> 截成整數個 code LSB——
-        收斂附近 <Tex>{R`|E[G]|`}</Tex> 遠小於 1 LSB，全部變成 <Tex>0</Tex> 或 <Tex>-1</Tex>。所以要保留 <Tex>{R`F_G`}</Tex> 個小數位元，實際右移 <Tex>{R`\ell=\log_2N-F_G`}</Tex>。下圖把累加器 <Tex>{R`S_k`}</Tex> 的位元切成兩段（例：<Tex>{R`B_x=${shift.bx},\;N=${shift.N},\;F_G=4`}</Tex>，與 §5.3 的表相同）：
+        <Tex>N</Tex> 取 2 的冪時，<Tex>{R`S/N`}</Tex> 就是算術右移 <Tex>{R`\log_2N`}</Tex> bits，不需要除法器。但完全右移會把 <Tex>G</Tex> 截成整數個 code LSB——收斂附近 <Tex>{R`|E[G]|`}</Tex> 遠小於 1 LSB，全部變成 <Tex>0</Tex> 或 <Tex>-1</Tex>。所以要保留 <Tex>{R`F_G`}</Tex> 個小數位元，實際右移 <Tex>{R`\ell=\log_2N-F_G`}</Tex>。下圖把累加器 <Tex>{R`S_k`}</Tex> 的位元切成兩段（例：<Tex>{R`B_x=${shift.bx},\;N=${shift.N},\;F_G=4`}</Tex>，與 §5.3 的表相同）：
       </p>
       <MermaidFig
         chart={SHIFT_BITS}
@@ -236,15 +230,13 @@ export function FixedPointSection() {
         ariaLabel="累加器右移時的位元切法：留下高位元、丟掉低位元的餘數，以及輸出的最小刻度"
       />
       <p>
-        <strong>先看</strong>最上面的累加器：對稱 code 且 <Tex>{R`N=2^m`}</Tex> 時有 <Tex>{R`B_\mathrm{acc}=B_x+\log_2N=${shift.sizing.bitsExact}`}</Tex> bits（F-04.9）。<strong>再看</strong>它分出去的兩條路：低 <Tex>{R`\ell=${shift.ell}`}</Tex> bits 被右移丟掉，
-        它們代表的數字叫<strong>餘數</strong> <Tex>{R`\rho`}</Tex>（紅色）；高 <Tex>{R`B_\mathrm{acc}-\ell=${shift.sizing.bitsExact - shift.ell}`}</Tex> bits 留下，其中最低的 <Tex>{R`F_G=4`}</Tex> bits 是小數部分，所以輸出 <Tex>{R`Q(G_k)`}</Tex> 有{' '}
+        <strong>先看</strong>最上面的累加器：對稱 code 且 <Tex>{R`N=2^m`}</Tex> 時有 <Tex>{R`B_\mathrm{acc}=B_x+\log_2N=${shift.sizing.bitsExact}`}</Tex> bits（F-04.9）。<strong>再看</strong>它分出去的兩條路：低 <Tex>{R`\ell=${shift.ell}`}</Tex> bits 被右移丟掉，它們代表的數字叫<strong>餘數</strong> <Tex>{R`\rho`}</Tex>（紅色）；高 <Tex>{R`B_\mathrm{acc}-\ell=${shift.sizing.bitsExact - shift.ell}`}</Tex> bits 留下，其中最低的 <Tex>{R`F_G=4`}</Tex> bits 是小數部分，所以輸出 <Tex>{R`Q(G_k)`}</Tex> 有{' '}
         <Tex>{R`B_x`}</Tex> 個整數位元和 <Tex>{R`F_G`}</Tex> 個小數位元（綠色）。<strong>最後看</strong>中間的 rounding 方塊：<Tex>{R`\rho`}</Tex> 不是白白丟掉，怎麼處理它決定了 <Tex>{R`Q`}</Tex> 平均比 <Tex>{R`S/2^\ell`}</Tex> 多或少多少（§5.3 的主題）。
         <Tex>G</Tex> 的解析度為 <Tex>{R`2^{-F_G}`}</Tex> code LSB，換成正規化單位是
       </p>
       <TexBlock>{R`\Delta_G=\frac{2^{-F_G}}{2^{B_x-1}}`}</TexBlock>
       <p>
-        RTL 常把「<Tex>{R`\div N`}</Tex>」和「<Tex>{R`\times\mu`}</Tex>」合併成一次右移（<Tex>{R`\mu`}</Tex> 也取 2 的冪）。這沒問題，但文件與暫存器名稱必須寫清楚等效的 <Tex>{R`\mu`}</Tex> 是 average 意義還是 sum 意義
-        （§16.1 第 4 項：<strong>不能只看 RTL 名字相同</strong>）。<Tex>N</Tex> 不是 2 的冪時需要乘上常數 <Tex>{R`1/N`}</Tex> 的近似值，多一個 rounding 點與 gain 誤差。
+        RTL 常把「<Tex>{R`\div N`}</Tex>」和「<Tex>{R`\times\mu`}</Tex>」合併成一次右移（<Tex>{R`\mu`}</Tex> 也取 2 的冪）。這沒問題，但文件與暫存器名稱必須寫清楚等效的 <Tex>{R`\mu`}</Tex> 是 average 意義還是 sum 意義（§16.1 第 4 項：<strong>不能只看 RTL 名字相同</strong>）。<Tex>N</Tex> 不是 2 的冪時需要乘上常數 <Tex>{R`1/N`}</Tex> 的近似值，多一個 rounding 點與 gain 誤差。
       </p>
 
       <h3>
@@ -261,8 +253,7 @@ export function FixedPointSection() {
       <p>
         <strong>先看</strong>最上面兩格：累加器內容 <Tex>S</Tex> 拆成「留下來的高位元」<Tex>j</Tex> 與「被右移丟掉的低 <Tex>{R`\ell`}</Tex> bits」<Tex>{R`\rho`}</Tex>，即 <Tex>{R`S=2^\ell j+\rho`}</Tex>；例子 <Tex>{R`S=-300`}</Tex>、<Tex>{R`\ell=8`}</Tex> 得到{' '}
         <Tex>{R`j=-2`}</Tex>、<Tex>{R`\rho=212`}</Tex>。<strong>再看</strong>第二排四個方塊：floor 直接丟掉 <Tex>{R`\rho`}</Tex>（得 <Tex>{R`-2`}</Tex>），其餘三種看 <Tex>{R`\rho`}</Tex> 有沒有超過一半（<Tex>{R`2^{\ell-1}=128`}</Tex>）再決定進位（得 <Tex>{R`-1`}</Tex>）。
-        <strong>最後看</strong>最下面一排：<Tex>{R`\bar\varepsilon`}</Tex> 是「取整後的值 <Tex>{R`Q`}</Tex> 減掉取整前的 <Tex>{R`S/2^\ell`}</Tex>」在餘數均勻時的平均（單位：輸出 LSB）；floor 平均少半個 LSB，所以標紅色，half-even 平均為 0（另外需要「恰好一半」時 <Tex>j</Tex> 是奇數和偶數的機會各半，見下面的推導），所以標綠色。
-        圖上的 <Tex>j</Tex>、<Tex>{R`\rho`}</Tex>、<Tex>Q</Tex>、<Tex>{R`\bar\varepsilon`}</Tex> 就是下面推導的 <Tex>{R`S=2^\ell j+\rho`}</Tex>、<Tex>{R`Q(S)`}</Tex> 與 <Tex>{R`\bar\varepsilon`}</Tex>（F-04.10）。
+        <strong>最後看</strong>最下面一排：<Tex>{R`\bar\varepsilon`}</Tex> 是「取整後的值 <Tex>{R`Q`}</Tex> 減掉取整前的 <Tex>{R`S/2^\ell`}</Tex>」在餘數均勻時的平均（單位：輸出 LSB）；floor 平均少半個 LSB，所以標紅色，half-even 平均為 0（另外需要「恰好一半」時 <Tex>j</Tex> 是奇數和偶數的機會各半，見下面的推導），所以標綠色。圖上的 <Tex>j</Tex>、<Tex>{R`\rho`}</Tex>、<Tex>Q</Tex>、<Tex>{R`\bar\varepsilon`}</Tex> 就是下面推導的 <Tex>{R`S=2^\ell j+\rho`}</Tex>、<Tex>{R`Q(S)`}</Tex> 與 <Tex>{R`\bar\varepsilon`}</Tex>（F-04.10）。
       </p>
       <DerivationFold title="四種 rounding 的平均誤差">
         <StepDerivation
@@ -322,10 +313,8 @@ export function FixedPointSection() {
           result={R`w^*-a=\frac{\bar\varepsilon\,\Delta_G}{K}`}
         />
         <p className="small">
-          <ClaimTag kind="approx" /> 平均模型 + 小訊號 + 均勻餘數。<Tex>K</Tex> 越小（雜訊越大、code 越小）偏差越大——偏差和 <Tex>{R`\mu`}</Tex> 無關，所以「調小 <Tex>{R`\mu`}</Tex>」救不了；
-          要嘛保留更多 <Tex>{R`F_G`}</Tex>，要嘛改用 round-half-even。half-even 的 <Tex>{R`\delta^*=0`}</Tex> 不靠 F-04.10 的「恰好一半」條件：它是奇函數 <Tex>{R`Q(-S)=-Q(S)`}</Tex>，而{' '}
-          <Tex>{R`\delta=0`}</Tex> 時 comparator 只看到雜訊，<Tex>{R`q=\pm1`}</Tex> 各半且與 code 無關，<Tex>S</Tex> 的分布對 0 對稱，所以 <Tex>{R`E[Q(S)]=0`}</Tex>（前提：comparator 雜訊對 0 對稱、沒有 offset，取負正確，累加器不溢位）。
-          這只保證平衡點在 <Tex>{R`\delta=0`}</Tex>；dither 不夠（<Tex>{R`\sigma_S/2^\ell\lesssim${DITHER_MIN}`}</Tex>）時 half-even 和 floor 一樣會停在 dead zone，到不了這個點。
+          <ClaimTag kind="approx" /> 平均模型 + 小訊號 + 均勻餘數。<Tex>K</Tex> 越小（雜訊越大、code 越小）偏差越大——偏差和 <Tex>{R`\mu`}</Tex> 無關，所以「調小 <Tex>{R`\mu`}</Tex>」救不了；要嘛保留更多 <Tex>{R`F_G`}</Tex>，要嘛改用 round-half-even。half-even 的 <Tex>{R`\delta^*=0`}</Tex> 不靠 F-04.10 的「恰好一半」條件：它是奇函數 <Tex>{R`Q(-S)=-Q(S)`}</Tex>，而{' '}
+          <Tex>{R`\delta=0`}</Tex> 時 comparator 只看到雜訊，<Tex>{R`q=\pm1`}</Tex> 各半且與 code 無關，<Tex>S</Tex> 的分布對 0 對稱，所以 <Tex>{R`E[Q(S)]=0`}</Tex>（前提：comparator 雜訊對 0 對稱、沒有 offset，取負正確，累加器不溢位）。這只保證平衡點在 <Tex>{R`\delta=0`}</Tex>；dither 不夠（<Tex>{R`\sigma_S/2^\ell\lesssim${DITHER_MIN}`}</Tex>）時 half-even 和 floor 一樣會停在 dead zone，到不了這個點。
         </p>
       </DerivationFold>
       <TexBlock id="F-04.11" label="Rounding 偏差造成的係數偏移">
@@ -382,8 +371,7 @@ export function FixedPointSection() {
         <Tex>{R`\sigma_w=\mu\sqrt{\sigma_\eta^2/(1-p^2)}\approx${tx(b2.sigmaW, 3)}\,\mathrm{fs}`}</Tex>（<Tex>{R`\sigma_w`}</Tex> 是 <Tex>w</Tex> 在穩態的標準差，<Tex>{R`\sigma_\eta`}</Tex> 是單一個 block 的 <Tex>G</Tex> 的標準差；<ChRef ch="12">Ch12</ChRef> 推導），所以 <Tex>{R`F_G=2`}</Tex> 的 floor 偏差比穩態抖動還大。
       </p>
       <p className="small">
-        <ClaimTag kind="approx" /> 表的最後兩欄：<Tex>{R`\sigma_S/2^\ell`}</Tex> 是「雜訊有幾個輸出 LSB 大」。它不必大於 1——平衡點 <Tex>{R`E[G]=\tfrac12\Delta_G`}</Tex> 靠的是對稱性而不是均勻餘數（下方 Research 說明）；
-        雜訊決定的是平衡點附近的回復斜率 <Tex>{R`\chi`}</Tex>（1 = 和沒有取整一樣，0 = dead zone）。多 seed 模擬：<Tex>{R`\sigma_S/2^\ell=0.57`}</Tex>（表中 <Tex>{R`F_G=0`}</Tex>）時{' '}
+        <ClaimTag kind="approx" /> 表的最後兩欄：<Tex>{R`\sigma_S/2^\ell`}</Tex> 是「雜訊有幾個輸出 LSB 大」。它不必大於 1——平衡點 <Tex>{R`E[G]=\tfrac12\Delta_G`}</Tex> 靠的是對稱性而不是均勻餘數（下方 Research 說明）；雜訊決定的是平衡點附近的回復斜率 <Tex>{R`\chi`}</Tex>（1 = 和沒有取整一樣，0 = dead zone）。多 seed 模擬：<Tex>{R`\sigma_S/2^\ell=0.57`}</Tex>（表中 <Tex>{R`F_G=0`}</Tex>）時{' '}
         <Tex>{R`w^*-a=-6.13\pm0.04\,\mathrm{fs}`}</Tex> vs 預測 <Tex>{R`${tx(-biasRows[0].deltaStar, 3)}\,\mathrm{fs}`}</Tex>；低於約 <Tex>{R`${DITHER_MIN}`}</Tex> 時迴路在有限時間內到不了平衡點，預測不再適用（gmac.test.ts）。
       </p>
       <HandCalcBox id="HC-04.7">
@@ -394,24 +382,19 @@ export function FixedPointSection() {
       <ModeGate min="research">
         <Callout kind="info" title="Research：dither 不夠時會怎樣？平衡點為什麼不靠「餘數均勻」？">
           <p>
-            設 <Tex>S</Tex> 近似 Gaussian（<Tex>N</Tex> 個獨立項的和，中央極限定理）、標準差 <Tex>{R`\sigma_S`}</Tex>。餘數 <Tex>{R`\rho=S\bmod2^\ell`}</Tex> 的分布由 Poisson summation 給出，
-            與均勻分布的偏差由特徵函數在 <Tex>{R`2\pi/2^\ell`}</Tex> 的值決定：
+            設 <Tex>S</Tex> 近似 Gaussian（<Tex>N</Tex> 個獨立項的和，中央極限定理）、標準差 <Tex>{R`\sigma_S`}</Tex>。餘數 <Tex>{R`\rho=S\bmod2^\ell`}</Tex> 的分布由 Poisson summation 給出，與均勻分布的偏差由特徵函數在 <Tex>{R`2\pi/2^\ell`}</Tex> 的值決定：
           </p>
           <TexBlock>{R`\bigl|p_\rho(r)-2^{-\ell}\bigr|\lesssim2^{1-\ell}\exp\Bigl(-\frac{2\pi^2\sigma_S^2}{4^{\ell}}\Bigr)`}</TexBlock>
           <p>
-            <Tex>{R`\sigma_S/2^\ell=1`}</Tex> 時指數為 <Tex>{R`e^{-2\pi^2}\approx2.7\times10^{-9}`}</Tex>，非常均勻；<Tex>{R`\sigma_S/2^\ell=0.5`}</Tex> 時約 0.007，開始看得到；
-            更小時平均誤差隨操作點振盪（面板 B 的 dither 比滑桿）。但<strong>閉迴路的平衡點不受這個振盪影響</strong>。令 <Tex>{R`X=S/2^\ell\sim\mathcal N(m,s^2)`}</Tex>（<Tex>{R`s=\sigma_S/2^\ell`}</Tex>，連續格點極限），
-            把 <Tex>{R`\lfloor x\rfloor=x-\tfrac12+\sum_{k\ge1}\frac{\sin2\pi kx}{\pi k}`}</Tex>（sawtooth 的 Fourier 級數）逐項取期望值：
+            <Tex>{R`\sigma_S/2^\ell=1`}</Tex> 時指數為 <Tex>{R`e^{-2\pi^2}\approx2.7\times10^{-9}`}</Tex>，非常均勻；<Tex>{R`\sigma_S/2^\ell=0.5`}</Tex> 時約 0.007，開始看得到；更小時平均誤差隨操作點振盪（面板 B 的 dither 比滑桿）。但<strong>閉迴路的平衡點不受這個振盪影響</strong>。令 <Tex>{R`X=S/2^\ell\sim\mathcal N(m,s^2)`}</Tex>（<Tex>{R`s=\sigma_S/2^\ell`}</Tex>，連續格點極限），把 <Tex>{R`\lfloor x\rfloor=x-\tfrac12+\sum_{k\ge1}\frac{\sin2\pi kx}{\pi k}`}</Tex>（sawtooth 的 Fourier 級數）逐項取期望值：
           </p>
           <TexBlock>{R`E\bigl[\lfloor X\rfloor\bigr]=m-\frac12+\sum_{k\ge1}\frac{e^{-2\pi^2k^2s^2}}{\pi k}\sin(2\pi km)\;\;\Rightarrow\;\;E\bigl[\lfloor X\rfloor\bigr]\Big|_{m=\frac12}=0\quad(\text{對任何 }s)`}</TexBlock>
           <p>
-            <Tex>{R`m=\tfrac12`}</Tex> 時每個 <Tex>{R`\sin(\pi k)=0`}</Tex>：只要雜訊分布對稱，「真值恰好半個 LSB」永遠讓 floor 的平均輸出為 0，所以 F-04.11 的平衡點對任何 dither 都成立。
-            dither 決定的是平衡點附近的<strong>回復斜率</strong>（把上式對 <Tex>m</Tex> 微分）：
+            <Tex>{R`m=\tfrac12`}</Tex> 時每個 <Tex>{R`\sin(\pi k)=0`}</Tex>：只要雜訊分布對稱，「真值恰好半個 LSB」永遠讓 floor 的平均輸出為 0，所以 F-04.11 的平衡點對任何 dither 都成立。dither 決定的是平衡點附近的<strong>回復斜率</strong>（把上式對 <Tex>m</Tex> 微分）：
           </p>
           <TexBlock>{R`\begin{aligned}\chi(s)&=\frac{dE[\lfloor X\rfloor]}{dm}\Big|_{m=\frac12}=1+2\sum_{k\ge1}(-1)^ke^{-2\pi^2k^2s^2}:\\&${rhoRows.map((r) => `\\chi(${tx(r.s, 3)})=${tx(r.rho, 3)}`).join(',\\;')}\end{aligned}`}</TexBlock>
           <p>
-            局部的 loop gain 變成 <Tex>{R`g\,\chi(s)`}</Tex>。<Tex>{R`s\gtrsim0.5`}</Tex> 幾乎沒有影響；<Tex>{R`s\approx${tx(rhoRows[3].s, 3)}`}</Tex> 時 <Tex>{R`\chi\approx${tx(rhoRows[3].rho, 2)}`}</Tex>，時間常數拉長約 {Math.round(1 / rhoRows[3].rho)} 倍，迴路實際上停在進入 dead zone 的地方
-            （多 seed 模擬 <Tex>{R`-4.35\pm0.09`}</Tex> vs 平衡點 <Tex>{R`-6.06\,\mathrm{fs}`}</Tex>）。收斂附近 <Tex>{R`\sigma_S\approx\sqrt{N\,E[x_\mathrm{int}^2]}`}</Tex>。<Tex>{R`\sigma_v\to0`}</Tex>{' '}
+            局部的 loop gain 變成 <Tex>{R`g\,\chi(s)`}</Tex>。<Tex>{R`s\gtrsim0.5`}</Tex> 幾乎沒有影響；<Tex>{R`s\approx${tx(rhoRows[3].s, 3)}`}</Tex> 時 <Tex>{R`\chi\approx${tx(rhoRows[3].rho, 2)}`}</Tex>，時間常數拉長約 {Math.round(1 / rhoRows[3].rho)} 倍，迴路實際上停在進入 dead zone 的地方（多 seed 模擬 <Tex>{R`-4.35\pm0.09`}</Tex> vs 平衡點 <Tex>{R`-6.06\,\mathrm{fs}`}</Tex>）。收斂附近 <Tex>{R`\sigma_S\approx\sqrt{N\,E[x_\mathrm{int}^2]}`}</Tex>。<Tex>{R`\sigma_v\to0`}</Tex>{' '}
             時沒有 dither，rounding 變成確定性的 dead zone / limit cycle 問題（<ChRef ch="13">Ch13</ChRef>）。<ClaimTag kind="exact" /> 級數與 <Tex>{R`\chi(s)`}</Tex> 在「Gaussian、連續格點」下精確（<code>floorRestoringSlope</code>）；
             <ClaimTag kind="approx" /> 套用到離散的 <Tex>S</Tex> 與閉迴路。
           </p>
@@ -433,9 +416,7 @@ export function FixedPointSection() {
 
       <h3>4. 最負 code 的取負 bug：偏差有多大？</h3>
       <p>
-        §4 證明了「在 <Tex>{R`B_x`}</Tex> bits 內取負」只有最負 code <Tex>{R`-2^{B_x-1}`}</Tex> 會錯。它出現的機率很小（記成 <Tex>{R`p_\mathrm{min}`}</Tex>；uniform 6-bit code 為 <Tex>{R`1/64`}</Tex>），但錯的方向永遠相同，
-        所以平均起來是一個<strong>固定的偏差</strong>，和 rounding 偏差一樣不會被 <Tex>{R`\mu`}</Tex> 或 <Tex>N</Tex> 平均掉。在 <FigRef chart={BIAS_LOOP} /> 上，它等於在截斷點 ① 的那個加法點再多注入一項負的 offset
-        （每次出錯讓正規化的乘積少 2，出錯的機率是 <Tex>{R`p_\mathrm{min}\Phi(\delta/\sigma_v)`}</Tex>），固定點的求法完全一樣。
+        §4 證明了「在 <Tex>{R`B_x`}</Tex> bits 內取負」只有最負 code <Tex>{R`-2^{B_x-1}`}</Tex> 會錯。它出現的機率很小（記成 <Tex>{R`p_\mathrm{min}`}</Tex>；uniform 6-bit code 為 <Tex>{R`1/64`}</Tex>），但錯的方向永遠相同，所以平均起來是一個<strong>固定的偏差</strong>，和 rounding 偏差一樣不會被 <Tex>{R`\mu`}</Tex> 或 <Tex>N</Tex> 平均掉。在 <FigRef chart={BIAS_LOOP} /> 上，它等於在截斷點 ① 的那個加法點再多注入一項負的 offset（每次出錯讓正規化的乘積少 2，出錯的機率是 <Tex>{R`p_\mathrm{min}\Phi(\delta/\sigma_v)`}</Tex>），固定點的求法完全一樣。
       </p>
       <MermaidFig
         chart={NEGATE_BUG}
@@ -443,8 +424,7 @@ export function FixedPointSection() {
         ariaLabel="最負 code 取負：先延伸再取負得到正確的加數，在原寬度內取負 wrap 成錯誤的加數，平均誤差變成固定點偏差"
       />
       <p>
-        <strong>先看</strong>最上面兩格：只有同時滿足「code 剛好是最負值」（機率 <Tex>{R`p_\mathrm{min}`}</Tex>）和「comparator 輸出 <Tex>{R`b=0`}</Tex>」（<Tex>{R`q=-1`}</Tex>，要取負；機率 <Tex>{R`\Phi(\delta/\sigma_v)`}</Tex>）才會走到分岔。<strong>再看</strong>分岔：
-        6-bit 的 <Tex>{R`-32`}</Tex> 取負應該加 <Tex>{R`${negOk > 0 ? '+' : ''}${negOk}`}</Tex>，在 6 bits 內取負卻加了 <Tex>{R`${negBug}`}</Tex>，一次差 <Tex>{R`${negOk - negBug}`}</Tex> LSB，除以 full scale <Tex>{R`2^{B_x-1}=32`}</Tex> 就是正規化的 <Tex>{R`-2`}</Tex>。
+        <strong>先看</strong>最上面兩格：只有同時滿足「code 剛好是最負值」（機率 <Tex>{R`p_\mathrm{min}`}</Tex>）和「comparator 輸出 <Tex>{R`b=0`}</Tex>」（<Tex>{R`q=-1`}</Tex>，要取負；機率 <Tex>{R`\Phi(\delta/\sigma_v)`}</Tex>）才會走到分岔。<strong>再看</strong>分岔：6-bit 的 <Tex>{R`-32`}</Tex> 取負應該加 <Tex>{R`${negOk > 0 ? '+' : ''}${negOk}`}</Tex>，在 6 bits 內取負卻加了 <Tex>{R`${negBug}`}</Tex>，一次差 <Tex>{R`${negOk - negBug}`}</Tex> LSB，除以 full scale <Tex>{R`2^{B_x-1}=32`}</Tex> 就是正規化的 <Tex>{R`-2`}</Tex>。
         <strong>最後看</strong>下面兩格：這個平均誤差 <Tex>{R`-2\,p_\mathrm{min}\Phi(\delta/\sigma_v)`}</Tex> 就是下面推導第 3 步多出來的那一項，令平均更新為 0 就得到 F-04.15。
       </p>
       <DerivationFold title="取負 bug 的平均誤差與固定點">
@@ -501,12 +481,10 @@ export function FixedPointSection() {
       </TexBlock>
       <p>
         數字（preset「anti-windup」的設定）<SourceTag kind="illustrative" />：<Tex>{R`W_\mathrm{peak}=${wu.Wpeak},\;w_\mathrm{max}=${wu.wMax},\;a'=${wu.aNew}\,\mathrm{fs}`}</Tex>、<Tex>{R`\mu=${wu.mu}\,\mathrm{fs}`}</Tex>、
-        <Tex>{R`K=${tx(wu.K, 5)}\,\mathrm{fs}^{-1}`}</Tex>，代入得 <Tex>{R`T_\mathrm{unwind}\approx\frac{${wu.Wpeak}-${wu.wMax}}{${wu.mu}\times${tx(wu.K, 4)}\times${Math.abs(wu.aNew - wu.wMax)}}=${tx(wu.unwind, 4)}`}</Tex> blocks；
-        之後還要從 rail 以 pole <Tex>{R`1-g`}</Tex> 收斂到目標。面板 C 的表格把「放掉 windup + 指數收斂」的預測和模擬並列（模擬約 243 blocks，anti-windup 只要約 7 blocks）。
+        <Tex>{R`K=${tx(wu.K, 5)}\,\mathrm{fs}^{-1}`}</Tex>，代入得 <Tex>{R`T_\mathrm{unwind}\approx\frac{${wu.Wpeak}-${wu.wMax}}{${wu.mu}\times${tx(wu.K, 4)}\times${Math.abs(wu.aNew - wu.wMax)}}=${tx(wu.unwind, 4)}`}</Tex> blocks；之後還要從 rail 以 pole <Tex>{R`1-g`}</Tex> 收斂到目標。面板 C 的表格把「放掉 windup + 指數收斂」的預測和模擬並列（模擬約 243 blocks，anti-windup 只要約 7 blocks）。
       </p>
       <p>
-        更糟的是內部暫存器用 <strong>wrap</strong>：<Tex>W</Tex> 超過上限時跳到下限，實際 gain 由 <Tex>{R`w_\mathrm{max}`}</Tex> 直接跳到 <Tex>{R`w_\mathrm{min}`}</Tex>，
-        PD 殘差瞬間變成最大。<ClaimTag kind="approx" /> 回復時間公式為線性小訊號估計；實驗的「anti-windup」preset 直接比較三種做法。
+        更糟的是內部暫存器用 <strong>wrap</strong>：<Tex>W</Tex> 超過上限時跳到下限，實際 gain 由 <Tex>{R`w_\mathrm{max}`}</Tex> 直接跳到 <Tex>{R`w_\mathrm{min}`}</Tex>，PD 殘差瞬間變成最大。<ClaimTag kind="approx" /> 回復時間公式為線性小訊號估計；實驗的「anti-windup」preset 直接比較三種做法。
       </p>
 
       <h3>
@@ -519,8 +497,7 @@ export function FixedPointSection() {
       </p>
       <p>
         這就是 <FigRef chart={FIXED_DATAPATH} /> 右欄的那個紅色方塊，也是 <FigRef chart={BIAS_LOOP} /> 的截斷點 ②：offset 注入在「<Tex>{R`\times\mu`}</Tex>」<strong>之後</strong>，迴路要用{' '}
-        <Tex>{R`\mu K\delta^*`}</Tex> 去抵消它，所以 <Tex>{R`\mu`}</Tex> 越小、需要的 <Tex>{R`\delta^*`}</Tex> 越大。兩個新符號：<Tex>{R`R=\Delta_W/(\mu\Delta_G)`}</Tex> 是「<Tex>W</Tex> 的格點比更新量的格點粗幾倍」
-        （再右移 <Tex>{R`\ell_W`}</Tex> bits 時 <Tex>{R`R=2^{\ell_W}`}</Tex>）；<Tex>{R`\bar\varepsilon_W`}</Tex> 是這一次取整的平均誤差（以 <Tex>{R`\Delta_W`}</Tex> 為單位，floor 時約 <Tex>{R`-\tfrac12`}</Tex>）。
+        <Tex>{R`\mu K\delta^*`}</Tex> 去抵消它，所以 <Tex>{R`\mu`}</Tex> 越小、需要的 <Tex>{R`\delta^*`}</Tex> 越大。兩個新符號：<Tex>{R`R=\Delta_W/(\mu\Delta_G)`}</Tex> 是「<Tex>W</Tex> 的格點比更新量的格點粗幾倍」（再右移 <Tex>{R`\ell_W`}</Tex> bits 時 <Tex>{R`R=2^{\ell_W}`}</Tex>）；<Tex>{R`\bar\varepsilon_W`}</Tex> 是這一次取整的平均誤差（以 <Tex>{R`\Delta_W`}</Tex> 為單位，floor 時約 <Tex>{R`-\tfrac12`}</Tex>）。
       </p>
       <DerivationFold title={mt(R`第二個截斷點：$w^*-a=\bar\varepsilon_W\Delta_W/g$`)}>
         <StepDerivation
@@ -537,8 +514,7 @@ export function FixedPointSection() {
           result={R`\Delta_W\le2g\,\delta_\mathrm{tol}\quad(\text{floor；或改用 half-even})`}
         />
         <p className="small">
-          <ClaimTag kind="approx" /> 平均模型 + 小訊號 + 更新量的雜訊足以當 dither（<Tex>{R`\mu\sigma_G/\Delta_W\gtrsim${DITHER_MIN}`}</Tex>，<Tex>{R`\sigma_G=\sqrt{E[x^2]/N}`}</Tex>）。和 §5.3 對照：
-          那裡的「LSB」是 <Tex>{R`\mu\Delta_G`}</Tex>，跟著 <Tex>{R`\mu`}</Tex> 一起縮小，所以偏差與 <Tex>{R`\mu`}</Tex> 無關；這裡的 <Tex>{R`\Delta_W`}</Tex> 不跟著縮，偏差 <Tex>{R`\propto1/g`}</Tex>。
+          <ClaimTag kind="approx" /> 平均模型 + 小訊號 + 更新量的雜訊足以當 dither（<Tex>{R`\mu\sigma_G/\Delta_W\gtrsim${DITHER_MIN}`}</Tex>，<Tex>{R`\sigma_G=\sqrt{E[x^2]/N}`}</Tex>）。和 §5.3 對照：那裡的「LSB」是 <Tex>{R`\mu\Delta_G`}</Tex>，跟著 <Tex>{R`\mu`}</Tex> 一起縮小，所以偏差與 <Tex>{R`\mu`}</Tex> 無關；這裡的 <Tex>{R`\Delta_W`}</Tex> 不跟著縮，偏差 <Tex>{R`\propto1/g`}</Tex>。
           <Tex>R</Tex> 不是整數時（<Tex>{R`\mu`}</Tex> 不是 2 的冪），把 <Tex>{R`R=p/q`}</Tex> 約成最簡分數，餘數只有 <Tex>p</Tex> 種，<Tex>{R`\bar\varepsilon_W=-(1-1/p)/2`}</Tex>（<code>incrementMeanError</code>）。
         </p>
       </DerivationFold>

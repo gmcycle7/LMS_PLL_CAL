@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import {
   Callout,
   CaseSelector,
@@ -240,9 +240,7 @@ export function HealthCheck({ cases, evaluated }: { cases: UseCasesResult<Thesis
       tests={['T04', 'T06', 'T07', 'T08', 'T10', 'T11', 'T13', 'T14', 'T15']}
       description={
         <>
-          用<strong>同一組參數</strong>、同一條線性化方程式（上一節的推導），一次算出六個條件。燈號來自局部、平均意義的解析模型，
-          目的是讓你看見條件之間的關係；按「執行 Run」可以用真正的 sample-level Sign-LMS Monte Carlo 檢查它（單參數）。每一項的完整模擬在對應章節。
-          預設值是規格 T13 的條件。
+          用<strong>同一組參數</strong>、同一條線性化方程式（上一節的推導），一次算出六個條件。燈號來自局部、平均意義的解析模型，目的是讓你看見條件之間的關係；按「執行 Run」可以用真正的 sample-level Sign-LMS Monte Carlo 檢查它（單參數）。每一項的完整模擬在對應章節。預設值是規格 T13 的條件。
         </>
       }
       assumptions={ASSUMPTIONS}

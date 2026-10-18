@@ -95,16 +95,13 @@ export function S3SignError() {
       <Section kind="intuition" title="硬體只告訴你「太高」或「太低」">
         <p>
           PLL 校正裡，誤差 <Tex>{'e'}</Tex> 是一個幾 fs 的時間差，量它的大小需要 TDC；但一顆 comparator / bang-bang PD 只輸出
-          <Tex>{'q=\\operatorname{sign}(e)\\in\\{+1,-1\\}'}</Tex>（<Tex>{'\\operatorname{sign}'}</Tex> 取正負號：正數給 <Tex>{'+1'}</Tex>、負數給 <Tex>{'-1'}</Tex>；<Tex>{'q'}</Tex> 就是這顆 comparator 的 1-bit 輸出）。
-          如果更新只能用 <Tex>{'q'}</Tex>，等於在最小化什麼？答案是絕對誤差 <Tex>{'|e|'}</Tex>（MAE，<ChRef ch="01">Ch01</ChRef>）。
+          <Tex>{'q=\\operatorname{sign}(e)\\in\\{+1,-1\\}'}</Tex>（<Tex>{'\\operatorname{sign}'}</Tex> 取正負號：正數給 <Tex>{'+1'}</Tex>、負數給 <Tex>{'-1'}</Tex>；<Tex>{'q'}</Tex> 就是這顆 comparator 的 1-bit 輸出）。如果更新只能用 <Tex>{'q'}</Tex>，等於在最小化什麼？答案是絕對誤差 <Tex>{'|e|'}</Tex>（MAE，<ChRef ch="01">Ch01</ChRef>）。
         </p>
       </Section>
 
       <Prereq title="次梯度（subgradient）：$|e|$ 在 $e=0$ 的尖角怎麼微分？">
         <p>
-          <Tex>{'|t|'}</Tex> 在 <Tex>{'t>0'}</Tex> 的導數是 <Tex>{'+1'}</Tex>，在 <Tex>{'t<0'}</Tex> 是 <Tex>{'-1'}</Tex>，在 <Tex>{'t=0'}</Tex> 有尖角：左導數 <Tex>{'-1'}</Tex>、右導數 <Tex>{'+1'}</Tex>，沒有唯一的切線。
-          但任何斜率 <Tex>{'s\\in[-1,1]'}</Tex> 的直線 <Tex>{'\\ell(t)=s\\,t'}</Tex> 都在圖形下方、並在 0 碰到它——這些 <Tex>{'s'}</Tex> 叫做<strong>次梯度</strong>，
-          集合 <Tex>{'\\partial|t|\\,\\big|_{t=0}=[-1,1]'}</Tex>。凸函數沿任何次梯度的反方向走一小步，與最小值的距離不會變遠，這就足夠做「下山」。
+          <Tex>{'|t|'}</Tex> 在 <Tex>{'t>0'}</Tex> 的導數是 <Tex>{'+1'}</Tex>，在 <Tex>{'t<0'}</Tex> 是 <Tex>{'-1'}</Tex>，在 <Tex>{'t=0'}</Tex> 有尖角：左導數 <Tex>{'-1'}</Tex>、右導數 <Tex>{'+1'}</Tex>，沒有唯一的切線。但任何斜率 <Tex>{'s\\in[-1,1]'}</Tex> 的直線 <Tex>{'\\ell(t)=s\\,t'}</Tex> 都在圖形下方、並在 0 碰到它——這些 <Tex>{'s'}</Tex> 叫做<strong>次梯度</strong>，集合 <Tex>{'\\partial|t|\\,\\big|_{t=0}=[-1,1]'}</Tex>。凸函數沿任何次梯度的反方向走一小步，與最小值的距離不會變遠，這就足夠做「下山」。
         </p>
         <p>
           所以 <Tex>{'\\operatorname{sign}(0)'}</Tex> 可以是 <Tex>{'[-1,1]'}</Tex> 中任何值——<strong>必須自己規定</strong>。這不是小事，下面會看到它改變結果。
@@ -212,13 +209,11 @@ export function S3SignError() {
         </DerivFold>
         <TexBlock id="F-02.10">{String.raw`\boxed{w_n\in\big\{a-\operatorname{sgn}(\delta_0)\,\rho,\;a+\operatorname{sgn}(\delta_0)(h-\rho)\big\},\qquad |\delta_n|<h=\mu|x|\quad(n\ge n_c,\ 0<\rho<h)}`}</TexBlock>
         <p>
-          例：<Tex>{'a=3,\\ x=1,\\ \\mu=0.4,\\ w_0=0'}</Tex>：<Tex>{String.raw`h=0.4,\ n_c=\lfloor 3/0.4\rfloor=${lc.entryStep},\ \rho=3-${lc.entryStep}\times0.4=${f4(3 - lc.lo)}`}</Tex>，
-          所以 <Tex>{String.raw`w_n\in\{${f4(lc.lo)},\,${f4(lc.hi)}\}`}</Tex>，時間平均 {f4(lc.mean)}。 <ClaimTag kind="exact" />
+          例：<Tex>{'a=3,\\ x=1,\\ \\mu=0.4,\\ w_0=0'}</Tex>：<Tex>{String.raw`h=0.4,\ n_c=\lfloor 3/0.4\rfloor=${lc.entryStep},\ \rho=3-${lc.entryStep}\times0.4=${f4(3 - lc.lo)}`}</Tex>，所以 <Tex>{String.raw`w_n\in\{${f4(lc.lo)},\,${f4(lc.hi)}\}`}</Tex>，時間平均 {f4(lc.mean)}。 <ClaimTag kind="exact" />
           注意時間平均 <Tex>{String.raw`a+\operatorname{sgn}(\delta_0)\,(\tfrac h2-\rho)`}</Tex> 一般<strong>不等於</strong> <Tex>{'a'}</Tex>（本例 <Tex>{'\\rho=h/2'}</Tex> 才剛好等於）：偏差可達 <Tex>{'\\pm h/2'}</Tex>，由起點決定。
         </p>
         <HandCalcSlot id="HC-02.2">
-          換一組 <Tex>{'a,\\ x,\\ w_0,\\ \\mu'}</Tex>，先自己算出 <Tex>{'n_c'}</Tex>、<Tex>{'\\rho'}</Tex> 和最後來回跳的兩個點，再對答案；
-          算完可以把同一組數字填進下方「動手觀察」的實驗，看模擬是不是停在同樣的兩點。
+          換一組 <Tex>{'a,\\ x,\\ w_0,\\ \\mu'}</Tex>，先自己算出 <Tex>{'n_c'}</Tex>、<Tex>{'\\rho'}</Tex> 和最後來回跳的兩個點，再對答案；算完可以把同一組數字填進下方「動手觀察」的實驗，看模擬是不是停在同樣的兩點。
         </HandCalcSlot>
         <p>
           若 <Tex>{'\\rho=0'}</Tex>（剛好踩到 <Tex>{'a'}</Tex>），下一步的 <Tex>{'e=0'}</Tex>——結果由 <Tex>{'\\operatorname{sign}(0)'}</Tex> 決定：
@@ -232,10 +227,7 @@ export function S3SignError() {
           <p>{tm(String.raw`圖上的 $\Delta w=\pm\mu\,x$ 就是把 $\operatorname{sign}(e_n)=\pm1$ 代進 F-02.6 的結果；兩個跳動點的間距仍然是 $h=\mu|x|$。`)}</p>
         </Diagram>
         <p>
-          上面手算的例子（<Tex>{'a=3,\\ x=1,\\ w_0=1,\\ \\mu=0.2'}</Tex>）繼續走下去就是這種情況：<Tex>{String.raw`|\delta_0|/h=2/0.2=10`}</Tex> 是整數，
-          精確算術下第 {handOn.ex.entryStep} 步 <Tex>{'w=3'}</Tex>；comparator 慣例（tie 輸出 <Tex>{'+1'}</Tex>）會在 <Tex>{String.raw`\{${f4(handOn.ex.lo)},\ ${f4(handOn.ex.hi)}\}`}</Tex> 之間跳。
-          但實際用 IEEE double 跑，<Tex>{'w_{10}'}</Tex> = <code>{String(handOn.w10)}</code>，最後在 <code>{`{${handOn.tail.map((v) => String(v)).join(', ')}}`}</code> 之間跳——
-          浮點捨入讓結果又不一樣。下表用另一組參數把三種慣例都列出來：
+          上面手算的例子（<Tex>{'a=3,\\ x=1,\\ w_0=1,\\ \\mu=0.2'}</Tex>）繼續走下去就是這種情況：<Tex>{String.raw`|\delta_0|/h=2/0.2=10`}</Tex> 是整數，精確算術下第 {handOn.ex.entryStep} 步 <Tex>{'w=3'}</Tex>；comparator 慣例（tie 輸出 <Tex>{'+1'}</Tex>）會在 <Tex>{String.raw`\{${f4(handOn.ex.lo)},\ ${f4(handOn.ex.hi)}\}`}</Tex> 之間跳。但實際用 IEEE double 跑，<Tex>{'w_{10}'}</Tex> = <code>{String(handOn.w10)}</code>，最後在 <code>{`{${handOn.tail.map((v) => String(v)).join(', ')}}`}</code> 之間跳——浮點捨入讓結果又不一樣。下表用另一組參數把三種慣例都列出來：
         </p>
         <div className="table-wrap">
           <table className="ch02-table">
@@ -269,9 +261,7 @@ export function S3SignError() {
           </table>
         </div>
         <Callout kind="warn" title={<>浮點誤差也是一種 tie 慣例 <ErrataNote id="E40" /></>}>
-          <Tex>{'\\mu=0.1'}</Tex> 時，從 <Tex>{'w_0=1'}</Tex> 把步長 <Tex>{'h=0.2'}</Tex> 逐步累加 10 次（<Tex>{String.raw`1+0.2+\cdots+0.2`}</Tex>），IEEE double 得到的是 <code>3.0000000000000004</code>，<Tex>{'e'}</Tex> 是一個 <Tex>{'-10^{-15}'}</Tex> 量級的負數而不是 0，
-          三種慣例都變成在 <Tex>{'2.8'}</Tex> 附近與 <code>3.0000000000000004</code> 之間跳。所以：模擬要明定 tie 規則、不可依賴 <code>Math.sign(0) = 0</code>；
-          驗證「收斂到中位數」時容忍度至少取 <Tex>{'\\mu|x|'}</Tex>，並在報告記錄 tie 慣例與算術（exact／double／fixed-point）。
+          <Tex>{'\\mu=0.1'}</Tex> 時，從 <Tex>{'w_0=1'}</Tex> 把步長 <Tex>{'h=0.2'}</Tex> 逐步累加 10 次（<Tex>{String.raw`1+0.2+\cdots+0.2`}</Tex>），IEEE double 得到的是 <code>3.0000000000000004</code>，<Tex>{'e'}</Tex> 是一個 <Tex>{'-10^{-15}'}</Tex> 量級的負數而不是 0，三種慣例都變成在 <Tex>{'2.8'}</Tex> 附近與 <code>3.0000000000000004</code> 之間跳。所以：模擬要明定 tie 規則、不可依賴 <code>Math.sign(0) = 0</code>；驗證「收斂到中位數」時容忍度至少取 <Tex>{'\\mu|x|'}</Tex>，並在報告記錄 tie 慣例與算術（exact／double／fixed-point）。
         </Callout>
       </Section>
 
@@ -282,9 +272,7 @@ export function S3SignError() {
       <Section kind="formula" title={tm('有雜訊時：平均更新方向 $\\psi(w)$ 與線性化增益')}>
         <Prereq title="CDF、PDF 與 Gaussian（第一次出現）">
           <p>
-            隨機變數 <Tex>{'v'}</Tex> 的<strong>累積分布函數（CDF）</strong> <Tex>{'F_v(t)=P(v\\le t)'}</Tex>，<strong>機率密度（PDF）</strong> <Tex>{"f_v(t)=F_v'(t)"}</Tex>。
-            Gaussian（常態）<Tex>{'v\\sim\\mathcal N(0,\\sigma^2)'}</Tex>：<Tex>{'f_v(t)=\\frac{1}{\\sqrt{2\\pi}\\sigma}\\mathrm{e}^{-t^2/(2\\sigma^2)}'}</Tex>，<Tex>{'F_v(t)=\\Phi(t/\\sigma)'}</Tex>，
-            其中 <Tex>{'\\Phi'}</Tex> 是標準常態 CDF（直立的 <Tex>{'\\mathrm{e}\\approx2.718'}</Tex> 是自然對數的底；斜體的 <Tex>{'e'}</Tex> 在本章永遠是誤差）。
+            隨機變數 <Tex>{'v'}</Tex> 的<strong>累積分布函數（CDF）</strong> <Tex>{'F_v(t)=P(v\\le t)'}</Tex>，<strong>機率密度（PDF）</strong> <Tex>{"f_v(t)=F_v'(t)"}</Tex>。Gaussian（常態）<Tex>{'v\\sim\\mathcal N(0,\\sigma^2)'}</Tex>：<Tex>{'f_v(t)=\\frac{1}{\\sqrt{2\\pi}\\sigma}\\mathrm{e}^{-t^2/(2\\sigma^2)}'}</Tex>，<Tex>{'F_v(t)=\\Phi(t/\\sigma)'}</Tex>，其中 <Tex>{'\\Phi'}</Tex> 是標準常態 CDF（直立的 <Tex>{'\\mathrm{e}\\approx2.718'}</Tex> 是自然對數的底；斜體的 <Tex>{'e'}</Tex> 在本章永遠是誤差）。
             <strong>中位數</strong>是 <Tex>{'F_v(m)=\\tfrac12'}</Tex> 的點：一半的機率在它左邊、一半在右邊；對稱分布的中位數 = 平均（本章的對稱雜訊都是 0）。
           </p>
         </Prereq>
@@ -342,9 +330,7 @@ export function S3SignError() {
             ]}
           />
           <p>
-            Impulsive 是「混合」：95% 的樣本來自窄的 Gaussian（標準差 <Tex>{'\\sigma_b'}</Tex>），5% 來自寬 10 倍的 Gaussian（偶發大突波）；整體標準差仍是 <Tex>{'\\sigma_v'}</Tex>，所以中心反而很尖。
-            偏斜雜訊 <Tex>{'v=\\sigma_v(T-1)'}</Tex>：<Tex>{'T'}</Tex> 是指數分布（PDF <Tex>{'\\mathrm{e}^{-t}'}</Tex>、<Tex>{'t\\ge0'}</Tex>），平均與標準差都是 1，所以 <Tex>{'v'}</Tex> 平均 0、標準差 <Tex>{'\\sigma_v'}</Tex>；
-            但中位數由 <Tex>{String.raw`F_v(m)=1-\mathrm{e}^{-(1+m/\sigma_v)}=\tfrac12`}</Tex> 解出 <Tex>{String.raw`m=\sigma_v(\ln2-1)\approx-0.307\,\sigma_v`}</Tex>——
+            Impulsive 是「混合」：95% 的樣本來自窄的 Gaussian（標準差 <Tex>{'\\sigma_b'}</Tex>），5% 來自寬 10 倍的 Gaussian（偶發大突波）；整體標準差仍是 <Tex>{'\\sigma_v'}</Tex>，所以中心反而很尖。偏斜雜訊 <Tex>{'v=\\sigma_v(T-1)'}</Tex>：<Tex>{'T'}</Tex> 是指數分布（PDF <Tex>{'\\mathrm{e}^{-t}'}</Tex>、<Tex>{'t\\ge0'}</Tex>），平均與標準差都是 1，所以 <Tex>{'v'}</Tex> 平均 0、標準差 <Tex>{'\\sigma_v'}</Tex>；但中位數由 <Tex>{String.raw`F_v(m)=1-\mathrm{e}^{-(1+m/\sigma_v)}=\tfrac12`}</Tex> 解出 <Tex>{String.raw`m=\sigma_v(\ln2-1)\approx-0.307\,\sigma_v`}</Tex>——
             <strong>平均與中位數不同</strong>，這正是 §4 用來分辨 LMS 與 sign 類演算法的工具。實驗裡另外可以加「單邊 outlier」：每筆以機率 <Tex>{'p_{\\rm out}'}</Tex> 在 <Tex>{'v'}</Tex> 上加一個固定的 <Tex>{'s'}</Tex>（平均變成 <Tex>{'p_{\\rm out}s'}</Tex>，中位數幾乎不動）。
           </p>
         </Prereq>
@@ -374,20 +360,16 @@ export function S3SignError() {
         </DerivFold>
         <TexBlock id="F-02.12">{String.raw`\boxed{K_{\rm SE}=2f_v(0)\,E[x^2]\;\overset{\text{Gaussian}}{=}\;\sqrt{\frac{2}{\pi}}\,\frac{E[x^2]}{\sigma_v}=K_q\,E[x^2]}`}</TexBlock>
         <p>
-          <ClaimTag kind="approx" /> 這個 <Tex>{'\\sqrt{2/\\pi}/\\sigma_v'}</Tex> 就是 <ChapterLink ch="05">Ch05</ChapterLink> 1-bit comparator 的等效小訊號增益 <Tex>{'K_q'}</Tex>：
-          雜訊把硬梆梆的 sign 函數「平均」成一條斜率有限的 S 曲線（erf），靠近 0 時像線性。雜訊在這裡是<strong>幫手</strong>（像 dither），
-          它讓 Sign-Error 的平均行為變得平滑；代價是每一步仍然是 <Tex>{'\\pm\\mu|x|'}</Tex> 的隨機跳動。
+          <ClaimTag kind="approx" /> 這個 <Tex>{'\\sqrt{2/\\pi}/\\sigma_v'}</Tex> 就是 <ChapterLink ch="05">Ch05</ChapterLink> 1-bit comparator 的等效小訊號增益 <Tex>{'K_q'}</Tex>：雜訊把硬梆梆的 sign 函數「平均」成一條斜率有限的 S 曲線（erf），靠近 0 時像線性。雜訊在這裡是<strong>幫手</strong>（像 dither），它讓 Sign-Error 的平均行為變得平滑；代價是每一步仍然是 <Tex>{'\\pm\\mu|x|'}</Tex> 的隨機跳動。
         </p>
         <p>
-          對稱雜訊時 <Tex>{'1-2F_v(-dx)'}</Tex> 與 <Tex>{'dx'}</Tex> 同號，所以 <Tex>{'\\psi_{\\rm SE}(w)=0'}</Tex> 只發生在 <Tex>{'d=0'}</Tex>：固定點 <Tex>{'w^*=a'}</Tex>。
-          雜訊<strong>不對稱</strong>時就不一定了——那是 §4 的主題。
+          對稱雜訊時 <Tex>{'1-2F_v(-dx)'}</Tex> 與 <Tex>{'dx'}</Tex> 同號，所以 <Tex>{'\\psi_{\\rm SE}(w)=0'}</Tex> 只發生在 <Tex>{'d=0'}</Tex>：固定點 <Tex>{'w^*=a'}</Tex>。雜訊<strong>不對稱</strong>時就不一定了——那是 §4 的主題。
         </p>
       </Section>
 
       <Section kind="formula" title={tm('修正方法：遞減步長 $\\mu_n=\\mu_0/(1+n/n_0)$')}>
         <p>
-          固定步長的兩個「停不下來」：無雜訊時帶寬 <Tex>{'h=\\mu|x|'}</Tex>；有雜訊時穩態變異 <Tex>{'\\propto\\mu'}</Tex>。兩者都正比於 <Tex>{'\\mu'}</Tex>，所以讓 <Tex>{'\\mu_n\\to0'}</Tex>。
-          這裡 <Tex>{'\\mu_n'}</Tex> 是第 <Tex>{'n'}</Tex> 步用的步長，<Tex>{'\\mu_0'}</Tex> 是起始步長，<Tex>{'n_0'}</Tex> 是時間常數（走到第 <Tex>{'n_0'}</Tex> 步時步長剛好減半）。但不能降得太快：
+          固定步長的兩個「停不下來」：無雜訊時帶寬 <Tex>{'h=\\mu|x|'}</Tex>；有雜訊時穩態變異 <Tex>{'\\propto\\mu'}</Tex>。兩者都正比於 <Tex>{'\\mu'}</Tex>，所以讓 <Tex>{'\\mu_n\\to0'}</Tex>。這裡 <Tex>{'\\mu_n'}</Tex> 是第 <Tex>{'n'}</Tex> 步用的步長，<Tex>{'\\mu_0'}</Tex> 是起始步長，<Tex>{'n_0'}</Tex> 是時間常數（走到第 <Tex>{'n_0'}</Tex> 步時步長剛好減半）。但不能降得太快：
         </p>
         <Diagram id="step-schedule">
           <p>
@@ -412,9 +394,7 @@ export function S3SignError() {
         </DerivFold>
         <TexBlock id="F-02.11">{String.raw`\boxed{\mu_n=\frac{\mu_0}{1+n/n_0},\qquad \sum\mu_n=\infty,\ \ \sum\mu_n^2<\infty,\qquad N_{\rm reach}\approx n_0\big(\mathrm{e}^{D/(\mu_0n_0|x|)}-1\big)}`}</TexBlock>
         <p>
-          <ClaimTag kind="approx" /> 數字：<Tex>{'\\mu_0=0.4,\\ n_0=20,\\ D=3'}</Tex>：<Tex>{'D/(\\mu_0n_0)=0.375'}</Tex>，實際只要 {reach.ok} 步；
-          但 <Tex>{'\\mu_0=0.01,\\ n_0=10'}</Tex>：<Tex>{'D/(\\mu_0n_0)=30'}</Tex>，需要 <Tex>{'\\approx10\\,\\mathrm{e}^{30}'}</Tex> 步（程式在 <Tex>{'5\\times10^6'}</Tex> 步內{Number.isFinite(reach.slow) ? `需要 ${reach.slow} 步` : '走不到'}）。
-          工程規則：<strong>先用固定的 <Tex>{'\\mu'}</Tex> 粗調到 <Tex>{'w^*'}</Tex> 附近，再開始衰減</strong>（gear-shift：每 <Tex>{'n_0'}</Tex> 步右移一位，並設下限 <Tex>{'\\mu_{\\min}'}</Tex> 以保留追蹤 PVT 漂移的能力，<ChRef ch="14">Ch14</ChRef>）。
+          <ClaimTag kind="approx" /> 數字：<Tex>{'\\mu_0=0.4,\\ n_0=20,\\ D=3'}</Tex>：<Tex>{'D/(\\mu_0n_0)=0.375'}</Tex>，實際只要 {reach.ok} 步；但 <Tex>{'\\mu_0=0.01,\\ n_0=10'}</Tex>：<Tex>{'D/(\\mu_0n_0)=30'}</Tex>，需要 <Tex>{'\\approx10\\,\\mathrm{e}^{30}'}</Tex> 步（程式在 <Tex>{'5\\times10^6'}</Tex> 步內{Number.isFinite(reach.slow) ? `需要 ${reach.slow} 步` : '走不到'}）。工程規則：<strong>先用固定的 <Tex>{'\\mu'}</Tex> 粗調到 <Tex>{'w^*'}</Tex> 附近，再開始衰減</strong>（gear-shift：每 <Tex>{'n_0'}</Tex> 步右移一位，並設下限 <Tex>{'\\mu_{\\min}'}</Tex> 以保留追蹤 PVT 漂移的能力，<ChRef ch="14">Ch14</ChRef>）。
         </p>
         <Diagram id="gear-shift">
           <p>
@@ -429,8 +409,7 @@ export function S3SignError() {
           </p>
         </Diagram>
         <HandCalcSlot id="HC-02.3">
-          這一題需要工程計算機的 <Tex>{'\\ln'}</Tex> 與 <Tex>{'\\mathrm{e}^x'}</Tex>。換成你自己的 <Tex>{'\\mu_0,\\ n_0,\\ D'}</Tex>，先算第 <Tex>{'n'}</Tex> 步的步長與帶寬，再算走完距離 <Tex>{'D'}</Tex> 要幾步；
-          把 <Tex>{'D'}</Tex> 加倍再算一次，親手感受「指數代價」。
+          這一題需要工程計算機的 <Tex>{'\\ln'}</Tex> 與 <Tex>{'\\mathrm{e}^x'}</Tex>。換成你自己的 <Tex>{'\\mu_0,\\ n_0,\\ D'}</Tex>，先算第 <Tex>{'n'}</Tex> 步的步長與帶寬，再算走完距離 <Tex>{'D'}</Tex> 要幾步；把 <Tex>{'D'}</Tex> 加倍再算一次，親手感受「指數代價」。
         </HandCalcSlot>
         <ModeGate min="research">
           <Derivation
@@ -494,8 +473,7 @@ export function S3SignError() {
         answer={
           <>
             <p>
-              <Tex>{String.raw`|a-w_0|/h=2.8/0.4=7`}</Tex> 是整數，<Tex>{'\\rho=0'}</Tex>：精確算術下第 7 步剛好 <Tex>{String.raw`w=3,\ e=0`}</Tex>，下一步由 <Tex>{String.raw`\operatorname{sign}(0)`}</Tex> 決定。
-              右欄是用 IEEE double 實際跑 <code>runSignErrorFixedX()</code> 的結果：<Tex>{String.raw`0.2+7\times0.4`}</Tex> 的累加未必剛好是 3（E40）。
+              <Tex>{String.raw`|a-w_0|/h=2.8/0.4=7`}</Tex> 是整數，<Tex>{'\\rho=0'}</Tex>：精確算術下第 7 步剛好 <Tex>{String.raw`w=3,\ e=0`}</Tex>，下一步由 <Tex>{String.raw`\operatorname{sign}(0)`}</Tex> 決定。右欄是用 IEEE double 實際跑 <code>runSignErrorFixedX()</code> 的結果：<Tex>{String.raw`0.2+7\times0.4`}</Tex> 的累加未必剛好是 3（E40）。
             </p>
             <div className="table-wrap">
               <table className="ch02-table">

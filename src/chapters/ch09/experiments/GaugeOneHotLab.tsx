@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import {
   ClaimTag,
   ExperimentShell,
@@ -477,8 +477,7 @@ export function GaugeOneHotLab() {
               height={300}
               caption={
                 <>
-                  {m`\boldsymbol\theta'=\boldsymbol\theta+c\,\mathbf n`} 與 {m`\boldsymbol\theta`} 的輸出完全相同；只動 {m`b`}（虛線）則整條平移 {m`d_b`}——raw domain 看得到 {m`b`} 本身，
-                  看不到「{m`b`} 加 {m`c`}、每個 {m`a_i`} 減 {m`c`}」這種反向平移。
+                  {m`\boldsymbol\theta'=\boldsymbol\theta+c\,\mathbf n`} 與 {m`\boldsymbol\theta`} 的輸出完全相同；只動 {m`b`}（虛線）則整條平移 {m`d_b`}——raw domain 看得到 {m`b`} 本身，看不到「{m`b`} 加 {m`c`}、每個 {m`a_i`} 減 {m`c`}」這種反向平移。
                 </>
               }
             />
@@ -535,8 +534,7 @@ export function GaugeOneHotLab() {
                       <Tex>{texMatrix(res.nullRu, 3)}</Tex>
                     </td>
                     <td className="ch09-left">
-                      {m`\|\mathbf R_u\mathbf e_b\|=${texNum(res.residual.ebOnRu, 2)}`}、{m`\|\mathbf R_u(0,1,1,1,1)\|/2=${texNum(res.residual.cmOnRu, 2)}`}：
-                      2 維 null space ＝ {m`\mathrm{span}\{\mathbf e_b,\ (0,1,1,1,1)\}`}（{m`b`} 方向與 {m`a_i`} 共模；Jacobi 給的基底是其中任一組正交基）
+                      {m`\|\mathbf R_u\mathbf e_b\|=${texNum(res.residual.ebOnRu, 2)}`}、{m`\|\mathbf R_u(0,1,1,1,1)\|/2=${texNum(res.residual.cmOnRu, 2)}`}：2 維 null space ＝ {m`\mathrm{span}\{\mathbf e_b,\ (0,1,1,1,1)\}`}（{m`b`} 方向與 {m`a_i`} 共模；Jacobi 給的基底是其中任一組正交基）
                     </td>
                   </tr>
                 )}

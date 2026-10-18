@@ -24,8 +24,7 @@ export function Intro() {
         <strong>這一頁要回答的問題：</strong>這個網站已經能回答什麼？還不能回答什麼？下一步要研究的題目，各自需要哪些數學？
       </p>
       <p>
-        規格書的最終主旨是：成功的 calibration 必須<strong>同時</strong>滿足六件事。前 14 章在「簡化但可驗證」的模型裡把每一件事講清楚；
-        規格附錄 C 的 R1–R10，加上使用者實際遇到的 SSPLL 案例，則是把這些簡化拿掉之後還沒解決的問題。
+        規格書的最終主旨是：成功的 calibration 必須<strong>同時</strong>滿足六件事。前 14 章在「簡化但可驗證」的模型裡把每一件事講清楚；規格附錄 C 的 R1–R10，加上使用者實際遇到的 SSPLL 案例，則是把這些簡化拿掉之後還沒解決的問題。
       </p>
       <Diagram
         chart={CHART_SIX_CONDITIONS}
@@ -78,8 +77,7 @@ export function Intro() {
 
       <h3>先算一次：一個「簡化」差多少？</h3>
       <p>
-        <ChRef ch="12">第 12 章</ChRef>的 <Tex>{'\\sigma_w\\approx0.399'}</Tex> fs（T13）假設相鄰 GMAC block 的雜訊互相獨立。如果它們有相關係數 <Tex>{'\\rho'}</Tex>（R1），答案會變成多少？
-        先用數字算一次（推導在 R1 的預覽裡）：
+        <ChRef ch="12">第 12 章</ChRef>的 <Tex>{'\\sigma_w\\approx0.399'}</Tex> fs（T13）假設相鄰 GMAC block 的雜訊互相獨立。如果它們有相關係數 <Tex>{'\\rho'}</Tex>（R1），答案會變成多少？先用數字算一次（推導在 R1 的預覽裡）：
       </p>
       <Diagram
         chart={CHART_R1_LOOP}
@@ -107,8 +105,7 @@ export function Intro() {
         </li>
       </ol>
       <p>
-        <ClaimTag kind="exact" /> 在線性化模型下精確（數字由 <code>sigmaW2Colored</code> 即時算出）。同一個係數雜訊，只因一個「獨立」假設不成立，RMS 就差 {n4(hc.rows[1].sigmaW / hc.rows[0].sigmaW)} 倍——這就是 Research Backlog 存在的理由：
-        每個簡化都要有人回頭檢查。
+        <ClaimTag kind="exact" /> 在線性化模型下精確（數字由 <code>sigmaW2Colored</code> 即時算出）。同一個係數雜訊，只因一個「獨立」假設不成立，RMS 就差 {n4(hc.rows[1].sigmaW / hc.rows[0].sigmaW)} 倍——這就是 Research Backlog 存在的理由：每個簡化都要有人回頭檢查。
       </p>
 
       <h3>怎麼讀狀態</h3>
@@ -131,14 +128,12 @@ export function Intro() {
         ))}
       </div>
       <Callout kind="warn" title="這一頁上沒有任何東西是 verified">
-        研究項目的狀態只有上面四種。每張卡片下方的「數學預覽」是在明確的簡化模型內推導、並用程式驗算（封閉式 vs 數值 vs Monte Carlo）的<strong>第一步</strong>，
-        不代表研究完成。全站只有 T01–T18 的驗收測試在 TypeScript 與 Python golden 兩邊都通過時才顯示 verified（見 <PageRef id="verification" />）。
+        研究項目的狀態只有上面四種。每張卡片下方的「數學預覽」是在明確的簡化模型內推導、並用程式驗算（封閉式 vs 數值 vs Monte Carlo）的<strong>第一步</strong>，不代表研究完成。全站只有 T01–T18 的驗收測試在 TypeScript 與 Python golden 兩邊都通過時才顯示 verified（見 <PageRef id="verification" />）。
       </Callout>
       <ModeGate min="engineer">
         <Prereq title="「驗證」在本站的意思">
           <p>
-            一個 T-id 要顯示 verified，必須：(1) TypeScript 有以 <code>Txx:</code> 命名的測試通過；(2) Python golden model 有 <code>test_Txx_…</code> 通過；
-            (3) 由 <code>npm run verify</code> 彙整進 <code>src/data/verification-status.json</code>。本頁 P0–P5 的進度直接讀這個檔案；研究項目則沒有 T-id，所以不可能是 verified。
+            一個 T-id 要顯示 verified，必須：(1) TypeScript 有以 <code>Txx:</code> 命名的測試通過；(2) Python golden model 有 <code>test_Txx_…</code> 通過；(3) 由 <code>npm run verify</code> 彙整進 <code>src/data/verification-status.json</code>。本頁 P0–P5 的進度直接讀這個檔案；研究項目則沒有 T-id，所以不可能是 verified。
           </p>
         </Prereq>
       </ModeGate>

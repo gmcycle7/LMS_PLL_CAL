@@ -12,8 +12,7 @@ export function Intro() {
         GMAC 的更新<strong>極性</strong>已經是對的、loop gain <Tex>{'g'}</Tex>（學習率 <Tex>{'\\mu'}</Tex> 乘上 GMAC 的平均斜率 <Tex>{'K'}</Tex>，沒有單位；§8.2 會從頭定義）也在一階模型的{' '}
         <Tex>{'0<g<2'}</Tex> 裡面——calibration loop 就一定穩定嗎？
         <br />
-        答案是<strong>不一定</strong>。本章拆成三個陷阱：(1) polarity margin 不是 phase margin；(2) GMAC pipeline 的<strong>更新延遲</strong>會把 <Tex>{'g'}</Tex> 的穩定上界從 {fx(delayCriticalGain(0), 0)} 縮到 {fx(delayCriticalGain(1), 0)}、{fx(delayCriticalGain(2), 3)}…；
-        (3) 主 PLL 對誤差的<strong>觀測動態</strong>（雙迴路，含一個 block 的取樣→觀測 latency）會讓「時間尺度分離」的簡化模型高估穩定範圍——在本章的二狀態模型裡恰好高估一倍，而且與主 PLL 的快慢無關（<ErratumNote id="E19" />）。
+        答案是<strong>不一定</strong>。本章拆成三個陷阱：(1) polarity margin 不是 phase margin；(2) GMAC pipeline 的<strong>更新延遲</strong>會把 <Tex>{'g'}</Tex> 的穩定上界從 {fx(delayCriticalGain(0), 0)} 縮到 {fx(delayCriticalGain(1), 0)}、{fx(delayCriticalGain(2), 3)}…；(3) 主 PLL 對誤差的<strong>觀測動態</strong>（雙迴路，含一個 block 的取樣→觀測 latency）會讓「時間尺度分離」的簡化模型高估穩定範圍——在本章的二狀態模型裡恰好高估一倍，而且與主 PLL 的快慢無關（<ErratumNote id="E19" />）。
       </Callout>
       <div className="c-tag-row">
         <ModelLevel level="L1" /> <ModelLevel level="L2" /> <TestBadge id="T08" /> <TestBadge id="T09" /> <ClaimTag kind="exact" /> <SourceTag kind="illustrative" />
@@ -38,12 +37,10 @@ export function Intro() {
 
       <Section kind="intuition" title="先用一個生活例子：洗澡水的溫度旋鈕" level={2} id="ch08-intro">
         <p>
-          你在調熱水。旋鈕轉了以後，水要 2 秒才流到蓮蓬頭。如果你每 0.5 秒就「看目前的水溫」再轉一次，你會轉過頭、再轉回來、又轉過頭——
-          越轉越抖。問題不在你轉的<strong>方向</strong>（太冷就往熱的方向轉，方向完全正確），而在於你每次轉的<strong>量</strong>（loop gain）和你看到的資訊有多<strong>舊</strong>（延遲）。
+          你在調熱水。旋鈕轉了以後，水要 2 秒才流到蓮蓬頭。如果你每 0.5 秒就「看目前的水溫」再轉一次，你會轉過頭、再轉回來、又轉過頭——越轉越抖。問題不在你轉的<strong>方向</strong>（太冷就往熱的方向轉，方向完全正確），而在於你每次轉的<strong>量</strong>（loop gain）和你看到的資訊有多<strong>舊</strong>（延遲）。
         </p>
         <p>
-          LMS 校正迴路完全一樣：GMAC 告訴你「方向」（polarity），學習率 <Tex>{'\\mu'}</Tex> 決定「轉多少」，pipeline 與主 PLL 決定「資訊有多舊」。
-          前面幾章（<ChRef ch="05">Ch05</ChRef>–<ChRef ch="07">Ch07</ChRef>）處理的是方向；這一章處理的是<strong>量 <Tex>{'\\times'}</Tex> 延遲</strong>——也就是控制理論的 phase margin。
+          LMS 校正迴路完全一樣：GMAC 告訴你「方向」（polarity），學習率 <Tex>{'\\mu'}</Tex> 決定「轉多少」，pipeline 與主 PLL 決定「資訊有多舊」。前面幾章（<ChRef ch="05">Ch05</ChRef>–<ChRef ch="07">Ch07</ChRef>）處理的是方向；這一章處理的是<strong>量 <Tex>{'\\times'}</Tex> 延遲</strong>——也就是控制理論的 phase margin。
         </p>
         <Mermaid
           caption="本章的路線圖：由左到右，每一格比前一格多考慮一件事（延遲 → 觀測動態 → 任意線性觀測），穩定條件也跟著變嚴"

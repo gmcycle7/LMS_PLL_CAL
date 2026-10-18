@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { memo, useEffect, useRef, useState, type ComponentType } from 'react'
 import { Link } from 'react-router-dom'
 import { neighbours, type PageEntry, type PageGroup } from './registry'
 import { ErrorBoundary } from './ErrorBoundary'
@@ -6,17 +6,25 @@ import { MODE_HINT, useSettings } from './settings'
 import { useNavigationInfo } from './navigation'
 import { ModePicker } from '@/components/ModePicker'
 import { AnchorDeepLink } from '@/components/links'
+import { PageOutline, type OutlineLayout } from '@/components/PageOutline'
 
 /** 章節頁（含 07b 案例）才顯示模式提示；工具頁與 Part D 不顯示 */
 const CHAPTER_GROUPS: readonly PageGroup[] = ['A', 'B', 'C']
 
-/** 每個頁面的共同外框：標題、章節對照、模式提示、上一頁/下一頁。 */
+/** 章節本體只在換頁時重畫：外框自己的 state（目錄的版面）變了不能把 6–10 萬個節點的章節整個再 render 一次 */
+const PageContent = memo(function PageContent({ Page }: { Page: ComponentType }) {
+  return <Page />
+})
+
+/** 每個頁面的共同外框：標題、章節對照、模式提示、本頁目錄、上一頁/下一頁。 */
 export function PageFrame({ entry }: { entry: PageEntry }) {
   const { prev, next } = neighbours(entry.id)
   const Page = entry.component
   const { mode, modeChosen } = useSettings()
   const { generation, announce } = useNavigationInfo()
   const articleRef = useRef<HTMLElement>(null)
+  // 本頁目錄的版面：'column'（寬螢幕右欄，article 要讓出右側 224px）、'dock'（右下角按鈕）、null（本頁太短）
+  const [outline, setOutline] = useState<OutlineLayout | null>(null)
 
   useEffect(() => {
     document.title = `${entry.nav} · LMS × PLL Lab`
@@ -41,7 +49,7 @@ export function PageFrame({ entry }: { entry: PageEntry }) {
   const isChapter = CHAPTER_GROUPS.includes(entry.group)
 
   return (
-    <article className="page" data-page={entry.id} ref={articleRef}>
+    <article className="page" data-page={entry.id} data-outline={outline ?? undefined} ref={articleRef}>
       <ModePicker />
       {entry.id !== 'dashboard' && (
         <header className="page-header">
@@ -52,13 +60,15 @@ export function PageFrame({ entry }: { entry: PageEntry }) {
           <h1 tabIndex={-1}>{entry.title}</h1>
         </header>
       )}
+      {/* 本頁目錄：從下面章節的 h2 自動產生（寬螢幕右欄／窄螢幕右下角「目錄」鈕）＋浮動「回到頂端」 */}
+      <PageOutline root={articleRef} pageKey={entry.id} onLayout={setOutline} />
       {isChapter && modeChosen && (
         <p className="c-mode-hint" data-mode={mode}>
           {MODE_HINT[mode]}
         </p>
       )}
       <ErrorBoundary key={entry.id}>
-        <Page />
+        <PageContent Page={Page} />
       </ErrorBoundary>
       {/* 貼上的 ?f=／?a= 深連結：頁面載好後捲到目標（連結元件自己會處理點擊；這裡只管手打或複製的網址） */}
       <AnchorDeepLink />

@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import {
   ClaimTag,
   CodeCompare,
@@ -186,9 +186,7 @@ export default function R7Preview() {
     <div className="rm-preview">
       <Prereq title="矩陣的冪次、eigenvalue 與 spectral radius">
         <p>
-          <Tex>{'\\mathbf x_{k+1}=\\mathbf A\\mathbf x_k'}</Tex> 的解是 <Tex>{'\\mathbf x_k=\\mathbf A^k\\mathbf x_0'}</Tex>。若 <Tex>{'\\mathbf A=\\mathbf Q\\boldsymbol\\Lambda\\mathbf Q^{-1}'}</Tex>，
-          則 <Tex>{'\\mathbf A^k=\\mathbf Q\\boldsymbol\\Lambda^k\\mathbf Q^{-1}'}</Tex>，每個方向乘上 <Tex>{'\\lambda_i^k'}</Tex>。所以「收斂」等價於所有 <Tex>{'|\\lambda_i|<1'}</Tex>，也就是 spectral radius <Tex>{'\\rho(\\mathbf A)=\\max|\\lambda_i|<1'}</Tex>。
-          複數 eigenvalue 代表振盪；<Tex>{'|\\lambda|'}</Tex> 才決定衰減或發散。
+          <Tex>{'\\mathbf x_{k+1}=\\mathbf A\\mathbf x_k'}</Tex> 的解是 <Tex>{'\\mathbf x_k=\\mathbf A^k\\mathbf x_0'}</Tex>。若 <Tex>{'\\mathbf A=\\mathbf Q\\boldsymbol\\Lambda\\mathbf Q^{-1}'}</Tex>，則 <Tex>{'\\mathbf A^k=\\mathbf Q\\boldsymbol\\Lambda^k\\mathbf Q^{-1}'}</Tex>，每個方向乘上 <Tex>{'\\lambda_i^k'}</Tex>。所以「收斂」等價於所有 <Tex>{'|\\lambda_i|<1'}</Tex>，也就是 spectral radius <Tex>{'\\rho(\\mathbf A)=\\max|\\lambda_i|<1'}</Tex>。複數 eigenvalue 代表振盪；<Tex>{'|\\lambda|'}</Tex> 才決定衰減或發散。
         </p>
       </Prereq>
       <h4>{mt(String.raw`先算一次：規格 §8.4 的數字（$r_s=${R7_EXAMPLE.r}$、$b_s=${R7_EXAMPLE.b}$、$c_s=${R7_EXAMPLE.c}$、$\mu=${R7_EXAMPLE.mu}$），只改 $N$`)}</h4>

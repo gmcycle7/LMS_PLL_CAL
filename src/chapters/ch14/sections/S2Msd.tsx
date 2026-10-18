@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import {
   Callout,
   ClaimTag,
@@ -91,8 +91,7 @@ function E48Table() {
       <p className="small muted">
         對照：validation.md E48 以獨立的 Python Monte Carlo（200k trials）得到 <Tex>{'-0.7\\%\\,/\\,-4.6\\%\\,/\\,-17.0\\%\\,/\\,-52.2\\%\\,/\\,-91.5\\%'}</Tex>（
         <Tex>{'\\delta_0=10/50/100/200/400\\,\\mathrm{fs}'}</Tex>）。上表每列只有{' '}
-        {E48_PARAMS.chains} 條 chain：<Tex>{'\\delta_B'}</Tex> 近似高斯時 <Tex>{'\\mathrm{Var}(\\delta_B^2)\\approx2E[\\delta_B^2]^2'}</Tex>，相對標準誤 <Tex>{'\\approx\\sqrt{2/1500}\\approx3.7\\%'}</Tex>（95% CI 約 <Tex>{'\\pm7\\%'}</Tex>），
-        所以小 <Tex>{'\\delta_0'}</Tex> 列的 <Tex>{'\\pm1\\%'}</Tex> 差異看不出來；大 <Tex>{'\\delta_0'}</Tex> 的低估遠大於抽樣誤差。
+        {E48_PARAMS.chains} 條 chain：<Tex>{'\\delta_B'}</Tex> 近似高斯時 <Tex>{'\\mathrm{Var}(\\delta_B^2)\\approx2E[\\delta_B^2]^2'}</Tex>，相對標準誤 <Tex>{'\\approx\\sqrt{2/1500}\\approx3.7\\%'}</Tex>（95% CI 約 <Tex>{'\\pm7\\%'}</Tex>），所以小 <Tex>{'\\delta_0'}</Tex> 列的 <Tex>{'\\pm1\\%'}</Tex> 差異看不出來；大 <Tex>{'\\delta_0'}</Tex> 的低估遠大於抽樣誤差。
       </p>
     </div>
   )
@@ -138,8 +137,7 @@ export function S2Msd() {
       </p>
       <Diagram chart={CHART_SAMPLE_TO_BLOCK} caption="從 sample rate 到 block rate：標著 sample rate 的框每個 comparator 樣本做一次，標著 block rate 的框每 $N$ 個樣本才做一次；comparator 與 loop filter 取同一個 PD 輸出 $e[n]$；右邊的長虛線表示誤差在一個 block 內不變。">
         <p>
-          <strong>先看</strong>標著 sample rate 的框（索引 <Tex>{'n'}</Tex>），由上到下：DTC 的 code <Tex>{'x[n]'}</Tex> 經過 PLL 誤差路徑（從 DTC 到 PD 的輸出）變成 <Tex>{'u[n]'}</Tex>，乘上這個 block 的誤差 <Tex>{'\\delta_k'}</Tex> 就是 PD 輸出裡的訊號部分，再和 RMS 為 <Tex>{'\\sigma_v'}</Tex> 的雜訊 <Tex>{'v[n]'}</Tex> 在加法點相加（兩條線都是正號），
-          得到 <strong>PD 的輸出</strong> <Tex>{'e[n]\\approx\\delta_k\\,u[n]+v[n]'}</Tex>。這個加法點就是送進 loop filter 的那個節點（往右的短虛線是它進 PLL 主迴路的一支），comparator 從<strong>同一個節點</strong>分接：它取的是 PD 的輸出 <Tex>{'e[n]'}</Tex>，不是 DTC 或 divider 的訊號。comparator 只輸出正負號 <Tex>{'q[n]=\\pm1'}</Tex>，再乘上 code <Tex>{'x[n]'}</Tex>。<strong>再看</strong>標著 block rate 的框（索引 <Tex>{'k'}</Tex>，更新率 <Tex>{'f_u=f_s/N'}</Tex>）：GMAC 把 <Tex>{'N'}</Tex> 個{' '}
+          <strong>先看</strong>標著 sample rate 的框（索引 <Tex>{'n'}</Tex>），由上到下：DTC 的 code <Tex>{'x[n]'}</Tex> 經過 PLL 誤差路徑（從 DTC 到 PD 的輸出）變成 <Tex>{'u[n]'}</Tex>，乘上這個 block 的誤差 <Tex>{'\\delta_k'}</Tex> 就是 PD 輸出裡的訊號部分，再和 RMS 為 <Tex>{'\\sigma_v'}</Tex> 的雜訊 <Tex>{'v[n]'}</Tex> 在加法點相加（兩條線都是正號），得到 <strong>PD 的輸出</strong> <Tex>{'e[n]\\approx\\delta_k\\,u[n]+v[n]'}</Tex>。這個加法點就是送進 loop filter 的那個節點（往右的短虛線是它進 PLL 主迴路的一支），comparator 從<strong>同一個節點</strong>分接：它取的是 PD 的輸出 <Tex>{'e[n]'}</Tex>，不是 DTC 或 divider 的訊號。comparator 只輸出正負號 <Tex>{'q[n]=\\pm1'}</Tex>，再乘上 code <Tex>{'x[n]'}</Tex>。<strong>再看</strong>標著 block rate 的框（索引 <Tex>{'k'}</Tex>，更新率 <Tex>{'f_u=f_s/N'}</Tex>）：GMAC 把 <Tex>{'N'}</Tex> 個{' '}
           <Tex>{'q[n]x[n]'}</Tex> 平均成一個數 <Tex>{'G_k'}</Tex>，乘 <Tex>{'\\mu'}</Tex> 加進暫存器。右邊那條長虛線是回授：整個 block 內 <Tex>{'w_k'}</Tex> 不變（新的 <Tex>{'w_{k+1}'}</Tex> 要到下個 block 才生效，這就是「無更新延遲 <Tex>{'d=0'}</Tex>」的意思），所以 <Tex>{'\\delta_k'}</Tex> 在 <Tex>{'N'}</Tex> 個樣本內也不變。
         </p>
         <p>
@@ -280,8 +278,7 @@ e[n]&=c\,\delta_k\,x[n]+s\,\delta_{k-1}\,x[n-1]+v[n]\\
       </p>
       <Diagram chart={CHART_POLE_REGIMES} caption={String.raw`迴路增益 $g=\mu K$ 一路加大（上排由左到右，再接到下排）時 pole $p=1-g$ 的走向：綠色是安全區，藍色是一步到位，棕色仍收斂但會正負交替，紅色是 $|p|\ge1$ 的不收斂區。`}>
         <p>
-          <strong>先看</strong>上排最左邊的紅色方塊：<Tex>{'g=0'}</Tex> 代表 <Tex>{'K=0'}</Tex>（<Tex>{'C=0'}</Tex>，GMAC 對誤差沒有反應），<Tex>{'p=1'}</Tex>，誤差既不增也不減，雜訊一直累積。<strong>再看</strong>往右的主線（上排走完，接到下排最左邊的棕色方塊）：<Tex>{'g'}</Tex> 加大，<Tex>{'p'}</Tex> 從 1 掉到 0（藍色，<Tex>{'g=1'}</Tex>，一步到位）、再變成負的（棕色，
-          平均誤差每個 block 正負交替，但幅度仍衰減）。<strong>最後看</strong>下排右邊兩個紅色方塊：<Tex>{'g=2'}</Tex> 時 <Tex>{'p=-1'}</Tex>，幅度不再衰減；<Tex>{'g>2'}</Tex> 時 <Tex>{'|p|>1'}</Tex>，指數發散。
+          <strong>先看</strong>上排最左邊的紅色方塊：<Tex>{'g=0'}</Tex> 代表 <Tex>{'K=0'}</Tex>（<Tex>{'C=0'}</Tex>，GMAC 對誤差沒有反應），<Tex>{'p=1'}</Tex>，誤差既不增也不減，雜訊一直累積。<strong>再看</strong>往右的主線（上排走完，接到下排最左邊的棕色方塊）：<Tex>{'g'}</Tex> 加大，<Tex>{'p'}</Tex> 從 1 掉到 0（藍色，<Tex>{'g=1'}</Tex>，一步到位）、再變成負的（棕色，平均誤差每個 block 正負交替，但幅度仍衰減）。<strong>最後看</strong>下排右邊兩個紅色方塊：<Tex>{'g=2'}</Tex> 時 <Tex>{'p=-1'}</Tex>，幅度不再衰減；<Tex>{'g>2'}</Tex> 時 <Tex>{'|p|>1'}</Tex>，指數發散。
         </p>
         <p>
           圖上的 <Tex>{'p=1-g'}</Tex> 就是 F-14.1 的 pole；兩個 <Tex>{'|p|=1'}</Tex> 的端點（<Tex>{'g=0'}</Tex> 與 <Tex>{'g=2'}</Tex>）就是下面 F-14.4 要處理的邊界情況；藍色的 <Tex>{'g=1'}</Tex> 就是 §14.2 (b) 的 F-14.10；每個方塊的 phase margin 來自{' '}
@@ -341,8 +338,7 @@ e[n]&=c\,\delta_k\,x[n]+s\,\delta_{k-1}\,x[n-1]+v[n]\\
         {String.raw`B\gtrsim\frac{|\delta_0|-\delta_\text{target}}{\mu\max|x|}\qquad(|\delta_0|\gtrsim0.5\sigma_v)`}
       </TexBlock>
       <Callout kind="warn" title="設計含意">
-        §14.2 的 Coarse Calibration 正好落在這個失效區（大 <Tex>{'\\delta_0'}</Tex>、大步長）。Coarse 的時間要用 F-14.5 或 Monte Carlo 估，不能套 F-14.3；F-14.3 只用在 Fine／Track 階段（<Tex>{'|\\delta|\\ll\\sigma_v'}</Tex>）。
-        例：<Tex>{'\\delta_0=100\\,\\mathrm{fs},\\ \\mu=60\\,\\mathrm{fs},\\ x=\\pm1'}</Tex>，目標 10 fs，得 <Tex>{'B\\gtrsim(100-10)/60=1.5'}</Tex>，也就是至少 2 個 block（§14.7 狀態機預設值；實際因 erf 未完全飽和會多幾個）。
+        §14.2 的 Coarse Calibration 正好落在這個失效區（大 <Tex>{'\\delta_0'}</Tex>、大步長）。Coarse 的時間要用 F-14.5 或 Monte Carlo 估，不能套 F-14.3；F-14.3 只用在 Fine／Track 階段（<Tex>{'|\\delta|\\ll\\sigma_v'}</Tex>）。例：<Tex>{'\\delta_0=100\\,\\mathrm{fs},\\ \\mu=60\\,\\mathrm{fs},\\ x=\\pm1'}</Tex>，目標 10 fs，得 <Tex>{'B\\gtrsim(100-10)/60=1.5'}</Tex>，也就是至少 2 個 block（§14.7 狀態機預設值；實際因 erf 未完全飽和會多幾個）。
       </Callout>
       <Hand id="HC-14.4">
         這一題要查 <Tex>{'\\Phi'}</Tex> 表：親手算出 <Tex>{'\\delta_0=\\sigma_v'}</Tex> 時 comparator 的平均輸出，就會看到線性模型高估了多少恢復力；再用 F-14.5 估 coarse 階段至少要幾個 block。換成你自己的 <Tex>{'\\delta_0'}</Tex>、<Tex>{'\\mu_\\text{coarse}'}</Tex> 試試。

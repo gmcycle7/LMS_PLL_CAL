@@ -30,7 +30,7 @@ const P = vi.hoisted(() => ({
   Plots: { resize: vi.fn() },
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
-vi.mock('plotly.js-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
 // 圖內文字的數學一律寫 `$...$`（teaching-style §3）：<Plot> 先套用 applyPlotMath 再交給 Plotly，
 // 所以在轉換前記下作者寫的字串（chartStrings.testutil.ts），整章所有 Plotly 圖一次檢查
 const plotCalls = vi.hoisted(() => [] as { data: unknown; layout: unknown }[])

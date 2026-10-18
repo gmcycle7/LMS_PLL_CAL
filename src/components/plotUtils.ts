@@ -1,4 +1,4 @@
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import type { ThemeTokens } from './theme'
 import type { CsvColumns } from './types'
 
@@ -31,6 +31,15 @@ function isNonPositive(v: unknown): boolean {
 }
 
 const FILTERABLE_TYPES = new Set<unknown>([undefined, 'scatter', 'scattergl', 'bar'])
+/**
+ * 算 log 軸資料範圍（logSpanDecades）時也要看的 trace：heatmap / histogram 有自己的座標陣列（x、y），
+ * 但不經過 filterLogData（Plotly 自己處理 ≤0 的格子／樣本）。只看明確給的陣列，不補隱含的 x0 + i·dx。
+ * 少了它們時，「熱圖 + 一條直線」的圖在 xLog 下只剩直線算進範圍（0 個十進位）→ dtick 交給 Plotly，
+ * 主刻度就隨像素寬度在「1、10、100」與「1、2、5、10、20…」之間跳。
+ * （case-sspll 的 sign map 熱圖目前只在 layout 設 type:'log'、沒給 xLog，所以 Plot 本來就不管它的刻度；
+ * 要讓它和上面的折線圖一樣固定標 10 的整數次方，呼叫端改成 xLog 即可，這裡已經算得對。）
+ */
+const LOG_SPAN_OWN_COORD_TYPES = new Set<unknown>(['heatmap', 'histogram'])
 /** 與 x/y 同長、需要同步過濾的逐點欄位 */
 const PER_POINT_KEYS = ['text', 'hovertext', 'customdata', 'ids', 'width']
 const PER_POINT_NESTED: [string, string][] = [
@@ -213,8 +222,12 @@ export function logSpanDecades(data: readonly Data[], axis: 'x' | 'y', range?: u
   let hi = -Infinity
   for (const trace of data) {
     const t = trace as Obj
-    if (!FILTERABLE_TYPES.has(t.type) || !onPrimaryAxis(t, axis)) continue
-    for (const v of axisValues(t, axis)) {
+    if (!onPrimaryAxis(t, axis)) continue
+    let values: number[]
+    if (FILTERABLE_TYPES.has(t.type)) values = axisValues(t, axis)
+    else if (LOG_SPAN_OWN_COORD_TYPES.has(t.type)) values = numericValues(t[axis])
+    else continue
+    for (const v of values) {
       if (v <= 0) continue
       if (v < lo) lo = v
       if (v > hi) hi = v
@@ -306,9 +319,21 @@ export interface LegendCornerOptions {
 }
 
 /**
+ * 類別軸（x 或 y 是字串標籤，例如 bar 的 'm=1'…'GOS'）：沒有數值可用時以出現順序的索引當座標，
+ * 角落判斷才看得到最右邊那根最高的長條；數值軸與只有 y 的 trace（隱含 x = x0 + i·dx）照 axisValues。
+ */
+function axisValuesOrCategoryIndex(t: Obj, axis: 'x' | 'y'): number[] {
+  const vals = axisValues(t, axis)
+  const raw = t[axis]
+  if (vals.length === 0 && isArray1D(raw) && raw.length > 0) return Array.from({ length: raw.length }, (_, i) => i)
+  return vals
+}
+
+/**
  * 圖例可以放在哪個上方角落而不蓋到資料：先看右上，再看左上；兩邊都有資料（例如滿寬的水平參考線、
  * 收斂到上緣的曲線）或圖例太寬就回傳 null（放繪圖區上方）。只看主軸上的 scatter／bar 資料；
- * 有 heatmap 等整面填滿的 trace 時也回傳 null。範圍以資料 min／max（或呼叫端的 range）正規化，log 軸取 log10。
+ * 有 heatmap 等整面填滿的 trace 時也回傳 null。範圍以資料 min／max（或呼叫端的 range）正規化，log 軸取 log10，
+ * 類別軸（字串標籤）以出現順序的索引當座標。
  */
 export function pickLegendCorner(data: readonly Data[], opts: LegendCornerOptions = {}): LegendCorner | null {
   const traces = data.filter((tr) => {
@@ -333,8 +358,8 @@ export function pickLegendCorner(data: readonly Data[], opts: LegendCornerOption
   for (const tr of traces) {
     const t = tr as Obj
     if (!onPrimaryAxis(t, 'x') || !onPrimaryAxis(t, 'y')) return null
-    const xs = axisValues(t, 'x').map(sx)
-    const ys = axisValues(t, 'y').map(sy)
+    const xs = axisValuesOrCategoryIndex(t, 'x').map(sx)
+    const ys = axisValuesOrCategoryIndex(t, 'y').map(sy)
     const n = Math.min(xs.length, ys.length)
     for (let i = 0; i < n; i++) if (Number.isFinite(xs[i]) && Number.isFinite(ys[i])) pts.push([xs[i], ys[i]])
   }

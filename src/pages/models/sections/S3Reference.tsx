@@ -105,8 +105,7 @@ export function S3Reference() {
     <section aria-labelledby="models-s3">
       <h2 id="models-s3">3｜參考 Block Sign-LMS：規格偽程式 vs 本站實際執行的程式（§15.2）</h2>
       <p>
-        規格 §15.2 給了一段十幾行的 Python 偽程式（12 行程式加 2 行註解）。它把整個校正迴路濃縮成兩層迴圈：外層每個 GMAC block 更新一次 gain，內層每個 comparator sample 累加一次 <Tex>{'q\\cdot x_\\mathrm{ref}'}</Tex>。
-        本站的 <code>runBlockLms</code> 就是這段偽程式的「可執行版」，但多處理了幾件偽程式略過、而 RTL 一定會遇到的事。
+        規格 §15.2 給了一段十幾行的 Python 偽程式（12 行程式加 2 行註解）。它把整個校正迴路濃縮成兩層迴圈：外層每個 GMAC block 更新一次 gain，內層每個 comparator sample 累加一次 <Tex>{'q\\cdot x_\\mathrm{ref}'}</Tex>。本站的 <code>runBlockLms</code> 就是這段偽程式的「可執行版」，但多處理了幾件偽程式略過、而 RTL 一定會遇到的事。
       </p>
       <p>
         先看圖，再看程式。圖裡的每一個方塊，在 §3.1 的程式裡都找得到對應的那一行；符號的意思：<Tex>{'x[n]'}</Tex> 是正規化後的 code，<Tex>{'a'}</Tex> 是真實的 DTC gain、<Tex>{'w_k'}</Tex> 是第 <Tex>{'k'}</Tex> 個 block 的校正係數，
@@ -304,8 +303,7 @@ export function S3Reference() {
         </Prereq>
         <Prereq title="相關（correlation）$C=E[x_\mathrm{ref}\,u]$">
           <p>
-            兩個序列逐點相乘再平均：<Tex>{'C=\\frac1{N_s}\\sum_n x_\\mathrm{ref}[n]u[n]'}</Tex>。若兩者「同進同退」，<Tex>{'C>0'}</Tex>；若一個是另一個反相（例如 PLL error path 的相位接近 <Tex>{'180^\\circ'}</Tex>），<Tex>{'C<0'}</Tex>。
-            identity path、unit-RMS code 時 <Tex>{'u=x,\\;C=E[x^2]=1'}</Tex>。單頻 <Tex>{'x=A\\cos\\Omega n'}</Tex> 經相位 <Tex>{'\\varphi'}</Tex> 的 path 時 <Tex>{'C=\\tfrac{A^2}{2}|H|\\cos\\varphi'}</Tex>（
+            兩個序列逐點相乘再平均：<Tex>{'C=\\frac1{N_s}\\sum_n x_\\mathrm{ref}[n]u[n]'}</Tex>。若兩者「同進同退」，<Tex>{'C>0'}</Tex>；若一個是另一個反相（例如 PLL error path 的相位接近 <Tex>{'180^\\circ'}</Tex>），<Tex>{'C<0'}</Tex>。identity path、unit-RMS code 時 <Tex>{'u=x,\\;C=E[x^2]=1'}</Tex>。單頻 <Tex>{'x=A\\cos\\Omega n'}</Tex> 經相位 <Tex>{'\\varphi'}</Tex> 的 path 時 <Tex>{'C=\\tfrac{A^2}{2}|H|\\cos\\varphi'}</Tex>（
             <ChLink to="/ch/06">Ch06</ChLink>）。
           </p>
         </Prereq>
@@ -379,15 +377,13 @@ export function S3Reference() {
           <p>
             一個序列 <Tex>{'\\delta_k'}</Tex> 的 Z transform 是 <Tex>{'\\Delta(z)=\\sum_k\\delta_kz^{-k}'}</Tex>；「延遲一格」等於乘上 <Tex>{'z^{-1}'}</Tex>。遞迴{' '}
             <Tex>{'\\delta_{k+1}=\\delta_k-g\\delta_{k-d}'}</Tex> 的解是 <Tex>{'\\delta_k=\\sum_i c_iz_i^k'}</Tex>，其中 <Tex>{'z_i'}</Tex> 是特徵方程 <Tex>{'z^{d+1}-z^d+g=0'}</Tex> 的根（pole）。
-            <Tex>{'z^k\\to0\\iff|z|<1'}</Tex>，所以「所有 pole 在單位圓內」就是「平均誤差收斂」——跟 <Tex>{'r^n\\to0\\iff|r|<1'}</Tex> 是同一件事。
-            把狀態 <Tex>{'(\\delta_k,\\dots,\\delta_{k-d})'}</Tex> 排成向量時遞迴變成 <Tex>{'\\mathbf s_{k+1}=\\mathbf A\\mathbf s_k'}</Tex>，這些 pole 就是矩陣 <Tex>{'\\mathbf A'}</Tex> 的
+            <Tex>{'z^k\\to0\\iff|z|<1'}</Tex>，所以「所有 pole 在單位圓內」就是「平均誤差收斂」——跟 <Tex>{'r^n\\to0\\iff|r|<1'}</Tex> 是同一件事。把狀態 <Tex>{'(\\delta_k,\\dots,\\delta_{k-d})'}</Tex> 排成向量時遞迴變成 <Tex>{'\\mathbf s_{k+1}=\\mathbf A\\mathbf s_k'}</Tex>，這些 pole 就是矩陣 <Tex>{'\\mathbf A'}</Tex> 的
             eigenvalue（滿足 <Tex>{'\\mathbf A\\mathbf v=\\lambda\\mathbf v'}</Tex> 的 <Tex>{'\\lambda'}</Tex>）；spectral radius <Tex>{'\\rho=\\max|\\lambda|<1'}</Tex> 等價於收斂。
           </p>
         </Prereq>
         <Prereq title="離散時間頻率 $\Omega$、頻率響應與 PSD">
           <p>
-            對一個每 block 更新一次的序列，「頻率」用每個 block 轉過的角度 <Tex>{'\\Omega'}</Tex>（rad/block）描述，<Tex>{'\\Omega=2\\pi f/f_u'}</Tex>，最高到 <Tex>{'\\Omega=\\pi'}</Tex>（<Tex>{'f=f_u/2'}</Tex>）。
-            把 <Tex>{'z=e^{j\\Omega}=\\cos\\Omega+j\\sin\\Omega'}</Tex>（Euler 公式）代入轉移函數 <Tex>{'H(z)'}</Tex>，得到的複數 <Tex>{'H(e^{j\\Omega})'}</Tex> 就是「頻率 <Tex>{'\\Omega'}</Tex> 的弦波通過系統後，振幅乘上
+            對一個每 block 更新一次的序列，「頻率」用每個 block 轉過的角度 <Tex>{'\\Omega'}</Tex>（rad/block）描述，<Tex>{'\\Omega=2\\pi f/f_u'}</Tex>，最高到 <Tex>{'\\Omega=\\pi'}</Tex>（<Tex>{'f=f_u/2'}</Tex>）。把 <Tex>{'z=e^{j\\Omega}=\\cos\\Omega+j\\sin\\Omega'}</Tex>（Euler 公式）代入轉移函數 <Tex>{'H(z)'}</Tex>，得到的複數 <Tex>{'H(e^{j\\Omega})'}</Tex> 就是「頻率 <Tex>{'\\Omega'}</Tex> 的弦波通過系統後，振幅乘上
             <Tex>{'|H|'}</Tex>、相位加上 <Tex>{'\\angle H'}</Tex>」。功率譜密度（PSD）<Tex>{'S(f)'}</Tex> 是「每 Hz 有多少功率」，總功率（變異數）是它的積分；白雜訊的 PSD 是平的，通過系統後 PSD 乘上{' '}
             <Tex>{'|H|^2'}</Tex>。
           </p>

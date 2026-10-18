@@ -166,8 +166,7 @@ export function S4Jacobian() {
               ]}
             />
             <p>
-              例：<Tex>{String.raw`\Delta=0.3\sigma_v`}</Tex>：<Tex>{String.raw`\operatorname{erf}(0.3/\sqrt2)=${tn(fd.erf03, 5)}`}</Tex>，<Tex>{String.raw`K_q\Delta=0.3\sqrt{2/\pi}=${tn(0.3 * Math.sqrt(2 / Math.PI), 5)}`}</Tex>，
-              比值 <Tex>{String.raw`${tn(r03.pm1, 5)}`}</Tex>（−{n(100 * (1 - r03.pm1), 2)}%）。
+              例：<Tex>{String.raw`\Delta=0.3\sigma_v`}</Tex>：<Tex>{String.raw`\operatorname{erf}(0.3/\sqrt2)=${tn(fd.erf03, 5)}`}</Tex>，<Tex>{String.raw`K_q\Delta=0.3\sqrt{2/\pi}=${tn(0.3 * Math.sqrt(2 / Math.PI), 5)}`}</Tex>，比值 <Tex>{String.raw`${tn(r03.pm1, 5)}`}</Tex>（−{n(100 * (1 - r03.pm1), 2)}%）。
             </p>
           </Deriv>
         </ModeGate>
@@ -282,8 +281,7 @@ export function S4Jacobian() {
           <p>
             任何實矩陣 <Tex>{String.raw`\mathbf J=\mathbf U\boldsymbol\Sigma\mathbf V^T`}</Tex>：<Tex>{String.raw`\mathbf U,\mathbf V`}</Tex> 的欄互相垂直（<Tex>{String.raw`\mathbf U^T\mathbf U=\mathbf V^T\mathbf V=\mathbf I`}</Tex>），
             <Tex>{String.raw`\boldsymbol\Sigma=\operatorname{diag}(\sigma_1\ge\sigma_2\ge\dots\ge0)`}</Tex>。<Tex>{String.raw`\sigma_i`}</Tex> 是 <Tex>{String.raw`\mathbf J`}</Tex> 沿{' '}
-            <Tex>{String.raw`\mathbf v_i`}</Tex> 方向的「放大倍率」。和 eigenvalue 的差別：<Tex>{String.raw`\mathbf J`}</Tex> 不對稱時 eigenvalue 可能是負的或複數，singular value 永遠是非負實數。
-            實用關係：<Tex>{String.raw`\mathbf J^T\mathbf J=\mathbf V\boldsymbol\Sigma\mathbf U^T\mathbf U\boldsymbol\Sigma\mathbf V^T=\mathbf V\boldsymbol\Sigma^2\mathbf V^T`}</Tex>。對稱正定矩陣的 SVD 就是它的 eigen 分解；對稱負定（例如{' '}
+            <Tex>{String.raw`\mathbf v_i`}</Tex> 方向的「放大倍率」。和 eigenvalue 的差別：<Tex>{String.raw`\mathbf J`}</Tex> 不對稱時 eigenvalue 可能是負的或複數，singular value 永遠是非負實數。實用關係：<Tex>{String.raw`\mathbf J^T\mathbf J=\mathbf V\boldsymbol\Sigma\mathbf U^T\mathbf U\boldsymbol\Sigma\mathbf V^T=\mathbf V\boldsymbol\Sigma^2\mathbf V^T`}</Tex>。對稱正定矩陣的 SVD 就是它的 eigen 分解；對稱負定（例如{' '}
             <Tex>{String.raw`-\mathbf R`}</Tex>）則 <Tex>{String.raw`\sigma_i=|\lambda_i|`}</Tex>。符號提醒：這裡的 <Tex>{String.raw`\mathbf V`}</Tex> 是{' '}
             <Tex>{String.raw`\mathbf J`}</Tex> 的右 singular vectors；匹配模型 <Tex>{String.raw`\mathbf J=-K_q\mathbf R`}</Tex> 時它恰好就是前面{' '}
             <Tex>{String.raw`\mathbf R`}</Tex> 的 eigenvector 矩陣，而且 <Tex>{String.raw`\sigma_i=K_q\lambda_i`}</Tex>。

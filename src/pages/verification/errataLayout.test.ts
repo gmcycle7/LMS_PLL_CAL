@@ -24,8 +24,8 @@ describe('驗證頁：勘誤的公式對照不橫向捲動', () => {
     expect(unconditional).not.toMatch(/katex-display > \.katex[^{]*\{[^}]*white-space:\s*normal/)
   })
 
-  it('兩格都還在：ErrataBrowser 仍然用 .ver-em-grid 包住「規格原文」與「網站採用的修正」', () => {
-    const src = readFileSync(resolve(process.cwd(), 'src/pages/verification/sections/ErrataBrowser.tsx'), 'utf8')
+  it('兩格都還在：ErrataBrowserBody 仍然用 .ver-em-grid 包住「規格原文」與「網站採用的修正」', () => {
+    const src = readFileSync(resolve(process.cwd(), 'src/pages/verification/sections/ErrataBrowserBody.tsx'), 'utf8')
     expect(src).toContain('className="ver-em-grid"')
     expect(src).toContain('規格原文')
     expect(src).toContain('網站採用的修正')

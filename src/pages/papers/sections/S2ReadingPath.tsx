@@ -55,8 +55,7 @@ export function S2ReadingPath() {
     <Section kind="diagram" level={2} title="2. 閱讀路線：只會微積分，要從哪一篇開始？" id="papers-path">
       <Question>七份文獻難度差很多；先讀錯一篇（例如 D2 的 Toeplitz pseudospectrum），很容易以為自己數學不夠而放棄。</Question>
       <p>
-        原則只有一個：<strong>先在本站把對應章節的推導走過一次，再去讀文獻</strong>。這樣讀論文時，你只需要做「符號對照」與「條件對照」，不必同時學新數學。
-        下圖的箭頭表示「建議先讀」。
+        原則只有一個：<strong>先在本站把對應章節的推導走過一次，再去讀文獻</strong>。這樣讀論文時，你只需要做「符號對照」與「條件對照」，不必同時學新數學。下圖的箭頭表示「建議先讀」。
       </p>
       <Mermaid chart={READING_PATH_CHART} caption="建議閱讀順序（D1–D7 為規格書附錄 D 的編號；標「本站」的方塊是本站的預備章節）" ariaLabel="文獻閱讀路線圖" />
       {mode === 'beginner' && (
@@ -121,7 +120,7 @@ export function S2ReadingPath() {
       <ModeGate min="research">
         <p className="small muted">
           Research：D2（Toeplitz 矩陣的漸近 pseudospectrum）需要的線性代數超出本站 <ChRef ch="09">Ch09</ChRef>–<ChRef ch="10">Ch10</ChRef> 的範圍；建議先讀 Strang 的特徵值章節與 Oppenheim & Schafer 的
-          DTFT， 再讀 D2 的必要條件推導。
+          DTFT，再讀 D2 的必要條件推導。
         </p>
       </ModeGate>
     </Section>

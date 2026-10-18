@@ -2,7 +2,7 @@ import { texNum, texNumP } from '@/components'
 import type { HandCalcDef, HandCalcStep } from '@/data/types'
 import { svd } from '@/simulation/core'
 import { SETTLE_MAX_STEPS } from '@/pages/dashboard/thesisModel'
-import { cornerJudge, failureUpperBound, gCrit, identifiabilityThreshold, kq, requiredBlocks, secantRatio, slopeStdErr, trialsForZeroFailure, twoParamJlin, type CornerRowResult } from './judges'
+import { cornerJudge, failureUpperBound, gCrit, identifiabilityThreshold, kq, oneHotPatternFactor, polarityReadoutPlan, requiredBlocks, secantRatio, slopeStdErr, timingToneFromSpur, trialsForZeroFailure, twoParamJlin, type CornerRowResult } from './judges'
 
 /**
  * Sign-off 頁的「帶入手算」題（docs/teaching-style.md §7）。ID 採 'HC-SO.n'（SO = sign-off 頁，與公式的 'F-SO.n' 對應）。
@@ -12,6 +12,8 @@ import { cornerJudge, failureUpperBound, gCrit, identifiabilityThreshold, kq, re
  *   HC-SO.2 兩參數 Jacobian 的行列式與可辨識性門檻（§2.5，F-SO.6／F-SO.12）
  *   HC-SO.3 0 次失效的證據強度（§3.5，F-SO.8）
  *   HC-SO.4 同一個 μ 過最快與最慢的 corner（§4 的 Corner 判斷器，F-SO.5）
+ *   HC-SO.5 矽上量測計畫：要讀幾個 block 的 Ḡ 才能以 z = 3 判定極性、要花多少時間（§8.5，F-SO.3）
+ *   HC-SO.6 從頻譜儀的 spur dBc 反推 timing tone 的 peak 與單相 PHOS 殘差（§8.5，F-SO.13 = F-12.18 反過來用）
  * 本頁其他公式（累加器位元 F-SO.10、EFB 週期 F-SO.11、T18 的各自／聯合 pole F-SO.7、含延遲的 PM 與 μ 上限）在原章節已有手算題
  * （Ch04、Ch13、Ch10、Ch08），這裡不重複出題，頁面上改放連結。
  *
@@ -634,6 +636,142 @@ export const HANDCALCS: HandCalcDef[] = [
       String.raw`$d=1$ 的二次式 $z^2-z+g=0$：兩根相加 $=1$、相乘 $=g$。$g\le\tfrac14$ 是兩個實根（取大的）；$g>\tfrac14$ 是共軛複根，$|z|=\sqrt g$，到 $g=1=g_\text{crit}(1)$ 時剛好碰到單位圓。`,
       String.raw`$d=1$ 時 $\rho$ 漸近估計與逐 block 的 $k_{95}$ 不一定相同：$g_S=\tfrac14$（重根 $z=\tfrac12$）估計給 $5$、逐 block 要 $7$；$g_S=0.8$ 則估計給 $27$、逐 block 是 $26$。判定 $k_{95}\le B$ 用逐 block 的那個，所以 $B=6$ 時，只看估計會誤判通過。`,
       String.raw`把 $d$ 從 $1$ 改成 $0$ 再算一次：$PM$ 多了 $2\varphi_F$，$\rho_S$ 從 $0.95837$ 變成 $1-g_S=0.96011$——延遲不只吃掉相位，也改變收斂速度（$g$ 很小時反而快一點點；$g$ 一大就變成振盪衰減，到 $g_\text{crit}(d)$ 發散）。`,
+    ],
+  },
+
+  // ─────────────────────────── HC-SO.5 矽上量測計畫：要讀幾個 block、花多少時間（§8.5，F-SO.3） ───────────────────────────
+  {
+    id: 'HC-SO.5',
+    title: String.raw`矽上極性量測：$\Delta=0.3\sigma_v$ 時，要讀幾個 block 的 $\bar G$ 才能以 $z_t$ 判定極性？要花多少時間？`,
+    page: '/signoff',
+    formulaId: 'F-SO.3',
+    // 五行（手機欄寬約 290px，一行排不下會出現橫向捲軸）：Δ 與 σ_η；K；所需 block 數（兩種寫法各一行）；量測時間（每個 reference 週期一個 comparator sample ⇒ T_blk = N/f_ref）
+    formulaTex: String.raw`\begin{aligned}&\Delta=r\,\sigma_v,\qquad \sigma_\eta\approx\frac1{\sqrt N}\\[2pt]&K=K_qC=\frac{\sqrt{2/\pi}}{\sigma_v}\,C\\[2pt]&M_{\min}=\Big\lceil\frac{z_t^2}{2N\Delta^2K^2}\Big\rceil\\[2pt]&\phantom{M_{\min}}=\Big\lceil\frac12\Big(\frac{z_t\,\sigma_\eta}{K\Delta}\Big)^2\Big\rceil\\[2pt]&T_\text{blk}=\frac{N}{f_\text{ref}},\qquad T_\text{meas}=2M_{\min}T_\text{blk}\end{aligned}`,
+    level: 'engineer',
+    claim: 'approx',
+    inputs: [
+      { key: 'sigmaV', symbol: String.raw`\sigma_v`, label: 'comparator 前的雜訊 RMS', unit: String.raw`\mathrm{fs}`, default: 200, min: 1, max: 10000, practice: { choices: [100, 150, 200, 300] } },
+      { key: 'r', symbol: String.raw`r=\Delta/\sigma_v`, label: '擾動相對雜訊的比例', default: 0.3, min: 0.001, max: 1, practice: { choices: [0.1, 0.2, 0.25, 0.3] } },
+      { key: 'C', symbol: 'C', label: '這個 channel 的有效相關（可以是負的）', default: 0.1, min: -1, max: 1, practice: { choices: [0.05, 0.1, 0.2, 0.5, 1] } },
+      { key: 'N', symbol: 'N', label: '每個 GMAC block 的樣本數', unit: String.raw`\text{samples}`, default: 1024, min: 1, max: 1e8, integer: true, practice: { choices: [256, 512, 1024, 4096] } },
+      { key: 'fRef', symbol: String.raw`f_\text{ref}`, label: 'reference 頻率（每個 reference 週期一個 sample）', unit: String.raw`\mathrm{MHz}`, default: 100, min: 0.001, max: 1e5, practice: { choices: [50, 100, 200, 500, 1000] } },
+      { key: 'zt', symbol: 'z_t', label: '判決要求的信心倍數', default: 3, min: 0.5, max: 10, practice: { choices: [2, 3, 4, 6] } },
+    ],
+    validate: ({ sigmaV, r, C }) => {
+      if (C === 0) {
+        return String.raw`$C=0$：這個 channel 的 code 與誤差路徑的輸出完全不相關，沒有恢復力（$K=0$）——$M\to\infty$，讀再多 block 也判不出極性；這不是量測不夠久，而是參數不可辨識（§5 的 keep-out 候選）。請換 code delay $D$ 或換一個 channel。`
+      }
+      if (r > 0.3) {
+        return String.raw`$\Delta/\sigma_v=${inp(r)}>0.3$：擾動太大，中央差分的截斷偏差不能忽略（identity path 的截斷比 $r_\text{CD}=${texNum(secantRatio(r * sigmaV, sigmaV), 4)}$，F-SO.2），量到的 $|\hat K|$ 比小訊號的 $K_qC$ 小，這一題算的 $M_{\min}$ 會偏少。矽上量測請把強制的 $w$ 控制在 $w_0\pm0.3\sigma_v$ 以內（$\sigma_v=${inp(sigmaV)}$ fs 時 $\Delta\le${texNum(0.3 * sigmaV)}$ fs）。`
+      }
+      return null
+    },
+    solve: ({ sigmaV, r, C, N, fRef, zt }) => {
+      const plan = polarityReadoutPlan({ sigmaV, deltaRatio: r, C, N, fRefHz: fRef * 1e6, z: zt })
+      const { delta, Kq, K, sigmaEta, M } = plan
+      const rootN = Math.sqrt(N)
+      const kd = K * delta
+      const numer = zt * sigmaEta
+      const ratio = numer / Math.abs(kd)
+      const half = (ratio * ratio) / 2
+      const tBlkUs = plan.tBlockS * 1e6
+      const tMeasUs = plan.tMeasS * 1e6
+      const sign = C > 0 ? String.raw`$C>0$：預期 $\bar G_+<\bar G_-$（$\hat K>0$）` : String.raw`$C<0$：預期 $\bar G_+>\bar G_-$（$\hat K<0$，這個 channel 極性相反，要反相 $q$ 或修 regressor）`
+      return {
+        steps: [
+          { tex: String.raw`\Delta=r\,\sigma_v=${inp(r)}\times${inp(sigmaV)}=${num(delta)}\ \mathrm{fs}`, why: String.raw`強制寫進暫存器的擾動：$r\le0.3$ 才沒有明顯的 erf 截斷（F-SO.2）。這就是 w_force 暫存器要支援的最小步進量級。` },
+          { tex: String.raw`K_q=\frac{\sqrt{2/\pi}}{\sigma_v}=\frac{${texNum(SQRT_2_OVER_PI)}}{${inp(sigmaV)}}=${texNum(Kq)}\ \mathrm{fs}^{-1}`, why: String.raw`comparator 的小訊號增益；$\sqrt{2/\pi}=0.79788$。` },
+          { tex: String.raw`K=K_q\,C=${texNum(Kq)}\times${inpP(C)}=${texNum(K)}\ \mathrm{fs}^{-1}`, why: String.raw`這個 channel 的恢復力。${sign}。` },
+          { tex: String.raw`\sigma_\eta\approx\frac1{\sqrt N}=\frac1{\sqrt{${int(N)}}}=\frac1{${texNum(rootN)}}=${texNum(sigmaEta)}`, why: String.raw`讀出的每一個 block 平均 $\bar G$ 的雜訊：$N$ 個 $\pm1$ 的平均（F-SO.3 的 $\sigma_\eta$）。` },
+          { tex: String.raw`K\Delta=${texNum(K)}\times${num(delta)}=${texNum(kd)}`, why: String.raw`兩個工作點相差 $2\Delta$，GMAC 平均相差 $2K\Delta$：這是要從雜訊裡分辨出來的「訊號」的一半。` },
+          { tex: String.raw`\frac{z_t\,\sigma_\eta}{|K\Delta|}=\frac{${inp(zt)}\times${texNum(sigmaEta)}}{${texNum(Math.abs(kd))}}=\frac{${texNum(numer)}}{${texNum(Math.abs(kd))}}=${texNum(ratio)}`, why: String.raw`要求 $z=|K|\Delta\sqrt{2M}/\sigma_\eta\ge z_t$，解出 $\sqrt{2M}\ge z_t\sigma_\eta/(|K|\Delta)$：先把右邊算出來。` },
+          { tex: String.raw`M_{\min}=\Big\lceil\frac12\Big(\frac{z_t\sigma_\eta}{|K|\Delta}\Big)^2\Big\rceil=\Big\lceil\frac{${sq(ratio)}}{2}\Big\rceil=\Big\lceil\frac{${texNum(ratio * ratio)}}{2}\Big\rceil=\left\lceil${ceilArg(half, M)}\right\rceil=${int(M)}`, why: String.raw`兩邊平方再除以 $2$，無條件進位（每側至少 $1$ 個 block）。代回去就是 F-SO.3 的 $z_t^2/(2N\Delta^2K^2)$。` },
+          { tex: String.raw`T_\text{blk}=\frac{N}{f_\text{ref}}=\frac{${int(N)}}{${inp(fRef)}\ \mathrm{MHz}}=${texNum(tBlkUs)}\ \mu\mathrm{s}`, why: String.raw`每個 reference 週期一個 comparator sample，所以一個 block 要 $N$ 個 reference 週期（$1/\mathrm{MHz}=\mu\mathrm{s}$）。` },
+          { tex: String.raw`T_\text{meas}=2M_{\min}T_\text{blk}=2\times${int(M)}\times${texNum(tBlkUs)}=${texNum(tMeasUs)}\ \mu\mathrm{s}`, why: String.raw`兩側（$+\Delta$、$-\Delta$）各 $M_{\min}$ 個 block。每次改 $w$ 後丟掉的 settling block（主 PLL 經 $T$ 的暫態，通常幾個 block）另外加。` },
+        ],
+        results: [
+          { symbol: String.raw`\Delta`, label: '強制寫入的擾動', value: delta, unit: String.raw`\mathrm{fs}` },
+          { symbol: 'K', label: '恢復力', value: K, unit: String.raw`\mathrm{fs}^{-1}` },
+          { symbol: String.raw`M_{\min}`, label: '每側至少要讀幾個 block', value: M, unit: String.raw`\text{blocks}`, digits: 10, tolerance: CEIL_TOL },
+          { symbol: String.raw`T_\text{meas}`, label: '兩側各 M 個 block 的量測時間', value: tMeasUs, unit: String.raw`\mu\mathrm{s}`, tolerance: { abs: 1e-9, rel: 0.01 } },
+        ],
+        notes: [
+          String.raw`讀出 $2M_{\min}=${int(2 * M)}$ 個 block 平均後：$\hat K=-(\bar G_+-\bar G_-)/(2\Delta)$，和 $\mathrm{se}=\sigma_\eta/(\Delta\sqrt{2M})=${texNum(plan.se)}$ fs$^{-1}$ 比，預期的 $z=${texNum(plan.zExpected, 4)}\ge z_t$。${sign}。`,
+          String.raw`$M_{\min}\propto1/(C^2\Delta^2N)$：$C$ 小一半要 4 倍的 block；$\Delta$ 已經卡在 $0.3\sigma_v$ 不能再大，所以靠近 keep-out 的 channel 只能靠 $N$ 與 $M$（也就是時間）換信心。`,
+          String.raw`這是「期望」的 $z$：實際的 $\hat K/\mathrm{se}$ 以它為中心、標準差 $1$ 散布，要有裕度就把 $z_t$ 設成 $4$–$6$ 再算一次。`,
+        ],
+      }
+    },
+    tips: [
+      String.raw`範例（§8.5 表格的數字）：$\sigma_v=200$ fs、$r=0.3$、$C=0.1$、$N=1024$、$f_\text{ref}=100$ MHz、$z_t=3$：$\Delta=60$ fs、$K_q=0.0039894$、$K=0.00039894$ fs$^{-1}$、$\sigma_\eta=1/32$、$M_{\min}=8$、$T_\text{blk}=10.24\ \mu$s、$T_\text{meas}=163.84\ \mu$s。`,
+      String.raw`心算捷徑：$N=1024$ 時 $\sigma_\eta=1/32$；$z_t=3$ 時 $z_t\sigma_\eta=3/32=0.09375$，除以 $K\Delta$ 再平方、除以 $2$ 就是 $M_{\min}$。`,
+      String.raw`把 $C$ 改成 $0.05$（更靠近 keep-out）：$M_{\min}$ 變 4 倍（$31$），時間也 4 倍；把 $N$ 改成 $4096$：$M_{\min}$ 變 $2$，但每個 block 長 4 倍，總時間差不多——時間預算真正由 $N\cdot M$ 決定。`,
+      String.raw`$\Delta$ 的步進：w_force 暫存器的最小步進要明顯小於 $0.3\sigma_v$（例如 $\le0.1\sigma_v$），不然 $\Delta$ 只能取到 $0$ 或太大。`,
+    ],
+  },
+
+  // ─────────────────────────── HC-SO.6 從頻譜儀的 spur dBc 反推 timing tone 與 PHOS 殘差（§8.5，F-SO.13） ───────────────────────────
+  {
+    id: 'HC-SO.6',
+    title: String.raw`從頻譜儀的 spur（dBc）反推 DTC／PMUX 端的 timing tone peak $A_t$，再反推單相的 PHOS 殘差 $\delta_P$`,
+    page: '/signoff',
+    formulaId: 'F-SO.13',
+    // 五行（手機欄寬約 290px）：spur 的定義；β；A_t（輸出端除以 |T| 回到 DTC 端）；δ_P；pattern 係數
+    formulaTex: String.raw`\begin{aligned}&\mathrm{spur}\approx20\log_{10}\frac\beta2\\[2pt]&\beta=2\cdot10^{\mathrm{spur}/20}\\[2pt]&A_t=\frac{\beta}{2\pi f_\text{out}\,|T(f_m)|}\\[2pt]&\delta_P=\frac{A_t}{\kappa_\text{pat}}\\[2pt]&\kappa_\text{pat}=\frac{2\sin(\pi/P)}{\pi}\ \ (\text{單相殘差})\end{aligned}`,
+    level: 'engineer',
+    claim: 'approx',
+    inputs: [
+      { key: 'spur', symbol: String.raw`\mathrm{spur}`, label: '頻譜儀讀到的單邊 spur', unit: String.raw`\mathrm{dBc}`, default: -60, min: -200, max: 0, practice: { choices: [-80, -70, -60, -50, -40] } },
+      { key: 'fOut', symbol: String.raw`f_\text{out}`, label: 'PLL 輸出頻率', unit: String.raw`\mathrm{GHz}`, default: 13, min: 0.001, max: 1000, practice: { choices: [8, 10, 13, 16, 20] } },
+      { key: 'tDb', symbol: String.raw`|T(f_m)|`, label: 'tone 頻率處的輸出 transfer', unit: String.raw`\mathrm{dB}`, default: 0, min: -100, max: 20, practice: { choices: [-20, -12, -6, -3, 0, 1, 2] } },
+      { key: 'P', symbol: 'P', label: 'PMUX 的相數（單一相有殘差）', default: 8, min: 2, max: 64, integer: true, practice: { choices: [4, 8, 16] } },
+    ],
+    validate: ({ spur }) => {
+      if (spur > -20) {
+        return String.raw`spur $=${inp(spur)}$ dBc $>-20$ dBc：$\beta=2\cdot10^{\mathrm{spur}/20}=${texNum(2 * 10 ** (spur / 20), 3)}$ rad，小角近似 $J_1(\beta)/J_0(\beta)\approx\beta/2$ 開始失準（要用 F-12.18 的 Bessel 精確式），而且這麼大的 spur 遠超過任何校正後的預算——先確認它不是 reference spur 或其他來源。`
+      }
+      return null
+    },
+    solve: ({ spur, fOut, tDb, P }) => {
+      const fOutHz = fOut * 1e9
+      const magT = 10 ** (tDb / 20)
+      const halfBeta = 10 ** (spur / 20)
+      const beta = 2 * halfBeta
+      const twoPiF = 2 * Math.PI * fOutHz
+      const atOutS = beta / twoPiF
+      const atOut = timingToneFromSpur(fOutHz, spur, 1)
+      const at = timingToneFromSpur(fOutHz, spur, magT)
+      const kappa = oneHotPatternFactor(P)
+      const dP = at / kappa
+      return {
+        steps: [
+          { tex: String.raw`10^{\mathrm{spur}/20}=10^{${inp(spur)}/20}=10^{${num(spur / 20)}}=${texNum(halfBeta)}`, why: String.raw`dBc 是 $20\log_{10}$ 的振幅比：先把 spur 換回線性振幅比 $\beta/2$（計算機按 $10^x$）。` },
+          { tex: String.raw`\beta=2\times10^{\mathrm{spur}/20}=2\times${texNum(halfBeta)}=${texNum(beta)}\ \mathrm{rad}`, why: String.raw`單邊 spur $\approx20\log_{10}(\beta/2)$（F-12.18 的小角近似），所以 $\beta$ 是它的兩倍。$\beta$ 是輸出相位調變的 peak（rad）。` },
+          { tex: String.raw`2\pi f_\text{out}=2\pi\times${inp(fOut)}\times10^{9}=${texNum(twoPiF)}\ \mathrm{rad/s}`, why: String.raw`時間誤差換相位的係數：輸出每差 $1$ s 就是 $2\pi f_\text{out}$ rad。` },
+          { tex: String.raw`A_{t,\text{out}}=\frac{\beta}{2\pi f_\text{out}}=\frac{${texNum(beta)}}{${texNum(twoPiF)}}=${texNum(atOutS)}\ \mathrm{s}`, why: String.raw`F-12.16 反過來：輸出端的 timing tone peak（相位 ÷ $2\pi f_\text{out}$）。` },
+          { tex: String.raw`A_{t,\text{out}}=${texNum(atOutS)}\times10^{15}=${texNum(atOut)}\ \mathrm{fs}`, why: String.raw`換成 fs（$1\ \mathrm{fs}=10^{-15}$ s）。` },
+          { tex: String.raw`|T(f_m)|=10^{${inp(tDb)}/20}=10^{${num(tDb / 20)}}=${texNum(magT)}`, why: String.raw`輸出 transfer 在 tone 頻率的大小（dB 換回線性）。帶內 $\approx1$（有 peaking 時略大於 $1$），帶外被 PLL 濾掉、遠小於 $1$。` },
+          { tex: String.raw`A_t=\frac{A_{t,\text{out}}}{|T(f_m)|}=\frac{${texNum(atOut)}}{${texNum(magT)}}=${texNum(at)}\ \mathrm{fs}`, why: String.raw`儀器量到的是經 $|T|$ 的輸出量；除回去才是 DTC／PMUX 端（PD 的 reference 輸入）的 tone peak。帶外的 tone 在輸出看起來小，不代表 DTC 端的殘差小。` },
+          { tex: String.raw`\kappa_\text{pat}=\frac{2\sin(\pi/P)}{\pi}=\frac{2\sin(\pi/${int(P)})}{\pi}=\frac{2\times${texNum(Math.sin(Math.PI / P))}}{${texNum(Math.PI)}}=${texNum(kappa)}`, why: String.raw`只有一相有 offset 殘差 $\delta_P$ 時，one-hot 的指示函數是分數相位 $\mathrm{frac}(\alpha n)$ 的寬 $1/P$ 方窗（殘量交給 DTC），$\alpha f_\text{ref}$ 那一根（$\ell=1$）的 Fourier 係數是 $\sin(\pi/P)/\pi$，實數 tone 的 peak 再乘 $2$（§8.5 的推導；等於 $P$ 點 DFT 的 $\delta_P/P$ 乘案例頁 F-CS.21 的 $\sqrt{w_1}=P\sin(\pi/P)/\pi$）。只有 $\alpha=s/P$（DTC 殘量固定）時才是 $2/P$。多相同時有殘差要用 F-CS.21 的 DFT。` },
+          { tex: String.raw`\delta_P=\frac{A_t}{\kappa_\text{pat}}=\frac{${texNum(at)}}{${texNum(kappa)}}=${texNum(dP)}\ \mathrm{fs}`, why: String.raw`那一相的 PHOS 殘差：和 freeze 後讀到的該相 $w^*$（或 PMUX 相位強制量到的 $\hat J_{PP}$ 殘差）比對，差太多就是 bias 或量到了別的來源。` },
+        ],
+        results: [
+          { symbol: String.raw`\beta`, label: '輸出相位調變指數', value: beta, unit: String.raw`\mathrm{rad}` },
+          { symbol: 'A_t', label: 'DTC 或 PMUX 端 timing tone 的 peak', value: at, unit: String.raw`\mathrm{fs}` },
+          { symbol: String.raw`\delta_P`, label: '單一相的 PHOS 殘差', value: dP, unit: String.raw`\mathrm{fs}` },
+        ],
+        notes: [
+          String.raw`驗算（正向）：$20\log_{10}(\pi f_\text{out}|T|A_t)=20\log_{10}(\beta/2)=${texNum(20 * Math.log10(halfBeta), 4)}$ dBc，就是輸入的 spur。`,
+          String.raw`同一個 $A_t$ 在不同 $f_\text{out}$ 的 spur 差 $20\log_{10}$ 的頻率比：$f_\text{out}$ 加倍，spur 高 $6$ dB。`,
+          String.raw`這裡的 spur 是校正「之後」殘留的那一根（在 $\alpha f_\text{ref}$ 或其倍頻）；reference spur（$f_\text{ref}$ 偏移）另有來源，不能拿來反推 PHOS。`,
+        ],
+      }
+    },
+    tips: [
+      String.raw`範例（§8.5 表格）：spur $=-60$ dBc、$f_\text{out}=13$ GHz、$|T|=0$ dB、$P=8$：$\beta=0.002$ rad、$2\pi f_\text{out}=8.1681\times10^{10}$、$A_t=24.485$ fs、$\kappa_\text{pat}=0.24362$、$\delta_P=100.5$ fs。`,
+      String.raw`心算：$-60$ dBc $\Rightarrow\beta/2=10^{-3}$；$-40$ dBc $\Rightarrow10^{-2}$（每 $20$ dB 一個數量級）。`,
+      String.raw`把 $|T|$ 改成 $-20$ dB（tone 在帶外）：輸出看到同樣的 $-60$ dBc，DTC 端的 $A_t$ 卻是 $10$ 倍（$244.85$ fs）——帶外的殘差在輸出被 PLL 濾掉了，不代表它不存在。`,
+      String.raw`$P=8$ 時 $\kappa_\text{pat}=0.2436$（$\approx1/4$）：殘差 $\delta_P$ 是 tone peak 的 $4.10$ 倍；$P=16$ 時 $\kappa_\text{pat}=0.1242$、$8.05$ 倍。$P$ 越大 $\kappa_\text{pat}\to2/P$（$\sin(\pi/P)\approx\pi/P$）。`,
     ],
   },
 ]

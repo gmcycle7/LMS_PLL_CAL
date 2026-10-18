@@ -74,7 +74,7 @@ docs/                    # 規格、勘誤、假設、風格規範、本文件
 | `Tex` | 行內 KaTeX | `children: string`（TeX 原始碼） |
 | `TexBlock` | 獨立公式（display mode），可帶 `id`（formula ID，例如 `F-03.1`） | `children: string; id?: string; label?: ReactNode` |
 | `Mermaid` | Mermaid 方塊圖，跟隨深淺主題；節點與圖說裡的 `$...$` 由 KaTeX 排版 | `chart: string; caption?: string; ariaLabel?: string` |
-| `Plot` | Plotly 圖表封裝：hover、zoom、reset、下載 PNG/SVG/CSV；跟隨主題；lazy-load plotly | `data: Plotly.Data[]; layout?: Partial<Plotly.Layout>; height?: number; csvName?: string; title?: string; xLog?/yLog?` |
+| `Plot` | Plotly 圖表封裝：hover、zoom、reset、下載 PNG/SVG/CSV；跟隨主題；lazy-load plotly（載入的是 `plotly.js-cartesian-dist-min`，只含 2D trace：scatter／bar／histogram／heatmap，1.39 MB raw／0.47 MB gzip，完整版是 4.67／1.42 MB；`src/components/plotlyBundle.test.ts` 釘住這個 bundle 必須包含什麼） | `data: Plotly.Data[]; layout?: Partial<Plotly.Layout>; height?: number; csvName?: string; title?: string; xLog?/yLog?` |
 | `ParamControl` | 滑桿 + 數字輸入（可精確輸入 0.00001）+ 單位 + 合法範圍 + 對應 Hardware Reg / Behavioral Parameter；可 log 刻度 | `label; value; onChange; min; max; step; unit?; log?; hint?; reg?; digits?` |
 | `SelectControl` / `ToggleControl` | 下拉、開關 | `label; value; onChange; options` |
 | `ClaimTag` | 規格 §0.1 三層結論標籤 | `kind: 'exact' \| 'approx' \| 'research'`，顯示「精確｜指定模型」「近似｜需驗證」「研究假說／延伸」 |
@@ -86,6 +86,7 @@ docs/                    # 規格、勘誤、假設、風格規範、本文件
 | `MetricTable` | 指標表：名稱、數值、單位、公式 ID、標籤、與解析值的差距 | `rows: MetricRow[]` |
 | `ExperimentShell` | 互動實驗外框（見 §3） | 見下 |
 | `TestBadge` | 顯示某 T-id 的驗證狀態（來自 `src/data/verification-status.json`） | `id: 'T01'…` |
+| `SearchButton`／`loadSearchPalette` | 全站搜尋（`src/components/search/`）：頂列的 🔍 鈕與延後載入的命令面板；快捷鍵 `/` 與 ⌘K／Ctrl+K；索引沒有建置步驟，第一次開面板時才由 `buildIndex.ts` 從公式登錄、presets、勘誤、術語、手算題與 `PAGES` 彙整，目前這一頁的 h2 由 `searchCore.collectPageSections` 從 DOM 讀。純函式在 `searchCore`（`search`、`scoreEntry`、`makeEntry`） | `<SearchButton open onClick />`；`lazy(loadSearchPalette)`（Layout 已接好，章節不用做任何事） |
 | `ModeGate` | 依學習模式顯示（實作在 `@/app/settings`，`@/components` 轉出） | `min: 'beginner' \| 'engineer' \| 'research'`：目前模式低於 `min` 就不渲染 |
 
 教學用元件（`CodeBlock`、`CodeCompare`、`SymbolTable`、`Quiz`、`Recap`、`Prereq`、`StepDerivation`、`HandCalc`、`SystemMap`、`DiagramFrame`）與字串屬性裡的 `$...$` 行內公式（`mathText`）的用法在 `docs/dev/infra-api.md` 的「後續新增的共用元件」一節。
@@ -114,7 +115,8 @@ interface ExperimentShellProps {
   metrics?: MetricRow[]
   warnings?: string[]              // 例如 C<=0 的 polarity 警告，必須顯示並解釋原因
   crossCheck?: { analytic; monteCarlo; fixedPoint }   // 各項為 'ok' | 'mismatch' | 'not-implemented' | 'n/a'，或 { status, note }
-  actions?: { onReset?(); onStep?(); onRun?(); onRunToConvergence?(); onStop?(); onFreeze?(); running?: boolean; frozen?: boolean }
+  actions?: { onReset?(); onStep?(); onRun?(); onRunToConvergence?(); onStop?(); onFreeze?(); running?: boolean; frozen?: boolean;
+              runKind?: 'compute' | 'animate'; progress?: { done: number; total: number; unit?: string }; onSkipToEnd?() }
   exportData?: () => CsvColumns    // CSV 欄位（長度可不同，短欄以空白補齊）
   presets?: ExperimentPreset[]; onLoadPreset?(p): void
   headingLevel?: 2 | 3 | 4
@@ -128,6 +130,11 @@ interface ExperimentShellProps {
 4. Analytic / Monte Carlo / Fixed-Point 交叉比對：只有真的算過才標 `ok`；未實作者明確顯示 `Not implemented`。
 5. 可下載 JSON（參數 + 指標 + seed + 版本 + 假設）、CSV（資料）、HTML 報告。
 6. 不要每次拖動滑桿就重跑數百萬點：用 `useDeferredValue`、debounce 或 Worker。
+7. 「執行 Run」要說清楚是哪一種（`actions.runKind`）：
+   - `'compute'`（預設）：背景計算（Worker／同步算完），按下去等結果。有 Worker 進度就給 `actions.progress = { done, total, unit? }`（例如已完成 3/9 seeds）；只在 `running` 時顯示步數與進度條，手機上等結果到了才捲到結果區。
+   - `'animate'`：固定速度逐步播放（Ch01 LMS Playground 350 ms／步、Ch04 Signal Flow 300 ms／步，後者約 2 分鐘）。要同時給 `progress`（Run 鈕顯示「（112/408 步）」與進度條，停在半路也看得到）與 `onSkipToEnd`（多一顆「跳到結尾」，到了終點就停用）；手機上按執行就捲到結果區，因為結果從第一步就在變。
+   - 「跳到結尾」必須和逐步執行共用同一個計算核心（把游標／狀態直接放到終點，不要另寫一份「快速版」），否則跳到結尾看到的結果和一步一步看到的會不一樣。
+8. 參數控制項超過 12 個（`CONTROL_COLLAPSE_THRESHOLD`）就要分組：用 `ControlGroup`（`@/components`，`title`、`defaultOpen?`）把相關的控制項包起來；超過門檻時整欄自動變成每組一個 `<details>`（第一組展開、其餘收合），12 個以內只是帶小標題的區塊。沒有明確分組時，ExperimentShell 會在前 8 個控制項之後自動切一刀，把其餘收進「其餘參數」。控制欄不准出現內部捲軸——太長就分組，不要加 `overflow: auto`。
 
 ## 4. 模擬核心 API 概要（`src/simulation/core`、`src/simulation/signal`）
 
@@ -206,6 +213,7 @@ xcorrAtLag(x, y, lag), xcorr(x, y, maxLag)
 - 介面與說明以繁體中文為主，保留精確英文術語（GMAC、Sign-Error LMS、Persistent Excitation…）。
 - 不得寫「LMS 一定穩定」；必須說明是平均收斂、均方穩定、機率性有界、局部線性穩定或全域非線性。
 - 不得把未完成功能標成已驗證；未實作 = 明確顯示 `Not implemented` / `pending`。
+- 無障礙名稱（aria-label、title、aria-valuetext、`<option>`）一律用 `accessibleText`（`@/components`，會把 `$…$` 轉成可念的文字），不用 `stripMathDelimiters`（它保留 TeX 原始碼，只用在 id、檔名、程式碼與報告）；`CodeCompare` 的分頁標籤可以含 `$…$`。
 
 ## 8. 審查腳本（改了畫面就要跑）
 
@@ -219,7 +227,7 @@ npm run dev          # 另一個終端機；預設 http://localhost:5173（腳�
 
 | 腳本 | 用途 | 旗標（括號內是預設值） |
 |---|---|---|
-| `screenshots.mjs` | 截圖，PNG 用來**親眼看**：文字有沒有被切掉或重疊、連線有沒有不必要的交叉、淺深色主題、手機版 | `--base`（`http://localhost:5173`）、`--out`（`outputs/shots`）、`--routes`（`/`）、`--theme light,dark`（`light`）、`--viewport desktop,mobile,wide`（`desktop`）、`--mode beginner\|engineer\|research`（`engineer`）、`--shots`（`top`）、`--only 3,7`（序號從 1 起算，與 diagram-audit 相同）、`--chrome` |
+| `screenshots.mjs` | 截圖，PNG 用來**親眼看**：文字有沒有被切掉或重疊、連線有沒有不必要的交叉、淺深色主題、手機版 | `--base`（`http://localhost:5173`）、`--out`（`outputs/shots`）、`--routes`（`/`）、`--theme light,dark`（`light`）、`--viewport desktop,mobile,wide,xwide`（`desktop`；`xwide` = 1720×950，頁內目錄才會變成右側欄）、`--mode beginner\|engineer\|research`（`engineer`）、`--shots`（`top`）、`--only 3,7`（序號從 1 起算，與 diagram-audit 相同）、`--chrome` |
 | `diagram-audit.mjs` | 量每張方塊圖的自然寬×高、縮放倍率、超出版面的寬度；標出畫不出來（ERROR）與 `Unsupported markdown` | `--base`、`--routes`、`--viewport desktop\|mobile`（`desktop`）、`--mode`（`research`）、`--json <檔>`、`--chrome` |
 | `scroll-audit.mjs` | 找出所有真的會出現捲軸的區塊並分類（見下） | `--base`、`--routes`、`--viewport desktop\|mobile`（`desktop`）、`--mode`（`research`）、`--formulas`（另外列出比欄位寬的獨立公式）、`--json <檔>`、`--chrome` |
 | `dom-eval.mjs` | 開一頁、等方塊圖畫完，在頁面裡執行一段 JS 並印出回傳值（量元素數量、文字、尺寸） | `node scripts/dom-eval.mjs <網址> '<JS 函式主體>' [mobile]`；網址要含 hash（`http://localhost:5173/#/ch/05`），**要 `return` 結果**（內容會包在 `async` 函式裡），不設定學習模式 |
@@ -243,7 +251,7 @@ npm run dev          # 另一個終端機；預設 http://localhost:5173（腳�
 2. 改到方塊圖或圖所在的章節跑 `diagram-audit.mjs`：桌機的「超出」是 0、沒有 `ERROR`、沒有 `UNSUPPORTED-MARKDOWN`（手機上圖在自己的外框內橫向捲動，是預期行為）。
 3. 用 `screenshots.mjs` 把改到的東西截下來**看過**：顏色有變就淺色與深色都看；版面有變就加 `--viewport mobile`；內容隨學習模式分層的，三種 `--mode` 各看一次。
 4. 要量 DOM（元素數量、某段文字有沒有出現、元素寬度）時用 `dom-eval.mjs`，不要為了一次性的量測在 repo 裡留下暫存檔；輸出放 `outputs/`（已被 git 忽略）。
-5. 升級 `mermaid`、`katex`、`plotly.js-dist-min` 這類會改變渲染結果的套件前後，對同一組路由各跑一次 `diagram-audit.mjs`、`scroll-audit.mjs` 與 `screenshots.mjs --shots all-mermaid`，比較差異。
+5. 升級 `mermaid`、`katex`、`plotly.js-cartesian-dist-min` 這類會改變渲染結果的套件前後，對同一組路由各跑一次 `diagram-audit.mjs`、`scroll-audit.mjs` 與 `screenshots.mjs --shots all-mermaid`，比較差異。
 
 典型指令：
 

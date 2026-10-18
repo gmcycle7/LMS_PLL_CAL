@@ -38,8 +38,7 @@ export function S5Calculator() {
     <Section kind="example" level={2} title="14.4 重現第 10 課的設計計算器（並驗算）" id="ch14-calculator">
       <p>
         第 10 課的計算器輸入：<Tex>{'\\delta_0=3\\,\\mathrm{fs}'}</Tex>、<Tex>{'\\sigma_v=100\\,\\mathrm{fs}'}</Tex>、<Tex>{'N=4096'}</Tex>、總比較次數 131072（
-        <Tex>{'B=32'}</Tex> 次更新）、相位 <Tex>{'\\theta=0'}</Tex>，輸出「建議 <Tex>{'\\alpha=11.20\\,\\mathrm{fs}'}</Tex>、RMS 0.449 fs、pole 0.9106、PM <Tex>{'87.4^\\circ'}</Tex>」。
-        （課程把 learning rate 寫成 <Tex>{'\\alpha'}</Tex>，就是本章的 <Tex>{'\\mu'}</Tex>。）我們用同一條成本 F-14.3 重新計算，順序如下圖：
+        <Tex>{'B=32'}</Tex> 次更新）、相位 <Tex>{'\\theta=0'}</Tex>，輸出「建議 <Tex>{'\\alpha=11.20\\,\\mathrm{fs}'}</Tex>、RMS 0.449 fs、pole 0.9106、PM <Tex>{'87.4^\\circ'}</Tex>」。（課程把 learning rate 寫成 <Tex>{'\\alpha'}</Tex>，就是本章的 <Tex>{'\\mu'}</Tex>。）我們用同一條成本 F-14.3 重新計算，順序如下圖：
       </p>
       <Diagram chart={CHART_CALC_VERIFY} caption="驗算的順序：先重算課程的三個數字，再問「它真的是成本的最低點嗎」。">
         <p>
@@ -130,8 +129,8 @@ export function S5Calculator() {
         </p>
         <p>
           11.20 從哪裡來？課程沒有寫出算法，以下是<strong>推測</strong>，兩個候選都由程式重算：(1) 漸近封閉式 <Tex>{`\\ln A/(2BK)=${tx(r.asym.mu, 4)}\\,\\mathrm{fs}`}</Tex>（
-          <Tex>{`A=${tx(r.asym.A, 4)}`}</Tex>，把 <Tex>{'p^{2B}'}</Tex> 換成指數的近似），對應 pole <Tex>{`${tx(r.asym.pole, 4)}`}</Tex>； (2) 「32 次更新把平均誤差縮到 5%」的最小步長{' '}
-          <Tex>{`(1-0.05^{1/32})/K=${tx(r.eps5, 5)}\\,\\mathrm{fs}`}</Tex>（F-14.15 的單一 corner 版），對應 pole <Tex>{`0.05^{1/32}=${tx(1 - r.eps5 * m.K, 4)}`}</Tex>。 候選 (2) 同時重現課程的 11.20 fs 與 pole
+          <Tex>{`A=${tx(r.asym.A, 4)}`}</Tex>，把 <Tex>{'p^{2B}'}</Tex> 換成指數的近似），對應 pole <Tex>{`${tx(r.asym.pole, 4)}`}</Tex>；(2) 「32 次更新把平均誤差縮到 5%」的最小步長{' '}
+          <Tex>{`(1-0.05^{1/32})/K=${tx(r.eps5, 5)}\\,\\mathrm{fs}`}</Tex>（F-14.15 的單一 corner 版），對應 pole <Tex>{`0.05^{1/32}=${tx(1 - r.eps5 * m.K, 4)}`}</Tex>。候選 (2) 同時重現課程的 11.20 fs 與 pole
           0.9106 到所有列出的位數，候選 (1) 則是 {nf(r.asym.mu, 4)} fs／{nf(r.asym.pole, 4)}，所以 (2) 的可能性較高——也就是說課程的「建議值」其實是<strong>收斂要求的下限</strong>（§14.2 (d) 的型態），不是終點 RMS
           的最小點。無論哪一個，成本曲線在最佳點附近非常平：用 11.20 只多了 {(100 * penalty).toFixed(2)}% 的 RMS：<strong>工程上兩者都可以</strong>，但「最佳」一詞要用精確解。
         </p>

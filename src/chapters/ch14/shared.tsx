@@ -1,6 +1,6 @@
 import { Fragment, type ComponentProps, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import type { Shape } from 'plotly.js-dist-min'
+import type { Shape } from 'plotly.js-cartesian-dist-min'
 import { StepDerivation, Tex } from '@/components'
 import { useSettings, type LearningMode } from '@/app/settings'
 import { fmt } from '@/simulation/core'

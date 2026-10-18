@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import {
   CaseSelector,
   ExperimentShell,
@@ -8,8 +8,8 @@ import {
   Plot,
   SelectControl,
   Tex,
+  accessibleText,
   mathText,
-  stripMathDelimiters,
   useCases,
   useDebouncedValue,
   useThemeTokens,
@@ -597,7 +597,7 @@ export function LmsNoiseLab() {
                   <td className="num">{Number.isFinite(c.lp.f3dbExact) ? sigText(c.lp.f3dbExact / 1e3, 5) : '—'}</td>
                   <td className="num">{sigText(c.lp.enbw / 1e3, 5)}</td>
                   <td className="num">{sigText(c.lp.sigmaW, 4)}</td>
-                  <td className="num" title={stripMathDelimiters(chk.note)}>
+                  <td className="num" title={accessibleText(chk.note)}>
                     {r ? `${sigText(r.sigmaW, 4)} [${sigText(r.sigmaWLo, 3)}, ${sigText(r.sigmaWHi, 3)}] ${chk.status === 'ok' ? '✓' : chk.status === 'mismatch' ? '✗' : ''}` : mathText(itemOf(c.id)?.error ?? '—')}
                   </td>
                 </tr>

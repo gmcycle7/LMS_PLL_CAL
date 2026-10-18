@@ -29,7 +29,7 @@ const P = vi.hoisted(() => ({
   Plots: { resize: vi.fn() },
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
-vi.mock('plotly.js-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
 // 記錄 Plot 送進 Plotly 之前的 data／layout（`$...$` 還沒轉成 pseudo-HTML），檢查圖內文字都用 LaTeX 寫
 const PM = vi.hoisted(() => ({ calls: [] as [unknown, unknown][] }))
 vi.mock('@/components/plotMath', async (importOriginal) => {

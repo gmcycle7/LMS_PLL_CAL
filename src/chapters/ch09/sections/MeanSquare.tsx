@@ -21,16 +21,13 @@ export function MeanSquare() {
   return (
     <Section kind="assumptions" title="注意：598 是「平均」的敘述，不是每一條軌跡（mean vs mean-square）" level={2} id="ch09-ms">
       <Callout kind="warn" title={<>T11 的標籤是 [精確｜mean recursion]（<Erratum id="E23" />）</>}>
-        「慢 pole 0.995、約 598 blocks」描述的是 <strong>許多次實驗的平均</strong> {m`E[\boldsymbol\delta_k]`}。GMAC 的 {m`N`} 足夠大時，單一軌跡也大致照這個走；
-        但若 conventional（linear detector）LMS 以 per-sample（{m`N=1`}）更新、regressor 為 Gaussian，{m`g=0.5`} 在 <strong>mean-square</strong>
+        「慢 pole 0.995、約 598 blocks」描述的是 <strong>許多次實驗的平均</strong> {m`E[\boldsymbol\delta_k]`}。GMAC 的 {m`N`} 足夠大時，單一軌跡也大致照這個走；但若 conventional（linear detector）LMS 以 per-sample（{m`N=1`}）更新、regressor 為 Gaussian，{m`g=0.5`} 在 <strong>mean-square</strong>
         意義下是發散的（均方每個 block 的放大倍數 {m`\rho_{\mathrm{MS}}\approx${texNum(table[0].gauss, 3)}>1`}）；{m`\pm1`} sparse-flip code 的個別軌跡則呈<strong>階梯式</strong>歸零，只有 ensemble 平均依
         {m`0.995^k`} 衰減。標籤裡的「精確」指 linear detector 的平均遞迴；1-bit 時同一組數字（{m`g=\mu K_q=0.5`}）只是小訊號區 {m`s_\delta\ll1`} 的近似（F-09.3）。
       </Callout>
 
       <p>
-        「平均」與「均方」是對<strong>同一個</strong>隨機更新問兩個不同的問題。平均 {m`E[\boldsymbol\delta_k]`} 問的是「很多次實驗的誤差平均起來是多少」——
-        正的和負的會互相抵銷；均方 {m`E\|\boldsymbol\delta_k\|^2`} 問的是「誤差的<strong>大小</strong>平均起來是多少」——平方之後不會抵銷。
-        均方每個 block 的放大倍數記為 {m`\rho_{\mathrm{MS}}`}（mean-square 遞迴的 spectral radius，也就是最大的 eigenvalue 絕對值）：
+        「平均」與「均方」是對<strong>同一個</strong>隨機更新問兩個不同的問題。平均 {m`E[\boldsymbol\delta_k]`} 問的是「很多次實驗的誤差平均起來是多少」——正的和負的會互相抵銷；均方 {m`E\|\boldsymbol\delta_k\|^2`} 問的是「誤差的<strong>大小</strong>平均起來是多少」——平方之後不會抵銷。均方每個 block 的放大倍數記為 {m`\rho_{\mathrm{MS}}`}（mean-square 遞迴的 spectral radius，也就是最大的 eigenvalue 絕對值）：
         {m`\rho_{\mathrm{MS}}<1`} 才代表誤差的大小真的在縮小。
       </p>
       <Diagram id="mean-vs-ms">
@@ -39,10 +36,7 @@ export function MeanSquare() {
       <p>
         <FigRef id="mean-vs-ms" /> 怎麼看：先看出發點——每個 block 的更新矩陣 {m`\mathbf I-g\hat{\mathbf R}_k`} 是<strong>隨機</strong>的，
         {m`\hat{\mathbf R}_k`} 是這個 block 內 {m`N`} 筆 {m`\mathbf u\mathbf u^T`} 的平均。再看兩個分支——問平均時只需要
-        {m`E[\hat{\mathbf R}_k]=\mathbf R`}，得到上一節的 pole；問均方時 {m`\hat{\mathbf R}_k`} 出現兩次，需要四階動差，結果是另一個數 {m`\rho_{\mathrm{MS}}`}。
-        最後看寫著「block 加長」的方塊——{m`N`} 越大，{m`\hat{\mathbf R}_k`} 越接近 {m`\mathbf R`}，均方就回到「平均的平方」{m`p^2`}。
-        圖上的 {m`P`} 就是公式裡的 {m`\mathbf P_k=E[\boldsymbol\delta_k\boldsymbol\delta_k^T]`}，圖上的 {m`\hat R_k`} 就是推導裡的 {m`\hat{\mathbf R}_k`}，
-        紅色方塊的 1.98 就是 F-09.8 在 {m`N=1`} 時的 {m`\rho_{\mathrm{MS}}`}。
+        {m`E[\hat{\mathbf R}_k]=\mathbf R`}，得到上一節的 pole；問均方時 {m`\hat{\mathbf R}_k`} 出現兩次，需要四階動差，結果是另一個數 {m`\rho_{\mathrm{MS}}`}。最後看寫著「block 加長」的方塊——{m`N`} 越大，{m`\hat{\mathbf R}_k`} 越接近 {m`\mathbf R`}，均方就回到「平均的平方」{m`p^2`}。圖上的 {m`P`} 就是公式裡的 {m`\mathbf P_k=E[\boldsymbol\delta_k\boldsymbol\delta_k^T]`}，圖上的 {m`\hat R_k`} 就是推導裡的 {m`\hat{\mathbf R}_k`}，紅色方塊的 1.98 就是 F-09.8 在 {m`N=1`} 時的 {m`\rho_{\mathrm{MS}}`}。
       </p>
 
       <h3>先算一次：{m`N=1`} 時共模分量每一步乘上什麼？</h3>
@@ -155,8 +149,7 @@ export function MeanSquare() {
       </div>
       <p>
         變異數不可能是負的：{m`\mathrm{Var}(c)=E[c^2]-(E[c])^2\ge0`}（Jensen 不等式的特例），所以
-        {m`E[c_{i,k}^2]\ge(E[c_{i,k}])^2=p_i^{2k}c_{i,0}^2`}，也就是 {m`\rho_{\mathrm{MS}}\ge\max|p_i|^2`}——均方永遠不會比「平均的平方」收斂得快；
-        Gaussian {m`N=1`} 時差距大到變成發散。
+        {m`E[c_{i,k}^2]\ge(E[c_{i,k}])^2=p_i^{2k}c_{i,0}^2`}，也就是 {m`\rho_{\mathrm{MS}}\ge\max|p_i|^2`}——均方永遠不會比「平均的平方」收斂得快；Gaussian {m`N=1`} 時差距大到變成發散。
         <ClaimTag kind="exact" />
       </p>
 
@@ -164,17 +157,14 @@ export function MeanSquare() {
       <p>
         {m`\pm1`} sparse-flip code（{m`u_2=s\,u_1`}，其中 {m`s=\pm1`} 是每個 sample 獨立抽的符號，{m`P(s=-1)=(1-\rho)/2=0.005`}）每個 sample 的 {m`\mathbf u\mathbf u^T`} 只有兩種：
         {m`\begin{bmatrix}1&1\\1&1\end{bmatrix}`} 或 {m`\begin{bmatrix}1&-1\\-1&1\end{bmatrix}`}，{m`\mathbf I-0.5\,\mathbf u\mathbf u^T`} 剛好是把共模或差模
-        <strong>整個投影掉</strong>（{m`\boldsymbol\Pi_\pm=\tfrac12\begin{bmatrix}1&\pm1\\\pm1&1\end{bmatrix}`} 是投影矩陣：{m`\boldsymbol\Pi^2=\boldsymbol\Pi`}，
-        它把向量在 {m`(1,\pm1)`} 方向的分量原封不動留下、垂直的分量變成 0；{m`\mathbf I-\boldsymbol\Pi_\pm`} 則反過來）。所以 {m`N=1`} 時差模座標要嘛還是初值、
-        要嘛（第一次 flip 之後）精確為 0：
+        <strong>整個投影掉</strong>（{m`\boldsymbol\Pi_\pm=\tfrac12\begin{bmatrix}1&\pm1\\\pm1&1\end{bmatrix}`} 是投影矩陣：{m`\boldsymbol\Pi^2=\boldsymbol\Pi`}，它把向量在 {m`(1,\pm1)`} 方向的分量原封不動留下、垂直的分量變成 0；{m`\mathbf I-\boldsymbol\Pi_\pm`} 則反過來）。所以 {m`N=1`} 時差模座標要嘛還是初值、要嘛（第一次 flip 之後）精確為 0：
       </p>
       <Diagram id="pm1-staircase">
         看兩個狀態之間的箭頭：差模 {m`c_2`} 只會從「平台」掉到「歸零」一次，掉下去的時刻是隨機的，所以每一條軌跡都是階梯。
       </Diagram>
       <p>
         <FigRef id="pm1-staircase" /> 怎麼看：先看「平台」——{m`s=+1`}（機率 {m`(1+\rho)/2=0.995`}）的 sample 只把共模消掉，完全不動差模，所以 {m`c_2`} 停在初值 {m`c_{2,0}`}
-        （自己指回自己的那個箭頭）。再看通往「歸零」的箭頭——第一次出現 flip（{m`s=-1`}，機率 {m`(1-\rho)/2=0.005`}）的那個 sample 把差模整個消掉，之後 {m`c_2=0`}，
-        不論後面抽到 {m`s=+1`} 或 {m`s=-1`} 都不會再變。圖上「平台」的 0.995 就是下面推導第二行 {m`P(\text{沒有 flip})=0.995^k`} 的底數；「歸零」就是第一行指示函數 {m`\mathbf 1\{\cdot\}`} 變成 0 的那一刻。
+        （自己指回自己的那個箭頭）。再看通往「歸零」的箭頭——第一次出現 flip（{m`s=-1`}，機率 {m`(1-\rho)/2=0.005`}）的那個 sample 把差模整個消掉，之後 {m`c_2=0`}，不論後面抽到 {m`s=+1`} 或 {m`s=-1`} 都不會再變。圖上「平台」的 0.995 就是下面推導第二行 {m`P(\text{沒有 flip})=0.995^k`} 的底數；「歸零」就是第一行指示函數 {m`\mathbf 1\{\cdot\}`} 變成 0 的那一刻。
       </p>
       <div id="ch09-pm1-derivation">
         <StepDerivation
@@ -192,16 +182,13 @@ export function MeanSquare() {
 
       <h3>1-bit comparator（Sign-LMS）為什麼沒有這種乘法式發散？</h3>
       <p>
-        上面的 {m`\mathcal K(\mathbf P)`} 來自 linear detector 的 {m`t=e=\mathbf u^T\boldsymbol\delta+v`}：同一個 sample 的 {m`\mathbf u`} 出現四次。
-        1-bit 時 {m`t=q=\mathrm{sign}(e)`}，而 {m`q^2\equiv1`}，同一 sample 的二次項變成與 {m`\boldsymbol\delta`} 無關的常數：
+        上面的 {m`\mathcal K(\mathbf P)`} 來自 linear detector 的 {m`t=e=\mathbf u^T\boldsymbol\delta+v`}：同一個 sample 的 {m`\mathbf u`} 出現四次。1-bit 時 {m`t=q=\mathrm{sign}(e)`}，而 {m`q^2\equiv1`}，同一 sample 的二次項變成與 {m`\boldsymbol\delta`} 無關的常數：
       </p>
       <Diagram id="linear-vs-sign">
         比較紅色與綠色方塊：linear 多出來的那一項會隨 {m`\mathbf P`} 放大（可以越滾越大），1-bit 多出來的只是一個固定的注入量。
       </Diagram>
       <p>
-        <FigRef id="linear-vs-sign" /> 怎麼看：先看 linear 那一框——{m`t\,\mathbf u`} 裡同一個 {m`\mathbf u`} 出現兩次，增量的大小正比於目前的誤差，
-        所以均方遞迴多出一項會跟著 {m`\mathbf P`} 變大的四階動差項。再看 1-bit 那一框——{m`q`} 只有 {m`\pm1`}，增量的大小與誤差無關，均方只多一個固定的雜訊注入。
-        圖上的 {m`K(P)`} 就是公式裡的 {m`\mathcal K(\mathbf P)=E[\mathbf u\mathbf u^T\mathbf P\mathbf u\mathbf u^T]`}；紅色方塊對應 F-09.8 中括號裡帶
+        <FigRef id="linear-vs-sign" /> 怎麼看：先看 linear 那一框——{m`t\,\mathbf u`} 裡同一個 {m`\mathbf u`} 出現兩次，增量的大小正比於目前的誤差，所以均方遞迴多出一項會跟著 {m`\mathbf P`} 變大的四階動差項。再看 1-bit 那一框——{m`q`} 只有 {m`\pm1`}，增量的大小與誤差無關，均方只多一個固定的雜訊注入。圖上的 {m`K(P)`} 就是公式裡的 {m`\mathcal K(\mathbf P)=E[\mathbf u\mathbf u^T\mathbf P\mathbf u\mathbf u^T]`}；紅色方塊對應 F-09.8 中括號裡帶
         {m`\tfrac1N`} 的那一項，綠色方塊對應 F-09.18 最後的 {m`\tfrac{\mu^2}{N}\mathbf R`}。
       </p>
       <DerivBox title={<>推導 1-bit 的均方遞迴（小訊號線性化）</>}>
@@ -230,8 +217,7 @@ export function MeanSquare() {
       <TexBlock id="F-09.18">{formulaTex('F-09.18')}</TexBlock>
       <p>
         在 eigen 座標中齊次部分是對角的：{m`E[c_i^2]`} 每步乘上 {m`(1-g\lambda_i)^2-g^2\lambda_i^2/N`}。{m`\rho=0.99`}、{m`g=0.5`}、{m`N=1`} 時為
-        {m`|1-2g\lambda_i|`}，最大 {m`${texNum(signN1, 6)}<1`}——同樣的參數，linear 是 {m`${texNum(table[0].gauss, 5)}`}（發散）。直覺：sign-LMS 每步增量最多 {m`\mu\|\mathbf u\|`}，
-        不會被「某個大樣本 {m`\times`} 目前誤差」乘上去。代價是 {m`\mu^2\mathbf R/N`} 的雜訊地板與小訊號假設（{m`|\mathbf u^T\boldsymbol\delta|\ll\sigma_v`}）。 <ClaimTag kind="approx" />
+        {m`|1-2g\lambda_i|`}，最大 {m`${texNum(signN1, 6)}<1`}——同樣的參數，linear 是 {m`${texNum(table[0].gauss, 5)}`}（發散）。直覺：sign-LMS 每步增量最多 {m`\mu\|\mathbf u\|`}，不會被「某個大樣本 {m`\times`} 目前誤差」乘上去。代價是 {m`\mu^2\mathbf R/N`} 的雜訊地板與小訊號假設（{m`|\mathbf u^T\boldsymbol\delta|\ll\sigma_v`}）。 <ClaimTag kind="approx" />
       </p>
       <HandCalcBox id="HC-09.5">
         上面那張表的每一格都可以手算：選一組 {m`\rho`}、{m`g`}、{m`N`}，算出 {m`2\times2`} 的 {m`\mathbf A`} 與它最大的 eigenvalue
@@ -244,8 +230,7 @@ export function MeanSquare() {
             <li>
               規格 §9 / T11 的 0.995 與 598 是 <strong>mean recursion</strong> 的結論（[精確｜mean recursion]：linear detector 時精確；1-bit 時是小訊號近似，F-09.3）。
             </li>
-            <li>要把它當成「單一晶片的收斂時間」，需要 GMAC block 夠長（本例 {m`N\ge2`} 時 {m`\rho_{\mathrm{MS}}<1`}，{m`N\ge16`} 時已接近 {m`0.995^2`}），
-              或用 Monte Carlo 的分位數（10/50/90%）來描述。</li>
+            <li>要把它當成「單一晶片的收斂時間」，需要 GMAC block 夠長（本例 {m`N\ge2`} 時 {m`\rho_{\mathrm{MS}}<1`}，{m`N\ge16`} 時已接近 {m`0.995^2`}），或用 Monte Carlo 的分位數（10/50/90%）來描述。</li>
             <li>有雜訊時 {m`\mathbf P_k`} 還會多一個注入項（linear：{m`\mu^2\sigma_v^2\mathbf R/N`}），收斂到非零的穩態——那是<ChRef ch="12">第 12 章</ChRef>的主題。</li>
           </ul>
         </Callout>

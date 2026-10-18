@@ -5,7 +5,7 @@ import python from 'highlight.js/lib/languages/python'
 import { diffLines, extractRegion } from './codeRegion'
 import './code.css'
 import { ScrollRegion } from './ScrollRegion'
-import { mathText } from './Tex'
+import { accessibleText, mathText } from './Tex'
 
 hljs.registerLanguage('typescript', typescript)
 hljs.registerLanguage('python', python)
@@ -120,6 +120,26 @@ export function CodeBlock({ source, region, lang = 'typescript', title, path, hi
   )
 }
 
+/**
+ * 分頁按鈕：標籤可含 `$...$`（以 KaTeX 排版）。有數學時另給螢幕閱讀器念的 aria-label
+ * （KaTeX 的 MathML 在按鈕名稱裡可能連 TeX 原始碼一起念）；沒有數學時不加，避免與可見文字重複。
+ */
+function TabButton({ label, active, onSelect }: { label: string; active: boolean; onSelect: () => void }) {
+  const spoken = accessibleText(label)
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      aria-label={spoken !== label ? spoken : undefined}
+      className={`c-code-tab${active ? ' active' : ''}`}
+      onClick={onSelect}
+    >
+      {mathText(label)}
+    </button>
+  )
+}
+
 export interface CodeCompareItem extends Omit<CodeBlockProps, 'caption'> {
   /** 分頁／欄位標籤，例如 'Conventional LMS' */
   label: string
@@ -144,16 +164,7 @@ export function CodeCompare({ items, layout = 'columns', caption }: CodeCompareP
     <div className={`c-code-compare c-code-compare-${layout}`}>
       <div className="c-code-tabs" role="tablist" aria-label="程式碼比較">
         {items.map((it, i) => (
-          <button
-            key={it.label}
-            type="button"
-            role="tab"
-            aria-selected={i === active}
-            className={`c-code-tab${i === active ? ' active' : ''}`}
-            onClick={() => setActive(i)}
-          >
-            {it.label}
-          </button>
+          <TabButton key={it.label} label={it.label} active={i === active} onSelect={() => setActive(i)} />
         ))}
       </div>
       <div className="c-code-compare-body">

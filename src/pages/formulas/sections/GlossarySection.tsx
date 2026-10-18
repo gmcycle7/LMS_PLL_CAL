@@ -2,6 +2,7 @@ import { CLAIM_DESCRIPTION, CLAIM_LABEL, ClaimTag, MODEL_LEVEL_INFO, ModelLevel,
 import type { ClaimKind, ModelLevelId, SourceKind } from '@/components'
 import { GLOSSARY, GLOSSARY_CATEGORY_LABEL, GLOSSARY_CATEGORY_ORDER, type GlossaryTerm } from '../glossary'
 import { ErrataList, ErratumTag, FormulaLinks, Gate, MatchCount, NoMatch, PageLinks, Rich } from '../common'
+import { TableWrap } from '../TableWrap'
 
 /**
  * (5) 中英術語表（一句話定義 + 連結）＋ 標籤與模型層級的定義。
@@ -63,7 +64,7 @@ export function GlossarySection({ rows, searching }: { rows: GlossaryTerm[]; sea
           <h3 className="fr-sub" id="fr-tags">
             標籤的定義
           </h3>
-          <div className="table-wrap">
+          <TableWrap>
             <table className="fr-table fr-tags-table">
               <thead>
                 <tr>
@@ -94,14 +95,14 @@ export function GlossarySection({ rows, searching }: { rows: GlossaryTerm[]; sea
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableWrap>
           <h3 className="fr-sub" id="fr-levels">
             模型層級 L0–L6（規格 §15.1）
           </h3>
           <p className="small">
             用字依 <ErratumTag eid="E36" /> 修正（「周期」→「週期」、「仿真」→「模擬」）。不可對同一組參數在不同層級算出互相矛盾、卻都標成「精確」的答案。
           </p>
-          <div className="table-wrap">
+          <TableWrap>
             <table className="fr-table fr-levels-table">
               <thead>
                 <tr>
@@ -124,7 +125,7 @@ export function GlossarySection({ rows, searching }: { rows: GlossaryTerm[]; sea
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableWrap>
         </Gate>
       )}
     </Section>

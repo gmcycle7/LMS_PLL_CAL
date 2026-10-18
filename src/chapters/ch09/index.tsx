@@ -86,8 +86,7 @@ export default function Chapter09() {
               把 {m`\rho`} 拉到 1：{m`\lambda_{\min}=0`}，警告會說明為何「不可辨識」，慢模式曲線變成水平線。
             </li>
             <li>
-              把 GMAC {m`N`} 改成 1（linear、Gaussian）：mean 不變，但 mean-square 半徑變成 {m`${texNum(tip.msLinear, 3)}`}（<Erratum id="E23" />）；同樣設定改成 1-bit 則是 {m`${texNum(tip.msSign, 3)}`}（增量有界）。
-              1-bit 這一組會多一則警告：迴路自己的穩態抖動估計 {m`\sqrt{E[s_\delta^2]}\approx${texNum(tip.jitterN1, 2)}`}，已經不在小訊號區（把 {m`N`} 加大，警告才會消失）。
+              把 GMAC {m`N`} 改成 1（linear、Gaussian）：mean 不變，但 mean-square 半徑變成 {m`${texNum(tip.msLinear, 3)}`}（<Erratum id="E23" />）；同樣設定改成 1-bit 則是 {m`${texNum(tip.msSign, 3)}`}（增量有界）。1-bit 這一組會多一則警告：迴路自己的穩態抖動估計 {m`\sqrt{E[s_\delta^2]}\approx${texNum(tip.jitterN1, 2)}`}，已經不在小訊號區（把 {m`N`} 加大，警告才會消失）。
             </li>
             <li>
               分布改成 {m`\pm1`} code、{m`N=1`}：灰色個別軌跡呈「平台 → 突然歸零」的階梯；{m`N_0=100`} 時約 {m`${texNum(tip.degPct, 2)}\%`} 的窗口 {m`\lambda_{\min}(\mathbf R_k)=0`}。
@@ -96,8 +95,7 @@ export default function Chapter09() {
               偵測器改成 1-bit、{m`K_q`} 改「物理」、{m`\mu=0.5\,\mathrm{fs}`}：{m`k_{95}`} 變成 {tip.k95Phys.toLocaleString('en-US')}（<Erratum id="E05" />）。
             </li>
             <li>
-              {m`g`} 拉到 1（{m`=g^\star`}）最快；超過 {m`2/\lambda_{\max}=${texNum(tip.gMax, 4)}`} 快模式就發散。介於兩者之間時仍然收斂，但最慢的換成過衝的快模式
-              （警告會列出它要幾個 block；把 {m`\rho`} 調小，這一段範圍比較寬，容易試）。
+              {m`g`} 拉到 1（{m`=g^\star`}）最快；超過 {m`2/\lambda_{\max}=${texNum(tip.gMax, 4)}`} 快模式就發散。介於兩者之間時仍然收斂，但最慢的換成過衝的快模式（警告會列出它要幾個 block；把 {m`\rho`} 調小，這一段範圍比較寬，容易試）。
             </li>
             <li>
               按「執行至收斂」：blocks 會自動拉到 {m`\lceil1.25\,k_{95}\rceil`}，讓最慢的模式降到 5% 的那一刻落在圖內（{m`g\le g^\star`} 時是慢模式；{m`g>g^\star`}

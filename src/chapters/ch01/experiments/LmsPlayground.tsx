@@ -1,5 +1,5 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import {
   CaseSelector,
   ExperimentShell,
@@ -433,8 +433,7 @@ export function LmsPlayground() {
       description={
         <>
           固定 <Tex>{'x'}</Tex>、可選零均值雜訊 <Tex>{'v_n'}</Tex> 的純量 LMS。每一步呼叫{' '}
-          <code>lms.ts</code> 的 <code>conventionalStep</code>：<Tex>{String.raw`w_{n+1}=w_n+\mu e_nx`}</Tex>。下方的
-          拋物線是 <Tex>{String.raw`J(w)=\tfrac12E[(y-wx)^2]=\tfrac12\big[(a-w)^2x^2+\sigma_v^2\big]`}</Tex>，切線斜率與 LMS
+          <code>lms.ts</code> 的 <code>conventionalStep</code>：<Tex>{String.raw`w_{n+1}=w_n+\mu e_nx`}</Tex>。下方的拋物線是 <Tex>{String.raw`J(w)=\tfrac12E[(y-wx)^2]=\tfrac12\big[(a-w)^2x^2+\sigma_v^2\big]`}</Tex>，切線斜率與 LMS
           更新量用同一個 scaling <Erratum id="E41" />。
         </>
       }
@@ -472,6 +471,13 @@ export function LmsPlayground() {
         onFreeze: () => setFreezeAt((fz) => (fz === null ? cur : null)),
         running,
         frozen: freezeAt !== null,
+        // 350 ms 一步的動畫：Run 鈕顯示「第 n/N 步」，「跳到結尾」把游標直接放到最後一步（軌跡 tr 一次算好，和逐步看的是同一份）
+        runKind: 'animate',
+        progress: { done: cur, total: N },
+        onSkipToEnd: () => {
+          setRunning(false)
+          setCursor(N)
+        },
       }}
       exportData={() => ({
         n: nAxis,
@@ -684,8 +690,7 @@ export function LmsPlayground() {
         Case A / B / C：同一組雜訊、不同 <Tex>{'\\mu'}</Tex> 的 <Tex>{String.raw`|\delta_n|`}</Tex>（log 軸）
       </h4>
       <p className="small muted">
-        log 軸上 <Tex>{String.raw`|\delta_n|=|p|^n|\delta_0|`}</Tex> 是一條直線，斜率 = <Tex>{String.raw`\log|p|`}</Tex>（無雜訊時）。
-        各 case 共用上方的 <Tex>{'a'}</Tex>、<Tex>{'x'}</Tex>、<Tex>{'w_0'}</Tex>、<Tex>{'\\sigma_v'}</Tex> 與 seed（paired comparison）。
+        log 軸上 <Tex>{String.raw`|\delta_n|=|p|^n|\delta_0|`}</Tex> 是一條直線，斜率 = <Tex>{String.raw`\log|p|`}</Tex>（無雜訊時）。各 case 共用上方的 <Tex>{'a'}</Tex>、<Tex>{'x'}</Tex>、<Tex>{'w_0'}</Tex>、<Tex>{'\\sigma_v'}</Tex> 與 seed（paired comparison）。
       </p>
       <CaseSelector cases={cases} label="學習率比較組" />
       <div className="ch01-cursor">

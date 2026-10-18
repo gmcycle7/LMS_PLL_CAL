@@ -390,7 +390,7 @@ export function D6Dither() {
     <div className="papers-derived">
       <p>
         <SourceTag kind="simulation" /> 常數目標 <Tex>{r`c=w_H=32.4\ \mathrm{LSB}`}</Tex>（小數部分 <Tex>{r`f=${num(f, 4)}`}</Tex>），dither{' '}
-        <Tex>{r`\xi\sim\mathcal U(-\tfrac12,\tfrac12)`}</Tex>（RPDF、寬 1 LSB），round-half-up 量化 <Tex>{r`Q(v)=\lfloor v+\tfrac12\rfloor`}</Tex>。 Monte Carlo
+        <Tex>{r`\xi\sim\mathcal U(-\tfrac12,\tfrac12)`}</Tex>（RPDF、寬 1 LSB），round-half-up 量化 <Tex>{r`Q(v)=\lfloor v+\tfrac12\rfloor`}</Tex>。Monte Carlo
         用 <Tex>{r`\mathrm{seed}=${DITHER_SEED}`}</Tex>、<Tex>{r`n=${DITHER_N}`}</Tex> 個樣本。
       </p>
       <FormulaAnchor id="F-PR.13">
@@ -450,8 +450,8 @@ export function D6Dither() {
         <Callout kind="warn" title="代價在哪裡（本站的工程解讀）">
           <p>
             <ClaimTag kind="research" /> subtractive 的 <Tex>{r`\tfrac1{12}\ \mathrm{LSB}^2`}</Tex> 不是免費的：「減回 <Tex>{r`\xi`}</Tex>」那一步需要比 1 LSB 更細的解析度。對 6-bit 的 DTC gain
-            register 而言， 等於要在下游（例如更細的 DTC 步階或更高解析度的數位路徑）實現 <Tex>{r`-\xi`}</Tex>；若做不到，就只能用
-            non-subtractive，誤差功率反而比不加 dither 的 DC 誤差還大， 只是不再集中在 DC 或單一譜線。D6 如何在 ΔΣ modulator 裡實現 subtractive
+            register 而言，等於要在下游（例如更細的 DTC 步階或更高解析度的數位路徑）實現 <Tex>{r`-\xi`}</Tex>；若做不到，就只能用
+            non-subtractive，誤差功率反而比不加 dither 的 DC 誤差還大，只是不再集中在 DC 或單一譜線。D6 如何在 ΔΣ modulator 裡實現 subtractive
             dither，請讀原文。
           </p>
         </Callout>

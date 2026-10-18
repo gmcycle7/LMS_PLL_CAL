@@ -180,8 +180,7 @@ export function Polarity() {
 
       <Callout kind="warn" title={String.raw`Polarity margin $\ne$ Phase margin`}>
         <p>
-          <Tex>{'M_{\\mathrm{polarity}}'}</Tex> 只回答「平均更新<strong>方向</strong>對不對」——它是 code 頻率 <Tex>{'\\Omega'}</Tex>（comparator rate）上的<strong>靜態</strong>相關性質。
-          它<strong>不</strong>回答「校正迴路會不會振盪」：即使 <Tex>{'M=90^\\circ'}</Tex>（完美極性），只要 loop gain <Tex>{'g'}</Tex> 太大或有更新延遲，迴路照樣發散；反過來{' '}
+          <Tex>{'M_{\\mathrm{polarity}}'}</Tex> 只回答「平均更新<strong>方向</strong>對不對」——它是 code 頻率 <Tex>{'\\Omega'}</Tex>（comparator rate）上的<strong>靜態</strong>相關性質。它<strong>不</strong>回答「校正迴路會不會振盪」：即使 <Tex>{'M=90^\\circ'}</Tex>（完美極性），只要 loop gain <Tex>{'g'}</Tex> 太大或有更新延遲，迴路照樣發散；反過來{' '}
           <Tex>{'M=10^\\circ'}</Tex> 只是讓有效增益變成 <Tex>{String.raw`\sin10^\circ\approx${fx(Math.sin((10 * Math.PI) / 180), 2)}`}</Tex> 倍——收斂變慢，但不會因此振盪。
         </p>
         <p>
@@ -193,8 +192,7 @@ export function Polarity() {
       <ModeGate min="engineer">
         <Expand title="工程補充：多頻 code 時 polarity margin 失去意義" badge="工程">
           <p>
-            多頻（DSM、PRBS）code 的相關是整個頻帶的加權積分 <Tex>{'C=\\frac{1}{2\\pi}\\int S_{xx}(\\Omega)\\,\\mathrm{Re}\\{H(e^{j\\Omega})e^{j\\Omega D}\\}\\,d\\Omega'}</Tex>（<ChRef ch="06">Ch06</ChRef> §6.2）。
-            此時沒有單一的 <Tex>{'\\theta'}</Tex>；可以用「等效相位」<Tex>{'\\theta_{\\mathrm{eq}}=\\arccos\\!\\big(C/C_{\\max}\\big)'}</Tex> 來報告，但真正的判據永遠是{' '}
+            多頻（DSM、PRBS）code 的相關是整個頻帶的加權積分 <Tex>{'C=\\frac{1}{2\\pi}\\int S_{xx}(\\Omega)\\,\\mathrm{Re}\\{H(e^{j\\Omega})e^{j\\Omega D}\\}\\,d\\Omega'}</Tex>（<ChRef ch="06">Ch06</ChRef> §6.2）。此時沒有單一的 <Tex>{'\\theta'}</Tex>；可以用「等效相位」<Tex>{'\\theta_{\\mathrm{eq}}=\\arccos\\!\\big(C/C_{\\max}\\big)'}</Tex> 來報告，但真正的判據永遠是{' '}
             <Tex>{'C>0'}</Tex>（以及下一節的 PM）。
           </p>
         </Expand>

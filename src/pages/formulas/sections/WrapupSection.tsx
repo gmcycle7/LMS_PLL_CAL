@@ -5,6 +5,7 @@ import { errataCoverage } from '../coverage'
 import { SEVERITY_LABEL } from '../errata'
 import { texHz, texNum, texPct } from '../format'
 import { ErratumTag, FormulaLinks, Gate, PageLink } from '../common'
+import { TableWrap } from '../TableWrap'
 
 /**
  * 7 思考題與本頁必記；（Research）8 勘誤覆蓋表。
@@ -51,8 +52,7 @@ export function WrapupSection() {
         title="思考題 2：用哪個頻寬積分？"
         question={
           <>
-            你量到係數雜訊在低頻的單邊 PSD 是 <Tex>{String.raw`S_w^{(1)}(0)=${texNum(lp.sw1Dc)}\,\mathrm{fs^2/Hz}`}</Tex>，資料表寫「校正頻寬 <Tex>{texHz(lp.f3dbExact)}</Tex>」。
-            請估計 <Tex>{String.raw`\sigma_w`}</Tex>。（提示：先問那個「頻寬」是哪一種。）
+            你量到係數雜訊在低頻的單邊 PSD 是 <Tex>{String.raw`S_w^{(1)}(0)=${texNum(lp.sw1Dc)}\,\mathrm{fs^2/Hz}`}</Tex>，資料表寫「校正頻寬 <Tex>{texHz(lp.f3dbExact)}</Tex>」。請估計 <Tex>{String.raw`\sigma_w`}</Tex>。（提示：先問那個「頻寬」是哪一種。）
           </>
         }
         answer={
@@ -73,8 +73,7 @@ export function WrapupSection() {
         title="思考題 3：fs 換成 rad"
         question={
           <>
-            <Tex>{String.raw`\sigma_w=${texNum(lp.sigmaW)}\,\mathrm{fs}`}</Tex>，PLL 的 <Tex>{String.raw`f_{\mathrm{ref}}=${texHz(u.fRef)}`}</Tex>、<Tex>{String.raw`f_{\mathrm{out}}=${texHz(r.spur.fOut)}`}</Tex>。
-            在<strong>輸出端</strong>它對應幾 rad？
+            <Tex>{String.raw`\sigma_w=${texNum(lp.sigmaW)}\,\mathrm{fs}`}</Tex>，PLL 的 <Tex>{String.raw`f_{\mathrm{ref}}=${texHz(u.fRef)}`}</Tex>、<Tex>{String.raw`f_{\mathrm{out}}=${texHz(r.spur.fOut)}`}</Tex>。在<strong>輸出端</strong>它對應幾 rad？
           </>
         }
         options={[
@@ -90,8 +89,7 @@ export function WrapupSection() {
               <Tex>{String.raw`f_{\mathrm{ref}}`}</Tex>（那是 PD 端的相位，差 <Tex>{String.raw`f_{\mathrm{out}}/f_{\mathrm{ref}}=${texNum(u.divRatio)}`}</Tex> 倍）；第三個漏了 <Tex>{String.raw`10^{-15}`}</Tex> 裡的三個數量級（把 fs 當成 ps）。
             </p>
             <p>
-              更重要的是：這個數字<strong>還不是</strong> output jitter。<Tex>{String.raw`\sigma_w`}</Tex> 是 gain-equivalent 的係數雜訊，要先乘上 code（<Tex>{String.raw`\delta t=x\,\delta w`}</Tex>）、
-              再經過 PLL 的 low-pass <Tex>{'T'}</Tex>，才是輸出看到的時間誤差（<ChRef ch="12">第 12 章</ChRef>）。
+              更重要的是：這個數字<strong>還不是</strong> output jitter。<Tex>{String.raw`\sigma_w`}</Tex> 是 gain-equivalent 的係數雜訊，要先乘上 code（<Tex>{String.raw`\delta t=x\,\delta w`}</Tex>）、再經過 PLL 的 low-pass <Tex>{'T'}</Tex>，才是輸出看到的時間誤差（<ChRef ch="12">第 12 章</ChRef>）。
             </p>
           </>
         }
@@ -199,7 +197,7 @@ export function CoverageSection() {
   return (
     <Section kind="assumptions" level={2} id="fr-coverage" title="8　勘誤覆蓋表（Research）">
       <p>
-        <PageLink id="verification" /> 列出的 {cov.length} 項勘誤（docs/validation.md）中，每一項在本頁各表被引用的次數，以及全站公式登錄中帶有該勘誤註記的公式。 「本頁」欄為 0 代表這項勘誤還沒有反映在符號表、速查表、限制或術語中
+        <PageLink id="verification" /> 列出的 {cov.length} 項勘誤（docs/validation.md）中，每一項在本頁各表被引用的次數，以及全站公式登錄中帶有該勘誤註記的公式。「本頁」欄為 0 代表這項勘誤還沒有反映在符號表、速查表、限制或術語中
         {onPageAll ? '（目前沒有這種情況）' : ''}；「公式」欄空白代表沒有任何章節把它登錄在公式上（可能只影響文字敘述或測試）。
       </p>
       <details className="fr-collapsible">
@@ -207,7 +205,7 @@ export function CoverageSection() {
           展開 {cov.length} 項勘誤的覆蓋情形（符號 / 單位 / 速查 / 限制 / 術語 / 公式）
         </summary>
         <div className="fr-collapsible-body">
-          <div className="table-wrap">
+          <TableWrap>
             <table className="fr-table fr-cov-table">
               <thead>
                 <tr>
@@ -252,7 +250,7 @@ export function CoverageSection() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableWrap>
         </div>
       </details>
     </Section>

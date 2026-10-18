@@ -34,8 +34,7 @@ export function IntroSection() {
     <>
       <Section kind="intuition" title="這一課要回答的問題" level={2} id="ch04-question">
         <p>
-          前三章我們把 LMS 當成黑盒子：給 <Tex>x</Tex>、看誤差、修正 <Tex>w</Tex>。真正的 Fractional-N PLL 裡，這三個動作分散在好幾個硬體方塊、
-          好幾個 clock domain 裡。這一課回答：
+          前三章我們把 LMS 當成黑盒子：給 <Tex>x</Tex>、看誤差、修正 <Tex>w</Tex>。真正的 Fractional-N PLL 裡，這三個動作分散在好幾個硬體方塊、好幾個 clock domain 裡。這一課回答：
         </p>
         <ol>
           <li>
@@ -60,9 +59,7 @@ export function IntroSection() {
           <Tex>N</Tex> 個 sample 才變一次。
         </p>
         <p>
-          下面是全站共用的<strong>系統地圖</strong>。<strong>藍色方塊</strong>就是這一課要從頭走到尾的訊號路徑：FCW → DSM 累加器 → divider 與 fractional residue <Tex>{R`x[n]`}</Tex> → gain correction → DTC → PD →
-          （PD 的輸出 <Tex>{R`e[n]`}</Tex>）→ 1-bit comparator → code alignment → GMAC → 「<Tex>{R`\div N`}</Tex>、<Tex>{R`\times\mu`}</Tex>」→ gain accumulator；沒上色的 reference、loop filter、VCO、quantizer 與雜訊源留給 <ChRef ch="06">Ch06</ChRef>、<ChRef ch="08">Ch08</ChRef>、<ChRef ch="12">Ch12</ChRef>、<ChRef ch="13">Ch13</ChRef>。
-          這一課新增的是：把每個藍色方塊拆開成 RTL 級的方塊圖，標出每條線上的訊號名稱、位元寬度，以及它是每個 sample 動一次還是每個 block 動一次。
+          下面是全站共用的<strong>系統地圖</strong>。<strong>藍色方塊</strong>就是這一課要從頭走到尾的訊號路徑：FCW → DSM 累加器 → divider 與 fractional residue <Tex>{R`x[n]`}</Tex> → gain correction → DTC → PD →（PD 的輸出 <Tex>{R`e[n]`}</Tex>）→ 1-bit comparator → code alignment → GMAC → 「<Tex>{R`\div N`}</Tex>、<Tex>{R`\times\mu`}</Tex>」→ gain accumulator；沒上色的 reference、loop filter、VCO、quantizer 與雜訊源留給 <ChRef ch="06">Ch06</ChRef>、<ChRef ch="08">Ch08</ChRef>、<ChRef ch="12">Ch12</ChRef>、<ChRef ch="13">Ch13</ChRef>。這一課新增的是：把每個藍色方塊拆開成 RTL 級的方塊圖，標出每條線上的訊號名稱、位元寬度，以及它是每個 sample 動一次還是每個 block 動一次。
         </p>
         <SystemMap focus={CH04_SYSTEM_FOCUS} caption={CH04_SYSTEM_CAPTION} />
         <p>
@@ -82,19 +79,16 @@ export function IntroSection() {
       <Section kind="diagram" title="§1 完整概念系統：DSM → DTC → PD → GMAC → Gain Update" level={2} id="ch04-system">
         <p>
           系統地圖只告訴你「有哪些方塊」。下面兩張圖是同一個架構、但在每個方塊上寫出它算的式子、每條線上寫出訊號名稱——這是規格 §4 的架構參考（教學與 behavioral modeling 用，<strong>不是</strong>特定晶片的 netlist）{' '}
-          <SourceTag kind="illustrative" />。 整個架構有 17 個方塊，一張圖放不下還要寫式子，所以拆成兩張：<FigRef chart={CONCEPT_FAST_LOOP} /> 是<strong>快</strong>的部分（主 PLL 迴路 + 小數除頻與 DTC 補償，每個 reference cycle 動一次），
+          <SourceTag kind="illustrative" />。整個架構有 17 個方塊，一張圖放不下還要寫式子，所以拆成兩張：<FigRef chart={CONCEPT_FAST_LOOP} /> 是<strong>快</strong>的部分（主 PLL 迴路 + 小數除頻與 DTC 補償，每個 reference cycle 動一次），
           <FigRef chart={CONCEPT_LMS_LOOP} /> 是<strong>慢</strong>的部分（LMS 校正迴路，每 <Tex>N</Tex> 拍才更新一次）。兩者共用同一個 PD：PD 的輸出 <Tex>{R`e[n]`}</Tex> 一方面推動 loop filter，一方面被 1-bit comparator 取正負號送進 GMAC（comparator 取的是 PD 的輸出，也就是送進 loop filter 的同一個訊號）。
         </p>
         <p>
           <strong>先看 <FigRef chart={CONCEPT_FAST_LOOP} />（怎麼讀這張圖）：</strong>由上往下讀；左半邊是數位的小數除頻與補償，右邊的框是主 PLL 迴路。左上角是 FCW → DSM：DSM 每一拍吐出兩個東西，進位 <Tex>{R`y[n]`}</Tex>（carry，沿最左邊那條長線往下到 divider control，告訴框裡的 divider 這一拍要不要多除 1）和餘數 <Tex>{R`s[n]/M`}</Tex>（<Tex>{R`s[n]`}</Tex> 是留在累加器裡的數字，<Tex>M</Tex> 是累加器的模數；相除之後就是無因次的 code{' '}
           <Tex>{R`x[n]`}</Tex>，§2 詳述）。<Tex>{R`x[n]`}</Tex> 有兩條去路：一條乘上 gain <Tex>{R`w_k`}</Tex>（gain code correction）去控制框裡的 DTC（預測），另一條直接往下，交給藍色的「LMS 校正迴路」方塊。
-          <strong>再看</strong>右邊框裡的主 PLL 迴路，順著訊號走一圈：Reference clock → DTC → PD → PD 輸出 <Tex>{R`e[n]`}</Tex> → loop filter → VCO → divider，再由 divider 的 feedback edge（框裡最右邊那條往上的線）回到 PD。注意 <strong>DTC 在 reference 這一側</strong>，
-          回授路徑上只有 divider；PD 比的是「DTC 延遲後的 reference edge」和「divider 送回來的 feedback edge」。<strong>最後看</strong> PD 下面那個膠囊形的節點「PD 輸出 <Tex>{R`e[n]`}</Tex>」：它一邊（實線）送進 loop filter，一邊（虛線，往左）分接給藍色方塊——LMS 校正迴路的輸入就是這個節點，
-          不是 DTC 或 divider 的輸出。藍色方塊回送的只有一個量：gain <Tex>{R`w_k`}</Tex>（往上回到 gain code correction）。
+          <strong>再看</strong>右邊框裡的主 PLL 迴路，順著訊號走一圈：Reference clock → DTC → PD → PD 輸出 <Tex>{R`e[n]`}</Tex> → loop filter → VCO → divider，再由 divider 的 feedback edge（框裡最右邊那條往上的線）回到 PD。注意 <strong>DTC 在 reference 這一側</strong>，回授路徑上只有 divider；PD 比的是「DTC 延遲後的 reference edge」和「divider 送回來的 feedback edge」。<strong>最後看</strong> PD 下面那個膠囊形的節點「PD 輸出 <Tex>{R`e[n]`}</Tex>」：它一邊（實線）送進 loop filter，一邊（虛線，往左）分接給藍色方塊——LMS 校正迴路的輸入就是這個節點，不是 DTC 或 divider 的輸出。藍色方塊回送的只有一個量：gain <Tex>{R`w_k`}</Tex>（往上回到 gain code correction）。
         </p>
         <p>
-          DTC 方塊裡的 <Tex>{R`\text{delay}=T_0-w_k\,x[n]+d(x)`}</Tex> 先讀成一句話：DTC 只能延遲、不能提前，所以它先有一個固定的基準延遲 <Tex>{R`T_0`}</Tex>，code 越大就<strong>少延遲</strong>一點；少掉的那一段 <Tex>{R`w_k\,x[n]`}</Tex> 叫做 DTC 的<strong>補償量</strong>（§2 說明為什麼是「少延遲」）。
-          另外兩個縮寫：BBPD 是 bang-bang PD（輸出只有 1 bit 的相位檢測器）；<Tex>{R`d(x)`}</Tex> 是 DTC 的非線性誤差（積分非線性 INL）：這個 code 的延遲偏離直線的量，多延遲為正，所以它在式子裡是加號。本章先當作 0，<ChRef ch="11">Ch11</ChRef> 才處理（那裡的 <Tex>{R`d(x)`}</Tex> 是同一個定義）。
+          DTC 方塊裡的 <Tex>{R`\text{delay}=T_0-w_k\,x[n]+d(x)`}</Tex> 先讀成一句話：DTC 只能延遲、不能提前，所以它先有一個固定的基準延遲 <Tex>{R`T_0`}</Tex>，code 越大就<strong>少延遲</strong>一點；少掉的那一段 <Tex>{R`w_k\,x[n]`}</Tex> 叫做 DTC 的<strong>補償量</strong>（§2 說明為什麼是「少延遲」）。另外兩個縮寫：BBPD 是 bang-bang PD（輸出只有 1 bit 的相位檢測器）；<Tex>{R`d(x)`}</Tex> 是 DTC 的非線性誤差（積分非線性 INL）：這個 code 的延遲偏離直線的量，多延遲為正，所以它在式子裡是加號。本章先當作 0，<ChRef ch="11">Ch11</ChRef> 才處理（那裡的 <Tex>{R`d(x)`}</Tex> 是同一個定義）。
         </p>
         <MermaidFig
           chart={CONCEPT_FAST_LOOP}
@@ -102,9 +96,7 @@ export function IntroSection() {
           ariaLabel="主 PLL 迴路與小數除頻、DTC 補償的方塊圖：DTC 在 reference 輸入端，回授路徑只有 divider；LMS 校正迴路收成一個方塊，輸入取自 PD 的輸出"
         />
         <p>
-          <strong>再看 <FigRef chart={CONCEPT_LMS_LOOP} />（把藍色方塊展開）：</strong>這張圖由上往下，就是校正迴路走一圈。最上面是上一張圖裡 reference 輸入端的那個 DTC（Reference clock 的方塊不再重畫）：DTC 延遲後的 reference edge 送進 PD；PD 的另一個輸入是 divider 的 feedback edge，同樣畫在上一張圖，這裡只在 PD 方塊上註明。<strong>先看</strong> PD 下面的加法點：PD 量到的時間誤差（單位 fs）加上雜訊 <Tex>{R`v[n]`}</Tex>（RMS 為 <Tex>{R`\sigma_v`}</Tex>）就是 PD 的輸出 <Tex>{R`e[n]`}</Tex>。
-          章首的系統地圖把 <Tex>{R`v[n]`}</Tex> 畫成 comparator 的另一個輸入（註明「折算到輸入端」）：comparator 的輸入就是 PD 輸出這個節點，所以兩種畫法是同一件事——<Tex>{R`v[n]`}</Tex> 是折算到這個節點的等效雜訊，<Tex>{R`e[n]`}</Tex> 已經包含它。
-          虛線把它分接給 1-bit comparator——comparator 取的是 PD 的輸出 <Tex>{R`e[n]`}</Tex>，也就是送進 loop filter 的同一個訊號（上一張圖的膠囊形節點；這張圖不再重畫 loop filter，只在線上註明）。它被切成一個 bit <Tex>{R`b[n]`}</Tex>、變成 <Tex>{R`q[n]=2b[n]-1`}</Tex>。
+          <strong>再看 <FigRef chart={CONCEPT_LMS_LOOP} />（把藍色方塊展開）：</strong>這張圖由上往下，就是校正迴路走一圈。最上面是上一張圖裡 reference 輸入端的那個 DTC（Reference clock 的方塊不再重畫）：DTC 延遲後的 reference edge 送進 PD；PD 的另一個輸入是 divider 的 feedback edge，同樣畫在上一張圖，這裡只在 PD 方塊上註明。<strong>先看</strong> PD 下面的加法點：PD 量到的時間誤差（單位 fs）加上雜訊 <Tex>{R`v[n]`}</Tex>（RMS 為 <Tex>{R`\sigma_v`}</Tex>）就是 PD 的輸出 <Tex>{R`e[n]`}</Tex>。章首的系統地圖把 <Tex>{R`v[n]`}</Tex> 畫成 comparator 的另一個輸入（註明「折算到輸入端」）：comparator 的輸入就是 PD 輸出這個節點，所以兩種畫法是同一件事——<Tex>{R`v[n]`}</Tex> 是折算到這個節點的等效雜訊，<Tex>{R`e[n]`}</Tex> 已經包含它。虛線把它分接給 1-bit comparator——comparator 取的是 PD 的輸出 <Tex>{R`e[n]`}</Tex>，也就是送進 loop filter 的同一個訊號（上一張圖的膠囊形節點；這張圖不再重畫 loop filter，只在線上註明）。它被切成一個 bit <Tex>{R`b[n]`}</Tex>、變成 <Tex>{R`q[n]=2b[n]-1`}</Tex>。
           <strong>再看</strong> code：<Tex>{R`x[n]`}</Tex> 經過 code alignment 延遲 <Tex>D</Tex> 個 sample 變成 <Tex>{R`x_\mathrm{ref}[n]`}</Tex>（GMAC 實際拿來相乘的、和誤差對齊的 code；圖上的 filtered-x 是進階做法，先把 code 通過一個估計出來的 PLL 誤差路徑再拿來相乘，<ChRef ch="07">Ch07</ChRef> 詳述，這一課先看 <Tex>{R`x[n-D]`}</Tex>）。兩者相乘累加成 <Tex>{R`S_k`}</Tex>，除以 <Tex>N</Tex>、乘 <Tex>{R`\mu`}</Tex>，加進 gain accumulator。
           <strong>最後看</strong>最下面：gain <Tex>{R`w_k`}</Tex> 送到 gain code correction，乘上 code 變成補償量 <Tex>{R`w_k\,x[n]`}</Tex>，再沿右邊那條長線回到最上面 reference 端的 DTC——迴路在這裡閉合。
         </p>
@@ -120,8 +112,7 @@ export function IntroSection() {
         <Callout kind="info" title="圖上和規格書原圖不同的地方">
           <ul>
             <li>
-              原圖 GMAC 方塊寫「sum q times aligned code」、下一格寫「Average + Learning Rate」，但 §0 又把 <Tex>{R`G_k`}</Tex> 定義成平均。
-              本站把總和寫成 <Tex>{R`S_k`}</Tex>、平均寫成 <Tex>{R`G_k=S_k/N`}</Tex> <Erratum id="E07" /> <Erratum id="E18" />，因為兩者差 <Tex>N</Tex> 倍 loop gain（§4）。
+              原圖 GMAC 方塊寫「sum q times aligned code」、下一格寫「Average + Learning Rate」，但 §0 又把 <Tex>{R`G_k`}</Tex> 定義成平均。本站把總和寫成 <Tex>{R`S_k`}</Tex>、平均寫成 <Tex>{R`G_k=S_k/N`}</Tex> <Erratum id="E07" /> <Erratum id="E18" />，因為兩者差 <Tex>N</Tex> 倍 loop gain（§4）。
             </li>
             <li>
               comparator 方塊明確寫出 <Tex>{R`b[n]=(e\ge0)`}</Tex> 與 <Tex>{R`q=2b-1`}</Tex>：硬體輸出的位元 <Tex>b</Tex> 是 0/1，GMAC 需要的 <Tex>q</Tex> 是 <Tex>{R`\pm1`}</Tex> <Erratum id="E07" />。

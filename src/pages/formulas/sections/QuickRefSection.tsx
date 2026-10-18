@@ -2,6 +2,7 @@ import { ClaimTag, Section, Tex, TexBlock } from '@/components'
 import { refValues } from '../refValues'
 import { QUICK_GROUP_LABEL, QUICK_REF, type QuickGroup, type QuickRefRow } from '../appendixA'
 import { ErrataList, ErratumTag, FormulaLinks, Gate, MatchCount, NoMatch, Rich } from '../common'
+import { TableWrap } from '../TableWrap'
 
 /**
  * (3) 規格附錄 A「一頁公式速查」的修正版：每一列的公式、使用條件都已依勘誤改寫；
@@ -17,9 +18,7 @@ export function QuickRefSection({ rows, searching }: { rows: QuickRefRow[]; sear
     <Section kind="formula" level={2} id="fr-quick" title="3　附錄 A：一頁公式速查（修正版）">
       {!searching && (
         <p>
-          規格附錄 A 原有 17 列（本站把「單頻 Phase Shift」與「Delayed Code」合併成一列，因為前者是 <Tex>{'D=0'}</Tex> 的特例）。本站保留全部內容，
-          其中 {changed} 列的公式或使用條件依勘誤改寫或補註（Engineer 模式顯示「規格原文」），並補上 {added} 列規格正文有、速查表卻漏掉的關鍵公式（標「本站補充」）。
-          每一列都標出結論標籤；使用條件不成立時，數字就不能直接套用。
+          規格附錄 A 原有 17 列（本站把「單頻 Phase Shift」與「Delayed Code」合併成一列，因為前者是 <Tex>{'D=0'}</Tex> 的特例）。本站保留全部內容，其中 {changed} 列的公式或使用條件依勘誤改寫或補註（Engineer 模式顯示「規格原文」），並補上 {added} 列規格正文有、速查表卻漏掉的關鍵公式（標「本站補充」）。每一列都標出結論標籤；使用條件不成立時，數字就不能直接套用。
         </p>
       )}
       <div className="fr-section-bar">
@@ -28,16 +27,18 @@ export function QuickRefSection({ rows, searching }: { rows: QuickRefRow[]; sear
       {rows.length === 0 ? (
         <NoMatch what="速查公式" />
       ) : (
-        <div className="table-wrap">
-          <table className="fr-table fr-quick-table">
+        /*
+          四欄（原本六欄，1280px 視窗時表寬 1537px、放在 911px 的欄裡，右邊三欄被切在畫面外）：
+          結論標籤與勘誤放在「問題」的下面，「站內公式」放在核心公式的下面。內容一個字都沒少。
+        */
+        <TableWrap sticky>
+          <table className="fr-table fr-quick-table fr-sticky-head">
             <thead>
               <tr>
-                <th>問題</th>
-                <th>核心公式（修正版）</th>
+                <th>問題與標籤</th>
+                <th>核心公式（修正版）與站內公式</th>
                 <th>使用條件</th>
                 <th>代入數字</th>
-                <th>標籤／勘誤</th>
-                <th>站內公式</th>
               </tr>
             </thead>
             {GROUPS.map((g) => {
@@ -46,7 +47,7 @@ export function QuickRefSection({ rows, searching }: { rows: QuickRefRow[]; sear
               return (
                 <tbody key={g}>
                   <tr className="fr-group-row">
-                    <th colSpan={6} scope="colgroup">
+                    <th colSpan={4} scope="colgroup">
                       {QUICK_GROUP_LABEL[g]}
                     </th>
                   </tr>
@@ -55,6 +56,10 @@ export function QuickRefSection({ rows, searching }: { rows: QuickRefRow[]; sear
                       <td data-label="問題" className="fr-quick-topic">
                         <strong>{q.topic}</strong>
                         {!q.fromSpec && <span className="fr-badge fr-badge-added">本站補充</span>}
+                        <span className="fr-tag-col fr-cell-sub">
+                          <ClaimTag kind={q.claim} />
+                          <ErrataList ids={q.errata} empty="" />
+                        </span>
                       </td>
                       <td data-label="核心公式">
                         <TexBlock>{q.tex}</TexBlock>
@@ -65,6 +70,11 @@ export function QuickRefSection({ rows, searching }: { rows: QuickRefRow[]; sear
                             </div>
                           </Gate>
                         )}
+                        {q.related.length > 0 && (
+                          <div className="fr-cell-sub">
+                            <span className="muted small">站內公式</span> <FormulaLinks ids={q.related} />
+                          </div>
+                        )}
                       </td>
                       <td data-label="使用條件">
                         <Rich text={q.conditions} />
@@ -72,22 +82,13 @@ export function QuickRefSection({ rows, searching }: { rows: QuickRefRow[]; sear
                       <td data-label="代入數字" className="fr-example">
                         {q.example ? <Rich text={q.example(r)} /> : <span className="muted">—</span>}
                       </td>
-                      <td data-label="標籤">
-                        <span className="fr-tag-col">
-                          <ClaimTag kind={q.claim} />
-                          <ErrataList ids={q.errata} empty="" />
-                        </span>
-                      </td>
-                      <td data-label="站內公式">
-                        <FormulaLinks ids={q.related} />
-                      </td>
                     </tr>
                   ))}
                 </tbody>
               )
             })}
           </table>
-        </div>
+        </TableWrap>
       )}
       {!searching && (
         <p className="small muted">

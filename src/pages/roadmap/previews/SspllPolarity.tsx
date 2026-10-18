@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import {
   Callout,
   ClaimTag,
@@ -232,8 +232,7 @@ function SspllExperiment() {
       claim="exact"
       description={
         <>
-          Type-II 用共用的 <code>designDtLoop</code>（pll.ts）：<Tex>{String.raw`L=\big(K_p+\tfrac{K_i}{1-z^{-1}}\big)\tfrac{z^{-(1+d)}}{1-z^{-1}}`}</Tex>；Type-I：<Tex>{String.raw`L=\frac{K_Lz^{-(1+d)}}{1-z^{-1}}`}</Tex>（<Tex>{'d=0'}</Tex> 即「延遲 1 個 reference cycle」）。
-          FCW 小數 <Tex>{'\\alpha'}</Tex> 取最近的 <Tex>{`j/${ALPHA_Q}`}</Tex>。CPPLL（L3）不在本預覽內，見案例頁。
+          Type-II 用共用的 <code>designDtLoop</code>（pll.ts）：<Tex>{String.raw`L=\big(K_p+\tfrac{K_i}{1-z^{-1}}\big)\tfrac{z^{-(1+d)}}{1-z^{-1}}`}</Tex>；Type-I：<Tex>{String.raw`L=\frac{K_Lz^{-(1+d)}}{1-z^{-1}}`}</Tex>（<Tex>{'d=0'}</Tex> 即「延遲 1 個 reference cycle」）。FCW 小數 <Tex>{'\\alpha'}</Tex> 取最近的 <Tex>{`j/${ALPHA_Q}`}</Tex>。CPPLL（L3）不在本預覽內，見案例頁。
         </>
       }
       assumptions={[
@@ -362,21 +361,17 @@ export default function SspllPreview() {
     <div className="rm-preview">
       <Callout kind="warn" title="分析中（in analysis）——不是結論">
         8 相 PMUX 的 PHOS 與 input DTC 的 GOS 在 Type-I / Type-II SSPLL 與 CPPLL 下的完整極性分析（sign map、大訊號、comparator offset、對策比較）在
-        {' '}<a href="#/case/sspll">案例頁：SSPLL 的 GOS / PHOS 極性</a>，資料來自 <code>analysis/sspll/</code> 的離線 Python golden 與時域模擬，尚未納入 T-id 驗收。
-        這裡只放<strong>對任何迴路都成立</strong>的數學，以及用共用 <code>pll.ts</code> 能獨立重算的部分（L1 / L2、線性小訊號、{mt('$D=0$')}）。
+        {' '}<a href="#/case/sspll">案例頁：SSPLL 的 GOS / PHOS 極性</a>，資料來自 <code>analysis/sspll/</code> 的離線 Python golden 與時域模擬，尚未納入 T-id 驗收。這裡只放<strong>對任何迴路都成立</strong>的數學，以及用共用 <code>pll.ts</code> 能獨立重算的部分（L1 / L2、線性小訊號、{mt('$D=0$')}）。
       </Callout>
       <Prereq title="複數、共軛與頻率響應">
         <p>
-          <Tex>{'z=a+jb'}</Tex> 的共軛 <Tex>{'\\bar z=a-jb'}</Tex>，<Tex>{'z\\bar z=|z|^2'}</Tex>，<Tex>{'\\mathrm{Re}\\,z=(z+\\bar z)/2'}</Tex>。
-          離散系統的頻率響應是把 <Tex>{'z=e^{j\\Omega}'}</Tex> 代入轉移函數，<Tex>{'\\Omega=2\\pi f/f_{\\mathrm{ref}}'}</Tex>。<Tex>{'1/(e^{j\\Omega}-1)'}</Tex> 可以化簡成 <Tex>{'-\\tfrac12-\\tfrac j2\\cot\\tfrac\\Omega2'}</Tex>（分子分母同乘 <Tex>{'e^{-j\\Omega/2}'}</Tex>）。
-          另一個常用的事實：<Tex>{'|e^{j\\theta}-1|=2\\sin(\\theta/2)'}</Tex>（單位圓上兩點的弦長）。
+          <Tex>{'z=a+jb'}</Tex> 的共軛 <Tex>{'\\bar z=a-jb'}</Tex>，<Tex>{'z\\bar z=|z|^2'}</Tex>，<Tex>{'\\mathrm{Re}\\,z=(z+\\bar z)/2'}</Tex>。離散系統的頻率響應是把 <Tex>{'z=e^{j\\Omega}'}</Tex> 代入轉移函數，<Tex>{'\\Omega=2\\pi f/f_{\\mathrm{ref}}'}</Tex>。<Tex>{'1/(e^{j\\Omega}-1)'}</Tex> 可以化簡成 <Tex>{'-\\tfrac12-\\tfrac j2\\cot\\tfrac\\Omega2'}</Tex>（分子分母同乘 <Tex>{'e^{-j\\Omega/2}'}</Tex>）。另一個常用的事實：<Tex>{'|e^{j\\theta}-1|=2\\sin(\\theta/2)'}</Tex>（單位圓上兩點的弦長）。
         </p>
       </Prereq>
       <Prereq title="Fourier 級數：把週期函數拆成等速旋轉的和">
         <p>
           週期為 1 的函數 <Tex>{'g(\\varphi)'}</Tex> 可以寫成 <Tex>{String.raw`g(\varphi)=\sum_\ell c_\ell\,e^{-j2\pi\ell\varphi}`}</Tex>，係數是 <Tex>{String.raw`c_\ell=\int_0^1g(\varphi)\,e^{+j2\pi\ell\varphi}\,d\varphi`}</Tex>
-          （兩邊乘 <Tex>{'e^{+j2\\pi m\\varphi}'}</Tex> 再積分，只有 <Tex>{'\\ell=m'}</Tex> 那一項留下來）。Parseval 定理：<Tex>{String.raw`\int_0^1|g|^2d\varphi=\sum_\ell|c_\ell|^2`}</Tex>——
-          總功率等於每條譜線功率的和。把 <Tex>{'\\varphi=n\\alpha'}</Tex> 代入，第 <Tex>{'\\ell'}</Tex> 條線就是頻率 <Tex>{'\\ell\\alpha f_{\\mathrm{ref}}'}</Tex> 的旋轉。
+          （兩邊乘 <Tex>{'e^{+j2\\pi m\\varphi}'}</Tex> 再積分，只有 <Tex>{'\\ell=m'}</Tex> 那一項留下來）。Parseval 定理：<Tex>{String.raw`\int_0^1|g|^2d\varphi=\sum_\ell|c_\ell|^2`}</Tex>——總功率等於每條譜線功率的和。把 <Tex>{'\\varphi=n\\alpha'}</Tex> 代入，第 <Tex>{'\\ell'}</Tex> 條線就是頻率 <Tex>{'\\ell\\alpha f_{\\mathrm{ref}}'}</Tex> 的旋轉。
         </p>
       </Prereq>
 
@@ -441,8 +436,7 @@ export default function SspllPreview() {
         ]}
       />
       <Observe>
-        極性反轉需要兩個條件同時成立：迴路有 peaking（<Tex>{'\\mathrm{Re}\\,T>1'}</Tex> 的頻帶）＋ regressor 的能量集中在那個頻帶。PMUX 的旋轉頻率 <Tex>{'\\alpha f_{\\mathrm{ref}}'}</Tex> 由 FCW 決定，所以「哪些頻道會壞」可以事先算出來。
-        修法要嘛改迴路（降低 peaking、校準時改成 Type-I），要嘛改 regressor（一階差分、filtered-x），見 <PageRef id="ch07">第 7 章</PageRef>與案例頁。
+        極性反轉需要兩個條件同時成立：迴路有 peaking（<Tex>{'\\mathrm{Re}\\,T>1'}</Tex> 的頻帶）＋ regressor 的能量集中在那個頻帶。PMUX 的旋轉頻率 <Tex>{'\\alpha f_{\\mathrm{ref}}'}</Tex> 由 FCW 決定，所以「哪些頻道會壞」可以事先算出來。修法要嘛改迴路（降低 peaking、校準時改成 Type-I），要嘛改 regressor（一階差分、filtered-x），見 <PageRef id="ch07">第 7 章</PageRef>與案例頁。
       </Observe>
 
       <StepDerivation

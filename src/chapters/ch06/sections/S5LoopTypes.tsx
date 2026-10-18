@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import {
   Callout,
   ClaimTag,
@@ -118,9 +118,7 @@ export function S5LoopTypes() {
 
       <Prereq title={String.raw`Laplace 變數 $s$：乘上 $s$ 就是微分`}>
         <p>
-          對 <Tex>{'e^{j\\omega t}'}</Tex> 微分：<Tex>{'\\frac{d}{dt}e^{j\\omega t}=j\\omega\\,e^{j\\omega t}'}</Tex>。所以在頻域裡「乘上 <Tex>{'s=j\\omega'}</Tex>」
-          就等於「對時間微分」，乘上 <Tex>{'s^2'}</Tex> 就是二次微分，除以 <Tex>{'s'}</Tex> 就是積分。PLL 的 DCO 把頻率積分成相位，
-          所以開迴路 <Tex>{'L(s)'}</Tex> 至少有一個 <Tex>{'1/s'}</Tex>；Type-II 的 PI 迴路濾波器再多一個。
+          對 <Tex>{'e^{j\\omega t}'}</Tex> 微分：<Tex>{'\\frac{d}{dt}e^{j\\omega t}=j\\omega\\,e^{j\\omega t}'}</Tex>。所以在頻域裡「乘上 <Tex>{'s=j\\omega'}</Tex>」就等於「對時間微分」，乘上 <Tex>{'s^2'}</Tex> 就是二次微分，除以 <Tex>{'s'}</Tex> 就是積分。PLL 的 DCO 把頻率積分成相位，所以開迴路 <Tex>{'L(s)'}</Tex> 至少有一個 <Tex>{'1/s'}</Tex>；Type-II 的 PI 迴路濾波器再多一個。
         </p>
       </Prereq>
 
@@ -172,8 +170,7 @@ export function S5LoopTypes() {
         />
         <TexBlock id="F-06.7">{String.raw`\boxed{\operatorname{Re}H_{\mathrm{PD}}^{\text{Type-I}}(j\omega)=\frac{\nu^2}{1+\nu^2}>0}`}</TexBlock>
         <p>
-          在 <Tex>{'\\omega=0.3\\omega_c'}</Tex>：<Tex>{`H=${fx(h1.re, 4)}+j${fx(h1.im, 4)}`}</Tex>，相位 <Tex>{`${fx(phaseDeg(h1), 1)}^\\circ`}</Tex>：
-          有效增益只剩 <Tex>{`\\cos(${fx(phaseDeg(h1), 1)}^\\circ)\\times|H|=${fx(h1.re, 4)}`}</Tex>——<strong>變慢，但不變號</strong>。
+          在 <Tex>{'\\omega=0.3\\omega_c'}</Tex>：<Tex>{`H=${fx(h1.re, 4)}+j${fx(h1.im, 4)}`}</Tex>，相位 <Tex>{`${fx(phaseDeg(h1), 1)}^\\circ`}</Tex>：有效增益只剩 <Tex>{`\\cos(${fx(phaseDeg(h1), 1)}^\\circ)\\times|H|=${fx(h1.re, 4)}`}</Tex>——<strong>變慢，但不變號</strong>。
           <ClaimTag kind="exact" />（CT 原型、無額外 loop latency）
         </p>
       </StepBox>
@@ -245,8 +242,7 @@ export function S5LoopTypes() {
 \angle H&=180^\circ-\tan^{-1}\frac{${fx(h2.im, 5)}}{${fx(-h2.re, 5)}}=${fx(ct03, 2)}^\circ
 \end{aligned}`}</TexBlock>
         <p>
-          和規格與 golden vector T06（<Tex>{'-0.0815+j0.0376'}</Tex>、<Tex>{'155.2^\\circ'}</Tex>）一致。這個頻率的單頻 code，
-          raw-x LMS 會<strong>反向更新</strong>；主 PLL 本身卻完全穩定。 <ClaimTag kind="exact" />（CT 原型）
+          和規格與 golden vector T06（<Tex>{'-0.0815+j0.0376'}</Tex>、<Tex>{'155.2^\\circ'}</Tex>）一致。這個頻率的單頻 code，raw-x LMS 會<strong>反向更新</strong>；主 PLL 本身卻完全穩定。 <ClaimTag kind="exact" />（CT 原型）
         </p>
         <p className="small">
           <Erratum id="E44" />：這是連續時間參考模型。拿它來算離散時間的相關 <Tex>{'C'}</Tex> 只是 <ClaimTag kind="approx" />（需 <Tex>{'\\omega_nT_s\\ll1'}</Tex>、無額外 loop
@@ -363,8 +359,7 @@ export function S5LoopTypes() {
         </p>
         <p>
           對照 Type-I：<Tex>{'H\\approx s/\\omega_c-s^2/\\omega_c^2'}</Tex>，所以{' '}
-          <Tex>{"C\\approx E[x\\,x']/\\omega_c-E[x\\,x'']/\\omega_c^2=0+E[(x')^2]/\\omega_c^2>0"}</Tex>：一次微分和 <Tex>{'x'}</Tex> 正交（相關為 0），
-          要到二階才出現一個<strong>正</strong>的小量——所以 Type-I 在低頻只會「很弱」，不會反號。
+          <Tex>{"C\\approx E[x\\,x']/\\omega_c-E[x\\,x'']/\\omega_c^2=0+E[(x')^2]/\\omega_c^2>0"}</Tex>：一次微分和 <Tex>{'x'}</Tex> 正交（相關為 0），要到二階才出現一個<strong>正</strong>的小量——所以 Type-I 在低頻只會「很弱」，不會反號。
         </p>
         <ModeGate min="research">
           <p className="small">
@@ -551,8 +546,7 @@ export function S5LoopTypes() {
           ]}
         />
         <p>
-          反過來說：<Tex>{'\\omega_nT_s'}</Tex> 不夠小或 <Tex>{'d>0'}</Tex> 時，泰勒展開不準，DT 的相位比 CT 多轉一些（latency 造成的相位落後），
-          polarity 邊界因此移動。下表由 <code>compareCtDt()</code> 即時計算（<Tex>{'\\zeta=0.7'}</Tex>），與 validation.md E44 的數值一致：
+          反過來說：<Tex>{'\\omega_nT_s'}</Tex> 不夠小或 <Tex>{'d>0'}</Tex> 時，泰勒展開不準，DT 的相位比 CT 多轉一些（latency 造成的相位落後），polarity 邊界因此移動。下表由 <code>compareCtDt()</code> 即時計算（<Tex>{'\\zeta=0.7'}</Tex>），與 validation.md E44 的數值一致：
         </p>
         <div className="table-wrap">
           <table className="ch06-table ch06-table-wraphead">
@@ -741,8 +735,7 @@ export function S5LoopTypes() {
       <Callout kind="info" title="試試看">
         <p>
           在下面的實驗把 <Tex>{'\\omega_LT_s'}</Tex> 設 0.3、<Tex>{'d'}</Tex> 設 1：Type-II 的邊界移到約{' '}
-          <Tex>{`${f(e44.find((r) => r.d === 1 && r.w === 0.3)?.nu0 ?? NaN, 4)}\\,\\omega_n`}</Tex>。再切到 Type-I、<Tex>{'K=0.8,\\;d=1'}</Tex>：
-          低頻出現 <Tex>{'\\operatorname{Re}H<0'}</Tex> 的頻帶（<Tex>{`\\kappa=1-0.8\\times1.5=${fx(lowFreqReCoef('typeI', 0.8, 1), 2)}`}</Tex>）。
+          <Tex>{`${f(e44.find((r) => r.d === 1 && r.w === 0.3)?.nu0 ?? NaN, 4)}\\,\\omega_n`}</Tex>。再切到 Type-I、<Tex>{'K=0.8,\\;d=1'}</Tex>：低頻出現 <Tex>{'\\operatorname{Re}H<0'}</Tex> 的頻帶（<Tex>{`\\kappa=1-0.8\\times1.5=${fx(lowFreqReCoef('typeI', 0.8, 1), 2)}`}</Tex>）。
         </p>
       </Callout>
       <CtDtExperiment />

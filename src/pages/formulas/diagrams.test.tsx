@@ -24,7 +24,7 @@ vi.mock('@/components/Mermaid', async () => {
     renderMermaid: async () => '<svg></svg>',
   }
 })
-vi.mock('plotly.js-dist-min', async () => ({ default: (await import('./domTestUtils')).PLOTLY_STUB }))
+vi.mock('plotly.js-cartesian-dist-min', async () => ({ default: (await import('./domTestUtils')).PLOTLY_STUB }))
 
 beforeAll(installMermaidSvgShim)
 

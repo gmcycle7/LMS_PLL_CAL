@@ -20,7 +20,20 @@ export type {
 } from './types'
 
 // 數學與圖
-export { Tex, TexBlock, MathText, mathText, stripMathDelimiters, renderTex, type TexBlockProps } from './Tex'
+export {
+  Tex,
+  TexBlock,
+  MathText,
+  mathText,
+  stripMathDelimiters,
+  accessibleText,
+  texToSpeech,
+  hasInlineMath,
+  nodeToAccessibleText,
+  nodeHasMath,
+  renderTex,
+  type TexBlockProps,
+} from './Tex'
 export { Mermaid, type MermaidProps } from './Mermaid'
 export { Plot, loadPlotly, PLOT_NEAR_MARGIN, type PlotProps } from './Plot'
 export {
@@ -66,7 +79,16 @@ export { MetricTable, type MetricTableProps } from './MetricTable'
 export { evaluateMetric, formatMetricValue, type MetricEvaluation } from './metrics'
 export { TestBadge } from './TestBadge'
 export { getTestStatus, TEST_STATUS_LABEL, type TestStatus, type TestStatusInfo } from './testStatus'
-export { ExperimentShell, type ExperimentShellProps } from './ExperimentShell'
+export {
+  ExperimentShell,
+  ControlGroup,
+  progressText,
+  type ControlGroupProps,
+  type ExperimentShellProps,
+  type ExperimentShellActions,
+  type RunProgress,
+  type RunKind,
+} from './ExperimentShell'
 export {
   buildExperimentPayload,
   buildExperimentReportInput,
@@ -138,3 +160,9 @@ export { sanitizeMermaidSource, mermaidMathDelimiters, hasUnsupportedMarkdown, w
 
 // 連結：公式 ID 連結、頁內錨點連結、章節交叉參照（src/components/links）
 export * from './links'
+
+// 全站搜尋：頂列的搜尋鈕與延後載入的命令面板（src/components/search）
+export { SearchButton, loadSearchPalette, type SearchPaletteProps } from './search'
+
+// 本頁目錄（PageFrame 掛在每一頁；從 h2 自動產生）與浮動「回到頂端」
+export { PageOutline, collectOutline, headingLabel, slugify, currentIndex, sectionProgress, OUTLINE_COLUMN_QUERY, OUTLINE_COLUMN_MIN_WIDTH, OUTLINE_MIN_ENTRIES, type OutlineLayout, type OutlineModel, type OutlineEntry, type PageOutlineProps } from './PageOutline'

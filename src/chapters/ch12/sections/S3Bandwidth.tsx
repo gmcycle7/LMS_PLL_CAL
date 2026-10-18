@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Plot, Prereq, Section, Tex, TexBlock } from '@/components'
 import calNoiseSrc from '@/simulation/models/calNoise.ts?raw'
 import pyNoiseSrc from '../../../../golden/lms_pll_golden/noise.py?raw'
@@ -57,8 +57,7 @@ export function S3Bandwidth() {
       <Section kind="example" title="§12.5 頻寬：同一個迴路，四個不同的數字" level={3} id="ch12-bandwidth">
         <p>
           規格說「校正 Noise BW 約 12.9 kHz」。驗算後發現這句話把兩件事混在一起 <Erratum id="E06" />
-          <Erratum id="E10" />：12.9 kHz 其實是 <Tex>{String.raw`|H_{\eta\to w}|^2`}</Tex> 的 <strong>−3 dB corner</strong>；
-          用來積分白雜訊的「noise bandwidth」（ENBW，equivalent noise bandwidth，等效雜訊頻寬）是另一個數。這裡的{' '}
+          <Erratum id="E10" />：12.9 kHz 其實是 <Tex>{String.raw`|H_{\eta\to w}|^2`}</Tex> 的 <strong>−3 dB corner</strong>；用來積分白雜訊的「noise bandwidth」（ENBW，equivalent noise bandwidth，等效雜訊頻寬）是另一個數。這裡的{' '}
           <Tex>{String.raw`f_{3\mathrm{dB}}`}</Tex> 指功率降到 DC 一半的頻率；兩者讀的是上一節同一條 <Tex>{String.raw`|H_{\eta\to w}|^2`}</Tex> 曲線，只是問的問題不同：
         </p>
         <Diagram chart={CHART_BW_READOUTS} caption="同一個濾波器的四種讀法：其中三個都在回答功率掉一半的頻率，ENBW 回答的是另一個問題。">
@@ -140,8 +139,7 @@ export function S3Bandwidth() {
           </table>
         </div>
         <p>
-          其中 <Tex>{String.raw`f_u=f_s/N=4\ \mathrm{GHz}/4096=${sig(EX.fu / 1e3, 7)}\ \mathrm{kHz}`}</Tex>、<Tex>{`p=${sig(EX.p, 8)}`}</Tex>（T14）。
-          「約 12.9 kHz」只和 exact 與 <Tex>{String.raw`-\ln p`}</Tex> 吻合；<Tex>{'(1-p)'}</Tex> 版是 {(EX.f3dbOneMinusP / 1e3).toFixed(2)} kHz（差{' '}
+          其中 <Tex>{String.raw`f_u=f_s/N=4\ \mathrm{GHz}/4096=${sig(EX.fu / 1e3, 7)}\ \mathrm{kHz}`}</Tex>、<Tex>{`p=${sig(EX.p, 8)}`}</Tex>（T14）。「約 12.9 kHz」只和 exact 與 <Tex>{String.raw`-\ln p`}</Tex> 吻合；<Tex>{'(1-p)'}</Tex> 版是 {(EX.f3dbOneMinusP / 1e3).toFixed(2)} kHz（差{' '}
           {relPct(EX.f3dbOneMinusP, EX.f3dbExact, 2)}%）<Erratum id="E26" />。
         </p>
       </Section>
@@ -196,8 +194,7 @@ export function S3Bandwidth() {
         />
         <Callout kind="warn" title="−3 dB 點不存在的區域（E27）">
           <Tex>{String.raw`0<p<3-2\sqrt2`}</Tex>：low-pass 但衰減不足 3 dB，網站顯示「−3 dB 點不存在」；<Tex>{'p=0'}</Tex>：flat；
-          <Tex>{String.raw`-1<p<0`}</Tex>：high-pass，low-pass 的頻寬定義不適用；<Tex>{String.raw`|p|\ge1`}</Tex>：不穩定，不顯示頻寬。
-          近似公式在這些區域仍會「給出數字」——這正是要警告的地方。<Erratum id="E27" />
+          <Tex>{String.raw`-1<p<0`}</Tex>：high-pass，low-pass 的頻寬定義不適用；<Tex>{String.raw`|p|\ge1`}</Tex>：不穩定，不顯示頻寬。近似公式在這些區域仍會「給出數字」——這正是要警告的地方。<Erratum id="E27" />
         </Callout>
       </Section>
 
@@ -230,8 +227,7 @@ export function S3Bandwidth() {
           ]}
         />
         <p>
-          <strong>−ln p 的物理意義</strong>：若把每個 block 的衰減 <Tex>{'p'}</Tex> 看成連續時間指數衰減 <Tex>{String.raw`e^{-\omega_cT_u}`}</Tex>（<Tex>{String.raw`T_u=1/f_u`}</Tex>），
-          則 <Tex>{String.raw`\omega_c=-f_u\ln p`}</Tex>，一階 RC 的 −3 dB 就是 <Tex>{String.raw`\omega_c/(2\pi)`}</Tex>——這就是 impulse-invariant 映射 <Tex>{String.raw`z=e^{sT_u}`}</Tex>。
+          <strong>−ln p 的物理意義</strong>：若把每個 block 的衰減 <Tex>{'p'}</Tex> 看成連續時間指數衰減 <Tex>{String.raw`e^{-\omega_cT_u}`}</Tex>（<Tex>{String.raw`T_u=1/f_u`}</Tex>），則 <Tex>{String.raw`\omega_c=-f_u\ln p`}</Tex>，一階 RC 的 −3 dB 就是 <Tex>{String.raw`\omega_c/(2\pi)`}</Tex>——這就是 impulse-invariant 映射 <Tex>{String.raw`z=e^{sT_u}`}</Tex>。
           <ClaimTag kind="approx" />（需 <Tex>{String.raw`p\to1`}</Tex>）。
         </p>
         <TexBlock id="F-12.8" label="兩個近似">
@@ -331,8 +327,7 @@ export function S3Bandwidth() {
 
       <Section kind="explore" title="程式碼比較：三種 −3 dB 定義 + ENBW" level={3}>
         <p>
-          下面是網站實際執行的程式碼（<code>{PATH}</code>）。四個函式的輸入都是 <Tex>{'(p,f_u)'}</Tex>，差異只在標了「← 差異」的那幾行：
-          exact 版多了一個<strong>存在範圍</strong>判斷；兩個近似版只差 <Tex>{'1-p'}</Tex> 與 <Tex>{'-\\ln p'}</Tex>；ENBW 是完全不同的物理量。
+          下面是網站實際執行的程式碼（<code>{PATH}</code>）。四個函式的輸入都是 <Tex>{'(p,f_u)'}</Tex>，差異只在標了「← 差異」的那幾行：exact 版多了一個<strong>存在範圍</strong>判斷；兩個近似版只差 <Tex>{'1-p'}</Tex> 與 <Tex>{'-\\ln p'}</Tex>；ENBW 是完全不同的物理量。
         </p>
         <CodeCompare
           layout="tabs"

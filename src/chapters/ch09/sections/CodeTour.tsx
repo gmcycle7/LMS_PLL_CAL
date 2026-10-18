@@ -12,8 +12,7 @@ export function CodeTour() {
   return (
     <Section kind="example" title="核心程式碼：網站實際執行的版本" level={2} id="ch09-code">
       <p>
-        下面每一段都直接從 <code>{PATH}</code> 擷取（<code>?raw</code> + <code>#region core:*</code>），不是另外手寫的示意版。
-        比較不同演算法時，關鍵差異行以 <code>// ← 差異：…</code> 標出並高亮。
+        下面每一段都直接從 <code>{PATH}</code> 擷取（<code>?raw</code> + <code>#region core:*</code>），不是另外手寫的示意版。比較不同演算法時，關鍵差異行以 <code>// ← 差異：…</code> 標出並高亮。
       </p>
 
       <h3>1. Eigen 分解：{m`2\times2`} 閉式解 vs. 一般 {m`M\times M`}</h3>
@@ -79,8 +78,7 @@ export function CodeTour() {
       <h3>5. §9.1 滑動窗口 PE 統計</h3>
       <CodeBlock source={peSrc} region="slidingWindowPe" path={PATH} caption={String.raw`prefix sum 讓每個窗口 $O(1)$；$\pm1$ code 的和是整數，退化窗口精確退化。`} />
       <p>
-        {m`\mathbf R_k`} 的三個元素都是 prefix sum 的差，每個窗口 {m`O(1)`}；{m`\pm1`} code 的和是整數，退化窗口的 {m`\lambda_{\min}(\mathbf R_k)`} 精確為 0
-        （沒有浮點殘差）。{m`\sigma_i(\mathbf U_k)=\sqrt{N_0\lambda_i(\mathbf R_k)}`}（F-09.10）。
+        {m`\mathbf R_k`} 的三個元素都是 prefix sum 的差，每個窗口 {m`O(1)`}；{m`\pm1`} code 的和是整數，退化窗口的 {m`\lambda_{\min}(\mathbf R_k)`} 精確為 0（沒有浮點殘差）。{m`\sigma_i(\mathbf U_k)=\sqrt{N_0\lambda_i(\mathbf R_k)}`}（F-09.10）。
       </p>
 
       <h3>6. §9.2 Gauge：raw-x vs. u-domain regressor</h3>
@@ -103,8 +101,7 @@ export function CodeTour() {
       <ModeGate min="engineer">
         <p>
           u-domain 用 raw {m`\tilde{\mathbf x}`} 當 GMAC regressor 時，{m`w_b`} 只被雜訊推動。每個 block 的平均雜訊 {m`\eta_k`} 的標準差是 {m`\sigma_v/\sqrt N`}，
-          {m`K`} 個 block 的 random walk 累積 {m`\mu\sigma_v\sqrt{K/N}`}；type-I 迴路的 step response 總和 {m`S=\sum_ns[n]=1/(1-r)\ne0`}，
-          會把每一步「回吐」一部分（阻尼 {m`1/(1+\tfrac54\mu S/N)`}，F-09.19），type-II 的 {m`S=0`} 則沒有這個效應。兩者都<strong>沒有恢復力</strong>。
+          {m`K`} 個 block 的 random walk 累積 {m`\mu\sigma_v\sqrt{K/N}`}；type-I 迴路的 step response 總和 {m`S=\sum_ns[n]=1/(1-r)\ne0`}，會把每一步「回吐」一部分（阻尼 {m`1/(1+\tfrac54\mu S/N)`}，F-09.19），type-II 的 {m`S=0`} 則沒有這個效應。兩者都<strong>沒有恢復力</strong>。
         </p>
         <CodeBlock source={peSrc} region="gaugeDriftStd" path={PATH} caption="實驗室顯示的 random-walk 預測（近似；與多個 seed 的 Monte Carlo 在測試中比對）。" />
       </ModeGate>
@@ -152,8 +149,7 @@ export function CodeTour() {
       <ModeGate min="research">
         <h3>Python golden model 對照（TypeScript vs. NumPy）</h3>
         <p>
-          獨立的 NumPy 版本（<code>{PY_PATH}</code>）產生 T10 / T11 的 golden vectors；Vitest 讀這些 JSON 與上面的 TypeScript 交叉比對。
-          下面逐一並排「同一件事的兩種寫法」（Python 段落以函式名稱從原始檔擷取）。注意 golden 的 {m`\mathbf I-\mu\mathbf R`} 沒有 {m`K_q`}：它驗的是
+          獨立的 NumPy 版本（<code>{PY_PATH}</code>）產生 T10 / T11 的 golden vectors；Vitest 讀這些 JSON 與上面的 TypeScript 交叉比對。下面逐一並排「同一件事的兩種寫法」（Python 段落以函式名稱從原始檔擷取）。注意 golden 的 {m`\mathbf I-\mu\mathbf R`} 沒有 {m`K_q`}：它驗的是
           {m`K_q=1`} 的正規化情形（<Erratum id="E05" />）。
         </p>
         <CodeCompare

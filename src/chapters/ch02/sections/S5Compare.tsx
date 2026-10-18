@@ -217,8 +217,7 @@ export function S5Compare() {
         </Diagram>
         <p>
           Sign-Error 的 <Tex>{'\\operatorname{sign}(e)\\,x'}</Tex> 在硬體上是「<strong>conditional negation</strong>」：<Tex>{'q=+1'}</Tex> 時加 <Tex>{'x'}</Tex>、<Tex>{'q=-1'}</Tex> 時減 <Tex>{'x'}</Tex>
-          （2&apos;s complement：XOR 每個位元再進位 1）。這就是 PLL 校正中 GMAC 的乘加單元（<ChapterLink ch="04">Ch04</ChapterLink>）。
-          若 comparator 輸出 0/1，必須先映射 <Tex>{'q=2b-1'}</Tex>，否則等於用了錯的 regressor（<ChRef ch="05">Ch05</ChRef>、<ChRef ch="11">Ch11</ChRef>）。
+          （2&apos;s complement：XOR 每個位元再進位 1）。這就是 PLL 校正中 GMAC 的乘加單元（<ChapterLink ch="04">Ch04</ChapterLink>）。若 comparator 輸出 0/1，必須先映射 <Tex>{'q=2b-1'}</Tex>，否則等於用了錯的 regressor（<ChRef ch="05">Ch05</ChRef>、<ChRef ch="11">Ch11</ChRef>）。
         </p>
       </Section>
 
@@ -254,15 +253,12 @@ export function S5Compare() {
         </DerivFold>
         <TexBlock id="F-02.13">{String.raw`\operatorname{Var}(w)\approx\frac{\mu\,\sigma_\eta^2}{K(2-\mu K)}\qquad(0<\mu K<2,\ \text{小步長；sign 類另需 }\mu x^2\ll\sigma_v\text{，即 }\mu K\ll1)`}</TexBlock>
         <p className="ch02-note" data-linearization-validity>
-          sign 類的「小步長」要在 comparator 輸入端比：走一步 <Tex>{'\\Delta w=\\pm\\mu x'}</Tex> 會讓誤差 <Tex>{'e=(a-w)x+v'}</Tex> 改變 <Tex>{'\\mu x^2'}</Tex>，
-          它必須遠小於雜訊 <Tex>{'\\sigma_v'}</Tex>，雜訊才來得及把 sign 平滑成斜線（<Tex>{'|x|=1'}</Tex> 時才會和帶寬 <Tex>{'\\mu|x|'}</Tex> 是同一個數）。
-          用 <Tex>{'K_{\\rm SE}=K_qE[x^2]'}</Tex> 改寫就是 <Tex>{'g=\\mu K_{\\rm SE}\\ll1'}</Tex>。Gaussian 雜訊、<Tex>{'x=\\pm A'}</Tex> 的 Monte Carlo 對照：
+          sign 類的「小步長」要在 comparator 輸入端比：走一步 <Tex>{'\\Delta w=\\pm\\mu x'}</Tex> 會讓誤差 <Tex>{'e=(a-w)x+v'}</Tex> 改變 <Tex>{'\\mu x^2'}</Tex>，它必須遠小於雜訊 <Tex>{'\\sigma_v'}</Tex>，雜訊才來得及把 sign 平滑成斜線（<Tex>{'|x|=1'}</Tex> 時才會和帶寬 <Tex>{'\\mu|x|'}</Tex> 是同一個數）。用 <Tex>{'K_{\\rm SE}=K_qE[x^2]'}</Tex> 改寫就是 <Tex>{'g=\\mu K_{\\rm SE}\\ll1'}</Tex>。Gaussian 雜訊、<Tex>{'x=\\pm A'}</Tex> 的 Monte Carlo 對照：
           <Tex>{'g=0.1'}</Tex> 時公式高估 <Tex>{'\\sigma_w'}</Tex> 不到 1%、<Tex>{'g=0.2'}</Tex> 約 1.5%、<Tex>{'g=0.5'}</Tex> 約 5%、<Tex>{'g=1'}</Tex> 約 18%（手算題 HC-02.8 只接受 <Tex>{'g\\le0.5'}</Tex>）。
         </p>
         <TexBlock id="F-02.14">{String.raw`\boxed{\frac{\operatorname{Var}_{\rm SE}}{\operatorname{Var}_{\rm LMS}}\bigg|_{\text{同 }\mu K}=\frac{1}{4f_v(0)^2\sigma_v^2}=\begin{cases}\pi/2\approx1.571&\text{Gaussian: }f_v(0)=\frac{1}{\sqrt{2\pi}\sigma_v}\\[2pt]1/2&\text{Laplacian: }f_v(0)=\frac{1}{\sqrt2\,\sigma_v}\end{cases}}`}</TexBlock>
         <p>
-          <ClaimTag kind="approx" /> 這就是統計學「中位數 vs 平均」的漸近效率：Gaussian 雜訊下用 sign 會多付 57% 的變異（std 多 25%）；
-          雜訊尾巴越重（Laplacian、impulsive），sign 反而越準。下表由 <code>equalSpeedVarianceRatio()</code> 數值計算（<Tex>{'\\sigma_v=1'}</Tex>）：
+          <ClaimTag kind="approx" /> 這就是統計學「中位數 vs 平均」的漸近效率：Gaussian 雜訊下用 sign 會多付 57% 的變異（std 多 25%）；雜訊尾巴越重（Laplacian、impulsive），sign 反而越準。下表由 <code>equalSpeedVarianceRatio()</code> 數值計算（<Tex>{'\\sigma_v=1'}</Tex>）：
         </p>
         <div className="table-wrap">
           <table className="ch02-table">
@@ -327,8 +323,7 @@ export function S5Compare() {
           <ChapterLink ch="10">Ch10</ChapterLink> 的 preconditioner。注意 NLMS 需要多位元的 <Tex>{'e'}</Tex> 與除法，它不是 1-bit 校正的替代品，而是告訴我們「步長應該跟著 regressor 功率走」。
         </p>
         <HandCalcSlot id="HC-02.7">
-          用你自己的 <Tex>{'w,\\ x,\\ y,\\ \\tilde\\mu,\\ \\varepsilon'}</Tex> 算一步 NLMS，並親手驗證 <Tex>{'e^+=(1-\\tilde\\mu)\\,e'}</Tex>（<Tex>{'\\varepsilon=0'}</Tex>）；
-          再把 <Tex>{'x'}</Tex>、<Tex>{'y'}</Tex> 同乘 10 重算，看收縮比例是不是不變。
+          用你自己的 <Tex>{'w,\\ x,\\ y,\\ \\tilde\\mu,\\ \\varepsilon'}</Tex> 算一步 NLMS，並親手驗證 <Tex>{'e^+=(1-\\tilde\\mu)\\,e'}</Tex>（<Tex>{'\\varepsilon=0'}</Tex>）；再把 <Tex>{'x'}</Tex>、<Tex>{'y'}</Tex> 同乘 10 重算，看收縮比例是不是不變。
         </HandCalcSlot>
         <ModeGate min="engineer">
           <CodeBlock source={sgdSrc} region="nlmsStep" path="src/simulation/models/sgd.ts" />
@@ -343,13 +338,10 @@ export function S5Compare() {
               <Tex>{String.raw`\bar w=\frac1R\sum_{r=1}^{R}w^{(r)}`}</Tex>。同一個 seed 一定得到同一條路徑（可重現）。
             </li>
             <li>
-              <strong>標準誤（SE）與 95% 信賴區間</strong>：<Tex>{String.raw`R`}</Tex> 個獨立樣本平均的標準差是 <Tex>{String.raw`s/\sqrt R`}</Tex>（<Tex>{'s'}</Tex>：樣本標準差）。
-              中央極限定理說平均近似 Gaussian，所以 <Tex>{String.raw`\bar w\pm t_{0.975}\,s/\sqrt R`}</Tex>（<Tex>{String.raw`R`}</Tex> 大時 <Tex>{String.raw`t_{0.975}\approx1.96`}</Tex>）約有 95% 機率涵蓋真值。
-              表格的「一致」用 <Tex>{String.raw`4\,\mathrm{SE}`}</Tex> 再加上 <Tex>{String.raw`O(\mu)`}</Tex> 修正當容差。
+              <strong>標準誤（SE）與 95% 信賴區間</strong>：<Tex>{String.raw`R`}</Tex> 個獨立樣本平均的標準差是 <Tex>{String.raw`s/\sqrt R`}</Tex>（<Tex>{'s'}</Tex>：樣本標準差）。中央極限定理說平均近似 Gaussian，所以 <Tex>{String.raw`\bar w\pm t_{0.975}\,s/\sqrt R`}</Tex>（<Tex>{String.raw`R`}</Tex> 大時 <Tex>{String.raw`t_{0.975}\approx1.96`}</Tex>）約有 95% 機率涵蓋真值。表格的「一致」用 <Tex>{String.raw`4\,\mathrm{SE}`}</Tex> 再加上 <Tex>{String.raw`O(\mu)`}</Tex> 修正當容差。
             </li>
             <li>
-              <strong>中位數與 10% / 90% 分位數</strong>：把 <Tex>{String.raw`R`}</Tex> 個 <Tex>{String.raw`|\delta_n|`}</Tex> 排序，取第 50%、10%、90% 位置的值。
-              它們不受少數極端路徑影響；<Tex>{String.raw`E[\delta^2]`}</Tex> 的樣本平均可能被一兩條重尾路徑主導，所以收斂圖畫分位數 <ErrataNote id="E14" />。
+              <strong>中位數與 10% / 90% 分位數</strong>：把 <Tex>{String.raw`R`}</Tex> 個 <Tex>{String.raw`|\delta_n|`}</Tex> 排序，取第 50%、10%、90% 位置的值。它們不受少數極端路徑影響；<Tex>{String.raw`E[\delta^2]`}</Tex> 的樣本平均可能被一兩條重尾路徑主導，所以收斂圖畫分位數 <ErrataNote id="E14" />。
             </li>
           </ul>
         </Prereq>

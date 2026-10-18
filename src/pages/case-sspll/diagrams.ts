@@ -571,6 +571,24 @@ export const CHART_HANDCALC = String.raw`flowchart LR
   E --> R3["$\min g \ge 0$：<br/>一階差分可以用"]
   class D focus${STYLE}`
 
+/**
+ * §15.4 殘餘誤差 → 輸出 spur／jitter：凍結後的 PHOS 殘差經 8 點 DFT 拆成模態，每個模態在 frac(ℓα)·f_ref 各放一條線（振幅 2|δ̂_m|√w_ℓ）；
+ * GOS 殘差是鋸齒的諧波；全部乘上藍色的 |T(f)|（主迴路的低通，帶緣有 peaking）變成輸出相位，再換成 spur [dBc] 與積分 jitter。
+ */
+export const CHART_OUTPUT_SPUR = String.raw`flowchart TB
+  D["凍結後的 PHOS 殘差<br/>$\delta_k = \varepsilon_k - w_k$，$k = 0..7$"] --> DFT["8 點 DFT<br/>$\hat\delta_m = \tfrac{1}{8}\textstyle\sum_k \delta_k e^{-j2\pi mk/8}$"]
+  DFT --> M1["mode 1（與 mode 7 共軛）<br/>線 $\ell \equiv \pm 1$：頻率 $\mathrm{frac}(\ell\alpha)\,f_{ref}$<br/>peak $2\lvert\hat\delta_1\rvert\sqrt{w_\ell}$（基波 $\ell = 1$ 占 95%）"]
+  DFT --> M2["mode 2、3、4<br/>線 $\ell \equiv \pm m$，同樣的 $\sqrt{w_\ell}$"]
+  DFT --> M0["mode 0（共模）<br/>只有 DC：靜態相位，不是 spur"]
+  G["GOS 殘差<br/>$(1 - \mathrm{gain})\,\Delta\,\rho[n]$"] --> GH["鋸齒諧波 $m$：頻率 $\mathrm{frac}(m\beta)\,f_{ref}$<br/>peak $\lvert\mathrm{GOS}\rvert/(\pi m)$"]
+  M1 --> T["$\times\,\lvert T(f)\rvert$<br/>主迴路的閉迴路響應：320 MHz 低通，<br/>帶緣 peaking 2.1 dB、隨 PVT 移動"]
+  M2 --> T
+  GH --> T
+  T --> PM["輸出相位的峰值<br/>$\Phi = 2\pi f_{vco} A_{out}$"]
+  PM --> S["每條線一根 spur<br/>$20\log_{10}(\Phi/2)$ dBc"]
+  PM --> J["積分 jitter<br/>$\sqrt{\textstyle\sum A_{out}^2/2}$"]
+  class T focus${STYLE}`
+
 /** §18 數學量對應的硬體：code 的 pipeline、差分、GMAC、權重暫存器 */
 export const CHART_HARDWARE = String.raw`flowchart TB
   ACC["分數累加器（數位）"] -->|"高 3 位"| SEL["PMUX select $p[n]$<br/>解碼成 8 條 one-hot"]
@@ -658,6 +676,7 @@ export const DIAGRAMS: DiagramDef[] = [
   { id: 'sim-loop', section: '§14', kind: 'loop', chart: CHART_SIM_LOOP, caption: '實驗 C 每一拍做的事：注入誤差 → 迴路 → 1-bit 比較器 → GMAC；每 $N$ 拍更新一次權重。不同對策只差在藍色那一格。' },
   { id: 'keepout', section: '§15.2', kind: 'flow', chart: CHART_KEEPOUT, caption: 'keep-out 的判斷流程（raw 或 ac 才需要）：①②③ 三個檢查任何一個成立就列入；改用 1diff 或 filtered-x，第一個判斷就直接走到「不需要 keep-out」。' },
   { id: 'handcalc', section: '§15.3', kind: 'flow', chart: CHART_HANDCALC, caption: '綜合手算的順序：①②③⑤ 各自獨立，④（藍）把 ① 和 ③ 相減，得到「在不在反號帶內」。' },
+  { id: 'output-spur', section: '§15.4', kind: 'path', chart: CHART_OUTPUT_SPUR, caption: String.raw`殘餘誤差到輸出的路：PHOS 殘差先拆成 DFT 模態、每個模態再拆成譜線，GOS 殘差拆成鋸齒諧波；所有線都乘上藍色的 $\lvert T(f)\rvert$ 才到 VCO 輸出，變成一根根 fractional spur 與積分 jitter。` },
   { id: 'hardware', section: '§18', kind: 'architecture', chart: CHART_HARDWARE, caption: '數學量對應的硬體：藍色是 1diff 需要的兩件事，延遲對齊與「一個暫存器加一個減法器」。' },
 ]
 
