@@ -75,8 +75,7 @@ export default function CaseSspllPage() {
         <ModelLevel level="L2" /> <ModelLevel level="L3" /> <ClaimTag kind="exact" /> <ClaimTag kind="approx" /> <ClaimTag kind="research" /> <SourceTag kind="illustrative" /> <SourceTag kind="simulation" />
       </div>
       <p className="small muted">
-        結論標籤與分析文件一一對應：<ClaimTag kind="exact" /> 在所述模型與假設下數學上精確；<ClaimTag kind="approx" /> 來自線性化、數值掃描或模擬，在模型外需要驗證；<ClaimTag kind="research" /> 目前只有部分證據，還沒有證明。
-        比較器輸入雜訊的標準差 <Tex>{`\\sigma_v=${fx(SIM_CFG.sigmaPs * 1000, 0)}`}</Tex> fs、VCO 頻率 <Tex>{`f_{vco}=${A.f_vco_Hz_illustrative / 1e9}`}</Tex> GHz 等是插圖值，不是你的晶片量測。
+        結論標籤與分析文件一一對應：<ClaimTag kind="exact" /> 在所述模型與假設下數學上精確；<ClaimTag kind="approx" /> 來自線性化、數值掃描或模擬，在模型外需要驗證；<ClaimTag kind="research" /> 目前只有部分證據，還沒有證明。比較器輸入雜訊的標準差 <Tex>{`\\sigma_v=${fx(SIM_CFG.sigmaPs * 1000, 0)}`}</Tex> fs、VCO 頻率 <Tex>{`f_{vco}=${A.f_vco_Hz_illustrative / 1e9}`}</Tex> GHz 等是插圖值，不是你的晶片量測。
       </p>
       <SymbolsLink />
       {mode === 'beginner' && (

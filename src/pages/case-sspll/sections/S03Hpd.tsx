@@ -66,8 +66,7 @@ export function S03Hpd() {
         rows={LOOP_KEYS.map((k) => [k, ...H_IMPULSE[k].map((v) => fx(v, 5))])}
       />
       <p>
-        直覺：誤差剛出現時 PD 全部看到，接著迴路把它「吃掉」，所以後面全是負值。Type-I 的負尾巴總和是 <Tex>{'-1'}</Tex>（<Tex>{r`\sum h=H(1)=0`}</Tex>）。Type-II 的負尾巴更長，還會稍微 overshoot（多一個 DC 零點）。這條「又長又小的負尾巴」就是反號的來源：
-        regressor 若變化得很慢，尾巴的累積就會蓋過 <Tex>{r`h_{PD}[0]=1`}</Tex> 那一拍。
+        直覺：誤差剛出現時 PD 全部看到，接著迴路把它「吃掉」，所以後面全是負值。Type-I 的負尾巴總和是 <Tex>{'-1'}</Tex>（<Tex>{r`\sum h=H(1)=0`}</Tex>）。Type-II 的負尾巴更長，還會稍微 overshoot（多一個 DC 零點）。這條「又長又小的負尾巴」就是反號的來源：regressor 若變化得很慢，尾巴的累積就會蓋過 <Tex>{r`h_{PD}[0]=1`}</Tex> 那一拍。
       </p>
       <Src>
         <code>loopImpulse</code>（<code>sspll.ts</code>）即時計算；與 golden 的 <code>worked_examples.json</code> 比對到 5 位小數。

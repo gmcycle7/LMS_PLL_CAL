@@ -13,10 +13,10 @@ const read = (rel: string) => readFileSync(join(ROOT, rel), 'utf8')
 const by = (id: string) => FORMULAS.find((f) => f.id === id)!
 
 /** 標成近似的案例頁公式：線性化（Bussgang：F-CS.2 與建立在它上面的 F-CS.18、F-CS.19）、低頻／慢鋸齒漸近，以及原本就是大訊號割線斜率的 F-CS.20 */
-const APPROX_IDS = ['F-CS.2', 'F-CS.5', 'F-CS.6', 'F-CS.12', 'F-CS.18', 'F-CS.19', 'F-CS.20']
+const APPROX_IDS = ['F-CS.2', 'F-CS.5', 'F-CS.6', 'F-CS.12', 'F-CS.18', 'F-CS.19', 'F-CS.20', 'F-CS.21', 'F-CS.22', 'F-CS.23']
 
 describe('A7a：近似的公式不標「精確」', () => {
-  it('登錄檔：式子含 \\approx 或條件寫線性化／漸近的一律是 approx；approx 的剛好是 F-CS.2／.5／.6／.12／.18／.19／.20，其餘（含 F-CS.11、.13 的諧波和）仍是 exact', () => {
+  it('登錄檔：式子含 \\approx 或條件寫線性化／漸近的一律是 approx；approx 的剛好是 F-CS.2／.5／.6／.12／.18／.19／.20 與 §15.4 的 .21／.22／.23，其餘（含 F-CS.11、.13 的諧波和）仍是 exact', () => {
     for (const f of FORMULAS) if (/\\approx/.test(f.tex)) expect(f.claim, f.id).toBe('approx')
     expect(FORMULAS.filter((f) => f.claim === 'approx').map((f) => f.id)).toEqual(APPROX_IDS)
     const exact = FORMULAS.filter((f) => f.claim === 'exact').map((f) => f.id)
@@ -38,6 +38,10 @@ describe('A7a：近似的公式不標「精確」', () => {
       'F-CS.12': ['慢鋸齒', '漸近式'],
       'F-CS.18': ['F-CS.2', '小訊號線性化', '對任何 $N_\\tau>0$ 都精確'],
       'F-CS.19': ['小訊號線性化', '凍結權重', '精確'],
+      // §15.4：線性化的 T、小角 PM、權重凍結；F-CS.23 建立在 F-CS.2 上再假設 GMAC 雜訊白色
+      'F-CS.21': ['線性化的閉迴路響應', '小角 PM', '權重凍結', 'reference spur'],
+      'F-CS.22': ['同 F-CS.21', '線性化的 $T$', '小角 PM', '權重凍結'],
+      'F-CS.23': ['F-CS.2', '小訊號線性化', '凍結權重', '白色', 'F-12.4'],
     }
     for (const [id, frags] of Object.entries(why)) {
       const c = by(id).conditions
@@ -59,7 +63,8 @@ describe('A7a：近似的公式不標「精確」', () => {
       const linked = h.formulaId ? FORMULAS.find((f) => f.id === h.formulaId) : undefined
       if (linked?.claim === 'approx') expect(h.claim, `${h.id} → ${h.formulaId}`).toBe('approx')
     }
-    expect(['HC-CS.2', 'HC-CS.3', 'HC-CS.5', 'HC-CS.7'].map((id) => defs.get(id)!.claim)).toEqual(['approx', 'approx', 'approx', 'approx'])
+    expect(['HC-CS.2', 'HC-CS.3', 'HC-CS.5', 'HC-CS.7', 'HC-CS.9'].map((id) => defs.get(id)!.claim)).toEqual(['approx', 'approx', 'approx', 'approx', 'approx'])
+    expect(defs.get('HC-CS.9')!.formulaId).toBe('F-CS.21') // 連到 approx 的 F-CS.21（線性化的 T、小角 PM）
     expect(['HC-CS.1', 'HC-CS.4', 'HC-CS.6', 'HC-CS.8'].map((id) => defs.get(id)!.claim)).toEqual(['exact', 'exact', 'exact', 'exact'])
   })
 

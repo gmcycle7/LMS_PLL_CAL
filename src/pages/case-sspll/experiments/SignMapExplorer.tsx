@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import type { Data, Layout } from 'plotly.js-dist-min'
+import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import { ExperimentShell, ParamControl, Plot, SelectControl, ToggleControl, mathText, plotMath, useThemeTokens, type ExperimentPreset, type MetricRow } from '@/components'
 import { presetsForExperiment, useUrlPreset } from '@/app/presets'
 import {
@@ -430,11 +430,12 @@ export function SignMapExplorer() {
   }, [map, dP.tau, fFold, tokens])
   const heatLayout: Partial<Layout> = useMemo(
     () => ({
-      xaxis: { title: { text: '$\\min(\\alpha,\\,1-\\alpha)\\cdot f_{\\mathrm{ref}}$ [MHz]<br>（直線 = 目前的 $\\alpha$）' }, type: dP.logX ? 'log' : 'linear' },
+      // x 軸是否 log 由 Plot 的 xLog 決定（log 刻度的規則——整數次方——由 Plot 統一處理），這裡不設 type
+      xaxis: { title: { text: '$\\min(\\alpha,\\,1-\\alpha)\\cdot f_{\\mathrm{ref}}$ [MHz]<br>（直線 = 目前的 $\\alpha$）' } },
       yaxis: { automargin: true },
       margin: { l: 170 },
     }),
-    [dP.logX],
+    [],
   )
 
   const ergVsExact = exact && exact.Q % 8 === 0 && exact.Q >= 1000 ? Math.abs(exact.kr.kP - an.kappaPhos) : null
@@ -590,7 +591,7 @@ export function SignMapExplorer() {
         </span>
       </div>
       {map ? (
-        <Plot title={`sign map 熱圖（${dP.loop}，$\\tau=${dP.tau}$）：每一列是一種 regressor／模態`} data={heat.data} layout={heatLayout} height={90 + 24 * heat.n} csvName="sspll-signmap-heat" />
+        <Plot title={`sign map 熱圖（${dP.loop}，$\\tau=${dP.tau}$）：每一列是一種 regressor／模態`} data={heat.data} layout={heatLayout} xLog={dP.logX} height={90 + 24 * heat.n} csvName="sspll-signmap-heat" />
       ) : (
         <DataPending status={mapStatus} what="sign map 熱圖" height={90 + 24 * heatRowCount(dP.loop)} />
       )}

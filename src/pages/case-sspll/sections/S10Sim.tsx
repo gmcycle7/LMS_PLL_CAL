@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
-import type { Data } from 'plotly.js-dist-min'
+import type { Data } from 'plotly.js-cartesian-dist-min'
 import { Callout, ModeGate, Plot, Section, SelectControl, SourceTag, Tex, mathText, useThemeTokens } from '@/components'
 import { FREF_MHZ, LMS_NOTE_ZH, LOOP_KEYS, PARAMS, PRED, SIM_CFG, type LoopKey, type LsCount } from '../data'
-import { Claim, DataTable, Diagram, Formula, Kappa, ModelCode, Src, fmtFs, fp, fx, intervalsText, loopTex, r } from '../common'
+import { Claim, DataTable, Diagram, Formula, Kappa, ModelCode, Src, fmtFs, fp, fx, intervalsText, loopTex, r, scrollToId } from '../common'
 
 const COUNT_VARIANTS: [string, string][] = [
   ['raw', 'raw'],
@@ -340,6 +340,13 @@ export function S10Sim() {
           <Tex>{'E[q]=0'}</Tex>），見 §13。
         </p>
       </Callout>
+      <p>
+        表裡的 fs 是 PD 端的殘差。校準完之後這些殘差在 PLL <strong>輸出</strong>長什麼樣——{fx(PRED.lms['L2|0.02|1diff'].final_phos_rms_fs, 1)} fs 的 PHOS rms 在 16 GHz 是幾 dBc 的 fractional spur、積分 jitter 幾 fs、還在跑的校準又抖出多大的雜訊 spur——在 §15.4 算：
+        <button type="button" className="cs-linkbtn" onClick={() => scrollToId('cs-15-4')}>
+          §15.4 殘餘誤差 → 輸出 spur／jitter
+        </button>
+        。
+      </p>
       <Src>
         <code>pred_vs_sim.json</code>（<code>selected</code>、<code>counts</code>、<code>large_signal_counts</code>、<code>lms</code>）與 <code>params.json</code>（<code>signmap_summary</code>）。想自己跑閉迴路，見 §14 的實驗 C。
       </Src>

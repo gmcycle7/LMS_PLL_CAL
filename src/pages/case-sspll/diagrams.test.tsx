@@ -4,7 +4,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import mermaid from 'mermaid'
 import { SettingsProvider } from '@/app/settings'
-import { SYSTEM_BLOCK_LABEL, extractRegion, sanitizeMermaidSource, stripMathDelimiters, systemMapModel } from '@/components'
+import { SYSTEM_BLOCK_LABEL, extractRegion, sanitizeMermaidSource, accessibleText, systemMapModel } from '@/components'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { cAbs, cMul, type Complex } from '@/simulation/core/complex'
 import { erf } from '@/simulation/core/special'
@@ -51,7 +51,7 @@ const P = vi.hoisted(() => ({
   Plots: { resize: vi.fn() },
   Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
 }))
-vi.mock('plotly.js-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
 
 const DIR = join(process.cwd(), 'src/pages/case-sspll')
 const SECTION_FILES = readdirSync(join(DIR, 'sections')).filter((f) => f.endsWith('.tsx'))
@@ -154,9 +154,9 @@ const cdiv = (a: Complex, b: Complex): Complex => {
 beforeAll(() => mermaid.initialize({ startOnLoad: false, securityLevel: 'strict' }))
 
 describe('案例頁 /case/sspll 的方塊圖：語法、數量與位置（真正的 mermaid parser）', () => {
-  it('SSPLL: 每一張圖都能被 mermaid 解析；36 張新圖 + 1 張原有的架構圖 = 37 張（另加章首的系統地圖）', async () => {
-    expect(DIAGRAMS).toHaveLength(37)
-    expect(DIAGRAMS.filter((d) => !EXISTING_IDS.includes(d.id))).toHaveLength(36)
+  it('SSPLL: 每一張圖都能被 mermaid 解析；37 張新圖 + 1 張原有的架構圖 = 38 張（另加章首的系統地圖）', async () => {
+    expect(DIAGRAMS).toHaveLength(38)
+    expect(DIAGRAMS.filter((d) => !EXISTING_IDS.includes(d.id))).toHaveLength(37)
     expect(DIAGRAMS.filter((d) => !EXISTING_IDS.includes(d.id)).length).toBeGreaterThanOrEqual(6)
     for (const d of DIAGRAMS) {
       const { type } = await parsed(d.chart)
@@ -220,7 +220,7 @@ describe('案例頁 /case/sspll 的方塊圖：語法、數量與位置（真正
       const iDeriv = body.indexOf('<StepDerivation')
       if (iDiagram >= 0 && iDeriv >= 0) expect(iDiagram, f).toBeLessThan(iDeriv)
     }
-    // 每個登錄的公式（F-CS.1–20）在同一個檔案裡都先有一張對應的圖
+    // 每個登錄的公式（F-CS.1–23）在同一個檔案裡都先有一張對應的圖
     const PICTURE_FOR_FORMULA: Record<string, string> = {
       'F-CS.1': 'answer',
       'F-CS.2': 'mean-loop',
@@ -242,6 +242,9 @@ describe('案例頁 /case/sspll 的方塊圖：語法、數量與位置（真正
       'F-CS.18': 'finite-step',
       'F-CS.19': 'offset',
       'F-CS.20': 'large-signal',
+      'F-CS.21': 'output-spur',
+      'F-CS.22': 'output-spur',
+      'F-CS.23': 'output-spur',
     }
     expect(Object.keys(PICTURE_FOR_FORMULA).sort()).toEqual(FORMULAS.map((f) => f.id).sort())
     for (const [fid, pic] of Object.entries(PICTURE_FOR_FORMULA)) {
@@ -931,8 +934,8 @@ describe('案例頁 /case/sspll 的方塊圖：不只 parser——mermaid 真的
   // 再用共用的 renderMermaidForTest 逐張畫出來。版面的實際長相要在瀏覽器看，這裡確認畫得出來、文字沒有被跳脫壞、沒有 Unsupported markdown。
   beforeAll(installMermaidSvgShim)
 
-  it('SSPLL: 37 張圖都畫得出 SVG；沒有 Unsupported markdown、沒有殘留的 `$`、KaTeX 以外沒有 Unicode 拼的數學、節點數 ≤ 14；每個節點的文字都在圖上，「<」沒有被重複跳脫', async () => {
-    // 系統地圖是手排的 SVG，不經過 Mermaid，所以這裡只畫本章登錄的 37 張圖
+  it('SSPLL: 38 張圖都畫得出 SVG；沒有 Unsupported markdown、沒有殘留的 `$`、KaTeX 以外沒有 Unicode 拼的數學、節點數 ≤ 14；每個節點的文字都在圖上，「<」沒有被重複跳脫', async () => {
+    // 系統地圖是手排的 SVG，不經過 Mermaid，所以這裡只畫本章登錄的 38 張圖
     const all = DIAGRAMS
     for (const d of all) {
       const { svg, text, nodeCount, mathCount, plainText } = await renderMermaidForTest(d.chart)
@@ -979,7 +982,7 @@ describe('案例頁 /case/sspll：頁面真的把圖畫出來，符號表在最�
     expect(fig).not.toBeNull()
     expect(fig.getAttribute('aria-label')).toMatch(/系統方塊圖/)
     // aria-label 是純文字：方塊名稱裡的 `$...$` 只拿掉分隔符號
-    for (const b of MAP_FOCUS) expect(fig.getAttribute('aria-label'), b).toContain(stripMathDelimiters(SYSTEM_BLOCK_LABEL[b]))
+    for (const b of MAP_FOCUS) expect(fig.getAttribute('aria-label'), b).toContain(accessibleText(SYSTEM_BLOCK_LABEL[b]))
     // 資料模型：被標成主角的方塊恰好是本章的 MAP_FOCUS（reference 輸入端的 DTC + 整個主 PLL 迴路 + 小數累加器與 regressor + 比較器、對齊、GMAC）
     const model = systemMapModel(MAP_FOCUS)
     expect(model.blocks.filter((b) => b.focused).map((b) => b.id).sort()).toEqual([...MAP_FOCUS].sort())
@@ -1000,7 +1003,7 @@ describe('案例頁 /case/sspll：頁面真的把圖畫出來，符號表在最�
     expect(spy).not.toHaveBeenCalled()
   })
 
-  it('SSPLL: 整頁——系統地圖在開場問題之後；37 張圖依登錄順序出現、各有圖號與圖說；符號表是最後一塊，章首只留一行連結', async () => {
+  it('SSPLL: 整頁——系統地圖在開場問題之後；38 張圖依登錄順序出現、各有圖號與圖說；符號表是最後一塊，章首只留一行連結', async () => {
     const spy = vi.spyOn(mermaid, 'render').mockImplementation(async (id: string) => ({ svg: `<svg id="${id}"><g></g></svg>`, diagramType: 'flowchart-v2' }))
     const scroll = vi.fn()
     Element.prototype.scrollIntoView = scroll
@@ -1026,7 +1029,7 @@ describe('案例頁 /case/sspll：頁面真的把圖畫出來，符號表在最�
     expect(after(map, page.querySelector('nav')!)).toBe(true)
     expect(after(map, page.querySelector('#cs-0')!)).toBe(true)
 
-    // ── 37 張圖：DOM 順序 = 登錄順序；圖說帶圖號；所在段落與登錄的 section 相符
+    // ── 38 張圖：DOM 順序 = 登錄順序；圖說帶圖號；所在段落與登錄的 section 相符
     const boxes = Array.from(page.querySelectorAll('[data-diagram]'))
     expect(boxes.map((b) => b.getAttribute('data-diagram'))).toEqual(DIAGRAMS.map((d) => d.id))
     DIAGRAMS.forEach((d, i) => {

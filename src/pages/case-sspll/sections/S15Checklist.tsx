@@ -3,6 +3,7 @@ import { W1 } from '@/simulation/models/sspll'
 import { BAND, LOOP_KEYS, PARAMS, REMEDY, SURE_GOLDEN, mapIntervalsBelow, type SignMapJson } from '../data'
 import { useSspllData } from '../lazyData'
 import { DataTable, Diagram, Hand, Src, fx, intervalsText, r, tx } from '../common'
+import { S15Output } from './S15Output'
 
 /**
  * near-grid（α ≈ 1/8、3/8：α·f_ref ≈ 500、1500 MHz）的大訊號反號區間（門檻 κ < −10⁻³），直接由 signmap_L2.json 的 LSinf（raw）或 LSinf_ac（ac）欄取出。
@@ -128,6 +129,7 @@ export function S15Checklist() {
         <Tex>{r`\arcsin`}</Tex>、乘上 <Tex>{r`f_{ref}/\pi`}</Tex>」四小步，把 ⑤ 拆成兩次減法。
       </p>
       <Hand id="HC-CS.8">{r`預設是 §8.1 的例子（L2、$\alpha=0.021$）。換成你晶片的頻道與增益，先用紙筆和計算機算出五個答案，再對照下面的結論。`}</Hand>
+      <S15Output />
     </Section>
   )
 }

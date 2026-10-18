@@ -59,6 +59,35 @@
   padding-inline: 8px;
 }
 
+/* 實驗 C 的 spur 表（7 欄，§15.4）放在 ExperimentShell 的結果欄（桌面約 550px）：桌面用固定欄寬、「譜線」欄可以折行，
+   整張表（含最右邊的 spur 欄）不必橫向捲動；手機維持自動欄寬＋橫向捲動（同本頁其他寬表） */
+@media (min-width: 900px) {
+  .case-sspll .cs-spur table {
+    table-layout: fixed;
+    width: 100%;
+  }
+  .case-sspll .cs-spur td:nth-child(2) {
+    white-space: normal;
+    text-align: left;
+  }
+  .case-sspll .cs-spur th:nth-child(1) {
+    width: 3.4em;
+  }
+  .case-sspll .cs-spur th:nth-child(3) {
+    width: 4.6em;
+  }
+  .case-sspll .cs-spur th:nth-child(4),
+  .case-sspll .cs-spur th:nth-child(6) {
+    width: 5.4em;
+  }
+  .case-sspll .cs-spur th:nth-child(5) {
+    width: 4.2em;
+  }
+  .case-sspll .cs-spur th:nth-child(7) {
+    width: 5.8em;
+  }
+}
+
 /* 手機寬度：只差幾個像素就放得下的表（§8.3 的 sign map 總表，5 欄）把左右留白收到 6px，不必為了那幾個像素多一條橫向捲軸 */
 @media (max-width: 480px) {
   .case-sspll .cs-fit td,
@@ -186,7 +215,6 @@
 .case-sspll .cs-diagram {
   margin: 0.9rem 0 0.6rem;
   min-width: 0;
-  scroll-margin-top: 4.5rem;
 }
 
 .case-sspll .cs-diagram .c-mermaid {
@@ -229,11 +257,6 @@
 
 .case-sspll .cs-symbols-link {
   margin: 0.6rem 0;
-}
-
-/* 章末符號表：從章首的連結捲過來時，標題不要被固定的頁首蓋住 */
-.case-sspll #symbols {
-  scroll-margin-top: 4.5rem;
 }
 
 /* 按需載入的資料還沒到：佔住圖的位置（高度由元件的 minHeight 指定），資料到了版面不跳動 */

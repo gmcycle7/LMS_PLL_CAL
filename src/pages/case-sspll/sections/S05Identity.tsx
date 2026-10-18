@@ -45,8 +45,7 @@ export function S05Identity() {
       <Formula id="F-CS.4" />
       <p>
         <Claim kind="exact">對任何 L 都成立</Claim>
-        golden 在 40 萬點網格上檢查，0 個不一致；也沒有任何一點 <Tex>{r`\mathrm{Re}H<0`}</Tex> 而 <Tex>{r`\lvert T\rvert\le1`}</Tex>（本站的 <code>sspll.test.ts</code> 另以 TS port 重驗）。所以<strong>反號帶一定落在 closed-loop peaking 區裡</strong>。
-        320 MHz 的 Type-II 迴路有 {fx(SUMMARY.L3.tPeakDb, 1)}–{fx(SUMMARY.L2.tPeakDb, 1)} dB 的 peaking（L3／L2），L1 則沒有 peaking——這就是 L1 沒有反號帶的原因。
+        golden 在 40 萬點網格上檢查，0 個不一致；也沒有任何一點 <Tex>{r`\mathrm{Re}H<0`}</Tex> 而 <Tex>{r`\lvert T\rvert\le1`}</Tex>（本站的 <code>sspll.test.ts</code> 另以 TS port 重驗）。所以<strong>反號帶一定落在 closed-loop peaking 區裡</strong>。320 MHz 的 Type-II 迴路有 {fx(SUMMARY.L3.tPeakDb, 1)}–{fx(SUMMARY.L2.tPeakDb, 1)} dB 的 peaking（L3／L2），L1 則沒有 peaking——這就是 L1 沒有反號帶的原因。
       </p>
       <p>
         這個恆等式有一個好用的讀法：把複數 <Tex>{'L(e^{j\\Omega})'}</Tex> 隨 <Tex>{r`\Omega`}</Tex> 由 0 到 <Tex>{r`\pi`}</Tex> 在複數平面上畫成一條軌跡（這張圖叫 Nyquist 圖），<Tex>{r`\mathrm{Re}\,L<-1`}</Tex> 就是 <Tex>{'L(e^{j\\Omega})'}</Tex> 的軌跡跑到直線 <Tex>{r`\mathrm{Re}=-1`}</Tex> 左邊的那一段。Type-II 的雙積分器在低頻把 <Tex>{'L'}</Tex> 推向{' '}
