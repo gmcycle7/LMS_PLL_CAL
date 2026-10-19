@@ -36,7 +36,7 @@ sign-error LMS 的平均梯度，等於「regressor 在每一條譜線上的功�
   - $\alpha\to0$ 時也是 dead zone（$\lvert\kappa_{PHOS}\rvert\lesssim5\times10^{-3}$；$\kappa_{PHOS}=\min_m\mathrm{Re}\,\kappa_m$，PHOS 各模態的 $\kappa_m$ 是複數，談正負與門檻時看實部，見 §8.1）。
 - **GOS（DTC 增益誤差）**：regressor 是鋸齒波 $\rho[n]$，功率分散到全頻帶的高次諧波。
   - 在相關器延遲 $D=0$ 時，三個迴路都**沒有**反號。
-  - 11 個迴路、每個 152,096 個有理 $\beta$ 都沒找到反例，但目前沒有證明。**【研究假說】**
+  - 11 個迴路、每個 152,096 個有理 $\beta$ 都沒找到反例。$\beta\in[\beta_0,1-\beta_0]$（$\beta_0=0.016$）已是定理**【精確｜指定模型】**（L1 一行證明；L2／L3 為電腦輔助證書，見 `sspll-gos-d0-theorem.md` 與案例頁 §7b）；$\beta<\beta_0$ 只有漸近式**【近似｜需驗證】**。
   - Type-II 在 near-grid（$\alpha\approx k/8$）時只會變成 dead zone，$12C\approx12\beta^2/K_i$。
   - 若 $D=+1$（相關器晚一拍），GOS 會反號。
 
@@ -597,7 +597,7 @@ $$
 | L1 延遲 5（有反號帶） | 0–107.08 | 152,096 | 0 | 2.454e-2 |
 | L1 + 200 MHz 極點（有反號帶） | 0–122.85 | 152,096 | 0 | 1.405e-2 |
 
-**【研究假說】**：在 $D=0$、raw regressor、線性化之下，GOS 對任何 $\alpha$ 都不反號。直覺是：鋸齒的功率按 $1/m^2$ 衰減，但諧波 $m\beta$ 折回後會均勻散布到全頻帶，而全頻帶上 $\mathrm{Re}H$ 的平均值很大（§6.4）；近 DC 的負區只能「咬掉」$\beta^2$ 階的量。這不是證明。換迴路（更低 PM、更長延遲、寄生極點）時，請用 `gos_harmonic` 重新檢查。
+**【精確｜指定模型】（$\beta\in[\beta_0,1-\beta_0]$）／【近似｜需驗證】（$\beta<\beta_0$）**：在 $D=0$、raw regressor、線性化之下，GOS 對任何 $\alpha$ 都不反號。證明見 `sspll-gos-d0-theorem.md`（原本標【研究假說】，2026-10-19 補成定理）。直覺是：鋸齒的功率按 $1/m^2$ 衰減，但諧波 $m\beta$ 折回後會均勻散布到全頻帶，而全頻帶上 $\mathrm{Re}H$ 的平均值很大（§6.4）；近 DC 的負區只能「咬掉」$\beta^2$ 階的量。上面這段直覺是舊的說法；證書取代它。換迴路（更低 PM、更長延遲、寄生極點）時，證書要重算，請用 `gos_harmonic` 與 `gos_certificate.py` 重新檢查。
 
 **注意（大訊號與 offset）**：near-grid 的 GOS 小訊號恢復力只剩 $12C\approx0.08$（L2，$\alpha=0.123$）。大訊號時它是**反向**的（$\kappa_\infty=-0.400$，§10），而比較器 offset 也很容易把它推進大訊號區（§13）。
 
@@ -1346,7 +1346,7 @@ $$
 
 ## 19. 仍未驗證的部分（誠實清單）
 
-1. **GOS 在 $D=0$ 不反號**：11 個迴路、每個 152,096 個 β、0 個反例，但沒有一般證明。**【研究假說】**
+1. **GOS 在 $D=0$ 不反號**：$\beta\in[\beta_0,1-\beta_0]$ 已是定理（`sspll-gos-d0-theorem.md`，11 個迴路的證書全過）；$\beta<\beta_0$ 仍只有漸近式（比值 $1\pm10^{-3}$）。**【近似｜需驗證】**
 2. **大訊號判據的範圍有限**：只沿 6 個方向算割線斜率與 $\kappa_\infty$，不是完整的非線性穩定域；吸引域邊界與模態耦合都沒有涵蓋。實際的反號幅度門檻約為 $\sigma_v$，而 200 fs 是插圖值。
 3. **dead zone 的符號沒有意義**：近整數、$\tfrac14$、$\tfrac12$ 附近的 $\lvert\kappa_{PHOS}\rvert\lesssim5\times10^{-3}$（$8\nmid Q$ 時可到 $8.5\times10^{-3}$），符號隨 step response 尾巴、$\sigma_v$、探測幅度而變。
 4. **$8\nmid Q$ 的「一定反號」**只有數值證據（非 normal 矩陣）。

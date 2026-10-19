@@ -8,6 +8,7 @@ import {
   foldFreq,
   gammaEff,
   gosBeta,
+  gosHarmonic,
   gosOffsetBias,
   gosSmallBeta,
   kqGain,
@@ -35,6 +36,7 @@ import {
   typeIReH,
 } from '@/simulation/models/sspll'
 import { cAbs } from '@/simulation/core/complex'
+import { gosKernelMin, gosLipschitz, gosPointCertificate, harmonicNumber } from './gosTheorem'
 
 /**
  * 案例頁 /case/sspll 的「帶入手算」題（HC-CS.1 – HC-CS.9）。
@@ -59,6 +61,7 @@ import { cAbs } from '@/simulation/core/complex'
  * 題目在頁面上的位置（sections/*.tsx 用 common.tsx 的 <Hand id="…" /> 以 id 查表；順序與本陣列相同）：
  * HC-CS.1 → §4.1、HC-CS.2 → §5.2、HC-CS.3 → §6.1、HC-CS.4／HC-CS.5 → §6.2、HC-CS.6 → §11.1、HC-CS.7 → §13、
  * HC-CS.8（綜合）→ §15.3，HC-CS.9（殘餘 PHOS → 輸出 spur）→ §15.4，也就是 §16 思考題之前。
+ * HC-CS.10（GOS 定理的單點證書，排在 HC-CS.5 之後）→ §7b。
  */
 
 const r = String.raw
@@ -200,6 +203,26 @@ const EX = (() => {
 
 /** §10.5 golden 閉迴路結果：L2、α = 0.02、一階差分 regressor 的最終 PHOS rms（pred_vs_sim.json 的 lms['L2|0.02|1diff']，印成 6.2 fs）——HC-CS.9 的預設值 */
 export const HC_PHOS_RMS_DEFAULT_FS = 6.2
+
+/**
+ * HC-CS.10（GOS 定理的單點證書）用的 L2 標稱迴路：Lipschitz 常數 L_g 與 kernel 下界 g_min 只算一次（約 200k 次 loopH，第一次用到才算）。
+ * 數字與 §7b 的證書（gosCertificate）、golden 的 results/gos_certificate.json 相同（gosTheorem.test.ts）。
+ */
+let hc10Cache: { lip: ReturnType<typeof gosLipschitz>; gMin: number } | null = null
+function hc10Loop() {
+  return makeL2({ Kp: HC_NOMINAL.Kp, Ki: HC_NOMINAL.Ki })
+}
+function hc10Point(beta: number) {
+  if (!hc10Cache) {
+    const lip = gosLipschitz(hc10Loop())
+    hc10Cache = { lip, gMin: gosKernelMin(hc10Loop(), lip.Lg).gMin }
+  }
+  return gosPointCertificate(hc10Loop(), beta, 4, hc10Cache.lip, hc10Cache.gMin)
+}
+/** 精確的諧波和（§7 的 gosHarmonic；note 裡拿來和下界比） */
+function hc10Exact(beta: number): number {
+  return gosHarmonic(beta / 8, gammaEff(hc10Loop()))
+}
 
 export const HANDCALCS: HandCalcDef[] = [
   // ───────────────────────────────────────────────────────────────────────────
@@ -663,6 +686,107 @@ export const HANDCALCS: HandCalcDef[] = [
       r`RAD 模式；$\cot x=\cos x/\sin x$。中間結果不要先四捨五入（用計算機的 Ans／記憶鍵連續算）：接近帶緣時 $1+\mathrm{Re}\,L$ 是兩個接近的數相減。畫面上每個數字只顯示 6 位有效數字，所以你的最後一位可能和畫面差 1。`,
       r`$W_1$ 怎麼按：$\sin(\pi/8)=${texNum(EX.s8, 6)}$，平方得 $${texNum(EX.s8 ** 2, 6)}$，乘 64 得 $${texNum(64 * EX.s8 ** 2, 6)}$，除以 $\pi^2=${texNum(Math.PI ** 2, 6)}$ 得 $W_1=${texNum(W1, 6)}$。`,
       r`範例數字（$f=83.8$ MHz）是 L2 反號帶的最低點，也就是 §6.2 的手算例。把 $f$ 改成 HC-CS.4 算出的 $f_{inv}=${texNum(EX.finv, 5)}$ MHz，$1+\mathrm{Re}\,L$ 幾乎是 0，$\mathrm{Re}\,H_{PD}$ 掉到 $10^{-6}$ 的量級（不是剛好 0，因為 $f_{inv}$ 只取到小數兩位）。`,
+    ],
+  },
+
+  // ───────────────────────────────────────────────────────────────────────────
+  {
+    id: 'HC-CS.10',
+    title: r`GOS 定理的單點證書：在你選的 $\beta$，前 4 條諧波加尾項下界就能證明 $C_{GOS}>0$ 嗎？`,
+    page: PAGE,
+    formulaId: 'F-CS.25',
+    formulaTex: r`\begin{gathered}\mathrm{LB}=\sum_{m=1}^{4}\frac{\mathrm{Re}\,H_{PD}(\mathrm{frac}(m\beta))}{2\pi^2m^2}+g_{\min}T_4,\qquad T_4=\frac{\pi^2/6-(1+\tfrac14+\tfrac19+\tfrac1{16})}{2\pi^2}\\[4pt]\Lambda_4=\frac{L_gH_4}{2\pi^2},\quad H_4=1+\tfrac12+\tfrac13+\tfrac14,\qquad \mathrm{LB}>0\ \Rightarrow\ C_{GOS}(\beta')>0\ \ \forall\,\lvert\beta'-\beta\rvert\le\delta=\frac{\mathrm{LB}}{\Lambda_4}\end{gathered}`,
+    level: 'engineer',
+    claim: 'exact',
+    inputs: [
+      { key: 'beta', symbol: r`\beta`, label: r`鋸齒的基頻 $\mathrm{frac}(8\alpha)$（L2 標稱迴路；$\mathrm{Re}\,H_{PD}$ 的四個值由模型算出，步驟裡直接給）`, default: 0.25, min: 0.02, max: 0.98, practice: { choices: [0.2, 0.25, 0.3, 0.35, 0.4, 0.45] } },
+    ],
+    validate: ({ beta }) => {
+      if (!(beta > 0 && beta < 1)) return r`$\beta$ 必須在 $(0,1)$ 內：$\beta=\mathrm{frac}(8\alpha)$ 是鋸齒的基頻，$\beta=0$（$\alpha=k/8$）時 $\rho\equiv0$，GOS 不可觀測。`
+      if (beta < 0.02 || beta > 0.98)
+        return r`$\beta=${texNum(beta)}$ 太靠近 0 或 1：這裡只用前 4 條諧波，near-grid 的 $C\approx\beta^2/K_i$ 比尾項的下界 $g_{\min}T_4\approx-0.0023$ 還小，單點證書會失敗（不是反例）。§7b 的完整證書用 $M=1000$（或 16000）才走得到 $\beta_0=0.016$（或 $2^{-10}$）；請把 $\beta$ 放在 $[0.02,0.98]$。`
+      const pc = hc10Point(beta)
+      if (!(pc.lower > 0)) return r`$\beta=${texNum(beta)}$：前 4 項加尾項下界得到 $\mathrm{LB}=${texNum(pc.lower, 4)}\le0$——單點證書在這一點失敗（這不是反例：§7b 的證書用 $M=1000$ 仍可證明 $C>0$）。請換一個 $\beta$。`
+      return null
+    },
+    solve: ({ beta }) => {
+      const pc = hc10Point(beta)
+      const twoPi2 = 2 * Math.PI * Math.PI
+      const fSteps: HandCalcStep[] = []
+      const mb = [1, 2, 3, 4].map((m) => dec(m * beta))
+      const fl = mb.map((x) => Math.floor(x + 1e-12))
+      const fr = mb.map((x, i) => dec(x - fl[i]))
+      fSteps.push({
+        tex: r`f_1=1\times\beta-\lfloor\beta\rfloor=${nx(mb[0])}-${fl[0]}=${nx(fr[0])},\qquad f_2=2\beta-\lfloor2\beta\rfloor=${nx(mb[1])}-${fl[1]}=${nx(fr[1])}`,
+        why: r`第 $m$ 條諧波折回 $[0,1)$ 的頻率 $f_m=\mathrm{frac}(m\beta)$（整數部分減掉；取樣後的頻譜以 $f_{ref}$ 為週期，F-CS.11）。`,
+      })
+      fSteps.push({
+        tex: r`f_3=3\beta-\lfloor3\beta\rfloor=${nx(mb[2])}-${fl[2]}=${nx(fr[2])},\qquad f_4=4\beta-\lfloor4\beta\rfloor=${nx(mb[3])}-${fl[3]}=${nx(fr[3])}`,
+        why: r`同上。$f_m$ 落在 $(\tfrac12,1)$ 時 $\mathrm{Re}\,H_{PD}(f_m)=\mathrm{Re}\,H_{PD}(1-f_m)$（實係數：偶函數）；$f_m=0$ 時 $\mathrm{Re}\,H_{PD}=0$（DC 被迴路吸收）。`,
+      })
+      const termSteps: HandCalcStep[] = pc.terms.map((t) => {
+        const fMHz = t.f * HC_FREF_MHZ
+        const why =
+          t.f === 0
+            ? r`$f_${t.m}=0$：這條諧波是 DC，$\mathrm{Re}\,H_{PD}(0)=0$（迴路把 DC 完全吸收），貢獻 0。`
+            : r`$g_${t.m}=\mathrm{Re}\,H_{PD}(f_${t.m})=${n(t.g)}$（L2 在 $${texNum(fMHz, 5)}$ MHz；用 HC-CS.5 的算法或讀實驗 A 的曲線）；乘上第 $${t.m}$ 條諧波的功率 $w_${t.m}=1/(2\pi^2\cdot${t.m}^2)$。${t.g < 0 ? '這一項是負的（落在反號帶內），要靠其他諧波補回來。' : ''}`
+        return {
+          tex: r`w_${t.m}g_${t.m}=\frac{1}{2\pi^2\times${t.m}^2}\times${np(t.g)}=${n(t.w)}\times${np(t.g)}=${n(t.contrib)}`,
+          why,
+        }
+      })
+      const cParts = pc.terms.map((t) => t.contrib)
+      const pC = sumDecimals(pc.CM, cParts)
+      const sumTex = cParts.map((x, i) => (i === 0 ? fixedTex(x, pC, false) : `+${fixedTex(x, pC)}`)).join('')
+      const sixth = Math.PI ** 2 / 6
+      const hs4 = 1 + 1 / 4 + 1 / 9 + 1 / 16
+      const H4 = harmonicNumber(4)
+      const pLB = sumDecimals(pc.lower, [pc.CM, pc.tailLower])
+      const twelve = 12 * pc.lower
+      return {
+        steps: [
+          ...fSteps,
+          ...termSteps,
+          { tex: r`C_4=\sum_{m=1}^{4}w_mg_m=${sumTex}=${n(pc.CM)}`, why: r`前 4 條諧波的和（精確算出的部分）。` },
+          {
+            tex: r`T_4=\frac{\pi^2/6-(1+\tfrac14+\tfrac19+\tfrac1{16})}{2\pi^2}=\frac{${n(sixth)}-${n(hs4)}}{${n(twoPi2)}}=${n(pc.tailWeight)}`,
+            why: r`第 5 條以後所有諧波的功率總和：$\sum_{m\ge1}1/m^2=\pi^2/6$ 減掉前四項，再除以 $2\pi^2$（$\sum_mw_m=\tfrac1{12}$，F-CS.11）。`,
+          },
+          {
+            tex: r`g_{\min}T_4=${np(pc.gMin)}\times${n(pc.tailWeight)}=${n(pc.tailLower)}`,
+            why: r`尾項最壞的情況：每一條都落在 $\mathrm{Re}\,H_{PD}$ 的谷底 $g_{\min}=${n(pc.gMin)}$（L2 在 83.8 MHz 的 $-0.2053$ 再減 $L_gh/2$ 的格點保險）。`,
+          },
+          {
+            tex: r`\mathrm{LB}=C_4+g_{\min}T_4=${fixedTex(pc.CM, pLB, false)}+${fixedTex(pc.tailLower, pLB)}=${n(pc.lower)}`,
+            why: r`$C_{GOS}(\beta)$ 的下界：精確的前四項加上尾項的最壞情況。$\mathrm{LB}>0$ 就證明了這一點的 $C_{GOS}>0$（F-CS.25）。`,
+          },
+          { tex: r`12\,\mathrm{LB}=12\times${n(pc.lower)}=${n(twelve)}`, why: r`換成 §7 的 $12C$ 尺度（$\kappa_{GOS}$ 的下界；$H\equiv1$ 時 $12C=1$）。` },
+          { tex: r`H_4=1+\tfrac12+\tfrac13+\tfrac14=${n(H4)}`, why: r`調和數：Lipschitz 常數裡每條諧波的頻率 $m\beta$ 對 $\beta$ 的斜率是 $m$，乘上 $w_m$ 之後只剩 $1/m$。` },
+          {
+            tex: r`\Lambda_4=\frac{L_gH_4}{2\pi^2}=\frac{${n(pc.Lg)}\times${n(H4)}}{${n(twoPi2)}}=${n(pc.LamM)}`,
+            why: r`$C_4(\beta)$ 對 $\beta$ 的 Lipschitz 常數。$L_g=2\pi\sum_nn\lvert h_{PD}[n]\rvert=${n(pc.Lg)}$ 是 $\mathrm{Re}\,H_{PD}$ 對 $f$ 的斜率上界（L2 的脈衝響應加總，§7b 的表）。`,
+          },
+          {
+            tex: r`\delta=\frac{\mathrm{LB}}{\Lambda_4}=\frac{${n(pc.lower)}}{${n(pc.LamM)}}=${n(pc.delta)}`,
+            why: r`往左右各走 $\delta$，前四項最多變化 $\Lambda_4\delta=\mathrm{LB}$，所以 $[\beta-\delta,\beta+\delta]$ 上的 $C_{GOS}$ 都還 $>0$——這就是證書一步能走多遠。`,
+          },
+        ],
+        results: [
+          { symbol: r`\mathrm{LB}`, label: r`這一點的 $C_{GOS}$ 下界（前 4 項 + 尾項）`, value: pc.lower, digits: 5 },
+          { symbol: r`12\,\mathrm{LB}`, label: r`$12C$ 尺度的下界`, value: twelve, digits: 5 },
+          { symbol: r`\delta`, label: r`證書一步能走的距離（$\beta$ 的單位）`, value: pc.delta, digits: 5 },
+        ],
+        notes: [
+          r`精確值：§7 的諧波和 $12C_{GOS}=${n(12 * hc10Exact(beta))}$，比 $12\,\mathrm{LB}=${n(twelve)}$ 大——下界當然比精確值小，差的是尾項從「谷底」到真實值的距離。`,
+          r`從 $\beta=0.016$ 走到 $\tfrac12$ 需要幾步？每一步最多 $\delta$，而 near-grid 的 $\mathrm{LB}\approx\beta^2/K_i$ 很小，所以 §7b 的證書用 $M=1000$（$\Lambda_{1000}=18.6$）共走 126 步；這一題的 $M=4$ 只是把同一件事算給你看。`,
+          r`$\beta$ 與 $1-\beta$ 的證書相同（$C(\beta)=C(1-\beta)$），所以證到 $\tfrac12$ 就夠了。`,
+        ],
+      }
+    },
+    tips: [
+      r`範例（$\beta=0.25$）：$f_m=0.25,\,0.5,\,0.75,\,0$；$g_m=1.16044,\,1.18123,\,1.16044,\,0$（§6.4 的表：1000 MHz、2000 MHz）；$C_4=0.080281$、$T_4=0.0112124$、$g_{\min}T_4=-0.0023025$、$\mathrm{LB}=0.077979$、$\Lambda_4=5.18094$、$\delta=0.015051$。`,
+      r`$\pi^2/6=1.644934$、$2\pi^2=19.7392$、$1+\tfrac14+\tfrac19+\tfrac1{16}=1.423611$：這三個常數每次都一樣，可以先抄下來。`,
+      r`想看證書「吃力」的樣子：把 $\beta$ 改成 0.05——$f_1=0.05$（200 MHz）還在帶外，但 $f_2$、$f_3$ 的 $\mathrm{Re}\,H_{PD}$ 已經不大，$\mathrm{LB}$ 變小、$\delta$ 變短；$\beta=0.02$（$f_1$ 落在反號帶裡、$g_1<0$）時只用 4 項就不夠了，validate 會告訴你要用 §7b 的完整證書。`,
     ],
   },
 

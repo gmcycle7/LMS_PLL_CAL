@@ -336,6 +336,28 @@ export const CHART_NEARGRID = String.raw`flowchart TB
   class I1 ok
   class I3 warn${STYLE}`
 
+/**
+ * §7b GOS「D = 0 不反號」從猜想到定理：L1 一行證完（Re H_PD 處處 ≥ 0），L2／L3 用電腦輔助證書
+ * （截斷和直接算 + 尾項用 g_min 壓住 + Lipschitz 把格點之間接起來），β < β_0 留給慢鋸齒漸近式（近似）。
+ */
+export const CHART_GOS_THEOREM = String.raw`flowchart TB
+  Q["猜想（§7.2）：$D = 0$ 時<br/>$C_{GOS}(\beta) \gt 0$ 對所有 $\beta$"] --> SUM["諧波和（F-CS.11）<br/>$C(\beta) = \textstyle\sum_m w_m\, g(\mathrm{frac}(m\beta))$<br/>$w_m = 1/(2\pi^2 m^2)$、$g = \mathrm{Re}\,H_{PD}$"]
+  SUM --> D{"$g(f) \ge 0$ 對所有 $f$ 都成立？"}
+  D -- "是（L1）" --> ONE["每一項 $\ge 0$、$m = 1$ 項 $\gt 0$<br/>$\Rightarrow C \gt 0$：一行證完"]
+  D -- "否（L2、L3：$0 \lt f \lt f_{inv}$ 為負）" --> CERT["電腦輔助證書<br/>（$\beta \ge \beta_0$）"]
+  CERT --> P1["截斷和 $C_M(\beta_i)$<br/>前 $M$ 項直接算"]
+  CERT --> P2["尾項 $\ge g_{\min}\,T_M$<br/>$T_M = \textstyle\sum_{m \gt M} w_m$"]
+  CERT --> P3["Lipschitz：$|C_M(\beta) - C_M(\beta_i)| \le \Lambda_M\,|\beta - \beta_i|$<br/>$\Lambda_M = L_g H_M/(2\pi^2)$"]
+  P1 --> LB(("＋"))
+  P2 --> LB
+  LB --> STEP["$\mathrm{LB}_i \gt 0$ $\Rightarrow$ 往右 $\mathrm{LB}_i/\Lambda_M$ 內都安全<br/>下一個格點再直接算一次"]
+  P3 --> STEP
+  STEP --> DONE["走到 $\tfrac12$：定理成立於 $[\beta_0, 1 - \beta_0]$"]
+  Q --> SMALL["$\beta \lt \beta_0$：慢鋸齒漸近式<br/>$C \approx \beta^2/K_i$（近似，F-CS.12）"]
+  class ONE,DONE ok
+  class CERT focus
+  class SMALL warn${STYLE}`
+
 /** §8.1 PHOS：8 個 one-hot → circulant → DFT 模態；每個模態的基波頻率與權重 */
 export const CHART_PHOS_MODES = String.raw`flowchart TB
   P["$p[n]$：PMUX 相位索引<br/>以 $\alpha\cdot f_{ref}$ 繞圈"] --> OH["8 個 one-hot regressor<br/>$x_{1+k}[n] = \mathbf{1}\{p[n] = k\}$"]
@@ -659,6 +681,7 @@ export const DIAGRAMS: DiagramDef[] = [
   { id: 'gos', section: '§7.1', kind: 'model', chart: CHART_GOS, caption: String.raw`GOS：鋸齒拆成很多條諧波，各自乘上該頻率的 $\mathrm{Re}\,\Gamma_{\rm eff}$ 再加總。基波（藍）只占一部分功率，其餘折回全頻帶。最後一格的 $\kappa_{GOS}=12\cdot C_{GOS}$ 用的是均勻鋸齒的 $\mathrm{var}(\rho)=\tfrac{1}{12}$（$\beta$ 為無理數）。` },
   { id: 'align', section: '§7.2', kind: 'timing', chart: CHART_ALIGN, caption: '相關器延遲 $D$ 的時序：比較器在第 $n$ 拍的輸出 $q[n]$，必須乘上同一拍的 code $x[n]$（$D=0$）；晚一拍就乘到別的 code。' },
   { id: 'near-grid', section: '§7.2', kind: 'model', chart: CHART_NEARGRID, caption: String.raw`near-grid 的慢鋸齒拆成「慢斜坡」加「每 $1/\beta$ 拍一次的跳變」：斜坡那一條給 $+\beta S_\infty/2$；跳變那一條（藍）乘到的 regressor 取決於相關器延遲 $D$，晚一拍就多出 $-\beta$。` },
+  { id: 'gos-theorem', section: '§7b', kind: 'flow', chart: CHART_GOS_THEOREM, caption: String.raw`從猜想到定理的三條路：L1 走左邊一行證完；L2、L3 走藍色的證書——截斷和直接算、尾項用最低的 $g_{\min}$ 壓住、Lipschitz 把格點之間接起來；紅色那一格（$\beta$ 小於 $\beta_0$）仍只有漸近式，是近似。` },
   { id: 'phos-modes', section: '§8.1', kind: 'model', chart: CHART_PHOS_MODES, caption: 'PHOS：8 個 one-hot 的矩陣是 circulant，可以拆成 DFT 模態各自分析；mode 1（藍）的基波就是 PMUX 的旋轉頻率，拿走約 95% 的權重。' },
   { id: 'mode1-bounds', section: '§8.2', kind: 'flow', chart: CHART_MODE1_BOUNDS, caption: String.raw`mode-1 的判斷流程：先算基波頻率上的 $\mathrm{Re}\,H_{PD}$，再用其餘權重的最好與最壞情況夾出上下界。` },
   { id: 'alias', section: '§8.4', kind: 'path', chart: CHART_ALIAS, caption: String.raw`alias 區：$\alpha$ 靠近 $\tfrac14$ 時，mode 4 的 regressor 變成很慢的方波（藍），基波被折回低頻；它落進反號帶時只會近乎抵消，不會穩定反號。` },

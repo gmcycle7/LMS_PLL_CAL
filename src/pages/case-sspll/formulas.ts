@@ -12,6 +12,7 @@ const r = String.raw
 export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-CS.1',
+    assumes: 'L2 線性小訊號 PLL：$L(z)$ 嚴格 proper、LTI；誤差在 PD 的 reference 端注入',
     title: '誤差 → PD 的轉移函數',
     tex: r`e_{PD}=h_{PD}*u,\qquad H_{PD}(z)=\frac{1}{1+L(z)},\qquad T(z)=\frac{L(z)}{1+L(z)}=1-H_{PD}(z),\qquad h_{PD}[0]=1`,
     conditions: r`LTI 取樣資料迴路；$L(z)$ 嚴格 proper（至少 1 拍延遲）；誤差 $u$ 注入在相位比較點（折算到 PD 的 reference 輸入端：$e_{PD}=u-y$，$y$ 是迴路的修正）；$e_{PD}$ 是 PD 的輸出，比較器取的就是它`,
@@ -23,6 +24,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-CS.2',
+    assumes: 'L1 的 Bussgang 小訊號 + 凍結權重（時間尺度分離）：平均更新才等於 $C$ 乘誤差',
     title: 'sign-error LMS 的平均更新（Bussgang）',
     tex: r`E[G_i]\approx K_q\,(C\delta)_i,\qquad \delta_{k+1}=\delta_k-\mu K_q\,C\,\delta_k,\qquad K_q=\sqrt{\tfrac{2}{\pi}}\frac{1}{\sigma_v},\qquad C_{ij}=\big\langle r_i\,(h_{PD}*x_j)\big\rangle`,
     conditions: r`標為近似的原因：模型是小訊號線性化加凍結權重，不是 1-bit 比較器的精確平均。$\lvert e_{PD}\rvert\ll\sigma_v$（Bussgang 線性化）；block 夠長，樣本平均 $\approx$ 時間平均；權重在 $h_{PD}$ 的記憶長度內近似常數（LMS 比主迴路慢，時間尺度分離；$\delta_j$ 才能提到卷積外面）；比較器無 offset（$E[q]=0$）；注入模型取 §2 的理想模型 $u=\sum_j\delta_jx_j$（只留一階，略去 $a\,w_g$ 這類兩個小量的乘積）`,
@@ -34,6 +36,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-CS.3',
+    assumes: 'L2 + 凍結權重：Parseval 恆等式，regressor 的譜線與 $\\Gamma_{\\rm eff}$ 給定時精確',
     title: r`$C$ 是 regressor 功率對 $\Gamma_{\rm eff}$ 的加權和`,
     tex: r`C_{ij}=\sum_\nu \overline{c^i_\nu}\,c^j_\nu\;\Gamma_{\rm eff}(f_\nu),\qquad \Gamma_{\rm eff}\equiv H_{PD}\,\overline{G},\qquad C_{ii}=\sum_\nu \lvert c^i_\nu\rvert^2\,\mathrm{Re}\,\Gamma_{\rm eff}(f_\nu)`,
     conditions: r`實數 regressor 的譜線展開（週期或幾乎週期）；$G$ 為 GMAC 的 regressor 前置濾波（raw：$G=1$）`,
@@ -44,6 +47,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-CS.4',
+    assumes: 'L2 的代數恆等式 $\\mathrm{Re}H_{PD}<0\\iff\\mathrm{Re}L<-1$：精確',
     title: '反號恆等式',
     tex: r`\mathrm{Re}\,H_{PD}=\frac{1+\mathrm{Re}\,L}{\lvert1+L\rvert^2}\quad\Longrightarrow\quad \mathrm{Re}\,H_{PD}<0\iff\mathrm{Re}\,L<-1\iff\mathrm{Re}\,T>1\ \Rightarrow\ \lvert T\rvert>1`,
     conditions: r`對任何 $L$ 成立；反號帶一定落在 closed-loop peaking 區內`,
@@ -54,6 +58,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-CS.5',
+    assumes: 'L2 的低頻外推（$H_{PD}\\approx1/L$、$\\Omega\\ll$ 帶緣）',
     title: 'Type-II 的低頻：PD 看到二次微分',
     tex: r`H_{PD}\approx\frac1L=\frac{(z^{1/2}-z^{-1/2})^2}{K_i}=-\frac{4\sin^2(\Omega/2)}{K_i}\approx-\frac{\Omega^2}{K_i}<0`,
     conditions: r`標為近似的原因：低頻漸近式（$1+L\approx L$、$\sin x\approx x$）。Type-II（P + I）SSPLL、$\lvert L\rvert\gg1$ 的低頻；CPPLL（impulse-invariant）以 $K_d=(\omega_cT)^2/\sqrt b$ 取代 $K_i$`,
@@ -65,6 +70,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-CS.6',
+    assumes: 'L2 的低頻外推（Type-I、$\\Omega\\ll K$）；判據本身（F-CS.10）精確',
     title: r`Type-I 的低頻（延遲 $d$ 拍）`,
     tex: r`\mathrm{Re}\,H_{PD}\approx\frac{\Omega^2}{K^2}\big[1-K(d-\tfrac12)\big]`,
     conditions: r`標為近似的原因：低頻漸近式，只展開到 $\Omega^2$。$L=Kz^{-d}/(1-z^{-1})$、$\Omega\to0$；整數 $d$ 時「存在反號帶 $\iff K(d-\tfrac12)>1$」（精確的判據是 F-CS.10）`,
@@ -75,6 +81,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-CS.7',
+    assumes: 'L2 的 closed form（$L=Kz^{-1}/(1-z^{-1})$）：精確',
     title: r`L1（Type-I，1 拍延遲）的 $\mathrm{Re}\,H_{PD}$`,
     tex: r`\mathrm{Re}\,H_{PD}=\frac{(2-K)(1-\cos\Omega)}{\lvert1-(1-K)e^{-j\Omega}\rvert^2}\ \ge 0\quad(0<K<2),\qquad 1-K=c-\sqrt{c^2-1},\ \ c=2-\cos\Omega_3`,
     conditions: r`$L_1=Kz^{-1}/(1-z^{-1})$；$\Omega_3=2\pi\cdot320\ \mathrm{MHz}/f_{ref}$`,
@@ -85,6 +92,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-CS.8',
+    assumes: 'L2 的 closed form（1 拍延遲的 P+I）：精確',
     title: r`L2（Type-II SSPLL）的 $\mathrm{Re}\,L$ 與反號帶上緣`,
     tex: r`\mathrm{Re}\,L_2=-\frac{K_p}{2}-\frac{K_i}{4\sin^2(\Omega/2)},\qquad f_{inv}=\frac{f_{ref}}{\pi}\arcsin\sqrt{\frac{K_i}{2(2-K_p)}}`,
     conditions: r`$L_2=\big(K_p+K_i/(1-z^{-1})\big)\,z^{-1}/(1-z^{-1})$（1 拍延遲）；$K_p<2$`,
@@ -96,6 +104,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-CS.9',
+    assumes: 'L2 的 closed form（impulse-invariant 取樣的 CPPLL）：精確',
     title: r`L3（CPPLL，impulse-invariant）的 $-\mathrm{Re}\,L$`,
     tex: r`-\mathrm{Re}\,L_3=\frac{K}{4\sin^2(\Omega/2)}+\frac{B(1-p^2)}{2\lvert1-pe^{-j\Omega}\rvert^2},\qquad B=\frac{K(\omega_p/\omega_z-1)}{\omega_p},\ \ p=e^{-\omega_p}`,
     conditions: r`$L(s)=K(1+s/\omega_z)/\big(s^2(1+s/\omega_p)\big)$；CP 電荷包在 $nT$ 注入、$(n+1)T$ 比較；帶緣為 $-\mathrm{Re}\,L=1$ 的根`,
@@ -106,6 +115,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-CS.10',
+    assumes: 'L2：$|\\sin(nx)/\\sin x|\\le n$ 與極點分解給的精確判據',
     title: 'Type-I 的反號判據（延遲、寄生極點）',
     tex: r`\mathrm{Re}\frac{z^{-d}}{1-z^{-1}}=-\frac{\sin\big((d-\frac12)\Omega\big)}{2\sin\frac\Omega2}\ge-\big(d-\tfrac12\big)\ \Rightarrow\ K\big(d-\tfrac12\big)>1;\qquad K\Big(\tfrac12+\frac{p}{1-p}\Big)>1`,
     conditions: r`Type-I：$L=Kz^{-d}/(1-z^{-1})$（整數 $d$）；或 $L=K(1-p)z^{-1}/\big((1-z^{-1})(1-pz^{-1})\big)$`,
@@ -116,6 +126,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-CS.11',
+    assumes: 'L2 + 凍結權重 + $\\beta$ 為無理數（或 $8\\mid Q$）：鋸齒 Fourier 級數與 Parseval，精確',
     title: 'GOS：鋸齒 regressor 的諧波和',
     tex: r`C_{GOS}=\sum_{m\ge1}\frac{\mathrm{Re}\,\Gamma_{\rm eff}\big(\mathrm{frac}(m\beta)\big)}{2\pi^2m^2},\qquad \beta=\mathrm{frac}(8\alpha),\qquad \kappa_{GOS}=\frac{C_{GOS}}{\mathrm{var}(\rho)}\ \xlongequal{\;\mathrm{var}(\rho)=1/12\;}\ 12\,C_{GOS}`,
     conditions: r`$C_{GOS}$ 的和：需要 $\Gamma_{\rm eff}(0)=0$（Type-I 以上的迴路把 DC 那條線吸收）；$\alpha$ 為無理數時精確，有理數且 $8\mid Q$ 時也等於精確週期解的 $C_{GOS}$（golden 核對 4 個長週期的 $\alpha$，差 $\le8.3\times10^{-10}$）。最後一個等號只在 $\mathrm{var}(\rho)=\tfrac{1}{12}$ 時成立，也就是 $\beta$ 為無理數（或週期很長）：$\beta=a/b$（最簡分數；$8\mid Q$ 時 $b=Q/8$）時 $\mathrm{var}(\rho)=\frac{b^2-1}{12b^2}$，$\kappa_{GOS}=\frac{b^2}{b^2-1}\cdot12\,C_{GOS}$（$b=2$ 時是 $\tfrac43$ 倍，$b=1000$ 時只差 $10^{-6}$；符號相同）。$\kappa_{GOS}=1$ 的開迴路基準是去掉平均值的 $\rho$（只算 AC 功率 $\mathrm{var}(\rho)$）；保留平均、$H\equiv1$ 時斜率是 $E[\rho^2]=\tfrac13$`,
@@ -126,6 +137,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-CS.12',
+    assumes: 'L2 + 凍結權重的慢鋸齒外推（$\\beta\\to0$）',
     title: 'GOS near-grid 的慢鋸齒漸近式',
     tex: r`\begin{gathered}C_{GOS}\approx\frac{\beta}{2}\big(S_\infty-2S_D\big)-\beta^2\sum_m m\,s[m]\\[4pt]\Rightarrow\ \text{Type-I: }\frac{\beta}{2K};\quad \text{Type-II},\,D=0:\ \frac{\beta^2}{K_i};\quad \text{Type-II},\,D=1:\ -\beta\end{gathered}`,
     conditions: r`標為近似的原因：慢鋸齒的漸近式，只留 $\beta$ 的首項。$\beta\to0$（$\alpha\approx k/8$）；$s$ 是 $h_{PD}$ 的步階響應，$S_\infty=\sum_n s[n]$，$S_D=\sum_{n<D}s[n]$`,
@@ -136,6 +148,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-CS.13',
+    assumes: 'L2 + 凍結權重 + L3 的 circulant 結構：DFT 對角化，精確',
     title: r`PHOS：$8\times8$ circulant 的 DFT 模態特徵值`,
     tex: r`\lambda_m=\frac{8\sin^2(\pi m/8)}{\pi^2}\sum_{\ell\equiv m\ (8)}\frac{\Gamma_{\rm eff}\big(\mathrm{frac}(\ell\alpha)\big)}{\ell^2},\qquad \kappa_m=8\lambda_m=\sum_{\ell\equiv m}w_\ell\,\Gamma_{\rm eff}(\ell\alpha),\quad \sum_{\ell\equiv m}w_\ell=1,\quad \lambda_0=0`,
     conditions: r`$\alpha$ 為無理數或 $8\mid Q$（occupancy 均勻）；$\ell$ 取正負整數；$w_\ell=64\sin^2(\pi\ell/8)/(\pi^2\ell^2)$；$\Gamma_{\rm eff}$ 是複數，所以 $\lambda_m$、$\kappa_m$ 一般是複數，且 $\lambda_{8-m}=\overline{\lambda_m}$；談正負、上下界時取實部 $\mathrm{Re}\,\kappa_m$，整個複數在 F-CS.18 才用到`,
@@ -146,6 +159,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-CS.14',
+    assumes: 'L2 + L3：mode-1 的權重 $W_1$ 與其餘權重的最好／最壞情況，精確界限',
     title: 'mode-1 的嚴格界限（一定反號／不可能反號）',
     tex: r`\begin{gathered}W_1\mathrm{Re}\Gamma(\alpha)+(1-W_1)\min_f\mathrm{Re}\Gamma\ \le\ \mathrm{Re}\,\kappa_1\ \le\ W_1\mathrm{Re}\Gamma(\alpha)+(1-W_1)\max_f\mathrm{Re}\Gamma\\[4pt]W_1=\frac{64\sin^2(\pi/8)}{\pi^2}\end{gathered}`,
     conditions: r`$\alpha$ 為無理數或 $8\mid Q$；$\kappa_1=8\lambda_1$ 是複數（F-CS.13），這裡夾的是它的實部：反號看 $\mathrm{Re}\,\kappa_1<0$，不是看 $\lvert\kappa_1\rvert$；$8\nmid Q$ 時 $C$ 不是 normal 矩陣，帶內反號只有數值證據`,
@@ -156,6 +170,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-CS.15',
+    assumes: 'L2 + L3（Hermitian 二次式）：$\\mathrm{Re}\\Gamma_{\\rm eff}\\ge0$ 處處成立時的充分條件，精確',
     title: 'PSD 定理（充分條件）',
     tex: r`\mathrm{Re}\,\lambda=\sum_\nu\mathrm{Re}\,\Gamma_\nu\,\lvert a_\nu^{T}v\rvert^2\quad\Rightarrow\quad\Big[\mathrm{Re}\,\Gamma_{\rm eff}(f)\ge0\ \ \forall f\Big]\ \Rightarrow\ \mathrm{Re}\,\lambda\ge0\ \ \text{對任何 }\alpha\text{、任何 }Q`,
     conditions: r`$C=\sum_\nu\Gamma_\nu\,\overline{a_\nu}\,a_\nu^{T}$；$v$ 為單位特徵向量；只保證 $\ge0$（可能有中性模態）`,
@@ -166,6 +181,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-CS.16',
+    assumes: 'L2：一階差分 kernel 的 closed form（1 拍延遲的 P+I），精確',
     title: '一階差分 regressor 的 kernel 與安全條件',
     tex: r`\begin{gathered}\mathrm{Re}\,\Gamma_{1d}=\frac{1-\cos\Omega+\mathrm{Re}\{(1-e^{-j\Omega})L\}}{\lvert1+L\rvert^2};\\[4pt]\text{Type-II：}\ g(\Omega)=1-\frac{K_i}{2}-(1-K_p)\cos\Omega\ge0\iff K_i\le2K_p\ \text{且}\ K_p+\frac{K_i}{2}\le2\end{gathered}`,
     conditions: r`$r[n]=x[n]-x[n-1]$（$G=1-z^{-1}$）；相關器延遲 $D=0$。第二行（標著 Type-II）的 closed form 只適用 1 拍延遲的 Type-II（P + I）迴路；其他迴路（延遲更長、寄生極點、CPPLL）要直接檢查分子 $g(\Omega)=1-\cos\Omega+\mathrm{Re}\{(1-e^{-j\Omega})L\}\ge0$，例如 Type-I 延遲 $d$ 拍時 $g=1-\cos\Omega+K\cos(d\Omega)$`,
@@ -176,6 +192,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-CS.17',
+    assumes: 'L2：filtered-x kernel $H_{PD}\\overline{\\hat H}$ 的相位條件，精確（模型 $\\hat H$ 給定）',
     title: 'filtered-x 的極性條件',
     tex: r`\begin{gathered}\Gamma_{fx}=H_{PD}\,\overline{\hat H_{PD}},\qquad \mathrm{Re}\,\Gamma_{fx}\ge0\iff\lvert\angle H_{PD}-\angle\hat H_{PD}\rvert\le90^\circ;\\[4pt]\hat K>\frac{1}{K_p/K_i+\frac12}\ \ (\text{Type-I 模型配 Type-II 迴路})\end{gathered}`,
     conditions: r`$r=\hat h_{PD}*x$；模型精確時 $\Gamma_{fx}=\lvert H\rvert^2\ge0$`,
@@ -186,6 +203,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-CS.18',
+    assumes: 'L1 Bussgang 小訊號 + L3 的模態分解；遞迴本身在模型內精確',
     title: '有限步長的平均穩定條件',
     tex: r`\theta_{k+1}=\Big(1-\frac{\kappa}{N_\tau}\Big)\theta_k,\qquad\Big\lvert1-\frac{\kappa}{N_\tau}\Big\rvert<1\iff\mathrm{Re}\,\kappa>\frac{\lvert\kappa\rvert^2}{2N_\tau}`,
     conditions: r`標為近似的原因：$\theta$ 的遞迴建立在 F-CS.2 的小訊號線性化平均模型上（Bussgang、凍結權重）；在這個模型內，遞迴與不等式對任何 $N_\tau>0$ 都精確（C07＋R10）。block 更新、沿一個特徵方向（小訊號平均模型）；$\kappa=8\lambda$ 是整個複數，$\lvert\kappa\rvert^2=(\mathrm{Re}\,\kappa)^2+(\mathrm{Im}\,\kappa)^2$，不能只代實部。$N_\tau\equiv8/(\mu K_q)$ 是正規化步長的倒數（blocks）：開迴路（$H\equiv1$、$\kappa=1$）時每個 block 把誤差乘上 $1-1/N_\tau$。它只是名義時間常數（小步長近似）：誤差降到 $1/e$ 實際要 $-1/\ln\lvert1-1/N_\tau\rvert$ 個 block（$N_\tau=25$：24.50；$N_\tau=5$：4.48）。遞迴與不等式不依賴這個近似，對任何 $N_\tau>0$ 都精確`,
@@ -197,6 +215,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-CS.19',
+    assumes: 'L1 Bussgang 小訊號 + 凍結權重：offset 以 $E[q]$ 的平均進入',
     title: '比較器 offset 是 forcing 項',
     tex: r`E[G_i]\approx E[q]\,\langle r_i\rangle+K_q(u_{os})\,(C\delta)_i,\qquad E[q]=\mathrm{erf}\!\Big(\frac{u_{os}}{\sqrt2\sigma_v}\Big),\qquad \delta^{\star}_{GOS}=-\frac{E[q]\,\langle\rho\rangle}{K_q(u_{os})\,C_{GOS}}`,
     conditions: r`標為近似的原因：與 F-CS.2 相同，模型是小訊號線性化加凍結權重（$E[q]=\mathrm{erf}(\cdot)$ 本身是高斯比較器的精確平均）。$K_q(u)=\sqrt{2/\pi}\;e^{-u^2/2\sigma_v^2}/\sigma_v$；raw regressor（$\langle\rho\rangle\approx\tfrac12$、$\langle\mathbf 1\{p=k\}\rangle=\tfrac18$）`,
@@ -208,6 +227,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-CS.20',
+    assumes: 'L1 的大訊號（1-bit 飽和）割線：週期穩態、權重凍結',
     title: '大訊號（1-bit）的割線斜率',
     tex: r`g_v(A)=\frac{\sigma_v\,\big\langle\mathrm{erf}\!\big(\tfrac{A\,y_v}{\sqrt2\sigma_v}\big)\,z_v\big\rangle}{A\sqrt{2/\pi}}\ \xrightarrow{A\to0}\ C_{vv},\qquad \kappa_\infty=\frac{\langle\mathrm{sgn}(y_v)\,z_v\rangle}{\lvert\langle\mathrm{sgn}(d_v)\,x_v\rangle\rvert},\quad y_v=h_{PD}*d_v`,
     conditions: r`沿單一方向 $v$（GOS、m1c、m1s、m2c、m3c、m4）；$A$ 是誤差振幅；不是完整的非線性穩定域`,
@@ -219,6 +239,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-CS.21',
+    assumes: 'L2 線性化的 $T$ + 小角 PM + 凍結權重（譜線到輸出）',
     title: '殘餘 PHOS 的譜線與輸出 spur（§15.4）',
     tex: r`\begin{gathered}e[n]=\sum_k\delta_k\,\mathbf 1\{p[n]=k\}=\sum_m\hat\delta_m\,e^{j2\pi mp[n]/8},\qquad \hat\delta_m=\tfrac18\sum_k\delta_k e^{-j2\pi mk/8}\\[4pt]e^{j2\pi mp[n]/8}=\sum_{\ell\equiv m\,(8)}b_\ell\,e^{j2\pi\ell\alpha n},\qquad \lvert b_\ell\rvert^2=w_\ell,\qquad A_\ell=2\lvert\hat\delta_m\rvert\sqrt{w_\ell}\ \ \text{在}\ \mathrm{frac}(\ell\alpha)f_{ref}\\[4pt]A_{out}=\lvert T(f_\ell)\rvert A_\ell,\qquad \Phi_\ell=2\pi f_{vco}A_{out},\qquad \mathrm{spur}_\ell\approx20\log_{10}\frac{\Phi_\ell}{2}\end{gathered}`,
     conditions: r`標為近似的原因：$T$ 是線性化的閉迴路響應（小訊號、沒有 SSPD 飽和），spur 用小角 PM（$\Phi\ll1$；$\Phi$ 是輸出相位的峰值，就是 Ch12 F-12.16／T15 的調變指數 $\beta$——本頁的 $\beta$ 已經是 $\mathrm{frac}(8\alpha)$，所以改寫成 $\Phi$；精確值是 $20\log_{10}(J_1(\Phi)/J_0(\Phi))$）。權重凍結（校準停下來之後；$\delta_k=\varepsilon_k-w_k$ 是當時的殘差）；$\alpha$ 為無理數時每條線各自獨立，有理 $\alpha=P/Q$ 時 $\ell$ 與 $\ell\pm Q$ 的線重合要相干相加、而且取樣落在 PMUX 相位邊緣上時 Fourier 級數給的是跳變的中點（實驗 C 對週期序列直接算精確的 Fourier 係數）；$\lvert T\rvert$ 的 peaking 隨 PVT 移動（§6.5、§15.4 的角落表）；只算 fractional spur（$\mathrm{frac}(\ell\alpha)f_{ref}$ 與 $\mathrm{frac}(m\beta)f_{ref}$），reference spur（$kf_{ref}$ 偏移）不在本頁範圍；$f_{vco}$、$\sigma_v$ 為插圖值`,
@@ -230,6 +251,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-CS.22',
+    assumes: '同 F-CS.21：L2 線性化的 $T$、小角 PM、凍結權重、$\\beta$ 無理數',
     title: '殘餘 GOS 的鋸齒譜線與輸出 spur（§15.4）',
     tex: r`\begin{gathered}u_{GOS}[n]=\delta_g\Delta\,\rho[n],\qquad \rho[n]=\tfrac12-\sum_{m\ge1}\frac{\sin(2\pi mn\beta)}{\pi m}\\[4pt]\Rightarrow\ A_m=\frac{\lvert\delta_g\rvert\Delta}{\pi m}\ \ \text{在}\ \mathrm{frac}(m\beta)f_{ref},\qquad \mathrm{spur}_m\approx20\log_{10}\big(\pi f_{vco}\lvert T(f_m)\rvert A_m\big)\end{gathered}`,
     conditions: r`標為近似的原因：同 F-CS.21（線性化的 $T$、小角 PM、權重凍結）。$\lvert\delta_g\rvert\Delta=\lvert(1-a)(1+w_g)-1\rvert\,\Delta$ 是 §14 的「GOS 誤差」（code $=1$ 時的時間誤差，fs）；DC 項 $\tfrac12\delta_g\Delta$ 是靜態相位，被迴路吸收；$\beta=\mathrm{frac}(8\alpha)$ 為無理數（有理時 $m$ 與 $m\pm b$ 的線重合）；near-grid（$\beta\to0$）時諧波擠在低頻、$\lvert T\rvert\approx1$，鋸齒幾乎原樣到輸出`,
@@ -241,6 +263,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-CS.23',
+    assumes: 'L1 Bussgang + 凍結權重 + L4（GMAC 雜訊白色、WSS）的逐模態 PSD',
     title: '穩態的權重雜訊：逐模態的 Ch12 F-12.4（§15.4）',
     tex: r`\begin{gathered}\hat\theta_{m,k+1}=p_m\,\hat\theta_{m,k}+\mu_p\,\hat\eta_{m,k},\qquad p_m=1-\frac{\kappa_m}{N_\tau},\qquad E\lvert\hat\eta_m\rvert^2=\frac{S_m}{8N},\quad S_m=\sum_{d=0}^{7}c[d]\,e^{-j2\pi md/8}\\[4pt]\sigma^2_{\theta,m}=\frac{\mu_p^2\,S_m/(8N)}{1-\lvert p_m\rvert^2},\qquad \mathrm{rms}^2_{PHOS}=\sum_{m=1}^{7}\sigma^2_{\theta,m}\ \xrightarrow{\ \text{raw},\ \kappa_m/N_\tau\ll1\ }\ \sum_{m=1}^{7}\frac{\pi\sigma_v^2}{4NN_\tau\,\mathrm{Re}\,\kappa_m}\end{gathered}`,
     conditions: r`標為近似的原因：建立在 F-CS.2 的小訊號線性化（Bussgang、凍結權重）上，再假設 GMAC 的 block 雜訊 $\hat\eta$ 白色、由比較器雜訊主導（$q=\pm1$ 在 block 內獨立，$\mathrm{var}(q\,r_k)=E[r_k^2]$）。$c[d]=\langle r_k\,r_{(k+d)\bmod8}\rangle$ 是 PHOS regressor 的 circulant 共變異數列（raw one-hot：$c=[\tfrac18,0,\dots]$、$S_m=\tfrac18$；一階差分、$\alpha<\tfrac18$：$S_m=4\alpha\sin^2(\pi m/8)$，慢的模態分到的雜訊少很多）；$N_\tau\equiv8/(\mu_pK_q)$ 用實際的步長（含功率正規化，就是實驗 C 的 $N_{\tau,\mathrm{eff}}$）；$\kappa_m$ 用該 regressor 變體的 $\Gamma_{\rm eff}$（F-CS.13）；只在 $\lvert p_m\rvert<1$（F-CS.18）時有穩態，共模 $m=0$ 沒有恢復力（去共模的 rms 不含它）。對應 Ch12 F-12.4：每個模態一條 $S_w=\mu^2S_\eta/\lvert1-pe^{-j\Omega}\rvert^2$，$p=1-\mu K$、$K=K_q\lambda_m=K_q\kappa_m/8$（$\lambda_m$ 含 one-hot 的功率 $\tfrac18$）`,
@@ -249,6 +272,30 @@ export const FORMULAS: FormulaEntry[] = [
     specSection: '15.4',
     page: '/case/sspll',
     units: { sigma_theta: 'ps', S_m: '無因次', N: 'sample', N_tau: 'blocks', mu_p: 'ps' },
+  },
+  {
+    id: 'F-CS.24',
+    assumes: 'L2 + 凍結權重 + $D=0$：F-CS.7 的 closed form 逐項 $\\ge0$（一行證明），精確',
+    title: r`GOS 定理（L1）：$\mathrm{Re}\,H_{PD}\ge0$ 處處成立 $\Rightarrow$ $C_{GOS}>0$（§7b）`,
+    tex: r`\begin{aligned}\mathrm{Re}\,H_{PD}(f)&=\frac{(2-K)(1-\cos2\pi f)}{\lvert1-(1-K)e^{-j2\pi f}\rvert^2}\ \ge0\\[6pt]\Rightarrow\ \ C_{GOS}(\beta)&=\sum_{m\ge1}\frac{\mathrm{Re}\,H_{PD}(\mathrm{frac}(m\beta))}{2\pi^2m^2}\ \ge\ \frac{\mathrm{Re}\,H_{PD}(\beta)}{2\pi^2}\ >0\quad(\beta\notin\mathbb Z)\end{aligned}`,
+    conditions: r`L1（$L=Kz^{-1}/(1-z^{-1})$、$0<K<2$）、$D=0$、raw regressor、凍結權重；每條諧波的權重 $w_m=1/(2\pi^2m^2)>0$，$\mathrm{Re}\,H_{PD}$ 只在整數 $f$ 為 0，所以 $\beta\notin\mathbb Z$ 時 $m=1$ 那一項嚴格為正；$\beta\in\mathbb Z$（$\alpha=k/8$）時 $\rho\equiv0$，GOS 不可觀測`,
+    claim: 'exact',
+    level: 'L2',
+    specSection: '6',
+    page: '/case/sspll',
+    units: { K: '無因次', beta: 'cycles/sample', C: '無因次' },
+  },
+  {
+    id: 'F-CS.25',
+    assumes: 'L2 + 凍結權重 + $D=0$：證書的每一步（截斷和、尾項下界、Lipschitz）在模型內精確；成立的範圍是 $[\\beta_0,1-\\beta_0]$',
+    title: r`GOS 定理（L2、L3）：電腦輔助證書的判定式（§7b）`,
+    tex: r`\begin{gathered}C(\beta)\ \ge\ \underbrace{\sum_{m=1}^{M}w_m\,g\big(\mathrm{frac}(m\beta_i)\big)}_{C_M(\beta_i)}+g_{\min}T_M-\Lambda_M\lvert\beta-\beta_i\rvert\\[4pt]g=\mathrm{Re}\,H_{PD},\qquad T_M=\sum_{m>M}w_m\\[4pt]\Lambda_M=\frac{L_gH_M}{2\pi^2},\qquad L_g=2\pi\sum_{n\ge1}n\,\lvert h_{PD}[n]\rvert\\[4pt]\mathrm{LB}_i\equiv C_M(\beta_i)+g_{\min}T_M>0\ \ \Rightarrow\ \ C(\beta)>0\quad\forall\,\beta\in\Big[\beta_i,\ \beta_i+\frac{\mathrm{LB}_i}{\Lambda_M}\Big]\end{gathered}`,
+    conditions: r`L2 的 $H_{PD}$ 為 LTI 且穩定（極點為單根、不在原點：尾項 $n>N$ 由留數展開 $h[n]=\sum_ic_i\lambda_i^n$ 壓住）、$D=0$、raw regressor、凍結權重；$g_{\min}\le\min_fg$（細格點最小值減 $L_g h/2$）、$H_M$ 是調和數、$w_m=1/(2\pi^2m^2)$；從 $\beta_0$ 以 $\beta_{i+1}=\beta_i+\mathrm{LB}_i/\Lambda_M$ 走到 $\tfrac12$ 每一步都 $\mathrm{LB}_i>0$ 就是 $[\beta_0,\tfrac12]$ 上的定理，$C(\beta)=C(1-\beta)$ 補上另一半；證書失敗只表示步長或 $M$ 不夠，不是反例；$\beta<\beta_0$ 不在本式的範圍內，由 F-CS.12 收尾（那一段標近似）`,
+    claim: 'exact',
+    level: 'L2',
+    specSection: '6',
+    page: '/case/sspll',
+    units: { L_g: '無因次（對正規化 f 的斜率）', Lambda_M: '無因次', T_M: '無因次', beta_0: 'cycles/sample' },
   },
 ]
 

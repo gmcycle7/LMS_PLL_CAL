@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Callout, ClaimTag, CodeBlock, MathText, ModeGate, Quiz, Section, Tex, TexBlock, ChRef } from '@/components'
 import { studentTInv } from '@/simulation/core'
 import judgesSrc from '../judges.ts?raw'
@@ -30,8 +31,8 @@ const PATH = 'src/pages/signoff/judges.ts'
 /** 角度的 TeX：把浮點殘差（|x| < 1e-9）顯示成 0；數值用大括號包住，避免科學記號的指數與 ^\circ 形成雙重上標。 */
 const degTex = (x: number) => (Number.isFinite(x) ? `{${tx(Math.abs(x) < 1e-9 ? 0 : x, 4)}}^\\circ` : '\\text{—}')
 
-/** §4–§8：每一列的判準數學 + 判斷器 */
-export function S4Cases() {
+/** §4–§8：每一列的判準數學 + 判斷器。`afterCorner` 放在 §4（Corner）之後、§5 之前（§4b PVT corner 表，index.tsx 傳進來）。 */
+export function S4Cases({ afterCorner }: { afterCorner?: ReactNode } = {}) {
   // Corner：g_crit 表與一個例子（即時計算）
   const crit = [0, 1, 2, 3, 4, 5, 6].map((d) => ({ d, g: gCrit(d), w: Math.PI / (2 * d + 1) }))
   const g1 = 1
@@ -152,6 +153,8 @@ export function S4Cases() {
         <CodeBlock source={judgesSrc} region="delayPoles" path={PATH} title="$z^{d+1}-z^d+g=0$ 的根" />
         <CodeBlock source={stabilitySrc} region="settleFromPoles" path="src/simulation/models/stability.ts" title={String.raw`$k_{95}$：用極點的模態展開逐步求值，上界 $\sum|c|k^p\rho^k\le0.05$ 證明之後不再超過`} />
       </Section>
+
+      {afterCorner}
 
       <Section kind="formula" level={2} title="5. FCW 與 Noise：靠近 0 的 $C$ 與「多 seeds」的統計" id="so-fcw-noise">
         <h3>

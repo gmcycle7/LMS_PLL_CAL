@@ -1,6 +1,7 @@
 import { Fragment, useMemo, type ComponentProps, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { HandCalc, Mermaid, StepDerivation, Tex, mathText, type ExperimentPreset } from '@/components'
+import { Badge, badgeClass, type BadgeVariant } from '@/components/Tags'
 import { presetsForExperiment } from '@/app/presets'
 import { useSettings, type LearningMode } from '@/app/settings'
 import { fmt } from '@/simulation/core'
@@ -39,10 +40,10 @@ export function erratumHref(id: string): string {
   return `#/verification?e=${encodeURIComponent(id)}`
 }
 
-/** 「勘誤 Exx」小標：連到驗證頁（#/verification，依 id 列出勘誤）。用純 <a>，HashRouter 下即可。 */
+/** 「勘誤 Exx」小標：連到驗證頁（#/verification，依 id 列出勘誤）。用純 <a>，HashRouter 下即可；外觀是勘誤徽章（琥珀描邊，不是實心）。 */
 export function ErratumTag({ id }: { id: string }) {
   return (
-    <a className="so-erratum" href={erratumHref(id)} data-erratum={id} title={`本頁採用 docs/validation.md ${id} 的修正版本；見驗證頁的勘誤列表`}>
+    <a className={badgeClass('erratum', 'so-erratum')} href={erratumHref(id)} data-erratum={id} title={`本頁採用 docs/validation.md ${id} 的修正版本；見驗證頁的勘誤列表`}>
       勘誤 {id}
     </a>
   )
@@ -172,14 +173,20 @@ export function withAlpha(color: string, a: number): string {
 /** 本頁實驗的 presets：本地 presets + src/data/presets 中屬於該實驗的 preset（若有）。local 請傳模組常數。 */
 export function usePresetList(experimentId: string, local: ExperimentPreset[]): ExperimentPreset[] {
   return useMemo(
-    () => [...local, ...presetsForExperiment(experimentId).map((p) => ({ name: p.title, params: p.params, description: p.description }))],
+    () => [...local, ...presetsForExperiment(experimentId).map((p) => ({ id: p.id, name: p.title, params: p.params, description: p.description }))],
     [experimentId, local],
   )
 }
 
-/** 判決徽章 */
+const VERDICT_VARIANT: Record<'ok' | 'bad' | 'warn' | 'muted', BadgeVariant> = { ok: 'ok', bad: 'mismatch', warn: 'partial', muted: 'na' }
+
+/** 判決徽章：ok／bad／warn／muted → 綠／紅／琥珀描邊／灰（共用的 Badge 語意） */
 export function Verdict({ kind, children }: { kind: 'ok' | 'bad' | 'warn' | 'muted'; children: ReactNode }) {
-  return <span className={`so-verdict so-verdict-${kind}`}>{children}</span>
+  return (
+    <Badge variant={VERDICT_VARIANT[kind]} className={`so-verdict so-verdict-${kind}`}>
+      {children}
+    </Badge>
+  )
 }
 
 /** 本頁的段落錨點標題（h2 + id），供 TOC 與站內連結使用。label 可含 `$…$` 行內數學（以 RichText 顯示）。 */
@@ -191,6 +198,7 @@ export const TOC: { id: string; label: string }[] = [
   { id: 'so-claims', label: '3. 何時可以宣稱穩定' },
   { id: 'so-evidence', label: '3.5 證據強度' },
   { id: 'so-corner', label: '4. Corner' },
+  { id: 'so-pvt', label: '4b. PVT corner 表' },
   { id: 'so-fcw-noise', label: '5. FCW 與 Noise' },
   { id: 'so-fixed', label: '6. 非線性與定點' },
   { id: 'so-mimo', label: '7. 多參數' },

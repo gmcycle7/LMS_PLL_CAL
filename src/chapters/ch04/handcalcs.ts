@@ -23,6 +23,7 @@ import {
   type CodeRange,
   type FixedLoopAnalytic,
 } from '@/simulation/models/gmac'
+import { dtcBitsFor, dtcCompensation, dtcEffectiveSigmaV, dtcKqRatio, dtcLsbFs, dtcQuantizationJitterRms, dtcRangeBudget } from '@/simulation/models/dtc'
 import { criticalGain } from './latency'
 import { firstOrderAccumulator, residueSignals } from './residue'
 
@@ -31,6 +32,7 @@ import { firstOrderAccumulator, residueSignals } from './residue'
  *  - solve() 的數值一律來自本章實際執行的模型：gmac.ts（GMAC、位元數、rounding、固定點）、residue.ts（一階 DSM 累加器）、latency.ts（臨界增益）。
  *  - 每一步的 tex 是「符號式 = 代入數字 = 結果」，每個等號只做一種運算；why 說明怎麼算、怎麼按計算機。
  *  - inputs 的 default 與本章 worked example 相同（§2 手算表、§3 的 N = 4 block、T13、§5 的表格與 §5.6 的例子）。
+ *  - HC-04.9／HC-04.10（§5b DTC 的範圍、LSB、量化抖動與 T_0 預算）排在 HC-04.7 之後、綜合題 HC-04.8 之前（頁面順序）；數值來自 dtc.ts。
  *  - 極性一律 δ = a − w；總和寫 S、平均寫 G（勘誤 E07 / E18）；x 無因次、a / w / μ 帶 fs（勘誤 E13）。
  */
 
@@ -812,6 +814,131 @@ export const HANDCALCS: HandCalcDef[] = [
   },
 
   // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    id: 'HC-04.9',
+    title: 'DTC 要幾個 bit？從 T₀ 預算到 LSB、量化抖動與 comparator 增益的折損',
+    page: '/ch/04',
+    formulaId: 'F-04.19',
+    formulaTex: R`R=T_\mathrm{vco}(1+\varepsilon)+\mathrm{INL}_\mathrm{pk}+2h,\qquad \Delta=\frac{R}{2^{B_\mathrm{dtc}}-1},\qquad \sigma_q=\frac{\Delta}{\sqrt{12}},\qquad \frac{K_{q,\mathrm{eff}}}{K_q}=\frac{\sigma_v}{\sqrt{\sigma_v^2+\Delta^2/12}}`,
+    level: 'engineer',
+    claim: 'exact',
+    inputs: [
+      { key: 'tvco', symbol: R`T_\mathrm{vco}`, label: 'VCO 週期（補償量最多一個週期；illustrative：16 GHz）', unit: R`\mathrm{ps}`, default: 62.5, min: 1, max: 1000, practice: { choices: [31.25, 62.5, 100, 125] } },
+      { key: 'eps', symbol: R`\varepsilon`, label: 'gain 的校正範圍（$w$ 要能到 $a(1\\pm\\varepsilon)$）', unit: R`\%`, default: 20, min: 0, max: 100, practice: { choices: [10, 20, 30] } },
+      { key: 'inl', symbol: R`\mathrm{INL}_\mathrm{pk}`, label: 'INL 的最壞偏離（Ch11）', unit: R`\mathrm{fs}`, default: 500, min: 0, max: 1e5, practice: { choices: [0, 250, 500, 1000] } },
+      { key: 'hpct', symbol: 'h', label: '兩端各留的 headroom（相對 $T_\\mathrm{vco}$）', unit: R`\%`, default: 5, min: 0, max: 50, practice: { choices: [0, 5, 10] } },
+      { key: 'B', symbol: R`B_\mathrm{dtc}`, label: 'DTC code 位元數', unit: R`\text{bits}`, default: 10, min: 1, max: 20, integer: true, practice: { choices: [8, 9, 10, 11, 12] } },
+      { key: 'sigmaV', symbol: R`\sigma_v`, label: 'comparator 前雜訊 RMS（不含量化）', unit: R`\mathrm{fs}`, default: 100, min: 0.001, max: 1e5, practice: { choices: [50, 100, 200] } },
+    ],
+    validate: ({ tvco, eps, inl, hpct, B, sigmaV }) => {
+      if (!(tvco > 0)) return R`$T_\mathrm{vco}$ 必須大於 0。`
+      if (eps < 0 || inl < 0 || hpct < 0) return R`$\varepsilon$、$\mathrm{INL}_\mathrm{pk}$、$h$ 都不能是負的。`
+      if (!Number.isInteger(B) || B < 1 || B > 20) return R`$B_\mathrm{dtc}$ 必須是 $1\ldots20$ 的整數。`
+      if (!(sigmaV > 0)) return R`$\sigma_v\le0$：$K_q=\sqrt{2/\pi}/\sigma_v$ 沒有定義；量化抖動本身也會當 dither，但這題要有一個基準的 $\sigma_v$ 才能算折損倍率。`
+      return null
+    },
+    solve: ({ tvco, eps, inl, hpct, B, sigmaV }) => {
+      const tFs = tvco * 1000
+      const b = dtcRangeBudget({ tVcoFs: tFs, calRangeFrac: eps / 100, inlPeakFs: inl, headroomFrac: hpct / 100, bits: B })
+      const h = (hpct / 100) * tFs
+      const codes = 2 ** B
+      const lsb = dtcLsbFs(b.rangeFs, B)
+      const sq = dtcQuantizationJitterRms(lsb)
+      const sEff = dtcEffectiveSigmaV(sigmaV, lsb)
+      const ratio = dtcKqRatio(sigmaV, lsb)
+      const sq2 = sq * sq
+      const sv2 = sigmaV * sigmaV
+      const pSum = sumDp([sv2, sq2])
+      return {
+        steps: [
+          { tex: R`T_\mathrm{vco}(1+\varepsilon)=${texNum(tFs)}\times(1+${texNum(eps / 100)})=${texNum(b.maxCompFs)}\,\mathrm{fs}`, why: '最大補償量：$x\\to1$ 且 gain 要能到 $a(1+\\varepsilon)$（ps 換成 fs：$\\times10^3$）。' },
+          { tex: R`h=${texNum(hpct / 100)}\times${texNum(tFs)}=${texNum(h)}\,\mathrm{fs}`, why: '兩端各留的 headroom（相對 $T_\\mathrm{vco}$ 的百分比）。' },
+          { tex: R`R=T_\mathrm{vco}(1+\varepsilon)+\mathrm{INL}_\mathrm{pk}+2h=${texNum(b.maxCompFs)}+${texNum(inl)}+2\times${texNum(h)}=${texNum(b.rangeFs)}\,\mathrm{fs}`, why: 'DTC 要做得出來的延遲範圍（F-04.20）。' },
+          { tex: R`2^{B_\mathrm{dtc}}-1=2^{${ti(B)}}-1=${ti(codes)}-1=${ti(codes - 1)}`, why: '$2^{B}$ 個 code 之間有 $2^{B}-1$ 個間隔。' },
+          { tex: R`\Delta=\frac{R}{2^{B_\mathrm{dtc}}-1}=\frac{${texNum(b.rangeFs)}}{${ti(codes - 1)}}=${texNum(lsb)}\,\mathrm{fs}`, why: '1 LSB 的時間（F-04.19）。' },
+          { tex: R`\sigma_q=\frac{\Delta}{\sqrt{12}}=\frac{${texNum(lsb)}}{${texNum(Math.sqrt(12))}}=${texNum(sq)}\,\mathrm{fs}`, why: R`量化誤差在一個 LSB 內均勻分布：$E[e_q^2]=\frac1\Delta\int_{-\Delta/2}^{\Delta/2}e^2\,de=\Delta^2/12$（$\sqrt{12}=3.4641$）。` },
+          { tex: R`\sigma_{v,\mathrm{eff}}=\sqrt{\sigma_v^2+\sigma_q^2}=\sqrt{${texNum(sigmaV)}^2+${texNum(sq)}^2}=\sqrt{${tdp(sv2, pSum)}+${tdp(sq2, pSum)}}=\sqrt{${tdp(sv2 + sq2, pSum)}}=${texNum(sEff)}\,\mathrm{fs}`, why: '量化抖動和 comparator 雜訊獨立、都在 $e[n]$ 這個節點，變異數相加。' },
+          { tex: R`\frac{K_{q,\mathrm{eff}}}{K_q}=\frac{\sigma_v}{\sigma_{v,\mathrm{eff}}}=\frac{${texNum(sigmaV)}}{${texNum(sEff)}}=${texNum(ratio)}`, why: R`$K_q=\sqrt{2/\pi}/\sigma_v$：雜訊變大、增益等比例變小。${ratio > 0.95 ? '折損不到 5%，這個位元數夠用。' : '折損超過 5%：多給 1 bit，$\\Delta$ 減半、$\\sigma_q$ 減半。'}` },
+        ],
+        results: [
+          { symbol: 'R', label: 'DTC 的延遲範圍', value: b.rangeFs, unit: R`\mathrm{fs}` },
+          { symbol: R`\Delta`, label: '1 LSB', value: lsb, unit: R`\mathrm{fs}` },
+          { symbol: R`\sigma_q`, label: '量化抖動 RMS', value: sq, unit: R`\mathrm{fs}` },
+          { symbol: R`K_{q,\mathrm{eff}}/K_q`, label: 'comparator 增益的折損倍率', value: ratio, digits: 5 },
+        ],
+        notes: [
+          R`驗算：要讓 $\Delta\le\sigma_v$（$\sigma_q\le0.29\sigma_v$、折損 $<4\%$）需要 $B_\mathrm{dtc}\ge\lceil\log_2(R/\sigma_v+1)\rceil=${ti(dtcBitsFor(b.rangeFs, sigmaV))}$ bits。`,
+          R`$T_0$（從最小延遲往上算）$=h+\mathrm{INL}_\mathrm{pk}+T_\mathrm{vco}(1+\varepsilon)=${texNum(b.t0Fs)}$ fs：補償量為 0 時 DTC 停在這裡，上面還留 $h=${texNum(h)}$ fs 的 headroom（HC-04.10 再看飽和）。`,
+          ROUNDING_TIP,
+        ],
+      }
+    },
+    tips: [
+      '範例（16 GHz 的 $T_\\mathrm{vco}=62.5$ ps、$\\varepsilon=20\\%$、INL 500 fs、headroom 5%、10 bits、$\\sigma_v=100$ fs）：$R=81750$ fs、$\\Delta=79.912$ fs、$\\sigma_q=23.069$ fs、折損倍率 $0.97437$——10 bits 夠；9 bits 時 $\\Delta=160$ fs、折損到 $0.908$。',
+      '量化誤差為什麼是 $\\Delta^2/12$：均勻分布在寬 $\\Delta$ 的區間，變異數 $=\\Delta^2/12$（和 Ch13 的 toggle／dither 一樣的式子）。每多 1 bit，$\\Delta$ 減半、$\\sigma_q$ 減半、折損的變異數除以 4。',
+      '這裡假設 code 夠亂讓 $e_q$ 均勻：DSM 的餘數序列通常夠；FCW 是整數或 $\\beta$ 很小（near-grid）時 $e_q$ 會變成確定性的圖案，要用時域模擬看（Ch13）。',
+    ],
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    id: 'HC-04.10',
+    title: '這一拍的補償量放得進 DTC 嗎？T₀ 往回扣、取整、飽和與梯度',
+    page: '/ch/04',
+    formulaId: 'F-04.20',
+    formulaTex: R`\tau=T_0-w\,x,\qquad \mathrm{code}=\mathrm{round}\Big(\frac{\tau}{\Delta}\Big)\ \text{夾在}\ [0,\,2^{B_\mathrm{dtc}}-1],\qquad \frac{\partial e}{\partial w}=\begin{cases}-x,&\text{沒飽和}\\0,&\text{夾住}\end{cases}`,
+    level: 'beginner',
+    claim: 'exact',
+    inputs: [
+      { key: 't0', symbol: 'T_0', label: '基準延遲（從 DTC 最小延遲往上算；HC-04.9 的預算給 78625 fs）', unit: R`\mathrm{fs}`, default: 78625, min: 0, max: 1e6, practice: { choices: [60000, 78625, 90000] } },
+      { key: 'lsb', symbol: R`\Delta`, label: '1 LSB（HC-04.9 算出 79.912 fs；這裡用整數方便手算）', unit: R`\mathrm{fs}`, default: 80, min: 0.001, max: 1e5, practice: { choices: [40, 80, 160] } },
+      { key: 'B', symbol: R`B_\mathrm{dtc}`, label: 'DTC code 位元數', unit: R`\text{bits}`, default: 10, min: 1, max: 20, integer: true, practice: { choices: [8, 10, 12] } },
+      { key: 'w', symbol: 'w', label: '目前的 gain（fs per unit code；真值 $a=T_\\mathrm{vco}$）', unit: R`\mathrm{fs}`, default: 62500, min: -1e6, max: 1e6, practice: { choices: [50000, 62500, 75000, 90000] } },
+      { key: 'x', symbol: 'x', label: '這一拍的正規化 code', default: 0.9, min: 0, max: 0.999, practice: { choices: [0.1, 0.5, 0.9, 0.99] } },
+    ],
+    validate: ({ lsb, B }) => {
+      if (!(lsb > 0)) return R`$\Delta$ 必須大於 0。`
+      if (!Number.isInteger(B) || B < 1 || B > 20) return R`$B_\mathrm{dtc}$ 必須是 $1\ldots20$ 的整數。`
+      return null
+    },
+    solve: ({ t0, lsb, B, w, x }) => {
+      const c = dtcCompensation({ w, x, t0Fs: t0, lsbFs: lsb, bits: B })
+      const maxCode = 2 ** B - 1
+      const comp = w * x
+      const pSum = sumDp([t0, comp])
+      const roundedCode = Math.floor(c.wantCode + 0.5)
+      return {
+        steps: [
+          { tex: R`w\,x=${texNum(w)}\times${texNum(x)}=${texNum(comp)}\,\mathrm{fs}`, why: '這一拍要補的量（reference edge 要提前多少）。' },
+          { tex: R`\tau=T_0-w\,x=${tdp(t0, pSum)}-${tdp(comp, pSum)}=${tdp(c.wantFs, pSum)}\,\mathrm{fs}`, why: 'reference 端的 DTC 只能延遲，所以從基準延遲往回扣（全站約定，F-04.2）。' },
+          { tex: R`\frac{\tau}{\Delta}=\frac{${tdp(c.wantFs, pSum)}}{${texNum(lsb)}}=${texNum(c.wantCode)}`, why: '想要的 code（還沒取整）。' },
+          { tex: R`\mathrm{round}(${texNum(c.wantCode)})=${ti(roundedCode)}`, why: 'nearest：取最接近的整數（負的也照樣取整，下一步再看夾住）。' },
+          { tex: R`2^{B_\mathrm{dtc}}-1=${ti(maxCode)}\ \Rightarrow\ \mathrm{code}=\min\big(\max(${ti(roundedCode)},0),${ti(maxCode)}\big)=${ti(c.code)}`, why: c.saturated ? R`超出範圍：code 被夾在 ${c.code === 0 ? '0（補償量比 $T_0$ 還大，DTC 已經沒有延遲可以扣）' : R`$2^{B}-1$（補償量為負：$w$ 反向，要比 $T_0$ 更長的延遲）`}。` : '在範圍內：不飽和。' },
+          { tex: R`\mathrm{code}\cdot\Delta=${ti(c.code)}\times${texNum(lsb)}=${texNum(c.delayFs)}\,\mathrm{fs}`, why: '實際送出的延遲。' },
+          { tex: R`e_q=\mathrm{code}\cdot\Delta-\tau=${texNum(c.delayFs)}-${tdp(c.wantFs, pSum)}=${texNum(c.errorFs, 5)}\,\mathrm{fs}`, why: c.saturated ? '誤差含被夾住的部分：這一拍 PD 看到的殘差不再隨 $w$ 變（$\\partial e/\\partial w=0$）。' : R`量化誤差在 $\pm\Delta/2=\pm${texNum(lsb / 2)}$ fs 內（F-04.19 的 $e_q$）。` },
+          { tex: R`\frac{\partial e}{\partial w}=${c.saturated ? '0' : R`-x=${texNumP(-x)}`}`, why: c.saturated ? 'code 夾住：$e$ 不再隨 $w$ 變，sign-LMS 的更新 $\\mu\\,q\\,x$ 卻照樣累加——方向資訊是假的，會 windup（§5.5）；RTL 要在飽和旗標為 1 時 freeze 更新。' : '沒飽和：$e=(a-w)x+e_q+v$ 對 $w$ 的斜率是 $-x$，GMAC 的 $q\\,x$ 才是真正的梯度方向。' },
+        ],
+        results: [
+          { symbol: R`\mathrm{code}`, label: '送出的 DTC code', value: c.code, tolerance: { abs: 1e-9, rel: 0 } },
+          { symbol: 'e_q', label: '量化（含飽和）誤差', value: c.errorFs, unit: R`\mathrm{fs}`, tolerance: { abs: 1e-6, rel: 0.01 } },
+          { symbol: R`\partial e/\partial w`, label: '這一拍誤差對 gain 的斜率', value: c.dEdw, tolerance: { abs: 1e-9, rel: 0 } },
+        ],
+        notes: [
+          c.saturated
+            ? R`飽和：要讓這一拍放得進去，$T_0$ 至少要 $w\,x=${texNum(comp)}$ fs（或 $w$ 回到 $T_0/x=${texNum(t0 / x)}$ fs 以下）；HC-04.9 的預算 $T_0=h+\mathrm{INL}+T_\mathrm{vco}(1+\varepsilon)$ 就是為了讓 $w$ 到 $a(1+\varepsilon)$、$x\to1$ 時還放得進去。`
+            : R`離飽和還有 $${texNum(c.wantCode)}$ 個 LSB（下限）、$${texNum(maxCode - c.wantCode)}$ 個 LSB（上限）。$w$ 要大到 $T_0/x=${texNum(t0 / x)}$ fs 這一拍才會夾在 0。`,
+          R`sign-LMS 在飽和時不會自己停：$q=\mathrm{sign}(e)$ 仍是 $\pm1$，$\mu\,q\,x$ 照加——和 §5.5 的 gain accumulator windup 是同一件事，只是這次是 DTC code 飽和。`,
+        ],
+      }
+    },
+    tips: [
+      '範例（$T_0=78625$、$\\Delta=80$、10 bits、$w=62500$、$x=0.9$）：$w\\,x=56250$、$\\tau=22375$ fs、$\\tau/\\Delta=279.69\\to280$、延遲 22400 fs、$e_q=+25$ fs、$\\partial e/\\partial w=-0.9$。把 $w$ 改成 90000：$\\tau=-2375<0$，code 夾在 0、$e_q=+2375$ fs、梯度 0。',
+      '$x=0.99$、$w=a(1+\\varepsilon)=75000$ 時 $w\\,x=74250<T_0$：預算剛好讓最壞的一拍還放得進去（上面留的 headroom 與 INL 餘裕就是這個用途）。',
+      ROUNDING_TIP,
+    ],
+  },
+
   {
     id: 'HC-04.8',
     title: '綜合題：一條定點 GMAC datapath 從頭算到尾（增益、穩定、位元數、兩個截斷點）',

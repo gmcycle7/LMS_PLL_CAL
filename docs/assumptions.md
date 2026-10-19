@@ -82,3 +82,10 @@
 - `/lab` 的 Fixed-Point 欄（Monte Carlo 與 FCW sweep 分頁）：開啟定點暫存器時，每一段 seeds／FCW 再用 `quantize = false` 跑一次同 seed 的浮點對照（執行時間加倍），比的是**內部暫存器** `w` 後半段平均的成對差（Pipeline 分頁比的是實體 gain `wPhys`，兩者差一個捨入到實體 LSB 的量；容差 `1 LSB + 4 SE` 已含）。sweep 只在「每點再跑閉迴路」時才有對照（開迴路量與定點無關，標 `n/a`）。「一致」仍只代表「在這些 seeds、這個 LSB 下定點沒有系統性偏離浮點」，不是 bit-true。
 - Ch02 Batch-vs-SGD 的 Monte Carlo 欄：12 個 seeds（各自重抽資料與洗牌順序），統計 SGD 最後的 `w − w_LS`，判定 `|mean| ≤ 4·se`。模型是「固定步長 SGD 在經驗最小平方解附近無偏抖動」：重新洗牌造成的固定點偏移 `∝ μ Σx_i³ r_i / Σx_i²` 對資料集取期望為 0，但是 `O(μ²)` 項沒有算進容差；transient 沒消失（更新次數 < 8/(μ P̂_x)）或發散時標 `n/a`。
 - 本節開頭「多數實驗的 Fixed-Point 欄為 `Not implemented`」在 2026-10-19 之後只對沒有定點模型的實驗成立，而且那些格子改標 `n/a` 並附原因；真正的功能缺口（例如 MIMO 判斷器的定點係數量化、SSPLL Jacobian 的定點 GMAC）仍標 `Not implemented` 並指向 roadmap。
+
+**2026-10-19 補充（depth 審查）**
+- 「精確｜指定模型」指定的是哪個模型：每章章首的本章資訊 strip 列出 `src/app/chapterMeta.ts` 的 `models`（L0–L5 加 frozen weight／單頻／mean-field 三個假設，tooltip 是各自的一句假設），`/formulas` 的登錄表每條公式多一行「在哪個模型內精確」（公式自己的 `assumes`，沒有就是該章的預設）。
+- SSPLL 案例的「GOS 在 `D = 0` 不反號」從猜想變成定理（`docs/analysis/sspll-gos-d0-theorem.md`、案例頁 §7b、F-CS.24／25）：L1 由 `Re H_PD ≥ 0` 一行證完；L2／L3 用電腦輔助證書（截斷和直接算、尾項以 `g_min` 壓住、Lipschitz 常數 `L_g = 2πΣn|h_PD[n]|` 把格點接起來）證明 `β ∈ [β_0, 1 − β_0]`（`β_0 = 0.016`，golden 以 `M = 16000` 推到 `2^-10`）；只剩 `β < β_0` 用慢鋸齒漸近式 `C ≈ β²/K_i` 收尾（近似）。§4 第一段「GOS 在 D = 0 不反號是數值結論（猜想，無一般證明）」自此只對 `β < β_0`（與對稱的 `β > 1 − β_0`）成立。證書失敗不是反例；換迴路（PVT、延遲、寄生極點）要重跑（§7.2 密集掃描的 11 個迴路都通過）。
+- DTC 本身的範圍、LSB、量化抖動與 `T_0` 預算（Ch04 §5b、`src/simulation/models/dtc.ts` 的 `dtcRangeBudget`／`dtcQuantizationJitterRms`／`dtcCompensation`、F-04.19／20）：補償量取整到 `Δ = R/(2^B − 1)` 的格點，`e_q` 均勻時 `σ_q = Δ/√12` 與 comparator 雜訊相加（`σ_v,eff² = σ_v² + Δ²/12`，`K_q` 等比例縮小）；`R ≥ T_vco(1 + ε_cal) + INL_pk + 2h`、`T_0 = h + INL_pk + T_vco(1 + ε_cal)`；code 夾住時 `∂e/∂w = 0`，sign-LMS 的 `q·x` 更新沒有梯度可跟、要 freeze（和 gain accumulator 的 anti-windup 同一個原則）。「均勻的 `e_q`」要 code 夠亂：整數 FCW 或 near-grid 時是確定性圖案（Ch13）。
+- Sign-off §4b 的 PVT corner 表把三種效應放在同一個迴路（案例頁的 L2、GOS 鋸齒 regressor）上：`σ_v` 改 `K_q`、主迴路增益倍率 `s_c`（不重新設計）改帶緣與 regressor 的有效相關 `κ_c = 12 C_GOS(β)`（兩者相乘才是 `K_c`）、溫度讓 `a` 漂移（重新收斂 `k_re` 由 `settleFromPoles` 算、斜坡落後 `δ_lag = ȧ/(f_u g_c)`）；corner 的 `σ_v`、`s_c`、TC 都是 illustrative。
+

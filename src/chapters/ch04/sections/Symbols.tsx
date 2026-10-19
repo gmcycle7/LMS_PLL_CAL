@@ -59,6 +59,10 @@ export const CH04_SYMBOLS: SymbolEntry[] = [
   { symbol: R`\ell_W`, meaning: mt(R`更新量 $\mu G$ 加進 $W$ 之前再右移的位元數（$R=2^{\ell_W}$）`), unit: R`\text{bits}`, firstSeen: '§5' },
   { symbol: R`p_\mathrm{min}`, meaning: mt(R`最負 code $-2^{B_x-1}$ 出現的機率（條件取負 bug 的偏差來源）`), firstSeen: '§5' },
   { symbol: R`W,\;w_\mathrm{min},\;w_\mathrm{max}`, meaning: '高解析 gain accumulator、DTC 可實現的 gain 範圍（rail）', unit: R`\mathrm{fs}/\text{unit code}`, firstSeen: '§5' },
+  { symbol: R`B_\mathrm{dtc},\;R,\;\Delta`, meaning: mt(R`DTC code 的位元數、延遲範圍、1 LSB 的時間 $\Delta=R/(2^{B_\mathrm{dtc}}-1)$`), unit: R`\text{bits},\;\mathrm{fs},\;\mathrm{fs}`, firstSeen: '§5b', note: mt(R`和 $\Delta_G$、$\Delta_W$ 不同：這是時間的格點`) },
+  { symbol: R`e_q,\;\sigma_q`, meaning: mt(R`補償量取整到 $\Delta$ 格點的量化誤差（$\pm\Delta/2$ 內均勻）與其 RMS $\Delta/\sqrt{12}$`), unit: R`\mathrm{fs}`, firstSeen: '§5b' },
+  { symbol: R`\sigma_{v,\mathrm{eff}},\;K_{q,\mathrm{eff}}`, meaning: mt(R`含量化抖動的等效雜訊 $\sqrt{\sigma_v^2+\Delta^2/12}$ 與對應的 comparator 增益`), unit: R`\mathrm{fs},\;\mathrm{fs}^{-1}`, firstSeen: '§5b' },
+  { symbol: R`\varepsilon_\mathrm{cal},\;\mathrm{INL}_\mathrm{pk},\;h`, meaning: mt(R`gain 的校正範圍（$w$ 要能到 $a(1\pm\varepsilon_\mathrm{cal})$）、INL 的最壞偏離、DTC 範圍兩端各留的 headroom：$T_0$ 預算的三個餘裕`), unit: R`\text{—},\;\mathrm{fs},\;\mathrm{fs}`, firstSeen: '§5b', note: mt(R`$\varepsilon_\mathrm{cal}$ 與 §2 的 $\varepsilon$（gain 相對誤差）不同`) },
 ]
 
 /** 章末的符號表：整頁最後一個區塊（在「本課必記」與「連結到 PLL」之後）。 */

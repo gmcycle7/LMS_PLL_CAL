@@ -10,6 +10,7 @@ import { S04MeanUpdate } from './sections/S04MeanUpdate'
 import { S05Identity } from './sections/S05Identity'
 import { S06Loops } from './sections/S06Loops'
 import { S07Gos } from './sections/S07Gos'
+import { S07bTheorem } from './sections/S07bTheorem'
 import { S08Phos } from './sections/S08Phos'
 import { S09Joint } from './sections/S09Joint'
 import { S10Sim } from './sections/S10Sim'
@@ -21,7 +22,7 @@ import { S16Quiz, S17Recap } from './sections/S16Wrapup'
 import { S21Symbols, SYMBOLS_ANCHOR } from './sections/S21Symbols'
 import './case-sspll.css'
 
-/** 目錄：[錨點 id, 標題]；編號就是陣列索引（0–21）。符號表在最後（docs/teaching-style.md §5）。 */
+/** 目錄：[錨點 id, 標題]；編號寫在標題裡（0–21，§7b 插在 7 與 8 之間）。符號表在最後（docs/teaching-style.md §5）。 */
 const TOC: [string, string][] = [
   ['cs-0', '0. 先講結論'],
   ['cs-1', '1. 本章路線圖'],
@@ -31,6 +32,7 @@ const TOC: [string, string][] = [
   ['cs-5', '5. 恆等式與「微分」直覺'],
   ['cs-6', '6. 三個迴路與反號帶（實驗 A）'],
   ['cs-7', '7. GOS：鋸齒 regressor'],
+  ['cs-7b', '7b. 定理：$D=0$ 時 GOS 不反號'],
   ['cs-8', '8. PHOS：circulant 與 DFT 模態（實驗 B）'],
   ['cs-9', '9. $9\\times9$ 耦合與 PSD 定理'],
   ['cs-10', '10. 模擬證據'],
@@ -97,11 +99,11 @@ export default function CaseSspllPage() {
         </Callout>
       )}
       <nav aria-label="本頁目錄">
-        <ol className="cs-toc" start={0}>
-          {TOC.map(([id, label], i) => (
-            <li key={id} value={i}>
+        <ol className="cs-toc cs-toc-labeled">
+          {TOC.map(([id, label]) => (
+            <li key={id}>
               <button type="button" className="cs-linkbtn" onClick={() => scrollToId(id)}>
-                {mathText(label.replace(/^\d+\.\s*/, ''))}
+                {mathText(label)}
               </button>
             </li>
           ))}
@@ -116,6 +118,7 @@ export default function CaseSspllPage() {
       <S05Identity />
       <S06Loops />
       <S07Gos />
+      <S07bTheorem />
       <S08Phos />
       <S09Joint />
       <S10Sim />

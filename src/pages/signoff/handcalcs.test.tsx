@@ -1,4 +1,5 @@
 import { readFileSync, readdirSync } from 'node:fs'
+import { expectNoTexErrors } from '@/test/katex'
 import { join } from 'node:path'
 import katex from 'katex'
 import { fireEvent, render, within } from '@testing-library/react'
@@ -9,6 +10,7 @@ import { CORNER_JUDGE_DEFAULT } from './experiments/CornerJudge'
 import { SSPLL_DEFAULT } from './experiments/SspllJacobian'
 import { FORMULAS } from './formulas'
 import { HANDCALCS, handcalc } from './handcalcs'
+import { PVT_LOOP_PARAMS } from './sections/S4bPvt'
 import { SILICON_EXAMPLE } from './sections/S8Silicon'
 import * as J from './judges'
 
@@ -98,6 +100,24 @@ const INDEPENDENT: Record<string, (v: Record<string, number>) => number[]> = {
     // 單相殘差：α·f_ref 那一根是寬 1/P 方窗的基波，|c₁| = sin(π/P)/π，peak = 2|c₁|δ_P ⇒ δ_P = π A_t/(2 sin(π/P))
     return [2 * 10 ** (spur / 20), at, (at * Math.PI) / (2 * Math.sin(Math.PI / P))]
   },
+  'HC-SO.7': ({ sigmaV, s, kappa, mu, aPs, tc, Tc, tol, ramp, N }) => {
+    const { Kp, Ki } = PVT_LOOP_PARAMS
+    const Kc = (SQ / sigmaV) * kappa
+    const g = mu * Kc
+    // 帶緣：案例頁 F-CS.8 的封閉式（和 inversionBands 的二分法同值，那個對照在 S4bPvt.test.tsx）
+    const fInv = (4000 / Math.PI) * Math.asin(Math.sqrt((s * Ki) / (2 * (2 - s * Kp))))
+    const dA = aPs * 1000 * tc * 1e-6 * (Tc - 25)
+    // k_re：不用 ⌈ln/ln⌉——直接連乘 |1 − g|，數到 |Δa|·ρ^k ≤ tol 的最小 k（Δa 已在容許內就是 0）
+    let k = 0
+    let e = Math.abs(dA)
+    while (e > tol && k < 100_000) {
+      e *= Math.abs(1 - g)
+      k++
+    }
+    // 斜坡落後：ȧ 每個 block 的漂移量除以 g
+    const lag = (aPs * 1000 * tc * 1e-6 * ramp) / (4e9 / N) / g
+    return [Kc, g, fInv, dA, k, lag]
+  },
   'HC-SO.4': ({ sigmaF, thetaF, sigmaS, thetaS, mu, d }) => {
     const gF = (mu * SQ * Math.cos(thetaF * RAD)) / sigmaF
     const gS = (mu * SQ * Math.cos(thetaS * RAD)) / sigmaS
@@ -143,15 +163,16 @@ const INVALID: { hc: string; name: string; patch: Record<string, number>; expect
   { hc: 'HC-SO.5', name: 'C = 0（不可辨識）', patch: { C: 0 }, expect: /不可辨識/ },
   { hc: 'HC-SO.5', name: 'Δ/σ_v = 0.5（截斷偏差）', patch: { r: 0.5 }, expect: /截斷/ },
   { hc: 'HC-SO.6', name: 'spur = −10 dBc（小角近似失準）', patch: { spur: -10 }, expect: /小角近似/ },
+  { hc: 'HC-SO.7', name: 'μ 過大（g ≥ 2）', patch: { mu: 1e4 }, expect: /發散/ },
 ]
 
 describe('Sign-off 手算題：結構', () => {
-  it('六題、ID 連號 HC-SO.n、page 與公式 ID 正確；每個輸入都有手算友善的 practice 範圍；文字欄位不以 Unicode 拼公式', () => {
-    expect(HANDCALCS.map((h) => h.id)).toEqual(['HC-SO.1', 'HC-SO.2', 'HC-SO.3', 'HC-SO.4', 'HC-SO.5', 'HC-SO.6'])
+  it('七題、ID 連號 HC-SO.n、page 與公式 ID 正確；每個輸入都有手算友善的 practice 範圍；文字欄位不以 Unicode 拼公式', () => {
+    expect(HANDCALCS.map((h) => h.id).sort()).toEqual(['HC-SO.1', 'HC-SO.2', 'HC-SO.3', 'HC-SO.4', 'HC-SO.5', 'HC-SO.6', 'HC-SO.7']) // 陣列順序 = 頁面順序（HC-SO.7 在 §4b，排在 HC-SO.4 之後）
     const formulaIds = new Set(FORMULAS.map((f) => f.id))
     for (const h of HANDCALCS) {
       expect(h.page).toBe('/signoff')
-      expect(h.level).toBe('engineer') // 六題都要用到 √、ln、cos、arcsin 或 10^x，沒有查表或複數運算
+      expect(h.level).toBe('engineer') // 七題都要用到 √、ln、cos、arcsin 或 10^x，沒有查表或複數運算
       expect(formulaIds.has(h.formulaId as string), h.id).toBe(true)
       expect(() => katex.renderToString(h.formulaTex, { throwOnError: true, strict: 'ignore', displayMode: true }), h.id).not.toThrow()
       for (const i of h.inputs) {
@@ -215,8 +236,9 @@ describe('Sign-off 手算題：結構', () => {
     const s2 = read('S2Polarity.tsx')
     const s3 = read('S3Claims.tsx')
     const s4 = read('S4Cases.tsx')
+    const s4b = read('S4bPvt.tsx')
     const s8 = read('S8Silicon.tsx')
-    const all = s2 + s3 + s4 + s8
+    const all = s2 + s3 + s4 + s4b + s8
     for (const h of HANDCALCS) expect((all.match(new RegExp(`<HandCalcSlot id="${h.id.replace('.', '\\.')}">`, 'g')) ?? []).length, h.id).toBe(1)
     expect((all.match(/<HandCalcSlot id="/g) ?? []).length).toBe(HANDCALCS.length)
     const after = (src: string, a: string, b: string) => {
@@ -231,6 +253,7 @@ describe('Sign-off 手算題：結構', () => {
     after(s3, '<HandCalcSlot id="HC-SO.3">', '<EvidenceLabExperiment />')
     after(s4, 'id="F-SO.5"', '<HandCalcSlot id="HC-SO.4">') // §4 PM_d 與 g_crit
     after(s4, '<HandCalcSlot id="HC-SO.4">', '<CornerJudgeExperiment />')
+    after(s4b, 'id="F-SO.14"', '<HandCalcSlot id="HC-SO.7">') // §4b PVT corner 表的一列
     after(s8, '要讀幾個 block 的 $\\bar G$ 才能以 $z=3$ 判定極性', '<HandCalcSlot id="HC-SO.5">') // §8.5 的量測計畫推導
     after(s8, '<HandCalcSlot id="HC-SO.5">', '<TexBlock id="F-SO.13"') // 圖的導讀先以 <FormulaLink id="F-SO.13"> 指過去，錨點本身在推導之後
     after(s8, '<TexBlock id="F-SO.13"', '<HandCalcSlot id="HC-SO.6">') // §8.5 spur 反推
@@ -636,7 +659,7 @@ describe('Sign-off 手算題：validate 擋下模型不適用的輸入並解釋�
       expect(warn, `${c.hc} ${c.name}`).toBeTruthy()
       expect(warn!.querySelector('.katex'), `${c.hc} ${c.name}`).toBeTruthy()
       expect(proseText(warn!)).not.toContain('$')
-      expect(container.querySelector('.katex-error, .c-tex-error'), `${c.hc} ${c.name}`).toBeNull()
+      expectNoTexErrors(container, `${c.hc} ${c.name}`)
       expect(container.querySelectorAll('.c-step')).toHaveLength(0)
       expect(container.querySelector('.c-handcalc-results')).toBeNull()
       unmount()
@@ -664,7 +687,7 @@ describe('Sign-off 手算題：渲染', () => {
     for (const v of cases) {
       const sol = def.solve(v)
       const { container, unmount } = render(<HandCalc def={withValues(def, v)} />)
-      expect(container.querySelector('.katex-error'), JSON.stringify(v)).toBeNull()
+      expectNoTexErrors(container, JSON.stringify(v))
       expect(container.querySelector('.c-tex-error')).toBeNull()
       expect(container.querySelectorAll('.c-step').length).toBe(sol.steps.length)
       expect(container.querySelectorAll('.c-handcalc-results .katex-display').length).toBe(sol.results.length)
@@ -863,7 +886,7 @@ describe('Sign-off 手算題：渲染', () => {
     expect(sol.notes!.join('')).toContain(String.raw`$k_{95}\ge`)
     expect(sol.notes!.join('')).toContain('來不及收斂')
     const { container, unmount } = render(<HandCalc def={withValues(def, v)} />)
-    expect(container.querySelector('.katex-error')).toBeNull()
+    expectNoTexErrors(container)
     unmount()
   })
 

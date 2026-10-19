@@ -64,7 +64,7 @@ export function useCasePresets<P>(opts: {
   }, [url, load])
 
   const presets = useMemo(
-    () => presetsForExperiment(experiment).map((p) => ({ name: p.title, params: p.params, description: p.description })),
+    () => presetsForExperiment(experiment).map((p) => ({ id: p.id, name: p.title, params: p.params, description: p.description })),
     [experiment],
   )
   return { presets, load }

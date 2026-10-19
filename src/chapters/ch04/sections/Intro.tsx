@@ -36,6 +36,7 @@ export const TOC: { group: string; items: { id: string; label: string }[] }[] = 
     items: [
       { id: 'ch04-hardware', label: '§4 硬體對應與時序' },
       { id: 'ch04-fixed', label: '§5 定點 GMAC' },
+      { id: 'ch04-dtc-range', label: '§5b DTC 範圍與延遲預算' },
       { id: 'ch04-notes', label: '§6 RTL 檢查清單' },
       { id: 'ch04-wrap', label: '§7 綜合手算與思考題' },
     ],

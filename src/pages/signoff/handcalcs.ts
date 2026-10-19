@@ -1,7 +1,8 @@
 import { texNum, texNumP } from '@/components'
 import type { HandCalcDef, HandCalcStep } from '@/data/types'
 import { svd } from '@/simulation/core'
-import { SETTLE_FROM_POLES_MAX_STEPS } from '@/simulation/models/stability'
+import { SETTLE_FROM_POLES_MAX_STEPS, settleFromPoles } from '@/simulation/models/stability'
+import { F_REF, makeL2, typeIIFinv } from '@/simulation/models/sspll'
 import { cornerJudge, failureUpperBound, gCrit, identifiabilityThreshold, kq, oneHotPatternFactor, polarityReadoutPlan, requiredBlocks, secantRatio, slopeStdErr, timingToneFromSpur, trialsForZeroFailure, twoParamJlin, type CornerRowResult } from './judges'
 
 /**
@@ -14,6 +15,7 @@ import { cornerJudge, failureUpperBound, gCrit, identifiabilityThreshold, kq, on
  *   HC-SO.4 同一個 μ 過最快與最慢的 corner（§4 的 Corner 判斷器，F-SO.5）
  *   HC-SO.5 矽上量測計畫：要讀幾個 block 的 Ḡ 才能以 z = 3 判定極性、要花多少時間（§8.5，F-SO.3）
  *   HC-SO.6 從頻譜儀的 spur dBc 反推 timing tone 的 peak 與單相 PHOS 殘差（§8.5，F-SO.13 = F-12.18 反過來用）
+ *   HC-SO.7 PVT corner 表的一列：σ_v → K_q、增益倍率 → 帶緣、κ → K_c 與 g、TC → Δa 的重新收斂與斜坡落後（§4b，F-SO.14；d = 0 才有封閉式；在陣列裡排在 HC-SO.4 之後＝頁面順序）
  * 本頁其他公式（累加器位元 F-SO.10、EFB 週期 F-SO.11、T18 的各自／聯合 pole F-SO.7、含延遲的 PM 與 μ 上限）在原章節已有手算題
  * （Ch04、Ch13、Ch10、Ch08），這裡不重複出題，頁面上改放連結。
  *
@@ -32,6 +34,11 @@ const SQRT_2_OVER_PI = Math.sqrt(2 / Math.PI)
 const LN_005 = Math.log(0.05)
 /** 這一題的 N 不影響答案（cornerJudge 只用它算 σ_w），沿用 Corner 判斷器的預設值 */
 const CORNER_N = 4096
+/** HC-SO.7 的迴路：案例頁的標稱 L2（PM 60°、320 MHz）的 K_p、K_i——和 §4b 的表（S4bPvt.tsx 的 PVT_LOOP_PARAMS）同一個設計；這裡自己算一次，避免 handcalcs ↔ sections 的循環 import */
+const PVT_LOOP_PARAMS = (() => {
+  const l = makeL2({ pm: 60 })
+  return { Kp: Number(l.params.Kp), Ki: Number(l.params.Ki) }
+})()
 
 /** 把 1e-12 以下的浮點尾巴當成 0（例如 cos 90° = 6.1e-17） */
 const clean = (x: number): number => (Math.abs(x) < 1e-12 ? 0 : x)
@@ -639,6 +646,121 @@ export const HANDCALCS: HandCalcDef[] = [
     ],
   },
 
+  // ─────────────────────────── HC-SO.7 PVT corner 表的一列（§4b，F-SO.14） ───────────────────────────
+  {
+    id: 'HC-SO.7',
+    title: String.raw`PVT corner 表的一列：雜訊、增益倍率與溫度漂移在這個 corner 各造成什麼？`,
+    page: '/signoff',
+    formulaId: 'F-SO.14',
+    // 四行：K_q 與 K_c；帶緣；Δa 與重新收斂（d = 0 的封閉式）；斜坡落後
+    formulaTex: String.raw`\begin{aligned}&K_q=\frac{\sqrt{2/\pi}}{\sigma_v},\qquad K_c=K_q\,\kappa,\qquad g=\mu K_c\\[2pt]&f_{inv}=\frac{f_{ref}}{\pi}\arcsin\sqrt{\frac{sK_i}{2(2-sK_p)}}\\[2pt]&\Delta a=a\,\mathrm{TC}\,(T_c-25^\circ\mathrm{C}),\qquad k_{re}=\Big\lceil\frac{\ln(\delta_{tol}/\lvert\Delta a\rvert)}{\ln\lvert1-g\rvert}\Big\rceil\\[2pt]&\dot a=a\,\mathrm{TC}\,\dot T,\qquad r=\frac{\dot a}{f_{ref}/N},\qquad \delta_{lag}=\frac{r}{g}\end{aligned}`,
+    level: 'engineer',
+    claim: 'exact',
+    inputs: [
+      { key: 'sigmaV', symbol: String.raw`\sigma_v`, label: '這個 corner 的 comparator 雜訊', unit: String.raw`\mathrm{fs}`, default: 140, min: 1, max: 10000, practice: { choices: [70, 100, 140, 200] } },
+      { key: 's', symbol: 's', label: '主迴路增益相對標稱的倍率（PVT 之後不重新設計）', default: 0.8, min: 0.05, max: 3, practice: { choices: [0.8, 1, 1.25] } },
+      { key: 'kappa', symbol: String.raw`\kappa`, label: 'regressor 在這個 corner 的有效相關係數（表 4b-1 的有效相關欄；§4 的判斷器裡是有效相位的餘弦）', default: 0.5, min: 0.01, max: 1.5, practice: { choices: [0.3, 0.5, 1] } },
+      { key: 'mu', symbol: String.raw`\mu`, label: 'learning rate（所有 corner 共用）', unit: String.raw`\mathrm{fs}`, default: 10, min: 0.001, max: 1e5, practice: { choices: [5, 10, 20, 40] } },
+      { key: 'aPs', symbol: 'a', label: 'DTC 的真實 gain（以時間計；illustrative：16 GHz 的 VCO 週期）', unit: String.raw`\mathrm{ps}`, default: 62.5, min: 0.1, max: 1000, practice: { choices: [31.25, 62.5] } },
+      { key: 'tc', symbol: String.raw`\mathrm{TC}`, label: 'DTC gain 的溫度係數（相對 TT 25°C）', unit: String.raw`\mathrm{ppm/{}^\circ C}`, default: 300, min: 0, max: 5000, practice: { choices: [100, 300, 1000] } },
+      { key: 'Tc', symbol: 'T_c', label: 'corner 的溫度', unit: String.raw`{}^\circ\mathrm{C}`, default: -40, min: -100, max: 200, practice: { choices: [-40, 0, 85, 125] } },
+      { key: 'tol', symbol: String.raw`\delta_{tol}`, label: '重新收斂與落後的容許誤差', unit: String.raw`\mathrm{fs}`, default: 5, min: 0.01, max: 1000, practice: { choices: [2, 5] } },
+      { key: 'ramp', symbol: String.raw`\dot T`, label: '溫度斜坡', unit: String.raw`{}^\circ\mathrm{C/s}`, default: 10, min: 0, max: 1e5, practice: { choices: [10, 1000] } },
+      { key: 'N', symbol: 'N', label: 'GMAC block 長度（block 率是 reference 率除以 N，reference 率為 4 GHz）', unit: String.raw`\text{samples}`, default: 4096, min: 1, max: 1e7, integer: true, practice: { choices: [1024, 4096] } },
+    ],
+    validate: ({ sigmaV, s, kappa, mu, aPs, tc, Tc, tol }) => {
+      const { Kp, Ki } = PVT_LOOP_PARAMS
+      if (!(sigmaV > 0)) return String.raw`$\sigma_v$ 必須大於 0：$K_q=\sqrt{2/\pi}/\sigma_v$ 沒有定義。`
+      if (!(s > 0) || s * Kp >= 2) return String.raw`增益倍率 $s$ 要在 $0<s<2/K_p=${texNum(2 / Kp, 4)}$ 內：超過時 1 拍延遲的 Type-II 主迴路本身不穩定（特徵方程 $z^2-(2-sK_p-sK_i)z+(1-sK_p)=0$ 的根跑出單位圓），談不上校正迴路。`
+      const ratio = (s * Ki) / (2 * (2 - s * Kp))
+      if (ratio >= 1) return String.raw`$\dfrac{sK_i}{2(2-sK_p)}=${texNum(ratio, 4)}\ge1$：$\arcsin$ 沒有實數解——反號帶已經蓋滿整個頻帶，這個增益倍率下主迴路幾乎不穩定。請把 $s$ 調小。`
+      if (!(kappa > 0)) return String.raw`C ≤ 0：$\kappa\le0$ 表示 regressor 的功率落在反號帶內，恢復力 $K_c=K_q\kappa\le0$——更新極性錯誤，任何正的 $\mu$ 都發散（案例頁 §7）。先換 regressor（一階差分）或 keep-out 這個頻道。`
+      const g = (mu * SQRT_2_OVER_PI * kappa) / sigmaV
+      if (g >= 2) return String.raw`$g=\mu K_c=${texNum(g, 4)}\ge2$：$d=0$ 的平均模型 pole $1-g\le-1$，發散。請把 $\mu$ 調小（這一題只做 $d=0$；有更新延遲時上限更低，見 §4 的 Corner 判斷器）。`
+      if (!(aPs > 0)) return String.raw`$a$ 必須大於 0。`
+      if (tc < 0 || !(tol > 0)) return String.raw`$\mathrm{TC}\ge0$、$\delta_{tol}>0$。`
+      const dA = aPs * 1000 * tc * 1e-6 * (Tc - 25)
+      if (Math.abs(dA) > 0.2 * sigmaV * 50 && Math.abs(dA) > 1e5) return String.raw`$|\Delta a|=${texNum(Math.abs(dA), 4)}$ fs 已經超過 DTC 的整個範圍量級：comparator 從頭到尾飽和，線性的 $k_{re}$ 沒有意義。請把 TC 或 $|T_c-25|$ 調小。`
+      return null
+    },
+    solve: ({ sigmaV, s, kappa, mu, aPs, tc, Tc, tol, ramp, N }) => {
+      const { Kp, Ki } = PVT_LOOP_PARAMS
+      const Kq = kq(sigmaV)
+      const Kc = Kq * kappa
+      const g = mu * Kc
+      const sKi = s * Ki
+      const twoMinus = 2 - s * Kp
+      const den = 2 * twoMinus
+      const ratio = sKi / den
+      const root = Math.sqrt(ratio)
+      const asin = Math.asin(root)
+      const fInvNorm = typeIIFinv(s * Kp, s * Ki)
+      const fInv = (fInvNorm * F_REF) / 1e6
+      const aFs = aPs * 1000
+      const dT = Tc - 25
+      const tcFrac = tc * 1e-6
+      const dA = aFs * tcFrac * dT
+      const absA = Math.abs(dA)
+      const rho = Math.abs(1 - g)
+      const frac = absA > tol ? tol / absA : 1
+      const settle = frac < 1 ? settleFromPoles(g, 0, frac) : null
+      const kRe = settle ? settle.blocks : 0
+      const lnFrac = frac < 1 ? Math.log(frac) : 0
+      const lnRho = Math.log(rho)
+      const fu = F_REF / N
+      const aDot = aFs * tcFrac * ramp
+      const r = aDot / fu
+      const lag = r / g
+      const steps: HandCalcStep[] = [
+        { tex: String.raw`K_q=\frac{\sqrt{2/\pi}}{\sigma_v}=\frac{${texNum(SQRT_2_OVER_PI)}}{${inp(sigmaV)}}=${texNum(Kq)}\ \mathrm{fs}^{-1}`, why: String.raw`效應 ①：這個 corner 的 comparator 增益（$\sqrt{2/\pi}=0.79788$）。` },
+        { tex: String.raw`K_c=K_q\,\kappa=${texNum(Kq)}\times${inp(kappa)}=${texNum(Kc)}\ \mathrm{fs}^{-1}`, why: String.raw`效應 ② 的結果 $\kappa$（表 4b-1；它已經含了帶緣移動對鋸齒各諧波的影響）乘上去。§4 的判斷器把它寫成 $\cos\theta$。` },
+        { tex: String.raw`g=\mu K_c=${inp(mu)}\times${texNum(Kc)}=${texNum(g)}`, why: String.raw`無因次迴路增益。$d=0$ 時 pole 是 $1-g$，要 $0<g<2$。` },
+        { tex: String.raw`sK_i=${inp(s)}\times${texNum(Ki)}=${texNum(sKi)},\qquad 2(2-sK_p)=2\times(2-${inp(s)}\times${texNum(Kp)})=2\times${num(twoMinus)}=${num(den)}`, why: String.raw`效應 ②：PVT 把標稱的 $K_p=${texNum(Kp)}$、$K_i=${texNum(Ki)}$（案例頁 §6.2，320 MHz 的設計值）一起乘上 $s$。` },
+        { tex: String.raw`\sqrt{\frac{sK_i}{2(2-sK_p)}}=\sqrt{\frac{${texNum(sKi)}}{${num(den)}}}=\sqrt{${texNum(ratio)}}=${texNum(root)}`, why: String.raw`先除後開根號（案例頁 F-CS.8 的 closed form）。` },
+        { tex: String.raw`f_{inv}=\frac{f_{ref}}{\pi}\arcsin(${texNum(root)})=\frac{4000}{\pi}\times${texNum(asin)}=${texNum(fInv)}\ \mathrm{MHz}`, why: String.raw`計算機切到 RAD 模式按 $\sin^{-1}$，再乘 $f_{ref}/\pi=1273.24$ MHz。增益倍率越大、帶緣越高（×0.8 時 118.56 MHz、×1 時 134.82 MHz、×1.25 時 154.09 MHz）。` },
+        { tex: String.raw`\Delta a=a\,\mathrm{TC}\,(T_c-25^\circ\mathrm{C})=${inp(aPs)}\times10^{3}\times${inp(tc)}\times10^{-6}\times${inpP(dT)}=${texNum(dA)}\ \mathrm{fs}`, why: String.raw`效應 ③：ps 換成 fs（$\times10^3$）、ppm 換成倍率（$\times10^{-6}$）、再乘溫差。這是在 TT 校準好的 $w$ 搬到這個 corner 後的初始誤差。` },
+        { tex: String.raw`\rho=\lvert1-g\rvert=\lvert1-${texNum(g)}\rvert=${nearOne(rho)}`, why: String.raw`$d=0$：平均誤差每個 block 乘上 $1-g$。` },
+      ]
+      if (frac < 1) {
+        const ratioTex = ceilArg(lnFrac / lnRho, kRe)
+        steps.push(
+          { tex: String.raw`\frac{\delta_{tol}}{\lvert\Delta a\rvert}=\frac{${inp(tol)}}{${texNum(absA)}}=${texNum(frac)}`, why: String.raw`要把 $|\Delta a|$ 縮到 $\delta_{tol}$：需要的縮減比（小於 1）。` },
+          { tex: String.raw`\ln\Big(\frac{\delta_{tol}}{\lvert\Delta a\rvert}\Big)=\ln(${texNum(frac)})=${texNum(lnFrac)}`, why: String.raw`取對數：縮減比小於 1，所以結果是負數。` },
+          { tex: String.raw`k_{re}=\Big\lceil\frac{\ln(\delta_{tol}/\lvert\Delta a\rvert)}{\ln\rho}\Big\rceil=\Big\lceil\frac{${texNum(lnFrac)}}{${texNum(lnRho)}}\Big\rceil=\left\lceil${ratioTex}\right\rceil=${int(kRe)}`, why: String.raw`$\rho^k\le\delta_{tol}/|\Delta a|$（兩個負數相除得正數），無條件進位。和 §4 的 $k_{95}$ 是同一個函式（settleFromPoles，把 5% 換成 $\delta_{tol}/|\Delta a|$）；$d\ge1$ 時沒有封閉式，判斷器用模態展開逐 block 數。` },
+        )
+      } else {
+        steps.push({ tex: String.raw`\lvert\Delta a\rvert=${texNum(absA)}\le\delta_{tol}=${inp(tol)}\ \Rightarrow\ k_{re}=0`, why: String.raw`漂移本來就在容許誤差內，不需要重新收斂。` })
+      }
+      steps.push(
+        { tex: String.raw`f_u=\frac{f_{ref}}{N}=\frac{4\times10^{9}}{${int(N)}}=${texNum(fu)}\ \mathrm{Hz}`, why: String.raw`block 率：每 $N$ 個 reference 週期更新一次。` },
+        { tex: String.raw`\dot a=a\,\mathrm{TC}\,\dot T=${inp(aPs)}\times10^{3}\times${inp(tc)}\times10^{-6}\times${inp(ramp)}=${texNum(aDot)}\ \mathrm{fs/s}`, why: String.raw`溫度斜坡讓 $a$ 每秒漂這麼多。` },
+        { tex: String.raw`r=\frac{\dot a}{f_u}=\frac{${texNum(aDot)}}{${texNum(fu)}}=${texNum(r)}\ \mathrm{fs/block}`, why: String.raw`換成每個 block 的漂移量：block 率是 MHz 級，所以每個 block 只漂一點點。` },
+        { tex: String.raw`\delta_{lag}=\frac{r}{g}=\frac{${texNum(r)}}{${texNum(g)}}=${texNum(lag)}\ \mathrm{fs}`, why: String.raw`$\delta_{k+1}=(1-g)\delta_k+r$ 的穩態（Ch14 F-14.12 的 lag 項）：迴路永遠落後這麼多。和 $\delta_{tol}=${inp(tol)}$ fs 比：${lag <= tol ? '可以忽略' : '不能忽略'}。` },
+      )
+      return {
+        steps,
+        results: [
+          { symbol: 'K_c', label: '這個 corner 的恢復力', value: Kc, unit: String.raw`\mathrm{fs}^{-1}` },
+          { symbol: 'g', label: '迴路增益', value: g },
+          { symbol: 'f_{inv}', label: '反號帶上緣', value: fInv, unit: String.raw`\mathrm{MHz}`, tolerance: { rel: 0.002, abs: 0.05 } },
+          { symbol: String.raw`\Delta a`, label: '溫度造成的 gain 偏移', value: dA, unit: String.raw`\mathrm{fs}`, tolerance: { rel: 0.01, abs: 1e-9 } },
+          { symbol: 'k_{re}', label: '重新收斂到容許誤差要幾個 block', value: kRe, unit: String.raw`\text{blocks}`, digits: 10, tolerance: CEIL_TOL },
+          { symbol: String.raw`\delta_{lag}`, label: '溫度斜坡的穩態落後', value: lag, unit: String.raw`\mathrm{fs}`, tolerance: { rel: 0.01, abs: 1e-12 } },
+        ],
+        notes: [
+          String.raw`這一列只在 $d=0$ 有封閉式；§4b 的表用 $d=1$，$k_{re}$ 由模態展開逐 block 數（同一個 settleFromPoles）。`,
+          String.raw`三種效應不是獨立相加：$K_c$ 是效應 ① 與 ② 的乘積，效應 ③ 的 $k_{re}$ 又除以 $\ln\rho\approx-g$——雜訊大、增益低的 corner 同時也最難把 $\Delta a$ 收掉。`,
+          frac < 1 ? String.raw`比較：$k_{re}=${int(kRe)}$ 與 §4 的 $k_{95}$（5%）$=${int(settleFromPoles(g, 0, 0.05).blocks)}$——$|\Delta a|/\delta_{tol}=${texNum(absA / tol, 4)}$ 比 20 ${absA / tol > 20 ? '大' : '小'}，所以重新收斂比「衰減 95%」${absA / tol > 20 ? '久' : '快'}。` : String.raw`$\Delta a$ 在容許內：這個 corner 不需要重新收斂，只剩斜坡落後要看。`,
+        ],
+      }
+    },
+    tips: [
+      String.raw`範例（表 4b-1 的 SS −40°C：$\sigma_v=140$ fs、$s=0.8$、$\kappa=0.5$、$\mu=10$ fs、$a=62.5$ ps、TC $=300$ ppm/°C、$T_c=-40$ °C、$\delta_{tol}=5$ fs、$\dot T=10$ °C/s、$N=4096$）：$K_q=0.0056992$、$K_c=0.0028496$、$g=0.028496$、$f_{inv}=118.56$ MHz、$\Delta a=-1218.8$ fs、$k_{re}=191$、$\delta_{lag}=6.74\times10^{-3}$ fs。`,
+      String.raw`$f_{ref}/\pi=1273.24$ MHz、$\sqrt{2/\pi}=0.79788$、$K_p=0.287717$、$K_i=0.0382535$：這四個常數每列都一樣。`,
+      String.raw`$\ln\rho\approx-g$（$g$ 小時）：所以 $k_{re}\approx\ln(|\Delta a|/\delta_{tol})/g$——$|\Delta a|$ 每大 $e$ 倍多 $1/g$ 個 block。`,
+      String.raw`把 TC 改成 1000 ppm/°C：$|\Delta a|$ 變 3.3 倍，$k_{re}$ 只多 $\ln3.3/g\approx42$ 個 block（對數）；把 $\dot T$ 改成 1000 °C/s：$\delta_{lag}$ 變 100 倍仍只有 0.67 fs——block 率 MHz 級時斜坡追蹤幾乎免費。`,
+    ],
+  },
   // ─────────────────────────── HC-SO.5 矽上量測計畫：要讀幾個 block、花多少時間（§8.5，F-SO.3） ───────────────────────────
   {
     id: 'HC-SO.5',

@@ -1,4 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs'
+import { expectNoTexErrors } from '@/test/katex'
 import { join } from 'node:path'
 import { act, cleanup, waitFor } from '@testing-library/react'
 import { renderTex } from '@/components'
@@ -23,15 +24,8 @@ import { CH04_SYMBOLS } from './sections/Symbols'
 import { firstOrderAccumulator, residueSignals } from './residue'
 import { PAGE_TIMEOUT, WAIT, caseButtons, proseText, renderAt, shellOf, texText } from './pageTestUtils'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+import { plotlyMock as P } from '@/test/mocks/plotly'
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 // 記錄 Plot 送進 Plotly 之前的 data／layout（`$...$` 還沒轉成 pseudo-HTML），檢查圖內文字都用 LaTeX 寫
 const PM = vi.hoisted(() => ({ calls: [] as [unknown, unknown][] }))
 vi.mock('@/components/plotMath', async (importOriginal) => {
@@ -44,12 +38,7 @@ vi.mock('@/components/plotMath', async (importOriginal) => {
     },
   }
 })
-vi.mock('mermaid', () => ({
-  default: {
-    initialize: vi.fn(),
-    render: vi.fn(async (id: string) => ({ svg: `<svg id="${id}"></svg>`, diagramType: 'flowchart-v2' })),
-  },
-}))
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 afterEach(() => {
   // 先卸載頁面，再清掉 mock 的呼叫紀錄。Plotly mock（react／purge…）與 applyPlotMath 的紀錄會留住每次呼叫的引數——圖的 DOM 節點連著整頁的 DOM、
@@ -131,7 +120,7 @@ describe('Ch04 頁面（jsdom smoke test）', () => {
     expect(sysmap.compareDocumentPosition(guide) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     const toc = Array.from(guide.querySelectorAll<HTMLButtonElement>('.ch04-toc button'))
     expect(Array.from(guide.querySelectorAll('.ch04-toc-group')).map((g) => g.textContent)).toEqual(['Part 1 訊號流', 'Part 2 硬體實作', '章末'])
-    expect(toc.map((b) => b.textContent)).toEqual(['§1 系統全貌', '§2 Fractional residue', '§3 GMAC 數學', '思考題', '§4 硬體對應與時序', '§5 定點 GMAC', '§6 RTL 檢查清單', '§7 綜合手算與思考題', '§8 本課必記'])
+    expect(toc.map((b) => b.textContent)).toEqual(['§1 系統全貌', '§2 Fractional residue', '§3 GMAC 數學', '思考題', '§4 硬體對應與時序', '§5 定點 GMAC', '§5b DTC 範圍與延遲預算', '§6 RTL 檢查清單', '§7 綜合手算與思考題', '§8 本課必記'])
     act(() => toc[0].click())
     expect(scrolled).toEqual(['ch04-system'])
     // 目錄跳到 Part 2 裡的段落時會先展開 Part 2 的摺疊框（jumpTo 用共用的 scrollToElement：展開祖先 <details>）；這個測試沒有設定模式，所以是 Beginner、Part 2 收合
@@ -147,7 +136,7 @@ describe('Ch04 頁面（jsdom smoke test）', () => {
     const hashAnchors = Array.from(container.querySelectorAll('a[href^="#"]')).filter((a) => !a.getAttribute('href')!.startsWith('#/'))
     expect(hashAnchors.map((a) => a.getAttribute('href'))).toEqual([])
     const hs = headings(container)
-    for (const t of ['§1 完整概念系統', '§2 Fractional residue', '§3 GMAC 的數學', '思考題（Part 1：訊號流與數學）', '§4 硬體對應', '§5 定點 GMAC', '§6 RTL 檢查清單', '§7 比較表、綜合手算與思考題（Part 2）', '§8 本課必記']) {
+    for (const t of ['§1 完整概念系統', '§2 Fractional residue', '§3 GMAC 的數學', '思考題（Part 1：訊號流與數學）', '§4 硬體對應', '§5 定點 GMAC', '§5b DTC 的範圍、LSB、量化抖動與', '§6 RTL 檢查清單', '§7 比較表、綜合手算與思考題（Part 2）', '§8 本課必記']) {
       expect(hs.some((h) => h.startsWith(t)), t).toBe(true)
     }
     // 兩個 Part（index.tsx）：Part 1 = 章首之後的橫幅 + §1–§3 + 思考題；Part 2 = 一個 <details>，裡面依序是 §4–§7；§8 本課必記與符號表在摺疊框外面
@@ -160,9 +149,9 @@ describe('Ch04 頁面（jsdom smoke test）', () => {
     const part2Fold = container.querySelector<HTMLDetailsElement>('details.ch04-part')!
     expect(part2Fold.querySelector('summary h2')!.id).toBe('ch04-part-2')
     expect(part2Fold.querySelector('summary')!.textContent).toContain('硬體實作：定點、暫存器、RTL 對照')
-    expect(Array.from(part2Fold.querySelectorAll(':scope > .ch04-part-body > section')).map((el) => el.id)).toEqual(['ch04-hardware', 'ch04-fixed', 'ch04-notes', 'ch04-wrap'])
+    expect(Array.from(part2Fold.querySelectorAll(':scope > .ch04-part-body > section')).map((el) => el.id)).toEqual(['ch04-hardware', 'ch04-fixed', 'ch04-dtc-range', 'ch04-notes', 'ch04-wrap'])
     for (const id of ['ch04-question', 'ch04-part-1', 'ch04-system', 'ch04-residue', 'ch04-gmac', 'ch04-part1-quiz', 'ch04-recap', 'symbols']) expect(part2Fold.contains(container.querySelector(`#${id}`)!), id).toBe(false)
-    const order = ['ch04-question', 'ch04-part-1', 'ch04-system', 'ch04-residue', 'ch04-gmac', 'ch04-part1-quiz', 'ch04-part-2', 'ch04-hardware', 'ch04-fixed', 'ch04-notes', 'ch04-wrap', 'ch04-recap', 'symbols'].map((id) => container.querySelector(`#${id}`)!)
+    const order = ['ch04-question', 'ch04-part-1', 'ch04-system', 'ch04-residue', 'ch04-gmac', 'ch04-part1-quiz', 'ch04-part-2', 'ch04-hardware', 'ch04-fixed', 'ch04-dtc-range', 'ch04-notes', 'ch04-wrap', 'ch04-recap', 'symbols'].map((id) => container.querySelector(`#${id}`)!)
     for (let i = 1; i < order.length; i++) expect(order[i - 1].compareDocumentPosition(order[i]) & Node.DOCUMENT_POSITION_FOLLOWING, order[i].id).toBeTruthy()
     // Beginner（這個測試沒有設定模式）：Part 2 收合，summary 留一句摘要與「切到 Engineer 會自動展開」的提示；本課必記（Recap）不在摺疊框裡
     expect(part2Fold.open).toBe(false)
@@ -196,11 +185,11 @@ describe('Ch04 頁面（jsdom smoke test）', () => {
     }
     expect(container.querySelector('#ch04-part1-quiz')!.compareDocumentPosition(part2Fold) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     for (const s of Array.from(container.querySelectorAll('section.c-handcalc'))) expect(s.querySelectorAll('.c-step').length, s.id).toBeGreaterThan(0)
-    // 22 張 Mermaid 圖的圖說由 MermaidFig 顯示：符號是 KaTeX（共用 Mermaid 的 caption 只能放純文字）；
+    // 23 張 Mermaid 圖的圖說由 MermaidFig 顯示：符號是 KaTeX（共用 Mermaid 的 caption 只能放純文字）；
     // 圖的內容、順序與實際渲染由 diagrams.test.tsx 檢查
     const figCaptions = Array.from(container.querySelectorAll('.ch04-mermaid-fig .ch04-mermaid-caption'))
     expect(figCaptions.length).toBe(CH04_DIAGRAMS.length)
-    expect(figCaptions.length).toBe(22)
+    expect(figCaptions.length).toBe(23)
     for (const c of figCaptions) expect(c.querySelector('.katex'), c.textContent ?? '').not.toBeNull()
     expect(figCaptions.map((c) => texText(c)).join('\n')).toContain('乘 \\mu')
     // 共用 Mermaid 自己的 figcaption 只有章首的系統地圖（SystemMap）那一個
@@ -217,14 +206,13 @@ describe('Ch04 頁面（jsdom smoke test）', () => {
     // CodeBlock 的 region 都找得到（找不到時顯示「程式碼載入錯誤」）
     expect(container.textContent).not.toContain('程式碼載入錯誤')
     // 所有 TeX 都能被 KaTeX 解析（含 Beginner 收合的推導與 Part 2；這個測試沒有設定模式，所以是第一次造訪的 Beginner）
-    const texErrors = Array.from(container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => `${e.getAttribute('title') ?? ''} ⟵ ${e.textContent ?? ''}`)
-    expect(texErrors).toEqual([])
+    expectNoTexErrors(container)
     // Worker 計算（jsdom 下 inline）完成後出現結果
     await waitFor(() => expect(shellOf(container, 'gmac-fixed-point').textContent).toContain('（定點減浮點）[fs]'), WAIT)
     await waitFor(() => expect(texText(shellOf(container, 'gmac-bit-encoding'))).toContain('0/1 直接用（bug）：後半段平均 w'), WAIT)
     // 實驗算完後（指標名稱、交叉比對附註、警告都出現了）：字串屬性裡的 $...$ 全部轉成 KaTeX，沒有殘留的 $，也沒有 KaTeX 錯誤
     expect(proseText(container)).not.toContain('$')
-    expect(Array.from(container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.textContent)).toEqual([])
+    expectNoTexErrors(container)
     expect(texText(shellOf(container, 'gmac-bit-encoding'))).toContain('0/1 → q=2b-1：後半段平均 w')
     expect(texText(shellOf(container, 'gmac-fixed-point'))).toContain('最壞情況需要的 B_\\mathrm{acc}（精確）')
     expect(P.react).toHaveBeenCalled()
@@ -301,8 +289,7 @@ describe('Ch04 頁面（jsdom smoke test）', () => {
     const r = renderAt()
     expect(r.container.textContent).toContain('def accumulator_bits_required')
     expect(r.container.textContent).toContain('Research：dither 不夠時會怎樣？平衡點為什麼不靠「餘數均勻」？')
-    const texErrors = Array.from(r.container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.textContent)
-    expect(texErrors).toEqual([])
+    expectNoTexErrors(r.container)
     expect(Array.from(r.container.querySelectorAll('details.ch04-fold')).every((d) => (d as HTMLDetailsElement).open)).toBe(true)
     // Research：Part 2 展開、沒有 Beginner 的提示
     expect(r.container.querySelector<HTMLDetailsElement>('details.ch04-part')!.open).toBe(true)
@@ -351,7 +338,7 @@ describe('Ch04 頁面（jsdom smoke test）', () => {
     // blockLms 的警告是純文字（Unicode 拼的數學），頁面在顯示層轉成 $...$：N、μ/N 都是 KaTeX
     const shell = shellOf(container, 'gmac-signal-flow')
     await waitFor(() => expect(texText(shell)).toContain('Case B：gm_mode=sum 時有效增益放大 N 倍（N=16：g=6.383；若沿用 average 模式的 \\mu，需改為 \\mu/N=0.625）'), WAIT)
-    expect(shell.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(shell)
     expect(proseText(shell)).not.toContain('$')
     // 假設清單（blockLms 的 assumptions）也轉成 LaTeX；sum 模式的總和寫成 S_k（勘誤 E07 / E18）
     expect(texText(shell)).toContain('K_q=\\sqrt{2/\\pi}/\\sigma_v 為小訊號近似')

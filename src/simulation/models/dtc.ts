@@ -175,3 +175,144 @@ export function dtcInlDnl(p: DtcParams): {
   }
   return { codes, delayFs, lsbFs, inlFs, inlLsb, dnlLsb, maxAbsInlLsb: maxAbs }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DTC 範圍、LSB、量化抖動、飽和與 T_0 預算（Ch04 Part 2 §5b；2026-10-19，審查 depth：全站只有 gain register 的飽和，
+// DTC code 本身的範圍、LSB 與量化抖動沒有數字也沒有模型）。單位：時間 fs、code LSB；純函式、無 React/DOM。
+//
+//   reference 端的 DTC：τ_DTC[n] = T_0 − w·x[n]（docs/assumptions.md §2a）；實體 DTC 的延遲範圍 [τ_min, τ_min + R]，R = (2^B − 1)·Δ，
+//   Δ = R/(2^B − 1) 是 1 LSB 的時間。補償量 w·x 落在 [0, a·x_max]（x ∈ [0, 1)：最多一個 T_vco），所以 T_0 必須 ≥ 補償量的最大值 + 校正餘裕，
+//   而且 T_0 本身不能超過 τ_min + R：R ≥ T_vco(1 + ε_cal) + INL 餘裕 + 兩端的 headroom（rangeBudget）。
+//   量化：補償量取整到 Δ 的格點，誤差 e_q ∈ (−Δ/2, Δ/2]（nearest）、均勻 ⇒ σ_q = Δ/√12；它和 comparator 雜訊 v 一樣進入 e[n]，
+//   σ_v,eff² = σ_v² + Δ²/12，K_q 跟著變小（effectiveSigmaV）。
+//   飽和：code 夾在 [0, 2^B − 1] 時 ∂e/∂w = 0（e 不再隨 w 變），sign-LMS 的 q·x 仍會累加 ⇒ 要 freeze（dtcCompensation 回傳 dEdw）。
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface DtcRangeBudgetInput {
+  /** VCO 週期 [fs]：x ∈ [0, 1) 的補償量最多一個 T_vco */
+  tVcoFs: number
+  /** DTC gain 的校正範圍（相對）：w 要能到 a(1 ± ε)；預設 0.2 */
+  calRangeFrac?: number
+  /** INL 的最壞偏離 [fs]（Ch11：d(x) 的峰值），預設 0 */
+  inlPeakFs?: number
+  /** 兩端各留的 headroom（相對 T_vco），預設 0.05 */
+  headroomFrac?: number
+  /** 位元數 B（給了就算 Δ 與量化抖動） */
+  bits?: number
+}
+
+export interface DtcRangeBudget {
+  /** 補償量的最大值 a·x_max·(1 + ε) [fs] */
+  maxCompFs: number
+  /** 需要的延遲範圍 R [fs] */
+  rangeFs: number
+  /** 基準延遲 T_0（相對 τ_min）[fs]：補償量從這裡往回扣，上面留 headroom */
+  t0Fs: number
+  /** 1 LSB [fs]（bits 有給時） */
+  lsbFs: number
+  /** 量化抖動 RMS Δ/√12 [fs] */
+  jitterRmsFs: number
+  /** 可用的 code 數 2^B */
+  codes: number
+  /** 要讓 Δ ≤ 目標時需要的位元數（bitsFor 用） */
+  bits: number
+}
+
+// #region core:dtcRangeBudget
+/** T_0 與範圍預算：R ≥ T_vco(1 + ε_cal) + INL 峰值 + 2·headroom；Δ = R/(2^B − 1)；σ_q = Δ/√12 */
+export function dtcRangeBudget(o: DtcRangeBudgetInput): DtcRangeBudget {
+  const eps = o.calRangeFrac ?? 0.2
+  const inl = o.inlPeakFs ?? 0
+  const head = (o.headroomFrac ?? 0.05) * o.tVcoFs
+  const maxCompFs = o.tVcoFs * (1 + eps) // 最大補償量：x → 1 且 w 到 a(1 + ε)
+  const rangeFs = maxCompFs + inl + 2 * head // 兩端各一個 headroom
+  const t0Fs = head + inl + maxCompFs // 從 τ_min 往上：headroom + INL 餘裕 + 補償量 ⇒ 補償量為 0 時 τ = T_0，為最大時 τ = T_0 − maxComp
+  const lsbFs = o.bits !== undefined ? dtcLsbFs(rangeFs, o.bits) : NaN
+  return { maxCompFs, rangeFs, t0Fs, lsbFs, jitterRmsFs: o.bits !== undefined ? dtcQuantizationJitterRms(lsbFs) : NaN, codes: o.bits !== undefined ? 2 ** o.bits : NaN, bits: o.bits ?? NaN }
+}
+// #endregion
+
+/** 1 LSB 的時間：Δ = R/(2^B − 1)（B 個 bit 有 2^B 個 code、2^B − 1 個間隔） */
+export function dtcLsbFs(rangeFs: number, bits: number): number {
+  if (!Number.isInteger(bits) || bits < 1 || bits > 31) throw new Error(`DTC 位元數必須為 1…31 的整數，收到 ${bits}`)
+  return rangeFs / (2 ** bits - 1)
+}
+
+/** 讓 Δ ≤ lsbTargetFs 所需的最少位元數：2^B − 1 ≥ R/Δ_target */
+export function dtcBitsFor(rangeFs: number, lsbTargetFs: number): number {
+  if (!(lsbTargetFs > 0) || !(rangeFs > 0)) throw new Error('範圍與目標 LSB 都要是正數')
+  return Math.max(1, Math.ceil(Math.log2(rangeFs / lsbTargetFs + 1)))
+}
+
+// #region core:dtcQuantizationJitter
+/** 量化誤差均勻分布在一個 LSB 內：σ_q = Δ/√12（nearest 或 truncate 都一樣，truncate 另有 −Δ/2 的平均偏移） */
+export function dtcQuantizationJitterRms(lsbFs: number): number {
+  return lsbFs / Math.sqrt(12)
+}
+
+/** 量化抖動與 comparator 雜訊相加（獨立、都在 e[n] 這個節點）：σ_v,eff = √(σ_v² + Δ²/12) */
+export function dtcEffectiveSigmaV(sigmaVFs: number, lsbFs: number): number {
+  const q = dtcQuantizationJitterRms(lsbFs)
+  return Math.sqrt(sigmaVFs * sigmaVFs + q * q)
+}
+
+/** K_q 因量化抖動縮小的倍率 K_q,eff/K_q = σ_v/σ_v,eff */
+export function dtcKqRatio(sigmaVFs: number, lsbFs: number): number {
+  return sigmaVFs / dtcEffectiveSigmaV(sigmaVFs, lsbFs)
+}
+// #endregion
+
+export interface DtcCompensationInput {
+  /** 目前的 gain w [fs per unit code] */
+  w: number
+  /** 正規化 code x ∈ [0, 1) */
+  x: number
+  /** 基準延遲 T_0（相對 τ_min）[fs] */
+  t0Fs: number
+  /** 1 LSB [fs] */
+  lsbFs: number
+  bits: number
+  rounding?: DtcRounding
+}
+
+export interface DtcCompensation {
+  /** 想要的延遲 T_0 − w·x [fs]（量化前） */
+  wantFs: number
+  /** 想要的 code（量化前） */
+  wantCode: number
+  /** 實際送出的 code（量化 + 飽和） */
+  code: number
+  /** 實際延遲 code·Δ [fs] */
+  delayFs: number
+  /** 量化誤差（實際 − 想要）[fs]，飽和時含夾住的部分 */
+  errorFs: number
+  saturated: boolean
+  /** ∂e/∂w：沒飽和時 −x（e = t_ref′ − t_fb = (a − w)x + …），飽和時 0——sign-LMS 的 q·x 更新沒有梯度可跟，要 freeze */
+  dEdw: number
+}
+
+// #region core:dtcCompensation
+/** reference 端 DTC 的一拍：τ = T_0 − w·x 取整到 Δ 的格點、夾在 [0, 2^B − 1]；回傳實際延遲、量化誤差與 ∂e/∂w */
+export function dtcCompensation(o: DtcCompensationInput): DtcCompensation {
+  const wantFs = o.t0Fs - o.w * o.x // 補償量 w·x 從基準延遲往回扣
+  const wantCode = wantFs / o.lsbFs
+  const { code, saturated } = quantizeDtcCode(wantCode, { bits: o.bits, rounding: o.rounding ?? 'nearest' })
+  const delayFs = code * o.lsbFs
+  return { wantFs, wantCode, code, delayFs, errorFs: delayFs - wantFs, saturated, dEdw: saturated ? 0 : -o.x } // ← 飽和：code 不再隨 w 變，梯度為 0
+}
+// #endregion
+
+/** 一段 code 序列的飽和比例（補償量超出範圍的拍數 / 總拍數）與量化誤差的 RMS（量化抖動的直接量測，和 Δ/√12 比） */
+export function dtcCompensationStats(xs: ArrayLike<number>, o: Omit<DtcCompensationInput, 'x'>): { saturatedFraction: number; errorRmsFs: number; errorMeanFs: number; n: number } {
+  const n = xs.length
+  let sat = 0
+  let s1 = 0
+  let s2 = 0
+  for (let i = 0; i < n; i++) {
+    const c = dtcCompensation({ ...o, x: xs[i] })
+    if (c.saturated) sat++
+    s1 += c.errorFs
+    s2 += c.errorFs * c.errorFs
+  }
+  return { saturatedFraction: n ? sat / n : 0, errorRmsFs: n ? Math.sqrt(s2 / n) : 0, errorMeanFs: n ? s1 / n : 0, n }
+}

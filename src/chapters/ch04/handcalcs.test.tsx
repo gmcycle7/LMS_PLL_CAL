@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { expectNoTexErrors } from '@/test/katex'
 import { join } from 'node:path'
 import { render } from '@testing-library/react'
 import { HandCalc, defaultValues, inputError, randomValues, renderTex, texNum } from '@/components'
@@ -161,6 +162,21 @@ const INDEPENDENT: Record<string, (v: Record<string, number>) => number[]> = {
     const deltaG = 2 ** -FG / 2 ** (bx - 1)
     return [Math.floor(S / 2 ** ell), roundHalfEven(S / 2 ** ell), eps, (-eps * deltaG) / K]
   },
+  // §5b：DTC 的範圍、LSB、量化抖動與 T_0 預算（只用 Math，不呼叫 dtc.ts）
+  'HC-04.9': ({ tvco, eps, inl, hpct, B, sigmaV }) => {
+    const tFs = tvco * 1000
+    const h = (hpct / 100) * tFs
+    const R = tFs * (1 + eps / 100) + inl + 2 * h
+    const lsb = R / (2 ** B - 1)
+    const sq = lsb / Math.sqrt(12)
+    return [R, lsb, sq, sigmaV / Math.sqrt(sigmaV * sigmaV + sq * sq)]
+  },
+  'HC-04.10': ({ t0, lsb, B, w, x }) => {
+    const want = t0 - w * x
+    const code = Math.min(Math.max(Math.floor(want / lsb + 0.5), 0), 2 ** B - 1)
+    const saturated = code !== Math.floor(want / lsb + 0.5)
+    return [code, code * lsb - want, saturated ? 0 : -x]
+  },
   'HC-04.8': ({ sigmaV, mu, bx, m, FG, lW, d }) => {
     const Mx = 2 ** (bx - 1) - 1
     const Ex2 = (Mx * (Mx + 1)) / 3 / 4 ** (bx - 1)
@@ -178,8 +194,8 @@ const INDEPENDENT: Record<string, (v: Record<string, number>) => number[]> = {
 // ───────────────────────────────────────────────────────────────────────────
 
 describe('Ch04 手算題：結構', () => {
-  it('HC-04.1 … HC-04.8：id 唯一且依序、頁面 /ch/04、公式 ID 都登錄在 FORMULAS、三種難度都有', () => {
-    expect(HANDCALCS.map((h) => h.id)).toEqual(['HC-04.1', 'HC-04.2', 'HC-04.3', 'HC-04.4', 'HC-04.5', 'HC-04.6', 'HC-04.7', 'HC-04.8'])
+  it('HC-04.1 … HC-04.10：id 唯一、依頁面順序（§5b 的 HC-04.9／10 在綜合題 HC-04.8 之前）、頁面 /ch/04、公式 ID 都登錄在 FORMULAS、三種難度都有', () => {
+    expect(HANDCALCS.map((h) => h.id)).toEqual(['HC-04.1', 'HC-04.2', 'HC-04.3', 'HC-04.4', 'HC-04.5', 'HC-04.6', 'HC-04.7', 'HC-04.9', 'HC-04.10', 'HC-04.8'])
     const formulaIds = new Set(FORMULAS.map((f) => f.id))
     for (const h of HANDCALCS) {
       expect(h.page).toBe('/ch/04')
@@ -494,6 +510,12 @@ describe('Ch04 手算題：(c) validate 擋掉模型不適用的輸入，並說�
     ['HC-04.8', { m: 14, FG: 0 }, /\\sigma_S\/2\^\{\\ell\}.*dead zone/],
     ['HC-04.8', { lW: 6 }, /\\mu\\sigma_G\/\\Delta_W.*F-04\.18/],
     ['HC-04.8', { m: 4, FG: 0, lW: 3 }, /小訊號線性化/],
+    ['HC-04.9', { tvco: 0 }, /T_\\mathrm\{vco\}.*大於 0/],
+    ['HC-04.9', { B: 0 }, /1\\ldots20/],
+    ['HC-04.9', { sigmaV: 0 }, /K_q.*沒有定義/],
+    ['HC-04.9', { inl: -1 }, /不能是負的/],
+    ['HC-04.10', { lsb: 0 }, /\\Delta.*大於 0/],
+    ['HC-04.10', { B: 21 }, /1\\ldots20/],
   ]
 
   it.each(cases)('%s %j', (id, patch, re) => {
@@ -637,7 +659,7 @@ describe('Ch04 手算題：(d) 渲染', () => {
     expect(container.querySelectorAll('.c-step').length).toBe(sol.steps.length)
     expect(container.querySelectorAll('.c-step').length).toBeGreaterThan(0)
     expect(container.querySelectorAll('.c-handcalc-results .c-texblock').length).toBe(sol.results.length)
-    expect(Array.from(container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.textContent)).toEqual([])
+    expectNoTexErrors(container)
     expect(container.textContent).not.toMatch(/NaN|undefined/)
     expect(container.textContent).not.toContain('$') // 所有 $...$ 都被轉成 KaTeX
     unmount()
@@ -645,7 +667,7 @@ describe('Ch04 手算題：(d) 渲染', () => {
     const practice = render(<HandCalc def={def} initialMode="practice" />)
     expect(practice.container.querySelectorAll('.c-step').length).toBe(0)
     expect(practice.container.querySelectorAll('.c-handcalc-answer').length).toBe(sol.results.length)
-    expect(practice.container.querySelector('.katex-error')).toBeNull()
+    expectNoTexErrors(practice.container)
     practice.unmount()
   })
 })

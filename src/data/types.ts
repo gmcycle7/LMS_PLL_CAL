@@ -25,6 +25,11 @@ export interface FormulaEntry {
   units?: Record<string, string>
   /** 與勘誤相關時填入 validation.md 的條目 id */
   erratumId?: string
+  /**
+   * 「在哪個模型內精確」：claim 為 exact 時指的是哪個模型（線性小訊號、frozen weight、單頻、mean-field…）；
+   * approx 時寫近似從哪個模型外推。一句話，支援 `$…$`。沒填時 /formulas 登錄表顯示該章 chapterMeta 的 models（docs/dev-conventions.md §5.1）。
+   */
+  assumes?: string
 }
 
 /** `src/data/presets/<id>.json` 的格式。 */

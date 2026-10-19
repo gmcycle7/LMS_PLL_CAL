@@ -1,9 +1,9 @@
 import { readFileSync, readdirSync } from 'node:fs'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 import { join } from 'node:path'
 import { fireEvent, render, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
 import mermaid from 'mermaid'
-import { SettingsProvider } from '@/app/settings'
 import { SYSTEM_BLOCK_LABEL, extractRegion, sanitizeMermaidSource, accessibleText, systemMapModel } from '@/components'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { cAbs, cMul, type Complex } from '@/simulation/core/complex'
@@ -43,15 +43,7 @@ import { SYMBOLS } from './symbols'
 
 // 整頁渲染會用到 Plotly（jsdom 沒有 canvas）：和 index.test.tsx 相同的替身。mermaid 是「真的」——解析用真正的 parser，
 // 只有在渲染元件的那幾題把 mermaid.render 換成替身（jsdom 沒有 getBBox，真的 render 一定失敗）。
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
 const DIR = join(process.cwd(), 'src/pages/case-sspll')
 const SECTION_FILES = readdirSync(join(DIR, 'sections')).filter((f) => f.endsWith('.tsx'))
@@ -154,9 +146,9 @@ const cdiv = (a: Complex, b: Complex): Complex => {
 beforeAll(() => mermaid.initialize({ startOnLoad: false, securityLevel: 'strict' }))
 
 describe('案例頁 /case/sspll 的方塊圖：語法、數量與位置（真正的 mermaid parser）', () => {
-  it('SSPLL: 每一張圖都能被 mermaid 解析；37 張新圖 + 1 張原有的架構圖 = 38 張（另加章首的系統地圖）', async () => {
-    expect(DIAGRAMS).toHaveLength(38)
-    expect(DIAGRAMS.filter((d) => !EXISTING_IDS.includes(d.id))).toHaveLength(37)
+  it('SSPLL: 每一張圖都能被 mermaid 解析；38 張新圖 + 1 張原有的架構圖 = 39 張（另加章首的系統地圖）', async () => {
+    expect(DIAGRAMS).toHaveLength(39)
+    expect(DIAGRAMS.filter((d) => !EXISTING_IDS.includes(d.id))).toHaveLength(38)
     expect(DIAGRAMS.filter((d) => !EXISTING_IDS.includes(d.id)).length).toBeGreaterThanOrEqual(6)
     for (const d of DIAGRAMS) {
       const { type } = await parsed(d.chart)
@@ -179,7 +171,7 @@ describe('案例頁 /case/sspll 的方塊圖：語法、數量與位置（真正
       expect((d.caption.match(/\$/g) ?? []).length % 2, `${d.id}：$ 要成對`).toBe(0)
       expect(d.caption.replace(/\$[^$]*\$/g, ''), d.id).not.toMatch(/_|[Α-Ωα-ωΔΣ]|\\/)
       expect(Object.keys(DIAGRAM_KIND_LABEL), d.id).toContain(d.kind)
-      expect(d.section, d.id).toMatch(/^§\d+(\.\d+)?$/)
+      expect(d.section, d.id).toMatch(/^§\d+[a-z]?(\.\d+)?$/) // §7b：GOS 定理那一節
     }
     // 具名匯出（CHART_* 與 SSPLL_CHART）與登錄表一一對應
     const exported = Object.entries(D as Record<string, unknown>).filter(([k, v]) => typeof v === 'string' && (k.startsWith('CHART_') || k === 'SSPLL_CHART')) as [string, string][]
@@ -245,6 +237,8 @@ describe('案例頁 /case/sspll 的方塊圖：語法、數量與位置（真正
       'F-CS.21': 'output-spur',
       'F-CS.22': 'output-spur',
       'F-CS.23': 'output-spur',
+      'F-CS.24': 'gos-theorem',
+      'F-CS.25': 'gos-theorem',
     }
     expect(Object.keys(PICTURE_FOR_FORMULA).sort()).toEqual(FORMULAS.map((f) => f.id).sort())
     for (const [fid, pic] of Object.entries(PICTURE_FOR_FORMULA)) {
@@ -1008,13 +1002,7 @@ describe('案例頁 /case/sspll：頁面真的把圖畫出來，符號表在最�
     const scroll = vi.fn()
     Element.prototype.scrollIntoView = scroll
     localStorage.setItem('lmspll.mode', 'engineer')
-    const { container, unmount } = render(
-      <SettingsProvider>
-        <MemoryRouter initialEntries={['/case/sspll']}>
-          <CaseSspllPage />
-        </MemoryRouter>
-      </SettingsProvider>,
-    )
+    const { container, unmount } = renderPage(<CaseSspllPage />, { url: '/case/sspll' })
     const page = container.querySelector('.case-sspll') as HTMLElement
     const after = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) // b 在 a 之後
 
@@ -1086,13 +1074,13 @@ describe('案例頁 /case/sspll：頁面真的把圖畫出來，符號表在最�
     expect(page.contains(document.getElementById('handcalc-HC-CS.3'))).toBe(true)
     // 目錄的最後一項也指到符號表
     const toc = Array.from(page.querySelectorAll('.cs-toc li'))
-    expect(toc).toHaveLength(22)
-    expect(toc[toc.length - 1].textContent).toBe('本章符號表')
+    expect(toc).toHaveLength(23) // 0–21 加上 §7b
+    expect(toc[toc.length - 1].textContent).toBe('21. 本章符號表') // 編號現在寫在標題裡（§7b 讓 <ol> 的自動編號會跳號）
     scroll.mockClear()
     fireEvent.click(toc[toc.length - 1].querySelector('button')!)
     expect(scroll.mock.contexts[0]).toBe(sym)
     // 沒有 KaTeX 錯誤
-    expect(page.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(page)
     unmount()
   }, 600000)
 })

@@ -4,7 +4,7 @@ const R = String.raw
 
 /**
  * §8 本課必記與連結到 PLL：章末、符號表之前。放在 Part 2 的摺疊框外面，Beginner 模式也看得到
- * （Recap 列的是整章的公式：Part 1 的 F-04.1–F-04.7 與 Part 2 的 F-04.9–F-04.18）。內容原本在 §7 的尾端，2026-10-19 拆章時搬過來，文字不變。
+ * （Recap 列的是整章的公式：Part 1 的 F-04.1–F-04.7 與 Part 2 的 F-04.9–F-04.20）。內容原本在 §7 的尾端，2026-10-19 拆章時搬過來，文字不變。
  */
 export function RecapSection() {
   return (
@@ -17,6 +17,7 @@ export function RecapSection() {
           { tex: R`q=2b-1;\quad G_\mathrm{bug}=\tfrac12G+\tfrac12\bar x_\mathrm{ref}`, label: '0/1 映射（F-04.7）' },
           { tex: R`B_\mathrm{acc}=1+\lceil\log_2(NM_x+1)\rceil\;\overset{N=2^m}{=}\;B_x+m\;(+1\text{ 若含最負 code})`, label: '累加器位元數（F-04.9）' },
           { tex: R`w^*-a=\frac{\bar\varepsilon\,\Delta_G}{K}+\frac{\bar\varepsilon_W\Delta_W}{g},\qquad\bar\varepsilon_\mathrm{floor}=-\frac{1-2^{-\ell}}{2}`, label: '兩個截斷點的 rounding 偏差（F-04.10、F-04.11、F-04.18）' },
+          { tex: R`\Delta=\frac{R}{2^{B_\mathrm{dtc}}-1},\qquad\sigma_{v,\mathrm{eff}}^2=\sigma_v^2+\frac{\Delta^2}{12},\qquad R\ge T_\mathrm{vco}(1+\varepsilon_\mathrm{cal})+\mathrm{INL}_\mathrm{pk}+2h`, label: 'DTC 的 LSB、量化抖動與 $T_0$ 預算；code 夾住時梯度為 0（F-04.19、F-04.20）' },
         ]}
         points={[
           <>

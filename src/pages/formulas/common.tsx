@@ -2,7 +2,7 @@ import { Fragment, useCallback, useState, type MouseEvent as ReactMouseEvent, ty
 import { Link, useNavigate } from 'react-router-dom'
 import { pageById } from '@/app/registry'
 import { useSettings, type LearningMode } from '@/app/settings'
-import { accessibleText, Tex } from '@/components'
+import { accessibleText, badgeClass, Tex } from '@/components'
 import { erratumById, erratumSummary } from './errata'
 import { formulaById } from './registry'
 import { jumpToFormula, showToast } from './jump'
@@ -54,7 +54,7 @@ export function erratumHref(eid: string): string {
 export function ErratumTag({ eid }: { eid: string }) {
   const rec = erratumById(eid)
   return (
-    <a className={`fr-erratum fr-sev-${rec?.severity ?? 'unknown'}`} href={erratumHref(eid)} title={erratumSummary(eid)} data-erratum={eid}>
+    <a className={badgeClass('erratum', `fr-erratum fr-sev-${rec?.severity ?? 'unknown'}`)} href={erratumHref(eid)} title={erratumSummary(eid)} data-erratum={eid}>
       勘誤 {eid}
     </a>
   )

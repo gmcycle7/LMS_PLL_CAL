@@ -1,7 +1,7 @@
-import { fireEvent, render, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { fireEvent, waitFor } from '@testing-library/react'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 import type { ReactNode } from 'react'
-import { SettingsProvider } from '@/app/settings'
 import { cornerFeasibleScan, cornerJudge } from '../judges'
 import { CORNER_JUDGE_DEFAULT, CORNER_LOCAL_PRESETS, CornerJudgeExperiment, refLineName } from './CornerJudge'
 import { EvidenceLabExperiment } from './EvidenceLab'
@@ -10,23 +10,10 @@ import { MimoJudgeExperiment } from './MimoJudgeLab'
 import { PolarityPerturbExperiment } from './PolarityPerturb'
 import { SspllJacobianExperiment } from './SspllJacobian'
 
-vi.mock('plotly.js-cartesian-dist-min', () => ({
-  default: {
-    react: vi.fn(async () => undefined),
-    purge: vi.fn(),
-    toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-    downloadImage: vi.fn(async () => ''),
-    Plots: { resize: vi.fn() },
-    Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-  },
-}))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
 function mount(node: ReactNode) {
-  return render(
-    <MemoryRouter initialEntries={['/signoff']}>
-      <SettingsProvider>{node}</SettingsProvider>
-    </MemoryRouter>,
-  )
+  return renderPage(node, { url: '/signoff' })
 }
 
 /** 警告框的純文字（把 KaTeX 的 MathML／HTML 重複內容去掉，只留一般文字節點）。 */
@@ -47,10 +34,10 @@ function loadPreset(container: HTMLElement, namePart: string) {
   fireEvent.change(sel, { target: { value: (opt as HTMLOptionElement).value } })
 }
 
-const verdictKinds = (container: HTMLElement) => Array.from(container.querySelectorAll('.so-kv .so-verdict')).map((e) => e.className.replace('so-verdict so-verdict-', ''))
+const verdictKinds = (container: HTMLElement) => Array.from(container.querySelectorAll('.so-kv .so-verdict')).map((e) => /so-verdict-(\w+)/.exec(e.className)?.[1] ?? e.className)
 /** 交叉比對列的三個狀態：[Analytic, Monte Carlo, Fixed-point]（'ok' | 'mismatch' | 'not-implemented' | 'n/a'） */
 const crossCheck = (container: HTMLElement) => Array.from(container.querySelectorAll('.c-exp-crosscheck .c-check')).map((e) => e.className.replace('c-check c-check-', ''))
-const noTexErrors = (container: HTMLElement) => expect(Array.from(container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.textContent)).toEqual([])
+const noTexErrors = (container: HTMLElement) => expectNoTexErrors(container)
 
 afterEach(() => {
   try {

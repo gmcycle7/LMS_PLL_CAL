@@ -440,6 +440,32 @@ ${CLASSES}
   class AW ok
   class WU,WR warn`
 
+/**
+ * §5b DTC 的範圍、LSB、量化抖動、飽和與 T_0 預算（F-04.19、F-04.20；模型 dtc.ts 的 dtcRangeBudget／dtcQuantizationJitterRms／dtcCompensation）。
+ * 由上往下：T_0 預算決定延遲範圍 R 與基準 T_0 → 想要的延遲 T_0 − w·x → 量化到 Δ 的格點（藍：e_q 均勻、σ_q = Δ/√12）→ 在範圍內就送出（綠），
+ * 超出就夾住（紅：∂e/∂w = 0，sign-LMS 沒有梯度可跟、要 freeze）→ PD 的誤差多了 e_q，σ_v,eff² = σ_v² + Δ²/12。
+ */
+export const DTC_RANGE = String.raw`flowchart TB
+  BUD["$T_0$ 預算（F-04.20）<br/>$R \ge T_\mathrm{vco}(1+\varepsilon)+\mathrm{INL}+2h$<br/>$T_0 = h+\mathrm{INL}+T_\mathrm{vco}(1+\varepsilon)$<br/>$\Delta = R/(2^{B_\mathrm{dtc}}-1)$"]
+  X["code $x[n] \in [0, 1)$<br/>補償量 $w\,x[n]$"]
+  WANT["想要的延遲<br/>$\tau = T_0 - w\,x[n]$"]
+  Q["量化到 $\Delta$ 的格點<br/>$e_q \in (-\Delta/2, \Delta/2]$ 均勻<br/>$\sigma_q = \Delta/\sqrt{12}$"]
+  SAT{"code 在範圍內？<br/>$[0, 2^{B_\mathrm{dtc}}-1]$"}
+  OUT["送出 code<br/>延遲 $= \mathrm{code}\cdot\Delta$<br/>$\partial e/\partial w = -x$"]
+  CLAMP["夾在 $0$ 或 $2^{B_\mathrm{dtc}}-1$<br/>$\partial e/\partial w = 0$<br/>sign-LMS 沒有梯度可跟<br/>$\Rightarrow$ 飽和時 freeze"]
+  E["PD 誤差<br/>$e = (a-w)\,x + e_q + v$<br/>$\sigma_{v,\mathrm{eff}}^2 = \sigma_v^2 + \Delta^2/12$"]
+  BUD --> WANT
+  X --> WANT
+  WANT --> Q
+  Q --> SAT
+  SAT -- "是" --> OUT
+  SAT -- "否" --> CLAMP
+  OUT --> E
+  class Q focus
+  class OUT ok
+  class CLAMP warn
+${CLASSES}`
+
 // ───────────────────────────────────────────────────────────────────────────
 // §6 RTL 檢查清單
 // ───────────────────────────────────────────────────────────────────────────
@@ -508,7 +534,7 @@ export interface Ch04Diagram {
   /** mermaid.parse() 回傳的 diagramType */
   type: Ch04DiagramType
   /** 所在段落 */
-  section: '§1' | '§2' | '§3' | '§4' | '§5' | '§6' | '§7'
+  section: '§1' | '§2' | '§3' | '§4' | '§5' | '§5b' | '§6' | '§7'
   /** 這張圖對應的公式（沒有就省略） */
   formula?: string
 }
@@ -523,7 +549,7 @@ export const CH04_DIAGRAMS: Ch04Diagram[] = [
   { name: 'GMAC_MEAN_MODEL', chart: GMAC_MEAN_MODEL, type: 'flowchart-v2', section: '§3', formula: 'F-04.4' },
   { name: 'SUM_VS_AVERAGE', chart: SUM_VS_AVERAGE, type: 'flowchart-v2', section: '§3', formula: 'F-04.5' },
   { name: 'BIT_MAPPING', chart: BIT_MAPPING, type: 'flowchart-v2', section: '§3', formula: 'F-04.7' },
-  // Part 2 硬體實作：§4 硬體對應與時序（條件取負從 GMAC 搬過來）、§5 定點、§6 檢查清單、§7 綜合手算
+  // Part 2 硬體實作：§4 硬體對應與時序（條件取負從 GMAC 搬過來）、§5 定點、§5b DTC 範圍與 T_0 預算、§6 檢查清單、§7 綜合手算
   { name: 'RTL_DATAFLOW', chart: RTL_DATAFLOW, type: 'flowchart-v2', section: '§4' },
   { name: 'NEGATE_DATAPATH', chart: NEGATE_DATAPATH, type: 'flowchart-v2', section: '§4', formula: 'F-04.8' },
   { name: 'NOISE_FEEDBACK', chart: NOISE_FEEDBACK, type: 'flowchart-v2', section: '§4' },
@@ -537,6 +563,7 @@ export const CH04_DIAGRAMS: Ch04Diagram[] = [
   { name: 'BIAS_LOOP', chart: BIAS_LOOP, type: 'flowchart-v2', section: '§5', formula: 'F-04.11' },
   { name: 'NEGATE_BUG', chart: NEGATE_BUG, type: 'flowchart-v2', section: '§5', formula: 'F-04.15' },
   { name: 'ANTI_WINDUP', chart: ANTI_WINDUP, type: 'flowchart-v2', section: '§5', formula: 'F-04.12' },
+  { name: 'DTC_RANGE', chart: DTC_RANGE, type: 'flowchart-v2', section: '§5b', formula: 'F-04.19' },
   { name: 'CLEAR_BUG', chart: CLEAR_BUG, type: 'flowchart-v2', section: '§6', formula: 'F-04.13' },
   { name: 'HANDCALC_FLOW', chart: HANDCALC_FLOW, type: 'flowchart-v2', section: '§7', formula: 'F-04.18' },
 ]
