@@ -6,7 +6,7 @@ name: CI
 # Jobs（互相獨立、平行執行）：
 #   fast    型別檢查、eslint、vite build、bundle 大小預算、verification 快照格式（約 3–4 分鐘）
 #   audit   npm audit（只看會進網站的套件）。目前 continue-on-error，見該 job 的說明
-#   python  Python golden model：pytest golden、export_vectors.py --check、SSPLL golden（約 1–2 分鐘）
+#   python  Python golden model：pytest golden、export_vectors.py --check 與 --check-web、SSPLL golden（約 1–2 分鐘）
 #   unit    Vitest 的 node project（`vitest run --project node`：src/**/*.test.ts，約 129 檔、2,800 項；本機 CPU 時間約 210 s）
 #   ci-ok   把上面幾個 job 彙整成一個狀態，之後設 branch protection 只要勾這一個
 #
@@ -100,6 +100,9 @@ jobs:
       # 確認提交的 golden/vectors/*.json 與目前的 Python 模型一致（Vitest 讀的就是這些檔案）。
       - name: Golden vectors are up to date
         run: python3 golden/export_vectors.py --check
+      # 網頁讀的資料 JSON（案例頁 params／pred_vs_sim…、golden vectors、presets）的結構，和 TypeScript 的 validate.ts 共用 src/data/golden/schemas.json。
+      - name: Web data JSON matches the shared schemas
+        run: python3 golden/export_vectors.py --check-web
       - name: SSPLL golden model tests
         working-directory: analysis/sspll/golden
         run: python3 -m pytest -q
