@@ -1,9 +1,9 @@
-import { act, configure, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
+import { act, configure, fireEvent, screen, waitFor } from '@testing-library/react'
 import { plotMath } from '@/components'
 import { allChartStrings, chartStringProblems } from '../chartStrings.testutil'
 import { ComparatorLab } from './ComparatorLab'
+import { plotlyMock } from '@/test/mocks/plotly'
+import { renderPage } from '@/test/renderPage'
 
 // 多個 agent／開發者同時跑測試時 CPU 會嚴重超額（load average 曾達數百），jsdom 渲染與 Monte Carlo 比平常慢一到兩個數量級：
 // 放寬的只是「等待時間」（waitFor 與每個測試的上限），不是任何數值判準。
@@ -19,15 +19,7 @@ interface Trace {
   opacity?: number
 }
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async (..._args: unknown[]) => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
 // 圖內文字（軸標題、圖例名稱、註記）的數學一律寫 `$...$`：<Plot> 先套用 applyPlotMath 再交給 Plotly，
 // 所以在轉換前記下作者寫的字串（chartStrings.testutil.ts），Plotly.react 看到的則是轉換後的 pseudo-HTML。
@@ -45,33 +37,22 @@ vi.mock('@/components/plotMath', async (importOriginal) => {
 
 /** 最近一次送進 Plotly.react、且含有符合條件的 trace 的那張圖。 */
 function lastPlotWith(pred: (t: Trace) => boolean): Trace[] | undefined {
-  for (let i = P.react.mock.calls.length - 1; i >= 0; i--) {
-    const data = P.react.mock.calls[i][1] as Trace[]
+  for (let i = plotlyMock.react.mock.calls.length - 1; i >= 0; i--) {
+    const data = plotlyMock.react.mock.calls[i][1] as Trace[]
     if (Array.isArray(data) && data.some(pred)) return data
   }
   return undefined
 }
 
 function renderLab(url = '/ch/05') {
-  try {
-    localStorage.setItem('lmspll.mode', 'engineer')
-  } catch {
-    /* ignore */
-  }
-  return render(
-    <SettingsProvider>
-      <MemoryRouter initialEntries={[url]}>
-        <ComparatorLab />
-      </MemoryRouter>
-    </SettingsProvider>,
-  )
+  return renderPage(<ComparatorLab />, { mode: 'engineer', url })
 }
 
 const done = (container: HTMLElement) => waitFor(() => expect(container.textContent).toContain('Monte Carlo 完成'))
 
 describe('Comparator Lab（互動）', () => {
   beforeEach(() => {
-    P.react.mockClear()
+    plotlyMock.react.mockClear()
     plotCalls.length = 0
   })
 
@@ -111,7 +92,7 @@ describe('Comparator Lab（互動）', () => {
     expect(strings).toContain('$G = S_N / N$')
     expect(plotMath(String.raw`$S_N = \sum q_i$`)).toBe('<i>S</i><sub><i>N</i></sub> = Σ<i>q</i><sub><i>i</i></sub>')
     expect(plotMath('$G = S_N / N$')).toBe('<i>G</i> = <i>S</i><sub><i>N</i></sub>/<i>N</i>')
-    const axisTitles = P.react.mock.calls.map((c) => ((c[2] as { xaxis?: { title?: { text?: string } } } | undefined)?.xaxis?.title?.text ?? ''))
+    const axisTitles = plotlyMock.react.mock.calls.map((c) => ((c[2] as { xaxis?: { title?: { text?: string } } } | undefined)?.xaxis?.title?.text ?? ''))
     expect(axisTitles).toContain(plotMath('$G = S_N / N$'))
     expect(axisTitles.filter((t) => /[$\\{}]/.test(t))).toEqual([])
     // 六張圖的軸標題、圖例名稱、註記：數學都在成對的 $...$ 裡，公式以外沒有 Unicode 拼的數學

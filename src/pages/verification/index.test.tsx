@@ -3,22 +3,9 @@ import VerificationPage, { parseDeepLink } from './index'
 import { ACCEPTANCE_IDS } from '@/simulation/models/acceptance'
 import { settleLazy, wrap } from './indexTestUtils'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  newPlot: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
-const mermaidMock = vi.hoisted(() => ({
-  initialize: vi.fn(),
-  render: vi.fn(async (id: string) => ({ svg: `<svg id="${id}"></svg>`, diagramType: 'flowchart-v2' })),
-}))
-vi.mock('mermaid', () => ({ default: mermaidMock }))
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 let errorSpy: ReturnType<typeof vi.spyOn>
 beforeEach(() => {
@@ -28,8 +15,6 @@ afterEach(() => {
   errorSpy.mockRestore()
   localStorage.clear()
   vi.useRealTimers()
-  // vi.fn() 會把每次呼叫的引數整份留在 mock.calls 裡（Plot 每次交給 P.react 整張圖的資料），所以每個測試之後清掉
-  for (const fn of [P.react, P.newPlot, P.purge, P.toImage, P.downloadImage, mermaidMock.initialize, mermaidMock.render]) fn.mockClear()
 })
 
 describe('verification 頁（jsdom smoke）', () => {

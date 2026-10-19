@@ -1,28 +1,13 @@
-import { cleanup, fireEvent, render, waitFor, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
+import { cleanup, fireEvent, waitFor, within } from '@testing-library/react'
 import Chapter03 from './index'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
-vi.mock('mermaid', () => ({ default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: '<svg></svg>' })) } }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 function renderChapter(mode: 'beginner' | 'engineer' | 'research', url = '/ch/03') {
-  localStorage.setItem('lmspll.mode', mode)
-  return render(
-    <MemoryRouter initialEntries={[url]}>
-      <SettingsProvider>
-        <Chapter03 />
-      </SettingsProvider>
-    </MemoryRouter>,
-  )
+  return renderPage(<Chapter03 />, { mode, url })
 }
 
 afterEach(() => {
@@ -89,8 +74,7 @@ describe('Chapter 03 smoke test（jsdom）', () => {
     for (const f of ['F-03.1', 'F-03.3', 'F-03.5', 'F-03.6', 'F-03.7', 'F-03.9', 'F-03.11', 'F-03.12', 'F-03.14', 'F-03.16', 'F-03.18']) {
       expect(container.querySelector(`[id="formula-${f}"]`), f).not.toBeNull()
     }
-    expect(container.querySelectorAll('.katex-error')).toHaveLength(0)
-    expect(container.querySelectorAll('.c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
     // CodeBlock 找不到 region 時會顯示 alert「找不到程式碼 region」
     expect(container.textContent).not.toMatch(/找不到程式碼 region/)
     expect(container.querySelectorAll('.c-code').length).toBeGreaterThanOrEqual(8)
@@ -166,7 +150,7 @@ describe('Chapter 03 smoke test（jsdom）', () => {
     const clone = container.cloneNode(true) as HTMLElement
     clone.querySelectorAll('pre, code, .c-code, .katex').forEach((el) => el.remove())
     expect(clone.textContent).not.toMatch(/\$/)
-    expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
     // Research：浮點 deadbeat 註記的數字是即時計算的（1 − μx² 只到 1e−16 等級）
     expect(container.textContent).toMatch(/Research：浮點下的 deadbeat/)
   }, 60000 * SLOW)
@@ -175,7 +159,7 @@ describe('Chapter 03 smoke test（jsdom）', () => {
     const { container } = renderChapter('research')
     expect(container.querySelector('[id="formula-F-03.15"]')).not.toBeNull()
     expect(container.querySelector('[id="formula-F-03.17"]')).not.toBeNull()
-    expect(container.querySelectorAll('.katex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
     expect(container.querySelectorAll('details.ch03-steps[open]').length).toBeGreaterThan(5)
   }, 60000 * SLOW)
 

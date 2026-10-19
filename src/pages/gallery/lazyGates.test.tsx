@@ -1,7 +1,6 @@
-import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
+import { act, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import GalleryPage from './index'
+import { renderPage as renderInApp } from '@/test/renderPage'
 
 /**
  * Gallery 的三個延後區塊（§4 的數值驗算表、§6 的 Preset Inspector、§7 的核心程式碼）：
@@ -25,10 +24,8 @@ vi.mock('./sections/PreviewPanel', async () => {
   const { createElement } = await import('react')
   return { default: () => createElement('div', { 'data-testid': 'preview-body' }, 'preview') }
 })
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: { react: vi.fn(async () => undefined), purge: vi.fn(), Plots: { resize: vi.fn() } } }))
-vi.mock('mermaid', () => ({
-  default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: '<svg></svg>' })), parse: vi.fn(async () => true) },
-}))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 class FakeIO {
   static instances: FakeIO[] = []
@@ -60,14 +57,7 @@ function waiting(): string[] {
 }
 
 function renderPage(url: string) {
-  localStorage.setItem('lmspll.mode', 'engineer')
-  return render(
-    <SettingsProvider>
-      <MemoryRouter initialEntries={[url]}>
-        <GalleryPage />
-      </MemoryRouter>
-    </SettingsProvider>,
-  )
+  return renderInApp(<GalleryPage />, { mode: 'engineer', url })
 }
 
 beforeEach(() => {

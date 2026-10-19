@@ -5,6 +5,7 @@ import { analyzeBlockLms, runBlockLms, type BlockLmsConfigInput } from '@/simula
 import { designDtLoop } from '@/simulation/models/pll'
 import { EXPERIMENT_ID } from './jsonLabModel'
 import { MODEL_TEXT_RULE_COUNT, UNICODE_MATH, modelTextRuleIndex, outsideMath, texModelNumber, texifyModelText } from './modelText'
+import { expectNoTexErrors } from '@/test/katex'
 
 /** 小而快的基底設定（N = 64、40 blocks）；其餘欄位用 §15.3 預設 */
 const SMALL = { gm_accum_samples: 64, num_blocks: 40, record: { sample_trace_blocks: 0, decimate: 1 } } as const
@@ -116,7 +117,7 @@ describe('texifyModelText：共用模型（blockLms.ts、pll.ts）的警告與�
         ))}
       </ul>,
     )
-    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(container)
     expect(container.textContent).not.toContain('ParseError')
     const clone = container.cloneNode(true) as HTMLElement
     clone.querySelectorAll('.katex').forEach((e) => e.remove())

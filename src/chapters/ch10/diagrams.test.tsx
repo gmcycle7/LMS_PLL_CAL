@@ -1,6 +1,4 @@
-import { act, cleanup, render, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
+import { act, cleanup, waitFor } from '@testing-library/react'
 import { SYSTEM_BLOCK_LABEL, accessibleText, systemMapModel } from '@/components'
 import { sanitizeMermaidSource } from '@/components/mermaidSource'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
@@ -39,6 +37,8 @@ import {
 import Chapter10 from './index'
 import { NUM, SIGMA_KQ1 } from './numbers'
 import { S0Intro } from './sections/S0Intro'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
 /**
  * 第 10 章方塊圖的測試（docs/teaching-style.md §8）。
@@ -52,15 +52,7 @@ import { S0Intro } from './sections/S0Intro'
  * mermaid 的 parser 與 render 都是真的：只在 render 外面包一層記錄；唯一的例外是「整章」那個測試（見 seen.stub 的說明）。
  */
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
 // 互動實驗（MIMO LMS Lab）與方塊圖無關，而且很重（worker、Monte Carlo）：這個檔案用空元件代替，它自己的測試在 ch10.test.tsx。
 vi.mock('./experiments/MimoLab', () => ({ MimoLab: () => null }))
@@ -869,13 +861,7 @@ describe('Ch10 方塊圖：頁面', () => {
     seen.stub = true
     localStorage.setItem('lmspll.mode', 'engineer')
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    const { container } = render(
-      <SettingsProvider>
-        <MemoryRouter initialEntries={['/ch/10']}>
-          <Chapter10 />
-        </MemoryRouter>
-      </SettingsProvider>,
-    )
+    const { container } = renderPage(<Chapter10 />, { url: '/ch/10' })
     // 頁面上的 figure.c-mermaid：27 張 Mermaid 圖 + 章首那張手排的系統地圖
     const total = CH10_DIAGRAMS.length + 1
     expect(container.querySelectorAll('figure.c-mermaid').length).toBe(total)
@@ -998,7 +984,7 @@ describe('Ch10 方塊圖：頁面', () => {
     for (const d of CH10_DIAGRAMS) expect(charts, d.name).toContain(sanitizeMermaidSource(d.chart))
 
     // 圖與導讀沒有引入 KaTeX 錯誤或 React 警告
-    expect(container.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+    expectNoTexErrors(container)
     const warnings = errorSpy.mock.calls.map((c: unknown[]) => String(c[0])).filter((s: string) => /Warning|Each child|unique "key"/.test(s))
     expect(warnings).toEqual([])
     errorSpy.mockRestore()
@@ -1007,13 +993,7 @@ describe('Ch10 方塊圖：頁面', () => {
   it('章首（S0Intro）：手排的 SystemMap（藍色方塊是 gmac / scale / acc）與用真正的 mermaid 畫出的圖 10-1：<Mermaid> 元件拿到的是可以顯示的 SVG', async () => {
     seen.rendered.length = 0
     localStorage.setItem('lmspll.mode', 'beginner')
-    const { container } = render(
-      <SettingsProvider>
-        <MemoryRouter initialEntries={['/ch/10']}>
-          <S0Intro />
-        </MemoryRouter>
-      </SettingsProvider>,
-    )
+    const { container } = renderPage(<S0Intro />, { url: '/ch/10' })
     expect(container.querySelectorAll('figure.c-mermaid').length).toBe(2)
     await waitFor(() => expect(container.querySelectorAll('figure.c-mermaid .c-mermaid-svg svg').length).toBe(2), { timeout: 60_000 })
     expect(container.textContent).not.toMatch(/Mermaid 圖解析失敗|Unsupported markdown/)

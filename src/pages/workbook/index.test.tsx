@@ -1,15 +1,15 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { act, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import { ALL_HANDCALCS } from '@/app/handcalcs'
-import { SettingsProvider } from '@/app/settings'
 import { normCdf } from '@/simulation/core'
 import { preloadModule, resetModuleCache } from '../verification/lazy'
 import { loadBank } from './bank'
 import WorkbookPage, { STATS_KEY } from './index'
 import { EMPTY_FILTERS, buildWorksheet, countByLevel, filterHandcalcs, groupByChapter, practiceItem, type PracticeItem, type WorksheetOptions } from './logic'
 import { PRINT_BODY_CLASS } from './sections/Worksheet'
+import { renderPage as renderInApp } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
 // 方塊圖在這個檔案裡不需要真的畫（diagrams.test.tsx 另外用真的 mermaid 畫過每一張）：用只放原始碼與圖說的替身，避免整頁測試等 mermaid 非同步渲染
 vi.mock('@/components/Mermaid', async () => {
@@ -25,20 +25,14 @@ vi.mock('@/components/Mermaid', async () => {
 const css = readFileSync(join(process.cwd(), 'src/pages/workbook/workbook.css'), 'utf8')
 
 function renderPage(url = '/workbook') {
-  return render(
-    <SettingsProvider>
-      <MemoryRouter initialEntries={[url]}>
-        <WorkbookPage />
-      </MemoryRouter>
-    </SettingsProvider>,
-  )
+  return renderInApp(<WorkbookPage />, { url })
 }
 
 // 整頁 DOM 不小（KaTeX）：一律用 querySelector，不用會掃描整份文件的 getByRole
 const q = <T extends Element = HTMLElement>(root: ParentNode, sel: string) => root.querySelector(sel) as T | null
 const qa = <T extends Element = HTMLElement>(root: ParentNode, sel: string) => Array.from(root.querySelectorAll(sel)) as T[]
 const buttonByText = (root: ParentNode, text: string) => qa<HTMLButtonElement>(root, 'button').find((b) => (b.textContent ?? '').trim() === text)
-const noKatexError = (root: ParentNode) => expect(root.querySelector('.katex-error, .c-tex-error')).toBeNull()
+const noKatexError = (root: ParentNode) => expectNoTexErrors(root)
 const stat = (c: ParentNode, name: 'attempted' | 'correct' | 'rate') => q(c, `[data-testid="wb-stats-total"] [data-stat="${name}"]`)?.textContent
 const shownCount = (c: ParentNode) => Number(q(c, '[data-testid="wb-filter-count"] strong')?.textContent)
 const itemIds = (c: ParentNode) => qa(c, '.wb-item').map((el) => el.getAttribute('data-handcalc'))

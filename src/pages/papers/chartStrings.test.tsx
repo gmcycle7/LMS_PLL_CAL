@@ -1,7 +1,5 @@
 import type { ComponentType } from 'react'
-import { render, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
+import { waitFor } from '@testing-library/react'
 import type { PlotProps } from '@/components'
 import { unicodeMathIn } from '@/components/mermaidTestUtils'
 import { plotMath } from '@/components/plotMath'
@@ -12,6 +10,8 @@ import { D3Delay } from './panels/D3Delay'
 import { D4Excitation } from './panels/D4Excitation'
 import { D5Quant, D6Dither } from './panels/D5D6Quant'
 import { D7Eigen } from './panels/D7Eigen'
+import { expectNoTexErrors } from '@/test/katex'
+import { renderPage } from '@/test/renderPage'
 
 /**
  * Papers 頁的互動圖表與控制項裡的數學一律是 LaTeX（使用者要求，2026-10-11：「數學公式包含圖片裡面的數學公式都要用類似 latex 的格式」）。
@@ -115,13 +115,7 @@ describe('Papers 頁：圖內字串與控制項的數學都是 LaTeX', () => {
   it.each(CASES)(
     '$name',
     async ({ Panel, minPlots, expected }) => {
-      const { container } = render(
-        <SettingsProvider>
-          <MemoryRouter>
-            <Panel />
-          </MemoryRouter>
-        </SettingsProvider>,
-      )
+      const { container } = renderPage(<Panel />)
       await waitFor(() => expect(plots().length).toBeGreaterThanOrEqual(minPlots), { timeout: 60000, interval: 100 })
 
       // ── 圖內字串 ──
@@ -151,7 +145,7 @@ describe('Papers 頁：圖內字串與控制項的數學都是 LaTeX', () => {
         // 單位、標籤裡的 TeX 不可寫成雙反斜線（JSX 屬性字串不處理跳脫：\\times 會變成換行指令加上文字「times」）
         for (const a of Array.from(el.querySelectorAll('annotation'))) expect(a.textContent ?? '', `TeX 原始碼不可含雙反斜線：${a.textContent}`).not.toContain('\\\\')
       }
-      expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+      expectNoTexErrors(container)
     },
     120000,
   )

@@ -1,12 +1,12 @@
 import type { ReactElement } from 'react'
-import { render, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
+import { waitFor } from '@testing-library/react'
 import type { PlotProps } from '@/components'
 import { plotMath } from '@/components/plotMath'
 import { unicodeMathIn } from '@/components/mermaidTestUtils'
 import { GaugeOneHotLab } from './experiments/GaugeOneHotLab'
 import { PeEigenLab } from './experiments/PeEigenLab'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
 /**
  * 互動圖表（Plotly）與控制項裡的數學一律是 LaTeX（使用者要求，2026-10-11：「數學公式包含圖片裡面的數學公式都要用類似 latex 的格式」）。
@@ -153,11 +153,7 @@ describe('Ch09 互動圖表：圖內字串與控制項的數學都是 LaTeX', ()
   it.each(CASES)(
     '$name',
     async ({ url, lab, ready, expected }) => {
-      const { container } = render(
-        <SettingsProvider>
-          <MemoryRouter initialEntries={[url]}>{lab}</MemoryRouter>
-        </SettingsProvider>,
-      )
+      const { container } = renderPage(lab, { url })
       await waitFor(() => expect(ready()).toBe(true), WAIT)
 
       // ── 圖內字串 ──
@@ -182,7 +178,7 @@ describe('Ch09 互動圖表：圖內字串與控制項的數學都是 LaTeX', ()
       for (const el of Array.from(container.querySelectorAll('.c-param-label, .c-param-unit, .c-param-hint, .c-param-meta, .c-metric-table tbody td'))) {
         expect(unicodeMathIn(plainTextOf(el)), `「${el.textContent}」（${el.className}）`).toEqual([])
       }
-      expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+      expectNoTexErrors(container)
       // K_q 的單位 fs⁻¹ 在指標表裡是 `$\mathrm{fs}^{-1}$`（KaTeX 的 annotation 帶有 TeX 原始碼）
       if (url.includes('pe-physical-kq')) {
         const table = container.querySelector('.c-metric-table')

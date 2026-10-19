@@ -28,6 +28,7 @@ import { chainLinks, evalTex, isSymbolic, splitTop } from './texEval'
 import t01 from '../../../golden/vectors/T01.json'
 import t02 from '../../../golden/vectors/T02.json'
 import t03 from '../../../golden/vectors/T03.json'
+import { expectNoTexErrors, expectTexParses } from '@/test/katex'
 
 // 多個測試程序同時跑時 KaTeX 渲染會變慢：放寬逾時，避免與正確性無關的失敗
 vi.setConfig({ testTimeout: 60_000 })
@@ -117,7 +118,7 @@ function expectMathTextOk(text: string, where: string) {
   const parts = text.split('$')
   expect(parts.length % 2, `${where}：$ 不成對：${text}`).toBe(1)
   parts.forEach((p, i) => {
-    if (i % 2) expect(() => katex.renderToString(p, { throwOnError: true, strict: 'ignore' }), `${where}：${p}`).not.toThrow()
+    if (i % 2) expectTexParses(p, `${where}：${p}`, { strict: 'ignore' })
   })
 }
 
@@ -128,12 +129,12 @@ describe('ch03 帶入手算：登錄', () => {
     for (const h of HANDCALCS) {
       expect(h.page).toBe('/ch/03')
       expect(h.formulaId).toMatch(/^F-03\.\d+$/)
-      expect(() => katex.renderToString(h.formulaTex, { throwOnError: true, displayMode: true, strict: 'ignore' }), h.id).not.toThrow()
+      expectTexParses(h.formulaTex, h.id, { displayMode: true, strict: 'ignore' })
       expectMathTextOk(h.title, `${h.id} title`)
       expect(h.tips?.length ?? 0, h.id).toBeGreaterThanOrEqual(2)
       for (const t of h.tips ?? []) expectMathTextOk(t, `${h.id} tip`)
       for (const i of h.inputs) {
-        expect(() => katex.renderToString(i.symbol, { throwOnError: true, strict: 'ignore' }), `${h.id} ${i.key}`).not.toThrow()
+        expectTexParses(i.symbol, `${h.id} ${i.key}`, { strict: 'ignore' })
         expect(i.label, `${h.id} ${i.key}：label 用白話、不放 $（會進 aria-label）`).not.toMatch(/\$/)
         expect(i.practice, `${h.id} ${i.key} 要有手算友善的練習範圍`).toBeTruthy()
       }
@@ -442,7 +443,7 @@ describe('ch03 帶入手算：(b) 隨機出題（20 個 seed）有限、且等�
         })
         expect(sol.steps.length).toBeGreaterThanOrEqual(7)
         for (const st of sol.steps) {
-          expect(() => katex.renderToString(st.tex, { throwOnError: true, displayMode: true, strict: 'ignore' }), `${def.id} seed ${seed}: ${st.tex}`).not.toThrow()
+          expectTexParses(st.tex, `${def.id} seed ${seed}: ${st.tex}`, { displayMode: true, strict: 'ignore' })
           expect(st.tex).not.toMatch(/NaN|undefined|Infinity/)
           expect(st.why.length).toBeGreaterThan(0)
           expectMathTextOk(st.why, `${def.id} why`)
@@ -477,7 +478,7 @@ describe('ch03 帶入手算：(c) validate 擋掉模型不適用的輸入，並�
     expectMathTextOk(msg!, `${id} validate`)
     // 訊息經 mathText 顯示時沒有 KaTeX 錯誤，也沒有殘留的 $
     const { container, unmount } = render(<MathText>{msg!}</MathText>)
-    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(container)
     container.querySelectorAll('.katex').forEach((k) => k.remove())
     expect(container.textContent).not.toMatch(/\$/)
     unmount()
@@ -533,7 +534,7 @@ describe('ch03 帶入手算：(d) HandCalc 元件渲染', () => {
     it(`${def.id}：預設值渲染出每一步、沒有 KaTeX 錯誤、沒有殘留的 $`, () => {
       const sol = def.solve(defaultValues(def))
       const { container } = render(<HandCalc def={def} />)
-      expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+      expectNoTexErrors(container)
       expect(container.querySelectorAll('.c-step').length).toBe(sol.steps.length)
       expect(sol.steps.length).toBeGreaterThanOrEqual(1)
       expect(container.querySelectorAll('.c-handcalc-results .katex-display').length).toBe(sol.results.length)
@@ -553,7 +554,7 @@ describe('ch03 帶入手算：(d) HandCalc 元件渲染', () => {
     fireEvent.change(mu, { target: { value: '0.25' } })
     expect(container.querySelectorAll('.c-step')).toHaveLength(0)
     expect(container.querySelector('.callout-warn')?.textContent).toMatch(/一步到位/)
-    expect(container.querySelector('.katex-error')).toBeNull()
+    expectNoTexErrors(container)
     fireEvent.change(mu, { target: { value: '0.4' } })
     expect(container.querySelectorAll('.c-step').length).toBeGreaterThan(0)
     expect(container.querySelector('.callout-warn')).toBeNull()
@@ -789,7 +790,7 @@ function expectHandDoable(id: string, v: Record<string, number>) {
   const finals: number[] = []
   sol.steps.forEach((st, k) => {
     // strict: 'error'——double superscript 之類的排版錯誤一律視為失敗
-    expect(() => katex.renderToString(st.tex, { throwOnError: true, displayMode: true, strict: 'error' }), `${where} 第 ${k + 1} 步：${st.tex}`).not.toThrow()
+    expectTexParses(st.tex, `${where} 第 ${k + 1} 步：${st.tex}`, { displayMode: true, strict: 'error' })
     expect(st.tex, where).not.toMatch(/NaN|undefined|Infinity/)
     const { values, links } = chainLinks(st.tex, phiBySimpson)
     expect(values.length, `${where} 第 ${k + 1} 步沒有代入數字：${st.tex}`).toBeGreaterThanOrEqual(1)
@@ -979,7 +980,7 @@ describe('ch03 帶入手算：(e) 每一步的 TeX 重新求值——畫面上�
       const input = container.querySelector(`input[aria-label="${label}"]`) as HTMLInputElement
       expect(input, `${id} ${label}`).not.toBeNull()
       fireEvent.change(input, { target: { value } })
-      expect(container.querySelector('.katex-error, .c-tex-error'), id).toBeNull()
+      expectNoTexErrors(container, id)
       expect(container.querySelector('.callout-warn'), id).toBeNull()
       expect(container.querySelectorAll('.c-step').length, id).toBeGreaterThanOrEqual(7)
       unmount()
@@ -1009,7 +1010,7 @@ describe('ch03 帶入手算：顯示用的小工具（handcalcTex.ts）', () => 
     expect(txLn(5e11)).toBe(String.raw`\ln(5\times10^{11})`)
     expect(txInt(123457)).toBe('123457')
     expect(txInt(10000000)).toBe('10000000')
-    for (const s of [txSq(1e-5), txPow(2e-7, 3), txLn(1e-6), `e^{${tx(-5.1e-5)}}`]) expect(() => katex.renderToString(s, { throwOnError: true, strict: 'error' })).not.toThrow()
+    for (const s of [txSq(1e-5), txPow(2e-7, 3), txLn(1e-6), `e^{${tx(-5.1e-5)}}`]) expectTexParses(s, undefined, { strict: 'error' })
   })
 
   it('snap／agree：只有 double 的捨入殘渣才歸零；sigFor／sigLn／sigPow：需要時多顯示幾位', () => {

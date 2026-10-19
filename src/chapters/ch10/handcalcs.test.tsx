@@ -20,6 +20,7 @@ import {
 import { FORMULAS } from './formulas'
 import { HANDCALCS, handcalc } from './handcalcs'
 import { NUM, SIGMA_KQ1 } from './numbers'
+import { expectNoTexErrors } from '@/test/katex'
 
 // 多個 agent／開發者同時跑測試時（vite.config.ts 的說明：load average 曾達數百），KaTeX 渲染會慢上數十倍；
 // 預設的 5 s 逾時在那種情況下會誤判失敗，所以整個檔案放寬到 60 s（不影響任何數值斷言）。
@@ -149,8 +150,7 @@ function expectRenderable(def: HandCalcDef, sol: HandCalcSolution, tag: string) 
       ))}
     </div>,
   )
-  expect(container.querySelectorAll('.katex-error').length, `${tag} 的說明文字`).toBe(0)
-  expect(container.querySelector('.c-tex-error'), `${tag} 的說明文字`).toBeNull()
+  expectNoTexErrors(container, `${tag} 的說明文字`)
   // 說明文字裡的 $...$ 都要成對（落單的 $ 會原樣顯示在頁面上）
   expect(container.textContent, `${tag} 有落單的 $`).not.toContain('$')
   unmount()
@@ -1028,7 +1028,7 @@ describe('Ch10 帶入手算：(c) validate 擋掉模型不適用的輸入並說�
     expect(msg, `${id} ${JSON.stringify(patch)} 應被拒絕`).not.toBeNull()
     expect(msg as string, `${id} ${JSON.stringify(patch)}`).toMatch(reason)
     const { container, unmount } = render(<MathText>{msg as string}</MathText>)
-    expect(container.querySelectorAll('.katex-error').length, `${id} 的錯誤訊息`).toBe(0)
+    expectNoTexErrors(container, `${id} 的錯誤訊息`)
     expect(container.querySelectorAll('.katex').length, `${id} 的錯誤訊息要有 LaTeX`).toBeGreaterThan(0)
     expect(container.textContent).not.toContain('$')
     unmount()
@@ -1123,8 +1123,7 @@ describe('Ch10 帶入手算：(d) <HandCalc> 渲染', () => {
   it.each(HANDCALCS.map((h) => [h.id, h] as const))('%s：預設值渲染出所有步驟與答案框，沒有 KaTeX 錯誤', (_id, def) => {
     const sol = def.solve(defaultValues(def))
     const { container, unmount } = render(<HandCalc def={def} />)
-    expect(container.querySelector('.katex-error')).toBeNull()
-    expect(container.querySelector('.c-tex-error')).toBeNull()
+    expectNoTexErrors(container)
     expect(container.querySelectorAll('.c-step').length).toBe(sol.steps.length)
     expect(container.querySelectorAll('.c-step').length).toBeGreaterThanOrEqual(1)
     expect(container.querySelectorAll('.c-handcalc-results .c-texblock').length).toBe(sol.results.length)
@@ -1151,7 +1150,7 @@ describe('Ch10 帶入手算：(d) <HandCalc> 渲染', () => {
     expect(container.querySelectorAll('.c-step').length).toBe(6)
     expect(container.textContent).toContain('0.78125')
     expect(container.textContent).toContain('0.46875')
-    expect(container.querySelector('.katex-error')).toBeNull()
+    expectNoTexErrors(container)
   })
 
   it('HC-10.7：自己算算看——輸入 1.2 / 0.4 / 1.2 判為正確；輸入錯的 pole 判為錯誤', () => {

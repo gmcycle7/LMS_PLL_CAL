@@ -1,13 +1,12 @@
-import { render } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
 import { ALL_PRESETS } from '@/app/presets'
-import { SettingsProvider } from '@/app/settings'
 import type { PlotProps } from '@/components'
 import { plotMath } from '@/components/plotMath'
 import { unicodeMathIn } from '@/components/mermaidTestUtils'
 import { hasPreviewer, previewPreset } from './previews'
 import Inspector from './sections/Inspector'
 import { PreviewView } from './sections/PreviewPanel'
+import { expectNoTexErrors } from '@/test/katex'
+import { renderPage } from '@/test/renderPage'
 
 /**
  * Gallery 預覽圖裡的數學一律是 LaTeX（使用者要求，2026-10-11：「數學公式包含圖片裡面的數學公式都要用類似 latex 的格式」）。
@@ -67,13 +66,7 @@ describe('Gallery 預覽圖的字串：數學一律是 `$...$` LaTeX', () => {
   })
 
   it('Preset Inspector 的控制項與指標表：單位、標籤是 KaTeX（「× 捨入半寬」的 × 是 \\times），KaTeX 以外沒有 Unicode 數學', () => {
-    const { container } = render(
-      <SettingsProvider>
-        <MemoryRouter>
-          <Inspector selected="lms-playground-hand" onSelect={() => undefined} />
-        </MemoryRouter>
-      </SettingsProvider>,
-    )
+    const { container } = renderPage(<Inspector selected="lms-playground-hand" onSelect={() => undefined} />)
     const plain = (el: Element) => {
       const copy = el.cloneNode(true) as Element
       copy.querySelectorAll('.katex').forEach((k) => k.remove())
@@ -89,7 +82,7 @@ describe('Gallery 預覽圖的字串：數學一律是 `$...$` LaTeX', () => {
     // 指標表的單位是 `$…$`（KaTeX），不是先轉成 Unicode 的純文字
     const table = container.querySelector('.c-metric-table')
     expect(table).toBeTruthy()
-    expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
   })
 
   it('PreviewView 把圖內字串原樣交給 <Plot>；aria-label 與下載檔名是純文字（沒有 $）', () => {
@@ -99,13 +92,7 @@ describe('Gallery 預覽圖的字串：數學一律是 `$...$` LaTeX', () => {
       const o = previewPreset(p)
       if (o.status !== 'ok' || !o.result.chart) continue
       captured.plots.length = 0
-      const { unmount } = render(
-        <SettingsProvider>
-          <MemoryRouter>
-            <PreviewView preset={p} outcome={o} compact />
-          </MemoryRouter>
-        </SettingsProvider>,
-      )
+      const { unmount } = renderPage(<PreviewView preset={p} outcome={o} compact />)
       const props = captured.plots as PlotProps[]
       expect(props.length, p.id).toBe(1)
       const layout = props[0].layout as { xaxis?: { title?: { text?: string } }; yaxis?: { title?: { text?: string } } }

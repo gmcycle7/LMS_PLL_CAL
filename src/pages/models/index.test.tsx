@@ -1,8 +1,6 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fireEvent, render, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
 import { MathText, extractRegion } from '@/components'
 import blockLmsSrc from '@/simulation/models/blockLms.ts?raw'
 import { roundingMeanError, shiftRound } from '@/simulation/models/gmac'
@@ -18,33 +16,14 @@ import { HANDCALCS } from './handcalcs'
 import ModelsPage from './index'
 import { STATEMENTS } from './sections/S9Statements'
 import { MODEL_SYMBOLS } from './symbols'
+import { renderPage as renderInApp } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
-vi.mock('mermaid', () => ({
-  default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: '<svg></svg>' })), parse: vi.fn(async () => true) },
-}))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 function renderPage(url = '/models', mode: 'beginner' | 'engineer' | 'research' = 'engineer') {
-  try {
-    localStorage.setItem('lmspll.mode', mode)
-  } catch {
-    /* ignore */
-  }
-  return render(
-    <SettingsProvider>
-      <MemoryRouter initialEntries={[url]}>
-        <ModelsPage />
-      </MemoryRouter>
-    </SettingsProvider>,
-  )
+  return renderInApp(<ModelsPage />, { mode, url })
 }
 
 // 整頁 DOM 很大（KaTeX）：jsdom 的 getByRole / getByLabelText 會掃描整份文件而非常慢，這裡一律用 querySelector。
@@ -198,7 +177,7 @@ describe('公式登錄（Formula & Unit Reference 頁以 mathText 顯示 title /
         ))}
       </ul>,
     )
-    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(container)
     for (const li of Array.from(container.querySelectorAll('li'))) {
       const rest = nonMathText(li)
       expect(rest, li.getAttribute('data-formula') ?? '').not.toContain('$')
@@ -407,7 +386,7 @@ describe('Models 頁面（jsdom smoke）', () => {
     const text = container.textContent ?? ''
     expect(text).not.toContain('程式碼載入錯誤')
     expect(text).not.toContain('ParseError') // KaTeX 語法錯誤
-    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(container)
     expect(text).toContain('acc += q * xrn')
     expect(text).toContain('numL[d + 1] = Kp + Ki')
     expect(text).toContain('this.rInt += M * y - inp')
@@ -465,7 +444,7 @@ describe('Models 頁面（jsdom smoke）', () => {
     expect(el.textContent).toContain('後半段 blocks')
     expect(el.textContent).toContain('Mean-field 固定點')
     expect(el.textContent).toContain('0.920212') // p
-    expect(el.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(el)
     // 模型（blockLms.ts）的假設已換成 LaTeX：`$...$` 之外沒有用 Unicode 拼的公式，σ_v 的值還在
     const assumptions = Array.from(el.querySelectorAll('.c-assumption-list li'))
     expect(assumptions.length).toBeGreaterThanOrEqual(12)
@@ -524,7 +503,7 @@ describe('Models 頁面（jsdom smoke）', () => {
     expect(tex).toContain(String.raw`\mu/N=0.002441`)
     expect(tex).toContain(String.raw`g\ge2`)
     for (const w of warnings) {
-      expect(w.querySelector('.katex-error, .c-tex-error')).toBeNull()
+      expectNoTexErrors(w)
       expect(UNICODE_MATH.test(nonMathText(w)), nonMathText(w)).toBe(false) // 沒有殘留的 Unicode 公式
     }
   }, 120000)
@@ -549,9 +528,9 @@ describe('Models 頁面（jsdom smoke）', () => {
   it('Research 模式：額外內容（直方圖說明、未建模清單）可渲染，沒有 KaTeX 錯誤', async () => {
     const { container } = renderPage('/models', 'research')
     expect(container.textContent).toContain('Research：本模擬刻意沒有建模的東西')
-    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(container)
     const el = lab(container)
     await waitFor(() => expect(el.textContent).toContain('解析區塊'), { timeout: 90000 })
-    expect(el.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(el)
   }, 120000)
 })

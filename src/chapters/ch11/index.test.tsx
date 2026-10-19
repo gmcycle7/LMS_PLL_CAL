@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
+import { wrapPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 import Chapter11 from './index'
 import { CH11_DIAGRAMS } from './diagrams'
 import { BiasInlLab } from './experiments/BiasInlLab'
@@ -8,29 +8,11 @@ import { DcNullExperiment } from './experiments/DcNullExperiment'
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
-vi.mock('mermaid', () => ({
-  default: {
-    initialize: vi.fn(),
-    render: vi.fn(async (id: string) => ({ svg: `<svg id="${id}"></svg>`, diagramType: 'flowchart-v2' })),
-  },
-}))
+import { plotlyMock as P } from '@/test/mocks/plotly'
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
-function wrap(node: React.ReactNode, url = '/ch/11') {
-  return (
-    <SettingsProvider>
-      <MemoryRouter initialEntries={[url]}>{node}</MemoryRouter>
-    </SettingsProvider>
-  )
-}
+const wrap = (node: React.ReactNode, url = '/ch/11') => wrapPage(node, { url })
 
 // 第一次造訪的預設是 Beginner；這個檔案的斷言是照 Engineer 模式寫的（個別測試會另外設定自己的模式）
 beforeEach(() => localStorage.setItem('lmspll.mode', 'engineer'))
@@ -413,7 +395,7 @@ describe('Ch11 smoke tests（jsdom）', () => {
     const labels = Array.from(container.querySelectorAll('.c-param-label'))
     expect(labels.filter((l) => l.querySelector('.katex')).length).toBeGreaterThanOrEqual(6)
     expect(expectLatexControls(container)).toBeGreaterThan(10)
-    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(container)
     expect(container.textContent ?? '').not.toMatch(/\$/)
   }, LAB_TIMEOUT)
 
@@ -430,7 +412,7 @@ describe('Ch11 smoke tests（jsdom）', () => {
     expect(dz).toBeTruthy()
     expect(dz.querySelectorAll('.katex').length).toBeGreaterThanOrEqual(5)
     expect(dz.textContent).toContain('1.33333')
-    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(container)
     expect(container.textContent ?? '').not.toMatch(/\$/)
     // dead zone 的圖例（G = 0 的區間）與 σ_v = 0 的圖例是排版好的符號
     const dzText = expectTypesetPlotStrings()
@@ -465,7 +447,7 @@ describe('Ch11 smoke tests（jsdom）', () => {
     expect(first.textContent).toContain('的變號點')
     expect(first.textContent).toContain('加權中位數')
     expect(first.querySelector('a[data-formula-link="F-11.10"]')).toBeTruthy()
-    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(container)
     expect(text).not.toMatch(/\$/)
     unmount()
     // 對照：預設（σ_v = 1）的固定點是真正的根，文字不變
@@ -509,7 +491,7 @@ describe('Ch11 smoke tests（jsdom）', () => {
     // 整個 Lab（KPI、指標表、殘差表）都沒有 1e-16、1e-32 之類的殘渣
     const shown = [...kpis, ...Array.from(container.querySelectorAll('.c-metric-table tbody tr')), kap].map((el) => el.textContent ?? '')
     expect(shown.filter((t) => /\de-(1[3-9]|[2-9]\d)|10\^\{-(1[3-9]|[2-9]\d)\}/.test(t))).toEqual([])
-    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(container)
     expect(text).not.toMatch(/\$/)
     unmount()
     // (2) bias-inl-cubic-mse：殘差 (−0.12, +0.24, 0, −0.24, +0.12) 是真的；圖說說的是「x·e 欄的平均為 0，e 欄不必每一列都是 0」
@@ -527,7 +509,7 @@ describe('Ch11 smoke tests（jsdom）', () => {
     expect(k2[3].textContent).toContain('但殘差功率')
     expect(k2[3].textContent).not.toContain('也是 0')
     expect(r2.container.textContent).toContain('殘差 vs code：GMAC 歸零，殘差不全為 0')
-    expect(r2.container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(r2.container)
   }, LAB_TIMEOUT)
 
   it('Lab：σ_v = 0.1 時出現「線性化失效」警告（解釋原因而非只顯示錯誤）', async () => {
@@ -538,6 +520,6 @@ describe('Ch11 smoke tests（jsdom）', () => {
     expect(warn.querySelectorAll('.katex').length).toBeGreaterThanOrEqual(4)
     expect(warn.textContent).toContain('2.66577')
     expect(warn.textContent).not.toMatch(/σ_v|\$/)
-    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(container)
   }, LAB_TIMEOUT)
 })

@@ -1,7 +1,5 @@
 import type { ComponentType } from 'react'
-import { render, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
+import { waitFor } from '@testing-library/react'
 import type { PlotProps } from '@/components'
 import { unicodeMathIn } from '@/components/mermaidTestUtils'
 import { plotMath } from '@/components/plotMath'
@@ -16,6 +14,8 @@ import R7Preview from './previews/R7Multirate'
 import R8Preview from './previews/R8Tracking'
 import R9Preview from './previews/R9Accumulator'
 import SspllPreview from './previews/SspllPolarity'
+import { expectNoTexErrors } from '@/test/katex'
+import { renderPage } from '@/test/renderPage'
 
 /**
  * Roadmap 預覽圖與控制項裡的數學一律是 LaTeX（使用者要求，2026-10-11：「數學公式包含圖片裡面的數學公式都要用類似 latex 的格式」）。
@@ -108,14 +108,8 @@ describe('Roadmap 預覽：圖內字串與控制項的數學都是 LaTeX', () =>
   it.each(CASES)(
     '$name',
     async ({ Preview, minPlots, expected }) => {
-      const { container } = render(
-        <SettingsProvider>
-          <MemoryRouter>
-            <Preview />
-          </MemoryRouter>
-        </SettingsProvider>,
-        // 預覽內有 <ExperimentShell>，內含 Plot 替身；不需要等 Plotly
-      )
+      // 預覽內有 <ExperimentShell>，內含 Plot 替身；不需要等 Plotly
+      const { container } = renderPage(<Preview />)
       await waitFor(() => expect(plots().length).toBeGreaterThanOrEqual(minPlots), { timeout: 60000, interval: 100 })
 
       // ── 圖內字串 ──
@@ -147,19 +141,13 @@ describe('Roadmap 預覽：圖內字串與控制項的數學都是 LaTeX', () =>
         // 單位、標籤裡的 TeX 不可寫成雙反斜線（JSX 屬性字串不處理跳脫：\\times 會變成換行指令加上文字「times」）
         for (const a of Array.from(el.querySelectorAll('annotation'))) expect(a.textContent ?? '', `TeX 原始碼不可含雙反斜線：${a.textContent}`).not.toContain('\\\\')
       }
-      expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+      expectNoTexErrors(container)
     },
     120000,
   )
 
   it('單位 fs⁻¹、fs²、LSB² 在指標表裡是 `$\\mathrm{…}$`（KaTeX 的 annotation 帶有 TeX 原始碼），不再是 Unicode 上標', async () => {
-    const { container } = render(
-      <SettingsProvider>
-        <MemoryRouter>
-          <R1Preview />
-        </MemoryRouter>
-      </SettingsProvider>,
-    )
+    const { container } = renderPage(<R1Preview />)
     await waitFor(() => expect(container.querySelector('.c-metric-table')).toBeTruthy(), { timeout: 60000 })
     const table = container.querySelector('.c-metric-table')
     expect(table?.textContent).toContain(String.raw`\mathrm{fs}^{-1}`)

@@ -28,6 +28,7 @@ import {
 } from '@/simulation/models/comparator'
 import { FORMULAS } from './formulas'
 import { HANDCALCS, HC05_HAND_CONSTANTS, HC05_LIMITS, nextOdd, phiHand, rd, zHand } from './handcalcs'
+import { expectNoTexErrors } from '@/test/katex'
 
 // 多個 agent／開發者同時跑測試時 CPU 會嚴重超額（load average 曾達數百），jsdom 渲染與逐項 Binomial 的測試比平常慢一到兩個數量級：
 // 放寬的是「等待時間」，不是任何數值判準。
@@ -719,7 +720,7 @@ describe('Ch05 帶入手算：<HandCalc> 渲染', () => {
     it(`${def.id}：預設值的每一步都渲染，沒有 KaTeX 錯誤；「自己算算看」的答案欄數與結果相同`, () => {
       const sol = def.solve(defaultValues(def))
       const { container, unmount } = render(<HandCalc def={def} />)
-      expect(container.querySelector('.katex-error')).toBeNull()
+      expectNoTexErrors(container)
       expect(container.querySelectorAll('.c-step').length).toBe(sol.steps.length)
       expect(sol.steps.length).toBeGreaterThanOrEqual(1)
       expect(container.querySelectorAll('.c-handcalc-results .c-texblock').length).toBe(sol.results.length)
@@ -739,7 +740,7 @@ describe('Ch05 帶入手算：<HandCalc> 渲染', () => {
         fireEvent.click(screen.getByText('換一題（隨機數字）'))
         fireEvent.click(screen.getByText('看詳解'))
         expect(container.querySelectorAll('.c-step').length).toBeGreaterThan(0)
-        expect(container.querySelector('.katex-error')).toBeNull()
+        expectNoTexErrors(container)
       }
       unmount()
     })
@@ -752,7 +753,7 @@ describe('Ch05 帶入手算：<HandCalc> 渲染', () => {
     expect(container.querySelectorAll('.c-step').length).toBe(0)
     expect(container.querySelector('.callout-warn')?.textContent).toContain('發散')
     expect(container.querySelector('.callout-warn .katex')).toBeTruthy()
-    expect(container.querySelector('.katex-error')).toBeNull()
+    expectNoTexErrors(container)
     fireEvent.change(mu, { target: { value: '20' } })
     expect(container.querySelectorAll('.c-step').length).toBeGreaterThan(0)
   })
@@ -764,7 +765,7 @@ describe('Ch05 帶入手算：<HandCalc> 渲染', () => {
     fireEvent.change(screen.getByLabelText(/累加的樣本數/), { target: { value: '101' } })
     expect(container.querySelectorAll('.c-step').length).toBe(before - 3)
     expect(container.querySelectorAll('.c-handcalc-results .c-texblock').length).toBe(1)
-    expect(container.querySelector('.katex-error')).toBeNull()
+    expectNoTexErrors(container)
   })
 })
 

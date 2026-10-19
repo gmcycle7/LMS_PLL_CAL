@@ -23,6 +23,7 @@ import {
 } from '@/simulation/models/lossCompare'
 import type { PresetEntry } from '@/data/types'
 import { DIFFUSION_KAPPA_MAX, DIFFUSION_SMALLNESS_MAX, HANDCALCS, OUTLIER_MIN_SIGMAS, handcalcOf } from './handcalcs'
+import { expectNoTexErrors } from '@/test/katex'
 
 interface GoldenVector {
   inputs: Record<string, number | number[]>
@@ -977,7 +978,7 @@ describe('Ch01 帶入手算 (c)：validate 擋掉模型不適用的輸入，並�
     expect(msg!).toMatch(pattern)
     expect(inlineErrors(msg!), `${id} ${JSON.stringify(over)}`).toEqual([])
     const { container, unmount } = render(<MathText>{msg}</MathText>)
-    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(container)
     unmount()
   }
   const accept = (id: string, over: Record<string, number>) => {
@@ -1104,7 +1105,7 @@ describe('Ch01 帶入手算 (d)：<HandCalc> 渲染', () => {
       const sol = def.solve(defaultValues(def))
       expect(texErrors(def, sol), def.id).toEqual([])
       const { container, unmount } = render(<HandCalc def={def} />)
-      expect(container.querySelector('.katex-error, .c-tex-error'), def.id).toBeNull()
+      expectNoTexErrors(container, def.id)
       expect(container.querySelectorAll('.c-step').length, def.id).toBe(sol.steps.length)
       expect(sol.steps.length, def.id).toBeGreaterThanOrEqual(5)
       expect(container.querySelectorAll('.c-handcalc-results .c-texblock').length, def.id).toBe(sol.results.length)
@@ -1123,7 +1124,7 @@ describe('Ch01 帶入手算 (d)：<HandCalc> 渲染', () => {
     fireEvent.change(screen.getByLabelText(/學習率/), { target: { value: '0.6' } })
     expect(container.querySelectorAll('.c-step').length).toBe(0)
     expect(container.querySelector('.callout-warn')?.textContent).toMatch(/無界成長/)
-    expect(container.querySelector('.katex-error')).toBeNull()
+    expectNoTexErrors(container)
     fireEvent.click(screen.getByText('還原範例數字'))
     fireEvent.click(screen.getByText('自己算算看'))
     expect(container.querySelectorAll('.c-step').length).toBe(0)

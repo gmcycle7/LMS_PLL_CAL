@@ -2,9 +2,7 @@ import { readdirSync, readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import type { ReactNode } from 'react'
 import { fireEvent, render, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
 import { HandCalc, defaultValues, inputError, randomValues } from '@/components'
-import { SettingsProvider } from '@/app/settings'
 import type { HandCalcDef, HandCalcInput } from '@/data/types'
 import { FORMULAS } from './formulas'
 import { HANDCALCS, HYST_ZMAX, PHI_SERIES_ZMAX, phiSeries, r7Rho, R7_EXAMPLE, roadmapHandCalc, TANH_SERIES_YMAX, TRACK_RATIO_MAX } from './handcalcs'
@@ -28,18 +26,11 @@ import {
   zohAutocorr,
 } from './model'
 import RoadmapPage from './index'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-const M = vi.hoisted(() => ({ initialize: vi.fn(), render: vi.fn(async () => ({ svg: '<svg></svg>' })) }))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
-vi.mock('mermaid', () => ({ default: M }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 // 假的 Plotly.react 會記住每一次呼叫的引數（DOM 節點與整組資料）：不清掉的話，前面每個測試渲染過的整頁
 // （含所有 KaTeX 節點）都被它抓著不放，整個檔案跑下來會把 worker 的記憶體用光。
@@ -481,16 +472,7 @@ function allPracticeCombos(def: HandCalcDef): Record<string, number>[] {
 }
 
 function withProviders(ui: ReactNode, mode: 'beginner' | 'engineer' | 'research' = 'research') {
-  try {
-    localStorage.setItem('lmspll.mode', mode)
-  } catch {
-    /* storage 不可用時沿用預設 */
-  }
-  return render(
-    <SettingsProvider>
-      <MemoryRouter initialEntries={['/roadmap']}>{ui}</MemoryRouter>
-    </SettingsProvider>,
-  )
+  return renderPage(ui, { mode, url: '/roadmap' })
 }
 
 // ═════════════════════════ 結構 ═════════════════════════
@@ -1038,7 +1020,7 @@ describe('roadmap 手算題：validate 擋下模型不適用的輸入並解釋�
       expect(warn, `${c.hc} ${c.name}`).toBeTruthy()
       expect(warn!.querySelector('.katex'), `${c.hc} ${c.name}`).toBeTruthy()
       expect(proseText(warn!)).not.toContain('$')
-      expect(container.querySelector('.katex-error'), `${c.hc} ${c.name}`).toBeNull()
+      expectNoTexErrors(container, `${c.hc} ${c.name}`)
       expect(container.querySelectorAll('.c-step')).toHaveLength(0)
       expect(container.querySelector('.c-handcalc-results')).toBeNull()
       unmount()
@@ -1069,8 +1051,8 @@ describe('roadmap 手算題：渲染', () => {
     for (const v of cases) {
       const sol = def.solve(v)
       const { container, unmount } = render(<HandCalc def={withValues(def, v)} />)
-      expect(container.querySelector('.katex-error'), JSON.stringify(v)).toBeNull()
-      expect(container.querySelector('.c-tex-error')).toBeNull()
+      expectNoTexErrors(container, JSON.stringify(v))
+      expectNoTexErrors(container)
       expect(container.querySelectorAll('.c-step').length).toBe(sol.steps.length)
       expect(container.querySelectorAll('.c-handcalc-results .katex-display').length).toBe(sol.results.length)
       expect(proseText(container), JSON.stringify(v)).not.toContain('$')
@@ -1178,7 +1160,7 @@ describe('roadmap 手算題：每一題都真的出現在頁面上，緊接在�
     expect(ss.querySelector('.c-handcalc')).toBeNull()
     expect(ss.querySelector('a[href="#/case/sspll"]')).toBeTruthy()
     // 整頁（含九題手算）沒有 KaTeX 錯誤；手算題區塊內沒有殘留的 $
-    expect(Array.from(container.querySelectorAll('.katex-error')).map((e) => e.getAttribute('title'))).toEqual([])
+    expectNoTexErrors(container)
     for (const el of all) expect(proseText(el), el.id).not.toContain('$')
   })
 })

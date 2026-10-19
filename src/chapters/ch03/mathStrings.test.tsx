@@ -1,11 +1,11 @@
-import { cleanup, fireEvent, render, waitFor, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
+import { cleanup, fireEvent, waitFor, within } from '@testing-library/react'
 import { unicodeMathIn } from '@/components/mermaidTestUtils'
 import { plotMath } from '@/components/plotMath'
 import Chapter03 from './index'
 import { distSummaryTex } from './experiments/DistControls'
 import { EXAMPLE_DISTS } from './sections/RandomMean'
+import { plotlyMock } from '@/test/mocks/plotly'
+import { renderPage } from '@/test/renderPage'
 
 /**
  * 圖內與控制項的數學（使用者要求：「數學公式包含圖片裡面的數學公式都要用類似 latex 的格式」）。
@@ -14,26 +14,11 @@ import { EXAMPLE_DISTS } from './sections/RandomMean'
  * 獨立成一個檔案：整章在 jsdom 渲染很吃記憶體，和 ch03.test.tsx 放在同一個 worker 會超過 heap 上限。
  */
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
-vi.mock('mermaid', () => ({ default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: '<svg></svg>' })) } }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 function renderChapter(mode: 'beginner' | 'engineer' | 'research') {
-  localStorage.setItem('lmspll.mode', mode)
-  return render(
-    <MemoryRouter initialEntries={['/ch/03']}>
-      <SettingsProvider>
-        <Chapter03 />
-      </SettingsProvider>
-    </MemoryRouter>,
-  )
+  return renderPage(<Chapter03 />, { mode, url: '/ch/03' })
 }
 
 afterEach(() => {
@@ -56,7 +41,7 @@ const WAIT = 45000 * SLOW
 
 describe('Chapter 03：圖內文字與控制項的數學', () => {
   it('圖內文字與控制項的數學都是 LaTeX：Plotly 的軸標題／圖例／註記是斜體符號與上下標，ParamControl 的標籤與單位、MetricRow 的名稱與單位由 KaTeX 排版，沒有 Unicode 拼的數學', async () => {
-    P.react.mockClear()
+    plotlyMock.react.mockClear()
     const { container } = renderChapter('research')
     // 兩個實驗各加一組 Case B，讓「Case 比較」圖與 z 平面上的多組 pole 也畫出來（圖例名稱都含數學）
     for (const id of ['#exp-stability-fixed-x', '#exp-stability-lab']) fireEvent.click(container.querySelector(`${id} button[aria-label="新增比較組（複製目前參數）"]`) as HTMLButtonElement)
@@ -65,7 +50,7 @@ describe('Chapter 03：圖內文字與控制項的數學', () => {
     const heavy = container.querySelector('#exp-stability-heavytail') as HTMLElement
     await within(heavy).findAllByText(/覆蓋率 [\d.]+%（宣稱 95%）/, {}, { timeout: WAIT })
 
-    // ── Plotly：收集 P.react 收到的所有文字欄位（Plot 已把 `$…$` 轉成 Plotly 的 pseudo-HTML）
+    // ── Plotly：收集 plotlyMock.react 收到的所有文字欄位（Plot 已把 `$…$` 轉成 Plotly 的 pseudo-HTML）
     const TEXT_KEYS = new Set(['name', 'text', 'title', 'ticktext', 'hovertemplate', 'texttemplate', 'hovertext', 'label'])
     const walk = (value: unknown, key: string | null, out: Set<string>, depth = 0): void => {
       if (typeof value === 'string') {
@@ -82,7 +67,7 @@ describe('Chapter 03：圖內文字與控制項的數學', () => {
     }
     const collect = () => {
       const found = new Set<string>()
-      for (const call of P.react.mock.calls as unknown as [unknown, unknown, unknown][]) {
+      for (const call of plotlyMock.react.mock.calls as unknown as [unknown, unknown, unknown][]) {
         walk(call[1], null, found)
         walk(call[2], null, found)
       }

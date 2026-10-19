@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react'
-import { act, fireEvent, render, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider, type LearningMode } from '@/app/settings'
+import { act, fireEvent, waitFor } from '@testing-library/react'
+import { type LearningMode } from '@/app/settings'
 import { presetById, presetsForExperiment } from '@/app/presets'
 import { listRegions } from '@/components'
 import stabilitySrc from '@/simulation/models/stability.ts?raw'
@@ -26,30 +25,16 @@ import { dualLoopRhoReference } from './sections/DualLoop'
 import { STABILITY_CHECK_CHART } from './diagrams'
 import { FORMULAS, formula } from './formulas'
 import { HANDCALCS } from './handcalcs'
+import { plotlyMock } from '@/test/mocks/plotly'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
-const mermaidMock = vi.hoisted(() => ({
-  initialize: vi.fn(),
-  render: vi.fn(async (id: string) => ({ svg: `<svg id="${id}"></svg>`, diagramType: 'flowchart-v2' })),
-}))
-vi.mock('mermaid', () => ({ default: mermaidMock }))
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 function wrap(ui: ReactNode, url: string, mode: LearningMode) {
-  localStorage.setItem('lmspll.mode', mode)
-  return render(
-    <SettingsProvider>
-      <MemoryRouter initialEntries={[url]}>{ui}</MemoryRouter>
-    </SettingsProvider>,
-  )
+  return renderPage(ui, { mode, url })
 }
 const renderChapter = (url = '/ch/08', mode: LearningMode = 'engineer') => wrap(<Chapter08 />, url, mode)
 
@@ -94,8 +79,7 @@ describe('Ch08 smoke test（jsdom）', () => {
       expect(proseText.includes('不是「完整模型快一倍」')).toBe(mode !== 'beginner')
       expect(proseText).toContain('由漸近衰減率換算的時間常數，不是逐 block 數出來的收斂時間')
       // KaTeX 沒有語法錯誤
-      expect(container.querySelectorAll('.c-tex-error')).toHaveLength(0)
-      expect(container.querySelectorAll('.katex-error')).toHaveLength(0)
+      expectNoTexErrors(container)
       // 每個登錄的公式恰好一個錨點
       for (const f of FORMULAS) expect(container.querySelectorAll(`[id="formula-${f.id}"]`)).toHaveLength(1)
       // 符號表在章末（teaching-style §5）：表本身是頁面最後一個區塊（外層 id="symbols"，排在 Recap 之後）。
@@ -141,7 +125,7 @@ describe('Ch08 smoke test（jsdom）', () => {
         expect(links.length).toBeGreaterThan(0)
         expect(links[0].getAttribute('href')).toBe('#/verification')
       }
-      await waitFor(() => expect(P.react).toHaveBeenCalled())
+      await waitFor(() => expect(plotlyMock.react).toHaveBeenCalled())
       expect(errorSpy).not.toHaveBeenCalled()
     },
     SLOW,
@@ -160,7 +144,7 @@ describe('Ch08 實驗元件（單獨渲染）', () => {
     expect(container.textContent).toContain('-1.58362')
     expect(container.querySelectorAll('tr[data-pass="false"]')).toHaveLength(0)
     expect(container.textContent).not.toContain('$')
-    expect(container.querySelectorAll('.c-tex-error, .katex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
     expect(errorSpy).not.toHaveBeenCalled()
   }, SLOW)
 
@@ -169,7 +153,7 @@ describe('Ch08 實驗元件（單獨渲染）', () => {
     await waitFor(() => expect(container.textContent).toContain(String.raw`g^*(d=2)=0.618034`))
     expect(container.textContent).toContain('若忽略延遲、只用一階模型')
     expect(container.textContent).not.toContain('$')
-    expect(container.querySelectorAll('.c-tex-error, .katex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
     expect(errorSpy).not.toHaveBeenCalled()
   }, SLOW)
 
@@ -190,7 +174,7 @@ describe('Ch08 實驗元件（單獨渲染）', () => {
       // 指標表的每一列「數值 vs 解析」都在容許誤差內；字串屬性裡的 `$…$` 全部被轉成 KaTeX、沒有語法錯誤
       expect(container.querySelectorAll('tr[data-pass="false"]')).toHaveLength(0)
       expect(container.textContent).not.toContain('$')
-      expect(container.querySelectorAll('.c-tex-error, .katex-error')).toHaveLength(0)
+      expectNoTexErrors(container)
       expect(errorSpy).not.toHaveBeenCalled()
     },
     SLOW,
@@ -225,7 +209,7 @@ describe('Ch08 實驗元件（單獨渲染）', () => {
     expect(container.textContent).toContain(String.raw`g=2.5>g^*(d=1)=1`)
     expect(container.textContent).not.toContain('PM_d=')
     expect(container.querySelectorAll('.c-check-mismatch')).toHaveLength(0)
-    expect(container.querySelectorAll('.c-tex-error, .katex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
   }, SLOW)
 
   it('反面測試：Dual-Loop 的 b_s < 0（觀測極性錯誤）與 |r_s| ≥ 1（沒有穩態）都有解釋原因的警告', async () => {
@@ -271,7 +255,7 @@ describe('Ch08 實驗元件（單獨渲染）', () => {
     expect(container.textContent).toContain('Student-t 臨界值')
     // step response 圖多了一條 MC ensemble 平均的 trace
     await waitFor(() => {
-      const names = (P.react.mock.calls as unknown as [unknown, { name?: string }[]][]).flatMap((c) => c[1].map((t) => t.name ?? ''))
+      const names = (plotlyMock.react.mock.calls as unknown as [unknown, { name?: string }[]][]).flatMap((c) => c[1].map((t) => t.name ?? ''))
       expect(names.some((nm) => nm.startsWith('MC：真實 block sign-LMS 平均（8 seeds）'))).toBe(true)
     })
     expect(errorSpy).not.toHaveBeenCalled()
@@ -279,50 +263,50 @@ describe('Ch08 實驗元件（單獨渲染）', () => {
 
   it('反面測試：Dual-Loop 的 r_s = 1（觀測含積分器，F(1) = ∞）不拋錯、有解釋原因的警告，圖表資料不含 ±∞／NaN', async () => {
     const { container, getByLabelText } = wrap(<DualLoopLab />, '/ch/08', 'engineer')
-    await waitFor(() => expect(P.react).toHaveBeenCalled())
-    P.react.mockClear()
+    await waitFor(() => expect(plotlyMock.react).toHaveBeenCalled())
+    plotlyMock.react.mockClear()
     act(() => {
       fireEvent.change(getByLabelText('r_s（觀測 pole）'), { target: { value: '1' } })
     })
     await waitFor(() => expect(container.textContent).toContain('quasi-static 前提不存在'))
-    await waitFor(() => expect(P.react).toHaveBeenCalled())
-    const calls = P.react.mock.calls as unknown as [unknown, { y?: ArrayLike<number | null> }[]][]
+    await waitFor(() => expect(plotlyMock.react).toHaveBeenCalled())
+    const calls = plotlyMock.react.mock.calls as unknown as [unknown, { y?: ArrayLike<number | null> }[]][]
     for (const [, traces] of calls) {
       for (const t of traces) for (const v of Array.from(t.y ?? [])) expect(v === null || Number.isFinite(v)).toBe(true)
     }
     expect(container.textContent).toContain('PM／GM 依定義不適用')
     expect(container.querySelectorAll('.c-check-mismatch')).toHaveLength(0)
-    expect(container.querySelectorAll('.c-tex-error, .katex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
     expect(errorSpy).not.toHaveBeenCalled()
   }, SLOW)
 
   it('PM Lab：與圖無關的重新渲染（改 Monte Carlo 的 runs）不會多呼叫 Plotly.react——data 與 layout 的參考都有 memo', async () => {
     const { getByLabelText } = wrap(<PmLab />, '/ch/08', 'engineer')
-    await waitFor(() => expect(P.react.mock.calls.length).toBeGreaterThanOrEqual(6))
+    await waitFor(() => expect(plotlyMock.react.mock.calls.length).toBeGreaterThanOrEqual(6))
     // 等初次繪圖全部完成
     await act(async () => {
       await new Promise((r) => setTimeout(r, 50))
     })
-    const before = P.react.mock.calls.length
+    const before = plotlyMock.react.mock.calls.length
     act(() => {
       fireEvent.change(getByLabelText('runs（seeds）'), { target: { value: '12' } })
     })
     await act(async () => {
       await new Promise((r) => setTimeout(r, 50))
     })
-    expect(P.react.mock.calls.length).toBe(before)
+    expect(plotlyMock.react.mock.calls.length).toBe(before)
     // 改 g 則會重畫（確認上面的「不重畫」不是因為圖表壞掉）
     act(() => {
       fireEvent.change(getByLabelText('g（正規化 loop gain）'), { target: { value: '0.7' } })
     })
-    await waitFor(() => expect(P.react.mock.calls.length).toBeGreaterThan(before))
+    await waitFor(() => expect(plotlyMock.react.mock.calls.length).toBeGreaterThan(before))
   }, SLOW)
 
   it('反面測試：PM Lab 的 g < 0 時 Bode 相位採 lag 分支（由 −270° 起算），不會畫出 +90° 起算、看似 PM ≈ 270° 的曲線', async () => {
     const { container } = wrap(<PmLab />, '/ch/08?preset=pm-reversed-polarity', 'engineer')
     await waitFor(() => expect(container.textContent).toContain('更新極性錯誤'))
     await waitFor(() => {
-      const calls = P.react.mock.calls as unknown as [unknown, { name?: string; y?: ArrayLike<number> }[]][]
+      const calls = plotlyMock.react.mock.calls as unknown as [unknown, { name?: string; y?: ArrayLike<number> }[]][]
       const phase = calls.flatMap((c) => c[1]).filter((t) => (t.name ?? '').includes('∠<i>L</i>')) // Plot 把名稱裡的 `$\angle L$` 轉成 ∠ 加斜體 L
       expect(phase.length).toBeGreaterThan(0)
       const last = phase[phase.length - 1]
@@ -363,7 +347,7 @@ function plotTexts(): string[] {
     }
     for (const [k, x] of Object.entries(v)) walk(x, k, depth + 1)
   }
-  for (const [, data, layout] of P.react.mock.calls as unknown as [unknown, unknown, unknown][]) {
+  for (const [, data, layout] of plotlyMock.react.mock.calls as unknown as [unknown, unknown, unknown][]) {
     walk(data, null, 0)
     walk(layout, null, 0)
   }
@@ -386,7 +370,7 @@ describe('Ch08 數學一律是 LaTeX（圖內文字與控制項）', () => {
   it('整章（engineer）：§8.2／§8.3 的圖與兩個實驗的圖，軸標題、圖例名稱、hover 裡的數學都由 `$...$` 轉出', async () => {
     renderChapter('/ch/08', 'engineer')
     // §8.2 兩張、§8.3 兩張、PM Lab 六張、Dual-Loop 五張
-    await waitFor(() => expect(P.react.mock.calls.length).toBeGreaterThanOrEqual(15), { timeout: 60_000 })
+    await waitFor(() => expect(plotlyMock.react.mock.calls.length).toBeGreaterThanOrEqual(15), { timeout: 60_000 })
     const texts = plotTexts()
     expectTypesetPlotTexts(texts)
     // 幾個代表性的字串：變數是斜體、下標與上標是真正的 <sub>／<sup>、度數是 °
@@ -404,7 +388,7 @@ describe('Ch08 數學一律是 LaTeX（圖內文字與控制項）', () => {
 
   it('Dual-Loop 一般化 state-space 模式：圖內文字同樣是 LaTeX 轉出的', async () => {
     wrap(<DualLoopLab />, '/ch/08?preset=dual-loop-second-order', 'research')
-    await waitFor(() => expect(P.react.mock.calls.length).toBeGreaterThanOrEqual(5), { timeout: 60_000 })
+    await waitFor(() => expect(plotlyMock.react.mock.calls.length).toBeGreaterThanOrEqual(5), { timeout: 60_000 })
     const texts = plotTexts()
     expectTypesetPlotTexts(texts)
     expect(texts.some((t) => t.includes('eig(<b><i>A</i></b><sub><i>s</i></sub>)'))).toBe(true)
@@ -432,7 +416,7 @@ describe('Ch08 數學一律是 LaTeX（圖內文字與控制項）', () => {
     }
     expect(total).toBeGreaterThan(1500)
     expect(offenders).toEqual([])
-    expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
   }, SLOW)
 })
 
@@ -494,7 +478,7 @@ describe('技術審查 R02：ρ^k 只是漸近速率，不是 d ≥ 1 或雙迴�
       })
     const tauRow = () => Array.from(container.querySelectorAll('.c-metric-table tbody tr')).find((tr) => (tr.textContent ?? '').includes(String.raw`\tau=-1/\ln\rho`))
     const rhoLineNames = () => {
-      const calls = P.react.mock.calls as unknown as [unknown, { name?: string }[]][]
+      const calls = plotlyMock.react.mock.calls as unknown as [unknown, { name?: string }[]][]
       return calls.flatMap((c) => c[1].map((t) => t.name ?? '')).filter((nm) => /1\s*±/.test(nm)) // Plot 把 `$1 \pm \rho^k$` 轉成 1±ρ^k
     }
     const settle = () =>
@@ -502,7 +486,7 @@ describe('技術審查 R02：ρ^k 只是漸近速率，不是 d ≥ 1 或雙迴�
         await new Promise((r) => setTimeout(r, 50))
       })
     await settle()
-    P.react.mockClear() // 前面的測試也畫過 PM Lab：只看這一題的圖
+    plotlyMock.react.mockClear() // 前面的測試也畫過 PM Lab：只看這一題的圖
     set('g（正規化 loop gain）', '0.5')
     await waitFor(() => expect(tauRow()?.textContent ?? '').toContain('1.4427'))
     expect(tauRow()?.textContent).toContain('時間常數')
@@ -513,7 +497,7 @@ describe('技術審查 R02：ρ^k 只是漸近速率，不是 d ≥ 1 或雙迴�
     expect(container.textContent).toContain('解析包絡')
 
     await settle()
-    P.react.mockClear()
+    plotlyMock.react.mockClear()
     set('d（更新延遲 blocks）', '1')
     set('g（正規化 loop gain）', '0.25')
     await waitFor(() => expect(tauRow()?.textContent ?? '').toContain('漸近衰減率'))
@@ -526,7 +510,7 @@ describe('技術審查 R02：ρ^k 只是漸近速率，不是 d ≥ 1 或雙迴�
     expect(rhoLineNames().some((nm) => nm.includes('包絡'))).toBe(false)
     expect(container.textContent).not.toContain('解析包絡')
     expect(container.textContent).toContain('只是漸近速率的參考線，不是包絡')
-    expect(container.querySelectorAll('.c-tex-error, .katex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
     expect(errorSpy).not.toHaveBeenCalled()
   }, SLOW)
 
@@ -571,10 +555,10 @@ describe('技術審查 R02：ρ^k 只是漸近速率，不是 d ≥ 1 或雙迴�
     expect(STABILITY_CHECK_CHART).toContain(String.raw`疊上 $\rho^k$ 參考線`)
     expect(STABILITY_CHECK_CHART).not.toContain('包絡')
     for (const url of ['/ch/08', '/ch/08?preset=dual-loop-second-order']) {
-      P.react.mockClear()
+      plotlyMock.react.mockClear()
       const { container, unmount } = wrap(<DualLoopLab />, url, 'engineer')
       await waitFor(() => {
-        const names = (P.react.mock.calls as unknown as [unknown, { name?: string }[]][]).flatMap((c) => c[1].map((t) => t.name ?? ''))
+        const names = (plotlyMock.react.mock.calls as unknown as [unknown, { name?: string }[]][]).flatMap((c) => c[1].map((t) => t.name ?? ''))
         expect(names.some((nm) => nm.includes('參考線（漸近速率'))).toBe(true)
         expect(names.some((nm) => nm.includes('包絡'))).toBe(false)
       })

@@ -1,9 +1,9 @@
 import { readFileSync, readdirSync } from 'node:fs'
+import { wrapPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 import { join } from 'node:path'
 import { render, waitFor } from '@testing-library/react'
 import mermaid from 'mermaid'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
 import { accessibleText, renderTex, stripMathDelimiters, systemMapModel, SYSTEM_BLOCK_LABEL } from '@/components'
 import { mermaidMathDelimiters, sanitizeMermaidSource } from '@/components/mermaidSource'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
@@ -204,7 +204,7 @@ function katexText(label: string): string {
   if (tex === undefined) throw new Error(`標籤沒有被合併成 $$…$$：${label}`)
   const host = document.createElement('div')
   host.innerHTML = renderTex(tex, true)
-  expect(host.querySelector('.katex-error, .c-tex-error'), `KaTeX 無法解析：${label}`).toBeNull()
+  expectNoTexErrors(host, `KaTeX 無法解析：${label}`)
   host.querySelectorAll('.katex-mathml').forEach((e) => e.remove())
   return host.textContent ?? ''
 }
@@ -356,7 +356,7 @@ describe('Ch11 方塊圖：真正的 mermaid parser 與 renderer', () => {
     expect(mathCount).toBeGreaterThanOrEqual(4)
     const host = document.createElement('div')
     host.innerHTML = svg
-    expect(host.querySelectorAll('.katex-error').length).toBe(0)
+    expectNoTexErrors(host)
     expect(host.querySelectorAll('em, strong, a, ul, ol, h1, h2, blockquote, code, del').length).toBe(0)
     host.querySelectorAll('.katex-mathml').forEach((e) => e.remove()) // 只比對 HTML 排版的那一份文字
     const norm = (t: string) => t.replace(/\s+/g, '')
@@ -1181,11 +1181,7 @@ describe('Ch11 方塊圖：和模型／公式一致', () => {
 })
 
 describe('Ch11 方塊圖：頁面元件（真正的 mermaid）', () => {
-  const wrap = (node: React.ReactNode) => (
-    <SettingsProvider>
-      <MemoryRouter initialEntries={['/ch/11']}>{node}</MemoryRouter>
-    </SettingsProvider>
-  )
+  const wrap = (node: React.ReactNode) => wrapPage(node, { url: '/ch/11' })
 
   it('<Fig> 畫出 SVG、圖號與 KaTeX 圖說；aria-label 是純文字', async () => {
     const { container } = render(wrap(<Fig id="dc-null" />))
@@ -1201,7 +1197,7 @@ describe('Ch11 方塊圖：頁面元件（真正的 mermaid）', () => {
     expect(cap.textContent).toContain(figLabel('dc-null'))
     expect(cap.querySelectorAll('.katex').length).toBeGreaterThanOrEqual(4)
     expect(cap.textContent).not.toMatch(/\$/)
-    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(container)
   })
 
   it('開場段落：「這一課要回答的問題」之後緊接系統地圖（<SystemMap>），再來才是直覺與手算', async () => {

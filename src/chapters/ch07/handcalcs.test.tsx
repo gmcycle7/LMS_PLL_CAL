@@ -33,6 +33,7 @@ import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
 import { breakChain } from './handcalcTex'
 import { parseLabPreset, toCaseSpec, toCodeSpec, toFxScenario, toHatSpec, toPathSpec } from './experiments/labState'
+import { expectNoTexErrors } from '@/test/katex'
 
 // 多個測試行程同時執行時 CPU 可能嚴重超額：閉迴路模擬與 jsdom 渲染給足夠的時間（預設只有 5 秒）
 vi.setConfig({ testTimeout: 120_000 })
@@ -599,7 +600,7 @@ describe('Ch07 handcalcs：(d) <HandCalc> 渲染', () => {
     expect(container.querySelector(`[id="handcalc-${def.id}"]`)).not.toBeNull()
     expect(container.querySelectorAll('.c-step').length).toBe(sol.steps.length)
     expect(container.querySelectorAll('.c-step').length).toBeGreaterThan(0)
-    expect(container.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+    expectNoTexErrors(container)
     expect(container.querySelectorAll('.c-handcalc-results .katex').length).toBeGreaterThanOrEqual(sol.results.length)
     expect(container.textContent ?? '').not.toMatch(/NaN|undefined|Infinity/)
     unmount()
@@ -611,13 +612,13 @@ describe('Ch07 handcalcs：(d) <HandCalc> 渲染', () => {
     fireEvent.change(screen.getByLabelText(/每個 sample 轉幾度/), { target: { value: '180' } })
     expect(container.querySelectorAll('.c-step').length).toBe(0)
     expect(container.querySelector('.callout-warn')?.textContent).toContain('E46')
-    expect(container.querySelectorAll('.katex-error').length).toBe(0)
+    expectNoTexErrors(container)
     fireEvent.click(screen.getByText('還原範例數字'))
     expect(container.querySelectorAll('.c-step').length).toBe(4)
     fireEvent.click(screen.getByText('換一題（隨機數字）'))
     fireEvent.click(screen.getByText('看詳解'))
     expect(container.querySelectorAll('.c-step').length).toBe(4)
-    expect(container.querySelectorAll('.katex-error').length).toBe(0)
+    expectNoTexErrors(container)
   })
 })
 
@@ -958,8 +959,7 @@ describe('Ch07 handcalcs：(e) 畫面上的算式自己算得出來', () => {
         const sol = def.solve(v)
         expectSolutionTexOk(def, sol, label)
         const { container, unmount } = render(<HandCalc def={withValues(def, v)} />)
-        expect(Array.from(container.querySelectorAll('.katex-error')).map((e) => e.getAttribute('title')), label).toEqual([])
-        expect(container.querySelector('.c-tex-error'), label).toBeNull()
+        expectNoTexErrors(container, label)
         expect(container.querySelectorAll('.c-step').length, label).toBe(sol.steps.length)
         const prose = container.cloneNode(true) as HTMLElement
         prose.querySelectorAll('.katex, input').forEach((n) => n.remove())

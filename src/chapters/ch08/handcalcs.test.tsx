@@ -21,6 +21,7 @@ import {
 } from '@/simulation/models/stability'
 import { FORMULAS } from './formulas'
 import { HAND_BLOCKS, HANDCALCS, OVERSHOOT_BLOCKS, handcalc } from './handcalcs'
+import { expectNoTexErrors } from '@/test/katex'
 
 interface Vector {
   inputs: Record<string, unknown>
@@ -845,7 +846,7 @@ describe('Ch08 handcalcs：(d) <HandCalc> 渲染', () => {
     expect(container.querySelector(`#handcalc-${id.replace('.', '\\.')}`)).not.toBeNull()
     expect(container.querySelectorAll('.c-step').length).toBe(sol.steps.length)
     expect(container.querySelectorAll('.c-step').length).toBeGreaterThan(0)
-    expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
     const prose = container.cloneNode(true) as HTMLElement
     prose.querySelectorAll('annotation').forEach((el) => el.remove())
     expect(prose.textContent).not.toContain('$')
@@ -859,7 +860,7 @@ describe('Ch08 handcalcs：(d) <HandCalc> 渲染', () => {
     fireEvent.change(input, { target: { value: '2.5' } })
     expect(container.querySelectorAll('.c-step')).toHaveLength(0)
     expect(container.querySelector('.callout-warn')?.textContent).toContain('沒有 gain crossover')
-    expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
     fireEvent.change(input, { target: { value: '1.2' } })
     expect(container.querySelectorAll('.c-step').length).toBeGreaterThan(0)
     expect(container.textContent).toContain('53.13')
@@ -869,7 +870,7 @@ describe('Ch08 handcalcs：(d) <HandCalc> 渲染', () => {
     const { container, getByLabelText } = render(<HandCalc def={handcalc('HC-08.7')} />)
     fireEvent.change(getByLabelText(/誤差進入觀測狀態的耦合/), { target: { value: '-0.2' } })
     expect(container.querySelector('.callout-warn')?.textContent).toContain('極性')
-    expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
     fireEvent.change(getByLabelText(/誤差進入觀測狀態的耦合/), { target: { value: '0.2' } })
     fireEvent.change(getByLabelText(/正規化步長/), { target: { value: '0.5' } })
     expect(container.textContent).toContain('完整模型穩定')

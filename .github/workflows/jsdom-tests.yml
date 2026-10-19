@@ -1,0 +1,62 @@
+name: jsdom tests
+
+# Vitest 的 jsdom project：src/**/*.test.tsx（整章／整頁／元件的 smoke test，約 150 檔、3,500 項）。
+# 它們一次渲染整章的 KaTeX、Mermaid、手算題與 inline worker，單一測試的逾時設在 120–600 s，
+# GitHub runner 只有 2–4 vCPU，所以「不擋 PR」：
+#   - push 到 main 時跑一次（壞掉時下一個 push 就會看到，不影響部署；deploy.yml 只等 ci.yml）
+#   - 每週一 03:00 UTC 跑一次（排程只會在預設分支上跑）
+#   - 手動觸發（workflow_dispatch）：改了章節或共用元件、想在合併前確認時，從 Actions 頁面選分支來跑
+# 切成 N 個 shard 平行跑（`vitest run --shard=i/N` 依檔案切），每個 shard 用 --maxWorkers=2（runner 只有 4 vCPU，
+# 每個 worker 的 heap 上限是 6 GB，見 vite.config.ts）。單一 shard 的本機實測時間與 shard 數的決定依據見 docs/dev-conventions.md §8「CI」。
+# 需要調整 shard 數時，同時改 matrix.shard 與 `--shard=` 後面的 N（兩處要一致，env.SHARDS 是唯一的 N）。
+#
+# node 環境的測試（src/**/*.test.ts）在 ci.yml 的 unit job 跑（`--project node`），會擋 PR。
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 3 * * 1' # 每週一 03:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jsdom-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 22
+  SHARDS: 4
+
+jobs:
+  jsdom:
+    name: jsdom (shard ${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Vitest (jsdom project, shard ${{ matrix.shard }}/${{ env.SHARDS }})
+        run: >-
+          npx vitest run --project jsdom
+          --shard=${{ matrix.shard }}/${{ env.SHARDS }}
+          --maxWorkers=2
+          --reporter=default --reporter=json --outputFile.json=outputs/vitest-jsdom-${{ matrix.shard }}.json
+      # 每個測試的耗時都在 JSON 裡；某個 shard 逾時或變慢時下載來看是哪幾個 it 最久（docs/dev-conventions.md §6）。
+      - name: Upload timing report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitest-jsdom-${{ matrix.shard }}
+          path: outputs/vitest-jsdom-${{ matrix.shard }}.json
+          if-no-files-found: ignore
+          retention-days: 14

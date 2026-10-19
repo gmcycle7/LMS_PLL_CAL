@@ -1,6 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider, type LearningMode } from '@/app/settings'
+import { type LearningMode } from '@/app/settings'
 import { presetById, presetsForExperiment } from '@/app/presets'
 import { MathText, listRegions, systemMapModel } from '@/components'
 import { sanitizeMermaidSource } from '@/components/mermaidSource'
@@ -16,22 +15,13 @@ import { PE_DEFAULT, PE_LIMITS, blocksForConvergence, derivedGain, mcModalCheck,
 import { GAUGE_DEFAULT, gaugeTfTex, gaugeWarningTex, sanitizeGaugeState, toGaugeParams } from './experiments/gaugeLabState'
 import { pyFunction } from './pyExcerpt'
 import { texNum } from './shared'
+import { mermaidMock } from '@/test/mocks/mermaid'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
-const mermaidMock = vi.hoisted(() => ({
-  initialize: vi.fn(),
-  render: vi.fn(async (id: string) => ({ svg: `<svg id="${id}"></svg>`, diagramType: 'flowchart-v2' })),
-}))
-vi.mock('mermaid', () => ({ default: mermaidMock }))
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 /**
  * 整章渲染＋inline worker 的 Monte Carlo：機器閒置時每個測試 2–10 秒，但多組測試同時跑（load average 上百）時
@@ -41,14 +31,7 @@ const WAIT = { timeout: 60000, interval: 200 }
 const PAGE_TIMEOUT = 150000
 
 function renderChapter(url = '/ch/09', mode: LearningMode = 'engineer') {
-  localStorage.setItem('lmspll.mode', mode)
-  return render(
-    <SettingsProvider>
-      <MemoryRouter initialEntries={[url]}>
-        <Chapter09 />
-      </MemoryRouter>
-    </SettingsProvider>,
-  )
+  return renderPage(<Chapter09 />, { mode, url })
 }
 
 let errorSpy: ReturnType<typeof vi.spyOn>
@@ -58,35 +41,8 @@ beforeEach(() => {
 afterEach(() => {
   errorSpy.mockRestore()
   localStorage.clear()
-  // 這個檔案會把整章渲染十次；下面兩件事若不做，每一次的 jsdom 樹（約 400 MB）都會留在 heap 裡，
-  // worker 逼近 4 GB 上限後 GC 空轉（waitFor 逾時），最後 OOM：
-  // (1) vi.fn 會保留每一次呼叫的引數：Plotly.react(el, data, …) 的 el 是章節 DOM 內的節點，data 是整組 trace。
-  for (const fn of [P.react, P.purge, P.toImage, P.downloadImage, P.Plots.resize, mermaidMock.initialize, mermaidMock.render]) fn.mockClear()
-  // (2) jsdom 的選擇器引擎會快取每個選擇器字串最後一次查詢的 context 與結果節點。
-  clearSelectorCaches()
+  // 記憶體：這個檔案會把整章渲染十次；mock 呼叫紀錄與 jsdom selector 快取由 src/test/setup.jsdom.ts 清掉。
 })
-
-/**
- * 清掉 jsdom 選擇器引擎（nwsapi）的快取。nwsapi 為每一個「選擇器字串」保留最後一次查詢的 context 與結果
- * （node_modules/nwsapi/src/nwsapi.js 的 selectResolvers／matchResolvers），所以 querySelector(All)、screen.getByText、
- * getAllByRole 用過的每個獨特選擇器，都會在 unmount 之後繼續抓著那一次的整棵章節 DOM。
- * nwsapi 的 configure(option, clear = true) 會清空這些快取；實例掛在 Document 的 impl 物件上（jsdom 的內部欄位，
- * 找不到時什麼都不做——只影響記憶體，不影響任何斷言）。
- */
-function clearSelectorCaches(): void {
-  interface SelectorEngine {
-    configure: (option: Record<string, boolean>, clear: boolean) => unknown
-  }
-  const isEngine = (v: unknown): v is SelectorEngine => typeof v === 'object' && v !== null && typeof (v as SelectorEngine).configure === 'function'
-  for (const sym of Object.getOwnPropertySymbols(document)) {
-    const impl = (document as unknown as Record<symbol, unknown>)[sym]
-    if (typeof impl !== 'object' || impl === null) continue
-    for (const key of ['_nwsapi', '_nwsapiDontThrow']) {
-      const engine = (impl as Record<string, unknown>)[key]
-      if (isEngine(engine)) engine.configure({}, true)
-    }
-  }
-}
 
 function reactWarnings(): string[] {
   return errorSpy.mock.calls.map((c: unknown[]) => String(c[0])).filter((s: string) => /Warning|Each child|unique "key"/.test(s))
@@ -157,7 +113,7 @@ describe('Ch09 smoke test（jsdom）', () => {
     expect(container.querySelectorAll('.c-mermaid-error')).toHaveLength(0)
     expect(reactWarnings()).toEqual([])
     // 各模式（含 ModeGate 才顯示的內容）都沒有 KaTeX 解析錯誤
-    expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
 
     // ── 審查 R06a：平均遞迴對 linear 是等式、對 1-bit 是小訊號近似——三種模式都在公式旁看得到（不靠展開推導或切到 Research）──
     const f093 = container.querySelector('[id="formula-F-09.3"]') as HTMLElement
@@ -250,7 +206,7 @@ describe('Ch09 smoke test（jsdom）', () => {
   it('每個 FORMULAS 的 id 在任何模式（此處用 beginner）都有對應的 TexBlock 錨點；id 唯一且格式為 F-09.x', () => {
     const { container } = renderChapter('/ch/09', 'beginner')
     // 所有 KaTeX 都能正確解析（throwOnError: false 時錯誤會變成 .katex-error 紅字）
-    expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
     expect(container.querySelectorAll('.katex').length).toBeGreaterThan(300)
     const ids = FORMULAS.map((f) => f.id)
     expect(new Set(ids).size).toBe(ids.length)
@@ -378,7 +334,7 @@ describe('Ch09 smoke test（jsdom）', () => {
     expect(cells[cells.length - 1].textContent).toBe('0')
     // 5 列約束的名稱都沒有 KaTeX 錯誤
     expect(table.closest('table')?.querySelectorAll('tbody tr')).toHaveLength(5)
-    expect(table.closest('table')?.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(table.closest('table')!)
   }, PAGE_TIMEOUT)
 })
 
@@ -424,7 +380,7 @@ describe('Ch09 教學內容（數字都由模型算出）', () => {
     const row = screen.getAllByText((_, el) => el?.tagName === 'TD' && el.classList.contains('ch09-ok') && el.textContent === '0')
     expect(row.length).toBeGreaterThanOrEqual(4)
     expect(text).toContain('14.11') // √199
-    expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
   }, PAGE_TIMEOUT)
 
   it('T11: 「執行至收斂」把 blocks 拉到 ⌈1.25·k₉₅⌉ = 748（看得到 598），MC 以新長度重跑', async () => {
@@ -472,7 +428,7 @@ describe('Ch09 presets 與狀態', () => {
     const renders = (text: string) => {
       const { container, unmount } = render(<MathText>{text}</MathText>)
       expect(container.querySelectorAll('.katex').length, text).toBeGreaterThan(0)
-      expect(container.querySelectorAll('.katex-error, .c-tex-error'), text).toHaveLength(0)
+      expectNoTexErrors(container, text)
       const prose = container.cloneNode(true) as HTMLElement
       prose.querySelectorAll('.katex').forEach((k) => k.remove())
       expect(prose.textContent, text).not.toContain('$')

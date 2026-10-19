@@ -1,43 +1,23 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { PAGES } from '@/app/registry'
-import { SettingsProvider } from '@/app/settings'
 import PapersPage, { SYMBOLS } from './index'
 import { PAPERS, doiUrl, toBibtex } from './references'
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
 import { LOCAL_PRESETS } from './experiments/labModel'
+import { renderPage as renderInApp } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
-const M = vi.hoisted(() => ({
-  initialize: vi.fn(),
-  render: vi.fn(async (id: string) => ({ svg: `<svg id="${id}"><g></g></svg>`, diagramType: 'flowchart-v2' })),
-}))
-vi.mock('mermaid', () => ({ default: M }))
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 function renderPage(mode?: 'beginner' | 'engineer' | 'research') {
-  if (mode) localStorage.setItem('lmspll.mode', mode)
-  return render(
-    <SettingsProvider>
-      <MemoryRouter initialEntries={['/papers']}>
-        <PapersPage />
-      </MemoryRouter>
-    </SettingsProvider>,
-  )
+  return renderInApp(<PapersPage />, { mode, url: '/papers' })
 }
 
 afterEach(() => {
   localStorage.clear()
-  P.react.mockClear()
 })
 
 describe('Papers / Reading 頁（jsdom smoke）', () => {
@@ -101,7 +81,7 @@ describe('Papers / Reading 頁（jsdom smoke）', () => {
     expect(exp).not.toBeNull()
     expect(within(exp).getAllByText(/Not implemented/).length).toBeGreaterThan(0)
     // KaTeX 沒有語法錯誤；可見文字沒有 NaN / undefined（程式碼區塊、公式與 TestBadge 提示框裡別人測試的原始標題除外）
-    expect(container.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+    expectNoTexErrors(container)
     const clone = container.cloneNode(true) as HTMLElement
     clone.querySelectorAll('.katex, pre, .c-tip').forEach((n) => n.remove())
     expect(clone.textContent).not.toMatch(/NaN|undefined|\[object/)
@@ -212,7 +192,7 @@ describe('Papers / Reading 頁（jsdom smoke）', () => {
     })
     for (const mode of ['research', 'beginner'] as const) {
       const { container, unmount } = renderPage(mode)
-      expect(container.querySelectorAll('.katex-error, .c-tex-error').length, mode).toBe(0)
+      expectNoTexErrors(container, mode)
       const visible = container.cloneNode(true) as HTMLElement
       visible.querySelectorAll('.katex, pre, code, option, script, style, .c-tip, .c-metric-table thead').forEach((n) => n.remove())
       const text = (visible.textContent ?? '').replace(/ΔΣ/g, '')

@@ -1,11 +1,9 @@
 import katex from 'katex'
-import { render } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
 import { plotMath, texToPlotly } from '@/components/plotMath'
 import Chapter01 from './index'
 import { LmsPlayground } from './experiments/LmsPlayground'
 import { MseMaeLab } from './experiments/MseMaeLab'
+import { renderPage } from '@/test/renderPage'
 
 /**
  * Ch01 互動圖表（Plotly）的圖內數學（docs/teaching-style.md §3：圖裡面的數學也要用 LaTeX）。
@@ -13,16 +11,8 @@ import { MseMaeLab } from './experiments/MseMaeLab'
  * 單獨一個檔案：整章（Research 模式）再渲染一次很吃記憶體，和 ch01.test.tsx 放在同一個 worker 會超過 Node 的 heap 上限。
  */
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
-vi.mock('mermaid', () => ({ default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: '<svg></svg>' })) } }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 // <Plot> 把圖內文字交給 applyPlotMath 轉成斜體符號與上下標：這裡記下轉換前的 data／layout，檢查作者寫的是 `$...$` LaTeX。
 // 只在 PM.on 時記錄，而且每渲染完一個目標就取出字串、清空陣列（data 裡有幾千點的陣列，不要一直留著）。
 const PM = vi.hoisted(() => ({ on: false, calls: [] as [unknown, unknown][] }))
@@ -41,16 +31,7 @@ const HEAVY = 300_000
 vi.setConfig({ testTimeout: 120_000 })
 
 function renderAt(node: React.ReactNode, path = '/ch/01', mode: 'beginner' | 'engineer' | 'research' = 'engineer') {
-  try {
-    localStorage.setItem('lmspll.mode', mode)
-  } catch {
-    /* ignore */
-  }
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <SettingsProvider>{node}</SettingsProvider>
-    </MemoryRouter>,
-  )
+  return renderPage(node, { mode, url: path })
 }
 
 /** 元素內所有 KaTeX 公式的原始碼（MathML annotation） */

@@ -1,10 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { render } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
 import katex from 'katex'
 import mermaid from 'mermaid'
-import { SettingsProvider } from '@/app/settings'
 import { SYSTEM_BLOCK_LABEL, defaultValues, accessibleText, systemMapModel } from '@/components'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { firstOrderPeriod, quantizeFcw, runDsm } from '@/simulation/models/dsm'
@@ -36,6 +33,8 @@ import * as D from './diagrams'
 import { DIAGRAMS, SYSTEM_MAP_FOCUS } from './diagrams'
 import { HANDCALCS } from './handcalcs'
 import { Intro } from './sections/Intro'
+import { expectNoTexErrors, expectTexParses } from '@/test/katex'
+import { renderPage } from '@/test/renderPage'
 
 const DIR = join(process.cwd(), 'src/chapters/ch13')
 const read = (rel: string) => readFileSync(join(DIR, rel), 'utf8')
@@ -228,7 +227,7 @@ describe('Ch13 方塊圖：真正的 mermaid parser 與 render', () => {
         expect(label.split('$').length % 2, `${d.name}: $ 要成對 —— ${label}`).toBe(1)
         for (const tex of mathOf(label)) {
           expect(tex, `${d.name}: 公式只用 ASCII 的 TeX —— $${tex}$`).toMatch(/^[\x20-\x7e]+$/)
-          expect(() => katex.renderToString(tex, { throwOnError: true }), `${d.name}: $${tex}$`).not.toThrow()
+          expectTexParses(tex, `${d.name}: $${tex}$`)
           total++
         }
         const prose = plainSegments(label).join(' ')
@@ -272,7 +271,7 @@ describe('Ch13 方塊圖：真正的 mermaid parser 與 render', () => {
       const prose = parts.filter((_, i) => i % 2 === 0).join(' ').replace(/ΔΣ/g, '')
       expect(prose, `${chart}: 圖說裡的數學要寫成 $...$`).not.toMatch(/[A-Za-z]_[A-Za-z0-9{]|[α-ωΑ-Ω]|[⁻⁺⁰¹²³⁴⁵⁶⁷⁸⁹]|\^|\\|\bw\*/)
       for (const tex of parts.filter((_, i) => i % 2 === 1)) {
-        expect(() => katex.renderToString(tex, { throwOnError: true }), `${chart}: $${tex}$`).not.toThrow()
+        expectTexParses(tex, `${chart}: $${tex}$`)
         withMath++
       }
     }
@@ -504,13 +503,7 @@ describe('Ch13 架構（docs/assumptions.md §2a）：DTC 在 reference 輸入�
 
   it('章首「訊號流」一節：說明 reference 端的 DTC（從 T_0 往回扣補償量）、PD 量 reference edge 減 feedback edge，以及「comparator 取的是 PD 的輸出」', () => {
     localStorage.setItem('lmspll.mode', 'engineer')
-    const { container, unmount } = render(
-      <MemoryRouter>
-        <SettingsProvider>
-          <Intro />
-        </SettingsProvider>
-      </MemoryRouter>,
-    )
+    const { container, unmount } = renderPage(<Intro />)
     const sec = container.querySelector('#ch13-diagram') as HTMLElement
     const text = (sec.textContent ?? '').replace(/\u00a0/g, ' ')
     for (const phrase of ['reference 端的 DTC', 'comparator 取的是 PD 的輸出', '送進 loop filter 的同一個訊號', '補償量', '回授路徑上只有 divider', '只能延遲、不能提前', '基準延遲']) expect(text, phrase).toContain(phrase)
@@ -559,13 +552,7 @@ describe('Ch13 章首的系統地圖', () => {
 
   it('頁面開頭真的 render <SystemMap>（手排 SVG，不經 Mermaid）：藍色方塊就是 focus，公式由 KaTeX 排版；位置在「這次我們要回答的問題」之後、第一張本章方塊圖之前', () => {
     localStorage.setItem('lmspll.mode', 'engineer')
-    const { container, unmount } = render(
-      <MemoryRouter>
-        <SettingsProvider>
-          <Intro />
-        </SettingsProvider>
-      </MemoryRouter>,
-    )
+    const { container, unmount } = renderPage(<Intro />)
     const figs = Array.from(container.querySelectorAll('figure.c-mermaid'))
     // Intro：系統地圖 + 訊號流 + 誤差路徑
     expect(figs).toHaveLength(1 + DIAGRAMS.filter((d) => d.file === 'sections/Intro.tsx').length)
@@ -582,7 +569,7 @@ describe('Ch13 章首的系統地圖', () => {
     expect(map.querySelectorAll('.c-sysmap-block')).toHaveLength(systemMapModel(SYSTEM_MAP_FOCUS).blocks.length)
     // 方塊裡的公式由 KaTeX 排版：沒有殘留的 `$`、解析錯誤或 Unicode 拼的數學
     expect(map.querySelectorAll('.c-sysmap-svg .katex').length).toBeGreaterThanOrEqual(8)
-    expect(map.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(map)
     const plain = map.querySelector('.c-sysmap-svg')!.cloneNode(true) as Element
     plain.querySelectorAll('.katex').forEach((el) => el.remove())
     expect(plain.textContent).not.toContain('$')

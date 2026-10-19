@@ -20,6 +20,7 @@ import {
 import { impulseResponse } from '@/simulation/signal'
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
+import { expectNoTexErrors } from '@/test/katex'
 
 interface GoldenVector {
   inputs: Record<string, number>
@@ -1080,7 +1081,7 @@ describe('(d) <HandCalc> 渲染', () => {
   it.each(HANDCALCS.map((h) => [h.id, h] as const))('%s：預設值渲染出步驟、答案與提示，沒有 KaTeX 錯誤', (id, def) => {
     const { container, unmount } = render(<HandCalc def={def} />)
     expect(container.querySelector(`[id="handcalc-${id}"]`)).not.toBeNull()
-    expect(container.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+    expectNoTexErrors(container)
     const sol = def.solve(defaultValues(def))
     expect(container.querySelectorAll('.c-step').length).toBe(sol.steps.length)
     expect(container.querySelectorAll('.c-step').length).toBeGreaterThan(0)
@@ -1094,7 +1095,7 @@ describe('(d) <HandCalc> 渲染', () => {
     const practice = render(<HandCalc def={def} initialMode="practice" />)
     expect(practice.container.querySelectorAll('.c-step').length).toBe(0)
     expect(practice.container.querySelectorAll('.c-handcalc-answer').length).toBe(sol.results.length)
-    expect(practice.container.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+    expectNoTexErrors(practice.container)
     practice.unmount()
   })
 })

@@ -1,8 +1,6 @@
-import { fireEvent, render } from '@testing-library/react'
+import { fireEvent } from '@testing-library/react'
 import { marked, type Token } from 'marked'
 import mermaid from 'mermaid'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
 import { defaultValues, renderTex, systemMapModel } from '@/components'
 import { mermaidMathDelimiters, sanitizeMermaidSource } from '@/components/mermaidSource'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
@@ -29,6 +27,8 @@ import { CH06_DIAGRAMS, diagramById } from './diagrams'
 import { HANDCALCS } from './handcalcs'
 import Chapter06 from './index'
 import { CH06_SYMBOLS } from './symbols'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
 /**
  * 第 06 章的方塊圖與符號表位置（docs/teaching-style.md §5、§8）。
@@ -46,15 +46,7 @@ import { CH06_SYMBOLS } from './symbols'
  *   真正的 <Mermaid> 元件在整章 smoke test（ch06.test.tsx）裡跑。
  */
 
-const plotlyMock = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: plotlyMock }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
 // <Mermaid> 的替身。章首的系統地圖（<SystemMap>）是手排的 SVG、不經過 <Mermaid>，所以不會有 data-chart，用它的 DOM 與 systemMapModel() 檢查。
 // mermaid 套件本身沒有被 mock。
@@ -1079,13 +1071,7 @@ describe('第 06 章方塊圖：與正文公式一致（極性、取樣率、延
 /* ───────────────────────── 頁面：位置 ───────────────────────── */
 
 function renderChapter() {
-  return render(
-    <MemoryRouter initialEntries={['/ch/06']}>
-      <SettingsProvider>
-        <Chapter06 />
-      </SettingsProvider>
-    </MemoryRouter>,
-  )
+  return renderPage(<Chapter06 />, { url: '/ch/06' })
 }
 
 /** KaTeX 的 MathML annotation 保留 TeX 原始碼 */
@@ -1262,7 +1248,7 @@ describe('第 06 章頁面：系統地圖、方塊圖的位置、符號表在章
       expect(fig.getAttribute('data-caption'), d.id).toBe(`圖 ${d.no}：${d.title}。${d.caption}`)
       const cap = fig.querySelector('figcaption')!
       expect(cap.querySelectorAll('.katex').length, d.id).toBe([...d.caption.matchAll(INLINE_MATH)].length)
-      expect(cap.querySelectorAll('.katex-error'), d.id).toHaveLength(0)
+      expectNoTexErrors(cap, d.id)
       const capText = cap.cloneNode(true) as Element
       capText.querySelectorAll('.katex').forEach((n) => n.remove())
       expect(capText.textContent, d.id).toMatch(new RegExp(`^圖 ${d.no.replace('.', '\\.')}：`))
@@ -1298,7 +1284,7 @@ describe('第 06 章頁面：系統地圖、方塊圖的位置、符號表在章
     const mentioned = new Set([...(container.textContent ?? '').matchAll(/圖 6\.(\d+)/g)].map((m) => Number(m[1])))
     for (const n of mentioned) expect(n, `正文提到圖 6.${n}`).toBeLessThanOrEqual(N_DIAGRAMS)
     expect(mentioned.size).toBe(N_DIAGRAMS)
-    expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
   }, 240000)
 
   it('符號表在章末（#symbols 是頁面最後一個區塊，在本課必記之後）；章首只有一行會捲到它的連結；符號第一次出現時正文就地說明', () => {
@@ -1337,7 +1323,7 @@ describe('第 06 章頁面：系統地圖、方塊圖的位置、符號表在章
       const tex = texSources(symbols)
       expect(tex).toEqual(expect.arrayContaining(['\\delta_k=a-w_k', '\\operatorname{sign}(e_{\\mathrm{PD}}[n])', 'e_{\\mathrm{PD}}\\approx(a-w_k)\\,u+v']))
       expect(tex).not.toContain('\\operatorname{sign}(e_{\\mathrm{PD}}+v)')
-      expect(symbols.querySelectorAll('.katex-error')).toHaveLength(0)
+      expectNoTexErrors(symbols)
       // 符號表照全站的架構約定：DTC 誤差從 PD 的 reference 輸入端進來、回授經 divider 回到 feedback 輸入端、e_PD 是 PD 的輸出加雜訊
       expect(tex).toEqual(expect.arrayContaining(['\\tau_{\\mathrm{DTC}},\\;T_0', '\\tau_{\\mathrm{DTC}}=T_0-w\\,x', "t_{\\mathrm{ref}}',\\;t_{\\mathrm{fb}}", "t_{\\mathrm{ref}}'-t_{\\mathrm{fb}}"]))
       const symbolsText = symbols.textContent ?? ''

@@ -1,9 +1,6 @@
-import { fireEvent, render, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import katex from 'katex'
+import { fireEvent, waitFor } from '@testing-library/react'
 import mermaid from 'mermaid'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
-import { SettingsProvider } from '@/app/settings'
 import { conventionalStep, fixedXPole } from '@/simulation/models/lms'
 import * as D from './diagrams'
 import { CHART_LMS_LOOP, CHART_MATCH_DECISION, CHART_UNIFIED_LOOP, GALLERY_CHARTS, PRESET_FLOW, THREE_QUESTIONS } from './diagrams'
@@ -11,16 +8,10 @@ import { GALLERY_SLOTS } from './data'
 import { acceptHalfWidth, EXACT_REL, extractNumbers, findExpectedMatch, PRECISE_REL } from './format'
 import GalleryPage from './index'
 import { CHECK_SYMBOLS, MODEL_SYMBOLS } from './symbols'
+import { renderPage } from '@/test/renderPage'
+import { expectTexParses } from '@/test/katex'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 // 頁面測試用的 Mermaid 元件替身：把原始碼放在 data-chart，方便核對「頁面上畫了哪些圖、順序為何」。
 // 真正的 mermaid 套件沒有被 mock，下面照樣用它解析與渲染每一張圖。
 vi.mock('@/components/Mermaid', async () => {
@@ -283,7 +274,7 @@ describe('Gallery 的 Mermaid 圖（真正的 mermaid parser）', () => {
         const dollars = label.replace(/\\\$/g, '').split('$').length - 1
         expect(dollars % 2, `${c.name}：${label}`).toBe(0)
         for (const m of label.matchAll(MATH)) {
-          expect(() => katex.renderToString(m[1] ?? m[2], { throwOnError: true, strict: 'ignore' }), `${c.name}：${m[0]}`).not.toThrow()
+          expectTexParses(m[1] ?? m[2], `${c.name}：${m[0]}`, { strict: 'ignore' })
         }
         expect(unicodeMathIn(textPieces(label).join(' ').replace(CODE_NAMES, '')), `${c.name}：${label}`).toEqual([])
       }
@@ -322,13 +313,7 @@ describe('Gallery 的 Mermaid 圖（真正的 mermaid parser）', () => {
 describe('Gallery 頁面上的方塊圖與符號表（teaching-style §5、§8）', () => {
   it('5 張圖各出現一次、順序與清單相同、都有圖說；新的三張有「先看…」導讀並放在對應公式之前；符號表在頁尾（id="symbols"），頁首只留一行按鈕', async () => {
     localStorage.setItem('lmspll.mode', 'beginner')
-    const { container } = render(
-      <SettingsProvider>
-        <MemoryRouter initialEntries={['/gallery']}>
-          <GalleryPage />
-        </MemoryRouter>
-      </SettingsProvider>,
-    )
+    const { container } = renderPage(<GalleryPage />, { url: '/gallery' })
     await waitFor(
       () => {
         expect(container.querySelector('[data-experiment="gallery-inspector"]')).toBeTruthy()

@@ -1,8 +1,7 @@
 import type { ReactNode } from 'react'
-import { act, fireEvent, render, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { act, fireEvent, waitFor } from '@testing-library/react'
 import mermaid from 'mermaid'
-import { SettingsProvider, type LearningMode } from '@/app/settings'
+import { type LearningMode } from '@/app/settings'
 import { systemMapModel } from '@/components'
 import { mermaidMathDelimiters, sanitizeMermaidSource } from '@/components/mermaidSource'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
@@ -61,17 +60,11 @@ import {
   type Ch08ChartName,
 } from './diagrams'
 import { SYMBOLS, SYMBOLS_ID, SYMBOLS_LINK_ID } from './sections/Symbols'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
 // 整章渲染會用到 Plotly（jsdom 沒有 canvas／WebGL）：和 ch08.test.tsx 相同的替身。mermaid 則是「真的」——只在整章渲染那幾題把 render 換掉。
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
 // 整章渲染（數百個 KaTeX、8 題手算）與真正的 mermaid render 在多個測試行程同時跑時會慢很多：test 與 hook（RTL 自動 cleanup）都給足時間
 const SLOW = 240_000
@@ -1247,11 +1240,7 @@ describe('Ch08 頁面：系統地圖、所有方塊圖與章末符號表', () =>
   function renderChapter(mode: LearningMode) {
     localStorage.setItem('lmspll.mode', mode)
     const ui: ReactNode = <Chapter08 />
-    return render(
-      <SettingsProvider>
-        <MemoryRouter initialEntries={['/ch/08']}>{ui}</MemoryRouter>
-      </SettingsProvider>,
-    )
+    return renderPage(ui, { url: '/ch/08' })
   }
   const sentCharts = () => sent
 
@@ -1306,7 +1295,7 @@ describe('Ch08 頁面：系統地圖、所有方塊圖與章末符號表', () =>
       expect(caption).not.toContain('$')
       expect(withoutMath(figcaption), caption).not.toMatch(/[μδΣωθφρσψΩ∠√π≤≥⁻ᵈ]|[A-Za-z]_[A-Za-z{]/)
       for (const tex of texSources(figcaption)) expect(tex, caption).not.toContain('\\\\')
-      expect(fig.querySelectorAll('.c-tex-error, .katex-error')).toHaveLength(0)
+      expectNoTexErrors(fig)
       captions.add(caption)
       const next = fig.nextElementSibling
       expect(next?.tagName, caption).toBe('P')
@@ -1316,7 +1305,8 @@ describe('Ch08 頁面：系統地圖、所有方塊圖與章末符號表', () =>
       expect(walk, caption).toMatch(/再[看往比順]|最後/)
       expect(walk, caption).not.toContain('$')
       for (const tex of texSources(next)) expect(tex, caption).not.toContain('\\\\')
-      expect(next?.querySelectorAll('.c-tex-error, .katex-error')).toHaveLength(0)
+      expect(next).not.toBeNull()
+      expectNoTexErrors(next!)
     }
     expect(captions.size).toBe(CHARTS.length)
     // 「讀圖」導讀把圖對到公式：除了路線圖、兩關流程圖、時序圖、根的五個階段與綜合手算（它們對到的是小節、表格或手算題），其餘都點名至少一條 F-08.x
@@ -1551,7 +1541,7 @@ describe('Ch08 頁面：系統地圖、所有方塊圖與章末符號表', () =>
     const ranks = SYMBOLS.map((r) => order.indexOf(r.firstSeen ?? ''))
     expect(ranks).toEqual([...ranks].sort((x, y) => x - y))
     expect(symbols.textContent).toContain('本章符號表')
-    expect(symbols.querySelectorAll('.c-tex-error, .katex-error')).toHaveLength(0)
+    expectNoTexErrors(symbols)
     // 章首不再有「本章符號表在最後」那一行（連結由 PageFrame 的本章資訊 strip 提供）；章節 root 帶 id／tabIndex，是「回到章首」的目標
     expect(container.textContent ?? '').not.toContain('本章符號表在最後')
     expect(container.querySelectorAll('a[href*="#symbols"]')).toHaveLength(0)

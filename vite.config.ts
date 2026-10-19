@@ -62,8 +62,31 @@ export default defineConfig({
     // 整章／整頁的 jsdom smoke test 要渲染上百個 KaTeX 與手算題，5 s 預設值在平行執行時不夠
     testTimeout: 60_000,
     minWorkers: 1,
-    environment: 'node',
-    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
-    environmentMatchGlobs: [['src/**/*.test.tsx', 'jsdom']],
+    // 兩個 project（Vitest 3.0 叫 `workspace`，3.2 起改名 `projects`；升級時只要改這個鍵名）：
+    //   node    src/**/*.test.ts   純數值、資料與文件字串的測試。CI 的 unit job 跑它：`npx vitest run --project node`
+    //   jsdom   src/**/*.test.tsx  整章／整頁／元件的 smoke test。CI 的 jsdom-tests.yml 分 shard 跑：`npx vitest run --project jsdom --shard=i/N`
+    // 不加 `--project` 時兩個都跑（`npm test`、`npm run verify` 都是這樣，verify.mjs 讀的 JSON 報告照舊含全部檔案）。
+    // 個別 `.test.ts` 若需要 DOM，仍可在檔案第一行寫 `// @vitest-environment jsdom`（仍屬 node project，CI 跑得到）。
+    // 共用的 mock／render helper 在 src/test/（docs/dev/infra-api.md「測試工具 src/test」）。
+    workspace: [
+      {
+        extends: true,
+        test: {
+          name: 'node',
+          environment: 'node',
+          include: ['src/**/*.test.ts'],
+          setupFiles: ['src/test/setup.node.ts'],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'jsdom',
+          environment: 'jsdom',
+          include: ['src/**/*.test.tsx'],
+          setupFiles: ['src/test/setup.jsdom.ts'],
+        },
+      },
+    ],
   },
 })

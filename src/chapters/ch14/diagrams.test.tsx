@@ -1,9 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { render } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
 import mermaid from 'mermaid'
-import { SettingsProvider } from '@/app/settings'
 import { SYSTEM_BLOCK_LABEL, defaultValues, systemMapModel } from '@/components'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import type { PresetEntry } from '@/data/types'
@@ -22,16 +19,9 @@ import * as D from './diagrams'
 import { CH14_CHARTS, CH14_SYSTEM_FOCUS } from './diagrams'
 import { HANDCALCS } from './handcalcs'
 import { LESSON_MODEL } from './sections/S3Objectives'
+import { renderPage } from '@/test/renderPage'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 // 頁面測試用的 Mermaid 元件替身：把原始碼放在 data-chart，方便核對「頁面上到底畫了哪些圖、順序為何」。
 // （章首的 SystemMap 是手排的 SVG、不經過 Mermaid 元件，所以它不是替身畫的，而是真的元件：figure.c-sysmap，沒有 data-chart。
 //  真正的 mermaid 套件沒有被 mock，下面照樣用它解析與渲染。）
@@ -564,13 +554,7 @@ describe('Ch14 架構約定（docs/assumptions.md §2a）：DTC 在 reference �
 describe('Ch14 頁面上的方塊圖（teaching-style §8）', () => {
   it('章首是 SystemMap（藍色：GMAC、÷N × μ、gain accumulator）；24 張圖各出現一次、順序與清單相同；每張都有圖說與「先看…」導讀，並放在對應公式之前', () => {
     localStorage.setItem('lmspll.mode', 'beginner')
-    const { container } = render(
-      <MemoryRouter initialEntries={['/ch/14']}>
-        <SettingsProvider>
-          <Chapter14 />
-        </SettingsProvider>
-      </MemoryRouter>,
-    )
+    const { container } = renderPage(<Chapter14 />, { url: '/ch/14' })
     const figs = Array.from(container.querySelectorAll('figure.c-mermaid')) as HTMLElement[]
     // ① 系統地圖：第一張圖、在 14.0 之前，是手排的 SVG（figure.c-sysmap，不經過 Mermaid，所以沒有 data-chart）；藍色（is-focus）的是本章的三個方塊
     expect(CH14_SYSTEM_FOCUS).toEqual(['gmac', 'scale', 'acc'])

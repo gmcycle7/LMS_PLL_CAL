@@ -1,8 +1,6 @@
-import { render, waitFor } from '@testing-library/react'
+import { waitFor } from '@testing-library/react'
 import katex from 'katex'
 import mermaid from 'mermaid'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
 import { SYSTEM_BLOCK_LABEL, SYSTEM_MAP_BLOCKS, defaultValues, sanitizeMermaidSource, systemMapModel, type SystemBlock } from '@/components'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { mean, normPdf } from '@/simulation/core'
@@ -24,6 +22,8 @@ import { IntroSection } from './sections/Intro'
 import * as D from './diagrams'
 import { DIAGRAMS, OUTLIER_DEMO, SYSTEM_MAP_CAPTION, SYSTEM_MAP_FOCUS, diagramOf } from './diagrams'
 import { HANDCALCS } from './handcalcs'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors, expectTexParses } from '@/test/katex'
 
 /**
  * Ch01 的方塊圖（docs/teaching-style.md §8）。ch01.test.tsx 為了速度把 mermaid mock 掉了；這裡用真正的 mermaid：
@@ -36,15 +36,7 @@ import { HANDCALCS } from './handcalcs'
  *      排在對應公式之前，頁面交給 mermaid 的就是登錄的那 22 張原始碼。
  */
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
 const HEAVY = 300_000
 vi.setConfig({ testTimeout: 120_000 })
@@ -185,7 +177,7 @@ describe('Ch01 方塊圖：清單與原始碼規則', () => {
         expect(dollars % 2, `${d.id}：${label}`).toBe(0)
         // 每段 TeX 都能被 KaTeX 嚴格解析（stateDiagram 的連線說明已是併好的 `$$...$$`）
         for (const m of label.matchAll(MATH)) {
-          expect(() => katex.renderToString(m[1] ?? m[2], { throwOnError: true, strict: 'ignore' }), `${d.id}：${m[0]}`).not.toThrow()
+          expectTexParses(m[1] ?? m[2], `${d.id}：${m[0]}`, { strict: 'ignore' })
         }
         // 標籤裡不是公式的文字：沒有 Unicode 拼的數學（圈號 ①–⑭、全形的「＋」「−」是文字與符號本身，不算）
         for (const piece of label.split('<br/>').flatMap(plainPieces)) expect(unicodeMathIn(piece), `${d.id}：${piece}`).toEqual([])
@@ -797,16 +789,7 @@ describe('Ch01 方塊圖：圖上的數字與模型一致（錯的圖比沒有�
 
 describe('Ch01 頁面上的方塊圖', () => {
   function renderAt(node: React.ReactNode, mode: 'beginner' | 'engineer' | 'research') {
-    try {
-      localStorage.setItem('lmspll.mode', mode)
-    } catch {
-      /* ignore */
-    }
-    return render(
-      <MemoryRouter initialEntries={['/ch/01']}>
-        <SettingsProvider>{node}</SettingsProvider>
-      </MemoryRouter>,
-    )
+    return renderPage(node, { mode, url: '/ch/01' })
   }
   const follows = (a: Element, b: Element) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
 
@@ -908,7 +891,7 @@ describe('Ch01 頁面上的方塊圖', () => {
         expect(read.textContent ?? '', d.id).toMatch(/圖上[^。]*(就是|對應|是)/)
         expect((read.textContent ?? '').length, d.id).toBeGreaterThan(80)
         expect(read.querySelectorAll('.katex').length, d.id).toBeGreaterThanOrEqual(2)
-        expect(read.querySelector('.katex-error, .c-tex-error'), d.id).toBeNull()
+        expectNoTexErrors(read, d.id)
         // 先看圖、再看數學
         if (d.formula) {
           const formula = document.getElementById(`formula-${d.formula}`)

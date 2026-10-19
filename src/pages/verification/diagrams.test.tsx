@@ -1,10 +1,7 @@
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { fireEvent, render } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import katex from 'katex'
+import { fireEvent } from '@testing-library/react'
 import mermaid from 'mermaid'
-import { SettingsProvider } from '@/app/settings'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { computeErrataEvidence, diffNumeric, toleranceBound } from '@/simulation/models/acceptance'
 import verifyMjs from '../../../scripts/verify.mjs?raw'
@@ -17,17 +14,10 @@ import { GOLDEN_INDEX } from './golden'
 import VerificationPage from './index'
 import { settleLazy } from './indexTestUtils'
 import { SYMBOLS } from './sections/Symbols'
+import { renderPage } from '@/test/renderPage'
+import { expectTexParses } from '@/test/katex'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  newPlot: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 // 頁面測試用的 Mermaid 元件替身：把原始碼放在 data-chart，方便核對「頁面上畫了哪些圖、順序為何」。
 // 真正的 mermaid 套件沒有被 mock，下面照樣用它解析與渲染每一張圖。
 vi.mock('@/components/Mermaid', async () => {
@@ -370,7 +360,7 @@ describe('Verification 的 Mermaid 圖（真正的 mermaid parser）', () => {
         const dollars = label.replace(/\\\$/g, '').split('$').length - 1
         expect(dollars % 2, `${c.name}：${label}`).toBe(0)
         for (const m of label.matchAll(MATH)) {
-          expect(() => katex.renderToString(m[1] ?? m[2], { throwOnError: true, strict: 'ignore' }), `${c.name}：${m[0]}`).not.toThrow()
+          expectTexParses(m[1] ?? m[2], `${c.name}：${m[0]}`, { strict: 'ignore' })
         }
         expect(unicodeMathIn(textPieces(label).join(' ')), `${c.name}：${label}`).toEqual([])
       }
@@ -410,13 +400,7 @@ describe('Verification 的 Mermaid 圖（真正的 mermaid parser）', () => {
 describe('Verification 頁面上的方塊圖與符號表（teaching-style §5、§8）', () => {
   it('4 張圖各出現一次、順序與清單相同、都有圖說與「先看…再看…」導讀並放在對應的推導／說明卡之前；符號表在頁尾（id="symbols"），頁首只留一行按鈕', async () => {
     localStorage.setItem('lmspll.mode', 'beginner')
-    const { container } = render(
-      <SettingsProvider>
-        <MemoryRouter initialEntries={['/verification']}>
-          <VerificationPage />
-        </MemoryRouter>
-      </SettingsProvider>,
-    )
+    const { container } = renderPage(<VerificationPage />, { url: '/verification' })
     await settleLazy(container) // §V.3–§V.6 的圖在延後載入的區塊裡
     const before = (a: Element | null, b: Element | null, msg: string) => {
       expect(a, msg).toBeTruthy()

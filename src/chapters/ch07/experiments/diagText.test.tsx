@@ -1,11 +1,11 @@
-import { render } from '@testing-library/react'
 import { renderTex, useCases } from '@/components'
-import { SettingsProvider } from '@/app/settings'
 import { presetsForExperiment } from '@/app/presets'
 import { analyzeFxLab, buildHat, closedLoopConsistent, HAT_EXACT, runFxComparison } from '@/simulation/models/filteredX'
 import { CLOSED_LOOP_WARNING, closedLoopAdvice, diagMath } from './diagText'
 import { LabControls } from './LabControls'
 import { DEFAULT_CASES, DEFAULT_SCENARIO, EXPERIMENT_ID, parseLabPreset, toCaseSpec, toCodeSpec, toFxScenario, toHatSpec, toPathSpec, type LabCase, type LabScenario } from './labState'
+import { expectNoTexErrors } from '@/test/katex'
+import { renderPage } from '@/test/renderPage'
 
 // 多個測試行程同時執行時 CPU 可能嚴重超額：閉迴路模擬給足夠的時間
 vi.setConfig({ testTimeout: 240_000 })
@@ -243,12 +243,8 @@ describe('LabControls 的提示文字（R03）：filtered-x 的 D 與模型 late
     return <LabControls scenario={scenario} setScenario={() => undefined} cases={cases} />
   }
   const hintsOf = (scenario: LabScenario, initial: LabCase): string[] => {
-    const { container, unmount } = render(
-      <SettingsProvider>
-        <Harness scenario={scenario} initial={initial} />
-      </SettingsProvider>,
-    )
-    expect(container.querySelector('.katex-error')).toBeNull()
+    const { container, unmount } = renderPage(<Harness scenario={scenario} initial={initial} />)
+    expectNoTexErrors(container)
     const hints = Array.from(container.querySelectorAll('.c-param-hint')).map((e) => e.textContent ?? '')
     unmount()
     return hints

@@ -1,6 +1,4 @@
-import { configure, render } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
+import { configure } from '@testing-library/react'
 import { systemMapModel } from '@/components'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { normCdf, normInv, binomPmf } from '@/simulation/core'
@@ -28,6 +26,8 @@ import * as D from './diagrams'
 import { CH05_DIAGRAMS, CH05_SYSTEM_FOCUS, diagramOf, type DiagramKey } from './diagrams'
 import { HANDCALCS } from './handcalcs'
 import Chapter05 from './index'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
 /**
  * Ch05 的方塊圖（docs/teaching-style.md §8）：
@@ -60,15 +60,7 @@ vi.mock('@/components/Mermaid', async () => {
   }
 })
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
 beforeAll(installMermaidSvgShim)
 
@@ -913,14 +905,7 @@ describe('Ch05 方塊圖：與正文公式一致', () => {
 
 describe('Ch05 方塊圖：整頁渲染', () => {
   function renderChapter(mode: 'beginner' | 'engineer' | 'research') {
-    localStorage.setItem('lmspll.mode', mode)
-    return render(
-      <SettingsProvider>
-        <MemoryRouter initialEntries={['/ch/05']}>
-          <Chapter05 />
-        </MemoryRouter>
-      </SettingsProvider>,
-    )
+    return renderPage(<Chapter05 />, { mode, url: '/ch/05' })
   }
   const follows = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
   /** 系統地圖是手排的 SVG（figure.c-mermaid.c-sysmap），被標成主角的方塊帶有 is-focus；不經過 Mermaid，所以沒有 data-chart。 */
@@ -1048,7 +1033,7 @@ describe('Ch05 方塊圖：整頁渲染', () => {
     const symbols = container.querySelector('#symbols') as HTMLElement
     expect(symbols).toBe(container.querySelector('.ch05')!.lastElementChild)
     expect(follows(wrappers[wrappers.length - 1], symbols)).toBe(true)
-    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(container)
     unmount()
   }, SLOW)
 

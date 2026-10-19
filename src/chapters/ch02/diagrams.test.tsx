@@ -1,9 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { cleanup, render } from '@testing-library/react'
+import { cleanup } from '@testing-library/react'
 import mermaid from 'mermaid'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
 import { SYSTEM_BLOCK_LABEL, accessibleText, systemMapModel } from '@/components'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { conventionalStep, signErrorStep, signSignStep, type TieRule } from '@/simulation/models/lms'
@@ -28,6 +26,7 @@ import { HANDCALCS } from './handcalcs'
 import Chapter02 from './index'
 import { SYSTEM_FOCUS } from './sections/Intro'
 import { SYMBOLS } from './sections/Symbols'
+import { renderPage } from '@/test/renderPage'
 
 /**
  * Ch02 的方塊圖測試（docs/teaching-style.md §8）。
@@ -39,15 +38,7 @@ import { SYMBOLS } from './sections/Symbols'
  * 這裡沒有 mock 真正的 mermaid 套件；整章頁面測試只把 <Mermaid> 元件換成替身（不然 25 張圖要在整頁渲染裡各畫一次），
  * 替身把原始碼放在 data-chart，方便核對頁面上到底畫了哪些圖。
  */
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 vi.mock('@/components/Mermaid', async () => {
   const { createElement } = await import('react')
   return {
@@ -913,18 +904,7 @@ describe('Ch02 方塊圖：頁面（SystemMap、位置、看圖說明）', () =>
   afterEach(cleanup)
 
   function renderChapter() {
-    try {
-      localStorage.setItem('lmspll.mode', 'engineer')
-    } catch {
-      /* ignore */
-    }
-    return render(
-      <MemoryRouter initialEntries={['/ch/02']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <SettingsProvider>
-          <Chapter02 />
-        </SettingsProvider>
-      </MemoryRouter>,
-    )
+    return renderPage(<Chapter02 />, { mode: 'engineer', url: '/ch/02', future: true })
   }
   const follows = (first: Element, second: Element) => Boolean(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING)
 

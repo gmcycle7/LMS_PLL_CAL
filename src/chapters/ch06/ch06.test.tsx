@@ -1,8 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { renderTex } from '@/components'
 import { plotMath } from '@/components/plotMath'
 import type { PresetEntry } from '@/data/types'
@@ -24,16 +22,10 @@ import { CH06_DIAGRAMS } from './diagrams'
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
 import { analyzeTone, modelTextTex, polarityWarnings, verdict, withDefaults } from './experiments/explorerModel'
+import { mountPageOnce, renderPage, type SharedMount } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
-const plotlyMock = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: plotlyMock }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
 // 記錄 <Plot> 交給 applyPlotMath 的原始 data／layout（還是 `$...$` 的 LaTeX，尚未轉成 Plotly 的 pseudo-HTML）：用來檢查圖內字串都是 LaTeX
 const plotCalls = vi.hoisted(() => ({ list: [] as { data: unknown; layout: unknown }[] }))
@@ -46,20 +38,10 @@ vi.mock('@/components/plotMath', async (importOriginal) => {
   return { ...mod, applyPlotMath }
 })
 
-const mermaidMock = vi.hoisted(() => ({
-  initialize: vi.fn(),
-  render: vi.fn(async (id: string) => ({ svg: `<svg id="${id}"><g></g></svg>`, diagramType: 'flowchart-v2' })),
-}))
-vi.mock('mermaid', () => ({ default: mermaidMock }))
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 function renderChapter(url = '/ch/06') {
-  return render(
-    <MemoryRouter initialEntries={[url]}>
-      <SettingsProvider>
-        <Chapter06 />
-      </SettingsProvider>
-    </MemoryRouter>,
-  )
+  return renderPage(<Chapter06 />, { url })
 }
 
 afterEach(() => {
@@ -173,159 +155,199 @@ function scanStringProps(root: Element): number {
 }
 
 describe('第 06 章頁面（jsdom smoke test）', () => {
-  it('T06: Research 模式下完整渲染：8 節、3 個 ExperimentShell、所有公式錨點、程式碼 region 都找得到；閉迴路判定為「遠離 a」', async () => {
-    localStorage.setItem('lmspll.mode', 'research')
+  // Research 模式的整章只渲染一次，下面的 it 共用同一棵 DOM（mountPageOnce；原本是一個 150 行、約 80 s 的 it）。
+  // 只讀的斷言排在前面；等 worker（inline）算完的 it 各自 waitFor；會改動 DOM 的操作（改 GMAC code delay）放在最後。
+  describe('Research 模式整章（共用一次渲染）', () => {
+    let page: SharedMount
+    let container: HTMLElement
+    let errorSpy: ReturnType<typeof vi.spyOn>
+    let plotStart = 0
     // 收集 console.error（React key / prop 警告等）；共用 Mermaid 元件的 act() 提示與本章無關，略過
     const errors: string[] = []
-    const spy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
-      const msg = args.map(String).join(' ')
-      if (!/not wrapped in act/.test(msg)) errors.push(msg)
+
+    beforeAll(() => {
+      errorSpy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
+        const msg = args.map(String).join(' ')
+        if (!/not wrapped in act/.test(msg)) errors.push(msg)
+      })
+      plotStart = plotCalls.list.length
+      page = mountPageOnce(<Chapter06 />, { url: '/ch/06', mode: 'research' })
+      container = page.container
+      // 展開所有思考題的解析（解析裡也有 LaTeX），後面「所有 LaTeX 都能被 KaTeX 解析」的檢查才涵蓋到它們
+      const answerButtons = screen.getAllByText('看答案與解析')
+      expect(answerButtons.length).toBeGreaterThanOrEqual(5)
+      answerButtons.forEach((b) => fireEvent.click(b))
+    }, FULL_TIMEOUT)
+
+    afterAll(() => {
+      errorSpy.mockRestore()
+      page.unmount()
     })
-    const plotStart = plotCalls.list.length
-    const { container } = renderChapter()
-    expect(screen.getByText('本章目錄')).toBeTruthy()
-    for (let i = 1; i <= 8; i++) expect(container.querySelector(`#ch06-s${i}`), `§${i}`).not.toBeNull()
-    for (const id of EXPERIMENTS) expect(container.querySelector(`#exp-${id}`), id).not.toBeNull()
-    // 每個登錄的公式都在頁面上有錨點
-    for (const fm of FORMULAS) expect(container.querySelector(`[id="formula-${fm.id}"]`), fm.id).not.toBeNull()
-    // 展開所有思考題的解析（解析裡也有 LaTeX）
-    const answerButtons = screen.getAllByText('看答案與解析')
-    expect(answerButtons.length).toBeGreaterThanOrEqual(5)
-    answerButtons.forEach((b) => fireEvent.click(b))
-    // 所有 LaTeX 都能被 KaTeX 解析（throwOnError: false 時錯誤會變成 .katex-error）
-    const texErrors = Array.from(container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.getAttribute('title') ?? e.textContent)
-    expect(texErrors).toEqual([])
-    // 所有 CodeBlock 的 region 都存在（找不到會顯示「程式碼載入錯誤」）
-    expect(container.textContent).not.toMatch(/程式碼載入錯誤/)
-    expect(container.querySelectorAll('.c-code').length).toBeGreaterThan(10)
-    // 符號表：放在章末（#symbols 是頁面最後一個區塊，在 §8 之後；docs/teaching-style.md §5），章首只留一行連結
-    const symbols = container.querySelector('#symbols') as HTMLElement
-    expect(symbols.querySelectorAll('.c-symbols tbody tr').length).toBeGreaterThanOrEqual(20)
-    expect(container.querySelectorAll('.c-symbols').length).toBe(1)
-    expect(container.querySelector('.ch06')!.lastElementChild).toBe(symbols)
-    expect(container.querySelector('#ch06-s8')!.compareDocumentPosition(symbols) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(container.querySelector('.ch06-symbols-link')).toBeNull() // 章首的符號表連結改由 PageFrame 的本章資訊 strip 提供
-    // 章首骨架（teaching-style §9）：導言 → 系統地圖 → 「你在這裡」（.c-map-note）→ 標籤列 → 本章目錄 → §1
-    const lead = container.querySelector('.ch06-lead')!
-    expect(container.querySelector('.ch06')!.firstElementChild).toBe(lead)
-    expect(lead.nextElementSibling).toBe(container.querySelector('figure.c-mermaid.c-sysmap'))
-    expect(lead.nextElementSibling!.nextElementSibling).toBe(container.querySelector('.ch06-map-note.c-map-note'))
-    expect(container.querySelector('.ch06-map-note')!.compareDocumentPosition(container.querySelector('.ch06-tags')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(container.querySelector('.ch06-tags')!.compareDocumentPosition(container.querySelector('.ch06-toc')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    // 方塊圖：章首的系統地圖 + 登錄的每一張（Research 模式；圖都不在模式限定的段落裡，三種模式張數相同）
-    expect(container.querySelectorAll('figure.c-mermaid').length).toBe(CH06_DIAGRAMS.length + 1)
-    for (const d of CH06_DIAGRAMS) expect(container.querySelector(`[id="diagram-${d.id}"] .ch06-diagram-read`), d.id).not.toBeNull()
-    // 手算表：12 列 + C = −0.25
-    expect(container.textContent).toMatch(/-0\.2500/)
-    // 帶入手算：8 題都放進頁面（各自在對應推導之後），章首有索引；綜合題 HC-06.8 在 §8 的思考題之前
-    for (const h of HANDCALCS) expect(container.querySelector(`[id="handcalc-${h.id}"]`), h.id).not.toBeNull()
-    expect(container.querySelectorAll('.c-handcalc').length).toBe(HANDCALCS.length)
-    expect(container.querySelectorAll('.ch06-handcalc-lead').length).toBe(HANDCALCS.length)
-    // 章首只剩手算的說明段落（保護位數等），清單式索引改由 strip 的「手算 N 題」取代
-    expect(container.querySelectorAll('.ch06-handcalc-index li').length).toBe(0)
-    expect(container.querySelector('.ch06-handcalc-index')!.textContent).toContain(`帶入手算（${HANDCALCS.length} 題）`)
-    const sectionOf = (id: string) => container.querySelector(`[id="handcalc-${id}"]`)!.closest('section.ch06-section')!.id
-    expect(HANDCALCS.map((h) => sectionOf(h.id))).toEqual(['ch06-s3', 'ch06-s4', 'ch06-s4', 'ch06-s5', 'ch06-s5', 'ch06-s5', 'ch06-s6', 'ch06-s8'])
-    const s8 = container.querySelector('#ch06-s8') as HTMLElement
-    const synth = s8.querySelector('[id="handcalc-HC-06.8"]')!
-    const firstQuiz = s8.querySelector('.c-quiz')!
-    expect(synth.compareDocumentPosition(firstQuiz) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    // 手算題預設值的答案就是文中的數字（§1 的 T06 pole、§5.2 的 −0.0815、§6.4 表格的 −0.00281）
-    expect(container.querySelector('[id="handcalc-HC-06.2"]')!.textContent).toContain('1.0199471')
-    expect(container.querySelector('[id="handcalc-HC-06.5"]')!.textContent).toContain('-0.081533')
-    expect(container.querySelector('[id="handcalc-HC-06.8"]')!.textContent).toContain('-0.0028098')
-    // Polarity Explorer：預設 φ = 120° ⇒ 極性錯誤警告（必須解釋原因），閉迴路在 worker（jsdom 下 inline）完成
-    const exp = container.querySelector('#exp-polarity-explorer') as HTMLElement
-    const polWarn = warningsMatching(exp, /更新極性錯誤/)
-    expect(polWarn.length).toBeGreaterThan(0)
-    // 警告裡的數學已是 KaTeX：C ≤ 0、C_D = −0.25、p = 1 + μK_q|C| = 1.01995 > 1
-    expect(texSources(polWarn[0])).toEqual(expect.arrayContaining(['C\\le0', 'C_D=-0.25', 'p=1+\\mu K_q|C|=1.01995>1']))
-    expect(polWarn[0].textContent).toMatch(/只減小 .* 不會改變符號/)
-    await waitFor(() => expect(exp.querySelectorAll('td[data-loop-state="diverging"]').length).toBeGreaterThan(0), WAIT)
-    expect(exp.querySelector('td[data-loop-state="diverging"]')!.textContent).toMatch(/^遠離/)
-    expect(within(exp).getByText(/極性錯誤：任何/)).toBeTruthy()
-    // FCW sweep 完成後顯示抵消定理的指標
-    const sweep = container.querySelector('#exp-polarity-fcw-sweep') as HTMLElement
-    await waitFor(() => expect(within(sweep).getAllByText(/鋸齒一階係數/).length).toBeGreaterThan(0), WAIT)
-    // 交叉比對：三個實驗都不應出現 mismatch（DSM vs 精確鋸齒理論、解析 vs 時域、MC vs 線性 pole、自寫 DT 係數 vs pll.ts）
-    await waitFor(() => expect(within(sweep).getAllByText(/二階動差/).length).toBeGreaterThan(0), WAIT)
-    for (const id of EXPERIMENTS) {
-      const el = container.querySelector(`#exp-${id}`) as HTMLElement
-      expect(el.querySelectorAll('.c-check-mismatch').length, id).toBe(0)
-    }
-    expect(sweep.querySelectorAll('.c-check-ok').length).toBeGreaterThan(0)
-    // 大誤差區：Ω = π/6、φ = 120° 的離散平均是 −(2+√3)/12 = −0.3110（不是浮點捨入造成的 −0.19）
-    const s3 = container.querySelector('#ch06-s3') as HTMLElement
-    expect(s3.textContent).toMatch(/-0\.3110/)
-    expect(s3.textContent).not.toMatch(/-0\.19\d/)
-    // §6.4：精確鋸齒理論為正、截斷譜線為負（反面示範）、GMAC code delay 的變號表含負值
-    const s6 = container.querySelector('#ch06-s6') as HTMLElement
-    expect(s6.querySelectorAll('td.neg').length).toBeGreaterThan(3)
-    expect(s6.querySelectorAll('td.pos').length).toBeGreaterThan(3)
-    // R01：C → 0⁺ 的後果寫成「線性化的固定點 w* ≈ a + B/C」，並說明超出線性範圍時只是線性外推（Ch11 §11.4）；不再有無條件的「固定點 w* = a + B/C」
-    expect(s6.textContent).toMatch(/而線性化的固定點.*對任何 bias.*極度敏感——.*大到超出線性範圍時，.*只是線性外推，不再是固定點（第 11 章 §11\.4 的代回檢查）/)
-    const s6Tex = Array.from(s6.querySelectorAll('annotation')).map((a) => a.textContent ?? '')
-    expect(s6Tex).toContain(String.raw`w^*\approx a+B/C`)
-    expect(s6Tex).not.toContain('w^*=a+B/C')
-    // §6.4 但書 1：basin 表由 worker 算出（4 個 frac；前 3 個有 δ_c，數值與 Python 參考 0.456、0.766 σ_v 相符）
-    const basin = await waitFor(
-      () => {
-        const el = s6.querySelector('[data-testid="ch06-basin-table"]')
-        expect(el).not.toBeNull()
-        return el as HTMLElement
-      },
-      WAIT,
-    )
-    const rows = Array.from(basin.querySelectorAll('tbody tr')).map((tr) => Array.from(tr.querySelectorAll('td')).map((td) => td.textContent ?? ''))
-    expect(rows).toHaveLength(4)
-    expect(Math.abs(Number(rows[1][3]) - 0.456)).toBeLessThan(0.01)
-    expect(Math.abs(Number(rows[2][3]) - 0.766)).toBeLessThan(0.01)
-    // Explorer 的指標表列出 mean-field 變號點（單頻 φ = 120°：不變號）
-    expect(within(exp).getAllByText(/mean-field 變號點/).length).toBeGreaterThan(0)
-    // 字串屬性的 LaTeX：指標名稱、假設、圖標題／圖說、警告、手算題裡的 `$...$` 全部交給 KaTeX，沒有落單的 $
-    for (const id of EXPERIMENTS) {
-      const el = container.querySelector(`#exp-${id}`) as HTMLElement
-      expectNoRawDollar(el, id)
-      expect(el.querySelectorAll('.c-exp-assumptions .katex').length, `${id} assumptions`).toBeGreaterThan(0)
-      expect(el.querySelectorAll('.c-figcaption .katex').length, `${id} captions`).toBeGreaterThan(0)
-      expect(el.querySelectorAll('.c-plot-title .katex').length, `${id} plot titles`).toBeGreaterThan(0)
-      // 圖的 aria-label 維持純文字（不含 TeX 原始碼）
-      el.querySelectorAll('figure.c-plot').forEach((fig) => expect(fig.getAttribute('aria-label') ?? '').not.toMatch(/[$\\]/))
-    }
-    expectNoRawDollar(container, '整章')
-    // Plotly 圖內的字串（軸標題、圖例名稱…）：數學都在 `$...$` 裡，每段都能被 KaTeX 解析，plotMath 轉出來沒有殘留的 TeX
-    const plotted = plotStringsSince(plotStart)
-    expect(plotted.length).toBeGreaterThan(40)
-    expectPlotStringsLatex(plotted, '整章的圖')
-    expect(plotted).toEqual(
-      expect.arrayContaining([
-        String.raw`$\nu = \omega/\omega_L$`, // §5 的 CT 原型圖
-        String.raw`Type-II $\zeta = 0.7$`,
-        String.raw`$\nu = \Omega/(\omega_L T_s)$`, // CT ↔ DT 對照
-        String.raw`DT 模型 $\operatorname{Re}\,H(e^{j\Omega})$（$d = 1$）`,
-        String.raw`$\operatorname{Re}\,H_{\mathrm{PD}}$`,
-        String.raw`$C_D/\sigma_x^2$`, // FCW 掃描
-        String.raw`$\Delta = \Omega_0/(\omega_L T_s)$`,
-        String.raw`$x[n]$（原始 code）`, // Polarity Explorer
-        String.raw`$\phi$ [deg]`,
-        String.raw`$\mu$ [fs]`,
-        String.raw`block $k$`,
-        String.raw`$\delta_k$ [fs]`,
-        String.raw`$|\delta|$ [fs]`,
-      ]),
-    )
-    // 改 GMAC code delay 與 regressor：波形上的 x[n−D] 與 filtered-x 的圖例名稱也是 LaTeX
-    const before = plotCalls.list.length
-    fireEvent.change(within(exp).getByLabelText('GMAC code delay D', { selector: 'input[type="text"]' }), { target: { value: '3' } })
-    fireEvent.change(within(exp).getByLabelText('GMAC regressor'), { target: { value: '1' } })
-    await waitFor(() => expect(plotStringsSince(before)).toEqual(expect.arrayContaining([String.raw`$x[n-3]$（GMAC 用）`, String.raw`A：filtered-x $E[u_D\,u]$`, String.raw`A：目前 $D$`])), WAIT)
-    expectPlotStringsLatex(plotStringsSince(before), 'D = 3、filtered-x')
-    // 字串屬性渲染出來的元素：扣掉 KaTeX 後不再有 Unicode 拼的數學
-    expect(scanStringProps(container)).toBeGreaterThan(200)
-    expect(Array.from(container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.getAttribute('title') ?? e.textContent)).toEqual([])
-    spy.mockRestore()
-    expect(errors).toEqual([])
-  }, FULL_TIMEOUT)
+
+    it('骨架：8 節、3 個 ExperimentShell、所有公式錨點、程式碼 region；符號表在章末；章首骨架的順序', () => {
+      expect(screen.getByText('本章目錄')).toBeTruthy()
+      for (let i = 1; i <= 8; i++) expect(container.querySelector(`#ch06-s${i}`), `§${i}`).not.toBeNull()
+      for (const id of EXPERIMENTS) expect(container.querySelector(`#exp-${id}`), id).not.toBeNull()
+      // 每個登錄的公式都在頁面上有錨點
+      for (const fm of FORMULAS) expect(container.querySelector(`[id="formula-${fm.id}"]`), fm.id).not.toBeNull()
+      // 所有 CodeBlock 的 region 都存在（找不到會顯示「程式碼載入錯誤」）
+      expect(container.textContent).not.toMatch(/程式碼載入錯誤/)
+      expect(container.querySelectorAll('.c-code').length).toBeGreaterThan(10)
+      // 符號表：放在章末（#symbols 是頁面最後一個區塊，在 §8 之後；docs/teaching-style.md §5），章首只留一行連結
+      const symbols = container.querySelector('#symbols') as HTMLElement
+      expect(symbols.querySelectorAll('.c-symbols tbody tr').length).toBeGreaterThanOrEqual(20)
+      expect(container.querySelectorAll('.c-symbols').length).toBe(1)
+      expect(container.querySelector('.ch06')!.lastElementChild).toBe(symbols)
+      expect(container.querySelector('#ch06-s8')!.compareDocumentPosition(symbols) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(container.querySelector('.ch06-symbols-link')).toBeNull() // 章首的符號表連結改由 PageFrame 的本章資訊 strip 提供
+      // 章首骨架（teaching-style §9）：導言 → 系統地圖 → 「你在這裡」（.c-map-note）→ 標籤列 → 本章目錄 → §1
+      const lead = container.querySelector('.ch06-lead')!
+      expect(container.querySelector('.ch06')!.firstElementChild).toBe(lead)
+      expect(lead.nextElementSibling).toBe(container.querySelector('figure.c-mermaid.c-sysmap'))
+      expect(lead.nextElementSibling!.nextElementSibling).toBe(container.querySelector('.ch06-map-note.c-map-note'))
+      expect(container.querySelector('.ch06-map-note')!.compareDocumentPosition(container.querySelector('.ch06-tags')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(container.querySelector('.ch06-tags')!.compareDocumentPosition(container.querySelector('.ch06-toc')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+
+    it('方塊圖：章首的系統地圖 + 登錄的每一張，各有「怎麼看圖」', () => {
+      // Research 模式；圖都不在模式限定的段落裡，三種模式張數相同
+      expect(container.querySelectorAll('figure.c-mermaid').length).toBe(CH06_DIAGRAMS.length + 1)
+      for (const d of CH06_DIAGRAMS) expect(container.querySelector(`[id="diagram-${d.id}"] .ch06-diagram-read`), d.id).not.toBeNull()
+    })
+
+    it('帶入手算：8 題各自在對應推導之後、綜合題在思考題之前；預設值的答案就是文中的數字', () => {
+      // 手算表：12 列 + C = −0.25
+      expect(container.textContent).toMatch(/-0\.2500/)
+      // 帶入手算：8 題都放進頁面（各自在對應推導之後），章首有索引；綜合題 HC-06.8 在 §8 的思考題之前
+      for (const h of HANDCALCS) expect(container.querySelector(`[id="handcalc-${h.id}"]`), h.id).not.toBeNull()
+      expect(container.querySelectorAll('.c-handcalc').length).toBe(HANDCALCS.length)
+      expect(container.querySelectorAll('.ch06-handcalc-lead').length).toBe(HANDCALCS.length)
+      // 章首只剩手算的說明段落（保護位數等），清單式索引改由 strip 的「手算 N 題」取代
+      expect(container.querySelectorAll('.ch06-handcalc-index li').length).toBe(0)
+      expect(container.querySelector('.ch06-handcalc-index')!.textContent).toContain(`帶入手算（${HANDCALCS.length} 題）`)
+      const sectionOf = (id: string) => container.querySelector(`[id="handcalc-${id}"]`)!.closest('section.ch06-section')!.id
+      expect(HANDCALCS.map((h) => sectionOf(h.id))).toEqual(['ch06-s3', 'ch06-s4', 'ch06-s4', 'ch06-s5', 'ch06-s5', 'ch06-s5', 'ch06-s6', 'ch06-s8'])
+      const s8 = container.querySelector('#ch06-s8') as HTMLElement
+      const synth = s8.querySelector('[id="handcalc-HC-06.8"]')!
+      const firstQuiz = s8.querySelector('.c-quiz')!
+      expect(synth.compareDocumentPosition(firstQuiz) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      // 手算題預設值的答案就是文中的數字（§1 的 T06 pole、§5.2 的 −0.0815、§6.4 表格的 −0.00281）
+      expect(container.querySelector('[id="handcalc-HC-06.2"]')!.textContent).toContain('1.0199471')
+      expect(container.querySelector('[id="handcalc-HC-06.5"]')!.textContent).toContain('-0.081533')
+      expect(container.querySelector('[id="handcalc-HC-06.8"]')!.textContent).toContain('-0.0028098')
+    })
+
+    it('T06: Polarity Explorer：預設 φ = 120° ⇒ 極性錯誤警告（解釋原因），閉迴路（jsdom 下 inline worker）判定為「遠離 a」', async () => {
+      const exp = container.querySelector('#exp-polarity-explorer') as HTMLElement
+      const polWarn = warningsMatching(exp, /更新極性錯誤/)
+      expect(polWarn.length).toBeGreaterThan(0)
+      // 警告裡的數學已是 KaTeX：C ≤ 0、C_D = −0.25、p = 1 + μK_q|C| = 1.01995 > 1
+      expect(texSources(polWarn[0])).toEqual(expect.arrayContaining(['C\\le0', 'C_D=-0.25', 'p=1+\\mu K_q|C|=1.01995>1']))
+      expect(polWarn[0].textContent).toMatch(/只減小 .* 不會改變符號/)
+      await waitFor(() => expect(exp.querySelectorAll('td[data-loop-state="diverging"]').length).toBeGreaterThan(0), WAIT)
+      expect(exp.querySelector('td[data-loop-state="diverging"]')!.textContent).toMatch(/^遠離/)
+      expect(within(exp).getByText(/極性錯誤：任何/)).toBeTruthy()
+      // Explorer 的指標表列出 mean-field 變號點（單頻 φ = 120°：不變號）
+      expect(within(exp).getAllByText(/mean-field 變號點/).length).toBeGreaterThan(0)
+    }, RENDER_TIMEOUT)
+
+    it('FCW sweep 完成後顯示抵消定理的指標；三個實驗的交叉比對都沒有 mismatch', async () => {
+      const sweep = container.querySelector('#exp-polarity-fcw-sweep') as HTMLElement
+      await waitFor(() => expect(within(sweep).getAllByText(/鋸齒一階係數/).length).toBeGreaterThan(0), WAIT)
+      // 交叉比對：DSM vs 精確鋸齒理論、解析 vs 時域、MC vs 線性 pole、自寫 DT 係數 vs pll.ts
+      await waitFor(() => expect(within(sweep).getAllByText(/二階動差/).length).toBeGreaterThan(0), WAIT)
+      for (const id of EXPERIMENTS) {
+        const el = container.querySelector(`#exp-${id}`) as HTMLElement
+        expect(el.querySelectorAll('.c-check-mismatch').length, id).toBe(0)
+      }
+      expect(sweep.querySelectorAll('.c-check-ok').length).toBeGreaterThan(0)
+    }, RENDER_TIMEOUT)
+
+    it('§6.3 大誤差區與 §6.4 的符號：Ω = π/6、φ = 120° 的離散平均是 −0.3110；精確鋸齒理論為正、截斷譜線為負；R01 的線性外推說明', () => {
+      // 大誤差區：Ω = π/6、φ = 120° 的離散平均是 −(2+√3)/12 = −0.3110（不是浮點捨入造成的 −0.19）
+      const s3 = container.querySelector('#ch06-s3') as HTMLElement
+      expect(s3.textContent).toMatch(/-0\.3110/)
+      expect(s3.textContent).not.toMatch(/-0\.19\d/)
+      // §6.4：精確鋸齒理論為正、截斷譜線為負（反面示範）、GMAC code delay 的變號表含負值
+      const s6 = container.querySelector('#ch06-s6') as HTMLElement
+      expect(s6.querySelectorAll('td.neg').length).toBeGreaterThan(3)
+      expect(s6.querySelectorAll('td.pos').length).toBeGreaterThan(3)
+      // R01：C → 0⁺ 的後果寫成「線性化的固定點 w* ≈ a + B/C」，並說明超出線性範圍時只是線性外推（Ch11 §11.4）；不再有無條件的「固定點 w* = a + B/C」
+      expect(s6.textContent).toMatch(/而線性化的固定點.*對任何 bias.*極度敏感——.*大到超出線性範圍時，.*只是線性外推，不再是固定點（第 11 章 §11\.4 的代回檢查）/)
+      const s6Tex = Array.from(s6.querySelectorAll('annotation')).map((a) => a.textContent ?? '')
+      expect(s6Tex).toContain(String.raw`w^*\approx a+B/C`)
+      expect(s6Tex).not.toContain('w^*=a+B/C')
+    })
+
+    it('§6.4 但書 1：basin 表由 worker 算出（4 個 frac；前 3 個有 δ_c，數值與 Python 參考 0.456、0.766 σ_v 相符）', async () => {
+      const s6 = container.querySelector('#ch06-s6') as HTMLElement
+      const basin = await waitFor(
+        () => {
+          const el = s6.querySelector('[data-testid="ch06-basin-table"]')
+          expect(el).not.toBeNull()
+          return el as HTMLElement
+        },
+        WAIT,
+      )
+      const rows = Array.from(basin.querySelectorAll('tbody tr')).map((tr) => Array.from(tr.querySelectorAll('td')).map((td) => td.textContent ?? ''))
+      expect(rows).toHaveLength(4)
+      expect(Math.abs(Number(rows[1][3]) - 0.456)).toBeLessThan(0.01)
+      expect(Math.abs(Number(rows[2][3]) - 0.766)).toBeLessThan(0.01)
+    }, RENDER_TIMEOUT)
+
+    it('字串屬性的 LaTeX：指標名稱、假設、圖標題／圖說、警告、手算題裡的 $…$ 全部交給 KaTeX，沒有落單的 $；扣掉 KaTeX 後沒有 Unicode 拼的數學', () => {
+      for (const id of EXPERIMENTS) {
+        const el = container.querySelector(`#exp-${id}`) as HTMLElement
+        expectNoRawDollar(el, id)
+        expect(el.querySelectorAll('.c-exp-assumptions .katex').length, `${id} assumptions`).toBeGreaterThan(0)
+        expect(el.querySelectorAll('.c-figcaption .katex').length, `${id} captions`).toBeGreaterThan(0)
+        expect(el.querySelectorAll('.c-plot-title .katex').length, `${id} plot titles`).toBeGreaterThan(0)
+        // 圖的 aria-label 維持純文字（不含 TeX 原始碼）
+        el.querySelectorAll('figure.c-plot').forEach((fig) => expect(fig.getAttribute('aria-label') ?? '').not.toMatch(/[$\\]/))
+      }
+      expectNoRawDollar(container, '整章')
+      // 字串屬性渲染出來的元素：扣掉 KaTeX 後不再有 Unicode 拼的數學
+      expect(scanStringProps(container)).toBeGreaterThan(200)
+    })
+
+    it('Plotly 圖內的字串（軸標題、圖例名稱…）：數學都在 $…$ 裡，每段都能被 KaTeX 解析，plotMath 轉出來沒有殘留的 TeX', () => {
+      const plotted = plotStringsSince(plotStart)
+      expect(plotted.length).toBeGreaterThan(40)
+      expectPlotStringsLatex(plotted, '整章的圖')
+      expect(plotted).toEqual(
+        expect.arrayContaining([
+          String.raw`$\nu = \omega/\omega_L$`, // §5 的 CT 原型圖
+          String.raw`Type-II $\zeta = 0.7$`,
+          String.raw`$\nu = \Omega/(\omega_L T_s)$`, // CT ↔ DT 對照
+          String.raw`DT 模型 $\operatorname{Re}\,H(e^{j\Omega})$（$d = 1$）`,
+          String.raw`$\operatorname{Re}\,H_{\mathrm{PD}}$`,
+          String.raw`$C_D/\sigma_x^2$`, // FCW 掃描
+          String.raw`$\Delta = \Omega_0/(\omega_L T_s)$`,
+          String.raw`$x[n]$（原始 code）`, // Polarity Explorer
+          String.raw`$\phi$ [deg]`,
+          String.raw`$\mu$ [fs]`,
+          String.raw`block $k$`,
+          String.raw`$\delta_k$ [fs]`,
+          String.raw`$|\delta|$ [fs]`,
+        ]),
+      )
+    })
+
+    // 會改動 DOM 的操作與整章的收尾檢查放在最後（it 依宣告順序執行）
+    it('改 GMAC code delay 與 regressor：波形上的 x[n−D] 與 filtered-x 的圖例名稱也是 LaTeX', async () => {
+      const exp = container.querySelector('#exp-polarity-explorer') as HTMLElement
+      const before = plotCalls.list.length
+      fireEvent.change(within(exp).getByLabelText('GMAC code delay D', { selector: 'input[type="text"]' }), { target: { value: '3' } })
+      fireEvent.change(within(exp).getByLabelText('GMAC regressor'), { target: { value: '1' } })
+      await waitFor(() => expect(plotStringsSince(before)).toEqual(expect.arrayContaining([String.raw`$x[n-3]$（GMAC 用）`, String.raw`A：filtered-x $E[u_D\,u]$`, String.raw`A：目前 $D$`])), WAIT)
+      expectPlotStringsLatex(plotStringsSince(before), 'D = 3、filtered-x')
+    }, RENDER_TIMEOUT)
+
+    it('整章（含展開的思考題解析與上面的互動之後）沒有 KaTeX 錯誤、沒有 React console error', () => {
+      expectNoTexErrors(container)
+      expect(errors).toEqual([])
+    })
+  })
 
   it('Beginner 模式也能渲染（推導框預設收合，Research 專屬段落隱藏）', () => {
     localStorage.setItem('lmspll.mode', 'beginner')
@@ -356,7 +378,7 @@ describe('第 06 章頁面（jsdom smoke test）', () => {
     const snapped = warningsMatching(exp, /已吸附為/)
     expect(snapped.length).toBeGreaterThan(0)
     expect(texSources(snapped[0])).toEqual(expect.arrayContaining(['\\Omega=\\pi', '180^\\circ']))
-    expect(exp.querySelectorAll('.katex-error').length).toBe(0)
+    expectNoTexErrors(exp)
   }, RENDER_TIMEOUT)
 
   it('URL preset ?preset=polarity-near-integer-basin：C > 0、線性 pole 穩定，但閉迴路離開 basin；警告解釋原因', async () => {
@@ -402,7 +424,7 @@ describe('第 06 章頁面（jsdom smoke test）', () => {
     expect(scanStringProps(exp)).toBeGreaterThan(30)
     expect(texSources(exp)).toEqual(expect.arrayContaining(['\\sigma_x^2\\sum_kh[k]\\,\\big(1-6t(1-t)\\big)']))
     expectNoRawDollar(exp, 'near-integer basin')
-    expect(exp.querySelectorAll('.katex-error').length).toBe(0)
+    expectNoTexErrors(exp)
   }, RENDER_TIMEOUT)
 
   it('URL preset ?preset=polarity-fcw-delay1 套用到 FCW sweep：顯示 F-06.18 的變號門檻與 C ≤ 0 的原因', async () => {
@@ -415,7 +437,7 @@ describe('第 06 章頁面（jsdom smoke test）', () => {
     expect(lag[0].textContent).toMatch(/個 sample——鋸齒自相關的一次項不再被 Type-II 消掉/)
     expect(warningsMatching(sweep, /MASH 1-1-1 residue 的/).length).toBeGreaterThan(0)
     expectNoRawDollar(sweep, 'fcw sweep D = 1')
-    expect(sweep.querySelectorAll('.katex-error').length).toBe(0)
+    expectNoTexErrors(sweep)
     expect(sweep.querySelectorAll('.c-check-mismatch').length).toBe(0)
   }, RENDER_TIMEOUT)
 })

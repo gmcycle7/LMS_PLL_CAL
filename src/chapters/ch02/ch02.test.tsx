@@ -2,8 +2,6 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
 import type { PresetEntry } from '@/data/types'
 import { deriveSeed, meanCI } from '@/simulation/core'
 import {
@@ -33,17 +31,12 @@ import { FixedPointExplorer } from './experiments/FixedPointExplorer'
 import { GdExplorer } from './experiments/GdExplorer'
 import { LimitCycleBand } from './experiments/LimitCycleBand'
 import { SignLmsCompare } from './experiments/SignLmsCompare'
+import { plotlyMock } from '@/test/mocks/plotly'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
-vi.mock('mermaid', () => ({ default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: '<svg></svg>' })) } }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 /**
  * 逾時（ms）。整章渲染在空機上只要幾秒；但多個 agent／開發者同時跑測試時（18 核機器的 load average 曾超過 600）
@@ -55,16 +48,7 @@ const T_WAIT = 120_000 // waitFor：等 debounce 與（jsdom 下 inline 的）Wo
 vi.setConfig({ testTimeout: 120_000 }) // 沒有另外指定逾時的測試（Monte Carlo 對照等）
 
 function renderAt(node: ReactNode, path = '/ch/02', mode: 'beginner' | 'engineer' | 'research' = 'engineer') {
-  try {
-    localStorage.setItem('lmspll.mode', mode)
-  } catch {
-    /* ignore */
-  }
-  return render(
-    <MemoryRouter initialEntries={[path]} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <SettingsProvider>{node}</SettingsProvider>
-    </MemoryRouter>,
-  )
+  return renderPage(node, { mode, url: path, future: true })
 }
 
 /**
@@ -114,8 +98,7 @@ async function cyclePresets(node: ReactNode, expId: string, path = '/ch/02') {
     await act(async () => {
       await new Promise((r) => setTimeout(r, 320)) // 等 debounce 與 inline worker
     })
-    const bad = Array.from(exp.querySelectorAll('.katex-error, .c-tex-error')).map((e) => `${names[i]}: ${e.getAttribute('title') ?? e.textContent}`)
-    expect(bad).toEqual([])
+    expectNoTexErrors(exp, names[i])
     expect(bareMacros(exp).map((s) => `${names[i]}: ${s}`)).toEqual([])
     expect(unicodeMath(exp).map((s) => `${names[i]}: ${s}`)).toEqual([])
     seen.push({ name: names[i], warnings: exp.querySelectorAll('.c-exp-warnings .c-callout').length })
@@ -228,8 +211,7 @@ describe('Ch02 頁面（jsdom smoke）', () => {
     })
     expect(container.querySelectorAll('.c-quiz-answer').length).toBeGreaterThanOrEqual(6)
     expect(screen.getByText('這一課最重要的公式')).toBeTruthy()
-    const bad = Array.from(container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.getAttribute('title') ?? e.textContent)
-    expect(bad).toEqual([])
+    expectNoTexErrors(container)
     expect(bareMacros(container)).toEqual([])
     // 內文與字串屬性都沒有 Unicode 拼的公式（teaching-style §3）
     expect(unicodeMath(container)).toEqual([])
@@ -298,7 +280,7 @@ describe('Ch02 頁面（jsdom smoke）', () => {
   it('Research 模式顯示 1/n 速率推導（F-02.17）；Beginner 模式隱藏程式碼段落', () => {
     const r1 = renderAt(<Chapter02 />, '/ch/02', 'research')
     for (const fm of FORMULAS) expect(document.getElementById(`formula-${fm.id}`), fm.id).toBeTruthy()
-    expect(Array.from(r1.container.querySelectorAll('.katex-error, .c-tex-error'))).toEqual([])
+    expectNoTexErrors(r1.container)
     act(() => {
       for (const b of screen.getAllByText('看答案與解析')) fireEvent.click(b)
     })
@@ -309,7 +291,7 @@ describe('Ch02 頁面（jsdom smoke）', () => {
     r1.unmount()
     const r2 = renderAt(<Chapter02 />, '/ch/02', 'beginner')
     expect(document.getElementById('formula-F-02.17')).toBeNull()
-    expect(Array.from(r2.container.querySelectorAll('.katex-error, .c-tex-error'))).toEqual([])
+    expectNoTexErrors(r2.container)
     expect(unicodeMath(r2.container)).toEqual([])
     // Beginner：推導預設收合（<details> 沒有 open），但內容仍在 DOM 裡、一鍵可展開
     const folds = Array.from(r2.container.querySelectorAll('details.ch02-fold'))
@@ -320,9 +302,9 @@ describe('Ch02 頁面（jsdom smoke）', () => {
   }, T_PAGE)
 
   it('T01: GdExplorer 預設（½ 成本）顯示 w₁ = 1.8、w₂ = 2.28，analytic cross-check ok', async () => {
-    P.react.mockClear()
+    plotlyMock.react.mockClear()
     const { container } = renderAt(<GdExplorer />)
-    await waitFor(() => expect(P.react).toHaveBeenCalled(), { timeout: T_WAIT })
+    await waitFor(() => expect(plotlyMock.react).toHaveBeenCalled(), { timeout: T_WAIT })
     // 逐步數值表：第 n 列的 w_n（由同一個 gradientDescent() 計算）
     const rows = Array.from(container.querySelectorAll('[data-experiment="gd-tangent"] table.ch02-table tbody tr')).map((tr) =>
       Array.from(tr.querySelectorAll('td')).map((td) => td.textContent?.trim()),
@@ -335,9 +317,9 @@ describe('Ch02 頁面（jsdom smoke）', () => {
   }, T_EXP)
 
   it('LimitCycleBand 預設（a=3、x=1、μ=0.4、w₀=0）：週期 {2.8, 3.2}、analytic ok，沒有任何 metric 誤報（時間平均取偶數個樣本）', async () => {
-    P.react.mockClear()
+    plotlyMock.react.mockClear()
     const { container } = renderAt(<LimitCycleBand />)
-    await waitFor(() => expect(P.react).toHaveBeenCalled(), { timeout: T_WAIT })
+    await waitFor(() => expect(plotlyMock.react).toHaveBeenCalled(), { timeout: T_WAIT })
     const exp = container.querySelector('[data-experiment="sign-lms-band"]') as HTMLElement
     expect(exp.querySelector('.c-check-ok')).toBeTruthy()
     expect(exp.querySelector('.c-check-mismatch')).toBeNull()
@@ -818,7 +800,7 @@ describe('Ch02 公式登錄', () => {
     )
     expect(container.textContent).not.toContain('$')
     expect(container.querySelectorAll('.katex').length).toBeGreaterThan(40)
-    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(container)
     expect(unicodeMath(container)).toEqual([])
   })
 })
@@ -894,13 +876,7 @@ describe('Ch02 Batch-vs-SGD 的多 seed Monte Carlo 欄（有 seed 與隨機 min
 
   it('UI：交叉比對三欄 [Analytic ok, Monte Carlo ok, Fixed-Point n/a]，每一格都有說明文字；指標表多一列「多 seed」', async () => {
     localStorage.setItem('lmspll.mode', 'engineer')
-    const { container } = render(
-      <MemoryRouter>
-        <SettingsProvider>
-          <BatchVsSgd />
-        </SettingsProvider>
-      </MemoryRouter>,
-    )
+    const { container } = renderPage(<BatchVsSgd />)
     await waitFor(() => expect(container.querySelectorAll('.c-exp-crosscheck .c-check').length).toBe(3))
     const cells = Array.from(container.querySelectorAll<HTMLElement>('.c-exp-crosscheck .c-check'))
     expect(cells.map((c) => c.className.replace('c-check c-check-', ''))).toEqual(['ok', 'ok', 'n/a'])
@@ -908,6 +884,6 @@ describe('Ch02 Batch-vs-SGD 的多 seed Monte Carlo 欄（有 seed 與隨機 min
     expect(cells[1].getAttribute('title')).toContain('12 個 seeds')
     expect(cells[2].getAttribute('title')).toContain('L0')
     expect(container.textContent).toContain('多 seed')
-    expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
   }, T_PAGE)
 })

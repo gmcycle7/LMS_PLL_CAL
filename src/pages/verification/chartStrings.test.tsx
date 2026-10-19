@@ -1,6 +1,4 @@
-import { act, fireEvent, render, waitFor, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
+import { act, fireEvent, waitFor, within } from '@testing-library/react'
 import type { PlotProps } from '@/components'
 import { unicodeMathIn } from '@/components/mermaidTestUtils'
 import { plotMath } from '@/components/plotMath'
@@ -8,6 +6,8 @@ import { MC_PLAN } from '@/simulation/models/acceptance'
 import { AcceptanceProvider } from './common'
 import { McSweepLab } from './sections/McSweepLab'
 import { MonteCarloLabBody } from './sections/MonteCarloLabBody'
+import { expectNoTexErrors } from '@/test/katex'
+import { renderPage } from '@/test/renderPage'
 
 /**
  * Verification 頁的 Monte Carlo 實驗：圖內字串與控制項的數學一律是 LaTeX
@@ -97,17 +97,11 @@ function checkDom(container: HTMLElement) {
     // 單位、標籤裡的 TeX 不可寫成雙反斜線（JSX 屬性字串不處理跳脫：\\times 會變成換行指令加上文字「times」）
     for (const a of Array.from(el.querySelectorAll('annotation'))) expect(a.textContent ?? '', `TeX 原始碼不可含雙反斜線：${a.textContent}`).not.toContain('\\\\')
   }
-  expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+  expectNoTexErrors(container)
 }
 
 const mount = (ui: React.ReactElement) =>
-  render(
-    <SettingsProvider>
-      <MemoryRouter>
-        <AcceptanceProvider>{ui}</AcceptanceProvider>
-      </MemoryRouter>
-    </SettingsProvider>,
-  )
+  renderPage(<AcceptanceProvider>{ui}</AcceptanceProvider>)
 
 describe('Verification 的 Monte Carlo 實驗：圖內字串與控制項的數學都是 LaTeX', () => {
   beforeEach(() => {

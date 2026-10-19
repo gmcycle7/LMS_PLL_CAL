@@ -1,9 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { listRegions, renderTex } from '@/components'
-import { configure, render, screen, waitFor, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
+import { configure, screen, waitFor, within } from '@testing-library/react'
 import type { PresetEntry } from '@/data/types'
 import { berryEsseenBound, directionOutcomeExact, pPlus, runComparatorMC } from '@/simulation/models/comparator'
 import { allChartStrings, chartStringProblems } from './chartStrings.testutil'
@@ -15,6 +13,8 @@ import { HANDCALCS } from './handcalcs'
 import Chapter05 from './index'
 import { IntroSection } from './sections/Intro'
 import { CH05_SYMBOLS, ChapterSymbols } from './symbols'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
 // 多個 agent／開發者同時跑測試時 CPU 會嚴重超額（load average 曾達數百），jsdom 渲染與 Monte Carlo 比平常慢一到兩個數量級：
 // 放寬的只是「等待時間」（waitFor 與每個測試的上限），不是任何數值判準。
@@ -22,15 +22,7 @@ configure({ asyncUtilTimeout: 120_000 })
 vi.setConfig({ testTimeout: 600_000 })
 const SLOW = 600_000
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 // 圖內文字的數學一律寫 `$...$`（teaching-style §3）：<Plot> 先套用 applyPlotMath 再交給 Plotly，
 // 所以在轉換前記下作者寫的字串（chartStrings.testutil.ts），整章所有 Plotly 圖一次檢查
 const plotCalls = vi.hoisted(() => [] as { data: unknown; layout: unknown }[])
@@ -44,9 +36,7 @@ vi.mock('@/components/plotMath', async (importOriginal) => {
     },
   }
 })
-vi.mock('mermaid', () => ({
-  default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: '<svg></svg>' })), parse: vi.fn(async () => true) },
-}))
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 /** 以 textContent 找標題（標題內含 KaTeX 時，jsdom 計算 accessible name 會在 getComputedStyle 崩潰，所以不用 getByRole）。 */
 function heading(container: HTMLElement, re: RegExp): HTMLElement | undefined {
@@ -54,18 +44,7 @@ function heading(container: HTMLElement, re: RegExp): HTMLElement | undefined {
 }
 
 function renderChapter(url = '/ch/05', mode: 'beginner' | 'engineer' | 'research' = 'engineer') {
-  try {
-    localStorage.setItem('lmspll.mode', mode)
-  } catch {
-    /* ignore */
-  }
-  return render(
-    <SettingsProvider>
-      <MemoryRouter initialEntries={[url]}>
-        <Chapter05 />
-      </MemoryRouter>
-    </SettingsProvider>,
-  )
+  return renderPage(<Chapter05 />, { mode, url })
 }
 
 const presetDir = resolve(process.cwd(), 'src/data/presets')
@@ -155,7 +134,7 @@ describe('Ch05 頁面（jsdom smoke）', () => {
     expect(hc[hc.length - 2].compareDocumentPosition(heading(container, /^.*9\. 連結到 PLL/)!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     // 綜合題排在它代的那條公式（F-05.20，§9 的 block 迴路推導）之後
     expect(container.querySelector('[id="formula-F-05.20"]')!.compareDocumentPosition(hc[hc.length - 1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(container)
     // 程式碼區塊裡的 `${...}` 是原始碼本身；其餘文字不應留下未轉換的 $ 分隔符
     const prose = container.cloneNode(true) as HTMLElement
     prose.querySelectorAll('pre, code').forEach((e) => e.remove())
@@ -194,13 +173,12 @@ describe('Ch05 頁面（jsdom smoke）', () => {
     const original = proto.scrollIntoView
     proto.scrollIntoView = scrollSpy // jsdom 沒有 scrollIntoView
     try {
-      const { container } = render(
-        <SettingsProvider>
-          <MemoryRouter initialEntries={['/ch/05']}>
-            <IntroSection />
-            <ChapterSymbols />
-          </MemoryRouter>
-        </SettingsProvider>,
+      const { container } = renderPage(
+        <>
+          <IntroSection />
+          <ChapterSymbols />
+        </>,
+        { url: '/ch/05' },
       )
       // 開場有 4 張圖（系統地圖 + 路線圖 + L1 模型 + 先算一次的流程）：等它們（mock 的 mermaid）畫完再操作
       await waitFor(() => expect(container.querySelectorAll('.c-mermaid-svg svg').length).toBe(4))
@@ -229,13 +207,7 @@ describe('Ch05 頁面（jsdom smoke）', () => {
   })
 
   it('符號不在章首列表了：開場與 §0 就地用一句話說明每個符號（s、v、σ_v、e、θ、q、b、x、a、w、δ、S_N、N、n、k）', async () => {
-    const { container } = render(
-      <SettingsProvider>
-        <MemoryRouter initialEntries={['/ch/05']}>
-          <IntroSection />
-        </MemoryRouter>
-      </SettingsProvider>,
-    )
+    const { container } = renderPage(<IntroSection />, { url: '/ch/05' })
     await waitFor(() => expect(container.querySelectorAll('.c-mermaid-svg svg').length).toBe(4))
     const model = heading(container, /^0\. 模型/)!.closest('section') as HTMLElement
     const items = Array.from(model.querySelectorAll('li'))
@@ -291,8 +263,7 @@ describe('Ch05 頁面（jsdom smoke）', () => {
     expect(Array.from(r.container.querySelectorAll('.katex annotation')).some((a) => a.textContent === '42{,}500=42{,}499+1')).toBe(true)
     expect(r.container.textContent).toContain('golden/lms_pll_golden/comparator.py')
     // KaTeX 語法錯誤會產生 .katex-error（throwOnError: false），程式碼 region 錯誤會產生 role=alert 的「找不到」
-    const bad = Array.from(r.container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.getAttribute('title') ?? e.textContent)
-    expect(bad).toEqual([])
+    expectNoTexErrors(r.container)
     // 公式裡不可以出現程式語言的科學記號（6.65e-8 會被 KaTeX 排成變數 e）：一律寫成 a×10^b
     const sci = Array.from(r.container.querySelectorAll('.katex annotation'))
       .map((e) => e.textContent ?? '')
