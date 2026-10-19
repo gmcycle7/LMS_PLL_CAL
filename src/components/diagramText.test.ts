@@ -240,7 +240,7 @@ describe('parseDiagramText：stateDiagram、sequenceDiagram、其他', () => {
   })
 })
 
-/* ---------- 真實的圖：ch05（27 張）與 ch11b（6 張） ---------- */
+/* ---------- 真實的圖：ch05（28 張）與 ch11b（6 張） ---------- */
 
 const charts = (mod: Record<string, unknown>): Array<[string, string]> =>
   Object.entries(mod).filter((e): e is [string, string] => typeof e[1] === 'string' && /^(flowchart|graph)\b/.test(e[1]))
@@ -248,8 +248,8 @@ const charts = (mod: Record<string, unknown>): Array<[string, string]> =>
 describe('parseDiagramText：真實的圖當 fixture', () => {
   const fixtures: Array<[string, string]> = [...charts(ch05).map(([k, v]): [string, string] => [`ch05.${k}`, v]), ...charts(ch11b).map(([k, v]): [string, string] => [`ch11b.${k}`, v])]
 
-  it('抓得到 ch05 的 27 張、ch11b 的 6 張 flowchart', () => {
-    expect(fixtures.filter(([k]) => k.startsWith('ch05.'))).toHaveLength(27)
+  it('抓得到 ch05 的 28 張、ch11b 的 6 張 flowchart', () => {
+    expect(fixtures.filter(([k]) => k.startsWith('ch05.'))).toHaveLength(28)
     expect(fixtures.filter(([k]) => k.startsWith('ch11b.'))).toHaveLength(6)
   })
 

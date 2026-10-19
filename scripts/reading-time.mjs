@@ -52,7 +52,7 @@ async function withRetry(label, fn, tries = 4) {
   }
 }
 
-const browser = await puppeteer.launch({ executablePath: chrome, headless: true, args: ['--no-first-run', '--no-default-browser-check', '--hide-scrollbars'] })
+const browser = await puppeteer.launch({ executablePath: chrome, headless: true, args: ['--no-first-run', '--no-default-browser-check', '--hide-scrollbars', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] })
 const results = {}
 try {
   for (const route of routes) {

@@ -205,9 +205,9 @@ const RAW: Record<string, ChapterFrameMetaInput> = {
   },
   ch05: {
     reading: {
-      beginner: { han: 18197, formulas: 437, figures: 36, experiments: 2 },
-      engineer: { han: 20074, formulas: 466, figures: 39, experiments: 2 },
-      research: { han: 21755, formulas: 517, figures: 41, experiments: 2 },
+      beginner: { han: 21332, formulas: 519, figures: 39, experiments: 2 },
+      engineer: { han: 24131, formulas: 548, figures: 42, experiments: 2 },
+      research: { han: 26179, formulas: 599, figures: 44, experiments: 2 },
     },
     errata: ['E02', 'E18'],
     prereqs: [
@@ -251,9 +251,9 @@ const RAW: Record<string, ChapterFrameMetaInput> = {
   },
   'case-sspll': {
     reading: {
-      beginner: { han: 40268, formulas: 642, figures: 50, experiments: 3 },
-      engineer: { han: 41607, formulas: 642, figures: 50, experiments: 3 },
-      research: { han: 41705, formulas: 642, figures: 50, experiments: 3 },
+      beginner: { han: 47739, formulas: 718, figures: 54, experiments: 4 },
+      engineer: { han: 49438, formulas: 718, figures: 54, experiments: 4 },
+      research: { han: 49835, formulas: 718, figures: 54, experiments: 4 },
     },
     errata: [],
     prereqs: [
@@ -372,9 +372,9 @@ const RAW: Record<string, ChapterFrameMetaInput> = {
   },
   ch14: {
     reading: {
-      beginner: { han: 21402, formulas: 437, figures: 39, experiments: 3 },
-      engineer: { han: 22702, formulas: 438, figures: 39, experiments: 3 },
-      research: { han: 23338, formulas: 441, figures: 39, experiments: 3 },
+      beginner: { han: 26007, formulas: 474, figures: 42, experiments: 3 },
+      engineer: { han: 31811, formulas: 550, figures: 43, experiments: 3 },
+      research: { han: 32995, formulas: 553, figures: 43, experiments: 3 },
     },
     errata: ['E15', 'E16', 'E47', 'E48', 'E49'],
     prereqs: [

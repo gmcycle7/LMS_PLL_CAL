@@ -52,7 +52,7 @@ const browser = await puppeteer.launch({
   executablePath: chrome,
   headless: true,
   userDataDir: profileDir,
-  args: ['--no-first-run', '--no-default-browser-check'],
+  args: ['--no-first-run', '--no-default-browser-check', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'],
 })
 const all = []
 try {

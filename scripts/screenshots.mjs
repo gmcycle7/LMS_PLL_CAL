@@ -81,7 +81,7 @@ const browser = await puppeteer.launch({
   executablePath: chrome,
   headless: true,
   userDataDir: profileDir,
-  args: ['--no-first-run', '--no-default-browser-check', '--hide-scrollbars'],
+  args: ['--no-first-run', '--no-default-browser-check', '--hide-scrollbars', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'],
 })
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const slug = (r) => (r === '/' ? 'home' : r.replace(/^\//, '').replace(/\//g, '-'))

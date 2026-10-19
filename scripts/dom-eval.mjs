@@ -4,7 +4,7 @@
 //   （參數會被包成 async function 的本體，所以要寫 return；只寫一個運算式會印出 undefined）
 import puppeteer from 'puppeteer-core'
 const [url, expr, vp] = process.argv.slice(2)
-const browser = await puppeteer.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true, args: ['--no-first-run', '--hide-scrollbars'] })
+const browser = await puppeteer.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true, args: ['--no-first-run', '--hide-scrollbars', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] })
 try {
   const page = await browser.newPage()
   await page.setViewport(vp === 'mobile' ? { width: 375, height: 812, deviceScaleFactor: 2, isMobile: true, hasTouch: true } : { width: 1280, height: 900 })
