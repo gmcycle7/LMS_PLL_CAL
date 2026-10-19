@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, ModeGate, ModelLevel, Prereq, Section, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, ModeGate, ModelLevel, Prereq, Section, Tex, TexBlock, ErratumLink } from '@/components'
 import { erf } from '@/simulation/core'
 import { tQuantile95 } from '@/simulation/models/unifiedLab'
-import { ChLink, ErratumNote, md, sig, Steps, texNum } from '../common'
+import { ChLink, md, sig, Steps, texNum } from '../common'
 import { anchorNumbers, blockFixedPointExample, seNumbers } from '../numbers'
 
 const T = String.raw
@@ -19,7 +19,7 @@ export function S3Analysis() {
   const fp = useMemo(() => blockFixedPointExample(), [])
   const tTable = useMemo(() => [4, 8, 16, 32, 64].map((R) => ({ R, t: tQuantile95(R), half: tQuantile95(R) / Math.sqrt(R) })), [])
   return (
-    <section aria-labelledby="lab-s5">
+    <section aria-labelledby="lab-s5" id="lab-sec-5">
       <h2 id="lab-s5">5｜怎麼判斷「模擬與理論一致」：Lab 的檢查工具</h2>
       <p>
         整合模擬最危險的不是算錯，而是<strong>算錯了卻顯示成功</strong>。所以 Lab 的每個「一致 / 不一致」都有明確的判據與容差。這一節把它們推導出來；看完你就知道每個綠色標籤到底保證了什麼。
@@ -249,7 +249,7 @@ export function S3Analysis() {
           {T`\lambda_{\min}=\min_{k}\ \frac1N\sum_{n\in\text{block }k}u_x^2[n]\;>\;0`}
         </TexBlock>
         <p className="small">
-          這是規格 §9.1 有限窗口定義的單參數版本，視窗取 GMAC 實際的 block 邊界（<ErratumNote id="E35" />）。近整數時，鋸齒的斜坡段變化太慢，被 <Tex>{'H_{\\mathrm{PD}}'}</Tex> 濾得一乾二淨，只有每{' '}
+          這是規格 §9.1 有限窗口定義的單參數版本，視窗取 GMAC 實際的 block 邊界（<ErratumLink id="E35" />）。近整數時，鋸齒的斜坡段變化太慢，被 <Tex>{'H_{\\mathrm{PD}}'}</Tex> 濾得一乾二淨，只有每{' '}
           <Tex>{'1/\\alpha'}</Tex> 個 sample 一次的 reset 瞬間有訊號；如果一個 block（<Tex>N</Tex> 個 sample）比 <Tex>{'1/\\alpha'}</Tex> 短，就會出現「整個 block 沒有 reset」的情況，<Tex>{'\\lambda_{\\min}\\to0'}</Tex>。
         </p>
         <ol start={3}>
@@ -386,7 +386,7 @@ export function S3Analysis() {
             <tbody>
               <tr>
                 <th scope="row">
-                  offset 基底 + Type-I / II PLL（<ErratumNote id="E04" />）
+                  offset 基底 + Type-I / II PLL（<ErratumLink id="E04" />）
                 </th>
                 <td>{md('常數 1 經過 $H_{\\mathrm{PD}}$（$H_{\\mathrm{PD}}(1)=0$）在穩態變成 0：$\\phi_{u,\\mathrm{offset}}\\to0$，$J$ 的那一欄全是 0')}</td>
                 <td>沒用：結構性的不可辨識。要換觀測路徑，或不要在這條路徑更新 offset</td>

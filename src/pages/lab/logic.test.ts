@@ -11,7 +11,10 @@ import {
   LAB_RANGES,
   analyzeLab,
   combineMc,
+  combineMcMimo,
   delayLoopRadius,
+  mcMimoChecks,
+  pmuxClosedFormEigen,
   meanDeltaTrajectory,
   labParamErrors,
   mcChecks,
@@ -39,6 +42,8 @@ import {
   mcCrossCheck,
   mcFixedPointCheck,
   mcMetrics,
+  mcMimoMetrics,
+  pmuxMetricRows,
   pipelineCrossCheck,
   pipelineExport,
   pipelineMetrics,
@@ -60,7 +65,7 @@ import {
   trainingErrors,
 } from './logic'
 import { FORMULAS } from './formulas'
-import { anchorNumbers, blockFixedPointExample, delayTable, dsmHandExample, FX_DELAY_EXAMPLE, pllNumbers, seNumbers, spurNumbers } from './numbers'
+import { anchorNumbers, blockFixedPointExample, cppll3Numbers, delayTable, dsmHandExample, FX_DELAY_EXAMPLE, pllNumbers, pmuxNumbers, seNumbers, spurNumbers } from './numbers'
 import { labelOf, LAB_UNITS, PANEL_GROUPS, PARAM_META } from './paramMeta'
 
 interface GoldenVector {
@@ -724,5 +729,120 @@ describe('技術審查的回歸測試（R02、R03、R06b）：/lab 的文字與�
     expect(s3).not.toContain(String.raw`u_{\mathrm{pd}}[n]=\sum_j\delta\theta_j\,\phi_{u,j}[n]`)
     expect(s3).toContain('記憶長度內近似常數，才能提到濾波器外面')
     expect(FORMULAS.find((f) => f.id === 'F-LAB.15')?.conditions).toContain('記憶長度內近似不變')
+  })
+})
+
+describe('wave 5：使用者的架構（regressor 正負號、8 相 PMUX + GOS、三階 CPPLL）的整理函式', () => {
+  const PM: LabParams = { ...SMALL, architecture: 'pmux8_gos', regressorSign: 'spec', codeSource: 'dsm_first_order', frac: 0.137, phosRmsFs: 60, muPhosFs: 10, pll: 'type2', pllBwHz: 20e6, blocks: 300 }
+
+  it('sanitizeLabParams 認得新的三個列舉與 cppll3；不合法的值保留預設並說明', () => {
+    const r = sanitizeLabParams({ regressorSign: 'spec', architecture: 'pmux8_gos', pmuxOrder: 'random', pll: 'cppll3', pllPmDeg: 55, pllP3Ratio: 6, phosRmsFs: 120, muPhosFs: 20 })
+    expect(r.issues).toEqual([])
+    expect(r.params).toMatchObject({ regressorSign: 'spec', architecture: 'pmux8_gos', pmuxOrder: 'random', pll: 'cppll3', pllPmDeg: 55, pllP3Ratio: 6, phosRmsFs: 120, muPhosFs: 20 })
+    const bad = sanitizeLabParams({ regressorSign: 'mirror', architecture: 'pmux4', pmuxOrder: 'gray' })
+    expect(bad.issues).toHaveLength(3)
+    expect(bad.params.regressorSign).toBe('legacy')
+    expect(bad.params.architecture).toBe('gos_only')
+    expect(bad.params.pmuxOrder).toBe('fcw')
+    // 預設值維持既有行為
+    expect(DEFAULT_LAB_PARAMS.regressorSign).toBe('legacy')
+    expect(DEFAULT_LAB_PARAMS.architecture).toBe('gos_only')
+  })
+
+  it('labParamErrors：8 相 PMUX 不能配 iid ±1；CPPLL 的 PM + arctan(1/r_p) ≥ 90°——訊息說明原因、TeX 可解析', () => {
+    const e1 = labParamErrors({ ...PM, codeSource: 'iid_pm_one' })
+    expect(e1.some((e) => e.includes('8 相 PMUX'))).toBe(true)
+    const e2 = labParamErrors({ ...DEFAULT_LAB_PARAMS, pll: 'cppll3', pllPmDeg: 85, pllP3Ratio: 2 })
+    expect(e2.some((e) => e.includes('零點'))).toBe(true)
+    for (const e of [...e1, ...e2]) expectTexOk(e)
+  })
+
+  it('Pipeline（8 相 PMUX）：9 權重的指標列、交叉比對併進三欄、CSV 多 9 個權重與 PMUX 相位、報告多 pmux8 區塊；TeX 都可解析', () => {
+    const r = runPipeline(PM)
+    const m = r.mimo!
+    const rows = pmuxMetricRows(m)
+    expect(rows).toHaveLength(4)
+    for (const row of rows) {
+      expectTexOk(row.name)
+      if (row.note) expectTexOk(row.note)
+      expect(row.formulaId).toBe('F-LAB.20')
+    }
+    expect(pipelineMetrics(r).some((x) => x.name.startsWith('PHOS 殘差 RMS'))).toBe(true)
+    const cc = pipelineCrossCheck(r)
+    const note = (v: unknown) => (typeof v === 'string' ? '' : ((v as { note?: string }).note ?? ''))
+    expect(note(cc.analytic)).toMatch(/項通過/)
+    expect(note(cc.monteCarlo)).toContain('9 個權重')
+    for (const k of ['meanW', 'sigma', 'stability'] as const) expectTexOk(m.checks[k].note)
+    const csv = pipelineExport(r)
+    for (let j = 0; j < 8; j++) {
+      expect(csv[`w_phos${j}_fs`]).toBeDefined()
+      expect(csv[`w_phos${j}_fs`].length).toBe(csv.block_k.length)
+    }
+    expect(csv.w_gos_fs.length).toBe(csv.block_k.length)
+    expect(csv.pmux_phase.length).toBe(csv.sample_n.length)
+    const rep = JSON.parse(JSON.stringify(buildLabReport(r, { appVersion: 'x', gitCommit: 'y', generatedAt: 'z' }))) as Record<string, unknown>
+    expect(rep.engine).toBe('labLoop')
+    expect(rep.architecture).toBe('pmux8_gos')
+    expect(rep.regressor_sign).toBe('spec')
+    const px = rep.pmux8 as { weights: unknown[]; observable: { null_dim: number }; occupancy: number[] }
+    expect(px.weights).toHaveLength(9)
+    expect(px.observable.null_dim).toBe(1)
+    expect(px.occupancy).toHaveLength(8)
+    // legacy、單一 gain 的報告沒有 pmux8
+    const legacy = JSON.parse(JSON.stringify(buildLabReport(runPipeline(SMALL), { appVersion: 'x', gitCommit: 'y', generatedAt: 'z' }))) as Record<string, unknown>
+    expect(legacy.pmux8).toBeNull()
+    expect(legacy.engine).toBe('blockLms')
+  }, 60_000)
+
+  it('主迴路的反號帶是 PLL 卡片上的資訊性註記（不是紅色警告）；9 權重的極性錯誤才是警告', () => {
+    const r = runPipeline({ ...SMALL, pll: 'type2' })
+    const inv = collectWarnings(r).find((w) => w.text.includes('這個迴路有反號帶'))
+    expect(inv).toBeDefined()
+    expect(isInformational(inv!.text)).toBe(true)
+    expect(inv!.stage).toContain('PLL')
+    expect(isInformational('多權重 Jacobian 在可觀測子空間上有實部 $\\le0$ 的特徵值')).toBe(false)
+  }, 60_000)
+
+  it('FCW sweep（8 相 PMUX）：摘要的 9 權重欄位、CSV 多出的欄位長度一致', () => {
+    const pts = sweepFcwChunk({ base: { ...PM, pll: 'none', blocks: 100 }, fracs: [0.137, 0.25], opts: { ...DEFAULT_SWEEP_OPTIONS, slopeMc: false }, offset: 0 }).points
+    const sum = summarizeSweep(pts, DEFAULT_SWEEP_OPTIONS.loopBlocks)
+    expect(Number.isFinite(sum.maxCond)).toBe(true)
+    expect(sum.mimoUnobservable.map((p) => p.frac)).toEqual([0.25])
+    const csv = sweepExport(pts)
+    for (const k of ['pmux_cond', 'pmux_null_dim', 'pmux_min_re_eig', 'pmux_rho', 'pmux_rot_hz', 'pmux_rot_in_inversion_band', 'pmux_pe_lambda_min', 'loop_phos_rms_fs']) expect(csv[k], k).toHaveLength(2)
+    for (const w of sweepWarnings(sum, DEFAULT_SWEEP_OPTIONS)) expectTexOk(w)
+    // legacy 的 sweep 沒有這些欄位
+    const legacyPts = sweepFcwChunk({ base: { ...SMALL, codeSource: 'dsm_first_order' }, fracs: [0.137], opts: { ...DEFAULT_SWEEP_OPTIONS, slopeMc: false }, offset: 0 }).points
+    expect(sweepExport(legacyPts).pmux_cond).toBeUndefined()
+    expect(Number.isNaN(summarizeSweep(legacyPts, 600).maxCond)).toBe(true)
+  }, 60_000)
+
+  it('Monte Carlo（8 相 PMUX）：mcMimoMetrics 每個權重一列加 PHOS 殘差一列，TeX 可解析', () => {
+    const c = runMcChunk({ base: PM, seeds: mcSeeds(PM.seed, 0, 3), meanField: true })
+    const s = combineMcMimo([c])!
+    const ck = mcMimoChecks(s, PM)
+    const rows = mcMimoMetrics(s, ck)
+    expect(rows).toHaveLength(10)
+    for (const row of rows) {
+      expectTexOk(row.name)
+      if (row.note) expectTexOk(row.note)
+    }
+    expectTexOk(ck.meanW.note)
+    expectTexOk(ck.phos.note)
+  }, 60_000)
+
+  it('numbers.ts 的 §5b 例子：pmuxNumbers 就是 pmuxClosedFormEigen（E[x] = 1/2、E[x²] = 1/3）；cppll3Numbers 的 f_inv 與數值的 inversionBands 一致、−3 dB 等於 320 MHz', () => {
+    const pm = pmuxNumbers()
+    const cf = pmuxClosedFormEigen(0.5, 1 / 3)
+    expect(pm.cond).toBe(cf.cond)
+    expect(pm.lambdaPlus).toBe(cf.lambdaPlus)
+    expect(pm.muMax).toBeCloseTo(2 / (pm.Kq * cf.lambdaMax), 12)
+    expect(pm.gSlow).toBeCloseTo(pm.mu * pm.Kq * cf.lambdaMin, 15)
+    const cp = cppll3Numbers()
+    expect(Math.abs(cp.design.f3dbTHz / 320e6 - 1)).toBeLessThan(2e-3)
+    expect(cp.bands).toHaveLength(1)
+    expect(Math.abs(cp.fInvHz / cp.bands[0].fHiHz - 1)).toBeLessThan(1e-4)
+    expect(cp.test.total).toBeCloseTo(cp.test.term1 + cp.test.term2, 12)
+    expect(cp.test.total > 1).toBe(cp.fTestHz < cp.fInvHz)
   })
 })

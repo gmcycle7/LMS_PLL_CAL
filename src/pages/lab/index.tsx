@@ -1,11 +1,12 @@
 import { useRef, type KeyboardEvent } from 'react'
-import { AnchorLink, Callout, ClaimTag, ModelLevel, SourceTag, TestBadge, Tex } from '@/components'
-import { Diagram, ErratumNote } from './common'
+import { AnchorLink, Callout, ClaimTag, ModelLevel, SourceTag, TestBadge, Tex, ErratumLink } from '@/components'
+import { Diagram } from './common'
 import { CHART_TAB_MAP } from './diagrams'
 import { TAB_LABEL, TAB_ORDER, type TabId } from './logic'
 import { S1Intro } from './sections/S1Intro'
 import { S2Chain } from './sections/S2Chain'
 import { S3Analysis } from './sections/S3Analysis'
+import { S3bUserArch } from './sections/S3bUserArch'
 import { S4Code } from './sections/S4Code'
 import { S5Wrap } from './sections/S5Wrap'
 import { PAGE_TOP_ANCHOR, SymbolsJump, SymbolsSection } from './sections/S6Symbols'
@@ -114,6 +115,11 @@ function LabTabs() {
           <li>
             <strong>反面測試</strong>：GMAC 模式改成 sum（不改 <Tex>{'\\mu'}</Tex>）、<Tex>{'\\mu'}</Tex> 改成負的、編碼改成「0/1 未映射」——每一種都會有說明原因的警告，而不是只顯示「無法計算」。
           </li>
+          <li>
+            <strong>使用者的架構</strong>（§5b）：載入 preset「使用者的架構：8 相 PMUX + GOS」（4 GHz、320 MHz、MASH、9 個權重）。Pipeline 多一張 9 個權重的圖與每個權重的表（PHOS 去共模殘差、條件數、9 權重的{' '}
+            <Tex>{'\\rho'}</Tex>）；FCW sweep 每點重算 PMUX 序列，把 <Tex>{'\\alpha f_{\\mathrm{ref}}'}</Tex> 落在反號帶的點標出來；Monte Carlo 用 Bonferroni CI 同時檢查 9 個權重。參數面板第 ② 組可以把 regressor 正負號切成 spec（§2a 的{' '}
+            <Tex>{'x\\ge0'}</Tex>），第 ④ 組可以選三階 CPPLL。
+          </li>
         </ol>
       </div>
       <TabBar />
@@ -133,10 +139,11 @@ function LabTabs() {
  *
  * 章節：1 開場 → 2 九級訊號鏈（方塊圖、每級的式子 / 模型層級 / 對應章節）→ 3 數字先行的手算例（DSM residue、T13 錨點）→
  *       4 九級的逐步推導（F-LAB.1–12）→ 5 判讀工具（跨級一致性、AR(1) 標準誤差、mean-field 平均軌跡、PE、斜率量測、信賴區間、Jacobian；F-LAB.13–18）→
+ *       5b 使用者的架構（regressor 正負號、8 相 PMUX + GOS 的 9 個權重、三階 CPPLL 的反號帶；F-LAB.19–21、HC-LAB.1–2）→
  *       6 核心程式碼（?raw + #region）與比較表 → 7 Lab（五個分頁）→ 8 思考題 → 9 必記與可宣稱的語句 → 頁末：本頁符號表（id="symbols"；頁首只留一行連結，docs/teaching-style.md §5）。
- * 方塊圖（diagrams.ts，共 5 張）：§2 九級訊號鏈、§4.4 兩條路、§4.7 更新迴路、§4.9 輸出端的兩個成分、§7 五個分頁。
+ * 方塊圖（diagrams.ts，共 6 張）：§2 九級訊號鏈、§4.4 兩條路、§4.7 更新迴路、§4.9 輸出端的兩個成分、§5b 8 相 PMUX 的 9 個權重、§7 五個分頁。
  * 實驗（ExperimentShell id）：unified-lab、unified-lab-fcw、unified-lab-mc、training-sequence-lab、unified-lab-compare。
- * 模擬核心：src/simulation/models/unifiedLab.ts（迴路本身由 blockLms.ts 的 runBlockLms 執行）。
+ * 模擬核心：src/simulation/models/unifiedLab.ts（legacy 正負號、單一 gain 的迴路由 blockLms.ts 的 runBlockLms 執行；spec 正負號／8 相 PMUX 由同檔的 runLabLoop 執行）。
  * 勘誤：E01（小訊號）、E03 / E04（DC null、offset 不可辨識）、E06 / E26 / E27（頻寬）、E07（tie）、E09 / E28 / E29（PSD 速率與正規化）、
  *       E13（單位）、E30（T13 前提）、E32 / E33（極性）、E34 / E35（符號與索引）、E44（CT/DT）、E45（filtered-x）；頁內以「勘誤 Exx」連到 #/verification。
  * 文字規範：數學一律 KaTeX；JSX 屬性字串內的 TeX 用單一反斜線、JS 字串用雙反斜線（index.test.tsx 會檢查）。
@@ -162,13 +169,14 @@ export default function LabPage() {
         <Callout kind="info" title="這一頁怎麼讀">
           <p>
             想直接動手：<AnchorLink id="lab-experiments">跳到第 7 節的 Lab</AnchorLink>。想先知道每個數字怎麼來：照順序讀第 1–6 節（每個推導一步一行，只需要微積分）。本站與規格書不同之處以「
-            <ErratumNote id="E13" />」這樣的小註標示，點了會到驗證頁。
+            <ErratumLink id="E13" />」這樣的小註標示，點了會到驗證頁。
           </p>
         </Callout>
         <SymbolsJump />
         <S1Intro />
         <S2Chain />
         <S3Analysis />
+        <S3bUserArch />
         <S4Code />
         <LabTabs />
         <S5Wrap />

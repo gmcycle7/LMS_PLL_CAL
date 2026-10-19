@@ -1,12 +1,12 @@
 import { useMemo } from 'react'
 import { Callout, ExperimentShell, ModeGate, ParamControl, Plot, Tex, type MetricRow } from '@/components'
-import { combineMc, DEFAULT_LAB_PARAMS, labParamErrors, mcChecks, tQuantile95 } from '@/simulation/models/unifiedLab'
+import { combineMc, combineMcMimo, DEFAULT_LAB_PARAMS, labParamErrors, mcChecks, mcMimoChecks, tQuantile95 } from '@/simulation/models/unifiedLab'
 import { md, Progress, sig, StatusPill, texNum } from '../common'
-import { EXP, mcCrossCheck, mcFixedPointCheck, mcMetrics, MC_RUN_RANGE } from '../logic'
+import { EXP, isInformational, mcCrossCheck, mcFixedPointCheck, mcMetrics, mcMimoMetrics, MC_RUN_RANGE } from '../logic'
 import { ParamPanel } from '../ParamPanel'
 import { LAB_UNITS } from '../paramMeta'
 import { useLab } from '../store'
-import { figMcEnsemble, figMcHist } from './plots'
+import { figMcEnsemble, figMcHist, figMcMimo } from './plots'
 import { PresetNote, tw, usePalette, useShellPresets } from './shared'
 
 const ASSUMPTIONS = [
@@ -16,7 +16,8 @@ const ASSUMPTIONS = [
   '$\\sigma_w$：先算每個 run 後半段的樣本變異數 $s_r^2$，跨 runs 平均後開根號（pooled）；CI 來自 $s_r^2$ 的 $t$ 區間',
   '發散比例用 Wilson 區間（比例接近 0 或 1 時仍有意義）',
   '解析預測是 mean-field 平均軌跡（F-LAB.18：把 comparator 的 $\\pm1$ 換成對雜訊的期望值 $\\operatorname{erf}$，其餘逐 block 照算）在「同一段時間」的值，含未衰減完的 transient 與隨 code 擺動的固定點；不是直接拿 $w^*$ 比',
-  '開啟定點暫存器時，每一段 seeds 再用 quantize = false 跑一次浮點對照（其餘參數、comparator 雜訊、code 與 dither 都相同）：Fixed-Point 欄比的是每個 seed「定點內部暫存器 $w$ − 浮點 $w$」後半段平均的成對差，跨 seeds 取 Student-$t$ 95% CI，判定 $|\\bar d|\\le1\\,\\mathrm{LSB}+4\\,\\mathrm{SE}$（和 Pipeline 分頁的 floatTwin 同一個判準）；執行時間因此加倍',
+  '開啟定點暫存器時，同一次 worker 呼叫裡每一段 seeds 再用 quantize = false 跑一次浮點對照（其餘參數、comparator 雜訊、code 與 dither 都相同；只重跑迴路）：Fixed-Point 欄比的是每個 seed「定點內部暫存器 $w$ − 浮點 $w$」後半段平均的成對差，跨 seeds 取 Student-$t$ 95% CI，判定 $|\\bar d|\\le1\\,\\mathrm{LSB}+4\\,\\mathrm{SE}$（和 Pipeline 分頁的 floatTwin 同一個判準）；執行時間約加倍',
+  '8 相 PMUX（pmux8_gos）：每個 seed 一次 runLabLoop（9 個權重）；每個權重跨 seeds 的 mean $w$ 用 Bonferroni（$1-0.05/9$）CI 和 mean-field 同段預測比；PHOS 殘差 RMS（去共模）的 CI 和 mean-field 的值比（F-LAB.20）',
 ]
 
 /** 實驗 'unified-lab-mc'：多 seeds 的 Monte Carlo（runMcChunk，Web Worker 分段、有進度、可取消）與信賴區間。 */
@@ -40,6 +41,8 @@ export function MonteCarloTab() {
   // mean-field 平均軌跡由第一段（seed 0）順便算出；沒有時 mcChecks 退回線性時不變模型
   const meanField = useMemo(() => state.chunks.find((c) => c.meanField)?.meanField ?? null, [state.chunks])
   const checks = useMemo(() => (summary && an && base ? mcChecks(summary, an, base, meanField) : null), [summary, an, base, meanField])
+  const mimo = useMemo(() => (state.chunks.length > 0 ? combineMcMimo(state.chunks) : null), [state.chunks])
+  const mimoChecks = useMemo(() => (mimo && base ? mcMimoChecks(mimo, base) : null), [mimo, base])
   const qz = base ? base.quantize : params.quantize
   // 定點：同 seed 浮點對照的成對比較（store 在每一段後面跑 quantize = false）
   const fpCheck = useMemo(() => (base && base.quantize && state.chunks.length > 0 ? mcFixedPointCheck(state.chunks, state.twinChunks, base.lsbFs) : null), [base, state.chunks, state.twinChunks])
@@ -48,28 +51,34 @@ export function MonteCarloTab() {
     const w = errors.map((e) => `參數不合法：${e}`)
     if (error) w.push(`Monte Carlo 失敗：${tw(error)}`)
     if (!stale && state.chunks.length > 0) {
-      for (const x of state.chunks[0].warnings) w.push(tw(x))
+      for (const x of state.chunks[0].warnings) if (!isInformational(x)) w.push(tw(x)) // 反號帶等資訊性註記留在 Pipeline 的 PLL 卡片
       if (summary && summary.diverged > 0) w.push(`${summary.diverged} / ${summary.runs} 個 runs 數值發散（$|w|>10^{12}\\,\\mathrm{fs}$）：發散的 run 不計入平均與 $\\sigma_w$，只計入發散比例。`)
       if (checks) {
         if (checks.meanW.status === 'mismatch') w.push(`mean $w$ 的信賴區間不含解析預測：${checks.meanW.note}。可能原因：$w$ 的抖動大到 $E[\\operatorname{erf}(\\cdot)]\\ne\\operatorname{erf}(E[\\cdot])$（mean-field 只代入平均值）、定點量化的 dead zone，或名目 95% 的區間本來就有 5% 的機率不含真值（換一個 seed 再看）。`)
         if (checks.sigmaW.status === 'mismatch') w.push(`$\\sigma_w$ 與預測不一致：${checks.sigmaW.note}。可能原因：GMAC 雜訊不是 iid（code 週期與 $N$ 的拍頻）、量化主導，或 transient 還沒結束。`)
       }
       if (fpCheck && fpCheck.status === 'mismatch') w.push(`定點 vs 浮點不一致：${fpCheck.note}`)
+      if (mimoChecks) {
+        if (mimoChecks.meanW.status === 'mismatch') w.push(`9 權重的 mean $w$ 不一致：${mimoChecks.meanW.note}`)
+        if (mimoChecks.phos.status === 'mismatch') w.push(`PHOS 殘差與 mean-field 不一致：${mimoChecks.phos.note}`)
+      }
     }
     return w
-  }, [errors, error, stale, state.chunks, summary, checks, fpCheck])
+  }, [errors, error, stale, state.chunks, summary, checks, fpCheck, mimoChecks])
 
   const metrics = useMemo<MetricRow[]>(() => {
     const rows = summary && checks && base && an ? mcMetrics(summary, checks.lin, base.aFs, an.sigmaWPred) : []
     if (fpCheck && fpCheck.value !== undefined && fpCheck.tolerance !== undefined) {
       rows.push({ name: '定點 − 浮點：mean $w$ 的成對差（跨 seeds 平均）', value: fpCheck.value, unit: 'fs', analytic: 0, tolerance: fpCheck.tolerance, claim: 'approx', note: '同 seed 的浮點對照；容差 $1\\,\\mathrm{LSB}+4\\,\\mathrm{SE}$' })
     }
+    if (mimo && mimoChecks) rows.push(...mcMimoMetrics(mimo, mimoChecks))
     return rows
-  }, [summary, checks, base, an, fpCheck])
+  }, [summary, checks, base, an, fpCheck, mimo, mimoChecks])
   const crossCheck = useMemo(() => mcCrossCheck(stale ? null : checks, qz, stale ? null : fpCheck), [checks, stale, qz, fpCheck])
 
   const fEns = useMemo(() => (summary && checks && base && summary.valid >= 2 ? figMcEnsemble(summary, checks.lin, base.aFs, pal) : null), [summary, checks, base, pal])
   const fHist = useMemo(() => (summary && checks && summary.perRunMeanW.length >= 4 ? figMcHist(summary, pal, checks.lin.valid ? Math.sqrt(checks.lin.halfRms ** 2 + checks.lin.halfTrajVar) : NaN) : null), [summary, checks, pal])
+  const fMimo = useMemo(() => (mimo && mimo.valid >= 2 ? figMcMimo(mimo, pal) : null), [mimo, pal])
 
   return (
     <ExperimentShell
@@ -144,8 +153,9 @@ export function MonteCarloTab() {
         <Progress done={state.done} total={state.total} label={running ? 'Monte Carlo 進行中' : state.done < state.total ? 'Monte Carlo 已停止' : 'Monte Carlo 完成'} />
       ) : (
         <p className="small muted">
-          尚未執行：按「執行 Run」。每個 run 的成本與 Pipeline 的迴路部分相同（預設約 0.4 秒），所以 {runs} 個 runs 約 {sig(runs * (params.quantize ? 0.9 : 0.45), 2)} 秒
-          {params.quantize ? '（開了定點暫存器：每個 seed 再跑一次浮點對照，時間加倍）' : ''}；可隨時停止，已完成的 runs 會保留。
+          尚未執行：按「執行 Run」。每個 run 的成本與 Pipeline 的迴路部分相同（實測：單一 gain 每個 sample 約 55 ns、8 相 PMUX 的 9 個權重約 300 ns；預設約 0.45 秒），所以 {runs} 個 runs 約{' '}
+          {sig(runs * params.N * params.blocks * (params.architecture === 'pmux8_gos' ? 3e-7 : 5.5e-8) * (params.quantize ? 1.9 : 1), 2)} 秒
+          {params.quantize ? '（開了定點暫存器：每個 seed 再用同一份 prepare 只重跑一次浮點迴路當對照）' : ''}；可隨時停止，已完成的 runs 會保留。
         </p>
       )}
       {stale && (
@@ -166,6 +176,16 @@ export function MonteCarloTab() {
             />
           )}
           {fHist && <Plot title="每個 seed 的後半段統計：mean $w$（左）與 $\sigma_w$（右）" csvName="mc-hist" data={fHist.data} layout={fHist.layout} height={260} caption="左圖的寬度就是「只跑一個 seed」時 mean $w$ 的不確定度：$\tau$ 越長、後半段越短，它越寬。" />}
+          {fMimo && mimo && (
+            <Plot
+              title="8 相 PMUX + GOS：9 個權重跨 seeds 的平均軌跡 vs mean-field"
+              csvName="mc-weights9"
+              data={fMimo.data}
+              layout={fMimo.layout}
+              height={360}
+              caption={`每條實線是該權重跨 ${mimo.valid} 個 seeds 的平均；虛線是 mean-field 平均軌跡（PHOS 的預設收在圖例裡）；點線是目標。PHOS 殘差 RMS（去共模）跨 seeds 平均 $${texNum(mimo.phosRms.mean, 4)}\\,\\mathrm{fs}$。`}
+            />
+          )}
           <div className="table-wrap">
             <table className="lab-table">
               <thead>
@@ -205,6 +225,24 @@ export function MonteCarloTab() {
                     </td>
                     <td className="small">{md(fpCheck.note)}</td>
                   </tr>
+                )}
+                {mimoChecks && (
+                  <>
+                    <tr data-check="pmux-meanW" data-status={mimoChecks.meanW.status}>
+                      <th scope="row">9 權重的 mean {md('$w$')}</th>
+                      <td>
+                        <StatusPill status={mimoChecks.meanW.status} />
+                      </td>
+                      <td className="small">{md(mimoChecks.meanW.note)}</td>
+                    </tr>
+                    <tr data-check="pmux-phos" data-status={mimoChecks.phos.status}>
+                      <th scope="row">PHOS 殘差 RMS</th>
+                      <td>
+                        <StatusPill status={mimoChecks.phos.status} />
+                      </td>
+                      <td className="small">{md(mimoChecks.phos.note)}</td>
+                    </tr>
+                  </>
                 )}
               </tbody>
             </table>

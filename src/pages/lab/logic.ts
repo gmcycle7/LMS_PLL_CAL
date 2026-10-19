@@ -22,7 +22,9 @@ import {
   type FcwSweepOptions,
   type LabParams,
   type McChunk,
+  type McMimoSummary,
   type McSummary,
+  type PipelineMimo,
   type PipelineResult,
   type TrainingParams,
   type TrainingPatternSpec,
@@ -63,15 +65,18 @@ export const AUTO_RUN_MAX_SAMPLES = 2 ** 23 + 2 ** 20
 /* 參數補值與檢查                                                      */
 /* ------------------------------------------------------------------ */
 
-const ENUMS: { [K in 'codeSource' | 'normalization' | 'pll' | 'encoding' | 'gmMode' | 'regressor' | 'rounding' | 'overflow']: readonly LabParams[K][] } = {
+const ENUMS: { [K in 'codeSource' | 'normalization' | 'pll' | 'encoding' | 'gmMode' | 'regressor' | 'rounding' | 'overflow' | 'regressorSign' | 'architecture' | 'pmuxOrder']: readonly LabParams[K][] } = {
   codeSource: ['dsm_first_order', 'mash111', 'iid_pm_one'],
   normalization: ['none', 'zero_mean', 'unit_rms', 'standardize'],
-  pll: ['none', 'type1', 'type2'],
+  pll: ['none', 'type1', 'type2', 'cppll3'],
   encoding: ['bipolar_pm_one', 'unipolar_mapped', 'unipolar_unmapped_bug'],
   gmMode: ['average', 'sum'],
   regressor: ['raw', 'delayed', 'filtered'],
   rounding: ['nearest', 'truncate', 'stochastic'],
   overflow: ['saturate', 'wrap'],
+  regressorSign: ['spec', 'legacy'],
+  architecture: ['gos_only', 'pmux8_gos'],
+  pmuxOrder: ['fcw', 'random'],
 }
 const BOOLS = ['dither', 'quantize', 'signedReg'] as const
 
@@ -388,7 +393,7 @@ export function collectWarnings(r: PipelineResult): { stage: string; text: strin
 
 /** 「資訊性」的 stage 註記（不是失敗）：不放進紅色警告，只留在該級卡片。 */
 export function isInformational(w: string): boolean {
-  return /noise-like|參考 code|模擬 Welch 的解析度|封閉式不受影響|LSB dither：序列不再週期/.test(w)
+  return /noise-like|參考 code|模擬 Welch 的解析度|封閉式不受影響|LSB dither：序列不再週期|8 相 PMUX：DSM 跑在|regressor 正負號照|8 相 PMUX：靜態殘差含|這個迴路有反號帶/.test(w)
 }
 
 const toEntry = (c: CheckItem): CheckEntry => ({ status: c.status, note: c.note })
@@ -403,14 +408,20 @@ export function pipelineCrossCheck(r: PipelineResult): CrossCheck {
   const c = r.checks
   // 迴路本身的解析預測（mean w）不適用時（極性錯誤、不穩定、沒有固定點），整欄標成「不適用」：
   // 不能因為旁支的子檢查（例如 gain-noise 混頻近似）通過，就讓 Analytic 欄亮綠燈。
-  const sub = combineChecks([c.code, c.meanW, c.spur, c.noiseMix], '解析 vs 模擬')
+  // 8 相 PMUX：9 個權重的 mean w 與穩定性併進 Analytic 欄、9 個權重的 σ 併進 Monte Carlo 欄（單一 seed 的檢驗）
+  const mm = r.mimo
+  const items = [c.code, c.meanW, c.spur, c.noiseMix]
+  if (mm) items.push({ ...mm.checks.meanW, note: `9 個權重的 mean $w$：${mm.checks.meanW.note}` }, { ...mm.checks.stability, note: `9 權重平均模型的穩定性：${mm.checks.stability.note}` })
+  const sub = combineChecks(items, '解析 vs 模擬')
   const analytic: CheckItem =
     sub.status === 'ok' && c.meanW.status !== 'ok'
       ? { status: 'n/a', note: `迴路的解析預測不適用：${c.meanW.note}（其餘子項見「交叉比對明細」）` }
       : sub
+  const single: CheckItem = c.sigmaW.status === 'n/a' ? { status: 'n/a', note: `單一 seed：${c.sigmaW.note}` } : { status: c.sigmaW.status, note: `單一 seed 的 $\\sigma_w$ 檢驗：${c.sigmaW.note}` }
+  const monteCarlo: CheckItem = mm ? combineChecks([single, { ...mm.checks.sigma, note: `9 個權重的 $\\sigma$：${mm.checks.sigma.note}` }], '單一 seed 的 $\\sigma$ 檢驗（GOS 與 9 個權重）') : single
   return {
     analytic: toEntry(analytic),
-    monteCarlo: toEntry(c.sigmaW.status === 'n/a' ? { status: 'n/a', note: `單一 seed：${c.sigmaW.note}` } : { status: c.sigmaW.status, note: `單一 seed 的 $\\sigma_w$ 檢驗：${c.sigmaW.note}` }),
+    monteCarlo: toEntry(monteCarlo),
     fixedPoint: toEntry(c.fixedPoint),
   }
 }
@@ -485,6 +496,7 @@ export function pipelineMetrics(r: PipelineResult): MetricRow[] {
     },
     { name: 'settling block', value: m.settlingBlock ?? '未收斂', unit: 'block', note: '定義：之後永遠留在 mean $\\pm4\\sigma$ 內的第一個 block（一次偶發的 $4\\sigma$ 偏移就會把它往後推；收斂速度請看 $\\tau$）' },
   ]
+  if (r.mimo) rows.push(...pmuxMetricRows(r.mimo))
   if (o) {
     rows.push(
       { name: '$\\mathrm{RMS}(t_{\\mathrm{out}})$（全頻段、時域）', value: o.rmsOut, unit: 'fs', claim: 'exact', formulaId: 'F-LAB.10' },
@@ -511,6 +523,26 @@ export function pipelineMetrics(r: PipelineResult): MetricRow[] {
   return rows
 }
 
+/** 8 相 PMUX + GOS（9 個權重）的主要指標列：PHOS 殘差、條件數、最小實部、9 權重的 ρ（F-LAB.20） */
+export function pmuxMetricRows(m: PipelineMimo): MetricRow[] {
+  const a = m.analysis
+  const rows: MetricRow[] = [
+    {
+      name: 'PHOS 殘差 RMS（去共模，後半段）',
+      value: m.phosRmsFs,
+      unit: 'fs',
+      claim: 'approx',
+      formulaId: 'F-LAB.20',
+      ...(Number.isFinite(m.phosRmsMeanFieldFs) ? { analytic: m.phosRmsMeanFieldFs, tolerance: Math.max(0.15 * m.phosRmsMeanFieldFs, 0.5 * Math.sqrt(a.sigmaPred ? a.sigmaPred.slice(0, 8).reduce((s, v) => s + v * v, 0) / 8 : 1)) } : {}),
+      note: `8 個 PHOS 權重 $w_p-\\varepsilon_p$ 去共模後的 RMS（共模 $${texNum(m.phosCommonFs, 4)}\\,\\mathrm{fs}$ 經 $H_{\\mathrm{PD}}(1)=0$ 不可觀測）；解析值 = mean-field 平均軌跡同段的值`,
+    },
+    { name: '可觀測子空間的條件數 $\\lambda_{\\max}/\\lambda_{\\min}$', value: a.obs.cond, claim: 'approx', formulaId: 'F-LAB.20', note: `$R_u$ 去掉 ${a.obs.nullDim} 個不可觀測方向後；$\\lambda\\in[${texNum(a.obs.lambdaMin, 4)},\\,${texNum(a.obs.lambdaMax, 4)}]$` },
+    { name: '$\\min\\mathrm{Re}\\,\\lambda(J_{\\mathrm{obs}})$', value: a.minReEig, unit: '$\\mathrm{fs}^{-1}$', claim: 'approx', formulaId: 'F-LAB.20', note: '$>0$ 才是每個模式都負回授（PHOS mode-1 落在反號帶時變負）' },
+    { name: '9 權重平均模型的 $\\rho$', value: a.rho, claim: 'exact', formulaId: 'F-LAB.20', note: `實際的 $\\mu$、$\\mu_p$、$d$；$\\tau=${texNum(a.tauBlocks, 4)}$ blocks；共用步長時 $\\mu_{\\max}=${texNum(a.muMaxUniform, 4)}\\,\\mathrm{fs}$` },
+  ]
+  return rows
+}
+
 /** CSV 匯出欄位（完整的抽樣 trace；長度不同的欄位以空白補齊）。 */
 export function pipelineExport(r: PipelineResult): CsvColumns {
   const cols: CsvColumns = {
@@ -521,9 +553,16 @@ export function pipelineExport(r: PipelineResult): CsvColumns {
     w_mean_model_fs: r.blocks.wMeanModel,
     w_linear_model_fs: r.blocks.wLinearModel,
   }
+  if (r.mimo) {
+    r.mimo.blocks.w.forEach((w, j) => {
+      cols[`w${j === r.mimo!.blocks.w.length - 1 ? '_gos' : `_phos${j}`}_fs`] = w
+      cols[`w${j === r.mimo!.blocks.w.length - 1 ? '_gos' : `_phos${j}`}_mean_field_fs`] = r.mimo!.blocks.wMeanModel[j]
+    })
+  }
   if (r.window) {
     cols.sample_n = r.window.n
     cols.x = r.window.x
+    if (r.mimo?.windowPhase) cols.pmux_phase = r.mimo.windowPhase
     cols.x_ref = r.window.xRef
     cols.e_dtc_fs = r.window.eDtc
     cols.u_pd_fs = r.window.uPd
@@ -567,6 +606,9 @@ export function buildLabReport(
     generated_at: meta.generatedAt,
     model_level: r.modelLevel,
     loop_model_level: r.loopLevel,
+    engine: r.engine,
+    architecture: r.params.architecture,
+    regressor_sign: r.params.regressorSign,
     source: 'simulation',
     seed: r.params.seed,
     rng: {
@@ -577,6 +619,7 @@ export function buildLabReport(
         dsm_dither: "….fork('code-pattern').fork('dsm-dither')",
         comparator_noise: "createRng(seed).fork('comparator-noise')",
         gain_register_rounding: "createRng(seed).fork('gain-register-rounding')",
+        pmux_rotation: "createRng(seed).fork('pmux-rotation')（pmuxOrder = random 時）",
       },
     },
     units: { time: 'fs', frequency: 'Hz', gain: 'fs per unit code', psd: 'fs^2/Hz (one-sided)', phase_noise: 'dBc/Hz' },
@@ -610,6 +653,21 @@ export function buildLabReport(
       : null,
     float_twin: r.floatTwin,
     replay: r.replay,
+    pmux8: r.mimo
+      ? {
+          weights: r.mimo.perWeight.map((w) => ({ ...w, meanW: jsonNum(w.meanW), stdW: jsonNum(w.stdW), bias: jsonNum(w.bias), sigma_pred: jsonNum(w.sigmaPred), mean_field_half: jsonNum(w.meanFieldHalf) })),
+          phos_rms_fs: jsonNum(r.mimo.phosRmsFs),
+          phos_common_fs: jsonNum(r.mimo.phosCommonFs),
+          phos_rms_mean_field_fs: jsonNum(r.mimo.phosRmsMeanFieldFs),
+          observable: { cond: jsonNum(r.mimo.analysis.obs.cond), null_dim: r.mimo.analysis.obs.nullDim, eigenvalues: r.mimo.analysis.obs.values },
+          jacobian_eig_obs: r.mimo.analysis.eigJ,
+          min_re_eig: jsonNum(r.mimo.analysis.minReEig),
+          mu_max_uniform: jsonNum(r.mimo.analysis.muMaxUniform),
+          rho: jsonNum(r.mimo.analysis.rho),
+          occupancy: r.mimo.analysis.occupancy,
+          checks: Object.fromEntries(Object.entries(r.mimo.checks).map(([k, v]) => [k, { ...v, value: jsonNum(v.value), analytic: jsonNum(v.analytic), tolerance: jsonNum(v.tolerance) }])),
+        }
+      : null,
     stages: r.stages.map((s) => ({
       id: s.id,
       title: s.title,
@@ -657,6 +715,12 @@ export interface SweepSummary {
   minPe: number
   worstSpurDbc: number
   worstSpurFrac: number
+  /** pmux8_gos：9 權重的極性錯誤（min Re λ ≤ 0）、旋轉頻率落在反號帶、不可觀測方向多於共模、條件數的最大值 */
+  mimoFlips: FcwPoint[]
+  mimoRotInBand: FcwPoint[]
+  mimoUnobservable: FcwPoint[]
+  maxCond: number
+  worstPhosRms: number
 }
 
 /** blockLms 解析估計用的 code 樣本數（ANALYTIC_SAMPLES = 2^17） */
@@ -666,8 +730,19 @@ export const SWEEP_BLOCKLMS_WINDOW = 2 ** 17
 export const PE_ZERO_REL = 1e-6
 
 export function summarizeSweep(points: FcwPoint[], loopBlocks: number): SweepSummary {
-  const flips = points.filter((p) => p.signFlip)
-  const unstable = points.filter((p) => !p.signFlip && !p.stable)
+  const pmux = points.some((p) => p.mimo)
+  // pmux8：極性與穩定看 9 權重的平均模型（GOS 單通道的 C 只是其中一個方向）
+  const flips = points.filter((p) => (p.mimo ? p.mimo.signFlip : p.signFlip))
+  const unstable = points.filter((p) => (p.mimo ? !p.mimo.signFlip && !p.mimo.stable : !p.signFlip && !p.stable))
+  const mimoFlips = points.filter((p) => p.mimo?.signFlip)
+  const mimoRotInBand = points.filter((p) => p.mimo?.rotInInversionBand)
+  const mimoUnobservable = points.filter((p) => p.mimo && p.mimo.nullDim > 1)
+  let maxCond = pmux ? -Infinity : NaN
+  let worstPhos = pmux ? -Infinity : NaN
+  for (const p of points) {
+    if (p.mimo && Number.isFinite(p.mimo.cond) && p.mimo.cond > maxCond) maxCond = p.mimo.cond
+    if (p.loop && p.loop.phosRmsFs !== null && p.loop.phosRmsFs > worstPhos) worstPhos = p.loop.phosRmsFs
+  }
   const noPe = points.filter((p) => p.peLambdaMin < PE_ZERO_REL * Math.max(p.Ex2, 1e-300))
   const slow = points.filter((p) => p.stable && !p.signFlip && Number.isFinite(p.tauBlocks) && p.tauBlocks > loopBlocks / 6)
   const partial = points.filter((p) => p.splitRel > 0.1)
@@ -685,7 +760,7 @@ export function summarizeSweep(points: FcwPoint[], loopBlocks: number): SweepSum
       worstF = p.frac
     }
   }
-  return { n: points.length, flips, unstable, noPe, slow, partial, minC, maxRho, minPe, worstSpurDbc: worst, worstSpurFrac: worstF }
+  return { n: points.length, flips, unstable, noPe, slow, partial, minC, maxRho, minPe, worstSpurDbc: worst, worstSpurFrac: worstF, mimoFlips, mimoRotInBand, mimoUnobservable, maxCond, worstPhosRms: worstPhos }
 }
 
 const fracList = (pts: FcwPoint[], max = 6): string => {
@@ -710,6 +785,12 @@ export function sweepWarnings(s: SweepSummary, opts: FcwSweepOptions): string[] 
     w.push(`收斂太慢：${s.slow.length} 個 FCW（${fracList(s.slow)}）的 $\\tau$ 超過閉迴路長度的 $1/6$，該點的 mean $w$ 與 bias 還含 transient，不能當固定點讀。`)
   if (s.partial.length > 0)
     w.push(`部分週期：${s.partial.length} 個 FCW（${fracList(s.partial)}）的 code 準週期比統計 record 還長，$C$ 在 record 前後半差超過 10%，這些點只是估計。`)
+  if (s.mimoFlips.length > 0)
+    w.push(
+      `9 權重的極性錯誤：${s.mimoFlips.length} 個 FCW（${fracList(s.mimoFlips)}）的 Jacobian 在可觀測子空間上有實部 $\\le0$ 的特徵值——${s.mimoRotInBand.length > 0 ? `其中 ${s.mimoRotInBand.length} 個的 PMUX 旋轉頻率 $\\alpha f_{\\mathrm{ref}}$ 落在主迴路的反號帶內（PHOS mode-1 反號，案例頁 §8）` : '不是旋轉頻率落在反號帶，而是 code delay 或 GOS 鋸齒的問題'}。對策：一階差分 regressor、MASH、PMUX 隨機旋轉，或避開這些 FCW。`,
+    )
+  if (s.mimoUnobservable.length > 0)
+    w.push(`不可觀測方向多於共模：${s.mimoUnobservable.length} 個 FCW（${fracList(s.mimoUnobservable)}）有沒被走訪的相位（例如 $8\\alpha$ 是整數時 PMUX 只走幾相）或 GOS 鋸齒消失，對應的權重在這些 FCW 不可辨識。`)
   return w
 }
 
@@ -821,6 +902,18 @@ export function sweepExport(points: FcwPoint[]): CsvColumns {
     loop_mean_w_fs: col((p) => p.loop?.meanW ?? null),
     loop_std_w_fs: col((p) => p.loop?.stdW ?? null),
     loop_converged: col((p) => (p.loop ? (p.loop.converged ? 1 : 0) : null)),
+    ...(points.some((p) => p.mimo)
+      ? {
+          pmux_cond: col((p) => p.mimo?.cond ?? null),
+          pmux_null_dim: col((p) => p.mimo?.nullDim ?? null),
+          pmux_min_re_eig: col((p) => p.mimo?.minReEig ?? null),
+          pmux_rho: col((p) => p.mimo?.rho ?? null),
+          pmux_rot_hz: col((p) => p.mimo?.pmuxRotHz ?? null),
+          pmux_rot_in_inversion_band: col((p) => (p.mimo ? (p.mimo.rotInInversionBand ? 1 : 0) : null)),
+          pmux_pe_lambda_min: col((p) => p.mimo?.peLambdaMin ?? null),
+          loop_phos_rms_fs: col((p) => p.loop?.phosRmsFs ?? null),
+        }
+      : {}),
   }
 }
 
@@ -904,6 +997,25 @@ export function mcMetrics(s: McSummary, lin: { halfMean: number; halfRms: number
     { name: 'settling block（平均）', value: s.settling.mean, unit: 'block', note: `95% CI $[${texNum(Math.max(0, s.settling.lo))},\\,${texNum(s.settling.hi)}]$（下限夾在 0；分布右偏，$t$ 區間只是粗估）；${s.settling.neverSettled} 個 run 未收斂` },
     { name: '發散的 runs', value: `${s.diverged} / ${s.runs}`, note: `Wilson 95% CI $[${texNum(100 * s.divergedCI.lo, 3)}\\%,\\,${texNum(100 * s.divergedCI.hi, 3)}\\%]$` },
   ]
+}
+
+/** Monte Carlo 的 9 權重指標列（每個權重跨 seeds 的 mean w 與 CI、PHOS 殘差） */
+export function mcMimoMetrics(s: McMimoSummary, checks: { meanW: CheckItem; phos: CheckItem }): MetricRow[] {
+  const rows: MetricRow[] = [
+    {
+      name: 'PHOS 殘差 RMS（去共模；跨 seeds 平均）',
+      value: s.phosRms.mean,
+      unit: 'fs',
+      claim: 'approx',
+      formulaId: 'F-LAB.20',
+      ...(checks.phos.analytic !== undefined ? { analytic: checks.phos.analytic, tolerance: Math.max(0.15 * checks.phos.analytic, (s.phosRms.hi - s.phosRms.lo) / 2 || 0) } : {}),
+      note: `95% CI $[${texNum(s.phosRms.lo)},\\,${texNum(s.phosRms.hi)}]$；解析值 = mean-field 平均軌跡同段的 PHOS 殘差`,
+    },
+  ]
+  s.perWeight.forEach((w, j) => {
+    rows.push({ name: `$${s.names[j]}$（跨 seeds mean，目標 $${texNum(s.target[j], 4)}$）`, value: w.meanW, unit: 'fs', claim: 'approx', note: `95% CI $[${texNum(w.lo, 5)},\\,${texNum(w.hi, 5)}]$；pooled $\\sigma=${texNum(w.sigmaPooled, 4)}\\,\\mathrm{fs}$` })
+  })
+  return rows
 }
 
 /* ------------------------------------------------------------------ */

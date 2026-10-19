@@ -107,7 +107,7 @@ describe('Lab 頁：三種學習模式都能渲染', () => {
   }
 
   it('每個登錄的公式 ID 在頁面上恰好有一個 TexBlock 錨點（三種模式都在）；公式的 TeX 可被 KaTeX 解析', async () => {
-    expect(FORMULAS.map((f) => f.id)).toEqual(Array.from({ length: 18 }, (_, i) => `F-LAB.${i + 1}`))
+    expect(FORMULAS.map((f) => f.id)).toEqual(Array.from({ length: 21 }, (_, i) => `F-LAB.${i + 1}`))
     for (const f of FORMULAS) {
       expect(f.page).toBe('/lab')
       expectTexParses(f.tex, f.id, { strict: 'ignore' })
@@ -182,7 +182,7 @@ describe('Lab 頁：三種學習模式都能渲染', () => {
     expect(up).toHaveBeenCalledTimes(1)
   })
 
-  it('方塊圖：五張圖各出現一次，都有圖說與「先看…」導讀，並放在對應公式／實驗之前（docs/teaching-style.md §8）', () => {
+  it('方塊圖：六張圖各出現一次，都有圖說與「先看…」導讀，並放在對應公式／實驗之前（docs/teaching-style.md §8）', () => {
     const { container } = renderPage('/lab', 'beginner')
     const precedes = (x: Element | null, y: Element | null) => !!x && !!y && !!(x.compareDocumentPosition(y) & Node.DOCUMENT_POSITION_FOLLOWING)
     const figs = Array.from(container.querySelectorAll('figure.c-mermaid')) as HTMLElement[]
@@ -194,7 +194,7 @@ describe('Lab 頁：三種學習模式都能渲染', () => {
       expect(cap.length, cap).toBeGreaterThan(20)
       expect(BAD.test(cap), cap).toBe(false)
       expect((f.getAttribute('aria-label') ?? '').length).toBeGreaterThan(10)
-      const walk = f.closest('.lab-diagram')?.querySelector('.lab-diagram-walk')
+      const walk = f.closest('.lab-diagram')?.querySelector('.c-chapter-fig-walk-body')
       expect(walk?.textContent, cap).toContain('先看')
       expect(walk?.textContent, cap).toContain('圖上')
       expect(walk?.querySelector('.katex'), cap).toBeTruthy()
@@ -211,6 +211,7 @@ describe('Lab 頁：三種學習模式都能渲染', () => {
       ['主 PLL 負回授', '#lab-s44', 'formula-F-LAB.4'],
       ['block rate 校正迴路', '#lab-s47', 'formula-F-LAB.7'],
       ['輸出 timing error 的方塊圖', '#lab-s49', 'formula-F-LAB.10'],
+      ['9 個權重方塊圖', '#lab-s5b2', 'formula-F-LAB.19'],
       ['五個分頁的關係圖', '#lab-experiments', 'lab-tabpanel'],
     ]
     expect(placed.map(([label]) => fig(label))).toEqual(figs) // 頁面上的順序與 LAB_CHARTS 相同
@@ -286,7 +287,7 @@ describe('Lab 頁：三種學習模式都能渲染', () => {
     expect(fig2.getAttribute('aria-label')).toContain('DTC 在 reference 輸入端')
     expect(fig2.getAttribute('aria-label')).toContain('comparator 的輸入是 PD 的輸出')
     expect(fig2.querySelector('figcaption')?.textContent).toContain('DTC 在 reference 輸入端')
-    const walk2 = s2.querySelector('.lab-diagram-walk')?.textContent ?? ''
+    const walk2 = s2.querySelector('.c-chapter-fig-walk-body')?.textContent ?? ''
     for (const need of ['DTC 在 reference 的輸入端', '從 PD 的 reference', '回授路徑上只有 divider', 'PD 的輸出', '送進 loop filter 的同一個訊號']) expect(walk2, need).toContain(need)
     // 每一級的主要假設也寫了接法
     expect(s2.textContent).toContain('DTC 在 reference 輸入端；靜態非線性')
@@ -320,7 +321,7 @@ describe('Lab 頁：三種學習模式都能渲染', () => {
     expect(fig4.getAttribute('aria-label')).toContain('只經過 divider 回到 phase detector 的另一個輸入')
     expect(fig4.querySelector('figcaption')?.textContent).toContain('Reference clock → DTC → phase detector')
     expect(fig4.querySelector('figcaption')?.textContent).toContain('只經過 divider')
-    const walk4 = Array.from(s44.querySelectorAll('.lab-diagram-walk p')).map((p) => p.textContent ?? '').join('\n')
+    const walk4 = Array.from(s44.querySelectorAll('.c-chapter-fig-walk-body p')).map((p) => p.textContent ?? '').join('\n')
     for (const need of ['Reference clock 經 DTC 進來的', 'divider 送回來', '從 VCO 回到 PD 的路上只有 divider，DTC 不在裡面', 'divider 不改變 edge 的時間誤差']) expect(walk4, need).toContain(need)
     const t44 = tex(s44)
     expect(t44).toContain(R`u_{\mathrm{pd}}=e_{\mathrm{DTC}}-\theta_{\mathrm{fb}}`)
@@ -418,14 +419,14 @@ describe('原始碼層級的檢查', () => {
   it('勘誤小註都連到驗證頁，且引用的勘誤 ID 存在於 docs/validation.md', () => {
     const doc = readFileSync(resolve(process.cwd(), 'docs/validation.md'), 'utf8')
     const ids = new Set<string>()
-    for (const { text } of sourceFiles()) for (const m of text.matchAll(/ErratumNote id="(E\d\d)"/g)) ids.add(m[1])
+    for (const { text } of sourceFiles()) for (const m of text.matchAll(/ErratumLink id="(E\d\d)"/g)) ids.add(m[1])
     for (const f of FORMULAS) if (f.erratumId) ids.add(f.erratumId)
     expect(ids.size).toBeGreaterThanOrEqual(12)
     for (const id of ids) expect(doc, id).toContain(`### ${id}｜`)
     const { container } = renderPage()
-    const links = Array.from(container.querySelectorAll('a.lab-erratum')) as HTMLAnchorElement[]
+    const links = Array.from(container.querySelectorAll('a.c-erratum-link')) as HTMLAnchorElement[]
     expect(links.length).toBeGreaterThan(15)
-    for (const a of links) expect(a.getAttribute('href')).toMatch(/^#\/verification\?e=E\d\d$/)
+    for (const a of links) expect(a.getAttribute('href')).toMatch(/^#?\/verification\?e=E\d\d$/)
   })
 })
 
@@ -553,6 +554,24 @@ describe('Pipeline 分頁：實際執行（jsdom 下 worker 以 inline 模式跑
     fireEvent.click(freeze)
     expect((buttonByText(sh(), '已凍結') as HTMLButtonElement).getAttribute('aria-pressed')).toBe('true')
   }, 60_000)
+
+  it('使用者的架構 preset（lab-user-sspll-pmux8）：自動執行後出現 9 個權重的表與三項 9 權重交叉比對（都一致）；參數面板的架構與正負號說明；Analytic／Monte Carlo 兩欄都一致', async () => {
+    const { container } = renderPage('/lab?preset=lab-user-sspll-pmux8', 'engineer', true)
+    const sh = () => shell(container, EXP.pipeline) as HTMLElement
+    await waitFor(() => expect(sh().querySelector('[data-testid="pmux-weights"]')).not.toBeNull(), { timeout: 60_000 })
+    expect(sh().querySelectorAll('[data-testid="pmux-weights"] tr[data-weight]')).toHaveLength(9)
+    for (const k of ['meanW', 'sigma', 'stability']) expect(sh().querySelector(`tr[data-check="pmux-${k}"]`)?.getAttribute('data-status'), k).toBe('ok')
+    expect(sh().querySelector('[data-group-note="dsm"]')?.textContent).toContain('8 相 PMUX')
+    expect(sh().querySelector('[data-group-note="code"]')?.textContent).toContain('spec')
+    const cc = Array.from(sh().querySelectorAll('.c-exp-crosscheck .c-check')).map((n) => n.className)
+    expect(cc[0]).toContain('c-check-ok')
+    expect(cc[1]).toContain('c-check-ok')
+    // PLL 卡片列出反號帶（資訊性註記，不是紅色警告）
+    expect(sh().querySelector('.lab-stage[data-stage="pll"]')?.textContent).toContain('反號帶')
+    const warns = Array.from(sh().querySelectorAll('.c-exp-warnings .callout')).map((n) => n.textContent ?? '')
+    expect(warns.some((w) => w.includes('這個迴路有反號帶'))).toBe(false)
+    expectNoTexErrors(container)
+  }, 120_000)
 
   it('preset「固定點不是常數」：mean w 與 σ_w 都「一致」（比的是 mean-field 平均軌跡）；更新迴路那一級警告固定點在擺動；w 圖畫出兩條模型線', async () => {
     const { container } = renderPage('/lab?preset=lab-offset-fixed-point-swing', 'engineer', true)

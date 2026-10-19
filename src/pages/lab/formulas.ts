@@ -228,4 +228,60 @@ export const FORMULAS: FormulaEntry[] = [
     units: { w: 'fs', G: '無因次' },
     erratumId: 'E01',
   },
+  {
+    id: 'F-LAB.19',
+    assumes: modelAssumes('L2'),
+    title: '8 相 PMUX + input DTC：相位索引、DTC code 與 9 個權重的誤差',
+    tex: String.raw`\begin{aligned}
+P[n]&=\lfloor 8\alpha\rfloor\,(n+1)+\sum_{m\le n}y[m],\qquad p[n]=P[n]\bmod 8\\
+x[n]&=-r'[n]\in\begin{cases}[0,1)&\text{一階 DSM}\\(-2,2)&\text{MASH 1-1-1}\end{cases}\\
+e_{\mathrm{DTC}}[n]&=(a-w_g)\,x[n]+\bigl(\varepsilon_{p[n]}-w_{p[n]}\bigr)+d(x[n])
+\end{aligned}`,
+    conditions: 'DSM 跑在 frac(8α)（單位 Δ = T_vco/8）；y[n] 是 DSM 輸出、r′ 是它的 residue；ε_p 是第 p 相的 offset（feedback edge 早到為正）、w_p 是 PHOS 權重（加在 DTC 的補償量裡）；regressor 正負號 spec（x ≥ 0；x ∈ [0, 1) 是一階 DSM 的範圍，MASH 1-1-1 的 residue 較寬、約在 (−2, 2)，x 也會是負的）；pmuxOrder = random 時 p 多轉 m[n]、x 加 m[n]',
+    claim: 'exact',
+    level: 'L2',
+    specSection: '4',
+    page: PAGE,
+    units: { x: '無因次（Δ）', e_DTC: 'fs', epsilon_p: 'fs', w_g: 'fs per Δ', w_p: 'fs' },
+  },
+  {
+    id: 'F-LAB.20',
+    assumes: '9 個權重的線性化平均模型：Gaussian comparator 小訊號、權重在 $H_{\\mathrm{PD}}$ 的記憶長度內凍結、GMAC 雜訊 iid（$\\mathrm{Cov}(\\eta)=R_\\psi/N$）',
+    title: '9 個權重的平均模型：Jacobian、可觀測子空間、條件數、μ 上限與穩態共變異',
+    tex: String.raw`\begin{aligned}
+E[\mathbf G_k]&=J\,\boldsymbol\delta_{k-d},\qquad J=K_q\,E\bigl[\boldsymbol\psi\,\boldsymbol\phi_u^{\mathsf T}\bigr]\\
+\boldsymbol\phi&=\bigl[1\{p=0\},\dots,1\{p=7\},\ x\bigr]^{\mathsf T}\\
+\boldsymbol\delta_{k+1}&=\boldsymbol\delta_k-M J\,\boldsymbol\delta_{k-d},\qquad M=\operatorname{diag}(\mu_p,\dots,\mu_p,\mu)\\
+R_u&=E\bigl[\boldsymbol\phi_u\boldsymbol\phi_u^{\mathsf T}\bigr]=V\Lambda V^{\mathsf T},\qquad J_{\mathrm{obs}}=V^{\mathsf T}JV\\
+\kappa&=\frac{\lambda_{\max}}{\lambda_{\min}}\Big|_{\lambda>0},\qquad \mu_{\max}=\min_i\frac{2\,\mathrm{Re}\,\lambda_i(J_{\mathrm{obs}})}{|\lambda_i|^2}\\
+X&=AXA^{\mathsf T}+\frac{MR_\psi M^{\mathsf T}}{N},\qquad \mathrm{Cov}(\boldsymbol\delta)=X
+\end{aligned}`,
+    conditions: 'φ = [1{p=0}, …, 1{p=7}, x]ᵀ 是 9 個權重的基底（8 個 PMUX 相位的 one-hot 與 DTC code）；φ_u = H_PD{φ} 是同一組基底經主迴路到 PD 輸出（comparator 的輸入）的響應，R_u = E[φ_u φ_uᵀ]；ψ 是 GMAC 實際乘上的 regressor——raw：ψ[n] = φ[n]、delayed：ψ[n] = φ[n − D]、filtered：ψ[n] = Ĥ{φ}[n − D]（Ĥ = g_m·H_PD·z^(−D_x)），R_ψ = E[ψ ψᵀ]；J_obs = Vᵀ J V 只取 R_u 的可觀測子空間（λ > 0；共模 Σ_p 1_p = 1 經 H_PD(1) = 0 後是結構性 null，E04）；μ_max 是所有權重共用一個步長時的上限（pole 1 − μλ）；d ≥ 1 時 A 是 P(d+1) 維的增廣矩陣，共變異只在 P(d+1) ≤ 40 時解；H_PD = 1、8 相等機率、x 與相位獨立時 R 有封閉式（HC-LAB.1）',
+    claim: 'approx',
+    level: 'L3',
+    specSection: '10.2',
+    page: PAGE,
+    units: { J: 'fs^-1', mu_max: 'fs', Cov: 'fs^2' },
+    erratumId: 'E04',
+  },
+  {
+    id: 'F-LAB.21',
+    assumes: '線性、時不變的三階 CPPLL（charge pump 電荷包是 impulse、每個 reference 週期取樣一次；與案例頁 L3 的 impulse 映射相同）',
+    title: '三階 CPPLL：連續時間設計、impulse-invariant 取樣與反號帶',
+    tex: String.raw`\begin{aligned}
+L(s)&=\frac{K(1+s/\omega_z)}{s^2(1+s/\omega_p)},\qquad \omega_p=r_p\,\omega_c\\
+\tan\theta_z&=\frac{\omega_c}{\omega_z},\qquad \theta_z=\mathrm{PM}+\arctan\frac1{r_p}\\
+K&=\omega_c^2\sqrt{1+\tfrac1{r_p^2}}\,\cos\theta_z\\
+L(z)&=\frac{Kz^{-1}}{(1-z^{-1})^2}+\frac{Bz^{-1}}{1-z^{-1}}-\frac{Bpz^{-1}}{1-pz^{-1}}\\
+B&=\frac{K(\omega_p/\omega_z-1)}{\omega_p},\qquad p=e^{-\omega_p}\\
+-\mathrm{Re}\,L(\Omega)&=\frac{K}{4\sin^2(\Omega/2)}+\frac{B(1-p^2)}{2\,|1-pe^{-j\Omega}|^2}\\
+\mathrm{Re}\,H_{\mathrm{PD}}&<0\iff-\mathrm{Re}\,L>1
+\end{aligned}`,
+    conditions: 'ω 以 rad/sample 計（T_s = 1）；PM 是連續時間 crossover ω_c 處的 phase margin、r_p 是第三極點比（PM + arctan(1/r_p) < 90°）；Lab 以二分法調 ω_c 讓實際 DT |T| 的 −3 dB 等於設定值；−Re L 對頻率單調遞減，所以反號帶是從 DC 到 −Re L = 1 的根（額外 loop latency 時改用數值的 inversionBands）',
+    claim: 'exact',
+    level: 'L2',
+    specSection: '6',
+    page: PAGE,
+    units: { omega: 'rad/sample', K: '無因次', f_inv: 'Hz' },
+  },
 ]

@@ -7,12 +7,16 @@ import { erf } from '@/simulation/core'
 import {
   ar1MeanVar,
   calBandwidths,
+  cppll3InversionEdge,
+  cppll3MinusReL,
   delayLoopRadius,
   dtMag2,
   firstOrderResidueStats,
   foldFrequency,
   makeTone,
   pllDesign,
+  pmuxClosedFormEigen,
+  pmuxUniformStepLimits,
   type1PoleFromBw,
 } from '@/simulation/models/unifiedLab'
 
@@ -136,4 +140,27 @@ export function blockFixedPointExample(frac = 0.3, bits = 20, N = 4096, b = 20, 
   })
   const wFull = a + b * st.mean * s // 整個週期：E[x²] = 1、E[x] = E[r]·s
   return { frac, bits, N, b, a, st, s, rows, wFull, superPeriodBlocks: st.P / N }
+}
+
+/**
+ * §5b 的手算例（wave 5）：H_PD = 1、8 相等機率、x ~ U[0,1)（E[x] = 1/2、E[x²] = 1/3）時 9 權重資訊矩陣的封閉式特徵值、
+ * 條件數、共用步長的 μ 上限與最慢模式的時間常數（σ_v = 100 fs、μ = 10 fs）。全部由 unifiedLab.ts 的函式算出。
+ */
+export function pmuxNumbers(Ex = 0.5, Ex2 = 1 / 3, sigmaV = 100, mu = 10) {
+  const cf = pmuxClosedFormEigen(Ex, Ex2)
+  const Kq = Math.sqrt(2 / Math.PI) / sigmaV
+  const lim = pmuxUniformStepLimits(Kq, cf.lambdaMax, cf.lambdaMin, mu)
+  return { Ex, Ex2, sigmaV, mu, Kq, ...cf, ...lim, gFast: mu * Kq * cf.lambdaMax, gSlow: mu * Kq * cf.lambdaMin, gPhos: mu * Kq * cf.lambdaPhos }
+}
+
+/**
+ * §5b 的三階 CPPLL 例子（wave 5）：320 MHz 的 |T| −3 dB、PM 60°、r_p = 4、f_ref = 4 GHz：設計量（f_c、f_z、f_p3、K、B、p）、
+ * 反號帶上緣 f_inv，以及一個測試頻率 f_test 的 −Re L 兩項（手算核對用）。
+ */
+export function cppll3Numbers(bwHz = 320e6, pmDeg = 60, p3Ratio = 4, fRefHz = 4e9, fTestHz = 100e6) {
+  const d = pllDesign({ pll: 'cppll3', pllBwHz: bwHz, fRefHz, zeta: 0.7, loopDelay: 0, pllPmDeg: pmDeg, pllP3Ratio: p3Ratio })
+  const c = d.cppll as NonNullable<typeof d.cppll>
+  const fInvHz = cppll3InversionEdge(c) * fRefHz
+  const test = cppll3MinusReL(c, fTestHz / fRefHz)
+  return { bwHz, pmDeg, p3Ratio, fRefHz, fTestHz, design: d, c, fInvHz, test, bands: d.inversionBands, pmSampled: d.pmDeg, fcSampledHz: d.fcHz }
 }

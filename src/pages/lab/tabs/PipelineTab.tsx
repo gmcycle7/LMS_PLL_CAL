@@ -19,13 +19,13 @@ import {
   type CrossCheck,
   type MetricRow,
 } from '@/components'
-import { DEFAULT_LAB_PARAMS, convergenceBlocks, labParamErrors, type LabParams, type PipelineResult, type ToneReport } from '@/simulation/models/unifiedLab'
+import { DEFAULT_LAB_PARAMS, convergenceBlocks, labParamErrors, type LabParams, type PipelineMimo, type PipelineResult, type ToneReport } from '@/simulation/models/unifiedLab'
 import { fmtHz, md, sig, StatusPill, texHz, texNum } from '../common'
 import { AUTO_RUN_MAX_SAMPLES, buildLabReport, collectWarnings, EXP, isInformational, labKey, pipelineCrossCheck, pipelineExport, pipelineMetrics, tauMetricRow } from '../logic'
 import { ParamPanel } from '../ParamPanel'
 import { LAB_UNITS } from '../paramMeta'
 import { useLab, type LabAnalysis } from '../store'
-import { figCode, figError, figG, figPsd, figTransfer, figW, type PsdUnit, type SampleView } from './plots'
+import { figCode, figError, figG, figPsd, figTransfer, figW, figWeights9, type PsdUnit, type SampleView } from './plots'
 import { PresetNote, tw, usePalette, useShellPresets } from './shared'
 import { CheckTable, QuantWhatIf, StageCards } from './StageCards'
 
@@ -109,6 +109,80 @@ function ToneTable({ r }: { r: PipelineResult }) {
           ))}
         </tbody>
       </table>
+    </div>
+  )
+}
+
+/** 8 相 PMUX + GOS：9 個權重各自的後半段統計與三項交叉比對（F-LAB.20）。 */
+function WeightsTable({ m }: { m: PipelineMimo }) {
+  return (
+    <div className="lab-weights" data-testid="pmux-weights">
+      <div className="table-wrap">
+        <table className="lab-table lab-table-num">
+          <caption>
+            9 個權重的後半段統計：目標（PHOS 的 {md('$\\varepsilon_p$')}、GOS 的 {md('$a$')}）、平均與 bias、{md('$\\sigma$')}（模擬在可觀測子空間的值 / dlyap 預測）、mean-field 同段預測、settling（單位 fs；GOS 的 {md('$a$')}、{md('$w_g$')} 是 fs per {md('$\\Delta$')}；含共模的 {md('$\\sigma$')} 在滑鼠提示、CSV 與報告裡）；
+            {m.analysis.commonModeObservable ? '這個迴路的共模可觀測（沒有主迴路）。' : 'PHOS 的共模方向不可觀測，所以 8 個 bias 可以一起偏同一個常數，模擬的 σ 先減掉 8 個 PHOS 的平均。'}
+          </caption>
+          <thead>
+            <tr>
+              <th>權重</th>
+              <th>目標</th>
+              <th>mean</th>
+              <th>bias</th>
+              <th>{md('$\\sigma$')} 模擬 / 預測</th>
+              <th>mean-field</th>
+              <th>settling</th>
+            </tr>
+          </thead>
+          <tbody>
+            {m.perWeight.map((w, j) => (
+              <tr key={w.name} data-weight={j}>
+                <th scope="row">{md(`$${w.name}$`)}</th>
+                <td className="mono">{sig(w.target, 4)}</td>
+                <td className="mono">{sig(w.meanW, 5)}</td>
+                <td className="mono">{sig(w.bias, 3)}</td>
+                <td className="mono" title={`全部（含共模）：${sig(w.stdW, 4)} fs`}>
+                  {sig(w.stdObs, 3)} / {w.sigmaPred === null ? '—' : sig(w.sigmaPred, 3)}
+                </td>
+                <td className="mono">{sig(w.meanFieldHalf, 5)}</td>
+                <td className="mono">{w.settlingBlock ?? '未收斂'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="table-wrap">
+        <table className="lab-table lab-check-table">
+          <caption>9 權重的交叉比對</caption>
+          <thead>
+            <tr>
+              <th>檢查</th>
+              <th>狀態</th>
+              <th>說明（含容差）</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(
+              [
+                ['meanW', '9 個權重的 mean $w$', '後半段平均 vs mean-field 平均軌跡同段預測（每個權重 4 SE + 1 LSB）'],
+                ['sigma', '9 個權重的 $\\sigma$', '對平均軌跡的殘差 RMS vs 離散 Lyapunov 方程的穩態 $\\sigma$'],
+                ['stability', '9 權重平均模型的穩定性', '$\\rho<1$ 時模擬不發散；$\\rho\\ge1$ 時可觀測殘差也不收斂（sign-LMS 有界，表現為振盪）'],
+              ] as const
+            ).map(([key, name, what]) => (
+              <tr key={key} data-check={`pmux-${key}`} data-status={m.checks[key].status}>
+                <th scope="row">
+                  {md(name)}
+                  <div className="small muted">{md(what)}</div>
+                </th>
+                <td>
+                  <StatusPill status={m.checks[key].status} />
+                </td>
+                <td className="small">{md(m.checks[key].note)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
@@ -265,6 +339,7 @@ export function PipelineTab() {
       for (const x of collectWarnings(shown)) if (!isInformational(x.text)) w.push(`【${x.stage}】${tw(x.text)}`)
       const names: Record<string, string> = { replay: '跨級一致性', code: 'code 統計', meanW: 'mean $w$', sigmaW: '$\\sigma_w$', noiseMix: 'gain noise × code', spur: 'fractional spur', fixedPoint: '定點 vs 浮點' }
       for (const [k, c] of Object.entries(shown.checks)) if (c.status === 'mismatch') w.push(`交叉比對不一致（${names[k] ?? k}）：${c.note}`)
+      if (shown.mimo) for (const [k, c] of Object.entries(shown.mimo.checks)) if (c.status === 'mismatch') w.push(`9 權重的交叉比對不一致（${k}）：${c.note}`)
     } else if (previewCur) {
       for (const x of previewCur.warnings) w.push(`【即時解析】${tw(x)}`)
     }
@@ -276,6 +351,7 @@ export function PipelineTab() {
   const pRows = useMemo(() => (previewCur ? previewRows(previewCur, params.updateDelay) : []), [previewCur, params.updateDelay])
 
   const fW = useMemo(() => (shown ? figW(shown, pal, cur) : null), [shown, pal, cur])
+  const fW9 = useMemo(() => (shown?.mimo ? figWeights9(shown.mimo, pal) : null), [shown, pal])
   const fG = useMemo(() => (shown ? figG(shown, pal) : null), [shown, pal])
   const fCode = useMemo(() => (shown ? figCode(shown, pal, view) : null), [shown, pal, view])
   const fErr = useMemo(() => (shown ? figError(shown, pal, view) : null), [shown, pal, view])
@@ -302,7 +378,7 @@ export function PipelineTab() {
         <>
           FCW → DSM → code → DTC（在 reference 輸入端）→ <Tex>{'H_{\\mathrm{PD}}'}</Tex>（到 PD 的輸出）→ comparator → GMAC → gain register → 更新，再把 DTC 殘差經 <Tex>{'T'}</Tex> 送到輸出端算 jitter 與
           spur。迴路由 <code>runBlockLms</code>{' '}
-          執行；本頁另外用獨立重寫的逐 sample 迴圈重播一次，逐位元比對每個 <Tex>{'G_k'}</Tex>（跨級一致性）。
+          執行（spec 正負號或 8 相 PMUX 時由 <code>runLabLoop</code>：同一個 inner loop 推廣成 9 個權重）；本頁另外用獨立重寫的逐 sample 迴圈重播一次，逐位元比對每個 <Tex>{'G_k'}</Tex>（跨級一致性）。
         </>
       }
       assumptions={isCurrent && shown ? shown.assumptions : BASE_ASSUMPTIONS}
@@ -391,6 +467,22 @@ export function PipelineTab() {
                   : '虛線是線性時不變模型 $\\hat w_k=w^*-\\delta_k$、$\\delta_{k+1}=\\delta_k-g\\,\\delta_{k-d}$。'
               }平均模型預測的是「許多 seeds 的平均」，單一 seed 會在它周圍以 $\\sigma_w$ 抖動。`}
             />
+          )}
+          {shown.mimo && fW9 && (
+            <>
+              <h4 className="lab-subhead">
+                8 相 PMUX + GOS：9 個權重 <ModelLevel level="L3" /> <ClaimTag kind="approx" />
+              </h4>
+              <Plot
+                title="9 個權重 $w_0\dots w_7$（PHOS）與 $w_g$（GOS）：模擬 vs mean-field 平均軌跡"
+                csvName="unified-lab-weights9"
+                data={fW9.data}
+                layout={fW9.layout}
+                height={360}
+                caption={`點線是目標（$\\varepsilon_p$ 與 $a$）、虛線是 mean-field 平均軌跡（圖例點一下可顯示每個 PHOS 的）。PHOS 的共模方向經 $H_{\\mathrm{PD}}(1)=0$ 不可觀測，所以 8 條 PHOS 線可以一起偏同一個常數（共模 $${texNum(shown.mimo.phosCommonFs, 4)}\\,\\mathrm{fs}$）；去共模後的 PHOS 殘差 RMS 是 $${texNum(shown.mimo.phosRmsFs, 4)}\\,\\mathrm{fs}$。可觀測子空間的條件數 $${texNum(shown.mimo.analysis.obs.cond, 4)}$、9 權重平均模型的 $\\rho=${texNum(shown.mimo.analysis.rho, 5)}$（F-LAB.20）。`}
+              />
+              <WeightsTable m={shown.mimo} />
+            </>
           )}
           <div className="lab-inline-controls">
             <ParamControl

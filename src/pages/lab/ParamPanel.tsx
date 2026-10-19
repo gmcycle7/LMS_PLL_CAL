@@ -6,6 +6,21 @@ import { PANEL_GROUPS, PARAM_META, unitOf, type ParamMeta } from './paramMeta'
 
 export type GroupId = StageId | 'sim'
 
+/**
+ * 分組下方的一句說明（wave 5）：依目前的選項告訴使用者「這個選擇代表什麼」。
+ * 只在該分組真的有對應的控制項時顯示；字串內的 `$...$` 是 TeX。
+ */
+const GROUP_NOTE: Partial<Record<GroupId, (p: LabParams) => string | null>> = {
+  dsm: (p) =>
+    p.architecture === 'pmux8_gos'
+      ? `目前是使用者的架構：8 相 PMUX 在回授路徑、input DTC 只補一個相位步 $\\Delta=T_{\\mathrm{vco}}/8$。DSM 跑在 $(8\\alpha\\bmod 1)$，PMUX 每個週期固定前進 $\\lfloor8\\alpha\\rfloor$ 相；9 個權重（PHOS $w_0\\dots w_7$ + GOS $w_g$）各自一個 GMAC，共模經 $H_{\\mathrm{PD}}(1)=0$ 不可觀測。${p.pmuxOrder === 'random' ? '已知的隨機旋轉讓 one-hot 白化（研究延伸）。' : ''}`
+      : null,
+  code: (p) =>
+    p.regressorSign === 'legacy'
+      ? '正負號目前是 legacy（$x=r\\le0$，既有 preset 與 golden vector 的約定）：$w$、$G$、$\\sigma_w$ 與 spec 完全相同，只有畫出來的 $x$、$e_{\\mathrm{DTC}}$ 是鏡像；要看 §2a 的 $x=s/M\\ge0$ 請切到 spec（docs/assumptions.md §4）。'
+      : '正負號是 spec（$x=s/M\\ge0$，§2a）：迴路改由 runLabLoop 執行，單一 gain 時用「$a$、$w_0$、$c_3$ 變號的 legacy」runBlockLms 鏡像做逐位元的跨級一致性檢查。',
+}
+
 export interface ParamPanelProps {
   value: LabParams
   onChange: (patch: Partial<LabParams>) => void
@@ -92,6 +107,14 @@ export const ParamPanel = memo(function ParamPanel({ value, onChange, open = ['d
               {items.map((m) => (
                 <Control key={m.key} m={m} value={value} onChange={onChange} disabled={disabled} prefix={idPrefix} />
               ))}
+              {(() => {
+                const note = GROUP_NOTE[g.id]?.(value)
+                return note ? (
+                  <p className="small muted lab-group-note" data-group-note={g.id}>
+                    {md(note)}
+                  </p>
+                ) : null
+              })()}
             </div>
           </details>
         )

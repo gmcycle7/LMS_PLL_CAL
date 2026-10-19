@@ -6,6 +6,10 @@ import {
   analyzeLab,
   analyzeTraining,
   combineMc,
+  combineMcMimo,
+  DEFAULT_SWEEP_OPTIONS,
+  mcMimoChecks,
+  usesLegacyEngine,
   convergenceBlocks,
   fcwGrid,
   labParamErrors,
@@ -61,7 +65,7 @@ function expectGolden(v: GoldenVector, key: string, actual: number): void {
 }
 
 describe('lab-*.json 的格式', () => {
-  it('十個 preset：頁面 /lab、實驗 ID 屬於本頁、來源 simulation、五個分頁各至少一個', () => {
+  it('十一個 preset：頁面 /lab、實驗 ID 屬於本頁、來源 simulation、五個分頁各至少一個', () => {
     expect(LAB.map((p) => p.id).sort()).toEqual([
       'lab-compare-regressor',
       'lab-fcw-delay-sign-flip',
@@ -72,6 +76,7 @@ describe('lab-*.json 的格式', () => {
       'lab-offset-fixed-point-swing',
       'lab-t13-anchor',
       'lab-training-code-compare',
+      'lab-user-sspll-pmux8',
       'lab-wideband-320mhz',
     ])
     const ids = Object.values(EXP) as string[]
@@ -109,6 +114,24 @@ describe('lab-*.json 的格式', () => {
         expect(s.issues, p.id).toEqual([])
         for (const c of s.cases) expect(labParamErrors(c), p.id).toEqual([])
       }
+    }
+  })
+})
+
+describe('regressor 正負號：既有 preset 明確標 legacy（行為不變），新 preset 用 spec', () => {
+  it('除了使用者架構的 preset，所有 Pipeline／FCW／MC／Compare preset 的參數都寫 regressorSign = legacy，載入後仍由 runBlockLms 執行', () => {
+    for (const p of LAB) {
+      if (p.experiment === EXP.training) continue
+      const prm = p.params as Record<string, unknown>
+      const base = (prm.base ?? prm) as Record<string, unknown>
+      if (p.id === 'lab-user-sspll-pmux8') {
+        expect(base.regressorSign).toBe('spec')
+        expect(base.architecture).toBe('pmux8_gos')
+        continue
+      }
+      expect(base.regressorSign, p.id).toBe('legacy')
+      const s = p.experiment === EXP.pipeline ? sanitizeLabParams(p.params).params : p.experiment === EXP.fcw ? sanitizeSweepPreset(p.params).base : p.experiment === EXP.mc ? sanitizeMcPreset(p.params).base : sanitizeComparePreset(p.params).cases[0]
+      expect(usesLegacyEngine(s), p.id).toBe(true)
     }
   })
 })
@@ -406,4 +429,85 @@ describe('Compare preset', () => {
     const ok = compareCrossCheck([A, C].map((r, i) => ({ id: 'AC'[i], cc: pipelineCrossCheck(r) })))
     expect(status(ok.analytic)).toBe('ok')
   }, 120_000)
+})
+
+describe('使用者的架構 preset（lab-user-sspll-pmux8）：三個分頁的預期文字 vs 模型', () => {
+  const p = byId('lab-user-sspll-pmux8')
+  const prm = sanitizeLabParams(p.params).params
+  const neg = (x: string) => x.replace(/-/g, '−')
+
+  it('Pipeline：主迴路是案例頁的 L3（反號帶 [0, 117.3] MHz）；9 個權重的條件數、ρ、τ、σ 預測、PHOS 殘差與 GOS 的 mean w 都寫在預期文字裡；三項 9 權重交叉比對都一致', () => {
+    const r = runPipeline(prm)
+    expect(r.engine).toBe('labLoop')
+    expect(r.pll.kind).toBe('cppll3')
+    const band = r.pll.inversionBands[0]
+    expect(band.fLoHz).toBe(0)
+    expect(p.expected).toContain(`[0, ${(band.fHiHz / 1e6).toFixed(1)}] MHz`)
+    expect(band.fHiHz / 1e6).toBeCloseTo(117.28, 1) // 案例頁 params.json 的 L3：ReH_neg_bands_MHz = [0, 117.2777]
+    expect(p.expected).toContain(`crossover ${(r.pll.fcHz / 1e6).toFixed(1)} MHz、PM ${r.pll.pmDeg.toFixed(2)}°`)
+    expect(p.expected).toContain(`α f_ref = ${(r.code.pmuxRotHz / 1e6).toFixed(0)} MHz 在帶外`)
+    expect(r.code.pmuxRotHz).toBeGreaterThan(band.fHiHz)
+    const m = r.mimo!
+    const a = m.analysis
+    expect(p.expected).toContain(`不可觀測方向 ${a.obs.nullDim} 個`)
+    expect(a.obs.nullDim).toBe(1)
+    expect(p.expected).toContain(`κ ≈ ${a.obs.cond.toFixed(2)}`)
+    expect(a.minReEig).toBeGreaterThan(0)
+    expect(p.expected).toContain(`ρ ≈ ${a.rho.toFixed(4)}`)
+    expect(p.expected).toContain(`τ ≈ ${a.tauBlocks.toFixed(1)} blocks`)
+    for (const v of a.sigmaPred!.slice(0, 8)) expect(v.toFixed(1)).toBe('2.9')
+    expect(p.expected).toContain(`GOS ≈ ${a.sigmaPred![8].toFixed(2)} fs`)
+    expect(p.expected).toContain(`PHOS 殘差 RMS（去共模）≈ ${m.phosRmsFs.toFixed(2)} fs`)
+    expect(p.expected).toContain(`mean w ≈ ${r.metrics.meanW.toFixed(2)} fs`)
+    expect(m.checks.meanW.status).toBe('ok')
+    expect(m.checks.sigma.status).toBe('ok')
+    expect(m.checks.stability.status).toBe('ok')
+    const cc = pipelineCrossCheck(r)
+    expect(status(cc.analytic)).toBe('ok')
+    expect(status(cc.monteCarlo)).toBe('ok')
+    expect(collectWarnings(r).filter((w) => !isInformational(w.text))).toEqual([])
+    expect(collectWarnings(r).some((w) => w.text.includes('這個迴路有反號帶'))).toBe(true) // 只在 PLL 卡片，不是紅色警告
+  }, 60_000)
+
+  it('FCW sweep（預設 25 點）：每點重算 PMUX 序列；18 點的旋轉頻率在反號帶內但 MASH 讓 min Re λ 全部 > 0；α = 0.5（8α 整數）不可觀測；最大條件數寫在預期文字裡', () => {
+    const fracs = fcwGrid(1e-5, 0.5, 25, 'log')
+    const pts = sweepFcwChunk({ base: prm, fracs, opts: { ...DEFAULT_SWEEP_OPTIONS }, offset: 0 }).points
+    const sum = summarizeSweep(pts, DEFAULT_SWEEP_OPTIONS.loopBlocks)
+    expect(pts.every((x) => x.mimo !== null)).toBe(true)
+    expect(p.expected).toContain(`${sum.mimoRotInBand.length} 點的 α f_ref 落在反號帶內`)
+    expect(sum.mimoRotInBand.length).toBe(18)
+    expect(sum.mimoFlips).toHaveLength(0)
+    expect(sum.flips).toHaveLength(0)
+    expect(sum.mimoUnobservable.map((x) => x.frac)).toEqual([0.5])
+    expect(pts[pts.length - 1].mimo!.occupancy.filter((o) => o > 0)).toHaveLength(2)
+    expect(p.expected).toContain(`最大條件數 ≈ ${sum.maxCond.toFixed(1)}`)
+    expect(sweepWarnings(sum, DEFAULT_SWEEP_OPTIONS).some((w) => w.includes('不可觀測方向多於共模'))).toBe(true)
+  }, 120_000)
+
+  it('Monte Carlo（16 seeds）：GOS 的 mean w 與 σ_w 一致；9 個權重的 Bonferroni CI 涵蓋 mean-field（PHOS 先去共模）；PHOS 殘差 RMS 的 CI 和預測帶重疊', () => {
+    const chunks = [0, 4, 8, 12].map((i) => runMcChunk({ base: prm, seeds: mcSeeds(prm.seed, i, 4), meanField: i === 0 }))
+    const sum = combineMc(chunks)
+    expect(sum.runs).toBe(16)
+    expect(sum.diverged).toBe(0)
+    const c = mcChecks(sum, chunks[0].analytic, prm, chunks[0].meanField)
+    expect(c.meanW.status).toBe('ok')
+    expect(c.sigmaW.status).toBe('ok')
+    const mm = combineMcMimo(chunks)!
+    expect(mm.commonModeRemoved).toBe(true)
+    const ck = mcMimoChecks(mm, prm)
+    expect(ck.meanW.status).toBe('ok')
+    expect(ck.phos.status).toBe('ok')
+    expect(p.expected).toContain('Bonferroni CI 都涵蓋 mean-field 同段預測')
+  }, 120_000)
+
+  it('「試著改」：一階 DSM、α = 0.02（α f_ref = 80 MHz，在反號帶內）⇒ min Re λ < 0、ρ > 1（PHOS mode-1 反號）；數字寫在預期文字裡', () => {
+    const a = analyzeLab({ ...prm, codeSource: 'dsm_first_order', frac: 0.02 })
+    const m = a.mimo!
+    expect(a.code.pmuxRotHz / 1e6).toBeCloseTo(80, 6)
+    expect(a.code.pmuxRotHz).toBeLessThan(a.pll.inversionBands[0].fHiHz)
+    expect(m.minReEig).toBeLessThan(0)
+    expect(p.expected).toContain(`min Re λ ≈ ${neg(m.minReEig.toExponential(1))} < 0`)
+    expect(p.expected).toContain(`ρ ≈ ${m.rho.toFixed(4)}`)
+    expect(m.rho).toBeGreaterThan(1)
+  }, 60_000)
 })

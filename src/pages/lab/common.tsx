@@ -1,12 +1,12 @@
 import { Fragment, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ClaimTag, mathText, Mermaid, ModelLevel, StepDerivation, accessibleText, type CheckStatus, type ClaimKind, type ModelLevelId, type Step } from '@/components'
+import { Badge, ChapterFig, ClaimTag, mathText, ModelLevel, StepDerivation, accessibleText, type CheckStatus, type ClaimKind, type ModelLevelId, type Step } from '@/components'
 import { useSettings, type LearningMode } from '@/app/settings'
 import { texNum } from '@/simulation/models/unifiedLab'
 
 /**
  * Unified Calibration Lab 頁（/lab）私有的小工具。
- * 建議上移到共用層（@/components）的：useAtLeast、Steps、ErratumNote、texifyShared（把共用模型的 Unicode 警告轉成 `$...$`）。
+ * 建議上移到共用層（@/components）的：useAtLeast、Steps、texifyShared（把共用模型的 Unicode 警告轉成 `$...$`）。
  */
 
 /**
@@ -55,24 +55,14 @@ export function Steps({ title, steps, result, open }: { title: string; steps: { 
 }
 
 /**
- * 方塊圖 + 「怎麼讀這張圖」導讀（docs/teaching-style.md §8）。
+ * 方塊圖 + 「怎麼讀這張圖」導讀（docs/teaching-style.md §8）：外框是共用的 ChapterFig（放大、文字版、導讀樣式）。
  * 圖上的數學在 diagrams.ts 以 `$...$` 寫 LaTeX、由 <Mermaid> 用 KaTeX 排版；導讀與圖說（caption 支援 `$…$`）用 KaTeX 把圖上的名字對回正文的公式。
  */
 export function Diagram({ chart, caption, ariaLabel, children }: { chart: string; caption: string; ariaLabel?: string; children?: ReactNode }) {
   return (
-    <div className="lab-diagram">
-      <Mermaid chart={chart} caption={caption} ariaLabel={ariaLabel ?? caption} />
-      {children && <div className="lab-diagram-walk">{children}</div>}
-    </div>
-  )
-}
-
-/** 勘誤小註：「勘誤 Exx」連到驗證頁（#/verification，依 id 定位）。 */
-export function ErratumNote({ id }: { id: string }) {
-  return (
-    <a className="lab-erratum" href={`#/verification?e=${id}`} title={`本站與規格書不同之處：見驗證頁的勘誤 ${id}`}>
-      勘誤 {id}
-    </a>
+    <ChapterFig className="lab-diagram" chart={chart} caption={caption} ariaLabel={ariaLabel ?? caption}>
+      {children}
+    </ChapterFig>
   )
 }
 
@@ -191,7 +181,11 @@ const STATUS_TEXT: Record<CheckStatus, string> = { ok: '一致', mismatch: '不�
 
 /** 交叉比對狀態膠囊 */
 export function StatusPill({ status }: { status: CheckStatus }) {
-  return <span className={`lab-pill lab-pill-${status === 'n/a' ? 'na' : status}`}>{STATUS_TEXT[status]}</span>
+  return (
+    <Badge variant={status === 'n/a' ? 'na' : status} className={`lab-pill lab-pill-${status === 'n/a' ? 'na' : status}`}>
+      {STATUS_TEXT[status]}
+    </Badge>
+  )
 }
 
 /** 級別 + 結論標籤（stage 卡片標頭用） */

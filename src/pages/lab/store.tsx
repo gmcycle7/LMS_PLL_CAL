@@ -142,7 +142,7 @@ export interface SweepState {
 }
 
 function useSweepEngine(init: LabInit) {
-  const { run: runTask, cancel: cancelTask, mode } = useWorkerTask<{ base: LabParams; fracs: number[]; opts: FcwSweepOptions; offset: number }, { points: FcwPoint[] }>(
+  const { run: runTask, cancel: cancelTask, mode } = useWorkerTask<{ base: LabParams; fracs: number[]; opts: FcwSweepOptions; offset: number; twin?: boolean }, { points: FcwPoint[]; twinPoints?: FcwPoint[] }>(
     'unifiedLab',
     'sweepFcwChunk',
   )
@@ -162,18 +162,13 @@ function useSweepEngine(init: LabInit) {
       setRunning(true)
       setState({ key, base, opts: o, grid: g, points: [], twinPoints: [], total: fracs.length })
       const chunk = o.closedLoop ? 1 : 2 // 每段的點數：小一點才有進度可看、也才取消得快
-      const twin = base.quantize && o.closedLoop // 定點：每一段再用 quantize = false 跑一次同 seed 的浮點對照（Fixed-Point 欄）
+      const twin = base.quantize && o.closedLoop // 定點：同一次呼叫裡每點再用 quantize = false 跑一次同 seed 的迴路（只重跑迴路，序列分析不重算；Fixed-Point 欄）
       try {
         for (let i = 0; i < fracs.length; i += chunk) {
           const slice = fracs.slice(i, i + chunk)
-          const r = await runTask({ base, fracs: slice, opts: o, offset: i })
+          const r = await runTask({ base, fracs: slice, opts: o, offset: i, twin })
           if (runId.current !== id) return
-          setState((s) => (s.key === key ? { ...s, points: [...s.points, ...r.points] } : s))
-          if (twin) {
-            const t = await runTask({ base: { ...base, quantize: false }, fracs: slice, opts: o, offset: i })
-            if (runId.current !== id) return
-            setState((s) => (s.key === key ? { ...s, twinPoints: [...s.twinPoints, ...t.points] } : s))
-          }
+          setState((s) => (s.key === key ? { ...s, points: [...s.points, ...r.points], twinPoints: r.twinPoints ? [...s.twinPoints, ...r.twinPoints] : s.twinPoints } : s))
         }
       } catch (e) {
         if (runId.current === id && !isWorkerCancelled(e)) setError(errText(e))
@@ -204,7 +199,7 @@ export interface McState {
 }
 
 function useMcEngine(init: LabInit) {
-  const { run: runTask, cancel: cancelTask, mode } = useWorkerTask<{ base: LabParams; seeds: number[]; meanField?: boolean }, McChunk>('unifiedLab', 'runMcChunk')
+  const { run: runTask, cancel: cancelTask, mode } = useWorkerTask<{ base: LabParams; seeds: number[]; meanField?: boolean; twin?: boolean }, McChunk>('unifiedLab', 'runMcChunk')
   const [runs, setRuns] = useState(init.runs)
   const [state, setState] = useState<McState>({ key: null, base: null, chunks: [], twinChunks: [], done: 0, total: 0 })
   const [running, setRunning] = useState(false)
@@ -223,15 +218,11 @@ function useMcEngine(init: LabInit) {
         for (let i = 0; i < total; i += chunk) {
           const n = Math.min(chunk, total - i)
           const seeds = mcSeeds(base.seed, i, n)
-          const r = await runTask({ base, seeds, meanField: i === 0 }) // 第一段順便算 mean-field 平均軌跡
+          // 第一段順便算 mean-field 平均軌跡；定點時同一次呼叫裡再用 quantize = false 跑同一段 seeds 的浮點對照（Fixed-Point 欄的成對比較）
+          const r = await runTask({ base, seeds, meanField: i === 0, twin: base.quantize })
           if (runId.current !== id) return
-          setState((s) => (s.key === key ? { ...s, chunks: [...s.chunks, r], done: s.done + n } : s))
-          if (base.quantize) {
-            // 定點：同一段 seeds 再用 quantize = false 跑一次（comparator 雜訊、code、dither 都相同），Fixed-Point 欄做成對比較
-            const t = await runTask({ base: { ...base, quantize: false }, seeds })
-            if (runId.current !== id) return
-            setState((s) => (s.key === key ? { ...s, twinChunks: [...s.twinChunks, t] } : s))
-          }
+          const { twin, ...main } = r
+          setState((s) => (s.key === key ? { ...s, chunks: [...s.chunks, main], twinChunks: twin ? [...s.twinChunks, twin] : s.twinChunks, done: s.done + n } : s))
         }
       } catch (e) {
         if (runId.current === id && !isWorkerCancelled(e)) setError(errText(e))

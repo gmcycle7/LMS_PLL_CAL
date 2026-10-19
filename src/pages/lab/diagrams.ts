@@ -125,11 +125,37 @@ export const CHART_TAB_MAP = String.raw`flowchart TB
   ${FOCUS}
   class CORE focus`
 
+/**
+ * §5b（wave 5）：使用者的架構——8 相 PMUX 在回授路徑、input DTC 只補一個相位步，9 個權重各自一個 GMAC。
+ * 藍色是 9 個 GMAC 共用的 1-bit 輸出 $q$；棕色是不可觀測的共模（$H_{\mathrm{PD}}(1)=0$）。
+ * 訊號照 docs/assumptions.md §2a 第 6 點：PMUX 第 $p$ 相的 edge 早到 $x\Delta+\varepsilon_p$，其中 $x\Delta$ 由 DTC 的標稱 gain 抵消，
+ * 剩下要補的是 $a x+\varepsilon_p$（$a$ = DTC 的 gain 誤差），DTC 的校正量 $w_g x+w_p$，PD 看到的是兩者之差。
+ * DTC code $x[n]$ 的範圍依 code 來源：一階 DSM 是 $[0,1)$（spec 的 $x\ge0$），preset 用的 MASH 1-1-1 是二階整形的餘數，$x\in(-2,2)$（實測約 $[-1.85,1.99]$）。
+ */
+export const CHART_PMUX9 = String.raw`flowchart TB
+  ACC["累加器 $8\alpha$（單位 $\Delta = T_{\mathrm{vco}}/8$）<br/>整數 $\to$ PMUX 相位 $p[n]$，小數 $\to$ DTC code $x[n]$"]
+  ACC -->|"$x[n]$：一階 $\in [0,1)$、MASH 1-1-1 $\in (-2,2)$"| DTC["input DTC（reference 端）<br/>補償量 $w_g x + w_p$"]
+  ACC -->|"$p[n] \in \{0,\dots,7\}$"| PMUX["8 相 PMUX（回授路徑）<br/>第 $p$ 相多早到 $\varepsilon_p$"]
+  PMUX -- "＋" --> PD(("＋"))
+  DTC -- "−" --> PD
+  PD -->|"$e_{\mathrm{DTC}} = (a - w_g)x + (\varepsilon_p - w_p)$"| HPD["$H_{\mathrm{PD}}$ 到 PD 的輸出<br/>共模 $\sum_p 1_p = 1$ 被 $H_{\mathrm{PD}}(1) = 0$ 濾掉"]
+  HPD -->|"$u_{\mathrm{pd}}$"| CMP["comparator<br/>$q = \mathrm{sign}(u_{\mathrm{pd}} + b + v)$"]
+  CMP -->|"$q[n]$"| GG["GMAC（GOS）<br/>$G_g = \frac1N\sum q\,x_{\mathrm{ref}}$"]
+  CMP -->|"$q[n]$"| GP["GMAC $\times 8$（PHOS）<br/>$G_p = \frac1N\sum q\,1\{p[n-D] = p\}$"]
+  GG -->|"$w_g \leftarrow w_g + \mu G_g$"| DTC
+  GP -->|"$w_p \leftarrow w_p + \mu_p G_p$"| DTC
+  GP -.->|"共模方向：不可觀測、由初值決定"| CM(["$\bar w_p$（共模）"])
+  ${FOCUS}
+  ${ALT}
+  class CMP focus
+  class CM alt`
+
 /** 頁面上的圖（依出現順序）；diagrams.test.ts 逐一解析，index.test.tsx 核對頁面真的畫了這幾張。 */
 export const LAB_CHARTS: { name: string; section: string; chart: string }[] = [
   { name: 'PIPELINE_CHART', section: '§2', chart: PIPELINE_CHART },
   { name: 'CHART_TWO_PATHS', section: '§4.4', chart: CHART_TWO_PATHS },
   { name: 'CHART_UPDATE_LOOP', section: '§4.7', chart: CHART_UPDATE_LOOP },
   { name: 'CHART_OUTPUT_SPLIT', section: '§4.9', chart: CHART_OUTPUT_SPLIT },
+  { name: 'CHART_PMUX9', section: '§5b', chart: CHART_PMUX9 },
   { name: 'CHART_TAB_MAP', section: '§7', chart: CHART_TAB_MAP },
 ]

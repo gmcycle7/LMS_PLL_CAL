@@ -9,7 +9,7 @@ import type { ModelLevelId } from '@/components'
  */
 
 export type NumKey = keyof typeof LAB_RANGES
-export type EnumKey = 'codeSource' | 'normalization' | 'pll' | 'encoding' | 'gmMode' | 'regressor' | 'rounding' | 'overflow'
+export type EnumKey = 'codeSource' | 'normalization' | 'pll' | 'encoding' | 'gmMode' | 'regressor' | 'rounding' | 'overflow' | 'regressorSign' | 'architecture' | 'pmuxOrder'
 export type BoolKey = 'dither' | 'quantize' | 'signedReg'
 
 export interface NumMeta {
@@ -49,8 +49,35 @@ export interface BoolMeta {
 export type ParamMeta = NumMeta | EnumMeta | BoolMeta
 
 const isDsm = (p: LabParams) => p.codeSource !== 'iid_pm_one'
+const isPmux = (p: LabParams) => p.architecture === 'pmux8_gos'
 
 export const PARAM_META: ParamMeta[] = [
+  // 校正架構（wave 5）：單一 gain 或 8 相 PMUX + GOS 的 9 個權重
+  {
+    kind: 'enum',
+    key: 'architecture',
+    stage: 'dsm',
+    label: '校正架構',
+    reg: 'REG_CAL_ARCH',
+    hint: 'gos_only：一個 DTC gain；pmux8_gos：8 相 PMUX 的 8 個 PHOS 權重 + 1 個 GOS（9 個權重，案例頁的架構）。pmux8 時 DSM 跑在 $(8\\alpha\\bmod 1)$、DTC 只補一個相位步 $\\Delta=T_{\\mathrm{vco}}/8$',
+    options: [
+      { value: 'gos_only', label: 'gos_only（單一 DTC gain）' },
+      { value: 'pmux8_gos', label: 'pmux8_gos（8 相 PMUX + GOS，9 個權重）' },
+    ],
+  },
+  {
+    kind: 'enum',
+    key: 'pmuxOrder',
+    stage: 'dsm',
+    label: 'PMUX 相位序列',
+    reg: 'REG_PMUX_ROT_EN',
+    hint: 'fcw：相位由累加器的整數部分決定（mode-1 以 $\\alpha f_{\\mathrm{ref}}$ 旋轉）；random：再疊上已知的隨機旋轉 $m[n]\\in\\{0\\dots7\\}$，one-hot 被白化、但 DTC 範圍要多 $7\\Delta$（研究延伸）',
+    options: [
+      { value: 'fcw', label: 'fcw（由 FCW 決定）' },
+      { value: 'random', label: 'random（已知的隨機旋轉）' },
+    ],
+    when: isPmux,
+  },
   // ① FCW → DSM
   {
     kind: 'enum',
@@ -73,6 +100,18 @@ export const PARAM_META: ParamMeta[] = [
   // ② code
   {
     kind: 'enum',
+    key: 'regressorSign',
+    stage: 'code',
+    label: 'regressor 正負號',
+    reg: 'behavioral: regressor_sign',
+    hint: 'spec：照 docs/assumptions.md §2a，$x=s/M\\ge0$（一階 DSM 時 $x\\in[0,1)$ 的鋸齒，code 越大 feedback edge 越早到）；legacy：本頁原本的 $r=-s/M\\le0$（既有 preset、golden vector 與 blockLms 用它）。兩者只差 $x\\to-x$：$w$、$G$ 的收斂與 $\\sigma_w$ 完全相同，只有畫出來的 $x$、$e_{\\mathrm{DTC}}$、$t_{\\mathrm{out}}$ 鏡像，以及 offset／$c_2$ 相對 $x$ 的方向',
+    options: [
+      { value: 'spec', label: 'spec（x = s/M ≥ 0，§2a）' },
+      { value: 'legacy', label: 'legacy（r = −s/M ≤ 0，既有 preset）' },
+    ],
+  },
+  {
+    kind: 'enum',
     key: 'normalization',
     stage: 'code',
     label: 'code 正規化',
@@ -91,6 +130,7 @@ export const PARAM_META: ParamMeta[] = [
   { kind: 'num', key: 'dtcOffsetFs', stage: 'dtc', reg: 'behavioral: dtc_nonlinearity.offset_fs', step: 0.1, hint: '與 code 無關的固定延遲誤差' },
   { kind: 'num', key: 'c2', stage: 'dtc', reg: 'behavioral: dtc_nonlinearity.c2', step: 0.01, hint: 'INL 二階：$c_2x^2$' },
   { kind: 'num', key: 'c3', stage: 'dtc', reg: 'behavioral: dtc_nonlinearity.c3', step: 0.01, hint: 'INL 三階：$c_3x^3$（會讓 $w^*\\ne a$，第 11 章）' },
+  { kind: 'num', key: 'phosRmsFs', stage: 'dtc', reg: 'behavioral: pmux_phase_offset_rms', step: 1, hint: 'PMUX 8 個相位 offset $\\varepsilon_p$（feedback edge 早到為正）的去共模 RMS；圖樣固定（analysis/sspll/sim 的 seed-7：$[+0.17,+0.59,-0.23,-1.12,-0.49,-1.26,+0.25,+2.10]\\times$ RMS），illustrative', when: isPmux },
   // ④ PLL
   {
     kind: 'enum',
@@ -98,15 +138,18 @@ export const PARAM_META: ParamMeta[] = [
     stage: 'pll',
     label: '主 PLL 誤差路徑',
     reg: 'behavioral: pll_error_path.kind',
-    hint: 'none：$H_{\\mathrm{PD}}=T=1$；Type-I：一個積分器；Type-II：兩個積分器（$H_{\\mathrm{PD}}$ 在 DC 有二階零點）',
+    hint: 'none：$H_{\\mathrm{PD}}=T=1$；Type-I：一個積分器；Type-II：兩個積分器（$H_{\\mathrm{PD}}$ 在 DC 有二階零點）；CPPLL：charge pump + 二階濾波（$R\\|C_1$ 與 $C_2$）⇒ 三階閉迴路，impulse-invariant 取樣',
     options: [
       { value: 'none', label: 'none（忽略主 PLL）' },
       { value: 'type1', label: 'Type-I DPLL' },
       { value: 'type2', label: 'Type-II DPLL' },
+      { value: 'cppll3', label: '三階 CPPLL（charge pump + 二階濾波）' },
     ],
   },
   { kind: 'num', key: 'pllBwHz', stage: 'pll', reg: 'behavioral: PLL bandwidth（K_p、K_i）', log: true, hint: '$T$ 的 $-3\\,\\mathrm{dB}$ 設計值；Type-II 指 CT 原型', when: (p) => p.pll !== 'none' },
   { kind: 'num', key: 'zeta', stage: 'pll', reg: 'behavioral: damping ζ', step: 0.05, hint: 'Type-II 阻尼；$K_p=2\\zeta\\omega_nT_s$', when: (p) => p.pll === 'type2' },
+  { kind: 'num', key: 'pllPmDeg', stage: 'pll', reg: 'behavioral: CPPLL phase margin', step: 1, hint: '連續時間 crossover 處的 phase margin；零點 $\\omega_z=\\omega_c/\\tan\\theta_z$、$\\theta_z=\\mathrm{PM}+\\arctan(1/r_p)$（要小於 $90^\\circ$）', when: (p) => p.pll === 'cppll3' },
+  { kind: 'num', key: 'pllP3Ratio', stage: 'pll', reg: 'behavioral: CPPLL third pole ratio', step: 0.1, hint: '第三極點 $\\omega_{p3}=r_p\\,\\omega_c$（$R\\|C_1$ 與 $C_2$ 的比：$r_p=\\sqrt{1+C_1/C_2}$ 時與案例頁 L3 的對稱放置相同）', when: (p) => p.pll === 'cppll3' },
   { kind: 'num', key: 'loopDelay', stage: 'pll', reg: 'behavioral: loop latency', hint: '主迴路額外延遲 $d_L$（samples）；太大會讓主 PLL 自己不穩定', when: (p) => p.pll !== 'none' },
   // ⑤ comparator
   { kind: 'num', key: 'sigmaV', stage: 'comparator', reg: 'behavioral: pd_noise_rms_fs', step: 1, hint: '$K_q=\\sqrt{2/\\pi}/\\sigma_v$；設成 0 會變成純 sign（limit cycle / dead zone）' },
@@ -189,6 +232,7 @@ export const PARAM_META: ParamMeta[] = [
   { kind: 'bool', key: 'signedReg', stage: 'register', label: 'signed register', reg: 'RTL: two’s complement', hint: 'unsigned 時 code 範圍 $[0,2^{B}-1]$：負的 $a$ 會直接飽和', when: (p) => p.quantize },
   // ⑧ update
   { kind: 'num', key: 'muFs', stage: 'update', reg: 'REG_LMS_MU（shift）', step: 0.1, digits: 6, hint: 'average 模式下單位 fs；$g=\\mu K_qC$。負值 = 更新極性接反（反面測試）' },
+  { kind: 'num', key: 'muPhosFs', stage: 'update', reg: 'REG_LMS_MU_PHOS（shift）', step: 0.1, digits: 6, hint: 'PHOS 8 個權重的 learning rate（one-hot regressor 無因次，所以單位 fs）；單一模式的增益 $g_p\\approx\\mu_pK_q/8$', when: isPmux },
   { kind: 'num', key: 'updateDelay', stage: 'update', reg: 'RTL: commit latency', hint: '新 $w$ 晚 $d$ 個 block 才作用；臨界 $g=2\\sin\\frac{\\pi}{4d+2}$' },
   // 模擬 / 輸出分析
   { kind: 'num', key: 'blocks', stage: 'sim', reg: 'simulation: num_blocks', log: true, hint: '統計只用後半段；Run-to-Convergence 會自動算' },

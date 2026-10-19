@@ -39,6 +39,8 @@ const ROWS: Row[] = [
   { name: '$[f_L,f_H]$ jitter（模擬）', unit: 'fs', get: (r) => r.output?.jitterBandSim ?? null },
   { name: 'fractional spur（toneFit）', unit: 'dBc', get: (r) => r.output?.toneFitSim?.dbc ?? null },
   { name: '最大偵測 tone', unit: 'dBc', get: (r) => r.output?.tones[0]?.dbc ?? null },
+  { name: 'PHOS 殘差 RMS（去共模；8 相 PMUX 時）', unit: 'fs', get: (r) => (r.mimo ? r.mimo.phosRmsFs : null) },
+  { name: '可觀測子空間條件數（8 相 PMUX 時）', get: (r) => (r.mimo ? r.mimo.analysis.obs.cond : null) },
   { name: '飽和 / wrap 次數', get: (r) => `${r.metrics.saturationCount} / ${r.metrics.wrapCount}` },
   { name: '警告數', get: (r) => collectWarnings(r).filter((w) => !isInformational(w.text)).length },
 ]
