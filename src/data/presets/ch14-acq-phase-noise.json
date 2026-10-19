@@ -1,0 +1,15 @@
+{
+  "id": "ch14-acq-phase-noise",
+  "title": "Ch14：acquisition——相位雜訊 20 倍（σ_θ = 2 ps）",
+  "page": "/ch/14",
+  "experiment": "cal-state-machine",
+  "description": "穩態相位 rms σ_ss ≈ 1 ps 接近 θ_max = 2 ps：CAL 中常常 |θ| ≥ θ_max 進 HOLD，重新連續 N_pl 個週期在門檻內才 RECAL → CAL（rms_max 放寬到 1.5 ps 才能 enable）。",
+  "params": {
+    "acq": {
+      "sigmaThetaFs": 2000,
+      "rmsMaxFs": 1500
+    }
+  },
+  "expected": "acquisition 狀態機走過 CAL → HOLD → RECAL → CAL 多次（HOLD 次數 > 0、沒有失鎖）；穩態 slip 機率仍接近 0（T_vco/2 = 31 ps 遠大於 σ_ss）。",
+  "source": "illustrative"
+}

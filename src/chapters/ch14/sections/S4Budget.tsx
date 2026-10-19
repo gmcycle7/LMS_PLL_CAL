@@ -1,11 +1,10 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import type { Data } from 'plotly.js-cartesian-dist-min'
-import { Callout, ClaimTag, CodeBlock, ModeGate, ParamControl, Plot, Section, SourceTag, Tex, TexBlock, useThemeTokens, ChRef } from '@/components'
+import { Callout, ClaimTag, CodeBlock, HandLink, ModeGate, ParamControl, Plot, Section, SourceTag, Tex, TexBlock, useThemeTokens, ChRef } from '@/components'
 import optimizerSrc from '@/simulation/models/optimizer.ts?raw'
 import { budgetSplit, loopGainK } from '@/simulation/models/optimizer'
 import { Diagram } from '../Diagram'
 import { CHART_BUDGET_SPLIT } from '../diagrams'
-import { HandLink } from '../Hand'
 import { md, nf, Steps, tx } from '../shared'
 
 /** §14.3：固定總比較次數 T = N·B，N 與更新次數的取捨（F-14.17） */
@@ -80,7 +79,7 @@ export function S4Budget() {
         <ClaimTag kind="approx" /> 直覺：資訊量只有 <Tex>{'T'}</Tex> 次 1-bit 比較；怎麼分批，只要重新最佳化 <Tex>{'\\mu'}</Tex>，結果幾乎一樣。<strong>真正決定 <Tex>{'N'}</Tex> 的是硬體與穩健性</strong>，不是雜訊。（同一個結論的精確版：§14.6 的 Kalman 下界 <Tex>{'P_B=\\delta_0^2/(1+B\\delta_0^2K^2/\\sigma_\\eta^2)=\\delta_0^2/(1+T\\delta_0^2K^2)'}</Tex> 也只依賴 <Tex>{'T'}</Tex>。）
       </p>
       <p>
-        <strong>換你算。</strong>回到 §14.2 的手算題 <HandLink id="HC-14.5" />，把 <Tex>{'N'}</Tex> 從 4096 改成 8192（<Tex>{'T'}</Tex> 不變）再用紙筆算一次：<Tex>{'B'}</Tex> 減半、<Tex>{'\\mu^*'}</Tex> 加倍，但 <Tex>{'A'}</Tex> 與{' '}
+        <strong>換你算。</strong>回到 §14.2 的手算題 <HandLink id="HC-14.5">HC-14.5</HandLink>，把 <Tex>{'N'}</Tex> 從 4096 改成 8192（<Tex>{'T'}</Tex> 不變）再用紙筆算一次：<Tex>{'B'}</Tex> 減半、<Tex>{'\\mu^*'}</Tex> 加倍，但 <Tex>{'A'}</Tex> 與{' '}
         <Tex>{'\\text{RMS}^*'}</Tex> 一個位數都不會變——F-14.17 說的就是這件事。
       </p>
       <div className="grid-2">

@@ -8,6 +8,7 @@ import { S4Budget } from './sections/S4Budget'
 import { S5Calculator } from './sections/S5Calculator'
 import { S6Corner } from './sections/S6Corner'
 import { S7Schedule } from './sections/S7Schedule'
+import { S7bAcquisition } from './sections/S7bAcquisition'
 import { S8StateMachine } from './sections/S8StateMachine'
 import { S9Wrap } from './sections/S9Wrap'
 import { S10Symbols } from './sections/S10Symbols'
@@ -21,6 +22,7 @@ const TOC: { id: string; label: ReactNode }[] = [
   { id: 'ch14-calculator', label: '14.4 第 10 課計算器' },
   { id: 'ch14-corner', label: '14.5 Corner 區間（E16）' },
   { id: 'ch14-schedule', label: '14.6 步長排程' },
+  { id: 'ch14-acquisition', label: '14.6b Acquisition 與校正 enable' },
   { id: 'ch14-state-machine', label: '14.7 狀態機' },
   { id: 'ch14-compare', label: '14.8 策略比較' },
   { id: 'ch14-synthesis', label: '綜合手算' },
@@ -30,7 +32,7 @@ const TOC: { id: string; label: ReactNode }[] = [
 /**
  * Ch14：Learning Rate、Accumulation Length 與 Tracking Schedule（規格 §14、§14.1、§14.2；第 10 課；勘誤 E16、E48）。
  * 版面：章首問題與系統地圖（標籤列與本章目錄接在地圖之後；本章資訊、先備自檢由 PageFrame 放在同一個位置）→ 各節（每個主要概念先放方塊圖，原始碼在 diagrams.ts）→ Recap → 章末符號表（id="symbols"）。
- * 所有數字與曲線由 src/simulation/models/optimizer.ts 即時計算（重的 Monte Carlo 走 Web Worker）。
+ * 所有數字與曲線由 src/simulation/models/optimizer.ts 與 acquisition.ts（§14.6b）即時計算（重的 Monte Carlo 走 Web Worker）。
  */
 export default function Chapter14() {
   return (
@@ -63,6 +65,7 @@ export default function Chapter14() {
       <S5Calculator />
       <S6Corner />
       <S7Schedule />
+      <S7bAcquisition />
       <S8StateMachine />
       <S9Wrap />
       {/* 符號表一律放在章末（docs/teaching-style.md §5）：頁面的最後一個區塊，id="symbols" */}

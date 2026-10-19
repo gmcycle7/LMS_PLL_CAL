@@ -5,6 +5,7 @@ import { Diagram } from '../Diagram'
 import { CHART_HAND_FLOW } from '../diagrams'
 import { Hand } from '../Hand'
 import { BIAS2, md, nf, tx } from '../shared'
+import { ACQ_A } from './S7bAcquisition'
 
 /** §14.8：演算法比較表、思考題、本課必記、連結到 PLL */
 export function S9Wrap() {
@@ -232,6 +233,9 @@ export function S9Wrap() {
           </>,
           <>
             Corner 區間的 <Tex>{'\\epsilon'}</Tex> 是相對比例；區間為空時要改 <Tex>{'B'}</Tex>、<Tex>{'K'}</Tex> 散佈、<Tex>{'\\epsilon'}</Tex>、PM 或架構，不是再找一個 <Tex>{'\\mu'}</Tex>（E16）。
+          </>,
+          <>
+            LOCK 不只是計數器（§14.6b）：SSPD 分不出 <Tex>{'Mf_\\text{ref}'}</Tex> 與 <Tex>{'(M\\pm1)f_\\text{ref}'}</Tex>，所以 FLL 要先把 <Tex>{'|\\Delta f|'}</Tex> 拉進 <Tex>{'f_\\text{ref}/2'}</Tex> 的捕獲範圍（第一個理由：倍頻）；之後才是相位層級的 slip（<Tex>{'|\\Delta T|<g_pT_\\text{vco}/(2\\pi)'}</Tex>）與靜態偏移（<Tex>{'\\theta_\\text{ss}=\\Delta T/g_p<\\theta_{\\max}'}</Tex>）。illustrative 例子的 <Tex>{'80\\,\\mathrm{MHz}'}</Tex> 不會 slip（上限 <Tex>{`${nf(ACQ_A.slip.dfLimitHz / 1e6, 4)}\\,\\mathrm{MHz}`}</Tex>），沒有 FLL 時卡住的是 <Tex>{`\\theta_\\text{ss}=${nf(ACQ_A.noFll.thetaSsFs / 1000, 3)}\\,\\mathrm{ps}>\\theta_{\\max}`}</Tex>（一階相位迴路模型；Type-II 的積分器會把靜態偏移積掉，倍頻模糊則與迴路型別無關）。<ClaimTag kind="exact" />
           </>,
           <>
             固定 <Tex>{'T'}</Tex> 時 <Tex>{'N'}</Tex> 本身幾乎不影響最佳 RMS；<Tex>{'N'}</Tex> 由延遲、位元數、追蹤頻寬與對 <Tex>{'K'}</Tex> 誤差的穩健性決定。步長「先大後小」接近 <Tex>{'1/k'}</Tex> 下界，並由狀態機與 guards 實作。

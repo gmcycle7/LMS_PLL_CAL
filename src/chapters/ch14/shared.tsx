@@ -1,25 +1,12 @@
 import { Fragment, type ComponentProps, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
 import type { Shape } from 'plotly.js-cartesian-dist-min'
-import { StepDerivation, Tex } from '@/components'
+import { StepDerivation, Tex, makeTexNum } from '@/components'
 import { useSettings, type LearningMode } from '@/app/settings'
 import { fmt } from '@/simulation/core'
 
 /**
  * Ch14 共用的小元件與工具（只在本章使用；可考慮上移到共用層，見回報）。
  */
-
-/** 「勘誤 Exx」小標註：連到驗證頁（verification 頁依 id 列出勘誤）。 */
-export function ErratumNote({ id, children }: { id: string; children: ReactNode }) {
-  return (
-    <div className="ch14-erratum" role="note">
-      <Link to="/verification" className="ch14-erratum-tag" title={`validation.md ${id}`}>
-        勘誤 {id}
-      </Link>
-      <span className="ch14-erratum-body">{children}</span>
-    </div>
-  )
-}
 
 /**
  * 把含 $…$ 的說明文字轉成「文字 + 行內 KaTeX」：md('因為 $|x|=1$，所以…')。
@@ -59,14 +46,8 @@ export function Steps(props: ComponentProps<typeof StepDerivation>) {
   )
 }
 
-/** 給 KaTeX 字串用的數字格式（有效位數；指數改成 \times 10^{}）。 */
-export function tx(x: number, digits = 4): string {
-  if (!Number.isFinite(x)) return x > 0 ? '\\infty' : x < 0 ? '-\\infty' : '\\text{NaN}'
-  const s = fmt(x, digits)
-  const m = /^(-?[\d.]+)e([+-]?\d+)$/.exec(s)
-  if (m) return `${m[1]}\\times10^{${Number(m[2])}}`
-  return s
-}
+/** 給 KaTeX 字串用的數字格式（有效位數；指數改成 \times 10^{}；共用的 makeTexNum，NaN 寫 \text{NaN}）。 */
+export const tx = makeTexNum(4, { nan: '\\text{NaN}' })
 
 /** 一般文字用的數字格式（fmt 的別名，方便閱讀）。 */
 export function nf(x: number, digits = 4): string {

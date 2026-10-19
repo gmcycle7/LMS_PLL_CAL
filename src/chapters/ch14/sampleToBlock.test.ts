@@ -87,7 +87,7 @@ describe('Ch14 §14.1：e[n] ≈ δ_k·u[n] + v[n] 只差每個 block 的第一�
     for (const phrase of ['還不夠', '每個 block 的第一個樣本', '先乘後濾', '先濾後乘', '凍結（固定不動）', '記憶長度內近似常數', '時間尺度分離', 'F-06.1']) {
       expect(walk, phrase).toContain(phrase)
     }
-    expect(walk).toContain(String.raw`e[n]&=c\,\delta_k\,x[n]+s\,\delta_{k-1}\,x[n-1]+v[n]\\` + '\n' + String.raw`&=\delta_k\,u[n]+v[n]\\` + '\n' + String.raw`&\quad+s\,(\delta_{k-1}-\delta_k)\,x[n-1]`)
+    expect(walk).toContain(String.raw`e[n]&=c\delta_k x[n]+s\delta_{k-1}x[n-1]+v[n]\\` + '\n' + String.raw`&=\delta_k\,u[n]+v[n]\\` + '\n' + String.raw`&\quad+s\,(\delta_{k-1}-\delta_k)\,x[n-1]`)
     const symbols = read('S10Symbols.tsx')
     expect(symbols).toContain(String.raw`t_\mathrm{ref}^{\prime}[n]-t_\mathrm{fb}[n]\approx\delta_k\,u[n]+v[n]`)
     expect(symbols).not.toContain(String.raw`=\delta_k\,u[n]+v[n]`)

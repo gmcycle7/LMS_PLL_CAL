@@ -1,0 +1,17 @@
+{
+  "id": "ch14-acq-loss-relock",
+  "title": "Ch14：acquisition——失鎖後要重新 acquisition（+50 MHz 跳變）",
+  "page": "/ch/14",
+  "experiment": "cal-state-machine",
+  "description": "block 300 起 10 個 block 的外部干擾結束後 VCO 頻率仍偏 50 MHz：|Δf̂| > f_unlock 連續 N_ul 個週期 → 回 ACQ → FLL 重新拉頻率 → PLOCK → RECAL → CAL。重新 enable 需要約 8.4k–8.8k 個週期（無雜訊 8429；有雜訊時 lock detect 稍晚）= 9 個 block，所以 block 級的失鎖視窗是 10 + 9 = 19 個 block。",
+  "params": {
+    "lockLossStart": 300,
+    "lockLossLen": 10,
+    "unlockBias": 0.3,
+    "acq": {
+      "lossDfHz": 50000000
+    }
+  },
+  "expected": "acquisition 指標：失鎖 1 次、HOLD 1 次、重新 enable 約 8.4k–8.8k 週期（無雜訊 8429；預設 seed 8799）= 9 blocks；block 級狀態機的 LOCK 視窗 19 個 block，重新鎖定後先 VERIFY；評估 RMS 含 VERIFY 的 ±Δ 擾動。",
+  "source": "illustrative"
+}

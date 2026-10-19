@@ -1,10 +1,10 @@
-import { Callout, ClaimTag, CodeBlock, ModeGate, Section, Tex, TexBlock, ChRef } from '@/components'
+import { AnchorLink, Callout, ChapterErratumNote, ClaimTag, CodeBlock, ModeGate, Section, Tex, TexBlock, ChRef } from '@/components'
 import optimizerSrc from '@/simulation/models/optimizer.ts?raw'
 import { DEFAULT_CAL_SM } from '@/simulation/models/optimizer'
 import { Diagram } from '../Diagram'
 import { CHART_ALARM_HYSTERESIS, CHART_GUARD_ORDER, CHART_VERIFY_DECISION, IMPL_CHART, SPEC_CHART } from '../diagrams'
 import { CalStateMachineExperiment, trackRmsPrediction } from '../experiments/CalStateMachine'
-import { ErratumNote, md, tx } from '../shared'
+import { md, tx } from '../shared'
 
 /** §14.7：Calibration State Machine 與 guards */
 export function S8StateMachine() {
@@ -19,7 +19,7 @@ export function S8StateMachine() {
       </p>
       <Diagram chart={SPEC_CHART} caption="規格 §14.2 的建議狀態機（原圖）：由上到下是開機後的主線，最下面兩個分支是背景追蹤時的暫停（FREEZE）與重來（RESTART，箭頭繞回 COARSE）。">
         <p>
-          <strong>先看</strong>主線：RESET → LOCK（等 PLL 鎖定）→ COARSE（大步長）→ VERIFY（檢查收斂與偏差）→ FINE（小步長）→ TRACK（低頻寬背景追蹤）——這就是 §14.6 的「先大後小」加上 §14.2 (e) 的追蹤步長。
+          <strong>先看</strong>主線：RESET → LOCK（等 PLL 鎖定）→ COARSE（大步長）→ VERIFY（檢查收斂與偏差）→ FINE（小步長）→ TRACK（低頻寬背景追蹤）——這就是 §14.6 的「先大後小」加上 §14.2 (e) 的追蹤步長。LOCK 要等多久不是一個固定的計數器：它等的是 <AnchorLink id="ch14-acquisition">§14.6b</AnchorLink> 的四個條件（頻率鎖定、phase lock、迴路穩態、DTC 工作點）同時成立，下面實驗的 LOCK 長度就由那個模型算出來。
           <strong>再看</strong>TRACK 的兩個迴圈：低雜訊模式時可以 FREEZE 不動係數；mode 或 PVT 大變化時 RESTART，回到 COARSE 重新收斂。
         </p>
       </Diagram>
@@ -32,10 +32,10 @@ export function S8StateMachine() {
           圖上 VERIFY 方塊裡的 <Tex>{'\\hat K'}</Tex> 就是 §14.5 量測的斜率估計（F-14.21），<Tex>{'\\hat\\delta'}</Tex> 是用同一次量測估出來的殘餘誤差；兩者怎麼判定，放大在下面的 VERIFY 判定圖。
         </p>
       </Diagram>
-      <ErratumNote id="E48">
+      <ChapterErratumNote id="E48">
         COARSE 階段的 <Tex>{'|\\delta|'}</Tex> 通常 <Tex>{'\\gtrsim0.5\\sigma_v'}</Tex>（comparator 飽和、slew-limited），F-14.3 不適用；coarse 長度用 F-14.5 或 Monte Carlo 決定，VERIFY 之後（<Tex>{'|\\delta|\\ll\\sigma_v'}</Tex>）才用線性公式設計{' '}
         <Tex>{'\\mu_\\text{fine}'}</Tex>、<Tex>{'\\mu_\\text{track}'}</Tex>。
-      </ErratumNote>
+      </ChapterErratumNote>
       <h3>一個 block 裡的先後順序</h3>
       <p>
         狀態圖只畫出「從哪個狀態到哪個狀態」。硬體在每個 block 實際做的事有固定的先後：先看保護條件（guard），再決定這個 block 要不要更新、更新多少，最後才決定下一個狀態。
