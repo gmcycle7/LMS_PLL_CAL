@@ -172,14 +172,18 @@ export function withAlpha(color: string, alpha: number): string {
 
 /** log 軸跨越至少這麼多個十進位時只標 10 的整數次方（Bode／PSD 圖慣例）；更窄的軸需要 2、5 才讀得出數值 */
 export const LOG_POWER_TICKS_MIN_DECADES = 1.7
+/** 跨這麼多個十進位的 log 軸（例如 PSD 從 1e-21 到 1e-5）每兩個十進位才標一次 */
+export const LOG_SPARSE_TICKS_MIN_DECADES = 12
 
 /**
- * log 軸的主刻度間距：≥ 1.7 個十進位 → 只標 10 的整數次方（dtick 1）；1–1.7 個十進位 → 1、2、5（'D2'）；
- * 不到一個十進位 → 交給 Plotly（線性刻度，標完整數字）。範圍不明時當作很寬。
+ * log 軸的主刻度間距：≥ 12 個十進位 → 每兩個十進位標一次（dtick 2；PSD 圖常跨 15 個十進位，每個都標會疊在一起）；
+ * ≥ 1.7 個十進位 → 只標 10 的整數次方（dtick 1）；1–1.7 個十進位 → 1、2、5（'D2'）；
+ * 不到一個十進位 → 交給 Plotly（線性刻度，標完整數字）。範圍不明時當作很寬（dtick 1）。
  * 縮放後 Plot 元件會用目前的軸範圍重新呼叫（plotly_relayout），放大到一個十進位內仍有刻度數字。
  */
 export function logAxisDtick(spanDecades: number | undefined): number | string | undefined {
   if (spanDecades === undefined || !Number.isFinite(spanDecades)) return 1
+  if (spanDecades >= LOG_SPARSE_TICKS_MIN_DECADES) return 2
   if (spanDecades >= LOG_POWER_TICKS_MIN_DECADES) return 1
   if (spanDecades >= 1) return 'D2'
   return undefined

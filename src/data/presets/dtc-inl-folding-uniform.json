@@ -1,0 +1,22 @@
+{
+  "id": "dtc-inl-folding-uniform",
+  "title": "折返：uniform 白色 code（沒有整形可折）",
+  "page": "/ch/11b",
+  "experiment": "dtc-inl-folding",
+  "description": "同樣的 d_2 = 20，但 code 是 iid uniform：x 與 x² 的 PSD 都平坦，帶內就是總功率的 2ν_B。",
+  "params": {
+    "codeKind": "uniform",
+    "frac": 0.618,
+    "d2": 20,
+    "d3": 0,
+    "sawAmp": 0,
+    "sawSegments": 8,
+    "sigmaV": 10,
+    "fsMHz": 100,
+    "fBMHz": 1,
+    "lengthLog2": 16,
+    "nperseg": 4096
+  },
+  "expected": "P_in = 400·(4/45)·0.02 = 0.7111 t.u.²（Var(x²) = 4/45）；Gaussian 式 1.778 高估 2.5 倍（峰度 1.8）。",
+  "source": "illustrative"
+}

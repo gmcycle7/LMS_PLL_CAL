@@ -1,0 +1,50 @@
+{
+  "id": "dtc_inl_folding",
+  "description_zh": "Ch11b 噪聲折返：MASH 1-1-1 正規化 code（x = r/2）的自相關 (1/48)[6, −4, 1]，x²−σ² 在 DC 的 PSD 2ΣR² = 35/576（Gaussian）、精確式 121/2880；d_2 = 20、ν_B = 0.01 的帶內功率",
+  "spec_section": "§11b",
+  "inputs": {
+    "R_code": [
+      0.125,
+      -0.08333333333333333,
+      0.020833333333333332
+    ],
+    "fir_h": [
+      -0.5,
+      1.0,
+      -0.5
+    ],
+    "d2": 20.0,
+    "d3": 10.0,
+    "nu_B": 0.01,
+    "uniform_Ex4": 0.2,
+    "uniform_sigma2": 0.3333333333333333
+  },
+  "expected": {
+    "R_residue": [
+      0.5,
+      -0.3333333333333333,
+      0.08333333333333333
+    ],
+    "sigma2_code": 0.125,
+    "S2_unit_gaussian": 0.06076388888888889,
+    "S3_unit_gaussian": 0.004882812500000002,
+    "kappa4_uniform": -0.008333333333333331,
+    "sum_h2": 1.5,
+    "S2_unit_exact": 0.04201388888888889,
+    "Pin_gaussian_d2": 0.4861111111111111,
+    "rms_in_gaussian_d2": 0.6972166887783963,
+    "residual_power_gaussian_d2": 12.5,
+    "inband_fraction_gaussian_d2": 0.03888888888888889,
+    "Pin_exact_d2": 0.33611111111111114,
+    "Pin_gaussian_d3": 0.009765625000000003,
+    "gain_absorbed_d3": 3.75,
+    "residual_power_gaussian_d3": 1.171875,
+    "uniform_var_x2": 0.0888888888888889,
+    "uniform_Pin_exact_d2": 0.7111111111111112,
+    "uniform_S2_unit_gaussian": 0.2222222222222222
+  },
+  "tolerance": {
+    "rel": 1e-12
+  },
+  "notes": "S_p(0) = p!·Σ_m R[m]^p（Gaussian–Isserlis）；線性過程精確式 S_2(0) = 2ΣR² + κ_4(Σh²)²，h = [−½, 1, −½]、κ_4 = −1/120；帶內功率 P_in = S(0)·2ν_B；三次項 gain 校正吸收 3d_3σ²。uniform iid x：x² 的 PSD 平坦，位準 Var(x²) = 4/45。"
+}

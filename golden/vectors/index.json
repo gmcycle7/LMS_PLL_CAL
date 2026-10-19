@@ -147,6 +147,24 @@
       "file": "negative_tests.json",
       "spec_section": "§17",
       "description_zh": "規格 §17 反面測試的關鍵數值（極性反轉、缺乏 PE、sum/average scaling、0/1 編碼、code 錯位、overflow）"
+    },
+    {
+      "id": "dtc_inl_folding",
+      "file": "dtc_inl_folding.json",
+      "spec_section": "§11b",
+      "description_zh": "Ch11b 噪聲折返：MASH 1-1-1 正規化 code（x = r/2）的自相關 (1/48)[6, −4, 1]，x²−σ² 在 DC 的 PSD 2ΣR² = 35/576（Gaussian）、精確式 121/2880；d_2 = 20、ν_B = 0.01 的帶內功率"
+    },
+    {
+      "id": "dtc_inl_segments",
+      "file": "dtc_inl_segments.json",
+      "spec_section": "§11b",
+      "description_zh": "Ch11b 分段 LMS（K = 8、uniform x）每段的 λ_k、pole、k95、穩態 std，與 LUT 64 格的時間常數／每格樣本數（μ = 2、σ_v = 10、N = 64）"
+    },
+    {
+      "id": "dtc_inl_basis",
+      "file": "dtc_inl_basis.json",
+      "spec_section": "§11b",
+      "description_zh": "Ch11b 多項式基底（M = 3、uniform x）：monomial Hankel 的條件數 67.5 vs Legendre 7 vs normalized Legendre 1；LS 最佳解與 mean-field k95（μK_qλ_max = 0.1、σ_v = 10、d_2 = 20、d_3 = 10）"
     }
   ]
 }

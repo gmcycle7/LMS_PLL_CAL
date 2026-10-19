@@ -1,0 +1,29 @@
+{
+  "id": "dtc-inl-lms-lut-mash",
+  "title": "LUT 64 格 + MASH code：外側格沒有樣本",
+  "page": "/ch/11b",
+  "experiment": "dtc-inl-lms",
+  "description": "MASH 的 x 集中在中間：造訪機率最小的格只有 10⁻⁵，時間常數比平均長數萬倍。",
+  "params": {
+    "structure": "lut",
+    "J": 64,
+    "codeKind": "mash111",
+    "frac": 0.618,
+    "d2": 20,
+    "d3": 0,
+    "sawAmp": 0,
+    "sawSegments": 8,
+    "a": 1,
+    "w0": 1,
+    "b": 0,
+    "sigmaV": 10,
+    "algorithm": "sign",
+    "mu": 2,
+    "N": 64,
+    "blocks": 4000,
+    "precond": "none",
+    "gainAdapt": false
+  },
+  "expected": "警告「有 25 個段／格的造訪機率低於 1%」；最慢有效模式 k95 超過 10⁶ blocks；殘餘 INL 停在約 0.77（floor 0.127），不是 uniform 的 0.45。",
+  "source": "illustrative"
+}

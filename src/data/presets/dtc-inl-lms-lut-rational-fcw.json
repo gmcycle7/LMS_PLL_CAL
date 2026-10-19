@@ -1,0 +1,29 @@
+{
+  "id": "dtc-inl-lms-lut-rational-fcw",
+  "title": "LUT + frac 0.3：code 落在 1/10 格點上，LUT 有空格",
+  "page": "/ch/11b",
+  "experiment": "dtc-inl-lms",
+  "description": "接近有理數的 FCW 讓 MASH 餘數只取 ≈ 10 個值的格點：64 格 LUT 有 20 多格永遠沒有樣本（缺乏 PE）。",
+  "params": {
+    "structure": "lut",
+    "J": 64,
+    "codeKind": "mash111",
+    "frac": 0.3,
+    "d2": 20,
+    "d3": 0,
+    "sawAmp": 0,
+    "sawSegments": 8,
+    "a": 1,
+    "w0": 1,
+    "b": 0,
+    "sigmaV": 10,
+    "algorithm": "sign",
+    "mu": 2,
+    "N": 64,
+    "blocks": 1000,
+    "precond": "none",
+    "gainAdapt": false
+  },
+  "expected": "警告「有 24 個段／格完全沒有被 code 造訪」；R 奇異（λ_min = 0）、Analytic 欄 n/a；沒有樣本的格參數不動（不是發散）。",
+  "source": "illustrative"
+}

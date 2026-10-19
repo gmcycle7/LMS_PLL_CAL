@@ -1,0 +1,28 @@
+{
+  "id": "dtc-inl-lms-piecewise-k8",
+  "title": "分段 K = 8、uniform code（本章例）",
+  "page": "/ch/11b",
+  "experiment": "dtc-inl-lms",
+  "description": "d_2 = 20、μ = 2、σ_v = 10、N = 64：外段幾個 block 就到、內段慢 37 倍；殘餘 INL 從 9.1 降到 floor 0.82 附近。",
+  "params": {
+    "structure": "piecewise",
+    "K": 8,
+    "codeKind": "uniform",
+    "d2": 20,
+    "d3": 0,
+    "sawAmp": 0,
+    "sawSegments": 8,
+    "a": 1,
+    "w0": 1,
+    "b": 0,
+    "sigmaV": 10,
+    "algorithm": "sign",
+    "mu": 2,
+    "N": 64,
+    "blocks": 3000,
+    "precond": "none",
+    "gainAdapt": false
+  },
+  "expected": "殘餘 INL rms 校正前 9.11 → 約 0.9（floor 0.816、floor + misadjustment 0.855）；最外段 λ = 0.09635、k95 = 194，最內段 λ = 0.002604、k95 ≈ 7200；穩態 σ_w ≈ 0.44。",
+  "source": "illustrative"
+}

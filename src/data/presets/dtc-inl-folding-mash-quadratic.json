@@ -1,0 +1,22 @@
+{
+  "id": "dtc-inl-folding-mash-quadratic",
+  "title": "折返：MASH 1-1-1 + 二次 INL（本章例）",
+  "page": "/ch/11b",
+  "experiment": "dtc-inl-folding",
+  "description": "d_2 = 20 t.u.、frac 0.618、f_s = 100 MHz、f_B = 1 MHz：gain 校正後的殘餘 INL 把 40 dB/dec 的量化雜訊折回帶內。",
+  "params": {
+    "codeKind": "mash111",
+    "frac": 0.618,
+    "d2": 20,
+    "d3": 0,
+    "sawAmp": 0,
+    "sawSegments": 8,
+    "sigmaV": 10,
+    "fsMHz": 100,
+    "fBMHz": 1,
+    "lengthLog2": 16,
+    "nperseg": 4096
+  },
+  "expected": "帶內折返功率 P_in ≈ 0.336 t.u.²（精確式 400·121/2880·0.02 = 0.3361，Welch 量測在 ±8% 內），rms ≈ 0.58 t.u.；Gaussian 式 0.4861（高估約 45%，峰度約 2.4）。",
+  "source": "illustrative"
+}
