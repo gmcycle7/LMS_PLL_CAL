@@ -1,12 +1,12 @@
 import { useMemo } from 'react'
-import { ClaimTag, CodeBlock, Derivation, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock } from '@/components'
+import { ClaimTag, CodeBlock, Derivation, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock, ChapterErratum } from '@/components'
 import { useSettings } from '@/app/settings'
 import { Link } from 'react-router-dom'
 import { presetById, presetHref } from '@/app/presets'
 import { fixedXPole } from '@/simulation/models/lms'
 import { STEADY_STATE_EXAMPLE, diceAverages, equivalentAveragingLength, steadyStateVarW, stepsToFraction } from '../model'
 import { num, texNum } from '../format'
-import { ChapterDiagram, ChapterHandCalc, ErratumRef, FigRef, Observe, PageLink } from '../common'
+import { ChapterDiagram, ChapterHandCalc, FigRef, Observe, PageLink } from '../common'
 import { NoiseAverageLab } from '../experiments/NoiseAverageLab'
 import modelSrc from '../model.ts?raw'
 import playgroundSrc from '../experiments/playgroundModel.ts?raw'
@@ -173,7 +173,7 @@ export function NoiseAverageSection() {
         id="F-00.7"
         label={
           <>
-            平均更新方向：<Tex>{'E[x^2]>0'}</Tex>，所以平均更新永遠指向 <Tex>{'a'}</Tex>（<Tex>{'\\delta=a-w'}</Tex>，<ErratumRef eid="E39" />）
+            平均更新方向：<Tex>{'E[x^2]>0'}</Tex>，所以平均更新永遠指向 <Tex>{'a'}</Tex>（<Tex>{'\\delta=a-w'}</Tex>，<ChapterErratum id="E39" />）
           </>
         }
       >

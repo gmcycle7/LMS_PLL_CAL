@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useSettings, type LearningMode } from '@/app/settings'
-import { HandCalc, Tex } from '@/components'
+import { Tex, bindHandCalc } from '@/components'
 import { fmt } from '@/simulation/core'
 import {
   STRATEGY_LABEL,
@@ -17,29 +17,7 @@ import { HANDCALCS } from './handcalcs'
  * 「帶入手算」題：依 id 從本章的 HANDCALCS 取出並顯示（docs/teaching-style.md §7）。
  * children 是放在題目前面的一句話：邀請讀者把數字換成自己的，先用紙筆算一次再對答案。
  */
-export function Hand({ id, children }: { id: string; children?: ReactNode }) {
-  const def = HANDCALCS.find((h) => h.id === id)
-  if (!def) return null
-  return (
-    <div className="ch13-hand">
-      <p className="small ch13-hand-invite">
-        <strong>換你算：</strong>
-        {children ?? '把下面的數字換成你自己的，先用紙筆和計算機算一次，再和網站的每一步對答案。'}
-      </p>
-      <HandCalc def={def} />
-    </div>
-  )
-}
-
-/** 「勘誤 Exx」小標，連到驗證頁（勘誤依 id 列在 #/verification）。 */
-export function Erratum({ id, children }: { id: string; children?: ReactNode }) {
-  return (
-    <a className="ch13-erratum" href="#/verification" title={`docs/validation.md ${id}：本站採用修正後的版本`}>
-      勘誤 {id}
-      {children ? <span className="ch13-erratum-note">：{children}</span> : null}
-    </a>
-  )
-}
+export const Hand = bindHandCalc(HANDCALCS)
 
 /**
  * 依學習模式決定預設展開的推導框：Beginner 收合、Engineer 以上展開（docs/teaching-style.md §6）。

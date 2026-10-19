@@ -197,10 +197,10 @@ describe('Ch02 頁面（jsdom smoke）', () => {
       '（正規化 loop gain）', // g
     ])
       expect(body, `正文缺少就地說明：${phrase}`).toContain(phrase)
-    const errata = Array.from(container.querySelectorAll('a.ch02-erratum'))
+    const errata = Array.from(container.querySelectorAll('a.c-erratum-link'))
     const ids = new Set(errata.map((a) => /E\d\d/.exec(a.textContent ?? '')?.[0]))
     for (const id of ['E40', 'E41', 'E43']) expect(ids.has(id), id).toBe(true)
-    for (const a of errata) expect(a.getAttribute('href')).toBe('#/verification')
+    for (const a of errata) expect(a.getAttribute('href')).toBe(`/verification?e=${a.getAttribute('data-erratum')}`)
     for (const id of ['gd-tangent', 'gd-batch-vs-sgd', 'sign-lms-band', 'sign-lms-fixed-points', 'sign-lms-compare'])
       expect(container.querySelector(`[data-experiment="${id}"]`), id).toBeTruthy()
     for (const label of ['LMS', 'Sign-Error', 'Sign-Sign', 'Huber', 'NLMS']) expect(screen.getAllByText(label).length).toBeGreaterThan(0)
@@ -221,9 +221,9 @@ describe('Ch02 頁面（jsdom smoke）', () => {
     const hcs = Array.from(container.querySelectorAll('.c-handcalc'))
     expect(hcs.map((e) => e.id)).toEqual(HANDCALCS.map((h) => `handcalc-${h.id}`))
     for (const e of hcs) {
-      const slot = e.closest('.ch02-handcalc') as HTMLElement
+      const slot = e.closest('.c-chapter-hand') as HTMLElement
       expect(slot.getAttribute('data-handcalc')).toBe(e.id.replace('handcalc-', ''))
-      expect(slot.querySelector('.ch02-handcalc-lead')?.textContent).toMatch(/換你算：.*(先|親手)/)
+      expect(slot.querySelector('.c-chapter-hand-lead')?.textContent).toMatch(/換你算：.*(先|親手)/)
       expect(e.querySelectorAll('.c-step').length, e.id).toBeGreaterThan(0)
     }
     const quiz6 = Array.from(container.querySelectorAll('.c-quiz')).find((q) => q.querySelector('.c-quiz-title')?.textContent?.includes('思考題 6'))!

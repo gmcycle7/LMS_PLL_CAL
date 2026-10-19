@@ -1,6 +1,6 @@
-import { ClaimTag, ModelLevel, Prereq, Section, SourceTag, SymbolTable, Tex, TestBadge, ChRef } from '@/components'
+import { ClaimTag, ModelLevel, Prereq, Section, SourceTag, SymbolTable, Tex, TestBadge, ChRef, ChapterErratum } from '@/components'
 import './chapter.css'
-import { Erratum, SYMBOLS_ID, md } from './common'
+import { SYMBOLS_ID, md } from './common'
 import { CH12_SYMBOLS } from './symbols'
 import { S1Intro } from './sections/S1Intro'
 import { S2Recursion } from './sections/S2Recursion'
@@ -37,7 +37,7 @@ export default function Chapter12() {
                 規格 §12。前面幾章把 LMS 調到「平均正確」（<ChRef ch="03">第 3 章</ChRef>的 mean stability、<ChRef ch="05">第 5 章</ChRef>的 comparator 增益、<ChRef ch="08">第 8 章</ChRef>的 phase margin、<ChRef ch="11">第 11 章</ChRef>的 bias）。這一章處理收斂<strong>之後</strong>剩下的東西：comparator 的隨機判斷讓係數持續抖動，這個抖動經過「乘上 code」與「PLL 的轉移函數」才變成輸出的 jitter 或 spur。本章所有先備數學（期望值、Z-transform、PSD、卷積、Bessel）都在可展開的「先備知識」框內從頭說明。
               </p>
               <p className="small">
-                本章負責的勘誤一句話版：<Erratum id="E27" />（−3 dB 頻寬不等於 ENBW；近似的誤差與存在範圍要分開說）、<Erratum id="E28" />（PSD 的正規化）、<Erratum id="E29" />（multirate：係數雜訊在 block rate 產生、在 sample rate 乘上 code），以及 <Erratum id="E06" />、<Erratum id="E26" />；全站性的 <Erratum id="E09" />、<Erratum id="E10" />、<Erratum id="E30" />（T13 的完整條件）、<Erratum id="E33" />（係數偏差 <Tex>{String.raw`\delta w=w-w^*`}</Tex> 的極性）也在本章用到。每一條在正文第一次用到的地方會再標一次；完整說明在驗證頁的勘誤瀏覽器（上方本章資訊的「勘誤」）。
+                本章負責的勘誤一句話版：<ChapterErratum id="E27" />（−3 dB 頻寬不等於 ENBW；近似的誤差與存在範圍要分開說）、<ChapterErratum id="E28" />（PSD 的正規化）、<ChapterErratum id="E29" />（multirate：係數雜訊在 block rate 產生、在 sample rate 乘上 code），以及 <ChapterErratum id="E06" />、<ChapterErratum id="E26" />；全站性的 <ChapterErratum id="E09" />、<ChapterErratum id="E10" />、<ChapterErratum id="E30" />（T13 的完整條件）、<ChapterErratum id="E33" />（係數偏差 <Tex>{String.raw`\delta w=w-w^*`}</Tex> 的極性）也在本章用到。每一條在正文第一次用到的地方會再標一次；完整說明在驗證頁的勘誤瀏覽器（上方本章資訊的「勘誤」）。
               </p>
             </>
           }

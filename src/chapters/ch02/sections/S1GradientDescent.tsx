@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, CodeBlock, Derivation, ModeGate, Prereq, Quiz, Section, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
+import { Callout, ClaimTag, CodeBlock, Derivation, ModeGate, Prereq, Quiz, Section, StepDerivation, Tex, TexBlock, ChRef, ChapterErratum } from '@/components'
 import sgdSrc from '@/simulation/models/sgd.ts?raw'
 import { gradientDescent } from '@/simulation/models/sgd'
-import { Diagram, ErrataNote, HandCalcSlot, f4, DerivFold, tm } from '../common'
+import { Diagram, HandCalcSlot, f4, DerivFold, tm } from '../common'
 import { GdExplorer } from '../experiments/GdExplorer'
 
 /** §1 從切線斜率到 Gradient Descent（只用微積分）。 */
@@ -13,10 +13,10 @@ export function S1GradientDescent() {
   const curvTerm = 0.5 * 4 * t.dw[0] ** 2
 
   return (
-    <section>
-      <h2 id="ch02-s1">§1 從切線斜率到 Gradient Descent</h2>
+    <section id="ch02-s1">
+      <h2>§1 從切線斜率到 Gradient Descent</h2>
 
-      <Section kind="intuition" title="矇眼下山：只看腳下的坡度">
+      <Section id="ch02-blindfold" kind="intuition" title="矇眼下山：只看腳下的坡度">
         <p>
           把你站的位置叫做 <Tex>{'w'}</Tex>（之後它就是我們能調的係數），山的高度叫做 <Tex>{'J(w)'}</Tex>（成本：站在 <Tex>{'w'}</Tex> 時預測有多不準）。你不知道谷底在哪，但腳可以感覺坡度 <Tex>{"J'(w)"}</Tex>（<Tex>{'J'}</Tex> 對 <Tex>{'w'}</Tex> 的導數，也就是切線斜率）。坡度為正代表「往右是上坡」，所以要往左走；坡度為負就往右走。坡越陡、離谷底通常越遠，可以走大步一點。先把這句話畫成一個迴圈：
         </p>
@@ -35,7 +35,7 @@ export function S1GradientDescent() {
         </p>
       </Section>
 
-      <Section kind="example" title={tm('先算一次：$a=3,\\ x=2,\\ w_0=1,\\ \\mu=0.1$')}>
+      <Section id="ch02-gd-hand" kind="example" title={tm('先算一次：$a=3,\\ x=2,\\ w_0=1,\\ \\mu=0.1$')}>
         <p>
           黑盒子 <Tex>{'y=ax'}</Tex>：<Tex>{'a'}</Tex> 是藏在盒子裡、我們不知道的真實係數（校正時就是理想的 DTC gain），這裡 <Tex>{'a=3'}</Tex>。我們給輸入 <Tex>{'x=2'}</Tex>（又叫 regressor）、量到輸出 <Tex>{'y=6'}</Tex>。我們手上只有估計值 <Tex>{'w'}</Tex>：用它預測 <Tex>{'\\hat y=wx'}</Tex>，再算預測誤差 <Tex>{'e=y-\\hat y=y-wx'}</Tex>（量到的減掉預測的）。單筆成本取 <Tex>{'J(w)=\\tfrac12e^2=\\tfrac12(y-wx)^2=\\tfrac12(6-2w)^2'}</Tex>。「量坡度」在硬體上怎麼做？把上一張圖的那一格打開：
         </p>
@@ -62,7 +62,7 @@ export function S1GradientDescent() {
         </p>
       </Section>
 
-      <Section kind="formula" title="為什麼負梯度會下降？（一階泰勒）">
+      <Section id="ch02-taylor" kind="formula" title="為什麼負梯度會下降？（一階泰勒）">
         <Prereq title="泰勒展開（微積分回顧）">
           <p>
             在 <Tex>{'w'}</Tex> 附近，平滑函數可以寫成多項式：<Tex>{String.raw`J(w+\Delta)=J(w)+J'(w)\Delta+\tfrac12J''(w)\Delta^2+\tfrac16J'''(w)\Delta^3+\cdots`}</Tex>。
@@ -86,7 +86,7 @@ export function S1GradientDescent() {
         </p>
       </Section>
 
-      <Section kind="formula" title="步長上限：二次項（彎曲）把你推過頭">
+      <Section id="ch02-step-limit" kind="formula" title="步長上限：二次項（彎曲）把你推過頭">
         <p>
           先看圖，再看推導。把同一個迴圈改用<strong>參數誤差</strong> <Tex>{'\\delta_n=a-w_n'}</Tex>（離谷底還差多少；全站一律是「真值減估計」）來畫，步長的上限一眼就看得出來：
         </p>
@@ -129,7 +129,7 @@ export function S1GradientDescent() {
         <HandCalcSlot id="HC-02.1">
           上面說「切線預測會下降 <Tex>{"\\mu J'^2"}</Tex>，實際只下降其中的 <Tex>{"1-\\tfrac{\\mu}{2}J''"}</Tex> 倍」。把 <Tex>{'a,\\ x,\\ w_0,\\ \\mu'}</Tex> 換成你自己的數字，先用紙筆把「切線預測的成本」和「真實的成本」各算一次，再展開步驟對答案（預設就是上面「先算一次」的數字）。
         </HandCalcSlot>
-        <Callout kind="warn" title={<><Tex>{'\\tfrac12'}</Tex> 不是裝飾 <ErrataNote id="E41" /></>}>
+        <Callout kind="warn" title={<><Tex>{'\\tfrac12'}</Tex> 不是裝飾 <ChapterErratum id="E41" /></>}>
           <p>
             規格 §1 原寫 <Tex>{'J_2(w)=E[(y-wx)^2]'}</Tex>（沒有 <Tex>{'\\tfrac12'}</Tex>），§1.1 的單筆成本卻是 <Tex>{'\\tfrac12e^2'}</Tex>。兩者的梯度差 2 倍：
           </p>
@@ -140,7 +140,7 @@ export function S1GradientDescent() {
         </Callout>
       </Section>
 
-      <Section kind="explore" title="動手觀察">
+      <Section id="ch02-gd-lab" kind="explore" title="動手觀察">
         <GdExplorer />
       </Section>
 

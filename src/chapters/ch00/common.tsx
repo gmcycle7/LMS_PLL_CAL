@@ -3,50 +3,9 @@ import { Link, useLocation } from 'react-router-dom'
 import { useUrlPreset } from '@/app/presets'
 import { pageById } from '@/app/registry'
 import type { PresetEntry } from '@/data/types'
-import { HandCalc, Mermaid, Tex, badgeClass } from '@/components'
-import errataData from '@/data/errata.json'
+import { ChapterFig, FigRef as SharedFigRef, Tex, bindHandCalc, scrollToElement } from '@/components'
 import { HANDCALCS } from './handcalcs'
 import { diagramByName, figureLabel, type DiagramName } from './diagrams'
-
-interface ErratumRecord {
-  eid: string
-  location: string
-  correction: string
-}
-
-const ERRATA: ErratumRecord[] = (errataData as { errata: ErratumRecord[] }).errata
-
-/**
- * 「勘誤 Exx」小標記：本頁與規格書原文不同之處，連到驗證頁（列出全部勘誤）。
- * 展開後顯示 docs/validation.md 的官方修正文字（來自 src/data/errata.json）。
- */
-export function ErratumNote({ eid, children }: { eid: string; children: ReactNode }) {
-  const rec = ERRATA.find((e) => e.eid === eid)
-  return (
-    <aside className="ch00-erratum" aria-label={`勘誤 ${eid}`}>
-      <a className={badgeClass('erratum', 'ch00-erratum-badge')} href="#/verification" title={rec ? `規格位置：${rec.location}` : undefined}>
-        勘誤 {eid}
-      </a>
-      <span className="ch00-erratum-text">{children}</span>
-      {rec && (
-        <details className="ch00-erratum-details">
-          <summary>官方修正文字</summary>
-          <p className="small">{rec.correction}</p>
-        </details>
-      )}
-    </aside>
-  )
-}
-
-/** 行內的「勘誤 Exx」小標記（連到驗證頁；滑鼠移上去顯示規格位置）。用在句子中間提到勘誤時。 */
-export function ErratumRef({ eid }: { eid: string }) {
-  const rec = ERRATA.find((e) => e.eid === eid)
-  return (
-    <a className={badgeClass('erratum', 'ch00-erratum-badge ch00-erratum-inline')} href="#/verification" title={rec ? `規格位置：${rec.location}` : undefined}>
-      勘誤 {eid}
-    </a>
-  )
-}
 
 /** 連到其他章節／頁面；標題取自 registry（避免硬寫章節名稱）。 */
 export function PageLink({ id, children }: { id: string; children?: ReactNode }) {
@@ -70,31 +29,10 @@ export function TryIt({ items }: { items: ReactNode[] }) {
 }
 
 /**
- * 章內的「帶入手算」題（docs/teaching-style.md §7）：依 id 從本章的 HANDCALCS 取出定義，
- * 前面加一句邀請讀者「先自己算、再對答案」的話（children 可換成該段落專屬的說法）。
- * id 打錯時直接丟錯（測試會抓到），不會默默少一題。
+ * 章內的「帶入手算」題（docs/teaching-style.md §7）：依 id 從本章的 HANDCALCS 取出，前面加一句邀請讀者「先自己算、再對答案」的話
+ * （children 可換成該段落專屬的說法）。id 打錯時直接丟錯（測試會抓到），不會默默少一題。
  */
-export function ChapterHandCalc({ id, children }: { id: string; children?: ReactNode }) {
-  const def = HANDCALCS.find((h) => h.id === id)
-  if (!def) throw new Error(`找不到手算題 ${id}`)
-  return (
-    <div className="ch00-handcalc" data-handcalc={id}>
-      <p className="ch00-handcalc-lead">
-        <strong>換你算：</strong>
-        {children ?? '把下面的數字換成你自己的，先用紙筆和計算機算一遍，再切到「看帶入過程」或按「對答案」和網站比。'}
-      </p>
-      <HandCalc def={def} />
-    </div>
-  )
-}
-
-/**
- * 捲動到本頁的某個元素。HashRouter 下 `href="#id"` 會被當成路由，所以頁內跳轉一律用按鈕 + scrollIntoView。
- * jsdom 沒有 scrollIntoView，所以用可選呼叫。
- */
-export function scrollToId(id: string) {
-  document.getElementById(id)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
-}
+export const ChapterHandCalc = bindHandCalc(HANDCALCS)
 
 /**
  * 章內的方塊圖（docs/teaching-style.md §8）：依名稱從 diagrams.ts 取出 Mermaid 原始碼與圖說，圖說前自動加上圖號。
@@ -106,23 +44,15 @@ export function ChapterDiagram({ name, children }: { name: DiagramName; children
   const d = diagramByName(name)
   const label = figureLabel(name)
   return (
-    <div className="ch00-diagram" id={`fig-${d.id}`} data-diagram={d.name}>
-      <Mermaid chart={d.chart} caption={`${label}｜${d.caption}`} ariaLabel={`${label}：${d.ariaLabel}`} />
-      <div className="ch00-diagram-walk">
-        <span className="ch00-diagram-walk-label">怎麼看{label}</span>
-        <div>{children}</div>
-      </div>
-    </div>
+    <ChapterFig chart={d.chart} label={label} caption={d.caption} ariaLabel={`${label}：${d.ariaLabel}`} id={`fig-${d.id}`} dataAttrs={{ 'data-diagram': d.name }} walkLabel={`怎麼看${label}`}>
+      {children}
+    </ChapterFig>
   )
 }
 
 /** 內文裡提到某張圖（例如「圖 0.8」）：點了會捲到那張圖。 */
 export function FigRef({ name }: { name: DiagramName }) {
-  return (
-    <button type="button" className="ch00-link-button" onClick={() => scrollToId(`fig-${diagramByName(name).id}`)}>
-      {figureLabel(name)}
-    </button>
-  )
+  return <SharedFigRef label={figureLabel(name)} target={`fig-${diagramByName(name).id}`} />
 }
 
 /** 小型的「你會發現…」重點框。 */
@@ -150,26 +80,17 @@ export function usePresetVisit(experimentId: string): { preset: PresetEntry | un
  * 每次有新的 preset 導覽（`visit` 改變）時，把那個實驗（ExperimentShell 的 `#exp-<id>`）捲進畫面。
  * 本章很長、又有兩個實驗；不捲動的話，從 Gallery 或內文連結點進來的讀者只會停在原地，不知道 preset 已經套用。
  * 用 setTimeout 排在 PageFrame 的「換頁回到頂端」之後；上方的圖（Mermaid / Plotly）是延遲載入的，載入後版面會被推開，
- * 所以稍後再對齊兩次——使用者一旦自己捲動或按鍵就不再干涉。jsdom 沒有 scrollIntoView，所以用可選呼叫。
+ * 共用的 scrollToElement 會在 2 秒內再對齊幾次——使用者一旦自己捲動或按鍵就不再干涉。
  */
 export function useScrollToExperiment(experimentId: string, visit: string | undefined) {
   useEffect(() => {
     if (!visit) return
-    let cancelled = false
-    const stop = () => {
-      cancelled = true
-    }
-    const scroll = () => {
-      if (!cancelled) document.getElementById(`exp-${experimentId}`)?.scrollIntoView?.({ block: 'start' })
-    }
-    const timers = [0, 500, 1500].map((ms) => setTimeout(scroll, ms))
-    const events = ['wheel', 'touchstart', 'keydown', 'mousedown'] as const
-    events.forEach((ev) => window.addEventListener(ev, stop, { passive: true, once: true }))
-    return () => {
-      stop()
-      timers.forEach(clearTimeout)
-      events.forEach((ev) => window.removeEventListener(ev, stop))
-    }
+    // scrollToElement 會在之後 2 秒內校正版面晚到造成的位移（上方的圖延遲載入），使用者自己捲動就停止
+    const t = setTimeout(() => {
+      const el = document.getElementById(`exp-${experimentId}`)
+      if (el) scrollToElement(el)
+    }, 0)
+    return () => clearTimeout(t)
   }, [experimentId, visit])
 }
 

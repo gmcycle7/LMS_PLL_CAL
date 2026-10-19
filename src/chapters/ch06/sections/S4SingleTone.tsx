@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Prereq, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
+import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Prereq, StepDerivation, Tex, TexBlock, ChRef, ChapterErratum, JumpTo } from '@/components'
 import polaritySrc from '@/simulation/models/polarity.ts?raw'
 import {
   calPole,
@@ -11,7 +11,7 @@ import {
   toneFir,
   toneRippleBound,
 } from '@/simulation/models/polarity'
-import { ChapterDiagram, ChapterHandCalc, ChapterSection, Erratum, f, fx, JumpTo, radOf, StepBox } from '../shared'
+import { ChapterDiagram, ChapterHandCalc, ChapterSection, f, fx, radOf, StepBox } from '../shared'
 
 const PATH = 'src/simulation/models/polarity.ts'
 
@@ -180,7 +180,7 @@ export function S4SingleTone() {
         <p className="ch06-tags">
           <ClaimTag kind="exact" />
           <span className="small">
-            條件：單頻、<Tex>{'0<\\Omega<\\pi'}</Tex>、長時間平均或整數週期平均 <Erratum id="E46" />。<Tex>{'D=0'}</Tex> 就是規格 §6.1 的{' '}
+            條件：單頻、<Tex>{'0<\\Omega<\\pi'}</Tex>、長時間平均或整數週期平均 <ChapterErratum id="E46" />。<Tex>{'D=0'}</Tex> 就是規格 §6.1 的{' '}
             <Tex>{'E[xu]=\\tfrac{A^2}{2}|H|\\cos\\phi'}</Tex>。
           </span>
         </p>
@@ -245,10 +245,9 @@ export function S4SingleTone() {
         <Tex>{String.raw`1-0.8\times(${fx(c150, 4)})=${fx(calPole(0.8, 1, c150), 3)}`}</Tex>，每個 block 誤差放大約{' '}
         {fx((calPole(0.8, 1, c150) - 1) * 100, 1)}%。
       </p>
-      <ChapterHandCalc
-        id="HC-06.2"
-        lead={String.raw`上表的每一列都可以自己算。把 $\phi$、週期 $P$、code delay $D$、$\mu$、$\sigma_v$ 換成你的數字，先用計算機按出 $\cos(\phi+\Omega D)$，再算 $C_D$ 與 pole；預設值就是 §1 的例子（測試 T06）。`}
-      />
+      <ChapterHandCalc id="HC-06.2">
+        {String.raw`上表的每一列都可以自己算。把 $\phi$、週期 $P$、code delay $D$、$\mu$、$\sigma_v$ 換成你的數字，先用計算機按出 $\cos(\phi+\Omega D)$，再算 $C_D$ 與 pole；預設值就是 §1 的例子（測試 T06）。`}
+      </ChapterHandCalc>
       <Callout kind="warn" title={String.raw`$\pm90^\circ$ 不是 Bode phase margin`}>
         <p>
           這裡的 <Tex>{'\\pm90^\\circ'}</Tex> 是<strong>單頻相關性的符號界線</strong>：主 PLL 在這個頻率把誤差轉了多少相位。它和主 PLL 自己的 phase margin、也和 LMS 迴路 <Tex>{'L_{\\mathrm{cal}}(z)=g/(z-1)'}</Tex> 的 phase margin 都不是同一件事（<ChRef ch="08">第 08 章</ChRef>）。主 PLL 本身很穩定，GMAC 的更新方向仍然可能是錯的。
@@ -296,13 +295,12 @@ export function S4SingleTone() {
         ]}
       />
       <CodeBlock source={polaritySrc} region="toneFir" path={PATH} title={String.raw`toneFir：在指定頻率給出指定 $|H|$ 與相位的 2-tap FIR`} />
-      <ChapterHandCalc
-        id="HC-06.3"
-        lead={String.raw`照上面四步自己設計一個 2-tap 濾波器（任選 $|H|$、$\phi$、週期 $P$），再算 §1 手算表的任一列 $u[n]$ 與 $x[n]\,u[n]$；最後一步用 $|H|\cos(\Omega n+\phi)$ 驗算。`}
-      />
+      <ChapterHandCalc id="HC-06.3">
+        {String.raw`照上面四步自己設計一個 2-tap 濾波器（任選 $|H|$、$\phi$、週期 $P$），再算 §1 手算表的任一列 $u[n]$ 與 $x[n]\,u[n]$；最後一步用 $|H|\cos(\Omega n+\phi)$ 驗算。`}
+      </ChapterHandCalc>
 
       <h3>
-        邊界情況 <Erratum id="E46" />
+        邊界情況 <ChapterErratum id="E46" />
       </h3>
       <p>
         規格的單頻公式沒寫出條件。

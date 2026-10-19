@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, CodeBlock, ModeGate, Prereq, Section, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeBlock, ModeGate, Prereq, Section, Tex, TexBlock, ChapterErratum } from '@/components'
 import stabilitySrc from '@/simulation/models/scalarStability.ts?raw'
 import lmsPySrc from '../../../../golden/lms_pll_golden/lms.py?raw'
 import { normCdf, normInv } from '@/simulation/core'
@@ -14,7 +14,7 @@ import {
   xMoments,
   type XDist,
 } from '@/simulation/models/scalarStability'
-import { Erratum, FBlock, Fig, HC, num, pyDef, StepsBox, T, tnum, tx } from '../common'
+import { FBlock, Fig, HC, num, pyDef, StepsBox, T, tnum, tx } from '../common'
 import { CHART_CLT_FLOW, CHART_HEAVY_TAIL, CHART_NAIVE_VS_ONESTEP } from '../diagrams'
 import { HeavyTailDemo } from '../experiments/HeavyTailDemo'
 
@@ -122,10 +122,10 @@ export function HeavyTailSection() {
   return (
     <>
       <h2 id="heavy-tail">5｜Heavy tail（厚尾）：為什麼 Monte Carlo 的平均會騙人</h2>
-      <Section kind="intuition" title={tx`少數路徑決定了 $E[\delta^2]$`}>
+      <Section id="ch03-tail-paths" kind="intuition" title={tx`少數路徑決定了 $E[\delta^2]$`}>
         <p>
           無雜訊時 <Tex>{T`\ln|\delta_n|`}</Tex> 是 <Tex>n</Tex> 個 iid 項的總和，所以近似常態（中央極限定理）；<Tex>{T`|\delta_n|`}</Tex> 就近似 <strong>lognormal（對數常態）</strong>：大部分路徑擠在中位數附近，但右尾非常長——這種「極端大值雖然罕見、卻大到足以主導平均」的分布叫 <strong>heavy tail（厚尾）</strong>。<Tex>{T`E[\delta_n^2]`}</Tex> 把右尾的巨大值也平均進去，而一次 Monte Carlo 只有 <Tex>M</Tex> 條路徑，通常根本抽不到那些「機率極小、數值極大」的路徑——於是樣本平均偏低，而且用同一批樣本算出的樣本 SE 也偏小，<strong>信賴區間既偏又窄</strong>。
-          <Erratum id="E14" />
+          <ChapterErratum id="E14" />
         </p>
         <p>把上面這段話畫成一張圖（細節在後面的先備知識與兩段推導）：</p>
         <Fig
@@ -156,7 +156,7 @@ export function HeavyTailSection() {
           </p>
         </Prereq>
       </Section>
-      <Section kind="formula" title="分位帶有多寬？多少比例的路徑已經收斂？">
+      <Section id="ch03-quantiles" kind="formula" title="分位帶有多寬？多少比例的路徑已經收斂？">
         <p>
           Stability Lab 畫的 10–90% 分位帶與「收斂比例」不必只靠 Monte Carlo：<Tex>{T`\ln|\delta_n|`}</Tex> 是 iid 項的總和，它的平均與變異數可以<strong>精確</strong>算出，再用 CLT 近似分布的形狀，就能預測這兩個量。
         </p>
@@ -186,7 +186,7 @@ export function HeavyTailSection() {
         <p>
           <Tex>{T`\mu=2`}</Tex>（mean pole 恰為 <Tex>{T`-1`}</Tex>）、<Tex>{T`n=200`}</Tex> 的預測就是勘誤 E14 的那個數字：驗算文件的 Python Monte Carlo 量到 83.25%，本站單元測試的 Monte Carlo 也落在同一處。
           <Tex>{T`\mu=2.3`}</Tex> 時 <Tex>{T`|\lambda|`}</Tex> 很小而 <Tex>s</Tex> 很大：200 步時只有約一半路徑低於 <Tex>{T`10^{-3}|\delta_0|`}</Tex>，要到上表最右欄那麼多步，九成的路徑才「開始」低於起點——這就是「almost-sure 收斂」在界限附近的真實樣貌：<strong>會收斂，但你可能等不到</strong>。
-          <ClaimTag kind="approx" /> <Erratum id="E14" />
+          <ClaimTag kind="approx" /> <ChapterErratum id="E14" />
         </p>
         <HC id="HC-03.7">
           {tx`上表的每一列都可以查表手算：代入該列的 $\lambda$、$s$、$n$（預設就是 $\mu=2$、$n=200$ 那一列），先算 $z$ 再查 $\Phi(z)$，看看是不是 83%。`}
@@ -207,7 +207,7 @@ export function HeavyTailSection() {
           </p>
         </ModeGate>
       </Section>
-      <Section kind="formula" title="天真估計量的真實標準誤（可以精確算出來）">
+      <Section id="ch03-naive-se" kind="formula" title="天真估計量的真實標準誤（可以精確算出來）">
         <p>
           「天真」的做法是讓 <Tex>M</Tex> 條路徑各走完 <Tex>n</Tex> 步，再把 <Tex>{T`\delta_n^2`}</Tex> 平均起來。它和本站實際採用的「單步 Monte Carlo」差在哪裡，先用圖比一次：
         </p>
@@ -263,7 +263,7 @@ export function HeavyTailSection() {
           )}
         </ModeGate>
       </Section>
-      <Section kind="explore" title="動手觀察：天真 CI 的實際覆蓋率">
+      <Section id="ch03-coverage-lab" kind="explore" title="動手觀察：天真 CI 的實際覆蓋率">
         <p>
           試試看：(1) 預設 <Tex>{T`\mu=0.8`}</Tex>：覆蓋率遠低於 95%；(2) 把 <Tex>\mu</Tex> 降到 <Tex>{T`0.3`}</Tex>（<Tex>{T`h(0.3)<1`}</Tex>：<Tex>{T`\operatorname{Var}(\delta_n^2)=(h^n-g^{2n})\delta_0^4`}</Tex> 隨 <Tex>n</Tex> 衰減）：覆蓋率回到約 95%；(3) 分布改成 <Tex>{T`\pm1`}</Tex>：<Tex>{T`\delta_n^2`}</Tex> 是確定值，CI 寬度為 0 且永遠正確；(4) 把每批路徑數加大 10 倍：覆蓋率只會慢慢改善——heavy tail 下「多跑一點」不是解藥。
         </p>

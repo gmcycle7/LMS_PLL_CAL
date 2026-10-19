@@ -1,8 +1,8 @@
-import { Callout, ClaimTag, CodeBlock, Mermaid, ModeGate, Quiz, Recap, Section, SourceTag, StepDerivation, Tex, ChRef } from '@/components'
+import { Callout, ClaimTag, CodeBlock, Mermaid, ModeGate, Quiz, Recap, Section, SourceTag, StepDerivation, Tex, ChRef, ChapterErratum } from '@/components'
 import pyStability from '../../../../golden/lms_pll_golden/stability.py?raw'
 import { useMemo } from 'react'
 import { analyzeGeneral, comparatorKq, delayCriticalGain, pmFirstOrder, pmWithDelay, stableIntervalsNumeric, type ObservationSystem } from '@/simulation/models/stability'
-import { ErratumNote, Expand, fx, HandCalcSlot, rich, tx } from '../common'
+import { Expand, fx, HandCalcSlot, rich, tx } from '../common'
 import { SYNTHESIS_FLOW_CHART, UNIFIED_LOOP_CHART } from '../diagrams'
 
 /** 入門課 Lesson 4 / T13 的硬體數字：comparator 前雜訊 σ_v = 100 fs、±1 code、identity path（C = 1） */
@@ -179,7 +179,7 @@ export function Wrapup() {
         </div>
       </Section>
 
-      <Section kind="diagram" title="連結到 PLL 硬體" level={2}>
+      <Section id="ch08-hardware" kind="diagram" title="連結到 PLL 硬體" level={2}>
         <div className="table-wrap">
           <table className="ch08-table">
             <thead>
@@ -291,12 +291,12 @@ export function Wrapup() {
 
         <Callout kind="info" title="設計檢查清單（本章）">
           <ol>
-            <li>先確認極性：<Tex>{'C>0'}</Tex>（或 <Tex>{'M_{\\mathrm{polarity}}>0'}</Tex>，用 <Tex>{'\\arcsin(\\cos\\theta)'}</Tex> 計算，<ErratumNote id="E20" />）。</li>
+            <li>先確認極性：<Tex>{'C>0'}</Tex>（或 <Tex>{'M_{\\mathrm{polarity}}>0'}</Tex>，用 <Tex>{'\\arcsin(\\cos\\theta)'}</Tex> 計算，<ChapterErratum id="E20" />）。</li>
             <li>從 RTL 數出更新延遲 <Tex>{'d'}</Tex>，算 <Tex>{'g^*(d)'}</Tex>；選 <Tex>{'g'}</Tex> 時保留 GM 給 <Tex>{'K_q'}</Tex>、<Tex>{'C'}</Tex> 的 PVT 變化。</li>
             <li>
               不論主 PLL 多快，都用 <Tex>{'L_{\\mathrm{cal}}=\\mu F(z)/(z-1)'}</Tex> 或 <Tex>{'\\rho(\\mathbf A_{\\mathrm{comb}})'}</Tex> 驗證，而且{' '}
               <Tex>{'F(z)'}</Tex> 要包含 GMAC 的 sample→observe latency；不要只用 quasi-static 的 <Tex>{'F(1)'}</Tex>——把 PLL 調快（
-              <Tex>{'r_s\\to0'}</Tex>）並不會讓二狀態模型的界限從一半變回 quasi-static 的值（<ErratumNote id="E19" />）。
+              <Tex>{'r_s\\to0'}</Tex>）並不會讓二狀態模型的界限從一半變回 quasi-static 的值（<ChapterErratum id="E19" />）。
             </li>
             <li>
               時域模擬至少數百個 block，疊上 <Tex>{'\\rho^k'}</Tex> 參考線比斜率（<Tex>{'\\rho'}</Tex> 只給漸近速率，<Tex>{'\\rho^k'}</Tex> 不是誤差的上界）；複數 pole 的發散很慢、很像收斂。
@@ -326,7 +326,7 @@ export function Wrapup() {
         </HandCalcSlot>
       </Section>
 
-      <Section kind="example" title="思考題" level={2}>
+      <Section id="ch08-quiz" kind="example" title="思考題" level={2}>
         <Quiz
           title="思考題 5（Gain margin）"
           question={

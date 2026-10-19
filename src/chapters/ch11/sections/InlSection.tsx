@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
-import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Plot, Prereq, Section, StepDerivation, Tex, TexBlock, TestBadge, useThemeTokens } from '@/components'
+import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Plot, Prereq, Section, StepDerivation, Tex, TexBlock, TestBadge, useThemeTokens, ChapterErratum } from '@/components'
 import biasSrc from '@/simulation/models/bias.ts?raw'
 import {
   buildCodeDistribution,
@@ -16,7 +16,7 @@ import {
   type ErrorModel,
 } from '@/simulation/models/bias'
 import { F } from '../formulas'
-import { Erratum, ModeDetails, num, signed, m, texNum } from '../common'
+import { ModeDetails, num, signed, m, texNum } from '../common'
 import { Fig, FigRef } from '../Fig'
 import { Hand } from '../Hand'
 
@@ -98,8 +98,8 @@ export function InlSection() {
     <Section kind="example" title="11.2 DTC 三階非線性：「最佳線性 gain」到底是多少？" level={2} id="ch11-inl">
       <p>
         回到開場的例子：<Tex>{String.raw`e=(a-w)x+c_3x^3`}</Tex>，<Tex>{'a=1'}</Tex>、<Tex>{'c_3=0.1'}</Tex>，<Tex>{'x'}</Tex> 等機率取{' '}
-        <Tex>{String.raw`\{-2,-1,0,1,2\}`}</Tex>。<Erratum id="E11" note="1.34 只在這個 5 值等機率分布下成立；c 統一為 c₃" />
-        <Erratum id="E01" note="1.34 是 MSE-LMS 的精確固定點，Sign-LMS 依 σ_v 而定" /> <TestBadge id="T12" />
+        <Tex>{String.raw`\{-2,-1,0,1,2\}`}</Tex>。<ChapterErratum id="E11" note="1.34 只在這個 5 值等機率分布下成立；$c$ 統一為 $c_3$" />
+        <ChapterErratum id="E01" note={String.raw`1.34 是 MSE-LMS 的精確固定點，Sign-LMS 依 $\sigma_v$ 而定`} /> <TestBadge id="T12" />
       </p>
       <p>
         先看結論的圖，數字的來源在後面的推導。<FigRef id="best-fit" /> 是 MSE-LMS 的觀點：把 INL <Tex>{'c_3x^3'}</Tex> 對 <Tex>{'x'}</Tex>{' '}
@@ -374,7 +374,7 @@ export function InlSection() {
       </p>
 
       <Callout kind="warn" title="1.34 只屬於這個 code 分布">
-        <Erratum id="E11" />{' '}
+        <ChapterErratum id="E11" />{' '}
         {m(
           `同樣 $a=1$、$c_3=0.1$，換一個 code 分布答案就變（MSE-LMS，即時計算）：$\\pm1$ code 時 $E[x^4]/E[x^2]=1\\Rightarrow w^*=${texNum(others.pm, 5)}$；unit Gaussian code 時 $E[x^4]/E[x^2]=3\\Rightarrow w^*=${texNum(others.gauss, 5)}$。`,
         )}

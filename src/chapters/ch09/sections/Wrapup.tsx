@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, Quiz, Recap, Section, StepDerivation, ChRef } from '@/components'
+import { Callout, ClaimTag, Quiz, Recap, Section, StepDerivation, ChRef, ChapterErratum } from '@/components'
 import { eigSym } from '@/simulation/core'
 import { KQ_SIGMA100, eigenModes, corr2, gaugeNullVector, meanSquareRadius, pm1DegenerateProb, stepsToDecay } from '@/simulation/models/pe'
-import { Diagram, Erratum, FigRef, HandCalcBox, formulaTex, m, texNum } from '../shared'
+import { Diagram, FigRef, HandCalcBox, formulaTex, m, texNum } from '../shared'
 
 /** P 相 one-hot ＋ 共用 offset 的解析 R_x = [[1, 1ᵀ/P], [1/P, I/P]]（iid 等機率） */
 function onehotRx(P: number): number[][] {
@@ -132,7 +132,7 @@ export function Wrapup() {
       <Section kind="example" title="綜合手算：把這一課串起來" level={2} id="ch09-synthesis">
         <p>
           做思考題之前，先把整章的三件事用同一組數字串起來：<strong>穩定</strong>看 {m`g\lambda_{\max}`}、<strong>速度</strong>看 {m`g\lambda_{\min}`}（{m`g\le g^\star`} 時）、
-          <strong>PE</strong> 看每一個窗口。這一題用的是物理單位（1-bit comparator 的 {m`\sigma_v`} 與 {m`\mu`} 都以 {m`\mathrm{fs}`} 計），所以第一步就是把 {m`\mu`} 換成無因次的 {m`g=\mu K_q`}（<Erratum id="E05" />）。
+          <strong>PE</strong> 看每一個窗口。這一題用的是物理單位（1-bit comparator 的 {m`\sigma_v`} 與 {m`\mu`} 都以 {m`\mathrm{fs}`} 計），所以第一步就是把 {m`\mu`} 換成無因次的 {m`g=\mu K_q`}（<ChapterErratum id="E05" />）。
         </p>
         <Diagram id="synthesis-flow">
           跟著 ① → ⑧ 算：前兩格換單位，藍色菱形檢查穩定，接著算速度，最後兩格回到「每一個窗口」。
@@ -218,7 +218,7 @@ export function Wrapup() {
           options={[{ label: '0' }, { label: '1' }, { label: '2', correct: true }, { label: '3' }]}
           answer={
             <p>
-              {m`E[(1-z^2)^2]=1-2\cdot1+3=2`}。平均倍數 {m`E[1-z^2]=0`}（平均意義下共模一步消失），但平方的平均 {m`=2>1`}：均方每步約翻倍（{m`\rho=0.99`}、{m`g=0.5`} 時精確的 {m`\rho_{\mathrm{MS}}=${texNum(facts.msN1, 5)}`}）。<strong>mean 收斂不代表 mean-square 收斂</strong>（<Erratum id="E23" />）。
+              {m`E[(1-z^2)^2]=1-2\cdot1+3=2`}。平均倍數 {m`E[1-z^2]=0`}（平均意義下共模一步消失），但平方的平均 {m`=2>1`}：均方每步約翻倍（{m`\rho=0.99`}、{m`g=0.5`} 時精確的 {m`\rho_{\mathrm{MS}}=${texNum(facts.msN1, 5)}`}）。<strong>mean 收斂不代表 mean-square 收斂</strong>（<ChapterErratum id="E23" />）。
             </p>
           }
         />
@@ -232,7 +232,7 @@ export function Wrapup() {
           options={[{ label: '0' }, { label: '1', correct: true }, { label: '2' }, { label: '3' }]}
           answer={
             <p>
-              1 個：{m`b`} 方向。u-domain 的 null space 是 {m`\mathrm{span}\{\mathbf e_b,\ (0,1,1,1,1)\}`}（2 維）；{m`\{a_0=0\}`} 與它的交集只剩 {m`\mathbf e_b`}，固定 {m`a_0`} 只消掉共模那一維。要完全可辨識，還得「此路徑不更新 {m`b`}」或用獨立路徑量 {m`b`}（<Erratum id="E04" />）。上方 Gauge 實驗的約束表會即時顯示這個結果。
+              1 個：{m`b`} 方向。u-domain 的 null space 是 {m`\mathrm{span}\{\mathbf e_b,\ (0,1,1,1,1)\}`}（2 維）；{m`\{a_0=0\}`} 與它的交集只剩 {m`\mathbf e_b`}，固定 {m`a_0`} 只消掉共模那一維。要完全可辨識，還得「此路徑不更新 {m`b`}」或用獨立路徑量 {m`b`}（<ChapterErratum id="E04" />）。上方 Gauge 實驗的約束表會即時顯示這個結果。
             </p>
           }
         />

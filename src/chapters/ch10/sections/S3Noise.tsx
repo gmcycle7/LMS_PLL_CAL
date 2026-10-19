@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import type { Data } from 'plotly.js-cartesian-dist-min'
-import { Callout, ClaimTag, ModeGate, ParamControl, Plot, Prereq, Section, StepDerivation, Tex, TexBlock, mathText, useThemeTokens } from '@/components'
+import { Callout, ClaimTag, ModeGate, ParamControl, Plot, Prereq, Section, StepDerivation, Tex, TexBlock, mathText, useThemeTokens, ChapterErratum } from '@/components'
 import { DEFAULT_RULE, buildPlant, corrMatrix, logspace, tradeoffSweep, type RuleConfig } from '@/simulation/models/mimo'
-import { Advanced, Deriv, Erratum, Fig, FigRef, Hand, TagRow, TryIt, n, tn } from '../common'
+import { Advanced, Deriv, Fig, FigRef, Hand, TagRow, TryIt, n, tn } from '../common'
 import { NUM } from '../numbers'
 
 const rule = (r: Partial<RuleConfig>): RuleConfig => ({ ...DEFAULT_RULE, ...r })
@@ -105,8 +105,8 @@ export function S3Noise() {
       <Section kind="formula" title="10.4 代價：Preconditioner 會放大 GMAC Noise" level={2} id="ch10-noise">
         <TagRow>
           <span className="small muted">規格 §10.1</span>
-          <Erratum id="E37" />
-          <Erratum id="E21" />
+          <ChapterErratum id="E37" />
+          <ChapterErratum id="E21" />
           <ClaimTag kind="approx" />
         </TagRow>
         <Callout kind="info" title="直覺">
@@ -238,7 +238,7 @@ export function S3Noise() {
             規格寫 <Tex>{String.raw`\operatorname{Var}(\delta_i)`}</Tex>，但 §0 與 §10 的下標 i 都指「第 i 個參數」。這裡的 i 其實是第 i 個 eigen-mode：令{' '}
             <Tex>{String.raw`\boldsymbol\xi=\mathbf V^T\boldsymbol\delta`}</Tex>，則 <Tex>{String.raw`\operatorname{Var}(\xi_i)`}</Tex> 才是上式。每個<strong>參數</strong>的變異是{' '}
             <Tex>{String.raw`c\,[\mathbf R^{-1}]_{jj}`}</Tex>、<Tex>{String.raw`c=\gamma/(K_q^2N(2-\gamma))`}</Tex>，兩者數值差很多（見下例）。
-            <Erratum id="E37" />
+            <ChapterErratum id="E37" />
           </p>
         </Callout>
 
@@ -331,7 +331,7 @@ export function S3Noise() {
           ：慢模式變異 一般 LMS <Tex>{String.raw`${tn(z.perN.scalarSlow, 4)}/N`}</Tex> vs 完整反矩陣 <Tex>{String.raw`${tn(z.perN.fullSlow, 4)}/N`}</Tex>，放大{' '}
           {n(z.perN.fullSlow / z.perN.scalarSlow, 4)} 倍；總變異（trace）<Tex>{String.raw`${tn(z.perN.scalarTrace, 4)}/N`}</Tex> vs <Tex>{String.raw`${tn(z.perN.fullTrace, 4)}/N`}</Tex>，放大{' '}
           {n(z.perN.fullTrace / z.perN.scalarTrace, 3)} 倍
-          <Erratum id="E21" />。
+          <ChapterErratum id="E21" />。
         </p>
         <Hand id="HC-10.4">
           預設數字就是上面「數字」那四步（<Tex>{String.raw`c=${tn(z.c, 5)}`}</Tex>、<Tex>{String.raw`${tn(z.modeVar[1], 5)}`}</Tex>／<Tex>{String.raw`${tn(z.modeVar[0], 4)}`}</Tex>、<Tex>{String.raw`\sqrt{199}`}</Tex>、每參數{' '}
@@ -397,11 +397,11 @@ export function S3Noise() {
         id="ch10-regularized"
       >
         <TagRow>
-          <Erratum id="E22" />
+          <ChapterErratum id="E22" />
           <ClaimTag kind="exact" />
         </TagRow>
         <p>
-          折衷辦法：在求逆之前先加一個小常數 <Tex>{String.raw`\lambda_{\mathrm{reg}}`}</Tex>（規格寫 <Tex>{String.raw`\lambda`}</Tex>，與 eigenvalue 撞名，本章改名 <Erratum id="E22" />）。效果是：大的 eigenvalue 幾乎不受影響，小的 eigenvalue 不再被放大成 <Tex>{String.raw`1/\lambda_i`}</Tex>，最多只放大到 <Tex>{String.raw`1/\lambda_{\mathrm{reg}}`}</Tex>。
+          折衷辦法：在求逆之前先加一個小常數 <Tex>{String.raw`\lambda_{\mathrm{reg}}`}</Tex>（規格寫 <Tex>{String.raw`\lambda`}</Tex>，與 eigenvalue 撞名，本章改名 <ChapterErratum id="E22" />）。效果是：大的 eigenvalue 幾乎不受影響，小的 eigenvalue 不再被放大成 <Tex>{String.raw`1/\lambda_i`}</Tex>，最多只放大到 <Tex>{String.raw`1/\lambda_{\mathrm{reg}}`}</Tex>。
         </p>
         <Fig id="reg-compare">
           先看中間三格的增益 <Tex>{'m'}</Tex>：一般 LMS 是 0.5；完整反矩陣把它放大到 <Tex>{String.raw`\gamma/\lambda_{\min}=${tn(r.eigMn[0])}`}</Tex>；regularized（藍色）在分母多加{' '}
@@ -505,7 +505,7 @@ export function S3Noise() {
         </ModeGate>
       </Section>
 
-      <Section kind="explore" title="動手觀察：速度–雜訊 trade-off">
+      <Section id="ch10-tradeoff-lab" kind="explore" title="動手觀察：速度–雜訊 trade-off">
         <TradeoffPlot />
       </Section>
     </>

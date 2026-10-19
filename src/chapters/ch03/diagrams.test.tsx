@@ -701,7 +701,7 @@ describe('Ch03 頁面上的方塊圖與符號表位置', () => {
       expect(mapSvg.textContent!.replace(/\u00a0/g, ' ')).toContain('Gain accumulator')
       // 其餘：與 DIAGRAMS 同順序、各出現一次
       expect(drawn.map((el) => el.textContent)).toEqual(DIAGRAMS.map((d) => d.chart))
-      const figs = Array.from(container.querySelectorAll('.ch03-fig'))
+      const figs = Array.from(container.querySelectorAll('.c-chapter-fig'))
       expect(figs.map((f) => f.getAttribute('data-fig'))).toEqual(DIAGRAMS.map((_, i) => String(i + 1)))
       for (const [i, f] of figs.entries()) {
         // 圖說是共用 Mermaid 元件的 <figcaption>（在 <figure> 裡），以圖號開頭

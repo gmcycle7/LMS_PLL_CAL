@@ -67,9 +67,9 @@ describe('Chapter 03 smoke test（jsdom）', () => {
     expect(Array.from(container.querySelectorAll('button')).filter((b) => b.textContent?.includes('本章符號表在最後'))).toHaveLength(0) // 連結改由 PageFrame 的本章資訊 strip 提供
     // 方塊圖（教學規範 §8）：章首的系統地圖 + 23 張有圖號的圖（語法與內容由 diagrams.test.tsx 以真正的 mermaid 檢查）
     expect(container.querySelectorAll('figure.c-mermaid')).toHaveLength(24)
-    expect(container.querySelectorAll('.ch03-fig figure.c-mermaid')).toHaveLength(23)
+    expect(container.querySelectorAll('.c-chapter-fig figure.c-mermaid')).toHaveLength(23)
     // 每張圖的圖說都是共用 Mermaid 元件的 <figcaption>，以圖號開頭（圖 3-1 … 圖 3-23）
-    const figcaps = Array.from(container.querySelectorAll('.ch03-fig figure.c-mermaid > figcaption.c-figcaption'))
+    const figcaps = Array.from(container.querySelectorAll('.c-chapter-fig figure.c-mermaid > figcaption.c-figcaption'))
     expect(figcaps.map((c) => (c.textContent ?? '').split('｜')[0])).toEqual(Array.from({ length: 23 }, (_, i) => `圖 3-${i + 1}`))
     for (const f of ['F-03.1', 'F-03.3', 'F-03.5', 'F-03.6', 'F-03.7', 'F-03.9', 'F-03.11', 'F-03.12', 'F-03.14', 'F-03.16', 'F-03.18']) {
       expect(container.querySelector(`[id="formula-${f}"]`), f).not.toBeNull()
@@ -78,10 +78,10 @@ describe('Chapter 03 smoke test（jsdom）', () => {
     // CodeBlock 找不到 region 時會顯示 alert「找不到程式碼 region」
     expect(container.textContent).not.toMatch(/找不到程式碼 region/)
     expect(container.querySelectorAll('.c-code').length).toBeGreaterThanOrEqual(8)
-    // 勘誤標記連到驗證頁（#/verification），並以 ?e=Exx 深連結到該條勘誤
-    const errataLinks = Array.from(container.querySelectorAll('a.ch03-erratum'))
+    // 勘誤標記連到驗證頁（/verification），並以 ?e=Exx 深連結到該條勘誤
+    const errataLinks = Array.from(container.querySelectorAll('a.c-erratum-link'))
     expect(errataLinks.length).toBeGreaterThan(5)
-    expect(errataLinks.every((a) => /^#\/verification\?e=E\d{2}$/.test(a.getAttribute('href') ?? ''))).toBe(true)
+    expect(errataLinks.every((a) => /^\/verification\?e=E\d{2}$/.test(a.getAttribute('href') ?? ''))).toBe(true)
     expect(errataLinks.every((a) => a.textContent === `勘誤 ${a.getAttribute('href')!.split('e=')[1]}`)).toBe(true)
     for (const e of ['E14', 'E38', 'E39', 'E42']) expect(errataLinks.some((a) => a.textContent?.includes(e))).toBe(true)
     // 三個實驗外框（各自的標題；直接查外框的標題元素，不必掃過整章的 DOM）
@@ -115,7 +115,7 @@ describe('Chapter 03 smoke test（jsdom）', () => {
     // 帶入手算：8 題各自緊跟在對應的公式／推導之後，綜合題（HC-03.8）在思考題之前；每題前面有一句邀請
     const hcIds = Array.from(container.querySelectorAll('section.c-handcalc')).map((el) => el.id)
     expect(hcIds).toEqual(Array.from({ length: 8 }, (_, i) => `handcalc-HC-03.${i + 1}`))
-    expect(container.querySelectorAll('.ch03-handcalc-invite')).toHaveLength(8)
+    expect(container.querySelectorAll('.c-chapter-hand-lead')).toHaveLength(8)
     const at = (sel: string) => {
       const el = container.querySelector(sel)
       if (!el) throw new Error(`找不到 ${sel}`)

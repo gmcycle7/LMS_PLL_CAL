@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react'
-import { HandCalc, Mermaid, StepDerivation, mathText, type Step } from '@/components'
+import { ChapterFig, StepDerivation, bindHandCalc, mathText, type Step } from '@/components'
 import { useSettings, type LearningMode } from '@/app/settings'
-import errata from '@/data/errata.json'
 import { erfc } from '@/simulation/core'
 import { HANDCALCS } from './handcalcs'
 import {
@@ -123,23 +122,6 @@ export function useMode(): LearningMode {
   }
 }
 
-interface ErratumRecord {
-  eid: string
-  problem: string
-  correction: string
-}
-
-/** 「勘誤 Exx」小標：連到驗證頁（勘誤列表依 id 排列），滑鼠停留顯示修正摘要。 */
-export function Erratum({ id }: { id: string }) {
-  const rec = (errata as { errata: ErratumRecord[] }).errata.find((e) => e.eid === id)
-  const tip = rec ? `${rec.correction.slice(0, 280)}${rec.correction.length > 280 ? '…' : ''}` : undefined
-  return (
-    <a className="ch12-erratum" href="#/verification" title={tip}>
-      勘誤 {id}
-    </a>
-  )
-}
-
 /**
  * 依學習模式呈現的逐步推導：Beginner 預設收合（一鍵展開），Engineer / Research 直接展開。
  * 每一步都是一行公式 + 一句理由（docs/teaching-style.md §2-3）。
@@ -158,35 +140,28 @@ export function Steps({ title, steps, result }: { title: ReactNode; steps: Step[
 
 /**
  * 「帶入手算」題（docs/teaching-style.md §7）：依 ID 從本章題庫 handcalcs.ts 取出題目，放在對應推導／範例的正後方。
- * children 是一句邀請讀者「換成自己的數字、先用紙筆算一次」的話。
+ * children 是一句邀請讀者「換成自己的數字、先用紙筆算一次」的話（前面的「換你算：」由共用元件加）。
  */
-export function Hand({ id, children }: { id: string; children: ReactNode }) {
-  const def = HANDCALCS.find((h) => h.id === id)
-  if (!def) throw new Error(`第 12 章沒有手算題 ${id}（請檢查 handcalcs.ts）`)
-  return (
-    <div className="ch12-hand">
-      <p className="ch12-hand-invite">{children}</p>
-      <HandCalc def={def} />
-    </div>
-  )
-}
+export const Hand = bindHandCalc(HANDCALCS)
 
 /**
- * 方塊圖 + 導讀（docs/teaching-style.md §8）：圖放在白話說明之後、推導之前。
+ * 方塊圖 + 導讀（docs/teaching-style.md §8）：圖放在白話說明之後、推導之前（共用的 ChapterFig）。
  *  - chart：diagrams.ts 匯出的 Mermaid 原始碼（圖內標籤的數學寫 `$...$`，由共用的 Mermaid 元件以 KaTeX 排版）；
  *  - caption：一句話說明要看什麼；圖說支援 `$...$` 行內 KaTeX，所以圖對應的那條方程式直接寫在圖說裡（不用 Unicode 拼公式）；
  *  - children：「先看…再看…」的導讀，以及「圖上的 X 就是公式裡的 x」的對照（這裡的數學照常用 KaTeX）。
  */
 export function Diagram({ chart, caption, ariaLabel, children }: { chart: string; caption: string; ariaLabel?: string; children: ReactNode }) {
   return (
-    <div className="ch12-diagram">
-      <Mermaid chart={chart} caption={caption} ariaLabel={ariaLabel} />
-      <div className="ch12-diagram-read">{children}</div>
-    </div>
+    <ChapterFig chart={chart} caption={caption} ariaLabel={ariaLabel} walkLabel="怎麼讀這張圖">
+      {children}
+    </ChapterFig>
   )
 }
 
-/** 本章符號表（章末）的錨點 id。HashRouter 下不能用 href="#symbols"（會被當成路由），所以一律用 scrollIntoView。 */
+/**
+ * 本章符號表（章末）的錨點 id。HashRouter 下不能用 href="#symbols"（會被當成路由），所以頁內跳轉一律用共用的 JumpTo／jumpToId／AnchorLink（@/components）；
+ * 它們都經 scrollToElement：先展開祖先 <details>、再捲動並聚焦，不要自己呼叫 scrollIntoView。
+ */
 export const SYMBOLS_ID = 'symbols'
 
 /** 有效位數格式化（不用科學記號，除非數值太大或太小） */

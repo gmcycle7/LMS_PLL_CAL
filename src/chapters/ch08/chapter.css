@@ -4,26 +4,6 @@
   min-width: 0;
 }
 
-/* 勘誤標記 */
-.ch08-erratum {
-  display: inline-block;
-  font-size: 0.78rem;
-  line-height: 1.4;
-  padding: 0 6px;
-  border-radius: 999px;
-  border: 1px solid var(--warn);
-  background: var(--warn-soft);
-  color: var(--warn);
-  text-decoration: none;
-  white-space: nowrap;
-}
-.ch08-erratum:hover {
-  text-decoration: underline;
-}
-.ch08-erratum-text {
-  color: var(--text-muted);
-}
-
 /* 依學習模式展開的推導框 */
 .ch08-expand {
   border: 1px solid var(--border);
@@ -84,36 +64,6 @@
 .ch08-bad {
   color: var(--danger);
   font-weight: 600;
-}
-
-/* 「換你算」：帶入手算題前的一句引導 */
-.ch08-handcalc {
-  margin: 16px 0;
-}
-.ch08-handcalc-lead {
-  margin: 0 0 -8px;
-  font-size: 0.92rem;
-}
-
-.ch08-link-button {
-  appearance: none;
-  background: none;
-  border: none;
-  padding: 0;
-  font: inherit;
-  font-weight: 600;
-  color: var(--accent);
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.ch08-link-button:hover {
-  text-decoration-thickness: 2px;
-}
-.ch08-link-button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: 2px;
 }
 
 .ch08-symbols {

@@ -1,6 +1,6 @@
 import { useMemo, type ReactNode } from 'react'
 import './chapter.css'
-import { Callout, ClaimTag, ModelLevel, Section, TestBadge } from '@/components'
+import { AnchorLink, Callout, ClaimTag, ModelLevel, Section, TestBadge, ChapterErratum } from '@/components'
 import { KQ_SIGMA100, corr2, eigenModes, meanSquareRadius, pm1DegenerateProb, signJitterSteadyState } from '@/simulation/models/pe'
 import { Intro } from './sections/Intro'
 import { MatrixPrereq } from './sections/MatrixPrereq'
@@ -13,7 +13,7 @@ import { Wrapup } from './sections/Wrapup'
 import { ChapterSymbols } from './sections/Symbols'
 import { PeEigenLab } from './experiments/PeEigenLab'
 import { GaugeOneHotLab } from './experiments/GaugeOneHotLab'
-import { Erratum, m, texNum } from './shared'
+import { m, texNum } from './shared'
 
 const TOC: { id: string; label: ReactNode }[] = [
   { id: 'ch09-intro', label: '一個黑盒子：兩個旋鈕總是一起動（手算）' },
@@ -28,10 +28,6 @@ const TOC: { id: string; label: ReactNode }[] = [
   { id: 'ch09-compare', label: '決策樹、比較表、綜合手算、思考題、本課必記、連結到 PLL' },
   { id: 'symbols', label: '本章符號表（章末）' },
 ]
-
-function scrollTo(id: string) {
-  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
 
 /** Chapter 09「Persistent Excitation：穩定不代表學得到」（規格 §9、§9.1、§9.2）。 */
 export default function Chapter09() {
@@ -65,9 +61,9 @@ export default function Chapter09() {
               <ol className="ch09-toc">
                 {TOC.map((t) => (
                   <li key={t.id}>
-                    <button type="button" className="ch09-toc-link" onClick={() => scrollTo(t.id)}>
+                    <AnchorLink id={t.id} className="ch09-toc-link">
                       {t.label}
-                    </button>
+                    </AnchorLink>
                   </li>
                 ))}
               </ol>
@@ -90,13 +86,13 @@ export default function Chapter09() {
               把 {m`\rho`} 拉到 1：{m`\lambda_{\min}=0`}，警告會說明為何「不可辨識」，慢模式曲線變成水平線。
             </li>
             <li>
-              把 GMAC {m`N`} 改成 1（linear、Gaussian）：mean 不變，但 mean-square 半徑變成 {m`${texNum(tip.msLinear, 3)}`}（<Erratum id="E23" />）；同樣設定改成 1-bit 則是 {m`${texNum(tip.msSign, 3)}`}（增量有界）。1-bit 這一組會多一則警告：迴路自己的穩態抖動估計 {m`\sqrt{E[s_\delta^2]}\approx${texNum(tip.jitterN1, 2)}`}，已經不在小訊號區（把 {m`N`} 加大，警告才會消失）。
+              把 GMAC {m`N`} 改成 1（linear、Gaussian）：mean 不變，但 mean-square 半徑變成 {m`${texNum(tip.msLinear, 3)}`}（<ChapterErratum id="E23" />）；同樣設定改成 1-bit 則是 {m`${texNum(tip.msSign, 3)}`}（增量有界）。1-bit 這一組會多一則警告：迴路自己的穩態抖動估計 {m`\sqrt{E[s_\delta^2]}\approx${texNum(tip.jitterN1, 2)}`}，已經不在小訊號區（把 {m`N`} 加大，警告才會消失）。
             </li>
             <li>
               分布改成 {m`\pm1`} code、{m`N=1`}：灰色個別軌跡呈「平台 → 突然歸零」的階梯；{m`N_0=100`} 時約 {m`${texNum(tip.degPct, 2)}\%`} 的窗口 {m`\lambda_{\min}(\mathbf R_k)=0`}。
             </li>
             <li>
-              偵測器改成 1-bit、{m`K_q`} 改「物理」、{m`\mu=0.5\,\mathrm{fs}`}：{m`k_{95}`} 變成 {tip.k95Phys.toLocaleString('en-US')}（<Erratum id="E05" />）。
+              偵測器改成 1-bit、{m`K_q`} 改「物理」、{m`\mu=0.5\,\mathrm{fs}`}：{m`k_{95}`} 變成 {tip.k95Phys.toLocaleString('en-US')}（<ChapterErratum id="E05" />）。
             </li>
             <li>
               {m`g`} 拉到 1（{m`=g^\star`}）最快；超過 {m`2/\lambda_{\max}=${texNum(tip.gMax, 4)}`} 快模式就發散。介於兩者之間時仍然收斂，但最慢的換成過衝的快模式（警告會列出它要幾個 block；把 {m`\rho`} 調小，這一段範圍比較寬，容易試）。
@@ -118,7 +114,7 @@ export default function Chapter09() {
             <li>
               拖動 {m`c`}：{m`\boldsymbol\theta'`} 的輸出與 {m`\boldsymbol\theta`} 逐點重合（差異只剩 {m`10^{-16}`} 的浮點捨入）——Gallery #11。
             </li>
-            <li>打開「PLL 抑制 DC」：u-domain 的 eigenvalue 出現第二個 0，連「只動 {m`b`}」都看不到（<Erratum id="E04" />）。</li>
+            <li>打開「PLL 抑制 DC」：u-domain 的 eigenvalue 出現第二個 0，連「只動 {m`b`}」都看不到（<ChapterErratum id="E04" />）。</li>
             <li>看約束表：raw-x 固定 {m`a_0`} 就夠了；u-domain 必須「不更新 {m`b`} ＋ 固定 {m`a_0`}」。</li>
             <li>
               打開 DC null、{m`\sigma_v=0.1`}、GMAC regressor = raw {m`\tilde{\mathbf x}`}：u-domain 的 {m`w_b`} 沒有恢復力而 random walk；改成 filtered

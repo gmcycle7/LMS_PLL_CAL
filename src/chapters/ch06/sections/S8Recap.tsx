@@ -105,10 +105,9 @@ export function S8Recap() {
           圖上的圈號和下面手算題的步驟編號一一對應：⑧ 就是 F-06.18（<Tex>{'D=0'}</Tex> 時退化成 F-06.14），⑪ 就是 F-06.3 的 <Tex>{'p=1-\\mu K_qC_D'}</Tex>。
         </p>
       </ChapterDiagram>
-      <ChapterHandCalc
-        id="HC-06.8"
-        lead={String.raw`預設值是 §6.4 表格裡 $\mathrm{frac}=5\times10^{-4}$、$D=1$ 的那一格。換成你的 FCW 小數、$\omega_nT_s$（HC-06.6 的結果）、latency $d$ 與 code delay $D$，先用紙筆算門檻 $D^*=\mathrm{frac}/K_i$ 與 $C_D$ 的正負號，再把 $D$ 改成 0 重算一次比較。`}
-      />
+      <ChapterHandCalc id="HC-06.8">
+        {String.raw`預設值是 §6.4 表格裡 $\mathrm{frac}=5\times10^{-4}$、$D=1$ 的那一格。換成你的 FCW 小數、$\omega_nT_s$（HC-06.6 的結果）、latency $d$ 與 code delay $D$，先用紙筆算門檻 $D^*=\mathrm{frac}/K_i$ 與 $C_D$ 的正負號，再把 $D$ 改成 0 重算一次比較。`}
+      </ChapterHandCalc>
 
       <Quiz
         title="思考題 2（計算）"

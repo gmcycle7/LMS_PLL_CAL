@@ -1,28 +1,29 @@
 import type { ReactNode } from 'react'
 import { useSettings, type LearningMode } from '@/app/settings'
-import { HandCalc, Mermaid, mathText } from '@/components'
+import { ChapterFig, FigRef as SharedFigRef, bindHandCalc, mathText } from '@/components'
 import { fmt } from '@/simulation/core'
 import { diagram } from './diagrams'
-import { handcalc } from './handcalcs'
+import { HANDCALCS } from './handcalcs'
 
 /**
- * 方塊圖（docs/teaching-style.md §8）：圖 + 圖說（一句話說明要看什麼）+「怎麼看這張圖」的導讀。
+ * 方塊圖（docs/teaching-style.md §8）：圖 + 圖說（一句話說明要看什麼）+「怎麼看這張圖」的導讀（共用的 ChapterFig）。
  * 圖的原始碼、圖說與圖號都登錄在 ./diagrams.ts（依 id 取出，打錯會丟錯）；children 是導讀：
  * 先看哪裡、再看哪裡，以及「圖上的 X 就是公式裡的 x」的對應（可以用 <Tex>）。
- * 圖說前面要加粗體的圖號與種類（「圖 10-N（比較圖）」），所以由這裡自己排（`$...$` 用 mathText 以 KaTeX 顯示），不經 Mermaid 元件的 caption 屬性。
+ * 圖說前面是圖號與種類（「圖 10-N（比較圖）｜…」），`$...$` 由 KaTeX 排版。
  */
 export function Fig({ id, children }: { id: string; children: ReactNode }) {
   const dg = diagram(id)
   return (
-    <div className="ch10-fig" data-diagram={dg.id} data-diagram-name={dg.name}>
-      <Mermaid chart={dg.chart} ariaLabel={`圖 ${dg.no}：${dg.alt}`} />
-      <p className="c-figcaption ch10-fig-caption">
-        <strong>圖 {dg.no}</strong>（{dg.kind}）{mathText(dg.caption)}
-      </p>
-      <p className="ch10-fig-walk">
-        <span className="ch10-fig-walk-badge">怎麼看這張圖</span> {children}
-      </p>
-    </div>
+    <ChapterFig
+      chart={dg.chart}
+      label={`圖 ${dg.no}`}
+      kind={dg.kind}
+      caption={dg.caption}
+      ariaLabel={`圖 ${dg.no}：${dg.alt}`}
+      dataAttrs={{ 'data-diagram': dg.id, 'data-diagram-name': dg.name }}
+    >
+      {children}
+    </ChapterFig>
   )
 }
 
@@ -31,48 +32,14 @@ export function Fig({ id, children }: { id: string; children: ReactNode }) {
  * 不要在正文手寫圖號（diagrams.test.tsx 會檢查頁面上沒有手寫的「圖 10-N」）。
  */
 export function FigRef({ id }: { id: string }) {
-  return (
-    <span className="ch10-figref" data-figref={id}>
-      圖 {diagram(id).no}
-    </span>
-  )
-}
-
-function scrollBehavior(): ScrollBehavior {
-  const reduce = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  return reduce ? 'auto' : 'smooth'
-}
-
-/** 從章末的符號表回到章首（章首的「符號表 ↓」連結由 PageFrame 的本章資訊 strip 提供，所以沒有「剛才閱讀的位置」可記）。 */
-export function scrollBackFromSymbols() {
-  if (typeof window === 'undefined' || typeof window.scrollTo !== 'function') return
-  window.scrollTo({ top: 0, behavior: scrollBehavior() })
+  return <SharedFigRef label={`圖 ${diagram(id).no}`} dataAttrs={{ 'data-figref': id }} />
 }
 
 /**
  * 「換你算」：放在對應推導／worked example 的正後方（docs/teaching-style.md §7）。
  * 先用一句話邀請讀者把數字換成自己的、用紙筆和計算機算一次，再對照網站的逐步帶入；題目定義在 ./handcalcs.ts（依 id 取出，打錯會丟錯）。
  */
-export function Hand({ id, children }: { id: string; children?: ReactNode }) {
-  return (
-    <div className="ch10-hand" data-handcalc={id}>
-      <p className="ch10-hand-invite">
-        <strong>換你算：</strong>
-        {children ?? '把下面的數字換成你自己的，先用紙筆和計算機算一次，再展開步驟對答案。'}
-      </p>
-      <HandCalc def={handcalc(id)} />
-    </div>
-  )
-}
-
-/** 勘誤標記：連到 Verification 頁的勘誤列表（依 id）。 */
-export function Erratum({ id, title }: { id: string; title?: string }) {
-  return (
-    <a className="ch10-erratum" href="#/verification" title={title ?? `docs/validation.md 勘誤 ${id}：本站採用修正後版本`}>
-      勘誤 {id}
-    </a>
-  )
-}
+export const Hand = bindHandCalc(HANDCALCS)
 
 /** 內文／表格用的數字格式（有效位數；去尾零）。負號一律用數學負號 U+2212（−），不用連字號；TeX 字串請改用 tn()。 */
 export function n(x: number | null | undefined, digits = 4): string {

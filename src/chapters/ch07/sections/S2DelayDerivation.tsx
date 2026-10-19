@@ -1,9 +1,8 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, Derivation, Mermaid, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, Derivation, Mermaid, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock, ChapterErratum } from '@/components'
 import { bestToneDelay, toneBlockCorr, toneCorrCodeDelay, toneCorrErrorDelay } from '@/simulation/models/filteredX'
 import { CHART_BLOCK_AVERAGE, CHART_DELAY_SIDE, CHART_MIXER_AVERAGE } from '../diagrams'
 import { FoldSteps } from '../FoldSteps'
-import { ErratumNote } from '../ErratumNote'
 import { Hand } from '../Hand'
 import { fx, RAD, tx } from '../util'
 
@@ -93,9 +92,9 @@ export function S2DelayDerivation() {
         <p className="small muted">
           這裡的 <Tex>{r`H(e^{j\Omega})`}</Tex> 是<strong>離散時間</strong>響應；不可以把 <Tex>{'\\Omega'}</Tex> 直接代入連續時間的
           <Tex>{r`H(j\omega)`}</Tex>。{' '}
-          <ErratumNote id="E44">
+          <ChapterErratum id="E44" detail={<>
             規格 §7 寫成 <Tex>{r`H_{\mathrm{PD}}(\Omega)`}</Tex>，本站一律寫 <Tex>{r`H(e^{j\Omega})`}</Tex>，<Tex>{'\\Omega'}</Tex> 為 rad/sample。
-          </ErratumNote>
+          </>} />
         </p>
       </Prereq>
 
@@ -153,9 +152,9 @@ export function S2DelayDerivation() {
       </TexBlock>
       <p>
         <ClaimTag kind="exact" /> 條件：單頻、<Tex>{r`0<\Omega<\pi`}</Tex>、<Tex>{'E'}</Tex> 為長時間平均（或整數週期平均；或把起始相位當成隨機、對很多次實驗取平均的 ensemble average）。{' '}
-        <ErratumNote id="E46">
+        <ChapterErratum id="E46" detail={<>
           規格的 boxed 公式沒有寫出這些條件；<Tex>{'\\Omega'}</Tex> 在邊界與有限 <Tex>{'N'}</Tex> 的情形見本節後段。
-        </ErratumNote>
+        </>} />
       </p>
       <Hand id="HC-07.2">
         把剛推導出來的公式代一次數字。預設值是 T07 的例子（答案 <Tex>{r`C_4=0.5`}</Tex>）；換成你自己的 <Tex>{'A'}</Tex>、<Tex>{'|H|'}</Tex>、
@@ -326,7 +325,7 @@ export function S2DelayDerivation() {
           <Tex>{r`\cos(2\Omega n+\psi)=\cos\psi`}</Tex> 對每個 <Tex>{'n'}</Tex> 都一樣（<Tex>{r`2\pi n`}</Tex> 是整圈），它根本不振盪，平均器平均不掉。另外實係數 <Tex>{'h'}</Tex> 在這兩個頻率的響應
           <Tex>{r`H(e^{j0})=\sum_k h[k]`}</Tex>、<Tex>{r`H(e^{j\pi})=\sum_k(-1)^kh[k]`}</Tex> 都是實數，只能有
           <Tex>{r`\phi\in\{0^\circ,180^\circ\}`}</Tex>：{' '}
-          <ErratumNote id="E46" />
+          <ChapterErratum id="E46" />
         </p>
         <StepDerivation
           steps={[

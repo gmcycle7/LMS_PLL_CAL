@@ -1,5 +1,5 @@
-import { SymbolTable, Tex, type SymbolEntry } from '@/components'
-import { Erratum, LSB_FS_EXAMPLE, tx } from '../common'
+import { JumpTo, SymbolTable, Tex, type SymbolEntry, ChapterErratum } from '@/components'
+import { LSB_FS_EXAMPLE, tx } from '../common'
 
 /**
  * 本章符號表（docs/teaching-style.md §5：放在章末，外層 id="symbols"；章首只留一行連結）。
@@ -14,23 +14,23 @@ const SYMBOLS: SymbolEntry[] = [
   { symbol: String.raw`w_H[n]`, meaning: 'LMS 內部的高解析係數（accumulator 內容）', unit: String.raw`\mathrm{LSB}`, firstSeen: '§13.0', note: tx(String.raw`常數情境 $w_H=w^*$；時變情境 $w_H[n]=w^*+\delta w[n]$`) },
   { symbol: String.raw`y[n]`, meaning: '實體 6-bit gain code（DTC gain register 的值）', unit: String.raw`\mathrm{LSB}`, firstSeen: '§13.0', note: <Tex>{String.raw`y\in\{0,1,\dots,2^B-1\}`}</Tex> },
   { symbol: 'B', meaning: 'gain register 的位元數（本章 6）', firstSeen: '§13.0' },
-  { symbol: String.raw`\Delta_\mathrm{LSB}`, meaning: '1 個 gain LSB 對應的 DTC gain', unit: String.raw`\mathrm{fs}/\mathrm{LSB}`, firstSeen: '§13.0', note: <><Erratum id="E13" />：規格原未給，本章示例 <Tex>{String.raw`${LSB_FS_EXAMPLE}\,\mathrm{fs/LSB}`}</Tex></> },
+  { symbol: String.raw`\Delta_\mathrm{LSB}`, meaning: '1 個 gain LSB 對應的 DTC gain', unit: String.raw`\mathrm{fs}/\mathrm{LSB}`, firstSeen: '§13.0', note: <><ChapterErratum id="E13" />：規格原未給，本章示例 <Tex>{String.raw`${LSB_FS_EXAMPLE}\,\mathrm{fs/LSB}`}</Tex></> },
   { symbol: String.raw`Q_B(\cdot)`, meaning: tx(String.raw`$B$-bit 量化器：round-half-up $\lfloor v+\tfrac12\rfloor$ 或 floor $\lfloor v\rfloor$；超出 $[0,2^B-1]$ 時 saturate / wrap`), firstSeen: '§13.1' },
-  { symbol: String.raw`\delta w=w-w^*`, meaning: '係數誤差（本章顯示用的約定）', unit: String.raw`\mathrm{LSB}`, firstSeen: '§13.0', note: <><Erratum id="E49" />：{tx(String.raw`§0 約定 $\delta=a-w=-\delta w$，正負號相反`)}</> },
+  { symbol: String.raw`\delta w=w-w^*`, meaning: '係數誤差（本章顯示用的約定）', unit: String.raw`\mathrm{LSB}`, firstSeen: '§13.0', note: <><ChapterErratum id="E49" />：{tx(String.raw`§0 約定 $\delta=a-w=-\delta w$，正負號相反`)}</> },
   { symbol: String.raw`e[n]=y[n]-w^*`, meaning: 'code 誤差（gain error）', unit: String.raw`\mathrm{LSB}`, firstSeen: '§13.0' },
   { symbol: String.raw`\overline e,\;\overline{e^2}`, meaning: tx(String.raw`時間平均（DC 誤差）與平方平均（總誤差功率）；$\overline{e^2}=\overline e^{\,2}+$ 變異數`), unit: String.raw`\mathrm{LSB},\;\mathrm{LSB}^2`, firstSeen: '§13.1' },
   { symbol: 'p', meaning: <><Tex>{String.raw`w^*`}</Tex> 的小數部分 <Tex>{String.raw`\mathrm{frac}(w^*)`}</Tex>（<Tex>{String.raw`32.4\to0.4`}</Tex>）；也是 stochastic rounding 輸出 33 的機率</>, firstSeen: '§13.2', note: tx(String.raw`第 12 章的係數 pole $p$ 在本章改記為 $p_\mathrm{cal}$，避免衝突`) },
   { symbol: String.raw`L_t,\;h,\;n'`, meaning: tx(String.raw`toggle pattern 的週期、其中「進位」的個數（5 與 2），與這一拍在 pattern 裡的位置 $n'=n\bmod L_t$`), firstSeen: '§13.2' },
   { symbol: String.raw`s[n]`, meaning: tx(String.raw`toggle 的「進位指示」（0 或 1）：$y[n]=\lfloor w^*\rfloor+s[n]$`), firstSeen: '§13.2', note: tx(String.raw`stochastic rounding 的同一個角色記為 Bernoulli 變數 $X$`) },
   { symbol: String.raw`c_k,\;P_k`, meaning: tx(String.raw`週期誤差的第 $k$ 個傅立葉係數與 one-sided 線功率（頻率 $kf_u/q$）`), unit: String.raw`\mathrm{LSB},\;\mathrm{LSB}^2`, firstSeen: '§13.2' },
-  { symbol: String.raw`f_u`, meaning: tx(String.raw`6-bit code 的更新率（每個 reference cycle 更新時 $f_u=f_\mathrm{ref}$；每個 GMAC block 更新時 $f_u=f_s/N$）`), unit: String.raw`\mathrm{Hz}`, firstSeen: '§13.2', note: <><Erratum id="E47" />：{tx(String.raw`規格的 $f_\mathrm{toggle}$ 未定義，本章一律用 $f_u$`)}</> },
+  { symbol: String.raw`f_u`, meaning: tx(String.raw`6-bit code 的更新率（每個 reference cycle 更新時 $f_u=f_\mathrm{ref}$；每個 GMAC block 更新時 $f_u=f_s/N$）`), unit: String.raw`\mathrm{Hz}`, firstSeen: '§13.2', note: <><ChapterErratum id="E47" />：{tx(String.raw`規格的 $f_\mathrm{toggle}$ 未定義，本章一律用 $f_u$`)}</> },
   { symbol: String.raw`S_e^{(1)}(f),\;S_{\delta t}^{(1)}(f)`, meaning: tx(String.raw`code 誤差 $e$ 與 timing error $\delta t$ 的 one-sided PSD（每 Hz 的功率；從 $0$ 積到 Nyquist 頻率就是總功率）`), unit: String.raw`\mathrm{LSB}^2/\mathrm{Hz},\;\mathrm{fs}^2/\mathrm{Hz}`, firstSeen: '§13.3 / §13.5b' },
   { symbol: String.raw`f_s,\;N_\mathrm{upd}`, meaning: tx(String.raw`reference / DTC 取樣率；每 $N_\mathrm{upd}$ 個 reference cycle 更新一次 code（$f_u=f_s/N_\mathrm{upd}$）`), unit: String.raw`f_s:\ \mathrm{Hz}`, firstSeen: '§13.2', note: tx(String.raw`§13.2 的 ZOH 推導把保持的樣本數記為 $N_h$，與 $N_\mathrm{upd}$ 是同一個量`) },
   { symbol: String.raw`G_k\ (\text{GMAC})`, meaning: tx(String.raw`GMAC 第 $k$ 個 block 的平均（comparator 輸出乘上 code 的平均，第 4 章）；只出現在 §13.0 的訊號流圖`), firstSeen: '§13.0', note: tx(String.raw`與下一列的 ZOH 權重 $G_k$ 同名不同義：那裡的 $k$ 是譜線編號`) },
   { symbol: String.raw`G_k\ (\text{ZOH})`, meaning: tx(String.raw`ZOH 對第 $k$ 條譜線的權重（離散 sinc）：$G_k=\sin(\pi k/5)/\big(N_h\sin(\pi k/(5N_h))\big)$`), firstSeen: '§13.2', note: tx(String.raw`§13.2 圖與公式 F-13.5 專用；與 §13.0 的 GMAC 平均 $G_k$ 不同`) },
   { symbol: String.raw`\Omega=2\pi f/f_u`, meaning: '以 code 更新率為取樣率的離散時間頻率', unit: String.raw`\mathrm{rad/sample}`, firstSeen: '§13.4' },
   { symbol: String.raw`v[n],\;r[n]`, meaning: 'ΔΣ 量化器輸入與內部量化誤差（residual）', unit: String.raw`\mathrm{LSB}`, firstSeen: '§13.4', note: tx(String.raw`round-half-up 時 $r\in[-\tfrac12,\tfrac12)$；floor 時 $r\in[0,1)$（方法 D、沒有 overload；方法 E 加了峰對峰 $A$ 的 dither 後，範圍兩端各多 $\tfrac A2$）`) },
-  { symbol: String.raw`\sigma_r^2`, meaning: tx(String.raw`$r$ 的變異數；白色近似取 $\tfrac1{12}$，常數 32.4 時實際為 0.08`), unit: String.raw`\mathrm{LSB}^2`, firstSeen: '§13.4', note: <Erratum id="E15" /> },
+  { symbol: String.raw`\sigma_r^2`, meaning: tx(String.raw`$r$ 的變異數；白色近似取 $\tfrac1{12}$，常數 32.4 時實際為 0.08`), unit: String.raw`\mathrm{LSB}^2`, firstSeen: '§13.4', note: <ChapterErratum id="E15" /> },
   { symbol: String.raw`\mathrm{NTF}(z)=1-z^{-1}`, meaning: '一階 noise transfer function', firstSeen: '§13.4' },
   { symbol: String.raw`q,\;m`, meaning: tx(String.raw`有理目標 $w=m/q$（最簡分數）；$q$ 也是 limit cycle 的週期`), firstSeen: '§13.4' },
   { symbol: String.raw`F,\;K`, meaning: tx(String.raw`$w_H$ 定點表示的小數位元數；$K=w_H\cdot2^F$ 為整數`), unit: String.raw`F:\ \mathrm{bit}`, firstSeen: '§13.1 / §13.4', note: tx(String.raw`§13.5b 的 $K$ 另指 DSM 的 FCW 整數（$\mathrm{frac}\cdot2^{20}$），以上下文區分`) },
@@ -52,16 +52,6 @@ const SYMBOLS: SymbolEntry[] = [
   { symbol: String.raw`\mathrm{gray}(n)=n\oplus\lfloor n/2\rfloor`, meaning: tx(String.raw`reflected-binary gray 碼（$\oplus$ 是逐 bit 的 XOR）：相鄰的兩個整數只差 1 個 bit`), firstSeen: '§13.6', note: tx(String.raw`例：$\mathrm{gray}(31)=010000_2$、$\mathrm{gray}(32)=110000_2$、$\mathrm{gray}(34)=110011_2$`) },
 ]
 
-/** 捲到指定錨點並把鍵盤焦點移過去。HashRouter 下不能用 href="#id"（會改掉路由），所以用 scrollIntoView。 */
-function scrollToId(id: string) {
-  const el = document.getElementById(id)
-  if (!el) return
-  const reduce = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  // jsdom 沒有 scrollIntoView
-  if (typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
-  el.focus({ preventScroll: true })
-}
-
 /** 章末的符號表（整頁最後一塊）。 */
 export function SymbolsSection() {
   return (
@@ -70,15 +60,15 @@ export function SymbolsSection() {
         rows={SYMBOLS}
         caption={
           <>
-            全站約定見規格 §0。本章 code 一律以 LSB 為單位，換成時間要乘 <Tex>{String.raw`\Delta_\mathrm{LSB}`}</Tex>（<Erratum id="E13" />）；誤差顯示用{' '}
-            <Tex>{String.raw`\delta w=w-w^*`}</Tex>，與 §0 的 <Tex>{String.raw`\delta=a-w`}</Tex> 正負號相反（<Erratum id="E49" />）。
+            全站約定見規格 §0。本章 code 一律以 LSB 為單位，換成時間要乘 <Tex>{String.raw`\Delta_\mathrm{LSB}`}</Tex>（<ChapterErratum id="E13" />）；誤差顯示用{' '}
+            <Tex>{String.raw`\delta w=w-w^*`}</Tex>，與 §0 的 <Tex>{String.raw`\delta=a-w`}</Tex> 正負號相反（<ChapterErratum id="E49" />）。
           </>
         }
       />
       <p className="small">
-        <button type="button" className="ch13-linklike no-print" data-testid="ch13-symbols-top" onClick={() => scrollToId(TOP_ID)}>
+        <JumpTo target={TOP_ID} className="no-print">
           ↑ 回到章首
-        </button>
+        </JumpTo>
       </p>
     </section>
   )

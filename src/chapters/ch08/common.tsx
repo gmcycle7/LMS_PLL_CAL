@@ -1,38 +1,11 @@
 import { Fragment, type ReactNode } from 'react'
-import { HandCalc, Tex } from '@/components'
+import { Tex, bindHandCalc } from '@/components'
 import { useSettings, type LearningMode } from '@/app/settings'
-import errataFile from '@/data/errata.json'
-import { handcalc } from './handcalcs'
+import { HANDCALCS } from './handcalcs'
 
 /**
- * Ch08 私有的小工具（不放進共用層；最終回報中列為「建議上移」候選）。
+ * Ch08 私有的小工具（勘誤徽章、帶入手算引言已改用共用的 ChapterErratum／bindHandCalc）。
  */
-
-interface ErratumRecord {
-  eid: string
-  problem?: string
-  correction?: string
-}
-
-const ERRATA: ErratumRecord[] = (errataFile as { errata: ErratumRecord[] }).errata
-
-/** 「勘誤 Exx」小標記：連到驗證頁（勘誤清單），滑鼠停留顯示勘誤摘要。 */
-export function ErratumNote({ id, children }: { id: string; children?: ReactNode }) {
-  const rec = ERRATA.find((e) => e.eid === id)
-  const title = rec?.correction ? `${id}：${rec.correction.slice(0, 220)}${rec.correction.length > 220 ? '…' : ''}` : id
-  const link = (
-    <a className="ch08-erratum" href="#/verification" title={title} data-erratum={id}>
-      勘誤 {id}
-    </a>
-  )
-  if (!children) return link
-  return (
-    <span className="ch08-erratum-wrap">
-      {link}
-      <span className="ch08-erratum-text">：{children}</span>
-    </span>
-  )
-}
 
 const RANK: Record<LearningMode, number> = { beginner: 0, engineer: 1, research: 2 }
 
@@ -119,16 +92,6 @@ export function rich(text: string): ReactNode {
 
 /**
  * 「換你算」：一句引導（請讀者先換成自己的數字、用紙筆算一次）＋ 帶入手算題。
- * 題目定義在 ./handcalcs.ts（solve() 呼叫 stability.ts 的實際函式），這裡只負責依 id 取出並排版。
+ * 題目定義在 ./handcalcs.ts（solve() 呼叫 stability.ts 的實際函式），這裡只負責依 id 綁定題庫。
  */
-export function HandCalcSlot({ id, children }: { id: string; children?: ReactNode }) {
-  return (
-    <div className="ch08-handcalc" data-handcalc={id}>
-      <p className="ch08-handcalc-lead">
-        <strong>換你算</strong>：{children ?? '把下面的數字換成你自己的。'}
-        先自己用紙筆算一次，再看詳解對答案。
-      </p>
-      <HandCalc def={handcalc(id)} />
-    </div>
-  )
-}
+export const HandCalcSlot = bindHandCalc(HANDCALCS)

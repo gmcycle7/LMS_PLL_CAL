@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { ClaimTag, CodeBlock, ModeGate, ModelLevel, Section, StepDerivation, Tex, TestBadge, ChRef } from '@/components'
+import { ClaimTag, CodeBlock, ModeGate, ModelLevel, Section, StepDerivation, Tex, TestBadge, ChRef, JumpTo } from '@/components'
 import polaritySrc from '@/simulation/models/polarity.ts?raw'
 import { presetHref, presetsForExperiment } from '@/app/presets'
 import { impulseResponse } from '@/simulation/signal'
@@ -15,7 +15,7 @@ import {
 } from '@/simulation/models/polarity'
 import { PolarityExplorer } from '../experiments/PolarityExplorer'
 import { POLARITY_EXPERIMENT_ID } from '../experiments/explorerModel'
-import { ChapterDiagram, ChapterSection, f, fx, JumpTo, radOf, StepBox } from '../shared'
+import { ChapterDiagram, ChapterSection, f, fx, radOf, StepBox } from '../shared'
 
 /** §7 動手觀察：Polarity Explorer（規格 §19；Gallery #3）。「你會發現…」裡的數字全部即時計算。 */
 export function S7Lab() {
@@ -92,7 +92,7 @@ export function S7Lab() {
           <Tex>{'p=1-\\mu K_qC'}</Tex>（圖 6.6）描述的是 loop 框外、block rate 的平均行為。
         </p>
       </ChapterDiagram>
-      <Section kind="explore" title="試試看（你會發現…）">
+      <Section id="ch06-tryit" kind="explore" title="試試看（你會發現…）">
         <ol>
           <li>
             預設就是 Gallery #3：<Tex>{'\\phi=120^\\circ,\\;\\Omega=\\pi/6'}</Tex>。<Tex>{`C=${fx(n.C120, 4)}`}</Tex>、<Tex>{`p=${fx(n.p10, 5)}`}</Tex>，閉迴路的{' '}

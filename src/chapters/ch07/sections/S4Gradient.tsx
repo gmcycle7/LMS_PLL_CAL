@@ -1,8 +1,7 @@
-import { Callout, ClaimTag, CodeBlock, Derivation, Mermaid, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
+import { Callout, ClaimTag, CodeBlock, Derivation, Mermaid, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock, ChRef, ChapterErratum } from '@/components'
 import fxSrc from '@/simulation/models/filteredX.ts?raw'
 import { CHART_FX_LOOP, CHART_GRADIENT, CHART_RHO_READING, CHART_THREE_REGRESSORS } from '../diagrams'
 import { FoldSteps } from '../FoldSteps'
-import { ErratumNote } from '../ErratumNote'
 import { Hand } from '../Hand'
 
 const r = String.raw
@@ -209,16 +208,16 @@ E[e_{\mathrm{PD}}\,u]&=(a-w)\,E[u^2]+E[v\,u]&&\text{代入 }e_{\mathrm{PD}}\\
         <Tex>{r`\hat H=H`}</Tex> 而且 <Tex>{'D=0'}</Tex> 時 <Tex>{r`C_{f,0}=E[u^2]\ge0`}</Tex>，所以 <Tex>{r`E[G_k]`}</Tex> 與 <Tex>{r`a-w_k`}</Tex> <strong>同號</strong>：
         <Tex>{'w'}</Tex> 太小就往上修、太大就往下修，<Tex>{r`0<p_f<1`}</Tex>（只要 <Tex>{r`\mu K_qE[u^2]<1`}</Tex>）。
         <Tex>{r`\hat H\ne H`}</Tex> 或 <Tex>{r`D\ne0`}</Tex> 時一定要用 <Tex>{r`C_{f,D}`}</Tex>，不是 <Tex>{r`E[u^2]`}</Tex> 也不是 <Tex>{r`E[u_f^2]`}</Tex>——下一節（7.5）專門處理。本章的圖、表與手算裡，沒有另外標{' '}
-        <Tex>{'D'}</Tex> 的 filtered-x 都是 <Tex>{'D=0'}</Tex>。 <ErratumNote id="E45" />
+        <Tex>{'D'}</Tex> 的 filtered-x 都是 <Tex>{'D=0'}</Tex>。 <ChapterErratum id="E45" />
       </p>
 
       <h3 className="ch07-subhead">步驟 4：可實作的 block 形式</h3>
       <p>
         規格 §7 寫成 <Tex>{r`w_{k+1}=w_k+\mu E[q[n]u_f[n]]`}</Tex>：那是<strong>平均 ODE</strong>，而且把 sample index <Tex>{'n'}</Tex> 與
         block index <Tex>{'k'}</Tex> 混在一起。硬體實際做的是：{' '}
-        <ErratumNote id="E45">
+        <ChapterErratum id="E45" detail={<>
           規格的期望值形式不可直接實作；本站改為 block 形式，並把 <Tex>{r`E[G_k]`}</Tex> 標成近似。
-        </ErratumNote>
+        </>} />
       </p>
       <Mermaid
         chart={CHART_FX_LOOP}

@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
 import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
-import { Callout, ClaimTag, mathText, ModeGate, Plot, Prereq, Section, SourceTag, Tex, TexBlock, useThemeTokens, ChRef } from '@/components'
+import { Callout, ClaimTag, mathText, ModeGate, Plot, Prereq, Section, SourceTag, Tex, TexBlock, useThemeTokens, ChRef, ChapterErratum } from '@/components'
 import { fixedXMuMax, fixedXPole, runScalarLms } from '@/simulation/models/lms'
-import { Erratum, FBlock, Fig, HC, num, StepsBox, T, tnum, tx, Verdict } from '../common'
+import { FBlock, Fig, HC, num, StepsBox, T, tnum, tx, Verdict } from '../common'
 import { CHART_ERROR_RECURSION, CHART_LMS_LOOP, CHART_POLE_REGIME, CHART_TAU_FLOW, figRef } from '../diagrams'
 import { FixedXExplorer } from '../experiments/FixedXExplorer'
 import { poleLabelTex } from '../poleLabel'
@@ -284,7 +284,7 @@ export function FixedXSection() {
   return (
     <>
       <h2 id="fixed-x">1｜固定輸入：誤差是一個等比數列</h2>
-      <Section kind="intuition" title="這一節要回答的問題">
+      <Section id="ch03-fixed-question" kind="intuition" title="這一節要回答的問題">
         <p>
           黑盒子 <Tex>{T`y=ax`}</Tex>，你不知道 <Tex>a</Tex>。每次只看到同一個輸入 <Tex>{T`x=2`}</Tex> 與輸出 <Tex>{T`y=6`}</Tex>（真實{' '}
           <Tex>{T`a=3`}</Tex>），從 <Tex>{T`w_0=1`}</Tex> 開始用 LMS 修正。問題是：<strong>學習率 <Tex>\mu</Tex> 要多小才保證會收斂？太大會怎樣？</strong>
@@ -310,7 +310,7 @@ export function FixedXSection() {
         </p>
       </Section>
 
-      <Section kind="example" title={tx`先算一次（$\mu=0.1$）`}>
+      <Section id="ch03-fixed-hand" kind="example" title={tx`先算一次（$\mu=0.1$）`}>
         <p>
           <Tex>{T`a=3,\ w_0=1,\ x=2,\ \mu=0.1`}</Tex>。第一步：<Tex>{T`e_0=6-1\cdot2=4`}</Tex>，<Tex>{T`w_1=1+0.1\cdot4\cdot2=1.8`}</Tex>；第二步：<Tex>{T`e_1=6-1.8\cdot2=2.4`}</Tex>，<Tex>{T`w_2=1.8+0.1\cdot2.4\cdot2=2.28`}</Tex>（T01）。下表由網站的 LMS 程式實際跑出；第四欄{' '}
           <Tex>{T`\delta_n=a-w_n`}</Tex> 是估計值離真實參數<strong>還差多少</strong>（剩餘參數誤差），最右欄是相鄰兩步誤差的比值：
@@ -321,11 +321,11 @@ export function FixedXSection() {
         </p>
         <Callout kind="info" title={tx`$\delta$ 的正負號（極性）`}>
           本站一律用 <Tex>{T`\delta_n=a-w_n`}</Tex>（規格 §0 約定），所以 <Tex>{T`\delta_0,\delta_1,\delta_2=+2,+1.2,+0.72`}</Tex>。規格 §3 原文寫{' '}
-          <Tex>{T`\delta_n=w_n-a`}</Tex>，數值會差一個負號；遞迴式完全相同。 <Erratum id="E39" /> <Erratum id="E32" />
+          <Tex>{T`\delta_n=w_n-a`}</Tex>，數值會差一個負號；遞迴式完全相同。 <ChapterErratum id="E39" /> <ChapterErratum id="E32" />
         </Callout>
       </Section>
 
-      <Section kind="formula" title="一步一步推導">
+      <Section id="ch03-fixed-derive" kind="formula" title="一步一步推導">
         <p>
           推導之前先看圖。把{figRef(CHART_LMS_LOOP)} 的迴圈改用「還差多少」<Tex>{T`\delta_n=a-w_n`}</Tex> 來畫，未知的 <Tex>a</Tex> 和估計值 <Tex>{T`w_n`}</Tex> 都不見了，只剩一個很小的迴圈：
         </p>
@@ -413,7 +413,7 @@ export function FixedXSection() {
         </HC>
       </Section>
 
-      <Section kind="diagram" title={tx`四種 pole 行為（$\mu=0.1,\,0.25,\,0.4,\,0.5,\,0.6$；$x=2$）`}>
+      <Section id="ch03-pole-cases" kind="diagram" title={tx`四種 pole 行為（$\mu=0.1,\,0.25,\,0.4,\,0.5,\,0.6$；$x=2$）`}>
         <p>
           <Tex>p</Tex> 一算出來，行為就定了。照下圖由左往右問兩個問題：先比 <Tex>{T`|p|`}</Tex> 和 1（決定收斂、邊界還是發散），再看 <Tex>p</Tex> 的正負（決定會不會每一步變號）。
         </p>
@@ -478,7 +478,7 @@ export function FixedXSection() {
         </HC>
       </Section>
 
-      <Section kind="diagram" title="直覺：pole 在單位圓內，離散時間系統就穩定">
+      <Section id="ch03-pole-intuition" kind="diagram" title="直覺：pole 在單位圓內，離散時間系統就穩定">
         <div className="ch03-plots">
           <UnitCirclePlot />
           <PoleVsMuPlot />
@@ -503,7 +503,7 @@ export function FixedXSection() {
         </p>
       </Section>
 
-      <Section kind="explore" title="動手觀察：Fixed-x Pole Explorer">
+      <Section id="ch03-fixed-lab" kind="explore" title="動手觀察：Fixed-x Pole Explorer">
         <p>
           試試看：(1) 把 Case A 的 <Tex>\mu</Tex> 拉到 <Tex>{T`0.25`}</Tex>，看 <Tex>{T`\delta_1=0`}</Tex>；(2) 新增 Case B 設 <Tex>{T`\mu=0.4`}</Tex>，比較單調與震盪；(3) 把 <Tex>x</Tex> 改成 1，穩定上限變成 <Tex>{T`2/x^2=2`}</Tex>——<strong>同一個 <Tex>\mu</Tex> 對不同幅度的 <Tex>x</Tex> 有完全不同的 pole</strong>，這就是後面要用 <Tex>{T`P_x=E[x^2]`}</Tex> 正規化的原因。
         </p>

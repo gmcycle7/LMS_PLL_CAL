@@ -1,5 +1,5 @@
-import { ClaimTag, ModelLevel, SourceTag, SymbolTable, type SymbolEntry } from '@/components'
-import { jumpTo, m } from './common'
+import { ClaimTag, JumpTo, ModelLevel, SourceTag, SymbolTable, type SymbolEntry } from '@/components'
+import { m } from './common'
 import { IntroSection } from './sections/IntroSection'
 import { FoldingSection } from './sections/FoldingSection'
 import { StructuresSection } from './sections/StructuresSection'
@@ -60,9 +60,9 @@ export default function Chapter11b() {
       <section id="symbols" className="ch11b-symbols" tabIndex={-1} aria-label="本章符號表">
         <SymbolTable rows={SYMBOLS} title="本章符號表" caption="t.u. = 正規化時間單位（例如 1 fs）；x 無因次（正規化到 [−1, 1]）；所有例子為 illustrative。「首次出現」是正文第一次用一句話說明該符號的段落。" />
         <p className="ch11b-symbols-back">
-          <button type="button" className="ch11b-jump no-print" onClick={() => jumpTo('ch11b-top')}>
+          <JumpTo target="ch11b-top" className="no-print">
             ↑ 回到章首
-          </button>
+          </JumpTo>
         </p>
       </section>
     </div>

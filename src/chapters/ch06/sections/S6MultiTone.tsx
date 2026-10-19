@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ClaimTag, CodeBlock, CodeCompare, ModeGate, Prereq, SourceTag, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
+import { ClaimTag, CodeBlock, CodeCompare, ModeGate, Prereq, SourceTag, StepDerivation, Tex, TexBlock, ChRef, ChapterErratum, JumpTo } from '@/components'
 import polaritySrc from '@/simulation/models/polarity.ts?raw'
 import { freqz, impulseResponse } from '@/simulation/signal'
 import { isWorkerCancelled, useWorkerTask } from '@/workers'
@@ -15,7 +15,7 @@ import {
   type FcwSweepResult,
 } from '@/simulation/models/polarity'
 import { FcwSweepExperiment } from '../experiments/FcwSweepExperiment'
-import { ChapterDiagram, ChapterHandCalc, ChapterSection, Erratum, f, JumpTo, StepBox } from '../shared'
+import { ChapterDiagram, ChapterHandCalc, ChapterSection, f, StepBox } from '../shared'
 
 const PATH = 'src/simulation/models/polarity.ts'
 
@@ -186,7 +186,7 @@ export function S6MultiTone() {
             白色雜訊：<Tex>{'S=\\sigma_x^2'}</Tex>（平的），<Tex>{'R_x[\\ell]=\\sigma_x^2\\delta[\\ell]'}</Tex>。
           </li>
           <li>
-            單位注意 <Erratum id="E28" />：這裡是 DTFT 形式的雙邊密度（<Tex>{'\\sigma_x^2=\\int S_{xx}\\,d(\\Omega/2\\pi)'}</Tex>，也就是「每 cycle/sample」），不是頻譜分析儀的 one-sided per-Hz；換算{' '}
+            單位注意 <ChapterErratum id="E28" />：這裡是 DTFT 形式的雙邊密度（<Tex>{'\\sigma_x^2=\\int S_{xx}\\,d(\\Omega/2\\pi)'}</Tex>，也就是「每 cycle/sample」），不是頻譜分析儀的 one-sided per-Hz；換算{' '}
             <Tex>{'S^{(1)}(f)=2S(e^{j2\\pi f/f_s})/f_s'}</Tex>。
           </li>
         </ul>
@@ -210,7 +210,7 @@ export function S6MultiTone() {
           <ClaimTag kind="exact" />
           <span className="small">
             條件：<Tex>{'x'}</Tex> 廣義平穩、路徑 LTI 且穩定；<Tex>{'S_{xx}'}</Tex> 與 <Tex>{'H'}</Tex> 都用 DT 形式（<Tex>{'\\Omega'}</Tex> 為
-            rad/sample）<Erratum id="E44" />。
+            rad/sample）<ChapterErratum id="E44" />。
           </span>
         </p>
       </StepBox>
@@ -260,10 +260,9 @@ export function S6MultiTone() {
       <p className="small">
         DT 主迴路嚴格因果（DCO 至少一個 sample 延遲）⇒ <Tex>{'h[0]=1'}</Tex>，白色 code 的 raw-x LMS 永遠有 <Tex>{'C=\\sigma_x^2>0'}</Tex>（E44 的精確結論）。白色 code 的功率平均分布在所有頻率，絕大部分落在迴路頻寬之外，PLL 來不及追，所以 PD 幾乎原封不動地看到它。
       </p>
-      <ChapterHandCalc
-        id="HC-06.7"
-        lead={String.raw`用最簡單的「多頻」code 體會這個加權平均：兩個正弦，一個在 Type-II 的反相頻帶（$\nu_1<1$）、一個在迴路頻寬外（$\nu_2>1$）。先用紙筆算兩個 $\operatorname{Re}H$，再依功率 $A^2/2$ 加權；改動 $A_2$，找出 $C$ 變號的那一點。`}
-      />
+      <ChapterHandCalc id="HC-06.7">
+        {String.raw`用最簡單的「多頻」code 體會這個加權平均：兩個正弦，一個在 Type-II 的反相頻帶（$\nu_1<1$）、一個在迴路頻寬外（$\nu_2>1$）。先用紙筆算兩個 $\operatorname{Re}H$，再依功率 $A^2/2$ 加權；改動 $A_2$，找出 $C$ 變號的那一點。`}
+      </ChapterHandCalc>
 
       <h3>
         6.3 六種算法，同一個 <Tex>{'C'}</Tex>

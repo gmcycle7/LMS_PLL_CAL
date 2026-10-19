@@ -1,5 +1,5 @@
 import { Fragment, useState, type ReactNode } from 'react'
-import { Tex } from '@/components'
+import { Tex, makeTexNum } from '@/components'
 import { useSettings, type LearningMode } from '@/app/settings'
 import type { CodeDistKind, DcNullMode } from '@/simulation/models/bias'
 
@@ -33,15 +33,6 @@ export const DC_MODE_TEX: Record<DcNullMode, string> = {
   none: 'none：DC 不被主迴路消除（靜態式）',
   shared_bbpd: String.raw`shared BBPD：type-II 主迴路強制 $E[q]=0$`,
   linear_pd: 'linear PD + separate comparator',
-}
-
-/** 勘誤小標：連到驗證頁（驗證頁依 id 列出勘誤）。 */
-export function Erratum({ id, note }: { id: string; note?: string }) {
-  return (
-    <a className="ch11-erratum" href="#/verification" title={note ? `勘誤 ${id}：${note}` : `勘誤 ${id}（見驗證頁）`}>
-      勘誤 {id}
-    </a>
-  )
 }
 
 const RANK: Record<LearningMode, number> = { beginner: 0, engineer: 1, research: 2 }
@@ -92,15 +83,8 @@ export function chop(x: number, scale = 1, tol = 1e-12): number {
   return Math.abs(x) <= tol * Math.max(Math.abs(scale), 1e-300) ? 0 : x
 }
 
-/** 放進 TeX 的數字：非有限值改成 TeX 記號（\\infty、—），科學記號改成 a\\times10^{b}。 */
-export function texNum(x: number, digits = 6): string {
-  if (Number.isNaN(x)) return '\\text{—}'
-  if (x === Infinity) return '\\infty'
-  if (x === -Infinity) return '-\\infty'
-  const s = num(x, digits)
-  const mm = /^(-?[\d.]+)e([+-]?\d+)$/.exec(s)
-  return mm ? `${mm[1]}\\times10^{${Number(mm[2])}}` : s
-}
+/** 放進 TeX 的數字：非有限值改成 TeX 記號（\\infty、—），科學記號改成 a\\times10^{b}（共用的 texNumber）。 */
+export const texNum = makeTexNum(6)
 
 /** 帶正負號的數字（殘差表用） */
 export function signed(x: number, digits = 6): string {

@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
-import { Callout, ModeGate, Section, Tex } from '@/components'
+import { Callout, ModeGate, Section, Tex, ChapterErratum } from '@/components'
 import { lyapunovExponent, stabilityFactors } from '@/simulation/models/scalarStability'
-import { Erratum, Fig, T, tnum } from '../common'
+import { Fig, T, tnum } from '../common'
 import { CHART_MC_COMPARE, CHART_MC_FLOW } from '../diagrams'
 import { StabilityLab } from '../experiments/StabilityLab'
 
@@ -14,7 +14,7 @@ export function LabSection() {
   return (
     <>
       <h2 id="lab">6｜綜合實驗：Stability Lab</h2>
-      <Section kind="explore" title="三種收斂畫在同一張圖">
+      <Section id="ch03-three-convergence" kind="explore" title="三種收斂畫在同一張圖">
         <p>
           主圖的縱軸是 <Tex>{T`\log_{10}`}</Tex>，所以等比數列變成直線，斜率就是每步的對數縮放率：解析 MSD 的斜率是 <Tex>{T`\tfrac12\log_{10}g`}</Tex>、mean 是{' '}
           <Tex>{T`\log_{10}|1-\mu P_x|`}</Tex>、典型路徑是 <Tex>{T`\lambda/\ln10`}</Tex>。Monte Carlo 在 Web Worker 中執行，每條路徑有自己的亂數串流，同一個 seed 完全可重現。下面的「試試看」都有對應的 preset（實驗外框的 preset 下拉選單）。
@@ -47,7 +47,7 @@ export function LabSection() {
           <li>
             <Tex>{T`\mu=0.8`}</Tex>（預設）：「解析 <Tex>{T`\tfrac12\log_{10}E[\delta_n^2]`}</Tex>」那條線往上（<Tex>{T`g=${tnum(v.g08, 4)}`}</Tex>），但「MC 分位帶」往下掉到{' '}
             <Tex>{T`10^{-40}`}</Tex> 附近；「天真 MC」（直接平均樣本 <Tex>{T`\delta^2`}</Tex>）介於兩者之間，誤導性最強。
-            <Erratum id="E14" />
+            <ChapterErratum id="E14" />
           </li>
           <li>
             <Tex>{T`\mu=2.3`}</Tex>：連 mean 都發散（<Tex>{T`1-\mu P_x=-1.3`}</Tex>），但 <Tex>{T`\lambda<0`}</Tex>，路徑仍會收斂——只是非常慢：

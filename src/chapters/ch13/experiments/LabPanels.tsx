@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
 import type { Data } from 'plotly.js-cartesian-dist-min'
-import { ClaimTag, Plot, Tex, type ThemeTokens } from '@/components'
+import { ClaimTag, Plot, Tex, type ThemeTokens, ChapterErratum } from '@/components'
 import { isRotation, pllT2, STRATEGY_LABEL, type QuantLabResult, type StrategyRun } from '@/simulation/models/quantizer'
-import { Erratum, STRATEGY_COLOR, SpurAt, Unit, db, fx, n, ntex, num, texLabel } from '../common'
+import { STRATEGY_COLOR, SpurAt, Unit, db, fx, n, ntex, num, texLabel } from '../common'
 
 export interface CaseView {
   id: string
@@ -436,7 +436,7 @@ export function ComparePanel({ result, tokens, lsbFs }: { result: QuantLabResult
     <>
       {constant && B && D && (
         <p className="small" data-testid="ch13-accept-db">
-          <strong>Acceptance check（<Erratum id="E15" />）：</strong>
+          <strong>Acceptance check（<ChapterErratum id="E15" />）：</strong>
           {shift >= 0 && sameLine ? (
             <span className="ch13-ok">
               ✓ D ≡ B：D 的循環 [{D.cycle?.join(', ')}] 是 B 的循環 [{B.cycle?.join(', ')}] 的循環移位（移 {shift} 格），週期 {D.metrics.period}、最大譜線功率相同。
@@ -511,8 +511,8 @@ export function ComparePanel({ result, tokens, lsbFs }: { result: QuantLabResult
       <p className="small muted">
         情境：{scen.lmsNoise ? <>含 LMS 雜訊的 <Tex>{'w_H'}</Tex></> : <>常數 <Tex>{'w_H'}</Tex></>}、<Tex>{String.raw`N_\mathrm{upd}=${scen.nUpd}`}</Tex>（跟隨目前選取的 Case）。頻帶內{' '}
         <Tex>{String.raw`=\mathrm{DC}^2+\int_0^{f_u/64}S\,df`}</Tex>，<Tex>{'e=y-w^*'}</Tex>、<Tex>{String.raw`\epsilon=y-w_H`}</Tex>；* 為 Welch 估計，其餘為一個週期的精確線譜加總。Freeze 不追蹤{' '}
-        <Tex>{'w_H'}</Tex>，所以時變情境不列 <Tex>{String.raw`\epsilon`}</Tex>。DC 誤差採 <Tex>{String.raw`\delta w=\overline y-w^*`}</Tex> 約定；依 §0 的 <Tex>{String.raw`\delta=a-w`}</Tex> 則正負號相反（<Erratum id="E49" />），換成 fs 是乘{' '}
-        <Tex>{String.raw`\Delta_\mathrm{LSB}`}</Tex>（<Erratum id="E13" />）。
+        <Tex>{'w_H'}</Tex>，所以時變情境不列 <Tex>{String.raw`\epsilon`}</Tex>。DC 誤差採 <Tex>{String.raw`\delta w=\overline y-w^*`}</Tex> 約定；依 §0 的 <Tex>{String.raw`\delta=a-w`}</Tex> 則正負號相反（<ChapterErratum id="E49" />），換成 fs 是乘{' '}
+        <Tex>{String.raw`\Delta_\mathrm{LSB}`}</Tex>（<ChapterErratum id="E13" />）。
       </p>
       <Plot
         title="五策略的 code 誤差 PSD（同一情境、同 seed）"
@@ -524,7 +524,7 @@ export function ComparePanel({ result, tokens, lsbFs }: { result: QuantLabResult
         layout={{ xaxis: { title: { text: String.raw`$f$ [Hz]` } }, yaxis: { title: { text: String.raw`PSD [$\mathrm{LSB}^2/\mathrm{Hz}$]` } } }}
         caption={
           <>
-            Welch、Hann、one-sided、<Tex>{String.raw`\mathrm{LSB}^2/\mathrm{Hz}`}</Tex>、每段去平均（設定同上方 PSD 圖）。Freeze 的誤差為常數（去平均後 PSD 恆為 0）不畫；常數情境下若 acceptance check 通過，B 與 D 的曲線完全重疊（<Erratum id="E15" />）。
+            Welch、Hann、one-sided、<Tex>{String.raw`\mathrm{LSB}^2/\mathrm{Hz}`}</Tex>、每段去平均（設定同上方 PSD 圖）。Freeze 的誤差為常數（去平均後 PSD 恆為 0）不畫；常數情境下若 acceptance check 通過，B 與 D 的曲線完全重疊（<ChapterErratum id="E15" />）。
           </>
         }
       />

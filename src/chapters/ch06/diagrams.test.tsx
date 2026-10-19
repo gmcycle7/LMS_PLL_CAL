@@ -1209,14 +1209,14 @@ describe('第 06 章頁面：系統地圖、方塊圖的位置、符號表在章
     expect(s2Text).toMatch(/回到 PD 的 feedback 輸入[\s\S]*回授路徑上只有 divider，沒有 DTC/)
     // 校正迴路的輸入是 PD 的輸出（送進 loop filter 的同一個訊號），不是 DTC 或 divider 的輸出
     expect(s2Text).toMatch(/comparator 取的是 PD 的輸出，也就是送進 loop filter 的同一個訊號（不是 DTC 的輸出，也不是 divider 的輸出）/)
-    const read24 = container.querySelector('[id="diagram-D-06.24"] .ch06-diagram-read')!.textContent ?? ''
+    const read24 = container.querySelector('[id="diagram-D-06.24"] .c-chapter-fig-walk')!.textContent ?? ''
     expect(read24).toMatch(/reference 輸入端的 DTC[\s\S]*從 PD 的 reference 輸入端進主 PLL[\s\S]*PD 的輸出（送進 loop filter\s*的同一個訊號）[\s\S]*comparator 取的就是它/)
     // §5 的兩張迴路圖（圖 6.10、6.12）把 DCO 的輸出直接畫回加法點、沒有畫 divider：正文要說明加法點就是 PD、
     // DTC 誤差從 reference 輸入進來、divider 併在迴路增益裡、回授路徑上沒有 DTC（和圖 6.3 的「loop filter → DCO → divider」一致）
-    const read10 = container.querySelector('[id="diagram-D-06.10"] .ch06-diagram-read')!.textContent ?? ''
+    const read10 = container.querySelector('[id="diagram-D-06.10"] .c-chapter-fig-walk')!.textContent ?? ''
     expect(read10).toMatch(/加法點就是 PD，DTC 誤差從它的 reference 輸入（「＋」）進來[\s\S]*從 feedback 輸入（「−」）回來/)
     expect(read10).toMatch(/divider\s*在線性化的相位模型裡只是一個固定的倍數，已經併進迴路增益[\s\S]*所以圖上沒有另外畫；回授路徑上沒有 DTC/)
-    const read12 = container.querySelector('[id="diagram-D-06.12"] .ch06-diagram-read')!.textContent ?? ''
+    const read12 = container.querySelector('[id="diagram-D-06.12"] .c-chapter-fig-walk')!.textContent ?? ''
     expect(read12).toMatch(/加法點是 PD，「＋」是 reference 輸入（DTC 誤差從這裡進來），「−」是\s*feedback 輸入；回授路徑上 divider 的倍數已經併進[\s\S]*所以沒有另外畫，那裡也沒有 DTC/)
     // 開場白不說 PD 的輸出「變小」：|H_PD| 可以等於、甚至略大於 1（§1 的例子就是 |H| = 1、只轉相位）
     expect(lead.textContent).toMatch(/被主 PLL 濾過的誤差：大小變了，相位也轉了/)
@@ -1255,9 +1255,9 @@ describe('第 06 章頁面：系統地圖、方塊圖的位置、符號表在章
       expect(capText.textContent, d.id).not.toMatch(/\$/)
       expect(capText.textContent, d.id).not.toMatch(UNICODE_MATH_DOM)
       // 圖下方的說明：先看…再看…，以及「圖上的 X 就是公式裡的 x」（數學用 KaTeX）
-      const read = el!.querySelector('.ch06-diagram-read')
+      const read = el!.querySelector('.c-chapter-fig-walk')
       expect(read, d.id).not.toBeNull()
-      expect(read!.querySelector('.ch06-diagram-badge')!.textContent).toBe(`怎麼看圖 ${d.no}`)
+      expect(read!.querySelector('.c-chapter-fig-walk-label')!.textContent).toBe(`怎麼看圖 ${d.no}`)
       expect(read!.querySelectorAll('p').length, d.id).toBeGreaterThanOrEqual(2)
       expect(read!.textContent, d.id).toMatch(/先看|先問|先算|先找|先比較|先沿|從上往下|從最上面|逐列對照|跟著圈號|三個乘法器/)
       expect(read!.textContent, d.id).toMatch(/就是/)

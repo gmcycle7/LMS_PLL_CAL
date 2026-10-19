@@ -1,27 +1,12 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
-import {
-  CaseSelector,
-  ClaimTag,
-  CodeBlock,
-  ExperimentShell,
-  ModeGate,
-  ParamControl,
-  Plot,
-  Tex,
-  TexBlock,
-  useCases,
-  useThemeTokens,
-  type CaseId,
-  type ExperimentPreset,
-  type MetricRow,
-} from '@/components'
+import { CaseSelector, ClaimTag, CodeBlock, ExperimentShell, ModeGate, ParamControl, Plot, Tex, TexBlock, useCases, useThemeTokens, type CaseId, type ExperimentPreset, type MetricRow, ChapterErratum } from '@/components'
 import { presetsForExperiment } from '@/app/presets'
 import { fixedXMuMax } from '@/simulation/models/lms'
 import lmsSrc from '@/simulation/models/lms.ts?raw'
 import { closedFormW, expectedCost, poleTable } from '../model'
 import { num, texNum, texRes } from '../format'
-import { ErratumRef, PageLink, TryIt, usePresetVisit, useScrollToExperiment } from '../common'
+import { PageLink, TryIt, usePresetVisit, useScrollToExperiment } from '../common'
 import {
   DEFAULT_BASE,
   DEFAULT_MUS,
@@ -648,7 +633,7 @@ export function IntroPlayground() {
         height={280}
         caption={
           <>
-            <Tex>{'J(w)=\\tfrac12E[(y-wx)^2]=\\tfrac12\\big[(a-w)^2x^2+\\sigma_v^2\\big]'}</Tex> 含 <Tex>{'\\tfrac12'}</Tex>（<ErratumRef eid="E41" />），所以斜率{' '}
+            <Tex>{'J(w)=\\tfrac12E[(y-wx)^2]=\\tfrac12\\big[(a-w)^2x^2+\\sigma_v^2\\big]'}</Tex> 含 <Tex>{'\\tfrac12'}</Tex>（<ChapterErratum id="E41" />），所以斜率{' '}
             <Tex>{'dJ/dw=-(a-w)x^2=-E[e\\,x]'}</Tex> 與實際更新量 <Tex>{'\\mu\\,e\\,x'}</Tex> 用同一個 scaling。<Tex>{'\\mu'}</Tex> 太大時路徑會在谷底兩側來回跳。
           </>
         }
@@ -730,7 +715,7 @@ export function IntroPlayground() {
       />
       <p className="small">
         <ClaimTag kind="exact" /> 固定 <Tex>{'x'}</Tex>、無雜訊時，pole <Tex>{'p=1-\\mu x^2'}</Tex> 與 <Tex>{'0<\\mu<2/x^2'}</Tex> 是精確結論。若 <Tex>{'x'}</Tex> 每一步隨機變化，就要分成「平均收斂」「均方收斂」與「樣本路徑（almost-sure）收斂」三種不同的界限（見{' '}
-        <PageLink id="ch03" />，<ErratumRef eid="E14" />），不能直接套用。
+        <PageLink id="ch03" />，<ChapterErratum id="E14" />），不能直接套用。
       </p>
       <ModeGate min="engineer">
         <CodeBlock

@@ -1,25 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
-import {
-  ClaimTag,
-  ExperimentShell,
-  ModeGate,
-  ParamControl,
-  Plot,
-  SelectControl,
-  Tex,
-  ToggleControl,
-  mathText,
-  useDebouncedValue,
-  useThemeTokens,
-  type CheckEntry,
-  type CrossCheck,
-  type MetricRow,
-} from '@/components'
+import { ClaimTag, ExperimentShell, ModeGate, ParamControl, Plot, SelectControl, Tex, ToggleControl, mathText, useDebouncedValue, useThemeTokens, type CheckEntry, type CrossCheck, type MetricRow, ChapterErratum } from '@/components'
 import { presetsForExperiment, useUrlPreset } from '@/app/presets'
 import { isWorkerCancelled, useWorkerTask } from '@/workers'
 import { gaugeNullVector, type GaugeConstraintRow, type GaugeLmsRun, type GaugeParams, type GaugeResult } from '@/simulation/models/pe'
-import { Erratum, m, mt, num, texMatrix, texNum } from '../shared'
+import { m, mt, num, texMatrix, texNum } from '../shared'
 import { GAUGE_DEFAULT, GAUGE_LIMITS, W0_A, W0_B, gaugeTfTex, gaugeWarningTex, sanitizeGaugeState, toGaugeParams, type GaugeLabState } from './gaugeLabState'
 
 export const GAUGE_EXPERIMENT_ID = 'gauge-one-hot'
@@ -343,7 +328,7 @@ export function GaugeOneHotLab() {
       description={
         <>
           參數 {m`\boldsymbol\theta=(b,a_0,a_1,a_2,a_3)`}、regressor {m`\tilde{\mathbf x}=(1,x_0,\dots,x_3)`}（one-hot）。開啟「PLL 抑制 DC」後，誤差先經 {m`H_{\mathrm{PD}}`}（{m`H_{\mathrm{PD}}(1)=0`}）——
-          null space 從 1 維變 2 維（<Erratum id="E04" />）。
+          null space 從 1 維變 2 維（<ChapterErratum id="E04" />）。
         </>
       }
       assumptions={[
@@ -491,7 +476,7 @@ export function GaugeOneHotLab() {
                 height={300}
                 caption={
                   <>
-                    {m`H_{\mathrm{PD}}(1)=0`}：只動 {m`b`} 的 {m`\boldsymbol\theta''`} 與 {m`\boldsymbol\theta`} 也重合（<Erratum id="E04" />）。
+                    {m`H_{\mathrm{PD}}(1)=0`}：只動 {m`b`} 的 {m`\boldsymbol\theta''`} 與 {m`\boldsymbol\theta`} 也重合（<ChapterErratum id="E04" />）。
                   </>
                 }
               />

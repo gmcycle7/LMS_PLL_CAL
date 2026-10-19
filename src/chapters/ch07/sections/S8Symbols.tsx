@@ -1,5 +1,4 @@
-import { SymbolTable, Tex, type SymbolEntry, ChRef } from '@/components'
-import { ErratumNote } from '../ErratumNote'
+import { SymbolTable, Tex, type SymbolEntry, ChRef, ChapterErratum } from '@/components'
 
 const r = String.raw
 
@@ -30,7 +29,7 @@ export const SYMBOLS: SymbolEntry[] = [
     firstSeen: '§7.1、§7.2',
     note: (
       <>
-        一律離散時間；不可代入 CT 的 <Tex>{r`H(j\omega)`}</Tex>（<ErratumNote id="E44" />）。誤差從 PD 的 reference 輸入注入，所以 <Tex>{r`H_{\mathrm{PD}}=1/(1+L)`}</Tex> 取正號（§7.5）。<Tex>{'h[k]'}</Tex>、<Tex>{r`\sum_k`}</Tex> 裡的 <Tex>{'k'}</Tex> 是 tap（延遲幾個
+        一律離散時間；不可代入 CT 的 <Tex>{r`H(j\omega)`}</Tex>（<ChapterErratum id="E44" />）。誤差從 PD 的 reference 輸入注入，所以 <Tex>{r`H_{\mathrm{PD}}=1/(1+L)`}</Tex> 取正號（§7.5）。<Tex>{'h[k]'}</Tex>、<Tex>{r`\sum_k`}</Tex> 裡的 <Tex>{'k'}</Tex> 是 tap（延遲幾個
         sample）的編號，與 block 編號（只出現在下標 <Tex>{r`w_k,\ G_k,\ \delta_k`}</Tex>）無關
       </>
     ),
@@ -110,7 +109,7 @@ export const SYMBOLS: SymbolEntry[] = [
     unit: r`\text{bits},\ \text{samples},\ \text{taps}`,
     firstSeen: '§7.3、§7.6',
   },
-  { symbol: r`\hat H,\ \hat h`, meaning: '誤差路徑的模型（filtered-x 用）', unit: '—', firstSeen: '章首、§7.4', note: <ErratumNote id="E45" /> },
+  { symbol: r`\hat H,\ \hat h`, meaning: '誤差路徑的模型（filtered-x 用）', unit: '—', firstSeen: '章首、§7.4', note: <ChapterErratum id="E45" /> },
   { symbol: r`u_f=\hat h*x`, meaning: 'filtered-x regressor', unit: r`\text{無因次}`, firstSeen: '§7.4' },
   { symbol: r`x_{\mathrm{ref}}[n]`, meaning: <>GMAC 實際相乘的 regressor：<Tex>{'x'}</Tex>、<Tex>{'x_D'}</Tex> 或 <Tex>{r`u_f[n-D]`}</Tex></>, unit: r`\text{無因次}`, firstSeen: '§7.4' },
   {

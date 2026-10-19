@@ -4,25 +4,6 @@
   min-width: 0;
 }
 
-.ch10-erratum {
-  display: inline-block;
-  font-size: 0.75rem;
-  font-weight: 600;
-  line-height: 1.4;
-  padding: 0 6px;
-  margin: 0 2px;
-  border-radius: 999px;
-  border: 1px solid var(--warn);
-  color: var(--warn);
-  background: var(--warn-soft);
-  text-decoration: none;
-  white-space: nowrap;
-  vertical-align: baseline;
-}
-.ch10-erratum:hover {
-  text-decoration: underline;
-}
-
 .ch10-tags {
   margin: 6px 0 10px;
 }
@@ -64,18 +45,6 @@
   font-weight: 700;
   color: var(--accent);
   margin-right: 4px;
-}
-
-/* 「換你算」：帶入手算題前的一句邀請 */
-.ch10-hand {
-  margin: 16px 0;
-  min-width: 0;
-}
-.ch10-hand-invite {
-  margin: 0 0 6px;
-}
-.ch10-hand-invite strong {
-  color: var(--accent);
 }
 
 .ch10 table td,
@@ -216,56 +185,11 @@
   overflow-wrap: anywhere;
 }
 
-/* ===== 方塊圖（Fig）：圖 + 圖說 +「怎麼看這張圖」 ===== */
-.ch10-fig {
-  margin: 18px 0;
-  min-width: 0;
-}
-.ch10-fig .c-mermaid {
-  margin: 0 0 4px;
-}
-.ch10-fig-caption {
-  margin: 0 0 8px;
-}
-.ch10-fig-walk {
-  margin: 0;
-  padding: 8px 12px;
-  border-left: 3px solid var(--accent);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  background: var(--surface-2);
-  font-size: 0.93rem;
-  overflow-wrap: anywhere;
-}
-.ch10-fig-walk-badge {
-  font-weight: 700;
-  color: var(--accent);
-  margin-right: 4px;
-}
-/* 正文裡提到別張圖（FigRef）：「圖 10-N」不要在中間斷行 */
-.ch10-figref {
-  white-space: nowrap;
-  font-weight: 600;
-}
 /* 章首系統地圖下面的一句話 */
 .ch10-map-note {
   margin: 0 0 18px;
 }
 
-/* ===== 章末符號表（id="symbols"）與章首的一行連結 ===== */
-.ch10-linklike {
-  appearance: none;
-  border: 0;
-  background: none;
-  padding: 0;
-  color: var(--accent);
-  font: inherit;
-  cursor: pointer;
-  text-decoration: underline;
-}
-.ch10-linklike:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
 .ch10-symbols {
   margin-top: 32px;
   padding-top: 14px;

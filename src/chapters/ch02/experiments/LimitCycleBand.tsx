@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Data } from 'plotly.js-cartesian-dist-min'
-import { Callout, ExperimentShell, ParamControl, Plot, SelectControl, Tex, useThemeTokens, type MetricRow } from '@/components'
+import { Callout, ExperimentShell, ParamControl, Plot, SelectControl, Tex, useThemeTokens, type MetricRow, ChapterErratum } from '@/components'
 import { presetsForExperiment, useUrlPreset } from '@/app/presets'
 import { STEP, type TieRule } from '@/simulation/models/lms'
 import {
@@ -13,7 +13,7 @@ import {
   travelDistance,
   type ScheduleKind,
 } from '@/simulation/models/sgd'
-import { ErrataNote, TIE_LABEL, TIE_MATH, f4, range, tn, toShellPresets, lab } from '../common'
+import { TIE_LABEL, TIE_MATH, f4, range, tn, toShellPresets, lab } from '../common'
 
 const ID = 'sign-lms-band'
 
@@ -216,7 +216,7 @@ export function LimitCycleBand() {
             <Tex>{String.raw`w_n\in\{${f4(lc.lo)},\ ${f4(lc.hi)}\}`}</Tex>
           )}
           。但 IEEE double 的累加誤差可能讓 <Tex>{'e'}</Tex> 變成 <Tex>{'\\pm10^{-16}'}</Tex> 量級而不是 0（模擬最後兩點：{entered ? `${f4(tail.lo, 17)}、${f4(tail.hi, 17)}` : '尚未進入'}）。
-          <ErrataNote id="E40" />
+          <ChapterErratum id="E40" />
         </Callout>
       )}
       <ul className="ch02-try">

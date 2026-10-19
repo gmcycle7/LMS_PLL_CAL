@@ -133,14 +133,14 @@ describe('Ch11b smoke tests（jsdom）', () => {
     expect(figures[0].getAttribute('aria-label')).toContain('系統方塊圖')
     const question = screen.getByText('這一課要回答的問題').closest('.c-callout') as HTMLElement
     expect(question.nextElementSibling).toBe(figures[0])
-    const figs = Array.from(container.querySelectorAll('.ch11b-fig'))
+    const figs = Array.from(container.querySelectorAll('.c-chapter-fig'))
     expect(figs.map((el) => el.id)).toEqual(CH11B_DIAGRAMS.map((d) => `ch11b-fig-${d.id}`))
     expect(figs.map((el) => el.closest('section.c-section')?.id)).toEqual(CH11B_DIAGRAMS.map((d) => d.section))
     figs.forEach((el, i) => {
-      expect(el.querySelector('.ch11b-figcap')?.textContent, el.id).toContain(`圖 11b-${i + 1}：`)
+      expect(el.querySelector('figcaption')?.textContent, el.id).toContain(`圖 11b-${i + 1}｜`)
       expect(el.querySelector('figure.c-mermaid')?.getAttribute('aria-label'), el.id).toMatch(new RegExp(`^圖 11b-${i + 1}：`))
-      const label = el.querySelector('.ch11b-figcap strong')?.textContent?.split('：')[0] ?? ''
-      const refs = Array.from(container.querySelectorAll('.ch11b-figref')).filter((r) => r.textContent === label)
+      const label = el.querySelector('figcaption')?.textContent?.split('｜')[0] ?? ''
+      const refs = Array.from(container.querySelectorAll('.c-figref')).filter((r) => r.textContent === label)
       expect(refs.length, label).toBeGreaterThanOrEqual(1)
       expect(before(refs[0], el), label).toBe(true)
     })

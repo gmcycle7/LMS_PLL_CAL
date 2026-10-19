@@ -1,16 +1,16 @@
-import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Prereq, Quiz, Section, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
+import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Prereq, Quiz, Section, StepDerivation, Tex, TexBlock, ChRef, ChapterErratum } from '@/components'
 import lmsSrc from '@/simulation/models/lms.ts?raw'
 import sgdSrc from '@/simulation/models/sgd.ts?raw'
-import { Diagram, ErrataNote, DerivFold, tm } from '../common'
+import { Diagram, DerivFold, tm } from '../common'
 import { BatchVsSgd } from '../experiments/BatchVsSgd'
 
 /** §2 Batch GD vs Stochastic GD；LMS = SGD。 */
 export function S2Stochastic() {
   return (
-    <section>
-      <h2 id="ch02-s2">§2 Batch GD vs Stochastic GD：LMS 就是 SGD</h2>
+    <section id="ch02-s2">
+      <h2>§2 Batch GD vs Stochastic GD：LMS 就是 SGD</h2>
 
-      <Section kind="intuition" title="有雜訊時，「坡度」是什麼？">
+      <Section id="ch02-noisy-slope" kind="intuition" title="有雜訊時，「坡度」是什麼？">
         <p>
           §1 的成本只用一筆資料。真實量測有雜訊 <Tex>{'v'}</Tex>（量測時混進來、我們控制不了的隨機擾動）：<Tex>{'y=ax+v'}</Tex>。單一筆 <Tex>{'(x,y)'}</Tex> 的坡度會被雜訊帶偏，我們真正想下的山是「很多筆的平均成本」。問題是：平均需要很多筆資料，硬體每來一筆就想更新一次——可以只用一筆的坡度嗎？
         </p>
@@ -36,7 +36,7 @@ export function S2Stochastic() {
         </ul>
       </Prereq>
 
-      <Section kind="formula" title="平均成本與它的梯度">
+      <Section id="ch02-mean-cost" kind="formula" title="平均成本與它的梯度">
         <p>
           有雜訊時，「山」要改成很多筆資料的<strong>平均</strong>成本，「坡度」也跟著變成平均坡度。先看訊號怎麼流，再看公式：
         </p>
@@ -54,7 +54,7 @@ export function S2Stochastic() {
         </Diagram>
         <TexBlock id="F-02.3">{String.raw`\boxed{J(w)=\tfrac12E\big[(y-wx)^2\big],\qquad J'(w)=-E[e\,x]}`}</TexBlock>
         <p>
-          <ErrataNote id="E41" /> 有 <Tex>{'\\tfrac12'}</Tex>：單筆成本 <Tex>{'\\tfrac12e^2'}</Tex> 的期望值剛好就是 <Tex>{'J'}</Tex>。把模型 <Tex>{'y=ax+v'}</Tex> 代進去展開：
+          <ChapterErratum id="E41" /> 有 <Tex>{'\\tfrac12'}</Tex>：單筆成本 <Tex>{'\\tfrac12e^2'}</Tex> 的期望值剛好就是 <Tex>{'J'}</Tex>。把模型 <Tex>{'y=ax+v'}</Tex> 代進去展開：
         </p>
         <DerivFold>
           <StepDerivation
@@ -73,7 +73,7 @@ export function S2Stochastic() {
         </p>
       </Section>
 
-      <Section kind="formula" title="Batch GD 與 Stochastic GD">
+      <Section id="ch02-batch-sgd" kind="formula" title="Batch GD 與 Stochastic GD">
         <p>期望值要無限多筆資料。實作上只能用有限筆來代替，差別在「累加幾筆才更新一次」：</p>
         <Diagram id="batch-vs-sgd">
           <p>
@@ -123,7 +123,7 @@ export function S2Stochastic() {
         </p>
       </Section>
 
-      <Section kind="formula" title={tm('不偏 $\\neq$ 不抖：梯度雜訊')}>
+      <Section id="ch02-grad-noise" kind="formula" title={tm('不偏 $\\neq$ 不抖：梯度雜訊')}>
         <p>
           即使站在谷底 <Tex>{'w=w^*=a'}</Tex>，單筆梯度也不是 0（下面的 <Tex>{'\\sigma_v'}</Tex> 是雜訊 <Tex>{'v'}</Tex> 的標準差，<Tex>{'\\sigma_v^2=E[v^2]'}</Tex>）：
         </p>
@@ -141,14 +141,14 @@ export function S2Stochastic() {
         </p>
         <TexBlock id="F-02.16">{String.raw`E[\delta^2]_\infty=\frac{\mu\,\sigma_v^2P_x}{2P_x-\mu E[x^4]}\;\approx\;\frac{\mu\sigma_v^2}{2}\quad(\mu\to0)`}</TexBlock>
         <p>
-          <ClaimTag kind="exact" /> 這裡 <Tex>{'E[\\delta^2]_\\infty'}</Tex> 是收斂之後參數誤差平方的平均（mean-square deviation，MSD），<Tex>{'E[x^4]'}</Tex> 是輸入四次方的平均（四階動差）。推導與 mean / mean-square 穩定界在 <a href="#/ch/03">Ch03</a>（注意這是係數的 MSD，不是成本 MSE，<ErrataNote id="E42" />）。要讓抖動變小，有兩條路：<strong>平均更多筆再更新</strong>（mini-batch：每累加 <Tex>{'B'}</Tex> 筆更新一次，梯度雜訊變異 <Tex>{'\\propto1/B'}</Tex>），或<strong>讓步長隨時間變小</strong>（§3 的遞減步長）。
+          <ClaimTag kind="exact" /> 這裡 <Tex>{'E[\\delta^2]_\\infty'}</Tex> 是收斂之後參數誤差平方的平均（mean-square deviation，MSD），<Tex>{'E[x^4]'}</Tex> 是輸入四次方的平均（四階動差）。推導與 mean / mean-square 穩定界在 <a href="#/ch/03">Ch03</a>（注意這是係數的 MSD，不是成本 MSE，<ChapterErratum id="E42" />）。要讓抖動變小，有兩條路：<strong>平均更多筆再更新</strong>（mini-batch：每累加 <Tex>{'B'}</Tex> 筆更新一次，梯度雜訊變異 <Tex>{'\\propto1/B'}</Tex>），或<strong>讓步長隨時間變小</strong>（§3 的遞減步長）。
         </p>
         <p className="ch02-note" data-handcalc-pointer="s2">
           <strong>想親手代數字？</strong>這一節的三條公式都有對應的手算題：單筆更新 <Tex>{'w+\\mu\\,e\\,x'}</Tex>（F-02.5）就是 §1 手算題 HC-02.1 走的那一步，§4 的 HC-02.4 再用同一組數字和 Sign-Error、Sign-Sign 並排比較；谷底條件「平均梯度為零」（F-02.3）的有限資料版 <Tex>{'\\sum_ie_ix_i=0'}</Tex> 在 HC-02.5 用三筆資料算出 <Tex>{'w^*=\\sum x_iy_i/\\sum x_i^2'}</Tex>；穩態抖動（F-02.16）在章末的綜合題 HC-02.8 代數字。
         </p>
       </Section>
 
-      <Section kind="example" title="三種做法的比較">
+      <Section id="ch02-sgd-compare" kind="example" title="三種做法的比較">
         <div className="table-wrap">
           <table className="ch02-table">
             <thead>
@@ -206,12 +206,12 @@ export function S2Stochastic() {
         </div>
       </Section>
 
-      <Section kind="explore" title="動手觀察：同一組資料、同樣看過的樣本數">
+      <Section id="ch02-sgd-lab" kind="explore" title="動手觀察：同一組資料、同樣看過的樣本數">
         <BatchVsSgd />
       </Section>
 
       <ModeGate min="engineer">
-        <Section kind="formula" title={tm('核心程式碼：$B=1$ 就是 LMS')}>
+        <Section id="ch02-sgd-code" kind="formula" title={tm('核心程式碼：$B=1$ 就是 LMS')}>
           <CodeCompare
             items={[
               { label: 'SGD = LMS（lms.ts）', source: lmsSrc, region: 'conventionalStep', path: 'src/simulation/models/lms.ts', note: String.raw`每一筆都更新：$\Delta w=\mu\,e\,x$` },
@@ -228,7 +228,7 @@ export function S2Stochastic() {
         <Tex>{'N'}</Tex> 越大，每次更新越準、但更新越慢（更新率 <Tex>{'f_u=f_s/N'}</Tex>，<Tex>{'f_s'}</Tex> 是 comparator 的取樣率）。最佳的 <Tex>{'N'}</Tex> 與 <Tex>{'\\mu'}</Tex> 怎麼選，見 <a href="#/ch/14">Ch14</a>。
       </Callout>
 
-      <Section kind="diagram" title="時間軸：sample 與 block 兩種速率">
+      <Section id="ch02-timescales" kind="diagram" title="時間軸：sample 與 block 兩種速率">
         <Diagram id="block-timing">
           <p>
             {tm(

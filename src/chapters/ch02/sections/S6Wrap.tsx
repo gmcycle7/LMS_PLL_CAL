@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
-import { Quiz, Recap, Section, Tex } from '@/components'
+import { Quiz, Recap, Section, Tex, ChapterErratum } from '@/components'
 import { conventionalStep, signErrorStep, signSignStep } from '@/simulation/models/lms'
-import { ChapterLink, Diagram, ErrataNote, HandCalcSlot, f4, tm } from '../common'
+import { ChapterLink, Diagram, HandCalcSlot, f4, tm } from '../common'
 import { HANDCALCS } from '../handcalcs'
 
 /** §6 連到 PLL、思考題、本課必記。 */
@@ -12,10 +12,10 @@ export function S6Wrap() {
   }, [])
 
   return (
-    <section>
-      <h2 id="ch02-s6">§6 連到 PLL、思考題與本課必記</h2>
+    <section id="ch02-s6">
+      <h2>§6 連到 PLL、思考題與本課必記</h2>
 
-      <Section kind="diagram" title="這一章的數學在 DTC 校正裡是什麼">
+      <Section id="ch02-dtc-link" kind="diagram" title="這一章的數學在 DTC 校正裡是什麼">
         <Diagram id="pll-loop">
           <p>
             {tm(
@@ -66,7 +66,7 @@ export function S6Wrap() {
                   BBPD / comparator 的 <Tex>{'q=2b-1'}</Tex>
                 </td>
                 <td>
-                  tie（metastability、剛好相等）怎麼映射必須明定 <ErrataNote id="E40" />
+                  tie（metastability、剛好相等）怎麼映射必須明定 <ChapterErratum id="E40" />
                 </td>
               </tr>
               <tr>
@@ -120,7 +120,7 @@ export function S6Wrap() {
         </div>
       </Section>
 
-      <Section kind="example" title="綜合手算：把這一章的公式串成一條設計流程">
+      <Section id="ch02-synthesis" kind="example" title="綜合手算：把這一章的公式串成一條設計流程">
         <p>
           真正設計 1-bit 校正迴路時，會把這一章的幾條公式連起來用：comparator 增益 <Tex>{'K_q'}</Tex>（§3）→ Sign-Error 的線性化增益 <Tex>{'K_{\\rm SE}'}</Tex>（F-02.12）→ pole 與時間常數
           → 穩態抖動（F-02.13）→ 和多位元 LMS 比較（F-02.14、F-02.16）。先看整條流程的地圖，再動手算：
@@ -176,7 +176,7 @@ export function S6Wrap() {
         ]}
       />
 
-      <Section kind="assumptions" title="下一個值得研究的問題">
+      <Section id="ch02-next" kind="assumptions" title="下一個值得研究的問題">
         <ul className="ch02-try">
           <li>
             1 fs 的誤差埋在 100 fs 的雜訊裡，sign 還剩多少資訊？要累加幾筆？→ <ChapterLink ch="05">Ch05</ChapterLink>

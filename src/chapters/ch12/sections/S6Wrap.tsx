@@ -87,7 +87,7 @@ export function S6Wrap() {
         />
       </Section>
 
-      <Section kind="explore" title="比較表：本章五組「看起來很像」的量" level={3}>
+      <Section id="ch12-lookalikes" kind="explore" title="比較表：本章五組「看起來很像」的量" level={3}>
         <div className="table-wrap">
           <table className="ch12-table">
             <thead>
@@ -163,7 +163,7 @@ export function S6Wrap() {
         </Hand>
       </Section>
 
-      <Section kind="example" title="思考題" level={3}>
+      <Section id="ch12-quiz" kind="example" title="思考題" level={3}>
         <Quiz
           title="思考題 1：Noise BW 的陷阱"
           question={

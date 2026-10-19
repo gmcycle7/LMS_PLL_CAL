@@ -1,17 +1,6 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
-import {
-  CaseSelector,
-  ExperimentShell,
-  ParamControl,
-  Plot,
-  Tex,
-  useCases,
-  useThemeTokens,
-  type CheckEntry,
-  type ExperimentPreset,
-  type MetricRow,
-} from '@/components'
+import { CaseSelector, ExperimentShell, ParamControl, Plot, Tex, useCases, useThemeTokens, type CheckEntry, type ExperimentPreset, type MetricRow, ChapterErratum } from '@/components'
 import { presetsForExperiment, useUrlPreset } from '@/app/presets'
 import {
   exactLmsTrace,
@@ -26,7 +15,7 @@ import {
   type PlaygroundEnsembleResult,
   type PlaygroundTrace,
 } from '@/simulation/models/lossCompare'
-import { BEHAVIOUR_TEX, BehaviourLabel, Erratum, f, symLabel, texNum, TryIt } from '../common'
+import { BEHAVIOUR_TEX, BehaviourLabel, f, symLabel, texNum, TryIt } from '../common'
 
 export const PLAYGROUND_ID = 'lms-playground'
 
@@ -434,7 +423,7 @@ export function LmsPlayground() {
         <>
           固定 <Tex>{'x'}</Tex>、可選零均值雜訊 <Tex>{'v_n'}</Tex> 的純量 LMS。每一步呼叫{' '}
           <code>lms.ts</code> 的 <code>conventionalStep</code>：<Tex>{String.raw`w_{n+1}=w_n+\mu e_nx`}</Tex>。下方的拋物線是 <Tex>{String.raw`J(w)=\tfrac12E[(y-wx)^2]=\tfrac12\big[(a-w)^2x^2+\sigma_v^2\big]`}</Tex>，切線斜率與 LMS
-          更新量用同一個 scaling <Erratum id="E41" />。
+          更新量用同一個 scaling <ChapterErratum id="E41" />。
         </>
       }
       assumptions={[

@@ -1,9 +1,8 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ClaimTag, ModelLevel, SourceTag, SymbolTable, SystemMap, Tex, TestBadge, type SystemBlock } from '@/components'
+import { ClaimTag, ModelLevel, SourceTag, SymbolTable, SystemMap, Tex, TestBadge, type SystemBlock, ChapterErratum, JumpTo } from '@/components'
 import './chapter.css'
 import { HANDCALCS } from './handcalcs'
-import { Erratum, JumpTo } from './shared'
 import { CH06_SYMBOLS } from './symbols'
 import { S1Intro } from './sections/S1Intro'
 import { S2WhyU } from './sections/S2WhyU'
@@ -63,8 +62,8 @@ export default function Chapter06() {
         <ClaimTag kind="approx" />
         <SourceTag kind="illustrative" />
         <TestBadge id="T06" />
-        <Erratum id="E44" />
-        <Erratum id="E46" />
+        <ChapterErratum id="E44" />
+        <ChapterErratum id="E46" />
       </div>
       <nav className="ch06-toc" aria-label="本章目錄">
         <strong>本章目錄</strong>
@@ -99,7 +98,7 @@ export default function Chapter06() {
           caption={
             <>
               全站約定見 Formula &amp; Unit Reference。本章 <Tex>{'\\delta=a-w'}</Tex>；<Tex>{'C'}</Tex> 指 <Tex>{'E[x[n-D]\\,u[n]]'}</Tex>（§11 的
-              code-correlated disturbance 已改名 <Tex>{'\\varepsilon_{cc}'}</Tex>，<Erratum id="E12" />）。「首次出現」欄是正文第一次用到並就地解釋這個符號的小節。
+              code-correlated disturbance 已改名 <Tex>{'\\varepsilon_{cc}'}</Tex>，<ChapterErratum id="E12" />）。「首次出現」欄是正文第一次用到並就地解釋這個符號的小節。
             </>
           }
         />

@@ -1,19 +1,5 @@
 import { useMemo } from 'react'
-import {
-  Callout,
-  ClaimTag,
-  CodeBlock,
-  CodeCompare,
-  Mermaid,
-  ModeGate,
-  Prereq,
-  Quiz,
-  Section,
-  StepDerivation,
-  Tex,
-  TexBlock,
-  TestBadge,
-} from '@/components'
+import { Callout, ClaimTag, CodeBlock, CodeCompare, Mermaid, ModeGate, Prereq, Quiz, Section, StepDerivation, Tex, TexBlock, TestBadge, ChapterErratum } from '@/components'
 import stabilitySrc from '@/simulation/models/stability.ts?raw'
 import {
   analyzeDualLoop,
@@ -29,7 +15,7 @@ import {
   stableIntervalsNumeric,
   type DualLoopParams,
 } from '@/simulation/models/stability'
-import { ctx, ErratumNote, Expand, fx, HandCalcSlot, rich, sig, tx } from '../common'
+import { ctx, Expand, fx, HandCalcSlot, rich, sig, tx } from '../common'
 import { formula } from '../formulas'
 import {
   DUAL_LOOP_CHART,
@@ -150,9 +136,9 @@ export function DualLoop() {
         )}
       </p>
       <p className="small">
-        <ErratumNote id="E31">
+        <ChapterErratum id="E31" detail={<>
           {rich(String.raw`規格的 $r,b,c$ 與一般化的 $\mathbf A,\mathbf B,\mathbf C,D$ 在本站改名為 $r_s,b_s,c_s$ 與 $\mathbf A_s,\mathbf b_s,\mathbf c_s^{\mathsf T},d_s$`)}
-        </ErratumNote>
+        </>} />
         {rich(String.raw`：粗體 $\mathbf C$ 在 §0 是相關矩陣 $E[\mathbf x\mathbf u^{\mathsf T}]$、$D$ 在 §7 是 code delay。`)}<Tex>{'s'}</Tex> 是抽象觀測狀態，<strong>不是</strong>特定的 VCO 控制電壓；<Tex>{'\\mu'}</Tex> 是 <Tex>{'K\\equiv1'}</Tex> 的正規化步長（E13）。
       </p>
 
@@ -297,7 +283,7 @@ export function DualLoop() {
 
       <Callout kind="warn" title="差 2 倍的原因不是「主 PLL 不夠快」">
         <p>
-          <ErratumNote id="E19" /> 規格把這一節放在「時間尺度分離」的標題下，容易讓人以為「把主 PLL 調快（<Tex>{'r_s\\to0'}</Tex>）就能回到 <Tex>{'0<\\mu<2'}</Tex>」。不會：
+          <ChapterErratum id="E19" /> 規格把這一節放在「時間尺度分離」的標題下，容易讓人以為「把主 PLL 調快（<Tex>{'r_s\\to0'}</Tex>）就能回到 <Tex>{'0<\\mu<2'}</Tex>」。不會：
         </p>
         <ol>
           <li>
@@ -381,7 +367,7 @@ export function DualLoop() {
           </ul>
           <p className="small">
             所以 quasi-static 的錯誤可以往<strong>兩個方向</strong>偏；讓它在本模型「高估穩定範圍」的，是 sample→observe 的那一個 block latency，而不是低通的 pole <Tex>{'r_s'}</Tex> 本身（
-            <ErratumNote id="E19" />）。<ClaimTag kind="exact" />
+            <ChapterErratum id="E19" />）。<ClaimTag kind="exact" />
           </p>
         </Expand>
       </ModeGate>

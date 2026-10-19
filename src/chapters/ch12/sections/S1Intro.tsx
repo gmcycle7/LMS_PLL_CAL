@@ -87,7 +87,7 @@ export function S1Intro({ afterMap }: { afterMap?: ReactNode } = {}) {
         )}
       </p>
 
-      <Section kind="intuition" title="直覺：恆溫器讀到的溫度一直在跳" level={3}>
+      <Section id="ch12-thermostat" kind="intuition" title="直覺：恆溫器讀到的溫度一直在跳" level={3}>
         <p>
           想像一台恆溫器：溫度計每秒讀一次，但讀數帶有很大的隨機誤差。控制器每次只根據「讀數比設定高還是低」去微調暖氣。就算房間真的已經在 25°C，讀數還是一半高一半低，所以暖氣的旋鈕會<strong>永遠在設定點附近小幅亂動</strong>。旋鈕調得越積極（learning rate{' '}
           <Tex>{String.raw`\mu`}</Tex> 越大），亂動越大；每次先平均越多次讀數（<Tex>N</Tex> 越大），亂動越小。
@@ -141,7 +141,7 @@ export function S1Intro({ afterMap }: { afterMap?: ReactNode } = {}) {
         </Diagram>
       </Section>
 
-      <Section kind="example" title="先算一次：用數字走五步" level={3}>
+      <Section id="ch12-hand-first" kind="example" title="先算一次：用數字走五步" level={3}>
         <p>
           規格 §12.1 的例子：<Tex>{String.raw`f_s=4\ \mathrm{GHz},\ N=4096,\ \mu=10\ \mathrm{fs},\ \sigma_v=100\ \mathrm{fs},\ C=1`}</Tex>。先把需要的常數算好：
         </p>

@@ -73,7 +73,7 @@ describe('Ch09 smoke test（jsdom）', () => {
     expect(follows(toc, container.querySelector('#ch09-intro') as Element)).toBe(true)
     // 方塊圖（docs/teaching-style.md §8）：章首系統地圖＋本章清單的每一張，三種模式都顯示（不藏在 ModeGate 裡）
     expect(container.querySelectorAll('figure.c-mermaid')).toHaveLength(CH09_DIAGRAMS.length + 1)
-    expect(Array.from(container.querySelectorAll('.ch09-diagram')).map((el) => el.getAttribute('data-diagram'))).toEqual(CH09_DIAGRAMS.map((d) => d.id))
+    expect(Array.from(container.querySelectorAll('.c-chapter-fig')).map((el) => el.getAttribute('data-diagram'))).toEqual(CH09_DIAGRAMS.map((d) => d.id))
     expect(container.querySelectorAll('.c-quiz').length).toBeGreaterThanOrEqual(3)
     expect(container.querySelector('.c-recap')).toBeTruthy()
     expect(container.querySelectorAll('.c-prereq').length).toBeGreaterThanOrEqual(6)
@@ -85,12 +85,12 @@ describe('Ch09 smoke test（jsdom）', () => {
     expect(screen.getByText(/PE \/ Eigen Lab：correlation ellipse/)).toBeTruthy()
     expect(screen.getByText(/四相 One-Hot ＋ Global Offset：兩組參數、同一個輸出/)).toBeTruthy()
     // 勘誤標記連到 verification
-    const errata = Array.from(container.querySelectorAll('a.ch09-erratum')).map((a) => a.textContent ?? '')
+    const errata = Array.from(container.querySelectorAll('a.c-erratum-link')).map((a) => a.textContent ?? '')
     for (const id of ['E04', 'E05', 'E08', 'E22', 'E23']) expect(errata.some((t) => t.includes(id))).toBe(true)
     // 每個勘誤標記都連到驗證頁，並以 ?e=Exx 深連結到該項勘誤卡片
-    for (const a of Array.from(container.querySelectorAll('a.ch09-erratum'))) {
+    for (const a of Array.from(container.querySelectorAll('a.c-erratum-link'))) {
       const id = /E\d\d/.exec(a.textContent ?? '')?.[0]
-      expect(a.getAttribute('href')).toBe(`#/verification?e=${id}`)
+      expect(a.getAttribute('href')).toBe(`/verification?e=${id}`)
     }
     // MC 與 gauge 計算（inline worker）完成後，不應出現計算失敗
     await waitFor(() => expect(container.textContent).toMatch(/MC：\d+ chains/), WAIT)

@@ -1,28 +1,11 @@
 import { useCallback, useDeferredValue, useMemo, useState } from 'react'
 import type { Data } from 'plotly.js-cartesian-dist-min'
-import {
-  Callout,
-  ClaimTag,
-  CodeBlock,
-  ExperimentShell,
-  ParamControl,
-  Plot,
-  Prereq,
-  Section,
-  SelectControl,
-  SourceTag,
-  StepDerivation,
-  Tex,
-  TexBlock,
-  useThemeTokens,
-  type MetricRow,
-  ChRef,
-} from '@/components'
+import { Callout, ClaimTag, CodeBlock, ExperimentShell, ParamControl, Plot, Prereq, Section, SelectControl, SourceTag, StepDerivation, Tex, TexBlock, useThemeTokens, type MetricRow, ChRef, ChapterErratum } from '@/components'
 import type { DsmKind } from '@/simulation/models/dsm'
 import residueSrc from '../residue.ts?raw'
 import { firstOrderAccumulator, residueSignals } from '../residue'
 import { GAIN_ERROR_MODEL, RESIDUE_ACCUMULATOR } from '../diagrams'
-import { DerivationFold, Erratum, f, FigRef, HandCalcBox, KpiRow, MermaidFig, tx, mt } from '../common'
+import { DerivationFold, f, FigRef, HandCalcBox, KpiRow, MermaidFig, tx, mt } from '../common'
 import { texifyModelText } from '../modelText'
 import { useCasePresets } from '../experiments/presetHooks'
 
@@ -319,7 +302,7 @@ export function ResidueSection() {
       <h3>連到 LMS：DTC gain 誤差就是 regressor 的係數</h3>
       <p>
         DTC 把數位 code 變成延遲，而且它在 <strong>reference 的輸入端</strong>。設 code 為 <Tex>{R`x[n]=s[n]/M`}</Tex>（無因次）。feedback（divider）edge 比理想時刻早到 <Tex>{R`a\,x[n]`}</Tex>（理想時{' '}
-        <Tex>{R`a=T_\mathrm{vco}`}</Tex>，單位 fs per unit code <Erratum id="E13" />），所以真正需要的補償量是 <Tex>{R`a\,x[n]`}</Tex>。DTC 實際用的 gain 是 <Tex>w</Tex>，它從基準延遲 <Tex>{R`T_0`}</Tex> 往回扣的是 <Tex>{R`w\,x[n]`}</Tex>：
+        <Tex>{R`a=T_\mathrm{vco}`}</Tex>，單位 fs per unit code <ChapterErratum id="E13" />），所以真正需要的補償量是 <Tex>{R`a\,x[n]`}</Tex>。DTC 實際用的 gain 是 <Tex>w</Tex>，它從基準延遲 <Tex>{R`T_0`}</Tex> 往回扣的是 <Tex>{R`w\,x[n]`}</Tex>：
       </p>
       <TexBlock>{R`\tau_\mathrm{DTC}[n]=T_0-w\,x[n]`}</TexBlock>
       <p>

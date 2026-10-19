@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, ModeGate, Prereq, Section, SourceTag, StepDerivation, TexBlock } from '@/components'
+import { Callout, ClaimTag, ModeGate, Prereq, Section, SourceTag, StepDerivation, TexBlock, ChapterErratum } from '@/components'
 import { gaugeDriftStd, gaugeNullVector, gaugeRegressorsRaw } from '@/simulation/models/pe'
-import { DerivBox, Diagram, Erratum, FigRef, HandCalcBox, formulaTex, m, num, texNum } from '../shared'
+import { DerivBox, Diagram, FigRef, HandCalcBox, formulaTex, m, num, texNum } from '../shared'
 
 /** 「先算一次」的例子：θ = (b, a₀…a₃) 與 gauge 平移量 c（輸入是例子；輸出由程式計算） */
 const HAND_THETA = [1, 2, 3, 4, 5]
@@ -137,7 +137,7 @@ export function Gauge() {
       <TexBlock id="F-09.14">{formulaTex('F-09.14')}</TexBlock>
 
       <h3>
-        經過 PLL 之後：{m`H_{\mathrm{PD}}(1)=0`} 讓 {m`b`}「完全」不可觀察（<Erratum id="E04" />）
+        經過 PLL 之後：{m`H_{\mathrm{PD}}(1)=0`} 讓 {m`b`}「完全」不可觀察（<ChapterErratum id="E04" />）
       </h3>
       <Prereq title={String.raw`卷積、Z transform 與 DC gain $H(1)$`}>
         <p>
@@ -231,7 +231,7 @@ export function Gauge() {
         <ClaimTag kind="exact" />
       </p>
 
-      <Callout kind="warn" title={<>規格 §9.2 末段的修正版（<Erratum id="E04" />）</>}>
+      <Callout kind="warn" title={<>規格 §9.2 末段的修正版（<ChapterErratum id="E04" />）</>}>
         <p>
           規格原文說「PLL DC Error Suppression 可能使 Common-Mode <strong>更難</strong>觀察」。本站採用修正：
         </p>

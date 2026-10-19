@@ -1,9 +1,9 @@
-import { Fragment, useMemo, type MouseEvent } from 'react'
-import { MathText, ModeGate, Quiz, Recap, Section, StepDerivation, Tex } from '@/components'
+import { Fragment, useMemo } from 'react'
+import { AnchorLink, MathText, ModeGate, Quiz, Recap, Section, StepDerivation, Tex, ChapterErratum } from '@/components'
 import { conventionalStep } from '@/simulation/models/lms'
 import { poleTable, samplesForTargetStd } from '../model'
 import { POLE_BEHAVIOUR_TEX, num, texNum, texRes } from '../format'
-import { ErratumRef, InlineMath, PageLink } from '../common'
+import { InlineMath, PageLink } from '../common'
 import { LEARNING_MAP, ROUTES } from '../learningMap'
 
 /** 思考題 1 的參數（ChatGPT 入門課第 1 課）。 */
@@ -159,7 +159,7 @@ export function QuizSection() {
           answer={
             <p>
               沒有 <Tex>{'\\tfrac12'}</Tex> 的成本曲率是 <Tex>{"\\tfrac{d^2}{dw^2}(y-wx)^2=2x^2"}</Tex>，GD 穩定界是 <Tex>{'2/\\text{曲率}=1/x^2'}</Tex>；但 LMS 更新量 <Tex>{'\\mu ex'}</Tex> 對應的是{' '}
-              <Tex>{'\\tfrac12e^2'}</Tex>（曲率 <Tex>{'x^2'}</Tex>），真正的界是 <Tex>{'2/x^2'}</Tex>（§0.6 的等比數列推導）。這就是 <ErratumRef eid="E41" />：成本與更新量必須用同一個 scaling。
+              <Tex>{'\\tfrac12e^2'}</Tex>（曲率 <Tex>{'x^2'}</Tex>），真正的界是 <Tex>{'2/x^2'}</Tex>（§0.6 的等比數列推導）。這就是 <ChapterErratum id="E41" />：成本與更新量必須用同一個 scaling。
             </p>
           }
         />
@@ -178,14 +178,14 @@ export function RecapSection() {
           {
             label: (
               <>
-                <Tex>{'e\\,x'}</Tex> 就是負的梯度（成本帶 <Tex>{'\\tfrac12'}</Tex>，<ErratumRef eid="E41" />）
+                <Tex>{'e\\,x'}</Tex> 就是負的梯度（成本帶 <Tex>{'\\tfrac12'}</Tex>，<ChapterErratum id="E41" />）
               </>
             ),
             tex: String.raw`\boxed{\frac{d}{dw}\tfrac12e^2=-e\,x}` },
           {
             label: (
               <>
-                固定 <Tex>{'x'}</Tex>：等比數列與穩定條件（<Tex>{'\\delta=a-w'}</Tex>，<ErratumRef eid="E39" />）
+                固定 <Tex>{'x'}</Tex>：等比數列與穩定條件（<Tex>{'\\delta=a-w'}</Tex>，<ChapterErratum id="E39" />）
               </>
             ),
             tex: String.raw`\boxed{\delta_{n+1}=(1-\mu x^2)\delta_n,\;\; 0<\mu<\tfrac{2}{x^2}}` },
@@ -249,9 +249,9 @@ export function LearningMapSection() {
               const main = m.pages[0]
               const others = m.pages.slice(1).filter((p) => p !== 'ch00')
               const hereLink = m.here ? (
-                <a href="#/ch/00" className="ch00-here" onClick={(ev) => scrollToAnchor(ev, m.here!)}>
+                <AnchorLink id={m.here.slice(1)} className="ch00-here">
                   本章 {m.hereLabel ?? ''}
-                </a>
+                </AnchorLink>
               ) : null
               const supplements = [...(main !== 'ch00' && hereLink ? [hereLink] : []), ...others.map((p) => <PageLink key={p} id={p} />)]
               return (
@@ -295,15 +295,4 @@ export function LearningMapSection() {
       </p>
     </Section>
   )
-}
-
-/**
- * HashRouter 下 href="#xxx" 會被當成路由，所以連結本身指向本章（#/ch/00，新分頁開啟也不會 404），
- * 點擊時再捲動到頁內段落。
- */
-function scrollToAnchor(ev: MouseEvent<HTMLAnchorElement>, hash: string) {
-  const el = document.getElementById(hash.slice(1))
-  if (!el) return
-  ev.preventDefault()
-  el.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }

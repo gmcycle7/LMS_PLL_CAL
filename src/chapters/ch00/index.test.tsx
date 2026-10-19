@@ -199,7 +199,7 @@ describe('Ch00 整頁 smoke test', () => {
     for (const row of SYMBOLS) expect(row.firstSeen, row.symbol).toMatch(/^(§0\.\d+|章首圖例)$/)
     // 全站架構約定（docs/assumptions.md §2a）：DTC 在 reference 輸入端、feedback edge 早到、DTC 只能從基準延遲往回扣（補償量）、
     // PD 量 reference edge 減 feedback edge、回授路徑只有 divider、LMS 校正迴路的輸入是 PD 的輸出
-    const walk = (name: string) => texText(container.querySelector(`[data-diagram="${name}"] .ch00-diagram-walk`)).replace(/\s+/g, ' ')
+    const walk = (name: string) => texText(container.querySelector(`[data-diagram="${name}"] .c-chapter-fig-walk`)).replace(/\s+/g, ' ')
     const physical = walk('CHART_BLACKBOX_TO_PLL')
     for (const phrase of [
       'feedback（divider）edge 會比理想時刻早到',
@@ -248,7 +248,7 @@ describe('Ch00 整頁 smoke test', () => {
     expect(symbolRows).toContain('PLL 中 $w\\,x$ 是 DTC 的補償量')
     expect(symbolRows).toContain('PLL 中是 PD 的輸出，也是 LMS 校正迴路（比較器）的輸入')
     // 勘誤標記（連到驗證頁）、程式碼區塊
-    const errata = Array.from(container.querySelectorAll('.ch00-erratum-badge')).map((a) => a.textContent)
+    const errata = Array.from(container.querySelectorAll('a.c-erratum-link')).map((a) => a.textContent)
     expect(errata).toEqual(expect.arrayContaining(['勘誤 E39', '勘誤 E40', '勘誤 E41']))
     // 本章沿用全站更正後的符號：總和 S_N / m_q（E18）、code-correlated 干擾 κ（E12）
     expect(errata).toEqual(expect.arrayContaining(['勘誤 E18', '勘誤 E12']))
@@ -256,13 +256,13 @@ describe('Ch00 整頁 smoke test', () => {
     expect(signSection).toContain('P(S_N>0)')
     expect(signSection).not.toContain('P(G_N>0)')
     expect(texText(container.querySelector('#ch00-assumptions'))).toContain(String.raw`w^*=a+\kappa`)
-    container.querySelectorAll('.ch00-erratum-badge').forEach((a) => expect(a.getAttribute('href')).toBe('#/verification'))
+    container.querySelectorAll('a.c-erratum-link').forEach((a) => expect(a.getAttribute('href')).toBe(`/verification?e=${a.getAttribute('data-erratum')}`))
     expect(container.querySelectorAll('.c-code').length).toBeGreaterThan(2)
     // CodeBlock / CodeCompare 的 region 名稱都必須存在（找不到時會渲染錯誤框）
     expect(container.textContent).not.toContain('找不到程式碼 region')
     expect(container.textContent).not.toContain('缺少 #endregion')
     // 勘誤 E40 的說明文字由模擬結果產生（不是手打）：μ = 0.125 的跳動值與 μ = 0.1 的浮點值
-    const e40 = Array.from(container.querySelectorAll('.ch00-erratum')).find((el) => el.textContent?.includes('勘誤 E40'))
+    const e40 = Array.from(container.querySelectorAll('.c-erratum-block')).find((el) => el.textContent?.includes('勘誤 E40'))
     expect(e40?.textContent).toContain('3.25')
     expect(e40?.textContent).toContain('2.75')
     expect(e40?.textContent).toContain('3.0000000000000004')

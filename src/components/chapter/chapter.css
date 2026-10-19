@@ -1,0 +1,124 @@
+/* 章節共用元件（src/components/chapter/）的樣式：勘誤區塊、帶入手算引言、方塊圖與導讀、頁內跳轉按鈕。
+   原本每章 chapter.css 各寫一份（外框、邊距、導讀色條的顏色與字級都不一樣），現在全站一致。
+   行內勘誤徽章的外觀在 links/erratumLink.css 與 Badge 的 erratum variant，這裡不重複。 */
+
+/* ───── 區塊版勘誤說明（ChapterErratumNote） ───── */
+.c-erratum-block {
+  display: block;
+  border: 1px solid var(--warn);
+  background: var(--warn-soft);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  margin: 10px 0;
+  font-size: 0.9rem;
+}
+.c-erratum-block > a.c-erratum-link {
+  margin-right: 8px;
+}
+.c-erratum-block-details summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.c-erratum-block-details p {
+  margin: 4px 0 0;
+}
+
+/* ───── 帶入手算的引言（ChapterHandCalc） ───── */
+.c-chapter-hand {
+  margin: 16px 0;
+  min-width: 0;
+}
+.c-chapter-hand-lead {
+  margin: 0 0 6px;
+  font-size: 0.92rem;
+}
+.c-chapter-hand-lead strong {
+  color: var(--accent);
+}
+/* 連到某一題手算的連結（HandLink）：行內，和正文連結同色 */
+.c-handlink {
+  white-space: nowrap;
+}
+
+/* ───── 方塊圖＋導讀（ChapterFig） ───── */
+.c-chapter-fig {
+  margin: 18px 0;
+  min-width: 0;
+}
+.c-chapter-fig > .c-mermaid {
+  margin: 0 0 6px;
+}
+.c-chapter-fig-walk {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--surface-2);
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+.c-chapter-fig-walk-label {
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.c-chapter-fig-walk-body {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.c-chapter-fig-walk-body > :first-child {
+  margin-top: 0;
+}
+.c-chapter-fig-walk-body > :last-child {
+  margin-bottom: 0;
+}
+@media (max-width: 560px) {
+  .c-chapter-fig-walk {
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+/* 正文裡的圖號：不要在「圖 10-3」中間斷行 */
+.c-figref {
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+/* ───── 頁內跳轉按鈕（JumpTo）：外觀同連結（HashRouter 下不能用 href="#id"） ───── */
+.c-jump {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  text-align: left;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.c-jump:hover,
+.c-jump:focus-visible {
+  text-decoration-thickness: 2px;
+}
+
+/* ───── 勘誤徽章後面的較長說明（ChapterErratum 的 detail） ───── */
+.c-erratum-wrap {
+  overflow-wrap: anywhere;
+}
+
+/* JSX 圖說（ChapterFig 的 richCaption）：圖下方一段置中的說明，緊貼著圖 */
+.c-chapter-fig-richcap {
+  margin: 6px 0 0;
+  line-height: 1.6;
+}
+.c-chapter-fig-richcap strong {
+  color: var(--text);
+  margin-right: 4px;
+}

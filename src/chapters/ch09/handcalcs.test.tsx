@@ -1067,7 +1067,7 @@ describe('Ch09 帶入手算：(e) 題目在章內的位置', () => {
     // 每一題恰好出現一次，而且依 HC-09.1 … HC-09.8 的順序出現
     expect(Array.from(container.querySelectorAll('section.c-handcalc')).map((el) => el.id)).toEqual(ids.map((id) => `handcalc-${id}`))
     // 每一題前面都有一句「換你算：…」邀請讀者先用紙筆算
-    const invites = Array.from(container.querySelectorAll('.ch09-handcalc-invite'))
+    const invites = Array.from(container.querySelectorAll('.c-chapter-hand-lead'))
     expect(invites).toHaveLength(ids.length)
     for (const p of invites) {
       expect(p.textContent?.startsWith('換你算：')).toBe(true)

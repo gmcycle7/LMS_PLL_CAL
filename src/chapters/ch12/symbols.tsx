@@ -1,5 +1,5 @@
-import { Tex, type SymbolEntry } from '@/components'
-import { Erratum, md } from './common'
+import { Tex, type SymbolEntry, ChapterErratum } from '@/components'
+import { md } from './common'
 
 /**
  * 本章符號表（docs/teaching-style.md §5）：放在章末（index.tsx 的 #symbols），章首只留一行連結。
@@ -27,7 +27,7 @@ const ROWS: SymbolEntry[] = [
     note: (
       <>
         極性與 §0 的 <Tex>{String.raw`\delta_k=a-w_k`}</Tex> <strong>相反</strong>，且 <Tex>{String.raw`a-w_k=(a-w^*)-\delta w_k`}</Tex>
-        <Erratum id="E33" />
+        <ChapterErratum id="E33" />
       </>
     ),
   },
@@ -44,7 +44,7 @@ const ROWS: SymbolEntry[] = [
     meaning: md(String.raw`$\eta$ 的變異數；$\pm1$ code、近平衡時 $\approx1/N$（精確為 $(1-m^2)/N$）`),
     unit: String.raw`1`,
     firstSeen: '§12.0',
-    note: <Erratum id="E30" />,
+    note: <ChapterErratum id="E30" />,
   },
   { symbol: 'm', meaning: md(String.raw`$q\,x$ 的條件平均 $E[q\,x\mid w]$（近平衡時 $\approx0$）`), unit: '1', firstSeen: '§12.1' },
   { symbol: String.raw`K_q=\sqrt{2/\pi}/\sigma_v`, meaning: '1-bit comparator 的小訊號統計增益（第 5 章）', unit: String.raw`\mathrm{fs}^{-1}`, firstSeen: '§12.0' },
@@ -95,7 +95,7 @@ const ROWS: SymbolEntry[] = [
     firstSeen: '§12.2',
     note: (
       <>
-        <Tex>{String.raw`\theta=\Omega/N`}</Tex>；兩者不可混用 <Erratum id="E29" />
+        <Tex>{String.raw`\theta=\Omega/N`}</Tex>；兩者不可混用 <ChapterErratum id="E29" />
       </>
     ),
   },
@@ -127,14 +127,14 @@ const ROWS: SymbolEntry[] = [
     meaning: md(String.raw`單邊 per-Hz PSD：$\tfrac{2}{f_r}S(e^{j2\pi f/f_r})$，$f_r$ 為該序列的取樣率`),
     unit: String.raw`\mathrm{fs}^2/\mathrm{Hz}`,
     firstSeen: '§12.3',
-    note: <Erratum id="E28" />,
+    note: <ChapterErratum id="E28" />,
   },
   {
     symbol: String.raw`S_w^{(f_s)}(e^{j\theta})`,
     meaning: md(String.raw`$\delta w$ 以 ZOH 保持到 sample rate 後的（時間平均）PSD`),
     unit: String.raw`\mathrm{fs}^2/(\mathrm{cycle/sample})`,
     firstSeen: '§12.6',
-    note: <Erratum id="E09" />,
+    note: <ChapterErratum id="E09" />,
   },
   {
     symbol: String.raw`S^{(1)}_{w,\mathrm{zoh}}(f)`,
@@ -173,8 +173,8 @@ const ROWS: SymbolEntry[] = [
     firstSeen: '§12.0 → §12.5',
     note: (
       <>
-        不可稱為「Noise BW」 <Erratum id="E06" />
-        <Erratum id="E27" />
+        不可稱為「Noise BW」 <ChapterErratum id="E06" />
+        <ChapterErratum id="E27" />
       </>
     ),
   },
@@ -183,7 +183,7 @@ const ROWS: SymbolEntry[] = [
     meaning: md(String.raw`單邊等效雜訊頻寬：白色 $\eta$ 時 $\sigma^2=S^{(1)}(0)\cdot\mathrm{ENBW}$`),
     unit: String.raw`\mathrm{Hz}`,
     firstSeen: '§12.0 → §12.5',
-    note: <Erratum id="E10" />,
+    note: <ChapterErratum id="E10" />,
   },
   { symbol: 'x[n]', meaning: 'DTC / DSM code（regressor）', unit: '1', firstSeen: '§12.0' },
   {
@@ -212,7 +212,7 @@ const ROWS: SymbolEntry[] = [
     firstSeen: '§12.6 → §12.7',
   },
   { symbol: 'f_r', meaning: md(String.raw`某個序列自己的取樣率（block 量用 $f_u$、sample 量用 $f_s$）`), unit: String.raw`\mathrm{Hz}`, firstSeen: '§12.6' },
-  { symbol: String.raw`\delta t[n]=x[n]\delta w[n]`, meaning: 'reference 端的 DTC 多補償的時間（gain noise 造成）：reference edge 因此早到這麼多，殘餘 timing error 的對應項帶負號', unit: String.raw`\mathrm{fs}`, firstSeen: '§12.0 → §12.6', note: <Erratum id="E33" /> },
+  { symbol: String.raw`\delta t[n]=x[n]\delta w[n]`, meaning: 'reference 端的 DTC 多補償的時間（gain noise 造成）：reference edge 因此早到這麼多，殘餘 timing error 的對應項帶負號', unit: String.raw`\mathrm{fs}`, firstSeen: '§12.0 → §12.6', note: <ChapterErratum id="E33" /> },
   { symbol: String.raw`H_{\mathrm{PD}},\ T`, meaning: 'DTC 誤差到 PD residual（high-pass）與到 output（low-pass）的轉移', unit: '1', firstSeen: '§12.0 → §12.7' },
   { symbol: 'L(s)', meaning: md(String.raw`PLL 的開迴路增益（PD 增益 $\times$ loop filter $\times$ VCO 積分 $\div$ 除數）`), unit: '1', firstSeen: '§12.0 → §12.7' },
   {
@@ -233,7 +233,7 @@ const ROWS: SymbolEntry[] = [
     note: md(String.raw`$|T|=1$ 時兩者相同（T15）`),
   },
   { symbol: 'f_m', meaning: md(String.raw`$\delta t$ 單頻成分的頻率（spur 離載波的距離）`), unit: String.raw`\mathrm{Hz}`, firstSeen: '§12.8' },
-  { symbol: String.raw`\mathcal L(f)`, meaning: md(String.raw`單邊 phase noise $10\log_{10}(S_\phi^{(1)}/2)$`), unit: String.raw`\mathrm{dBc/Hz}`, firstSeen: '§12.6', note: <Erratum id="E28" /> },
+  { symbol: String.raw`\mathcal L(f)`, meaning: md(String.raw`單邊 phase noise $10\log_{10}(S_\phi^{(1)}/2)$`), unit: String.raw`\mathrm{dBc/Hz}`, firstSeen: '§12.6', note: <ChapterErratum id="E28" /> },
   {
     symbol: 'r',
     meaning: md(String.raw`（研究延伸）colored GMAC noise 的 lag-1 相關：$R_\eta[\ell]=\sigma_\eta^2r^{|\ell|}$；規格假設 $r=0$`),

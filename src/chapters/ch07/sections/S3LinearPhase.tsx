@@ -1,6 +1,6 @@
 import { useMemo, type ReactNode } from 'react'
 import type { Data } from 'plotly.js-cartesian-dist-min'
-import { Callout, ClaimTag, Mermaid, ModeGate, Plot, Prereq, Section, SourceTag, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, Mermaid, ModeGate, Plot, Prereq, Section, SourceTag, Tex, TexBlock, ChapterErratum } from '@/components'
 import { cAbs, cArg } from '@/simulation/core'
 import { freqz } from '@/simulation/signal'
 import {
@@ -13,7 +13,6 @@ import {
 } from '@/simulation/models/filteredX'
 import { CHART_DELAY_LINE, CHART_TWO_TONES, CHART_VOTING } from '../diagrams'
 import { FoldSteps } from '../FoldSteps'
-import { ErratumNote } from '../ErratumNote'
 import { Hand } from '../Hand'
 import { DEG, fx, RAD, signClass, tx } from '../util'
 
@@ -249,9 +248,9 @@ export function S3LinearPhase() {
       <p>
         用 E44 的離散時間 Type-II DPLL（<Tex>{r`\omega_nT_s=0.1`}</Tex>、<Tex>{r`\zeta=0.7`}</Tex>、<Tex>{'d=0'}</Tex>），code tone 在 <Tex>{r`\Omega=0.03=0.3\,\omega_nT_s`}</Tex>：
         <Tex>{r`\angle H_{\mathrm{PD}}=${tx(t2.phaseDeg, 3)}^\circ`}</Tex>、<Tex>{r`|H_{\mathrm{PD}}|=${tx(t2.mag, 4)}`}</Tex>。{' '}
-        <ErratumNote id="E44">
+        <ChapterErratum id="E44" detail={<>
           規格 §6.1 的 <Tex>{r`155.2^\circ`}</Tex> 是連續時間原型的值；DT 迴路在此為 <Tex>{r`${tx(t2.phaseDeg, 3)}^\circ`}</Tex>。
-        </ErratumNote>
+        </>} />
       </p>
       <TexBlock>{r`D^\star=\frac{(-\phi)\bmod 2\pi}{\Omega}=\frac{360^\circ-${tx(t2.phaseDeg, 3)}^\circ}{0.03\times180^\circ/\pi}=${tx(t2.best.continuous, 2)}\ \Rightarrow\ D=${t2.best.D}`}</TexBlock>
       <TexBlock id="F-07.4">{r`D^\star=\frac{(-\phi)\bmod 2\pi}{\Omega},\qquad \theta=\mathrm{wrap}_{180}(\phi+\Omega D),\qquad C_D>0\iff|\theta|<90^\circ`}</TexBlock>
@@ -420,7 +419,7 @@ export function S3LinearPhase() {
       </TexBlock>
       <p>
         <ClaimTag kind="exact" /> 每個頻率依 <Tex>{r`S_{xx}|H|`}</Tex> 加權投票，票的正負由 <Tex>{r`\cos(\phi+\Omega D)`}</Tex> 決定。{' '}
-        <ErratumNote id="E44">本站寫成 <Tex>{r`S_{xx}(e^{j\Omega})`}</Tex>、<Tex>{r`H(e^{j\Omega})`}</Tex>，並用時域 <Tex>{r`\sum_kh[k]R_x[k-D]`}</Tex> 交叉驗證。</ErratumNote>
+        <ChapterErratum id="E44" detail={<>本站寫成 <Tex>{r`S_{xx}(e^{j\Omega})`}</Tex>、<Tex>{r`H(e^{j\Omega})`}</Tex>，並用時域 <Tex>{r`\sum_kh[k]R_x[k-D]`}</Tex> 交叉驗證。</>} />
         注意 <Tex>{r`e^{+j\Omega D}`}</Tex> 的符號：寫成 <Tex>{r`e^{-j\Omega D}`}</Tex> 等於延遲 error（測試檔有這個錯號回歸）。
       </p>
       <ModeGate min="engineer">

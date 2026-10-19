@@ -103,7 +103,7 @@ describe('Chapter 13（jsdom smoke）', () => {
           scrolled.push(this)
         }
         try {
-          fireEvent.click(container.querySelector('[data-testid="ch13-symbols-top"]') as HTMLButtonElement)
+          fireEvent.click(container.querySelector('[data-jump="ch13-question"]') as HTMLButtonElement)
           expect(scrolled).toEqual([container.querySelector('#ch13-question')])
         } finally {
           proto.scrollIntoView = savedScroll
@@ -123,11 +123,11 @@ describe('Chapter 13（jsdom smoke）', () => {
         for (const f of figs) expect(f.querySelector('figcaption')?.textContent?.length ?? 0, mode).toBeGreaterThan(10)
         expect(screen.getAllByText(/方法 A：Freeze/).length).toBeGreaterThan(0)
         expect(screen.getAllByText(/方法 D：高解析 accumulator/).length).toBeGreaterThan(0)
-        expect(container.querySelectorAll('.ch13-erratum').length).toBeGreaterThan(5)
+        expect(container.querySelectorAll('a.c-erratum-link').length).toBeGreaterThan(5)
         for (const id of ['E13', 'E15', 'E47', 'E49']) expect(screen.getAllByText(`勘誤 ${id}`).length).toBeGreaterThan(0)
         // 勘誤連到驗證頁
-        const link = container.querySelector('a.ch13-erratum') as HTMLAnchorElement
-        expect(link.getAttribute('href')).toBe('#/verification')
+        const link = container.querySelector('a.c-erratum-link') as HTMLAnchorElement
+        expect(link.getAttribute('href')).toMatch(/^\/verification\?e=E\d\d$/)
         expect(screen.getByText('Quantized Gain Lab：6-bit code、limit cycle、dither、ΔΣ')).toBeTruthy()
         // CodeCompare 顯示真實程式碼（不是 region 載入錯誤）
         expect(screen.queryByText(/程式碼載入錯誤/)).toBeNull()

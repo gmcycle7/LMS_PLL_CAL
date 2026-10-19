@@ -1,6 +1,6 @@
-import { Callout, ClaimTag, ModeGate, Section, SourceTag, SystemMap, Tex, type SystemBlock, ChRef } from '@/components'
+import { Callout, ClaimTag, ModeGate, Section, SourceTag, SystemMap, Tex, type SystemBlock, ChRef, ChapterErratum, JumpTo } from '@/components'
 import { CONCEPT_FAST_LOOP, CONCEPT_LMS_LOOP } from '../diagrams'
-import { Erratum, FigRef, JumpTo, MermaidFig } from '../common'
+import { FigRef, MermaidFig } from '../common'
 
 const R = String.raw
 
@@ -19,7 +19,7 @@ export const CH04_SYSTEM_FOCUS: SystemBlock[] = ['fcw', 'dsm', 'div', 'res', 'gc
 export const CH04_SYSTEM_CAPTION = R`系統地圖：藍色是這一課從頭走到尾的訊號路徑（${CH04_SYSTEM_FOCUS.length} 個方塊）。先找到「小數除頻與補償」框裡的 FCW，順著箭頭走：DSM → fractional residue $x[n]$ → gain correction（$\times w$）→ reference 輸入端的 DTC → PD。PD 的輸出 $e[n]$（就是送進 loop filter 的那個節點）用一對寫著 $e[n]$ 的標籤（PD 輸出旁一個、comparator 輸入旁一個）接到「LMS 校正迴路」框：1-bit comparator → GMAC（$\sum q\,x$）→「$\div N$、$\times\mu$」→ gain accumulator $w_k$，最後回到 gain correction。教學用概念架構，不是特定晶片的 netlist。`
 
 /**
- * 章首目錄：本章分成兩個 Part（index.tsx）。Part 2 在 Beginner 模式整段收合，目錄的按鈕用 jumpTo（共用的 scrollToElement）跳過去時會自動展開。
+ * 章首目錄：本章分成兩個 Part（index.tsx）。Part 2 在 Beginner 模式整段收合，目錄的按鈕用共用的 JumpTo（scrollToElement）跳過去時會自動展開。
  */
 export const TOC: { group: string; items: { id: string; label: string }[] }[] = [
   {
@@ -143,17 +143,17 @@ export function SystemSection() {
       <Callout kind="info" title="圖上和規格書原圖不同的地方">
         <ul>
           <li>
-            原圖 GMAC 方塊寫「sum q times aligned code」、下一格寫「Average + Learning Rate」，但 §0 又把 <Tex>{R`G_k`}</Tex> 定義成平均。本站把總和寫成 <Tex>{R`S_k`}</Tex>、平均寫成 <Tex>{R`G_k=S_k/N`}</Tex> <Erratum id="E07" /> <Erratum id="E18" />，因為兩者差 <Tex>N</Tex> 倍 loop gain（§3）。
+            原圖 GMAC 方塊寫「sum q times aligned code」、下一格寫「Average + Learning Rate」，但 §0 又把 <Tex>{R`G_k`}</Tex> 定義成平均。本站把總和寫成 <Tex>{R`S_k`}</Tex>、平均寫成 <Tex>{R`G_k=S_k/N`}</Tex> <ChapterErratum id="E07" /> <ChapterErratum id="E18" />，因為兩者差 <Tex>N</Tex> 倍 loop gain（§3）。
           </li>
           <li>
-            comparator 方塊明確寫出 <Tex>{R`b[n]=(e\ge0)`}</Tex> 與 <Tex>{R`q=2b-1`}</Tex>：硬體輸出的位元 <Tex>b</Tex> 是 0/1，GMAC 需要的 <Tex>q</Tex> 是 <Tex>{R`\pm1`}</Tex> <Erratum id="E07" />。
+            comparator 方塊明確寫出 <Tex>{R`b[n]=(e\ge0)`}</Tex> 與 <Tex>{R`q=2b-1`}</Tex>：硬體輸出的位元 <Tex>b</Tex> 是 0/1，GMAC 需要的 <Tex>q</Tex> 是 <Tex>{R`\pm1`}</Tex> <ChapterErratum id="E07" />。
           </li>
           <li>
             原圖的 DTC 接在 divider 的輸出與 PD 之間。本站依全站約定把 DTC 畫在 <strong>reference 的輸入端</strong>（Reference clock → DTC → PD），回授路徑上只有 divider。兩種接法 PD 看到的都是{' '}
             <Tex>{R`(a-w)\,x[n]`}</Tex>，後面的數學完全相同；差別只在「被延遲的是哪一條 edge」（§2）。
           </li>
           <li>
-            DTC 方塊的延遲寫成 <Tex>{R`T_0-w_k\,x[n]+d(x)`}</Tex>：<Tex>{R`T_0`}</Tex> 是固定的基準延遲；<Tex>x</Tex> 是無因次 code，時間單位（fs）由 gain <Tex>w</Tex> 承載 <Erratum id="E13" />；<Tex>d(x)</Tex> 是可開關的 DTC 非線性（<ChRef ch="11">Ch11</ChRef>）。
+            DTC 方塊的延遲寫成 <Tex>{R`T_0-w_k\,x[n]+d(x)`}</Tex>：<Tex>{R`T_0`}</Tex> 是固定的基準延遲；<Tex>x</Tex> 是無因次 code，時間單位（fs）由 gain <Tex>w</Tex> 承載 <ChapterErratum id="E13" />；<Tex>d(x)</Tex> 是可開關的 DTC 非線性（<ChRef ch="11">Ch11</ChRef>）。
           </li>
           <li>
             LMS 校正迴路的輸入明確畫成從 PD 的輸出 <Tex>{R`e[n]`}</Tex> 分接（和送進 loop filter 的是同一個節點），並加上 noise 注入點 <Tex>{R`v[n]`}</Tex>（規格 §4 要求）。

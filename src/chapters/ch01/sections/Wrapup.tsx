@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { ClaimTag, ModelLevel, Quiz, Recap, Section, StepDerivation, Tex } from '@/components'
+import { ClaimTag, ModelLevel, Quiz, Recap, Section, StepDerivation, Tex, ChapterErratum } from '@/components'
 import { batchOptima } from '@/simulation/models/lms'
 import { generateLossData, runVariantOnData, signErrorLatticeStationary, type LossDataParams } from '@/simulation/models/lossCompare'
-import { BlockDiagram, ChapterHandCalc, Erratum, PllLink, texNum } from '../common'
+import { BlockDiagram, ChapterHandCalc, PllLink, texNum } from '../common'
 
 const SPEED = { a: 3, mu: 0.05, tol: 0.1, delta0: [1, 10, 100] }
 /** 思考題 3 的資料與兩個步長（用 lattice Markov 鏈精確算 Sign-Error 的穩態） */
@@ -178,7 +178,7 @@ export function WrapupSection() {
                   0（資料 iid 時 <Tex>{String.raw`E[w_\infty]=w^*`}</Tex>）
                 </td>
                 <td>
-                  <Tex>{String.raw`O(\mu|x|)`}</Tex>，依 tie 慣例與算術而定 <Erratum id="E40" />
+                  <Tex>{String.raw`O(\mu|x|)`}</Tex>，依 tie 慣例與算術而定 <ChapterErratum id="E40" />
                 </td>
                 <td>
                   小 <Tex>{'\\mu'}</Tex> 時趨近 Huber 位置
@@ -273,7 +273,7 @@ export function WrapupSection() {
             </li>
             <li>
               comparator 的 tie（<Tex>{'e'}</Tex> 恰好在門檻上）在硬體只能是 <Tex>{'+1'}</Tex> 或 <Tex>{'-1'}</Tex>：這就是本章的{' '}
-              <Tex>{String.raw`\operatorname{sign}(0)`}</Tex> 慣例 <Erratum id="E40" />；定點 accumulator 正是本章的「整數 code」模型。
+              <Tex>{String.raw`\operatorname{sign}(0)`}</Tex> 慣例 <ChapterErratum id="E40" />；定點 accumulator 正是本章的「整數 code」模型。
             </li>
             <li>
               沒有 comparator 雜訊時，固定點是 MAE 解（例如 Ch11 的 1.4），雜訊夠大時才接近 MSE 解（1.34）——見{' '}

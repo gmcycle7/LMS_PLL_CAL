@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { Data } from 'plotly.js-cartesian-dist-min'
-import { Callout, ClaimTag, CodeBlock, Mermaid, ModeGate, Plot, Prereq, Section, SourceTag, StepDerivation, Tex, TexBlock, useThemeTokens } from '@/components'
+import { Callout, ClaimTag, CodeBlock, Mermaid, ModeGate, Plot, Prereq, Section, SourceTag, StepDerivation, Tex, TexBlock, useThemeTokens, ChapterErratum } from '@/components'
 import { isWorkerCancelled, useWorkerTask } from '@/workers'
 import quantSrc from '@/simulation/models/quantizer.ts?raw'
 import { firstOrderPeriod, quantizeFcw } from '@/simulation/models/dsm'
@@ -13,7 +13,7 @@ import {
   type CriteriaRow,
   type QuantStrategy,
 } from '@/simulation/models/quantizer'
-import { DEFAULT_LAB_PARAMS, Erratum, Fold, fx, n, ntex, num, tx } from '../common'
+import { DEFAULT_LAB_PARAMS, Fold, fx, n, ntex, num, tx } from '../common'
 import { CHART_DECISION, CHART_MIXING_PATH, CHART_RECORD_CHECK, CHART_TONE_MIXING } from '../diagrams'
 
 const DRIFT = 0.2
@@ -267,7 +267,7 @@ export function CriteriaSection() {
           <ClaimTag kind="approx" /> 表中的 <Tex>{String.raw`\sigma_\mathrm{out}`}</Tex> 直接模擬 <Tex>{String.raw`\delta t`}</Tex>（不假設獨立），再以 Welch PSD 乘 <Tex>{String.raw`|T|^2`}</Tex> 積分。Welch 每段先去平均，所以積分下限{' '}
           <Tex>{String.raw`f_L=f_s/N_\mathrm{seg}`}</Tex>（頻率解析度）以下的成分<strong>不在</strong> <Tex>{String.raw`\sigma_\mathrm{out}`}</Tex> 裡：整段紀錄的平均 <Tex>{String.raw`\overline{\delta t}`}</Tex>{' '}
           可能是靜態偏移（PLL 會吸收，不算 jitter），也可能是比紀錄更慢、分辨不出的差頻；各區塊平均的起伏則是 <Tex>{String.raw`f<f_L`}</Tex> 的「慢變成分」<Tex>{String.raw`\sigma_\mathrm{slow}`}</Tex>，本表另外列出（它在 PLL 通帶內，
-          <Tex>{String.raw`|T|\approx1`}</Tex>）。<Tex>{String.raw`T(f)`}</Tex> 用 CT 二階原型（<Tex>{String.raw`f\ll f_s`}</Tex> 時才準）。完整 noise budget 還要包含 PD noise 與 cross-spectrum（§12.3）。 <Erratum id="E13" />
+          <Tex>{String.raw`|T|\approx1`}</Tex>）。<Tex>{String.raw`T(f)`}</Tex> 用 CT 二階原型（<Tex>{String.raw`f\ll f_s`}</Tex> 時才準）。完整 noise budget 還要包含 PD noise 與 cross-spectrum（§12.3）。 <ChapterErratum id="E13" />
         </p>
         <ModeGate min="engineer">
           <CodeBlock source={quantSrc} region="mixing" path="src/simulation/models/quantizer.ts" caption="網站實際執行的 mixing（每個 reference cycle 一個 timing error 樣本）。" />

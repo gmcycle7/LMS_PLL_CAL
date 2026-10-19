@@ -1,5 +1,5 @@
-import { Callout, ModeGate, SystemMap, Tex, TestBadge, type SystemBlock } from '@/components'
-import { ChapterLink, Diagram, ErrataNote, tm } from '../common'
+import { Callout, ModeGate, SystemMap, Tex, TestBadge, type SystemBlock, ChapterErratum } from '@/components'
+import { ChapterLink, Diagram, tm } from '../common'
 import { TOP_ID } from './Symbols'
 
 /**
@@ -10,7 +10,7 @@ export const SYSTEM_FOCUS: SystemBlock[] = ['res', 'cmp', 'gmac', 'scale', 'acc'
 
 export function Intro() {
   return (
-    <section>
+    <section id="ch02-intro">
       <div className="ch02-question" id={TOP_ID} tabIndex={-1}>
         <strong>這一課要回答的問題：</strong>你被矇住眼睛站在山坡上，只能用腳感覺「腳下的坡度」。要怎麼一步一步走到谷底？如果每一步只能看<strong>一筆</strong>資料、甚至只能知道誤差的<strong>正負號</strong>（硬體只有一顆 1-bit comparator），還走得到嗎？會停在哪裡？
       </div>
@@ -47,13 +47,13 @@ export function Intro() {
       <Callout kind="info" title="本章套用的勘誤">
         <ul className="ch02-try">
           <li>
-            <ErrataNote id="E41" /> 成本一律寫成 <Tex>{'J(w)=\\tfrac12E[(y-wx)^2]'}</Tex>（<Tex>{'E[\\cdot]'}</Tex> 是「很多筆的平均」，§2 會正式介紹；<Tex>{'y-wx'}</Tex> 是量到的輸出減掉預測）。沒有 <Tex>{'\\tfrac12'}</Tex> 時梯度大 2 倍，LMS 等於對 <Tex>{'J_2'}</Tex> 用步長 <Tex>{'\\mu/2'}</Tex>。
+            <ChapterErratum id="E41" /> 成本一律寫成 <Tex>{'J(w)=\\tfrac12E[(y-wx)^2]'}</Tex>（<Tex>{'E[\\cdot]'}</Tex> 是「很多筆的平均」，§2 會正式介紹；<Tex>{'y-wx'}</Tex> 是量到的輸出減掉預測）。沒有 <Tex>{'\\tfrac12'}</Tex> 時梯度大 2 倍，LMS 等於對 <Tex>{'J_2'}</Tex> 用步長 <Tex>{'\\mu/2'}</Tex>。
           </li>
           <li>
-            <ErrataNote id="E40" /> <Tex>{'\\operatorname{sign}(0)'}</Tex> 必須明定：數學次梯度模式 <Tex>{'\\operatorname{sign}(0)=0'}</Tex>；comparator 模式 tie 映射到 <Tex>{'\\pm1'}</Tex>。模擬不可依賴 <code>Math.sign(0) = 0</code>，也要注意浮點誤差。
+            <ChapterErratum id="E40" /> <Tex>{'\\operatorname{sign}(0)'}</Tex> 必須明定：數學次梯度模式 <Tex>{'\\operatorname{sign}(0)=0'}</Tex>；comparator 模式 tie 映射到 <Tex>{'\\pm1'}</Tex>。模擬不可依賴 <code>Math.sign(0) = 0</code>，也要注意浮點誤差。
           </li>
           <li>
-            <ErrataNote id="E43" /> 規格 §2.3 表格 Sign-Sign 列改為「連 Regressor 幅度也丟掉，別和 Sign-Error 混淆」——本章 §4 進一步證明它的固定點不同。
+            <ChapterErratum id="E43" /> 規格 §2.3 表格 Sign-Sign 列改為「連 Regressor 幅度也丟掉，別和 Sign-Error 混淆」——本章 §4 進一步證明它的固定點不同。
           </li>
         </ul>
       </Callout>

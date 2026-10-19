@@ -1,6 +1,6 @@
-import { Callout, ClaimTag, Mermaid, ModeGate, ModelLevel, Section, SourceTag, SystemMap, Tex, TestBadge, ChRef } from '@/components'
+import { Callout, ClaimTag, Mermaid, ModeGate, ModelLevel, Section, SourceTag, SystemMap, Tex, TestBadge, ChRef, ChapterErratum } from '@/components'
 import { delayCriticalGain } from '@/simulation/models/stability'
-import { ErratumNote, fx, rich } from '../common'
+import { fx, rich } from '../common'
 import { ROADMAP_CHART, SYSTEM_MAP_FOCUS } from '../diagrams'
 
 /** 開場（問題 → 系統地圖 → 你在這裡 → 標籤）與學習地圖。章首骨架（本章資訊、先備自檢）由 PageFrame 放在地圖之後；本章符號表在章末（./Symbols.tsx）。 */
@@ -11,7 +11,7 @@ export function Intro() {
         GMAC 的更新<strong>極性</strong>已經是對的、loop gain <Tex>{'g'}</Tex>（學習率 <Tex>{'\\mu'}</Tex> 乘上 GMAC 的平均斜率 <Tex>{'K'}</Tex>，沒有單位；§8.2 會從頭定義）也在一階模型的{' '}
         <Tex>{'0<g<2'}</Tex> 裡面——calibration loop 就一定穩定嗎？
         <br />
-        答案是<strong>不一定</strong>。本章拆成三個陷阱：(1) polarity margin 不是 phase margin；(2) GMAC pipeline 的<strong>更新延遲</strong>會把 <Tex>{'g'}</Tex> 的穩定上界從 {fx(delayCriticalGain(0), 0)} 縮到 {fx(delayCriticalGain(1), 0)}、{fx(delayCriticalGain(2), 3)}…；(3) 主 PLL 對誤差的<strong>觀測動態</strong>（雙迴路，含一個 block 的取樣→觀測 latency）會讓「時間尺度分離」的簡化模型高估穩定範圍——在本章的二狀態模型裡恰好高估一倍，而且與主 PLL 的快慢無關（<ErratumNote id="E19" />）。
+        答案是<strong>不一定</strong>。本章拆成三個陷阱：(1) polarity margin 不是 phase margin；(2) GMAC pipeline 的<strong>更新延遲</strong>會把 <Tex>{'g'}</Tex> 的穩定上界從 {fx(delayCriticalGain(0), 0)} 縮到 {fx(delayCriticalGain(1), 0)}、{fx(delayCriticalGain(2), 3)}…；(3) 主 PLL 對誤差的<strong>觀測動態</strong>（雙迴路，含一個 block 的取樣→觀測 latency）會讓「時間尺度分離」的簡化模型高估穩定範圍——在本章的二狀態模型裡恰好高估一倍，而且與主 PLL 的快慢無關（<ChapterErratum id="E19" />）。
       </Callout>
       <SystemMap focus={SYSTEM_MAP_FOCUS} />
       <p className="c-map-note">
@@ -50,7 +50,7 @@ export function Intro() {
         </p>
       </Section>
 
-      <Section kind="diagram" title="本章學習地圖（對應入門課 Lesson 8–9）" level={2}>
+      <Section id="ch08-map" kind="diagram" title="本章學習地圖（對應入門課 Lesson 8–9）" level={2}>
         <p className="small">
           本章所有表格、曲線與數字都由 <code>src/simulation/models/stability.ts</code>（以及 PM Lab 選用的 <code>blockLms</code> Monte Carlo）即時計算；參數是教學示例，不是晶片量測值{' '}
           <SourceTag kind="illustrative" />。每一段推導後面都有一題<strong>帶入手算</strong>（HC-08.1 … HC-08.7）：把數字換成你自己的，用紙筆和工程計算機算一次，再對答案；章末思考題之前還有一題從晶片數字一路算到穩定裕度的綜合題（HC-08.8）。
@@ -78,7 +78,7 @@ export function Intro() {
                   <ClaimTag kind="exact" />
                 </td>
                 <td>
-                  <ErratumNote id="E20" />
+                  <ChapterErratum id="E20" />
                 </td>
                 <td>HC-08.1</td>
               </tr>
@@ -118,7 +118,7 @@ export function Intro() {
                   <ClaimTag kind="exact" /> / <ClaimTag kind="approx" />
                 </td>
                 <td>
-                  <TestBadge id="T09" /> <ErratumNote id="E19" />
+                  <TestBadge id="T09" /> <ChapterErratum id="E19" />
                 </td>
                 <td>HC-08.7</td>
               </tr>

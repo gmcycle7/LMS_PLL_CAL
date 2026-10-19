@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Prereq, Quiz, Section, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
+import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Prereq, Quiz, Section, StepDerivation, Tex, TexBlock, ChRef, ChapterErratum } from '@/components'
 import lmsSrc from '@/simulation/models/lms.ts?raw'
 import sgdSrc from '@/simulation/models/sgd.ts?raw'
 import { equalSpeedVarianceRatio, noisePdfAt, type MeanFieldInput, type NoiseKind, type XKind } from '@/simulation/models/sgd'
-import { ChapterLink, Diagram, ErrataNote, HandCalcSlot, f4, DerivFold, tm } from '../common'
+import { ChapterLink, Diagram, HandCalcSlot, f4, DerivFold, tm } from '../common'
 import { SignLmsCompare } from '../experiments/SignLmsCompare'
 
 const NOISES: NoiseKind[] = ['gaussian', 'laplacian', 'impulsive']
@@ -25,10 +25,10 @@ export function S5Compare() {
   }, [])
 
   return (
-    <section>
-      <h2 id="ch02-s5">§5 演算法大比較：數學、硬體與程式碼</h2>
+    <section id="ch02-s5">
+      <h2>§5 演算法大比較：數學、硬體與程式碼</h2>
 
-      <Section kind="diagram" title="先看地圖：每個演算法用了多少資訊、花多少硬體">
+      <Section id="ch02-compare-map" kind="diagram" title="先看地圖：每個演算法用了多少資訊、花多少硬體">
         <Diagram id="info-map">
           <p>
             {tm(
@@ -39,7 +39,7 @@ export function S5Compare() {
         </Diagram>
       </Section>
 
-      <Section kind="example" title="總比較表">
+      <Section id="ch02-compare-table" kind="example" title="總比較表">
         <div className="table-wrap">
           <table className="ch02-table ch02-big-table">
             <thead>
@@ -183,7 +183,7 @@ export function S5Compare() {
         </p>
       </Section>
 
-      <Section kind="formula" title="核心程式碼並排（網站實際執行的就是這幾段）">
+      <Section id="ch02-code-sidebyside" kind="formula" title="核心程式碼並排（網站實際執行的就是這幾段）">
         <CodeCompare
           items={[
             { label: 'LMS', source: lmsSrc, region: 'conventionalStep', path: 'src/simulation/models/lms.ts', note: '用到 $e$ 的大小：需要多位元 error 與乘法器' },
@@ -206,7 +206,7 @@ export function S5Compare() {
         </ModeGate>
       </Section>
 
-      <Section kind="diagram" title="硬體資料路徑：乘法器 vs 條件取負 vs XOR">
+      <Section id="ch02-datapath" kind="diagram" title="硬體資料路徑：乘法器 vs 條件取負 vs XOR">
         <Diagram id="datapath">
           <p>
             {tm(
@@ -221,7 +221,7 @@ export function S5Compare() {
         </p>
       </Section>
 
-      <Section kind="formula" title="精度效率：同收斂速度下誰比較準？">
+      <Section id="ch02-efficiency" kind="formula" title="精度效率：同收斂速度下誰比較準？">
         <p>
           收斂之後，<Tex>{'w'}</Tex> 並不會靜止，而是在固定點附近抖動。抖多大？靠近固定點時，四種演算法都可以畫成同一個一階迴路，只差兩個數字：
         </p>
@@ -295,7 +295,7 @@ export function S5Compare() {
         </p>
       </Section>
 
-      <Section kind="formula" title="NLMS 預告：把步長正規化">
+      <Section id="ch02-nlms" kind="formula" title="NLMS 預告：把步長正規化">
         <p>
           LMS 的穩定界 <Tex>{'\\mu<2/x^2'}</Tex> 依賴輸入幅度：code 幅度因 PVT 或 FCW 改變 10 倍時，同一個 <Tex>{'\\mu'}</Tex> 可能發散或慢 100 倍。§1 說最好的步長是 <Tex>{"1/J''=1/x^2"}</Tex>——那就每一步都除以 <Tex>{'x_n^2'}</Tex>：
         </p>
@@ -330,7 +330,7 @@ export function S5Compare() {
         </ModeGate>
       </Section>
 
-      <Section kind="explore" title="主實驗：同一組資料上的四種演算法">
+      <Section id="ch02-main-lab" kind="explore" title="主實驗：同一組資料上的四種演算法">
         <Prereq title="Monte Carlo、中位數／分位數與 95% 信賴區間（讀懂下方表格）">
           <ul>
             <li>
@@ -341,7 +341,7 @@ export function S5Compare() {
               <strong>標準誤（SE）與 95% 信賴區間</strong>：<Tex>{String.raw`R`}</Tex> 個獨立樣本平均的標準差是 <Tex>{String.raw`s/\sqrt R`}</Tex>（<Tex>{'s'}</Tex>：樣本標準差）。中央極限定理說平均近似 Gaussian，所以 <Tex>{String.raw`\bar w\pm t_{0.975}\,s/\sqrt R`}</Tex>（<Tex>{String.raw`R`}</Tex> 大時 <Tex>{String.raw`t_{0.975}\approx1.96`}</Tex>）約有 95% 機率涵蓋真值。表格的「一致」用 <Tex>{String.raw`4\,\mathrm{SE}`}</Tex> 再加上 <Tex>{String.raw`O(\mu)`}</Tex> 修正當容差。
             </li>
             <li>
-              <strong>中位數與 10% / 90% 分位數</strong>：把 <Tex>{String.raw`R`}</Tex> 個 <Tex>{String.raw`|\delta_n|`}</Tex> 排序，取第 50%、10%、90% 位置的值。它們不受少數極端路徑影響；<Tex>{String.raw`E[\delta^2]`}</Tex> 的樣本平均可能被一兩條重尾路徑主導，所以收斂圖畫分位數 <ErrataNote id="E14" />。
+              <strong>中位數與 10% / 90% 分位數</strong>：把 <Tex>{String.raw`R`}</Tex> 個 <Tex>{String.raw`|\delta_n|`}</Tex> 排序，取第 50%、10%、90% 位置的值。它們不受少數極端路徑影響；<Tex>{String.raw`E[\delta^2]`}</Tex> 的樣本平均可能被一兩條重尾路徑主導，所以收斂圖畫分位數 <ChapterErratum id="E14" />。
             </li>
           </ul>
         </Prereq>
@@ -357,7 +357,7 @@ export function S5Compare() {
           <li>本章的 <Tex>{'x'}</Tex> 與 <Tex>{'v'}</Tex> 都是 iid、彼此獨立；PLL 中的有效 regressor <Tex>{'u=h*x'}</Tex> 有時間相關，公式要改用 <ChRef ch="06">Ch06</ChRef>–<ChRef ch="07">Ch07</ChRef> 的相關函數。</li>
           <li>「固定點」是 mean-field（平均更新為零）的點；固定步長時真正的穩態平均還有 <Tex>{'O(\\mu)'}</Tex> 的偏移（實驗中以 <Tex>{"\\psi''\\operatorname{Var}/(2K)"}</Tex> 修正）。</li>
           <li>
-            <Tex>{'\\operatorname{sign}(0)'}</Tex> 的慣例與浮點捨入會造成 <Tex>{'O(\\mu)'}</Tex> 的差異 <ErrataNote id="E40" />；硬體的有限位寬（量化、limit cycle）在 <ChRef ch="13">Ch13</ChRef>。
+            <Tex>{'\\operatorname{sign}(0)'}</Tex> 的慣例與浮點捨入會造成 <Tex>{'O(\\mu)'}</Tex> 的差異 <ChapterErratum id="E40" />；硬體的有限位寬（量化、limit cycle）在 <ChRef ch="13">Ch13</ChRef>。
           </li>
         </ul>
       </Callout>

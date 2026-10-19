@@ -1,5 +1,5 @@
-import { Section, SymbolTable, Tex, type SymbolEntry, ChRef } from '@/components'
-import { ErratumNote, ErratumRef, PageLink, scrollToId } from '../common'
+import { JumpTo, Section, SymbolTable, Tex, type SymbolEntry, ChRef, ChapterErratum, ChapterErratumNote } from '@/components'
+import { PageLink } from '../common'
 
 /** 章末符號表外層的 DOM id（docs/teaching-style.md §5：全站每一章都用 `symbols`）。 */
 export const SYMBOLS_ANCHOR = 'symbols'
@@ -108,7 +108,7 @@ export const SYMBOLS: SymbolEntry[] = [
     firstSeen: '§0.4',
     note: (
       <>
-        全站極性 <Tex>{'a-w'}</Tex>（<ErratumRef eid="E39" />：規格 §3 原寫 <Tex>{'w-a'}</Tex>）
+        全站極性 <Tex>{'a-w'}</Tex>（<ChapterErratum id="E39" />：規格 §3 原寫 <Tex>{'w-a'}</Tex>）
       </>
     ),
   },
@@ -155,7 +155,7 @@ export const SYMBOLS: SymbolEntry[] = [
     firstSeen: '§0.6',
     note: (
       <>
-        含 <Tex>{'\\tfrac12'}</Tex>，微分後與更新量 <Tex>{'\\mu ex'}</Tex> 同 scaling（<ErratumRef eid="E41" />）
+        含 <Tex>{'\\tfrac12'}</Tex>，微分後與更新量 <Tex>{'\\mu ex'}</Tex> 同 scaling（<ChapterErratum id="E41" />）
       </>
     ),
   },
@@ -166,7 +166,7 @@ export const SYMBOLS: SymbolEntry[] = [
     firstSeen: '§0.6',
     note: (
       <>
-        規格 §1 的 <Tex>{'J_2'}</Tex> 沒有 <Tex>{'\\tfrac12'}</Tex>；argmin 相同（<ErratumRef eid="E41" />）
+        規格 §1 的 <Tex>{'J_2'}</Tex> 沒有 <Tex>{'\\tfrac12'}</Tex>；argmin 相同（<ChapterErratum id="E41" />）
       </>
     ),
   },
@@ -254,7 +254,7 @@ export const SYMBOLS: SymbolEntry[] = [
     firstSeen: '§0.8',
     note: (
       <>
-        <Tex>{'\\mathrm{sign}(0)'}</Tex> 慣例必須明定（<ErratumRef eid="E40" />）；硬體 0/1 先映射 <Tex>{'q=2b-1'}</Tex>
+        <Tex>{'\\mathrm{sign}(0)'}</Tex> 慣例必須明定（<ChapterErratum id="E40" />）；硬體 0/1 先映射 <Tex>{'q=2b-1'}</Tex>
       </>
     ),
   },
@@ -285,7 +285,7 @@ export const SYMBOLS: SymbolEntry[] = [
     firstSeen: '§0.9',
     note: (
       <>
-        規格 §5 原寫 <Tex>{'G_N'}</Tex>、<Tex>{'m'}</Tex>（<ErratumRef eid="E18" />）；平均 <Tex>{'G=S_N/N'}</Tex>
+        規格 §5 原寫 <Tex>{'G_N'}</Tex>、<Tex>{'m'}</Tex>（<ChapterErratum id="E18" />）；平均 <Tex>{'G=S_N/N'}</Tex>
       </>
     ),
   },
@@ -301,7 +301,7 @@ export const SYMBOLS: SymbolEntry[] = [
     firstSeen: '§0.10',
     note: (
       <>
-        規格 §11.3 原寫 <Tex>{'u=cx'}</Tex>，與 filtered regressor <Tex>{'u=h*x'}</Tex> 撞名（<ErratumRef eid="E12" />）
+        規格 §11.3 原寫 <Tex>{'u=cx'}</Tex>，與 filtered regressor <Tex>{'u=h*x'}</Tex> 撞名（<ChapterErratum id="E12" />）
       </>
     ),
   },
@@ -339,13 +339,13 @@ export function SymbolsSection() {
     <Section kind="formula" level={2} id={SYMBOLS_ANCHOR} title="§0.14 本章符號表">
       <p>
         全章用到的符號集中列在這裡，忘記某個符號時回來查。正文裡每個符號第一次出現時都已經用一句話說明過；「首次出現」欄告訴你是在哪一段。{' '}
-        <button type="button" className="ch00-link-button no-print" onClick={() => scrollToId(CHAPTER_TOP_ANCHOR)}>
+        <JumpTo target={CHAPTER_TOP_ANCHOR} className="no-print">
           ↑ 回到章首
-        </button>
+        </JumpTo>
       </p>
-      <ErratumNote eid="E39">
+      <ChapterErratumNote id="E39">
         本章所有 <Tex>{'\\delta'}</Tex> 一律為 <Tex>{'\\delta=a-w'}</Tex>（與規格 §0 一致；規格 §3 的 <Tex>{'w-a'}</Tex> 已更正）。
-      </ErratumNote>
+      </ChapterErratumNote>
       <SymbolTable
         rows={SYMBOLS}
         caption={

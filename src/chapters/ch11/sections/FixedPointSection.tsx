@@ -1,25 +1,10 @@
 import { useMemo, useState } from 'react'
 import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
-import {
-  Callout,
-  ClaimTag,
-  CodeBlock,
-  CodeCompare,
-  ModeGate,
-  ModelLevel,
-  ParamControl,
-  Plot,
-  Section,
-  StepDerivation,
-  Tex,
-  TexBlock,
-  useThemeTokens,
-  ChRef,
-} from '@/components'
+import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, ModelLevel, ParamControl, Plot, Section, StepDerivation, Tex, TexBlock, useThemeTokens, ChRef, ChapterErratum } from '@/components'
 import biasSrc from '@/simulation/models/bias.ts?raw'
 import { KQ_FACTOR, buildCodeDistribution, comparatorMean, eDet, signFixedPoint, type ErrorModel } from '@/simulation/models/bias'
 import { F } from '../formulas'
-import { Erratum, ModeDetails, m, texNum } from '../common'
+import { ModeDetails, m, texNum } from '../common'
 import { Fig, FigRef } from '../Fig'
 import { Hand } from '../Hand'
 
@@ -219,7 +204,7 @@ export function FixedPointSection() {
       </p>
 
       <Callout kind="warn" title={m('「小誤差」指的是整個確定性殘差，不只是 $|a-w|$')}>
-        <Erratum id="E01" />
+        <ChapterErratum id="E01" />
         <TexBlock id="F-11.3">{F.linearize}</TexBlock>
         <p>
           規格書寫「高斯 Noise 主導且小誤差時」。真正需要小的是 <strong>{m('$w^*$ 處每一個 code 的整個確定性殘差')}</strong>{' '}

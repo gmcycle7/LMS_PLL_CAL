@@ -24,7 +24,7 @@ export function SynthesisSection() {
   return (
     <>
       <h2 id="synthesis">綜合手算：把整章的公式串起來</h2>
-      <Section kind="example" title="做思考題之前，先完整算一次">
+      <Section id="ch03-synthesis" kind="example" title="做思考題之前，先完整算一次">
         <p>
           {tx`這一題把本章的公式串成一次 sign-off 檢查：由 code 的 $\sigma$ 算出 $P_x$、$M_4$ 與三個界限，再看你想用的 $\mu$ 在 mean、mean-square、almost-sure 三種意義下各落在哪一區，最後看 GMAC 平均 $N$ 筆之後界限放寬多少。全部只需要四則運算（$2.4212$ 這個常數直接代入）。`}
         </p>
@@ -198,7 +198,7 @@ export function QuizSection() {
 export function RecapSection() {
   const gb = useMemo(() => stabilityBounds(GAUSS), [])
   return (
-    <Section kind="formula" title="本課必記">
+    <Section id="ch03-recap" kind="formula" title="本課必記">
       <Recap
         formulas={[
           { label: T`固定 $x$（T02）`, tex: T`\boxed{\delta_{n+1}=(1-\mu x^2)\,\delta_n,\quad 0<\mu<\frac{2}{x^2}}` },

@@ -1,16 +1,4 @@
-import {
-  Callout,
-  ClaimTag,
-  CodeCompare,
-  Mermaid,
-  ModeGate,
-  Quiz,
-  Section,
-  StepDerivation,
-  Tex,
-  TexBlock,
-  ChRef,
-} from '@/components'
+import { Callout, ClaimTag, CodeCompare, Mermaid, ModeGate, Quiz, Section, StepDerivation, Tex, TexBlock, ChRef, ChapterErratum } from '@/components'
 import stabilitySrc from '@/simulation/models/stability.ts?raw'
 import {
   polarityMarginArcsin,
@@ -18,7 +6,7 @@ import {
   polarityMarginWrap,
   wrap180Spec,
 } from '@/simulation/models/stability'
-import { ErratumNote, Expand, fx, HandCalcSlot, rich } from '../common'
+import { Expand, fx, HandCalcSlot, rich } from '../common'
 import { formula } from '../formulas'
 import { POLARITY_PATH_CHART, POLARITY_WRAP_CHART, TWO_MARGINS_CHART } from '../diagrams'
 
@@ -82,7 +70,7 @@ export function Polarity() {
         {formula('F-08.1').tex}
       </TexBlock>
       <p className="small">
-        <ErratumNote id="E20">{rich(String.raw`規格只寫 $\mathrm{wrap}_{180}$，沒有定義值域；若照字面實作成 $\theta\bmod180^\circ$，$\theta=-150^\circ$ 會被算成 $+60^\circ$（實際 $-60^\circ$，極性錯誤）`)}</ErratumNote>。注意：核心函式庫的{' '}
+        <ChapterErratum id="E20" detail={<>{rich(String.raw`規格只寫 $\mathrm{wrap}_{180}$，沒有定義值域；若照字面實作成 $\theta\bmod180^\circ$，$\theta=-150^\circ$ 會被算成 $+60^\circ$（實際 $-60^\circ$，極性錯誤）`)}</>} />。注意：核心函式庫的{' '}
         <code>wrap180()</code> 取 <Tex>{'(-180^\\circ,180^\\circ]'}</Tex>，與 E20 的 <Tex>{'[-180^\\circ,180^\\circ)'}</Tex> 只差在 <Tex>{'\\pm180^\\circ'}</Tex> 這一點；因為公式只用{' '}
         <Tex>{'|\\mathrm{wrap}_{180}(\\theta)|'}</Tex>，兩種半開區間得到完全相同的 <Tex>{'M'}</Tex>。
       </p>

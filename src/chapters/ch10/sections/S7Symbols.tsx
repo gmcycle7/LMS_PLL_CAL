@@ -1,5 +1,5 @@
-import { SymbolTable, Tex, mathText, type SymbolEntry, ChRef } from '@/components'
-import { Erratum, scrollBackFromSymbols, tn } from '../common'
+import { JumpTo, SymbolTable, Tex, mathText, type SymbolEntry, ChRef, ChapterErratum } from '@/components'
+import { tn } from '../common'
 import { NUM } from '../numbers'
 
 /**
@@ -63,8 +63,8 @@ const SYMBOLS: SymbolEntry[] = [
     note: (
       <>
         例子若寫「<Tex>{'K_q'}</Tex> 正規化為 1」，代表 <Tex>{String.raw`\mu`}</Tex> 其實是 <Tex>{String.raw`\mu K_q`}</Tex>
-        <Erratum id="E05" />
-        <Erratum id="E08" />
+        <ChapterErratum id="E05" />
+        <ChapterErratum id="E08" />
       </>
     ),
   },
@@ -111,7 +111,7 @@ const SYMBOLS: SymbolEntry[] = [
     note: (
       <>
         本章 <Tex>{String.raw`\lambda_i`}</Tex> 只代表 eigenvalue；regularization 改記 <Tex>{String.raw`\lambda_{\mathrm{reg}}`}</Tex>
-        <Erratum id="E22" />
+        <ChapterErratum id="E22" />
       </>
     ),
   },
@@ -123,7 +123,7 @@ const SYMBOLS: SymbolEntry[] = [
     note: (
       <>
         <Tex>{String.raw`\operatorname{Var}(\xi_i)`}</Tex> 是第 i 個模式、不是第 i 個參數的變異
-        <Erratum id="E37" />
+        <ChapterErratum id="E37" />
       </>
     ),
   },
@@ -192,7 +192,7 @@ const SYMBOLS: SymbolEntry[] = [
       <>
         規格原寫 <Tex>{String.raw`\lambda`}</Tex>，與 eigenvalue 撞名；兩種形式的單位也不同（docs/validation.md 把兩者分別記為{' '}
         <Tex>{String.raw`\varepsilon_R`}</Tex>、<Tex>{String.raw`\varepsilon_J`}</Tex>；本站統一寫 <Tex>{String.raw`\lambda_{\mathrm{reg}}`}</Tex> 並標明是 R 形式或 J 形式）
-        <Erratum id="E22" />
+        <ChapterErratum id="E22" />
       </>
     ),
   },
@@ -240,7 +240,7 @@ const SYMBOLS: SymbolEntry[] = [
     note: (
       <>
         <Tex>{String.raw`\hat{\mathbf J}\ne\mathbf J`}</Tex> 時封閉式 pole 公式失效
-        <Erratum id="E24" />
+        <ChapterErratum id="E24" />
       </>
     ),
   },
@@ -310,9 +310,7 @@ export function S7Symbols() {
         }
       />
       <p className="ch10-symbols-back small muted no-print">
-        <button type="button" className="ch10-linklike" onClick={scrollBackFromSymbols}>
-          ↑ 回到章首
-        </button>
+        <JumpTo target="ch10-question">↑ 回到章首</JumpTo>
       </p>
     </section>
   )

@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
-import { ClaimTag, Mermaid, ModeGate, Quiz, Recap, Section, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
+import { ClaimTag, Mermaid, ModeGate, Quiz, Recap, Section, StepDerivation, Tex, TexBlock, ChRef, ChapterErratum } from '@/components'
 import { bernoulliMoments, efbConstant, efbPeriod, lineSpectrum, makeGrid } from '@/simulation/models/quantizer'
-import { Erratum, Hand, fx, tx } from '../common'
+import { Hand, fx, tx } from '../common'
 import { CHART_HARDWARE_MAP, CHART_SYNTHESIS_FLOW } from '../diagrams'
 
 export function WrapUp() {
@@ -47,7 +47,7 @@ export function WrapUp() {
               <p>
                 <Tex>{String.raw`32.25=\tfrac{129}{4}`}</Tex>（最簡分數，<Tex>{'q=4'}</Tex>）<Tex>{String.raw`\Rightarrow`}</Tex> 週期 4；平均必須是 32.25，所以 4 次裡有 1 次 33。模擬前 8 點：
                 <Tex>{`y=[${q.o.y.slice(0, 8).join(',')}]`}</Tex>，<Tex>{`r=[${q.o.r.slice(0, 4).map((v) => fx(v, 2)).join(',')}]`}</Tex>，然後重複（注意 <Tex>{'v[1]=32.5'}</Tex> 是 tie，round-half-up
-                進位到 33，所以整數運算很重要）。<Erratum id="E15" />
+                進位到 33，所以整數運算很重要）。<ChapterErratum id="E15" />
               </p>
               <TexBlock>{String.raw`r[n]\equiv(n+1)\cdot0.25\pmod 1\;\Rightarrow\;\text{週期}=4`}</TexBlock>
             </>
@@ -66,7 +66,7 @@ export function WrapUp() {
               <p>
                 循環移位 <Tex>{String.raw`e[n]\to e[n-n_0]`}</Tex> 讓 <Tex>{String.raw`c_k\to c_k e^{-j2\pi kn_0/5}`}</Tex>，大小不變（<Tex>{String.raw`|e^{-j\theta}|=1`}</Tex>）。計算：
                 <Tex>{String.raw`P_1=${fx(q.ls[1].power, 5)},\ P_2=${fx(q.ls[2].power, 5)}\,\mathrm{LSB}^2`}</Tex>，與 <Tex>{'[32,32,33,32,33]'}</Tex> 完全相同。這也是為什麼 round-half-up 的 ΔΣ（B 的循環移位）code
-                頻譜與 B 相同。但 <Tex>{'[32,32,32,33,33]'}</Tex> 不是循環移位（兩個 33 相鄰），所以能量分配不同（<Erratum id="E47" />）。
+                頻譜與 B 相同。但 <Tex>{'[32,32,32,33,33]'}</Tex> 不是循環移位（兩個 33 相鄰），所以能量分配不同（<ChapterErratum id="E47" />）。
               </p>
             </>
           }

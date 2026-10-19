@@ -1,25 +1,12 @@
 import { useMemo } from 'react'
 import type { Data } from 'plotly.js-cartesian-dist-min'
-import {
-  Callout,
-  ClaimTag,
-  CodeBlock,
-  CodeCompare,
-  ModeGate,
-  Plot,
-  Prereq,
-  StepDerivation,
-  Tex,
-  TexBlock,
-  useThemeTokens,
-  ChRef,
-} from '@/components'
+import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Plot, Prereq, StepDerivation, Tex, TexBlock, useThemeTokens, ChRef, ChapterErratum } from '@/components'
 import polaritySrc from '@/simulation/models/polarity.ts?raw'
 import pllSrc from '@/simulation/models/pll.ts?raw'
 import { ctBandwidth3dB } from '@/simulation/models/pll'
 import { compareCtDt, ctHpd, loopFreqFromBw, lowFreqReCoef } from '@/simulation/models/polarity'
 import { CtDtExperiment } from '../experiments/CtDtExperiment'
-import { ChapterDiagram, ChapterHandCalc, ChapterSection, Erratum, f, fx, StepBox } from '../shared'
+import { ChapterDiagram, ChapterHandCalc, ChapterSection, f, fx, StepBox } from '../shared'
 
 const PATH = 'src/simulation/models/polarity.ts'
 
@@ -175,10 +162,9 @@ export function S5LoopTypes() {
         </p>
       </StepBox>
 
-      <ChapterHandCalc
-        id="HC-06.4"
-        lead={String.raw`任選一個頻率比 $\nu=\omega/\omega_c$，照上面四步把 $\operatorname{Re}H$、$\operatorname{Im}H$、$|H|$ 與相位算出來，確認實部永遠是正的；$\nu=0.3$ 就是上面的數字。`}
-      />
+      <ChapterHandCalc id="HC-06.4">
+        {String.raw`任選一個頻率比 $\nu=\omega/\omega_c$，照上面四步把 $\operatorname{Re}H$、$\operatorname{Im}H$、$|H|$ 與相位算出來，確認實部永遠是正的；$\nu=0.3$ 就是上面的數字。`}
+      </ChapterHandCalc>
 
       <h3>
         5.2 Type-II：<Tex>{'L(s)=(2\\zeta\\omega_n s+\\omega_n^2)/s^2'}</Tex>
@@ -245,16 +231,15 @@ export function S5LoopTypes() {
           和規格與 golden vector T06（<Tex>{'-0.0815+j0.0376'}</Tex>、<Tex>{'155.2^\\circ'}</Tex>）一致。這個頻率的單頻 code，raw-x LMS 會<strong>反向更新</strong>；主 PLL 本身卻完全穩定。 <ClaimTag kind="exact" />（CT 原型）
         </p>
         <p className="small">
-          <Erratum id="E44" />：這是連續時間參考模型。拿它來算離散時間的相關 <Tex>{'C'}</Tex> 只是 <ClaimTag kind="approx" />（需 <Tex>{'\\omega_nT_s\\ll1'}</Tex>、無額外 loop
+          <ChapterErratum id="E44" />：這是連續時間參考模型。拿它來算離散時間的相關 <Tex>{'C'}</Tex> 只是 <ClaimTag kind="approx" />（需 <Tex>{'\\omega_nT_s\\ll1'}</Tex>、無額外 loop
           latency，對應 <Tex>{'\\Omega=\\omega T_s'}</Tex>，<Tex>{'T_s'}</Tex> 為 comparator / PD 取樣週期；<Tex>{'f_s\\ne f_{\\mathrm{ref}}'}</Tex> 時要另做 multirate 推導）。DT
           的正確做法與數值差異見 5.4。
         </p>
       </StepBox>
 
-      <ChapterHandCalc
-        id="HC-06.5"
-        lead={String.raw`這就是上面的手算，拆成每一步只做一種運算。先用紙筆把規格的 $\nu=0.3$、$\zeta=0.7$ 算到 $-0.0815+j0.0376$、$155.2^\circ$，再換成你的 $\nu$ 與 $\zeta$（試試 $\nu=1$ 與 $\nu=2$）。`}
-      />
+      <ChapterHandCalc id="HC-06.5">
+        {String.raw`這就是上面的手算，拆成每一步只做一種運算。先用紙筆把規格的 $\nu=0.3$、$\zeta=0.7$ 算到 $-0.0815+j0.0376$、$155.2^\circ$，再換成你的 $\nu$ 與 $\zeta$（試試 $\nu=1$ 與 $\nu=2$）。`}
+      </ChapterHandCalc>
 
       <p className="small">
         下面兩張圖把兩種迴路畫在一起。橫軸 <Tex>{'\\nu=\\omega/\\omega_L'}</Tex> 是以<strong>迴路頻率</strong> <Tex>{'\\omega_L'}</Tex> 正規化的頻率（Type-I 取{' '}
@@ -453,7 +438,7 @@ export function S5LoopTypes() {
       />
 
       <h3>
-        5.4 CT 原型 vs DT 迴路 <Erratum id="E44" />
+        5.4 CT 原型 vs DT 迴路 <ChapterErratum id="E44" />
       </h3>
       <p>
         規格 §6.1 用 CT 的 <Tex>{'H_{\\mathrm{PD}}(s)'}</Tex> 在 <Tex>{'\\omega=0.3\\omega_n'}</Tex> 求值，但 §6.1 的相關公式、§6.2 的積分都是<strong>離散時間</strong>
@@ -656,10 +641,9 @@ export function S5LoopTypes() {
           </span>
         </p>
       </StepBox>
-      <ChapterHandCalc
-        id="HC-06.6"
-        lead={String.raw`把你的 PLL 的 $f_{\mathrm{ref}}$、頻寬、$\zeta$ 代進去，算出 $\omega_nT_s$、$K_p$、$K_i$；再放一個 code 頻率 $f$（例如一階 DSM residue 的基頻 $\mathrm{frac}\cdot f_{\mathrm{ref}}$），看它的 $\nu$ 是不是落在 Type-II 的反相頻帶（$\nu<1$）。`}
-      />
+      <ChapterHandCalc id="HC-06.6">
+        {String.raw`把你的 PLL 的 $f_{\mathrm{ref}}$、頻寬、$\zeta$ 代進去，算出 $\omega_nT_s$、$K_p$、$K_i$；再放一個 code 頻率 $f$（例如一階 DSM residue 的基頻 $\mathrm{frac}\cdot f_{\mathrm{ref}}$），看它的 $\nu$ 是不是落在 Type-II 的反相頻帶（$\nu<1$）。`}
+      </ChapterHandCalc>
       <CodeCompare
         items={[
           { label: 'Type-I DPLL', source: polaritySrc, region: 'dtTypeI', path: PATH, note: String.raw`一個積分器（DCO），迴路濾波器只是比例增益 $K$` },

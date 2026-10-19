@@ -1,10 +1,10 @@
 import { useMemo } from 'react'
 import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
-import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Plot, Prereq, Section, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Plot, Prereq, Section, Tex, TexBlock, ChapterErratum } from '@/components'
 import calNoiseSrc from '@/simulation/models/calNoise.ts?raw'
 import pyNoiseSrc from '../../../../golden/lms_pll_golden/noise.py?raw'
 import { bw3dbExact, bw3dbNegLnP, bw3dbOneMinusP, enbwOneSided, P_MIN_3DB, bwRegime } from '@/simulation/models/calNoise'
-import { Diagram, EX, Erratum, Hand, Steps, md, regimeLabel, relPct, sig } from '../common'
+import { Diagram, EX, Hand, Steps, md, regimeLabel, relPct, sig } from '../common'
 import { CHART_BW_READOUTS, CHART_BW_REGIME, CHART_LEVEL_WIDTH } from '../diagrams'
 
 const PATH = 'src/simulation/models/calNoise.ts'
@@ -56,8 +56,8 @@ export function S3Bandwidth() {
     <>
       <Section kind="example" title="§12.5 頻寬：同一個迴路，四個不同的數字" level={3} id="ch12-bandwidth">
         <p>
-          規格說「校正 Noise BW 約 12.9 kHz」。驗算後發現這句話把兩件事混在一起 <Erratum id="E06" />
-          <Erratum id="E10" />：12.9 kHz 其實是 <Tex>{String.raw`|H_{\eta\to w}|^2`}</Tex> 的 <strong>−3 dB corner</strong>；用來積分白雜訊的「noise bandwidth」（ENBW，equivalent noise bandwidth，等效雜訊頻寬）是另一個數。這裡的{' '}
+          規格說「校正 Noise BW 約 12.9 kHz」。驗算後發現這句話把兩件事混在一起 <ChapterErratum id="E06" />
+          <ChapterErratum id="E10" />：12.9 kHz 其實是 <Tex>{String.raw`|H_{\eta\to w}|^2`}</Tex> 的 <strong>−3 dB corner</strong>；用來積分白雜訊的「noise bandwidth」（ENBW，equivalent noise bandwidth，等效雜訊頻寬）是另一個數。這裡的{' '}
           <Tex>{String.raw`f_{3\mathrm{dB}}`}</Tex> 指功率降到 DC 一半的頻率；兩者讀的是上一節同一條 <Tex>{String.raw`|H_{\eta\to w}|^2`}</Tex> 曲線，只是問的問題不同：
         </p>
         <Diagram chart={CHART_BW_READOUTS} caption="同一個濾波器的四種讀法：其中三個都在回答功率掉一半的頻率，ENBW 回答的是另一個問題。">
@@ -140,11 +140,11 @@ export function S3Bandwidth() {
         </div>
         <p>
           其中 <Tex>{String.raw`f_u=f_s/N=4\ \mathrm{GHz}/4096=${sig(EX.fu / 1e3, 7)}\ \mathrm{kHz}`}</Tex>、<Tex>{`p=${sig(EX.p, 8)}`}</Tex>（T14）。「約 12.9 kHz」只和 exact 與 <Tex>{String.raw`-\ln p`}</Tex> 吻合；<Tex>{'(1-p)'}</Tex> 版是 {(EX.f3dbOneMinusP / 1e3).toFixed(2)} kHz（差{' '}
-          {relPct(EX.f3dbOneMinusP, EX.f3dbExact, 2)}%）<Erratum id="E26" />。
+          {relPct(EX.f3dbOneMinusP, EX.f3dbExact, 2)}%）<ChapterErratum id="E26" />。
         </p>
       </Section>
 
-      <Section kind="formula" title="Exact discrete-time −3 dB：一步一步解出來" level={3}>
+      <Section id="ch12-bw-exact" kind="formula" title="Exact discrete-time −3 dB：一步一步解出來" level={3}>
         <Steps
           title={md(String.raw`解 $|H(e^{j\Omega})|^2=\tfrac12|H(1)|^2$`)}
           steps={[
@@ -194,11 +194,11 @@ export function S3Bandwidth() {
         />
         <Callout kind="warn" title="−3 dB 點不存在的區域（E27）">
           <Tex>{String.raw`0<p<3-2\sqrt2`}</Tex>：low-pass 但衰減不足 3 dB，網站顯示「−3 dB 點不存在」；<Tex>{'p=0'}</Tex>：flat；
-          <Tex>{String.raw`-1<p<0`}</Tex>：high-pass，low-pass 的頻寬定義不適用；<Tex>{String.raw`|p|\ge1`}</Tex>：不穩定，不顯示頻寬。近似公式在這些區域仍會「給出數字」——這正是要警告的地方。<Erratum id="E27" />
+          <Tex>{String.raw`-1<p<0`}</Tex>：high-pass，low-pass 的頻寬定義不適用；<Tex>{String.raw`|p|\ge1`}</Tex>：不穩定，不顯示頻寬。近似公式在這些區域仍會「給出數字」——這正是要警告的地方。<ChapterErratum id="E27" />
         </Callout>
       </Section>
 
-      <Section kind="formula" title="兩個近似從哪來、誤差多大" level={3}>
+      <Section id="ch12-bw-approx" kind="formula" title="兩個近似從哪來、誤差多大" level={3}>
         <Prereq title="泰勒展開（對數、反正弦、負半次方）">
           <p>
             令 <Tex>{String.raw`\varepsilon=1-p`}</Tex>（很小）。<Tex>{String.raw`-\ln(1-\varepsilon)=\varepsilon+\tfrac{\varepsilon^2}{2}+\tfrac{\varepsilon^3}{3}+\cdots`}</Tex>；
@@ -240,7 +240,7 @@ export function S3Bandwidth() {
         </Hand>
       </Section>
 
-      <Section kind="formula" title="ENBW：積分雜訊時要用的「寬度」" level={3}>
+      <Section id="ch12-enbw" kind="formula" title="ENBW：積分雜訊時要用的「寬度」" level={3}>
         <p>
           想像一個理想的矩形濾波器：通帶高度等於 <Tex>{'|H(1)|^2'}</Tex>、寬度為 ENBW，讓<strong>白雜訊通過後的總功率</strong>與真實濾波器相同。這個寬度才是「noise bandwidth」。
         </p>
@@ -315,8 +315,8 @@ export function S3Bandwidth() {
         <Callout kind="danger" title={md(String.raw`反面例子：把 $f_{3\mathrm{dB}}$ 當 Noise BW`)}>
           <Tex>{String.raw`\sqrt{S_w^{(1)}(0)\cdot f_{3\mathrm{dB}}}=${sig(wrongSigma, 5)}\ \mathrm{fs}`}</Tex>，比正確的 <Tex>{`${sig(EX.sigmaW, 5)}\\ \\mathrm{fs}`}</Tex> 低{' '}
           {((1 - wrongSigma / EX.sigmaW) * 100).toFixed(1)}%（變異數低估 {((1 - (wrongSigma / EX.sigmaW) ** 2) * 100).toFixed(1)}%）。所以本站<strong>絕不</strong>把
-          <Tex>{String.raw`f_{3\mathrm{dB}}`}</Tex> 標成「Noise BW」。<Erratum id="E06" />
-          <Erratum id="E10" />
+          <Tex>{String.raw`f_{3\mathrm{dB}}`}</Tex> 標成「Noise BW」。<ChapterErratum id="E06" />
+          <ChapterErratum id="E10" />
         </Callout>
         <Hand id="HC-12.5">
           {md(
@@ -325,7 +325,7 @@ export function S3Bandwidth() {
         </Hand>
       </Section>
 
-      <Section kind="explore" title="程式碼比較：三種 −3 dB 定義 + ENBW" level={3}>
+      <Section id="ch12-bw-code" kind="explore" title="程式碼比較：三種 −3 dB 定義 + ENBW" level={3}>
         <p>
           下面是網站實際執行的程式碼（<code>{PATH}</code>）。四個函式的輸入都是 <Tex>{'(p,f_u)'}</Tex>，差異只在標了「← 差異」的那幾行：exact 版多了一個<strong>存在範圍</strong>判斷；兩個近似版只差 <Tex>{'1-p'}</Tex> 與 <Tex>{'-\\ln p'}</Tex>；ENBW 是完全不同的物理量。
         </p>

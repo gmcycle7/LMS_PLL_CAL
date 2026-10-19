@@ -1193,7 +1193,7 @@ describe('Ch11 方塊圖：頁面元件（真正的 mermaid）', () => {
     expect(box.querySelectorAll('.c-mermaid-svg .katex').length).toBeGreaterThanOrEqual(15)
     expect(box.querySelector('.c-mermaid-svg')?.textContent ?? '').not.toContain('$')
     expect(box.querySelector('figure')?.getAttribute('aria-label')).toBe(`${figLabel('dc-null')}：三種主迴路架構：phi 由誰決定`) // aria-label 是 accessibleText 之後的可念文字（\varphi → phi）
-    const cap = box.querySelector('.ch11-figcap') as HTMLElement
+    const cap = box.querySelector('figcaption') as HTMLElement
     expect(cap.textContent).toContain(figLabel('dc-null'))
     expect(cap.querySelectorAll('.katex').length).toBeGreaterThanOrEqual(4)
     expect(cap.textContent).not.toMatch(/\$/)

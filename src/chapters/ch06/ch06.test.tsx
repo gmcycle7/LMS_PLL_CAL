@@ -132,7 +132,7 @@ const STRING_PROP_SELECTORS = [
   '.c-step-why',
   '.c-handcalc-notes li',
   '.c-handcalc-tips li',
-  '.ch06-handcalc-lead',
+  '.c-chapter-hand-lead',
   '.ch06-handcalc-index li',
   '.ch06-stepbox > summary',
   // 控制項的 label／hint／unit（ParamControl、SelectControl）與指標表的單位欄（第 3 欄）
@@ -212,7 +212,7 @@ describe('第 06 章頁面（jsdom smoke test）', () => {
     it('方塊圖：章首的系統地圖 + 登錄的每一張，各有「怎麼看圖」', () => {
       // Research 模式；圖都不在模式限定的段落裡，三種模式張數相同
       expect(container.querySelectorAll('figure.c-mermaid').length).toBe(CH06_DIAGRAMS.length + 1)
-      for (const d of CH06_DIAGRAMS) expect(container.querySelector(`[id="diagram-${d.id}"] .ch06-diagram-read`), d.id).not.toBeNull()
+      for (const d of CH06_DIAGRAMS) expect(container.querySelector(`[id="diagram-${d.id}"] .c-chapter-fig-walk`), d.id).not.toBeNull()
     })
 
     it('帶入手算：8 題各自在對應推導之後、綜合題在思考題之前；預設值的答案就是文中的數字', () => {
@@ -221,7 +221,7 @@ describe('第 06 章頁面（jsdom smoke test）', () => {
       // 帶入手算：8 題都放進頁面（各自在對應推導之後），章首有索引；綜合題 HC-06.8 在 §8 的思考題之前
       for (const h of HANDCALCS) expect(container.querySelector(`[id="handcalc-${h.id}"]`), h.id).not.toBeNull()
       expect(container.querySelectorAll('.c-handcalc').length).toBe(HANDCALCS.length)
-      expect(container.querySelectorAll('.ch06-handcalc-lead').length).toBe(HANDCALCS.length)
+      expect(container.querySelectorAll('.c-chapter-hand-lead').length).toBe(HANDCALCS.length)
       // 章首只剩手算的說明段落（保護位數等），清單式索引改由 strip 的「手算 N 題」取代
       expect(container.querySelectorAll('.ch06-handcalc-index li').length).toBe(0)
       expect(container.querySelector('.ch06-handcalc-index')!.textContent).toContain(`帶入手算（${HANDCALCS.length} 題）`)

@@ -1,28 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
-import {
-  Callout,
-  ClaimTag,
-  CodeBlock,
-  ExperimentShell,
-  ParamControl,
-  Plot,
-  Prereq,
-  Section,
-  StepDerivation,
-  Tex,
-  TexBlock,
-  useDebouncedValue,
-  useThemeTokens,
-  type CheckEntry,
-  type MetricRow,
-  ChRef,
-} from '@/components'
+import { Callout, ClaimTag, CodeBlock, ExperimentShell, ParamControl, Plot, Prereq, Section, StepDerivation, Tex, TexBlock, useDebouncedValue, useThemeTokens, type CheckEntry, type MetricRow, ChRef, ChapterErratum } from '@/components'
 import { isWorkerCancelled, useWorkerTask } from '@/workers'
 import biasSrc from '@/simulation/models/bias.ts?raw'
 import { LIN_RATIO_LIMIT, LIN_RESIDUAL_LIMIT, nearIntegerSensitivity, type NearIntegerParams, type NearIntegerResult } from '@/simulation/models/bias'
 import { F } from '../formulas'
-import { Erratum, ModeDetails, gappedSeries, num, m, positiveOrGap, texNum } from '../common'
+import { ModeDetails, gappedSeries, num, m, positiveOrGap, texNum } from '../common'
 import { Fig, FigRef } from '../Fig'
 import { Hand } from '../Hand'
 
@@ -313,12 +296,12 @@ export function NearIntegerSection() {
         <Tex>{'w^*=a+\\kappa'}</Tex>（§11.3），不會被 <Tex>{'1/C'}</Tex> 放大。
       </p>
       <p className="small">
-        <Erratum id="E12" note="此處 C = E[x(h*x)] 同 §6；B 為干擾 bias 項" />
+        <ChapterErratum id="E12" note={String.raw`此處 $C=E[x\,(h*x)]$ 同 §6；$B$ 為干擾 bias 項`} />
         注意符號：這裡的 <Tex>{'C'}</Tex> 是 <ChRef ch="06">Ch06</ChRef> 的有效相關 <Tex>{String.raw`C=E[x\,(h*x)]`}</Tex>（gain 誤差經過主 PLL 誤差路徑 <Tex>{'h'}</Tex> 才出現在 PD 的輸出），<Tex>{'B'}</Tex> 是 F-11.4
         的分子 <Tex>{String.raw`B_\mathrm{bias}=bE[x]+E[xd]+E[x\varepsilon_{cc}]`}</Tex>。規格書兩處都寫成 <Tex>{'E[x\\,u]'}</Tex>，但它們不是同一個量。
       </p>
       <p className="small">
-        <Erratum id="E13" note="K = K_qC = −∂E[G]/∂w；規格 §11.4 的 S = ∂E[G]/∂w" />
+        <ChapterErratum id="E13" note={String.raw`$K=K_qC=-\partial E[G]/\partial w$；規格 §11.4 的 $S=\partial E[G]/\partial w$`} />
         斜率的正負號：規格書 §11.4 把 GMAC 斜率寫成 <Tex>{String.raw`S_\mathrm{GMAC}=\partial E[G]/\partial w`}</Tex>（正確極性時為<strong>負</strong>，<ChRef ch="04">Ch04</ChRef>／<ChRef ch="08">Ch08</ChRef> 與 Sign-off
         頁沿用這個量測定義）。本章為了讓「越大越好」的直覺成立，用 <Tex>{String.raw`S\equiv-\partial E[G]/\partial w=K_qC`}</Tex>，它就是全站的{' '}
         <Tex>{'K'}</Tex>（勘誤 E13）：<Tex>{String.raw`S=K=-S_\mathrm{GMAC}`}</Tex>，<Tex>{'S>0'}</Tex> 才有恢復力。
@@ -481,7 +464,7 @@ export function NearIntegerSection() {
       />
       <p className="small muted">
         <ClaimTag kind="approx" /> 上面用低頻近似（<Tex>{'\\Omega\\ll1'}</Tex>，不含 loop delay）說明正負號；實際的 DT 迴路由下方實驗以真實的{' '}
-        <Tex>{String.raw`H_\mathrm{PD}(z)`}</Tex> 數值計算（<Erratum id="E44" note="DT 迴路不可直接代 CT 的 H_PD(s)" />不能把 <Tex>{'\\Omega'}</Tex> 直接代進連續時間的 <Tex>{String.raw`H_\mathrm{PD}(s)`}</Tex>），並分開畫出{' '}
+        <Tex>{String.raw`H_\mathrm{PD}(z)`}</Tex> 數值計算（<ChapterErratum id="E44" note={String.raw`DT 迴路不可直接代 CT 的 $H_\mathrm{PD}(s)$`} />不能把 <Tex>{'\\Omega'}</Tex> 直接代進連續時間的 <Tex>{String.raw`H_\mathrm{PD}(s)`}</Tex>），並分開畫出{' '}
         <Tex>{String.raw`\Omega_k<\Omega_n`}</Tex> 的負貢獻。
       </p>
       <p>

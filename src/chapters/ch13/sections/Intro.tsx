@@ -1,20 +1,7 @@
 import { useMemo, type ReactNode } from 'react'
-import {
-  Callout,
-  ClaimTag,
-  Mermaid,
-  ModeGate,
-  Prereq,
-  Section,
-  SourceTag,
-  StepDerivation,
-  SystemMap,
-  Tex,
-  TexBlock,
-  ChRef,
-} from '@/components'
+import { Callout, ClaimTag, Mermaid, ModeGate, Prereq, Section, SourceTag, StepDerivation, SystemMap, Tex, TexBlock, ChRef, ChapterErratum } from '@/components'
 import { makeGrid, quantize, makeCtx } from '@/simulation/models/quantizer'
-import { DEFAULT_LAB_PARAMS, Erratum, LSB_FS_EXAMPLE, fx, n, tx } from '../common'
+import { DEFAULT_LAB_PARAMS, LSB_FS_EXAMPLE, fx, n, tx } from '../common'
 import { CHART_ERROR_PATH, CHART_SIGNAL_FLOW, SYSTEM_MAP_FOCUS } from '../diagrams'
 
 /** @param afterMap 接在系統地圖那一節之後的內容（index.tsx 把標籤列放在這裡） */
@@ -46,7 +33,7 @@ export function Intro({ afterMap }: { afterMap?: ReactNode } = {}) {
         <p>
           本章的答案是：<strong>平均正確不等於頻譜理想</strong>。五種方法的總誤差功率可能一模一樣，差別只在誤差能量落在哪個頻率——而
           DSM residue（小數除頻留下的餘數碼 <Tex>{'x[n]'}</Tex>，也就是 reference 端 DTC 的 code）與 PLL 的 <Tex>{'T(f)'}</Tex>（從 DTC 誤差到 PLL 輸出的 closed-loop 轉移函數，low-pass）會決定哪個頻率最傷。對常數目標 32.4，一階 ΔΣ 甚至與「固定週期切換」落入<strong>同一個</strong>週期 5 循環（floor
-          版逐點相同、round-half-up 版只差循環移位；<Erratum id="E15" />）。
+          版逐點相同、round-half-up 版只差循環移位；<ChapterErratum id="E15" />）。
         </p>
         <SourceTag kind="illustrative" />
       </Section>
@@ -110,7 +97,7 @@ export function Intro({ afterMap }: { afterMap?: ReactNode } = {}) {
 
       <Section kind="example" title="先算一次：把 LSB 換成 fs" id="ch13-units">
         <p>
-          規格 §13 只寫「32.4 LSB」，沒有說 1 LSB 是多少 fs，所以 6-bit 的結果無法和<ChRef ch="12">第 12 章</ChRef>的 0.399 fs 比較（<Erratum id="E13" />）。本章補上
+          規格 §13 只寫「32.4 LSB」，沒有說 1 LSB 是多少 fs，所以 6-bit 的結果無法和<ChRef ch="12">第 12 章</ChRef>的 0.399 fs 比較（<ChapterErratum id="E13" />）。本章補上
           <Tex>{String.raw`\Delta_\mathrm{LSB}`}</Tex>（1 個 gain LSB 對應的 DTC gain，單位 <Tex>{String.raw`\mathrm{fs/LSB}`}</Tex>），示例值取 <Tex>{String.raw`\Delta_\mathrm{LSB}=${LSB_FS_EXAMPLE}\,\mathrm{fs/LSB}`}</Tex>
           （與 Lab 的 <code>gain_lsb_fs</code> 預設一致，非量測值）。
         </p>
@@ -152,7 +139,7 @@ export function Intro({ afterMap }: { afterMap?: ReactNode } = {}) {
           <strong>
             <Tex>{String.raw`+0.4\,\mathrm{LSB}`}</Tex>
           </strong>
-          。兩者平方後都是 <Tex>{String.raw`0.16\,\mathrm{LSB}^2`}</Tex>。 <Erratum id="E49" />
+          。兩者平方後都是 <Tex>{String.raw`0.16\,\mathrm{LSB}^2`}</Tex>。 <ChapterErratum id="E49" />
         </Callout>
       </Section>
 

@@ -105,7 +105,7 @@ describe('Ch08 smoke test（jsdom）', () => {
       expect(container.querySelectorAll('tr[data-pass="false"]')).toHaveLength(0)
       // 帶入手算（teaching-style §7）：8 題各出現一次、依序排在對應推導之後，每題前面都有「換你算」的引導
       expect(Array.from(container.querySelectorAll('.c-handcalc'), (el) => el.id)).toEqual(HANDCALCS.map((h) => `handcalc-${h.id}`))
-      expect(container.querySelectorAll('.ch08-handcalc-lead')).toHaveLength(HANDCALCS.length)
+      expect(container.querySelectorAll('.c-chapter-hand-lead')).toHaveLength(HANDCALCS.length)
       for (const el of Array.from(container.querySelectorAll('.c-handcalc'))) expect(el.querySelectorAll('.c-step').length, el.id).toBeGreaterThan(0)
       // 綜合手算（HC-08.8）在硬體對照之後、章末思考題之前
       const synth = text.indexOf('綜合手算：從晶片數字到穩定裕度')
@@ -119,11 +119,11 @@ describe('Ch08 smoke test（jsdom）', () => {
       for (const hc of ['HC-08.4', 'HC-08.5', 'HC-08.6']) expect(sectionOf(hc)).toBe('ch08-delay')
       expect(sectionOf('HC-08.7')).toBe('ch08-dual-loop')
       expect(sectionOf('HC-08.8')).toBe('ch08-handcalc-synthesis')
-      // 勘誤標記連到 #/verification
+      // 勘誤標記連到 /verification?e=Exx
       for (const id of ['E19', 'E20', 'E31', 'E13', 'E34']) {
         const links = container.querySelectorAll(`a[data-erratum="${id}"]`)
         expect(links.length).toBeGreaterThan(0)
-        expect(links[0].getAttribute('href')).toBe('#/verification')
+        expect(links[0].getAttribute('href')).toBe(`/verification?e=${id}`)
       }
       await waitFor(() => expect(plotlyMock.react).toHaveBeenCalled())
       expect(errorSpy).not.toHaveBeenCalled()

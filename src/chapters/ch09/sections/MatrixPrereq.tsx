@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
-import { ClaimTag, Prereq, Section, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
+import { ClaimTag, Prereq, Section, StepDerivation, Tex, TexBlock, ChRef, HandLink } from '@/components'
 import { matVec } from '@/simulation/core'
 import { corr2, eig2x2 } from '@/simulation/models/pe'
-import { Diagram, FigRef, HandCalcLink, m, texNum, texVec } from '../shared'
+import { Diagram, FigRef, m, texNum, texVec } from '../shared'
 
 /** 先備知識：期望值／相關、矩陣乘向量、對稱矩陣、eigen、正定、condition number、singular value。 */
 export function MatrixPrereq() {
@@ -189,8 +189,8 @@ export function MatrixPrereq() {
           （由 <code>eig2x2</code> 計算；網站在 {m`2\times2`} 用這個閉式解，在更大的矩陣用 Jacobi 迭代 <code>eigSym</code>，兩者互相驗算）。
         </p>
         <p>
-          想馬上代自己的數字算一次？<HandCalcLink id="HC-09.4" /> 用同一個公式（寫成 trace 與 determinant）一步一步算任意對稱 {m`2\times2`}，
-          <HandCalcLink id="HC-09.6" /> 則從四筆 regressor 開始算。
+          想馬上代自己的數字算一次？<HandLink id="HC-09.4" /> 用同一個公式（寫成 trace 與 determinant）一步一步算任意對稱 {m`2\times2`}，
+          <HandLink id="HC-09.6" /> 則從四筆 regressor 開始算。
         </p>
       </Prereq>
 

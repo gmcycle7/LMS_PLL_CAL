@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, ModeGate, Prereq, Section, StepDerivation, TexBlock, ChRef } from '@/components'
+import { Callout, ClaimTag, ModeGate, Prereq, Section, StepDerivation, TexBlock, ChRef, ChapterErratum } from '@/components'
 import { corr2, eigenModes, meanSquareRadius } from '@/simulation/models/pe'
-import { DerivBox, Diagram, Erratum, FigRef, HandCalcBox, formulaTex, m, num, texNum } from '../shared'
+import { DerivBox, Diagram, FigRef, HandCalcBox, formulaTex, m, num, texNum } from '../shared'
 
 /** 勘誤 E23：598 是 mean recursion 的結論；mean-square 可能完全不同。 */
 export function MeanSquare() {
@@ -20,7 +20,7 @@ export function MeanSquare() {
 
   return (
     <Section kind="assumptions" title="注意：598 是「平均」的敘述，不是每一條軌跡（mean vs mean-square）" level={2} id="ch09-ms">
-      <Callout kind="warn" title={<>T11 的標籤是 [精確｜mean recursion]（<Erratum id="E23" />）</>}>
+      <Callout kind="warn" title={<>T11 的標籤是 [精確｜mean recursion]（<ChapterErratum id="E23" />）</>}>
         「慢 pole 0.995、約 598 blocks」描述的是 <strong>許多次實驗的平均</strong> {m`E[\boldsymbol\delta_k]`}。GMAC 的 {m`N`} 足夠大時，單一軌跡也大致照這個走；但若 conventional（linear detector）LMS 以 per-sample（{m`N=1`}）更新、regressor 為 Gaussian，{m`g=0.5`} 在 <strong>mean-square</strong>
         意義下是發散的（均方每個 block 的放大倍數 {m`\rho_{\mathrm{MS}}\approx${texNum(table[0].gauss, 3)}>1`}）；{m`\pm1`} sparse-flip code 的個別軌跡則呈<strong>階梯式</strong>歸零，只有 ensemble 平均依
         {m`0.995^k`} 衰減。標籤裡的「精確」指 linear detector 的平均遞迴；1-bit 時同一組數字（{m`g=\mu K_q=0.5`}）只是小訊號區 {m`s_\delta\ll1`} 的近似（F-09.3）。

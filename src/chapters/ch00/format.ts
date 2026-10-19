@@ -1,3 +1,4 @@
+import { makeTexNum } from '@/components/chapter/texNum'
 import { fmt } from '@/simulation/core'
 import type { PoleBehaviour } from '@/simulation/models/lms'
 
@@ -6,14 +7,8 @@ export function num(x: number, digits = 6): string {
   return fmt(x, digits)
 }
 
-/** 放進 TeX 的數字：負數加括號（方便寫成乘法 0.1\times(-3)），並把 'e' 指數轉成 \times10^{…}。 */
-export function texNum(x: number, digits = 6): string {
-  if (!Number.isFinite(x)) return x > 0 ? String.raw`\infty` : x < 0 ? String.raw`-\infty` : String.raw`\text{NaN}`
-  const s = fmt(x, digits)
-  const m = /^(-?[\d.]+)e([+-]?\d+)$/.exec(s)
-  const body = m ? String.raw`${m[1]}\times10^{${Number(m[2])}}` : s
-  return x < 0 ? `(${body})` : body
-}
+/** 放進 TeX 的數字：負數加括號（方便寫成乘法 0.1\times(-3)），並把 'e' 指數轉成 \times10^{…}（共用的 texNumber）。 */
+export const texNum = makeTexNum(6, { paren: true, nan: String.raw`\text{NaN}` })
 
 /** 放進 TeX 的「結果」數字：與 texNum 相同但負數不加括號（用在等號最右邊，例如 =-8）。 */
 export function texRes(x: number, digits = 6): string {

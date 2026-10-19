@@ -1,23 +1,10 @@
 import { useMemo } from 'react'
 import type { Data } from 'plotly.js-cartesian-dist-min'
-import {
-  ClaimTag,
-  CodeBlock,
-  CodeCompare,
-  Derivation,
-  ModeGate,
-  Plot,
-  Prereq,
-  Section,
-  StepDerivation,
-  Tex,
-  TexBlock,
-  useThemeTokens,
-} from '@/components'
+import { ClaimTag, CodeBlock, CodeCompare, Derivation, ModeGate, Plot, Prereq, Section, StepDerivation, Tex, TexBlock, useThemeTokens, ChapterErratum } from '@/components'
 import { STEP, VARIANT_LABEL, huberPsi, lossValue, type LmsVariant, type TieRule } from '@/simulation/models/lms'
 import { runVariantOnData, signErrorFixedPointRun, type LossData } from '@/simulation/models/lossCompare'
 import lmsSrc from '@/simulation/models/lms.ts?raw'
-import { BlockDiagram, ChapterHandCalc, Erratum, f, texNum, useChapterMode } from '../common'
+import { BlockDiagram, ChapterHandCalc, f, texNum, useChapterMode } from '../common'
 import { OUTLIER_DEMO } from '../diagrams'
 
 const DH = 1 // 圖中的 Huber 門檻 $\delta_H$
@@ -351,7 +338,7 @@ export function LossesSection() {
           {String.raw`\partial|e|\,\big|_{e=0}=[-1,\,1],\qquad \operatorname{sign}(0)\in\Big\{\underbrace{0}_{\text{數學次梯度}},\ \underbrace{+1,\ -1}_{\text{硬體 comparator}}\Big\}`}
         </TexBlock>
         <p>
-          <ClaimTag kind="exact" /> <Erratum id="E40" /> 規格 §0 的 comparator 只輸出 <Tex>{String.raw`\pm1`}</Tex>，§2.2 的數學次梯度允許{' '}
+          <ClaimTag kind="exact" /> <ChapterErratum id="E40" /> 規格 §0 的 comparator 只輸出 <Tex>{String.raw`\pm1`}</Tex>，§2.2 的數學次梯度允許{' '}
           <Tex>{String.raw`\operatorname{sign}(0)=0`}</Tex>。本站在 <code>lms.ts</code> 的 <code>sgn(v, tie)</code> 明確選擇（下方程式碼），
           <strong>
             不依賴 JavaScript 的 <code>Math.sign(0) === 0</code>
@@ -514,7 +501,7 @@ export function LossesSection() {
                 </td>
                 <td>是</td>
                 <td>
-                  連 Regressor 幅度也丟掉，別和 Sign-Error 混淆 <Erratum id="E43" />
+                  連 Regressor 幅度也丟掉，別和 Sign-Error 混淆 <ChapterErratum id="E43" />
                 </td>
               </tr>
               <tr>

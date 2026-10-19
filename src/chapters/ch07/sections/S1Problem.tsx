@@ -88,7 +88,7 @@ export function S1Problem() {
         </p>
       </Prereq>
 
-      <Section kind="example" level={3} title="先算一次：一個週期 12 個點，用手就能算">
+      <Section id="ch07-hand12" kind="example" level={3} title="先算一次：一個週期 12 個點，用手就能算">
         <p>
           設定（與規格 §7、T07 相同）：code <Tex>{'x[n]=\\cos(\\Omega n)'}</Tex>，<Tex>{String.raw`\Omega=30^\circ/\text{sample}=\pi/6`}</Tex>
           （每 12 個 sample 一個週期）；PLL 誤差路徑在這個頻率的響應是 <Tex>{String.raw`H=1\cdot e^{-j120^\circ}`}</Tex>，所以 PD 看到的有效 regressor 是 <Tex>{String.raw`u[n]=\cos(\Omega n-120^\circ)`}</Tex>（落後 <Tex>{'120^\\circ'}</Tex>）。把 code 延遲 <Tex>{'D=4'}</Tex>：<Tex>{String.raw`x[n-4]=\cos(\Omega n-120^\circ)`}</Tex>——<strong>剛好和 <Tex>{'u[n]'}</Tex> 一模一樣</strong>。
@@ -153,7 +153,7 @@ export function S1Problem() {
         </p>
       </Section>
 
-      <Section
+      <Section id="ch07-code-delay"
         kind="example"
         level={3}
         title={

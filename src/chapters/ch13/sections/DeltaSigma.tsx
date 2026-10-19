@@ -1,18 +1,6 @@
 import { useMemo } from 'react'
 import type { Data } from 'plotly.js-cartesian-dist-min'
-import {
-  Callout,
-  ClaimTag,
-  Mermaid,
-  ModeGate,
-  Plot,
-  Prereq,
-  Section,
-  StepDerivation,
-  Tex,
-  TexBlock,
-  useThemeTokens,
-} from '@/components'
+import { Callout, ClaimTag, Mermaid, ModeGate, Plot, Prereq, Section, StepDerivation, Tex, TexBlock, useThemeTokens, ChapterErratum } from '@/components'
 import {
   TOGGLE_PATTERN_5,
   efbConstant,
@@ -24,7 +12,7 @@ import {
   mod,
   ntfGain2,
 } from '@/simulation/models/quantizer'
-import { Erratum, Fold, Hand, fx, ntex, tx } from '../common'
+import { Fold, Hand, fx, ntex, tx } from '../common'
 import { CHART_EFB_LOOP, CHART_LIMIT_CYCLE, CHART_NTF_PATHS, CHART_PERIOD_FLOW, CHART_TELESCOPING } from '../diagrams'
 
 const R_INITS = [0, 0.1, -0.3, 1 / 7, 0.49]
@@ -246,7 +234,7 @@ export function DeltaSigmaSection() {
         />
         <TexBlock id="F-13.9">{String.raw`S_e^{(1)}(f)\overset{?}{\approx}4\sin^2\!\Big(\frac{\pi f}{f_u}\Big)\frac{2\sigma_r^2}{f_u},\qquad \sigma_r^2=\frac1{12}\;\Rightarrow\;\int_0^{f_u/2}S_e^{(1)}df=2\sigma_r^2=\frac16`}</TexBlock>
         <p className="small">
-          其中 <Tex>{String.raw`\sigma_r^2`}</Tex> 是 <Tex>{'r'}</Tex> 的變異數，<Tex>{String.raw`S_e^{(1)}(f)`}</Tex> 是 code 誤差 <Tex>{'e'}</Tex> 的 one-sided PSD（每 Hz 的功率）。 <ClaimTag kind="approx" /> 這是「<Tex>{'r'}</Tex> 為白色、均勻」的近似（打問號是因為對常數輸入它是錯的，下面就會看到實際是 <Tex>{String.raw`${fx(r.pow, 2)}\,\mathrm{LSB}^2`}</Tex>，<Erratum id="E15" />）。
+          其中 <Tex>{String.raw`\sigma_r^2`}</Tex> 是 <Tex>{'r'}</Tex> 的變異數，<Tex>{String.raw`S_e^{(1)}(f)`}</Tex> 是 code 誤差 <Tex>{'e'}</Tex> 的 one-sided PSD（每 Hz 的功率）。 <ClaimTag kind="approx" /> 這是「<Tex>{'r'}</Tex> 為白色、均勻」的近似（打問號是因為對常數輸入它是錯的，下面就會看到實際是 <Tex>{String.raw`${fx(r.pow, 2)}\,\mathrm{LSB}^2`}</Tex>，<ChapterErratum id="E15" />）。
         </p>
       </Fold>
 
@@ -283,7 +271,7 @@ export function DeltaSigmaSection() {
         <p>
           規格寫「常數有理輸入時，仍<strong>可能</strong>產生週期性序列」——語氣太弱。對 <Tex>{String.raw`w_H=32.4=162/5`}</Tex>，一階 EFB
           <strong>必然</strong>進入週期 5 的 limit cycle：floor 版輸出 <Tex>{String.raw`[${r.flr.y.slice(0, 5).join(',')}]`}</Tex> 與方法 B
-          <strong>完全相同</strong>；round-half-up 版輸出 <Tex>{String.raw`[${r.near.y.slice(0, 5).join(',')}]`}</Tex>，是 B 的循環移位。兩者的頻譜、spur、總誤差功率（<Tex>{String.raw`${fx(r.pow, 2)}\,\mathrm{LSB}^2`}</Tex>）全都一樣。所以對靜態目標，<strong>ΔΣ 並不比 toggle 少 tone</strong>。 <Erratum id="E15" /> <ClaimTag kind="exact" />
+          <strong>完全相同</strong>；round-half-up 版輸出 <Tex>{String.raw`[${r.near.y.slice(0, 5).join(',')}]`}</Tex>，是 B 的循環移位。兩者的頻譜、spur、總誤差功率（<Tex>{String.raw`${fx(r.pow, 2)}\,\mathrm{LSB}^2`}</Tex>）全都一樣。所以對靜態目標，<strong>ΔΣ 並不比 toggle 少 tone</strong>。 <ChapterErratum id="E15" /> <ClaimTag kind="exact" />
         </p>
       </Callout>
 

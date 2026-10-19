@@ -1,24 +1,10 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import {
-  Callout,
-  ClaimTag,
-  CodeBlock,
-  CodeCompare,
-  ModeGate,
-  ParamControl,
-  Prereq,
-  Section,
-  SelectControl,
-  StepDerivation,
-  Tex,
-  TexBlock,
-  ChRef,
-} from '@/components'
+import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, ParamControl, Prereq, Section, SelectControl, StepDerivation, Tex, TexBlock, ChRef, ChapterErratum } from '@/components'
 import gmacSrc from '@/simulation/models/gmac.ts?raw'
 import { negateExtended, negateInplace, wrapTwos } from '@/simulation/models/gmac'
 import { APPLY_MODES, AVERAGE_LOOP, LATENCY_TIMELINE, NEGATE_DATAPATH, NOISE_FEEDBACK, RTL_DATAFLOW } from '../diagrams'
 import { ROOT_MAX_DELAY, latencyCalc, type ApplyMode, type CriticalGainMethod, type LatencyParams } from '../latency'
-import { DerivationFold, Erratum, f, FigRef, KpiRow, MermaidFig, mt } from '../common'
+import { DerivationFold, f, FigRef, KpiRow, MermaidFig, mt } from '../common'
 
 const R = String.raw
 const GMAC_PATH = 'src/simulation/models/gmac.ts'
@@ -380,7 +366,7 @@ export function HardwareSection() {
           <ClaimTag kind="approx" /> 小訊號（<Tex>{R`|\delta u+b_\mathrm{off}|\ll\sigma_v`}</Tex>）、雜訊 iid Gaussian 且與 code 獨立、<Tex>w</Tex> 在 <Tex>h</Tex> 的記憶長度內近似不變（第 1 步）。最後一項是 comparator offset 造成的固定點偏移：令{' '}
           <Tex>{R`E[\delta_{k+1}]=E[\delta_k]=\delta_\infty`}</Tex> 解出上面的 <Tex>{R`\delta_\infty`}</Tex>，<Tex>{R`b_\mathrm{off}=0`}</Tex> 或零均值 code 時消失；若主 PLL 的 integral path 強制{' '}
           <Tex>{R`E[q]=0`}</Tex>，offset 會被吸收（勘誤 E03，<ChRef ch="11">Ch11</ChRef>）。單位：<Tex>{R`K_q`}</Tex> 為 <Tex>{R`\mathrm{fs}^{-1}`}</Tex>、<Tex>{R`C`}</Tex> 無因次、<Tex>{R`\mu`}</Tex> 為 fs，所以{' '}
-          <Tex>g</Tex> 無因次 <Erratum id="E13" />。
+          <Tex>g</Tex> 無因次 <ChapterErratum id="E13" />。
         </p>
       </DerivationFold>
 

@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
 import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
-import { Callout, ClaimTag, CodeBlock, ModeGate, Plot, Prereq, Section, Tex, TexBlock, ChRef } from '@/components'
+import { Callout, ClaimTag, CodeBlock, ModeGate, Plot, Prereq, Section, Tex, TexBlock, ChRef, ChapterErratum } from '@/components'
 import calNoiseSrc from '@/simulation/models/calNoise.ts?raw'
 import { calLoop, sigmaW2Colored, swDtft } from '@/simulation/models/calNoise'
-import { Diagram, EX, EX_INPUT, Erratum, Hand, Steps, TWO_TAP, TWO_TAP_SMALL, md, sig } from '../common'
+import { Diagram, EX, EX_INPUT, Hand, Steps, TWO_TAP, TWO_TAP_SMALL, md, sig } from '../common'
 import { CHART_COEF_LOOP, CHART_COLORED_ETA, CHART_GMAC_LINEAR, CHART_PSD_FILTER, CHART_UPDATE_LOOP, CHART_VAR_LOOP } from '../diagrams'
 
 const ACF_LAYOUT: Partial<Layout> = { xaxis: { title: { text: String.raw`lag $\ell$ [blocks]` } }, yaxis: { title: { text: String.raw`$R_w$ [$\mathrm{fs}^2$]` } } }
@@ -73,7 +73,7 @@ export function S2Recursion() {
         <Callout kind="warn" title={md(String.raw`極性：$\delta w$ 與 §0 的 $\delta$ 相反`)}>
           全站 §0 約定 <Tex>{String.raw`\delta_k=a-w_k`}</Tex>；本章沿用規格 §12 的 <Tex>{String.raw`\delta w_k=w_k-w^*`}</Tex>，兩者極性相反、參考點也不同：
           <Tex>{String.raw`a-w_k=(a-w^*)-\delta w_k`}</Tex>。在 <Tex>{'w^*=a'}</Tex> 的對稱情況，<Tex>{String.raw`\delta_k=-\delta w_k`}</Tex>。
-          <Erratum id="E33" />
+          <ChapterErratum id="E33" />
         </Callout>
         <Prereq title="Gaussian 分布、標準常態 CDF 與 erf">
           <p>
@@ -120,7 +120,7 @@ export function S2Recursion() {
         />
         <p>
           <ClaimTag kind="approx" /> 這是小訊號、iid、Gaussian 的近似；<Tex>{'|C\\,\\delta w|'}</Tex> 必須遠小於 <Tex>{String.raw`\sigma_v`}</Tex>。本例{' '}
-          <Tex>{`3\\sigma_w=${sig(3 * EX.sigmaW, 3)}\\ \\mathrm{fs}\\ll\\sigma_v=100\\ \\mathrm{fs}`}</Tex>，成立得非常好。條件依勘誤 <Erratum id="E30" /> 寫明：
+          <Tex>{`3\\sigma_w=${sig(3 * EX.sigmaW, 3)}\\ \\mathrm{fs}\\ll\\sigma_v=100\\ \\mathrm{fs}`}</Tex>，成立得非常好。條件依勘誤 <ChapterErratum id="E30" /> 寫明：
           {md(String.raw`unit-RMS $\pm1$ code、identity path（$C=1$）、average-mode GMAC、白色 Gaussian $v$、近平衡 $\sigma_\eta^2\approx1/N$。`)}
         </p>
         <p>
@@ -321,7 +321,7 @@ E[G\mid\delta w]&=-\tfrac12\Big[\operatorname{erf}\big(${sig(TWO_TAP.c1 + TWO_TA
           {String.raw`\boxed{S_w(e^{j\Omega})=\frac{\mu^2}{|1-pe^{-j\Omega}|^2}S_\eta(e^{j\Omega})}\qquad\Omega=2\pi f/f_u\ \ (\text{rad/block})`}
         </TexBlock>
         <Callout kind="info" title="注意取樣率與單位">
-          這個 PSD 定義在 <strong>block rate</strong> <Tex>{String.raw`f_u=f_s/N=${sig(EX.fu / 1e3, 7)}\ \mathrm{kHz}`}</Tex>，<Tex>{String.raw`\Omega`}</Tex> 的單位是 rad/block。之後要乘上 sample-rate 的 code 時，必須先轉換（§12.6、<Erratum id="E29" />）。
+          這個 PSD 定義在 <strong>block rate</strong> <Tex>{String.raw`f_u=f_s/N=${sig(EX.fu / 1e3, 7)}\ \mathrm{kHz}`}</Tex>，<Tex>{String.raw`\Omega`}</Tex> 的單位是 rad/block。之後要乘上 sample-rate 的 code 時，必須先轉換（§12.6、<ChapterErratum id="E29" />）。
           {md(
             String.raw`單位：這個 DTFT 形式的 $S_w$ 要「對 $\Omega$ 積分再除以 $2\pi$」才是變異數（$\sigma_w^2=\tfrac1{2\pi}\int_{-\pi}^{\pi}S_w\,d\Omega$），等於對 $\Omega/2\pi$（每個 block 轉幾圈，cycle/block）積分，所以它是「每 cycle/block」的密度，單位 $\mathrm{fs}^2/(\text{cycle/block})$；它不是每 rad/block 的密度——能直接對 $\Omega$ 積分的是 $S_w/(2\pi)$，本站不用。`,
           )}

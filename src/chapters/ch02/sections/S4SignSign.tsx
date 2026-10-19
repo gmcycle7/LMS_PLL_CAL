@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
 import type { Data } from 'plotly.js-cartesian-dist-min'
-import { Callout, ClaimTag, CodeBlock, Derivation, ModeGate, Plot, Prereq, Quiz, Section, SourceTag, StepDerivation, Tex, TexBlock, useThemeTokens, ChRef } from '@/components'
+import { Callout, ClaimTag, CodeBlock, Derivation, ModeGate, Plot, Prereq, Quiz, Section, SourceTag, StepDerivation, Tex, TexBlock, useThemeTokens, ChRef, ChapterErratum } from '@/components'
 import sgdSrc from '@/simulation/models/sgd.ts?raw'
 import { meanFieldAnalysis, meanFieldDrift, noiseOps, ratioFixedPoints, xMoments, type MeanFieldInput, type XKind } from '@/simulation/models/sgd'
-import { ALGO_SERIES, ChapterLink, Diagram, ErrataNote, HandCalcSlot, f4, range, DerivFold, tm } from '../common'
+import { ALGO_SERIES, ChapterLink, Diagram, HandCalcSlot, f4, range, DerivFold, tm } from '../common'
 import { FixedPointExplorer } from '../experiments/FixedPointExplorer'
 
 const XS = [1, 2, 4]
@@ -56,10 +56,10 @@ export function S4SignSign() {
   const X_LABEL: Record<string, string> = { const: String.raw`x\equiv1`, uniformPos: String.raw`x\sim U[0.5,\,1.5]`, bpsk: String.raw`x=\pm1` }
 
   return (
-    <section>
-      <h2 id="ch02-s4">§4 Sign-Sign LMS：連 regressor 的幅度也丟掉</h2>
+    <section id="ch02-s4">
+      <h2>§4 Sign-Sign LMS：連 regressor 的幅度也丟掉</h2>
 
-      <Section kind="intuition" title="最便宜的硬體">
+      <Section id="ch02-cheap-hw" kind="intuition" title="最便宜的硬體">
         <p>
           Sign-Error 已經把誤差壓成 1 bit，但每一步還是要加或減一個多位元的 <Tex>{'x'}</Tex>。能不能連 <Tex>{'x'}</Tex> 也只留正負號？先看迴路會變成什麼樣子：
         </p>
@@ -74,7 +74,7 @@ export function S4SignSign() {
         <TexBlock id="F-02.7">{String.raw`\boxed{w_{n+1}=w_n+\mu\,\operatorname{sign}(e_n)\,\operatorname{sign}(x_n)}`}</TexBlock>
         <p>
           每一步只有 <Tex>{'\\pm\\mu'}</Tex>：一個 XOR 決定往上或往下數，一個 up/down counter 就是整個更新器。規格 §2.3 寫「連 Regressor 幅度也丟掉，別和 Sign-Error 混淆」
-          <ErrataNote id="E43">原文拼成 Regessor</ErrataNote>。它常被當成 Sign-Error 的「再簡化版」，但這是誤解：
+          <ChapterErratum id="E43">原文拼成 Regessor</ChapterErratum>。它常被當成 Sign-Error 的「再簡化版」，但這是誤解：
           <strong>它最小化的是另一個成本，收斂到另一個點。</strong>
         </p>
         <HandCalcSlot id="HC-02.4">
@@ -82,7 +82,7 @@ export function S4SignSign() {
         </HandCalcSlot>
       </Section>
 
-      <Section kind="formula" title={tm('比值觀點：四種演算法其實都在估計 $r=y/x$ 的「中心」')}>
+      <Section id="ch02-ratio" kind="formula" title={tm('比值觀點：四種演算法其實都在估計 $r=y/x$ 的「中心」')}>
         <Prereq title="平均 vs 中位數：哪一個「中心」讓哪一種誤差最小？">
           <p>給一組數字 <Tex>{'r_1,\\ldots,r_N'}</Tex> 與正權重 <Tex>{'c_i'}</Tex>，把「中心」<Tex>{'m'}</Tex> 當成變數，用微分找最小值：</p>
           <StepDerivation
@@ -139,7 +139,7 @@ export function S4SignSign() {
         </p>
       </Section>
 
-      <Section kind="example" title={tm('先算一次：三筆資料 $(1,3),\\ (2,7),\\ (4,10)$')}>
+      <Section id="ch02-ss-hand" kind="example" title={tm('先算一次：三筆資料 $(1,3),\\ (2,7),\\ (4,10)$')}>
         <div className="table-wrap">
           <table className="ch02-table">
             <thead>
@@ -202,7 +202,7 @@ export function S4SignSign() {
         </HandCalcSlot>
       </Section>
 
-      <Section kind="formula" title={tm('固定點條件一般不同：$E[ex]=0$ vs $E[\\operatorname{sign}(e)x]=0$')}>
+      <Section id="ch02-fixed-points" kind="formula" title={tm('固定點條件一般不同：$E[ex]=0$ vs $E[\\operatorname{sign}(e)x]=0$')}>
         <p>
           每個演算法都會停在「平均更新量為零」的地方。三種更新量分別是 <Tex>{'e\\,x'}</Tex>、<Tex>{'\\operatorname{sign}(e)\\,x'}</Tex>、<Tex>{'\\operatorname{sign}(e)\\operatorname{sign}(x)'}</Tex>，所以三個演算法其實是三個不同的<strong>相關器</strong>（correlator：把兩個訊號相乘、再取平均）：
         </p>
@@ -319,12 +319,12 @@ export function S4SignSign() {
         </HandCalcSlot>
       </Section>
 
-      <Section kind="explore" title={tm('動手觀察：$\\psi(w)$ 的零交越')}>
+      <Section id="ch02-psi-lab" kind="explore" title={tm('動手觀察：$\\psi(w)$ 的零交越')}>
         <FixedPointExplorer />
       </Section>
 
       <ModeGate min="engineer">
-        <Section kind="formula" title={tm('核心程式碼：mean-field $\\psi(w)$ 與比值觀點')}>
+        <Section id="ch02-ss-code" kind="formula" title={tm('核心程式碼：mean-field $\\psi(w)$ 與比值觀點')}>
           <CodeBlock source={sgdSrc} region="meanFieldDrift" path="src/simulation/models/sgd.ts" caption={String.raw`三種演算法的 $\psi(w)$ 只差在對 $e$、$x$ 取了什麼（標「← 差異」的行）。$E_v[\operatorname{sign}(c+v)]=1-2F_v(-c)$ 用雜訊 CDF 的封閉式計算。`} />
           <CodeBlock source={sgdSrc} region="ratioView" path="src/simulation/models/sgd.ts" />
         </Section>

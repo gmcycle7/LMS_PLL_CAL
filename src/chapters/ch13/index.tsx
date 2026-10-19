@@ -1,5 +1,4 @@
-import { Callout, ClaimTag, Mermaid, ModelLevel, Section, TestBadge, Tex } from '@/components'
-import { Erratum } from './common'
+import { Callout, ClaimTag, Mermaid, ModelLevel, Section, TestBadge, Tex, ChapterErratum } from '@/components'
 import { CHART_LAB_PIPELINE } from './diagrams'
 import { QuantizedGainLab } from './experiments/QuantizedGainLab'
 import { CodeComparison } from './sections/CodeComparison'
@@ -31,10 +30,10 @@ export default function Chapter13() {
             <ModelLevel level="L5" />
             <TestBadge id="T16" />
             <TestBadge id="T17" />
-            <Erratum id="E13" />
-            <Erratum id="E15" />
-            <Erratum id="E47" />
-            <Erratum id="E49" />
+            <ChapterErratum id="E13" />
+            <ChapterErratum id="E15" />
+            <ChapterErratum id="E47" />
+            <ChapterErratum id="E49" />
           </div>
         }
       />

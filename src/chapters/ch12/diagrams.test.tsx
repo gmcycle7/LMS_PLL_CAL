@@ -23,8 +23,9 @@ import { renderPage } from '@/test/renderPage'
  *     Mermaid／SystemMap 換成只記錄 props 的替身，核對頁面上畫出來的圖與 CH12_CHARTS 完全相同（數量、順序）、
  *     章首有系統地圖、每張圖都放在對應公式之前。Plot 與三個互動實驗和本檔無關，也換成空元件。
  */
-vi.mock('@/components', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/components')>()
+vi.mock('@/components/Mermaid', async (importOriginal) => {
+  // 共用的 ChapterFig 直接 import '../Mermaid'（不經 '@/components' 這個桶），所以替身要換在這個模組上
+  const actual = await importOriginal<typeof import('@/components/Mermaid')>()
   return {
     ...actual,
     Mermaid: ({ chart, caption }: { chart: string; caption?: string }) => (
@@ -32,6 +33,12 @@ vi.mock('@/components', async (importOriginal) => {
         <figcaption>{caption}</figcaption>
       </figure>
     ),
+  }
+})
+vi.mock('@/components', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components')>()
+  return {
+    ...actual,
     SystemMap: ({ focus, caption }: { focus: string[]; caption?: string }) => (
       <figure data-testid="system-map-stub" data-focus={focus.join(',')}>
         <figcaption>{caption}</figcaption>
@@ -755,7 +762,7 @@ describe('第 12 章方塊圖：頁面上的位置', () => {
     // F-12.16 的負號不變（δt = x·δw 是多補償的時間：reference edge 早到 δt，進 PD 的是 −δt）
     expect((formula('F-12.16').querySelector('annotation')?.textContent ?? '')).toContain(String.raw`\phi_{\mathrm{out}}(s)=-2\pi f_{\mathrm{out}}T(s)\,\delta t(s)`)
     // 導讀：PLL 迴路圖從 reference 這一路講起，加法點就是 PD，feedback 只經過 divider；PD 的輸出就是 comparator 取的節點
-    const readPll = stub('CHART_PLL_LOOP').closest('.ch12-diagram')?.querySelector('.ch12-diagram-read')?.textContent ?? ''
+    const readPll = stub('CHART_PLL_LOOP').closest('.c-chapter-fig')?.querySelector('.c-chapter-fig-walk-body')?.textContent ?? ''
     expect(readPll).toMatch(/reference clock 先經過 DTC 才到 PD/)
     expect(readPll).toMatch(/feedback 那條線只經過 divider/)
     // divider 方塊與 L(s) 裡的「÷ 除數」是同一個 divider：以 output 為參考時 divider 把 θ_out 原樣送回，除數只算在 L(s) 裡
@@ -764,14 +771,14 @@ describe('第 12 章方塊圖：頁面上的位置', () => {
     expect(readPll).toMatch(/loop filter.*comparator/)
     expect(stub('CHART_PLL_LOOP').querySelector('figcaption')?.textContent ?? '').toMatch(/路上只有 divider，沒有 DTC/)
     expect(stub('CHART_PLL_LOOP').querySelector('figcaption')?.textContent ?? '').toMatch(/DTC 在 reference 輸入端.*PD 的 reference 輸入/)
-    const readChain = stub('NOISE_CHAIN_CHART').closest('.ch12-diagram')?.querySelector('.ch12-diagram-read')?.textContent ?? ''
+    const readChain = stub('NOISE_CHAIN_CHART').closest('.c-chapter-fig')?.querySelector('.c-chapter-fig-walk-body')?.textContent ?? ''
     expect(readChain).toMatch(/comparator 取的是 PD 的輸出.*loop filter 的同一個訊號/)
     expect(readChain).toMatch(/reference 端的 DTC 多補償的時間/)
     // 數學模型那張圖只畫雜訊往前走的路：導讀交代 comparator 的輸入仍是 PD 的輸出，回授那一圈收在 H(z) 的 pole 裡
-    const readTf = stub('CHART_TF_CHAIN').closest('.ch12-diagram')?.querySelector('.ch12-diagram-read')?.textContent ?? ''
+    const readTf = stub('CHART_TF_CHAIN').closest('.c-chapter-fig')?.querySelector('.c-chapter-fig-walk-body')?.textContent ?? ''
     expect(readTf).toMatch(/comparator 的輸入仍然是 PD 的輸出/)
     expect(readTf).toMatch(/已經收在.*LMS 閉迴路/)
-    const readGain = stub('CHART_GAIN_MULT').closest('.ch12-diagram')?.querySelector('.ch12-diagram-read')?.textContent ?? ''
+    const readGain = stub('CHART_GAIN_MULT').closest('.c-chapter-fig')?.querySelector('.c-chapter-fig-walk-body')?.textContent ?? ''
     expect(readGain).toMatch(/補償量.*reference edge 被提前/)
     expect(readGain).toMatch(/本來就要補的量/)
     // §12.1 推導第一行：PD 量的是 reference edge 減 feedback edge；§12.6：DTC 只能延遲，從基準延遲往回扣
@@ -802,7 +809,7 @@ describe('第 12 章方塊圖：頁面上的位置', () => {
   it(`頁面上畫出的 Mermaid 圖與 CH12_CHARTS 完全相同（${N_CHARTS} 張、同樣的順序），加上系統地圖共 ${N_CHARTS + 1} 張；每張都有圖說與「先看…再看…」的導讀`, () => {
     expect(stubs.map((s) => s.getAttribute('data-chart'))).toEqual(CH12_CHARTS.map((c) => c.chart))
     expect(stubs.length + container.querySelectorAll('[data-testid="system-map-stub"]').length).toBe(N_CHARTS + 1)
-    const blocks = Array.from(container.querySelectorAll('.ch12-diagram')) as HTMLElement[]
+    const blocks = Array.from(container.querySelectorAll('.c-chapter-fig')) as HTMLElement[]
     expect(blocks.length).toBe(N_CHARTS)
     blocks.forEach((b, i) => {
       const name = CH12_CHARTS[i].name
@@ -811,7 +818,7 @@ describe('第 12 章方塊圖：頁面上的位置', () => {
       // 圖說裡的數學一律寫成 $...$（由 Mermaid 元件以 KaTeX 顯示）：拿掉 $...$ 之後不得殘留 Unicode 拼的公式
       expect((caption.match(/\$/g) ?? []).length % 2, `${name} 圖說的 $ 要成對`).toBe(0)
       expect(caption.replace(/\$[^$]*\$/g, ''), `${name} 圖說`).not.toMatch(/[A-Za-z]_[a-z0-9{(]|\^|[σμηδτβθΩℒφΦ√∫Σπ≈∝ρ·×²⁻]/)
-      const read = b.querySelector('.ch12-diagram-read')?.textContent ?? ''
+      const read = b.querySelector('.c-chapter-fig-walk-body')?.textContent ?? ''
       expect(read.length, name).toBeGreaterThan(40)
       expect(read, name).toMatch(/先/)
       expect(read, name).toMatch(/再|最後|接著/)
