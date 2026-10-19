@@ -1,8 +1,8 @@
-import { Callout, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, HandLink, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock } from '@/components'
 import { useMemo } from 'react'
 import { W1, W_SQUARE, analyseAlpha, indicatorLineWeight, kappaInfWorst, kappaRational, largeSignalPeriodic, makeL1 } from '@/simulation/models/sspll'
 import { DOC_PHOS, FREF_MHZ, LOOPS, PARAMS, PRED, SIM_CFG, SURE, SURE_GOLDEN, WORKED, type LoopKey } from '../data'
-import { Claim, DataTable, Diagram, Formula, HandLink, Kappa, ModelCode, Sci, Src, TryIt, fs, fx, intervalsText, r, tx } from '../common'
+import { Claim, DataTable, Diagram, Formula, Kappa, ModelCode, Sci, Src, TryIt, fs, fx, intervalsText, r, tx } from '../common'
 import { SignMapExplorer } from '../experiments/SignMapExplorer'
 
 const fold = (fMHz: number): number => Math.min(fMHz, FREF_MHZ - fMHz)

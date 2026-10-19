@@ -194,7 +194,10 @@ export function S00Conclusion() {
           或數位 loop filter 才做得到。
         </li>
         <li>
-          <strong>PMUX 隨機旋轉／MASH</strong>：目前只有 sim 證據。
+          <strong>PMUX 隨機旋轉／MASH</strong>：看 mode-1 的載波還留多少——rot8 把 regressor 完全白化，任何 <Tex>{r`\alpha`}</Tex> 都安全；MASH、rot4、dq 的符號由「載波保留率 <Tex>{r`\times\,\mathrm{Re}\,H_{PD}(\alpha)`}</Tex>」加上散開的正項決定，落在深反號帶時（PM 45°、120 MHz）MASH 會掉進 dead zone：線性模型沒有恢復力，校不回來（§10b 的判定式）。
+          <Claim kind="approx" />
+          sim 裡那一點還會發散；掉進 dead zone 之後為什麼是「長大」而不是停住，仍是研究假說（1-bit 大訊號斜率 <Tex>{r`\kappa_\infty<0`}</Tex> 是候選，但它當判準被 golden 否決，§10b.7）。
+          <Claim kind="research" />
         </li>
         <li>
           <strong>keep-out 頻道或 freeze</strong>：keep-out 清單必須用大訊號 map 列，並留 PVT margin。

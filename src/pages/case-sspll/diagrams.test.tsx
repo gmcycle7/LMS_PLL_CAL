@@ -146,9 +146,9 @@ const cdiv = (a: Complex, b: Complex): Complex => {
 beforeAll(() => mermaid.initialize({ startOnLoad: false, securityLevel: 'strict' }))
 
 describe('案例頁 /case/sspll 的方塊圖：語法、數量與位置（真正的 mermaid parser）', () => {
-  it('SSPLL: 每一張圖都能被 mermaid 解析；38 張新圖 + 1 張原有的架構圖 = 39 張（另加章首的系統地圖）', async () => {
-    expect(DIAGRAMS).toHaveLength(39)
-    expect(DIAGRAMS.filter((d) => !EXISTING_IDS.includes(d.id))).toHaveLength(38)
+  it('SSPLL: 每一張圖都能被 mermaid 解析；40 張新圖 + 1 張原有的架構圖 = 41 張（另加章首的系統地圖）', async () => {
+    expect(DIAGRAMS).toHaveLength(41)
+    expect(DIAGRAMS.filter((d) => !EXISTING_IDS.includes(d.id))).toHaveLength(40)
     expect(DIAGRAMS.filter((d) => !EXISTING_IDS.includes(d.id)).length).toBeGreaterThanOrEqual(6)
     for (const d of DIAGRAMS) {
       const { type } = await parsed(d.chart)
@@ -239,6 +239,11 @@ describe('案例頁 /case/sspll 的方塊圖：語法、數量與位置（真正
       'F-CS.23': 'output-spur',
       'F-CS.24': 'gos-theorem',
       'F-CS.25': 'gos-theorem',
+      // §10b：F-CS.26 在 code-sources 之後（推導）、F-CS.27／28 在 code-path 之後
+      'F-CS.26': 'code-sources',
+      'F-CS.27': 'code-path',
+      'F-CS.28': 'code-path',
+      'F-CS.29': 'code-path', // §10b.8 的全頻道證書：同一條頻譜路徑，載波與散開各取最壞情況
     }
     expect(Object.keys(PICTURE_FOR_FORMULA).sort()).toEqual(FORMULAS.map((f) => f.id).sort())
     for (const [fid, pic] of Object.entries(PICTURE_FOR_FORMULA)) {
@@ -928,8 +933,8 @@ describe('案例頁 /case/sspll 的方塊圖：不只 parser——mermaid 真的
   // 再用共用的 renderMermaidForTest 逐張畫出來。版面的實際長相要在瀏覽器看，這裡確認畫得出來、文字沒有被跳脫壞、沒有 Unsupported markdown。
   beforeAll(installMermaidSvgShim)
 
-  it('SSPLL: 38 張圖都畫得出 SVG；沒有 Unsupported markdown、沒有殘留的 `$`、KaTeX 以外沒有 Unicode 拼的數學、節點數 ≤ 14；每個節點的文字都在圖上，「<」沒有被重複跳脫', async () => {
-    // 系統地圖是手排的 SVG，不經過 Mermaid，所以這裡只畫本章登錄的 38 張圖
+  it('SSPLL: 40 張圖都畫得出 SVG；沒有 Unsupported markdown、沒有殘留的 `$`、KaTeX 以外沒有 Unicode 拼的數學、節點數 ≤ 14；每個節點的文字都在圖上，「<」沒有被重複跳脫', async () => {
+    // 系統地圖是手排的 SVG，不經過 Mermaid，所以這裡只畫本章登錄的 40 張圖
     const all = DIAGRAMS
     for (const d of all) {
       const { svg, text, nodeCount, mathCount, plainText } = await renderMermaidForTest(d.chart)
@@ -997,7 +1002,7 @@ describe('案例頁 /case/sspll：頁面真的把圖畫出來，符號表在最�
     expect(spy).not.toHaveBeenCalled()
   })
 
-  it('SSPLL: 整頁——系統地圖在開場問題之後；38 張圖依登錄順序出現、各有圖號與圖說；符號表是最後一塊，章首只留一行連結', async () => {
+  it('SSPLL: 整頁——系統地圖在開場問題之後；40 張圖依登錄順序出現、各有圖號與圖說；符號表是最後一塊，章首只留一行連結', async () => {
     const spy = vi.spyOn(mermaid, 'render').mockImplementation(async (id: string) => ({ svg: `<svg id="${id}"><g></g></svg>`, diagramType: 'flowchart-v2' }))
     const scroll = vi.fn()
     Element.prototype.scrollIntoView = scroll
@@ -1017,7 +1022,7 @@ describe('案例頁 /case/sspll：頁面真的把圖畫出來，符號表在最�
     expect(after(map, page.querySelector('nav')!)).toBe(true)
     expect(after(map, page.querySelector('#cs-0')!)).toBe(true)
 
-    // ── 38 張圖：DOM 順序 = 登錄順序；圖說帶圖號；所在段落與登錄的 section 相符
+    // ── 40 張圖：DOM 順序 = 登錄順序；圖說帶圖號；所在段落與登錄的 section 相符
     const boxes = Array.from(page.querySelectorAll('[data-diagram]'))
     expect(boxes.map((b) => b.getAttribute('data-diagram'))).toEqual(DIAGRAMS.map((d) => d.id))
     DIAGRAMS.forEach((d, i) => {
@@ -1065,7 +1070,7 @@ describe('案例頁 /case/sspll：頁面真的把圖畫出來，符號表在最�
     expect(page.querySelectorAll('a[href^="#cs-"]')).toHaveLength(0)
     // 圖號與手算題的頁內連結也都是按鈕（HashRouter 下 href="#…" 會被當成路由）
     expect(page.querySelectorAll('a[href^="#fig-"], a[href^="#handcalc-"]')).toHaveLength(0)
-    const handLink = Array.from(page.querySelectorAll('button.cs-linkbtn')).find((b) => b.textContent === 'HC-CS.3') as HTMLButtonElement
+    const handLink = Array.from(page.querySelectorAll('a.c-handlink')).find((b) => b.textContent === '帶入手算 HC-CS.3') as HTMLElement
     expect(handLink).toBeTruthy()
     scroll.mockClear()
     fireEvent.click(handLink)
@@ -1074,7 +1079,7 @@ describe('案例頁 /case/sspll：頁面真的把圖畫出來，符號表在最�
     expect(page.contains(document.getElementById('handcalc-HC-CS.3'))).toBe(true)
     // 目錄的最後一項也指到符號表
     const toc = Array.from(page.querySelectorAll('.cs-toc li'))
-    expect(toc).toHaveLength(23) // 0–21 加上 §7b
+    expect(toc).toHaveLength(24) // 0–21 加上 §7b 與 §10b
     expect(toc[toc.length - 1].textContent).toBe('21. 本章符號表') // 編號現在寫在標題裡（§7b 讓 <ol> 的自動編號會跳號）
     scroll.mockClear()
     fireEvent.click(toc[toc.length - 1].querySelector('button')!)

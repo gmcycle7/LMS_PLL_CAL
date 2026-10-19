@@ -35,7 +35,9 @@ import { cAbs } from '@/simulation/core/complex'
 import { spurBeta, spurDbcSmallAngle } from '@/simulation/models/calNoise'
 import { FORMULAS } from './formulas'
 import { PARAMS, PRED, WORKED } from './data'
-import { HANDCALCS, HC_FREF_MHZ, HC_NOMINAL, HC_PHOS_RMS_DEFAULT_FS } from './handcalcs'
+import { HANDCALCS, HC_FREF_MHZ, HC_NOMINAL, HC_PHOS_RMS_DEFAULT_FS, HC_PM45, HC_TAU_DEAD } from './handcalcs'
+import { codeVerdict, dqWhite, kappaModeCode, largeSignalCode, loopImpulse, mashFactors, rotFactor } from '@/simulation/models/sspll'
+import { DITHER_NUM } from './data'
 
 const hc = (id: string): HandCalcDef => {
   const d = HANDCALCS.find((h) => h.id === id)
@@ -157,6 +159,35 @@ const INDEP: Record<string, (v: Record<string, number>) => number[]> = {
     const LB = C4 + gMin * T4
     const Lam4 = (Lg * (1 + 1 / 2 + 1 / 3 + 1 / 4)) / (2 * Math.PI ** 2)
     return [LB, 12 * LB, LB / Lam4]
+  },
+  // HC-CS.11：MASH 的 |φ₁|²、R̃[1] 與 κ₁，只用 Math（sinc 的乘積、1 拍延遲 Type-II 的 h[0..2] 長除法、Re H 用測試內的 typeIIL／reH、cos）
+  'HC-CS.11': ({ f, Kp, Ki }) => {
+    const alpha = f / 4000
+    const th = Math.PI / 4
+    const sinc = (x: number) => Math.sin(x) / x
+    const phi = sinc(th / 2) ** 2 * sinc(th)
+    const phi2 = phi * phi
+    const R1 = sinc(th / 2) ** 2 * sinc(1.5 * th) ** 2
+    const R2 = sinc(th / 2) ** 2 * sinc(th) ** 2
+    const h1 = -(Kp + Ki)
+    const h2 = Kp + (Kp + Ki) ** 2 - 2 * (Kp + Ki)
+    const g = reH(typeIIL(Kp, Ki, 2 * Math.PI * alpha))
+    const k1 = phi2 * g + (1 - phi2) + h1 * Math.cos(2 * Math.PI * alpha) * (R1 - phi2) + h2 * Math.cos(4 * Math.PI * alpha) * (R2 - phi2)
+    return [phi2, R1 - phi2, k1]
+  },
+  // HC-CS.12：dq 的白雜訊與基波、rot 的 |D_M|²（等比級數的模平方）、κ₁ 的手算式（其餘線乘 1；raw 的 κ₁ 由 kappaModeCode 取，和題目一樣是「模型給的數」）
+  'HC-CS.12': ({ f, Kp, Ki, M }) => {
+    const alpha = f / 4000
+    const th = Math.PI / 4
+    const white = (1 - Math.cos(th)) / 3
+    const v0 = (2 * (1 - Math.cos(th))) / (th * th)
+    const w1 = v0 * v0
+    const wRest = 1 - white - w1
+    const g = reH(typeIIL(Kp, Ki, 2 * Math.PI * alpha))
+    const kDq = w1 * g + white + wRest
+    const D2 = Math.abs(Math.sin((M * th) / 2)) < 1e-12 ? 0 : Math.sin((M * th) / 2) ** 2 / (M * M * Math.sin(th / 2) ** 2)
+    const kRaw = kappaModeCode(makeL2({ Kp, Ki }), alpha, 'acc1', 1)
+    return [kDq, D2, D2 * kRaw + (1 - D2)]
   },
 }
 
@@ -463,11 +494,15 @@ const EXTRA: Record<string, Record<string, number>[]> = {
   ],
   'HC-CS.9': [{ rms: 3 }, { rms: 25, tmag: 0.5 }, { fvco: 8 }, { peak: 0, tmag: 0.8 }, { rms: 173.3 }, { tmag: 1.2, rms: 50, fvco: 20 }, { rms: 0.1 }, { tmag: 0.0431, peak: 2.94 }, { rms: 12.345, fvco: 13, tmag: 0.9876, peak: 1.5 }],
   'HC-CS.10': [{ beta: 0.123 }, { beta: 0.3 }, { beta: 0.05 }, { beta: 0.5 }, { beta: 0.75 }, { beta: 0.04 }, { beta: 0.96 }, { beta: 0.3333 }, { beta: 0.137 }],
+  // §10b：PM 45° 的谷底附近、PM 60°、帶外、很高的頻率、使用者自己的迴路
+  'HC-CS.11': [{ f: 40 }, { f: 80 }, { f: 160 }, { f: 400 }, { f: 1984 }, { Kp: HC_NOMINAL.Kp, Ki: HC_NOMINAL.Ki }, { Kp: 0.4, Ki: 0.02, f: 100 }, { f: 83.8, Kp: HC_NOMINAL.Kp, Ki: HC_NOMINAL.Ki }, { f: 0.5 }, { f: 1333.33, Kp: 1.234, Ki: 0.777 }],
+  'HC-CS.12': [{ M: 8 }, { M: 2 }, { f: 40 }, { f: 80, M: 8 }, { f: 400 }, { Kp: HC_NOMINAL.Kp, Ki: HC_NOMINAL.Ki }, { f: 1984, M: 2 }, { Kp: 0.4, Ki: 0.02, f: 100, M: 8 }, { f: 0.5 }],
 }
 
-describe('SSPLL 案例頁的帶入手算（HC-CS.1 – HC-CS.9）', () => {
-  it('SSPLL: 題目清單——9 題、ID 連號、頁面 /case/sspll、公式 ID 已登錄、三種難度都有、預設值通過 validate', () => {
-    expect(HANDCALCS.map((h) => h.id)).toEqual(['HC-CS.1', 'HC-CS.2', 'HC-CS.3', 'HC-CS.4', 'HC-CS.5', 'HC-CS.10', 'HC-CS.6', 'HC-CS.7', 'HC-CS.8', 'HC-CS.9']) // HC-CS.10（§7b）排在頁面順序上，不是編號順序
+describe('SSPLL 案例頁的帶入手算（HC-CS.1 – HC-CS.12）', () => {
+  it('SSPLL: 題目清單——12 題、頁面 /case/sspll、公式 ID 已登錄、三種難度都有、預設值通過 validate', () => {
+    // HC-CS.10（§7b）、HC-CS.11／12（§10b）排在頁面順序上，不是編號順序
+    expect(HANDCALCS.map((h) => h.id)).toEqual(['HC-CS.1', 'HC-CS.2', 'HC-CS.3', 'HC-CS.4', 'HC-CS.5', 'HC-CS.10', 'HC-CS.11', 'HC-CS.12', 'HC-CS.6', 'HC-CS.7', 'HC-CS.8', 'HC-CS.9'])
     const formulaIds = new Set(FORMULAS.map((f) => f.id))
     for (const h of HANDCALCS) {
       expect(h.page).toBe('/case/sspll')
@@ -968,6 +1003,19 @@ describe('SSPLL 案例頁的帶入手算（HC-CS.1 – HC-CS.9）', () => {
         [{ Ki: 0 }, /不是 Type-II/],
         [{ Kp: 1.5, Ki: 1.2 }, /主迴路不穩定/],
       ],
+      'HC-CS.11': [
+        [{ Kp: 0 }, /比例路徑/],
+        [{ Ki: 0 }, /不是 Type-II/],
+        [{ Kp: 1.5, Ki: 1.2 }, /主迴路不穩定/],
+        [{ f: 0 }, /必須大於 0/],
+        [{ f: 2001 }, /f_\{ref\}\/2/],
+      ],
+      'HC-CS.12': [
+        [{ M: 3 }, /只能是 2、4 或 8/],
+        [{ Kp: 0 }, /比例路徑/],
+        [{ Ki: 0 }, /不是 Type-II/],
+        [{ f: 0 }, /必須大於 0/],
+      ],
       'HC-CS.6': [
         [{ Kp: 0 }, /比例路徑/],
         [{ Ki: 0 }, /不是 Type-II/],
@@ -1202,4 +1250,64 @@ describe('SSPLL 案例頁的帶入手算（HC-CS.1 – HC-CS.9）', () => {
       for (let seed = 1; seed <= 20; seed++) expectRenders(def, randomValues(def, seed))
     }
   }, 120000)
+})
+
+describe('SSPLL §10b 的手算（HC-CS.11、HC-CS.12）：MASH 的載波保留率與 κ₁、dither 之後的 κ₁', () => {
+  it('SSPLL: HC_PM45 是 makeL2({ pm: 45 }) 的設計結果（8 位有效數字）；兩題的預設值是 L2-PM45、120 MHz', () => {
+    const lp = makeL2({ pm: 45 })
+    expect(HC_PM45.Kp).toBe(Number(Number(lp.params.Kp).toPrecision(8)))
+    expect(HC_PM45.Ki).toBe(Number(Number(lp.params.Ki).toPrecision(8)))
+    expect(HC_TAU_DEAD).toBe(DITHER_NUM._meta.tau_dead)
+    expect(defaultValues(hc('HC-CS.11'))).toMatchObject({ f: 120, Kp: HC_PM45.Kp, Ki: HC_PM45.Ki })
+    expect(defaultValues(hc('HC-CS.12'))).toMatchObject({ f: 120, Kp: HC_PM45.Kp, Ki: HC_PM45.Ki, M: 4 })
+  })
+
+  it('SSPLL: HC-CS.11 預設值重現 §10b 的 headline——|φ₁|² = 0.730986、R̃[1] = −0.146966、κ₁ = +0.02065（dead zone）；答案等於 mashFactors／kappaModeCode；h_PD[1..2] 的 closed form 等於 loopImpulse', () => {
+    const def = hc('HC-CS.11')
+    const v = values(def, defaultValues(def))
+    const hl = DITHER_NUM.headline
+    close(v[0], mashFactors(1).phi2, 1e-12)
+    close(v[0], 0.730986, 0, 1e-6)
+    close(v[1], mashFactors(1).rtilde[1], 1e-12)
+    close(v[1], -0.146966, 0, 1e-6)
+    const lp = makeL2({ Kp: HC_PM45.Kp, Ki: HC_PM45.Ki })
+    close(v[2], kappaModeCode(lp, 0.03, 'mash', 1), 1e-12)
+    close(v[2], hl.kappa_1, 1e-6) // golden 的 PM 45° 用 8 位以外的設計值，差 < 1e-6
+    close(v[2], 0.020646, 0, 2e-6)
+    expect(codeVerdict(lp, 0.03, 'mash', HC_TAU_DEAD).verdict).toBe('dead')
+    // h_PD[1..2] 的長除法 closed form（題目的步驟）= 遞迴算出的脈衝響應
+    const h = loopImpulse(lp, 3)
+    close(-(HC_PM45.Kp + HC_PM45.Ki), h[1], 1e-12)
+    close(HC_PM45.Kp + (HC_PM45.Kp + HC_PM45.Ki) ** 2 - 2 * (HC_PM45.Kp + HC_PM45.Ki), h[2], 1e-12)
+    // 文字：判定說 dead zone、不判；負的 κ_∞（模型值）只當研究假說的提示（審查否決了「dead zone 看 κ_∞」）
+    const sol = def.solve(defaultValues(def))
+    expect(sol.notes![0]).toContain('dead zone')
+    expect(sol.notes![0]).toContain('不判')
+    expect(sol.notes![0]).toContain('只是研究假說的提示')
+    expect(sol.notes![0]).not.toContain('預測發散')
+    expect(sol.notes![0]).toContain(`錯了 ${DITHER_NUM.mc._summary.candidates.two_stage.dead_zone.n_mismatch} 組`)
+    close(largeSignalCode(lp, 0.03, 'mash', 1).kappaInf, hl.kappa_inf, 1e-6)
+    // PM 60° 的同一點：restoring
+    const v60 = values(def, withDefaults(def, { Kp: HC_NOMINAL.Kp, Ki: HC_NOMINAL.Ki }))
+    close(v60[2], hl.pm60.kappa_1, 1e-6)
+    expect(hc('HC-CS.11').solve(withDefaults(def, { Kp: HC_NOMINAL.Kp, Ki: HC_NOMINAL.Ki })).notes![0]).toContain('restoring')
+  })
+
+  it('SSPLL: HC-CS.12 預設值——dq 的白雜訊 0.097631、基波 0.901818、κ₁ ≈ −0.2467（反號）；rot4 的 |D₄|² = 0.426777、κ₁ = +0.4421；M = 8 時 |D₈|² = 0、κ₁ = 1', () => {
+    const def = hc('HC-CS.12')
+    const hl = DITHER_NUM.headline
+    const v = values(def, defaultValues(def))
+    close(dqWhite(1), hl.handcalc_dq.white, 1e-12)
+    close(v[0], hl.handcalc_dq.kappa_1, 0, 2e-4) // 手算把其餘線的 Re H 當成 1：與完整 closed form 差 < 2e-4
+    close(v[1], rotFactor(4, 1), 1e-12)
+    close(v[1], hl.handcalc_rot4.D2, 1e-12)
+    close(v[2], hl.handcalc_rot4.kappa_1, 1e-6)
+    const v8 = values(def, withDefaults(def, { M: 8 }))
+    expect(v8[1]).toBe(0)
+    close(v8[2], 1, 1e-12)
+    expect(def.validate?.(withDefaults(def, { M: 3 }))).toMatch(/只能是 2、4 或 8/)
+    const sol = def.solve(defaultValues(def))
+    expect(sol.notes![0]).toContain('反號')
+    expect(sol.notes![0]).toContain('restoring')
+  })
 })

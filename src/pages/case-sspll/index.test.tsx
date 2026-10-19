@@ -18,6 +18,7 @@ import { HANDCALCS } from './handcalcs'
 import { LMS_WORST_RATE, hpdMemorySamples } from './sections/S04MeanUpdate'
 import { nearGridIntervals } from './sections/S15Checklist'
 import { HPD_DEFAULTS, HPD_EXPERIMENT_ID, buildHpdLoop, closedFormEdgeMHz, mergeHpdParams } from './experiments/HpdExplorer'
+import { CODE_DEFAULTS, CODE_EXPERIMENT_ID, CODE_LOOPS, codeSourceVerdict, goldenMc, mcAgreement, mergeCodeParams } from './experiments/CodeSourceLab'
 import { SIGNMAP_EXPERIMENT_ID, SIGN_DEFAULTS, classify, gosExactNote, mergeSignParams, modeSetup } from './experiments/SignMapExplorer'
 import {
   GOLDEN_LMS_COND,
@@ -110,7 +111,7 @@ const STRING_PROP_SELECTORS = [
   '.c-step-why',
   '.c-handcalc-notes li',
   '.c-handcalc-tips li',
-  '.cs-hand-invite',
+  '.c-chapter-hand-lead',
   '.cs-table caption',
   '.cs-table th',
   '.cs-table td',
@@ -177,7 +178,7 @@ afterEach(() => {
 })
 
 describe('案例頁 /case/sspll（jsdom smoke）', () => {
-  it('SSPLL: 完整渲染不丟錯——22 個段落、章末的符號表、方塊圖、公式錨點、三個實驗、程式碼並排；沒有 KaTeX 錯誤或非有限數字', async () => {
+  it('SSPLL: 完整渲染不丟錯——24 個段落、章末的符號表、方塊圖、公式錨點、四個實驗、程式碼並排；沒有 KaTeX 錯誤或非有限數字', async () => {
     const { container } = renderCase('/case/sspll', 'engineer')
     // 符號表：整頁一張，放在章末（§21，外層 id="symbols"，在「本課必記」§17 之後、頁面最後）；章首只留一行連結
     expect(container.querySelectorAll('.c-symbols').length).toBe(1)
@@ -205,9 +206,9 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
     expect(container.querySelectorAll('figure.c-mermaid').length).toBe(DIAGRAMS.length + 1)
     expect(Array.from(container.querySelectorAll('[data-diagram]')).map((e) => e.getAttribute('data-diagram'))).toEqual(DIAGRAMS.map((d) => d.id))
     expect(DIAGRAMS.length).toBeGreaterThanOrEqual(8)
-    // 段落標題（H2）：0–21 加上 §7b（GOS 定理，插在 7 與 8 之間）
+    // 段落標題（H2）：0–21 加上 §7b（GOS 定理，插在 7 與 8 之間）與 §10b（code source × dither，插在 10 與 11 之間）
     const h2 = Array.from(container.querySelectorAll('h2')).map((h) => h.textContent ?? '')
-    expect(h2).toHaveLength(23)
+    expect(h2).toHaveLength(24)
     for (const t of [
       '0. 先講結論',
       '1. 本章路線圖',
@@ -221,6 +222,7 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
       '8. PHOS',
       '9. GOS 與 PHOS 一起看',
       '10. 模擬證據',
+      '10b. DSM dither',
       '11. 對策',
       '12. 有限步長',
       '13. 比較器 DC offset',
@@ -243,14 +245,14 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
     // KaTeX 都渲染成功
     expect(container.querySelectorAll('.katex').length).toBeGreaterThan(600)
     expectNoTexErrors(container)
-    // 三個實驗
-    for (const id of [HPD_EXPERIMENT_ID, SIGNMAP_EXPERIMENT_ID, LMS_EXPERIMENT_ID]) expect(container.querySelector(`#exp-${id}`), id).not.toBeNull()
+    // 四個實驗（A、B、C 與 §10b 的 D）
+    for (const id of [HPD_EXPERIMENT_ID, SIGNMAP_EXPERIMENT_ID, LMS_EXPERIMENT_ID, CODE_EXPERIMENT_ID]) expect(container.querySelector(`#exp-${id}`), id).not.toBeNull()
     // 帶入手算：HANDCALCS 的每一題都在頁面上各出現一次（依頁面順序），預設顯示帶入過程；綜合題（最後一題）排在思考題之前
     const hand = Array.from(container.querySelectorAll('.c-handcalc'))
     expect(hand.map((e) => e.id)).toEqual(HANDCALCS.map((h) => `handcalc-${h.id}`))
     expect(HANDCALCS.length).toBeGreaterThanOrEqual(5)
     for (const e of hand) expect(e.querySelectorAll('.c-step').length, e.id).toBeGreaterThanOrEqual(4)
-    expect(container.querySelectorAll('.cs-hand-invite').length).toBe(HANDCALCS.length)
+    expect(container.querySelectorAll('.c-chapter-hand-lead').length).toBe(HANDCALCS.length)
     const quiz = container.querySelector('#cs-16') as HTMLElement
     expect(hand[hand.length - 1].compareDocumentPosition(quiz) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(hand[hand.length - 2].compareDocumentPosition(hand[hand.length - 1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -278,7 +280,7 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
     expect(checkedControls).toBeGreaterThan(40)
     expect(container.querySelectorAll('.c-param-unit .katex').length).toBeGreaterThan(0) // 增益倍率的單位 × 以 KaTeX 顯示
     // 實驗的標題、圖標題與公式標籤確實有 KaTeX（不是把 `$` 原樣印出來）
-    for (const sel of ['.c-exp-title', '.c-plot-title', '.c-assumption-list li', '.c-texblock-label', '.c-handcalc-title', '.cs-hand-invite']) {
+    for (const sel of ['.c-exp-title', '.c-plot-title', '.c-assumption-list li', '.c-texblock-label', '.c-handcalc-title', '.c-chapter-hand-lead']) {
       expect(container.querySelectorAll(`${sel} .katex`).length, sel).toBeGreaterThan(0)
     }
     expect(proseText(container)).not.toMatch(/\$[^$\n]{1,80}\$/) // 沒有漏掉沒渲染的 `$...$`
@@ -1176,4 +1178,65 @@ describe('SSPLL 案例頁的公式登錄、presets 與實驗輔助函式', () =>
     expect(listRegions(PY_SOURCES.simulator.source)).toContain('sign_lms_block')
     expect(extractRegion(PY_SOURCES.regressors.source, 'gmac_variants')).toContain('← 差異')
   })
+
+  it('SSPLL: 實驗 D 的輔助函式——參數合併、判定（只有線性段：PM45／MASH／0.03 是 dead zone、不判，κ_∞ 只給提示；PM60 由 closed form 判 restoring）、golden 的 mc 查表、MC 比例的一致性', () => {
+    expect(mergeCodeParams(CODE_DEFAULTS, { loop: 'L3', fMHz: 40, caseA: 'dq', caseB: 'off', nSeeds: 99, nBlocks: 50 })).toEqual({ ...CODE_DEFAULTS, loop: 'L3', fMHz: 40, caseA: 'dq', caseB: 'off' })
+    expect(mergeCodeParams(CODE_DEFAULTS, { loop: 'L9', caseA: 'nope', alpha: 0.137 })).toEqual({ ...CODE_DEFAULTS, fMHz: 548 })
+    expect(mergeCodeParams(CODE_DEFAULTS, null)).toBe(CODE_DEFAULTS)
+    const v45 = codeSourceVerdict(CODE_LOOPS.L2_pm45, 0.03, 'mash')
+    expect(v45.linear.verdict).toBe('dead')
+    expect(v45.final).toBe('dead') // 審查否決了「dead zone 看 κ_∞」：dead zone 一律不判
+    expect(v45.hint).toBe('inverted')
+    expect(v45.kappaInf).toBeLessThan(-0.2)
+    const v60 = codeSourceVerdict(CODE_LOOPS.L2, 0.03, 'mash')
+    expect(v60.hint).toBeNull()
+    expect(v60.final).toBe('restoring')
+    expect(codeSourceVerdict(CODE_LOOPS.L2, 0.02, 'rot8').final).toBe('restoring')
+    expect(codeSourceVerdict(CODE_LOOPS.L2, 0.02, 'acc1').final).toBe('inverted')
+    // preset code-l3-dq（L3、40 MHz、dq）：審查找到的 κ_∞ 反例——dead zone、κ_∞ 提示發散，golden 0/8 發散、0/8 收斂；現在判定是 dead（n/a），和 MC 不矛盾
+    const vl3 = codeSourceVerdict(CODE_LOOPS.L3, 0.01, 'dq')
+    expect(vl3.final).toBe('dead')
+    expect(vl3.hint).toBe('inverted')
+    expect(vl3.kappaInf).toBeLessThan(-0.15)
+    const gl3 = goldenMc('L3', 'dq', 0.01)!.row
+    expect([gl3.n_div, gl3.n_conv, gl3.crosscheck.status]).toEqual([0, 0, 'n/a'])
+    expect(gl3.kappa_inf_worst).toBeLessThan(-0.15)
+    // golden 的 mc：以 α 查表（容忍浮點）；沒有的組合是 null
+    const g = goldenMc('L2_pm45', 'mash', 120 / FREF_MHZ)!
+    expect(g.alphaKey).toBe('0.03')
+    expect(g.row.n_div).toBe(8)
+    expect(goldenMc('L2', 'mash', 0.0333)).toBeNull()
+    // MC 比例的一致性：區間重疊或同側 → ok；兩側 → mismatch；本頁含 ½ → n/a
+    const row = (nDiv: number, n: number) => ({ ...g.row, n, n_div: nDiv, ci_div: nDiv === n ? ([0.68, 1] as [number, number]) : nDiv === 0 ? ([0, 0.32] as [number, number]) : ([0.3, 0.7] as [number, number]) })
+    expect(mcAgreement({ ciDiv: [0.51, 1], fracDiv: 1, n: 4, nDiv: 4 }, row(8, 8)).status).toBe('ok')
+    expect(mcAgreement({ ciDiv: [0, 0.49], fracDiv: 0, n: 4, nDiv: 0 }, row(8, 8)).status).toBe('mismatch')
+    expect(mcAgreement({ ciDiv: [0.34, 1], fracDiv: 1, n: 2, nDiv: 2 }, row(8, 8)).status).toBe('ok') // 區間重疊（本頁只有 2 個 seeds）
+    expect(mcAgreement({ ciDiv: [0.34, 1], fracDiv: 1, n: 2, nDiv: 2 }, row(0, 8)).status).toBe('n/a') // 2/2 vs 0/8：不重疊、本頁的區間含 ½——seeds 不夠，不判
+    expect(mcAgreement({ ciDiv: [0.34, 0.66], fracDiv: 0.5, n: 2, nDiv: 1 }, row(8, 8)).status).toBe('n/a')
+  })
+
+  it('SSPLL: 實驗 D（inline worker）：預設 L2-PM45、120 MHz——Case A（MASH）4 個 seeds 都發散、Case B（rot8）都收斂；Analytic（F-CS.28：A 在 dead zone 不判、B ok）與 Monte Carlo（vs golden 8 seeds）都是 ok', async () => {
+    const { container } = renderCase('/case/sspll', 'engineer')
+    const expD = () => container.querySelector(`#exp-${CODE_EXPERIMENT_ID}`) as HTMLElement
+    expect(expD()).not.toBeNull()
+    // 警告裡的 $4\Delta$ 是 KaTeX：textContent 同時含 MathML 的 TeX 原始碼與排出來的字（「4\Delta4Δ」），所以括號裡不比對字面
+    await waitFor(() => expect(expD().textContent).toMatch(/Case A（MASH 1-1-1（[^）]*））：4\/4 個 seeds 發散/), { timeout: 120000 })
+    const text = expD().textContent ?? ''
+    expect(text).not.toMatch(/Case B（rot8（[^）]*））：\d\/4 個 seeds 發散/)
+    expect(text).not.toMatch(/即時模擬尚未完成|即時模擬執行中/)
+    expect(text).toContain('dead zone：F-CS.28 不判')
+    expect(text).toContain('只是研究假說的提示')
+    expect(text).toMatch(/18 個 dead zone 案例裡，把它當判定是 6 個一致、8 個不一致、4 個不判/)
+    expect(text).not.toContain('dead zone 時由它判')
+    const cc = expD().querySelector('.c-exp-crosscheck') as HTMLElement
+    expect(cc.querySelectorAll('.c-check-ok').length).toBe(2)
+    expect(cc.querySelector('.c-check-mismatch')).toBeNull()
+    expect(cc.textContent).toMatch(/1 個一致、0 個不一致、1 個不判/)
+    expect(cc.textContent).toMatch(/A：判定 dead zone（不判） vs MC 4\/4 發散、0\/4 收斂 → n\/a/)
+    expect(cc.textContent).toMatch(/本頁 4\/4 發散/)
+    expect(cc.textContent).toMatch(/vs golden 8\/8/)
+    expect(cc.textContent).toMatch(/Not implemented/)
+    // golden 表：headline 那一列 8／0、dead zone
+    expect(text).toMatch(/dead zone（不判）/)
+  }, 180000)
 })

@@ -17,7 +17,7 @@ import {
   typeIPoleCriterion,
   type SspllLoop,
 } from '@/simulation/models/sspll'
-import { DITHER, FREF_MHZ, LOOP_KEYS, LOOPS, PARAMS, PRED, P_ONLY, REMEDY, SIM_CFG, type LoopKey } from '../data'
+import { DITHER, DITHER_NUM, FREF_MHZ, LOOP_KEYS, LOOPS, PARAMS, PRED, P_ONLY, REMEDY, SIM_CFG, type LoopKey } from '../data'
 import { Claim, DataTable, Diagram, FigRef, Formula, GoldenCode, Hand, Kappa, MODEL_PATH, MODEL_SRC, ModelCompare, PY_SOURCES, Sci, Src, fmtFs, fs, fx, intervalsText, r, tx } from '../common'
 
 /** 比較器前級單極點（f_c）之後的一階差分 kernel：min_f Re{H_PD·H_c·(1 − e^{jΩ})}，H_c = (1 − p)/(1 − p z⁻¹) */
@@ -426,7 +426,7 @@ export function S11Remedies() {
         <li>放開積分路徑時會有 transient（沒有模擬）。</li>
       </ol>
 
-      <h3>11.4 PMUX 隨機旋轉／MASH（④，只有 sim 證據）</h3>
+      <h3>11.4 PMUX 隨機旋轉／MASH（④；判定式見 §10b）</h3>
       <DataTable
         className="cs-num"
         head={['方法', 'DTC range', ...DITHER_ALPHAS.map((a) => `L2 $\\alpha=${a}$`), 'L3 $\\alpha=0.01$']}
@@ -443,10 +443,14 @@ export function S11Remedies() {
         <strong>
           但 L2-PM45 搭配 MASH 在 <Tex>{r`\alpha=0.03`}</Tex> 發散到 {fmtFs(DITHER.lms['L2_pm45|mash']?.['0.03|raw']?.final_phos_rms_fs)}
         </strong>
-        ，目前理論無法解釋。
-        <Claim kind="research" />
+        ——§10b 用 F-CS.27 的 closed form 說明了原因：MASH 只把 mode-1 載波的 {fx(100 * (1 - DITHER_NUM.headline.phi2), 0)}% 攤到高頻，留下的 {fx(100 * DITHER_NUM.headline.phi2, 0)}% 乘上 PM 45° 在 120 MHz 的 <Tex>{`\\mathrm{Re}\\,H_{PD}=${tx(DITHER_NUM.headline.ReH, 2)}`}</Tex> 剛好抵掉散開的正項（<Tex>{`\\mathrm{Re}\\,\\kappa_1=+${tx(DITHER_NUM.headline.kappa_1, 2)}`}</Tex>，dead zone：沒有恢復力）；PM 60° 的同一點 <Tex>{`\\mathrm{Re}\\,H_{PD}=${tx(DITHER_NUM.headline.pm60.ReH, 2)}`}</Tex>，<Tex>{`\\mathrm{Re}\\,\\kappa_1=+${tx(DITHER_NUM.headline.pm60.kappa_1, 2)}`}</Tex>。
+        <Claim kind="approx">
+          F-CS.27／F-CS.28 的線性段；golden 105 組 × 8 seeds 的閉迴路判定與多數一致 {DITHER_NUM.mc._summary.n_ok}、不一致 {DITHER_NUM.mc._summary.n_mismatch}、dead zone 不判 {DITHER_NUM.mc._summary.n_na}
+        </Claim>
+        沒有恢復力之後為什麼是發散而不是停住：1-bit 大訊號的 <Tex>{`\\kappa_\\infty=${tx(DITHER_NUM.headline.kappa_inf, 2)}`}</Tex> 是候選，但把「dead zone 看 <Tex>{r`\kappa_\infty`}</Tex>」當判準，golden 的 {DITHER_NUM.mc._summary.n_dead} 個 dead zone 案例錯了 {DITHER_NUM.mc._summary.candidates.two_stage.dead_zone.n_mismatch} 個（§10b.7）。
+        <Claim kind="research">dead zone 之後發散的機制</Claim>
       </p>
-      <p>代價：DTC range 要 2–8 倍、會多出 quantization 雜訊。隨機序列的交叉譜理論沒有做。</p>
+      <p>代價：DTC range 要 2–8 倍、會多出 quantization 雜訊。這張表的每一格都可以用 §10b 的 closed form 算出來（表內數字與 closed form 最多差 {fx(DITHER_NUM.sim_compare._summary.max_abs_diff_closed_sim, 3)}）；實驗 D 可以自己跑多 seed 的閉迴路。</p>
 
       <h3>11.5 keep-out／freeze（⑤）</h3>
       <p>
@@ -498,7 +502,7 @@ export function S11Remedies() {
           [<strong key="a">1diff</strong>, <><strong>是</strong>（<Tex>{r`\min_\Omega g\ge0`}</Tex> 時；三個標稱迴路都成立）</>, LOOP_KEYS.map((k) => lsInf(k, '1diff')).join('／'), '免疫', '極低', <>D 對齊（GOS、PHOS 分開）；比較器極點太低；迴路延遲太長（L1 延遲 5 拍）；<Tex>{r`\alpha\to0`}</Tex> 很慢</>],
           [<strong key="a">filtered-x</strong>, <>是（只要 <Tex>{r`\lvert\Delta\phi\rvert\le90^\circ`}</Tex>）</>, LOOP_KEYS.map((k) => lsInf(k, 'fx:exact')).join('／'), '免疫（Type-I/II 模型）', '9 條 4 GHz IIR', <>Type-I 模型的 <Tex>{`\\hat K<${tx(fxI.K_hat_critical, 4)}`}</Tex></>],
           [<strong key="a">P-only + zm</strong>, `是（判據 ${fx(pOnly[0].crit, 2)}／${fx(pOnly[1].crit, 2)}）`, `–／${lsInf('L2', 'P-only|ac')}／${lsInf('L3', 'P-only|ac')}（以 ac 計算）`, 'zm 才免疫', 'hold 開關、dual-path LF', '只能 foreground；BW 改變；transient'],
-          ['隨機旋轉／MASH', 'sim：大多安全', 'sim：大多安全', '–', 'DTC range $\\times2$–$\\times8$', 'L2-PM45 MASH $\\alpha=0.03$ 發散（未解）'],
+          ['隨機旋轉／MASH', '看 F-CS.28：rot8 是（$\\kappa_m\\equiv1$）；MASH／rot4／dq 看載波保留率 $\\times\\mathrm{Re}\\,H_{PD}(\\alpha)$', 'dead zone 不判；$\\kappa_\\infty$ 只是提示（研究假說，§10b.7）', '–', 'DTC range $\\times2$–$\\times8$', 'MASH 在深反號帶（PM 45°、120 MHz）掉進 dead zone、沒有恢復力；sim 裡還會發散，機制是研究假說（§10b）'],
           ['keep-out／freeze', '迴避', '需大訊號清單', '–', '頻道規劃', '無法追蹤 PVT；清單要涵蓋 PVT'],
           ['$D\\ne0$、2diff', <strong key="a" className="cs-neg">有害</strong>, '–', '–', '–', '大面積反號'],
         ]}
