@@ -199,14 +199,6 @@
   white-space: nowrap;
 }
 
-/* 章首的一行連結「本章符號表在最後 ↓」與章末的符號表 */
-.ch05-symbols-link {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 8px;
-  align-items: baseline;
-  margin: 8px 0 12px;
-}
 .ch05-linkbtn {
   appearance: none;
   border: 0;

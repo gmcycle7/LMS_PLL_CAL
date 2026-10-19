@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { ClaimTag, Prereq, Section, SourceTag, StepDerivation, SystemMap, Tex, TexBlock, ChRef } from '@/components'
 import { mean } from '@/simulation/core'
 import { batchL1, batchL2 } from '@/simulation/models/lossCompare'
@@ -12,7 +12,8 @@ const NOISY = { x: [1, 2, 4], y: [3.2, 5.7, 12.5] }
 const MODEL_A = [10, -10, 10, -10]
 const MODEL_B = [1, -1, 1, -1]
 
-export function IntroSection() {
+/** @param afterMap 接在系統地圖的「你在這裡」之後的內容（index.tsx 把標籤列與勘誤說明框放在這裡） */
+export function IntroSection({ afterMap }: { afterMap?: ReactNode } = {}) {
   const est = useMemo(() => {
     const ratios = NOISY.y.map((y, i) => y / NOISY.x[i])
     const ls = batchL2(NOISY.x, NOISY.y)
@@ -40,9 +41,10 @@ export function IntroSection() {
           。這一課回答兩個問題：(1) 名字裡的 Least、Mean、Squares 各是什麼意思、數學上怎麼來的？(2) 一定要用平方嗎？用絕對值會怎樣？
         </p>
         <SystemMap focus={SYSTEM_MAP_FOCUS} caption={SYSTEM_MAP_CAPTION} />
-        <p>
+        <p className="c-map-note">
           <strong>你在這裡</strong>：上圖是整個 PLL 加上 LMS 校正迴路，每一章開頭都是同一張。主迴路是 reference clock 先經過 DTC、再進 phase detector（PD）、loop filter、VCO；回授路徑上只有 divider（或 PMUX）。LMS 校正迴路的輸入是 PD 的輸出——送進 loop filter 的同一個訊號，1-bit comparator 取的就是它的正負號。藍色方塊是本章的主角——GMAC（gain multiply-accumulate：把誤差乘上輸入再累加）、步長（<Tex>{String.raw`\div N`}</Tex>、<Tex>{String.raw`\times\mu`}</Tex>）與 gain accumulator（存係數 <Tex>{'w'}</Tex> 的暫存器）合起來就是「修正猜測」這個動作，1-bit comparator 則決定修正時用的是誤差本身，還是只有它的正負號。本章把這四塊從 PLL 裡拿出來，放進一個沒有 PLL 動態的最簡單模型（一個輸入、一個係數），回答一件事：這條修正規則到底在最小化什麼？§1 用誤差本身，§2 換成只有正負號（comparator 的情況）。
         </p>
+        {afterMap}
         <TexBlock id="F-01.1" label="黑盒子模型（規格 §1）">
           {String.raw`y=ax+v,\qquad \hat y=wx,\qquad e=y-\hat y=y-wx`}
         </TexBlock>

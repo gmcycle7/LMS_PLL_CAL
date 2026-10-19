@@ -177,10 +177,10 @@ export function CodeMixingLab() {
   }, [r, act, prm])
 
   const crossCheck: CrossCheck = useMemo(() => {
-    if (!r) return { analytic: 'n/a', monteCarlo: 'n/a', fixedPoint: 'not-implemented' }
+    if (!r) return { analytic: { status: 'n/a', note: '尚未執行' }, monteCarlo: { status: 'n/a', note: '尚未執行' }, fixedPoint: { status: 'n/a', note: '本實驗不含暫存器量化（見第 13 章）' } }
     // 以 act.p（實際算出 r 的參數）判定，避免 debounce 期間參數與結果不一致
     const cc = mixingCrossCheck(act?.p ?? prm, r)
-    return { analytic: cc.analytic, monteCarlo: cc.monteCarlo, fixedPoint: { status: 'not-implemented', note: '本實驗不含暫存器量化（見第 13 章）' } }
+    return { analytic: cc.analytic, monteCarlo: cc.monteCarlo, fixedPoint: { status: 'n/a', note: '本實驗不含暫存器量化（見第 13 章）' } }
   }, [r, act, prm])
 
   const warnings = useMemo(() => {

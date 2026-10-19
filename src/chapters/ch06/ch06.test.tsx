@@ -204,7 +204,14 @@ describe('第 06 章頁面（jsdom smoke test）', () => {
     expect(container.querySelectorAll('.c-symbols').length).toBe(1)
     expect(container.querySelector('.ch06')!.lastElementChild).toBe(symbols)
     expect(container.querySelector('#ch06-s8')!.compareDocumentPosition(symbols) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(container.querySelector('.ch06-symbols-link')!.textContent).toMatch(/^本章符號表在最後/)
+    expect(container.querySelector('.ch06-symbols-link')).toBeNull() // 章首的符號表連結改由 PageFrame 的本章資訊 strip 提供
+    // 章首骨架（teaching-style §9）：導言 → 系統地圖 → 「你在這裡」（.c-map-note）→ 標籤列 → 本章目錄 → §1
+    const lead = container.querySelector('.ch06-lead')!
+    expect(container.querySelector('.ch06')!.firstElementChild).toBe(lead)
+    expect(lead.nextElementSibling).toBe(container.querySelector('figure.c-mermaid.c-sysmap'))
+    expect(lead.nextElementSibling!.nextElementSibling).toBe(container.querySelector('.ch06-map-note.c-map-note'))
+    expect(container.querySelector('.ch06-map-note')!.compareDocumentPosition(container.querySelector('.ch06-tags')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(container.querySelector('.ch06-tags')!.compareDocumentPosition(container.querySelector('.ch06-toc')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     // 方塊圖：章首的系統地圖 + 登錄的每一張（Research 模式；圖都不在模式限定的段落裡，三種模式張數相同）
     expect(container.querySelectorAll('figure.c-mermaid').length).toBe(CH06_DIAGRAMS.length + 1)
     for (const d of CH06_DIAGRAMS) expect(container.querySelector(`[id="diagram-${d.id}"] .ch06-diagram-read`), d.id).not.toBeNull()
@@ -214,7 +221,9 @@ describe('第 06 章頁面（jsdom smoke test）', () => {
     for (const h of HANDCALCS) expect(container.querySelector(`[id="handcalc-${h.id}"]`), h.id).not.toBeNull()
     expect(container.querySelectorAll('.c-handcalc').length).toBe(HANDCALCS.length)
     expect(container.querySelectorAll('.ch06-handcalc-lead').length).toBe(HANDCALCS.length)
-    expect(container.querySelectorAll('.ch06-handcalc-index li').length).toBe(HANDCALCS.length)
+    // 章首只剩手算的說明段落（保護位數等），清單式索引改由 strip 的「手算 N 題」取代
+    expect(container.querySelectorAll('.ch06-handcalc-index li').length).toBe(0)
+    expect(container.querySelector('.ch06-handcalc-index')!.textContent).toContain(`帶入手算（${HANDCALCS.length} 題）`)
     const sectionOf = (id: string) => container.querySelector(`[id="handcalc-${id}"]`)!.closest('section.ch06-section')!.id
     expect(HANDCALCS.map((h) => sectionOf(h.id))).toEqual(['ch06-s3', 'ch06-s4', 'ch06-s4', 'ch06-s5', 'ch06-s5', 'ch06-s5', 'ch06-s6', 'ch06-s8'])
     const s8 = container.querySelector('#ch06-s8') as HTMLElement

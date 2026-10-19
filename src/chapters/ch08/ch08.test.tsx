@@ -98,9 +98,14 @@ describe('Ch08 smoke test（jsdom）', () => {
       expect(container.querySelectorAll('.katex-error')).toHaveLength(0)
       // 每個登錄的公式恰好一個錨點
       for (const f of FORMULAS) expect(container.querySelectorAll(`[id="formula-${f.id}"]`)).toHaveLength(1)
-      // 符號表在章末（teaching-style §5）：章首只留一行「本章符號表在最後 ↓」，表本身是頁面最後一個區塊（外層 id="symbols"，排在 Recap 之後）
-      expect(text.indexOf('本章符號表在最後')).toBeGreaterThan(text.indexOf('這一章要回答的問題'))
-      expect(text.indexOf('本章符號表在最後')).toBeLessThan(text.indexOf('先用一個生活例子'))
+      // 符號表在章末（teaching-style §5）：表本身是頁面最後一個區塊（外層 id="symbols"，排在 Recap 之後）。
+      // 章首骨架（teaching-style §9）：問題 → 系統地圖 → 「你在這裡」（.c-map-note）→ 標籤列 → 生活例子；不再有「本章符號表在最後」（連結在 PageFrame 的 strip 裡）
+      expect(text).not.toContain('本章符號表在最後')
+      const question = container.querySelector('.ch08 > .c-callout') as HTMLElement
+      expect(container.querySelector('.ch08')!.firstElementChild).toBe(question)
+      expect(question.nextElementSibling).toBe(container.querySelector('figure.c-mermaid.c-sysmap'))
+      expect(question.nextElementSibling!.nextElementSibling).toBe(container.querySelector('.c-map-note'))
+      expect(text.indexOf('你在這裡')).toBeLessThan(text.indexOf('先用一個生活例子'))
       const symbols = container.querySelector('[id="symbols"]')
       expect(container.querySelectorAll('.c-symbols')).toHaveLength(1)
       expect(symbols?.querySelectorAll('.c-symbols tbody tr')).toHaveLength(30)

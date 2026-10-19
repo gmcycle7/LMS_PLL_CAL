@@ -62,18 +62,6 @@ function scrollToId(id: string) {
   el.focus({ preventScroll: true })
 }
 
-/** 章首的那一行：「本章符號表在最後 ↓」。 */
-export function SymbolsLink() {
-  return (
-    <p className="small ch13-symbols-link">
-      <button type="button" className="ch13-linklike" data-testid="ch13-symbols-link" onClick={() => scrollToId(SYMBOLS_ID)}>
-        本章符號表在最後 ↓
-      </button>
-      <span className="muted">（每個符號第一次出現時，正文會先用一句話說明）</span>
-    </p>
-  )
-}
-
 /** 章末的符號表（整頁最後一塊）。 */
 export function SymbolsSection() {
   return (

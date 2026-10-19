@@ -112,11 +112,6 @@ export function FigRef({ id }: { id: string }) {
   return <strong className="nowrap">圖 9.{ch09Diagram(id).number}</strong>
 }
 
-/** 捲到章末的符號表（id="symbols"）。用按鈕＋scrollIntoView，不改 URL：HashRouter 的路由不會被 #symbols 蓋掉 */
-export function scrollToSymbols(): void {
-  document.getElementById('symbols')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
-
 /** 數字格式：有限值用 fmt，∞ 顯示為 ∞ */
 export function num(x: number, digits = 4): string {
   if (x === Infinity) return '∞'

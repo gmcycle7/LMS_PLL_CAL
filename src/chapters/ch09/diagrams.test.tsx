@@ -1122,11 +1122,8 @@ describe('Ch09 頁面與版面：系統地圖、方塊圖的位置、章末符�
     expect(before(at('.c-recap'), symbols)).toBe(true)
     expect(before(at('#ch09-pll'), symbols)).toBe(true)
     expect(before(at('#ch09-quiz'), symbols)).toBe(true)
-    // 章首（第一節之前）沒有表格，只有一行會捲動的按鈕
-    const link = Array.from(container.querySelectorAll('button')).find((b) => b.textContent?.includes('本章符號表在最後'))
-    expect(link).toBeTruthy()
-    expect(before(link!, at('#ch09-intro'))).toBe(true)
-    expect(before(link!, map)).toBe(true)
+    // 章首（第一節之前）沒有表格，也沒有「本章符號表在最後」那一行（連結由 PageFrame 的本章資訊 strip 提供）
+    expect(Array.from(container.querySelectorAll('button')).find((b) => b.textContent?.includes('本章符號表在最後'))).toBeUndefined()
     // HashRouter：不可以用會改變路由的 href
     expect(container.querySelector('a[href="#symbols"], a[href$="#symbols"]')).toBeNull()
     const scrolled: Element[] = []
@@ -1135,13 +1132,11 @@ describe('Ch09 頁面與版面：系統地圖、方塊圖的位置、章末符�
       scrolled.push(this)
     }
     try {
-      fireEvent.click(link!)
-      expect(scrolled).toEqual([symbols])
-      // 目錄的最後一項也捲到同一個地方
+      // 目錄的最後一項捲到符號表
       const tocLast = Array.from(container.querySelectorAll('.ch09-toc button')).pop()
       expect(tocLast?.textContent).toContain('本章符號表')
       fireEvent.click(tocLast!)
-      expect(scrolled).toEqual([symbols, symbols])
+      expect(scrolled).toEqual([symbols])
     } finally {
       Element.prototype.scrollIntoView = original
     }

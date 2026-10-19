@@ -95,12 +95,17 @@ describe('第 12 章（jsdom smoke）', () => {
     expect(symbols.querySelectorAll('.c-symbols tbody tr').length).toBe(CH12_SYMBOLS.length)
     expect(follows(container.querySelector('.c-recap') as HTMLElement, symbols)).toBe(true)
     for (const el of Array.from(container.querySelectorAll('section.c-section, [data-experiment], .c-quiz, section.c-handcalc'))) expect(follows(el, symbols)).toBe(true)
-    // 章首只留一行「本章符號表在最後」的按鈕（HashRouter：不用 href，改用 scrollIntoView），位在第一個小節之前
-    const jumps = Array.from(container.querySelectorAll('button.ch12-jump')) as HTMLButtonElement[]
-    expect(jumps.length).toBe(1)
-    expect(jumps[0].textContent).toMatch(/^本章符號表在最後/)
-    expect(follows(jumps[0], container.querySelector('#ch12-start') as HTMLElement)).toBe(true)
+    // 章首骨架（teaching-style §9）：12.0 是第一個區塊，裡面依序是問題 → 系統地圖 → 說明（.c-map-note）→ 標籤列與導言；
+    // 不再有「本章符號表在最後」的按鈕、勘誤清單與「先備章節」框（都改由 PageFrame 的本章資訊 strip 與先備自檢提供）
+    expect(container.querySelectorAll('button.ch12-jump')).toHaveLength(0)
+    expect(article.firstElementChild).toBe(container.querySelector('#ch12-start'))
+    const question = container.querySelector('.ch12-question') as HTMLElement
+    expect(question.nextElementSibling).toBe(container.querySelector('figure.c-mermaid.c-sysmap'))
+    expect(question.nextElementSibling!.nextElementSibling).toBe(container.querySelector('.c-map-note'))
+    expect(follows(container.querySelector('.c-map-note') as HTMLElement, container.querySelector('.c-tag-row') as HTMLElement)).toBe(true)
     expect(container.querySelector('a[href="#symbols"]')).toBeNull()
+    expect(screen.queryByText('本章採用的勘誤')).toBeNull()
+    expect(screen.queryByText('先備章節')).toBeNull()
     // 方塊圖（docs/teaching-style.md §8）：章首的系統地圖 + 本章的 Mermaid 圖（預設 Engineer 模式看不到 Research 專屬的那一張）
     expect(container.querySelectorAll('figure.c-mermaid').length).toBe(1 + CH12_CHARTS.filter((c) => !c.mode).length)
     expect(container.querySelectorAll('.ch12-diagram').length).toBe(CH12_CHARTS.filter((c) => !c.mode).length)
@@ -179,38 +184,17 @@ describe('第 12 章（jsdom smoke）', () => {
     expect(errs).toEqual([])
   }, T_TEST)
 
-  it('符號表：章首的按鈕捲到章末的 #symbols，之後可以回到原本的位置；表格依首次出現的小節排列', () => {
-    const scrolled: string[] = []
-    const proto = Element.prototype as unknown as { scrollIntoView?: () => void }
-    const original = proto.scrollIntoView
-    proto.scrollIntoView = function (this: Element) {
-      scrolled.push(this.id)
-    }
-    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined)
-    Object.defineProperty(window, 'scrollY', { value: 321, configurable: true })
-    try {
-      const { container } = renderChapter()
-      expect(container.querySelector('.ch12-symbols-back')).toBeNull()
-      fireEvent.click(container.querySelector('button.ch12-jump') as HTMLElement)
-      expect(scrolled).toEqual(['symbols'])
-      // 跳過去之後，符號表旁出現「回到剛才閱讀的位置」
-      const back = container.querySelector('#symbols .ch12-symbols-back button') as HTMLButtonElement
-      expect(back.textContent).toMatch(/回到剛才閱讀的位置/)
-      fireEvent.click(back)
-      expect(scrollTo).toHaveBeenCalledWith({ top: 321, behavior: 'smooth' })
-      expect(container.querySelector('.ch12-symbols-back')).toBeNull()
-      // 「首次出現」欄由小到大（§12.0 … §12.9；「§12.0 → §12.7」這種寫法以箭頭前的小節排序），而且每一列都有標示
-      const seen = Array.from(container.querySelectorAll('#symbols .c-symbols tbody tr')).map((tr) => /§12\.(\d+)/.exec(tr.textContent ?? '')?.[1])
-      expect(seen.every((x) => x !== undefined)).toBe(true)
-      const order = CH12_SYMBOLS.map((r) => Number(/§12\.(\d+)/.exec(r.firstSeen ?? '')?.[1]))
-      expect(order).toEqual([...order].sort((a, b) => a - b))
-      expect(new Set(CH12_SYMBOLS.map((r) => r.symbol)).size).toBe(CH12_SYMBOLS.length)
-    } finally {
-      scrollTo.mockRestore()
-      Reflect.deleteProperty(window, 'scrollY')
-      if (original) proto.scrollIntoView = original
-      else delete proto.scrollIntoView
-    }
+  it('符號表：章首沒有跳轉按鈕（連結在 PageFrame 的本章資訊 strip 裡）、章末不再有「回到剛才閱讀的位置」；表格依首次出現的小節排列', () => {
+    const { container } = renderChapter()
+    expect(container.querySelector('button.ch12-jump')).toBeNull()
+    expect(container.querySelector('.ch12-symbols-back')).toBeNull()
+    expect(container.querySelector('#symbols .c-symbols')).not.toBeNull()
+    // 「首次出現」欄由小到大（§12.0 … §12.9；「§12.0 → §12.7」這種寫法以箭頭前的小節排序），而且每一列都有標示
+    const seen = Array.from(container.querySelectorAll('#symbols .c-symbols tbody tr')).map((tr) => /§12\.(\d+)/.exec(tr.textContent ?? '')?.[1])
+    expect(seen.every((x) => x !== undefined)).toBe(true)
+    const order = CH12_SYMBOLS.map((r) => Number(/§12\.(\d+)/.exec(r.firstSeen ?? '')?.[1]))
+    expect(order).toEqual([...order].sort((a, b) => a - b))
+    expect(new Set(CH12_SYMBOLS.map((r) => r.symbol)).size).toBe(CH12_SYMBOLS.length)
   }, T_TEST)
 
   it('LMS Noise Lab：新增 Case B 後兩個 case 一起（paired）跑 Monte Carlo，表格顯示各自的 σ_w 與 CI', async () => {

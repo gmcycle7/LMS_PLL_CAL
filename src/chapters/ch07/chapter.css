@@ -176,35 +176,6 @@
   font-size: 0.95rem;
 }
 
-/* 章首的一行連結「本章符號表在最後 ↓」（S8Symbols.tsx 的 SymbolsLink） */
-.ch07-symlink {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 10px;
-  margin: 8px 0 12px;
-  font-size: 0.9rem;
-}
-.ch07-symlink-btn {
-  appearance: none;
-  border: 0;
-  background: none;
-  padding: 0;
-  font: inherit;
-  font-weight: 600;
-  color: var(--accent);
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.ch07-symlink-btn:hover,
-.ch07-symlink-btn:focus-visible {
-  text-decoration-thickness: 2px;
-}
-.ch07-symlink-note {
-  color: var(--text-muted);
-}
-
 /* 章末的符號表（id="symbols"）：捲動過來時留一點上邊界，不要貼在視窗頂端 */
 .ch07-symbols {
   margin-top: 28px;

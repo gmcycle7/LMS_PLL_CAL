@@ -4,7 +4,6 @@ import { normPdf } from '@/simulation/core'
 import { directionOutcomeExact, meanQ, pPlus, sumMoments, varQ } from '@/simulation/models/comparator'
 import { Erratum, Fig, fx, int, sig } from '../common'
 import { CH05_SYSTEM_FOCUS } from '../diagrams'
-import { SymbolsLink } from '../symbols'
 import { ExpectationPrereq, GaussianPrereq } from './Probability'
 
 /** 開場：問題、系統地圖（你在這裡）、直覺與路線圖、L1 模型方塊圖、先算一次。符號表在章末（../symbols.tsx）。 */
@@ -24,8 +23,6 @@ export function IntroSection() {
 
   return (
     <>
-      <SymbolsLink />
-
       <Callout kind="info" title="這次我們要回答的問題">
         <p className="ch05-question">
           PLL 裡 reference 端的 DTC 補償還差一點點，PD 的輸出裡因此有 <Tex>{String.raw`s=1\,\mathrm{fs}`}</Tex> 的時間誤差；但同一個輸出還混著{' '}
@@ -35,7 +32,7 @@ export function IntroSection() {
       </Callout>
 
       <SystemMap focus={CH05_SYSTEM_FOCUS} />
-      <p className="ch05-system-map-note">
+      <p className="ch05-system-map-note c-map-note">
         <strong>你在這裡：</strong>藍色的三個方塊——comparator 前的雜訊 <Tex>{'v[n]'}</Tex>、1-bit comparator、GMAC 累加器——是本章的主角。前幾章把 comparator
         當成理想的 <Tex>{'\\operatorname{sign}(\\cdot)'}</Tex>；這一章補上「有雜訊時，一個 bit 還剩多少資訊」：輸出 <Tex>{'+1'}</Tex> 的機率、平均輸出、累加{' '}
         <Tex>{'N'}</Tex> 次之後的訊號雜訊比，以及之後所有迴路分析都會用到的等效增益 <Tex>{'K_q'}</Tex>。

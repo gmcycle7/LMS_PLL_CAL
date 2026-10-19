@@ -311,9 +311,8 @@ export function S7Symbols() {
       />
       <p className="ch10-symbols-back small muted no-print">
         <button type="button" className="ch10-linklike" onClick={scrollBackFromSymbols}>
-          ↑ 回到剛才閱讀的位置
+          ↑ 回到章首
         </button>
-        （從章首的「本章符號表在最後」跳過來時，會回到原來的地方；否則回到章首）
       </p>
     </section>
   )

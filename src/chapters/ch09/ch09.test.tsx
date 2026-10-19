@@ -106,9 +106,15 @@ describe('Ch09 smoke test（jsdom）', () => {
     const follows = (a: Element, b: Element) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
     expect(follows(container.querySelector('.c-recap') as Element, symbols)).toBe(true)
     expect(follows(container.querySelector('#ch09-pll') as Element, symbols)).toBe(true)
-    const symbolsLink = Array.from(container.querySelectorAll('button')).find((b) => b.textContent?.includes('本章符號表在最後'))
-    expect(symbolsLink).toBeTruthy()
-    expect(follows(symbolsLink as Element, container.querySelector('#ch09-intro') as Element)).toBe(true)
+    // 章首骨架（teaching-style §9）：導言＋問題 → 系統地圖 → 「你在這裡」（.c-map-note）→ 標籤列與本章目錄 → 第一節；
+    // 不再有「本章符號表在最後」的按鈕（連結在 PageFrame 的 strip 裡）
+    expect(Array.from(container.querySelectorAll('button')).find((b) => b.textContent?.includes('本章符號表在最後'))).toBeUndefined()
+    const mapFig = container.querySelector('figure.c-mermaid.c-sysmap') as Element
+    expect(follows(screen.getByText('這一課要回答的問題'), mapFig)).toBe(true)
+    expect(mapFig.nextElementSibling).toBe(container.querySelector('.ch09-map-note.c-map-note'))
+    const toc = container.querySelector('nav[aria-label="本章目錄"]') as Element
+    expect(follows(mapFig, toc)).toBe(true)
+    expect(follows(toc, container.querySelector('#ch09-intro') as Element)).toBe(true)
     // 方塊圖（docs/teaching-style.md §8）：章首系統地圖＋本章清單的每一張，三種模式都顯示（不藏在 ModeGate 裡）
     expect(container.querySelectorAll('figure.c-mermaid')).toHaveLength(CH09_DIAGRAMS.length + 1)
     expect(Array.from(container.querySelectorAll('.ch09-diagram')).map((el) => el.getAttribute('data-diagram'))).toEqual(CH09_DIAGRAMS.map((d) => d.id))

@@ -133,6 +133,16 @@ export default function Chapter03() {
       <p className="ch03-lead" id="ch03-top">
         這一課要回答：<strong>LMS 什麼時候會收斂？</strong>固定輸入時答案是一個等比數列，乾淨俐落；輸入變成隨機以後，「收斂」突然有了<strong>三種不同的意思</strong>，而且它們的界限可以差好幾倍。我們會一路從高中的 <Tex>{T`r^n\to0`}</Tex> 推到 Lyapunov 指數，並用 Monte Carlo 親眼看到「均方發散、但每條路徑都收斂」。
       </p>
+      <SystemMap focus={SYSTEM_FOCUS} />
+      <p className="c-map-note">
+        <strong>你在這裡：藍色方塊是本章的主角</strong>——regressor（迴歸輸入）<Tex>{T`x[n]`}</Tex>、步長 <Tex>\mu</Tex>（「<Tex>{T`\div N`}</Tex>、<Tex>{T`\times\mu`}</Tex>」那一格）與存放校正值{' '}
+        <Tex>w</Tex> 的 gain accumulator。本章先把 comparator、PLL 動態與量化都拿掉（誤差直接是線性的 <Tex>{T`e=(a-w)\,x`}</Tex>），只問一個問題：
+        <strong>
+          <Tex>\mu</Tex> 要多小，accumulator 裡的 <Tex>w</Tex> 才會收斂到真實值 <Tex>a</Tex>？是哪一種「收斂」？
+        </strong>
+        答案由 <Tex>{T`x[n]`}</Tex> 的功率與分布形狀決定；第 8 節再把 GMAC 的「累加 <Tex>N</Tex> 筆」放回來。
+      </p>
+      {/* 章首骨架（本章資訊、先備自檢）由 PageFrame 放在上面的系統地圖之後（docs/teaching-style.md §9） */}
       <div className="ch03-tags">
         <ModelLevel level="L0" />
         <ClaimTag kind="exact" />
@@ -144,21 +154,6 @@ export default function Chapter03() {
         <Erratum id="E39" />
         <Erratum id="E42" />
       </div>
-      <p className="ch03-symbols-link">
-        <button type="button" className="ch03-toc" onClick={() => scrollToId('symbols')}>
-          本章符號表在最後 ↓
-        </button>
-      </p>
-
-      <SystemMap focus={SYSTEM_FOCUS} />
-      <p>
-        <strong>你在這裡：藍色方塊是本章的主角</strong>——regressor（迴歸輸入）<Tex>{T`x[n]`}</Tex>、步長 <Tex>\mu</Tex>（「<Tex>{T`\div N`}</Tex>、<Tex>{T`\times\mu`}</Tex>」那一格）與存放校正值{' '}
-        <Tex>w</Tex> 的 gain accumulator。本章先把 comparator、PLL 動態與量化都拿掉（誤差直接是線性的 <Tex>{T`e=(a-w)\,x`}</Tex>），只問一個問題：
-        <strong>
-          <Tex>\mu</Tex> 要多小，accumulator 裡的 <Tex>w</Tex> 才會收斂到真實值 <Tex>a</Tex>？是哪一種「收斂」？
-        </strong>
-        答案由 <Tex>{T`x[n]`}</Tex> 的功率與分布形狀決定；第 8 節再把 GMAC 的「累加 <Tex>N</Tex> 筆」放回來。
-      </p>
       <Callout kind="info" title="怎麼讀本章的方塊圖">
         <ul>
           <li>

@@ -895,7 +895,7 @@ describe('ch00 方塊圖：頁面上的位置', () => {
       expect(first.querySelector('.katex-error')).toBeNull()
       expect(squash(drawnFocus.map((g) => g.textContent).join(''))).toContain('Gainaccumulator')
       const note = first.nextElementSibling!
-      expect(note.className).toBe('ch00-map-note')
+      expect(note.className).toBe('ch00-map-note c-map-note') // c-map-note：PageFrame 的章首 strip 排在它後面（teaching-style §9）
       expect(note.textContent).toContain('藍色的六個方塊就是 LMS 校正迴路本身')
       expect(note.textContent).toContain('黑盒子')
       expect(note.textContent).toContain('預測 → 比較 → 修正')

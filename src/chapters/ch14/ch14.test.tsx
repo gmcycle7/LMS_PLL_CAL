@@ -93,22 +93,25 @@ describe('Ch14 符號表放在章末（docs/teaching-style.md §5）', () => {
     follows(container.querySelector('.c-recap'), sym)
     follows(container.querySelector('[id="ch14-pll"]'), sym)
     follows(container.querySelector('[id="ch14-quiz"]'), sym)
-    // 章首：只有一行「本章符號表在最後」，在第一節之前；是 button（不是會改到 HashRouter 路由的 href）
+    // 章首骨架（teaching-style §9）：導言 → 系統地圖 → 「你在這裡」（.c-map-note）→ 標籤列與本章目錄 → 先備知識框 → 14.0；
+    // 不再有「本章符號表在最後」那一行（連結在 PageFrame 的 strip 裡），也沒有會改到 HashRouter 路由的 href
     // （不用 getByRole：整章有上千個 KaTeX 節點，jsdom 計算 accessible name 要數分鐘）
-    const jump = container.querySelector('.ch14-symbols-jump button') as HTMLButtonElement
-    expect(jump).toBeTruthy()
-    expect(jump.type).toBe('button')
-    expect(jump.textContent).toContain('本章符號表在最後')
-    expect(container.querySelectorAll('.ch14-symbols-jump').length).toBe(1)
-    follows(jump, container.querySelector('[id="ch14-question"]') as Element)
-    follows(jump, container.querySelector('.c-prereq') as Element)
+    expect(container.querySelectorAll('.ch14-symbols-jump').length).toBe(0)
+    const lead = container.querySelector('.ch14-lead') as Element
+    expect(container.querySelector('.ch14')!.firstElementChild).toBe(lead)
+    expect(lead.nextElementSibling).toBe(container.querySelector('figure.c-mermaid.c-sysmap'))
+    expect(lead.nextElementSibling!.nextElementSibling).toBe(container.querySelector('.c-map-note'))
+    const toc = container.querySelector('nav[aria-label="本章目錄"]') as Element
+    follows(container.querySelector('.c-map-note'), toc)
+    follows(toc, container.querySelector('.c-prereq') as Element)
+    follows(container.querySelector('.c-prereq'), container.querySelector('[id="ch14-question"]') as Element)
     expect(container.querySelector('a[href="#symbols"]')).toBeNull()
     // 第一節之前不再有符號表
     const firstSection = container.querySelector('[id="ch14-question"]') as Element
     expect(container.querySelector('.c-symbols')!.compareDocumentPosition(firstSection) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
   }, 150000)
 
-  it('按「本章符號表在最後」會捲到 #symbols；目錄也有「符號表」；章末可以回到章首', () => {
+  it('目錄的「符號表（章末）」是真的連結（?a=symbols），按下去捲到 #symbols；章末可以回到章首', () => {
     const scrolled: string[] = []
     const proto = Element.prototype as unknown as { scrollIntoView?: () => void }
     const saved = proto.scrollIntoView
@@ -117,18 +120,16 @@ describe('Ch14 符號表放在章末（docs/teaching-style.md §5）', () => {
     }
     try {
       const { container } = render(wrap(<Chapter14 />))
-      fireEvent.click(container.querySelector('.ch14-symbols-jump button') as HTMLElement)
-      expect(scrolled).toEqual(['symbols'])
-      expect(document.activeElement).toBe(container.querySelector('[id="symbols"]'))
       const toc = container.querySelector('nav[aria-label="本章目錄"]') as HTMLElement
-      const tocBtn = within(toc).getByText('符號表（章末）')
-      expect(tocBtn.tagName).toBe('BUTTON')
-      fireEvent.click(tocBtn)
-      expect(scrolled).toEqual(['symbols', 'symbols'])
+      const tocSym = within(toc).getByText('符號表（章末）') as HTMLAnchorElement
+      expect(tocSym.tagName).toBe('A')
+      expect(tocSym.getAttribute('href')).toMatch(/\?a=symbols$/)
+      expect(fireEvent.click(tocSym)).toBe(false)
+      expect(scrolled).toEqual(['symbols'])
       const back = within(container.querySelector('[id="symbols"]') as HTMLElement).getByText(/回到章首/)
       expect(back.tagName).toBe('BUTTON')
       fireEvent.click(back)
-      expect(scrolled).toEqual(['symbols', 'symbols', 'ch14-top'])
+      expect(scrolled).toEqual(['symbols', 'ch14-top'])
       expect(container.querySelector('[id="ch14-top"]')).toBe(container.querySelector('.ch14'))
       // 目錄的小節連結是真的連結（href = 目前路由 + ?a=id，中鍵／複製連結都能用），不是會被 HashRouter 當成路由的 #ch14-…
       const tocLink = within(toc).getByText('14.8 策略比較') as HTMLAnchorElement

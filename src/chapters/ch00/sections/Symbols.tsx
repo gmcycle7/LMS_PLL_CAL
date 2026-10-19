@@ -333,17 +333,6 @@ export const SYMBOLS: SymbolEntry[] = [
   },
 ]
 
-/** 章首只留這一行：按了捲到章末的符號表（HashRouter 下不能用 href="#symbols"，那會被當成路由）。 */
-export function SymbolsJump() {
-  return (
-    <p className="ch00-symbols-jump">
-      <button type="button" className="ch00-link-button" onClick={() => scrollToId(SYMBOLS_ANCHOR)}>
-        本章符號表在最後 ↓
-      </button>
-    </p>
-  )
-}
-
 /** §0.14 本章符號表：放在全章最後（Recap 與學習地圖之後），SymbolTable 是頁面的最後一個區塊。 */
 export function SymbolsSection() {
   return (

@@ -224,11 +224,6 @@
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
-/* 章首「本章符號表在最後」那一行，與章末的符號表 */
-.ch09-symbols-link {
-  margin: 0 0 0.75rem;
-}
-
 .ch09-symbols {
   margin-top: 2rem;
 }

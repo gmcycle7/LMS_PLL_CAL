@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { listRegions, renderTex } from '@/components'
-import { configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { configure, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
 import type { PresetEntry } from '@/data/types'
@@ -90,11 +90,15 @@ describe('Ch05 頁面（jsdom smoke）', () => {
     expect(recap.compareDocumentPosition(symbolsEnd) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     const lastQuiz = Array.from(container.querySelectorAll<HTMLElement>('.c-quiz')).pop()!
     expect(lastQuiz.compareDocumentPosition(symbolsEnd) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    // 章首只留一行連結（按鈕），排在第一個章節標題之前；章首不再有符號表
+    // 章首骨架（teaching-style §9）：開場問題是第一個區塊、系統地圖緊接在後、「你在這裡」標成 .c-map-note（PageFrame 的本章資訊 strip 接在它後面）；
+    // 章首不再有符號表，也沒有「本章符號表在最後」那一行（連結在 strip 裡）
     const firstHeading = container.querySelector('h2') as HTMLElement
-    const link = container.querySelector('.ch05-symbols-link button') as HTMLButtonElement
-    expect(link.textContent).toContain('本章符號表在最後')
-    expect(link.compareDocumentPosition(firstHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(container.querySelector('.ch05-symbols-link')).toBeNull()
+    const question = screen.getByText('這次我們要回答的問題').closest('.c-callout') as HTMLElement
+    expect(container.querySelector('.ch05')!.firstElementChild).toBe(question)
+    expect(question.nextElementSibling).toBe(container.querySelector('figure.c-mermaid.c-sysmap'))
+    expect(question.nextElementSibling!.nextElementSibling).toBe(container.querySelector('.ch05-system-map-note.c-map-note'))
+    expect(question.compareDocumentPosition(firstHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(firstHeading.compareDocumentPosition(symbolsEnd) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     // 方塊圖（teaching-style §8）：章首的系統地圖 + 本章登錄的圖（Engineer 模式看不到 Research 才有的那一張）
     const expectedFigs = 1 + CH05_DIAGRAMS.filter((d) => d.minMode !== 'research').length
@@ -184,7 +188,7 @@ describe('Ch05 頁面（jsdom smoke）', () => {
     errSpy.mockRestore()
   }, SLOW)
 
-  it('符號表移到章末：章首的「本章符號表在最後」是按鈕（HashRouter 下不改路由），按下去把 #symbols 捲進畫面並移動焦點', async () => {
+  it('符號表移到章末：開場（IntroSection）裡沒有符號表也沒有跳轉連結（連結在 PageFrame 的 strip 裡）；章末的 #symbols 表欄位與極性註記不變', async () => {
     const scrollSpy = vi.fn()
     const proto = Element.prototype as unknown as { scrollIntoView?: unknown }
     const original = proto.scrollIntoView
@@ -200,30 +204,15 @@ describe('Ch05 頁面（jsdom smoke）', () => {
       )
       // 開場有 4 張圖（系統地圖 + 路線圖 + L1 模型 + 先算一次的流程）：等它們（mock 的 mermaid）畫完再操作
       await waitFor(() => expect(container.querySelectorAll('.c-mermaid-svg svg').length).toBe(4))
-      const link = container.querySelector('.ch05-symbols-link button') as HTMLButtonElement
-      expect(link.getAttribute('type')).toBe('button')
+      expect(container.querySelector('.ch05-symbols-link')).toBeNull()
       // 不是 <a href="#symbols">：那在 HashRouter 下會被當成路由「/symbols」
       expect(container.querySelector('a[href="#symbols"], a[href$="#symbols"]')).toBeNull()
       const target = container.querySelector('#symbols') as HTMLElement
       expect(target.querySelector('.c-symbols')).toBeTruthy()
-      // 開場（IntroSection）裡沒有符號表，只有這一行連結
-      expect(link.closest('#symbols')).toBeNull()
+      // 開場（IntroSection）裡沒有符號表；整頁只有章末那一張，而且沒有任何東西主動捲動頁面
       expect(container.querySelectorAll('.c-symbols').length).toBe(1)
-      vi.useFakeTimers()
-      fireEvent.click(link)
-      expect(scrollSpy).toHaveBeenCalledTimes(1)
-      expect(scrollSpy.mock.contexts[0]).toBe(target)
-      expect(document.activeElement).toBe(target)
-      // 上方的圖是延遲載入的（載入後版面會被推開）：稍後再對齊兩次
-      vi.advanceTimersByTime(2000)
-      expect(scrollSpy).toHaveBeenCalledTimes(3)
-      expect(scrollSpy.mock.contexts.every((c) => c === target)).toBe(true)
-      // 使用者一旦自己捲動（或點擊、按鍵），就不再把畫面拉回去
-      fireEvent.click(link)
-      expect(scrollSpy).toHaveBeenCalledTimes(4)
-      fireEvent.wheel(window)
-      vi.advanceTimersByTime(2000)
-      expect(scrollSpy).toHaveBeenCalledTimes(4)
+      expect(container.querySelector('#symbols .c-symbols')).toBe(target.querySelector('.c-symbols'))
+      expect(scrollSpy).not.toHaveBeenCalled()
       // 符號表內容不變的欄位：符號、意義、單位、首次出現、備註
       const head = Array.from(target.querySelectorAll('.c-symbols thead th')).map((th) => th.textContent)
       expect(head).toEqual(['符號', '意義', '單位', '首次出現', '備註'])

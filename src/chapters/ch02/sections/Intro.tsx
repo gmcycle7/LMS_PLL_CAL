@@ -1,6 +1,6 @@
 import { Callout, ModeGate, SystemMap, Tex, TestBadge, type SystemBlock } from '@/components'
 import { ChapterLink, Diagram, ErrataNote, tm } from '../common'
-import { SymbolsLink, TOP_ID } from './Symbols'
+import { TOP_ID } from './Symbols'
 
 /**
  * 系統地圖上標成藍色的方塊：regressor x[n]、1-bit comparator、GMAC、÷N × μ、gain accumulator。
@@ -15,11 +15,10 @@ export function Intro() {
         <strong>這一課要回答的問題：</strong>你被矇住眼睛站在山坡上，只能用腳感覺「腳下的坡度」。要怎麼一步一步走到谷底？如果每一步只能看<strong>一筆</strong>資料、甚至只能知道誤差的<strong>正負號</strong>（硬體只有一顆 1-bit comparator），還走得到嗎？會停在哪裡？
       </div>
       <SystemMap focus={SYSTEM_FOCUS} />
-      <p data-system-map-note>
+      <p data-system-map-note className="c-map-note">
         上面是全站共用的系統地圖，<strong>藍色的方塊</strong>是這一章的主角：校正用的 code <Tex>{'x[n]'}</Tex>（regressor）、只輸出誤差正負號的 1-bit comparator、把正負號與 code 相乘後累加的 GMAC、
         <Tex>{'\\div N,\\ \\times\\mu'}</Tex>（取平均、乘上步長）與存放係數 <Tex>{'w'}</Tex> 的 gain accumulator。前兩章先用黑盒子介紹了「預測、比較、修正」，以及誤差好壞的兩種算法；這一章加上的是<strong>更新式</strong>的來歷——這五個方塊合起來，每一步為什麼要把 <Tex>{'w'}</Tex> 往那個方向推、推多少——從使用完整坡度的 gradient descent，一路簡化到只用兩個正負號的 Sign-Sign。地圖上 comparator 的輸入是從 <strong>PD 的輸出</strong>分接出來的：PD 與 loop filter 之間那條線上有一個分接點，標著「PD 輸出 <Tex>{'e[n]'}</Tex>」；comparator 左上方同名的標籤「<Tex>{'e[n]'}</Tex>（PD 輸出）」就是同一條線。它取的是送進 loop filter 的同一個誤差，不是從 DTC 或 divider 拉出來的。
       </p>
-      <SymbolsLink />
       <p>
         上一章（<ChapterLink ch="01">Ch01</ChapterLink>）說明了「平方誤差」與「絕對誤差」是兩種不同的目標。這一章把它們變成可以一步一步執行的演算法。先把三個記號講好：<Tex>{'w'}</Tex> 是我們能調的係數（旋鈕）；<Tex>{'J(w)'}</Tex> 是成本（cost）——把旋鈕放在 <Tex>{'w'}</Tex> 時預測有多不準，也就是「山的高度」；
         <Tex>{"J'(w)"}</Tex> 是它對 <Tex>{'w'}</Tex> 的導數，也就是「腳下的坡度」。本章回答三個工程問題：(1) 為什麼往 <Tex>{"-J'(w)"}</Tex> 走會下降、步長能多大；(2) 為什麼只用一筆資料的梯度也行（LMS = SGD）；(3) 只有 sign 的 Sign-Error 與 Sign-Sign 會收斂到<strong>哪裡</strong>、會不會停下來。

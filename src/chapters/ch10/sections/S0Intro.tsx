@@ -1,5 +1,5 @@
 import { Callout, ClaimTag, ModelLevel, Prereq, Section, SourceTag, SystemMap, Tex, TexBlock, TestBadge, ChRef } from '@/components'
-import { Fig, SymbolsLink, TagRow, tn } from '../common'
+import { Fig, TagRow, tn } from '../common'
 import { SYSTEM_MAP_FOCUS } from '../diagrams'
 import { NUM } from '../numbers'
 
@@ -7,16 +7,6 @@ export function S0Intro() {
   const c = NUM.coupling
   return (
     <>
-      <TagRow>
-        <ModelLevel level="L3" />
-        <ClaimTag kind="exact" />
-        <ClaimTag kind="approx" />
-        <SourceTag kind="illustrative" />
-        <TestBadge id="T18" />
-        <TestBadge id="T10" />
-      </TagRow>
-      <SymbolsLink />
-
       <Section kind="intuition" title="這一課要回答的問題：多個 LMS loop 同時跑，會互相干擾嗎？" level={2} id="ch10-question">
         <p>
           真實的 Fractional-N PLL 不會只校正一個參數。GOS（DTC gain offset）、PHOS（多相位 offset）、DTC gain 這些 loop 常常<strong>同時</strong>
@@ -56,12 +46,21 @@ export function S0Intro() {
       </Section>
 
       <SystemMap focus={SYSTEM_MAP_FOCUS} />
-      <p className="ch10-map-note">
+      <p className="ch10-map-note c-map-note">
         藍色的三塊（GMAC、「<Tex>{String.raw`\div N,\ \times\mu`}</Tex>」、gain accumulator）是本章的主角：前面幾章它們各只有一個，這一章把 GMAC 變成 <Tex>{'P'}</Tex> 個（全部共用同一個 comparator）、把「
         <Tex>{String.raw`\times\mu`}</Tex>」換成{' '}
         <Tex>{String.raw`P\times P`}</Tex> 的更新矩陣 <Tex>{String.raw`\mathbf M`}</Tex>、把每個 block 更新一次的係數 <Tex>{'w_k'}</Tex>（<Tex>{'k'}</Tex> 是 block 編號）變成向量{' '}
         <Tex>{String.raw`\mathbf w_k`}</Tex>，並回答它們放在一起會不會互相干擾。
       </p>
+      {/* 章首骨架（本章資訊、先備自檢）由 PageFrame 放在上面的系統地圖之後（docs/teaching-style.md §9） */}
+      <TagRow>
+        <ModelLevel level="L3" />
+        <ClaimTag kind="exact" />
+        <ClaimTag kind="approx" />
+        <SourceTag kind="illustrative" />
+        <TestBadge id="T18" />
+        <TestBadge id="T10" />
+      </TagRow>
 
       <Section
         kind="diagram"

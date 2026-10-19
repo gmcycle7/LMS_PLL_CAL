@@ -204,11 +204,6 @@
   line-height: 1.7;
 }
 
-/* 章首的一行「本章符號表在最後 ↓」（按鈕長得像連結；HashRouter 下不能用 href="#symbols"） */
-.ch01-symbols-jump {
-  margin: 8px 0;
-  font-size: 0.9rem;
-}
 .ch01-linklike {
   padding: 0;
   border: 0;

@@ -38,39 +38,15 @@ export function FigRef({ id }: { id: string }) {
   )
 }
 
-/** 按「本章符號表在最後」之前的捲動位置：章末的「回到剛才閱讀的位置」用它捲回去（沒按過就是 null）。 */
-let lastReadY: number | null = null
-
 function scrollBehavior(): ScrollBehavior {
   const reduce = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
   return reduce ? 'auto' : 'smooth'
 }
 
-/** 捲到章末的符號表（id="symbols"）。HashRouter 的 # 已經被路由用掉，不能用 href="#symbols"，所以用按鈕 + scrollIntoView。 */
-export function scrollToSymbols() {
-  if (typeof document === 'undefined') return
-  const el = document.getElementById('symbols')
-  if (!el) return
-  if (typeof window !== 'undefined' && Number.isFinite(window.scrollY)) lastReadY = window.scrollY
-  if (typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: scrollBehavior(), block: 'start' })
-}
-
-/** 從章末的符號表回到剛才閱讀的位置（沒有記錄時回到章首）。 */
+/** 從章末的符號表回到章首（章首的「符號表 ↓」連結由 PageFrame 的本章資訊 strip 提供，所以沒有「剛才閱讀的位置」可記）。 */
 export function scrollBackFromSymbols() {
   if (typeof window === 'undefined' || typeof window.scrollTo !== 'function') return
-  window.scrollTo({ top: lastReadY ?? 0, behavior: scrollBehavior() })
-}
-
-/** 章首只留一行：「本章符號表在最後」（docs/teaching-style.md §5）。 */
-export function SymbolsLink() {
-  return (
-    <p className="ch10-symbols-link small muted">
-      <button type="button" className="ch10-linklike" onClick={scrollToSymbols}>
-        本章符號表在最後 ↓
-      </button>
-      （每個符號第一次出現時，正文會先用一句話說明；忘了再到章末查）
-    </p>
-  )
+  window.scrollTo({ top: 0, behavior: scrollBehavior() })
 }
 
 /**

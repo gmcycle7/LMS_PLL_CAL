@@ -5,7 +5,7 @@ import { FirstOrderPm } from './sections/FirstOrderPm'
 import { UpdateDelay } from './sections/UpdateDelay'
 import { DualLoop } from './sections/DualLoop'
 import { Wrapup } from './sections/Wrapup'
-import { ChapterSymbols } from './sections/Symbols'
+import { ChapterSymbols, SYMBOLS_LINK_ID } from './sections/Symbols'
 import { PmLab } from './experiments/PmLab'
 import { DualLoopLab } from './experiments/DualLoopLab'
 import './chapter.css'
@@ -15,8 +15,9 @@ import './chapter.css'
  * 所有數值與曲線都由 src/simulation/models/stability.ts（與 blockLms 的 Monte Carlo）即時計算。
  */
 export default function Chapter08() {
+  // 根元素帶 id／tabIndex：章末符號表的「↑ 回到章首」捲到這裡（原本的目標是章首那一行 SymbolsLink，已由 PageFrame 的本章資訊 strip 取代）
   return (
-    <div className="ch08">
+    <div className="ch08" id={SYMBOLS_LINK_ID} tabIndex={-1}>
       <Intro />
       <Polarity />
       <FirstOrderPm />
@@ -37,7 +38,7 @@ export default function Chapter08() {
         <DualLoopLab />
       </Section>
       <Wrapup />
-      {/* 本章符號表放在最後（teaching-style §5）；章首只留一行連結（Intro 的 SymbolsLink） */}
+      {/* 本章符號表放在最後（teaching-style §5）；章首的「符號表 ↓」與章末交棒由 PageFrame 的章首／章末骨架提供（§9） */}
       <ChapterSymbols />
     </div>
   )

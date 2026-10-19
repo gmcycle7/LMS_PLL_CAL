@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import {
   Callout,
   ClaimTag,
@@ -16,9 +16,9 @@ import {
 import { makeGrid, quantize, makeCtx } from '@/simulation/models/quantizer'
 import { DEFAULT_LAB_PARAMS, Erratum, LSB_FS_EXAMPLE, fx, n, tx } from '../common'
 import { CHART_ERROR_PATH, CHART_SIGNAL_FLOW, SYSTEM_MAP_FOCUS } from '../diagrams'
-import { SymbolsLink } from './Symbols'
 
-export function Intro() {
+/** @param afterMap 接在系統地圖那一節之後的內容（index.tsx 把標籤列放在這裡） */
+export function Intro({ afterMap }: { afterMap?: ReactNode } = {}) {
   const nums = useMemo(() => {
     const grid = makeGrid(32.4, 'rational', 0)
     const ctx = makeCtx(DEFAULT_LAB_PARAMS, grid, 'freeze', 1)
@@ -53,13 +53,12 @@ export function Intro() {
 
       <Section kind="diagram" title="系統地圖：本章在整個校正系統的哪裡？" id="ch13-map">
         <SystemMap focus={SYSTEM_MAP_FOCUS} />
-        <p>
+        <p className="c-map-note">
           藍色的三塊是本章的主角：<strong>Gain accumulator</strong>（LMS 算出來的高解析係數）、<strong>Quantizer</strong>（把它放進有限個 bit）與 <strong>Gain correction</strong>（把量化後的係數乘上
           residue，得到 reference 端 DTC 的補償量）；前面幾章都把 Quantizer 當成一條直通的線，本章加上的就是這一塊，以及它造成的誤差怎麼沿著 Gain correction → reference 端的 DTC → PD → 主 PLL 迴路走到輸出。
         </p>
       </Section>
-
-      <SymbolsLink />
+      {afterMap}
 
       <Section kind="diagram" title={<>訊號流：高解析 <Tex>{'w_H'}</Tex> <Tex>{String.raw`\to`}</Tex> 6-bit code <Tex>{String.raw`\to`}</Tex> DTC</>} id="ch13-diagram">
         <p>

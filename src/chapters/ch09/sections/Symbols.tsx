@@ -1,5 +1,5 @@
 import { SymbolTable, type SymbolEntry, ChRef } from '@/components'
-import { Erratum, m, scrollToSymbols } from '../shared'
+import { Erratum, m } from '../shared'
 
 /**
  * 本章符號表（docs/teaching-style.md §5：放在章末、「本課必記」之後，外層 id="symbols"）。
@@ -165,18 +165,6 @@ const SYMBOLS: SymbolEntry[] = [
   { symbol: String.raw`\eta_k`, meaning: <>第 {m`k`} 個 block 內雜訊 {m`v[n]`} 的平均（{m`\mathrm{Var}=\sigma_v^2/N`}）</>, unit: String.raw`\mathrm{fs}`, firstSeen: '§9.2', note: <>驅動 {m`w_b`} random walk 的那一項</> },
   { symbol: 'n,\\ k,\\ K', meaning: <>時間索引：{m`n`} = comparator sample，{m`k`} = GMAC block；{m`K`} = 已經跑過的 block 數</>, firstSeen: '全站 §0' },
 ]
-
-/** 章首只放這一行：按下去捲到章末的符號表（不改 URL，HashRouter 的路由不受影響） */
-export function SymbolsLink() {
-  return (
-    <p className="ch09-symbols-link">
-      <button type="button" className="ch09-toc-link" onClick={scrollToSymbols}>
-        本章符號表在最後 ↓
-      </button>
-      <span className="small muted"> 每個符號第一次出現時，正文會先用一句話說明；章末的表是查閱用的總整理。</span>
-    </p>
-  )
-}
 
 /** 章末的符號表：整章最後一個區塊（「本課必記」與「連結到 PLL 硬體」之後） */
 export function ChapterSymbols() {

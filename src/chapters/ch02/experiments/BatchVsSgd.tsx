@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Data } from 'plotly.js-cartesian-dist-min'
-import { ExperimentShell, ParamControl, Plot, Tex, useDebouncedValue, useThemeTokens, type MetricRow } from '@/components'
+import { ExperimentShell, ParamControl, Plot, Tex, useDebouncedValue, useThemeTokens, type CheckStatus, type MetricRow } from '@/components'
 import { presetsForExperiment, useUrlPreset } from '@/app/presets'
-import { batchVsSgd, type BatchMethod } from '@/simulation/models/sgd'
+import { deriveSeed, meanCI } from '@/simulation/core'
+import { batchVsSgd, type BatchMethod, type BatchSgdParams } from '@/simulation/models/sgd'
 import { tm, tn, toShellPresets, lab } from '../common'
 
 const ID = 'gd-batch-vs-sgd'
@@ -35,6 +36,71 @@ function sanitize(p: Record<string, unknown>): P {
   return { ...DEFAULT, ...(p as Partial<P>) }
 }
 
+/** 多 seed Monte Carlo 的 seeds 數（deriveSeed(seed, r)，r = 0…R−1；和 Corner 判斷器、BlockLms JSON Lab 一樣 ≥ 8） */
+export const BATCH_MC_RUNS = 12
+/** transient 要消失：SGD 的更新次數至少要 8τ，τ = 1/(μ P̂_x)（平均動態每次更新乘上 1 − μx²，一個 epoch 約乘 e^{−μΣx²}） */
+const MC_TRANSIENT_TAUS = 8
+
+export interface BatchMcCheck {
+  status: CheckStatus
+  note: string
+  runs: number
+  /** 每個 seed 的 d_r = SGD 最後的 w − 該資料集的 w_LS（SGD 在經驗最小平方解附近無偏抖動） */
+  diffs: number[]
+  mean: number
+  se: number
+  lo: number
+  hi: number
+  /** 容差 4·se（加一個相對 10⁻⁹ 的下限，σ = 0 時 d_r 全為捨入誤差） */
+  tol: number
+}
+
+/**
+ * Monte Carlo 交叉比對（多 seed）：每個 seed 重抽一組資料（x_i、v_i）與每個 epoch 的洗牌順序，取 d_r = SGD 最後的 w − w_LS。
+ * 模型：固定步長 SGD 在經驗最小平方解 w_LS 附近抖動、跨 seeds 無偏（E[d] = 0：重新洗牌造成的固定點偏移 ∝ μΣx_i³r_i/Σx_i²，
+ * 對資料集取期望為 0）。判定 |mean d| ≤ 4·se（Student-t 95% CI 另列給讀者看）。transient 沒消失（更新次數 < 8τ）或發散時 n/a 並說明。
+ */
+export function batchVsSgdMcCheck(p: Omit<BatchSgdParams, 'seed'>, seed: number, runs = BATCH_MC_RUNS): BatchMcCheck {
+  const diffs: number[] = []
+  const base = { status: 'n/a' as CheckStatus, runs, diffs, mean: NaN, se: NaN, lo: NaN, hi: NaN, tol: NaN }
+  // 均方穩定條件（Ch03、勘誤 E14）：Gaussian x 時 μ < 2E[x²]/E[x⁴] = 2/(3σ_x²)；不滿足時 E[δ²] 發散，跨 seeds 的平均沒有信賴區間可言
+  const muMsd = (2 * p.xSigma ** 2) / (3 * p.xSigma ** 4)
+  if (p.xSigma > 0 && p.mu >= muMsd) {
+    return { ...base, note: String.raw`$\mu=${tn(p.mu)}\ge2E[x^2]/E[x^4]=2/(3\sigma_x^2)=${tn(muMsd)}$：SGD 均方（MSD）不穩定，$E[\delta^2]$ 發散（Ch03），跨 seeds 的平均沒有信賴區間可言` }
+  }
+  let tauNote: string | null = null
+  for (let r = 0; r < runs; r++) {
+    const res = batchVsSgd({ ...p, seed: deriveSeed(seed, r) })
+    const sgd = res.traces.find((t) => t.method === 'sgd')
+    if (!sgd || !(res.pxHat > 0)) return { ...base, note: String.raw`有 seed 的 $\sum x_i^2=0$（不可辨識），沒有 $w_{LS}$ 可比` }
+    const tau = 1 / (p.mu * res.pxHat)
+    if (sgd.updates < MC_TRANSIENT_TAUS * tau) {
+      tauNote = String.raw`SGD 的更新次數 $${sgd.updates}$ 少於 $8\tau$（$\tau=1/(\mu\hat P_x)\approx${tau.toPrecision(3)}$ 次更新）：transient 還沒消失，最後的 $w$ 不能當穩態比；加長 epochs 或加大 $\mu$`
+      break
+    }
+    const w = sgd.w[sgd.w.length - 1]
+    if (!Number.isFinite(w) || !Number.isFinite(res.wLs)) return { ...base, note: String.raw`SGD 發散（$w$ 非有限值）：沒有穩態可比；$\mu$ 需小於 $2/(3\sigma_x^2)$ 量級（Ch03）` }
+    diffs.push(w - res.wLs)
+  }
+  if (tauNote) return { ...base, note: tauNote }
+  const ci = meanCI(diffs)
+  const tol = 4 * ci.se + 1e-9 * (1 + Math.abs(ci.mean))
+  const ok = Math.abs(ci.mean) <= tol
+  return {
+    status: ok ? 'ok' : 'mismatch',
+    runs,
+    diffs,
+    mean: ci.mean,
+    se: ci.se,
+    lo: ci.lo,
+    hi: ci.hi,
+    tol,
+    note:
+      String.raw`${runs} 個 seeds（各自重抽資料與洗牌）：SGD 最後的 $w-w_{LS}$ 平均 $${tn(ci.mean)}$，95% CI $[${tn(ci.lo)},\,${tn(ci.hi)}]$，容許 $\pm4\,\mathrm{se}=${tn(tol)}$` +
+      (ok ? String.raw`：和「在 $w_{LS}$ 附近無偏抖動」的模型一致` : String.raw`：跨 seeds 的平均偏離 $w_{LS}$——固定步長太大時重新洗牌的偏移 $\propto\mu$ 不再可忽略，或名目 95% 的區間本來就有機會誤報（換 seed 再看）`),
+  }
+}
+
 /** Batch GD vs mini-batch vs SGD：以「看過的樣本數」為橫軸公平比較。 */
 export function BatchVsSgd() {
   const [p, setP] = useState<P>(DEFAULT)
@@ -47,6 +113,7 @@ export function BatchVsSgd() {
   const set = <K extends keyof P>(k: K, v: P[K]) => setP((s) => ({ ...s, [k]: v }))
   const dp = useDebouncedValue(p, 120)
   const res = useMemo(() => batchVsSgd({ ...dp, seed }), [dp, seed])
+  const mc = useMemo(() => batchVsSgdMcCheck(dp, seed), [dp, seed])
   const byM = Object.fromEntries(res.traces.map((t) => [t.method, t])) as Record<BatchMethod, (typeof res.traces)[number]>
   const total = byM.sgd.samples[byM.sgd.samples.length - 1]
   const batchPole = 1 - dp.mu * res.pxHat
@@ -101,6 +168,13 @@ export function BatchVsSgd() {
     { name: 'SGD 最終 $w$', value: byM.sgd.w[byM.sgd.w.length - 1], note: String.raw`固定 $\mu$：在 $w_{LS}$ 附近抖動` },
     { name: String.raw`$\hat P_x=\sum x_i^2/N$`, value: res.pxHat },
     { name: '更新次數（batch / mini / SGD）', value: `${byM.batch.updates} / ${byM.minibatch.updates} / ${byM.sgd.updates}` },
+    {
+      name: String.raw`多 seed：SGD 最後的 $w-w_{LS}$（${mc.runs} 個 seeds 平均）`,
+      value: Number.isFinite(mc.mean) ? mc.mean : '—',
+      claim: 'approx',
+      ...(Number.isFinite(mc.mean) ? { analytic: 0, tolerance: mc.tol } : {}),
+      note: Number.isFinite(mc.mean) ? String.raw`每個 seed 重抽資料；95% CI $[${tn(mc.lo)},\,${tn(mc.hi)}]$（Student-$t$）；解析值 $0$ = 在 $w_{LS}$ 附近無偏抖動` : mc.note,
+    },
   ]
 
   return (
@@ -126,9 +200,12 @@ export function BatchVsSgd() {
       warnings={warnings}
       metrics={metrics}
       crossCheck={{
-        analytic: { status: Number.isFinite(batchFinal) && Math.abs(batchFinal - batchPred) <= 1e-9 * (1 + Math.abs(batchPred)) ? 'ok' : Number.isFinite(batchFinal) ? 'mismatch' : 'n/a', note: 'Batch GD vs 封閉解' },
-        monteCarlo: 'not-implemented',
-        fixedPoint: 'not-implemented',
+        analytic: {
+          status: Number.isFinite(batchFinal) && Math.abs(batchFinal - batchPred) <= 1e-9 * (1 + Math.abs(batchPred)) ? 'ok' : Number.isFinite(batchFinal) ? 'mismatch' : 'n/a',
+          note: Number.isFinite(batchFinal) ? String.raw`Batch GD 最終 $w$ vs 封閉解 $w_{LS}+(w_0-w_{LS})(1-\mu\hat P_x)^k$（相對 $10^{-9}$）` : 'Batch GD 發散（非有限值），沒有可比的終值',
+        },
+        monteCarlo: { status: mc.status, note: mc.note },
+        fixedPoint: { status: 'n/a', note: 'L0 浮點教學模型，沒有暫存器或位寬可量化；定點 GMAC 與 gain register 見 Ch04、Ch13 與 Unified Lab' },
       }}
       actions={{ onReset: () => setP(DEFAULT) }}
       exportData={() => {

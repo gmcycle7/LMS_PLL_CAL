@@ -951,10 +951,9 @@ describe('Ch05 方塊圖：整頁渲染', () => {
     expect(follows(note, firstH2)).toBe(true)
     expect(note.textContent).toContain('藍色的三個方塊')
     expect(note.textContent).toContain('這一章補上')
-    // 章首只有一行符號表連結（按鈕，不改路由），排在系統地圖之前
-    const link = container.querySelector('.ch05-symbols-link button') as HTMLElement
-    expect(link.textContent).toContain('本章符號表在最後')
-    expect(follows(link, map)).toBe(true)
+    // 章首不再有符號表連結：那一行改由 PageFrame 的本章資訊 strip 提供（teaching-style §9）
+    expect(container.querySelector('.ch05-symbols-link')).toBeNull()
+    expect(container.textContent).not.toContain('本章符號表在最後')
     // 其餘 27 張依登錄表的順序出現（圖號 = 頁面順序）
     expect(figs.length).toBe(1 + CH05_DIAGRAMS.length)
     const wrappers = Array.from(container.querySelectorAll<HTMLElement>('.ch05-fig'))

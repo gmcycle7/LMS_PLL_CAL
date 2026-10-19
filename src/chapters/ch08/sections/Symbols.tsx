@@ -50,18 +50,6 @@ function scrollToId(id: string) {
   el.focus?.({ preventScroll: true })
 }
 
-/** 章首只留這一行（teaching-style §5）：符號表移到章末，按一下捲過去。 */
-export function SymbolsLink() {
-  return (
-    <p className="ch08-symbols-link small" id={SYMBOLS_LINK_ID} tabIndex={-1}>
-      <button type="button" className="ch08-link-button" onClick={() => scrollToId(SYMBOLS_ID)}>
-        本章符號表在最後 ↓
-      </button>
-      <span className="muted ch08-symbols-hint">每個符號第一次出現時，正文會先用一句話說明；想一次查全部再按這裡。</span>
-    </p>
-  )
-}
-
 /** 章末的本章符號表（頁面最後一個區塊；外層 id="symbols"）。 */
 export function ChapterSymbols() {
   return (

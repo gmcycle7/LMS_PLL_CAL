@@ -158,7 +158,7 @@ export function GdExplorer() {
       crossCheck={{
         analytic: { status: !finiteAll ? 'n/a' : maxErr <= 1e-9 * (1 + Math.abs(p.a)) ? 'ok' : 'mismatch', note: String.raw`遞迴 vs 封閉解 $a-(a-w_0)\,p^n$，最大差 $${tn(maxErr)}$` },
         monteCarlo: { status: 'n/a', note: '確定性（無雜訊）' },
-        fixedPoint: 'not-implemented',
+        fixedPoint: { status: 'n/a', note: 'L0 確定性 GD 教學模型，沒有暫存器或位寬可量化（定點見 Ch04、Ch13）' },
       }}
       actions={{
         onReset: () => setP(DEFAULT),

@@ -143,10 +143,6 @@
   min-width: 0;
 }
 
-/* 章首「本章符號表在最後 ↓」與章末符號表（docs/teaching-style.md §5） */
-.ch13-symbols-link {
-  margin: 4px 0 12px;
-}
 .ch13-linklike {
   appearance: none;
   border: none;

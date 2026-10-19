@@ -79,7 +79,7 @@ describe('Chapter 03 smoke test（jsdom）', () => {
     expect(container.querySelectorAll('.c-symbols')).toHaveLength(1)
     expect(container.querySelector('#symbols .c-symbols tbody tr')).not.toBeNull()
     expect(container.querySelector('.ch03')!.lastElementChild).toBe(container.querySelector('#symbols'))
-    expect(Array.from(container.querySelectorAll('button')).filter((b) => b.textContent?.includes('本章符號表在最後'))).toHaveLength(1)
+    expect(Array.from(container.querySelectorAll('button')).filter((b) => b.textContent?.includes('本章符號表在最後'))).toHaveLength(0) // 連結改由 PageFrame 的本章資訊 strip 提供
     // 方塊圖（教學規範 §8）：章首的系統地圖 + 23 張有圖號的圖（語法與內容由 diagrams.test.tsx 以真正的 mermaid 檢查）
     expect(container.querySelectorAll('figure.c-mermaid')).toHaveLength(24)
     expect(container.querySelectorAll('.ch03-fig figure.c-mermaid')).toHaveLength(23)
@@ -144,8 +144,9 @@ describe('Chapter 03 smoke test（jsdom）', () => {
     expect(inOrder(fm('F-03.5'), hc(3), '#mean-square', fm('F-03.7'), hc(4), fm('F-03.11'), hc(5), '#almost-sure')).toBe(true)
     expect(inOrder(fm('F-03.10'), hc(6), '#heavy-tail', fm('F-03.18'), hc(7), fm('F-03.16'))).toBe(true)
     expect(inOrder('#pll', '#synthesis', hc(8), '#quiz')).toBe(true)
-    // 頁面骨架：開場問題 → 符號表連結 → 系統地圖 → 各節 → 思考題 → 本課必記 → 符號表
-    expect(inOrder('#ch03-top', '.ch03-symbols-link', 'figure.c-mermaid', '#fixed-x', '#quiz', '.c-recap', '#symbols')).toBe(true)
+    // 頁面骨架（teaching-style §9）：開場問題 → 系統地圖 → 你在這裡（.c-map-note）→ 標籤列 → 各節 → 思考題 → 本課必記 → 符號表
+    expect(inOrder('#ch03-top', 'figure.c-mermaid', '.c-map-note', '.ch03-tags', '#fixed-x', '#quiz', '.c-recap', '#symbols')).toBe(true)
+    expect(container.querySelector('figure.c-mermaid')!.nextElementSibling).toBe(container.querySelector('.c-map-note'))
     expect(container.querySelectorAll('.c-handcalc .c-step').length).toBeGreaterThanOrEqual(8 * 7)
     // HC-03.3 的預設值（五階 code）就是它正前方內文的數字例；每個等號只做一種運算（1 − μx²：先乘、再減）
     const meanSec = srcText(at(hc(3)).closest('.c-section') as HTMLElement)

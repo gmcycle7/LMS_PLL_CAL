@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import { SymbolTable, Tex, type SymbolEntry, ChRef } from '@/components'
 import { md } from '../shared'
 
@@ -261,25 +260,6 @@ export const SYMBOLS: SymbolEntry[] = [
     firstSeen: '§14.6',
   },
 ]
-
-/** 捲到章末符號表的按鈕（外觀像連結；用 button 而不是 href="#symbols"，HashRouter 下後者會被當成路由）。 */
-export function SymbolsLink({ children }: { children: ReactNode }) {
-  return (
-    <button type="button" className="ch14-linkbtn" onClick={() => scrollToId(SYMBOLS_ID)}>
-      {children}
-    </button>
-  )
-}
-
-/** 章首的一行：符號表在最後。 */
-export function SymbolsJump() {
-  return (
-    <p className="ch14-symbols-jump small">
-      <SymbolsLink>本章符號表在最後 ↓</SymbolsLink>
-      <span className="muted">（正文中每個符號第一次出現時，會先用一句話說明。）</span>
-    </p>
-  )
-}
 
 /** 章末（頁面最後一個區塊）：本章符號表，外層 id="symbols"。 */
 export function S10Symbols() {

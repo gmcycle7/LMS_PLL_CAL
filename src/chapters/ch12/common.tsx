@@ -189,11 +189,6 @@ export function Diagram({ chart, caption, ariaLabel, children }: { chart: string
 /** 本章符號表（章末）的錨點 id。HashRouter 下不能用 href="#symbols"（會被當成路由），所以一律用 scrollIntoView。 */
 export const SYMBOLS_ID = 'symbols'
 
-/** 捲到章末的符號表（jsdom 沒有 scrollIntoView，所以用可選呼叫）。 */
-export function scrollToSymbols(): void {
-  document.getElementById(SYMBOLS_ID)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
-}
-
 /** 有效位數格式化（不用科學記號，除非數值太大或太小） */
 export function sig(x: number, digits = 4): string {
   if (!Number.isFinite(x)) return Number.isNaN(x) ? '—' : x > 0 ? '∞' : '−∞'

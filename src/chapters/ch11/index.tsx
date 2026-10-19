@@ -12,7 +12,7 @@ import { WrapSection } from './sections/WrapSection'
 import './chapter.css'
 
 /**
- * 本章符號表（docs/teaching-style.md §5）：放在頁面最後（#symbols），章首只留一行跳轉。
+ * 本章符號表（docs/teaching-style.md §5）：放在頁面最後（#symbols）；章首「本章資訊」strip 的「符號表 ↓」由 PageFrame 提供。
  * 「首次出現」欄指正文第一次用一句話說明這個符號的地方。
  */
 const SYMBOLS: SymbolEntry[] = [
@@ -89,22 +89,21 @@ function jumpTo(id: string, focusId = id) {
 /** Ch11：GMAC 歸零不代表 DTC Error 為零（規格 §11；勘誤 E01 / E03 / E11 / E12 / E17；T12）。 */
 export default function Chapter11() {
   return (
-    <div className="ch11" id="ch11-top">
-      <p className="ch11-tags">
-        <ModelLevel level="L1" /> <ModelLevel level="L2" /> <ClaimTag kind="exact" /> <ClaimTag kind="approx" /> <SourceTag kind="illustrative" /> <TestBadge id="T12" />
-        <Erratum id="E01" />
-        <Erratum id="E03" />
-        <Erratum id="E11" />
-        <Erratum id="E12" />
-        <Erratum id="E13" />
-        <Erratum id="E17" />
-      </p>
-      <p className="ch11-symbols-link">
-        <button type="button" className="ch11-jump" id="ch11-symbols-jump" onClick={() => jumpTo('symbols')}>
-          本章符號表在最後 ↓
-        </button>
-      </p>
-      <IntroSection />
+    <div className="ch11" id="ch11-top" tabIndex={-1}>
+      {/* 章首：問題與系統地圖（IntroSection）先出現；標籤列接在地圖之後（PageFrame 的章首骨架也放在那裡） */}
+      <IntroSection
+        afterMap={
+          <p className="ch11-tags">
+            <ModelLevel level="L1" /> <ModelLevel level="L2" /> <ClaimTag kind="exact" /> <ClaimTag kind="approx" /> <SourceTag kind="illustrative" /> <TestBadge id="T12" />
+            <Erratum id="E01" />
+            <Erratum id="E03" />
+            <Erratum id="E11" />
+            <Erratum id="E12" />
+            <Erratum id="E13" />
+            <Erratum id="E17" />
+          </p>
+        }
+      />
       <ModelSection />
       <FixedPointSection />
       <OffsetSection />
@@ -120,7 +119,7 @@ export default function Chapter11() {
           caption="t.u. = 本章統一的正規化時間單位（例如 1 fs 或 1 DTC LSB）；所有例子為示意（illustrative），不是晶片量測值。「首次出現」是正文第一次用一句話說明該符號的段落。"
         />
         <p className="ch11-symbols-back">
-          <button type="button" className="ch11-jump" onClick={() => jumpTo('ch11-top', 'ch11-symbols-jump')}>
+          <button type="button" className="ch11-jump" onClick={() => jumpTo('ch11-top')}>
             ↑ 回到章首
           </button>
         </p>

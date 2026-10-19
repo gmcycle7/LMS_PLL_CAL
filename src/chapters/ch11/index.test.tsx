@@ -241,13 +241,16 @@ describe('Ch11 smoke tests（jsdom）', () => {
     expect(before(quiz, symbols)).toBe(true)
     expect(symbols.querySelectorAll('.c-symbols tbody tr').length).toBeGreaterThanOrEqual(25)
     expect(symbols.textContent).toContain('本章符號表')
-    const jump = Array.from(container.querySelectorAll('button')).find((b) => (b.textContent ?? '').includes('本章符號表在最後')) as HTMLButtonElement
-    expect(jump).toBeTruthy()
-    expect(jump.closest('.ch11-symbols-link')?.textContent?.trim()).toBe('本章符號表在最後 ↓') // 章首只有這一行
-    expect(before(jump, question)).toBe(true)
+    // 章首骨架（teaching-style §9）：問題是第一個區塊、系統地圖緊接在後、「你在這裡」標成 .c-map-note、標籤列在它之後；
+    // 不再有「本章符號表在最後」那一行（連結在 PageFrame 的 strip 裡），也沒有會改變路由的 href
+    expect(Array.from(container.querySelectorAll('button')).find((b) => (b.textContent ?? '').includes('本章符號表在最後'))).toBeUndefined()
+    expect(root.firstElementChild).toBe(question)
+    expect(systemMap.nextElementSibling).toBe(container.querySelector('.c-map-note'))
+    expect(before(container.querySelector('.c-map-note'), container.querySelector('.ch11-tags'))).toBe(true)
     expect(container.querySelector('a[href="#symbols"]')).toBeNull() // HashRouter：不能用會改變路由的 href
-    // 按下去會捲到章末的符號表（jsdom 沒有 scrollIntoView：先確認沒有也不會丟錯，再補上替身確認目標）
-    expect(() => fireEvent.click(jump)).not.toThrow()
+    // 章末的「回到章首」捲回章首（jsdom 沒有 scrollIntoView：先確認沒有也不會丟錯，再補上替身確認目標）
+    const back = Array.from(symbols.querySelectorAll('button')).find((b) => (b.textContent ?? '').includes('回到章首')) as HTMLButtonElement
+    expect(() => fireEvent.click(back)).not.toThrow()
     const proto = Element.prototype as unknown as { scrollIntoView?: (arg?: unknown) => void }
     const original = proto.scrollIntoView
     const scrolled: Element[] = []
@@ -255,13 +258,9 @@ describe('Ch11 smoke tests（jsdom）', () => {
       scrolled.push(this)
     }
     try {
-      fireEvent.click(jump)
-      expect(scrolled).toEqual([symbols])
-      expect(document.activeElement).toBe(symbols)
-      const back = Array.from(symbols.querySelectorAll('button')).find((b) => (b.textContent ?? '').includes('回到章首')) as HTMLButtonElement
       fireEvent.click(back)
-      expect(scrolled).toEqual([symbols, root])
-      expect(document.activeElement).toBe(jump) // 回到章首後，焦點回到章首的那一行
+      expect(scrolled).toEqual([root])
+      expect(document.activeElement).toBe(root) // 回到章首後，焦點移到章節頂端（tabIndex = -1）
     } finally {
       if (original) proto.scrollIntoView = original
       else delete proto.scrollIntoView

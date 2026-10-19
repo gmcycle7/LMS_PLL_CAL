@@ -266,9 +266,6 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-.ch10-symbols-link {
-  margin: 0 0 10px;
-}
 .ch10-symbols {
   margin-top: 32px;
   padding-top: 14px;
