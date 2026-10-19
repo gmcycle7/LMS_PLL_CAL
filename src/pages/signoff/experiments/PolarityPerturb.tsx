@@ -288,7 +288,7 @@ export function PolarityPerturbExperiment() {
       crossCheck={{
         analytic: { status: analyticOk ? 'ok' : 'mismatch', note: analyticOk ? String.raw`小訊號 $K_qC_D$ 與精確 mean-field 在 $w=a$ 的斜率相符（相對 $10^{-5}$）` : String.raw`小訊號 $K_qC_D$ 與精確 mean-field 在 $w=a$ 的斜率不符` },
         monteCarlo: { status: mcOk ? 'ok' : 'mismatch', note: mcOk ? String.raw`所有 case 的 $\hat K$ 與 mean-field 相差 $\le4\,\mathrm{se}$` : String.raw`至少一個 case 的 $\hat K$ 與 mean-field 相差 $>4\,\mathrm{se}$` },
-        fixedPoint: { status: 'not-implemented', note: '未建模 GMAC 定點位寬；見本頁 Fixed-point 判斷器' },
+        fixedPoint: { status: 'not-implemented', note: '未建模 GMAC 定點位寬（roadmap R9 bit-true）；位寬與 wrap 的判準見本頁 Fixed-point 判斷器' },
       }}
       actions={{
         onReset: () => {

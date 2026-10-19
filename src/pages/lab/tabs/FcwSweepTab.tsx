@@ -16,6 +16,7 @@ const ASSUMPTIONS = [
   'bias 是線性化固定點 $w^*_{\\mathrm{lin}}-a=(E[x_{\\mathrm{ref}}H\\{d\\}]+bE[x_{\\mathrm{ref}}])/C$；$C\\le0$ 時 $w^*$ 是排斥點（到不了）。線性化只在把 $w^*_{\\mathrm{lin}}$ 代回去後、comparator 前的確定性殘差仍遠小於 $\\sigma_v$ 時可信：$C\\to0^+$ 時 bias 會大到超出這個範圍，$w^*_{\\mathrm{lin}}$ 就只是線性外推（Ch11 §11.4），這時以閉迴路的點為準',
   'fractional spur 用一階 DSM 的封閉式，並假設校正後還留有 $\\Delta a$ 的 gain 誤差（可調）；MASH 與開了 dither 的 code 沒有封閉式，該欄空白',
   'GMAC 斜率量測：凍結 $w=w^*\\pm\\Delta w$，兩邊用同一串 comparator 雜訊（common random numbers），95% CI 來自各 block 的差值',
+  '開啟定點暫存器且「每點再跑閉迴路」時，每一段 FCW 再用 quantize = false 跑一次同 seed 的浮點對照：Fixed-Point 欄逐點比閉迴路後半段的 mean $w$（定點內部暫存器 vs 浮點），SE 用 AR(1) 公式、容差 $1\\,\\mathrm{LSB}+4\\,\\mathrm{SE}$（和 Pipeline 分頁同一個判準）；執行時間因此加倍',
 ]
 
 function fmtFrac(v: number): string {
@@ -121,7 +122,11 @@ export function FcwSweepTab() {
     ]
   }, [summary, state.total, state.opts.residualGainFs])
 
-  const crossCheck = useMemo(() => sweepCrossCheck(stale ? [] : pts, state.opts, params.quantize), [pts, stale, state.opts, params.quantize])
+  const base = state.base ?? params
+  const crossCheck = useMemo(
+    () => sweepCrossCheck(stale ? [] : pts, state.opts, base.quantize, base.quantize ? { points: state.twinPoints, lsbFs: base.lsbFs } : null),
+    [pts, stale, state.opts, base.quantize, base.lsbFs, state.twinPoints],
+  )
 
   const fC = useMemo(() => (pts.length > 1 ? figSweepC(pts, pal) : null), [pts, pal])
   const fPole = useMemo(() => (pts.length > 1 ? figSweepPole(pts, pal) : null), [pts, pal])
@@ -167,7 +172,7 @@ export function FcwSweepTab() {
       }}
       exportData={() => {
         if (pts.length === 0) throw new Error('還沒有 sweep 結果（先按 Run）')
-        return sweepExport(pts)
+        return state.twinPoints.length > 0 ? { ...sweepExport(pts), loop_mean_w_float_twin_fs: pts.map((_, i) => state.twinPoints[i]?.loop?.meanW ?? null) } : sweepExport(pts)
       }}
       presets={presets}
       onLoadPreset={onLoadPreset}

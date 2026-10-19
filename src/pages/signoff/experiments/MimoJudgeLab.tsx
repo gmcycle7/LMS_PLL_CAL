@@ -178,9 +178,9 @@ export function MimoJudgeExperiment() {
       crossCheck={{
         analytic: j
           ? { status: analyticOk ? 'ok' : 'mismatch', note: analyticOk ? String.raw`數值 eigenvalue 的 $\rho$ 與 $2\times2$ 封閉式（trace／determinant）相符` : String.raw`數值 eigenvalue 與 $2\times2$ 封閉式不一致` }
-          : 'not-implemented',
-        monteCarlo: 'not-implemented',
-        fixedPoint: 'not-implemented',
+          : { status: 'n/a', note: String.raw`$\mathbf J$ 或 $\mathbf M$ 算不出來（見警告），沒有可比的 eigenvalue` },
+        monteCarlo: { status: 'n/a', note: String.raw`輸入是給定的 $\mathbf J$ 與 $\mathbf M$，判斷器本身是確定性的矩陣計算、沒有隨機量；量測 $\hat{\mathbf J}$ 的散佈見上面的 SSPLL Jacobian 實驗（T18）` },
+        fixedPoint: { status: 'not-implemented', note: String.raw`$\mathbf M$ 與 $\hat{\mathbf J}$ 的定點係數量化尚未實作（roadmap R4）` },
       }}
       actions={{ onReset: () => setP(MIMO_DEFAULT) }}
       exportData={(): CsvColumns => (out.j ? { eigA_re: out.j.eigA.map((z) => z.re), eigA_im: out.j.eigA.map((z) => z.im), singular_values: out.j.singularValues, diag_poles: out.j.diagPoles } : {})}

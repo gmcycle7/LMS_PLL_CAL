@@ -154,8 +154,8 @@ function R7Experiment() {
       warnings={warnings}
       crossCheck={{
         analytic: { status: liftErr < 1e-9 ? 'ok' : 'mismatch', note: 'lifted 矩陣的冪次 vs 逐 sample 模擬' },
-        monteCarlo: 'n/a',
-        fixedPoint: 'not-implemented',
+        monteCarlo: { status: 'n/a', note: '確定性計算（lifted 矩陣），沒有隨機量' },
+        fixedPoint: { status: 'not-implemented', note: '預覽模型沒有定點版本（roadmap R7 的子目標）' },
       }}
       actions={{ onReset: () => setP(DEFAULTS) }}
       presets={presets}

@@ -32,8 +32,7 @@ import {
   type Rng,
 } from '@/simulation/core'
 import { corrSingleTone, ctHpd, ctT, polarityMarginDeg, singleToneFir } from '@/simulation/models/pll'
-import { settleDelayed, SETTLE_MAX_STEPS } from '@/pages/dashboard/thesisModel'
-import { buildSignLmsMcConfig, compareMcToLinear, simulateDelayRecursion, type McComparison, type SignLmsMcSetup } from '@/simulation/models/stability'
+import { buildSignLmsMcConfig, compareMcToLinear, settleFromPoles, SETTLE_FROM_POLES_MAX_STEPS, simulateDelayRecursion, type McComparison, type SignLmsMcSetup } from '@/simulation/models/stability'
 import type { BlockLmsConfigInput, BlockLmsMonteCarloResult } from '@/simulation/models/blockLms'
 
 /** 一個實驗每次重算可用的 comparator sample 上限（超過就自動減少 block 數／掃描點數並提示）。 */
@@ -768,11 +767,15 @@ export interface CornerRowResult {
   rho: number
   pm: number
   /**
-   * k₉₅：平均遞迴 y_{k+1} = y_k − g·y_{k−d}（初始歷史 y_j = 1）最後一次 |y_k| > 0.05 的下一個 block——pass/fail 用的就是它
-   * （和首頁同一個 settleDelayed）。不穩定時 ∞。settle95Exact = false 時逐 block 沒有數完（極慢的 mode），這個數字只是下界／漸近估計，畫面要寫「≥」。
+   * k₉₅：平均遞迴 y_{k+1} = y_k − g·y_{k−d}（初始歷史 y_j = 1）最後一次 |y_k| > 0.05 的下一個 block——pass/fail 用的就是它。
+   * 由 z^{d+1} − z^d + g = 0 的 d + 1 個極點做模態展開 y_k = Σ c_{i,p} k^p λ_i^k 逐步求值（stability.settleFromPoles；
+   * 和首頁 settleDelayed 逐 block 遞推的數字相同，stability.test.ts 逐點比對），「之後不再超過」由 Σ|c| k^p ρ^k ≤ 0.05 的上界證明。
+   * 不穩定時 ∞。settle95Exact = false 時沒有數完（極慢的 mode），這個數字只是下界／漸近估計，畫面要寫「≥」。
    */
   settle95: number
   settle95Exact: boolean
+  /** k₉₅ 用的是模態展開（'modes'）還是退回逐 block 遞推（'recursion'，只有 deadbeat 這類 λ = 0 的情形） */
+  settleMethod: 'modes' | 'recursion'
   /** ρ 的漸近估計 max(1, ⌈ln 0.05/ln ρ⌉)：d = 0 與 k₉₅ 相同；d ≥ 1 時 ρ^k 不是包絡，可能比 k₉₅ 多、也可能少（只顯示，不判定） */
   settleAsym: number
   sigmaW: number
@@ -783,7 +786,8 @@ export interface CornerRowResult {
 /**
  * 同一組 (μ, d) 必須通過「所有」corner：K_c = K_q(σ_v,c)·cos θ_c，g_c = μK_c，
  *   極性：K_c > 0；穩定：ρ_c < 1（z^{d+1} − z^d + g_c 的根）；PM_c ≥ PM_t；
- *   收斂：k₉₅ ≤ B，k₉₅ 是平均遞迴 y_{k+1} = y_k − g_c·y_{k−d} 逐 block 數出來的（settleDelayed，初始歷史 y_j = 1）；
+ *   收斂：k₉₅ ≤ B，k₉₅ 是平均遞迴 y_{k+1} = y_k − g_c·y_{k−d}（初始歷史 y_j = 1）最後一次 |y_k| > 0.05 的下一個 block，
+ *         由特徵式的 d + 1 個極點做模態展開逐步求值（settleFromPoles；和首頁 settleDelayed 逐 block 數出來的數字相同）；
  *         ⌈ln 0.05/ln ρ_c⌉ 只在 d = 0 精確，d ≥ 1 時 ρ^k 不是包絡，所以只當「ρ 漸近估計」另列、不拿來判定；
  *   雜訊：σ_w,c = μσ_η√(Σh²) ≤ 預算（σ_η² ≈ 1/N）。
  */
@@ -794,12 +798,11 @@ export function cornerJudge(
   return corners.map((c) => {
     const K = kq(c.sigmaV) * Math.cos((c.thetaDeg * Math.PI) / 180)
     const g = o.mu * K
-    const { rho } = delayPoles(g, o.d)
     const pm = pmDeg(g, o.d)
-    // 漸近估計：ρ = 0（deadbeat，g = 1、d = 0）時 ln ρ = −∞ ⇒ 商為 0；但仍需要「一次」更新才到位，所以至少 1
-    const settleAsym = rho < 1 ? Math.max(1, Math.ceil(Math.log(0.05) / Math.log(rho))) : Infinity
-    // 判定用的 k₉₅：d = 0 時就是上面的封閉式；d ≥ 1 逐 block 數（沒數完時 exact = false，回傳漸近估計當下界）
-    const { blocks: settle95, exact: settle95Exact } = rho < 1 ? settleDelayed(g, o.d, 0.05, o.settleMaxSteps ?? SETTLE_MAX_STEPS) : { blocks: Infinity, exact: true }
+    // 真正的極點：ρ = max|z|（z^{d+1} − z^d + g = 0）判穩定；判定用的 k₉₅ 由同一組極點的模態展開逐步求值
+    // （d = 0 就是封閉式 ⌈ln 0.05/ln ρ⌉；沒數完時 exact = false，回傳漸近估計當下界）；settleAsym 是只用 ρ 的漸近估計，另列不判定
+    const ps = settleFromPoles(g, o.d, 0.05, o.settleMaxSteps ?? SETTLE_FROM_POLES_MAX_STEPS)
+    const { rho, blocks: settle95, exact: settle95Exact, asymptotic: settleAsym, method: settleMethod } = ps
     const sigmaW = rho < 1 ? o.mu * Math.sqrt((1 / o.N) * noiseGainSum(g, o.d)) : Infinity
     return {
       name: c.name,
@@ -809,6 +812,7 @@ export function cornerJudge(
       pm,
       settle95,
       settle95Exact,
+      settleMethod,
       settleAsym,
       sigmaW,
       ok: {
@@ -860,8 +864,8 @@ export function cornerFeasibleScan(
   const rho = corners.map(() => new Array<number>(n).fill(NaN))
   const ok = new Array<boolean>(n).fill(false)
   // 格點上只需要知道 k₉₅ ≤ B 與否：能通過的 mode 在 ~20B 步內就衰減到停止規則的門檻，數不完的一定是極慢（k₉₅ ≫ B）的 mode，
-  // 逐 block 的步數上限因此取 50B + 5000（極端的 K 散佈、很小的 g 時不會把掃描拖到秒級）；單點的 cornerJudge 仍用 settleDelayed 的完整上限。
-  const settleMaxSteps = Math.min(SETTLE_MAX_STEPS, 50 * o.B + 5000)
+  // 模態展開的步數上限因此取 50B + 5000（極端的 K 散佈、很小的 g 時不會把掃描拖到秒級）；單點的 cornerJudge 仍用 settleFromPoles 的完整上限。
+  const settleMaxSteps = Math.min(SETTLE_FROM_POLES_MAX_STEPS, 50 * o.B + 5000)
   for (let i = 0; i < n; i++) {
     const rows = cornerJudge(corners, { ...o, mu: mu[i], settleMaxSteps })
     rows.forEach((r, c) => (rho[c][i] = r.rho))

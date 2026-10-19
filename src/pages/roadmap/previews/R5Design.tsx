@@ -108,7 +108,7 @@ function DesignExperiment() {
       units={{ mean: 'code 單位', half: 'code 單位', scale: '—' }}
       metrics={metrics}
       warnings={warnings}
-      crossCheck={{ analytic: { status: analyticOk ? 'ok' : 'mismatch', note: String.raw`eigSym 的 eigenvalue 乘積、和 vs 封閉式的 $s^2\mathrm{Var}(x)$、$E[x^2]+s^2$` }, monteCarlo: 'not-implemented', fixedPoint: 'n/a' }}
+      crossCheck={{ analytic: { status: analyticOk ? 'ok' : 'mismatch', note: String.raw`eigSym 的 eigenvalue 乘積、和 vs 封閉式的 $s^2\mathrm{Var}(x)$、$E[x^2]+s^2$` }, monteCarlo: { status: 'not-implemented', note: '資訊矩陣只做解析比對，尚未用 Monte Carlo 估計 $\\mathbf R$（roadmap R5 的子目標）' }, fixedPoint: { status: 'n/a', note: '沒有暫存器量化的量' } }}
       actions={{ onReset: () => setP(DEF_A) }}
       presets={presets}
       onLoadPreset={(pr) => setP((prev) => mergeParams(prev, pr.params))}
@@ -201,7 +201,7 @@ function NearIntExperiment() {
       units={{ N0: 'samples', lambdaT: '—' }}
       metrics={metrics}
       warnings={warnings}
-      crossCheck={{ analytic: { status: Math.abs(sweep[0] / asym[0] - 1) < 0.1 ? 'ok' : 'mismatch', note: String.raw`小 $\alpha$ 時數值 vs 漸近式` }, monteCarlo: 'n/a', fixedPoint: 'n/a' }}
+      crossCheck={{ analytic: { status: Math.abs(sweep[0] / asym[0] - 1) < 0.1 ? 'ok' : 'mismatch', note: String.raw`小 $\alpha$ 時數值 vs 漸近式` }, monteCarlo: { status: 'n/a', note: '確定性計算，沒有隨機量' }, fixedPoint: { status: 'n/a', note: '沒有暫存器量化的量' } }}
       actions={{ onReset: () => setP(DEF_B) }}
       presets={presets}
       onLoadPreset={(pr) => setP((prev) => mergeParams(prev, pr.params))}

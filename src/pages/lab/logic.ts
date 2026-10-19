@@ -4,7 +4,7 @@
  * 所有數值都來自 src/simulation/models/unifiedLab.ts 的結果；這裡不產生任何「資料」，只整理與判讀。
  */
 import type { CheckEntry, CrossCheck, CsvColumns, MetricRow } from '@/components'
-import { fsToRad } from '@/simulation/core'
+import { fsToRad, meanCI } from '@/simulation/core'
 import { psdToDbcHz } from '@/simulation/signal'
 import {
   DEFAULT_LAB_PARAMS,
@@ -13,6 +13,7 @@ import {
   LAB_RANGES,
   STAGE_TITLES,
   UNIFIED_LAB_VERSION,
+  ar1MeanVar,
   combineChecks,
   labParamErrors,
   texNum,
@@ -20,6 +21,7 @@ import {
   type FcwPoint,
   type FcwSweepOptions,
   type LabParams,
+  type McChunk,
   type McSummary,
   type PipelineResult,
   type TrainingParams,
@@ -711,8 +713,42 @@ export function sweepWarnings(s: SweepSummary, opts: FcwSweepOptions): string[] 
   return w
 }
 
-export function sweepCrossCheck(points: FcwPoint[], opts: FcwSweepOptions, quantize: boolean): CrossCheck {
-  if (points.length === 0) return { analytic: 'n/a', monteCarlo: 'n/a', fixedPoint: 'n/a' }
+/**
+ * FCW sweep 的 Fixed-Point 欄：定點（quantize）與同一批 FCW、同 seed 的浮點對照（store 在 sweep 之後用 quantize = false 再跑一次）
+ * 逐點比閉迴路後半段的 mean $w$（內部暫存器）。每點的 SE 用 AR(1) 公式（和 Pipeline 分頁同一個做法）：
+ * Var(w̄) = ar1MeanVar(σ², ρ, ⌈loopBlocks/2⌉)，σ 取兩邊 stdW 與 LSB/√12 的最大值；容差 1 LSB + 4 SE。
+ */
+export function sweepFixedPointCheck(points: FcwPoint[], twin: FcwPoint[], opts: FcwSweepOptions, lsbFs: number): CheckEntry {
+  const pairs: { p: FcwPoint; d: number; tol: number }[] = []
+  const n = Math.min(points.length, twin.length)
+  for (let i = 0; i < n; i++) {
+    const a = points[i].loop
+    const b = twin[i].loop
+    if (!a || !b || a.diverged || b.diverged || !Number.isFinite(a.meanW) || !Number.isFinite(b.meanW)) continue
+    if (points[i].frac !== twin[i].frac) continue
+    const sig = Math.max(Number.isFinite(a.stdW) ? a.stdW : 0, Number.isFinite(b.stdW) ? b.stdW : 0, lsbFs / Math.sqrt(12))
+    const rho = points[i].rho < 1 ? points[i].rho : 0
+    const se = Math.sqrt(ar1MeanVar(sig * sig, rho, Math.max(2, Math.ceil(opts.loopBlocks / 2))))
+    pairs.push({ p: points[i], d: a.meanW - b.meanW, tol: lsbFs + 4 * se })
+  }
+  if (pairs.length === 0) {
+    return { status: 'n/a', note: twin.length < points.length ? `浮點對照尚未算完（${twin.length}/${points.length} 點）` : '沒有可比的閉迴路點（定點或浮點迴路發散）' }
+  }
+  const bad = pairs.filter((x) => Math.abs(x.d) > x.tol)
+  const maxD = Math.max(...pairs.map((x) => Math.abs(x.d)))
+  return bad.length === 0
+    ? { status: 'ok', note: `${pairs.length} 個閉迴路點：定點 vs 同 seed 浮點的 mean $w$ 差都在 $1\\,\\mathrm{LSB}+4\\,\\mathrm{SE}$ 內（最大 $${texNum(maxD)}\\,\\mathrm{fs}$）` }
+    : {
+        status: 'mismatch',
+        note: `${bad.length}/${pairs.length} 個閉迴路點的定點 mean $w$ 偏離同 seed 浮點超過 $1\\,\\mathrm{LSB}+4\\,\\mathrm{SE}$（${fracList(bad.map((x) => x.p))}）：dead zone／limit cycle／飽和讓定點軌跡偏離，請到 Pipeline 分頁逐點看定點 vs 浮點的明細`,
+      }
+}
+
+export function sweepCrossCheck(points: FcwPoint[], opts: FcwSweepOptions, quantize: boolean, twin: { points: FcwPoint[]; lsbFs: number } | null = null): CrossCheck {
+  if (points.length === 0) {
+    const na = (note: string): CheckEntry => ({ status: 'n/a', note })
+    return { analytic: na('尚未執行 sweep'), monteCarlo: na('尚未執行 sweep'), fixedPoint: na(quantize ? '尚未執行 sweep' : '未啟用定點暫存器（理想浮點）') }
+  }
   // Analytic：本頁整段（整數週期）平均的 C vs blockLms 的解析估計（前 2^17 個樣本、略過暫態）。
   // 兩者的視窗不同，所以只比「blockLms 的視窗內有夠多個鋸齒」的點：一階 DSM 的準週期是 1/min(α, 1 − α) 個樣本，要求 ≥ 64 個；
   // MASH（noise-like）一律可比；一階 DSM 加 LSB dither 仍然是鋸齒（只是沒有嚴格的週期），與無 dither 同樣處理。
@@ -741,7 +777,11 @@ export function sweepCrossCheck(points: FcwPoint[], opts: FcwSweepOptions, quant
         ? { status: 'ok', note: `${withSlope.length} 個點：MC 斜率 $S=-(G_+-G_-)/(2\\Delta w)$ 與同一段樣本的 mean-field 斜率之差都在 2 倍 95% CI 半寬內` }
         : { status: 'mismatch', note: `${bad.length}/${withSlope.length} 個點的 MC 斜率與 mean-field 斜率差超過 2 倍 95% CI 半寬（${fracList(bad)}）` }
   }
-  const fixedPoint: CheckEntry = quantize ? { status: 'not-implemented', note: 'sweep 沒有做定點 vs 浮點對照（請在 Pipeline 分頁逐點檢查）' } : { status: 'n/a', note: '未啟用定點暫存器' }
+  let fixedPoint: CheckEntry
+  if (!quantize) fixedPoint = { status: 'n/a', note: '未啟用定點暫存器（理想浮點）' }
+  else if (!opts.closedLoop)
+    fixedPoint = { status: 'n/a', note: '定點暫存器只影響閉迴路的 gain register；這個 sweep 沒開閉迴路（$C$、$\\rho$、PE 與線性化 bias 都與定點無關），開「每點再跑閉迴路」才有定點 vs 浮點的對照' }
+  else fixedPoint = sweepFixedPointCheck(points, twin?.points ?? [], opts, twin?.lsbFs ?? 0)
   return { analytic, monteCarlo, fixedPoint }
 }
 
@@ -788,12 +828,53 @@ export function sweepExport(points: FcwPoint[]): CsvColumns {
 /* Monte Carlo 摘要                                                    */
 /* ------------------------------------------------------------------ */
 
-export function mcCrossCheck(checks: { meanW: CheckItem; sigmaW: CheckItem; divergence: CheckItem } | null, quantize: boolean): CrossCheck {
-  if (!checks) return { analytic: 'n/a', monteCarlo: 'n/a', fixedPoint: quantize ? 'not-implemented' : 'n/a' }
+/**
+ * Monte Carlo 分頁的 Fixed-Point 欄：定點（quantize）與同 seed 浮點對照（store 對每一段 seeds 再跑一次 quantize = false）的成對比較。
+ * 每個 seed 一對：d_r = 定點內部暫存器 w 的後半段平均 − 浮點 w 的後半段平均（comparator 雜訊、code 與 dither 都相同，只差暫存器量化）。
+ * 跨 seeds 的 Student-t 95% CI；判定 |mean d| ≤ 1 LSB + 4 SE（和 Pipeline 分頁的 floatTwin 同一個判準，SE 改由多 seeds 估計）。
+ * 發散的 seed、或浮點對照還沒算到的 seed 不計入；有效對數 < 2 ⇒ n/a。
+ */
+export function mcFixedPointCheck(chunks: McChunk[], twinChunks: McChunk[], lsbFs: number): CheckItem {
+  const d: number[] = []
+  const n = Math.min(chunks.length, twinChunks.length)
+  for (let i = 0; i < n; i++) {
+    const a = chunks[i]
+    const b = twinChunks[i]
+    for (let r = 0; r < a.seeds.length; r++) {
+      if (b.seeds[r] !== a.seeds[r]) continue
+      if (!Number.isFinite(a.meanW[r]) || !Number.isFinite(b.meanW[r])) continue
+      d.push(a.meanW[r] - b.meanW[r])
+    }
+  }
+  const total = chunks.reduce((s, c) => s + c.seeds.length, 0)
+  if (d.length < 2) {
+    return { status: 'n/a', note: twinChunks.length < chunks.length ? `浮點對照尚未算完（${twinChunks.length}/${chunks.length} 段）` : `有效的成對 seed 只有 ${d.length} 個（發散的 run 不計入），沒有信賴區間` }
+  }
+  const ci = meanCI(d)
+  const tol = lsbFs + 4 * ci.se
+  const ok = Math.abs(ci.mean) <= tol
+  return {
+    status: ok ? 'ok' : 'mismatch',
+    value: ci.mean,
+    analytic: 0,
+    tolerance: tol,
+    note:
+      `定點 vs 同 seed 浮點（${d.length}/${total} 對）：mean $w$ 的成對差 $\\bar d=${texNum(ci.mean)}\\,\\mathrm{fs}$，95% CI $[${texNum(ci.lo)},\\,${texNum(ci.hi)}]$；容差 $1\\,\\mathrm{LSB}+4\\,\\mathrm{SE}=${texNum(tol)}\\,\\mathrm{fs}$` +
+      (ok ? '' : '：定點軌跡系統性偏離浮點（dead zone／limit cycle／飽和或 wrap），到 Pipeline 分頁看同一組參數的定點 vs 浮點明細'),
+  }
+}
+
+export function mcCrossCheck(checks: { meanW: CheckItem; sigmaW: CheckItem; divergence: CheckItem } | null, quantize: boolean, fixedPoint: CheckItem | null = null): CrossCheck {
+  const fp: CheckEntry = !quantize
+    ? { status: 'n/a', note: '未啟用定點暫存器（理想浮點）' }
+    : fixedPoint
+      ? toEntry(fixedPoint)
+      : { status: 'n/a', note: checks ? '浮點對照尚未算完（每一段 seeds 都會再跑一次 quantize = false 的對照）' : '尚未執行' }
+  if (!checks) return { analytic: { status: 'n/a', note: '尚未執行' }, monteCarlo: { status: 'n/a', note: '尚未執行' }, fixedPoint: fp }
   return {
     analytic: toEntry(combineChecks([checks.meanW, checks.divergence], '平均模型 vs 多 seeds')),
     monteCarlo: toEntry(checks.sigmaW),
-    fixedPoint: quantize ? { status: 'not-implemented', note: '這裡的多 seeds 就是定點（L5）模擬；定點 vs 浮點的成對比較只在 Pipeline 分頁做' } : { status: 'n/a', note: '未啟用定點暫存器' },
+    fixedPoint: fp,
   }
 }
 
@@ -830,7 +911,13 @@ export function mcMetrics(s: McSummary, lin: { halfMean: number; halfRms: number
 /* ------------------------------------------------------------------ */
 
 export function trainingCrossCheck(res: TrainingResult | null): CrossCheck {
-  if (!res) return { analytic: 'n/a', monteCarlo: 'not-implemented', fixedPoint: 'n/a' }
+  if (!res) {
+    return {
+      analytic: { status: 'n/a', note: '尚未分析' },
+      monteCarlo: { status: 'not-implemented', note: '每組 code 只分析一個實現（一個 seed），沒有跨 seeds 的信賴區間' },
+      fixedPoint: { status: 'n/a', note: '序列分析不含定點暫存器' },
+    }
+  }
   const cf = res.patterns.filter((p) => p.closedForm)
   let analytic: CheckEntry
   if (cf.length === 0) analytic = { status: 'n/a', note: '只有「一階 DSM、無 dither、無隨機化」的 code 有封閉式可比' }

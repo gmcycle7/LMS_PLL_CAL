@@ -173,7 +173,7 @@ export function FixedPointJudgeExperiment() {
       warnings={warnings}
       crossCheck={{
         analytic: { status: bitsOk ? 'ok' : 'mismatch', note: bitsOk ? String.raw`$B_x+\lceil\log_2N\rceil$ bit 時最壞情況不 wrap、少 1 bit 時負端 wrap（wrap 算術驗證）` : String.raw`封閉式位元數與 wrap 算術不一致` },
-        monteCarlo: 'n/a',
+        monteCarlo: { status: 'n/a', note: '累加器位元、shift scaling 與 EFB 週期都是精確整數算術，沒有隨機量；dither 的統計見 Ch13' },
         fixedPoint: { status: Number.isFinite(efb.period) && efb.period === efb.periodFormula ? 'ok' : 'mismatch', note: '精確整數模擬的週期 vs 封閉式' },
       }}
       actions={{ onReset: () => setP(FIXED_DEFAULT) }}

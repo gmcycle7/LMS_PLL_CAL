@@ -280,8 +280,8 @@ describe('Sign-off 內容資料的完整性', () => {
     expect(ctrl.filter((c) => !c.includes('\\times10^{}'))).toEqual([])
   })
 
-  it('頁面引用的 #region core:* 都存在於 judges.ts', () => {
-    const regions = new Set(listRegions(readFileSync(join(DIR, 'judges.ts'), 'utf8')))
+  it('頁面引用的 #region core:* 都存在於 judges.ts（或頁面直接顯示的 stability.ts：k₉₅ 的 settleFromPoles）', () => {
+    const regions = new Set([...listRegions(readFileSync(join(DIR, 'judges.ts'), 'utf8')), ...listRegions(readFileSync(join(DIR, '../../simulation/models/stability.ts'), 'utf8'))])
     for (const m of tsxSources().matchAll(/region(?:=|: )["']([\w.-]+)["']/g)) expect(regions.has(m[1]), m[1]).toBe(true)
   })
 })

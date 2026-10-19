@@ -136,7 +136,7 @@ function R9Experiment() {
           status: wc.wrapped === wrapTwos(wc.trueSum, accBits) && overflowOk ? 'ok' : 'mismatch',
           note: String.raw`逐筆 wrap 累加 = 總和一次 wrap（模運算的同態）；第一次溢位的位置 $=n_{\mathrm{safe}}+1$`,
         },
-        monteCarlo: 'n/a',
+        monteCarlo: { status: 'n/a', note: '確定性計算，沒有隨機量' },
         fixedPoint: { status: 'ok', note: String.raw`整數運算即 bit-true（數值 $\le2^{53}$）` },
       }}
       actions={{ onReset: () => setP(DEFAULTS) }}

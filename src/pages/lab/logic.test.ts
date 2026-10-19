@@ -19,6 +19,7 @@ import {
   runMcChunk,
   runPipeline,
   sweepFcwChunk,
+  type FcwPoint,
   toBlockLmsConfig,
   type LabParams,
 } from '@/simulation/models/unifiedLab'
@@ -36,6 +37,7 @@ import {
   isInformational,
   labKey,
   mcCrossCheck,
+  mcFixedPointCheck,
   mcMetrics,
   pipelineCrossCheck,
   pipelineExport,
@@ -48,6 +50,7 @@ import {
   sanitizeTrainingPreset,
   summarizeSweep,
   sweepCrossCheck,
+  sweepFixedPointCheck,
   sweepErrors,
   sweepExport,
   sweepWarnings,
@@ -523,13 +526,20 @@ describe('FCW sweep 的摘要與交叉比對', () => {
     expect((sweepCrossCheck(mash, { ...opts, slopeMc: false }, false).analytic as { note: string }).note).toContain('1/1 個可比的點')
   })
 
-  it('交叉比對：MC 斜率在 mean-field 斜率的 2 倍 CI 半寬內 ⇒ ok；關掉斜率量測 ⇒ n/a；定點 ⇒ not-implemented（誠實標示）', () => {
+  it('交叉比對：MC 斜率在 mean-field 斜率的 2 倍 CI 半寬內 ⇒ ok；關掉斜率量測 ⇒ n/a；定點但沒開閉迴路 ⇒ n/a 並說明；每一格 n/a 都附原因', () => {
     const cc = sweepCrossCheck(pts, opts, false)
     expect((cc.monteCarlo as { status: string }).status).toBe('ok')
-    expect((cc.fixedPoint as { status: string }).status).toBe('n/a')
+    expect((cc.fixedPoint as { status: string; note: string }).status).toBe('n/a')
+    expect((cc.fixedPoint as { note: string }).note).toContain('未啟用定點暫存器')
     expect((sweepCrossCheck(pts, { ...opts, slopeMc: false }, true).monteCarlo as { status: string }).status).toBe('n/a')
-    expect((sweepCrossCheck(pts, opts, true).fixedPoint as { status: string }).status).toBe('not-implemented')
-    expect(sweepCrossCheck([], opts, false)).toEqual({ analytic: 'n/a', monteCarlo: 'n/a', fixedPoint: 'n/a' })
+    const noLoop = sweepCrossCheck(pts, { ...opts, closedLoop: false }, true).fixedPoint as { status: string; note: string }
+    expect(noLoop.status).toBe('n/a')
+    expect(noLoop.note).toContain('沒開閉迴路')
+    const empty = sweepCrossCheck([], opts, false)
+    for (const k of ['analytic', 'monteCarlo', 'fixedPoint'] as const) {
+      expect((empty[k] as { status: string }).status).toBe('n/a')
+      expect((empty[k] as { note: string }).note.length).toBeGreaterThan(0)
+    }
     // 反面：把 MC 斜率竄改成反號 ⇒ mismatch
     const forged = pts.map((p) => (p.slope ? { ...p, slope: { ...p.slope, S: -p.slope.S - 1 } } : p))
     expect((sweepCrossCheck(forged, opts, false).monteCarlo as { status: string }).status).toBe('mismatch')
@@ -558,8 +568,69 @@ describe('Monte Carlo 的摘要', () => {
     expect((cc.analytic as { status: string }).status).toBe('ok')
     expect((cc.monteCarlo as { status: string }).status).toBe('ok')
     expect((cc.fixedPoint as { status: string }).status).toBe('n/a')
-    expect((mcCrossCheck(c, true).fixedPoint as { status: string }).status).toBe('not-implemented')
-    expect(mcCrossCheck(null, false).analytic).toBe('n/a')
+    // 定點但浮點對照還沒算到：n/a 並說明（不再是 not-implemented）
+    const pending = mcCrossCheck(c, true).fixedPoint as { status: string; note: string }
+    expect(pending.status).toBe('n/a')
+    expect(pending.note).toContain('浮點對照尚未算完')
+    const notRun = mcCrossCheck(null, false)
+    expect((notRun.analytic as { status: string; note: string }).status).toBe('n/a')
+    expect((notRun.analytic as { note: string }).note).toBe('尚未執行')
+  }, 60_000)
+
+  it('T13: Fixed-Point 欄——定點 vs 同 seed 浮點對照的成對比較（mcFixedPointCheck）：預設 LSB 下一致；竄改成偏移 3 LSB ⇒ mismatch；對不上的 seed 不計入', () => {
+    const fx: LabParams = { ...DEFAULT_LAB_PARAMS, codeSource: 'iid_pm_one', pll: 'none', blocks: 400, outBlocks: 16, quantize: true }
+    const fl: LabParams = { ...fx, quantize: false }
+    const seedsA = mcSeeds(fx.seed, 0, 3)
+    const seedsB = mcSeeds(fx.seed, 3, 3)
+    const chunks = [runMcChunk({ base: fx, seeds: seedsA }), runMcChunk({ base: fx, seeds: seedsB })]
+    const twins = [runMcChunk({ base: fl, seeds: seedsA }), runMcChunk({ base: fl, seeds: seedsB })]
+    const c = mcFixedPointCheck(chunks, twins, fx.lsbFs)
+    expect(c.status).toBe('ok')
+    expect(c.note).toContain('6/6 對')
+    expect(c.value).toBeDefined()
+    expect(Math.abs(c.value as number)).toBeLessThanOrEqual(c.tolerance as number)
+    expect(c.tolerance as number).toBeGreaterThanOrEqual(fx.lsbFs) // 1 LSB + 4 SE
+    expectTexOk(c.note)
+    // 反面：把定點的每個 seed 都加上 3 LSB ⇒ 超出 1 LSB + 4 SE（成對差的散布遠小於 LSB）
+    const forged = chunks.map((ch) => ({ ...ch, meanW: Float64Array.from(ch.meanW, (w) => w + 3 * fx.lsbFs) }))
+    const bad = mcFixedPointCheck(forged, twins, fx.lsbFs)
+    expect(bad.status).toBe('mismatch')
+    expect(bad.note).toContain('Pipeline 分頁')
+    // 浮點對照只算到第一段：只配得上 3 對，仍可判定；完全沒有對照 ⇒ n/a 並說明
+    expect(mcFixedPointCheck(chunks, twins.slice(0, 1), fx.lsbFs).note).toContain('3/6 對')
+    const none = mcFixedPointCheck(chunks, [], fx.lsbFs)
+    expect(none.status).toBe('n/a')
+    expect(none.note).toContain('浮點對照尚未算完')
+    // seeds 對不上（順序錯）⇒ 那些 seed 不計入
+    expect(mcFixedPointCheck(chunks, [twins[1], twins[0]], fx.lsbFs).status).toBe('n/a')
+  }, 60_000)
+})
+
+describe('FCW sweep 的 Fixed-Point 欄（sweepFixedPointCheck）', () => {
+  const base: LabParams = { ...DEFAULT_LAB_PARAMS, codeSource: 'iid_pm_one', pll: 'none', regressor: 'raw', codeDelay: 0, quantize: true }
+  const opts = { ...DEFAULT_SWEEP_OPTIONS, slopeMc: false, closedLoop: true, loopBlocks: 300 }
+  const fracs = [0.1, 0.3]
+  const fx = sweepFcwChunk({ base, fracs, opts, offset: 0 }).points
+  const fl = sweepFcwChunk({ base: { ...base, quantize: false }, fracs, opts, offset: 0 }).points
+
+  it('T13: 定點 vs 同 seed 浮點：閉迴路 mean w 逐點在 1 LSB + 4 SE 內 ⇒ ok；加上 5 LSB 的偏移 ⇒ mismatch 並點名 FCW；對照還沒算完／沒有閉迴路點 ⇒ n/a 附原因', () => {
+    expect(fx.every((p) => p.loop)).toBe(true)
+    const ok = sweepFixedPointCheck(fx, fl, opts, base.lsbFs)
+    expect(ok.status).toBe('ok')
+    expect(ok.note).toContain('2 個閉迴路點')
+    expectTexOk(ok.note ?? '')
+    const forged = fx.map((p) => ({ ...p, loop: { ...(p.loop as NonNullable<FcwPoint['loop']>), meanW: (p.loop as NonNullable<FcwPoint['loop']>).meanW + 5 * base.lsbFs } }))
+    const bad = sweepFixedPointCheck(forged, fl, opts, base.lsbFs)
+    expect(bad.status).toBe('mismatch')
+    expect(bad.note).toContain('2/2 個閉迴路點')
+    expect(sweepFixedPointCheck(fx, fl.slice(0, 1), opts, base.lsbFs).status).toBe('ok') // 先算完的點就先比
+    expect(sweepFixedPointCheck(fx, [], opts, base.lsbFs)).toMatchObject({ status: 'n/a' })
+    expect((sweepFixedPointCheck(fx, [], opts, base.lsbFs).note ?? '')).toContain('浮點對照尚未算完')
+    const noLoop = fx.map((p) => ({ ...p, loop: null }))
+    expect(sweepFixedPointCheck(noLoop, fl, opts, base.lsbFs).note).toContain('沒有可比的閉迴路點')
+    // 整合進三欄：定點 + 閉迴路 + 有對照 ⇒ 用成對比較的結果
+    const cc = sweepCrossCheck(fx, opts, true, { points: fl, lsbFs: base.lsbFs })
+    expect((cc.fixedPoint as { status: string }).status).toBe('ok')
   }, 60_000)
 })
 

@@ -150,7 +150,7 @@ export function EvidenceLabExperiment() {
           status: mcCheck.ok ? 'ok' : 'mismatch',
           note: `各路徑 $\\ln|\\delta_n/\\delta_0|$ 的樣本平均與 $n\\lambda(\\mu)$ 相差 $${tx(mcCheck.diff, 3)}$（容許 $\\pm4\\,\\mathrm{se}=${tx(4 * mcCheck.se, 3)}$）；「樣本平均 $\\delta_n^2$」低於理論是 heavy tail 的預期行為，不列入判定`,
         },
-        fixedPoint: 'n/a',
+        fixedPoint: { status: 'n/a', note: 'L0 純量路徑研究：沒有暫存器或位寬可量化，定點對照沒有意義' },
       }}
       actions={{ onReset: () => setP(EVIDENCE_DEFAULT) }}
       exportData={() => ({ path_log10_abs_delta: study.log10Abs })}

@@ -1,8 +1,8 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import type { Data } from 'plotly.js-cartesian-dist-min'
-import { ExperimentShell, ParamControl, Plot, Tex, useThemeTokens, type CheckEntry, type ExperimentPreset, type MetricRow } from '@/components'
+import { ClaimTag, ExperimentShell, ParamControl, Plot, Tex, useThemeTokens, type CheckEntry, type ExperimentPreset, type MetricRow } from '@/components'
 import { useUrlPreset } from '@/app/presets'
-import { SETTLE_MAX_STEPS } from '@/pages/dashboard/thesisModel'
+import { SETTLE_FROM_POLES_MAX_STEPS } from '@/simulation/models/stability'
 import { isWorkerCancelled, useWorkerTask } from '@/workers'
 import type { BlockLmsConfigInput, BlockLmsMonteCarloResult } from '@/simulation/models/blockLms'
 import {
@@ -176,7 +176,7 @@ export function CornerJudgeExperiment() {
           String.raw`「${name}」逐 block 的 $k_{95}=${r.settle95}>B=${opts.B}$，但 $\rho$ 漸近估計 $\lceil\ln0.05/\ln\rho\rceil=${r.settleAsym}\le B$：只看 $\rho$ 會誤判通過。$d\ge1$ 時 $\rho^k$ 不是誤差的包絡（重根、複數根），判定以逐 block 數出來的 $k_{95}$ 為準。`,
         )
       if (!r.settle95Exact)
-        warnings.push(String.raw`「${name}」是極慢的 mode：平均遞迴在 $${tx(SETTLE_MAX_STEPS, 2)}$ 步內還沒衰減完，$k_{95}$ 欄改列 $\rho$ 漸近估計（只是下界，表中標 $\ge$）。`)
+        warnings.push(String.raw`「${name}」是極慢的 mode：極點模態展開在 $${tx(SETTLE_FROM_POLES_MAX_STEPS, 2)}$ 步內證明不了「之後不再超過」，$k_{95}$ 欄改列 $\rho$ 漸近估計（只是下界，表中標 $\ge$）。`)
     }
   }
   if (Number.isNaN(scan.lo))
@@ -232,8 +232,8 @@ export function CornerJudgeExperiment() {
         String.raw`一階線性化模型（小誤差、Gaussian comparator）；$K_c=K_q(\sigma_{v,c})\cos\theta_c$`,
         String.raw`更新延遲 $d$ 個 block：$\delta_{k+1}=\delta_k-g\,\delta_{k-d}+\mu\eta_k$`,
         String.raw`$\sigma_\eta^2\approx1/N$（$\pm1$ code、近平衡、block 間獨立）；$\sigma_w^2=\mu^2\sigma_\eta^2\sum_kh_k^2$（$\sum_kh_k^2$ 以 Yule–Walker 方程組精確求解）`,
-        String.raw`95% 收斂：$k_{95}$ 是平均遞迴 $y_{k+1}=y_k-g\,y_{k-d}$（初始歷史 $y_j=1,\ j\le0$）最後一次 $|y_k|>0.05$ 的下一個 block，逐 block 數出來（和首頁同一個 settleDelayed）；$k_{95}\le B$ 才合格。$d=0$ 時 $k_{95}=\lceil\ln0.05/\ln\rho\rceil$`,
-        String.raw`「$\rho$ 漸近估計」欄是 $\lceil\ln0.05/\ln\rho\rceil$：只用 spectral radius $\rho$ 的漸近衰減率估計，只顯示、不拿來判定。$d\ge1$ 時 $\rho^k$ 不是誤差的包絡，逐 block 算出來的數字可能比它多、也可能比它少，例如 $d=1$、$g=0.25$ 是重根 $z=0.5$，公式給 $5$，從定值的初始歷史逐 block 算要 $7$；極慢的 mode 在 $${tx(SETTLE_MAX_STEPS, 2)}$ 步內數不完時改列漸近估計並標 $\ge$`,
+        String.raw`95% 收斂（精確｜指定模型）：$k_{95}$ 是平均遞迴 $y_{k+1}=y_k-g\,y_{k-d}$（初始歷史 $y_j=1,\ j\le0$）最後一次 $|y_k|>0.05$ 的下一個 block。算法是用 $z^{d+1}-z^d+g=0$ 的 $d+1$ 個真正極點做模態展開 $y_k=\sum_i c_i\lambda_i^k$（重根補 $k\lambda^k$ 項，係數由 $d+1$ 個初始條件解出）逐步求值（stability.settleFromPoles），「之後不再超過」由三角不等式上界 $\sum_{i,p}|c_{i,p}|\,k^p\rho_i^k\le0.05$（$\rho_i=|\lambda_i|$，重根才有 $p\ge1$ 的項）證明；和首頁 settleDelayed 逐 block 遞推的數字相同（測試逐點比對，差 $<1$ 步）。$k_{95}\le B$ 才合格；$d=0$ 時 $k_{95}=\lceil\ln0.05/\ln\rho\rceil$`,
+        String.raw`「$\rho$ 漸近估計」欄（近似）是 $\lceil\ln0.05/\ln\rho\rceil$：只用 spectral radius $\rho$ 的漸近衰減率估計，只顯示、不拿來判定。$d\ge1$ 時 $\rho^k$ 不是誤差的包絡（留數 $c_i$ 與複根的振盪都被忽略），數字可能比 $k_{95}$ 多、也可能少，例如 $d=1$、$g=0.25$ 是重根 $z=0.5$，公式給 $5$，模態展開（$y_k=(k+2)/2^{k+1}$）要 $7$；極慢的 mode 在 $${tx(SETTLE_FROM_POLES_MAX_STEPS, 2)}$ 步內證明不了時改列漸近估計並標 $\ge$`,
         String.raw`相位裕度 $PM_d=90^\circ-(2d+1)\arcsin(g/2)$（F-SO.5）`,
         String.raw`Monte Carlo（交叉比對）：對 $k_{95}$ 最大的穩定 corner，以 blockLms 的真實 block sign-LMS 跑 $${CORNER_MC_RUNS}$ 個 seeds、最多 $${CORNER_MC_MAX_BLOCKS}$ 個 block（iid $\pm1$ code、identity path、$\sigma_v$ 白雜訊、$N=${CORNER_MC_N}$、$\delta_0=${CORNER_MC_DELTA0_RATIO}\,\sigma_v$、$\mu_\text{eff}=g/K_q$，即 $\cos\theta$ 吸收進步長），平均軌跡與逐 block 遞迴比對（Student-t 臨界值乘 se，再加線性化容許量）；定點位元寬度本頁另有 Fixed-point 判斷器，這裡不建模`,
         String.raw`數值皆為 illustrative；實際 corner 請用 freeze $\pm\Delta$ 量測的 $\hat K$（保守取 $\hat K\mp z\,\mathrm{se}$）`,
@@ -358,6 +358,11 @@ export function CornerJudgeExperiment() {
           </tbody>
         </table>
       </div>
+      <p className="small so-corner-models">
+        <ClaimTag kind="exact" /> <Tex>{'\\rho'}</Tex> 與 <Tex>{'k_{95}'}</Tex>：<Tex>{'z^{d+1}-z^d+g=0'}</Tex> 的 <Tex>{'d+1'}</Tex> 個真正極點；<Tex>{'k_{95}'}</Tex> 由極點的模態展開 <Tex>{'y_k=\\sum_i c_i\\lambda_i^k'}</Tex>{' '}
+        逐步求值（判定用的就是它；和首頁逐 block 遞推的數字相同）。 <ClaimTag kind="approx" /> <Tex>{'\\rho'}</Tex> 漸近估計：<Tex>{'\\lceil\\ln0.05/\\ln\\rho\\rceil'}</Tex> 只用衰減率、忽略留數與振盪，只供對照。
+        {rows.some((r) => r.settleMethod === 'recursion') && <> 本組有 corner 的極點為 0（deadbeat），模態展開退回逐 block 遞推。</>}
+      </p>
       <Plot
         title={String.raw`每個 corner 的 spectral radius $\rho(\mu)$；色帶：所有 corner 同時合格的 $\mu$`}
         data={scanPlot}

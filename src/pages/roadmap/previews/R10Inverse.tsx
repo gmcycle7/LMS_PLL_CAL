@@ -147,8 +147,8 @@ function R10Experiment() {
       warnings={warnings}
       crossCheck={{
         analytic: { status: res.rows.every((r) => !r.feasible || r.gLo !== r.gTime || r.sigmaWAtLo >= r.sigmaWContinuous * (1 - 1e-12)) ? 'ok' : 'mismatch', note: String.raw`整數 $B$ 的 $\sigma_w$ 不小於連續的 tanh 律` },
-        monteCarlo: 'not-implemented',
-        fixedPoint: 'not-implemented',
+        monteCarlo: { status: 'not-implemented', note: '設計方程只做解析掃描，尚未用 Monte Carlo 驗證每個可行的 $B$（roadmap R10 的子目標）' },
+        fixedPoint: { status: 'not-implemented', note: '預覽模型沒有定點版本（roadmap R10 的子目標）' },
       }}
       actions={{ onReset: () => setP(DEFAULTS) }}
       presets={presets}

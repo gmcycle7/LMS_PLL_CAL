@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { Callout, ExperimentShell, ModeGate, ParamControl, Plot, Tex, type MetricRow } from '@/components'
 import { combineMc, DEFAULT_LAB_PARAMS, labParamErrors, mcChecks, tQuantile95 } from '@/simulation/models/unifiedLab'
 import { md, Progress, sig, StatusPill, texNum } from '../common'
-import { EXP, mcCrossCheck, mcMetrics, MC_RUN_RANGE } from '../logic'
+import { EXP, mcCrossCheck, mcFixedPointCheck, mcMetrics, MC_RUN_RANGE } from '../logic'
 import { ParamPanel } from '../ParamPanel'
 import { LAB_UNITS } from '../paramMeta'
 import { useLab } from '../store'
@@ -16,6 +16,7 @@ const ASSUMPTIONS = [
   '$\\sigma_w$：先算每個 run 後半段的樣本變異數 $s_r^2$，跨 runs 平均後開根號（pooled）；CI 來自 $s_r^2$ 的 $t$ 區間',
   '發散比例用 Wilson 區間（比例接近 0 或 1 時仍有意義）',
   '解析預測是 mean-field 平均軌跡（F-LAB.18：把 comparator 的 $\\pm1$ 換成對雜訊的期望值 $\\operatorname{erf}$，其餘逐 block 照算）在「同一段時間」的值，含未衰減完的 transient 與隨 code 擺動的固定點；不是直接拿 $w^*$ 比',
+  '開啟定點暫存器時，每一段 seeds 再用 quantize = false 跑一次浮點對照（其餘參數、comparator 雜訊、code 與 dither 都相同）：Fixed-Point 欄比的是每個 seed「定點內部暫存器 $w$ − 浮點 $w$」後半段平均的成對差，跨 seeds 取 Student-$t$ 95% CI，判定 $|\\bar d|\\le1\\,\\mathrm{LSB}+4\\,\\mathrm{SE}$（和 Pipeline 分頁的 floatTwin 同一個判準）；執行時間因此加倍',
 ]
 
 /** 實驗 'unified-lab-mc'：多 seeds 的 Monte Carlo（runMcChunk，Web Worker 分段、有進度、可取消）與信賴區間。 */
@@ -39,6 +40,9 @@ export function MonteCarloTab() {
   // mean-field 平均軌跡由第一段（seed 0）順便算出；沒有時 mcChecks 退回線性時不變模型
   const meanField = useMemo(() => state.chunks.find((c) => c.meanField)?.meanField ?? null, [state.chunks])
   const checks = useMemo(() => (summary && an && base ? mcChecks(summary, an, base, meanField) : null), [summary, an, base, meanField])
+  const qz = base ? base.quantize : params.quantize
+  // 定點：同 seed 浮點對照的成對比較（store 在每一段後面跑 quantize = false）
+  const fpCheck = useMemo(() => (base && base.quantize && state.chunks.length > 0 ? mcFixedPointCheck(state.chunks, state.twinChunks, base.lsbFs) : null), [base, state.chunks, state.twinChunks])
 
   const warnings = useMemo(() => {
     const w = errors.map((e) => `參數不合法：${e}`)
@@ -50,12 +54,19 @@ export function MonteCarloTab() {
         if (checks.meanW.status === 'mismatch') w.push(`mean $w$ 的信賴區間不含解析預測：${checks.meanW.note}。可能原因：$w$ 的抖動大到 $E[\\operatorname{erf}(\\cdot)]\\ne\\operatorname{erf}(E[\\cdot])$（mean-field 只代入平均值）、定點量化的 dead zone，或名目 95% 的區間本來就有 5% 的機率不含真值（換一個 seed 再看）。`)
         if (checks.sigmaW.status === 'mismatch') w.push(`$\\sigma_w$ 與預測不一致：${checks.sigmaW.note}。可能原因：GMAC 雜訊不是 iid（code 週期與 $N$ 的拍頻）、量化主導，或 transient 還沒結束。`)
       }
+      if (fpCheck && fpCheck.status === 'mismatch') w.push(`定點 vs 浮點不一致：${fpCheck.note}`)
     }
     return w
-  }, [errors, error, stale, state.chunks, summary, checks])
+  }, [errors, error, stale, state.chunks, summary, checks, fpCheck])
 
-  const metrics = useMemo<MetricRow[]>(() => (summary && checks && base && an ? mcMetrics(summary, checks.lin, base.aFs, an.sigmaWPred) : []), [summary, checks, base, an])
-  const crossCheck = useMemo(() => mcCrossCheck(stale ? null : checks, params.quantize), [checks, stale, params.quantize])
+  const metrics = useMemo<MetricRow[]>(() => {
+    const rows = summary && checks && base && an ? mcMetrics(summary, checks.lin, base.aFs, an.sigmaWPred) : []
+    if (fpCheck && fpCheck.value !== undefined && fpCheck.tolerance !== undefined) {
+      rows.push({ name: '定點 − 浮點：mean $w$ 的成對差（跨 seeds 平均）', value: fpCheck.value, unit: 'fs', analytic: 0, tolerance: fpCheck.tolerance, claim: 'approx', note: '同 seed 的浮點對照；容差 $1\\,\\mathrm{LSB}+4\\,\\mathrm{SE}$' })
+    }
+    return rows
+  }, [summary, checks, base, an, fpCheck])
+  const crossCheck = useMemo(() => mcCrossCheck(stale ? null : checks, qz, stale ? null : fpCheck), [checks, stale, qz, fpCheck])
 
   const fEns = useMemo(() => (summary && checks && base && summary.valid >= 2 ? figMcEnsemble(summary, checks.lin, base.aFs, pal) : null), [summary, checks, base, pal])
   const fHist = useMemo(() => (summary && checks && summary.perRunMeanW.length >= 4 ? figMcHist(summary, pal, checks.lin.valid ? Math.sqrt(checks.lin.halfRms ** 2 + checks.lin.halfTrajVar) : NaN) : null), [summary, checks, pal])
@@ -104,6 +115,7 @@ export function MonteCarloTab() {
           run_seed: state.chunks.flatMap((c) => c.seeds),
           run_mean_w_fs: summary.perRunMeanW,
           run_std_w_fs: summary.perRunStdW,
+          ...(state.twinChunks.length > 0 ? { float_twin_seed: state.twinChunks.flatMap((c) => c.seeds), float_twin_mean_w_fs: state.twinChunks.flatMap((c) => Array.from(c.meanW)) } : {}),
         }
       }}
       presets={presets}
@@ -132,7 +144,8 @@ export function MonteCarloTab() {
         <Progress done={state.done} total={state.total} label={running ? 'Monte Carlo 進行中' : state.done < state.total ? 'Monte Carlo 已停止' : 'Monte Carlo 完成'} />
       ) : (
         <p className="small muted">
-          尚未執行：按「執行 Run」。每個 run 的成本與 Pipeline 的迴路部分相同（預設約 0.4 秒），所以 {runs} 個 runs 約 {sig(runs * 0.45, 2)} 秒；可隨時停止，已完成的 runs 會保留。
+          尚未執行：按「執行 Run」。每個 run 的成本與 Pipeline 的迴路部分相同（預設約 0.4 秒），所以 {runs} 個 runs 約 {sig(runs * (params.quantize ? 0.9 : 0.45), 2)} 秒
+          {params.quantize ? '（開了定點暫存器：每個 seed 再跑一次浮點對照，時間加倍）' : ''}；可隨時停止，已完成的 runs 會保留。
         </p>
       )}
       {stale && (
@@ -184,6 +197,15 @@ export function MonteCarloTab() {
                   </td>
                   <td className="small">{md(checks.divergence.note)}</td>
                 </tr>
+                {fpCheck && (
+                  <tr data-check="fixedPoint" data-status={fpCheck.status}>
+                    <th scope="row">定點 vs 浮點</th>
+                    <td>
+                      <StatusPill status={fpCheck.status} />
+                    </td>
+                    <td className="small">{md(fpCheck.note)}</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

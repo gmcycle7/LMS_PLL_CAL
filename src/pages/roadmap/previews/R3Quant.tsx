@@ -123,7 +123,7 @@ function R3Experiment() {
       warnings={warnings}
       crossCheck={{
         analytic: { status: res.period === res.periodTheory && parsevalOk ? 'ok' : 'mismatch', note: String.raw`量測週期 vs $S/\gcd(W\bmod S,\ S)$；譜線功率和 vs 時域誤差功率（Parseval）` },
-        monteCarlo: 'n/a',
+        monteCarlo: { status: 'n/a', note: '確定性計算，沒有隨機量' },
         fixedPoint: { status: 'ok', note: '本實作即整數 / 定點（$S=2^F$ 或分母）' },
       }}
       actions={{ onReset: () => setP(DEFAULTS) }}

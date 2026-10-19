@@ -206,13 +206,13 @@ function R1Experiment() {
       metrics={metrics}
       warnings={warnings}
       crossCheck={{
-        analytic: stable ? { status: lyapOk ? 'ok' : 'mismatch', note: String.raw`封閉式 vs Lyapunov（相對誤差 $\le10^{-9}$）` } : 'n/a',
+        analytic: stable ? { status: lyapOk ? 'ok' : 'mismatch', note: String.raw`封閉式 vs Lyapunov（相對誤差 $\le10^{-9}$）` } : { status: 'n/a', note: String.raw`不穩定（$\rho\ge1$）沒有穩態可比` },
         monteCarlo: !stable
-          ? 'n/a'
+          ? { status: 'n/a', note: String.raw`不穩定（$\rho\ge1$）沒有穩態可比` }
           : mcUsable
             ? { status: active && inCi(active) ? 'ok' : 'mismatch', note: String.raw`封閉式落在 95% CI（$\pm2\%$ 容差）內` }
             : { status: 'n/a', note: String.raw`burn-in 不足 $5\tau$：不判定` },
-        fixedPoint: 'not-implemented',
+        fixedPoint: { status: 'not-implemented', note: '預覽模型沒有定點版本（roadmap R1 的子目標）' },
       }}
       actions={{ onReset: () => setP(DEFAULTS) }}
       presets={presets}

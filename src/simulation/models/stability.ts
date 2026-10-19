@@ -1055,3 +1055,224 @@ export function compareMcToLinear(
   return { pass: worstRatio <= 1, tCrit, maxAbsDev, worstRatio, worstBlock, linAllowance }
 }
 // #endregion
+
+// ═══════════════════════════════════════════════════════════════════════════
+// §8.3 補充（2026-10-19）：用 z^{d+1} − z^d + g = 0 的 d + 1 個極點做模態展開，算 95% 收斂 block 數 k₉₅
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// 平均遞迴 y_{k+1} = y_k − g·y_{k−d}（初始歷史 y_j = 1，j ≤ 0）是常係數線性遞迴，解一定可以寫成極點的組合：
+//   y_k = Σ_i c_i λ_i^k                （極點互異）
+//   y_k = Σ_i Σ_{p<m_i} c_{i,p} k^p λ_i^k（λ_i 為 m_i 重根；這個多項式最多只有二重根，出現在 z = d/(d+1)）
+// 係數 c 由 d + 1 個初始條件 y_{−d} = … = y_0 = 1 解線性方程組得到（共軛複根合成 2 Re(c k^p λ^k)，未知數仍是實數）。
+// k₉₅ = 1 + max{k : |y_k| > 0.05}。「之後不再超過」用三角不等式證明：|y_k| ≤ Σ|c_{i,p}| k^p ρ_i^k，這個上界在
+// k ≥ p/(−ln ρ_i) 之後單調遞減，一旦 ≤ 0.05 就不可能再超過——和 settleDelayed（thesisModel.ts）逐 block 數出來的數字相同
+// （stability.test.ts 逐點比對，誤差 < 1 步），但停止規則是證明、不是量到的門檻，而且極慢的 mode 需要掃的步數更少。
+// 只用 spectral radius 的 ⌈ln 0.05 / ln ρ⌉ 是「漸近估計」（d = 0 才精確），這裡一併回傳供對照。
+
+/** settleFromPoles 掃描 y_k 的步數上限；超過（極慢的 mode）就改回傳漸近估計並標 exact = false */
+export const SETTLE_FROM_POLES_MAX_STEPS = 2_000_000
+
+/** 極點叢集的相對容差：polyRoots 對二重根的誤差約 √ε ≈ 1.5×10⁻⁸，所以 10⁻⁶ 內的根視為同一個重根 */
+const POLE_CLUSTER_TOL = 1e-6
+
+export interface DelayMode {
+  /** 極點 λ；real = false 時它代表一對共軛極點（只列 Im > 0 的那一個） */
+  lambda: Complex
+  real: boolean
+  /** 重根次數 m（這個特徵多項式最多 2） */
+  multiplicity: number
+  /** 係數 c_p（p = 0…m−1）：實極點貢獻 c_p k^p λ^k；共軛對貢獻 2 Re(c_p k^p λ^k) */
+  coeff: Complex[]
+}
+
+export interface DelayModal {
+  g: number
+  d: number
+  /** 特徵式的全部根（含重根） */
+  poles: Complex[]
+  /** spectral radius ρ = max|λ| */
+  rho: number
+  /** 模態展開；係數解不出來（方程組奇異或非有限）時為 null */
+  modes: DelayMode[] | null
+}
+
+/** 把根依 POLE_CLUSTER_TOL 分群（重根），回傳每群的中心與個數。 */
+function clusterPoles(poles: Complex[]): { center: Complex; count: number }[] {
+  const out: { sum: Complex; count: number }[] = []
+  for (const z of poles) {
+    const hit = out.find((cl) => cAbs(cSub(cScale(cl.sum, 1 / cl.count), z)) <= POLE_CLUSTER_TOL * Math.max(1, cAbs(z)))
+    if (hit) {
+      hit.sum = cAdd(hit.sum, z)
+      hit.count++
+    } else out.push({ sum: z, count: 1 })
+  }
+  return out.map((cl) => ({ center: cScale(cl.sum, 1 / cl.count), count: cl.count }))
+}
+
+/** k^p λ^k（k 可為負；λ ≠ 0） */
+function modeTerm(lambda: Complex, p: number, k: number): Complex {
+  const r = cAbs(lambda)
+  const th = cArg(lambda)
+  const mag = Math.pow(r, k) * Math.pow(k, p)
+  return cScale(cExpj(th * k), mag)
+}
+
+// #region core:delayModes
+/**
+ * y_{k+1} = y_k − g·y_{k−d}（y_j = 1，j ≤ 0）的模態展開：求根 → 分群（重根）→ 以初始條件解係數。
+ * 實根群（m 重）給 m 個實未知數 c_0…c_{m−1}；共軛對群給 2m 個（c_p 的實部與虛部），總數恰為 d + 1。
+ */
+export function delayModes(g: number, d: number): DelayModal {
+  const poles = polyRoots(delayCharPoly(g, d))
+  let rho = 0
+  for (const z of poles) rho = Math.max(rho, cAbs(z))
+  if (!(rho > 0) || poles.some((z) => cAbs(z) === 0)) return { g, d, poles, rho, modes: null } // λ = 0（deadbeat）沒有 λ^{−k}
+  const clusters = clusterPoles(poles)
+  type Basis = { eval: (k: number) => number; mode: number; p: number; part: 're' | 'im' }
+  const basis: Basis[] = []
+  const modes: DelayMode[] = []
+  for (const cl of clusters) {
+    const real = Math.abs(cl.center.im) <= POLE_CLUSTER_TOL * Math.max(1, cAbs(cl.center))
+    if (!real && cl.center.im < 0) continue // 共軛對只處理 Im > 0 的那一個
+    const lambda = real ? c(cl.center.re, 0) : cl.center
+    const idx = modes.length
+    modes.push({ lambda, real, multiplicity: cl.count, coeff: [] })
+    for (let p = 0; p < cl.count; p++) {
+      if (real) basis.push({ eval: (k) => modeTerm(lambda, p, k).re, mode: idx, p, part: 're' })
+      else {
+        basis.push({ eval: (k) => 2 * modeTerm(lambda, p, k).re, mode: idx, p, part: 're' }) // 2 Re(c k^p λ^k) 中 Re(c) 的係數
+        basis.push({ eval: (k) => -2 * modeTerm(lambda, p, k).im, mode: idx, p, part: 'im' }) // Im(c) 的係數
+      }
+    }
+  }
+  const n = d + 1
+  if (basis.length !== n) return { g, d, poles, rho, modes: null }
+  const A: Matrix = []
+  const rhs: number[] = []
+  for (let k = -d; k <= 0; k++) {
+    A.push(basis.map((b) => b.eval(k)))
+    rhs.push(1) // ← 初始歷史全為 1（和 settleDelayed、trajectory() 同一個約定）
+  }
+  let u: number[]
+  try {
+    u = solve(A, rhs)
+  } catch {
+    return { g, d, poles, rho, modes: null }
+  }
+  if (u.some((v) => !Number.isFinite(v))) return { g, d, poles, rho, modes: null }
+  for (const m of modes) m.coeff = Array.from({ length: m.multiplicity }, () => c(0, 0))
+  basis.forEach((b, j) => {
+    const coef = modes[b.mode].coeff[b.p]
+    if (b.part === 're') coef.re = u[j]
+    else coef.im = u[j]
+  })
+  return { g, d, poles, rho, modes }
+}
+// #endregion
+
+/** 模態展開在第 k 步的值 y_k（k ≥ −d）。modes 為 null 時回傳 NaN。 */
+export function delayModalValue(modal: DelayModal, k: number): number {
+  if (!modal.modes) return NaN
+  let y = 0
+  for (const m of modal.modes)
+    for (let p = 0; p < m.multiplicity; p++) {
+      const t = cMul(m.coeff[p], modeTerm(m.lambda, p, k))
+      y += m.real ? t.re : 2 * t.re
+    }
+  return y
+}
+
+/** |y_k| 的保證上界 Σ|c_p| k^p |λ|^k（共軛對乘 2）；k ≥ max p/(−ln|λ|) 之後單調遞減。 */
+export function delayModalBound(modal: DelayModal, k: number): number {
+  if (!modal.modes) return Infinity
+  let b = 0
+  for (const m of modal.modes) {
+    const r = cAbs(m.lambda)
+    for (let p = 0; p < m.multiplicity; p++) b += (m.real ? 1 : 2) * cAbs(m.coeff[p]) * Math.pow(k, p) * Math.pow(r, k)
+  }
+  return b
+}
+
+export interface PoleSettle {
+  g: number
+  d: number
+  frac: number
+  poles: Complex[]
+  rho: number
+  stable: boolean
+  modes: DelayMode[] | null
+  /** k₉₅ = 1 + max{k : |y_k| > frac}；不穩定時 ∞；沒掃完（exact = false）時改填漸近估計當下界 */
+  blocks: number
+  exact: boolean
+  /** 只用 ρ 的漸近估計 max(1, ⌈ln frac / ln ρ⌉)；d = 0 時與 blocks 相同 */
+  asymptotic: number
+  /** 證明「之後不再超過 frac」的那一步（上界 ≤ frac 且已進入單調遞減區）；沒掃完時 null */
+  provenAt: number | null
+  /** 'modes'：模態展開；'recursion'：模態係數解不出來（例如 deadbeat）時退回逐 block 遞推 */
+  method: 'modes' | 'recursion'
+}
+
+// #region core:settleFromPoles
+/**
+ * 以極點的模態展開數 k₉₅：y_k = Σ c_{i,p} k^p λ_i^k 逐步求值，記下最後一次 |y_k| > frac 的 k；
+ * 當 k 進入上界的單調遞減區且 Σ|c| k^p ρ^k ≤ frac 時停止（之後不可能再超過，這是證明不是量測）。
+ * d = 0：y_k = (1 − g)^k，k₉₅ = ⌈ln frac / ln|1 − g|⌉（deadbeat g = 1 需要一次更新 ⇒ 1）。
+ * ρ ≥ 1（含 g ≤ 0）：不收斂，∞。maxSteps 內沒停：極慢的 mode，blocks = 漸近估計、exact = false。
+ */
+export function settleFromPoles(g: number, d: number, frac = 0.05, maxSteps = SETTLE_FROM_POLES_MAX_STEPS): PoleSettle {
+  const modal = delayModes(g, d)
+  const { poles, rho } = modal
+  const base = { g, d, frac, poles, rho, modes: modal.modes }
+  if (!(rho < 1)) return { ...base, stable: false, blocks: Infinity, exact: true, asymptotic: Infinity, provenAt: null, method: 'modes' }
+  // ρ = 0（deadbeat，g = 1、d = 0）：ln 0 = −∞ ⇒ 商為 0，但仍需要「一次」更新才到位，所以至少 1
+  const asymptotic = rho <= 1e-12 ? 1 : Math.max(1, Math.ceil(Math.log(frac) / Math.log(rho)))
+  if (!modal.modes) {
+    // 模態係數解不出來：退回逐 block 遞推（和 settleDelayed 相同的停止規則：整個狀態都 ≤ frac·10⁻³）
+    const L = d + 1
+    const ring = new Float64Array(L).fill(1)
+    let lastAbove = 0
+    let small = 0
+    for (let n = 0; n < maxSteps; n++) {
+      const next = ring[n % L] - g * ring[(n + 1) % L]
+      ring[(n + 1) % L] = next
+      if (Math.abs(next) > frac) lastAbove = n + 1
+      if (Math.abs(next) <= frac * 1e-3) {
+        if (++small >= L) return { ...base, stable: true, blocks: lastAbove + 1, exact: true, asymptotic, provenAt: n + 1, method: 'recursion' }
+      } else small = 0
+    }
+    return { ...base, stable: true, blocks: asymptotic, exact: false, asymptotic, provenAt: null, method: 'recursion' }
+  }
+  // 上界 Σ|c| k^p ρ_i^k 從 kDec 之後每一項都單調遞減；主極點的 p = 0 項 A·ρ^k 是它的下界，
+  // 所以證明至少要掃到 k ≥ ln(frac/A)/ln ρ——這個數字已經超過 maxSteps 就直接回報「沒數完」（極慢的 mode 不用真的掃兩百萬步）
+  let kDec = 1
+  let ampDom = 0
+  for (const m of modal.modes) {
+    const r = cAbs(m.lambda)
+    if (m.multiplicity > 1 && r < 1 && r > 0) kDec = Math.max(kDec, Math.ceil((m.multiplicity - 1) / -Math.log(r)))
+    if (Math.abs(r - rho) <= 1e-12) ampDom += (m.real ? 1 : 2) * cAbs(m.coeff[0])
+  }
+  const notExact = { ...base, stable: true, blocks: asymptotic, exact: false, asymptotic, provenAt: null, method: 'modes' as const }
+  if (ampDom > frac && Math.log(frac / ampDom) / Math.log(rho) > maxSteps) return notExact
+  // 逐步求值：λ^k 與 ρ^k 用連乘遞推（不用每一步都呼叫 pow／exp），k^p 直接算
+  const state = modal.modes.map((m) => ({ m, w: m.real ? 1 : 2, r: cAbs(m.lambda), pow: c(1, 0), rk: 1, amp: m.coeff.map(cAbs) }))
+  let lastAbove = 0
+  for (let k = 1; k <= maxSteps; k++) {
+    let y = 0
+    let bound = 0
+    for (const st of state) {
+      st.pow = cMul(st.pow, st.m.lambda) // λ^k
+      st.rk *= st.r // ρ_i^k
+      let kp = 1
+      for (let p = 0; p < st.m.multiplicity; p++) {
+        y += st.w * cMul(st.m.coeff[p], st.pow).re * kp
+        bound += st.w * st.amp[p] * kp * st.rk
+        kp *= k
+      }
+    }
+    if (!Number.isFinite(y)) break
+    if (Math.abs(y) > frac) lastAbove = k // ← 不是「第一次低於」：之後再超過也算
+    if (k >= kDec && bound <= frac) return { ...base, stable: true, blocks: lastAbove + 1, exact: true, asymptotic, provenAt: k, method: 'modes' }
+  }
+  return notExact
+}
+// #endregion

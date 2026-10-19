@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { cAbs, cAdd, cScale, cSub, c, eigvals, polyRoots } from '@/simulation/core'
 import { polarityMarginDeg } from '@/simulation/models/pll'
 import { runBlockLmsMonteCarlo } from '@/simulation/models/blockLms'
+import { settleDelayed } from '@/pages/dashboard/thesisModel'
 import {
   analyzeDualLoop,
   analyzeGeneral,
@@ -38,6 +39,11 @@ import {
   polarityMarginWrap,
   simulateDelayRecursion,
   simulateFullModel,
+  settleFromPoles,
+  SETTLE_FROM_POLES_MAX_STEPS,
+  delayModalBound,
+  delayModalValue,
+  delayModes,
   simulateGeneral,
   simulateQuasiStatic,
   stableIntervalsNumeric,
@@ -678,5 +684,108 @@ describe('stability：Monte Carlo 交叉比對（blockLms）', () => {
     const r = runMc(1.3, 1, 120)
     expect(r.cmp.pass).toBe(false)
     expect(r.deltaMc.every((x) => Number.isFinite(x) && Math.abs(x) < 1e4)).toBe(true)
+  })
+})
+
+describe('stability：§8.3 補充——以 d + 1 個極點的模態展開數 k95（settleFromPoles）', () => {
+  /** 獨立的暴力遞推：不用環形緩衝、不用停止規則，直接跑 n 步 */
+  const brute = (g: number, d: number, n = 5000) => {
+    const y = new Array<number>(d + 1).fill(1)
+    let last = 0
+    for (let k = 1; k < n; k++) {
+      y.push(y[y.length - 1] - g * y[y.length - 1 - d])
+      if (Math.abs(y[y.length - 1]) > 0.05) last = k
+    }
+    return last + 1
+  }
+
+  it('模態展開 y_k = Σ c_p k^p λ^k 與逐 block 遞迴逐點相同（d = 0…6、各 120 個 g，前 200 步差 < 10⁻¹²）；重根（d = 1、g = 1/4 ⇒ z = 1/2 二重）也解得出來', () => {
+    let worst = 0
+    for (let d = 0; d <= 6; d++) {
+      const gc = delayCriticalGain(d)
+      for (let i = 1; i <= 120; i++) {
+        const g = (gc * i) / 121
+        const m = delayModes(g, d)
+        expect(m.modes, `g=${g}, d=${d}`).not.toBeNull()
+        expect(m.modes!.reduce((s, x) => s + (x.real ? 1 : 2) * x.multiplicity, 0)).toBe(d + 1) // 未知數個數 = 極點數
+        const y = new Array<number>(d + 1).fill(1)
+        for (let k = 1; k <= 200; k++) {
+          y.push(y[y.length - 1] - g * y[y.length - 1 - d])
+          worst = Math.max(worst, Math.abs(delayModalValue(m, k) - y[y.length - 1]))
+          expect(Math.abs(y[y.length - 1])).toBeLessThanOrEqual(delayModalBound(m, k) + 1e-12) // 三角不等式上界
+        }
+        // 初始條件：k = −d…0 都是 1
+        for (let k = -d; k <= 0; k++) expect(delayModalValue(m, k)).toBeCloseTo(1, 9)
+      }
+    }
+    expect(worst).toBeLessThan(1e-12)
+    const dbl = delayModes(0.25, 1)
+    expect(dbl.modes).toHaveLength(1)
+    expect(dbl.modes![0].multiplicity).toBe(2)
+    expect(dbl.modes![0].lambda.re).toBeCloseTo(0.5, 9)
+    // 重根解：y_k = (k + 2)/2^{k+1} ⇒ c_0 = 1、c_1 = 1/2（c_0 λ^k + c_1 k λ^k = (1 + k/2)·2^{−k}）
+    expect(dbl.modes![0].coeff[0].re).toBeCloseTo(1, 9)
+    expect(dbl.modes![0].coeff[1].re).toBeCloseTo(0.5, 9)
+    expect(delayModalValue(dbl, 6)).toBeCloseTo(8 / 128, 12)
+    expect(delayModalValue(dbl, 7)).toBeCloseTo(9 / 256, 12)
+  })
+
+  it('T08: k95（極點模態展開）與 settleDelayed（逐 block 遞推）在 d = 0…6 的整個穩定區逐點相同（誤差 < 1 步，實際為 0），也等於暴力遞推', () => {
+    let n = 0
+    for (let d = 0; d <= 6; d++) {
+      const gc = delayCriticalGain(d)
+      for (let i = 1; i <= 120; i++) {
+        const g = (gc * i) / 121
+        const a = settleFromPoles(g, d)
+        const b = settleDelayed(g, d)
+        expect(a.exact, `g=${g}, d=${d}`).toBe(true)
+        expect(b.exact, `g=${g}, d=${d}`).toBe(true)
+        expect(Math.abs(a.blocks - b.blocks), `g=${g}, d=${d}`).toBeLessThan(1)
+        expect(a.blocks, `g=${g}, d=${d}`).toBe(brute(g, d))
+        expect(a.provenAt).not.toBeNull()
+        expect(a.provenAt!).toBeGreaterThanOrEqual(a.blocks - 1)
+        n++
+      }
+    }
+    expect(n).toBe(840)
+    // 反例：只看 ρ 的漸近估計兩個方向都會錯（Corner 判斷器假設欄的那幾組）
+    const cases: [number, number, number, number][] = [
+      [0.25, 1, 5, 7],
+      [4 / 27, 2, 8, 11],
+      [27 / 256, 3, 11, 16],
+      [0.33 * delayCriticalGain(3), 3, 14, 8],
+      [0.8, 1, 27, 26],
+    ]
+    for (const [g, d, asym, actual] of cases) {
+      const r = settleFromPoles(g, d)
+      expect(r.asymptotic, `漸近 g=${g}, d=${d}`).toBe(asym)
+      expect(r.blocks, `模態 g=${g}, d=${d}`).toBe(actual)
+      expect(r.method).toBe('modes')
+    }
+    // d = 0：封閉式 ⌈ln 0.05/ln|1 − g|⌉（T11：g = 0.005 ⇒ 598）；deadbeat g = 1 ⇒ 1（λ = 0 沒有模態展開，退回遞推）
+    expect(settleFromPoles(0.005, 0).blocks).toBe(598)
+    expect(settleFromPoles(0.005, 0).asymptotic).toBe(598)
+    const dead = settleFromPoles(1, 0)
+    expect([dead.blocks, dead.asymptotic, dead.exact, dead.method]).toEqual([1, 1, true, 'recursion'])
+    // 不穩定（含 g ≤ 0）：∞
+    for (const [g, d] of [[1.2 * delayCriticalGain(1), 1], [0, 1], [-0.1, 2], [2.5, 0]] as const) {
+      const r = settleFromPoles(g, d)
+      expect([r.blocks, r.asymptotic, r.stable, r.exact]).toEqual([Infinity, Infinity, false, true])
+    }
+  })
+
+  it('極慢的 mode：證明需要的步數 ln(0.05/A)/ln ρ 超過上限就直接回報沒數完（exact = false、blocks = 漸近估計），不掃兩百萬步；步數上限可指定', () => {
+    const t0 = performance.now()
+    const slow = settleFromPoles(1e-6, 1)
+    expect(performance.now() - t0).toBeLessThan(50)
+    expect(slow.exact).toBe(false)
+    expect(slow.provenAt).toBeNull()
+    expect(slow.blocks).toBe(slow.asymptotic)
+    expect(slow.blocks).toBeGreaterThan(SETTLE_FROM_POLES_MAX_STEPS)
+    expect(settleDelayed(1e-6, 1).exact).toBe(false)
+    const capped = settleFromPoles(0.01, 1, 0.05, 50)
+    expect([capped.exact, capped.blocks]).toEqual([false, capped.asymptotic])
+    expect(settleFromPoles(0.01, 1).blocks).toBe(296) // 上限夠就數得完
+    expect(settleFromPoles(0.01, 1).exact).toBe(true)
   })
 })
