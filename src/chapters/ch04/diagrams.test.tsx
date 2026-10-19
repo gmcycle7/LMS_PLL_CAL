@@ -985,7 +985,7 @@ describe('Ch04 頁面上的方塊圖（整頁渲染）', () => {
     expect(figures[0]).toBe(map) // 頁面上的第一張圖
     const question = container.querySelector('#ch04-question')!
     const system = container.querySelector('#ch04-system')!
-    expect(question.contains(map)).toBe(true)
+    expect(question.nextElementSibling).toBe(map) // 緊接在「這一課要回答的問題」之後（teaching-style §9）
     expect(map.compareDocumentPosition(system) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(map.getAttribute('aria-label')).toContain('DTC-based Fractional-N PLL 與 Sign-LMS 校正迴路的系統方塊圖')
     // （aria-label 是純文字：方塊名稱裡的 `$...$` 已轉成可念的文字 accessibleText）
@@ -1002,8 +1002,9 @@ describe('Ch04 頁面上的方塊圖（整頁渲染）', () => {
     const mapSvg = map.querySelector('svg.c-sysmap-svg')!
     expect(mapSvg.querySelectorAll('.katex').length).toBeGreaterThanOrEqual(8)
     expect(mapSvg.textContent).not.toContain('$')
-    // 系統地圖前面有一句話說明藍色方塊是什麼、這一課新增什麼
-    const lead = map.previousElementSibling!
+    // 系統地圖後面緊接一句「你在這裡」（.c-map-note）說明藍色方塊是什麼、這一課新增什麼
+    const lead = map.nextElementSibling!
+    expect(lead.classList.contains('c-map-note')).toBe(true)
     expect(lead.tagName).toBe('P')
     expect(lead.textContent).toMatch(/藍色方塊/)
     expect(lead.textContent).toMatch(/這一課新增的是/)
@@ -1011,7 +1012,8 @@ describe('Ch04 頁面上的方塊圖（整頁渲染）', () => {
     expect(CH04_SYSTEM_CAPTION).toContain('reference 輸入端的 DTC → PD')
     expect(CH04_SYSTEM_CAPTION).toContain(R`PD 的輸出 $e[n]$（就是送進 loop filter 的那個節點）`)
     expect(CH04_SYSTEM_CAPTION).not.toContain('沿虛線')
-    const afterMap = map.nextElementSibling!
+    // 「地圖上有兩個接法」是章首說明區（.ch04-guide，排在 PageFrame 的 strip 與先備自檢之後）的第二段
+    const afterMap = container.querySelectorAll('.ch04-guide p')[1]!
     expect(afterMap.tagName).toBe('P')
     expect(afterMap.textContent).toContain('DTC 在 reference 的輸入端')
     expect(afterMap.textContent).toContain('回授路徑上只有 divider')

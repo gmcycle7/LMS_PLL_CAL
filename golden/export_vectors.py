@@ -50,6 +50,7 @@ from lms_pll_golden import (  # noqa: E402
     quantization,
     stability,
 )
+from lms_pll_golden import dtc_inl  # noqa: E402  （Ch11b：§11 延伸，無 T-id）
 
 VECTORS_DIR = GOLDEN_DIR / 'vectors'
 SCHEMA_VERSION = 1
@@ -617,6 +618,110 @@ def build_vectors() -> dict[str, dict[str, Any]]:
         'wrong_encoding_*：把 0/1 當 q 時，在 w = a 的平均更新 = E[x]/2（零均值 code 為 0、DC code {−1..1.5} 為 0.125）。'
         'gmac_17bit_wrapped_sum：31×4096 在 17-bit two\'s complement 下 wrap 成 −4096（符號翻轉）。',
         tolerance_overrides={'sum_mode_gain_multiplier': {'abs': 0}, 'gmac_bits_required': {'abs': 0}, 'gmac_17bit_wrapped_sum': {'abs': 0}},
+    )
+
+    # ---------------- Ch11b：DTC INL 校正與噪聲折返（§11 延伸；test_S11b_*，無 T-id） ----------------
+    # (1) 噪聲折返：MASH 1-1-1 正規化 code x = r/2 的自相關、Gaussian–Isserlis 與線性過程精確式、帶內功率
+    R_mash = dtc_inl.MASH_CODE_AUTOCORR
+    inl_d2, inl_d3, inl_nu_b = 20.0, 10.0, 0.01
+    fold_g2 = dtc_inl.folding_prediction(R_mash, inl_d2, 0.0, inl_nu_b)
+    fold_g3 = dtc_inl.folding_prediction(R_mash, 0.0, inl_d3, inl_nu_b)
+    s2_exact_unit = dtc_inl.folded_psd_dc_linear_process(R_mash, dtc_inl.MASH_CODE_FIR, dtc_inl.UNIFORM_KAPPA4)
+    v['dtc_inl_folding'] = vector(
+        'dtc_inl_folding',
+        'Ch11b 噪聲折返：MASH 1-1-1 正規化 code（x = r/2）的自相關 (1/48)[6, −4, 1]，x²−σ² 在 DC 的 PSD 2ΣR² = 35/576（Gaussian）、精確式 121/2880；d_2 = 20、ν_B = 0.01 的帶內功率',
+        '§11b',
+        {'R_code': R_mash, 'fir_h': dtc_inl.MASH_CODE_FIR, 'd2': inl_d2, 'd3': inl_d3, 'nu_B': inl_nu_b, 'uniform_Ex4': 0.2, 'uniform_sigma2': 1.0 / 3.0},
+        {
+            'R_residue': dtc_inl.MASH_RESIDUE_AUTOCORR,
+            'sigma2_code': float(R_mash[0]),
+            'S2_unit_gaussian': dtc_inl.folded_psd_dc(R_mash, 2),
+            'S3_unit_gaussian': dtc_inl.folded_psd_dc(R_mash, 3),
+            'kappa4_uniform': dtc_inl.UNIFORM_KAPPA4,
+            'sum_h2': float(np.sum(dtc_inl.MASH_CODE_FIR**2)),
+            'S2_unit_exact': s2_exact_unit,
+            'Pin_gaussian_d2': fold_g2['Pin'],
+            'rms_in_gaussian_d2': fold_g2['rms_in'],
+            'residual_power_gaussian_d2': fold_g2['residual_power'],
+            'inband_fraction_gaussian_d2': fold_g2['inband_fraction'],
+            'Pin_exact_d2': dtc_inl.inband_power(inl_d2**2 * s2_exact_unit, inl_nu_b),
+            'Pin_gaussian_d3': fold_g3['Pin'],
+            'gain_absorbed_d3': fold_g3['gain_absorbed'],
+            'residual_power_gaussian_d3': fold_g3['residual_power'],
+            'uniform_var_x2': dtc_inl.iid_squared_psd_dc(0.2, 1.0 / 3.0),
+            'uniform_Pin_exact_d2': dtc_inl.inband_power(inl_d2**2 * dtc_inl.iid_squared_psd_dc(0.2, 1.0 / 3.0), inl_nu_b),
+            'uniform_S2_unit_gaussian': dtc_inl.folded_psd_dc(dtc_inl.UNIFORM_CODE_AUTOCORR, 2),
+        },
+        {'rel': 1e-12},
+        'S_p(0) = p!·Σ_m R[m]^p（Gaussian–Isserlis）；線性過程精確式 S_2(0) = 2ΣR² + κ_4(Σh²)²，h = [−½, 1, −½]、κ_4 = −1/120；'
+        '帶內功率 P_in = S(0)·2ν_B；三次項 gain 校正吸收 3d_3σ²。uniform iid x：x² 的 PSD 平坦，位準 Var(x²) = 4/45。',
+    )
+    # (2) 分段（K = 8）與 LUT（J = 64）的封閉式：μ = 2、σ_v = 10、N = 64
+    seg_rows = [dtc_inl.segment_closed_form(k, 8, 2.0, 10.0, 64) for k in range(8)]
+    lut64 = dtc_inl.lut_closed_form(64, 2.0, 10.0, 64)
+    v['dtc_inl_segments'] = vector(
+        'dtc_inl_segments',
+        'Ch11b 分段 LMS（K = 8、uniform x）每段的 λ_k、pole、k95、穩態 std，與 LUT 64 格的時間常數／每格樣本數（μ = 2、σ_v = 10、N = 64）',
+        '§11b',
+        {'K': 8, 'J': 64, 'mu': 2.0, 'sigma_v': 10.0, 'N': 64},
+        {
+            'Kq': dtc_inl.kq(10.0),
+            'segment_lambda': [r['lambda'] for r in seg_rows],
+            'segment_g': [r['g'] for r in seg_rows],
+            'segment_pole': [r['pole'] for r in seg_rows],
+            'segment_k95': [r['k95'] for r in seg_rows],
+            'segment_tau': [r['tau'] for r in seg_rows],
+            'segment_std_w': [r['std_w'] for r in seg_rows],
+            'lambda_ratio_outer_inner': seg_rows[7]['lambda'] / seg_rows[4]['lambda'],
+            'lut_pj': lut64['pj'],
+            'lut_g': lut64['g'],
+            'lut_pole': lut64['pole'],
+            'lut_tau': lut64['tau'],
+            'lut_k95': lut64['k95'],
+            'lut_samples_per_bin_per_tau': lut64['samples_per_bin_per_tau'],
+            'lut_effective_samples': lut64['effective_samples'],
+            'lut_std_theta': lut64['std_theta'],
+            'lut_approx_rms_d2_20': dtc_inl.lut_approx_rms(20.0, 0.0, 64),
+            'lut_approx_rms_d2_20_d3_10': dtc_inl.lut_approx_rms(20.0, 10.0, 64),
+            'small_g_std': math.sqrt(2.0 / (2.0 * dtc_inl.kq(10.0) * 64.0)),
+        },
+        {'rel': 1e-12},
+        'λ_k = (x_{k+1}³ − x_k³)/6；g = μK_qλ；k95 = ⌈ln 0.05/ln(1−g)⌉（整數）；Var = μ²λ/(N(1−p²)) ≈ μ/(2K_qN)（與 λ 無關）；'
+        'LUT：λ_j = 1/J、τ_j = J/(μK_q) blocks、每格在一個 τ 內的樣本數 N/(μK_q)、有效平均長度 2N/(μK_q)；近似誤差 Δ√(E[d′²]/12)。',
+        tolerance_overrides={'segment_k95': {'abs': 0}, 'lut_k95': {'abs': 0}},
+    )
+    # (3) 多項式基底（M = 3、uniform x）：Hankel／Legendre／Chebyshev 的 R、特徵值、條件數、手算的 2×2 分塊、LS 最佳解與 mean-field k95
+    basis_expected: dict[str, Any] = {}
+    kq10 = dtc_inl.kq(10.0)
+    for kind in ('monomial', 'legendre', 'legendre_norm', 'chebyshev'):
+        Rb = dtc_inl.uniform_moment_matrix(kind, 3)
+        pb = dtc_inl.uniform_projection(kind, 3, inl_d2, inl_d3)
+        th = dtc_inl.ls_theta(Rb, pb)
+        lam = dtc_inl.eig_desc(Rb)
+        mu_b = 0.1 / (kq10 * lam[0])
+        basis_expected[f'{kind}_R'] = Rb
+        basis_expected[f'{kind}_lambdas'] = lam
+        basis_expected[f'{kind}_cond'] = dtc_inl.cond_number(Rb)
+        basis_expected[f'{kind}_theta_star'] = th
+        basis_expected[f'{kind}_mu_gmax_0p1'] = mu_b
+        basis_expected[f'{kind}_k95_mean_field'] = dtc_inl.mean_field_k95(Rb, -th, kq10, mu_b)
+    e_hi, e_lo = dtc_inl.eig2(1.0, 1.0 / 3.0, 1.0 / 5.0)
+    o_hi, o_lo = dtc_inl.eig2(1.0 / 3.0, 1.0 / 5.0, 1.0 / 7.0)
+    basis_expected.update({'hankel_even_eig': [e_hi, e_lo], 'hankel_odd_eig': [o_hi, o_lo], 'hankel_cond_by_hand': e_hi / o_lo})
+    v['dtc_inl_basis'] = vector(
+        'dtc_inl_basis',
+        'Ch11b 多項式基底（M = 3、uniform x）：monomial Hankel 的條件數 67.5 vs Legendre 7 vs normalized Legendre 1；LS 最佳解與 mean-field k95（μK_qλ_max = 0.1、σ_v = 10、d_2 = 20、d_3 = 10）',
+        '§11b',
+        {'M': 3, 'd2': inl_d2, 'd3': inl_d3, 'sigma_v': 10.0, 'g_max': 0.1, 'moments': [1.0 / 3.0, 1.0 / 5.0, 1.0 / 7.0]},
+        basis_expected,
+        {'rel': 1e-9, 'abs': 1e-12},
+        'R_mn = E[φ_mφ_n]（uniform [−1, 1]）：monomial 1/(m+n+1)、Legendre δ/(2m+1)、normalized I、Chebyshev 多項式精確積分；'
+        '2×2 分塊特徵值 (tr ± √(tr² − 4det))/2；θ* = R⁻¹E[φd]；k95 = δᵀRδ 降到初值 0.05² 的 block（δ_{b+1} = (I − μK_qR)δ_b）。',
+        tolerance_overrides={
+            **{f'{k}_k95_mean_field': {'abs': 0} for k in ('monomial', 'legendre', 'legendre_norm', 'chebyshev')},
+            # θ* 由 R⁻¹p 算出：monomial 的 Hankel 條件數 67.5 會把 TS 端 Simpson 積分的 1e-12 誤差放大到 1e-11
+            **{f'{k}_theta_star': {'abs': 1e-9, 'rel': 1e-9} for k in ('monomial', 'legendre', 'legendre_norm', 'chebyshev')},
+        },
     )
 
     return v

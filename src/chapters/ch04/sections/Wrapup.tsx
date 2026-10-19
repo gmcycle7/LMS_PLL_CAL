@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, Quiz, Recap, Section, Tex, TexBlock, ChRef } from '@/components'
+import { ClaimTag, Quiz, Section, Tex, TexBlock } from '@/components'
 import { accumulatorSizing, roundingMeanError, sumAverageTable } from '@/simulation/models/gmac'
-import { firstOrderAccumulator } from '../residue'
 import { wTruncNumbers } from './FixedPoint'
 import { HANDCALC_FLOW } from '../diagrams'
 import { f, HandCalcBox, MermaidFig, mt, tx } from '../common'
@@ -11,7 +10,6 @@ const R = String.raw
 export function WrapupSection() {
   const q1 = useMemo(() => sumAverageTable({ mu: 10, sigmaV: 100, C: 1, Ex2: 1, Ns: [256] })[0], [])
   const q2 = useMemo(() => ({ full: accumulatorSizing(8, 1024, 'full'), sym: accumulatorSizing(8, 1024, 'symmetric') }), [])
-  const q4 = useMemo(() => firstOrderAccumulator(3, 3, 4), [])
   const q5 = useMemo(() => {
     const deltaG = 2 ** -4 / 32
     const K = 0.0026
@@ -21,7 +19,7 @@ export function WrapupSection() {
   }, [])
   const q6 = useMemo(() => wTruncNumbers(), [])
   return (
-    <Section kind="example" title="§7 比較表、思考題與本課必記" level={2} id="ch04-wrap">
+    <Section kind="example" title="§7 比較表、綜合手算與思考題（Part 2）" level={2} id="ch04-wrap">
       <h3>GMAC scaling 的四種寫法</h3>
       <div className="table-wrap">
         <table>
@@ -186,9 +184,12 @@ export function WrapupSection() {
         把七個數字換成你自己的設計（或按「換一題」），拿紙筆和工程計算機從第一步算到最後一步，再切到「自己算算看」對答案；預設值是 §5.6「第二個截斷點」的例子。
       </HandCalcBox>
 
-      <h3>思考題</h3>
+      <h3>思考題（Part 2：RTL 與定點）</h3>
+      <p className="small muted">
+        這四題都是「RTL 做出來和浮點模型不一樣」的地方：少一個右移、累加器位元數、兩個截斷點。訊號流與數學的六題在 Part 1 的最後（§3 之後）。
+      </p>
       <Quiz
-        title="思考題 1（sum vs average）"
+        title="思考題 7（sum vs average）"
         question={
           <>
             設計時用 average 模式：<Tex>{R`N=256,\;\mu=10\,\mathrm{fs},\;\sigma_v=100\,\mathrm{fs},\;C=1`}</Tex>，所以 <Tex>{R`g=${tx(q1.gAvg, 4)}`}</Tex>。RTL 忘了右移（變成 sum
@@ -211,7 +212,7 @@ export function WrapupSection() {
         }
       />
       <Quiz
-        title="思考題 2（累加器位元數）"
+        title="思考題 8（累加器位元數）"
         question={
           <>
             8-bit 有號 code，<strong>包含</strong>最負值 <Tex>{R`-128`}</Tex>；<Tex>{R`N=1024`}</Tex>。最壞情況不溢位，GMAC 累加器最少要幾個有號 bit？
@@ -228,50 +229,7 @@ export function WrapupSection() {
         }
       />
       <Quiz
-        title="思考題 3（忘了映射 + 零均值 code）"
-        question={
-          <>
-            code 是零均值的 iid <Tex>{R`\pm1`}</Tex>，comparator 的 0/1 沒有映射成 <Tex>{R`\pm1`}</Tex>。下列何者正確？
-          </>
-        }
-        options={[
-          { label: '平均誤差發散' },
-          { label: mt(R`收斂到錯誤的 gain，偏差 $E[x]/K$`) },
-          { label: mt(R`固定點仍是 $a$，但收斂速度只有一半`), correct: true },
-          { label: '完全沒有影響' },
-        ]}
-        answer={
-          <>
-            <TexBlock>{R`G_\mathrm{bug}=\tfrac12G+\tfrac12\bar x\;\Rightarrow\;E[G_\mathrm{bug}]\approx\tfrac12K\delta+\tfrac12E[x]=\tfrac12K\delta`}</TexBlock>
-            <p>
-              <Tex>{R`E[x]=0`}</Tex> 時偏差項消失，只剩增益減半：<Tex>{R`g_\mathrm{bug}=g/2`}</Tex>，時間常數加倍。正因為「看起來還是收斂到對的值」，這個 bug 在零均值 code 的模擬裡很容易漏掉；換成有 DC 的 DSM code 就會出現大偏差。
-            </p>
-          </>
-        }
-      />
-      <Quiz
-        title="思考題 4（fractional residue）"
-        question={
-          <>
-            3-bit 一階累加器（<Tex>{R`M=8`}</Tex>），<Tex>{R`K_\mathrm{F}=3`}</Tex>，<Tex>{R`s[-1]=0`}</Tex>。第 3 拍（<Tex>{R`n=3`}</Tex>）的 residue <Tex>{R`r[3]`}</Tex> 是多少 <Tex>{R`T_\mathrm{vco}`}</Tex>？
-          </>
-        }
-        options={[{ label: mt(R`$-0.5$`), correct: q4[3].residue === -0.5 }, { label: mt(R`$-0.375$`) }, { label: mt(R`$+0.5$`) }, { label: mt(R`$0$`) }]}
-        answer={
-          <>
-            <p>
-              <Tex>{R`s[n]`}</Tex> 依序為 {q4.map((r) => r.s).join('、')}（第 2 拍 <Tex>{R`6+3=9\ge8`}</Tex> 進位，留下 1）；carry <Tex>{R`y[n]`}</Tex> 為 {q4.map((r) => r.y).join('、')}。
-            </p>
-            <TexBlock>{R`r[3]=\sum_{m=0}^{3}\Bigl(y[m]-\tfrac38\Bigr)=1-4\times\tfrac38=-\tfrac12=-\frac{s[3]}{M}=-\frac{${q4[3].s}}{8}`}</TexBlock>
-            <p>
-              feedback（divider）edge 早到半個 VCO 週期，所以 reference 端的 DTC 要把 reference edge 也提前 <Tex>{R`0.5\,T_\mathrm{vco}`}</Tex>：需要的補償量 <Tex>{R`\tau_\mathrm{need}=0.5\,T_\mathrm{vco}`}</Tex>，DTC 的延遲是{' '}
-              <Tex>{R`T_0-0.5\,T_\mathrm{vco}`}</Tex>。
-            </p>
-          </>
-        }
-      />
-      <Quiz
-        title="思考題 5（floor 的偏差，計算題）"
+        title="思考題 9（floor 的偏差，計算題）"
         question={
           <>
             右移 <Tex>{R`\ell=${q5.ell}`}</Tex> bits 用 floor，<Tex>{R`\Delta_G=2^{-4}/32`}</Tex>，<Tex>{R`K=${q5.K}\,\mathrm{fs}^{-1}`}</Tex>，GMAC 雜訊足以讓餘數均勻。<Tex>w</Tex> 會停在 <Tex>a</Tex> 的哪一側、差多少？
@@ -290,7 +248,7 @@ export function WrapupSection() {
       />
 
       <Quiz
-        title={R`思考題 6（$\mu$ 減半，RTL 的偏差卻變大？）`}
+        title={R`思考題 10（$\mu$ 減半，RTL 的偏差卻變大？）`}
         question={
           <>
             「<Tex>{R`\div N`}</Tex>」的右移用 half-even（沒有偏差）。更新量 <Tex>{R`\mu G`}</Tex> 加進 <Tex>W</Tex> 前用 floor 對齊 <Tex>W</Tex> 的 LSB{' '}
@@ -315,52 +273,6 @@ export function WrapupSection() {
           </>
         }
       />
-      <Recap
-        title="這一課最重要的公式"
-        formulas={[
-          { tex: R`r[n]=\sum_{m\le n}(y[m]-\mathrm{frac})=-\frac{s[n]}{M},\qquad\tau_\mathrm{need}=\frac{s[n]}{M}T_\mathrm{vco},\qquad\tau_\mathrm{DTC}=T_0-w\,x[n]`, label: 'DTC 要補償的是 DSM 累加器內容；reference 端的 DTC 從基準延遲往回扣（F-04.1、F-04.2）' },
-          { tex: R`E[G_k]\approx K_qC\,\delta_k,\qquad g_\mathrm{avg}=\mu K,\qquad g_\mathrm{sum}=N\mu K`, label: R`GMAC 平均與 sum / average 的 $N$ 倍差異（F-04.4、F-04.5）` },
-          { tex: R`q=2b-1;\quad G_\mathrm{bug}=\tfrac12G+\tfrac12\bar x_\mathrm{ref}`, label: '0/1 映射（F-04.7）' },
-          { tex: R`B_\mathrm{acc}=1+\lceil\log_2(NM_x+1)\rceil\;\overset{N=2^m}{=}\;B_x+m\;(+1\text{ 若含最負 code})`, label: '累加器位元數（F-04.9）' },
-          { tex: R`w^*-a=\frac{\bar\varepsilon\,\Delta_G}{K}+\frac{\bar\varepsilon_W\Delta_W}{g},\qquad\bar\varepsilon_\mathrm{floor}=-\frac{1-2^{-\ell}}{2}`, label: '兩個截斷點的 rounding 偏差（F-04.10、F-04.11、F-04.18）' },
-        ]}
-        points={[
-          <>
-            DTC 在 reference 的輸入端，回授路徑上只有 divider。feedback edge 早到的時間就是 DSM 累加器裡的數字；DTC 把 reference edge 也提前（從基準延遲 <Tex>{R`T_0`}</Tex> 少延遲）<Tex>{R`w\,x[n]`}</Tex> 去對齊。DTC gain 誤差{' '}
-            <Tex>{R`\delta`}</Tex> 讓 PD 看到 <Tex>{R`\delta\,x[n]`}</Tex>，這正是 LMS 的 <Tex>{R`y=ax`}</Tex> 問題。
-          </>,
-          <>LMS 校正迴路的輸入是 PD 的輸出 <Tex>{R`e[n]`}</Tex>：comparator 取的是送進 loop filter 的同一個訊號。</>,
-          <>GMAC 是相關的樣本估計：<Tex>{R`E[G]\approx K_qC\delta`}</Tex>。總和寫 <Tex>{R`S`}</Tex>、平均寫 <Tex>G</Tex>，兩者差 <Tex>N</Tex> 倍 loop gain 與 <Tex>N</Tex> 倍標準差。</>,
-          <>
-            <Tex>{R`q=\pm1`}</Tex> 時不用乘法器（XOR + carry-in），但最負 code 取負要多 1 bit（否則 <Tex>{R`w^*-a\approx-p_\mathrm{min}/K`}</Tex>）；硬體 0/1 一定要映射成 <Tex>{R`\pm1`}</Tex>。
-          </>,
-          <>累加器位元數用最壞情況（開機時 <Tex>{R`q\approx\mathrm{sign}(x)`}</Tex>）決定；wrap 會變號，saturate 至少方向正確。</>,
-          <>
-            「<Tex>{R`\div N`}</Tex>」的右移截斷（floor）造成與 <Tex>{R`\mu`}</Tex> 無關的固定偏差；更新量對齊 <Tex>W</Tex> 的 LSB 時再截一次，偏差約 <Tex>{R`\Delta_W/(2g)`}</Tex>，<Tex>{R`\mu`}</Tex> 越小越大。用
-            half-even 或足夠的小數位元。gain accumulator 要有 anti-windup，block 邊界一定要清除 <Tex>S</Tex>。
-          </>,
-        ]}
-      />
-
-      <Callout kind="info" title="連結到 PLL 與下一章">
-        <ul>
-          <li>
-            <strong><ChRef ch="05">Ch05</ChRef></strong>：<Tex>{R`K_q=\sqrt{2/\pi}/\sigma_v`}</Tex> 從哪來、1 fs 誤差埋在 100 fs 雜訊裡要累加多少筆（tie 規則，勘誤 E02 / E07）。
-          </li>
-          <li>
-            <strong><ChRef ch="06">Ch06</ChRef> / <ChRef ch="07">Ch07</ChRef></strong>：<Tex>{R`C=E[x_\mathrm{ref}u]`}</Tex> 會因 PLL 的 <Tex>{R`H_\mathrm{PD}`}</Tex> 相位或 code 錯位而變號——本章假設 <Tex>{R`C>0`}</Tex>。
-          </li>
-          <li>
-            <strong><ChRef ch="08">Ch08</ChRef></strong>：本章 latency 計算器的 <Tex>{R`g_\mathrm{crit}=2\sin\frac{\pi}{4d+2}`}</Tex> 與真正的 calibration phase margin。
-          </li>
-          <li>
-            <strong><ChRef ch="12">Ch12</ChRef> / <ChRef ch="13">Ch13</ChRef></strong>：GMAC 雜訊經 <Tex>{R`\mu`}</Tex> 變成 gain noise（<Tex>{R`\sigma_w`}</Tex>）、實體 gain 只有 6 bits 時的量化與 limit cycle。
-          </li>
-        </ul>
-        <p className="small">
-          <ClaimTag kind="research" /> 本章的系統圖是教學架構，不是特定晶片的 netlist；真實晶片的 clock domain、pipeline 深度與 PD 結構需以 RTL / SPICE 確認。
-        </p>
-      </Callout>
     </Section>
   )
 }

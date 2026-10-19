@@ -1,0 +1,22 @@
+{
+  "id": "dtc-inl-folding-cubic",
+  "title": "折返：三次 INL（gain 校正吸收線性部分）",
+  "page": "/ch/11b",
+  "experiment": "dtc-inl-folding",
+  "description": "d_3 = 20：LS 直線吸收約 6 t.u. 的斜率，剩下的 He_3 分量折返比二次項小一個量級。",
+  "params": {
+    "codeKind": "mash111",
+    "frac": 0.618,
+    "d2": 0,
+    "d3": 20,
+    "sawAmp": 0,
+    "sawSegments": 8,
+    "sigmaV": 10,
+    "fsMHz": 100,
+    "fBMHz": 1,
+    "lengthLog2": 16,
+    "nperseg": 4096
+  },
+  "expected": "gain 吸收的斜率 ≈ 6.0 t.u.（Gaussian 預測 3d_3σ² = 7.5）；Gaussian 折返 P_in = 400·5/1024·0.02 = 0.0391 t.u.²，量測約 0.020（沒有精確式，Analytic 欄為 n/a）。",
+  "source": "illustrative"
+}

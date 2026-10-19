@@ -4,6 +4,7 @@ import { checkAnswer, defaultValues, inputError, randomValues, texNum } from './
 import { formatInput, parseNumberInput } from './paramMath'
 import { ClaimTag } from './Tags'
 import { Tex, TexBlock, accessibleText, mathText, texToSpeech } from './Tex'
+import { useRovingTabs } from './useRovingTabs'
 import './code.css'
 
 const LEVEL_LABEL: Record<HandCalcDef['level'], string> = {
@@ -42,6 +43,8 @@ export function checkSummary(results: HandCalcSolution['results'], answers: Reco
  * 或切到「自己算算看」，先用紙筆／計算機算，再輸入答案檢查。
  * 詳解的數值由 def.solve() 即時計算（內部呼叫 src/simulation 的實際函式）。
  */
+const MODE_ORDER = ['steps', 'practice'] as const
+
 export function HandCalc({ def, initialMode = 'steps', compact }: HandCalcProps) {
   const [text, setText] = useState<Record<string, string>>(() => Object.fromEntries(def.inputs.map((i) => [i.key, formatInput(i.default, 10)])))
   const [mode, setMode] = useState<'steps' | 'practice'>(initialMode)
@@ -81,6 +84,13 @@ export function HandCalc({ def, initialMode = 'steps', compact }: HandCalcProps)
     setChecked(false)
     setRevealed(false)
   }
+  const selectMode = (m: (typeof MODE_ORDER)[number]) => {
+    setMode(m)
+    if (m === 'practice') resetAttempt()
+  }
+  // 兩個模式分頁共用同一個 tabpanel（練習／詳解都在它裡面）；WAI-ARIA Tabs：roving tabindex、←→／Home／End
+  const modeTabs = useRovingTabs(MODE_ORDER.length, MODE_ORDER.indexOf(mode), (i) => selectMode(MODE_ORDER[i]))
+  const modePanelId = `${baseId}-mode-panel`
   const setValues = (v: Record<string, number>) => {
     setText(Object.fromEntries(def.inputs.map((i) => [i.key, formatInput(v[i.key], 10)])))
     resetAttempt()
@@ -148,19 +158,24 @@ export function HandCalc({ def, initialMode = 'steps', compact }: HandCalcProps)
       </div>
 
       <div className="c-handcalc-actions">
-        <div className="c-handcalc-modes" role="tablist" aria-label="手算模式">
-          <button type="button" role="tab" aria-selected={mode === 'steps'} className={`c-code-tab${mode === 'steps' ? ' active' : ''}`} onClick={() => setMode('steps')}>
+        <div className="c-handcalc-modes" role="tablist" aria-label="手算模式" onKeyDown={modeTabs.onKeyDown}>
+          <button
+            type="button"
+            role="tab"
+            {...modeTabs.tabProps(0)}
+            aria-controls={modePanelId}
+            className={`c-code-tab${mode === 'steps' ? ' active' : ''}`}
+            onClick={() => selectMode('steps')}
+          >
             看帶入過程
           </button>
           <button
             type="button"
             role="tab"
-            aria-selected={mode === 'practice'}
+            {...modeTabs.tabProps(1)}
+            aria-controls={modePanelId}
             className={`c-code-tab${mode === 'practice' ? ' active' : ''}`}
-            onClick={() => {
-              setMode('practice')
-              resetAttempt()
-            }}
+            onClick={() => selectMode('practice')}
           >
             自己算算看
           </button>
@@ -181,101 +196,103 @@ export function HandCalc({ def, initialMode = 'steps', compact }: HandCalcProps)
         </div>
       )}
 
-      {solved.ok && mode === 'practice' && (
-        <div className="c-handcalc-practice">
-          <p className="small">用紙筆和計算機算出下面的量，填入後按「對答案」。容許一般手算的四捨五入誤差。</p>
-          <div className="c-sr-only" aria-live="polite">
-            {checked && <span key={checkSeq}>{checkSummary(solved.sol.results, answers)}</span>}
-          </div>
-          {solved.sol.results.map((r, idx) => {
-            const raw = answers[idx] ?? ''
-            const user = parseNumberInput(raw)
-            const verdict = checked && user !== null ? checkAnswer(user, r) : null
-            const verdictId = `${baseId}-verdict-${idx}`
-            return (
-              <div key={idx} className="c-handcalc-answer">
-                <label>
-                  <span className="c-handcalc-sym">
-                    <Tex>{`${r.symbol} =`}</Tex>
-                  </span>
-                  {r.label && <span className="c-handcalc-label">{mathText(r.label)}</span>}
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={raw}
-                    placeholder="你的答案"
-                    onChange={(e) => {
-                      setAnswers((a) => ({ ...a, [idx]: e.target.value }))
-                      setChecked(false)
-                    }}
-                    aria-label={`你的答案：${r.label ? accessibleText(r.label) : texToSpeech(r.symbol)}`}
-                    aria-describedby={checked ? verdictId : undefined}
-                  />
-                  {r.unit && (
-                    <span className="c-handcalc-unit">
-                      <Tex>{r.unit}</Tex>
+      <div role="tabpanel" id={modePanelId} aria-labelledby={modeTabs.panelProps(MODE_ORDER.indexOf(mode))['aria-labelledby']}>
+        {solved.ok && mode === 'practice' && (
+          <div className="c-handcalc-practice">
+            <p className="small">用紙筆和計算機算出下面的量，填入後按「對答案」。容許一般手算的四捨五入誤差。</p>
+            <div className="c-sr-only" aria-live="polite">
+              {checked && <span key={checkSeq}>{checkSummary(solved.sol.results, answers)}</span>}
+            </div>
+            {solved.sol.results.map((r, idx) => {
+              const raw = answers[idx] ?? ''
+              const user = parseNumberInput(raw)
+              const verdict = checked && user !== null ? checkAnswer(user, r) : null
+              const verdictId = `${baseId}-verdict-${idx}`
+              return (
+                <div key={idx} className="c-handcalc-answer">
+                  <label>
+                    <span className="c-handcalc-sym">
+                      <Tex>{`${r.symbol} =`}</Tex>
+                    </span>
+                    {r.label && <span className="c-handcalc-label">{mathText(r.label)}</span>}
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={raw}
+                      placeholder="你的答案"
+                      onChange={(e) => {
+                        setAnswers((a) => ({ ...a, [idx]: e.target.value }))
+                        setChecked(false)
+                      }}
+                      aria-label={`你的答案：${r.label ? accessibleText(r.label) : texToSpeech(r.symbol)}`}
+                      aria-describedby={checked ? verdictId : undefined}
+                    />
+                    {r.unit && (
+                      <span className="c-handcalc-unit">
+                        <Tex>{r.unit}</Tex>
+                      </span>
+                    )}
+                  </label>
+                  {checked && user === null && (
+                    <span className="c-handcalc-verdict bad" id={verdictId}>
+                      請輸入數字
                     </span>
                   )}
-                </label>
-                {checked && user === null && (
-                  <span className="c-handcalc-verdict bad" id={verdictId}>
-                    請輸入數字
-                  </span>
-                )}
-                {verdict && (
-                  <span className={`c-handcalc-verdict ${verdict.ok ? 'ok' : 'bad'}`} id={verdictId}>
-                    {verdict.ok ? '✓ 正確' : `✗ 還差一點（相對誤差 ${Number.isFinite(verdict.relError) ? (verdict.relError * 100).toPrecision(3) + '%' : '很大'}）`}
-                  </span>
-                )}
-              </div>
-            )
-          })}
-          <div className="c-handcalc-actions">
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => {
-                setChecked(true)
-                setCheckSeq((n) => n + 1)
-              }}
-            >
-              對答案
-            </button>
-            <button type="button" className="btn" onClick={() => setRevealed((v) => !v)} aria-expanded={revealed}>
-              {revealed ? '收起詳解' : '看詳解'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {solved.ok && showSteps && (
-        <div className="c-handcalc-solution">
-          <ol className="c-steps-list">
-            {solved.sol.steps.map((s, idx) => (
-              <li key={idx} className="c-step">
-                <div className="c-step-tex">
-                  <TexBlock>{s.tex}</TexBlock>
+                  {verdict && (
+                    <span className={`c-handcalc-verdict ${verdict.ok ? 'ok' : 'bad'}`} id={verdictId}>
+                      {verdict.ok ? '✓ 正確' : `✗ 還差一點（相對誤差 ${Number.isFinite(verdict.relError) ? (verdict.relError * 100).toPrecision(3) + '%' : '很大'}）`}
+                    </span>
+                  )}
                 </div>
-                <div className="c-step-why">{mathText(s.why)}</div>
-              </li>
-            ))}
-          </ol>
-          <div className="c-handcalc-results">
-            {solved.sol.results.map((r, idx) => (
-              <TexBlock key={idx} label={r.label ? mathText(r.label) : undefined}>
-                {`\\boxed{${r.symbol} = ${Number.isInteger(r.value) && Math.abs(r.value) < 1e15 ? String(r.value) : texNum(r.value, r.digits ?? 5)}${r.unit ? `\\ ${r.unit}` : ''}}`}
-              </TexBlock>
-            ))}
+              )
+            })}
+            <div className="c-handcalc-actions">
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  setChecked(true)
+                  setCheckSeq((n) => n + 1)
+                }}
+              >
+                對答案
+              </button>
+              <button type="button" className="btn" onClick={() => setRevealed((v) => !v)} aria-expanded={revealed}>
+                {revealed ? '收起詳解' : '看詳解'}
+              </button>
+            </div>
           </div>
-          {solved.sol.notes && solved.sol.notes.length > 0 && (
-            <ul className="c-handcalc-notes">
-              {solved.sol.notes.map((n, idx) => (
-                <li key={idx}>{mathText(n)}</li>
+        )}
+
+        {solved.ok && showSteps && (
+          <div className="c-handcalc-solution">
+            <ol className="c-steps-list">
+              {solved.sol.steps.map((s, idx) => (
+                <li key={idx} className="c-step">
+                  <div className="c-step-tex">
+                    <TexBlock>{s.tex}</TexBlock>
+                  </div>
+                  <div className="c-step-why">{mathText(s.why)}</div>
+                </li>
               ))}
-            </ul>
-          )}
-        </div>
-      )}
+            </ol>
+            <div className="c-handcalc-results">
+              {solved.sol.results.map((r, idx) => (
+                <TexBlock key={idx} label={r.label ? mathText(r.label) : undefined}>
+                  {`\\boxed{${r.symbol} = ${Number.isInteger(r.value) && Math.abs(r.value) < 1e15 ? String(r.value) : texNum(r.value, r.digits ?? 5)}${r.unit ? `\\ ${r.unit}` : ''}}`}
+                </TexBlock>
+              ))}
+            </div>
+            {solved.sol.notes && solved.sol.notes.length > 0 && (
+              <ul className="c-handcalc-notes">
+                {solved.sol.notes.map((n, idx) => (
+                  <li key={idx}>{mathText(n)}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
 
       {def.tips && def.tips.length > 0 && (
         <details className="c-handcalc-tips">

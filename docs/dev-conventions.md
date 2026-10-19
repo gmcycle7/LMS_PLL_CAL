@@ -13,7 +13,7 @@
 src/
 ├── app/                 # 路由註冊表 registry.ts、Layout、設定（主題／學習模式）、presets 與 handcalcs 的彙整
 ├── components/          # 共用 UI 元件（見 §2）
-├── chapters/chNN/       # ch00–ch14，每章一個資料夾，index.tsx default export（見 §1）
+├── chapters/chNN/       # ch00–ch14 與 ch11b，每章一個資料夾，index.tsx default export（見 §1）
 ├── pages/<name>/        # dashboard, models, verification, lab, workbook, gallery, signoff, formulas, papers, roadmap, case-sspll
 ├── simulation/
 │   ├── core/            # rng, special, complex, poly, linalg, stats, units
@@ -24,7 +24,7 @@ src/
 └── styles/              # global.css（design token、全站樣式）
 golden/                  # Python golden model + pytest + vectors/
 analysis/sspll/          # SSPLL GOS/PHOS 極性分析（理論、時域模擬、golden）
-scripts/                 # verify.mjs 與四支審查腳本（見 §8）
+scripts/                 # verify.mjs、reading-time.mjs 與四支審查腳本（見 §8）
 docs/                    # 規格、勘誤、假設、風格規範、本文件
 ```
 
@@ -32,7 +32,7 @@ docs/                    # 規格、勘誤、假設、風格規範、本文件
 
 ### 1.1 一個章節資料夾裡有什麼
 
-`src/chapters/chNN/`（ch00–ch14）的結構都一樣：
+`src/chapters/chNN/`（ch00–ch14、ch11b）的結構都一樣：
 
 | 檔案 | 內容 |
 |---|---|
@@ -66,6 +66,31 @@ docs/                    # 規格、勘誤、假設、風格規範、本文件
 - 先看 `docs/dev/infra-api.md` 有沒有寫到該 API 的使用注意事項，改了行為就同步更新那份文件。
 - 跑完整的 `npm test`（不要只跑自己改的檔案），畫面有變的用 §8 的腳本挑代表性的頁面（例如 `/ch/05`、`/ch/12`、`/lab`）前後對照。
 - 新的共用功能優先放到共用層，不要在章節內各自複製一份 private helper。
+
+### 1.4 章首／章末骨架的資料：`src/app/chapterMeta.ts`
+
+每個章節頁（group A／B／C：ch00–ch14、ch11b 與 case-sspll）在 `CHAPTER_FRAME_META` 裡一筆，`PageFrame` 用它畫章首的本章資訊 strip、先備自檢與章末交棒（版面規則見 `docs/teaching-style.md` §9，元件見 `docs/dev/infra-api.md`）。`src/app/chapterMeta.test.ts` 會檢查每一欄：
+
+| 欄位 | 內容 | 測試檢查 |
+|---|---|---|
+| `reading` | 三種模式各一組實測的內容量 `{ han, formulas, figures, experiments }`：畫面上看得到的中文字數（`innerText` 的漢字）、獨立公式（`.katex-display`）、圖（`figure.c-mermaid`、`figure.c-plot`）、互動實驗（`.c-exp`）；收合的 `<details>` 與 `ModeGate` 之外的內容不算 | 中文字數 > 1000、Research ≥ Beginner |
+| `readingMinutes` | 由 `reading` 依 `READING_RATE` 算出：中文 350 字／分 + 每條獨立公式 0.2 分 + 每張圖 0.5 分 + 每個實驗 3 分，四捨五入到 5 分鐘（`estimateReadingMinutes`） | 等於公式算出的值、5 的倍數、三種模式遞增 |
+| `errata` | 本章負責的勘誤 id（依 Exx 排序） | 等於 `src/data/errata.json` 裡 `chapters` 含本章的條目（`"all"` 不算） |
+| `prereqs` | 2–4 條 `{ label, ch?, sec?, anchor? }`：一句自檢（可含 `$…$`）、該去複習的章（`'03'`、`'11b'`、`'07b'`）、小節標示、該章裡的錨點 id | ch 是存在的章節頁且不是自己；anchor 必須在該章原始碼裡以 `id="…"` 或 `'…'` 出現；只有 ch00 可以沒有 ch |
+| `next` | `{ page, hook }`：下一頁的 registry id 與一句「下一章要解決什麼」 | 從 ch00 沿著 next 走出 ch00 → … → ch07 → case-sspll → ch08 → … → ch11 → ch11b → ch12 → … → ch14，ch14 指向 `signoff` |
+
+重量閱讀時間：`node scripts/reading-time.mjs --routes /ch/04,/ch/11b`（需要開發伺服器；旗標見 §8）。它用 puppeteer 把每一章在三種模式各開一次（`localStorage.setItem('lmspll.mode', …)`），整頁慢慢捲一遍讓延後載入的區塊長出來，再在 `article.page` 裡數上面四個量（只數有版面的元素，`getClientRects().length > 0`），印出可以直接貼回 `reading` 的物件；`readingMinutes` 不用手填。係數（`READING_RATE`）改了只要改 `chapterMeta.ts`，不必重量：`reading` 存的是原始內容量。
+
+### 1.5 章節太重時：拆成兩個 Part（Ch04 的做法）
+
+審查（pedagogy）發現 Beginner 路徑上第一個 PLL 章如果把訊號流的數學和 RTL 細節混在同一頁，會變成全站最重的一章。這種章節可以拆成兩個 Part，內容與 id 都不動，只改順序與預設的展開狀態：
+
+- **Part 1 = 訊號流／數學（所有模式必讀）**：章首 → Part 1 橫幅 → 各節 → 這一個 Part 自己的思考題。只需要微積分與機率；位元數、右移、暫存器留到 Part 2。
+- **Part 2 = 硬體實作（定點、RTL）**：整段放在一個 `<details>`。Beginner 預設收合，只留標題、一句摘要與「切到 Engineer 會自動展開」的提示；Engineer／Research 預設展開。`<details>` 的 key 綁定學習模式（切換模式時重設預設狀態；使用者手動展開／收合優先）。
+- 內容**永遠留在 DOM 裡**：公式錨點、`?a=`／`?f=` 深連結、站內搜尋與頁內目錄才找得到；共用的 `revealAnchor`／`scrollToElement` 會展開祖先 `<details>`，所以章內的 `jumpTo` 也要用 `scrollToElement`，不要自己呼叫 `scrollIntoView`。
+- 摺疊框**不要加左右 padding 或邊框**，否則 Part 2 的方塊圖會比 Part 1 窄一截。
+- 「本課必記」（Recap）與符號表放在摺疊框外面，所有模式都看得到；綜合手算放在 Part 2 思考題之前；每個 Part 自己有思考題。
+- 範例：`src/chapters/ch04/index.tsx`；`PartHead`／`PartFold` 目前是 `src/chapters/ch04/common.tsx` 的章內元件（第二個章節要用時再搬到 `src/components/` 並寫進 `docs/dev/infra-api.md`）。
 
 ## 2. 共用 UI 元件（`src/components/`，由 `@/components` 匯出）
 
@@ -214,10 +239,11 @@ xcorrAtLag(x, y, lag), xcorr(x, y, maxLag)
 - 不得寫「LMS 一定穩定」；必須說明是平均收斂、均方穩定、機率性有界、局部線性穩定或全域非線性。
 - 不得把未完成功能標成已驗證；未實作 = 明確顯示 `Not implemented` / `pending`。
 - 無障礙名稱（aria-label、title、aria-valuetext、`<option>`）一律用 `accessibleText`（`@/components`，會把 `$…$` 轉成可念的文字），不用 `stripMathDelimiters`（它保留 TeX 原始碼，只用在 id、檔名、程式碼與報告）；`CodeCompare` 的分頁標籤可以含 `$…$`。
+- ARIA 模式（細節與 API 見 `docs/dev/infra-api.md`「ARIA 模式、表格標題、觸控目標、404 與頁面標題」）：分頁一律 `role=tablist/tab/tabpanel` 並用 `useRovingTabs`（roving tabindex、←→／Home／End）；每張 `<table>` 要有 `<caption>`（可 `c-sr-only`）與 `<th scope>`；純顯示的徽章不可聚焦（沒有 `tabIndex`）、tooltip 以 `aria-describedby` 連結並可用 Esc 關閉；≤ 600 px 的互動元素至少 24×24 px、輸入框字級 16 px；頁面藏在 `ModeGate` 後的內容要給 `summary`。
 
 ## 8. 審查腳本（改了畫面就要跑）
 
-jsdom 量不到版面，所以畫面相關的檢查（捲軸、方塊圖寬度、字有沒有被切掉、淺深色主題、手機版）用 `scripts/` 的四支腳本在真正的 Chrome 裡做。它們用 `puppeteer-core`（devDependency）開本機安裝的 Google Chrome（預設 `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`，其他位置用 `--chrome <路徑>`；`dom-eval.mjs` 沒有這個旗標），每個路由開一個新分頁，需要先有開發伺服器：
+jsdom 量不到版面，所以畫面相關的檢查（捲軸、方塊圖寬度、字有沒有被切掉、淺深色主題、手機版）用 `scripts/` 的四支腳本（加上量閱讀時間的 `reading-time.mjs`）在真正的 Chrome 裡做。它們用 `puppeteer-core`（devDependency）開本機安裝的 Google Chrome（預設 `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`，其他位置用 `--chrome <路徑>`；`dom-eval.mjs` 沒有這個旗標），每個路由開一個新分頁，需要先有開發伺服器：
 
 ```bash
 npm run dev          # 另一個終端機；預設 http://localhost:5173（腳本的 --base 預設就是這個）
@@ -230,6 +256,7 @@ npm run dev          # 另一個終端機；預設 http://localhost:5173（腳�
 | `screenshots.mjs` | 截圖，PNG 用來**親眼看**：文字有沒有被切掉或重疊、連線有沒有不必要的交叉、淺深色主題、手機版 | `--base`（`http://localhost:5173`）、`--out`（`outputs/shots`）、`--routes`（`/`）、`--theme light,dark`（`light`）、`--viewport desktop,mobile,wide,xwide`（`desktop`；`xwide` = 1720×950，頁內目錄才會變成右側欄）、`--mode beginner\|engineer\|research`（`engineer`）、`--shots`（`top`）、`--only 3,7`（序號從 1 起算，與 diagram-audit 相同）、`--chrome` |
 | `diagram-audit.mjs` | 量每張方塊圖的自然寬×高、縮放倍率、超出版面的寬度；標出畫不出來（ERROR）與 `Unsupported markdown` | `--base`、`--routes`、`--viewport desktop\|mobile`（`desktop`）、`--mode`（`research`）、`--json <檔>`、`--chrome` |
 | `scroll-audit.mjs` | 找出所有真的會出現捲軸的區塊並分類（見下） | `--base`、`--routes`、`--viewport desktop\|mobile`（`desktop`）、`--mode`（`research`）、`--formulas`（另外列出比欄位寬的獨立公式）、`--json <檔>`、`--chrome` |
+| `reading-time.mjs` | 量每章在三種學習模式下看得到的內容量（中文字數、獨立公式、圖、實驗），算閱讀時間並印出可貼回 `chapterMeta.ts` 的 `reading` 物件（§1.4） | `--base`（`http://localhost:5173`）、`--routes`（全部 17 個章節頁）、`--modes beginner,engineer,research`（三種）、`--out`（`outputs/reading-time.json`）、`--chrome` |
 | `dom-eval.mjs` | 開一頁、等方塊圖畫完，在頁面裡執行一段 JS 並印出回傳值（量元素數量、文字、尺寸） | `node scripts/dom-eval.mjs <網址> '<JS 函式主體>' [mobile]`；網址要含 hash（`http://localhost:5173/#/ch/05`），**要 `return` 結果**（內容會包在 `async` 函式裡），不設定學習模式 |
 
 `screenshots.mjs` 的 `--shots` 可以列多個（逗號分隔）：`top`（頁面頂端一個視窗）、`all-mermaid`（該頁全部方塊圖）、`<種類>:<n>`（該種元素的前 n 個）。種類有 `mermaid`、`exp`（互動實驗）、`plot`、`handcalc`、`quiz`、`recap`、`symbols`、`code`、`table`、`callout`、`steps`、`prereq`、`derivation`。元素截圖前會展開所有 `<details>`、藏起固定的上方工具列；檔名是 `<路由>__<viewport>-<主題>__<shot>-<序號>.png`。`diagram-audit` 與 `scroll-audit` 預設用 Research 模式（內容最多）並展開所有 `<details>`，才量得到藏在裡面的東西；同一頁在不同模式下的方塊圖數量不同。
@@ -272,3 +299,24 @@ node scripts/dom-eval.mjs 'http://localhost:5173/#/ch/05' 'return document.query
 ```
 
 驗證管線是另一件事：`node scripts/verify.mjs [--no-run] [--strict]`（等於 `npm run verify`）跑 Vitest 與 pytest，依測試名稱中的 T-id 更新 `src/data/verification-status.json`（`--no-run` 只解析 `outputs/` 內既有的報告；`--strict` 把未對應 T-id 的失敗與無法載入的測試檔也視為失敗）。只有 TypeScript 與 Python 兩邊都通過的 T-id 才會標成 verified。
+
+**建置大小（`scripts/check-bundle-size.mjs`）**：`npx vite build && node scripts/check-bundle-size.mjs dist` 檢查 plotly／最大非 plotly chunk／所有 JS 總和的位元組預算（超過就失敗），並和 git 裡的 `scripts/bundle-baseline.json` 比較，成長超過 10% 只警告。合併了大量內容、或刻意升級套件之後，重建並執行 `node scripts/check-bundle-size.mjs dist --update-baseline` 更新基準檔，再把更新後的檔案一起 commit。`--self-test` 只驗證判定邏輯。路由 chunk 的檔名是 `chapter-chNN-*`／`page-<名稱>-*`（`vite.config.ts` 的 `chunkFileName`），表格裡看得出是哪一章或哪一頁變大。
+
+## 9. 交叉比對欄位語意（`crossCheck`：Analytic／Monte Carlo／Fixed-Point；2026-10-19）
+
+`ExperimentShell` 的 `crossCheck` 三欄（型別 `CheckStatus`／`CheckEntry`，`src/components/types.ts`）只能用下面四種值，而且**每一格都要能回答「比了什麼、結果如何、或為什麼沒比」**：
+
+| 狀態 | 意思 | `note` |
+|---|---|---|
+| `'ok'` | 兩種**獨立**的方法在寫明的 tolerance 內一致（例如封閉式 vs 數值求根、線性模型 vs 多 seeds 的 MC、定點 vs 同 seed 浮點） | 必附：比了什麼、差多少、容許多少（`$…$` 行內公式可用） |
+| `'mismatch'` | 超出 tolerance | 必附：差多少、容許多少、可能原因 |
+| `'not-implemented'` | 這個實驗**應該有**這種比對（方法對它有意義）、但還沒做；要列在 roadmap（`src/pages/roadmap/data.ts`） | 必附：缺什麼、對應的 roadmap 項目 |
+| `'n/a'` | 這種方法對這個實驗**沒有意義**（例如確定性的矩陣計算沒有 Monte Carlo、L0 浮點教學模型沒有定點），或此刻沒有可比的量（還沒執行、模型發散、工作點不在適用範圍） | **必附**一句原因 |
+
+規則：
+
+1. 不要寫裸的 `'n/a'`／`'not-implemented'`（沒有 `note` 的字串）；用 `{ status, note }`。`ExperimentShell` 會把 `note` 顯示在狀態旁，並用 `accessibleText` 放進 `title`。
+2. 「還沒執行／計算中」是 `'n/a'`（附「尚未執行」或「計算中」），不是 `'not-implemented'`：後者只用在**功能缺口**。
+3. 只有真的算過才標 `'ok'`；`'ok'` 的 tolerance 要寫在 `note` 或假設裡（例如 `4·se`、`1 LSB + 4 SE`、相對 `10⁻⁹`）。
+4. 有 seed 與隨機性的實驗，Monte Carlo 欄要做多 seed（≥ 8，`deriveSeed(seed, r)`）的統計（平均、CI）與判定；確定性的實驗標 `'n/a'` 並說明是確定性的。有定點模型的實驗，Fixed-Point 欄做「定點 vs 同 seed 浮點」的成對比較（`/lab` 的 Pipeline、Monte Carlo、FCW sweep 分頁與 Models 頁的 BlockLms JSON Lab 都是這個做法）。
+5. 這一節的掃描：`grep -rn "crossCheck" src --include='*.tsx' --include='*.ts' | grep -v '\.test\.'`；裸狀態用 `grep -rn "'n/a'\|'not-implemented'" src | grep -v "status:"` 找。

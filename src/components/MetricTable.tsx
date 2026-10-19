@@ -23,17 +23,18 @@ export function MetricTable({ rows, caption }: MetricTableProps) {
   return (
     <ScrollRegion className="table-wrap c-metric-wrap" label="指標表（可左右捲動）">
       <table className="c-metric-table">
-        {caption && <caption>{mathText(caption)}</caption>}
+        {/* 沒給標題時仍要有 <caption>（螢幕閱讀器的表格名稱）：視覺隱藏的通用名稱 */}
+        {caption ? <caption>{mathText(caption)}</caption> : <caption className="c-sr-only">指標表</caption>}
         <thead>
           <tr>
-            <th>指標</th>
-            <th className="num">數值</th>
-            <th>單位</th>
-            {hasFormula && <th>公式</th>}
-            {hasClaim && <th>標籤</th>}
-            {hasAnalytic && <th className="num">解析值</th>}
-            {hasAnalytic && <th className="num">Δ（模擬 − 解析）</th>}
-            {hasAnalytic && <th>檢查</th>}
+            <th scope="col">指標</th>
+            <th scope="col" className="num">數值</th>
+            <th scope="col">單位</th>
+            {hasFormula && <th scope="col">公式</th>}
+            {hasClaim && <th scope="col">標籤</th>}
+            {hasAnalytic && <th scope="col" className="num">解析值</th>}
+            {hasAnalytic && <th scope="col" className="num">Δ（模擬 − 解析）</th>}
+            {hasAnalytic && <th scope="col">檢查</th>}
           </tr>
         </thead>
         <tbody>

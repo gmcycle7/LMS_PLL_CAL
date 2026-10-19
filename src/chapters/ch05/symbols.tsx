@@ -194,39 +194,6 @@ export const CH05_SYMBOLS: SymbolEntry[] = [
   },
 ]
 
-/**
- * 捲到章末的符號表，並把鍵盤焦點移過去（jsdom 沒有 scrollIntoView，所以用可選呼叫）。
- * 本章很長，上方的圖（Mermaid／Plotly）是延遲載入的：載入後版面會被推開，所以稍後再對齊兩次——
- * 使用者一旦自己捲動、點擊或按鍵就不再干涉。
- */
-export function scrollToSymbols() {
-  const el = document.getElementById(SYMBOLS_ANCHOR)
-  if (!el) return
-  const reduce = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  el.scrollIntoView?.({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
-  el.focus?.({ preventScroll: true })
-  const events = ['wheel', 'touchstart', 'keydown', 'mousedown'] as const
-  const timers = [600, 1500].map((ms) => window.setTimeout(() => document.getElementById(SYMBOLS_ANCHOR)?.scrollIntoView?.({ block: 'start' }), ms))
-  const stop = () => {
-    timers.forEach((t) => window.clearTimeout(t))
-    events.forEach((ev) => window.removeEventListener(ev, stop))
-  }
-  events.forEach((ev) => window.addEventListener(ev, stop, { passive: true }))
-  window.setTimeout(stop, 1600)
-}
-
-/** 章首的一行連結：符號表在最後。 */
-export function SymbolsLink() {
-  return (
-    <p className="ch05-symbols-link">
-      <button type="button" className="ch05-linkbtn" onClick={scrollToSymbols}>
-        本章符號表在最後 ↓
-      </button>
-      <span className="ch05-note">（每個符號第一次出現時，正文會先用一句話說明）</span>
-    </p>
-  )
-}
-
 /** 章末（頁面最後一個區塊）的符號表。 */
 export function ChapterSymbols() {
   return (

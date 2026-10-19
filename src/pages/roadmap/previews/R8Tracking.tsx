@@ -150,7 +150,7 @@ function R8Experiment() {
           optUsable && (mcCur === null || curUsable)
             ? { status: inCi(mcOpt, kal.Pprior) && (mcCur === null || inCi(mcCur, Vcur)) ? 'ok' : 'mismatch', note: String.raw`解析 $V$ 在 MC 95% CI（$\pm3\%$）內` }
             : { status: 'n/a', note: String.raw`burn-in 不足 $5\tau$：不判定` },
-        fixedPoint: 'not-implemented',
+        fixedPoint: { status: 'not-implemented', note: '預覽模型沒有定點版本（roadmap R8 的子目標）' },
       }}
       actions={{ onReset: () => setP(DEFAULTS) }}
       presets={presets}

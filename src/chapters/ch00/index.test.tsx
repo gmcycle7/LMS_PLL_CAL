@@ -192,21 +192,21 @@ describe('Ch00 整頁 smoke test', () => {
     expect(screen.getByText('本章符號')).toBe(table.querySelector('.c-symbols-title'))
     expect(symbols.querySelector('.c-section-body')!.lastElementChild).toBe(table)
     expect(table.querySelectorAll('tbody tr')).toHaveLength(SYMBOLS.length)
-    // 章首只留一行「本章符號表在最後」：是按鈕（HashRouter 下 href="#symbols" 會被當成路由），而且在 §0.1 之前
-    const jump = screen.getByText('本章符號表在最後 ↓')
-    expect(jump.tagName).toBe('BUTTON')
-    expect(jump.parentElement?.textContent).toBe('本章符號表在最後 ↓')
-    expect(following(jump, container.querySelector('#ch00-blackbox')!)).toBe(true)
-    expect(following(container.querySelector('.ch00-question')!, jump)).toBe(true)
+    // 章首骨架（docs/teaching-style.md §9）：h1 之後第一個區塊是問題，再來是系統地圖＋「你在這裡」（.c-map-note，PageFrame 的本章資訊 strip 會接在它後面）；
+    // 章首不再有「本章符號表在最後」那一行（連結在 strip 裡），也沒有會被 HashRouter 當成路由的 href="#symbols"
+    expect(screen.queryByText('本章符號表在最後 ↓')).toBeNull()
+    expect(root.firstElementChild).toBe(container.querySelector('.ch00-question'))
+    const sysmap = container.querySelector('figure.c-mermaid.c-sysmap')!
+    expect(container.querySelector('.ch00-question')!.nextElementSibling).toBe(sysmap)
+    expect(sysmap.nextElementSibling).toBe(container.querySelector('.ch00-map-note.c-map-note'))
+    expect(following(sysmap, container.querySelector('#ch00-blackbox')!)).toBe(true)
     expect(container.querySelector('a[href="#symbols"], a[href$="#symbols"]')).toBeNull()
-    // 按下去會捲到章末的 #symbols；符號表旁的「回到章首」捲回章首（jsdom 沒有 scrollIntoView，這裡裝一個假的）
+    // 符號表旁的「回到章首」捲回章首（jsdom 沒有 scrollIntoView，這裡裝一個假的）
     const scroll = vi.fn()
     Element.prototype.scrollIntoView = scroll
     try {
-      fireEvent.click(jump)
-      expect(scroll.mock.contexts).toEqual([symbols])
       fireEvent.click(within(symbols as HTMLElement).getByText('↑ 回到章首'))
-      expect(scroll.mock.contexts).toEqual([symbols, root])
+      expect(scroll.mock.contexts).toEqual([root])
       expect(root.id).toBe('ch00-top')
     } finally {
       delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView
@@ -341,7 +341,10 @@ describe('Ch00 整頁 smoke test', () => {
       expect(headingTexts(container)).toContain('（Research）精確有理數驗算')
       expect(container.textContent).toContain('57/25')
       // 精確差距（BigInt 相減）與 1 ulp 的說明
-      expect(container.textContent).toContain('距離則是 2.487×10')
+      // 行內 KaTeX 只出 HTML，TeX 原始碼在隱藏的 .katex-mathml 裡：看得到的文字要把它拿掉才不會變成「原始碼 + 排版」兩份
+      const shown = container.cloneNode(true) as HTMLElement
+      shown.querySelectorAll('.katex-mathml').forEach((m) => m.remove())
+      expect(shown.textContent).toContain('距離則是 2.487×10')
     }
     await act(async () => {})
     const errors = errSpy.mock.calls.map((c) => String(c[0]))

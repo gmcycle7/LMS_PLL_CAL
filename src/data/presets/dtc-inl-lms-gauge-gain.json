@@ -1,0 +1,28 @@
+{
+  "id": "dtc-inl-lms-gauge-gain",
+  "title": "Gauge：分段 + gain 同時校正",
+  "page": "/ch/11b",
+  "experiment": "dtc-inl-lms",
+  "description": "Σ_k 1_k(x)·x = x：gain 的 regressor 與分段的 regressor 共線，R 奇異，w 與 w_k 沿著 null 方向漂，總補償量照樣收斂。",
+  "params": {
+    "structure": "piecewise",
+    "K": 8,
+    "codeKind": "uniform",
+    "d2": 20,
+    "d3": 0,
+    "sawAmp": 0,
+    "sawSegments": 8,
+    "a": 1.2,
+    "w0": 1,
+    "b": 0,
+    "sigmaV": 10,
+    "algorithm": "sign",
+    "mu": 2,
+    "N": 64,
+    "blocks": 2000,
+    "precond": "none",
+    "gainAdapt": true
+  },
+  "expected": "警告「R 奇異」與「LS 最佳解不唯一」；殘餘 INL 仍降到 floor 0.82 附近（總補償量唯一）；w 不會停在 a = 1.2。",
+  "source": "illustrative"
+}

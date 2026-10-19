@@ -204,7 +204,7 @@ export function CodeSpectraLab() {
     return {
       analytic: analytic ? { status: 'ok', note: String.raw`數值積分（adaptive Simpson，斷點在 $kf_u\pm f_x$）` } : { status: 'n/a', note: '計算中或迴路無穩態' },
       monteCarlo: mc,
-      fixedPoint: 'not-implemented',
+      fixedPoint: { status: 'n/a', note: 'code 頻譜分析不含暫存器量化' },
     }
   }, [analytic, simCur])
 

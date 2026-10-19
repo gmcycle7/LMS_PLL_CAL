@@ -43,7 +43,7 @@ const ITEMS: { n: number; title: ReactNode; wrong: ReactNode; check: ReactNode; 
       </>
     ),
     check: mt(R`freeze 迴路，對 $w$ 加 $\pm\Delta w$，量 $S_\mathrm{GMAC}=(G_+-G_-)/(2\Delta w)$ 的正負號`),
-    here: '§4、gmac-bit-encoding 實驗',
+    here: '§3、gmac-bit-encoding 實驗',
   },
   {
     n: 2,
@@ -65,7 +65,7 @@ const ITEMS: { n: number; title: ReactNode; wrong: ReactNode; check: ReactNode; 
       </>
     ),
     check: mt(R`最壞情況 + 開機（$|\delta|\gg\sigma_v$）模擬；bit-true 比對`),
-    here: '§4、§5.1、§5.4、gmac-fixed-point 面板 A / C',
+    here: '§4（條件取負）、§5.1、§5.4、gmac-fixed-point 面板 A / C',
   },
   {
     n: 4,
@@ -76,7 +76,7 @@ const ITEMS: { n: number; title: ReactNode; wrong: ReactNode; check: ReactNode; 
       </>
     ),
     check: mt(R`量 step response 的 pole，與 $1-\mu K$ 比較；文件寫清楚 $\mu$ 的意義`),
-    here: '§4、gmac-signal-flow（A/B/C）',
+    here: '§3、gmac-signal-flow（A/B/C）',
   },
   {
     n: 5,
@@ -216,7 +216,7 @@ export function HardwareNotesSection() {
         />
       </div>
       <p className="small">
-        另一個常見的 block 邊界錯誤是 off-by-one：只累加 <Tex>{R`N-1`}</Tex> 筆卻仍右移 <Tex>{R`\log_2N`}</Tex>，等效增益變成 <Tex>{R`(N-1)/N`}</Tex>（可忽略）；但若多累加了下一個 block 的第一筆，而那一筆已經用了新的 <Tex>w</Tex>，就相當於 §3 的分數延遲。
+        另一個常見的 block 邊界錯誤是 off-by-one：只累加 <Tex>{R`N-1`}</Tex> 筆卻仍右移 <Tex>{R`\log_2N`}</Tex>，等效增益變成 <Tex>{R`(N-1)/N`}</Tex>（可忽略）；但若多累加了下一個 block 的第一筆，而那一筆已經用了新的 <Tex>w</Tex>，就相當於 §4 的分數延遲。
       </p>
     </Section>
   )

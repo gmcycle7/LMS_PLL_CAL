@@ -252,7 +252,7 @@ function SspllExperiment() {
           note: String.raw`恆等式、白色 code 的兩種算法、封閉式邊界、$\kappa_1$ 落在上下界內、一階差分的封閉式條件 vs 數值掃描`,
         },
         monteCarlo: { status: 'not-implemented', note: '時域 replica 與閉迴路 Sign-LMS 模擬只在離線分析（案例頁）' },
-        fixedPoint: 'n/a',
+        fixedPoint: { status: 'n/a', note: '沒有暫存器量化的量' },
       }}
       actions={{ onReset: () => setP(DEFAULTS) }}
       presets={presets}

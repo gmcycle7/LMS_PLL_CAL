@@ -166,7 +166,7 @@ function R4Experiment() {
       crossCheck={{
         analytic: { status: eigErr < 1e-10 && (lyapOk || res.totalVarLyap === null) ? 'ok' : 'mismatch', note: String.raw`封閉式 vs $\mathrm{eig}(\mathbf I+\mathbf M\mathbf J)$ vs Lyapunov` },
         monteCarlo: mc ? { status: mcOk ? 'ok' : 'mismatch', note: String.raw`封閉式在 95% CI（$\pm3\%$）內` } : { status: 'n/a', note: '不收斂時不跑' },
-        fixedPoint: 'not-implemented',
+        fixedPoint: { status: 'not-implemented', note: '預覽模型沒有定點版本（roadmap R4 的子目標：M／J 的定點係數量化）' },
       }}
       actions={{ onReset: () => setP(DEFAULTS) }}
       presets={presets}

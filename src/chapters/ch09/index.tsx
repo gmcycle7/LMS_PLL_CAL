@@ -10,7 +10,7 @@ import { PeDefinition } from './sections/PeDefinition'
 import { Gauge } from './sections/Gauge'
 import { CodeTour } from './sections/CodeTour'
 import { Wrapup } from './sections/Wrapup'
-import { ChapterSymbols, SymbolsLink } from './sections/Symbols'
+import { ChapterSymbols } from './sections/Symbols'
 import { PeEigenLab } from './experiments/PeEigenLab'
 import { GaugeOneHotLab } from './experiments/GaugeOneHotLab'
 import { Erratum, m, texNum } from './shared'
@@ -51,26 +51,30 @@ export default function Chapter09() {
   }, [])
   return (
     <div className="ch09">
-      <div className="c-tag-row">
-        <ModelLevel level="L3" />
-        <ClaimTag kind="exact" />
-        <TestBadge id="T10" />
-        <TestBadge id="T11" />
-      </div>
-      <nav aria-label="本章目錄">
-        <ol className="ch09-toc">
-          {TOC.map((t) => (
-            <li key={t.id}>
-              <button type="button" className="ch09-toc-link" onClick={() => scrollTo(t.id)}>
-                {t.label}
-              </button>
-            </li>
-          ))}
-        </ol>
-      </nav>
-      <SymbolsLink />
-
-      <Intro />
+      {/* 章首：問題與系統地圖（Intro）先出現；標籤與本章目錄接在地圖之後（PageFrame 的章首骨架也放在那裡） */}
+      <Intro
+        afterMap={
+          <>
+            <div className="c-tag-row">
+              <ModelLevel level="L3" />
+              <ClaimTag kind="exact" />
+              <TestBadge id="T10" />
+              <TestBadge id="T11" />
+            </div>
+            <nav aria-label="本章目錄">
+              <ol className="ch09-toc">
+                {TOC.map((t) => (
+                  <li key={t.id}>
+                    <button type="button" className="ch09-toc-link" onClick={() => scrollTo(t.id)}>
+                      {t.label}
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </nav>
+          </>
+        }
+      />
       <MatrixPrereq />
       <MeanRecursion />
       <MeanSquare />

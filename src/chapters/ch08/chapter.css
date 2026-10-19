@@ -95,10 +95,6 @@
   font-size: 0.92rem;
 }
 
-/* 章首「本章符號表在最後 ↓」與章末「↑ 回到章首」：外觀是連結，實際是按鈕（HashRouter 下不能用 #hash） */
-.ch08-symbols-link {
-  margin: 10px 0 14px;
-}
 .ch08-link-button {
   appearance: none;
   background: none;
@@ -110,9 +106,6 @@
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 2px;
-}
-.ch08-symbols-hint {
-  margin-left: 0.8em;
 }
 .ch08-link-button:hover {
   text-decoration-thickness: 2px;
@@ -129,11 +122,10 @@
   border-top: 1px solid var(--border);
 }
 .ch08-symbols:focus,
-.ch08-symbols-link:focus {
+.ch08:focus {
   outline: none;
 }
-.ch08-symbols:focus-visible,
-.ch08-symbols-link:focus-visible {
+.ch08-symbols:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 4px;
 }

@@ -30,7 +30,7 @@ import { firstOrderAccumulator, residueSignals } from './residue'
  * Ch04 的「帶入手算」題（docs/teaching-style.md §7）。
  *  - solve() 的數值一律來自本章實際執行的模型：gmac.ts（GMAC、位元數、rounding、固定點）、residue.ts（一階 DSM 累加器）、latency.ts（臨界增益）。
  *  - 每一步的 tex 是「符號式 = 代入數字 = 結果」，每個等號只做一種運算；why 說明怎麼算、怎麼按計算機。
- *  - inputs 的 default 與本章 worked example 相同（§2 手算表、§4 的 N = 4 block、T13、§5 的表格與 §5.6 的例子）。
+ *  - inputs 的 default 與本章 worked example 相同（§2 手算表、§3 的 N = 4 block、T13、§5 的表格與 §5.6 的例子）。
  *  - 極性一律 δ = a − w；總和寫 S、平均寫 G（勘誤 E07 / E18）；x 無因次、a / w / μ 帶 fs（勘誤 E13）。
  */
 
@@ -326,7 +326,7 @@ export const HANDCALCS: HandCalcDef[] = [
       }
     },
     tips: [
-      '建議在紙上畫一張表，欄位依序是 $x$、$\\delta x$、$v$、$e$、$b$、$q$、$q\\,x$、累加 $S$——和 §4「先算一次」的表格相同。',
+      '建議在紙上畫一張表，欄位依序是 $x$、$\\delta x$、$v$、$e$、$b$、$q$、$q\\,x$、累加 $S$——和 §3「先算一次」的表格相同。',
       '範例數字的答案：$e=[2.5,-0.5,-1,-2.5]$、$q\\,x=[1,1,-1,1]$、$S=2$、$G=0.5$、$w_\\mathrm{avg}=2$、$w_\\mathrm{sum}=5$（衝過 $a=3$）。',
     ],
   },
@@ -479,7 +479,7 @@ export const HANDCALCS: HandCalcDef[] = [
       }
     },
     tips: [
-      '範例數字是 §4 手算表的 $b=[1,0,0,0]$、$x=[1,-1,1,-1]$：$G=0.5$、$G_\\mathrm{bug}=0.25=\\tfrac12\\times0.5+\\tfrac12\\times0$。',
+      '範例數字是 §3 手算表的 $b=[1,0,0,0]$、$x=[1,-1,1,-1]$：$G=0.5$、$G_\\mathrm{bug}=0.25=\\tfrac12\\times0.5+\\tfrac12\\times0$。',
       '想看到偏差項，把 code 改成有 DC 的，例如 $x=[0.5,1,1.5,1]$（DSM 累加器的 code $s/M\\in[0,1)$ 就是這種）。',
     ],
   },

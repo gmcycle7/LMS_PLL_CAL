@@ -1,0 +1,188 @@
+/* Ch11b 專屬樣式（class 一律 ch11b- 前綴） */
+
+.ch11b-erratum {
+  display: inline-block;
+  margin: 0 0.25em;
+  padding: 0 0.45em;
+  border: 1px solid var(--warn);
+  border-radius: 999px;
+  color: var(--warn);
+  background: var(--warn-soft);
+  font-size: 0.78em;
+  line-height: 1.6;
+  white-space: nowrap;
+  text-decoration: none;
+  vertical-align: 0.1em;
+}
+.ch11b-erratum:hover {
+  text-decoration: underline;
+}
+
+.ch11b-details {
+  margin: 0.75rem 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.ch11b-details > summary {
+  cursor: pointer;
+  padding: 0.55rem 0.8rem;
+  font-weight: 600;
+  list-style-position: inside;
+}
+.ch11b-details-body {
+  padding: 0 0.8rem 0.7rem;
+  min-width: 0;
+}
+
+.ch11b-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.6rem;
+  margin: 0.5rem 0 0.9rem;
+}
+.ch11b-kpi {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+  background: var(--surface-2);
+  min-width: 0;
+}
+.ch11b-kpi-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.ch11b-kpi-value {
+  font-size: 1.15rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.ch11b-kpi-note {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.ch11b-group-title {
+  margin: 0.8rem 0 0.3rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+.ch11b-group-title:first-child {
+  margin-top: 0;
+}
+
+.ch11b-table td,
+.ch11b-table th {
+  font-variant-numeric: tabular-nums;
+}
+.ch11b-table td.num {
+  text-align: right;
+  white-space: nowrap;
+}
+.ch11b-table tr.ch11b-hl td {
+  background: var(--accent-soft);
+}
+/* Lab 的 Case 並列比較表有 8 欄，而實驗的結果欄在桌機只有約 530px 寬：縮小字級與欄間距，讓整張表不必左右捲動 */
+.ch11b-table.ch11b-case-table {
+  font-size: 0.82rem;
+}
+.ch11b-table.ch11b-case-table td,
+.ch11b-table.ch11b-case-table th {
+  padding: 5px 5px;
+}
+
+/* 三種主迴路架構的卡片：每張卡片有一條寬公式（F-11.6、F-11.7），三欄並排每欄不到 300px 放不下，所以直向堆疊 */
+.ch11 .ch11b-arch-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.ch11b-plot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: 0.75rem;
+  min-width: 0;
+}
+.ch11b-plot-grid > * {
+  min-width: 0;
+}
+
+.ch11b-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  vertical-align: middle;
+}
+
+.ch11b-lead {
+  font-size: 1.05rem;
+}
+
+.ch11b-status {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* 帶入手算（HandCalc）前的引言 */
+.ch11b-hand {
+  margin: 1rem 0;
+  min-width: 0;
+}
+.ch11b-hand-lead {
+  margin: 0 0 0.25rem;
+}
+.ch11b-hand .c-handcalc {
+  margin-top: 0.4rem;
+}
+
+/* 方塊圖（Fig）：Mermaid 圖 + KaTeX 圖說 */
+.ch11b-fig {
+  margin: 1rem 0 1.25rem;
+  min-width: 0;
+}
+.ch11b-fig .c-mermaid {
+  margin: 0;
+}
+.ch11b-figcap {
+  max-width: 62em;
+  margin: 6px auto 0;
+  text-align: left;
+  line-height: 1.6;
+}
+.ch11b-figcap strong {
+  color: var(--text);
+}
+.ch11b-figref {
+  white-space: nowrap;
+}
+
+/* 章末的符號表（docs/teaching-style.md §5；章首的連結由 PageFrame 的 strip 提供，§9） */
+.ch11b-symbols-back {
+  margin: 0.4rem 0 0.8rem;
+  font-size: 0.9rem;
+}
+.ch11b-jump {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+.ch11b-jump:hover {
+  text-decoration: none;
+}
+.ch11b-symbols {
+  margin-top: 2rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+  min-width: 0;
+}
+/* 只會被程式聚焦（tabindex = -1），不需要焦點外框 */
+.ch11b-symbols:focus {
+  outline: none;
+}

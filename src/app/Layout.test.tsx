@@ -141,7 +141,7 @@ describe('Layout：導覽骨架（桌面）', () => {
     expect(h1.textContent).toBe('第四章標題')
     expect(h1.getAttribute('tabindex')).toBe('-1')
     expect(document.activeElement).toBe(h1)
-    expect(document.title).toBe('04 測試章 · LMS × PLL Lab')
+    // 瀏覽器分頁標題由 App.tsx 的 <DocumentTitle> 設定（navigation.test.tsx、App.test.tsx）；PageFrame 本身不寫 document.title
 
     // 同一頁內的 hash 連結：不算換頁
     fireEvent.click(screen.getByText('本章符號表'))

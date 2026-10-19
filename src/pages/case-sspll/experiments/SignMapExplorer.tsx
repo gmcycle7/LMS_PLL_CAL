@@ -472,7 +472,7 @@ export function SignMapExplorer() {
             ? { status: 'n/a', note: map ? '$\\alpha$ 不在可比對的格點上' : mapStatus === 'error' ? 'golden signmap 載入失敗' : 'golden signmap 載入中' }
             : { status: analyticOk ? 'ok' : 'mismatch', note: 'ergodic 諧波和 vs 精確週期／golden signmap' },
         monteCarlo: simRow ? { status: Math.abs(simRow.sim - simRow.theory) < 3.5e-3 ? 'ok' : 'mismatch', note: 'golden 存檔的時域 sim vs 理論（非本頁即時模擬）' } : { status: 'n/a', note: '只有 $\\alpha$ 在 0.001 格點且 raw／1diff 才有 sim 存檔' },
-        fixedPoint: 'n/a',
+        fixedPoint: { status: 'n/a', note: '符號地圖是解析／golden 的比對，沒有定點暫存器' },
       }}
       actions={{ onReset: () => setP(SIGN_DEFAULTS) }}
       presets={presets}

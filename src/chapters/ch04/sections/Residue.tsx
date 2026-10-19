@@ -29,7 +29,7 @@ import { useCasePresets } from '../experiments/presetHooks'
 const R = String.raw
 
 /** 手算表的例子（illustrative 輸入；表內數字全部由 firstOrderAccumulator 計算） */
-const HAND = { KF: 5, bits: 4, rows: 16 }
+export const HAND = { KF: 5, bits: 4, rows: 16 }
 /** 規格 §15.3 的 output_frequency_hz = 13 GHz */
 const FVCO_GHZ = 13
 
@@ -358,7 +358,7 @@ export function ResidueSection() {
         把 <Tex>{R`K_\mathrm{F}`}</Tex>、累加器位元數和 <Tex>{R`f_\mathrm{vco}`}</Tex> 換成你自己那顆 PLL 的數字，先在紙上讓累加器走 5 拍、算出 <Tex>{R`r[4]`}</Tex> 和最大的補償量，再展開下面的步驟對答案（預設值就是上面手算表的 <Tex>{R`K_\mathrm{F}=${HAND.KF},\;M=${M}`}</Tex>）。
       </HandCalcBox>
       <Callout kind="warn" title="code 的 DC 成分會在後面出問題">
-        <Tex>{R`x[n]=s[n]/M\in[0,1)`}</Tex> 的平均約 <Tex>{R`\tfrac12`}</Tex>，<strong>不是零均值</strong>。在 §4 我們會看到：如果 comparator 的 0/1 沒有映射成 <Tex>{R`\pm1`}</Tex>，這個 DC 會直接變成 gain
+        <Tex>{R`x[n]=s[n]/M\in[0,1)`}</Tex> 的平均約 <Tex>{R`\tfrac12`}</Tex>，<strong>不是零均值</strong>。在 §3 我們會看到：如果 comparator 的 0/1 沒有映射成 <Tex>{R`\pm1`}</Tex>，這個 DC 會直接變成 gain
         偏差；<ChRef ch="11">Ch11</ChRef> 也會看到 comparator offset 與 PLL 的 DC null 如何和它交互作用（勘誤 E03）。實務上常把累加器 MSB 反相，得到以 0 為中心的有號 code。
       </Callout>
       <ResidueExplorer />

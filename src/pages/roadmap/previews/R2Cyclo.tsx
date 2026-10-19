@@ -130,7 +130,7 @@ function R2Experiment() {
       crossCheck={{
         analytic: { status: analyticOk ? 'ok' : 'mismatch', note: String.raw`$\bar R_w[m]$ 的封閉式 vs 逐點平均` + (res.g === 1 ? String.raw`；$\gcd(P,N)=1$ 時精確式 $=$ 分解式` : '') },
         monteCarlo: { status: trivial || mcErr < 0.1 ? 'ok' : 'mismatch', note: String.raw`MC 與精確式的最大差 $<0.1\,\bar R[0]$（$2^{17}$ samples）` },
-        fixedPoint: 'n/a',
+        fixedPoint: { status: 'n/a', note: '相關函數的統計量，沒有暫存器量化' },
       }}
       actions={{ onReset: () => setP(DEFAULTS) }}
       presets={presets}

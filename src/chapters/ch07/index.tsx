@@ -9,7 +9,7 @@ import { S4Gradient } from './sections/S4Gradient'
 import { S5Mismatch } from './sections/S5Mismatch'
 import { S6Hardware } from './sections/S6Hardware'
 import { S7Wrapup } from './sections/S7Wrapup'
-import { S8Symbols, SymbolsLink } from './sections/S8Symbols'
+import { S8Symbols } from './sections/S8Symbols'
 import { DelayFxLab } from './experiments/DelayFxLab'
 import './chapter.css'
 
@@ -25,10 +25,15 @@ export default function Chapter07() {
         <strong>減小 learning rate 改不了符號</strong>。本章比較兩種修法：把 GMAC 的 code <strong>延遲</strong>幾個 sample（delay alignment），或用 PLL 誤差路徑的<strong>模型</strong>把 code 濾一次（filtered-x）。我們會推導它們何時有效、何時失效，算出硬體成本，並在同一個 seed
         下比較閉迴路。
       </p>
+      <SystemMap focus={CH07_SYSTEM_FOCUS} />
+      <p className="c-map-note">
+        <strong>你在這裡：</strong>藍色的三塊是本章的主角——小數殘量 <Tex>{'x[n]'}</Tex>（GMAC 的 regressor 從這裡來）、code alignment（delay／filtered-x，本章要設計的方塊）、GMAC（把 comparator 的輸出 <Tex>{'q[n]'}</Tex> 和 regressor 相乘、累加；comparator 取的是 PD 的輸出 <Tex>{'e[n]'}</Tex>，也就是送進 loop filter 的同一個訊號）。沒有上色的主 PLL
+        迴路（DTC 在 reference 輸入端，回授路徑上只有 divider）決定了誤差路徑 <Tex>{r`H_{\mathrm{PD}}`}</Tex>，本章完全不動它；本章新增的只有「GMAC 拿哪一個訊號當 regressor」這一件事：直接用 <Tex>{'x[n]'}</Tex>、先延遲 <Tex>{'D'}</Tex> 個 sample、或先經過 PLL 的模型 <Tex>{r`\hat H`}</Tex>。
+      </p>
+      {/* 章首骨架（本章資訊、先備自檢）由 PageFrame 放在上面的系統地圖之後（docs/teaching-style.md §9） */}
       <div className="c-tag-row">
         <ModelLevel level="L2" /> <TestBadge id="T07" /> <ClaimTag kind="exact" />
       </div>
-      <SymbolsLink />
       {mode === 'beginner' && (
         <Callout kind="info" title="入門模式：先抓住三句話">
           <ol>
@@ -41,11 +46,6 @@ export default function Chapter07() {
           </ol>
         </Callout>
       )}
-      <SystemMap focus={CH07_SYSTEM_FOCUS} />
-      <p>
-        <strong>你在這裡：</strong>藍色的三塊是本章的主角——小數殘量 <Tex>{'x[n]'}</Tex>（GMAC 的 regressor 從這裡來）、code alignment（delay／filtered-x，本章要設計的方塊）、GMAC（把 comparator 的輸出 <Tex>{'q[n]'}</Tex> 和 regressor 相乘、累加；comparator 取的是 PD 的輸出 <Tex>{'e[n]'}</Tex>，也就是送進 loop filter 的同一個訊號）。沒有上色的主 PLL
-        迴路（DTC 在 reference 輸入端，回授路徑上只有 divider）決定了誤差路徑 <Tex>{r`H_{\mathrm{PD}}`}</Tex>，本章完全不動它；本章新增的只有「GMAC 拿哪一個訊號當 regressor」這一件事：直接用 <Tex>{'x[n]'}</Tex>、先延遲 <Tex>{'D'}</Tex> 個 sample、或先經過 PLL 的模型 <Tex>{r`\hat H`}</Tex>。
-      </p>
       <S1Problem />
       <S2DelayDerivation />
       <S3LinearPhase />

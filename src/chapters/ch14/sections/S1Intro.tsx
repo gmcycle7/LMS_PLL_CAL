@@ -1,4 +1,4 @@
-import { Fragment, useMemo } from 'react'
+import { Fragment, useMemo, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Callout, ClaimTag, Prereq, Section, SourceTag, SystemMap, Tex, TexBlock, ChRef } from '@/components'
 import { loopGainK, msdAfterBlocks, msdSplit } from '@/simulation/models/optimizer'
@@ -7,7 +7,6 @@ import { CH14_SYSTEM_FOCUS, CHART_CAL_LOOP, CHART_COMPARATOR_GAIN } from '../dia
 import { Hand, HandLink } from '../Hand'
 import { HANDCALCS } from '../handcalcs'
 import { BIAS2, md, nf, tx } from '../shared'
-import { SymbolsJump } from './S10Symbols'
 
 /** 某個難度的手算題連結（以頓號相連）。 */
 function handLinks(level: (typeof HANDCALCS)[number]['level']) {
@@ -19,8 +18,8 @@ function handLinks(level: (typeof HANDCALCS)[number]['level']) {
   ))
 }
 
-/** §14.0：問題、系統地圖、先備知識、block-rate 迴路圖、先算一次（符號表移到章末：S10Symbols） */
-export function S1Intro() {
+/** §14.0：問題、系統地圖、先備知識、block-rate 迴路圖、先算一次（符號表移到章末：S10Symbols）。afterMap：接在「你在這裡」之後的內容（標籤列與本章目錄）。 */
+export function S1Intro({ afterMap }: { afterMap?: ReactNode } = {}) {
   const K = loopGainK(100, 0)
   const s2 = 1 / 4096
   const mu = 0.1 / K // 讓 g = 0.1 的 μ
@@ -38,12 +37,12 @@ export function S1Intro() {
         focus={CH14_SYSTEM_FOCUS}
         caption="系統地圖：藍色的三塊（GMAC、normalize 與 learning rate、gain accumulator）是本章要選數字的地方。教學用概念架構，不是特定晶片的 netlist。"
       />
-      <p>
+      <p className="c-map-note">
         <strong>你在這裡。</strong>藍色的三塊是本章的主角：GMAC（把 1-bit comparator 的輸出 <Tex>{'q[n]=\\pm1'}</Tex> 乘上 code <Tex>{'x[n]'}</Tex>，每 <Tex>{'N'}</Tex> 個樣本累加一次；comparator 取的是 PD 的輸出 <Tex>{'e[n]'}</Tex>，也就是送進 loop filter 的同一個訊號）、normalize 與 learning rate（<Tex>{'\\div N'}</Tex>、
         <Tex>{'\\times\\mu'}</Tex>）、gain accumulator（存校正係數 <Tex>{'w_k'}</Tex> 的暫存器）。前面各章已經把這三塊的數學講完；本章新增的是<strong>裡面的數字怎麼選</strong>（<Tex>{'N'}</Tex>、<Tex>{'\\mu'}</Tex>、更新幾次
         <Tex>{'B'}</Tex>），以及把選好的步長排程做成一個有保護機制的狀態機。comparator 與它前面的雜訊不是本章的主角，但它們決定了迴路的增益，所以會一直出現。
       </p>
-      <SymbolsJump />
+      {afterMap}
       <p>
         <strong>先認識本章反覆出現的幾個量。</strong>
         <Tex>{'a'}</Tex> 是 DTC 真正需要的 gain（未知的正確答案，單位 fs）；<Tex>{'w_k'}</Tex> 是第 <Tex>{'k'}</Tex> 個 block 時 gain register 裡的校正係數；兩者的差 <Tex>{'\\delta_k=a-w_k'}</Tex> 是「還差多少」（本站極性一律{' '}

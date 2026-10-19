@@ -2,9 +2,8 @@ import { Callout, ClaimTag, Mermaid, ModeGate, ModelLevel, Section, SourceTag, S
 import { delayCriticalGain } from '@/simulation/models/stability'
 import { ErratumNote, fx, rich } from '../common'
 import { ROADMAP_CHART, SYSTEM_MAP_FOCUS } from '../diagrams'
-import { SymbolsLink } from './Symbols'
 
-/** 開場（問題 → 系統地圖 → 符號表連結）與學習地圖。本章符號表在章末（./Symbols.tsx）。 */
+/** 開場（問題 → 系統地圖 → 你在這裡 → 標籤）與學習地圖。章首骨架（本章資訊、先備自檢）由 PageFrame 放在地圖之後；本章符號表在章末（./Symbols.tsx）。 */
 export function Intro() {
   return (
     <>
@@ -14,19 +13,17 @@ export function Intro() {
         <br />
         答案是<strong>不一定</strong>。本章拆成三個陷阱：(1) polarity margin 不是 phase margin；(2) GMAC pipeline 的<strong>更新延遲</strong>會把 <Tex>{'g'}</Tex> 的穩定上界從 {fx(delayCriticalGain(0), 0)} 縮到 {fx(delayCriticalGain(1), 0)}、{fx(delayCriticalGain(2), 3)}…；(3) 主 PLL 對誤差的<strong>觀測動態</strong>（雙迴路，含一個 block 的取樣→觀測 latency）會讓「時間尺度分離」的簡化模型高估穩定範圍——在本章的二狀態模型裡恰好高估一倍，而且與主 PLL 的快慢無關（<ErratumNote id="E19" />）。
       </Callout>
-      <div className="c-tag-row">
-        <ModelLevel level="L1" /> <ModelLevel level="L2" /> <TestBadge id="T08" /> <TestBadge id="T09" /> <ClaimTag kind="exact" /> <SourceTag kind="illustrative" />
-      </div>
-
-      <p>
+      <SystemMap focus={SYSTEM_MAP_FOCUS} />
+      <p className="c-map-note">
         {rich(
-          String.raw`先看系統地圖，確認這一章在整個系統的哪裡。藍色的三個方塊——GMAC（把 comparator 的 $q[n]$ 和 code $x[n]$ 相乘累加，量出平均相關 $G_k$）、「$\div N$、$\times\mu$」（決定每次修正多少）與 gain accumulator（把修正量累加成係數 $w_k$）——就是前幾章的校正路徑。這一章新增的觀點是：把它們連同 $w$ 回到 reference 端的 DTC（$w$ 在 gain correction 乘上 code）、經過 PD 與主 PLL 得到 PD 的輸出 $e[n]$（就是送進 loop filter 的同一個訊號）、再由 comparator 取它的正負號回到 GMAC 的那一圈，當成一個`,
+          String.raw`你在這裡：藍色的三個方塊——GMAC（把 comparator 的 $q[n]$ 和 code $x[n]$ 相乘累加，量出平均相關 $G_k$）、「$\div N$、$\times\mu$」（決定每次修正多少）與 gain accumulator（把修正量累加成係數 $w_k$）——就是前幾章的校正路徑。這一章新增的觀點是：把它們連同 $w$ 回到 reference 端的 DTC（$w$ 在 gain correction 乘上 code）、經過 PD 與主 PLL 得到 PD 的輸出 $e[n]$（就是送進 loop filter 的同一個訊號）、再由 comparator 取它的正負號回到 GMAC 的那一圈，當成一個`,
         )}
         <strong>回授迴路</strong>
         {rich(String.raw`來分析——它的 loop gain、更新延遲與主 PLL 的動態，決定校正會不會振盪。`)}
       </p>
-      <SystemMap focus={SYSTEM_MAP_FOCUS} />
-      <SymbolsLink />
+      <div className="c-tag-row">
+        <ModelLevel level="L1" /> <ModelLevel level="L2" /> <TestBadge id="T08" /> <TestBadge id="T09" /> <ClaimTag kind="exact" /> <SourceTag kind="illustrative" />
+      </div>
       <ModeGate min="research">
         <Callout kind="info" title="Research 模式：本章的模型層級">
           §8.2–8.3 是 L1 的<strong>平均（mean-field）線性化模型</strong>：把 sign-LMS 的 <Tex>{'E[G\\mid\\delta]=\\mathrm{erf}(\\delta/(\\sqrt2\\sigma_v))'}</Tex> 在

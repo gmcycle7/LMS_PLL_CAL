@@ -1,18 +1,12 @@
 import { deserializeError, dispatch } from './dispatch'
+import { WorkerCancelledError, isWorkerCancelled } from './errors'
 import { loadModelModule } from './modelLoader'
+import { WorkerPool, getSharedWorkerPool, type PoolJob, type WorkerLike } from './pool'
 import type { ModuleLoader, WorkerRequest, WorkerResponse } from './protocol'
 
-/** run() 因 cancel() / 新的 run（restartOnRun）/ dispose 而中止時丟出的錯誤 */
-export class WorkerCancelledError extends Error {
-  constructor(message = '模擬已取消') {
-    super(message)
-    this.name = 'WorkerCancelledError'
-  }
-}
-
-export function isWorkerCancelled(err: unknown): err is WorkerCancelledError {
-  return err instanceof WorkerCancelledError || (err instanceof Error && err.name === 'WorkerCancelledError')
-}
+// 錯誤類別搬到 ./errors（pool 也要用，避免 client ↔ pool 循環匯入）；這裡照舊匯出，既有的 import 不受影響
+export { WorkerCancelledError, isWorkerCancelled }
+export type { WorkerLike }
 
 export interface RunResult<R> {
   result: R
@@ -20,28 +14,17 @@ export interface RunResult<R> {
   durationMs: number
 }
 
-/** 最小 Worker 介面（方便以假物件測試） */
-export interface WorkerLike {
-  postMessage(msg: unknown): void
-  terminate(): void
-  onmessage: ((e: MessageEvent) => void) | null
-  onerror: ((e: ErrorEvent) => void) | null
-  onmessageerror: ((e: MessageEvent) => void) | null
-}
-
 export interface SimWorkerClientOptions {
   /**
    * 建立 worker；回傳 null 表示不可用 → 改用 inline（主執行緒）模式。
-   * 預設：瀏覽器有 Worker 時建立 sim.worker；jsdom / node 測試環境沒有 Worker → inline。
+   * 不給：使用全站共用的 worker pool（瀏覽器有 Worker 時是 sim.worker，最多 2 條、閒置 60 s 回收；jsdom / node 測試環境沒有 Worker → inline）。
+   * 給了：這個 client 用自己私有的 pool（測試注入假 worker 用），dispose 時一併釋放。
    */
   createWorker?: () => WorkerLike | null
+  /** 直接指定 pool（優先於 createWorker；不會在 dispose 時釋放，因為不是 client 擁有的） */
+  pool?: WorkerPool
   /** inline 模式使用的模組載入器（預設與 worker 相同的 import.meta.glob 對應表） */
   loader?: ModuleLoader
-}
-
-function defaultCreateWorker(): WorkerLike | null {
-  if (typeof Worker === 'undefined') return null
-  return new Worker(new URL('./sim.worker.ts', import.meta.url), { type: 'module', name: 'lmspll-sim' })
 }
 
 const now = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now())
@@ -54,33 +37,44 @@ interface Pending {
   resolve: (r: RunResult<unknown>) => void
   reject: (e: Error) => void
   t0: number
+  /** 排進 worker pool 的工作（inline 模式為 null） */
+  job: PoolJob | null
 }
 
 /**
- * 管理一個 sim.worker 實例與待完成的請求。
- * - cancel()：終止 worker（真正停止計算）、拒絕所有待完成請求，下次 run 時重建 worker。
+ * 一個呼叫端（通常是一個實驗元件）對 worker pool 的視圖：管理自己的待完成請求。
+ * - worker 由 pool 提供：同頁的實驗共用最多 2 條 worker（見 ./pool.ts），不再每個實驗各開一條冷 worker。
+ * - cancel()：中止「這個 client 的」所有待完成請求。佇列中的請求直接移除；正在執行的請求會終止它所在的 worker
+ *   （真正停止計算），不會影響 pool 中其他 client 的請求；下次 run 時 pool 會補一條新的 worker。
  * - Worker 不可用（或建立失敗）時退回 inline：在主執行緒以相同 dispatch 執行，
  *   並對 params / result 做 structuredClone，使語意與 worker 一致（不可 clone 的資料同樣會報錯）。
  */
 export class SimWorkerClient {
-  private worker: WorkerLike | null = null
   private inline = false
   private disposed = false
   private nextId = 1
   private pending = new Map<number, Pending>()
-  private readonly createWorker: () => WorkerLike | null
+  private readonly pool: WorkerPool
+  private readonly ownsPool: boolean
   private readonly loader: ModuleLoader
 
   constructor(opts: SimWorkerClientOptions = {}) {
-    this.createWorker = opts.createWorker ?? defaultCreateWorker
+    if (opts.pool) {
+      this.pool = opts.pool
+      this.ownsPool = false
+    } else if (opts.createWorker) {
+      this.pool = new WorkerPool({ createWorker: opts.createWorker })
+      this.ownsPool = true
+    } else {
+      this.pool = getSharedWorkerPool()
+      this.ownsPool = false
+    }
     this.loader = opts.loader ?? loadModelModule
   }
 
   /** 'worker' 或 'inline'（尚未執行過時依環境推測） */
   get mode(): 'worker' | 'inline' {
-    if (this.inline) return 'inline'
-    if (this.worker) return 'worker'
-    return typeof Worker === 'undefined' ? 'inline' : 'worker'
+    return this.inline ? 'inline' : this.pool.mode
   }
 
   /** 待完成的請求數 */
@@ -93,70 +87,55 @@ export class SimWorkerClient {
     const id = this.nextId++
     const req: WorkerRequest = { id, module, fn, params }
     return new Promise<RunResult<R>>((resolve, reject) => {
-      this.pending.set(id, { resolve: resolve as (r: RunResult<unknown>) => void, reject, t0: now() })
-      const w = this.ensureWorker()
-      if (w) {
+      const pending: Pending = { resolve: resolve as (r: RunResult<unknown>) => void, reject, t0: now(), job: null }
+      this.pending.set(id, pending)
+      if (!this.inline) {
+        let job: PoolJob | null
         try {
-          w.postMessage(req)
+          job = this.pool.enqueue(
+            { module, fn, params },
+            {
+              // pool 回的 id 是 pool 內的流水號，這裡直接以 client 的 id 對回請求
+              onResponse: (res) => this.onResponse({ ...res, id }),
+              onFail: (err) => this.fail(id, err),
+            },
+          )
         } catch (err) {
-          // 例如 params 含函式 → DataCloneError
-          this.pending.delete(id)
-          reject(err instanceof Error ? err : new Error(String(err)))
+          // pool 已釋放（enqueue 丟 WorkerCancelledError）：不能留下待完成的請求，否則 busy 永遠不歸零
+          this.fail(id, err instanceof Error ? err : new Error(String(err)))
+          return
         }
-        return
+        if (job) {
+          pending.job = job
+          return
+        }
+        this.inline = true // pool 沒有 worker 可用（環境不支援或建立失敗）
       }
       void this.runInline(req)
     })
   }
 
-  /** 中止所有進行中的計算 */
+  /** 中止這個 client 所有進行中的計算（不影響共用 pool 中其他 client 的請求） */
   cancel(reason = '模擬已取消'): void {
-    if (this.worker) {
-      this.worker.terminate()
-      this.worker = null
-    }
     const err = new WorkerCancelledError(reason)
     const list = [...this.pending.values()]
     this.pending.clear()
+    for (const p of list) p.job?.cancel()
     for (const p of list) p.reject(err)
   }
 
   dispose(): void {
     this.cancel('SimWorkerClient 已釋放')
     this.disposed = true
+    if (this.ownsPool) this.pool.dispose()
   }
 
-  private ensureWorker(): WorkerLike | null {
-    if (this.inline) return null
-    if (this.worker) return this.worker
-    let w: WorkerLike | null = null
-    try {
-      w = this.createWorker()
-    } catch (err) {
-      console.warn('[SimWorkerClient] 無法建立 Web Worker，改在主執行緒執行：', err)
-      w = null
-    }
-    if (!w) {
-      this.inline = true
-      return null
-    }
-    w.onmessage = (e: MessageEvent) => this.onResponse(e.data as WorkerResponse)
-    w.onerror = (e: ErrorEvent) => {
-      e.preventDefault?.()
-      this.failAll(new Error(`模擬 worker 發生錯誤：${e.message || '未知錯誤（可能是模組載入失敗）'}`))
-    }
-    w.onmessageerror = () => this.failAll(new Error('模擬 worker 回傳的資料無法反序列化'))
-    this.worker = w
-    return w
-  }
-
-  /** worker 本身出錯（非單一請求的錯誤）：終止並拒絕所有請求，下次 run 重建 */
-  private failAll(err: Error): void {
-    this.worker?.terminate()
-    this.worker = null
-    const list = [...this.pending.values()]
-    this.pending.clear()
-    for (const p of list) p.reject(err)
+  /** pool 通知這個請求失敗（worker 崩潰、postMessage 失敗…） */
+  private fail(id: number, err: Error): void {
+    const p = this.pending.get(id)
+    if (!p) return
+    this.pending.delete(id)
+    p.reject(err)
   }
 
   private onResponse(res: WorkerResponse): void {

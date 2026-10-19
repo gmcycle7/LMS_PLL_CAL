@@ -36,11 +36,13 @@ export interface WorkerTask<P, R> {
  * }, [params])
  */
 export function useWorkerTask<P, R>(module: string, fn: string, opts: UseWorkerTaskOptions = {}): WorkerTask<P, R> {
-  const { restartOnRun = false, createWorker, loader } = opts
+  const { restartOnRun = false, createWorker, loader, pool } = opts
   const clientRef = useRef<SimWorkerClient | null>(null)
-  const optsRef = useRef<SimWorkerClientOptions>({ createWorker, loader })
-  optsRef.current = { createWorker, loader }
+  const optsRef = useRef<SimWorkerClientOptions>({ createWorker, loader, pool })
+  optsRef.current = { createWorker, loader, pool }
   const mounted = useRef(true)
+  // 每次 effect 掛載就加一；cleanup 時記下當時的值，稍後比對：沒變 = 真的卸載，變了 = StrictMode（或 Fast Refresh）立刻重新掛載了
+  const generation = useRef(0)
   const inFlight = useRef(0)
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<Error | null>(null)
@@ -53,11 +55,21 @@ export function useWorkerTask<P, R>(module: string, fn: string, opts: UseWorkerT
 
   useEffect(() => {
     mounted.current = true
+    const gen = ++generation.current
     return () => {
       mounted.current = false
-      clientRef.current?.dispose()
-      clientRef.current = null // StrictMode 重新掛載時會建立新的 client
-      inFlight.current = 0
+      // React StrictMode（開發模式）會在掛載後立刻 cleanup 再重新掛載：如果在這裡同步 dispose，
+      // 第一次 effect 裡呼叫的 run() 會被取消（WorkerCancelledError），而且白白多算一次。
+      // 所以延到 microtask 再判斷：重新掛載是同步發生的（generation 已經變了）→ 保留 client 與進行中的計算；
+      // 沒有重新掛載 = 真的卸載 → 這時才 dispose。
+      queueMicrotask(() => {
+        // 刻意讀「清理當下之後」的 generation：它要拿來判斷這段時間內有沒有重新掛載
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        if (generation.current !== gen || mounted.current) return
+        clientRef.current?.dispose()
+        clientRef.current = null
+        inFlight.current = 0
+      })
     }
   }, [])
 

@@ -251,7 +251,7 @@ export function FixedPointExplorer() {
             : mc.result
               ? { status: 'ok', note: `${dp.runs} seeds（${mc.mode}${mc.durationMs ? `，${Math.round(mc.durationMs)} ms` : ''}）` }
               : { status: 'n/a', note: mc.error ?? '計算中…' },
-        fixedPoint: 'not-implemented',
+        fixedPoint: { status: 'not-implemented', note: 'sign-error LMS 的定點 gain register（limit cycle 與 dead zone）尚未在本實驗建模；見 Ch13 與 roadmap R3' },
       }}
       actions={{
         onReset: () => setP(DEFAULT),

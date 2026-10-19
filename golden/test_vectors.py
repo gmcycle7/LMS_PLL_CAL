@@ -36,18 +36,6 @@ def _numbers(x: Any) -> list[float]:
     return []
 
 
-def _close(a: Any, b: Any, rel: float = 1e-12, abs_: float = 1e-300) -> bool:
-    if isinstance(a, dict) and isinstance(b, dict):
-        return a.keys() == b.keys() and all(_close(a[k], b[k], rel, abs_) for k in a)
-    if isinstance(a, list) and isinstance(b, list):
-        return len(a) == len(b) and all(_close(x, y, rel, abs_) for x, y in zip(a, b))
-    if isinstance(a, bool) or isinstance(b, bool):
-        return a == b
-    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
-        return math.isclose(a, b, rel_tol=rel, abs_tol=abs_)
-    return a == b
-
-
 def test_vectors_exist_for_every_acceptance_id():
     for tid in T_IDS:
         assert (VECTORS_DIR / f'{tid}.json').exists(), f'缺少 {tid}.json —— 請執行 python3 golden/export_vectors.py'
@@ -79,11 +67,16 @@ def test_vector_schema(path: Path):
 
 
 def test_vectors_in_sync_with_golden_model():
-    """磁碟上的 vectors 必須等於目前 golden model 重新計算的結果（rel 1e-12，容許跨平台末位差異）。"""
+    """
+    磁碟上的 vectors 必須等於目前 golden model 重新計算的結果。比對規則和 `export_vectors.py --check` 相同
+    （export_vectors.vector_mismatch）：中繼資料完全相等，inputs／expected 用該 vector 自己的容忍度——
+    純相對容忍度會讓「數值上是 0」的量（例如 θ* 裡的 4e-15）在另一個平台／NumPy 版本上必定失敗。
+    """
     fresh = export_vectors.build_vectors()
     for name, vec in fresh.items():
         path = VECTORS_DIR / f'{name}.json'
         assert path.exists(), f'缺少 {name}.json'
         on_disk = load(path)
         fresh_rt = json.loads(export_vectors.dumps(vec))
-        assert _close(on_disk, fresh_rt), f'{name}.json 已過期 —— 請執行 python3 golden/export_vectors.py'
+        mismatch = export_vectors.vector_mismatch(on_disk, fresh_rt)
+        assert mismatch is None, f'{name}.json 已過期（{mismatch}）—— 請執行 python3 golden/export_vectors.py'

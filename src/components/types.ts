@@ -12,12 +12,19 @@ export type SourceKind = 'illustrative' | 'simulation' | 'literature' | 'measure
 /** 規格 §15.1 模型層級 */
 export type ModelLevelId = 'L0' | 'L1' | 'L2' | 'L3' | 'L4' | 'L5' | 'L6'
 
-/** Analytic / Monte Carlo / Fixed-Point 交叉比對狀態（規格 §19） */
+/**
+ * Analytic / Monte Carlo / Fixed-Point 交叉比對狀態（規格 §19；語意見 docs/dev-conventions.md §9）：
+ *   'ok'              兩種獨立方法在寫明的 tolerance 內一致（真的算過才能標）
+ *   'mismatch'        超出 tolerance（note 要寫差多少、容許多少）
+ *   'not-implemented' 這個實驗應該有這種比對、但還沒做（會列在 roadmap；note 寫缺什麼）
+ *   'n/a'             這種方法對這個實驗沒有意義、或此刻沒有可比的量（例如還沒執行、模型發散）；必附 note 說明原因
+ */
 export type CheckStatus = 'ok' | 'mismatch' | 'not-implemented' | 'n/a'
 
-/** 可附註的交叉比對項目，例如 `{ status: 'mismatch', note: 'Δ = 3.2σ' }` */
+/** 可附註的交叉比對項目，例如 `{ status: 'mismatch', note: 'Δ = 3.2σ' }`；ExperimentShell 會把 note 顯示在狀態旁（含 `$…$` 行內公式） */
 export interface CheckEntry {
   status: CheckStatus
+  /** 一句說明：ok／mismatch 寫比了什麼、差多少；n/a 寫為什麼不適用；not-implemented 寫缺什麼 */
   note?: string
 }
 

@@ -1323,24 +1323,16 @@ describe('第 06 章頁面：系統地圖、方塊圖的位置、符號表在章
       expect(follows(container.querySelector('.c-recap')!, symbols)).toBe(true)
       expect(s8.contains(symbols)).toBe(false)
       for (const el of Array.from(container.querySelectorAll('figure.c-mermaid, section.ch06-section'))) expect(follows(el, symbols)).toBe(true)
-      // 章首（§1 之前）沒有符號表，只有一行連結
-      const s1 = container.querySelector('#ch06-s1')!
-      const link = container.querySelector('.ch06-symbols-link')!
-      expect(follows(link, s1)).toBe(true)
-      expect(link.textContent).toMatch(/^本章符號表在最後 ↓/)
-      const button = link.querySelector('button')!
-      expect(button.textContent).toBe('本章符號表在最後 ↓')
+      // 章首（§1 之前）沒有符號表，也沒有「本章符號表在最後」那一行（連結由 PageFrame 的本章資訊 strip 提供）
+      expect(container.querySelector('.ch06-symbols-link')).toBeNull()
+      expect(container.textContent).not.toContain('本章符號表在最後')
       // HashRouter 下不能用 href="#symbols"（會被當成路由）：整頁沒有這種連結，改用 scrollIntoView
       expect(container.querySelectorAll('a[href="#symbols"], a[href$="#symbols"]')).toHaveLength(0)
-      expect(link.querySelectorAll('a')).toHaveLength(0)
-      fireEvent.click(button)
-      expect(scrollSpy).toHaveBeenCalledTimes(1)
-      expect(scrollSpy.mock.instances[0]).toBe(symbols)
       // 目錄最後一項也捲到符號表
       const tocButtons = Array.from(container.querySelectorAll('.ch06-toc button'))
       expect(tocButtons[tocButtons.length - 1].textContent).toBe('本章符號表（章末）')
       fireEvent.click(tocButtons[tocButtons.length - 1])
-      expect(scrollSpy.mock.instances[1]).toBe(symbols)
+      expect(scrollSpy.mock.instances[0]).toBe(symbols)
       // 符號表的極性與定義和圖一致：δ = a − w、q = sign(e_PD)（e_PD 已含雜訊）
       const tex = texSources(symbols)
       expect(tex).toEqual(expect.arrayContaining(['\\delta_k=a-w_k', '\\operatorname{sign}(e_{\\mathrm{PD}}[n])', 'e_{\\mathrm{PD}}\\approx(a-w_k)\\,u+v']))

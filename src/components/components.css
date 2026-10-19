@@ -63,12 +63,8 @@
   white-space: nowrap;
   vertical-align: middle;
   cursor: default;
-  /* 觸控目標（WCAG 2.5.8）：點一下顯示 tooltip */
+  /* 觸控目標（WCAG 2.5.8）：點一下顯示 tooltip（徽章不可聚焦，見 Tags.tsx） */
   min-height: 24px;
-}
-.c-badge:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
 }
 .c-has-tip {
   position: relative;
@@ -96,14 +92,12 @@
   text-align: left;
 }
 .c-has-tip:hover > .c-tip,
-.c-has-tip:focus > .c-tip,
-.c-has-tip:focus-within > .c-tip {
+.c-has-tip.is-open > .c-tip {
   display: block;
 }
-/* 按 Esc 關掉 tooltip（WCAG 1.4.13）：Tags.tsx 加上 is-dismissed，滑鼠移開後重設 */
+/* 按 Esc 關掉 tooltip（WCAG 1.4.13）：Tags.tsx 加上 is-dismissed，滑鼠移開或再點一次後重設 */
 .c-has-tip.is-dismissed:hover > .c-tip,
-.c-has-tip.is-dismissed:focus > .c-tip,
-.c-has-tip.is-dismissed:focus-within > .c-tip {
+.c-has-tip.is-dismissed.is-open > .c-tip {
   display: none;
 }
 .c-tip-list {
@@ -1536,4 +1530,66 @@
 /* skip link 的目標 <main id="main" tabindex="-1">：程式聚焦後瀏覽器會在整個內容欄畫一圈焦點框，沒有用途（下一個 Tab 才是真正的落點） */
 #main:focus {
   outline: none;
+}
+
+/* ===== ModeGate 佔位（Beginner 看不到的區塊；app/settings.tsx） ===== */
+.c-modegate {
+  display: block;
+  margin: 8px 0;
+  padding: 3px 10px;
+  border-left: 3px dashed var(--border-strong);
+  color: var(--text-muted);
+  font-size: 0.86rem;
+}
+.c-modegate-btn {
+  margin-left: 8px;
+  padding: 1px 8px;
+  font-size: 0.82rem;
+  vertical-align: baseline;
+}
+
+/* 符號表的第一欄是列標題（<th scope="row">），外觀仍和一般儲存格一樣（Teaching.tsx） */
+.c-symbols tbody th.c-rowhead {
+  font-weight: inherit;
+  background: transparent;
+}
+
+/* ===== 404（app/NotFound.tsx） ===== */
+.c-notfound-path {
+  overflow-wrap: anywhere;
+}
+.c-notfound-exits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0 24px;
+}
+.c-notfound-list h2 {
+  margin-bottom: 0.3em;
+}
+.c-notfound-list h3 {
+  margin: 14px 0 4px;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
+.c-notfound-list ul {
+  margin: 0;
+  padding-left: 1.2em;
+}
+.c-notfound-list li {
+  margin: 2px 0;
+}
+/* 手機：滑桿 thumb 加大後，ParamControl 的滑桿列也要有 44px 的可點高度（取代觸控裝置的 32px） */
+@media (max-width: 600px) {
+  .c-param-slider {
+    min-height: 44px;
+  }
+  .c-modegate-btn {
+    min-height: 28px;
+  }
+  /* 思考題的單選鈕：原生 18px → 24px（WCAG 2.5.8） */
+  .c-quiz .c-quiz-opt input {
+    width: 24px;
+    height: 24px;
+  }
 }

@@ -1,4 +1,5 @@
 import { isWorkerCancelled, SimWorkerClient, WorkerCancelledError, type WorkerLike } from './client'
+import { WorkerPool } from './pool'
 import { dispatch } from './dispatch'
 import type { ModuleLoader, WorkerRequest, WorkerResponse } from './protocol'
 
@@ -94,9 +95,49 @@ describe('SimWorkerClient（worker 模式）', () => {
     ])
     expect(Array.from(a.result.y)).toEqual([2])
     expect(Array.from(b.result.y)).toEqual([10])
-    expect(workers).toHaveLength(1)
-    expect(workers[0].posted.map((r) => r.id)).toEqual([1, 2])
+    // pool 最多 2 條 worker：兩個同時進行的請求各用一條（worker 單執行緒，同一條只會依序處理）
+    expect(workers).toHaveLength(2)
+    expect(workers.flatMap((w) => w.posted.map((r) => r.id)).sort()).toEqual([1, 2])
     expect(c.mode).toBe('worker')
+  })
+
+  it('同一個 client 依序執行的請求重用同一條 worker（不再每次重開）', async () => {
+    const workers: FakeWorker[] = []
+    const c = new SimWorkerClient({ createWorker: () => (workers.push(new FakeWorker()), workers.at(-1)!) })
+    await c.run('m', 'slow', { ms: 1 })
+    await c.run('m', 'slow', { ms: 1 })
+    await c.run('m', 'slow', { ms: 1 })
+    expect(workers).toHaveLength(1)
+    expect(workers[0].posted).toHaveLength(3)
+  })
+
+  it('共用 pool：兩個 client 共用 worker；一個 client cancel 只殺掉自己的工作', async () => {
+    const workers: FakeWorker[] = []
+    const pool = new WorkerPool({ createWorker: () => (workers.push(new FakeWorker(false)), workers.at(-1)!) })
+    const a = new SimWorkerClient({ pool })
+    const b = new SimWorkerClient({ pool })
+    const pa = a.run('m', 'slow', { ms: 1 })
+    const pb = b.run('m', 'slow', { ms: 1 })
+    expect(workers).toHaveLength(2)
+    a.cancel()
+    await expect(pa).rejects.toBeInstanceOf(WorkerCancelledError)
+    expect(workers[0].terminated).toBe(true)
+    expect(workers[1].terminated).toBe(false) // b 的 worker 不受影響
+    await workers[1].respond(workers[1].posted[0])
+    await expect(pb).resolves.toMatchObject({ result: 1 })
+    // client.dispose 不會釋放別人擁有的 pool
+    a.dispose()
+    expect(workers[1].terminated).toBe(false)
+    expect(pool.size).toBe(1)
+    pool.dispose()
+  })
+
+  it('注入的 pool 已釋放：run() 以 WorkerCancelledError reject，且不留下待完成的請求（busy 歸零）', async () => {
+    const pool = new WorkerPool({ createWorker: () => new FakeWorker(false) })
+    pool.dispose()
+    const c = new SimWorkerClient({ pool })
+    await expect(c.run('m', 'slow', { ms: 1 })).rejects.toBeInstanceOf(WorkerCancelledError)
+    expect(c.busy).toBe(0)
   })
 
   it('cancel() 終止 worker、reject 請求，下次 run 重建 worker', async () => {
@@ -114,17 +155,20 @@ describe('SimWorkerClient（worker 模式）', () => {
     await expect(q).resolves.toMatchObject({ result: 1 })
   })
 
-  it('worker 崩潰（onerror）時 reject 所有請求並在下次重建', async () => {
+  it('worker 崩潰（onerror）時 reject 它正在跑的請求並在下次重建；別條 worker 的請求不受影響', async () => {
     const workers: FakeWorker[] = []
     const c = new SimWorkerClient({ createWorker: () => (workers.push(new FakeWorker(false)), workers.at(-1)!) })
     const p1 = c.run('m', 'slow', { ms: 1 })
     const p2 = c.run('m', 'slow', { ms: 1 })
+    expect(workers).toHaveLength(2)
     workers[0].crash('Failed to fetch dynamically imported module')
     await expect(p1).rejects.toThrow(/模擬 worker 發生錯誤：Failed to fetch/)
-    await expect(p2).rejects.toThrow()
     expect(workers[0].terminated).toBe(true)
+    expect(workers[1].terminated).toBe(false)
+    await workers[1].respond(workers[1].posted[0])
+    await expect(p2).resolves.toMatchObject({ result: 1 })
     void c.run('m', 'slow', { ms: 1 }).catch(() => {})
-    expect(workers).toHaveLength(2)
+    expect(workers).toHaveLength(2) // 閒置的第二條被重用，沒有再開新的
     c.dispose()
   })
 

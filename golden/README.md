@@ -127,3 +127,15 @@ it('T13: σ_w ≈ 0.399 fs（golden vector）', () => {
 | §5 E[q] vs K_q·s | erf(0.01/√2) = 0.00797871，K_q·s = 0.00797885，相對差 (s/σ)²/6。 |
 | §12.1 σ_η² | 規格近似 1/N；x = ±1 時精確為 (1 − m²)/N，m = E[q]。 |
 | §3 vs §0 極性 | §3 用 δ = w − a，§0 用 δ = a − w；Pole 相同。 |
+
+## 7. Ch11b 延伸（DTC INL 校正與噪聲折返；無 T-id）
+
+`lms_pll_golden/dtc_inl.py` 是 `src/simulation/models/dtcInl.ts` 的 NumPy 獨立實作（正規化 code `x ∈ [−1, 1]`、INL `d(x) = d_2x² + d_3x³ + A_s·saw(x)`）；測試 `test_dtc_inl.py` 的函式名稱都是 `test_S11b_*`（規格 §11 的延伸，`verify` 會列為「未對應」）。vectors（`export_vectors.py` 的 Ch11b 區塊，`--check` 一併核對）：
+
+| 檔案 | 內容 | 容忍度 |
+|---|---|---|
+| `dtc_inl_folding.json` | MASH 1-1-1 正規化 code 的自相關 `(1/48)[6, −4, 1]`、Gaussian–Isserlis 折返位準 `2ΣR² = 35/576`、`6ΣR³ = 5/1024`、線性過程精確式 `121/2880`（`κ_4 = −1/120`、`Σh² = 3/2`）、`d_2 = 20`、`ν_B = 0.01` 的帶內功率；uniform iid 的 `Var(x²) = 4/45` | rel 1e-12 |
+| `dtc_inl_segments.json` | 分段 `K = 8`（uniform x）每段的 `λ_k`、pole、`k95`、`τ`、穩態 std；LUT 64 格的 `τ_j`、每格樣本數、`n_eff`、std；LUT 近似誤差 `Δ√(E[d′²]/12)`（`μ = 2`、`σ_v = 10`、`N = 64`） | rel 1e-12；`k95` abs 0 |
+| `dtc_inl_basis.json` | monomial／Legendre／normalized Legendre／Chebyshev（`M = 3`、uniform）的 `R`、特徵值、條件數（67.6／7／1／5.9）、2×2 分塊的手算特徵值、LS 最佳解與 mean-field `k95`（`μK_qλ_max = 0.1`） | rel 1e-9 + abs 1e-12；`θ*` abs 1e-9；`k95` abs 0 |
+
+另外在 pytest 內（不進 vectors）：以 2M 個樣本的 MA(2) uniform 過程驗證線性過程精確式（±3%，Gaussian 式高估 1.446 倍）、真的跑 MASH 1-1-1（20 bit、frac 0.618）用 SciPy Welch 量帶內折返功率對精確式（±8%）、LUT Sign-LMS 收斂到 floor + misadjustment（±25%）、LUT 近似誤差封閉式對 200k 格點直接計算（±1%）。

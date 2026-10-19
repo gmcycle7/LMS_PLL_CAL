@@ -53,6 +53,8 @@ export const PAGES: PageEntry[] = [
   { id: 'ch10', path: '/ch/10', nav: '10 Multi-Parameter Preconditioning', title: '多參數 Sign-LMS、Jacobian 與 Preconditioner', group: 'B', specSections: ['10', '10.1', '10.2', '10.3'], tests: ['T18'], component: ch('10') },
 
   { id: 'ch11', path: '/ch/11', nav: '11 Calibration Bias & DTC INL', title: 'GMAC 歸零不代表 DTC Error 為零', group: 'C', specSections: ['11'], tests: ['T12'], component: ch('11') },
+  // §11 的延伸（規格沒有 INL 校正與噪聲折返）；golden 測試是 test_S11b_*，沒有 T-id
+  { id: 'ch11b', path: '/ch/11b', nav: '11b DTC INL 校正：分段／LUT／多項式', title: 'DTC INL 校正：分段、LUT、多項式基底與噪聲折返', group: 'C', specSections: ['11'], component: ch('11b') },
   { id: 'ch12', path: '/ch/12', nav: '12 Coefficient Noise → PLL Output', title: 'Comparator Noise 如何經 LMS 變成 PLL Jitter / Spurs', group: 'C', specSections: ['12'], tests: ['T13', 'T14', 'T15'], component: ch('12') },
   { id: 'ch13', path: '/ch/13', nav: '13 Quantization / Limit Cycles / ΔΣ', title: '6-bit 校正係數：Quantization、Limit Cycle、Dither、Noise Shaping', group: 'C', specSections: ['13'], tests: ['T16', 'T17'], component: ch('13') },
   { id: 'ch14', path: '/ch/14', nav: '14 Learning Rate & N Optimizer', title: 'Learning Rate、Accumulation Length 與 Tracking Schedule', group: 'C', specSections: ['14'], component: ch('14') },
@@ -71,9 +73,4 @@ export const PAGES: PageEntry[] = [
 
 export function pageById(id: string): PageEntry | undefined {
   return PAGES.find((p) => p.id === id)
-}
-
-export function neighbours(id: string): { prev?: PageEntry; next?: PageEntry } {
-  const i = PAGES.findIndex((p) => p.id === id)
-  return { prev: i > 0 ? PAGES[i - 1] : undefined, next: i >= 0 && i < PAGES.length - 1 ? PAGES[i + 1] : undefined }
 }

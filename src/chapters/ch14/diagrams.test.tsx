@@ -643,7 +643,7 @@ describe('Ch14 頁面上的方塊圖（teaching-style §8）', () => {
     for (const w of ['reference edge 被提前——也就是少延遲——的時間', '誤差和', '同號', '零均值', '也就是晚到', '一樣被 PLL 吸收']) expect(phys!.textContent, w).toContain(w)
     expect(physTex).toContain('w_k<a')
     expect(physTex).toContain(String.raw`x[n]=\pm1`)
-    before(container.querySelector('.ch14-symbols-jump'), phys!, '物理圖像在「符號表在最後」那一行之後')
+    expect(container.querySelector('.ch14-symbols-jump')).toBeNull() // 符號表連結改由 PageFrame 的 strip 提供
     before(phys!, container.querySelector('[id="ch14-question"]'), '物理圖像在 14.0 之前')
     // 「你在這裡」的那一段也說 comparator 取的是 PD 輸出
     expect(figs[0].nextElementSibling?.textContent).toContain('comparator 取的是 PD 的輸出')

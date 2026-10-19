@@ -1,6 +1,7 @@
 import { Callout, ClaimTag, CodeBlock, MathText, ModeGate, Quiz, Section, Tex, TexBlock, ChRef } from '@/components'
 import { studentTInv } from '@/simulation/core'
 import judgesSrc from '../judges.ts?raw'
+import stabilitySrc from '@/simulation/models/stability.ts?raw'
 import {
   accumulatorBitsRequired,
   regPinvM,
@@ -140,8 +141,8 @@ export function S4Cases() {
           <strong>
             收斂時間 <Tex>{'k_{95}'}</Tex> 怎麼數：
           </strong>
-          平均誤差照 <Tex>{'y_{k+1}=y_k-g\\,y_{k-d}'}</Tex> 逐 block 遞推（初始歷史 <Tex>{'y_j=1'}</Tex>），取最後一次 <Tex>{'|y_k|>0.05'}</Tex> 的下一個 block；和 <a href="#/">首頁</a>「六條件一分鐘體檢」的收斂 block 數是同一個函式。
-          <Tex>{'d=0'}</Tex> 時它等於 <Tex>{'\\lceil\\ln0.05/\\ln\\rho\\rceil'}</Tex>；<Tex>{'d\\ge1'}</Tex> 時 <Tex>{'\\rho^k'}</Tex> 不是誤差的包絡，那個式子只當「<Tex>{'\\rho'}</Tex> 漸近估計」另列、不拿來判定（例：<Tex>{'d=1'}</Tex>、<Tex>{'g=0.25'}</Tex> 是重根 <Tex>{'z=0.5'}</Tex>，估計給 5，逐 block 要 7，所以 <Tex>{'B=6'}</Tex> 時只看 <Tex>{'\\rho'}</Tex> 會誤判通過）。
+          平均誤差 <Tex>{'y_{k+1}=y_k-g\\,y_{k-d}'}</Tex>（初始歷史 <Tex>{'y_j=1'}</Tex>）是常係數線性遞迴，解一定是特徵式 <Tex>{'z^{d+1}-z^d+g=0'}</Tex> 的 <Tex>{'d+1'}</Tex> 個極點的組合 <Tex>{'y_k=\\sum_i c_i\\lambda_i^k'}</Tex>（重根補 <Tex>{'k\\lambda^k'}</Tex> 項；係數 <Tex>{'c_i'}</Tex> 由 <Tex>{'d+1'}</Tex> 個初始條件解線性方程組）。判斷器就用這個模態展開逐步求值，取最後一次 <Tex>{'|y_k|>0.05'}</Tex> 的下一個 block；「之後不再超過」由三角不等式上界 <Tex>{'\\sum_{i,p}|c_{i,p}|\\,k^p\\rho_i^k\\le0.05'}</Tex>（<Tex>{'\\rho_i=|\\lambda_i|'}</Tex>；重根才有 <Tex>{'p\\ge1'}</Tex> 的項）證明。和 <a href="#/">首頁</a>「六條件一分鐘體檢」逐 block 遞推（settleDelayed）得到相同的數字（測試在 <Tex>{'d=0\\ldots6'}</Tex> 的整個穩定區逐點比對，差 <Tex>{'<1'}</Tex> 步）。<ClaimTag kind="exact" />（在線性化平均模型內）
+          <Tex>{'d=0'}</Tex> 時它等於 <Tex>{'\\lceil\\ln0.05/\\ln\\rho\\rceil'}</Tex>；<Tex>{'d\\ge1'}</Tex> 時 <Tex>{'\\rho^k'}</Tex> 不是誤差的包絡（留數 <Tex>{'c_i'}</Tex> 與複根的振盪都被丟掉），那個式子只當「<Tex>{'\\rho'}</Tex> 漸近估計」另列、不拿來判定 <ClaimTag kind="approx" />（例：<Tex>{'d=1'}</Tex>、<Tex>{'g=0.25'}</Tex> 是重根 <Tex>{'z=0.5'}</Tex>，<Tex>{'y_k=(k+2)/2^{k+1}'}</Tex>，估計給 5，模態展開要 7，所以 <Tex>{'B=6'}</Tex> 時只看 <Tex>{'\\rho'}</Tex> 會誤判通過）。
         </p>
         <p className="small muted">
           單一 corner 的 <Tex>{'PM_d'}</Tex>、<Tex>{'g_\\text{crit}(d)'}</Tex> 與 <Tex>{'\\mu_{\\max}'}</Tex> 的手算題在 <a href="#/ch/08">Ch08</a>；corner 區間與 <Tex>{'B'}</Tex> 的下限在 <a href="#/ch/14">Ch14</a>。本頁這一題把兩者接起來：同一個 <Tex>{'\\mu'}</Tex> 要同時過兩個 corner。
@@ -149,6 +150,7 @@ export function S4Cases() {
         <CornerJudgeExperiment />
         <CodeBlock source={judgesSrc} region="cornerJudge" path={PATH} title="每個 corner 的判準" />
         <CodeBlock source={judgesSrc} region="delayPoles" path={PATH} title="$z^{d+1}-z^d+g=0$ 的根" />
+        <CodeBlock source={stabilitySrc} region="settleFromPoles" path="src/simulation/models/stability.ts" title={String.raw`$k_{95}$：用極點的模態展開逐步求值，上界 $\sum|c|k^p\rho^k\le0.05$ 證明之後不再超過`} />
       </Section>
 
       <Section kind="formula" level={2} title="5. FCW 與 Noise：靠近 0 的 $C$ 與「多 seeds」的統計" id="so-fcw-noise">

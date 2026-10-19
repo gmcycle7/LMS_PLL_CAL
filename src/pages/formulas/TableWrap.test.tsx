@@ -162,3 +162,52 @@ describe('TableWrap：寬表格的「還有內容」提示（漸層）與可聚�
     expect(host.dataset.fadeEnd).toBe('0')
   })
 })
+
+describe('TableWrap：caption', () => {
+  it('給 caption：在單一 <table> 的最前面插入視覺隱藏的 <caption>，原有內容不變', () => {
+    const { container } = render(
+      <TableWrap caption="符號表">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">符號</th>
+            </tr>
+          </thead>
+        </table>
+      </TableWrap>,
+    )
+    const table = container.querySelector('table')!
+    expect(table.firstElementChild?.tagName).toBe('CAPTION')
+    expect(table.firstElementChild?.textContent).toBe('符號表')
+    expect(table.firstElementChild?.className).toBe('c-sr-only')
+    expect(table.querySelector('thead th')).toBeTruthy()
+  })
+  it('表格已有自己的 <caption>：不再插第二個', () => {
+    const { container } = render(
+      <TableWrap caption="自動標題">
+        <table>
+          <caption>作者標題</caption>
+          <tbody />
+        </table>
+      </TableWrap>,
+    )
+    const caps = container.querySelectorAll('caption')
+    expect(caps).toHaveLength(1)
+    expect(caps[0].textContent).toBe('作者標題')
+  })
+  it('沒給 caption 或 children 不是 <table>：原樣輸出', () => {
+    const { container } = render(
+      <>
+        <TableWrap>
+          <table>
+            <tbody />
+          </table>
+        </TableWrap>
+        <TableWrap caption="不會用到">
+          <div>其他</div>
+        </TableWrap>
+      </>,
+    )
+    expect(container.querySelector('caption')).toBeNull()
+  })
+})

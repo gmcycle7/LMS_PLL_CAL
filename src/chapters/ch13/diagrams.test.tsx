@@ -590,10 +590,8 @@ describe('Ch13 章首的系統地圖', () => {
     const question = container.querySelector('#ch13-question') as HTMLElement
     expect(question.compareDocumentPosition(map) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(map.compareDocumentPosition(figs[1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    // 章首只留一行連到章末符號表的按鈕（不是會改掉 HashRouter 路由的 href）
-    const link = container.querySelector('[data-testid="ch13-symbols-link"]') as HTMLButtonElement
-    expect(link.tagName).toBe('BUTTON')
-    expect(link.textContent).toContain('本章符號表在最後')
+    // 章首不再有連到符號表的那一行（改由 PageFrame 的本章資訊 strip 提供）
+    expect(container.querySelector('[data-testid="ch13-symbols-link"]')).toBeNull()
     expect(container.querySelector('.c-symbols')).toBeNull()
     unmount()
     localStorage.clear()

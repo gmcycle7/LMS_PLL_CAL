@@ -24,16 +24,20 @@ import './chapter.css'
 export default function Chapter13() {
   return (
     <div className="ch13">
-      <div className="c-tag-row ch13-badges">
-        <ModelLevel level="L5" />
-        <TestBadge id="T16" />
-        <TestBadge id="T17" />
-        <Erratum id="E13" />
-        <Erratum id="E15" />
-        <Erratum id="E47" />
-        <Erratum id="E49" />
-      </div>
-      <Intro />
+      {/* 章首：問題與系統地圖（Intro）先出現；標籤列接在地圖之後（PageFrame 的章首骨架也放在那裡） */}
+      <Intro
+        afterMap={
+          <div className="c-tag-row ch13-badges">
+            <ModelLevel level="L5" />
+            <TestBadge id="T16" />
+            <TestBadge id="T17" />
+            <Erratum id="E13" />
+            <Erratum id="E15" />
+            <Erratum id="E47" />
+            <Erratum id="E49" />
+          </div>
+        }
+      />
       <FreezeSection />
       <ToggleSection />
       <StochasticSection />
@@ -63,7 +67,7 @@ export default function Chapter13() {
       <CriteriaSection />
       <NonIdealSection />
       <WrapUp />
-      {/* 符號表放在章末（docs/teaching-style.md §5）；章首只留一行「本章符號表在最後 ↓」 */}
+      {/* 符號表放在章末（docs/teaching-style.md §5）；章首「本章資訊」的「符號表 ↓」與章末交棒由 PageFrame 提供 */}
       <SymbolsSection />
     </div>
   )

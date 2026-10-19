@@ -1,7 +1,7 @@
 /**
  * 數學的「可念形式」：給 aria-label / title / aria-valuetext / <option> 這些只能放純文字的無障礙名稱用。
  *
- * 為什麼需要：站上的公式畫面都有 MathML，螢幕閱讀器念得出來；但名稱欄位（滑桿、輸入框、圖說、分頁）
+ * 為什麼需要：獨立公式（TexBlock）畫面上有 MathML、行內公式（Tex）有 `role="math"` + 同一個 `texToSpeech` 產生的 aria-label，螢幕閱讀器念得出來；但名稱欄位（滑桿、輸入框、圖說、分頁）
  * 只能是字串。原本拿掉 `$` 就直接放進去，結果螢幕閱讀器念出「backslash sigma underscore v」。
  *
  * - `texToSpeech(tex)`：一段 TeX → 可念的文字。希臘字母念名稱（\sigma → sigma），下標直接接在後面

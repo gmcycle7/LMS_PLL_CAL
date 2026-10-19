@@ -1,7 +1,7 @@
 import { texNum, texNumP } from '@/components'
 import type { HandCalcDef, HandCalcStep } from '@/data/types'
 import { svd } from '@/simulation/core'
-import { SETTLE_MAX_STEPS } from '@/pages/dashboard/thesisModel'
+import { SETTLE_FROM_POLES_MAX_STEPS } from '@/simulation/models/stability'
 import { cornerJudge, failureUpperBound, gCrit, identifiabilityThreshold, kq, oneHotPatternFactor, polarityReadoutPlan, requiredBlocks, secantRatio, slopeStdErr, timingToneFromSpur, trialsForZeroFailure, twoParamJlin, type CornerRowResult } from './judges'
 
 /**
@@ -600,12 +600,12 @@ export const HANDCALCS: HandCalcDef[] = [
             steps.push(...exactSettleSteps(S.g, rhoS, S.settle95))
             steps.push({
               tex: String.raw`k_{95}=k_\text{last}+1=${int(S.settle95 - 1)}+1=${int(S.settle95)}`,
-              why: String.raw`$k_{95}$ 定義為「最後一次 $|y_k|>0.05$ 的 block」的下一個 block（和判斷器、首頁同一個函式 settleDelayed，從 $y_0=y_{-1}=1$ 起逐 block 數）。` + (S.settle95 === S.settleAsym ? String.raw`這一題和 $\rho$ 漸近估計相同。` : String.raw`這一題和 $\rho$ 漸近估計差 $${int(Math.abs(S.settle95 - S.settleAsym))}$ 個 block。`) + budget,
+              why: String.raw`$k_{95}$ 定義為「最後一次 $|y_k|>0.05$ 的 block」的下一個 block（和判斷器同一個函式 settleFromPoles：用 $z^2-z+g_S=0$ 的兩個根做模態展開逐步求值，正是上面兩行的式子；首頁 settleDelayed 從 $y_0=y_{-1}=1$ 起逐 block 遞推得到同樣的數字）。` + (S.settle95 === S.settleAsym ? String.raw`這一題和 $\rho$ 漸近估計相同。` : String.raw`這一題和 $\rho$ 漸近估計差 $${int(Math.abs(S.settle95 - S.settleAsym))}$ 個 block。`) + budget,
             })
           } else {
             steps.push({
               tex: String.raw`k_{95}\ge k_{95}^{(\rho)}=${int(S.settleAsym)}`,
-              why: String.raw`這個 mode 極慢：平均遞迴在 $${texNum(SETTLE_MAX_STEPS, 2)}$ 步內還沒衰減完，$k_{95}$ 只能列 $\rho$ 漸近估計當下界（$\ge$）。` + budget,
+              why: String.raw`這個 mode 極慢：模態展開在 $${texNum(SETTLE_FROM_POLES_MAX_STEPS, 2)}$ 步內證明不了「之後不再超過」，$k_{95}$ 只能列 $\rho$ 漸近估計當下界（$\ge$）。` + budget,
             })
           }
         }

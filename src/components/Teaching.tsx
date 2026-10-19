@@ -25,21 +25,28 @@ export function SymbolTable({ rows, title = '本章符號', caption }: { rows: S
       <div className="c-symbols-title">{mathText(title)}</div>
       <ScrollRegion className="table-wrap" label="符號表（可左右捲動）">
         <table>
+          {/* 表格標題：視覺上已有 .c-symbols-title，這裡給螢幕閱讀器（讀表格時會先念 caption）。
+              文字刻意加上「符號表：」，不和可見標題逐字相同（各章測試以 getByText('本章符號') 找可見標題，逐字相同會變成兩個符合） */}
+          <caption className="c-sr-only">符號表：{accessibleText(title)}</caption>
           <thead>
             <tr>
-              <th>符號</th>
-              <th>意義</th>
-              {hasUnit && <th>單位</th>}
-              {hasSeen && <th className="nowrap">首次出現</th>}
-              {hasNote && <th>備註</th>}
+              <th scope="col">符號</th>
+              <th scope="col">意義</th>
+              {hasUnit && <th scope="col">單位</th>}
+              {hasSeen && (
+                <th scope="col" className="nowrap">
+                  首次出現
+                </th>
+              )}
+              {hasNote && <th scope="col">備註</th>}
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.symbol}>
-                <td className="nowrap">
+                <th scope="row" className="nowrap c-rowhead">
                   <Tex>{r.symbol}</Tex>
-                </td>
+                </th>
                 <td>{r.meaning}</td>
                 {hasUnit && <td className="nowrap">{r.unit ? <Tex>{r.unit}</Tex> : '—'}</td>}
                 {hasSeen && <td className="nowrap">{r.firstSeen ?? ''}</td>}
@@ -75,13 +82,17 @@ export function Quiz({ title = '思考題', question, options, answer }: QuizPro
   const [picked, setPicked] = useState<number | null>(null)
   const [shown, setShown] = useState(false)
   const name = useId()
+  const questionId = `${name}-q`
   const correct = picked !== null && options ? !!options[picked]?.correct : null
   return (
     <div className="c-quiz">
       <div className="c-quiz-title">{mathText(title)}</div>
-      <div className="c-quiz-q">{question}</div>
+      <div className="c-quiz-q" id={questionId}>
+        {question}
+      </div>
       {options && (
-        <div className="c-quiz-options" role="radiogroup">
+        // radiogroup 以題目文字命名；每個選項是原生 <input type=radio>（同 name：Tab 只停在一個，←→↑↓ 切換並選取）
+        <div className="c-quiz-options" role="radiogroup" aria-labelledby={questionId}>
           {options.map((o, i) => {
             const letter = String.fromCharCode(65 + i)
             return (

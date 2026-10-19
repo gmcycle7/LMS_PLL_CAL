@@ -34,7 +34,7 @@ import { IntroSection } from './sections/Intro'
 import { MedianExampleSection } from './sections/MedianExample'
 import { ParabolaSection } from './sections/Parabola'
 import { WrapupSection } from './sections/Wrapup'
-import { SYMBOLS, SymbolsJump, SymbolsSection } from './symbols'
+import { SYMBOLS, SymbolsSection } from './symbols'
 
 const P = vi.hoisted(() => ({
   react: vi.fn(async () => undefined),
@@ -156,14 +156,14 @@ describe('Ch01 頁面（jsdom smoke）', () => {
     // 符號表不再出現在 §1.0 之前，也不在任何小節裡
     expect(after(document.getElementById('ch01-s10')!, container.querySelector('.c-symbols')!)).toBe(true)
     expect(container.querySelector('section.c-section .c-symbols')).toBeNull()
-    // 章首只留一行「本章符號表在最後 ↓」，排在 §1.0 之前
-    // （整章的 DOM 很大：這裡用 selector，不用 getByRole——後者會對每個按鈕跑 getComputedStyle；按鈕的 role／行為在下面的小測試檢查）
-    const jumps = container.querySelectorAll('.ch01-symbols-jump')
-    expect(jumps).toHaveLength(1)
-    expect(jumps[0].textContent?.trim()).toBe('本章符號表在最後 ↓')
-    expect(jumps[0].querySelector('button')).toBeTruthy()
-    expect(after(jumps[0], document.getElementById('ch01-s10')!)).toBe(true)
-    expect(after(jumps[0], container.querySelector('.ch01-chapter > .callout')!)).toBe(true)
+    // 章首骨架（teaching-style §9）：§1.0（問題＋系統地圖）是章節的第一個區塊，「你在這裡」標成 .c-map-note（PageFrame 的本章資訊 strip 接在它後面），
+    // 標籤列與勘誤說明框接在它之後、F-01.1 之前；不再有「本章符號表在最後 ↓」那一行（連結在 strip 裡）
+    expect(container.querySelectorAll('.ch01-symbols-jump')).toHaveLength(0)
+    expect(chapter.firstElementChild).toBe(document.getElementById('ch01-s10'))
+    const mapNote = container.querySelector('#ch01-s10 .c-map-note')!
+    expect(mapNote.previousElementSibling).toBe(container.querySelector('figure.c-mermaid.c-sysmap'))
+    expect(after(mapNote, container.querySelector('.ch01-errata-box')!)).toBe(true)
+    expect(after(container.querySelector('.ch01-errata-box')!, document.getElementById('formula-F-01.1')!)).toBe(true)
     // 勘誤標籤都連到驗證頁
     const errata = Array.from(container.querySelectorAll('a.ch01-erratum'))
     const ids = new Set(errata.map((a) => a.getAttribute('data-erratum')))
@@ -268,7 +268,7 @@ describe('Ch01 頁面（jsdom smoke）', () => {
 })
 
 describe('Ch01 符號表在章末（教學規範 §5）', () => {
-  it('章首那一行是按鈕（不是會改 HashRouter 路由的 href）：點了以後捲到 #symbols 並把焦點帶過去；章末的「回到章首」捲回 §1.0', () => {
+  it('章末的「回到章首」是按鈕（不是會改 HashRouter 路由的 href）：捲回 §1.0；章首沒有「本章符號表在最後」那一行（連結由 PageFrame 的 strip 提供）', () => {
     const scrolled: Element[] = []
     const proto = Element.prototype as unknown as { scrollIntoView?: (arg?: unknown) => void }
     const original = proto.scrollIntoView
@@ -279,27 +279,17 @@ describe('Ch01 符號表在章末（教學規範 §5）', () => {
       const { container } = renderAt(
         <>
           <div id="ch01-s10" />
-          <SymbolsJump />
           <SymbolsSection />
         </>,
       )
       const hashBefore = window.location.hash
-      const jump = screen.getByRole('button', { name: /本章符號表在最後/ })
-      expect(jump.tagName).toBe('BUTTON')
-      expect(jump.getAttribute('type')).toBe('button')
+      expect(container.textContent).not.toContain('本章符號表在最後')
       expect(container.querySelector('a[href="#symbols"], a[href$="#symbols"]')).toBeNull()
       const symbols = document.getElementById('symbols') as HTMLElement
-      expect(jump.getAttribute('aria-controls')).toBe('symbols')
-      act(() => {
-        fireEvent.click(jump)
-      })
-      expect(scrolled).toEqual([symbols])
-      expect(document.activeElement).toBe(symbols)
-      expect(window.location.hash).toBe(hashBefore)
       act(() => {
         fireEvent.click(within(symbols).getByRole('button', { name: /回到章首/ }))
       })
-      expect(scrolled).toEqual([symbols, document.getElementById('ch01-s10')])
+      expect(scrolled).toEqual([document.getElementById('ch01-s10')])
       expect(window.location.hash).toBe(hashBefore)
       // 表的內容不變：每列都有符號（KaTeX）與意義，沒有 KaTeX 錯誤
       expect(symbols.querySelectorAll('tbody tr')).toHaveLength(SYMBOLS.length)
@@ -314,13 +304,12 @@ describe('Ch01 符號表在章末（教學規範 §5）', () => {
   it('沒有 scrollIntoView 的環境（jsdom、很舊的瀏覽器）點了也不會丟錯', () => {
     renderAt(
       <>
-        <SymbolsJump />
         <SymbolsSection />
       </>,
     )
     expect(() => {
       act(() => {
-        fireEvent.click(screen.getByRole('button', { name: /本章符號表在最後/ }))
+        fireEvent.click(screen.getByRole('button', { name: /回到章首/ }))
       })
     }).not.toThrow()
   })
@@ -374,8 +363,8 @@ describe('Ch01 符號表在章末（教學規範 §5）', () => {
       ['G', 'ch01-s26', /是 GMAC 的輸出/],
     ]
     for (const [sym, id, re] of FIRST_USE) expect(bodyText(id), `${sym}（${id}）`).toMatch(re)
-    // 章首的勘誤框在 §1.0 之前就用到 δ、sign(0)、J₂：框內也各有一句說明
-    const errataBox = container.querySelector('.ch01-chapter > .callout') as HTMLElement
+    // 章首的勘誤框（系統地圖之後）用到 δ、sign(0)、J₂：框內也各有一句說明
+    const errataBox = container.querySelector('.ch01-errata-box') as HTMLElement
     expect(errataBox.textContent).toMatch(/剩餘參數誤差採/)
     expect(errataBox.textContent).toMatch(/誤差剛好是 0 時的「正負號」/)
     expect(errataBox.textContent).toMatch(/沒有.*的平方誤差平均/)
@@ -756,7 +745,13 @@ describe('Ch01 交叉比對的誠實性（規格 §17：模型公式有錯，UI 
     })
     await waitFor(() => expect(within(shell).getAllByText('定點整數 code').length).toBe(3), { timeout: 120_000 })
     expect(within(shell).getAllByText('IEEE double（lms.ts）').length).toBe(3)
-    const rows = Array.from(shell.querySelectorAll('.callout table tbody tr')).map((tr) => Array.from(tr.querySelectorAll('td')).map((td) => td.textContent ?? ''))
+    // 儲存格裡的 KaTeX 只出 HTML、原始碼放在隱藏的 .katex-mathml：數值要讀看得到的文字
+    const shown = (td: Element) => {
+      const c = td.cloneNode(true) as HTMLElement
+      c.querySelectorAll('.katex-mathml').forEach((m) => m.remove())
+      return c.textContent ?? ''
+    }
+    const rows = Array.from(shell.querySelectorAll('.callout table tbody tr')).map((tr) => Array.from(tr.querySelectorAll('td')).map(shown))
     expect(rows).toHaveLength(6)
     // 定點、sign(0) = 0：時間平均 ≈ lattice 精確值 0.1（4×10⁵ 步）；e = 0 的次數遠多於 IEEE
     // tie 慣例欄是 KaTeX（\operatorname{sign}(0)=0），所以比對不含空白的「=0」

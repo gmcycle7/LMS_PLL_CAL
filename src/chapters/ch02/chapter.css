@@ -194,11 +194,6 @@
   font: inherit;
 }
 
-.ch02-symbols-link {
-  margin: 0.5rem 0 0.9rem;
-  font-size: 0.92rem;
-}
-
 /* 章末的符號表（docs/teaching-style.md §5） */
 .ch02-symbols {
   margin-top: 1.5rem;

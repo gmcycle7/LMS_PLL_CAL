@@ -141,7 +141,7 @@ describe('docs/dev-conventions.md §8：審查腳本都有寫、腳本會讀的�
     expect(conv).toContain('## 7. 語言與文字')
   })
 
-  for (const name of ['screenshots', 'diagram-audit', 'scroll-audit', 'dom-eval', 'verify']) {
+  for (const name of ['screenshots', 'diagram-audit', 'scroll-audit', 'dom-eval', 'verify', 'reading-time']) {
     it(`scripts/${name}.mjs 在 §8 有說明，而且腳本讀的每個旗標都出現在文件裡`, () => {
       expect(existsSync(join(ROOT, `scripts/${name}.mjs`))).toBe(true)
       expect(section).toContain(`${name}.mjs`)

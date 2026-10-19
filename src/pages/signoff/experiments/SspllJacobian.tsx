@@ -144,9 +144,9 @@ export function SspllJacobianExperiment() {
         analytic:
           res && atTruth
             ? { status: analyticOk ? 'ok' : 'mismatch', note: analyticOk ? String.raw`精確 mean-field 中央差分 $=\mathbf J_\text{lin}\times r_\text{CD}(\Delta_j|c_j|)$（F-SO.2 的截斷比）` : String.raw`精確 mean-field 與 $\mathbf J_\text{lin}\times r_\text{CD}$ 不一致` }
-            : 'n/a',
-        monteCarlo: res ? { status: mcOk ? 'ok' : 'mismatch', note: mcOk ? String.raw`四個元素皆在 $\pm4\,\mathrm{se}$ 內` : String.raw`至少一個元素超出 $\pm4\,\mathrm{se}$` } : 'not-implemented',
-        fixedPoint: 'not-implemented',
+            : { status: 'n/a', note: res ? String.raw`工作點不在真值（$w\ne a$）：精確 mean-field 與 $\mathbf J_\text{lin}\times r_\text{CD}$ 的關係只在 $w=a$ 成立，不做比對` : '模擬失敗（見警告），沒有可比的 Jacobian' },
+        monteCarlo: res ? { status: mcOk ? 'ok' : 'mismatch', note: mcOk ? String.raw`四個元素皆在 $\pm4\,\mathrm{se}$ 內` : String.raw`至少一個元素超出 $\pm4\,\mathrm{se}$` } : { status: 'n/a', note: '模擬失敗（見警告），沒有量測值可比' },
+        fixedPoint: { status: 'not-implemented', note: '兩個 GMAC 與 gain register 的定點位寬未建模（roadmap R9 bit-true）' },
       }}
       actions={{ onReset: () => setP(SSPLL_DEFAULT) }}
       exportData={(): CsvColumns =>

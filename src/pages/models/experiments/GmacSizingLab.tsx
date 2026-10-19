@@ -118,7 +118,7 @@ export function GmacSizingLab() {
           note: `bit-true 最壞情況累加：${o.bitsSel} bits 無溢位、${o.bitsSel - 1} bits 溢位（逐筆 wrap）`,
         },
       }
-    : { analytic: 'not-implemented', monteCarlo: 'not-implemented', fixedPoint: 'not-implemented' }
+    : { analytic: { status: 'n/a', note: '尚未計算' }, monteCarlo: { status: 'n/a', note: '尚未計算' }, fixedPoint: { status: 'n/a', note: '尚未計算' } }
 
   return (
     <ExperimentShell

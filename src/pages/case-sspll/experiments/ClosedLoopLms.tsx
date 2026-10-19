@@ -712,7 +712,7 @@ export function ClosedLoopLms() {
       crossCheck={{
         analytic: { status: analytic, note: analyticNote },
         monteCarlo: { status: mc, note: mcNote },
-        fixedPoint: 'not-implemented',
+        fixedPoint: { status: 'not-implemented', note: '兩個 GMAC 與 gain register 的定點位寬未建模（roadmap R9 bit-true）' },
       }}
       actions={{
         onReset: () => {

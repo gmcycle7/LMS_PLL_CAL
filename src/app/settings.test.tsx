@@ -1,5 +1,5 @@
 import { act, render, screen } from '@testing-library/react'
-import { DEFAULT_MODE, MODES, MODE_HINT, MODE_LABEL, MODE_SHORT, SettingsProvider, useSettings } from './settings'
+import { DEFAULT_MODE, MODES, MODE_HINT, MODE_LABEL, MODE_SHORT, ModeGate, SettingsProvider, useSettings } from './settings'
 
 function Probe() {
   const s = useSettings()
@@ -95,5 +95,51 @@ describe('SettingsProvider：主題', () => {
     expect(screen.getByTestId('theme').textContent).toBe('dark')
     expect(document.documentElement.dataset.theme).toBe('dark')
     expect(localStorage.getItem('lmspll.theme')).toBe('dark')
+  })
+})
+
+describe('ModeGate：Beginner 看不到的區塊留一行佔位', () => {
+  const gated = (min: 'engineer' | 'research', summary?: string) => (
+    <SettingsProvider>
+      <Probe />
+      <ModeGate min={min} summary={summary}>
+        <p>進階內容</p>
+      </ModeGate>
+    </SettingsProvider>
+  )
+
+  it('Beginner：不渲染內容，改顯示「這一段在 Engineer 模式才展開：摘要」與切換按鈕；按下去切換並展開', () => {
+    const { container } = render(gated('engineer', '單位換算的細節'))
+    expect(screen.queryByText('進階內容')).toBeNull()
+    const hint = container.querySelector('.c-modegate')!
+    expect(hint.textContent).toContain('（這一段在 Engineer 模式才展開：單位換算的細節）')
+    act(() => screen.getByRole('button', { name: '切換到 Engineer' }).click())
+    expect(screen.getByTestId('mode').textContent).toBe('engineer')
+    expect(localStorage.getItem('lmspll.mode')).toBe('engineer')
+    expect(screen.getByText('進階內容')).toBeTruthy()
+    expect(container.querySelector('.c-modegate')).toBeNull()
+  })
+
+  it('沒給 summary：顯示通用句；min=research 的按鈕直接切到 Research', () => {
+    const { container } = render(gated('research'))
+    expect(container.querySelector('.c-modegate')!.textContent).toContain('（這一段在 Research 模式才展開）')
+    act(() => screen.getByRole('button', { name: '切換到 Research' }).click())
+    expect(screen.getByTestId('mode').textContent).toBe('research')
+  })
+
+  it('summary 可含行內公式（以 KaTeX 排版）', () => {
+    const { container } = render(gated('engineer', '$\\mu$ 的上界'))
+    expect(container.querySelector('.c-modegate .katex')).toBeTruthy()
+  })
+
+  it('Engineer 看 Research 區塊：維持原樣（不渲染、不加佔位）；夠高的模式直接顯示內容', () => {
+    localStorage.setItem('lmspll.mode', 'engineer')
+    const a = render(gated('research'))
+    expect(a.container.querySelector('.c-modegate')).toBeNull()
+    expect(screen.queryByText('進階內容')).toBeNull()
+    a.unmount()
+    localStorage.setItem('lmspll.mode', 'research')
+    render(gated('research'))
+    expect(screen.getByText('進階內容')).toBeTruthy()
   })
 })

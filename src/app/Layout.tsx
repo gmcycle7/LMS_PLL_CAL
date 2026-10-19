@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { GROUP_LABEL, PAGES, type PageGroup } from './registry'
 import { MODE_LABEL, MODE_SHORT, MODES, useSettings, type LearningMode, type ThemeChoice } from './settings'
 import { NavigationContext } from './navigation'
+import { watchA11y } from './a11yEnhance'
 import { useMediaQuery } from './useMediaQuery'
 import { SearchButton, loadSearchPalette } from '@/components/search'
 // skip link、sr-only 狀態區、側欄清單與模式選擇器的樣式在 components.css；章節 chunk 還沒載入（或載入失敗）時也要有，所以由 Layout 直接引入
@@ -53,8 +54,6 @@ export function Layout({ children }: { children: ReactNode }) {
     // 同一句話連播兩次時加一個零寬空白，讓 live region 的內容真的有變
     setStatus((prev) => (prev === text ? text + ZWSP : text))
   }, [])
-  const navInfo = useMemo(() => ({ generation, announce }), [generation, announce])
-
   const closeNav = useCallback((returnFocus: boolean) => {
     setNavOpen(false)
     if (returnFocus) toggleRef.current?.focus()
@@ -90,6 +89,12 @@ export function Layout({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('keydown', onKey)
   }, [navOpen, closeNav])
 
+  // 表格的 <caption> 與 <th scope> 安全網：各章手寫的表格很多，在 <main> 上監看並補上（a11yEnhance.ts）
+  useEffect(() => {
+    const main = mainRef.current
+    return main ? watchA11y(main) : undefined
+  }, [])
+
   const skipToMain = useCallback(() => {
     mainRef.current?.focus()
   }, [])
@@ -104,6 +109,7 @@ export function Layout({ children }: { children: ReactNode }) {
     setNavOpen(false)
     setSearchOpen(true)
   }, [])
+  const navInfo = useMemo(() => ({ generation, announce, openSearch }), [generation, announce, openSearch])
   const closeSearch = useCallback(() => {
     setSearchOpen(false)
     const el = searchOpener.current

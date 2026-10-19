@@ -1,0 +1,22 @@
+{
+  "id": "dtc-inl-basis-full-precond",
+  "title": "基底比較 + full preconditioner：基底不再重要",
+  "page": "/ch/11b",
+  "experiment": "dtc-inl-basis",
+  "description": "M = (γ/K_q)R⁻¹ 讓所有 pole = 1 − γ = 0.9：四種基底的 mean-field 曲線重合。",
+  "params": {
+    "codeKind": "uniform",
+    "frac": 0.618,
+    "M": 3,
+    "d2": 20,
+    "d3": 10,
+    "gMax": 0.1,
+    "sigmaV": 10,
+    "N": 64,
+    "blocks": 1000,
+    "precond": "full",
+    "gamma": 0.1
+  },
+  "expected": "四種基底的 mean-field k95 都是 ⌈ln 0.05/ln 0.9⌉ = 29 blocks；條件數仍是 67.6 / 7 / 1 / 5.9（R 沒變，變的是 M）。",
+  "source": "illustrative"
+}

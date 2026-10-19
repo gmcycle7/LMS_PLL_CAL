@@ -167,7 +167,7 @@ function R6Experiment() {
         monteCarlo: stuck
           ? { status: 'n/a', note: 'comparator 永不翻轉：輸出卡在初始狀態，沒有平穩分布可比' }
           : { status: mcMidOk && Math.abs(mc.lag1[mid] - at.nu) < 0.05 ? 'ok' : 'mismatch', note: String.raw`$s=\theta$ 處的 $E[q]$（95% CI 的 2 倍 $+0.01$）與 lag-1 相關（$\pm0.05$）vs Markov 解析` },
-        fixedPoint: 'n/a',
+        fixedPoint: { status: 'n/a', note: '沒有暫存器量化的量' },
       }}
       actions={{ onReset: () => setP(DEFAULTS) }}
       presets={presets}

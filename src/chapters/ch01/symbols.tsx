@@ -437,17 +437,6 @@ function scrollToId(id: string) {
   el.focus?.({ preventScroll: true })
 }
 
-/** 章首的一行：「本章符號表在最後 ↓」。 */
-export function SymbolsJump() {
-  return (
-    <p className="ch01-symbols-jump">
-      <button type="button" className="ch01-linklike" onClick={() => scrollToId(SYMBOLS_ANCHOR)} aria-controls={SYMBOLS_ANCHOR}>
-        本章符號表在最後 ↓
-      </button>
-    </p>
-  )
-}
-
 /** 章末的符號表（頁面最後一個區塊）。 */
 export function SymbolsSection() {
   return (

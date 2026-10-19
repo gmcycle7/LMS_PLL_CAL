@@ -796,10 +796,8 @@ describe('Ch03 頁面上的方塊圖與符號表位置', () => {
     const recap = container.querySelector('.c-recap')!
     expect(follows(recap, symbols)).toBe(true)
     expect(follows(container.querySelector('#quiz')!, symbols)).toBe(true)
-    // 章首：只有一行按鈕（不是 href，HashRouter 下 href="#symbols" 會被當成路由）
-    const link = Array.from(container.querySelectorAll('button')).find((b) => b.textContent?.includes('本章符號表在最後'))!
-    expect(link).toBeTruthy()
-    expect(follows(link, container.querySelector('section.c-section')!)).toBe(true)
+    // 章首沒有「本章符號表在最後」那一行（連結由 PageFrame 的本章資訊 strip 提供）；也沒有會被 HashRouter 當成路由的 href
+    expect(Array.from(container.querySelectorAll('button')).find((b) => b.textContent?.includes('本章符號表在最後'))).toBeUndefined()
     expect(container.querySelector('a[href="#symbols"]')).toBeNull()
     const proto = Element.prototype as unknown as { scrollIntoView?: () => void }
     const saved = proto.scrollIntoView
@@ -808,12 +806,10 @@ describe('Ch03 頁面上的方塊圖與符號表位置', () => {
       calls.push(this)
     }
     try {
-      link.click()
-      expect(calls).toEqual([symbols])
       // 符號表底下可以回到章首
       const back = Array.from(symbols.querySelectorAll('button')).find((b) => b.textContent?.includes('回到本章開頭'))!
       back.click()
-      expect(calls[1]).toBe(container.querySelector('#ch03-top'))
+      expect(calls).toEqual([container.querySelector('#ch03-top')])
     } finally {
       proto.scrollIntoView = saved
     }

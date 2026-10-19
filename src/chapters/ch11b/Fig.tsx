@@ -1,0 +1,36 @@
+import { Mermaid, accessibleText, mathText } from '@/components'
+import { CH11B_DIAGRAMS, type Ch11bDiagramId } from './diagrams'
+
+/** 圖號：依 CH11B_DIAGRAMS 的順序（= 頁面上出現的順序）編成「圖 11b-n」。 */
+export function figLabel(id: Ch11bDiagramId): string {
+  const i = CH11B_DIAGRAMS.findIndex((d) => d.id === id)
+  if (i < 0) throw new Error(`Ch11b 找不到方塊圖 ${id}`)
+  return `圖 11b-${i + 1}`
+}
+
+/** 正文中引用圖號；圖的順序改變時文字會自動跟著改。 */
+export function FigRef({ id }: { id: Ch11bDiagramId }) {
+  return <strong className="ch11b-figref">{figLabel(id)}</strong>
+}
+
+/**
+ * 依 id 顯示本章的一張方塊圖（docs/teaching-style.md §8）。圖裡的標籤直接寫 `$…$`，由 `Mermaid` 元件用 KaTeX 排版；
+ * 圖名與圖說以 mathText 顯示；螢幕閱讀器用的 aria-label 是去掉 `$` 的純文字。
+ */
+export function Fig({ id }: { id: Ch11bDiagramId }) {
+  const d = CH11B_DIAGRAMS.find((x) => x.id === id)
+  if (!d) throw new Error(`Ch11b 找不到方塊圖 ${id}`)
+  const label = figLabel(id)
+  return (
+    <div className="ch11b-fig" id={`ch11b-fig-${d.id}`}>
+      <Mermaid chart={d.chart} ariaLabel={`${label}：${accessibleText(d.title)}`} />
+      <p className="c-figcaption ch11b-figcap">
+        <strong>
+          {label}：{mathText(d.title)}
+        </strong>
+        <br />
+        {mathText(d.caption)}
+      </p>
+    </div>
+  )
+}

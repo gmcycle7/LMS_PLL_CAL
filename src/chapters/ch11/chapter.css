@@ -159,8 +159,7 @@
   white-space: nowrap;
 }
 
-/* 章首「本章符號表在最後」與章末的符號表（docs/teaching-style.md §5） */
-.ch11-symbols-link,
+/* 章末的符號表（docs/teaching-style.md §5；章首的連結由 PageFrame 的 strip 提供，§9） */
 .ch11-symbols-back {
   margin: 0.4rem 0 0.8rem;
   font-size: 0.9rem;

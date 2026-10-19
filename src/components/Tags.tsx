@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type HTMLAttributes, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type HTMLAttributes, type ReactNode } from 'react'
 import { CLAIM_DESCRIPTION, CLAIM_LABEL, MODEL_LEVEL_INFO, SOURCE_DESCRIPTION, SOURCE_LABEL, modelLevelText } from './labels'
 import type { ClaimKind, ModelLevelId, SourceKind } from './types'
 
@@ -11,30 +11,46 @@ export interface TipBadgeProps extends Omit<HTMLAttributes<HTMLSpanElement>, 'ch
 }
 
 /**
- * 帶 tooltip 的小徽章。tooltip 用 CSS（:hover / :focus-within）顯示；同時以 aria-describedby 提供給螢幕閱讀器。
- * 徽章本身沒有動作，所以不進 Tab 順序（tabIndex=-1）：一章有幾十個內容相同的徽章，鍵盤使用者不必逐一停靠；
- * 點一下（滑鼠或觸控）仍會取得焦點而顯示 tooltip。按 Esc 可關閉 tooltip（WCAG 1.4.13）：
- * 聚焦時直接失焦，滑鼠停留時監聽 document 的 keydown；滑鼠移開後重設。
+ * 帶 tooltip 的小徽章。徽章只是標示、沒有動作，所以**不可聚焦**（沒有 tabIndex）：一章有幾十個內容相同的徽章，
+ * 不該各佔一個 Tab 停靠點（也不該在點一下之後留下焦點框）。
+ * - 滑鼠：移上去顯示（CSS :hover）。
+ * - 觸控／點擊：點一下切換顯示（`is-open`），點徽章以外的地方收起。
+ * - 螢幕閱讀器：tooltip 以 aria-describedby 連到徽章，不論有沒有顯示都念得到（顯示前是 display:none，不會被當成徽章本文重複念）。
+ * - 按 Esc 關閉（WCAG 1.4.13）：顯示中（滑鼠停留或已點開）時監聽 document 的 keydown，加上 `is-dismissed`；
+ *   滑鼠移開或再點一次後重設。
  */
-export function TipBadge({ className, children, tip, ...rest }: TipBadgeProps) {
+export function TipBadge({ className, children, tip, onClick, ...rest }: TipBadgeProps) {
   const tipId = useId()
+  const ref = useRef<HTMLSpanElement>(null)
   const [hover, setHover] = useState(false)
+  const [pinned, setPinned] = useState(false)
   const [dismissed, setDismissed] = useState(false)
+  const active = hover || pinned
 
   useEffect(() => {
-    if (!hover) return
+    if (!active) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setDismissed(true)
+      if (e.key === 'Escape') {
+        setDismissed(true)
+        setPinned(false)
+      }
+    }
+    const onOutside = (e: Event) => {
+      if (!ref.current?.contains(e.target as Node)) setPinned(false)
     }
     document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [hover])
+    document.addEventListener('pointerdown', onOutside)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('pointerdown', onOutside)
+    }
+  }, [active])
 
   return (
     <span
       {...rest}
-      className={`c-badge c-has-tip ${className}${dismissed ? ' is-dismissed' : ''}`}
-      tabIndex={-1}
+      ref={ref}
+      className={`c-badge c-has-tip ${className}${pinned ? ' is-open' : ''}${dismissed ? ' is-dismissed' : ''}`}
       aria-describedby={tipId}
       onMouseEnter={() => {
         setHover(true)
@@ -44,12 +60,10 @@ export function TipBadge({ className, children, tip, ...rest }: TipBadgeProps) {
         setHover(false)
         setDismissed(false)
       }}
-      onBlur={() => setDismissed(false)}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') {
-          setDismissed(true)
-          e.currentTarget.blur()
-        }
+      onClick={(e) => {
+        onClick?.(e)
+        setDismissed(false)
+        setPinned((p) => !p)
       }}
     >
       {children}

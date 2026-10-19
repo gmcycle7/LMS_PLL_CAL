@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { Callout, ClaimTag, CodeBlock, Section, SourceTag, SystemMap, Tex, TexBlock } from '@/components'
 import peSrc from '@/simulation/models/pe.ts?raw'
 import { lmsHandSteps, type HandStepRow } from '@/simulation/models/pe'
@@ -57,7 +57,8 @@ function HandTable({ rows, note }: { rows: HandStepRow[]; note?: string }) {
   )
 }
 
-export function Intro() {
+/** @param afterMap 接在系統地圖的「你在這裡」之後的內容（index.tsx 把標籤列與本章目錄放在這裡） */
+export function Intro({ afterMap }: { afterMap?: ReactNode } = {}) {
   const same = useMemo(() => lmsHandSteps({ a: A_TRUE, w0: [0, 0], mu: 0.25, us: Array.from({ length: 6 }, () => [1, 1] as [number, number]) }), [])
   const sameLong = useMemo(() => lmsHandSteps({ a: A_TRUE, w0: [0, 0], mu: 0.25, us: Array.from({ length: 60 }, () => [1, 1] as [number, number]) }), [])
   const alt = useMemo(
@@ -95,10 +96,11 @@ export function Intro() {
       </Callout>
 
       <SystemMap focus={SYSTEM_FOCUS} />
-      <p className="ch09-map-note">
+      <p className="ch09-map-note c-map-note">
         <strong>你在這裡：</strong>藍色的四個方塊——regressor {m`x[n]`}、code alignment（filtered-x）、GMAC、gain accumulator {m`w_k`}——是 LMS 校正迴路裡「每個參數各要一份」的部分。前面幾章只有一份（一個係數）；這一章把它們複製成 {m`M`} 份、全部共用同一個 comparator 輸出，然後問：
         {m`M`} 個 accumulator 各自學得到自己的參數嗎？（§9.2 還會用到標著「主 PLL 迴路」的那一框：它會把 DC 誤差吃掉，讓其中一個參數完全看不到。）地圖上也要注意 LMS 的輸入是從哪裡接出來的：comparator 取的是 <strong>PD 的輸出</strong> {m`e[n]`}，也就是送進 loop filter 的同一個訊號（PD 輸出旁的標籤與 comparator 輸入旁的 {m`e[n]`} 標籤是同一條線）；DTC 在 reference clock 進來的位置，不在回授路徑上。
       </p>
+      {afterMap}
 
       <Section kind="intuition" title="一個黑盒子：兩個旋鈕總是一起動" level={2} id="ch09-intro">
         <p>

@@ -112,16 +112,6 @@ export const SYMBOLS: SymbolEntry[] = [
   { symbol: 'A', meaning: tm('幅度固定的 code：$x=\\pm A$ 等機率（綜合手算與 §6）'), unit: '[x]', firstSeen: '§5' },
 ]
 
-/** 章首只留這一行：按下去捲到章末的符號表（HashRouter 下不能用 href="#symbols"）。 */
-export function SymbolsLink() {
-  return (
-    <p className="ch02-symbols-link">
-      <JumpTo target={SYMBOLS_ID}>本章符號表在最後 ↓</JumpTo>
-      ：每個符號第一次出現時，正文會就地用一句話說明。
-    </p>
-  )
-}
-
 /** 章末的符號表（頁面最後一個區塊）。 */
 export function ChapterSymbols() {
   return (

@@ -153,23 +153,6 @@ export const SYMBOLS: SymbolEntry[] = [
   { symbol: r`d_{\mathrm{upd}}`, meaning: <>GMAC 更新延遲（blocks；規格 §8.3 的 <Tex>{'d'}</Tex>）</>, unit: r`\text{blocks}`, firstSeen: '§7.10', note: 'Ch08 的主題' },
 ]
 
-/** 頁內捲動到章末的符號表。HashRouter 下 href="#symbols" 會被當成路由，所以用按鈕 + scrollIntoView（jsdom 沒有這個函式，用可選呼叫）。 */
-function scrollToSymbols() {
-  document.getElementById(SYMBOLS_ANCHOR)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
-}
-
-/** 章首的一行連結：「本章符號表在最後 ↓」。 */
-export function SymbolsLink() {
-  return (
-    <p className="ch07-symlink">
-      <button type="button" className="ch07-symlink-btn" onClick={scrollToSymbols}>
-        本章符號表在最後 ↓
-      </button>
-      <span className="ch07-symlink-note">每個符號第一次出現時，正文會先用一句話說明。</span>
-    </p>
-  )
-}
-
 /** 章末的符號表（Recap 之後、頁面最底端）。 */
 export function S8Symbols() {
   return (

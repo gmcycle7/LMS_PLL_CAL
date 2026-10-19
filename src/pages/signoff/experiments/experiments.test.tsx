@@ -129,7 +129,7 @@ describe('所有 preset 都能載入，且每個狀態的警告／指標／標�
       ['Evidence', () => <EvidenceLabExperiment />, ['ok', 'ok', 'n/a']],
       ['Corner', () => <CornerJudgeExperiment />, ['ok', 'ok', 'n/a']],
       ['Fixed-point', () => <FixedPointJudgeExperiment />, ['ok', 'n/a', 'ok']],
-      ['MIMO', () => <MimoJudgeExperiment />, ['ok', 'not-implemented', 'not-implemented']],
+      ['MIMO', () => <MimoJudgeExperiment />, ['ok', 'n/a', 'not-implemented']], // Monte Carlo：確定性的矩陣計算，不適用（附說明）
     ]
     for (const [name, make, want] of expected) {
       const { container, unmount } = mount(make())

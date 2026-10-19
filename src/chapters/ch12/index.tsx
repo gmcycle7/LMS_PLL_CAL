@@ -1,7 +1,6 @@
-import { useState } from 'react'
-import { Callout, ClaimTag, ModeGate, ModelLevel, Prereq, Section, SourceTag, SymbolTable, Tex, TestBadge, ChRef } from '@/components'
+import { ClaimTag, ModelLevel, Prereq, Section, SourceTag, SymbolTable, Tex, TestBadge, ChRef } from '@/components'
 import './chapter.css'
-import { Erratum, SYMBOLS_ID, md, scrollToSymbols } from './common'
+import { Erratum, SYMBOLS_ID, md } from './common'
 import { CH12_SYMBOLS } from './symbols'
 import { S1Intro } from './sections/S1Intro'
 import { S2Recursion } from './sections/S2Recursion'
@@ -16,61 +15,33 @@ import { CodeMixingLab } from './experiments/CodeMixingLab'
 /**
  * 第 12 章：Comparator Noise 如何經 LMS 變成 PLL Jitter / Spurs（規格 §12；入門課第 12 課）。
  * 套用勘誤 E06、E09、E10、E26、E27、E28、E29、E30、E33。
- * 版面（docs/teaching-style.md §2、§5、§8）：章首只留一行「本章符號表在最後」；系統地圖在 12.0 的開場問題之後；
- * 符號表是整頁的最後一個區塊（id="symbols"，在「本課必記」與「連結到硬體」之後）。
+ * 版面（docs/teaching-style.md §2、§5、§8、§9）：章首是 12.0 的開場問題與系統地圖（本章資訊、先備自檢由 PageFrame 放在地圖之後；
+ * 勘誤清單與「先備章節」原本各自寫在章首，現在都在那條 strip 與先備自檢裡）；符號表是整頁的最後一個區塊（id="symbols"，在「本課必記」與「連結到硬體」之後）。
  */
 export default function Chapter12() {
-  // 讀者從章首跳到符號表時記下原本的捲動位置，讓符號表旁的按鈕可以送他回去
-  const [backY, setBackY] = useState<number | null>(null)
-  const jumpToSymbols = () => {
-    setBackY(window.scrollY)
-    scrollToSymbols()
-  }
-  const jumpBack = () => {
-    if (backY !== null) window.scrollTo({ top: backY, behavior: 'smooth' })
-    setBackY(null)
-  }
   return (
     <article className="ch12">
-      <div className="c-tag-row">
-        <ModelLevel level="L1" />
-        <ModelLevel level="L4" />
-        <SourceTag kind="illustrative" />
-        <TestBadge id="T13" />
-        <TestBadge id="T14" />
-        <TestBadge id="T15" />
-      </div>
-      <p>
-        規格 §12。前面幾章把 LMS 調到「平均正確」（<ChRef ch="03">第 3 章</ChRef>的 mean stability、<ChRef ch="05">第 5 章</ChRef>的 comparator 增益、<ChRef ch="08">第 8 章</ChRef>的 phase margin、<ChRef ch="11">第 11 章</ChRef>的 bias）。這一章處理收斂<strong>之後</strong>剩下的東西：comparator 的隨機判斷讓係數持續抖動，這個抖動經過「乘上 code」與「PLL 的轉移函數」才變成輸出的 jitter 或 spur。
-      </p>
-      <Callout kind="info" title="本章採用的勘誤">
-        <Erratum id="E06" />
-        <Erratum id="E10" />
-        <Erratum id="E26" />
-        <Erratum id="E27" />（頻寬：−3 dB 頻寬不等於 ENBW、近似的誤差與存在範圍）
-        <Erratum id="E09" />
-        <Erratum id="E29" />（multirate：block rate → sample rate）
-        <Erratum id="E28" />（PSD 正規化）
-        <Erratum id="E30" />（T13 的完整條件）
-        <Erratum id="E33" />（係數偏差 <Tex>{String.raw`\delta w=w-w^*`}</Tex> 的極性）。點擊可到驗證頁看完整說明。
-      </Callout>
-
-      <p className="ch12-symjump">
-        <button type="button" className="ch12-jump" onClick={jumpToSymbols}>
-          本章符號表在最後 ↓
-        </button>
-        （正文裡每個符號第一次出現時都會就地用一句話說明）
-      </p>
-
-      <ModeGate min="engineer">
-        <Callout kind="info" title="先備章節">
-          1-bit comparator 的小訊號統計增益 <Tex>{String.raw`K_q=\sqrt{2/\pi}/\sigma_v`}</Tex>（<ChRef ch="05">第 5 章</ChRef>；<Tex>{String.raw`\sigma_v`}</Tex> 是 comparator 前雜訊的 RMS）、一階 pole <Tex>{'p=1-g'}</Tex> 與 PM（<ChRef ch="08">第 8 章</ChRef>）、固定點 <Tex>{'w^*'}</Tex> 與 bias（<ChRef ch="11">第 11 章</ChRef>）、
-          <Tex>{String.raw`H_{\mathrm{PD}}`}</Tex> 與 polarity（<ChRef ch="06">第 6 章</ChRef>）。本章所有先備數學（期望值、Z-transform、PSD、卷積、Bessel）都在可展開的「先備知識」框內從頭說明。
-        </Callout>
-      </ModeGate>
-
       <Section kind="intuition" title="12.0 問題與地圖" level={2} id="ch12-start">
-        <S1Intro />
+        <S1Intro
+          afterMap={
+            <>
+              <div className="c-tag-row">
+                <ModelLevel level="L1" />
+                <ModelLevel level="L4" />
+                <SourceTag kind="illustrative" />
+                <TestBadge id="T13" />
+                <TestBadge id="T14" />
+                <TestBadge id="T15" />
+              </div>
+              <p>
+                規格 §12。前面幾章把 LMS 調到「平均正確」（<ChRef ch="03">第 3 章</ChRef>的 mean stability、<ChRef ch="05">第 5 章</ChRef>的 comparator 增益、<ChRef ch="08">第 8 章</ChRef>的 phase margin、<ChRef ch="11">第 11 章</ChRef>的 bias）。這一章處理收斂<strong>之後</strong>剩下的東西：comparator 的隨機判斷讓係數持續抖動，這個抖動經過「乘上 code」與「PLL 的轉移函數」才變成輸出的 jitter 或 spur。本章所有先備數學（期望值、Z-transform、PSD、卷積、Bessel）都在可展開的「先備知識」框內從頭說明。
+              </p>
+              <p className="small">
+                本章負責的勘誤一句話版：<Erratum id="E27" />（−3 dB 頻寬不等於 ENBW；近似的誤差與存在範圍要分開說）、<Erratum id="E28" />（PSD 的正規化）、<Erratum id="E29" />（multirate：係數雜訊在 block rate 產生、在 sample rate 乘上 code），以及 <Erratum id="E06" />、<Erratum id="E26" />；全站性的 <Erratum id="E09" />、<Erratum id="E10" />、<Erratum id="E30" />（T13 的完整條件）、<Erratum id="E33" />（係數偏差 <Tex>{String.raw`\delta w=w-w^*`}</Tex> 的極性）也在本章用到。每一條在正文第一次用到的地方會再標一次；完整說明在驗證頁的勘誤瀏覽器（上方本章資訊的「勘誤」）。
+              </p>
+            </>
+          }
+        />
       </Section>
 
       <Section kind="formula" title="12.1–12.4 從 comparator noise 到係數雜訊的 RMS" level={2} id="ch12-sigma">
@@ -129,13 +100,6 @@ export default function Chapter12() {
 
       <section id={SYMBOLS_ID} className="ch12-symbols" aria-label="本章符號表">
         <h2 className="ch12-symbols-title">本章符號表</h2>
-        {backY !== null && (
-          <p className="ch12-symbols-back">
-            <button type="button" className="ch12-jump" onClick={jumpBack}>
-              ↑ 回到剛才閱讀的位置
-            </button>
-          </p>
-        )}
         <SymbolTable
           rows={CH12_SYMBOLS}
           title="依第一次出現的小節排列"

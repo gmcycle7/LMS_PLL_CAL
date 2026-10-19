@@ -411,7 +411,7 @@ export function crossCheckOf(res: BlockLmsResult, mc: BlockLmsMonteCarloResult |
   }
 
   let monteCarlo: CheckEntry
-  if (!mc) monteCarlo = entry('not-implemented', '尚未執行：按「Monte Carlo（8 seeds）」取得多 seed 95% CI')
+  if (!mc) monteCarlo = entry('n/a', '尚未執行：按「Monte Carlo（8 seeds）」取得多 seed 95% CI')
   else if (mc.perRun.diverged > 0) monteCarlo = entry('n/a', `${mc.perRun.diverged}/${mc.seeds.length} 個 seed 發散：CI 無意義`)
   else if (!fin(an.wStarMeanField)) monteCarlo = entry('n/a', 'mean-field 固定點未定義，無解析值可比')
   else {
@@ -425,7 +425,7 @@ export function crossCheckOf(res: BlockLmsResult, mc: BlockLmsMonteCarloResult |
 
   let fixedPoint: CheckEntry
   if (!qz) fixedPoint = entry('n/a', 'quantize_physical = false：本次為理想浮點模型（L1/L2），沒有定點對照')
-  else if (!twin) fixedPoint = entry('not-implemented', '尚未計算同 seed 的浮點對照')
+  else if (!twin) fixedPoint = entry('n/a', '尚未計算同 seed 的浮點對照：按「定點 vs 浮點」或重新執行')
   else if (twin.metrics.diverged || m.diverged) fixedPoint = entry('n/a', '定點或浮點模擬發散')
   else {
     const tsT = tailStats(twin.blocks.w)

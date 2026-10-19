@@ -145,7 +145,7 @@ export function FftPitfallsLab() {
         monteCarlo: { status: 'not-implemented', note: '單一 realization；多 seed 統計未實作（可改 seed 觀察 (C) 的 $3\\sigma$ 範圍）' },
         fixedPoint: { status: 'n/a', note: '浮點訊號處理示範，沒有定點路徑' },
       }
-    : { analytic: 'not-implemented', monteCarlo: 'not-implemented', fixedPoint: 'n/a' }
+    : { analytic: { status: 'n/a', note: '尚未執行' }, monteCarlo: { status: 'n/a', note: '尚未執行' }, fixedPoint: { status: 'n/a', note: 'FFT 示範沒有定點模型' } }
 
   return (
     <ExperimentShell

@@ -1,0 +1,30 @@
+{
+  "id": "dtc-inl-lms-poly-legendre",
+  "title": "多項式 Legendre M = 3、MASH code",
+  "page": "/ch/11b",
+  "experiment": "dtc-inl-lms",
+  "description": "d = 20x² + 10x³ 在三次多項式空間裡：floor = 0，殘餘 INL 降到 misadjustment 等級；條件數由 MASH 的樣本 R 決定。",
+  "params": {
+    "structure": "poly",
+    "M": 3,
+    "basis": "legendre",
+    "codeKind": "mash111",
+    "frac": 0.618,
+    "d2": 20,
+    "d3": 10,
+    "sawAmp": 0,
+    "sawSegments": 8,
+    "a": 1,
+    "w0": 1,
+    "b": 0,
+    "sigmaV": 10,
+    "algorithm": "sign",
+    "mu": 2,
+    "N": 64,
+    "blocks": 3000,
+    "precond": "none",
+    "gainAdapt": false
+  },
+  "expected": "floor ≈ 0；殘餘 INL rms 約 0.48（預測 0.54）；條件數約 63（MASH 不是 uniform，Legendre 不再對角）；k95 MC 約 400 vs mean-field 約 560。",
+  "source": "illustrative"
+}

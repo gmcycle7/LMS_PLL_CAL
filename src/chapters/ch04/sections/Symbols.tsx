@@ -1,16 +1,16 @@
 import { SymbolTable, type SymbolEntry, Tex } from '@/components'
-import { Erratum, JumpTo, jumpTo, mt } from '../common'
+import { Erratum, jumpTo, mt } from '../common'
 
 const R = String.raw
 
-/** 章末符號表外層的 id（docs/teaching-style.md §5：符號表放在每章最後，章首只留一行連結）。 */
+/** 章末符號表外層的 id（docs/teaching-style.md §5：符號表放在每章最後；章首的連結由 PageFrame 的本章資訊 strip 提供，§9）。 */
 export const SYMBOLS_ID = 'symbols'
 
 export const CH04_SYMBOLS: SymbolEntry[] = [
   { symbol: 'n', meaning: mt(R`comparator sample 索引（本章假設一個 reference cycle 一個 sample，$f_s=f_\mathrm{ref}$）`), firstSeen: '§1', note: mt(R`全站約定：$n$ = sample、$k$ = block`) },
   { symbol: 'k', meaning: mt(R`GMAC block 索引（第 $k$ 個 block 含 sample $n=kN,\dots,kN+N-1$）`), firstSeen: '§1' },
   { symbol: 'N', meaning: '每個 block 累加的 sample 數（GMAC 累加長度）', unit: R`\text{samples}`, firstSeen: '§1' },
-  { symbol: R`f_s,\;f_u=f_s/N`, meaning: 'comparator 取樣率、校正更新率（block rate）', unit: R`\mathrm{Hz}`, firstSeen: '§3' },
+  { symbol: R`f_s,\;f_u=f_s/N`, meaning: 'comparator 取樣率、校正更新率（block rate）', unit: R`\mathrm{Hz}`, firstSeen: '§4' },
   { symbol: R`N_\mathrm{int}`, meaning: mt(R`FCW 的整數部分：divider 每一拍至少數 $N_\mathrm{int}$ 個 VCO 週期（有 carry 時多數 1 個）`), firstSeen: '§2' },
   { symbol: R`\mathrm{frac},\;K_\mathrm{F}`, meaning: mt(R`FCW 的小數部分；累加器每拍加入的整數字 $K_\mathrm{F}$，$\mathrm{frac}=K_\mathrm{F}/M$`), firstSeen: '§2' },
   { symbol: R`M=2^{B_\mathrm{dsm}}`, meaning: mt(R`DSM 累加器的模數（$B_\mathrm{dsm}$ 位元）`), firstSeen: '§2' },
@@ -28,28 +28,28 @@ export const CH04_SYMBOLS: SymbolEntry[] = [
   { symbol: R`e_\mathrm{det}[n]`, meaning: mt(R`gain 有誤差時 PD 看到的確定性殘差 $\delta\,x[n]$（不含雜訊）`), unit: R`\mathrm{fs}`, firstSeen: '§2' },
   { symbol: R`H_\mathrm{PD},\;u[n]=(h*x)[n]`, meaning: 'DTC 的殘餘時間誤差（從 PD 的 reference 輸入端進來）到 PD 輸出的轉移函數、有效 regressor', unit: R`\text{同 }x`, firstSeen: '§3', note: <Erratum id="E13" /> },
   { symbol: R`v[n],\;\sigma_v`, meaning: 'comparator 前雜訊與其 RMS', unit: R`\mathrm{fs}`, firstSeen: '§3' },
-  { symbol: R`b_\mathrm{off}`, meaning: 'comparator offset（只在系統圖 C 與一圈推導出現；Ch11 詳述）', unit: R`\mathrm{fs}`, firstSeen: '§3', note: <>{mt(R`規格 §11 寫 $b$；本章改名 $b_\mathrm{off}$，避免與 comparator 位元 $b[n]$ 衝突（同 `)}<Erratum id="E34" />{mt(R` 的符號去衝突原則）`)}</> },
+  { symbol: R`b_\mathrm{off}`, meaning: 'comparator offset（只在系統圖 C 與一圈推導出現；Ch11 詳述）', unit: R`\mathrm{fs}`, firstSeen: '§4', note: <>{mt(R`規格 §11 寫 $b$；本章改名 $b_\mathrm{off}$，避免與 comparator 位元 $b[n]$ 衝突（同 `)}<Erratum id="E34" />{mt(R` 的符號去衝突原則）`)}</> },
   { symbol: 'e[n]', meaning: mt(R`PD 的輸出（送進 loop filter 的同一個節點），也是 LMS 校正迴路的輸入：comparator 取它的正負號。$e=\delta\,u+b_\mathrm{off}+v$（$b_\mathrm{off}$ 是折算到這個節點的 comparator offset）`), unit: R`\mathrm{fs}`, firstSeen: '§1' },
-  { symbol: 'b[n]', meaning: mt(R`comparator 原始輸出位元，$b=1\Leftrightarrow e\ge0$`), unit: R`\{0,1\}`, firstSeen: '§4', note: <><Erratum id="E07" />{mt(R`：tie（$e=0$）判 $+1$`)}</> },
-  { symbol: 'q[n]=2b[n]-1', meaning: '雙極性 comparator 輸出', unit: R`\{-1,+1\}`, firstSeen: '§4' },
-  { symbol: R`x_\mathrm{ref}[n]`, meaning: mt(R`GMAC 實際相乘的對齊 code：$x[n-D]$ 或 filtered-x $u_f[n-D]$`), firstSeen: '§3' },
-  { symbol: 'D', meaning: 'code 對齊延遲', unit: R`\text{samples}`, firstSeen: '§3', note: <><Erratum id="E34" />{mt(R`：§16.1 原寫 $d$，與更新延遲 $d$ 衝突`)}</> },
-  { symbol: R`d,\;d_\mathrm{f}`, meaning: mt(R`更新延遲（block 結束到新 gain 生效）的整數部分與分數部分；commit 在 block 中途生效時 $d_\mathrm{f}=(P_c\bmod N)/N$`), unit: R`\text{blocks}`, firstSeen: '§3', note: mt(R`分數延遲不寫 $\varphi$：$\varphi(z)$ 保留給 Gaussian 密度`) },
-  { symbol: R`P_c`, meaning: 'commit pipeline：block 結束到新 gain 寫入 register 的 sample 數', unit: R`\text{samples}`, firstSeen: '§3' },
-  { symbol: R`g_\mathrm{crit}`, meaning: mt(R`平均模型由穩定變成不穩定的臨界 loop gain（$d=0$ 時為 2）`), firstSeen: '§3' },
+  { symbol: 'b[n]', meaning: mt(R`comparator 原始輸出位元，$b=1\Leftrightarrow e\ge0$`), unit: R`\{0,1\}`, firstSeen: '§3', note: <><Erratum id="E07" />{mt(R`：tie（$e=0$）判 $+1$`)}</> },
+  { symbol: 'q[n]=2b[n]-1', meaning: '雙極性 comparator 輸出', unit: R`\{-1,+1\}`, firstSeen: '§3' },
+  { symbol: R`x_\mathrm{ref}[n]`, meaning: mt(R`GMAC 實際相乘的對齊 code：$x[n-D]$ 或 filtered-x $u_f[n-D]$`), firstSeen: '§1' },
+  { symbol: 'D', meaning: 'code 對齊延遲', unit: R`\text{samples}`, firstSeen: '§1', note: <><Erratum id="E34" />{mt(R`：§16.1 原寫 $d$，與更新延遲 $d$ 衝突`)}</> },
+  { symbol: R`d,\;d_\mathrm{f}`, meaning: mt(R`更新延遲（block 結束到新 gain 生效）的整數部分與分數部分；commit 在 block 中途生效時 $d_\mathrm{f}=(P_c\bmod N)/N$`), unit: R`\text{blocks}`, firstSeen: '§4', note: mt(R`分數延遲不寫 $\varphi$：$\varphi(z)$ 保留給 Gaussian 密度`) },
+  { symbol: R`P_c`, meaning: 'commit pipeline：block 結束到新 gain 寫入 register 的 sample 數', unit: R`\text{samples}`, firstSeen: '§4' },
+  { symbol: R`g_\mathrm{crit}`, meaning: mt(R`平均模型由穩定變成不穩定的臨界 loop gain（$d=0$ 時為 2）`), firstSeen: '§4' },
   { symbol: R`\Phi(z),\;\varphi(z)`, meaning: '標準 Gaussian 的累積分布函數與機率密度', firstSeen: '§3' },
-  { symbol: 'S_k', meaning: mt(R`GMAC 總和 $\sum q\,x_\mathrm{ref}$（sum）`), firstSeen: '§4', note: <><Erratum id="E07" /> <Erratum id="E18" />：總和用 <Tex>S</Tex></> },
-  { symbol: R`G_k=S_k/N`, meaning: 'GMAC 平均（average，§0 定義）', firstSeen: '§4' },
-  { symbol: R`m_q=E[q]`, meaning: mt(R`comparator 雙極性輸出的平均（$x\equiv1$ 時 $E[G]=m_q$）`), firstSeen: '§4', note: <><Erratum id="E34" />{mt(R`：規格 §5 寫 $m$`)}</> },
-  { symbol: R`\mu`, meaning: '學習率（每個 block 的更新係數）', unit: R`\mathrm{fs}`, firstSeen: '§4', note: <><Erratum id="E13" />：average 模式下單位為 fs</> },
-  { symbol: R`K_q=\sqrt{2/\pi}/\sigma_v`, meaning: '1-bit comparator 的小訊號增益', unit: R`\mathrm{fs}^{-1}`, firstSeen: '§4' },
-  { symbol: R`C=E[x_\mathrm{ref}u]`, meaning: 'regressor 與有效 regressor 的相關', unit: R`\text{無因次}`, firstSeen: '§4' },
-  { symbol: R`K=K_qC`, meaning: mt(R`GMAC 對 $\delta$ 的平均斜率 $-\partial E[G]/\partial w$`), unit: R`\mathrm{fs}^{-1}`, firstSeen: '§4', note: <Erratum id="E13" /> },
-  { symbol: R`g,\;p=1-g`, meaning: mt(R`無因次 loop gain（average：$\mu K$；sum：$N\mu K$）與平均 pole`), firstSeen: '§4' },
+  { symbol: 'S_k', meaning: mt(R`GMAC 總和 $\sum q\,x_\mathrm{ref}$（sum）`), firstSeen: '§3', note: <><Erratum id="E07" /> <Erratum id="E18" />：總和用 <Tex>S</Tex></> },
+  { symbol: R`G_k=S_k/N`, meaning: 'GMAC 平均（average，§0 定義）', firstSeen: '§3' },
+  { symbol: R`m_q=E[q]`, meaning: mt(R`comparator 雙極性輸出的平均（$x\equiv1$ 時 $E[G]=m_q$）`), firstSeen: '§3', note: <><Erratum id="E34" />{mt(R`：規格 §5 寫 $m$`)}</> },
+  { symbol: R`\mu`, meaning: '學習率（每個 block 的更新係數）', unit: R`\mathrm{fs}`, firstSeen: '§3', note: <><Erratum id="E13" />：average 模式下單位為 fs</> },
+  { symbol: R`K_q=\sqrt{2/\pi}/\sigma_v`, meaning: '1-bit comparator 的小訊號增益', unit: R`\mathrm{fs}^{-1}`, firstSeen: '§3' },
+  { symbol: R`C=E[x_\mathrm{ref}u]`, meaning: 'regressor 與有效 regressor 的相關', unit: R`\text{無因次}`, firstSeen: '§3' },
+  { symbol: R`K=K_qC`, meaning: mt(R`GMAC 對 $\delta$ 的平均斜率 $-\partial E[G]/\partial w$`), unit: R`\mathrm{fs}^{-1}`, firstSeen: '§3', note: <Erratum id="E13" /> },
+  { symbol: R`g,\;p=1-g`, meaning: mt(R`無因次 loop gain（average：$\mu K$；sum：$N\mu K$）與平均 pole`), firstSeen: '§3' },
   { symbol: R`w^*,\;\delta^*=a-w^*`, meaning: '固定點：平均更新為 0 時的 gain（穩態的平均值），以及它離真值的偏差', unit: R`\mathrm{fs}/\text{unit code}`, firstSeen: '§3' },
-  { symbol: R`m_x,\;\sigma_x`, meaning: mt(R`code 的平均 $E[x]$ 與標準差（$E[x^2]=m_x^2+\sigma_x^2$）`), unit: R`\text{無因次}`, firstSeen: '§4' },
-  { symbol: R`\xi=\delta/\sigma_v`, meaning: mt(R`正規化的 gain 誤差（忘了映射時的固定點 $\xi^*$ 只和 code 分布有關，F-04.16）`), unit: R`\text{無因次}`, firstSeen: '§4' },
-  { symbol: R`B_x,\;x_\mathrm{int}`, meaning: 'code 位元數、有號整數 code', unit: R`\text{bits},\;\text{LSB}`, firstSeen: '§5' },
+  { symbol: R`m_x,\;\sigma_x`, meaning: mt(R`code 的平均 $E[x]$ 與標準差（$E[x^2]=m_x^2+\sigma_x^2$）`), unit: R`\text{無因次}`, firstSeen: '§3' },
+  { symbol: R`\xi=\delta/\sigma_v`, meaning: mt(R`正規化的 gain 誤差（忘了映射時的固定點 $\xi^*$ 只和 code 分布有關，F-04.16）`), unit: R`\text{無因次}`, firstSeen: '§3' },
+  { symbol: R`B_x,\;x_\mathrm{int}`, meaning: 'code 位元數、有號整數 code', unit: R`\text{bits},\;\text{LSB}`, firstSeen: '§4' },
   { symbol: R`B_\mathrm{acc},\;M_x`, meaning: mt(R`GMAC 累加器（有號）位元數；單筆乘積的最大絕對值 $M_x=\max|q\,x_\mathrm{int}|$`), unit: R`\text{bits},\;\text{LSB}`, firstSeen: '§5' },
   { symbol: R`F_G,\;\ell=\log_2N-F_G`, meaning: '右移後保留的小數位元、實際右移量', unit: R`\text{bits}`, firstSeen: '§5' },
   { symbol: R`\Delta_G`, meaning: mt(R`正規化 $G$ 的 LSB $=2^{-F_G}/2^{B_x-1}$`), firstSeen: '§5' },
@@ -61,41 +61,13 @@ export const CH04_SYMBOLS: SymbolEntry[] = [
   { symbol: R`W,\;w_\mathrm{min},\;w_\mathrm{max}`, meaning: '高解析 gain accumulator、DTC 可實現的 gain 範圍（rail）', unit: R`\mathrm{fs}/\text{unit code}`, firstSeen: '§5' },
 ]
 
-/** 讀者按下「本章符號表在最後」當時的捲動位置；符號表上方的「回到剛才讀到的地方」用它捲回去。 */
-let returnY: number | null = null
-
-/** 章首只留這一行：捲到章末的符號表（HashRouter 下不能用 href="#symbols"，那會改到路由）。 */
-export function SymbolsLink() {
-  return (
-    <p className="ch04-symbols-link">
-      <JumpTo
-        target={SYMBOLS_ID}
-        onJump={() => {
-          returnY = window.scrollY
-        }}
-      >
-        本章符號表在最後 ↓
-      </JumpTo>
-      <span className="muted">（每個符號第一次出現時，正文會先用一句話說明）</span>
-    </p>
-  )
-}
-
-function backToReading(): void {
-  if (returnY === null) {
-    jumpTo('ch04-question')
-    return
-  }
-  window.scrollTo({ top: returnY, behavior: 'smooth' })
-}
-
 /** 章末的符號表：整頁最後一個區塊（在「本課必記」與「連結到 PLL」之後）。 */
 export function SymbolsSection() {
   return (
     <section className="ch04-symbols" id={SYMBOLS_ID} aria-label="本章符號表">
       <p className="ch04-symbols-back">
-        <button type="button" className="ch04-jump" onClick={backToReading}>
-          ↑ 回到剛才讀到的地方
+        <button type="button" className="ch04-jump" onClick={() => jumpTo('ch04-question')}>
+          ↑ 回到章首
         </button>
       </p>
       <SymbolTable

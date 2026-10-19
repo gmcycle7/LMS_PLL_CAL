@@ -107,12 +107,14 @@ describe('Chapter 13（jsdom smoke）', () => {
         expect(symbols.querySelectorAll('tbody tr').length).toBeGreaterThanOrEqual(30)
         for (const sel of ['#ch13-quiz', '.c-recap', '#ch13-pll'])
           expect((container.querySelector(sel) as HTMLElement).compareDocumentPosition(symbols) & FOLLOWING, `${mode}: ${sel}`).toBeTruthy()
-        // 章首只留一行按鈕（不是會改掉 HashRouter 路由的 href）：在開場問題與系統地圖之後、§13.1 之前；按下去捲到符號表
-        const symLink = container.querySelector('[data-testid="ch13-symbols-link"]') as HTMLButtonElement
-        expect(symLink.tagName).toBe('BUTTON')
-        expect(symLink.textContent).toContain('本章符號表在最後')
-        expect((container.querySelector('#ch13-question') as HTMLElement).compareDocumentPosition(symLink) & FOLLOWING).toBeTruthy()
-        expect(symLink.compareDocumentPosition(container.querySelector('#ch13-freeze') as HTMLElement) & FOLLOWING).toBeTruthy()
+        // 章首骨架（teaching-style §9）：開場問題是第一個區塊、系統地圖那一節緊接在後（圖 → .c-map-note）、標籤列在那一節之後、§13.1 再之後；
+        // 不再有「本章符號表在最後」的按鈕（連結在 PageFrame 的 strip 裡）；章末的「回到章首」捲到開場問題
+        expect(container.querySelector('[data-testid="ch13-symbols-link"]')).toBeNull()
+        expect(page.firstElementChild).toBe(container.querySelector('#ch13-question'))
+        expect((container.querySelector('#ch13-question') as HTMLElement).nextElementSibling).toBe(container.querySelector('#ch13-map'))
+        expect(container.querySelector('#ch13-map figure.c-sysmap + .c-map-note')).not.toBeNull()
+        expect((container.querySelector('#ch13-map') as HTMLElement).nextElementSibling).toBe(container.querySelector('.ch13-badges'))
+        expect((container.querySelector('.ch13-badges') as HTMLElement).compareDocumentPosition(container.querySelector('#ch13-freeze') as HTMLElement) & FOLLOWING).toBeTruthy()
         const scrolled: Element[] = []
         const proto = Element.prototype as unknown as { scrollIntoView?: (this: Element) => void }
         const savedScroll = proto.scrollIntoView
@@ -120,11 +122,8 @@ describe('Chapter 13（jsdom smoke）', () => {
           scrolled.push(this)
         }
         try {
-          fireEvent.click(symLink)
-          expect(scrolled).toEqual([symbols])
-          expect(document.activeElement).toBe(symbols)
           fireEvent.click(container.querySelector('[data-testid="ch13-symbols-top"]') as HTMLButtonElement)
-          expect(scrolled[1]).toBe(container.querySelector('#ch13-question'))
+          expect(scrolled).toEqual([container.querySelector('#ch13-question')])
         } finally {
           proto.scrollIntoView = savedScroll
         }
@@ -139,7 +138,7 @@ describe('Chapter 13（jsdom smoke）', () => {
         expect(focusedIds.sort(), mode).toEqual(systemMapModel(SYSTEM_MAP_FOCUS).blocks.filter((b) => b.focused).map((b) => b.id).sort())
         expect(focusedIds.sort(), mode).toEqual([...SYSTEM_MAP_FOCUS].sort())
         expect((container.querySelector('#ch13-question') as HTMLElement).compareDocumentPosition(figs[0]) & FOLLOWING).toBeTruthy()
-        expect(figs[0].compareDocumentPosition(symLink) & FOLLOWING).toBeTruthy()
+        expect(figs[0].compareDocumentPosition(container.querySelector('.ch13-badges') as HTMLElement) & FOLLOWING).toBeTruthy()
         for (const f of figs) expect(f.querySelector('figcaption')?.textContent?.length ?? 0, mode).toBeGreaterThan(10)
         expect(screen.getAllByText(/方法 A：Freeze/).length).toBeGreaterThan(0)
         expect(screen.getAllByText(/方法 D：高解析 accumulator/).length).toBeGreaterThan(0)

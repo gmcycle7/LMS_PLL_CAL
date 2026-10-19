@@ -1,0 +1,161 @@
+/*
+ * 章首／章末骨架（PageFrame 掛上去的三個共用元件；docs/teaching-style.md §9）：
+ *   .c-chapter-opening  章首的插槽：系統地圖（第一張圖）之後 → 本章資訊 strip → 模式提示 → 先備自檢
+ *   .c-chinfo           ChapterInfoStrip：規格書 §、驗證 T-id、三種模式的閱讀時間、勘誤、手算、符號表（一行、可換行）
+ *   .c-prereq-check     PrereqCheck：「進來之前你應該會」（三種模式都展開，2–4 條）
+ *   .c-handoff          ChapterHandoff：章末「下一章要解決什麼」（Wrap 之後、符號表之前）
+ * 顏色一律用 global.css 的 token；沒有固定高度、沒有 overflow: auto（不會出現沒有用途的捲軸）。
+ */
+.c-chapter-opening {
+  margin: 14px 0 22px;
+}
+.c-chapter-opening > .c-mode-hint {
+  margin: 8px 0 0;
+}
+
+/* ───── 本章資訊 strip ───── */
+.c-chinfo {
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  padding: 7px 12px;
+}
+.c-chinfo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 0;
+}
+.c-chinfo-item {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+/* 分隔點掛在前一項的尾端（不是下一項的開頭）：換行時不會有一個點孤單地排在新的一行開頭 */
+.c-chinfo-item:not(:last-child)::after {
+  content: '·';
+  margin: 0 9px;
+  color: var(--text-faint);
+}
+.c-chinfo-label {
+  color: var(--text-faint);
+}
+.c-chinfo a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.c-chinfo a:hover,
+.c-chinfo a:focus-visible {
+  text-decoration: underline;
+}
+.c-chinfo-mode {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+}
+.c-chinfo-mode:not(:last-child)::after {
+  content: '/';
+  margin: 0 5px;
+  color: var(--text-faint);
+}
+.c-chinfo-mode.is-current {
+  color: var(--text);
+  font-weight: 600;
+}
+.c-chinfo .c-test {
+  vertical-align: baseline;
+}
+
+/* ───── 先備自檢 ───── */
+.c-prereq-check {
+  margin: 12px 0 0;
+  padding: 10px 14px;
+  border-left: 4px solid var(--accent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--accent-soft);
+}
+.c-prereq-check-title {
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+.c-prereq-check-title::before {
+  content: '✓ ';
+  color: var(--accent);
+}
+.c-prereq-check-list {
+  margin: 0;
+  padding-left: 1.3em;
+}
+.c-prereq-check-list li {
+  margin: 2px 0;
+}
+.c-prereq-check-go {
+  margin-left: 6px;
+  font-size: 0.9em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.c-prereq-check-go .c-chref {
+  font-weight: 500;
+}
+.c-prereq-check-note {
+  margin: 6px 0 0;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+}
+
+/* ───── 章末交棒 ───── */
+.c-handoff {
+  margin: 36px 0 28px;
+  padding: 12px 16px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.c-handoff-kicker {
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  margin: 0 0 4px;
+}
+.c-handoff-body {
+  margin: 0;
+}
+.c-handoff-next {
+  font-weight: 600;
+}
+.c-handoff-next .c-chref::after {
+  content: ' →';
+}
+
+/* 窄螢幕：一項一行（不放分隔點——換行的項目會把點留在行尾或單獨一行） */
+@media (max-width: 600px) {
+  .c-chinfo {
+    padding: 7px 10px;
+  }
+  .c-chinfo-list {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+  }
+  .c-chinfo-item:not(:last-child)::after {
+    content: none;
+  }
+  .c-prereq-check-go {
+    white-space: normal;
+  }
+}
+
+@media print {
+  .c-chinfo,
+  .c-prereq-check,
+  .c-handoff {
+    break-inside: avoid;
+  }
+}

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { useSettings, type LearningMode } from '@/app/settings'
 import { fmt } from '@/simulation/core'
-import { HandCalc, Mermaid, Tex } from '@/components'
+import { HandCalc, Mermaid, Tex, scrollToElement } from '@/components'
 import { diagramNumber } from './diagrams'
 import { handcalc } from './handcalcs'
 
@@ -94,11 +94,13 @@ export function mt(s: string): ReactNode {
 }
 
 /**
- * 頁內跳轉。HashRouter 下 href="#id" 會被當成路由（整頁換掉），所以用按鈕 + scrollIntoView；
- * jsdom 沒有實作 scrollIntoView，所以用可選呼叫。
+ * 頁內跳轉。HashRouter 下 href="#id" 會被當成路由（整頁換掉），所以用按鈕 + 共用的 scrollToElement：
+ * 它會先展開目標的所有祖先 <details>（Part 2 在 Beginner 模式整段收合、推導框預設收合），再捲動、聚焦並短暫標示；
+ * jsdom 沒有實作 scrollIntoView，它用可選呼叫。
  */
 export function jumpTo(id: string): void {
-  document.getElementById(id)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+  const el = document.getElementById(id)
+  if (el) scrollToElement(el)
 }
 
 /** 長得像連結的頁內跳轉按鈕（章首目錄、「本章符號表在最後」）。 */
@@ -152,5 +154,43 @@ export function HandCalcBox({ id, children }: { id: string; children: ReactNode 
       </p>
       <HandCalc def={handcalc(id)} />
     </div>
+  )
+}
+
+/**
+ * 本章分成兩個 Part（2026-10-19 審查：Beginner 路徑上第一個 PLL 章卻是全站最重的一章，RTL 細節和訊號流混在同一頁）：
+ *   Part 1「訊號流：DTC → DSM → PD → GMAC」= §1–§3 + 思考題；Part 2「硬體實作：定點、暫存器、RTL 對照」= §4–§7。
+ * PartHead 是 Part 1 的標題橫幅。PartFold 是 Part 2 的外框：Beginner 模式整段收成一個 <details>（只留一句摘要與「Engineer 模式才展開」的提示），
+ * Engineer／Research 預設展開。內容永遠在 DOM 裡——公式錨點、?a= 深連結、站內搜尋與頁內目錄都找得到，
+ * 共用的 revealAnchor／scrollToElement 會展開祖先 <details>——所以收合只影響版面，不影響任何連結。
+ * 以 key 綁定模式：切換模式時重設預設狀態；使用者手動展開／收合優先。
+ */
+export function PartHead({ n, title, id, children }: { n: number; title: ReactNode; id: string; children: ReactNode }) {
+  return (
+    <div className="ch04-part-head">
+      <span className="ch04-part-badge">Part {n}</span>
+      <h2 className="ch04-part-title" id={id}>
+        {title}
+      </h2>
+      <p className="ch04-part-lead">{children}</p>
+    </div>
+  )
+}
+
+export function PartFold({ n, title, id, lead, children }: { n: number; title: ReactNode; id: string; lead: ReactNode; children: ReactNode }) {
+  const mode = useModeSafe()
+  const open = mode !== 'beginner'
+  return (
+    <details className="ch04-part" open={open} key={mode} data-mode={mode}>
+      <summary className="ch04-part-summary">
+        <span className="ch04-part-badge">Part {n}</span>
+        <h2 className="ch04-part-title" id={id}>
+          {title}
+        </h2>
+        <span className="ch04-part-lead">{lead}</span>
+        {!open && <span className="ch04-part-hint">目前是 Beginner 模式，這一部分預設收合：按這裡展開，或把頁首的學習模式切到 Engineer，就會自動展開。</span>}
+      </summary>
+      <div className="ch04-part-body">{children}</div>
+    </details>
   )
 }

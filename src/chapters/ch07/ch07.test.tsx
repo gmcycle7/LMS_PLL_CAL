@@ -123,19 +123,15 @@ describe('Chapter 07（jsdom smoke）', () => {
     expect(precedes(container.querySelector('#ch07-recap'), symbols)).toBe(true)
     expect(precedes(container.querySelector('#ch07-pll'), symbols)).toBe(true)
     expect(symbols.querySelector('h2')?.textContent).toBe('本章符號表')
-    // 章首只留一行連結「本章符號表在最後 ↓」：在系統地圖與 7.1 節之前；是按鈕而不是會改變 HashRouter 路由的 href
-    const link = container.querySelector('.ch07-symlink button') as HTMLButtonElement
-    expect(link).not.toBeNull()
-    expect(link.textContent).toContain('本章符號表在最後')
-    expect(container.querySelectorAll('.ch07-symlink')).toHaveLength(1)
-    expect(link.closest('a')).toBeNull()
+    // 章首骨架（teaching-style §9）：導言 → 系統地圖 → 「你在這裡」（.c-map-note）→ 標籤列 → 7.1；不再有「本章符號表在最後 ↓」那一行（連結在 PageFrame 的 strip 裡）
+    expect(container.querySelectorAll('.ch07-symlink')).toHaveLength(0)
     expect(container.querySelector('a[href="#symbols"]')).toBeNull()
-    expect(precedes(link, container.querySelector('figure.c-mermaid'))).toBe(true)
-    expect(precedes(link, container.querySelector('#ch07-problem'))).toBe(true)
-    const scrolled = vi.fn()
-    symbols.scrollIntoView = scrolled
-    fireEvent.click(link)
-    expect(scrolled).toHaveBeenCalledTimes(1)
+    const lead = container.querySelector('.ch07-lead')!
+    expect(container.querySelector('.ch07')!.firstElementChild).toBe(lead)
+    expect(lead.nextElementSibling).toBe(container.querySelector('figure.c-mermaid.c-sysmap'))
+    expect(lead.nextElementSibling!.nextElementSibling).toBe(container.querySelector('.c-map-note'))
+    expect(precedes(container.querySelector('.c-map-note'), container.querySelector('.c-tag-row'))).toBe(true)
+    expect(precedes(container.querySelector('.c-tag-row'), container.querySelector('#ch07-problem'))).toBe(true)
     // 章首的系統地圖 + 22 張方塊圖（原始碼的語法與內容由 diagrams.test.tsx 用真正的 mermaid 檢查）
     const figures = container.querySelectorAll('figure.c-mermaid')
     expect(figures).toHaveLength(23)

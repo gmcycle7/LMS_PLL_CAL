@@ -1030,8 +1030,8 @@ describe('Ch10 方塊圖：頁面', () => {
     const focused = Array.from(mapHost.querySelectorAll('g.c-sysmap-block.is-focus')).map((g) => g.getAttribute('data-block'))
     expect(focused.sort()).toEqual(['acc', 'gmac', 'scale'])
     expect(focused.sort()).toEqual(FOCUSED_BLOCKS)
-    // 章首只有一行符號表連結，沒有符號表本身
+    // 章首沒有符號表本身，也沒有「本章符號表在最後」那一行（連結由 PageFrame 的本章資訊 strip 提供）
     expect(container.querySelector('.c-symbols')).toBeNull()
-    expect(container.querySelector('.ch10-symbols-link button')?.textContent).toMatch(/本章符號表在最後/)
+    expect(container.querySelector('.ch10-symbols-link')).toBeNull()
   })
 })

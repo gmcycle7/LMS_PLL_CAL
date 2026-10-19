@@ -44,6 +44,8 @@
 5. **線性化 PLL**：DTC 的殘餘誤差 `φ_dtc`（或時間 `δt`）在 PD 的 **reference 輸入端**注入：`e_PD = φ_dtc − θ_fb`，解出來 `e_PD = H_PD·φ_dtc`、`θ_out = T·φ_dtc`（都是正號）。`H_PD = 1/(1+L)`、`T = L/(1+L)`、`H_PD + T = 1` 不變。相位的正負號：全站把相位寫成「edge 的時間誤差 × `2π·f_out`」，**晚到為正**（和 `e[n] = t_ref′ − t_fb` 同一個方向）。Ch12 的 `δt = x·δw`（`δw = w − w*`，勘誤 E33）是 DTC **多補償**的時間——reference edge 早到 `δt`——所以它在 PD 的 reference 輸入是 `−δt`：`φ_dtc = −2π·f_out·δt`、`φ_out = θ_out = T·φ_dtc = −2π·f_out·T·δt`（F-12.16）。式子裡的負號來自 `δt` 的定義，不是 `T` 的正負號；`|T|²`、jitter、spur dBc 與它無關。
 6. **使用者晶片的細節**（8 相 PMUX 在回授、input DTC 只補 `T_vco/8` 以內）在案例頁 `/case/sspll`；一般章節用上面的通用模型。
 
+7. **INL 模型與符號（Ch11b，2026-10-19 起）**：Ch11b 把 INL 校正也放在 reference 端的 DTC 裡：`τ_DTC[n] = T_0 − w·x[n] − c(x[n]) + d(x[n])`，`c(x) = Σ_i θ_i φ_i(x)` 是 INL 校正的補償量（分段 one-hot × x、LUT one-hot、或多項式基底的線性組合，和 `w·x` 一樣從 `T_0` 往回扣），`d(x)` 仍是 DTC 在這個 code 多出來的延遲（多延遲為正，以正號進入誤差），所以 PD 量的是 `e[n] = (a − w)·x[n] + b + d(x[n]) − c(x[n]) + v[n]`（`src/simulation/models/dtcInl.ts`、F-11B.1）。Ch11b 的 `x` 是**正規化到 `[−1, 1]`** 的 code（MASH 1-1-1 的餘數 `r/2`、first-order 的 `2(r + ½)`、uniform 直接 `U(−1, 1)`），INL 係數 `d_2`、`d_3`（Ch11 的 `c_2`、`c_3`；`c` 在 Ch11b 留給補償量）與鋸齒振幅 `A_s` 以 `x = ±1` 處的 t.u. 計；`w = a` 時 `K = 1` 的分段結構就是 Ch11 的 gain LMS。噪聲折返用 Gaussian–Isserlis（`S_{He_p}(0) = p!·Σ_m R_x[m]^p`）加上線性過程的四階累積量修正（MASH：`S_2(0) = 2ΣR² + κ_4(Σh²)²`，`h = [−½, 1, −½]`、`κ_4 = −1/120`），Gaussian 式對 MASH code（峰度約 2.4）高估約 45%，三次項與鋸齒沒有封閉式、只有 Welch 量測；所有 Ch11b 的數字都是 illustrative。
+
 ## 3. 架構限制（本實作）
 
 - 純前端：所有模擬在瀏覽器（Web Worker）執行，單次模擬長度受瀏覽器記憶體與時間限制；大型 sweep 會抽樣顯示。
@@ -74,3 +76,9 @@
 - 方塊圖（Mermaid）的節點、連線與群組標題和 Plotly 的軸標題、圖例都已用 LaTeX 排版（Mermaid 經 KaTeX，Plotly 經 `plotMath.ts` 轉成 Plotly 能畫的偽 HTML），但 Plotly 的部分只支援斜體、上下標與常用符號，不是完整的 KaTeX；方塊圖的版面（節點重疊、換行）只在 jsdom 以估計字寬驗證，並在瀏覽器抽查數頁，未逐張人工審閱；其餘文字以 LaTeX 為原則（多數章節有測試檢查標題、指標名稱、警告中沒有 Unicode 拼湊的公式，但未逐字人工審閱）。
 - 手算題顯示的每一步採精確十進位運算（等同紙筆結果），答案框則是模擬函式的回傳值；兩者由測試逐題比對一致。極端輸入（12 位以上刻意相消的小數）下兩者可能在末幾位不同。
 - 所有晶片數值皆為 illustrative；文獻（Papers 頁）只作背景閱讀，不是本站數值的量測來源。
+
+**交叉比對欄的補充（2026-10-19 修訂；欄位語意見 `docs/dev-conventions.md` §9）**
+- Sign-off 的 Corner 判斷器：`ρ` 與 `k₉₅` 都由特徵式 `z^{d+1} − z^d + g = 0` 的 `d + 1` 個極點算出——`k₉₅` 用極點的模態展開 `y_k = Σ c_i λ_i^k`（重根補 `k λ^k` 項）逐步求值（`stability.settleFromPoles`），「之後不再超過 5%」由三角不等式上界 `Σ|c_{i,p}| k^p ρ_i^k ≤ 0.05`（`ρ_i = |λ_i|`，重根才有 `p ≥ 1` 的項）證明；和首頁 `settleDelayed` 逐 block 遞推的數字相同（`stability.test.ts` 在 `d = 0…6` 的整個穩定區逐點比對，差 < 1 步）。只用 `ρ` 的 `⌈ln 0.05 / ln ρ⌉` 是近似（忽略留數與振盪），頁面另列不判定。極慢的 mode（證明需要的步數超過 2×10⁶）仍退回漸近估計並標 `≥`。
+- `/lab` 的 Fixed-Point 欄（Monte Carlo 與 FCW sweep 分頁）：開啟定點暫存器時，每一段 seeds／FCW 再用 `quantize = false` 跑一次同 seed 的浮點對照（執行時間加倍），比的是**內部暫存器** `w` 後半段平均的成對差（Pipeline 分頁比的是實體 gain `wPhys`，兩者差一個捨入到實體 LSB 的量；容差 `1 LSB + 4 SE` 已含）。sweep 只在「每點再跑閉迴路」時才有對照（開迴路量與定點無關，標 `n/a`）。「一致」仍只代表「在這些 seeds、這個 LSB 下定點沒有系統性偏離浮點」，不是 bit-true。
+- Ch02 Batch-vs-SGD 的 Monte Carlo 欄：12 個 seeds（各自重抽資料與洗牌順序），統計 SGD 最後的 `w − w_LS`，判定 `|mean| ≤ 4·se`。模型是「固定步長 SGD 在經驗最小平方解附近無偏抖動」：重新洗牌造成的固定點偏移 `∝ μ Σx_i³ r_i / Σx_i²` 對資料集取期望為 0，但是 `O(μ²)` 項沒有算進容差；transient 沒消失（更新次數 < 8/(μ P̂_x)）或發散時標 `n/a`。
+- 本節開頭「多數實驗的 Fixed-Point 欄為 `Not implemented`」在 2026-10-19 之後只對沒有定點模型的實驗成立，而且那些格子改標 `n/a` 並附原因；真正的功能缺口（例如 MIMO 判斷器的定點係數量化、SSPLL Jacobian 的定點 GMAC）仍標 `Not implemented` 並指向 roadmap。

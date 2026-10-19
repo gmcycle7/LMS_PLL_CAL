@@ -10,7 +10,7 @@ import { S6Corner } from './sections/S6Corner'
 import { S7Schedule } from './sections/S7Schedule'
 import { S8StateMachine } from './sections/S8StateMachine'
 import { S9Wrap } from './sections/S9Wrap'
-import { S10Symbols, SymbolsLink } from './sections/S10Symbols'
+import { S10Symbols } from './sections/S10Symbols'
 import './chapter.css'
 
 const TOC: { id: string; label: ReactNode }[] = [
@@ -29,29 +29,34 @@ const TOC: { id: string; label: ReactNode }[] = [
 
 /**
  * Ch14：Learning Rate、Accumulation Length 與 Tracking Schedule（規格 §14、§14.1、§14.2；第 10 課；勘誤 E16、E48）。
- * 版面：章首系統地圖 → 各節（每個主要概念先放方塊圖，原始碼在 diagrams.ts）→ Recap → 章末符號表（id="symbols"）。
+ * 版面：章首問題與系統地圖（標籤列與本章目錄接在地圖之後；本章資訊、先備自檢由 PageFrame 放在同一個位置）→ 各節（每個主要概念先放方塊圖，原始碼在 diagrams.ts）→ Recap → 章末符號表（id="symbols"）。
  * 所有數字與曲線由 src/simulation/models/optimizer.ts 即時計算（重的 Monte Carlo 走 Web Worker）。
  */
 export default function Chapter14() {
   return (
     <div className="ch14" id="ch14-top">
-      <div className="c-tag-row">
-        <ModelLevel level="L1" />
-        <ClaimTag kind="exact" />
-        <ClaimTag kind="approx" />
-        <SourceTag kind="illustrative" />
-      </div>
-      <nav aria-label="本章目錄" className="small">
-        {TOC.map((t, i) => (
-          <span key={t.id}>
-            {i > 0 && ' · '}
-            <AnchorLink id={t.id}>{t.label}</AnchorLink>
-          </span>
-        ))}
-        {' · '}
-        <SymbolsLink>符號表（章末）</SymbolsLink>
-      </nav>
-      <S1Intro />
+      <S1Intro
+        afterMap={
+          <>
+            <div className="c-tag-row">
+              <ModelLevel level="L1" />
+              <ClaimTag kind="exact" />
+              <ClaimTag kind="approx" />
+              <SourceTag kind="illustrative" />
+            </div>
+            <nav aria-label="本章目錄" className="small">
+              {TOC.map((t, i) => (
+                <span key={t.id}>
+                  {i > 0 && ' · '}
+                  <AnchorLink id={t.id}>{t.label}</AnchorLink>
+                </span>
+              ))}
+              {' · '}
+              <AnchorLink id="symbols">符號表（章末）</AnchorLink>
+            </nav>
+          </>
+        }
+      />
       <S2Msd />
       <S3Objectives />
       <S4Budget />

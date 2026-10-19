@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import { Callout, ClaimTag, ModeGate, Plot, Prereq, Section, SourceTag, SystemMap, Tex, TexBlock } from '@/components'
 import { dwStep } from '@/simulation/models/calNoise'
@@ -10,7 +10,8 @@ const ETA_PATTERN = [1, -1, 1, 1, -1, -1, 1, -1]
 
 const V_LAYOUT: Partial<Layout> = { xaxis: { title: { text: 'block $k$' } }, yaxis: { title: { text: String.raw`$V_k$ [$\mathrm{fs}^2$]` } } }
 
-export function S1Intro() {
+/** @param afterMap 接在系統地圖的說明段落之後的內容（index.tsx 把標籤列與導言放在這裡） */
+export function S1Intro({ afterMap }: { afterMap?: ReactNode } = {}) {
   // 手算表：δw_{k+1} = p δw_k + μ η_k，η_k = ±σ_η（示意圖樣）
   const hand = useMemo(() => {
     const sEta = Math.sqrt(EX.sigmaEta2)
@@ -55,11 +56,12 @@ export function S1Intro() {
         focus={CH12_SYSTEM_FOCUS}
         caption={String.raw`系統地圖：藍色是本章追蹤的雜訊路徑，從 comparator 前的雜訊、1-bit comparator、GMAC、平均與學習率、gain accumulator、gain correction 到 reference 輸入端的 DTC，最後分成兩個出口：phase detector 看到的 residual，以及 VCO 輸出。comparator 取的是 phase detector 的輸出 $e[n]$，也就是送進 loop filter 的同一個訊號。教學用概念架構，不是特定晶片的 netlist。`}
       />
-      <p>
+      <p className="c-map-note">
         {md(
           String.raw`藍色方塊就是雜訊走的路：1-bit comparator 取的是 phase detector 的輸出 $e[n]$（送進 loop filter 的同一個訊號），上面疊著 comparator 前的雜訊，所以 1-bit 判斷會亂跳；GMAC 把它平均、乘上學習率後累加成係數的抖動，這個抖動在 gain correction 乘上 code，送到 reference 輸入端的 DTC，變成補償量的誤差——DTC 的延遲比該有的短了一點或長了一點，reference edge 因此早到或晚到一點。這份時間誤差有兩個地方看得到——phase detector 的 residual，以及經過 PLL 迴路之後的 VCO 輸出。前面幾章只問這條校正迴路「平均」會不會收斂，本章新增的是沿著同一條路，把雜訊的大小（RMS）、頻寬與頻譜一路算到輸出的 jitter 或 spur。`,
         )}
       </p>
+      {afterMap}
 
       <div className="ch12-goals">
         <div className="ch12-goal">

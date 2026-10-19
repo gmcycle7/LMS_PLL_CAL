@@ -1,0 +1,22 @@
+{
+  "id": "dtc-inl-basis-uniform-m3",
+  "title": "基底比較：uniform、M = 3、g_max = 0.1（本章例）",
+  "page": "/ch/11b",
+  "experiment": "dtc-inl-basis",
+  "description": "同一個 d = 20x² + 10x³、同樣的 μK_qλ_max：monomial、Legendre、normalized Legendre、Chebyshev 的條件數與收斂。",
+  "params": {
+    "codeKind": "uniform",
+    "frac": 0.618,
+    "M": 3,
+    "d2": 20,
+    "d3": 10,
+    "gMax": 0.1,
+    "sigmaV": 10,
+    "N": 64,
+    "blocks": 3000,
+    "precond": "none",
+    "gamma": 0.1
+  },
+  "expected": "條件數 67.6 / 7 / 1 / 5.9；mean-field k95 = 560 / 131 / 29 / 125 blocks（golden dtc_inl_basis.json）；四條曲線終點相同（floor 0）。",
+  "source": "illustrative"
+}

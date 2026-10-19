@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { Callout, ClaimTag, Section, SourceTag, StepDerivation, SystemMap, Tex, TexBlock } from '@/components'
 import { buildCodeDistribution, eDet, meanGmacMse, perCodeGain, type ErrorModel } from '@/simulation/models/bias'
 import { chop, num, signed, m, texNum } from '../common'
@@ -9,7 +9,8 @@ import { Hand } from '../Hand'
 const CUBIC: ErrorModel = { a: 1, b: 0, c2: 0, c3: 0.1, kappa: 0, sigmaV: 0 }
 
 /** §11 開場：問題、系統地圖、先算一次、誤差來源圖（方塊圖的 Mermaid 原始碼在 ../diagrams.ts）。 */
-export function IntroSection() {
+/** @param afterMap 接在系統地圖的「你在這裡」之後的內容（index.tsx 把標籤列放在這裡） */
+export function IntroSection({ afterMap }: { afterMap?: ReactNode } = {}) {
   const five = useMemo(() => buildCodeDistribution({ kind: 'five_level' }), [])
   const rows = useMemo(
     () =>
@@ -44,11 +45,12 @@ export function IntroSection() {
         </p>
       </Callout>
       <SystemMap focus={SYSTEM_MAP_FOCUS} />
-      <p>
+      <p className="c-map-note">
         <strong>你在這裡：</strong>藍色方塊是這一課的主角 —— 誤差進來的三個地方（DTC 的 gain 與 INL、PD 的 offset 與耦合、comparator 前的雜訊{' '}
         <Tex>{'v[n]'}</Tex>），以及只看得到「誤差與 code 的相關」的 1-bit comparator、GMAC 與 gain accumulator。前面幾課假設誤差只有「gain 不對」這一項；這一課把
         offset、INL、code-correlated 干擾與雜訊全部加進來，算出 gain accumulator 的 <Tex>{'w'}</Tex> 最後停在哪裡，以及它離真實的 DTC gain 多遠。
       </p>
+      {afterMap}
 
       <Section kind="intuition" title="直覺：用一條直線去貼一條彎曲的 DTC 曲線" level={2} id="ch11-intuition">
         <p>

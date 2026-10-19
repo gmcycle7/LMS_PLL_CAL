@@ -1280,9 +1280,12 @@ describe('Ch08 頁面：系統地圖、所有方塊圖與章末符號表', () =>
     expect(drawn.map((g) => g.getAttribute('data-block')).sort()).toEqual(model.blocks.map((b) => b.id).sort())
     expect(drawn.filter((g) => g.classList.contains('is-focus')).map((g) => g.getAttribute('data-block')).sort()).toEqual(['acc', 'gmac', 'scale'])
     expect(drawn.filter((g) => g.getAttribute('data-focus') === 'true')).toHaveLength(3)
-    expect(mapFigure.previousElementSibling?.textContent ?? '').toMatch(/系統地圖.*藍色的三個方塊.*回授迴路/)
-    expect(text.indexOf('這一章要回答的問題')).toBeLessThan(text.indexOf('先看系統地圖'))
-    expect(text.indexOf('先看系統地圖')).toBeLessThan(text.indexOf('先用一個生活例子'))
+    // 章首骨架（teaching-style §9）：問題是第一個區塊、系統地圖緊接在後、「你在這裡」（.c-map-note）緊接在圖後
+    expect(mapFigure.previousElementSibling?.textContent ?? '').toContain('這一章要回答的問題')
+    expect(mapFigure.nextElementSibling?.classList.contains('c-map-note')).toBe(true)
+    expect(mapFigure.nextElementSibling?.textContent ?? '').toMatch(/你在這裡.*藍色的三個方塊.*回授迴路/)
+    expect(text.indexOf('這一章要回答的問題')).toBeLessThan(text.indexOf('你在這裡'))
+    expect(text.indexOf('你在這裡')).toBeLessThan(text.indexOf('先用一個生活例子'))
     expect(mapFigure.closest('section.c-section')).toBeNull()
 
     // 其餘 19 張：圖說夠長（說明要看什麼）；圖說裡的數學是 KaTeX（沒有殘留的 `$`、沒有用 Unicode 拼的公式）；
@@ -1463,7 +1466,7 @@ describe('Ch08 頁面：系統地圖、所有方塊圖與章末符號表', () =>
       return p!
     }
     // 章首：校正迴路的那一圈走 reference 端的 DTC → PD；comparator 取的是 PD 的輸出（送進 loop filter 的同一個訊號）
-    const intro = container.querySelector('figure.c-sysmap')!.previousElementSibling
+    const intro = container.querySelector('figure.c-sysmap')!.nextElementSibling // 地圖後的「你在這裡」（.c-map-note）
     expect(norm(intro)).toContain('回到 reference 端的 DTC')
     expect(norm(intro)).toContain('PD 的輸出')
     expect(norm(intro)).toContain('送進 loop filter 的同一個訊號')
@@ -1513,7 +1516,7 @@ describe('Ch08 頁面：系統地圖、所有方塊圖與章末符號表', () =>
     expect(errorSpy).not.toHaveBeenCalled()
   }, SLOW)
 
-  it('engineer 模式：同樣的 20 張圖；符號表在頁面最後（id="symbols"），章首只留一行按鈕，按下去捲到符號表、再按「回到章首」捲回來', async () => {
+  it('engineer 模式：同樣的 20 張圖；符號表在頁面最後（id="symbols"），章首沒有符號表連結，符號表上方的「回到章首」捲回章節 root', async () => {
     const { container } = renderChapter('engineer')
     await checkFigures(container)
 
@@ -1549,21 +1552,15 @@ describe('Ch08 頁面：系統地圖、所有方塊圖與章末符號表', () =>
     expect(ranks).toEqual([...ranks].sort((x, y) => x - y))
     expect(symbols.textContent).toContain('本章符號表')
     expect(symbols.querySelectorAll('.c-tex-error, .katex-error')).toHaveLength(0)
-    // 章首：一行連結，在系統地圖之後、第一個小節之前；不是會改變路由的 <a href="#…">
-    const link = container.querySelector(`[id="${SYMBOLS_LINK_ID}"]`) as HTMLElement
-    expect(link.tagName).toBe('P')
-    const button = link.querySelector('button') as HTMLButtonElement
-    expect(button.textContent).toBe('本章符號表在最後 ↓')
-    expect(button.type).toBe('button')
+    // 章首不再有「本章符號表在最後」那一行（連結由 PageFrame 的本章資訊 strip 提供）；章節 root 帶 id／tabIndex，是「回到章首」的目標
+    expect(container.textContent ?? '').not.toContain('本章符號表在最後')
     expect(container.querySelectorAll('a[href*="#symbols"]')).toHaveLength(0)
-    expect(link.querySelectorAll('a')).toHaveLength(0)
     const text = container.textContent ?? ''
-    expect(text.split('本章符號表在最後')).toHaveLength(2) // 只有章首那一行
-    expect(text.indexOf('本章符號表在最後')).toBeGreaterThan(text.indexOf('先看系統地圖'))
-    expect(text.indexOf('本章符號表在最後')).toBeLessThan(text.indexOf('先用一個生活例子'))
     expect(text.indexOf('本章符號表（依第一次出現的順序）')).toBeGreaterThan(text.indexOf('應該記住的'))
+    expect(root.id).toBe(SYMBOLS_LINK_ID)
+    expect(root.tabIndex).toBe(-1)
 
-    // jsdom 沒有 scrollIntoView：裝一個替身，確認是對 #symbols 呼叫的，而且路由（hash）沒有被改掉
+    // jsdom 沒有 scrollIntoView：裝一個替身，確認「回到章首」是對章節 root 呼叫的，而且路由（hash）沒有被改掉
     const calls: string[] = []
     const proto = window.HTMLElement.prototype as unknown as { scrollIntoView?: () => void }
     const original = proto.scrollIntoView
@@ -1572,25 +1569,20 @@ describe('Ch08 頁面：系統地圖、所有方塊圖與章末符號表', () =>
     }
     try {
       const hashBefore = window.location.hash
-      act(() => {
-        fireEvent.click(button)
-      })
-      expect(calls).toEqual(['symbols'])
-      expect(document.activeElement).toBe(symbols)
       const back = symbols.querySelector('button') as HTMLButtonElement
       expect(back.textContent).toBe('↑ 回到章首')
       act(() => {
         fireEvent.click(back)
       })
-      expect(calls).toEqual(['symbols', SYMBOLS_LINK_ID])
-      expect(document.activeElement).toBe(link)
+      expect(calls).toEqual([SYMBOLS_LINK_ID])
+      expect(document.activeElement).toBe(root)
       expect(window.location.hash).toBe(hashBefore)
     } finally {
       proto.scrollIntoView = original
     }
     // 沒有 scrollIntoView 的環境（舊瀏覽器、jsdom）按了也不會拋錯
     act(() => {
-      fireEvent.click(button)
+      fireEvent.click(symbols.querySelector('button') as HTMLButtonElement)
     })
     expect(errorSpy).not.toHaveBeenCalled()
   }, SLOW)

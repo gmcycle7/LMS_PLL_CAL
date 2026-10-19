@@ -10,15 +10,17 @@ import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
 import { DEFAULT_FLOW_CASE, DEFAULT_FLOW_SHARED, FLOW_MC_RUNS, flowAnalyticCheck, flowConfig, flowMonteCarlo } from './experiments/SignalFlowExperiment'
 import { DEFAULT_FP_CASE, DEFAULT_FP_SHARED, SINGLE_SEED_HINT, buildLoopParams, roundingPredictionOk } from './experiments/FixedPointExperiment'
-import { DITHER_MIN, ROUNDING_MODES, ar1MeanSe, compareEncodings, ditherMinFor, halfEvenTieAmplitude, roundingMeanError, runFixedGmacLoop } from '@/simulation/models/gmac'
+import { DITHER_MIN, ROUNDING_MODES, ar1MeanSe, compareEncodings, ditherMinFor, halfEvenTieAmplitude, roundingMeanError, runFixedGmacLoop, sumAverageTable } from '@/simulation/models/gmac'
+import { erf } from '@/simulation/core'
 import { DEFAULT_ENCODING } from './experiments/BitEncodingExperiment'
 import { runBlockLms } from '@/simulation/models/blockLms'
 import { handGmac } from './sections/GmacMath'
 import { sliceGoldenGmac, defaultBiasNumbers, negateBugNumbers, windupNumbers, wTruncNumbers } from './sections/FixedPoint'
 import { clearVsNoClear } from './sections/HardwareNotes'
-import { DEFAULT_RESIDUE } from './sections/Residue'
+import { DEFAULT_RESIDUE, HAND } from './sections/Residue'
+import { QUIZ_SETTLE_RATIO, part1QuizNumbers } from './sections/Part1Quiz'
 import { CH04_SYMBOLS } from './sections/Symbols'
-import { residueSignals } from './residue'
+import { firstOrderAccumulator, residueSignals } from './residue'
 import { PAGE_TIMEOUT, WAIT, caseButtons, proseText, renderAt, shellOf, texText } from './pageTestUtils'
 
 const P = vi.hoisted(() => ({
@@ -103,57 +105,96 @@ describe('Ch04 頁面（jsdom smoke test）', () => {
       const all = container.querySelectorAll(after)
       expect(all[all.length - 1].compareDocumentPosition(symbols) & Node.DOCUMENT_POSITION_FOLLOWING, after).toBeTruthy()
     }
+    // 章首骨架（teaching-style §9）：問題是 root 的第一個區塊、系統地圖緊接在後、「你在這裡」是 .c-map-note；
+    // 章首不放符號表，也沒有「本章符號表在最後」那一行（連結在 PageFrame 的本章資訊 strip 裡）
     const question = container.querySelector<HTMLElement>('#ch04-question')!
     expect(question.querySelector('.c-symbols')).toBeNull()
-    expect(question.querySelectorAll('.ch04-symbols-link').length).toBe(1)
-    // （這一頁很大：按鈕直接用 selector 找，不用 getByRole——後者要對整個子樹算 accessibility，很慢）
-    const toSymbols = question.querySelector<HTMLButtonElement>('.ch04-symbols-link button')!
-    expect(toSymbols.textContent).toBe('本章符號表在最後 ↓')
-    expect(toSymbols.type).toBe('button')
-    // HashRouter 下 href="#symbols" 會改到路由：連結是按鈕，以 scrollIntoView 捲動（jsdom 沒有這個方法，這裡補一個來記錄）
+    expect(page.firstElementChild).toBe(question)
+    const sysmap = container.querySelector('figure.c-sysmap')!
+    expect(question.nextElementSibling).toBe(sysmap)
+    expect(sysmap.nextElementSibling).toBe(container.querySelector('.c-map-note'))
+    expect(container.querySelector('.ch04-symbols-link')).toBeNull()
+    expect(container.textContent).not.toContain('本章符號表在最後')
+    // 章末符號表上方的按鈕捲回章首
     const proto = Element.prototype as unknown as { scrollIntoView?: (this: Element) => void }
     const scrolled: string[] = []
     proto.scrollIntoView = function () {
       scrolled.push(this.id)
     }
-    const scrollTo = vi.fn()
-    const origScrollTo = window.scrollTo
-    window.scrollTo = scrollTo as unknown as typeof window.scrollTo
-    act(() => toSymbols.click())
-    expect(scrolled).toEqual(['symbols'])
-    // 符號表上方的「回到剛才讀到的地方」捲回按下連結時的位置
     const back = symbols.querySelector<HTMLButtonElement>('.ch04-symbols-back button')!
-    expect(back.textContent).toContain('回到剛才讀到的地方')
+    expect(back.textContent).toContain('回到章首')
     act(() => back.click())
-    expect(scrollTo).toHaveBeenCalledWith({ top: window.scrollY, behavior: 'smooth' })
-    // 章首目錄同樣是按鈕：第一個捲到 §1
-    const toc = Array.from(question.querySelectorAll<HTMLButtonElement>('.ch04-toc button'))
-    expect(toc.map((b) => b.textContent)).toEqual(['§1 系統全貌', '§2 Fractional residue', '§3 硬體對應與時序', '§4 GMAC 數學', '§5 定點 GMAC', '§6 RTL 檢查清單', '§7 思考題與本課必記'])
+    expect(scrolled).toEqual(['ch04-question'])
+    scrolled.length = 0
+    // 章首目錄（符號說明、接法之後）同樣是按鈕，分成 Part 1／Part 2／章末三列：第一個捲到 §1
+    const guide = container.querySelector<HTMLElement>('.ch04-guide')!
+    expect(sysmap.compareDocumentPosition(guide) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const toc = Array.from(guide.querySelectorAll<HTMLButtonElement>('.ch04-toc button'))
+    expect(Array.from(guide.querySelectorAll('.ch04-toc-group')).map((g) => g.textContent)).toEqual(['Part 1 訊號流', 'Part 2 硬體實作', '章末'])
+    expect(toc.map((b) => b.textContent)).toEqual(['§1 系統全貌', '§2 Fractional residue', '§3 GMAC 數學', '思考題', '§4 硬體對應與時序', '§5 定點 GMAC', '§6 RTL 檢查清單', '§7 綜合手算與思考題', '§8 本課必記'])
     act(() => toc[0].click())
-    expect(scrolled).toEqual(['symbols', 'ch04-system'])
+    expect(scrolled).toEqual(['ch04-system'])
+    // 目錄跳到 Part 2 裡的段落時會先展開 Part 2 的摺疊框（jumpTo 用共用的 scrollToElement：展開祖先 <details>）；這個測試沒有設定模式，所以是 Beginner、Part 2 收合
+    const part2 = container.querySelector<HTMLDetailsElement>('details.ch04-part')!
+    expect(part2.open).toBe(false)
+    act(() => toc[4].click())
+    expect(scrolled).toEqual(['ch04-system', 'ch04-hardware'])
+    expect(part2.open).toBe(true)
+    part2.open = false
     delete proto.scrollIntoView
-    window.scrollTo = origScrollTo
     // 整頁（含實驗框內共用 MetricTable 的「公式」欄）沒有會改到路由的 href="#xxx"（「#/…」是 HashRouter 的路由連結，不算）；
     // 公式連結是 FormulaLink：href 為 '#/formulas?f=…'
     const hashAnchors = Array.from(container.querySelectorAll('a[href^="#"]')).filter((a) => !a.getAttribute('href')!.startsWith('#/'))
     expect(hashAnchors.map((a) => a.getAttribute('href'))).toEqual([])
     const hs = headings(container)
-    for (const t of ['§1 完整概念系統', '§2 Fractional residue', '§3 硬體對應', '§4 GMAC 的數學', '§5 定點 GMAC', '§6 RTL 檢查清單', '§7 比較表']) {
-      expect(hs.some((h) => h.startsWith(t))).toBe(true)
+    for (const t of ['§1 完整概念系統', '§2 Fractional residue', '§3 GMAC 的數學', '思考題（Part 1：訊號流與數學）', '§4 硬體對應', '§5 定點 GMAC', '§6 RTL 檢查清單', '§7 比較表、綜合手算與思考題（Part 2）', '§8 本課必記']) {
+      expect(hs.some((h) => h.startsWith(t)), t).toBe(true)
     }
+    // 兩個 Part（index.tsx）：Part 1 = 章首之後的橫幅 + §1–§3 + 思考題；Part 2 = 一個 <details>，裡面依序是 §4–§7；§8 本課必記與符號表在摺疊框外面
+    const part1Head = container.querySelector('.ch04-part-head')!
+    expect(part1Head.querySelector('h2')!.id).toBe('ch04-part-1')
+    expect(part1Head.textContent).toContain('Part 1')
+    expect(part1Head.textContent).toContain('訊號流：DTC → DSM → PD → GMAC')
+    expect(question.compareDocumentPosition(part1Head) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(part1Head.compareDocumentPosition(container.querySelector('#ch04-system')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const part2Fold = container.querySelector<HTMLDetailsElement>('details.ch04-part')!
+    expect(part2Fold.querySelector('summary h2')!.id).toBe('ch04-part-2')
+    expect(part2Fold.querySelector('summary')!.textContent).toContain('硬體實作：定點、暫存器、RTL 對照')
+    expect(Array.from(part2Fold.querySelectorAll(':scope > .ch04-part-body > section')).map((el) => el.id)).toEqual(['ch04-hardware', 'ch04-fixed', 'ch04-notes', 'ch04-wrap'])
+    for (const id of ['ch04-question', 'ch04-part-1', 'ch04-system', 'ch04-residue', 'ch04-gmac', 'ch04-part1-quiz', 'ch04-recap', 'symbols']) expect(part2Fold.contains(container.querySelector(`#${id}`)!), id).toBe(false)
+    const order = ['ch04-question', 'ch04-part-1', 'ch04-system', 'ch04-residue', 'ch04-gmac', 'ch04-part1-quiz', 'ch04-part-2', 'ch04-hardware', 'ch04-fixed', 'ch04-notes', 'ch04-wrap', 'ch04-recap', 'symbols'].map((id) => container.querySelector(`#${id}`)!)
+    for (let i = 1; i < order.length; i++) expect(order[i - 1].compareDocumentPosition(order[i]) & Node.DOCUMENT_POSITION_FOLLOWING, order[i].id).toBeTruthy()
+    // Beginner（這個測試沒有設定模式）：Part 2 收合，summary 留一句摘要與「切到 Engineer 會自動展開」的提示；本課必記（Recap）不在摺疊框裡
+    expect(part2Fold.open).toBe(false)
+    expect(part2Fold.querySelector('.ch04-part-hint')!.textContent).toContain('切到 Engineer')
+    expect(container.querySelector('#ch04-recap .c-recap')).not.toBeNull()
+    expect(container.querySelectorAll('.c-recap').length).toBe(1)
     for (const t of ['GMAC 訊號流：一個 block 內逐 sample 追蹤', '定點 GMAC：位元數、overflow、rounding 偏差與 anti-windup', 'Fractional residue explorer：DSM → DTC 要補償什麼']) {
       expect(hs).toContain(t)
     }
     // 標題裡的 ±1 是 KaTeX（$\pm1$）
     const encTitle = Array.from(container.querySelectorAll('h1, h2, h3, h4')).find((h) => (h.textContent ?? '').startsWith('反面教材：comparator 0/1 忘了映射成'))
     expect(encTitle && texText(encTitle)).toBe('反面教材：comparator 0/1 忘了映射成 \\pm1')
-    // 八題「帶入手算」都在頁面上，最後一題（綜合題）在思考題之前
+    // 八題「帶入手算」都在頁面上；綜合題（HC-04.8，Part 2）在 Part 2 的思考題之前。思考題共十題：Part 1 六題（數學／訊號流）、Part 2 四題（RTL），依序編號 1–10
     const hcIds = Array.from(container.querySelectorAll('section.c-handcalc')).map((s) => s.id)
     expect(hcIds).toEqual(HANDCALCS.map((h) => `handcalc-${h.id}`))
     expect(container.querySelectorAll('.ch04-handcalc-lead').length).toBe(HANDCALCS.length)
     const lastHc = container.querySelector('[id="handcalc-HC-04.8"]')!
-    const firstQuiz = container.querySelector('.c-quiz')!
-    expect(lastHc.compareDocumentPosition(firstQuiz) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const firstPart2Quiz = container.querySelector('#ch04-wrap .c-quiz')!
+    expect(lastHc.compareDocumentPosition(firstPart2Quiz) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const quizTitles = Array.from(container.querySelectorAll('.c-quiz .c-quiz-title')).map((t) => texText(t))
+    expect(quizTitles.length).toBe(10)
+    quizTitles.forEach((t, i) => expect(t, t).toMatch(new RegExp(`^思考題 ${i + 1}（`)))
+    expect(container.querySelectorAll('#ch04-part1-quiz .c-quiz').length).toBe(6)
+    expect(container.querySelectorAll('#ch04-wrap .c-quiz').length).toBe(4)
+    expect(quizTitles.slice(0, 6).join('\n')).toMatch(/residue 的範圍與平均[^]*fractional residue[^]*DTC 延遲與 code 的線性關係[^]*GMAC 累加的尺度[^]*\\mu 與收斂步數[^]*忘了映射/)
+    expect(quizTitles.slice(6).join('\n')).toMatch(/sum vs average[^]*累加器位元數[^]*floor 的偏差[^]*\\mu 減半/)
+    // 每一題思考題都有提示（題幹最後一行）與解析按鈕
+    for (const q of Array.from(container.querySelectorAll('#ch04-part1-quiz .c-quiz'))) {
+      expect(q.querySelector('.c-quiz-q')!.textContent).toContain('提示：')
+      expect(q.querySelector('button')!.textContent).toBe('看答案與解析')
+    }
+    expect(container.querySelector('#ch04-part1-quiz')!.compareDocumentPosition(part2Fold) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     for (const s of Array.from(container.querySelectorAll('section.c-handcalc'))) expect(s.querySelectorAll('.c-step').length, s.id).toBeGreaterThan(0)
     // 22 張 Mermaid 圖的圖說由 MermaidFig 顯示：符號是 KaTeX（共用 Mermaid 的 caption 只能放純文字）；
     // 圖的內容、順序與實際渲染由 diagrams.test.tsx 檢查
@@ -167,7 +208,7 @@ describe('Ch04 頁面（jsdom smoke test）', () => {
     expect(ownCaptions.length).toBe(1)
     expect(ownCaptions[0].textContent).toMatch(/^系統地圖：藍色是這一課從頭走到尾的訊號路徑/)
     expect(ownCaptions[0].querySelector('.katex')).not.toBeNull() // 圖說裡的符號是 KaTeX
-    expect(question.contains(ownCaptions[0])).toBe(true)
+    expect(sysmap.contains(ownCaptions[0])).toBe(true)
     // 勘誤標籤連到驗證頁
     const errata = Array.from(container.querySelectorAll('a.ch04-erratum'))
     for (const id of ['E07', 'E13', 'E18']) expect(errata.some((a) => a.textContent === `勘誤 ${id}` && a.getAttribute('href') === '#/verification')).toBe(true)
@@ -175,7 +216,7 @@ describe('Ch04 頁面（jsdom smoke test）', () => {
     for (const fm of FORMULAS) expect(container.querySelector(`[id="formula-${fm.id}"]`), fm.id).not.toBeNull()
     // CodeBlock 的 region 都找得到（找不到時顯示「程式碼載入錯誤」）
     expect(container.textContent).not.toContain('程式碼載入錯誤')
-    // 所有 TeX 都能被 KaTeX 解析（含 Beginner 收合的推導；預設 engineer 模式）
+    // 所有 TeX 都能被 KaTeX 解析（含 Beginner 收合的推導與 Part 2；這個測試沒有設定模式，所以是第一次造訪的 Beginner）
     const texErrors = Array.from(container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => `${e.getAttribute('title') ?? ''} ⟵ ${e.textContent ?? ''}`)
     expect(texErrors).toEqual([])
     // Worker 計算（jsdom 下 inline）完成後出現結果
@@ -237,7 +278,7 @@ describe('Ch04 頁面（jsdom smoke test）', () => {
     expect(hw).toContain('雜訊 iid Gaussian 且與 code 獨立、w 在 h 的記憶長度內近似不變（第 1 步）')
     // 清理（R06b）：§4 的小訊號平均在推導旁寫出「w 在 h 的記憶長度內近似不變」這個前提（identity path 時是等式），和 §3 的推導、登錄的 F-04.4 一致
     expect(foldOf(String.raw`E[G_k]\approx K_qC\,\delta_k`)).toContain(
-      String.raw`第 3 步的 e=\delta_ku+v 在 PLL 誤差路徑有記憶（u\ne x）時另需 w 在 h 的記憶長度內近似不變（§3 推導的第 1 步，Ch06 的 F-06.1）；identity path（u=x）時是等式`,
+      String.raw`第 3 步的 e=\delta_ku+v 在 PLL 誤差路徑有記憶（u\ne x）時另需 w 在 h 的記憶長度內近似不變（§4 推導的第 1 步，Ch06 的 F-06.1）；identity path（u=x）時是等式`,
     )
     // 清理（R11）：四種取整那張圖的圖說、章末總表的 rounding 那一列、程式碼標題都指出 half-even 的 0 另有條件
     expect(figCaptions.map((c) => texText(c)).join('\n')).toContain(String.raw`再看最下面一排的平均誤差 \bar\varepsilon（餘數均勻時）：floor 偏負（紅色），half-even 為 0（綠色；它還多一個條件，見圖下的說明）`)
@@ -263,6 +304,9 @@ describe('Ch04 頁面（jsdom smoke test）', () => {
     const texErrors = Array.from(r.container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.textContent)
     expect(texErrors).toEqual([])
     expect(Array.from(r.container.querySelectorAll('details.ch04-fold')).every((d) => (d as HTMLDetailsElement).open)).toBe(true)
+    // Research：Part 2 展開、沒有 Beginner 的提示
+    expect(r.container.querySelector<HTMLDetailsElement>('details.ch04-part')!.open).toBe(true)
+    expect(r.container.querySelector('.ch04-part-hint')).toBeNull()
     // 外部審查 R11：Research 的補充——half-even 的 tie 項（週期是餘數的兩倍）與它的大小
     expect(r.container.textContent).toContain('的奇偶各半才精確為 0')
     expect(r.container.textContent).toContain('half-even 的')
@@ -281,6 +325,13 @@ describe('Ch04 頁面（jsdom smoke test）', () => {
     expect(folds.length).toBeGreaterThan(8)
     expect(folds.every((d) => !d.open)).toBe(true)
     expect(b.container.textContent).not.toContain('def accumulator_bits_required')
+    // Beginner：Part 2（§4–§7）整段收成一個 details，只留摘要與提示；內容仍在 DOM（公式錨點、手算題、?a= 深連結都找得到）
+    const part2 = b.container.querySelector<HTMLDetailsElement>('details.ch04-part')!
+    expect(part2.open).toBe(false)
+    expect(part2.querySelector('summary')!.textContent).toContain('目前是 Beginner 模式，這一部分預設收合')
+    expect(part2.querySelector('[id="handcalc-HC-04.8"]')).not.toBeNull()
+    expect(part2.querySelector('[id="formula-F-04.9"]')).not.toBeNull()
+    expect(b.container.querySelectorAll('#ch04-part1-quiz .c-quiz').length).toBe(6)
     // Beginner 模式下每個登錄的公式仍有錨點（Formula Reference 頁的連結不會落空），先備知識框也都在
     for (const fm of FORMULAS) expect(b.container.querySelector(`[id="formula-${fm.id}"]`), fm.id).not.toBeNull()
     for (const t of ['Z transform', '期望值', 'Gaussian 分布', 'pole 與單位圓', '二補數']) expect(b.container.textContent).toContain(t)
@@ -290,8 +341,11 @@ describe('Ch04 頁面（jsdom smoke test）', () => {
     b.unmount()
   }, PAGE_TIMEOUT)
 
-  it('?preset=gmac-flow-sum-vs-average 會載入三個 case（A/B/C），切到 B 時顯示 sum 模式的警告', async () => {
+  it('?preset=gmac-flow-sum-vs-average 會載入三個 case（A/B/C），切到 B 時顯示 sum 模式的警告；Engineer 模式下 Part 2 展開', async () => {
+    localStorage.setItem('lmspll.mode', 'engineer')
     const { container } = renderAt('/ch/04?preset=gmac-flow-sum-vs-average')
+    expect(container.querySelector<HTMLDetailsElement>('details.ch04-part')!.open).toBe(true)
+    expect(container.querySelector('.ch04-part-hint')).toBeNull()
     await waitFor(() => expect(caseButtons(container, 'gmac-signal-flow').map((b) => b.textContent?.trim())).toEqual(['Case A', 'Case B', 'Case C']), WAIT)
     act(() => caseButtons(container, 'gmac-signal-flow')[1].click())
     // blockLms 的警告是純文字（Unicode 拼的數學），頁面在顯示層轉成 $...$：N、μ/N 都是 KaTeX
@@ -766,6 +820,43 @@ describe('Ch04 資料與輔助計算', () => {
       } else expect(r.bugExactPred).toBe(3)
     }
   }, 60000)
+
+  it('Part 1 思考題的數字都由模型函式算出：code 的範圍與平均、r[3]、兩拍的補償量、GMAC 的 N_min、1% 收斂的 block 數', () => {
+    const n = part1QuizNumbers()
+    // 思考題 1：K_F = 5、M = 16 互質 ⇒ 一個週期走遍 0…15，平均 (M − 1)/(2M) = 15/32
+    expect(n.M).toBe(16)
+    expect([...n.sVals].sort((a, b) => a - b)).toEqual(Array.from({ length: 16 }, (_, i) => i))
+    expect(n.sVals.slice(0, 5)).toEqual(firstOrderAccumulator(HAND.KF, HAND.bits, 5).map((r) => r.s))
+    expect(n.xMean).toBe(15 / 32)
+    expect(n.xMax).toBe(15 / 16)
+    // 思考題 2：3-bit、K_F = 3 的 r[3] = −0.5（原思考題 4）
+    expect(n.r3.map((r) => r.s)).toEqual([3, 6, 1, 4])
+    expect(n.r3[3].residue).toBe(-0.5)
+    // 思考題 3：f_vco = 13 GHz，前兩拍需要的補償量 5/16、10/16 個 T_vco（與 preset gmac-residue-hand-example 同一個函式）
+    expect(n.tvco).toBeCloseTo(1e6 / 13, 6)
+    expect(n.need0).toBeCloseTo((5 / 16) * n.tvco, 6)
+    expect(n.need1).toBeCloseTo((10 / 16) * n.tvco, 6)
+    expect(n.need1 - n.need0).toBeCloseTo(24038.46, 2)
+    // 思考題 4：m_q = erf(0.01/√2)（F-04.6 的例子）；N m_q ≥ √(N(1 − m_q²)) ⇔ N ≥ (1 − m_q²)/m_q²
+    expect(n.mq).toBeCloseTo(erf(0.01 / Math.SQRT2), 15)
+    expect(n.mq).toBeCloseTo(0.00797871, 8)
+    expect(n.nMin).toBe(15708)
+    expect(n.nMin * n.mq).toBeGreaterThanOrEqual(Math.sqrt(n.nMin * (1 - n.mq * n.mq)))
+    expect((n.nMin - 1) * n.mq).toBeLessThan(Math.sqrt((n.nMin - 1) * (1 - n.mq * n.mq)))
+    // 思考題 5：§3 表格 N = 256 那一列（sumAverageTable）；p^k = 0.01 ⇒ k = ⌈ln 0.01 / ln p⌉；μ 減半約兩倍
+    const row = sumAverageTable({ mu: 10, sigmaV: 100, C: 1, Ex2: 1, Ns: [256] })[0]
+    expect(n.row.gAvg).toBe(row.gAvg)
+    expect(n.row.poleAvg).toBeCloseTo(0.9202115, 6) // p = 1 − 10·√(2/π)/100
+    expect(QUIZ_SETTLE_RATIO).toBe(0.01)
+    expect(n.k1).toBe(56)
+    expect(n.k1).toBe(Math.ceil(Math.log(0.01) / Math.log(row.poleAvg)))
+    expect(n.kExact).toBeCloseTo(55.38, 2)
+    expect(row.poleAvg ** n.k1).toBeLessThanOrEqual(0.01)
+    expect(row.poleAvg ** (n.k1 - 1)).toBeGreaterThan(0.01)
+    expect(n.k1Half).toBe(114)
+    expect(n.rowHalf.gAvg).toBeCloseTo(row.gAvg / 2, 12)
+    expect(n.tau).toBeCloseTo(1 / row.gAvg, 12)
+  })
 
   it('手算 GMAC 例子：S = 2、G = 0.5、w_avg = 2、w_sum = 5、G_bug = 0.25', () => {
     const h = handGmac()

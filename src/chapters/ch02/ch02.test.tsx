@@ -5,8 +5,10 @@ import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { SettingsProvider } from '@/app/settings'
 import type { PresetEntry } from '@/data/types'
+import { deriveSeed, meanCI } from '@/simulation/core'
 import {
   algoStepSizes,
+  batchVsSgd,
   meanFieldAnalysis,
   monteCarloCompare,
   meanFieldInputOf,
@@ -26,7 +28,7 @@ import { DEFAULT_CASE, DEFAULT_SHARED, caseWarnings, limitCycleLabel, sanitizeCa
 import { tn } from './common'
 import { fixedPointConsistency, summarizeConsistency, texSig } from './experiments/consistency'
 import { mathText, renderTex } from '@/components'
-import { BatchVsSgd } from './experiments/BatchVsSgd'
+import { BATCH_MC_RUNS, BatchVsSgd, batchVsSgdMcCheck } from './experiments/BatchVsSgd'
 import { FixedPointExplorer } from './experiments/FixedPointExplorer'
 import { GdExplorer } from './experiments/GdExplorer'
 import { LimitCycleBand } from './experiments/LimitCycleBand'
@@ -155,19 +157,14 @@ describe('Ch02 頁面（jsdom smoke）', () => {
       expect(container.querySelector(before)!.compareDocumentPosition(symbols) & FOLLOWING, `${before} 應在符號表之前`).toBeTruthy()
     for (const el of Array.from(container.querySelectorAll('h2, .c-quiz, .c-handcalc, .c-recap, [data-diagram], [data-experiment]')).filter((e) => !symbols.contains(e)))
       expect(el.compareDocumentPosition(symbols) & FOLLOWING).toBeTruthy()
-    // 章首只留一行：按鈕（不是會改變路由的 href）捲到 #symbols，並把焦點移過去；位置在 §1 之前
-    const jump = container.querySelector('.ch02-symbols-link button[data-jump="symbols"]') as HTMLButtonElement
-    expect(jump.textContent).toContain('本章符號表在最後')
-    expect(jump.compareDocumentPosition(container.querySelector('#ch02-s1')!) & FOLLOWING).toBeTruthy()
-    expect(container.querySelectorAll('.ch02-symbols-link')).toHaveLength(1)
+    // 章首骨架（teaching-style §9）：開場問題是第一個區塊、系統地圖緊接在後、「你在這裡」標成 .c-map-note（PageFrame 的本章資訊 strip 接在它後面）；
+    // 不再有「本章符號表在最後」那一行（連結在 strip 裡），也沒有會改變路由的 href
+    expect(container.querySelectorAll('.ch02-symbols-link')).toHaveLength(0)
+    const question = container.querySelector('.ch02-question')!
+    expect(question.nextElementSibling).toBe(container.querySelector('figure.c-mermaid.c-sysmap'))
+    expect(question.nextElementSibling!.nextElementSibling).toBe(container.querySelector('p[data-system-map-note].c-map-note'))
+    expect(question.compareDocumentPosition(container.querySelector('#ch02-s1')!) & FOLLOWING).toBeTruthy()
     expect(container.querySelector('.ch02 a[href="#symbols"], .ch02 a[href$="/symbols"]')).toBeNull()
-    const scrollSpy = vi.fn()
-    symbols.scrollIntoView = scrollSpy
-    act(() => {
-      fireEvent.click(jump)
-    })
-    expect(scrollSpy).toHaveBeenCalledTimes(1)
-    expect(document.activeElement).toBe(symbols)
     // 章末有「回到章首」：捲回開場問題
     const top = document.getElementById('ch02-top')!
     expect(top.classList.contains('ch02-question')).toBe(true)
@@ -856,3 +853,61 @@ function existsPreset(id: string): boolean {
     return false
   }
 }
+
+describe('Ch02 Batch-vs-SGD 的多 seed Monte Carlo 欄（有 seed 與隨機 mini-batch，不再標 Not implemented）', () => {
+  const DEF = { a: 3, w0: 0, xSigma: 1, sigma: 1, nData: 200, mu: 0.05, epochs: 10, batch: 10 }
+
+  it('預設參數：12 個 seeds 的 SGD 最後 w − w_LS 跨 seeds 平均在 4 se 內 ⇒ ok；數值來自 batchVsSgd 逐 seed 重算（deriveSeed）', () => {
+    const mc = batchVsSgdMcCheck(DEF, 20261010)
+    expect(BATCH_MC_RUNS).toBeGreaterThanOrEqual(8)
+    expect(mc.runs).toBe(BATCH_MC_RUNS)
+    expect(mc.diffs).toHaveLength(BATCH_MC_RUNS)
+    expect(mc.status).toBe('ok')
+    expect(Math.abs(mc.mean)).toBeLessThanOrEqual(mc.tol)
+    expect(mc.lo).toBeLessThan(mc.hi)
+    expect(mc.note).toContain('12 個 seeds')
+    // 逐 seed 核對：d_r 就是該 seed 的 SGD 終值減 w_LS
+    for (let r = 0; r < 3; r++) {
+      const res = batchVsSgd({ ...DEF, seed: deriveSeed(20261010, r) })
+      const sgd = res.traces.find((t) => t.method === 'sgd')!
+      expect(mc.diffs[r]).toBeCloseTo(sgd.w[sgd.w.length - 1] - res.wLs, 12)
+    }
+    // σ = 0：每個 seed 的 d_r 都是捨入誤差 ⇒ 仍 ok（容差有相對 10⁻⁹ 的下限）
+    expect(batchVsSgdMcCheck({ ...DEF, sigma: 0 }, 1).status).toBe('ok')
+  })
+
+  it('反面：transient 還沒消失（μ 很小、更新次數 < 8τ）⇒ n/a 並說明；SGD 發散（μ 太大）⇒ n/a；判定不是寫死的——把每個 seed 的差都加上 1 就變 mismatch', () => {
+    const slow = batchVsSgdMcCheck({ ...DEF, mu: 1e-4, epochs: 2 }, 1)
+    expect(slow.status).toBe('n/a')
+    expect(slow.note).toContain('transient')
+    // μ ≥ 2/(3σ_x²)：均方不穩定（Ch03）⇒ 沒有信賴區間可言 ⇒ n/a（preset「μ = 2.2」與 μ = 3 都是）
+    for (const mu of [2.2, 3]) {
+      const div = batchVsSgdMcCheck({ ...DEF, mu, epochs: 3 }, 1)
+      expect(div.status, `mu=${mu}`).toBe('n/a')
+      expect(div.note).toContain('均方')
+    }
+    expect(batchVsSgdMcCheck({ ...DEF, mu: 0.5, epochs: 4 }, 20261010).status).toBe('ok') // preset「μ = 0.5」：0.5 < 2/3，仍可比
+    const mc = batchVsSgdMcCheck(DEF, 20261010)
+    const shifted = meanCI(mc.diffs.map((d) => d + 1))
+    expect(Math.abs(shifted.mean)).toBeGreaterThan(4 * shifted.se) // 同一組散布、平均偏 1 ⇒ 超出 4 se
+  })
+
+  it('UI：交叉比對三欄 [Analytic ok, Monte Carlo ok, Fixed-Point n/a]，每一格都有說明文字；指標表多一列「多 seed」', async () => {
+    localStorage.setItem('lmspll.mode', 'engineer')
+    const { container } = render(
+      <MemoryRouter>
+        <SettingsProvider>
+          <BatchVsSgd />
+        </SettingsProvider>
+      </MemoryRouter>,
+    )
+    await waitFor(() => expect(container.querySelectorAll('.c-exp-crosscheck .c-check').length).toBe(3))
+    const cells = Array.from(container.querySelectorAll<HTMLElement>('.c-exp-crosscheck .c-check'))
+    expect(cells.map((c) => c.className.replace('c-check c-check-', ''))).toEqual(['ok', 'ok', 'n/a'])
+    for (const c of cells) expect((c.getAttribute('title') ?? '').length).toBeGreaterThan(10)
+    expect(cells[1].getAttribute('title')).toContain('12 個 seeds')
+    expect(cells[2].getAttribute('title')).toContain('L0')
+    expect(container.textContent).toContain('多 seed')
+    expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+  }, T_PAGE)
+})

@@ -12,7 +12,7 @@ import { useState } from 'react'
 import mimoPy from '../../../golden/lms_pll_golden/mimo.py?raw'
 import Chapter10 from './index'
 import { FORMULAS } from './formulas'
-import { SymbolsLink, chop, goldenSection10, texMat } from './common'
+import { chop, goldenSection10, texMat } from './common'
 import { CH10_DIAGRAMS, diagram } from './diagrams'
 import { HANDCALCS } from './handcalcs'
 import { MatrixEditor } from './experiments/MatrixEditor'
@@ -171,7 +171,7 @@ describe('Ch10 smoke test（jsdom）', () => {
     expect(container.querySelectorAll('.c-quiz').length).toBeGreaterThanOrEqual(3)
     expect(container.querySelector('.c-recap')).toBeTruthy()
     // 符號表在章末（docs/teaching-style.md §5）：整頁只有一張，包在 id="symbols" 裡，是 .ch10 的最後一個區塊，
-    // 排在「本課必記」（Recap）與「連結到 PLL」之後；章首只剩一行「本章符號表在最後」的按鈕（在開場問題之前）
+    // 排在「本課必記」（Recap）與「連結到 PLL」之後
     const page = container.querySelector('.ch10') as HTMLElement
     const symbols = container.querySelector('#symbols') as HTMLElement
     expect(symbols).toBeTruthy()
@@ -183,10 +183,13 @@ describe('Ch10 smoke test（jsdom）', () => {
     expect(after(container.querySelector('.c-recap') as Element, symbols)).toBe(true)
     expect(after(container.querySelector('#ch10-pll') as Element, symbols)).toBe(true)
     expect(after(container.querySelector('#ch10-lab') as Element, symbols)).toBe(true)
-    const link = container.querySelector('.ch10-symbols-link button') as HTMLButtonElement
-    expect(link.textContent).toMatch(/本章符號表在最後/)
-    expect(container.querySelectorAll('.ch10-symbols-link').length).toBe(1)
-    expect(after(link, container.querySelector('#ch10-question') as Element)).toBe(true)
+    // 章首骨架（teaching-style §9）：問題 → 系統地圖 → 「你在這裡」（.c-map-note）→ 標籤列；不再有「本章符號表在最後」那一行（連結在 PageFrame 的 strip 裡）
+    expect(container.querySelectorAll('.ch10-symbols-link').length).toBe(0)
+    const question = container.querySelector('#ch10-question') as Element
+    expect(page.firstElementChild).toBe(question)
+    expect(question.nextElementSibling).toBe(container.querySelector('figure.c-mermaid.c-sysmap'))
+    expect(question.nextElementSibling!.nextElementSibling).toBe(container.querySelector('.ch10-map-note.c-map-note'))
+    expect(after(container.querySelector('.ch10-map-note') as Element, container.querySelector('.c-test') as Element)).toBe(true)
     // HashRouter：不用會改變路由的 href（頁面上沒有任何 href 以 #symbols 結尾的連結）
     expect(container.querySelector('a[href$="#symbols"]')).toBeNull()
     // 符號表不在章首了，開場就地說明會一路用到的記號
@@ -551,34 +554,24 @@ describe('Ch10 公式登錄與程式碼 region', () => {
   })
 })
 
-describe('Ch10 符號表：章首的一行連結與章末的 id="symbols"', () => {
-  it('按「本章符號表在最後」⇒ 對 #symbols 呼叫 scrollIntoView（不改變路由）；章末的「回到剛才閱讀的位置」捲回按下連結時的位置', () => {
-    const scrollIntoView = vi.fn()
+describe('Ch10 符號表：章末的 id="symbols"（章首的連結由 PageFrame 的 strip 提供）', () => {
+  it('章末的「回到章首」⇒ window.scrollTo 到最上面（不改變路由）；符號表的內容不變', () => {
     const scrollTo = vi.fn()
-    const proto = Element.prototype as unknown as { scrollIntoView?: unknown }
-    const original = proto.scrollIntoView
-    proto.scrollIntoView = scrollIntoView
     const scrollToSpy = vi.spyOn(window, 'scrollTo').mockImplementation(scrollTo as unknown as typeof window.scrollTo)
-    const scrollYDesc = Object.getOwnPropertyDescriptor(window, 'scrollY')
-    Object.defineProperty(window, 'scrollY', { value: 1234, configurable: true })
     try {
       const { container } = render(
         <MemoryRouter initialEntries={['/ch/10']}>
-          <SymbolsLink />
           <S7Symbols />
         </MemoryRouter>,
       )
       const before = window.location.href
       const symbols = container.querySelector('#symbols') as HTMLElement
       expect(symbols.querySelector('.c-symbols')).toBeTruthy()
-      fireEvent.click(button(container, /本章符號表在最後/))
-      expect(scrollIntoView).toHaveBeenCalledTimes(1)
-      expect(scrollIntoView.mock.instances[0]).toBe(symbols)
-      expect(scrollIntoView.mock.calls[0][0]).toMatchObject({ block: 'start' })
-      expect(window.location.href).toBe(before)
-      fireEvent.click(button(container, /回到剛才閱讀的位置/))
+      expect(container.textContent).not.toContain('本章符號表在最後')
+      fireEvent.click(button(container, /回到章首/))
       expect(scrollTo).toHaveBeenCalledTimes(1)
-      expect(scrollTo.mock.calls[0][0]).toMatchObject({ top: 1234 })
+      expect(scrollTo.mock.calls[0][0]).toMatchObject({ top: 0 })
+      expect(window.location.href).toBe(before)
       // 符號表的內容沒有變：δ = a − w 的極性註記與 λ_reg 的勘誤都還在
       const tex = Array.from(symbols.querySelectorAll('annotation')).map((a) => a.textContent ?? '')
       expect(tex).toContain('\\boldsymbol\\delta_k=\\mathbf a-\\mathbf w_k')
@@ -586,15 +579,8 @@ describe('Ch10 符號表：章首的一行連結與章末的 id="symbols"', () =
       expect(symbols.textContent).toMatch(/全站約定（規格 §0）/)
       expect(symbols.textContent).toMatch(/勘誤 E22/)
     } finally {
-      proto.scrollIntoView = original
       scrollToSpy.mockRestore()
-      if (scrollYDesc) Object.defineProperty(window, 'scrollY', scrollYDesc)
     }
-  })
-
-  it('負面：頁面上沒有 #symbols（或瀏覽器沒有 scrollIntoView）時，按連結不會拋錯', () => {
-    const { container } = render(<SymbolsLink />)
-    expect(() => fireEvent.click(button(container, /本章符號表在最後/))).not.toThrow()
   })
 })
 
