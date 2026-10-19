@@ -1,4 +1,5 @@
 import { readFileSync, readdirSync } from 'node:fs'
+import { expectNoTexErrors } from '@/test/katex'
 import { join } from 'node:path'
 import { fireEvent, render } from '@testing-library/react'
 import { HandCalc, checkAnswer, defaultValues, randomValues, renderTex, texNum } from '@/components'
@@ -582,7 +583,7 @@ describe('Dashboard handcalcs：獨立重算、KaTeX、隨機出題', () => {
     for (const def of HANDCALCS) {
       const { container, unmount } = render(<HandCalc def={def} />)
       expect(container.querySelector(`[id="handcalc-${def.id}"]`)).toBeTruthy()
-      expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+      expectNoTexErrors(container)
       expect(container.textContent).not.toMatch(/undefined|NaN/)
       // 沒有漏網的 $（字串都經過 mathText）
       const plain = container.cloneNode(true) as HTMLElement
@@ -597,7 +598,7 @@ describe('Dashboard handcalcs：獨立重算、KaTeX、隨機出題', () => {
     const phiIndex = def.inputs.findIndex((i) => i.key === 'phi')
     fireEvent.change(inputs[phiIndex], { target: { value: '120' } })
     expect(container.textContent).toMatch(/條件 2/)
-    expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
     // 「換一題」：抽到的數字合法，切到「自己算算看」，填入正確答案後判為正確
     fireEvent.click(Array.from(container.querySelectorAll('button')).find((b) => /換一題/.test(b.textContent ?? '')) as HTMLButtonElement)
     expect(container.querySelector('.callout-warn')).toBeNull()

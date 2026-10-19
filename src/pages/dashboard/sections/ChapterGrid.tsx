@@ -1,12 +1,37 @@
 import { memo, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { ModelLevel, ScrollRegion, TestBadge } from '@/components'
+import { chapterFrameMeta } from '@/app/chapterMeta'
 import { GROUP_LABEL, PAGES, type PageGroup } from '@/app/registry'
+import { MODES, MODE_SHORT, useSettings } from '@/app/settings'
 import { CHAPTER_META, conditionsForPage, questionsForPage } from '../data'
 import { summarizeErrata } from '../summaries'
 import { ConditionChip, Rich, scrollToId, type Progress } from '../ui'
 
 const GROUPS: PageGroup[] = ['A', 'B', 'C', 'D', 'tools']
+
+/**
+ * 三種學習模式的預估閱讀時間（chapterMeta.ts 的 readingMinutes；只有章節頁有）：「Beginner 145 分 · Engineer 180 分 · Research 200 分」，
+ * 目前模式加粗。沒有資料的頁面（Part D、工具頁）不畫。
+ */
+function ReadingTimes({ pageId, compact = false }: { pageId: string; compact?: boolean }) {
+  const { mode } = useSettings()
+  const meta = chapterFrameMeta(pageId)
+  if (!meta) return null
+  const label = MODES.map((m) => `${MODE_SHORT[m]} ${meta.readingMinutes[m]} 分`).join('、')
+  return (
+    <span className="dash-ch-reading" data-page={pageId} aria-label={`預估閱讀時間：${label}`} title={`預估閱讀時間：${label}`}>
+      {!compact && <span className="dash-ch-reading-k">閱讀時間</span>}
+      {MODES.map((m) => (
+        <span key={m} className={`dash-ch-rt${m === mode ? ' is-current' : ''}`} data-mode={m}>
+          {compact ? MODE_SHORT[m].slice(0, 1) : MODE_SHORT[m]} {meta.readingMinutes[m]}
+          {compact ? '' : ' 分'}
+        </span>
+      ))}
+      {compact && <span className="dash-ch-rt-unit">分</span>}
+    </span>
+  )
+}
 
 /**
  * Beginner 的章節地圖：一張表，每章一列（已讀、章名連結、一句話）。
@@ -19,7 +44,7 @@ function ChapterTable({ progress }: { progress: Progress }) {
         章節地圖 <span className="dash-h2-kicker">規格 §18.3</span>
       </h2>
       <p className="dash-lead-sm">
-        點章名前往；勾選「已讀」只記在你自己的瀏覽器，路線的進度條會跟著更新。模型層級、驗收測試與涵蓋的條件，切到 Engineer 模式的卡片上看。
+        點章名前往；勾選「已讀」只記在你自己的瀏覽器，路線的進度條會跟著更新。「閱讀」欄是三種模式（B＝Beginner、E＝Engineer、R＝Research）的預估分鐘數，目前模式加粗。模型層級、驗收測試與涵蓋的條件，切到 Engineer 模式的卡片上看。
       </p>
       <ScrollRegion label="章節地圖（可捲動）" className="table-wrap">
         <table className="dash-ch-table">
@@ -28,6 +53,7 @@ function ChapterTable({ progress }: { progress: Progress }) {
               <th scope="col">已讀</th>
               <th scope="col">章節</th>
               <th scope="col">這一章在講什麼</th>
+              <th scope="col">閱讀（B／E／R）</th>
             </tr>
           </thead>
           {GROUPS.map((g) => {
@@ -36,7 +62,7 @@ function ChapterTable({ progress }: { progress: Progress }) {
             return (
               <tbody key={g}>
                 <tr className="dash-ch-group">
-                  <th scope="rowgroup" colSpan={3}>
+                  <th scope="rowgroup" colSpan={4}>
                     {GROUP_LABEL[g]}
                   </th>
                 </tr>
@@ -54,6 +80,9 @@ function ChapterTable({ progress }: { progress: Progress }) {
                         </Link>
                       </td>
                       <td className="dash-ch-line">{meta ? <Rich text={meta.summary} /> : p.title}</td>
+                      <td className="dash-ch-rt-cell">
+                        <ReadingTimes pageId={p.id} compact />
+                      </td>
                     </tr>
                   )
                 })}
@@ -84,7 +113,7 @@ export const ChapterGrid = memo(function ChapterGrid({ progress, compact = false
         章節地圖 <span className="dash-h2-kicker">規格 §18.3</span>
       </h2>
       <p className="dash-lead-sm">
-        每張卡片列出：規格書段落、本頁互動實驗使用的模型層級（L0–L6，滑過可看定義）、負責的 acceptance tests 與目前驗證狀態、涵蓋六個條件中的哪幾個、回答附錄 E 的哪幾題，以及相關勘誤數。Part A–C 的模型層級會由測試與各章原始碼核對；其餘頁面為編輯對照。
+        每張卡片列出：規格書段落、三種學習模式的預估閱讀時間（目前模式加粗）、本頁互動實驗使用的模型層級（L0–L6，滑過可看定義）、負責的 acceptance tests 與目前驗證狀態、涵蓋六個條件中的哪幾個、回答附錄 E 的哪幾題，以及相關勘誤數。Part A–C 的模型層級會由測試與各章原始碼核對；其餘頁面為編輯對照。
       </p>
       {GROUPS.map((g) => {
         const pages = PAGES.filter((p) => p.group === g)
@@ -120,6 +149,7 @@ export const ChapterGrid = memo(function ChapterGrid({ progress, compact = false
                       {p.specSections && p.specSections.length > 0 ? `規格 §${p.specSections.join('、§')}` : '規格：—'}
                       {nErr > 0 && ` · 相關勘誤 ${nErr} 項`}
                     </div>
+                    <ReadingTimes pageId={p.id} />
                     {meta && meta.levels.length > 0 && (
                       <div className="dash-badges">
                         {meta.levels.map((l) => (

@@ -1,4 +1,5 @@
 import { fireEvent, waitFor, within } from '@testing-library/react'
+import { expectNoTexErrors } from '@/test/katex'
 import { ROUTES, QUESTIONS, SIX_CONDITIONS } from './data'
 import { galleryPresets } from './sections/Gallery'
 import { TOC } from './sections/Hero'
@@ -8,16 +9,9 @@ import { precedes, plainText, renderPage, texIn } from './indexTestUtils'
 import { summarizeErrata } from './summaries'
 import { systemMapModel } from '@/components'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
-vi.mock('mermaid', () => ({ default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: '<svg></svg>' })) } }))
+import { plotlyMock as P } from '@/test/mocks/plotly'
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 // vi.fn() 會把每次呼叫的引數整份留在 mock.calls 裡；Plot 每次都把整張圖的資料（上千點的陣列）交給 P.react，所以每個測試之後清掉呼叫紀錄
 afterEach(() => {
@@ -427,7 +421,7 @@ describe('DashboardPage（jsdom smoke）', () => {
     const plain = container.cloneNode(true) as HTMLElement
     plain.querySelectorAll('.katex, pre, code, .c-code, .c-tip, script, style').forEach((el) => el.remove())
     expect(plain.textContent ?? '').not.toMatch(/undefined|NaN|\$/)
-    expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
     // R12：Beginner 模式也看得到雙參數的適用範圍提醒（開關與 φ 都不在 ModeGate 內）；看完把參數改回預設
     const check = container.querySelector('#dash-check') as HTMLElement
     const toggle = check.querySelector('input[role="switch"]') as HTMLInputElement

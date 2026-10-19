@@ -1,4 +1,4 @@
-import { memo, useMemo, type CSSProperties } from 'react'
+import { memo, useMemo, type CSSProperties, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Callout, SourceTag, Tex } from '@/components'
 import { PAGES } from '@/app/registry'
@@ -29,8 +29,9 @@ const fmt = (x: number, d = 4) => Number(x.toPrecision(d)).toString()
 /**
  * Hero：網站目標、最終教學主旨、「從這裡開始」卡片與快速統計。
  * onJump：頁內跳轉（預設 scrollToId）；Beginner 模式由 index.tsx 傳入會先展開收合卡片的版本（六個條件、一條方程式、動手體檢都收在裡面）。
+ * aside：右側卡片的替代內容；Beginner 模式由 index.tsx 傳入「骨幹路線」卡（sections/Backbone.tsx），取代「從這裡開始」的手算兩步。
  */
-export const Hero = memo(function Hero({ onJump = scrollToId }: { onJump?: (id: string) => void }) {
+export const Hero = memo(function Hero({ onJump = scrollToId, aside }: { onJump?: (id: string) => void; aside?: ReactNode }) {
   const h = useMemo(() => handExample(), [])
   const errata = useMemo(() => summarizeErrata(), [])
   const tests = useMemo(() => summarizeTests(), [])
@@ -92,6 +93,7 @@ export const Hero = memo(function Hero({ onJump = scrollToId }: { onJump?: (id: 
         </div>
       </div>
 
+      {aside ?? (
       <aside className="dash-start" aria-labelledby="dash-start-title">
         <div className="dash-start-label">從這裡開始</div>
         <h2 id="dash-start-title">{start?.nav ?? '00 入門'}</h2>
@@ -150,6 +152,7 @@ export const Hero = memo(function Hero({ onJump = scrollToId }: { onJump?: (id: 
           </Link>
         )}
       </aside>
+      )}
 
       <div style={{ gridColumn: '1 / -1', minWidth: 0 }}>
         <Callout kind="info" title={null}>

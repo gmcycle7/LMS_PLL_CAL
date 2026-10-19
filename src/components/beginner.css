@@ -1,0 +1,24 @@
+/* Beginner 模式的精簡參數面板（ExperimentShell + src/app/beginnerControls.ts）：
+   清單之外的控制項收進「更多參數」的 <details>，預設收合；Engineer／Research 不畫這個框。
+   外觀沿用 ControlGroup 的小標題樣式（components.css 的 .c-exp-group），沒有固定高度、沒有 overflow。 */
+.c-exp-more {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.c-exp-more > summary {
+  cursor: pointer;
+  padding: 4px 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.c-exp-more > summary:hover {
+  color: var(--text);
+}
+.c-exp-more[open] > summary {
+  margin-bottom: 4px;
+}
+.c-exp-more-note {
+  margin: 0 0 8px;
+}

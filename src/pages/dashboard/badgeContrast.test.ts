@@ -9,7 +9,8 @@ import { SIX_CONDITIONS } from './data'
  * 並確認沒有人把白字（#fff）或條件色填滿的寫法改回去。狀態圓章（.dash-state）也一併檢查：白字對 --ok／--warn／--danger（深色主題用 --bg）。
  */
 const root = process.cwd()
-const read = (rel: string) => readFileSync(join(root, rel), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+// @import 行也拿掉：global.css 第一行是 `@import './tokens.css';`，留著會被當成下一個選擇器的前綴
+const read = (rel: string) => readFileSync(join(root, rel), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/@import[^;]*;/g, '')
 
 /** 取出 `selector { … }` 的宣告（selector 以字串精確比對，空白正規化） */
 function declsOf(css: string, selector: string): Record<string, string>[] {

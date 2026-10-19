@@ -1,4 +1,5 @@
 import { fireEvent, waitFor, within } from '@testing-library/react'
+import { expectNoTexErrors } from '@/test/katex'
 import { SIX_CONDITIONS } from './data'
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
@@ -10,16 +11,9 @@ import { FOLD_IDS } from './sections/ThesisFold'
  * 首頁的第二組 jsdom 測試（接續 index.test.tsx）：URL preset、載入反例，以及 Research 模式整頁展開後的檢查
  * （KaTeX 解析、公式錨點、帶入手算、Unicode 數學、版面與無障礙）。拆成兩個檔案是為了讓每個 worker 的記憶體不超過上限（見 indexTestUtils.tsx）。
  */
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
-vi.mock('mermaid', () => ({ default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: '<svg></svg>' })) } }))
+import { plotlyMock as P } from '@/test/mocks/plotly'
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 // vi.fn() 會把每次呼叫的引數整份留在 mock.calls 裡；Plot 每次都把整張圖的資料（上千點的陣列）交給 P.react，所以每個測試之後清掉呼叫紀錄
 afterEach(() => {
@@ -144,7 +138,7 @@ describe('DashboardPage（jsdom smoke，第二組）', () => {
 
   it('Research 模式（全部展開）：沒有 KaTeX 解析錯誤，文字中沒有 undefined / NaN / 未配對的 $', () => {
     const { container } = renderPage('research')
-    expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
     // 只檢查非數學的文字節點（KaTeX 的 MathML annotation 會含原始 TeX）
     const clone = container.cloneNode(true) as HTMLElement
     clone.querySelectorAll('.katex, pre, code, .c-code, .c-tip, script, style').forEach((el) => el.remove())
@@ -236,7 +230,7 @@ describe('DashboardPage（jsdom smoke，第二組）', () => {
       expect(texIn(container.querySelector('[id="handcalc-HC-DB.2"]')).some((t) => t.includes(String.raw`\boxed{E[\delta_1] = 4.5931\ \mathrm{fs}}`))).toBe(true)
       expect(texIn(container.querySelector('[id="handcalc-HC-DB.3"]')).some((t) => t.includes(String.raw`\boxed{\sigma_w\big|_{d=0} = 0.39919\ \mathrm{fs}}`))).toBe(true)
       expect(texIn(container.querySelector('[id="handcalc-HC-DB.5"]')).some((t) => t.includes(String.raw`\boxed{\mathrm{Spur} = -93.799\ \mathrm{dBc}}`))).toBe(true)
-      expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+      expectNoTexErrors(container)
       unmount()
     }
   })

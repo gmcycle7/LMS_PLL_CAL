@@ -1,6 +1,8 @@
-import { Children, createContext, Fragment, isValidElement, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { Children, cloneElement, createContext, Fragment, isValidElement, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { beginnerControlKeys, controlInList } from '@/app/beginnerControls'
 import { useMediaQuery } from '@/app/useMediaQuery'
+import './beginner.css'
 import { APP_VERSION, GIT_COMMIT } from './buildInfo'
 import { Callout } from './Callout'
 import { downloadText, toCsv } from './download'
@@ -14,13 +16,17 @@ import {
 import { fileTimestamp, prettyJson, safeFileName } from './format'
 import { randomSeed } from './hooks'
 import { CHECK_LABEL } from './labels'
+import { CopyLinkButton } from './CopyLinkButton'
+import { useExperimentUrlSync } from './experimentUrl'
 import { MetricTable } from './MetricTable'
+import { useOptionalSettings } from './optionalSettings'
+import { ParamControl, SelectControl, ToggleControl } from './ParamControl'
 import { createPlotRegistry, PlotRegistryProvider, type PlotRegistry } from './plotRegistry'
 import { ScrollRegion } from './ScrollRegion'
 import { buildReportHtml } from './report'
 import { ClaimTag, ModelLevel, SourceTag } from './Tags'
 import { TestBadge } from './TestBadge'
-import { accessibleText, mathText } from './Tex'
+import { accessibleText, mathText, nodeToAccessibleText } from './Tex'
 import type {
   ClaimKind,
   CrossCheck,
@@ -147,6 +153,80 @@ export function topLevelControls(controls: ReactNode): ReactNode[] {
   let arr = Children.toArray(controls)
   while (arr.length === 1 && isValidElement<{ children?: ReactNode }>(arr[0]) && arr[0].type === Fragment) arr = Children.toArray(arr[0].props.children)
   return arr
+}
+
+/* ===== Beginner 的精簡參數面板（src/app/beginnerControls.ts） ===== */
+
+/** 會被當成「一個控制項」的元件：對應 DOM 的 .c-param */
+const CONTROL_TYPES: readonly unknown[] = [ParamControl, SelectControl, ToggleControl]
+
+interface ControlLikeProps {
+  id?: string
+  ariaLabel?: string
+  label?: ReactNode
+  reg?: string
+  children?: ReactNode
+}
+
+export interface BeginnerPartition {
+  /** 留在面板上的節點（含不是控制項的說明文字、沒有控制項的容器） */
+  shown: ReactNode[]
+  /** 收進「更多參數」的節點 */
+  extra: ReactNode[]
+  /** 收起來的控制項數 */
+  hidden: number
+  /** 對上清單的控制項數 */
+  matched: number
+}
+
+/**
+ * Beginner 模式：依 beginnerControls.ts 的 key 清單把控制項分成「先露出」與「更多參數」。
+ * 沿著 React 元素樹走：ParamControl／SelectControl／ToggleControl 是控制項，拿它的 id、ariaLabel、label 的可念文字與 reg 和清單比對；
+ * Fragment、原生元素（div…）與 ControlGroup 是容器，裡面的控制項分別複製成兩份（留下的一份、收起來的一份），沒有控制項的容器原樣保留；
+ * 其他元件（CaseSelector、章節自訂的包裝元件）看不進去，一律保留在面板上。
+ * 清單一個都對不上（標籤改了？）就全部顯示，不會出現空白的面板。
+ */
+export function partitionBeginnerControls(nodes: ReactNode[], keys: readonly string[]): BeginnerPartition {
+  const out: BeginnerPartition = { shown: [], extra: [], hidden: 0, matched: 0 }
+  const walk = (list: ReactNode[], shown: ReactNode[], extra: ReactNode[]) => {
+    for (const node of list) {
+      if (!isValidElement(node)) {
+        shown.push(node)
+        continue
+      }
+      const el = node as ReactElement<ControlLikeProps>
+      if (CONTROL_TYPES.includes(el.type)) {
+        const p = el.props
+        const ok = controlInList(keys, [p.id, p.ariaLabel ? accessibleText(p.ariaLabel) : undefined, nodeToAccessibleText(p.label), p.reg])
+        if (ok) {
+          out.matched++
+          shown.push(el)
+        } else {
+          out.hidden++
+          extra.push(el)
+        }
+        continue
+      }
+      const container = el.type === Fragment || typeof el.type === 'string' || el.type === ControlGroup
+      if (!container) {
+        shown.push(el)
+        continue
+      }
+      const before = out.hidden + out.matched
+      const s: ReactNode[] = []
+      const x: ReactNode[] = []
+      walk(Children.toArray(el.props.children), s, x)
+      if (out.hidden + out.matched === before) {
+        shown.push(el)
+        continue
+      }
+      if (s.length > 0) shown.push(cloneElement(el, undefined, ...s))
+      if (x.length > 0) extra.push(cloneElement(el, { key: `${String(el.key ?? '')}-more` }, ...x))
+    }
+  }
+  walk(nodes, out.shown, out.extra)
+  if (out.matched === 0) return { shown: nodes, extra: [], hidden: 0, matched: 0 }
+  return out
 }
 
 /** 進度文字：「112/408 步」「3/9」 */
@@ -399,8 +479,14 @@ export function ExperimentShell(props: ExperimentShellProps) {
   const [controlCount, setControlCount] = useState(0)
   // 自動切分（沒有 ControlGroup 時）：{ cut: 前幾個頂層子節點保持展開, rest: 收起的控制項數 }
   const [auto, setAuto] = useState<{ cut: number; rest: number } | null>(null)
-  const collapsible = shouldCollapseControls(controlCount)
-  const controlChildren = topLevelControls(controls)
+  // Beginner 模式且 beginnerControls.ts 有這個實驗：只露出清單上的控制項，其餘收進「更多參數」（SettingsProvider 之外 = 全部顯示）
+  const settings = useOptionalSettings()
+  const beginnerKeys = settings?.mode === 'beginner' ? beginnerControlKeys(id) : null
+  const trim = beginnerKeys ? partitionBeginnerControls(topLevelControls(controls), beginnerKeys) : null
+  const trimmed = !!trim && trim.hidden > 0
+  // 精簡面板已經很短：不再分組收合、也不自動切「其餘參數」
+  const collapsible = !trimmed && shouldCollapseControls(controlCount)
+  const controlChildren = trimmed ? trim.shown : topLevelControls(controls)
 
   const measureLayout = () => {
     const ctl = controlsRef.current
@@ -424,6 +510,10 @@ export function ExperimentShell(props: ExperimentShellProps) {
     if (!ctl) return
     const count = ctl.querySelectorAll('.c-param').length
     setControlCount((prev) => (prev === count ? prev : count))
+    if (trimmed) {
+      if (auto) setAuto(null)
+      return
+    }
     const collapse = shouldCollapseControls(count)
     const explicit = !!ctl.querySelector('.c-exp-group:not(.is-auto)')
     if (!collapse || explicit) {
@@ -532,6 +622,8 @@ export function ExperimentShell(props: ExperimentShellProps) {
     if (exportError) announce(exportError)
   }, [exportError])
   const presetId = useId()
+  // 分享網址：掛載時套用網址上的 p／seed；載入 preset 或改 seed 後寫回網址（replaceState，不新增歷史紀錄）
+  const url = useExperimentUrlSync({ experimentId: id, seed, onSeedChange, presets, onLoadPreset })
   const Heading = `h${headingLevel}` as 'h2' | 'h3' | 'h4'
 
   const exportInput = (): ExperimentExportInput => ({
@@ -602,7 +694,6 @@ export function ExperimentShell(props: ExperimentShellProps) {
     git_commit: GIT_COMMIT,
   }
 
-  const hasToolbar = Boolean(actions || seed !== undefined || (presets && presets.length > 0 && onLoadPreset))
   // 自動切分只在收合模式下生效（數量掉回 ≤ 12 時 layout effect 會把 auto 清掉，這裡先擋一次免得多畫一個 render）
   const split = auto && collapsible ? auto : null
 
@@ -635,45 +726,52 @@ export function ExperimentShell(props: ExperimentShellProps) {
           </div>
         )}
 
-        {hasToolbar && (
-          <div className="c-exp-toolbar">
-            {actions && <ActionBar actions={actions} onAction={onAction} />}
-            {actions && (running || (actions.runKind === 'animate' && !!actions.progress && actions.progress.done > 0)) && (
-              // 執行中一定畫；動畫型停在半路／播完也畫（看得出停在哪）；還沒開始（0/N）不畫空的軌道
-              <ProgressBar progress={actions.progress} runKind={actions.runKind ?? 'compute'} />
-            )}
-            {seed !== undefined && <SeedControl seed={seed} onSeedChange={onSeedChange} />}
-            {presets && presets.length > 0 && onLoadPreset && (
-              <div className="c-exp-presets">
-                <label htmlFor={presetId} className="small muted">
-                  Preset
-                </label>
-                <select
-                  id={presetId}
-                  value=""
-                  onChange={(e) => {
-                    const p = presets[Number(e.target.value)]
-                    if (p) onLoadPreset(p)
-                  }}
-                >
-                  <option value="">載入 preset…</option>
-                  {presets.map((p, i) => (
-                    <option key={`${p.name}-${i}`} value={String(i)} title={p.description ? accessibleText(p.description) : undefined}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
-        )}
+        <div className="c-exp-toolbar">
+          {actions && <ActionBar actions={actions} onAction={onAction} />}
+          {actions && (running || (actions.runKind === 'animate' && !!actions.progress && actions.progress.done > 0)) && (
+            // 執行中一定畫；動畫型停在半路／播完也畫（看得出停在哪）；還沒開始（0/N）不畫空的軌道
+            <ProgressBar progress={actions.progress} runKind={actions.runKind ?? 'compute'} />
+          )}
+          {seed !== undefined && <SeedControl seed={seed} onSeedChange={onSeedChange} />}
+          {presets && presets.length > 0 && onLoadPreset && (
+            <div className="c-exp-presets">
+              <label htmlFor={presetId} className="small muted">
+                Preset
+              </label>
+              <select
+                id={presetId}
+                value=""
+                onChange={(e) => {
+                  const p = presets[Number(e.target.value)]
+                  if (p) url.loadPreset(p)
+                }}
+              >
+                <option value="">載入 preset…</option>
+                {presets.map((p, i) => (
+                  <option key={`${p.name}-${i}`} value={String(i)} title={p.description ? accessibleText(p.description) : undefined}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <CopyLinkButton experimentId={id} presetId={url.presetId} seed={seed} />
+        </div>
 
         <div className="c-exp-body">
-          <div ref={controlsRef} className="c-exp-controls" aria-label="參數" data-sticky={sticky ? 'true' : undefined} data-collapsed={collapsible ? 'true' : undefined}>
+          <div
+            ref={controlsRef}
+            className="c-exp-controls"
+            aria-label="參數"
+            data-sticky={sticky ? 'true' : undefined}
+            data-collapsed={collapsible ? 'true' : undefined}
+            data-trimmed={trimmed ? 'true' : undefined}
+          >
             <ControlGroupContext.Provider value={{ collapsible }}>
               {/* 兩種狀態都是「陣列 + 可有可無的 AutoGroup」：切點前的控制項在同一個位置、同一組 key，跨越 12 個門檻時不會被重新掛載 */}
               {split ? controlChildren.slice(0, split.cut) : controlChildren}
               {split && <AutoGroup count={split.rest}>{controlChildren.slice(split.cut)}</AutoGroup>}
+              {trimmed && trim && <BeginnerMore count={trim.hidden}>{trim.extra}</BeginnerMore>}
             </ControlGroupContext.Provider>
           </div>
           <div ref={resultsRef} className="c-exp-results">
@@ -764,6 +862,21 @@ function AutoGroup({ count, children }: { count: number; children: ReactNode }) 
   return (
     <details className="c-exp-group is-auto" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
       <summary>其餘參數（{count} 個）</summary>
+      {children}
+    </details>
+  )
+}
+
+/**
+ * Beginner 模式收起來的控制項（beginnerControls.ts 清單之外的）：預設收合，使用者展開後維持；
+ * 切換學習模式時整個元件卸載（Engineer／Research 不畫），所以回到 Beginner 又是收合的。
+ */
+function BeginnerMore({ count, children }: { count: number; children: ReactNode }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <details className="c-exp-more" open={open} onToggle={(e) => setOpen(e.currentTarget.open)} data-testid="exp-more">
+      <summary>更多參數（{count} 個）</summary>
+      <p className="c-exp-more-note small muted">Beginner 模式先露出這個實驗最關鍵的幾個參數；其餘都在這裡，切到 Engineer 模式會全部展開。</p>
       {children}
     </details>
   )
