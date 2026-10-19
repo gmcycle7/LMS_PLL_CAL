@@ -72,23 +72,23 @@ jsdom 量不到版面，所以改了畫面（版面、CSS、方塊圖、公式�
 | 00–03（Part A） | 入門（黑盒子、手算、為什麼是 e·x）、MSE/MAE/Huber、Gradient Descent 與 Sign-LMS 家族、Mean / Mean-Square / Almost-Sure 穩定性 |
 | 04–10（Part B） | DSM→DTC→PD→GMAC 訊號流、1-bit comparator 統計、PLL error transfer 與極性、Delay / Filtered-x、Calibration phase margin 與雙迴路、Persistent Excitation、MIMO preconditioning |
 | 07b 案例 | **Subsampling PLL（f_ref 4 GHz、BW 320 MHz、8 相 PMUX + input DTC）中 GOS／PHOS LMS 為何變號**：Type-I／Type-II SSPLL 與 CPPLL 的反號帶、對策（一階差分 regressor、filtered-x、P-only）與互動實驗 |
-| 11–14（Part C） | Calibration bias 與 DTC INL、係數雜訊 → PLL jitter/spur、6-bit 量化／limit cycle／ΔΣ、learning rate 與 N 最佳化 |
+| 11、11b、12–14（Part C） | Calibration bias 與 DTC INL、**11b：DTC INL 校正（分段／LUT／多項式基底）與 MASH 噪聲折返**、係數雜訊 → PLL jitter/spur、6-bit 量化／limit cycle／ΔΣ、learning rate 與 N 最佳化 |
 | 工具頁 | Calibration Lab（整合模擬）、手算練習簿、Experiment Gallery、Sign-off Checklist、Formula & Unit Reference、Papers、Research Backlog、T01–T18 驗證與勘誤 |
 
-每一章的固定結構（見 [docs/teaching-style.md](docs/teaching-style.md)）：系統地圖（標出本章在整個 PLL 校正系統的位置）→ 一個問題 → 先用數字手算 → **方塊圖**（先看訊號怎麼流）→ 一步一步推導（每步附理由，全部 LaTeX）→ 互動實驗 → **帶入手算**（輸入自己的數字，逐步代入；或先自己算再對答案）→ 演算法比較（並排顯示實際執行的程式碼，標出差異行）→ 思考題 → 本課必記 → 本章符號表（放在最後）。
+每一章的固定結構（見 [docs/teaching-style.md](docs/teaching-style.md)）：一個問題 → 系統地圖（標出本章在整個 PLL 校正系統的位置）→ 本章資訊（閱讀時間、勘誤、手算題）與先備自檢 → 先用數字手算 → **方塊圖**（先看訊號怎麼流）→ 一步一步推導（每步附理由，全部 LaTeX）→ 互動實驗 → **帶入手算**（輸入自己的數字，逐步代入；或先自己算再對答案）→ 演算法比較（並排顯示實際執行的程式碼，標出差異行）→ 思考題 → 本課必記 → 下一章要解決什麼 → 本章符號表（放在最後）。
 
-- **方塊圖**：16 個章節頁共 408 張（每頁 20–38 張，含章首的系統地圖），參考頁（Dashboard、Models、Verification、Lab、Workbook、Gallery、Sign-off、Formulas、Papers、Roadmap）另有 43 張；數量是 Research 模式、展開所有收合區塊後，以 `scripts/diagram-audit.mjs` 逐頁實測的結果（Beginner／Engineer 模式下較少）。每張都對照該章公式審查過訊號名稱、箭頭方向與加法點的正負號，並在測試中以真正的 Mermaid 渲染。
+- **方塊圖**：16 個章節頁共 409 張（ch00–ch14 與 SSPLL 案例，每頁 20–39 張，含章首的系統地圖），Ch11b 另有 7 張，參考頁（Dashboard、Models、Verification、Lab、Workbook、Gallery、Sign-off、Formulas、Papers、Roadmap）另有 41 張；數量是 Research 模式、展開所有收合區塊後，以 `scripts/diagram-audit.mjs` 逐頁實測的結果（Beginner／Engineer 模式下較少）。每張都對照該章公式審查過訊號名稱、箭頭方向與加法點的正負號，並在測試中以真正的 Mermaid 渲染。
 - **架構約定**（[docs/assumptions.md](docs/assumptions.md) §2a）：DTC 在 reference 輸入端（`Reference clock → DTC → Phase detector`），回授路徑上只有 divider／PMUX（`VCO → Divider → Phase detector`）；LMS 校正迴路的輸入是 PD 的輸出 `e[n]`，也就是送進 loop filter 的同一個節點。全站的方塊圖與文字都照這個接法；`e[n] = (a − w)·x[n] + v[n]` 與所有模型、手算數字、golden vector 不變。
-- **帶入手算**：164 題，每題的數值來自實際的模擬函式，並由獨立的 Python 重算驗證過每一步；「手算練習簿」可隨機出題、統計答對率、列印附詳解的練習卷。
+- **帶入手算**：169 題，每題的數值來自實際的模擬函式，並由獨立的 Python 重算驗證過每一步；「手算練習簿」可隨機出題、統計答對率、列印附詳解的練習卷。
 - **學習模式**：Beginner／Engineer／Research 共用同一計算核心，只改變呈現深度。
 - **站內搜尋**：頂列的 🔍 鈕（快捷鍵 `/`、⌘K／Ctrl+K）可搜尋公式、章節、實驗 preset、勘誤、術語與手算題；索引在第一次開啟時才載入。
-- **可追溯性**：388 條公式有 ID 並彙整在 Formula 頁（分佈在 24 個頁面；精確／近似／研究假說的條數由 Formula 頁的簡介即時顯示）；218 個 preset 可由 Gallery 載入；每個實驗可下載 JSON／CSV／HTML 報告（含 seed、版本、假設）。
+- **可追溯性**：402 條公式有 ID 並彙整在 Formula 頁（分佈在 25 個頁面；精確／近似／研究假說的條數由 Formula 頁的簡介即時顯示）；228 個 preset 可由 Gallery 載入；每個實驗可下載 JSON／CSV／HTML 報告（含 seed、版本、假設）。
 
 ## 驗證狀態（2026-10-12）
 
 | 項目 | 結果 |
 |---|---|
-| TypeScript 測試（Vitest） | 257 個檔案、6,153 項，全部通過（2026-10-19 wave 2 重跑） |
+| TypeScript 測試（Vitest） | 274 個檔案、6,319 項，全部通過（2026-10-19 wave 3 重跑） |
 | Python golden（pytest） | `golden/` 149 項 + `analysis/sspll/golden/` 64 項，全部通過 |
 | T01–T18（TS 與 Python 兩邊都要過才算 verified） | 18／18 pass |
 | 規格書驗算 | 237 項聲明重算，確認 49 項勘誤（[docs/validation.md](docs/validation.md)），網站一律採用修正版本 |
@@ -103,7 +103,7 @@ jsdom 量不到版面，所以改了畫面（版面、CSS、方塊圖、公式�
 src/
 ├── app/            # 路由註冊表、Layout、主題、學習模式、preset 與手算題的彙整
 ├── components/     # Tex、Mermaid、Plot、ParamControl、ExperimentShell、HandCalc、SystemMap、報告匯出…
-├── chapters/       # ch00–ch14 教學章節（內容 + 互動實驗 + formulas.ts + handcalcs.ts + diagrams.ts + 測試）
+├── chapters/       # ch00–ch14 與 ch11b 教學章節（內容 + 互動實驗 + formulas.ts + handcalcs.ts + diagrams.ts + 測試）
 ├── pages/          # Dashboard、Calibration Lab、手算練習簿、SSPLL 案例、Gallery、Verification、Sign-off、Formulas、Papers、Roadmap、Models
 ├── simulation/     # 純 TypeScript 數值核心：core / signal / models（不依賴 React）
 ├── workers/        # Web Worker：重運算（Monte Carlo、PSD、sweep）

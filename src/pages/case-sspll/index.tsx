@@ -18,7 +18,7 @@ import { S12FiniteStep, S13Offset } from './sections/S12S13'
 import { S14ClosedLoop } from './sections/S14ClosedLoop'
 import { S15Checklist } from './sections/S15Checklist'
 import { S16Quiz, S17Recap } from './sections/S16Wrapup'
-import { S21Symbols, SYMBOLS_ANCHOR, SymbolsLink } from './sections/S21Symbols'
+import { S21Symbols, SYMBOLS_ANCHOR } from './sections/S21Symbols'
 import './case-sspll.css'
 
 /** 目錄：[錨點 id, 標題]；編號就是陣列索引（0–21）。符號表在最後（docs/teaching-style.md §5）。 */
@@ -77,7 +77,6 @@ export default function CaseSspllPage() {
       <p className="small muted">
         結論標籤與分析文件一一對應：<ClaimTag kind="exact" /> 在所述模型與假設下數學上精確；<ClaimTag kind="approx" /> 來自線性化、數值掃描或模擬，在模型外需要驗證；<ClaimTag kind="research" /> 目前只有部分證據，還沒有證明。比較器輸入雜訊的標準差 <Tex>{`\\sigma_v=${fx(SIM_CFG.sigmaPs * 1000, 0)}`}</Tex> fs、VCO 頻率 <Tex>{`f_{vco}=${A.f_vco_Hz_illustrative / 1e9}`}</Tex> GHz 等是插圖值，不是你的晶片量測。
       </p>
-      <SymbolsLink />
       {mode === 'beginner' && (
         <Callout kind="info" title="入門模式：先抓住四句話">
           <ol>
@@ -127,7 +126,7 @@ export default function CaseSspllPage() {
       <S15Checklist />
       <S16Quiz />
       <S17Recap />
-      {/* 符號表放在頁面最後（docs/teaching-style.md §5）；章首只留 <SymbolsLink /> 那一行 */}
+      {/* 符號表放在頁面最後（docs/teaching-style.md §5）；章首「本章資訊」的「符號表 ↓」與章末交棒由 PageFrame 提供 */}
       <S21Symbols />
     </div>
   )
