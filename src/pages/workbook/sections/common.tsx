@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react'
-import { Mermaid, Tex, TexBlock, mathText } from '@/components'
+import { Badge, ChapterFig, Tex, TexBlock, mathText } from '@/components'
 import type { HandCalcDef, HandCalcSolution } from '@/data/types'
 import { LEVEL_LABEL, givenTex, resultTex, type Level } from '../logic'
 
 /** 難度徽章（文字與 HandCalc 標頭相同） */
 export function LevelBadge({ level }: { level: Level }) {
-  return <span className={`wb-level wb-level-${level}`}>{LEVEL_LABEL[level]}</span>
+  // 難度不是「結論強度」，不借用精確／近似／研究假說的綠／琥珀／紫：三種難度都是中性徽章，靠文字區分
+  return <Badge className={`wb-level wb-level-${level}`}>{LEVEL_LABEL[level]}</Badge>
 }
 
 /** 「已知」：把這一題的輸入量排成 符號 = 數值 單位（白話說明） */
@@ -63,9 +64,8 @@ export function SolutionView({ sol }: { sol: HandCalcSolution }) {
  */
 export function Diagram({ chart, caption, ariaLabel, children }: { chart: string; caption: string; ariaLabel?: string; children?: ReactNode }) {
   return (
-    <div className="wb-diagram">
-      <Mermaid chart={chart} caption={caption} ariaLabel={ariaLabel} />
-      {children && <div className="wb-diagram-walk">{children}</div>}
-    </div>
+    <ChapterFig chart={chart} caption={caption} ariaLabel={ariaLabel} className="wb-diagram">
+      {children}
+    </ChapterFig>
   )
 }

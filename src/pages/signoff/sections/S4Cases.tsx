@@ -285,7 +285,7 @@ export function S4Cases({ afterCorner }: { afterCorner?: ReactNode } = {}) {
         <ErratumNote id="E22">
           regularization 參數記為 <Tex>{'\\varepsilon_J'}</Tex>（規格寫 <Tex>{'\\lambda'}</Tex>，與 eigenvalue 衝突）。
         </ErratumNote>
-        <ModeGate min="research">
+        <ModeGate min="research" summary={String.raw`$\hat{\mathbf J}$ 有誤差時還保證穩定的誤差上界（Bauer–Fike 推導）`}>
           <Steps
             title={String.raw`Research：$\hat{\mathbf J}$ 有誤差時，多大的誤差還保證穩定？（Bauer–Fike）`}
             steps={[

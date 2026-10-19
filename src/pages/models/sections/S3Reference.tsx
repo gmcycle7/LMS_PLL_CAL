@@ -151,7 +151,7 @@ export function S3Reference() {
               region: 'blockLmsInnerLoop',
               path: BLOCK_LMS_PATH,
               note: '內層 sample 迴圈：DTC 誤差 → $H_\\mathrm{PD}$（有狀態）→ 加 offset 與雜訊 → comparator → 累加 $q\\,x_\\mathrm{ref}$',
-              highlight: [4, 6, 7, 13, 15],
+              highlight: [4, 6, 7, 13, 19],
             },
             {
               label: 'core:blockLmsGmacUpdate',
@@ -562,7 +562,7 @@ export function S3Reference() {
         <HandCalcPointer>
           含延遲 <Tex>{'d'}</Tex> 的臨界增益、gain margin 與 PM 的手算題在 <ChLink to="/ch/08">Ch08</ChLink>；§11 的思考題 5 用 <Tex>{'d=1'}</Tex> 再算一次 <Tex>{'\\mu'}</Tex> 的上限。
         </HandCalcPointer>
-        <ModeGate min="engineer">
+        <ModeGate min="engineer" summary="解析量（$K_q$、$g$、pole…）的程式碼：blockLmsAnalyticGain">
           <p>解析量也是同一份程式算的（<code>prepare()</code> 內），JSON Lab 的「解析區塊」直接顯示它們：</p>
           <CodeBlock source={blockLmsSrc} region="blockLmsAnalyticGain" path={BLOCK_LMS_PATH} title="core:blockLmsAnalyticGain" caption="$K_q$、$K$、$g$、pole、延遲特徵方程、PM、$f_u$、exact $-3\,\mathrm{dB}$ 與 ENBW；sigma = 0 時 $K_q$ 為 NaN（不是 0）。" />
         </ModeGate>
@@ -580,7 +580,7 @@ export function S3Reference() {
           <ErratumNote id="E01" />；若 comparator 就是主 PLL 的 BBPD（DC 被迴路歸零），offset 不會變成 gain bias <ErratumNote id="E03" />。詳見 <ChLink to="/ch/11">Ch11</ChLink>。
         </p>
       </Section>
-      <ModeGate min="research">
+      <ModeGate min="research" summary={String.raw`本模擬刻意沒有建模的東西（亂數產生、$f_s=f_\mathrm{ref}$ 假設…）`}>
         <Callout kind="info" title="Research：本模擬刻意沒有建模的東西">
           <ul className="models-tight">
             <li>comparator 雜訊以 Ziggurat 產生（比 Box–Muller 快約 2 倍），由 <code>createRng(seed).fork('comparator-noise')</code> 決定，可重現；分布正確性由 KS 與尾端測試驗證。</li>

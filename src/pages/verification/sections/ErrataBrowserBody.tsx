@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Callout, ClaimTag, CodeBlock, ModeGate, SourceTag, Tex, TexBlock } from '@/components'
+import { Badge, badgeClass, Callout, ClaimTag, CodeBlock, ModeGate, SourceTag, Tex, TexBlock } from '@/components'
 import { useSettings } from '@/app/settings'
 import acceptanceSrc from '@/simulation/models/acceptance.ts?raw'
 import validationMd from '../../../../docs/validation.md?raw'
@@ -27,7 +27,7 @@ import {
 } from '../errata'
 import { ERRATA_MATH } from '../errataMath'
 import { testsForErratum } from '../data'
-import { Diagram, FBlock, M, PassMark, useAcceptance, type ErratumLiveCheck } from '../common'
+import { Diagram, FBlock, M, PassMark, SEVERITY_VARIANT, useAcceptance, type ErratumLiveCheck } from '../common'
 import { CHART_ERRATA_FLOW } from '../diagrams'
 import type { ErratumEvidence } from '@/simulation/models/acceptance'
 import { texNum } from '../format'
@@ -117,7 +117,7 @@ function LiveEvidence({ items, checks }: { items: ErratumEvidence[]; checks: Err
         <ul className="small ver-live-checks">
           {checks.map(({ tid, check }) => (
             <li key={`${tid}-${check.label}`}>
-              <a className="ver-chip" href={testRowHref(tid)} title={`跳到驗收表 ${tid}`}>
+              <a className={badgeClass('neutral', 'ver-chip')} href={testRowHref(tid)} title={`跳到驗收表 ${tid}`}>
                 {tid}
               </a>{' '}
               {M(check.label)} <PassMark pass={check.pass} />
@@ -139,7 +139,9 @@ function ErratumCard({ e, target, evidence, checks }: { e: Erratum; target: bool
         <a className="ver-erratum-id" href={erratumHref(e.eid)}>
           {e.eid}
         </a>
-        <span className={`ver-chip ver-chip-${e.severity}`}>{SEVERITY_LABEL[e.severity]}</span>
+        <Badge variant={SEVERITY_VARIANT[e.severity]} className={`ver-chip ver-chip-${e.severity}`}>
+          {SEVERITY_LABEL[e.severity]}
+        </Badge>
         <span className="small">{e.area}</span>
         <span className="ver-erratum-key">{e.id}</span>
         <CopyLink eid={e.eid} />
@@ -148,17 +150,17 @@ function ErratumCard({ e, target, evidence, checks }: { e: Erratum; target: bool
         {e.chapters.map((c) => {
           const href = chapterHref(c)
           return href ? (
-            <a key={c} className="ver-chip" href={href}>
+            <a key={c} className={badgeClass('neutral', 'ver-chip')} href={href}>
               {chapterLabel(c)}
             </a>
           ) : (
-            <span key={c} className="ver-chip">
+            <Badge key={c} className="ver-chip">
               {chapterLabel(c)}
-            </span>
+            </Badge>
           )
         })}
         {tests.map((t) => (
-          <a key={t} className="ver-chip" href={testRowHref(t)} title={`跳到驗收表 ${t}`}>
+          <a key={t} className={badgeClass('neutral', 'ver-chip')} href={testRowHref(t)} title={`跳到驗收表 ${t}`}>
             {t}
           </a>
         ))}
@@ -273,7 +275,7 @@ export function ErrataBrowserBody({ focusEid }: { focusEid: string | null }) {
       <p className="small">
         例：文件寫 <Tex>{r`P(S_{100}>0)=0.492050`}</Tex>（6 位小數），網站算出的值必須落在 <Tex>{r`0.492050\pm0.51\times10^{-6}`}</Tex> 內。容許誤差不是我們挑的，而是由文件自己的精度決定——這樣「證據」才有檢定力：把引用的最後一位改掉，比對就會失敗（<code>acceptance.test.ts</code> 有這個反面測試）。 <ClaimTag kind="exact" />
       </p>
-      <ModeGate min="engineer">
+      <ModeGate min="engineer" summary="引用精度規則的程式碼 parseQuotedNumber（F-VF.13）">
         <CodeBlock
           source={acceptanceSrc}
           region="parseQuotedNumber"
@@ -361,7 +363,7 @@ export function ErrataBrowserBody({ focusEid }: { focusEid: string | null }) {
           <ErratumCard key={e.eid} e={e} target={e.eid === focusEid} evidence={st.evidenceByEid[e.eid] ?? []} checks={st.checksByEid[e.eid] ?? []} />
         ))}
       </div>
-      <ModeGate min="research">
+      <ModeGate min="research" summary="被反駁的稽核意見清單（不列為勘誤）">
         <h3 id="ver-refuted">被反駁的 {REFUTED.length} 項稽核意見（不列為勘誤）</h3>
         <p className="small">
           稽核者提出、但獨立的懷疑者重新推導後認為「規格在指定條件下並沒有錯」的意見。列在這裡是為了透明：它們多半是記號整潔度的建議，或規格其實已經在別處說明。以下文字是

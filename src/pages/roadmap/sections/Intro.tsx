@@ -130,7 +130,7 @@ export function Intro() {
       <Callout kind="warn" title="這一頁上沒有任何東西是 verified">
         研究項目的狀態只有上面四種。每張卡片下方的「數學預覽」是在明確的簡化模型內推導、並用程式驗算（封閉式 vs 數值 vs Monte Carlo）的<strong>第一步</strong>，不代表研究完成。全站只有 T01–T18 的驗收測試在 TypeScript 與 Python golden 兩邊都通過時才顯示 verified（見 <PageRef id="verification" />）。
       </Callout>
-      <ModeGate min="engineer">
+      <ModeGate min="engineer" summary="「驗證」在本站的意思（verified 的三個條件）">
         <Prereq title="「驗證」在本站的意思">
           <p>
             一個 T-id 要顯示 verified，必須：(1) TypeScript 有以 <code>Txx:</code> 命名的測試通過；(2) Python golden model 有 <code>test_Txx_…</code> 通過；(3) 由 <code>npm run verify</code> 彙整進 <code>src/data/verification-status.json</code>。本頁 P0–P5 的進度直接讀這個檔案；研究項目則沒有 T-id，所以不可能是 verified。

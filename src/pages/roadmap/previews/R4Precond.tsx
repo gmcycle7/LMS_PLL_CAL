@@ -242,7 +242,7 @@ export default function R4Preview() {
       </Observe>
       <h4>核心程式碼</h4>
       <CodeBlock source={modelSrc} region="regularizedPreconditioner" path={PATH} caption={String.raw`標示行：$\varepsilon$ 讓小 $\sigma_i$ 的增益變小——這就是收斂與雜訊的取捨。`} />
-      <ModeGate min="research">
+      <ModeGate min="research" summary={String.raw`模型誤差 $\hat{\mathbf J}\ne\mathbf J$ 時的實際極點`}>
         <h4>{mt(String.raw`Research：模型誤差 $\hat{\mathbf J}\ne\mathbf J$`)}</h4>
         <p>
           實際的 poles 是 <Tex>{String.raw`\mathrm{eig}\big(\mathbf I-\gamma(\hat{\mathbf J}^T\hat{\mathbf J}+\varepsilon\mathbf I)^{-1}\hat{\mathbf J}^T\mathbf J\big)`}</Tex>，只有 <Tex>{'\\hat{\\mathbf J}=\\mathbf J'}</Tex> 時才化成上面的封閉式。

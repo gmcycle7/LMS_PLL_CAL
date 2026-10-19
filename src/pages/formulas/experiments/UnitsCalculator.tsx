@@ -7,6 +7,7 @@ import {
   mathText,
   ParamControl,
   Plot,
+  scrollToElement,
   SelectControl,
   Tex,
   useCases,
@@ -178,7 +179,9 @@ export function UnitsCalculator() {
   useEffect(() => {
     // 帶 preset 的連結：等版面穩定後捲到換算器（與套用 preset 分開，StrictMode 的重複 effect 才不會把計時器清掉）
     if (scrollNonce === 0) return
-    const t = window.setTimeout(() => rootRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }), 300)
+    const t = window.setTimeout(() => {
+      if (rootRef.current) scrollToElement(rootRef.current)
+    }, 300)
     return () => window.clearTimeout(t)
   }, [scrollNonce])
 

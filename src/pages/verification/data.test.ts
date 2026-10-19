@@ -359,9 +359,12 @@ describe('verification：格式化與精確差', () => {
     expect(texNum(6.334e-5, 4)).toBe('6.334\\times10^{-5}')
     expect(texNum(1e-12, 2)).toBe('10^{-12}')
     expect(texNum(-1e-9, 2)).toBe('-10^{-9}')
-    expect(texNum(1e6, 3)).toBe('1000000') // 整數原樣顯示
+    expect(texNum(1e6, 3)).toBe('10^{6}') // 共用 texNum：|x| ≥ 1e6 一律用指數
+    expect(texNum(999999, 3)).toBe('999999') // 低於門檻的整數（樣本數）原樣顯示，不捨入
+    expect(texNum(230400, 3)).toBe('230400')
+    expect(texNum(999999.5, 3)).toBe('1000000') // 非整數照共用規則捨入：有效位數 3 位也不漏出 e+
     expect(texNum(Infinity)).toBe('\\infty')
-    expect(texNum(Number.NaN)).toBe('\\mathrm{NaN}')
+    expect(texNum(Number.NaN)).toBe('\\text{NaN}')
     expect(tolTex({ abs: 1e-12 })).toBe('\\varepsilon_{\\rm abs}=10^{-12}')
     expect(tolTex({ abs: 1e-9, rel: 1e-10 })).toBe('\\varepsilon_{\\rm abs}=10^{-9},\\ \\varepsilon_{\\rm rel}=10^{-10}')
     expect(tolTex({ abs: 0 })).toBe('a_k=e_k')

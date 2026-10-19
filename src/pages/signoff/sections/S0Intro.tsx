@@ -1,8 +1,8 @@
-import { Callout, ClaimTag, ModelLevel, Prereq, Section, SourceTag, Tex, TexBlock } from '@/components'
+import { AnchorLink, BadgeRow, Callout, ClaimTag, ModelLevel, Prereq, Section, SourceTag, Tex, TexBlock } from '@/components'
 import { normCdf, normInv, studentTInv } from '@/simulation/core'
 import { cornerJudge, efbPeriod, failureUpperBound, gCrit, inlMseFixedPoint, kq, pmDeg, slopeStdErr } from '../judges'
 import { CHART_SIGNOFF_FLOW } from '../diagrams'
-import { Diagram, ErratumTag, nf, scrollToAnchor, tx } from '../shared'
+import { Diagram, ErratumTag, nf, tx } from '../shared'
 
 /** 六個條件（頁面表格與 diagrams.ts 的 CHART_SIGNOFF_FLOW 共用這個順序；diagrams.test.ts 核對）。 */
 export const PILLARS: { name: string; question: string; tex: string; rows: string }[] = [
@@ -39,7 +39,7 @@ export function S0Intro() {
         <strong>我要檢查哪些東西、用什麼數學判準、看到什麼才能簽名？</strong>
         而簽名的時候，<strong>報告裡那句「穩定」到底是什麼意思？</strong>
       </p>
-      <div className="c-tag-row">
+      <BadgeRow label="本頁涵蓋的模型層級、結論強度與來源">
         <ModelLevel level="L1" />
         <ModelLevel level="L3" />
         <ModelLevel level="L5" />
@@ -47,7 +47,7 @@ export function S0Intro() {
         <ClaimTag kind="approx" />
         <ClaimTag kind="research" />
         <SourceTag kind="illustrative" />
-      </div>
+      </BadgeRow>
       <Callout kind="warn" title="這一頁不能做什麼">
         本頁的模型都是 L0–L5 的教學／行為模型（規格 §15.1），所有數值皆為 <strong>illustrative</strong>。它能幫你把 sign-off 的<strong>判準</strong>與<strong>措辭</strong>做對，但不能取代 Spectre／AMS 模擬、bit-true RTL 與實測。規格開宗明義：不要把一階模型的穩定界限當成整顆 PLL 的 sign-off 結論。
       </Callout>
@@ -105,7 +105,7 @@ export function S0Intro() {
           </p>
         </Diagram>
         <p>
-          這一頁的結構：先用 <a href="#/signoff" onClick={(e) => { e.preventDefault(); scrollToAnchor('so-matrix') }}>互動 Sign-off Matrix</a> 列出每一項要驗證什麼、怎麼判斷、本站哪個實驗能幫你，並記錄你的進度（存在你自己的瀏覽器，可匯出 Markdown／JSON）；接著逐列推導判準背後的數學（每一步都寫理由）；最後是規格 §17 的反面測試與附錄 B 的十項限制。
+          這一頁的結構：先用 <AnchorLink id="so-matrix">互動 Sign-off Matrix</AnchorLink> 列出每一項要驗證什麼、怎麼判斷、本站哪個實驗能幫你，並記錄你的進度（存在你自己的瀏覽器，可匯出 Markdown／JSON）；接著逐列推導判準背後的數學（每一步都寫理由）；最後是規格 §17 的反面測試與附錄 B 的十項限制。
         </p>
       </Section>
 

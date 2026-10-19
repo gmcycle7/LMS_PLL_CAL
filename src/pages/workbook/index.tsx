@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ClaimTag, Tex, randomSeed, usePersistentState } from '@/components'
+import { ClaimTag, Tex, randomSeed, revealAnchor, usePersistentState } from '@/components'
 import type { HandCalcDef } from '@/data/types'
 import { preloadModule, useModule } from '../verification/lazy'
 import { loadBank } from './bank'
@@ -49,11 +49,6 @@ const TAB_LABEL: Record<WorkbookTab, string> = {
   sheet: '練習卷（可列印）',
 }
 const TAB_ORDER: WorkbookTab[] = ['browse', 'practice', 'sheet']
-
-function scrollToId(id: string) {
-  const el = document.getElementById(id)
-  if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'start' })
-}
 
 /**
  * 手算練習簿（route /workbook）。
@@ -121,7 +116,7 @@ export default function WorkbookPage() {
   )
   const jump = (t: WorkbookTab) => {
     setTab(t)
-    scrollToId('wb-s4')
+    revealAnchor('wb-s4')
   }
 
   // 練習卷的起始範圍：切到「練習卷」分頁的那一刻沿用目前的章節／難度篩選（沒有篩選 = 全部）；之後由練習卷自己的勾選框控制
@@ -140,13 +135,13 @@ export default function WorkbookPage() {
           <Tex>{String.raw`\delta = a - w`}</Tex>（真實值減猜測）。
         </p>
         <nav className="wb-toc" aria-label="本頁目錄">
-          <button type="button" className="btn" onClick={() => scrollToId('wb-s1')}>
+          <button type="button" className="btn" onClick={() => revealAnchor('wb-s1')}>
             1 為什麼要手算
           </button>
-          <button type="button" className="btn" onClick={() => scrollToId('wb-s2')}>
+          <button type="button" className="btn" onClick={() => revealAnchor('wb-s2')}>
             2 怎麼用
           </button>
-          <button type="button" className="btn" onClick={() => scrollToId('wb-s3')}>
+          <button type="button" className="btn" onClick={() => revealAnchor('wb-s3')}>
             3 手算工具
           </button>
           <button type="button" className="btn" onClick={() => jump('browse')}>

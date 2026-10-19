@@ -443,7 +443,7 @@ export function S4Systems() {
         </HandCalcSlot>
         <CodeBlock source={dtcSrc} region="dtcQuantize" path="src/simulation/models/dtc.ts" title="core:dtcQuantize" />
         <CodeBlock source={dtcSrc} region="dtcMapping" path="src/simulation/models/dtc.ts" title="core:dtcMapping" />
-        <ModeGate min="engineer">
+        <ModeGate min="engineer" summary="正規化 code 與實體 DTC code（LSB）的換算關係">
           <Callout kind="info" title="正規化 code 與實體 code 的關係">
             blockLms 在<strong>正規化</strong> code <Tex>{'x'}</Tex>（無因次）上工作，gain 單位是 fs per unit code；DTC 的實體 code 則是整數 LSB。兩者以 <code>gain_register.lsb_fs</code>
             （E13 建議的 gain_lsb_fs）換算：實體 gain code <Tex>{'=\\mathrm{round}(w/\\Delta_\\mathrm{LSB})'}</Tex>。不寫明這個換算，§13 的「6-bit 量化」就無法接到 §12 的 0.399 fs <ErratumNote id="E13" />。

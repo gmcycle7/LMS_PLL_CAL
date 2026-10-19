@@ -468,7 +468,7 @@ export default function SspllPreview() {
         ]}
         layout="tabs"
       />
-      <ModeGate min="research">
+      <ModeGate min="research" summary="SSPLL 極性分析中還沒完成的部分">
         <h4>Research：還在分析的部分</h4>
         <ul>
           <li>

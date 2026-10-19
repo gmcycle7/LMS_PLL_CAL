@@ -172,7 +172,7 @@ describe('§4b 的頁面與方塊圖', () => {
     const fig = container.querySelector('figure.c-mermaid')
     expect(fig).not.toBeNull()
     expect((fig?.getAttribute('aria-label') ?? '').length).toBeGreaterThan(30)
-    const walk = container.querySelector('.so-diagram-walk')
+    const walk = container.querySelector('.c-chapter-fig-walk')
     expect(walk?.textContent).toContain('先看')
     expect(walk?.querySelector('.katex')).not.toBeNull()
     expectNoTexErrors(container)

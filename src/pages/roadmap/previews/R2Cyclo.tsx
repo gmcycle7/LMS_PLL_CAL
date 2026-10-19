@@ -216,7 +216,7 @@ export default function R2Preview() {
       </Observe>
       <h4>核心程式碼：精確式與近似只差標示的兩行</h4>
       <CodeBlock source={modelSrc} region="cycloAutocorr" path={PATH} caption="同一個迴圈裡同時算精確時間平均（含 block 相位）與「各自平均再相乘」的近似。" />
-      <ModeGate min="research">
+      <ModeGate min="research" summary="cyclic autocorrelation 的完整描述（本站尚未實作）">
         <h4>Research：cyclic autocorrelation</h4>
         <p>
           完整描述用 cyclic autocorrelation <Tex>{String.raw`R^{(\alpha)}[m]=\frac1L\sum_{n=0}^{L-1}E[\delta t[n]\delta t[n+m]]e^{-j\alpha n}`}</Tex>，<Tex>{'\\alpha=2\\pi k/L'}</Tex>。

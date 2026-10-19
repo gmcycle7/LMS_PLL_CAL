@@ -1,4 +1,4 @@
-import { Callout, CodeBlock, CodeCompare, mathText, Section, Tex } from '@/components'
+import { badgeClass, Callout, CodeBlock, CodeCompare, mathText, Section, Tex } from '@/components'
 import unitsModelSrc from '../unitsModel.ts?raw'
 import { UNIT_TOPICS, type UnitTopic } from '../searchIndex'
 import { refValues, T13_SETUP } from '../refValues'
@@ -29,7 +29,7 @@ export function UnitsSection({ topics, searching }: { topics: UnitTopic[]; searc
         <MatchCount shown={topics.length} total={UNIT_TOPICS.length} active={searching} />
         <span className="fr-chip-row">
           {topics.map((t) => (
-            <button key={t.id} type="button" className="fr-chip" onClick={() => scrollToId(`fr-unit-${t.id}`)} title={`捲到 §${TOPIC_NO[t.id]}`}>
+            <button key={t.id} type="button" className={badgeClass('neutral', 'fr-chip')} onClick={() => scrollToId(`fr-unit-${t.id}`)} title={`捲到 §${TOPIC_NO[t.id]}`}>
               {TOPIC_NO[t.id]} {mathText(t.label)}
             </button>
           ))}

@@ -228,7 +228,7 @@ export default function Inspector({ selected, onSelect }: { selected: string; on
         </ol>
       </div>
       <PreviewView preset={preset} outcome={shownOutcome} tolK={tolK * 1.001} />
-      <ModeGate min="engineer">
+      <ModeGate min="engineer" summary="可靠度表（偵測視窗與巧合相符機率，F-GA.2、F-GA.3）">
         {reliability.length > 0 ? (
           <div className="table-wrap">
             <table className="gal-table gal-num-table gal-reliability">

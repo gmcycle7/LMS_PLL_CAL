@@ -141,13 +141,9 @@ export function SlotAudit({ audit }: { audit: SlotAuditRow[] }) {
  * 瞬間捲到、聚焦、短暫標示，之後兩秒內校正延後渲染造成的位移。不用 smooth 捲動：動畫會經過 §4／§6／§7 每一個延後載入的區塊、
  * 把它們全部觸發下載，而且途中版面長高會把動畫截在錯的位置。
  */
-export function scrollToId(domId: string) {
-  revealAnchor(domId)
-}
-
 export function JumpButton({ domId, children }: { domId: string; children: ReactNode }) {
   return (
-    <button type="button" className="gal-linkbtn" onClick={() => scrollToId(domId)}>
+    <button type="button" className="gal-linkbtn" onClick={() => revealAnchor(domId)}>
       {children}
     </button>
   )

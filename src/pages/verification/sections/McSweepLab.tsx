@@ -182,7 +182,7 @@ export function McSweepLab() {
         <Tex>{r`(K-1)\,s^2/\sigma^2\sim\chi^2_{K-1}`}</Tex>，所以 <Tex>{'s'}</Tex> 本身的相對誤差約 <Tex>{r`1/\sqrt{2(K-1)}`}</Tex>（<Tex>{`K=${ui.runs}`}</Tex> 時約{' '}
         <Tex>{`${fmtNum(100 / Math.sqrt(2 * Math.max(1, ui.runs - 1)), 3)}\\%`}</Tex>）——這決定了「<Tex>{'s_z'}</Tex> 是不是 1」能分辨到多細。
       </p>
-      <ModeGate min="engineer">
+      <ModeGate min="engineer" summary={String.raw`兩個校準分數 $Z_{\rm mean}$、$Z_{\rm sd}$ 的逐步推導`}>
         <StepDerivation
           title="兩個校準分數"
           steps={steps([
@@ -411,7 +411,7 @@ export function McSweepLab() {
           </li>
         </ul>
       </Callout>
-      <ModeGate min="research">
+      <ModeGate min="research" summary="sweepScores 的核心程式碼（F-VF.10 與 KS 統計量）">
         <CodeBlock
           source={acceptanceSrc}
           region="sweepScores"

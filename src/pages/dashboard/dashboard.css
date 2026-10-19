@@ -62,21 +62,19 @@
   gap: 6px;
   margin-top: 8px;
 }
-.dash-pill {
-  display: inline-flex;
-  align-items: center;
+/* 六條件按鈕：外觀來自 badgeClass('neutral')；左邊多放一個條件色的編號圓章（.dash-pill-n），所以左側 padding 縮小 */
+.c-badge.dash-pill {
+  --b-fg: var(--text);
+  --b-bg: var(--surface);
   gap: 6px;
-  padding: 3px 10px 3px 4px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
+  padding-left: 4px;
   font: inherit;
-  font-size: 0.85rem;
+  font-size: var(--badge-fs);
+  font-weight: 400;
   cursor: pointer;
 }
-.dash-pill:hover {
-  border-color: var(--accent);
+.c-badge.dash-pill:hover {
+  --b-bd: var(--accent);
 }
 .dash-pill-n,
 .dash-cond-n {
@@ -199,42 +197,33 @@
   gap: 5px;
   align-items: center;
 }
-.dash-chip {
-  display: inline-block;
-  padding: 1px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--border-strong);
-  font-size: 0.8rem;
-  line-height: 1.6;
-  color: var(--text);
-  background: var(--surface);
-  white-space: nowrap;
+/* 頁面／題號連結 chip：顏色與尺寸來自 badgeClass('neutral')（缺頁時 Badge mismatch）；這裡只補連結色、hover 與 <button> 的字體 */
+.c-badge.dash-chip {
+  --b-fg: var(--text);
+  --b-bg: var(--surface);
+  --b-bd: var(--border-strong);
+  font-weight: 400;
 }
-.dash-chip:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+a.c-badge.dash-chip,
+button.c-badge.dash-chip {
+  font-family: inherit;
+  cursor: pointer;
+}
+a.c-badge.dash-chip:hover,
+button.c-badge.dash-chip:hover {
+  --b-fg: var(--accent);
+  --b-bd: var(--accent);
   text-decoration: none;
 }
-.dash-chip-primary {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent);
+.c-badge.dash-chip-primary {
+  --b-fg: var(--accent);
+  --b-bg: var(--accent-soft);
+  --b-bd: var(--accent);
   font-weight: 600;
 }
-.dash-chip-missing {
-  border-color: var(--danger);
-  color: var(--danger);
-}
 .dash-cond-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 1px 8px;
-  border-radius: 999px;
-  background: var(--surface-2);
-  font-size: 0.78rem;
-  line-height: 1.6;
-  white-space: nowrap;
+  --b-fg: var(--text);
+  font-weight: 400;
 }
 .dash-dot {
   width: 8px;
@@ -243,27 +232,7 @@
   display: inline-block;
   flex: 0 0 auto;
 }
-.dash-erratum {
-  display: inline-block;
-  padding: 0 7px;
-  border-radius: 4px;
-  font-size: 0.76rem;
-  font-weight: 600;
-  line-height: 1.7;
-  white-space: nowrap;
-  border: 1px dashed var(--warn);
-  color: var(--warn);
-  background: var(--warn-soft);
-}
-.dash-erratum.dash-sev-high {
-  border-color: var(--danger);
-  color: var(--danger);
-  background: var(--danger-soft);
-}
-.dash-erratum:hover {
-  text-decoration: none;
-  filter: brightness(1.05);
-}
+/* .dash-erratum：外觀是 Badge 的 erratum variant，嚴重度換色來自 links/erratumLink.css（c-erratum-link），這裡不再定義 */
 .dash-state {
   display: inline-grid;
   place-items: center;
@@ -1001,11 +970,6 @@
   vertical-align: top;
   font-size: 0.9rem;
 }
-.dash-legend-table button.dash-chip {
-  font: inherit;
-  font-size: 0.8rem;
-  cursor: pointer;
-}
 
 /* ---------- Monte Carlo 交叉比對 ---------- */
 .dash-mc {
@@ -1107,27 +1071,8 @@
   text-align: left;
   line-height: 1.35;
 }
-button.dash-chip {
-  font-family: inherit;
-  cursor: pointer;
-}
 
 /* ---------- 方塊圖與導讀（ui.tsx 的 DiagramWalk；docs/teaching-style.md §8） ---------- */
-.dash-diagram {
-  margin: 14px 0 16px;
-  min-width: 0;
-}
-.dash-diagram .c-mermaid {
-  margin-bottom: 6px;
-}
-.dash-diagram-walk {
-  border-left: 3px solid var(--accent);
-  padding: 2px 0 2px 12px;
-  font-size: 0.93rem;
-}
-.dash-diagram-walk > p {
-  margin: 6px 0;
-}
 .dash-map-list {
   margin: 8px 0 10px;
   padding-left: 1.3em;
@@ -1219,7 +1164,6 @@ button.dash-chip {
 }
 .dash-outcome-list .dash-chip {
   margin-left: 6px;
-  vertical-align: baseline;
 }
 @media (max-width: 760px) {
   .dash-outcomes {

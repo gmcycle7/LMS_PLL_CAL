@@ -117,7 +117,7 @@ export function S2ReadingPath() {
           </li>
         </ol>
       </Callout>
-      <ModeGate min="research">
+      <ModeGate min="research" summary="D2 需要的線性代數背景與建議的先讀教材">
         <p className="small muted">
           Research：D2（Toeplitz 矩陣的漸近 pseudospectrum）需要的線性代數超出本站 <ChRef ch="09">Ch09</ChRef>–<ChRef ch="10">Ch10</ChRef> 的範圍；建議先讀 Strang 的特徵值章節與 Oppenheim & Schafer 的
           DTFT，再讀 D2 的必要條件推導。

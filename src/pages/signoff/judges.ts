@@ -32,6 +32,7 @@ import {
   type Rng,
 } from '@/simulation/core'
 import { toFixedClean } from '@/components/format'
+import { texNum as sharedTexNum } from '@/components/handcalcMath'
 import { corrSingleTone, ctHpd, ctT, polarityMarginDeg, singleToneFir } from '@/simulation/models/pll'
 import { buildSignLmsMcConfig, compareMcToLinear, settleFromPoles, SETTLE_FROM_POLES_MAX_STEPS, simulateDelayRecursion, type McComparison, type SignLmsMcSetup } from '@/simulation/models/stability'
 import type { BlockLmsConfigInput, BlockLmsMonteCarloResult } from '@/simulation/models/blockLms'
@@ -46,12 +47,12 @@ export function kq(sigmaV: number): number {
   return Math.sqrt(2 / Math.PI) / sigmaV
 }
 
-/** 把數字寫成 TeX（科學記號改成 a×10^{b}），給含 `$…$` 的警告字串用。 */
+/**
+ * 把數字寫成 TeX，給含 `$…$` 的警告字串用。規則由共用的 `texNum`（components/handcalcMath.ts）決定：
+ * `digits` 是小數點後的位數（有效數字 = digits + 1，預設 4 位）；|x| ≥ 1e6 或 < 1e-4 改寫成 a×10^{b}。
+ */
 export function texNum(x: number, digits = 3): string {
-  if (!Number.isFinite(x)) return x > 0 ? '\\infty' : x < 0 ? '-\\infty' : '\\text{NaN}'
-  const [m, e] = x.toExponential(digits).split('e')
-  const k = Number(e)
-  return k === 0 ? m : `${m}\\times10^{${k}}`
+  return sharedTexNum(x, digits + 1)
 }
 
 /** 兩個非負整數的最大公因數。 */

@@ -282,7 +282,7 @@ export function MonteCarloPanel({ mc, r, caseId, seriesIndex, seed }: { mc: Mont
         </>
       )}
 
-      <ModeGate min="engineer">
+      <ModeGate min="engineer" summary="參數怎麼對應到模擬器（規格 §15.3 的 JSON）與核心程式碼">
         <details className="dash-details">
           <summary>參數怎麼對應到模擬器（規格 §15.3 的 JSON）與核心程式碼</summary>
           <div className="dash-details-body">
@@ -313,7 +313,7 @@ export function MonteCarloPanel({ mc, r, caseId, seriesIndex, seed }: { mc: Mont
               </table>
             </div>
             <CodeBlock source={bridgeSrc} region="toBlockLmsConfig" path={BRIDGE_PATH} title="toBlockLmsConfig：體檢參數 → block Sign-LMS 設定" />
-            <ModeGate min="research">
+            <ModeGate min="research" summary="compareMonteCarlo 的核心程式碼（信賴區間加模型容許誤差的判定）">
               <CodeBlock
                 source={bridgeSrc}
                 region="compareMonteCarlo"

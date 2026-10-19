@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react'
-import { badgeClass, mathText, Mermaid, TexBlock } from '@/components'
+import { badgeClass, ChapterFig, mathText, TexBlock, type BadgeVariant } from '@/components'
 import { revealAnchor } from '@/components/links'
 import { useSettings, type LearningMode } from '@/app/settings'
 import {
@@ -169,11 +169,19 @@ export function ErratumChip({ eid }: { eid: string }) {
   const gist = ERRATA_MATH[eid]?.gist
   const tip = e ? `${eid}（${SEVERITY_LABEL[e.severity]}）：${gist ? texToPlain(gist) : e.area}` : `${eid}：找不到此勘誤`
   return (
-    <a className={`ver-chip ${e ? `ver-chip-${e.severity}` : 'ver-chip-erratum'}`} href={erratumHref(eid)} title={tip} data-erratum={eid}>
+    <a className={badgeClass('erratum', 'ver-chip c-erratum-link')} href={erratumHref(eid)} title={tip} data-erratum={eid} data-severity={e?.severity}>
       勘誤 {eid}
     </a>
   )
 }
+
+/**
+ * 勘誤嚴重度 → 徽章 variant：嚴重＝紅（mismatch）、中＝琥珀描邊（erratum）、輕微＝灰（neutral）。
+ * 這張表是全站勘誤嚴重度顏色的準則：上面的 ErratumChip 與共用的 ErratumLink（章節、Dashboard…）是 `c-erratum-link` + `data-severity`，
+ * 顏色寫在 src/components/links/erratumLink.css，內容必須和這張表指到的 Badge variant 一致
+ * （src/components/links/erratumSeverity.test.ts 逐項比對）；驗證頁卡片左邊的色條（verification.css 的 .sev-*）也照這個對應。
+ */
+export const SEVERITY_VARIANT: Record<'high' | 'medium' | 'low', BadgeVariant> = { high: 'mismatch', medium: 'erratum', low: 'neutral' }
 
 /** 通過 / 失敗 / 未計算 的標記 */
 export function PassMark({ pass, label }: { pass: boolean | null; label?: string }) {
@@ -223,19 +231,16 @@ export function steps(list: { tex: string; why: string }[]): { tex: string; why:
 /** 頁尾符號表外層的 DOM id（docs/teaching-style.md §5：符號表放在最後，頁首只留一行連結） */
 export const SYMBOLS_ANCHOR = 'symbols'
 
-/**
- * 頁內捲動（不改網址）：HashRouter 下 href="#id" 會被當成路由。用共用的 revealAnchor（和本頁目錄、公式連結同一套）：
+/*
+ * 頁內捲動（不改網址）：HashRouter 下 href="#id" 會被當成路由，所以一律用共用的 revealAnchor（links/anchor；和本頁目錄、公式連結同一套）：
  * 瞬間捲到、聚焦、短暫標示，之後兩秒內校正延後渲染造成的位移。不用 smooth 捲動：動畫會經過 §V.3–§V.6 每一個延後載入的區塊、
  * 把它們全部觸發下載，而且途中版面長高會把動畫截在錯的位置（頁首「符號表」連結實測停在 §V.6 中間）。
  */
-export function scrollToId(id: string) {
-  revealAnchor(id)
-}
 
 /** 連結樣式的按鈕：按了捲到本頁的某個區塊。 */
 export function JumpButton({ to, children }: { to: string; children: ReactNode }) {
   return (
-    <button type="button" className="ver-linkbtn" onClick={() => scrollToId(to)}>
+    <button type="button" className="ver-linkbtn" onClick={() => revealAnchor(to)}>
       {children}
     </button>
   )
@@ -252,14 +257,13 @@ export function SymbolsLink() {
 }
 
 /**
- * 方塊圖版位（docs/teaching-style.md §8）：一張 Mermaid 圖、一句圖說（要看什麼），下面緊接「先看…再看…」的導讀。
- * 圖說支援 `$…$` 行內公式（Mermaid 元件會用 KaTeX 排版）；導讀用 `M(r\`…$…$…\`)` 或 <Tex> 寫數學。
+ * 方塊圖版位（docs/teaching-style.md §8）：共用的 ChapterFig（Mermaid 圖＋圖說＋「怎麼看這張圖」導讀）。
+ * 圖說支援 `$…$` 行內公式；導讀用 `M(r\`…$…$…\`)` 或 <Tex> 寫數學。`ver-diagram` 只是測試與審查腳本的 hook。
  */
 export function Diagram({ chart, caption, ariaLabel, children }: { chart: string; caption: string; ariaLabel?: string; children?: ReactNode }) {
   return (
-    <div className="ver-diagram">
-      <Mermaid chart={chart} caption={caption} ariaLabel={ariaLabel} />
-      {children && <div className="ver-diagram-walk">{children}</div>}
-    </div>
+    <ChapterFig chart={chart} caption={caption} ariaLabel={ariaLabel} className="ver-diagram">
+      {children}
+    </ChapterFig>
   )
 }

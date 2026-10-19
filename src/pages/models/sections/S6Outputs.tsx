@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { Callout, ClaimTag, CodeBlock, ModeGate, Prereq, Section, Tex, TexBlock, ChRef } from '@/components'
 import jsonLabSrc from '../experiments/jsonLabModel.ts?raw'
 import { ar1EffectiveSamples, ar1RelSeStd, ar1SeMean } from '../experiments/jsonLabModel'
-import { ChLink, HandCalcSlot, Steps, md, texNum } from '../common'
+import { ChLink, CoverageStatus, HandCalcSlot, Steps, md, texNum } from '../common'
 import { SPEC_NUMBERS } from '../refNumbers'
 
 /** §15.3 預設模擬（num_blocks = 2000）拿來做統計的後半段 block 數 */
@@ -116,7 +116,7 @@ export function S6Outputs() {
                   {i === 0 && <th rowSpan={g.rows.length}>{g.group}</th>}
                   <td>{r.item}</td>
                   <td className="nowrap">
-                    <span className={`models-status models-status-${r.status === 'yes' ? 'full' : r.status === 'partial' ? 'partial' : 'none'}`}>{LABEL[r.status]}</span>
+                    <CoverageStatus status={r.status === 'yes' ? 'full' : r.status === 'partial' ? 'partial' : 'none'}>{LABEL[r.status]}</CoverageStatus>
                   </td>
                   <td>{r.where}</td>
                   <td className="small">{r.note}</td>
@@ -182,7 +182,7 @@ export function S6Outputs() {
           自相關 <Tex>{'\\hat\\rho_1'}</Tex> 與樣本標準差 <Tex>{'s_w'}</Tex>，不是解析值：平均值的容忍度是 <Tex>{'4\\,\\mathrm{SE}'}</Tex>（定點模式再加 1 LSB），<Tex>{'\\sigma_w'}</Tex> 的相對容忍度是{' '}
           <Tex>{`\\max(5\\%,\\,4\\times${texNum(100 * relSe, 3)}\\%)`}</Tex>，其中 <Tex>{`${texNum(100 * relSe, 3)}\\%`}</Tex> 來自 <Tex>{'\\sqrt{(1+\\rho_1^2)/(2N_\\mathrm{blk}(1-\\rho_1^2))}'}</Tex>（Gaussian AR(1) 的樣本標準差）。
         </p>
-        <ModeGate min="engineer">
+        <ModeGate min="engineer" summary="JSON Lab 指標表背後的程式碼：ar1StandardError">
           <CodeBlock
             source={jsonLabSrc}
             region="ar1StandardError"

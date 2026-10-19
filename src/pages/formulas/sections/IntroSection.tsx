@@ -1,4 +1,4 @@
-import { Callout, ClaimTag, ModelLevel, SourceTag, TestBadge, Tex } from '@/components'
+import { BadgeRow, Callout, ClaimTag, ModelLevel, SourceTag, TestBadge, Tex } from '@/components'
 import { ERRATA } from '../errata'
 import { ALL_FORMULAS, registryStats } from '../registry'
 import { GLOBAL_SYMBOLS } from '../symbols'
@@ -20,7 +20,7 @@ export function IntroSection() {
   const st = registryStats(ALL_FORMULAS)
   return (
     <section className="fr-intro" id="fr-intro">
-      <div className="c-tag-row">
+      <BadgeRow label="本頁涵蓋的結論強度、來源、模型層級與相關測試">
         <ClaimTag kind="exact" />
         <ClaimTag kind="approx" />
         <ClaimTag kind="research" />
@@ -29,7 +29,7 @@ export function IntroSection() {
         <ModelLevel level="L1" />
         <TestBadge id="T13" />
         <TestBadge id="T14" />
-      </div>
+      </BadgeRow>
       <p className="small fr-symbols-link">
         <button type="button" className="fr-link-button" onClick={() => scrollToId(PAGE_SYMBOLS_ID)}>
           本頁新增的記號表在最後 ↓

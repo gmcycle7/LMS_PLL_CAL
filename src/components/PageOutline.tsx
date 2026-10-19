@@ -4,6 +4,7 @@ import { useMediaQuery } from '@/app/useMediaQuery'
 import { accessibleText, mathText, stripMathDelimiters } from './Tex'
 import { revealAnchor, routeWithParam } from './links/anchor'
 import { BackToTop } from './BackToTop'
+import { badgeClass } from './Tags'
 import './PageOutline.css'
 
 /**
@@ -396,22 +397,22 @@ export function PageOutline({ root, pageKey, onLayout }: PageOutlineProps) {
       )}
       <div className="c-outline-shortcuts" role="group" aria-label="捷徑">
         {shortcuts.exp.length > 0 && (
-          <button type="button" className="c-outline-chip" onClick={() => jumpNext(shortcuts.exp)}>
+          <button type="button" className={badgeClass('neutral', 'c-outline-chip')} onClick={() => jumpNext(shortcuts.exp)}>
             實驗（{shortcuts.exp.length}）
           </button>
         )}
         {shortcuts.handcalc.length > 0 && (
-          <button type="button" className="c-outline-chip" onClick={() => jumpNext(shortcuts.handcalc)}>
+          <button type="button" className={badgeClass('neutral', 'c-outline-chip')} onClick={() => jumpNext(shortcuts.handcalc)}>
             手算（{shortcuts.handcalc.length}）
           </button>
         )}
         {shortcuts.quiz.length > 0 && (
-          <button type="button" className="c-outline-chip" onClick={() => jumpNext(shortcuts.quiz)}>
+          <button type="button" className={badgeClass('neutral', 'c-outline-chip')} onClick={() => jumpNext(shortcuts.quiz)}>
             思考題
           </button>
         )}
         {symbolsId && (
-          <button type="button" className="c-outline-chip" onClick={() => jumpNext([symbolsId])}>
+          <button type="button" className={badgeClass('neutral', 'c-outline-chip')} onClick={() => jumpNext([symbolsId])}>
             符號表
           </button>
         )}

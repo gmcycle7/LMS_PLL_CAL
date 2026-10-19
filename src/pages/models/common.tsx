@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { HandCalc, mathText, Mermaid, StepDerivation, type Step } from '@/components'
+import { Badge, badgeClass, ChapterFig, ErratumLink, HandCalc, mathText, StepDerivation, texNum as sharedTexNum, type BadgeVariant, type Step } from '@/components'
 import { useSettings, type LearningMode } from '@/app/settings'
 import { handcalc } from './handcalcs'
 
@@ -36,7 +36,7 @@ export function Steps({ title, steps, result, open }: { title: ReactNode; steps:
   return (
     <details className="models-steps" open={open ?? engineer}>
       <summary>
-        <span className="models-steps-badge">逐步推導</span> {mathText(title)}
+        <span className={badgeClass('neutral', 'models-steps-badge')}>逐步推導</span> {mathText(title)}
       </summary>
       <StepDerivation steps={rendered} result={result} />
     </details>
@@ -44,25 +44,36 @@ export function Steps({ title, steps, result, open }: { title: ReactNode; steps:
 }
 
 /**
- * 方塊圖 + 「怎麼讀這張圖」導讀（docs/teaching-style.md §8）。
+ * 方塊圖 + 「怎麼讀這張圖」導讀（docs/teaching-style.md §8）：共用的 ChapterFig。
  * 圖上的數學在 diagrams.ts 以 `$...$` 寫 LaTeX、由 <Mermaid> 用 KaTeX 排版；導讀與圖說（caption 支援 `$…$`）用 KaTeX 把圖上的名字對回正文的公式。
+ * `models-diagram` 只是測試與審查腳本的 hook。
  */
 export function Diagram({ chart, caption, ariaLabel, children }: { chart: string; caption: string; ariaLabel?: string; children?: ReactNode }) {
   return (
-    <div className="models-diagram">
-      <Mermaid chart={chart} caption={caption} ariaLabel={ariaLabel ?? caption} />
-      {children && <div className="models-diagram-walk">{children}</div>}
-    </div>
+    <ChapterFig chart={chart} caption={caption} ariaLabel={ariaLabel ?? caption} className="models-diagram">
+      {children}
+    </ChapterFig>
   )
 }
 
-/** 勘誤小註：「勘誤 Exx」連到 #/verification（驗證頁依 id 列出勘誤）。 */
+/**
+ * 「本站能不能模擬」的狀態徽章：可模擬＝綠（ok）、部分模擬＝琥珀描邊（partial）、未模擬＝琥珀虛線（not-implemented）。
+ * `models-status models-status-<status>` 只是測試與審查腳本的 hook，顏色與尺寸來自 Badge。
+ */
+const COVERAGE_VARIANT: Record<'full' | 'partial' | 'none', BadgeVariant> = { full: 'ok', partial: 'partial', none: 'not-implemented' }
+export function CoverageStatus({ status, children }: { status: 'full' | 'partial' | 'none'; children: ReactNode }) {
+  return (
+    <Badge variant={COVERAGE_VARIANT[status]} className={`models-status models-status-${status}`}>
+      {children}
+    </Badge>
+  )
+}
+
+/** 勘誤小註：「勘誤 Exx」是共用的 ErratumLink（連到驗證頁該條勘誤），後面可接一句說明。 */
 export function ErratumNote({ id, children }: { id: string; children?: ReactNode }) {
   return (
     <span className="models-erratum">
-      <a href="#/verification" title={`本站與規格書不同之處，見驗證頁的勘誤 ${id}`}>
-        勘誤 {id}
-      </a>
+      <ErratumLink id={id} />
       {children && <span className="models-erratum-text">{children}</span>}
     </span>
   )
@@ -127,10 +138,7 @@ export function int(x: number): string {
   return Math.round(x).toLocaleString('en-US')
 }
 
-/** 在 TeX 字串中使用的數字（科學記號轉成 \times 10^{…}） */
+/** 在 TeX 字串中使用的數字（共用的 texNum，本頁預設 6 位有效數字；科學記號轉成 \times 10^{…}） */
 export function texNum(x: number, digits = 6): string {
-  const s = sig(x, digits)
-  const m = /^(-?[\d.]+)e([+-]\d+)$/.exec(s)
-  if (!m) return s.replace('−', '-')
-  return `${m[1]}\\times10^{${Number(m[2])}}`
+  return sharedTexNum(x, digits)
 }

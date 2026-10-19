@@ -381,7 +381,7 @@ export default function R1Preview() {
           { label: 'Monte Carlo', source: modelSrc, region: 'sigmaWMonteCarlo', path: PATH, note: '直接跑遞迴，多條 chain 求 CI。' },
         ]}
       />
-      <ModeGate min="research">
+      <ModeGate min="research" summary="頻域驗算與適用範圍">
         <h4>Research：頻域驗算與適用範圍</h4>
         <p>
           頻域上 <Tex>{String.raw`\sigma_w^2=\frac1{2\pi}\int_{-\pi}^{\pi}\frac{\mu^2}{|1-pe^{-j\Omega}|^2}\cdot\frac{\sigma_\eta^2(1-\rho^2)}{|1-\rho e^{-j\Omega}|^2}d\Omega`}</Tex>，以留數定理算出同一個封閉式（上方實驗的 Parseval 欄位即其數值版）。

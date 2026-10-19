@@ -1,6 +1,6 @@
 import { memo, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { SourceTag, TestBadge } from '@/components'
+import { Badge, SourceTag, TestBadge } from '@/components'
 import { ALL_PRESETS, presetHref } from '@/app/presets'
 import { PAGES } from '@/app/registry'
 import type { PresetEntry } from '@/data/types'
@@ -46,7 +46,7 @@ export const GallerySection = memo(function GallerySection() {
                 <Rich text={p.expected} />
               </div>
               <div className="dash-badges">
-                <span className="dash-chip">{page ? (shortCode(page.id) ?? page.nav) : p.page}</span>
+                <Badge className="dash-chip">{page ? (shortCode(page.id) ?? page.nav) : p.page}</Badge>
                 {(p.tests ?? []).map((t) => (
                   <TestBadge key={t} id={t} />
                 ))}

@@ -1,4 +1,4 @@
-import { ClaimTag, ModelLevel, SourceTag, TestBadge, Tex } from '@/components'
+import { BadgeRow, ClaimTag, ModelLevel, SourceTag, TestBadge, Tex } from '@/components'
 import { BlockLmsJsonLab } from './experiments/BlockLmsJsonLab'
 import { S1Intro } from './sections/S1Intro'
 import { S2Levels } from './sections/S2Levels'
@@ -38,7 +38,7 @@ const f4 = (x: number): string => x.toPrecision(4)
 export default function ModelsPage() {
   return (
     <div className="models-page">
-      <div className="c-tag-row models-head-tags" id={PAGE_TOP_ANCHOR}>
+      <BadgeRow className="models-head-tags" id={PAGE_TOP_ANCHOR} label="本頁涵蓋的模型層級、結論強度、來源與相關測試">
         <ModelLevel level="L1" />
         <ModelLevel level="L2" />
         <ModelLevel level="L4" />
@@ -48,7 +48,7 @@ export default function ModelsPage() {
         <SourceTag kind="simulation" />
         <TestBadge id="T13" />
         <TestBadge id="T14" />
-      </div>
+      </BadgeRow>
       <SymbolsJump />
       <S1Intro />
       <S2Levels />

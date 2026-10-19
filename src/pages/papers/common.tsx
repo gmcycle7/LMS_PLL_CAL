@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ClaimTag, CodeBlock, CodeCompare, HandCalc, Mermaid, ModeGate, Prereq, Tex, TexBlock, mathText, ChRef, badgeClass } from '@/components'
+import { AnchorLink, Badge, ChapterFig, ClaimTag, CodeBlock, CodeCompare, HandCalc, ModeGate, Prereq, Tex, TexBlock, mathText, ChRef, badgeClass, revealAnchor, texNum as sharedTexNum } from '@/components'
 import bridgeSrc from './bridge.ts?raw'
 import { formulaById } from './formulas'
 import { handcalc } from './handcalcs'
@@ -14,7 +14,7 @@ export const BRIDGE_PATH = 'src/pages/papers/bridge.ts'
 /** 顯示 bridge.ts 的核心程式碼（Engineer 以上；頁面上的數字就是這段程式算的）。 */
 export function BridgeCode({ region, caption }: { region: string; caption?: string }) {
   return (
-    <ModeGate min="engineer">
+    <ModeGate min="engineer" summary="本頁數字背後的核心程式碼（bridge.ts 的一段）">
       <CodeBlock source={bridgeSrc} region={region} path={BRIDGE_PATH} caption={caption} />
     </ModeGate>
   )
@@ -23,7 +23,7 @@ export function BridgeCode({ region, caption }: { region: string; caption?: stri
 /** 並排比較 bridge.ts 的兩段以上程式（差異行以 `// ← 差異：…` 標出）。 */
 export function BridgeCompare({ items, caption }: { items: { label: string; region: string; note?: string }[]; caption?: string }) {
   return (
-    <ModeGate min="engineer">
+    <ModeGate min="engineer" summary="bridge.ts 兩段以上程式碼的並排比較（差異行有標記）">
       <CodeCompare caption={caption} items={items.map((it) => ({ ...it, source: bridgeSrc, path: BRIDGE_PATH }))} />
     </ModeGate>
   )
@@ -82,9 +82,9 @@ export function RichText({ text }: { text: string }) {
 /** 本站頁面連結（由 registry 讀名稱與路徑，不手寫章節清單）。 */
 export function PageChip({ id }: { id: string }) {
   const p = pageById(id)
-  if (!p) return <span className="papers-chip papers-chip-missing">{id}</span>
+  if (!p) return <Badge className="papers-chip papers-chip-missing">{id}</Badge>
   return (
-    <Link to={p.path} className="papers-chip" title={p.title}>
+    <Link to={p.path} className={badgeClass('neutral', 'papers-chip')} title={p.title}>
       {p.nav}
     </Link>
   )
@@ -128,20 +128,14 @@ export function Fold({ title, children, min = 'engineer' }: { title: ReactNode; 
 }
 
 /**
- * 頁內跳轉：HashRouter 下 href="#id" 會被當成路由，所以改用 scrollIntoView（href 保留目前路由，供新分頁開啟）。
+ * 頁內跳轉：共用的 AnchorLink（HashRouter 下 href="#id" 會被當成路由；它的 href 是帶 ?a= 的真實網址，
+ * 點擊時展開祖先 <details>、捲過去並標示）。
  */
 export function JumpLink({ to, children }: { to: string; children: ReactNode }) {
   return (
-    <a
-      href="#/papers"
-      className="papers-jump"
-      onClick={(e) => {
-        e.preventDefault()
-        document.getElementById(to)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }}
-    >
+    <AnchorLink id={to} className="papers-jump">
       {children}
-    </a>
+    </AnchorLink>
   )
 }
 
@@ -150,15 +144,10 @@ export const SYMBOLS_ANCHOR = 'symbols'
 /** 頁首（導言段落）的 DOM id：符號表旁的「回到頁首」用 */
 export const TOP_ANCHOR = 'papers-top'
 
-/** 頁內捲動（不改網址）：HashRouter 下 href="#id" 會被當成路由；jsdom 沒有 scrollIntoView，用可選呼叫。 */
-export function scrollToId(id: string) {
-  document.getElementById(id)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
-}
-
 /** 連結樣式的按鈕：按了捲到本頁的某個區塊。 */
 export function JumpButton({ to, children }: { to: string; children: ReactNode }) {
   return (
-    <button type="button" className="papers-linkbtn" onClick={() => scrollToId(to)}>
+    <button type="button" className="papers-linkbtn" onClick={() => revealAnchor(to)}>
       {children}
     </button>
   )
@@ -175,15 +164,14 @@ export function SymbolsLink() {
 }
 
 /**
- * 方塊圖版位（docs/teaching-style.md §8）：一張 Mermaid 圖、一句圖說（要看什麼），下面緊接「先看…再看…」的導讀。
- * 圖說是純文字（Mermaid 的 caption 不渲染 KaTeX），數學符號留給 children 用 <Tex> 寫。
+ * 方塊圖版位（docs/teaching-style.md §8）：共用的 ChapterFig（Mermaid 圖＋圖說＋「怎麼看這張圖」導讀）。
+ * 數學符號留給 children 用 <Tex> 寫。`papers-diagram` 只是測試與審查腳本的 hook。
  */
 export function Diagram({ chart, caption, ariaLabel, children }: { chart: string; caption: string; ariaLabel?: string; children?: ReactNode }) {
   return (
-    <div className="papers-diagram">
-      <Mermaid chart={chart} caption={caption} ariaLabel={ariaLabel} />
-      {children && <div className="papers-diagram-walk">{children}</div>}
-    </div>
+    <ChapterFig chart={chart} caption={caption} ariaLabel={ariaLabel} className="papers-diagram">
+      {children}
+    </ChapterFig>
   )
 }
 
@@ -214,12 +202,9 @@ export function num(x: number, digits = 4): string {
   return `${m.replace('-', '−')}×10^${Number(e)}`
 }
 
-/** 數字轉成 TeX（科學記號用 \times 10^{}），方便放進公式。 */
+/** 數字轉成 TeX（共用的 texNum，本頁預設 4 位有效數字；科學記號用 \times 10^{}），方便放進公式。 */
 export function texNum(x: number, digits = 4): string {
-  const s = num(x, digits)
-  const m = /^(.*)×10\^(-?\d+)$/.exec(s)
-  if (m) return `${m[1].replace('−', '-')}\\times10^{${m[2]}}`
-  return s.replace('−', '-').replace('∞', '\\infty')
+  return sharedTexNum(x, digits)
 }
 
 /** 表格用的數字：一般大小用等寬純文字，科學記號改用 KaTeX（避免用 Unicode 拼出 ×10^n）。 */

@@ -322,7 +322,7 @@ export function S4Conventions() {
       </p>
       <CodeBlock source={bridgeSrc} region="gainScale" path={BRIDGE_PATH} />
       <Hand id="HC-PR.3" />
-      <ModeGate min="engineer">
+      <ModeGate min="engineer" summary="文獻常見記號與本站記號的對照表">
         <h3 className="papers-subhead">文獻記號對照（常見寫法；以你手上的版本為準）</h3>
         <div className="table-wrap">
           <table className="papers-table">

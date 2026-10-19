@@ -424,7 +424,7 @@ export function MonteCarloLabBody() {
 
       <McSweepLab />
 
-      <ModeGate min="research">
+      <ModeGate min="research" summary="runAcceptanceMonteCarlo 的核心程式碼（worker 實際執行的函式）">
         <CodeBlock
           source={acceptanceSrc}
           region="runAcceptanceMonteCarlo"

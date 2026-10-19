@@ -240,7 +240,7 @@ export function McTheory() {
         </p>
       </Expand>
 
-      <ModeGate min="engineer">
+      <ModeGate min="engineer" summary="五個細節的推導：SE 怎麼算、估計量本身有沒有偏差">
         <Expand title="五個細節：SE 怎麼算、估計量本身有沒有偏差" badge="推導" openFrom="research">
           <p>
             <strong>(1) 比例（T04、T05）。</strong> <Tex>{r`X_i\in\{0,1\}`}</Tex> 的 Bernoulli：<Tex>{r`\operatorname{Var}(X_i)=p(1-p)`}</Tex>，所以
@@ -296,7 +296,7 @@ export function McTheory() {
             <strong>(4) lag-1 自相關與 ENBW（T14）。</strong> 估計量 <Tex>{r`r_1=\sum c_ic_{i+1}/\sum c_i^2`}</Tex>（<Tex>{r`c_i=x_i-\bar x`}</Tex>）同樣因為扣掉樣本平均而偏低：
           </p>
           <FBlock id="F-VF.7" />
-          <ModeGate min="research">
+          <ModeGate min="research" summary="有限 $n$ 精確式的推導大綱（分子與分母各自的期望值）">
             <StepDerivation
               title={M('推導大綱：分子與分母各自的期望值（程式用的是有限 $n$ 的精確式）')}
               steps={steps([

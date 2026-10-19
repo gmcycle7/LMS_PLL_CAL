@@ -364,7 +364,7 @@ export function HealthCheck({ cases, evaluated }: { cases: UseCasesResult<Thesis
 
       <MonteCarloPanel mc={mc} r={r} caseId={active.id} seriesIndex={active.seriesIndex} seed={cases.seed} />
 
-      <ModeGate min="engineer">
+      <ModeGate min="engineer" summary="eigen-mode 表、一般 LMS 與 preconditioned 的比較，以及核心程式碼">
         <h4 style={{ marginBottom: 4 }}>
           <Rich text={`Case ${cases.activeId} 的 eigen-mode（$\\tilde{\\mathbf R}$ 的特徵方向）`} />
         </h4>
@@ -580,7 +580,7 @@ export function HealthCheck({ cases, evaluated }: { cases: UseCasesResult<Thesis
               ]}
               caption={String.raw`$d=0$ 時兩者都等於封閉式 $1/(g(2-g))=1/(1-p^2)$。`}
             />
-            <ModeGate min="research">
+            <ModeGate min="research" summary="evaluateThesis 的核心程式碼（六個條件共用的計算核心）">
               <CodeBlock source={modelSrc} region="evaluateThesis" path={MODEL_PATH} title="evaluateThesis：六個條件共用的計算核心" />
             </ModeGate>
           </div>

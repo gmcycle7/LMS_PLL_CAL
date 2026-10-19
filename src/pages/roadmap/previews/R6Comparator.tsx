@@ -1,5 +1,6 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
+import { Link } from 'react-router-dom'
 import {
   ClaimTag,
   CodeCompare,
@@ -154,7 +155,7 @@ function R6Experiment() {
         String.raw`雜訊 $v$ iid、零均值、總 RMS 為 $\sigma_v$（dual-Dirac：$\pm A$ 等機率加上 Gaussian RJ）`,
         String.raw`遲滯門檻 $\theta\pm H/2$，依前一次決策而定；tie 取 $+1$（勘誤 E07）`,
         String.raw`每個 $s$ 的 Monte Carlo 逐 sample 跑 comparator（主執行緒；11 個點合計不超過 $2\times10^5$ 個 sample）`,
-        'metastability 未建模（R6 待辦）',
+        String.raw`metastability 不在這個預覽裡：決策窗 $\varepsilon$、$P_{\mathrm{meta}}$ 與 drop／hold／late 三種政策見第 5 章 §5b`,
       ]}
       params={{ kind: dP.kind, sigma: dP.sigma, djFrac: dP.djFrac, theta: dP.theta, H: dP.H, samples: dP.samples }}
       seed={P.seed}
@@ -247,7 +248,7 @@ export default function R6Preview() {
         ]}
       />
       <Observe>
-        用量測到的 RMS 換算 <Tex>{'K_q'}</Tex> 可能高估或低估迴路增益數倍；R6 的工作是由量測的 S 曲線直接估計斜率，並處理 metastability 與 outlier。
+        用量測到的 RMS 換算 <Tex>{'K_q'}</Tex> 可能高估或低估迴路增益數倍；R6 剩下的工作是由量測的 S 曲線直接估計斜率，以及處理 outlier；遲滯與 metastability 已在{' '}<Link to="/ch/05?a=ch05-nonideal">第 5 章 §5b</Link>（Gaussian 雜訊：解析、golden 與 Monte Carlo）。
       </Observe>
       <h4>核心程式碼：一般 comparator vs 遲滯 comparator</h4>
       <CodeCompare
@@ -257,7 +258,7 @@ export default function R6Preview() {
           { label: 'Markov 解析', source: modelSrc, region: 'hysteresisMarkov', path: PATH, note: '平均、記憶因子、斜率與資訊。' },
         ]}
       />
-      <ModeGate min="research">
+      <ModeGate min="research" summary="robust GMAC：impulsive noise 下的 clipping">
         <h4>Research：robust GMAC</h4>
         <p>
           impulsive noise 下可在 GMAC 前加 clipping：<Tex>{'\\psi_\\delta(e)'}</Tex>（Huber）在 <Tex>{'|e|\\le\\delta'}</Tex> 時像 LMS、之外像 Sign-LMS。1-bit comparator 本身就是 <Tex>{'\\delta\\to0'}</Tex> 的極端，所以「robust」與「資訊量」之間的取捨要用同一個 <Tex>{'\\mathcal I'}</Tex> 架構比較。<ClaimTag kind="research" /> 未實作。

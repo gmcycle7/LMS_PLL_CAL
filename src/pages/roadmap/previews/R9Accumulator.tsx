@@ -209,7 +209,7 @@ export default function R9Preview() {
           { label: '位寬公式', source: modelSrc, region: 'accumulatorBits', path: PATH, note: '最負 code 會多需要 1 bit。' },
         ]}
       />
-      <ModeGate min="research">
+      <ModeGate min="research" summary="bit-true 之外：commit latency 與 SystemVerilog assertion">
         <h4>Research：bit-true 之外</h4>
         <ul>
           <li>

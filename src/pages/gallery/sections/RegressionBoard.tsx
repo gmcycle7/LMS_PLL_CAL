@@ -5,7 +5,7 @@ import { ALL_PRESETS } from '@/app/presets'
 import { checkExpected } from '../consistency'
 import { PREVIEWABLE_EXPERIMENTS, type SlotAudit } from '../data'
 import type { PreviewOutcome } from '../previews'
-import { Rich } from '../common'
+import { GalStatus, Rich } from '../common'
 import { JumpButton } from './SlotAudit'
 import { presetDomId } from './PresetCard'
 
@@ -245,10 +245,10 @@ export function RegressionBoard({ audit, onInspect }: { audit: SlotAudit[]; onIn
                   </td>
                   <td className="num">{r.requiredTotal > 0 ? `${r.requiredMatched} / ${r.requiredTotal}` : '—'}</td>
                   <td className="num">{r.status === 'ok' || r.status === 'mismatch' || r.status === 'n/a' ? r.optionalMatched : '—'}</td>
-                  <td className="small">{r.worst ? <span className={`gal-status gal-status-${r.worst === 'info' ? 'muted' : r.worst}`}>{WORST_LABEL[r.worst]}</span> : '—'}</td>
+                  <td className="small">{r.worst ? <GalStatus kind={r.worst === 'info' ? 'muted' : r.worst}>{WORST_LABEL[r.worst]}</GalStatus> : '—'}</td>
                   <td className="num nowrap">{r.ms > 0 ? `${r.ms.toFixed(1)} ms` : '—'}</td>
                   <td>
-                    <span className={`gal-status gal-status-${STATUS_KIND[r.status]}`}>{STATUS_LABEL[r.status]}</span>
+                    <GalStatus kind={STATUS_KIND[r.status]}>{STATUS_LABEL[r.status]}</GalStatus>
                   </td>
                 </tr>
               ))}

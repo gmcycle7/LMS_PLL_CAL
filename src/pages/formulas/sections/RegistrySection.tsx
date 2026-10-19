@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ClaimTag, mathText, Mermaid, ModelLevel, Section, SelectControl, TexBlock, ToggleControl } from '@/components'
+import { Badge, ClaimTag, mathText, Mermaid, ModelLevel, Section, SelectControl, TexBlock, ToggleControl } from '@/components'
 import { CLAIM_LABEL, type ClaimKind, type ModelLevelId } from '@/components'
 import { ALL_FORMULAS, registryStats, type RegistryRow } from '../registry'
 import { chapterFrameMeta } from '@/app/chapterMeta'
-import { ErrataList, FormulaLink, Gate, MatchCount, NoMatch, useMode, shortPageLabel } from '../common'
+import { ErrataList, FormulaLink, Gate, MatchCount, NoMatch, scrollToId, useMode, shortPageLabel } from '../common'
 import { CHART_FORMULA_LINKS } from '../diagrams'
 import { useNarrow } from '../useNarrow'
 
@@ -90,8 +90,7 @@ export function RegistrySection({ rows, searching, focusId }: { rows: RegistryRo
   const visible = filtered.slice(0, effectiveLimit)
   useEffect(() => {
     if (!focusId) return
-    const el = document.getElementById(registryDomId(focusId))
-    el?.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
+    scrollToId(registryDomId(focusId))
   }, [focusId])
 
   // 分組（依頁面）
@@ -228,14 +227,14 @@ export function RegistrySection({ rows, searching, focusId }: { rows: RegistryRo
                         <TexBlock>{f.tex}</TexBlock>
                         {showSource && mode === 'research' && <code className="fr-tex-src">{f.tex}</code>}
                         <div className="fr-reg-cond">
-                          <span className="fr-reg-cond-label">使用條件</span>
+                          <Badge className="fr-reg-cond-label">使用條件</Badge>
                           {mathText(f.conditions)}
                           {(() => {
                             const m = formulaModelText(f)
                             return (
                               m && (
                                 <div className="fr-reg-model small" data-model-source={m.fromChapter ? 'chapter' : 'formula'}>
-                                  <span className="fr-reg-model-label">{f.claim === 'exact' ? '在哪個模型內精確' : f.claim === 'approx' ? '近似所依賴的模型' : '依賴的模型'}</span>
+                                  <Badge className="fr-reg-model-label">{f.claim === 'exact' ? '在哪個模型內精確' : f.claim === 'approx' ? '近似所依賴的模型' : '依賴的模型'}</Badge>
                                   {mathText(m.text)}
                                   {m.fromChapter && <span className="muted">（本章預設）</span>}
                                 </div>

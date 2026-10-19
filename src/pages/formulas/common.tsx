@@ -2,7 +2,7 @@ import { Fragment, useCallback, useState, type MouseEvent as ReactMouseEvent, ty
 import { Link, useNavigate } from 'react-router-dom'
 import { pageById } from '@/app/registry'
 import { useSettings, type LearningMode } from '@/app/settings'
-import { accessibleText, badgeClass, Tex } from '@/components'
+import { accessibleText, Badge, badgeClass, scrollToElement, Tex } from '@/components'
 import { erratumById, erratumSummary } from './errata'
 import { formulaById } from './registry'
 import { jumpToFormula, showToast } from './jump'
@@ -189,8 +189,11 @@ export function FormulaLinks({ ids }: { ids: readonly string[] }) {
 
 /* ───────────── 頁內捲動（HashRouter 下不能用 <a href="#id">） ───────────── */
 
-/** 捲到本頁的某個元素（扣掉 topbar 與黏在上方的搜尋列）；找不到時不做事 */
-export function scrollToId(id: string, smooth = true): boolean {
+/**
+ * 捲到本頁的某個元素；找不到時不做事。實際的捲動、展開祖先 <details>、聚焦與標示都交給共用的 scrollToElement（links/anchor）；
+ * 這裡只補一件事：頁首的搜尋列是 sticky 的，目標要停在「topbar + 搜尋列」下方，所以把搜尋列高度寫進目標的 scroll-margin-top。
+ */
+export function scrollToId(id: string): boolean {
   if (typeof document === 'undefined') return false
   const el = document.getElementById(id)
   if (!el) return false
@@ -199,11 +202,11 @@ export function scrollToId(id: string, smooth = true): boolean {
     const topbar = parseFloat(cs.getPropertyValue('--topbar-h')) || 52
     const bar = document.querySelector('.fr-search')
     const barH = bar instanceof HTMLElement ? bar.offsetHeight : 0
-    const top = el.getBoundingClientRect().top + (window.scrollY || 0) - topbar - barH - 12
-    window.scrollTo({ top: Math.max(0, top), behavior: smooth ? 'smooth' : 'auto' })
+    el.style.scrollMarginTop = `${topbar + barH + 12}px`
   } catch {
-    el.scrollIntoView?.()
+    /* 沒有 getComputedStyle：用 scrollToElement 的預設邊距 */
   }
+  scrollToElement(el)
   return true
 }
 
@@ -211,11 +214,11 @@ export function scrollToId(id: string, smooth = true): boolean {
 
 /** 段落標題旁的「符合 n / m」計數 */
 export function MatchCount({ shown, total, active }: { shown: number; total: number; active: boolean }) {
-  if (!active) return <span className="fr-count">{total} 項</span>
+  if (!active) return <Badge className="fr-count">{total} 項</Badge>
   return (
-    <span className={`fr-count${shown === 0 ? ' fr-count-zero' : ''}`} aria-live="polite">
+    <Badge variant={shown === 0 ? 'mismatch' : 'neutral'} className={`fr-count${shown === 0 ? ' fr-count-zero' : ''}`} aria-live="polite">
       符合 {shown} / {total}
-    </span>
+    </Badge>
   )
 }
 

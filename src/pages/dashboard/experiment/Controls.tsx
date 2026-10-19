@@ -56,7 +56,7 @@ export function ThesisControls({ p, set }: { p: ThesisParams; set: (patch: Parti
           reg="REG_LMS_MU（gain_step）"
           hint={T('$g=\\mu\\,s\\,K_q\\,C$（$s=1$ average、$s=N$ sum）')}
         />
-        <ModeGate min="engineer">
+        <ModeGate min="engineer" summary="GMAC 輸出方式（average 或 sum）的選擇">
           <SelectControl
             label="GMAC 輸出"
             value={p.gmacMode}
@@ -98,7 +98,7 @@ export function ThesisControls({ p, set }: { p: ThesisParams; set: (patch: Parti
           reg="pll_error_path.parameters.phase_deg"
           hint={T('$C\\propto\\cos(\\phi+\\Omega D)$')}
         />
-        <ModeGate min="engineer">
+        <ModeGate min="engineer" summary="code 功率 $P_x=E[x^2]$ 的設定">
           <ParamControl
             label={T('$P_x=E[x^2]$（code 功率）')}
             ariaLabel="P_x（code 功率）"
@@ -183,7 +183,7 @@ export function ThesisControls({ p, set }: { p: ThesisParams; set: (patch: Parti
               reg="regressor_corr_rho（behavioral）"
               hint={T(`$\\tilde\\lambda=1\\pm\\rho=${f(1 + p.rho)},\\ ${f(1 - p.rho)}$`)}
             />
-            <ModeGate min="engineer">
+            <ModeGate min="engineer" summary={String.raw`更新矩陣 $\mathbf M$ 的選擇（一般 LMS 或 preconditioned）`}>
               <SelectControl
                 label={T('更新矩陣 $\\mathbf M$')}
                 ariaLabel="更新矩陣 M"
@@ -216,7 +216,7 @@ export function ThesisControls({ p, set }: { p: ThesisParams; set: (patch: Parti
           reg="code_corr_disturbance_fs（behavioral）"
           hint={T('固定點 $w^*=a+B/C$；$B=b\\,E[x]+E[x\\,d(x)]+E[x\\,\\varepsilon_{\\mathrm{cc}}]$（offset、INL、code-correlated 干擾）')}
         />
-        <ModeGate min="engineer">
+        <ModeGate min="engineer" summary="初始 gain 誤差 $w_0-a$ 的設定">
           <ParamControl
             label={T('$w_0-a$（初始 gain 誤差）')}
             ariaLabel="w0 − a（初始 gain 誤差）"
@@ -231,7 +231,7 @@ export function ThesisControls({ p, set }: { p: ThesisParams; set: (patch: Parti
         </ModeGate>
       </fieldset>
 
-      <ModeGate min="engineer">
+      <ModeGate min="engineer" summary="System-level 預算（jitter 預算等 illustrative 規格）">
         <fieldset className="dash-ctl-group">
           <legend>System-level 預算（illustrative 規格）</legend>
           <ParamControl

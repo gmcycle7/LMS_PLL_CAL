@@ -1,11 +1,11 @@
 import { memo, type CSSProperties } from 'react'
-import { ClaimTag, TestBadge, Tex, TexBlock, ChRef } from '@/components'
+import { ChRef, ClaimTag, TestBadge, Tex, TexBlock, badgeClass, revealAnchor } from '@/components'
 import type { CaseId } from '@/components'
 import { CLAIM_EXAMPLES, SIX_CONDITIONS } from '../data'
 import { CONDITION_FLOW_CHART } from '../diagrams'
 import { builtinPreset } from '../presets'
 import type { ConditionCheck, ConditionId } from '../thesisModel'
-import { DiagramWalk, ErratumLink, Glue, PageChip, Rich, STATE_LABEL, StateIcon, plainTip, scrollToId } from '../ui'
+import { DiagramWalk, ErratumLink, Glue, PageChip, Rich, STATE_LABEL, StateIcon, plainTip } from '../ui'
 
 /** 最終教學主旨：六個條件的視覺化檢查表；右上角的燈號來自下方「動手體檢」目前選取的 case。 */
 export const ThesisSection = memo(function ThesisSection({
@@ -25,7 +25,7 @@ export const ThesisSection = memo(function ThesisSection({
       </h2>
       <p className="dash-lead-sm">
         成功的 calibration 必須<strong>同時</strong>滿足：資訊足夠（identifiability）、更新方向正確（polarity）、動態穩定（stability）、統計精度足夠（variance）、收斂到正確物理參數（bias），以及真正改善 PLL output jitter / spur（system-level performance）。它們要<strong>逐一檢查</strong>：通過前面的不保證通過後面的（前五個都通過，仍可能在第六個失敗）。但六個條件不是互相獨立的——後面的判據建立在前面的結果上（例如在本頁的模型裡，動態穩定就已經保證更新方向正確）。每張卡片右上角的燈號是下方
-        <button type="button" className="btn btn-icon" style={{ margin: '0 4px', padding: '0 8px' }} onClick={() => scrollToId('dash-check')}>
+        <button type="button" className="btn btn-icon" style={{ margin: '0 4px', padding: '0 8px' }} onClick={() => revealAnchor('dash-check')}>
           動手體檢
         </button>
         Case {caseId} 的即時結果，卡片中間那一行是它的關鍵數值與原因。想看某個條件<strong>不滿足</strong>時長什麼樣子，按卡片下方的「載入反例」。
@@ -119,7 +119,7 @@ export const ThesisSection = memo(function ThesisSection({
                   ))}
                   <span className="small muted">· 問題</span>
                   {c.questions.map((q) => (
-                    <button key={q} type="button" className="dash-chip" onClick={() => scrollToId(`dash-q-${q}`)}>
+                    <button key={q} type="button" className={badgeClass('neutral', 'dash-chip')} onClick={() => revealAnchor(`dash-q-${q}`)}>
                       Q{q}
                     </button>
                   ))}

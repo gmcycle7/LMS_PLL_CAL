@@ -125,8 +125,7 @@
   flex-wrap: wrap;
   gap: 4px;
 }
-.fr-toc-btn,
-.fr-chip {
+.fr-toc-btn {
   font: inherit;
   font-size: 0.8rem;
   line-height: 1.5;
@@ -138,14 +137,25 @@
   cursor: pointer;
   white-space: nowrap;
 }
-.fr-chip {
+/* 範例查詢與單位子題的快捷鈕：外觀來自 badgeClass('neutral')；這裡只補 <button> 要的字體、游標與可換行 */
+.c-badge.fr-chip {
+  font: inherit;
+  font-size: var(--badge-fs);
+  font-weight: 400;
+  --b-fg: var(--text);
+  --b-bg: var(--surface);
+  --b-bd: var(--border-strong);
+  cursor: pointer;
   white-space: normal;
   text-align: left;
 }
-.fr-toc-btn:hover:not(:disabled),
-.fr-chip:hover {
+.fr-toc-btn:hover:not(:disabled) {
   background: var(--accent-soft);
   border-color: var(--accent);
+}
+.c-badge.fr-chip:hover {
+  --b-bg: var(--accent-soft);
+  --b-bd: var(--accent);
 }
 .fr-toc-btn:disabled {
   opacity: 0.45;
@@ -222,19 +232,9 @@
   gap: 6px 10px;
   margin: 8px 0;
 }
+/* 「符合 n / m」：外觀來自 Badge（neutral；0 筆時 mismatch），這裡只補等寬數字 */
 .fr-count {
-  display: inline-block;
-  font-size: 0.8rem;
-  font-weight: 600;
-  padding: 0 8px;
-  border-radius: 999px;
-  background: var(--surface-2);
-  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.fr-count-zero {
-  color: var(--danger);
 }
 .fr-nomatch {
   border: 1px dashed var(--border-strong);
@@ -258,21 +258,9 @@
   align-items: flex-start;
   gap: 4px;
 }
+/* 「本站補充」徽章：外觀來自 Badge（source：灰描邊）；這裡只管它在標題後的間距 */
 .fr-badge {
-  display: inline-block;
   margin-left: 6px;
-  padding: 0 7px;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  line-height: 1.6;
-  white-space: nowrap;
-  vertical-align: middle;
-}
-.fr-badge-added {
-  color: var(--info);
-  background: var(--info-soft);
-  border: 1px solid var(--info);
 }
 .fr-none {
   color: var(--danger);
@@ -587,16 +575,7 @@ tr.fr-focus > td:first-child {
   font-size: 0.86rem;
 }
 .fr-reg-cond-label {
-  display: inline-block;
   margin-right: 0.6em;
-  padding: 0 6px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  letter-spacing: 0.02em;
-  white-space: nowrap;
 }
 .fr-f-title {
   font-weight: 600;
@@ -1162,12 +1141,5 @@ tr.fr-focus > td:first-child {
   color: var(--text-muted);
 }
 .fr-reg-model-label {
-  display: inline-block;
   margin-right: 6px;
-  padding: 0 6px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  font-size: 0.78em;
-  color: var(--text-faint);
 }

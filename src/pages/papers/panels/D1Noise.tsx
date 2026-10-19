@@ -183,7 +183,7 @@ export function D1Noise() {
       </p>
       <BridgeCode region="poleFromBandwidth" caption="兩種讀法各一個函式；測試以 calBandwidths() 來回驗算（先由 p 算頻寬，再由頻寬換回同一個 p）。" />
       <Hand id="HC-PR.4" />
-      <ModeGate min="engineer">
+      <ModeGate min="engineer" summary="從係數雜訊到 PLL 輸出還差的兩步（乘號與 ZOH，Ch12）">
         <Callout kind="info" title="從係數雜訊到 PLL 輸出：還差兩步（Ch12）">
           <p>
             reference 端 DTC 的補償誤差（多補償的時間：reference edge 少延遲、早到這麼多）是 <Tex>{r`\delta t[n]=x[n]\,\delta w[n]`}</Tex>：<strong>乘號</strong>，所以 code 的頻譜會和 <Tex>{r`\delta w`}</Tex>{' '}

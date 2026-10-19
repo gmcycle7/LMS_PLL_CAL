@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Callout, ClaimTag, ModelLevel, Section, Tex, type ModelLevelId, ChRef } from '@/components'
-import { ChLink, Diagram, ErratumNote, md } from '../common'
+import { ChLink, CoverageStatus, Diagram, ErratumNote, md } from '../common'
 import { LEVEL_CHART } from '../diagrams'
 
 interface LevelRow {
@@ -169,7 +169,7 @@ export function S2Levels() {
                 <td>{r.timebase}</td>
                 <td>{r.verifies}</td>
                 <td>
-                  <span className={`models-status models-status-${r.status}`}>{STATUS_LABEL[r.status]}</span>
+                  <CoverageStatus status={r.status}>{STATUS_LABEL[r.status]}</CoverageStatus>
                   <div className="small">{r.site}</div>
                 </td>
                 <td>{r.where}</td>

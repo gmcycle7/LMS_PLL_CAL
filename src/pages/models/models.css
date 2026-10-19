@@ -86,32 +86,12 @@
   background: var(--surface-2);
 }
 
-/* 狀態膠囊 */
-.models-status {
-  display: inline-block;
-  font-size: 0.78rem;
-  font-weight: 700;
-  padding: 1px 8px;
-  border-radius: 999px;
-  white-space: nowrap;
-}
+/* 狀態徽章（models-status）：顏色與尺寸來自 Badge（common.tsx 的 CoverageStatus）；這裡只留列印時可換行 */
 /* 列印：狀態膠囊在窄欄（直式紙張）裡可以換行，不要撐寬整張表 */
 @media print {
   .models-status {
     white-space: normal;
   }
-}
-.models-status-full {
-  color: var(--ok);
-  background: var(--ok-soft);
-}
-.models-status-partial {
-  color: var(--warn);
-  background: var(--warn-soft);
-}
-.models-status-none {
-  color: var(--danger);
-  background: var(--danger-soft);
 }
 
 .models-tight {
@@ -136,12 +116,6 @@
   padding: 4px 0;
 }
 .models-steps-badge {
-  display: inline-block;
-  font-size: 0.75rem;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--accent-soft);
-  color: var(--accent);
   margin-right: 4px;
 }
 
@@ -150,16 +124,6 @@
 .models-erratum {
   display: inline;
   margin: 0 2px;
-}
-.models-erratum a {
-  font-size: 0.75rem;
-  font-weight: 700;
-  padding: 0 6px;
-  border-radius: 4px;
-  background: var(--warn-soft);
-  color: var(--warn);
-  text-decoration: none;
-  white-space: nowrap;
 }
 .models-erratum a {
   margin-right: 4px;
@@ -411,21 +375,6 @@
 }
 
 /* 方塊圖與它的導讀（common.tsx 的 Diagram；docs/teaching-style.md §8） */
-.models-diagram {
-  margin: 1rem 0 1.1rem;
-  min-width: 0;
-}
-.models-diagram .c-mermaid {
-  margin-bottom: 0.4rem;
-}
-.models-diagram-walk {
-  border-left: 3px solid var(--accent);
-  padding: 0.1rem 0 0.1rem 0.75rem;
-  font-size: 0.93rem;
-}
-.models-diagram-walk > p {
-  margin: 0.35rem 0;
-}
 
 /* 頁首「本頁符號表在最後」那一行，與頁末的符號表（sections/S11Symbols.tsx；docs/teaching-style.md §5） */
 .models-symbols-jump {

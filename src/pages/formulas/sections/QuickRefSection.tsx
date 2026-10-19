@@ -1,4 +1,4 @@
-import { ClaimTag, Section, Tex, TexBlock } from '@/components'
+import { Badge, ClaimTag, Section, Tex, TexBlock } from '@/components'
 import { refValues } from '../refValues'
 import { QUICK_GROUP_LABEL, QUICK_REF, type QuickGroup, type QuickRefRow } from '../appendixA'
 import { ErrataList, ErratumTag, FormulaLinks, Gate, MatchCount, NoMatch, Rich } from '../common'
@@ -55,7 +55,7 @@ export function QuickRefSection({ rows, searching }: { rows: QuickRefRow[]; sear
                     <tr key={q.key} data-quick={q.key}>
                       <td data-label="問題" className="fr-quick-topic">
                         <strong>{q.topic}</strong>
-                        {!q.fromSpec && <span className="fr-badge fr-badge-added">本站補充</span>}
+                        {!q.fromSpec && <Badge variant="source" className="fr-badge fr-badge-added">本站補充</Badge>}
                         <span className="fr-tag-col fr-cell-sub">
                           <ClaimTag kind={q.claim} />
                           <ErrataList ids={q.errata} empty="" />

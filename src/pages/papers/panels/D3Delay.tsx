@@ -136,7 +136,7 @@ export function D3Delay() {
         </p>
       </Callout>
       <Hand id="HC-PR.5" />
-      <ModeGate min="engineer">
+      <ModeGate min="engineer" summary="雙迴路耦合時的穩定上界（Ch08、規格 §8.4）">
         <Callout kind="info" title="雙迴路也一樣（Ch08，規格 §8.4）">
           主 PLL 與校正迴路耦合時，完整 <Tex>{r`2\times2`}</Tex> 模型的穩定上界恰好是 quasi-static 一階模型的一半，而且與主迴路多快無關；原因是模型裡內建的一個 block 觀測延遲，不只是時間尺度分離不足（
           <ErratumNote id="E19" />
