@@ -305,6 +305,9 @@ export const EXPERIMENT_META: Record<string, ExperimentMeta> = {
   'gauge-one-hot': { name: '四相 One-Hot Gauge Lab', levels: ['L3'] },
   'mimo-lms': { name: 'MIMO LMS Lab', levels: ['L3'] },
   'bias-inl-lab': { name: 'Bias & INL Lab', levels: ['L1', 'L2'] },
+  'dtc-inl-folding': { name: 'Ch11b 實驗 A：INL 形狀與折返頻譜', levels: ['L4'] },
+  'dtc-inl-lms': { name: 'Ch11b 實驗 B：分段／LUT／多項式 LMS 的收斂', levels: ['L3'] },
+  'dtc-inl-basis': { name: 'Ch11b 實驗 C：條件數與 preconditioning', levels: ['L3'] },
   'lms-noise-lab': { name: 'LMS Noise Lab', levels: ['L1'] },
   'code-mixing-lab': { name: 'Code Mixing Lab', levels: ['L4'] },
   'code-spectra-lab': { name: 'Code Spectra Lab', levels: ['L4'] },
@@ -386,7 +389,7 @@ export function levelsOf(p: PresetEntry): { levels: ModelLevelId[]; dynamic: boo
 
 /** 頁面路徑 → 原始碼資料夾（相對專案根目錄；給原始碼掃描測試用） */
 export function pageFolder(page: string, pageId?: string): string | null {
-  const m = /^\/ch\/(\d{2})$/.exec(page)
+  const m = /^\/ch\/(\d{2}b?)$/.exec(page)
   if (m) return `src/chapters/ch${m[1]}`
   if (page === '/') return 'src/pages/dashboard'
   if (pageId) return `src/pages/${pageId}`

@@ -1070,13 +1070,9 @@ describe('案例頁 /case/sspll：頁面真的把圖畫出來，符號表在最�
     for (const id of ['cs-0', 'cs-1', 'cs-17', 'cs-20']) expect(after(page.querySelector(`#${id}`)!, sym), id).toBe(true)
     expect(page.querySelector('#cs-1 .c-symbols')).toBeNull()
     expect(sym.querySelector('h2')!.textContent).toBe('21. 本章符號表')
-    // 章首只留一行：按鈕（不是會改路由的 href），在目錄與 §0 之前；按下去捲到符號表
-    const link = Array.from(page.querySelectorAll('button')).find((b) => /^本章符號表在最後/.test(b.textContent ?? '')) as HTMLButtonElement
-    expect(link).toBeTruthy()
-    expect(link.closest('.cs-symbols-link')!.querySelectorAll('button')).toHaveLength(1)
-    expect(after(link, page.querySelector('nav')!)).toBe(true)
-    expect(after(link, page.querySelector('#cs-0')!)).toBe(true)
-    expect(after(link, sym)).toBe(true)
+    // 章首不再有「本章符號表在最後」那一行（連結由 PageFrame 的本章資訊 strip 提供）；也沒有會改路由的 href
+    expect(page.querySelector('.cs-symbols-link')).toBeNull()
+    expect(page.textContent).not.toContain('本章符號表在最後')
     expect(page.querySelector(`a[href="#${SYMBOLS_ANCHOR}"]`)).toBeNull()
     expect(page.querySelectorAll('a[href^="#cs-"]')).toHaveLength(0)
     // 圖號與手算題的頁內連結也都是按鈕（HashRouter 下 href="#…" 會被當成路由）
@@ -1088,10 +1084,6 @@ describe('案例頁 /case/sspll：頁面真的把圖畫出來，符號表在最�
     expect(scroll).toHaveBeenCalledTimes(1)
     expect(scroll.mock.contexts[0]).toBe(document.getElementById('handcalc-HC-CS.3'))
     expect(page.contains(document.getElementById('handcalc-HC-CS.3'))).toBe(true)
-    scroll.mockClear()
-    fireEvent.click(link)
-    expect(scroll).toHaveBeenCalledTimes(1)
-    expect(scroll.mock.contexts[0]).toBe(sym)
     // 目錄的最後一項也指到符號表
     const toc = Array.from(page.querySelectorAll('.cs-toc li'))
     expect(toc).toHaveLength(22)

@@ -18,7 +18,7 @@ export function PageMap() {
         focus={MAP_FOCUS}
         caption="系統地圖：藍色是本章的主角——reference 輸入端的 DTC、整個主 PLL 迴路（PD、loop filter、VCO、divider／PMUX）、小數累加器與 regressor，以及校正迴路的比較器、code 對齊與 GMAC。教學用概念架構，不是特定晶片的 netlist。"
       />
-      <p className="small muted">
+      <p className="small muted c-map-note">
         地圖和你的晶片是同一種接法：reference 先經過 <strong>input DTC</strong> 才進 PD，回授路徑上只有地圖的「Divider / PMUX」——在你的晶片就是 8 相 PMUX；LMS 校正迴路的輸入取自 <strong>PD 的輸出</strong> <Tex>{'e[n]'}</Tex>（本章記為 <Tex>{r`e_{PD}[n]`}</Tex>），也就是送進 loop filter
         的同一個訊號。本章特有的細節——PMUX 粗調、DTC 只補一格 <Tex>{r`\Delta=T_{vco}/8`}</Tex> 以內、GOS 加 PHOS 共 9 個權重——見 §2 的 <FigRef id="sspll" />。
       </p>

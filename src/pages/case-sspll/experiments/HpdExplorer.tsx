@@ -374,8 +374,8 @@ export function HpdExplorer() {
       warnings={warnings}
       crossCheck={{
         analytic: { status: analyticStatus, note: 'closed form 帶緣 vs 掃描；標稱設計時另比對 golden JSON' },
-        monteCarlo: 'n/a',
-        fixedPoint: 'n/a',
+        monteCarlo: { status: 'n/a', note: '轉移函數的確定性掃描，沒有隨機量' },
+        fixedPoint: { status: 'n/a', note: '線性化 PLL 模型沒有定點暫存器' },
       }}
       actions={{ onReset: () => setP(HPD_DEFAULTS) }}
       presets={presets}

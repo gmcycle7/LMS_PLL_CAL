@@ -221,8 +221,8 @@ export function ConventionLab() {
       warnings={res.warnings}
       crossCheck={{
         analytic: check.ok ? { status: 'ok', note: check.note } : { status: 'mismatch', note: check.note },
-        monteCarlo: { status: 'not-implemented', note: '本實驗只算平均（mean）模型，沒有隨機性；隨機 LMS 的 Monte Carlo 見 Ch03、Ch09、Ch12' },
-        fixedPoint: 'n/a',
+        monteCarlo: { status: 'n/a', note: '本實驗只算平均（mean）模型，沒有隨機性；隨機 LMS 的 Monte Carlo 見 Ch03、Ch09、Ch12' },
+        fixedPoint: { status: 'n/a', note: '平均模型沒有暫存器量化' },
       }}
       actions={{ onReset: () => setParams(DEFAULT_PARAMS) }}
       exportData={() => ({

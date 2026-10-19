@@ -204,9 +204,12 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
     expect(page.lastElementChild).toBe(symbols)
     expect((container.querySelector('#cs-17') as HTMLElement).compareDocumentPosition(symbols) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(container.querySelector('#cs-1 .c-symbols')).toBeNull()
-    const symbolsLink = Array.from(container.querySelectorAll('button')).find((b) => /^本章符號表在最後/.test(b.textContent ?? '')) as HTMLButtonElement
-    expect(symbolsLink).toBeTruthy()
-    expect(symbolsLink.compareDocumentPosition(container.querySelector('#cs-0') as HTMLElement) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // 章首骨架（teaching-style §9）：問題（blockquote）是第一個區塊、系統地圖（PageMap）緊接在後；不再有「本章符號表在最後」的按鈕（連結在 PageFrame 的 strip 裡）
+    expect(Array.from(container.querySelectorAll('button')).find((b) => /^本章符號表在最後/.test(b.textContent ?? ''))).toBeUndefined()
+    const question = container.querySelector('.cs-question') as HTMLElement
+    expect(page.firstElementChild).toBe(question)
+    expect(question.nextElementSibling).toBe(container.querySelector('.cs-map'))
+    expect(question.compareDocumentPosition(container.querySelector('#cs-0') as HTMLElement) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     // 「首次出現」欄只會是章首或 §n；每個符號都有意義欄
     for (const sym of SYMBOLS) {
       expect(sym.firstSeen ?? '', sym.symbol).toMatch(/^(章首|§\d+)$/)

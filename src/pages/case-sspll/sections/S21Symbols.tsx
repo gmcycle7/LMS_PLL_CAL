@@ -1,24 +1,9 @@
 import { Section, SymbolTable, Tex } from '@/components'
-import { r, scrollToId } from '../common'
+import { r } from '../common'
 import { SYMBOLS } from '../symbols'
 
 /** 章末符號表的錨點 id（docs/teaching-style.md §5） */
 export const SYMBOLS_ANCHOR = 'symbols'
-
-/**
- * 章首只留這一行：按下去捲到章末的符號表。
- * HashRouter 下 `href="#symbols"` 會被當成路由，所以用按鈕 + scrollIntoView，不改網址。
- */
-export function SymbolsLink() {
-  return (
-    <p className="cs-symbols-link">
-      <button type="button" className="cs-linkbtn" onClick={() => scrollToId(SYMBOLS_ANCHOR)}>
-        本章符號表在最後 ↓
-      </button>
-      <span className="small muted">（每個符號第一次出現時，正文也會就地用一句話說明。）</span>
-    </p>
-  )
-}
 
 /** §21 本章符號表：放在頁面最後（「本課必記」與其後各節之後），外層 id="symbols"。 */
 export function S21Symbols() {

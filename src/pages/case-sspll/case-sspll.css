@@ -255,10 +255,6 @@
   white-space: nowrap;
 }
 
-.case-sspll .cs-symbols-link {
-  margin: 0.6rem 0;
-}
-
 /* 按需載入的資料還沒到：佔住圖的位置（高度由元件的 minHeight 指定），資料到了版面不跳動 */
 .case-sspll .cs-data-pending {
   display: flex;

@@ -756,7 +756,6 @@
   body.wb-print-sheet .sidebar,
   body.wb-print-sheet .nav-scrim,
   body.wb-print-sheet .page-header,
-  body.wb-print-sheet .page-kicker,
   body.wb-print-sheet .page-pager,
   body.wb-print-sheet .wb-noprint {
     display: none !important;
