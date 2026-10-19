@@ -1,0 +1,105 @@
+/*
+ * ===== 設計 token：字級、間距、表格、徽章（design-system，2026-10-19）=====
+ * 顏色 token 仍在 global.css 的 :root（styles.test.ts 的對比度測試直接解析那裡；列印時 print.css 會把深色主題的顏色還原成淺色）。
+ * 這個檔案由 global.css 的第一行 @import 載入；這裡的值是「整站共用的刻度」，各元件與各頁的 CSS 只能引用，不要再寫字面值。
+ *
+ * 規則：
+ * - 字級階 --fs-*：每個值都是原本 global.css／components.css 已經在用的字面值（換成 token 時值不變）。不在階上的值（0.9rem、0.8rem…）暫時保留字面值。
+ * - 間距階 --space-1…8：4／6／8／10／12／14／16／24 px，給 gap、padding 用。
+ * - 表格：三個字級／內距層級（default／sm／xs）。選層級的原則是「寬度不增加」：欄數多、本來就縮小字級的表對映到 sm 或 xs，
+ *   否則會多出一條只能捲幾 px 的橫向捲軸（使用者的規則：沒有用途的捲軸一律拿掉）。
+ * - 徽章：所有 pill／tag／badge／chip 共用同一組尺寸；顏色語意見 components.css「Badge」一節與 docs/dev-conventions.md §2.1。
+ */
+:root {
+  /* ---- 字級階 ---- */
+  --fs-2xs: 0.74rem; /* 側欄分組標籤、tooltip 清單、更新時間 */
+  --fs-xs: 0.76rem; /* 徽章、段落 kicker */
+  --fs-sm: 0.82rem; /* 單位、提示、小標 */
+  --fs-md: 0.85rem; /* 圖說、分頁、.small */
+  --fs-ui: 0.88rem; /* 按鈕、輸入框、指標表 */
+  --fs-body-sm: 0.92rem; /* 說明文字、參數標籤 */
+  --fs-base: 1rem;
+  --fs-lg: 1.12rem; /* h3 */
+  --fs-xl: 1.35rem; /* h2 */
+  --fs-2xl: 1.75rem; /* h1 */
+
+  /* ---- 間距階 ---- */
+  --space-1: 4px;
+  --space-2: 6px;
+  --space-3: 8px;
+  --space-4: 10px;
+  --space-5: 12px;
+  --space-6: 14px;
+  --space-7: 16px;
+  --space-8: 24px;
+
+  /* ---- 左色條（Section、Callout、HandCalc、狀態卡）---- */
+  --bar-w: 3px;
+  --bar-w-lg: 4px;
+
+  /* ---- 圓角與陰影（--radius／--radius-sm／--shadow 仍在 global.css；這裡補齊常用的其餘幾個）---- */
+  --radius-xs: 4px;
+  --radius-pill: 999px;
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06);
+
+  /* ---- 表格（.c-table 與各頁表格的對映，見 components.css「Table」一節）---- */
+  --table-fs: 0.9rem; /* 預設層級 */
+  --table-fs-sm: 0.86rem; /* 欄數多的對照表、指標表 */
+  --table-fs-xs: 0.82rem; /* 9 欄以上、放在實驗右欄（約 530px）的表 */
+  --table-pad-y: 6px;
+  --table-pad-x: 8px; /* 左右 8px：Inter 的數字比 PingFang 寬，再大會把 /ch/02 的逐步數值表撐出 4px 的橫向捲軸（styles.test.ts 守住 ≤ 8px） */
+  --table-pad-y-sm: 5px;
+  --table-pad-x-sm: 6px;
+  --table-pad-y-xs: 4px;
+  --table-pad-x-xs: 5px;
+  --table-border: 1px solid var(--border);
+  --table-num-inset: 2px; /* 數值欄左右各少 2px（Inter 的 tabular-nums 比 PingFang 寬 13%；global.css 的 td.num） */
+  --table-head-bg: var(--surface-2);
+  --table-stripe: rgba(27, 36, 48, 0.035); /* 斑馬紋：對 surface 幾乎只是分出「這一列」，不搶格線 */
+
+  /* ---- 徽章（c-badge）---- */
+  --badge-fs: var(--fs-xs);
+  --badge-pad-x: 8px;
+  --badge-min-h: 24px; /* 觸控目標（WCAG 2.5.8）：點一下顯示 tooltip */
+  --badge-on-solid: #ffffff; /* 實心徽章（精確／近似／研究假說）上的字 */
+  /* T-id verified 用青綠（和「精確」的綠分開：綠＝結論強度，青綠＝測試狀態）。深色值在下面；列印時還原成淺色 */
+  --verified: #1b7183;
+  --verified-soft: #dcf1f4;
+}
+
+:root[data-theme='dark'] {
+  --table-stripe: rgba(230, 235, 241, 0.04);
+  --badge-on-solid: #0f1419;
+  --verified: #6fc4dc;
+  --verified-soft: #12303a;
+}
+
+/*
+ * 手機（≤ 480px）：三個表格層級各縮一級、數值欄的內縮減半。只改這裡，global.css 的 th／td 與 components.css 的層級對映都會跟著變。
+ * 理由：手機上的表本來就在 .table-wrap 裡橫向捲動，但有幾十張只超出 2–6px——一條只能捲幾 px 的捲軸沒有用途；縮一級之後多數就放得下了。
+ */
+@media (max-width: 480px) {
+  :root {
+    --table-fs: 0.86rem;
+    --table-fs-sm: 0.82rem;
+    --table-fs-xs: 0.8rem;
+    --table-pad-y: 5px;
+    --table-pad-x: 4px;
+    --table-pad-y-sm: 4px;
+    --table-pad-x-sm: 3px;
+    --table-pad-y-xs: 3px;
+    --table-pad-x-xs: 3px;
+    --table-num-inset: 1px;
+  }
+}
+
+/* 列印一律淺色（print.css 只還原 global.css 的顏色 token；這裡的三個深色值自己還原） */
+@media print {
+  :root,
+  :root[data-theme='dark'] {
+    --table-stripe: rgba(27, 36, 48, 0.035);
+    --badge-on-solid: #ffffff;
+    --verified: #1b7183;
+    --verified-soft: #dcf1f4;
+  }
+}

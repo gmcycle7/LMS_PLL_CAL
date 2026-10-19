@@ -1,6 +1,6 @@
 /*
  * 共用元件樣式（src/components/**）。
- * 只使用 src/styles/global.css 定義的設計 token，深淺主題皆自動適用。
+ * 只使用 src/styles/global.css（顏色）與 src/styles/tokens.css（字級、間距、表格、徽章）定義的設計 token，深淺主題皆自動適用。
  * class 一律以 c- 為前綴，避免與章節樣式衝突。
  */
 
@@ -30,7 +30,7 @@
 }
 .c-figcaption {
   margin-top: 6px;
-  font-size: 0.85rem;
+  font-size: var(--fs-md);
   color: var(--text-muted);
   text-align: center;
 }
@@ -38,7 +38,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
 }
 
 /* 可捲動區域（程式碼、寬表格、JSON）：內容比框大時才可聚焦（ScrollRegion.tsx），用方向鍵捲 */
@@ -46,26 +46,154 @@
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
+/* 只超出 1–6px：多半是 padding 或四捨五入，隱藏橫向捲軸（ScrollRegion 設 data-tiny） */
+.c-scroll[data-tiny='true'],
+.table-wrap[data-tiny='true'] {
+  overflow-x: hidden;
+}
 
-/* ===== Badge + tooltip ===== */
+/* ===== Badge（所有 pill／tag／badge／chip 的唯一基底）=====
+ * 一個基底 .c-badge 配一個 variant 類別 .c-badge--<variant>：variant 只設三個自訂屬性（字色／底色／框色）與框線樣式，
+ * 尺寸（字級、內距、圓角、最小高度）全站只有這一組（tokens.css 的 --badge-*）。
+ * 顏色語意固定（一種顏色只代表一件事；docs/dev-conventions.md §2.1）：
+ *   結論強度（ClaimTag）：精確＝綠實心、近似＝琥珀實心、研究假說＝紫實心
+ *   模型層級（ModelLevel）：藍描邊（L0–L6 同一種，層級寫在字上）
+ *   測試狀態（TestBadge）：verified＝青綠帶 ✓、partial＝琥珀描邊、fail＝紅、pending＝灰虛線
+ *   勘誤（各頁的 ErratumTag）：琥珀描邊，不是實心——和「近似」的琥珀實心分開
+ *   來源（SourceTag）：灰描邊；illustrative 用虛線
+ *   交叉比對／判決（ExperimentShell 的 c-check、各頁的狀態 pill）：ok／mismatch／n/a＝綠／紅／灰軟底，not-implemented＝琥珀虛線
+ * 舊的類別名（c-claim-exact、c-level-L3、c-source-measured、c-test-pass…）仍留在 DOM 上當測試與資料的 hook，但不再有樣式。
+ */
 .c-badge {
+  --b-fg: var(--text-muted);
+  --b-bg: var(--surface-2);
+  --b-bd: var(--border);
+  --b-bd-style: solid;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 0 8px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--text-muted);
-  font-size: 0.76rem;
+  gap: var(--space-1);
+  padding: 0 var(--badge-pad-x);
+  border-radius: var(--radius-pill);
+  border: 1px var(--b-bd-style) var(--b-bd);
+  background: var(--b-bg);
+  color: var(--b-fg);
+  font-size: var(--badge-fs);
   font-weight: 600;
   line-height: 1.7;
   white-space: nowrap;
   vertical-align: middle;
   cursor: default;
   /* 觸控目標（WCAG 2.5.8）：點一下顯示 tooltip（徽章不可聚焦，見 Tags.tsx） */
-  min-height: 24px;
+  min-height: var(--badge-min-h);
 }
+/* 結論強度：實心 */
+.c-badge--exact {
+  --b-fg: var(--badge-on-solid);
+  --b-bg: var(--tag-exact);
+  --b-bd: var(--tag-exact);
+}
+.c-badge--approx {
+  --b-fg: var(--badge-on-solid);
+  --b-bg: var(--tag-approx);
+  --b-bd: var(--tag-approx);
+}
+.c-badge--research {
+  --b-fg: var(--badge-on-solid);
+  --b-bg: var(--tag-research);
+  --b-bd: var(--tag-research);
+}
+/* 模型層級：藍描邊、等寬字 */
+.c-badge--level {
+  --b-fg: var(--accent);
+  --b-bg: transparent;
+  --b-bd: var(--accent);
+  font-family: var(--font-mono);
+}
+/* 勘誤：琥珀描邊 */
+.c-badge--erratum {
+  --b-fg: var(--warn);
+  --b-bg: transparent;
+  --b-bd: var(--warn);
+}
+/* 來源：灰描邊；illustrative 虛線 */
+.c-badge--source {
+  --b-fg: var(--text-muted);
+  --b-bg: transparent;
+  --b-bd: var(--border-strong);
+}
+.c-badge--source.is-dashed {
+  --b-bd-style: dashed;
+}
+/* 測試狀態 */
+.c-badge--verified {
+  --b-fg: var(--verified);
+  --b-bg: var(--verified-soft);
+  --b-bd: var(--verified);
+}
+.c-badge--partial {
+  --b-fg: var(--warn);
+  --b-bg: transparent;
+  --b-bd: var(--warn);
+}
+.c-badge--pending {
+  --b-fg: var(--text-faint);
+  --b-bg: var(--surface-2);
+  --b-bd: var(--border);
+  --b-bd-style: dashed;
+}
+/* 狀態：交叉比對（.c-check-* 是 ExperimentShell 的多行 chip，共用同一組顏色）。
+ * .c-check 的預設值要寫在 variant 之前：同特異度（0,1,0）時後面的規則會贏，寫在後面會把 ok／mismatch 的顏色蓋回灰色。 */
+.c-check {
+  --b-fg: var(--text-muted);
+  --b-bg: var(--surface-2);
+  --b-bd: var(--border);
+  --b-bd-style: solid;
+}
+.c-badge--ok,
+.c-check-ok {
+  --b-fg: var(--ok);
+  --b-bg: var(--ok-soft);
+  --b-bd: var(--ok);
+}
+.c-badge--fail,
+.c-badge--mismatch,
+.c-check-mismatch {
+  --b-fg: var(--danger);
+  --b-bg: var(--danger-soft);
+  --b-bd: var(--danger);
+}
+.c-badge--na,
+.c-check-n\/a {
+  --b-fg: var(--text-faint);
+  --b-bg: var(--surface-2);
+  --b-bd: var(--border);
+}
+.c-badge--not-implemented,
+.c-check-not-implemented {
+  --b-fg: var(--warn);
+  --b-bg: var(--warn-soft);
+  --b-bd: var(--warn);
+  --b-bd-style: dashed;
+}
+/* 可按的徽章（BadgeRow 的「+N」、「收起」）：外觀同徽章，但是 <button>，鍵盤可操作 */
+.c-badge-more {
+  --b-fg: var(--accent);
+  --b-bg: transparent;
+  --b-bd: var(--accent);
+  font: inherit;
+  font-size: var(--badge-fs);
+  font-weight: 600;
+  cursor: pointer;
+}
+.c-badge-more:hover {
+  --b-bg: var(--accent-soft);
+}
+.c-badge-more:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ===== Tooltip（TipBadge） ===== */
 .c-has-tip {
   position: relative;
 }
@@ -78,7 +206,7 @@
   z-index: 25;
   width: max-content;
   max-width: min(320px, calc(100vw - 32px));
-  padding: 6px 10px;
+  padding: var(--space-2) var(--space-4);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
@@ -107,96 +235,9 @@
 .c-tip-item {
   display: block;
   font-family: var(--font-mono);
-  font-size: 0.74rem;
+  font-size: var(--fs-2xs);
   color: var(--text-muted);
   overflow-wrap: anywhere;
-}
-
-/* 三層結論標籤（規格 §0.1） */
-.c-claim-exact {
-  color: var(--tag-exact);
-  background: var(--tag-exact-soft);
-  border-color: var(--tag-exact);
-}
-.c-claim-approx {
-  color: var(--tag-approx);
-  background: var(--tag-approx-soft);
-  border-color: var(--tag-approx);
-}
-.c-claim-research {
-  color: var(--tag-research);
-  background: var(--tag-research-soft);
-  border-color: var(--tag-research);
-}
-
-/* 模型層級：L0–L2 教學、L3 多參數、L4–L6 sign-off 等級 */
-.c-level {
-  font-family: var(--font-mono);
-}
-.c-level-L0,
-.c-level-L1,
-.c-level-L2 {
-  color: var(--info);
-  background: var(--info-soft);
-  border-color: var(--info);
-}
-.c-level-L3 {
-  color: var(--accent);
-  background: var(--accent-soft);
-  border-color: var(--accent);
-}
-.c-level-L4,
-.c-level-L5,
-.c-level-L6 {
-  color: var(--tag-research);
-  background: var(--tag-research-soft);
-  border-color: var(--tag-research);
-}
-
-/* 來源標示 */
-.c-source-illustrative {
-  color: var(--text-muted);
-  background: var(--surface-2);
-  border-style: dashed;
-  border-color: var(--border-strong);
-}
-.c-source-simulation {
-  color: var(--info);
-  background: var(--info-soft);
-  border-color: var(--info);
-}
-.c-source-literature {
-  color: var(--accent);
-  background: var(--accent-soft);
-  border-color: var(--accent);
-}
-.c-source-measured {
-  color: var(--ok);
-  background: var(--ok-soft);
-  border-color: var(--ok);
-}
-
-/* 驗證狀態：只有 pass 用綠色 verified */
-.c-test-pass {
-  color: var(--ok);
-  background: var(--ok-soft);
-  border-color: var(--ok);
-}
-.c-test-partial {
-  color: var(--warn);
-  background: var(--warn-soft);
-  border-color: var(--warn);
-}
-.c-test-fail {
-  color: var(--danger);
-  background: var(--danger-soft);
-  border-color: var(--danger);
-}
-.c-test-missing {
-  color: var(--text-faint);
-  background: var(--surface-2);
-  border-color: var(--border);
-  border-style: dashed;
 }
 
 /* ===== Callout ===== */
@@ -220,7 +261,7 @@
 .c-texblock-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-5);
 }
 .c-texblock-math {
   flex: 1 1 auto;
@@ -241,7 +282,7 @@
 }
 .c-texblock-label {
   text-align: center;
-  font-size: 0.85rem;
+  font-size: var(--fs-md);
   color: var(--text-muted);
 }
 
@@ -261,7 +302,7 @@
 }
 .c-mermaid-svg {
   overflow-x: auto;
-  padding: 16px 14px;
+  padding: var(--space-7) var(--space-6);
   text-align: center;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
@@ -312,7 +353,7 @@
   gap: 5px;
   padding: 3px 9px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--surface);
   color: var(--text-muted);
   font: inherit;
@@ -362,7 +403,7 @@
 
 /* ===== 系統地圖（手排 SVG；配色與 Mermaid 圖共用 --diagram-* token） ===== */
 .c-sysmap .c-mermaid-svg {
-  padding: 12px 10px;
+  padding: var(--space-5) var(--space-4);
 }
 .c-sysmap-svg {
   display: inline-block;
@@ -416,7 +457,7 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  padding: 0 6px;
+  padding: 0 var(--space-2);
   box-sizing: border-box;
   color: var(--text);
   text-align: center;
@@ -454,7 +495,7 @@
   justify-content: center;
 }
 .c-sysmap-wirelabel > span {
-  padding: 0 6px;
+  padding: 0 var(--space-2);
   border: 1px solid var(--border);
   border-radius: 7px;
   background: var(--surface);
@@ -490,8 +531,8 @@
 .c-zoom-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 14px;
+  gap: var(--space-5);
+  padding: var(--space-3) var(--space-6);
   border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
@@ -508,17 +549,17 @@
   display: flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
 }
 .c-zoom-btn {
   min-width: 34px;
-  padding: 4px 10px;
+  padding: var(--space-1) var(--space-4);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--text);
   font: inherit;
-  font-size: 0.85rem;
+  font-size: var(--fs-md);
   line-height: 1.5;
   cursor: pointer;
 }
@@ -561,7 +602,7 @@
 .c-zoom-inner {
   flex: 0 0 auto;
   margin: auto;
-  padding: 24px;
+  padding: var(--space-8);
 }
 .c-zoom-inner > svg {
   display: block;
@@ -573,7 +614,7 @@
 @media (max-width: 640px) {
   .c-zoom-bar {
     flex-wrap: wrap;
-    gap: 6px;
+    gap: var(--space-2);
   }
   .c-zoom-title {
     flex-basis: 100%;
@@ -585,7 +626,7 @@
   }
 }
 .c-mermaid-pending {
-  padding: 12px;
+  padding: var(--space-5);
 }
 .c-mermaid-loading {
   min-height: 120px;
@@ -606,7 +647,7 @@
 }
 .c-plot-title {
   font-weight: 600;
-  font-size: 0.92rem;
+  font-size: var(--fs-body-sm);
   margin-bottom: 2px;
 }
 .c-plot-frame {
@@ -649,13 +690,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 12px;
+  padding: var(--space-5);
   text-align: center;
   background: var(--surface-2);
   border: 1px dashed var(--border);
   border-radius: var(--radius-sm);
   color: var(--text-muted);
-  font-size: 0.88rem;
+  font-size: var(--fs-ui);
 }
 .c-plot-error {
   color: var(--danger);
@@ -680,11 +721,11 @@
   flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 0 8px;
+  gap: 0 var(--space-3);
 }
 .c-param-label {
   font-weight: 600;
-  font-size: 0.92rem;
+  font-size: var(--fs-body-sm);
   line-height: 1.5;
 }
 .c-param-reg {
@@ -695,7 +736,7 @@
 .c-param-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-4);
   margin-top: 2px;
 }
 .c-param-slider {
@@ -714,7 +755,7 @@
 .c-param-input-wrap {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   flex: 0 0 auto;
 }
 .c-param-input {
@@ -722,7 +763,7 @@
   text-align: right;
 }
 .c-param-unit {
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
   white-space: nowrap;
 }
@@ -736,7 +777,7 @@
 .c-param-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 0 12px;
+  gap: 0 var(--space-5);
   margin-top: 2px;
   line-height: 1.5;
 }
@@ -757,7 +798,7 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-3);
 }
 .c-toggle-input {
   appearance: none;
@@ -767,7 +808,7 @@
   width: 40px;
   height: 24px;
   margin: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--border-strong);
   background: var(--surface-3);
   cursor: pointer;
@@ -805,8 +846,8 @@
 .c-section {
   --c-kind: var(--border-strong);
   margin: 28px 0;
-  padding-left: 14px;
-  border-left: 3px solid var(--c-kind);
+  padding-left: var(--space-6);
+  border-left: var(--bar-w) solid var(--c-kind);
   min-width: 0;
 }
 .c-section-intuition {
@@ -831,7 +872,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 0.76rem;
+  font-size: var(--fs-xs);
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--c-kind);
@@ -856,15 +897,15 @@
 .c-derivation-toggle {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-3);
   width: 100%;
-  padding: 8px 12px;
+  padding: var(--space-3) var(--space-5);
   border: none;
   border-radius: var(--radius);
   background: var(--surface-2);
   color: var(--text);
   font: inherit;
-  font-size: 0.92rem;
+  font-size: var(--fs-body-sm);
   text-align: left;
   cursor: pointer;
 }
@@ -910,13 +951,13 @@
   -webkit-overflow-scrolling: touch;
 }
 .c-tab {
-  padding: 6px 10px;
+  padding: var(--space-2) var(--space-4);
   border: none;
   border-bottom: 2px solid transparent;
   background: none;
   color: var(--text-muted);
   font: inherit;
-  font-size: 0.85rem;
+  font-size: var(--fs-md);
   white-space: nowrap;
   cursor: pointer;
 }
@@ -936,7 +977,7 @@
   min-width: 0;
 }
 .c-derivation-table {
-  font-size: 0.88rem;
+  margin: 0;
 }
 .c-assumption-list {
   margin: 0.3em 0;
@@ -946,13 +987,66 @@
   margin: 2px 0;
 }
 
+/* ===== Table（字級與內距的來源只有 tokens.css 的 --table-*；global.css 的 table 基底給預設層級）=====
+ * .c-table：橫向細線＋斑馬紋（不畫直向格線）、表頭底色、數字欄 .num 靠右（global.css）、
+ *           公式欄 .formula 不換行、寬度只占內容（不把整張表撐寬；放不下時由 .table-wrap 橫向捲動）、
+ *           高表格的表頭可黏住（.c-table--sticky；外框不是捲動容器時才會相對於視窗，見 formulas 的 TableWrap）。
+ * 共用表格（指標表、符號表、推導面板的符號／單位表）與 sign-off 頁的表由這裡的選擇器清單直接套上，不改 JSX。
+ * 斑馬紋與格線用 :where() 寫成零特異度：任何頁面自己的規則（容器窄時改成卡片的 .c-metric-table、formulas 的卡片檢視）都壓得過。
+ */
+:where(.c-table, .c-metric-table, .c-symbols table, .c-derivation-table, .so-pillars, .so-plan, .so-corner-table) :where(th, td) {
+  border-width: 0 0 1px;
+}
+:where(.c-table, .c-metric-table, .c-symbols table, .c-derivation-table, .so-pillars, .so-plan, .so-corner-table) :where(thead th) {
+  border-bottom: 1px solid var(--border-strong);
+}
+:where(.c-table, .c-metric-table, .c-symbols table, .c-derivation-table, .so-pillars, .so-plan, .so-corner-table) :where(tbody tr:nth-child(even)) > :where(td, th) {
+  background: var(--table-stripe);
+}
+:where(.c-table, .c-metric-table, .c-symbols table, .c-derivation-table) :where(td.formula, th.formula) {
+  white-space: nowrap;
+  width: 1%;
+}
+.c-table--sticky thead th {
+  position: sticky;
+  top: var(--topbar-h);
+  z-index: 1;
+}
+/*
+ * 層級對映（不改章節 JSX）：各頁的表格 class 原本各自寫 0.82–0.92rem、3–6px／5–10px 的內距，這裡依「寬度不增加」的原則
+ * 對映到 sm／xs 兩個層級；預設層級（global.css）的表只列出原本值不同的幾張。選擇器前面的 .page 是刻意的：
+ * 章節的 CSS 在章節載入後才加進來，同特異度時會蓋掉這裡，多一層 .page 才壓得過（0,2,1 > 0,1,1）。
+ * 沒列的：.ch11-table.ch11-case-table、.ch11b-table.ch11b-case-table、.models-analytic .models-table（複合選擇器，值本來就是 xs 層級）、
+ * .fr-table（formulas 自己的卡片檢視）。章節那些規則可以刪掉（見 design-system 的整合筆記）。
+ */
+.page :is(.ch12-table, .ch13-table, .dash-ch-table) {
+  font-size: var(--table-fs);
+}
+.page :is(.ch12-table, .ch13-table, .ch13-table-wide) :is(th, td) {
+  font-size: var(--table-fs);
+  padding: var(--table-pad-y) var(--table-pad-x);
+}
+.page :is(.c-metric-table, .c-derivation-table, .ch14-table, .ver-table, .lab-table, .gal-metric-table, .gal-data-table, .gal-audit-table, .gal-cov-table, .dash-mc-table, .dash-start table, .wb-phi-table, .wb-const-table, .wb-approx-table, .wb-db-table, .wb-mini-table, .wb-level-table, .wb-stats-table, .so-plan, .so-pillars, .ch06-case-table) {
+  font-size: var(--table-fs-sm);
+}
+.page :is(.c-metric-table, .c-derivation-table, .ch14-table, .ver-table, .lab-table, .gal-metric-table, .gal-data-table, .gal-audit-table, .gal-cov-table, .dash-mc-table, .dash-start table, .wb-phi-table, .wb-const-table, .wb-approx-table, .wb-db-table, .wb-mini-table, .wb-level-table, .wb-stats-table, .so-plan, .so-pillars, .ch06-case-table) :is(th, td) {
+  padding: var(--table-pad-y-sm) var(--table-pad-x-sm);
+}
+.page :is(.lab-stage-table, .lab-check-table, .so-corner-table) {
+  font-size: var(--table-fs-xs);
+}
+.page :is(.lab-stage-table, .lab-check-table, .so-corner-table) :is(th, td) {
+  padding: var(--table-pad-y-xs) var(--table-pad-x-xs);
+}
+/* 手機（≤ 480px）：tokens.css 的 @media 把三個層級的 --table-* 各縮一級，上面的對映自動跟著變（取代章節 CSS 裡各自的 ≤480px 規則） */
+
 /* ===== MetricTable ===== */
+
 .c-metric-wrap {
   margin: 10px 0;
 }
 .c-metric-table {
   margin: 0;
-  font-size: 0.88rem;
 }
 .c-metric-table caption {
   caption-side: top;
@@ -1066,7 +1160,7 @@
 }
 .c-exp-desc {
   margin-top: 6px;
-  font-size: 0.92rem;
+  font-size: var(--fs-body-sm);
   color: var(--text-muted);
 }
 .c-exp-warnings .callout {
@@ -1079,7 +1173,7 @@
   align-items: center;
   gap: 10px 18px;
   margin: 12px 0;
-  padding: 10px 0;
+  padding: var(--space-4) 0;
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
 }
@@ -1121,7 +1215,7 @@
 .c-exp-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--space-2);
 }
 .c-freeze.is-active {
   background: var(--info-soft);
@@ -1133,10 +1227,10 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
 }
 .c-seed-label {
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 .c-seed-input {
@@ -1145,7 +1239,7 @@
 .c-exp-presets {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   min-width: 0;
 }
 .c-exp-presets select {
@@ -1163,7 +1257,7 @@
   min-width: 0;
 }
 .c-exp-controls {
-  padding: 12px 14px;
+  padding: var(--space-5) var(--space-6);
   border-radius: var(--radius-sm);
   background: var(--surface-2);
 }
@@ -1185,14 +1279,14 @@
 }
 .c-exp-group-title,
 .c-exp-group > summary {
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--text-muted);
   margin: 0 0 8px;
 }
 .c-exp-group > summary {
   cursor: pointer;
-  padding: 4px 0;
+  padding: var(--space-1) 0;
   margin: 0;
 }
 .c-exp-group[open] > summary {
@@ -1214,13 +1308,13 @@
   transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-6);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--surface);
   box-shadow: var(--shadow);
-  font-size: 0.85rem;
+  font-size: var(--fs-md);
   font-weight: 600;
   white-space: nowrap;
   pointer-events: none;
@@ -1229,63 +1323,44 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 10px;
+  gap: var(--space-2) var(--space-4);
   margin-top: 16px;
   padding-top: 12px;
   border-top: 1px solid var(--border);
 }
 .c-exp-crosscheck-title,
 .c-exp-subtitle {
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--text-muted);
 }
 .c-check {
+  /* --b-* 的預設值在上面「Badge」一節（必須排在 .c-check-ok 等 variant 之前） */
   display: inline-flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 2px 6px;
-  padding: 2px 10px;
+  gap: 2px var(--space-2);
+  padding: 2px var(--space-4);
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  font-size: 0.82rem;
+  border: 1px var(--b-bd-style) var(--b-bd);
+  background: var(--b-bg);
+  font-size: var(--fs-sm);
 }
 .c-check-name {
   font-weight: 600;
 }
-.c-check-ok {
-  border-color: var(--ok);
-  background: var(--ok-soft);
-}
-.c-check-ok .c-check-status {
-  color: var(--ok);
-}
-.c-check-mismatch {
-  border-color: var(--danger);
-  background: var(--danger-soft);
+.c-check-status {
+  color: var(--b-fg);
 }
 .c-check-mismatch .c-check-status {
-  color: var(--danger);
   font-weight: 700;
-}
-.c-check-not-implemented {
-  border-style: dashed;
-  border-color: var(--warn);
-  background: var(--warn-soft);
-}
-.c-check-not-implemented .c-check-status {
-  color: var(--warn);
-}
-.c-check-n\/a .c-check-status {
-  color: var(--text-faint);
 }
 .c-exp-assumptions {
   margin-top: 12px;
 }
 .c-exp-summary {
   margin-top: 12px;
-  padding: 8px 12px;
+  padding: var(--space-3) var(--space-5);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface-2);
@@ -1321,7 +1396,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-3);
   margin-top: 14px;
 }
 .c-spinner {
@@ -1364,7 +1439,7 @@
     grid-template-columns: minmax(0, 1fr);
   }
   .c-exp {
-    padding: 12px;
+    padding: var(--space-5);
   }
 }
 /* iOS 在 < 16px 的輸入框聚焦時會自動放大頁面。選擇器要比 global.css 的 input[type='text']（0,1,1）更具體 */
@@ -1389,13 +1464,13 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 10px;
+  gap: var(--space-2) var(--space-4);
   margin: 8px 0 12px;
 }
 .c-cases-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--space-1);
 }
 .c-case {
   display: inline-flex;
@@ -1412,13 +1487,13 @@
 .c-case-remove {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   padding: 3px 10px;
   border: none;
   background: none;
   color: var(--text);
   font: inherit;
-  font-size: 0.85rem;
+  font-size: var(--fs-md);
   cursor: pointer;
 }
 .c-case.is-active .c-case-btn {
@@ -1446,7 +1521,7 @@
   top: -100px;
   left: 8px;
   z-index: 100;
-  padding: 8px 14px;
+  padding: var(--space-3) var(--space-6);
   border: 1px solid var(--accent);
   border-radius: var(--radius-sm);
   background: var(--surface);
@@ -1467,12 +1542,12 @@
 }
 .c-mode-hint {
   margin: -0.2em 0 1.2em;
-  font-size: 0.85rem;
+  font-size: var(--fs-md);
   color: var(--text-muted);
 }
 .c-modepicker {
   margin: 0 0 24px;
-  padding: 14px 16px;
+  padding: var(--space-6) var(--space-7);
   border: 1px solid var(--accent);
   border-radius: var(--radius);
   background: var(--accent-soft);
@@ -1491,14 +1566,14 @@
 .c-modepicker-cards {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: var(--space-4);
 }
 .c-modepicker-card {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
-  padding: 10px 12px;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-5);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
@@ -1516,7 +1591,7 @@
   color: var(--accent);
 }
 .c-modepicker-card span {
-  font-size: 0.85rem;
+  font-size: var(--fs-md);
   color: var(--text-muted);
 }
 .c-modepicker-dismiss {
@@ -1537,14 +1612,14 @@
   display: block;
   margin: 8px 0;
   padding: 3px 10px;
-  border-left: 3px dashed var(--border-strong);
+  border-left: var(--bar-w) dashed var(--border-strong);
   color: var(--text-muted);
   font-size: 0.86rem;
 }
 .c-modegate-btn {
   margin-left: 8px;
   padding: 1px 8px;
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   vertical-align: baseline;
 }
 
@@ -1561,7 +1636,7 @@
 .c-notfound-exits {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: var(--space-4);
   margin: 16px 0 24px;
 }
 .c-notfound-list h2 {

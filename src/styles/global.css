@@ -1,4 +1,6 @@
-/* ===== Design tokens ===== */
+@import './tokens.css';
+
+/* ===== Design tokens（顏色；字級／間距／表格／徽章在 tokens.css）===== */
 :root {
   /* 拉丁字母／數字／連字號由自行託管的 Inter 負責，中文由各平台系統字型負責（字型檔見 fonts.css；不載入 CJK 網頁字型） */
   --font-sans: 'Inter Variable', 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans CJK TC', system-ui, sans-serif;
@@ -171,19 +173,19 @@ h4 {
   margin: 1.6em 0 0.6em;
 }
 h1 {
-  font-size: 1.75rem;
+  font-size: var(--fs-2xl);
   margin-top: 0.2em;
 }
 h2 {
-  font-size: 1.35rem;
+  font-size: var(--fs-xl);
   padding-bottom: 0.3em;
   border-bottom: 1px solid var(--border);
 }
 h3 {
-  font-size: 1.12rem;
+  font-size: var(--fs-lg);
 }
 h4 {
-  font-size: 1rem;
+  font-size: var(--fs-base);
 }
 
 p {
@@ -207,7 +209,7 @@ pre {
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 12px 14px;
+  padding: var(--space-5) var(--space-6);
   overflow-x: auto;
   line-height: 1.5;
 }
@@ -216,22 +218,23 @@ pre code {
   padding: 0;
 }
 
+/* 表格基底：字級與內距只來自 tokens.css 的 --table-*（三個層級的對映與 .c-table 的斑馬紋在 components.css「Table」一節） */
 table {
   border-collapse: collapse;
   width: 100%;
   margin: 0.8em 0;
-  font-size: 0.94rem;
+  font-size: var(--table-fs);
 }
 th,
 td {
-  border: 1px solid var(--border);
+  border: var(--table-border);
   /* 左右 8px：Inter 的數字比 PingFang 寬（15px 下一個 9 位小數的欄寬多 4–10px），10px 時 /ch/02 的逐步數值表會剛好多出 4px 的橫向捲軸 */
-  padding: 6px 8px;
+  padding: var(--table-pad-y) var(--table-pad-x);
   text-align: left;
   vertical-align: top;
 }
 th {
-  background: var(--surface-2);
+  background: var(--table-head-bg);
   font-weight: 600;
 }
 td.num,
@@ -240,16 +243,10 @@ th.num {
   font-variant-numeric: tabular-nums;
   /* Inter 的等寬數字（tabular-nums）每個 0.648em，比 PingFang 的 0.575em 寬 13%（PingFang 的數字本來就等寬），
      數值欄因此變寬；數字靠右對齊，左右各少 2px 看不出來，但 /ch/11 的 Monte Carlo 對照表（4 個數值欄）剛好差 3px 就不再溢出 */
-  padding-left: 6px;
-  padding-right: 6px;
+  padding-left: calc(var(--table-pad-x) - var(--table-num-inset));
+  padding-right: calc(var(--table-pad-x) - var(--table-num-inset));
 }
-/* 手機：表格欄位少一點留白——有幾張表本來就只差 1–5px 放不下，只為這幾 px 多出一條橫向捲軸沒有用途 */
-@media (max-width: 480px) {
-  th,
-  td {
-    padding: 5px 6px;
-  }
-}
+/* 手機（≤ 480px）的表格留白與字級由 tokens.css 的 @media 覆寫 --table-*（各縮一級），這裡不另寫規則 */
 .table-wrap {
   overflow-x: auto;
   max-width: 100%;
@@ -277,8 +274,8 @@ ol {
   height: var(--topbar-h);
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 16px;
+  gap: var(--space-5);
+  padding: 0 var(--space-7);
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   z-index: 30;
@@ -298,14 +295,14 @@ ol {
 .topbar-controls {
   margin-left: auto;
   display: flex;
-  gap: 12px;
+  gap: var(--space-5);
   align-items: center;
 }
 .select-label {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.85rem;
+  gap: var(--space-2);
+  font-size: var(--fs-md);
   color: var(--text-muted);
 }
 
@@ -325,11 +322,11 @@ ol {
   margin-bottom: 14px;
 }
 .nav-group-label {
-  font-size: 0.74rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   letter-spacing: 0.02em;
   color: var(--text-faint);
-  padding: 4px 10px;
+  padding: var(--space-1) var(--space-4);
 }
 .nav-link {
   display: block;
@@ -350,8 +347,8 @@ ol {
 }
 .nav-footer {
   margin-top: 18px;
-  padding: 0 10px;
-  font-size: 0.74rem;
+  padding: 0 var(--space-4);
+  font-size: var(--fs-2xs);
   color: var(--text-faint);
   line-height: 1.5;
 }
@@ -385,11 +382,11 @@ ol {
 .page-pager {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--space-7);
   margin-top: 48px;
   padding-top: 16px;
   border-top: 1px solid var(--border);
-  font-size: 0.92rem;
+  font-size: var(--fs-body-sm);
 }
 .page-loading {
   padding: 40px;
@@ -429,15 +426,15 @@ ol {
 /* 手機：品牌字與兩個下拉選單要一起放進 375px，選單縮窄、不換行 */
 @media (max-width: 480px) {
   .topbar {
-    gap: 8px;
-    padding: 0 10px;
+    gap: var(--space-3);
+    padding: 0 var(--space-4);
   }
   .brand {
     font-size: 0.95rem;
     white-space: nowrap;
   }
   .topbar-controls {
-    gap: 6px;
+    gap: var(--space-2);
     min-width: 0;
   }
   .topbar-controls .select-label {
@@ -459,11 +456,11 @@ ol {
    兩個選單才不會被截成「Engin…」「跟隨…」（≤900px 時「Calibration Lab」本來就是這樣收起來的） */
 @media (max-width: 359px) {
   .topbar {
-    gap: 6px;
-    padding: 0 8px;
+    gap: var(--space-2);
+    padding: 0 var(--space-3);
   }
   .topbar-controls {
-    gap: 4px;
+    gap: var(--space-1);
   }
   .brand .brand-x {
     display: none;
@@ -475,14 +472,14 @@ ol {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: var(--space-2);
   padding: 5px 12px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-strong);
   background: var(--surface);
   color: var(--text);
   font: inherit;
-  font-size: 0.88rem;
+  font-size: var(--fs-ui);
   line-height: 1.4;
   cursor: pointer;
 }
@@ -510,7 +507,7 @@ select,
 input[type='number'],
 input[type='text'] {
   font: inherit;
-  font-size: 0.88rem;
+  font-size: var(--fs-ui);
   padding: 3px 6px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-strong);
@@ -533,12 +530,12 @@ input[type='range'] {
 .grid-2 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: var(--space-7);
 }
 .grid-3 {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  gap: var(--space-7);
 }
 @media (max-width: 760px) {
   .grid-2,
@@ -548,9 +545,9 @@ input[type='range'] {
 }
 
 .callout {
-  border-left: 4px solid var(--info);
+  border-left: var(--bar-w-lg) solid var(--info);
   background: var(--info-soft);
-  padding: 10px 14px;
+  padding: var(--space-4) var(--space-6);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   margin: 14px 0;
 }
@@ -577,7 +574,7 @@ input[type='range'] {
   color: var(--text-muted);
 }
 .small {
-  font-size: 0.85rem;
+  font-size: var(--fs-md);
 }
 .mono {
   font-family: var(--font-mono);
@@ -592,7 +589,7 @@ input[type='range'] {
 .katex-display {
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 4px 0;
+  padding: var(--space-1) 0;
   scrollbar-width: thin;
 }
 figure.c-mermaid svg .katex-display {

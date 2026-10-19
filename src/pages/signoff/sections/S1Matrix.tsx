@@ -1,5 +1,6 @@
 import { memo, useCallback, useId, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { APP_VERSION, Callout, ClaimTag, GIT_COMMIT, Section, TexBlock, downloadText, fileTimestamp, prettyJson, usePersistentState } from '@/components'
+import { BadgeRow } from '@/components/Tags'
 import { ALL_CASES, type SignoffCase, type SignoffCheck } from '../data'
 import {
   FILTER_KEY,
@@ -54,13 +55,23 @@ function visible(filter: MatrixFilter, it: CheckReview): boolean {
 
 type OnItemChange = (id: string, patch: Partial<CheckReview>) => void
 
+/** 狀態卡左上角的圖示（純裝飾；狀態文字在 <select> 與 aria-label 裡） */
+const STATUS_ICON: Record<ReviewStatus, string> = { 'not-started': '○', 'in-progress': '◐', pass: '✓', fail: '✗', waived: 'W' }
+
+/**
+ * 一個判準一張「有狀態的卡片」：左色條與圖示跟著狀態走（通過＝綠、未通過＝紅、豁免＝琥珀、進行中＝藍、未填＝灰虛線），
+ * 不再只靠 <select> 的 1px 邊框。狀態仍由同一個 <select> 改（原生鍵盤操作：Tab 進去、↑↓ 換狀態），存 localStorage lmspll.signoff.*。
+ */
 const CheckRow = memo(function CheckRow({ check, item, onItemChange }: { check: SignoffCheck; item: CheckReview; onItemChange: OnItemChange }) {
   const id = useId()
   const missing = needsNote(item)
   const onChange = (patch: Partial<CheckReview>) => onItemChange(check.id, patch)
   return (
-    <div className="so-check" data-check={check.id}>
+    <div className={`so-check so-check--${item.status}`} data-check={check.id} data-status={item.status} role="group" aria-labelledby={`${id}-t`}>
       <div className="so-check-head">
+        <span className="so-check-mark" aria-hidden="true">
+          {STATUS_ICON[item.status]}
+        </span>
         <div className="so-check-title" id={`${id}-t`}>
           <RichText text={check.title} />
         </div>
@@ -106,8 +117,10 @@ const CheckRow = memo(function CheckRow({ check, item, onItemChange }: { check: 
           <>
             <dt>出處</dt>
             <dd>
-              {check.spec && <span className="small muted">規格 {check.spec} </span>}
-              {check.errata?.map((e) => <ErratumTag key={e} id={e} />)}
+              <BadgeRow label={`出處：${check.id}`}>
+                {check.spec && <span className="small muted">規格 {check.spec}</span>}
+                {check.errata?.map((e) => <ErratumTag key={e} id={e} />)}
+              </BadgeRow>
             </dd>
           </>
         )}
@@ -216,12 +229,36 @@ export function ReviewMatrix() {
 
   const pct = (n: number) => `${sum.total ? (100 * n) / sum.total : 0}%`
   const verdictKind = sum.verdict === 'blocked' ? 'danger' : sum.verdict === 'incomplete' ? 'warn' : sum.verdict === 'ready' ? 'ok' : 'info'
+  /** 已判定 = 通過 + 未通過 + 豁免（進行中與未開始都還沒下判斷） */
+  const decided = sum.counts.pass + sum.counts.fail + sum.counts.waived
 
   return (
     <Section kind="explore" level={2} title="1. Sign-off Matrix（規格 §16.2，互動）" id="so-matrix">
       <p>
         每一列對應規格 §16.2 的一個 case（外加 SSPLL GOS／PHOS 極性檢查與 §17 反面測試），每個 case 拆成可以獨立驗收的檢查項目：<strong>必須驗證什麼、怎麼判斷（含數學判準）、本站哪個章節或實驗可以幫你</strong>。你的狀態與備註只存在<strong>這個瀏覽器</strong>（localStorage；私密模式或停用儲存時不會保存，但頁面照常運作），可以匯出 Markdown 給 design review、或匯出 JSON 之後再匯入。
       </p>
+
+      {/* 常駐的進度摘要：黏在頂列下方，捲到任何一張卡片都看得到（role=status：狀態一改就念一次） */}
+      <div className="so-sticky" role="status" aria-live="polite" data-testid="so-sticky" data-verdict={sum.verdict}>
+        <span className="so-sticky-main">
+          已判定 <strong>{decided}</strong>／{sum.total}
+        </span>
+        <span className={`so-sticky-item${sum.counts.fail > 0 ? ' is-bad' : ''}`} data-count="fail">
+          未通過 <strong>{sum.counts.fail}</strong>
+        </span>
+        <span className={`so-sticky-item${sum.missingNotes.length > 0 ? ' is-warn' : ''}`} data-count="missing-note">
+          缺理由 <strong>{sum.missingNotes.length}</strong>
+        </span>
+        <span className="so-sticky-item" data-count="closed">
+          已關閉 <strong>{sum.closed}</strong>
+        </span>
+        <span className="so-sticky-bar" aria-hidden="true">
+          <span className="so-seg-pass" style={{ width: pct(sum.counts.pass) }} />
+          <span className="so-seg-waived" style={{ width: pct(sum.counts.waived) }} />
+          <span className="so-seg-fail" style={{ width: pct(sum.counts.fail) }} />
+          <span className="so-seg-in-progress" style={{ width: pct(sum.counts['in-progress']) }} />
+        </span>
+      </div>
 
       <div className="card">
         <div className="so-meta">
@@ -261,10 +298,11 @@ export function ReviewMatrix() {
           <span data-testid="so-verdict">{sum.verdictText}</span>
         </Callout>
         <div className="table-wrap">
-          <table>
+          <table className="c-table so-summary-table">
+            <caption className="c-sr-only">各 case 的狀態數</caption>
             <thead>
               <tr>
-                <th>Case</th>
+                <th scope="col">Case</th>
                 <th className="num">通過</th>
                 <th className="num">豁免</th>
                 <th className="num">未通過</th>

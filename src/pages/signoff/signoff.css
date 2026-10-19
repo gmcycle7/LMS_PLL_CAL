@@ -23,23 +23,10 @@
   white-space: nowrap;
 }
 
-/* ---------- 勘誤標記 ---------- */
-.so-erratum {
-  display: inline-block;
-  font-size: 0.74rem;
-  line-height: 1.3;
-  padding: 1px 6px;
-  border-radius: 999px;
-  border: 1px solid var(--warn);
-  color: var(--warn);
-  background: var(--warn-soft);
-  white-space: nowrap;
-  margin: 0 2px;
-  vertical-align: 1px;
-}
+/* ---------- 勘誤標記（外觀是共用的 .c-badge--erratum：琥珀描邊；這裡只管它是連結） ---------- */
 .so-erratum:hover {
   text-decoration: none;
-  filter: brightness(1.05);
+  --b-bg: var(--warn-soft);
 }
 .so-erratum-note {
   display: flex;
@@ -63,31 +50,7 @@
   font-size: 0.9rem;
 }
 
-/* ---------- 判決徽章 ---------- */
-.so-verdict {
-  display: inline-block;
-  padding: 1px 8px;
-  border-radius: 999px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-.so-verdict-ok {
-  color: var(--ok);
-  background: var(--ok-soft);
-}
-.so-verdict-bad {
-  color: var(--danger);
-  background: var(--danger-soft);
-}
-.so-verdict-warn {
-  color: var(--warn);
-  background: var(--warn-soft);
-}
-.so-verdict-muted {
-  color: var(--text-muted);
-  background: var(--surface-2);
-}
+/* 判決徽章 .so-verdict：外觀全部來自共用的 Badge variant（shared.tsx 的 Verdict），這裡沒有樣式 */
 
 /* ---------- 六個條件表 ---------- */
 .so-pillars td:first-child {
@@ -96,6 +59,52 @@
 }
 
 /* ---------- Review matrix ---------- */
+/* 常駐的進度摘要：黏在頂列下方（整個 §1 捲動期間都看得到）；手機也是同一條，項目換行 */
+.so-sticky {
+  position: sticky;
+  top: var(--topbar-h);
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-6);
+  margin: var(--space-3) 0 var(--space-5);
+  padding: var(--space-2) var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-size: var(--fs-md);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.so-sticky strong {
+  color: var(--text);
+}
+.so-sticky-main strong {
+  font-size: 1.1em;
+}
+.so-sticky-item.is-bad,
+.so-sticky-item.is-bad strong {
+  color: var(--danger);
+}
+.so-sticky-item.is-warn,
+.so-sticky-item.is-warn strong {
+  color: var(--warn);
+}
+.so-sticky-bar {
+  display: flex;
+  flex: 1 1 120px;
+  height: 6px;
+  min-width: 80px;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  background: var(--surface-3);
+}
+.so-sticky-bar > span {
+  display: block;
+  height: 100%;
+}
 .so-meta {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -226,16 +235,65 @@
   margin: 0 0 8px;
 }
 
+/*
+ * 狀態卡：每個判準一張卡，左色條（--bar-w-lg）＋ 圖示 ＋ <select> 三處同步顯示狀態。
+ * --so-state 由狀態類別決定：pass 綠、fail 紅、waived 琥珀、in-progress 藍、not-started 灰（虛線色條＝還沒填）。
+ */
 .so-check {
-  border-top: 1px solid var(--border);
-  padding: 10px 0;
+  --so-state: var(--border-strong);
+  --so-state-soft: transparent;
+  position: relative;
+  margin: var(--space-3) 0;
+  padding: var(--space-4) var(--space-5) var(--space-4) var(--space-6);
+  border: 1px solid var(--border);
+  border-left: var(--bar-w-lg) solid var(--so-state);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--surface);
   min-width: 0;
+}
+.so-check--not-started {
+  border-left-style: dashed;
+}
+.so-check--pass {
+  --so-state: var(--ok);
+  --so-state-soft: var(--ok-soft);
+}
+.so-check--fail {
+  --so-state: var(--danger);
+  --so-state-soft: var(--danger-soft);
+}
+.so-check--waived {
+  --so-state: var(--warn);
+  --so-state-soft: var(--warn-soft);
+}
+.so-check--in-progress {
+  --so-state: var(--info);
+  --so-state-soft: var(--info-soft);
 }
 .so-check-head {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 12px;
+  gap: var(--space-2) var(--space-5);
   align-items: center;
+}
+.so-check-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--so-state);
+  background: var(--so-state-soft);
+  color: var(--so-state);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  line-height: 1;
+}
+.so-check--not-started .so-check-mark {
+  border-style: dashed;
+  color: var(--text-faint);
 }
 .so-check-title {
   font-weight: 600;
@@ -245,23 +303,12 @@
 .so-status {
   font-size: 0.86rem;
   border-width: 2px;
+  border-color: var(--so-state);
+  color: var(--so-state);
   min-width: 9.5em;
 }
-.so-status[data-status='pass'] {
-  border-color: var(--ok);
-  color: var(--ok);
-}
-.so-status[data-status='fail'] {
-  border-color: var(--danger);
-  color: var(--danger);
-}
-.so-status[data-status='waived'] {
-  border-color: var(--warn);
-  color: var(--warn);
-}
-.so-status[data-status='in-progress'] {
-  border-color: var(--info);
-  color: var(--info);
+.so-check--not-started .so-status {
+  color: var(--text);
 }
 .so-check-grid {
   display: grid;
@@ -553,6 +600,10 @@
 /* 表格第一欄的短標籤（「1 方向」）不要被擠成一字一行 */
 .so-page td.so-nowrap {
   white-space: nowrap;
+}
+/* §1 的各 case 狀態數（.c-table：斑馬紋、橫線）；字級用 sm 層級 */
+.so-summary-table {
+  font-size: var(--table-fs-sm);
 }
 
 /*
