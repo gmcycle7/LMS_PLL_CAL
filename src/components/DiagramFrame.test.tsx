@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { DiagramFrame } from './DiagramFrame'
+import { DiagramFrame, DiagramTextBody } from './DiagramFrame'
+import { parseDiagramText, type DiagramText } from './diagramText'
 import { svgNaturalSize, withSvgIdSuffix } from './mermaidSource'
 
 const SVG = '<svg id="c-mermaid-7" viewBox="0 0 800 300" style="max-width: 800px;"><style>#c-mermaid-7 .node{fill:red}</style><marker id="c-mermaid-7_arrow"></marker><g class="node"></g></svg>'
@@ -79,5 +80,97 @@ describe('mermaidSource：SVG 尺寸與 id', () => {
     expect(out).toContain('id="c-mermaid-7-zoom_arrow"')
     expect(out.split('c-mermaid-7').length).toBe(out.split('c-mermaid-7-zoom').length)
     expect(withSvgIdSuffix('<svg><g/></svg>', '-zoom')).toBe('<svg><g/></svg>')
+  })
+})
+
+const CHART = String.raw`flowchart LR
+  subgraph FE["前端"]
+    S["固定誤差 $s$"] -- "$+ s$" --> ADD(("＋"))
+    VN(["雜訊 $v$"]) -- "$+ v$" --> ADD
+  end
+  ADD -.-> CMP{"Comparator"}
+  CMP -->|"$q = \pm 1$"| ACC["累加器"]`
+
+const open = (details: HTMLDetailsElement) => {
+  details.open = true
+  fireEvent(details, new Event('toggle'))
+}
+
+describe('DiagramFrame：文字版（節點與連線清單）', () => {
+  it('沒有 chart／textModel、或圖還沒畫好：沒有文字版，figure 也沒有 aria-describedby', () => {
+    const a = render(<DiagramFrame html={SVG} caption="圖" />)
+    expect(a.container.querySelector('details')).toBeNull()
+    expect(a.container.querySelector('figure')?.hasAttribute('aria-describedby')).toBe(false)
+    a.unmount()
+    const b = render(<DiagramFrame ready={false} chart={CHART} placeholder={<span>載入中</span>} />)
+    expect(b.container.querySelector('details')).toBeNull()
+  })
+
+  it('預設收合：figure 的 aria-describedby 指到 details，收合時只多 <details><summary> 兩個元素；位置在圖說之後', () => {
+    const { container } = render(<DiagramFrame html={SVG} chart={CHART} caption="圖 $s$" />)
+    const figure = container.querySelector('figure')!
+    const details = container.querySelector('details.c-figalt') as HTMLDetailsElement
+    expect(details.open).toBe(false)
+    expect(figure.getAttribute('aria-describedby')).toBe(details.id)
+    expect(details.id).toMatch(/^figalt-[A-Za-z0-9_-]+$/)
+    expect(details.querySelectorAll('*')).toHaveLength(1)
+    expect(details.querySelector('summary')?.textContent).toBe('文字版（節點與連線清單）')
+    expect(figure.lastElementChild).toBe(details)
+    expect(figure.querySelector('figcaption')!.nextElementSibling).toBe(details)
+  })
+
+  it('惰性：展開前不解析 chart；textModel 函式展開才呼叫；收起再展開用同一份內容', () => {
+    const model = vi.fn((): DiagramText => parseDiagramText(CHART))
+    const { container } = render(<DiagramFrame html={SVG} textModel={model} />)
+    expect(model).not.toHaveBeenCalled()
+    const details = container.querySelector('details') as HTMLDetailsElement
+    open(details)
+    expect(model).toHaveBeenCalledTimes(1)
+    expect(details.querySelector('.c-figalt-body')).toBeTruthy()
+    details.open = false
+    fireEvent(details, new Event('toggle'))
+    expect(details.querySelector('.c-figalt-body')).toBeNull()
+  })
+
+  it('展開後：群組、每個節點一行、連線「A → B（標籤）」（虛線加註），數學用 KaTeX 排版', () => {
+    const { container } = render(<DiagramFrame html={SVG} chart={CHART} />)
+    open(container.querySelector('details') as HTMLDetailsElement)
+    const body = container.querySelector('.c-figalt-body')!
+    expect(body.textContent).toContain('排列方向：由左到右')
+    expect([...body.querySelectorAll('.c-figalt-h')].map((h) => h.textContent)).toEqual(['群組（1）', '節點（5）', '連線（4）'])
+    const [groups, nodes, edges] = [...body.querySelectorAll(':scope > ul')]
+    expect(groups.textContent).toContain('前端')
+    expect(groups.querySelectorAll('li')).toHaveLength(1)
+    expect(nodes.querySelectorAll(':scope > li')).toHaveLength(5)
+    expect(nodes.textContent).toContain('加法點（＋）')
+    expect(nodes.textContent).toContain('〔前端〕')
+    const rows = [...edges.querySelectorAll(':scope > li')]
+    expect(rows).toHaveLength(4)
+    // 摘掉 KaTeX 的 MathML 複本後，第 3 條是 ADD → CMP，虛線
+    const text = (li: Element) => {
+      const c = li.cloneNode(true) as Element
+      c.querySelectorAll('.katex-mathml, annotation').forEach((e) => e.remove())
+      return c.textContent ?? ''
+    }
+    expect(text(rows[2])).toMatch(/→/)
+    expect(text(rows[2])).toContain('虛線')
+    expect(text(rows[3])).toContain('Comparator')
+    expect(body.querySelectorAll('.katex').length).toBeGreaterThan(3)
+    // 輸出文字（無障礙名稱）不留 TeX 原始碼
+    for (const el of body.querySelectorAll('[aria-label]')) expect(el.getAttribute('aria-label')).not.toMatch(/[$\\]/)
+  })
+
+  it('DiagramTextBody：解析不到結構（parsed: false）要標明；沒有節點時說沒有偵測到；時序圖列出註記', () => {
+    const other = render(<DiagramTextBody model={parseDiagramText('pie\n  "甲" : 1\n  "乙" : 2')} />)
+    expect(other.container.textContent).toContain('沒有完整解析，只列出偵測到的節點名稱')
+    expect(other.container.querySelectorAll('li')).toHaveLength(2)
+    expect(other.container.querySelector('.c-figalt-h')?.textContent).toBe('節點（2）')
+    other.unmount()
+    const none = render(<DiagramTextBody model={parseDiagramText('gantt')} />)
+    expect(none.container.textContent).toContain('沒有偵測到可以列出的節點')
+    none.unmount()
+    const seq = render(<DiagramTextBody model={parseDiagramText('sequenceDiagram\n  participant A as 甲\n  participant B as 乙\n  Note over A,B: 開始\n  A->>B: 你好')} />)
+    expect([...seq.container.querySelectorAll('.c-figalt-h')].map((h) => h.textContent)).toEqual(['節點（2）', '訊息（1）', '註記（1）'])
+    expect(seq.container.textContent).toContain('在第 0 則訊息之後')
   })
 })

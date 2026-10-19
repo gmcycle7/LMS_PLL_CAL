@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { SettingsProvider } from '@/app/settings'
 import { Mermaid } from './Mermaid'
 
@@ -44,6 +44,21 @@ describe('Mermaid', () => {
     expect(mermaidMock.initialize).toHaveBeenLastCalledWith(
       expect.objectContaining({ theme: 'base', themeVariables: expect.objectContaining({ darkMode: true, primaryTextColor: '#e6ebf1' }) }),
     )
+  })
+
+  it('每張圖都有收合的「文字版」（DiagramFrame 的 chart）：figure 的 aria-describedby 指到它，展開才解析節點與連線', async () => {
+    const { container } = render(<Mermaid chart={'flowchart LR\n  DSM[累加器] --> DTC[延遲線]'} caption="訊號流" />)
+    await waitFor(() => expect(container.querySelector('.c-mermaid-svg svg')).toBeTruthy())
+    const fig = container.querySelector('figure.c-mermaid') as HTMLElement
+    const alt = container.querySelector('details.c-figalt') as HTMLDetailsElement
+    expect(alt).toBeTruthy()
+    expect(fig.getAttribute('aria-describedby')).toBe(alt.id)
+    expect(alt.querySelector('.c-figalt-body')).toBeNull() // 沒展開不渲染
+    alt.open = true
+    fireEvent(alt, new Event('toggle'))
+    await waitFor(() => expect(alt.querySelector('.c-figalt-body')).toBeTruthy())
+    expect(alt.textContent).toContain('累加器')
+    expect(alt.textContent).toContain('延遲線')
   })
 
   it('語法錯誤時以 callout 顯示錯誤訊息', async () => {

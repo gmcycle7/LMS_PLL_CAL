@@ -134,6 +134,7 @@ export function Mermaid({ chart, caption, ariaLabel }: MermaidProps) {
 
   return (
     <DiagramFrame
+      chart={chart}
       caption={caption}
       ariaLabel={ariaLabel}
       figureRef={ref}

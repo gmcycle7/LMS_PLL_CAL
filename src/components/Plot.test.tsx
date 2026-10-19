@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { Data } from 'plotly.js-cartesian-dist-min'
 import { downloadText } from './download'
 import { Plot, PLOT_NEAR_MARGIN, resetPlotlyPrefetchForTests } from './Plot'
@@ -334,5 +334,191 @@ describe('Plot：接近可視範圍才載入與繪製（有 IntersectionObserver
     const result = await pending
     expect(result.failed).toEqual([])
     expect(result.plots.map((p) => p.title)).toEqual(['還沒捲到的圖'])
+  })
+})
+
+const openDetails = (d: HTMLDetailsElement) => {
+  d.open = true
+  fireEvent(d, new Event('toggle'))
+}
+/** 摘掉 KaTeX 的 MathML 複本與 annotation 後的顯示文字 */
+const shown = (el: Element) => {
+  const c = el.cloneNode(true) as Element
+  c.querySelectorAll('.katex-mathml, annotation').forEach((e) => e.remove())
+  return (c.textContent ?? '').replace(/\s+/g, ' ').trim()
+}
+const tex = (el: Element) => [...el.querySelectorAll('annotation')].map((a) => a.textContent)
+
+describe('Plot：看數據（文字替代）', () => {
+  it('預設收合：figure 的 aria-describedby 指到 details；收合時只多 <details><summary>，沒有表格', async () => {
+    const { container } = render(<Plot data={[{ x: [1, 2], y: [3, 4], name: 'w' }, { y: [1, 2, 3], name: 'v' }]} title="收斂" />)
+    await waitFor(() => expect(P.react).toHaveBeenCalled())
+    const figure = container.querySelector('figure.c-plot')!
+    const details = container.querySelector('details.c-plot-alt') as HTMLDetailsElement
+    expect(details.open).toBe(false)
+    expect(figure.getAttribute('aria-describedby')).toBe(details.id)
+    expect(details.querySelector('summary')?.textContent).toBe('看數據（2 條曲線）')
+    expect(details.querySelectorAll('*')).toHaveLength(1)
+    expect(container.querySelector('table')).toBeNull()
+    expect(figure.lastElementChild).toBe(details)
+  })
+
+  it('沒有資料的圖不加看數據', async () => {
+    const { container } = render(<Plot data={[]} />)
+    await waitFor(() => expect(P.react).toHaveBeenCalled())
+    expect(container.querySelector('details')).toBeNull()
+    expect(container.querySelector('figure')?.hasAttribute('aria-describedby')).toBe(false)
+  })
+
+  it('展開後每條 trace 一列：名稱、點數、x 範圍、y 的最小／最大／首值／末值；數字照 texNum（4 位有效數字，極大極小用 a×10^b）', async () => {
+    const data: Data[] = [
+      { x: [0, 0.5, 1, 2], y: [3.14159, -2, 7.5, 0.00001234], name: '曲線 $w_k$' },
+      { y: [10, 20, 30], x0: 5, dx: 2, name: '只有 y' },
+      { x: ['甲', '乙', '丙'], y: [1, 2e7, 3], type: 'bar' },
+    ]
+    const { container } = render(<Plot data={data} layout={{ xaxis: { title: { text: '時間 $t$' } }, yaxis: { title: { text: '誤差' } } }} />)
+    await waitFor(() => expect(P.react).toHaveBeenCalled())
+    openDetails(container.querySelector('details') as HTMLDetailsElement)
+    const table = container.querySelector('table')!
+    expect(table.querySelector('caption')?.textContent).toBe('圖中各條曲線的數據摘要')
+    expect([...table.querySelectorAll('thead th')].map((h) => h.getAttribute('scope'))).toEqual(Array(7).fill('col'))
+    const rows = [...table.querySelectorAll('tbody tr')]
+    expect(rows).toHaveLength(3)
+    expect(rows[0].querySelector('th[scope="row"]')?.textContent).toContain('曲線')
+    expect(rows[0].querySelector('th .katex')).toBeTruthy() // 名稱裡的 $w_k$ 用 KaTeX
+    const cells = (r: Element) => [...r.querySelectorAll('td')]
+    // 第 1 條：4 點；x 0…2；y 最小 −2、最大 7.5、首值 3.142（4 位有效數字）、末值 1.234×10^-5
+    let c = cells(rows[0])
+    expect(c[0].textContent).toBe('4')
+    expect(shown(c[1])).toBe('0 到 2')
+    expect(shown(c[2])).toBe('−2')
+    expect(shown(c[3])).toBe('7.5')
+    expect(shown(c[4])).toBe('3.142')
+    expect(tex(c[5])).toEqual(['1.234\\times10^{-5}'])
+    // 第 2 條沒有 x：x0 + i·dx = 5, 7, 9
+    c = cells(rows[1])
+    expect(c[0].textContent).toBe('3')
+    expect(shown(c[1])).toBe('5 到 9')
+    expect([shown(c[2]), shown(c[3]), shown(c[4]), shown(c[5])]).toEqual(['10', '30', '10', '30'])
+    // 第 3 條類別軸：列出第一個與最後一個類別；y 的最大 2×10^7
+    c = cells(rows[2])
+    expect(shown(c[1])).toBe('甲 … 丙')
+    expect(tex(c[3])).toEqual(['2\\times10^{7}'])
+    // 軸標題（含 LaTeX）
+    const axes = container.querySelector('.c-figalt-body > ul')!
+    expect(axes.querySelectorAll('li')).toHaveLength(2)
+    expect(shown(axes)).toContain('時間')
+    expect(axes.querySelector('.katex')).toBeTruthy()
+  })
+
+  it('log 軸：表格看實際畫出來的點（≤0 已略去），並註明略去幾個；對數軸標在軸說明裡', async () => {
+    const { container } = render(<Plot data={[{ x: [0, 1, 10, 1000], y: [5, 1e-3, -1, 1e-7], name: 'PSD' }]} xLog yLog />)
+    await waitFor(() => expect(P.react).toHaveBeenCalled())
+    openDetails(container.querySelector('details') as HTMLDetailsElement)
+    const row = container.querySelector('tbody tr')!
+    const c = [...row.querySelectorAll('td')]
+    // x = [0,1,10,1000] 與 y = [5,1e-3,-1,1e-7]：第 1、3 點各有一個 ≤0 → 剩 [1, 1000]／[1e-3, 1e-7]
+    expect(c[0].textContent).toBe('2（另略去 2 個 ≤0 的點）')
+    expect(shown(c[1])).toBe('1 到 1000')
+    expect(tex(c[2])).toEqual(['10^{-7}'])
+    expect(shown(c[3])).toBe('0.001')
+    expect(container.querySelector('.c-figalt-body')?.textContent).toContain('（對數軸）')
+    expect(container.querySelector('.c-figalt-body')?.textContent).toContain('下載 CSV 仍是完整的原始資料')
+  })
+
+  it('heatmap 與 histogram 有說明；沒有名稱的曲線叫「曲線 N」', async () => {
+    const { container } = render(
+      <Plot
+        data={[
+          { type: 'heatmap', x: [1, 2, 3], y: ['a', 'b'], z: [[1, -1, 0], [0, 0.5, 2]] } as Data,
+          { type: 'histogram', x: [1, 2, 2, 3, 3, 3] } as Data,
+        ]}
+      />,
+    )
+    await waitFor(() => expect(P.react).toHaveBeenCalled())
+    openDetails(container.querySelector('details') as HTMLDetailsElement)
+    const rows = [...container.querySelectorAll('tbody tr')]
+    expect(rows[0].querySelector('th')?.textContent).toContain('曲線 1')
+    expect(rows[0].querySelector('th')?.textContent).toContain('熱圖，2 列 × 3 欄')
+    expect(rows[0].querySelector('td')?.textContent).toBe('6')
+    expect([...rows[0].querySelectorAll('td')].slice(2, 6).map(shown)).toEqual(['−1', '2', '1', '2'])
+    expect(rows[1].querySelector('th')?.textContent).toContain('直方圖')
+    expect(rows[1].querySelector('td')?.textContent).toBe('6')
+  })
+})
+
+describe('Plot：鍵盤可達的工具列（重設視圖、下載 PNG、下載 CSV）', () => {
+  it('Plotly 畫好才出現；一個 role=toolbar，三個按鈕，名稱沒有 $', async () => {
+    const { container } = render(<Plot data={[{ x: [1, 2], y: [3, 4], name: 'w' }]} title="收斂 $w_k$" />)
+    await waitFor(() => expect(container.querySelector('.c-plot-kbar')).toBeTruthy())
+    const bar = screen.getByRole('toolbar', { name: '圖表工具' })
+    expect(within(bar).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['重設視圖', '下載 PNG', '下載 CSV'])
+    expect(bar.closest('.c-plot-frame')).toBeTruthy()
+    // 一個 Tab 停靠點（roving tabindex）
+    expect(within(bar).getAllByRole('button').map((b) => b.tabIndex)).toEqual([0, -1, -1])
+  })
+
+  it('載入前（還沒接近可視範圍）沒有工具列', () => {
+    vi.stubGlobal('IntersectionObserver', class { observe() {} disconnect() {} unobserve() {} takeRecords() { return [] } })
+    try {
+      const { container } = render(<Plot data={[{ y: [1] }]} />)
+      expect(container.querySelector('.c-plot-kbar')).toBeNull()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('←→／Home／End 在按鈕間移動（循環），Tab 停靠點跟著走', async () => {
+    render(<Plot data={[{ y: [1, 2] }]} />)
+    const bar = await screen.findByRole('toolbar')
+    const [reset, png, csv] = within(bar).getAllByRole('button')
+    reset.focus()
+    fireEvent.keyDown(bar, { key: 'ArrowRight' })
+    expect(document.activeElement).toBe(png)
+    expect([reset.tabIndex, png.tabIndex, csv.tabIndex]).toEqual([-1, 0, -1])
+    fireEvent.keyDown(bar, { key: 'End' })
+    expect(document.activeElement).toBe(csv)
+    fireEvent.keyDown(bar, { key: 'ArrowRight' })
+    expect(document.activeElement).toBe(reset)
+    fireEvent.keyDown(bar, { key: 'ArrowLeft' })
+    expect(document.activeElement).toBe(csv)
+    fireEvent.keyDown(bar, { key: 'Home' })
+    expect(document.activeElement).toBe(reset)
+    fireEvent.keyDown(bar, { key: 'a' })
+    expect(document.activeElement).toBe(reset)
+  })
+
+  it('重設視圖 = Plotly.relayout：沒有指定範圍的軸交回 autorange，layout 指定了範圍的軸回到那個範圍', async () => {
+    const { rerender } = render(<Plot data={[{ x: [1, 2], y: [3, 4] }]} />)
+    fireEvent.click(await screen.findByRole('button', { name: '重設視圖' }))
+    const gd = document.querySelector('.c-plot-gd')
+    expect(P.relayout).toHaveBeenLastCalledWith(gd, { 'xaxis.autorange': true, 'yaxis.autorange': true })
+    rerender(<Plot data={[{ x: [1, 2], y: [3, 4] }]} layout={{ yaxis: { range: [-1, 1] } }} />)
+    await waitFor(() => expect(P.react).toHaveBeenCalledTimes(2))
+    fireEvent.click(screen.getByRole('button', { name: '重設視圖' }))
+    expect(P.relayout).toHaveBeenLastCalledWith(gd, { 'xaxis.autorange': true, 'yaxis.range': [-1, 1] })
+  })
+
+  it('下載 PNG 走 Plotly.downloadImage（和 modebar 同一組設定）；下載 CSV 用原始資料與 csvName', async () => {
+    render(<Plot data={[{ x: [1, 2], y: [3, 4], name: 'w_k' }]} title="收斂" csvName="conv" />)
+    const png = await screen.findByRole('button', { name: '下載 PNG' })
+    const gd = document.querySelector('.c-plot-gd') as HTMLElement & { data?: unknown; layout?: unknown }
+    gd.data = [{ x: [1, 2], y: [3, 4], name: 'w_k' }]
+    gd.layout = { margin: { t: 30 } }
+    fireEvent.click(png)
+    expect(P.downloadImage).toHaveBeenCalledWith(
+      expect.objectContaining({ layout: expect.objectContaining({ paper_bgcolor: expect.any(String) }) }),
+      expect.objectContaining({ format: 'png', filename: 'conv', scale: 2 }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: '下載 CSV' }))
+    expect(vi.mocked(downloadText)).toHaveBeenCalledWith('conv.csv', 'text/csv', 'w_k x,w_k y\n1,3\n2,4', { bom: true })
+  })
+
+  it('原本的 Plotly modebar（含下載 CSV）保留', async () => {
+    render(<Plot data={[{ y: [1] }]} csvName="x" />)
+    await waitFor(() => expect(P.react).toHaveBeenCalled())
+    const config = (P.react.mock.calls.at(-1) as unknown as ReactCall)[3]
+    const titles = (config.modeBarButtons as unknown[][]).flat().filter((b): b is Button => typeof b === 'object').map((b) => b.title)
+    expect(titles).toEqual(['下載 PNG', '下載 SVG', '下載 CSV'])
   })
 })

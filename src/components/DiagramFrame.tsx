@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode, type Ref } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode, type Ref } from 'react'
 import { createPortal } from 'react-dom'
+import { DIRECTION_TEXT, LINE_TEXT, endpointText, parseDiagramText, type DiagramEdge, type DiagramText } from './diagramText'
 import { accessibleText, mathText } from './Tex'
+import './figureAlt.css'
 
 /**
  * 所有方塊圖共用的外框（Mermaid 圖與手繪的系統地圖都用它）：
@@ -34,6 +36,10 @@ export interface DiagramFrameProps {
   /** 放大檢視用的 React 節點；預設同 children */
   zoomChildren?: ReactNode
   figureRef?: Ref<HTMLElement>
+  /** Mermaid 原始碼：圖下方的「文字版」從它解析出節點與連線（只在使用者展開時才解析） */
+  chart?: string
+  /** 已經有結構的圖（系統地圖）直接給文字版的內容；可傳函式，展開時才呼叫 */
+  textModel?: DiagramText | (() => DiagramText)
 }
 
 const ZOOM_MIN = 0.4
@@ -49,7 +55,121 @@ function ExpandIcon() {
   )
 }
 
-export function DiagramFrame({ caption, ariaLabel, className, ready = true, naturalSize, html, zoomHtml, children, zoomChildren, placeholder, figureRef }: DiagramFrameProps) {
+/**
+ * 圖下方的可收合說明（方塊圖的「文字版」、Plot 的「看數據」共用）。
+ * 預設收合；內容是函式，只在使用者展開後才呼叫，所以收合時每張圖只多 <details><summary> 兩個元素。
+ * 螢幕閱讀器用 <figure aria-describedby={id}> 指到這個 details。
+ */
+export function FigureDetails({ id, summary, className, children }: { id: string; summary: ReactNode; className?: string; children: () => ReactNode }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <details id={id} className={`c-figalt${className ? ` ${className}` : ''}`} onToggle={(e) => setOpen(e.currentTarget.open)}>
+      <summary>{summary}</summary>
+      {open && <div className="c-figalt-body">{children()}</div>}
+    </details>
+  )
+}
+
+const EDGE_WORD: Record<DiagramText['kind'], string> = { flowchart: '連線', state: '轉移', sequence: '訊息', other: '連線' }
+
+/** 文字版的內容：群組、節點（每個一行）、連線（「A → B（標籤）」）；時序圖另有註記 */
+export function DiagramTextBody({ model }: { model: DiagramText }) {
+  const label = (id: string, raw = true) => endpointText(model, id, raw)
+  const edgeNote = (e: DiagramEdge) => [LINE_TEXT[e.line], e.raw].filter((x): x is string => !!x)
+  const edgeWord = EDGE_WORD[model.kind]
+  if (model.nodes.length === 0) return <p className="c-figalt-note">沒有偵測到可以列出的節點；請看圖說。</p>
+  return (
+    <>
+      {!model.parsed && <p className="c-figalt-note">這張圖的語法沒有完整解析，只列出偵測到的節點名稱，沒有連線與群組。</p>}
+      {model.direction && <p className="c-figalt-note">排列方向：{DIRECTION_TEXT[model.direction] ?? model.direction}。</p>}
+      {model.groups.length > 0 && (
+        <>
+          <p className="c-figalt-h">群組（{model.groups.length}）</p>
+          <ul className="c-figalt-list">
+            {model.groups.map((g) => (
+              <li key={g.id}>
+                {mathText(g.raw)}：
+                {g.nodes.length > 0
+                  ? g.nodes.map((id, i) => (
+                      <span key={id}>
+                        {i > 0 && '、'}
+                        {mathText(label(id))}
+                      </span>
+                    ))
+                  : '（沒有直接屬於它的節點）'}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      <p className="c-figalt-h">節點（{model.nodes.length}）</p>
+      <ul className="c-figalt-list">
+        {model.nodes.map((n) => (
+          <li key={n.id}>
+            {mathText(n.raw)}
+            {n.focus ? '（本章主角）' : ''}
+            {n.group ? <span className="c-figalt-meta">〔{mathText(model.groups.find((g) => g.id === n.group)?.raw ?? n.group)}〕</span> : null}
+          </li>
+        ))}
+      </ul>
+      {model.edges.length > 0 && (
+        <>
+          <p className="c-figalt-h">
+            {edgeWord}（{model.edges.length}）
+          </p>
+          <ul className="c-figalt-list">
+            {model.edges.map((e, i) => {
+              const notes = edgeNote(e)
+              return (
+                <li key={i}>
+                  {mathText(label(e.from))} {e.arrow === 'forward' ? '→' : e.arrow === 'both' ? '↔' : '—'} {mathText(label(e.to))}
+                  {notes.length > 0 && (
+                    <span>
+                      （
+                      {notes.map((t, k) => (
+                        <span key={k}>
+                          {k > 0 && '；'}
+                          {mathText(t)}
+                        </span>
+                      ))}
+                      ）
+                    </span>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        </>
+      )}
+      {model.notes && model.notes.length > 0 && (
+        <>
+          <p className="c-figalt-h">註記（{model.notes.length}）</p>
+          <ul className="c-figalt-list">
+            {model.notes.map((n, i) => (
+              <li key={i}>
+                {mathText(n.raw)}
+                <span className="c-figalt-meta">
+                  （跨過{' '}
+                  {n.over.map((id, k) => (
+                    <span key={id}>
+                      {k > 0 && '、'}
+                      {mathText(label(id))}
+                    </span>
+                  ))}
+                  ；在第 {n.after} 則訊息之後）
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </>
+  )
+}
+
+export function DiagramFrame({ caption, ariaLabel, className, ready = true, naturalSize, html, zoomHtml, children, zoomChildren, placeholder, figureRef, chart, textModel }: DiagramFrameProps) {
+  const altId = `figalt-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
+  const hasText = ready && (chart !== undefined || textModel !== undefined)
   const scroller = useRef<HTMLDivElement | null>(null)
   const zoomButton = useRef<HTMLButtonElement | null>(null)
   const [edge, setEdge] = useState({ left: false, right: false })
@@ -91,7 +211,12 @@ export function DiagramFrame({ caption, ariaLabel, className, ready = true, natu
   }
 
   return (
-    <figure className={`c-mermaid${className ? ` ${className}` : ''}`} aria-label={label ? accessibleText(label) : undefined} ref={figureRef}>
+    <figure
+      className={`c-mermaid${className ? ` ${className}` : ''}`}
+      aria-label={label ? accessibleText(label) : undefined}
+      aria-describedby={hasText ? altId : undefined}
+      ref={figureRef}
+    >
       <div className={frameClass}>
         {html !== undefined ? (
           <div {...scrollerProps} dangerouslySetInnerHTML={{ __html: html }} />
@@ -108,6 +233,11 @@ export function DiagramFrame({ caption, ariaLabel, className, ready = true, natu
         )}
       </div>
       {caption && <figcaption className="c-figcaption">{mathText(caption)}</figcaption>}
+      {hasText && (
+        <FigureDetails id={altId} className="c-diagram-alt" summary="文字版（節點與連線清單）">
+          {() => <DiagramTextBody model={resolveModel(chart, textModel)} />}
+        </FigureDetails>
+      )}
       {open && (
         <DiagramZoom caption={caption} label={label} naturalSize={naturalSize ?? null} onClose={close} html={zoomHtml ?? html}>
           {zoomChildren ?? children}
@@ -115,6 +245,12 @@ export function DiagramFrame({ caption, ariaLabel, className, ready = true, natu
       )}
     </figure>
   )
+}
+
+function resolveModel(chart: string | undefined, textModel: DiagramFrameProps['textModel']): DiagramText {
+  if (typeof textModel === 'function') return textModel()
+  if (textModel) return textModel
+  return parseDiagramText(chart ?? '')
 }
 
 interface DiagramZoomProps {
