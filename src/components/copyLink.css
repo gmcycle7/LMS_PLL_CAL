@@ -1,0 +1,24 @@
+/* CopyLinkButton：按鈕、回饋文字與（複製失敗時）可選取的網址框 */
+.c-copylink {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.c-copylink-status {
+  color: var(--text-muted);
+}
+.c-copylink-status:empty {
+  display: none;
+}
+.c-copylink-input {
+  flex: 1 1 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+@media (max-width: 600px) {
+  .c-copylink-input {
+    font-size: 16px;
+  }
+}

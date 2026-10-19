@@ -5,6 +5,7 @@ import { MODE_LABEL, MODE_SHORT, MODES, useSettings, type LearningMode, type The
 import { NavigationContext } from './navigation'
 import { watchA11y } from './a11yEnhance'
 import { useMediaQuery } from './useMediaQuery'
+import { useScrollMemory } from './scrollMemory'
 import { SearchButton, loadSearchPalette } from '@/components/search'
 // skip link、sr-only 狀態區、側欄清單與模式選擇器的樣式在 components.css；章節 chunk 還沒載入（或載入失敗）時也要有，所以由 Layout 直接引入
 import '@/components/components.css'
@@ -34,6 +35,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const location = useLocation()
   const isDrawer = useMediaQuery(DRAWER_QUERY)
   const isNarrow = useMediaQuery(NARROW_QUERY)
+  useScrollMemory() // 閱讀位置記憶：上一頁／重新整理回到同一頁時還原（scrollMemory.ts）
 
   const [navOpen, setNavOpen] = useState(false)
   const [status, setStatus] = useState('')

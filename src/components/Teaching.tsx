@@ -1,5 +1,7 @@
-import { useId, useState, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { currentPageId, makeQuizId, recordQuiz, registerQuiz } from '@/app/quizProgress'
 import { ScrollRegion } from './ScrollRegion'
+import { badgeClass } from './Tags'
 import { Tex, TexBlock, accessibleText, hasInlineMath, mathText, nodeHasMath, nodeToAccessibleText } from './Tex'
 import './code.css'
 
@@ -71,6 +73,8 @@ export interface QuizOption {
 export interface QuizProps {
   /** 題號或標題，例如「思考題 1」 */
   title?: string
+  /** 進度紀錄用的題目 id（選填）：沒給就由標題與題目文字雜湊出來（src/app/quizProgress.ts） */
+  id?: string
   question: ReactNode
   /** 選擇題選項；省略則為計算題（只顯示「看答案」） */
   options?: QuizOption[]
@@ -78,9 +82,22 @@ export interface QuizProps {
   answer: ReactNode
 }
 
-export function Quiz({ title = '思考題', question, options, answer }: QuizProps) {
+export function Quiz({ title = '思考題', id, question, options, answer }: QuizProps) {
   const [picked, setPicked] = useState<number | null>(null)
   const [shown, setShown] = useState(false)
+  // 進度回報：頁面 id 與題目 id 掛載時決定一次；掛載時登記（Dashboard 的分母），作答時記一筆（src/app/quizProgress.ts）
+  const progress = useRef<{ pageId: string; quizId: string } | null>(null)
+  if (!progress.current) progress.current = { pageId: currentPageId(), quizId: id ?? makeQuizId(title, nodeToAccessibleText(question)) }
+  useEffect(() => registerQuiz(progress.current!.pageId, progress.current!.quizId), [])
+  const pick = (i: number) => {
+    setPicked(i)
+    recordQuiz(progress.current!.pageId, progress.current!.quizId, { picked: i, correct: !!options?.[i]?.correct })
+  }
+  const toggleAnswer = () => {
+    // 計算題（沒有選項）：第一次打開解析就算作答；選擇題要選了選項才算
+    if (!shown && !options) recordQuiz(progress.current!.pageId, progress.current!.quizId, { picked: null, correct: null })
+    setShown((v) => !v)
+  }
   const name = useId()
   const questionId = `${name}-q`
   const correct = picked !== null && options ? !!options[picked]?.correct : null
@@ -102,7 +119,7 @@ export function Quiz({ title = '思考題', question, options, answer }: QuizPro
                   type="radio"
                   name={name}
                   checked={picked === i}
-                  onChange={() => setPicked(i)}
+                  onChange={() => pick(i)}
                   aria-label={nodeHasMath(o.label) ? `${letter}. ${nodeToAccessibleText(o.label)}` : undefined}
                 />
                 <span>
@@ -117,7 +134,7 @@ export function Quiz({ title = '思考題', question, options, answer }: QuizPro
       <div className="c-sr-only" aria-live="polite">
         {correct !== null && <span key={picked ?? -1}>{correct ? '作答結果：答對了' : '作答結果：再想想看'}</span>}
       </div>
-      <button type="button" className="btn" onClick={() => setShown((v) => !v)} aria-expanded={shown}>
+      <button type="button" className="btn" onClick={toggleAnswer} aria-expanded={shown}>
         {shown ? '收起解析' : '看答案與解析'}
       </button>
       {shown && <div className="c-quiz-answer">{answer}</div>}
@@ -168,7 +185,7 @@ export function Prereq({ title, children, defaultOpen = false }: { title: string
     <details className="c-prereq" open={defaultOpen}>
       {/* 標題含數學時，<summary> 的名稱（由內容算出）會漏掉公式，另給可念的 aria-label */}
       <summary aria-label={hasInlineMath(title) ? `先備知識 ${accessibleText(title)}` : undefined}>
-        <span className="c-prereq-badge">先備知識</span> {mathText(title)}
+        <span className={badgeClass('neutral', 'c-prereq-badge')}>先備知識</span> {mathText(title)}
       </summary>
       <div className="c-prereq-body">{children}</div>
     </details>
