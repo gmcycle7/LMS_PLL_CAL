@@ -61,6 +61,11 @@
 - Research 模式：再加上 `min="research"` 的內容——嚴格條件、反例、Monte Carlo 細節、相關文獻。
 - `Derivation` 預設只在 Research 模式展開（使用者手動切換優先），個別推導框可以用 `defaultOpen` 覆寫。
 
+- **Beginner 骨幹路線與精簡參數面板（2026-10-19，wave 4）**：Beginner 不能只是「收合」——審查量到 Beginner 每章仍要 2–3 小時、控制項數量和 Engineer 幾乎一樣。從這一輪起：
+  - 首頁（Dashboard）在 Beginner 模式的首屏是一張「骨幹路線」卡（`src/app/backbone.ts` 的 `BACKBONE`，`src/pages/dashboard/sections/Backbone.tsx`）：從 Ch00 到 Sign-off 的 12 步最短路徑，每一步只讀該章最核心的一段（`anchor` → `until`，範圍寫在每一步），每步標分鐘數（依 Beginner 模式量到的字數／公式／圖／實驗，`estimateReadingMinutes`，總計 ≤ 6 小時，`backbone.test.ts` 守著）、完成勾選（沿用 `lmspll.dashboard.done`，段落級的 key 是 `page#anchor`）、本章思考題進度（`quizProgress.ts`）與「從上次離開的地方繼續」（`lmspll.lastVisited`）。章節卡片與章節表要顯示三種模式的閱讀時間（`chapterMeta.ts` 的 `readingMinutes`）。
+  - 互動實驗在 Beginner 模式只先露出 3–5 個關鍵參數：`src/app/beginnerControls.ts` 的 `BEGINNER_CONTROLS[experimentId]`（挑 preset 會改到、而且是這個實驗要教的那幾個），其餘由 `ExperimentShell` 收進「更多參數（N 個）」的 `<details>`（預設收合）；Engineer／Research 全部展開。新增實驗（尤其骨幹路線上的）要替它補一張清單。
+  - 章節寫作上，骨幹路線的每一步都要能單獨讀：那一段的開頭有「要回答的問題」與第一張圖，結尾有手算或實驗；各節（h2 所在的 section）要有穩定的 `id`（ch05 目前沒有，骨幹只能用標題文字標範圍）。
+
 ## 7. 帶入手算（使用者要求：「可以手算會比較有感覺」）
 
 - 每章為**每一個重要公式**提供「帶入手算」題（`HandCalc` 元件 + `src/chapters/chNN/handcalcs.ts` 匯出 `HANDCALCS: HandCalcDef[]`；型別在 `@/data/types`，範本見 `src/chapters/ch00/handcalcs.ts`）。每章至少 4 題，重要章節 6–8 題。
@@ -97,6 +102,8 @@
   - 沒有「反向箭頭」的連線語法（`A <-- B` 不是合法的邊），回授要寫成來源 → 目的。
   - 很大的菱形（判斷式太長）改用六角形 `{{"…"}}`，比較不佔高度。
 - 改完圖要**實際看一次**：`node scripts/screenshots.mjs --routes /ch/NN --shots all-mermaid` 截圖逐張檢查（文字有沒有被切掉或重疊、連線有沒有不必要的交叉、字會不會太小），再用 `node scripts/diagram-audit.mjs --routes /ch/NN` 確認寬度。這幾支腳本的旗標與「改了畫面要附上哪些檢查」見 `docs/dev-conventions.md` §8。
+
+- **圖旁的小標籤**（「Fig. 3」「可互動」「Try it」這類）用共用的 `Badge`（`badgeClass('neutral' | 'level' | …, 'chNN-fig-badge')`），不要在章節 CSS 再定義一種 pill；顏色語意照 `docs/dev-conventions.md` §2.1（綠實心只給「精確」、琥珀描邊只給勘誤）。圖說下方一排結論標籤若 ≥ 4 個，放進 `BadgeRow`（前 3 個 + 「+N」）。
 
 ## 9. 章首／章末骨架（2026-10-19 起，由 PageFrame 統一提供）
 
