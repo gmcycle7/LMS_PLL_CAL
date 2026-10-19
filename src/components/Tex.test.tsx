@@ -4,7 +4,7 @@ import { Section } from './Section'
 import { Callout } from './Callout'
 
 describe('Tex / TexBlock', () => {
-  it('行內公式輸出 KaTeX HTML（含 MathML）', () => {
+  it('行內公式只輸出 KaTeX HTML（不附 MathML），TeX 原始碼留在隱藏的 annotation', () => {
     const { container } = render(
       <p>
         更新式 <Tex>{'w_{n+1}=w_n+\\mu e_n x_n'}</Tex>
@@ -12,7 +12,34 @@ describe('Tex / TexBlock', () => {
     )
     expect(container.querySelector('.katex')).toBeTruthy()
     expect(container.querySelector('.katex-display')).toBeNull()
-    expect(container.querySelector('math')).toBeTruthy()
+    // 行內只出 html：沒有 <math>，省下每個公式十幾個 MathML 節點
+    expect(container.querySelector('math')).toBeNull()
+    // 原始碼仍在：章節測試用 `.katex annotation` 還原；hidden → 不被朗讀、不被複製、不佔版面
+    const carrier = container.querySelector('.katex > .katex-mathml')
+    expect(carrier?.hasAttribute('hidden')).toBe(true)
+    expect(carrier?.querySelector('annotation[encoding="application/x-tex"]')?.textContent).toBe('w_{n+1}=w_n+\\mu e_n x_n')
+    expect(container.querySelectorAll('.katex-mathml *')).toHaveLength(1)
+  })
+
+  it('行內公式的無障礙名稱：role=math + aria-label（texToSpeech），不依賴 MathML', () => {
+    const { container } = render(<Tex>{'\\sigma_v^2'}</Tex>)
+    const host = container.querySelector('.c-tex')!
+    expect(host.getAttribute('role')).toBe('math')
+    expect(host.getAttribute('aria-label')).toBe(texToSpeech('\\sigma_v^2'))
+    expect(host.getAttribute('aria-label')).not.toMatch(/[\\{}^_$]/)
+    expect(container.querySelector('.katex-html')?.getAttribute('aria-hidden')).toBe('true')
+  })
+
+  it('renderTex 輸出模式：行內 html、獨立公式 htmlAndMathml；TeX 原始碼會跳脫', () => {
+    const inline = renderTex('a<b', false)
+    expect(inline).not.toContain('<math')
+    expect(inline).toContain('<annotation encoding="application/x-tex">a&#60;b</annotation>')
+    const block = renderTex('a<b', true)
+    expect(block).toContain('<math')
+    expect(block).toContain('<annotation encoding="application/x-tex">a&lt;b</annotation>')
+    expect(block).not.toContain('class="katex-mathml" hidden')
+    // 語法錯誤的行內公式：KaTeX 的紅字錯誤原樣回傳（沒有 .katex-html 可插入）
+    expect(renderTex('\\frac{1}{', false)).toContain('katex-error')
   })
 
   it('TexBlock：display mode、公式 ID 錨點與標籤', () => {
@@ -22,6 +49,8 @@ describe('Tex / TexBlock', () => {
       </TexBlock>,
     )
     expect(container.querySelector('.katex-display')).toBeTruthy()
+    // 獨立公式保留 MathML（螢幕閱讀器與複製用）
+    expect(container.querySelector('.katex-mathml math')).toBeTruthy()
     expect(container.querySelector('#formula-F-1\\.1')).toBeTruthy()
     expect(screen.getByText('(F-1.1)')).toBeTruthy()
     expect(screen.getByText('LMS 更新式')).toBeTruthy()
@@ -104,14 +133,17 @@ describe('無障礙名稱的可念形式（speech.ts 經由 Tex.tsx 匯出）', 
     expect(nodeHasMath(['a', <i key="i"><Tex>{'x'}</Tex></i>])).toBe(true)
   })
 
-  it('為什麼要另給名稱：KaTeX 在「由內容算名稱」裡只剩 MathML 的文字（這裡記錄 DOM 結構，不測瀏覽器）', () => {
+  it('為什麼要另給名稱：KaTeX 的 HTML 部分是 aria-hidden，名稱只能靠外層 aria-label／獨立公式的 MathML（這裡記錄 DOM 結構，不測瀏覽器）', () => {
     const { container } = render(
       <label>
         <Tex>{'\\delta_0'}</Tex>
       </label>,
     )
-    // HTML 部分 aria-hidden（螢幕閱讀器不念），可讀的只有 .katex-mathml
+    // HTML 部分 aria-hidden（螢幕閱讀器不念）；行內公式的可讀名稱在 <Tex> 外層的 aria-label
     expect(container.querySelector('.katex-html')?.getAttribute('aria-hidden')).toBe('true')
-    expect(container.querySelector('.katex-mathml math')).toBeTruthy()
+    expect(container.querySelector('.c-tex')?.getAttribute('aria-label')).toBe(texToSpeech('\\delta_0'))
+    // 獨立公式則仍帶 MathML
+    const block = render(<TexBlock>{'\\delta_0'}</TexBlock>)
+    expect(block.container.querySelector('.katex-mathml math')).toBeTruthy()
   })
 })

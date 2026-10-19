@@ -15,3 +15,14 @@ export {
 export { dispatch, collectTransferables, serializeError, deserializeError } from './dispatch'
 export { createGlobLoader, loadModelModule, availableModelModules } from './modelLoader'
 export type { ModuleLoader, SerializedError, WorkerRequest, WorkerResponse } from './protocol'
+export {
+  WorkerPool,
+  getSharedWorkerPool,
+  resetSharedWorkerPool,
+  warmUpWorkerPool,
+  DEFAULT_IDLE_MS,
+  DEFAULT_MAX_WORKERS,
+  type PoolJob,
+  type PoolJobHandlers,
+  type WorkerPoolOptions,
+} from './pool'

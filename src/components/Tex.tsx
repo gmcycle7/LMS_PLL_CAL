@@ -5,31 +5,51 @@ import { INLINE_MATH, accessibleText, hasInlineMath, texToSpeech } from './speec
 // 無障礙名稱用的可念形式（aria-label / title / aria-valuetext / <option>）；細節與規則見 speech.ts
 export { accessibleText, hasInlineMath, texToSpeech }
 
+const escapeHtml = (s: string): string => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
+
+/** KaTeX 的 HTML 輸出開頭（output:'html' 時 .katex 底下只有 .katex-html 一個子元素） */
+const KATEX_HTML_OPEN = '<span class="katex-html"'
+
 /**
  * KaTeX 轉成 HTML 字串。throwOnError:false → 語法錯誤時顯示紅字原始碼而不是讓頁面崩潰。
  * trust:false 禁止 \href / \url 等可能注入連結的指令。
+ *
+ * 輸出模式（docs/dev/infra-api.md「KaTeX 輸出模式」）：
+ * - displayMode（獨立公式 <TexBlock>）：`htmlAndMathml`，MathML 留給螢幕閱讀器與複製。
+ * - 行內（<Tex>）：只出 `html`。整本書有上千個行內公式，逐一附上 MathML 會讓 DOM 多出約 22%；
+ *   無障礙名稱改由 <Tex> 外層的 `role="math"` + `aria-label`（texToSpeech）提供。
+ *   TeX 原始碼仍以一個隱藏的 `.katex-mathml > annotation` 保留（2 個元素，`hidden` 所以不被讀、不被複製、不佔版面），
+ *   章節測試靠它還原公式原始碼（`k.querySelector('annotation')`）。
  */
 export function renderTex(src: string, displayMode: boolean): string {
   try {
-    return katex.renderToString(src, {
+    const html = katex.renderToString(src, {
       displayMode,
       throwOnError: false,
       strict: 'ignore',
       trust: false,
-      output: 'htmlAndMathml',
+      output: displayMode ? 'htmlAndMathml' : 'html',
     })
+    if (displayMode) return html
+    // 語法錯誤時 KaTeX 回傳 <span class="katex-error">（沒有 .katex-html），原樣回傳
+    const at = html.indexOf(KATEX_HTML_OPEN)
+    if (at < 0) return html
+    const carrier = `<span class="katex-mathml" hidden><annotation encoding="application/x-tex">${escapeHtml(src)}</annotation></span>`
+    return html.slice(0, at) + carrier + html.slice(at)
   } catch (err) {
     // throwOnError:false 仍可能因非 ParseError 的錯誤丟出；以純文字退回
     const msg = err instanceof Error ? err.message : String(err)
-    const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
-    return `<span class="c-tex-error" title="${esc(msg)}">${esc(src)}</span>`
+    return `<span class="c-tex-error" title="${escapeHtml(msg)}">${escapeHtml(src)}</span>`
   }
 }
 
-/** 行內 KaTeX：<Tex>{'\\mu e_n x_n'}</Tex> */
+/**
+ * 行內 KaTeX：<Tex>{'\\mu e_n x_n'}</Tex>
+ * 只出 HTML（不附 MathML，見 renderTex）；螢幕閱讀器念 `aria-label`（TeX → 可念文字），畫面上的 KaTeX HTML 本身是 aria-hidden。
+ */
 export const Tex = memo(function Tex({ children }: { children: string }) {
-  const html = useMemo(() => renderTex(children, false), [children])
-  return <span className="c-tex" dangerouslySetInnerHTML={{ __html: html }} />
+  const { html, spoken } = useMemo(() => ({ html: renderTex(children, false), spoken: texToSpeech(children) }), [children])
+  return <span className="c-tex" role="math" aria-label={spoken || undefined} dangerouslySetInnerHTML={{ __html: html }} />
 })
 
 export interface TexBlockProps {
@@ -122,8 +142,9 @@ function speakNode(node: ReactNode): { text: string; math: boolean } {
 
 /**
  * ReactNode（字串、<Tex>、<MathText>、一般元素與陣列）→ 螢幕閱讀器念的純文字。
- * 為什麼不能只靠畫面上的標籤：KaTeX 的 HTML 部分是 aria-hidden，MathML 部分在 Chrome 的「由內容算名稱」裡不會被算進去，
- * 所以 `<label>$\mu$（Case A）</label>` 的名稱只剩「（Case A）」，`<label>$\delta_0$</label>` 則是空字串。
+ * 為什麼不能只靠畫面上的標籤：KaTeX 的 HTML 部分是 aria-hidden；獨立公式的 MathML 部分在 Chrome 的「由內容算名稱」裡不會被算進去，
+ * 行內 <Tex> 雖然有 `role="math"` + `aria-label`，但各瀏覽器對控制項內容裡的 aria-label 後代支援不一，
+ * 所以 `<label>$\mu$（Case A）</label>` 的名稱仍可能只剩「（Case A）」，`<label>$\delta_0$</label>` 則是空字串。
  * 控制項（輸入框、滑桿、單選鈕、<summary>）的標籤含數學時，要另外給 aria-label，內容用這個函式產生。
  */
 export function nodeToAccessibleText(node: ReactNode): string {

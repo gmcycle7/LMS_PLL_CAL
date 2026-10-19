@@ -1,4 +1,5 @@
-import { act, renderHook, waitFor } from '@testing-library/react'
+import { StrictMode, useEffect } from 'react'
+import { act, render, renderHook, waitFor } from '@testing-library/react'
 import { isWorkerCancelled } from './client'
 import type { ModuleLoader } from './protocol'
 import { useWorkerTask } from './useWorkerTask'
@@ -89,5 +90,56 @@ describe('useWorkerTask（inline fallback）', () => {
     unmount()
     const err = await p.catch((e: unknown) => e)
     expect(isWorkerCancelled(err)).toBe(true)
+  })
+})
+
+describe('useWorkerTask：StrictMode 的雙重 effect', () => {
+  /** 掛載時在 effect 裡呼叫 run()（章節實驗的慣用寫法）；把每次 run 的 promise 收集起來 */
+  function Probe({ runs, onTask }: { runs: Promise<string>[]; onTask?: (t: ReturnType<typeof useWorkerTask<{ ms: number; tag: string }, string>>) => void }) {
+    const task = useWorkerTask<{ ms: number; tag: string }, string>('scalarLms', 'slow', { loader })
+    onTask?.(task)
+    useEffect(() => {
+      runs.push(task.run({ ms: 10, tag: `run${runs.length + 1}` }))
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- 只在掛載時跑一次（StrictMode 會再跑一次）
+    }, [])
+    return null
+  }
+
+  it('第一次 effect 的 run() 不會被 StrictMode 的模擬卸載取消，兩次 run 都完成', async () => {
+    const runs: Promise<string>[] = []
+    render(
+      <StrictMode>
+        <Probe runs={runs} />
+      </StrictMode>,
+    )
+    expect(runs).toHaveLength(2) // StrictMode：effect 跑了兩次
+    let settled: PromiseSettledResult<string>[] = []
+    await act(async () => {
+      settled = await Promise.allSettled(runs)
+    })
+    expect(settled.map((r) => r.status)).toEqual(['fulfilled', 'fulfilled'])
+    expect(settled.map((r) => (r as PromiseFulfilledResult<string>).value)).toEqual(['run1', 'run2'])
+  })
+
+  it('非 StrictMode 的真正卸載仍會釋放 client 並取消進行中的 run', async () => {
+    const runs: Promise<string>[] = []
+    const { unmount } = render(<Probe runs={runs} />)
+    expect(runs).toHaveLength(1)
+    unmount()
+    const err = await runs[0].catch((e: unknown) => e)
+    expect(isWorkerCancelled(err)).toBe(true)
+  })
+
+  it('StrictMode 之後真正卸載：進行中的 run 仍會被取消（generation 比對只吃掉模擬卸載）', async () => {
+    const runs: Promise<string>[] = []
+    const { unmount } = render(
+      <StrictMode>
+        <Probe runs={runs} />
+      </StrictMode>,
+    )
+    await Promise.resolve() // 讓模擬卸載排下的 microtask 先跑完（此時不該 dispose）
+    unmount()
+    const settled = await Promise.allSettled(runs)
+    expect(settled.every((r) => r.status === 'rejected' && isWorkerCancelled(r.reason))).toBe(true)
   })
 })
