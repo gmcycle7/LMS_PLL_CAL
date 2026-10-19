@@ -17,26 +17,46 @@ describe('ClaimTag', () => {
 })
 
 describe('TipBadge（徽章 tooltip）', () => {
-  it('不進 Tab 順序（tabIndex=-1）但仍可點擊聚焦；aria-describedby 指向 tooltip', () => {
+  it('不可聚焦（沒有 tabindex）；aria-describedby 指向 tooltip', () => {
     const { container } = render(<ClaimTag kind="exact" />)
-    const badge = container.querySelector('.c-badge')!
-    expect(badge.getAttribute('tabindex')).toBe('-1')
+    const badge = container.querySelector<HTMLElement>('.c-badge')!
+    expect(badge.hasAttribute('tabindex')).toBe(false)
+    badge.focus()
+    expect(document.activeElement).not.toBe(badge)
     const tip = screen.getByRole('tooltip', { hidden: true })
     expect(badge.getAttribute('aria-describedby')).toBe(tip.id)
   })
-  it('Esc 關閉 tooltip：聚焦時失焦；滑鼠停留時加上 is-dismissed，移開後重設', () => {
+  it('點一下開／關 tooltip（觸控）；點徽章以外的地方收起', () => {
+    const { container } = render(
+      <>
+        <SourceTag kind="measured" />
+        <button type="button">其他</button>
+      </>,
+    )
+    const badge = container.querySelector<HTMLElement>('.c-badge')!
+    expect(badge.className).not.toContain('is-open')
+    fireEvent.click(badge)
+    expect(badge.className).toContain('is-open')
+    fireEvent.click(badge)
+    expect(badge.className).not.toContain('is-open')
+    fireEvent.click(badge)
+    fireEvent.pointerDown(screen.getByText('其他'))
+    expect(badge.className).not.toContain('is-open')
+  })
+  it('Esc 關閉 tooltip：滑鼠停留或已點開時加上 is-dismissed，移開後重設', () => {
     const { container } = render(<SourceTag kind="measured" />)
     const badge = container.querySelector<HTMLElement>('.c-badge')!
-    badge.focus()
-    expect(document.activeElement).toBe(badge)
-    fireEvent.keyDown(badge, { key: 'Escape' })
-    expect(document.activeElement).not.toBe(badge)
+    fireEvent.click(badge)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(badge.className).toContain('is-dismissed')
+    expect(badge.className).not.toContain('is-open')
     fireEvent.mouseEnter(badge)
+    expect(badge.className).not.toContain('is-dismissed')
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(badge.className).toContain('is-dismissed')
     fireEvent.mouseLeave(badge)
     expect(badge.className).not.toContain('is-dismissed')
-    // 沒有滑鼠停留時 document 的 Esc 不會動到它
+    // 沒有滑鼠停留、也沒點開時 document 的 Esc 不會動到它
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(badge.className).not.toContain('is-dismissed')
   })
@@ -83,7 +103,7 @@ describe('TestBadge', () => {
     const { container } = render(<TestBadge id="T01" file={fakeFile} />)
     const badge = container.querySelector('.c-test')!
     expect(badge.getAttribute('data-status')).toBe('pass')
-    expect(badge.getAttribute('tabindex')).toBe('-1')
+    expect(badge.hasAttribute('tabindex')).toBe(false)
     expect(badge.textContent).toContain('T01 verified')
     expect(badge.textContent).toContain('[TS] T01: one-step update')
     expect(badge.textContent).toContain('[PY] test_t01')

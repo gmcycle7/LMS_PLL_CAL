@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
+import { Children, cloneElement, isValidElement, useCallback, useEffect, useLayoutEffect, useRef, type ReactElement, type ReactNode } from 'react'
 import { ScrollRegion } from '@/components'
 
 /**
@@ -11,8 +11,24 @@ import { ScrollRegion } from '@/components'
  *   data-fit    放得下（溢位 ≤ 2px，與 ScrollRegion 的判斷門檻相同）。`sticky` 的表格在 fit 時外框改成 overflow: visible，
  *               表頭的 position: sticky 才會相對於視窗（外框是捲動容器時它只相對於外框）；放不下時外框照常橫向捲動、表頭不黏
  *   data-tiny   只超出 1–6px（多半是 padding 或四捨五入）：隱藏橫向捲軸、不畫漸層，一條只能捲幾 px 的捲軸沒有用途
+ *
+ * `caption`：表格的標題（螢幕閱讀器念表格時先念它）。children 是單一 `<table>` 時，TableWrap 在它最前面插入視覺隱藏的 `<caption>`；
+ * 沒給時由 Layout 的 a11yEnhance 依最近的標題自動補一個，所以每張表至少有 caption；有明確標題的表請傳 `caption`。
  */
-export function TableWrap({ className, label = '表格（可左右捲動）', sticky = false, children }: { className?: string; label?: string; sticky?: boolean; children: ReactNode }) {
+export function TableWrap({
+  className,
+  label = '表格（可左右捲動）',
+  sticky = false,
+  caption,
+  children,
+}: {
+  className?: string
+  label?: string
+  sticky?: boolean
+  /** 表格標題（視覺隱藏的 <caption>）；純文字（名稱欄位不放 `$…$`，要先經過 accessibleText） */
+  caption?: string
+  children: ReactNode
+}) {
   const hostRef = useRef<HTMLDivElement | null>(null)
 
   const update = useCallback(() => {
@@ -54,8 +70,17 @@ export function TableWrap({ className, label = '表格（可左右捲動）', st
   return (
     <div className="fr-fade" ref={hostRef} data-fade-start="0" data-fade-end="0" data-fit="1" data-tiny="0">
       <ScrollRegion className={`table-wrap${sticky ? ' fr-sticky-wrap' : ''}${className ? ` ${className}` : ''}`} label={label}>
-        {children}
+        {withCaption(children, caption)}
       </ScrollRegion>
     </div>
   )
+}
+
+/** children 是單一 <table> 且沒有自己的 <caption> 時，在最前面插入視覺隱藏的 <caption> */
+function withCaption(children: ReactNode, caption: string | undefined): ReactNode {
+  if (!caption || !isValidElement(children) || children.type !== 'table') return children
+  const table = children as ReactElement<{ children?: ReactNode }>
+  // 作者已經寫了 <caption> 就不再插一個（一張表只能有一個 caption）
+  if (Children.toArray(table.props.children).some((c) => isValidElement(c) && c.type === 'caption')) return children
+  return cloneElement(table, undefined, <caption className="c-sr-only">{caption}</caption>, table.props.children)
 }

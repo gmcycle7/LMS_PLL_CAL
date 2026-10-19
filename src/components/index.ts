@@ -166,3 +166,9 @@ export { SearchButton, loadSearchPalette, type SearchPaletteProps } from './sear
 
 // 本頁目錄（PageFrame 掛在每一頁；從 h2 自動產生）與浮動「回到頂端」
 export { PageOutline, collectOutline, headingLabel, slugify, currentIndex, sectionProgress, OUTLINE_COLUMN_QUERY, OUTLINE_COLUMN_MIN_WIDTH, OUTLINE_MIN_ENTRIES, type OutlineLayout, type OutlineModel, type OutlineEntry, type PageOutlineProps } from './PageOutline'
+
+// 章首／章末骨架（PageFrame 依 src/app/chapterMeta.ts 掛在每一章；樣式在 chapterFrame.css，由 PageFrame import）
+export { ChapterInfoStrip, type ChapterInfoStripProps } from './ChapterInfoStrip'
+export { PrereqCheck, type PrereqCheckProps } from './PrereqCheck'
+export { ChapterHandoff, chapterCodeOf, type ChapterHandoffProps } from './ChapterHandoff'
+export { useRovingTabs, type RovingTabs } from './useRovingTabs'

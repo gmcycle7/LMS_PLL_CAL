@@ -4,6 +4,8 @@ import { SettingsProvider } from './settings'
 import { Layout } from './Layout'
 import { PAGES } from './registry'
 import { PageFrame } from './PageFrame'
+import { DocumentTitle } from './navigation'
+import { NotFound } from './NotFound'
 
 export default function App() {
   return (
@@ -13,9 +15,19 @@ export default function App() {
           <Suspense fallback={<div className="page-loading">載入中…</div>}>
             <Routes>
               {PAGES.map((p) => (
-                <Route key={p.id} path={p.path} element={<PageFrame entry={p} />} />
+                // DocumentTitle 在 PageFrame 後面：同一個 commit 裡後面的 effect 後執行，最後寫入的標題才是 registry 的 title
+                <Route
+                  key={p.id}
+                  path={p.path}
+                  element={
+                    <>
+                      <PageFrame entry={p} />
+                      <DocumentTitle entry={p} />
+                    </>
+                  }
+                />
               ))}
-              <Route path="*" element={<div className="page-loading">找不到此頁面。請由左側目錄選擇章節。</div>} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
         </Layout>

@@ -6,6 +6,7 @@ import { diffLines, extractRegion } from './codeRegion'
 import './code.css'
 import { ScrollRegion } from './ScrollRegion'
 import { accessibleText, mathText } from './Tex'
+import { useRovingTabs, type RovingTabs } from './useRovingTabs'
 
 hljs.registerLanguage('typescript', typescript)
 hljs.registerLanguage('python', python)
@@ -124,13 +125,13 @@ export function CodeBlock({ source, region, lang = 'typescript', title, path, hi
  * 分頁按鈕：標籤可含 `$...$`（以 KaTeX 排版）。有數學時另給螢幕閱讀器念的 aria-label
  * （KaTeX 的 MathML 在按鈕名稱裡可能連 TeX 原始碼一起念）；沒有數學時不加，避免與可見文字重複。
  */
-function TabButton({ label, active, onSelect }: { label: string; active: boolean; onSelect: () => void }) {
+function TabButton({ label, active, onSelect, aria }: { label: string; active: boolean; onSelect: () => void; aria: ReturnType<RovingTabs['tabProps']> }) {
   const spoken = accessibleText(label)
   return (
     <button
       type="button"
       role="tab"
-      aria-selected={active}
+      {...aria}
       aria-label={spoken !== label ? spoken : undefined}
       className={`c-code-tab${active ? ' active' : ''}`}
       onClick={onSelect}
@@ -160,16 +161,18 @@ export interface CodeCompareProps {
  */
 export function CodeCompare({ items, layout = 'columns', caption }: CodeCompareProps) {
   const [active, setActive] = useState(0)
+  // WAI-ARIA Tabs：roving tabindex、←→／Home／End、tab 與 tabpanel 互相指到對方（useRovingTabs）
+  const tabs = useRovingTabs(items.length, active, setActive)
   return (
     <div className={`c-code-compare c-code-compare-${layout}`}>
-      <div className="c-code-tabs" role="tablist" aria-label="程式碼比較">
+      <div className="c-code-tabs" role="tablist" aria-label="程式碼比較" onKeyDown={tabs.onKeyDown}>
         {items.map((it, i) => (
-          <TabButton key={it.label} label={it.label} active={i === active} onSelect={() => setActive(i)} />
+          <TabButton key={it.label} label={it.label} active={i === active} onSelect={() => setActive(i)} aria={tabs.tabProps(i)} />
         ))}
       </div>
       <div className="c-code-compare-body">
         {items.map((it, i) => (
-          <div key={it.label} className={`c-code-compare-item${i === active ? ' active' : ''}`} role="tabpanel">
+          <div key={it.label} className={`c-code-compare-item${i === active ? ' active' : ''}`} role="tabpanel" {...tabs.panelProps(i)}>
             <div className="c-code-compare-label">{mathText(it.label)}</div>
             {it.note && <div className="c-code-compare-note">{mathText(it.note)}</div>}
             <CodeBlock {...it} title={it.title ?? it.label} />

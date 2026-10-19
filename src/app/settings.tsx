@@ -1,4 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { mathText } from '@/components/Tex'
+import { useNavigationInfo } from './navigation'
 
 /** 三種學習模式共用同一計算核心，只改變呈現細節（規格 §18.2）。 */
 export type LearningMode = 'beginner' | 'engineer' | 'research'
@@ -120,8 +122,33 @@ export function useSettings(): Settings {
   return ctx
 }
 
-/** 只在模式 >= min 時顯示內容（例如 Research 才顯示的推導細節）。 */
-export function ModeGate({ min, children }: { min: LearningMode; children: ReactNode }) {
-  const { atLeast } = useSettings()
-  return atLeast(min) ? <>{children}</> : null
+/**
+ * 只在模式 >= min 時顯示內容（例如 Research 才顯示的推導細節）。
+ *
+ * Beginner 模式下被藏起來的區塊不是無聲消失，而是留一行佔位：「（這一段在 Engineer 模式才展開：<摘要>）」
+ * 加一個「切換到 Engineer」按鈕（setMode），讓初學者知道這裡有更多內容、也知道怎麼打開。
+ * - `summary`：一句話說這段藏了什麼（可含 `$…$` 行內公式）；沒給就顯示通用句。
+ * - Engineer 模式下 min="research" 的區塊維持原樣（不佔版面、不加佔位）：已經選了工程模式的讀者不需要每段都被提醒。
+ */
+export function ModeGate({ min, children, summary }: { min: LearningMode; children: ReactNode; summary?: ReactNode }) {
+  const { mode, atLeast, setMode } = useSettings()
+  const { announce } = useNavigationInfo()
+  if (atLeast(min)) return <>{children}</>
+  if (mode !== 'beginner') return null
+  const target = MODE_SHORT[min]
+  return (
+    <span className="c-modegate" data-min={min}>
+      （這一段在 {target} 模式才展開{summary ? <>：{typeof summary === 'string' ? mathText(summary) : summary}</> : null}）
+      <button
+        type="button"
+        className="btn c-modegate-btn"
+        onClick={() => {
+          setMode(min)
+          announce(`已切換到 ${target} 模式`)
+        }}
+      >
+        切換到 {target}
+      </button>
+    </span>
+  )
 }

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useId, type ReactNode } from 'react'
 import { mathText } from './Tex'
 
 export type CalloutKind = 'info' | 'warn' | 'danger' | 'ok'
@@ -21,12 +21,19 @@ export interface CalloutProps {
 /** 提示框：info / warn / danger / ok（沿用 global.css 的 .callout 樣式） */
 export function Callout({ kind = 'info', title, children, className }: CalloutProps) {
   const heading = title === null ? null : (title ?? DEFAULT_TITLE[kind])
+  const titleId = useId()
   return (
     <div
       className={`callout${kind === 'info' ? '' : ` callout-${kind}`} c-callout${className ? ` ${className}` : ''}`}
       role={kind === 'danger' ? 'alert' : 'note'}
+      // 有標題時以標題命名（螢幕閱讀器念「注意，註記」而不是一段無名的文字）；title={null} 時不給名稱
+      aria-labelledby={heading !== null ? titleId : undefined}
     >
-      {heading !== null && <div className="c-callout-title">{mathText(heading)}</div>}
+      {heading !== null && (
+        <div className="c-callout-title" id={titleId}>
+          {mathText(heading)}
+        </div>
+      )}
       {children}
     </div>
   )

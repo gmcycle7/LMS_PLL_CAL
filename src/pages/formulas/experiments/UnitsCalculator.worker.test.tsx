@@ -69,7 +69,8 @@ describe('UnitsCalculator × Web Worker（注入假的 worker）', () => {
     expect(count(root, '.callout-danger')).toBe(0)
     expect(renderProblems(root)).toEqual([])
     unmount()
-    expect(W.terminated).toBeGreaterThanOrEqual(1)
+    // useWorkerTask 在 microtask 之後才 dispose（讓 StrictMode 的「卸載→立刻重新掛載」不取消進行中的計算），所以要等一下
+    await waitFor(() => expect(W.terminated).toBeGreaterThanOrEqual(1))
   })
 
   it('反面：worker 失敗（onerror）→ 自動改在主執行緒重算，同一個 seed 得到結果，並說明 worker 失敗的原因', async () => {
