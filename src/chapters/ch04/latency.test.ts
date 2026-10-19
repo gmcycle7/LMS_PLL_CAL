@@ -15,7 +15,7 @@ function recursionPeak(g: number, d: number, dFrac: number, steps: number): numb
   return peak
 }
 
-describe('Ch04 §3：latency 與更新延遲', () => {
+describe('Ch04 §4：latency 與更新延遲', () => {
   it('整數 d 的臨界增益與 golden delay_bounds 一致（封閉式與求根兩種算法）', () => {
     const v = JSON.parse(readFileSync(join(process.cwd(), 'golden', 'vectors', 'delay_bounds.json'), 'utf8')) as {
       inputs: { d_list: number[] }

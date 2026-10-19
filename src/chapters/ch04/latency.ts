@@ -1,5 +1,5 @@
 /**
- * Ch04 §3：clock domain 與 latency 計算（純函式；latency.test.ts 驗證）。
+ * Ch04 §4：clock domain 與 latency 計算（純函式；latency.test.ts 驗證）。
  *
  * 平均線性模型（δ = a − w，g = μK）。新 gain w_{k+1} 在 block k 結束後「d + d_f 個 block」才生效：
  *   d   ：整數 block 數；d_f ∈ [0, 1)：block 中途生效時的分數部分

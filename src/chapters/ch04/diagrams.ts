@@ -151,7 +151,7 @@ ${CLASSES}
   class W focus`
 
 // ───────────────────────────────────────────────────────────────────────────
-// §3 硬體對應、RTL 資料流與時序
+// §4 硬體對應、RTL 資料流與時序（2026-10-19 起：GMAC 的數學是 §3、硬體對應是 §4；Part 1／Part 2 見 index.tsx）
 // ───────────────────────────────────────────────────────────────────────────
 
 /**
@@ -247,7 +247,7 @@ ${CLASSES}
   class B1,B2 warn`
 
 // ───────────────────────────────────────────────────────────────────────────
-// §4 GMAC 的數學
+// §3 GMAC 的數學（NEGATE_DATAPATH 的原始碼留在這裡，頁面上它跟著「條件取負」放在 §4 的 RTL 資料流之後）
 // ───────────────────────────────────────────────────────────────────────────
 
 /** GMAC 在估計什麼：左欄是實際訊號（sample rate），右欄是取期望值後的小訊號等效（F-04.4）。 */
@@ -515,19 +515,21 @@ export interface Ch04Diagram {
 
 /** 本章全部的 Mermaid 圖，依頁面出現的順序（章首的 SystemMap 另計，不在這個表內）。 */
 export const CH04_DIAGRAMS: Ch04Diagram[] = [
+  // Part 1 訊號流：§1 系統、§2 residue、§3 GMAC 的數學
   { name: 'CONCEPT_FAST_LOOP', chart: CONCEPT_FAST_LOOP, type: 'flowchart-v2', section: '§1' },
   { name: 'CONCEPT_LMS_LOOP', chart: CONCEPT_LMS_LOOP, type: 'flowchart-v2', section: '§1', formula: 'F-04.3' },
   { name: 'RESIDUE_ACCUMULATOR', chart: RESIDUE_ACCUMULATOR, type: 'flowchart-v2', section: '§2', formula: 'F-04.1' },
   { name: 'GAIN_ERROR_MODEL', chart: GAIN_ERROR_MODEL, type: 'flowchart-v2', section: '§2', formula: 'F-04.2' },
-  { name: 'RTL_DATAFLOW', chart: RTL_DATAFLOW, type: 'flowchart-v2', section: '§3' },
-  { name: 'NOISE_FEEDBACK', chart: NOISE_FEEDBACK, type: 'flowchart-v2', section: '§3' },
-  { name: 'LATENCY_TIMELINE', chart: LATENCY_TIMELINE, type: 'flowchart-v2', section: '§3' },
-  { name: 'AVERAGE_LOOP', chart: AVERAGE_LOOP, type: 'flowchart-v2', section: '§3', formula: 'F-04.14' },
-  { name: 'APPLY_MODES', chart: APPLY_MODES, type: 'flowchart-v2', section: '§3', formula: 'F-04.17' },
-  { name: 'GMAC_MEAN_MODEL', chart: GMAC_MEAN_MODEL, type: 'flowchart-v2', section: '§4', formula: 'F-04.4' },
-  { name: 'SUM_VS_AVERAGE', chart: SUM_VS_AVERAGE, type: 'flowchart-v2', section: '§4', formula: 'F-04.5' },
+  { name: 'GMAC_MEAN_MODEL', chart: GMAC_MEAN_MODEL, type: 'flowchart-v2', section: '§3', formula: 'F-04.4' },
+  { name: 'SUM_VS_AVERAGE', chart: SUM_VS_AVERAGE, type: 'flowchart-v2', section: '§3', formula: 'F-04.5' },
+  { name: 'BIT_MAPPING', chart: BIT_MAPPING, type: 'flowchart-v2', section: '§3', formula: 'F-04.7' },
+  // Part 2 硬體實作：§4 硬體對應與時序（條件取負從 GMAC 搬過來）、§5 定點、§6 檢查清單、§7 綜合手算
+  { name: 'RTL_DATAFLOW', chart: RTL_DATAFLOW, type: 'flowchart-v2', section: '§4' },
   { name: 'NEGATE_DATAPATH', chart: NEGATE_DATAPATH, type: 'flowchart-v2', section: '§4', formula: 'F-04.8' },
-  { name: 'BIT_MAPPING', chart: BIT_MAPPING, type: 'flowchart-v2', section: '§4', formula: 'F-04.7' },
+  { name: 'NOISE_FEEDBACK', chart: NOISE_FEEDBACK, type: 'flowchart-v2', section: '§4' },
+  { name: 'LATENCY_TIMELINE', chart: LATENCY_TIMELINE, type: 'flowchart-v2', section: '§4' },
+  { name: 'AVERAGE_LOOP', chart: AVERAGE_LOOP, type: 'flowchart-v2', section: '§4', formula: 'F-04.14' },
+  { name: 'APPLY_MODES', chart: APPLY_MODES, type: 'flowchart-v2', section: '§4', formula: 'F-04.17' },
   { name: 'FIXED_DATAPATH', chart: FIXED_DATAPATH, type: 'flowchart-v2', section: '§5' },
   { name: 'ACCUMULATOR_SIZING', chart: ACCUMULATOR_SIZING, type: 'flowchart-v2', section: '§5', formula: 'F-04.9' },
   { name: 'SHIFT_BITS', chart: SHIFT_BITS, type: 'flowchart-v2', section: '§5' },

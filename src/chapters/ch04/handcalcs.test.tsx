@@ -280,7 +280,7 @@ describe('Ch04 手算題：(a) 預設值 = 模型函式、文中 worked example�
     expectSolutionTexOk(tiny, 'HC-04.1 tiny')
   })
 
-  it('HC-04.2：§4「先算一次」的 N = 4 block：S = 2、G = 0.5、w_avg = 2、w_sum = 5（與 handGmac 相同）', () => {
+  it('HC-04.2：§3「先算一次」的 N = 4 block：S = 2、G = 0.5、w_avg = 2、w_sum = 5（與 handGmac 相同）', () => {
     const { v, vals, sol } = solveDefault('HC-04.2')
     expect([v.a, v.w, v.mu]).toEqual([HAND_GMAC.a, HAND_GMAC.w, HAND_GMAC.mu])
     expect([v.x0, v.x1, v.x2, v.x3]).toEqual(HAND_GMAC.x)
@@ -334,7 +334,7 @@ describe('Ch04 手算題：(a) 預設值 = 模型函式、文中 worked example�
     const fp = bugFixedPointGaussian({ codeMean: 0.5, codeSigma: 1, sigmaV: 100, aTrue: 3 })
     expect(vals[0]).toBe(fp.xiLin)
     expect(vals[1]).toBe(fp.wStarLinear)
-    expect(vals[1]).toBeCloseTo(53.13, 2) // §4 文字：「線性化 w* ≈ 53.133 fs」
+    expect(vals[1]).toBeCloseTo(53.13, 2) // §3 文字：「線性化 w* ≈ 53.133 fs」
     expect(vals[2]).toBe(bugMeanGmac(v.xi, 0.5, 1))
     expect(Math.abs(vals[2])).toBeLessThan(5e-5)
     expect(vals[3]).toBeCloseTo(63.23, 10)

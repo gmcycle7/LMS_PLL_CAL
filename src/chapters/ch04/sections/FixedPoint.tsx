@@ -284,7 +284,7 @@ export function FixedPointSection() {
         {R`\bar\varepsilon_\mathrm{floor}=-\frac{1-2^{-\ell}}{2},\quad\bar\varepsilon_\mathrm{half\,up}=2^{-\ell-1},\quad\bar\varepsilon_\mathrm{half\,even}=0,\quad\bar\varepsilon_\mathrm{toward\,0}=-\mathrm{sign}(S)\frac{1-2^{-\ell}}{2}`}
       </TexBlock>
       <p>
-        平均誤差 <Tex>{R`\bar\varepsilon`}</Tex> 和雜訊不一樣：雜訊每個 block 有正有負，會被迴路平均掉；<Tex>{R`\bar\varepsilon`}</Tex> 每個 block 都往同一個方向推。把它畫進 §3 的平均迴路（
+        平均誤差 <Tex>{R`\bar\varepsilon`}</Tex> 和雜訊不一樣：雜訊每個 block 有正有負，會被迴路平均掉；<Tex>{R`\bar\varepsilon`}</Tex> 每個 block 都往同一個方向推。把它畫進 §4 的平均迴路（
         <FigRef chart={AVERAGE_LOOP} />，<Tex>{R`d=0`}</Tex>），它就是一個注入在積分器前面的 DC offset：
       </p>
       <MermaidFig
@@ -307,7 +307,7 @@ export function FixedPointSection() {
           steps={[
             { tex: R`w_{k+1}=w_k+\mu\,Q(G_k),\qquad E[Q(G_k)]=E[G_k]+\bar\varepsilon\,\Delta_G`, why: mt(R`更新使用取整後的 $G$；平均誤差 $\bar\varepsilon$（以 LSB 計）乘上 LSB 大小 $\Delta_G$。`) },
             { tex: R`E[w_{k+1}-w_k]=0\;\Rightarrow\;E[G]=-\bar\varepsilon\,\Delta_G`, why: '穩態時平均更新為 0（固定點）。' },
-            { tex: R`E[G]=K\,\delta^*\;\Rightarrow\;\delta^*=-\frac{\bar\varepsilon\,\Delta_G}{K}`, why: mt(R`代入小訊號 $E[G]\approx K\delta$（§4）。`) },
+            { tex: R`E[G]=K\,\delta^*\;\Rightarrow\;\delta^*=-\frac{\bar\varepsilon\,\Delta_G}{K}`, why: mt(R`代入小訊號 $E[G]\approx K\delta$（§3）。`) },
             { tex: R`\text{floor: }\delta^*=\frac{(1-2^{-\ell})\,\Delta_G}{2K}>0\;\Rightarrow\;w^*=a-\delta^*<a`, why: mt(R`floor 的 $\bar\varepsilon<0$：迴路要靠一個正的 $E[G]$ 去抵消截斷，所以 $w$ 停在 $a$ 下方。`) },
           ]}
           result={R`w^*-a=\frac{\bar\varepsilon\,\Delta_G}{K}`}
@@ -432,7 +432,7 @@ export function FixedPointSection() {
           steps={[
             { tex: R`x_\mathrm{int}=-2^{B_x-1},\;b=0:\quad\underbrace{-2^{B_x-1}}_{\text{bug}}-\underbrace{(+2^{B_x-1})}_{\text{正確}}=-2^{B_x}\;\text{LSB}=-2\;(\text{正規化})`, why: mt(R`bug 把應加的 $+2^{B_x-1}$ 加成 $-2^{B_x-1}$；除以 full scale $2^{B_x-1}$ 得正規化差 $-2$。$b=1$ 時不需取負，沒有錯。`) },
             { tex: R`P(b=0\mid x=-1)=P(-\delta+v<0)=\Phi\Bigl(\frac{\delta}{\sigma_v}\Bigr)`, why: mt(R`正規化 code $x=-1$ 時 $e=\delta\cdot(-1)+v$；$v\sim\mathcal N(0,\sigma_v^2)$。`) },
-            { tex: R`E[G\mid\delta]\approx K\delta+\bar\varepsilon\,\Delta_G-2\,p_\mathrm{min}\,\Phi\Bigl(\frac{\delta}{\sigma_v}\Bigr)`, why: mt(R`平均 GMAC = 正確的部分（§4 的 $K\delta$）+ rounding 平均誤差 + 每個 sample 以機率 $p_\mathrm{min}\Phi$ 多出的 $-2$。`) },
+            { tex: R`E[G\mid\delta]\approx K\delta+\bar\varepsilon\,\Delta_G-2\,p_\mathrm{min}\,\Phi\Bigl(\frac{\delta}{\sigma_v}\Bigr)`, why: mt(R`平均 GMAC = 正確的部分（§3 的 $K\delta$）+ rounding 平均誤差 + 每個 sample 以機率 $p_\mathrm{min}\Phi$ 多出的 $-2$。`) },
             { tex: R`E[G\mid\delta^*]=0\;\Rightarrow\;K\delta^*=2\,p_\mathrm{min}\Phi\Bigl(\frac{\delta^*}{\sigma_v}\Bigr)-\bar\varepsilon\,\Delta_G`, why: mt(R`固定點：平均更新為 0。右邊對 $\delta$ 變化很慢（斜率 $2p_\mathrm{min}\varphi/\sigma_v\ll K$），用二分法求根（biasFixedPoint）。`) },
             { tex: R`\Phi\approx\tfrac12,\;\bar\varepsilon=0:\quad\delta^*\approx\frac{p_\mathrm{min}}{K},\qquad w^*-a\approx-\frac{p_\mathrm{min}}{K}`, why: mt(R`$|\delta^*|\ll\sigma_v$ 時 $\Phi\approx\tfrac12$；$w$ 停在 $a$ 下方（bug 讓 $S$ 系統性偏負）。`) },
           ]}

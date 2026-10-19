@@ -11,15 +11,12 @@ import {
   gmacAverage,
   gmacRunningSum,
   gmacSum,
-  negateExtended,
-  negateInplace,
   sumAverageTable,
   unmappedUpdateAtTruth,
-  wrapTwos,
 } from '@/simulation/models/gmac'
 import { SignalFlowExperiment } from '../experiments/SignalFlowExperiment'
 import { BitEncodingExperiment } from '../experiments/BitEncodingExperiment'
-import { BIT_MAPPING, GMAC_MEAN_MODEL, NEGATE_DATAPATH, SUM_VS_AVERAGE } from '../diagrams'
+import { BIT_MAPPING, GMAC_MEAN_MODEL, SUM_VS_AVERAGE } from '../diagrams'
 import { DerivationFold, Erratum, f, FigRef, HandCalcBox, MermaidFig, tx, mt } from '../common'
 
 const R = String.raw
@@ -68,7 +65,6 @@ export function GmacMathSection() {
       }),
     [],
   )
-  const half6 = 2 ** 5
   const dcCodes = [-1, -0.5, 0, 0.5, 1, 1.5]
   const dcUpdate = unmappedUpdateAtTruth(dcCodes)
   const Kq100 = Math.sqrt(2 / Math.PI) / 100
@@ -92,7 +88,7 @@ export function GmacMathSection() {
   }))
   const hAtRoot = bugMeanGmac(bugEx.xi, 0.5, 1)
   return (
-    <Section kind="formula" title="§4 GMAC 的數學：它在估計什麼？sum 和 average 差在哪？" level={2} id="ch04-gmac">
+    <Section kind="formula" title="§3 GMAC 的數學：它在估計什麼？sum 和 average 差在哪？" level={2} id="ch04-gmac">
       <p>
         GMAC（gradient multiply-accumulate）只做一件事：把一個 block 內的 <Tex>{R`q[n]\cdot x_\mathrm{ref}[n]`}</Tex> 加起來。它的意義是「
         <strong>
@@ -106,7 +102,7 @@ export function GmacMathSection() {
         ariaLabel="GMAC 的實際訊號路徑與取期望值後的小訊號等效"
       />
       <p>
-        <strong>先看左欄</strong>（實際訊號，由上往下）：gain 誤差 <Tex>{R`\delta_k=a-w_k`}</Tex> 乘上有效 regressor <Tex>{R`u[n]`}</Tex>（code 經過 PLL 誤差路徑後的樣子；PD 直接看到 DTC 誤差時{' '}
+        <strong>先看左欄</strong>（實際訊號，由上往下）：gain 誤差 <Tex>{R`\delta_k=a-w_k`}</Tex> 乘上有效 regressor <Tex>{R`u[n]`}</Tex>（code 經過 PLL 誤差路徑 <Tex>{R`H_\mathrm{PD}`}</Tex> 之後的樣子，§4 詳述；PD 直接看到 DTC 誤差時{' '}
         <Tex>{R`u=x`}</Tex>），加上雜訊 <Tex>{R`v[n]`}</Tex> 得到 PD 的輸出 <Tex>{R`e[n]`}</Tex>（comparator 取的就是它）；comparator 只留下正負號 <Tex>{R`q[n]`}</Tex>；再乘上對齊的 code <Tex>{R`x_\mathrm{ref}[n]`}</Tex>；最後把一個 block 的{' '}
         <Tex>N</Tex> 筆平均起來成為 <Tex>{R`G_k`}</Tex>。下面「先算一次」的表格，每一欄就是左欄的一個方塊。
       </p>
@@ -188,9 +184,37 @@ export function GmacMathSection() {
 
       <h3>GMAC 的平均：一步一步推導</h3>
       <p className="small muted">
-        先備知識：期望值、變異數、相關，以及 Gaussian、<Tex>{R`\Phi`}</Tex>、<Tex>{R`\mathrm{erf}`}</Tex> 的可展開說明框在 §3（第一次用到的地方）。推導的每一步對應 <FigRef chart={GMAC_MEAN_MODEL} />{' '}
-        的方塊：第 3–5 步把左欄的「加雜訊 + sign」換成右欄的 <Tex>{R`K_q`}</Tex>，第 6 步把「乘 <Tex>{R`x_\mathrm{ref}`}</Tex> 再平均」換成 <Tex>C</Tex>。
+        先備知識：推導會用到期望值、變異數、相關，以及 Gaussian、<Tex>{R`\Phi`}</Tex>、<Tex>{R`\mathrm{erf}`}</Tex>——這是它們第一次出現，下面兩個可展開的說明框從頭解釋（只需要微積分）。推導的每一步對應{' '}
+        <FigRef chart={GMAC_MEAN_MODEL} /> 的方塊：第 3–5 步把左欄的「加雜訊 + sign」換成右欄的 <Tex>{R`K_q`}</Tex>，第 6 步把「乘 <Tex>{R`x_\mathrm{ref}`}</Tex> 再平均」換成 <Tex>C</Tex>。
       </p>
+      <Prereq title={R`期望值 $E[\cdot]$、變異數、相關（correlation）`}>
+        <p>
+          <strong>期望值</strong> <Tex>{R`E[X]`}</Tex>
+          ：把同一個隨機實驗做非常多次後的平均。若 <Tex>X</Tex> 取值 <Tex>{R`x_i`}</Tex> 的機率是 <Tex>{R`p_i`}</Tex>，<Tex>{R`E[X]=\sum_i p_ix_i`}</Tex>。它是<strong>線性</strong>的：
+          <Tex>{R`E[aX+bY]=aE[X]+bE[Y]`}</Tex>
+          （只要把定義中的求和拆開就證明了）。
+        </p>
+        <p>
+          <strong>變異數</strong> <Tex>{R`\mathrm{Var}(X)=E[(X-E[X])^2]=E[X^2]-E[X]^2`}</Tex>
+          ：偏離平均的平方的平均。<Tex>N</Tex> 個獨立變數的和，變異數相加：
+          <Tex>{R`\mathrm{Var}(\sum X_i)=\sum\mathrm{Var}(X_i)`}</Tex>；所以 <Tex>N</Tex> 個獨立同分布變數的<strong>平均</strong>，變異數是 <Tex>{R`\mathrm{Var}(X)/N`}</Tex>，標準差以 <Tex>{R`1/\sqrt N`}</Tex>{' '}
+          下降。
+        </p>
+        <p>
+          <strong>相關</strong> <Tex>{R`E[XY]`}</Tex>
+          ：兩個訊號乘積的平均。同號的時候多，平均為正；異號多，平均為負；沒有關係，平均為 0。GMAC 的 <Tex>{R`\frac1N\sum q\,x`}</Tex> 就是 <Tex>{R`E[q\,x]`}</Tex> 的樣本估計。
+        </p>
+      </Prereq>
+      <Prereq title={R`Gaussian 分布、$\Phi$ 與 $\mathrm{erf}$`}>
+        <p>
+          標準 Gaussian 的機率密度 <Tex>{R`\varphi(z)=\frac{1}{\sqrt{2\pi}}e^{-z^2/2}`}</Tex>（鐘形曲線，面積 1）；平均 0、標準差 <Tex>{R`\sigma`}</Tex> 的雜訊 <Tex>v</Tex> 的密度是{' '}
+          <Tex>{R`\varphi(v/\sigma)/\sigma`}</Tex>。累積分布 <Tex>{R`\Phi(z)=P(v/\sigma\le z)=\int_{-\infty}^{z}\frac{1}{\sqrt{2\pi}}e^{-t^2/2}dt`}</Tex>
+          。誤差函數 <Tex>{R`\mathrm{erf}(z)=\frac{2}{\sqrt\pi}\int_0^ze^{-t^2}dt`}</Tex>
+          ，兩者的關係是 <Tex>{R`2\Phi(z)-1=\mathrm{erf}(z/\sqrt2)`}</Tex>
+          （變數代換 <Tex>{R`t=\sqrt2 s`}</Tex>）。在 0 附近泰勒展開：
+          <Tex>{R`e^{-t^2}\approx1\;\Rightarrow\;\mathrm{erf}(z)\approx\frac{2}{\sqrt\pi}z`}</Tex>。下面的推導會用它一步一步推出 GMAC 的平均；<ChRef ch="05">Ch05</ChRef> 有完整的 comparator 統計。
+        </p>
+      </Prereq>
       <DerivationFold title={mt(R`$E[G_k]\approx K_qC\,\delta_k$`)}>
         <StepDerivation
           steps={[
@@ -223,7 +247,7 @@ export function GmacMathSection() {
         />
         <p className="small">
           <ClaimTag kind="approx" /> 小訊號近似，相對誤差約 <Tex>{R`(\delta u/\sigma_v)^2/6`}</Tex>。第 3 步的 <Tex>{R`e=\delta_ku+v`}</Tex> 在 PLL 誤差路徑有記憶（<Tex>{R`u\ne x`}</Tex>）時另需{' '}
-          <Tex>w</Tex> 在 <Tex>h</Tex> 的記憶長度內近似不變（§3 推導的第 1 步，<ChRef ch="06">Ch06</ChRef> 的 F-06.1）；identity path（<Tex>{R`u=x`}</Tex>）時是等式。<Tex>K</Tex> 的單位是 <Tex>{R`\mathrm{fs}^{-1}`}</Tex>、
+          <Tex>w</Tex> 在 <Tex>h</Tex> 的記憶長度內近似不變（§4 推導的第 1 步，<ChRef ch="06">Ch06</ChRef> 的 F-06.1）；identity path（<Tex>{R`u=x`}</Tex>）時是等式。<Tex>K</Tex> 的單位是 <Tex>{R`\mathrm{fs}^{-1}`}</Tex>、
           <Tex>{R`\mu`}</Tex> 的單位是 <Tex>{R`\mathrm{fs}`}</Tex>，乘起來 <Tex>{R`g=\mu K`}</Tex> 無因次 <Erratum id="E13" />
           。若 <Tex>{R`C\le0`}</Tex>（PLL 路徑相位 &gt; 90° 或 code 錯位），平均更新方向相反（<ChRef ch="06">Ch06</ChRef>、<ChRef ch="07">Ch07</ChRef>）。
         </p>
@@ -251,6 +275,17 @@ export function GmacMathSection() {
         <Tex>{R`\Delta w=w_{k+1}-w_k=\mu G_k`}</Tex>，loop gain <Tex>{R`g=\mu K`}</Tex> 和 <Tex>N</Tex> 無關。<strong>再看</strong>紅色路徑（sum）：少了右移，同一個 <Tex>{R`\mu`}</Tex> 乘到的是{' '}
         <Tex>{R`S_k=NG_k`}</Tex>，修正量變成 <Tex>N</Tex> 倍，loop gain 也變成 <Tex>{R`N\mu K`}</Tex>，合法的 <Tex>{R`\mu`}</Tex> 範圍縮小 <Tex>N</Tex> 倍。<strong>最後看</strong>沒上色的那條：如果是刻意省掉右移，把學習率改成 <Tex>{R`\mu/N`}</Tex> 就和 average 完全一樣——重點是文件必須寫清楚暫存器裡的「<Tex>{R`\mu`}</Tex>」是哪一種意義。圖上三條路徑最下面的 <Tex>g</Tex> 就是下面的 F-04.5。
       </p>
+      <Prereq title="pole 與單位圓：等比數列的推廣">
+        <p>
+          一階遞迴 <Tex>{R`\delta_{k+1}=p\,\delta_k`}</Tex> 的解是 <Tex>{R`\delta_k=p^k\delta_0`}</Tex>（等比數列），所以 <Tex>{R`\delta_k\to0\Leftrightarrow|p|<1`}</Tex>；
+          <Tex>{R`0<p<1`}</Tex> 單調衰減、<Tex>{R`-1<p<0`}</Tex> 正負交替地衰減。這個 <Tex>p</Tex> 叫做 <strong>pole</strong>。
+        </p>
+        <p>
+          高階遞迴（例如 <Tex>{R`\delta_{k+2}=a_1\delta_{k+1}+a_0\delta_k`}</Tex>）就猜 <Tex>{R`\delta_k=z^k`}</Tex>，代入得到<strong>特徵方程</strong>{' '}
+          <Tex>{R`z^2-a_1z-a_0=0`}</Tex>；一般解是各根的等比數列相加 <Tex>{R`c_1z_1^k+c_2z_2^k`}</Tex>。根可能是複數 <Tex>{R`z=|z|e^{j\theta}`}</Tex>，
+          <Tex>{R`z^k=|z|^ke^{jk\theta}`}</Tex> 是包絡 <Tex>{R`|z|^k`}</Tex> 的振盪。所以「收斂 <Tex>{R`\Longleftrightarrow`}</Tex> 所有根都在<strong>單位圓</strong> <Tex>{R`|z|<1`}</Tex> 內」；單根落在 <Tex>{R`|z|=1`}</Tex> 是不衰減也不發散的邊界（§6 第 7 項會遇到）；重根落在單位圓上則會線性成長。判斷「根是否全在單位圓內」而不必真的解出根的代數條件叫 Jury 條件（§4 最後的推導會用到二次式的版本）。
+        </p>
+      </Prereq>
       <DerivationFold title={mt(R`為什麼 sum 模式的 $g$ 放大 $N$ 倍`)}>
         <StepDerivation
           steps={[
@@ -408,145 +443,6 @@ export function GmacMathSection() {
       <SignalFlowExperiment />
 
       <h3>
-        <Tex>{R`q=\pm1`}</Tex> 時不需要乘法器：條件取負
-      </h3>
-      <p>
-        因為 <Tex>q</Tex> 只有 <Tex>{R`\pm1`}</Tex>，<Tex>{R`q\cdot x`}</Tex> 只是「照抄 <Tex>x</Tex>」或「取負」。硬體上用一個 2 選 1 的 mux，或更省的 <strong>XOR + carry-in</strong>：把 <Tex>x</Tex>{' '}
-        逐位元反相，再在累加器加法器的 carry-in 送 1。整個 GMAC 只要一個加法器和一個暫存器。
-      </p>
-      <MermaidFig
-        chart={NEGATE_DATAPATH}
-        caption={R`條件取負的 GMAC datapath 與各級位元寬度：藍色三格（符號延伸、XOR、carry-in 控制）取代了乘法器。看位元寬度怎麼變：$B_x$ → $B_\mathrm{acc}$ → 右移後保留 $F_G$ 個小數位元。`}
-        ariaLabel="條件取負的 GMAC datapath：符號延伸、XOR、carry-in、累加器、右移、乘 mu、gain register"
-      />
-      <p>
-        <strong>先看</strong>左欄（sample rate）上方的第一個輸入：code 是 <Tex>{R`B_x`}</Tex>-bit 的二補數整數 <Tex>{R`x_\mathrm{int}[n]`}</Tex>（正規化的 code 是 <Tex>{R`x=x_\mathrm{int}/2^{B_x-1}`}</Tex>），它<strong>先</strong>符號延伸到累加器的寬度{' '}
-        <Tex>{R`B_\mathrm{acc}`}</Tex>。<strong>再看</strong>第二個輸入：comparator 的位元 <Tex>{R`b[n]`}</Tex> 反相後得到控制訊號 neg（<Tex>{R`q=-1`}</Tex> 時為 1）。neg 同時做兩件事：把 <Tex>x</Tex>{' '}
-        的每個位元反相（XOR），得到 <Tex>{R`\overline{x}=-x-1`}</Tex>；並當成加法器的 carry-in，補上那個 <Tex>{R`+1`}</Tex>。兩者合起來，加法器算的就是 <Tex>{R`S+q\cdot x_\mathrm{int}`}</Tex>。
-        <strong>最後</strong>順著箭頭到右欄（block rate）：block 結束時把 <Tex>{R`S_k`}</Tex> 右移 <Tex>{R`\ell=\log_2N-F_G`}</Tex> bits（<Tex>{R`F_G`}</Tex> 是保留的小數位元數，§5.2）、乘 <Tex>{R`\mu`}</Tex>、加進 gain register；虛線是 block 邊界的清除訊號。
-      </p>
-      <p className="small">
-        圖和公式的對應：XOR 方塊裡的兩種情形就是 F-04.8 的兩列；「符號延伸」畫在 XOR <strong>之前</strong>是關鍵——順序反過來（先在 <Tex>{R`B_x`}</Tex> bits 內取負、再延伸），最負的那個 code 會算錯，下面的推導說明原因。
-      </p>
-      <Prereq title="二補數（two's complement）">
-        <p>
-          <Tex>B</Tex>-bit 二補數 <Tex>{R`b_{B-1}\dots b_1b_0`}</Tex> 代表的值是 <Tex>{R`-2^{B-1}b_{B-1}+\sum_{i=0}^{B-2}2^ib_i`}</Tex>
-          ：最高位元的權重是負的。例：4-bit 的 <code>0101</code> <Tex>{R`=4+1=5`}</Tex>，
-          <code>1011</code> <Tex>{R`=-8+2+1=-5`}</Tex>。範圍是 <Tex>{R`[-2^{B-1},\,2^{B-1}-1]`}</Tex>，<strong>負的那一邊多一個</strong>。超出範圍時硬體只保留低 B 位元，等於對 <Tex>{R`2^B`}</Tex>{' '}
-          取模後再映回這個範圍（wrap）。
-        </p>
-      </Prereq>
-      <DerivationFold title={mt(R`$-x=\overline{x}+1$，以及最負 code 的陷阱`)}>
-        <StepDerivation
-          steps={[
-            {
-              tex: R`x=-2^{B-1}b_{B-1}+\sum_{i=0}^{B-2}2^ib_i`,
-              why: '二補數的定義。',
-            },
-            {
-              tex: R`\overline{x}=-2^{B-1}(1-b_{B-1})+\sum_{i=0}^{B-2}2^i(1-b_i)`,
-              why: mt(R`逐位元反相：每個 $b_i$ 換成 $1-b_i$。`),
-            },
-            {
-              tex: R`x+\overline{x}=-2^{B-1}+\sum_{i=0}^{B-2}2^i=-2^{B-1}+(2^{B-1}-1)=-1`,
-              why: mt(R`兩式相加，$b_i$ 全部抵消；中間的等比數列和為 $2^{B-1}-1$。`),
-            },
-            {
-              tex: R`-x=\overline{x}+1`,
-              why: mt(R`移項。所以「取負」= 反相 $+1$，這個 $+1$ 可以由加法器的 carry-in 免費提供。`),
-            },
-            {
-              tex: R`q\cdot x=(x\oplus\mathrm{mask})+c_\mathrm{in},\quad(\mathrm{mask},\,c_\mathrm{in})=\begin{cases}(00\cdots0,\;0),&b=1\\(11\cdots1,\;1),&b=0\end{cases}`,
-              why: mt(R`條件取負：$b=0$（$q=-1$）時把 $x$ 和全 1 的 mask 做 XOR（$\oplus$，逐位元反相）並令加法器的 carry-in $c_\mathrm{in}=1$；$b=1$ 時兩者都是 0，$x$ 原樣通過。`),
-            },
-            {
-              tex: R`x\in[-2^{B-1},\,2^{B-1}-1]\;\Rightarrow\;-x\in[-2^{B-1}+1,\;+2^{B-1}]`,
-              why: mt(R`取負把範圍翻過來；$+2^{B-1}$ 在 $B$ bits 內放不下。`),
-            },
-            {
-              tex: R`\text{在 }B\text{ bits 內：}-(-2^{B-1})\;\xrightarrow{\text{wrap}}\;-2^{B-1}`,
-              why: mt(R`例：6-bit 的 $-32$ 取負應為 $+32$，但 6-bit 只能表示到 $+31$，wrap 回 $-32$——符號完全錯誤。`),
-            },
-          ]}
-          result={R`\text{先把 }x\text{ 符號延伸到 }B_x+1\text{ bits（或直接延伸到累加器寬度）再取負；或把 code 限制在對稱範圍}`}
-        />
-        <p className="small">
-          <ClaimTag kind="exact" /> 以 6-bit 驗算：
-          <Tex>{R`\text{negateExtended}(-32,b{=}0)=${negateExtended(-half6, 0)}`}</Tex>，<Tex>{R`\text{negateInplace}(-32,b{=}0)=${negateInplace(-half6, 0, 6)}`}</Tex>，
-          <Tex>{R`\text{wrapTwos}(32,6)=${wrapTwos(half6, 6)}`}</Tex>。gmac.test.ts 對 6-bit 的全部 64 個 code 與 <Tex>{R`b\in\{0,1\}`}</Tex> 窮舉驗證：只有 <Tex>{R`-32`}</Tex> 這一個 code 會出錯。
-        </p>
-      </DerivationFold>
-      <TexBlock id="F-04.8" label="條件取負（二補數）">
-        {R`q\cdot x=\begin{cases}x,&b=1\\ \overline{x}+1,&b=0\end{cases},\qquad \overline{x}=-x-1`}
-      </TexBlock>
-      <CodeCompare
-        items={[
-          {
-            label: '先符號延伸再取負（正確）',
-            source: gmacSrc,
-            region: 'negateExtended',
-            path: GMAC_PATH,
-            note: R`在 $B_x+1$ bits 內取負：$-(-2^{B_x-1})=+2^{B_x-1}$ 放得下`,
-          },
-          {
-            label: '原寬度內取負（bug）',
-            source: gmacSrc,
-            region: 'negateInplace',
-            path: GMAC_PATH,
-            note: R`仍在 $B_x$ bits 內做 $\overline{x}+1$：最負 code 溢位回到自己`,
-          },
-        ]}
-        caption="差異行自動高亮。面板 A 的「一直是最負 code」情境可以看到 bug 讓總和變號。"
-      />
-      <CodeBlock source={gmacSrc} region="xorCarryAccumulate" path={GMAC_PATH} title="RTL 寫法：XOR + carry-in 的單一加法器" />
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>實作</th>
-              <th>硬體</th>
-              <th>最負 code</th>
-              <th>適用</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                一般乘法器 <Tex>{R`q\times x`}</Tex>
-              </td>
-              <td>
-                <Tex>{R`B_q\times B_x`}</Tex> multiplier
-              </td>
-              <td>正確（輸出寬度夠時）</td>
-              <td>
-                只有 <Tex>q</Tex> 是多位元時才需要（非 sign-error LMS）
-              </td>
-            </tr>
-            <tr>
-              <td>{mt(R`mux 選 $+x$ / $-x$（$B_x+1$ bits）`)}</td>
-              <td>取負電路 + mux</td>
-              <td>正確</td>
-              <td>直觀，面積略大</td>
-            </tr>
-            <tr>
-              <td>XOR + carry-in</td>
-              <td>{mt(R`$B_\mathrm{acc}$ 個 XOR + 加法器 carry-in`)}</td>
-              <td>{mt(R`正確（$x$ 已延伸到 $B_\mathrm{acc}$）`)}</td>
-              <td>最省；推薦</td>
-            </tr>
-            <tr>
-              <td>{mt(R`$B_x$ bits 內取負`)}</td>
-              <td>同上但少 1 bit</td>
-              <td>
-                <strong>錯</strong>：<Tex>{R`-(-2^{B-1})`}</Tex> wrap 回自己
-              </td>
-              <td>反面教材（或保證 code 對稱）</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <h3>
         硬體 0/1 → <Tex>{R`\pm1`}</Tex>：<Tex>{R`q=2b-1`}</Tex>，忘了會怎樣？
       </h3>
       <p>
@@ -657,7 +553,7 @@ export function GmacMathSection() {
       <DerivationFold title={mt(R`Gaussian code 時的精確固定點：封閉式與「偏差正比於 $\sigma_v$」`)} openAt="research">
         <p className="small">
           符號：code 的平均與標準差寫成 <Tex>{R`m_x=E[x]`}</Tex>、<Tex>{R`\sigma_x`}</Tex>（<Tex>{R`E[x^2]=m_x^2+\sigma_x^2`}</Tex>）；正規化誤差 <Tex>{R`\xi:=\delta/\sigma_v`}</Tex>（無因次）；
-          <Tex>{R`\Phi`}</Tex>、<Tex>{R`\varphi`}</Tex> 是標準 Gaussian 的累積分布與密度（§3 的先備知識框）。
+          <Tex>{R`\Phi`}</Tex>、<Tex>{R`\varphi`}</Tex> 是標準 Gaussian 的累積分布與密度（本節開頭的先備知識框）。
         </p>
         <StepDerivation
           steps={[
