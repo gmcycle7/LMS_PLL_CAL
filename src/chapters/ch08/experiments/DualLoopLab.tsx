@@ -543,7 +543,7 @@ export function DualLoopLab() {
   const vm = mode === 'two-state' ? two : general
 
   const presets: ExperimentPreset[] = useMemo(
-    () => presetsForExperiment(DUAL_LOOP_ID).map((pr) => ({ name: pr.title, params: pr.params, description: pr.description })),
+    () => presetsForExperiment(DUAL_LOOP_ID).map((pr) => ({ id: pr.id, name: pr.title, params: pr.params, description: pr.description })),
     [],
   )
   const applyParams = useCallback(

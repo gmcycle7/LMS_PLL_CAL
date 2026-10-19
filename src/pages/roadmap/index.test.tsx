@@ -1,24 +1,15 @@
 import type { ReactNode } from 'react'
-import { fireEvent, render, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
+import { fireEvent, within } from '@testing-library/react'
 import RoadmapPage from './index'
 import { ITEMS, type ItemId } from './data'
 import { FORMULAS } from './formulas'
 import { analyzeEf } from './model'
 import { PREVIEWS } from './sections/ItemCard'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-const M = vi.hoisted(() => ({ initialize: vi.fn(), render: vi.fn(async () => ({ svg: '<svg></svg>' })) }))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
-vi.mock('mermaid', () => ({ default: M }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 // 假的 Plotly.react 會記住每一次呼叫的引數（DOM 節點與整組資料）：不清掉的話，前面每個測試渲染過的整頁
 // （含所有 KaTeX 節點）都被它抓著不放，整個檔案跑下來會把 worker 的記憶體用光。
@@ -30,20 +21,11 @@ afterEach(() => {
 vi.setConfig({ testTimeout: 90_000 })
 
 function withProviders(ui: ReactNode, mode: 'beginner' | 'engineer' | 'research' = 'engineer', url = '/roadmap') {
-  try {
-    localStorage.setItem('lmspll.mode', mode)
-  } catch {
-    /* storage 不可用時沿用預設 */
-  }
-  return render(
-    <SettingsProvider>
-      <MemoryRouter initialEntries={[url]}>{ui}</MemoryRouter>
-    </SettingsProvider>,
-  )
+  return renderPage(ui, { mode, url })
 }
 
 function noTexErrors(root: HTMLElement) {
-  expect(root.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+  expectNoTexErrors(root)
   // CodeBlock 找不到 #region 時會顯示「程式碼載入錯誤」
   expect(root.textContent ?? '').not.toMatch(/程式碼載入錯誤/)
 }

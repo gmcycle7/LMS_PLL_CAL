@@ -1,7 +1,5 @@
-import { render, waitFor, fireEvent, act } from '@testing-library/react'
+import { waitFor, fireEvent, act } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
 import { plotMath } from '@/components/plotMath'
 import { BatchVsSgd } from './experiments/BatchVsSgd'
 import { FixedPointExplorer } from './experiments/FixedPointExplorer'
@@ -9,6 +7,9 @@ import { GdExplorer } from './experiments/GdExplorer'
 import { LimitCycleBand } from './experiments/LimitCycleBand'
 import { SignLmsCompare } from './experiments/SignLmsCompare'
 import { S4SignSign } from './sections/S4SignSign'
+import { plotlyMock } from '@/test/mocks/plotly'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
 /**
  * Ch02 互動圖表裡的數學（docs/teaching-style.md §3：「圖裡面的數學也要用 LaTeX」）。
@@ -18,16 +19,8 @@ import { S4SignSign } from './sections/S4SignSign'
  *  - 每個字串都能被 plotMath 完整轉換：結果不殘留反斜線、大括號、`$`（不支援的 TeX 指令會原樣顯示指令名稱）；
  *  - 轉換後的字串真的送到 Plotly.react。
  */
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
-vi.mock('mermaid', () => ({ default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: '<svg></svg>' })) } }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 const RAW = vi.hoisted(() => ({ calls: [] as { data: unknown; layout: unknown }[] }))
 vi.mock('@/components/plotMath', async (importOriginal) => {
@@ -47,16 +40,7 @@ const T_WAIT = 120_000
 vi.setConfig({ testTimeout: 120_000 })
 
 function renderAt(node: ReactNode, path = '/ch/02') {
-  try {
-    localStorage.setItem('lmspll.mode', 'engineer')
-  } catch {
-    /* ignore */
-  }
-  return render(
-    <MemoryRouter initialEntries={[path]} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <SettingsProvider>{node}</SettingsProvider>
-    </MemoryRouter>,
-  )
+  return renderPage(node, { mode: 'engineer', url: path, future: true })
 }
 
 /** 會顯示在圖上的字串欄位（同 plotMath.ts 的 TEXT_KEYS） */
@@ -108,7 +92,7 @@ function expectTypeset(strings: string[]) {
 /** 轉換後的字串真的送到 Plotly.react（名稱、軸標題都已轉成 pseudo-HTML，沒有 `$`） */
 function sentToPlotly(): string[] {
   const out = new Set<string>()
-  for (const call of P.react.mock.calls as unknown as [unknown, unknown, unknown][]) {
+  for (const call of plotlyMock.react.mock.calls as unknown as [unknown, unknown, unknown][]) {
     collect(call[1], null, out)
     collect(call[2], null, out)
   }
@@ -122,14 +106,14 @@ const HAT = '\u0302'
 describe('Ch02 互動圖表：圖內字串的數學都是 LaTeX', () => {
   beforeEach(() => {
     RAW.calls.length = 0
-    P.react.mockClear()
+    plotlyMock.react.mockClear()
   })
 
   it(
     'GdExplorer：J(w)、切線、二次項、w_n、封閉解、a 與軸標題',
     async () => {
       const { container } = renderAt(<GdExplorer />)
-      await waitFor(() => expect(P.react).toHaveBeenCalled(), { timeout: T_WAIT })
+      await waitFor(() => expect(plotlyMock.react).toHaveBeenCalled(), { timeout: T_WAIT })
       const strings = plotStrings()
       expectTypeset(strings)
       expect(strings).toEqual(
@@ -177,7 +161,7 @@ describe('Ch02 互動圖表：圖內字串的數學都是 LaTeX', () => {
     'BatchVsSgd：Batch／mini-batch／SGD 圖例、w_LS、a 與軸標題 Ĵ(w) − Ĵ_min',
     async () => {
       renderAt(<BatchVsSgd />)
-      await waitFor(() => expect(P.react).toHaveBeenCalled(), { timeout: T_WAIT })
+      await waitFor(() => expect(plotlyMock.react).toHaveBeenCalled(), { timeout: T_WAIT })
       const strings = plotStrings()
       expectTypeset(strings)
       expect(strings).toEqual(
@@ -202,7 +186,7 @@ describe('Ch02 互動圖表：圖內字串的數學都是 LaTeX', () => {
     'LimitCycleBand：跳動帶 a ± μ_n|x|、LMS 與 Sign-Error 的更新式、|δ_n|',
     async () => {
       renderAt(<LimitCycleBand />)
-      await waitFor(() => expect(P.react).toHaveBeenCalled(), { timeout: T_WAIT })
+      await waitFor(() => expect(plotlyMock.react).toHaveBeenCalled(), { timeout: T_WAIT })
       const strings = plotStrings()
       expectTypeset(strings)
       expect(strings).toEqual(
@@ -231,7 +215,7 @@ describe('Ch02 互動圖表：圖內字串的數學都是 LaTeX', () => {
     'FixedPointExplorer：ψ/K 曲線、ψ = 0、各演算法的 w*（含數值）與軸標題',
     async () => {
       renderAt(<FixedPointExplorer />)
-      await waitFor(() => expect(P.react).toHaveBeenCalled(), { timeout: T_WAIT })
+      await waitFor(() => expect(plotlyMock.react).toHaveBeenCalled(), { timeout: T_WAIT })
       const strings = plotStrings()
       expectTypeset(strings)
       expect(strings).toEqual(
@@ -258,7 +242,7 @@ describe('Ch02 互動圖表：圖內字串的數學都是 LaTeX', () => {
     'SignLmsCompare：預設的 $a$、$w_n$、|a − w_n| 與「偏斜雜訊」preset 的 w*、|w* − w_n|',
     async () => {
       const first = renderAt(<SignLmsCompare />)
-      await waitFor(() => expect(P.react).toHaveBeenCalled(), { timeout: T_WAIT })
+      await waitFor(() => expect(plotlyMock.react).toHaveBeenCalled(), { timeout: T_WAIT })
       const strings = plotStrings()
       expectTypeset(strings)
       expect(strings).toEqual(expect.arrayContaining(['$a$', '$n$（sample）', '$w_n$', '$n$', String.raw`$|a-w_n|$`, '$n$（log）']))
@@ -288,7 +272,7 @@ describe('Ch02 互動圖表：圖內字串的數學都是 LaTeX', () => {
     '§4 三種批次成本圖：Σ½(y − wx)²、Σ|y − wx|、Σ|y/x − w| 與 w',
     async () => {
       renderAt(<S4SignSign />)
-      await waitFor(() => expect(P.react).toHaveBeenCalled(), { timeout: T_WAIT })
+      await waitFor(() => expect(plotlyMock.react).toHaveBeenCalled(), { timeout: T_WAIT })
       const strings = plotStrings()
       expectTypeset(strings)
       expect(strings).toEqual(
@@ -347,12 +331,12 @@ describe('Ch02 控制項的標籤與單位：數學都是 KaTeX', () => {
 
   it('單位的 TeX 本身：1/[x]^2、同 y/x 都是 KaTeX 看得懂的 $...$', async () => {
     const { container } = renderAt(<GdExplorer />)
-    await waitFor(() => expect(P.react).toHaveBeenCalled(), { timeout: T_WAIT })
+    await waitFor(() => expect(plotlyMock.react).toHaveBeenCalled(), { timeout: T_WAIT })
     const mu = Array.from(container.querySelectorAll('.c-param')).find((p) => p.querySelector('.c-param-label')?.textContent?.includes('步長'))!
     const tex = Array.from(mu.querySelectorAll('.c-param-unit annotation[encoding="application/x-tex"]')).map((a) => a.textContent)
     expect(tex).toEqual(['1/[x]^2'])
     const a = Array.from(container.querySelectorAll('.c-param')).find((p) => p.querySelector('.c-param-label')?.textContent?.includes('真實係數'))!
     expect(Array.from(a.querySelectorAll('.c-param-unit annotation[encoding="application/x-tex"]')).map((n) => n.textContent)).toEqual(['y/x'])
-    expect(container.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+    expectNoTexErrors(container)
   })
 })

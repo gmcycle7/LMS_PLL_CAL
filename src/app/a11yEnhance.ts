@@ -100,25 +100,54 @@ export function enhanceTables(root: ParentNode): number {
   return changes
 }
 
+/** 橫向只超出這麼多 px 以內的 `.table-wrap` 不算「可捲動」（同 ScrollRegion 的 TINY_OVERFLOW_PX） */
+export const TINY_SCROLL_PX = 6
+
+/**
+ * 各章手寫的 `<div className="table-wrap">`（不是 ScrollRegion）也一樣：橫向只超出 1–6px（padding、四捨五入）時標 `data-tiny="true"`，
+ * components.css 對它設 `overflow-x: hidden`——一條只能捲幾 px 的捲軸沒有用途。超出更多、或直向超出就移除標記。
+ * ScrollRegion（`.c-scroll`）自己會標，這裡略過。回傳這次實際改了幾處。
+ */
+export function markTinyScroll(root: ParentNode): number {
+  let changes = 0
+  for (const el of Array.from(root.querySelectorAll<HTMLElement>('.table-wrap:not(.c-scroll)'))) {
+    const dx = el.scrollWidth - el.clientWidth
+    const dy = el.scrollHeight - el.clientHeight
+    const tiny = dx > 0 && dx <= TINY_SCROLL_PX && dy <= 2
+    if (tiny && el.getAttribute('data-tiny') !== 'true') {
+      el.setAttribute('data-tiny', 'true')
+      changes++
+    } else if (!tiny && el.hasAttribute('data-tiny')) {
+      el.removeAttribute('data-tiny')
+      changes++
+    }
+  }
+  return changes
+}
+
 /**
  * 在 root 底下監看 DOM：內容載入、換頁、展開 details 後補強新出現的表格。
- * 至多每 200ms 掃一次（圖表、方塊圖、KaTeX 渲染時 DOM 變動很頻繁）。回傳停止函式。
+ * 至多每 200ms 掃一次（圖表、方塊圖、KaTeX 渲染時 DOM 變動很頻繁）；視窗大小改變時也重量一次 `data-tiny`。回傳停止函式。
  */
 export function watchA11y(root: HTMLElement, delayMs = 200): () => void {
   let timer: ReturnType<typeof setTimeout> | null = null
   const run = () => {
     timer = null
     enhanceTables(root)
+    markTinyScroll(root)
   }
   const schedule = () => {
     if (timer === null) timer = setTimeout(run, delayMs)
   }
   enhanceTables(root)
+  markTinyScroll(root)
   if (typeof MutationObserver === 'undefined') return () => {}
   const mo = new MutationObserver(schedule)
   mo.observe(root, { childList: true, subtree: true })
+  window.addEventListener('resize', schedule)
   return () => {
     mo.disconnect()
+    window.removeEventListener('resize', schedule)
     if (timer !== null) clearTimeout(timer)
   }
 }

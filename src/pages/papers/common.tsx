@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ClaimTag, CodeBlock, CodeCompare, HandCalc, Mermaid, ModeGate, Prereq, Tex, TexBlock, mathText, ChRef } from '@/components'
+import { ClaimTag, CodeBlock, CodeCompare, HandCalc, Mermaid, ModeGate, Prereq, Tex, TexBlock, mathText, ChRef, badgeClass } from '@/components'
 import bridgeSrc from './bridge.ts?raw'
 import { formulaById } from './formulas'
 import { handcalc } from './handcalcs'
@@ -38,7 +38,7 @@ export function erratumHref(id: string): string {
 export function ErratumNote({ id, children }: { id: string; children?: ReactNode }) {
   return (
     <span className="papers-erratum">
-      <a href={erratumHref(id)} className="papers-erratum-tag" data-erratum={id} title={`本站與規格書不同之處，見驗證頁的勘誤 ${id}`}>
+      <a href={erratumHref(id)} className={badgeClass('erratum', 'papers-erratum-tag')} data-erratum={id} title={`本站與規格書不同之處，見驗證頁的勘誤 ${id}`}>
         勘誤 {id}
       </a>
       {children && <span className="papers-erratum-text">{children}</span>}

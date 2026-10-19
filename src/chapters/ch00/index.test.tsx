@@ -1,8 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
 import { conventionalStep } from '@/simulation/models/lms'
 import { num } from './format'
 import Chapter00 from './index'
@@ -10,24 +8,12 @@ import { HAND_CALC_PARAMS, HandCalcSection, HandCalcTable } from './sections/Han
 import { SYMBOLS } from './sections/Symbols'
 import { IntroPlayground } from './experiments/IntroPlayground'
 import { NoiseAverageLab } from './experiments/NoiseAverageLab'
+import { wrapPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
 // 重量級外部函式庫：jsdom 中以假物件取代
-vi.mock('plotly.js-cartesian-dist-min', () => ({
-  default: {
-    react: vi.fn(async () => undefined),
-    purge: vi.fn(),
-    toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-    downloadImage: vi.fn(async () => ''),
-    Plots: { resize: vi.fn() },
-    Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-  },
-}))
-vi.mock('mermaid', () => ({
-  default: {
-    initialize: vi.fn(),
-    render: vi.fn(async (id: string) => ({ svg: `<svg id="${id}"></svg>`, diagramType: 'flowchart-v2' })),
-  },
-}))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 // 包一層 spy：證明手算表的數字真的來自 lms.ts 的 conventionalStep
 vi.mock('@/simulation/models/lms', async (importOriginal) => {
   const orig = await importOriginal<typeof import('@/simulation/models/lms')>()
@@ -35,11 +21,7 @@ vi.mock('@/simulation/models/lms', async (importOriginal) => {
 })
 
 function wrap(ui: React.ReactNode, path = '/ch/00') {
-  return (
-    <SettingsProvider>
-      <MemoryRouter initialEntries={[path]}>{ui}</MemoryRouter>
-    </SettingsProvider>
-  )
+  return wrapPage(ui, { url: path })
 }
 
 /** 元素的文字；其中的 KaTeX 以 `$TeX 原始碼$` 表示（KaTeX 的 textContent 會重複 MathML 與 HTML 兩份，不適合直接比對）。 */
@@ -302,10 +284,8 @@ describe('Ch00 整頁 smoke test', () => {
     const handLines = Array.from(handCode!.querySelectorAll('.c-code-line')).map((l) => l.textContent ?? '')
     expect(handLines.length).toBeGreaterThan(10)
     for (const line of handLines) expect(line.replace(/\n/g, '').length, line).toBeLessThanOrEqual(115)
-    expect(container.querySelector('.c-tex-error')).toBeNull()
-    // KaTeX throwOnError:false 時的語法錯誤會以 .katex-error 呈現：全章不得出現
-    const texErrors = Array.from(container.querySelectorAll('.katex-error')).map((e) => e.getAttribute('title') ?? e.textContent)
-    expect(texErrors).toEqual([])
+    expectNoTexErrors(container)
+    // KaTeX throwOnError:false 時的語法錯誤會以 .katex-error 呈現：全章不得出現（上一行已斷言）
     // 字串屬性裡的 `$…$` 都必須被排版成 KaTeX：頁面文字（程式碼區塊除外）不得殘留字面的 `$`
     const prose = container.cloneNode(true) as HTMLElement
     prose.querySelectorAll('pre, .katex').forEach((e) => e.remove())
@@ -337,7 +317,7 @@ describe('Ch00 整頁 smoke test', () => {
       // 展開所有思考題解析，確認其中的 TeX 也都能正確排版
       screen.getAllByText('看答案與解析').forEach((b) => fireEvent.click(b))
       expect(screen.getAllByText('收起解析')).toHaveLength(4)
-      expect(Array.from(container.querySelectorAll('.katex-error')).map((e) => e.getAttribute('title'))).toEqual([])
+      expectNoTexErrors(container)
       expect(headingTexts(container)).toContain('（Research）精確有理數驗算')
       expect(container.textContent).toContain('57/25')
       // 精確差距（BigInt 相減）與 1 ulp 的說明
@@ -415,7 +395,7 @@ describe('Ch00 互動實驗', { timeout: 60_000 }, () => {
     expect(row.cells[1].textContent).toBe('不可辨識')
     expect(texText(row)).toContain(String.raw`$x=0$：更新量永遠是 0，任何 $\mu$ 都學不到 $a$`)
     expect(row.textContent).not.toContain('$')
-    expect(container.querySelector('.katex-error')).toBeNull()
+    expectNoTexErrors(container)
     await act(async () => {})
   })
 

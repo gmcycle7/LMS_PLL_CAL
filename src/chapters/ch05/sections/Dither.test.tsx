@@ -1,9 +1,10 @@
-import { act, configure, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
+import { act, configure, fireEvent, screen, waitFor } from '@testing-library/react'
 import { plotMath } from '@/components'
 import { allChartStrings, chartStringProblems } from '../chartStrings.testutil'
 import { DitherSection } from './Dither'
+import { plotlyMock } from '@/test/mocks/plotly'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
 // 多個 agent／開發者同時跑測試時 CPU 會嚴重超額（load average 曾達數百），jsdom 渲染與 Monte Carlo 比平常慢一到兩個數量級：
 // 放寬的只是「等待時間」（waitFor 與每個測試的上限），不是任何數值判準。
@@ -17,15 +18,7 @@ interface Trace {
   y?: ArrayLike<number>
 }
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async (..._args: unknown[]) => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
 // 圖內文字（軸標題、圖例名稱）的數學一律寫 `$...$`：<Plot> 先套用 applyPlotMath 再交給 Plotly，
 // 所以在轉換前記下作者寫的字串（chartStrings.testutil.ts），Plotly.react 看到的則是轉換後的 pseudo-HTML。
@@ -42,8 +35,8 @@ vi.mock('@/components/plotMath', async (importOriginal) => {
 })
 
 function lastPlotWith(pred: (t: Trace) => boolean): Trace[] | undefined {
-  for (let i = P.react.mock.calls.length - 1; i >= 0; i--) {
-    const data = P.react.mock.calls[i][1] as Trace[]
+  for (let i = plotlyMock.react.mock.calls.length - 1; i >= 0; i--) {
+    const data = plotlyMock.react.mock.calls[i][1] as Trace[]
     if (Array.isArray(data) && data.some(pred)) return data
   }
   return undefined
@@ -57,23 +50,12 @@ function plainText(el: Element): string {
 }
 
 function renderDither(url = '/ch/05') {
-  try {
-    localStorage.setItem('lmspll.mode', 'engineer')
-  } catch {
-    /* ignore */
-  }
-  return render(
-    <SettingsProvider>
-      <MemoryRouter initialEntries={[url]}>
-        <DitherSection />
-      </MemoryRouter>
-    </SettingsProvider>,
-  )
+  return renderPage(<DitherSection />, { mode: 'engineer', url })
 }
 
 describe('Dither 實驗（§7：雜訊像 dither）', () => {
   beforeEach(() => {
-    P.react.mockClear()
+    plotlyMock.react.mockClear()
     plotCalls.length = 0
   })
 
@@ -87,7 +69,7 @@ describe('Dither 實驗（§7：雜訊像 dither）', () => {
     )
     // 字串屬性（標題、假設、指標名稱、警告、圖標題）裡的 $...$ 都已轉成 KaTeX：畫面上不留下未轉換的 $，也沒有 KaTeX 錯誤
     expect(container.textContent).not.toContain('$')
-    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(container)
     expect(container.querySelector('.c-exp-title .katex')).toBeTruthy()
     expect(container.querySelectorAll('.c-exp-assumptions .katex').length).toBeGreaterThanOrEqual(4)
     expect(container.querySelectorAll('.c-metric-table td .katex').length).toBeGreaterThanOrEqual(5)
@@ -124,7 +106,7 @@ describe('Dither 實驗（§7：雜訊像 dither）', () => {
     expect(strings.some((t) => t.includes(String.raw`時間平均 $\bar w_n$`))).toBe(true)
     expect(strings.some((t) => t.includes(String.raw`$\mathrm{RMS}(w - a)$（精確）`))).toBe(true)
     expect(plotMath(String.raw`$\bar w_n$（fs）`)).toBe('<i>w̄</i><sub><i>n</i></sub>（fs）')
-    const axes = P.react.mock.calls.map((c) => c[2] as { xaxis?: { title?: { text?: string } }; yaxis?: { title?: { text?: string } } } | undefined)
+    const axes = plotlyMock.react.mock.calls.map((c) => c[2] as { xaxis?: { title?: { text?: string } }; yaxis?: { title?: { text?: string } } } | undefined)
     const axisTexts = axes.flatMap((l) => [l?.xaxis?.title?.text ?? '', l?.yaxis?.title?.text ?? ''])
     expect(axisTexts).toContain(plotMath(String.raw`$\sigma_v$（fs）`))
     expect(axisTexts.filter((t) => /[$\\{}]/.test(t))).toEqual([])

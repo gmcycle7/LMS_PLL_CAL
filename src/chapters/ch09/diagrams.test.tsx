@@ -1,7 +1,5 @@
-import { fireEvent, render, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { fireEvent, waitFor } from '@testing-library/react'
 import mermaid from 'mermaid'
-import { SettingsProvider } from '@/app/settings'
 import { SYSTEM_BLOCK_LABEL, accessibleText, systemMapModel } from '@/components'
 import { mermaidMathDelimiters, sanitizeMermaidSource } from '@/components/mermaidSource'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
@@ -35,6 +33,8 @@ import {
 } from './diagrams'
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
 /**
  * Ch09 方塊圖的測試（docs/teaching-style.md §8）。
@@ -61,15 +61,7 @@ vi.mock('mermaid', async (importOriginal) => {
   return { default: { ...actual, render } }
 })
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
 /** 本章新增的方塊圖張數（不含章首的系統地圖）；頁面上的 Mermaid 圖總數 = 這個數 + 1 */
 const DIAGRAM_COUNT = 20
@@ -848,7 +840,6 @@ describe('Ch09 頁面與版面：系統地圖、方塊圖的位置、章末符�
     fast.on = false
     fast.charts.length = 0
     localStorage.clear()
-    for (const fn of [P.react, P.purge, P.toImage, P.downloadImage, P.Plots.resize]) fn.mockClear()
   })
 
   it('桌機寬度（1280px 不必橫向捲動）：原本橫向過寬（或被縮得太小）的 6 張圖已改成直向（TB）', async () => {
@@ -996,13 +987,7 @@ describe('Ch09 頁面與版面：系統地圖、方塊圖的位置、章末符�
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     fast.on = true
     fast.charts.length = 0
-    const { container } = render(
-      <SettingsProvider>
-        <MemoryRouter initialEntries={['/ch/09']}>
-          <Chapter09 />
-        </MemoryRouter>
-      </SettingsProvider>,
-    )
+    const { container } = renderPage(<Chapter09 />, { url: '/ch/09' })
     const at = (sel: string): Element => {
       const el = container.querySelector(sel)
       expect(el, sel).toBeTruthy()
@@ -1189,7 +1174,7 @@ describe('Ch09 頁面與版面：系統地圖、方塊圖的位置、章末符�
     for (const t of [String.raw`t_{\mathrm{ref}}'[n],\ t_{\mathrm{fb}}[n]`, String.raw`T_0,\ \tau_{\mathrm{DTC}}[n]`, String.raw`\phi_{\mathrm{dtc}},\ \theta_{\mathrm{fb}}`, 'PD 的輸出', '補償量', '也就是少延遲', '就是以時間為單位的']) expect(symText, t).toContain(t)
 
     // 沒有 KaTeX 錯誤、沒有 React 警告
-    expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
     const warnings = errorSpy.mock.calls.map((c: unknown[]) => String(c[0])).filter((s: string) => /Warning|Each child|unique "key"/.test(s))
     errorSpy.mockRestore()
     expect(warnings).toEqual([])

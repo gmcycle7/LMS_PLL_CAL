@@ -104,7 +104,7 @@ export function CodeSpectraLab() {
   useEffect(() => {
     if (urlPreset) setPrm({ ...CODE_SPECTRA_DEFAULTS, ...(urlPreset.params as Partial<CodeSpectraLabParams>) })
   }, [urlPreset])
-  const presets = useMemo(() => presetsForExperiment(EXP_ID).map((p) => ({ name: p.title, params: p.params, description: p.description })), [])
+  const presets = useMemo(() => presetsForExperiment(EXP_ID).map((p) => ({ id: p.id, name: p.title, params: p.params, description: p.description })), [])
 
   const lp = useMemo(() => calLoop(prm), [prm])
   const aKey = JSON.stringify(toAnalytic(prm))

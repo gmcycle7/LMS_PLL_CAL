@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import { edgeToText } from './diagramText'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
@@ -8,6 +9,7 @@ import {
   SYSTEM_MAP_WIRES,
   SystemMap,
   systemMapModel,
+  systemMapText,
   wirePath,
   type SystemBlock,
   type SystemMapBlock,
@@ -234,5 +236,52 @@ describe('系統地圖：本章主角', () => {
     expect(new Set(ids).size).toBe(2)
     fireEvent.keyDown(dialog, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+})
+
+describe('系統地圖：文字版（systemMapText 與「文字版」details）', () => {
+  it('systemMapText：3 條泳道是群組、17 個方塊加 PLL 輸出共 18 個節點、21 條連線；本章主角標 focus', () => {
+    const m = systemMapText(['cmp', 'gmac'])
+    expect(m.kind).toBe('flowchart')
+    expect(m.parsed).toBe(true)
+    expect(m.groups.map((g) => [g.id, g.nodes.length])).toEqual([['pll', 6], ['frac', 4], ['lms', 7]])
+    expect(m.groups.map((g) => g.label)).toEqual(['主 PLL 迴路（快）', '小數除頻與補償', 'LMS 校正迴路（慢）'])
+    expect(m.nodes).toHaveLength(SYSTEM_MAP_BLOCKS.length + 1)
+    expect(m.nodes.filter((n) => n.focus).map((n) => n.id)).toEqual(['cmp', 'gmac'])
+    expect(m.edges).toHaveLength(SYSTEM_MAP_WIRES.length)
+    // 連線和 SYSTEM_MAP_WIRES 逐條對應（方向、虛線）
+    expect(m.edges.map((e) => `${e.from}>${e.to}`)).toEqual(SYSTEM_MAP_WIRES.map((w) => `${w.from}>${w.to}`))
+    expect(m.edges.filter((e) => e.line === 'dotted').map((e) => `${e.from}>${e.to}`)).toEqual(['pd>cmp'])
+    // 端點都存在
+    const ids = new Set(m.nodes.map((n) => n.id))
+    for (const e of m.edges) expect(ids.has(e.from) && ids.has(e.to)).toBe(true)
+    // 標籤是可念的文字，沒有殘留的 TeX
+    for (const t of [...m.nodes.map((n) => n.label), ...m.edges.map((e) => e.label ?? '')]) expect(t).not.toMatch(/[$\\]/)
+    expect(m.nodes.find((n) => n.id === 'res')?.label).toBe('Fractional residue：x[n]（regressor）')
+    expect(m.edges.find((e) => e.to === 'cmp' && e.from === 'pd')?.label).toBe('e[n]（PD 輸出）')
+    expect(m.edges.find((e) => e.to === 'out')).toMatchObject({ from: 'vco', label: expect.stringContaining('輸出') })
+    expect(edgeToText(m, m.edges.find((e) => e.from === 'ref')!)).toBe('Reference clock → DTC：code → delay')
+  })
+
+  it('SystemMap 下方有收合的「文字版」：figure 的 aria-describedby 指到它，打開才列出 18 個節點、21 條連線與 3 個群組', () => {
+    const { container } = render(<SystemMap focus={['dtc', 'pd']} />)
+    const figure = container.querySelector('figure.c-mermaid.c-sysmap')!
+    const details = container.querySelector('details.c-figalt') as HTMLDetailsElement
+    expect(details).toBeTruthy()
+    expect(details.open).toBe(false)
+    expect(figure.getAttribute('aria-describedby')).toBe(details.id)
+    expect(details.querySelector('summary')?.textContent).toBe('文字版（節點與連線清單）')
+    // 收合時不渲染內容（每張圖只多 <details><summary> 兩個元素）
+    expect(details.querySelector('.c-figalt-body')).toBeNull()
+    expect(details.querySelectorAll('*')).toHaveLength(1)
+    details.open = true
+    fireEvent(details, new Event('toggle'))
+    const lists = [...details.querySelectorAll('.c-figalt-body > ul')]
+    expect(lists.map((u) => u.querySelectorAll(':scope > li').length)).toEqual([3, 18, 21])
+    expect([...details.querySelectorAll('.c-figalt-h')].map((h) => h.textContent)).toEqual(['群組（3）', '節點（18）', '連線（21）'])
+    expect(details.textContent).toContain('（本章主角）')
+    expect(details.textContent).toContain('主 PLL 迴路（快）')
+    // 文字版在圖說之後、放大檢視的 portal 之外
+    expect(figure.lastElementChild).toBe(details)
   })
 })

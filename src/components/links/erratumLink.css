@@ -1,0 +1,23 @@
+/* ErratumLink：「勘誤 E44」徽章。尺寸與框線由 Badge 基底（components.css 的 .c-badge--erratum：琥珀描邊）決定；
+   這裡只依嚴重度換色（high／low），文字之外還有 title，不單靠顏色 */
+a.c-erratum-link {
+  margin: 0 0.15em;
+  text-decoration: none;
+}
+a.c-erratum-link[data-severity='high'] {
+  --b-fg: var(--danger);
+  --b-bd: var(--danger);
+}
+a.c-erratum-link[data-severity='low'] {
+  --b-fg: var(--info);
+  --b-bd: var(--info);
+}
+a.c-erratum-link:hover,
+a.c-erratum-link:focus-visible {
+  --b-bg: var(--warn-soft);
+  text-decoration: underline;
+}
+.c-erratum-note {
+  font-weight: 500;
+  white-space: normal;
+}

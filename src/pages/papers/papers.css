@@ -70,16 +70,9 @@
   font-size: 0.85rem;
 }
 .papers-erratum-tag {
-  display: inline-block;
-  padding: 0 6px;
+  /* 外觀由 Badge 的 erratum variant 決定（components.css） */
   margin: 0 4px 0 2px;
-  border-radius: 999px;
-  border: 1px solid var(--warn);
-  background: var(--warn-soft);
-  color: var(--warn);
-  font-weight: 600;
   text-decoration: none;
-  white-space: nowrap;
 }
 .papers-erratum-tag:hover {
   text-decoration: underline;

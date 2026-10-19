@@ -117,7 +117,7 @@ function DataFlowStrip({ tr, n, N, x, mu, frozen }: { tr: PlaygroundTrace; n: nu
 }
 
 function toPresetList(): ExperimentPreset[] {
-  return presetsForExperiment(PLAYGROUND_ID).map((p) => ({ name: p.title, params: p.params, description: p.description }))
+  return presetsForExperiment(PLAYGROUND_ID).map((p) => ({ id: p.id, name: p.title, params: p.params, description: p.description }))
 }
 
 /** 遞迴 vs 封閉解（F-01.8）：雜訊時以同參數的無雜訊遞迴比較 */

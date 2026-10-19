@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { makeQuizId, quizStats, readQuiz } from '@/app/quizProgress'
 import { CodeBlock, CodeCompare, Prereq, Quiz, SymbolTable, Tex } from '@/components'
 
 describe('Teaching components', () => {
@@ -145,5 +146,87 @@ describe('Quiz／Prereq 的無障礙名稱', () => {
     const [a, b] = Array.from(container.querySelectorAll('summary'))
     expect(a.getAttribute('aria-label')).toBe('先備知識 期望值 E[點]：做很多次取平均')
     expect(b.getAttribute('aria-label')).toBeNull()
+  })
+})
+
+describe('Quiz 進度回報（src/app/quizProgress.ts）', () => {
+  const OPTS = [{ label: '1.1' }, { label: '2.9', correct: true }]
+  const tick = () => new Promise((r) => setTimeout(r, 5))
+
+  beforeEach(() => {
+    localStorage.clear()
+    window.history.replaceState(null, '', '#/ch/04')
+  })
+  afterEach(() => {
+    cleanup()
+    localStorage.clear()
+  })
+
+  it('選擇題：選了選項就記 { picked, correct, at }；改選會覆蓋；只看解析不算作答', async () => {
+    render(<Quiz id="q-a" question="下一步 w？" options={OPTS} answer="2.9" />)
+    fireEvent.click(screen.getByText('看答案與解析'))
+    expect(readQuiz('ch04', 'q-a')).toBeNull()
+    fireEvent.click(screen.getByLabelText(/1\.1/))
+    expect(readQuiz('ch04', 'q-a')).toMatchObject({ picked: 0, correct: false })
+    fireEvent.click(screen.getByLabelText(/2\.9/))
+    const rec = readQuiz('ch04', 'q-a')!
+    expect(rec).toMatchObject({ picked: 1, correct: true })
+    expect(typeof rec.at).toBe('number')
+    await tick()
+    expect(quizStats('ch04')).toEqual({ answered: 1, correct: 1, total: 1 })
+  })
+
+  it('計算題（沒有選項）：第一次打開解析就算作答（picked／correct 為 null）', () => {
+    render(<Quiz id="q-calc" question="算出 w" answer="2.9" />)
+    expect(readQuiz('ch04', 'q-calc')).toBeNull()
+    fireEvent.click(screen.getByText('看答案與解析'))
+    expect(readQuiz('ch04', 'q-calc')).toMatchObject({ picked: null, correct: null })
+    expect(quizStats('ch04')).toMatchObject({ answered: 1, correct: 0 })
+  })
+
+  it('沒給 id：由標題與題目文字推出穩定的 id（重新掛載同一題 → 同一筆紀錄）；不同題目 → 不同筆', () => {
+    const first = render(<Quiz title="思考題 1" question="題目甲" options={OPTS} answer="x" />)
+    fireEvent.click(screen.getByLabelText(/2\.9/))
+    first.unmount()
+    render(
+      <>
+        <Quiz title="思考題 1" question="題目甲" options={OPTS} answer="x" />
+        <Quiz title="思考題 1" question="題目乙" options={OPTS} answer="x" />
+      </>,
+    )
+    const keys = Object.keys(localStorage).filter((k) => k.startsWith('lmspll.quiz.ch04.'))
+    expect(keys).toHaveLength(1)
+    expect(keys[0]).toBe(`lmspll.quiz.ch04.${makeQuizId('思考題 1', '題目甲')}`)
+    expect(keys[0]).not.toContain(makeQuizId('思考題 1', '題目乙'))
+  })
+
+  it('total = 頁面上的 Quiz 數；寫進哪一頁取決於網址（pageId）', async () => {
+    window.history.replaceState(null, '', '#/ch/09')
+    render(
+      <>
+        <Quiz id="a" question="甲" options={OPTS} answer="x" />
+        <Quiz id="b" question="乙" options={OPTS} answer="x" />
+        <Quiz id="c" question="丙" answer="x" />
+      </>,
+    )
+    expect(quizStats('ch09').total).toBe(3)
+    fireEvent.click(screen.getAllByLabelText(/2\.9/)[0])
+    fireEvent.click(screen.getAllByLabelText(/1\.1/)[1])
+    expect(quizStats('ch09')).toEqual({ answered: 2, correct: 1, total: 3 })
+    expect(quizStats('ch04').answered).toBe(0)
+    await tick()
+    cleanup()
+    // 離開後仍讀得到上次的題數
+    expect(quizStats('ch09')).toEqual({ answered: 2, correct: 1, total: 3 })
+  })
+
+  it('作答仍照舊運作（localStorage 寫不進去也一樣）', () => {
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    render(<Quiz id="q" question="題" options={OPTS} answer="x" />)
+    fireEvent.click(screen.getByLabelText(/2\.9/))
+    expect(document.querySelector('.c-quiz-verdict')?.textContent).toBe('答對了！')
+    spy.mockRestore()
   })
 })

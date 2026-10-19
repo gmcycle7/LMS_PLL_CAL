@@ -1,4 +1,5 @@
 import type { FormulaEntry } from '@/data/types'
+import { modelAssumes } from '@/app/chapterMeta'
 
 /**
  * Ch00 公式登錄（Formula & Unit Reference 頁以 import.meta.glob 彙整）。
@@ -9,6 +10,7 @@ import type { FormulaEntry } from '@/data/types'
 export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-00.1',
+    assumes: modelAssumes('L0'),
     title: '黑盒子模型：預測與誤差',
     tex: String.raw`y=ax+v,\qquad \hat y=wx,\qquad e=y-\hat y`,
     conditions: '$a$ 未知、$w$ 可調；$v$ 為量測雜訊（入門例 $v=0$ 或零均值）',
@@ -20,6 +22,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-00.2',
+    assumes: modelAssumes('L0'),
     title: 'LMS 更新式（預測 → 比較 → 修正）',
     tex: String.raw`w_{n+1}=w_n+\mu\,e_n\,x_n`,
     conditions: String.raw`單筆隨機梯度（MSE）；$\mu>0$`,
@@ -31,6 +34,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-00.3',
+    assumes: modelAssumes('L0'),
     title: String.raw`單筆成本的導數（含 $\tfrac12$）`,
     tex: String.raw`j_n(w)=\tfrac12 e_n^2,\quad \frac{dj_n}{dw}=-e_nx_n,\quad J(w)=\tfrac12E\!\left[(y-wx)^2\right]`,
     conditions: String.raw`$e_n=y_n-w\,x_n$；加 $\tfrac12$ 讓梯度與更新量 $\mu\,e\,x$ 同 scaling（argmin 不變）`,
@@ -42,6 +46,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-00.4',
+    assumes: modelAssumes('L0'),
     title: '固定 $x$、無雜訊：參數誤差的一階遞迴',
     tex: String.raw`\delta_{n+1}=(1-\mu x^2)\,\delta_n,\qquad \delta_n=a-w_n,\qquad \delta_n=p^n\delta_0,\; p=1-\mu x^2`,
     conditions: String.raw`固定非零 $x$、$v=0$；$\delta$ 採全站極性 $a-w$（遞迴對極性不變）`,
@@ -53,6 +58,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-00.5',
+    assumes: modelAssumes('L0'),
     title: '固定 $x$ 的穩定條件',
     tex: String.raw`|1-\mu x^2|<1\iff 0<\mu<\frac{2}{x^2}\quad(x=2\Rightarrow 0<\mu<0.5)`,
     conditions: '固定非零 $x$、無雜訊；隨機 $x$ 時要分 mean / mean-square（見 Ch03）',
@@ -63,6 +69,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-00.6',
+    assumes: modelAssumes('L0'),
     title: '封閉解',
     tex: String.raw`w_n=a-(a-w_0)\,(1-\mu x^2)^n`,
     conditions: '固定 $x$、無雜訊',
@@ -73,6 +80,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-00.7',
+    assumes: modelAssumes('L0'),
     title: '有雜訊時的平均更新方向',
     tex: String.raw`E[e\,x]=(a-w)\,E[x^2]+E[v\,x]=(a-w)\,E[x^2]\quad(E[vx]=0)`,
     conditions: '$w$ 固定（或變化遠慢於平均窗）；$v$ 與 $x$ 不相關、$E[v]=0$',
@@ -84,6 +92,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-00.8',
+    assumes: modelAssumes('L0'),
     title: String.raw`$N$ 筆平均的雜訊：$1/\sqrt N$ 法則`,
     tex: String.raw`\bar G_N=\frac1N\sum_{i=1}^{N}e_ix_i,\quad \mathrm{std}(\bar G_N)=\frac{s_1}{\sqrt N},\quad s_1^2=(a-w)^2\big(E[x^4]-E[x^2]^2\big)+\sigma_v^2E[x^2]`,
     conditions: 'iid 樣本、$v$ 與 $x$ 獨立、$w$ 固定',
@@ -94,6 +103,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-00.9',
+    assumes: modelAssumes('L0'),
     title: '固定 $x$ 加白雜訊時 $w$ 的穩態變異數',
     tex: String.raw`\operatorname{Var}(w_\infty)=\frac{\mu^2x^2\sigma_v^2}{1-p^2}=\frac{\mu\,\sigma_v^2}{2-\mu x^2}`,
     conditions: '固定 $x$、iid 零均值 $v$、$|p|<1$、穩態',
@@ -104,6 +114,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-00.10',
+    assumes: modelAssumes('L0'),
     title: '批次最小平方解（一次看完全部資料）',
     tex: String.raw`\hat a_{\mathrm{LS}}=\arg\min_w\sum_i (y_i-wx_i)^2=\frac{\sum_i x_iy_i}{\sum_i x_i^2}`,
     conditions: String.raw`$\sum_i x_i^2>0$（至少一筆 $x_i\ne0$，否則不可辨識）`,
@@ -114,6 +125,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-00.11',
+    assumes: modelAssumes('L0'),
     title: '雜訊與輸入相關時的平均固定點（calibration bias 的入門版）',
     tex: String.raw`w^*=a+\frac{E[v\,x]}{E[x^2]}`,
     conditions: String.raw`Conventional（MSE）LMS、$x$ 與 $v$ 為 iid、$0<\mu<2/E[x^2]$：$E[w_n]\to w^*$（平均收斂）。$E[v\,x]=0$ 時 $w^*=a$。Sign-LMS 的固定點不同（勘誤 E01，見 Ch11）`,

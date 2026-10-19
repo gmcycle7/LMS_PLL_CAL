@@ -39,6 +39,32 @@ describe('ScrollRegion：可捲動區域只在溢位時可聚焦', () => {
     expect(pre.getAttribute('tabindex')).toBeNull()
   })
 
+  it('橫向只超出 1–6px（padding、四捨五入）：標 data-tiny、不可聚焦；超出 7px 以上才是可捲動', () => {
+    const { container, rerender } = render(
+      <ScrollRegion label="表格（可捲動）" className="table-wrap">
+        <table />
+      </ScrollRegion>,
+    )
+    const div = container.querySelector('div.c-scroll') as HTMLElement
+    const again = (n: number) =>
+      rerender(
+        <ScrollRegion label="表格（可捲動）" className="table-wrap">
+          <table data-n={n} />
+        </ScrollRegion>,
+      )
+    fakeSize(div, { scrollWidth: 104, clientWidth: 100 })
+    again(1)
+    expect(div.getAttribute('data-tiny')).toBe('true')
+    expect(div.getAttribute('tabindex')).toBeNull()
+    fakeSize(div, { scrollWidth: 106, clientWidth: 100 })
+    again(2)
+    expect(div.getAttribute('data-tiny')).toBe('true')
+    fakeSize(div, { scrollWidth: 107, clientWidth: 100 })
+    again(3)
+    expect(div.getAttribute('data-tiny')).toBeNull()
+    expect(div.getAttribute('tabindex')).toBe('0')
+  })
+
   it('直向溢位（限高的 JSON）也算；ResizeObserver 回報時重量', () => {
     const callbacks: (() => void)[] = []
     const RO = vi.fn(function (this: unknown, cb: () => void) {

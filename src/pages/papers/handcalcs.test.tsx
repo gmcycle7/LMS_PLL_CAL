@@ -33,6 +33,7 @@ import { D1_PARAMS, d1Inverse } from './panels/D1Noise'
 import { D3_EXAMPLE } from './panels/D3Delay'
 import { WH, d6Data } from './panels/D5D6Quant'
 import { HAND } from './sections/S4Conventions'
+import { expectNoTexErrors } from '@/test/katex'
 
 interface Vector {
   inputs: Record<string, unknown>
@@ -905,7 +906,7 @@ describe('Papers 頁的帶入手算：validate 擋下模型不適用的輸入並
       expect(warn, `${c.id} ${c.name}`).toBeTruthy()
       expect(warn!.querySelector('.katex'), `${c.id} ${c.name}`).toBeTruthy()
       expect(proseText(warn!)).not.toContain('$')
-      expect(container.querySelector('.katex-error, .c-tex-error'), `${c.id} ${c.name}`).toBeNull()
+      expectNoTexErrors(container, `${c.id} ${c.name}`)
       expect(container.querySelectorAll('.c-step')).toHaveLength(0)
       expect(container.querySelector('.c-handcalc-results')).toBeNull()
       unmount()
@@ -939,8 +940,8 @@ describe('Papers 頁的帶入手算：渲染', () => {
     for (const v of cases) {
       const sol = def.solve(v)
       const { container, unmount } = render(<HandCalc def={withValues(def, v)} />)
-      expect(container.querySelector('.katex-error'), JSON.stringify(v)).toBeNull()
-      expect(container.querySelector('.c-tex-error')).toBeNull()
+      expectNoTexErrors(container, JSON.stringify(v))
+      expectNoTexErrors(container)
       expect(container.querySelector('.callout-warn'), JSON.stringify(v)).toBeNull()
       expect(container.querySelectorAll('.c-step').length).toBe(sol.steps.length)
       expect(container.querySelectorAll('.c-handcalc-results .katex-display').length).toBe(sol.results.length)
@@ -963,7 +964,7 @@ describe('Papers 頁的帶入手算：渲染', () => {
           ))}
         </div>,
       )
-      expect(container.querySelectorAll('.katex-error, .c-tex-error').length, def.id).toBe(0)
+      expectNoTexErrors(container, def.id)
       expect(proseText(container), def.id).not.toContain('$')
       // 數學一律 LaTeX：說明文字不以 Unicode 拼公式
       expect(proseText(container), def.id).not.toMatch(/[α-ωΑ-Ω²³⁻¹₀-₉√≈≤≥∞‖⇒⇔∝½]/)
@@ -1014,7 +1015,7 @@ describe('Papers 頁的帶入手算：渲染', () => {
     fireEvent.change(view.getByLabelText(/書上的步長/), { target: { value: '1.2' } })
     expect(container.querySelectorAll('.c-step').length).toBe(0)
     expect(proseText(container.querySelector('.callout-warn')!)).toContain('沒有定義')
-    expect(container.querySelector('.katex-error')).toBeNull()
+    expectNoTexErrors(container)
     unmount()
   })
 })

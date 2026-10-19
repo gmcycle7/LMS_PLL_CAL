@@ -765,3 +765,231 @@ describe('ExperimentShell 控制欄：跨越門檻時的 DOM 穩定性（審查�
     expect(screen.getByLabelText('p7')).toBe(eighth)
   })
 })
+
+/* ===== 第三批：Beginner 的精簡參數面板（src/app/beginnerControls.ts） ===== */
+import { MemoryRouter } from 'react-router-dom'
+import { SettingsProvider } from '@/app/settings'
+import { BEGINNER_CONTROLS } from '@/app/beginnerControls'
+import { LmsPlayground } from '@/chapters/ch01/experiments/LmsPlayground'
+import { ParamControl, SelectControl, ToggleControl } from './ParamControl'
+import { partitionBeginnerControls } from './ExperimentShell'
+
+// 真正的 Ch01 LMS Playground 會畫 Plotly 圖：用測試用的假 plotly／mermaid（vi.mock 會被提升到檔案最前面）
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
+
+function renderMode(mode: 'beginner' | 'engineer' | 'research', node: React.ReactNode, path = '/ch/01') {
+  try {
+    localStorage.setItem('lmspll.mode', mode)
+  } catch {
+    /* ignore */
+  }
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <SettingsProvider>{node}</SettingsProvider>
+    </MemoryRouter>,
+  )
+}
+
+/** 控制欄裡「留在面板上」的控制項（不在「更多參數」裡的） */
+const shownParams = (ctl: Element) => Array.from(ctl.querySelectorAll('.c-param')).filter((p) => !p.closest('.c-exp-more'))
+/** 控制項的名稱：文字輸入框／下拉／開關的 aria-label（標籤含數學時才有），否則 label 的文字（滑桿另有「…（滑桿）」的名稱，不算） */
+const inputName = (p: Element) => p.querySelector('input[type="text"], select, input[type="checkbox"]')?.getAttribute('aria-label') ?? p.querySelector('.c-param-label')?.textContent ?? ''
+
+describe('ExperimentShell：Beginner 的精簡參數面板', () => {
+  const PG = BEGINNER_CONTROLS['lms-playground']
+  const noop = () => undefined
+  // 和 Ch01 LMS Playground 同一組 ariaLabel 的六個控制項（a、x、w₀、μ、σᵥ、N）：清單上 5 個，w₀ 不在
+  const pgControls = () => (
+    <>
+      <ParamControl label="a" ariaLabel="a（真實係數）" value={3} onChange={noop} min={-10} max={10} />
+      <ParamControl label="x" ariaLabel="x（固定輸入）" value={2} onChange={noop} min={-4} max={4} />
+      <ParamControl label="w0" ariaLabel="w₀（初始值）" value={1} onChange={noop} min={-10} max={10} reg="REG_LMS_W_INIT" />
+      <ParamControl label="mu" ariaLabel="μ（學習率）" value={0.1} onChange={noop} min={0} max={1} />
+      <ParamControl label="sigma" ariaLabel="σᵥ（量測雜訊 RMS）" value={0} onChange={noop} min={0} max={5} />
+      <ParamControl label="N" ariaLabel="步數 N" value={20} onChange={noop} min={1} max={400} />
+    </>
+  )
+
+  it('partitionBeginnerControls：控制項依 id／ariaLabel／label／reg 比對；容器拆成兩份、沒有控制項的容器與看不進去的元件保留；一個都對不上就全部顯示', () => {
+    function Opaque() {
+      return <ParamControl label="z" ariaLabel="z（包在自訂元件裡）" value={0} onChange={noop} min={0} max={1} />
+    }
+    const nodes = [
+      <p key="note">說明文字</p>,
+      <div key="row" className="row">
+        <ParamControl label="mu" ariaLabel="μ（學習率）" value={0.1} onChange={noop} min={0} max={1} />
+        <ParamControl label="w0" ariaLabel="w₀（初始值）" value={1} onChange={noop} min={-10} max={10} />
+      </div>,
+      <SelectControl key="sel" label="步數 $N$" value="a" onChange={noop} options={['a', 'b']} />,
+      <ToggleControl key="tog" label="凍結" value={false} onChange={noop} reg="REG_LMS_FREEZE" />,
+      <ParamControl key="byid" id="x-input" label="x" value={2} onChange={noop} min={-4} max={4} />,
+      <Opaque key="opaque" />,
+    ]
+    const r = partitionBeginnerControls(nodes, ['μ（學習率）', 'REG_LMS_FREEZE', 'x-input', 'steps n'])
+    // 對上：μ（ariaLabel）、凍結（reg）、x（id）；'steps n' 對不上 SelectControl 的 label「步數 N」→ matched 3，hidden：w₀ 與步數 N
+    expect(r.matched).toBe(3)
+    expect(r.hidden).toBe(2)
+    // 留下：說明文字、row（只剩 μ）、凍結、x、Opaque
+    expect(r.shown).toHaveLength(5)
+    expect(r.extra).toHaveLength(2)
+    const { container } = render(
+      <>
+        <div data-testid="shown">{r.shown}</div>
+        <div data-testid="extra">{r.extra}</div>
+      </>,
+    )
+    const shown = container.querySelector('[data-testid="shown"]')!
+    const extra = container.querySelector('[data-testid="extra"]')!
+    expect(shown.textContent).toContain('說明文字')
+    expect(shown.querySelectorAll('.row .c-param')).toHaveLength(1)
+    expect(Array.from(shown.querySelectorAll('.c-param'), inputName)).toEqual(['μ（學習率）', '凍結', 'x', 'z（包在自訂元件裡）'])
+    expect(extra.querySelectorAll('.row .c-param')).toHaveLength(1)
+    expect(Array.from(extra.querySelectorAll('.c-param'), inputName)).toEqual(['w₀（初始值）', '步數 N'])
+    // 一個都對不上：原樣回傳
+    const none = partitionBeginnerControls(nodes, ['不存在的參數'])
+    expect(none).toEqual({ shown: nodes, extra: [], hidden: 0, matched: 0 })
+    // 全部對上：沒有東西要收
+    const all = partitionBeginnerControls([<ParamControl key="m" label="mu" ariaLabel="μ（學習率）" value={0.1} onChange={noop} min={0} max={1} />], ['μ（學習率）'])
+    expect(all.hidden).toBe(0)
+    expect(all.matched).toBe(1)
+  })
+
+  it('Beginner + 表裡有的實驗：清單上的控制項留在面板、其餘收進「更多參數（N 個）」（預設收合、可展開）；工具列的執行／跳到結尾不受影響', () => {
+    const onRun = vi.fn()
+    const onSkipToEnd = vi.fn()
+    renderMode('beginner', <ExperimentShell {...base({ controls: pgControls(), actions: { onRun, onSkipToEnd, runKind: 'animate', progress: { done: 0, total: 20 } } })} />)
+    const ctl = document.querySelector('.c-exp-controls')!
+    expect(ctl.getAttribute('data-trimmed')).toBe('true')
+    expect(ctl.getAttribute('data-collapsed')).toBeNull()
+    const shown = shownParams(ctl)
+    expect(shown).toHaveLength(PG.length)
+    expect(shown.map(inputName)).toEqual(['a（真實係數）', 'x（固定輸入）', 'μ（學習率）', 'σᵥ（量測雜訊 RMS）', '步數 N'])
+    const more = ctl.querySelector('details.c-exp-more') as HTMLDetailsElement
+    expect(more).toBeTruthy()
+    expect(more.open).toBe(false)
+    expect(more.querySelector('summary')?.textContent).toBe('更多參數（1 個）')
+    expect(Array.from(more.querySelectorAll('.c-param'), inputName)).toEqual(['w₀（初始值）'])
+    expect(more.textContent).toContain('切到 Engineer 模式會全部展開')
+    // 所有控制項仍在 DOM、可查到（深連結、搜尋）
+    expect(screen.getByLabelText('w₀（初始值）')).toBeTruthy()
+    // 使用者展開後維持
+    more.open = true
+    fireEvent(more, new Event('toggle'))
+    expect(more.open).toBe(true)
+    // 工具列
+    fireEvent.click(screen.getByRole('button', { name: /執行 Run/ }))
+    expect(onRun).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: '跳到結尾' }))
+    expect(onSkipToEnd).toHaveBeenCalledTimes(1)
+  })
+
+  it('Engineer／Research：全部平鋪、沒有「更多參數」；表裡沒有的實驗在 Beginner 也全部顯示；SettingsProvider 之外也全部顯示', () => {
+    const a = renderMode('engineer', <ExperimentShell {...base({ controls: pgControls() })} />)
+    let ctl = document.querySelector('.c-exp-controls')!
+    expect(ctl.getAttribute('data-trimmed')).toBeNull()
+    expect(ctl.querySelector('.c-exp-more')).toBeNull()
+    expect(ctl.querySelectorAll('.c-param')).toHaveLength(6)
+    a.unmount()
+    const b = renderMode('research', <ExperimentShell {...base({ controls: pgControls() })} />)
+    expect(document.querySelector('.c-exp-more')).toBeNull()
+    b.unmount()
+    const c = renderMode('beginner', <ExperimentShell {...base({ id: 'no-such-experiment', controls: pgControls() })} />)
+    ctl = document.querySelector('.c-exp-controls')!
+    expect(ctl.getAttribute('data-trimmed')).toBeNull()
+    expect(ctl.querySelector('.c-exp-more')).toBeNull()
+    expect(shownParams(ctl)).toHaveLength(6)
+    c.unmount()
+    // 沒有 SettingsProvider（其他單元測試的用法）：和以前一樣全部顯示
+    render(<ExperimentShell {...base({ controls: pgControls() })} />)
+    expect(document.querySelector('.c-exp-more')).toBeNull()
+    expect(document.querySelectorAll('.c-exp-controls .c-param')).toHaveLength(6)
+  })
+
+  it('Beginner 的精簡面板不再分組收合、也不自動切「其餘參數」（清單之外的全部在「更多參數」裡）', () => {
+    const many = (
+      <>
+        {pgControls()}
+        {Array.from({ length: 10 }, (_, i) => (
+          <ParamControl key={`extra${i}`} label={`extra ${i}`} value={0} onChange={noop} min={0} max={1} />
+        ))}
+      </>
+    )
+    renderMode('beginner', <ExperimentShell {...base({ controls: many })} />)
+    const ctl = document.querySelector('.c-exp-controls')!
+    expect(ctl.querySelectorAll('.c-param')).toHaveLength(16)
+    expect(ctl.getAttribute('data-trimmed')).toBe('true')
+    expect(ctl.getAttribute('data-collapsed')).toBeNull()
+    expect(ctl.querySelector('.is-auto')).toBeNull()
+    expect(shownParams(ctl)).toHaveLength(5)
+    expect(ctl.querySelector('details.c-exp-more summary')?.textContent).toBe('更多參數（11 個）')
+  })
+
+  it('真正的 Ch01 LMS Playground：Beginner 面板上剛好是清單的 5 個（μ、x、a、σᵥ、N），w₀ 收在更多參數裡；Engineer 六個都平鋪', () => {
+    const a = renderMode('beginner', <LmsPlayground />)
+    const ctl = a.container.querySelector('#exp-lms-playground .c-exp-controls')!
+    expect(ctl.getAttribute('data-trimmed')).toBe('true')
+    const shown = shownParams(ctl)
+    expect(shown).toHaveLength(PG.length)
+    expect(shown.map(inputName).sort()).toEqual([...PG].sort())
+    const more = ctl.querySelector('details.c-exp-more') as HTMLDetailsElement
+    expect(more.open).toBe(false)
+    expect(Array.from(more.querySelectorAll('.c-param'), inputName)).toEqual(['w₀（初始值）'])
+    // 執行、單步、跳到結尾、重設都在
+    for (const name of [/執行 Run/, '單步 Step', '跳到結尾', '重設 Reset']) expect(screen.getByRole('button', { name })).toBeTruthy()
+    a.unmount()
+    const b = renderMode('engineer', <LmsPlayground />)
+    const ctl2 = b.container.querySelector('#exp-lms-playground .c-exp-controls')!
+    expect(ctl2.getAttribute('data-trimmed')).toBeNull()
+    expect(ctl2.querySelector('.c-exp-more')).toBeNull()
+    expect(ctl2.querySelectorAll('.c-param')).toHaveLength(6)
+    b.unmount()
+  })
+})
+
+describe('ExperimentShell：分享連結（experimentUrl 與 CopyLinkButton）', () => {
+  const presets = [
+    { id: 'low-mu', name: '小步長', params: { mu: 0.01 } },
+    { id: 'high-mu', name: '大步長', params: { mu: 0.5 } },
+  ]
+  afterEach(() => window.history.replaceState(null, '', '/'))
+
+  it('每個實驗的工具列都有「複製連結」，沒有 seed、preset 的實驗也有', () => {
+    const { container } = render(<ExperimentShell {...base({ seed: undefined })} />)
+    expect(container.querySelector('.c-exp-toolbar [data-experiment-link="lms-playground"]')).not.toBeNull()
+    expect(screen.getByRole('button', { name: '複製連結' })).toBeTruthy()
+  })
+
+  it('載入 preset 後網址寫入 a 與 p（replaceState：歷史長度不變）；沒碰 seed 就不寫 seed', () => {
+    window.history.replaceState(null, '', '/#/ch/01')
+    const before = window.history.length
+    const onLoadPreset = vi.fn()
+    render(<ExperimentShell {...base({ presets, onLoadPreset })} />)
+    expect(window.location.hash).toBe('#/ch/01')
+    fireEvent.change(screen.getByLabelText('Preset'), { target: { value: '1' } })
+    expect(onLoadPreset).toHaveBeenCalledWith(presets[1])
+    const q = new URLSearchParams(window.location.hash.split('?')[1])
+    expect(q.get('a')).toBe('exp-lms-playground')
+    expect(q.get('p')).toBe('high-mu')
+    expect(q.get('seed')).toBeNull()
+    expect(window.history.length).toBe(before)
+  })
+
+  it('掛載時網址帶 p 與 seed：先套用 preset、再套用 seed（明確的 seed 勝過 preset 自帶的）', () => {
+    window.history.replaceState(null, '', '/#/ch/01?a=exp-lms-playground&p=low-mu&seed=777')
+    const onLoadPreset = vi.fn()
+    const onSeedChange = vi.fn()
+    render(<ExperimentShell {...base({ presets, onLoadPreset, onSeedChange })} />)
+    expect(onLoadPreset).toHaveBeenCalledWith(presets[0])
+    expect(onSeedChange).toHaveBeenCalledWith(777)
+    expect(onLoadPreset.mock.invocationCallOrder[0]).toBeLessThan(onSeedChange.mock.invocationCallOrder[0])
+  })
+
+  it('網址指向別的實驗時不套用', () => {
+    window.history.replaceState(null, '', '/#/ch/01?a=exp-other&p=low-mu&seed=777')
+    const onLoadPreset = vi.fn()
+    const onSeedChange = vi.fn()
+    render(<ExperimentShell {...base({ presets, onLoadPreset: onLoadPreset, onSeedChange })} />)
+    expect(onSeedChange).not.toHaveBeenCalled()
+  })
+})

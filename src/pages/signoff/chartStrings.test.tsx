@@ -1,7 +1,7 @@
-import { render, waitFor } from '@testing-library/react'
+import { waitFor } from '@testing-library/react'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 import type { ReactNode } from 'react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
 import type { PlotProps } from '@/components'
 import { unicodeMathIn } from '@/components/mermaidTestUtils'
 import { plotMath } from '@/components/plotMath'
@@ -36,11 +36,7 @@ vi.setConfig({ testTimeout: 60_000 })
 const INLINE = /(?<!\\)\$((?:[^$\\]|\\.)+?)(?<!\\)\$/g
 
 function mount(node: ReactNode) {
-  return render(
-    <MemoryRouter initialEntries={['/signoff']}>
-      <SettingsProvider>{node}</SettingsProvider>
-    </MemoryRouter>,
-  )
+  return renderPage(node, { url: '/signoff' })
 }
 
 /** KaTeX 以外的文字（拿掉 .katex 子樹，MathML 的 TeX 原始碼也一併拿掉）；識別字（snake_case）不算數學 */
@@ -66,7 +62,7 @@ function checkAll(container: HTMLElement, expected: string[]) {
   for (const el of Array.from(container.querySelectorAll('.c-param-label, .c-param-unit, .c-param-hint, .c-metric-table tbody th, .c-metric-table tbody td'))) {
     expect(unicodeMathIn(plainTextOf(el)), `「${el.textContent}」（${el.className}）`).toEqual([])
   }
-  expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+  expectNoTexErrors(container)
 }
 
 /** KaTeX 的 TeX 原始碼（annotation） */

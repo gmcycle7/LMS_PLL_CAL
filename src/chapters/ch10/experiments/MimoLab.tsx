@@ -848,7 +848,7 @@ export function MimoLab() {
     cases: eff.cases.map((c) => `${c.id}:${c.params.rule}(μK_q=${c.params.muKq},γ=${c.params.gamma},λ_reg=${c.params.lambdaReg},${c.params.regForm})`).join('; '),
   }
 
-  const presets = presetsForExperiment(EXPERIMENT_ID).map((p) => ({ name: p.galleryIndex ? `Gallery #${p.galleryIndex}：${p.title}` : p.title, params: p.params, description: p.description }))
+  const presets = presetsForExperiment(EXPERIMENT_ID).map((p) => ({ id: p.id, name: p.galleryIndex ? `Gallery #${p.galleryIndex}：${p.title}` : p.title, params: p.params, description: p.description }))
 
   const kText = kView === null ? '全部' : `k = ${kView}`
 

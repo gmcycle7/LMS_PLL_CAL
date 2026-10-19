@@ -2,7 +2,6 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import katex from 'katex'
 import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
 import { MathText } from '@/components'
 import {
   generateLossData,
@@ -35,54 +34,16 @@ import { MedianExampleSection } from './sections/MedianExample'
 import { ParabolaSection } from './sections/Parabola'
 import { WrapupSection } from './sections/Wrapup'
 import { SYMBOLS, SymbolsSection } from './symbols'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors, strictTexReport } from '@/test/katex'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
-vi.mock('mermaid', () => ({ default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: '<svg></svg>' })) } }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
-// ───── 記憶體：整章渲染一次約 400 MB 的 DOM，這個檔案會渲染十次以上；測試結束後必須讓它被回收，否則會頂到 Node 的 heap 上限（約 4 GB）─────
-// 兩個地方會把「已卸載的整棵 DOM 樹」留住（都與斷言無關，清掉不影響任何測試）：
-// (1) 模擬的 Plotly 函式把每一次呼叫的引數留在 mock.calls 裡，而 Plotly.react／purge 的第一個引數就是圖表的 DOM 節點；
-// (2) jsdom 的 querySelector（nwsapi）替每一個用過的 selector 字串快取上一次查詢的起點與結果節點——本檔用過的 selector 有上百種，
-//     每一種都會釘住某一次渲染。這裡只清空 nwsapi 公開的兩個快取（不換掉實例：它在 document 上掛了事件監聽，換掉反而整個留著）；
-//     jsdom 把實例放在 document 的內部物件上，找不到時什麼都不做。
-interface SelectorEngine {
-  selectResolvers?: { clear?: () => void }
-  matchResolvers?: { clear?: () => void }
-}
-function releaseDetachedDom() {
-  for (const fn of [P.react, P.purge, P.toImage, P.downloadImage, P.Plots.resize]) fn.mockClear()
-  for (const sym of Object.getOwnPropertySymbols(document)) {
-    const impl = (document as unknown as Record<symbol, unknown>)[sym] as { _nwsapi?: SelectorEngine; _nwsapiDontThrow?: SelectorEngine } | null
-    if (!impl || typeof impl !== 'object') continue
-    for (const engine of [impl._nwsapi, impl._nwsapiDontThrow]) {
-      engine?.selectResolvers?.clear?.()
-      engine?.matchResolvers?.clear?.()
-    }
-  }
-}
-// 測試前後各清一次：卸載（RTL 的 cleanup）時 Plot 會再呼叫一次 Plotly.purge，那一筆要等下一個測試開始前才清得到
-beforeEach(releaseDetachedDom)
-afterEach(releaseDetachedDom)
+// 記憶體：整章渲染一次約 400 MB 的 DOM，這個檔案會渲染十次以上；Plotly／Mermaid 假物件的呼叫紀錄與 jsdom selector 快取由 src/test/setup.jsdom.ts 在每個測試前後清掉。
 
 function renderAt(node: React.ReactNode, path = '/ch/01', mode: 'beginner' | 'engineer' | 'research' = 'engineer') {
-  try {
-    localStorage.setItem('lmspll.mode', mode)
-  } catch {
-    /* ignore */
-  }
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <SettingsProvider>{node}</SettingsProvider>
-    </MemoryRouter>,
-  )
+  return renderPage(node, { mode, url: path })
 }
 
 // 整章渲染（上千個 KaTeX 公式 + 兩個實驗 + 8 題帶入手算）在 CI 或多個測試行程同時執行時遠超過預設 5 s；
@@ -92,26 +53,13 @@ const HEAVY = 300_000
 vi.setConfig({ testTimeout: 120_000 })
 
 /**
- * 嚴格檢查頁面上所有 TeX：共用的 <Tex> 以 throwOnError:false 渲染，「未定義的控制序列」（例如把 \\mu 和 e 黏成 \\mue）
- * 只會變成紅字、不會有 .katex-error class，所以要把每個公式的原始碼（MathML annotation）用 throwOnError:true 重新解析一次。
+ * 嚴格檢查頁面上所有 TeX（src/test/katex.ts 的 strictTexReport：未定義的控制序列不會有 .katex-error，要用 throwOnError:true 重新解析），
+ * 並確認真的找到了公式（範圍選錯時不會悄悄通過）。
  */
 function strictTexErrors(root: HTMLElement): string[] {
-  const out: string[] = []
-  const seen = new Set<string>()
-  for (const ann of Array.from(root.querySelectorAll('.katex-mathml annotation'))) {
-    const src = ann.textContent ?? ''
-    if (seen.has(src)) continue
-    seen.add(src)
-    try {
-      katex.renderToString(src, { throwOnError: true, strict: 'ignore' })
-    } catch (e) {
-      out.push(`${src} ⇒ ${(e as Error).message}`)
-    }
-  }
-  // KaTeX 把未定義指令畫成 #cc0000 的紅字
-  for (const el of Array.from(root.querySelectorAll('.katex [mathcolor="#cc0000"]'))) out.push(`紅字：${el.textContent}`)
-  expect(seen.size).toBeGreaterThan(0)
-  return out
+  const { errors, seen } = strictTexReport(root)
+  expect(seen).toBeGreaterThan(0)
+  return errors
 }
 
 /** 元素內所有 KaTeX 公式的原始碼（MathML annotation） */
@@ -189,7 +137,7 @@ describe('Ch01 頁面（jsdom smoke）', () => {
       for (const b of screen.getAllByText('看答案與解析')) fireEvent.click(b)
     })
     expect(container.querySelectorAll('.c-quiz-answer').length).toBeGreaterThanOrEqual(4)
-    expect(Array.from(container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.textContent)).toEqual([])
+    expectNoTexErrors(container)
     expect(strictTexErrors(container)).toEqual([])
     // Engineer 模式：逐步推導直接展開（StepDerivation）
     expect(container.querySelectorAll('.c-steps').length).toBeGreaterThan(10)
@@ -230,8 +178,7 @@ describe('Ch01 頁面（jsdom smoke）', () => {
     expect(screen.getByText(/2\.4 （Research）/)).toBeTruthy()
     for (const fm of FORMULAS) expect(document.getElementById(`formula-${fm.id}`), fm.id).toBeTruthy()
     // 所有 TeX 都能被 KaTeX 正確解析（throwOnError: false 時錯誤會變成 .katex-error）
-    const bad = Array.from(r1.container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.getAttribute('title') ?? e.textContent)
-    expect(bad).toEqual([])
+    expectNoTexErrors(r1.container)
     expect(strictTexErrors(r1.container)).toEqual([])
     expect(screen.getAllByText(/流量平衡/).length).toBeGreaterThan(0)
     // 審查 R08：Research 模式的推導把忽略的上邊界補回來——有限鏈公式、μ = 5 的 π = (9, 3, 1)/13、另外兩種慣例
@@ -294,7 +241,7 @@ describe('Ch01 符號表在章末（教學規範 §5）', () => {
       // 表的內容不變：每列都有符號（KaTeX）與意義，沒有 KaTeX 錯誤
       expect(symbols.querySelectorAll('tbody tr')).toHaveLength(SYMBOLS.length)
       expect(new Set(SYMBOLS.map((r) => r.symbol)).size).toBe(SYMBOLS.length)
-      expect(symbols.querySelector('.katex-error, .c-tex-error')).toBeNull()
+      expectNoTexErrors(symbols)
       expect(strictTexErrors(symbols)).toEqual([])
     } finally {
       proto.scrollIntoView = original
@@ -635,7 +582,7 @@ describe('Ch01 測試工具自我檢查', () => {
   it('strictTexErrors 抓得到「未定義控制序列」（\\mue 這類不會產生 .katex-error 的紅字）', () => {
     const host = document.createElement('div')
     host.innerHTML = katex.renderToString(String.raw`\Delta w=\mue_{2}x`, { throwOnError: false, strict: 'ignore', output: 'htmlAndMathml' })
-    expect(host.querySelector('.katex-error')).toBeNull() // 這就是原本的測試漏掉它的原因
+    expectNoTexErrors(host) // 這就是原本的測試漏掉它的原因
     const errs = strictTexErrors(host)
     expect(errs.some((e) => e.includes('Undefined control sequence'))).toBe(true)
     expect(errs.some((e) => e.startsWith('紅字'))).toBe(true)
@@ -909,7 +856,7 @@ describe('Ch01 字串屬性的數學一律是 $...$ LaTeX（教學規範 §3）'
     for (const [node, path] of cases) {
       const r = renderAt(node, path)
       expect(unicodeMathLeaks(r.container, STRING_PROP_BOXES), path).toEqual([])
-      expect(Array.from(r.container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.textContent), path).toEqual([])
+      expectNoTexErrors(r.container, path)
       expect(strictTexErrors(r.container), path).toEqual([])
       // 這些容器確實存在而且有 KaTeX（不是因為選不到元素才「沒有漏網」）
       expect(texOf(r.container.querySelector('.c-exp-assumptions')).length, path).toBeGreaterThan(3)
@@ -952,7 +899,7 @@ describe('Ch01 字串屬性的數學一律是 $...$ LaTeX（教學規範 §3）'
     for (const w of all) {
       expect(stringPropErrors(w), w).toEqual([])
       const { container, unmount } = render(<MathText>{w}</MathText>)
-      expect(container.querySelector('.katex-error, .c-tex-error'), w).toBeNull()
+      expectNoTexErrors(container, w)
       expect(container.querySelectorAll('.katex').length, w).toBeGreaterThan(0)
       unmount()
     }
@@ -1301,7 +1248,7 @@ describe('審查 C09：normal equation E[e*x] = 0 是「正交」；等於「不
     expect(texOf(document.getElementById('formula-F-01.5')!.querySelector('.c-texblock-math'))).toEqual([String.raw`\boxed{E[e^*x]=0}`])
     expect(shownText(document.getElementById('formula-F-01.5')!.querySelector('.c-texblock-label'))).toBe('Normal equation（正交原理）')
     expect(shownText(s121)).toMatch(/相關歸零就停/)
-    expect(Array.from(container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.textContent)).toEqual([])
+    expectNoTexErrors(container)
     expect(strictTexErrors(container)).toEqual([])
   })
 

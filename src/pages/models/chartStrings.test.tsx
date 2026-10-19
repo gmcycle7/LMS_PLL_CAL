@@ -1,7 +1,5 @@
-import { fireEvent, render, waitFor } from '@testing-library/react'
+import { fireEvent, waitFor } from '@testing-library/react'
 import type { ReactElement } from 'react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
 import type { PlotProps } from '@/components'
 import { unicodeMathIn } from '@/components/mermaidTestUtils'
 import { plotMath } from '@/components/plotMath'
@@ -10,6 +8,8 @@ import { BlockLmsJsonLab } from './experiments/BlockLmsJsonLab'
 import { FftPitfallsLab } from './experiments/FftPitfallsLab'
 import { GmacSizingLab } from './experiments/GmacSizingLab'
 import { S4Systems } from './sections/S4Systems'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
 /**
  * Models 頁互動圖表（Plotly）與控制項裡的數學一律是 LaTeX（使用者要求，2026-10-11：「數學公式包含圖片裡面的數學公式都要用類似 latex 的格式」）。
@@ -45,12 +45,7 @@ const strings = () => allChartStrings(captured.plots)
 const hasString = (sub: string) => strings().some((s) => s.includes(sub))
 
 function mount(ui: ReactElement, url = '/', mode: 'engineer' | 'research' = 'engineer') {
-  localStorage.setItem('lmspll.mode', mode)
-  return render(
-    <SettingsProvider>
-      <MemoryRouter initialEntries={[url]}>{ui}</MemoryRouter>
-    </SettingsProvider>,
-  )
+  return renderPage(ui, { mode, url })
 }
 
 /** 圖內字串、Plot 的 title／caption、DOM 的控制項與指標表，一次檢查 */
@@ -74,7 +69,7 @@ function checkAll(container: HTMLElement, expected: string[], minStrings = 5) {
   for (const el of Array.from(container.querySelectorAll('.c-param-label, .c-param-unit, .c-param-hint, .c-metric-table tbody th, .c-metric-table tbody td'))) {
     expect(unicodeMathIn(plainTextOf(el)), `「${el.textContent}」（${el.className}）`).toEqual([])
   }
-  expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+  expectNoTexErrors(container)
 }
 
 describe('Models 頁互動圖表：圖內字串與控制項的數學都是 LaTeX', () => {

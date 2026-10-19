@@ -230,7 +230,7 @@ export function CornerIntervalExperiment() {
     { name: String.raw`建議 $\mu$（幾何中點 $\sqrt{\mu_{\min}\mu_{\max}}$）`, value: Number.isFinite(muMid) ? muMid : null, unit: 'fs' },
   ]
 
-  const presets = presetsForExperiment('corner-interval').map((p) => ({ name: p.title, params: p.params, description: p.description }))
+  const presets = presetsForExperiment('corner-interval').map((p) => ({ id: p.id, name: p.title, params: p.params, description: p.description }))
   const flatParams: Record<string, unknown> = { directK: params.directK, eps: params.eps, B: params.B, pmTargetDeg: params.pmTargetDeg, delta0: params.delta0, N: params.N, rmsTarget: params.rmsTarget, measure: params.measure, Delta: params.Delta, M: params.M, z: params.z }
   params.corners.forEach((c, i) => {
     // 參數摘要／JSON 匯出用的純文字（ASCII 欄位名，方便機器讀取）

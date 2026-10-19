@@ -1,5 +1,6 @@
 import { useId, useMemo } from 'react'
 import { DiagramFrame } from './DiagramFrame'
+import { cleanLabel, labelToSpeech, type DiagramEdge, type DiagramGroup, type DiagramNode, type DiagramText } from './diagramText'
 import { mathText } from './Tex'
 
 /**
@@ -256,6 +257,40 @@ export function systemMapModel(focus: readonly SystemBlock[]): SystemMapModel {
   return { blocks: SYSTEM_MAP_BLOCKS.map((b) => ({ ...b, focused: on.has(b.id) })), wires: SYSTEM_MAP_WIRES }
 }
 
+/** 'out'（PLL 輸出）在文字版裡的節點 id 與標籤 */
+const OUT_NODE = { id: 'out', raw: 'PLL 輸出（圖的右邊）' } as const
+
+/**
+ * 系統地圖的文字版（DiagramFrame 的「文字版」details 用）：由 systemMapModel 產生和 Mermaid 圖同樣的結構——
+ * 三條泳道是群組、方塊是節點（本章主角標 focus）、連線是邊（虛線＝只是觀測的訊號；e[n] 的成對標籤算一條 PD → comparator 的連線）。
+ */
+export function systemMapText(focus: readonly SystemBlock[]): DiagramText {
+  const model = systemMapModel(focus)
+  const nodes: DiagramNode[] = model.blocks.map((b) => {
+    const raw = cleanLabel(b.sub ? `${b.title}：${b.sub}` : b.title)
+    return { id: b.id, raw, label: labelToSpeech(raw), group: b.lane, shape: b.pill ? 'stadium' : 'rect', ...(b.focused ? { focus: true } : {}) }
+  })
+  const outRaw = cleanLabel(OUT_NODE.raw)
+  nodes.push({ id: OUT_NODE.id, raw: outRaw, label: labelToSpeech(outRaw) })
+  const groups: DiagramGroup[] = LANES.map((l) => ({
+    id: l.id,
+    raw: l.title,
+    label: l.title,
+    nodes: nodes.filter((n) => n.group === l.id).map((n) => n.id),
+  }))
+  const edges: DiagramEdge[] = model.wires.map((w) => {
+    const raw = w.label !== undefined ? cleanLabel(w.label) : w.tag ? cleanLabel(w.tag.dest.text) : undefined
+    return {
+      from: w.from,
+      to: w.to,
+      line: w.dashed ? 'dotted' : 'solid',
+      arrow: 'forward',
+      ...(raw ? { raw, label: labelToSpeech(raw) } : {}),
+    }
+  })
+  return { kind: 'flowchart', parsed: true, nodes, edges, groups }
+}
+
 export interface SystemMapProps {
   /** 本章在講的方塊（會標成藍色） */
   focus: SystemBlock[]
@@ -367,6 +402,7 @@ export function SystemMap({ focus, caption }: SystemMapProps) {
       ariaLabel={`DTC-based Fractional-N PLL 與 Sign-LMS 校正迴路的系統方塊圖（DTC 在 reference 輸入端；LMS 的輸入取自 PD 的輸出）；本章重點：${names || '整個系統'}`}
       naturalSize={SYSTEM_MAP_SIZE}
       zoomChildren={<SystemMapSvg focus={focus} />}
+      textModel={() => systemMapText(focus)}
     >
       <SystemMapSvg focus={focus} />
     </DiagramFrame>

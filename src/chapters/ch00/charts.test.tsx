@@ -1,10 +1,9 @@
-import { render, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
+import { waitFor } from '@testing-library/react'
 import * as plotMathModule from '@/components/plotMath'
 import { plotMath } from '@/components/plotMath'
 import { unicodeMathIn } from '@/components/mermaidTestUtils'
 import Chapter00 from './index'
+import { renderPage } from '@/test/renderPage'
 
 /*
  * 互動圖表（Plotly）與控制項裡的數學都要用 LaTeX（docs/teaching-style.md §3）。
@@ -16,22 +15,8 @@ import Chapter00 from './index'
  * 另外檢查 ParamControl 的 label／hint／unit：KaTeX 以外的文字也沒有 Unicode 拼的數學。
  */
 
-vi.mock('plotly.js-cartesian-dist-min', () => ({
-  default: {
-    react: vi.fn(async () => undefined),
-    purge: vi.fn(),
-    toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-    downloadImage: vi.fn(async () => ''),
-    Plots: { resize: vi.fn() },
-    Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-  },
-}))
-vi.mock('mermaid', () => ({
-  default: {
-    initialize: vi.fn(),
-    render: vi.fn(async (id: string) => ({ svg: `<svg id="${id}"></svg>`, diagramType: 'flowchart-v2' })),
-  },
-}))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 vi.mock('@/components/plotMath', async (importOriginal) => {
   const orig = await importOriginal<typeof import('@/components/plotMath')>()
   return { ...orig, applyPlotMath: vi.fn(orig.applyPlotMath) }
@@ -68,13 +53,7 @@ describe('ch00 互動圖表與控制項：數學一律 LaTeX', () => {
       Element.prototype.scrollIntoView = vi.fn()
       const spy = vi.mocked(plotMathModule.applyPlotMath)
       spy.mockClear()
-      const { container } = render(
-        <SettingsProvider>
-          <MemoryRouter initialEntries={['/ch/00']}>
-            <Chapter00 />
-          </MemoryRouter>
-        </SettingsProvider>,
-      )
+      const { container } = renderPage(<Chapter00 />, { url: '/ch/00' })
       // 本章的 Plotly 圖：§0.5 四張（w_n、e_n、|δ_n|、J(w)）、§0.6 一張、§0.7 三張、§0.9 一張、§0.10 一張
       await waitFor(() => expect(container.querySelectorAll('.c-plot').length).toBeGreaterThanOrEqual(10), { timeout: 30_000 })
       const plots = container.querySelectorAll('.c-plot').length

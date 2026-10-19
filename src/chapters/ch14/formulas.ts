@@ -1,4 +1,5 @@
 import type { FormulaEntry } from '@/data/types'
+import { modelAssumes } from '@/app/chapterMeta'
 
 /**
  * Ch14 公式登錄（Formula & Unit Reference 頁以 import.meta.glob 彙整）。
@@ -10,6 +11,7 @@ const PAGE = '/ch/14'
 export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-14.1',
+    assumes: modelAssumes('L1'),
     title: '線性化 block 遞迴',
     tex: String.raw`\delta_{k+1}=p\,\delta_k-\mu\eta_k,\quad p=1-g,\ g=\mu K,\ K=K_qC`,
     conditions: String.raw`單參數、近鎖定、$G_k\approx K\delta_k+\eta_k$；$\delta=a-w$（§12 用 $\delta w=w-w^*$，雜訊項變號但二階矩相同）`,
@@ -21,6 +23,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-14.2',
+    assumes: modelAssumes('L1'),
     title: '平均誤差',
     tex: String.raw`E[\delta_B]=p^B\delta_0`,
     conditions: String.raw`線性模型、$E[\eta_k]=0$、$\delta_0$ 為確定值`,
@@ -31,6 +34,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-14.3',
+    assumes: modelAssumes('L1'),
     title: String.raw`$B$ 次更新後的均方誤差（$\text{bias}^2+\text{variance}$）`,
     tex: String.raw`E[\delta_B^2]=\delta_0^2p^{2B}+\mu^2\sigma_\eta^2\frac{1-p^{2B}}{1-p^2}`,
     conditions: String.raw`[精確｜線性化 iid 模型]（$\eta$ 零均值、彼此獨立、與 $\delta$ 無關；任意分布、$p$ 可為負）；1-bit Sign-LMS 只在 $|\delta_0|\ll\sigma_v$ 時近似（$\delta_0=\sigma_v$ 低估約 17%）`,
@@ -43,6 +47,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-14.4',
+    assumes: modelAssumes('L1'),
     title: String.raw`$|p|=1$ 的極限`,
     tex: String.raw`p^2=1\ \Rightarrow\ \frac{1-p^{2B}}{1-p^2}=B,\quad E[\delta_B^2]=\delta_0^2+B\mu^2\sigma_\eta^2`,
     conditions: String.raw`$g=0$（$C=0$：沒有恢復力，random walk）或 $g=2$（臨界振盪）；$g>2$ 不穩定`,
@@ -54,6 +59,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-14.5',
+    assumes: modelAssumes('L1'),
     title: 'Coarse 階段的 slew-limited 估計',
     tex: String.raw`|\Delta w_k|\le\mu\max|x|\ \Rightarrow\ B\gtrsim\frac{|\delta_0|-\delta_\text{target}}{\mu\max|x|}`,
     conditions: String.raw`$|\delta_0|\gtrsim0.5\sigma_v$ 時 comparator 飽和，F-14.3 失效（Sign-GMAC 的 $|G|\le\max|x|$）`,
@@ -65,6 +71,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-14.6',
+    assumes: modelAssumes('L1'),
     title: String.raw`雜訊項化簡與穩態 $\sigma_w^2$`,
     tex: String.raw`\frac{\mu^2}{1-p^2}=\frac{\mu}{K(2-\mu K)},\qquad \sigma_w^2=\lim_{B\to\infty}E[\delta_B^2]=\frac{\mu\sigma_\eta^2}{K(2-\mu K)}`,
     conditions: String.raw`$0<g<2$；與 §12.1 的 $\sigma_w^2=\mu^2\sigma_\eta^2/(1-p^2)$ 相同`,
@@ -75,6 +82,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-14.7',
+    assumes: modelAssumes('L1'),
     title: String.raw`終點成本對 $\mu$ 的導數`,
     tex: String.raw`\frac{dE[\delta_B^2]}{d\mu}=-2BK\delta_0^2p^{2B-1}+\sigma_\eta^2\left[\frac{2(1-p^{2B})}{K(2-\mu K)^2}+\frac{2B\mu p^{2B-1}}{2-\mu K}\right]`,
     conditions: String.raw`$K\ne0$、$\mu K\ne2$；最佳 $\mu^*$ 為此式的根（或落在 PM 邊界）`,
@@ -85,6 +93,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-14.8',
+    assumes: modelAssumes('L1'),
     title: String.raw`大 $B$ 封閉近似的最佳 $\mu$`,
     tex: String.raw`\mu^*\approx\frac{\ln A}{2BK},\quad E[\delta_B^2]^*\approx\frac{\sigma_\eta^2(1+\ln A)}{4BK^2},\quad A=\frac{4BK^2\delta_0^2}{\sigma_\eta^2}`,
     conditions: String.raw`$A\gg1$ 且 $g^*=\ln A/(2B)\ll1$（第 10 課例：$A=300$，$\mu^*\approx11.17\,\mathrm{fs}$，精確值 $10.66\,\mathrm{fs}$）`,
@@ -95,6 +104,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-14.9',
+    assumes: modelAssumes('L1'),
     title: '全程積分誤差',
     tex: String.raw`\frac1B\sum_{k=1}^{B}E[\delta_k^2]=\frac1B\left[\delta_0^2q\,S_B+\mu^2\sigma_\eta^2\frac{B-qS_B}{1-q}\right],\ q=p^2,\ S_B=\frac{1-q^B}{1-q}`,
     conditions: String.raw`線性模型；$q\to1$ 時用泰勒展開`,
@@ -105,6 +115,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-14.10',
+    assumes: modelAssumes('L1'),
     title: '最快初期收斂',
     tex: String.raw`\tau=-\frac{1}{\ln|1-\mu K|}\ \text{最小於}\ g=1\ (\mu=1/K,\ p=0)`,
     conditions: String.raw`只看平均誤差；代價是穩態雜訊 $\sigma_w^2=\sigma_\eta^2/K^2$（在 $PM\ge60^\circ$ 的範圍 $g\le1$ 內最大）`,
@@ -115,6 +126,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-14.11',
+    assumes: modelAssumes('L1'),
     title: '係數雜訊 PSD（spur／帶外擾動目標）',
     tex: String.raw`S_w(e^{j\Omega})=\frac{\mu^2\sigma_\eta^2}{|1-pe^{-j\Omega}|^2}=\frac{\sigma_\eta^2}{K^2}\cdot\frac{g^2}{g^2+2(1-g)(1-\cos\Omega)}`,
     conditions: String.raw`$0<g<2$ 時對 $g$ 單調遞增；$\Omega\to0$ 時 $S_w\to\sigma_\eta^2/K^2$（與 $\mu$ 無關）；two-sided：$\sigma_w^2=\tfrac{1}{2\pi}\int_{-\pi}^{\pi}S_w\,d\Omega$`,
@@ -126,6 +138,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-14.12',
+    assumes: modelAssumes('L1'),
     title: 'Ramp 漂移追蹤',
     tex: String.raw`J=\Big(\frac{r}{\mu K}\Big)^2+\frac{\mu\sigma_\eta^2}{K(2-\mu K)},\qquad \mu^*\approx\Big(\frac{4r^2}{K\sigma_\eta^2}\Big)^{1/3}`,
     conditions: String.raw`$a$ 每 block 增加 $r$ [fs/block]；穩態；小 $g$ 近似`,
@@ -136,6 +149,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-14.13',
+    assumes: modelAssumes('L1'),
     title: 'Random-walk 漂移追蹤',
     tex: String.raw`J=\frac{\sigma_\zeta^2+\mu^2\sigma_\eta^2}{\mu K(2-\mu K)},\qquad \mu^*\approx\frac{\sigma_\zeta}{\sigma_\eta},\ J^*\approx\frac{\sigma_\zeta\sigma_\eta}{K}`,
     conditions: String.raw`$a_{k+1}=a_k+\zeta_k$、$\mathrm{Var}\,\zeta=\sigma_\zeta^2$；穩態；小 $g$ 近似`,
@@ -146,6 +160,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-14.14',
+    assumes: modelAssumes('L1'),
     title: String.raw`一階 calibration loop 的 PM 與 $\mu$ 上限`,
     tex: String.raw`PM=90^\circ-\arcsin\frac g2\ \ge PM_t\iff g\le2\cos PM_t\quad(PM_t=60^\circ\Rightarrow g\le1)`,
     conditions: String.raw`$L(z)=g/(z-1)$、無額外更新延遲（$d=0$）`,
@@ -156,6 +171,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-14.15',
+    assumes: modelAssumes('L1'),
     title: 'Corner-based 可行區間',
     tex: String.raw`\frac{1-\epsilon^{1/B}}{K_{\min}}\le\mu\le\frac{1}{K_{\max}},\qquad |E[\delta_B]|\le\epsilon|\delta_0|,\ 0<\epsilon<1`,
     conditions: String.raw`[精確｜線性一階無延遲模型]；$\epsilon$ 是相對縮減比（絕對規格 $e_\text{abs}$ 用 $\epsilon=e_\text{abs}/|\delta_0|$）；只約束平均誤差，RMS 另以 F-14.3 檢查`,
@@ -168,6 +184,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-14.16',
+    assumes: modelAssumes('L1'),
     title: '區間非空的條件',
     tex: String.raw`\text{非空}\iff 1-\epsilon^{1/B}\le\frac{K_{\min}}{K_{\max}}\iff B\ge\frac{\ln\epsilon}{\ln(1-K_{\min}/K_{\max})}`,
     conditions: String.raw`例：$K_{\min}/K_{\max}=1/3$、$\epsilon=0.01\ \Rightarrow\ B\ge11.36\to12$`,
@@ -179,6 +196,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-14.17',
+    assumes: modelAssumes('L1'),
     title: String.raw`固定總比較次數 $T=NB$：一階只依賴 $T$`,
     tex: String.raw`\sigma_\eta^2=\frac1N,\ B=\frac TN\ \Rightarrow\ E[\delta_B^2]^*\approx\frac{1+\ln(4TK^2\delta_0^2)}{4TK^2}`,
     conditions: String.raw`由 F-14.8 代入；二階效應：$K$ 已知時更新少略好、$K$ 不確定時更新太少很差`,
@@ -189,6 +207,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-14.18',
+    assumes: modelAssumes('L1'),
     title: String.raw`最佳遞減步長（scalar Kalman／$1/k$）`,
     tex: String.raw`\mu_k=\frac{KP_k}{K^2P_k+\sigma_\eta^2}=\frac{1}{K(k+1+k_0)},\quad P_B=\frac{\delta_0^2}{1+B\delta_0^2K^2/\sigma_\eta^2},\quad k_0=\frac{\sigma_\eta^2}{K^2\delta_0^2}`,
     conditions: String.raw`線性模型、$K$ 與 $\delta_0^2$ 已知；$B$ 次更新的 $E[\delta_B^2]$ 下界`,
@@ -199,6 +218,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-14.19',
+    assumes: modelAssumes('L1'),
     title: String.raw`固定 $\mu$ 與最佳排程的差距`,
     tex: String.raw`\frac{E[\delta_B^2]^*_{\text{fixed}}}{P_B}\approx\frac{1+\ln A}{4}`,
     conditions: String.raw`$A\gg1$（初始誤差遠大於雜訊底）；第 10 課例 $\approx1.68$（RMS 差 30%）`,
@@ -209,6 +229,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-14.20',
+    assumes: modelAssumes('L1'),
     title: String.raw`兩段式（coarse → fine）的 $E[\delta^2]$`,
     tex: String.raw`m_1=E[\delta_{B_1}^2]\big|_{\mu_1},\qquad E[\delta_{B_1+B_2}^2]=m_1p_2^{2B_2}+\mu_2^2\sigma_\eta^2\frac{1-p_2^{2B_2}}{1-p_2^2}`,
     conditions: String.raw`二階矩遞迴對 $m$ 是線性的，所以第二段把 $\delta_0^2$ 換成 $m_1$`,
@@ -219,6 +240,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-14.21',
+    assumes: modelAssumes('L1'),
     title: String.raw`以 $\pm\Delta$ 量測 GMAC 斜率（Jacobian）`,
     tex: String.raw`\hat K=\frac{\bar G_--\bar G_+}{2\Delta},\quad \mathrm{se}(\hat K)\approx\frac{\sigma_\eta}{\Delta\sqrt{2M}},\quad \frac{E[\hat K]}{K_qC}\approx1-\frac{\Delta^2E[x\,u^3]}{6\sigma_v^2C}`,
     conditions: String.raw`$\bar G_\pm$ 為 $\bar w\pm\Delta$ 各 $M$ 個 block 的平均；截斷偏差來自 erf 的三階項。本站 2-tap 相位模型 $u=c\,x[n]+s\,x[n-1]$：$E[x\,u^3]=c^3+3cs^2$，相對偏差 $-\Delta^2(c^2+3s^2)/(6\sigma_v^2)$；$\theta=0$ 時化簡為 $-(\Delta C)^2/(6\sigma_v^2)$`,

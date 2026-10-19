@@ -7,15 +7,15 @@ name: CI
 #   fast    型別檢查、eslint、vite build、bundle 大小預算、verification 快照格式（約 3–4 分鐘）
 #   audit   npm audit（只看會進網站的套件）。目前 continue-on-error，見該 job 的說明
 #   python  Python golden model：pytest golden、export_vectors.py --check、SSPLL golden（約 1–2 分鐘）
-#   unit    Vitest 的 node 環境測試（*.test.ts，約 106 檔、2,400 項；本機 CPU 時間約 190 s）
+#   unit    Vitest 的 node project（`vitest run --project node`：src/**/*.test.ts，約 129 檔、2,800 項；本機 CPU 時間約 210 s）
 #   ci-ok   把上面幾個 job 彙整成一個狀態，之後設 branch protection 只要勾這一個
 #
-# 目前「不在」CI 裡的測試：jsdom 環境的整章／整頁 smoke test（*.test.tsx，約 117 檔、3,150 項、
-# 本機 CPU 時間約 2,200 s）。它們一次渲染整章的 KaTeX、Mermaid、手算題與 inline worker，
-# 單一測試的逾時設在 120–600 s（見各檔的 vi.setConfig）；GitHub runner 只有 2–4 vCPU，
-# 又比開發機慢，直接放進來會讓 PR 要等半小時以上，還會因逾時偶發失敗。
-# 下一個 wave 會把它們用 `vitest run --shard=i/N` 的 matrix 切開（或改成 nightly + push to main），
-# 穩定之後再加進這裡。在那之前，改到章節或元件的 PR 請在本機跑 `npx vitest run <相關檔案>`。
+# jsdom 環境的整章／整頁 smoke test（Vitest 的 jsdom project：src/**/*.test.tsx，約 150 檔、3,500 項）「不在」這支 workflow：
+# 它們一次渲染整章的 KaTeX、Mermaid、手算題與 inline worker，單一測試的逾時設在 120–600 s，GitHub runner 只有 2–4 vCPU，
+# 放進來會讓 PR 要等很久、還會因逾時偶發失敗。它們在 jsdom-tests.yml：push 到 main、每週一次、手動觸發，
+# 用 `vitest run --project jsdom --shard=i/N` 切成多個 shard 平行跑，不擋 PR 也不擋部署。
+# 改到章節或共用元件的 PR：本機跑 `npx vitest run <相關檔案> --maxWorkers=2`，或在 Actions 頁面手動觸發 jsdom tests 並選你的分支。
+# （穩定一段時間之後，jsdom-tests 可以改成 PR 上只跑「有改到的檔案」；目前還沒有做。）
 
 on:
   pull_request:
@@ -115,11 +115,10 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
-      # vite.config.ts 的 environmentMatchGlobs 讓 *.test.tsx 跑 jsdom、*.test.ts 跑 node。
-      # 這裡只跑 node 的那些（排除 *.test.tsx），jsdom 的整章 smoke test 見檔頭說明。
-      # 若 vite.config.ts 改成 vitest projects，這一行改成 `npx vitest run --project unit`。
-      - name: Vitest (node environment)
-        run: npx vitest run --exclude '**/*.test.tsx'
+      # vite.config.ts 的 test.workspace 定義兩個 project：node（src/**/*.test.ts）與 jsdom（src/**/*.test.tsx）。
+      # 這裡只跑 node project；jsdom 的整章 smoke test 見檔頭說明與 jsdom-tests.yml。
+      - name: Vitest (node project)
+        run: npx vitest run --project node
 
   ci-ok:
     name: ci-ok

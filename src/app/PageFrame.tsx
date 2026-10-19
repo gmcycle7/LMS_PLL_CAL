@@ -6,6 +6,7 @@ import { ErrorBoundary } from './ErrorBoundary'
 import { MODE_HINT, useSettings } from './settings'
 import { pageNeighbours as neighbours, useNavigationInfo } from './navigation'
 import { chapterFrameMeta } from './chapterMeta'
+import { touchLastVisit } from './backbone'
 import { ModePicker } from '@/components/ModePicker'
 import { AnchorDeepLink } from '@/components/links'
 import { PageOutline, type OutlineLayout } from '@/components/PageOutline'
@@ -96,6 +97,7 @@ export function PageFrame({ entry }: { entry: PageEntry }) {
   useEffect(() => {
     // 瀏覽器分頁標題由 App.tsx 的 <DocumentTitle>（navigation.tsx）設定
     window.scrollTo(0, 0)
+    touchLastVisit(entry.id) // Dashboard 的「從上次離開的地方繼續」（只記路線上的頁面）
   }, [entry])
 
   // 章節掛上來的同一個 commit 裡找插槽（layout effect：第一次繪製就在正確位置）；之後 DOM 變了（模式切換、延後渲染）就重掃

@@ -1,9 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { fireEvent, render, waitFor } from '@testing-library/react'
-import katex from 'katex'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
+import { fireEvent, waitFor } from '@testing-library/react'
 import { extractRegion } from '@/components'
 import { ALL_PRESETS } from '@/app/presets'
 import lmsSrc from '@/simulation/models/lms.ts?raw'
@@ -28,35 +25,16 @@ import { toBoardRow } from './sections/RegressionBoard'
 import { quiz1Answer, quiz4Answer } from './sections/Wrapup'
 import { CHECK_SYMBOLS, MODEL_SYMBOLS } from './symbols'
 import { previewPreset } from './previews'
+import { renderPage as renderInApp } from '@/test/renderPage'
+import { expectTexParses, expectNoTexErrors } from '@/test/katex'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
-vi.mock('mermaid', () => ({
-  default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: '<svg></svg>' })), parse: vi.fn(async () => true) },
-}))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 type Mode = 'beginner' | 'engineer' | 'research'
 
 function renderPage(url = '/gallery', mode: Mode = 'engineer') {
-  try {
-    localStorage.setItem('lmspll.mode', mode)
-  } catch {
-    /* ignore */
-  }
-  return render(
-    <SettingsProvider>
-      <MemoryRouter initialEntries={[url]}>
-        <GalleryPage />
-      </MemoryRouter>
-    </SettingsProvider>,
-  )
+  return renderInApp(<GalleryPage />, { mode, url })
 }
 
 // 整頁 DOM 很大（KaTeX）：jsdom 的 getByRole / getByLabelText 會掃描整份文件而非常慢，這裡一律用 querySelector。
@@ -106,7 +84,7 @@ describe('Gallery 頁面：smoke（三種學習模式）', () => {
       // 每條登錄的公式在頁面上恰有一個錨點（三種模式皆然）
       for (const f of FORMULAS) expect(container.querySelectorAll(`[id="formula-${f.id}"]`).length, `${f.id}（${mode}）`).toBe(1)
       // KaTeX：沒有錯誤節點；prose 中沒有未渲染的 $…$
-      expect(container.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+      expectNoTexErrors(container)
       expect(proseText(container)).not.toMatch(/\$[^$\s][^$]*\$/)
       // 程式碼 region 都找得到（找不到時 CodeBlock 會顯示錯誤框）
       expect(container.textContent).not.toContain('程式碼載入錯誤')
@@ -345,11 +323,11 @@ describe('頁面用到的純函式與資料', () => {
       expect(f.title).not.toContain('$')
       expect(f.conditions).not.toContain('$')
       expect(f.conditions.trim().length).toBeGreaterThan(0)
-      expect(() => katex.renderToString(f.tex, { displayMode: true, throwOnError: true, strict: 'ignore', trust: false }), f.id).not.toThrow()
+      expectTexParses(f.tex, f.id, { displayMode: true, strict: 'ignore' })
     }
     for (const s of [...CHECK_SYMBOLS, ...MODEL_SYMBOLS]) {
-      expect(() => katex.renderToString(s.symbol, { throwOnError: true, strict: 'ignore' }), s.symbol).not.toThrow()
-      if (s.unit) expect(() => katex.renderToString(s.unit as string, { throwOnError: true, strict: 'ignore' }), s.unit).not.toThrow()
+      expectTexParses(s.symbol, s.symbol, { strict: 'ignore' })
+      if (s.unit) expectTexParses(s.unit as string, s.unit, { strict: 'ignore' })
     }
   })
 })
@@ -374,13 +352,7 @@ describe('沒有用途的捲軸（使用者要求：「這種地方如果沒有�
     // 邊界兩側各取一張，再加最短與最長的
     const picks = [short[0], short[short.length - 1], long[0], long[long.length - 1]]
     for (const p of picks) {
-      const { container, unmount } = render(
-        <SettingsProvider>
-          <MemoryRouter initialEntries={['/gallery']}>
-            <PresetCard preset={p} />
-          </MemoryRouter>
-        </SettingsProvider>,
-      )
+      const { container, unmount } = renderInApp(<PresetCard preset={p} />, { url: '/gallery' })
       const pre = container.querySelector('details.gal-params pre') as HTMLElement
       expect(pre, p.id).toBeTruthy()
       expect(pre.textContent, p.id).toBe(JSON.stringify(p.params, null, 2)) // 內容原樣、完整（沒有被截掉）

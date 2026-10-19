@@ -11,6 +11,7 @@ import type { FormulaEntry } from '@/data/types'
 export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-SO.1',
+    assumes: 'L1 + 凍結權重（量測期間 $w$ 固定）：斜率是有限差分，加上 Gaussian 的 $z$ 判決',
     title: String.raw`Freeze $\pm\Delta$ 的 GMAC 斜率與極性判決`,
     tex: String.raw`\hat K=-\frac{\bar G(w+\Delta)-\bar G(w-\Delta)}{2\Delta},\qquad \text{極性正確}\iff\hat K-z\,\mathrm{se}(\hat S)>0`,
     conditions: String.raw`$w$ 在量測期間凍結；$+\Delta$／$-\Delta$ 交錯量測；兩側 block 獨立；$\delta=a-w$`,
@@ -22,6 +23,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-SO.2',
+    assumes: 'L1 的 Gaussian comparator：$\\mathrm{erf}$ 的 Taylor 展開，identity path 下精確',
     title: String.raw`中央差分的截斷比（identity path、$\pm1$ code）`,
     tex: String.raw`r_\text{CD}(\Delta)\equiv\frac{\hat S_\text{CD}}{\bar G'(a)}=\frac{\mathrm{erf}\big(\Delta/(\sqrt2\sigma_v)\big)}{K_q\Delta}=1-\frac{\Delta^2}{6\sigma_v^2}+O\Big(\frac{\Delta^4}{\sigma_v^4}\Big)`,
     conditions: String.raw`Gaussian comparator 雜訊、identity path、$\pm1$ iid code、在 $w=a$ 處`,
@@ -33,6 +35,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-SO.3',
+    assumes: 'L1 + block 間獨立 + $\\sigma_\\eta^2\\approx1/N$（近平衡）',
     title: '斜率估計的標準誤與所需 block 數',
     tex: String.raw`\mathrm{se}(\hat S)=\frac{\sigma_\eta}{\Delta\sqrt{2M}},\qquad M\ge\frac{z^2}{2N\Delta^2K_q^2C^2}`,
     conditions: String.raw`$\sigma_\eta^2\approx(1-m^2)/N\approx1/N$（$\pm1$ code、近平衡）；block 間獨立`,
@@ -43,6 +46,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-SO.4',
+    assumes: 'L2 單頻（或 iid $\\pm1$）regressor + 凍結權重：$C_D$ 的 closed form，精確',
     title: String.raw`有效相關 $C_D$（單頻／iid $\pm1$ code）`,
     tex: String.raw`C_D=E\big[x[n-D]u[n]\big]=|H|\cos(\phi+\Omega D)\ (\text{單頻},0<\Omega<\pi),\qquad C_D=h[D]\ (\text{iid}\pm1)`,
     conditions: String.raw`單頻 $x=\sqrt2\cos(\Omega n+\theta_0)$；長時間或整數週期平均；$\Omega$ 的端點（$0$、$\pi$）見 E46`,
@@ -54,6 +58,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-SO.5',
+    assumes: 'L1 平均模型 + 更新延遲 $d$：$L(z)=gz^{-d}/(z-1)$ 的 PM 與臨界增益，精確',
     title: String.raw`更新延遲 $d$ 時的 phase margin 與臨界增益`,
     tex: String.raw`PM_d=90^\circ-(2d+1)\arcsin\frac g2,\qquad g_\text{crit}(d)=2\sin\frac{\pi}{4d+2}`,
     conditions: String.raw`一階線性化 $L(z)=g\,z^{-d}/(z-1)$；$0<g\le2$`,
@@ -64,6 +69,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-SO.6',
+    assumes: 'L3 + 凍結權重：Jacobian 的中央差分估計（截斷誤差 $O(\\Delta^2)$）',
     title: '兩參數 Jacobian 的中央差分量測',
     tex: String.raw`\hat J_{ij}=\frac{\bar G_i(\mathbf w+\Delta_j\mathbf e_j)-\bar G_i(\mathbf w-\Delta_j\mathbf e_j)}{2\Delta_j},\qquad \mathbf J\approx-K_q\mathbf R\,\mathrm{diag}(c_G,c_P)`,
     conditions: '一次只擾動一個參數；小訊號；raw-x correlator',
@@ -74,6 +80,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-SO.7',
+    assumes: 'L3 平均模型：$\\rho(\\mathbf I+\\mathbf M\\mathbf J)<1$ 的線性化判準，精確',
     title: '多參數局部線性穩定判準',
     tex: String.raw`\rho\big(\mathbf I+\mathbf M\mathbf J_\text{true}\big)<1,\qquad \hat{\mathbf J}=\mathbf J\Rightarrow p_i=1-\gamma\frac{\sigma_i^2}{\sigma_i^2+\varepsilon_J}`,
     conditions: String.raw`固定點附近線性化；$\mathbf M=-\gamma(\hat{\mathbf J}^T\hat{\mathbf J}+\varepsilon_J\mathbf I)^{-1}\hat{\mathbf J}^T$ 時 pole 公式只在 $\hat{\mathbf J}=\mathbf J$ 成立（E24）`,
@@ -85,6 +92,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-SO.8',
+    assumes: '二項分布（試驗 iid）：rule of three 的單邊上界，精確',
     title: '0 次失效時失效機率的單邊上界（rule of three）',
     tex: String.raw`p_U=1-\alpha^{1/n}\approx\frac{-\ln\alpha}{n},\qquad n_\text{need}=\Big\lceil\frac{\ln\alpha}{\ln(1-p_\text{max})}\Big\rceil`,
     conditions: String.raw`獨立試驗、與要涵蓋的條件同分布；$k_f>0$ 時用 Clopper–Pearson`,
@@ -95,6 +103,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-SO.9',
+    assumes: 'L0 純量 LMS + iid Gaussian $x$：三種穩定判準的 closed form，精確',
     title: '純量 iid Gaussian LMS 的三種穩定判準',
     tex: String.raw`|1-\mu P_x|<1,\qquad g_2(\mu)=1-2\mu P_x+\mu^2E[x^4]<1,\qquad \lambda(\mu)=E\big[\log|1-\mu x^2|\big]<0`,
     conditions: String.raw`$x_n$ iid、無外加雜訊；iid 純量時 mean 與 MS 遞迴為精確式（E38）`,
@@ -106,6 +115,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-SO.10',
+    assumes: 'L5 最壞情況位元數（F-04.9）與 shift scaling 的恆等式，精確',
     title: 'GMAC 累加器位元與 shift scaling',
     tex: String.raw`B_\text{acc}\ge B_x+\lceil\log_2N\rceil,\qquad G_\text{shift}=\frac{N}{2^s}G_\text{avg}`,
     conditions: String.raw`被累加的每一筆 $q\,x$ 是有號 $B_x$-bit；two’s complement 累加`,
@@ -116,6 +126,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-SO.11',
+    assumes: 'L5 一階 EFB 對常數目標：整數算術的週期，精確',
     title: '一階 EFB 對常數目標的 limit-cycle 週期',
     tex: String.raw`c=\frac Pq\Rightarrow T_\text{lc}=q,\qquad K_F=\mathrm{round}(w_H2^F)\bmod2^F\Rightarrow T_\text{lc}=\frac{2^F}{\gcd(K_F,2^F)}`,
     conditions: String.raw`$P/q$ 為最簡分數；任何初始 $r$（最多 1 個 sample 的 transient）`,
@@ -127,6 +138,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-SO.12',
+    assumes: 'L3 + Weyl 不等式：$\\sigma_{\\min}$ 的擾動界限，精確（se 給定）',
     title: '量測 Jacobian 的可辨識性門檻（Weyl 不等式）',
     tex: String.raw`|\sigma_i(\hat{\mathbf J})-\sigma_i(\mathbf J)|\le\|\hat{\mathbf J}-\mathbf J\|_F,\qquad \sigma_{\min}(\mathbf J)=0\ \Rightarrow\ P\big(\sigma_{\min}(\hat{\mathbf J})>z\,\|\mathrm{se}\|_F\big)\le\frac1{z^2}`,
     conditions: String.raw`$\hat{\mathbf J}$ 各元素不偏、標準誤 $\mathrm{se}_{ij}$ 已知（實作以樣本估計代入；中央差分截斷偏差可忽略）；Weyl + Markov 不等式，不需分布假設`,
@@ -137,6 +149,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-SO.13',
+    assumes: 'L4 的小角 PM（F-12.18）+ 線性化的 $|T|$ + one-hot 指示函數的 Fourier 係數',
     title: String.raw`從輸出 spur 反推 timing tone 的 peak 與單相 PHOS 殘差（F-12.18 反過來用）`,
     tex: String.raw`\begin{aligned}&A_t=\frac{10^{\mathrm{spur}/20}}{\pi f_\text{out}\,|T(f_m)|}\\[2pt]&\delta_P=\frac{A_t}{\kappa_\text{pat}}\\[2pt]&\kappa_\text{pat}=\frac{2\sin(\pi/P)}{\pi}\\[2pt]&\quad(\text{單相 one-hot})\end{aligned}`,
     conditions: String.raw`小角 $\beta=2\cdot10^{\mathrm{spur}/20}\ll1$（spur $\lesssim-20$ dBc；否則用 F-12.18 的 Bessel 精確式）；單邊 spur；$|T|$ 取 tone 頻率 $f_m$ 處的值——儀器量到的是經 $|T|$ 的輸出（F-12.16），不是 PD 端；$\kappa_\text{pat}$ 依 PMUX pattern 而定：$2\sin(\pi/P)/\pi$ 只對「單一相有殘差、$\alpha f_\text{ref}$ 的基波（$\ell=1$）」成立（$p[n]=\lfloor P\,\mathrm{frac}(\alpha n)\rfloor$、DTC 殘量均勻，就是 F-CS.21 的 $\sqrt{w_1}$ 乘 $2/P$；$\alpha=s/P$ 時相干加總成 $2/P$，8 相差 2.6%），多相殘差用 F-CS.21 的 DFT`,
@@ -145,5 +158,17 @@ export const FORMULAS: FormulaEntry[] = [
     specSection: '12.4、16.2',
     page: '/signoff',
     units: { A_t: 'fs', spur: 'dBc', f_out: 'Hz', delta_P: 'fs', kappa_pat: '無因次' },
+  },
+  {
+    id: 'F-SO.14',
+    assumes: 'L1（$K_q$）+ L2 凍結權重（帶緣、$\\kappa_c$）+ 一階平均模型（重新收斂、斜坡落後）；增益倍率 $s_c$ 與 TC 是 illustrative 的 corner 參數',
+    title: String.raw`PVT corner 表的一列：雜訊、迴路增益與 $a$ 漂移三種效應（§4b）`,
+    tex: String.raw`\begin{aligned}K_c&=\frac{\sqrt{2/\pi}}{\sigma_{v,c}}\,\kappa_c\\[4pt]f_{inv}(s_c)&=\frac1\pi\arcsin\sqrt{\frac{s_cK_i}{2(2-s_cK_p)}}\\[4pt]\Delta a_c&=a\,\mathrm{TC}\,(T_c-25^\circ\mathrm{C})\\[4pt]\delta_{lag,c}&=\frac{a\,\mathrm{TC}\,\dot T\,N}{f_{ref}\,g_c}\end{aligned}`,
+    conditions: String.raw`同一個迴路（案例頁的 L2：1 拍延遲的 P + I，$K_p$、$K_i$ 一起乘上 $s_c$、不重新設計）；$\kappa_c=12\,C_{GOS}(\beta)$ 是該 corner 下鋸齒 regressor 的有效相關（F-CS.11，等於 §4 的 $\cos\theta_c$，可大於 1）；$g_c=\mu K_c$；重新收斂 $k_{re}$ 由 $z^{d+1}-z^d+g_c=0$ 的模態展開逐步求值（$d=0$ 時 $\lceil\ln(\delta_{tol}/\lvert\Delta a_c\rvert)/\ln\lvert1-g_c\rvert\rceil$）；斜坡落後是 $\delta_{k+1}=(1-g_c)\delta_k+r$ 的穩態（Ch14 F-14.12 的 lag 項）；TC、$s_c$、$\sigma_{v,c}$ 皆為 illustrative`,
+    claim: 'exact',
+    level: 'L2',
+    specSection: '16.2',
+    page: '/signoff',
+    units: { K_c: 'fs⁻¹', f_inv: 'Hz', Delta_a: 'fs', TC: 'ppm/°C', delta_lag: 'fs', T_dot: '°C/s' },
   },
 ]

@@ -1,8 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
 import { extractRegion, FormulaLink, listRegions } from '@/components'
 import blockSrc from '@/simulation/models/blockLms.ts?raw'
 import labSrc from '@/simulation/models/unifiedLab.ts?raw'
@@ -12,19 +10,12 @@ import { FORMULAS } from './formulas'
 import LabPage from './index'
 import { EXP, TAB_LABEL, TAB_ORDER } from './logic'
 import { LAB_SYMBOLS } from './symbols'
+import { plotlyMock } from '@/test/mocks/plotly'
+import { renderPage as renderInApp } from '@/test/renderPage'
+import { expectTexParses, expectNoTexErrors } from '@/test/katex'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
-vi.mock('mermaid', () => ({
-  default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: '<svg></svg>' })), parse: vi.fn(async () => true) },
-}))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 type Mode = 'beginner' | 'engineer' | 'research'
 
@@ -66,20 +57,13 @@ afterEach(async () => {
       /* 不合法的 selector：略過 */
     }
   }
-  for (const f of [P.react, P.purge, P.toImage, P.downloadImage, P.Plots.resize]) f.mockClear()
   await new Promise((r) => setTimeout(r, 0))
 })
 
 function renderPage(url = '/lab', mode: Mode = 'engineer', autorun = false) {
   localStorage.setItem('lmspll.mode', mode)
   localStorage.setItem('lmspll.lab.autorun', JSON.stringify(autorun))
-  return render(
-    <SettingsProvider>
-      <MemoryRouter initialEntries={[url]}>
-        <LabPage />
-      </MemoryRouter>
-    </SettingsProvider>,
-  )
+  return renderInApp(<LabPage />, { url })
 }
 
 // 整頁 DOM 很大（KaTeX）：一律用 querySelector，避免 getByRole 掃描整份文件。
@@ -111,7 +95,7 @@ describe('Lab 頁：三種學習模式都能渲染', () => {
     it(`${mode} 模式：不丟例外、沒有 KaTeX 錯誤、沒有程式碼 region 錯誤、沒有漏網的 $...$`, () => {
       const { container } = renderPage('/lab', mode)
       expect(container.querySelector('.lab-page')).not.toBeNull()
-      expect(container.querySelectorAll('.c-tex-error, .katex-error')).toHaveLength(0)
+      expectNoTexErrors(container)
       expect(container.textContent).not.toContain('程式碼載入錯誤')
       expect(container.textContent).not.toContain('找不到程式碼 region')
       const text = visibleText(container)
@@ -123,11 +107,10 @@ describe('Lab 頁：三種學習模式都能渲染', () => {
   }
 
   it('每個登錄的公式 ID 在頁面上恰好有一個 TexBlock 錨點（三種模式都在）；公式的 TeX 可被 KaTeX 解析', async () => {
-    const katex = (await import('katex')).default
     expect(FORMULAS.map((f) => f.id)).toEqual(Array.from({ length: 18 }, (_, i) => `F-LAB.${i + 1}`))
     for (const f of FORMULAS) {
       expect(f.page).toBe('/lab')
-      expect(() => katex.renderToString(f.tex, { throwOnError: true, strict: 'ignore' }), f.id).not.toThrow()
+      expectTexParses(f.tex, f.id, { strict: 'ignore' })
       expect(f.title).not.toContain('$')
       expect(f.conditions).not.toContain('$')
     }
@@ -158,11 +141,10 @@ describe('Lab 頁：三種學習模式都能渲染', () => {
   })
 
   it('符號表：列出本頁所有符號（含三個不同的延遲、兩條路徑），符號的 TeX 可解析；表在頁末（id="symbols"），頁首只留一行按鈕', async () => {
-    const katex = (await import('katex')).default
     expect(LAB_SYMBOLS.length).toBeGreaterThanOrEqual(30)
     for (const s of LAB_SYMBOLS) {
-      expect(() => katex.renderToString(s.symbol, { throwOnError: true, strict: 'ignore' }), s.symbol).not.toThrow()
-      if (s.unit) expect(() => katex.renderToString(s.unit as string, { throwOnError: true, strict: 'ignore' }), s.unit).not.toThrow()
+      expectTexParses(s.symbol, s.symbol, { strict: 'ignore' })
+      if (s.unit) expectTexParses(s.unit as string, s.unit, { strict: 'ignore' })
     }
     const sym = LAB_SYMBOLS.map((s) => s.symbol).join(' ')
     for (const need of ['H_{\\mathrm{PD}}', 'T(z)', 'd,\\ D,\\ d_L', 'K_q', '\\lambda_{\\min}', 'x_{\\mathrm{ref}}']) expect(sym).toContain(need)
@@ -457,7 +439,7 @@ describe('分頁', () => {
       expect(shell(container, map[t]), t).not.toBeNull()
       expect(container.querySelectorAll('.c-exp')).toHaveLength(1) // 只掛載目前的分頁
       expect(tabButton(container, t).textContent).toContain(TAB_LABEL[t])
-      expect(container.querySelectorAll('.c-tex-error')).toHaveLength(0)
+      expectNoTexErrors(container)
     }
     fireEvent.click(tabButton(container, 'pipeline'))
     fireEvent.keyDown(container.querySelector('.lab-tabs') as HTMLElement, { key: 'ArrowRight' })
@@ -548,9 +530,13 @@ describe('Pipeline 分頁：實際執行（jsdom 下 worker 以 inline 模式跑
     expect(pllCells.some((td) => td.classList.contains('lab-num-text') && (td.textContent ?? '').includes('DPLL'))).toBe(true)
     for (const td of Array.from(sh().querySelectorAll('.lab-stage td.lab-num-text'))) expect(td.textContent ?? '', '純數字的格子不該可換行').not.toMatch(/^-?\d+(\.\d+)?(e[-+]?\d+)?$/)
     expect(sh().querySelector('tr[data-check="replay"]')?.closest('table')?.classList.contains('lab-check-table')).toBe(true)
-    expect(/\.lab-check-table \{([^}]*)\}/.exec(labCss)?.[1] ?? '').toMatch(/font-size:\s*0\.82rem/)
+    // 字級與留白不再寫在 lab.css：components.css 的層級對映把 .lab-check-table 放在 xs 層級（--table-fs-xs = 0.82rem、--table-pad-*-xs）
+    const componentsCss = readFileSync(resolve(process.cwd(), 'src/components/components.css'), 'utf8')
+    expect(componentsCss).toMatch(/\.page :is\([^)]*\.lab-check-table[^)]*\) \{\s*font-size: var\(--table-fs-xs\);/)
+    expect(readFileSync(resolve(process.cwd(), 'src/styles/tokens.css'), 'utf8')).toMatch(/--table-fs-xs:\s*0\.82rem/)
+    expect(labCss).not.toMatch(/\.lab-check-table \{/)
     expect(buttonByText(sh(), '下載完整報告 JSON')).toBeDefined()
-    expect(container.querySelectorAll('.c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
     // Run-to-Convergence：不收斂時說明原因
     await act(async () => {
       fireEvent.click(buttonByText(sh(), '執行至收斂') as HTMLButtonElement)
@@ -582,16 +568,16 @@ describe('Pipeline 分頁：實際執行（jsdom 下 worker 以 inline 模式跑
     // 警告也出現在實驗框最上方（全部警示可見），而且裡面的 TeX 都有被渲染
     const warns = Array.from(sh().querySelectorAll('.c-exp-warnings .callout')).map((n) => n.textContent ?? '')
     expect(warns.some((w) => w.includes('固定點不是常數'))).toBe(true)
-    expect(container.querySelectorAll('.c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
     // w 圖：mean-field 平均軌跡，加上線性時不變模型的對照線（兩者差很多 ⇒ 預設就顯示）
-    await waitFor(() => expect(P.react.mock.calls.length).toBeGreaterThan(0))
-    const traces = P.react.mock.calls.flatMap((c) => (c as unknown as [unknown, { name?: string; visible?: unknown }[]])[1])
+    await waitFor(() => expect(plotlyMock.react.mock.calls.length).toBeGreaterThan(0))
+    const traces = plotlyMock.react.mock.calls.flatMap((c) => (c as unknown as [unknown, { name?: string; visible?: unknown }[]])[1])
     expect(traces.some((tr) => (tr.name ?? '').includes('mean-field 平均軌跡'))).toBe(true)
     const lin = traces.find((tr) => (tr.name ?? '').includes('線性時不變模型'))
     expect(lin).toBeDefined()
     expect(lin?.visible).toBe(true)
     // 圖例與軸標題：作者寫 `$...$`（LaTeX），<Plot> 先用 plotMath 轉成 Plotly 的 pseudo-HTML（斜體符號與上下標）——送進 Plotly 的字串不可殘留 `$`、反斜線或大括號
-    const shown = P.react.mock.calls.flatMap((c) => {
+    const shown = plotlyMock.react.mock.calls.flatMap((c) => {
       const [, data, layout] = c as unknown as [unknown, { name?: string }[], { xaxis?: { title?: { text?: string } }; yaxis?: { title?: { text?: string } } }?]
       return [...data.map((t) => t.name ?? ''), layout?.xaxis?.title?.text ?? '', layout?.yaxis?.title?.text ?? '']
     })
@@ -621,8 +607,8 @@ describe('Pipeline 分頁：實際執行（jsdom 下 worker 以 inline 模式跑
     expect(sh().textContent).toContain('鄰近 bin 的中位數')
     expect(sh().querySelector('tr[data-check="meanW"]')?.getAttribute('data-status')).toBe('ok')
     // 兩條模型線重合（iid ±1、小訊號）：線性時不變模型預設收在圖例裡
-    await waitFor(() => expect(P.react.mock.calls.length).toBeGreaterThan(0))
-    const traces = P.react.mock.calls.flatMap((c) => (c as unknown as [unknown, { name?: string; visible?: unknown }[]])[1])
+    await waitFor(() => expect(plotlyMock.react.mock.calls.length).toBeGreaterThan(0))
+    const traces = plotlyMock.react.mock.calls.flatMap((c) => (c as unknown as [unknown, { name?: string; visible?: unknown }[]])[1])
     expect(traces.find((tr) => (tr.name ?? '').includes('線性時不變模型'))?.visible).toBe('legendonly')
   }, 90_000)
 
@@ -649,7 +635,7 @@ describe('其他分頁的 preset 載入', () => {
     const warns = Array.from(sh().querySelectorAll('.c-exp-warnings .callout')).map((n) => n.textContent ?? '')
     expect(warns.some((w) => w.includes('14 個 FCW') && w.includes('更新極性錯誤'))).toBe(true)
     expect(sh().querySelectorAll('tr.lab-row-bad').length).toBeGreaterThanOrEqual(14)
-    expect(sh().querySelectorAll('.c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(sh())
   }, 120_000)
 
   it('?preset=lab-compare-regressor：Compare 分頁出現 Case A / B / C 與差異表（regressor、code delay）', async () => {
@@ -671,7 +657,7 @@ describe('其他分頁的 preset 載入', () => {
     await waitFor(() => expect(sh().textContent).toContain('分析完成'), { timeout: 60_000 })
     expect(sh().textContent).toContain('3 / 3')
     expect(sh().textContent).toContain('MASH 1-1-1 frac=0.001')
-    expect(sh().querySelectorAll('.c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(sh())
     const cc = Array.from(sh().querySelectorAll('.c-exp-crosscheck .c-check')).map((n) => n.className)
     expect(cc[1]).toContain('not-implemented') // Monte Carlo 欄誠實標示
   }, 120_000)

@@ -118,6 +118,26 @@ docs/                    # 規格、勘誤、假設、風格規範、本文件
 
 學習模式：`useSettings().mode` / `atLeast('engineer')`。三種模式**共用同一計算核心**，只改變呈現：低於 `ModeGate min` 的內容不渲染；共用的 `Derivation` 預設只在 Research 模式展開（可用 `defaultOpen` 覆寫，使用者手動切換優先）。
 
+### 2.1 視覺：徽章語意、表格層、設計 token（design-system，2026-10-19）
+
+- **設計 token 只有兩個檔**：顏色在 `src/styles/global.css` 的 `:root`（對比度測試直接解析它），字級階 `--fs-2xs…--fs-2xl`、間距階 `--space-1…--space-8`、左色條 `--bar-w`／`--bar-w-lg`、`--radius-pill`／`--radius-xs`／`--shadow-sm`、表格 `--table-*`、徽章 `--badge-*`／`--verified` 在 `src/styles/tokens.css`（global.css 第一行 `@import`）。`global.css` 與 `components.css` 裡的字級與 gap／padding 一律引用 token（`styles.test.ts` 會抓殘留的字面值）；不在階上的值（0.9rem、0.8rem…）暫時保留。新頁面的 CSS 請直接用 token，不要再長出新的字面值。
+- **徽章只有一個基底**：`c-badge` + `c-badge--<variant>`（`Badge`／`TipBadge`／`BadgeRow`，`src/components/Tags.tsx`）。variant 只改三個顏色變數（`--b-fg`／`--b-bg`／`--b-bd`）與框線樣式；尺寸全站同一組。**一種顏色只代表一件事**：
+
+  | 語意 | variant | 外觀 |
+  |---|---|---|
+  | 結論強度（`ClaimTag`） | `exact`／`approx`／`research` | 綠實心／琥珀實心／紫實心（字用 `--badge-on-solid`） |
+  | 模型層級（`ModelLevel`） | `level` | 藍描邊、等寬字；L0–L6 同一種顏色 |
+  | T-id 測試狀態（`TestBadge`） | `verified`／`partial`／`fail`／`pending` | 青綠帶 ✓（`--verified`，和「精確」的綠分開）／琥珀描邊／紅／灰虛線 |
+  | 規格勘誤（各頁的 `ErratumTag`） | `erratum` | 琥珀描邊，**不是實心**（和「近似」分開） |
+  | 範例來源（`SourceTag`） | `source`（illustrative 加 `is-dashed`） | 灰描邊；illustrative 虛線 |
+  | 交叉比對與判決（`c-check`、各頁的狀態 pill） | `ok`／`mismatch`／`na`／`not-implemented` | 綠／紅／灰軟底／琥珀虛線 |
+  | 沒有語意（計數、ID） | `neutral` | 灰 |
+
+  舊的類別名（`c-claim-exact`、`c-level-L3`、`c-source-measured`、`c-test-pass`…）仍在 DOM 上當測試與資料的 hook，但**不再有樣式**。各頁自己的 pill（`ch07-erratum-tag`、`lab-pill-*`、`fr-badge`、`ver-chip-*`、`dash-chip`…）應改成 `badgeClass('<variant>', '<自己的 hook>')`，自己的 CSS 只留版面（margin、連結的 hover），不再定義顏色與尺寸。
+- **徽章數量**：同一行連續 ≥ 4 個徽章用 `BadgeRow`（顯示前 3 個 + 「+N」按鈕，點開展開、再點收起；摺起來的項目不在 DOM 裡）。外層沿用 `.c-tag-row`，既有版面規則不變。章節標題下那排 `ClaimTag`／`ModelLevel`／`SourceTag`／`TestBadge` 應改用它。
+- **表格**：`global.css` 的 `table`／`th, td` 只引用 `--table-fs`／`--table-pad-y`／`--table-pad-x`／`--table-border`／`--table-head-bg`；三個層級（default／sm／xs）的值在 `tokens.css`，手機（≤ 480px）由 `tokens.css` 的 `@media` 把三個層級各縮一級——**章節不要再寫自己的手機表格規則**。`.c-table`（以及 `.c-metric-table`、`.c-symbols table`、`.c-derivation-table`、sign-off 的表，由 `components.css` 的選擇器清單自動套上）：橫線＋斑馬紋（`--table-stripe`）、不畫直向格線、數字欄 `.num` 靠右、公式欄 `.formula` 不換行且只占內容寬、`.c-table--sticky` 讓表頭黏在頂列下（外框不是捲動容器時才有效）。斑馬紋與格線用 `:where()` 寫成零特異度，頁面自己的卡片排版壓得過。各頁表格 class 的字級／內距由 `components.css`「Table」一節的 `.page :is(…)` 清單對映到層級（挑層級的原則：**寬度不增加**，否則會冒出只能捲幾 px 的橫向捲軸）；章節 CSS 裡對應的 `font-size`／`padding` 規則可以刪掉。
+- **數字 −0**：`fmtNum`（`src/components/format.ts`）與 `texNum`（`handcalcMath.ts`）對 −0 已回 `0`；用 `toFixed` 自己格式化的地方（`case-sspll/common.tsx` 的 `fx`／`tx` 已處理）要把 `/^-0\.?0*$/` 正規化成 `0`，不要顯示 −0.000。
+
 ## 3. 互動實驗規範（規格 §19）
 
 `ExperimentShell` props（概要；完整型別見 `src/components/ExperimentShell.tsx` 的 `ExperimentShellProps` 與 `src/components/types.ts`）：
@@ -160,6 +180,10 @@ interface ExperimentShellProps {
    - `'animate'`：固定速度逐步播放（Ch01 LMS Playground 350 ms／步、Ch04 Signal Flow 300 ms／步，後者約 2 分鐘）。要同時給 `progress`（Run 鈕顯示「（112/408 步）」與進度條，停在半路也看得到）與 `onSkipToEnd`（多一顆「跳到結尾」，到了終點就停用）；手機上按執行就捲到結果區，因為結果從第一步就在變。
    - 「跳到結尾」必須和逐步執行共用同一個計算核心（把游標／狀態直接放到終點，不要另寫一份「快速版」），否則跳到結尾看到的結果和一步一步看到的會不一樣。
 8. 參數控制項超過 12 個（`CONTROL_COLLAPSE_THRESHOLD`）就要分組：用 `ControlGroup`（`@/components`，`title`、`defaultOpen?`）把相關的控制項包起來；超過門檻時整欄自動變成每組一個 `<details>`（第一組展開、其餘收合），12 個以內只是帶小標題的區塊。沒有明確分組時，ExperimentShell 會在前 8 個控制項之後自動切一刀，把其餘收進「其餘參數」。控制欄不准出現內部捲軸——太長就分組，不要加 `overflow: auto`。
+
+9. **分享網址**（wave 4）：實驗外框要呼叫 `useExperimentUrlSync`（`src/components/experimentUrl.ts`），讓 preset／seed 寫進 `?a=exp-<id>&p=<presetId>&seed=<n>`（`replaceState`），工具列放 `CopyLinkButton`；preset 要有穩定的 `id`（`ExperimentPreset.id`，沒有就用名稱的 slug）。細節與 ExperimentShell 的接法見 `docs/dev/infra-api.md`「分享與回連」。實驗自己不必處理網址；只有像 ch01 那樣另外讀 `?preset=` 的做法要保持相容（hook 兩者都讀，寫入時把 `preset=` 換掉）。
+
+10. **Beginner 的精簡參數面板**（wave 4，beginner-backbone）：`src/app/beginnerControls.ts` 的 `BEGINNER_CONTROLS[experimentId]` 列出 Beginner 模式先露出的 3–5 個控制項 key（控制項的 `ariaLabel`、`reg`、`id` 或 label 的可念文字都可以；比對前經 `normalizeControlKey`：NFKC、小寫、去空白與底線，所以 `σᵥ（…）` 與 `σ_v(…)` 相同）。`ExperimentShell` 在 Beginner 模式沿著 `controls` 的 React 元素樹（`partitionBeginnerControls`）把 `ParamControl`／`SelectControl`／`ToggleControl` 分成「留在面板」與「更多參數（N 個）」（`details.c-exp-more`，預設收合，`.c-exp-controls[data-trimmed="true"]`）；Fragment、原生元素與 `ControlGroup` 會被拆成兩份，章節自訂的包裝元件看不進去、一律保留在面板上。表裡沒有的實驗、或清單一個都對不上（標籤改了），就全部顯示。精簡狀態下不再分組收合、也不自動切「其餘參數」；工具列（執行、跳到結尾…）不受影響。新增實驗（尤其 Beginner 骨幹路線上的）請補清單：挑 preset 會改到、而且是這個實驗要教的那幾個；標籤隨 Case 變動的控制項（「— Case A」）用 `reg`。`src/app/beginnerControls.test.ts` 檢查 experimentId 存在於原始碼、每張清單 3–5 個、key 不重複；`src/components/ExperimentShell.test.tsx` 以 Ch01 LMS Playground 為例。骨幹路線本身（`src/app/backbone.ts`）見 `docs/dev/infra-api.md`「Beginner 骨幹路線與精簡參數面板」。
 
 ## 4. 模擬核心 API 概要（`src/simulation/core`、`src/simulation/signal`）
 
@@ -223,15 +247,53 @@ xcorrAtLag(x, y, lag), xcorr(x, y, maxLag)
 - 每個 preset 一個檔：`src/data/presets/<preset-id>.json`（`PresetEntry`）。規格 §19.2 的 12 個 Gallery presets 填 `galleryIndex` 1–12。
 - 實驗元件以 `useUrlPreset(experimentId)`（`@/app/presets`）讀取 `?preset=<id>` 並套用參數；`presetsForExperiment(id)` 可餵給 `ExperimentShell` 的 presets 下拉。
 
+- **「在哪個模型內精確」（2026-10-19，depth 審查）**：`FormulaEntry` 多一個可選欄位 `assumes?: string`——一句話說這條公式的 `claim` 是在哪個模型內成立（線性小訊號、frozen weight、單頻、mean-field、L5 的均勻餘數…；`approx` 時寫近似從哪個模型外推；支援 `$…$`）。`/formulas` 的登錄表在每條公式的使用條件下面多一行「在哪個模型內精確」：公式有自己的 `assumes` 就用它，沒有就顯示該章 `src/app/chapterMeta.ts` 的 `models`（章的預設，標「（本章預設）」）；工具頁沒有章節骨架時不顯示。每章的 `models: ChapterModel[]`（1–4 個，從 `CHAPTER_MODEL_CATALOG` 的 L0–L5 與三個常見假設 `frozen-weight`／`single-tone`／`mean-field` 用 `chapterModel(id)` 取，可覆寫 `assumes`）由 `ChapterInfoStrip` 顯示成「本章的『精確』是在：…」一行（tooltip 列每個模型的假設）；`chapterMeta.test.ts` 檢查每章至少一個 L 層級、id 都在清單裡。Ch04、案例頁、Sign-off 的 `formulas.ts` 已逐條填 `assumes`，其餘章節先用章的預設（新寫的公式請直接填）。**整合（wave 4）**：其餘章與工具頁的 `formulas.ts` 也逐條填了 `assumes: modelAssumes('L1')`（`src/app/chapterMeta.ts`；用公式自己的 `level` 取 `CHAPTER_MODEL_CATALOG` 的「標籤：假設」，章裡有 `frozen-weight`／`single-tone`／`mean-field` 且公式的標題或條件提到時再接上）——文字只有目錄一份，改假設時一起變；這條公式的條件比模型更特別時直接寫一句自己的話。`chapterMeta.test.ts` 檢查登錄表的每一條都有 `assumes`、`$` 成對。
+
 ## 6. 測試
 
-- Vitest：`src/**/*.test.ts(x)`。`.test.ts` 在 node 環境執行，`.test.tsx` 在 jsdom（`vite.config.ts` 的 `environmentMatchGlobs`；Vitest 3 會警告這個選項已 deprecated，行為不變）。純數值的 `.test.ts` 若需要 DOM，在檔案第一行寫 `// @vitest-environment jsdom`。整頁 smoke test 很重，`vite.config.ts` 把 `testTimeout` 放寬到 60 s。同時有多個程序在跑時，只跑需要的檔案並限制 worker：`npx vitest run src/chapters/ch05 --maxWorkers=3`。
+- Vitest：`src/**/*.test.ts(x)`。`.test.ts` 在 node 環境執行，`.test.tsx` 在 jsdom（`vite.config.ts` 的 `test.workspace` 定義 `node`、`jsdom` 兩個 project，見下方 §6.1）。純數值的 `.test.ts` 若需要 DOM，在檔案第一行寫 `// @vitest-environment jsdom`。整頁 smoke test 很重，`vite.config.ts` 把 `testTimeout` 放寬到 60 s。同時有多個程序在跑時，只跑需要的檔案並限制 worker：`npx vitest run src/chapters/ch05 --maxWorkers=3`。
 - 數值測試用 `toBeCloseTo` 或相對誤差斷言；Monte Carlo 用固定 seed + 信賴區間。
 - 每個 T-id 至少一個以 `T01:` 開頭命名的測試（`it('T01: ...')`，T-id 要在 `it` 的標題開頭，放在 `describe` 不算），Python 端是 `test_T01_…`；`scripts/verify.mjs` 依此彙整 `src/data/verification-status.json`。
 - Golden 交叉比對：TypeScript 端各章的測試（例如 `src/chapters/ch00/model.test.ts`）以 `readFileSync` 讀 `golden/vectors/Txx.json`；Verification 頁用 `src/pages/verification/golden.ts` 靜態匯入同一批檔案。向量格式與判定規則（`|actual − expected| ≤ abs + rel·|expected|`）見 `golden/README.md`。
 - 反面測試（規格 §17 末段）：極性反轉、缺乏 PE、Code misalignment、N 改變卻忘記 scaling、定點 overflow、錯誤位元符號、路徑混淆、aliasing。
 - **內容規範測試**：有幾個測試會讀原始碼與文件的字串，改文字時要一起改。`src/data/architectureConvention.test.tsx` 檢查全站架構約定（README、`docs/*.md`、`src/simulation` 檔頭、preset 與勘誤裡的敘述）；`src/data/docsFacts.test.ts` 核對 README 的數量（公式、preset、手算題、勘誤、T-id 狀態）、文件中寫到的檔案路徑是否存在，以及 §8 的腳本旗標是否都有寫在文件裡。
 - **版面無法在 jsdom 測**：捲軸、圖寬、字會不會被切掉要用 §8 的腳本在真正的瀏覽器裡量。
+
+### 6.1 測試怎麼寫（用 `src/test/` 的工具；2026-10-19）
+
+**兩個 project**（`vite.config.ts` 的 `test.workspace`；Vitest 3.2 起這個鍵改名 `projects`，升級時只改鍵名）：
+
+| project | 檔案 | 環境 | 單獨執行 |
+|---|---|---|---|
+| `node` | `src/**/*.test.ts` | node | `npx vitest run --project node` |
+| `jsdom` | `src/**/*.test.tsx` | jsdom | `npx vitest run --project jsdom [--shard=i/N]` |
+
+不加 `--project` 兩個都跑（`npm test`、`npm run verify` 照舊，`scripts/verify.mjs` 讀到的 JSON 報告含全部檔案）。純函式、資料、文件字串的測試寫 `.test.ts`；要 render React 的寫 `.test.tsx`。`.test.ts` 第一行的 `// @vitest-environment jsdom` 仍然有效（檔案留在 `node` project，CI 的 unit job 跑得到）。每個 project 有自己的 setup 檔：`src/test/setup.node.ts`、`src/test/setup.jsdom.ts`。
+
+**jsdom 測試的樣板**（API 見 `docs/dev/infra-api.md`「測試工具 `src/test/`」）：
+
+```tsx
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
+import Chapter05 from './index'
+
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
+
+it('整章可渲染', () => {
+  const { container } = renderPage(<Chapter05 />, { url: '/ch/05', mode: 'engineer' })
+  expectNoTexErrors(container)
+})
+```
+
+- **不要自己再寫** Plotly／Mermaid 的 `vi.hoisted` 假物件、`SettingsProvider` + `MemoryRouter` 的 `render` 包裝、`querySelector('.katex-error')` 的斷言。Plotly 的 `mock.calls` 會抓住 DOM 節點，`setup.jsdom.ts` 已在每個測試前後清掉；jsdom selector 引擎的快取也是（`src/test/releaseDom.ts`）。
+- **學習模式**：預設是 Beginner（很多區塊被藏起來）。要數圖、數段落、找 Engineer／Research 才有的內容，`renderPage` 一律給 `mode: 'engineer'`（或 `'research'`）；沒給 `mode` 就不動 `localStorage`。
+- **KaTeX**：`expectNoTexErrors(root)` 抓 `.katex-error`／`.c-tex-error`；「未定義的控制序列」（例如把 `\mu` 和 `e` 黏成 `\mue`）只是紅字，要用 `expectNoStrictTexErrors(root)`（每個公式用 `throwOnError: true` 重新解析）；單一字串用 `expectTexParses(tex, label, { displayMode, strict })`。
+- **不要在整章上用 `getByRole`**（jsdom 要為上千個 KaTeX 節點算 accessibility tree，數秒且吃數百 MB），用 `container.querySelector` 加明確的 selector。
+- **逾時**：`testTimeout` 預設 60 s。需要更久的（整章 + inline worker 的 Monte Carlo）在該 `it` 的第三個參數放寬，或檔案開頭 `vi.setConfig({ testTimeout })`；只放寬等待時間，不放寬任何數值判準。
+- **哪些 mock 不共用**：要記錄 `applyPlotMath` 的 data／layout、替換 `<Mermaid>` 元件、或「真的畫出 mermaid SVG」（`renderMermaidForTest`）的測試，保留自己的 `vi.mock`（理由與清單在 infra-api 該節最後一條）。
+
+**巨型測試要拆**：單一 `it` 超過 60 秒（`npx vitest run <檔案> --reporter=verbose` 看每個 `it` 的耗時；整批用 `--reporter=json --outputFile=<檔>` 再依 `assertionResults[].duration` 排序）或超過 300 行，就拆成 `describe` + `mountPageOnce`：`beforeAll` 渲染一次、`afterAll` 卸載，每個 `it` 只檢查一件事、標題寫出意圖。順序：只讀的斷言在前 → 等 worker 算完的 `waitFor` → 會改動 DOM 的操作與整章的收尾檢查（`it` 依宣告順序執行）。範例：`src/chapters/ch06/ch06.test.tsx` 的「Research 模式整章（共用一次渲染）」。拆的時候留意：（1）RTL 的自動 cleanup 追蹤不到 `mountPageOnce` 的樹，一定要在 `afterAll` 呼叫它回傳的 `unmount()`；（2）`plotlyMock`／`mermaidMock` 的呼叫紀錄在每個 `it` 之後被清空，要比對就在 `beforeAll` 先複製出來；（3）`T07:` 這類 T-id 前綴只放在一個 `it`（`scripts/verify.mjs` 以前綴彙整，名稱與數量變動要重跑 `npm run verify` 更新 `src/data/verification-status.json`）。
 
 ## 7. 語言與文字
 
@@ -240,6 +302,7 @@ xcorrAtLag(x, y, lag), xcorr(x, y, maxLag)
 - 不得把未完成功能標成已驗證；未實作 = 明確顯示 `Not implemented` / `pending`。
 - 無障礙名稱（aria-label、title、aria-valuetext、`<option>`）一律用 `accessibleText`（`@/components`，會把 `$…$` 轉成可念的文字），不用 `stripMathDelimiters`（它保留 TeX 原始碼，只用在 id、檔名、程式碼與報告）；`CodeCompare` 的分頁標籤可以含 `$…$`。
 - ARIA 模式（細節與 API 見 `docs/dev/infra-api.md`「ARIA 模式、表格標題、觸控目標、404 與頁面標題」）：分頁一律 `role=tablist/tab/tabpanel` 並用 `useRovingTabs`（roving tabindex、←→／Home／End）；每張 `<table>` 要有 `<caption>`（可 `c-sr-only`）與 `<th scope>`；純顯示的徽章不可聚焦（沒有 `tabIndex`）、tooltip 以 `aria-describedby` 連結並可用 Esc 關閉；≤ 600 px 的互動元素至少 24×24 px、輸入框字級 16 px；頁面藏在 `ModeGate` 後的內容要給 `summary`。
+- 圖的文字替代：每張方塊圖（`Mermaid`、`SystemMap`）下方有收合的「文字版」（節點、連線、群組），每張 `Plot` 下方有「看數據」（每條曲線的點數、x 範圍、y 的最小／最大／首值／末值）；`<figure aria-describedby>` 指到它，內容惰性渲染。新的圖元件要走 `DiagramFrame` 的 `chart`／`textModel`，不要自己再包一層；Plot 的 modebar 鍵盤聚焦不到，等價的按鈕在 `.c-plot-kbar`。細節與限制見 `docs/dev/infra-api.md`「圖的文字替代」。
 
 ## 8. 審查腳本（改了畫面就要跑）
 
@@ -301,6 +364,20 @@ node scripts/dom-eval.mjs 'http://localhost:5173/#/ch/05' 'return document.query
 驗證管線是另一件事：`node scripts/verify.mjs [--no-run] [--strict]`（等於 `npm run verify`）跑 Vitest 與 pytest，依測試名稱中的 T-id 更新 `src/data/verification-status.json`（`--no-run` 只解析 `outputs/` 內既有的報告；`--strict` 把未對應 T-id 的失敗與無法載入的測試檔也視為失敗）。只有 TypeScript 與 Python 兩邊都通過的 T-id 才會標成 verified。
 
 **建置大小（`scripts/check-bundle-size.mjs`）**：`npx vite build && node scripts/check-bundle-size.mjs dist` 檢查 plotly／最大非 plotly chunk／所有 JS 總和的位元組預算（超過就失敗），並和 git 裡的 `scripts/bundle-baseline.json` 比較，成長超過 10% 只警告。合併了大量內容、或刻意升級套件之後，重建並執行 `node scripts/check-bundle-size.mjs dist --update-baseline` 更新基準檔，再把更新後的檔案一起 commit。`--self-test` 只驗證判定邏輯。路由 chunk 的檔名是 `chapter-chNN-*`／`page-<名稱>-*`（`vite.config.ts` 的 `chunkFileName`），表格裡看得出是哪一章或哪一頁變大。
+
+### CI 怎麼跑測試（`.github/workflows/`；2026-10-19）
+
+| workflow | 觸發 | 跑什麼 | 擋 PR？ |
+|---|---|---|---|
+| `ci.yml` 的 `unit` job | PR、push 到 main | `npx vitest run --project node`（`src/**/*.test.ts`，約 129 檔、2,800 項） | 是（`ci-ok` 彙整） |
+| `jsdom-tests.yml` | push 到 main、每週一 03:00 UTC、`workflow_dispatch` | `npx vitest run --project jsdom --shard=i/4 --maxWorkers=2`（`src/**/*.test.tsx`，約 150 檔、3,677 項，4 個 shard 平行，每個 `timeout-minutes: 30`） | 否（不擋 PR，也不擋部署：`deploy.yml` 只等 `ci.yml`） |
+| `verify-status.yml` | 每週一 02:00 UTC | `npm run verify`（兩個 project 全跑 + pytest），比對 `src/data/verification-status.json` | 否 |
+
+- **為什麼 jsdom 不擋 PR**：整章 smoke test 一次渲染上千個 KaTeX、Mermaid、手算題與 inline worker，單一測試的逾時設在 120–600 s，GitHub runner 只有 2–4 vCPU；擋 PR 會讓每個 PR 等很久，還會因逾時偶發失敗。改成 push 到 main 之後與每週各跑一次，壞掉時下一輪就看得到。穩定幾週之後可以改成 PR 上只跑「有改到的檔案」（`vitest run --changed origin/main --project jsdom`），目前還沒有做。
+- **改了章節或共用元件的 PR**：本機跑 `npx vitest run <相關檔案> --maxWorkers=2`，或到 Actions 頁面手動觸發「jsdom tests」並選你的分支（`workflow_dispatch`）。
+- **本機重現某個 shard**：`npx vitest run --project jsdom --shard=3/4 --maxWorkers=2`。`--shard` 依檔案切（不是依耗時），所以各 shard 的時間不平均。
+- **shard 數的決定依據**（2026-10-19，Apple silicon 開發機、同時有其他程序在跑、`--maxWorkers=2`）：4 個 shard 的牆鐘時間是 109 s、206 s、214 s、243 s（40／40／40／37 檔；1,000／774／953／950 項），總和約 13.5 分鐘。GitHub runner（4 vCPU）估計比開發機慢 2–3 倍，最慢的 shard 預期 10–12 分鐘，遠低於 30 分鐘的 timeout；規則：**單一 shard 在本機超過 20 分鐘就改成 6 個 shard**（同時改 `jsdom-tests.yml` 的 `matrix.shard` 與 `env.SHARDS`）。每個 shard 會上傳 JSON 報告（`outputs/vitest-jsdom-<i>.json`，保留 14 天），每個 `it` 的耗時都在 `assertionResults[].duration`。
+- **Vitest 升到 3.2 以上**：`vite.config.ts` 的 `test.workspace` 改名 `test.projects`（內容不變），`--project`／`--shard` 的用法不變。
 
 ## 9. 交叉比對欄位語意（`crossCheck`：Analytic／Monte Carlo／Fixed-Point；2026-10-19）
 

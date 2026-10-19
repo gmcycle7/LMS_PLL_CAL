@@ -1,6 +1,4 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
 import { pageById } from '@/app/registry'
 import { ALL_HANDCALCS } from '@/app/handcalcs'
 import { presetsForExperiment } from '@/app/presets'
@@ -11,29 +9,15 @@ import { InlLmsLab, LMS_ID } from './experiments/InlLmsLab'
 import { BasisLab, BASIS_ID } from './experiments/BasisLab'
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
+import { plotlyMock } from '@/test/mocks/plotly'
+import { wrapPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
-vi.mock('mermaid', () => ({
-  default: {
-    initialize: vi.fn(),
-    render: vi.fn(async (id: string) => ({ svg: `<svg id="${id}"></svg>`, diagramType: 'flowchart-v2' })),
-  },
-}))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 function wrap(node: React.ReactNode, url = '/ch/11b') {
-  return (
-    <SettingsProvider>
-      <MemoryRouter initialEntries={[url]}>{node}</MemoryRouter>
-    </SettingsProvider>
-  )
+  return wrapPage(node, { url })
 }
 
 // 第一次造訪的預設是 Beginner；這個檔案的斷言照 Engineer 模式寫（個別測試另外設定）
@@ -43,7 +27,6 @@ afterEach(async () => {
     await new Promise((r) => setTimeout(r, 20))
   })
   cleanup()
-  for (const f of [P.react, P.purge, P.toImage, P.downloadImage, P.Plots.resize]) f.mockClear()
   localStorage.clear()
 })
 
@@ -84,7 +67,7 @@ function plotlyStrings(): string[] {
     }
     for (const [k, x] of Object.entries(v)) walk(x, k, depth + 1)
   }
-  for (const [, data, layout] of P.react.mock.calls as unknown as PlotlyCall[]) {
+  for (const [, data, layout] of plotlyMock.react.mock.calls as unknown as PlotlyCall[]) {
     walk(data, null, 0)
     walk(layout, null, 0)
   }
@@ -188,8 +171,8 @@ describe('Ch11b smoke tests（jsdom）', () => {
     expect(chrefs.length).toBeGreaterThan(10)
     expect(container.querySelectorAll('.c-chref-missing').length).toBe(0)
     // 所有 TeX 都能被 KaTeX 解析；沒有殘留的 $；控制項與指標表的數學都是 KaTeX
-    await waitFor(() => expect(P.react).toHaveBeenCalled(), { timeout: WAIT })
-    expect(Array.from(container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.textContent)).toEqual([])
+    await waitFor(() => expect(plotlyMock.react).toHaveBeenCalled(), { timeout: WAIT })
+    expectNoTexErrors(container)
     expect(container.textContent ?? '').not.toMatch(/\$/)
     expect(expectLatexControls(container)).toBeGreaterThan(30)
     const plotText = expectTypesetPlotStrings()
@@ -208,9 +191,9 @@ describe('Ch11b smoke tests（jsdom）', () => {
     expect(container.querySelector('#ch11b-folding')).toBeTruthy()
     if (mode === 'research') expect(screen.getByText(/Python golden model/)).toBeTruthy()
     else expect(screen.queryByText(/Python golden model/)).toBeNull()
-    expect(Array.from(container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.textContent)).toEqual([])
+    expectNoTexErrors(container)
     expect(container.textContent ?? '').not.toMatch(/\$/)
-    await waitFor(() => expect(P.react).toHaveBeenCalled(), { timeout: WAIT })
+    await waitFor(() => expect(plotlyMock.react).toHaveBeenCalled(), { timeout: WAIT })
   }, SMOKE_TIMEOUT)
 
   it('實驗 A（inline）：自動計算後 KPI 顯示帶內 rms，Analytic 欄 ok（精確式 ±12%）；?preset= 載入 uniform', async () => {
@@ -220,7 +203,7 @@ describe('Ch11b smoke tests（jsdom）', () => {
     const check = container.querySelector('.c-exp-check, [data-check="analytic"]')
     expect((check?.textContent ?? container.textContent ?? '')).toContain('相對差')
     expect(expectLatexControls(container)).toBeGreaterThan(8)
-    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(container)
     const strings = expectTypesetPlotStrings()
     expect(strings).toContain('<i>f</i>（Hz，log）')
     unmount()
@@ -235,7 +218,7 @@ describe('Ch11b smoke tests（jsdom）', () => {
     await waitFor(() => expect(container.querySelector('.ch11b-kpi-value')?.textContent).toMatch(/^[89]\.\d+ → 0\.\d/), { timeout: WAIT })
     expect(container.textContent).toContain('✓ 與解析值一致')
     expect(expectLatexControls(container)).toBeGreaterThan(15)
-    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(container)
     expect(container.textContent ?? '').not.toMatch(/\$/)
     const strings = expectTypesetPlotStrings()
     expect(strings).toContain('block <i>b</i>')
@@ -250,7 +233,7 @@ describe('Ch11b smoke tests（jsdom）', () => {
     await waitFor(() => expect(container.querySelectorAll('.ch11b-kpi').length).toBe(4), { timeout: WAIT })
     expect(container.textContent).toContain('monomial')
     expect(container.textContent).toMatch(/67\.[456]/) // 樣本 R（uniform 隨機樣本）的條件數 ≈ 67.6
-    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(container)
     expect(container.textContent ?? '').not.toMatch(/\$/)
     expectTypesetPlotStrings()
   }, LAB_TIMEOUT)

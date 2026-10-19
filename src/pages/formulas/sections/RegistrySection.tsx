@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ClaimTag, mathText, Mermaid, ModelLevel, Section, SelectControl, TexBlock, ToggleControl } from '@/components'
 import { CLAIM_LABEL, type ClaimKind, type ModelLevelId } from '@/components'
 import { ALL_FORMULAS, registryStats, type RegistryRow } from '../registry'
+import { chapterFrameMeta } from '@/app/chapterMeta'
 import { ErrataList, FormulaLink, Gate, MatchCount, NoMatch, useMode, shortPageLabel } from '../common'
 import { CHART_FORMULA_LINKS } from '../diagrams'
 import { useNarrow } from '../useNarrow'
@@ -16,6 +17,17 @@ const LEVELS: ModelLevelId[] = ['L0', 'L1', 'L2', 'L3', 'L4', 'L5', 'L6']
 const PAGE_SIZE = 60
 /** 登錄表的內容欄窄於這個寬度（px）就自動改成卡片檢視：兩欄表格在這個寬度以下，公式欄只剩 580px 不到，放不下的公式要折成三四行 */
 export const REGISTRY_CARDS_BELOW = 720
+
+/**
+ * 「在哪個模型內精確」欄的文字（2026-10-19，depth 審查：1,320 個 exact 對 664 個 approx，讀者分不清依賴的是哪個模型）：
+ * 公式自己有 `assumes` 就用它；沒有就退回該章 chapterMeta 的 models（章的預設），都沒有時回傳 null（工具頁沒有章節骨架）。
+ */
+export function formulaModelText(f: Pick<RegistryRow, 'assumes' | 'pageId'>): { text: string; fromChapter: boolean } | null {
+  if (f.assumes) return { text: f.assumes, fromChapter: false }
+  const meta = f.pageId ? chapterFrameMeta(f.pageId) : undefined
+  if (!meta || meta.models.length === 0) return null
+  return { text: meta.models.map((m) => m.label).join('、'), fromChapter: true }
+}
 
 export function registryDomId(id: string): string {
   return `fr-ref-${id.replace(/[^\w-]/g, '_')}`
@@ -99,7 +111,7 @@ export function RegistrySection({ rows, searching, focusId }: { rows: RegistryRo
     <Section kind="formula" level={2} id="fr-registry" title="4　全站公式登錄（Formula Registry）">
       {!searching && (
         <p>
-          所有章節與頁面登錄的公式（<span className="mono">src/chapters/*/formulas.ts</span>、<span className="mono">src/pages/*/formulas.ts</span>）在這裡自動彙整，共 <strong>{ALL_FORMULAS.length}</strong> 條。每一條都有：ID、名稱、TeX、使用條件、結論標籤、模型層級、規格段落、所在頁面，以及（若與規格原文不同）勘誤編號。點 <strong>前往</strong> 會切換到該頁並捲到公式本身（錨點 <span className="mono">#formula-ID</span>）。
+          所有章節與頁面登錄的公式（<span className="mono">src/chapters/*/formulas.ts</span>、<span className="mono">src/pages/*/formulas.ts</span>）在這裡自動彙整，共 <strong>{ALL_FORMULAS.length}</strong> 條。每一條都有：ID、名稱、TeX、使用條件、「在哪個模型內精確」（公式自己登錄的一句話，沒有就是該章章首列的模型）、結論標籤、模型層級、規格段落、所在頁面，以及（若與規格原文不同）勘誤編號。點 <strong>前往</strong> 會切換到該頁並捲到公式本身（錨點 <span className="mono">#formula-ID</span>）。
         </p>
       )}
       {!searching && (
@@ -218,6 +230,18 @@ export function RegistrySection({ rows, searching, focusId }: { rows: RegistryRo
                         <div className="fr-reg-cond">
                           <span className="fr-reg-cond-label">使用條件</span>
                           {mathText(f.conditions)}
+                          {(() => {
+                            const m = formulaModelText(f)
+                            return (
+                              m && (
+                                <div className="fr-reg-model small" data-model-source={m.fromChapter ? 'chapter' : 'formula'}>
+                                  <span className="fr-reg-model-label">{f.claim === 'exact' ? '在哪個模型內精確' : f.claim === 'approx' ? '近似所依賴的模型' : '依賴的模型'}</span>
+                                  {mathText(m.text)}
+                                  {m.fromChapter && <span className="muted">（本章預設）</span>}
+                                </div>
+                              )
+                            )
+                          })()}
                           {f.units && (
                             <div className="fr-units small muted">
                               單位：

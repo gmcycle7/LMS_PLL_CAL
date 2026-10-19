@@ -184,8 +184,8 @@ export function UnitsCalculator() {
 
   const presets: ExperimentPreset[] = useMemo(
     () => [
-      ...UNITS_PRESETS.map((p) => ({ name: p.title, params: p.params, description: `${p.description} 預期：${p.expected}` })),
-      ...presetsForExperiment(UNITS_EXPERIMENT_ID).map((p) => ({ name: p.title, params: p.params, description: p.description })),
+      ...UNITS_PRESETS.map((p) => ({ id: p.id, name: p.title, params: p.params, description: `${p.description} 預期：${p.expected}` })),
+      ...presetsForExperiment(UNITS_EXPERIMENT_ID).map((p) => ({ id: p.id, name: p.title, params: p.params, description: p.description })),
     ],
     [],
   )

@@ -1,0 +1,13 @@
+/*
+ * ChapterInfoStrip 的「本章的『精確』是在：…」項目（2026-10-19，depth 審查）。
+ * 其餘 strip 樣式在 chapterFrame.css；這裡只放這一項自己的 class，顏色用 global.css 的 token，沒有固定高度與 overflow。
+ */
+.c-chinfo-models {
+  color: var(--text);
+  cursor: help;
+  text-decoration: underline dotted var(--text-faint);
+  text-underline-offset: 3px;
+}
+.c-chinfo-model-sep {
+  color: var(--text-faint);
+}

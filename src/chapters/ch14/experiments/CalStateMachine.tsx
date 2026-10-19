@@ -283,7 +283,7 @@ export function CalStateMachineExperiment() {
       { name: '平均 RESTART 次數／FAULT runs', value: `${nf(mcRes.meanRestarts, 3)} / ${mcRes.faultRuns}` },
     )
   }
-  const presets = presetsForExperiment('cal-state-machine').map((p) => ({ name: p.title, params: p.params, description: p.description }))
+  const presets = presetsForExperiment('cal-state-machine').map((p) => ({ id: p.id, name: p.title, params: p.params, description: p.description }))
   const level = dcfg.registerLsb > 0 ? 'L5' : 'L1'
 
   return (

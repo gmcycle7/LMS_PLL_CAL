@@ -1,11 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { ReactNode } from 'react'
-import katex from 'katex'
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
 import { HandCalc, MathText, checkAnswer, defaultValues, randomValues } from '@/components'
-import { SettingsProvider } from '@/app/settings'
 import type { HandCalcDef, HandCalcSolution } from '@/data/types'
 import { normCdf } from '@/simulation/core'
 import {
@@ -28,19 +25,11 @@ import {
 } from '@/simulation/models/optimizer'
 import Chapter14 from './index'
 import { HANDCALCS } from './handcalcs'
+import { wrapPage } from '@/test/renderPage'
+import { expectNoTexErrors, expectTexParses } from '@/test/katex'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
-vi.mock('mermaid', () => ({
-  default: { initialize: vi.fn(), render: vi.fn(async (id: string) => ({ svg: `<svg id="${id}"></svg>`, diagramType: 'flowchart-v2' })) },
-}))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 afterEach(() => localStorage.clear())
 
@@ -76,7 +65,7 @@ const MATH = /(?<!\\)\$((?:[^$\\]|\\.)+?)(?<!\\)\$/g
 /** 一題的所有 TeX（步驟、結果符號、why／notes／tips／標籤裡的 $…$）都能被 KaTeX 嚴格解析。 */
 function assertTexValid(def: HandCalcDef, sol: HandCalcSolution, ctx: string) {
   const strict = (tex: string, where: string) =>
-    expect(() => katex.renderToString(tex, { throwOnError: true, strict: 'ignore' }), `${ctx} ${where}: ${tex}`).not.toThrow()
+    expectTexParses(tex, `${ctx} ${where}: ${tex}`, { strict: 'ignore' })
   const inline = (text: string, where: string) => {
     for (const m of text.matchAll(MATH)) strict(m[1], where)
   }
@@ -526,7 +515,7 @@ describe('Ch14 帶入手算：(c) validate 擋掉模型不適用的輸入，並�
     expect(msg as string, `${id} ${JSON.stringify(patch)}`).toMatch(pattern)
     expect((msg as string).length).toBeGreaterThan(25) // 不是只丟一句「不合法」
     expect(proseLeaks(msg as string)).toEqual([])
-    for (const m of (msg as string).matchAll(MATH)) expect(() => katex.renderToString(m[1], { throwOnError: true, strict: 'ignore' }), m[1]).not.toThrow()
+    for (const m of (msg as string).matchAll(MATH)) expectTexParses(m[1], m[1], { strict: 'ignore' })
   }
   const accept = (id: string, patch: Record<string, number>) => {
     const def = hc(id)
@@ -1071,19 +1060,14 @@ describe('Ch14 帶入手算：(e) 畫面上的每一個數字都對得起來（�
       fireEvent.change(within(container).getByLabelText(label), { target: { value } })
       expect(container.querySelector('.callout-warn'), id).toBeNull()
       expect(container.querySelectorAll('.c-step').length, id).toBeGreaterThan(0)
-      expect(container.querySelector('.katex-error'), id).toBeNull()
-      expect(container.querySelector('.c-tex-error'), id).toBeNull()
+      expectNoTexErrors(container, id)
       unmount()
     }
   }, 60000)
 })
 
 function wrap(node: ReactNode) {
-  return (
-    <MemoryRouter initialEntries={['/ch/14']}>
-      <SettingsProvider>{node}</SettingsProvider>
-    </MemoryRouter>
-  )
+  return wrapPage(node, { url: '/ch/14' })
 }
 
 describe('Ch14 帶入手算：(d) <HandCalc> 渲染', () => {
@@ -1091,8 +1075,7 @@ describe('Ch14 帶入手算：(d) <HandCalc> 渲染', () => {
     for (const def of HANDCALCS) {
       const sol = def.solve(defaultValues(def))
       const { container, unmount } = render(<HandCalc def={def} />)
-      expect(container.querySelector('.katex-error'), def.id).toBeNull()
-      expect(container.querySelector('.c-tex-error'), def.id).toBeNull()
+      expectNoTexErrors(container, def.id)
       expect(container.querySelectorAll('.c-step').length, def.id).toBe(sol.steps.length)
       expect(container.querySelectorAll('.c-step').length).toBeGreaterThan(0)
       expect(container.querySelectorAll('.c-handcalc-results .c-texblock').length, def.id).toBe(sol.results.length)
@@ -1113,13 +1096,13 @@ describe('Ch14 帶入手算：(d) <HandCalc> 渲染', () => {
       const { container, unmount } = render(<HandCalc def={def} />)
       for (let i = 0; i < 5; i++) {
         fireEvent.click(within(container).getByText('換一題（隨機數字）'))
-        expect(container.querySelector('.katex-error'), def.id).toBeNull()
+        expectNoTexErrors(container, def.id)
         expect(container.querySelector('.callout-warn'), `${def.id}：隨機題不應該被 validate 擋下`).toBeNull()
         expect(container.querySelectorAll('.c-handcalc-answer').length).toBeGreaterThan(0)
       }
       fireEvent.click(within(container).getByText('看詳解'))
       expect(container.querySelectorAll('.c-step').length).toBeGreaterThan(0)
-      expect(container.querySelector('.katex-error'), def.id).toBeNull()
+      expectNoTexErrors(container, def.id)
       unmount()
     }
   }, 60000)
@@ -1131,7 +1114,8 @@ describe('Ch14 帶入手算：(d) <HandCalc> 渲染', () => {
     const warn = container.querySelector('.callout-warn')
     expect(warn?.textContent).toContain('勘誤 E16')
     expect(warn?.querySelector('.katex')).toBeTruthy()
-    expect(warn?.querySelector('.katex-error')).toBeNull()
+    expect(warn).not.toBeNull()
+    expectNoTexErrors(warn!)
     expect(container.querySelectorAll('.c-step').length).toBe(0)
     fireEvent.change(eps, { target: { value: '0.02' } })
     expect(container.querySelector('.callout-warn')).toBeNull()
@@ -1160,7 +1144,7 @@ describe('Ch14 帶入手算：(d) <HandCalc> 渲染', () => {
     const msg = def.validate?.({ ...defaultValues(def), d0: 0.5 }) as string
     const { container } = render(<MathText>{msg}</MathText>)
     expect(container.querySelectorAll('.katex').length).toBeGreaterThan(1)
-    expect(container.querySelector('.katex-error')).toBeNull()
+    expectNoTexErrors(container)
   }, 60000)
 })
 
@@ -1204,7 +1188,7 @@ describe('Ch14 頁面上的手算題位置', () => {
     expect(links.some((h) => h.includes('a=handcalc-HC-14.8'))).toBe(true)
     expect(links.every((h) => !h.startsWith('#handcalc-'))).toBe(true)
     // KaTeX 全部可解析；F-14.5 的程式碼 region 有顯示
-    expect(Array.from(container.querySelectorAll('.katex-error')).map((e) => e.textContent)).toEqual([])
+    expectNoTexErrors(container)
     expect(container.textContent).toContain('core:slewLimited')
     expect(container.textContent).not.toContain('程式碼載入錯誤')
   }, 120000)

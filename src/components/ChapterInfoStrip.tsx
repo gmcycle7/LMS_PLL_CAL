@@ -4,6 +4,8 @@ import type { PageEntry } from '@/app/registry'
 import { MODES, MODE_SHORT, useSettings } from '@/app/settings'
 import { AnchorLink } from './links'
 import { TestBadge } from './TestBadge'
+import { accessibleText } from './Tex'
+import './ChapterInfoStrip.css'
 
 export interface ChapterInfoStripProps {
   entry: Pick<PageEntry, 'specSections' | 'tests'>
@@ -12,6 +14,15 @@ export interface ChapterInfoStripProps {
   handcalcIds?: readonly string[]
   /** 本頁有章末符號表（#symbols）才顯示「符號表 ↓」 */
   hasSymbols?: boolean
+}
+
+/**
+ * 「本章的『精確』是在：…」的 tooltip：每個模型一句假設（純文字；`$…$` 經 accessibleText 轉成可念的文字）。
+ * 讀者看到 ClaimTag「精確｜指定模型」時，指定的就是這一行列的模型。
+ */
+export function modelsTooltip(models: readonly ChapterFrameMeta['models'][number][]): string {
+  const lines = models.map((m) => `${m.label}：${m.assumes}`)
+  return accessibleText(`ClaimTag「精確｜指定模型」指的模型與假設——${lines.join('；')}`)
 }
 
 /** 閱讀時間的顯示：60 分以上換成「h 小時 m 分」（各章實測多半是好幾個小時） */
@@ -41,7 +52,7 @@ function ErrataLink({ eids }: { eids: readonly string[] }) {
 
 /**
  * 章首的「本章資訊」strip（docs/teaching-style.md §9）：一行（可換行）的小字，放在開場問題與系統地圖之後——
- * 規格書 §、驗證 T-id（原本在 h1 上方的 eyebrow）、三種模式的預估閱讀時間（目前模式加粗）、
+ * 規格書 §、驗證 T-id（原本在 h1 上方的 eyebrow）、本章的「精確」是在哪些模型內（chapterMeta 的 models；tooltip 列每個模型的假設）、三種模式的預估閱讀時間（目前模式加粗）、
  * 勘誤 N 項（連到驗證頁的勘誤瀏覽器）、手算 N 題（連到本頁第一題）、符號表（連到章末 #symbols）。
  * 資料：registry（specSections、tests）、src/app/chapterMeta.ts（readingMinutes、errata）與 PageFrame 掃 DOM 得到的手算題。
  */
@@ -64,6 +75,19 @@ export function ChapterInfoStrip({ entry, meta, handcalcIds = [], hasSymbols = f
             {tests.map((t) => (
               <TestBadge key={t} id={t} />
             ))}
+          </li>
+        )}
+        {meta.models.length > 0 && (
+          <li className="c-chinfo-item" data-item="models">
+            <span className="c-chinfo-label">本章的「精確」是在</span>
+            <span className="c-chinfo-models" title={modelsTooltip(meta.models)}>
+              {meta.models.map((m, i) => (
+                <span key={m.id} className="c-chinfo-model" data-model={m.id}>
+                  {i > 0 && <span className="c-chinfo-model-sep">、</span>}
+                  {m.label}
+                </span>
+              ))}
+            </span>
           </li>
         )}
         <li className="c-chinfo-item" data-item="reading">

@@ -31,6 +31,7 @@ import {
   type Matrix,
   type Rng,
 } from '@/simulation/core'
+import { toFixedClean } from '@/components/format'
 import { corrSingleTone, ctHpd, ctT, polarityMarginDeg, singleToneFir } from '@/simulation/models/pll'
 import { buildSignLmsMcConfig, compareMcToLinear, settleFromPoles, SETTLE_FROM_POLES_MAX_STEPS, simulateDelayRecursion, type McComparison, type SignLmsMcSetup } from '@/simulation/models/stability'
 import type { BlockLmsConfigInput, BlockLmsMonteCarloResult } from '@/simulation/models/blockLms'
@@ -436,7 +437,7 @@ export function runPolarityPerturbation(p: PolarityPerturbParams): PolarityPertu
       `C ≤ 0：更新極性錯誤（$C_D=${C.toFixed(4)}<0$，平均 pole $p=1-\\mu K_qC_D>1$）。誤差路徑在 code 頻帶的有效相位 $\\phi+\\Omega D$ 超過 $\\pm90^\\circ$，GMAC 的平均方向與真實誤差相反，正 learning rate 會使平均誤差發散——請調整 code delay $D$、改用 filtered-x，或反轉更新符號後重新量測。`,
     )
   } else if (Math.abs(C) < 0.1 * p.magH) {
-    warnings.push(`$C_D\\approx0$（$C_D=${C.toFixed(4)}$）：有效相位接近 $\\pm90^\\circ$，恢復力極弱；量測需要非常多 block 才能判定極性（$M\\ge${requiredBlocks(kq(p.sigmaV) * C, p.delta, N, p.z)}$），且 FCW／PVT 小改變就可能翻號。`)
+    warnings.push(`$C_D\\approx0$（$C_D=${toFixedClean(C, 4)}$）：有效相位接近 $\\pm90^\\circ$，恢復力極弱；量測需要非常多 block 才能判定極性（$M\\ge${requiredBlocks(kq(p.sigmaV) * C, p.delta, N, p.z)}$），且 FCW／PVT 小改變就可能翻號。`)
   }
   if (p.mapping === 'reversed') warnings.push(String.raw`位元映射錯誤：$q=1-2b$（comparator 接反）——量到的 $\hat K$ 與真實極性相反；sign-off 前必須以已知符號的刺激（例如 $a-w$ 已知為正）核對 0/1 → $\pm1$ 的對應。`)
   if (p.mapping === 'unipolar') warnings.push(String.raw`位元映射錯誤：$q=b\in\{0,1\}$（忘了 $2b-1$）——斜率只剩一半，且 code 有 DC 時 $E[b\,x]\big|_{w=a}=E[x]/2\ne0$，固定點被推離 $a$（§17 反面測試）。`)

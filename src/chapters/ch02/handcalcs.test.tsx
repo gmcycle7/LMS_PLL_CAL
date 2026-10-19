@@ -27,6 +27,7 @@ import {
 import { FORMULAS } from './formulas'
 import { decimalsFor, isShort, resultDigits, sigAt, sigDigits, sigFor, sigRoundArg, tx, txInt, txP, txRoundArg, txSq } from './handcalcTex'
 import { HANDCALCS, OUTLIER_MAX_PROB, OUTLIER_MIN_SIGMAS, SE_LINEAR_MAX_G, bpskModel, outlierModel, snapZero, tieSafeY, zsum } from './handcalcs'
+import { expectNoTexErrors } from '@/test/katex'
 
 const golden = (id: string) => JSON.parse(readFileSync(resolve(process.cwd(), `golden/vectors/${id}.json`), 'utf8'))
 const preset = (id: string) => JSON.parse(readFileSync(resolve(process.cwd(), `src/data/presets/${id}.json`), 'utf8')) as PresetEntry
@@ -1030,8 +1031,7 @@ describe('畫面上的算式自己算得出來：每個等號只做一種運算�
       for (const { v } of USER_CASES[def.id].slice(0, 2)) {
         const { container, unmount } = render(<HandCalc def={{ ...def, inputs: def.inputs.map((i) => ({ ...i, default: v[i.key] })) }} />)
         const label = `${def.id} ${JSON.stringify(v)}`
-        expect(Array.from(container.querySelectorAll('.katex-error')).map((e) => e.getAttribute('title')), label).toEqual([])
-        expect(container.querySelector('.c-tex-error'), label).toBeNull()
+        expectNoTexErrors(container, label)
         expect(container.querySelectorAll('.c-step').length, label).toBe(def.solve(v).steps.length)
         expect(unicodeMath(container), label).toEqual([])
         unmount()
@@ -1373,7 +1373,7 @@ describe('(d) 渲染：每一題的 <HandCalc> 都沒有 KaTeX 錯誤，步驟�
     it(`${def.id}：看帶入過程`, () => {
       const sol = def.solve(defaultValues(def))
       const { container, unmount } = render(<HandCalc def={def} />)
-      expect(container.querySelector('.katex-error, .c-tex-error'), def.id).toBeNull()
+      expectNoTexErrors(container, def.id)
       expect(container.querySelectorAll('.c-step').length).toBe(sol.steps.length)
       expect(sol.steps.length).toBeGreaterThanOrEqual(1)
       expect(container.querySelectorAll('.c-handcalc-results .katex-display').length).toBe(sol.results.length)
@@ -1400,7 +1400,7 @@ describe('(d) 渲染：每一題的 <HandCalc> 都沒有 KaTeX 錯誤，步驟�
       expect(container.querySelectorAll('.c-handcalc-verdict.bad').length).toBe(want.length)
       fireEvent.click(screen.getByText('看詳解'))
       expect(container.querySelectorAll('.c-step').length).toBeGreaterThan(0)
-      expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+      expectNoTexErrors(container)
       unmount()
     }, T_RENDER)
   }
@@ -1415,7 +1415,7 @@ describe('(d) 渲染：每一題的 <HandCalc> 都沒有 KaTeX 錯誤，步驟�
     expect(container.querySelectorAll('.c-step').length).toBe(0)
     expect(container.querySelector('.callout-warn')?.textContent).toContain('剛好踩到')
     expect(container.querySelector('.callout-warn .katex')).toBeTruthy()
-    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(container)
     expect(unicodeMath(container)).toEqual([])
     fireEvent.click(screen.getByText('還原範例數字'))
     expect(container.textContent).toContain('3.2')
@@ -1427,7 +1427,7 @@ describe('(d) 渲染：每一題的 <HandCalc> 都沒有 KaTeX 錯誤，步驟�
       for (let k = 0; k < 3; k++) {
         fireEvent.click(screen.getByText('換一題（隨機數字）'))
         fireEvent.click(screen.getByText('看詳解'))
-        expect(container.querySelector('.katex-error, .c-tex-error'), `${def.id} #${k}`).toBeNull()
+        expectNoTexErrors(container, `${def.id} #${k}`)
         expect(container.querySelectorAll('.c-step').length, `${def.id} #${k}`).toBeGreaterThan(0)
         expect(bareMacros(container), `${def.id} #${k}`).toEqual([])
         expect(unicodeMath(container), `${def.id} #${k}`).toEqual([])

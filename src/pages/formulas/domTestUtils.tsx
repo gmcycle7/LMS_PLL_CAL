@@ -11,19 +11,10 @@ import { SettingsProvider } from '@/app/settings'
  *      → 一律用 container.querySelector 加明確的 selector。
  *   2. `container.cloneNode(true)`：整棵樹再複製一份。
  *      → 檢查文字時直接走訪文字節點。
- * Plotly 的假模組也不要用 vi.fn（mock.calls 會抓住圖表的 DOM 節點，整頁的 detached DOM 無法回收）。
+ * Plotly 的假模組用 `@/test/mocks/plotly`（vi.fn 的 mock.calls 會抓住圖表的 DOM 節點；setup.jsdom.ts 在每個測試前後清掉呼叫紀錄，整頁的 detached DOM 才收得掉）。
  */
 
 export type Mode = 'beginner' | 'engineer' | 'research'
-
-export const PLOTLY_STUB = {
-  react: async () => undefined,
-  purge: () => undefined,
-  toImage: async () => 'data:image/png;base64,iVBORw0KGgo=',
-  downloadImage: async () => '',
-  Plots: { resize: () => undefined },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}
 
 function LocationProbe() {
   const loc = useLocation()

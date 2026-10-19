@@ -4,23 +4,12 @@
  * （JavaScript heap out of memory）；分成兩個檔案後各用一個 worker。共用的輔助函式在 pageTestUtils.tsx。
  */
 import { act, cleanup, waitFor, within } from '@testing-library/react'
+import { expectNoTexErrors } from '@/test/katex'
 import { PAGE_TIMEOUT, WAIT, caseButtons, proseText, renderAt, shellOf, texText } from './pageTestUtils'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
-vi.mock('mermaid', () => ({
-  default: {
-    initialize: vi.fn(),
-    render: vi.fn(async (id: string) => ({ svg: `<svg id="${id}"></svg>`, diagramType: 'flowchart-v2' })),
-  },
-}))
+import { plotlyMock as P } from '@/test/mocks/plotly'
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 afterEach(() => {
   // 先卸載頁面，再清掉 Plotly mock 的呼叫紀錄（紀錄裡的圖節點連著整頁的 DOM；Plot 卸載時呼叫的 Plotly.purge(gd) 也會被記下來）
@@ -79,7 +68,7 @@ describe('Ch04 實驗互動（jsdom）', () => {
     expect(shell.textContent).not.toMatch(/Δ_W = |ε̄_W|w\* − a/) // 模型原本的 Unicode 寫法不再出現
     expect(texText(shell)).toContain('Case B：R=\\Delta_W/(\\mu\\Delta_G)、\\mu\\sigma_G/\\Delta_W')
     expect(texText(shell)).toMatch(/Case B：w_\\mathrm\{fixed\}-w_\\mathrm\{float\}=-2\.578\\pm0\.0716\\,\\mathrm\{fs\}（AR\(1\) SE），預測（\\div N rounding 0 \+ W 取整 -2\.653）=-2\.653\\,\\mathrm\{fs\}/)
-    expect(shell.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(shell)
     expect(proseText(shell)).not.toContain('$')
     // 舊 preset（case 沒有 wLsb / wRounding 欄位）載入後，控制項拿到的是預設值而不是 undefined
     const lsb = Array.from(shell.querySelectorAll('input')).find((i) => /Δ_W（W 的 LSB/.test(i.getAttribute('aria-label') ?? ''))
@@ -96,6 +85,6 @@ describe('Ch04 實驗互動（jsdom）', () => {
     const sw = within(fp).getByRole('switch', { name: /Monte Carlo（目前 case 另跑 6 seeds/ })
     act(() => sw.click())
     await waitFor(() => expect(texText(fp)).toMatch(/Case A：Monte Carlo w_\\mathrm\{fixed\}-w_\\mathrm\{float\}（6 seeds）/), WAIT)
-    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(container)
   }, PAGE_TIMEOUT)
 })

@@ -1,6 +1,8 @@
 import { act, fireEvent } from '@testing-library/react'
+import { expectNoTexErrors } from '@/test/katex'
 import { ALL_FORMULAS } from '../registry'
-import { applyRegistryFilters, DEFAULT_FILTERS, REGISTRY_CARDS_BELOW, registryDomId, RegistrySection } from './RegistrySection'
+import { applyRegistryFilters, DEFAULT_FILTERS, REGISTRY_CARDS_BELOW, formulaModelText, registryDomId, RegistrySection } from './RegistrySection'
+import { chapterFrameMeta } from '@/app/chapterMeta'
 import { buttonByText, chooseOption, count, mountAt, q, renderProblems } from '../domTestUtils'
 
 vi.setConfig({ testTimeout: 120_000 })
@@ -53,6 +55,23 @@ describe('applyRegistryFilters（純函式）', () => {
     expect(applyRegistryFilters(rows, { ...DEFAULT_FILTERS, page: '/nope' })).toEqual([])
   })
 
+  it('formulaModelText：公式自己的 assumes 優先；沒有時退回該章 chapterMeta 的 models（標 fromChapter）；工具頁沒有章節骨架時 null', () => {
+    const f04 = ALL_FORMULAS.find((f) => f.id === 'F-04.4')!
+    expect(f04.assumes).toBeTruthy()
+    expect(formulaModelText(f04)).toEqual({ text: f04.assumes, fromChapter: false })
+    const noOwn = ALL_FORMULAS.find((f) => f.page === '/ch/05' && !f.assumes)
+    if (noOwn) {
+      const m = formulaModelText(noOwn)!
+      expect(m.fromChapter).toBe(true)
+      expect(m.text).toBe(chapterFrameMeta('ch05')!.models.map((x) => x.label).join('、'))
+    }
+    expect(formulaModelText({ assumes: undefined, pageId: 'models' })).toBeNull()
+    expect(formulaModelText({ assumes: undefined, pageId: null })).toBeNull()
+    expect(formulaModelText({ assumes: '$\\mu$ 固定', pageId: null })).toEqual({ text: '$\\mu$ 固定', fromChapter: false })
+    // 三個已逐條填寫的頁面（Ch04、案例頁、Sign-off）每一條都有自己的 assumes
+    for (const page of ['/ch/04', '/case/sspll', '/signoff']) for (const f of ALL_FORMULAS.filter((x) => x.page === page)) expect(f.assumes, f.id).toBeTruthy()
+  })
+
   it('registryDomId：把 ID 轉成合法且唯一的 DOM id', () => {
     expect(registryDomId('F-12.9')).toBe('fr-ref-F-12_9')
     const ids = ALL_FORMULAS.map((f) => registryDomId(f.id))
@@ -100,8 +119,17 @@ describe('RegistrySection（jsdom）', () => {
     const plainParts = (t: string) => t.split(/\$[^$]*\$/).map((x) => x.trim()).filter((x) => x.length > 0)
     for (const part of plainParts(f.title)) expect(first.textContent).toContain(part)
     for (const part of plainParts(f.conditions)) expect(first.textContent).toContain(part)
-    expect(first.querySelector('.katex-error')).toBeNull()
+    expectNoTexErrors(first)
     expect(first.textContent).toContain(`§${f.specSection}`)
+    // 「在哪個模型內精確」一行：公式自己的 assumes 或該章的預設（data-model-source 標出來源）
+    const model = first.querySelector('.fr-reg-model')
+    const expectModel = formulaModelText(f)
+    if (expectModel) {
+      expect(model).not.toBeNull()
+      expect(model!.getAttribute('data-model-source')).toBe(expectModel.fromChapter ? 'chapter' : 'formula')
+      expect(model!.querySelector('.fr-reg-model-label')!.textContent).toBe(f.claim === 'exact' ? '在哪個模型內精確' : f.claim === 'approx' ? '近似所依賴的模型' : '依賴的模型')
+      for (const part of plainParts(expectModel.text)) expect(model!.textContent).toContain(part)
+    } else expect(model).toBeNull()
     expect(first.querySelector('.katex-display')).toBeTruthy()
     expect(first.querySelector(`.c-claim-${f.claim}`)).toBeTruthy()
     expect(first.querySelector(`.c-level-${f.level}`)).toBeTruthy()
@@ -235,8 +263,8 @@ describe('RegistrySection（jsdom）', () => {
   it('名稱與使用條件若含行內 LaTeX（$…$）會以 KaTeX 顯示，不會把錢字號原樣印出來；純文字條件照原樣', () => {
     const base = ALL_FORMULAS[0]
     const fake = [
-      { ...base, id: base.id, title: String.raw`含 $\sigma_w$ 的名稱`, conditions: String.raw`$|p|<1$、average mode；$\mu$ 單位 fs` },
-      { ...ALL_FORMULAS[1], conditions: '純文字條件：0 < g < 2' },
+      { ...base, id: base.id, assumes: undefined, title: String.raw`含 $\sigma_w$ 的名稱`, conditions: String.raw`$|p|<1$、average mode；$\mu$ 單位 fs` },
+      { ...ALL_FORMULAS[1], assumes: undefined, conditions: '純文字條件：0 < g < 2' },
     ]
     const { container } = mountAt(<RegistrySection rows={fake} searching focusId={null} />)
     // 使用條件放在公式的正下方（同一格 td.fr-reg-formula 內），不另外佔一欄：表頭只剩兩欄（左：ID 與位置；右：名稱、公式與使用條件，右上角是標籤、規格、勘誤）

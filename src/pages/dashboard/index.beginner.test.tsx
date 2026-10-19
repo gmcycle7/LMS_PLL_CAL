@@ -13,16 +13,8 @@ import { precedes, renderPage, stubScrollIntoView, texIn } from './indexTestUtil
  * 收起來的內容展開才渲染；頁內跳轉與網址深連結要先展開再捲。六條件一分鐘體檢那張卡片的測試在 index.test.tsx／index.research.test.tsx。
  * Beginner 的首頁很輕（收起來的內容不進 DOM），所以這個檔案可以放心多渲染幾次。
  */
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
-vi.mock('mermaid', () => ({ default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: '<svg></svg>' })) } }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 vi.setConfig({ testTimeout: 60_000 })
 

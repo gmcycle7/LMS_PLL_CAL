@@ -184,7 +184,7 @@ export function SignMapExplorer() {
     }
   }, [urlPreset])
   const presets: ExperimentPreset[] = useMemo(
-    () => [...presetsForExperiment(SIGNMAP_EXPERIMENT_ID).map((p) => ({ name: p.title, params: p.params, description: p.description })), ...INLINE_PRESETS],
+    () => [...presetsForExperiment(SIGNMAP_EXPERIMENT_ID).map((p) => ({ id: p.id, name: p.title, params: p.params, description: p.description })), ...INLINE_PRESETS],
     [],
   )
 

@@ -1,4 +1,5 @@
 import { CLAIM_DESCRIPTION, CLAIM_LABEL, ClaimTag, MODEL_LEVEL_INFO, ModelLevel, Section, SOURCE_DESCRIPTION, SOURCE_LABEL, SourceTag } from '@/components'
+import { Badge } from '@/components/Tags'
 import type { ClaimKind, ModelLevelId, SourceKind } from '@/components'
 import { GLOSSARY, GLOSSARY_CATEGORY_LABEL, GLOSSARY_CATEGORY_ORDER, type GlossaryTerm } from '../glossary'
 import { ErrataList, ErratumTag, FormulaLinks, Gate, MatchCount, NoMatch, PageLinks, Rich } from '../common'
@@ -64,8 +65,12 @@ export function GlossarySection({ rows, searching }: { rows: GlossaryTerm[]; sea
           <h3 className="fr-sub" id="fr-tags">
             標籤的定義
           </h3>
+          <p className="small">
+            全站的徽章只有一組基底，而且一種顏色只代表一件事：<strong>實心</strong>是結論強度（綠＝精確、琥珀＝近似、紫＝研究假說），<strong>描邊</strong>是出處與層級（藍＝模型層級、琥珀＝勘誤、灰＝來源），
+            <strong>軟底</strong>是測試或比對的結果（青綠 ✓＝T-id verified、綠／紅／灰＝一致／不一致／不適用）。較長的徽章列（例如 Sign-off 頁判準的「出處」）同一行超過三個會摺成「+N」，點開再看。
+          </p>
           <TableWrap>
-            <table className="fr-table fr-tags-table">
+            <table className="fr-table fr-tags-table c-table">
               <thead>
                 <tr>
                   <th>標籤</th>
@@ -93,6 +98,32 @@ export function GlossarySection({ rows, searching }: { rows: GlossaryTerm[]; sea
                     </td>
                   </tr>
                 ))}
+                <tr>
+                  <td data-label="標籤">
+                    <ModelLevel level="L3" />
+                  </td>
+                  <td data-label="意義">模型層級（規格 §15.1；下表）：藍描邊，L0–L6 同一種顏色、層級寫在字上。</td>
+                </tr>
+                <tr>
+                  <td data-label="標籤">
+                    <Badge variant="verified">✓ T01 verified</Badge> <Badge variant="partial">◐ T02 partial</Badge> <Badge variant="pending">○ T03 pending</Badge>
+                  </td>
+                  <td data-label="意義">
+                    T-id 的驗證狀態（<span className="mono">src/data/verification-status.json</span>）：只有 TypeScript 與 Python golden 兩邊都通過才是 verified（青綠 ✓）；partial 是只有一邊、pending 是還沒有測試結果；fail 是紅色。
+                  </td>
+                </tr>
+                <tr>
+                  <td data-label="標籤">
+                    <Badge variant="erratum">勘誤 E12</Badge>
+                  </td>
+                  <td data-label="意義">規格勘誤（docs/validation.md）：琥珀描邊；和「近似」的琥珀實心不同——它說的是「這條公式和規格原文不一樣」，不是結論強度。</td>
+                </tr>
+                <tr>
+                  <td data-label="標籤">
+                    <Badge variant="ok">✓ 一致（ok）</Badge> <Badge variant="mismatch">✗ 不一致（mismatch）</Badge> <Badge variant="na">n/a</Badge>
+                  </td>
+                  <td data-label="意義">實驗的交叉比對（Analytic／Monte Carlo／Fixed-Point）與判決：綠＝在寫明的 tolerance 內一致、紅＝超出、灰＝這種比對對該實驗不適用（會附原因）。</td>
+                </tr>
               </tbody>
             </table>
           </TableWrap>
@@ -103,7 +134,7 @@ export function GlossarySection({ rows, searching }: { rows: GlossaryTerm[]; sea
             用字依 <ErratumTag eid="E36" /> 修正（「周期」→「週期」、「仿真」→「模擬」）。不可對同一組參數在不同層級算出互相矛盾、卻都標成「精確」的答案。
           </p>
           <TableWrap>
-            <table className="fr-table fr-levels-table">
+            <table className="fr-table fr-levels-table c-table">
               <thead>
                 <tr>
                   <th>層級</th>

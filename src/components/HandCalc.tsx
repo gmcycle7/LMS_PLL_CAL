@@ -2,7 +2,7 @@ import { useId, useMemo, useState } from 'react'
 import type { HandCalcDef, HandCalcSolution } from '@/data/types'
 import { checkAnswer, defaultValues, inputError, randomValues, texNum } from './handcalcMath'
 import { formatInput, parseNumberInput } from './paramMath'
-import { ClaimTag } from './Tags'
+import { badgeClass, ClaimTag } from './Tags'
 import { Tex, TexBlock, accessibleText, mathText, texToSpeech } from './Tex'
 import { useRovingTabs } from './useRovingTabs'
 import './code.css'
@@ -112,7 +112,7 @@ export function HandCalc({ def, initialMode = 'steps', compact }: HandCalcProps)
   return (
     <section className="c-handcalc" id={`handcalc-${def.id}`} aria-label={`帶入手算 ${def.id}`}>
       <header className="c-handcalc-head">
-        <span className="c-handcalc-badge">帶入手算</span>
+        <span className={badgeClass('neutral', 'c-handcalc-badge')}>帶入手算</span>
         <span className="c-handcalc-title">{mathText(def.title)}</span>
         <span className="c-handcalc-meta">
           <ClaimTag kind={def.claim} />

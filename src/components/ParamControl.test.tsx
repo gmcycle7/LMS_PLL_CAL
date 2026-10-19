@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { expectNoTexErrors } from '@/test/katex'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { ParamControl, SelectControl, ToggleControl, type ParamControlProps } from './ParamControl'
 import { Tex } from './Tex'
@@ -141,7 +142,7 @@ describe('ParamControl', () => {
     expect(regs).toHaveLength(4)
     for (const el of regs.slice(0, 3)) {
       expect(Array.from(el.querySelectorAll('annotation')).map((a) => a.textContent)).toEqual(['H\\equiv1', '1-1/N_\\tau'])
-      expect(el.querySelector('.katex-error')).toBeNull()
+      expectNoTexErrors(el)
       expect(el.textContent).not.toContain('$')
     }
     expect(regs[3].textContent).toBe('REG_GMAC_N[15:0]')

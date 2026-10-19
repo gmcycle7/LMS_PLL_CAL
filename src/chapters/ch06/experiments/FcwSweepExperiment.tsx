@@ -61,7 +61,7 @@ export function FcwSweepExperiment() {
     if (urlPreset) setParams((p) => ({ ...p, ...pick(urlPreset.params) }))
   }, [urlPreset])
   const presets = useMemo(
-    () => presetsForExperiment(FCW_SWEEP_EXPERIMENT_ID).map((p) => ({ name: p.title, params: p.params, description: p.description })),
+    () => presetsForExperiment(FCW_SWEEP_EXPERIMENT_ID).map((p) => ({ id: p.id, name: p.title, params: p.params, description: p.description })),
     [],
   )
   const q = useDebouncedValue(params, 300)

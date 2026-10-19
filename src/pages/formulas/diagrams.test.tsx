@@ -1,4 +1,5 @@
 import { render } from '@testing-library/react'
+import { expectNoTexErrors } from '@/test/katex'
 import { MemoryRouter } from 'react-router-dom'
 import katex from 'katex'
 import mermaid from 'mermaid'
@@ -24,7 +25,7 @@ vi.mock('@/components/Mermaid', async () => {
     renderMermaid: async () => '<svg></svg>',
   }
 })
-vi.mock('plotly.js-cartesian-dist-min', async () => ({ default: (await import('./domTestUtils')).PLOTLY_STUB }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
 beforeAll(installMermaidSvgShim)
 
@@ -351,7 +352,7 @@ describe('時間軸示意圖（§2.1 的 SVG）：圖裡的符號與公式也是
       expect(f.namespaceURI).toBe('http://www.w3.org/2000/svg')
       expect(f.firstElementChild?.namespaceURI).toBe('http://www.w3.org/1999/xhtml')
     }
-    expect(svg.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+    expectNoTexErrors(svg)
     // KaTeX 以外的文字（拿掉 KaTeX 與它的 MathML 複本）
     const copy = svg.cloneNode(true) as Element
     copy.querySelectorAll('.katex').forEach((e) => e.remove())

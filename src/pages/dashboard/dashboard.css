@@ -118,12 +118,10 @@
   padding: 0;
 }
 .dash-start table {
-  font-size: 0.86rem;
   margin: 8px 0;
 }
 .dash-start td,
 .dash-start th {
-  padding: 4px 6px;
   text-align: center;
 }
 .dash-cta {
@@ -740,9 +738,7 @@
 }
 
 /* Beginner 的章節地圖：一章一列的表（已讀、章名、一句話） */
-.dash-ch-table {
-  font-size: 0.92rem;
-}
+
 .dash-ch-table th,
 .dash-ch-table td {
   padding-top: 4px;
@@ -1316,4 +1312,137 @@ button.dash-chip {
   .dash-fold-summary {
     padding: 12px 14px;
   }
+}
+
+/* ---------- Beginner 骨幹路線卡（sections/Backbone.tsx，Hero 右側） ---------- */
+.dash-backbone {
+  min-width: 0;
+}
+.dash-backbone h2 {
+  margin: 2px 0 6px;
+  font-size: 1.15rem;
+}
+.dash-bb-progress {
+  margin: 6px 0 10px;
+}
+.dash-bb-progress .dash-progress-bar {
+  flex: 0 0 auto;
+}
+.dash-bb-resume {
+  margin: 0 0 12px;
+}
+.dash-bb-steps {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.dash-bb-step {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 6px 8px 7px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.dash-bb-step.is-done {
+  background: var(--ok-soft);
+}
+.dash-bb-step[hidden] {
+  display: none;
+}
+.dash-bb-check {
+  margin: 4px 0 0 2px;
+  width: 16px;
+  height: 16px;
+}
+.dash-bb-body {
+  min-width: 0;
+}
+.dash-bb-link {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: baseline;
+  color: var(--text);
+  font-weight: 700;
+}
+.dash-bb-link:hover {
+  color: var(--accent);
+  text-decoration: none;
+}
+.dash-bb-n {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+.dash-bb-where {
+  font-size: 0.9rem;
+}
+.dash-bb-title {
+  margin-top: 2px;
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+.dash-bb-step.is-done .dash-bb-title {
+  color: var(--text-muted);
+}
+.dash-bb-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  margin-top: 3px;
+}
+.dash-bb-min {
+  font-weight: 600;
+}
+.dash-bb-foot {
+  margin: 10px 0 0;
+}
+.dash-bb-toggle {
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.dash-bb-toggle:hover {
+  color: var(--text);
+}
+/* 手機（Hero 變成一欄，和上面 760px 的規則相同）：骨幹路線卡排在標題區之前，Beginner 的首屏就是它；DOM 順序不變（h1 仍在最前） */
+@media (max-width: 760px) {
+  .dash-hero > .dash-backbone {
+    order: -1;
+  }
+}
+
+/* ---------- 章節卡片／章節表的三種模式閱讀時間（chapterMeta.ts 的 readingMinutes） ---------- */
+.dash-ch-reading {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  align-items: baseline;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.dash-ch-card .dash-ch-reading {
+  margin-top: 4px;
+}
+.dash-ch-reading-k::after {
+  content: '：';
+}
+.dash-ch-rt.is-current {
+  font-weight: 700;
+  color: var(--text);
+}
+.dash-ch-rt-cell {
+  white-space: nowrap;
 }

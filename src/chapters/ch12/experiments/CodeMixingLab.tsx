@@ -72,7 +72,7 @@ export function CodeMixingLab() {
   useEffect(() => {
     if (urlPreset) reset({ ...MIX_DEFAULTS, ...(urlPreset.params as Partial<MixParams>) })
   }, [urlPreset, reset])
-  const presets = useMemo(() => presetsForExperiment(EXP_ID).map((p) => ({ name: p.title, params: p.params, description: p.description })), [])
+  const presets = useMemo(() => presetsForExperiment(EXP_ID).map((p) => ({ id: p.id, name: p.title, params: p.params, description: p.description })), [])
 
   // 每個 case 在主執行緒計算（L ≤ 2^16，數十 ms）；參數 debounce 後才重算
   const allKey = JSON.stringify({ c: cases.cases.map((c) => [c.id, c.params]), s: cases.seed })

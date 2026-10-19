@@ -3,27 +3,15 @@ import VerificationPage from './index'
 import { MC_PLAN } from '@/simulation/models/acceptance'
 import { FORMULAS } from './formulas'
 import { settleLazy, wrap } from './indexTestUtils'
+import { expectNoTexErrors } from '@/test/katex'
 
 /**
  * Verification 頁的第二組 jsdom 測試（接續 index.test.tsx）：Monte Carlo 與多 seed 校準實驗、Research／Engineer 模式、勘誤卡片、§V.3、證據篩選。
  * 拆成兩個檔案是為了讓每個 worker 的記憶體不超過上限（見 indexTestUtils.tsx）。
  */
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  newPlot: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
-const mermaidMock = vi.hoisted(() => ({
-  initialize: vi.fn(),
-  render: vi.fn(async (id: string) => ({ svg: `<svg id="${id}"></svg>`, diagramType: 'flowchart-v2' })),
-}))
-vi.mock('mermaid', () => ({ default: mermaidMock }))
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 let errorSpy: ReturnType<typeof vi.spyOn>
 beforeEach(() => {
@@ -33,8 +21,6 @@ afterEach(() => {
   errorSpy.mockRestore()
   localStorage.clear()
   vi.useRealTimers()
-  // vi.fn() 會把每次呼叫的引數整份留在 mock.calls 裡（Plot 每次交給 P.react 整張圖的資料），所以每個測試之後清掉
-  for (const fn of [P.react, P.newPlot, P.purge, P.toImage, P.downloadImage, mermaidMock.initialize, mermaidMock.render]) fn.mockClear()
 })
 
 describe('verification 頁（jsdom smoke，第二組）', () => {
@@ -91,8 +77,7 @@ describe('verification 頁（jsdom smoke，第二組）', () => {
     }
     expect(screen.getByTestId('refuted-table').querySelectorAll('tbody > tr')).toHaveLength(9)
     // 沒有 KaTeX 解析錯誤，也沒有找不到 region 的程式碼區塊
-    expect(container.querySelector('.katex-error')).toBeNull()
-    expect(container.querySelector('.c-tex-error')).toBeNull()
+    expectNoTexErrors(container)
     expect(container.textContent).not.toMatch(/找不到 region/)
     await act(async () => undefined)
     expect(errorSpy).not.toHaveBeenCalled()

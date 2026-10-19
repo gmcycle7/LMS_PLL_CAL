@@ -9,6 +9,7 @@ import { EXPERIMENT_ID, builtinPreset, presetParams } from './presets'
 import { DEFAULT_PARAMS, evaluateThesis, type ConditionId, type ThesisParams } from './thesisModel'
 import { HealthCheck, type EvaluatedCase } from './experiment/HealthCheck'
 import { Hero } from './sections/Hero'
+import { BackboneCard } from './sections/Backbone'
 import { OutcomesSection } from './sections/Outcomes'
 import { SystemOverview } from './sections/SystemOverview'
 import { SymbolsSection } from './sections/Symbols'
@@ -60,7 +61,7 @@ function jumpAndSettle(id: string): () => void {
 /**
  * Dashboard / Learning Roadmap（路由 /）。
  * 段落順序：Hero → 學完你能做什麼 → 系統地圖 → 三條學習路線 → 三種學習模式 → 六個條件／一條方程式／動手體檢 → 章節地圖 → 12 個實驗 → 15 個問題 → 驗證 → 本頁必記 → 符號表。
- * Beginner 模式（folded）把長的段落收起來：「六個條件／一條方程式／動手體檢」收成一張卡片（ThesisFold）、章節地圖縮成一張表、15 個問題只列問題（點開才看短答案）、
+ * Beginner 模式（folded）的首屏是「骨幹路線」卡（sections/Backbone.tsx，取代 Hero 右側的「從這裡開始」）；其餘把長的段落收起來：「六個條件／一條方程式／動手體檢」收成一張卡片（ThesisFold）、章節地圖縮成一張表、15 個問題只列問題（點開才看短答案）、
  * 綜合手算／思考題／本頁必記各收成一張卡片、符號表收成一張卡片；收起來的內容展開才渲染，新手首頁（1280 px 寬）因此從約 1.8 萬 px 縮到約 9 千 px。Engineer / Research 全部直接展開。
  * 六個條件的檢查表與「動手體檢」共用同一組 Case A/B/C 狀態與同一個計算核心 evaluateThesis。
  * 方塊圖（docs/teaching-style.md §8）：系統地圖（SystemMap，全部方塊）、六個條件的檢查流程、條件在迴路上的位置、線性化 block 方程式的訊號流。
@@ -175,7 +176,8 @@ export default function DashboardPage() {
 
   return (
     <div className="dash">
-      <Hero onJump={jump} />
+      {/* Beginner 的首屏：Hero 右側換成「骨幹路線」卡（最短路徑、每步的分鐘數與完成勾選、從上次離開的地方繼續） */}
+      <Hero onJump={jump} aside={folded ? <BackboneCard progress={progress} /> : undefined} />
       <OutcomesSection />
       <SystemOverview onJump={jump} />
       <RoutesSection progress={progress} />

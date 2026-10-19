@@ -1,4 +1,5 @@
 import type { FormulaEntry } from '@/data/types'
+import { modelAssumes } from '@/app/chapterMeta'
 
 /**
  * 第 06 章公式登錄（Formula & Unit Reference 頁以 import.meta.glob 彙整）。
@@ -10,6 +11,7 @@ const page = '/ch/06'
 export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-06.1',
+    assumes: modelAssumes('L2'),
     title: 'PD 看到的誤差：$u=h*x$',
     tex: String.raw`e_{\mathrm{PD}}[n]=\big(H_{\mathrm{PD}}*\varepsilon\big)[n]+v[n]\approx(a-w_k)\,u[n]+v[n],\qquad u[n]=\sum_{m\ge0}h[m]\,x[n-m]`,
     conditions: String.raw`LTI 主 PLL；$w$ 在 $h$ 的記憶長度內近似常數（時間尺度分離）；$\delta=a-w$`,
@@ -21,6 +23,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-06.2',
+    assumes: modelAssumes('L1'),
     title: '原始 code GMAC 的平均輸出',
     tex: String.raw`E[G_k]\approx K_q\,(a-w_k)\,C_D,\qquad C_D=E\big[x[n-D]\,u[n]\big]`,
     conditions: String.raw`小訊號 $|\delta u|\ll\sigma_v$、Gaussian comparator 雜訊、長時間平均；average-mode GMAC`,
@@ -32,6 +35,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-06.3',
+    assumes: modelAssumes('L1'),
     title: '平均更新 pole',
     tex: String.raw`E[\delta_{k+1}]=(1-\mu K_qC)\,E[\delta_k]\;\Rightarrow\;p=1-\mu K_qC`,
     conditions: String.raw`block rate、無更新延遲、線性化；$C<0$ 時任何 $\mu>0$ 都 $p>1$（減小 $\mu$ 不能修正符號）`,
@@ -43,6 +47,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-06.4',
+    assumes: modelAssumes('L1', 'single-tone'),
     title: '單頻相關',
     tex: String.raw`C_D=\frac{A^2}{2}\,|H(e^{j\Omega})|\cos(\phi+\Omega D)`,
     conditions: String.raw`單頻 $x=A\cos\Omega n$、$0<\Omega<\pi$、長時間或整數週期平均（E46）`,
@@ -55,6 +60,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-06.5',
+    assumes: modelAssumes('L1', 'single-tone'),
     title: String.raw`單頻邊界 $\Omega=0,\pi$ 與有限 $N$ ripple`,
     tex: String.raw`\Omega\in\{0,\pi\}:\;C_D=A^2H(e^{j\Omega})\cos(\Omega D);\qquad \big|\hat C_{D,k}-C_D\big|\le\frac{A^2|H|}{2}\min\!\Big(1,\frac{1}{N|\sin\Omega|}\Big)`,
     conditions: String.raw`實係數 $h$ 在 $\Omega=0,\pi$ 只能給實數 $H$；$\hat C_{D,k}$ 是第 $k$ 個 block（$N$ 個 sample）內 $x[n-D]\,u[n]$ 的平均（E46）`,
@@ -66,6 +72,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-06.6',
+    assumes: modelAssumes('L2'),
     title: 'PD 的誤差傳遞函數',
     tex: String.raw`H_{\mathrm{PD}}=\frac{1}{1+L}`,
     conditions: String.raw`線性化主 PLL；DTC 在 reference 輸入端，殘餘誤差 $\varepsilon$ 從 PD 的 reference 輸入端進來：$e_{\mathrm{PD}}=\varepsilon-\varphi_{\mathrm{fb}}=H_{\mathrm{PD}}\,\varepsilon$（正號；別的接法依架構核對，§0）`,
@@ -76,6 +83,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-06.7',
+    assumes: modelAssumes('L2'),
     title: String.raw`Type-I：$\operatorname{Re}\{H_{\mathrm{PD}}\}$ 永遠為正`,
     tex: String.raw`H_{\mathrm{PD}}(j\omega)=\frac{j\nu}{1+j\nu},\qquad \operatorname{Re}H=\frac{\nu^2}{1+\nu^2}>0,\quad \nu=\frac{\omega}{\omega_c}`,
     conditions: String.raw`CT 原型 $L=\omega_c/s$、無額外 loop latency`,
@@ -86,6 +94,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-06.8',
+    assumes: modelAssumes('L2'),
     title: String.raw`Type-II：$\omega<\omega_n$ 時 $\operatorname{Re}\{H_{\mathrm{PD}}\}<0$`,
     tex: String.raw`\operatorname{Re}H_{\mathrm{PD}}(j\omega)=\frac{-\nu^2(1-\nu^2)}{(1-\nu^2)^2+(2\zeta\nu)^2},\quad \nu=\frac{\omega}{\omega_n}`,
     conditions: String.raw`CT 原型 $L=(2\zeta\omega_ns+\omega_n^2)/s^2$；DT 時邊界隨 $\omega_nT_s$ 與 $d$ 偏移（E44）`,
@@ -97,6 +106,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-06.9',
+    assumes: modelAssumes('L2'),
     title: '低頻：PD 看到二次微分',
     tex: String.raw`\omega\ll\omega_n:\;u\approx\frac{x''}{\omega_n^2}\;\Rightarrow\;C\approx\frac{E[x\,x'']}{\omega_n^2}=-\frac{E[x'^2]}{\omega_n^2}<0`,
     conditions: String.raw`Type-II、慢變 code（頻寬遠小於 $\omega_n$）、平穩或整數週期平均`,
@@ -107,6 +117,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-06.10',
+    assumes: modelAssumes('L2'),
     title: 'DT 主迴路（E44）',
     tex: String.raw`L(z)=\Big(K_p+\frac{K_i}{1-z^{-1}}\Big)\frac{z^{-(1+d)}}{1-z^{-1}},\quad K_p=2\zeta\omega_nT_s,\;K_i=(\omega_nT_s)^2`,
     conditions: String.raw`PLL 與 comparator 同一取樣率；$\Omega=\omega T_s$ [rad/sample]；只在 $\omega_nT_s\ll1$、$d=0$ 時與 CT 原型對應`,
@@ -118,6 +129,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-06.11',
+    assumes: modelAssumes('L2'),
     title: '多頻判據',
     tex: String.raw`C_D=\frac{1}{2\pi}\int_{-\pi}^{\pi}S_{xx}(e^{j\Omega})\operatorname{Re}\{H_{\mathrm{PD}}(e^{j\Omega})e^{j\Omega D}\}\,d\Omega`,
     conditions: String.raw`$x$ 廣義平穩、LTI 路徑穩定；$S_{xx}$ 為 DTFT 形式雙邊 PSD（E28、E44）`,
@@ -130,6 +142,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-06.12',
+    assumes: modelAssumes('L2'),
     title: '時域等價式',
     tex: String.raw`C_D=\sum_{k\ge0}h[k]\,R_x[k-D]`,
     conditions: '$x$ 廣義平穩；$R_x$ 為自相關',
@@ -140,6 +153,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-06.13',
+    assumes: modelAssumes('L2'),
     title: '白色 code 的相關',
     tex: String.raw`S_{xx}=\sigma_x^2\;\Rightarrow\;C_D=h[D]\,\sigma_x^2,\qquad C_0=\sigma_x^2\;(h[0]=1)`,
     conditions: '$L(z)$ 嚴格因果（DT 迴路至少一個 sample delay，E44）',
@@ -151,6 +165,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-06.14',
+    assumes: modelAssumes('L2'),
     title: '近整數鋸齒 residue（動差展開）',
     tex: String.raw`\frac{C}{\sigma_x^2}\approx m_0-6\,\mathrm{frac}\,m_1+6\,\mathrm{frac}^2m_2\overset{\text{Type-II}}{=}\frac{3}{\pi^2}\Big(\frac{\Omega_0}{\omega_nT_s}\Big)^2\to0^+,\quad m_j=\sum_k k^jh[k]`,
     conditions:
@@ -162,6 +177,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-06.15',
+    assumes: modelAssumes('L1'),
     title: '大誤差極限的線性漂移',
     tex: String.raw`|\delta|\,|u|\gg\sigma_v:\;G_k\to\operatorname{sign}(\delta_k)\,E[x_D\operatorname{sign}u],\qquad E[x_D\operatorname{sign}u]=\frac{2A}{\pi}\cos(\phi+\Omega D)`,
     conditions:
@@ -173,6 +189,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-06.16',
+    assumes: modelAssumes('L2'),
     title: '週期圖譜線和',
     tex: String.raw`\hat C_D=\sum_{m=0}^{L-1}\frac{|X[m]|^2}{L^2}\operatorname{Re}\{H(e^{j\Omega_m})e^{j\Omega_mD}\},\quad\Omega_m=\frac{2\pi m}{L}`,
     conditions: String.raw`對循環濾波為精確恆等式（離散 Parseval）；與線性濾波差 $O(h\text{ 長度}/L)$`,
@@ -183,6 +200,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-06.17',
+    assumes: modelAssumes('L2'),
     title: '鋸齒 code 的自相關',
     tex: String.raw`\frac{R_x[\ell]}{\sigma_x^2}=1-6\,c_P\,t_\ell(1-t_\ell),\qquad t_\ell=\mathrm{frac}\big(|\ell|\cdot\mathrm{frac}\big),\quad c_P=\frac{P^2}{P^2-1}\xrightarrow{P\to\infty}1`,
     conditions:
@@ -194,6 +212,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-06.18',
+    assumes: modelAssumes('L2'),
     title: '近整數鋸齒 + GMAC code delay：變號條件',
     tex: String.raw`\frac{C_D}{\sigma_x^2}\approx-12\,\mathrm{frac}\,D+\frac{12\,\mathrm{frac}^2}{(\omega_nT_s)^2}<0\iff D>\frac{\mathrm{frac}}{(\omega_nT_s)^2}`,
     conditions: String.raw`Type-II DPLL、一階 DSM residue（理想鋸齒）、$|k-D|\,\mathrm{frac}<1$、$1\le D\le d+1$（$h[0]=1$、$h[1..d]=0$）；$D>d+1$ 時用 sawtoothMomentApprox 的一般式`,
@@ -204,6 +223,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-06.19',
+    assumes: modelAssumes('L1'),
     title: String.raw`Mean-field GMAC 特性（任意大小的 $\delta$）`,
     tex: String.raw`E[G](\delta)=\frac1N\sum_n x[n-D]\,\mathrm{erf}\!\Big(\frac{\delta\,u[n]}{\sqrt2\,\sigma_v}\Big)\;\to\;\begin{cases}K_q\,\delta\,C_D,&|\delta u|\ll\sigma_v\\[2pt]\operatorname{sign}(\delta)\,E[x_D\operatorname{sign}u],&|\delta u|\gg\sigma_v\end{cases}`,
     conditions:

@@ -2,11 +2,9 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { StrictMode } from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
 import { renderTex } from '@/components'
 import * as plotMathModule from '@/components/plotMath'
 import { unicodeMathIn } from '@/components/mermaidTestUtils'
-import { SettingsProvider } from '@/app/settings'
 import { presetById, presetsForExperiment } from '@/app/presets'
 import { analyzeFxLab, closedLoopConsistent, pathStability, pathTransfer, runFxComparison, type FxPathSpec } from '@/simulation/models/filteredX'
 import { lfilter } from '@/simulation/signal'
@@ -27,22 +25,13 @@ import {
 } from './experiments/labState'
 import { ufDisplayScale } from './experiments/labPlots'
 import { DelayFxLab } from './experiments/DelayFxLab'
+import { plotlyMock } from '@/test/mocks/plotly'
+import { renderPage, wrapPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
-const M = vi.hoisted(() => ({
-  initialize: vi.fn(),
-  render: vi.fn(async (id: string) => ({ svg: `<svg id="${id}"><g></g></svg>`, diagramType: 'flowchart-v2' })),
-}))
-vi.mock('mermaid', () => ({ default: M }))
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 // 多個測試行程同時執行時 CPU 可能嚴重超額：沒有另外指定 timeout 的模擬測試給足夠的時間（預設只有 5 秒）；
 // 整章渲染後的 cleanup（afterEach）也可能超過預設的 10 秒
@@ -94,20 +83,13 @@ function plotStringsOf(calls: unknown[][]): string[] {
 }
 
 function renderChapter(url = '/ch/07') {
-  return render(
-    <SettingsProvider>
-      <MemoryRouter initialEntries={[url]}>
-        <Chapter07 />
-      </MemoryRouter>
-    </SettingsProvider>,
-  )
+  return renderPage(<Chapter07 />, { url })
 }
 
 // 第一次造訪的預設是 Beginner；這個檔案的斷言是照 Engineer 模式寫的（個別測試會另外設定自己的模式）
 beforeEach(() => localStorage.setItem('lmspll.mode', 'engineer'))
 afterEach(() => {
   localStorage.clear()
-  P.react.mockClear()
 })
 
 describe('Chapter 07（jsdom smoke）', () => {
@@ -270,7 +252,7 @@ describe('Chapter 07（jsdom smoke）', () => {
     // 全章沒有舊接法的說法：DTC 不在回授路徑上、殘餘誤差不是從回授那一邊進來、DTC 給的是補償量（不是往後推 edge 的延遲）。
     // （下面是「不可以出現」的樣式，不是內文。）
     expect(text).not.toMatch(/DTC 在回授|divider 之後|回授路徑上的 DTC|DTC 插入|插入延遲|推回理想|feedback 側注入|回授側注入|延遲 feedback edge/)
-    expect(container.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+    expectNoTexErrors(container)
     // 7.5 的二次差分：DT 推導（F-07.15）與 AR(1) 確切式（F-07.16）都在
     expect(container.querySelector('[id="formula-F-07.16"]')).not.toBeNull()
     // 7.10：寬頻 PLL 的數字例子（engineer 模式）與案例頁連結；Lab 的 code 選單含一階 DSM
@@ -348,10 +330,10 @@ describe('Chapter 07（jsdom smoke）', () => {
     expect(mcTex.some((t) => t.startsWith('\\mathrm{SE}='))).toBe(true)
     // 閉迴路結果出來之後（警告、指標備註、交叉比對都已顯示）整章仍然沒有拼湊的數學，也沒有 KaTeX 錯誤
     expect(plainMathText(container)).toEqual([])
-    expect(container.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+    expectNoTexErrors(container)
     // 閉迴路圖有三條 w_k
     await waitFor(() => {
-      const names = P.react.mock.calls.flatMap((c) => ((c as unknown as [unknown, { name?: string }[]])[1] ?? []).map((d) => d.name ?? ''))
+      const names = plotlyMock.react.mock.calls.flatMap((c) => ((c as unknown as [unknown, { name?: string }[]])[1] ?? []).map((d) => d.name ?? ''))
       expect(names.some((n) => n.startsWith('Case A：raw-x'))).toBe(true)
       // 圖例名稱裡的 $D=4$ 由 plotMath 轉成斜體的 D（Plotly 收到的是 pseudo-HTML）
       expect(names.some((n) => n.startsWith('Case B：delayed-x，<i>D</i> = 4'))).toBe(true)
@@ -377,13 +359,7 @@ describe('Chapter 07（jsdom smoke）', () => {
     // main.tsx 用 StrictMode：開發模式下 A/B/C 的初始化 effect 會跑兩次。舊版第二次執行把 preset 的 Case 清單丟掉，畫面只剩 Case A。
     // preset「H = 1 卻把 code 錯位 D = 4」：A raw-x（C = +1）、B delayed-x D = 4（C = −0.5）、C delayed-x D = 3（C ≈ 0）
     const { container } = render(
-      <StrictMode>
-        <SettingsProvider>
-          <MemoryRouter initialEntries={['/ch/07?preset=delay-code-misalignment']}>
-            <DelayFxLab />
-          </MemoryRouter>
-        </SettingsProvider>
-      </StrictMode>,
+      <StrictMode>{wrapPage(<DelayFxLab />, { url: '/ch/07?preset=delay-code-misalignment' })}</StrictMode>,
     )
     const caseButtons = () =>
       Array.from(container.querySelectorAll('button'))
@@ -398,7 +374,7 @@ describe('Chapter 07（jsdom smoke）', () => {
     expect(b).toContain('（F-07.4），或改用 filtered-x')
     expect(b).not.toContain('需 delay alignment 或 filtered-x')
     expect(warningTexts().some((t) => t.includes('Case A'))).toBe(false)
-    expect(container.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+    expectNoTexErrors(container)
   })
 
   it('三模式切換：點 filtered-x 後目前 Case 改為 filtered（aria-checked），並顯示 Ĥ 誤差控制', async () => {
@@ -457,7 +433,7 @@ describe('Chapter 07（jsdom smoke）', () => {
     const ids = Array.from(a.container.querySelectorAll('[id^="handcalc-HC-07"]')).map((e) => e.id)
     expect(ids).toEqual(HANDCALCS.filter((h) => h.id !== 'HC-07.7').map((h) => `handcalc-${h.id}`))
     expect(plainMathText(a.container)).toEqual([])
-    expect(a.container.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+    expectNoTexErrors(a.container)
   }, 240000)
 
   it('Research 模式：推導直接展開、顯示分析細節與 Python golden 對照；沒有拼湊的數學', () => {
@@ -473,7 +449,7 @@ describe('Chapter 07（jsdom smoke）', () => {
     expect(screen.queryByText(/程式碼載入錯誤/)).toBeNull()
     expect(b.container.querySelectorAll('[id^="handcalc-HC-07"]').length).toBe(HANDCALCS.length)
     expect(plainMathText(b.container)).toEqual([])
-    expect(b.container.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+    expectNoTexErrors(b.container)
   }, 240000)
 
   it('沒有用途的捲軸：手機上入門模式的收合框不縮窄推導（和 Engineer 模式同寬）；GMAC 程式碼那一行在桌機放得下', () => {

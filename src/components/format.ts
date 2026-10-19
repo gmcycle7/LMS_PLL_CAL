@@ -23,6 +23,15 @@ export function fmtNum(x: number, digits = 6): string {
   return `${m}e${Number(exp)}`
 }
 
+/**
+ * `x.toFixed(digits)`，但四捨五入成 0 的負數印成 `0.0000` 而不是 `-0.0000`（−0 沒有意義，教學頁不該出現「−0.000」）。
+ * 非有限值照 toFixed 的結果（'NaN'、'Infinity'）。
+ */
+export function toFixedClean(x: number, digits: number): string {
+  const s = x.toFixed(digits)
+  return /^-0(\.0*)?$/.test(s) ? s.slice(1) : s
+}
+
 /** 將單位接在數值後面（單位為空時只回傳數值） */
 export function fmtWithUnit(x: number, unit?: string, digits = 6): string {
   const s = fmtNum(x, digits)

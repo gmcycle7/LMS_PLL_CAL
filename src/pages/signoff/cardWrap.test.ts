@@ -23,7 +23,7 @@ describe('Sign-off：兩欄卡片裡的公式換行而不是橫向捲動', () =>
 
   it('這條規則只管卡片：整欄寬的公式與表格在桌機上不換行（沒有不分寬度、範圍是整頁的 white-space: normal）', () => {
     expect(unconditional).not.toMatch(/\.so-page \.c-texblock-math \.katex-display > \.katex[^>{]*\{[^}]*white-space:\s*normal/)
-    expect(unconditional).not.toMatch(/table[^{]*\.katex-display > \.katex[^{]*\{[^}]*white-space:\s*normal/)
+    expect(unconditional).not.toMatch(/(?:^|[},\s])table[^{};]*\.katex-display > \.katex[^{};]*\{[^}]*white-space:\s*normal/)
     // 手機的規則還在（整頁的 TexBlock 與推導步驟）
     expect(css).toMatch(/@media \(max-width: 640px\) \{\s*\.so-page \.c-step-tex \.katex-display > \.katex,\s*\.so-page \.c-texblock-math \.katex-display > \.katex \{\s*white-space: normal;/)
   })

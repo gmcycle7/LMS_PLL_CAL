@@ -1,8 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fireEvent, render, screen } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
 import { HandCalc, MathText, checkAnswer, defaultValues, inputError, randomValues } from '@/components'
 import type { HandCalcDef } from '@/data/types'
 import { eigSym } from '@/simulation/core'
@@ -23,28 +21,16 @@ import {
 import { FORMULAS } from './formulas'
 import Chapter09 from './index'
 import { HANDCALCS, HAND_WINDOW_N0, ch09HandCalc, signModeFactor } from './handcalcs'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
 // 「題目在章內的位置」那一個測試會渲染整章：Plotly 與 Mermaid 以 mock 取代（jsdom 沒有 canvas／SVG 排版）
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
-const mermaidMock = vi.hoisted(() => ({
-  initialize: vi.fn(),
-  render: vi.fn(async (id: string) => ({ svg: `<svg id="${id}"></svg>`, diagramType: 'flowchart-v2' })),
-}))
-vi.mock('mermaid', () => ({ default: mermaidMock }))
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 afterEach(() => {
   localStorage.clear()
-  // vi.fn 會保留每次呼叫的引數（Plotly.react 的 DOM 節點與 trace）；清掉才不會把整棵章節 DOM 留在 heap 裡
-  for (const fn of [P.react, P.purge, P.toImage, P.downloadImage, P.Plots.resize, mermaidMock.initialize, mermaidMock.render]) fn.mockClear()
 })
 
 interface Vector {
@@ -958,8 +944,7 @@ describe('Ch09 帶入手算：(f) 畫面上的算式自己算得出來', () => {
         const label = `${def.id} ${JSON.stringify(v)}`
         const sol = def.solve(v)
         const { container, unmount } = render(<HandCalc def={withValues(def, v)} />)
-        expect(Array.from(container.querySelectorAll('.katex-error')).map((e) => e.getAttribute('title')), label).toEqual([])
-        expect(container.querySelector('.c-tex-error'), label).toBeNull()
+        expectNoTexErrors(container, label)
         expect(container.querySelectorAll('.c-step').length, label).toBe(sol.steps.length)
         expect(proseText(container), label).not.toContain('$')
         expect(container.textContent, label).not.toMatch(/NaN|undefined|無法計算/)
@@ -997,7 +982,7 @@ describe('Ch09 帶入手算：(c) validate 擋掉模型不適用的輸入並說�
     // 訊息裡的 $...$ 都能渲染
     const { container, unmount } = render(<MathText>{msg}</MathText>)
     expect(container.querySelectorAll('.katex').length).toBeGreaterThan(0)
-    expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
     unmount()
   }, RENDER_TIMEOUT)
 
@@ -1017,7 +1002,7 @@ describe('Ch09 帶入手算：(d) 渲染', () => {
     const { container, unmount } = render(<HandCalc def={def} />)
     expect(container.querySelectorAll('.c-step').length).toBe(sol.steps.length)
     expect(sol.steps.length).toBeGreaterThan(0)
-    expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
     expect(container.querySelector(`[id="handcalc-${id}"]`)).toBeTruthy()
     expect(container.textContent).not.toMatch(/NaN|undefined/)
     unmount()
@@ -1031,7 +1016,7 @@ describe('Ch09 帶入手算：(d) 渲染', () => {
       expect(container.querySelectorAll('.c-step').length).toBe(0) // 練習模式先不顯示詳解
       fireEvent.click(screen.getByText('看詳解'))
       expect(container.querySelectorAll('.c-step').length).toBeGreaterThan(0)
-      expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+      expectNoTexErrors(container)
       expect(container.textContent).not.toMatch(/NaN|undefined|無法計算/)
     }
     unmount()
@@ -1043,7 +1028,7 @@ describe('Ch09 帶入手算：(d) 渲染', () => {
     fireEvent.change(rho, { target: { value: '1' } })
     expect(container.querySelectorAll('.c-step').length).toBe(0)
     expect(container.querySelector('.callout-warn')?.textContent).toContain('不可辨識')
-    expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
     fireEvent.change(rho, { target: { value: '0.9' } })
     expect(container.querySelectorAll('.c-step').length).toBeGreaterThan(0)
     expect(container.textContent).toContain('58.40') // ρ = .9、g = .5 ⇒ ln 比值 58.40…
@@ -1060,7 +1045,7 @@ describe('Ch09 帶入手算：(d) 渲染', () => {
     fireEvent.change(screen.getByLabelText(/第 3 筆的 u 1/), { target: { value: '-1' } })
     fireEvent.change(screen.getByLabelText(/第 3 筆的 u 2/), { target: { value: '-1' } })
     expect(container.textContent).toContain('退化窗口')
-    expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
     expect(container.querySelectorAll('.c-step').length).toBeGreaterThan(0)
   }, RENDER_TIMEOUT)
 })
@@ -1068,13 +1053,7 @@ describe('Ch09 帶入手算：(d) 渲染', () => {
 describe('Ch09 帶入手算：(e) 題目在章內的位置', () => {
   it('帶入手算：8 題都在章內、各自緊跟在對應的公式／例子之後，綜合題在「思考題」之前，每題都有邀請句', () => {
     localStorage.setItem('lmspll.mode', 'beginner')
-    const { container } = render(
-      <SettingsProvider>
-        <MemoryRouter initialEntries={['/ch/09']}>
-          <Chapter09 />
-        </MemoryRouter>
-      </SettingsProvider>,
-    )
+    const { container } = renderPage(<Chapter09 />, { url: '/ch/09' })
     const at = (sel: string): Element => {
       const el = container.querySelector(sel)
       expect(el, sel).toBeTruthy()
@@ -1118,6 +1097,6 @@ describe('Ch09 帶入手算：(e) 題目在章內的位置', () => {
     expect(at('#ch09-synthesis').nextElementSibling?.id).toBe('ch09-quiz')
     // 預設直接顯示逐步帶入（每題至少一步），沒有 KaTeX 錯誤
     for (const id of ids) expect(hc(id).querySelectorAll('.c-step').length, id).toBeGreaterThan(0)
-    expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(container)
   }, 60000)
 })

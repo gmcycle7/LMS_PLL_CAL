@@ -1,9 +1,7 @@
-import { cleanup, render } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { cleanup } from '@testing-library/react'
 import mermaid from 'mermaid'
 import { SYSTEM_BLOCK_LABEL, SYSTEM_MAP_BLOCKS, systemMapModel } from '@/components'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
-import { SettingsProvider } from '@/app/settings'
 import { normInv } from '@/simulation/core'
 import { cltLog10Quantile, logFactorVariance, stabilityBounds, stabilityFactors, xMoments, type XDist } from '@/simulation/models/scalarStability'
 import Chapter03 from './index'
@@ -36,6 +34,8 @@ import {
   figRef,
   SYSTEM_FOCUS,
 } from './diagrams'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
 /**
  * 本檔用「真正的」mermaid（parser 與 renderer）檢查本章每一張方塊圖；
@@ -57,15 +57,7 @@ vi.mock('@/components/Mermaid', async (importOriginal) => {
   }
 })
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
 const GAUSS: XDist = { kind: 'gaussian', sigma: 1 }
 const UNIF: XDist = { kind: 'uniform', halfWidth: Math.sqrt(3) }
@@ -666,14 +658,7 @@ describe('Ch03 頁面上的方塊圖與符號表位置', () => {
   })
 
   function renderChapter(mode: 'beginner' | 'engineer' | 'research') {
-    localStorage.setItem('lmspll.mode', mode)
-    return render(
-      <MemoryRouter initialEntries={['/ch/03']}>
-        <SettingsProvider>
-          <Chapter03 />
-        </SettingsProvider>
-      </MemoryRouter>,
-    )
+    return renderPage(<Chapter03 />, { mode, url: '/ch/03' })
   }
   const follows = (a: Element, b: Element) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
 
@@ -780,7 +765,7 @@ describe('Ch03 頁面上的方塊圖與符號表位置', () => {
         [CHART_SYNTHESIS_FLOW, '#synthesis'],
       ]
       for (const [chart, sel] of after) expect(follows(at(sel), fig(chart)), `${figRef(chart)} 應在 ${sel} 之後`).toBe(true)
-      expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+      expectNoTexErrors(container)
     },
     90000 * SLOW,
   )

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { act, cleanup, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider, type LearningMode } from '@/app/settings'
+import { type LearningMode } from '@/app/settings'
 import { MathText, listRegions } from '@/components'
 import { unicodeMathIn } from '@/components/mermaidTestUtils'
 import { plotMath } from '@/components/plotMath'
@@ -22,32 +22,16 @@ import { S0Intro } from './sections/S0Intro'
 import { S2UpdateMatrix } from './sections/S2UpdateMatrix'
 import { S3Noise } from './sections/S3Noise'
 import { S7Symbols } from './sections/S7Symbols'
+import { plotlyMock } from '@/test/mocks/plotly'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
-const mermaidMock = vi.hoisted(() => ({
-  initialize: vi.fn(),
-  render: vi.fn(async (id: string) => ({ svg: `<svg id="${id}"></svg>`, diagramType: 'flowchart-v2' })),
-}))
-vi.mock('mermaid', () => ({ default: mermaidMock }))
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 function renderChapter(url = '/ch/10', mode: LearningMode = 'engineer') {
-  localStorage.setItem('lmspll.mode', mode)
-  return render(
-    <SettingsProvider>
-      <MemoryRouter initialEntries={[url]}>
-        <Chapter10 />
-      </MemoryRouter>
-    </SettingsProvider>,
-  )
+  return renderPage(<Chapter10 />, { mode, url })
 }
 
 let errorSpy: ReturnType<typeof vi.spyOn>
@@ -60,40 +44,16 @@ afterEach(async () => {
   // 三件都做之後，每個測試結束時的存活 heap 約 70 MB（最多再多留 1–2 棵），整個檔案在 2 GB 的 heap 上限下也跑得完：
   //  1. 測試一結束就立刻卸載時，掛載後才排入的非同步工作（動態載入的 Plotly／Mermaid、worker 的回呼）還沒有機會執行，
   //     那棵樹之後就不會被釋放（實測：同步結束的測試每個都多留一棵）。所以先在 act() 裡讓事件迴圈轉一圈（macrotask），再卸載。
-  //  2. vi.fn 會記住每次呼叫的引數，而 Plotly.react(gd, …)／purge(gd) 的 gd 是章節 DOM 裡的節點（卸載時 Plot 還會再呼叫一次 purge）。
-  //     所以卸載後清掉所有 mock 的呼叫紀錄。
-  //  3. jsdom 的 selector 引擎會快取每個 selector 字串最後一次查詢的 context 與結果節點（見 releaseSelectorCache）。
+  //  2. vi.fn 會記住每次呼叫的引數，而 Plotly.react(gd, …)／purge(gd) 的 gd 是章節 DOM 裡的節點（卸載時 Plot 還會再呼叫一次 purge）；
+  //  3. jsdom 的 selector 引擎會快取每個 selector 字串最後一次查詢的 context 與結果節點。
+  //  2、3 由 src/test/setup.jsdom.ts 在每個測試前後清掉（afterEach 是 stack 順序：這裡先卸載，setup 的清理後跑）。
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 20))
   })
   cleanup()
-  for (const f of [P.react, P.purge, P.toImage, P.downloadImage, P.Plots.resize, mermaidMock.initialize, mermaidMock.render]) f.mockClear()
-  releaseSelectorCache()
   errorSpy.mockRestore()
   localStorage.clear()
 })
-
-interface SelectorEngineCaches {
-  selectResolvers?: { clear?: () => void }
-  matchResolvers?: { clear?: () => void }
-}
-
-/**
- * jsdom 的 selector 引擎（nwsapi）會為「每一個用過的 selector 字串」快取最後一次查詢的 context 與結果節點（LRU，1000 筆）。
- * container.querySelector(…)、within(exp).getAllByText(…)（內部是 querySelectorAll('*')）查過的整章 DOM 因此在卸載後仍被抓住，
- * 直到同一個 selector 字串改在別的 context 上查詢為止——整章 DOM 在 jsdom 下約 370 MB，幾個測試就累積到數 GB。
- * 每個測試結束後清掉這個快取，並用一次對 document 的查詢把「最後查詢的 context」移回 document。
- * 這裡碰的是 jsdom 的內部欄位（沒有公開 API 可以清）；欄位不存在時什麼都不做——只是多佔記憶體，不影響任何斷言。
- */
-function releaseSelectorCache(): void {
-  const implSymbol = Object.getOwnPropertySymbols(document).find((s) => s.description === 'impl')
-  const impl = implSymbol ? ((document as unknown as Record<symbol, unknown>)[implSymbol] as { _nwsapi?: SelectorEngineCaches; _nwsapiDontThrow?: SelectorEngineCaches } | undefined) : undefined
-  for (const engine of [impl?._nwsapi, impl?._nwsapiDontThrow]) {
-    engine?.selectResolvers?.clear?.()
-    engine?.matchResolvers?.clear?.()
-  }
-  document.querySelector('body')
-}
 
 function reactWarnings(): string[] {
   return errorSpy.mock.calls.map((c: unknown[]) => String(c[0])).filter((s: string) => /Warning|Each child|unique "key"/.test(s))
@@ -219,7 +179,7 @@ describe('Ch10 smoke test（jsdom）', () => {
     expect(container.querySelector('.c-code')).toBeTruthy()
     expect(screen.queryByText(/找不到程式碼 region/)).toBeNull()
     // 無 KaTeX 解析錯誤（katex-error 以紅字顯示）
-    expect(container.querySelectorAll('.katex-error').length).toBe(0)
+    expectNoTexErrors(container)
     // 帶入手算（docs/teaching-style.md §7）：8 題依序出現在對應推導之後，每題前有一句「換你算」的邀請；綜合題 HC-10.8 在思考題之前
     const hc = Array.from(container.querySelectorAll('.c-handcalc'))
     expect(hc.map((e) => e.id)).toEqual(HANDCALCS.map((h) => `handcalc-${h.id}`))
@@ -265,7 +225,7 @@ describe('Ch10 smoke test（jsdom）', () => {
       if (node.nodeValue?.includes('$') && !node.parentElement?.closest('pre, code, annotation')) stray.push(node.nodeValue)
     }
     expect(stray).toEqual([])
-    expect(container.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+    expectNoTexErrors(container)
     expect(reactWarnings()).toEqual([])
   }, LONG)
 
@@ -279,7 +239,7 @@ describe('Ch10 smoke test（jsdom）', () => {
     expect(jWarn.length).toBeGreaterThan(0)
     expect(jWarn[0].querySelectorAll('.katex').length).toBeGreaterThanOrEqual(5)
     expect(jWarn[0].textContent).not.toContain('$')
-    expect(exp.querySelectorAll('.katex-error').length).toBe(0)
+    expectNoTexErrors(exp)
     expect(kpiPoles(exp, { rho: 0.5, k: 5 }).length).toBe(1)
     // 模型回報的發散原因也是 LaTeX：ρ(I + MJ) = 1.2 ≥ 1、pole 1.2、pole > 1、−J（不再是 Unicode 拼的「ρ(I + MJ) = 1.2000 ≥ 1」）
     const why = shownWarnings(exp).find((w) => w.text.includes('每個 loop 單獨穩定不代表 MIMO 一起穩定'))!
@@ -351,13 +311,7 @@ describe('Ch10 smoke test（jsdom）', () => {
 
 describe('MIMO LMS Lab：參數個數改變時的穩健性（回歸）', () => {
   function renderLab(url = '/ch/10') {
-    return render(
-      <SettingsProvider>
-        <MemoryRouter initialEntries={[url]}>
-          <MimoLab />
-        </MemoryRouter>
-      </SettingsProvider>,
-    )
+    return renderPage(<MimoLab />, { url })
   }
   const errors = () => errorSpy.mock.calls.map((c: unknown[]) => String(c[0])).filter((t: string) => /TypeError|Uncaught|Cannot read/.test(t))
 
@@ -398,13 +352,7 @@ describe('MIMO LMS Lab：參數個數改變時的穩健性（回歸）', () => {
 
 describe('MIMO LMS Lab：失敗情境要說明原因（負面測試）', () => {
   function renderLab() {
-    return render(
-      <SettingsProvider>
-        <MemoryRouter initialEntries={['/ch/10']}>
-          <MimoLab />
-        </MemoryRouter>
-      </SettingsProvider>,
-    )
+    return renderPage(<MimoLab />, { url: '/ch/10' })
   }
 
   it('負面：把 R₁₂ 改成 1.5（非半正定）⇒ 一則「R 不是半正定」說明、KPI 顯示 Plant 無效、Analytic = n/a；改回 0.5 後恢復且封閉式比對 ok', async () => {
@@ -514,7 +462,7 @@ describe('Ch10 公式登錄與程式碼 region', () => {
           <MathText>{f.title}</MathText>｜<MathText>{f.conditions}</MathText>
         </p>,
       )
-      expect(container.querySelectorAll('.katex-error, .c-tex-error').length, f.id).toBe(0)
+      expectNoTexErrors(container, f.id)
       expect(container.textContent, f.id).not.toContain('$')
       unmount()
       const outside = `${f.title} ${f.conditions}`.replace(/\$[^$]*\$/g, '')
@@ -662,7 +610,7 @@ describe('Ch10 圖表與控制項：數學都是 LaTeX（docs/teaching-style.md 
   }
   /** 傳給 Plotly.react 的（已經過 plotMath 轉換的）軸標題與圖例名稱 */
   function plotted() {
-    const calls = P.react.mock.calls as unknown as PlotCall[]
+    const calls = plotlyMock.react.mock.calls as unknown as PlotCall[]
     return {
       x: calls.map((c) => titleOf(c[2]?.xaxis)).filter((t): t is string => !!t),
       y: calls.map((c) => titleOf(c[2]?.yaxis)).filter((t): t is string => !!t),
@@ -682,13 +630,7 @@ describe('Ch10 圖表與控制項：數學都是 LaTeX（docs/teaching-style.md 
   }
 
   it('MIMO LMS Lab：每個 Ĵ 來源、每種更新規則、R／J 兩種模型的控制項、指標、KPI 與表格，KaTeX 以外都沒有 Unicode 拼的數學；軸標題與圖例轉成斜體符號與下標', async () => {
-    const { container } = render(
-      <SettingsProvider>
-        <MemoryRouter initialEntries={['/ch/10']}>
-          <MimoLab />
-        </MemoryRouter>
-      </SettingsProvider>,
-    )
+    const { container } = renderPage(<MimoLab />, { url: '/ch/10' })
     const exp = container.querySelector('[data-experiment="mimo-lms"]') as HTMLElement
     await waitFor(() => expect(kpiPoles(exp, { k: 598 }).length).toBeGreaterThan(0), WAIT)
     // 控制項改變後 250 ms 才重算（debounce），時域模擬再由 worker 回傳：等這兩件事都完成再檢查，
@@ -702,7 +644,7 @@ describe('Ch10 圖表與控制項：數學都是 LaTeX（docs/teaching-style.md 
     const check = async (what: string) => {
       await settle()
       expect(unicodeMathIn(plainTextOf(exp)), what).toEqual([])
-      expect(exp.querySelectorAll('.katex-error, .c-tex-error').length, what).toBe(0)
+      expectNoTexErrors(exp, what)
       // 落單的 `$`（字串沒有經過 mathText）
       const c = exp.cloneNode(true) as HTMLElement
       c.querySelectorAll('.katex, pre, code, .c-exp-summary').forEach((e) => e.remove())
@@ -772,13 +714,12 @@ describe('Ch10 圖表與控制項：數學都是 LaTeX（docs/teaching-style.md 
   }, LONG)
 
   it('S2、S3 的互動圖與控制項：軸標題、圖例用 LaTeX（k₉₅、ρ、γ、λ_reg）；暫存器欄只剩名稱，單位／說明在 KaTeX 以外沒有 Unicode 拼的數學', async () => {
-    const { container } = render(
-      <SettingsProvider>
-        <MemoryRouter initialEntries={['/ch/10']}>
-          <S2UpdateMatrix />
-          <S3Noise />
-        </MemoryRouter>
-      </SettingsProvider>,
+    const { container } = renderPage(
+      <>
+        <S2UpdateMatrix />
+        <S3Noise />
+      </>,
+      { url: '/ch/10' },
     )
     await waitFor(() => expect(plotted().names.some((t) => t.startsWith('一般 LMS（掃'))).toBe(true), WAIT)
     const { x, y, names } = plotted()
@@ -822,14 +763,7 @@ describe('Ch10 圖表與控制項：數學都是 LaTeX（docs/teaching-style.md 
 
 describe('Ch10 §10.3：審查 C01（哪個模式最慢）與 R02（A 不對稱時 F-10.5 只是下界）的正文', () => {
   function renderS2(mode: LearningMode) {
-    localStorage.setItem('lmspll.mode', mode)
-    return render(
-      <SettingsProvider>
-        <MemoryRouter initialEntries={['/ch/10']}>
-          <S2UpdateMatrix />
-        </MemoryRouter>
-      </SettingsProvider>,
-    )
+    return renderPage(<S2UpdateMatrix />, { mode, url: '/ch/10' })
   }
   const annotations = (root: Element) => Array.from(root.querySelectorAll('annotation')).map((a) => a.textContent ?? '')
 
@@ -923,7 +857,7 @@ describe('Ch10 §10.3：審查 C01（哪個模式最慢）與 R02（A 不對稱�
           <MathText>{t}</MathText>
         </p>,
       )
-      expect(container.querySelectorAll('.katex-error, .c-tex-error').length, t).toBe(0)
+      expectNoTexErrors(container, t)
       expect(container.textContent, t).not.toContain('$')
       container.querySelectorAll('.katex').forEach((e) => e.remove())
       expect(unicodeMathIn(container.textContent ?? ''), t).toEqual([])
@@ -937,14 +871,7 @@ describe('收尾：技術審查 R06a 的 Ch10 部分——pole 公式屬於線�
   const byId = (id: string) => FORMULAS.find((f) => f.id === id)!
   const annotations = (root: Element) => Array.from(root.querySelectorAll('annotation')).map((a) => a.textContent ?? '')
   function renderS2(mode: LearningMode) {
-    localStorage.setItem('lmspll.mode', mode)
-    return render(
-      <SettingsProvider>
-        <MemoryRouter initialEntries={['/ch/10']}>
-          <S2UpdateMatrix />
-        </MemoryRouter>
-      </SettingsProvider>,
-    )
+    return renderPage(<S2UpdateMatrix />, { mode, url: '/ch/10' })
   }
 
   it('公式登錄：F-10.3 與第 9 章 F-09.4 是同一條 pole 公式，使用條件要寫出「線性模型／1-bit 小訊號」；其餘由 A_cal 算 pole 的公式也都帶這個條件；claim 不變', () => {
@@ -1004,7 +931,7 @@ describe('收尾：技術審查 R06a 的 Ch10 部分——pole 公式屬於線�
     expect(phys.textContent).toContain('75,091、750、5')
     expect(annotations(phys)).toContain(String.raw`|\mathbf u^T\boldsymbol\delta_k|\ll\sigma_v=100\ \mathrm{fs}`)
     expect(phys.textContent).toContain('單位換算本身是精確的算術')
-    expect(container.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+    expectNoTexErrors(container)
   }, LONG)
 })
 
@@ -1016,14 +943,13 @@ describe('收尾：技術審查 R07 的 Ch10 部分——λ₁ = 1 + ρ 是「�
     expect(cap).toContain(String.raw`圖畫的是 $\rho\ge0$：共模（綠）快，差模（紅）慢`)
     expect(cap).toContain(String.raw`$\rho<0$ 時兩者對調`)
     localStorage.setItem('lmspll.mode', 'beginner')
-    const { container } = render(
-      <SettingsProvider>
-        <MemoryRouter initialEntries={['/ch/10']}>
-          <S0Intro />
-          <S2UpdateMatrix />
-          <MimoLab />
-        </MemoryRouter>
-      </SettingsProvider>,
+    const { container } = renderPage(
+      <>
+        <S0Intro />
+        <S2UpdateMatrix />
+        <MimoLab />
+      </>,
+      { url: '/ch/10' },
     )
     const fig = container.querySelector('[data-diagram="eigen-modes"]') as HTMLElement
     const walk = fig.querySelector('.ch10-fig-walk') as HTMLElement
@@ -1087,13 +1013,7 @@ describe('收尾：版面與顯示——手機不橫向溢出、數學上是 0 �
     expect(an.spectralRadius).toBeLessThan(1e-12)
     expect(an.blocks95).toBe(1)
 
-    const { container } = render(
-      <SettingsProvider>
-        <MemoryRouter initialEntries={['/ch/10']}>
-          <MimoLab />
-        </MemoryRouter>
-      </SettingsProvider>,
-    )
+    const { container } = renderPage(<MimoLab />, { url: '/ch/10' })
     const exp = container.querySelector('[data-experiment="mimo-lms"]') as HTMLElement
     await waitFor(() => expect(kpiPoles(exp, { k: 598 }).length).toBeGreaterThan(0), WAIT)
     fireEvent.change(within(exp).getByLabelText(/第 1 列第 2 行/) as HTMLInputElement, { target: { value: '0.8' } })

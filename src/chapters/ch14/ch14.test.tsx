@@ -1,38 +1,22 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
 import type { ReactNode } from 'react'
-import { SettingsProvider } from '@/app/settings'
 import Chapter14 from './index'
 import { LrOptimizerExperiment } from './experiments/LrOptimizer'
 import { CornerIntervalExperiment } from './experiments/CornerInterval'
 import { CalStateMachineExperiment, stateSegments, trackRmsPrediction } from './experiments/CalStateMachine'
 import { DEFAULT_CAL_SM } from '@/simulation/models/optimizer'
 import { SYMBOLS } from './sections/S10Symbols'
+import { wrapPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
-vi.mock('mermaid', () => ({
-  default: { initialize: vi.fn(), render: vi.fn(async (id: string) => ({ svg: `<svg id="${id}"></svg>`, diagramType: 'flowchart-v2' })) },
-}))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 function wrap(node: ReactNode, url = '/ch/14') {
-  return (
-    <MemoryRouter initialEntries={[url]}>
-      <SettingsProvider>{node}</SettingsProvider>
-    </MemoryRouter>
-  )
+  return wrapPage(node, { url })
 }
 
 afterEach(() => {
   localStorage.clear()
-  // P.react 的 mock.calls 會留著每次傳給 Plotly 的整包資料陣列；整個檔案渲染多次完整章節，不清掉會把 heap 撐到上限
-  P.react.mockClear()
 })
 
 describe('Ch14 頁面（jsdom smoke）', () => {
@@ -154,8 +138,7 @@ describe('Ch14 Research 模式：所有內容（含 Research-only 推導與程�
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const { container } = render(wrap(<Chapter14 />))
     expect(container.querySelectorAll('.katex').length).toBeGreaterThan(300)
-    const bad = Array.from(container.querySelectorAll('.katex-error')).map((e) => e.getAttribute('title') ?? e.textContent)
-    expect(bad).toEqual([])
+    expectNoTexErrors(container)
     expect(container.textContent).not.toContain('程式碼載入錯誤')
     // Research 模式才出現的內容
     expect(container.textContent).toContain('core:calStep（完整的一個 block）')

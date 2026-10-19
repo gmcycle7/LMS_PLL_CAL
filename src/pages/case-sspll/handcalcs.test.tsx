@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import { expectNoTexErrors } from '@/test/katex'
 import { HandCalc, MathText, defaultValues, randomValues, renderTex } from '@/components'
 import type { HandCalcDef } from '@/data/types'
 import {
@@ -124,6 +125,38 @@ const INDEP: Record<string, (v: Record<string, number>) => number[]> = {
     const Aout = tmag * Math.sqrt(2 * W1_INDEP) * rms
     const spur = 20 * Math.log10(Math.PI * fvco * 1e9 * Aout * 1e-15)
     return [Aout, spur, spur + 20 * Math.log10(10 ** (peak / 20) / tmag)]
+  },
+  // HC-CS.10：L2 標稱迴路的單點證書（M = 4）。Re H 用測試內的 typeIIL／reH；L_g 用測試自己的 IIR 遞迴算脈衝響應（尾項 ρ^4096 可忽略）；
+  // g_min 用 200001 點的格點最小值減 L_g h/2（與 gosTheorem.ts 相同的定義，但這裡不呼叫它）
+  'HC-CS.10': ({ beta }) => {
+    const { Kp, Ki } = HC_NOMINAL
+    const g = (f: number) => (f === 0 ? 0 : reH(typeIIL(Kp, Ki, 2 * Math.PI * f))) // f = 0：DC 被迴路吸收，Re H_PD = 0（1 − z⁻¹ = 0 不能直接除）
+    // H_PD = aL/(aL + bL)：aL = [1, −2, 1]、bL = [0, Kp + Ki, −Kp]（1 拍延遲的 P + I）
+    const bH = [1, -2, 1]
+    const aH = [1, -2 + Kp + Ki, 1 - Kp]
+    let sumN = 0
+    const x1 = [0, 0, 0] // DF-I 的歷史：x[n−1], x[n−2]；y[n−1], y[n−2]
+    const y1 = [0, 0]
+    for (let n = 0; n <= 4096; n++) {
+      const x = n === 0 ? 1 : 0
+      const y = bH[0] * x + bH[1] * x1[0] + bH[2] * x1[1] - aH[1] * y1[0] - aH[2] * y1[1]
+      if (n >= 1) sumN += n * Math.abs(y)
+      x1[1] = x1[0]
+      x1[0] = x
+      y1[1] = y1[0]
+      y1[0] = y
+    }
+    const Lg = 2 * Math.PI * sumN
+    const nf = 200001
+    let gridMin = Infinity
+    for (let j = 1; j < nf; j++) gridMin = Math.min(gridMin, g((0.5 * j) / (nf - 1))) // j = 0：Re H_PD(0) = 0（DC 被迴路吸收），不是最小值
+    const gMin = Math.min(0, gridMin - (Lg * (0.5 / (nf - 1))) / 2)
+    let C4 = 0
+    for (let m = 1; m <= 4; m++) C4 += g((m * beta) % 1) / (2 * Math.PI ** 2 * m * m)
+    const T4 = (Math.PI ** 2 / 6 - (1 + 1 / 4 + 1 / 9 + 1 / 16)) / (2 * Math.PI ** 2)
+    const LB = C4 + gMin * T4
+    const Lam4 = (Lg * (1 + 1 / 2 + 1 / 3 + 1 / 4)) / (2 * Math.PI ** 2)
+    return [LB, 12 * LB, LB / Lam4]
   },
 }
 
@@ -364,7 +397,7 @@ function expectRenders(def: HandCalcDef, v: Record<string, number>) {
       ))}
     </div>,
   )
-  expect(container.querySelectorAll('.katex-error, .c-tex-error').length, def.id).toBe(0)
+  expectNoTexErrors(container, def.id)
   unmount()
 }
 
@@ -429,11 +462,12 @@ const EXTRA: Record<string, Record<string, number>[]> = {
     { Kp: 0.28771696, Ki: 0.575433921 },
   ],
   'HC-CS.9': [{ rms: 3 }, { rms: 25, tmag: 0.5 }, { fvco: 8 }, { peak: 0, tmag: 0.8 }, { rms: 173.3 }, { tmag: 1.2, rms: 50, fvco: 20 }, { rms: 0.1 }, { tmag: 0.0431, peak: 2.94 }, { rms: 12.345, fvco: 13, tmag: 0.9876, peak: 1.5 }],
+  'HC-CS.10': [{ beta: 0.123 }, { beta: 0.3 }, { beta: 0.05 }, { beta: 0.5 }, { beta: 0.75 }, { beta: 0.04 }, { beta: 0.96 }, { beta: 0.3333 }, { beta: 0.137 }],
 }
 
 describe('SSPLL 案例頁的帶入手算（HC-CS.1 – HC-CS.9）', () => {
   it('SSPLL: 題目清單——9 題、ID 連號、頁面 /case/sspll、公式 ID 已登錄、三種難度都有、預設值通過 validate', () => {
-    expect(HANDCALCS.map((h) => h.id)).toEqual(['HC-CS.1', 'HC-CS.2', 'HC-CS.3', 'HC-CS.4', 'HC-CS.5', 'HC-CS.6', 'HC-CS.7', 'HC-CS.8', 'HC-CS.9'])
+    expect(HANDCALCS.map((h) => h.id)).toEqual(['HC-CS.1', 'HC-CS.2', 'HC-CS.3', 'HC-CS.4', 'HC-CS.5', 'HC-CS.10', 'HC-CS.6', 'HC-CS.7', 'HC-CS.8', 'HC-CS.9']) // HC-CS.10（§7b）排在頁面順序上，不是編號順序
     const formulaIds = new Set(FORMULAS.map((f) => f.id))
     for (const h of HANDCALCS) {
       expect(h.page).toBe('/case/sspll')
@@ -952,6 +986,12 @@ describe('SSPLL 案例頁的帶入手算（HC-CS.1 – HC-CS.9）', () => {
         [{ Ki: 0 }, /不是 Type-II/],
         [{ Kp: 1.5, Ki: 1.2 }, /主迴路不穩定/],
       ],
+      'HC-CS.10': [
+        [{ beta: 0 }, /GOS 不可觀測/],
+        [{ beta: 1 }, /GOS 不可觀測/],
+        [{ beta: 0.01 }, /單點證書會失敗/],
+        [{ beta: 0.995 }, /單點證書會失敗/],
+      ],
       'HC-CS.9': [
         [{ rms: 0 }, /必須大於 0/],
         [{ fvco: 0 }, /必須大於 0/],
@@ -968,7 +1008,7 @@ describe('SSPLL 案例頁的帶入手算（HC-CS.1 – HC-CS.9）', () => {
         const msg = def.validate?.(withDefaults(def, patch))
         expect(msg, `${def.id} ${JSON.stringify(patch)}`).toMatch(re)
         const { container, unmount } = render(<MathText>{msg}</MathText>)
-        expect(container.querySelectorAll('.katex-error, .c-tex-error').length, `${def.id} ${JSON.stringify(patch)}`).toBe(0)
+        expectNoTexErrors(container, `${def.id} ${JSON.stringify(patch)}`)
         unmount()
       }
     }
@@ -995,7 +1035,7 @@ describe('SSPLL 案例頁的帶入手算（HC-CS.1 – HC-CS.9）', () => {
       expect(container.querySelector(`#handcalc-${def.id.replace('.', '\\.')}`), def.id).not.toBeNull()
       expect(container.querySelectorAll('.c-step').length, def.id).toBe(sol.steps.length)
       expect(sol.steps.length, def.id).toBeGreaterThanOrEqual(4)
-      expect(container.querySelectorAll('.katex-error, .c-tex-error').length, def.id).toBe(0)
+      expectNoTexErrors(container, def.id)
       expect(container.querySelectorAll('.c-handcalc-tips li').length, def.id).toBe(def.tips?.length ?? 0)
       const text = (() => {
         const clone = container.cloneNode(true) as HTMLElement
@@ -1010,7 +1050,7 @@ describe('SSPLL 案例頁的帶入手算（HC-CS.1 – HC-CS.9）', () => {
         expect(screen.getAllByPlaceholderText('你的答案').length, def.id).toBe(sol.results.length)
         fireEvent.click(screen.getByText('看詳解'))
         expect(container.querySelectorAll('.c-step').length, `${def.id} 第 ${k + 1} 題`).toBeGreaterThanOrEqual(4)
-        expect(container.querySelectorAll('.katex-error, .c-tex-error').length, `${def.id} 第 ${k + 1} 題`).toBe(0)
+        expectNoTexErrors(container, `${def.id} 第 ${k + 1} 題`)
         expect(container.querySelector('.callout-warn'), `${def.id} 第 ${k + 1} 題`).toBeNull()
       }
       unmount()

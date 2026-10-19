@@ -2,7 +2,8 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import errataJson from '@/data/errata.json'
 import { handcalcsForPage } from './handcalcs'
-import { CHAPTER_FRAME_META, READING_RATE, chapterChain, chapterFrameMeta, estimateReadingMinutes } from './chapterMeta'
+import { ALL_FORMULAS } from '@/pages/formulas/registry'
+import { CHAPTER_FRAME_META, CHAPTER_MODEL_CATALOG, READING_RATE, modelAssumes, chapterChain, chapterFrameMeta, chapterModel, estimateReadingMinutes } from './chapterMeta'
 import { PAGES, pageById } from './registry'
 import { MODES } from './settings'
 
@@ -109,6 +110,46 @@ describe('chapterMeta：每個章節頁一筆', () => {
       expect(m.next.hook.trim().length, id).toBeGreaterThan(10)
       expect(m.next.hook, `${id}：hook 不該有未成對的 $`).toMatch(/^(?:[^$]*\$[^$]+\$)*[^$]*$/)
     }
+  })
+
+  it('models：每章 1–4 個「精確」所在的模型，id 都在 CHAPTER_MODEL_CATALOG、不重複；清單有 L0–L5 與三個常見假設，每個都有 label 與一句 assumes（$ 成對）', () => {
+    expect(Object.keys(CHAPTER_MODEL_CATALOG).sort()).toEqual(['L0', 'L1', 'L2', 'L3', 'L4', 'L5', 'frozen-weight', 'mean-field', 'single-tone'])
+    for (const [id, m] of Object.entries(CHAPTER_MODEL_CATALOG)) {
+      expect(m.id).toBe(id)
+      expect(m.label.trim().length, id).toBeGreaterThan(2)
+      expect(m.assumes.trim().length, id).toBeGreaterThan(10)
+      expect(m.assumes, `${id}：assumes 不該有未成對的 $`).toMatch(/^(?:[^$]*\$[^$]+\$)*[^$]*$/)
+    }
+    for (const [ch, meta] of Object.entries(CHAPTER_FRAME_META)) {
+      expect(meta.models.length, ch).toBeGreaterThanOrEqual(1)
+      expect(meta.models.length, ch).toBeLessThanOrEqual(4)
+      expect(new Set(meta.models.map((m) => m.id)).size, `${ch}：模型不重複`).toBe(meta.models.length)
+      for (const m of meta.models) {
+        expect(CHAPTER_MODEL_CATALOG[m.id], `${ch} → ${m.id}`).toBeDefined()
+        expect(m.label).toBe(CHAPTER_MODEL_CATALOG[m.id].label)
+      }
+      // 每章至少一個模型層級（L0–L5），假設（frozen-weight／single-tone／mean-field）只是補充
+      expect(meta.models.some((m) => /^L\d$/.test(m.id)), `${ch}：至少一個 L 層級`).toBe(true)
+    }
+    // 幾個固定的事實：ch00 只有 L0；案例頁與 ch06／07 依賴線性小訊號 PLL 與凍結權重；ch13 是定點
+    expect(CHAPTER_FRAME_META.ch00.models.map((m) => m.id)).toEqual(['L0'])
+    for (const ch of ['ch06', 'ch07', 'case-sspll']) expect(CHAPTER_FRAME_META[ch].models.map((m) => m.id), ch).toEqual(expect.arrayContaining(['L2', 'frozen-weight']))
+    expect(CHAPTER_FRAME_META.ch13.models.map((m) => m.id)).toEqual(['L5'])
+    // chapterModel 可以用章節自己的一句話覆寫 assumes，label 不變
+    const custom = chapterModel('L1', '自訂的一句')
+    expect(custom).toEqual({ ...CHAPTER_MODEL_CATALOG.L1, assumes: '自訂的一句' })
+    expect(chapterModel('L1')).toBe(CHAPTER_MODEL_CATALOG.L1)
+  })
+
+  it('assumes：/formulas 登錄表的每一條公式都有「在哪個模型內精確」（不靠章的預設）、$ 成對；沒有特別寫的公式至少含自己層級的模型標籤', () => {
+    expect(ALL_FORMULAS.length).toBeGreaterThan(300)
+    for (const f of ALL_FORMULAS) {
+      expect(f.assumes?.trim().length ?? 0, `${f.id} 缺 assumes`).toBeGreaterThan(10)
+      expect(f.assumes, `${f.id}：assumes 不該有未成對的 $`).toMatch(/^(?:[^$]*\$[^$]+\$)*[^$]*$/)
+    }
+    // 預設寫法：標籤在前、多個模型用「；」接
+    expect(modelAssumes('L0')).toBe(`${CHAPTER_MODEL_CATALOG.L0.label}：${CHAPTER_MODEL_CATALOG.L0.assumes}`)
+    expect(modelAssumes('L2', 'frozen-weight').split('；').length).toBeGreaterThanOrEqual(2)
   })
 
   it('手算題：每一章 registry 的 path 都收集得到 HANDCALCS（strip 的「手算 N 題」從畫面數，但資料要先存在）', () => {

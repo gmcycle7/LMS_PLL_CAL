@@ -5,3 +5,4 @@ export { FormulaLink, AnchorLink, type FormulaLinkProps, type AnchorLinkProps } 
 export { ChRef, chapterTarget, normalizeChapterId, type ChRefProps } from './ChRef'
 export { AnchorDeepLink } from './DeepLink'
 export { formulaDomId, formulaHref, routeWithParam, revealAnchor, revealFromRoute, markNavigation, scrollToElement, waitAndReveal, type RevealFilter } from './anchor'
+export { ErratumLink, erratumRoute, type ErratumLinkProps } from './ErratumLink'

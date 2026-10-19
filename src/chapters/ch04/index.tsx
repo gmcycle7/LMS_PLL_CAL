@@ -6,6 +6,7 @@ import { GmacMathSection } from './sections/GmacMath'
 import { Part1QuizSection } from './sections/Part1Quiz'
 import { HardwareSection } from './sections/Hardware'
 import { FixedPointSection } from './sections/FixedPoint'
+import { DtcRangeSection } from './sections/DtcRange'
 import { HardwareNotesSection } from './sections/HardwareNotes'
 import { WrapupSection } from './sections/Wrapup'
 import { RecapSection } from './sections/Recap'
@@ -19,7 +20,7 @@ import { SymbolsSection } from './sections/Symbols'
  *
  * 兩個 Part（2026-10-19，審查 pedagogy：Beginner 路徑上第一個 PLL 章卻是全站最重的一章，RTL 細節和訊號流混在一起）：
  *   Part 1「訊號流：DTC → DSM → PD → GMAC」= §1 系統、§2 residue、§3 GMAC 的數學（含訊號流實驗）＋ 六題數學／訊號流思考題；
- *   Part 2「硬體實作：定點、暫存器、RTL 對照」= §4 硬體對應與時序（含條件取負）、§5 定點、§6 RTL 檢查清單、§7 比較表／綜合手算／RTL 思考題。
+ *   Part 2「硬體實作：定點、暫存器、RTL 對照」= §4 硬體對應與時序（含條件取負）、§5 定點、§5b DTC 的範圍／LSB／量化抖動／T_0 預算（2026-10-19，審查 depth）、§6 RTL 檢查清單、§7 比較表／綜合手算／RTL 思考題。
  *   Part 2 在 Beginner 模式整段收成一個 <details>（PartFold），Engineer／Research 展開；§8 本課必記與符號表在摺疊框外面，所有模式都看得到。
  *   既有的 id（ch04-*、handcalc-HC-04.x、formula-F-04.x）、公式／手算／preset 的數量都不變；§3 與 §4 的編號對調（GMAC 的數學先於硬體對應）。
  */
@@ -38,10 +39,11 @@ export default function Chapter04() {
         n={2}
         id="ch04-part-2"
         title="硬體實作：定點、暫存器、RTL 對照"
-        lead="把 Part 1 的數學做成 RTL：硬體對應表與 clock domain／更新延遲（§4）、每條線幾個 bit、「÷N」怎麼右移與取整、gain accumulator 碰到 rail 怎麼辦（§5）、一份 RTL 檢查清單（§6），最後是比較表、綜合手算與四題 RTL 思考題（§7）。"
+        lead="把 Part 1 的數學做成 RTL：硬體對應表與 clock domain／更新延遲（§4）、每條線幾個 bit、「÷N」怎麼右移與取整、gain accumulator 碰到 rail 怎麼辦（§5）、DTC 本身有幾個 bit——範圍、LSB、量化抖動與基準延遲的預算（§5b）、一份 RTL 檢查清單（§6），最後是比較表、綜合手算與四題 RTL 思考題（§7）。"
       >
         <HardwareSection />
         <FixedPointSection />
+        <DtcRangeSection />
         <HardwareNotesSection />
         <WrapupSection />
       </PartFold>

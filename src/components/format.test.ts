@@ -1,4 +1,4 @@
-import { fileTimestamp, fmtNum, prettyJson, safeFileName, toJsonSafe } from './format'
+import { fileTimestamp, fmtNum, prettyJson, safeFileName, toFixedClean, toJsonSafe } from './format'
 
 describe('fmtNum', () => {
   it('以有效位數顯示並去除尾零', () => {
@@ -50,5 +50,19 @@ describe('檔名工具', () => {
   it('safeFileName 移除路徑與特殊字元', () => {
     expect(safeFileName(' a/b: c ')).toBe('a-b-c')
     expect(safeFileName('///')).toBe('export')
+  })
+})
+
+describe('toFixedClean', () => {
+  it('四捨五入成 0 的負數不印負號；其餘與 toFixed 相同', () => {
+    expect(toFixedClean(-0.00001, 4)).toBe('0.0000')
+    expect(toFixedClean(-0, 3)).toBe('0.000')
+    expect(toFixedClean(-0.0004, 3)).toBe('0.000')
+    expect(toFixedClean(-0.0005, 3)).toBe('-0.001')
+    expect(toFixedClean(-1.25, 1)).toBe('-1.3')
+    expect(toFixedClean(0.5, 0)).toBe('1')
+    expect(toFixedClean(-0.2, 0)).toBe('0')
+    expect(toFixedClean(NaN, 2)).toBe('NaN')
+    expect(toFixedClean(-Infinity, 2)).toBe('-Infinity')
   })
 })

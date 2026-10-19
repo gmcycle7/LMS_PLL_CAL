@@ -1,10 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { act, fireEvent, render, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { act, fireEvent, waitFor } from '@testing-library/react'
 import katex from 'katex'
 import mermaid from 'mermaid'
-import { SettingsProvider } from '@/app/settings'
 import { systemMapModel } from '@/components'
 import { sanitizeMermaidSource } from '@/components/mermaidSource'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
@@ -18,6 +16,8 @@ import { averagedStd, biasedFixedPoint, handCalcRows, steadyStateVarW, stepsToFr
 import { HANDCALCS } from './handcalcs'
 import { LABEL_WRAP_PX, installMermaidLayoutStubs, katexTextWidth, svgNaturalSize, textWidth } from './mermaidTestLayout'
 import { HAND_CALC_PARAMS } from './sections/HandCalc'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors, expectTexParses } from '@/test/katex'
 
 /*
  * 本章方塊圖的測試（docs/teaching-style.md §8）。這裡用的是「真正的」mermaid：
@@ -36,16 +36,7 @@ import { HAND_CALC_PARAMS } from './sections/HandCalc'
  */
 
 // Plotly 與本檔無關：整章渲染時以假物件取代
-vi.mock('plotly.js-cartesian-dist-min', () => ({
-  default: {
-    react: vi.fn(async () => undefined),
-    purge: vi.fn(),
-    toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-    downloadImage: vi.fn(async () => ''),
-    Plots: { resize: vi.fn() },
-    Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-  },
-}))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
 /** 本章方塊圖的張數（不含章首的系統地圖）。改動張數時這裡要一起改——這是刻意的。 */
 const EXPECTED_DIAGRAMS = 19
@@ -186,7 +177,7 @@ function expectMathText(label: string, text: string) {
   const parts = text.split('$')
   expect(parts.length % 2, `${label}：$ 要成對`).toBe(1)
   parts.forEach((part, i) => {
-    if (i % 2 === 1) expect(() => katex.renderToString(part, { throwOnError: true }), `${label}：$${part}$`).not.toThrow()
+    if (i % 2 === 1) expectTexParses(part, `${label}：$${part}$`)
     else expect(part, `${label}：數學要寫成 $…$`).not.toMatch(/[α-ωΑ-Ω²³⁻₀-₉√Σ≤≥]|[a-z]_[a-z0-9]/)
   })
 }
@@ -824,12 +815,10 @@ describe('ch00 方塊圖：和本章公式一致', () => {
 
 describe('ch00 方塊圖：頁面上的位置', () => {
   it('<ChapterDiagram> 接上真正的 mermaid：畫出 SVG（不是錯誤框），圖說帶圖號，下面有導讀', async () => {
-    const { container } = render(
-      <SettingsProvider>
-        <ChapterDiagram name="CHART_LMS_ACCUMULATOR">
-          <p>先看乘法器，再看累加器。</p>
-        </ChapterDiagram>
-      </SettingsProvider>,
+    const { container } = renderPage(
+      <ChapterDiagram name="CHART_LMS_ACCUMULATOR">
+        <p>先看乘法器，再看累加器。</p>
+      </ChapterDiagram>,
     )
     await waitFor(() => expect(container.querySelector('.c-mermaid-svg svg')).not.toBeNull(), { timeout: 30_000 })
     // 圖上的文字（去掉 KaTeX 的 MathML 複本）：公式已排版，沒有殘留的 $
@@ -855,13 +844,7 @@ describe('ch00 方塊圖：頁面上的位置', () => {
       const renderSpy = vi
         .spyOn(mermaid, 'render')
         .mockImplementation(async (id: string) => ({ svg: `<svg id="${id}" data-fake="1"></svg>`, diagramType: 'flowchart-v2' }))
-      const { container } = render(
-        <SettingsProvider>
-          <MemoryRouter initialEntries={['/ch/00']}>
-            <Chapter00 />
-          </MemoryRouter>
-        </SettingsProvider>,
-      )
+      const { container } = renderPage(<Chapter00 />, { url: '/ch/00' })
       const total = DIAGRAMS.length + 1 // + 章首的系統地圖
       const figures = () => Array.from(container.querySelectorAll('figure.c-mermaid'))
       expect(figures()).toHaveLength(total)
@@ -892,7 +875,7 @@ describe('ch00 方塊圖：頁面上的位置', () => {
       expect(drawnFocus.map((g) => g.getAttribute('data-block')).sort()).toEqual([...SYSTEM_MAP_FOCUS].sort())
       expect(drawnFocus.every((g) => g.getAttribute('data-focus') === 'true')).toBe(true)
       expect(drawnBlocks.filter((g) => !g.classList.contains('is-focus')).every((g) => !g.hasAttribute('data-focus'))).toBe(true)
-      expect(first.querySelector('.katex-error')).toBeNull()
+      expectNoTexErrors(first)
       expect(squash(drawnFocus.map((g) => g.textContent).join(''))).toContain('Gainaccumulator')
       const note = first.nextElementSibling!
       expect(note.className).toBe('ch00-map-note c-map-note') // c-map-note：PageFrame 的章首 strip 排在它後面（teaching-style §9）
@@ -909,7 +892,7 @@ describe('ch00 方塊圖：頁面上的位置', () => {
         const hit = Array.from(legend.querySelectorAll('annotation[encoding="application/x-tex"]')).some((a) => a.textContent === tex)
         expect(hit, `圖例的 ${tex}`).toBe(true)
       }
-      expect(legend.querySelector('.katex-error')).toBeNull()
+      expectNoTexErrors(legend)
       expect(legend.querySelectorAll('.ch00-swatch')).toHaveLength(4)
 
       // ── 本章的方塊圖：順序、段落、圖號、導讀、位置 ──
@@ -929,7 +912,7 @@ describe('ch00 方塊圖：頁面上的位置', () => {
           if (i % 2 === 0 && part) expect(cap.textContent, d.name).toContain(part)
         })
         expect(cap.querySelectorAll('.katex'), d.name).toHaveLength((capParts.length - 1) / 2)
-        expect(cap.querySelector('.katex-error'), d.name).toBeNull()
+        expectNoTexErrors(cap, d.name)
         expect(el.querySelector('figure')?.getAttribute('aria-label'), d.name).toBe(`${label}：${d.ariaLabel}`)
         // 導讀：「先看…再看…」＋「圖上的 X 就是公式裡的 x」
         const walk = el.querySelector('.ch00-diagram-walk')!
@@ -940,7 +923,7 @@ describe('ch00 方塊圖：頁面上的位置', () => {
         expect(text, d.name).toMatch(/再看|最後看/)
         expect(text, d.name).toMatch(/圖上/)
         expect(walk.querySelectorAll('.katex').length, d.name).toBeGreaterThan(0) // 用 KaTeX 把圖上的名字接回公式
-        expect(walk.querySelector('.katex-error'), d.name).toBeNull()
+        expectNoTexErrors(walk, d.name)
         // 導讀裡不再用 <code> 拼圖上的公式（數學一律 KaTeX）
         expect(walk.querySelector('code'), `${d.name} 導讀裡不放 <code> 拼的公式`).toBeNull()
         // 在它要說明的公式／推導／手算題之前

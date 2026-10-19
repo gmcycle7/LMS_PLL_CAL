@@ -1,4 +1,5 @@
 import type { FormulaEntry } from '@/data/types'
+import { modelAssumes } from '@/app/chapterMeta'
 
 /**
  * Ch08 公式登錄（Formula & Unit Reference 頁以 import.meta.glob 彙整）。
@@ -9,6 +10,7 @@ import type { FormulaEntry } from '@/data/types'
 export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-08.1',
+    assumes: modelAssumes('L2'),
     title: String.raw`單頻 Polarity Margin（含 $\mathrm{wrap}_{180}$ 的精確定義）`,
     // 兩行（gathered）：一行排開要 915px，比桌機的正文欄（約 837px）寬，會多出一條橫向捲軸
     tex: String.raw`\begin{gathered}M_{\mathrm{polarity}}=90^\circ-\big|\mathrm{wrap}_{180}(\theta)\big|=\arcsin(\cos\theta)\\[0.6em]\mathrm{wrap}_{180}(\theta)\triangleq\big((\theta+180^\circ)\bmod 360^\circ\big)-180^\circ\in[-180^\circ,180^\circ)\end{gathered}`,
@@ -22,6 +24,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-08.2',
+    assumes: modelAssumes('L1'),
     title: '一階 calibration loop 的開迴路增益',
     tex: String.raw`\delta_{k+1}=(1-g)\,\delta_k,\qquad L_{\mathrm{cal}}(z)=\frac{g}{z-1},\qquad g=\mu K,\; K=K_qC`,
     conditions: String.raw`$G_k=K(a-w_k)$、$K>0$、$w_{k+1}=w_k+\mu G_k$；block rate；無更新延遲；$\delta=a-w$`,
@@ -34,6 +37,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-08.3',
+    assumes: modelAssumes('L1'),
     title: '閉迴路 pole 與穩定範圍',
     tex: String.raw`p=1-g,\qquad |p|<1\iff 0<g<2`,
     conditions: String.raw`一階模型、$d=0$；$g=2$ 為臨界（pole $=-1$），不可視為穩定`,
@@ -44,6 +48,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-08.4',
+    assumes: modelAssumes('L1'),
     title: 'Gain crossover 頻率',
     tex: String.raw`\big|e^{j\omega}-1\big|=2\sin\frac{\omega}{2}\;\Rightarrow\;\omega_c=2\arcsin\frac{g}{2}\quad[\mathrm{rad/block}]`,
     conditions: String.raw`$0<g\le2$（$g>2$ 時 $|L|>1$ 對所有 $\omega$ 成立，沒有 crossover）`,
@@ -55,6 +60,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-08.5',
+    assumes: modelAssumes('L1'),
     title: 'Calibration Phase Margin',
     tex: String.raw`\boxed{PM_{\mathrm{cal}}=180^\circ+\angle L_{\mathrm{cal}}(e^{j\omega_c})=90^\circ-\arcsin\frac{g}{2}}`,
     conditions: String.raw`$0<g\le2$；$d=0$；相位由低頻連續展開`,
@@ -66,6 +72,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-08.6',
+    assumes: modelAssumes('L1'),
     title: 'Nyquist 直線、Gain Margin 與 Delay Margin',
     tex: String.raw`L_{\mathrm{cal}}(e^{j\omega})=-\frac{g}{2}-j\,\frac{g}{2}\cot\frac{\omega}{2},\qquad GM=\frac{2}{g},\qquad DM=\frac{PM\,[\mathrm{rad}]}{\omega_c}\;[\mathrm{blocks}]`,
     conditions: String.raw`$d=0$；$DM$ 為還能額外容忍的純延遲（可為非整數 block）`,
@@ -76,6 +83,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-08.7',
+    assumes: modelAssumes('L1'),
     title: String.raw`更新延遲 $d$ 個 block 的遞迴與特徵式`,
     tex: String.raw`\delta_{k+1}=\delta_k-g\,\delta_{k-d},\qquad L(z)=\frac{g\,z^{-d}}{z-1},\qquad P(z)=z^{d+1}-z^{d}+g`,
     conditions: String.raw`GMAC 量到的是 $d$ 個 block 前的係數（sample→commit→apply pipeline）；$d$ 為整數 block`,
@@ -87,6 +95,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-08.8',
+    assumes: modelAssumes('L1'),
     title: '純延遲模型的臨界增益',
     tex: String.raw`\boxed{g^{*}(d)=2\sin\frac{\pi}{4d+2}},\qquad \omega^{*}=\frac{\pi}{2d+1}`,
     conditions: String.raw`只對 $z^{d+1}-z^d+g=0$ 這個特徵方程成立；$d=0,1,2\Rightarrow g^{*}=2,\ 1,\ 0.618$`,
@@ -97,6 +106,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-08.9',
+    assumes: modelAssumes('L1'),
     title: '含延遲的 PM 與 GM',
     tex: String.raw`PM_d=90^\circ-(2d+1)\arcsin\frac{g}{2},\qquad GM_d=\frac{g^{*}(d)}{g}`,
     conditions: String.raw`$0<g\le2$；$PM_d=0\iff g=g^{*}(d)$（與根軌跡結果一致）`,
@@ -107,6 +117,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-08.10',
+    assumes: modelAssumes('L2'),
     title: '雙迴路二狀態模型與特徵式',
     tex: String.raw`\begin{bmatrix}s_{k+1}\\ \delta_{k+1}\end{bmatrix}=\begin{bmatrix}r_s&b_s\\ -\mu c_s&1\end{bmatrix}\begin{bmatrix}s_k\\ \delta_k\end{bmatrix},\qquad P(z)=z^2-(1+r_s)z+(r_s+\mu b_sc_s)`,
     conditions: String.raw`$s$ 為抽象觀測狀態（不是 VCO 控制電壓）；$\mu$ 為 $K\equiv1$ 的正規化步長（E13）；記號依 E31`,
@@ -118,6 +129,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-08.11',
+    assumes: modelAssumes('L2'),
     title: String.raw`完整模型 vs quasi-static 的 $\mu$ 穩定範圍`,
     tex: String.raw`\underbrace{0<\mu b_sc_s<1-r_s}_{\text{完整模型（Jury）}}\qquad\text{vs.}\qquad \underbrace{0<\mu b_sc_s<2(1-r_s)}_{\text{quasi-static}}`,
     conditions: String.raw`$|r_s|<1$、$b_sc_s>0$；兩者恰差 $2$ 倍且與 $r_s$ 無關：差異來自觀測路徑內建的一個 block sample→observe latency（E19）`,
@@ -129,6 +141,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-08.12',
+    assumes: modelAssumes('L2'),
     title: '複數 pole 門檻與模數',
     tex: String.raw`\mu b_sc_s>\frac{(1-r_s)^2}{4}\;\Rightarrow\; z=\frac{1+r_s}{2}\pm j\sqrt{r_s+\mu b_sc_s-\Big(\frac{1+r_s}{2}\Big)^2},\quad |z|=\sqrt{r_s+\mu b_sc_s}`,
     conditions: String.raw`二狀態模型；$r_s=0.8$、$b_s=0.2$、$c_s=1$ 時門檻 $\mu=0.05$`,
@@ -140,6 +153,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-08.13',
+    assumes: modelAssumes('L2'),
     title: '一般化觀測狀態空間的合併矩陣',
     tex: String.raw`\boxed{\mathbf A_{\mathrm{comb}}=\begin{bmatrix}\mathbf A_s&\mathbf b_s\\ -\mu\,\mathbf c_s^{\mathsf T}&1-\mu d_s\end{bmatrix}},\qquad \rho(\mathbf A_{\mathrm{comb}})<1`,
     conditions: String.raw`$\mathbf s_{k+1}=\mathbf A_s\mathbf s_k+\mathbf b_s\delta_k$；$G_k=\mathbf c_s^{\mathsf T}\mathbf s_k+d_s\delta_k$；$\delta_{k+1}=\delta_k-\mu G_k$（規格寫 $\mathbf A,\mathbf B,\mathbf C,D$；此處依 E31 改名，$\mathbf c_s^{\mathsf T}$ 即觀測矩陣 $\mathbf C_{\mathrm{obs}}$，不是相關矩陣 $\mathbf C$）`,
@@ -151,6 +165,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-08.14',
+    assumes: modelAssumes('L2'),
     title: '觀測轉移函數與 calibration loop gain',
     // 兩行（gathered）：一行排開比桌機的正文欄寬約 67px，會多出一條橫向捲軸
     tex: String.raw`\begin{gathered}F(z)=d_s+\mathbf c_s^{\mathsf T}(z\mathbf I-\mathbf A_s)^{-1}\mathbf b_s,\qquad \boxed{L_{\mathrm{cal}}(z)=\frac{\mu F(z)}{z-1}}\\[0.6em]\det(z\mathbf I-\mathbf A_{\mathrm{comb}})=\det(z\mathbf I-\mathbf A_s)\,\big(z-1+\mu F(z)\big)\end{gathered}`,
@@ -163,6 +178,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-08.15',
+    assumes: modelAssumes('L2'),
     title: 'Quasi-static（時間尺度分離）近似',
     tex: String.raw`\delta_{k+1}\approx\big(1-\mu F(1)\big)\,\delta_k,\qquad F(1)=d_s+\mathbf c_s^{\mathsf T}(\mathbf I-\mathbf A_s)^{-1}\mathbf b_s\;\Big(=\tfrac{b_sc_s}{1-r_s}\Big)`,
     conditions: String.raw`把 $F(z)$ 換成 DC 值 $F(1)$；二狀態例子只在 $\mu b_sc_s\ll\frac{(1-r_s)^2}{4}$ 時可信（本例 $\mu\ll0.05$）`,
@@ -174,6 +190,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-08.16',
+    assumes: modelAssumes('L2'),
     title: '完整二狀態模型的 phase crossover 與 Gain Margin（E19 的頻域版本）',
     tex: String.raw`\cos\omega_{180}=\frac{1+r_s}{2},\qquad \big|L_{\mathrm{cal}}(e^{j\omega_{180}})\big|=\frac{\mu b_sc_s}{1-r_s}=g_{\mathrm{eff}}\;\Rightarrow\;\boxed{GM_{\text{完整}}=\frac{1}{g_{\mathrm{eff}}}=\tfrac12\,GM_{\text{quasi-static}}}`,
     conditions: String.raw`二狀態模型 $L_{\mathrm{cal}}=\frac{\mu b_sc_s}{(z-1)(z-r_s)}$；$|r_s|<1$、$g_{\mathrm{eff}}=\mu F(1)>0$。完整模型 $0<g_{\mathrm{eff}}<1$（與 §8.3 $d=1$ 的 $g^{*}$ 相同），quasi-static $0<g_{\mathrm{eff}}<2$；比值與 $r_s$ 無關`,

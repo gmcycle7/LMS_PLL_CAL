@@ -5,20 +5,11 @@
  * 這裡以 jsdom 的 inline 模式（沒有 Worker）重現：有鎖沒解除時 spur 表永遠不出現。
  */
 import { StrictMode } from 'react'
+import { wrapPage } from '@/test/renderPage'
 import { cleanup, render, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
 import { ClosedLoopLms, LMS_EXPERIMENT_ID } from './experiments/ClosedLoopLms'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
 afterEach(() => {
   cleanup()
@@ -28,15 +19,7 @@ afterEach(() => {
 describe('實驗 C（閉迴路 LMS）在 StrictMode 下的自動重跑', () => {
   it('SSPLL: StrictMode 先清理再掛載一次之後，同一組參數仍會自動跑完——凍結後的 spur 表與三個 case 的指標都出現', async () => {
     localStorage.setItem('lmspll.mode', 'engineer')
-    const { container } = render(
-      <StrictMode>
-        <SettingsProvider>
-          <MemoryRouter initialEntries={['/case/sspll']}>
-            <ClosedLoopLms />
-          </MemoryRouter>
-        </SettingsProvider>
-      </StrictMode>,
-    )
+    const { container } = render(<StrictMode>{wrapPage(<ClosedLoopLms />, { url: '/case/sspll' })}</StrictMode>)
     const exp = () => container.querySelector(`#exp-${LMS_EXPERIMENT_ID}`) as HTMLElement
     expect(exp()).not.toBeNull()
     expect(exp().textContent).toContain('即時模擬尚未完成')

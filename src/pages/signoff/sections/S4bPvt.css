@@ -1,0 +1,24 @@
+/*
+ * §4b PVT corner 表（S4bPvt.tsx）自己的樣式；顏色用 global.css 的 token，沒有固定高度與 overflow: auto。
+ * 其餘（.so-corner-table、.table-wrap、.so-verdict）沿用 signoff.css。
+ */
+.so-pvt-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 6px 12px;
+  align-items: end;
+  margin: 10px 0 14px;
+}
+.so-pvt-table caption {
+  caption-side: top;
+  text-align: left;
+  font-size: 0.86rem;
+  color: var(--text-muted);
+  padding: 2px 0 6px;
+}
+.so-pvt-table th[scope='row'] {
+  white-space: nowrap;
+}
+.so-pvt-table tr[data-ok='false'] th[scope='row'] {
+  color: var(--danger, #b42318);
+}

@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import { expectNoTexErrors } from '@/test/katex'
 import { HandCalc, checkAnswer, randomValues, texNum, texNumP } from '@/components'
 import { checkSummary } from './HandCalc'
 import { defaultValues } from './handcalcMath'
@@ -43,7 +44,7 @@ describe('HandCalc', () => {
     expect(sol.results[1].value).toBeCloseTo(2.28, 12)
     const { container } = render(<HandCalc def={def} />)
     expect(container.querySelectorAll('.c-step').length).toBe(sol.steps.length)
-    expect(container.querySelector('.katex-error')).toBeNull()
+    expectNoTexErrors(container)
     expect(container.textContent).toContain('2.28')
   })
 
@@ -106,7 +107,7 @@ describe('HandCalc', () => {
     expect(new Set(ids).size).toBe(ids.length)
     for (const h of ALL_HANDCALCS) {
       const { container, unmount } = render(<HandCalc def={h} />)
-      expect(container.querySelector('.katex-error'), h.id).toBeNull()
+      expectNoTexErrors(container, h.id)
       expect(container.querySelectorAll('.c-step').length, h.id).toBeGreaterThan(0)
       unmount()
     }

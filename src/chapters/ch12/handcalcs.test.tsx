@@ -1,6 +1,5 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import katex from 'katex'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { HandCalc, checkAnswer, defaultValues, randomValues, texNum } from '@/components'
 import type { HandCalcDef } from '@/data/types'
@@ -23,6 +22,7 @@ import {
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
 import { decimalsAt, sigAtDecimals, sigFor, tx, txD, txDM, txIn, txM, txP } from './handcalcTex'
+import { expectTexParses, expectNoTexErrors } from '@/test/katex'
 
 // 平常每個測試不到 1 秒；與其他測試平行跑、機器滿載時 KaTeX 渲染會慢好幾倍，所以把逾時放寬（不影響任何斷言）
 vi.setConfig({ testTimeout: 60000 })
@@ -120,12 +120,12 @@ describe('第 12 章帶入手算：題庫結構', () => {
       const strings = [h.title, ...(h.tips ?? []), ...h.inputs.map((i) => i.label)]
       for (const s of strings) {
         expect(dollarsBalanced(s), `${h.id}: ${s}`).toBe(true)
-        for (const m of mathSegments(s)) expect(() => katex.renderToString(m, { throwOnError: true }), `${h.id}: ${m}`).not.toThrow()
+        for (const m of mathSegments(s)) expectTexParses(m, `${h.id}: ${m}`)
       }
-      expect(() => katex.renderToString(h.formulaTex, { throwOnError: true, displayMode: true }), h.id).not.toThrow()
+      expectTexParses(h.formulaTex, h.id, { displayMode: true })
       for (const i of h.inputs) {
-        expect(() => katex.renderToString(i.symbol, { throwOnError: true }), `${h.id}.${i.key}`).not.toThrow()
-        if (i.unit) expect(() => katex.renderToString(i.unit as string, { throwOnError: true }), `${h.id}.${i.key} unit`).not.toThrow()
+        expectTexParses(i.symbol, `${h.id}.${i.key}`)
+        if (i.unit) expectTexParses(i.unit as string, `${h.id}.${i.key} unit`)
       }
     }
   })
@@ -363,15 +363,15 @@ describe('(b) 換一題：20 個 seed 的隨機題目都有有限解，且等於
         // 每一步的 TeX、理由與補充說明都能渲染
         expect(sol.steps.length).toBeGreaterThan(0)
         for (const s of sol.steps) {
-          expect(() => katex.renderToString(s.tex, { throwOnError: true, displayMode: true }), `${h.id} seed ${seed}: ${s.tex}`).not.toThrow()
+          expectTexParses(s.tex, `${h.id} seed ${seed}: ${s.tex}`, { displayMode: true })
           expect(s.tex).not.toMatch(/NaN|undefined|Infinity/)
           expect(dollarsBalanced(s.why), s.why).toBe(true)
-          for (const m of mathSegments(s.why)) expect(() => katex.renderToString(m, { throwOnError: true }), `${h.id}: ${m}`).not.toThrow()
+          for (const m of mathSegments(s.why)) expectTexParses(m, `${h.id}: ${m}`)
         }
         for (const n of sol.notes ?? []) {
           expect(dollarsBalanced(n), n).toBe(true)
           expect(n).not.toMatch(/NaN|undefined/)
-          for (const m of mathSegments(n)) expect(() => katex.renderToString(m, { throwOnError: true }), `${h.id}: ${m}`).not.toThrow()
+          for (const m of mathSegments(n)) expectTexParses(m, `${h.id}: ${m}`)
         }
       }
       expect(seen.size, `${h.id}：隨機題目應該有變化`).toBeGreaterThan(5)
@@ -392,7 +392,7 @@ describe('(c) validate：模型不適用的輸入會被擋下，訊息說明原�
   const expectRenderable = (msg: string) => {
     expect(dollarsBalanced(msg), msg).toBe(true)
     expect(mathSegments(msg).length, msg).toBeGreaterThan(0)
-    for (const m of mathSegments(msg)) expect(() => katex.renderToString(m, { throwOnError: true }), m).not.toThrow()
+    for (const m of mathSegments(msg)) expectTexParses(m, m)
     expect(msg).not.toMatch(/NaN|undefined/)
   }
 
@@ -510,7 +510,7 @@ describe('(d) 渲染：每一題的 <HandCalc> 都沒有 KaTeX 錯誤，KaTeX �
     it(`${h.id}：看帶入過程`, () => {
       const sol = h.solve(defaultValues(h))
       const { container, unmount } = render(<HandCalc def={h} />)
-      expect(container.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+      expectNoTexErrors(container)
       expect(container.querySelectorAll('.c-step').length).toBe(sol.steps.length)
       expect(sol.steps.length).toBeGreaterThanOrEqual(4)
       expect(container.querySelectorAll('.c-handcalc-results .katex-display').length).toBe(sol.results.length)
@@ -539,7 +539,7 @@ describe('(d) 渲染：每一題的 <HandCalc> 都沒有 KaTeX 錯誤，KaTeX �
     expect(container.querySelectorAll('.c-handcalc-verdict.bad').length).toBe(1)
     fireEvent.click(screen.getByText('看詳解'))
     expect(container.querySelectorAll('.c-step').length).toBe(sol.steps.length)
-    expect(container.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+    expectNoTexErrors(container)
   })
 
   it('輸入超出模型適用範圍：不顯示步驟，改顯示原因（公式已渲染）；改回合法值後恢復', () => {
@@ -550,7 +550,7 @@ describe('(d) 渲染：每一題的 <HandCalc> 都沒有 KaTeX 錯誤，KaTeX �
     const warn = container.querySelector('.callout-warn') as HTMLElement
     expect(warn.textContent).toContain('沒有解')
     expect(warn.querySelectorAll('.katex').length).toBeGreaterThan(1)
-    expect(warn.querySelectorAll('.katex-error').length).toBe(0)
+    expectNoTexErrors(warn)
     expect(plainMath(warn)).toEqual([])
     fireEvent.change(p, { target: { value: '0.5' } })
     expect(container.querySelectorAll('.c-step').length).toBe(10)
@@ -926,7 +926,7 @@ describe('(e) 每一步都能照畫面上的數字重算：符號式 = 代入數
     // 科學記號當底數要加括號（否則是 KaTeX 的 double superscript 錯誤）
     const small = hc('HC-12.5').solve({ p: 0.01, fs: 0.001, N: 3, sigmaV: 0.00001 })
     expect(small.steps[3].tex).toContain('(10^{-5})^2')
-    for (const s of small.steps) expect(() => katex.renderToString(s.tex, { throwOnError: true, displayMode: true }), s.tex).not.toThrow()
+    for (const s of small.steps) expectTexParses(s.tex, s.tex, { displayMode: true })
     // HC-12.7：β/2 直接用 π 乘（不把四捨五入過的 β 再除以 2）；log 留 5 位小數、dBc 3 位
     const spur = hc('HC-12.7').solve(defaultValues(hc('HC-12.7')))
     expect(spur.steps[3].tex).toBe(String.raw`\frac{\beta}{2}=\pi\cdot f_{\mathrm{out}}|T|A_t=\pi\times(6.5\times10^{-6})=2.04204\times10^{-5}`)

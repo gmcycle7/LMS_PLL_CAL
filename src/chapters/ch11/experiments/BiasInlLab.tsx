@@ -848,7 +848,7 @@ export function BiasInlLab() {
       crossCheck={{ analytic: analyticCheck, monteCarlo: mcCheck, fixedPoint: { status: 'not-implemented', note: '定點（RTL bit-true）版本：見 Ch13 與 Unified Lab' } }}
       actions={{ onRun: runMc, onRunToConvergence: runToConvergence, onStop: cancelMc, running: mcRunning, onReset: resetAll }}
       exportData={exportData}
-      presets={presetList.map((p) => ({ name: p.galleryIndex ? `Gallery #${p.galleryIndex}：${p.title}` : p.title, params: p.params, description: `${p.description} 預期：${p.expected}` }))}
+      presets={presetList.map((p) => ({ id: p.id, name: p.galleryIndex ? `Gallery #${p.galleryIndex}：${p.title}` : p.title, params: p.params, description: `${p.description} 預期：${p.expected}` }))}
       onLoadPreset={(p) => applyPreset(p.params)}
       controls={
         <>

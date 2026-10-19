@@ -47,7 +47,7 @@ export function tn(x: number, digits = 4): string {
 
 /** 把 PresetEntry 轉成 ExperimentShell 的 presets 格式 */
 export function toShellPresets(list: PresetEntry[]): ExperimentPreset[] {
-  return list.map((p) => ({ name: p.title, params: p.params, description: p.description }))
+  return list.map((p) => ({ id: p.id, name: p.title, params: p.params, description: p.description }))
 }
 
 /** 0…N 的整數索引陣列 */

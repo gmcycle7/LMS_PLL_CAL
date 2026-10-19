@@ -1,11 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { cleanup, fireEvent, render } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import katex from 'katex'
+import { cleanup, fireEvent } from '@testing-library/react'
 import mermaid from 'mermaid'
 import { ALL_HANDCALCS, handcalcById } from '@/app/handcalcs'
-import { SettingsProvider } from '@/app/settings'
 import { checkAnswer, defaultValues } from '@/components'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
 import { conventionalStep } from '@/simulation/models/lms'
@@ -13,6 +10,8 @@ import * as D from './diagrams'
 import { CHART_BANK, CHART_DEMO_ORDER, CHART_HOWTO, WORKBOOK_CHARTS } from './diagrams'
 import WorkbookPage from './index'
 import { EMPTY_FILTERS, filtersToParams } from './logic'
+import { renderPage } from '@/test/renderPage'
+import { expectTexParses } from '@/test/katex'
 
 // 方塊圖在整頁測試裡用只放原始碼與圖說的替身（真正的 mermaid 套件沒有被 mock：上面的測試照樣用它解析與渲染每一張圖）
 vi.mock('@/components/Mermaid', async () => {
@@ -322,7 +321,7 @@ describe('手算練習簿的 Mermaid 圖（真正的 mermaid parser）', () => {
         const dollars = label.replace(/\\\$/g, '').split('$').length - 1
         expect(dollars % 2, `${c.name}：${label}`).toBe(0)
         for (const m of label.matchAll(MATH)) {
-          expect(() => katex.renderToString(m[1] ?? m[2], { throwOnError: true, strict: 'ignore' }), `${c.name}：${m[0]}`).not.toThrow()
+          expectTexParses(m[1] ?? m[2], `${c.name}：${m[0]}`, { strict: 'ignore' })
         }
         expect(unicodeMathIn(textPieces(label).join(' ').replace(CODE_NAMES, '')), `${c.name}：${label}`).toEqual([])
       }
@@ -362,13 +361,7 @@ describe('手算練習簿的 Mermaid 圖（真正的 mermaid parser）', () => {
 
 describe('手算練習簿頁面上的方塊圖（teaching-style §8）；本頁沒有逐頁符號表（§5 不適用）', () => {
   it('3 張圖各出現一次、順序與清單相同、都有圖說與「先看…再看…」導讀並放在對應的說明／題目之前；圖說的數學用 LaTeX；頁面上沒有符號表', () => {
-    const { container } = render(
-      <SettingsProvider>
-        <MemoryRouter initialEntries={['/workbook']}>
-          <WorkbookPage />
-        </MemoryRouter>
-      </SettingsProvider>,
-    )
+    const { container } = renderPage(<WorkbookPage />, { url: '/workbook' })
     const before = (a: Element | null, b: Element | null, msg: string) => {
       expect(a, msg).toBeTruthy()
       expect(b, msg).toBeTruthy()

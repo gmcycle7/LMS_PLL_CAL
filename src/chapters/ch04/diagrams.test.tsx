@@ -1,9 +1,8 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
+import { renderPage } from '@/test/renderPage'
 import { join } from 'node:path'
-import { render, waitFor } from '@testing-library/react'
+import { waitFor } from '@testing-library/react'
 import mermaid from 'mermaid'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
 import { SYSTEM_BLOCK_LABEL, SYSTEM_MAP_BLOCKS, accessibleText, systemMapModel } from '@/components'
 import { sanitizeMermaidSource } from '@/components/mermaidSource'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
@@ -88,15 +87,7 @@ import { CH04_SYSTEM_CAPTION, CH04_SYSTEM_FOCUS } from './sections/Intro'
  */
 const R = String.raw
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
 /**
  * 這次改版之前就有的四張圖（保留、依勘誤修正標籤、改成較窄的版面）；
@@ -195,12 +186,12 @@ beforeAll(() => {
 afterAll(() => restoreMeasure())
 
 describe('Ch04 方塊圖：登錄表', () => {
-  it('共 22 張（原有 4 張，其中整體架構圖拆成 2 張 = 5 張；新增 17 張），名稱不重複；模組匯出的每一張圖都有登錄', () => {
-    expect(CH04_DIAGRAMS).toHaveLength(22)
+  it('共 23 張（原有 4 張，其中整體架構圖拆成 2 張 = 5 張；新增 17 張，§5b 的 DTC 範圍圖再加 1 張），名稱不重複；模組匯出的每一張圖都有登錄', () => {
+    expect(CH04_DIAGRAMS).toHaveLength(23)
     const names = CH04_DIAGRAMS.map((d) => d.name)
     expect(new Set(names).size).toBe(names.length)
     for (const n of ORIGINAL) expect(names).toContain(n)
-    expect(names.filter((n) => !ORIGINAL.includes(n)).length).toBe(17)
+    expect(names.filter((n) => !ORIGINAL.includes(n)).length).toBe(18)
     const exported = Object.entries(diagramModule)
       .filter(([, v]) => typeof v === 'string' && /^(flowchart|sequenceDiagram|stateDiagram)/.test(v as string))
       .map(([k]) => k)
@@ -208,17 +199,17 @@ describe('Ch04 方塊圖：登錄表', () => {
     for (const d of CH04_DIAGRAMS) expect((diagramModule as Record<string, unknown>)[d.name], d.name).toBe(d.chart)
   })
 
-  it('圖號依頁面順序 1…22；沒有登錄的圖會丟錯（頁面上不會出現沒經過測試的圖）', () => {
+  it('圖號依頁面順序 1…23；沒有登錄的圖會丟錯（頁面上不會出現沒經過測試的圖）', () => {
     CH04_DIAGRAMS.forEach((d, i) => expect(diagramNumber(d.chart)).toBe(i + 1))
     expect(() => diagramNumber('flowchart LR\n  A --> B')).toThrow(/沒有登錄/)
   })
 
   it('每個段落、每條有圖的公式都對得到：§1–§7 都有圖，重要章節至少 8 張（規範 §8）', () => {
     const sections = new Set(CH04_DIAGRAMS.map((d) => d.section))
-    expect([...sections].sort()).toEqual(['§1', '§2', '§3', '§4', '§5', '§6', '§7'])
+    expect([...sections].sort()).toEqual(['§1', '§2', '§3', '§4', '§5', '§5b', '§6', '§7'])
     expect(CH04_DIAGRAMS.length + 1).toBeGreaterThanOrEqual(8) // + 章首的系統地圖
     const formulas = CH04_DIAGRAMS.map((d) => d.formula).filter(Boolean)
-    for (const id of ['F-04.1', 'F-04.2', 'F-04.4', 'F-04.5', 'F-04.7', 'F-04.8', 'F-04.9', 'F-04.11', 'F-04.12', 'F-04.13', 'F-04.14', 'F-04.15', 'F-04.17', 'F-04.18']) expect(formulas).toContain(id)
+    for (const id of ['F-04.1', 'F-04.2', 'F-04.4', 'F-04.5', 'F-04.7', 'F-04.8', 'F-04.9', 'F-04.11', 'F-04.12', 'F-04.13', 'F-04.14', 'F-04.15', 'F-04.17', 'F-04.18', 'F-04.19']) expect(formulas).toContain(id)
   })
 })
 
@@ -963,16 +954,10 @@ describe('Ch04 頁面上的方塊圖（整頁渲染）', () => {
 
   it('章首有 SystemMap（手排的 SVG，藍色 = 本章的訊號路徑，不經過 mermaid），接著 22 張圖依登錄表的順序出現，每一張都交給 mermaid 畫、圖說說明要看什麼', async () => {
     // 整頁約 10 萬個 DOM 節點，在 jsdom 裡對這麼大的文件做真正的 mermaid 排版要一分多鐘；
-    // 每一張圖的實際渲染已經在上面逐張測過，這裡只確認「頁面送給 mermaid 的原始碼就是登錄表裡的那 22 張」（系統地圖不在其中）。
+    // 每一張圖的實際渲染已經在上面逐張測過，這裡只確認「頁面送給 mermaid 的原始碼就是登錄表裡的那 23 張」（系統地圖不在其中）。
     const renderSpy = vi.spyOn(mermaid, 'render').mockImplementation(async (id: string) => ({ svg: `<svg id="${id}"></svg>`, diagramType: 'flowchart-v2' }))
-    const { container } = render(
-      <SettingsProvider>
-        <MemoryRouter initialEntries={['/ch/04']}>
-          <Chapter04 />
-        </MemoryRouter>
-      </SettingsProvider>,
-    )
-    const total = CH04_DIAGRAMS.length + 1 // 22 張編號的圖 + 章首的系統地圖
+    const { container } = renderPage(<Chapter04 />, { url: '/ch/04' })
+    const total = CH04_DIAGRAMS.length + 1 // 23 張編號的圖 + 章首的系統地圖
     expect(container.querySelectorAll('figure.c-mermaid').length).toBe(total)
     await waitFor(() => expect(container.querySelectorAll('figure.c-mermaid .c-mermaid-svg > svg').length).toBe(total), { timeout: 120_000 })
     expect(container.textContent).not.toContain('Mermaid 圖解析失敗')
@@ -1093,9 +1078,9 @@ describe('Ch04 方塊圖：共用的真實渲染檢查（renderMermaidForTest）
   // 章首的系統地圖是全站共用、手排的 SVG（不經過 mermaid，版面與節點數由 src/components/SystemMap.test.tsx 負責），不在這份清單裡
   const ALL: (readonly [string, string])[] = CH04_DIAGRAMS.map((d) => [d.name, d.chart] as const)
 
-  it('登錄表的 22 張全部都會被檢查', () => {
-    expect(ALL).toHaveLength(22)
-    expect(new Set(ALL.map(([name]) => name)).size).toBe(22)
+  it('登錄表的 23 張全部都會被檢查', () => {
+    expect(ALL).toHaveLength(23)
+    expect(new Set(ALL.map(([name]) => name)).size).toBe(23)
   })
 
   it.each(ALL)('%s：畫得出來，沒有 Unsupported markdown、沒有殘留的 $、KaTeX 以外沒有 Unicode 數學，節點數不超過 14', async (name, chart) => {

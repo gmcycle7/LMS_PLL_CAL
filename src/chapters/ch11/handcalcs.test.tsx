@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { expectNoTexErrors } from '@/test/katex'
 import { join } from 'node:path'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { HandCalc, checkAnswer, defaultValues, randomValues, renderTex } from '@/components'
@@ -841,7 +842,7 @@ describe('Ch11 handcalcs：<HandCalc> 渲染', () => {
   it.each(HANDCALCS.map((h) => [h.id, h] as const))('%s：預設值渲染出所有步驟與答案，沒有 KaTeX 錯誤、沒有殘留的 $', (_id, def) => {
     const sol = def.solve(defaultValues(def))
     const { container, unmount } = render(<HandCalc def={def} />)
-    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(container)
     expect(container.querySelectorAll('.c-step').length).toBe(sol.steps.length)
     expect(sol.steps.length).toBeGreaterThanOrEqual(6)
     expect(container.querySelectorAll('.c-handcalc-results .c-texblock').length).toBe(sol.results.length)
@@ -861,7 +862,7 @@ describe('Ch11 handcalcs：<HandCalc> 渲染', () => {
     expect(container.querySelector('.callout-warn')?.textContent).toContain('低階截斷')
     expect(container.querySelector('.callout-warn')?.textContent).not.toContain('不收斂')
     expect(container.querySelector('.callout-warn .katex')).not.toBeNull()
-    expect(container.querySelector('.katex-error')).toBeNull()
+    expectNoTexErrors(container)
     fireEvent.change(sigma, { target: { value: '0.5' } })
     expect(container.querySelectorAll('.c-step').length).toBeGreaterThan(0)
     expect(container.textContent).toContain('1.3413824') // 1.34 + 3.456e−4/0.25

@@ -1,15 +1,14 @@
-import { render, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { waitFor } from '@testing-library/react'
 import mermaid from 'mermaid'
 import { defaultValues, renderTex, systemMapModel } from '@/components'
 import { mermaidMathDelimiters, sanitizeMermaidSource } from '@/components/mermaidSource'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
-import { SettingsProvider } from '@/app/settings'
 import { analyticCorr, buildHat, HAT_EXACT, pathTransfer, residualPhaseDeg, toneBlockCorr, toneCorrCodeDelay, type FxCodeSpec, type FxPathSpec } from '@/simulation/models/filteredX'
 import Chapter07 from './index'
 import { CH07_CHARTS, CH07_SYSTEM_FOCUS, type Ch07ChartName } from './diagrams'
 import { HANDCALCS } from './handcalcs'
 import { kq } from './util'
+import { renderPage } from '@/test/renderPage'
 
 /**
  * Ch07 的方塊圖（docs/teaching-style.md §8）。ch07.test.tsx 為了速度把 mermaid 整個 mock 掉，所以這裡另外用「真正的」mermaid：
@@ -24,15 +23,7 @@ import { kq } from './util'
  */
 
 // Plotly 在 jsdom 裡跑不起來；頁面測試只關心方塊圖，照 ch07.test.tsx 的方式 mock 掉
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 })
 
@@ -842,13 +833,7 @@ describe('Ch07 頁面上的方塊圖', () => {
     })
     try {
       localStorage.setItem('lmspll.mode', 'engineer') // 第一次造訪預設 Beginner；這個測試數的是 Engineer 模式的 23 張圖
-      const { container } = render(
-        <SettingsProvider>
-          <MemoryRouter initialEntries={['/ch/07']}>
-            <Chapter07 />
-          </MemoryRouter>
-        </SettingsProvider>,
-      )
+      const { container } = renderPage(<Chapter07 />, { url: '/ch/07' })
       const figures = Array.from(container.querySelectorAll('figure.c-mermaid'))
       expect(figures).toHaveLength(23)
       // 等 22 張 Mermaid 圖都渲染完（render 依序排隊）；系統地圖不經過 Mermaid，一開始就是完整的 SVG

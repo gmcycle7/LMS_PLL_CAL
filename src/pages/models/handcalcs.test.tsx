@@ -15,6 +15,7 @@ import { buildMetricRows, tailStats } from './experiments/jsonLabModel'
 import { FORMULAS } from './formulas'
 import { HANDCALCS, HANDCALC_CONSTANTS, handcalc } from './handcalcs'
 import { SPEC_NUMBERS } from './refNumbers'
+import { expectNoTexErrors } from '@/test/katex'
 
 const SEEDS = Array.from({ length: 20 }, (_, i) => i + 1)
 
@@ -555,7 +556,7 @@ describe('Models 頁「帶入手算」（docs/teaching-style.md §7）', () => {
         const { container, unmount } = render(<HandCalc def={def} />)
         expect(container.querySelector(`[id="handcalc-${h.id}"]`), h.id).toBeTruthy()
         expect(container.querySelectorAll('.c-step').length, h.id).toBe(h.solve(v).steps.length)
-        expect(container.querySelector('.katex-error, .c-tex-error'), h.id).toBeNull()
+        expectNoTexErrors(container, h.id)
         expect(container.textContent, h.id).not.toContain('ParseError')
         expect(plainText(container), h.id).not.toContain('$')
         unmount()

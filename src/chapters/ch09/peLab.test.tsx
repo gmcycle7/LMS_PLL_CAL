@@ -1,10 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import type { PlotProps } from '@/components'
 import { eig2x2, peAnalytic, signJitterSteadyState, stepsToDecay } from '@/simulation/models/pe'
 import { PeEigenLab } from './experiments/PeEigenLab'
 import { PE_DEFAULT, PE_LIMITS, S_DELTA_LIMIT, blocksForConvergence, derivedGain, k95ForConvergence, shownPole, switchDetector } from './experiments/peLabState'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
 /**
  * PE / Eigen Lab 的三個行為（技術審查的收尾項目），只渲染實驗室本身（不渲染整章）：
@@ -27,14 +27,7 @@ const WAIT = { timeout: 60000, interval: 200 }
 const TIMEOUT = 120000
 
 function renderLab(url = '/') {
-  localStorage.setItem('lmspll.mode', 'engineer')
-  return render(
-    <SettingsProvider>
-      <MemoryRouter initialEntries={[url]}>
-        <PeEigenLab />
-      </MemoryRouter>
-    </SettingsProvider>,
-  )
+  return renderPage(<PeEigenLab />, { mode: 'engineer', url })
 }
 
 /** 最近一次交給 <Plot> 的 props（依 csvName 找） */
@@ -152,7 +145,7 @@ describe('PE / Eigen Lab：畫面', () => {
       expect(cap).toContain(String.raw`$p_{\text{slow}}=1$`)
       expect(cap).toContain('到不了原點')
       expect(cap).not.toContain('爬回原點')
-      expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+      expectNoTexErrors(container)
     },
     TIMEOUT,
   )
@@ -226,7 +219,7 @@ describe('PE / Eigen Lab：畫面', () => {
       fireEvent.click(screen.getByRole('button', { name: /Run-to-Convergence/ }))
       await waitFor(() => expect(container.textContent).toMatch(/MC：64 chains × 18 blocks/), WAIT)
       expect((screen.getByLabelText('blocks') as HTMLInputElement).value).toBe('18')
-      expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+      expectNoTexErrors(container)
     },
     TIMEOUT,
   )
@@ -251,7 +244,7 @@ describe('PE / Eigen Lab：畫面', () => {
 
       setParam('N（GMAC block 長度）', '64')
       await waitFor(() => expect(warningsText(container)).not.toContain('穩態抖動'), WAIT)
-      expect(container.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+      expectNoTexErrors(container)
     },
     TIMEOUT,
   )

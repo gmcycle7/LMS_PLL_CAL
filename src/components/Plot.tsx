@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import type { Config, Data, Icon, Layout, ModeBarButtonAny, PlotlyHTMLElement } from 'plotly.js-cartesian-dist-min'
 import { downloadText, toCsv } from './download'
 import { applyPlotMath, plotMath } from './plotMath'
@@ -17,6 +17,8 @@ import {
 } from './plotUtils'
 import { useThemeTokens, type ThemeTokens } from './theme'
 import { accessibleText, mathText } from './Tex'
+import { PlotDataDetails } from './plotTable'
+import './figureAlt.css'
 
 type PlotlyApi = typeof import('plotly.js-cartesian-dist-min')
 
@@ -149,6 +151,97 @@ function syncLogTicks(gd: DrawnElement, P: PlotlyApi, manageLog: { x: boolean; y
   void Promise.resolve(P.relayout(gd, update)).finally(() => syncingTicks.delete(gd))
 }
 
+/* ---------- 匯出／重設（Plotly 工具列與我們自己的鍵盤工具列共用） ---------- */
+
+interface ExportContext {
+  data: readonly Data[]
+  title?: string
+  fileBase: string
+  tokens: ThemeTokens
+  height: number
+}
+
+function exportFigure(gdEl: PlotlyHTMLElement, t: ThemeTokens, ttl?: string) {
+  return {
+    data: gdEl.data,
+    layout: buildExportLayout(gdEl.layout, t, ttl ? plotMath(ttl) : ttl),
+  }
+}
+
+function exportSize(gdEl: HTMLElement, height: number) {
+  return { width: Math.max(320, Math.round(gdEl.clientWidth || 640)), height }
+}
+
+function downloadFigure(P: PlotlyApi, gdEl: PlotlyHTMLElement, format: 'png' | 'svg', cur: ExportContext) {
+  void P.downloadImage(exportFigure(gdEl, cur.tokens, cur.title), {
+    format,
+    filename: cur.fileBase,
+    ...exportSize(gdEl, cur.height),
+    scale: format === 'png' ? 2 : 1,
+  })
+}
+
+function downloadCsv(cur: Pick<ExportContext, 'data' | 'fileBase'>) {
+  downloadText(`${cur.fileBase}.csv`, 'text/csv', toCsv(tracesToColumns(cur.data)), { bom: true })
+}
+
+/**
+ * 重設視圖（等同 Plotly 的 resetScale2d）：呼叫端在 layout 裡給了軸範圍就回到那個範圍，否則交回 autorange。
+ * 用 Plotly.relayout；log 軸刻度由 plotly_relayout 事件接手（syncLogTicks）。
+ */
+export function resetPlotView(P: Pick<PlotlyApi, 'relayout'>, gd: HTMLElement, layout: Partial<Layout> | undefined): Promise<unknown> {
+  const update: Record<string, unknown> = {}
+  for (const axis of ['x', 'y'] as const) {
+    const range = (layout?.[`${axis}axis`] as { range?: unknown } | undefined)?.range
+    if (Array.isArray(range) && range.length === 2) update[`${axis}axis.range`] = [...range]
+    else update[`${axis}axis.autorange`] = true
+  }
+  return Promise.resolve(P.relayout(gd as PlotlyHTMLElement, update))
+}
+
+interface PlotKeyToolsProps {
+  onReset: () => void
+  onPng: () => void
+  onCsv: () => void
+}
+
+/**
+ * 鍵盤可達的工具列（Plotly 的 modebar 按鈕是沒有 href 的 <a>，Tab 到不了）：重設視圖、下載 PNG、下載 CSV。
+ * 一個 Tab 停靠點（roving tabindex，←→／Home／End 在按鈕間移動）；平常藏起來，聚焦進來才浮在圖的左上角（figureAlt.css）。
+ */
+function PlotKeyTools({ onReset, onPng, onCsv }: PlotKeyToolsProps) {
+  const bar = useRef<HTMLDivElement>(null)
+  const [cur, setCur] = useState(0)
+  const items = [
+    { label: '重設視圖', aria: '重設視圖', run: onReset },
+    { label: 'PNG', aria: '下載 PNG', run: onPng },
+    { label: 'CSV', aria: '下載 CSV', run: onCsv },
+  ]
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const keys: Record<string, (i: number) => number> = {
+      ArrowRight: (i) => (i + 1) % items.length,
+      ArrowLeft: (i) => (i + items.length - 1) % items.length,
+      Home: () => 0,
+      End: () => items.length - 1,
+    }
+    const move = keys[e.key]
+    if (!move) return
+    e.preventDefault()
+    const next = move(cur)
+    setCur(next)
+    bar.current?.querySelectorAll<HTMLButtonElement>('button')[next]?.focus()
+  }
+  return (
+    <div className="c-plot-kbar" role="toolbar" aria-label="圖表工具" ref={bar} onKeyDown={onKeyDown}>
+      {items.map((it, i) => (
+        <button key={it.aria} type="button" aria-label={it.aria} tabIndex={i === cur ? 0 : -1} onFocus={() => setCur(i)} onClick={it.run}>
+          {it.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 /** 會出現在圖例裡的 trace 數（決定圖例放圖內還是圖上方） */
 function countLegendEntries(data: readonly Data[]): number {
   return data.filter((t) => {
@@ -177,6 +270,7 @@ export function Plot({
   className,
 }: PlotProps) {
   const tokens = useThemeTokens()
+  const altId = `plotalt-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
   const registry = usePlotRegistry()
   const gdRef = useRef<HTMLDivElement>(null)
   const wrapRef = useRef<HTMLElement>(null)
@@ -228,6 +322,24 @@ export function Plot({
   }, [])
   // 圖內文字（軸標題、圖例、註記、hover）裡的 `$...$` LaTeX → 斜體符號與上下標（見 plotMath.ts）
   const typeset = useMemo(() => applyPlotMath(styled, themedLayout), [styled, themedLayout])
+  // 「重設視圖」要回到的軸範圍（呼叫端給的 layout，不含使用者縮放後 Plotly 寫回去的值）
+  const resetLayout = useRef(typeset.layout)
+  resetLayout.current = typeset.layout
+
+  // 鍵盤工具列的動作：和 Plotly modebar 的按鈕同一組實作
+  const keyTools = {
+    reset: () => {
+      const P = plotlyRef.current
+      const gd = gdRef.current
+      if (P && gd) void resetPlotView(P, gd, resetLayout.current)
+    },
+    png: () => {
+      const P = plotlyRef.current
+      const gd = gdRef.current as PlotlyHTMLElement | null
+      if (P && gd && gd.data) downloadFigure(P, gd, 'png', latest.current)
+    },
+    csv: () => downloadCsv(latest.current),
+  }
 
   // 接近可視範圍才載入／繪製；列印時全部畫出來
   useEffect(() => {
@@ -288,23 +400,7 @@ export function Plot({
     const gd = gdRef.current
     if (status !== 'ready' || !P || !gd) return
 
-    const exportFigure = (gdEl: PlotlyHTMLElement, t: ThemeTokens, ttl?: string) => ({
-      data: gdEl.data,
-      layout: buildExportLayout(gdEl.layout, t, ttl ? plotMath(ttl) : ttl),
-    })
-    const size = (gdEl: HTMLElement) => ({
-      width: Math.max(320, Math.round(gdEl.clientWidth || 640)),
-      height: latest.current.height,
-    })
-    const download = (format: 'png' | 'svg') => (gdEl: PlotlyHTMLElement) => {
-      const cur = latest.current
-      void P.downloadImage(exportFigure(gdEl, cur.tokens, cur.title), {
-        format,
-        filename: cur.fileBase,
-        ...size(gdEl),
-        scale: format === 'png' ? 2 : 1,
-      })
-    }
+    const download = (format: 'png' | 'svg') => (gdEl: PlotlyHTMLElement) => downloadFigure(P, gdEl, format, latest.current)
 
     // 工具列浮在圖內右上角（CSS 控制 hover 顯示）：只留放大／平移／重設與三個下載鈕
     const buttons: ModeBarButtonAny[][] = [
@@ -316,10 +412,7 @@ export function Plot({
           name: 'download-csv',
           title: '下載 CSV',
           icon: CSV_ICON,
-          click: () => {
-            const cur = latest.current
-            downloadText(`${cur.fileBase}.csv`, 'text/csv', toCsv(tracesToColumns(cur.data)), { bom: true })
-          },
+          click: () => downloadCsv(latest.current),
         },
       ],
     ]
@@ -381,19 +474,22 @@ export function Plot({
         const gd = gdRef.current as PlotlyHTMLElement | null
         if (!P || !gd || !gd.data) return null
         const cur = latest.current
-        return P.toImage(
-          { data: gd.data, layout: buildExportLayout(gd.layout, cur.tokens, cur.title ? plotMath(cur.title) : cur.title) },
-          { format: 'png', width: Math.max(320, Math.round(gd.clientWidth || 640)), height: cur.height, scale: 1 },
-        )
+        return P.toImage(exportFigure(gd, cur.tokens, cur.title), { format: 'png', ...exportSize(gd, cur.height), scale: 1 })
       },
     })
   }, [registry])
 
   const figureName = ariaLabel ?? title
   return (
-    <figure className={`c-plot${className ? ` ${className}` : ''}`} ref={wrapRef} aria-label={figureName ? accessibleText(figureName) : undefined}>
+    <figure
+      className={`c-plot${className ? ` ${className}` : ''}`}
+      ref={wrapRef}
+      aria-label={figureName ? accessibleText(figureName) : undefined}
+      aria-describedby={data.length > 0 ? altId : undefined}
+    >
       {title && <div className="c-plot-title">{mathText(title)}</div>}
       <div className="c-plot-frame" style={{ height }}>
+        {status === 'ready' && <PlotKeyTools onReset={keyTools.reset} onPng={keyTools.png} onCsv={keyTools.csv} />}
         <div ref={gdRef} className="c-plot-gd" style={{ height }} />
         {status === 'loading' && (
           <div className="c-plot-placeholder" aria-busy="true">
@@ -412,6 +508,7 @@ export function Plot({
         </div>
       )}
       {caption && <figcaption className="c-figcaption">{mathText(caption)}</figcaption>}
+      {data.length > 0 && <PlotDataDetails id={altId} data={filtered.data} original={data} layout={layout} xLog={xLog} yLog={yLog} />}
     </figure>
   )
 }

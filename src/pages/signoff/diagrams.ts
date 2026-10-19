@@ -282,11 +282,44 @@ export const CHART_NEGATIVE_CHECKS = String.raw`flowchart TB
   class BAD warn`
 
 /** 頁面上的圖（依出現順序）；diagrams.test.ts 逐一解析並畫出，index.test.tsx 核對頁面真的畫了這幾張。 */
+/** 三種 PVT 效應進入校正迴路的位置（docs/teaching-style.md §8：路徑圖；數學寫 $...$） */
+export const CHART_PVT_EFFECTS = String.raw`flowchart TB
+  PVT(["PVT corner：溫度 $T$、製程、電壓"])
+  E1["效應 ① 雜訊<br/>$\sigma_{v,c}$ 隨 corner 變"]
+  E2["效應 ② 主迴路增益 $\times s_c$<br/>（不重新設計）"]
+  E3["效應 ③ DTC 真實 gain<br/>$a_c = a\,(1 + \mathrm{TC}\cdot(T_c - 25^\circ\mathrm{C}))$"]
+  KQ["comparator 增益<br/>$K_q = \sqrt{2/\pi}/\sigma_{v,c}$"]
+  HPD["$H_{PD}$ 的反號帶緣 $f_{inv}(s_c)$<br/>$\Rightarrow$ regressor 的有效相關 $\kappa_c$"]
+  K["$K_c = K_q(\sigma_{v,c})\cdot\kappa_c$<br/>$g_c = \mu K_c$"]
+  J["五項判準（§4 的 Corner 判斷器）<br/>$\rho_c$、$PM_d$、$k_{95}$、$\sigma_{w,c}$"]
+  DA["$\Delta a_c = a\cdot\mathrm{TC}\cdot(T_c - 25^\circ\mathrm{C})$<br/>重新收斂：$|\Delta a_c|\,\rho^k \le \delta_{tol}$"]
+  LAG["斜坡 $\dot T$：每個 block 漂 $\dot a/f_u$<br/>落後 $\delta_{lag} = \dot a/(f_u\,g_c)$"]
+  MU(["同一個 $\mu$ 的可行區<br/>三個 corner 的交集"])
+  PVT --> E1
+  PVT --> E2
+  PVT --> E3
+  E1 --> KQ
+  E2 --> HPD
+  KQ --> K
+  HPD --> K
+  K --> J
+  E3 --> DA
+  E3 --> LAG
+  K --> DA
+  K --> LAG
+  J --> MU
+  DA --> MU
+  classDef focus fill:#1f5fa8,stroke:#0d3b6e,color:#ffffff,stroke-width:2px
+  classDef ok fill:#1d7a46,stroke:#0f4d2b,color:#ffffff,stroke-width:2px
+  class K focus
+  class MU ok`
+
 export const SIGNOFF_CHARTS: { name: string; section: string; chart: string }[] = [
   { name: 'CHART_SIGNOFF_FLOW', section: '§0', chart: CHART_SIGNOFF_FLOW },
   { name: 'CHART_FREEZE_MEASURE', section: '§2', chart: CHART_FREEZE_MEASURE },
   { name: 'CHART_EVIDENCE', section: '§3.5', chart: CHART_EVIDENCE },
   { name: 'CHART_CORNER_JUDGE', section: '§4', chart: CHART_CORNER_JUDGE },
+  { name: 'CHART_PVT_EFFECTS', section: '§4b', chart: CHART_PVT_EFFECTS },
   { name: 'CHART_MIMO_LOOP', section: '§7', chart: CHART_MIMO_LOOP },
   { name: 'CHART_OUTPUT_PATH', section: '§8', chart: CHART_OUTPUT_PATH },
   { name: 'CHART_SILICON_LOOP', section: '§8.5', chart: CHART_SILICON_LOOP },

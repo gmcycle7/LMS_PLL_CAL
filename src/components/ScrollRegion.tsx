@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type HTMLAttributes, type ReactNode } from 'react'
 
+/** 橫向只超出這麼多 px 以內不算「可捲動」（隱藏捲軸、不可聚焦） */
+export const TINY_OVERFLOW_PX = 6
+
 export interface ScrollRegionProps extends HTMLAttributes<HTMLElement> {
   /** 元素種類：表格用 div（.table-wrap），程式碼用 pre（.c-code-pre） */
   as?: 'div' | 'pre'
@@ -16,11 +19,17 @@ export interface ScrollRegionProps extends HTMLAttributes<HTMLElement> {
 export function ScrollRegion({ as: Tag = 'div', label, className, children, ...rest }: ScrollRegionProps) {
   const ref = useRef<HTMLElement | null>(null)
   const [scrollable, setScrollable] = useState(false)
+  // 只超出 1–6px（padding、四捨五入）：隱藏橫向捲軸，不給 tabIndex——一條只能捲幾 px 的捲軸沒有用途（同 formulas/TableWrap 的 data-tiny）
+  const [tiny, setTiny] = useState(false)
 
   const measure = useCallback(() => {
     const el = ref.current
     if (!el) return
-    const next = el.scrollWidth > el.clientWidth + 2 || el.scrollHeight > el.clientHeight + 2
+    const dx = el.scrollWidth - el.clientWidth
+    const dy = el.scrollHeight - el.clientHeight
+    const nextTiny = dx > 0 && dx <= TINY_OVERFLOW_PX && dy <= 2
+    const next = !nextTiny && (dx > 2 || dy > 2)
+    setTiny((prev) => (prev === nextTiny ? prev : nextTiny))
     setScrollable((prev) => (prev === next ? prev : next))
   }, [])
 
@@ -37,7 +46,7 @@ export function ScrollRegion({ as: Tag = 'div', label, className, children, ...r
 
   const a11y = scrollable ? { tabIndex: 0, role: 'group', 'aria-label': label } : {}
   return (
-    <Tag ref={ref as never} className={`c-scroll${className ? ` ${className}` : ''}`} {...a11y} {...rest}>
+    <Tag ref={ref as never} className={`c-scroll${className ? ` ${className}` : ''}`} data-tiny={tiny ? 'true' : undefined} {...a11y} {...rest}>
       {children}
     </Tag>
   )

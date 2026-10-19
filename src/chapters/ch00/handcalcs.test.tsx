@@ -1,9 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { act, fireEvent, render, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
 import { HandCalc, defaultValues, inputError, randomValues } from '@/components'
-import { SettingsProvider } from '@/app/settings'
 import type { HandCalcDef } from '@/data/types'
 import { conventionalStep, fixedXPole, signErrorStep } from '@/simulation/models/lms'
 import { HANDCALCS } from './handcalcs'
@@ -34,24 +32,12 @@ import { GRADIENT_EXAMPLE } from './sections/WhyEx'
 import { SIGN_ONE_STEP } from './sections/SignTeaser'
 import { QUIZ3 } from './sections/Wrapup'
 import { NOISE_LAB_DEFAULTS } from './experiments/NoiseAverageLab'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
 // 重量級外部函式庫：jsdom 中以假物件取代（整章渲染的測試需要）
-vi.mock('plotly.js-cartesian-dist-min', () => ({
-  default: {
-    react: vi.fn(async () => undefined),
-    purge: vi.fn(),
-    toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-    downloadImage: vi.fn(async () => ''),
-    Plots: { resize: vi.fn() },
-    Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-  },
-}))
-vi.mock('mermaid', () => ({
-  default: {
-    initialize: vi.fn(),
-    render: vi.fn(async (id: string) => ({ svg: `<svg id="${id}"></svg>`, diagramType: 'flowchart-v2' })),
-  },
-}))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 interface Vector {
   inputs: Record<string, number | number[]>
@@ -684,8 +670,7 @@ describe('ch00 手算題：畫面上的算式自己算得出來', () => {
         sol.results.forEach((r, k) => close(r.value, expected[k], 1e-7, 1e-12 * scale ** 3, `${label} ${r.symbol}`))
         for (const s of sol.steps) expect(badNumber(s.tex), `${label}：${s.tex}`).toBe(false)
         const { container, unmount } = render(<HandCalc def={withValues(def, v)} />)
-        expect(Array.from(container.querySelectorAll('.katex-error')).map((e) => e.getAttribute('title')), label).toEqual([])
-        expect(container.querySelector('.c-tex-error'), label).toBeNull()
+        expectNoTexErrors(container, label)
         expect(container.querySelectorAll('.c-step').length, label).toBe(sol.steps.length)
         expect(proseText(container), label).not.toContain('$')
         unmount()
@@ -866,7 +851,7 @@ describe('ch00 手算題：validate 擋下模型不適用的輸入並解釋原�
       expect(warn, `${c.id} ${c.name}`).toBeTruthy()
       expect(warn!.querySelector('.katex'), `${c.id} ${c.name}`).toBeTruthy()
       expect(proseText(warn!)).not.toContain('$')
-      expect(container.querySelector('.katex-error'), `${c.id} ${c.name}`).toBeNull()
+      expectNoTexErrors(container, `${c.id} ${c.name}`)
       expect(container.querySelectorAll('.c-step')).toHaveLength(0)
       expect(container.querySelector('.c-handcalc-results')).toBeNull()
       unmount()
@@ -892,8 +877,8 @@ describe('ch00 手算題：渲染', () => {
     for (const v of cases) {
       const sol = def.solve(v)
       const { container, unmount } = render(<HandCalc def={withValues(def, v)} />)
-      expect(container.querySelector('.katex-error'), JSON.stringify(v)).toBeNull()
-      expect(container.querySelector('.c-tex-error')).toBeNull()
+      expectNoTexErrors(container, JSON.stringify(v))
+      expectNoTexErrors(container)
       expect(container.querySelectorAll('.c-step').length).toBe(sol.steps.length)
       expect(sol.steps.length).toBeGreaterThanOrEqual(1)
       expect(container.querySelectorAll('.c-handcalc-results .katex-display').length).toBe(sol.results.length)
@@ -957,13 +942,7 @@ describe('ch00 手算題：渲染', () => {
 describe('ch00 手算題：章內位置', () => {
   it('每一題都放在對應推導／例題的段落裡（beginner 模式也看得到），綜合題 HC-00.8 緊接在思考題之前', async () => {
     localStorage.setItem('lmspll.mode', 'beginner')
-    const { container } = render(
-      <SettingsProvider>
-        <MemoryRouter initialEntries={['/ch/00']}>
-          <Chapter00 />
-        </MemoryRouter>
-      </SettingsProvider>,
-    )
+    const { container } = renderPage(<Chapter00 />, { url: '/ch/00' })
     const where: Record<string, string> = {
       'HC-00.3': 'ch00-blackbox', // §0.1 最小平方
       'HC-00.1': 'ch00-hand', // §0.4 手算表
@@ -998,7 +977,7 @@ describe('ch00 手算題：章內位置', () => {
     const lab = container.querySelector('#exp-intro-noise-average')!
     expect(container.querySelector('[id="handcalc-HC-00.5"]')!.compareDocumentPosition(lab) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     // 整章（含 8 題手算）沒有 KaTeX 錯誤，也沒有殘留的 $
-    expect(Array.from(container.querySelectorAll('.katex-error')).map((e) => e.getAttribute('title'))).toEqual([])
+    expectNoTexErrors(container)
     const prose = container.cloneNode(true) as HTMLElement
     prose.querySelectorAll('pre, .katex').forEach((e) => e.remove())
     expect(prose.textContent).not.toContain('$')

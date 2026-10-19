@@ -1,8 +1,6 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { extractRegion, plotMath } from '@/components'
 import type { PresetEntry } from '@/data/types'
 import calNoiseSrc from '@/simulation/models/calNoise.ts?raw'
@@ -16,16 +14,10 @@ import { CH12_SYMBOLS } from './symbols'
 import { CODE_SPECTRA_DEFAULTS } from './experiments/CodeSpectraLab'
 import { MIX_DEFAULTS } from './experiments/CodeMixingLab'
 import { NOISE_LAB_DEFAULTS } from './experiments/LmsNoiseLab'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 /** 每個 <Plot> 在轉成 Plotly 之前的原始 data / layout（含 `$...$`）：用來檢查圖內文字的數學都寫成 LaTeX */
 const PM = vi.hoisted(() => ({ calls: [] as { data: unknown; layout: unknown }[] }))
 vi.mock('@/components/plotMath', async (importOriginal) => {
@@ -38,12 +30,7 @@ vi.mock('@/components/plotMath', async (importOriginal) => {
     },
   }
 })
-vi.mock('mermaid', () => ({
-  default: {
-    initialize: vi.fn(),
-    render: vi.fn(async (id: string) => ({ svg: `<svg id="${id}"></svg>`, diagramType: 'flowchart-v2' })),
-  },
-}))
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 const CH_DIR = resolve(process.cwd(), 'src/chapters/ch12')
 const PRESET_DIR = resolve(process.cwd(), 'src/data/presets')
@@ -54,13 +41,7 @@ function chapterSources(): string {
 }
 
 function renderChapter(path = '/ch/12') {
-  return render(
-    <SettingsProvider>
-      <MemoryRouter initialEntries={[path]}>
-        <Chapter12 />
-      </MemoryRouter>
-    </SettingsProvider>,
-  )
+  return renderPage(<Chapter12 />, { url: path })
 }
 
 /**
@@ -240,7 +221,7 @@ describe('第 12 章（jsdom smoke）', () => {
     expect(total).toBeGreaterThan(1500)
     expect(offenders).toEqual([])
     // 字串屬性裡的 $...$ 都要成功渲染
-    expect(container.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+    expectNoTexErrors(container)
     expect(container.querySelectorAll('.c-metric-table .katex').length).toBeGreaterThan(40)
     expect(container.querySelectorAll('.c-exp-assumptions .katex').length).toBeGreaterThan(10)
   }, T_TEST)
@@ -303,8 +284,7 @@ describe('第 12 章（jsdom smoke）', () => {
   it('Research 模式：所有 LaTeX（含 ModeGate 內容與 Steps）都能被 KaTeX 解析', () => {
     localStorage.setItem('lmspll.mode', 'research')
     const { container } = renderChapter()
-    const bad = Array.from(container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.getAttribute('title') ?? e.textContent)
-    expect(bad).toEqual([])
+    expectNoTexErrors(container)
     // Research 模式：全部的方塊圖（含 colored η 那一張）+ 系統地圖
     expect(container.querySelectorAll('figure.c-mermaid').length).toBe(1 + CH12_CHARTS.length)
     // R06c：Research 模式多一段「判據的量化」（線性化相對誤差的首項），數字來自 common.tsx 的 TWO_TAP_SMALL

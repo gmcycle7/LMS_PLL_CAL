@@ -11,6 +11,8 @@
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:node": "vitest run --project node",
+    "test:jsdom": "vitest run --project jsdom",
     "test:watch": "vitest",
     "golden": "python3 -m pytest golden -q",
     "golden:export": "python3 golden/export_vectors.py",

@@ -15,7 +15,7 @@ export function usePalette(): Palette {
 export function useShellPresets(experiment: string): { presets: ExperimentPreset[]; onLoadPreset: (p: ExperimentPreset) => void } {
   const { applyPreset } = useLab()
   const list = useMemo(() => presetsForExperiment(experiment), [experiment])
-  const presets = useMemo<ExperimentPreset[]>(() => list.map((p) => ({ name: p.title, params: p.params, description: p.description })), [list])
+  const presets = useMemo<ExperimentPreset[]>(() => list.map((p) => ({ id: p.id, name: p.title, params: p.params, description: p.description })), [list])
   const onLoadPreset = useCallback(
     (p: ExperimentPreset) => {
       const hit = list.find((x) => x.title === p.name)

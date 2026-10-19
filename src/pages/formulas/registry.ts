@@ -98,6 +98,7 @@ export function collectFormulas(modules: Record<string, FormulaModule>): Registr
           f.claim,
           f.erratumId,
           f.erratumId && `勘誤 ${f.erratumId}`,
+          f.assumes,
           f.units && Object.entries(f.units).map(([k, v]) => `${k} ${v}`).join(' '),
         ]),
       })

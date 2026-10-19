@@ -1,4 +1,5 @@
 import type { FormulaEntry } from '@/data/types'
+import { modelAssumes } from '@/app/chapterMeta'
 
 /**
  * Unified Calibration Lab（/lab，規格 §19「Unified Lab」「Training Sequence Lab」、§15.4、§20.6 P5）的公式登錄。
@@ -10,6 +11,7 @@ const PAGE = '/lab'
 export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-LAB.1',
+    assumes: modelAssumes('L2'),
     title: 'FCW、輸出頻率與 DSM residue（telescoping）',
     tex: String.raw`f_{\mathrm{out}}=\Bigl(N_{\mathrm{int}}+\frac KM\Bigr)f_{\mathrm{ref}},\qquad r[n]=\sum_{m=0}^{n}\Bigl(y[m]-\frac KM\Bigr)`,
     conditions: 'M = 2^B；y 為 DSM 輸出；residue 以整數累加（單位 T_vco）；零初值',
@@ -21,6 +23,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-LAB.2',
+    assumes: modelAssumes('L2'),
     title: '一階 DSM residue 的平均、均方與變異數',
     tex: String.raw`E[r]=-\frac{P-1}{2P},\qquad E[r^2]=\frac{(P-1)(2P-1)}{6P^2},\qquad \operatorname{Var}(r)=\frac{P^2-1}{12P^2},\qquad P=\frac{M}{\gcd(K,M)}`,
     conditions: '一階 DSM、無 dither、零初值；一個週期內 residue 恰好走遍 0, −1/P, …, −(P−1)/P 各一次',
@@ -32,6 +35,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-LAB.3',
+    assumes: modelAssumes('L2'),
     title: '一階 DSM residue 的基頻譜線振幅',
     tex: String.raw`A_1=\frac{1}{P\sin(\pi/P)}\;\xrightarrow{P\to\infty}\;\frac1\pi,\qquad f_1=\alpha_{\mathrm{eff}}\,f_{\mathrm{ref}}\ \text{（折回 }[0,f_s/2]\text{）}`,
     conditions: 'P ≥ 3（P = 2 時譜線在 Nyquist，振幅 1/4）；peak 振幅，單位 T_vco',
@@ -43,6 +47,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-LAB.4',
+    assumes: modelAssumes('L2'),
     title: '主 PLL 的兩條路徑；Type-I 由頻寬反解 pole',
     tex: String.raw`H_{\mathrm{PD}}(z)=\frac{1}{1+L(z)},\quad T(z)=\frac{L(z)}{1+L(z)}=1-H_{\mathrm{PD}}(z);\qquad \text{Type-I：}\ \rho_T=\Bigl(\sqrt{1+s^2}-s\Bigr)^2,\ s=\sin\frac{\pi f_{\mathrm{BW}}}{f_s}`,
     conditions: 'DTC 在 reference 輸入端：e_DTC 從 PD 的 reference 輸入注入，所以 PD 的輸出 u_pd = +H_PD{e_DTC}（comparator 取的就是它）、輸出 t_out = +T{e_DTC}；PLL 與 comparator 同一取樣率；線性時不變；Type-I 無額外 latency（d_L = 0）時 T(z) = k/(z − ρ_T)、k = 1 − ρ_T；Type-II 用 E44 的直接差分方程',
@@ -54,6 +59,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-LAB.5',
+    assumes: modelAssumes('L1'),
     title: 'Comparator 的平均輸出與小訊號增益',
     tex: String.raw`E\bigl[q\mid e_{\det}\bigr]=\operatorname{erf}\!\Bigl(\frac{e_{\det}}{\sqrt2\,\sigma_v}\Bigr)\approx K_q\,e_{\det},\qquad K_q=\frac{\sqrt{2/\pi}}{\sigma_v}`,
     conditions: 'v 為 Gaussian、與 code 獨立；近似需要整個 deterministic residual |e_det| ≪ σ_v（E01）',
@@ -66,6 +72,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-LAB.6',
+    assumes: modelAssumes('L2'),
     title: 'GMAC 的平均輸出與相關 C',
     tex: String.raw`E[G_k]\approx K_q\,C\,\delta_k,\qquad C=E\bigl[x_{\mathrm{ref}}[n]\,u_x[n]\bigr],\quad u_x=H_{\mathrm{PD}}\{x\},\quad \delta_k=a-w_k`,
     conditions: 'average 模式；小訊號；w 在 PLL 記憶長度內近似不變；C ≤ 0 表示更新極性錯誤',
@@ -77,6 +84,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-LAB.7',
+    assumes: modelAssumes('L1'),
     title: '校正迴路的平均模型、pole 與臨界增益',
     tex: String.raw`\delta_{k+1}=\delta_k-g\,\delta_{k-d},\quad g=\mu K_qC;\qquad z^{d+1}-z^{d}+g=0,\quad \rho=\max|z|,\quad g_{\mathrm{crit}}=2\sin\frac{\pi}{4d+2}`,
     conditions: '線性化平均模型；sum 模式 g 再乘 N；d = 0 時 pole p = 1 − g，穩定條件 0 < g < 2。ρ 決定漸近的衰減率：d = 0 時 |δ_k| = ρ^k·|δ_0|；d ≥ 1 時 ρ^k 不是平均誤差的包絡（重根、複數根）',
@@ -87,6 +95,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-LAB.8',
+    assumes: modelAssumes('L1'),
     title: '係數的穩態變異數',
     tex: String.raw`\sigma_w^2=\frac{\mu^2\sigma_\eta^2}{1-p^2},\qquad \sigma_\eta^2\approx\frac{E[x_{\mathrm{ref}}^2]}{N},\qquad p=1-g`,
     conditions: 'd = 0；GMAC 雜訊 iid；q² = 1 且近平衡（E[q·x_ref] ≈ 0），所以 Var(q·x_ref) ≈ E[x_ref²]；線性化有效',
@@ -98,6 +107,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-LAB.9',
+    assumes: modelAssumes('L1'),
     title: 'AR(1) 序列時間平均的變異數（單一 seed 的 mean w 有多準）',
     tex: String.raw`\operatorname{Var}(\bar w_m)=\frac{\sigma_w^2}{m^2}\Bigl[m+2\sum_{j=1}^{m-1}(m-j)\rho^{\,j}\Bigr]\;\approx\;\frac{\sigma_w^2}{m}\cdot\frac{1+\rho}{1-\rho}\quad(m\gg\tau)`,
     conditions: 'w_k 近似為平穩 AR(1)（lag-1 相關 ρ）；m 為用來平均的 block 數（後半段）',
@@ -109,6 +119,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-LAB.10',
+    assumes: modelAssumes('L4'),
     title: '輸出 timing error 的分解：靜態殘差 + gain noise',
     tex: String.raw`t_{\mathrm{out}}=T\bigl\{(a-\bar w)\,x+d(x)\bigr\}-T\bigl\{\delta w\,x\bigr\},\qquad \operatorname{Var}\bigl(T\{\delta w\,x\}\bigr)\approx\sigma_w^2\Bigl(\bar x^{\,2}+\operatorname{Var}\bigl(T\{\tilde x\}\bigr)\Bigr)`,
     conditions: '線性 PLL；δw = w_app − w̄ 很慢（cal 頻寬 ≪ PLL 頻寬）且與 x 獨立；x̃ = x − x̄',
@@ -121,6 +132,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-LAB.11',
+    assumes: modelAssumes('L4'),
     title: 'gain noise 的輸出 PSD（ZOH）與 ℒ(f) 換算',
     tex: String.raw`S_{t,\mathrm{noise}}^{(1)}(f)\approx|T|^2\Bigl[\bar x^{\,2}\,S_w^{\mathrm{ZOH}}(f)+\sigma_w^2\,S_{\tilde x}^{(1)}(f)\Bigr],\qquad \mathcal L(f)=10\log_{10}\frac{(2\pi f_{\mathrm{out}})^2\,S_t^{(1)}(f)}{2}`,
     conditions: 'S_w^ZOH = (2/f_s)(1/N)[sin(Nθ/2)/sin(θ/2)]²·S_w(e^{jNθ})，θ = 2πf/f_s（E09、E29）；one-sided、時間換成秒後再算 ℒ（E28）',
@@ -133,6 +145,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-LAB.12',
+    assumes: modelAssumes('L4'),
     title: 'fractional spur 的封閉式（一階 DSM）',
     tex: String.raw`A_{\mathrm{spur}}=|a-\bar w|\;s\;A_1\;\bigl|T(e^{j2\pi f_1/f_s})\bigr|,\qquad \beta=2\pi f_{\mathrm{out}}A_{\mathrm{spur}},\qquad \mathrm{SSB}\approx20\log_{10}\frac{\beta}{2}\ [\mathrm{dBc}]`,
     conditions: '只含線性 gain 殘差（c₂ = c₃ = 0）；s 為正規化 scale；peak 振幅；小角近似（β ≪ 1），精確值為 J₁(β)/J₀(β)',
@@ -144,6 +157,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-LAB.13',
+    assumes: modelAssumes('L3'),
     title: '有限窗口的 Persistent Excitation（單參數）',
     tex: String.raw`\lambda_{\min}=\min_{k}\ \frac1N\sum_{n\in\text{block }k}u_x^2[n]\;>\;0`,
     conditions: 'u_x = H_PD{x}；本頁取 GMAC 實際的 block 邊界（不重疊的視窗），比規格 §9.1「所有起點 n₀」寬鬆；多參數時改成每個視窗的資訊矩陣的最小特徵值；λ_min = 0 ⇒ 該視窗不可辨識',
@@ -155,6 +169,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-LAB.14',
+    assumes: modelAssumes('L2'),
     title: '跨級一致性（replay）判據',
     tex: String.raw`\max_{0\le k<K_B}\bigl|G_k^{\mathrm{replay}}-G_k^{\mathrm{runBlockLms}}\bigr|=0`,
     conditions: '同一 seed、同一 fork 標籤、同一運算順序；replay 讀入 runBlockLms 的 w_phys，獨立重算 DSM → 正規化 → DTC → H_PD → comparator → GMAC',
@@ -165,6 +180,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-LAB.15',
+    assumes: modelAssumes('L3'),
     title: '多參數 Jacobian 與可辨識性',
     tex: String.raw`J_{ij}=K_q\,E\bigl[\psi_i[n]\;\phi_{u,j}[n]\bigr],\qquad \phi_{u,j}=H_{\mathrm{PD}}\{\phi_j(x)\},\qquad \operatorname{rank}\bigl(J_{\mathrm{scaled}}\bigr)=\text{參數個數}`,
     conditions: 'Gaussian comparator 小訊號；各參數誤差 δθ_j 在 H_PD 的記憶長度內近似不變（才能提到濾波器外面，同 F-LAB.6；凍結時精確）；ψ_i 為第 i 個相關器的 regressor；scaled = 每個基底除以自己的 RMS；H_PD(1) = 0 時 offset 基底結構性不可辨識（E04）',
@@ -177,6 +193,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-LAB.16',
+    assumes: modelAssumes('L2'),
     title: 'GMAC 斜率的量測（freeze ± Δw、common random numbers）',
     tex: String.raw`S_{\mathrm{GMAC}}=-\frac{\overline{G(w^*+\Delta w)}-\overline{G(w^*-\Delta w)}}{2\,\Delta w}\;\approx\;K_qC`,
     conditions: '凍結 w；兩邊用同一串 comparator 雜訊（差值的變異數遠小於各自的變異數）；Δw·|u| ≪ σ_v 才在線性區',
@@ -188,6 +205,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-LAB.17',
+    assumes: modelAssumes('L1'),
     title: 'Run-to-Convergence 的 block 數',
     tex: String.raw`K_B=2\max\Bigl(\tau\ln\frac{4|\delta_0|}{\sigma_w},\ 10\,\tau\Bigr),\qquad \tau=-\frac{1}{\ln\rho}`,
     conditions: '線性平均模型穩定（0 < ρ < 1）；前半段讓 transient 降到 σ_w/4，後半段至少 10τ 的穩態資料。transient 用 |δ_0|·ρ^k 估計：d = 0 時精確，d ≥ 1 時 τ 只是漸近的衰減率，實際暫態可能稍慢',
@@ -199,6 +217,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-LAB.18',
+    assumes: modelAssumes('L2'),
     title: 'mean-field 平均軌跡（把 comparator 換成它對雜訊的期望值）',
     tex: String.raw`\hat w_{k+1}=\hat w_k+\mu\,\hat G_k(\hat w_{k-d}),\qquad \hat G_k(w)=\frac1N\sum_{n\in\text{block }k}x_{\mathrm{ref}}[n]\,\operatorname{erf}\!\Bigl(\frac{(a-w)\,u_x[n]+u_d[n]+b}{\sqrt2\,\sigma_v}\Bigr)`,
     conditions: 'v 為 Gaussian、與 code 獨立；w 在 H_PD 的記憶長度內近似不變；把 E[erf(·)] 換成 erf(E[·])（w 的抖動造成的 comparator 輸入變化遠小於 σ_v）；不假設 code 的區塊統計平穩，也不做小訊號線性化。小訊號且統計平穩時退化成 F-LAB.7',

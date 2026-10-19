@@ -287,30 +287,19 @@
 
 /* ───────────── 勘誤、頁面、公式連結 ───────────── */
 .fr-erratum {
-  display: inline-block;
-  font-size: 0.74rem;
-  font-weight: 600;
-  line-height: 1.55;
-  padding: 0 7px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--warn);
-  color: var(--warn);
-  background: var(--warn-soft);
-  white-space: nowrap;
+  /* 尺寸與框線由 Badge 的 erratum variant 決定（components.css）；這裡只依嚴重度換色 */
   text-decoration: none;
 }
 .fr-erratum.fr-sev-high {
-  border-color: var(--danger);
-  color: var(--danger);
-  background: var(--danger-soft);
+  --b-fg: var(--danger);
+  --b-bd: var(--danger);
 }
 .fr-erratum.fr-sev-low {
-  border-color: var(--border-strong);
-  color: var(--text-muted);
-  background: var(--surface-2);
+  --b-fg: var(--text-muted);
+  --b-bd: var(--border-strong);
 }
 .fr-erratum:hover {
-  filter: brightness(0.96);
+  --b-bg: var(--warn-soft);
   text-decoration: underline;
 }
 .fr-page-link,
@@ -1165,4 +1154,20 @@ tr.fr-focus > td:first-child {
   .fr .c-texblock-math .katex-display {
     padding-right: 3px;
   }
+}
+
+/* 登錄表：「在哪個模型內精確」（公式自己的 assumes，或該章 chapterMeta 的 models；2026-10-19） */
+.fr-reg-model {
+  margin-top: 4px;
+  color: var(--text-muted);
+}
+.fr-reg-model-label {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  font-size: 0.78em;
+  color: var(--text-faint);
 }

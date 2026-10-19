@@ -1,8 +1,8 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { wrapPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 import type { ReactNode } from 'react'
 import { PAGES } from '@/app/registry'
-import { SettingsProvider } from '@/app/settings'
 import { HANDCALCS } from './handcalcs'
 import SignoffPage from './index'
 import { ReviewMatrix } from './sections/S1Matrix'
@@ -15,18 +15,8 @@ import { SILICON_EXAMPLE } from './sections/S8Silicon'
 import { SYMBOLS } from './symbols'
 import { FORMULA_IDS } from '@/pages/formulas/registry'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
-vi.mock('mermaid', () => ({
-  default: { initialize: vi.fn(), render: vi.fn(async (id: string) => ({ svg: `<svg id="${id}"></svg>`, diagramType: 'flowchart-v2' })) },
-}))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 const dl = vi.hoisted(() => ({ calls: [] as { name: string; mime: string; text: string }[] }))
 vi.mock('@/components', async (orig) => {
   const mod = await orig<typeof import('@/components')>()
@@ -38,13 +28,7 @@ vi.mock('@/components', async (orig) => {
   }
 })
 
-function wrap(node: ReactNode) {
-  return (
-    <MemoryRouter initialEntries={['/signoff']}>
-      <SettingsProvider>{node}</SettingsProvider>
-    </MemoryRouter>
-  )
-}
+const wrap = (node: ReactNode) => wrapPage(node, { url: '/signoff' })
 
 beforeEach(() => {
   dl.calls.length = 0
@@ -59,7 +43,7 @@ afterEach(() => {
 })
 
 describe('Sign-off 頁（jsdom smoke）', () => {
-  it('完整頁面可以渲染：符號表、各段落、六個實驗、六題手算、公式錨點、勘誤連到 #/verification?e=Exx，且沒有 KaTeX 解析錯誤與 console error', async () => {
+  it('完整頁面可以渲染：符號表、各段落、六個實驗、七題手算、公式錨點、勘誤連到 #/verification?e=Exx，且沒有 KaTeX 解析錯誤與 console error', async () => {
     localStorage.setItem('lmspll.mode', 'research') // Research 模式顯示全部內容（ModeGate）
     const errSpy = vi.spyOn(console, 'error')
     const { container } = render(wrap(<SignoffPage />))
@@ -106,14 +90,13 @@ describe('Sign-off 頁（jsdom smoke）', () => {
     expect(answerButtons.length).toBe(6)
     for (const b of answerButtons) fireEvent.click(b)
     expect(container.querySelectorAll('.katex').length).toBeGreaterThan(600)
-    const texErrors = Array.from(container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.textContent)
-    expect(texErrors).toEqual([])
+    expectNoTexErrors(container)
     // 字串屬性中的 `$…$` 都已轉成 KaTeX：頁面文字不應殘留成對的 $…$
     const leftover = Array.from(container.querySelectorAll('p, li, td, th, dd, dt, h2, h3, h4, summary, figcaption, label, .c-callout-title'))
       .map((e) => Array.from(e.childNodes).filter((n) => n.nodeType === 3).map((n) => n.textContent ?? '').join(''))
       .filter((t) => /\$[^$]+\$/.test(t))
     expect(leftover).toEqual([])
-    // 六題「帶入手算」依頁面順序出現（§2.2、§2.5、§3.5、§4、§8.5 兩題），各自帶著「換你算」的引導與完整步驟
+    // 七題「帶入手算」依頁面順序出現（§2.2、§2.5、§3.5、§4、§4b、§8.5 兩題），各自帶著「換你算」的引導與完整步驟
     const hc = Array.from(container.querySelectorAll('section.c-handcalc'))
     expect(hc.map((el) => el.id)).toEqual(HANDCALCS.map((h) => `handcalc-${h.id}`))
     for (const el of hc) {
@@ -127,15 +110,20 @@ describe('Sign-off 頁（jsdom smoke）', () => {
     const before = (a: Element | null, b: Element | null) => Boolean(a && b && a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
     const exp = (id: string) => container.querySelector(`[data-experiment="${id}"]`)
     const formula = (id: string) => container.querySelector(`[id="formula-${id}"]`)
-    expect(before(formula('F-SO.3'), hc[0]) && before(hc[0], exp('signoff-polarity-perturb'))).toBe(true)
-    expect(before(formula('F-SO.12'), hc[1]) && before(hc[1], exp('signoff-sspll-jacobian'))).toBe(true)
-    expect(before(formula('F-SO.8'), hc[2]) && before(hc[2], exp('signoff-evidence'))).toBe(true)
-    expect(before(formula('F-SO.5'), hc[3]) && before(hc[3], exp('signoff-corner-judge'))).toBe(true)
+    const byId = (n: number) => container.querySelector(`[id="handcalc-HC-SO.${n}"]`)
+    expect(before(formula('F-SO.3'), byId(1)) && before(byId(1), exp('signoff-polarity-perturb'))).toBe(true)
+    expect(before(formula('F-SO.12'), byId(2)) && before(byId(2), exp('signoff-sspll-jacobian'))).toBe(true)
+    expect(before(formula('F-SO.8'), byId(3)) && before(byId(3), exp('signoff-evidence'))).toBe(true)
+    expect(before(formula('F-SO.5'), byId(4)) && before(byId(4), exp('signoff-corner-judge'))).toBe(true)
+    // §4b：F-SO.14（PVT corner 表一列的公式）→ HC-SO.7，都在 #so-pvt 裡、§5 之前
+    const pvt = container.querySelector('#so-pvt') as HTMLElement
+    expect(pvt.contains(byId(7))).toBe(true)
+    expect(before(formula('F-SO.14'), byId(7)) && before(byId(7), container.querySelector('#so-fcw-noise'))).toBe(true)
     // §8.5：量測計畫的推導 → HC-SO.5 → F-SO.13 → HC-SO.6 → 程式碼；兩題都在 §8.5 裡、§9 之前
     const silicon = container.querySelector('#so-silicon') as HTMLElement
-    expect(silicon.contains(hc[4]) && silicon.contains(hc[5])).toBe(true)
-    expect(before(silicon.querySelector('.c-steps'), hc[4]) && before(hc[4], formula('F-SO.13')) && before(formula('F-SO.13'), hc[5])).toBe(true)
-    expect(before(hc[5], container.querySelector('#so-negative'))).toBe(true)
+    expect(silicon.contains(byId(5)) && silicon.contains(byId(6))).toBe(true)
+    expect(before(silicon.querySelector('.c-steps'), byId(5)) && before(byId(5), formula('F-SO.13')) && before(formula('F-SO.13'), byId(6))).toBe(true)
+    expect(before(byId(6), container.querySelector('#so-negative'))).toBe(true)
     // 站內連結（HashRouter 的 #/…，以及 <Link> 在 MemoryRouter 下的 /…）都指向已註冊的路由
     const paths = new Set(PAGES.map((p) => p.path))
     const hrefs = Array.from(container.querySelectorAll('a[href]')).map((a) => a.getAttribute('href') as string)
@@ -220,7 +208,7 @@ describe('Sign-off 頁（jsdom smoke）', () => {
     expect(tocLast.textContent).toBe('本頁符號表')
   }, 120000)
 
-  it('方塊圖：八張圖各出現一次（依 SIGNOFF_CHARTS 的順序），都有圖說與導讀，並放在對應的公式／逐步推導之前（docs/teaching-style.md §8）', () => {
+  it('方塊圖：九張圖各出現一次（依 SIGNOFF_CHARTS 的順序），都有圖說與導讀，並放在對應的公式／逐步推導之前（docs/teaching-style.md §8）', () => {
     const { container } = render(wrap(<SignoffPage />))
     const precedes = (x: Element | null, y: Element | null) => !!x && !!y && !!(x.compareDocumentPosition(y) & Node.DOCUMENT_POSITION_FOLLOWING)
     const figs = Array.from(container.querySelectorAll('figure.c-mermaid')) as HTMLElement[]
@@ -243,6 +231,7 @@ describe('Sign-off 頁（jsdom smoke）', () => {
       ['freeze 加減 Delta', '#so-polarity', '.c-steps'],
       ['證據強度流程圖', '#so-evidence', '.c-steps'],
       ['Corner 判準流程圖', '#so-corner', '.c-steps'],
+      ['PVT 三種效應進入校正迴路的位置', '#so-pvt', '.c-steps'],
       ['多參數線性化迴路', '#so-mimo', '.c-steps'],
       ['從 gain code 偏差到輸出', '#so-strategy', '.c-steps'],
       ['矽上量測迴圈', '#so-silicon', '.c-steps'],

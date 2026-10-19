@@ -10,11 +10,11 @@
  *   實驗 B → signmap L2（已快取）再切到 signmap L3；最後一個測試把全部載完。
  */
 import { readFileSync, readdirSync } from 'node:fs'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 import { join } from 'node:path'
 import type { ReactElement } from 'react'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
 import type { HpdJson, LoopKey, SignMapJson } from './data'
 import { APPROACH_MARGIN_PX, loadAllSspllData, loadSspllData, peekSspllData, useSspllData } from './lazyData'
 import { DataPending } from './common'
@@ -22,25 +22,14 @@ import { HpdExplorer, HPD_EXPERIMENT_ID } from './experiments/HpdExplorer'
 import { HEAT_ROWS, SIGNMAP_EXPERIMENT_ID, SignMapExplorer, heatRowCount } from './experiments/SignMapExplorer'
 import { NearGridIntervals, nearGridIntervals } from './sections/S15Checklist'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+import { plotlyMock as P } from '@/test/mocks/plotly'
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
 const DIR = join(process.cwd(), 'src/pages/case-sspll')
 const src = (f: string) => readFileSync(join(DIR, f), 'utf8')
 
 function renderWithRouter(ui: ReactElement) {
-  return render(
-    <SettingsProvider>
-      <MemoryRouter initialEntries={['/case/sspll']}>{ui}</MemoryRouter>
-    </SettingsProvider>,
-  )
+  return renderPage(ui, { url: '/case/sspll' })
 }
 
 afterEach(() => {
@@ -187,7 +176,7 @@ describe('按需載入的資料檔（lazyData）', () => {
     expect(peekSspllData('signmap', 'L3')).not.toBeNull()
     // 載入完成之後 TS port 的結果沒有消失、也沒有 NaN
     expect(exp.textContent).not.toMatch(/NaN|undefined|Infinity/)
-    expect(exp.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(exp)
   })
 
   it('佔位元件：載入中與載入失敗各說一句話，並預留圖的高度（版面不跳動）', () => {

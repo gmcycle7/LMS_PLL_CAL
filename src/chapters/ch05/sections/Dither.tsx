@@ -95,7 +95,7 @@ function DitherExperiment() {
       applyPreset(urlPreset.params)
     }
   }, [urlPreset, applyPreset])
-  const presets = useMemo<ExperimentPreset[]>(() => presetsForExperiment(EXP_ID).map((p) => ({ name: p.title, params: p.params, description: p.description })), [])
+  const presets = useMemo<ExperimentPreset[]>(() => presetsForExperiment(EXP_ID).map((p) => ({ id: p.id, name: p.title, params: p.params, description: p.description })), [])
 
   // ---------------- Monte Carlo（worker）＋精確穩態（主執行緒，便宜） ----------------
   const simTask = useWorkerTask<SignLoopBatchParams, SignLoopBatchResult>('comparator', 'runSignLoopBatch', { restartOnRun: true })

@@ -56,6 +56,8 @@ export interface MetricRow {
 }
 
 export interface ExperimentPreset {
+  /** 分享網址裡的 preset key（?p=）；沒有就用名稱的 slug（改名字網址就失效），有 PresetEntry 的實驗請帶 PresetEntry.id */
+  id?: string
   name: string
   params: Record<string, unknown>
   description?: string

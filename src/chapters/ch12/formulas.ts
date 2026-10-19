@@ -1,4 +1,5 @@
 import type { FormulaEntry } from '@/data/types'
+import { modelAssumes } from '@/app/chapterMeta'
 
 /**
  * 第 12 章公式登錄（Formula & Unit Reference 頁以 import.meta.glob 彙整）。
@@ -10,6 +11,7 @@ const page = '/ch/12'
 export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-12.1',
+    assumes: modelAssumes('L1'),
     title: '線性化 GMAC（近最佳點）',
     tex: String.raw`G_k\approx -K\,\delta w_k+\eta_k,\qquad K=K_qC,\quad \delta w_k=w_k-w^*`,
     // 技術審查 R06c：小訊號判據 |C·δw| ≪ σ_v 只在「±1 code、無記憶 path u = C·x」成立（|u[n]| = |C|）；
@@ -24,6 +26,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-12.2',
+    assumes: modelAssumes('L1'),
     title: '係數誤差遞迴',
     tex: String.raw`\delta w_{k+1}=p\,\delta w_k+\mu\eta_k,\qquad p=1-\mu K`,
     conditions: String.raw`由 F-12.1 代入 $w_{k+1}=w_k+\mu G_k$；無更新延遲（$d=0$）`,
@@ -35,6 +38,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-12.3',
+    assumes: modelAssumes('L1'),
     title: '雜訊 → 係數的轉移函數',
     tex: String.raw`H_{\eta\to w}(z)=\frac{\mu}{z-p}=\frac{\mu z^{-1}}{1-pz^{-1}},\qquad h_k=\mu p^{k-1}\,(k\ge1)`,
     conditions: String.raw`忽略初始狀態；$|p|<1$ 時穩定（pole 在單位圓內）`,
@@ -45,6 +49,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-12.4',
+    assumes: modelAssumes('L4'),
     title: '係數雜訊 PSD（block rate）',
     tex: String.raw`S_w(e^{j\Omega})=\frac{\mu^2S_\eta(e^{j\Omega})}{|1-pe^{-j\Omega}|^2}=\frac{\mu^2S_\eta}{1-2p\cos\Omega+p^2}`,
     // 技術審查 C03：σ² = (1/2π)∫S dΩ = ∫S d(Ω/2π) ⇒ S_w 是「每 cycle/block」的密度（不是每 rad/block；那是 S_w/2π）。
@@ -58,6 +63,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-12.5',
+    assumes: modelAssumes('L1'),
     title: '白色 GMAC noise 下的穩態變異',
     tex: String.raw`\sigma_w^2=\frac{\mu^2\sigma_\eta^2}{1-p^2}=\frac{\mu\,\sigma_\eta^2}{K(2-\mu K)},\qquad R_w[\ell]=\sigma_w^2\,p^{|\ell|}`,
     conditions: String.raw`$\eta$ iid、方差 $\sigma_\eta^2$、$|p|<1$；0.399 fs 是 gain-equivalent noise，不是 output jitter；若 $\eta$ 為 AR(1) colored（lag-1 相關 $r$），$\sigma_w^2$ 再乘 $(1+pr)/(1-pr)$（§12.4 Research 延伸）`,
@@ -70,6 +76,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-12.6',
+    assumes: modelAssumes('L1'),
     title: 'Sign-GMAC 的 block 雜訊變異',
     tex: String.raw`\sigma_\eta^2=\frac{\operatorname{Var}(q\,x)}{N}=\frac{1-m^2}{N}\approx\frac1N,\qquad m=E[q\,x]`,
     conditions: String.raw`$x=\pm1$（或 unit-RMS）iid、近平衡 $m\approx0$、average-mode`,
@@ -81,6 +88,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-12.7',
+    assumes: modelAssumes('L1'),
     title: 'Exact discrete-time −3 dB 頻率',
     tex: String.raw`\Omega_{3\mathrm{dB}}=2\arcsin\frac{1-p}{2\sqrt p}=\arccos\!\Big(1-\frac{(1-p)^2}{2p}\Big),\quad f_{3\mathrm{dB}}=\frac{\Omega_{3\mathrm{dB}}}{2\pi}f_u`,
     conditions: String.raw`只在 $3-2\sqrt2\le p<1$ 存在（$\mu K\le2\sqrt2-2\approx0.828$）；$p<0$ 為 high-pass`,
@@ -93,6 +101,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-12.8',
+    assumes: modelAssumes('L1'),
     title: '−3 dB 頻率的兩個近似',
     tex: String.raw`f_{3\mathrm{dB}}\approx\frac{-\ln p}{2\pi}f_u\ \ (\text{誤差}\approx-\tfrac{(1-p)^2}{12})\qquad f_{3\mathrm{dB}}\approx\frac{1-p}{2\pi}f_u\ \ (\text{誤差}\approx-\tfrac{1-p}{2})`,
     conditions: String.raw`$p\to1$；兩者都是 −3 dB 的近似，不是 noise bandwidth`,
@@ -104,6 +113,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-12.9',
+    assumes: modelAssumes('L4'),
     title: 'One-sided ENBW 與積分雜訊',
     tex: String.raw`\mathrm{ENBW}=\frac{1}{|H(1)|^2}\int_0^{f_u/2}|H|^2df=\frac{f_u}{2}\cdot\frac{1-p}{1+p},\qquad \sigma_w^2=S_w^{(1)}(0)\cdot\mathrm{ENBW}`,
     conditions: String.raw`$|p|<1$；$\sigma_w^2=S_w^{(1)}(0)\cdot\mathrm{ENBW}$ 只在白色 $\eta$ 時成立（colored $\eta$ 的 PSD 形狀不是 $|H|^2$）；$f_{3\mathrm{dB}}$ 不可標成「Noise BW」（$\mathrm{ENBW}\approx\tfrac{\pi}{2}f_{3\mathrm{dB}}$）`,
@@ -116,6 +126,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-12.10',
+    assumes: modelAssumes('L4'),
     title: 'PSD 正規化：DTFT 形式 ↔ 單邊 per-Hz',
     tex: String.raw`S^{(1)}(f)=\frac{2}{f_r}\,S\big(e^{j2\pi f/f_r}\big),\ 0<f<\tfrac{f_r}{2};\qquad \mathcal L(f)=10\log_{10}\frac{S_\phi^{(1)}(f)}{2}`,
     conditions: String.raw`$f_r$ 為該序列的取樣率（block 量用 $f_u$，sample 量用 $f_s$）`,
@@ -128,6 +139,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-12.11',
+    assumes: modelAssumes('L4'),
     title: 'Gain noise 變成 timing error：乘法',
     tex: String.raw`\delta t[n]=x[n]\,\delta w[n],\qquad \delta w[n]=\delta w_{\lfloor (n-n_c)/N\rfloor}`,
     conditions: String.raw`線性化 DTC gain error；ZOH + commit latency $n_c$；$\delta t$ 是 reference 端的 DTC 多補償的時間（reference edge 早到 $\delta t$），殘餘 timing error 的對應項為 $-x\,\delta w$`,
@@ -140,6 +152,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-12.12',
+    assumes: modelAssumes('L4'),
     title: '單頻 × 單頻：積化和差',
     tex: String.raw`A\cos(2\pi f_xt)\cdot B\cos(2\pi f_wt)=\frac{AB}{2}\big[\cos2\pi(f_x+f_w)t+\cos2\pi(f_x-f_w)t\big]`,
     conditions: '三角恆等式，無近似',
@@ -150,6 +163,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-12.13',
+    assumes: modelAssumes('L4'),
     title: '獨立過程相乘：自相關相乘、PSD 卷積',
     tex: String.raw`R_{\delta t}[\ell]=R_x[\ell]R_w[\ell],\qquad S_{\delta t}(e^{j\Omega})=\frac1{2\pi}\int_{-\pi}^{\pi}S_x(e^{j\nu})S^{(f_s)}_w(e^{j(\Omega-\nu)})d\nu`,
     conditions: String.raw`$x$ 與 $\delta w$ 獨立、廣義平穩；$S_w$ 必須先換成 sample-rate（ZOH）版本；真實 LMS 中 $x$ 與 $\delta w$ 相關且為 cyclostationary`,
@@ -161,6 +175,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-12.14',
+    assumes: modelAssumes('L4'),
     title: 'Multirate：ZOH 後的 sample-rate PSD',
     tex: String.raw`S_w^{(f_s)}(e^{j\theta})=\frac1N\left[\frac{\sin(N\theta/2)}{\sin(\theta/2)}\right]^2S_w^{(f_u)}(e^{jN\theta})`,
     conditions: String.raw`block 相位隨機的時間平均 PSD（序列本身是 cyclostationary）；$\theta$ 為 rad/sample`,
@@ -173,6 +188,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-12.15',
+    assumes: modelAssumes('L2'),
     title: 'PD 看到 high-pass、output 看到 low-pass',
     tex: String.raw`H_{\mathrm{PD}}(s)=\frac{1}{1+L(s)},\qquad T(s)=\frac{L(s)}{1+L(s)},\qquad H_{\mathrm{PD}}+T=1`,
     conditions: String.raw`簡化平均線性 PLL；DTC 在 reference 輸入端，殘餘誤差在 PD 的 reference 輸入注入：$e_{\mathrm{PD}}=\phi_{\mathrm{dtc}}-\theta_{\mathrm{out}}$，解出 $e_{\mathrm{PD}}=H_{\mathrm{PD}}\phi_{\mathrm{dtc}}$、$\theta_{\mathrm{out}}=T\phi_{\mathrm{dtc}}$`,
@@ -183,6 +199,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-12.16',
+    assumes: modelAssumes('L4'),
     title: 'DTC timing error → output phase noise',
     tex: String.raw`\phi_{\mathrm{out}}(s)=-2\pi f_{\mathrm{out}}T(s)\,\delta t(s),\qquad S^{(1)}_{\phi,\mathrm{out}}(f)=(2\pi f_{\mathrm{out}})^2|T(f)|^2S^{(1)}_{\delta t}(f)`,
     conditions: String.raw`DTC 在 reference 輸入端：$\phi_{\mathrm{dtc}}=-2\pi f_{\mathrm{out}}\delta t$（$\delta t=x\,\delta w$ 是多補償的時間，reference edge 早到 $\delta t$）、$\phi_{\mathrm{out}}=T\phi_{\mathrm{dtc}}$；單邊 PSD`,
@@ -194,6 +211,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-12.17',
+    assumes: modelAssumes('L4'),
     title: 'Output timing jitter（積分）',
     tex: String.raw`\sigma_{t,\mathrm{out}}^2=\int_{f_L}^{f_H}|T(f)|^2\,S^{(1)}_{\delta t}(f)\,df`,
     conditions: '忽略直接 PD noise 與 LMS 的 cross-spectrum（R1）',
@@ -204,6 +222,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-12.18',
+    assumes: modelAssumes('L4'),
     title: '單 tone 相位調變的 spur',
     tex: String.raw`\beta=2\pi f_{\mathrm{out}}|T|A_t,\qquad \text{spur}\approx20\log_{10}\frac{\beta}{2}\ \mathrm{dBc}\quad\Big(\text{精確：}20\log_{10}\frac{J_1(\beta)}{J_0(\beta)}\Big)`,
     conditions: String.raw`$A_t$ 為 DTC 端 $\delta t$ tone 的 peak（output timing tone 的 peak 是 $|T|A_t$；$|T|=1$ 時相同）；小角 $\beta\ll1$；每個單邊 spur；$|T|$ 取 tone 頻率處的值`,
@@ -215,6 +234,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-12.19',
+    assumes: modelAssumes('L4'),
     title: String.raw`係數雜訊 PSD 的低頻位準（與 $\mu$、$N$ 無關）`,
     tex: String.raw`S_w^{(1)}(0)=\frac{2}{f_sK^2}=\frac{\pi\sigma_v^2}{C^2f_s},\qquad \sigma_w^2=S_w^{(1)}(0)\cdot\mathrm{ENBW}`,
     conditions: String.raw`線性模型、白色 $\eta$、$\sigma_\eta^2=1/N$、$|p|<1$；$\pi/2$ 是 1-bit comparator 相對線性偵測的代價（$K_q=\sqrt{2/\pi}/\sigma_v$）；$\mu$ 只改變 ENBW`,

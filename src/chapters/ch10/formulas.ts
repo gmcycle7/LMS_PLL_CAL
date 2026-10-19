@@ -1,4 +1,5 @@
 import type { FormulaEntry } from '@/data/types'
+import { modelAssumes } from '@/app/chapterMeta'
 
 /**
  * Ch10 公式登錄（Formula & Unit Reference 頁以 import.meta.glob 彙整）。
@@ -10,6 +11,7 @@ const page = '/ch/10'
 export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-10.1',
+    assumes: modelAssumes('L3'),
     title: '多參數 GMAC 的平均輸出（小訊號）',
     tex: String.raw`E[\mathbf G_k]\approx K_q\,\mathbf R\,\boldsymbol\delta_k,\qquad G_i\approx K_q\sum_j R_{ij}\,\delta_j`,
     conditions: String.raw`Gaussian comparator noise、$|\mathbf u^T\boldsymbol\delta|\ll\sigma_v$（erf 一階泰勒）、block 內 iid；$\boldsymbol\delta=\mathbf a-\mathbf w$`,
@@ -21,6 +23,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-10.2',
+    assumes: modelAssumes('L3'),
     title: '一般更新矩陣下的誤差遞迴',
     tex: String.raw`\boldsymbol\delta_{k+1}=(\mathbf I-K_q\mathbf M\mathbf R)\boldsymbol\delta_k-\mathbf M\boldsymbol\eta_k=\mathbf A_{\mathrm{cal}}\boldsymbol\delta_k-\mathbf M\boldsymbol\eta_k,\quad \mathbf A_{\mathrm{cal}}=\mathbf I+\mathbf M\mathbf J,\ \mathbf J=-K_q\mathbf R`,
     conditions: String.raw`$\mathbf w_{k+1}=\mathbf w_k+\mathbf M\mathbf G_k$，$\mathbf G\approx K_q\mathbf R\boldsymbol\delta+\boldsymbol\eta$；局部線性化：把這個 $\approx$ 當成等式的線性模型裡，本式是精確的代數。1-bit comparator 時線性模型本身是 F-10.1 的小訊號近似（$|\mathbf u^T\boldsymbol\delta_k|\ll\sigma_v$，對初始誤差與迴路自己的穩態抖動都要成立），$\mathbf A_{\mathrm{cal}}$ 的 eigenvalue 只是小訊號區的局部 pole`,
@@ -32,6 +35,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-10.3',
+    assumes: modelAssumes('L3'),
     title: String.raw`Scalar LMS（$\mathbf M=\mu\mathbf I$）的模式 pole`,
     tex: String.raw`p_i=1-\mu K_q\lambda_i(\mathbf R),\qquad 0<\mu K_q<\frac{2}{\lambda_{\max}}`,
     conditions: String.raw`$\mathbf R$ 對稱正定、模型匹配、平均（mean）遞迴。指定模型是 F-10.2 的線性遞迴，對角化與穩定範圍是精確的代數（同第 9 章 F-09.4）。1-bit comparator 時 $p_i$ 只是小訊號區（$|\mathbf u^T\boldsymbol\delta_k|\ll\sigma_v$，F-10.1）的局部 pole：誤差大到與 $\sigma_v$ 相當時 comparator 的平均增益比 $K_q$ 小（Gaussian regressor 的精確式見 F-10.13），收斂的快慢不再照 $p_i$`,
@@ -43,6 +47,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-10.4',
+    assumes: modelAssumes('L3'),
     title: String.raw`完整 Preconditioner：所有 pole $=1-\gamma$`,
     tex: String.raw`\mathbf M=\gamma(K_q\mathbf R)^{-1}\;\Rightarrow\;\mathbf I-K_q\mathbf M\mathbf R=(1-\gamma)\mathbf I`,
     conditions: String.raw`$\mathbf R$ 正定且 $\hat{\mathbf J}=\mathbf J$（模型完全匹配）；$K_q$ 必須包含在 $\mathbf M$ 內（勘誤 E05/E08）。指定模型是 F-10.2 的線性遞迴；1-bit comparator 時只在小訊號區（F-10.1）成立`,
@@ -54,6 +59,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-10.5',
+    assumes: modelAssumes('L0'),
     title: '95% 衰減所需 block 數（單一模式）',
     tex: String.raw`k_{95}=\left\lceil\frac{\ln 0.05}{\ln|p|}\right\rceil`,
     conditions: String.raw`單一模式：這個模式的分量每個 block 乘上 $p$（$|p|<1$）。有多個模式時 $p$ 取絕對值最大的 pole（$\max_i|p_i|=\rho(\mathbf A_{\mathrm{cal}})$），不一定是 $\lambda_{\min}$ 的慢模式：scalar LMS 在 $\mu K_q>2/(\lambda_{\max}+\lambda_{\min})$ 時是 $\lambda_{\max}$ 的模式（pole 為負）。要把代入 $\rho(\mathbf A_{\mathrm{cal}})$ 的結果當作整個誤差向量的 $k_{95}$（最壞初始方向 $\|\boldsymbol\delta_k\|_2\le0.05\,\|\boldsymbol\delta_0\|_2$，且之後不再超過），條件是 $\mathbf A_{\mathrm{cal}}$ 為正規矩陣（$\mathbf A\mathbf A^T=\mathbf A^T\mathbf A$，對稱矩陣屬之；$\mathbf R$ 對稱且 $\hat{\mathbf J}=\mathbf J$ 的 scalar／NLMS／full／regularized 都是）。$\mathbf A_{\mathrm{cal}}$ 非正規（一般 $\mathbf J$、$\hat{\mathbf J}\ne\mathbf J$、各 loop 增益不同）時 $\|\mathbf A^k\|_2\ge\rho^k$，本式只是下界，要改用 $\|\mathbf A^k\|_2\le0.05$。不含更新延遲（第 8 章）。$p$ 取自 F-10.2 的線性模型時，1-bit 迴路的 $k_{95}$ 只在小訊號區（F-10.1）適用`,
@@ -65,6 +71,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-10.6',
+    assumes: modelAssumes('L3'),
     title: '完整 Preconditioning 的穩態變異（eigen-mode 座標）',
     tex: String.raw`\operatorname{Var}(\xi_i)=\frac{\gamma}{K_q^2N\lambda_i(2-\gamma)},\quad \boldsymbol\xi=\mathbf V^T\boldsymbol\delta;\qquad \operatorname{Cov}(\boldsymbol\delta)=\frac{\gamma}{K_q^2N(2-\gamma)}\mathbf R^{-1}`,
     conditions: String.raw`線性 Gaussian 模型 $\operatorname{Cov}(\boldsymbol\eta)=\mathbf R/N$、$\hat{\mathbf J}=\mathbf J$、近平衡（$E[\boldsymbol\delta^T\mathbf R\boldsymbol\delta]\ll\sigma_v^2$）；$\xi_i$ 是第 $i$ 個 eigen-mode，不是第 $i$ 個參數（勘誤 E37）`,
@@ -77,6 +84,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-10.7',
+    assumes: modelAssumes('L3'),
     title: String.raw`一般模式變異（$\mathbf M$ 與 $\mathbf R$ 共用 eigenvectors）`,
     tex: String.raw`\operatorname{Var}(\xi_i)=\frac{m_i^2\lambda_i}{K_q^2N(1-p_i^2)},\qquad p_i=1-m_i\lambda_i,\ \ \mathbf M_n\mathbf v_i=m_i\mathbf v_i`,
     conditions: String.raw`$|p_i|<1$；scalar（$m_i=\mu K_q$）、NLMS、full（$m_i=\gamma/\lambda_i$）、regularized 皆適用。在線性 Gaussian 模型（$\operatorname{Cov}(\boldsymbol\eta)=\mathbf R/N$）下為精確；用於真正的 1-bit Sign-LMS 時是近似（需近平衡 $E[\boldsymbol\delta^T\mathbf R\boldsymbol\delta]\ll\sigma_v^2$）`,
@@ -87,6 +95,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-10.8',
+    assumes: modelAssumes('L3'),
     title: 'Regularized Preconditioner（R 形式）',
     tex: String.raw`\mathbf M=\gamma\big(K_q(\mathbf R+\lambda_{\mathrm{reg}}\mathbf I)\big)^{-1}\;\Rightarrow\;p_i=1-\gamma\frac{\lambda_i}{\lambda_i+\lambda_{\mathrm{reg}}}`,
     conditions: String.raw`$\lambda_{\mathrm{reg}}$ 與 $\mathbf R$ 同單位（正規化 regressor 時無因次）；$\lambda_{\mathrm{reg}}$ 不是 eigenvalue（勘誤 E22）。$\mathbf M$ 用的 $\mathbf R$ 與 plant 相同（$\hat{\mathbf J}=\mathbf J$）；指定模型是 F-10.2 的線性遞迴，1-bit comparator 時只在小訊號區（F-10.1）成立`,
@@ -98,6 +107,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-10.9',
+    assumes: modelAssumes('L3'),
     title: '中央差分量測 Jacobian',
     tex: String.raw`J_{ij}\approx\frac{G_i(\mathbf w+\Delta_j\mathbf e_j)-G_i(\mathbf w-\Delta_j\mathbf e_j)}{2\Delta_j}`,
     conditions: String.raw`Freeze $\mathbf w$、同一 operating condition；誤差 $O(\Delta^2)$ 截斷 $+\,O\big(1/(\Delta\sqrt{N_J})\big)$ 雜訊；1-bit comparator 時有 S 曲線飽和截斷`,
@@ -109,6 +119,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-10.10',
+    assumes: modelAssumes('L3'),
     title: String.raw`Regularized pseudoinverse 的 poles（$\hat{\mathbf J}=\mathbf J$）`,
     tex: String.raw`\mathbf M=-\gamma(\mathbf J^T\mathbf J+\lambda_{\mathrm{reg}}\mathbf I)^{-1}\mathbf J^T\;\Rightarrow\;p_i=1-\gamma\frac{\sigma_i^2}{\sigma_i^2+\lambda_{\mathrm{reg}}}`,
     conditions: String.raw`只在 $\mathbf M$ 以與 plant 相同的 $\mathbf J$ 建構時成立（勘誤 E24）；$\hat{\mathbf J}\ne\mathbf J$ 時 poles $=\operatorname{eig}\big(\mathbf I+\mathbf M(\hat{\mathbf J})\,\mathbf J\big)$。$\lambda_{\mathrm{reg}}$ 與 $J^2$ 同單位（勘誤 E22）。$\mathbf J$ 是局部線性化的斜率：1-bit comparator 時只在小訊號區（F-10.1）成立`,
@@ -120,6 +131,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-10.11',
+    assumes: modelAssumes('L3'),
     title: 'T18 反例：每個 loop 單獨穩定，MIMO 一起發散',
     tex: String.raw`\mathbf J=\begin{bmatrix}-1&2\\2&-1\end{bmatrix},\ \mathbf M=0.2\mathbf I\;\Rightarrow\;\operatorname{eig}(\mathbf I+\mathbf M\mathbf J)=\{1.2,\ 0.4\}`,
     conditions: String.raw`局部線性化；單一 loop pole $1+0.2\,J_{ii}=0.8$`,
@@ -130,6 +142,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-10.12',
+    assumes: modelAssumes('L3'),
     title: 'Block NLMS 的 poles',
     tex: String.raw`\mathbf M=\frac{\tilde\mu}{K_q\operatorname{tr}\mathbf R}\mathbf I\;\Rightarrow\;p_i=1-\tilde\mu\frac{\lambda_i}{\operatorname{tr}\mathbf R}`,
     conditions: String.raw`以平均 regressor 能量 $E\|\mathbf u\|^2=\operatorname{tr}\mathbf R$ 正規化；不改變 eigenvalue spread。指定模型是 F-10.2 的線性遞迴；1-bit comparator 時只在小訊號區（F-10.1）成立`,
@@ -140,6 +153,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-10.13',
+    assumes: modelAssumes('L3'),
     title: 'Sign-GMAC 的精確平均（Gaussian regressor，Bussgang）',
     tex: String.raw`E[\mathbf G]=\sqrt{\frac{2}{\pi}}\;\frac{\mathbf C\boldsymbol\delta}{\sqrt{\sigma_v^2+\boldsymbol\delta^T\mathbf R_u\boldsymbol\delta}}`,
     conditions: String.raw`$\mathbf u\sim\mathcal N(\mathbf 0,\mathbf R_u)$ 與 $v\sim\mathcal N(0,\sigma_v^2)$ 獨立，$\mathbf x=\mathbf B\mathbf u$、$\mathbf C=E[\mathbf x\mathbf u^T]$；對任何 $\boldsymbol\delta$ 精確`,
@@ -150,6 +164,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-10.14',
+    assumes: modelAssumes('L3'),
     title: '1-bit 中央差分的截斷係數',
     tex: String.raw`\frac{\hat J_{ij}}{J_{ij}}=\frac{1}{\sqrt{1+\Delta^2R_{jj}/\sigma_v^2}}\ (\text{Gaussian }u),\qquad \frac{\operatorname{erf}\!\big(\Delta/(\sqrt2\sigma_v)\big)}{K_q\Delta}\ (\pm1\text{ 碼})`,
     conditions: String.raw`在 $\boldsymbol\delta=\mathbf 0$ 量測、無限 $N_J$（只看偏差）`,
@@ -160,6 +175,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-10.15',
+    assumes: modelAssumes('L3'),
     title: '穩態共變異（離散 Lyapunov 方程）',
     tex: String.raw`\mathbf X=\mathbf A\mathbf X\mathbf A^T+\mathbf M\frac{\mathbf R_x}{N}\mathbf M^T,\qquad \mathbf X=\operatorname{Cov}(\boldsymbol\delta_\infty)`,
     conditions: String.raw`$\rho(\mathbf A)<1$；任何 $\mathbf M$（含 diagonal、$\hat{\mathbf J}\ne\mathbf J$）。在線性 Gaussian 模型（$\operatorname{Cov}(\boldsymbol\eta)=\mathbf R_x/N$）下為精確；用於真正的 1-bit Sign-LMS 時是近似（需近平衡）`,

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Callout, ClaimTag, Tex, TexBlock, checkAnswer, mathText, parseNumberInput, randomSeed } from '@/components'
+import { Callout, ClaimTag, badgeClass, Tex, TexBlock, checkAnswer, mathText, parseNumberInput, randomSeed } from '@/components'
 import type { HandCalcDef } from '@/data/types'
 import {
   NEW_RECORD,
@@ -58,7 +58,7 @@ function PracticeCard({ item, record, onCheck, onReveal }: PracticeCardProps) {
   return (
     <section className="c-handcalc wb-practice-card" aria-label={`隨機練習 ${def.id}`} data-handcalc={def.id}>
       <header className="c-handcalc-head">
-        <span className="c-handcalc-badge">隨機練習</span>
+        <span className={badgeClass('neutral', 'c-handcalc-badge')}>隨機練習</span>
         <span className="c-handcalc-title">{mathText(def.title)}</span>
         <span className="c-handcalc-meta">
           <ClaimTag kind={def.claim} />

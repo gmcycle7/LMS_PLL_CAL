@@ -189,7 +189,7 @@ function decimate(v: ArrayLike<number>, maxPts: number): { x: number[]; y: (numb
 }
 
 function toPresetList(): ExperimentPreset[] {
-  return presetsForExperiment(MSE_MAE_ID).map((p) => ({ name: p.title, params: p.params, description: p.description }))
+  return presetsForExperiment(MSE_MAE_ID).map((p) => ({ id: p.id, name: p.title, params: p.params, description: p.description }))
 }
 
 /** IEEE double：0.2 + 0.2 + 0.2 − 0.2 − 0.2 − 0.2 的實際結果（不是 0；即時計算） */

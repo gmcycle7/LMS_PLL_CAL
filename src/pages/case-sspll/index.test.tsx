@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 import { join } from 'node:path'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
 import { presetById, presetsForExperiment } from '@/app/presets'
 import { MathText, extractRegion, listRegions, plotMath, sanitizeMermaidSource } from '@/components'
 import { unicodeMathIn } from '@/components/mermaidTestUtils'
@@ -46,15 +46,8 @@ beforeAll(async () => {
   ;({ HPD, SIGNMAP } = await loadAllSspllData())
 }, 60_000)
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+import { plotlyMock as P } from '@/test/mocks/plotly'
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
 const M = vi.hoisted(() => ({
   initialize: vi.fn(),
@@ -62,15 +55,8 @@ const M = vi.hoisted(() => ({
 }))
 vi.mock('mermaid', () => ({ default: M }))
 
-function renderPage(url = '/case/sspll', mode?: 'beginner' | 'engineer' | 'research') {
-  if (mode) localStorage.setItem('lmspll.mode', mode)
-  return render(
-    <SettingsProvider>
-      <MemoryRouter initialEntries={[url]}>
-        <CaseSspllPage />
-      </MemoryRouter>
-    </SettingsProvider>,
-  )
+function renderCase(url = '/case/sspll', mode?: 'beginner' | 'engineer' | 'research') {
+  return renderPage(<CaseSspllPage />, { url, mode })
 }
 
 /** 去掉程式碼區塊後的頁面文字（原始碼裡本來就有 NaN、Infinity 等字樣） */
@@ -192,7 +178,7 @@ afterEach(() => {
 
 describe('案例頁 /case/sspll（jsdom smoke）', () => {
   it('SSPLL: 完整渲染不丟錯——22 個段落、章末的符號表、方塊圖、公式錨點、三個實驗、程式碼並排；沒有 KaTeX 錯誤或非有限數字', async () => {
-    const { container } = renderPage('/case/sspll', 'engineer')
+    const { container } = renderCase('/case/sspll', 'engineer')
     // 符號表：整頁一張，放在章末（§21，外層 id="symbols"，在「本課必記」§17 之後、頁面最後）；章首只留一行連結
     expect(container.querySelectorAll('.c-symbols').length).toBe(1)
     expect(container.querySelectorAll('.c-symbols tbody tr').length).toBe(SYMBOLS.length)
@@ -219,9 +205,9 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
     expect(container.querySelectorAll('figure.c-mermaid').length).toBe(DIAGRAMS.length + 1)
     expect(Array.from(container.querySelectorAll('[data-diagram]')).map((e) => e.getAttribute('data-diagram'))).toEqual(DIAGRAMS.map((d) => d.id))
     expect(DIAGRAMS.length).toBeGreaterThanOrEqual(8)
-    // 段落標題（H2）：0–21
+    // 段落標題（H2）：0–21 加上 §7b（GOS 定理，插在 7 與 8 之間）
     const h2 = Array.from(container.querySelectorAll('h2')).map((h) => h.textContent ?? '')
-    expect(h2).toHaveLength(22)
+    expect(h2).toHaveLength(23)
     for (const t of [
       '0. 先講結論',
       '1. 本章路線圖',
@@ -231,6 +217,7 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
       '5. 為什麼',
       '6. 三個迴路',
       '7. GOS',
+      '7b. 定理',
       '8. PHOS',
       '9. GOS 與 PHOS 一起看',
       '10. 模擬證據',
@@ -255,7 +242,7 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
     for (const f of FORMULAS) expect(ids, f.id).toContain(`formula-${f.id}`)
     // KaTeX 都渲染成功
     expect(container.querySelectorAll('.katex').length).toBeGreaterThan(600)
-    expect(container.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+    expectNoTexErrors(container)
     // 三個實驗
     for (const id of [HPD_EXPERIMENT_ID, SIGNMAP_EXPERIMENT_ID, LMS_EXPERIMENT_ID]) expect(container.querySelector(`#exp-${id}`), id).not.toBeNull()
     // 帶入手算：HANDCALCS 的每一題都在頁面上各出現一次（依頁面順序），預設顯示帶入過程；綜合題（最後一題）排在思考題之前
@@ -335,7 +322,7 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
     expect(texIn(sec('cs-4'))).toContain('8/25')
     expect(Math.floor((512 * 25) / LMS_WORST_RATE / Math.max(...(['L1', 'L2', 'L3'] as const).map((k) => hpdMemorySamples(LOOPS[k]))) / 10) * 10).toBe(30)
     expect(texIn(sec('cs-4')).some((t) => t.includes(String.raw`\overset{\delta_j\ \text{固定}}{=}`))).toBe(true)
-    expect(sec('cs-4').querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+    expectNoTexErrors(sec('cs-4'))
     // R09（§7.1）：κ_GOS = C_GOS/var(ρ)；「乘 12」只在 var(ρ) = 1/12；開迴路基準是去掉平均值的 ρ
     const s7 = proseText(sec('cs-7'))
     for (const frag of ['去掉平均值之後', '折到 DC', '只差一個正的倍數', '約差 4 倍']) expect(s7, frag).toContain(frag)
@@ -438,7 +425,7 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
   }, 120000)
 
   it('SSPLL: §15.4 殘餘誤差 → 輸出 spur／jitter——§10.5 的橋接句、圖、三條公式、單線表（−65 dBc）、PVT 角落表、F-CS.23 的數字、HC-CS.9、reference spur 的一句話', () => {
-    const { container } = renderPage('/case/sspll', 'engineer')
+    const { container } = renderCase('/case/sspll', 'engineer')
     const s15 = container.querySelector('#cs-15') as HTMLElement
     const h3 = Array.from(s15.querySelectorAll('h3')).map((h) => h.textContent ?? '')
     expect(h3.some((t) => t.startsWith('15.4 校準完之後'))).toBe(true)
@@ -488,12 +475,12 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
     // 符號表多了 δ̂_m、Φ、S_m、σ_θ,m
     const symText = texIn(container.querySelector('#symbols') as HTMLElement).join('\n')
     for (const t of ['\\hat\\delta_m', '\\Phi', 'c[d],\\ S_m', '\\sigma_{\\theta,m}']) expect(symText, t).toContain(t)
-    expect(s15.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+    expectNoTexErrors(s15)
     expect(text).not.toMatch(/NaN|undefined|Infinity/)
   })
 
   it('SSPLL: Beginner 模式顯示入門四句話並收起程式碼；Research 模式顯示研究註記', () => {
-    const a = renderPage('/case/sspll', 'beginner')
+    const a = renderCase('/case/sspll', 'beginner')
     expect(screen.getByText('入門模式：先抓住四句話')).toBeTruthy()
     // regressor 的核心程式碼並排在任何模式都顯示（使用者明確要求看核心程式碼）
     expect(a.container.querySelectorAll('.c-code-mark').length).toBeGreaterThanOrEqual(6)
@@ -514,13 +501,13 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
     expect(text('cs-12')).toContain('名義時間常數')
     a.unmount()
     clearMockCalls()
-    renderPage('/case/sspll', 'research')
+    renderCase('/case/sspll', 'research')
     expect(screen.queryByText('入門模式：先抓住四句話')).toBeNull()
     expect(screen.getByText(/Research 註記/)).toBeTruthy()
   }, 120000)
 
   it('SSPLL: ?preset=sspll-l2-inband 載入實驗 B：84 MHz、raw ⇒ PHOS 反號；改 sspll-l2-1diff ⇒ 沒有反號警告', async () => {
-    const a = renderPage('/case/sspll?preset=sspll-l2-inband')
+    const a = renderCase('/case/sspll?preset=sspll-l2-inband')
     const expB = () => a.container.querySelector(`#exp-${SIGNMAP_EXPERIMENT_ID}`) as HTMLElement
     await waitFor(() => expect(expB().textContent).toContain('=21/1000'))
     expect(expB().textContent).toMatch(/PHOS 反號：mode 1/)
@@ -534,7 +521,7 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
     expect(expB().textContent).toContain('−0.2053, −0.1355')
     a.unmount()
     clearMockCalls()
-    const b = renderPage('/case/sspll?preset=sspll-l2-1diff')
+    const b = renderCase('/case/sspll?preset=sspll-l2-1diff')
     const expB2 = () => b.container.querySelector(`#exp-${SIGNMAP_EXPERIMENT_ID}`) as HTMLElement
     await waitFor(() => expect(expB2().textContent).toContain('=21/1000'))
     expect(expB2().textContent).not.toMatch(/PHOS 反號/)
@@ -542,7 +529,7 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
   }, 120000)
 
   it('SSPLL: ?preset=sspll-l1-nominal 載入實驗 A：L1 沒有反號帶，TS port 與 golden JSON 一致', async () => {
-    const { container } = renderPage('/case/sspll?preset=sspll-l1-nominal')
+    const { container } = renderCase('/case/sspll?preset=sspll-l1-nominal')
     const expA = () => container.querySelector(`#exp-${HPD_EXPERIMENT_ID}`) as HTMLElement
     await waitFor(() => expect(expA().textContent).toContain('無（整個頻帶的實部都不是負的）'))
     expect(expA().textContent).toContain('0.388836')
@@ -551,7 +538,7 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
   }, 120000)
 
   it('SSPLL: 三個實驗的每一個 preset 都能載入——沒有 KaTeX 錯誤，也沒有非有限數字', async () => {
-    const { container } = renderPage('/case/sspll', 'research')
+    const { container } = renderCase('/case/sspll', 'research')
     // 實驗 B 載入各個 preset 時出現過的 dead-zone 警告（TeX 原始碼）
     const deadZoneTex = new Set<string>()
     for (const id of [HPD_EXPERIMENT_ID, SIGNMAP_EXPERIMENT_ID, LMS_EXPERIMENT_ID]) {
@@ -562,7 +549,7 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
       for (let i = 0; i < n; i++) {
         fireEvent.change(select, { target: { value: String(i) } })
         await waitFor(() => {
-          expect(exp.querySelectorAll('.katex-error, .c-tex-error').length, `${id} preset ${i}`).toBe(0)
+          expectNoTexErrors(exp, `${id} preset ${i}`)
           expect(proseText(exp), `${id} preset ${i}`).not.toMatch(/NaN|undefined|Infinity|\[object Object\]/)
         })
         const warn = id === SIGNMAP_EXPERIMENT_ID ? exp.querySelector('.c-exp-warnings') : null
@@ -577,7 +564,7 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
   }, 180000)
 
   it('SSPLL: 實驗 C（inline worker）：自動執行後 raw 不收斂、1diff 與 filtered-x 收斂；再按「執行 Run」可重跑', async () => {
-    const { container } = renderPage('/case/sspll?preset=sspll-cl-l2-inband')
+    const { container } = renderCase('/case/sspll?preset=sspll-cl-l2-inband')
     const expC = () => container.querySelector(`#exp-${LMS_EXPERIMENT_ID}`) as HTMLElement
     await waitFor(() => expect(expC().textContent).toMatch(/Case A（raw）不收斂/), { timeout: 60000 })
     expect(expC().textContent).not.toMatch(/Case B（一階差分）不收斂/)
@@ -652,7 +639,7 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
   }, 180000)
 
   it('SSPLL: 實驗 C 加比較器 offset（?preset=sspll-cl-l2-offset）：raw 的共模漂移符合 forcing 公式；與 golden 存檔條件不同 ⇒ Monte Carlo 為 n/a', async () => {
-    const { container } = renderPage('/case/sspll?preset=sspll-cl-l2-offset')
+    const { container } = renderCase('/case/sspll?preset=sspll-cl-l2-offset')
     const expC = () => container.querySelector(`#exp-${LMS_EXPERIMENT_ID}`) as HTMLElement
     await waitFor(() => expect(expC().textContent).toMatch(/Case A（raw）的 PHOS 共模漂移到/), { timeout: 60000 })
     const text = expC().textContent ?? ''
@@ -696,7 +683,7 @@ describe('案例頁 /case/sspll（jsdom smoke）', () => {
     expect(w.re).toBeLessThan((w.re ** 2 + w.im ** 2) / 50)
     expect(w.re).toBeGreaterThan((w.re ** 2 + w.im ** 2) / 100)
     // 頁面上對應的文字
-    const { container } = renderPage('/case/sspll', 'engineer')
+    const { container } = renderCase('/case/sspll', 'engineer')
     const text = proseText(container)
     expect(text).toMatch(/臨界值是「保證」的界線/)
     expect(text).toMatch(/Type-II 的 near-grid 只去平均還不夠/)
@@ -746,7 +733,7 @@ describe('SSPLL 案例頁的公式登錄、presets 與實驗輔助函式', () =>
         withMath += n
         const { container, unmount } = render(<MathText>{text}</MathText>)
         expect(container.querySelectorAll('.katex').length, `${f.id}.${key}`).toBe(n)
-        expect(container.querySelectorAll('.katex-error, .c-tex-error').length, `${f.id}.${key}`).toBe(0)
+        expectNoTexErrors(container, `${f.id}.${key}`)
         unmount()
       }
     }
@@ -821,7 +808,7 @@ describe('SSPLL 案例頁的公式登錄、presets 與實驗輔助函式', () =>
       expect(f.claim, id).toBe(id === 'F-CS.12' ? 'approx' : 'exact') // F-CS.12 是 β→0 的漸近式（A7a：標成近似）
       expect(f.conditions, id).not.toMatch(/右邊|左邊/) // 拆成上下兩行之後，條件裡不能再用「右邊的式子」指第二行
       const { container, unmount } = render(<MathText>{`$${f.tex}$`}</MathText>)
-      expect(container.querySelectorAll('.katex-error, .c-tex-error').length, id).toBe(0)
+      expectNoTexErrors(container, id)
       unmount()
     }
     expect(by('F-CS.16').conditions).toContain('第二行（標著 Type-II）的 closed form 只適用 1 拍延遲的 Type-II（P + I）迴路')
@@ -901,7 +888,7 @@ describe('SSPLL 案例頁的公式登錄、presets 與實驗輔助函式', () =>
     const r835 = kappaRational(LOOPS.L2, 167, 8000)
     for (const frag of ['0.083333$', '$1.10511$', '=1.0000$']) expect(gosExactNote(r835.varRho, r835.kG), frag).toContain(frag)
     const { container, unmount } = render(<MathText>{n16}</MathText>)
-    expect(container.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+    expectNoTexErrors(container)
     expect(container.querySelectorAll('.katex').length).toBe((n16.match(/\$[^$]*\$/g) ?? []).length) // 每一段 `$...$` 都渲染成 KaTeX
     expect((n16.match(/\$[^$]*\$/g) ?? []).length).toBe(6)
     unmount()
@@ -915,7 +902,7 @@ describe('SSPLL 案例頁的公式登錄、presets 與實驗輔助函式', () =>
       if (k !== 'fx' && k !== 'D1') expect(LMS_CASE_TEX[k], k).toBe(LMS_CASE_LABEL[k])
       expect(LMS_CASE_TEX[k].replace(/\$[^$]*\$/g, ''), k).not.toMatch(UNICODE_MATH)
       const { container, unmount } = render(<MathText>{lmsCaseTag('A', k)}</MathText>)
-      expect(container.querySelectorAll('.katex-error, .c-tex-error').length, k).toBe(0)
+      expectNoTexErrors(container, k)
       unmount()
     }
     expect(lmsCaseTag('C', 'fx')).toBe('Case C（filtered-x（$\\hat H=H$））')

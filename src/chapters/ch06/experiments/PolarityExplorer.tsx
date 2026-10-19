@@ -91,7 +91,7 @@ export function PolarityExplorer() {
     if (urlPreset) reset(withDefaults(urlPreset.params))
   }, [urlPreset, reset])
   const presets = useMemo(
-    () => presetsForExperiment(POLARITY_EXPERIMENT_ID).map((p) => ({ name: p.title, params: p.params, description: p.description })),
+    () => presetsForExperiment(POLARITY_EXPERIMENT_ID).map((p) => ({ id: p.id, name: p.title, params: p.params, description: p.description })),
     [],
   )
 

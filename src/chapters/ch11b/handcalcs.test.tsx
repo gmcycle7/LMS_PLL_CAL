@@ -20,6 +20,7 @@ import {
   uniformResidualAfterGain,
 } from '@/simulation/models/dtcInl'
 import { HANDCALCS } from './handcalcs'
+import { expectNoTexErrors } from '@/test/katex'
 
 /**
  * Ch11b 手算題：(1) 每題的答案 = dtcInl.ts 的函式；(2) 獨立重算（不呼叫 dtcInl.ts）一致；(3) 與 golden vectors 一致；
@@ -284,7 +285,7 @@ describe('Ch11b 手算題：HandCalc 元件', () => {
     const { container } = render(<HandCalc def={def} />)
     expect(container.querySelector('.c-handcalc')?.id).toBe('handcalc-HC-11B.1')
     expect(container.querySelectorAll('.katex').length).toBeGreaterThan(10)
-    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(container)
     expect(container.textContent).not.toMatch(/NaN|undefined/)
     const practice = screen.getAllByRole('tab').find((b) => /自己算算看/.test(b.textContent ?? ''))
     expect(practice).toBeTruthy()

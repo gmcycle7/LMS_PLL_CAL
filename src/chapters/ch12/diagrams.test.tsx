@@ -1,7 +1,5 @@
-import { cleanup, render } from '@testing-library/react'
+import { cleanup } from '@testing-library/react'
 import mermaid from 'mermaid'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
 import { defaultValues, systemMapModel } from '@/components'
 import { mermaidMathDelimiters, sanitizeMermaidSource } from '@/components/mermaidSource'
 import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/components/mermaidTestUtils'
@@ -12,6 +10,7 @@ import * as D from './diagrams'
 import { CH12_CHARTS, CH12_SYSTEM_FOCUS } from './diagrams'
 import { FORMULAS } from './formulas'
 import { HANDCALCS } from './handcalcs'
+import { renderPage } from '@/test/renderPage'
 
 /**
  * 第 12 章的方塊圖測試（docs/teaching-style.md §8）。
@@ -681,13 +680,7 @@ describe('第 12 章方塊圖：頁面上的位置', () => {
   const anchorById = new Map<string, HTMLElement>()
   beforeAll(() => {
     localStorage.setItem('lmspll.mode', 'research') // Research 模式才看得到全部的圖（ModeGate 內有 1 張）
-    const view = render(
-      <SettingsProvider>
-        <MemoryRouter initialEntries={['/ch/12']}>
-          <Chapter12 />
-        </MemoryRouter>
-      </SettingsProvider>,
-    )
+    const view = renderPage(<Chapter12 />, { url: '/ch/12' })
     container = document.createElement('div')
     container.innerHTML = view.container.innerHTML
     cleanup()

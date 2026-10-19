@@ -76,12 +76,13 @@ describe('Sign-off 頁的方塊圖（真正的 mermaid）', () => {
     mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'default', suppressErrorRendering: true })
   })
 
-  it('清單：八張圖，diagrams.ts 匯出的每張圖都在清單裡，沒有重複', () => {
+  it('清單：九張圖，diagrams.ts 匯出的每張圖都在清單裡，沒有重複', () => {
     expect(SIGNOFF_CHARTS.map((c) => c.name)).toEqual([
       'CHART_SIGNOFF_FLOW',
       'CHART_FREEZE_MEASURE',
       'CHART_EVIDENCE',
       'CHART_CORNER_JUDGE',
+      'CHART_PVT_EFFECTS',
       'CHART_MIMO_LOOP',
       'CHART_OUTPUT_PATH',
       'CHART_SILICON_LOOP',
@@ -93,7 +94,7 @@ describe('Sign-off 頁的方塊圖（真正的 mermaid）', () => {
     expect(new Set(SIGNOFF_CHARTS.map((c) => c.chart)).size).toBe(SIGNOFF_CHARTS.length)
   })
 
-  it('版面：八張都是直向（flowchart TB）。橫向（LR）的長鏈在桌機的正文欄（約 900 px）會寬出欄寬好幾倍、要橫向捲動（teaching-style §8「版面寬度」；diagram-audit 量過：TB 之後最寬 800 px）', () => {
+  it('版面：九張都是直向（flowchart TB）。橫向（LR）的長鏈在桌機的正文欄（約 900 px）會寬出欄寬好幾倍、要橫向捲動（teaching-style §8「版面寬度」；diagram-audit 量過：TB 之後最寬 800 px）', () => {
     for (const c of SIGNOFF_CHARTS) expect(c.chart, c.name).toMatch(/^flowchart TB\n/)
   })
 

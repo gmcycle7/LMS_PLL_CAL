@@ -184,7 +184,7 @@ export function MonteCarloLabBody() {
   }, [checks, ui.zCrit, result, tokens])
 
   const presets: ExperimentPreset[] = useMemo(
-    () => [...INLINE_PRESETS, ...jsonPresets.map((p) => ({ name: p.title, params: p.params, description: p.description }))],
+    () => [...INLINE_PRESETS, ...jsonPresets.map((p) => ({ id: p.id, name: p.title, params: p.params, description: p.description }))],
     [jsonPresets],
   )
 

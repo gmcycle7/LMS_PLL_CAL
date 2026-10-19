@@ -30,6 +30,7 @@ import { DEFAULT_LAB_PARAMS, LSB_FS_EXAMPLE } from './common'
 import { crossChecks, metricRows, warnTex } from './experiments/labChecks'
 import { FORMULAS } from './formulas'
 import { DITHER_SIM, HANDCALCS } from './handcalcs'
+import { expectNoTexErrors } from '@/test/katex'
 
 // ───────────────────────────────────────────────────────────────────────────
 // 工具
@@ -729,7 +730,7 @@ describe('(d) <HandCalc> 渲染每一題：沒有 .katex-error、步驟數正確
   for (const h of HANDCALCS) {
     it(`${h.id} 可以渲染`, () => {
       const { container, unmount } = render(<HandCalc def={h} />)
-      expect(container.querySelector('.katex-error, .c-tex-error'), h.id).toBeNull()
+      expectNoTexErrors(container, h.id)
       const steps = container.querySelectorAll('.c-step')
       expect(steps.length).toBeGreaterThan(0)
       expect(steps.length).toBe(h.solve(defaultValues(h)).steps.length)
@@ -738,7 +739,7 @@ describe('(d) <HandCalc> 渲染每一題：沒有 .katex-error、步驟數正確
       // 「自己算算看」模式：先不顯示步驟
       const practice = render(<HandCalc def={h} initialMode="practice" />)
       expect(practice.container.querySelectorAll('.c-step').length).toBe(0)
-      expect(practice.container.querySelector('.katex-error, .c-tex-error'), `${h.id} practice`).toBeNull()
+      expectNoTexErrors(practice.container, `${h.id} practice`)
       expect(screen.getAllByPlaceholderText('你的答案').length).toBe(h.solve(defaultValues(h)).results.length)
       practice.unmount()
     })
@@ -750,7 +751,7 @@ describe('(d) <HandCalc> 渲染每一題：沒有 .katex-error、步驟數正確
     fireEvent.change(wH, { target: { value: '63.3' } })
     expect(container.querySelectorAll('.c-step').length).toBe(0)
     expect(container.querySelector('.callout-warn')?.textContent).toContain('overload')
-    expect(container.querySelector('.katex-error, .c-tex-error')).toBeNull()
+    expectNoTexErrors(container)
     fireEvent.change(wH, { target: { value: '32.25' } })
     expect(container.querySelectorAll('.c-step').length).toBeGreaterThan(6)
     // 32.25 = 129/4 ⇒ 週期 4；v[1] = 32.5 是 tie，round-half-up 進位到 33

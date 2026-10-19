@@ -158,7 +158,7 @@ export function HpdExplorer() {
     }
   }, [urlPreset])
   const presets: ExperimentPreset[] = useMemo(
-    () => [...presetsForExperiment(HPD_EXPERIMENT_ID).map((p) => ({ name: p.title, params: p.params, description: p.description })), ...INLINE_PRESETS],
+    () => [...presetsForExperiment(HPD_EXPERIMENT_ID).map((p) => ({ id: p.id, name: p.title, params: p.params, description: p.description })), ...INLINE_PRESETS],
     [],
   )
 

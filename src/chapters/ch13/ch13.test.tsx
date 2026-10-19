@@ -1,7 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import katex from 'katex'
-import { SettingsProvider } from '@/app/settings'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { presetsForExperiment } from '@/app/presets'
 import { extractRegion, listRegions, systemMapModel } from '@/components'
 import { plotMath } from '@/components/plotMath'
@@ -15,16 +12,11 @@ import { DIAGRAMS, SYSTEM_MAP_FOCUS } from './diagrams'
 import Chapter13 from './index'
 import { EXPERIMENT_ID } from './experiments/QuantizedGainLab'
 import { bernoulliVarSe, crossChecks, metricRows } from './experiments/labChecks'
+import { mermaidMock } from '@/test/mocks/mermaid'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors, expectTexParses } from '@/test/katex'
 
-const P = vi.hoisted(() => ({
-  react: vi.fn(async () => undefined),
-  purge: vi.fn(),
-  toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-  downloadImage: vi.fn(async () => ''),
-  Plots: { resize: vi.fn() },
-  Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-}))
-vi.mock('plotly.js-cartesian-dist-min', () => ({ default: P }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
 
 // 記下每個 <Plot> 交給 applyPlotMath 的 data／layout（轉換前的字串），檢查圖內文字的數學都寫成 `$...$`
 const PM = vi.hoisted(() => ({ inputs: [] as { data: unknown; layout: unknown }[] }))
@@ -39,21 +31,10 @@ vi.mock('@/components/plotMath', async (importOriginal) => {
   }
 })
 
-const M = vi.hoisted(() => ({
-  initialize: vi.fn(),
-  render: vi.fn(async (id: string, _chart: string) => ({ svg: `<svg id="${id}"></svg>`, diagramType: 'flowchart-v2' })),
-}))
-vi.mock('mermaid', () => ({ default: M }))
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 function renderChapter(mode: 'beginner' | 'engineer' | 'research' = 'engineer', route = '/ch/13') {
-  localStorage.setItem('lmspll.mode', mode)
-  return render(
-    <MemoryRouter initialEntries={[route]}>
-      <SettingsProvider>
-        <Chapter13 />
-      </SettingsProvider>
-    </MemoryRouter>,
-  )
+  return renderPage(<Chapter13 />, { mode, url: route })
 }
 
 afterEach(() => localStorage.clear())
@@ -151,8 +132,7 @@ describe('Chapter 13（jsdom smoke）', () => {
         // CodeCompare 顯示真實程式碼（不是 region 載入錯誤）
         expect(screen.queryByText(/程式碼載入錯誤/)).toBeNull()
         // 所有 LaTeX 都能被 KaTeX 解析（throwOnError:false 時錯誤會變成 .katex-error）
-        const texErrors = Array.from(container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.getAttribute('title') ?? e.textContent)
-        expect(texErrors).toEqual([])
+        expectNoTexErrors(container)
         // §13.4 的共變異數由完整週期計算：Cov(r[n−1], r[n]) = −0.0400（舊版用 499 對相鄰樣本，顯示成 −0.0401）
         expect(container.textContent).toContain(String.raw`\mathrm{Cov}(r[n-1],r[n])=-0.0400`)
         expect(container.textContent).not.toContain('-0.0401')
@@ -243,14 +223,14 @@ describe('Chapter 13（jsdom smoke）', () => {
     expect(crit.textContent).toMatch(/由小到大：\s*A（/)
     expect(crit.textContent).toContain('本例最差的是週期性的 limit cycle')
     // 非同步結果出現後，整頁仍然沒有 KaTeX 解析錯誤
-    expect(Array.from(container.querySelectorAll('.katex-error, .c-tex-error')).map((e) => e.textContent)).toEqual([])
+    expectNoTexErrors(container)
     // diagrams.ts 的每一張圖的原始碼都真的交給 mermaid.render，沒有任何一張顯示成解析失敗
     // （Mermaid 元件先經 sanitizeMermaidSource 把 `$...$` 標籤合併成 KaTeX 的 `$$...$$`，所以比對前處理後的原始碼）；
     // 章首的系統地圖是手排的 SVG，不會交給 Mermaid
     const wanted = DIAGRAMS.map((d) => d.chart).map(sanitizeMermaidSource)
     await waitFor(
       () => {
-        const sent = new Set(M.render.mock.calls.map((c) => c[1]))
+        const sent = new Set(mermaidMock.render.mock.calls.map((c) => c[1]))
         for (const chart of wanted) expect(sent.has(chart), chart.slice(0, 60)).toBe(true)
       },
       { timeout: WAIT_MS, interval: 250 },
@@ -328,7 +308,7 @@ describe('Chapter 13：網址 preset 的 Case 清單', () => {
     // 警告裡的數學（w*、[0, 63]、→）先經 warnTex 換成 `$...$`，再由 KaTeX 顯示：沒有解析錯誤，也沒有殘留的 Unicode 拼字
     const warnBox = container.querySelector('#ch13-lab .c-exp-warnings') as HTMLElement
     expect(warnBox.querySelectorAll('.katex').length).toBeGreaterThan(1)
-    expect(warnBox.querySelectorAll('.katex-error, .c-tex-error').length).toBe(0)
+    expectNoTexErrors(warnBox)
     expect(warnBox.textContent).toContain('w^*')
     // KaTeX 以外的純文字（把 .katex 節點拿掉再看）不再有 w*、→ 或落單的 $
     const plain = warnBox.cloneNode(true) as HTMLElement
@@ -470,7 +450,7 @@ describe('Chapter 13：資料與程式碼一致性', () => {
     // 使用條件裡的數學都寫成 $...$，而且每一段都能被 KaTeX 解析
     const parts = f.conditions.split('$')
     expect(parts.length % 2).toBe(1)
-    for (const tex of parts.filter((_, i) => i % 2 === 1)) expect(() => katex.renderToString(tex, { throwOnError: true }), tex).not.toThrow()
+    for (const tex of parts.filter((_, i) => i % 2 === 1)) expectTexParses(tex, tex)
     expect(parts.filter((_, i) => i % 2 === 0).join(' ')).not.toMatch(/[≤≥±−∑]|[A-Za-z]_[A-Za-z0-9{]|\\/)
   })
 

@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useUrlPreset } from '@/app/presets'
 import { pageById } from '@/app/registry'
 import type { PresetEntry } from '@/data/types'
-import { HandCalc, Mermaid, Tex } from '@/components'
+import { HandCalc, Mermaid, Tex, badgeClass } from '@/components'
 import errataData from '@/data/errata.json'
 import { HANDCALCS } from './handcalcs'
 import { diagramByName, figureLabel, type DiagramName } from './diagrams'
@@ -24,7 +24,7 @@ export function ErratumNote({ eid, children }: { eid: string; children: ReactNod
   const rec = ERRATA.find((e) => e.eid === eid)
   return (
     <aside className="ch00-erratum" aria-label={`勘誤 ${eid}`}>
-      <a className="ch00-erratum-badge" href="#/verification" title={rec ? `規格位置：${rec.location}` : undefined}>
+      <a className={badgeClass('erratum', 'ch00-erratum-badge')} href="#/verification" title={rec ? `規格位置：${rec.location}` : undefined}>
         勘誤 {eid}
       </a>
       <span className="ch00-erratum-text">{children}</span>
@@ -42,7 +42,7 @@ export function ErratumNote({ eid, children }: { eid: string; children: ReactNod
 export function ErratumRef({ eid }: { eid: string }) {
   const rec = ERRATA.find((e) => e.eid === eid)
   return (
-    <a className="ch00-erratum-badge ch00-erratum-inline" href="#/verification" title={rec ? `規格位置：${rec.location}` : undefined}>
+    <a className={badgeClass('erratum', 'ch00-erratum-badge ch00-erratum-inline')} href="#/verification" title={rec ? `規格位置：${rec.location}` : undefined}>
       勘誤 {eid}
     </a>
   )

@@ -75,11 +75,11 @@
 }
 /* JSON Lab 的「解析區塊」表在約 550px 的結果欄裡：字小一點、欄距窄一點，5 欄才放得下（不用橫向捲動） */
 .models-analytic .models-table {
-  font-size: 0.84rem;
+  font-size: var(--table-fs-xs);
 }
 .models-analytic .models-table th,
 .models-analytic .models-table td {
-  padding: 6px 5px;
+  padding: var(--table-pad-y) var(--table-pad-x-xs);
 }
 .models-sumrow td {
   font-weight: 600;

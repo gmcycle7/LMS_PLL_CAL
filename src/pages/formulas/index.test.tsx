@@ -9,8 +9,8 @@ import { UNIT_TOPICS } from './searchIndex'
 import { ERRATA } from './errata'
 import { buttonByText, count, mountAt, q, renderProblems } from './domTestUtils'
 
-vi.mock('plotly.js-cartesian-dist-min', async () => ({ default: (await import('./domTestUtils')).PLOTLY_STUB }))
-vi.mock('mermaid', () => ({ default: { initialize: () => undefined, render: async () => ({ svg: '<svg></svg>' }) } }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 // 整頁在 jsdom 約 10 萬個節點；其他 agent 同時跑測試時較慢
 vi.setConfig({ testTimeout: 180_000 })

@@ -1,4 +1,5 @@
 import type { FormulaEntry } from '@/data/types'
+import { modelAssumes } from '@/app/chapterMeta'
 
 const r = String.raw
 
@@ -14,6 +15,7 @@ const r = String.raw
 export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-PR.1',
+    assumes: modelAssumes('L0'),
     title: r`步長換算：本站（成本 $\tfrac12e^2$）與 Widrow 型（成本 $\varepsilon^2$）`,
     tex: r`\mu_{\text{本站}}=2\,\mu_W,\qquad 0<\mu<\frac{2}{\lambda_{\max}}\iff 0<\mu_W<\frac{1}{\lambda_{\max}}`,
     conditions: '同一個 LMS 更新式的兩種記法（代數恆等）；穩定界是 mean 模型、無延遲',
@@ -26,6 +28,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-PR.2',
+    assumes: modelAssumes('L0'),
     title: 'NLMS 的等效 loop gain（每單位 eigenvalue）',
     tex: r`s_{\mathrm{NLMS}}\approx\frac{\tilde\mu}{\epsilon_{\mathrm{reg}}+\mathrm{tr}\,\mathbf R},\qquad e^{\mathrm{post}}_n=\Big(1-\frac{\tilde\mu\,\|\mathbf x_n\|^2}{\epsilon_{\mathrm{reg}}+\|\mathbf x_n\|^2}\Big)e_n`,
     conditions: r`左式把每筆的 $\|\mathbf x\|^2$ 換成平均值 $\mathrm{tr}\,\mathbf R$（近似；長濾波器較準）；右式是代數恆等式（用更新後的係數重算同一筆資料，有沒有雜訊都成立）`,
@@ -37,6 +40,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-PR.3',
+    assumes: modelAssumes('L1'),
     title: 'Block sign-GMAC 的等效 loop gain',
     tex: r`E[G_k]\approx K_q\,C\,\delta_k,\qquad \delta_{k+1}\approx(1-\mu K_qC)\,\delta_k,\qquad s_{\mathrm{GMAC}}=\mu K_q\ \ (\times N\ \text{若誤用 sum 模式})`,
     // 技術審查 R06c：小訊號條件看的是 comparator 前的整個確定性殘差 δ·u[n]（與 F-12.1、F-DB.1 同一個說法）；|δ| ≪ σ_v 只是 |u| = 1 時的特例
@@ -50,6 +54,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-PR.4',
+    assumes: modelAssumes('L1'),
     title: r`更新延遲 $d$ 個 block 的臨界增益與 phase margin`,
     tex: r`z^{d+1}-z^{d}+g=0,\qquad g^*(d)=2\sin\frac{\pi}{4d+2},\qquad \mathrm{PM}_d(g)=90^\circ-(2d+1)\arcsin\frac g2`,
     conditions: r`線性平均模型 $\delta_{k+1}=\delta_k-g\,\delta_{k-d}$、固定整數延遲 $d$；$0<g\le2$`,
@@ -61,6 +66,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-PR.5',
+    assumes: modelAssumes('L2'),
     title: '單頻 code 的有效相關與平均 pole',
     tex: r`C=E[x\,u]=\frac{A^2}{2}\,|H(e^{j\Omega})|\cos\phi,\qquad p=1-\mu K_qC`,
     conditions: r`$x[n]=A\cos(\Omega n)$、$0<\Omega<\pi$、整數週期或長時間平均（$\Omega=0$ 或 $\pi$ 時為 2 倍）；穩定 LTI 路徑`,
@@ -73,6 +79,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-PR.6',
+    assumes: modelAssumes('L2'),
     title: '一般 WSS code 的極性判據（PSD 加權）',
     tex: r`C=\sum_k h[k]\,R_x[k]=\frac1{2\pi}\int_{-\pi}^{\pi}S_{xx}(e^{j\Omega})\,\mathrm{Re}\{H(e^{j\Omega})\}\,d\Omega`,
     conditions: r`WSS code、實係數穩定 LTI 路徑、單一參數、慢速平均模型；一律用離散時間的 $H(e^{j\Omega})$`,
@@ -85,6 +92,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-PR.7',
+    assumes: modelAssumes('L2'),
     title: 'Filtered-x 的單頻相關（模型相位誤差）',
     tex: r`E[u\,u_f]=\frac{A^2}{2}\,|H|\,|\hat H|\cos(\phi-\hat\phi)`,
     conditions: r`單頻、$0<\Omega<\pi$；$u=h*x$、$u_f=\hat h*x$；相位誤差超過 $90^\circ$ 時反號`,
@@ -97,6 +105,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-PR.8',
+    assumes: modelAssumes('L1'),
     title: '穩態係數雜訊（gain-equivalent）',
     tex: r`\delta w_{k+1}=p\,\delta w_k+\mu\,\eta_k\ \Longrightarrow\ \sigma_w^2=\frac{\mu^2\sigma_\eta^2}{1-p^2},\qquad p=1-\mu K_qC`,
     conditions: r`線性化模型、iid 零均值 block 雜訊 $\eta_k$、$|p|<1$；$\delta w=w-w^*$；不是 output jitter`,
@@ -109,6 +118,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-PR.9',
+    assumes: modelAssumes('L1'),
     title: r`校正迴路的 $-3\ \mathrm{dB}$ corner 與 ENBW（不可混用）`,
     tex: r`\cos\Omega_{3\mathrm{dB}}=\frac{1+p^2-2(1-p)^2}{2p},\qquad \mathrm{ENBW}=\frac{\sigma_w^2}{S_w^{(1)}(0)}=\frac{f_u}{2}\cdot\frac{1-p}{1+p}`,
     conditions: r`$H(z)=\mu/(z-p)$、block rate $f_u$；$-3\ \mathrm{dB}$ 點只在 $p>3-2\sqrt2$ 時存在；ENBW 為 one-sided`,
@@ -121,6 +131,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-PR.10',
+    assumes: modelAssumes('L2'),
     title: '激勵變弱時的三個反比定律（bias、時間常數、係數雜訊）',
     tex: r`w^*=a+\frac BC,\qquad \tau=-\frac1{\ln p}\approx\frac1{\mu K_qC},\qquad \sigma_w^2=\frac{\mu^2\sigma_\eta^2}{g(2-g)}\approx\frac{\mu\,\sigma_\eta^2}{2K_qC}`,
     conditions: r`小訊號線性化 $E[G]\approx K_q[C(a-w)+B]$；$g=\mu K_qC\ll1$；code 功率不變、$\sigma_\eta^2\approx1/N$。$w^*=a+B/C$ 的線性化要在 $w^*$ 處成立：把它代回去之後，comparator 前的整個確定性殘差仍要遠小於 $\sigma_v$（本站門檻 $0.3\,\sigma_v$）；$C\to0$ 讓 $B/C$ 大到超出時，$a+B/C$ 只是線性外推，不是 Sign-LMS 的固定點（Ch11 F-11.14）`,
@@ -133,6 +144,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-PR.11',
+    assumes: modelAssumes('L3'),
     title: '多參數 mean recursion 的 eigen-mode 與 95% 衰減步數',
     tex: r`E[\boldsymbol\delta_{k+1}]=(\mathbf I-\mu\mathbf R)E[\boldsymbol\delta_k],\qquad p_i=1-\mu\lambda_i,\qquad N_{95\%}=\left\lceil\frac{\ln 0.05}{\ln|p_{\mathrm{slow}}|}\right\rceil`,
     conditions: r`線性 detector（多位元 $e$）的平均遞迴；1-bit（Sign-LMS）時只是小訊號近似，需 comparator 前的確定性殘差 $\ll\sigma_v$（同 F-09.3）。regressor 與係數誤差獨立（iid 時精確，時間相關時為近似）；$K_q$ 已正規化為 $1$ 或吸收進 $\mu$。$p_{\mathrm{slow}}$ 是絕對值最大的 pole（$\max_i|p_i|$）：$\mu\le2/(\lambda_{\max}+\lambda_{\min})$ 時是 $\lambda_{\min}$ 的 mode，更大時是 $\lambda_{\max}$ 的 mode（過衝，pole 為負）。$\mathbf R$ 對稱，所以 $\max_i|p_i|^k$ 就是最壞初始方向的 $\|E[\boldsymbol\delta_k]\|/\|E[\boldsymbol\delta_0]\|$（$N_{95\%}$ 對任何初值都夠）；不含更新延遲`,
@@ -145,6 +157,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-PR.12',
+    assumes: modelAssumes('L5'),
     title: '有限狀態的 quantizer 必然最終週期，頻譜只有譜線',
     tex: r`s_n=(R_n,\ n\bmod L),\quad |\mathcal S|\le M L\ \Longrightarrow\ \exists\,P\le M L:\ y_{n+P}=y_n\ (\forall n\ge n_0)\ \Longrightarrow\ \Omega_k=\frac{2\pi k}{P}`,
     conditions: r`有理數常數目標、週期 $L$ 的（偽隨機）dither（不論加在量化器輸入或併入殘值）、決定性 quantizer、不 overload`,
@@ -157,6 +170,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-PR.13',
+    assumes: modelAssumes('L5'),
     title: '常數目標的量化誤差功率：無 dither／non-subtractive／subtractive',
     tex: r`\big(Q(c)-c\big)^2,\qquad f(1-f),\qquad \frac1{12}\qquad [\mathrm{LSB}^2],\quad f=c-\lfloor c\rfloor`,
     conditions: r`round-half-up、dither $\xi\sim\mathcal U(-\tfrac12,\tfrac12)$（RPDF，寬 1 LSB）、常數目標 $c$；subtractive 需在下游以更細解析度減回 $\xi$`,
@@ -168,6 +182,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-PR.14',
+    assumes: modelAssumes('L5'),
     title: '準位相差整數個 LSB 的 dither 打不散 limit cycle',
     tex: r`\xi[n]=b[n]-\tfrac12,\ b[n]\in\{0,1\}:\qquad y[n]=y_{\mathrm{floor}}[n]+b[n]-b[n-1]\ \ (\text{只加在量化器輸入}),\qquad y[n]=y_{c-1/2}[n]+b[n]\ \ (\text{併入殘值})`,
     conditions: r`一階 error-feedback、round-half-up、$r[-1]=0$、$b[-1]=0$；$y_{\mathrm{floor}}$ 為不加 dither 的 floor 量化輸出，$y_{c-1/2}$ 為目標 $c-\tfrac12$ 的無 dither 輸出；不 overload`,
@@ -180,6 +195,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-PR.15',
+    assumes: modelAssumes('L1'),
     title: r`由文獻的「頻寬」反解 pole：$-3\ \mathrm{dB}$ 與 ENBW 兩種讀法`,
     tex: r`\text{(a) }f_{\mathrm{BW}}=f_{3\mathrm{dB}}:\ \ \sqrt p=\sqrt{1+\beta^2}-\beta,\ \ \beta=\sin\frac{\pi f_{\mathrm{BW}}}{f_u};\qquad \text{(b) }f_{\mathrm{BW}}=\mathrm{ENBW}:\ \ p=\frac{1-\nu}{1+\nu},\ \ \nu=\frac{2f_{\mathrm{BW}}}{f_u}`,
     conditions: r`F-PR.9 的反函數：$H(z)=\mu/(z-p)$、block rate $f_u$、$0<f_{\mathrm{BW}}<f_u/2$；(a) 的解落在 $3-2\sqrt2<p<1$，(b) 的解落在 $0<p<1$`,

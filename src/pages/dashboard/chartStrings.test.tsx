@@ -1,6 +1,6 @@
-import { fireEvent, render, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
+import { fireEvent, waitFor } from '@testing-library/react'
+import { renderPage } from '@/test/renderPage'
+import { expectNoTexErrors } from '@/test/katex'
 import type { PlotProps } from '@/components'
 import { unicodeMathIn } from '@/components/mermaidTestUtils'
 import { plotMath } from '@/components/plotMath'
@@ -25,7 +25,7 @@ vi.mock('@/components', async (importOriginal) => {
   }
   return { ...actual, Plot }
 })
-vi.mock('mermaid', () => ({ default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: '<svg></svg>' })) } }))
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 vi.setConfig({ testTimeout: 120_000 })
 
 const INLINE = /(?<!\\)\$((?:[^$\\]|\\.)+?)(?<!\\)\$/g
@@ -46,13 +46,7 @@ describe('Dashboard 體檢區的圖與控制項：數學都是 LaTeX', () => {
   it('軌跡圖（Case ±1σ、E[w_k − a]、Δw = B/C）、Monte Carlo 圖與座標軸、指標表的單位都是 LaTeX', async () => {
     localStorage.setItem('lmspll.mode', 'engineer')
     localStorage.removeItem('lmspll.dashboard.done')
-    const { container } = render(
-      <SettingsProvider>
-        <MemoryRouter initialEntries={['/']}>
-          <DashboardPage />
-        </MemoryRouter>
-      </SettingsProvider>,
-    )
+    const { container } = renderPage(<DashboardPage />, { url: '/' })
     const check = container.querySelector('#dash-check') as HTMLElement
     fireEvent.change(check.querySelector('input[aria-label="N（每個 GMAC block 的樣本數）"]') as HTMLInputElement, { target: { value: '128' } })
     await waitFor(() => expect(check.querySelector('.dash-mc-bar button')).toBeTruthy())
@@ -80,7 +74,7 @@ describe('Dashboard 體檢區的圖與控制項：數學都是 LaTeX', () => {
     for (const el of Array.from(check.querySelectorAll('.c-param-label, .c-param-unit, .c-param-hint, .c-metric-table tbody th, .c-metric-table tbody td'))) {
       expect(unicodeMathIn(plainTextOf(el)), `「${el.textContent}」（${el.className}）`).toEqual([])
     }
-    expect(check.querySelectorAll('.katex-error, .c-tex-error')).toHaveLength(0)
+    expectNoTexErrors(check)
     // 指標表裡 gain-equivalent × code 的 × 是 `$\times$`
     expect(Array.from(check.querySelectorAll('.c-metric-table annotation')).some((a) => a.textContent === String.raw`\times`)).toBe(true)
   })

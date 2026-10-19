@@ -71,13 +71,11 @@
 .ch14-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.88rem;
 }
 
 .ch14-table th,
 .ch14-table td {
   border-bottom: 1px solid var(--border);
-  padding: 0.35rem 0.5rem;
   text-align: left;
   vertical-align: top;
 }
@@ -239,15 +237,7 @@
   white-space: nowrap;
 }
 
-@media (max-width: 480px) {
-  .ch14-table {
-    font-size: 0.8rem;
-  }
-  .ch14-table th,
-  .ch14-table td {
-    padding: 0.3rem 0.35rem;
-  }
-}
+/* 表格字級與內距（含手機縮一級）由 components.css 的層級對映與 tokens.css 決定 */
 
 /* 「帶入手算」版位：邀請句緊貼在題目上方 */
 .ch14-handcalc {

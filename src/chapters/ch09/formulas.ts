@@ -1,4 +1,5 @@
 import type { FormulaEntry } from '@/data/types'
+import { modelAssumes } from '@/app/chapterMeta'
 
 /**
  * Ch09 公式登錄（Formula & Unit Reference 頁以 import.meta.glob 彙整）。
@@ -10,6 +11,7 @@ const PAGE = '/ch/09'
 export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-09.1',
+    assumes: modelAssumes('L3'),
     title: '多參數誤差模型',
     tex: String.raw`e[n]=\mathbf u^T[n]\,(\mathbf a-\mathbf w_k)+v[n]=\mathbf u^T[n]\,\boldsymbol\delta_k+v[n],\qquad \boldsymbol\delta_k=\mathbf a-\mathbf w_k`,
     conditions: String.raw`理想匹配（誤差對參數線性）；$\boldsymbol\delta=\mathbf a-\mathbf w$；$v$ 零均值、與 $\mathbf u$ 獨立`,
@@ -21,6 +23,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-09.2',
+    assumes: modelAssumes('L3'),
     title: 'GMAC 的條件平均',
     // 章內的 TexBlock 只顯示 TeX、不顯示 conditions：linear（等號）與 1-bit（小訊號近似）的區別直接寫在式子裡
     tex: String.raw`\begin{gathered}\mathbf G_k=\frac1N\sum_{n\in k}t[n]\,\mathbf u[n],\qquad \mathbf R=E[\mathbf u\mathbf u^T]\\[4pt]E[\mathbf G_k\mid\boldsymbol\delta_k]\ \begin{cases}=K_q\,\mathbf R\,\boldsymbol\delta_k,\ \ K_q\equiv1&\text{linear（}t=e\text{）}\\[2pt]\approx K_q\,\mathbf R\,\boldsymbol\delta_k,\ \ K_q=\sqrt{2/\pi}/\sigma_v&\text{1-bit（}t=\mathrm{sign}(e)\text{，}|\mathbf u^T\boldsymbol\delta_k|\ll\sigma_v\text{）}\end{cases}\end{gathered}`,
@@ -34,6 +37,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-09.3',
+    assumes: modelAssumes('L3'),
     title: '平均遞迴（mean recursion）',
     // linear：精確的等式；1-bit：小訊號近似（審查 R06a：同一條式子不可對兩種偵測器都標成精確）
     tex: String.raw`E[\boldsymbol\delta_{k+1}]\ \begin{cases}=(\mathbf I-\mu K_q\mathbf R)\,E[\boldsymbol\delta_k]&\text{linear（}K_q\equiv1\text{）}\\[2pt]\approx(\mathbf I-\mu K_q\mathbf R)\,E[\boldsymbol\delta_k]&\text{1-bit（}K_q=\sqrt{2/\pi}/\sigma_v\text{，}|\mathbf u^T\boldsymbol\delta_k|\ll\sigma_v\text{）}\end{cases}`,
@@ -46,6 +50,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-09.4',
+    assumes: modelAssumes('L3'),
     title: 'Eigen-mode pole',
     tex: String.raw`\mathbf R=\mathbf Q\boldsymbol\Lambda\mathbf Q^T,\; \mathbf c_k=\mathbf Q^TE[\boldsymbol\delta_k]\;\Rightarrow\; c_{i,k+1}=p_i\,c_{i,k},\qquad \boxed{p_i=1-\mu K_q\lambda_i(\mathbf R)}`,
     conditions: String.raw`$\mathbf R$ 對稱（必然成立）；指定模型是 F-09.3 的線性 mean recursion，對角化本身是精確的代數。linear detector：$p_i$ 是 $E[\boldsymbol\delta_k]$ 真正的 pole；1-bit：$p_i$ 只是小訊號區（$|\mathbf u^T\boldsymbol\delta_k|\ll\sigma_v$）的局部 pole（繼承 F-09.3 的近似）`,
@@ -56,6 +61,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-09.5',
+    assumes: modelAssumes('L3'),
     title: String.raw`$2\times2$ 相關矩陣的 eigenvalues / eigenvectors`,
     tex: String.raw`\mathbf R=\begin{bmatrix}1&\rho\\\rho&1\end{bmatrix}:\quad \lambda_{1,2}=1\pm\rho,\quad \mathbf v_1=\tfrac1{\sqrt2}\begin{bmatrix}1\\1\end{bmatrix},\ \mathbf v_2=\tfrac1{\sqrt2}\begin{bmatrix}1\\-1\end{bmatrix},\quad \kappa=\frac{\lambda_{\max}}{\lambda_{\min}}=\frac{1+|\rho|}{1-|\rho|}`,
     conditions: String.raw`單位功率、相關係數 $-1\le\rho\le1$。$\lambda_1=1+\rho$（共模 $\mathbf v_1$）、$\lambda_2=1-\rho$（差模 $\mathbf v_2$）的配對對任何 $\rho$ 都成立；哪一個較大要看正負號：$\rho\ge0$ 時 $\lambda_{\max}=\lambda_1$，$\rho<0$ 時 $\lambda_{\max}=\lambda_2$，合起來 $\lambda_{\max,\min}=1\pm|\rho|$。$\kappa$ 的閉式需 $|\rho|<1$；$|\rho|=1$ 時 $\lambda_{\min}=0$、$\kappa=\infty$（不可辨識）。$\rho=0.99\Rightarrow\lambda=1.99,\ 0.01$，$\kappa=199$（T10）；$\rho=-0.5\Rightarrow\lambda_{\max,\min}=1.5,\ 0.5$，$\kappa=3$`,
@@ -66,6 +72,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-09.6',
+    assumes: modelAssumes('L3'),
     title: '95% 衰減所需 blocks',
     tex: String.raw`k_{95}=\left\lceil\frac{\ln 0.05}{\ln|p|}\right\rceil,\qquad p=0.995\Rightarrow k_{95}=\lceil 597.65\rceil=598\approx\frac{\ln 20}{\mu K_q\lambda_{\min}}`,
     conditions: String.raw`給定實數 pole $p$（$0<|p|<1$）的等比數列，$k_{95}$ 的算式精確；$p$ 來自 F-09.4（mean recursion）。每個模式各有自己的 $k_{95}$，整體要等 $|p|$ 最大的那個模式：$\mu K_q\le g^\star$（F-09.7）時是 $\lambda_{\min}$ 的慢模式，式末的近似另需 $\mu K_q\lambda_{\min}\ll1$。$\mu K_q=0.5$（正規化）、$\lambda_{\min}=0.01$（T11）。物理 $K_q=0.00797885\ \mathrm{fs}^{-1}$、$\mu=0.5\ \mathrm{fs}$ 時為 $75{,}091$（勘誤 E05）；這是 1-bit 的數字，只在小訊號區（$|\mathbf u^T\boldsymbol\delta_k|\ll\sigma_v=100\ \mathrm{fs}$）成立（F-09.3）`,
@@ -77,6 +84,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-09.7',
+    assumes: modelAssumes('L3'),
     title: String.raw`單一 scalar $\mu$ 的最佳收斂率`,
     tex: String.raw`g^\star=\frac{2}{\lambda_{\max}+\lambda_{\min}},\qquad \min_g\max_i|1-g\lambda_i|=\frac{\kappa-1}{\kappa+1}`,
     conditions: String.raw`mean recursion（F-09.3；1-bit 時只在小訊號區成立）、$\mathbf M=\mu\mathbf I$。$g\le g^\star$ 時最慢的是 $\lambda_{\min}$ 的模式（$|p|=1-g\lambda_{\min}$），$g^\star<g<2/\lambda_{\max}$ 時換成 $\lambda_{\max}$ 的模式（pole 為負，$|p|=g\lambda_{\max}-1$）；$\rho=0.99\Rightarrow$ 每步 $0.99$（約 299 blocks 才 95%）`,
@@ -87,6 +95,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-09.8',
+    assumes: modelAssumes('L3'),
     title: String.raw`Mean-square 遞迴（block 平均、Gaussian $\mathbf u$）`,
     tex: String.raw`\mathbf P_{k+1}=\mathbf P_k-g(\mathbf R\mathbf P_k+\mathbf P_k\mathbf R)+g^2\Big[\big(1-\tfrac1N\big)\mathbf R\mathbf P_k\mathbf R+\tfrac1N\big(2\mathbf R\mathbf P_k\mathbf R+\mathbf R\,\mathrm{tr}(\mathbf R\mathbf P_k)\big)\Big]`,
     conditions: String.raw`$\mathbf P=E[\boldsymbol\delta\boldsymbol\delta^T]$、$g=\mu$（linear detector，$K_q\equiv1$）、$\mathbf u$ iid Gaussian、無雜訊（雜訊另加 $\mu^2\sigma_v^2\mathbf R/N$）；$\rho=0.99$、$g=0.5$：$N=1\Rightarrow\rho_{\mathrm{MS}}=1.9801$（發散），$N=2\Rightarrow0.99254$（勘誤 E23）`,
@@ -98,6 +107,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-09.9',
+    assumes: modelAssumes('L3'),
     title: 'Persistent Excitation（有限窗口定義）',
     tex: String.raw`\exists N_0,\alpha,\beta>0:\quad \alpha\mathbf I\preceq\sum_{n=k}^{k+N_0-1}\mathbf u[n]\mathbf u^T[n]\preceq\beta\mathbf I\quad\forall k`,
     conditions: 'deterministic（uniform）PE；有限時間的量測不能證明所有未來窗口都成立',
@@ -108,6 +118,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-09.10',
+    assumes: modelAssumes('L3'),
     title: String.raw`滑動窗口 $\mathbf R_k$ 與 singular values`,
     tex: String.raw`\mathbf R_k=\frac1{N_0}\sum_{n=k}^{k+N_0-1}\mathbf u[n]\mathbf u^T[n]=\frac1{N_0}\mathbf U_k^T\mathbf U_k,\qquad \sigma_i(\mathbf U_k)=\sqrt{N_0\,\lambda_i(\mathbf R_k)}`,
     conditions: String.raw`$\mathbf U_k$ 為 $N_0\times M$ 資料矩陣；$\mathbf R_k$ 對稱半正定 $\Rightarrow$ 其 singular values 等於 eigenvalues`,
@@ -118,6 +129,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-09.11',
+    assumes: modelAssumes('L3'),
     title: String.raw`$\pm1$ sparse-flip code 的退化窗口機率`,
     tex: String.raw`P\big(\lambda_{\min}(\mathbf R_k)=0\big)=\Big(\tfrac{1+\rho}{2}\Big)^{N_0}+\Big(\tfrac{1-\rho}{2}\Big)^{N_0}\quad(\rho=.99,\ N_0=100\Rightarrow0.606)`,
     conditions: String.raw`$u_2=s\,u_1$，$s$ iid、$P(s=+1)=(1+\rho)/2$`,
@@ -128,6 +140,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-09.12',
+    assumes: modelAssumes('L3'),
     title: 'Gaussian 樣本 eigenvalue 的散佈',
     tex: String.raw`\frac{\mathrm{std}\big[\lambda_i(\mathbf R_k)\big]}{\lambda_i}\approx\sqrt{\frac{2}{N_0}}`,
     conditions: String.raw`iid Gaussian $\mathbf u$、$\lambda_i$ 互異、$N_0\gg1$（漸近結果）`,
@@ -138,6 +151,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-09.13',
+    assumes: modelAssumes('L3'),
     title: 'One-hot + global offset 的 gauge freedom',
     tex: String.raw`y=b+\sum_{i=0}^{3}a_ix_i,\ \ \sum_ix_i=1\ \Rightarrow\ (b+c)+\sum_i(a_i-c)x_i=y,\qquad \tilde{\mathbf x}^T\mathbf n=0,\ \ \mathbf n=(1,-1,-1,-1,-1)`,
     conditions: '對所有 one-hot 輸入精確成立；與樣本數無關',
@@ -148,6 +162,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-09.14',
+    assumes: modelAssumes('L3'),
     title: 'Raw-x 相關矩陣的 eigenvalues（iid 均勻 one-hot）',
     tex: String.raw`\mathbf R_x=\begin{bmatrix}1&\tfrac14\mathbf 1^T\\\tfrac14\mathbf 1&\tfrac14\mathbf I\end{bmatrix}\Rightarrow \lambda\in\Big\{\tfrac54,\ \tfrac14,\ \tfrac14,\ \tfrac14,\ 0\Big\}`,
     conditions: String.raw`one-hot 各相等機率、時間上 iid；$\mathbf u=\tilde{\mathbf x}$（主迴路不消除 DC）`,
@@ -158,6 +173,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-09.15',
+    assumes: modelAssumes('L3'),
     title: String.raw`u-domain（$H_{\mathrm{PD}}(1)=0$）的相關矩陣`,
     tex: String.raw`\mathbf R_u=\|h\|^2\,\mathrm{Cov}(\tilde{\mathbf x})+H_{\mathrm{PD}}(1)^2\,\mathbf m\mathbf m^T\ \xrightarrow{H_{\mathrm{PD}}(1)=0}\ \lambda\in\Big\{\tfrac{\|h\|^2}{4}\ (\times3),\ 0,\ 0\Big\}`,
     conditions: String.raw`iid one-hot、$\mathbf m=E[\tilde{\mathbf x}]$、$\|h\|^2=\sum_nh[n]^2$；null space 為 2 維：$b$ 方向與 $a_i$ common mode（勘誤 E04）`,
@@ -169,6 +185,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-09.16',
+    assumes: modelAssumes('L3', 'mean-field'),
     title: '1-bit comparator 的 Bussgang 平均 GMAC',
     tex: String.raw`E[\mathrm{sign}(\mathbf u^T\boldsymbol\delta+v)\,\mathbf u\mid\boldsymbol\delta]=\sqrt{\tfrac2\pi}\,\frac{\mathbf R\boldsymbol\delta}{\sqrt{\sigma_v^2+\boldsymbol\delta^T\mathbf R\boldsymbol\delta}}\ \xrightarrow{\ \boldsymbol\delta^T\mathbf R\boldsymbol\delta\ll\sigma_v^2\ }\ K_q\mathbf R\boldsymbol\delta`,
     conditions: String.raw`$\mathbf u\sim\mathcal N(\mathbf 0,\mathbf R)$、$v\sim\mathcal N(0,\sigma_v^2)$ 獨立（精確）；平均遞迴用它屬 mean-field 近似`,
@@ -179,6 +196,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-09.17',
+    assumes: modelAssumes('L3'),
     title: '一個窗口的收縮界（block 更新、無雜訊）',
     tex: String.raw`\boldsymbol\delta_{k+1}=(\mathbf I-\mu\mathbf R_k)\boldsymbol\delta_k\ \Rightarrow\ \|\boldsymbol\delta_{k+1}\|\le\big(1-\mu\lambda_{\min}(\mathbf R_k)\big)\|\boldsymbol\delta_k\|\quad(0<\mu\le1/\lambda_{\max}(\mathbf R_k))`,
     conditions: String.raw`一個 block = 一個 PE 窗口（$N=N_0$）、linear detector、無雜訊`,
@@ -189,6 +207,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-09.18',
+    assumes: modelAssumes('L3'),
     title: '1-bit（Sign-LMS）的 mean-square 遞迴（小訊號線性化）',
     tex: String.raw`\text{1-bit：}\ \mathbf P_{k+1}\approx\mathbf P_k-g(\mathbf R\mathbf P_k+\mathbf P_k\mathbf R)+g^2\Big(1-\tfrac1N\Big)\mathbf R\mathbf P_k\mathbf R+\tfrac{\mu^2}{N}\mathbf R`,
     conditions: String.raw`$q=\mathrm{sign}(e)$、$q^2\equiv1\Rightarrow$ 沒有四階動差項；$E[q\mathbf u\mid\boldsymbol\delta]\approx K_q\mathbf R\boldsymbol\delta$（$|\mathbf u^T\boldsymbol\delta|\ll\sigma_v$）；$g=\mu K_q$。$\rho=0.99$、$g=0.5$、$N=1\Rightarrow$ 齊次半徑 $0.99$（linear 為 $1.9801$）`,
@@ -201,6 +220,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-09.19',
+    assumes: modelAssumes('L3'),
     title: String.raw`u-domain、raw $\tilde{\mathbf x}$ GMAC 時 $w_b$ 的 random-walk 漂移`,
     tex: String.raw`\mathrm{std}\big(w_{b,K}-w_{b,0}\big)\approx\frac{\mu\,\sigma_v\sqrt{K/N}}{1+\tfrac54\,\mu S/N},\qquad S=\sum_{n\ge0}s[n]=\begin{cases}0&\text{type-II}\\[2pt]\dfrac1{1-r}&\text{type-I（pole }r\text{）}\end{cases}`,
     conditions: String.raw`$H_{\mathrm{PD}}(1)=0$、GMAC regressor 為原始 $\tilde{\mathbf x}$（$b$ 的 regressor 是常數 1）、$\mathbf M=\mu\mathbf I$、雜訊跨 sample 獨立；$K$ = blocks、$s[n]$ = $H_{\mathrm{PD}}$ 的 step response；$\tfrac54=1+\tfrac14$（四相；一般為 $1+1/P$）；長時間（$KN\gg$ PLL settling）近似。filtered-x 時 $w_b$ 凍結（勘誤 E04）`,

@@ -6,22 +6,12 @@
  * 獨立成一個檔案：ch03.test.tsx 的每個測試都要渲染整章，十個測試已經接近 Node 預設 4 GB 的堆積上限，
  * 再多渲染一次整章就會在多個測試程序同時跑時 out of memory；分開的檔案有自己的程序與堆積。
  */
-import { cleanup, render } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { SettingsProvider } from '@/app/settings'
+import { cleanup } from '@testing-library/react'
 import Chapter03 from './index'
+import { renderPage } from '@/test/renderPage'
 
-vi.mock('plotly.js-cartesian-dist-min', () => ({
-  default: {
-    react: vi.fn(async () => undefined),
-    purge: vi.fn(),
-    toImage: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo='),
-    downloadImage: vi.fn(async () => ''),
-    Plots: { resize: vi.fn() },
-    Icons: { 'camera-retro': { width: 1, height: 1, path: 'M0 0' }, disk: { width: 1, height: 1, path: 'M0 0' } },
-  },
-}))
-vi.mock('mermaid', () => ({ default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: '<svg></svg>' })) } }))
+vi.mock('plotly.js-cartesian-dist-min', async () => (await import('@/test/mocks/plotly')).plotlyModule())
+vi.mock('mermaid', async () => (await import('@/test/mocks/mermaid')).mermaidModule())
 
 /** 把元素內的 KaTeX 還原成 `$原始 TeX$`（取 MathML 的 annotation），其餘文字保留。 */
 function srcText(root: Element): string {
@@ -38,13 +28,7 @@ afterEach(() => {
 describe('Ch03 §8 的架構約定（docs/assumptions.md §2a）', () => {
   it('「本章的符號在硬體裡是什麼」：DTC 在 reference 輸入端、PD 量 reference′ 減 feedback、補償量 w·x、LMS 的輸入是 PD 的輸出', () => {
     localStorage.setItem('lmspll.mode', 'beginner')
-    const { container } = render(
-      <MemoryRouter initialEntries={['/ch/03']}>
-        <SettingsProvider>
-          <Chapter03 />
-        </SettingsProvider>
-      </MemoryRouter>,
-    )
+    const { container } = renderPage(<Chapter03 />, { url: '/ch/03' })
     const fig = container.querySelector('.ch03-fig[data-fig="21"]')
     expect(fig, '圖 3-21（畫回 PLL 硬體）').not.toBeNull()
     const section = fig!.closest('section.c-section') as HTMLElement

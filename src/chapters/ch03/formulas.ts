@@ -1,4 +1,5 @@
 import type { FormulaEntry } from '@/data/types'
+import { modelAssumes } from '@/app/chapterMeta'
 
 /**
  * 第 3 章公式登錄（Formula & Unit Reference 頁以 import.meta.glob 彙整）。
@@ -11,6 +12,7 @@ const PAGE = '/ch/03'
 export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-03.1',
+    assumes: modelAssumes('L0'),
     title: String.raw`固定 $x$、無雜訊的誤差遞迴（$\delta = a - w$）`,
     tex: String.raw`\delta_{n+1}=(1-\mu x^2)\,\delta_n,\qquad \delta_n\equiv a-w_n`,
     conditions: String.raw`$x$ 固定且非零、無量測雜訊；$\delta$ 極性採全站約定 $\delta = a - w$（規格 §3 原寫 $w - a$，遞迴相同）`,
@@ -22,6 +24,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-03.2',
+    assumes: modelAssumes('L0'),
     title: '封閉解與離散 pole',
     tex: String.raw`\delta_n=p^{\,n}\,\delta_0,\qquad p=1-\mu x^2`,
     conditions: '同 F-03.1；由歸納法得到',
@@ -32,6 +35,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-03.3',
+    assumes: modelAssumes('L0'),
     title: String.raw`固定 $x$ 的穩定條件（T02）`,
     tex: String.raw`|p|<1\iff 0<\mu<\frac{2}{x^2}`,
     conditions: String.raw`對所有初始誤差 $\delta_0$ 都收斂到 0；$x = 2$ 時 $0 < \mu < 0.5$，$\mu = 1/x^2 = 0.25$ 一步到位`,
@@ -42,6 +46,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-03.4',
+    assumes: modelAssumes('L0'),
     title: String.raw`時間常數與收斂到 $\varepsilon$ 所需步數`,
     tex: String.raw`\tau=\frac{-1}{\ln|p|}\ \text{samples},\qquad n_\varepsilon=\left\lceil\frac{\ln\varepsilon}{\ln|p|}\right\rceil`,
     conditions: String.raw`$0 < |p| < 1$；$|\delta_n|/|\delta_0| = |p|^n \le \varepsilon$`,
@@ -52,6 +57,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-03.5',
+    assumes: modelAssumes('L0'),
     title: 'Mean 遞迴與 mean 收斂條件',
     tex: String.raw`E[\delta_{n+1}]=(1-\mu P_x)\,E[\delta_n]\ \Rightarrow\ 0<\mu<\frac{2}{P_x},\qquad P_x=E[x^2]`,
     conditions: String.raw`$x_n$ iid（$E[x^2]$ 有限）、外加雜訊零均值且與 $x$ 獨立；此時 $x_n$ 與 $\delta_n$ 自動獨立，遞迴為精確式。若 regressor 有時間相關（$u = h*x$）則降為 independence approximation`,
@@ -63,6 +69,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-03.6',
+    assumes: modelAssumes('L0'),
     title: '係數均方偏差 MSD 的遞迴（不是 MSE）',
     tex: String.raw`E[\delta_{n+1}^2]=g(\mu)\,E[\delta_n^2],\qquad g(\mu)=E\big[(1-\mu x^2)^2\big]=1-2\mu P_x+\mu^2 M_4`,
     conditions: String.raw`$x_n$ iid、$M_4 = E[x^4]$ 有限、無外加雜訊；$E[\delta^2]$ 是 MSD，不是 MSE 成本 $E[e^2]$`,
@@ -74,6 +81,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-03.7',
+    assumes: modelAssumes('L0'),
     title: 'Mean-square 收斂條件（T03）',
     tex: String.raw`g(\mu)<1\iff 0<\mu<\frac{2P_x}{M_4}=\frac{1}{\kappa}\cdot\frac{2}{P_x},\qquad \kappa=\frac{M_4}{P_x^2}\ge 1`,
     conditions: String.raw`同 F-03.6；$\kappa$ 為 $x$ 的 kurtosis（Gaussian 3、Uniform $9/5$、$\pm A$ 為 1）`,
@@ -84,6 +92,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-03.8',
+    assumes: modelAssumes('L0'),
     title: 'Gaussian regressor 的動差與兩個界限（T03）',
     tex: String.raw`x\sim\mathcal N(0,\sigma^2):\ E[x^2]=\sigma^2,\ E[x^4]=3\sigma^4\ \Rightarrow\ \mu_\text{mean}=\frac{2}{\sigma^2},\ \ \mu_\text{MS}=\frac{2}{3\sigma^2}`,
     conditions: String.raw`$\sigma = 1$ 時 mean 上限 2、mean-square 上限 $2/3$（iid 純量 $x$ 模型，精確）`,
@@ -94,6 +103,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-03.9',
+    assumes: modelAssumes('L0'),
     title: 'Almost-sure（樣本路徑）收斂：Lyapunov 指數',
     tex: String.raw`\lambda(\mu)=E\big[\ln|1-\mu x^2|\big]<0\iff |\delta_n|\to0\ \text{a.s.};\qquad x\sim\mathcal N(0,1):\ 0<\mu<\mu_\text{as}\approx 2.4212`,
     conditions: String.raw`無外加雜訊、$x_n$ iid、$\delta_0 \ne 0$、$E\big|\ln|1-\mu x^2|\big|$ 有限；$\lambda = 0$ 且 $\ln|1-\mu x^2|$ 非常數時路徑不收斂（在 0 與 $\infty$ 間來回）。$\mu_\text{as}$ 由數值積分求根（$\lambda(\mu_\text{as}) = 0$），並以第二種積分法交叉驗證`,
@@ -105,6 +115,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-03.10',
+    assumes: modelAssumes('L0'),
     title: String.raw`Jensen 排序：mean-square 穩定 $\Rightarrow$ almost-sure 穩定`,
     tex: String.raw`\lambda(\mu)=\tfrac12E\big[\ln(1-\mu x^2)^2\big]\le\tfrac12\ln g(\mu),\qquad g(\mu)\ge(1-\mu P_x)^2`,
     conditions: String.raw`$\ln$ 是凹函數；第二式是 $\operatorname{Var}(1-\mu x^2) \ge 0$。因此 MS $\Rightarrow$ a.s. 且 MS $\Rightarrow$ mean；mean 與 a.s. 沒有一般順序`,
@@ -115,6 +126,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-03.11',
+    assumes: modelAssumes('L0'),
     title: '有量測雜訊時的 MSD、穩態 MSD 與 MSE',
     tex: String.raw`E[\delta_{n+1}^2]=g\,E[\delta_n^2]+\mu^2P_x\sigma_v^2,\quad \text{MSD}_\infty=\frac{\mu P_x\sigma_v^2}{2P_x-\mu M_4},\quad E[e^2]=P_x\,E[\delta^2]+\sigma_v^2`,
     conditions: String.raw`$v$ 零均值、與 $x$ 獨立；$g < 1$ 時才有有限穩態 MSD。固定 $x$ 時退化為 $\mu\sigma_v^2/(2-\mu x^2)$`,
@@ -126,6 +138,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-03.12',
+    assumes: modelAssumes('L0'),
     title: 'Uniform regressor 的 Lyapunov 指數封閉式',
     tex: String.raw`x\sim U(-c,c):\ \lambda(\mu)=\frac{(1+u)\ln(1+u)-(1-u)\ln|1-u|}{u}-2,\qquad u=c\sqrt{\mu}`,
     conditions: String.raw`由 $\int\ln(1 \pm s x)\,dx$ 直接積分；$c = \sqrt3$（單位功率）時 $\mu_\text{as} \approx 2.0905$`,
@@ -136,6 +149,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-03.13',
+    assumes: modelAssumes('L0'),
     title: '均方收斂最快的步長',
     tex: String.raw`\mu^\ast=\frac{P_x}{M_4},\qquad g(\mu^\ast)=1-\frac{1}{\kappa}`,
     conditions: String.raw`$g(\mu)$ 是開口向上的拋物線；固定 $x$ 時 $\kappa = 1$、$g^\ast = 0$（一步到位）`,
@@ -146,6 +160,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-03.14',
+    assumes: modelAssumes('L0'),
     title: String.raw`Block 平均 $N$ 筆（GMAC 類比）後的 mean-square 界`,
     tex: String.raw`S_k=\frac1N\sum_{i=1}^{N}x_i^2:\quad 0<\mu<\frac{2P_x}{P_x^2+(M_4-P_x^2)/N}\ \xrightarrow{N\to\infty}\ \frac{2}{P_x}`,
     conditions: String.raw`Conventional block LMS（block 平均梯度）、$x$ iid；1-bit Sign-LMS 的 GMAC 另需 $K_q$ 線性化（第 5、12 章）`,
@@ -156,6 +171,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-03.15',
+    assumes: modelAssumes('L0'),
     title: String.raw`Gaussian $\lambda(\mu)$ 的 Dawson 形式（研究：交叉驗證）`,
     tex: String.raw`\lambda=\ln\frac{c}{2}-\gamma+2\int_0^\infty e^{-t^2/4}\,\frac{1-\cos(zt)}{t}\,dt,\qquad c=\mu\sigma^2,\ z=\frac{1}{\sqrt{2c}}`,
     conditions: String.raw`$\gamma = 0.5772\ldots$（Euler 常數）；由 Hilbert 轉換與 Dawson 函數 $F(z) = \tfrac12\int_0^\infty e^{-t^2/4}\sin(zt)\,dt$ 推得，被積函數平滑`,
@@ -166,6 +182,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-03.16',
+    assumes: modelAssumes('L0'),
     title: String.raw`天真 Monte Carlo 估計 $E[\delta_n^2]$ 的真實標準誤`,
     tex: String.raw`\operatorname{SE}=\sqrt{\frac{\big(h^n-g^{2n}\big)\,\delta_0^4}{M}},\qquad h(\mu)=E\big[(1-\mu x^2)^4\big]=1-4\mu P_x+6\mu^2M_4-4\mu^3M_6+\mu^4M_8`,
     conditions: String.raw`$M$ 條獨立路徑；$h \gg g^2$ 時樣本 SE 幾乎看不到稀有大值而嚴重低估（勘誤 E14）`,
@@ -177,6 +194,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-03.17',
+    assumes: modelAssumes('L0'),
     title: 'Kesten 尾指數（有雜訊時的穩態 heavy tail）',
     tex: String.raw`E\big[|1-\mu x^2|^{\kappa_t}\big]=1\ \Rightarrow\ P(|\delta_\infty|>t)\sim C\,t^{-\kappa_t};\qquad g(\mu)\ge1\iff\kappa_t\le2`,
     conditions: String.raw`$\lambda(\mu) < 0$ 且有雜訊；Kesten–Goldie 定理的技術條件（非 lattice 等）需另外檢查`,
@@ -188,6 +206,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-03.18',
+    assumes: modelAssumes('L0'),
     title: '分位帶與收斂比例的 CLT 預測（解釋勘誤 E14 的 83%）',
     tex: String.raw`\ln\frac{|\delta_n|}{|\delta_0|}\ \approx\ \mathcal N\big(n\lambda,\ n s^2\big),\quad s^2=\operatorname{Var}\big(\ln|1-\mu x^2|\big)\ \Rightarrow\ P\big(|\delta_n|<\varepsilon|\delta_0|\big)\approx\Phi\!\Big(\frac{\ln\varepsilon-n\lambda}{s\sqrt n}\Big)`,
     conditions: String.raw`無外加雜訊、$x_n$ iid、$s^2$ 有限且 $n$ 夠大（中央極限定理；平均 $n\lambda$ 與變異數 $n s^2$ 是精確的，常態形狀是近似，偏態修正約 $O(1/\sqrt n)$）。Gaussian $\mu = 2$、$n = 200$、$\varepsilon = 10^{-3}$ 得 83.1%（Monte Carlo 約 83%）`,
