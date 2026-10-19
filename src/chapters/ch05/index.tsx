@@ -7,6 +7,7 @@ import { ConfidencePrereq } from './sections/Confidence'
 import { DitherSection } from './sections/Dither'
 import { GainSection } from './sections/Gain'
 import { IntroSection } from './sections/Intro'
+import { NonIdealSection } from './sections/NonIdeal'
 import { ProbabilitySection } from './sections/Probability'
 import { SamplesSection } from './sections/Samples'
 import { WrapUpSection } from './sections/WrapUp'
@@ -17,6 +18,7 @@ import './chapter.css'
  * Ch05「1-bit Comparator：雜訊下仍保留的資訊」（規格 §5、§5.1；ChatGPT 入門課第 4 課）。
  * 勘誤：E02（偶數 N 的 tie）、E07（S_N 與 tie rule）、E18（sum vs average）。
  * 驗收：T04（P(q=+1)、K_q）、T05（N ≈ 42,500 → 95%）。
+ * §5b（NonIdealSection，wave 5）：hysteresis ±h 與 metastability 決策窗 ε——K_q(h)、ν、Var(S_N)、P_meta 與對 LMS 迴路的影響（F-05.21–26、HC-05.9／10）。
  * 版面（docs/teaching-style.md §5、§8）：章首放系統地圖（IntroSection），每個主要概念先放方塊圖（diagrams.ts）再推導，
  * 符號表放在頁面最後（ChapterSymbols，id="symbols"），章首只留一行連結。
  */
@@ -28,7 +30,8 @@ export default function Chapter05() {
       <AccumulationSection />
       <SamplesSection />
       <GainSection />
-      <section aria-label="6. Comparator Lab">
+      <NonIdealSection />
+      <section id="ch05-lab" aria-label="6. Comparator Lab">
         <h2>6. 動手做：Comparator Lab</h2>
         <p className="ch05-note">
           試試看：① 載入 preset「偶數 N = 100 的 tie」，再把 <Tex>{'N'}</Tex> 從 100 改成 101，看 strict rule 的正確率從 49% 跳回 53%；② <Tex>{'\\theta'}</Tex> 調到{' '}

@@ -25,6 +25,11 @@ import {
   tieRuleEquilibrium,
   tieRuleEquilibriumApprox,
   varQ,
+  kqHysteresis,
+  kqMetaDrop,
+  metaProb,
+  nonidealSummary,
+  nuHysteresis,
 } from '@/simulation/models/comparator'
 import { FORMULAS } from './formulas'
 import { HANDCALCS, HC05_HAND_CONSTANTS, HC05_LIMITS, nextOdd, phiHand, rd, zHand } from './handcalcs'
@@ -136,6 +141,21 @@ const independent: Record<string, (v: Record<string, number>) => number[]> = {
     const K = ROOT_2_OVER_PI / sigma
     return [K, K * s, r === 0 ? 0 : (ROOT_2_OVER_PI * r) / mExact(r) - 1, Math.exp((-r * r) / 2)]
   },
+  'HC-05.9': ({ h, sigma }) => {
+    // 直接由定義：φ(η)/(σΦ(−η))、ν = 1 − 2Φ(−η)（Φ 用 Simpson）
+    const eta = h / sigma
+    const phiEta = Math.exp((-eta * eta) / 2) / SQRT_2PI
+    const PhiNeg = phiSimpson(-eta)
+    const Kh = phiEta / (sigma * PhiNeg)
+    const ratio = Kh / (ROOT_2_OVER_PI / sigma)
+    const nu = 1 - 2 * PhiNeg
+    const keff = ratio * Math.sqrt((1 - nu) / (1 + nu))
+    return [Kh, ratio, nu, keff, 1 / (keff * keff)]
+  },
+  'HC-05.10': ({ eps, sigma, N }) => {
+    const pm = 2 * phiSimpson(eps / sigma) - 1
+    return [pm, N * pm, Math.exp((-eps * eps) / (2 * sigma * sigma))]
+  },
   'HC-05.8': ({ sigma, mu, N, fs }) => {
     const K = ROOT_2_OVER_PI / sigma
     const pole = 1 - mu * K
@@ -221,6 +241,27 @@ const handAnswers: Record<string, (v: Record<string, number>) => number[][]> = {
     const r2 = sig5(r * r)
     return [[K, sig5(K * s), sig5(r2 / 6), sig5(Math.exp(-sig5(r2 / 2)))]]
   },
+  'HC-05.9': ({ h, sigma }) => {
+    const eta = sig5(h / sigma)
+    const expo = sig5(Math.exp(-sig5(sig5(eta * eta) / 2)))
+    const phiEta = sig5(0.39894 * expo)
+    /** 查表：四位小數的 Φ(−η) */
+    const PhiNeg = roundTo(phiSimpson(roundTo(-eta, 2)), 4)
+    const Kh = sig5(phiEta / (sigma * PhiNeg))
+    const ratio = sig5(phiEta / (0.79788 * PhiNeg))
+    const nu = 1 - 2 * PhiNeg
+    const F = sig5((1 + nu) / (1 - nu))
+    const keff = sig5(ratio / sig5(Math.sqrt(F)))
+    return [[Kh, ratio, nu, keff, sig5(1 / (keff * keff))]]
+  },
+  'HC-05.10': ({ eps, sigma, N }) => {
+    const r = sig5(eps / sigma)
+    const pLin = sig5(0.79788 * r)
+    const pTab = 2 * roundTo(phiSimpson(roundTo(r, 2)), 4) - 1
+    const p = r <= 0.3 ? pLin : pTab
+    const ratio = sig5(Math.exp(-sig5(sig5(r * r) / 2)))
+    return [[p, sig5(N * p), ratio]]
+  },
   'HC-05.8': ({ sigma, mu, N, fs }) => {
     const K = sig5(0.79788 / sigma)
     const g = sig5(mu * K)
@@ -263,8 +304,8 @@ function expectTexOk(def: HandCalcDef, sol: HandCalcSolution, tag: string) {
 /* ───────────── 結構 ───────────── */
 
 describe('Ch05 帶入手算：題目結構', () => {
-  it('8 題、id 為 HC-05.1 … HC-05.8、頁面 /ch/05，難度分三層，公式 ID 都存在於本章公式登錄表', () => {
-    expect(HANDCALCS.map((h) => h.id)).toEqual(['HC-05.1', 'HC-05.2', 'HC-05.3', 'HC-05.4', 'HC-05.5', 'HC-05.6', 'HC-05.7', 'HC-05.8'])
+  it('10 題、id 為 HC-05.1 … HC-05.10（綜合題維持 HC-05.8，id 對外是網址；wave 5 的 §5b 遲滯題 HC-05.9、決策窗題 HC-05.10 接在後面編號）、頁面 /ch/05，難度分三層，公式 ID 都存在於本章公式登錄表', () => {
+    expect(HANDCALCS.map((h) => h.id)).toEqual(['HC-05.1', 'HC-05.2', 'HC-05.3', 'HC-05.4', 'HC-05.5', 'HC-05.6', 'HC-05.7', 'HC-05.8', 'HC-05.9', 'HC-05.10'])
     const formulaIds = new Set(FORMULAS.map((f) => f.id))
     for (const h of HANDCALCS) {
       expect(h.page, h.id).toBe('/ch/05')
@@ -292,10 +333,15 @@ describe('Ch05 帶入手算：題目結構', () => {
     expect(defaultValues(byId('HC-05.4')).N).toBe(100)
     expect(defaultValues(byId('HC-05.5')).N).toBe(100)
     expect(defaultValues(byId('HC-05.6')).P).toBe(0.95)
+    // HC-05.9 用到 F-05.26（CLT + 小訊號）的 K_eff 與 N(h)/N(0)，所以整題標 approx（F-05.22 本身是 exact）；決策窗題只用 F-05.24／25 的精確式
+    expect(byId('HC-05.9').claim).toBe('approx')
+    expect(byId('HC-05.10').claim).toBe('exact')
+    expect(defaultValues(byId('HC-05.9'))).toEqual({ h: 30, sigma: 100 })
+    expect(defaultValues(byId('HC-05.10'))).toEqual({ eps: 5, sigma: 100, N: 4096 })
     expect(defaultValues(byId('HC-05.8'))).toEqual({ sigma: 100, mu: 10, N: 4096, fs: 4 })
   })
 
-  it('HC-05.3 / .4 / .8 的通式在桌機寬度（878 px 欄）放不下一行：拆成兩行對齊（aligned），原本的每一項都還在', () => {
+  it('HC-05.3 / .4 / .8 / .9 的通式在桌機寬度（878 px 欄）放不下一行：拆成兩行對齊（aligned），原本的每一項都還在', () => {
     // 內容和拆行前完全相同；只在最上層的逗號／關係式之間換行，所以只確認各段 TeX 都還在、換行恰好一次
     const parts: Record<string, string[][]> = {
       'HC-05.3': [
@@ -305,6 +351,10 @@ describe('Ch05 帶入手算：題目結構', () => {
       'HC-05.4': [
         [String.raw`z=\frac{Nm}{\sigma_S}`, String.raw`\sigma_S=\sqrt{N(1-m^2)}`, String.raw`\Phi(z)\approx\begin{cases}P(S_N>0) & N\text{ 奇數}\\ P(S_N>0)+\tfrac12P(S_N=0) & N\text{ 偶數}\end{cases}`],
         [String.raw`P(S_N>0)\approx\Phi\!\Big(\frac{Nm-1}{\sigma_S}\Big)\ (N\text{ 偶數})`],
+      ],
+      'HC-05.9': [
+        [String.raw`\eta=\frac{h}{\sigma_v}`, String.raw`K_q(h)=\frac{\varphi(\eta)}{\sigma_v\,\Phi(-\eta)}`, String.raw`\nu=1-2\Phi(-\eta)`, String.raw`F=\frac{1+\nu}{1-\nu}`],
+        [String.raw`K_{\mathrm{eff}}=\frac{K_q(h)}{\sqrt F}`, String.raw`\frac{N(h)}{N(0)}=\Big(\frac{K_q}{K_{\mathrm{eff}}}\Big)^2`],
       ],
       'HC-05.8': [
         [String.raw`K_q=\sqrt{\tfrac2\pi}\,\frac1{\sigma_v}`, String.raw`0<\mu<\mu_{\max}=\frac{2}{K_q}`, String.raw`g=\mu K_q`, String.raw`p_{\mathrm{cal}}=1-g`],
@@ -428,6 +478,50 @@ describe('Ch05 帶入手算：預設值對上模型、文中表格與 golden vec
     expect(K.toFixed(8)).toBe('0.00797885') // §5 的 T04 參考值
   })
 
+  it('HC-05.9（h = 30 fs = 0.3σ_v）：K_q(h)、斜率比、ν、K_eff 與 N 的倍數等於模型與 golden comparator_hysteresis 的 h/σ = 0.3 那一列（1.2510、0.2358、0.9837、1.033）', () => {
+    const g = golden('comparator_hysteresis')
+    const [Kh, ratio, nu, keff, nRatio] = solveDefault('HC-05.9').results.map((r) => r.value)
+    const s = nonidealSummary(100, 30, 0)
+    expect(Kh).toBe(kqHysteresis(100, 30))
+    expect(ratio).toBe(s.slopeRatio)
+    expect(nu).toBe(nuHysteresis(100, 30))
+    expect(keff).toBe(s.kqEffRatio)
+    expect(nRatio).toBe(s.nRatio)
+    // golden：h_over_sigma_list = [0, 0.1, 0.3, 0.5, 1, 2] 的第 3 個
+    expect(ratio).toBeCloseTo(num(g, 'hyst_slope_closed_ratio_list', 2), 9) // 數值微分 vs 封閉式
+    expect(nu).toBeCloseTo(num(g, 'hyst_nu_list', 2), 12)
+    expect(keff).toBeCloseTo(num(g, 'hyst_kq_eff_ratio_list', 2), 9)
+    expect(nRatio).toBeCloseTo(num(g, 'hyst_n_ratio_list', 2), 9)
+    expect(ratio.toFixed(4)).toBe('1.2510')
+    expect(nu.toFixed(4)).toBe('0.2358')
+    expect(keff.toFixed(4)).toBe('0.9837')
+    expect(nRatio.toFixed(3)).toBe('1.033')
+    // h = 0：全部回到 1
+    const zero = byId('HC-05.9').solve({ h: 0, sigma: 100 })
+    expect(zero.results[1].value).toBeCloseTo(1, 12)
+    expect(zero.results[2].value).toBeCloseTo(0, 15)
+    expect(zero.results[0].value).toBeCloseTo(kq(100), 15)
+  })
+
+  it('HC-05.10（ε = 5 fs = 0.05σ_v、N = 4096）：P_meta = 0.03988、每 block 漏掉 163.3 個、斜率比 e^{−0.00125}，等於模型與 golden', () => {
+    const g = golden('comparator_hysteresis')
+    const [pm, dropped, ratio] = solveDefault('HC-05.10').results.map((r) => r.value)
+    expect(pm).toBe(metaProb(0, 100, 5))
+    expect(dropped).toBe(4096 * metaProb(0, 100, 5))
+    expect(ratio).toBe(kqMetaDrop(100, 5) / kq(100))
+    expect(pm).toBeCloseTo(num(g, 'meta_p_meta_at_zero_list', 2), 12) // eps_over_sigma_list 的第 3 個 = 0.05
+    expect(dropped).toBeCloseTo(num(g, 'meta_dropped_per_block_N4096_eps5'), 9)
+    expect(ratio).toBeCloseTo(num(g, 'meta_slope_closed_ratio_list', 2), 12)
+    expect(pm.toFixed(5)).toBe('0.03988')
+    expect(dropped.toFixed(1)).toBe('163.3')
+    expect(ratio).toBeCloseTo(Math.exp(-0.00125), 12)
+    // ε/σ_v > 0.3 走查表的步驟（多一步）
+    const big = byId('HC-05.10').solve({ eps: 50, sigma: 100, N: 1024 })
+    expect(big.steps.length).toBe(solveDefault('HC-05.10').steps.length + 1)
+    expect(big.steps.some((st) => st.tex.startsWith('\\Phi(\\varepsilon/\\sigma_v)'))).toBe(true)
+    expect(big.results[0].value).toBeCloseTo(2 * normCdf(0.5) - 1, 14)
+  })
+
   it('T13: HC-05.8（σ_v = 100 fs、μ = 10 fs、N = 4096）的 pole 與 σ_w 等於 golden；與 Ch12 的 calLoop 一致', () => {
     const g = golden('T13')
     const [muMax, pole, tau, tauUs, sw] = solveDefault('HC-05.8').results.map((r) => r.value)
@@ -517,6 +611,11 @@ describe('Ch05 帶入手算：換一題（randomValues）', () => {
     const s8 = solveDefault('HC-05.8')
     expect(checkAnswer(0.93, s8.results[1]).ok).toBe(false)
     expect(checkAnswer(12.53, s8.results[2]).ok).toBe(false) // τ ≈ 1/g 的心算版差 4%，要用 ln
+    // §5b：遲滯的斜率比填 1（忘了遲滯）、N 倍數填 1 都算錯；P_meta 填 0 算錯
+    const sh = solveDefault('HC-05.9')
+    expect(checkAnswer(1, sh.results[1]).ok).toBe(false)
+    expect(checkAnswer(1, sh.results[4]).ok).toBe(false)
+    expect(checkAnswer(0, solveDefault('HC-05.10').results[0]).ok).toBe(false)
   })
 })
 
@@ -549,6 +648,11 @@ describe('Ch05 帶入手算：validate 說明為什麼不適用', () => {
     ['HC-05.6', { s: 25, P: 0.6 }, /CLT/],
     ['HC-05.7', { sigma: 0 }, /hard limiter/],
     ['HC-05.7', { s: 250 }, /飽和/],
+    ['HC-05.9', { sigma: 0 }, /hard limiter/],
+    ['HC-05.9', { h: 300 }, /四位小數的常態表/],
+    ['HC-05.9', { h: -1 }, /不能是負的/],
+    ['HC-05.10', { sigma: 0 }, /hard limiter/],
+    ['HC-05.10', { eps: 300 }, /壞掉的 latch/],
     ['HC-05.8', { sigma: 0 }, /hard limiter/],
     ['HC-05.8', { mu: 0 }, /不更新/],
     ['HC-05.8', { mu: 300 }, /發散/],
@@ -986,6 +1090,8 @@ const ANSWER_STEPS: Record<string, string[]> = {
   'HC-05.5': ['P(S_N=0) \\approx', '|s^*|'],
   'HC-05.6': ['z =', 'N \\approx'],
   'HC-05.7': ['K_q =', 'K_q\\,s', '\\frac{r^2}{6}', '\\frac{dE[q]/ds}{K_q}'],
+  'HC-05.9': ['K_q(h) =', '\\frac{K_q(h)}{K_q}', '\\nu =', '\\frac{K_{\\mathrm{eff}}}{K_q}', '\\frac{N(h)}{N(0)}'],
+  'HC-05.10': ['P_{\\mathrm{meta}} =', 'N_{\\mathrm{meta}}', '\\frac{K_{q,\\mathrm{drop}}}{K_q}'],
   'HC-05.8': ['\\mu_{\\max}', 'p_{\\mathrm{cal}} =', '\\tau =', 't_\\tau', '\\sigma_w'],
 }
 
@@ -1042,6 +1148,22 @@ const USER_INPUTS: Record<string, Record<string, number>[]> = {
     { sigma: 123.4567, s: 0.731 },
     { sigma: 100, s: 0.005 },
   ],
+  'HC-05.9': [
+    { h: 0, sigma: 100 },
+    { h: 0.001, sigma: 5000 },
+    { h: 250, sigma: 100 },
+    { h: 12.3456, sigma: 77.7 },
+    { h: 100, sigma: 100 },
+    { h: 1, sigma: 1 },
+  ],
+  'HC-05.10': [
+    { eps: 0, sigma: 100, N: 4096 },
+    { eps: 0.001, sigma: 5000, N: 1 },
+    { eps: 200, sigma: 100, N: 16384 },
+    { eps: 12.3456, sigma: 77.7, N: 12345 },
+    { eps: 30, sigma: 100, N: 1e8 },
+    { eps: 31, sigma: 100, N: 100 },
+  ],
   'HC-05.8': [
     { sigma: 100, mu: 248.15, N: 16384, fs: 4 },
     { sigma: 100, mu: 0.0125, N: 1, fs: 3 },
@@ -1084,6 +1206,8 @@ function randomUserInputs(def: HandCalcDef, count: number, seed: number): Record
     P: () => Number((1 - Math.exp(Math.log(1e-6) + u() * (Math.log(0.45) - Math.log(1e-6)))).toPrecision(6)),
     mu: () => logU(1e-4, 5000),
     fs: () => logU(0.1, 100),
+    h: () => (u() < 0.1 ? 0 : logU(0.01, 1000)),
+    eps: () => (u() < 0.1 ? 0 : logU(0.01, 300)),
   }
   const out: Record<string, number>[] = []
   for (let guard = 0; out.length < count && guard < 200 * count; guard++) {

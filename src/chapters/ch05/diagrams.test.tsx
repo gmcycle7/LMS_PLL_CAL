@@ -4,8 +4,10 @@ import { installMermaidSvgShim, renderMermaidForTest, unicodeMathIn } from '@/co
 import { normCdf, normInv, binomPmf } from '@/simulation/core'
 import {
   blockLoopLinear,
+  comparatorTransitions,
   directionExact,
   kq,
+  metaProb,
   kqLocal,
   linearizationRelError,
   meanGmacEncoding,
@@ -177,9 +179,9 @@ function reaches(edges: Edge[], from: string, to: string): boolean {
 }
 
 describe('Ch05 方塊圖：登錄表與張數', () => {
-  it('共 27 張（原有 1 張 + 新增 26 張），圖號連續，key 不重複；加上章首的系統地圖共 28 張', () => {
-    expect(CH05_DIAGRAMS).toHaveLength(27)
-    expect(CH05_DIAGRAMS.filter((d) => d.isNew)).toHaveLength(26)
+  it('共 28 張（原有 1 張 + 新增 27 張，含 §5b 的非理想 comparator），圖號連續，key 不重複；加上章首的系統地圖共 29 張', () => {
+    expect(CH05_DIAGRAMS).toHaveLength(28)
+    expect(CH05_DIAGRAMS.filter((d) => d.isNew)).toHaveLength(27)
     expect(CH05_DIAGRAMS.filter((d) => !d.isNew).map((d) => d.key)).toEqual(['l1Model'])
     expect(CH05_DIAGRAMS.map((d) => d.no)).toEqual(CH05_DIAGRAMS.map((_, i) => i + 1))
     expect(new Set(CH05_DIAGRAMS.map((d) => d.key)).size).toBe(CH05_DIAGRAMS.length)
@@ -305,7 +307,7 @@ describe('Ch05 方塊圖：版面（上下／左右的位置用語要和實際�
     const keys = [
       'exactVsClt', 'analogVs1bit', 'smallSignal', 'l1Model', 'singleCompare', 'sampleLoop', 'linearizedLoop', 'blockLoop', 'lastSample',
       'hwMap', 'tieRules', 'sCurveRegions', 'ditherRegimes', 'methodChoice', 'signBlockLoop', 'ar1',
-      'roadmap', 'firstCalc', 'qStats', 'bitMapping', 'signalVsNoise', 'sumVsAvg', 'decision', 'designFlow', 'mcCheck',
+      'roadmap', 'firstCalc', 'qStats', 'bitMapping', 'signalVsNoise', 'sumVsAvg', 'decision', 'designFlow', 'mcCheck', 'nonidealCmp',
     ] as const
     const svgs = new Map<string, string>()
     for (const key of keys) svgs.set(key, (await renderOnce(key, chartOf(key))).svg)
@@ -395,6 +397,7 @@ describe('Ch05 方塊圖：版面（上下／左右的位置用語要和實際�
       ['sumVsAvg', 'QS', 'SNR'],
       ['designFlow', 'PT', 'TT'],
       ['mcCheck', 'M1', 'PASS'],
+      ['nonidealCmp', 'PD', 'GM'], // §5b：PD 輸出在最上面，GMAC 在最下面；門檻的回授線走旁邊
     ] as const) {
       const host = dom(key)
       expect(node(host, root).y, `${key}：${root} 應在 ${leaf} 上面`).toBeLessThan(node(host, leaf).y)
@@ -405,6 +408,16 @@ describe('Ch05 方塊圖：版面（上下／左右的位置用語要和實際�
       const a = node(host, first)
       const b = node(host, last)
       expect(b.y - a.y, `${key}：${first} → ${last} 應主要是往下`).toBeGreaterThan(Math.abs(b.x - a.x))
+    }
+    // §5b 的導讀：「是（往左）走 metastable、不是（往右）解出 q[n]」「三條出口由左到右 drop、hold、late」「右邊的回授、右下角的有效門檻」
+    {
+      const host = dom('nonidealCmp')
+      const x = (id: string) => node(host, id).x
+      expect(x('META'), 'metastable 方塊在左、latch 解出在右').toBeLessThan(x('SGN'))
+      expect(x('ZERO'), 'drop 在 hold 左邊').toBeLessThan(x('HOLD'))
+      expect(x('HOLD'), 'hold 在 late 左邊').toBeLessThan(x('LATE'))
+      expect(x('TH'), '有效門檻在 latch 的右邊（回授走右側）').toBeGreaterThan(x('SGN'))
+      expect(node(host, 'TH').y, '有效門檻在 z⁻¹ 下面（右下角）').toBeGreaterThan(node(host, 'DLY').y)
     }
   }, SLOW)
 })
@@ -880,6 +893,36 @@ describe('Ch05 方塊圖：與正文公式一致', () => {
     expect(c).toContain('Wilson 95% 區間')
   })
 
+  it('§5b 非理想 comparator 圖：加法點是「＋ e[n]、− θ_a」，門檻由 q[n−1] 經 z⁻¹ 回授選（θ ∓ h），菱形是決策窗，三種政策各自進 GMAC；圖上的式子 = 模型', async () => {
+    const g = await parse(chartOf('nonidealCmp'))
+    expect(into(g.edges, 'SUB').sort()).toEqual(['$+ e[n]$', '$- \\theta_a$'].sort())
+    expect(edgeOf(g.edges, 'SUB', 'WIN').raw).toBe('$d = e[n] - \\theta_a$')
+    expect(g.vertices.find((v) => v.id === 'TH')?.text).toContain('\\theta_a = \\theta - q[n-1] \\cdot h')
+    // 回授：SGN → z⁻¹ → TH，所以 TH 在一個環上（遲滯 = 門檻有記憶）
+    expect(edgeOf(g.edges, 'SGN', 'DLY').raw).toBe('$q[n]$')
+    expect(edgeOf(g.edges, 'DLY', 'TH').raw).toContain('\\theta \\mp h')
+    expect(reaches(g.edges, 'TH', 'TH'), '門檻的回授要形成一個環').toBe(true)
+    // 決策窗的兩個出口與三種政策
+    expect(g.edges.filter((e) => e.start === 'WIN').map((e) => e.end).sort()).toEqual(['META', 'SGN'])
+    expect(g.edges.filter((e) => e.start === 'META').map((e) => e.text).sort()).toEqual(['drop', 'hold', 'late'])
+    for (const id of ['SGN', 'ZERO', 'HOLD', 'LATE']) expect(edgeOf(g.edges, id, 'GM'), `${id} → GM`).toBeTruthy()
+    expect(g.vertices.find((v) => v.id === 'GM')?.text).toContain('S_N = \\sum y[n] \\cdot x[n]')
+    expect(g.vertices.find((v) => v.id === 'LATE')?.text).toContain('x[n+1]')
+    // 圖上的機率 P_meta 與模型：s = θ、ε = 5 fs、σ_v = 100 fs ⇒ 2Φ(0.05) − 1 = 0.03988 ≈ K_q·ε
+    expect(metaProb(0, 100, 5)).toBeCloseTo(2 * normCdf(0.05) - 1, 15)
+    expect(metaProb(0, 100, 5) / (kq(100) * 5)).toBeCloseTo(1, 3)
+    // 門檻依上一個輸出而定：q_prev = +1 時門檻在 θ − h，P(+1 | +1) > P(+1 | −1)
+    const plus = comparatorTransitions(1, 100, 30, 0, 1)
+    const minus = comparatorTransitions(1, 100, 30, 0, -1)
+    expect(plus.plus).toBeCloseTo(normCdf((1 + 30) / 100), 14)
+    expect(minus.plus).toBeCloseTo(normCdf((1 - 30) / 100), 14)
+    expect(plus.plus).toBeGreaterThan(minus.plus)
+    // h = ε = 0：門檻永遠是 θ、沒有 metastable，回到 §2 的圖（P(+1) = Φ((s − θ)/σ_v)）
+    const ideal = comparatorTransitions(1, 100, 0, 0, -1)
+    expect(ideal.plus).toBe(pPlus(1, 100))
+    expect(ideal.meta).toBe(0)
+  }, SLOW)
+
   it('AR(1) 圖：正相關讓 Var(S_N) 大於 N、N_eff 小於 N；ρ = 0 時回到獨立的情況；相鄰 sign 的相關是 (2/π)·arcsin(ρ)', async () => {
     const N = 4096
     const iid = sumVarianceAr1(N, 0)
@@ -911,7 +954,7 @@ describe('Ch05 方塊圖：整頁渲染', () => {
   /** 系統地圖是手排的 SVG（figure.c-mermaid.c-sysmap），被標成主角的方塊帶有 is-focus；不經過 Mermaid，所以沒有 data-chart。 */
   const focusedBlocks = (map: Element) => Array.from(map.querySelectorAll('g.c-sysmap-block.is-focus')).map((g) => g.getAttribute('data-block'))
 
-  it('Research 模式：章首有 <SystemMap>，27 張圖依登錄順序全部出現，各有圖說與「先看…再看…」的導讀，並排在對應公式之前；符號表是最後一個區塊', () => {
+  it('Research 模式：章首有 <SystemMap>，28 張圖依登錄順序全部出現，各有圖說與「先看…再看…」的導讀，並排在對應公式之前；符號表是最後一個區塊', () => {
     const { container, unmount } = renderChapter('research')
     const figs = Array.from(container.querySelectorAll<HTMLElement>('figure.c-mermaid'))
     // 第一張是章首的系統地圖：緊接在開場問題之後、第一個章節標題之前
@@ -947,9 +990,9 @@ describe('Ch05 方塊圖：整頁渲染', () => {
       const d = CH05_DIAGRAMS[i]
       const fig = w.querySelector('figure.c-mermaid') as HTMLElement
       expect(fig.dataset.chart, d.key).toBe(d.chart)
-      expect(fig.querySelector('figcaption')?.textContent, d.key).toBe(`圖 5-${d.no}：${d.caption}`)
+      expect(fig.querySelector('figcaption')?.textContent, d.key).toBe(`圖 5-${d.no}｜${d.caption}`)
       // 導讀：一兩句話帶著讀者看圖（先看…再看…／順著箭頭…），並用 KaTeX 把圖上的名稱接到公式的符號
-      const walk = w.querySelector('.ch05-fig-walk') as HTMLElement
+      const walk = w.querySelector('.c-chapter-fig-walk') as HTMLElement
       expect(walk, d.key).toBeTruthy()
       const text = walk.textContent ?? ''
       expect(text.length, d.key).toBeGreaterThanOrEqual(60)
@@ -970,6 +1013,7 @@ describe('Ch05 方塊圖：整頁渲染', () => {
       ['designFlow', '[id="formula-F-05.9"]'],
       ['smallSignal', '[id="formula-F-05.10"]'],
       ['sCurveRegions', '[id="formula-F-05.11"]'],
+      ['nonidealCmp', '[id="formula-F-05.21"]'],
       ['mcCheck', '[id="formula-F-05.14"]'],
       ['sampleLoop', '[id="formula-F-05.15"]'],
       ['linearizedLoop', '[id="formula-F-05.15"]'],
@@ -984,12 +1028,12 @@ describe('Ch05 方塊圖：整頁渲染', () => {
       expect(follows(w, target), `${key} 應在 ${sel} 之前`).toBe(true)
     }
     // 兩張依序出現的迴路圖：先是實際的（sign），再是線性化的（K_q）；正文用圖號互相引用
-    const lin = container.querySelector('.ch05-fig[data-diagram="linearizedLoop"] .ch05-fig-walk') as HTMLElement
+    const lin = container.querySelector('.ch05-fig[data-diagram="linearizedLoop"] .c-chapter-fig-walk') as HTMLElement
     expect(lin.textContent).toContain(`圖 5-${diagramOf('sampleLoop').no}`)
-    const blk = container.querySelector('.ch05-fig[data-diagram="blockLoop"] .ch05-fig-walk') as HTMLElement
+    const blk = container.querySelector('.ch05-fig[data-diagram="blockLoop"] .c-chapter-fig-walk') as HTMLElement
     expect(blk.textContent).toContain(`圖 5-${diagramOf('hwMap').no}`)
     // 全站架構約定（docs/assumptions.md §2a）：DTC 在 reference 輸入端、回授路徑只有 divider、LMS 校正迴路的輸入是 PD 的輸出；PD 量 t_ref′ − t_fb
-    const hwWalk = container.querySelector('.ch05-fig[data-diagram="hwMap"] .ch05-fig-walk') as HTMLElement
+    const hwWalk = container.querySelector('.ch05-fig[data-diagram="hwMap"] .c-chapter-fig-walk') as HTMLElement
     const hwText = hwWalk.textContent ?? ''
     const hwTex = Array.from(hwWalk.querySelectorAll('annotation')).map((a) => a.textContent ?? '')
     expect(hwText).toContain('reference clock 先經過 DTC 才進 PD')
@@ -1021,7 +1065,7 @@ describe('Ch05 方塊圖：整頁渲染', () => {
     expect(container.querySelector('.ch05-question')?.textContent).toContain('reference 端的 DTC')
     expect(container.querySelector('.ch05-question')?.textContent).toContain('PD 的輸出')
     // §0 的 L1 模型圖：那個加法點放進 PLL 就是 PD，e 是 PD 的輸出（comparator 取的就是它）
-    const l1Walk = container.querySelector('.ch05-fig[data-diagram="l1Model"] .ch05-fig-walk') as HTMLElement
+    const l1Walk = container.querySelector('.ch05-fig[data-diagram="l1Model"] .c-chapter-fig-walk') as HTMLElement
     expect(l1Walk.textContent).toContain('這個加法點就是 PD')
     expect(l1Walk.textContent).toContain('就是 PD 的輸出')
     // 整章沒有舊的說法（DTC 在 divider 之後、DTC 插入延遲把 divider 的 edge 推回去、回授側注入），

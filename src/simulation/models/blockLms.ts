@@ -9,6 +9,10 @@
  *               架構（docs/assumptions.md §2a）：DTC 在 reference 輸入端，a·x 是需要補的量、w_applied·x 是 DTC 的補償量；
  *               殘差 δt 在 PD 的 reference 輸入端注入（PD 輸出 = +H_PD{δt}），comparator 取的就是 PD 的輸出（送進 loop filter 的同一個節點）
  *   b[n]      = (e[n] ≥ 0)；tie 規則：e = 0 時 q = +1（§15.2「q = +1 if e >= 0」，E07）
+ *               comparator.hysteresis_fs = h > 0 時門檻依上一個輸出而定（θ_a = −q[n−1]·h，Ch05 §5b）；
+ *               comparator.meta_window_fs = ε > 0 時 |e − θ_a| < ε 的 sample 解不出來（metastable），依 meta_policy：
+ *               drop（不累加、除數仍為 N）、hold（沿用上一個輸出）、late（正確的正負號晚一拍進 GMAC、乘到 x_ref[n+1]）。
+ *               預設 h = ε = 0：與原本的無記憶 sign 逐位元相同。
  *   q[n]      = 2b − 1 ∈ {±1}（bipolar_pm_one / unipolar_mapped）；unipolar_unmapped_bug 時 q = b ∈ {0, 1}（反面測試）
  *   x_ref[n]  = x[n]（raw）、x[n − D]（delayed）、u_f[n − D] = (Ĥ * x)[n − D]（filtered），D = gm_code_delay_samples
  *   G_k       = (1/N)Σ q·x_ref（average）或 Σ q·x_ref（sum）
@@ -32,6 +36,7 @@ import { z } from 'zod'
 import { createRng, deriveSeed, meanCI, normCdf, normPdf, polyRoots, cAbs, type Rng } from '@/simulation/core'
 import { freqz, StreamFilter } from '@/simulation/signal'
 import { errorPathTransfer, type DtTransfer, type ErrorPathSpec } from '@/simulation/models/pll'
+import { nonidealSummary } from '@/simulation/models/comparator'
 import {
   DsmStream,
   detectPeriod,
@@ -186,6 +191,19 @@ const GainRegisterSchema = z
   .refine((g) => g.internal_bits >= g.physical_bits, { message: 'internal_bits 必須 ≥ physical_bits', path: ['internal_bits'] })
   .default({})
 
+/** Ch05 §5b：非理想 comparator（hysteresis ±h、metastability 決策窗 ε）。預設全部關閉。 */
+const ComparatorSchema = z
+  .object({
+    /** hysteresis 半寬 h [fs]：有效門檻 θ_a = −q[n−1]·h（上一個輸出 +1 時門檻降到 −h）；0 = 無記憶的 sign */
+    hysteresis_fs: finite().min(0).default(0),
+    /** metastability 決策窗 ε [fs]：|e − θ_a| < ε 的 sample 在取樣週期內解不出來；0 = 關閉 */
+    meta_window_fs: finite().min(0).default(0),
+    /** metastable 的 sample 怎麼進 GMAC：drop（不累加）、hold（沿用上一個輸出）、late（正確的正負號晚一拍、乘到下一個 regressor） */
+    meta_policy: z.enum(['drop', 'hold', 'late']).default('drop'),
+  })
+  .strict()
+  .default({})
+
 const FilteredXSchema = z
   .object({
     /** Ĥ 的基礎模型：'same_as_path'（預設，Ĥ = H）或另一個 error path */
@@ -227,6 +245,7 @@ const BaseSchema = z
       .object({ offset_fs: finite().default(0), c2: finite().default(0), c3: finite().default(0) })
       .strict()
       .default({}),
+    comparator: ComparatorSchema,
     record: z
       .object({
         sample_trace_blocks: z.number().int().min(0).default(2),
@@ -643,6 +662,12 @@ export interface BlockLmsAnalytic {
   statsSamples: number
   /** code 正規化參數（code = (raw − offset)·scale） */
   normalization: NormalizationParams
+  /**
+   * Ch05 §5b：comparator.hysteresis_fs 或 meta_window_fs > 0 時才有。以 x ≡ 1 的 chain 在工作點 e = 0 的平穩統計估計：
+   * slopeRatio = dE[y]/ds ÷ K_q（遲滯讓它 > 1）、noiseFactor = lim Var(S_N)/N（iid 為 1）、nu = 記憶因子、pMeta = 漏掉的比例、
+   * kqEffRatio = slopeRatio/√noiseFactor（資訊等效增益；所需樣本數是它平方的倒數）。drop 以外的政策只有模擬，這些量仍以 drop 的 chain 估計。
+   */
+  comparatorModel?: { h: number; eps: number; policy: 'drop' | 'hold' | 'late'; slopeRatio: number; noiseFactor: number; nu: number; pMeta: number; kqEffRatio: number }
 }
 
 export interface BlockLmsMetrics {
@@ -961,6 +986,11 @@ function prepare(cfg: BlockLmsConfig): Prepared {
     statsSamples: cnt,
     normalization: norm,
   }
+  const cm = cfg.comparator
+  if ((cm.hysteresis_fs > 0 || cm.meta_window_fs > 0) && sigma > 0) {
+    const ns = nonidealSummary(sigma, cm.hysteresis_fs, cm.meta_window_fs)
+    analytic.comparatorModel = { h: cm.hysteresis_fs, eps: cm.meta_window_fs, policy: cm.meta_policy, slopeRatio: ns.slopeRatio, noiseFactor: ns.noiseFactor, nu: ns.nu, pMeta: ns.pMeta, kqEffRatio: ns.kqEffRatio }
+  }
 
   // ── 警告 ──
   const fmt = (v: number, d = 4): string => (Number.isFinite(v) ? Number(v.toPrecision(d)).toString() : String(v))
@@ -1005,6 +1035,19 @@ function prepare(cfg: BlockLmsConfig): Prepared {
       warnings.push(`filtered-x 模型 Ĥ ≠ H：有效相關為 E[u·u_f] = ${fmt(C)}（不是 E[u²] = ${fmt(Eu2)}；E45）`)
     }
   }
+  if (analytic.comparatorModel) {
+    const c = analytic.comparatorModel
+    if (c.h > 0) {
+      warnings.push(
+        `comparator hysteresis h = ${fmt(c.h)} fs：相鄰決策相關（ν = ${fmt(c.nu)}），工作點的平均斜率是 K_q 的 ${fmt(c.slopeRatio)} 倍（同 μ 下 pole 更快），但 GMAC 雜訊是 iid 的 ${fmt(c.noiseFactor)} 倍；上面的 g、p、σ_w 仍以理想 K_q 與 iid 雜訊計算（Ch05 §5b）`,
+      )
+    }
+    if (c.eps > 0) {
+      warnings.push(
+        `comparator metastability 窗 ε = ${fmt(c.eps)} fs（${c.policy}）：每個 block 約 ${fmt(N * c.pMeta)} 個 sample 解不出來（P_meta = ${fmt(c.pMeta)}）；drop 時平均斜率只少 ${fmt(100 * (1 - Math.exp((-c.eps * c.eps) / (2 * sigma * sigma))), 3)}%${c.policy === 'late' ? '，late 讓那些 sample 的 q 乘到下一個 regressor（等效多一拍 code delay，Ch07）' : c.policy === 'hold' ? '，hold 讓那些 sample 重複上一個輸出（多一點相關）' : ''}`,
+      )
+    }
+  }
   const gr = cfg.gain_register
   if (gr.quantize_physical && Number.isFinite(sigmaWPred) && gr.lsb_fs > 2 * sigmaWPred) {
     warnings.push(`實體 gain LSB = ${fmt(gr.lsb_fs)} fs 遠大於預測 σ_w = ${fmt(sigmaWPred)} fs：量化誤差主導，可能出現 limit cycle 或 dead zone（§13）`)
@@ -1027,6 +1070,11 @@ function prepare(cfg: BlockLmsConfig): Prepared {
     'K_q = √(2/π)/σ_v 為小訊號近似（|e_det| ≪ σ_v）；σ_w 預測假設 GMAC 雜訊 iid（σ_η² ≈ E[x_ref²]/N）且線性化有效',
     `C 與固定點由前 ${S} 個 code 樣本（略過前 ${s0} 個暫態）估計；mean-field 固定點使用 ${Smf} 個樣本`,
   ]
+  if (analytic.comparatorModel) {
+    assumptions.push(
+      `comparator：hysteresis h = ${cm.hysteresis_fs} fs（有效門檻 −q[n−1]·h）、metastability 窗 ε = ${cm.meta_window_fs} fs、政策 ${cm.meta_policy}（drop 的除數仍是 N）；K_q、σ_w 的解析式未納入這兩個效應`,
+    )
+  }
   if (!gr.quantize_physical) {
     assumptions.push('gain_register 未啟用（quantize_physical = false）：w 為理想浮點，internal_bits / physical_bits 不生效')
   } else {
@@ -1221,6 +1269,39 @@ export function runBlockLms(input: BlockLmsConfigInput): BlockLmsResult {
   w[0] = wCur
   // #endregion
 
+  // #region core:blockLmsComparatorModel
+  // ── 非理想 comparator（Ch05 §5b；h = ε = 0 時整段不生效，決策與原本逐位元相同）──
+  const cmp = cfg.comparator
+  const cmpH = cmp.hysteresis_fs
+  const cmpEps = cmp.meta_window_fs
+  const cmpPolicy = cmp.meta_policy
+  const cmpNonideal = cmpH > 0 || cmpEps > 0
+  let latch: 1 | -1 = 1 // latch 狀態 = 上一個解出來的輸出
+  let lateQ = 0 // late 政策：上一拍解出來、這一拍才進 GMAC 的 ±1
+  let cmpCnt = 0 // 這一拍進 GMAC 的 ±1 個數（late 時可能是 2；bug 編碼要用它把 −1 映射成 0）
+  /** 回傳這一拍送進累加器的雙極性總和（±1 的和；0 = 漏掉）。 */
+  const nonidealOut = (e: number): number => {
+    const d = e + latch * cmpH // 離有效門檻 −latch·h 的距離（latch = +1 時門檻在 −h）
+    const carry = lateQ
+    lateQ = 0
+    cmpCnt = carry === 0 ? 0 : 1
+    if (Math.abs(d) < cmpEps) {
+      if (cmpPolicy === 'hold') {
+        cmpCnt++
+        return carry + latch // 沿用上一個輸出
+      }
+      if (cmpPolicy === 'late') {
+        latch = d >= 0 ? 1 : -1 // latch 最後還是解到正確的一側，只是晚一拍
+        lateQ = latch
+      }
+      return carry // drop：這一拍沒有貢獻
+    }
+    latch = d >= 0 ? 1 : -1
+    cmpCnt++
+    return carry + latch
+  }
+  // #endregion
+
   // ── trace ──
   const traceBlocks = cfg.record.sample_trace_blocks
   const dec = cfg.record.decimate
@@ -1262,6 +1343,10 @@ export function runBlockLms(input: BlockLmsConfigInput): BlockLmsResult {
         const bit = e >= 0 ? 1 : 0
         q = 2 * bit - 1 // 硬體 0/1 → ±1
       } else q = e >= 0 ? 1 : qLo
+      if (cmpNonideal) {
+        const y = nonidealOut(e) // ← 差異：有記憶的門檻與決策窗
+        q = qLo === -1 ? y : (y + cmpCnt) / 2 // bug 編碼：每個 −1 算 0、每個 +1 算 1
+      }
       const xrn = xr[n]
       acc += q * xrn
       if (rec) {

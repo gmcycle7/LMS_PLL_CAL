@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, Section, SourceTag, SystemMap, Tex, ChRef } from '@/components'
+import { Callout, ChapterErratum, ClaimTag, Section, SourceTag, SystemMap, Tex, ChRef } from '@/components'
 import { normPdf } from '@/simulation/core'
 import { directionOutcomeExact, meanQ, pPlus, sumMoments, varQ } from '@/simulation/models/comparator'
-import { Erratum, Fig, fx, int, sig } from '../common'
+import { Fig, fx, int, sig } from '../common'
 import { CH05_SYSTEM_FOCUS } from '../diagrams'
 import { ExpectationPrereq, GaussianPrereq } from './Probability'
 
@@ -38,7 +38,7 @@ export function IntroSection() {
         <Tex>{'N'}</Tex> 次之後的訊號雜訊比，以及之後所有迴路分析都會用到的等效增益 <Tex>{'K_q'}</Tex>。
       </p>
 
-      <Section kind="intuition" level={2} title="直覺：一枚只偏一點點的硬幣">
+      <Section kind="intuition" level={2} id="ch05-intuition" title="直覺：一枚只偏一點點的硬幣">
         <p>
           想像一枚被動過手腳的硬幣：正面的機率是 {fx(100 * ex.p, 2)}%、反面 {fx(100 * (1 - ex.p), 2)}%。擲<strong>一次</strong>，你完全看不出它偏哪一邊。擲{' '}
           {int(ex.coin[0].N)} 次，正面平均只比反面多 {fx(ex.coin[0].meanSum, 1)} 次，可是「運氣」造成的起伏有 <Tex>{'\\pm'}</Tex>
@@ -60,7 +60,7 @@ export function IntroSection() {
         </Fig>
       </Section>
 
-      <Section kind="diagram" level={2} title="0. 模型：一個固定誤差 + 雜訊 → 1-bit → 累加">
+      <Section kind="diagram" level={2} id="ch05-model" title="0. 模型：一個固定誤差 + 雜訊 → 1-bit → 累加">
         <p>
           把章首系統地圖裡藍色的那一段單獨拿出來，就是下面這張圖。它是 PLL 校正迴路（<ChRef ch="04">Ch04</ChRef>）裡「PD → GMAC」的最小模型（comparator 取的是 PD 的輸出，也就是送進 loop filter 的同一個訊號）：把 regressor{' '}
           <Tex>{'x'}</Tex>（乘在誤差上的已知訊號，例如 DTC code）固定成 <Tex>{'x\\equiv1'}</Tex>，問題就只剩下「
@@ -103,6 +103,7 @@ export function IntroSection() {
       <Section
         kind="example"
         level={2}
+        id="ch05-first-calc"
         title={
           <>
             1. 先算一次：<Tex>{String.raw`s=1\,\mathrm{fs},\;\sigma_v=100\,\mathrm{fs}`}</Tex>
@@ -228,7 +229,7 @@ export function IntroSection() {
         </div>
         <p className="ch05-note">
           表中 <Tex>{'N'}</Tex> 都取奇數，所以 <Tex>{'S_N'}</Tex> 不可能等於 0、沒有平手（tie）的問題；偶數 <Tex>{'N'}</Tex> 的陷阱留到 §3 再談。
-          <Erratum id="E02" />
+          <ChapterErratum id="E02" />
         </p>
         <Callout kind="ok" title="第一個結論">
           1-bit 量化並沒有把 <Tex>{'1\\,\\mathrm{fs}'}</Tex> 的資訊「丟掉」，只是把它變成{' '}

@@ -20,6 +20,9 @@
  * signLoopStationary, bitEncoding。
  * 「帶入手算」（src/chapters/ch05/handcalcs.ts）另外用到三個小的純函式 region：tieProbStirling, tieEquilibriumApprox,
  * blockLoopLinear——章內表格與手算題共用同一份公式。
+ * §5b（非理想 comparator：hysteresis ±h、metastability 決策窗 ε）的模型在檔案最後：comparatorTransitions, comparatorChain,
+ * kqHysteresis, metaProb, nonidealSummary, chainSumMoments, chainSumPmf, directionCltChain；runComparatorMC／runComparatorSweep
+ * 在 h > 0 或 ε > 0 時自動改走帶 latch 狀態的 sample-level 路徑（h = ε = 0 時與原本完全相同）。
  */
 
 import {
@@ -505,6 +508,10 @@ export interface ComparatorMcParams {
   pathLength?: number
   /** 信賴水準（預設 0.95） */
   level?: number
+  /** §5b：hysteresis 半寬 h（fs；門檻 θ ∓ h 依上一個輸出而定）。預設 0 = 無記憶 */
+  h?: number
+  /** §5b：metastability 決策窗 ε（fs；|e − θ_a| < ε 的 sample 漏掉）。預設 0 = 關閉 */
+  eps?: number
 }
 
 export interface ComparatorMcResult {
@@ -530,6 +537,8 @@ export interface ComparatorMcResult {
   hist: { edges: Float64Array; counts: Float64Array; expected: Float64Array; outside: number }
   /** 第 1 個 trial 的累加路徑 S_1 … S_L（sample-level） */
   path: Float64Array
+  /** §5b：h > 0 或 ε > 0 時才有（chain 的平穩統計、精確 DP、漏掉的 sample 數） */
+  nonideal?: NonidealMcInfo
 }
 
 function trueSignOf(s: number): 1 | -1 {
@@ -648,6 +657,7 @@ export function accumulatorBits(N: number): number {
 // #region core:runComparatorMC
 /** Monte Carlo：trials 次獨立的「累加 N 個 q_i」，統計 S_N 分布與判對率（含 Wilson CI）。 */
 export function runComparatorMC(params: ComparatorMcParams): ComparatorMcResult {
+  if ((params.h ?? 0) > 0 || (params.eps ?? 0) > 0) return runComparatorMCNonideal(params, params.h ?? 0, params.eps ?? 0) // §5b：帶 latch 狀態
   const { s, sigma, N, seed, tieRule } = params
   const theta = params.theta ?? 0
   const level = params.level ?? 0.95
@@ -751,6 +761,9 @@ export interface ComparatorSweepParams {
   seed: number
   tieRule: TieRule
   level?: number
+  /** §5b：hysteresis 半寬與 metastability 窗（fs；預設 0） */
+  h?: number
+  eps?: number
 }
 
 export interface ComparatorSweepResult {
@@ -764,6 +777,7 @@ export interface ComparatorSweepResult {
 
 /** P(判對) vs N 的 Monte Carlo 掃描（Binomial 引擎；每個 N 用自己的 fork，彼此獨立）。 */
 export function runComparatorSweep(params: ComparatorSweepParams): ComparatorSweepResult {
+  if ((params.h ?? 0) > 0 || (params.eps ?? 0) > 0) return runComparatorSweepNonideal(params, params.h ?? 0, params.eps ?? 0) // §5b
   const { s, sigma, Ns, seed, tieRule } = params
   const theta = params.theta ?? 0
   const level = params.level ?? 0.95
@@ -1130,4 +1144,598 @@ export function sumVarianceAr1(N: number, rho: number): { varSum: number; nEff: 
     v += 2 * (N - k) * c
   }
   return { varSum: v, nEff: (N * N) / v }
+}
+
+/* ------------------------------------------------------------------ */
+/* §5b：比較器不是理想的 sign()——hysteresis（門檻 ±h 帶記憶）與 metastability   */
+/* （|e − θ_a| < ε 的決策窗）。頁面以 #region core:* 顯示；Ch05 §5b、Comparator Lab */
+/* 與 blockLms.ts 的 comparator 選項共用這裡的機率模型。                          */
+/*                                                                      */
+/* 模型（sample index n；x ≡ 1）：                                           */
+/*   有效門檻 θ_a[n] = θ − q[n−1]·h（上一個輸出 +1 時門檻降到 θ − h，要掉到它以下才翻成 −1； */
+/*   上一個輸出 −1 時門檻升到 θ + h）。h = 0 回到無記憶的 sign。                         */
+/*   決策窗：|e[n] − θ_a[n]| < ε 時 latch 在取樣週期內解不出來（metastable）。          */
+/*   policy = drop：這個 sample 不進 GMAC（y = 0），latch 狀態不變；                  */
+/*   hold：沿用上一個輸出；late：正確的正負號晚一拍才到（乘到下一個 regressor，Ch07）。  */
+/*   解析（chain、pmf、CLT）一律是 drop；hold／late 只在 blockLms 模擬裡。             */
+/*   latch 狀態 σ[n] ∈ {±1} 是兩狀態 Markov chain：t₊ = P(−1 → +1)、t₋ = P(+1 → −1)。  */
+/* ------------------------------------------------------------------ */
+
+/** metastable 的 sample 怎麼進 GMAC（blockLms 的 comparator.meta_policy）。 */
+export type MetaPolicy = 'drop' | 'hold' | 'late'
+export const META_POLICIES: readonly MetaPolicy[] = ['drop', 'hold', 'late']
+export const META_POLICY_LABEL: Record<MetaPolicy, string> = {
+  drop: 'drop：valid 旗標擋掉，這個 sample 不累加',
+  hold: 'hold：沿用上一個輸出',
+  late: 'late：正確的正負號晚一拍進 GMAC（乘到下一個 regressor）',
+}
+
+/** 給定上一個輸出，這一個 sample 的三種結果機率（相加為 1）。 */
+export interface ComparatorStep {
+  plus: number
+  minus: number
+  /** |e − θ_a| < ε：latch 沒解出來 */
+  meta: number
+}
+
+// #region core:comparatorTransitions
+/**
+ * P(這一拍 = +1 / −1 / metastable | s, 上一個輸出 q_prev)，雜訊 v ~ N(0, σ_v²)：
+ *   d = s − θ_a，θ_a = θ − q_prev·h                      （離有效門檻的距離）
+ *   P(+1) = P(e − θ_a ≥ ε) = Φ((d − ε)/σ_v)
+ *   P(−1) = P(e − θ_a ≤ −ε) = Φ((−d − ε)/σ_v)
+ *   P(meta) = 1 − P(+1) − P(−1)                          （ε = 0 時恰為 0）
+ * h = ε = 0 時 P(+1) = Φ((s − θ)/σ_v)，就是 pPlus。σ_v = 0 時退化成 hard limiter（e = s 固定）。
+ */
+export function comparatorTransitions(s: number, sigma: number, h: number, eps: number, qPrev: 1 | -1, theta = 0): ComparatorStep {
+  const d = s - theta + qPrev * h // ← 差異：門檻依上一個輸出而定（θ − q_prev·h）
+  if (sigma === 0) {
+    if (Math.abs(d) < eps) return { plus: 0, minus: 0, meta: 1 } // 沒有雜訊：落在窗內就永遠解不出來
+    return d >= 0 ? { plus: 1, minus: 0, meta: 0 } : { plus: 0, minus: 1, meta: 0 } // 硬體慣例 e ≥ θ_a → +1
+  }
+  const plus = normCdf((d - eps) / sigma)
+  const minus = normCdf((-d - eps) / sigma)
+  return { plus, minus, meta: eps > 0 ? Math.max(0, 1 - plus - minus) : 0 } // ← 差異：窗內的機率是 metastable
+}
+// #endregion
+
+/** latch 狀態的兩狀態 Markov chain 與 GMAC 看到的輸出 y ∈ {+1, 0, −1}（drop 政策）的平穩統計。 */
+export interface ComparatorChain {
+  /** 由上一個輸出 +1／−1 出發的三種結果機率 */
+  fromPlus: ComparatorStep
+  fromMinus: ComparatorStep
+  /** t₊ = P(−1 → +1) = fromMinus.plus；t₋ = P(+1 → −1) = fromPlus.minus */
+  tUp: number
+  tDown: number
+  /** 記憶因子 ν = 1 − t₊ − t₋：latch 狀態的 lag-k 相關是 ν^k（h = ε = 0 時 ν = 0） */
+  nu: number
+  /** 平穩 P(σ = +1) = t₊/(t₊ + t₋) */
+  piPlus: number
+  /** E[σ] = 2π₊ − 1 */
+  meanState: number
+  /** E[y]：GMAC 看到的平均（metastable 的 sample 算 0） */
+  meanOut: number
+  /** 平穩的 P(y = +1)、P(y = −1)、P(metastable) */
+  pPlusOut: number
+  pMinusOut: number
+  pMeta: number
+  /** Var(y) = (1 − P_meta) − E[y]² */
+  varOut: number
+  /** E[y_n | σ_{n−1}] = α + β·σ_{n−1} 的 β（純遲滯時 β = ν） */
+  beta: number
+  /** Cov(y_n, σ_n) = (1 − P_meta) − E[y]E[σ] */
+  cov1: number
+  /** Cov(y_n, y_{n+k}) = β·ν^{k−1}·cov1（k ≥ 1）⇒ lim Var(S_N)/N = varOut + 2β·cov1/(1 − ν) */
+  varInf: number
+  /** t₊ = t₋ = 0：latch 永遠不翻轉（σ_v = 0 且 |d| 在窗內或門檻外），沒有平穩分布 */
+  stuck: boolean
+}
+
+// #region core:comparatorChain
+/**
+ * 平穩分布：細緻平衡 π₊·t₋ = π₋·t₊ ⇒ π₊ = t₊/(t₊ + t₋)。
+ * 輸出 y 的平均 E[y] = π₊·g₊ + π₋·g₋，g_σ = P(+1 | σ) − P(−1 | σ)（metastable 算 0）。
+ * 自相關：σ 是 chain、y 只透過 σ_{n−1} 與新的雜訊決定，所以 Cov(y_n, y_{n+k}) = β·ν^{k−1}·Cov(y_n, σ_n)，
+ * 其中 E[y_n σ_n] = P(有效決策) = 1 − P_meta（有效時 σ_n = y_n ⇒ 乘積為 1；metastable 時 y_n = 0）。
+ */
+export function comparatorChain(s: number, sigma: number, h: number, eps: number, theta = 0): ComparatorChain {
+  const fromPlus = comparatorTransitions(s, sigma, h, eps, 1, theta)
+  const fromMinus = comparatorTransitions(s, sigma, h, eps, -1, theta)
+  const tDown = fromPlus.minus // +1 → −1：要掉到 θ − h 以下
+  const tUp = fromMinus.plus // −1 → +1：要升到 θ + h 以上
+  const sum = tUp + tDown
+  const stuck = !(sum > 0)
+  const piPlus = stuck ? NaN : tUp / sum // ← 差異：平穩分布，不是單一樣本的 Φ
+  const piMinus = 1 - piPlus
+  const nu = 1 - sum // 記憶因子：相鄰輸出的相關
+  const gPlus = fromPlus.plus - fromPlus.minus
+  const gMinus = fromMinus.plus - fromMinus.minus
+  const meanState = 2 * piPlus - 1
+  const meanOut = piPlus * gPlus + piMinus * gMinus
+  const pMeta = piPlus * fromPlus.meta + piMinus * fromMinus.meta
+  const pPlusOut = piPlus * fromPlus.plus + piMinus * fromMinus.plus
+  const pMinusOut = piPlus * fromPlus.minus + piMinus * fromMinus.minus
+  const varOut = 1 - pMeta - meanOut * meanOut
+  const beta = (gPlus - gMinus) / 2
+  const cov1 = 1 - pMeta - meanOut * meanState
+  const varInf = stuck ? NaN : varOut + (2 * beta * cov1) / (1 - nu)
+  return { fromPlus, fromMinus, tUp, tDown, nu, piPlus, meanState, meanOut, pPlusOut, pMinusOut, pMeta, varOut, beta, cov1, varInf, stuck }
+}
+// #endregion
+
+// #region core:kqHysteresis
+/**
+ * 純遲滯（ε = 0）在 s = θ 的平穩小訊號斜率（F-05.22）：
+ *   t₊ = Φ((d − h)/σ_v)、t₋ = Φ((−d − h)/σ_v)、E[q] = (t₊ − t₋)/(t₊ + t₋)；對 d 微分並代 d = 0（分子為 0）：
+ *   K_q(h) = t₊′/t₊ = φ(η)/(σ_v Φ(−η))，η = h/σ_v。h = 0 時 φ(0)/(σ_v/2) = √(2/π)/σ_v。
+ * 斜率隨 h 變大（inverse Mills ratio 遞增）：latch 一旦翻過去就會「黏住」，平均輸出對 s 更敏感；
+ * 代價是相鄰輸出相關（ν = 1 − 2Φ(−η) > 0），block 平均的雜訊變成 iid 的 (1 + ν)/(1 − ν) 倍。
+ */
+export function kqHysteresis(sigma: number, h: number): number {
+  if (!(sigma > 0)) return NaN
+  const eta = h / sigma
+  return normPdf(eta) / (sigma * normCdf(-eta)) // ← 差異：不再是 2φ(0)/σ_v
+}
+
+/** 純遲滯在 s = θ 的記憶因子 ν(h) = 1 − 2Φ(−h/σ_v)。 */
+export function nuHysteresis(sigma: number, h: number): number {
+  if (!(sigma > 0)) return h > 0 ? 1 : 0
+  return 1 - 2 * normCdf(-h / sigma)
+}
+// #endregion
+
+// #region core:metaProb
+/**
+ * metastable 的機率（F-05.24）：P_meta = P(|e − θ| < ε) = Φ((ε − d)/σ_v) − Φ((−ε − d)/σ_v)，d = s − θ。
+ * d = 0 時 2Φ(ε/σ_v) − 1 ≈ 2φ(0)·ε/σ_v = K_q·ε（ε ≪ σ_v）。
+ */
+export function metaProb(s: number, sigma: number, eps: number, theta = 0): number {
+  if (!(eps > 0)) return 0
+  const d = s - theta
+  if (sigma === 0) return Math.abs(d) < eps ? 1 : 0
+  return normCdf((eps - d) / sigma) - normCdf((-eps - d) / sigma)
+}
+
+/** 決策時間 T 之後還沒解出來的窗：ε(T) = ε₀·e^{−T/τ_m}（τ_m = latch 的再生時間常數）。 */
+export function metaWindowAfter(eps0: number, T: number, tauM: number): number {
+  if (!(tauM > 0)) return 0
+  return eps0 * Math.exp(-T / tauM)
+}
+
+/**
+ * drop 政策（h = 0）在 s = θ 的斜率（F-05.25）：漏掉的樣本是 |e − θ| < ε 的那些，它們的 sign 對 s 的斜率是
+ *   d/ds ∫_{−ε}^{ε} sign(e) f(e − d) de |_{d=0} = 2(φ(0) − φ(ε/σ_v))/σ_v
+ * 所以剩下的斜率 K_q − 2(φ(0) − φ(ε/σ_v))/σ_v = 2φ(ε/σ_v)/σ_v = K_q·e^{−ε²/(2σ_v²)}。
+ */
+export function kqMetaDrop(sigma: number, eps: number): number {
+  if (!(sigma > 0)) return NaN
+  return kq(sigma) * Math.exp((-eps * eps) / (2 * sigma * sigma)) // ← 差異：只少掉二階小量
+}
+// #endregion
+
+/**
+ * 一般情形（h 與 ε 同時存在）的平穩斜率 dE[y]/ds：對 comparatorChain 的 meanOut 做 5 點中央差分
+ * （步長 10⁻³·σ_v；截斷誤差 O(δ⁴)、捨入誤差約 10⁻¹³）。純遲滯時等於 kqHysteresis、純 drop 時等於 kqMetaDrop
+ * （comparator.test.ts 以 10⁻⁹ 相對誤差核對）。
+ */
+export function chainSlope(sigma: number, h: number, eps: number, theta = 0, s = theta): number {
+  if (!(sigma > 0)) return NaN
+  const d = 1e-3 * sigma
+  const f = (x: number) => comparatorChain(x, sigma, h, eps, theta).meanOut
+  return (-f(s + 2 * d) + 8 * f(s + d) - 8 * f(s - d) + f(s - 2 * d)) / (12 * d)
+}
+
+/** 非理想 comparator 在工作點 s = θ 的摘要（§5b 的表格、圖與手算題共用）。 */
+export interface NonidealSummary {
+  chain: ComparatorChain
+  /** 平穩斜率 dE[y]/ds（fs⁻¹）與它和理想 K_q 的比 */
+  slope: number
+  slopeRatio: number
+  /** lim Var(S_N)/N：iid 時為 1（s = θ） */
+  noiseFactor: number
+  /** 資訊等效增益 K_eff = slope/√noiseFactor：同樣的 N 得到同樣 SNR 的理想 comparator 增益 */
+  kqEff: number
+  kqEffRatio: number
+  /** 每個 sample 的資訊比 (K_eff/K_q)²；達到同樣正確率所需的 N 是它的倒數 */
+  infoRatio: number
+  nRatio: number
+  nu: number
+  pMeta: number
+}
+
+// #region core:nonidealSummary
+/** 由 chain 的平穩統計得到 §5b 的幾個設計量（s = θ；小訊號）。 */
+export function nonidealSummary(sigma: number, h: number, eps: number, theta = 0): NonidealSummary {
+  const chain = comparatorChain(theta, sigma, h, eps, theta)
+  const K0 = kq(sigma)
+  const slope = chainSlope(sigma, h, eps, theta)
+  const noiseFactor = chain.varInf // s = θ 時理想 comparator 的 Var(y) = 1
+  const kqEff = slope / Math.sqrt(noiseFactor) // ← 差異：SNR_stat ≈ √N·K_eff·(s − θ)
+  const infoRatio = (kqEff * kqEff) / (K0 * K0)
+  return { chain, slope, slopeRatio: slope / K0, noiseFactor, kqEff, kqEffRatio: kqEff / K0, infoRatio, nRatio: 1 / infoRatio, nu: chain.nu, pMeta: chain.pMeta }
+}
+// #endregion
+
+export interface ChainSumMoments extends SumMoments {
+  /** 等效獨立樣本數 N²·Var(y)/Var(S_N)：同樣的 SNR 需要幾個 iid 樣本（相關為正時 < N） */
+  nEff: number
+}
+
+// #region core:chainSumMoments
+/**
+ * 有限 N 的 S_N = Σ y_i 矩（F-05.23）：
+ *   E[S_N] = N·E[y]
+ *   Var(S_N) = N·Var(y) + 2Σ_{k=1}^{N−1}(N − k)·Cov(y_n, y_{n+k})
+ *            = N·c₀ + 2β·c₁·[N/(1 − ν) − (1 − ν^N)/(1 − ν)²]
+ * ν = 0（iid）時回到 sumMoments；ν → 1 時每個 block 幾乎只有一次獨立的決策。
+ */
+export function chainSumMoments(N: number, ch: ComparatorChain): ChainSumMoments {
+  const m = ch.meanOut
+  const geo = ch.nu === 0 ? N - 1 : N / (1 - ch.nu) - (1 - Math.pow(ch.nu, N)) / ((1 - ch.nu) * (1 - ch.nu)) // Σ_{k=1}^{N−1}(N − k)ν^{k−1}
+  const varSum = N * ch.varOut + 2 * ch.beta * ch.cov1 * geo // ← 差異：相關項
+  const meanSum = N * m
+  const sdSum = Math.sqrt(Math.max(0, varSum))
+  return {
+    meanSum,
+    varSum,
+    sdSum,
+    meanAvg: m,
+    varAvg: varSum / (N * N),
+    sdAvg: sdSum / N,
+    snr: sdSum > 0 ? meanSum / sdSum : m === 0 ? 0 : Math.sign(m) * Infinity,
+    nEff: varSum > 0 ? (N * N * ch.varOut) / varSum : NaN,
+  }
+}
+// #endregion
+
+/** S_N 的精確分布（兩狀態 chain、drop 政策）：pmf[i] = P(S_N = i − offset)。 */
+export interface ChainSumPmf {
+  pmf: Float64Array
+  offset: number
+  /** 被窗截掉的機率質量（< 10⁻²⁰） */
+  truncated: number
+}
+
+/** chainSumPmf 的工作量上限（內層迴圈的格點數；超過就回傳 null，改用 CLT） */
+export const CHAIN_PMF_WORK_LIMIT = 1.5e8
+
+// #region core:chainSumPmf
+/**
+ * 精確（DP）：在（latch 狀態 σ, 部分和 S）上逐 sample 前進——每一步從 (σ, S) 走到 (+1, S+1)、(−1, S−1) 或 (σ, S)（metastable）。
+ * 初始狀態取平穩分布。每一步只掃平均 ± 12 SD 的窗（窗外質量 < 10⁻³⁰）；工作量 ≈ 16√varInf·N^1.5，超過上限回傳 null。
+ * 與 directionExact（iid 的 Binomial）的差別：相鄰樣本有記憶、而且 metastable 的 0 讓 S_N 不再和 N 同奇偶。
+ */
+export function chainSumPmf(ch: ComparatorChain, N: number, workLimit = CHAIN_PMF_WORK_LIMIT): ChainSumPmf | null {
+  if (!Number.isInteger(N) || N < 1 || ch.stuck || !Number.isFinite(ch.varInf)) return null
+  const spread = Math.sqrt(Math.max(ch.varInf, 1e-12))
+  if (16 * spread * Math.pow(N, 1.5) + 20 * N > workLimit) return null
+  const len = 2 * N + 1
+  const offset = N
+  let A = new Float64Array(len) // σ = +1
+  let B = new Float64Array(len) // σ = −1
+  let A2 = new Float64Array(len)
+  let B2 = new Float64Array(len)
+  A[offset] = ch.piPlus
+  B[offset] = 1 - ch.piPlus
+  let lo = offset
+  let hi = offset
+  const fp = ch.fromPlus
+  const fm = ch.fromMinus
+  let truncated = 0
+  for (let n = 1; n <= N; n++) {
+    // 這一步之後的窗：平均 ± 12 SD（用 chain 的矩）
+    const mo = chainSumMoments(n, ch)
+    const half = 12 * mo.sdSum + 8
+    const nlo = Math.max(offset - n, Math.floor(offset + mo.meanSum - half))
+    const nhi = Math.min(offset + n, Math.ceil(offset + mo.meanSum + half))
+    A2.fill(0, nlo, nhi + 1)
+    B2.fill(0, nlo, nhi + 1)
+    for (let i = lo; i <= hi; i++) {
+      const a = A[i]
+      const b = B[i]
+      if (a === 0 && b === 0) continue
+      // ← 差異：三種結果、兩個狀態
+      const up = a * fp.plus + b * fm.plus // 新狀態 +1、和 +1
+      const down = a * fp.minus + b * fm.minus // 新狀態 −1、和 −1
+      if (i + 1 <= nhi) A2[i + 1] += up
+      else truncated += up
+      if (i - 1 >= nlo) B2[i - 1] += down
+      else truncated += down
+      if (i >= nlo && i <= nhi) {
+        A2[i] += a * fp.meta // metastable：狀態與和都不變
+        B2[i] += b * fm.meta
+      } else truncated += a * fp.meta + b * fm.meta
+    }
+    const tA = A
+    const tB = B
+    A = A2
+    B = B2
+    A2 = tA
+    B2 = tB
+    lo = nlo
+    hi = nhi
+  }
+  const pmf = new Float64Array(len)
+  let total = 0
+  for (let i = lo; i <= hi; i++) {
+    pmf[i] = A[i] + B[i]
+    total += pmf[i]
+  }
+  if (total > 0) for (let i = lo; i <= hi; i++) pmf[i] /= total
+  return { pmf, offset, truncated }
+}
+// #endregion
+
+/** 由精確 pmf 得到 P(S_N > 0)、P(S_N = 0)、P(S_N < 0)；算不出來（工作量太大或 chain 卡住）回傳 null。 */
+export function directionExactChain(ch: ComparatorChain, N: number, workLimit = CHAIN_PMF_WORK_LIMIT): DirectionSplit | null {
+  const t = chainSumPmf(ch, N, workLimit)
+  if (!t) return null
+  let pos = 0
+  let neg = 0
+  for (let i = t.offset + 1; i < t.pmf.length; i++) pos += t.pmf[i]
+  for (let i = 0; i < t.offset; i++) neg += t.pmf[i]
+  return { pos, tie: t.pmf[t.offset], neg }
+}
+
+// #region core:directionCltChain
+/**
+ * CLT（近似）：S_N ≈ Gaussian(N·E[y], Var(S_N))，Var 用 chainSumMoments（含相關）。
+ * 格點：有 metastable 的 0 時 S_N 可以是任何整數（間距 1，切在 ±½）；沒有時和 directionClt 一樣間距 2（偶數 N 切在 ±1）。
+ */
+export function directionCltChain(ch: ComparatorChain, N: number): DirectionSplit {
+  const mo = chainSumMoments(N, ch)
+  const sd = mo.sdSum
+  if (!(sd > 0)) return mo.meanSum > 0 ? { pos: 1, tie: 0, neg: 0 } : mo.meanSum < 0 ? { pos: 0, tie: 0, neg: 1 } : { pos: 0, tie: 1, neg: 0 }
+  const c = ch.pMeta > 0 ? 0.5 : N % 2 === 0 ? 1 : 0 // ← 差異：drop 的 0 讓格點間距變成 1
+  const pos = normCdf((mo.meanSum - c) / sd)
+  const neg = normCdf((-mo.meanSum - c) / sd)
+  return { pos, neg, tie: Math.max(0, 1 - pos - neg) }
+}
+// #endregion
+
+/** 所需樣本數（CLT、漸近 Var(S_N) ≈ N·varInf）：N = z²·varInf/E[y]²。E[y] = 0 時 Infinity。 */
+export function samplesForConfidenceChain(ch: ComparatorChain, target: number): number {
+  if (!(ch.meanOut !== 0) || !Number.isFinite(ch.varInf)) return Infinity
+  const z = normInv(target)
+  return (z * z * ch.varInf) / (ch.meanOut * ch.meanOut)
+}
+
+/**
+ * P(判對) vs N 曲線（非理想 comparator）：N ≤ dense 用精確 DP（oddN／oddExact 放所有 N，不分奇偶——有 drop 時沒有奇偶之分），
+ * 之後只有 CLT（allN／cltPlain）。evenN 與 evenCltCorrected 空著（圖例會標明）。
+ */
+export function directionCurveChain(ch: ComparatorChain, Nmax: number, rule: TieRule, trueSign: 1 | -1 = 1, dense = 120, perDecade = 24): DirectionCurve {
+  const Ns = new Set<number>()
+  const top = Math.max(2, Math.floor(Nmax))
+  for (let N = 1; N <= Math.min(dense, top); N++) Ns.add(N)
+  if (top > dense) {
+    const decades = Math.log10(top / dense)
+    const steps = Math.max(2, Math.ceil(decades * perDecade))
+    for (let i = 0; i <= steps; i++) Ns.add(Math.round(dense * Math.pow(top / dense, i / steps)))
+  }
+  const sorted = [...Ns].filter((N) => N >= 1 && N <= top + 1).sort((a, b) => a - b)
+  const out: DirectionCurve = { oddN: [], oddExact: [], evenN: [], evenExact: [], allN: [], cltPlain: [], evenCltCorrected: [] }
+  for (const N of sorted) {
+    if (N <= dense) {
+      const ex = directionExactChain(ch, N)
+      if (ex) {
+        out.oddN.push(N)
+        out.oddExact.push(applyTieRule(ex, rule, trueSign).correct)
+      }
+    }
+    out.allN.push(N)
+    out.cltPlain.push(applyTieRule(directionCltChain(ch, N), rule, trueSign).correct)
+  }
+  return out
+}
+
+/** 任意間距的格點 histogram 邊界（spacing = 1：所有整數；spacing = 2：與 N 同奇偶，即 latticeEdges）。 */
+export function latticeEdgesSpaced(N: number, meanSum: number, sdSum: number, spacing: 1 | 2, maxBins = 61): Float64Array {
+  if (spacing === 2) return latticeEdges(N, meanSum, sdSum, maxBins)
+  const lo = Math.max(-N, Math.floor(meanSum - 4.5 * sdSum))
+  const hi = Math.min(N, Math.ceil(meanSum + 4.5 * sdSum))
+  const points = hi - lo + 1
+  const perBin = Math.max(1, Math.ceil(points / maxBins))
+  const nb = Math.ceil(points / perBin)
+  const edges = new Float64Array(nb + 1)
+  for (let i = 0; i <= nb; i++) edges[i] = lo - 0.5 + i * perBin
+  return edges
+}
+
+/** 把任意 pmf（index − offset = S）依 histogram 的 bin 加總。 */
+export function binnedPmf(pmf: ArrayLike<number>, offset: number, edges: ArrayLike<number>): Float64Array {
+  const nb = edges.length - 1
+  const out = new Float64Array(nb)
+  if (nb <= 0) return out
+  const w = edges[1] - edges[0]
+  for (let i = 0; i < pmf.length; i++) {
+    if (pmf[i] === 0) continue
+    const b = Math.floor((i - offset - edges[0]) / w)
+    if (b >= 0 && b < nb) out[b] += pmf[i]
+  }
+  return out
+}
+
+/** 非理想 comparator 的 Monte Carlo 結果附加資料（runComparatorMC 在 h > 0 或 ε > 0 時才有）。 */
+export interface NonidealMcInfo {
+  chain: ComparatorChain
+  /** 精確 DP 的 S_N 分布（工作量內才有） */
+  exact: DirectionSplit | null
+  /** metastable（漏掉）的 sample 總數 */
+  metaCount: number
+  /** 格點間距：有 drop 時 1，否則 2 */
+  lattice: 1 | 2
+}
+
+/**
+ * 逐 sample 的非理想 comparator（有 latch 狀態）：回傳這一拍送進累加器的 y ∈ {+1, 0, −1}（drop 政策）。
+ * 與 comparatorTransitions 是同一個模型，只是把「機率」換成「真的抽一次」。
+ */
+export function createNonidealStepper(s: number, sigma: number, h: number, eps: number, theta: number, rng: Rng, start: 1 | -1) {
+  let q: 1 | -1 = start
+  return {
+    get state(): 1 | -1 {
+      return q
+    },
+    step(): number {
+      const e = s + sigma * rng.normal()
+      const d = e - theta + q * h // 離有效門檻 θ − q·h 的距離
+      if (Math.abs(d) < eps) return 0 // metastable：drop，狀態不變
+      q = d >= 0 ? 1 : -1
+      return q
+    },
+  }
+}
+
+/** Monte Carlo（非理想 comparator；只有 sample-level）。由 runComparatorMC 在 h > 0 或 ε > 0 時呼叫。 */
+function runComparatorMCNonideal(params: ComparatorMcParams, h: number, eps: number): ComparatorMcResult {
+  const { s, sigma, N, seed, tieRule } = params
+  const theta = params.theta ?? 0
+  const level = params.level ?? 0.95
+  const notes: string[] = []
+  if (!Number.isInteger(N) || N < 1) throw new Error(`N 必須是正整數，收到 ${N}`)
+  if (!(sigma >= 0)) throw new Error(`σ_v 必須 ≥ 0，收到 ${sigma}`)
+  let trials = Math.max(1, Math.floor(params.trials))
+  if (N * trials > 5e7) {
+    trials = Math.max(1, Math.floor(5e7 / N))
+    notes.push(`sample-level 工作量上限 5e7：trials 自動降為 ${trials}`)
+  }
+  notes.push('非理想 comparator（h 或 ε > 0）：樣本不再獨立，只能用 sample-level（逐個 Gaussian、帶 latch 狀態）；binomial 引擎不適用')
+  const ch = comparatorChain(s, sigma, h, eps, theta)
+  const root = createRng(seed)
+  const noise = root.fork('comparator-noise')
+  const coin = root.fork('tie-break')
+  const t = trueSignOf(s)
+  const start: 1 | -1 = ch.stuck ? (s - theta >= 0 ? 1 : -1) : noise.uniform() < ch.piPlus ? 1 : -1
+  const st = createNonidealStepper(s, sigma, h, eps, theta, noise, start)
+  for (let i = 0; i < 256; i++) st.step() // burn-in：第一個 trial 也從平穩狀態開始
+  const sums = new Int32Array(trials)
+  const counts = { pos: 0, tie: 0, neg: 0 }
+  const outcome = { correct: 0, wrong: 0, hold: 0 }
+  let plusTotal = 0
+  let metaTotal = 0
+  let sumMean = 0
+  let m2 = 0
+  for (let j = 0; j < trials; j++) {
+    let S = 0
+    for (let n = 0; n < N; n++) {
+      const y = st.step()
+      S += y
+      if (y > 0) plusTotal++
+      else if (y === 0) metaTotal++
+    }
+    sums[j] = S
+    const d = S - sumMean
+    sumMean += d / (j + 1)
+    m2 += d * (S - sumMean)
+    if (S > 0) counts.pos++
+    else if (S < 0) counts.neg++
+    else counts.tie++
+    outcome[classify(S, tieRule, t, coin)]++
+  }
+  const sumVar = trials > 1 ? m2 / (trials - 1) : NaN
+  const w = wilsonCI(outcome.correct, trials, level)
+  const decisions = N * trials
+  const pHatPlus = plusTotal / decisions
+  // +1 的計數是相關樣本的和：標準誤乘上 √((1 + ν)/(1 − ν))（近似）
+  const corr = ch.stuck ? 1 : Math.sqrt((1 + ch.nu) / (1 - ch.nu))
+  const pHatSe = Math.sqrt((pHatPlus * (1 - pHatPlus)) / decisions) * corr
+  const pw = wilsonCI(Math.round(plusTotal), Math.max(1, Math.round(decisions / (corr * corr))), level)
+
+  const mo = chainSumMoments(N, ch)
+  const lattice: 1 | 2 = eps > 0 ? 1 : 2
+  const edges = latticeEdgesSpaced(N, mo.meanSum, mo.sdSum, lattice, params.maxBins ?? 61)
+  const nb = edges.length - 1
+  const hc = new Float64Array(nb)
+  const width = edges[1] - edges[0]
+  let outside = 0
+  for (let j = 0; j < trials; j++) {
+    const b = Math.floor((sums[j] - edges[0]) / width)
+    if (b >= 0 && b < nb) hc[b]++
+    else outside++
+  }
+  const table = chainSumPmf(ch, N)
+  let expected: Float64Array
+  if (table) expected = binnedPmf(table.pmf, table.offset, edges).map((v) => v * trials)
+  else {
+    // CLT 密度積分到每個 bin
+    expected = new Float64Array(nb)
+    if (mo.sdSum > 0) for (let b = 0; b < nb; b++) expected[b] = trials * (normCdf((edges[b + 1] - mo.meanSum) / mo.sdSum) - normCdf((edges[b] - mo.meanSum) / mo.sdSum))
+    notes.push('精確 DP 超過工作量上限：histogram 的期望個數改用 CLT（Markov）近似')
+  }
+  const exact: DirectionSplit | null = table
+    ? (() => {
+        let pos = 0
+        let neg = 0
+        for (let i = table.offset + 1; i < table.pmf.length; i++) pos += table.pmf[i]
+        for (let i = 0; i < table.offset; i++) neg += table.pmf[i]
+        return { pos, tie: table.pmf[table.offset], neg }
+      })()
+    : null
+
+  const L = Math.min(N, Math.max(1, Math.floor(params.pathLength ?? 4000)))
+  const pathRng = root.fork('path')
+  const ps = createNonidealStepper(s, sigma, h, eps, theta, pathRng, start)
+  for (let i = 0; i < 256; i++) ps.step()
+  const path = new Float64Array(L)
+  let S = 0
+  for (let i = 0; i < L; i++) {
+    S += ps.step()
+    path[i] = S
+  }
+  return {
+    methodUsed: 'sample',
+    trialsUsed: trials,
+    notes,
+    sums,
+    counts,
+    outcome,
+    wilson: { p: w.p, lo: w.lo, hi: w.hi, level },
+    plusCount: Math.round(plusTotal),
+    pHatPlus,
+    pHatSe,
+    pHatWilson: { lo: pw.lo, hi: pw.hi },
+    sumMean,
+    sumVar,
+    hist: { edges, counts: hc, expected, outside },
+    path,
+    nonideal: { chain: ch, exact, metaCount: metaTotal, lattice },
+  }
+}
+
+/** 非理想 comparator 的 P(判對) vs N 掃描：每個 N 用 sample-level（工作量 N·trials 以 2e6 為上限、N > 4e6 略過）。 */
+function runComparatorSweepNonideal(params: ComparatorSweepParams, h: number, eps: number): ComparatorSweepResult {
+  const { s, sigma, Ns, seed, tieRule } = params
+  const theta = params.theta ?? 0
+  const level = params.level ?? 0.95
+  const trials = Math.max(1, Math.floor(params.trials))
+  const ch = comparatorChain(s, sigma, h, eps, theta)
+  const t = trueSignOf(s)
+  const root = createRng(seed)
+  const keep = Ns.filter((N) => N <= 4e6)
+  const n = keep.length
+  const out: ComparatorSweepResult = { N: new Float64Array(n), correct: new Float64Array(n), lo: new Float64Array(n), hi: new Float64Array(n), exact: new Float64Array(n) }
+  for (let i = 0; i < n; i++) {
+    const N = keep[i]
+    const T = Math.max(20, Math.min(trials, Math.floor(2e6 / N)))
+    const rng = root.fork(`sweep-${N}`)
+    const coin = root.fork(`sweep-tie-${N}`)
+    const start: 1 | -1 = ch.stuck ? (s - theta >= 0 ? 1 : -1) : rng.uniform() < ch.piPlus ? 1 : -1
+    const st = createNonidealStepper(s, sigma, h, eps, theta, rng, start)
+    for (let k = 0; k < 256; k++) st.step()
+    let c = 0
+    for (let j = 0; j < T; j++) {
+      let S = 0
+      for (let k = 0; k < N; k++) S += st.step()
+      if (classify(S, tieRule, t, coin) === 'correct') c++
+    }
+    const w = wilsonCI(c, T, level)
+    out.N[i] = N
+    out.correct[i] = c / T
+    out.lo[i] = w.lo
+    out.hi[i] = w.hi
+    const ex = N <= 120 ? directionExactChain(ch, N) : null
+    out.exact[i] = applyTieRule(ex ?? directionCltChain(ch, N), tieRule, t).correct
+  }
+  return out
 }

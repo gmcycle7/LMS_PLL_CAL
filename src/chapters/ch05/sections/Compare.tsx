@@ -70,7 +70,7 @@ export function CompareSection() {
   }, [])
 
   return (
-    <Section kind="example" level={2} title="8. 方法與演算法比較：精確 vs 近似 vs Monte Carlo，以及四種 tie rule">
+    <Section kind="example" level={2} id="ch05-compare" title="8. 方法與演算法比較：精確 vs 近似 vs Monte Carlo，以及四種 tie rule">
       <h3>8.1 計算「判對機率」的方法</h3>
       <p>
         同一個「判對機率」，本章前面用了五種算法。該用哪一種，取決於三個問題：雜訊樣本是不是彼此獨立、你要的是驗收數字還是設計方程、<Tex>{'N'}</Tex> 是奇數還是偶數。

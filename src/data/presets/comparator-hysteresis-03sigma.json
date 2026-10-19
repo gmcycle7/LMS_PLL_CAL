@@ -1,0 +1,11 @@
+{
+  "id": "comparator-hysteresis-03sigma",
+  "title": "遲滯 h = 30 fs（0.3σ_v）：斜率變大 1.25 倍、相鄰輸出相關 ν = 0.24，資訊只掉 1.6%",
+  "page": "/ch/05",
+  "experiment": "comparator-lab",
+  "description": "§5b：latch 的門檻依上一個輸出選成 θ ∓ h。平穩斜率 K_q(h)/K_q = φ(0.3)/(2φ(0)Φ(−0.3)) = 1.2510，記憶因子 ν = 1 − 2Φ(−0.3) = 0.2358，block 平均的雜訊是 iid 的 F = 1.617 倍；資訊等效增益 K_eff/K_q = 0.9837，達到同樣正確率要多 3.3% 的樣本。解析用兩狀態 Markov chain 的精確 DP，Monte Carlo 走 sample-level（帶 latch 狀態）。",
+  "params": { "s": 1, "sigma": 100, "theta": 0, "h": 30, "eps": 0, "N": 10001, "tieRule": "half", "trials": 4000, "method": "auto", "axis": "sum" },
+  "expected": "N = 10001 的 P(判對) = 78.38%（理想 comparator 78.75%）；斜率比 1.2510、ν = 0.2358、F = 1.617、K_eff/K_q = 0.9837；MC 交叉比對 ok。",
+  "tests": ["T04", "T05"],
+  "source": "illustrative"
+}

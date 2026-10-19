@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { Data } from 'plotly.js-cartesian-dist-min'
-import { Callout, ClaimTag, ModeGate, Plot, Prereq, Section, SelectControl, Tex, TexBlock, useThemeTokens } from '@/components'
+import { Callout, ChapterErratum, ClaimTag, ModeGate, Plot, Prereq, Section, SelectControl, Tex, TexBlock, useThemeTokens } from '@/components'
 import {
   TIE_RULE_LABEL,
   TIE_RULES,
@@ -19,7 +19,7 @@ import {
   tieRuleEquilibriumApprox,
   type TieRule,
 } from '@/simulation/models/comparator'
-import { Erratum, Fig, HandCalcBlock, Steps, fx, int, logspace, pct, sig, texInt, texPct, useAtLeast, vline } from '../common'
+import { Fig, Hand, Steps, fx, int, logspace, pct, sig, texInt, texPct, useAtLeast, vline } from '../common'
 
 const S0 = 1
 const SIG0 = 100
@@ -165,6 +165,7 @@ export function AccumulationSection() {
     <Section
       kind="formula"
       level={2}
+      id="ch05-accumulate"
       title={
         <>
           3. 把 <Tex>{'N'}</Tex> 個 <Tex>{'q'}</Tex> 加起來：訊號 <Tex>{'\\propto N'}</Tex>、雜訊 <Tex>{'\\propto\\sqrt N'}</Tex>
@@ -180,7 +181,7 @@ export function AccumulationSection() {
         }
       >
         規格 §5 把總和寫成 <Tex>{'G_N=\\sum q_i'}</Tex>，但 §0 的 <Tex>{'G_k=\\frac1N\\sum q\\,x'}</Tex> 是<strong>平均</strong>、下標 <Tex>{'k'}</Tex> 是
-        block。本章一律寫 <Tex>{'S_N=\\sum_{i=1}^N q_i'}</Tex>（相當於 <Tex>{'x\\equiv1'}</Tex> 的 GMAC 總和），平均則是 <Tex>{'G=S_N/N'}</Tex>。方向判斷與尺度無關，但 histogram 與信賴區間的軸差 <Tex>{'N'}</Tex> 倍。<Erratum id="E07" /> <Erratum id="E18" />
+        block。本章一律寫 <Tex>{'S_N=\\sum_{i=1}^N q_i'}</Tex>（相當於 <Tex>{'x\\equiv1'}</Tex> 的 GMAC 總和），平均則是 <Tex>{'G=S_N/N'}</Tex>。方向判斷與尺度無關，但 histogram 與信賴區間的軸差 <Tex>{'N'}</Tex> 倍。<ChapterErratum id="E07" /> <ChapterErratum id="E18" />
       </Callout>
       <SumPrereqs />
 
@@ -217,7 +218,7 @@ export function AccumulationSection() {
       <Fig name="sumVsAvg">
         先看「<Tex>{'\\div N'}</Tex>」那條線：平均和標準差同時縮小 <Tex>{'N'}</Tex> 倍，所以兩格都連過去的那一格——平均除以標準差——兩者完全相同，方向判斷也不受影響。再看虛線：之後把結果乘上學習率{' '}
         <Tex>{'\\mu'}</Tex>（每次更新的步長，單位 <Tex>{'\\mathrm{fs}'}</Tex>）去更新係數 <Tex>{'w'}</Tex> 時，用 sum 的硬體要多除一個 <Tex>{'N'}</Tex>，否則迴路增益會大{' '}
-        <Tex>{'N'}</Tex> 倍。圖上兩格裡的 E 與 SD 就是 F-05.4 的四個式子。<Erratum id="E18" />
+        <Tex>{'N'}</Tex> 倍。圖上兩格裡的 E 與 SD 就是 F-05.4 的四個式子。<ChapterErratum id="E18" />
       </Fig>
       <p>
         <Tex>{String.raw`N=10{,}000`}</Tex>（<Tex>{String.raw`s=1\,\mathrm{fs},\ \sigma_v=100\,\mathrm{fs}`}</Tex>）：sum 的 <Tex>{`E=${fx(base.mo.meanSum, 3)}`}</Tex>、<Tex>{`\\mathrm{SD}=${fx(base.mo.sdSum, 3)}`}</Tex>；average 的 <Tex>{`E=${fx(base.mo.meanAvg, 7)}`}</Tex>、<Tex>{`\\mathrm{SD}=${fx(base.mo.sdAvg, 7)}`}</Tex>——比值（SNR）完全一樣。
@@ -260,10 +261,10 @@ export function AccumulationSection() {
           </>
         }
       />
-      <HandCalcBlock id="HC-05.2">
+      <Hand id="HC-05.2">
         挑一個你的 GMAC 會用的 <Tex>{'N'}</Tex>（完全平方數最好開根號），先用紙筆算出訊號 <Tex>{'E[S_N]'}</Tex>、雜訊{' '}
         <Tex>{'\\mathrm{SD}(S_N)'}</Tex> 和兩者的比值，再對答案——看看你的 <Tex>{'N'}</Tex> 在上圖交叉點的左邊還是右邊。
-      </HandCalcBlock>
+      </Hand>
 
       <h3>3.1 精確答案：Binomial 加總</h3>
       <p>
@@ -288,10 +289,10 @@ export function AccumulationSection() {
       <TexBlock id="F-05.6" label={<>精確方向機率 <ClaimTag kind="exact" /></>}>
         {String.raw`P(S_N>0)=\sum_{k>N/2}\binom Nk p^k(1-p)^{N-k},\quad P(S_N=0)=\binom N{N/2}\big(p(1-p)\big)^{N/2}\;(N\text{ 偶數})`}
       </TexBlock>
-      <HandCalcBlock id="HC-05.3">
+      <Hand id="HC-05.3">
         <Tex>{'N=2'}</Tex> 和 <Tex>{'N=3'}</Tex> 的 Binomial 只有幾項，四則運算就能親手展開：換一個你喜歡的 <Tex>{'p'}</Tex>（例如 0.6），先算算看{' '}
         <Tex>{'N=2'}</Tex> 有多少機率平手、<Tex>{'N=3'}</Tex> 的多數決又比單看一次好多少。
-      </HandCalcBlock>
+      </Hand>
 
       <h3>3.2 CLT 近似：規格 §5 的公式從哪來</h3>
       <p>
@@ -312,7 +313,7 @@ export function AccumulationSection() {
           { tex: String.raw`=\Phi\!\left(\frac{m\sqrt N}{\sqrt{1-m^2}}\right)=\Phi(\mathrm{SNR}_{\mathrm{stat}})`, why: <>代入 <Tex>{'\\sigma_S'}</Tex>，化簡。正確率只取決於統計 SNR。</> },
         ]}
       />
-      <TexBlock id="F-05.7" label={<>CLT 近似 <ClaimTag kind="approx" /> <Erratum id="E02" /></>}>
+      <TexBlock id="F-05.7" label={<>CLT 近似 <ClaimTag kind="approx" /> <ChapterErratum id="E02" /></>}>
         {String.raw`\Phi\!\left(\frac{m\sqrt N}{\sqrt{1-m^2}}\right)\approx\begin{cases}P(S_N>0) & N\text{ 奇數}\\[2pt] P(S_N>0)+\tfrac12P(S_N=0) & N\text{ 偶數（random tie-break）}\end{cases}`}
       </TexBlock>
       <p>
@@ -331,16 +332,16 @@ export function AccumulationSection() {
         id="F-05.8"
         label={
           <>
-            偶數 <Tex>{'N'}</Tex> 的嚴格 <Tex>{'P(S_N>0)'}</Tex> <ClaimTag kind="approx" /> <Erratum id="E02" />
+            偶數 <Tex>{'N'}</Tex> 的嚴格 <Tex>{'P(S_N>0)'}</Tex> <ClaimTag kind="approx" /> <ChapterErratum id="E02" />
           </>
         }
       >
         {String.raw`P(S_N>0)\approx\Phi\!\left(\frac{Nm-1}{\sqrt{N(1-m^2)}}\right)\qquad(N\text{ 偶數})`}
       </TexBlock>
-      <HandCalcBlock id="HC-05.4">
+      <Hand id="HC-05.4">
         準備一張標準常態表（或用題目提示裡的近似），把 <Tex>{'N=100'}</Tex> 的兩個數字親手算出來，再把 <Tex>{'N'}</Tex> 改成 101——你會看到偶數{' '}
         <Tex>{'N'}</Tex> 的嚴格判對率掉到 50% 以下，奇數 <Tex>{'N'}</Tex> 卻沒有這個問題。
-      </HandCalcBlock>
+      </Hand>
 
       <h3>
         3.3 規格表格的修正版（<Tex>{'N'}</Tex> 取奇數，沒有 tie）
@@ -379,7 +380,7 @@ export function AccumulationSection() {
       </div>
       <p className="ch05-note">
         規格原表用 <Tex>{String.raw`N=100,\ 1{,}000,\ 10{,}000`}</Tex>（偶數）卻寫「<Tex>{'P(G_N>0)'}</Tex>」，事件與數字對不上：表中數字其實是
-        tie 平分（或 <Tex>{'N+1'}</Tex> 奇數）的值。<Erratum id="E02" />
+        tie 平分（或 <Tex>{'N+1'}</Tex> 奇數）的值。<ChapterErratum id="E02" />
       </p>
 
       <Callout
@@ -463,7 +464,7 @@ export function AccumulationSection() {
           （例如直接拿累加器 MSB 當正負號），正確率為 {pct(n100.byRule.plus.correct, 1)}；只有 <strong>random tie-break</strong> 才得到規格表的{' '}
           {pct(n100.byRule.half.correct, 1)}。嚴格的 <Tex>{`P(S_N>0)=${texPct(n100.d.pos, 1)}`}</Tex> 甚至<strong>低於 50%</strong>，和「累加有幫助」的直覺相反——因為{' '}
           {pct(n100.d.tie, 1)} 的機率被 tie 吃掉了。連續性修正 <Tex>{'\\Phi((Nm-1)/\\sigma_S)'}</Tex> 給 {pct(n100.cltCorr, 2)}，和精確值吻合。
-          <ClaimTag kind="exact" /> <Erratum id="E02" /> <Erratum id="E07" />
+          <ClaimTag kind="exact" /> <ChapterErratum id="E02" /> <ChapterErratum id="E07" />
         </p>
         <p>
           最極端的例子是 <Tex>{'N=2'}</Tex>：只有兩次都是 <Tex>{'+1'}</Tex> 才有 <Tex>{'S_2>0'}</Tex>，所以嚴格的{' '}
@@ -657,11 +658,11 @@ export function AccumulationSection() {
           <Tex>{'O(1/\\sqrt N)'}</Tex> 誤差主要來自格點，而非尾巴形狀。<ClaimTag kind="approx" />
         </p>
       </ModeGate>
-      <HandCalcBlock id="HC-05.5">
+      <Hand id="HC-05.5">
         偶數 <Tex>{'N'}</Tex> 到底有多常平手？用你硬體的 <Tex>{'N'}</Tex> 和 <Tex>{'\\sigma_v'}</Tex> 先手算 <Tex>{'P(S_N=0)'}</Tex>{' '}
         與它造成的平衡點偏移 <Tex>{'|s^*|'}</Tex>（只需要 <Tex>{'\\sqrt{\\ }'}</Tex> 和 <Tex>{'e^x'}</Tex>），再和上面的 tie 對照框比一比。
         {derivationHint}
-      </HandCalcBlock>
+      </Hand>
     </Section>
   )
 }

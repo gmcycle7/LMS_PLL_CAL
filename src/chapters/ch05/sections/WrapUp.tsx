@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, ModeGate, Prereq, Quiz, Recap, Section, SourceTag, Tex, TexBlock, ChRef } from '@/components'
+import { Callout, ChapterErratum, ClaimTag, ModeGate, Prereq, Quiz, Recap, Section, SourceTag, Tex, TexBlock, ChRef } from '@/components'
 import {
   blockLoopLinear,
   directionExact,
@@ -14,7 +14,7 @@ import {
   sumVarianceAr1,
   tieRuleEquilibrium,
 } from '@/simulation/models/comparator'
-import { Erratum, Fig, HandCalcBlock, Steps, figNo, fx, int, pct, texInt, texPct } from '../common'
+import { Fig, Hand, Steps, figNo, fx, int, pct, texInt, texPct } from '../common'
 
 /** §9：連結到 PLL、設計清單、思考題、本課必記、延伸。 */
 export function WrapUpSection() {
@@ -73,7 +73,7 @@ export function WrapUpSection() {
 
   return (
     <>
-      <Section kind="diagram" level={2} title="9. 連結到 PLL：這些數學對應哪些硬體">
+      <Section kind="diagram" level={2} id="ch05-hardware" title="9. 連結到 PLL：這些數學對應哪些硬體">
         <p>
           回到章首的系統地圖：本章的每個符號在硬體上都有位置。下圖把從 reference clock 到 gain accumulator 的整條路畫出來（主 PLL 迴路加上 LMS 校正迴路），並標上本章的符號；
           <Tex>{'x[n]'}</Tex> 是 regressor（本章取 <Tex>{'x\\equiv1'}</Tex>），<Tex>{'G_k'}</Tex> 是第 <Tex>{'k'}</Tex> 個 block 的平均，<Tex>{'\\mu'}</Tex> 是學習率。
@@ -150,7 +150,7 @@ export function WrapUpSection() {
                   GMAC 累加器（<code>REG_GMAC_N</code> 個樣本）；硬體多半輸出 sum，演算法多半寫 average
                 </td>
                 <td>
-                  sum 與 average 差 <Tex>{'N'}</Tex> 倍，learning rate 要跟著換 <Erratum id="E18" />
+                  sum 與 average 差 <Tex>{'N'}</Tex> 倍，learning rate 要跟著換 <ChapterErratum id="E18" />
                 </td>
               </tr>
               <tr>
@@ -159,7 +159,7 @@ export function WrapUpSection() {
                   累加器 MSB 判號（<Tex>{'\\operatorname{sign}(0)=+1'}</Tex>）、零偵測（skip）、LFSR（half）
                 </td>
                 <td>
-                  只取正負號的更新在偶數 <Tex>{'N'}</Tex> 時，確定性 rule 造成 <Tex>{'\\mp1/(NK_q)'}</Tex> 偏差 <Erratum id="E02" />
+                  只取正負號的更新在偶數 <Tex>{'N'}</Tex> 時，確定性 rule 造成 <Tex>{'\\mp1/(NK_q)'}</Tex> 偏差 <ChapterErratum id="E02" />
                 </td>
               </tr>
               <tr>
@@ -239,7 +239,7 @@ export function WrapUpSection() {
         </Callout>
         <p>
           <strong>預告：</strong>把本章的平均 <Tex>{'G_k=S_N/N\\approx K_q\\delta_k+\\eta_k'}</Tex> 放進 block 更新{' '}
-          <Tex>{'w_{k+1}=w_k+\\mu G_k'}</Tex>（<Tex>{'k'}</Tex> = GMAC block；ChatGPT 課程寫作 <Tex>{'\\alpha'}</Tex>，本站統一寫 <Tex>{'\\mu'}</Tex>，單位 fs <Erratum id="E13" />），馬上得到 <ChRef ch="12">Ch12</ChRef> / <ChRef ch="14">Ch14</ChRef> 的設計數字。這裡 <Tex>{'\\delta_k=a-w_k'}</Tex> 是第 <Tex>{'k'}</Tex> 個 block 的剩餘誤差，
+          <Tex>{'w_{k+1}=w_k+\\mu G_k'}</Tex>（<Tex>{'k'}</Tex> = GMAC block；ChatGPT 課程寫作 <Tex>{'\\alpha'}</Tex>，本站統一寫 <Tex>{'\\mu'}</Tex>，單位 fs <ChapterErratum id="E13" />），馬上得到 <ChRef ch="12">Ch12</ChRef> / <ChRef ch="14">Ch14</ChRef> 的設計數字。這裡 <Tex>{'\\delta_k=a-w_k'}</Tex> 是第 <Tex>{'k'}</Tex> 個 block 的剩餘誤差，
           <Tex>{'\\eta_k'}</Tex> 是 <Tex>{'G_k'}</Tex> 扣掉平均後的零均值雜訊，<Tex>{'\\sigma_w'}</Tex> 是收斂之後係數 <Tex>{'w'}</Tex> 還在抖動的 RMS（coefficient noise）。
         </p>
         <Fig name="blockLoop">
@@ -266,7 +266,7 @@ export function WrapUpSection() {
           id="F-05.20"
           label={
             <>
-              Block Sign-LMS 的 pole、時間常數與係數雜訊（<Tex>{'\\delta=a-w'}</Tex>；章末的綜合手算 HC-05.8 就是代這一條）<ClaimTag kind="approx" /> <Erratum id="E18" />
+              Block Sign-LMS 的 pole、時間常數與係數雜訊（<Tex>{'\\delta=a-w'}</Tex>；章末的綜合手算 HC-05.8 就是代這一條）<ClaimTag kind="approx" /> <ChapterErratum id="E18" />
             </>
           }
         >
@@ -363,7 +363,7 @@ export function WrapUpSection() {
         <p className="ch05-note">
           <ClaimTag kind="approx" /> 線性化模型（<Tex>{'|\\delta|\\ll\\sigma_v'}</Tex>、<Tex>{'\\eta'}</Tex> 近似白雜訊）。sum 模式的 GMAC 要把 <Tex>{'\\mu'}</Tex> 除以{' '}
           <Tex>{'N'}</Tex>，否則 <Tex>{'g'}</Tex> 放大 <Tex>{'N'}</Tex> 倍而發散（<Tex>{'N=4096'}</Tex> 時 <Tex>{`g=${fx(4096 * v.g, 1)}`}</Tex>）。前往{' '}
-          <a href="#/ch/12">Ch12 Coefficient Noise</a> 與 <a href="#/ch/14">Ch14 Learning Rate</a>。
+          <ChRef ch="12">Ch12 Coefficient Noise</ChRef> 與 <ChRef ch="14">Ch14 Learning Rate</ChRef>。
         </p>
         <Callout kind="info" title="設計檢查清單（Comparator / GMAC 前端）">
           <ol className="ch05-checklist">
@@ -390,7 +390,7 @@ export function WrapUpSection() {
         </Callout>
       </Section>
 
-      <Section kind="assumptions" level={2} title="注意假設：本章的數字什麼時候不能直接用">
+      <Section kind="assumptions" level={2} id="ch05-assumptions" title="注意假設：本章的數字什麼時候不能直接用">
         <p>
           本章標 <ClaimTag kind="exact" /> 的結果，都是在下面這個<strong>指定模型</strong>內精確；標 <ClaimTag kind="approx" /> 的另外用了 CLT 或小訊號展開。規格 §5 特別提醒：表中的機率是「辨識<strong>一個固定非零偏移之符號</strong>」的機率，不是完整 LMS 迴路在 <Tex>{'N'}</Tex> 次後收斂的機率。
         </p>
@@ -487,7 +487,7 @@ export function WrapUpSection() {
                 </td>
                 <td>
                   誤差 <Tex>{'O(1/\\sqrt N)'}</Tex>；偶數 <Tex>{'N'}</Tex> 時它其實是 tie 平分的值，照字面的 <Tex>{'P(S_N>0)'}</Tex> 會差到{' '}
-                  {fx(100 * (v.half100 - v.strict100), 1)} 個百分點（<Tex>{'N=100'}</Tex>）<Erratum id="E02" />
+                  {fx(100 * (v.half100 - v.strict100), 1)} 個百分點（<Tex>{'N=100'}</Tex>）<ChapterErratum id="E02" />
                 </td>
                 <td>§3.2–§3.3</td>
               </tr>
@@ -496,7 +496,7 @@ export function WrapUpSection() {
         </div>
       </Section>
 
-      <Section kind="example" level={2} title="綜合手算：把本章的公式串成一次迴路設計">
+      <Section kind="example" level={2} id="ch05-hand-loop" title="綜合手算：把本章的公式串成一次迴路設計">
         <p>
           前面每一節都有一題「帶入手算」。最後這一題把它們串起來，走一次實際的設計流程：由量到的 <Tex>{'\\sigma_v'}</Tex> 得到{' '}
           <Tex>{'K_q'}</Tex>（§5）→ 學習率 <Tex>{'\\mu'}</Tex> 最大能用多少（<Tex>{'\\mu_{\\max}=2/K_q'}</Tex>）→ 收斂要多久（pole、<Tex>{'\\tau'}</Tex>，再用{' '}
@@ -510,13 +510,13 @@ export function WrapUpSection() {
           得到一個 block 的時間 <Tex>{'T_{\\mathrm{blk}}'}</Tex>（⑥），兩者相乘就是換成秒的時間常數 <Tex>{'t_\\tau'}</Tex>（⑦）；最後 <Tex>{'\\mu'}</Tex>、<Tex>{'N'}</Tex>{' '}
           與 pole 一起給出係數雜訊 <Tex>{'\\sigma_w'}</Tex>（⑧）。圖上的每一格對應下面手算題的一到兩個步驟，③④⑧ 合起來就是 F-05.20。
         </Fig>
-        <HandCalcBlock id="HC-05.8">
+        <Hand id="HC-05.8">
           把四個數字換成你自己的設計（<Tex>{'\\sigma_v'}</Tex>、<Tex>{'\\mu'}</Tex>、<Tex>{'N'}</Tex>、<Tex>{'f_s'}</Tex>），先用紙筆和計算機一路算到{' '}
           <Tex>{'\\sigma_w'}</Tex>，再對答案。算完後試試把 <Tex>{'\\mu'}</Tex> 加倍：收斂時間與 <Tex>{'\\sigma_w'}</Tex> 各變成幾倍？
-        </HandCalcBlock>
+        </Hand>
       </Section>
 
-      <Section kind="example" level={2} title="思考題">
+      <Section kind="example" level={2} id="ch05-quiz" title="思考題">
         <Quiz
           title="思考題 1"
           question={
@@ -548,7 +548,7 @@ export function WrapUpSection() {
               <Tex>{'s>0'}</Tex> 時 <Tex>{'+1'}</Tex> 正好是對的：<Tex>{`P(S_N\\ge0)=${texPct(v.plus100, 2)}`}</Tex>。{pct(v.half100, 1)} 是 random tie-break（規格 CLT
               表），{pct(v.strict100, 1)} 是嚴格的 <Tex>{'P(S_N>0)'}</Tex>。但注意：這個「好處」在 <Tex>{'s<0'}</Tex> 時變成壞處；若迴路只取正負號更新，還會在收斂點造成約{' '}
               <Tex>{`${fx(v.eqPlus100, 2)}\\,\\mathrm{fs}`}</Tex> 的偏差（§3.4，Engineer 模式顯示推導）。
-              <Erratum id="E02" />
+              <ChapterErratum id="E02" />
             </>
           }
         />
@@ -644,7 +644,7 @@ export function WrapUpSection() {
       />
 
       <ModeGate min="research">
-        <Section kind="assumptions" level={2} title="延伸（Research）：雜訊有時間相關時">
+        <Section kind="assumptions" level={2} id="ch05-colored-noise" title="延伸（Research）：雜訊有時間相關時">
           <p>
             本章所有結果都假設 <Tex>{'v_i'}</Tex> 獨立。若 <Tex>{'v'}</Tex> 是 AR(1) Gaussian（相鄰相關係數 <Tex>{'\\rho'}</Tex>，例如 low-pass 過的 reference
             雜訊），在 <Tex>{'s=\\theta'}</Tex>（<Tex>{'m=0'}</Tex>）時有精確的 arcsine law（Van Vleck）：兩個 clipped Gaussian 的相關是{' '}

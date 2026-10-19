@@ -1,0 +1,11 @@
+{
+  "id": "comparator-metastable-window",
+  "title": "metastability 決策窗 ε = 5 fs（0.05σ_v）：每個 block 漏掉 4%，正確率反而不降",
+  "page": "/ch/05",
+  "experiment": "comparator-lab",
+  "description": "§5b：|e − θ| < ε 的 sample 在決策時間內解不出來，drop 政策把它們擋在 GMAC 外（除數仍是 N）。P_meta = 2Φ(0.05) − 1 = 0.03988 ≈ K_q·ε，N = 10001 平均漏掉 398.8 個；漏掉的是最靠近門檻、幾乎擲硬幣的 sample，所以平均斜率只少 0.125%（e^{−ε²/2σ_v²}），雜訊卻少了 4%——每個 sample 的資訊反而略增。S_N 不再和 N 同奇偶：奇數 N 也可能 tie。",
+  "params": { "s": 1, "sigma": 100, "theta": 0, "h": 0, "eps": 5, "N": 10001, "tieRule": "half", "trials": 4000, "method": "auto", "axis": "sum" },
+  "expected": "P_meta = 0.03988、每 block 漏掉 398.8 個；N = 10001 的 P(判對) = 79.20%（理想 78.75%）、P(S_N = 0) = 0.29%；斜率比 0.99875；MC 交叉比對 ok。",
+  "tests": ["T04", "T05"],
+  "source": "illustrative"
+}

@@ -103,9 +103,9 @@ describe('Ch05 頁面（jsdom smoke）', () => {
     expect(text).toContain('42,499')
     expect(text).toContain('85,011')
     // 勘誤連結
-    const errata = Array.from(container.querySelectorAll('.ch05-erratum a')).map((a) => a.textContent)
+    const errata = Array.from(container.querySelectorAll('.c-erratum-link')).map((a) => a.textContent)
     expect(errata).toEqual(expect.arrayContaining(['勘誤 E02', '勘誤 E07', '勘誤 E18']))
-    expect((container.querySelector('.ch05-erratum a') as HTMLAnchorElement).getAttribute('href')).toBe('#/verification')
+    expect((container.querySelector('.c-erratum-link') as HTMLAnchorElement).getAttribute('href')).toBe('/verification?e=E02')
     // 實驗外框
     expect(heading(container, /Comparator Lab：1-bit/)).toBeTruthy()
     expect(heading(container, /Dither 實驗/)).toBeTruthy()
@@ -121,16 +121,31 @@ describe('Ch05 頁面（jsdom smoke）', () => {
     const beNote = Array.from(container.querySelectorAll('.c-check-note')).find((n) => n.textContent?.includes('Berry–Esseen'))
     expect(beNote).toBeTruthy()
     expect(Array.from(beNote!.querySelectorAll('annotation')).some((a) => /\\le/.test(a.textContent ?? ''))).toBe(true)
-    // 帶入手算：8 題依序出現在各自的推導之後，最後一題（綜合題）在第一個思考題之前；字串屬性裡的 $...$ 都已轉成 KaTeX
+    // 帶入手算：10 題依序出現在各自的推導之後（頁面順序 HC-05.1–7、§5b 的 HC-05.9／10、綜合題 HC-05.8；id 對外是網址，wave 5 新增的兩題接在後面編號，所以頁面順序不是 id 順序），綜合題 HC-05.8 在 §9 的第一個思考題之前；字串屬性裡的 $...$ 都已轉成 KaTeX
     const hc = Array.from(container.querySelectorAll<HTMLElement>('.c-handcalc'))
-    expect(hc.map((h) => h.id)).toEqual(HANDCALCS.map((h) => `handcalc-${h.id}`))
-    expect(container.querySelectorAll('.ch05-handcalc-invite').length).toBe(HANDCALCS.length)
+    expect(hc.map((h) => h.id)).toEqual(['HC-05.1', 'HC-05.2', 'HC-05.3', 'HC-05.4', 'HC-05.5', 'HC-05.6', 'HC-05.7', 'HC-05.9', 'HC-05.10', 'HC-05.8'].map((id) => `handcalc-${id}`))
+    expect(new Set(hc.map((h) => h.id))).toEqual(new Set(HANDCALCS.map((h) => `handcalc-${h.id}`)))
+    expect(container.querySelectorAll('.c-chapter-hand-lead').length).toBe(HANDCALCS.length)
+    // §5b 新節：在 §5 之後、§6 Comparator Lab 之前；圖、六條公式、兩題手算、兩題思考題都在這一節裡
+    const nonideal = container.querySelector('#ch05-nonideal') as HTMLElement
+    expect(nonideal).toBeTruthy()
+    expect(heading(container, /5b\. 比較器不是理想的 sign\(\)/)).toBeTruthy()
+    expect(nonideal.compareDocumentPosition(heading(container, /Comparator Lab：1-bit/)!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(heading(container, /^5\. 小訊號增益/)!.compareDocumentPosition(nonideal) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    for (const id of ['F-05.21', 'F-05.22', 'F-05.23', 'F-05.24', 'F-05.25', 'F-05.26']) expect(nonideal.querySelector(`[id="formula-${id}"]`), id).toBeTruthy()
+    expect(nonideal.querySelector('.ch05-fig[data-diagram="nonidealCmp"]')).toBeTruthy()
+    expect(Array.from(nonideal.querySelectorAll<HTMLElement>('.c-handcalc')).map((h) => h.id)).toEqual(['handcalc-HC-05.9', 'handcalc-HC-05.10'])
+    expect(nonideal.querySelectorAll('.c-quiz').length).toBe(2)
+    expect(nonideal.querySelectorAll('figure.c-plot').length).toBe(2)
+    // §5b 的數字由模型算出：h = 0.3σ_v 的斜率比 1.2510、ν = 0.2358；ε = 0.05σ_v 的 P_meta = 0.03988、每 block 漏 163.3
+    for (const t of ['1.2510', '0.2358', '0.9837', '1.033', '0.03988', '163.3', '0.99875']) expect(nonideal.textContent, t).toContain(t)
     // HC-05.5 的兩個推導分別在 Engineer／Research 模式才顯示：邀請文字會說明去哪裡看（Engineer：§3.4 看得到、§3.5 要切模式）
-    const invite5 = container.querySelector('#handcalc-HC-05\\.5')!.parentElement!.querySelector('.ch05-handcalc-invite')!.textContent ?? ''
+    const invite5 = container.querySelector('#handcalc-HC-05\\.5')!.parentElement!.querySelector('.c-chapter-hand-lead')!.textContent ?? ''
     expect(invite5).toContain('平衡點偏移的推導在上面的 §3.4')
     expect(invite5).toContain('切到 Research 模式才顯示')
-    const firstQuiz = container.querySelector('.c-quiz') as HTMLElement
-    expect(hc[hc.length - 1].compareDocumentPosition(firstQuiz) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const quizzes = Array.from(container.querySelectorAll<HTMLElement>('.c-quiz'))
+    const firstWrapUpQuiz = quizzes.find((q) => q.textContent?.includes('思考題 1')) as HTMLElement
+    expect(hc[hc.length - 1].compareDocumentPosition(firstWrapUpQuiz) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(hc[hc.length - 2].compareDocumentPosition(heading(container, /^.*9\. 連結到 PLL/)!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     // 綜合題排在它代的那條公式（F-05.20，§9 的 block 迴路推導）之後
     expect(container.querySelector('[id="formula-F-05.20"]')!.compareDocumentPosition(hc[hc.length - 1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -294,8 +309,8 @@ describe('Ch05 頁面（jsdom smoke）', () => {
 
 describe('Ch05 實驗輔助（labModel）', () => {
   it('preset 參數解析：合法欄位套用、非法欄位略過', () => {
-    const { c, sh } = parsePresetParams({ s: 2, sigma: -1, theta: 'x', tieRule: 'plus', N: 101.4, trials: 5, method: 'binomial', axis: 'average' })
-    expect(c).toEqual({ s: 2, tieRule: 'plus' })
+    const { c, sh } = parsePresetParams({ s: 2, sigma: -1, theta: 'x', tieRule: 'plus', N: 101.4, trials: 5, method: 'binomial', axis: 'average', h: 30, eps: -5 })
+    expect(c).toEqual({ s: 2, tieRule: 'plus', h: 30 })
     expect(sh).toEqual({ N: 101, method: 'binomial', axis: 'average' })
   })
 
@@ -325,6 +340,47 @@ describe('Ch05 實驗輔助（labModel）', () => {
       }
     }
     expect(labWarnings(DEFAULT_CASE, analyzeCase(DEFAULT_CASE, 10001), 10001)).toEqual([])
+    // §5b：遲滯與決策窗各自一段說明（數字由模型算出）；σ_v = 0 且落在窗內 ⇒ latch 卡住
+    const hy = { ...DEFAULT_CASE, h: 30 }
+    const wh = labWarnings(hy, analyzeCase(hy, 10001), 10001).join('\n')
+    expect(wh).toMatch(/遲滯 \$h=30\\,\\mathrm\{fs\}\$/)
+    expect(wh).toContain('1.251')
+    expect(wh).toContain('0.2358')
+    const me = { ...DEFAULT_CASE, eps: 5 }
+    const wm = labWarnings(me, analyzeCase(me, 10001), 10001).join('\n')
+    expect(wm).toContain('0.03988')
+    expect(wm).toContain('398.8')
+    const stuck = { ...DEFAULT_CASE, sigma: 0, eps: 5 }
+    expect(labWarnings(stuck, analyzeCase(stuck, 11), 11).join('\n')).toContain('latch 永遠不翻轉')
+    for (const msg of [...labWarnings(hy, analyzeCase(hy, 10001), 10001), ...labWarnings(me, analyzeCase(me, 10001), 10001)]) {
+      expect(msg).not.toMatch(/[σθμ≥≤≈∓±ν]/)
+      for (const t of [...msg.matchAll(/\$([^$]+)\$/g)].map((m) => m[1])) expect(renderTex(t, false), t).not.toContain('katex-error')
+    }
+  })
+
+  it('§5b：analyzeCase 在 h 或 ε > 0 時改用 chain（精確 DP）；h = ε = 0 與原本逐位元相同', () => {
+    const base = analyzeCase(DEFAULT_CASE, 10001)
+    const same = analyzeCase({ ...DEFAULT_CASE, h: 0, eps: 0 }, 10001)
+    expect(same.outcome.correct).toBe(base.outcome.correct)
+    expect(same.nonideal).toBeNull()
+    const hy = analyzeCase({ ...DEFAULT_CASE, h: 30 }, 10001)
+    expect(hy.nonideal!.exactSplit).toBe(true)
+    // Analytic 欄的獨立核對：精確 DP 的 pmf 直接算出的 E[S_N]、Var(S_N) = F-05.23 的封閉式（等比級數）
+    expect(Math.abs(hy.nonideal!.dpMoments!.mean / hy.mo.meanSum - 1)).toBeLessThan(1e-9)
+    expect(Math.abs(hy.nonideal!.dpMoments!.variance / hy.mo.varSum - 1)).toBeLessThan(1e-9)
+    expect(hy.outcome.correct).toBeLessThan(base.outcome.correct) // 遲滯：同樣的 N 正確率略低（資訊少 1.6%）
+    expect(hy.n95Clt).toBeGreaterThan(base.n95Clt)
+    expect(hy.tieBias).toBeNaN()
+    expect(hy.n95Exact).toBeNull()
+    const me = analyzeCase({ ...DEFAULT_CASE, eps: 5 }, 10001)
+    expect(me.outcome.correct).toBeGreaterThan(base.outcome.correct) // drop：漏掉的是幾乎不帶資訊的樣本，正確率反而略高
+    expect(me.split.tie).toBeGreaterThan(0) // 奇數 N 也會 tie
+    expect(Math.abs(me.nonideal!.dpMoments!.variance / me.mo.varSum - 1)).toBeLessThan(1e-9)
+    // 太大的 N：DP 超過工作量，改用 CLT（Markov）
+    const big = analyzeCase({ ...DEFAULT_CASE, h: 100 }, 200000)
+    expect(big.nonideal!.exactSplit).toBe(false)
+    expect(big.nonideal!.dpMoments).toBeNull()
+    expect(big.outcome.correct).toBeGreaterThan(0.99)
   })
 
   it('MC 掃描的 N 同時包含奇偶（顯示鋸齒），且不超過上限', () => {
@@ -343,7 +399,7 @@ describe('Ch05 Analytic ↔ Monte Carlo 交叉比對（labModel.mcConsistency）
     const chk = mcConsistency(a, N, mc)
     expect(chk.ok).toBe(true)
     expect(chk.correct.n).toBe(4000)
-    expect(chk.plus.n).toBe(N * 4000)
+    expect(chk.plus!.n).toBe(N * 4000)
     expect(chk.tie.k).toBe(0) // 奇數 N 不可能 tie
     expect(chk.tie.kHi).toBe(0)
     // 容差（機率單位）大約是 4 個標準誤
@@ -360,7 +416,7 @@ describe('Ch05 Analytic ↔ Monte Carlo 交叉比對（labModel.mcConsistency）
     const bad = mcConsistency(strict, N, mcHalf)
     expect(bad.ok).toBe(false)
     expect(bad.correct.ok).toBe(false)
-    expect(bad.plus.ok).toBe(true) // 單一樣本的統計不受 tie rule 影響
+    expect(bad.plus!.ok).toBe(true) // 單一樣本的統計不受 tie rule 影響
     expect(bad.tie.ok).toBe(true)
     expect(bad.detail).toContain('，超出）')
     // 用同一條 rule 就一致
@@ -390,7 +446,7 @@ describe('Ch05 數字格式（公式內不出現 e 記號）', () => {
   it('texNum：很小或很大的數寫成 a\\times10^{b}；一般大小保留有效位數', () => {
     expect(texNum(6.649e-8, 3)).toBe('6.65\\times10^{-8}')
     expect(texNum(-7.017e-6, 2)).toBe('-7\\times10^{-6}')
-    expect(texNum(1e-10, 2)).toBe('10^{-10}')
+    expect(texNum(1e-10, 2)).toBe('1\\times10^{-10}')
     expect(texNum(2.5e9, 2)).toBe('2.5\\times10^{9}')
     expect(texNum(0.0000166668, 4)).toBe('1.667\\times10^{-5}')
     expect(texNum(0.15, 3)).toBe('0.15')
@@ -460,16 +516,40 @@ describe('Ch05 presets 與公式登錄', () => {
     expect(directionOutcomeExact(pPlus(1, 100, 2), 10001, 'half', 1).correct).toBeCloseTo(0.2125, 3)
   })
 
-  it('T05: 每個 comparator-lab preset：解析交叉比對成立（|CLT − 精確| ≤ Berry–Esseen 上界），且 expected 文字的關鍵數字由模型重算', () => {
+  it('T05: 每個 comparator-lab preset：解析交叉比對成立（|CLT − 精確| ≤ Berry–Esseen 上界；§5b 的非理想 preset 用 chain 的 DP vs CLT），且 expected 文字的關鍵數字由模型重算', () => {
     for (const pr of presets.filter((x) => x.experiment === 'comparator-lab')) {
       const { c, sh } = parsePresetParams(pr.params)
       const cs = { ...DEFAULT_CASE, ...c }
       const N = sh.N ?? 10001
       const a = analyzeCase(cs, N)
+      expect(a.split.pos + a.split.tie + a.split.neg, pr.id).toBeCloseTo(1, 12)
+      if (a.nonideal) {
+        expect(a.nonideal.exactSplit, pr.id).toBe(true)
+        expect(Math.abs(a.cltCorr.correct - a.outcome.correct), pr.id).toBeLessThan(1 / Math.sqrt(a.nonideal.nEff))
+        continue
+      }
       const exactStrict = a.t > 0 ? a.split.pos : a.split.neg
       expect(Math.abs(a.cltPlain - exactStrict), pr.id).toBeLessThanOrEqual(berryEsseenBound(a.m, N) + 1e-12)
-      expect(a.split.pos + a.split.tie + a.split.neg, pr.id).toBeCloseTo(1, 12)
     }
+    // §5b 的兩個 preset：expected 文字裡的數字由模型重算
+    const hy = presets.find((x) => x.id === 'comparator-hysteresis-03sigma')!
+    const ah = analyzeCase({ ...DEFAULT_CASE, ...parsePresetParams(hy.params).c }, 10001)
+    expect(hy.expected).toContain('78.38%')
+    expect(ah.outcome.correct).toBeCloseTo(0.7838, 4)
+    expect(hy.expected).toContain('78.75%')
+    expect(analyzeCase(DEFAULT_CASE, 10001).outcome.correct).toBeCloseTo(0.7875, 4)
+    expect(ah.nonideal!.summary.slopeRatio.toFixed(4)).toBe('1.2510')
+    expect(ah.nonideal!.chain.nu.toFixed(4)).toBe('0.2358')
+    expect(ah.nonideal!.summary.noiseFactor.toFixed(3)).toBe('1.617')
+    expect(ah.nonideal!.summary.kqEffRatio.toFixed(4)).toBe('0.9837')
+    const me = presets.find((x) => x.id === 'comparator-metastable-window')!
+    const am = analyzeCase({ ...DEFAULT_CASE, ...parsePresetParams(me.params).c }, 10001)
+    expect(me.expected).toContain('79.20%')
+    expect(am.outcome.correct).toBeCloseTo(0.792, 4)
+    expect(am.nonideal!.chain.pMeta.toFixed(5)).toBe('0.03988')
+    expect((10001 * am.nonideal!.chain.pMeta).toFixed(1)).toBe('398.8')
+    expect((100 * am.split.tie).toFixed(2)).toBe('0.29')
+    expect(am.nonideal!.summary.slopeRatio.toFixed(5)).toBe('0.99875')
     const n95 = presets.find((x) => x.id === 'comparator-n42499-95pct')!
     expect(n95.params.N).toBe(42499)
     expect(directionOutcomeExact(pPlus(1, 100), 42499, 'strict').correct).toBeGreaterThanOrEqual(0.95)
@@ -513,13 +593,16 @@ describe('Ch05 presets 與公式登錄', () => {
     }
     expect(mathInText).toBeGreaterThan(40)
     expect(FORMULAS.find((f) => f.id === 'F-05.15')!.conditions).toContain(String.raw`$\delta=a-w$`) // 全站極性 δ = a − w
-    // F-05.20（block 版，綜合手算 HC-05.8 代的就是它）：同樣寫明 δ = a − w 與 average 模式（勘誤 E18），頁面上有錨點
+    // F-05.20（block 版，綜合手算 HC-05.8 代的就是它；這題的 id 不變，對外是網址）：同樣寫明 δ = a − w 與 average 模式（勘誤 E18），頁面上有錨點
     const f20 = FORMULAS.find((f) => f.id === 'F-05.20')!
     expect(f20.conditions).toContain(String.raw`$\delta=a-w$`)
     expect(f20.conditions).toContain('$G_k=S_N/N$')
     expect(f20.erratumId).toBe('E18')
     expect(f20.tex).toContain(String.raw`\sigma_w=\frac{\mu}{\sqrt{N\,(1-p_{\mathrm{cal}}^2)}}`)
     expect(HANDCALCS.find((h) => h.id === 'HC-05.8')!.formulaId).toBe('F-05.20')
+    // §5b 的兩題各代它們的公式
+    expect(HANDCALCS.find((h) => h.id === 'HC-05.9')!.formulaId).toBe('F-05.22')
+    expect(HANDCALCS.find((h) => h.id === 'HC-05.10')!.formulaId).toBe('F-05.24')
     // F-05.2 與頁面一致：含 threshold θ，並註明 m ≡ m_q（勘誤 E34 的全站符號）
     const f2 = FORMULAS.find((f) => f.id === 'F-05.2')!
     expect(f2.tex).toContain('m_q')

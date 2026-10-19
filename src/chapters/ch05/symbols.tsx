@@ -1,5 +1,4 @@
-import { SymbolTable, Tex, type SymbolEntry } from '@/components'
-import { Erratum } from './common'
+import { ChapterErratum, SymbolTable, Tex, type SymbolEntry } from '@/components'
 
 /**
  * 本章符號表（docs/teaching-style.md §5）：放在章末（Recap 與延伸之後、頁面最底端），外層 id="symbols"；
@@ -57,7 +56,7 @@ export const CH05_SYMBOLS: SymbolEntry[] = [
     firstSeen: '§1、§2',
     note: (
       <>
-        全站符號表寫作 {T('m_q')}，以免與 §12 的 code DC 衝突；本章只有這一個 {T('m')}，公式中簡寫成 {T('m')}，兩者是同一個量 <Erratum id="E34" />
+        全站符號表寫作 {T('m_q')}，以免與 §12 的 code DC 衝突；本章只有這一個 {T('m')}，公式中簡寫成 {T('m')}，兩者是同一個量 <ChapterErratum id="E34" />
       </>
     ),
   },
@@ -77,7 +76,7 @@ export const CH05_SYMBOLS: SymbolEntry[] = [
     firstSeen: '§0、§3',
     note: (
       <>
-        規格 §5 原寫 {T('G_N')}；本章改用 {T('S_N')}，保留 {T('G')} 給 §0 的 block 平均 <Erratum id="E07" /> <Erratum id="E18" />
+        規格 §5 原寫 {T('G_N')}；本章改用 {T('S_N')}，保留 {T('G')} 給 §0 的 block 平均 <ChapterErratum id="E07" /> <ChapterErratum id="E18" />
       </>
     ),
   },
@@ -137,7 +136,7 @@ export const CH05_SYMBOLS: SymbolEntry[] = [
     note: (
       <>
         §7 為逐 sample 更新（等於 {T('N=1')} 的 block）；§9 為 average-mode GMAC 的 block 更新，單位同為 fs。規格／ChatGPT 課程中的 {T('\\alpha')} 本站一律寫{' '}
-        {T('\\mu')} <Erratum id="E13" /> <Erratum id="E34" />
+        {T('\\mu')} <ChapterErratum id="E13" /> <ChapterErratum id="E34" />
       </>
     ),
   },
@@ -190,7 +189,58 @@ export const CH05_SYMBOLS: SymbolEntry[] = [
     symbol: '\\rho,\\;N_{\\mathrm{eff}}',
     meaning: <>雜訊相鄰樣本的相關係數，與等效獨立樣本數</>,
     firstSeen: '注意假設、章末延伸（Research）',
-    note: '推導只在 Research 模式出現',
+    note: <>推導只在 Research 模式出現；§5b 的 {T('N_{\\mathrm{eff}}=N^2\\operatorname{Var}(y)/\\operatorname{Var}(S_N)')} 是同一個意思（相關來自 comparator 而不是雜訊）</>,
+  },
+  // ───── §5b：非理想 comparator ─────
+  {
+    symbol: 'h,\\;\\theta_a',
+    meaning: <>遲滯（hysteresis）的半寬，與由上一個輸出選出的有效門檻 {T('\\theta_a=\\theta-q_{n-1}h')}</>,
+    unit: '\\mathrm{fs}',
+    firstSeen: '§5b',
+    note: <>Roadmap R6 寫作全寬 {T('H=2h')}；{T('h=0')} 回到無記憶的 sign</>,
+  },
+  {
+    symbol: '\\eta=h/\\sigma_v',
+    meaning: '標準化的遲滯半寬',
+    firstSeen: '§5b',
+    note: <>和 {T('\\eta_n')}（量化雜訊）不同，依上下文區分</>,
+  },
+  {
+    symbol: 't_+,\\;t_-,\\;\\pi_+',
+    meaning: <>latch 狀態的翻轉機率 {T('P(-1\\to+1)')}、{T('P(+1\\to-1)')} 與平穩的 {T('P(\\sigma=+1)')}</>,
+    firstSeen: '§5b',
+  },
+  {
+    symbol: '\\nu',
+    meaning: <>記憶因子 {T('1-t_+-t_-')}：相鄰輸出的相關係數（lag-{T('k')} 相關 {T('\\nu^k')}）</>,
+    firstSeen: '§5b',
+    note: <>純遲滯在 {T('s=\\theta')} 時 {T('\\nu=1-2\\Phi(-\\eta)')}；block 平均的雜訊變異數是 iid 的 {T('F=(1+\\nu)/(1-\\nu)')} 倍（雜訊因子 {T('F')}）</>,
+  },
+  {
+    symbol: '\\varepsilon,\\;\\tau_m,\\;T',
+    meaning: <>metastability 決策窗的半寬（輸入折算）、latch 的再生時間常數、可用的決策時間；{T('\\varepsilon=\\varepsilon_0e^{-T/\\tau_m}')}</>,
+    unit: '\\mathrm{fs};\\ \\mathrm{s};\\ \\mathrm{s}',
+    firstSeen: '§5b',
+    note: <>電路量，illustrative；{T('T')} 在 §6 另作 Monte Carlo 的 trials 數</>,
+  },
+  {
+    symbol: 'P_{\\mathrm{meta}},\\;N_{\\mathrm{meta}}',
+    meaning: <>一個 sample 解不出來的機率 {T('P(|e-\\theta_a|<\\varepsilon)')}，與每個 block 平均漏掉的個數 {T('NP_{\\mathrm{meta}}')}</>,
+    firstSeen: '§5b',
+    note: <>{T('s=\\theta')} 時 {T('P_{\\mathrm{meta}}\\approx K_q\\varepsilon')}</>,
+  },
+  {
+    symbol: 'y_n',
+    meaning: <>非理想 comparator 送進 GMAC 的值 {T('\\in\\{+1,0,-1\\}')}（drop 時 metastable 算 0）</>,
+    firstSeen: '§5b',
+    note: <>{T('h=\\varepsilon=0')} 時 {T('y_n=q_n')}</>,
+  },
+  {
+    symbol: 'K_q(h),\\;K_{\\mathrm{eff}}',
+    meaning: <>遲滯 comparator 的平穩小訊號斜率 {T('\\varphi(\\eta)/(\\sigma_v\\Phi(-\\eta))')}，與資訊等效增益 {T('K_{\\mathrm{eff}}=\\text{斜率}/\\sqrt{\\operatorname{Var}(S_N)/N}')}</>,
+    unit: '\\mathrm{fs}^{-1}',
+    firstSeen: '§5b',
+    note: <>同樣的 {T('N')} 得到同樣 {T('\\mathrm{SNR}_{\\mathrm{stat}}')} 的理想 comparator 增益；所需 {T('N')} 的倍數是 {T('(K_q/K_{\\mathrm{eff}})^2')}</>,
   },
 ]
 
