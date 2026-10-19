@@ -331,7 +331,7 @@ export function FixedXExplorer() {
         }
         return cols
       }}
-      presets={presets.map((pr) => ({ name: pr.title, params: pr.params, description: pr.description }))}
+      presets={presets.map((pr) => ({ id: pr.id, name: pr.title, params: pr.params, description: pr.description }))}
       onLoadPreset={(pr) => {
         setShown(null)
         setNote(null)

@@ -1,4 +1,5 @@
 import type { FormulaEntry } from '@/data/types'
+import { modelAssumes } from '@/app/chapterMeta'
 
 /**
  * Part D（/models，規格 §15、§16）公式登錄。ID 與頁面內 TexBlock id 相同（F-15.x、F-16.x）。
@@ -9,6 +10,7 @@ import type { FormulaEntry } from '@/data/types'
 export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-15.1',
+    assumes: modelAssumes('L1'),
     title: '參考 Block Sign-Error LMS（GMAC 平均 + 更新）',
     tex: String.raw`q[n]=\begin{cases}+1,&e[n]\ge 0\\-1,&e[n]<0\end{cases},\quad G_k=\frac1N\sum_{n\in k}q[n]\,x_\mathrm{ref}[n],\quad w_{k+1}=w_k+\mu G_k`,
     conditions: String.raw`tie 規則 $e=0\Rightarrow q=+1$（§15.2、E07）；average 模式；sum 模式 $G_k$ 不除 $N$（有效增益 $\times N$）`,
@@ -21,6 +23,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-15.2',
+    assumes: modelAssumes('L2'),
     title: 'Comparator 前的誤差模型（有狀態 PLL error path）',
     tex: String.raw`e[n]=H_\mathrm{PD}\bigl\{(a-w_{k-d})\,x+c_2x^2+c_3x^3+o\bigr\}[n]+b+v[n],\quad v\sim\mathcal N(0,\sigma_v^2)`,
     conditions: String.raw`$\delta=a-w$ 極性；DTC 在 reference 輸入端：它的殘餘誤差 $(a-w)\,x$ 從 PD 的 reference 輸入注入（正號），$H_\mathrm{PD}\{\cdot\}$ 是 PD 的輸出，comparator 取的就是它；$H_\mathrm{PD}$ 狀態跨 block 持續（不可每 block 重置）；$d$ 為 cal_update_delay_blocks`,
@@ -33,6 +36,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-15.3',
+    assumes: modelAssumes('L1'),
     title: String.raw`平均 GMAC 與小訊號斜率 $K=K_qC$`,
     tex: String.raw`E[G_k]\approx K_q\,C\,\delta_k=K\delta_k,\quad K_q=\frac{\sqrt{2/\pi}}{\sigma_v},\;C=E[x_\mathrm{ref}\,u],\;\delta_k=a-w_k`,
     conditions: String.raw`小訊號 $|e_\mathrm{det}|\ll\sigma_v$、Gaussian $v$、長時間平均；bug 編碼（$q\in\{0,1\}$）時 $K$ 減半`,
@@ -45,6 +49,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-15.4',
+    assumes: modelAssumes('L1'),
     title: '一階平均遞迴、pole 與更新延遲的穩定界',
     tex: String.raw`\delta_{k+1}=\delta_k-g\,\delta_{k-d},\;g=\mu K\,(\times N\text{ if sum});\quad d=0:\,p=1-g,\;0<g<2;\quad g_\mathrm{crit}(d)=2\sin\frac{\pi}{4d+2}`,
     conditions: String.raw`線性化平均模型；特徵方程 $z^{d+1}-z^d+g=0$`,
@@ -55,6 +60,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-15.5',
+    assumes: modelAssumes('L1'),
     title: String.raw`穩態係數雜訊 $\sigma_w$（gain-equivalent）`,
     tex: String.raw`\sigma_w^2=\frac{\mu^2\sigma_\eta^2}{1-p^2},\quad \sigma_\eta^2\approx\frac{E[x_\mathrm{ref}^2]}{N}`,
     conditions: String.raw`$d=0$、GMAC 雜訊 iid、近平衡（$E[G]=E[q\,x_\mathrm{ref}]\approx0$）、線性化有效；T13：$\sigma_w=0.3992\,\mathrm{fs}$（不是 output jitter）`,
@@ -67,6 +73,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-15.6',
+    assumes: modelAssumes('L1'),
     title: String.raw`Block rate、exact $-3\,\mathrm{dB}$ 與 ENBW`,
     tex: String.raw`f_u=\frac{f_s}{N},\quad f_\mathrm{3dB}=\frac{f_u}{2\pi}\arccos\!\Bigl(1-\frac{(1-p)^2}{2p}\Bigr),\quad \mathrm{ENBW}=\frac{f_u(1-p)}{2(1+p)}`,
     conditions: String.raw`$d=0$；$-3\,\mathrm{dB}$ 只在 $3-2\sqrt2\le p<1$ 存在（E27）；$12.93\,\mathrm{kHz}$ 是 $-3\,\mathrm{dB}$，不是 Noise BW（E06）`,
@@ -79,6 +86,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-15.7',
+    assumes: modelAssumes('L2'),
     title: 'Mean-field 固定點（含 bias）',
     tex: String.raw`\frac1{N_s}\sum_{n}x_\mathrm{ref}[n]\Bigl(2\Phi\bigl(e_n(w^*)/\sigma_v\bigr)-1\Bigr)=0,\quad e_n(w)=(a-w)u[n]+H\{\mathrm{nl}\}[n]+b`,
     conditions: String.raw`Gaussian $v$、$w$ 凍結（忽略 $w$ 自身波動）、此 code 序列；DC null 架構另論（E03）`,
@@ -91,6 +99,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-15.8',
+    assumes: modelAssumes('L2'),
     title: '離散時間主 PLL（直接 DPLL 差分方程）',
     tex: String.raw`L(z)=\Bigl(K_p+\frac{K_i}{1-z^{-1}}\Bigr)\frac{z^{-(1+d)}}{1-z^{-1}},\;K_p=2\zeta\omega_nT_s,\;K_i=(\omega_nT_s)^2,\;H_\mathrm{PD}=\frac{1}{1+L}`,
     conditions: String.raw`PLL 與 comparator 同取樣率；$\omega_nT_s\ll1$ 時對應 CT 原型（E44）；$d=0$ 時特徵式 $z^2+(K_p+K_i-2)z+(1-K_p)=0$`,
@@ -102,6 +111,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-15.9',
+    assumes: modelAssumes('L2'),
     title: 'DSM phase residue（telescoping，一階）',
     tex: String.raw`r[n]=\sum_{m=0}^{n}\Bigl(y[m]-\frac{\mathrm{in}[m]}{M}\Bigr)=\frac{s[-1]-s[n]}{M}\in(-1,1)\;[T_\mathrm{vco}]`,
     conditions: String.raw`一階 $B$-bit 累加器 $M=2^B$；以整數 $R[n]$ 精確累加，無浮點漂移`,
@@ -113,6 +123,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-15.10',
+    assumes: modelAssumes('L5'),
     title: 'DTC code → delay mapping',
     tex: String.raw`\tau(c)=g_\mathrm{DTC}\,\hat c+o+c_2\hat c^2+c_3\hat c^3+\mathrm{INL}(\hat c),\quad \hat c=\mathrm{sat}\bigl(Q(c)\bigr)`,
     conditions: String.raw`$Q$ 為 round-half-up $\lfloor c+\tfrac12\rfloor$ 或 floor $\lfloor c\rfloor$；sat 到 $[0,\,2^B-1]$（unsigned）或二補數範圍；這是元件本身的特性（實體 code 越大延遲越長）：接在 reference 輸入端時送取補數的 code $C_0-c$，線性時 $\tau(C_0-c)=T_0-g_\mathrm{DTC}\,c$`,
@@ -124,6 +135,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-15.11',
+    assumes: modelAssumes('L4'),
     title: '視窗化 periodogram：tone 讀值、scalloping 與每 bin 雜訊底',
     tex: String.raw`\hat P_\mathrm{tone}=\frac{A^2}{2}\frac{|W(\delta)|^2}{(\sum w)^2},\quad \hat P_\mathrm{noise/bin}=2\sigma^2\frac{\sum w^2}{(\sum w)^2}=\frac{2\sigma^2\,\mathrm{ENBW_{bins}}}{N}`,
     conditions: String.raw`one-sided、scaling = 'spectrum'；$\delta$ 為 tone 偏離 bin 中心的分數 bin；$W$ 為視窗的 DTFT`,
@@ -134,6 +146,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-15.12',
+    assumes: modelAssumes('L1'),
     title: 'AR(1) 有效樣本數與平均值的標準誤（模擬 vs 解析的容忍度）',
     tex: String.raw`\mathrm{Var}(\bar w)\approx\frac{\sigma_w^2}{N_\mathrm{blk}}\cdot\frac{1+\rho_1}{1-\rho_1}=\frac{\sigma_w^2}{N_\mathrm{eff}},\quad N_\mathrm{eff}=N_\mathrm{blk}\,\frac{1-\rho_1}{1+\rho_1},\quad \mathrm{SE}(\bar w)=\frac{s_w}{\sqrt{N_\mathrm{eff}}}`,
     conditions: String.raw`序列平穩（暫態已過）、近似 AR(1)（$d=0$ 的一階平均模型時 $\rho_1=p$）、$N_\mathrm{blk}\gg1/(1-\rho_1)$；JSON Lab 以資料的 lag-1 自相關與樣本標準差代入，容忍度取 $4\,\mathrm{SE}$`,
@@ -145,6 +158,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-16.1',
+    assumes: modelAssumes('L5'),
     title: 'GMAC accumulator 位元數（精確）',
     tex: String.raw`\begin{aligned}B_\mathrm{acc}&=\min\{A:\,2^{A-1}-1\ge N\max(q x)^+,\;2^{A-1}\ge N\max(q x)^-\}\\&=1+\bigl\lceil\log_2(N M_x+1)\bigr\rceil\;\le\;B_x+\lceil\log_2N\rceil\;(\text{symmetric})\end{aligned}`,
     conditions: String.raw`$M_x=\max|q\,x_\mathrm{int}|$：symmetric code（不含 $-2^{B_x-1}$）為 $2^{B_x-1}-1$，此時經驗法則 $B_x+\lceil\log_2N\rceil$ 一定足夠，$N$ 為 2 的冪時恰好相等（其他 $N$ 可能少 1 bit）；full range 條件取負會到 $+2^{B_x-1}$（$M_x=2^{B_x-1}$），需要 $B_x+\lfloor\log_2N\rfloor+1$ bits，$N$ 為 2 的冪時比法則多 1 bit`,
@@ -156,6 +170,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-16.2',
+    assumes: modelAssumes('L5'),
     title: '二補數 wrap（未保護暫存器）',
     tex: String.raw`\mathrm{wrap}_A(v)=\bigl((v+2^{A-1})\bmod 2^A\bigr)-2^{A-1}`,
     conditions: String.raw`例：$31\times4096=126976$ 在 17 bits wrap 成 $-4096$（符號翻轉 $\Rightarrow$ 更新方向錯）`,
@@ -166,6 +181,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-16.3',
+    assumes: modelAssumes('L5'),
     title: '右移截斷（floor）造成的 gain bias',
     tex: String.raw`\hat G=\Delta_G\Bigl\lfloor\frac{S}{2^{\ell}}\Bigr\rfloor,\;\Delta_G=\frac{2^{-F_G}}{2^{B_x-1}}\;\Rightarrow\;E[\hat G]=0\iff E[G]\approx\tfrac12\Delta_G\iff \delta^*=a-w^*\approx\frac{\Delta_G}{2K}`,
     conditions: String.raw`$\ell=\log_2N-F_G>0$；$S/2^\ell$ 的分布對其平均對稱且寬度 $\gtrsim\tfrac12$ LSB（comparator 雜訊當 dither）；$\ell$ 很小時平均截掉的不到半個 LSB（$\pm A$ code 為 $\tfrac12(1-2^{1-\ell})$），近似式多估；round-half-up 時 $\delta^*\approx0$`,
@@ -177,6 +193,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-16.4',
+    assumes: modelAssumes('L5'),
     title: 'sum vs average 與 shift 型 learning rate',
     tex: String.raw`g_\mathrm{sum}=N\,g_\mathrm{avg};\qquad w_{k+1}=w_k+\bigl(S_k\gg(\log_2N+m)\bigr)\;\Leftrightarrow\;\mu=2^{-m}\;(\text{average})`,
     conditions: String.raw`$N$ 為 2 的冪；$w$ 與 $S$ 都以各自的整數 LSB 計時 $\mu=2^{-m}$（換成 fs 要再乘上 $w$ 的 LSB、除以 $G$ 的 LSB）；shift 截斷另見 F-16.3`,
@@ -188,6 +205,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-16.5',
+    assumes: modelAssumes('L1'),
     title: String.raw`Comparator 0/1 → $\pm1$ 映射與錯誤編碼的偏差`,
     tex: String.raw`q=2b-1;\quad q_\mathrm{bug}=b=\tfrac12(q+1)\Rightarrow E[G_\mathrm{bug}]=\tfrac12E[G]+\tfrac12E[x_\mathrm{ref}]`,
     conditions: String.raw`零均值 code 時只有增益減半；$E[x_\mathrm{ref}]\ne0$ 時固定點偏移（T04 反面測試）`,

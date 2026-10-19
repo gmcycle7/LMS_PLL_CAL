@@ -1,4 +1,5 @@
 import type { FormulaEntry } from '@/data/types'
+import { modelAssumes } from '@/app/chapterMeta'
 
 /**
  * Ch07 Delay Alignment vs. Filtered-x LMS 的公式登錄（Formula & Unit Reference 頁以 import.meta.glob 彙整）。
@@ -8,6 +9,7 @@ import type { FormulaEntry } from '@/data/types'
 export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-07.1',
+    assumes: modelAssumes('L2', 'frozen-weight'),
     title: String.raw`PD 誤差與有效 regressor（$w$ 凍結）`,
     tex: String.raw`e_{\mathrm{PD}}[n]=(a-w)\,u[n]+v[n],\qquad u[n]=(h*x)[n]`,
     conditions: String.raw`$w$ 凍結（固定不動）時是等式：$h$ 是 LTI（DT），不隨時間變的係數可以提到卷積外面，$h*\big((a-w)\,x\big)=(a-w)\,(h*x)$。LMS 逐 block 更新 $w$ 時只是近似（F-06.1：$e_{\mathrm{PD}}[n]\approx(a-w_k)\,u[n]+v[n]$），條件是 $w$ 在 $h$ 的記憶長度內近似常數（時間尺度分離）；$h$ 的狀態跨 block 持續，所以只說「block 內 $w$ 固定」還不夠。$v$ 與 $x$ 獨立。$e_{\mathrm{PD}}$ 是 PD 的輸出（DTC 延遲後的 reference edge 減 feedback edge），comparator 與 loop filter 取同一個節點；DTC 在 reference 輸入端，殘餘誤差 $(a-w)\,x$ 從 PD 的 reference 輸入注入（$H_{\mathrm{PD}}=1/(1+L)$ 取正號）`,
@@ -19,6 +21,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-07.2',
+    assumes: modelAssumes('L1', 'single-tone'),
     title: 'Delay Alignment 單頻相關（延遲 code）',
     tex: String.raw`C_D=E\big[x[n-D]\,u[n]\big]=\frac{A^2}{2}\,|H|\cos(\phi+\Omega D),\qquad p_D=1-\mu K_qC_D`,
     conditions: String.raw`單頻 $x=A\cos(\Omega n)$，$0<\Omega<\pi$，長時間或整數週期平均；$\Omega=0$、$\pi$ 時為 2 倍（E46）`,
@@ -31,6 +34,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-07.3',
+    assumes: modelAssumes('L1'),
     title: '延遲 comparator 誤差時的相關（符號相反）',
     tex: String.raw`C'_D=E\big[x[n]\,u[n-D]\big]=\frac{A^2}{2}\,|H|\cos(\phi-\Omega D)`,
     conditions: '同 F-07.2；延遲的是 PD/comparator 那一側',
@@ -41,6 +45,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-07.4',
+    assumes: modelAssumes('L1', 'single-tone'),
     title: '最佳延遲與殘餘相位',
     tex: String.raw`D^\star=\frac{(-\phi)\bmod 2\pi}{\Omega},\qquad \theta=\mathrm{wrap}_{180}(\phi+\Omega D),\qquad C_D>0\iff|\theta|<90^\circ`,
     conditions: String.raw`單頻；整數 $D$ 取最接近 $D^\star$ 者；正相關窗長度為半個週期 $\pi/\Omega$`,
@@ -51,6 +56,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-07.5',
+    assumes: modelAssumes('L1'),
     title: String.raw`$\Omega=0$ 或 $\pi$ 的邊界（E46）`,
     tex: String.raw`\begin{aligned}&C_D=A^2\,H(e^{j\Omega})\cos(\Omega D),\quad H(e^{j\Omega})\in\mathbb R\quad(\Omega\in\{0,\pi\});\\&\text{例：交替碼 }x[n]=A(-1)^n\Rightarrow C_D=A^2H(e^{j\pi})(-1)^D\end{aligned}`,
     conditions: String.raw`實係數 $h$：$\Omega=0$、$\pi$ 時 $H$ 為實數（$\phi\in\{0^\circ,180^\circ\}$），$\cos(2\Omega n+\cdots)$ 不會平均掉`,
@@ -62,6 +68,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-07.6',
+    assumes: modelAssumes('L1'),
     title: '有限 $N$ 的單一 block 確切值（E46）',
     tex: String.raw`\bar G_k=\frac{A^2|H|}{2}\Big[\cos(\phi+\Omega D)+\cos\big(2\Omega n_0+\Omega(N-1)+\phi-\Omega D\big)\frac{\sin N\Omega}{N\sin\Omega}\Big]`,
     conditions: String.raw`無雜訊的相關部分；ripple 上界 $\frac{A^2|H|}{2}\min\!\big(1,\frac{1}{N|\sin\Omega|}\big)$`,
@@ -73,6 +80,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-07.7',
+    assumes: modelAssumes('L1'),
     title: '多頻 code 的 $C_D$',
     tex: String.raw`C_D=\sum_i\frac{A_i^2}{2}\,|H(e^{j\Omega_i})|\cos\big(\phi_i+\Omega_iD\big)`,
     conditions: String.raw`頻率互異、皆在 $(0,\pi)$；交叉項的長時間平均為 0`,
@@ -83,6 +91,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-07.8',
+    assumes: modelAssumes('L2'),
     title: 'PSD 加權的 $C_D$（DT 形式，E44）',
     tex: String.raw`\begin{aligned}C_D&=\frac1{2\pi}\int_{-\pi}^{\pi}S_{xx}(e^{j\Omega})\,\mathrm{Re}\big\{H(e^{j\Omega})\,e^{j\Omega D}\big\}\,d\Omega\\&=\frac1{2\pi}\int_{-\pi}^{\pi}S_{xx}\,|H|\cos\big(\phi(\Omega)+\Omega D\big)\,d\Omega=\sum_k h[k]\,R_x[k-D]\end{aligned}`,
     conditions: String.raw`$x$ 廣義平穩、$h$ 穩定；$S_{xx}$ 為雙邊 DTFT PSD（$\sigma_x^2=\frac1{2\pi}\int_{-\pi}^{\pi}S_{xx}\,d\Omega$）；必須用 $H(e^{j\Omega})$，不可代 $H(j\omega)$`,
@@ -94,6 +103,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-07.9',
+    assumes: modelAssumes('L1', 'frozen-weight'),
     title: '真正的梯度用的是 $u$，不是 $x$',
     tex: String.raw`J(w)=\tfrac12E\big[e_{\mathrm{PD}}^2\big],\qquad \frac{dJ}{dw}=-E\big[e_{\mathrm{PD}}\,u\big]`,
     conditions: String.raw`$w$ 凍結（固定不動）：$J(w)$ 是把 $w$ 固定在一個值、迴路到達穩態後算出來的 cost（frozen-parameter cost），這時 $e_{\mathrm{PD}}$ 對 $w$ 的導數為 $-u$（F-07.1）；$v$ 與 $w$ 無關。LMS 逐 block 更新時，量到的 $-E[e_{\mathrm{PD}}\,u]$ 只是這個梯度在 $w$ 慢變（時間尺度分離，F-06.1）下的近似`,
@@ -104,6 +114,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-07.10',
+    assumes: modelAssumes('L2'),
     title: 'Filtered-x 的 block 更新（E45）',
     tex: String.raw`G_k=\frac1N\sum_{n\in\text{block }k}q[n]\,u_f[n-D],\qquad w_{k+1}=w_k+\mu\,G_k,\qquad u_f=\hat h*x`,
     conditions: String.raw`可實作形式：$n$ 為 sample、$k$ 為 block；期望值形式只是平均 ODE。$D\ge0$ 是 regressor 的額外延遲（預設 $D=0$，regressor 就是 $u_f[n]$；用來補 $\hat H$ 沒有包含的串聯純延遲 $z^{-L}$，取 $D=L$）。$D\ne0$ 時平均行為由 $C_{f,D}=E\big[u[n]\,u_f[n-D]\big]$ 決定（F-07.11、F-07.12），不是 $E[u\,u_f]$`,
@@ -115,6 +126,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-07.11',
+    assumes: modelAssumes('L2'),
     title: 'Filtered-x 的平均 GMAC 與 pole',
     tex: String.raw`\begin{aligned}E[G_k]&\approx K_q\,(a-w_k)\,C_{f,D},\qquad p_f=1-\mu K_q\,C_{f,D},\qquad K_q=\frac{\sqrt{2/\pi}}{\sigma_v}\\C_{f,D}&\equiv E\big[u[n]\,u_f[n-D]\big]\overset{D=0}{=}E[u\,u_f]\end{aligned}`,
     conditions: String.raw`小誤差 $|\delta u|\ll\sigma_v$、Gaussian $v$、長時間平均、$w$ 在 $h$ 的記憶長度內近似常數（時間尺度分離，F-06.1）。$D$ 是 F-07.10 中 regressor 的額外延遲；$D=0$ 時 $C_{f,0}=E[u\,u_f]$。$\hat H=H$ 且 $D=0$ 時 $C_{f,0}=E[u^2]\ge0$；$\hat H\ne H$ 或 $D\ne0$ 時必須用 $C_{f,D}$（E45、F-07.12），不可代 $E[u^2]$`,
@@ -127,6 +139,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-07.12',
+    assumes: modelAssumes('L2'),
     title: '模型誤差與額外延遲 $D$ 下的有效相關（E45）',
     tex: String.raw`\begin{aligned}C_{f,D}&=E\big[u[n]\,u_f[n-D]\big]\\&=\frac1{2\pi}\int_{-\pi}^{\pi}S_{xx}\,|H|\,|\hat H|\cos\!\big(\angle H-\angle\hat H+\Omega D\big)\,d\Omega\;\overset{\hat H=H,\ D=0}{=}\;E[u^2]\ge0\end{aligned}`,
     conditions: String.raw`$x$ 廣義平穩、$H$ 與 $\hat H$ 穩定；$D\ge0$ 是 F-07.10 中 regressor 的額外延遲（等於把模型換成 $\hat H\,z^{-D}$），$D=0$ 時 $C_{f,0}=E[u\,u_f]$。殘餘相位 $\theta(\Omega)=\angle H-\angle\hat H+\Omega D$（折回 $\pm180^\circ$）在所有被激勵的頻率都滿足 $|\theta|<90^\circ$ 是 $C_{f,D}>0$ 的充分條件（非必要）。$\hat H=H$ 但 $D\ne0$ 時 $C_{f,D}=R_u[D]$（$u$ 的自相關），可以是負的`,
@@ -138,6 +151,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-07.13',
+    assumes: modelAssumes('L1'),
     title: '正規化相關與 Cauchy–Schwarz 上限',
     tex: String.raw`\rho_{\mathrm{ref}}=\frac{E[x_{\mathrm{ref}}\,u]}{\sqrt{E[x_{\mathrm{ref}}^2]\,E[u^2]}}\in[-1,1]`,
     conditions: String.raw`Cauchy–Schwarz：$|\rho|\le1$，$\rho=1\iff x_{\mathrm{ref}}=c\,u$（$c>0$）；filtered-x 在 $\hat H\propto H$（正的比例常數）且 $D=0$ 時達到上限（$D\ne0$ 時 $x_{\mathrm{ref}}=u_f[n-D]$ 一般不再與 $u[n]$ 成比例）；每單位 regressor 功率能得到的恢復力`,
@@ -148,6 +162,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-07.14',
+    assumes: modelAssumes('L2'),
     title: '二次差分 regressor（Type-II 低頻近似）',
     tex: String.raw`\hat H_2(z)=K_2\,(1-z^{-1})^2,\quad K_2\equiv\frac{1}{(\hat\omega_nT_s)^2};\qquad (1-e^{-j\Omega})^2=-4\sin^2\!\tfrac{\Omega}{2}\,e^{-j\Omega}=4\sin^2\!\tfrac{\Omega}{2}\,e^{j(\pi-\Omega)}`,
     conditions: String.raw`$H_{\mathrm{PD}}(s)\approx s^2/\omega_n^2$（$\omega\ll\omega_n$）的離散化；只對窄頻、低頻 tone 有效（相位差邊界見 F-07.15），寬頻 code（即使低通）見 F-07.16`,
@@ -158,6 +173,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-07.15',
+    assumes: modelAssumes('L2'),
     title: String.raw`二次差分相對 DT Type-II $H_{\mathrm{PD}}$ 的低頻相位差（含 loop latency $d$）`,
     tex: String.raw`\angle H_{\mathrm{PD}}-\angle\hat H_2\approx-\Omega\Big(\frac{2\zeta}{\omega_nT_s}-1-d\Big),\qquad|\cdot|<\frac{\pi}{2}\iff\Omega\lesssim\frac{\pi/2}{2\zeta/(\omega_nT_s)-1-d}`,
     conditions: String.raw`E44 的 DPLL：$\Omega\ll\omega_nT_s\ll1$，$\arctan$ 一階泰勒；精確邊界以 freqz 掃描（filteredX.secondDiffFailBand）`,
@@ -170,6 +186,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-07.16',
+    assumes: modelAssumes('L2'),
     title: 'AR(1) code 下二次差分 regressor 的確切相關',
     tex: String.raw`\begin{aligned}E[u\,u_f]&=K_2\Big[(1-\rho_x)^2h[0]-2(1-\rho_x)h[1]+(1-\rho_x)^2\sum_{k\ge2}h[k]\rho_x^{k-2}\Big],\\E[u_f^2]&=2K_2^2(1-\rho_x)(3-\rho_x)\end{aligned}`,
     conditions: String.raw`$R_x[m]=\rho_x^{|m|}$（unit power）、$u_f[n]=K_2\,(x[n]-2x[n-1]+x[n-2])$；Type-II：$h[0]=1$，$h[1]=-(K_p+K_i)$（$d=0$）或 $0$（$d\ge1$）`,

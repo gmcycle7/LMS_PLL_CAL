@@ -1,4 +1,5 @@
 import type { FormulaEntry } from '@/data/types'
+import { modelAssumes } from '@/app/chapterMeta'
 
 /**
  * Ch11（規格 §11）公式登錄。TeX 與章內 TexBlock id 相同；勘誤依 docs/validation.md。
@@ -31,6 +32,7 @@ export const F = {
 export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-11.1',
+    assumes: modelAssumes('L1'),
     title: '§11 總誤差模型（干擾改名 $\\varepsilon_{cc}$）',
     tex: F.errorModel,
     conditions: '$v$ 與 $x$ 獨立、零均值 Gaussian；$\\varepsilon_{cc}$ 為 deterministic；靜態（PLL 動態吸收進誤差路徑）',
@@ -43,6 +45,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11.2',
+    assumes: modelAssumes('L1'),
     title: 'Comparator 條件平均 $E[q\\mid x]=\\operatorname{erf}(\\cdot)$',
     tex: F.condMean,
     conditions: '$v\\sim\\mathcal N(0,\\sigma_v^2)$ 與 $x$ 獨立；$q=\\operatorname{sign}(e)\\in\\{\\pm1\\}$',
@@ -53,6 +56,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11.3',
+    assumes: modelAssumes('L1'),
     title: 'Comparator 線性化 $E[q\\,x]\\approx K_q\\,E[e\\,x]$ 的適用條件',
     tex: F.linearize,
     conditions: '整個確定性殘差（不只 $|a-w|$）在 $w^*$ 處遠小於 $\\sigma_v$',
@@ -65,6 +69,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11.4',
+    assumes: modelAssumes('L1'),
     title: 'GMAC 固定點 $w^*$（offset / INL / correlated 三項）',
     tex: F.fixedPoint,
     conditions: 'MSE-LMS 精確；Sign-LMS 需 $\\sigma_v\\gg\\max_x|e_\\mathrm{det}(x;w^*)|$；PD 的 DC 未被主迴路消除',
@@ -76,6 +81,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11.5',
+    assumes: modelAssumes('L1'),
     title: 'Comparator offset 的假 gain bias',
     tex: F.offset,
     conditions: '靜態：主迴路 frozen、無積分路徑、或 $x$ 已零均值；$\\sigma_v$ 與 code 無關',
@@ -87,6 +93,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11.6',
+    assumes: modelAssumes('L2'),
     title: '共用 BBPD（type-II，$E[q]=0$）下的固定點',
     tex: F.sharedBbpd,
     conditions: '$q$ 就是主 PLL 的 BBPD；積分路徑時間常數遠短於 LMS；$K_q$ 線性化',
@@ -98,6 +105,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11.7',
+    assumes: modelAssumes('L2'),
     title: '線性 PD 鎖定 + 帶 offset 的獨立 comparator',
     tex: F.linearPd,
     conditions: '主迴路強制 $E[e_\\mathrm{PD}]=0$；comparator 另有 offset $b$；$K_q$ 線性化',
@@ -109,6 +117,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11.8',
+    assumes: modelAssumes('L0'),
     title: '三階 INL：MSE-LMS 最佳線性 gain 1.34',
     tex: F.cubicMse,
     conditions: '$x\\in\\{-2,-1,0,1,2\\}$ 等機率、$a=1$、$c_3=0.1$、identity path；GMAC $=E[x\\,e]$',
@@ -120,6 +129,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11.9',
+    assumes: modelAssumes('L1'),
     title: 'Sign-LMS 固定點的 $\\sigma_v$ 二階修正',
     tex: F.secondOrder,
     conditions: 'Gaussian $v$、$\\sigma_v$ 常數、mode none；$\\sigma_v\\gtrsim0.2$（本例）',
@@ -131,6 +141,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11.10',
+    assumes: modelAssumes('L0'),
     title: '無雜訊 Sign-LMS：$E[G]$ 的變號點 = $|x|$ 加權中位數（1.4）',
     tex: F.weightedMedian,
     conditions:
@@ -143,6 +154,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11.11',
+    assumes: modelAssumes('L0'),
     title: 'Per-code gain 與 MSE 的 $x^2$ 加權平均',
     tex: F.weightedMean,
     conditions: '$x\\neq0$ 的 code；mode none',
@@ -153,6 +165,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11.12',
+    assumes: modelAssumes('L1'),
     title: 'Code-dependent jitter：$1/\\sigma_v(x)$ 加權固定點',
     tex: F.jitterWeighted,
     conditions: 'Sign-LMS、$K_q(x)$ 線性化；MSE-LMS 不受影響',
@@ -164,6 +177,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11.13',
+    assumes: modelAssumes('L1'),
     title: 'Code-correlated deterministic error ⇒ $w^*=a+\\kappa$（不可辨識）',
     tex: F.kappa,
     conditions: '$\\varepsilon_{cc}=\\kappa x$ 為 deterministic；單一觀測路徑',
@@ -175,6 +189,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11.14',
+    assumes: modelAssumes('L2'),
     title: 'Near-integer：$w^*=a+B/C$（$C=E[x\\,(h*x)]$ 同 §6）',
     tex: F.nearInteger,
     conditions:
@@ -187,6 +202,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11.15',
+    assumes: modelAssumes('L2'),
     title: 'Near-integer 敏感度與 GMAC 斜率',
     tex: F.sensitivity,
     conditions: '同 F-11.14（$S$ 是 $|e_\\mathrm{det}|\\ll\\sigma_v$ 的小訊號斜率）；本章 $S$ 與全站 $K=K_qC$ 同號，規格 §11.4 的 $S_\\mathrm{GMAC}=\\partial E[G]/\\partial w=-S$',
@@ -199,6 +215,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11.16',
+    assumes: modelAssumes('L1', 'mean-field'),
     title: '有限步長：Sign-LMS 時間平均相對 mean-field 根的偏移',
     tex: F.finiteStep,
     conditions: "Sign-LMS、$\\sigma_v>0$（$G$ 光滑）、$0<g<2$、$w$ 的抖動遠小於 erf 轉折寬度；MSE-LMS 的 $G''=0$（無偏移）",
@@ -210,6 +227,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11.17',
+    assumes: modelAssumes('L2'),
     title: 'DC null 的 servo 抖動等效於額外 dither（servo-aware 固定點）',
     tex: F.servoAware,
     conditions: '主迴路 servo 的 $\\varphi$ 抖動與目前的 code 獨立、近似 Gaussian；本站延伸，以 block-LMS Monte Carlo 驗證',

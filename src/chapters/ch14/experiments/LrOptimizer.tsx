@@ -419,7 +419,7 @@ export function LrOptimizerExperiment() {
     }
   }
 
-  const presets = presetsForExperiment('lr-optimizer').map((p) => ({ name: p.title, params: p.params, description: p.description }))
+  const presets = presetsForExperiment('lr-optimizer').map((p) => ({ id: p.id, name: p.title, params: p.params, description: p.description }))
 
   return (
     <ExperimentShell

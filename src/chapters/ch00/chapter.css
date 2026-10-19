@@ -115,16 +115,9 @@
   font-size: 0.9rem;
 }
 .ch00-erratum-badge {
-  display: inline-block;
-  font-weight: 700;
-  font-size: 0.78rem;
-  color: var(--warn);
-  border: 1px solid var(--warn);
-  border-radius: 999px;
-  padding: 0 8px;
+  /* 外觀由 Badge 的 erratum variant 決定（components.css） */
   margin-right: 8px;
   text-decoration: none;
-  white-space: nowrap;
 }
 .ch00-erratum-badge:hover {
   text-decoration: underline;

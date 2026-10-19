@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react'
-import { mathText, Mermaid, TexBlock } from '@/components'
+import { badgeClass, mathText, Mermaid, TexBlock } from '@/components'
 import { revealAnchor } from '@/components/links'
 import { useSettings, type LearningMode } from '@/app/settings'
 import {
@@ -190,7 +190,7 @@ export function Expand({ title, children, openFrom = 'engineer', badge = '推導
   return (
     <details className="c-prereq" open={open} key={`${mode}-${openFrom}`}>
       <summary>
-        <span className="c-prereq-badge">{badge}</span> {typeof title === 'string' ? M(title) : title}
+        <span className={badgeClass('neutral', 'c-prereq-badge')}>{badge}</span> {typeof title === 'string' ? M(title) : title}
       </summary>
       <div className="c-prereq-body">{children}</div>
     </details>

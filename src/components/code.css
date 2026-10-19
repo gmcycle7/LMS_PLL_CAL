@@ -260,14 +260,8 @@
   font-weight: 600;
 }
 .c-prereq-badge {
-  display: inline-block;
-  font-size: 0.74rem;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: var(--info);
-  color: var(--surface);
+  /* 外觀由 Badge 基底（neutral）決定；藍實心會和「精確＝綠實心」撞色，所以不再自己上色 */
   margin-right: 4px;
-  vertical-align: 1px;
 }
 .c-prereq-body {
   padding: 6px 0 4px;
@@ -315,13 +309,7 @@
   gap: 8px;
 }
 .c-handcalc-badge {
-  font-size: 0.74rem;
-  font-weight: 700;
-  padding: 1px 8px;
-  border-radius: 999px;
-  background: var(--ok);
-  color: var(--surface);
-  white-space: nowrap;
+  /* 外觀由 Badge 基底（neutral）決定；綠實心是「精確」專用 */
 }
 .c-handcalc-title {
   font-weight: 700;

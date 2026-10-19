@@ -1,4 +1,5 @@
 import type { FormulaEntry } from '@/data/types'
+import { modelAssumes } from '@/app/chapterMeta'
 
 /**
  * Ch11b（§11 延伸：DTC INL 校正與噪聲折返）公式登錄。ID 格式 F-11B.n（Formula 頁的 ID 規則：F-<章>.<序>，章用大寫英數）。
@@ -68,6 +69,7 @@ n_\mathrm{eff}&=\frac{2N}{\mu K_q}
 export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-11B.1',
+    assumes: modelAssumes('L1'),
     title: 'INL 校正的誤差模型：補償量 $w\\,x+c(x)$ 從 $T_0$ 往回扣',
     tex: F.errorModel,
     conditions: 'DTC 在 reference 輸入端（docs/assumptions.md §2a）；$x\\in[-1,1]$ 為正規化 code；$d(x)$ 是 DTC 在這個 code 多出來的延遲；$v$ 與 $x$ 獨立；靜態誤差路徑',
@@ -79,6 +81,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11B.2',
+    assumes: modelAssumes('L1'),
     title: 'gain 校正吸收 $3d_3\\sigma_x^2$，剩下的殘餘 INL 是 Hermite 分量',
     tex: F.hermite,
     conditions: '$x$ 零均值 Gaussian；$d_2$ 的 DC $d_2\\sigma_x^2$ 被主迴路當成靜態相位吸收；一般對稱分布用 $w^*-a=d_3E[x^4]/E[x^2]$（Ch11 F-11.8），uniform 時 $E[r^2]=4d_2^2/45+4d_3^2/175$',
@@ -89,6 +92,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11B.3',
+    assumes: modelAssumes('L4'),
     title: 'Gaussian–Isserlis：非線性把整形雜訊折回帶內',
     tex: F.isserlis,
     conditions: '$x$ 零均值 Gaussian、自相關 $R_x[m]$；$\\mathrm{He}_2=x^2-\\sigma^2$、$\\mathrm{He}_3=x^3-3\\sigma^2x$（Mehler 公式）；非 Gaussian 的 code 要加累積量修正（F-11B.5）',
@@ -99,6 +103,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11B.4',
+    assumes: modelAssumes('L4'),
     title: 'MASH 1-1-1 residue 的自相關與 Gaussian 折返位準 $35/576$',
     tex: F.mashAutocorr,
     conditions: '第三級累加器 $s_3/M$ 視為 iid uniform（frac 遠離有理數時成立；frac $=0.3$ 這類短週期會讓 code 落在 $1/10$ 格點上）；$x$ 本身的 PSD 在 DC 為 0（40 dB/dec），$x^2$ 的不是',
@@ -109,6 +114,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11B.5',
+    assumes: modelAssumes('L4'),
     title: '線性過程的精確式：Gaussian 項 + uniform 的 $\\kappa_4$ 修正 $=121/2880$',
     tex: F.exactLinear,
     conditions: '$x=\\sum_kh_ku[n-k]$、$u$ iid（任何分布）、$\\kappa_4=E[(u-\\bar u)^4]-3\\sigma_u^4$；對 MASH 的 $u\\sim U(0,1)$ 精確。$\\kappa_4<0$：bounded 的 code 折返得比 Gaussian 少（本例少 30%）',
@@ -119,6 +125,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11B.6',
+    assumes: modelAssumes('L4'),
     title: '帶內折返功率 $P_\\mathrm{in}\\approx S(0)\\cdot2\\nu_B$',
     tex: F.inband,
     conditions: '$\\nu_B=f_B/f_s\\ll1$，折返後的 PSD 在帶內近似平坦；$d_2$、$d_3$ 兩項互不相關（奇偶）；one-sided per-Hz 由 $S^{(1)}=2S/f_s$ 換算（Ch12 F-12.10）',
@@ -130,6 +137,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11B.7',
+    assumes: modelAssumes('L3', 'mean-field'),
     title: '多參數 block Sign-LMS 的更新式與小訊號 mean-field',
     tex: F.blockLms,
     conditions: 'Sign：$q=\\operatorname{sign}(e)$、$K_q=\\sqrt{2/\\pi}/\\sigma_v$；MSE：$q=e$、$K_q=1$；需 $|e|\\ll\\sigma_v$（Ch11 F-11.3）；$\\mathbf M=\\mathbf I$ 為 scalar LMS（Ch10 F-10.2）',
@@ -140,6 +148,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11B.8',
+    assumes: modelAssumes('L3'),
     title: '分段線性：每段自己的 gain，$\\mathbf R$ 對角、$\\lambda_k\\propto$ 段內的 $E[x^2]$',
     tex: F.piecewise,
     conditions: '$K$ 段等寬、$x\\sim U(-1,1)$ 時的封閉式；MASH 的 $x$ 集中在中間，外側段的 $\\lambda_k$ 更小。靠近 $x=0$ 的段 $\\lambda_k\\propto x^2$ 很小：$K=8$ 時最內段比最外段慢 37 倍',
@@ -150,6 +159,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11B.9',
+    assumes: modelAssumes('L3'),
     title: 'LUT：每格一個修正值，時間常數 $J/(\\mu K_q)$ 與每格的有效樣本數',
     tex: F.lut,
     conditions: '$J$ 格等寬、造訪機率 $p_j$（uniform 時 $1/J$）；$n_\\mathrm{eff}$ 是「直接平均 $n$ 個 1-bit 樣本」達到同樣變異數所需的樣本數（$\\operatorname{Var}=1/(nK_q^2)$ 對上 F-11B.10）',
@@ -160,6 +170,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11B.10',
+    assumes: modelAssumes('L3'),
     title: '穩態變異與 misadjustment：$\\operatorname{Var}(\\xi_i)\\approx\\mu/(2K_qN)$ 與 $\\lambda_i$ 無關',
     tex: F.variance,
     conditions: 'Sign：$\\operatorname{Var}(\\eta_i)=\\lambda_i/N$（$q^2=1$）；MSE：乘上 $\\sigma_v^2+\\text{floor}^2$；$g_i=\\mu K_q\\lambda_i\\ll1$ 時與 $\\lambda_i$ 無關（Ch10 F-10.7 的 $m_i=\\mu K_q$）；floor 是結構的近似誤差（F-11B.13）',
@@ -171,6 +182,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11B.11',
+    assumes: modelAssumes('L3'),
     title: '多項式基底的相關矩陣：monomial 是 Hankel（條件數 67.6），Legendre 對角（7），normalized Legendre 單位矩陣（1）',
     tex: F.polyR,
     conditions: '$x\\sim U(-1,1)$、$M=3$；Chebyshev 在 uniform 權重下不正交（條件數 5.9）；MASH 的 $x$ 不是 uniform，Legendre 只是「接近」對角——條件數要用實際 code 的樣本 $\\mathbf R$ 算（實驗 C）。同一個 $\\mu K_q\\lambda_{\\max}$ 下最慢／最快模式的 $k_{95}$ 比約為 $\\kappa$（Ch09 F-09.7、Ch10 F-10.5）',
@@ -181,6 +193,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11B.12',
+    assumes: modelAssumes('L3'),
     title: 'Gauge：分段的 $\\sum_k\\varphi_k=x$ 與 gain 共線；LUT 的整體 offset 與 PD offset 不可分',
     tex: F.gauge,
     conditions: '分段或含 $x$ 項的多項式與 gain $w$ 同時校正 $\\Rightarrow\\mathbf R$ 奇異（$\\lambda_{\\min}=0$，Ch09 F-09.13）；LUT 的 $\\sum_j\\mathbb 1_j=1$ 與 offset $b$ 共線，與 $x$ 只是幾乎共線（條件數 $\\propto J^2$）；總補償量仍唯一，只有參數的分配不唯一',
@@ -191,6 +204,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11B.13',
+    assumes: modelAssumes('L3'),
     title: 'LUT 每格存一個常數的近似誤差（結構的 floor）',
     tex: F.lutApprox,
     conditions: '$d$ 在一格內近似直線（格內殘差 $\\approx d\'(x)(x-\\bar x_j)$，uniform 分布的均方 $\\Delta^2/12$）；鋸齒狀 segment error 的跳變不在內；$J=64$、$d_2=20$：floor $=0.208$',
@@ -202,6 +216,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-11B.14',
+    assumes: modelAssumes('L3'),
     title: 'Preconditioner：完整 $\\mathbf R^{-1}$ 讓所有 pole $=1-\\gamma$；分段／LUT 的對角 $\\mathbf R$ 只要每段自己的 $\\mu_k$',
     tex: F.precond,
     conditions: '$\\mathbf R$ 正定、$\\hat{\\mathbf R}=\\mathbf R$（Ch10 F-10.4、F-10.8）；對角化只在 $\\mathbf R$ 本來就對角（分段、LUT、正交基底）時等價於完整版；弱方向的雜訊同時被放大（Ch10 F-10.6）',

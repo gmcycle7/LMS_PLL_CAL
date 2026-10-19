@@ -1,4 +1,5 @@
 import type { FormulaEntry } from '@/data/types'
+import { modelAssumes } from '@/app/chapterMeta'
 
 /**
  * 第 13 章公式登錄（Formula & Unit Reference 頁以 import.meta.glob 彙整）。
@@ -7,6 +8,7 @@ import type { FormulaEntry } from '@/data/types'
 export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-13.1',
+    assumes: modelAssumes('L5'),
     title: 'LSB 與 fs 的換算（DTC gain register）',
     tex: String.raw`w\,[\mathrm{fs}]=\Delta_\mathrm{LSB}\cdot w\,[\mathrm{LSB}],\qquad w^*=32.4\,\mathrm{LSB}\;\Rightarrow\;w^*=32.4\,\Delta_\mathrm{LSB}`,
     conditions: String.raw`$\Delta_\mathrm{LSB}$ 為 6-bit gain code 的一個 LSB 對應的 DTC gain（fs / unit code）；數值為示例`,
@@ -19,6 +21,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-13.2',
+    assumes: modelAssumes('L5'),
     title: '方法 A：Nearest Freeze 的靜態誤差',
     tex: String.raw`y=Q_B(w^*)=\lfloor w^*+\tfrac12\rfloor,\quad \delta w=y-w^*=-0.4\,\mathrm{LSB}\;(\delta=a-w=+0.4),\quad E[\delta w^2]=0.16\,\mathrm{LSB}^2`,
     conditions: String.raw`$w^*=32.4$、round-half-up；誤差全部集中在 DC`,
@@ -31,6 +34,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-13.3',
+    assumes: modelAssumes('L5'),
     title: '方法 B：Bresenham 週期 pattern',
     tex: String.raw`y[n]=\lfloor w^*\rfloor+\Big\lfloor\tfrac{(n'+1)h}{L_t}\Big\rfloor-\Big\lfloor\tfrac{n'h}{L_t}\Big\rfloor,\quad n'=n\bmod L_t,\quad h=\mathrm{round}(pL_t)`,
     conditions: String.raw`$L_t=5$、$h=2$ 時得到 $[32,32,33,32,33]$；平均 $\lfloor w^*\rfloor+h/L_t$`,
@@ -41,6 +45,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-13.4',
+    assumes: modelAssumes('L5'),
     title: '週期序列的譜線功率（Parseval）',
     tex: String.raw`c_k=\frac1q\sum_{n=0}^{q-1}e[n]e^{-j2\pi kn/q},\qquad P_k=2|c_k|^2\;(0<k<q/2),\qquad \sum_k P_k=\frac1q\sum_n e[n]^2`,
     conditions: String.raw`$[32,32,33,32,33]$：$P_1=0.03056$、$P_2=0.20944\,\mathrm{LSB}^2$（$f_u/5$、$2f_u/5$），總和 $0.24$（勘誤 E47）`,
@@ -53,6 +58,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-13.5',
+    assumes: modelAssumes('L5'),
     title: String.raw`ZOH 保持 $N_h$ 個取樣時的 $\mathrm{sinc}^2$ 權重`,
     tex: String.raw`P_k^{\mathrm{ZOH}}=2|c_{k\bmod q}|^2\left[\frac{\sin(\pi k/q)}{N_h\sin(\pi k/(qN_h))}\right]^2`,
     conditions: String.raw`code 以 $f_u$ 更新、以 ZOH 保持到 $f_s=N_hf_u$；$k$ 為 $q$ 的倍數時為零點`,
@@ -64,6 +70,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-13.6',
+    assumes: modelAssumes('L5'),
     title: '方法 C：Stochastic Rounding 的動差',
     tex: String.raw`E[y]=\lfloor w^*\rfloor+p,\qquad \mathrm{Var}(y)=p(1-p),\qquad S_e^{(1)}(f)=\frac{2p(1-p)}{f_u}`,
     conditions: String.raw`每次獨立的 Bernoulli($p$)，$p=\mathrm{frac}(w^*)=0.4\Rightarrow0.24\,\mathrm{LSB}^2$、RMS $0.490\,\mathrm{LSB}$；PRBS 有限週期時不成立`,
@@ -75,6 +82,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-13.7',
+    assumes: modelAssumes('L5'),
     title: '方法 D：一階 Error-Feedback ΔΣ',
     tex: String.raw`y[n]=w_H[n]+r[n-1]-r[n]\;\Longleftrightarrow\;Y(z)=W_H(z)-(1-z^{-1})R(z)`,
     conditions: String.raw`$v=w_H+r[n-1]$、$y=Q_B(v)$、$r=v-y$；$r$ 有界時誤差被 $\mathrm{NTF}=1-z^{-1}$ 塑形（不保證白色）`,
@@ -86,6 +94,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-13.8',
+    assumes: modelAssumes('L5'),
     title: '一階 EFB 的 limit-cycle 週期',
     tex: String.raw`w_H=\tfrac{m}{q}\;(\gcd(m,q)=1)\Rightarrow\text{period}=q;\qquad w_H=\tfrac{K}{2^F}\Rightarrow\text{period}=\frac{2^F}{\gcd(K\bmod 2^F,\,2^F)}`,
     conditions: String.raw`常數輸入、任何初始 $r$（最多 1 個 sample 暫態）；$32.4\Rightarrow5$；$F=10\Rightarrow512$（勘誤 E15）`,
@@ -97,6 +106,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-13.9',
+    assumes: modelAssumes('L5'),
     title: 'NTF 的振幅響應與白色近似',
     tex: String.raw`|1-e^{-j\Omega}|^2=4\sin^2\!\frac{\Omega}{2},\quad \Omega=\frac{2\pi f}{f_u};\qquad S_e^{(1)}(f)\approx4\sin^2\!\Big(\frac{\pi f}{f_u}\Big)\frac{2\sigma_r^2}{f_u}`,
     conditions: String.raw`白色近似（$r$ iid、$\sigma_r^2=1/12$）預測總功率 $1/6$；常數 $32.4$ 實際為 $0.24$（勘誤 E15）`,
@@ -108,6 +118,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-13.10',
+    assumes: modelAssumes('L5'),
     title: '方法 E：ΔΣ + dither 的誤差功率（白色近似）',
     tex: String.raw`y[n]=w_H[n]+r[n-1]-r[n],\quad r[n]=-\big(e_q[n]+d[n]\big),\quad E[e^2]\approx2\Big(\frac1{12}+\sigma_d^2\Big),\quad\sigma_d^2=\frac{A^2}{12}\ (\mathrm{RPDF}),\ \frac{A^2}{24}\ (\mathrm{TPDF})`,
     conditions: String.raw`$u=v+d$、$y=Q_B(u)$、$r=v-y$（不含 $d$），$e_q=y-u$；白色近似在 $A\gtrsim1\,\mathrm{LSB}$ 時才準：$A=1\,\mathrm{LSB}$ RPDF 預測 $1/3$，模擬約 $0.32\,\mathrm{LSB}^2$、譜線消失`,
@@ -118,6 +129,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-13.11',
+    assumes: modelAssumes('L5'),
     title: String.raw`Code 誤差 $\times$ DSM residue $\to$ DTC timing error`,
     tex: String.raw`\delta t[n]=\Delta_\mathrm{LSB}\,\big(y[\lfloor n/N_\mathrm{upd}\rfloor]-w^*\big)\,x[n],\qquad \sigma_{t,\mathrm{out}}^2=\int_{f_L}^{f_s/2}|T(f)|^2S_{\delta t}^{(1)}(f)\,df`,
     conditions: String.raw`code 以 ZOH 保持 $N_\mathrm{upd}$ 個 reference cycle；$T(f)$ 用 CT 二階原型（$f\ll f_s$ 近似）；$f_L$ 為 Welch 的頻率解析度，紀錄需長於混頻週期 $\mathrm{lcm}(P_\mathrm{code}N_\mathrm{upd},\,P_\mathrm{DSM})$，否則最慢的差頻只會以「靜態偏移」出現`,
@@ -129,6 +141,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-13.12',
+    assumes: modelAssumes('L5'),
     title: 'ΔΣ 的平均追蹤（telescoping）',
     tex: String.raw`\frac1N\sum_{n=0}^{N-1}\big(y[n]-w_H[n]\big)=\frac{r[-1]-r[N-1]}{N},\qquad \Big|\cdot\Big|\le\frac{1+A}{N}\;\;\big(A=0:\ \tfrac1N\big)`,
     conditions: String.raw`等式：$r=v-y$ 原樣存回暫存器時成立（任意時變 $w_H$、有沒有 dither 都可以）；overload 時 anti-windup 的夾限或 wrap 丟掉的進位會破壞它。上界（單位 LSB，$A$ 是 dither 的峰對峰寬度）另外需要：沒有 overload，而且起點 $r[-1]$ 也在量化器的範圍內——round-half-up 是 $|r|\le\tfrac12+\tfrac A2$，floor 是 $-\tfrac A2\le r\le1+\tfrac A2$。方法 D 的 $A=0$，上界才是 $1/N$；只知道「$r$ 有界」只能說平均誤差以 $1/N$ 變小，常數不一定是 1`,
@@ -140,6 +153,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-13.13',
+    assumes: modelAssumes('L5'),
     title: String.raw`時變 $w_H$ 下的頻帶內量化誤差（C 與 D）`,
     tex: String.raw`E[p(1-p)]\approx p_0(1-p_0)-\sigma_w^2,\qquad P_\mathrm{in}^{(C)}=2E[p(1-p)]\frac{f_B}{f_u},\qquad P_\mathrm{in}^{(D)}\approx\frac{8\pi^2}{3}\sigma_r^2\Big(\frac{f_B}{f_u}\Big)^3`,
     conditions: String.raw`$w_H\sim\mathcal N(w^*,\sigma_w^2)$ 且幾乎不越過整數（C）；D 為白色 $r$ 的近似，只有數量級可信；$f_B=f_u/64$`,

@@ -61,6 +61,9 @@ export { CaseSelector } from './CaseSelector'
 
 // 標籤與版面
 export { ClaimTag, ModelLevel, SourceTag, TipBadge, type TipBadgeProps } from './Tags'
+export { CopyLinkButton } from './CopyLinkButton'
+export { useExperimentUrlSync, useExperimentUrl, experimentShareUrl, presetKey } from './experimentUrl'
+export { Badge, BadgeRow, badgeClass, BADGE_VARIANTS, type BadgeVariant, type BadgeProps, type BadgeRowProps } from './Tags'
 export { ScrollRegion, type ScrollRegionProps } from './ScrollRegion'
 export {
   CLAIM_LABEL,
@@ -116,7 +119,7 @@ export { useThemeTokens, useDocumentTheme, readThemeTokens, cssVar, type ThemeTo
 // 匯出工具
 export { downloadText, downloadBlob, toCsv, csvCell, csvPreview } from './download'
 export { buildReportHtml, escapeHtml, isSafeImageDataUrl, type ReportInput, type ReportMetric, type ReportPlot } from './report'
-export { fmtNum, fmtWithUnit, toJsonSafe, prettyJson, fileTimestamp, safeFileName } from './format'
+export { fmtNum, fmtWithUnit, toFixedClean, toJsonSafe, prettyJson, fileTimestamp, safeFileName } from './format'
 export { APP_VERSION, GIT_COMMIT } from './buildInfo'
 
 // 教學元件（docs/teaching-style.md）

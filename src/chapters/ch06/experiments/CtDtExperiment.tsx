@@ -49,7 +49,7 @@ export function CtDtExperiment() {
     if (urlPreset) setParams((p) => ({ ...p, ...isParams(urlPreset.params) }))
   }, [urlPreset])
   const presets = useMemo(
-    () => presetsForExperiment(CT_DT_EXPERIMENT_ID).map((p) => ({ name: p.title, params: p.params, description: p.description })),
+    () => presetsForExperiment(CT_DT_EXPERIMENT_ID).map((p) => ({ id: p.id, name: p.title, params: p.params, description: p.description })),
     [],
   )
   const tokens = useThemeTokens()

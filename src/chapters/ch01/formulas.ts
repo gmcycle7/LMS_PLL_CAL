@@ -1,4 +1,5 @@
 import type { FormulaEntry } from '@/data/types'
+import { modelAssumes } from '@/app/chapterMeta'
 
 /**
  * Ch01 公式登錄（Formula & Unit Reference 頁以 import.meta.glob 彙整）。
@@ -9,6 +10,7 @@ const page = '/ch/01'
 export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-01.1',
+    assumes: modelAssumes('L0'),
     title: '黑盒子模型與誤差',
     tex: String.raw`y=ax+v,\qquad \hat y=wx,\qquad e=y-\hat y=y-wx`,
     conditions: '$a$ 未知；$w$ 為可調參數；$v$ 為量測雜訊',
@@ -19,6 +21,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-01.2',
+    assumes: modelAssumes('L0'),
     title: String.raw`MSE 成本（本站含 $\tfrac12$，勘誤 E41）`,
     tex: String.raw`J(w)=\tfrac12E\big[(y-wx)^2\big]=\tfrac12J_2(w),\qquad w^*=\arg\min_w J(w)=\arg\min_w J_2(w)`,
     conditions: String.raw`$\tfrac12$ 不改變最小值位置，只讓梯度與 LMS 更新量同一個 scaling`,
@@ -30,6 +33,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-01.3',
+    assumes: modelAssumes('L0'),
     title: '$J_2(w)$ 展開成拋物線',
     tex: String.raw`J_2(w)=E[y^2]-2w\,E[xy]+w^2E[x^2]`,
     conditions: '$w$ 為確定數（不是隨機變數），可提出期望值；$E[x^2]>0$ 時開口向上',
@@ -40,6 +44,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-01.4',
+    assumes: modelAssumes('L0'),
     title: 'MSE 最佳解（Wiener 解，純量）',
     tex: String.raw`w^*=\frac{E[xy]}{E[x^2]}=a+\frac{E[xv]}{E[x^2]}`,
     conditions: '需 $E[x^2]>0$；只有 $E[xv]=0$（雜訊與輸入正交；$E[v]=0$ 時也就是不相關）時 $w^*=a$',
@@ -50,6 +55,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-01.5',
+    assumes: modelAssumes('L0'),
     title: 'Normal equation（正交原理）',
     tex: String.raw`E[e^*x]=E\big[(y-w^*x)\,x\big]=0`,
     conditions: String.raw`對任何資料都成立，只需 $E[x^2]>0$（不必 $E[xv]=0$，也不必 $w^*=a$）：在 $w^*$ 處誤差與輸入正交。這不等於「不相關」（$E[e^*x]=E[e^*]\,E[x]$）；兩者只在 $E[x]=0$ 或 $E[e^*]=0$ 時相同。GMAC 估計的正是 $E[e\,x]$（或 $E[\operatorname{sign}(e)\,x]$）`,
@@ -60,6 +66,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-01.6',
+    assumes: modelAssumes('L0'),
     title: '配方：成本 = 雜訊底 + 二次碗',
     tex: String.raw`J(w)=J(w^*)+\tfrac12E[x^2]\,(w-w^*)^2,\qquad J(w^*)=\tfrac12\Big(E[y^2]-\tfrac{E[xy]^2}{E[x^2]}\Big)`,
     conditions: String.raw`$E[x^2]>0$；若 $E[xv]=0$ 則 $J(w^*)=\tfrac12E[v^2]$`,
@@ -70,6 +77,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-01.7',
+    assumes: modelAssumes('L0'),
     title: String.raw`LMS 更新 = 對 $\tfrac12J_2$ 的 SGD（= 對 $J_2$ 用步長 $\mu/2$）`,
     tex: String.raw`w_{n+1}=w_n-\mu\frac{\partial j_n}{\partial w}=w_n+\mu e_nx_n,\qquad j_n=\tfrac12e_n^2`,
     conditions: '單筆隨機梯度；$E[j_n]=J(w)$',
@@ -81,6 +89,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-01.8',
+    assumes: modelAssumes('L0'),
     title: '固定 $x$、無雜訊的封閉解與穩定區間',
     tex: String.raw`\delta_n=a-w_n=p^n\delta_0,\quad p=1-\mu x^2,\quad 0<\mu<\frac{2}{x^2}`,
     conditions: String.raw`固定非零 $x$、$v=0$；$\delta=a-w$（勘誤 E39）`,
@@ -92,6 +101,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-01.9',
+    assumes: modelAssumes('L0'),
     title: '固定 $x$、零均值雜訊時 $w_n$ 的變異數',
     tex: String.raw`\operatorname{Var}(w_n)=\mu^2x^2\sigma_v^2\,\frac{1-p^{2n}}{1-p^2}\;\xrightarrow{n\to\infty}\;\frac{\mu\sigma_v^2}{2-\mu x^2}`,
     conditions: '$v$ iid、零均值、與 $x$ 獨立；$|p|<1$',
@@ -102,6 +112,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-01.10',
+    assumes: modelAssumes('L0'),
     title: '三種損失：MSE / MAE / Huber',
     tex: String.raw`\rho_2(e)=\tfrac12e^2,\quad \rho_1(e)=|e|,\quad \rho_H(e)=\begin{cases}\tfrac12e^2,&|e|\le\delta_H\\ \delta_H\big(|e|-\tfrac12\delta_H\big),&|e|>\delta_H\end{cases}`,
     conditions: String.raw`Huber 門檻記為 $\delta_H$，與參數誤差 $\delta$ 不同`,
@@ -112,6 +123,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-01.11',
+    assumes: modelAssumes('L0'),
     title: String.raw`統一更新式 $\Delta w=\mu\,\psi(e)\,x$`,
     tex: String.raw`\Delta w=\mu\,\psi(e)\,x,\qquad \psi_2(e)=e,\quad \psi_1(e)=\operatorname{sign}(e),\quad \psi_H(e)=\operatorname{clip}(e,-\delta_H,\delta_H)`,
     conditions: String.raw`$\psi=d\rho/de$；MAE 在 $e=0$ 取次梯度`,
@@ -122,6 +134,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-01.12',
+    assumes: modelAssumes('L0'),
     title: String.raw`$|e|$ 在 0 的次梯度與 $\operatorname{sign}(0)$ 慣例`,
     tex: String.raw`\partial|e|\,\big|_{e=0}=[-1,\,1],\qquad \operatorname{sign}(0)\in\{0\ (\text{數學}),\ +1,\ -1\ (\text{comparator})\}`,
     conditions: '慣例必須明定；模擬中不可依賴 Math.sign(0) = 0（勘誤 E40）',
@@ -133,6 +146,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-01.13',
+    assumes: modelAssumes('L0'),
     title: String.raw`MAE 的導數＝計數差 $\Rightarrow$ 最佳解是中位數`,
     tex: String.raw`\frac{d}{dw}\,\frac1N\sum_i|y_i-w|=\frac{\#\{y_i<w\}-\#\{y_i>w\}}{N}`,
     conditions: '$w$ 不等於任何 $y_i$；斜率由負轉正處即中位數（偶數筆時可能是一整段）',
@@ -143,6 +157,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-01.14',
+    assumes: modelAssumes('L0'),
     title: '一般 $x$ 的 L1 解：加權中位數',
     tex: String.raw`\sum_i|y_i-wx_i|=\sum_i|x_i|\,\Big|\tfrac{y_i}{x_i}-w\Big|\;\Rightarrow\;w_{L1}=\operatorname{wmedian}\Big(\tfrac{y_i}{x_i};\,|x_i|\Big)`,
     conditions: '$x_i=0$ 的樣本不含資訊',
@@ -153,6 +168,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-01.15',
+    assumes: modelAssumes('L0'),
     title: String.raw`LMS 穩態（$x\equiv1$）`,
     tex: String.raw`w_{n+1}=(1-\mu)w_n+\mu y_n\;\Rightarrow\;E[w_\infty]=E[y],\quad \operatorname{Var}(w_\infty)=\frac{\mu\operatorname{Var}(y)}{2-\mu}`,
     conditions: String.raw`$y$ iid；$0<\mu<2$`,
@@ -163,6 +179,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-01.16',
+    assumes: modelAssumes('L0'),
     title: String.raw`Sign-Error 的時間平均：離中位數 $O(\mu|x|)$`,
     // 右式是「把格點鏈當成向右無限延伸」的小步長近似（審查 R08）：有限鏈在 w = 10 到頭，
     // 10/μ 為正整數時三種慣例的精確值都少 (10 + μ)/(3^{1 + 10/μ} − 1)；μ = 5、sign(0) = 0 是 25/13，不是 2.5
@@ -177,6 +194,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-01.17',
+    assumes: modelAssumes('L0'),
     title: '單邊 outlier 污染下的中位數',
     tex: String.raw`(1-\varepsilon)\,\Phi\!\Big(\frac{m}{\sigma}\Big)+\varepsilon\,\Phi\!\Big(\frac{m-s}{\sigma}\Big)=\tfrac12\;\xrightarrow{s\gg\sigma}\;m\approx\sigma\,\Phi^{-1}\!\Big(\frac{1}{2(1-\varepsilon)}\Big)`,
     conditions: String.raw`$v\sim\mathcal N(0,\sigma^2)$、outlier 機率 $\varepsilon$、大小 $+s$；平均則被拉到 $\varepsilon s$`,
@@ -187,6 +205,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-01.18',
+    assumes: modelAssumes('L0'),
     title: 'Sign-Error 在連續雜訊下的穩態抖動（擴散近似）',
     tex: String.raw`\operatorname{Var}(w_\infty)\approx\frac{\mu}{4f_{\tilde v}(t^*)}=\frac{\mu}{2K_q},\qquad K_q:=2f_{\tilde v}(t^*)\ \overset{\text{Gaussian}}{=}\ \sqrt{\tfrac{2}{\pi}}\,\frac{1}{\sigma_v}`,
     conditions:

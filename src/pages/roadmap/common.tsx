@@ -202,7 +202,7 @@ export function useRoadmapPresets(id: string, inline: ExperimentPreset[], apply:
     }
   }, [url])
   return useMemo(
-    () => [...inline, ...presetsForExperiment(id).map((p) => ({ name: p.title, params: p.params, description: p.description }))],
+    () => [...inline, ...presetsForExperiment(id).map((p) => ({ id: p.id, name: p.title, params: p.params, description: p.description }))],
     [id, inline],
   )
 }

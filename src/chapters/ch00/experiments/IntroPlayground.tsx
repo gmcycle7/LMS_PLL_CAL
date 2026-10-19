@@ -134,7 +134,7 @@ export function IntroPlayground() {
   }, [visit])
 
   const presets: ExperimentPreset[] = useMemo(
-    () => presetsForExperiment(EXP_ID).map((p) => ({ name: p.title, params: p.params, description: p.description })),
+    () => presetsForExperiment(EXP_ID).map((p) => ({ id: p.id, name: p.title, params: p.params, description: p.description })),
     [],
   )
 

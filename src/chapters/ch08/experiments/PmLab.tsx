@@ -148,7 +148,7 @@ export function PmLab() {
 
   // ── presets（src/data/presets/pm*.json）＋ URL ?preset= ──
   const presets: ExperimentPreset[] = useMemo(
-    () => presetsForExperiment(PM_LAB_ID).map((p) => ({ name: p.title, params: p.params, description: p.description })),
+    () => presetsForExperiment(PM_LAB_ID).map((p) => ({ id: p.id, name: p.title, params: p.params, description: p.description })),
     [],
   )
   const applyParams = useCallback(

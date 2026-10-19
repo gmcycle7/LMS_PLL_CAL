@@ -31,12 +31,10 @@
 .ver-table {
   border-collapse: collapse;
   width: 100%;
-  font-size: 0.88em;
 }
 .ver-table th,
 .ver-table td {
   border-bottom: 1px solid var(--border);
-  padding: 6px 8px;
   vertical-align: top;
   text-align: left;
 }

@@ -60,14 +60,12 @@
 
 .ch13-table {
   border-collapse: collapse;
-  font-size: 0.9em;
   font-variant-numeric: tabular-nums;
   margin: 8px 0;
 }
 .ch13-table th,
 .ch13-table td {
   border: 1px solid var(--border);
-  padding: 4px 8px;
   text-align: right;
   vertical-align: top;
 }
@@ -183,10 +181,6 @@
 }
 
 @media (max-width: 600px) {
-  .ch13-table th,
-  .ch13-table td {
-    padding: 3px 5px;
-  }
   .ch13-case-controls {
     grid-template-columns: minmax(0, 1fr);
   }

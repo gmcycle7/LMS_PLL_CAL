@@ -1,4 +1,4 @@
-import { AUTO_CAPTION_ATTR, enhanceTables, spokenText, watchA11y } from './a11yEnhance'
+import { AUTO_CAPTION_ATTR, enhanceTables, markTinyScroll, spokenText, watchA11y } from './a11yEnhance'
 
 function host(html: string): HTMLElement {
   const el = document.createElement('main')
@@ -96,5 +96,31 @@ describe('watchA11y', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe('markTinyScroll：手寫的 .table-wrap 橫向只超出 1–6px 時隱藏捲軸', () => {
+  const size = (el: Element, size: { scrollWidth: number; clientWidth: number; scrollHeight?: number; clientHeight?: number }) => {
+    for (const [k, v] of Object.entries({ scrollHeight: 0, clientHeight: 0, ...size })) Object.defineProperty(el, k, { configurable: true, get: () => v })
+  }
+
+  it('1–6px 標 data-tiny；0px、7px 以上、直向溢位、ScrollRegion（.c-scroll）都不標；尺寸變了會更新，重複執行不再有變動', () => {
+    const el = host('<div class="table-wrap" id="a"></div><div class="table-wrap" id="b"></div><div class="table-wrap" id="c"></div><div class="table-wrap" id="d"></div><div class="table-wrap c-scroll" id="e"></div>')
+    const q = (id: string) => el.querySelector(`#${id}`) as HTMLElement
+    size(q('a'), { scrollWidth: 306, clientWidth: 300 })
+    size(q('b'), { scrollWidth: 300, clientWidth: 300 })
+    size(q('c'), { scrollWidth: 307, clientWidth: 300 })
+    size(q('d'), { scrollWidth: 304, clientWidth: 300, scrollHeight: 400, clientHeight: 300 })
+    size(q('e'), { scrollWidth: 304, clientWidth: 300 })
+    expect(markTinyScroll(el)).toBe(1)
+    expect(q('a').getAttribute('data-tiny')).toBe('true')
+    for (const id of ['b', 'c', 'd', 'e']) expect(q(id).hasAttribute('data-tiny'), id).toBe(false)
+    expect(markTinyScroll(el)).toBe(0)
+    // 視窗變窄：a 變成真的要捲（超出 20px）→ 拿掉標記；c 變成只超出 5px → 標上
+    size(q('a'), { scrollWidth: 320, clientWidth: 300 })
+    size(q('c'), { scrollWidth: 305, clientWidth: 300 })
+    expect(markTinyScroll(el)).toBe(2)
+    expect(q('a').hasAttribute('data-tiny')).toBe(false)
+    expect(q('c').getAttribute('data-tiny')).toBe('true')
   })
 })

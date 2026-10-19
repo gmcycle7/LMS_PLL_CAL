@@ -1,4 +1,5 @@
 import type { FormulaEntry } from '@/data/types'
+import { modelAssumes } from '@/app/chapterMeta'
 
 /**
  * Research Backlog（/roadmap，規格附錄 C）的公式登錄。ID 與頁面內 <TexBlock id> 相同（F-R1.1 … F-SS.6）。
@@ -11,6 +12,7 @@ const page = '/roadmap'
 export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-R1.1',
+    assumes: modelAssumes('L1'),
     title: '有色（AR(1)）GMAC 雜訊下的係數變異數',
     tex: String.raw`\sigma_w^2=\frac{\mu^2\sigma_\eta^2}{1-p^2}\cdot\frac{1+p\rho}{1-p\rho},\qquad R_\eta[\ell]=\sigma_\eta^2\rho^{|\ell|}`,
     conditions: 'δw_{k+1} = pδw_k + μη_k（線性化、d = 0）；|p| < 1、|ρ| < 1；ρ = 0 退化為 F-12 的白雜訊結果',
@@ -23,6 +25,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-R1.2',
+    assumes: modelAssumes('L1'),
     title: '離散 Lyapunov 方程（狀態：係數誤差與 GMAC 雜訊）',
     tex: String.raw`\mathbf P=\mathbf A\mathbf P\mathbf A^{T}+\mathbf Q,\quad \mathbf A=\begin{bmatrix}p&\mu\\0&\rho\end{bmatrix},\ \mathbf Q=\begin{bmatrix}0&0\\0&(1-\rho^2)\sigma_\eta^2\end{bmatrix},\ \sigma_w^2=P_{11}`,
     conditions: '所有 eigenvalue 乘積 ≠ 1（嚴格穩定）時有唯一解',
@@ -33,6 +36,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-R2.1',
+    assumes: modelAssumes('L4'),
     title: 'ZOH 係數 × 週期 code 的時間平均自相關',
     tex: String.raw`\bar R_{\delta t}[m]=\frac1L\sum_{n=0}^{L-1}x[n]x[n+m]\,\sigma_w^2\,p^{\left|\lfloor (n+m)/N\rfloor-\lfloor n/N\rfloor\right|},\ L=\mathrm{lcm}(P,N)`,
     conditions: 'x 為週期 P 的決定性序列；δw 為 block-rate AR(1)（pole p）並以 ZOH 保持 N 個 sample；commit latency 0',
@@ -44,6 +48,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-R2.2',
+    assumes: modelAssumes('L4'),
     title: 'code 週期與 block 長度互質時，自相關精確分解',
     tex: String.raw`\gcd(P,N)=1\;\Rightarrow\;\bar R_{\delta t}[m]=\bar R_x[m]\cdot\bar R_w[m]`,
     conditions: '中國餘數定理：n ↦ (n mod P, n mod N) 在一個 L 週期內一對一；gcd > 1 時一般不成立',
@@ -54,6 +59,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-R3.1',
+    assumes: modelAssumes('L5'),
     title: '一階 EF quantizer 的週期與平均',
     tex: String.raw`w_H=\frac WS\;\Rightarrow\;P=\frac{S}{\gcd(W\bmod S,\,S)},\qquad \frac1P\sum_{n=0}^{P-1}y[n]=w_H`,
     conditions: '常數 w_H；整數（或定點 S = 2^F）實作；rounding 與 r[−1] 只改變相位，不改變週期',
@@ -65,6 +71,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-R4.1',
+    assumes: modelAssumes('L3'),
     title: 'Regularized preconditioner 的 poles 與 mode 變異數',
     tex: String.raw`p_i=1-\gamma\frac{\sigma_i^2}{\sigma_i^2+\varepsilon},\qquad \mathrm{Var}_i=\frac{\gamma^2\sigma_i^2\,\sigma_\eta^2}{(\sigma_i^2+\varepsilon)^2(1-p_i^2)}`,
     conditions: 'M = −γ(JᵀJ + εI)⁻¹Jᵀ、方陣 J、Cov(η) = σ_η² I、線性化有效；ε 為正則化（勘誤 E22）',
@@ -76,6 +83,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-R5.1',
+    assumes: modelAssumes('L3'),
     title: 'gain + offset 兩參數的 D- / E-optimal 指標',
     tex: String.raw`\mathbf R=\begin{bmatrix}E[x^2]&sE[x]\\sE[x]&s^2\end{bmatrix},\quad \det\mathbf R=s^2\,\mathrm{Var}(x),\quad \lambda_{\min}=\tfrac12\Big(\mathrm{tr}\,\mathbf R-\sqrt{(\mathrm{tr}\,\mathbf R)^2-4\det\mathbf R}\Big)`,
     conditions: 'u = [x, s]ᵀ；s 為 offset regressor 的單位尺度',
@@ -86,6 +94,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-R5.2',
+    assumes: modelAssumes('L3'),
     title: 'Near-integer FCW 的最差窗口最小 eigenvalue',
     tex: String.raw`\lambda_{\min}\approx\frac{\mathrm{Var}_{\mathrm{win}}(x)}{1+\bar x^2}\approx\frac{\alpha^2(N_0^2-1)}{15}`,
     conditions: 'x[n] = frac(nα + φ0) − ½、u = [x, 1]ᵀ；αN0 ≪ 1（窗口內無 wrap），最差窗口 x̄ → ±½',
@@ -96,6 +105,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-R6.1',
+    assumes: modelAssumes('L1'),
     title: 'Comparator 的 S 曲線與局部斜率（任意雜訊 PDF）',
     tex: String.raw`E[q\mid s]=1-2F_v(\theta-s),\qquad \frac{dE[q\mid s]}{ds}=2f_v(\theta-s)`,
     conditions: 'q = sign(s + v − θ)、v iid、零均值；Gaussian 時 2f_v(0) = √(2/π)/σ_v = K_q',
@@ -106,6 +116,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-R6.2',
+    assumes: modelAssumes('L1'),
     title: '遲滯 comparator（兩狀態 Markov chain）',
     tex: String.raw`t_+=1-F_v(\theta+\tfrac H2-s),\ t_-=F_v(\theta-\tfrac H2-s),\quad E[q]=\frac{t_+-t_-}{t_++t_-},\quad \rho_q[k]=\nu^{k},\ \nu=1-t_+-t_-`,
     conditions: '門檻 θ ± H/2 依前一次決策而定；v iid',
@@ -116,6 +127,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-R6.3',
+    assumes: modelAssumes('L1'),
     title: '每個 sample 的有效資訊',
     tex: String.raw`\mathcal I=\frac{(dE[q]/ds)^2(1-\nu)}{(1-m^2)(1+\nu)},\qquad \mathcal I\big|_{s=0}=\frac{f_v(H/2)^2}{c(1-c)},\ c=1-F_v(H/2)`,
     conditions: 'block 平均的漸近變異 (1 − m²)(1 + ν)/((1 − ν)N)，N 遠大於相關長度；H = 0 時 ℐ = K_q²',
@@ -126,6 +138,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-R7.1',
+    assumes: modelAssumes('L2'),
     title: '抽象雙迴路的多速率 lifting',
     tex: String.raw`\mathbf A_N=\begin{bmatrix}r_s^N&b_sS_N\\-\mu c_sS_N/N&1-\mu c_sb_s\,\frac{N-S_N}{N(1-r_s)}\end{bmatrix},\quad S_N=\sum_{i=0}^{N-1}r_s^{\,i}`,
     conditions: '快迴路 s_{n+1} = r_s·s_n + b_s·δ_k（δ 在 block 內 ZOH）、G_k = (c_s/N)Σ s；N = 1 即規格 §8.4（符號依勘誤 E31：r_s、b_s、c_s）；N → ∞ 退化為 quasi-static',
@@ -137,6 +150,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-R8.1',
+    assumes: modelAssumes('L1'),
     title: 'Random-walk 追蹤：最佳固定增益就是穩態 Kalman 增益',
     tex: String.raw`g^*=\frac{\sqrt{\sigma_\zeta^4+4\sigma_\zeta^2\sigma_y^2}-\sigma_\zeta^2}{2\sigma_y^2}=\frac{P^-}{P^-+\sigma_y^2},\qquad V(g^*)=P^-=\frac{\sigma_\zeta^2+\sqrt{\sigma_\zeta^4+4\sigma_\zeta^2\sigma_y^2}}{2}`,
     conditions: '線性 GMAC、w*_{k+1} = w*_k + ζ_k、σ_y² = σ_η²/K²；g* < 1（PM > 60°）',
@@ -148,6 +162,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-R9.1',
+    assumes: modelAssumes('L5'),
     title: 'GMAC 累加器位寬',
     tex: String.raw`\max|q\,x|=\begin{cases}2^{W_x-1}-1&\text{對稱 code}\\2^{W_x-1}&\text{允許最負 code}\end{cases},\qquad N\max|qx|\le2^{W_\mathrm{acc}-1}-1`,
     conditions: 'q ∈ {±1}、two’s complement；6-bit × 4096：對稱 18 bits、含 −32 時 19 bits',
@@ -158,6 +173,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-R10.1',
+    assumes: modelAssumes('L1'),
     title: '固定步長下係數雜訊與校正時間的取捨：tanh 律',
     tex: String.raw`\sigma_{w,\min}^2(N)=\frac{L_\varepsilon}{2K^2f_sT}\cdot\frac{\tanh y}{y},\quad y=\frac{NL_\varepsilon}{2f_sT},\ L_\varepsilon=\ln\frac1\varepsilon`,
     conditions: '線性一階模型、σ_η² = 1/N、平均誤差縮到 ε|δ0|、B 視為連續；未含 slew 與整數 B',
@@ -169,6 +185,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-SS.1',
+    assumes: modelAssumes('L2'),
     title: 'PD 誤差轉移函數實部的符號恆等式',
     tex: String.raw`\mathrm{Re}\{H_{\mathrm{PD}}\}=\frac{1+\mathrm{Re}\{L\}}{|1+L|^2},\qquad \mathrm{Re}\{H_{\mathrm{PD}}\}<0\iff\mathrm{Re}\{L\}<-1\iff\mathrm{Re}\{T\}>1`,
     conditions: '任何 L（H_PD = 1/(1 + L)、T = L/(1 + L)）',
@@ -179,6 +196,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-SS.2',
+    assumes: modelAssumes('L2'),
     title: 'Type-I DPLL（無額外延遲）永不反號',
     tex: String.raw`L=\frac{K_L}{z-1}\;\Rightarrow\;\mathrm{Re}\{L(e^{j\Omega})\}=-\frac{K_L}{2}>-1\quad(0<K_L<2)`,
     conditions: '無額外延遲；有延遲 d 時反號條件為 K_L sin(Ω(d + ½)) > 2 sin(Ω/2)',
@@ -189,6 +207,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-SS.3',
+    assumes: modelAssumes('L2'),
     title: 'Type-II DPLL（無額外延遲）的反號帶邊界',
     tex: String.raw`f_{\mathrm{inv}}=\frac{f_{\mathrm{ref}}}{\pi}\arcsin\sqrt{\frac{K_i}{2(2-K_p)}}`,
     conditions: 'L = (K_p + K_i/(1 − z⁻¹))·z⁻¹/(1 − z⁻¹)（pll.ts designDtLoop 的 dpll 形式）',
@@ -200,6 +219,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-SS.4',
+    assumes: modelAssumes('L2'),
     title: 'raw-x GMAC：白色與 AR(1) code 的相關恆為正',
     tex: String.raw`C_{\mathrm{white}}=h_{\mathrm{PD}}[0]=1,\qquad C_{\mathrm{AR(1)}}=H_{\mathrm{PD}}(z)\big|_{z^{-1}=\beta_x}=\frac{(1-\beta_x)^n}{\prod_i(1-p_i\beta_x)}>0`,
     conditions: '主迴路穩定、L 嚴格因果、H_PD 分子為 (1 − z⁻¹)^n；0 ≤ β_x < 1；反號需要 code 能量集中在反號帶內（例如單頻）',
@@ -210,6 +230,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-SS.5',
+    assumes: modelAssumes('L2'),
     title: '8 相 PMUX 的 PHOS mode-1：基波權重與「一定反號」條件',
     tex: String.raw`W_1=\frac{64\sin^2(\pi/8)}{\pi^2}\approx0.9496,\qquad \mathrm{Re}\{H_{\mathrm{PD}}(\alpha f_{\mathrm{ref}})\}<-\frac{1-W_1}{W_1}\max_f\mathrm{Re}\{H_{\mathrm{PD}}\}\ \Rightarrow\ \kappa_1<0`,
     conditions: 'raw-x GMAC、相關器延遲 D = 0、線性小訊號；無理數 α 或 α = j/Q 且 8 | Q（平均更新矩陣為 circulant）；κ_1 = Σ_{ℓ≡1 (8)} w_ℓ Re H_PD(ℓα) 是實數，即案例頁（F-CS.13）的複數 κ_1 = 8λ_1 的實部 Re κ_1',
@@ -221,6 +242,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-SS.6',
+    assumes: modelAssumes('L2'),
     title: '一階差分 regressor 在 Type-II 迴路下不反號的條件',
     tex: String.raw`\mathrm{Re}\{(1-z^{-1})(1+L)\}=\Big(K_p-\frac{K_i}{2}\Big)+2\sin^2\frac\Omega2\,(1-K_p)\ge0\iff K_i\le2K_p\ \text{且}\ K_p+\frac{K_i}{2}\le2`,
     conditions: 'r[n] = x[n] − x[n−1]（G = 1 − z⁻¹）、L = (K_p + K_i/(1 − z⁻¹))·z⁻¹/(1 − z⁻¹)、D = 0；Re{H_PD·conj(G)} 與左式同號',

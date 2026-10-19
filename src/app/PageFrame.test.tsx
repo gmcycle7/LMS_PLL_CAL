@@ -186,8 +186,8 @@ describe('PageFrame：章首／章末骨架（ChapterInfoStrip、PrereqCheck、C
     // 問題與圖之間沒有別的區塊（插槽只有一個）
     expect(article.querySelectorAll('[data-chapter-slot="opening"]')).toHaveLength(1)
     expect(question.nextElementSibling).toBe(figure)
-    // strip 的內容：規格書 §、驗證、閱讀時間、勘誤、手算（從 DOM 數：1 題）、符號表
-    expect(Array.from(strip.querySelectorAll('.c-chinfo-item')).map((li) => li.getAttribute('data-item'))).toEqual(['spec', 'tests', 'reading', 'errata', 'handcalcs', 'symbols'])
+    // strip 的內容：規格書 §、驗證、本章的「精確」所在的模型、閱讀時間、勘誤、手算（從 DOM 數：1 題）、符號表
+    expect(Array.from(strip.querySelectorAll('.c-chinfo-item')).map((li) => li.getAttribute('data-item'))).toEqual(['spec', 'tests', 'models', 'reading', 'errata', 'handcalcs', 'symbols'])
     expect(strip.querySelector('[data-item="spec"]')!.textContent).toBe('規格書§5、§5.1')
     expect(strip.querySelector('[data-item="handcalcs"] a')!.textContent).toBe('手算 1 題')
     expect(strip.querySelector('[data-item="handcalcs"] a')!.getAttribute('href')).toMatch(/\?a=handcalc-HC-05\.1$/)
@@ -241,7 +241,7 @@ describe('PageFrame：章首／章末骨架（ChapterInfoStrip、PrereqCheck、C
     const handoff = article.querySelector('.c-handoff')!
     expect(following(content, handoff) && following(handoff, article.querySelector('.page-pager'))).toBe(true)
     // 沒有 #symbols 與手算題：strip 不列那兩項
-    expect(Array.from(strip.querySelectorAll('.c-chinfo-item')).map((li) => li.getAttribute('data-item'))).toEqual(['spec', 'tests', 'reading', 'errata'])
+    expect(Array.from(strip.querySelectorAll('.c-chinfo-item')).map((li) => li.getAttribute('data-item'))).toEqual(['spec', 'tests', 'models', 'reading', 'errata'])
     expect(longPageRenders).toBe(1) // 插槽的 state 變了也不重畫章節
   })
 

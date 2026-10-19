@@ -78,7 +78,6 @@
 .lab-table {
   border-collapse: collapse;
   width: 100%;
-  font-size: 0.88rem;
 }
 .lab-table caption {
   caption-side: top;
@@ -90,7 +89,6 @@
 .lab-table th,
 .lab-table td {
   border: 1px solid var(--border);
-  padding: 5px 8px;
   vertical-align: top;
   text-align: left;
 }
@@ -390,9 +388,6 @@
 .lab-stage-links {
   margin-left: auto;
 }
-.lab-stage-table {
-  font-size: 0.84rem;
-}
 .lab-stage-table th {
   width: 42%;
 }
@@ -406,13 +401,6 @@
 }
 /* 交叉比對明細（五欄）：桌機 1280px 的結果欄約 550px，預設的字級與留白會讓表比欄寬多出 33px——
    最後一欄的說明被切掉、底下多一條橫向捲軸。字與留白各收一點，五欄剛好放得下。 */
-.lab-check-table {
-  font-size: 0.82rem;
-}
-.lab-check-table th,
-.lab-check-table td {
-  padding: 5px 6px;
-}
 .lab-check-table .lab-num {
   font-size: 0.78rem;
 }

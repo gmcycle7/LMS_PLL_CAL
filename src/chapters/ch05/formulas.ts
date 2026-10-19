@@ -1,4 +1,5 @@
 import type { FormulaEntry } from '@/data/types'
+import { modelAssumes } from '@/app/chapterMeta'
 
 const page = '/ch/05'
 
@@ -10,6 +11,7 @@ const page = '/ch/05'
 export const FORMULAS: FormulaEntry[] = [
   {
     id: 'F-05.1',
+    assumes: modelAssumes('L1'),
     title: 'Comparator 輸出 $+1$ 的機率',
     tex: String.raw`P(q=+1)=P(s+v\ge\theta)=\Phi\!\left(\frac{s-\theta}{\sigma_v}\right)\;\xrightarrow{\theta=0}\;\Phi\!\left(\frac{s}{\sigma_v}\right)`,
     conditions: String.raw`$v\sim\mathcal N(0,\sigma_v^2)$，$s$ 固定；硬體慣例 $e\ge\theta\Rightarrow q=+1$`,
@@ -21,6 +23,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-05.2',
+    assumes: modelAssumes('L1'),
     title: String.raw`$E[q]$：$2\Phi-1=\operatorname{erf}$`,
     tex: String.raw`m\equiv m_q\equiv E[q]=2\Phi\!\left(\frac{s-\theta}{\sigma_v}\right)-1=\operatorname{erf}\!\left(\frac{s-\theta}{\sqrt2\,\sigma_v}\right)\;\xrightarrow{\;\theta=0\;}\;\operatorname{erf}\!\left(\frac{s}{\sqrt2\,\sigma_v}\right)`,
     conditions: '同 F-05.1；$m$ 即全站符號表的 $m_q$（勘誤 E34）',
@@ -31,6 +34,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-05.3',
+    assumes: modelAssumes('L1'),
     title: '單一樣本的變異數',
     tex: String.raw`\operatorname{Var}(q)=E[q^2]-E[q]^2=1-m^2`,
     conditions: String.raw`$q\in\{\pm1\}\Rightarrow q^2\equiv1$`,
@@ -41,6 +45,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-05.4',
+    assumes: modelAssumes('L1'),
     title: '總和 $S_N$ 與平均 $G$ 的矩（勘誤 E07 / E18）',
     tex: String.raw`S_N=\sum_{i=1}^{N}q_i=2K-N,\;K\sim\mathrm{Bin}(N,p);\quad E[S_N]=Nm,\;\operatorname{Var}(S_N)=N(1-m^2);\quad G=\tfrac{S_N}{N}:\;E[G]=m,\;\operatorname{Var}(G)=\tfrac{1-m^2}{N}`,
     conditions: String.raw`$q_i$ iid；$x\equiv1$ 時 §0 的 $G_k=S_N/N$`,
@@ -52,6 +57,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-05.5',
+    assumes: modelAssumes('L1'),
     title: String.raw`統計 SNR：訊號 $\propto N$、雜訊 $\propto\sqrt N$`,
     tex: String.raw`\mathrm{SNR}_{\mathrm{stat}}=\frac{E[S_N]}{\sqrt{\operatorname{Var}(S_N)}}=\frac{m\sqrt N}{\sqrt{1-m^2}}`,
     conditions: '$q_i$ iid',
@@ -62,6 +68,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-05.6',
+    assumes: modelAssumes('L1'),
     title: '方向判斷的精確 Binomial 機率',
     tex: String.raw`P(S_N>0)=\sum_{k>N/2}\binom Nk p^k(1-p)^{N-k},\quad P(S_N=0)=\binom N{N/2}\big(p(1-p)\big)^{N/2}\;(N\text{ 偶數})`,
     conditions: '$q_i$ iid，$p=P(q=+1)$；奇數 $N$ 沒有 tie',
@@ -73,6 +80,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-05.7',
+    assumes: modelAssumes('L1'),
     title: 'CLT 近似（規格 §5 原式）',
     tex: String.raw`\Phi\!\left(\frac{m\sqrt N}{\sqrt{1-m^2}}\right)\approx\begin{cases}P(S_N>0) & N\text{ 奇數}\\ P(S_N>0)+\tfrac12P(S_N=0) & N\text{ 偶數}\end{cases}`,
     conditions: '$N$ 大、iid；偶數 $N$ 近似的是 random tie-break（勘誤 E02）',
@@ -84,6 +92,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-05.8',
+    assumes: modelAssumes('L1'),
     title: '偶數 $N$ 的嚴格 $P(S_N>0)$（連續性修正）',
     tex: String.raw`P(S_N>0)=P(S_N\ge2)\approx\Phi\!\left(\frac{Nm-1}{\sqrt{N(1-m^2)}}\right)`,
     conditions: '$N$ 偶數；$S_N$ 格點間距 2，切在中點 1',
@@ -95,6 +104,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-05.9',
+    assumes: modelAssumes('L1'),
     title: '達到目標正確率所需樣本數',
     tex: String.raw`N=\frac{z^2(1-m^2)}{m^2}\approx\left(\frac{z\,\sigma_v}{s}\right)^2\frac{\pi}{2},\qquad z=\Phi^{-1}(P_{\text{target}})`,
     conditions: String.raw`CLT；第二式另需 $|s|\ll\sigma_v$`,
@@ -105,6 +115,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-05.10',
+    assumes: modelAssumes('L1'),
     title: 'Comparator 小訊號統計增益 $K_q$',
     tex: String.raw`E[q]\approx K_q\,s,\qquad K_q=\sqrt{\frac{2}{\pi}}\,\frac{1}{\sigma_v}`,
     conditions: String.raw`$|s|\ll\sigma_v$（$\operatorname{erf}$ 一階泰勒）`,
@@ -116,6 +127,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-05.11',
+    assumes: modelAssumes('L1'),
     title: '線性化的相對誤差',
     tex: String.raw`\frac{K_q s-E[q]}{E[q]}=\frac{\sqrt{2/\pi}\,r}{\operatorname{erf}(r/\sqrt2)}-1\approx\frac{r^2}{6},\qquad r=\frac{s}{\sigma_v}`,
     conditions: String.raw`第二式取 $\operatorname{erf}$ 泰勒展開到三次項`,
@@ -126,6 +138,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-05.12',
+    assumes: modelAssumes('L1'),
     title: '任一操作點的局部斜率（S 曲線飽和）',
     tex: String.raw`\frac{dE[q]}{ds}=\frac{2}{\sigma_v}\,\varphi\!\left(\frac{s-\theta}{\sigma_v}\right)\;\xrightarrow{|s-\theta|\gg\sigma_v}\;0`,
     conditions: '同 F-05.1',
@@ -136,6 +149,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-05.13',
+    assumes: modelAssumes('L1'),
     title: '偶數 $N$ 平分 tie $=$ 奇數 $N-1$',
     tex: String.raw`P(S_N>0)+\tfrac12P(S_N=0)=P(S_{N-1}>0)\qquad(N\text{ 偶數})`,
     conditions: String.raw`$q_i$ iid $\pm1$；任意 $p$`,
@@ -147,6 +161,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-05.14',
+    assumes: modelAssumes('L1'),
     title: 'Wilson 信賴區間（Monte Carlo 判對率）',
     tex: String.raw`\frac{\hat P+\frac{z^2}{2T}\pm z\sqrt{\frac{\hat P(1-\hat P)}{T}+\frac{z^2}{4T^2}}}{1+\frac{z^2}{T}}`,
     conditions: String.raw`$T$ 次獨立 trials、$k$ 次判對，$\hat P=k/T$`,
@@ -157,6 +172,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-05.15',
+    assumes: modelAssumes('L1'),
     title: '逐 sample Sign-LMS 的線性化穩態 RMS',
     tex: String.raw`\delta_{n+1}=(1-\mu K_q)\delta_n-\mu\eta_n\;\Rightarrow\;\operatorname{Var}(\delta)\approx\frac{\mu}{K_q(2-\mu K_q)}`,
     conditions: String.raw`$x\equiv1$、$\delta=a-w$、$\operatorname{Var}(\eta)\approx1$、$0<\mu K_q<2$、穩態 $|\delta|\ll\sigma_v$`,
@@ -168,6 +184,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-05.16',
+    assumes: modelAssumes('L1'),
     title: String.raw`反面：0/1 位元未映射成 $\pm1$`,
     tex: String.raw`E[b\,x]\big|_{w=a}=\tfrac12E[x]\neq0\qquad(\text{正確：}q=2b-1\Rightarrow E[q\,x]\big|_{w=a}=0)`,
     conditions: String.raw`$b\in\{0,1\}$ 直接當 $q$；$E[x]\ne0$ 時固定點偏移`,
@@ -178,6 +195,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-05.17',
+    assumes: modelAssumes('L1'),
     title: String.raw`時間相關 Gaussian 雜訊下的 $\operatorname{Var}(S_N)$（arcsine law，$s=\theta$）`,
     tex: String.raw`E[q_iq_j]=\frac{2}{\pi}\arcsin\rho_{ij}\;\Rightarrow\;\operatorname{Var}(S_N)=N+2\sum_{k=1}^{N-1}(N-k)\frac2\pi\arcsin(\rho^k)`,
     conditions: String.raw`$v$ 為 AR(1) Gaussian、相關係數 $\rho$；$s=\theta$（$m=0$）時精確`,
@@ -188,6 +206,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-05.18',
+    assumes: modelAssumes('L1'),
     title: 'Berry–Esseen：CLT 誤差上界',
     tex: String.raw`\sup_x\big|P(S_N\le x)-\Phi\big(\tfrac{x-Nm}{\sqrt{N(1-m^2)}}\big)\big|\le\frac{C\,E|q-m|^3}{(1-m^2)^{3/2}\sqrt N},\quad C\le0.4748`,
     conditions: '$q_i$ iid；常數 $C$ 取自文獻（Shevtsova 2011）',
@@ -198,6 +217,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-05.19',
+    assumes: modelAssumes('L1'),
     title: '偶數 $N$ 的確定性 tie rule 造成的平衡點偏移',
     tex: String.raw`s^*\approx\mp\frac{1}{N K_q}=\mp\frac{\sigma_v}{N}\sqrt{\frac{\pi}{2}}\qquad(\operatorname{sign}(0)=+1:\;-;\ \operatorname{sign}(0)=-1:\;+)`,
     conditions: String.raw`Block 判號迴路 $w\leftarrow w+\mu\operatorname{sign}(S_N)$，$x\equiv1$；$N$ 偶數；half / skip 無偏；線性 GMAC 更新 $w\leftarrow w+\mu S_N/N$ 不受影響`,
@@ -208,6 +228,7 @@ export const FORMULAS: FormulaEntry[] = [
   },
   {
     id: 'F-05.20',
+    assumes: modelAssumes('L1'),
     title: String.raw`Block Sign-LMS（average 模式、$x\equiv1$）的 pole、時間常數與係數雜訊`,
     tex: String.raw`\delta_{k+1}=p_{\mathrm{cal}}\,\delta_k-\mu\eta_k,\quad p_{\mathrm{cal}}=1-\mu K_q,\qquad \tau=\frac{-1}{\ln|p_{\mathrm{cal}}|},\qquad \sigma_w=\frac{\mu}{\sqrt{N\,(1-p_{\mathrm{cal}}^2)}}`,
     conditions: String.raw`$w_{k+1}=w_k+\mu G_k$、$G_k=S_N/N$（sum 模式要把 $\mu$ 除以 $N$，勘誤 E18）、$\delta=a-w$、$\operatorname{Var}(\eta_k)\approx1/N$、$0<\mu K_q<2$、穩態 $|\delta|\ll\sigma_v$；$N=1$ 就是 F-05.15`,

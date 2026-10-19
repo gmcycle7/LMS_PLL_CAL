@@ -112,7 +112,7 @@ export function PeEigenLab() {
     if (urlPreset) applyParams(urlPreset.params)
   }, [urlPreset, applyParams])
   const presets = useMemo(
-    () => presetsForExperiment(PE_EXPERIMENT_ID).map((p) => ({ name: p.title, params: p.params, description: p.description })),
+    () => presetsForExperiment(PE_EXPERIMENT_ID).map((p) => ({ id: p.id, name: p.title, params: p.params, description: p.description })),
     [],
   )
 

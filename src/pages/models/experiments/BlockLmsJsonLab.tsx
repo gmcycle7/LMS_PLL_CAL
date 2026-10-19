@@ -180,7 +180,7 @@ export function BlockLmsJsonLab() {
   }
 
   const presets: ExperimentPreset[] = useMemo(
-    () => presetsForExperiment(EXPERIMENT_ID).map((p) => ({ name: p.title, params: p.params, description: p.description })),
+    () => presetsForExperiment(EXPERIMENT_ID).map((p) => ({ id: p.id, name: p.title, params: p.params, description: p.description })),
     [],
   )
 

@@ -109,7 +109,7 @@ export function GaugeOneHotLab() {
     if (urlPreset) applyParams(urlPreset.params)
   }, [urlPreset, applyParams])
   const presets = useMemo(
-    () => presetsForExperiment(GAUGE_EXPERIMENT_ID).map((p) => ({ name: p.title, params: p.params, description: p.description })),
+    () => presetsForExperiment(GAUGE_EXPERIMENT_ID).map((p) => ({ id: p.id, name: p.title, params: p.params, description: p.description })),
     [],
   )
 

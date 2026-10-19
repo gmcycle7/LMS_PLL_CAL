@@ -153,7 +153,7 @@ export function QuantizedGainLab() {
     return [...new Set(w)]
   }, [validation, error, result, views])
 
-  const presets = useMemo(() => presetsForExperiment(EXPERIMENT_ID).map((p) => ({ name: p.title, params: p.params, description: p.description })), [])
+  const presets = useMemo(() => presetsForExperiment(EXPERIMENT_ID).map((p) => ({ id: p.id, name: p.title, params: p.params, description: p.description })), [])
   const fu = fullParams.fs / fullParams.nUpd
   const cc = crossChecks(activeRun, shared, shared.length)
 
