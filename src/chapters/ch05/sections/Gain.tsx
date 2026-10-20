@@ -3,7 +3,7 @@ import type { Data } from 'plotly.js-cartesian-dist-min'
 import { Callout, ClaimTag, ModeGate, Plot, Prereq, Section, Tex, TexBlock, useThemeTokens, ChRef } from '@/components'
 import { normPdf } from '@/simulation/core'
 import { kq, kqLocal, linearizationRelError, meanQ, pPlus } from '@/simulation/models/comparator'
-import { Fig, HandCalcBlock, Steps, fx, hline, linspace, pct, texNum } from '../common'
+import { Fig, Hand, Steps, fx, hline, linspace, pct, texNum } from '../common'
 
 /** 找出線性化誤差 = target 的 r（二分法；誤差在 r > 0 單調遞增）。 */
 function rForLinError(target: number): number {
@@ -58,6 +58,7 @@ export function GainSection() {
     <Section
       kind="formula"
       level={2}
+      id="ch05-gain"
       title={
         <>
           5. 小訊號增益 <Tex>{'K_q'}</Tex>：把 1-bit comparator 當成一個「平均線性」的增益
@@ -200,10 +201,10 @@ export function GainSection() {
           </tbody>
         </table>
       </div>
-      <HandCalcBlock id="HC-05.7">
+      <Hand id="HC-05.7">
         用你量到（或估計）的 <Tex>{'\\sigma_v'}</Tex> 算一次 <Tex>{'K_q'}</Tex>；再把 <Tex>{'s'}</Tex> 從 <Tex>{'0.01\\sigma_v'}</Tex> 慢慢加大到{' '}
         <Tex>{'\\sigma_v'}</Tex>，每次先手算「線性預測高估多少、局部斜率剩幾成」，再對照上表。
-      </HandCalcBlock>
+      </Hand>
       <Callout kind="warn" title="大誤差時的飽和：Sign-LMS 變成 slew-limited">
         當 <Tex>{'|s|\\gtrsim\\sigma_v'}</Tex>，<Tex>{'E[q]\\to\\pm1'}</Tex>：每次更新的平均步長被限制在 <Tex>{'\\mu\\cdot\\max|x|'}</Tex>，與誤差大小無關。因為 <Tex>{'|E[q]|<K_q|s|'}</Tex>（erf 在正半軸是凹函數），真正的平均修正量比線性模型小，所以用 <Tex>{'K_q'}</Tex> 算出的 pole、時間常數都會
         <strong>低估</strong>收斂所需時間：例如 <Tex>{`|s|/\\sigma_v=${fx(d.r5, 2)}`}</Tex> 時平均修正量已比 <Tex>{'K_qs'}</Tex> 少約 5%（F-05.11），

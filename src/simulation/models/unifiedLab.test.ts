@@ -48,7 +48,23 @@ import {
   toBlockLmsConfig,
   type1PoleFromBw,
   type LabParams,
+  prepareLab,
+  runLabLoop,
+  usesLegacyEngine,
+  PHOS_PATTERN,
+  GOS_INDEX,
+  phosOffsets,
+  combineMcMimo,
+  mcMimoChecks,
+  cppll3Loop,
+  cppll3InversionEdge,
+  cppll3MinusReL,
+  pmuxClosedFormEigen,
+  pmuxUniformStepLimits,
+  codeIndependentOfSeed,
 } from './unifiedLab'
+import { cppllFinv, cppllMinusReL, inversionBands as sspllBands, makeL3 } from '@/simulation/models/sspll'
+import { eigSym } from '@/simulation/core'
 
 interface GoldenVector {
   inputs: Record<string, number>
@@ -923,5 +939,427 @@ describe('其他反面測試', () => {
     const rng = createRng(1)
     const x = Float64Array.from({ length: 400 }, () => rng.normal())
     expect(effectiveSampleSize(x)).toBeGreaterThan(100)
+  })
+})
+
+describe('wave 5：新引擎 runLabLoop 與 runBlockLms 的對應', () => {
+  const VARIANTS: { name: string; p: LabParams }[] = [
+    { name: 'MASH、type-II、raw（預設的小型版）', p: { ...SMALL } },
+    { name: '一階 DSM、offset + INL、comparator offset、delayed D = 3、sum 模式', p: { ...SMALL, codeSource: 'dsm_first_order', frac: 0.3, dtcOffsetFs: 2, c2: 0.5, c3: -0.2, compOffsetFs: 3, regressor: 'delayed', codeDelay: 3, gmMode: 'sum', muFs: 10 / 512 } },
+    { name: 'filtered-x（g_m = 0.8、D_x = 1）、Type-I、更新延遲 d = 1、0/1 映射', p: { ...SMALL, pll: 'type1', regressor: 'filtered', codeDelay: 2, fxGain: 0.8, fxExtraDelay: 1, updateDelay: 1, encoding: 'unipolar_mapped' } },
+    { name: '定點 6-bit、stochastic rounding、wrap、signed', p: { ...SMALL, quantize: true, rounding: 'stochastic', overflow: 'wrap', signedReg: true, aFs: 3.05 } },
+    { name: 'iid ±1、none 路徑、0/1 未映射（bug）', p: { ...SMALL, codeSource: 'iid_pm_one', pll: 'none', encoding: 'unipolar_unmapped_bug', normalization: 'standardize' } },
+  ]
+  for (const v of VARIANTS) {
+    it(`legacy、gos_only：${v.name} —— w、w_phys、G 逐位元相同；解析量相同`, () => {
+      expect(usesLegacyEngine(v.p)).toBe(true)
+      const ref = runBlockLms(toBlockLmsConfig(v.p))
+      const pr = prepareLab(v.p, pllDesign(v.p))
+      const r = runLabLoop(pr, { windowBlocks: 4, trace: true, meanField: true })
+      expect(r.P).toBe(1)
+      for (let k = 0; k < v.p.blocks; k++) expect(r.G[0][k], `G[${k}]`).toBe(ref.blocks.G[k])
+      for (let k = 0; k <= v.p.blocks; k++) {
+        expect(r.w[0][k], `w[${k}]`).toBe(ref.blocks.w[k])
+        expect(r.wPhys[0][k], `wPhys[${k}]`).toBe(ref.blocks.wPhys[k])
+      }
+      expect(r.metrics.meanW).toBe(ref.metrics.meanW)
+      expect(r.metrics.stdW).toBe(ref.metrics.stdW)
+      expect(r.metrics.settlingBlock).toBe(ref.metrics.settlingBlock)
+      expect(r.metrics.saturationCount).toBe(ref.metrics.saturationCount)
+      expect(r.metrics.wrapCount).toBe(ref.metrics.wrapCount)
+      const a = pr.analytic
+      const b = ref.analytic
+      for (const k of ['Kq', 'Cest', 'K', 'g', 'p', 'rhoMean', 'sigmaEta2', 'sigmaWPred', 'Ex', 'Ex2', 'ExRef', 'ExRef2', 'wStarLinear', 'fuHz', 'enbwHz'] as const) {
+        const x = a[k]
+        const y = b[k]
+        if (Number.isNaN(y)) expect(Number.isNaN(x), k).toBe(true)
+        else expect(Math.abs(x - y), `${k}: ${x} vs ${y}`).toBeLessThanOrEqual(1e-9 * Math.max(1, Math.abs(y)))
+      }
+      expect(a.normalization.offset).toBe(b.normalization.offset)
+      expect(a.normalization.scale).toBe(b.normalization.scale)
+      if (Number.isFinite(b.wStarMeanField)) expect(Math.abs(a.wStarMeanField - b.wStarMeanField)).toBeLessThanOrEqual(1e-6 * Math.max(1, Math.abs(b.wStarMeanField)))
+      // 視窗與 mean-field twin 與 replayPipeline 一致
+      const rp = replayPipeline({ config: ref.config, wPhys: ref.blocks.wPhys, G: ref.blocks.G, normalization: b.normalization, T: pr.design.T, windowBlocks: 4 })
+      expect(rp.maxAbsDiffG).toBe(0)
+      const win = r.window as NonNullable<typeof r.window>
+      for (let i = 0; i < win.x.length; i += 97) {
+        expect(win.x[i]).toBe(rp.window.x[i])
+        expect(win.eDtc[i]).toBe(rp.window.eDtc[i])
+        expect(win.uPd[i]).toBe(rp.window.uPd[i])
+        expect(win.q[i]).toBe(rp.window.q[i])
+        expect(win.tOut[i]).toBe(rp.window.tOut[i])
+        expect(Math.abs(win.tStatic[i] - rp.window.tStatic[i])).toBeLessThanOrEqual(1e-9 * Math.max(1, Math.abs(rp.window.tStatic[i])))
+      }
+      const mf = r.meanField as NonNullable<typeof r.meanField>
+      for (let k = 0; k <= v.p.blocks; k += 7) {
+        if (Number.isNaN(rp.meanField.w[k])) expect(Number.isNaN(mf.w[0][k])).toBe(true)
+        else expect(Math.abs(mf.w[0][k] - rp.meanField.w[k])).toBeLessThanOrEqual(1e-12 * Math.max(1, Math.abs(rp.meanField.w[k])))
+      }
+    })
+  }
+
+  it("'spec' 正負號 = 'legacy' 把 a、w₀、c₃ 變號的鏡像：w 與 G 逐位元相反（IEEE 的負號對稱）；C、K_q、g、σ_w 相同", () => {
+    const spec: LabParams = { ...SMALL, codeSource: 'dsm_first_order', frac: 0.3, regressorSign: 'spec', dtcOffsetFs: 1, c2: 0.3, c3: 0.1, compOffsetFs: 2, w0Fs: 0.5 }
+    const mirror: LabParams = { ...spec, regressorSign: 'legacy', aFs: -spec.aFs, w0Fs: -spec.w0Fs, c3: -spec.c3 }
+    expect(usesLegacyEngine(spec)).toBe(false)
+    const a = runLabLoop(prepareLab(spec, pllDesign(spec)), { windowBlocks: 2, trace: true })
+    const b = runBlockLms(toBlockLmsConfig(mirror))
+    for (let k = 0; k < spec.blocks; k++) expect(a.G[0][k], `G[${k}]`).toBe(-b.blocks.G[k])
+    for (let k = 0; k <= spec.blocks; k++) expect(a.w[0][k], `w[${k}]`).toBe(-b.blocks.w[k])
+    const an = prepareLab(spec, pllDesign(spec)).analytic
+    expect(an.Cest).toBeCloseTo(b.analytic.Cest, 12)
+    expect(an.g).toBeCloseTo(b.analytic.g, 12)
+    expect(an.sigmaWPred).toBeCloseTo(b.analytic.sigmaWPred, 12)
+    expect(an.wStarLinear).toBeCloseTo(-b.analytic.wStarLinear, 9)
+    expect(an.Ex).toBeCloseTo(-b.analytic.Ex, 12)
+    // spec 的 x 真的是 s/M ≥ 0（一階、unit_rms 不置中）
+    const win = a.window as NonNullable<typeof a.window>
+    let min = Infinity
+    for (let i = 0; i < win.x.length; i++) min = Math.min(min, win.x[i])
+    expect(min).toBeGreaterThanOrEqual(0)
+    expect(an.Ex).toBeGreaterThan(0)
+  })
+})
+
+describe('wave 5：8 相 PMUX + GOS 的 9 個權重（pmux8_gos）', () => {
+  const PM: LabParams = { ...SMALL, architecture: 'pmux8_gos', regressorSign: 'spec', codeSource: 'dsm_first_order', frac: 0.137, phosRmsFs: 60, muPhosFs: 10, muFs: 10, sigmaV: 100, blocks: 400, N: 512 }
+
+  it('regressor 正負號：spec 的 DTC code x = s/M ≥ 0（一個相位步以內，[0, 1)），legacy 是 −x ≤ 0（審查：原本 pmux8 分支把正負號套了兩次）', () => {
+    for (const sg of ['spec', 'legacy'] as const) {
+      const p: LabParams = { ...PM, regressorSign: sg, normalization: 'none', pll: 'none', blocks: 4, outBlocks: 2 }
+      const r = runLabLoop(prepareLab(p, pllDesign(p)), { windowBlocks: 2, trace: true })
+      const xs = (r.window as NonNullable<typeof r.window>).x
+      let lo = Infinity
+      let hi = -Infinity
+      for (let i = 0; i < xs.length; i++) {
+        lo = Math.min(lo, xs[i])
+        hi = Math.max(hi, xs[i])
+      }
+      if (sg === 'spec') {
+        expect(lo).toBeGreaterThanOrEqual(0)
+        expect(hi).toBeLessThan(1)
+      } else {
+        expect(hi).toBeLessThanOrEqual(0)
+        expect(lo).toBeGreaterThan(-1)
+      }
+    }
+  })
+
+  it('PHOS 圖樣：去共模、RMS = 1；phosOffsets 乘上 RMS', () => {
+    expect(PHOS_PATTERN).toHaveLength(8)
+    expect(Math.abs(PHOS_PATTERN.reduce((a, b) => a + b, 0))).toBeLessThan(1e-12)
+    expect(Math.sqrt(PHOS_PATTERN.reduce((a, b) => a + b * b, 0) / 8)).toBeCloseTo(1, 12)
+    expect(phosOffsets(60)[7]).toBeCloseTo(60 * PHOS_PATTERN[7], 12)
+  })
+
+  it('none 路徑（H_PD = 1）：共模可觀測，9 個權重都收斂到目標附近；GMAC 的 one-hot 真的只在被選的相累加', () => {
+    const p: LabParams = { ...PM, pll: 'none' }
+    const pr = prepareLab(p, pllDesign(p))
+    expect(pr.P).toBe(9)
+    expect(pr.mimo).not.toBeNull()
+    const ma = pr.mimo as NonNullable<typeof pr.mimo>
+    expect(ma.commonModeObservable).toBe(true)
+    expect(ma.obs.nullDim).toBe(0)
+    expect(ma.minReEig).toBeGreaterThan(0)
+    expect(ma.stable).toBe(true)
+    // 相位走訪：α = 0.137 ⇒ 8 相都走到
+    for (const o of ma.occupancy) expect(o).toBeGreaterThan(0.05)
+    const r = runLabLoop(pr, { meanField: true })
+    expect(r.divergenceBlock).toBeNull()
+    for (let j = 0; j < 9; j++) expect(Math.abs(r.perWeight.meanW[j] - pr.target[j]), `w_${j}`).toBeLessThan(4 * Math.max(0.5, r.perWeight.stdW[j]) + 1)
+    expect(r.phosRmsFs).toBeLessThan(6)
+    // one-hot：每個 block 的 Σ_p G_p = (1/N)Σ q = mean(q)（所有相的 GMAC 加起來就是 q 的平均）
+    for (let k = 0; k < 20; k++) {
+      let sum = 0
+      for (let j = 0; j < 8; j++) sum += r.G[j][k]
+      expect(Math.abs(sum)).toBeLessThanOrEqual(1 + 1e-12)
+    }
+  })
+
+  it('type-II 路徑：共模是結構性 null（nullDim = 1，E04），其餘 8 個模式收斂；PHOS 去共模殘差小；9 權重的 ρ < 1；mean-field 交叉比對一致', () => {
+    const p: LabParams = { ...PM, pll: 'type2', pllBwHz: 20e6, blocks: 600 }
+    const r = runPipeline(p)
+    expect(r.engine).toBe('labLoop')
+    expect(r.mimo).not.toBeNull()
+    const m = r.mimo as NonNullable<typeof r.mimo>
+    expect(m.analysis.obs.nullDim).toBe(1)
+    expect(m.analysis.commonModeObservable).toBe(false)
+    expect(m.analysis.stable).toBe(true)
+    expect(m.analysis.minReEig).toBeGreaterThan(0)
+    expect(Number.isFinite(m.analysis.obs.cond)).toBe(true)
+    expect(m.phosRmsFs).toBeLessThan(8)
+    expect(Math.abs(m.perWeight[GOS_INDEX].meanW - p.aFs)).toBeLessThan(1.5)
+    expect(m.checks.meanW.status).toBe('ok')
+    expect(m.checks.stability.status).toBe('ok')
+    expect(r.checks.replay.status).toBe('n/a')
+    expect(r.stages.find((s) => s.id === 'gmac')?.metrics.some((x) => x.name.includes('條件數'))).toBe(true)
+    expect(r.output).not.toBeNull()
+    expect(r.window).not.toBeNull()
+    expect(m.windowPhase?.length).toBe(r.window?.n.length)
+    for (const v of Array.from(m.snippetPhase as Float64Array)) expect(v >= 0 && v <= 7 && Number.isInteger(v)).toBe(true)
+  })
+
+  it('spec 單一 gain（gos_only）：pipeline 的 replay 用變號的 blockLms 鏡像，逐位元一致（maxAbsDiffG = 0）', () => {
+    const p: LabParams = { ...SMALL, regressorSign: 'spec', codeSource: 'dsm_first_order', frac: 0.3 }
+    const r = runPipeline(p)
+    expect(r.engine).toBe('labLoop')
+    expect(r.checks.replay.status).toBe('ok')
+    expect(r.replay?.maxAbsDiffG).toBe(0)
+    expect(r.mimo).toBeNull()
+    expect(r.code.rawRange[0]).toBe(0)
+    expect(r.analytic.Ex).toBeGreaterThan(0)
+  })
+
+  it('Monte Carlo（pmux8）：每個 seed 一次 runLabLoop；9 權重的 CI 涵蓋 mean-field；twin 選項附上同 seed 浮點對照', () => {
+    // 實體 12 bits signed、LSB 0.125 fs ⇒ ±256 fs，涵蓋 ε_p 的最大值 60 × 2.1 ≈ 126 fs（10 bits 只到 ±64 fs，會飽和、mean w 就會不一致——這也是對的判定）
+    const p: LabParams = { ...PM, pll: 'none', blocks: 300, quantize: true, lsbFs: 0.125, signedReg: true, internalBits: 22, physicalBits: 12 }
+    const seeds = mcSeeds(p.seed, 0, 6)
+    const c = runMcChunk({ base: p, seeds, meanField: true, twin: true })
+    expect(c.mimo).not.toBeNull()
+    expect(c.twin).toBeDefined()
+    expect(c.twin?.seeds).toEqual(seeds)
+    expect(c.twin?.twin).toBeUndefined()
+    const s = combineMcMimo([c]) as NonNullable<ReturnType<typeof combineMcMimo>>
+    expect(s.P).toBe(9)
+    expect(s.valid).toBe(6)
+    const ck = mcMimoChecks(s, p)
+    expect(ck.meanW.status).toBe('ok')
+    expect(['ok', 'n/a']).toContain(ck.phos.status)
+    // GOS 通道的 combineMc 照舊可用
+    const g = combineMc([c])
+    expect(g.valid).toBe(6)
+  })
+
+  it('FCW sweep（pmux8）：每點重算 PMUX 序列；α = 1/4 時 frac(8α) = 0、PMUX 每週期固定走 2 相 ⇒ 只走訪 4 相、GOS 鋸齒消失，不可觀測方向變多；twin 只重跑迴路', () => {
+    const base: LabParams = { ...PM, pll: 'none', blocks: 200 }
+    const opts = { ...DEFAULT_SWEEP_OPTIONS, closedLoop: true, loopBlocks: 120, slopeMc: false }
+    const r = sweepFcwChunk({ base: { ...base, quantize: true, signedReg: true, physicalBits: 10, lsbFs: 0.125 }, fracs: [0.137, 0.25], opts, offset: 0, twin: true })
+    expect(r.points).toHaveLength(2)
+    expect(r.twinPoints).toHaveLength(2)
+    expect(r.points[0].mimo).not.toBeNull()
+    expect(r.points[0].twinLoop).toBeUndefined()
+    expect(r.twinPoints?.[0].loop?.meanW).not.toBe(r.points[0].loop?.meanW)
+    expect(r.points[0].loop?.phosRmsFs).not.toBeNull()
+    // 審查：twin 的閉迴路與「整段 quantize = false 再跑一次」逐位元相同（只重跑迴路，不改變結果）
+    const full = sweepFcwChunk({ base: { ...base, quantize: false, signedReg: true, physicalBits: 10, lsbFs: 0.125 }, fracs: [0.137, 0.25], opts, offset: 0 })
+    for (let i = 0; i < 2; i++) expect(r.twinPoints?.[i].loop).toEqual(full.points[i].loop)
+    const quarter = r.points[1].mimo as NonNullable<FcwPointMimo>
+    expect(quarter.occupancy.filter((o) => o > 0)).toHaveLength(4) // 0, 2, 4, 6 各 1/4
+    for (const o of quarter.occupancy.filter((v) => v > 0)) expect(o).toBeCloseTo(0.25, 12)
+    expect(quarter.nullDim).toBeGreaterThanOrEqual(4) // 4 個沒走訪的相位（+ x ≡ 0 的 GOS）
+    expect(r.points[1].warnings.some((w) => w.includes('不可辨識') || w.includes('不可觀測'))).toBe(true)
+    const generic = r.points[0].mimo as NonNullable<FcwPointMimo>
+    expect(generic.nullDim).toBe(0) // none 路徑：共模可觀測、8 相都走到
+    expect(generic.peLambdaMin).toBeGreaterThan(0)
+    // 不開 twin 時沒有 twinPoints
+    const r2 = sweepFcwChunk({ base, fracs: [0.137], opts, offset: 0 })
+    expect(r2.twinPoints).toBeUndefined()
+  })
+})
+
+type FcwPointMimo = NonNullable<ReturnType<typeof sweepFcwChunk>['points'][number]['mimo']>
+
+describe('wave 5：三階 CPPLL（cppll3）與反號帶', () => {
+  it('PM = 60°、r_p = √b 的對稱放置與 sspll.ts 的 makeL3（impulse）係數相同；反號帶與 cppllFinv 一致', () => {
+    const l3 = makeL3({ pmCt: 60, mapping: 'impulse', bwHz: 320e6, fRefHz: 4e9 })
+    const b = Number(l3.params.b)
+    const wc = Number(l3.params.wc)
+    const mine = cppll3Loop(wc, 60, Math.sqrt(b), 0)
+    expect(mine.bL.length).toBe(l3.bL.length)
+    for (let i = 0; i < l3.bL.length; i++) expect(mine.bL[i]).toBeCloseTo(l3.bL[i], 12)
+    for (let i = 0; i < l3.aL.length; i++) expect(mine.aL[i]).toBeCloseTo(l3.aL[i], 12)
+    expect(mine.design.K).toBeCloseTo(Number(l3.params.K), 12)
+    const d = pllDesign({ pll: 'cppll3', pllBwHz: 320e6, fRefHz: 4e9, zeta: 0.7, loopDelay: 0, pllPmDeg: 60, pllP3Ratio: Math.sqrt(b) })
+    expect(d.kind).toBe('cppll3')
+    expect(d.stable).toBe(true)
+    expect(Math.abs(d.f3dbTHz / 320e6 - 1)).toBeLessThan(2e-3)
+    expect(d.cppll?.wc).toBeCloseTo(wc, 4)
+    expect(d.inversionBands.length).toBe(1)
+    const bands = sspllBands(l3)
+    expect(d.inversionBands[0].fHiHz / 4e9).toBeCloseTo(bands[0].fHi, 6)
+    expect(d.inversionBands[0].fHiHz / 4e9).toBeCloseTo(cppllFinv(l3.params), 6)
+    expect(d.hpdDc).toBeLessThan(1e-9)
+    // H + T = 1
+    for (const f of [1e5, 1e7, 3.2e8, 1e9]) {
+      const om = (2 * Math.PI * f) / 4e9
+      expect(Math.sqrt(dtMag2(d.H, om)) ** 2 + 0).toBeGreaterThan(0)
+      const h = d.H
+      const t = d.T
+      // 直接驗 b 多項式：H.b + T.b = a
+      for (let i = 0; i < d.H.a.length; i++) expect((h.b[i] ?? 0) + (t.b[i] ?? 0)).toBeCloseTo(d.H.a[i], 12)
+      void om
+    }
+  })
+
+  it('PM 與第三極點比可以獨立設定：r_p 變大時零點往 crossover 靠（θ_z 變小）；PM + arctan(1/r_p) ≥ 90° 被 labParamErrors 擋下', () => {
+    const a = cppll3Loop(0.1, 60, 3, 0).design
+    const b = cppll3Loop(0.1, 60, 10, 0).design
+    expect(b.thetaZDeg).toBeLessThan(a.thetaZDeg)
+    expect(b.wz).toBeGreaterThan(a.wz)
+    const errs = labParamErrors({ ...DEFAULT_LAB_PARAMS, pll: 'cppll3', pllPmDeg: 80, pllP3Ratio: 2 })
+    expect(errs.some((e) => e.includes('arctan'))).toBe(true)
+    expect(labParamErrors({ ...DEFAULT_LAB_PARAMS, pll: 'cppll3' })).toEqual([])
+  })
+
+  it('type-II（2 MHz）的既有迴路也報反號帶（DC 起的一段）且 type-I 沒有；pipeline 在 cppll3 下能跑並標出反號帶警告', () => {
+    const t2 = pllDesign({ ...DEFAULT_LAB_PARAMS })
+    expect(t2.inversionBands.length).toBe(1)
+    expect(t2.inversionBands[0].fLoHz).toBe(0)
+    expect(Number.isFinite(t2.fcHz)).toBe(true)
+    const t1 = pllDesign({ ...DEFAULT_LAB_PARAMS, pll: 'type1' })
+    expect(t1.inversionBands).toEqual([])
+    const r = runPipeline({ ...SMALL, pll: 'cppll3', pllBwHz: 2e6, blocks: 200 })
+    expect(r.pll.kind).toBe('cppll3')
+    expect(r.warnings.some((w) => w.includes('反號帶'))).toBe(true)
+    expect(r.stages.find((s) => s.id === 'pll')?.metrics.some((m) => m.name.includes('反號帶'))).toBe(true)
+  })
+})
+
+describe('wave 5：帶入手算的封閉式（HC-LAB.1、HC-LAB.2）', () => {
+  it('pmuxClosedFormEigen：2×2 封閉式 = 9×9 矩陣的 eigSym；E[x] = 1/2、E[x²] = 1/3 時 λ± = 11/48 ± √97/48、條件數約 18.1；與 none 路徑的實際 R_u 相符', () => {
+    const cf = pmuxClosedFormEigen(0.5, 1 / 3)
+    expect(cf.lambdaPlus).toBeCloseTo(11 / 48 + Math.sqrt(97) / 48, 12)
+    expect(cf.lambdaMinus).toBeCloseTo(11 / 48 - Math.sqrt(97) / 48, 12)
+    expect(cf.cond).toBeCloseTo((11 / 48 + Math.sqrt(97) / 48) / (11 / 48 - Math.sqrt(97) / 48), 10)
+    const ev = eigSym(cf.R).values
+    expect(ev[0]).toBeCloseTo(cf.lambdaPlus, 12)
+    expect(ev[ev.length - 1]).toBeCloseTo(cf.lambdaMinus, 12)
+    for (let i = 1; i < 8; i++) expect(ev[i]).toBeCloseTo(1 / 8, 12)
+    // 實際的 R_u（none 路徑、spec、normalization none、一階 DSM α = 0.137 ⇒ x ∈ [0,1) 近似均勻）
+    const p: LabParams = { ...SMALL, architecture: 'pmux8_gos', regressorSign: 'spec', codeSource: 'dsm_first_order', frac: 0.137, pll: 'none', normalization: 'none', blocks: 400 }
+    const pr = prepareLab(p, pllDesign(p))
+    const ma = pr.mimo as NonNullable<typeof pr.mimo>
+    const cfE = pmuxClosedFormEigen(pr.analytic.Ex, pr.analytic.Ex2)
+    expect(ma.obs.lambdaMax).toBeCloseTo(cfE.lambdaMax, 2)
+    expect(ma.obs.lambdaMin).toBeCloseTo(cfE.lambdaMin, 2)
+    expect(Math.abs(ma.obs.cond / cfE.cond - 1)).toBeLessThan(0.1)
+    const lim = pmuxUniformStepLimits(pr.analytic.Kq, cfE.lambdaMax, cfE.lambdaMin, 10)
+    expect(lim.muMax).toBeCloseTo(2 / (pr.analytic.Kq * cfE.lambdaMax), 12)
+    // 共用步長 μ = 10 fs 時的 μ_max（封閉式）與可觀測子空間上的 uniformStepMuMax 同量級（H_PD = 1 時 J = K_q R 對稱）
+    expect(Math.abs(ma.muMaxUniform / lim.muMax - 1)).toBeLessThan(0.1)
+  })
+
+  it('cppll3MinusReL 與 cppll3InversionEdge：與 sspll.ts 的 cppllMinusReL／cppllFinv 相同', () => {
+    const l3 = makeL3({ pmCt: 60, mapping: 'impulse', bwHz: 320e6, fRefHz: 4e9 })
+    const d = { K: Number(l3.params.K), B: Number(l3.params.B), p: Number(l3.params.p) }
+    for (const f of [0.001, 0.01, 0.02, 0.05, 0.2]) expect(cppll3MinusReL(d, f).total).toBeCloseTo(cppllMinusReL(l3.params, f), 10)
+    expect(cppll3InversionEdge(d)).toBeCloseTo(cppllFinv(l3.params), 9)
+    const des = pllDesign({ pll: 'cppll3', pllBwHz: 320e6, fRefHz: 4e9, zeta: 0.7, loopDelay: 0, pllPmDeg: 60, pllP3Ratio: Math.sqrt(Number(l3.params.b)) })
+    expect(cppll3InversionEdge(des.cppll as NonNullable<typeof des.cppll>) * 4e9).toBeCloseTo(des.inversionBands[0].fHiHz, 0)
+  })
+})
+
+describe('wave 5（接手補完）：同 seed 浮點對照只重跑迴路、one-hot 的延遲、9 權重的檢查語意', () => {
+  const same = (a: Float64Array, b: Float64Array, label: string) => {
+    expect(a.length, label).toBe(b.length)
+    for (let i = 0; i < a.length; i++) {
+      if (Number.isNaN(b[i])) expect(Number.isNaN(a[i]), `${label}[${i}]`).toBe(true)
+      else expect(a[i], `${label}[${i}]`).toBe(b[i])
+    }
+  }
+
+  it('legacy 的 Monte Carlo twin：沿用 runBlockLms 的 normalization 與解析量、只用 runLabLoop 重跑迴路——與「整段 quantize = false 再跑一次」逐位元相同', () => {
+    const p: LabParams = { ...SMALL, blocks: 200, quantize: true, rounding: 'stochastic', overflow: 'saturate', signedReg: true, aFs: 3.05 }
+    expect(usesLegacyEngine(p)).toBe(true)
+    const seeds = mcSeeds(p.seed, 0, 3)
+    const c = runMcChunk({ base: p, seeds, twin: true })
+    const old = runMcChunk({ base: { ...p, quantize: false }, seeds })
+    const tw = c.twin as NonNullable<typeof c.twin>
+    expect(tw.seeds).toEqual(seeds)
+    for (const k of ['meanW', 'stdW', 'bias', 'settling', 'wSum', 'wSum2'] as const) same(tw[k], old[k], k)
+    expect(tw.nValid).toBe(old.nValid)
+    expect(tw.diverged).toBe(old.diverged)
+    // 定點本身沒有被 twin 影響
+    const noTwin = runMcChunk({ base: p, seeds })
+    same(c.meanW, noTwin.meanW, 'meanW（定點）')
+    expect(noTwin.twin).toBeUndefined()
+  })
+
+  it('新引擎的 Monte Carlo：code 與 seed 無關時沿用 base.seed 的 prepare（只換 seed），結果與每個 seed 各自 prepareLab 逐位元相同；twin 與整段浮點重跑相同', () => {
+    const p: LabParams = { ...SMALL, architecture: 'pmux8_gos', regressorSign: 'spec', codeSource: 'dsm_first_order', frac: 0.137, phosRmsFs: 60, pll: 'none', blocks: 120, quantize: true, signedReg: true, internalBits: 22, physicalBits: 12, lsbFs: 0.125 }
+    expect(codeIndependentOfSeed(p)).toBe(true)
+    expect(codeIndependentOfSeed({ ...p, dither: true })).toBe(false)
+    expect(codeIndependentOfSeed({ ...p, codeSource: 'iid_pm_one' })).toBe(false)
+    expect(codeIndependentOfSeed({ ...p, pmuxOrder: 'random' })).toBe(false)
+    const seeds = mcSeeds(p.seed, 2, 3)
+    const c = runMcChunk({ base: p, seeds, twin: true })
+    const design = pllDesign(p)
+    seeds.forEach((seed, r) => {
+      const ref = runLabLoop(prepareLab({ ...p, seed }, design))
+      expect(c.meanW[r], `seed ${seed}`).toBe(ref.metrics.meanW)
+      for (let j = 0; j < 9; j++) expect(c.mimo?.meanW[r * 9 + j], `seed ${seed} w_${j}`).toBe(ref.perWeight.meanW[j])
+    })
+    const old = runMcChunk({ base: { ...p, quantize: false }, seeds })
+    const tw = c.twin as NonNullable<typeof c.twin>
+    for (const k of ['meanW', 'stdW', 'bias', 'wSum'] as const) same(tw[k], old[k], `twin ${k}`)
+    same((tw.mimo as NonNullable<typeof tw.mimo>).meanW, (old.mimo as NonNullable<typeof old.mimo>).meanW, 'twin 9 權重')
+  })
+
+  it('delayed regressor（D = 3）的 one-hot：第一個 block 的前 D 個樣本沒有 p[n−D]，不累加；之後 Σ_p G_p = mean(q)', () => {
+    const p: LabParams = { ...SMALL, architecture: 'pmux8_gos', regressorSign: 'spec', codeSource: 'dsm_first_order', frac: 0.137, phosRmsFs: 60, pll: 'none', regressor: 'delayed', codeDelay: 3, blocks: 4, outBlocks: 4 }
+    const pr = prepareLab(p, pllDesign(p))
+    const r = runLabLoop(pr, { trace: true, windowBlocks: 4 })
+    const win = r.window as NonNullable<typeof r.window>
+    expect(win.startBlock).toBe(0)
+    const N = p.N
+    const sumG = (k: number) => Array.from({ length: 8 }, (_, j) => r.G[j][k]).reduce((a, b) => a + b, 0)
+    let q0 = 0
+    for (let n = 3; n < N; n++) q0 += win.q[n]
+    expect(sumG(0)).toBeCloseTo(q0 / N, 12)
+    let q1 = 0
+    for (let n = 0; n < N; n++) q1 += win.q[N + n]
+    expect(sumG(1)).toBeCloseTo(q1 / N, 12)
+  })
+
+  it('9 權重的穩定性檢查：一階 DSM、α f_ref 落在 CPPLL 的反號帶（PHOS mode-1 反號）⇒ 平均模型 ρ ≥ 1、模擬的可觀測殘差也不收斂 ⇒ 「一致」；mean w／σ 沒有固定點可比 ⇒ n/a', () => {
+    const p: LabParams = {
+      ...SMALL,
+      architecture: 'pmux8_gos',
+      regressorSign: 'spec',
+      codeSource: 'dsm_first_order',
+      frac: 0.02,
+      normalization: 'none',
+      phosRmsFs: 173,
+      aFs: 250,
+      muPhosFs: 40,
+      muFs: 10,
+      pll: 'cppll3',
+      pllBwHz: 320e6,
+      pllPmDeg: 60,
+      pllP3Ratio: 2 + Math.sqrt(3),
+      sigmaV: 200,
+      N: 512,
+      blocks: 1200,
+    }
+    const r = runPipeline(p)
+    const m = r.mimo as NonNullable<typeof r.mimo>
+    expect(m.analysis.minReEig).toBeLessThan(0)
+    expect(m.analysis.stable).toBe(false)
+    expect(m.checks.stability.status).toBe('ok')
+    expect(m.checks.stability.note).toContain('沒有收斂')
+    expect(m.checks.meanW.status).toBe('n/a')
+    expect(m.checks.sigma.status).toBe('n/a')
+    expect(m.phosRmsFs).toBeGreaterThan(50)
+    // 同一組參數換成 MASH：one-hot 的功率被打散，極性回到正確
+    const ok = runPipeline({ ...p, codeSource: 'mash111' })
+    expect((ok.mimo as NonNullable<typeof ok.mimo>).analysis.minReEig).toBeGreaterThan(0)
+    expect((ok.mimo as NonNullable<typeof ok.mimo>).checks.stability.status).toBe('ok')
+  })
+
+  it('共模不可觀測時（type-II）9 權重的統計先去共模：Σ stdObs² ≤ Σ stdW²、Monte Carlo 的 commonModeRemoved = true；none 路徑共模可觀測、不去共模', () => {
+    const base: LabParams = { ...SMALL, architecture: 'pmux8_gos', regressorSign: 'spec', codeSource: 'dsm_first_order', frac: 0.137, phosRmsFs: 60, muPhosFs: 10, blocks: 300 }
+    const r = runPipeline({ ...base, pll: 'type2', pllBwHz: 20e6 })
+    const m = r.mimo as NonNullable<typeof r.mimo>
+    expect(m.analysis.commonModeObservable).toBe(false)
+    // Σ_j Var(w_j − cm) = Σ_j Var(w_j) − 8·Var(cm) ≤ Σ_j Var(w_j)（個別的權重不一定變小）
+    const ss = (f: (w: (typeof m.perWeight)[number]) => number) => m.perWeight.slice(0, 8).reduce((acc, w) => acc + f(w) ** 2, 0)
+    expect(ss((w) => w.stdObs)).toBeLessThanOrEqual(ss((w) => w.stdW) * (1 + 1e-12))
+    expect(m.perWeight[8].stdObs).toBe(m.perWeight[8].stdW)
+    const s2 = combineMcMimo([runMcChunk({ base: { ...base, pll: 'type2', pllBwHz: 20e6 }, seeds: mcSeeds(base.seed, 0, 2) })]) as NonNullable<ReturnType<typeof combineMcMimo>>
+    expect(s2.commonModeRemoved).toBe(true)
+    // 去共模後 8 個 PHOS 的跨 seeds 平均加起來是 0
+    expect(Math.abs(s2.perWeight.slice(0, 8).reduce((a, w) => a + w.meanW, 0))).toBeLessThan(1e-9)
+    const s0 = combineMcMimo([runMcChunk({ base: { ...base, pll: 'none' }, seeds: mcSeeds(base.seed, 0, 2) })]) as NonNullable<ReturnType<typeof combineMcMimo>>
+    expect(s0.commonModeRemoved).toBe(false)
   })
 })

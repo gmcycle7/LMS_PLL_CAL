@@ -341,7 +341,7 @@ export function S4bPvt() {
         <HandCalcSlot id="HC-SO.7">
           預設是上表 SS −40°C 那一列（<Tex>{'\\sigma_v=140\\,\\mathrm{fs}'}</Tex>、增益 ×0.8、<Tex>{'\\kappa'}</Tex> 由表讀入、<Tex>{'\\mu=10\\,\\mathrm{fs}'}</Tex>、<Tex>{'d=0'}</Tex>）。把 TC 改成 1000 ppm/°C，看重新收斂要幾個 block；把 <Tex>{'\\dot T'}</Tex> 改成 1000 °C/s，看落後還是不是可以忽略。
         </HandCalcSlot>
-        <ModeGate min="research">
+        <ModeGate min="research" summary="增益倍率 $s_c$ 把 PVT 壓成一個數字的限制">
           <p className="small muted">
             增益倍率 <Tex>{'s_c'}</Tex> 只是把 PVT 對主迴路的影響壓成一個數字（案例頁 §6.5 的作法：帶緣 101／135／154 MHz 對應 ×0.6／×1／×1.25）；真實的 PVT 會同時改 <Tex>{'K_p'}</Tex>、<Tex>{'K_i'}</Tex> 的比例與延遲。<Tex>{'\\kappa_c'}</Tex> 用的是線性化（Bussgang）的小訊號相關；
             <Tex>{'|\\Delta a_c|'}</Tex> 幾千 fs 時 comparator 一開始是飽和的（大訊號 sign-LMS 以 <Tex>{'\\mu'}</Tex> 的固定步長前進，案例頁 §10.4），<Tex>{'k_{re}'}</Tex> 的線性估計在那一段只是下界。

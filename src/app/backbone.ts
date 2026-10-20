@@ -9,7 +9,7 @@ import { pageById } from './registry'
  *
  * - `page`：registry 的頁面 id；`anchor`：這一步從該章哪個元素 id 開始（沒給 = 章首）；`until`：到哪個 id 為止（不含；沒給 = 章末）。
  *   anchor／until 都必須是該章原始碼裡真的有的 id（backbone.test.ts 會到原始碼裡找 `id="…"` 或 `'…'`）。
- *   ch05 的各節沒有 id（PageOutline 在瀏覽器裡才由標題產生 `h-…`），所以那一步用 `untilHeading`（h2 文字的開頭）標示範圍，連結只到章首。
+ *   ch05 的各節現在都有穩定的 id（`ch05-intuition`、`ch05-accumulate`…；maint-dedup），那一步也用 `until`。
  * - `reading`：這一段在 Beginner 模式看得到的內容量（中文字、獨立公式、圖、實驗），2026-10-19 以 scratch 腳本 measure-segments.mjs 對
  *   http://localhost:5180 量（和 scripts/reading-time.mjs 同一套計法，只是依 h2 的位置切段：章首到第一個 h2 算一段，之後每個 h2 一段）。
  *   `minutes` = estimateReadingMinutes(reading)（chapterMeta.ts 的 READING_RATE：350 字／分、每條公式 0.2 分、每張圖 0.5 分、每個實驗 3 分，5 的倍數）。
@@ -24,8 +24,6 @@ export interface BackboneStep {
   anchor?: string
   /** 終點（不含）：該章原始碼裡的元素 id；沒給就是章末 */
   until?: string
-  /** 終點（不含）的 h2 文字開頭：只給沒有節 id 的章（ch05）用，純說明與量測用 */
-  untilHeading?: string
   /** 一句話：這一步學什麼 */
   title: string
   /** 範圍標示，例如 '§0.1–§0.5' */
@@ -93,7 +91,7 @@ const RAW: StepInput[] = [
   },
   {
     page: 'ch05',
-    untilHeading: '3. 把',
+    until: 'ch05-accumulate',
     title: '1-bit comparator：一枚只偏一點點的硬幣，$P(q=+1)$、$E[q]$ 與 $\\operatorname{Var}(q)$',
     sections: '直覺–§2',
     reading: { han: 3794, formulas: 98, figures: 8, experiments: 0 },

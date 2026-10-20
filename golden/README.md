@@ -16,6 +16,7 @@ python3 -m pytest golden -q                 # 全部 golden 測試（約 10 秒�
 python3 -m pytest golden -q -k T05          # 只跑某個 T-id
 python3 golden/export_vectors.py            # 重新產生 golden/vectors/*.json
 python3 golden/export_vectors.py --check    # 只檢查 vectors 是否與目前模型一致
+python3 golden/export_vectors.py --check-web  # 檢查網頁讀的資料 JSON 的結構（src/data/golden/schemas.json，與 TypeScript 的 validate.ts 共用）；不重算任何東西
 npm run verify                              # Vitest + pytest → src/data/verification-status.json
 ```
 
@@ -139,3 +140,12 @@ it('T13: σ_w ≈ 0.399 fs（golden vector）', () => {
 | `dtc_inl_basis.json` | monomial／Legendre／normalized Legendre／Chebyshev（`M = 3`、uniform）的 `R`、特徵值、條件數（67.6／7／1／5.9）、2×2 分塊的手算特徵值、LS 最佳解與 mean-field `k95`（`μK_qλ_max = 0.1`） | rel 1e-9 + abs 1e-12；`θ*` abs 1e-9；`k95` abs 0 |
 
 另外在 pytest 內（不進 vectors）：以 2M 個樣本的 MA(2) uniform 過程驗證線性過程精確式（±3%，Gaussian 式高估 1.446 倍）、真的跑 MASH 1-1-1（20 bit、frac 0.618）用 SciPy Welch 量帶內折返功率對精確式（±8%）、LUT Sign-LMS 收斂到 floor + misadjustment（±25%）、LUT 近似誤差封閉式對 200k 格點直接計算（±1%）。
+
+## 8. Ch05 非理想 comparator 與 Ch14 acquisition（無 T-id）
+
+`lms_pll_golden/comparator.py` 附加了遲滯 ±h 與 metastability 決策窗 ε 的模型（`src/simulation/models/comparator.ts` 的獨立實作），測試在 `test_comparator_nonideal.py`；`lms_pll_golden/acquisition.py` 是 `src/simulation/models/acquisition.ts` 的獨立實作（FLL、lock detect、SSPD 單調範圍與 cycle slip、倍頻捕獲 `|Δf̂| < f_ref/2`、校正 enable 條件與狀態機），測試在 `test_acquisition.py`。兩者都由 `export_vectors.py` 輸出，`--check` 與 `--check-web` 一併核對：
+
+| vector | 內容 | 容忍度 |
+|---|---|---|
+| `comparator_hysteresis.json` | 遲滯的平穩斜率比、記憶因子 `ν`、雜訊因子 `(1+ν)/(1−ν)`、等效 `K_q` 比與所需 `N` 比；metastability 的 `P_meta`、drop 斜率比與每 block 丟掉的樣本數；`h = 30 fs`、`ε = 5 fs` 的 chain 轉移機率 | rel 1e-12 + abs 1e-15 |
+| `acquisition_timeline.json` | FLL 收斂週期 `n_c`、`n_FL`；相位鎖定與 settle；lock detect 的 `P_miss`、誤報率與平均偵測週期；cycle slip 的單調範圍與 `Δf` 上限；DTC 工作點；線性與 sine PD 的完整時間線；失鎖與重鎖；倍頻捕獲（`harmonic_*`）、沒有 FLL 時的別名與靜態偏移（`no_fll_*`）、鎖到錯的倍頻（`wrong_harmonic_*`） | rel 1e-9 + abs 1e-12；週期數、block 數、布林與 `k` 為 abs 0 |

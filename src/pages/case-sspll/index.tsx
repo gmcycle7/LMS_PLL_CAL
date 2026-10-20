@@ -1,7 +1,7 @@
-import { Callout, ClaimTag, ModelLevel, SourceTag, Tex, mathText } from '@/components'
+import { Callout, ClaimTag, JumpTo, ModelLevel, SourceTag, Tex, mathText } from '@/components'
 import { useSettings } from '@/app/settings'
 import { BAND, PARAMS, SIM_CFG } from './data'
-import { fx, r, scrollToId } from './common'
+import { fx, r } from './common'
 import { S00Conclusion } from './sections/S00Conclusion'
 import { PageMap, S01Roadmap } from './sections/S01Roadmap'
 import { S02Architecture } from './sections/S02Architecture'
@@ -14,6 +14,7 @@ import { S07bTheorem } from './sections/S07bTheorem'
 import { S08Phos } from './sections/S08Phos'
 import { S09Joint } from './sections/S09Joint'
 import { S10Sim } from './sections/S10Sim'
+import { S10bDither } from './sections/S10bDither'
 import { S11Remedies } from './sections/S11Remedies'
 import { S12FiniteStep, S13Offset } from './sections/S12S13'
 import { S14ClosedLoop } from './sections/S14ClosedLoop'
@@ -22,7 +23,7 @@ import { S16Quiz, S17Recap } from './sections/S16Wrapup'
 import { S21Symbols, SYMBOLS_ANCHOR } from './sections/S21Symbols'
 import './case-sspll.css'
 
-/** 目錄：[錨點 id, 標題]；編號寫在標題裡（0–21，§7b 插在 7 與 8 之間）。符號表在最後（docs/teaching-style.md §5）。 */
+/** 目錄：[錨點 id, 標題]；編號寫在標題裡（0–21，§7b 插在 7 與 8 之間、§10b 插在 10 與 11 之間）。符號表在最後（docs/teaching-style.md §5）。 */
 const TOC: [string, string][] = [
   ['cs-0', '0. 先講結論'],
   ['cs-1', '1. 本章路線圖'],
@@ -36,6 +37,7 @@ const TOC: [string, string][] = [
   ['cs-8', '8. PHOS：circulant 與 DFT 模態（實驗 B）'],
   ['cs-9', '9. $9\\times9$ 耦合與 PSD 定理'],
   ['cs-10', '10. 模擬證據'],
+  ['cs-10b', '10b. DSM dither、MASH 與 PMUX 隨機旋轉（實驗 D）'],
   ['cs-11', '11. 對策與核心程式碼'],
   ['cs-12', '12. 有限步長'],
   ['cs-13', '13. 比較器 DC offset'],
@@ -102,9 +104,9 @@ export default function CaseSspllPage() {
         <ol className="cs-toc cs-toc-labeled">
           {TOC.map(([id, label]) => (
             <li key={id}>
-              <button type="button" className="cs-linkbtn" onClick={() => scrollToId(id)}>
+              <JumpTo target={id} className="cs-linkbtn">
                 {mathText(label)}
-              </button>
+              </JumpTo>
             </li>
           ))}
         </ol>
@@ -122,6 +124,7 @@ export default function CaseSspllPage() {
       <S08Phos />
       <S09Joint />
       <S10Sim />
+      <S10bDither />
       <S11Remedies />
       <S12FiniteStep />
       <S13Offset />

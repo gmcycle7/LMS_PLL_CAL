@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Section, SourceTag, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
+import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Section, SourceTag, StepDerivation, Tex, TexBlock, ChRef, ChapterErratum } from '@/components'
 import gmacSrc from '@/simulation/models/gmac.ts?raw'
 import goldenQuantSrc from '../../../../golden/lms_pll_golden/quantization.py?raw'
 import {
@@ -19,7 +19,7 @@ import {
 } from '@/simulation/models/gmac'
 import { FixedPointExperiment } from '../experiments/FixedPointExperiment'
 import { ACCUMULATOR_SIZING, ANTI_WINDUP, AVERAGE_LOOP, BIAS_LOOP, FIXED_DATAPATH, NEGATE_BUG, ROUNDING_MODES, SHIFT_BITS } from '../diagrams'
-import { DerivationFold, Erratum, f, FigRef, HandCalcBox, MermaidFig, tx, mt } from '../common'
+import { DerivationFold, f, FigRef, HandCalcBox, MermaidFig, tx, mt } from '../common'
 
 const R = String.raw
 const GMAC_PATH = 'src/simulation/models/gmac.ts'
@@ -532,7 +532,7 @@ export function FixedPointSection() {
         多 seed 模擬（gmac.test.ts，8 個 seed、每個 2000 blocks）：<Tex>{R`-2.68\pm0.02\,\mathrm{fs}`}</Tex> 與 <Tex>{R`\mu`}</Tex> 減半後的 <Tex>{R`-5.66\pm0.05\,\mathrm{fs}`}</Tex>——偏差加倍，比 §5.3 的截斷偏差（
         <Tex>{R`${tx(-biasRows[2].deltaStar, 3)}\,\mathrm{fs}`}</Tex>）大得多；half-even 時為 <Tex>{R`-0.02\pm0.02\,\mathrm{fs}`}</Tex>。對照：每個 block 的更新量標準差 <Tex>{R`\mu\sigma_G=${tx(wt.sigmaInc, 4)}\,\mathrm{fs}`}</Tex>，
         <Tex>{R`\mu\sigma_G/\Delta_W=${tx(wt.ditherW, 3)}`}</Tex>。設計規則：若要 floor 的偏差小於 <Tex>{R`\delta_\mathrm{tol}=${wt.tolFs}\,\mathrm{fs}`}</Tex>，需要{' '}
-        <Tex>{R`\Delta_W\le2g\,\delta_\mathrm{tol}=${tx(wt.wLsbMax, 3)}\,\mathrm{fs}`}</Tex>；實體 DTC gain 的 LSB 若為 <Tex>{R`${wt.physLsb}\,\mathrm{fs}`}</Tex>（<ChRef ch="13">Ch13</ChRef> 的 <Tex>{R`\Delta_\mathrm{LSB}`}</Tex> <Erratum id="E13" />），
+        <Tex>{R`\Delta_W\le2g\,\delta_\mathrm{tol}=${tx(wt.wLsbMax, 3)}\,\mathrm{fs}`}</Tex>；實體 DTC gain 的 LSB 若為 <Tex>{R`${wt.physLsb}\,\mathrm{fs}`}</Tex>（<ChRef ch="13">Ch13</ChRef> 的 <Tex>{R`\Delta_\mathrm{LSB}`}</Tex> <ChapterErratum id="E13" />），
         <Tex>W</Tex> 至少要在它下面再保留 <Tex>{R`\lceil\log_2(${wt.physLsb}/${tx(wt.wLsbMax, 3)})\rceil=${wt.fracBits}`}</Tex> 個小數位元。<ClaimTag kind="approx" />
       </p>
       <CodeBlock source={gmacSrc} region="quantizeIncrement" path={GMAC_PATH} title={R`更新量取整到 $W$ 的 LSB（第二個截斷點）`} />

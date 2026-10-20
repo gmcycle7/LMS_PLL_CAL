@@ -1024,11 +1024,11 @@ describe('Ch04 頁面上的方塊圖（整頁渲染）', () => {
     for (const t of ['第一行是 reference edge（被 DTC 提前', '第二行是 feedback edge（早到', '補償不足（', '時 reference edge 還是太晚，誤差為正']) expect(residue.textContent, t).toContain(t)
 
     // 2) 22 張圖：順序 = 登錄表；每張都有圖號與圖說
-    const figs = Array.from(container.querySelectorAll('.ch04-mermaid-fig'))
+    const figs = Array.from(container.querySelectorAll('.c-chapter-fig'))
     expect(figs.map((el) => el.id)).toEqual(CH04_DIAGRAMS.map((_, i) => `ch04-fig-${i + 1}`))
     figs.forEach((el, i) => {
-      const cap = el.querySelector('.ch04-mermaid-caption')!
-      expect(cap.querySelector('.ch04-fig-no')!.textContent).toBe(`圖 4-${i + 1}`)
+      const cap = el.querySelector('figcaption')!
+      expect(cap.textContent!.split('｜')[0]).toBe(`圖 4-${i + 1}`)
       expect((cap.textContent ?? '').length, CH04_DIAGRAMS[i].name).toBeGreaterThan(30)
       expect(cap.textContent, `${CH04_DIAGRAMS[i].name} 的圖說要說明看什麼`).toMatch(/看/)
       expect(el.querySelector('figure.c-mermaid')!.getAttribute('aria-label')!.length).toBeGreaterThan(8)
@@ -1046,12 +1046,12 @@ describe('Ch04 頁面上的方塊圖（整頁渲染）', () => {
     // 各段的圖都在該段第一個推導摺疊框之前（§1 沒有推導）
     for (const id of ['ch04-residue', 'ch04-gmac', 'ch04-fixed', 'ch04-notes']) {
       const sec = container.querySelector(`#${id}`)!
-      const firstFig = sec.querySelector('.ch04-mermaid-fig')!
+      const firstFig = sec.querySelector('.c-chapter-fig')!
       const firstFold = sec.querySelector('details.ch04-fold')!
       expect(firstFig.compareDocumentPosition(firstFold) & Node.DOCUMENT_POSITION_FOLLOWING, id).toBeTruthy()
     }
     // 正文引用圖號（FigRef）時，號碼對得上
-    const refs = Array.from(container.querySelectorAll('.ch04-figref')).map((r) => r.textContent)
+    const refs = Array.from(container.querySelectorAll('.c-figref')).map((r) => r.textContent)
     expect(refs.length).toBeGreaterThanOrEqual(6)
     for (const r of refs) expect(r).toMatch(/^圖 4-(2[0-2]|1[0-9]|[1-9])$/)
     renderSpy.mockRestore()

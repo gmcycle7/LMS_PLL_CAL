@@ -1,5 +1,5 @@
 import { memo, useCallback, useId, useMemo, useRef, useState, type ChangeEvent } from 'react'
-import { APP_VERSION, Callout, ClaimTag, GIT_COMMIT, Section, TexBlock, downloadText, fileTimestamp, prettyJson, usePersistentState } from '@/components'
+import { APP_VERSION, AnchorLink, Callout, ClaimTag, GIT_COMMIT, Section, TexBlock, downloadText, fileTimestamp, prettyJson, usePersistentState } from '@/components'
 import { BadgeRow } from '@/components/Tags'
 import { ALL_CASES, type SignoffCase, type SignoffCheck } from '../data'
 import {
@@ -22,7 +22,7 @@ import {
   type ReviewState,
   type ReviewStatus,
 } from '../review'
-import { ErratumTag, RichText, SiteLink, scrollToAnchor } from '../shared'
+import { ErratumTag, RichText, SiteLink } from '../shared'
 
 export type MatrixFilter = 'all' | 'open' | 'fail' | 'waived' | 'missing-note'
 
@@ -167,9 +167,7 @@ function CaseBlock({ c, state, filter, onChange }: { c: SignoffCase; state: Revi
           {c.anchor && (
             <>
               {' '}
-              <a href="#/signoff" onClick={(e) => { e.preventDefault(); scrollToAnchor(c.anchor as string) }}>
-                → 本頁推導與實驗
-              </a>
+              <AnchorLink id={c.anchor as string}>→ 本頁推導與實驗</AnchorLink>
             </>
           )}
         </p>
@@ -314,9 +312,7 @@ export function ReviewMatrix() {
               {sum.perCase.map((c) => (
                 <tr key={c.caseId}>
                   <td>
-                    <a href="#/signoff" onClick={(e) => { e.preventDefault(); scrollToAnchor(`so-case-${c.caseId}`) }}>
-                      {c.title}
-                    </a>
+                    <AnchorLink id={`so-case-${c.caseId}`}>{c.title}</AnchorLink>
                   </td>
                   <td className="num">{c.counts.pass}</td>
                   <td className="num">{c.counts.waived}</td>

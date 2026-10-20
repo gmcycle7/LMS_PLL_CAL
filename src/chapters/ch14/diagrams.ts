@@ -350,6 +350,57 @@ export const CHART_KALMAN_INFO = String.raw`flowchart LR
   ${FOCUS}
   class GAIN focus`
 
+// ───────────────────────────── §14.6b ─────────────────────────────
+
+/**
+ * §14.6b：acquisition 路徑——FLL（頻率偵測 → 累加器 → VCO）、SSPD 相位迴路、lock detector、校正 enable 的 AND。
+ * 頻率偵測走 divider（數得出 M）；SSPD 直接取樣 VCO 波形，分不出 M f_ref 與 (M ± 1) f_ref（§14.6b.0 的倍頻模糊）。
+ * 架構照 docs/assumptions.md §2a：Reference → DTC → PD → LF → VCO，回授只有 divider；DTC 的工作點檢查從 DTC 的 code 來。
+ */
+export const CHART_ACQ_PATH = String.raw`flowchart TB
+  REF(["Reference $f_\text{ref}$"]) --> DTC["DTC：延遲 $T_0 - w\,x[n]$"]
+  DTC --> PD["SSPD：$\theta$ = reference edge 對 VCO 波形的時間誤差<br/>輸出 $\propto \sin(2\pi\theta/T_\text{vco})$<br/>分不出 $M f_\text{ref}$ 與 $(M \pm 1) f_\text{ref}$"]
+  PD --> LF["Loop filter"]
+  LF --> VCO["VCO／DCO<br/>$f_\text{vco} = M f_\text{ref} + \Delta f$"]
+  VCO --> DIV["Divider $\div M$"]
+  DIV --> PD
+  REF --> FD["頻率偵測（走 divider：數得出 $M$）<br/>$\hat{\Delta f} = \Delta f + e_f$"]
+  DIV --> FD
+  FD --> FLL["FLL 累加器：每週期 $-K_f\,\hat{\Delta f}$<br/>$K_f = K_\text{vco} g_f/(M f_\text{ref})$"]
+  FLL --> VCO
+  FD --> LD{{"$|\hat{\Delta f}| \lt f_\text{tol}$<br/>連續 $N_\text{ld}$ 個週期？<br/>倍頻捕獲 $|\hat{\Delta f}| \lt f_\text{ref}/2$？"}}
+  PD --> PLD{{"$|\theta| \lt \theta_{\max}$ 連續 $N_\text{pl}$ 個週期？<br/>$W$ 個週期的 $\mathrm{rms} \lt \mathrm{rms}_{\max}$？"}}
+  DTC --> DCHK{{"DTC code 在範圍內？<br/>（$T_0 - w\,x$ 沒有飽和）"}}
+  LD -- "頻率鎖定 $\wedge$ 倍頻對" --> AND(("$\wedge$"))
+  PLD -- "phase lock $\wedge$ 穩態" --> AND
+  DCHK -- "工作點 OK" --> AND
+  AND -- "CAL enable" --> CAL["校正 enable：§14.7 的狀態機離開 LOCK"]
+  ${FOCUS}
+  ${PASS}
+  class FLL,LD,PLD,DCHK focus
+  class CAL pass`
+
+/**
+ * §14.6b：acquisition 狀態機 ACQ → PLOCK → CAL → HOLD／RECAL（含失鎖回退）；每條邊都是 acquisition.ts 的 acqStep 真的會走的轉移。
+ * 畫成 flowchart（不是 stateDiagram）：狀態框裡要放公式，而且 stateDiagram 的轉移文字不支援 `$...$`。
+ */
+export const CHART_ACQ_SM = String.raw`flowchart TD
+  ACQ["ACQ：FLL 拉頻率<br/>$\Delta f[n+1] = (1 - K_f)\,\Delta f[n] - K_f\,e_f[n]$<br/>校正關閉"] -- "$|\hat{\Delta f}| \lt f_\text{tol}$ 連續 $N_\text{ld}$：頻率鎖定<br/>FLL 凍結、相位迴路閉合" --> PLOCK["PLOCK：等 phase lock 與穩態<br/>$|\theta| \lt \theta_{\max}$ 連續 $N_\text{pl}$、$W$ 個週期的 $\mathrm{rms} \lt \mathrm{rms}_{\max}$"]
+  PLOCK -- "兩個條件 $\wedge$ 倍頻對 $\wedge$ DTC 工作點 OK：CAL enable<br/>（§14.7 的 LOCK 到此結束）" --> CAL["CAL：校正進行中<br/>（COARSE → VERIFY → FINE → TRACK）"]
+  CAL -- "cycle slip 或 $|\theta| \ge \theta_{\max}$" --> HOLD["HOLD：係數保持、校正暫停"]
+  HOLD -- "重新 phase lock 且 rms 視窗通過" --> RECAL["RECAL：先 VERIFY 再更新"]
+  RECAL --> CAL
+  CAL -. "$|\hat{\Delta f}| \gt f_\text{unlock}$ 連續 $N_\text{ul}$：失鎖" .-> ACQ
+  HOLD -. "失鎖" .-> ACQ
+  PLOCK -. "失鎖" .-> ACQ
+  PLOCK -. "DTC 工作點超出範圍或倍頻不對" .-> NOEN["永遠不 enable<br/>先修 DTC 範圍（Ch04 §5b）<br/>或先用 FLL 拉到對的那一根"]
+  ${FOCUS}
+  ${PASS}
+  ${WARN}
+  class ACQ,PLOCK focus
+  class CAL pass
+  class HOLD,NOEN warn`
+
 // ───────────────────────────── §14.7 ─────────────────────────────
 
 /** 規格 §14.2 原圖：節點與連線逐字照抄；只有方向由規格的 LR 改成 TB（一排 8 個節點、含兩個迴圈，桌機放不下橫排）。 */
@@ -488,6 +539,8 @@ export const CH14_CHARTS: Ch14Chart[] = [
   { name: 'CHART_SCHEDULE_COMPARE', section: '§14.6', kind: '比較', chart: CHART_SCHEDULE_COMPARE },
   { name: 'CHART_SCHEDULE_TIMELINE', section: '§14.6', kind: '流程', chart: CHART_SCHEDULE_TIMELINE },
   { name: 'CHART_KALMAN_INFO', section: '§14.6', kind: '演算法迴圈', chart: CHART_KALMAN_INFO },
+  { name: 'CHART_ACQ_PATH', section: '§14.6b', kind: '路徑／取樣率', chart: CHART_ACQ_PATH },
+  { name: 'CHART_ACQ_SM', section: '§14.6b', kind: '狀態機', chart: CHART_ACQ_SM },
   { name: 'SPEC_CHART', section: '§14.7', kind: '狀態機', chart: SPEC_CHART },
   { name: 'IMPL_CHART', section: '§14.7', kind: '狀態機', chart: IMPL_CHART },
   { name: 'CHART_GUARD_ORDER', section: '§14.7', kind: '流程', chart: CHART_GUARD_ORDER },

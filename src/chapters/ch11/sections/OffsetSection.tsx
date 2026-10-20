@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, CodeCompare, ModeGate, ModelLevel, Section, StepDerivation, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, CodeCompare, ModeGate, ModelLevel, Section, StepDerivation, Tex, TexBlock, ChapterErratum } from '@/components'
 import biasSrc from '@/simulation/models/bias.ts?raw'
 import {
   DSM_BITS,
@@ -19,7 +19,7 @@ import {
 import { quantizeFcw } from '@/simulation/models/dsm'
 import { DcNullExperiment } from '../experiments/DcNullExperiment'
 import { F } from '../formulas'
-import { Erratum, ModeDetails, chop, num, m, texNum } from '../common'
+import { ModeDetails, chop, num, m, texNum } from '../common'
 import { Fig, FigRef } from '../Fig'
 import { Hand } from '../Hand'
 
@@ -163,7 +163,7 @@ export function OffsetSection() {
       </p>
 
       <h3>
-        但主迴路會不會把 b 吃掉？三種架構 <Erratum id="E03" />
+        但主迴路會不會把 b 吃掉？三種架構 <ChapterErratum id="E03" />
       </h3>
       <p>
         靜態式偷偷假設了一件事：<Tex>{'b'}</Tex> 以及 <Tex>{'x'}</Tex> 相關項的 DC 分量原封不動地到達 comparator。可是在全站的架構裡（章首的系統地圖），comparator 看的
@@ -395,7 +395,7 @@ export function OffsetSection() {
         </li>
         <li>
           <strong>Code-dependent jitter 讓 centering 失效（Sign-LMS 限定）。</strong>
-          <Erratum id="E17" /> DTC 的 random jitter 常隨它的延遲變大，而延遲由 code 決定，所以雜訊的大小是 code 的函數：
+          <ChapterErratum id="E17" /> DTC 的 random jitter 常隨它的延遲變大，而延遲由 code 決定，所以雜訊的大小是 code 的函數：
           <Tex>{String.raw`\sigma_v=\sigma_v(x)`}</Tex>。Sign-LMS 的局部增益{' '}
           <Tex>{String.raw`K_q(x)=\sqrt{2/\pi}/\sigma_v(x)`}</Tex> 隨 code 改變，固定點變成 <Tex>{'1/\\sigma_v(x)'}</Tex> 加權（推導見下）。
         </li>

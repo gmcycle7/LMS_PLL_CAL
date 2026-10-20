@@ -92,6 +92,28 @@ docs/                    # 規格、勘誤、假設、風格規範、本文件
 - 「本課必記」（Recap）與符號表放在摺疊框外面，所有模式都看得到；綜合手算放在 Part 2 思考題之前；每個 Part 自己有思考題。
 - 範例：`src/chapters/ch04/index.tsx`；`PartHead`／`PartFold` 目前是 `src/chapters/ch04/common.tsx` 的章內元件（第二個章節要用時再搬到 `src/components/` 並寫進 `docs/dev/infra-api.md`）。
 
+### 1.6 穩定的段落 id（wave 5）
+
+每章每個有 h2／h3／h4 標題的 `<Section>`／`<section>` 都要有 `id`，格式 `<chNN>-<英文短字>`（小寫英數與連字號，例如 `ch12-spurs`、`ch11b-basis`），章內唯一；章末的符號表是固定的 `id="symbols"`。**已經有 id 的不改**：PageOutline 的目錄、`?a=` 深連結、Beginner 骨幹路線（`src/app/backbone.ts` 的 `anchor`）、`chapterMeta` 的先備自檢錨點與使用者存下來的連結都靠它。
+
+- 舊章節的 `<section><h2 id="ch02-s1">` 把 id 移到 `<section>` 上（h2 是 section 的第一個子元素，捲動位置不變）；沒有 id 的 `<Section>` 加上 `id="chNN-…"`。
+- 測試：`src/data/chapterTemplate.test.ts` 掃章節原始碼（每個 `<Section>`／`<section>` 有 id、章內唯一、符合格式）；`src/data/chapterTemplate.dom.test.tsx` 把每一章用 Research 模式渲染一次（ModeGate 內的段落才會出現），用 `sectionIdReport(container)`（`@/components`）檢查渲染後的 DOM：沒有 id 的標題段落、整頁重複的 id。
+- Beginner 骨幹路線的 `anchor` 只能用原始碼裡真的有的 id（`backbone.test.ts` 會去找），新增段落 id 之後路線才能切到段落級。
+
+### 1.7 章內不自寫共用元件；新增一章用範本
+
+各章原本各寫一份的小元件已經收進 `src/components/chapter/`（由 `@/components` 匯出；API 見 `docs/dev/infra-api.md`「章節共用元件」）：
+
+| 原本每章各一份 | 共用版本 |
+|---|---|
+| `Erratum`／`ErratumNote`／`ErrataNote`／`ErratumRef` | `ChapterErratum`（行內徽章：`children` 短註記、`note` 純文字註記、`detail` 較長說明）、`ChapterErratumNote`（區塊版，含官方修正文字） |
+| `Hand`／`HandCalcSlot`／`HandCalcBox`／`ChapterHandCalc`／`HC`、`HandCalcLink` | `bindHandCalc(HANDCALCS)`（章內 `common.tsx` 一行綁定）、`ChapterHandCalc`、`HandLink` |
+| `Diagram`／`Fig`／`ChapterDiagram`／`BlockDiagram`／`MermaidFig`、`FigRef` | `ChapterFig`（外框、圖號圖說、導讀）、`FigRef`；各章只留「依 id 查圖號與圖說」的轉接 |
+| `scrollToId`／`jumpTo`／`JumpTo`／`scrollIntoView` | `JumpTo`、`jumpToId`（都經 `scrollToElement`）、`AnchorLink` |
+| `texNum` | `makeTexNum(預設位數, { paren, nan })`／`texNumber`（頁面與章節同一個入口，用法與例外見 §2.2「數字進 TeX」） |
+
+`chapterTemplate.test.ts` 會抓到章內再出現這些名稱的自寫實作、直接呼叫 `scrollIntoView` 與 `href="#/verification"`（例外清單在該檔的 `EXCEPTIONS`，附理由）。新增一章：`node scripts/new-chapter.mjs <NN> <slug>` 產生標準資料夾（`index.tsx`、`sections/`、`common.tsx`、`formulas.ts`、`handcalcs.ts`、`diagrams.ts`、五個測試檔），再照 `docs/dev/new-chapter.md` 的檢查清單把它接進 registry、chapterMeta、骨幹路線、Dashboard、Gallery、Roadmap 與 README。
+
 ## 2. 共用 UI 元件（`src/components/`，由 `@/components` 匯出）
 
 | 元件 | 用途 | 主要 props |
@@ -137,6 +159,22 @@ docs/                    # 規格、勘誤、假設、風格規範、本文件
 - **徽章數量**：同一行連續 ≥ 4 個徽章用 `BadgeRow`（顯示前 3 個 + 「+N」按鈕，點開展開、再點收起；摺起來的項目不在 DOM 裡）。外層沿用 `.c-tag-row`，既有版面規則不變。章節標題下那排 `ClaimTag`／`ModelLevel`／`SourceTag`／`TestBadge` 應改用它。
 - **表格**：`global.css` 的 `table`／`th, td` 只引用 `--table-fs`／`--table-pad-y`／`--table-pad-x`／`--table-border`／`--table-head-bg`；三個層級（default／sm／xs）的值在 `tokens.css`，手機（≤ 480px）由 `tokens.css` 的 `@media` 把三個層級各縮一級——**章節不要再寫自己的手機表格規則**。`.c-table`（以及 `.c-metric-table`、`.c-symbols table`、`.c-derivation-table`、sign-off 的表，由 `components.css` 的選擇器清單自動套上）：橫線＋斑馬紋（`--table-stripe`）、不畫直向格線、數字欄 `.num` 靠右、公式欄 `.formula` 不換行且只占內容寬、`.c-table--sticky` 讓表頭黏在頂列下（外框不是捲動容器時才有效）。斑馬紋與格線用 `:where()` 寫成零特異度，頁面自己的卡片排版壓得過。各頁表格 class 的字級／內距由 `components.css`「Table」一節的 `.page :is(…)` 清單對映到層級（挑層級的原則：**寬度不增加**，否則會冒出只能捲幾 px 的橫向捲軸）；章節 CSS 裡對應的 `font-size`／`padding` 規則可以刪掉。
 - **數字 −0**：`fmtNum`（`src/components/format.ts`）與 `texNum`（`handcalcMath.ts`）對 −0 已回 `0`；用 `toFixed` 自己格式化的地方（`case-sspll/common.tsx` 的 `fx`／`tx` 已處理）要把 `/^-0\.?0*$/` 正規化成 `0`，不要顯示 −0.000。
+
+### 2.2 工具頁的徽章與小元件（pages-cleanup，wave 5）
+
+`/verification`、`/workbook`、`/papers`、`/roadmap`、`/gallery`、`/models`、`/formulas`、`/dashboard`、`/signoff` 各頁原本自己畫 pill、自己寫捲動與方塊圖外框，現在一律用共用層：
+
+- **pill → `Badge`／`badgeClass`**：頁面專屬的 pill class 保留當測試與審查腳本的 hook（`ver-chip`、`wb-chip`、`papers-chip`、`rm-status`、`models-status`、`gal-status`、`fr-chip`、`dash-chip`…），但**顏色與尺寸一律來自 `c-badge`**。對映：狀態／判決 `ok`（綠）、`partial`（琥珀描邊＝只做了一部分）、`mismatch`（紅）、`na`（灰）、`pending`（灰虛線）、`not-implemented`（琥珀虛線＝本站未模擬）；勘誤 `erratum`（嚴重度換色由 `c-erratum-link` 的 `data-severity` 負責）；來源或「本站補充」`source`；沒有語意的計數、ID、語言標 `neutral`。頁面的 CSS 只留版面（間距、截斷）。
+- **分類、難度、問題類型不借用結論強度的顏色**：Workbook 的難度（入門／工程師／研究）、Gallery 的三個問題 (1)(2)(3)、papers 的文獻類型都是 `neutral` 徽章，靠文字區分；綠／琥珀／紫只留給 精確／近似／研究假說。
+- **會被按的徽章**（連結、篩選鈕、快捷鈕）：元素是 `<a>`／`<Link>`／`<button>`，`className={badgeClass('neutral', 'xx-chip')}`；`<button>` 要在自己的 CSS 補 `font: inherit`、`cursor: pointer`。覆寫顏色只改 `--b-fg`／`--b-bg`／`--b-bd` 三個變數，選擇器寫成 `.c-badge.xx-chip`（特異度 0,2,0，不受 CSS 載入順序影響）。選取中的狀態（`.active`）也是改這三個變數。
+- **`BadgeRow`** 只包「每個子項都是一顆徽章」的靜態一排（頁首的 ClaimTag／ModelLevel／SourceTag／TestBadge）。子項是會輸出多顆徽章的包裝元件時（例如 Gallery 卡片的 `LevelBadges`／`TestBadges`／`ErrataList`）不能用：摺疊會把整組藏掉。刻意要一次看到全部的清單（驗證頁的 18 顆 T-id 狀態）也不摺。
+- **方塊圖外框**：各頁的 `Diagram`（`common.tsx`／`shared.tsx`／`ui.tsx` 的 `DiagramWalk`）都是 `ChapterFig` 的一行包裝，`className="xx-diagram"` 當 hook；導讀的選擇器是 `.c-chapter-fig-walk`（不再是各頁的 `xx-diagram-walk`）。
+- **頁內捲動**：一律 `revealAnchor(id)`（`@/components`，links/anchor；會展開祖先 `<details>`、瞬間捲到、聚焦、標示、校正延後渲染的位移）。頁面不再自己寫 `scrollToId`／`scrollIntoView({ behavior: 'smooth' })`。`/formulas` 的 `scrollToId(id)` 只多一件事：把 sticky 搜尋列高度寫進目標的 `scroll-margin-top` 再交給 `scrollToElement`。
+- **數字進 TeX（頁面與章節同一個入口）**：新程式碼裡，正文、表格、圖說的數字都從 `@/components` 取 `makeTexNum`（底下是 `texNumber`），在該頁或該章自己的 `common.tsx`／`format.ts` 用一行綁定預設位數，例如 `export const texNum = makeTexNum(4)`；負數要加括號（寫成乘法的因子）用 `{ paren: true }`，NaN 要寫成別的樣子用 `{ nan: … }`（預設 `\text{—}`），呼叫時仍可 `texNum(x, 3)` 覆寫位數。規則：有效位數去尾零，|x| ≥ 1e6 或 < 1e-4 寫成 `a\times10^{b}`，±∞ 寫 `\infty`，−0 顯示 `0`。不要自己寫轉換規則，也不要寫成 `export function texNum`（章內由 `chapterTemplate.test.ts` 擋）。
+  - **HandCalc 專用的同名函式**：`@/components` 另有 `texNum(x, sig)`／`texNumP`（`handcalcMath.ts`），只給 HandCalc 題目的代入過程用（各頁各章的 `handcalcs.ts`、`handcalcTex.ts` 直接 `import { texNum, texNumP } from '@/components'`，位數預設 5）。它和 `makeTexNum` 在三處不同：有效數字 a = 1 時寫 `10^{b}`（`makeTexNum` 寫 `1\times10^{b}`）、NaN 寫 `\text{NaN}`、四捨五入剛好進位到 10⁶（如 `999999` 取 4 位）時仍寫 `1000000`。
+  - **既有的頁面包裝**：verification／papers／gallery／models／formulas／signoff 六個頁面的 `export function texNum` 是上面這個 `handcalcMath` 版本加預設位數的包裝（`src/pages/toolPages.test.ts` 釘住這份清單與「委託給共用 texNum」的寫法）。它們不必遷移，但不要再新增同型的包裝；輸出與 `makeTexNum` 的差異同上。
+  - **驗證頁的例外**：`src/pages/verification/format.ts` 的 `texNum(x, digits = 4)` 在共用規則之前先處理一種情況——|x| < 1e6 的整數**原樣顯示**，不捨入到 `digits` 位：`texNum(123456)` 是 `123456`（共用規則給 `123500`），樣本數、決策數 `230400` 取 3 位也不會變成 `230000`，和同檔的 `fmtNum` 一致。整數 ≥ 1e6 與所有非整數仍照共用規則（`6\times10^{10}`、`10^{6}`、NaN 寫 `\text{NaN}`）。這條只在驗證頁，別的頁面與章節不要複製；行為由 `src/pages/verification/texNum.test.ts` 固定。
+- **`ModeGate` 一律給 `summary`**：一句話說明收起來的是什麼（「推導 X」「X 的核心程式碼」「單位與硬體對應」…，可含 `$…$`；含反斜線時用 ``summary={String.raw`…`}``），Beginner 看到的佔位才不是通用句。
 
 ## 3. 互動實驗規範（規格 §19）
 
@@ -295,6 +333,17 @@ it('整章可渲染', () => {
 
 **巨型測試要拆**：單一 `it` 超過 60 秒（`npx vitest run <檔案> --reporter=verbose` 看每個 `it` 的耗時；整批用 `--reporter=json --outputFile=<檔>` 再依 `assertionResults[].duration` 排序）或超過 300 行，就拆成 `describe` + `mountPageOnce`：`beforeAll` 渲染一次、`afterAll` 卸載，每個 `it` 只檢查一件事、標題寫出意圖。順序：只讀的斷言在前 → 等 worker 算完的 `waitFor` → 會改動 DOM 的操作與整章的收尾檢查（`it` 依宣告順序執行）。範例：`src/chapters/ch06/ch06.test.tsx` 的「Research 模式整章（共用一次渲染）」。拆的時候留意：（1）RTL 的自動 cleanup 追蹤不到 `mountPageOnce` 的樹，一定要在 `afterAll` 呼叫它回傳的 `unmount()`；（2）`plotlyMock`／`mermaidMock` 的呼叫紀錄在每個 `it` 之後被清空，要比對就在 `beforeAll` 先複製出來；（3）`T07:` 這類 T-id 前綴只放在一個 `it`（`scripts/verify.mjs` 以前綴彙整，名稱與數量變動要重跑 `npm run verify` 更新 `src/data/verification-status.json`）。
 
+### 6.2 Python → TypeScript 資料邊界：JSON 的結構驗證（data-typing，wave 5）
+
+網頁讀的資料 JSON（案例頁的 `params`／`pred_vs_sim`／`hpd_L*`／`signmap_L*`／`worked_examples`／`gos_dense_scan`／`sim_dither_extract`／`gos_certificate`／`docNumbers`、`golden/vectors/*.json`、`errata.json`、`verification-status.json`、`presets/*.json`）是 Python 或腳本產生的。**不要再用 `json as unknown as SomeType` 宣告型別**；改成載入時過一次結構驗證，Python 改了欄位、少一個陣列元素、寫出 NaN，就在載入那一刻丟出帶路徑的錯誤（`params.json 的資料格式不符：$.loops.L2.bL 缺少必要欄位`），而不是畫到一半才壞。
+
+- **一份 schema，兩邊讀**：`src/data/golden/schemas.json`（`version: 1`；語言說明在 `src/data/validate.ts` 檔頭）。每個條目有 `id`、檔案（`paths` 或檔名內一個 `*` 的 `glob`）、`tsType`（對應的 TS 型別與所在檔案）、`usedBy`（誰在用），所以它同時是這條邊界的盤點表。TypeScript 端 `loadWebJson<T>(id, raw, 檔名)`（`src/data/golden/schemas.ts`）= `loadJson` + 查表；Python 端的驗證器是 `analysis/sspll/golden/tools/web_schema.py`（只用標準函式庫）。
+- **新增或修改一個資料檔**：(1) 在 `schemas.json` 加／改條目（`defs` 放共用片段；object 預設只要求列出的欄位、其他欄位放行；固定網格寫 `length`、同組欄位等長寫 `sameLength`；可為 null 的寫 `oneOf [S, 'null']`）；(2) TS 端的 interface 要和 schema 一致——**型別仍是手寫的，schema 對真實檔案驗證，兩者的同步靠 review**；(3) 呼叫處寫 `loadWebJson<MyJson>('id', rawJson, 'name.json')`，延後載入的檔案在 `import()` 的 `.then` 裡呼叫（範例：`src/pages/case-sspll/lazyData.ts`）；(4) 跑 `npx vitest run src/data/validate.test.ts --project node` 與 `python3 golden/export_vectors.py --check-web`。`src/data/sspll`、`src/data` 底下新增的 JSON 沒有條目時，`validate.test.ts` 與 `--check-web` 都會失敗；`golden/vectors/*.json`（`index.json` 除外）由 schemas.json 裡 id 為 golden/vector 的條目（glob）涵蓋，新的 vector 不用改 `schemas.json`，但要符合 `defs.Vector` 且期望值為 0 的量要有 abs 容忍度。
+- **`validate.test.ts` 做什麼**：驗證器行為（`schema-cases.json` 的 45 個案例；Python 的 `test_web_schema.py` 跑同一份，兩邊的 ok／錯誤路徑必須一致）、每個條目涵蓋的每個檔案真的過一次驗證、對真實檔案做破壞（少一個點、改名、非有限數值、enum 之外）要在正確的路徑失敗、golden vector 的「期望值為 0 就要有 abs 容忍度」。
+- **`--check-web`**：`python3 golden/export_vectors.py --check-web` 做同一組檢查（key、維度、型別、有限數值、NaN／Infinity 字面值——Python 的 `json.dump` 預設會寫出，`JSON.parse` 讀不了）。CI 的 python job 在 `export_vectors.py --check` 之後有一個 step 跑 `python3 golden/export_vectors.py --check-web`（`.github/workflows/ci.yml`）。
+- **驗證揪出的型別謊言**（已改）：`PredJson.fine.*.kG_sim／kG_theory` 在 α = 1/8、1/4、3/8、1/2 是 `null`（GOS 的 regressor 為零，κ_GOS 沒有定義），舊型別寫 `number[]`；`gos_dense_scan.json` 的 `_runtime_s` 是數值、不是一列（`GOS_SCAN` 的 `Record<string, GosScanRow>` 對這個 key 仍不準確，schema 以 `rest` 規則處理）。
+- **讀取點**：案例頁的 JSON、`src/pages/verification/golden.ts`（18 個 vector、negative_tests、index）都用 `loadWebJson`。`src/app/presets.ts`（250 個 preset）、`errata.json`、`verification-status.json` 的讀取函式**刻意不在載入時驗證**：它們在主 bundle，`schemas.json` 會跟著進去；改由 `validate.test.ts` 與 `--check-web` 逐檔驗證（CI 一定會跑）。
+
 ## 7. 語言與文字
 
 - 介面與說明以繁體中文為主，保留精確英文術語（GMAC、Sign-Error LMS、Persistent Excitation…）。
@@ -397,3 +446,4 @@ node scripts/dom-eval.mjs 'http://localhost:5173/#/ch/05' 'return document.query
 3. 只有真的算過才標 `'ok'`；`'ok'` 的 tolerance 要寫在 `note` 或假設裡（例如 `4·se`、`1 LSB + 4 SE`、相對 `10⁻⁹`）。
 4. 有 seed 與隨機性的實驗，Monte Carlo 欄要做多 seed（≥ 8，`deriveSeed(seed, r)`）的統計（平均、CI）與判定；確定性的實驗標 `'n/a'` 並說明是確定性的。有定點模型的實驗，Fixed-Point 欄做「定點 vs 同 seed 浮點」的成對比較（`/lab` 的 Pipeline、Monte Carlo、FCW sweep 分頁與 Models 頁的 BlockLms JSON Lab 都是這個做法）。
 5. 這一節的掃描：`grep -rn "crossCheck" src --include='*.tsx' --include='*.ts' | grep -v '\.test\.'`；裸狀態用 `grep -rn "'n/a'\|'not-implemented'" src | grep -v "status:"` 找。
+6. （depth-dither 審查，2026-10-19）Analytic 欄只能用**和 golden 一起計分過、而且沒有被否決**的判準。判準有好幾段時（例如「線性段判不了就改看大訊號斜率」），每一段都要在 golden 上分開計分（`ok`／`mismatch`／`n/a` 各幾個，連同不一致的組），頁面上寫的「不一致 0」要註明是哪一段；有 `mismatch` 的那一段撤回，只能當提示（指標標 `claim: 'research'`，`note` 寫它的計分），不能決定 Analytic 的狀態。範例：案例頁實驗 D（`src/pages/case-sspll/experiments/CodeSourceLab.tsx`）與 `analysis/sspll/golden/tools/dither_sweep.py` 的 `score_candidates`。

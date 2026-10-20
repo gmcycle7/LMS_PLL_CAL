@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { Link } from 'react-router-dom'
-import { SymbolTable, type SymbolEntry } from '@/components'
-import { ErratumLink, Rich, scrollToId } from '../ui'
+import { revealAnchor, type SymbolEntry, SymbolTable } from '@/components'
+import { ErratumLink, Rich } from '../ui'
 import { FoldCard } from './FoldCard'
 
 const R = (t: string) => <Rich text={t} />
@@ -89,9 +89,9 @@ export const DASH_SYMBOLS: SymbolEntry[] = [
 
 /**
  * 頁首只留這一行：按了捲到頁末的符號表（HashRouter 下不能用 href="#symbols"，那會被當成路由）。
- * onJump：頁內跳轉（預設 scrollToId）；Beginner 模式符號表收在卡片裡，index.tsx 傳入的版本會先展開再捲。
+ * onJump：頁內跳轉（預設 revealAnchor）；Beginner 模式符號表收在卡片裡，index.tsx 傳入的版本會先展開再捲。
  */
-export function SymbolsJump({ onJump = scrollToId }: { onJump?: (id: string) => void }) {
+export function SymbolsJump({ onJump = revealAnchor }: { onJump?: (id: string) => void }) {
   return (
     <p className="dash-symbols-jump">
       <button type="button" className="dash-linkbtn" onClick={() => onJump(SYMBOLS_ANCHOR)}>
@@ -124,7 +124,7 @@ export const SymbolsSection = memo(function SymbolsSection({
       <p className="dash-lead-sm">
         整頁用到的符號集中列在這裡，忘記某個符號時回來查：單位、在規格書第幾節第一次出現，以及有勘誤或同一個字母有兩種用法時本站採用的定義。全站的符號總表在{' '}
         <Link to="/formulas">Formula &amp; Unit Reference</Link>。{' '}
-        <button type="button" className="dash-linkbtn" onClick={() => scrollToId('dash-title')}>
+        <button type="button" className="dash-linkbtn" onClick={() => revealAnchor('dash-title')}>
           ↑ 回到頁首
         </button>
       </p>

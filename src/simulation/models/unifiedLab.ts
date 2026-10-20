@@ -7,7 +7,8 @@
  *   DTC（在 reference 輸入端；全站架構約定見 docs/assumptions.md §2a）：需要補的量是 a·x[n]，DTC 實際的補償量是 w_app,k·x[n]
  *     （從固定的基準延遲 T_0 往回扣），PD 看到兩者之差：
  *     e_DTC[n] = (a − w_app,k)·x[n] + o_DTC + c₂x² + c₃x³                              [fs]
- *     （本檔的 x 是正規化後的 residue r：未置中的一階 DSM 為 x ≤ 0，和 §2a 的 x = s/M = −r 差一個負號。
+ *     （x 的正負號由 LabParams.regressorSign 決定（wave 5）：'spec' 照 §2a 用 x = s/M = −r ≥ 0；'legacy'（預設與既有 preset）
+ *       用正規化後的 residue r：未置中的一階 DSM 為 x ≤ 0，和 §2a 差一個負號。以下這段說明的是 legacy。
  *       照 §2a 的時間寫：feedback edge 早到 a·|r|、τ_DTC = T_0 − w_app·|r|、t_ref′ − t_fb = (a − w_app)·|r|；
  *       本檔用帶正負號的 x 寫成 (a − w_app)·x：gain 項與 regressor 一起變號，q·x 的統計不變，所以 GMAC 與更新式相同。
  *       o_DTC、c₂x²、b 不隨 x 變號，它們的正負號是相對本檔的 e_DTC 定義的。）
@@ -17,7 +18,7 @@
  *   GMAC：G_k = (1/N)Σ q·x_ref（average）或 Σ（sum）；x_ref ∈ {x, x[n−D], Ĥ{x}[n−D]}
  *   Gain register / update：w_{k+1} = w_k + μG_k，第 k 個 block 實際作用 w_app,k = phys(w_{k−d})
  *
- * ── 本檔做什麼（迴路本身一律交給 runBlockLms / runBlockLmsMonteCarlo）──
+ * ── 本檔做什麼（legacy ∧ gos_only 的迴路交給 runBlockLms / runBlockLmsMonteCarlo；spec 或 pmux8_gos 由本檔的 prepareLab／runLabLoop 執行）──
  *   1. LabParams（扁平、UI 友善）→ BlockLmsConfig 的對應；Type-I / Type-II / none 三種 PLL 誤差路徑（含 T = 1 − H_PD）。
  *   2. 一階 DSM residue 的封閉式（E[r]、E[r²]、週期、基頻譜線振幅 1/(P·sin(π/P))）。
  *   3. replayPipeline：用同一 seed、同一 fork 標籤、同一運算順序重播 runBlockLms 的每個 sample，
@@ -41,15 +42,21 @@ import {
   eigSym,
   eigvals,
   erf,
+  matMul,
+  matVec,
   meanCI,
+  normCdf,
   normPdf,
   polyRoots,
+  solve,
   studentTInv,
   svd,
+  transpose,
   wilsonCI,
   effectiveSampleSize,
   type Complex,
   type Matrix,
+  type Rng,
 } from '@/simulation/core'
 import { findTones, integratePsd, StreamFilter, toneFit, welch } from '@/simulation/signal'
 import {
@@ -66,6 +73,8 @@ import {
 } from '@/simulation/models/blockLms'
 import { designDtLoop, errorPathTransfer, type DtTransfer, type ErrorPathSpec } from '@/simulation/models/pll'
 import { DsmStream, detectPeriod, normalizationParams, quantizeFcw, type CodeNormalization } from '@/simulation/models/dsm'
+import { delayedMimoCovariance, delayedMimoMeanModel, observableEigen, restrictTo, uniformStepMuMax } from '@/simulation/models/mimo'
+import { inversionBands, loopMargins, makeLoop, type SspllLoop } from '@/simulation/models/sspll'
 import {
   bw3dbExact,
   bw3dbNegLnP,
@@ -111,7 +120,13 @@ export function texNum(v: number, d = 4): string {
 }
 
 export type CodeSourceKind = 'dsm_first_order' | 'mash111' | 'iid_pm_one'
-export type PllKind = 'none' | 'type1' | 'type2'
+export type PllKind = 'none' | 'type1' | 'type2' | 'cppll3'
+/** regressor 的正負號約定（wave 5）：'spec' = docs/assumptions.md §2a 的 x = s/M ≥ 0；'legacy' = 本頁原本的 r = −s/M ≤ 0 */
+export type RegressorSign = 'spec' | 'legacy'
+/** 校正架構：單一 gain（GOS），或 8 相 PMUX 的 PHOS 8 個權重 + GOS 1 個（9 個權重；案例頁 /case/sspll 的架構） */
+export type LabArchitecture = 'gos_only' | 'pmux8_gos'
+/** PMUX 相位序列：由 FCW（累加器的整數部分）決定，或再疊上已知的隨機旋轉（研究延伸） */
+export type PmuxOrder = 'fcw' | 'random'
 export type RegressorMode = 'raw' | 'delayed' | 'filtered'
 export type Encoding = 'bipolar_pm_one' | 'unipolar_mapped' | 'unipolar_unmapped_bug'
 export type GainRounding = 'nearest' | 'truncate' | 'stochastic'
@@ -145,14 +160,31 @@ export interface LabParams {
   /** DTC INL 二階、三階係數 c₂、c₃ [fs per unit code^k] */
   c2: number
   c3: number
-  /** PLL 誤差路徑：none（H = 1、T = 1）、Type-I DPLL、Type-II DPLL */
+  /** PLL 誤差路徑：none（H = 1、T = 1）、Type-I DPLL、Type-II DPLL、三階 CPPLL（charge pump + 二階濾波，impulse-invariant） */
   pll: PllKind
-  /** PLL closed-loop T 的 −3 dB 頻寬（設計值）[Hz]；Type-II 指 CT 原型 T(s) 的 −3 dB */
+  /** PLL closed-loop T 的 −3 dB 頻寬（設計值）[Hz]；Type-II 指 CT 原型 T(s) 的 −3 dB；CPPLL 指實際 DT |T| 的 −3 dB */
   pllBwHz: number
   /** Type-II 阻尼 ζ */
   zeta: number
   /** 額外 loop latency d_L [samples] */
   loopDelay: number
+  /** CPPLL（三階）：連續時間 crossover 處的 phase margin 設計值 [deg] */
+  pllPmDeg: number
+  /** CPPLL（三階）：第三極點與 crossover 的比 r_p = ω_p3/ω_c（零點由 PM 反解） */
+  pllP3Ratio: number
+  /**
+   * regressor 正負號：'spec' 照 §2a（x = s/M ≥ 0，code 越大 feedback edge 越早到）；'legacy' 是本頁原本的 r = −s/M ≤ 0
+   * （既有 preset、golden vector 與 blockLms 用它；兩者只差 x → −x，w、G 的收斂與 σ_w 不受影響，見 docs/assumptions.md §4）。
+   */
+  regressorSign: RegressorSign
+  /** 校正架構：'gos_only'（單一 gain）或 'pmux8_gos'（8 相 PMUX 的 PHOS 8 個權重 + GOS 1 個 = 9 個權重） */
+  architecture: LabArchitecture
+  /** pmux8_gos：PMUX 相位序列由 FCW 決定，或再疊上已知的隨機旋轉 m[n] ∈ {0…7}（DTC 範圍要多 7Δ；研究延伸） */
+  pmuxOrder: PmuxOrder
+  /** pmux8_gos：PMUX 8 個相位 offset ε_p 的 RMS（去共模；illustrative；圖樣固定為 PHOS_PATTERN）[fs] */
+  phosRmsFs: number
+  /** pmux8_gos：PHOS 8 個權重的 learning rate μ_p [fs]（average 模式；one-hot regressor 無因次） */
+  muPhosFs: number
   /** comparator 前雜訊 σ_v [fs] */
   sigmaV: number
   /** comparator offset b [fs] */
@@ -208,6 +240,13 @@ export const DEFAULT_LAB_PARAMS: LabParams = {
   pllBwHz: 2e6,
   zeta: 0.7,
   loopDelay: 0,
+  pllPmDeg: 60,
+  pllP3Ratio: 4,
+  regressorSign: 'legacy',
+  architecture: 'gos_only',
+  pmuxOrder: 'fcw',
+  phosRmsFs: 0,
+  muPhosFs: 10,
   sigmaV: 100,
   compOffsetFs: 0,
   encoding: 'bipolar_pm_one',
@@ -246,6 +285,10 @@ export const LAB_RANGES = {
   pllBwHz: { min: 1e3, max: 1e9, unit: 'Hz' },
   zeta: { min: 0.2, max: 5, unit: '—' },
   loopDelay: { min: 0, max: 16, unit: 'sample', integer: true },
+  pllPmDeg: { min: 20, max: 85, unit: 'deg' },
+  pllP3Ratio: { min: 1.5, max: 50, unit: '—' },
+  phosRmsFs: { min: 0, max: 5000, unit: 'fs' },
+  muPhosFs: { min: -1000, max: 10000, unit: 'fs' },
   sigmaV: { min: 0, max: 10000, unit: 'fs' },
   compOffsetFs: { min: -1000, max: 1000, unit: 'fs' },
   N: { min: 16, max: 65536, unit: 'sample', integer: true },
@@ -280,6 +323,10 @@ export const LAB_PARAM_LABEL: Record<keyof typeof LAB_RANGES, string> = {
   pllBwHz: 'PLL 頻寬 $f_{\\mathrm{BW}}$（pllBwHz）',
   zeta: '阻尼 $\\zeta$（zeta）',
   loopDelay: 'loop latency $d_L$（loopDelay）',
+  pllPmDeg: 'CPPLL phase margin $\\mathrm{PM}$（pllPmDeg）',
+  pllP3Ratio: 'CPPLL 第三極點比 $r_p=\\omega_{p3}/\\omega_c$（pllP3Ratio）',
+  phosRmsFs: 'PHOS offset RMS $\\sigma_\\varepsilon$（phosRmsFs）',
+  muPhosFs: 'PHOS learning rate $\\mu_p$（muPhosFs）',
   sigmaV: 'comparator 雜訊 $\\sigma_v$（sigmaV）',
   compOffsetFs: 'comparator offset $b$（compOffsetFs）',
   N: 'GMAC 長度 $N$（N）',
@@ -316,6 +363,9 @@ export function labParamErrors(p: LabParams): string[] {
   if (p.fHHz <= p.fLHz) err.push('$f_H$ 必須大於 $f_L$（jitter 積分頻帶為空）')
   if (p.N * p.blocks > MAX_PIPELINE_SAMPLES) err.push(`N × blocks = ${p.N * p.blocks} 超過上限 ${MAX_PIPELINE_SAMPLES}（請減少 blocks 或 $N$；每個 sample 要重播一次）`)
   if (p.outBlocks > p.blocks) err.push('輸出分析視窗 outBlocks 不可大於 blocks')
+  if (p.pll === 'cppll3' && p.pllPmDeg + (Math.atan(1 / p.pllP3Ratio) * 180) / Math.PI >= 89.5)
+    err.push('CPPLL：$\\mathrm{PM}+\\arctan(1/r_p)$ 必須小於 $90^\\circ$，零點才解得出來（PM 太大或第三極點太近 crossover）')
+  if (p.architecture === 'pmux8_gos' && p.codeSource === 'iid_pm_one') err.push('8 相 PMUX 架構需要 DSM 的 code（一階或 MASH）：iid $\\pm1$ 沒有相位可以選')
   return err
 }
 
@@ -353,7 +403,38 @@ export interface PllDesign {
   f3dbTHz: number
   /** |H_PD(z = 1)|（type-I / II 為 0：DC 被主迴路抑制，E03 / E04） */
   hpdDc: number
+  /** open-loop L(z)（z⁻¹ 升冪；none 時 null）。sspll.ts 的 makeLoop 形式，給 inversionBands / loopMargins 用 */
+  loop: SspllLoop | null
+  /** 校正迴路看到的反號帶 Re H_PD < 0（案例頁 inversionBands 的做法；none 時空陣列）[Hz] */
+  inversionBands: { fLoHz: number; fHiHz: number; minReH: number; fMinHz: number }[]
+  /** sampled-data 的 crossover 與 phase margin（loopMargins；none 時 NaN） */
+  fcHz: number
+  pmDeg: number
+  /** 三階 CPPLL 的連續時間設計量（rad/sample 與 Hz）；其他 null */
+  cppll: Cppll3Design | null
   warnings: string[]
+}
+
+/** 三階 CPPLL（charge pump + R‖C₁ + C₂ 的二階濾波，impulse-invariant 取樣）的設計量 */
+export interface Cppll3Design {
+  /** 連續時間 crossover ω_c T_s [rad/sample] 與 Hz */
+  wc: number
+  fcCtHz: number
+  /** 零點、第三極點 [rad/sample] 與 Hz */
+  wz: number
+  wp: number
+  fzHz: number
+  fpHz: number
+  /** L(s) = K(1 + s/ω_z)/(s²(1 + s/ω_p)) 的 K（以 T_s = 1 計） */
+  K: number
+  /** impulse-invariant 的 B = K(ω_p/ω_z − 1)/ω_p 與 p = e^{−ω_p} */
+  B: number
+  p: number
+  /** 設計輸入：CT phase margin [deg]、第三極點比 r_p */
+  pmCtDeg: number
+  p3Ratio: number
+  /** tan θ_z = ω_c/ω_z，θ_z = PM + arctan(1/r_p) */
+  thetaZDeg: number
 }
 
 // #region core:type1FromBw
@@ -429,7 +510,7 @@ function rootsInfo(a: number[]): { poles: { re: number; im: number }[]; rho: num
 }
 
 // #region core:pathNone
-function pathNone(): Omit<PllDesign, 'f3dbTHz' | 'hpdDc'> {
+function pathNone(): Omit<PllDesign, 'f3dbTHz' | 'hpdDc' | 'inversionBands' | 'fcHz' | 'pmDeg'> {
   return {
     kind: 'none',
     spec: { kind: 'identity', parameters: {} },
@@ -444,13 +525,15 @@ function pathNone(): Omit<PllDesign, 'f3dbTHz' | 'hpdDc'> {
     poles: [],
     spectralRadius: 0,
     stable: true,
+    loop: null,
+    cppll: null,
     warnings: [],
   }
 }
 // #endregion
 
 // #region core:pathType1
-function pathType1(p: Pick<LabParams, 'pllBwHz' | 'fRefHz' | 'loopDelay'>): Omit<PllDesign, 'f3dbTHz' | 'hpdDc'> {
+function pathType1(p: Pick<LabParams, 'pllBwHz' | 'fRefHz' | 'loopDelay'>): Omit<PllDesign, 'f3dbTHz' | 'hpdDc' | 'inversionBands' | 'fcHz' | 'pmDeg'> {
   const rho = type1PoleFromBw(p.pllBwHz, p.fRefHz) // 以 d = 0 的封閉式設計
   const k = 1 - rho
   const d = p.loopDelay
@@ -473,13 +556,15 @@ function pathType1(p: Pick<LabParams, 'pllBwHz' | 'fRefHz' | 'loopDelay'>): Omit
     poles,
     spectralRadius: sr,
     stable: sr < 1,
+    loop: makeLoop(`lab_type1_d${d}`, T.b, [1, -1], 1, { K: k, lat: 1 + d }), // L = k z^{−(1+d)}/(1 − z⁻¹)
+    cppll: null,
     warnings: [],
   }
 }
 // #endregion
 
 // #region core:pathType2
-function pathType2(p: Pick<LabParams, 'pllBwHz' | 'fRefHz' | 'zeta' | 'loopDelay'>): Omit<PllDesign, 'f3dbTHz' | 'hpdDc'> {
+function pathType2(p: Pick<LabParams, 'pllBwHz' | 'fRefHz' | 'zeta' | 'loopDelay'>): Omit<PllDesign, 'f3dbTHz' | 'hpdDc' | 'inversionBands' | 'fcHz' | 'pmDeg'> {
   const des = designDtLoop({ fbw: p.pllBwHz, fs: p.fRefHz, zeta: p.zeta, loopDelay: p.loopDelay }) // E44 的 DPLL 差分方程
   return {
     kind: 'type2',
@@ -495,17 +580,140 @@ function pathType2(p: Pick<LabParams, 'pllBwHz' | 'fRefHz' | 'zeta' | 'loopDelay
     poles: des.poles.map((z) => ({ re: z.re, im: z.im })),
     spectralRadius: des.spectralRadius,
     stable: des.stable,
+    loop: makeLoop(`lab_type2_d${p.loopDelay}`, des.L.b, des.L.a, 2, { Kp: des.Kp, Ki: des.Ki, lat: 1 + p.loopDelay }),
+    cppll: null,
     warnings: des.warnings.slice(),
   }
 }
 // #endregion
 
-/** 依 LabParams 建立主 PLL 的誤差路徑設計（none / Type-I / Type-II）。 */
-export function pllDesign(p: Pick<LabParams, 'pll' | 'pllBwHz' | 'fRefHz' | 'zeta' | 'loopDelay'>): PllDesign {
-  const base = p.pll === 'none' ? pathNone() : p.pll === 'type1' ? pathType1(p) : pathType2(p)
+// ── 多項式小工具（z⁻¹ 升冪係數；與 sspll.ts 相同的定義）──
+function polyAdd(a: number[], b: number[]): number[] {
+  const n = Math.max(a.length, b.length)
+  const out = new Array<number>(n).fill(0)
+  for (let i = 0; i < a.length; i++) out[i] += a[i]
+  for (let i = 0; i < b.length; i++) out[i] += b[i]
+  return out
+}
+function polyMul(a: number[], b: number[]): number[] {
+  const out = new Array<number>(a.length + b.length - 1).fill(0)
+  for (let i = 0; i < a.length; i++) for (let j = 0; j < b.length; j++) out[i + j] += a[i] * b[j]
+  return out
+}
+
+// #region core:cppll3Loop
+/**
+ * 三階 CPPLL 的 open loop（連續時間 L(s) = K(1 + s/ω_z)/(s²(1 + s/ω_p))，impulse-invariant 取樣、T_s = 1）：
+ *   l(t) = K t + B(1 − e^{−ω_p t})，B = K(ω_p/ω_z − 1)/ω_p，p = e^{−ω_p}
+ *   L(z) = Σ_{n≥1} l(n) z^{−n} = K z⁻¹/(1 − z⁻¹)² + B z⁻¹/(1 − z⁻¹) − B p z⁻¹/(1 − p z⁻¹)   （與 sspll.ts makeL3 的 'impulse' 相同）
+ * 零點與第三極點的放置：ω_p = r_p ω_c、tan θ_z = ω_c/ω_z，θ_z = PM + arctan(1/r_p)（PM 是 CT crossover 處的 phase margin），
+ * K 由 |L(jω_c)| = 1 解出：K = ω_c² √(1 + 1/r_p²) cos θ_z。r_p = √b、PM 取 makeL3 的對稱放置時兩者完全相同。
+ * 額外的 loop latency d 以 z^{−d} 乘上去。
+ */
+export function cppll3Loop(wc: number, pmCtDeg: number, p3Ratio: number, loopDelay: number): { bL: number[]; aL: number[]; design: Cppll3Design } {
+  const thetaZ = (pmCtDeg * Math.PI) / 180 + Math.atan(1 / p3Ratio)
+  const wz = wc / Math.tan(thetaZ)
+  const wp = p3Ratio * wc
+  const K = wc * wc * Math.sqrt(1 + 1 / (p3Ratio * p3Ratio)) * Math.cos(thetaZ)
+  const B = (K * (wp / wz - 1)) / wp
+  const p = Math.exp(-wp)
+  const d1 = [1, -1]
+  const d2 = [1, -2, 1]
+  const dp = [1, -p]
+  const n1 = polyMul([0, K], dp) // K z⁻¹/(1 − z⁻¹)²
+  const n2 = polyMul(polyMul([0, B], d1), dp) // B z⁻¹/(1 − z⁻¹)
+  const n3 = polyMul([0, -B * p], d2) // −B p z⁻¹/(1 − p z⁻¹)
+  let bL = polyAdd(polyAdd(n1, n2), n3)
+  if (loopDelay > 0) bL = new Array<number>(loopDelay).fill(0).concat(bL)
+  const aL = polyMul(d2, dp)
+  return { bL, aL, design: { wc, fcCtHz: NaN, wz, wp, fzHz: NaN, fpHz: NaN, K, B, p, pmCtDeg, p3Ratio, thetaZDeg: (thetaZ * 180) / Math.PI } }
+}
+// #endregion
+
+// #region core:pathCppll3
+/** 三階 CPPLL：以二分法調 ω_c 讓實際 DT |T| 的 −3 dB 等於 pllBwHz（形狀由 PM 與 r_p 決定、不變）。 */
+function pathCppll3(p: Pick<LabParams, 'pllBwHz' | 'fRefHz' | 'loopDelay' | 'pllPmDeg' | 'pllP3Ratio'>): Omit<PllDesign, 'f3dbTHz' | 'hpdDc' | 'inversionBands' | 'fcHz' | 'pmDeg'> {
+  const target = p.pllBwHz / p.fRefHz
+  const build = (wc: number) => cppll3Loop(wc, p.pllPmDeg, p.pllP3Ratio, p.loopDelay)
+  const f3 = (wc: number): number => {
+    const { bL, aL } = build(wc)
+    const den = polyAdd(aL, bL)
+    return lowpass3dbHz({ b: bL, a: den }, 1) // 正規化頻率（f_s = 1）
+  }
+  // −3 dB 對 ω_c 單調遞增；在 [1e-6, 1] rad/sample 內二分（找不到 −3 dB 的 ω_c 視為「太大」）
+  let lo = 1e-6
+  let hi = 1
+  for (let it = 0; it < 80; it++) {
+    const mid = Math.sqrt(lo * hi)
+    const v = f3(mid)
+    if (!Number.isFinite(v) || v > target) hi = mid
+    else lo = mid
+  }
+  const wc = Math.sqrt(lo * hi)
+  const { bL, aL, design } = build(wc)
+  const den = polyAdd(aL, bL)
+  const H = { b: aL.slice(), a: den.slice() } // H_PD = 1/(1 + L) = aL/(aL + bL)
+  const T = { b: bL.slice(), a: den.slice() } // T = L/(1 + L) = bL/(aL + bL)
+  const { poles, rho: sr } = rootsInfo(den)
+  const fs = p.fRefHz
+  const cp: Cppll3Design = { ...design, fcCtHz: (wc * fs) / (2 * Math.PI), fzHz: (design.wz * fs) / (2 * Math.PI), fpHz: (design.wp * fs) / (2 * Math.PI) }
+  return {
+    kind: 'cppll3',
+    spec: { kind: 'iir', parameters: { b: H.b, a: H.a } }, // ← 差異：三階閉迴路（兩個積分器 + 第三極點），給 blockLms 的是一般 IIR
+    H,
+    T,
+    description: `三階 CPPLL（impulse-invariant）：$\\mathrm{PM}_{\\mathrm{CT}}=${p.pllPmDeg}^\\circ$、$r_p=${p.pllP3Ratio}$、$f_c=${texNum(cp.fcCtHz / 1e6, 4)}\\,\\mathrm{MHz}$、$f_z=${texNum(cp.fzHz / 1e6, 4)}\\,\\mathrm{MHz}$、$f_{p3}=${texNum(cp.fpHz / 1e6, 4)}\\,\\mathrm{MHz}$、$d_L=${p.loopDelay}$`,
+    wnTs: null,
+    Kp: null,
+    Ki: null,
+    kType1: null,
+    rho: null,
+    poles,
+    spectralRadius: sr,
+    stable: sr < 1,
+    loop: makeLoop(`lab_cppll3_pm${p.pllPmDeg}_rp${p.pllP3Ratio}_d${p.loopDelay}`, bL, aL, 2, { K: design.K, wc, wz: design.wz, wp: design.wp, B: design.B, p: design.p, pmCt: p.pllPmDeg, p3Ratio: p.pllP3Ratio, lat: 1 + p.loopDelay }),
+    cppll: cp,
+    warnings: [],
+  }
+}
+// #endregion
+
+/** pllDesign 的輸入：CPPLL 的兩個設計參數可省略（預設 PM 60°、r_p = 4），其餘頁面（numbers.ts、Training）照舊只給五個欄位。 */
+export type PllDesignInput = Pick<LabParams, 'pll' | 'pllBwHz' | 'fRefHz' | 'zeta' | 'loopDelay'> & Partial<Pick<LabParams, 'pllPmDeg' | 'pllP3Ratio'>>
+
+/** 依 LabParams 建立主 PLL 的誤差路徑設計（none / Type-I / Type-II / 三階 CPPLL），含反號帶（案例頁 inversionBands 的做法）。 */
+export function pllDesign(p: PllDesignInput): PllDesign {
+  const base =
+    p.pll === 'none'
+      ? pathNone()
+      : p.pll === 'type1'
+        ? pathType1(p)
+        : p.pll === 'cppll3'
+          ? pathCppll3({ pllBwHz: p.pllBwHz, fRefHz: p.fRefHz, loopDelay: p.loopDelay, pllPmDeg: p.pllPmDeg ?? DEFAULT_LAB_PARAMS.pllPmDeg, pllP3Ratio: p.pllP3Ratio ?? DEFAULT_LAB_PARAMS.pllP3Ratio })
+          : pathType2(p)
   const f3dbTHz = p.pll === 'none' ? NaN : lowpass3dbHz(base.T, p.fRefHz)
   const hpdDc = Math.sqrt(dtMag2(base.H, 0))
   const warnings = base.warnings.slice()
+  // 反號帶與 sampled-data 的 crossover / PM：只在迴路穩定時算（不穩定的迴路 Re H_PD 沒有意義）
+  let bands: PllDesign['inversionBands'] = []
+  let fcHz = NaN
+  let pmDeg = NaN
+  if (base.loop && base.stable) {
+    bands = inversionBands(base.loop).map((b) => ({ fLoHz: b.fLo * p.fRefHz, fHiHz: b.fHi * p.fRefHz, minReH: b.minReH, fMinHz: b.fMin * p.fRefHz }))
+    try {
+      const m = loopMargins(base.loop)
+      fcHz = m.fc * p.fRefHz
+      pmDeg = m.pmDeg
+    } catch {
+      /* 沒有 crossover（例如增益太小）：留 NaN */
+    }
+  }
+  if (bands.length > 0) {
+    const b = bands[0]
+    warnings.push(
+      `這個迴路有反號帶：$f\\in[${texNum(b.fLoHz / 1e6, 4)},\\,${texNum(b.fHiHz / 1e6, 4)}]\\,\\mathrm{MHz}$ 內 $\\mathrm{Re}\\,H_{\\mathrm{PD}}<0$（最負 $${texNum(b.minReH, 3)}$ 在 $${texNum(b.fMinHz / 1e6, 4)}\\,\\mathrm{MHz}$）：regressor 的功率落在這一帶時相關 $C$ 會變負（案例頁 §6–§8；8 相 PMUX 的 mode-1 旋轉頻率 $\\alpha f_{\\mathrm{ref}}$ 落進去就是 PHOS 反號）。`,
+    )
+  }
   if (!base.stable)
     warnings.push(
       `主 PLL 線性模型不穩定（closed-loop pole 半徑 $${base.spectralRadius.toPrecision(6)}\\ge 1$）：loop latency $d_L$ 太大或頻寬太寬，$1+L(z)=0$ 的根跑到單位圓外，後面所有結果都沒有物理意義。請減小 $d_L$ 或 $f_{\\mathrm{BW}}$。`,
@@ -515,7 +723,7 @@ export function pllDesign(p: Pick<LabParams, 'pll' | 'pllBwHz' | 'fRefHz' | 'zet
       `實際 DT 主 PLL 的 $T$ $-3\\,\\mathrm{dB}$ 頻率為 $${(f3dbTHz / 1e6).toPrecision(4)}\\,\\mathrm{MHz}$，與設計值 $${(p.pllBwHz / 1e6).toPrecision(4)}\\,\\mathrm{MHz}$ 差超過 10%：loop latency 或 $\\omega_nT_s$ 不夠小時，CT 原型與 DT 迴路不再對應（E44）。`,
     )
   }
-  return { ...base, f3dbTHz, hpdDc, warnings }
+  return { ...base, f3dbTHz, hpdDc, inversionBands: bands, fcHz, pmDeg, warnings }
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -1318,8 +1526,12 @@ export interface CodeStage {
   /** 週期 P（一階、無 dither：M/gcd(K, M)；MASH：在 2^17 個樣本內偵測；找不到為 0） */
   period: number
   periodSource: 'closed-form' | 'detected' | 'none'
-  /** 基頻 fractional tone 折回後的頻率 [Hz]（iid 時 NaN） */
+  /** 基頻 fractional tone 折回後的頻率 [Hz]（iid 時 NaN；pmux8 時是 frac(8α) 鋸齒的基頻） */
   fracToneHz: number
+  /** 8 相 PMUX 的旋轉頻率 α f_ref 折回 [0, f_s/2]（mode-1 regressor 的基頻；gos_only 時 NaN）[Hz] */
+  pmuxRotHz: number
+  /** DSM 實際跑的小數部分（pmux8 時是 frac(8α)） */
+  dsmFrac: number
   /** 原始 residue 的封閉式（一階）：E[r]、E[r²]、Var(r) [T_vco^k]；其他 NaN */
   rawMean: number
   rawMeanSquare: number
@@ -1342,6 +1554,11 @@ export interface CodeStage {
 function codeStage(p: LabParams, an: BlockLmsAnalytic): CodeStage {
   const notes: string[] = []
   const norm = an.normalization
+  const pmux = p.architecture === 'pmux8_gos'
+  const frac = codeFrac(p)
+  const pmuxRotHz = pmux ? foldFrequency(p.frac * p.fRefHz, p.fRefHz) : NaN
+  if (pmux) notes.push(`8 相 PMUX：DSM 跑在 $(8\\alpha\\bmod 1)=${fmtN(frac, 6)}$（單位 $\\Delta=T_{\\mathrm{vco}}/8$），PMUX 每個週期固定前進 $\\lfloor8\\alpha\\rfloor=${pmuxFrac(p.frac).int}$ 相；PMUX 的旋轉頻率 $\\alpha f_{\\mathrm{ref}}$ 折回後是 $${fmtN(pmuxRotHz / 1e6, 5)}\\,\\mathrm{MHz}$（PHOS mode-1 的基頻）`)
+  if (p.regressorSign === 'spec') notes.push('regressor 正負號照 §2a：$x=s/M\\ge0$（一階 DSM 時 $x\\in[0,1)$ 的鋸齒），和既有 preset 的 $r\\le0$ 差一個負號')
   if (p.codeSource === 'iid_pm_one') {
     return {
       source: p.codeSource,
@@ -1351,6 +1568,8 @@ function codeStage(p: LabParams, an: BlockLmsAnalytic): CodeStage {
       period: 0,
       periodSource: 'none',
       fracToneHz: NaN,
+      pmuxRotHz,
+      dsmFrac: frac,
       rawMean: 0,
       rawMeanSquare: 1,
       rawVar: 1,
@@ -1365,15 +1584,16 @@ function codeStage(p: LabParams, an: BlockLmsAnalytic): CodeStage {
       notes: ['參考 code：iid $\\pm1$（不是 DSM residue；用來重現 T13 的 $\\sigma_w\\approx0.399\\,\\mathrm{fs}$ 錨點）'],
     }
   }
-  const q = quantizeFcw(p.frac, p.dsmBits, p.dither)
+  const q = quantizeFcw(frac, p.dsmBits, p.dither)
   const fracToneHz = foldFrequency(q.fracEff * p.fRefHz, p.fRefHz)
+  const sgn = p.regressorSign === 'spec' ? -1 : 1
   if (p.codeSource === 'dsm_first_order' && !p.dither) {
-    const st = firstOrderResidueStats(p.frac, p.dsmBits)
+    const st = firstOrderResidueStats(frac, p.dsmBits)
     let xm: number
     let xm2: number
     switch (p.normalization) {
       case 'none':
-        xm = st.mean
+        xm = sgn * st.mean // ← 'spec' 正負號：x = −r
         xm2 = st.meanSquare
         break
       case 'zero_mean':
@@ -1381,7 +1601,7 @@ function codeStage(p: LabParams, an: BlockLmsAnalytic): CodeStage {
         xm2 = st.variance
         break
       case 'unit_rms':
-        xm = st.mean / Math.sqrt(st.meanSquare)
+        xm = (sgn * st.mean) / Math.sqrt(st.meanSquare)
         xm2 = 1
         break
       default:
@@ -1398,7 +1618,9 @@ function codeStage(p: LabParams, an: BlockLmsAnalytic): CodeStage {
       period: st.P,
       periodSource: 'closed-form',
       fracToneHz,
-      rawMean: st.mean,
+      pmuxRotHz,
+      dsmFrac: frac,
+      rawMean: sgn * st.mean,
       rawMeanSquare: st.meanSquare,
       rawVar: st.variance,
       line1Raw: st.line1,
@@ -1408,17 +1630,17 @@ function codeStage(p: LabParams, an: BlockLmsAnalytic): CodeStage {
       xMeanSquare: an.Ex2,
       xMeanClosed: xm,
       xMeanSquareClosed: xm2,
-      rawRange: [-1 + 1 / st.P, 0],
+      rawRange: sgn < 0 ? [0, 1 - 1 / st.P] : [-1 + 1 / st.P, 0],
       notes,
     }
   }
   // MASH 或有 dither：週期以 detectPeriod 偵測（2^17 個樣本）
-  const s = new DsmStream({ kind: p.codeSource === 'mash111' ? 'mash111' : 'first_order', frac: p.frac, bits: p.dsmBits, dither: p.dither }, createRng(p.seed).fork('code-pattern').fork('dsm-dither'))
+  const s = new DsmStream({ kind: p.codeSource === 'mash111' ? 'mash111' : 'first_order', frac, bits: p.dsmBits, dither: p.dither }, createRng(p.seed).fork('code-pattern').fork('dsm-dither'))
   const L = 1 << 17
   const r = new Float64Array(L)
   for (let i = 0; i < L; i++) {
     s.step()
-    r[i] = s.residue
+    r[i] = sgn * s.residue
   }
   const P = p.dither ? 0 : detectPeriod(r, { start: L >> 2 })
   if (p.dither)
@@ -1442,6 +1664,8 @@ function codeStage(p: LabParams, an: BlockLmsAnalytic): CodeStage {
     period: P,
     periodSource: P > 0 ? 'detected' : 'none',
     fracToneHz,
+    pmuxRotHz,
+    dsmFrac: frac,
     rawMean: NaN,
     rawMeanSquare: NaN,
     rawVar: NaN,
@@ -1530,7 +1754,7 @@ export function quasiStaticFixedPoint(mf: Pick<MeanFieldTwin, 'C' | 'B'>, p: Pic
 
 function buildStages(x: {
   p: LabParams
-  cfg: BlockLmsConfig
+  cfg?: BlockLmsConfig
   design: PllDesign
   code: CodeStage
   an: BlockLmsAnalytic
@@ -1543,8 +1767,11 @@ function buildStages(x: {
   loopLevel: 'L1' | 'L2' | 'L5'
   swing: { min: number; max: number; mean: number } | null
   lin: LinearPrediction
+  /** pmux8_gos：9 個權重的分析與 PHOS 殘差 */
+  mimo?: { analysis: MimoAnalysis; phosRmsFs: number; phosCommonFs: number } | null
 }): StageReport[] {
   const { p, design, code, an, metrics, win, out, swing, lin } = x
+  const mimo = x.mimo ?? null
   const W: Record<StageId, string[]> = { dsm: [], code: [], dtc: [], pll: [], comparator: [], gmac: [], register: [], update: [], output: [] }
   for (const w of x.warnings) W[routeWarning(w)].push(w)
   for (const w of design.warnings) if (!W.pll.includes(w)) W.pll.push(w)
@@ -1636,8 +1863,14 @@ function buildStages(x: {
           note: code.periodSource === 'closed-form' ? '$M/\\gcd(K,M)$' : '偵測（$2^{17}$ 個樣本內）',
           claim: code.periodSource === 'closed-form' ? 'exact' : 'approx',
         },
-        { name: 'fractional tone $f_1$', value: code.fracToneHz, unit: 'Hz', note: '$\\alpha_{\\mathrm{eff}}f_{\\mathrm{ref}}$ 折回 $[0,f_s/2]$', claim: 'exact' },
-        { name: 'residue 範圍', value: `[${fmtN(code.rawRange[0], 4)}, ${fmtN(code.rawRange[1], 4)}]`, unit: '$T_{\\mathrm{vco}}$', note: 'DTC 必須涵蓋的範圍' },
+        { name: 'fractional tone $f_1$', value: code.fracToneHz, unit: 'Hz', note: p.architecture === 'pmux8_gos' ? '$(8\\alpha\\bmod 1)_{\\mathrm{eff}}f_{\\mathrm{ref}}$ 折回 $[0,f_s/2]$（GOS 鋸齒的基頻）' : '$\\alpha_{\\mathrm{eff}}f_{\\mathrm{ref}}$ 折回 $[0,f_s/2]$', claim: 'exact' },
+        ...(p.architecture === 'pmux8_gos'
+          ? [
+              { name: 'PMUX 旋轉頻率 $\\alpha f_{\\mathrm{ref}}$（折回）', value: code.pmuxRotHz, unit: 'Hz', note: 'PHOS mode-1 regressor 的基頻；落在反號帶就反號', claim: 'exact' as const },
+              { name: '相位走訪比例 $P(p=j)$', value: mimo ? mimo.analysis.occupancy.map((v) => fmtN(v, 3)).join(', ') : '—', note: '8 相各自被選到的比例（解析樣本）', claim: 'exact' as const },
+            ]
+          : []),
+        { name: 'residue 範圍', value: `[${fmtN(code.rawRange[0], 4)}, ${fmtN(code.rawRange[1], 4)}]`, unit: p.architecture === 'pmux8_gos' ? '$\\Delta=T_{\\mathrm{vco}}/8$' : '$T_{\\mathrm{vco}}$', note: 'DTC 必須涵蓋的範圍' },
       ],
       warnings: W.dsm,
     },
@@ -1674,6 +1907,12 @@ function buildStages(x: {
         { name: '$o_{\\mathrm{DTC}}$', value: p.dtcOffsetFs, unit: 'fs' },
         { name: '$c_2\\,/\\,c_3$', value: `${p.c2} / ${p.c3}`, unit: 'fs' },
         { name: '線性化固定點 $w^*_{\\mathrm{lin}}$', value: an.wStarLinear, unit: 'fs', note: '$a+(E[x_{\\mathrm{ref}}H\\{d\\}]+b\\,E[x_{\\mathrm{ref}}])/C$', claim: 'approx' },
+        ...(mimo
+          ? [
+              { name: 'PMUX offset $\\varepsilon_p$（去共模 RMS）', value: p.phosRmsFs, unit: 'fs', note: `圖樣 PHOS_PATTERN × RMS：$[${mimo.analysis.target.slice(0, PMUX_PHASES).map((v) => fmtN(v, 3)).join(',\\ ')}]$`, claim: 'exact' as const },
+              { name: 'PHOS 殘差 RMS（去共模，後半段）', value: mimo.phosRmsFs, unit: 'fs', note: `共模 $${fmtN(mimo.phosCommonFs, 4)}\\,\\mathrm{fs}$（$H_{\\mathrm{PD}}(1)=0$ 時不可觀測，由初值決定）`, claim: 'exact' as const },
+            ]
+          : []),
         { name: '$\\mathrm{RMS}(e_{\\mathrm{DTC}})$（穩態視窗）', value: out ? out.rmsEDtc : null, unit: 'fs', claim: 'exact' },
       ],
       warnings: W.dtc,
@@ -1696,8 +1935,15 @@ function buildStages(x: {
       metrics: [
         { name: '設計', value: design.description },
         { name: '$T$ 的 $-3\\,\\mathrm{dB}$（實際 DT）', value: design.f3dbTHz, unit: 'Hz', claim: 'exact' },
-        { name: '$|H_{\\mathrm{PD}}(1)|$', value: design.hpdDc, note: 'Type-I / II 為 0：DC 被主迴路抑制（E03）', claim: 'exact' },
+        { name: '$|H_{\\mathrm{PD}}(1)|$', value: design.hpdDc, note: 'Type-I / II / CPPLL 為 0：DC 被主迴路抑制（E03）', claim: 'exact' },
         { name: 'closed-loop pole 半徑', value: design.spectralRadius, note: '$<1$ 才穩定', claim: 'exact' },
+        { name: 'sampled-data crossover / PM', value: Number.isFinite(design.fcHz) ? `${fmtN(design.fcHz / 1e6, 5)} MHz / ${fmtN(design.pmDeg, 4)}°` : '—', note: 'loopMargins（案例頁的定義）', claim: 'exact' },
+        {
+          name: '反號帶 $\\mathrm{Re}\\,H_{\\mathrm{PD}}<0$',
+          value: design.inversionBands.length > 0 ? design.inversionBands.map((b) => `[${fmtN(b.fLoHz / 1e6, 4)}, ${fmtN(b.fHiHz / 1e6, 4)}] MHz（最負 ${fmtN(b.minReH, 3)}）`).join('；') : '沒有',
+          note: 'regressor 的功率落在這一帶時 $C$ 變負（案例頁 §6–§8）',
+          claim: 'exact',
+        },
         { name: '$\\mathrm{RMS}(u_{\\mathrm{pd}})/\\mathrm{RMS}(e_{\\mathrm{DTC}})$', value: out && out.rmsEDtc > 0 ? out.rmsPd / out.rmsEDtc : null, note: 'PD 看到的比例（high-pass）', claim: 'exact' },
       ],
       warnings: W.pll,
@@ -1739,6 +1985,13 @@ function buildStages(x: {
         { name: bug ? '$K=\\tfrac12K_qC$' : '$K=K_qC$', value: an.K, unit: '$\\mathrm{fs}^{-1}$', claim: 'approx' },
         { name: 'block 相關 $C_k$ 範圍（視窗）', value: Number.isFinite(blockGainMin) ? `[${fmtN(blockGainMin)}, ${fmtN(blockGainMax)}]` : '—', claim: 'exact' },
         { name: 'PE：$\\lambda_{\\min}=\\min_k\\tfrac1N\\sum u_x^2$（視窗）', value: blockEnergyMin, note: '§9.1 的有限窗口定義（單參數）', claim: 'exact' },
+        ...(mimo
+          ? [
+              { name: '可觀測子空間的條件數 $\\lambda_{\\max}/\\lambda_{\\min}$', value: mimo.analysis.obs.cond, note: `$R_u=E[\\phi_u\\phi_u^{\\mathsf T}]$ 去掉 ${mimo.analysis.obs.nullDim} 個不可觀測方向（共模）後`, claim: 'approx' as const },
+              { name: '$\\min\\mathrm{Re}\\,\\lambda(J_{\\mathrm{obs}})$', value: mimo.analysis.minReEig, unit: '$\\mathrm{fs}^{-1}$', note: '$>0$ 才是所有模式都負回授', claim: 'approx' as const },
+              { name: '共用步長的 $\\mu_{\\max}=\\min_i 2\\mathrm{Re}\\lambda_i/|\\lambda_i|^2$', value: mimo.analysis.muMaxUniform, unit: 'fs', claim: 'approx' as const },
+            ]
+          : []),
         { name: '重播 $G_k$ 最大差', value: x.replay ? x.replay.maxAbsDiffG : null, note: '跨級一致性（應為 0）', claim: 'exact' },
       ],
       warnings: W.gmac,
@@ -1775,7 +2028,10 @@ function buildStages(x: {
       metrics: [
         { name: sumMode ? '$g=\\mu KN$' : '$g=\\mu K$', value: an.g, claim: 'approx' },
         { name: 'pole $p=1-g$（$d=0$）', value: an.p, claim: 'approx' },
-        { name: '$\\rho$（含延遲 $d$）', value: an.rhoMean, claim: 'exact', note: '$z^{d+1}-z^d+g=0$ 的最大根模' },
+        { name: '$\\rho$（含延遲 $d$）', value: an.rhoMean, claim: 'exact', note: mimo ? '9 個權重的平均模型 $\\delta_{k+1}=\\delta_k-MJ\\delta_{k-d}$ 的 spectral radius（可觀測子空間）' : '$z^{d+1}-z^d+g=0$ 的最大根模' },
+        ...(mimo
+          ? [{ name: 'PHOS 步長 $\\mu_p$', value: p.muPhosFs, unit: 'fs', note: `9 個權重的穩態 $\\sigma$ 預測：${mimo.analysis.sigmaPred ? `$[${mimo.analysis.sigmaPred.map((v) => fmtN(v, 3)).join(',\\ ')}]\\,\\mathrm{fs}$` : '未計算（$d$ 太大）'}`, claim: 'approx' as const }]
+          : []),
         { name: '$\\mathrm{PM}_{\\mathrm{cal}}$', value: an.pmDeg, unit: 'deg', claim: 'exact', note: '$90^\\circ-(2d+1)\\arcsin(g/2)$' },
         // d = 0：|δ_k| 每個 block 剛好乘上 ρ，τ 是精確的時間常數；d ≥ 1：ρ 只是漸近衰減率（ρ^k 不是包絡），見審查 R02
         p.updateDelay <= 0
@@ -1914,6 +2170,32 @@ export interface PipelineResult {
   warnings: string[]
   assumptions: string[]
   timingMs: { loop: number; replay: number; output: number }
+  /** 迴路由哪個引擎執行：'blockLms'（legacy、單一 gain）或 'labLoop'（spec 正負號／8 相 PMUX） */
+  engine: 'blockLms' | 'labLoop'
+  /** pmux8_gos：9 個權重的結果（其餘 null） */
+  mimo: PipelineMimo | null
+}
+
+/** pmux8_gos 的 9 個權重：軌跡、每個權重的統計、PHOS 殘差、與 mean-field 的交叉比對 */
+export interface PipelineMimo {
+  analysis: MimoAnalysis
+  names: string[]
+  target: number[]
+  /** block 級（抽樣）：每個權重的 w 與 mean-field 平均軌跡 */
+  blocks: { k: Float64Array; w: Float64Array[]; wMeanModel: Float64Array[] }
+  /**
+   * stdObs：後半段在可觀測子空間的標準差——共模不可觀測時 PHOS 先減掉 8 個的平均（共模沒有恢復力、會隨機漫步，dlyap 的 σ 預測不含它）；
+   * 共模可觀測（none 路徑）或 GOS 時等於 stdW
+   */
+  perWeight: { name: string; target: number; meanW: number; stdW: number; stdObs: number; bias: number; settlingBlock: number | null; sigmaPred: number | null; meanFieldHalf: number }[]
+  phosRmsFs: number
+  phosCommonFs: number
+  /** mean-field 平均軌跡在同一段後半段的 PHOS 殘差 RMS（去共模）[fs] */
+  phosRmsMeanFieldFs: number
+  checks: { meanW: CheckItem; sigma: CheckItem; stability: CheckItem }
+  /** 穩態視窗與連續片段的 PMUX 相位索引（與 window.n / snippet.n 對齊） */
+  windowPhase: Float64Array | null
+  snippetPhase: Float64Array | null
 }
 
 const now = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now())
@@ -2210,6 +2492,7 @@ export function combineChecks(items: CheckItem[], label: string): CheckItem {
 export function runPipeline(p: LabParams): PipelineResult {
   const errs = labParamErrors(p)
   if (errs.length > 0) throw new Error(`參數不合法：\n${errs.join('\n')}`)
+  if (!usesLegacyEngine(p)) return runPipelineLab(p)
   const t0 = now()
   const design = pllDesign(p)
   const cfg = resolveConfig(toBlockLmsConfig(p))
@@ -2355,10 +2638,12 @@ export function runPipeline(p: LabParams): PipelineResult {
     warnings,
     assumptions,
     timingMs: { loop: t1 - t0, replay: t2 - t1, output: t3 - t2 },
+    engine: 'blockLms',
+    mimo: null,
   }
 }
 
-/** 快速解析（不跑迴路）：給 Compare / 手算段落即時顯示。 */
+/** 快速解析（不跑迴路）：給 Compare / 手算段落即時顯示。pmux8_gos 時另附 9 個權重的分析（mimo）。 */
 export function analyzeLab(p: LabParams): {
   pll: PllDesign
   code: CodeStage
@@ -2366,10 +2651,16 @@ export function analyzeLab(p: LabParams): {
   warnings: string[]
   fOutHz: number
   bandwidths: ReturnType<typeof calBandwidths>
+  mimo: MimoAnalysis | null
 } {
   const errs = labParamErrors(p)
   if (errs.length > 0) throw new Error(`參數不合法：\n${errs.join('\n')}`)
   const design = pllDesign(p)
+  if (!usesLegacyEngine(p)) {
+    const pr = prepareLab(p, design)
+    const code = codeStage(p, pr.analytic)
+    return { pll: design, code, analytic: pr.analytic, warnings: pr.warnings, fOutHz: outputFrequencyHz(p), bandwidths: calBandwidths(pr.analytic.p, pr.analytic.fuHz), mimo: pr.mimo }
+  }
   const an = analyzeBlockLms(toBlockLmsConfig(p))
   const code = codeStage(p, an.analytic)
   return {
@@ -2379,6 +2670,7 @@ export function analyzeLab(p: LabParams): {
     warnings: [...an.warnings, ...design.warnings.filter((w) => !an.warnings.includes(w))],
     fOutHz: outputFrequencyHz(p),
     bandwidths: calBandwidths(an.analytic.p, an.analytic.fuHz),
+    mimo: null,
   }
 }
 
@@ -2498,8 +2790,48 @@ export interface FcwPoint {
   /** 假設殘餘 gain 誤差 Δa 時的 fractional spur [dBc]（一階封閉式；其他 NaN） */
   spurDbc: number
   slope: { S: number; lo: number; hi: number; Smf: number; Klin: number; blocks: number } | null
-  loop: { meanW: number; stdW: number; bias: number; settlingBlock: number | null; diverged: boolean; driftPerBlock: number; converged: boolean } | null
+  loop: FcwLoop | null
+  /** 定點時同 seed 浮點對照的閉迴路（sweepFcwChunk 的 twin 選項；只重跑迴路，不重算序列分析） */
+  twinLoop?: FcwLoop | null
+  /** pmux8_gos：這個 FCW 的 9 權重分析（PMUX 序列每點重算） */
+  mimo: FcwMimo | null
   warnings: string[]
+}
+
+export interface FcwLoop {
+  meanW: number
+  stdW: number
+  bias: number
+  settlingBlock: number | null
+  diverged: boolean
+  driftPerBlock: number
+  converged: boolean
+  /** pmux8_gos：閉迴路後半段的 PHOS 殘差 RMS（去共模）[fs]；其他 null */
+  phosRmsFs: number | null
+}
+
+/** FCW sweep 每點的 9 權重摘要（pmux8_gos） */
+export interface FcwMimo {
+  /** 可觀測子空間的條件數與 gauge 方向數 */
+  cond: number
+  nullDim: number
+  lambdaMin: number
+  lambdaMax: number
+  /** J 限制到可觀測子空間後的最小實部；≤ 0 = 至少一個模式極性錯誤 */
+  minReEig: number
+  /** 9 權重平均模型（實際的 μ、μ_p、d）的 spectral radius */
+  rho: number
+  stable: boolean
+  tauBlocks: number
+  muMaxUniform: number
+  /** 8 相走訪比例 */
+  occupancy: number[]
+  /** PMUX 旋轉頻率 α f_ref 折回 [Hz] 與它是否落在反號帶 */
+  pmuxRotHz: number
+  rotInInversionBand: boolean
+  /** 每個 GMAC block 的資訊矩陣在（全段的）可觀測子空間上的最小特徵值的最小值（9 權重的 PE） */
+  peLambdaMin: number
+  signFlip: boolean
 }
 
 /** FCW 格點（log 或 linear）。 */
@@ -2520,12 +2852,16 @@ export function fcwGrid(min: number, max: number, n: number, scale: 'log' | 'lin
  *   C = E[x_ref·H{x}]、K = K_q·C、g = μK、ρ（含更新延遲）、PE（每個 GMAC block 的 u 能量最小值）、
  *   線性化 bias、output 靈敏度，以及凍結 w* ± Δ 的 GMAC 斜率 MC（common random numbers）。
  */
-export function fcwPoint(base: LabParams, frac: number, opts: FcwSweepOptions, design: PllDesign, index: number): FcwPoint {
+export function fcwPoint(base: LabParams, frac: number, opts: FcwSweepOptions, design: PllDesign, index: number, twin = false): FcwPoint {
   const p: LabParams = { ...base, frac, blocks: opts.loopBlocks, outBlocks: Math.min(base.outBlocks, opts.loopBlocks) }
-  const cfg = resolveConfig(toBlockLmsConfig(p, { record: { sample_trace_blocks: 0, decimate: 1 } }))
-  const an = analyzeBlockLms(cfg).analytic
+  const legacy = usesLegacyEngine(p)
+  const pmux = p.architecture === 'pmux8_gos'
+  const cfg = legacy ? resolveConfig(toBlockLmsConfig(p, { record: { sample_trace_blocks: 0, decimate: 1 } })) : null
+  const pr = legacy ? null : prepareLab(p, design)
+  const an = cfg ? analyzeBlockLms(cfg).analytic : (pr as LabPrepared).analytic
   const warnings: string[] = []
-  const first = p.codeSource === 'dsm_first_order' && !p.dither ? firstOrderResidueStats(frac, p.dsmBits) : null
+  const dsmFrac = codeFrac(p)
+  const first = p.codeSource === 'dsm_first_order' && !p.dither ? firstOrderResidueStats(dsmFrac, p.dsmBits) : null
   const P = first ? first.P : 0
   // 序列長度：一階取整數個週期（≥ 2^17 且 ≥ 16 個週期，受上限限制）
   const want = Math.max(1 << 17, opts.slopeMc ? opts.slopeBlocks * p.N : 0)
@@ -2537,9 +2873,10 @@ export function fcwPoint(base: LabParams, frac: number, opts: FcwSweepOptions, d
   }
   L = Math.min(Math.max(L, Math.min(want, opts.maxSeqSamples)), opts.maxSeqSamples)
   const skip = pllSettleSamples(design, Math.min(4096, p.N), 1 << 17)
-  const x = codeSequence(cfg, an.normalization, 0, skip + L)
+  const seq = cfg ? { x: codeSequence(cfg, an.normalization, 0, skip + L), ph: null } : labCodeSequence(p, an.normalization, 0, skip + L)
+  const x = seq.x
   const ux = filterSeq(design.H, x)
-  const xr = regressorSeq(cfg, design.H, x)
+  const xr = cfg ? regressorSeq(cfg, design.H, x) : regressorSeqLab(p, design, x)
   const hasNl = p.dtcOffsetFs !== 0 || p.c2 !== 0 || p.c3 !== 0
   const d = new Float64Array(x.length)
   if (hasNl) for (let i = 0; i < x.length; i++) d[i] = p.dtcOffsetFs + x[i] * x[i] * (p.c2 + p.c3 * x[i])
@@ -2606,7 +2943,7 @@ export function fcwPoint(base: LabParams, frac: number, opts: FcwSweepOptions, d
   let sv = 0
   for (let i = skip; i < skip + L; i++) sv += (tx[i] - sm) * (tx[i] - sm)
   const sensRms = Math.sqrt(sv / L)
-  const fracEff = first ? first.fracEff : quantizeFcw(frac, p.dsmBits, p.dither).fracEff
+  const fracEff = first ? first.fracEff : quantizeFcw(dsmFrac, p.dsmBits, p.dither).fracEff
   const fracToneHz = foldFrequency(fracEff * p.fRefHz, p.fRefHz)
   const tMag1 = Math.sqrt(dtMag2(design.T, (2 * Math.PI * fracToneHz) / p.fRefHz))
   const line1PerFs = first && first.P >= 2 ? an.normalization.scale * first.line1 * tMag1 : NaN
@@ -2619,8 +2956,66 @@ export function fcwPoint(base: LabParams, frac: number, opts: FcwSweepOptions, d
       `$C$ 在 record 前、後半的估計差 $${texNum(100 * splitRel, 3)}\\%$（$${texNum(C1)}$ vs $${texNum(C2)}$）：code 的準週期比統計 record（${L} samples）還長，$C$ 與 bias 只是部分週期的估計`,
     )
   }
-  if (!(C > 0)) warnings.push(`$C = ${texNum(C)}\\le 0$：更新極性錯誤，正 $\\mu$ 會使平均誤差發散（減小 $\\mu$ 不會改變符號）`)
+  if (Math.abs(C) <= 1e-12 * Math.max(Ex2, 1e-300)) warnings.push(`$C = ${texNum(C)}$：code 完全沒有激勵（$x\\equiv$ 常數），gain 不可辨識——不是極性問題`)
+  else if (!(C > 0)) warnings.push(`$C = ${texNum(C)}\\le 0$：更新極性錯誤，正 $\\mu$ 會使平均誤差發散（減小 $\\mu$ 不會改變符號）`)
   if (P > 0 && P > 1 << 14) warnings.push('週期 $P>2^{14}$：blockLms 的 mean-field $w^*$（$2^{14}$ 個樣本）只涵蓋部分週期')
+
+  // 8 相 PMUX：這個 FCW 的 9 權重分析（PMUX 序列每點重算）
+  let mimo: FcwMimo | null = null
+  if (pmux && seq.ph) {
+    const ma = mimoFromSequence({ p, design, x, ph: seq.ph, skip, bugEncoding: bug })
+    const pmuxRotHz = foldFrequency(p.frac * p.fRefHz, p.fRefHz)
+    const rotIn = design.inversionBands.some((b) => pmuxRotHz >= b.fLoHz && pmuxRotHz <= b.fHiHz)
+    // 9 權重的 PE：每個 GMAC block 的 R_u,k 限制到全段可觀測子空間後的最小特徵值
+    const V = observableEigen(ma.Ru, 1e-9).basis
+    let peMin = Infinity
+    if (V.length > 0 && V[0].length > 0) {
+      const phiU: Float64Array[] = []
+      for (let j = 0; j < PMUX_WEIGHTS; j++) {
+        if (j === GOS_INDEX) {
+          phiU.push(ux)
+          continue
+        }
+        const phi = new Float64Array(x.length)
+        for (let n = 0; n < x.length; n++) phi[n] = seq.ph[n] === j ? 1 : 0
+        phiU.push(design.kind === 'none' ? phi : filterSeq(design.H, phi))
+      }
+      for (let jb = 0; jb < nb; jb++) {
+        const R: Matrix = Array.from({ length: PMUX_WEIGHTS }, () => new Array<number>(PMUX_WEIGHTS).fill(0))
+        for (let n = 0; n < p.N; n++) {
+          const i = skip + jb * p.N + n
+          for (let r = 0; r < PMUX_WEIGHTS; r++) for (let c = r; c < PMUX_WEIGHTS; c++) R[r][c] += phiU[r][i] * phiU[c][i]
+        }
+        for (let r = 0; r < PMUX_WEIGHTS; r++)
+          for (let c = r; c < PMUX_WEIGHTS; c++) {
+            R[r][c] /= p.N
+            R[c][r] = R[r][c]
+          }
+        const ev = eigSym(restrictTo(R, V)).values
+        peMin = Math.min(peMin, ev[ev.length - 1])
+      }
+    }
+    mimo = {
+      cond: ma.obs.cond,
+      nullDim: ma.obs.nullDim,
+      lambdaMin: ma.obs.lambdaMin,
+      lambdaMax: ma.obs.lambdaMax,
+      minReEig: ma.minReEig,
+      rho: ma.rho,
+      stable: ma.stable,
+      tauBlocks: ma.tauBlocks,
+      muMaxUniform: ma.muMaxUniform,
+      occupancy: ma.occupancy,
+      pmuxRotHz,
+      rotInInversionBand: rotIn,
+      peLambdaMin: peMin,
+      signFlip: !(ma.minReEig > 0),
+    }
+    for (const w of ma.warnings) warnings.push(w)
+    if (!(ma.minReEig > 0)) warnings.push(`9 權重的 Jacobian 在可觀測子空間上 $\\min\\mathrm{Re}\\,\\lambda=${texNum(ma.minReEig, 3)}\\le0$：至少一個模式極性錯誤${rotIn ? `（PMUX 旋轉頻率 $${texNum(pmuxRotHz / 1e6, 4)}\\,\\mathrm{MHz}$ 落在反號帶內：PHOS mode-1 反號，案例頁 §8）` : ''}`)
+    else if (rotIn) warnings.push(`PMUX 旋轉頻率 $${texNum(pmuxRotHz / 1e6, 4)}\\,\\mathrm{MHz}$ 落在反號帶內，但 one-hot 的高次諧波把平均拉回正值（$\\min\\mathrm{Re}\\,\\lambda=${texNum(ma.minReEig, 3)}$）`)
+    if (Number.isFinite(peMin) && peMin < PE_FLOOR_REL * Math.max(ma.obs.lambdaMax, 1e-300)) warnings.push('9 權重的 PE：至少一個 GMAC block 有某個相位幾乎沒被走訪（或共模之外的方向沒有激勵），該 block 的對應權重不可辨識')
+  }
 
   // 凍結 w ± Δ 的 GMAC 斜率（common random numbers）
   let slope: FcwPoint['slope'] = null
@@ -2655,16 +3050,34 @@ export function fcwPoint(base: LabParams, frac: number, opts: FcwSweepOptions, d
     // #endregion
     slope = { S, lo: -ci.hi / (2 * dW), hi: -ci.lo / (2 * dW), Smf: smf, Klin: K_, blocks: B }
   }
-  // 閉迴路（可選）
+  // 閉迴路（可選）；定點時 twin 再用 quantize = false 跑一次同 seed 的迴路（只重跑迴路，序列分析不重算）
   let loop: FcwPoint['loop'] = null
+  let twinLoop: FcwPoint['twinLoop'] = undefined
   if (opts.closedLoop) {
-    const r = runBlockLms(cfg)
-    const Kb = cfg.num_blocks
-    const half = Math.floor(Kb / 2)
-    const drift = r.metrics.diverged ? NaN : (r.blocks.w[Kb] - r.blocks.w[half]) / Math.max(1, Kb - half)
-    const converged = !r.metrics.diverged && r.metrics.settlingBlock !== null && r.metrics.settlingBlock <= half && Number.isFinite(tauBlocks) && tauBlocks < Kb / 6
-    loop = { meanW: r.metrics.meanW, stdW: r.metrics.stdW, bias: r.metrics.bias, settlingBlock: r.metrics.settlingBlock, diverged: r.metrics.diverged, driftPerBlock: drift, converged }
-    if (!converged) warnings.push(`閉迴路 ${Kb} 個 block 內未收斂（$\\tau\\approx${texNum(tauBlocks, 3)}$ blocks）：mean $w$ 不是固定點的估計`)
+    const tauRef = pmux && mimo ? mimo.tauBlocks : tauBlocks
+    const runLoop = (quantize: boolean): FcwLoop => {
+      const Kb = opts.loopBlocks
+      const half = Math.floor(Kb / 2)
+      let m: BlockLmsMetrics
+      let wArr: Float64Array
+      let phos: number | null = null
+      if (cfg) {
+        const r = runBlockLms(quantize ? cfg : { ...cfg, gain_register: { ...cfg.gain_register, quantize_physical: false } })
+        m = r.metrics
+        wArr = r.blocks.w
+      } else {
+        const r = runLabLoop(pr as LabPrepared, { quantize })
+        m = r.metrics
+        wArr = r.w[pmux ? GOS_INDEX : 0]
+        phos = pmux ? r.phosRmsFs : null
+      }
+      const drift = m.diverged ? NaN : (wArr[Kb] - wArr[half]) / Math.max(1, Kb - half)
+      const converged = !m.diverged && m.settlingBlock !== null && m.settlingBlock <= half && Number.isFinite(tauRef) && tauRef < Kb / 6
+      return { meanW: m.meanW, stdW: m.stdW, bias: m.bias, settlingBlock: m.settlingBlock, diverged: m.diverged, driftPerBlock: drift, converged, phosRmsFs: phos }
+    }
+    loop = runLoop(p.quantize)
+    if (!loop.converged) warnings.push(`閉迴路 ${opts.loopBlocks} 個 block 內未收斂（$\\tau\\approx${texNum(tauRef, 3)}$ blocks）：mean $w$ 不是固定點的估計`)
+    if (twin && p.quantize) twinLoop = runLoop(false)
   }
   return {
     frac,
@@ -2701,16 +3114,40 @@ export function fcwPoint(base: LabParams, frac: number, opts: FcwSweepOptions, d
     spurDbc,
     slope,
     loop,
+    ...(twinLoop !== undefined ? { twinLoop } : {}),
+    mimo,
     warnings,
   }
 }
 
-/** FCW sweep 的一段（worker 可呼叫；UI 分段呼叫以顯示進度、可取消）。 */
-export function sweepFcwChunk(p: { base: LabParams; fracs: number[]; opts: FcwSweepOptions; offset: number }): { points: FcwPoint[] } {
+/** 9 權重 PE 的「幾乎為 0」門檻（相對於可觀測子空間的 λ_max） */
+export const PE_FLOOR_REL = 1e-6
+
+/** GMAC regressor（新引擎）：raw x、delayed x[n−D]、filtered Ĥ{x}[n−D] */
+function regressorSeqLab(p: LabParams, design: PllDesign, x: Float64Array): Float64Array {
+  if (p.regressor === 'raw') return x
+  const hat = p.regressor === 'filtered' ? { b: new Array<number>(p.fxExtraDelay).fill(0).concat(design.H.b.map((v) => v * p.fxGain)), a: design.H.a.slice() } : null
+  return delaySeq(hat ? filterSeq(hat, x) : x, p.codeDelay)
+}
+
+/**
+ * FCW sweep 的一段（worker 可呼叫；UI 分段呼叫以顯示進度、可取消）。
+ * twin = true 且定點、開閉迴路時，每點再用 quantize = false 跑一次同 seed 的迴路（只重跑迴路部分；序列統計、斜率 MC 不重算），
+ * 回傳 twinPoints（與 points 一一對應，只有 loop 不同）給 Fixed-Point 欄做成對比較。
+ */
+export function sweepFcwChunk(p: { base: LabParams; fracs: number[]; opts: FcwSweepOptions; offset: number; twin?: boolean }): { points: FcwPoint[]; twinPoints?: FcwPoint[] } {
   const errs = labParamErrors({ ...p.base, blocks: Math.max(p.base.blocks, p.opts.loopBlocks), outBlocks: Math.min(p.base.outBlocks, p.opts.loopBlocks) })
   if (errs.length > 0) throw new Error(`參數不合法：\n${errs.join('\n')}`)
   const design = pllDesign(p.base)
-  return { points: p.fracs.map((f, i) => fcwPoint(p.base, f, p.opts, design, p.offset + i)) }
+  const twin = !!p.twin && p.base.quantize && p.opts.closedLoop
+  const points = p.fracs.map((f, i) => fcwPoint(p.base, f, p.opts, design, p.offset + i, twin))
+  if (!twin) return { points }
+  const twinPoints = points.map((pt) => {
+    const { twinLoop, ...rest } = pt
+    return { ...rest, loop: twinLoop ?? null }
+  })
+  for (const pt of points) delete pt.twinLoop
+  return { points, twinPoints }
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -2732,6 +3169,26 @@ export interface McChunk {
   warnings: string[]
   /** mean-field 平均軌跡 ŵ_0…ŵ_K（只在 p.meanField 為 true 的那一段計算；其餘為 null） */
   meanField: Float64Array | null
+  /** pmux8_gos：9 個權重的 per-run 統計（其餘 null） */
+  mimo: McMimo | null
+  /** twin = true 且定點時：同一段 seeds 的浮點對照（quantize = false；只重跑迴路） */
+  twin?: McChunk
+}
+
+/** Monte Carlo 一段裡 9 個權重的統計（flatten：run r、權重 j 在 r·P + j；block k、權重 j 在 k·P + j） */
+export interface McMimo {
+  P: number
+  names: string[]
+  target: number[]
+  meanW: Float64Array
+  stdW: Float64Array
+  /** 每個 run 後半段的 PHOS 殘差 RMS（去共模）[fs] */
+  phosRms: Float64Array
+  wSum: Float64Array
+  wSum2: Float64Array
+  /** mean-field 平均軌跡（只在第一段；(K+1)·P） */
+  meanField: Float64Array | null
+  analysis: MimoAnalysis
 }
 
 /**
@@ -2739,9 +3196,10 @@ export interface McChunk {
  * meanField = true 時另外算一次 mean-field twin（用 base.seed 的 code；一階 DSM / MASH 的 code 與 seed 無關，
  * dither / iid 的 code 各 seed 不同但統計相同），供跨 seeds 的平均與之比較。UI 只在第一段要求它。
  */
-export function runMcChunk(p: { base: LabParams; seeds: number[]; meanField?: boolean }): McChunk {
+export function runMcChunk(p: { base: LabParams; seeds: number[]; meanField?: boolean; twin?: boolean }): McChunk {
   const errs = labParamErrors(p.base)
   if (errs.length > 0) throw new Error(`參數不合法：\n${errs.join('\n')}`)
+  if (!usesLegacyEngine(p.base)) return runMcChunkLab(p)
   const cfg = toBlockLmsConfig(p.base, { record: { sample_trace_blocks: 0, decimate: 1 } })
   const K = p.base.blocks
   const wSum = new Float64Array(K + 1)
@@ -2755,12 +3213,15 @@ export function runMcChunk(p: { base: LabParams; seeds: number[]; meanField?: bo
   let nValid = 0
   let analytic: BlockLmsAnalytic | null = null
   let warnings: string[] = []
+  const twin = !!p.twin && p.base.quantize
+  const perSeedAnalytic: BlockLmsAnalytic[] = []
   p.seeds.forEach((s, r) => {
     const mc = runBlockLmsMonteCarlo({ config: cfg, seeds: [s] })
     if (!analytic) {
       analytic = mc.analytic
       warnings = mc.warnings
     }
+    if (twin) perSeedAnalytic[r] = mc.analytic
     meanW[r] = mc.perRun.meanW[0]
     stdW[r] = mc.perRun.stdW[0]
     bias[r] = mc.perRun.bias[0]
@@ -2778,7 +3239,264 @@ export function runMcChunk(p: { base: LabParams; seeds: number[]; meanField?: bo
   })
   const an = analytic as unknown as BlockLmsAnalytic
   const meanField = p.meanField && an ? meanFieldTwin({ config: cfg, normalization: an.normalization }).w : null
-  return { seeds: p.seeds.slice(), meanW, stdW, bias, settling, diverged, wSum, wSum2, nValid, analytic: an, warnings, meanField }
+  const out: McChunk = { seeds: p.seeds.slice(), meanW, stdW, bias, settling, diverged, wSum, wSum2, nValid, analytic: an, warnings, meanField, mimo: null }
+  if (twin) {
+    // 同一段 seeds 的浮點對照：只差暫存器量化（comparator 雜訊、code、dither 都相同）。只重跑迴路——每個 seed 的
+    // normalization 與解析量沿用上面 runBlockLms 已經算好的（不重掃 code、不重算 C、mean-field 固定點）；
+    // 迴路用 runLabLoop（legacy、單一 gain 時與 runBlockLms 逐位元相同，unifiedLab.test.ts 守著）
+    const design = pllDesign(p.base)
+    const runs = p.seeds.map((seed, r) => runLabLoop(labPreparedFromAnalytic({ ...p.base, seed }, design, perSeedAnalytic[r]), { quantize: false }))
+    out.twin = mcChunkFromLabRuns(p.seeds, runs, an, [], null, null)
+  }
+  return out
+}
+
+/**
+ * 只為了重跑迴路而建的 LabPrepared（legacy、單一 gain）：normalization 與解析量直接取自同一個 seed 已經跑過的 runBlockLms，
+ * 不再掃描 code。給 runMcChunk 的同 seed 浮點對照用。
+ */
+function labPreparedFromAnalytic(p: LabParams, design: PllDesign, analytic: BlockLmsAnalytic): LabPrepared {
+  const hat = p.regressor === 'filtered' ? hatTransfer({ regressor_mode: 'filtered', filtered_x_model: { path: 'same_as_path', gain_mismatch: p.fxGain, extra_delay_samples: p.fxExtraDelay } } as BlockLmsConfig, design.H) : null
+  return {
+    p,
+    design,
+    N: p.N,
+    K: p.blocks,
+    D: p.regressor === 'raw' ? 0 : p.codeDelay,
+    dUp: p.updateDelay,
+    P: 1,
+    target: [p.aFs],
+    norm: { offset: analytic.normalization.offset, scale: analytic.normalization.scale },
+    hat,
+    analytic,
+    mimo: null,
+    warnings: [],
+    assumptions: [],
+    modelLevel: p.quantize ? 'L5' : 'L2',
+  }
+}
+
+/** code 序列與 seed 無關（DSM 無 dither、不是 iid ±1、PMUX 不隨機旋轉）：每個 seed 的 prepareLab 結果相同，只差迴路裡的亂數 */
+export function codeIndependentOfSeed(p: Pick<LabParams, 'codeSource' | 'dither' | 'architecture' | 'pmuxOrder'>): boolean {
+  return p.codeSource !== 'iid_pm_one' && !p.dither && !(p.architecture === 'pmux8_gos' && p.pmuxOrder === 'random')
+}
+
+/** 由每個 seed 的 runLabLoop 結果組成一段 McChunk（runMcChunkLab 的主執行與 twin、legacy 的 twin 共用） */
+function mcChunkFromLabRuns(seeds: number[], runs: LabLoopResult[], analytic: BlockLmsAnalytic, warnings: string[], pr0: LabPrepared | null, mf: LabLoopResult['meanField']): McChunk {
+  const R = seeds.length
+  const P = runs.length > 0 ? runs[0].P : 1
+  const K = runs.length > 0 ? runs[0].w[0].length - 1 : 0
+  const gIdx = P > 1 ? GOS_INDEX : 0
+  const wSum = new Float64Array(K + 1)
+  const wSum2 = new Float64Array(K + 1)
+  const meanW = new Float64Array(R)
+  const stdW = new Float64Array(R)
+  const bias = new Float64Array(R)
+  const settling = new Float64Array(R)
+  const mm = P > 1 ? { meanW: new Float64Array(R * P), stdW: new Float64Array(R * P), phosRms: new Float64Array(R), wSum: new Float64Array((K + 1) * P), wSum2: new Float64Array((K + 1) * P) } : null
+  let diverged = 0
+  let nValid = 0
+  runs.forEach((res, r) => {
+    meanW[r] = res.metrics.meanW
+    stdW[r] = res.metrics.stdW
+    bias[r] = res.metrics.bias
+    settling[r] = res.metrics.settlingBlock ?? NaN
+    if (mm) {
+      for (let j = 0; j < P; j++) {
+        mm.meanW[r * P + j] = res.perWeight.meanW[j]
+        mm.stdW[r * P + j] = res.perWeight.stdW[j]
+      }
+      mm.phosRms[r] = res.phosRmsFs
+    }
+    if (res.divergenceBlock !== null) {
+      diverged++
+      return
+    }
+    nValid++
+    for (let k = 0; k <= K; k++) {
+      const w = res.w[gIdx][k]
+      wSum[k] += w
+      wSum2[k] += w * w
+      if (mm)
+        for (let j = 0; j < P; j++) {
+          const v = res.w[j][k]
+          mm.wSum[k * P + j] += v
+          mm.wSum2[k * P + j] += v * v
+        }
+    }
+  })
+  let meanField: Float64Array | null = null
+  let mfAll: Float64Array | null = null
+  if (mf) {
+    meanField = mf.w[gIdx]
+    if (mm) {
+      mfAll = new Float64Array((K + 1) * P)
+      for (let k = 0; k <= K; k++) for (let j = 0; j < P; j++) mfAll[k * P + j] = mf.w[j][k]
+    }
+  }
+  return {
+    seeds: seeds.slice(),
+    meanW,
+    stdW,
+    bias,
+    settling,
+    diverged,
+    wSum,
+    wSum2,
+    nValid,
+    analytic,
+    warnings,
+    meanField,
+    mimo: mm && pr0 && pr0.mimo ? { P, names: pr0.mimo.names, target: pr0.target, meanW: mm.meanW, stdW: mm.stdW, phosRms: mm.phosRms, wSum: mm.wSum, wSum2: mm.wSum2, meanField: mfAll, analysis: pr0.mimo } : null,
+  }
+}
+
+/**
+ * runMcChunk 的新引擎版本（spec 正負號／8 相 PMUX）：每個 seed 一次 runLabLoop；第一段另跑 mean-field（base.seed 的 code）。
+ * prepare（normalization 預掃描、解析量、9 權重分析）每個 seed 只做一次，code 與 seed 無關時直接沿用 base.seed 的那一份（只換 seed）；
+ * twin（定點時的同 seed 浮點對照）用同一份 prepare 只重跑迴路。
+ */
+function runMcChunkLab(p: { base: LabParams; seeds: number[]; meanField?: boolean; twin?: boolean }): McChunk {
+  const base = p.base
+  const design = pllDesign(base)
+  const pr0 = prepareLab(base, design)
+  const seedFree = codeIndependentOfSeed(base)
+  const prepOf = (seed: number): LabPrepared => (seed === base.seed ? pr0 : seedFree ? { ...pr0, p: { ...pr0.p, seed } } : prepareLab({ ...base, seed }, design))
+  const twin = !!p.twin && base.quantize
+  const main: LabLoopResult[] = []
+  const tw: LabLoopResult[] = []
+  for (const seed of p.seeds) {
+    const pr = prepOf(seed)
+    main.push(runLabLoop(pr, { quantize: base.quantize }))
+    if (twin) tw.push(runLabLoop(pr, { quantize: false })) // ← 只重跑迴路：同一份 prepare、同一串亂數，只差暫存器量化
+  }
+  const mf = p.meanField ? runLabLoop(pr0, { meanField: true }).meanField : null
+  const out = mcChunkFromLabRuns(p.seeds, main, pr0.analytic, pr0.warnings, pr0, mf)
+  if (twin) out.twin = mcChunkFromLabRuns(p.seeds, tw, pr0.analytic, pr0.warnings, pr0, null)
+  return out
+}
+
+/** Monte Carlo 多段裡 9 個權重的合併：每個權重跨 seeds 的 mean w 95% CI、pooled σ、PHOS 殘差 RMS 的 CI、ensemble 軌跡 */
+export interface McMimoSummary {
+  P: number
+  names: string[]
+  target: number[]
+  /**
+   * 每個權重：跨 seeds 的 mean w、95% CI、Bonferroni（1 − 0.05/P）CI、pooled σ、bias。
+   * 共模不可觀測（commonModeRemoved）時 PHOS 的值是「每個 run 先減掉 8 個 PHOS 的平均」之後的（目標 ε_p 本來就去共模）
+   */
+  perWeight: { meanW: number; lo: number; hi: number; loB: number; hiB: number; sigmaPooled: number; bias: number }[]
+  /** PHOS 的統計是否先去共模（H_PD(1) = 0 ⇒ 共模不可觀測、沒有恢復力，跨 seeds 會散開） */
+  commonModeRemoved: boolean
+  phosRms: { mean: number; lo: number; hi: number }
+  /** (K+1)·P 的跨 seeds 平均與標準差 */
+  wMean: Float64Array
+  wStd: Float64Array
+  meanField: Float64Array | null
+  analysis: MimoAnalysis
+  valid: number
+}
+
+export function combineMcMimo(chunks: McChunk[]): McMimoSummary | null {
+  const first = chunks.find((c) => c.mimo)?.mimo
+  if (!first) return null
+  const P = first.P
+  const valid = chunks.reduce((s, c) => s + c.nValid, 0)
+  const K1 = first.wSum.length / P
+  const wMean = new Float64Array(K1 * P)
+  const wStd = new Float64Array(K1 * P)
+  for (let i = 0; i < K1 * P; i++) {
+    let s = 0
+    let s2 = 0
+    for (const c of chunks) {
+      if (!c.mimo) continue
+      s += c.mimo.wSum[i]
+      s2 += c.mimo.wSum2[i]
+    }
+    const m = valid > 0 ? s / valid : NaN
+    wMean[i] = m
+    wStd[i] = valid > 1 ? Math.sqrt(Math.max(0, (s2 - valid * m * m) / (valid - 1))) : NaN
+  }
+  const removeCM = P > 1 && !first.analysis.commonModeObservable
+  const cmOf = (c: McChunk, r: number): number => {
+    if (!removeCM || !c.mimo) return 0
+    let cm = 0
+    for (let j = 0; j < PMUX_PHASES; j++) cm += c.mimo.meanW[r * P + j]
+    return cm / PMUX_PHASES
+  }
+  const perWeight = Array.from({ length: P }, (_, j) => {
+    const mw: number[] = []
+    const s2: number[] = []
+    for (const c of chunks) {
+      if (!c.mimo) continue
+      for (let r = 0; r < c.seeds.length; r++) {
+        const v = c.mimo.meanW[r * P + j] - (j < PMUX_PHASES ? cmOf(c, r) : 0)
+        if (!Number.isFinite(v)) continue
+        mw.push(v)
+        s2.push(c.mimo.stdW[r * P + j] ** 2)
+      }
+    }
+    const ci = mw.length >= 2 ? meanCI(mw) : { mean: mw[0] ?? NaN, lo: NaN, hi: NaN }
+    const cb = mw.length >= 2 ? meanCI(mw, 1 - 0.05 / P) : { lo: NaN, hi: NaN } // 9 個權重同時檢查：Bonferroni
+    const pooled = s2.length > 0 ? Math.sqrt(s2.reduce((a, b) => a + b, 0) / s2.length) : NaN
+    return { meanW: ci.mean, lo: ci.lo, hi: ci.hi, loB: cb.lo, hiB: cb.hi, sigmaPooled: pooled, bias: ci.mean - first.target[j] }
+  })
+  const pr: number[] = []
+  for (const c of chunks) if (c.mimo) for (let r = 0; r < c.seeds.length; r++) if (Number.isFinite(c.mimo.phosRms[r])) pr.push(c.mimo.phosRms[r])
+  const pci = pr.length >= 2 ? meanCI(pr) : { mean: pr[0] ?? NaN, lo: NaN, hi: NaN }
+  const mf = chunks.find((c) => c.mimo && c.mimo.meanField)?.mimo?.meanField ?? null
+  return { P, names: first.names, target: first.target, perWeight, commonModeRemoved: removeCM, phosRms: { mean: pci.mean, lo: pci.lo, hi: pci.hi }, wMean, wStd, meanField: mf, analysis: first.analysis, valid }
+}
+
+/**
+ * Monte Carlo 的 9 權重交叉比對：每個權重「mean w 的 95% CI（+1 LSB）」是否涵蓋 mean-field 同段預測；
+ * PHOS 殘差 RMS 的 CI 是否涵蓋 mean-field 的預測。
+ */
+export function mcMimoChecks(s: McMimoSummary, p: LabParams): { meanW: CheckItem; phos: CheckItem } {
+  const lsb = p.quantize ? p.lsbFs : 0
+  if (!s.meanField || s.valid < 2) return { meanW: { status: 'n/a', note: s.valid < 2 ? '有效 runs 少於 2 個' : '沒有 mean-field 平均軌跡' }, phos: { status: 'n/a', note: '同上' } }
+  const K1 = s.wMean.length / s.P
+  const h0 = Math.ceil(K1 / 2)
+  const half = (j: number): number => {
+    let acc = 0
+    for (let k = h0; k < K1; k++) acc += (s.meanField as Float64Array)[k * s.P + j]
+    return acc / (K1 - h0)
+  }
+  // 與 combineMcMimo 一致：共模不可觀測時 mean-field 的 PHOS 也先去共模
+  let cmMf = 0
+  if (s.commonModeRemoved) {
+    for (let j = 0; j < PMUX_PHASES; j++) cmMf += half(j)
+    cmMf /= PMUX_PHASES
+  }
+  const bad: string[] = []
+  for (let j = 0; j < s.P; j++) {
+    const pred = half(j) - (j < PMUX_PHASES ? cmMf : 0)
+    const w = s.perWeight[j]
+    if (!(Number.isFinite(w.loB) && Number.isFinite(w.hiB))) continue
+    if (pred < w.loB - lsb || pred > w.hiB + lsb) bad.push(s.names[j])
+  }
+  const lvl = `$1-0.05/${s.P}$`
+  const cmNote = s.commonModeRemoved ? '；PHOS 先去共模（共模經 $H_{\\mathrm{PD}}(1)=0$ 不可觀測）' : ''
+  const meanW: CheckItem = bad.length === 0 ? { status: 'ok', note: `${s.P} 個權重後半段 mean $w$ 的 Bonferroni CI（每個權重 ${lvl}，整體 95%${lsb > 0 ? '；再放寬 $\\pm1$ LSB' : ''}${cmNote}）都涵蓋 mean-field 同段預測` } : { status: 'mismatch', note: `${bad.length} 個權重的 Bonferroni CI（每個權重 ${lvl}）不含 mean-field 同段預測${cmNote}：$${bad.join(',\\ ')}$` }
+  // PHOS 殘差 RMS：mean-field 的預測（沒有雜訊的下界）＋後半段平均本身的估計雜訊（上界）。
+  // 每個 run 的 PHOS 殘差是「後半段平均 − ε」，平均只取 m 個 block，所以就算平均模型的偏差是 0，殘差 RMS 也有
+  // √(mean_j Var(w̄_j)) 的量級；Var(w̄_j) 用 dlyap 的 σ_j 與 9 權重平均模型最慢的 ρ（AR(1)，偏大 ⇒ 上界）。
+  const r = Array.from({ length: PMUX_PHASES }, (_, j) => half(j) - s.target[j])
+  const cm = r.reduce((a, b) => a + b, 0) / PMUX_PHASES
+  const predRms = Math.sqrt(r.reduce((a, v) => a + (v - cm) * (v - cm), 0) / PMUX_PHASES)
+  const mHalf = K1 - h0
+  const rhoA = Math.min(Math.abs(Number.isFinite(s.analysis.rho) ? s.analysis.rho : 0.999), 0.999999)
+  const sp = s.analysis.sigmaPred
+  const noiseVar = sp ? sp.slice(0, PMUX_PHASES).reduce((a, v) => a + ar1MeanVar(v * v, rhoA, mHalf), 0) / PMUX_PHASES : NaN
+  const predHi = Number.isFinite(noiseVar) ? Math.sqrt(predRms * predRms + noiseVar) : predRms
+  const okP = Number.isFinite(s.phosRms.lo) && s.phosRms.hi >= predRms * 0.85 - lsb && s.phosRms.lo <= predHi * 1.15 + lsb
+  const phos: CheckItem = {
+    status: Number.isFinite(s.phosRms.lo) ? (okP ? 'ok' : 'mismatch') : 'n/a',
+    value: s.phosRms.mean,
+    analytic: predHi,
+    note: `PHOS 殘差 RMS（去共模）跨 seeds 的 95% CI $[${texNum(s.phosRms.lo)},\\,${texNum(s.phosRms.hi)}]\\,\\mathrm{fs}$ 要和預測帶 $[${texNum(predRms)},\\,${texNum(predHi)}]\\,\\mathrm{fs}$ 重疊（下界 = mean-field 同段的偏差、上界再加上後半段平均的估計雜訊 $\\sqrt{\\overline{\\mathrm{Var}(\\bar w_p)}}$；放寬 $\\pm15\\%$${lsb > 0 ? '、1 LSB' : ''}）`,
+  }
+  return { meanW, phos }
 }
 
 /** MC 的 seeds：deriveSeed(seed, i)，與 runBlockLmsMonteCarlo 的預設相同。 */
@@ -3265,4 +3983,1510 @@ export function analyzeTraining(tp: TrainingParams): TrainingResult {
 /** 單一 t 分位數（供 UI 顯示 CI 寬度用） */
 export function tQuantile95(n: number): number {
   return n >= 2 ? studentTInv(0.975, n - 1) : NaN
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// 使用者的架構（wave 5）：regressor 正負號、8 相 PMUX + GOS 的 9 個權重、同一份引擎
+// ───────────────────────────────────────────────────────────────────────────
+//
+// 既有的組合（regressorSign = 'legacy' 且 architecture = 'gos_only'）仍由 blockLms.ts 的 runBlockLms 執行（數字一位都不變）。
+// 其他組合走本節的 runLabLoop：同一個 inner loop 推廣成 P 個權重（P = 1 或 9）、兩種正負號；P = 1、legacy 時與 runBlockLms 逐位元相同
+// （unifiedLab.test.ts 守著），'spec' 時與「a、w₀、c₃ 變號的 legacy」鏡像相同（IEEE 的負號對稱性）。
+//
+// pmux8_gos 的訊號（docs/assumptions.md §2a 第 6 點、案例頁 §2、analysis/sspll/sim/README.md §1.2）：
+//   分數相位以 Δ = T_vco/8 為單位：DSM 跑在 8α 的小數部分，PMUX 總指標 P[n] = ⌊8α⌋(n+1) + Σ_{m≤n} y[m]，相位 p[n] = P[n] mod 8，
+//   DTC 只補一個相位步以內的量 c[n] = −r′[n] ∈ [0, 1)（一階）；'spec' 的 x = c、'legacy' 的 x = −c。
+//   PD 看到 e_DTC[n] = (a − w_g,app)·x[n] + (ε_{p[n]} − w_{p[n],app}) + d(x)：GOS 的 regressor 是 x_ref，PHOS 的是 one-hot 1{p[n−D] = j}。
+//   權重向量 θ = [w_0…w_7（PHOS，fs）, w_g（GOS，fs per Δ）]，目標 [ε_0…ε_7, a]；更新 w_j ← w_j + μ_j G_j（μ_p 給 PHOS、μ 給 GOS）。
+//   共模 Σ_j 1_j = 1 經 H_PD(1) = 0 的迴路後不可觀測（E04 的結構性 null）：條件數與 PE 都在可觀測子空間上算（mimo.ts observableEigen）。
+
+/** PMUX 相位數與權重數；GOS 放在最後一個 index */
+export const PMUX_PHASES = 8
+export const PMUX_WEIGHTS = PMUX_PHASES + 1
+export const GOS_INDEX = PMUX_PHASES
+
+/**
+ * PHOS 的固定圖樣（illustrative）：analysis/sspll/sim 的 seed-7 offset [+29, +103, −40, −194, −85, −219, +43, +364] fs
+ * 去共模後正規化成 RMS = 1；ε_p = phosRmsFs · PHOS_PATTERN[p]。
+ */
+export const PHOS_PATTERN: readonly number[] = (() => {
+  const raw = [29, 103, -40, -194, -85, -219, 43, 364]
+  const m = raw.reduce((a, b) => a + b, 0) / raw.length
+  const c = raw.map((v) => v - m)
+  const rms = Math.sqrt(c.reduce((a, b) => a + b * b, 0) / c.length)
+  return c.map((v) => v / rms)
+})()
+
+/** 8 個相位的 offset ε_p [fs]（去共模、RMS = phosRmsFs） */
+export function phosOffsets(phosRmsFs: number): number[] {
+  return PHOS_PATTERN.map((v) => phosRmsFs * v)
+}
+
+/** 既有的組合（legacy、單一 gain）仍由 blockLms 的 runBlockLms 執行 */
+export function usesLegacyEngine(p: Pick<LabParams, 'regressorSign' | 'architecture'>): boolean {
+  return p.regressorSign === 'legacy' && p.architecture === 'gos_only'
+}
+
+/** 權重名稱（TeX）：P = 9 時 w_0…w_7 與 w_g；P = 1 時 w */
+export function labWeightNames(P: number): string[] {
+  if (P === 1) return ['w']
+  return [...Array.from({ length: PMUX_PHASES }, (_, j) => `w_{${j}}`), 'w_g']
+}
+
+/** 8 相 PMUX 時 DSM 跑的小數部分：frac(8α)；整數部分 ⌊8α⌋ 是每個週期固定前進的相位步數 */
+export function pmuxFrac(frac: number): { int: number; frac8: number } {
+  const a8 = 8 * frac
+  const int = Math.floor(a8 + 1e-12)
+  const f8 = a8 - int
+  return { int, frac8: f8 < 0 ? 0 : f8 >= 1 ? 0 : f8 }
+}
+
+/** DSM 實際跑的小數部分（pmux8_gos 時是 frac(8α)） */
+export function codeFrac(p: Pick<LabParams, 'architecture' | 'frac'>): number {
+  return p.architecture === 'pmux8_gos' ? pmuxFrac(p.frac).frac8 : p.frac
+}
+
+/** 串流版統計（與 blockLms.ts 的 StreamingStats 相同：以第一個樣本為 shift 的平移和、Neumaier 補償），normalization 預掃描用 */
+class LabStreamingStats {
+  n = 0
+  private shift = 0
+  private s1 = 0
+  private c1 = 0
+  private s2 = 0
+  push(v: number): void {
+    if (this.n === 0) this.shift = v
+    const d = v - this.shift
+    const t = this.s1 + d
+    this.c1 += Math.abs(this.s1) >= Math.abs(d) ? this.s1 - t + d : d - t + this.s1
+    this.s1 = t
+    this.s2 += d * d
+    this.n++
+  }
+  get mean(): number {
+    return this.shift + (this.s1 + this.c1) / this.n
+  }
+  get std(): number {
+    const m = (this.s1 + this.c1) / this.n
+    return Math.sqrt(Math.max(0, this.s2 / this.n - m * m))
+  }
+  get rms(): number {
+    const mu = this.mean
+    const sd = this.std
+    return Math.sqrt(sd * sd + mu * mu)
+  }
+}
+
+interface LabCodeSource {
+  /** 填入 raw code（已套用正負號、尚未正規化）與相位索引（gos_only 時不寫 ph） */
+  fill(x: Float64Array, ph: Int32Array | null, off: number, cnt: number): void
+}
+
+// #region core:labCodeSource
+/**
+ * code 串流：gos_only 與 blockLms 的 createCodeSource 相同（同一個 rng 分流 'code-pattern' → 'dsm-dither'），只多了正負號；
+ * pmux8_gos 的 DSM 跑在 frac(8α)，並產生 PMUX 相位索引 p[n]（可再疊上已知的隨機旋轉 m[n]，DTC code 跟著加 m）。
+ */
+function createLabCodeSource(p: LabParams, codeRng: Rng, rotRng: Rng | null): LabCodeSource {
+  const sgn = p.regressorSign === 'spec' ? -1 : 1 // raw residue r ≤ 0：legacy 直接用，spec 用 −r（= s/M ≥ 0）
+  if (p.architecture === 'gos_only') {
+    if (p.codeSource === 'iid_pm_one') {
+      return {
+        fill(x, _ph, off, cnt) {
+          for (let i = 0; i < cnt; i++) x[off + i] = sgn * ((codeRng.uint32() >>> 31) === 1 ? 1 : -1)
+        },
+      }
+    }
+    const s = new DsmStream({ kind: p.codeSource === 'mash111' ? 'mash111' : 'first_order', frac: p.frac, bits: p.dsmBits, dither: p.dither }, codeRng.fork('dsm-dither'))
+    return {
+      fill(x, _ph, off, cnt) {
+        for (let i = 0; i < cnt; i++) {
+          s.step()
+          x[off + i] = sgn * s.residue
+        }
+      },
+    }
+  }
+  const { int, frac8 } = pmuxFrac(p.frac)
+  const s = new DsmStream({ kind: p.codeSource === 'mash111' ? 'mash111' : 'first_order', frac: frac8, bits: p.dsmBits, dither: p.dither }, codeRng.fork('dsm-dither'))
+  let P = 0 // PMUX 總指標（以 Δ 計的整數相位）
+  return {
+    fill(x, ph, off, cnt) {
+      for (let i = 0; i < cnt; i++) {
+        const y = s.step()
+        P += int + y
+        let c = -s.residue // ← 差異：DTC 只補一個相位步以內的量 c = −r′ ∈ [0, 1)（一階）
+        let idx = ((P % PMUX_PHASES) + PMUX_PHASES) % PMUX_PHASES
+        if (rotRng) {
+          const m = rotRng.int(0, PMUX_PHASES - 1) // ← 差異：已知的隨機旋轉：相位多轉 m 步，DTC 多補 m 個 Δ
+          idx = (idx + m) % PMUX_PHASES
+          c += m
+        }
+        x[off + i] = -sgn * c // c ≥ 0 已是 §2a 的 s/M：spec 直接用 c，legacy 用 −c（= r ≤ 0）
+        if (ph) ph[off + i] = idx
+      }
+    },
+  }
+}
+// #endregion
+
+/** 與 runLabLoop 相同的 code 串流（同 seed、同分流、同正規化），回傳 [skip, skip + L) 的樣本（給 FCW sweep 用） */
+function labCodeSequence(p: LabParams, norm: { offset: number; scale: number }, skip: number, L: number): { x: Float64Array; ph: Int32Array | null } {
+  const root = createRng(p.seed)
+  const src = createLabCodeSource(p, root.fork('code-pattern'), p.architecture === 'pmux8_gos' && p.pmuxOrder === 'random' ? root.fork('pmux-rotation') : null)
+  const total = skip + L
+  const buf = new Float64Array(total)
+  const pb = p.architecture === 'pmux8_gos' ? new Int32Array(total) : null
+  src.fill(buf, pb, 0, total)
+  const x = new Float64Array(L)
+  for (let i = 0; i < L; i++) x[i] = (buf[skip + i] - norm.offset) * norm.scale
+  return { x, ph: pb ? pb.slice(skip) : null }
+}
+
+/** 多權重線性化分析（pmux8_gos）：J、R_u、可觀測子空間、poles、穩態 σ、線性化固定點 */
+export interface MimoAnalysis {
+  P: number
+  /** 權重名稱（TeX） */
+  names: string[]
+  /** 目標 [ε_0…ε_7, a] */
+  target: number[]
+  /** J_ij = K_q E[ψ_i φ_{u,j}] [fs⁻¹]（ψ = GMAC regressor、φ_u = H_PD{φ}） */
+  J: Matrix
+  /** u-domain 資訊矩陣 R_u = E[φ_u φ_uᵀ] */
+  Ru: Matrix
+  /** GMAC regressor 的自相關 R_ψ = E[ψ ψᵀ]（GMAC 雜訊 Cov(η) ≈ R_ψ/N） */
+  Rpsi: Matrix
+  /** R_u 的可觀測子空間：特徵值、gauge 方向數、條件數 */
+  obs: { values: number[]; nullDim: number; lambdaMax: number; lambdaMin: number; cond: number }
+  /** J 限制到可觀測子空間後的特徵值；最小實部；所有權重共用步長時的 μ 上限 */
+  eigJ: { re: number; im: number }[]
+  minReEig: number
+  muMaxUniform: number
+  /** 實際的 M = diag(μ_p×8, μ_g)、含更新延遲 d 的平均模型：spectral radius、是否穩定、時間常數 */
+  rho: number
+  stable: boolean
+  tauBlocks: number
+  /** 每個權重的穩態 σ 預測 [fs]（dlyap；P(d+1) > 40 時 null） */
+  sigmaPred: number[] | null
+  /** 線性化固定點（可觀測子空間上的最小平方解；共模方向取 0）[fs] */
+  wStarLin: number[]
+  /** 8 個相位在統計樣本內的走訪比例 */
+  occupancy: number[]
+  /** 共模是否可觀測（H_PD(1) ≠ 0 的 'none' 路徑才是） */
+  commonModeObservable: boolean
+  warnings: string[]
+}
+
+// #region core:mimoFromSequence
+/**
+ * 由一段 code 序列（x、相位 p[n]）算 9 個權重的線性化量：
+ *   φ = [1{p=0}…1{p=7}, x]、φ_u = H_PD{φ}、ψ = GMAC regressor（raw / delayed / filtered，PHOS 的 one-hot 同樣處理）
+ *   J = K_q E[ψ φ_uᵀ]、R_u = E[φ_u φ_uᵀ]、R_ψ = E[ψ ψᵀ]（F-LAB.15 的多參數 Jacobian，基底換成 one-hot + x）。
+ * 可觀測子空間由 R_u 決定（共模經 H_PD(1) = 0 後是結構性 null），條件數、J 的特徵值、μ 上限都在那個子空間上算。
+ */
+function mimoFromSequence(a: {
+  p: LabParams
+  design: PllDesign
+  x: Float64Array
+  ph: Int32Array
+  skip: number
+  bugEncoding: boolean
+}): MimoAnalysis {
+  const { p, design, x, ph, skip } = a
+  const P = PMUX_WEIGHTS
+  const L = x.length - skip
+  const D = p.regressor === 'raw' ? 0 : p.codeDelay
+  const identity = design.kind === 'none'
+  const hat = p.regressor === 'filtered' ? { b: new Array<number>(p.fxExtraDelay).fill(0).concat(design.H.b.map((v) => v * p.fxGain)), a: design.H.a.slice() } : null
+  // φ_u：H_PD 濾過的基底；ψ：regressor（含延遲）
+  const phiU: Float64Array[] = []
+  const psi: Float64Array[] = []
+  for (let j = 0; j < P; j++) {
+    const phi = new Float64Array(x.length)
+    if (j === GOS_INDEX) phi.set(x)
+    else for (let n = 0; n < x.length; n++) phi[n] = ph[n] === j ? 1 : 0
+    phiU.push(identity ? phi : filterSeq(design.H, phi))
+    const base = hat ? filterSeq(hat, phi) : phi
+    psi.push(D > 0 ? delaySeq(base, D) : base)
+  }
+  const Kq = p.sigmaV > 0 ? SQRT_2_OVER_PI / p.sigmaV : NaN
+  const enc = a.bugEncoding ? 0.5 : 1
+  const J: Matrix = []
+  const Ru: Matrix = []
+  const Rpsi: Matrix = []
+  for (let i = 0; i < P; i++) {
+    J.push(new Array<number>(P).fill(0))
+    Ru.push(new Array<number>(P).fill(0))
+    Rpsi.push(new Array<number>(P).fill(0))
+  }
+  for (let n = skip; n < x.length; n++) {
+    for (let i = 0; i < P; i++) {
+      const pi = psi[i][n]
+      const ui = phiU[i][n]
+      for (let j = 0; j < P; j++) {
+        J[i][j] += pi * phiU[j][n]
+        Ru[i][j] += ui * phiU[j][n]
+        Rpsi[i][j] += pi * psi[j][n]
+      }
+    }
+  }
+  for (let i = 0; i < P; i++)
+    for (let j = 0; j < P; j++) {
+      J[i][j] = (Kq * enc * J[i][j]) / L
+      Ru[i][j] /= L
+      Rpsi[i][j] /= L
+    }
+  const occupancy = new Array<number>(PMUX_PHASES).fill(0)
+  for (let n = skip; n < x.length; n++) occupancy[ph[n]]++
+  for (let j = 0; j < PMUX_PHASES; j++) occupancy[j] /= L
+  // 可觀測子空間（R_u 的 null 方向 = 共模與沒走訪的相位）
+  const obs = observableEigen(Ru, 1e-9)
+  const V = obs.basis
+  const Jobs = V.length > 0 && V[0].length > 0 ? restrictTo(J, V) : []
+  const eigJ = Jobs.length > 0 ? eigvals(Jobs).map((z) => ({ re: z.re, im: z.im })) : []
+  const minReEig = eigJ.reduce((m, z) => Math.min(m, z.re), Infinity)
+  const muMaxUniform = uniformStepMuMax(eigJ)
+  // 實際的步長矩陣與含延遲的平均模型（在可觀測子空間上：δ_{k+1} = δ_k − M J δ_{k−d}）
+  const M: Matrix = Array.from({ length: P }, (_, i) => Array.from({ length: P }, (_, j) => (i === j ? (i === GOS_INDEX ? p.muFs : p.muPhosFs) * (p.gmMode === 'sum' ? p.N : 1) : 0)))
+  let rho = NaN
+  let stable = false
+  let tauBlocks = NaN
+  let sigmaPred: number[] | null = null
+  const warnings: string[] = []
+  if (Jobs.length > 0 && Number.isFinite(Kq)) {
+    const Mobs = restrictTo(M, V)
+    const mm = delayedMimoMeanModel(Jobs, Mobs, p.updateDelay)
+    rho = mm.rho
+    stable = mm.stable
+    tauBlocks = rho > 0 && rho < 1 ? -1 / Math.log(rho) : NaN
+    const cov = delayedMimoCovariance(Jobs, Mobs, restrictTo(Rpsi, V), p.N, p.updateDelay, 40)
+    if (cov) {
+      // 回到權重座標：Cov(δ) = V Cov_obs Vᵀ
+      const full = matMul(V, matMul(cov, transpose(V)))
+      sigmaPred = Array.from({ length: P }, (_, i) => Math.sqrt(Math.max(0, full[i][i])))
+    } else if (mm.stable && P * (p.updateDelay + 1) > 40) warnings.push(`更新延遲 $d=${p.updateDelay}$ 時 9 個權重的增廣系統超過 40 維，沒有算穩態共變異（$\\sigma$ 預測留白）`)
+  }
+  // 線性化固定點：J δ* = −K_q E[ψ (u_d + b)]（可觀測子空間上最小平方；共模取 0）
+  const target = [...phosOffsets(p.phosRmsFs), p.aFs]
+  const hasNl = p.dtcOffsetFs !== 0 || p.c2 !== 0 || p.c3 !== 0
+  const rhs = new Array<number>(P).fill(0)
+  if (hasNl || p.compOffsetFs !== 0) {
+    const d = new Float64Array(x.length)
+    for (let n = 0; n < x.length; n++) d[n] = p.dtcOffsetFs + x[n] * x[n] * (p.c2 + p.c3 * x[n])
+    const ud = identity ? d : filterSeq(design.H, d)
+    for (let i = 0; i < P; i++) {
+      let s = 0
+      for (let n = skip; n < x.length; n++) s += psi[i][n] * (ud[n] + p.compOffsetFs)
+      rhs[i] = (-Kq * enc * s) / L
+    }
+  }
+  let wStarLin = target.slice()
+  if (Jobs.length > 0 && Number.isFinite(Kq)) {
+    try {
+      const rObs = matVec(transpose(V), rhs)
+      const dObs = solve(Jobs, rObs)
+      const dFull = matVec(V, dObs)
+      wStarLin = target.map((t, i) => t - dFull[i]) // δ = a − w ⇒ w* = target − δ*
+    } catch {
+      wStarLin = target.map(() => NaN)
+    }
+  }
+  if (obs.nullDim > 1) warnings.push(`資訊矩陣有 ${obs.nullDim} 個不可觀測方向（共模之外還有沒走訪的相位或線性相依）：對應的權重在這段 code 內不可辨識`)
+  if (eigJ.length > 0 && !(minReEig > 0)) warnings.push(`多權重 Jacobian 在可觀測子空間上有實部 $\\le0$ 的特徵值（$\\min\\mathrm{Re}\\,\\lambda=${texNum(minReEig, 3)}$）：至少一個模式極性錯誤（PHOS mode-1 落在反號帶，或 code delay 錯位）`)
+  if (Number.isFinite(obs.cond) && obs.cond > 100) warnings.push(`可觀測子空間的條件數 $${texNum(obs.cond, 3)}>100$：最慢的模式比最快的慢兩個數量級以上，單一步長的 sign-LMS 要等很久（第 10 章的 preconditioning）`)
+  return {
+    P,
+    names: labWeightNames(P),
+    target,
+    J,
+    Ru,
+    Rpsi,
+    obs: { values: obs.values, nullDim: obs.nullDim, lambdaMax: obs.lambdaMax, lambdaMin: obs.lambdaMin, cond: obs.cond },
+    eigJ,
+    minReEig,
+    muMaxUniform,
+    rho,
+    stable,
+    tauBlocks,
+    sigmaPred,
+    wStarLin,
+    occupancy,
+    commonModeObservable: obs.nullDim === 0,
+    warnings,
+  }
+}
+// #endregion
+
+/** 新引擎的準備工作：normalization 預掃描（整段 record）、GOS 通道的解析量（與 blockLms 的 prepare 同一套定義）、pmux8 的多權重分析 */
+export interface LabPrepared {
+  p: LabParams
+  design: PllDesign
+  N: number
+  K: number
+  D: number
+  dUp: number
+  P: number
+  /** 目標 [ε_0…ε_7, a]（P = 1 時 [a]） */
+  target: number[]
+  norm: { offset: number; scale: number }
+  hat: DtTransfer | null
+  analytic: BlockLmsAnalytic
+  mimo: MimoAnalysis | null
+  warnings: string[]
+  assumptions: string[]
+  modelLevel: 'L1' | 'L2' | 'L5'
+}
+
+/** GOS 通道的 mean-field 固定點：f(w) = mean_n x_ref·m(e_n(w))，m = erf（bipolar）或 Φ（bug）；Illinois 求根（與 blockLms 同一個定義） */
+function gosMeanFieldFixedPoint(a: { aFs: number; sigma: number; b: number; bug: boolean; u: Float64Array; unl: Float64Array; xref: Float64Array; guess: number; wScale: number }): { root: number; slope: number } {
+  const n = a.u.length
+  const f = (w: number): number => {
+    let s = 0
+    for (let i = 0; i < n; i++) {
+      const e = (a.aFs - w) * a.u[i] + a.unl[i] + a.b
+      const m = a.sigma > 0 ? (a.bug ? normCdf(e / a.sigma) : erf(e / (Math.SQRT2 * a.sigma))) : e >= 0 ? 1 : a.bug ? 0 : -1
+      s += a.xref[i] * m
+    }
+    return s / n
+  }
+  const h = Math.max(1e-6 * Math.max(1, Math.abs(a.guess)), 1e-3 * a.wScale)
+  let lo = a.guess - 4 * a.wScale
+  let hi = a.guess + 4 * a.wScale
+  let flo = f(lo)
+  let fhi = f(hi)
+  let tries = 0
+  while (flo * fhi > 0 && tries < 20) {
+    lo -= 4 * a.wScale * 2 ** tries
+    hi += 4 * a.wScale * 2 ** tries
+    flo = f(lo)
+    fhi = f(hi)
+    tries++
+  }
+  if (!(flo * fhi <= 0)) return { root: NaN, slope: NaN }
+  let side = 0
+  let root = NaN
+  for (let it = 0; it < 200; it++) {
+    const m = (lo * fhi - hi * flo) / (fhi - flo)
+    const fm = f(m)
+    root = m
+    if (Math.abs(fm) < 1e-13 || Math.abs(hi - lo) < 1e-12 * Math.max(1, Math.abs(m))) break
+    if (fm * fhi < 0) {
+      lo = hi
+      flo = fhi
+      side = 0
+    } else if (side === 1) flo *= 0.5
+    hi = m
+    fhi = fm
+    if (fm * flo < 0) side = 1
+  }
+  const slope = -(f(root + h) - f(root - h)) / (2 * h)
+  return { root, slope }
+}
+
+/** δ_{k+1} = δ_k − gδ_{k−d} + η_k 的雜訊增益 Σ h_k²（blockLms.calNoiseGain 的同一個定義；不穩定或不收斂時 NaN） */
+function labNoiseGain(g: number, d: number, stable: boolean): number {
+  if (!stable) return NaN
+  if (d === 0) {
+    const p = 1 - g
+    return 1 / (1 - p * p)
+  }
+  const L = d + 1
+  const hist = new Float64Array(L)
+  let energy = 0
+  let yPrev = 0
+  let idx = 0
+  let small = 0
+  for (let k = 0; k < 5_000_000; k++) {
+    const yDelayed = hist[idx]
+    const y = yPrev - g * yDelayed + (k === 0 ? 1 : 0)
+    hist[idx] = y
+    idx = (idx + 1) % L
+    yPrev = y
+    const y2 = y * y
+    energy += y2
+    if (k > 10 * L && y2 < 1e-18 * energy) {
+      if (++small > 4 * L) return energy
+    } else small = 0
+  }
+  return NaN
+}
+
+/** 平均更新 z^{d+1} − z^d + g = 0 的最大根模（含 g 非有限的保護） */
+function meanPoleRadius(g: number, d: number): number {
+  if (!Number.isFinite(g)) return NaN
+  return delayLoopRadius(g, d)
+}
+
+// #region core:prepareLab
+/**
+ * 新引擎的 prepare：與 blockLms.prepare 同一套定義（normalization 掃整段 record；解析量用前 2^17 個樣本、略過 ⌊S/8⌋ 個暫態；
+ * mean-field 固定點用 2^14 個樣本），只是 code 來源換成 createLabCodeSource（正負號、PMUX）。pmux8_gos 另外算 9 個權重的 MimoAnalysis。
+ */
+export function prepareLab(p: LabParams, design: PllDesign, over: { blocks?: number } = {}): LabPrepared {
+  const warnings: string[] = []
+  const N = p.N
+  const K = over.blocks ?? p.blocks
+  const total = N * K
+  const D = p.regressor === 'raw' ? 0 : p.codeDelay
+  const dUp = p.updateDelay
+  const pmux = p.architecture === 'pmux8_gos'
+  const P = pmux ? PMUX_WEIGHTS : 1
+  const bug = p.encoding === 'unipolar_unmapped_bug'
+  const sumMode = p.gmMode === 'sum'
+  const identity = design.kind === 'none'
+  const hat = p.regressor === 'filtered' ? hatTransfer({ regressor_mode: 'filtered', filtered_x_model: { path: 'same_as_path', gain_mismatch: p.fxGain, extra_delay_samples: p.fxExtraDelay } } as BlockLmsConfig, design.H) : null
+  for (const w of design.warnings) warnings.push(w)
+
+  // ── normalization 預掃描（整段 record）＋ 解析樣本 ──
+  const S = Math.min(total, 1 << 17)
+  const head = new Float64Array(S)
+  const headPh = pmux ? new Int32Array(S) : null
+  const root = createRng(p.seed)
+  const src = createLabCodeSource(p, root.fork('code-pattern'), pmux && p.pmuxOrder === 'random' ? root.fork('pmux-rotation') : null)
+  let norm: { offset: number; scale: number }
+  if (p.normalization === 'none') {
+    src.fill(head, headPh, 0, S)
+    norm = { offset: 0, scale: 1 }
+  } else {
+    const st = new LabStreamingStats()
+    const chunk = new Float64Array(Math.min(total, 1 << 16))
+    const chunkPh = pmux ? new Int32Array(chunk.length) : null
+    let done = 0
+    while (done < total) {
+      const cnt = Math.min(chunk.length, total - done)
+      src.fill(chunk, chunkPh, 0, cnt)
+      for (let i = 0; i < cnt; i++) st.push(chunk[i])
+      const take = Math.min(cnt, S - done)
+      if (take > 0) {
+        head.set(chunk.subarray(0, take), done)
+        if (headPh && chunkPh) headPh.set(chunkPh.subarray(0, take), done)
+      }
+      done += cnt
+    }
+    const np = normalizationParams({ mean: st.mean, rms: st.rms, std: st.std }, p.normalization)
+    norm = { offset: np.offset, scale: np.scale }
+    warnings.push(...np.warnings)
+  }
+  const x = new Float64Array(S)
+  for (let i = 0; i < S; i++) x[i] = (head[i] - norm.offset) * norm.scale
+
+  // ── GOS 通道的解析量（與 blockLms 相同的定義）──
+  const u = identity ? x : filterSeq(design.H, x)
+  const hasNl = p.dtcOffsetFs !== 0 || p.c2 !== 0 || p.c3 !== 0
+  const nlx = new Float64Array(S)
+  if (hasNl) for (let i = 0; i < S; i++) nlx[i] = p.dtcOffsetFs + x[i] * x[i] * (p.c2 + p.c3 * x[i])
+  const unl = identity || !hasNl ? nlx : filterSeq(design.H, nlx)
+  const base = hat ? filterSeq(hat, x) : x
+  const xref = D > 0 ? delaySeq(base, D) : base
+  const s0 = Math.min(Math.floor(S / 8), 4096)
+  const cnt = S - s0
+  let Ex = 0
+  let Ex2 = 0
+  let ExRef = 0
+  let ExRef2 = 0
+  let C = 0
+  let Cnl = 0
+  let Eu2 = 0
+  for (let i = s0; i < S; i++) {
+    Ex += x[i]
+    Ex2 += x[i] * x[i]
+    ExRef += xref[i]
+    ExRef2 += xref[i] * xref[i]
+    C += xref[i] * u[i]
+    Cnl += xref[i] * unl[i]
+    Eu2 += u[i] * u[i]
+  }
+  Ex /= cnt
+  Ex2 /= cnt
+  ExRef /= cnt
+  ExRef2 /= cnt
+  C /= cnt
+  Cnl /= cnt
+  Eu2 /= cnt
+  const sigma = p.sigmaV
+  const mu = p.muFs
+  const Kq = sigma > 0 ? SQRT_2_OVER_PI / sigma : NaN
+  const Kgm = Kq * C * (bug ? 0.5 : 1)
+  const g = mu * Kgm * (sumMode ? N : 1)
+  const pole = 1 - g
+  let rhoMean = meanPoleRadius(g, dUp)
+  let stableMean = rhoMean < 1
+  const gCritical = 2 * Math.sin(Math.PI / (4 * dUp + 2))
+  const pmDeg = g > 0 && g <= 2 ? 90 - (2 * dUp + 1) * ((Math.asin(g / 2) * 180) / Math.PI) : NaN
+  const fuHz = p.fRefHz / N
+  let f3dbHz = NaN
+  let enbwHz = NaN
+  if (dUp === 0 && Number.isFinite(pole)) {
+    if (pole >= 3 - 2 * Math.SQRT2 && pole < 1) f3dbHz = (Math.acos(1 - ((1 - pole) * (1 - pole)) / (2 * pole)) / (2 * Math.PI)) * fuHz
+    if (Math.abs(pole) < 1) enbwHz = (fuHz * (1 - pole)) / (2 * (1 + pole))
+  }
+  let tauBlocks = rhoMean > 0 && rhoMean < 1 ? -1 / Math.log(rhoMean) : NaN
+  const wStarLinear = p.aFs + (Cnl + p.compOffsetFs * ExRef + (bug && Kq > 0 ? ExRef / Kq : 0)) / C
+  const Smf = Math.min(S - s0, 1 << 14)
+  let mf = { root: NaN, slope: NaN }
+  if (!pmux) {
+    mf = gosMeanFieldFixedPoint({
+      aFs: p.aFs,
+      sigma,
+      b: p.compOffsetFs,
+      bug,
+      u: u.subarray(s0, s0 + Smf),
+      unl: unl.subarray(s0, s0 + Smf),
+      xref: xref.subarray(s0, s0 + Smf),
+      guess: Number.isFinite(wStarLinear) ? wStarLinear : p.aFs,
+      wScale: sigma > 0 && Eu2 > 0 ? sigma / Math.sqrt(Eu2) : Math.max(1, Math.abs(p.aFs)),
+    })
+  }
+  let sigEtaSample = ExRef2
+  if (bug) {
+    const wq = Number.isFinite(mf.root) ? mf.root : p.aFs
+    let acc = 0
+    let mG = 0
+    for (let i = 0; i < Smf; i++) {
+      const e = (p.aFs - wq) * u[s0 + i] + unl[s0 + i] + p.compOffsetFs
+      const Pr = sigma > 0 ? normCdf(e / sigma) : e >= 0 ? 1 : 0
+      acc += xref[s0 + i] * xref[s0 + i] * Pr
+      mG += xref[s0 + i] * Pr
+    }
+    sigEtaSample = acc / Smf - (mG / Smf) * (mG / Smf)
+  }
+  const sigmaEta2 = sumMode ? sigEtaSample * N : sigEtaSample / N
+  // σ_w 預測（GOS 單參數的 noise gain；與 blockLms 的 calNoiseGain 同一個定義）
+  let sigmaWPred = Math.abs(mu) * Math.sqrt(sigmaEta2 * labNoiseGain(g, dUp, stableMean))
+
+  // ── pmux8：多權重分析 ──
+  let mimo: MimoAnalysis | null = null
+  if (pmux && headPh) {
+    mimo = mimoFromSequence({ p, design, x, ph: headPh, skip: s0, bugEncoding: bug })
+    warnings.push(...mimo.warnings)
+    // GOS 通道的 ρ、τ、σ 改由 9 個權重的平均模型決定（耦合後的整體行為）
+    rhoMean = mimo.rho
+    stableMean = mimo.stable
+    tauBlocks = mimo.tauBlocks
+    if (mimo.sigmaPred) sigmaWPred = mimo.sigmaPred[GOS_INDEX]
+    mf = { root: mimo.wStarLin[GOS_INDEX], slope: NaN }
+  }
+
+  const analytic: BlockLmsAnalytic = {
+    Kq,
+    Cest: C,
+    K: Kgm,
+    g,
+    p: pole,
+    stableMean,
+    rhoMean,
+    gCritical,
+    sigmaWPred,
+    sigmaEta2,
+    pmDeg,
+    fuHz,
+    f3dbHz,
+    enbwHz,
+    tauBlocks,
+    wStarLinear,
+    wStarMeanField: mf.root,
+    slopeMeanField: mf.slope,
+    gMeanField: mu * mf.slope * (sumMode ? N : 1),
+    Ex,
+    Ex2,
+    ExRef,
+    ExRef2,
+    statsSamples: cnt,
+    normalization: { mode: p.normalization, offset: norm.offset, scale: norm.scale, warnings: [] },
+  }
+
+  // ── 警告（與 blockLms 相同的句子，texifyShared 認得）──
+  const fmt = (v: number, d = 4): string => (Number.isFinite(v) ? Number(v.toPrecision(d)).toString() : String(v))
+  const tolC = 1e-3 * Math.sqrt(Math.max(ExRef2 * Eu2, 0))
+  if (C < -tolC) warnings.push(`C ≤ 0：更新極性錯誤，正 learning rate 會使平均誤差發散（C = ${fmt(C)}；只減小 learning rate 不會改變符號，需 delay alignment 或 filtered-x）`)
+  else if (!(C > tolC)) warnings.push(`C ≈ 0：GMAC 沒有平均恢復力（資訊不足／缺乏激勵），w 會隨雜訊漂移（C = ${fmt(C)}）`)
+  if (sigma === 0) warnings.push('σ_v = 0：comparator 為純 sign，K_q 無定義（小訊號線性化不適用），可能出現 limit cycle 或 dead zone')
+  if (mu <= 0) warnings.push(`gain_step μ = ${fmt(mu)} ≤ 0：除非 C < 0，平均誤差不會收斂`)
+  if (!pmux && Number.isFinite(g) && C > tolC && mu > 0) {
+    if (dUp === 0 && g >= 2) warnings.push(`g ≥ 2：一階模型不穩定（g = μK = ${fmt(g)}，pole = ${fmt(pole)}）`)
+    else if (dUp > 0 && g >= gCritical) warnings.push(`g ≥ 2sin(π/(4d+2)) = ${fmt(gCritical)}：含 d = ${dUp} 個 block 更新延遲的一階模型不穩定（g = ${fmt(g)}）`)
+  }
+  if (pmux && mimo && !mimo.stable && Number.isFinite(mimo.rho)) warnings.push(`9 個權重的平均模型不穩定（spectral radius ${fmt(mimo.rho)} ≥ 1）：減小 $\\mu$ 或 $\\mu_p$，或檢查極性`)
+  if (sumMode) warnings.push(`gm_mode=sum 時有效增益放大 N 倍（N = ${N}：g = ${fmt(g)}；若沿用 average 模式的 μ，需改為 μ/N = ${fmt(mu / N)}）`)
+  if (bug) warnings.push('comparator_encoding = unipolar_unmapped_bug：硬體 0/1 未映射為 ±1（q = b），有效增益減半，且 E[x_ref] ≠ 0 時 GMAC 多出 E[x_ref]/2 的偏差項（反面測試）')
+  if (!identity && design.hpdDc < 1e-9 && (p.dtcOffsetFs !== 0 || Math.abs(Ex) > 1e-3)) warnings.push('H_PD(z=1) = 0：DTC offset 與 code 的 DC 成分在穩態不會到達 comparator（E03、E04）')
+  const biasPred = mf.root - p.aFs
+  if (!pmux && Number.isFinite(biasPred) && Number.isFinite(sigmaWPred) && Math.abs(biasPred) > 3 * sigmaWPred && Math.abs(biasPred) > 1e-9)
+    warnings.push(`預測固定點偏差 w* − a ≈ ${fmt(biasPred)} fs（offset / DTC 非線性 / code 平均造成；GMAC 歸零 ≠ DTC 誤差為零，§11）`)
+  if (p.regressor === 'filtered' && (p.fxGain !== 1 || p.fxExtraDelay !== 0)) warnings.push(`filtered-x 模型 Ĥ ≠ H：有效相關為 E[u·u_f] = ${fmt(C)}（不是 E[u²] = ${fmt(Eu2)}；E45）`)
+  if (p.quantize && Number.isFinite(sigmaWPred) && p.lsbFs > 2 * sigmaWPred) warnings.push(`實體 gain LSB = ${fmt(p.lsbFs)} fs 遠大於預測 σ_w = ${fmt(sigmaWPred)} fs：量化誤差主導，可能出現 limit cycle 或 dead zone（§13）`)
+
+  const isDsm = p.codeSource !== 'iid_pm_one'
+  const modelLevel: 'L1' | 'L2' | 'L5' = p.quantize ? 'L5' : !identity || p.regressor !== 'raw' || isDsm || hasNl || pmux ? 'L2' : 'L1'
+  const assumptions = [
+    `時間單位 fs；code 依 ${p.normalization} 正規化後無因次；a、w 的單位為 fs per unit code（δ = a − w 極性）`,
+    p.regressorSign === 'spec' ? 'regressor 正負號照 docs/assumptions.md §2a：x = s/M ≥ 0（一階 DSM），code 越大 feedback edge 越早到' : 'regressor 正負號沿用本頁原本的 r = −s/M ≤ 0（與既有 preset、golden vector 相同；只差 x → −x）',
+    pmux
+      ? `8 相 PMUX：DSM 跑在 frac(8α) = ${fmt(pmuxFrac(p.frac).frac8, 6)}，PMUX 相位 p[n] = P[n] mod 8${p.pmuxOrder === 'random' ? '（再疊上已知的隨機旋轉 m[n] ∈ {0…7}，DTC code 加 m）' : ''}；PD 誤差 e[n] = (a − w_g)·x + (ε_p − w_p) + d(x)，9 個權重各自一個 GMAC（PHOS 用 one-hot regressor）`
+      : 'PD 誤差 e[n] = H_PD{δt}[n] + b + v[n]，δt[n] = (a − w_applied)·x[n] + offset + c2·x² + c3·x³；H_PD 狀態跨 block 持續（§15.2）',
+    `comparator 前雜訊 v[n] 為 iid Gaussian（σ_v = ${sigma} fs），與 code 獨立`,
+    'q = sign(e)，tie 規則 e ≥ 0 ⇒ q = +1（§15.2、E07）',
+    `GMAC：G_k = ${sumMode ? 'Σ' : '(1/N)Σ'} q·x_ref（N = ${N}），w_{k+1} = w_k + μG_k${pmux ? `（PHOS：w_p ← w_p + μ_p G_p，μ_p = ${p.muPhosFs} fs）` : ''}，更新延遲 d = ${dUp} block`,
+    'f_s = f_ref：每個 code sample 對應一個 comparator sample',
+    'K_q = √(2/π)/σ_v 為小訊號近似（|e_det| ≪ σ_v）；σ_w 預測假設 GMAC 雜訊 iid（σ_η² ≈ E[x_ref²]/N）且線性化有效',
+    `C 與固定點由前 ${S} 個 code 樣本（略過前 ${s0} 個暫態）估計；mean-field 固定點使用 ${Smf} 個樣本`,
+  ]
+  if (!p.quantize) assumptions.push('gain_register 未啟用（quantize_physical = false）：w 為理想浮點，internal_bits / physical_bits 不生效')
+  else
+    assumptions.push(
+      `定點暫存器：內部 ${p.internalBits} bits（小數 ${p.internalBits - p.physicalBits} bits）、實體 ${p.physicalBits} bits、LSB ${p.lsbFs} fs、${p.signedReg ? 'signed' : 'unsigned'}、rounding = ${p.rounding}（增量與實體 code 皆用此規則）、overflow = ${p.overflow}${pmux ? '；9 個權重共用同一組暫存器設定' : ''}`,
+    )
+  return { p, design, N, K, D, dUp, P, target: pmux ? [...phosOffsets(p.phosRmsFs), p.aFs] : [p.aFs], norm, hat, analytic, mimo, warnings, assumptions, modelLevel }
+}
+// #endregion
+
+/** 新引擎一次執行的結果（P 個權重；trace 時另含穩態視窗與 mean-field 平均軌跡） */
+export interface LabLoopResult {
+  P: number
+  /** 每個權重的 block 級軌跡：w[j][k]、wPhys[j][k]（長度 K + 1）、G[j][k]（長度 K） */
+  w: Float64Array[]
+  wPhys: Float64Array[]
+  G: Float64Array[]
+  /** GOS 通道的指標（與 blockLms 的 computeMetrics 相同定義） */
+  metrics: BlockLmsMetrics
+  /** 每個權重後半段的平均、標準差、bias（= mean − 目標）、settling */
+  perWeight: { meanW: number[]; stdW: number[]; bias: number[]; settlingBlock: (number | null)[] }
+  /** pmux8：PHOS 殘差（後半段平均 − ε）去共模後的 RMS 與共模值 [fs]；P = 1 時 NaN */
+  phosRmsFs: number
+  phosCommonFs: number
+  /** 穩態視窗（trace 時）；含每個相位的 one-hot 經 T 的響應，tStatic 已算好 */
+  window: (ReplayWindow & { phase: Float64Array | null }) | null
+  /** mean-field 平均軌跡（每個權重）與 GOS 的 C_k、B_k（meanField 時） */
+  meanField: { w: Float64Array[]; C: Float64Array; B: Float64Array } | null
+  warnings: string[]
+  divergenceBlock: number | null
+}
+
+// #region core:runLabLoop
+/**
+ * 多權重 sign-error block LMS（新引擎）。與 runBlockLms 相同的亂數分流（'code-pattern'、'comparator-noise'、'gain-register-rounding'）、
+ * 相同的 inner loop 運算順序，推廣成 P 個權重：
+ *   e_DTC[n] = (a − w_g,app)·x[n] [+ (ε_p − w_p,app)] [+ d(x)]，u = H_PD{e_DTC}，e = u + b + v，q = sign(e)，
+ *   G_j = (1/N)Σ q·ψ_j（ψ_g = x_ref；ψ_p = one-hot 或其 delayed / filtered 版本），w_j ← phys(w_j + μ_j G_j)。
+ * trace 時同時記錄穩態視窗（x、e_DTC、u_pd、e、q、t_out 與 T{x}、T{d}、T{1_p}），
+ * meanField 時同時跑 mean-field twin（q 換成 erf(e_det/(√2σ_v))，權重在 block 內凍結）。
+ */
+export function runLabLoop(pr: LabPrepared, o: { windowBlocks?: number; meanField?: boolean; trace?: boolean; quantize?: boolean; untilBlock?: number } = {}): LabLoopResult {
+  const { p, design, N, K, D, dUp, P } = pr
+  const pmux = P > 1
+  const a = p.aFs
+  const target = pr.target
+  const eps = pmux ? target.slice(0, PMUX_PHASES) : []
+  const sigma = p.sigmaV
+  const bOff = p.compOffsetFs
+  const hasNl = p.dtcOffsetFs !== 0 || p.c2 !== 0 || p.c3 !== 0
+  const nlOff = p.dtcOffsetFs
+  const nlC2 = p.c2
+  const nlC3 = p.c3
+  const avg = p.gmMode === 'average'
+  const qLo = p.encoding === 'unipolar_unmapped_bug' ? 0 : -1
+  const bug = p.encoding === 'unipolar_unmapped_bug'
+  const mapped = p.encoding === 'unipolar_mapped'
+  const normOff = pr.norm.offset
+  const normSc = pr.norm.scale
+  const doNorm = normOff !== 0 || normSc !== 1
+  const identity = design.kind === 'none'
+  const quantize = o.quantize ?? p.quantize
+  const trace = o.trace ?? false
+  const wantMf = o.meanField ?? false
+  const mus: number[] = Array.from({ length: P }, (_, j) => (pmux && j !== GOS_INDEX ? p.muPhosFs : p.muFs))
+  const gIdx = pmux ? GOS_INDEX : 0
+
+  // 亂數流（與 runBlockLms 相同的分流順序）
+  const root = createRng(p.seed)
+  const src = createLabCodeSource(p, root.fork('code-pattern'), pmux && p.pmuxOrder === 'random' ? root.fork('pmux-rotation') : null)
+  const gauss = createZigguratNormal(root.fork('comparator-noise'))
+  const roundRng = root.fork('gain-register-rounding')
+  const pathF = identity ? null : new StreamFilter(design.H.b, design.H.a)
+  const hat = pr.hat
+  const hatF = hat ? new StreamFilter(hat.b, hat.a) : null
+  const hatP: StreamFilter[] = pmux && hat ? Array.from({ length: PMUX_PHASES }, () => new StreamFilter(hat.b, hat.a)) : []
+  // 分析用（不消耗亂數）
+  const uxF = identity ? null : new StreamFilter(design.H.b, design.H.a)
+  const udF = identity || !hasNl ? null : new StreamFilter(design.H.b, design.H.a)
+  const u1F: StreamFilter[] = pmux && !identity && wantMf ? Array.from({ length: PMUX_PHASES }, () => new StreamFilter(design.H.b, design.H.a)) : []
+  const tF = trace ? new StreamFilter(design.T.b, design.T.a) : null
+  const txF = trace ? new StreamFilter(design.T.b, design.T.a) : null
+  const tdF = trace && hasNl ? new StreamFilter(design.T.b, design.T.a) : null
+  const t1F: StreamFilter[] = trace && pmux ? Array.from({ length: PMUX_PHASES }, () => new StreamFilter(design.T.b, design.T.a)) : []
+
+  const xext = new Float64Array(N + D)
+  // 第一個 block 的前 D 個 p[n−D] 還不存在：填 −1（不累加），和 x_ref 在那裡是 0 一致
+  const pext = pmux ? new Int32Array(N + D).fill(-1) : null
+  const rext = hat ? new Float64Array(N + D) : null
+  const xr = rext ?? xext
+  const rP: Float64Array[] = pmux && hat ? Array.from({ length: PMUX_PHASES }, () => new Float64Array(N + D)) : []
+
+  // ── gain register（每個權重一份，共用設定；與 blockLms 相同的規則與亂數順序）──
+  const F = p.internalBits - p.physicalBits
+  const scaleF = Math.pow(2, F)
+  const lsbInt = p.lsbFs / scaleF
+  const intLo = p.signedReg ? -Math.pow(2, p.internalBits - 1) : 0
+  const intHi = p.signedReg ? Math.pow(2, p.internalBits - 1) - 1 : Math.pow(2, p.internalBits) - 1
+  const phyLo = p.signedReg ? -Math.pow(2, p.physicalBits - 1) : 0
+  const phyHi = p.signedReg ? Math.pow(2, p.physicalBits - 1) - 1 : Math.pow(2, p.physicalBits) - 1
+  let saturationCount = 0
+  let wrapCount = 0
+  const roundWith = (v: number): number => (p.rounding === 'nearest' ? Math.floor(v + 0.5) : p.rounding === 'truncate' ? Math.floor(v) : Math.floor(v + roundRng.uniform()))
+  const clampOrWrap = (v: number, lo: number, hi: number): number => {
+    if (v >= lo && v <= hi) return v
+    if (p.overflow === 'saturate') {
+      saturationCount++
+      return v > hi ? hi : lo
+    }
+    wrapCount++
+    const R = hi - lo + 1
+    return lo + ((((v - lo) % R) + R) % R)
+  }
+  const wInt = new Float64Array(P)
+  const physOf = (j: number): number => clampOrWrap(roundWith(wInt[j] / scaleF), phyLo, phyHi) * p.lsbFs
+  const w: Float64Array[] = Array.from({ length: P }, () => new Float64Array(K + 1))
+  const wPhys: Float64Array[] = Array.from({ length: P }, () => new Float64Array(K + 1))
+  const G: Float64Array[] = Array.from({ length: P }, () => new Float64Array(K))
+  const wCur = new Float64Array(P)
+  for (let j = 0; j < P; j++) {
+    const w0 = j === gIdx ? p.w0Fs : 0
+    if (quantize) {
+      wInt[j] = clampOrWrap(roundWith(w0 / lsbInt), intLo, intHi)
+      wCur[j] = wInt[j] * lsbInt
+      wPhys[j][0] = physOf(j)
+    } else {
+      wCur[j] = w0
+      wPhys[j][0] = w0
+    }
+    w[j][0] = wCur[j]
+  }
+
+  // ── 穩態視窗 ──
+  const Kend = Math.min(K, o.untilBlock ?? K)
+  const W = trace ? Math.max(1, Math.min(o.windowBlocks ?? 1, Kend)) : 0
+  const k0 = Kend - W
+  const L = W * N
+  const win = trace
+    ? {
+        x: new Float64Array(L),
+        eDtc: new Float64Array(L),
+        uPd: new Float64Array(L),
+        e: new Float64Array(L),
+        q: new Float64Array(L),
+        xRef: new Float64Array(L),
+        ux: new Float64Array(L),
+        tOut: new Float64Array(L),
+        tStatic: new Float64Array(L),
+        tx: new Float64Array(L),
+        tdx: hasNl ? new Float64Array(L) : null,
+        t1p: pmux ? Array.from({ length: PMUX_PHASES }, () => new Float64Array(L)) : null,
+        phase: pmux ? new Float64Array(L) : null,
+      }
+    : null
+
+  // ── mean-field twin（權重在 block 內凍結；q → erf）──
+  const inv = sigma > 0 ? 1 / (sigma * Math.SQRT2) : NaN
+  const mfW: Float64Array[] = wantMf ? Array.from({ length: P }, () => new Float64Array(K + 1)) : []
+  const mfC = wantMf ? new Float64Array(K) : null
+  const mfB = wantMf ? new Float64Array(K) : null
+  if (wantMf) for (let j = 0; j < P; j++) mfW[j][0] = j === gIdx ? p.w0Fs : 0
+  const uxB = wantMf ? new Float64Array(N) : null
+  const udB = wantMf && hasNl ? new Float64Array(N) : null
+  const u1B: Float64Array[] = wantMf && pmux ? Array.from({ length: PMUX_PHASES }, () => new Float64Array(N)) : []
+  const mfAcc = new Float64Array(P)
+
+  let divergenceBlock: number | null = null
+  const warnings: string[] = []
+  const accs = new Float64Array(P)
+  for (let k = 0; k < Kend; k++) {
+    const kApp = k - dUp >= 0 ? k - dUp : 0
+    const coef = a - wPhys[gIdx][kApp]
+    if (D > 0) {
+      xext.copyWithin(0, N, N + D)
+      if (pext) pext.copyWithin(0, N, N + D)
+      if (rext) rext.copyWithin(0, N, N + D)
+      for (const r of rP) r.copyWithin(0, N, N + D)
+    }
+    src.fill(xext, pext, D, N)
+    if (doNorm) for (let i = D; i < D + N; i++) xext[i] = (xext[i] - normOff) * normSc
+    if (hatF && rext) for (let i = D; i < D + N; i++) rext[i] = hatF.step(xext[i])
+    if (pext && hat) for (let i = D; i < D + N; i++) for (let j = 0; j < PMUX_PHASES; j++) rP[j][i] = hatP[j].step(pext[i] === j ? 1 : 0)
+    const rec = win !== null && k >= k0
+    const base = (k - k0) * N
+    accs.fill(0)
+    for (let n = 0; n < N; n++) {
+      const x = xext[D + n]
+      let dt = coef * x // DTC：(a − w_g,app)·x（P = 1、legacy 時與 runBlockLms 逐位元相同）
+      let ph = -1
+      if (pext) {
+        ph = pext[D + n]
+        dt += eps[ph] - wPhys[ph][kApp] // ← 差異：PMUX 第 p 相的 offset 減去該相的 PHOS 權重
+      }
+      if (hasNl) dt += nlOff + x * x * (nlC2 + nlC3 * x)
+      const u = pathF === null ? dt : pathF.step(dt)
+      const e = u + bOff + sigma * gauss()
+      let q: number
+      if (mapped) q = 2 * (e >= 0 ? 1 : 0) - 1
+      else q = e >= 0 ? 1 : qLo
+      const xrn = xr[n]
+      accs[gIdx] += q * xrn // GOS 的 GMAC
+      if (pext) {
+        if (hat) for (let j = 0; j < PMUX_PHASES; j++) accs[j] += q * rP[j][n]
+        else if (pext[n] >= 0) accs[pext[n]] += q // ← 差異：one-hot regressor（delayed D 時用 p[n−D]）：只有被選的那一相累加
+      }
+      // ── 分析用（不影響 G）──
+      let ux = NaN
+      let dx = 0
+      if (uxB || rec) ux = uxF === null ? x : uxF.step(x)
+      if (hasNl) dx = nlOff + x * x * (nlC2 + nlC3 * x)
+      if (uxB) {
+        uxB[n] = ux
+        if (udB) udB[n] = udF === null ? dx : udF.step(dx)
+        if (pext && pmux) for (let j = 0; j < PMUX_PHASES; j++) u1B[j][n] = identity ? (ph === j ? 1 : 0) : u1F[j].step(ph === j ? 1 : 0)
+      }
+      if (rec && win && tF && txF) {
+        const i = base + n
+        win.x[i] = x
+        win.eDtc[i] = dt
+        win.uPd[i] = u
+        win.e[i] = e
+        win.q[i] = q
+        win.xRef[i] = xrn
+        win.ux[i] = ux
+        win.tOut[i] = tF.step(dt) // ← 差異：同一個 e_DTC 再走一次 T ⇒ output timing error
+        win.tx[i] = txF.step(x)
+        if (win.tdx && tdF) win.tdx[i] = tdF.step(dx)
+        if (win.t1p) for (let j = 0; j < PMUX_PHASES; j++) win.t1p[j][i] = t1F[j].step(ph === j ? 1 : 0)
+        if (win.phase) win.phase[i] = ph
+      } else if (trace && tF && txF) {
+        // 視窗之前也要讓 T 的狀態跟上（濾波器狀態跨 block 持續）
+        tF.step(dt)
+        txF.step(x)
+        if (tdF) tdF.step(dx)
+        for (let j = 0; j < t1F.length; j++) t1F[j].step(ph === j ? 1 : 0)
+      }
+    }
+    // ── mean-field twin：這個 block（權重取 d 個 block 前的 ŵ）──
+    if (wantMf && uxB && mfC && mfB) {
+      const kMf = k - dUp >= 0 ? k - dUp : 0
+      const cg = a - mfW[gIdx][kMf]
+      mfAcc.fill(0)
+      let c = 0
+      let bsum = 0
+      for (let n = 0; n < N; n++) {
+        let eDet = cg * uxB[n] + (udB ? udB[n] : 0) + bOff
+        if (pmux) for (let j = 0; j < PMUX_PHASES; j++) eDet += (eps[j] - mfW[j][kMf]) * u1B[j][n]
+        const m = erfFast(eDet * inv)
+        const mq = bug ? 0.5 * (1 + m) : m
+        mfAcc[gIdx] += mq * xr[n]
+        if (pext) {
+          if (hat) for (let j = 0; j < PMUX_PHASES; j++) mfAcc[j] += mq * rP[j][n]
+          else if (pext[n] >= 0) mfAcc[pext[n]] += mq
+        }
+        c += xr[n] * uxB[n]
+        bsum += xr[n] * (eDet - cg * uxB[n])
+      }
+      for (let j = 0; j < P; j++) mfW[j][k + 1] = mfW[j][k] + mus[j] * (avg ? mfAcc[j] / N : mfAcc[j])
+      mfC[k] = c / N
+      mfB[k] = bsum / N
+    }
+    // ── 更新（每個權重；暫存器的亂數依 j 的順序消耗）──
+    let bad = false
+    for (let j = 0; j < P; j++) {
+      const Gk = avg ? accs[j] / N : accs[j]
+      G[j][k] = Gk
+      if (quantize) {
+        const incQ = roundWith((mus[j] * Gk) / lsbInt)
+        wInt[j] = clampOrWrap(wInt[j] + incQ, intLo, intHi)
+        wCur[j] = wInt[j] * lsbInt
+        wPhys[j][k + 1] = physOf(j)
+      } else {
+        wCur[j] = wCur[j] + mus[j] * Gk
+        wPhys[j][k + 1] = wCur[j]
+      }
+      w[j][k + 1] = wCur[j]
+      if (!Number.isFinite(wCur[j]) || Math.abs(wCur[j]) > 1e12) bad = true
+    }
+    if (bad) {
+      divergenceBlock = k + 1
+      for (let j = 0; j < P; j++) {
+        for (let i = k + 1; i < K; i++) G[j][i] = NaN
+        for (let i = k + 2; i <= K; i++) {
+          w[j][i] = NaN
+          wPhys[j][i] = NaN
+        }
+      }
+      warnings.push(`w 在 block ${k + 1} 發散（|w| > 1e12 fs 或非有限數），模擬停止`)
+      break
+    }
+  }
+  // #endregion
+  if (saturationCount > 0) warnings.push(`gain register 飽和 ${saturationCount} 次（anti-windup / 調整範圍不足，§13.6）`)
+  if (wrapCount > 0) warnings.push(`gain register 溢位 wrap ${wrapCount} 次：數值跳到另一端（RTL overflow bug，§16.1）`)
+
+  // ── 指標 ──
+  const metrics = labMetrics({ w: w[gIdx], wPhys: wPhys[gIdx], G: G[gIdx], a, qz: quantize, divergenceBlock, analytic: pr.analytic, lsb: p.lsbFs })
+  metrics.saturationCount = saturationCount
+  metrics.wrapCount = wrapCount
+  const h0 = Math.ceil((K + 1) / 2)
+  const perWeight = { meanW: new Array<number>(P).fill(NaN), stdW: new Array<number>(P).fill(NaN), bias: new Array<number>(P).fill(NaN), settlingBlock: new Array<number | null>(P).fill(null) }
+  if (divergenceBlock === null) {
+    for (let j = 0; j < P; j++) {
+      const m = labMetrics({ w: w[j], wPhys: wPhys[j], G: G[j], a: target[j], qz: quantize, divergenceBlock: null, analytic: pr.analytic, lsb: p.lsbFs })
+      perWeight.meanW[j] = m.meanW
+      perWeight.stdW[j] = m.stdW
+      perWeight.bias[j] = m.meanW - target[j]
+      perWeight.settlingBlock[j] = m.settlingBlock
+    }
+  }
+  let phosRmsFs = NaN
+  let phosCommonFs = NaN
+  if (pmux && divergenceBlock === null) {
+    const r = eps.map((e, j) => perWeight.meanW[j] - e)
+    phosCommonFs = r.reduce((s, v) => s + v, 0) / PMUX_PHASES
+    phosRmsFs = Math.sqrt(r.reduce((s, v) => s + (v - phosCommonFs) * (v - phosCommonFs), 0) / PMUX_PHASES)
+  }
+  if (!pr.analytic.stableMean && divergenceBlock === null && Number.isFinite(pr.analytic.g) && pr.analytic.g > 0)
+    warnings.push('線性化平均模型不穩定，但 sign-LMS 的 GMAC 有界（|G| ≤ max|x_ref|，sum 模式再乘 N），因此實際表現為大振幅振盪／limit cycle，而非數值發散')
+  void h0
+
+  // ── 視窗：w̄、靜態部分（線性疊加：T{(a − w̄_g)x + Σ(ε_p − w̄_p)1_p + d(x)}）──
+  let window: LabLoopResult['window'] = null
+  if (win) {
+    const wApp = new Float64Array(W)
+    const wBarP = new Float64Array(P)
+    for (let jw = 0; jw < W; jw++) {
+      const kk = k0 + jw
+      const kA = kk - dUp >= 0 ? kk - dUp : 0
+      for (let j = 0; j < P; j++) wBarP[j] += wPhys[j][kA]
+      wApp[jw] = wPhys[gIdx][kA]
+    }
+    for (let j = 0; j < P; j++) wBarP[j] /= W
+    const wBar = wBarP[gIdx]
+    for (let i = 0; i < L; i++) {
+      let ts = (a - wBar) * win.tx[i]
+      if (win.tdx) ts += win.tdx[i]
+      if (win.t1p) for (let j = 0; j < PMUX_PHASES; j++) ts += (eps[j] - wBarP[j]) * win.t1p[j][i]
+      win.tStatic[i] = ts
+    }
+    window = {
+      startBlock: k0,
+      blocks: W,
+      x: win.x,
+      eDtc: win.eDtc,
+      uPd: win.uPd,
+      e: win.e,
+      q: win.q,
+      xRef: win.xRef,
+      ux: win.ux,
+      tOut: win.tOut,
+      tStatic: win.tStatic,
+      tx: win.tx,
+      wApp,
+      wBar,
+      phase: win.phase,
+    }
+  }
+  return {
+    P,
+    w,
+    wPhys,
+    G,
+    metrics,
+    perWeight,
+    phosRmsFs,
+    phosCommonFs,
+    window,
+    meanField: wantMf && mfC && mfB ? { w: mfW, C: mfC, B: mfB } : null,
+    warnings,
+    divergenceBlock,
+  }
+}
+
+/** 與 blockLms 的 computeMetrics 相同的定義（後半段 block ⌈(K+1)/2⌉…K） */
+function labMetrics(p: { w: Float64Array; wPhys: Float64Array; G: Float64Array; a: number; qz: boolean; divergenceBlock: number | null; analytic: BlockLmsAnalytic; lsb: number }): BlockLmsMetrics {
+  const { w, wPhys, G, a } = p
+  const K = G.length
+  const h0 = Math.ceil((K + 1) / 2)
+  const diverged = p.divergenceBlock !== null
+  let meanW = NaN
+  let stdW = NaN
+  let meanWPhys = NaN
+  let mse = NaN
+  let settlingBlock: number | null = null
+  let limitCycleCount = 0
+  let limitCyclePeriod = 0
+  let meanG = NaN
+  if (!diverged) {
+    const m = K + 1 - h0
+    let s = 0
+    let sp = 0
+    let se = 0
+    for (let i = h0; i <= K; i++) {
+      s += w[i]
+      sp += wPhys[i]
+      se += (w[i] - a) * (w[i] - a)
+    }
+    meanW = s / m
+    meanWPhys = sp / m
+    mse = se / m
+    let v = 0
+    for (let i = h0; i <= K; i++) v += (w[i] - meanW) * (w[i] - meanW)
+    stdW = m > 1 ? Math.sqrt(v / (m - 1)) : NaN
+    const band = Math.max(4 * (Number.isFinite(stdW) ? stdW : 0), 1e-9 * Math.max(1, Math.abs(meanW)), p.qz ? p.lsb : 0)
+    let last = -1
+    for (let i = 0; i <= K; i++) if (Math.abs(w[i] - meanW) > band) last = i
+    settlingBlock = last < K ? last + 1 : null
+    let sg = 0
+    for (let i = 0; i < K; i++) sg += G[i]
+    meanG = sg / K
+    if (p.qz) {
+      for (let i = h0 + 1; i <= K; i++) if (wPhys[i] !== wPhys[i - 1]) limitCycleCount++
+      limitCyclePeriod = detectPeriod(wPhys.subarray(h0))
+    }
+  }
+  const pred = p.analytic.sigmaWPred
+  return {
+    meanW,
+    stdW,
+    meanWPhys,
+    bias: meanW - a,
+    mse,
+    settlingBlock,
+    saturationCount: 0,
+    wrapCount: 0,
+    limitCycleCount,
+    limitCyclePeriod,
+    sigmaWRatio: Number.isFinite(pred) && pred > 0 ? stdW / pred : NaN,
+    biasPred: p.analytic.wStarMeanField - a,
+    diverged,
+    divergenceBlock: p.divergenceBlock,
+    meanG,
+  }
+}
+
+// #region core:pmuxChecks
+/**
+ * 9 個權重的交叉比對（pmux8_gos）：
+ *   meanW：每個權重後半段的平均 vs mean-field 平均軌跡同一段的預測，容差 4 SE（AR(1)，ρ 取 9 權重平均模型的 spectral radius）+ 1 LSB；
+ *   sigma：每個權重對平均軌跡的殘差 RMS vs dlyap 的穩態 σ 預測（±(4√(2/n_eff) + 15%)；沒有預測時 n/a）；
+ *   stability：平均模型的 ρ < 1 與模擬要一致——穩定時模擬不發散；不穩定時模擬的可觀測殘差也不會收斂
+ *     （sign-LMS 的 G 有界，不穩定表現為大振幅振盪、不是數值發散；這時 meanW / sigma 沒有固定點可比，標 n/a）。
+ */
+export function pmuxChecks(a: {
+  p: LabParams
+  analysis: MimoAnalysis
+  w: Float64Array[]
+  meanField: Float64Array[] | null
+  diverged: boolean
+}): PipelineMimo['checks'] {
+  const { p, analysis } = a
+  const P = a.w.length
+  const K = a.w[0].length - 1
+  const h0 = Math.ceil((K + 1) / 2)
+  const m = K + 1 - h0
+  const rho = Math.min(Math.abs(Number.isFinite(analysis.rho) ? analysis.rho : 0.999), 0.999999)
+  const lsb = p.quantize ? p.lsbFs : 0
+  const names = analysis.names
+  if (a.diverged) {
+    const na: CheckItem = { status: 'n/a', note: '$w$ 數值發散' }
+    return { meanW: na, sigma: na, stability: { status: analysis.stable ? 'mismatch' : 'ok', note: analysis.stable ? '平均模型預測穩定，但模擬發散' : '平均模型預測不穩定（$\\rho\\ge1$），模擬也發散' } }
+  }
+  // 可觀測子空間的殘差大小：PHOS 與目標的差（共模不可觀測時先去共模）、GOS 的差乘上 x 經 H_PD 後的 RMS（換成 fs）
+  const removeCMr = P > 1 && !analysis.commonModeObservable
+  const gScale = Math.sqrt(Math.max(analysis.Ru[P - 1][P - 1], 0))
+  const residNorm = (wv: number[]): number => {
+    const rr = wv.map((v, j) => v - analysis.target[j])
+    if (removeCMr) {
+      const cm = rr.slice(0, PMUX_PHASES).reduce((acc, v) => acc + v, 0) / PMUX_PHASES
+      for (let j = 0; j < PMUX_PHASES; j++) rr[j] -= cm
+    }
+    rr[P - 1] *= gScale
+    return Math.sqrt(rr.reduce((acc, v) => acc + v * v, 0))
+  }
+  const r0 = residNorm(a.w.map((x) => x[0]))
+  const rH = residNorm(
+    a.w.map((x) => {
+      let acc = 0
+      for (let k = h0; k <= K; k++) acc += x[k]
+      return acc / m
+    }),
+  )
+  const resid = `可觀測子空間的殘差 $${texNum(r0, 4)}\\to${texNum(rH, 4)}\\,\\mathrm{fs}$（初值 → 後半段平均）`
+  if (!analysis.stable) {
+    const ratio = r0 > 1e-9 ? rH / r0 : NaN
+    const stability: CheckItem = !Number.isFinite(ratio)
+      ? { status: 'n/a', note: `平均模型預測不穩定（$\\rho=${texNum(analysis.rho, 5)}\\ge1$），但初值就在目標上，看不出收斂與否` }
+      : ratio >= 0.1
+        ? { status: 'ok', value: ratio, note: `平均模型預測不穩定（$\\rho=${texNum(analysis.rho, 5)}\\ge1$），模擬也沒有收斂：${resid}。sign-LMS 的 $G$ 有界，所以表現為大振幅振盪，不是數值發散` }
+        : { status: 'mismatch', value: ratio, note: `平均模型預測不穩定（$\\rho=${texNum(analysis.rho, 5)}\\ge1$），模擬卻收斂了：${resid}。線性化（小訊號 $K_q$）在這個工作點不準` }
+    const na: CheckItem = { status: 'n/a', note: '9 權重的平均模型不穩定：沒有固定點可比（同段的 mean-field 軌跡也不收斂）' }
+    return { meanW: na, sigma: na, stability }
+  }
+  const stability: CheckItem = { status: 'ok', note: `9 權重平均模型的 spectral radius $${texNum(analysis.rho, 5)}<1$，模擬沒有發散；${resid}` }
+  if (!a.meanField || !(p.sigmaV > 0)) {
+    const na: CheckItem = { status: 'n/a', note: !(p.sigmaV > 0) ? '$\\sigma_v=0$：沒有 mean-field（erf 退化成 sign）' : '沒有 mean-field 平均軌跡' }
+    return { meanW: na, sigma: na, stability }
+  }
+  let worst = 0
+  let worstName = ''
+  let worstD = 0
+  let worstTol = 0
+  const sigmaItems: { name: string; ratio: number; rel: number }[] = []
+  // 共模不可觀測（H_PD(1) = 0）時，8 個 PHOS 權重一起偏同一個常數沒有恢復力（隨機漫步、由暫態決定），
+  // dlyap 的 σ 也只涵蓋可觀測子空間 ⇒ PHOS 先各自減掉 8 個的平均（模擬與 mean-field 都減），再比平均與殘差
+  const removeCM = P > 1 && !analysis.commonModeObservable
+  const dev: Float64Array[] = Array.from({ length: P }, (_, j) => {
+    const d = new Float64Array(K + 1)
+    for (let k = h0; k <= K; k++) d[k] = a.w[j][k] - (a.meanField as Float64Array[])[j][k]
+    return d
+  })
+  if (removeCM)
+    for (let k = h0; k <= K; k++) {
+      let cm = 0
+      for (let j = 0; j < PMUX_PHASES; j++) cm += dev[j][k]
+      cm /= PMUX_PHASES
+      for (let j = 0; j < PMUX_PHASES; j++) dev[j][k] -= cm
+    }
+  for (let j = 0; j < P; j++) {
+    let sm = 0
+    let ms = 0
+    let dm = 0
+    for (let k = h0; k <= K; k++) {
+      sm += a.meanField[j][k]
+      ms += dev[j][k] * dev[j][k]
+      dm += dev[j][k]
+    }
+    const mfHalf = sm / m
+    const residRms = Math.sqrt(ms / m)
+    const wm = mfHalf + dm / m // 後半段平均（去共模後）= mean-field 同段 + 平均差
+    const sigPredJ = analysis.sigmaPred ? analysis.sigmaPred[j] : NaN
+    // SE 用「dlyap 預測」與「實測殘差」較大者：9 權重的 σ 預測假設 GMAC 雜訊 iid，MASH code 下會略低估
+    const sig = Math.max(Number.isFinite(sigPredJ) && sigPredJ > 0 ? sigPredJ : 0, residRms, lsb / Math.sqrt(12), 1e-12)
+    const se = Math.sqrt(ar1MeanVar(sig * sig, rho, m))
+    const tol = 4 * se + lsb + 1e-9 * Math.max(1, Math.abs(mfHalf))
+    const d = Math.abs(wm - mfHalf)
+    if (d / tol > worst) {
+      worst = d / tol
+      worstName = names[j]
+      worstD = d
+      worstTol = tol
+    }
+    if (Number.isFinite(sigPredJ) && sigPredJ > 0) {
+      const nEff = m * ((1 - rho * rho) / (1 + rho * rho))
+      sigmaItems.push({ name: names[j], ratio: residRms / sigPredJ, rel: 4 * Math.sqrt(2 / Math.max(nEff, 1e-9)) + 0.15 })
+    }
+  }
+  const meanW: CheckItem = {
+    status: worst <= 1 ? 'ok' : 'mismatch',
+    value: worstD,
+    analytic: 0,
+    tolerance: worstTol,
+    note: `${P} 個權重後半段的平均 vs mean-field 平均軌跡同段預測${removeCM ? '（PHOS 先去共模：共模經 $H_{\\mathrm{PD}}(1)=0$ 不可觀測）' : ''}：最差的是 $${worstName}$，差 $${texNum(worstD)}\\,\\mathrm{fs}$、容差 $4\\,\\mathrm{SE}${lsb > 0 ? '+1\\,\\mathrm{LSB}' : ''}=${texNum(worstTol)}\\,\\mathrm{fs}$（SE 由各權重的 $\\sigma$——dlyap 預測與實測殘差取較大者——與 $\\rho=${texNum(rho, 5)}$ 的 AR(1) 公式算出）`,
+  }
+  let sigma: CheckItem
+  if (sigmaItems.length === 0) sigma = { status: 'n/a', note: analysis.sigmaPred ? '沒有可比的 $\\sigma$ 預測' : '9 個權重的穩態共變異未計算（更新延遲 $d$ 太大）' }
+  else {
+    const bad = sigmaItems.filter((x) => Math.abs(x.ratio - 1) > x.rel)
+    const worstS = sigmaItems.reduce((acc, x) => (Math.abs(x.ratio - 1) > Math.abs(acc.ratio - 1) ? x : acc), sigmaItems[0])
+    sigma = {
+      status: bad.length === 0 ? 'ok' : 'mismatch',
+      value: worstS.ratio,
+      analytic: 1,
+      tolerance: worstS.rel,
+      note: `各權重對平均軌跡的殘差 RMS${removeCM ? '（PHOS 去共模）' : ''} / dlyap 的 $\\sigma$ 預測（可觀測子空間）：最差 $${worstS.name}$ 的比值 $${texNum(worstS.ratio, 4)}$，容差 $\\pm${texNum(worstS.rel, 3)}$（$4\\sqrt{2/n_{\\mathrm{eff}}}+15\\%$）${bad.length > 0 ? `；${bad.length} 個權重超出` : ''}`,
+    }
+  }
+  return { meanW, sigma, stability }
+}
+// #endregion
+
+/** 新引擎的整條 pipeline（spec 正負號、8 相 PMUX）：與 runPipeline 相同的輸出形狀，多了 engine 與 mimo。 */
+function runPipelineLab(p: LabParams): PipelineResult {
+  const t0 = now()
+  const design = pllDesign(p)
+  const pr = prepareLab(p, design)
+  const K = pr.K
+  const pmux = pr.P > 1
+  const gIdx = pmux ? GOS_INDEX : 0
+  const W0 = Math.max(1, Math.min(p.outBlocks, Math.floor(MAX_WINDOW_SAMPLES / p.N)))
+  let res = runLabLoop(pr, { windowBlocks: W0, trace: true, meanField: true })
+  const until = res.divergenceBlock !== null ? Math.max(1, res.divergenceBlock - 1) : K
+  if (res.divergenceBlock !== null) {
+    // 發散：視窗改取發散前的最後幾個 block（再跑一次到那裡為止；平均軌跡仍用整段的）
+    const again = runLabLoop(pr, { windowBlocks: Math.min(W0, until), trace: true, meanField: false, untilBlock: until })
+    res = { ...res, window: again.window }
+  }
+  const t1 = now()
+  const an = pr.analytic
+  const fOutHz = outputFrequencyHz(p)
+  const code = codeStage(p, an)
+  const warnings = pr.warnings.slice()
+  for (const w of res.warnings) if (!warnings.includes(w)) warnings.push(w)
+  const cfg = resolveConfig(toBlockLmsConfig(p))
+
+  // 浮點對照（定點時；同 seed、同 prepare）
+  let floatTwin: PipelineResult['floatTwin'] = null
+  if (p.quantize) {
+    const tw = runLabLoop(pr, { quantize: false })
+    floatTwin = { meanW: tw.metrics.meanW, stdW: tw.metrics.stdW, bias: tw.metrics.bias }
+  }
+  // 跨級一致性：spec 正負號、單一 gain、浮點時與「a、w₀、c₃ 變號的 legacy」blockLms 鏡像逐位元比對；其餘沒有獨立的第二份實作
+  let replay: PipelineResult['replay'] = null
+  if (!pmux && !p.quantize) {
+    const mirror: LabParams = { ...p, regressorSign: 'legacy', aFs: -p.aFs, w0Fs: -p.w0Fs, c3: -p.c3 }
+    const ref = runBlockLms(toBlockLmsConfig(mirror, { record: { sample_trace_blocks: 0, decimate: 1 } }))
+    let maxAbs = 0
+    const kEnd = Math.min(until, ref.metrics.divergenceBlock !== null ? ref.metrics.divergenceBlock - 1 : K)
+    for (let k = 0; k < kEnd; k++) {
+      const d = Math.abs(res.G[gIdx][k] + ref.blocks.G[k])
+      if (d > maxAbs || Number.isNaN(d)) maxAbs = Number.isNaN(d) ? Infinity : d
+    }
+    replay = { maxAbsDiffG: maxAbs, blocksCompared: kEnd }
+  }
+  const t2 = now()
+
+  const rwin = res.window as NonNullable<LabLoopResult['window']>
+  const idx = decimateIdx(rwin.x.length, TRACE_POINTS)
+  const window: PipelineResult['window'] = {
+    startBlock: rwin.startBlock,
+    blocks: rwin.blocks,
+    n: Float64Array.from(idx.map((i) => rwin.startBlock * p.N + i)),
+    x: pick(rwin.x, idx),
+    xRef: pick(rwin.xRef, idx),
+    eDtc: pick(rwin.eDtc, idx),
+    uPd: pick(rwin.uPd, idx),
+    e: pick(rwin.e, idx),
+    q: pick(rwin.q, idx),
+    tOut: pick(rwin.tOut, idx),
+  }
+  const snipLen = Math.min(p.N, SNIPPET_SAMPLES)
+  const snipStart = (rwin.blocks - 1) * p.N
+  const cut = (a: Float64Array): Float64Array => a.slice(snipStart, snipStart + snipLen)
+  const snippet: PipelineResult['snippet'] = {
+    startSample: (rwin.startBlock + rwin.blocks - 1) * p.N,
+    n: Float64Array.from({ length: snipLen }, (_, i) => (rwin.startBlock + rwin.blocks - 1) * p.N + i),
+    x: cut(rwin.x),
+    xRef: cut(rwin.xRef),
+    eDtc: cut(rwin.eDtc),
+    uPd: cut(rwin.uPd),
+    e: cut(rwin.e),
+    q: cut(rwin.q),
+    tOut: cut(rwin.tOut),
+    wApp: rwin.wApp[rwin.blocks - 1],
+  }
+  let output: OutputAnalysis | null = null
+  if (res.divergenceBlock === null) {
+    const firstOrder =
+      !pmux && p.codeSource === 'dsm_first_order' && !p.dither
+        ? (() => {
+            const st = firstOrderResidueStats(p.frac, p.dsmBits)
+            return { P: st.P, line1: st.line1, fracEff: st.fracEff }
+          })()
+        : null
+    output = analyzeOutput({
+      win: rwin,
+      fs: p.fRefHz,
+      fOut: fOutHz,
+      N: p.N,
+      T: design.T,
+      H: design.H,
+      mu: p.muFs,
+      g: an.g,
+      d: p.updateDelay,
+      sigmaEta2: an.sigmaEta2,
+      sigmaWPred: an.sigmaWPred,
+      fL: p.fLHz,
+      fH: p.fHHz,
+      aFs: p.aFs,
+      firstOrder,
+      normScale: an.normalization.scale,
+      staticLinearOnly: p.c2 === 0 && p.c3 === 0 && !p.quantize && !pmux,
+    })
+    if (pmux) output.notes.push('8 相 PMUX：靜態殘差含 PHOS 的殘差 $\\sum_p(\\varepsilon_p-\\bar w_p)1_p$；GOS 鋸齒跑在 $(8\\alpha\\bmod 1)$，一階封閉式的 fractional spur 不適用（以 findTones 為準）')
+  }
+  const t3 = now()
+
+  const kIdx = decimateIdx(K + 1, 4000)
+  const mf = res.meanField
+  const mfGos = mf && until === K ? mf.w[gIdx] : null
+  const lin = linearPrediction(an, p, K, mfGos)
+  const blocks = {
+    k: Float64Array.from(kIdx),
+    w: pick(res.w[gIdx], kIdx),
+    wPhys: pick(res.wPhys[gIdx], kIdx),
+    G: pick(Float64Array.from([...res.G[gIdx], NaN]), kIdx),
+    wMeanModel: pick(lin.traj, kIdx),
+    wLinearModel: pick(lin.trajLinear, kIdx),
+  }
+  const fixedPointSwing = mf && until === K ? quasiStaticFixedPoint({ C: mf.C, B: mf.B }, p, an.Ex2) : null
+  const modelLevel: LevelId = p.quantize ? 'L5' : 'L4'
+  const checks = pipelineChecks({ params: p, analytic: an, metrics: res.metrics, w: res.w[gIdx], replay, output, code, floatTwin, meanField: mfGos })
+  if (pmux) checks.noiseMix = { status: 'n/a', note: '8 相 PMUX：gain noise 含 PHOS 8 個權重的抖動（one-hot 經 $T$），單參數的 $\\sigma_w\\sqrt{\\bar x^2+\\mathrm{Var}(T\\{\\tilde x\\})}$ 近似不適用；以時域 RMS 為準' }
+  if (!replay) checks.replay = { status: 'n/a', note: pmux ? '8 相 PMUX 的 9 權重迴路只有一份實作（runLabLoop）：沒有獨立重播；單一 gain、legacy 的逐位元一致性由 unifiedLab.test.ts 守住' : '定點暫存器（unsigned／rounding 不對稱）無法用變號的 blockLms 鏡像比對' }
+  else if (replay.maxAbsDiffG === 0) checks.replay = { status: 'ok', value: 0, note: '新引擎（spec 正負號）的 $G_k$ 與「$a$、$w_0$、$c_3$ 變號的 legacy」runBlockLms 逐位元相反（$x\\to-x$ 的鏡像）：code → DTC → $H_{\\mathrm{PD}}$ → comparator → GMAC 每一級都對齊' }
+
+  let mimo: PipelineMimo | null = null
+  if (pmux && pr.mimo) {
+    const P = pr.P
+    const h0 = Math.ceil((K + 1) / 2)
+    const mfHalf = (j: number): number => {
+      if (!mf) return NaN
+      let s = 0
+      for (let k = h0; k <= K; k++) s += mf.w[j][k]
+      return s / (K + 1 - h0)
+    }
+    const removeCM = !pr.mimo.commonModeObservable && res.divergenceBlock === null
+    const stdObsOf = (j: number): number => {
+      if (!removeCM || j >= PMUX_PHASES) return res.perWeight.stdW[j]
+      let s1 = 0
+      let s2 = 0
+      for (let k = h0; k <= K; k++) {
+        let cm = 0
+        for (let i = 0; i < PMUX_PHASES; i++) cm += res.w[i][k]
+        const v = res.w[j][k] - cm / PMUX_PHASES
+        s1 += v
+        s2 += v * v
+      }
+      const n = K + 1 - h0
+      return n > 1 ? Math.sqrt(Math.max(0, (s2 - (s1 * s1) / n) / (n - 1))) : NaN
+    }
+    const perWeight = Array.from({ length: P }, (_, j) => ({
+      name: pr.mimo!.names[j],
+      target: pr.target[j],
+      meanW: res.perWeight.meanW[j],
+      stdW: res.perWeight.stdW[j],
+      stdObs: stdObsOf(j),
+      bias: res.perWeight.bias[j],
+      settlingBlock: res.perWeight.settlingBlock[j],
+      sigmaPred: pr.mimo!.sigmaPred ? pr.mimo!.sigmaPred[j] : null,
+      meanFieldHalf: mfHalf(j),
+    }))
+    let phosRmsMf = NaN
+    if (mf) {
+      const r = Array.from({ length: PMUX_PHASES }, (_, j) => mfHalf(j) - pr.target[j])
+      const cm = r.reduce((s, v) => s + v, 0) / PMUX_PHASES
+      phosRmsMf = Math.sqrt(r.reduce((s, v) => s + (v - cm) * (v - cm), 0) / PMUX_PHASES)
+    }
+    mimo = {
+      analysis: pr.mimo,
+      names: pr.mimo.names,
+      target: pr.target,
+      blocks: { k: Float64Array.from(kIdx), w: res.w.map((v) => pick(v, kIdx)), wMeanModel: mf ? mf.w.map((v) => pick(v, kIdx)) : res.w.map(() => new Float64Array(kIdx.length).fill(NaN)) },
+      perWeight,
+      phosRmsFs: res.phosRmsFs,
+      phosCommonFs: res.phosCommonFs,
+      phosRmsMeanFieldFs: phosRmsMf,
+      checks: pmuxChecks({ p, analysis: pr.mimo, w: res.w, meanField: mf && until === K ? mf.w : null, diverged: res.divergenceBlock !== null }),
+      windowPhase: rwin.phase ? pick(rwin.phase, idx) : null,
+      snippetPhase: rwin.phase ? cut(rwin.phase) : null,
+    }
+  }
+  const stages = buildStages({ p, cfg, design, code, an, metrics: res.metrics, warnings, win: rwin, out: output, replay, fOutHz, loopLevel: pr.modelLevel, swing: fixedPointSwing, lin, mimo: mimo ? { analysis: mimo.analysis, phosRmsFs: mimo.phosRmsFs, phosCommonFs: mimo.phosCommonFs } : null })
+  const sgnText = p.regressorSign === 'spec' ? '$x=s/M\\ge0$（§2a；一階 DSM 時 $x\\in[0,1)$ 的鋸齒，code 越大 feedback edge 越早到）' : '$x=r=-s/M\\le0$（legacy；與既有 preset、golden vector 相同）'
+  const assumptions = [
+    `時間單位 fs；code 依 ${p.normalization} 正規化後無因次；$a$、$w$ 的單位為 fs per unit code；極性 $\\delta=a-w$；regressor 正負號 ${sgnText}`,
+    '$f_s=f_{\\mathrm{ref}}$：每個 DSM sample 對應一個 DTC code、一個 comparator sample（多速率未建模）',
+    pmux
+      ? `8 相 PMUX 在回授路徑、DTC 在 reference 輸入端：DSM 跑在 $(8\\alpha\\bmod 1)$（單位 $\\Delta=T_{\\mathrm{vco}}/8$），PMUX 相位 $p[n]=P[n]\\bmod 8$${p.pmuxOrder === 'random' ? '（再疊上已知的隨機旋轉 $m[n]$，DTC code 加 $m$）' : ''}；PD 的輸出 $u_{\\mathrm{pd}}=H_{\\mathrm{PD}}\\{(a-w_{g})x+(\\varepsilon_{p}-w_{p})+d(x)\\}$，comparator 取它：$e=u_{\\mathrm{pd}}+b+v$`
+      : 'DTC 在 reference 輸入端，回授路徑只有 divider；comparator 取 PD 的輸出：$e[n]=H_{\\mathrm{PD}}\\{e_{\\mathrm{DTC}}\\}[n]+b+v[n]$，$e_{\\mathrm{DTC}}=(a-w_{\\mathrm{app}})x+o_{\\mathrm{DTC}}+c_2x^2+c_3x^3$；$H_{\\mathrm{PD}}$ 狀態跨 block 持續（§15.2）',
+    pmux ? `9 個權重各自一個 GMAC：$G_g=\\tfrac1N\\sum q\\,x_{\\mathrm{ref}}$、$G_p=\\tfrac1N\\sum q\\,1\\{p[n-D]=p\\}$；更新 $w_g\\leftarrow w_g+\\mu G_g$（$\\mu=${p.muFs}\\,\\mathrm{fs}$）、$w_p\\leftarrow w_p+\\mu_pG_p$（$\\mu_p=${p.muPhosFs}\\,\\mathrm{fs}$）；PHOS 的目標 $\\varepsilon_p$ 是固定圖樣 × RMS $${p.phosRmsFs}\\,\\mathrm{fs}$（illustrative），共模經 $H_{\\mathrm{PD}}(1)=0$ 不可觀測` : '',
+    `$v[n]$ 為 iid Gaussian（$\\sigma_v=${p.sigmaV}\\,\\mathrm{fs}$），與 code 獨立；$q=\\mathrm{sign}(e)$，tie 規則 $e\\ge0\\Rightarrow q=+1$（E07）`,
+    design.kind === 'none' ? `主 PLL：${design.description}；PD 與輸出兩條路徑都取全通，所以這個基準不滿足 $H_{\\mathrm{PD}}+T=1$` : `主 PLL：${design.description}；$T=1-H_{\\mathrm{PD}}$（線性、時不變）`,
+    '$K_q=\\sqrt{2/\\pi}/\\sigma_v$ 是小訊號近似（$|e_{\\mathrm{det}}|\\ll\\sigma_v$）；$\\sigma_w$ 預測假設 GMAC 雜訊 iid 且線性化有效' + (pmux ? '（9 權重：$\\mathrm{Cov}(\\delta)$ 由離散 Lyapunov 方程解出，F-LAB.20）' : ''),
+    `$C$、固定點由前 $2^{17}$ 個 code 樣本估計（mean-field 固定點用 $2^{14}$ 個）`,
+    `輸出分析：最後 $${rwin.blocks}$ 個 block（$${rwin.blocks * p.N}$ 個 samples）的視窗；靜態殘差用該視窗的 $\\bar w$${pmux ? '（9 個權重各自的平均）' : ''}`,
+    '輸出端只含 DTC 殘差這一個雜訊來源（VCO / reference / PD 自身雜訊未計）',
+    p.quantize ? `gain register 定點（L5）：內部 $${p.internalBits}$ bits、實體 $${p.physicalBits}$ bits、$\\Delta=${p.lsbFs}\\,\\mathrm{fs}$、rounding = ${p.rounding}、overflow = ${p.overflow}${pmux ? '（9 個權重共用同一組設定）' : ''}` : 'gain register 未量化：$w$ 為理想浮點',
+    `模擬版本 ${UNIFIED_LAB_VERSION}（迴路由 unifiedLab.ts 的 runLabLoop 執行：與 runBlockLms 相同的 inner loop 推廣成 ${pr.P} 個權重與兩種正負號；單一 gain、legacy 時與 runBlockLms 逐位元相同）`,
+  ].filter((x) => x !== '')
+  return {
+    version: UNIFIED_LAB_VERSION,
+    params: { ...p },
+    config: cfg,
+    fOutHz,
+    pll: design,
+    code,
+    analytic: an,
+    metrics: res.metrics,
+    loopLevel: pr.modelLevel,
+    modelLevel,
+    blocks,
+    meanModel: lin.model,
+    fixedPointSwing,
+    window,
+    snippet,
+    replay,
+    output,
+    floatTwin,
+    stages,
+    checks,
+    warnings,
+    assumptions,
+    timingMs: { loop: t1 - t0, replay: t2 - t1, output: t3 - t2 },
+    engine: 'labLoop',
+    mimo,
+  }
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// 帶入手算用的封閉式（HC-LAB.1、HC-LAB.2）：9 權重資訊矩陣的特徵值與 μ 上限；三階 CPPLL 的反號帶緣
+// ───────────────────────────────────────────────────────────────────────────
+
+// #region core:pmuxClosedFormEigen
+/**
+ * H_PD = 1（none 路徑）、8 相等機率走訪、x 與相位獨立時，9 權重的資訊矩陣 R = E[φφᵀ] 有封閉式：
+ *   R_pp' = δ_pp'/8，R_px = E[x]/8，R_xx = E[x²]。
+ * 7 個「和為 0」的 PHOS 模式（與 x 無關）各有 λ = 1/8；剩下 2 維（共模方向 1/√8 與 x）是
+ *   [[1/8, b],[b, E[x²]]]，b = E[x]/√8 ⇒ λ± = (1/8 + E[x²])/2 ± √(((1/8 − E[x²])/2)² + b²)。
+ * 共用步長 μ 時每個模式的 pole 是 1 − μ K_q λ ⇒ μ_max = 2/(K_q λ_max)，最慢的模式 τ = 1/(μ K_q λ_min)。
+ */
+export function pmuxClosedFormEigen(Ex: number, Ex2: number): { b: number; lambdaPlus: number; lambdaMinus: number; lambdaPhos: number; lambdaMax: number; lambdaMin: number; cond: number; R: Matrix } {
+  const a = 1 / PMUX_PHASES
+  const b = Ex / Math.sqrt(PMUX_PHASES)
+  const half = (a + Ex2) / 2
+  const root = Math.sqrt(((a - Ex2) / 2) ** 2 + b * b)
+  const lambdaPlus = half + root
+  const lambdaMinus = half - root
+  const lambdaMax = Math.max(lambdaPlus, a)
+  const lambdaMin = Math.min(lambdaMinus, a)
+  const R: Matrix = Array.from({ length: PMUX_WEIGHTS }, (_, i) => Array.from({ length: PMUX_WEIGHTS }, (_, j) => (i === GOS_INDEX && j === GOS_INDEX ? Ex2 : i === GOS_INDEX || j === GOS_INDEX ? Ex / PMUX_PHASES : i === j ? a : 0)))
+  return { b, lambdaPlus, lambdaMinus, lambdaPhos: a, lambdaMax, lambdaMin, cond: lambdaMax / lambdaMin, R }
+}
+// #endregion
+
+/** 共用步長的 μ 上限與最慢模式的時間常數（M = μI、H_PD = 1 的 9 權重模型） */
+export function pmuxUniformStepLimits(Kq: number, lambdaMax: number, lambdaMin: number, mu: number): { muMax: number; tauSlowBlocks: number; tauFastBlocks: number } {
+  return { muMax: 2 / (Kq * lambdaMax), tauSlowBlocks: 1 / (mu * Kq * lambdaMin), tauFastBlocks: 1 / (mu * Kq * lambdaMax) }
+}
+
+// #region core:cppll3MinusReL
+/**
+ * impulse-invariant 三階 CPPLL 的 −Re L(f)（f 以 f_s 正規化；sspll.ts cppllMinusReL 的同一式）：
+ *   −Re L = K/(4 sin²(Ω/2)) + B(1 − p²)/(2|1 − p e^{−jΩ}|²)，Ω = 2πf。
+ * 反號帶 Re H_PD < 0 ⟺ 1 + Re L < 0 ⟺ −Re L > 1；−Re L 對 f 單調遞減，所以帶緣是 −Re L(f) = 1 的唯一根（loop latency = 1 拍時）。
+ */
+export function cppll3MinusReL(d: Pick<Cppll3Design, 'K' | 'B' | 'p'>, f: number): { term1: number; term2: number; total: number } {
+  const W = 2 * Math.PI * f
+  const s = Math.sin(W / 2)
+  const den = 1 - 2 * d.p * Math.cos(W) + d.p * d.p
+  const term1 = d.K / (4 * s * s)
+  const term2 = (d.B * (1 - d.p * d.p)) / (2 * den)
+  return { term1, term2, total: term1 + term2 }
+}
+// #endregion
+
+/** 反號帶上緣（正規化 f）：−Re L(f) = 1 的根（二分法；整段都 > 1 時回傳 0.5） */
+export function cppll3InversionEdge(d: Pick<Cppll3Design, 'K' | 'B' | 'p'>): number {
+  const g = (f: number) => cppll3MinusReL(d, f).total - 1
+  if (g(0.5) >= 0) return 0.5
+  let lo = 1e-9
+  let hi = 0.5
+  for (let it = 0; it < 200; it++) {
+    const mid = 0.5 * (lo + hi)
+    if (mid === lo || mid === hi) break
+    if (g(mid) > 0) lo = mid
+    else hi = mid
+  }
+  return 0.5 * (lo + hi)
 }

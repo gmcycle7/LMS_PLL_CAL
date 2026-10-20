@@ -142,7 +142,7 @@ export function D7Eigen() {
         mean 的「收斂」會誤判。數值由 <code>src/simulation/models/lms.ts</code> 的 <code>meanPole</code>、<code>meanSquareFactor</code>、
         <code>meanSquareMuMax</code> 計算（與 <ChRef ch="03">Ch03</ChRef> 同一份程式）。
       </p>
-      <ModeGate min="research">
+      <ModeGate min="research" summary="第三種收斂：almost-sure 收斂與 mean-square 的差別">
         <Callout kind="info" title="Research：第三種收斂">
           單一樣本路徑的 almost-sure 收斂由 <Tex>{r`E[\ln|1-\mu x^2|]<0`}</Tex> 決定，界限比 mean-square 寬得多；在兩者之間，<Tex>{r`E[\delta_n^2]`}</Tex>{' '}
           發散但幾乎每條路徑收斂 （<ErratumNote id="E14" />

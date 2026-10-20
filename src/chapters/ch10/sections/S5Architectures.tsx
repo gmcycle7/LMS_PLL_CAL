@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react'
-import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Section, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
+import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Section, StepDerivation, Tex, TexBlock, ChRef, ChapterErratum } from '@/components'
 import mimoSrc from '@/simulation/models/mimo.ts?raw'
 import mimoPy from '../../../../golden/lms_pll_golden/mimo.py?raw'
 import { RULE_SHORT, type MimoRule } from '@/simulation/models/mimo'
-import { Deriv, Erratum, Fig, TagRow, goldenSection10, n, nint, tn } from '../common'
+import { Deriv, Fig, TagRow, goldenSection10, n, nint, tn } from '../common'
 import { NUM } from '../numbers'
 
 const PATH = 'src/simulation/models/mimo.ts'
@@ -317,7 +317,7 @@ export function S5Architectures() {
 
       <Section kind="assumptions" title="10.7 四種架構比較" id="ch10-four-architectures">
         <TagRow>
-          <Erratum id="E25" title="規格 §10.3 標題寫「三種架構比較」，表格實際有四列" />
+          <ChapterErratum id="E25" />
           <span className="small muted">規格 §10.3（標題已更正為「四種」）</span>
         </TagRow>
         <div className="table-wrap">
@@ -355,7 +355,7 @@ export function S5Architectures() {
                 </td>
                 <td>
                   Matrix/LUT、定點量化、corners 的模型誤差（<Tex>{String.raw`\hat{\mathbf J}\ne\mathbf J`}</Tex>
-                  <Erratum id="E24" />）
+                  <ChapterErratum id="E24" />）
                 </td>
                 <td>Full inverse、Regularized</td>
               </tr>
@@ -538,8 +538,8 @@ export function S5Architectures() {
             兩個讀碼提醒：(1) Python 以實體單位直接寫 <Tex>{String.raw`\mathbf M=\gamma(K_q\mathbf R)^{-1}`}</Tex>，TypeScript 則先算無因次的{' '}
             <Tex>{String.raw`\mathbf M_n`}</Tex> 再由 <code>blockUpdate</code> 除以 <Tex>{'K_q'}</Tex>，兩者相同。(2) golden 的 docstring 沿用規格原文的{' '}
             <Tex>{String.raw`\operatorname{Var}(\delta_i)`}</Tex> 與 <Tex>{String.raw`\lambda`}</Tex>：前者指第 i 個 eigen-mode 的 <Tex>{String.raw`\operatorname{Var}(\xi_i)`}</Tex>
-            <Erratum id="E37" />，後者的參數 <code>lam</code> 就是本章的 <Tex>{String.raw`\lambda_{\mathrm{reg}}`}</Tex>
-            <Erratum id="E22" />。
+            <ChapterErratum id="E37" />，後者的參數 <code>lam</code> 就是本章的 <Tex>{String.raw`\lambda_{\mathrm{reg}}`}</Tex>
+            <ChapterErratum id="E22" />。
           </p>
         </ModeGate>
       </Section>

@@ -4,7 +4,7 @@ import type { ReactNode } from 'react'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { HandCalc, MathText, checkAnswer, defaultValues, randomValues } from '@/components'
 import type { HandCalcDef, HandCalcSolution } from '@/data/types'
-import { normCdf } from '@/simulation/core'
+import { erfc, normCdf } from '@/simulation/core'
 import {
   asymptoticFinalOptimum,
   budgetSplit,
@@ -173,11 +173,44 @@ const INDEPENDENT: Record<string, (v: Record<string, number>) => number[]> = {
     const total = d0 * d0 * eps * eps + variance
     return [mu, p, 90 - (Math.asin((1 - p) / 2) * 180) / Math.PI, -1 / Math.log(p), Math.sqrt(total)]
   },
+  // §14.6b：直接照 F-14.22／F-14.23／F-14.25 寫，不呼叫 acquisition.ts
+  'HC-14.9': ({ kvco, gf, M, fref, df0, ftol, nld }) => {
+    const kf = (kvco * gf) / (M * fref)
+    const nc = Math.ceil(Math.log(ftol / Math.abs(df0)) / Math.log(1 - kf) - 1e-9)
+    const nfl = nc + nld - 1
+    return [kf, nc, nfl, Math.pow(1 - kf, nfl + 1) * df0]
+  },
+  'HC-14.10': ({ ftol, sigf, nld, rx }) => {
+    const z = ftol / sigf
+    const pin0 = normCdf(z) - normCdf(-z)
+    const q = erfc(z / Math.SQRT2) // 1 − p_in(0)，避免相消
+    const pmiss = -Math.expm1(nld * Math.log1p(-q))
+    let et = 0
+    for (let k = 1; k <= nld; k++) et += Math.pow(pin0, -k)
+    const dfx = rx * ftol
+    const pinx = normCdf((ftol - dfx) / sigf) - normCdf((-ftol - dfx) / sigf)
+    return [pin0, pmiss, et, Math.pow(pinx, nld)]
+  },
+  'HC-14.11': ({ fbw, fref, M, dfh, th0, thmax, npl, W, rmsmax, nfl, N }) => {
+    const gp = 1 - Math.exp((-2 * Math.PI * fbw) / fref)
+    const dT = (dfh / (M * fref * fref)) * 1e15
+    const thss = dT / gp
+    const margin = thmax - Math.abs(thss)
+    const dev = Math.abs(th0 - thss)
+    const nTr = dev < margin ? 1 : Math.max(1, Math.ceil(Math.log(margin / dev) / Math.log(1 - gp) - 1e-9)) // 第一個計數的樣本在 n_FL + 1
+    const nPl = nTr + npl - 1
+    const budget = (rmsmax * rmsmax - thss * thss) * W
+    const e0 = (dev * dev) / (1 - (1 - gp) ** 2)
+    const nTrW = e0 < budget ? 1 : Math.max(1, Math.ceil(Math.log(budget / e0) / (2 * Math.log(1 - gp)) - 1e-9))
+    const nSettle = W + nTrW - 1
+    const nEnable = nfl + Math.max(nPl, nSettle)
+    return [gp, thss, nPl, nSettle, nEnable, Math.ceil((nEnable + 1) / N)]
+  },
 }
 
 describe('Ch14 帶入手算：題庫結構', () => {
-  it('8 題、id 為 HC-14.1…HC-14.8、page 為 /ch/14、三種難度都有', () => {
-    expect(HANDCALCS.map((h) => h.id)).toEqual(Array.from({ length: 8 }, (_, i) => `HC-14.${i + 1}`))
+  it('11 題、id 為 HC-14.1…HC-14.11、page 為 /ch/14、三種難度都有', () => {
+    expect(HANDCALCS.map((h) => h.id)).toEqual(Array.from({ length: 11 }, (_, i) => `HC-14.${i + 1}`))
     for (const h of HANDCALCS) {
       expect(h.page).toBe('/ch/14')
       expect(h.inputs.length).toBeGreaterThan(0)
@@ -904,6 +937,14 @@ const STRESS: [string, Record<string, number>][] = [
   ['HC-14.8', { theta: 89.9 }],
   ['HC-14.8', { T: 4096 }],
   ['HC-14.8', { d0: 0.00002 }],
+  ['HC-14.9', { kvco: 1e9, gf: 0.001, M: 1, fref: 1e9 }],
+  ['HC-14.9', { df0: 1.5e6 }],
+  ['HC-14.9', { gf: 100, M: 2, fref: 1e9 }], // K_f = 0.125
+  ['HC-14.10', { sigf: 1.25e5 }], // z = 8：p_in 非常接近 1
+  ['HC-14.10', { sigf: 2e6, nld: 2 }], // z = 0.5：幾乎每個視窗都漏
+  ['HC-14.11', { th0: 50 }],
+  ['HC-14.11', { fbw: 1e6, dfh: 1e3 }], // g_p = 1.6e-3：暫態要上千個週期（dfh 也要降：預設 1 MHz 的 θ_ss = ΔT/g_p ≈ 9955 fs 超過 θ_max，validate 會正確拒絕）
+  ['HC-14.11', { dfh: 0 }],
 ]
 
 describe('Ch14 帶入手算：(e) 畫面上的每一個數字都對得起來（獨立的 TeX 算式檢查）', () => {
@@ -962,6 +1003,13 @@ describe('Ch14 帶入手算：(e) 畫面上的每一個數字都對得起來（�
       ['HC-14.8', { theta: 60 }],
       ['HC-14.8', { theta: -45, eps: 0.01 }],
       ['HC-14.8', { eps: 0.001 }],
+      ['HC-14.9', { df0: -5e7 }],
+      ['HC-14.9', { nld: 1 }],
+      ['HC-14.10', { rx: 1.5, nld: 8 }],
+      ['HC-14.10', { sigf: 2.5e5, ftol: 2e6 }],
+      ['HC-14.11', { th0: 50 }], // 一開始就在門檻內、暫態能量放得進視窗：兩個 n_tr = 1 的分支
+      ['HC-14.11', { th0: -25000 }],
+      ['HC-14.11', { W: 8, rmsmax: 400 }],
     ]
     for (const [id, patch] of special) assertArithmetic(hc(id), { ...defaultValues(hc(id)), ...patch })
   }, 60000)
@@ -1149,7 +1197,7 @@ describe('Ch14 帶入手算：(d) <HandCalc> 渲染', () => {
 })
 
 describe('Ch14 頁面上的手算題位置', () => {
-  it('8 題都在頁面上、各自緊跟在對應公式之後、綜合題在思考題之前；整頁沒有 .katex-error', () => {
+  it('11 題都在頁面上、各自緊跟在對應公式之後、綜合題在思考題之前；整頁沒有 .katex-error', () => {
     localStorage.setItem('lmspll.mode', 'research')
     const { container } = render(wrap(<Chapter14 />))
     const el = (id: string) => container.querySelector(`[id="${id}"]`) as HTMLElement
@@ -1161,8 +1209,8 @@ describe('Ch14 頁面上的手算題位置', () => {
     for (const h of HANDCALCS) expect(el(`handcalc-${h.id}`), h.id).toBeTruthy()
     expect(container.querySelectorAll('.c-handcalc').length).toBe(HANDCALCS.length)
     // 每一題前面都有一句「換你算」的邀請
-    expect(container.querySelectorAll('.ch14-handcalc-invite').length).toBe(HANDCALCS.length)
-    for (const p of Array.from(container.querySelectorAll('.ch14-handcalc-invite'))) expect(p.textContent).toContain('換你算')
+    expect(container.querySelectorAll('.c-chapter-hand-lead').length).toBe(HANDCALCS.length)
+    for (const p of Array.from(container.querySelectorAll('.c-chapter-hand-lead'))) expect(p.textContent).toContain('換你算')
     // 位置：推導／worked example → 手算題 → 下一段
     before('ch14-hand', 'handcalc-HC-14.1')
     before('handcalc-HC-14.1', 'ch14-msd')
@@ -1177,7 +1225,13 @@ describe('Ch14 頁面上的手算題位置', () => {
     before('formula-F-14.16', 'handcalc-HC-14.6')
     before('handcalc-HC-14.6', 'formula-F-14.21')
     before('formula-F-14.19', 'handcalc-HC-14.7')
-    before('handcalc-HC-14.7', 'ch14-state-machine')
+    before('handcalc-HC-14.7', 'ch14-acquisition')
+    before('formula-F-14.22', 'handcalc-HC-14.9')
+    before('handcalc-HC-14.9', 'formula-F-14.23')
+    before('formula-F-14.23', 'handcalc-HC-14.10')
+    before('handcalc-HC-14.10', 'formula-F-14.24')
+    before('formula-F-14.25', 'handcalc-HC-14.11')
+    before('handcalc-HC-14.11', 'ch14-state-machine')
     before('ch14-compare', 'handcalc-HC-14.8')
     before('handcalc-HC-14.8', 'ch14-quiz')
     expect(el('handcalc-HC-14.8').closest('#ch14-synthesis')).toBeTruthy()

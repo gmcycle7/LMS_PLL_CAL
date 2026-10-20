@@ -1,11 +1,11 @@
 import { memo, useMemo, type CSSProperties, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { Callout, SourceTag, Tex } from '@/components'
+import { Callout, SourceTag, Tex, badgeClass, revealAnchor } from '@/components'
 import { PAGES } from '@/app/registry'
 import { SIX_CONDITIONS } from '../data'
 import { handExample } from '../previews'
 import { summarizeErrata, summarizeTests } from '../summaries'
-import { Glue, scrollToId } from '../ui'
+import { Glue } from '../ui'
 
 /** 本頁段落的目錄（與 index.tsx 的段落順序相同） */
 export const TOC: { id: string; label: string }[] = [
@@ -28,10 +28,10 @@ const fmt = (x: number, d = 4) => Number(x.toPrecision(d)).toString()
 
 /**
  * Hero：網站目標、最終教學主旨、「從這裡開始」卡片與快速統計。
- * onJump：頁內跳轉（預設 scrollToId）；Beginner 模式由 index.tsx 傳入會先展開收合卡片的版本（六個條件、一條方程式、動手體檢都收在裡面）。
+ * onJump：頁內跳轉（預設 revealAnchor）；Beginner 模式由 index.tsx 傳入會先展開收合卡片的版本（六個條件、一條方程式、動手體檢都收在裡面）。
  * aside：右側卡片的替代內容；Beginner 模式由 index.tsx 傳入「骨幹路線」卡（sections/Backbone.tsx），取代「從這裡開始」的手算兩步。
  */
-export const Hero = memo(function Hero({ onJump = scrollToId, aside }: { onJump?: (id: string) => void; aside?: ReactNode }) {
+export const Hero = memo(function Hero({ onJump = revealAnchor, aside }: { onJump?: (id: string) => void; aside?: ReactNode }) {
   const h = useMemo(() => handExample(), [])
   const errata = useMemo(() => summarizeErrata(), [])
   const tests = useMemo(() => summarizeTests(), [])
@@ -64,7 +64,7 @@ export const Hero = memo(function Hero({ onJump = scrollToId, aside }: { onJump?
           <strong>最終教學主旨：</strong>成功的 calibration 必須<strong>同時</strong>滿足六個條件——
           <div className="dash-thesis-pills">
             {SIX_CONDITIONS.map((c) => (
-              <button key={c.id} type="button" className="dash-pill" onClick={() => onJump(`dash-cond-${c.id}`)}>
+              <button key={c.id} type="button" className={badgeClass('neutral', 'dash-pill')} onClick={() => onJump(`dash-cond-${c.id}`)}>
                 <span className="dash-pill-n" style={{ '--cond-c': `var(${c.color})` } as CSSProperties}>
                   {c.n}
                 </span>

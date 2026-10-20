@@ -3,7 +3,7 @@ import gmacSrc from '@/simulation/models/gmac.ts?raw'
 import { roundingMeanError } from '@/simulation/models/gmac'
 import blockLmsSrc from '@/simulation/models/blockLms.ts?raw'
 import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Prereq, Section, Tex, TexBlock } from '@/components'
-import { ChLink, Diagram, ErratumNote, HandCalcPointer, Steps, md, sig, texNum } from '../common'
+import { ChLink, CoverageStatus, Diagram, ErratumNote, HandCalcPointer, Steps, md, sig, texNum } from '../common'
 import { CHART_GMAC_DATAPATH } from '../diagrams'
 import { GmacSizingLab } from '../experiments/GmacSizingLab'
 import { accBitsExact, truncationEquilibrium, worstCaseAccumulate } from '../experiments/gmacMath'
@@ -460,7 +460,7 @@ export function S8Hardware() {
             <h3 id={`models-check-${c.no}`}>
               <span className="models-check-no">{c.no}</span> {md(c.title)}
             </h3>
-            <span className={`models-status models-status-${c.status}`}>{STATUS[c.status]}</span>
+            <CoverageStatus status={c.status}>{STATUS[c.status]}</CoverageStatus>
             <dl className="models-check-dl">
               <dt>檢查什麼</dt>
               <dd>{c.what}</dd>
@@ -628,7 +628,7 @@ export function S8Hardware() {
           平均誤差欄由 gmac.ts 的 <code>roundingMeanError</code> 計算（half_even 的 0 除了餘數均勻，還要「恰好一半」時商的奇偶各半，見 <ChLink to="/ch/04">Ch04</ChLink> §5.3；它對 <Tex>{'w'}</Tex> 的影響{' '}
           <Tex>{'\\approx0'}</Tex> 靠的是上面的對稱性論證——half_even 把 <Tex>{'Y'}</Tex> 與 <Tex>{'-Y'}</Tex> 取整後只差一個負號（奇函數），平衡點 <Tex>{'\\delta=0'}</Tex> 時 <Tex>{'Y'}</Tex> 的分布對 0 對稱，平均輸出就是 0——不靠這個條件）；floor / half up 的 <Tex>{'\\delta^*'}</Tex> 由本頁的精確 mean-field 計算。blockLms 的 L5 模式對 gain 增量也用同一組 rounding 規則：
         </p>
-        <ModeGate min="engineer">
+        <ModeGate min="engineer" summary="捨入規則 roundWith 的程式碼（nearest／truncate／stochastic）">
           <CodeBlock
             source={blockLmsSrc}
             region="roundWith"
@@ -668,7 +668,7 @@ export function S8Hardware() {
                   <td>{m.what}</td>
                   <td>{m.how}</td>
                   <td>
-                    <span className={`models-status models-status-${m.status}`}>{STATUS[m.status]}</span>
+                    <CoverageStatus status={m.status}>{STATUS[m.status]}</CoverageStatus>
                     <div className="small">{m.site}</div>
                   </td>
                 </tr>

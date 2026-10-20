@@ -2,6 +2,7 @@
  * Gallery 的純函式：數字 → TeX、從 preset 的「預期結果」文字抽出數字、比對容差。
  * 不 import React，可在 node 測試中直接使用。
  */
+import { texNum as sharedTexNum } from '@/components/handcalcMath'
 
 /** 去掉 toPrecision 結果的多餘 0（'1.8000' → '1.8'、'2.000e-5' → '2e-5'） */
 function stripZeros(s: string): string {
@@ -31,17 +32,12 @@ export function plainNum(x: number, sig = 6): string {
 }
 
 /**
- * 數字 → TeX（科學記號寫成 a\times10^{b}；NaN/∞ 用 \text / \infty）。
- * 用在 <Tex> 內，所以所有數學都經過 KaTeX。
+ * 數字 → TeX（預設 6 位有效數字）：規則由共用的 `texNum`（components/handcalcMath.ts）決定——
+ * 科學記號寫成 a\times10^{b}（|x| ≥ 1e6 或 < 1e-4）；NaN/∞ 用 \text / \infty。用在 <Tex> 內，所以所有數學都經過 KaTeX。
+ * 純文字的 plainNum 仍保留「整數位數超過 sig 時保留整數」的規則（extractNumbers 對照預期文字用）。
  */
 export function texNum(x: number, sig = 6): string {
-  if (Number.isNaN(x)) return String.raw`\text{NaN}`
-  if (x === Infinity) return String.raw`\infty`
-  if (x === -Infinity) return String.raw`-\infty`
-  const s = plainNum(x, sig)
-  const m = /^(-?[\d.]+)e(-?\d+)$/.exec(s)
-  if (m) return `${m[1]}\\times10^{${m[2]}}`
-  return s
+  return sharedTexNum(x, sig)
 }
 
 /**

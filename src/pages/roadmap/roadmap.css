@@ -9,69 +9,9 @@
   overflow-wrap: anywhere;
 }
 
-/* ───── 狀態徽章 ───── */
-.rm-status,
-.rm-sub {
-  display: inline-block;
-  border-radius: 999px;
-  padding: 1px 9px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  line-height: 1.6;
-  white-space: nowrap;
-  border: 1px solid transparent;
-}
-.rm-status-partial,
-.rm-sub-on-site {
-  color: var(--info);
-  background: var(--info-soft);
-  border-color: var(--info);
-}
-.rm-status-pending,
-.rm-sub-pending,
-.rm-sub-preview {
-  color: var(--warn);
-  background: var(--warn-soft);
-  border-color: var(--warn);
-}
-.rm-sub-preview {
-  border-style: dashed;
-}
-.rm-status-not-started,
-.rm-sub-not-started {
-  color: var(--text-muted);
-  background: transparent;
-  border-color: var(--border-strong);
-}
-.rm-status-in-analysis,
-.rm-sub-in-analysis {
-  color: var(--tag-research);
-  background: var(--tag-research-soft);
-  border-color: var(--tag-research);
-}
-
-/* ───── 勘誤標記 ───── */
-.rm-erratum {
-  display: inline-block;
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0 7px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--warn);
-  color: var(--warn);
-  background: var(--warn-soft);
-  text-decoration: none;
-  white-space: nowrap;
-  margin: 1px 2px;
-}
-.rm-erratum-high {
-  border-color: var(--danger);
-  color: var(--danger);
-  background: var(--danger-soft);
-}
-.rm-erratum:hover {
-  text-decoration: underline;
-}
+/* ───── 狀態徽章、條件徽章、勘誤標記 ─────
+   顏色與尺寸全來自 Badge（Tags.tsx；對映見 common.tsx 的 ITEM_VARIANT／SUB_VARIANT）；勘誤用共用的 ErratumLink。
+   這裡不再定義 pill 的顏色。 */
 
 /* ───── 總覽 ───── */
 .rm-legend {
@@ -111,14 +51,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-}
-.rm-cond-chip {
-  font-size: 0.72rem;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  padding: 0 7px;
-  color: var(--text-muted);
-  white-space: nowrap;
 }
 .rm-bar {
   display: flex;
@@ -310,24 +242,7 @@
   padding-left: 1.1em;
   margin: 4px 0;
 }
-.rm-phase-state {
-  font-size: 0.8rem;
-  font-weight: 600;
-  border-radius: 999px;
-  padding: 1px 8px;
-  border: 1px solid var(--border-strong);
-  color: var(--text-muted);
-}
-.rm-phase-state[data-state='tests-pass'] {
-  color: var(--ok);
-  border-color: var(--ok);
-  background: var(--ok-soft);
-}
-.rm-phase-state[data-state='partial'] {
-  color: var(--warn);
-  border-color: var(--warn);
-  background: var(--warn-soft);
-}
+/* .rm-phase-state：顏色與尺寸來自 Badge（Phases.tsx 的 PHASE_VARIANT） */
 .rm-phase-label {
   font-size: 0.8rem;
   font-weight: 700;
@@ -368,21 +283,6 @@
 }
 
 /* ───── 方塊圖版位：圖 + 圖說，下面緊接「先看…再看…」的導讀（docs/teaching-style.md §8） ───── */
-.rm-diagram {
-  margin: 1rem 0 1.1rem;
-  min-width: 0;
-}
-.rm-diagram .c-mermaid {
-  margin-bottom: 0.4rem;
-}
-.rm-diagram-walk {
-  border-left: 3px solid var(--accent);
-  padding: 0.1rem 0 0.1rem 0.75rem;
-  font-size: 0.93rem;
-}
-.rm-diagram-walk > p {
-  margin: 0.35rem 0;
-}
 
 /* ───── 頁首「本頁符號表在最後」與頁尾符號表的頁內跳轉（docs/teaching-style.md §5） ───── */
 .rm-symbols-link {

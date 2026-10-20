@@ -99,7 +99,7 @@ export function Intro() {
         </table>
       </div>
       <Mermaid chart={PRESET_FLOW} caption="一個 preset 的兩條路：按「載入並執行」到原頁面做完整實驗；「即時預覽」在 Gallery 內用同一組模型函式重算，並與預期文字比對。" ariaLabel="preset 從 JSON 到卡片、到原頁面或即時預覽的流程圖" />
-      <ModeGate min="engineer">
+      <ModeGate min="engineer" summary="為什麼要「重算再比對」（反面測試的動機）">
         <p className="small">
           為什麼要「重算再比對」？因為 preset 的預期文字是人寫的，模型程式之後可能被修改。規格 §17 末段要求一種反面測試：<strong>「模型公式有錯，UI 卻顯示成功」</strong>。如果 Gallery
           只是把文字印出來，模型改壞了也看不出來；重算並比對之後，任何一個必備數值對不上，卡片就會顯示 mismatch（<JumpButton domId="gal-s6">§6 的 Inspector</JumpButton> 可以親手注入誤差來驗證這件事）。

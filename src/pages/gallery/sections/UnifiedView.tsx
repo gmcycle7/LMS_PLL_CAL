@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Callout, ClaimTag, Mermaid, ModeGate, Prereq, Tex, TexBlock, ChRef } from '@/components'
+import { Badge, Callout, ClaimTag, Mermaid, ModeGate, Prereq, Tex, TexBlock, ChRef } from '@/components'
 import { lazyPart, NearGate } from '../../verification/lazy'
 import { QUESTION_LABEL, type QuestionId, type SlotAudit } from '../data'
 import { CHART_UNIFIED_LOOP, THREE_QUESTIONS } from '../diagrams'
@@ -171,9 +171,9 @@ export function UnifiedView({ audit }: { audit: SlotAudit[] }) {
                 </td>
                 <td className="small">
                   {QUESTION_ORDER.filter((q) => a.slot.questions.includes(q)).map((q) => (
-                    <span key={q} className={`gal-q gal-q-${q}`}>
+                    <Badge key={q} className={`gal-q gal-q-${q}`}>
                       {QUESTION_ORDER.indexOf(q) === 0 ? '(1)' : QUESTION_ORDER.indexOf(q) === 1 ? '(2)' : '(3)'} {QUESTION_LABEL[q]}
-                    </span>
+                    </Badge>
                   ))}
                 </td>
                 <td className="small">{a.preset ? <PageLink path={a.preset.page} /> : <span className="muted">{a.slot.pages[0]}</span>}</td>
@@ -182,7 +182,7 @@ export function UnifiedView({ audit }: { audit: SlotAudit[] }) {
           </tbody>
         </table>
       </div>
-      <ModeGate min="engineer">
+      <ModeGate min="engineer" summary="線性化的適用範圍（mean 與 mean-square 收斂、飽和）">
         <Callout kind="warn" title="線性化的適用範圍">
           <ul>
             <li>

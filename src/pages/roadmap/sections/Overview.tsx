@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Mermaid, ModelLevel } from '@/components'
+import { Badge, Mermaid, ModelLevel } from '@/components'
 import { CONDITIONS, ITEMS, ITEM_STATUS_LABEL, itemStatus, statusCounts, subgoalCounts, SUB_STATUS_LABEL, type ItemId, type ItemStatus, type SubStatus } from '../data'
 import { StatusBadge } from '../common'
 import { DEPENDENCY_CHART } from '../diagrams'
@@ -78,9 +78,9 @@ export function Overview({ onOpen }: { onOpen: (id: ItemId) => void }) {
                   <td>
                     <div className="rm-cond-chips">
                       {CONDITIONS.filter((cd) => it.conditions.includes(cd.id)).map((cd) => (
-                        <span key={cd.id} className="rm-cond-chip">
+                        <Badge key={cd.id} className="rm-cond-chip">
                           {cd.label.split(' ')[0]}
-                        </span>
+                        </Badge>
                       ))}
                     </div>
                   </td>

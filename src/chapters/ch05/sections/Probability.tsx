@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
 import type { Data } from 'plotly.js-cartesian-dist-min'
-import { Callout, ClaimTag, ModeGate, Plot, Prereq, Section, Tex, TexBlock, useThemeTokens, ChRef } from '@/components'
+import { Callout, ChapterErratum, ClaimTag, ModeGate, Plot, Prereq, Section, Tex, TexBlock, useThemeTokens, ChRef } from '@/components'
 import { erf, normCdf, normPdf } from '@/simulation/core'
 import { meanGmacEncoding, meanQ, pPlus, signLmsFixedPointEncoding } from '@/simulation/models/comparator'
-import { Erratum, Fig, HandCalcBlock, Steps, fx, linspace, texNum, vline } from '../common'
+import { Fig, Hand, Steps, fx, linspace, texNum, vline } from '../common'
 
 /** 先備知識：Gaussian、Φ、erf。 */
 export function GaussianPrereq() {
@@ -112,6 +112,7 @@ export function ProbabilitySection() {
     <Section
       kind="formula"
       level={2}
+      id="ch05-single-compare"
       title={
         <>
           2. 單一次比較：<Tex>{String.raw`P(q=+1),\ E[q],\ \operatorname{Var}(q)`}</Tex>
@@ -121,10 +122,15 @@ export function ProbabilitySection() {
       <p className="ch05-note">先備知識（Gaussian／<Tex>{'\\Phi'}</Tex>／erf、期望值與變異數）在 §1 的手算表下方。</p>
       <p>
         Comparator 的規則是 <Tex>{String.raw`q=+1\iff e\ge\theta`}</Tex>（規格 §15.2 的硬體慣例），其中 <Tex>{'e=s+v'}</Tex>。因為 <Tex>{'v'}</Tex> 是連續的，<Tex>{'P(e=\\theta)=0'}</Tex>，所以單一樣本的 <Tex>{'\\operatorname{sign}(0)'}</Tex> 慣例不影響任何機率
-        <Erratum id="E07">
-          （規格 §0 的 <Tex>{'\\operatorname{sign}(0)'}</Tex> 與 §15.2 的 <Tex>{'e\\ge0\\Rightarrow+1'}</Tex> 不一致；對單一樣本無影響，但對累加後的{' '}
-          <Tex>{'S_N=0'}</Tex> 有影響，見 §3）
-        </Erratum>
+        <ChapterErratum
+          id="E07"
+          detail={
+            <>
+              （規格 §0 的 <Tex>{'\\operatorname{sign}(0)'}</Tex> 與 §15.2 的 <Tex>{'e\\ge0\\Rightarrow+1'}</Tex> 不一致；對單一樣本無影響，但對累加後的{' '}
+              <Tex>{'S_N=0'}</Tex> 有影響，見 §3）
+            </>
+          }
+        />
         。
       </p>
       <Fig name="singleCompare">
@@ -196,7 +202,7 @@ export function ProbabilitySection() {
       </TexBlock>
       <p className="ch05-note">
         全站符號表把這個平均寫成 <Tex>{'m_q'}</Tex>（避免和 <ChRef ch="12">Ch12</ChRef> 的 code DC 混淆）；本章只有這一個平均值，公式裡簡寫成 <Tex>{'m'}</Tex>，兩者是同一個量。
-        <Erratum id="E34" />
+        <ChapterErratum id="E34" />
       </p>
       <Steps
         title={<Tex>{String.raw`\operatorname{Var}(q)=1-m^2`}</Tex>}
@@ -214,10 +220,10 @@ export function ProbabilitySection() {
         <Tex>{String.raw`\operatorname{Var}(q)=${fx(1 - T.m * T.m, 8)}`}</Tex>。也可以直接驗算 <Tex>{`2p-1=${fx(2 * T.p - 1, 10)}`}</Tex> 與{' '}
         <Tex>{`\\operatorname{erf}(0.01/\\sqrt2)=${fx(erf(0.01 / Math.SQRT2), 10)}`}</Tex> 相同。
       </p>
-      <HandCalcBlock id="HC-05.1">
+      <Hand id="HC-05.1">
         上面三個 boxed 公式，用你自己的 <Tex>{'s'}</Tex>、<Tex>{'\\sigma_v'}</Tex>、<Tex>{'\\theta'}</Tex> 代一次：先用紙筆算出{' '}
         <Tex>{'p'}</Tex>、<Tex>{'m'}</Tex>、<Tex>{'\\operatorname{Var}(q)'}</Tex>，再展開帶入過程對答案（小訊號下不需要常態表）。
-      </HandCalcBlock>
+      </Hand>
 
       <Callout
         kind="warn"

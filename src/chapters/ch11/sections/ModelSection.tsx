@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, CodeBlock, Prereq, Section, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
+import { Callout, ClaimTag, CodeBlock, Prereq, Section, StepDerivation, Tex, TexBlock, ChRef, ChapterErratum } from '@/components'
 import biasSrc from '@/simulation/models/bias.ts?raw'
 import { buildCodeDistribution, codeMoments, comparatorMean } from '@/simulation/models/bias'
 import { F } from '../formulas'
-import { Erratum, m, texNum } from '../common'
+import { m, texNum } from '../common'
 import { Fig, FigRef } from '../Fig'
 
 /** §11 誤差模型、逐項表、三類雜訊、先備知識。 */
@@ -34,7 +34,7 @@ export function ModelSection() {
         是與 code 獨立、零均值的隨機雜訊，它的標準差記作 <Tex>{'\\sigma_v'}</Tex>。
       </p>
       <p className="small">
-        <Erratum id="E12" note="§11 的 u[n] 與 §0 的 filtered regressor u = h*x 撞名" />
+        <ChapterErratum id="E12" note="§11 的 $u[n]$ 與 §0 的 filtered regressor $u=h*x$ 撞名" />
         規格書 §11 把干擾寫成 <Tex>{'u[n]'}</Tex>，但全站 §0 的 <Tex>{'u[n]=(h*x)[n]'}</Tex> 是經過 PLL 誤差路徑的有效 regressor，兩者不能混用。本章改名為{' '}
         <Tex>{String.raw`\varepsilon_{cc}[n]`}</Tex>（code-correlated disturbance），係數改用 <Tex>{'\\kappa'}</Tex>；三階 INL 係數統一寫成 <Tex>{'c_3'}</Tex>
         （與 §19 Lab 控制項一致）。
@@ -180,7 +180,7 @@ export function ModelSection() {
                 Sign-LMS 的局部增益 <Tex>{String.raw`K_q(x)=\sqrt{2/\pi}/\sigma_v(x)`}</Tex> 隨 code 變
               </td>
               <td>
-                本身不造成 bias，但會<strong>重新加權</strong>②③（使 centering 失效）<Erratum id="E17" />
+                本身不造成 bias，但會<strong>重新加權</strong>②③（使 centering 失效）<ChapterErratum id="E17" />
               </td>
             </tr>
           </tbody>

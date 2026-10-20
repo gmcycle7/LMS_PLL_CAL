@@ -1,5 +1,5 @@
-import { SymbolTable, type SymbolEntry, Tex } from '@/components'
-import { Erratum, jumpTo, mt } from '../common'
+import { JumpTo, SymbolTable, type SymbolEntry, Tex, ChapterErratum } from '@/components'
+import { mt } from '../common'
 
 const R = String.raw
 
@@ -19,32 +19,32 @@ export const CH04_SYMBOLS: SymbolEntry[] = [
   { symbol: 'r[n]', meaning: 'feedback（divider）edge 的累積時間誤差（fractional residue），正 = 晚到', unit: R`T_\mathrm{vco}`, firstSeen: '§2', note: '與 dsm.ts 的 residue 相同' },
   { symbol: R`T_\mathrm{vco}`, meaning: mt(R`VCO 週期 $1/f_\mathrm{vco}$`), unit: R`\mathrm{fs}`, firstSeen: '§2' },
   { symbol: R`\varepsilon`, meaning: mt(R`DTC gain 的相對誤差 $(a-w)/a$（residue 實驗的控制項）`), unit: R`\%`, firstSeen: '§2' },
-  { symbol: 'x[n]', meaning: mt(R`正規化後的 code / regressor（本章多用 $s[n]/M$ 或 $x_\mathrm{int}/2^{B_x-1}$）`), unit: R`\text{無因次}`, firstSeen: '§2', note: <><Erratum id="E13" />{mt(R`：$x$、$u$ 無因次，時間單位由 $a$、$w$ 承載`)}</> },
-  { symbol: R`a,\;w_k`, meaning: mt(R`真實需要的 DTC gain、第 $k$ 個 block 使用的校正 gain`), unit: R`\mathrm{fs}/\text{unit code}`, firstSeen: '§2', note: <Erratum id="E13" /> },
-  { symbol: R`\delta_k=a-w_k`, meaning: '剩餘 gain 誤差', unit: R`\mathrm{fs}/\text{unit code}`, firstSeen: '§2', note: <>{mt(R`全站約定 $\delta=a-w$ `)}<Erratum id="E32" /> <Erratum id="E39" /></> },
+  { symbol: 'x[n]', meaning: mt(R`正規化後的 code / regressor（本章多用 $s[n]/M$ 或 $x_\mathrm{int}/2^{B_x-1}$）`), unit: R`\text{無因次}`, firstSeen: '§2', note: <><ChapterErratum id="E13" />{mt(R`：$x$、$u$ 無因次，時間單位由 $a$、$w$ 承載`)}</> },
+  { symbol: R`a,\;w_k`, meaning: mt(R`真實需要的 DTC gain、第 $k$ 個 block 使用的校正 gain`), unit: R`\mathrm{fs}/\text{unit code}`, firstSeen: '§2', note: <ChapterErratum id="E13" /> },
+  { symbol: R`\delta_k=a-w_k`, meaning: '剩餘 gain 誤差', unit: R`\mathrm{fs}/\text{unit code}`, firstSeen: '§2', note: <>{mt(R`全站約定 $\delta=a-w$ `)}<ChapterErratum id="E32" /> <ChapterErratum id="E39" /></> },
   { symbol: R`\tau_\mathrm{need}[n]`, meaning: mt(R`需要的補償量 $x[n]\,T_\mathrm{vco}$：feedback edge 早到的時間，也就是 reference edge 要提前的時間`), unit: R`\mathrm{fs}`, firstSeen: '§2' },
   { symbol: R`\tau_\mathrm{DTC}[n],\;T_0`, meaning: mt(R`reference 輸入端 DTC 的延遲 $T_0-w_k\,x[n]$：DTC 只能延遲，所以從固定的基準延遲 $T_0$ 往回扣補償量 $w_k\,x[n]$（code 越大延遲越短；$T_0$ 被 PLL 當成靜態相位偏移吸收）`), unit: R`\mathrm{fs}`, firstSeen: '§2', note: mt(R`全站約定：DTC 在 reference 輸入端`) },
   { symbol: R`t_\mathrm{ref}'[n],\;t_\mathrm{fb}[n]`, meaning: mt(R`到達 PD 的兩條 edge 的時刻：DTC 延遲後的 reference edge、divider 送回來的 feedback edge；PD 量的是 $t_\mathrm{ref}'-t_\mathrm{fb}$`), unit: R`\mathrm{fs}`, firstSeen: '§2' },
   { symbol: R`e_\mathrm{det}[n]`, meaning: mt(R`gain 有誤差時 PD 看到的確定性殘差 $\delta\,x[n]$（不含雜訊）`), unit: R`\mathrm{fs}`, firstSeen: '§2' },
-  { symbol: R`H_\mathrm{PD},\;u[n]=(h*x)[n]`, meaning: 'DTC 的殘餘時間誤差（從 PD 的 reference 輸入端進來）到 PD 輸出的轉移函數、有效 regressor', unit: R`\text{同 }x`, firstSeen: '§3', note: <Erratum id="E13" /> },
+  { symbol: R`H_\mathrm{PD},\;u[n]=(h*x)[n]`, meaning: 'DTC 的殘餘時間誤差（從 PD 的 reference 輸入端進來）到 PD 輸出的轉移函數、有效 regressor', unit: R`\text{同 }x`, firstSeen: '§3', note: <ChapterErratum id="E13" /> },
   { symbol: R`v[n],\;\sigma_v`, meaning: 'comparator 前雜訊與其 RMS', unit: R`\mathrm{fs}`, firstSeen: '§3' },
-  { symbol: R`b_\mathrm{off}`, meaning: 'comparator offset（只在系統圖 C 與一圈推導出現；Ch11 詳述）', unit: R`\mathrm{fs}`, firstSeen: '§4', note: <>{mt(R`規格 §11 寫 $b$；本章改名 $b_\mathrm{off}$，避免與 comparator 位元 $b[n]$ 衝突（同 `)}<Erratum id="E34" />{mt(R` 的符號去衝突原則）`)}</> },
+  { symbol: R`b_\mathrm{off}`, meaning: 'comparator offset（只在系統圖 C 與一圈推導出現；Ch11 詳述）', unit: R`\mathrm{fs}`, firstSeen: '§4', note: <>{mt(R`規格 §11 寫 $b$；本章改名 $b_\mathrm{off}$，避免與 comparator 位元 $b[n]$ 衝突（同 `)}<ChapterErratum id="E34" />{mt(R` 的符號去衝突原則）`)}</> },
   { symbol: 'e[n]', meaning: mt(R`PD 的輸出（送進 loop filter 的同一個節點），也是 LMS 校正迴路的輸入：comparator 取它的正負號。$e=\delta\,u+b_\mathrm{off}+v$（$b_\mathrm{off}$ 是折算到這個節點的 comparator offset）`), unit: R`\mathrm{fs}`, firstSeen: '§1' },
-  { symbol: 'b[n]', meaning: mt(R`comparator 原始輸出位元，$b=1\Leftrightarrow e\ge0$`), unit: R`\{0,1\}`, firstSeen: '§3', note: <><Erratum id="E07" />{mt(R`：tie（$e=0$）判 $+1$`)}</> },
+  { symbol: 'b[n]', meaning: mt(R`comparator 原始輸出位元，$b=1\Leftrightarrow e\ge0$`), unit: R`\{0,1\}`, firstSeen: '§3', note: <><ChapterErratum id="E07" />{mt(R`：tie（$e=0$）判 $+1$`)}</> },
   { symbol: 'q[n]=2b[n]-1', meaning: '雙極性 comparator 輸出', unit: R`\{-1,+1\}`, firstSeen: '§3' },
   { symbol: R`x_\mathrm{ref}[n]`, meaning: mt(R`GMAC 實際相乘的對齊 code：$x[n-D]$ 或 filtered-x $u_f[n-D]$`), firstSeen: '§1' },
-  { symbol: 'D', meaning: 'code 對齊延遲', unit: R`\text{samples}`, firstSeen: '§1', note: <><Erratum id="E34" />{mt(R`：§16.1 原寫 $d$，與更新延遲 $d$ 衝突`)}</> },
+  { symbol: 'D', meaning: 'code 對齊延遲', unit: R`\text{samples}`, firstSeen: '§1', note: <><ChapterErratum id="E34" />{mt(R`：§16.1 原寫 $d$，與更新延遲 $d$ 衝突`)}</> },
   { symbol: R`d,\;d_\mathrm{f}`, meaning: mt(R`更新延遲（block 結束到新 gain 生效）的整數部分與分數部分；commit 在 block 中途生效時 $d_\mathrm{f}=(P_c\bmod N)/N$`), unit: R`\text{blocks}`, firstSeen: '§4', note: mt(R`分數延遲不寫 $\varphi$：$\varphi(z)$ 保留給 Gaussian 密度`) },
   { symbol: R`P_c`, meaning: 'commit pipeline：block 結束到新 gain 寫入 register 的 sample 數', unit: R`\text{samples}`, firstSeen: '§4' },
   { symbol: R`g_\mathrm{crit}`, meaning: mt(R`平均模型由穩定變成不穩定的臨界 loop gain（$d=0$ 時為 2）`), firstSeen: '§4' },
   { symbol: R`\Phi(z),\;\varphi(z)`, meaning: '標準 Gaussian 的累積分布函數與機率密度', firstSeen: '§3' },
-  { symbol: 'S_k', meaning: mt(R`GMAC 總和 $\sum q\,x_\mathrm{ref}$（sum）`), firstSeen: '§3', note: <><Erratum id="E07" /> <Erratum id="E18" />：總和用 <Tex>S</Tex></> },
+  { symbol: 'S_k', meaning: mt(R`GMAC 總和 $\sum q\,x_\mathrm{ref}$（sum）`), firstSeen: '§3', note: <><ChapterErratum id="E07" /> <ChapterErratum id="E18" />：總和用 <Tex>S</Tex></> },
   { symbol: R`G_k=S_k/N`, meaning: 'GMAC 平均（average，§0 定義）', firstSeen: '§3' },
-  { symbol: R`m_q=E[q]`, meaning: mt(R`comparator 雙極性輸出的平均（$x\equiv1$ 時 $E[G]=m_q$）`), firstSeen: '§3', note: <><Erratum id="E34" />{mt(R`：規格 §5 寫 $m$`)}</> },
-  { symbol: R`\mu`, meaning: '學習率（每個 block 的更新係數）', unit: R`\mathrm{fs}`, firstSeen: '§3', note: <><Erratum id="E13" />：average 模式下單位為 fs</> },
+  { symbol: R`m_q=E[q]`, meaning: mt(R`comparator 雙極性輸出的平均（$x\equiv1$ 時 $E[G]=m_q$）`), firstSeen: '§3', note: <><ChapterErratum id="E34" />{mt(R`：規格 §5 寫 $m$`)}</> },
+  { symbol: R`\mu`, meaning: '學習率（每個 block 的更新係數）', unit: R`\mathrm{fs}`, firstSeen: '§3', note: <><ChapterErratum id="E13" />：average 模式下單位為 fs</> },
   { symbol: R`K_q=\sqrt{2/\pi}/\sigma_v`, meaning: '1-bit comparator 的小訊號增益', unit: R`\mathrm{fs}^{-1}`, firstSeen: '§3' },
   { symbol: R`C=E[x_\mathrm{ref}u]`, meaning: 'regressor 與有效 regressor 的相關', unit: R`\text{無因次}`, firstSeen: '§3' },
-  { symbol: R`K=K_qC`, meaning: mt(R`GMAC 對 $\delta$ 的平均斜率 $-\partial E[G]/\partial w$`), unit: R`\mathrm{fs}^{-1}`, firstSeen: '§3', note: <Erratum id="E13" /> },
+  { symbol: R`K=K_qC`, meaning: mt(R`GMAC 對 $\delta$ 的平均斜率 $-\partial E[G]/\partial w$`), unit: R`\mathrm{fs}^{-1}`, firstSeen: '§3', note: <ChapterErratum id="E13" /> },
   { symbol: R`g,\;p=1-g`, meaning: mt(R`無因次 loop gain（average：$\mu K$；sum：$N\mu K$）與平均 pole`), firstSeen: '§3' },
   { symbol: R`w^*,\;\delta^*=a-w^*`, meaning: '固定點：平均更新為 0 時的 gain（穩態的平均值），以及它離真值的偏差', unit: R`\mathrm{fs}/\text{unit code}`, firstSeen: '§3' },
   { symbol: R`m_x,\;\sigma_x`, meaning: mt(R`code 的平均 $E[x]$ 與標準差（$E[x^2]=m_x^2+\sigma_x^2$）`), unit: R`\text{無因次}`, firstSeen: '§3' },
@@ -70,16 +70,14 @@ export function SymbolsSection() {
   return (
     <section className="ch04-symbols" id={SYMBOLS_ID} aria-label="本章符號表">
       <p className="ch04-symbols-back">
-        <button type="button" className="ch04-jump" onClick={() => jumpTo('ch04-question')}>
-          ↑ 回到章首
-        </button>
+        <JumpTo target="ch04-question">↑ 回到章首</JumpTo>
       </p>
       <SymbolTable
         rows={CH04_SYMBOLS}
         title="本章符號表"
         caption={
           <>
-            本章採用全站約定（規格 §0）與 docs/validation.md 的勘誤版本：<Erratum id="E07" /> <Erratum id="E13" /> <Erratum id="E18" />。時間索引：<Tex>n</Tex> = sample、<Tex>k</Tex> = block；極性{' '}
+            本章採用全站約定（規格 §0）與 docs/validation.md 的勘誤版本：<ChapterErratum id="E07" /> <ChapterErratum id="E13" /> <ChapterErratum id="E18" />。時間索引：<Tex>n</Tex> = sample、<Tex>k</Tex> = block；極性{' '}
             <Tex>{R`\delta=a-w`}</Tex>。全站符號總表在 Formula & Unit Reference 頁。
           </>
         }

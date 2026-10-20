@@ -15,6 +15,8 @@ import workedJson from '../../../analysis/sspll/golden/results/worked_examples.j
 import gosScanJson from '../../../analysis/sspll/golden/results/gos_dense_scan.json'
 import ditherJson from '../../../analysis/sspll/golden/results/sim_dither_extract.json'
 import docNumbers from './docNumbers.json'
+import ditherNumbers from './ditherNumbers.json'
+import { loadWebJson } from '@/data/golden/schemas'
 import {
   F_REF,
   discConstant,
@@ -265,7 +267,8 @@ export interface LmsTrace {
 
 interface PredJson {
   selected: Record<LoopKey, SelectedRow[]>
-  fine: { alpha: number[] } & Record<LoopKey, Record<'kP_sim' | 'kP_sim_lin' | 'kP_theory' | 'kG_sim' | 'kG_theory' | 'kP_sim_1diff' | 'kP_theory_1diff' | 'LSinf_theory' | 'LS_sim_A1ps' | 'LS_sim_A5ps', number[]>>
+  /** kG_sim、kG_theory 在 α = 1/8、1/4、3/8、1/2（α 是 1/8 的整數倍，β = 0，GOS 的 regressor 為零、κ_GOS 沒有定義）存成 null；其餘欄位全是有限數值 */
+  fine: { alpha: number[] } & Record<LoopKey, Record<'kP_sim' | 'kP_sim_lin' | 'kP_theory' | 'kP_sim_1diff' | 'kP_theory_1diff' | 'LSinf_theory' | 'LS_sim_A1ps' | 'LS_sim_A5ps', number[]> & Record<'kG_sim' | 'kG_theory', (number | null)[]>>
   counts: Record<LoopKey, Record<string, CountRow>>
   large_signal_counts: Record<LoopKey, Record<string, LsCount> & { L1_raw_inf_dirs?: { n: number; all_gos: boolean; alphas: number[] } }>
   lms: Record<string, LmsTrace>
@@ -337,18 +340,95 @@ interface DocPhos {
   pe_failure: Record<string, { phases_visited: number; var_rho: number }>
 }
 
-export const PARAMS = paramsJson as unknown as ParamsJson
-export const PRED = predJson as unknown as PredJson
-export const WORKED = workedJson as unknown as WorkedJson
-export const GOS_SCAN = gosScanJson as unknown as Record<string, GosScanRow>
-export const DITHER = ditherJson as unknown as DitherJson
+export const PARAMS = loadWebJson<ParamsJson>('sspll/params', paramsJson, 'params.json')
+export const PRED = loadWebJson<PredJson>('sspll/pred_vs_sim', predJson, 'pred_vs_sim.json')
+export const WORKED = loadWebJson<WorkedJson>('sspll/worked_examples', workedJson, 'worked_examples.json')
+export const GOS_SCAN = loadWebJson<Record<string, GosScanRow>>('sspll/gos_dense_scan', gosScanJson, 'gos_dense_scan.json')
+export const DITHER = loadWebJson<DitherJson>('sspll/sim_dither_extract', ditherJson, 'sim_dither_extract.json')
 /**
  * analysis/sspll/golden/results/doc_numbers.json 裡本頁用到的兩段（joint、phos；S08、S09）。
  * 整個 doc_numbers.json 有 283 KB，Vite 對這種大 JSON 的具名 import 不做 tree-shaking（連沒用到的段落都會打進 chunk，實測多出約 180 KB），
  * 所以頁面讀的是 ./docNumbers.json——只含這兩段；docNumbers.test.ts 逐位比對它與 doc_numbers.json 一致。
  */
-export const DOC_JOINT = docNumbers.joint as unknown as DocJoint
-export const DOC_PHOS = docNumbers.phos as unknown as DocPhos
+const DOC_NUMBERS = loadWebJson<{ joint: DocJoint; phos: DocPhos }>('sspll/doc_numbers_subset', docNumbers, 'docNumbers.json')
+export const DOC_JOINT = DOC_NUMBERS.joint
+export const DOC_PHOS = DOC_NUMBERS.phos
+
+/**
+ * analysis/sspll/golden/results/dither_interaction.json（tools/dither_sweep.py）裡頁面用到的子集（§10b、實驗 D）：numeric（不含逐模態陣列）、sim_compare、
+ * mc（不含逐 seed 陣列與逐列的候選判準；候選的總計分在 mc._summary.candidates）、headline；closed form、頻譜因子與大訊號斜率由 TS port 即時算（靜態 import 會進頁面的 chunk，只放頁面讀的）。ditherNumbers.test.ts 逐位比對它與 dither_interaction.json 一致。
+ */
+export interface DitherMcRow {
+  init_fs: number
+  final_fs: number[]
+  n: number
+  n_div: number
+  n_conv: number
+  frac_div: number
+  ci_div: [number, number]
+  frac_conv: number
+  ci_conv: [number, number]
+  n_blocks: number
+  N_blk: number
+  tau_blocks: number
+  verdict: 'inverted' | 'restoring' | 'dead'
+  kappa_min: number
+  worst_mode: number
+  kappa_inf_m1: number
+  /** 沿 closed form 最差模態的 κ_∞（最差模態是 1 時等於 kappa_inf_m1） */
+  kappa_inf_worst: number
+  /** F-CS.28（只有線性段）vs MC；dead zone 一律 n/a */
+  crosscheck: { status: 'ok' | 'mismatch' | 'n/a'; why: string }
+}
+/** dead zone 候選判準的計分（tools/dither_sweep.py 的 score_candidates）：105 組的總數、只算 18 個 dead zone 的總數、不一致的組 */
+export interface DitherCandidateScore {
+  n_ok: number
+  n_mismatch: number
+  n_na: number
+  dead_zone: { n_ok: number; n_mismatch: number; n_na: number }
+  mismatches: string[]
+}
+export interface DitherNumbersJson {
+  _meta: { tau_dead: number; sources: string[]; selected_alphas: number[]; code_range_delta: Record<string, number>; loops: Record<string, { name: string; params: Record<string, number | string> }> }
+  numeric: Record<string, Record<string, { kappa_min: number; worst_mode: number; gos_C: number; gos_var: number; code_mean: number; N: number }>>
+  sim_compare: Record<string, Record<string, { closed: number; numeric: number; diff_closed_numeric: number; sim?: number; diff_closed_sim?: number; sim_kG?: number; gos_kappa_e2?: number }>> & {
+    _summary: { max_abs_diff_closed_numeric: number; max_abs_diff_closed_sim: number }
+  }
+  mc: Record<string, Record<string, DitherMcRow>> & {
+    _summary: {
+      /** F-CS.28 的線性段 vs MC（dead zone 不判） */
+      n_ok: number
+      n_mismatch: number
+      n_na: number
+      seeds: number[]
+      n_blocks: number
+      scope: string
+      n_dead: number
+      /** 候選判準：two_stage（dead zone 看最差模態的 κ_∞）、two_stage_m1（看 mode 1 的 κ_∞）、efold（觀測窗的 e-folding） */
+      candidates: { two_stage: DitherCandidateScore; two_stage_m1: DitherCandidateScore; efold: DitherCandidateScore & { kappa_div: number; kappa_conv: number } }
+    }
+  }
+  headline: {
+    loop: string
+    source: string
+    alpha: number
+    f_MHz: number
+    ReH: number
+    h: number[]
+    phi2: number
+    rtilde: number[]
+    terms: { carrier: number; k0: number; k1: number; k2: number }
+    kappa_1: number
+    pm60: { ReH: number; kappa_1: number; kappa_inf: number }
+    kappa_inf: number
+    mc: DitherMcRow
+    sim_final_phos_fs: number
+    handcalc_dq: { white: number; line_m1: number; lines_pm1: number[]; kappa_1: number }
+    handcalc_rot8: { D2: number; kappa_1: number }
+    handcalc_rot4: { D2: number; raw_kappa_1: number; kappa_1: number }
+  }
+}
+export const DITHER_NUM = loadWebJson<DitherNumbersJson>('sspll/dither_numbers', ditherNumbers, 'ditherNumbers.json')
 
 /** f_ref [MHz] */
 export const FREF_MHZ = F_REF / 1e6

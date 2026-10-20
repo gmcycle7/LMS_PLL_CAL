@@ -159,7 +159,7 @@ describe('Ch11 smoke tests（jsdom）', () => {
     const quiz = container.querySelector('#ch11-quiz') as HTMLElement
     expect(synthesis.compareDocumentPosition(quiz) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(synthesis.nextElementSibling).toBe(quiz)
-    expect(container.querySelectorAll('.ch11-hand-lead').length).toBe(HANDCALCS.length)
+    expect(container.querySelectorAll('.c-chapter-hand-lead').length).toBe(HANDCALCS.length)
     // 思考題 3 題、本課必記
     expect(container.querySelectorAll('.c-quiz').length).toBe(3)
     expect(container.querySelectorAll('.c-recap').length).toBe(1)
@@ -169,27 +169,27 @@ describe('Ch11 smoke tests（jsdom）', () => {
     expect(CH11_DIAGRAMS).toHaveLength(25)
     const systemMap = figures[0]
     expect(systemMap.getAttribute('aria-label')).toContain('系統方塊圖')
-    expect(systemMap.closest('.ch11-fig')).toBeNull()
+    expect(systemMap.closest('.c-chapter-fig')).toBeNull()
     const question = screen.getByText('這一課要回答的問題').closest('.c-callout') as HTMLElement
     expect(question.nextElementSibling).toBe(systemMap) // 開場問題之後緊接系統地圖
     expect(question.textContent).toContain('完整的符號表在本章最後') // 開場就先用一句話說明 x、e、q、w
-    const figs = Array.from(container.querySelectorAll('.ch11-fig'))
+    const figs = Array.from(container.querySelectorAll('.c-chapter-fig'))
     expect(figs.map((el) => el.id)).toEqual(CH11_DIAGRAMS.map((d) => `ch11-fig-${d.id}`))
     expect(figs.map((el) => el.closest('section.c-section')?.id)).toEqual(CH11_DIAGRAMS.map((d) => d.section))
     figs.forEach((el, i) => {
-      expect(el.querySelector('.ch11-figcap')?.textContent, el.id).toContain(`圖 11-${i + 1}：`)
+      expect(el.querySelector('figcaption')?.textContent, el.id).toContain(`圖 11-${i + 1}｜`)
       expect(el.querySelector('figure.c-mermaid')?.getAttribute('aria-label'), el.id).toMatch(new RegExp(`^圖 11-${i + 1}：`))
     })
     // 正文引用的圖號（FigRef）都在圖的前面：先讀導讀再看圖
     for (const el of figs) {
-      const label = el.querySelector('.ch11-figcap strong')?.textContent?.split('：')[0] ?? ''
-      const refs = Array.from(container.querySelectorAll('.ch11-figref')).filter((r) => r.textContent === label)
+      const label = el.querySelector('figcaption')?.textContent?.split('｜')[0] ?? ''
+      const refs = Array.from(container.querySelectorAll('.c-figref')).filter((r) => r.textContent === label)
       expect(refs.length, label).toBeGreaterThanOrEqual(1)
       expect(refs[0].compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING, label).toBeTruthy()
     }
     // 每個主要段落至少一張圖
     for (const id of ['ch11-hand', 'ch11-diagram', 'ch11-model', 'ch11-fixed-point', 'ch11-offset', 'ch11-inl', 'ch11-correlated', 'ch11-near-integer', 'ch11-lab', 'ch11-levels', 'ch11-synthesis'])
-      expect(container.querySelectorAll(`#${id} .ch11-fig`).length, id).toBeGreaterThanOrEqual(1)
+      expect(container.querySelectorAll(`#${id} .c-chapter-fig`).length, id).toBeGreaterThanOrEqual(1)
     // 圖放在推導之前：誤差模型的圖在 F-11.1 之前、三種架構的圖在 F-11.6 之前、near-integer 的路徑圖在 F-11.14 之前
     const before = (a: Element | null, b: Element | null) => !!a && !!b && !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
     expect(before(document.getElementById('ch11-fig-error-budget'), document.getElementById('formula-F-11.1'))).toBe(true)
@@ -252,12 +252,12 @@ describe('Ch11 smoke tests（jsdom）', () => {
     // （getAllByRole 在整章的大 DOM 上很慢，直接比對按鈕文字）
     expect(Array.from(container.querySelectorAll('button')).some((b) => /Run-to-Convergence/.test(b.textContent ?? ''))).toBe(true)
     // 勘誤小標連到驗證頁
-    const errata = container.querySelectorAll('a.ch11-erratum')
+    const errata = container.querySelectorAll('a.c-erratum-link')
     expect(errata.length).toBeGreaterThan(5)
     // 必須套用的勘誤都有小標（E13：本章 S 與規格 §11.4 的 S_GMAC 正負號相反）
-    const eids = new Set(Array.from(errata).map((e) => (e.textContent ?? '').replace('勘誤 ', '').trim()))
+    const eids = new Set(Array.from(errata).map((e) => e.getAttribute('data-erratum')))
     for (const id of ['E01', 'E03', 'E11', 'E12', 'E13', 'E17']) expect(eids.has(id), id).toBe(true)
-    expect((errata[0] as HTMLAnchorElement).getAttribute('href')).toBe('#/verification')
+    expect((errata[0] as HTMLAnchorElement).getAttribute('href')).toMatch(/^\/verification\?e=E\d\d$/)
     await waitFor(() => expect(P.react).toHaveBeenCalled(), { timeout: WAIT })
     // σ_v = 0.05 的說明由模型計算：x = ±2 停在 E[q|x] ≈ ±0.5（不是全部飽和）
     expect(container.querySelector('#ch11-fixed-point')?.textContent ?? '').toContain('0.5')

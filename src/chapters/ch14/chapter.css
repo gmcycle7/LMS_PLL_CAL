@@ -9,36 +9,6 @@
   line-height: 1.75;
 }
 
-.ch14-erratum {
-  display: flex;
-  gap: 0.5rem;
-  align-items: baseline;
-  flex-wrap: wrap;
-  margin: 0.6rem 0;
-  padding: 0.45rem 0.7rem;
-  border: 1px dashed var(--warn);
-  border-radius: var(--radius-sm);
-  background: var(--warn-soft);
-  font-size: 0.9rem;
-}
-
-.ch14-erratum-tag {
-  flex: none;
-  font-weight: 600;
-  color: var(--warn);
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.ch14-erratum-tag:hover {
-  text-decoration: underline;
-}
-
-.ch14-erratum-body {
-  flex: 1 1 16rem;
-  min-width: 0;
-}
-
 .ch14-controls {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -239,20 +209,6 @@
 
 /* 表格字級與內距（含手機縮一級）由 components.css 的層級對映與 tokens.css 決定 */
 
-/* 「帶入手算」版位：邀請句緊貼在題目上方 */
-.ch14-handcalc {
-  margin: 1rem 0;
-}
-
-.ch14-handcalc-invite {
-  margin: 0 0 0.2rem;
-  font-size: 0.95rem;
-}
-
-.ch14-handcalc .c-handcalc {
-  margin-top: 0.4rem;
-}
-
 /* 方塊圖版位（docs/teaching-style.md §8）：圖 + 圖說 + 「先看…再看…」導讀 */
 .ch14-diagram {
   margin: 1rem 0 1.1rem;
@@ -261,32 +217,6 @@
 
 .ch14-diagram .c-mermaid {
   margin-bottom: 0.4rem;
-}
-
-.ch14-diagram-walk {
-  border-left: 3px solid var(--accent);
-  padding: 0.1rem 0 0.1rem 0.75rem;
-  font-size: 0.93rem;
-}
-
-.ch14-diagram-walk > p {
-  margin: 0.35rem 0;
-}
-
-.ch14-linkbtn {
-  appearance: none;
-  border: 0;
-  padding: 0;
-  margin: 0 0.4rem 0 0;
-  background: none;
-  font: inherit;
-  color: var(--accent);
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.ch14-linkbtn:hover {
-  text-decoration-thickness: 2px;
 }
 
 .ch14-symbols {

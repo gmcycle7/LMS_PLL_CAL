@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Callout, ClaimTag, ModelLevel, SourceTag, Tex } from '@/components'
+import { BadgeRow, Callout, ClaimTag, ModelLevel, revealAnchor, SourceTag, Tex } from '@/components'
 import { ALL_PRESETS, presetById } from '@/app/presets'
 import { lazyPart, NearGate } from '../verification/lazy'
 import { PREVIEWABLE_EXPERIMENTS } from './data'
@@ -10,7 +10,7 @@ import { HowToRead } from './sections/HowToRead'
 import { Intro } from './sections/Intro'
 import { RegressionBoard } from './sections/RegressionBoard'
 import { RequiredGallery } from './sections/RequiredGallery'
-import { JumpButton, scrollToId, SlotAudit, useSlotAudit } from './sections/SlotAudit'
+import { JumpButton, SlotAudit, useSlotAudit } from './sections/SlotAudit'
 import { SymbolsLink, SymbolsSection } from './sections/Symbols'
 import { UnifiedView } from './sections/UnifiedView'
 import { Wrapup } from './sections/Wrapup'
@@ -69,11 +69,11 @@ export default function GalleryPage() {
   const inspect = useCallback((id: string) => {
     setSelected(id)
     setInspectorWanted(true)
-    scrollToId('gal-s6')
+    revealAnchor('gal-s6')
   }, [])
   return (
     <div className="gal-page">
-      <div className="c-tag-row gal-head-tags">
+      <BadgeRow className="gal-head-tags" label="本頁涵蓋的模型層級、結論強度與來源">
         <ModelLevel level="L0" />
         <ModelLevel level="L1" />
         <ModelLevel level="L2" />
@@ -84,7 +84,7 @@ export default function GalleryPage() {
         <ClaimTag kind="approx" />
         <SourceTag kind="illustrative" />
         <SourceTag kind="simulation" />
-      </div>
+      </BadgeRow>
       <nav className="gal-toc" aria-label="本頁目錄">
         {TOC.map((t) => (
           <JumpButton key={t.id} domId={t.id}>

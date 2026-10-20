@@ -1,18 +1,6 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import type { Data } from 'plotly.js-cartesian-dist-min'
-import {
-  Callout,
-  CodeBlock,
-  ExperimentShell,
-  ParamControl,
-  Plot,
-  SelectControl,
-  Tex,
-  useThemeTokens,
-  type CheckEntry,
-  type ExperimentPreset,
-  type MetricRow,
-} from '@/components'
+import { Callout, CodeBlock, ExperimentShell, ParamControl, Plot, SelectControl, Tex, useThemeTokens, type CheckEntry, type ExperimentPreset, type MetricRow, ChapterErratum } from '@/components'
 import { presetsForExperiment, useUrlPreset } from '@/app/presets'
 import { isWorkerCancelled, useWorkerTask } from '@/workers'
 import { gaussianAlmostSureMuMax, huberPsi, lossValue, sgn, type LmsVariant, type TieRule } from '@/simulation/models/lms'
@@ -41,7 +29,7 @@ import {
   type XDist,
 } from '@/simulation/models/lossCompare'
 import lossSrc from '@/simulation/models/lossCompare.ts?raw'
-import { Erratum, f, symLabel, texNum, TryIt } from '../common'
+import { f, symLabel, texNum, TryIt } from '../common'
 
 export const MSE_MAE_ID = 'mse-vs-mae'
 
@@ -600,7 +588,7 @@ export function MseMaeLab() {
       description={
         <>
           同一個 seed 產生同一組 <Tex>{String.raw`(x_n,y_n)`}</Tex>，分別交給 <code>conventionalStep</code>、
-          <code>signErrorStep</code>、<code>huberStep</code>。比較批次最佳解（平均 vs 中位數 vs Huber）、母體最佳解，以及固定步長下的時間平均與抖動。Sign-Error 的<strong>時間平均</strong>只會落在中位數附近約 <Tex>{String.raw`\pm\mu|x|`}</Tex> 的帶內（會依 tie 慣例與算術偏移 <Tex>{String.raw`O(\mu)`}</Tex>）<Erratum id="E40" />；軌跡本身每步跳 <Tex>{String.raw`\pm\mu|x|`}</Tex>，抖動的 std 在點質量資料是 <Tex>{String.raw`O(\mu|x|)`}</Tex>，有連續雜訊時約{' '}
+          <code>signErrorStep</code>、<code>huberStep</code>。比較批次最佳解（平均 vs 中位數 vs Huber）、母體最佳解，以及固定步長下的時間平均與抖動。Sign-Error 的<strong>時間平均</strong>只會落在中位數附近約 <Tex>{String.raw`\pm\mu|x|`}</Tex> 的帶內（會依 tie 慣例與算術偏移 <Tex>{String.raw`O(\mu)`}</Tex>）<ChapterErratum id="E40" />；軌跡本身每步跳 <Tex>{String.raw`\pm\mu|x|`}</Tex>，抖動的 std 在點質量資料是 <Tex>{String.raw`O(\mu|x|)`}</Tex>，有連續雜訊時約{' '}
           <Tex>{String.raw`\sqrt{\mu/(4f_{\tilde v})}`}</Tex>（F-01.18）。
         </>
       }
@@ -861,7 +849,7 @@ export function MseMaeLab() {
               </tbody>
               <caption>
                 {studyRes.steps} 步（只取後半段平均）。IEEE double 連加 <Tex>{String.raw`\pm\mu`}</Tex> 會讓「中位數那一格」偏離 0 一點點（例如{' '}
-                <Tex>{String.raw`\mu=0.2`}</Tex> 時 <Tex>{String.raw`0.2+0.2+0.2-0.2-0.2-0.2=${texNum(IEEE_RESIDUE_02, 3)}`}</Tex>，即時計算），<Tex>{'e=0'}</Tex> 幾乎不再發生，tie 慣例因而失效——這正是 <Erratum id="E40" />{' '}
+                <Tex>{String.raw`\mu=0.2`}</Tex> 時 <Tex>{String.raw`0.2+0.2+0.2-0.2-0.2-0.2=${texNum(IEEE_RESIDUE_02, 3)}`}</Tex>，即時計算），<Tex>{'e=0'}</Tex> 幾乎不再發生，tie 慣例因而失效——這正是 <ChapterErratum id="E40" />{' '}
                 要求「明定慣例與算術」的原因。
               </caption>
             </table>

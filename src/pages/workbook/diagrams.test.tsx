@@ -381,13 +381,13 @@ describe('手算練習簿頁面上的方塊圖（teaching-style §8）；本頁�
     }
     // ③ 導讀：「先看…再看…」；前兩張的導讀含 KaTeX，且沒有殘留的 $
     for (const c of WORKBOOK_CHARTS) {
-      const walk = el(c.name).closest('.wb-diagram')?.querySelector('.wb-diagram-walk')
+      const walk = el(c.name).closest('.wb-diagram')?.querySelector('.c-chapter-fig-walk')
       expect(walk?.textContent, c.name).toContain('先看')
       expect(walk?.textContent, c.name).toContain('再看')
       expect(walk?.textContent, c.name).not.toContain('$')
     }
-    expect(el('CHART_HOWTO').closest('.wb-diagram')?.querySelectorAll('.wb-diagram-walk .katex').length).toBeGreaterThanOrEqual(2)
-    expect(el('CHART_DEMO_ORDER').closest('.wb-diagram')?.querySelectorAll('.wb-diagram-walk .katex').length).toBeGreaterThanOrEqual(8)
+    expect(el('CHART_HOWTO').closest('.wb-diagram')?.querySelectorAll('.c-chapter-fig-walk .katex').length).toBeGreaterThanOrEqual(2)
+    expect(el('CHART_DEMO_ORDER').closest('.wb-diagram')?.querySelectorAll('.c-chapter-fig-walk .katex').length).toBeGreaterThanOrEqual(8)
     // ④ 位置：練習流程在 §2 的步驟清單之後、示範題之前；計算順序在示範題的 HandCalc 之前；題庫結構在 §4 的分頁之前
     const s2 = container.querySelector('#wb-s2')!.closest('section') as HTMLElement
     expect(s2.contains(el('CHART_HOWTO'))).toBe(true)

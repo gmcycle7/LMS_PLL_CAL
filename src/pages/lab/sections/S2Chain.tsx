@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, ModeGate, ModelLevel, Prereq, Section, SourceTag, Tex, TexBlock, ChRef } from '@/components'
-import { ChLink, Diagram, ErratumNote, md, sig, Steps, texHz, texNum } from '../common'
+import { Callout, ClaimTag, ModeGate, ModelLevel, Prereq, Section, SourceTag, Tex, TexBlock, ChRef, ErratumLink } from '@/components'
+import { ChLink, Diagram, md, sig, Steps, texHz, texNum } from '../common'
 import { CHART_OUTPUT_SPLIT, CHART_TWO_PATHS, CHART_UPDATE_LOOP } from '../diagrams'
 import { anchorNumbers, delayTable, dsmHandExample, FX_DELAY_EXAMPLE, pllNumbers, spurNumbers } from '../numbers'
 
@@ -15,13 +15,13 @@ function HandCalc() {
   const ex = useMemo(() => dsmHandExample(), [])
   const an = useMemo(() => anchorNumbers(), [])
   return (
-    <section aria-labelledby="lab-s3">
+    <section aria-labelledby="lab-s3" id="lab-sec-3">
       <h2 id="lab-s3">3｜先算一次：用最小的例子把數字走一遍</h2>
       <p>
         在看任何推導之前，先用手算得出來的數字把整條鏈走一次。下面兩個例子的數字都是頁面載入時由模擬程式算出來的 <SourceTag kind="simulation" />，不是打字打上去的。
       </p>
 
-      <Section kind="example" title="例 A：DSM 的 residue 是一把鋸齒">
+      <Section kind="example" title="例 A：DSM 的 residue 是一把鋸齒" id="lab-example-a">
         <p>
           取 FCW 小數 <Tex>{'\\alpha=1/4'}</Tex>、4-bit 的一階 DSM（<Tex>{`K=${ex.st.K},\\ M=${ex.st.M}`}</Tex>）。DSM 每個 reference 週期輸出 <Tex>{'y[n]\\in\\{0,1\\}'}</Tex>，平均值要等於{' '}
           <Tex>{'1/4'}</Tex>。「目前為止多給（或少給）了多少」就是 residue：
@@ -83,7 +83,7 @@ function HandCalc() {
         </p>
       </Section>
 
-      <Section kind="example" title="例 B：一個 block 的校正（規格的 T13 錨點）">
+      <Section kind="example" title="例 B：一個 block 的校正（規格的 T13 錨點）" id="lab-example-b">
         <p>
           先把主 PLL 拿掉（<Tex>{'H_{\\mathrm{PD}}=1'}</Tex>），code 用 <Tex>{'\\pm1'}</Tex> 的隨機序列（<Tex>{'E[x^2]=1'}</Tex>）。參數：
           <Tex>{`a=${an.a}\\,\\mathrm{fs}`}</Tex>、<Tex>{`w_0=${an.w0}`}</Tex>、<Tex>{`\\sigma_v=${an.sigmaV}\\,\\mathrm{fs}`}</Tex>、<Tex>{`N=${an.N}`}</Tex>、<Tex>{`\\mu=${an.mu}\\,\\mathrm{fs}`}</Tex>、
@@ -179,7 +179,7 @@ function HandCalc() {
                   {sig(an.fu / 1e3, 6)} kHz；{sig(an.bw.exact / 1e3, 4)} kHz；{sig(an.bw.enbw / 1e3, 4)} kHz
                 </td>
                 <td>
-                  積分雜訊要用 ENBW（<ErratumNote id="E06" />）
+                  積分雜訊要用 ENBW（<ErratumLink id="E06" />）
                 </td>
               </tr>
             </tbody>
@@ -187,7 +187,7 @@ function HandCalc() {
         </div>
         <p className="small">
           第 5–8 列就是規格 T13 / T14 的參考值（<Tex>{'p\\approx0.92021'}</Tex>、<Tex>{'\\sigma_w\\approx0.399\\,\\mathrm{fs}'}</Tex>、<Tex>{'f_u=976.5625\\,\\mathrm{kHz}'}</Tex>）。在 Lab 的 Pipeline 分頁載入 preset「T13
-          錨點」，模擬值會落在這些數字附近。前提是 unit-RMS 的 <Tex>{'\\pm1'}</Tex> code、identity path、average GMAC（<ErratumNote id="E30" />）。
+          錨點」，模擬值會落在這些數字附近。前提是 unit-RMS 的 <Tex>{'\\pm1'}</Tex> code、identity path、average GMAC（<ErratumLink id="E30" />）。
         </p>
       </Section>
     </section>
@@ -201,7 +201,7 @@ function Derivations() {
   const sp = useMemo(() => spurNumbers(), [])
   const dly = useMemo(() => delayTable(an.g), [an.g])
   return (
-    <section aria-labelledby="lab-s4">
+    <section aria-labelledby="lab-s4" id="lab-sec-4">
       <h2 id="lab-s4">4｜一步一步推導：每一級的公式從哪裡來</h2>
       <p>每個等號一行、每一行一個理由。Beginner 模式下推導預設收合，點一下就展開；所有結論都標了適用範圍。</p>
 
@@ -400,7 +400,7 @@ function Derivations() {
           <Tex>{'c_2x^2'}</Tex> 與 comparator offset <Tex>b</Tex> 不隨 <Tex>x</Tex> 變號，它們的正負號是相對本頁的 <Tex>{'e_{\\mathrm{DTC}}'}</Tex> 定義的。
         </p>
         <p className="small">
-          單位：<Tex>x</Tex> 無因次，所以 <Tex>{'a,\\ w'}</Tex> 是 fs per unit code、<Tex>{'e_{\\mathrm{DTC}}'}</Tex> 是 fs（<ErratumNote id="E13" />）。極性採全站約定 <Tex>{'\\delta=a-w'}</Tex>（<ErratumNote id="E32" />）。
+          單位：<Tex>x</Tex> 無因次，所以 <Tex>{'a,\\ w'}</Tex> 是 fs per unit code、<Tex>{'e_{\\mathrm{DTC}}'}</Tex> 是 fs（<ErratumLink id="E13" />）。極性採全站約定 <Tex>{'\\delta=a-w'}</Tex>（<ErratumLink id="E32" />）。
           <Tex>{'w_{\\mathrm{app}}'}</Tex> 是「這個 block 實際作用在 DTC 上」的值：比最新的 <Tex>{'w_k'}</Tex> 晚 <Tex>d</Tex> 個 block，開定點時還要先量化成實體 code。<Tex>{'d(x)'}</Tex>{' '}
           的影響在 <ChLink to="/ch/11">第 11 章</ChLink>。
         </p>
@@ -474,7 +474,7 @@ function Derivations() {
         </TexBlock>
         <p>
           數字：<Tex>{`f_{\\mathrm{BW}}=${texHz(pll.fBw)},\\ f_s=${texHz(pll.fs)}`}</Tex> 時 <Tex>{`s=${texNum(pll.s, 6)}`}</Tex>、<Tex>{`\\rho_T=${texNum(pll.rho, 7)}`}</Tex>、
-          <Tex>{`k=${texNum(pll.k, 5)}`}</Tex>。Type-II（<ErratumNote id="E44" /> 的直接差分方程，<Tex>{'K_p=2\\zeta\\omega_nT_s'}</Tex>、<Tex>{'K_i=(\\omega_nT_s)^2'}</Tex>）在同樣頻寬、
+          <Tex>{`k=${texNum(pll.k, 5)}`}</Tex>。Type-II（<ErratumLink id="E44" /> 的直接差分方程，<Tex>{'K_p=2\\zeta\\omega_nT_s'}</Tex>、<Tex>{'K_i=(\\omega_nT_s)^2'}</Tex>）在同樣頻寬、
           <Tex>{`\\zeta=${pll.zeta}`}</Tex> 下是 <Tex>{`\\omega_nT_s=${texNum(pll.t2.wnTs ?? NaN, 5)}`}</Tex>、<Tex>{`K_p=${texNum(pll.t2.Kp ?? NaN, 5)}`}</Tex>、<Tex>{`K_i=${texNum(pll.t2.Ki ?? NaN, 5)}`}</Tex>
           ，實際的 DT <Tex>{'-3\\,\\mathrm{dB}'}</Tex> 是 <Tex>{texHz(pll.t2.f3dbTHz, 5)}</Tex>。
         </p>
@@ -518,7 +518,7 @@ function Derivations() {
         <p className="small">
           你會發現：頻寬以下，Type-II 的 <Tex>{'|H_{\\mathrm{PD}}|'}</Tex> 以每十倍頻 <Tex>{'40\\,\\mathrm{dB}'}</Tex> 的速度變小（兩個積分器），Type-I 只有 <Tex>{'20\\,\\mathrm{dB}'}</Tex>。code 裡比 PLL
           頻寬慢的成分，PD 幾乎看不到——<strong>但輸出端全部看得到</strong>（<Tex>{'|T|\\approx1'}</Tex>）。兩者在 <Tex>{'z=1'}</Tex> 都是 <Tex>{'H_{\\mathrm{PD}}(1)=0'}</Tex>：code 的 DC 與 DTC offset
-          到不了 comparator（<ErratumNote id="E03" />、<ErratumNote id="E04" />）。
+          到不了 comparator（<ErratumLink id="E03" />、<ErratumLink id="E04" />）。
         </p>
       </Section>
 
@@ -549,7 +549,7 @@ function Derivations() {
         </TexBlock>
         <p className="small">
           「小誤差」指的是<strong>整個</strong> <Tex>{'e_{\\det}'}</Tex>（含 INL、offset 經 <Tex>{'H_{\\mathrm{PD}}'}</Tex> 的部分）都遠小於 <Tex>{'\\sigma_v'}</Tex>，不只是 <Tex>{'|a-w|'}</Tex> 小（
-          <ErratumNote id="E01" />）。Lab 的 comparator 卡片會顯示穩態的 <Tex>{'\\max|e_{\\det}|/\\sigma_v'}</Tex>，超過 0.5 就警告。tie 規則：<Tex>{'e=0'}</Tex> 取 <Tex>{'+1'}</Tex>（<ErratumNote id="E07" />）。
+          <ErratumLink id="E01" />）。Lab 的 comparator 卡片會顯示穩態的 <Tex>{'\\max|e_{\\det}|/\\sigma_v'}</Tex>，超過 0.5 就警告。tie 規則：<Tex>{'e=0'}</Tex> 取 <Tex>{'+1'}</Tex>（<ErratumLink id="E07" />）。
         </p>
       </Section>
 
@@ -638,7 +638,7 @@ function Derivations() {
                   <Tex>{'\\hat H=H_{\\mathrm{PD}}'}</Tex> 但 <Tex>{'D\\ne0'}</Tex> 時 <Tex>{'=R_u[D]'}</Tex>，可以是負的
                 </td>
                 <td>
-                  模型 <Tex>{'\\hat H'}</Tex> 的增益符號或延遲錯了（<ErratumNote id="E45" />），或 <Tex>D</Tex> 設錯（<Tex>{'\\hat H'}</Tex> 完全正確也一樣）
+                  模型 <Tex>{'\\hat H'}</Tex> 的增益符號或延遲錯了（<ErratumLink id="E45" />），或 <Tex>D</Tex> 設錯（<Tex>{'\\hat H'}</Tex> 完全正確也一樣）
                 </td>
                 <td>一個數位濾波器</td>
               </tr>
@@ -856,7 +856,7 @@ function Derivations() {
           </p>
           <TexBlock>{T`S_w^{\mathrm{ZOH}}(f)=\frac{2}{f_s}\cdot\frac1N\Bigl[\frac{\sin(N\theta/2)}{\sin(\theta/2)}\Bigr]^2 S_w(e^{jN\theta}),\qquad S_w(e^{j\Omega})=\frac{\mu^2\sigma_\eta^2}{\bigl|1-e^{-j\Omega}+g\,e^{-j(d+1)\Omega}\bigr|^2}`}</TexBlock>
           <p className="small">
-            不能把 block-rate 的 <Tex>{'S_w'}</Tex> 直接畫在 sample-rate 的頻率軸上（位準會差約 <Tex>N</Tex> 倍）。（<ErratumNote id="E09" />、<ErratumNote id="E29" />、<ErratumNote id="E28" />）
+            不能把 block-rate 的 <Tex>{'S_w'}</Tex> 直接畫在 sample-rate 的頻率軸上（位準會差約 <Tex>N</Tex> 倍）。（<ErratumLink id="E09" />、<ErratumLink id="E29" />、<ErratumLink id="E28" />）
           </p>
         </ModeGate>
         <Steps

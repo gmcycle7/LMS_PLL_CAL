@@ -161,7 +161,7 @@ export function D4Excitation() {
         <ErratumNote id="E23" />
         ）。<Tex>{r`\rho=1`}</Tex> 時 <Tex>{r`\lambda_{\min}=0`}</Tex>：那個方向的誤差完全不會被 GMAC 看到。
       </p>
-      <ModeGate min="engineer">
+      <ModeGate min="engineer" summary="連到晶片設計的研究假說（code randomization 的代價）">
         <Callout kind="info" title="連到晶片設計（研究假說）">
           <p>
             <ClaimTag kind="research" /> 讓 code 更「隨機」（降低不同參數 regressor 之間的相關、避開 <Tex>{'C'}</Tex> 很小的 FCW）在上面的模型裡會同時改善

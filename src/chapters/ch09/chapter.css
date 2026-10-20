@@ -1,33 +1,3 @@
-/* Ch09 專屬樣式（class 一律加 ch09- 前綴） */
-
-.ch09-erratum {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.15em;
-  padding: 0 0.45em;
-  margin: 0 0.15em;
-  border: 1px solid var(--warn);
-  border-radius: 999px;
-  background: var(--warn-soft);
-  color: var(--warn);
-  font-size: 0.78em;
-  font-weight: 600;
-  line-height: 1.6;
-  text-decoration: none;
-  white-space: nowrap;
-  vertical-align: baseline;
-}
-
-.ch09-erratum:hover,
-.ch09-erratum:focus-visible {
-  text-decoration: underline;
-}
-
-.ch09-erratum-text {
-  font-weight: 500;
-  white-space: normal;
-}
-
 .ch09-deriv {
   margin: 0.75rem 0;
   border: 1px solid var(--border);
@@ -170,14 +140,8 @@
 }
 
 .ch09-toc-link {
-  appearance: none;
-  border: 0;
-  background: none;
-  padding: 0;
   color: var(--accent);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
+  text-decoration: none;
 }
 
 /* 目錄裡的項目用 block：標題折行時，編號才會對齊第一行（inline-block 的按鈕會讓編號掉到最後一行的基線）；
@@ -189,30 +153,6 @@
 .ch09-toc-link:hover,
 .ch09-toc-link:focus-visible {
   text-decoration: underline;
-}
-
-/* 帶入手算：邀請句緊貼在題目上方 */
-.ch09-handcalc {
-  margin: 1rem 0;
-}
-
-.ch09-handcalc-invite {
-  margin: 0 0 0.4rem;
-}
-
-/* 方塊圖（docs/teaching-style.md §8）：圖號＋圖說緊貼在圖的下方 */
-.ch09-diagram {
-  margin: 1rem 0;
-  min-width: 0;
-}
-
-.ch09-diagram .c-mermaid {
-  margin: 0;
-}
-
-.ch09-diagram-caption {
-  margin: 0.35rem 0 0;
-  line-height: 1.6;
 }
 
 /* 章首系統地圖下面那一句「你在這裡」 */

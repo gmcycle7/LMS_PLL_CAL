@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Callout, HandCalc, Tex, mathText } from '@/components'
+import { Callout, HandCalc, Tex, badgeClass, mathText } from '@/components'
 import type { HandCalcDef } from '@/data/types'
 import { LEVELS, LEVEL_LABEL, isFiltered, type ChapterGroup, type Filters, type Level } from '../logic'
 import { LevelBadge } from './common'
@@ -37,14 +37,14 @@ export function FilterBar({ filters, onChange, groups, levelCounts, shown, total
       <div className="wb-filter" role="group" aria-label="依難度篩選">
         <span className="wb-filter-label">難度</span>
         <div className="wb-chips">
-          <button type="button" className={`wb-chip${filters.level === '' ? ' active' : ''}`} aria-pressed={filters.level === ''} onClick={() => set({ level: '' })}>
+          <button type="button" className={badgeClass('neutral', `wb-chip${filters.level === '' ? ' active' : ''}`)} aria-pressed={filters.level === ''} onClick={() => set({ level: '' })}>
             全部
           </button>
           {LEVELS.map((l) => (
             <button
               key={l}
               type="button"
-              className={`wb-chip wb-chip-${l}${filters.level === l ? ' active' : ''}`}
+              className={badgeClass('neutral', `wb-chip wb-chip-${l}${filters.level === l ? ' active' : ''}`)}
               aria-pressed={filters.level === l}
               data-level={l}
               onClick={() => set({ level: filters.level === l ? '' : l })}

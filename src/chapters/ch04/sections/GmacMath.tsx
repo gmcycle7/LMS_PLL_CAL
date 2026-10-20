@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Prereq, Section, SourceTag, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
+import { Callout, ClaimTag, CodeBlock, CodeCompare, ModeGate, Prereq, Section, SourceTag, StepDerivation, Tex, TexBlock, ChRef, ChapterErratum } from '@/components'
 import { erf } from '@/simulation/core'
 import gmacSrc from '@/simulation/models/gmac.ts?raw'
 import {
@@ -17,7 +17,7 @@ import {
 import { SignalFlowExperiment } from '../experiments/SignalFlowExperiment'
 import { BitEncodingExperiment } from '../experiments/BitEncodingExperiment'
 import { BIT_MAPPING, GMAC_MEAN_MODEL, SUM_VS_AVERAGE } from '../diagrams'
-import { DerivationFold, Erratum, f, FigRef, HandCalcBox, MermaidFig, tx, mt } from '../common'
+import { DerivationFold, f, FigRef, HandCalcBox, MermaidFig, tx, mt } from '../common'
 
 const R = String.raw
 const GMAC_PATH = 'src/simulation/models/gmac.ts'
@@ -248,7 +248,7 @@ export function GmacMathSection() {
         <p className="small">
           <ClaimTag kind="approx" /> 小訊號近似，相對誤差約 <Tex>{R`(\delta u/\sigma_v)^2/6`}</Tex>。第 3 步的 <Tex>{R`e=\delta_ku+v`}</Tex> 在 PLL 誤差路徑有記憶（<Tex>{R`u\ne x`}</Tex>）時另需{' '}
           <Tex>w</Tex> 在 <Tex>h</Tex> 的記憶長度內近似不變（§4 推導的第 1 步，<ChRef ch="06">Ch06</ChRef> 的 F-06.1）；identity path（<Tex>{R`u=x`}</Tex>）時是等式。<Tex>K</Tex> 的單位是 <Tex>{R`\mathrm{fs}^{-1}`}</Tex>、
-          <Tex>{R`\mu`}</Tex> 的單位是 <Tex>{R`\mathrm{fs}`}</Tex>，乘起來 <Tex>{R`g=\mu K`}</Tex> 無因次 <Erratum id="E13" />
+          <Tex>{R`\mu`}</Tex> 的單位是 <Tex>{R`\mathrm{fs}`}</Tex>，乘起來 <Tex>{R`g=\mu K`}</Tex> 無因次 <ChapterErratum id="E13" />
           。若 <Tex>{R`C\le0`}</Tex>（PLL 路徑相位 &gt; 90° 或 code 錯位），平均更新方向相反（<ChRef ch="06">Ch06</ChRef>、<ChRef ch="07">Ch07</ChRef>）。
         </p>
       </DerivationFold>
@@ -398,13 +398,13 @@ export function GmacMathSection() {
         kind="info"
         title={
           <>
-            Sum 與 average 的平均與變異數 <Erratum id="E18" />
+            Sum 與 average 的平均與變異數 <ChapterErratum id="E18" />
           </>
         }
       >
         <p>
           規格 §5 用 <Tex>{R`G_N=\sum q_i`}</Tex>（總和）配 <Tex>{R`\mathrm{Var}=N(1-m^2)`}</Tex>，和 §0 的平均定義衝突。本站一律：總和寫 <Tex>{R`S_N`}</Tex>、平均寫 <Tex>G</Tex>；
-          <Tex>{R`E[q]`}</Tex> 寫成 <Tex>{R`m_q`}</Tex>（規格寫 <Tex>m</Tex>，與其他章節的 <Tex>m</Tex> 衝突 <Erratum id="E34" />）。以{' '}
+          <Tex>{R`E[q]`}</Tex> 寫成 <Tex>{R`m_q`}</Tex>（規格寫 <Tex>m</Tex>，與其他章節的 <Tex>m</Tex> 衝突 <ChapterErratum id="E34" />）。以{' '}
           <Tex>{R`x\equiv1`}</Tex>、<Tex>{R`m_q=E[q]=\mathrm{erf}(0.01/\sqrt2)=${tx(m, 6)}`}</Tex>（<Tex>{R`1\,\mathrm{fs}`}</Tex> 的誤差埋在 <Tex>{R`\sigma_v=100\,\mathrm{fs}`}</Tex> 的雜訊裡）、
           <Tex>{R`N=${N5}`}</Tex> 為例 <SourceTag kind="illustrative" />：
         </p>
@@ -413,7 +413,7 @@ export function GmacMathSection() {
         </TexBlock>
         <p>
           兩者差 <Tex>N</Tex> 倍，但「方向判斷」<Tex>{R`P(S_N>0)=P(G>0)`}</Tex> 與尺度無關。histogram 或信賴區間的軸一定要標明是 sum 還是 average。<Tex>N</Tex> 為偶數時 <Tex>{R`S_N=0`}</Tex> 的 tie 必須另訂規則{' '}
-          <Erratum id="E07" />
+          <ChapterErratum id="E07" />
           （<ChRef ch="05">Ch05</ChRef>）。
         </p>
       </Callout>

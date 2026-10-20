@@ -32,10 +32,14 @@ export const BEGINNER_CONTROLS: Readonly<Record<string, readonly string[]>> = {
   'gmac-signal-flow': ['N（每 block sample 數）', 'σ_v（comparator 前雜訊）', 'μ（gain_step）', 'a（真實 gain）', 'code pattern'],
   // Ch04 §3 位元編碼（presets 改 codeMean、codeSigma、mu、sigmaV、N）
   'gmac-bit-encoding': ['E[x]（code 平均）', 'σ_x（code 標準差）', 'μ', 'σ_v', 'N'],
-  // Ch05 §6 Comparator Lab（presets 改 s、sigma、theta、N、tieRule）；前三個標籤隨 Case 變動，用 reg
-  'comparator-lab': ['Behavioral: s = DTC residual (a − w)', 'Behavioral: σ_v（BBPD 輸入參考雜訊）', 'Behavioral: θ（comparator offset）', 'N（累加樣本數，所有 Case 共用）'],
+  // Ch05 §6 Comparator Lab（presets 改 s、sigma、theta、h、N、tieRule）；前四個標籤隨 Case 變動，用 reg
+  'comparator-lab': ['Behavioral: s = DTC residual (a − w)', 'Behavioral: σ_v（BBPD 輸入參考雜訊）', 'Behavioral: θ（comparator offset）', 'N（累加樣本數，所有 Case 共用）', String.raw`Behavioral: $h$（comparator hysteresis，門檻 $\theta\mp h$）`],
   // Ch06 §5 連續／離散的 H_PD（presets 改 type、zeta、wLTs、loopDelay）
   'polarity-ct-dt': ['迴路型式', 'ζ（阻尼比，Type-II）', 'ω_L T_s（迴路頻率 × 取樣週期）'],
+  // Ch14 §14.7／§14.6b 校正狀態機與 FLL acquisition（presets 改 sigmaV、N、FLL 增益、lock 門檻、phase-lock 門檻…）
+  'cal-state-machine': ['σ_v', 'N', 'FLL 增益 K_f', 'lock 門檻 f_tol', 'phase-lock 門檻 θ_max'],
+  // 案例頁 §10b 實驗 D：code source × dither × PMUX 旋轉（presets 改 loop、α f_ref、兩個 case 的 code source）
+  'sspll-code-source': ['PLL 架構（PM）', 'α·f_ref', 'Case A 的 code source', 'Case B 的 code source'],
   // Ch14 §14.4 設計計算器（presets 改 sigmaV、N、T、delta0、objective…）
   'lr-optimizer': ['σ_v（comparator 雜訊）', 'N（每 block 樣本數）', 'T（總比較次數）', 'δ0（初始誤差）', '最佳化目標'],
 }

@@ -34,12 +34,21 @@ import {
   typeIKClosedForm,
   typeILatencyCriterion,
   typeIReH,
+  codeVerdict,
+  dqLineWeight,
+  dqWhite,
+  inversionBands,
+  kappaModeCode,
+  largeSignalCode,
+  mashFactors,
+  rotFactor,
+  thetaMode,
 } from '@/simulation/models/sspll'
 import { cAbs } from '@/simulation/core/complex'
 import { gosKernelMin, gosLipschitz, gosPointCertificate, harmonicNumber } from './gosTheorem'
 
 /**
- * 案例頁 /case/sspll 的「帶入手算」題（HC-CS.1 – HC-CS.9）。
+ * 案例頁 /case/sspll 的「帶入手算」題（HC-CS.1 – HC-CS.12）。
  *  1. solve() 的數值一律呼叫 src/simulation/models/sspll.ts 的實際函式（頁面的圖表與表格用的是同一批函式）；
  *     中間量（平方、開根號…）只是把那個函式的算式拆成紙筆做得到的步驟，handcalcs.test.tsx 逐題與獨立重算比對。
  *  2. 每一步的 tex 都是「符號式 = 代入數字 =（中間結果 =）結果」：每個等號只做一種運算（一次函數、一串乘除、或一串加減），
@@ -61,7 +70,8 @@ import { gosKernelMin, gosLipschitz, gosPointCertificate, harmonicNumber } from 
  * 題目在頁面上的位置（sections/*.tsx 用 common.tsx 的 <Hand id="…" /> 以 id 查表；順序與本陣列相同）：
  * HC-CS.1 → §4.1、HC-CS.2 → §5.2、HC-CS.3 → §6.1、HC-CS.4／HC-CS.5 → §6.2、HC-CS.6 → §11.1、HC-CS.7 → §13、
  * HC-CS.8（綜合）→ §15.3，HC-CS.9（殘餘 PHOS → 輸出 spur）→ §15.4，也就是 §16 思考題之前。
- * HC-CS.10（GOS 定理的單點證書，排在 HC-CS.5 之後）→ §7b。
+ * HC-CS.10（GOS 定理的單點證書，排在 HC-CS.5 之後）→ §7b；HC-CS.11（MASH 的 |φ|²、R̃ 與 κ₁ 的前三項）、HC-CS.12（dither 之後的 κ₁）
+ * 排在 HC-CS.10 之後、HC-CS.6 之前 → §10b。
  */
 
 const r = String.raw
@@ -75,6 +85,10 @@ export const HC_FREF_MHZ = F_REF / 1e6
  * 多留兩位是為了讓手算的答案與內文印出的數字逐位相同；handcalcs.test.tsx 會與 nominalLoops() 的設計結果比對。
  */
 export const HC_NOMINAL = { K: 0.38883636, Kp: 0.28771696, Ki: 0.038253471 } as const
+/** L2 PM 45° 的設計結果（§10b 的 L2-PM45；makeL2({ pm: 45 }) 取 8 位有效數字；handcalcs.test.tsx 比對） */
+export const HC_PM45 = { Kp: 0.22324953, Ki: 0.057914821 } as const
+/** §10b 的 dead-zone 門檻 τ（F-CS.28） */
+export const HC_TAU_DEAD = 0.05
 
 /** 代入用的數字：預設 6 位有效數字（帶緣要算到 0.01 MHz，5 位不夠） */
 const n = (x: number, sig = 6): string => texNum(x, sig)
@@ -222,6 +236,12 @@ function hc10Point(beta: number) {
 /** 精確的諧波和（§7 的 gosHarmonic；note 裡拿來和下界比） */
 function hc10Exact(beta: number): number {
   return gosHarmonic(beta / 8, gammaEff(hc10Loop()))
+}
+
+/** 1 拍延遲的 Type-II 迴路的 h_PD[0..2]（長除法的 closed form：h[1] = −(K_p + K_i)、h[2] = K_p + (K_p + K_i)² − 2(K_p + K_i)）；handcalcs.test.tsx 與 loopImpulse 比對 */
+function loopImpulseHc(Kp: number, Ki: number): [number, number, number] {
+  const s = Kp + Ki
+  return [1, -s, Kp + s * s - 2 * s]
 }
 
 export const HANDCALCS: HandCalcDef[] = [
@@ -787,6 +807,158 @@ export const HANDCALCS: HandCalcDef[] = [
       r`範例（$\beta=0.25$）：$f_m=0.25,\,0.5,\,0.75,\,0$；$g_m=1.16044,\,1.18123,\,1.16044,\,0$（§6.4 的表：1000 MHz、2000 MHz）；$C_4=0.080281$、$T_4=0.0112124$、$g_{\min}T_4=-0.0023025$、$\mathrm{LB}=0.077979$、$\Lambda_4=5.18094$、$\delta=0.015051$。`,
       r`$\pi^2/6=1.644934$、$2\pi^2=19.7392$、$1+\tfrac14+\tfrac19+\tfrac1{16}=1.423611$：這三個常數每次都一樣，可以先抄下來。`,
       r`想看證書「吃力」的樣子：把 $\beta$ 改成 0.05——$f_1=0.05$（200 MHz）還在帶外，但 $f_2$、$f_3$ 的 $\mathrm{Re}\,H_{PD}$ 已經不大，$\mathrm{LB}$ 變小、$\delta$ 變短；$\beta=0.02$（$f_1$ 落在反號帶裡、$g_1<0$）時只用 4 項就不夠了，validate 會告訴你要用 §7b 的完整證書。`,
+    ],
+  },
+
+  // ───────────────────────────────────────────────────────────────────────────
+  {
+    id: 'HC-CS.11',
+    title: r`MASH 的載波保留率 $\lvert\phi_1\rvert^2$、$\tilde R$ 與 $\kappa_1$ 的前三項：為什麼 L2-PM45 在 $\alpha=0.03$ 是 dead zone`,
+    page: PAGE,
+    formulaId: 'F-CS.27',
+    formulaTex: r`\begin{gathered}\theta_1=\tfrac{\pi}{4},\qquad\phi_1=\mathrm{sinc}^2\tfrac{\theta_1}{2}\,\mathrm{sinc}\,\theta_1,\qquad\tilde R[0]=1-\lvert\phi_1\rvert^2\\[4pt]\tilde R[1]=\mathrm{sinc}^2\tfrac{\theta_1}{2}\,\mathrm{sinc}^2\tfrac{3\theta_1}{2}-\lvert\phi_1\rvert^2,\qquad\tilde R[2]=\mathrm{sinc}^2\tfrac{\theta_1}{2}\,\mathrm{sinc}^2\theta_1-\lvert\phi_1\rvert^2\\[4pt]\mathrm{Re}\,\kappa_1\approx\lvert\phi_1\rvert^2\,\mathrm{Re}\,H_{PD}(\alpha)+h_{PD}[0]\tilde R[0]+h_{PD}[1]\cos(2\pi\alpha)\tilde R[1]+h_{PD}[2]\cos(4\pi\alpha)\tilde R[2]\end{gathered}`,
+    level: 'engineer',
+    claim: 'approx',
+    inputs: [
+      { key: 'f', symbol: r`\alpha f_{ref}`, label: r`PMUX 旋轉頻率（$\alpha=f/f_{ref}$，$f_{ref}=4000$ MHz；$\mathrm{Re}\,H_{PD}(\alpha)$ 由模型算出，步驟裡直接給）`, unit: r`\mathrm{MHz}`, default: 120, min: 0.5, max: 2000, practice: { choices: [40, 80, 120, 160, 200, 400] } },
+      { key: 'Kp', symbol: 'K_p', label: '比例增益（預設是 L2 PM 45°）', default: HC_PM45.Kp, min: 0, max: 2, practice: { choices: [HC_PM45.Kp, HC_NOMINAL.Kp, 0.4] } },
+      { key: 'Ki', symbol: 'K_i', label: '積分增益（預設是 L2 PM 45°）', default: HC_PM45.Ki, min: 0, max: 1, practice: { choices: [HC_PM45.Ki, HC_NOMINAL.Ki, 0.02] } },
+    ],
+    validate: ({ f, Kp, Ki }) => typeIIProblem(Kp, Ki) ?? freqProblem(f, HC_FREF_MHZ),
+    solve: ({ f, Kp, Ki }) => {
+      const loop = makeL2({ Kp, Ki })
+      const alpha = dec(f / HC_FREF_MHZ)
+      const th = thetaMode(1)
+      const s1 = Math.sin(th / 2) / (th / 2)
+      const s2 = Math.sin(th) / th
+      const s3 = Math.sin(1.5 * th) / (1.5 * th)
+      const fac = mashFactors(1)
+      const R1 = s1 * s1 * s3 * s3
+      const R2 = s1 * s1 * s2 * s2
+      const h = loopImpulseHc(Kp, Ki)
+      const g = loopH(loop, alpha).re
+      const c1 = Math.cos(2 * Math.PI * alpha)
+      const c2 = Math.cos(4 * Math.PI * alpha)
+      const terms = [fac.phi2 * g, h[0] * fac.rtilde[0], h[1] * c1 * fac.rtilde[1], h[2] * c2 * fac.rtilde[2]]
+      const kappa1 = kappaModeCode(loop, alpha, 'mash', 1)
+      const pK = sumDecimals(kappa1, terms)
+      const sumTex = terms.map((x, i) => (i === 0 ? fixedTex(x, pK, false) : x >= 0 ? `+${fixedTex(x, pK)}` : fixedTex(x, pK, false))).join('')
+      const kRaw = kappaModeCode(loop, alpha, 'acc1', 1)
+      const kPm60 = kappaModeCode(makeL2({ Kp: HC_NOMINAL.Kp, Ki: HC_NOMINAL.Ki }), alpha, 'mash', 1)
+      const b45 = inversionBands(makeL2({ Kp: HC_PM45.Kp, Ki: HC_PM45.Ki }))[0] // 兩個迴路的反號帶（帶緣、谷底）：模型算出，不手寫
+      const b60 = inversionBands(makeL2({ Kp: HC_NOMINAL.Kp, Ki: HC_NOMINAL.Ki }))[0]
+      const v = codeVerdict(loop, alpha, 'mash', HC_TAU_DEAD)
+      const ls = largeSignalCode(loop, alpha, 'mash', v.worstMode)
+      // dead zone：F-CS.28 不判；κ_∞ 只列成研究假說的提示（「dead zone 看 κ_∞」被 golden 否決，§10b.7）
+      const verdictText = v.verdict === 'dead' ? `dead zone（$\\lvert\\kappa_{\\min}\\rvert\\le${HC_TAU_DEAD}$）：線性模型沒有恢復力，不判。1-bit 大訊號 $\\kappa_\\infty=${n(ls.kappaInf)}$（模型算出）${ls.kappaInf < 0 ? '是負的，提示誤差可能被往外推' : '是正的，提示可能慢慢收斂'}——只是研究假說的提示，不是判定（§10b.7：把它當判準，golden 的 dead zone 案例錯了 8 組）` : v.verdict === 'inverted' ? `反號（$\\kappa_{\\min}<-${HC_TAU_DEAD}$）：預測發散` : `restoring（$\\kappa_{\\min}>${HC_TAU_DEAD}$）：預測收斂`
+      return {
+        steps: [
+          { tex: r`\alpha=f/f_{ref}=${ni(f)}/${n(HC_FREF_MHZ)}=${nx(alpha)}`, why: r`PMUX 旋轉頻率對 $f_{ref}$ 正規化；mode-1 的載波就在 $\alpha f_{ref}$。` },
+          { tex: r`\theta_1=\pi/4=${n(th)}`, why: r`每一格 $\Delta$ 的 code 讓 mode-1 的 regressor $e^{j2\pi P/8}$ 轉 $2\pi/8$：$\theta_m=\pi m/4$（F-CS.26）。` },
+          { tex: r`\mathrm{sinc}(\theta_1/2)=\frac{\sin(\theta_1/2)}{\theta_1/2}=\frac{\sin(${n(th / 2)})}{${n(th / 2)}}=${n(s1)}`, why: r`$\mathrm{sinc}\,x=\sin x/x$：均勻分布在 $[0,1)$ 的 $e$ 的特徵函數 $\lvert E[e^{-j\theta e}]\rvert=\mathrm{sinc}(\theta/2)$（計算機用弧度）。` },
+          { tex: r`\mathrm{sinc}(\theta_1)=\frac{\sin(${n(th)})}{${n(th)}}=${n(s2)}`, why: r`MASH 的餘數 $c=e-2e'+e''$ 裡 $-2e'$ 那一項的特徵函數是 $\mathrm{sinc}(2\theta/2)=\mathrm{sinc}\,\theta$。` },
+          { tex: r`\lvert\phi_1\rvert^2=\big(\mathrm{sinc}^2(\theta_1/2)\,\mathrm{sinc}(\theta_1)\big)^2=(${n(s1)}^2\times${n(s2)})^2=${n(fac.phi2)}`, why: r`三個獨立均勻數的特徵函數相乘：$\phi_1=E[e^{-j\theta_1c}]$；$\lvert\phi_1\rvert^2$ 是留在載波 $\alpha f_{ref}$ 上的功率比例（MASH 保留 73%）。` },
+          { tex: r`\tilde R[0]=1-\lvert\phi_1\rvert^2=1-${n(fac.phi2)}=${n(fac.rtilde[0])}`, why: r`$\lvert u\rvert=1$，所以散開到其他頻率的總功率是 $1-\lvert\phi_1\rvert^2$（27%）。` },
+          { tex: r`\mathrm{sinc}(3\theta_1/2)=\frac{\sin(${n(1.5 * th)})}{${n(1.5 * th)}}=${n(s3)}`, why: r`$c[n]-c[n-1]=e-3e'+3e''-e'''$：係數 $\pm3$ 的兩項各給 $\mathrm{sinc}(3\theta/2)$。` },
+          { tex: r`\begin{aligned}\tilde R[1]&=\mathrm{sinc}^2(\tfrac{\theta_1}{2})\,\mathrm{sinc}^2(\tfrac{3\theta_1}{2})-\lvert\phi_1\rvert^2\\&=${n(s1, 7)}^2\times${n(s3, 7)}^2-${n(fac.phi2, 7)}=${n(R1, 7)}-${n(fac.phi2, 7)}=${n(fac.rtilde[1])}\end{aligned}`, why: r`$R[1]=E[e^{-j\theta(c[n]-c[n-1])}]$ 減掉載波的 $\lvert\phi_1\rvert^2$：相鄰兩拍的 $u$ 還有相關（負的——高通整形的餘數在相鄰兩拍反相）。` },
+          { tex: r`\begin{aligned}\tilde R[2]&=\mathrm{sinc}^2(\tfrac{\theta_1}{2})\,\mathrm{sinc}^2(\theta_1)-\lvert\phi_1\rvert^2\\&=${n(s1, 7)}^2\times${n(s2, 7)}^2-${n(fac.phi2, 7)}=${n(R2, 7)}-${n(fac.phi2, 7)}=${n(fac.rtilde[2])}\end{aligned}`, why: r`$c[n]-c[n-2]=e-2e'+2e'''-e''''$（中間那一項抵消）；隔兩拍的相關很小，$k\ge3$ 完全獨立（$\tilde R=0$）。` },
+          { tex: r`h_{PD}[1]=-(K_p+K_i)=-(${ni(Kp)}+${ni(Ki)})=${nx(h[1])}`, why: r`1 拍延遲的 Type-II：$H_{PD}=(1-z^{-1})^2/(1+(K_p+K_i-2)z^{-1}+(1-K_p)z^{-2})$，長除法的第二項（§6.4 的脈衝響應表）。` },
+          { tex: r`h_{PD}[2]=K_p+(K_p+K_i)^2-2(K_p+K_i)=${ni(Kp)}+${nb(-h[1])}^2-2\times${nx(-h[1])}=${n(h[2])}`, why: r`長除法的第三項：$h[2]=1-a_1h[1]-a_2$，$a_1=K_p+K_i-2$、$a_2=1-K_p$。` },
+          { tex: r`\lvert\phi_1\rvert^2\,g=${n(fac.phi2)}\times${np(g)}=${n(terms[0])}`, why: r`載波項：$g=\mathrm{Re}\,H_{PD}(\alpha)=${n(g)}$（這個迴路在 $${ni(f)}$ MHz；用 HC-CS.5 的算法或讀實驗 A 的曲線）。${g < 0 ? '載波落在反號帶內，這一項是負的。' : '載波在帶外，這一項是正的。'}` },
+          { tex: r`h_{PD}[0]\,\tilde R[0]=1\times${n(fac.rtilde[0])}=${n(terms[1])}`, why: r`散開的部分，$k=0$：$h_{PD}[0]=1$（迴路至少 1 拍延遲），所以白色的那一塊整個算進來、永遠是正的。` },
+          { tex: r`\begin{aligned}h_{PD}[1]\cos(2\pi\alpha)\,\tilde R[1]&=${np(h[1])}\times\cos(2\pi\times${nx(alpha)})\times${np(fac.rtilde[1])}\\&=${np(h[1])}\times${n(c1)}\times${np(fac.rtilde[1])}=${n(terms[2])}\end{aligned}`, why: r`$k=1$：負的 $h[1]$ 乘負的 $\tilde R[1]$，是正的；$\cos(2\pi\alpha k)$ 是 F-CS.26 第二行 $e^{-j2\pi m\alpha k}$ 的實部。` },
+          { tex: r`\begin{aligned}h_{PD}[2]\cos(4\pi\alpha)\,\tilde R[2]&=${np(h[2])}\times\cos(4\pi\times${nx(alpha)})\times${n(fac.rtilde[2])}\\&=${np(h[2])}\times${n(c2)}\times${n(fac.rtilde[2])}=${n(terms[3])}\end{aligned}`, why: r`$k=2$：最後一項，很小。` },
+          { tex: r`\kappa_1=${sumTex}=${n(kappa1)}`, why: r`四項相加（F-CS.26 第三行；$k\ge3$ 的 $\tilde R=0$）。` },
+        ],
+        results: [
+          { symbol: r`\lvert\phi_1\rvert^2`, label: 'MASH 留在載波上的功率比例', value: fac.phi2, digits: 5 },
+          { symbol: r`\tilde R[1]`, label: '相鄰兩拍的殘餘相關', value: fac.rtilde[1], digits: 5 },
+          { symbol: r`\kappa_1`, label: 'MASH 之下 mode-1 的 $\\mathrm{Re}\\,\\kappa_1$（closed form）', value: kappa1, digits: 5 },
+        ],
+        notes: [
+          `判定（F-CS.28）：${verdictText}。`,
+          r`同一點、同一個迴路改用一階累加器（raw）：$\kappa_1=${n(kRaw)}$；MASH 把它拉高了 $${n(kappa1 - kRaw)}$——散開的 27% 幾乎全變成正項，但載波的 73% 仍乘上同一個 $\mathrm{Re}\,H_{PD}(\alpha)$。`,
+          r`同一點換成 L2 PM 60°（$K_p=${n(HC_NOMINAL.Kp)}$、$K_i=${n(HC_NOMINAL.Ki)}$）：$\mathrm{Re}\,H_{PD}(\alpha)=${n(loopH(makeL2({ Kp: HC_NOMINAL.Kp, Ki: HC_NOMINAL.Ki }), alpha).re)}$，$\kappa_1=${n(kPm60)}$——PM 45° 的反號帶更深（谷底 $${n(b45.minReH, 3)}$，PM 60° 是 $${n(b60.minReH, 3)}$）、更寬（到 $${n(b45.fHi * HC_FREF_MHZ, 3)}$ MHz，PM 60° 到 $${n(b60.fHi * HC_FREF_MHZ, 3)}$ MHz），這就是只有 PM 45° 掉進 dead zone（沒有恢復力）的原因；掉進去之後為什麼會發散，仍是研究假說（§10b.4）。`,
+        ],
+      }
+    },
+    tips: [
+      r`範例（L2 PM 45°、120 MHz）：$\theta_1=0.785398$、$\mathrm{sinc}(\theta_1/2)=0.974495$、$\mathrm{sinc}(\theta_1)=0.900316$、$\lvert\phi_1\rvert^2=0.730986$、$\tilde R=[0.269014,\,-0.146966,\,0.038764]$、$h_{PD}[1]=-0.281164$、$h_{PD}[2]=-0.260026$、$\mathrm{Re}\,H_{PD}=-0.382476$；四項 $-0.279585+0.269014+0.040590-0.009372=+0.020646$。`,
+      r`$\mathrm{sinc}$ 的三個值對任何 $\alpha$、任何迴路都一樣（只和 $\theta_1=\pi/4$ 有關），可以先抄下來；會變的只有 $\mathrm{Re}\,H_{PD}(\alpha)$、$h_{PD}[1]$、$h_{PD}[2]$ 與兩個 $\cos$。`,
+      r`想看 MASH 救得回來的樣子：把 $K_p$、$K_i$ 改成 PM 60° 的 0.287717、0.0382535——同樣 120 MHz，$\mathrm{Re}\,H_{PD}$ 只有 $-0.095$，$\kappa_1=+0.238$（restoring）。`,
+    ],
+  },
+
+  // ───────────────────────────────────────────────────────────────────────────
+  {
+    id: 'HC-CS.12',
+    title: r`dither 之後的 $\kappa_1$：dithered quantizer 只攤掉 10%，隨機旋轉 $M$ 相把載波乘上 $\lvert D_M\rvert^2$`,
+    page: PAGE,
+    formulaId: 'F-CS.27',
+    formulaTex: r`\begin{gathered}\text{dq}:\ w_{white}=\frac{1-\cos\theta_1}{3},\quad v_0=\frac{2(1-\cos\theta_1)}{\theta_1^2},\quad\kappa_1^{dq}\approx v_0^2\,\mathrm{Re}\,H_{PD}(\alpha)+w_{white}+w_{rest}\\[4pt]\text{rot}M:\ \lvert D_M\rvert^2=\frac{\sin^2(M\theta_1/2)}{M^2\sin^2(\theta_1/2)},\qquad\kappa_1^{rot}=\lvert D_M\rvert^2\,\kappa_1^{raw}+\big(1-\lvert D_M\rvert^2\big)\end{gathered}`,
+    level: 'engineer',
+    claim: 'approx',
+    inputs: [
+      { key: 'f', symbol: r`\alpha f_{ref}`, label: r`PMUX 旋轉頻率（$\mathrm{Re}\,H_{PD}(\alpha)$ 與 raw 的 $\kappa_1$ 由模型算出，步驟裡直接給）`, unit: r`\mathrm{MHz}`, default: 120, min: 0.5, max: 2000, practice: { choices: [40, 80, 120, 160, 200, 400] } },
+      { key: 'Kp', symbol: 'K_p', label: '比例增益（預設是 L2 PM 45°）', default: HC_PM45.Kp, min: 0, max: 2, practice: { choices: [HC_PM45.Kp, HC_NOMINAL.Kp] } },
+      { key: 'Ki', symbol: 'K_i', label: '積分增益（預設是 L2 PM 45°）', default: HC_PM45.Ki, min: 0, max: 1, practice: { choices: [HC_PM45.Ki, HC_NOMINAL.Ki] } },
+      { key: 'M', symbol: 'M', label: 'PMUX 隨機旋轉的相數（2、4 或 8）', default: 4, min: 2, max: 8, integer: true, practice: { choices: [2, 4, 8] } },
+    ],
+    validate: ({ f, Kp, Ki, M }) => {
+      if (![2, 4, 8].includes(M)) return r`$M$ 只能是 2、4 或 8：隨機旋轉的偏移 $m\in\{0..M-1\}$ 要能整除 8 個相位，$M=8$ 才把每一條線都殺掉。`
+      return typeIIProblem(Kp, Ki) ?? freqProblem(f, HC_FREF_MHZ)
+    },
+    solve: ({ f, Kp, Ki, M }) => {
+      const loop = makeL2({ Kp, Ki })
+      const alpha = dec(f / HC_FREF_MHZ)
+      const th = thetaMode(1)
+      const cs = Math.cos(th)
+      const white = dqWhite(1)
+      const v0 = (2 * (1 - cs)) / (th * th)
+      const w1 = v0 * v0
+      const wRest = dec(1 - white - w1)
+      const pRest = sumDecimals(wRest, [1, white, w1])
+      const g = loopH(loop, alpha).re
+      const kDqHand = dec(w1 * g + white + wRest)
+      const kDqExact = kappaModeCode(loop, alpha, 'dq', 1)
+      const D2 = snap(rotFactor(M, 1))
+      const sM = Math.sin((M * th) / 2)
+      const sH = Math.sin(th / 2)
+      const kRaw = kappaModeCode(loop, alpha, 'acc1', 1)
+      const kRot = kappaModeCode(loop, alpha, 'rot4', 1) // M = 4 的模型值（M ≠ 4 時用手算式）
+      const kRotHand = dec(D2 * kRaw + (1 - D2))
+      const kRotModel = M === 4 ? kRot : M === 8 ? kappaModeCode(loop, alpha, 'rot8', 1) : kRotHand
+      const pD = sumDecimals(kDqHand, [w1 * g, white + wRest])
+      const pR = sumDecimals(kRotHand, [D2 * kRaw, 1 - D2])
+      const vDq = kDqExact < -HC_TAU_DEAD ? '反號' : kDqExact > HC_TAU_DEAD ? 'restoring' : 'dead zone'
+      const vRot = kRotModel < -HC_TAU_DEAD ? '反號' : kRotModel > HC_TAU_DEAD ? 'restoring' : 'dead zone'
+      return {
+        steps: [
+          { tex: r`\alpha=f/f_{ref}=${ni(f)}/${n(HC_FREF_MHZ)}=${nx(alpha)}`, why: r`載波頻率 $\alpha f_{ref}$（mode 1）。` },
+          { tex: r`\cos\theta_1=\cos(\pi/4)=\cos(${n(th)})=${n(cs)}`, why: r`$\theta_1=\pi/4$；dq 與 rot 的因子都只用到它。` },
+          { tex: r`w_{white}=\frac{1-\cos\theta_1}{3}=\frac{1-${n(cs)}}{3}=${n(white)}`, why: r`dithered quantizer：給定 $\rho$，PMUX 多跳一相的機率是 $\rho$，regressor 的條件變異數 $2\rho(1-\rho)(1-\cos\theta_1)$ 對 $\rho$ 平均（$E[\rho(1-\rho)]=\tfrac16$）就是白雜訊的功率——只有 10%。` },
+          { tex: r`v_0=\frac{2(1-\cos\theta_1)}{\theta_1^2}=\frac{2\times(1-${n(cs)})}{${n(th)}^2}=${n(v0)}`, why: r`條件平均 $e^{-j\theta\rho}((1-\rho)+\rho e^{j\theta})$ 對 $\rho$ 積分：$\int_0^1(1-\rho)\cos(\theta\rho)\,d\rho$ 的兩倍，是實數（剛好等於 $\mathrm{sinc}^2(\theta_1/2)=W_1$）。` },
+          { tex: r`\begin{aligned}w_1&=v_0^2=${n(v0)}^2\\&=${n(w1)}\end{aligned}`, why: r`留在載波上的功率：$W_1^2=0.90$。raw 的 $W_1=0.95$ 只少了 5%，所以 dq 幾乎沒有幫助。` },
+          { tex: r`w_{rest}=1-w_{white}-w_1=1-${fixedTex(white, pRest, false)}-${fixedTex(w1, pRest, false)}=${n(wRest)}`, why: r`其餘的階梯線（$\ell=1\pm8k$，高頻，$\mathrm{Re}\,H_{PD}\approx1$）：raw 的 5% 幾乎全被 dither 變成白雜訊了，只剩這一點點。` },
+          { tex: r`\begin{aligned}\kappa_1^{dq}&\approx w_1g+w_{white}+w_{rest}=${n(w1)}\times${np(g)}+${n(white)}+${n(wRest)}\\&=${fixedTex(w1 * g, pD, false)}+${fixedTex(white + wRest, pD)}=${n(kDqHand)}\end{aligned}`, why: r`$g=\mathrm{Re}\,H_{PD}(\alpha)=${n(g)}$（模型）；白色與其餘線都當成乘 1（高頻）。完整的 closed form 讓其餘線各乘自己的 $\mathrm{Re}\,H_{PD}$：$${n(kDqExact)}$。` },
+          { tex: r`\lvert D_M\rvert^2=\frac{\sin^2(M\theta_1/2)}{M^2\sin^2(\theta_1/2)}=\frac{\sin(${n((M * th) / 2)})^2}{${M}^2\times\sin(${n(th / 2)})^2}=\frac{${n(snap(sM * sM))}}{${n(M * M * sH * sH)}}=${n(D2)}`, why: r`$D_M=\tfrac1M\sum_{r=0}^{M-1}e^{j\theta_1r}$ 是等比級數，模平方是 $\sin^2(M\theta_1/2)/(M^2\sin^2(\theta_1/2))$；$M=8$ 時 $\sin(\pi)=0$，所有線都被殺掉。` },
+          { tex: r`\begin{aligned}\kappa_1^{rot}&=\lvert D_M\rvert^2\kappa_1^{raw}+(1-\lvert D_M\rvert^2)=${n(D2)}\times${np(kRaw)}+(1-${n(D2)})\\&=${fixedTex(D2 * kRaw, pR, false)}+${fixedTex(1 - D2, pR)}=${n(kRotHand)}\end{aligned}`, why: r`raw 的 $\kappa_1^{raw}=${n(kRaw)}$（模型，F-CS.13）：旋轉把每條階梯線都乘上 $\lvert D_M\rvert^2$，殺掉的功率變成白雜訊（乘 $h_{PD}[0]=1$）。` },
+        ],
+        results: [
+          { symbol: r`\kappa_1^{dq}`, label: 'dithered quantizer 之下的 $\\mathrm{Re}\\,\\kappa_1$（手算近似）', value: kDqHand, digits: 5 },
+          { symbol: r`\lvert D_M\rvert^2`, label: `隨機旋轉 ${M} 相之後每條線剩下的比例`, value: D2, digits: 5 },
+          { symbol: r`\kappa_1^{rot}`, label: `隨機旋轉 ${M} 相之下的 $\\mathrm{Re}\\,\\kappa_1$`, value: kRotHand, digits: 5 },
+        ],
+        notes: [
+          `判定（F-CS.28，$\\tau=${HC_TAU_DEAD}$）：dq ${vDq}（$${n(kDqExact)}$）；rot${M} ${vRot}（$${n(kRotModel)}$）；MASH 的同一點見 HC-CS.11。`,
+          r`三種隨機化的差別只在「載波剩多少」（mode 1）：dq ${n(100 * dqLineWeight(1, 0), 2)}%、MASH ${n(100 * mashFactors(1).phi2, 2)}%、rot4 ${n(100 * rotFactor(4, 1), 2)}%、rot8 0%；殺掉的功率都變成正項（白雜訊乘 $h_{PD}[0]=1$）。所以 rot8 對任何 $\alpha$ 都 $\kappa_m=1$，代價是 DTC range 要 $8\Delta=T_{vco}$。`,
+        ],
+      }
+    },
+    tips: [
+      r`範例（L2 PM 45°、120 MHz、$M=4$）：$\cos\theta_1=0.707107$、$w_{white}=0.097631$、$v_0=0.949641$、$w_1=0.901818$、$w_{rest}=0.000551$、$\mathrm{Re}\,H_{PD}=-0.382476$，所以 $\kappa_1^{dq}\approx-0.246742$；$\lvert D_4\rvert^2=1/(16\times0.146447)=0.426777$、raw 的 $\kappa_1=-0.307267$，所以 $\kappa_1^{rot}=+0.442089$。`,
+      r`$\sin^2(\pi/8)=0.146447$、$\cos(\pi/4)=0.707107$、$(\pi/4)^2=0.616850$ 是固定常數，可以先抄下來。`,
+      r`$M=8$ 時 $\lvert D_8\rvert^2=0$、$\kappa_1^{rot}=1$：不管 $\alpha$ 在哪裡都和沒有迴路一樣——這就是 sim 裡 rot8 全部收斂到 4 fs 的原因。`,
     ],
   },
 

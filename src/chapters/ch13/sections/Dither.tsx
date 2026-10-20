@@ -1,20 +1,8 @@
 import { useMemo } from 'react'
 import type { Data } from 'plotly.js-cartesian-dist-min'
-import {
-  Callout,
-  ClaimTag,
-  Mermaid,
-  ModeGate,
-  Plot,
-  Section,
-  SourceTag,
-  StepDerivation,
-  Tex,
-  TexBlock,
-  useThemeTokens,
-} from '@/components'
+import { Callout, ClaimTag, Mermaid, ModeGate, Plot, Section, SourceTag, StepDerivation, Tex, TexBlock, useThemeTokens, ChapterErratum } from '@/components'
 import { runQuantLab, type DitherPdf } from '@/simulation/models/quantizer'
-import { DEFAULT_LAB_PARAMS, Erratum, Fold, Hand, STRATEGY_COLOR, SpurAt, Unit, fx, n, texLabel, tx } from '../common'
+import { DEFAULT_LAB_PARAMS, Fold, Hand, STRATEGY_COLOR, SpurAt, Unit, fx, n, texLabel, tx } from '../common'
 import { CHART_DITHER_LOOP } from '../diagrams'
 
 const SWEEP: { A: number; pdf: DitherPdf }[] = [
@@ -176,7 +164,7 @@ export function DitherSection() {
           <li>
             <Tex>{String.raw`A=0`}</Tex> 就是方法 D：週期 {sweep[0].m.period}、主線{' '}
             <Tex>{String.raw`${fx(sweep[0].m.maxSpur?.power ?? NaN, 3)}\,\mathrm{LSB}^2`}</Tex> 在 <Tex>{String.raw`2f_u/5`}</Tex>，總功率 {fx(sweep[0].m.errPower, 2)}；白色模型卻預測{' '}
-            {fx(sweep[0].theory?.errPower ?? NaN, 3)}（<Tex>{'2/12'}</Tex>；<Erratum id="E15" />）。
+            {fx(sweep[0].theory?.errPower ?? NaN, 3)}（<Tex>{'2/12'}</Tex>；<ChapterErratum id="E15" />）。
           </li>
           <li>
             <Tex>{String.raw`A=0.25,\,0.5`}</Tex> LSB（RPDF）：本例的 code 範圍是 {small.map((s) => `${s.m.codeMin}–${s.m.codeMax}`).join('、')}

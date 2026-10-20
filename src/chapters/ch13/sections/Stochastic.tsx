@@ -1,19 +1,6 @@
 import { useMemo } from 'react'
 import type { Data } from 'plotly.js-cartesian-dist-min'
-import {
-  Callout,
-  ClaimTag,
-  Mermaid,
-  ModeGate,
-  Plot,
-  Prereq,
-  Section,
-  SourceTag,
-  StepDerivation,
-  Tex,
-  TexBlock,
-  useThemeTokens,
-} from '@/components'
+import { Callout, ClaimTag, Mermaid, ModeGate, Plot, Prereq, Section, SourceTag, StepDerivation, Tex, TexBlock, useThemeTokens, ChapterErratum } from '@/components'
 import { welch } from '@/simulation/signal'
 import {
   bernoulliMoments,
@@ -24,7 +11,7 @@ import {
   simulateStrategy,
   toggleCycle,
 } from '@/simulation/models/quantizer'
-import { DEFAULT_LAB_PARAMS, Erratum, Fold, Hand, fx, n, ntex, num, tx } from '../common'
+import { DEFAULT_LAB_PARAMS, Fold, Hand, fx, n, ntex, num, tx } from '../common'
 import { CHART_STOCHASTIC } from '../diagrams'
 
 const FU_DEMO = 1e6
@@ -159,7 +146,7 @@ export function StochasticSection() {
           <Tex>{String.raw`S_e(e^{j\Omega})=\sum_\ell R_e[\ell]e^{-j\Omega\ell}`}</Tex>，換成 one-sided、每 Hz 要乘 <Tex>{'2/f_u'}</Tex>（勘誤 E28 的換算）。白雜訊 = 只有 <Tex>{String.raw`R_e[0]\neq0`}</Tex>。
         </p>
         <p className="small">
-          相關勘誤：<Erratum id="E47" />（toggle 的線功率）。
+          相關勘誤：<ChapterErratum id="E47" />（toggle 的線功率）。
         </p>
       </Prereq>
       <Plot

@@ -1,24 +1,11 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import type { Data } from 'plotly.js-cartesian-dist-min'
-import {
-  ClaimTag,
-  CodeBlock,
-  Derivation,
-  ModeGate,
-  Plot,
-  Prereq,
-  Section,
-  StepDerivation,
-  Tex,
-  TexBlock,
-  useThemeTokens,
-  ChRef,
-} from '@/components'
+import { ClaimTag, CodeBlock, Derivation, ModeGate, Plot, Prereq, Section, StepDerivation, Tex, TexBlock, useThemeTokens, ChRef, ChapterErratum } from '@/components'
 import { mean } from '@/simulation/core'
 import { batchL2, mseParabola } from '@/simulation/models/lossCompare'
 import lossSrc from '@/simulation/models/lossCompare.ts?raw'
-import { BlockDiagram, ChapterHandCalc, Erratum, PllLink, SpecNote, texNum, useChapterMode } from '../common'
+import { BlockDiagram, ChapterHandCalc, PllLink, SpecNote, texNum, useChapterMode } from '../common'
 
 /** 與 §1.0 相同的三筆含雜訊資料：把「期望值」當成三筆等機率的平均 */
 const X = [1, 2, 4]
@@ -493,7 +480,7 @@ export function ParabolaSection() {
       >
         <p>
           規格 §1 的成本 <Tex>{'J_2'}</Tex> 沒有 <Tex>{String.raw`\tfrac12`}</Tex>，但 §1.1 的單筆成本 <Tex>{String.raw`j_n=\tfrac12e_n^2`}</Tex> 有 <Tex>{String.raw`\tfrac12`}</Tex>。兩者梯度差 2 倍
-          <Erratum id="E41" />。本站統一採用
+          <ChapterErratum id="E41" />。本站統一採用
         </p>
         <TexBlock
           id="F-01.2"

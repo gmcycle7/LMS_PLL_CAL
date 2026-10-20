@@ -238,11 +238,11 @@ describe('Chapter 07（jsdom smoke）', () => {
     const ids = Array.from(container.querySelectorAll('[id^="formula-F-07"]')).map((e) => e.id)
     expect(new Set(ids).size).toBe(ids.length)
     for (const f of FORMULAS) expect(ids).toContain(`formula-${f.id}`)
-    // KaTeX 有渲染、勘誤標記連到 #/verification
+    // KaTeX 有渲染、勘誤標記連到 /verification?e=Exx
     expect(container.querySelectorAll('.katex').length).toBeGreaterThan(200)
-    const errata = Array.from(container.querySelectorAll('a.ch07-erratum-tag'))
+    const errata = Array.from(container.querySelectorAll('a.c-erratum-link'))
     expect(errata.map((a) => a.textContent)).toEqual(expect.arrayContaining(['勘誤 E44', '勘誤 E45', '勘誤 E46']))
-    expect(errata.every((a) => a.getAttribute('href') === '#/verification')).toBe(true)
+    expect(errata.every((a) => a.getAttribute('href') === `/verification?e=${a.getAttribute('data-erratum')}`)).toBe(true)
     // 程式碼並排：四個 regressor region 都擷取成功，且有差異行高亮
     expect(screen.queryByText(/找不到程式碼 region/)).toBeNull()
     expect(container.querySelectorAll('.c-code-mark').length).toBeGreaterThanOrEqual(6)
@@ -264,7 +264,7 @@ describe('Chapter 07（jsdom smoke）', () => {
     expect(plain).toHaveLength(0)
     // 帶入手算：8 題依序出現，各自緊跟在對應的推導／worked example 之後；綜合題（HC-07.8）在 Lab 之後、思考題之前
     expect(Array.from(container.querySelectorAll('[id^="handcalc-HC-07"]')).map((e) => e.id)).toEqual(HANDCALCS.map((h) => `handcalc-${h.id}`))
-    expect(container.querySelectorAll('.ch07-hand-invite').length).toBe(HANDCALCS.length)
+    expect(container.querySelectorAll('.c-chapter-hand-lead').length).toBe(HANDCALCS.length)
     const q = (sel: string) => container.querySelector(sel)
     const before = (a: string, b: string) => {
       const ea = q(a)

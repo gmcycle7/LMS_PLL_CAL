@@ -1,19 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { Data } from 'plotly.js-cartesian-dist-min'
-import {
-  ClaimTag,
-  CodeBlock,
-  Derivation,
-  ModeGate,
-  Plot,
-  Prereq,
-  Section,
-  SourceTag,
-  StepDerivation,
-  Tex,
-  TexBlock,
-  useThemeTokens,
-} from '@/components'
+import { ClaimTag, CodeBlock, Derivation, ModeGate, Plot, Prereq, Section, SourceTag, StepDerivation, Tex, TexBlock, useThemeTokens, ChapterErratum } from '@/components'
 import { isWorkerCancelled, useWorkerTask } from '@/workers'
 import { averageCost, batchOptima, type TieRule } from '@/simulation/models/lms'
 import {
@@ -33,7 +20,7 @@ import {
 import lmsSrc from '@/simulation/models/lms.ts?raw'
 import lossSrc from '@/simulation/models/lossCompare.ts?raw'
 import { Link } from 'react-router-dom'
-import { BlockDiagram, ChapterHandCalc, Erratum, f, PllLink, SpecNote, texNum, useChapterMode } from '../common'
+import { BlockDiagram, ChapterHandCalc, f, PllLink, SpecNote, texNum, useChapterMode } from '../common'
 import { MseMaeLab } from '../experiments/MseMaeLab'
 
 const Y4 = [...FOUR_POINT_VALUES]
@@ -595,7 +582,7 @@ export function MedianExampleSection() {
               <Tex>{String.raw`J_{\text{MSE}}`}</Tex> 是平滑拋物線；<Tex>{String.raw`J_{\text{MAE}}`}</Tex> 是折線（在 0 和 10 轉折），最低點在 0；
               <Tex>{String.raw`J_{\text{Huber}}`}</Tex> 的最低點 <Tex>{String.raw`\tfrac13`}</Tex> 在本例落在兩者之間。由 <code>lms.ts</code> 的{' '}
               <code>averageCost</code> 計算。記號：<Tex>{String.raw`J_{\text{MSE}}=E[\rho_2(e)]`}</Tex> 就是 §1.3 含{' '}
-              <Tex>{String.raw`\tfrac12`}</Tex> 的 <Tex>{'J'}</Tex>（不是規格沒有 <Tex>{String.raw`\tfrac12`}</Tex> 的 <Tex>{'J_2'}</Tex>）<Erratum id="E41" />。
+              <Tex>{String.raw`\tfrac12`}</Tex> 的 <Tex>{'J'}</Tex>（不是規格沒有 <Tex>{String.raw`\tfrac12`}</Tex> 的 <Tex>{'J_2'}</Tex>）<ChapterErratum id="E41" />。
             </>
           }
         />
@@ -724,7 +711,7 @@ export function MedianExampleSection() {
         </TexBlock>
         <p className="small">
           <ClaimTag kind="exact" /> 這是精確式而非近似：資料 iid 時 <Tex>{'w_n'}</Tex> 只由 <Tex>{String.raw`y_0,\dots,y_{n-1}`}</Tex> 決定，與{' '}
-          <Tex>{'y_n'}</Tex> 自動獨立 <Erratum id="E38" />。若資料有時間相關（例如 Part B 的 <Tex>{'u=h*x'}</Tex>），同一公式才降為
+          <Tex>{'y_n'}</Tex> 自動獨立 <ChapterErratum id="E38" />。若資料有時間相關（例如 Part B 的 <Tex>{'u=h*x'}</Tex>），同一公式才降為
           independence approximation <ClaimTag kind="approx" />。數字：<Tex>{String.raw`\mu=${MU_SS}\Rightarrow E[w_\infty]=${texNum(lms.mean)},\ \operatorname{std}=${texNum(Math.sqrt(lms.variance), 5)}`}</Tex>。
         </p>
         <ModeGate min="engineer">
@@ -743,7 +730,7 @@ export function MedianExampleSection() {
             約 <Tex>{String.raw`\pm\mu|x|`}</Tex> 的帶
           </strong>
           內。把 <Tex>{'w_n'}</Tex> 長時間的平均記作 <Tex>{String.raw`\overline w`}</Tex>（時間平均），它與中位數的差是 <Tex>{String.raw`O(\mu|x|)`}</Tex>{' '}
-          <Erratum id="E40" />。把「在哪一格、下一步往哪走」畫成狀態圖最清楚（<Tex>{'w_0=0'}</Tex>、<Tex>{String.raw`\operatorname{sign}(0)=0`}</Tex>）：
+          <ChapterErratum id="E40" />。把「在哪一格、下一步往哪走」畫成狀態圖最清楚（<Tex>{'w_0=0'}</Tex>、<Tex>{String.raw`\operatorname{sign}(0)=0`}</Tex>）：
         </p>
         <BlockDiagram id="D-01.18">
           每個圓角方塊是 <Tex>{'w'}</Tex> 可能待的一格（<Tex>{String.raw`0,\ \mu,\ 2\mu,\dots`}</Tex>），箭頭上是走那條路的機率。先看藍色的 <Tex>{'w=0'}</Tex>：抽到 0（機率{' '}
@@ -865,7 +852,7 @@ export function MedianExampleSection() {
         </p>
         <ul>
           <li>
-            <strong>時間平均</strong>與中位數的差：仍是 <Tex>{String.raw`O(\mu|x|)`}</Tex>（F-01.16、<Erratum id="E40" />）。
+            <strong>時間平均</strong>與中位數的差：仍是 <Tex>{String.raw`O(\mu|x|)`}</Tex>（F-01.16、<ChapterErratum id="E40" />）。
           </li>
           <li>
             <strong>軌跡的抖動</strong>（std）：點質量資料是 <Tex>{String.raw`O(\mu|x|)`}</Tex>；連續雜訊是 <Tex>{String.raw`O(\sqrt{\mu})`}</Tex>，遠大於單步步長。

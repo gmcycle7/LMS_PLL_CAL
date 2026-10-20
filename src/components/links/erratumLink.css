@@ -1,21 +1,31 @@
-/* ErratumLink：「勘誤 E44」徽章。尺寸與框線由 Badge 基底（components.css 的 .c-badge--erratum：琥珀描邊）決定；
-   這裡只依嚴重度換色（high／low），文字之外還有 title，不單靠顏色 */
+/* ErratumLink：「勘誤 E44」徽章。尺寸與框線由 Badge 基底（components.css 的 .c-badge--erratum：琥珀描邊＝嚴重度「中」）決定；
+   high／low 依 data-severity 換成和 Badge 的 mismatch／neutral「完全相同」的三個變數（字／底／框）：
+   嚴重＝紅（.c-badge--mismatch）、中＝琥珀描邊（.c-badge--erratum）、輕微＝灰（.c-badge 基底＝neutral）。
+   這和驗證頁勘誤卡片上的嚴重度徽章（pages/verification/common.tsx 的 SEVERITY_VARIANT：high→mismatch、medium→erratum、low→neutral）是同一套；
+   src/components/links/erratumSeverity.test.ts 逐項比對這裡和 components.css 的宣告，兩邊不會再各說各話（以前 low 在這裡是藍色、在驗證頁是灰色）。
+   文字之外還有 title（嚴重度寫在浮動提示裡），不單靠顏色。 */
 a.c-erratum-link {
   margin: 0 0.15em;
   text-decoration: none;
 }
 a.c-erratum-link[data-severity='high'] {
   --b-fg: var(--danger);
+  --b-bg: var(--danger-soft);
   --b-bd: var(--danger);
 }
 a.c-erratum-link[data-severity='low'] {
-  --b-fg: var(--info);
-  --b-bd: var(--info);
+  --b-fg: var(--text-muted);
+  --b-bg: var(--surface-2);
+  --b-bd: var(--border);
 }
 a.c-erratum-link:hover,
 a.c-erratum-link:focus-visible {
-  --b-bg: var(--warn-soft);
   text-decoration: underline;
+}
+/* 琥珀（中、找不到編號）才換底色；紅與灰已經有自己的底色，只加底線 */
+a.c-erratum-link:not([data-severity='high']):not([data-severity='low']):hover,
+a.c-erratum-link:not([data-severity='high']):not([data-severity='low']):focus-visible {
+  --b-bg: var(--warn-soft);
 }
 .c-erratum-note {
   font-weight: 500;

@@ -208,7 +208,7 @@ export function D2Polarity() {
       <p>
         適用條件：WSS code、穩定 LTI 路徑、單參數、慢速平均模型。它是 PSD、振幅、相位三者的<strong>加權總和</strong>；上面的兩 tone 例子就是兩根譜線的特例。
       </p>
-      <ModeGate min="engineer">
+      <ModeGate min="engineer" summary={String.raw`Filtered-x：模型 $\hat H$ 的相位錯多少會出事`}>
         <h4 className="papers-subhead">
           Filtered-x：模型 <Tex>{r`\hat H`}</Tex> 的相位錯多少會出事（
           <ErratumNote id="E45" />）

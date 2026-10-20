@@ -880,7 +880,7 @@ describe('Ch10 方塊圖：頁面', () => {
     expect(Array.from(map.querySelectorAll('g.c-sysmap-block[data-focus="true"]')).length).toBe(FOCUSED_BLOCKS.length)
     expect(map.querySelectorAll('g.c-sysmap-block').length).toBeGreaterThan(FOCUSED_BLOCKS.length)
     const question = container.querySelector('#ch10-question') as HTMLElement
-    const figs = Array.from(container.querySelectorAll<HTMLElement>('.ch10-fig'))
+    const figs = Array.from(container.querySelectorAll<HTMLElement>('.c-chapter-fig'))
     expect(question.compareDocumentPosition(map) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(map.compareDocumentPosition(figs[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(question.nextElementSibling).toBe(map)
@@ -896,12 +896,12 @@ describe('Ch10 方塊圖：頁面', () => {
       expect(f.querySelectorAll('figure.c-mermaid').length, d.id).toBe(1)
       expect(f.querySelector('figure.c-mermaid')?.getAttribute('aria-label'), d.id).toBe(`圖 10-${i + 1}：${d.alt}`)
       // 圖說：圖號 + 種類 + 一句話；圖說裡的 $...$ 已渲染成 KaTeX，沒有落單的 $
-      const cap = f.querySelector('.ch10-fig-caption') as HTMLElement
+      const cap = f.querySelector('figcaption') as HTMLElement
       expect(cap.textContent, d.id).toMatch(new RegExp(`^圖 10-${i + 1}（${d.kind}）`))
       expect(cap.textContent, d.id).not.toContain('$')
       if (d.caption.includes('$')) expect(cap.querySelector('.katex'), d.id).toBeTruthy()
       // 導讀：先看哪裡、再看哪裡，以及「圖上的 X 就是公式裡的 x」
-      const walk = f.querySelector('.ch10-fig-walk') as HTMLElement
+      const walk = f.querySelector('.c-chapter-fig-walk') as HTMLElement
       expect(walk.textContent, d.id).toMatch(/^怎麼看這張圖/)
       expect((walk.textContent ?? '').length, d.id).toBeGreaterThan(120)
       expect(walk.textContent, d.id).toMatch(/先[\s\S]*再|由上往下/)
@@ -933,7 +933,7 @@ describe('Ch10 方塊圖：頁面', () => {
     expect(follows(fig('gs-sweep'), fig('choose-m'))).toBe(true)
 
     // ── 全站架構約定（docs/assumptions.md §2a）：DTC 在 reference 輸入端、LMS 的輸入是 PD 的輸出；導讀照這個說 ──
-    const walkOf = (id: string) => (fig(id).querySelector('.ch10-fig-walk') as HTMLElement).textContent ?? ''
+    const walkOf = (id: string) => (fig(id).querySelector('.c-chapter-fig-walk') as HTMLElement).textContent ?? ''
     expect(walkOf('system')).toMatch(/e\[n\] 是 PD 的輸出.*loop filter.*comparator/)
     expect(walkOf('system')).toMatch(/經 reference 端 DTC 的補償.*回到最上面 PD 的輸出/)
     expect(walkOf('system')).toMatch(/comparator 前（也就是 PD 輸出端）的雜訊/)
@@ -942,7 +942,7 @@ describe('Ch10 方塊圖：頁面', () => {
     expect(walkOf('hw-map')).toMatch(/延遲後的 reference edge 沿右邊那條線回到 PD，與 feedback（divider／PMUX）edge 比較（PD 量的是前者減後者），補償得不夠的部分又出現在 PD 的輸出/)
     expect(walkOf('hw-map')).toMatch(/DTC 只在 reference 輸入端，不在回授路徑上/)
     // 導讀裡 DTC 的延遲是 T_0 − Σ w_i x_i[n]（LaTeX），補償量是 Σ w_i x_i[n]；不再說「DTC 把 reference edge 提前」而不交代基準延遲
-    const hwTex = Array.from(fig('hw-map').querySelectorAll('.ch10-fig-walk annotation')).map((a) => a.textContent ?? '')
+    const hwTex = Array.from(fig('hw-map').querySelectorAll('.c-chapter-fig-walk annotation')).map((a) => a.textContent ?? '')
     expect(hwTex).toEqual(expect.arrayContaining(['T_0', String.raw`T_0-\sum_iw_ix_i[n]`, String.raw`\sum_iw_ix_i[n]`]))
     expect(walkOf('hw-map')).not.toMatch(/reference edge 提前補償量/)
     // 物理圖像在第一次給出的地方說清楚：PD 量 reference edge 減 feedback edge；DTC 只能延遲，從基準延遲 T₀ 往回扣；用「補償量」
@@ -964,12 +964,12 @@ describe('Ch10 方塊圖：頁面', () => {
     expect(container.textContent).not.toMatch(/DTC 在回授|DTC 插入|插入延遲|推回|回授側|feedback 側|經 PLL 的 error path 回到 comparator|PLL \+ DTC/)
 
     // ── 正文提到別張圖時一律用 <FigRef>：圖號等於登錄表的順序，頁面上沒有手寫的「圖 10-N」 ──
-    const refs = Array.from(container.querySelectorAll<HTMLElement>('.ch10-figref'))
+    const refs = Array.from(container.querySelectorAll<HTMLElement>('.c-figref'))
     expect(refs.length).toBeGreaterThanOrEqual(3)
     for (const r of refs) expect(r.textContent, r.dataset.figref).toBe(`圖 ${diagram(r.dataset.figref ?? '').no}`)
     expect(refs.map((r) => r.dataset.figref)).toEqual(expect.arrayContaining(['coupling', 'eigen-modes', 'nlms']))
     const prose = container.cloneNode(true) as HTMLElement
-    prose.querySelectorAll('.ch10-fig-caption, .ch10-figref').forEach((el) => el.remove())
+    prose.querySelectorAll('.c-chapter-fig figcaption, .c-figref').forEach((el) => el.remove())
     expect(prose.textContent).not.toMatch(/圖\s*10-\d/)
     // sample／block 兩個框改成上下堆疊之後，正文與導讀不能再說「左框／右框」；唯一並排的兩框（SVD）寫成「左邊的框 ①／右邊的框 ②」
     expect(container.textContent).not.toMatch(/[左右]框/)

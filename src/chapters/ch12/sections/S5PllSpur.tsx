@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, CodeBlock, ModeGate, Prereq, Section, SourceTag, Tex, TexBlock, ChRef } from '@/components'
+import { Callout, ClaimTag, CodeBlock, ModeGate, Prereq, Section, SourceTag, Tex, TexBlock, ChRef, ChapterErratum } from '@/components'
 import calNoiseSrc from '@/simulation/models/calNoise.ts?raw'
 import {
   dtPsdOneSided,
@@ -11,7 +11,7 @@ import {
   spurDbcSmallAngle,
   tMag2,
 } from '@/simulation/models/calNoise'
-import { CODE_TABLE_PRM, Diagram, EX, Erratum, Hand, SPUR, Steps, codeLabel, codeTable, md, sig } from '../common'
+import { CODE_TABLE_PRM, Diagram, EX, Hand, SPUR, Steps, codeLabel, codeTable, md, sig } from '../common'
 import { CHART_CODE_EXITS, CHART_PLL_LOOP, CHART_SKIRT_OR_SPUR, CHART_SPUR_FLOW, CHART_TWO_EXITS } from '../diagrams'
 
 const PATH = 'src/simulation/models/calNoise.ts'
@@ -316,7 +316,7 @@ export function S5Spur() {
         </Hand>
       </Section>
 
-      <Section kind="assumptions" title="隨機 vs 相干：noise skirt 不是 spur" level={3}>
+      <Section id="ch12-skirt" kind="assumptions" title="隨機 vs 相干：noise skirt 不是 spur" level={3}>
         <p>
           <strong>隨機</strong>的係數波動（LMS 的 <Tex>{String.raw`\delta w`}</Tex>）產生連續頻譜，在輸出是 phase-noise 的<strong>裙擺（skirt）</strong>，單位 dBc/Hz；只有<strong>相干 / 週期</strong>成分（例如 <Tex>{String.raw`\delta w`}</Tex> 被某個週期性干擾調變、或量化的 limit cycle，<ChRef ch="13">第 13 章</ChRef>）才會產生離散 spur，單位 dBc。同樣的總功率，兩者讀數完全不同。看到頻譜上有東西時，先照下面的流程分類：
         </p>
@@ -367,7 +367,7 @@ export function S5Spur() {
         <ModeGate min="engineer">
           <Callout kind="warn" title="注意假設">
             (1) 線性化 PLL 與 CT 原型 <Tex>{'T(s)'}</Tex>，只在 <Tex>{String.raw`f\ll f_s`}</Tex> 有效；(2) <Tex>{'x'}</Tex> 與 <Tex>{String.raw`\delta w`}</Tex> 獨立、平穩；(3) 忽略直接 PD noise 與 LMS 的 cross-spectrum；(4) 0.399 fs 是 gain-equivalent，乘上 code、經過 <Tex>{'T'}</Tex> 後才是 output timing jitter。 <ClaimTag kind="approx" />
-            <Erratum id="E28" />
+            <ChapterErratum id="E28" />
           </Callout>
         </ModeGate>
       </Section>

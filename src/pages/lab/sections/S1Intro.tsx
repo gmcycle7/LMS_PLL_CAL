@@ -1,5 +1,5 @@
-import { Callout, ClaimTag, ModeGate, ModelLevel, Section, SourceTag, Tex, TexBlock, ChRef } from '@/components'
-import { ChLink, Diagram, ErratumNote, md, Question } from '../common'
+import { Callout, ClaimTag, ModeGate, ModelLevel, Section, SourceTag, Tex, TexBlock, ChRef, ErratumLink } from '@/components'
+import { ChLink, Diagram, md, Question } from '../common'
 import { PIPELINE_CHART } from '../diagrams'
 
 const T = String.raw
@@ -20,7 +20,7 @@ const STAGE_ROWS: { stage: string; eq: string; level: 'L1' | 'L2' | 'L4' | 'L5';
 export function S1Intro() {
   return (
     <>
-      <section aria-labelledby="lab-s1">
+      <section aria-labelledby="lab-s1" id="lab-sec-1">
         <h2 id="lab-s1">1｜把十四章接成一條線</h2>
         <Question>
           <p>
@@ -31,7 +31,7 @@ export function S1Intro() {
           </p>
         </Question>
 
-        <Section kind="intuition" title="直覺：還是那個黑盒子，只是中間多了三道關卡">
+        <Section kind="intuition" title="直覺：還是那個黑盒子，只是中間多了三道關卡" id="lab-intuition">
           <p>
             <ChRef ch="00">第 0 章</ChRef>的黑盒子是 <Tex>{'y=a\\,x'}</Tex>：你看得到輸入 <Tex>x</Tex> 和輸出 <Tex>y</Tex>，要猜 <Tex>a</Tex>。在 fractional-N PLL 裡，
             <Tex>x</Tex> 是 DSM 的 residue（你自己產生的 code，完全已知），<Tex>a</Tex> 是 DTC 的 gain 誤差，<Tex>{'y-wx=(a-w)x'}</Tex> 是 DTC 沒抵銷乾淨的時間誤差。校正就是 LMS：一直調 <Tex>w</Tex> 直到誤差與 code 不再相關。
@@ -60,9 +60,9 @@ export function S1Intro() {
         </Section>
       </section>
 
-      <section aria-labelledby="lab-s2">
+      <section aria-labelledby="lab-s2" id="lab-sec-2">
         <h2 id="lab-s2">2｜整條訊號鏈：九級、兩條路</h2>
-        <Section kind="diagram" title="方塊圖">
+        <Section kind="diagram" title="方塊圖" id="lab-chain-diagram">
           <p>
             先看整條鏈長什麼樣子，再看每一級的式子。箭頭是訊號的流向；標著 <Tex>{'w_{\\mathrm{app}}'}</Tex> 的那條線把校正出來的係數送回 DTC，形成一圈。
           </p>
@@ -90,7 +90,7 @@ export function S1Intro() {
           </TexBlock>
         </Section>
 
-        <Section kind="formula" title="每一級的式子、模型層級、對應章節與實際執行的程式">
+        <Section kind="formula" title="每一級的式子、模型層級、對應章節與實際執行的程式" id="lab-stage-formulas">
           <div className="table-wrap">
             <table className="lab-table">
               <thead>
@@ -135,7 +135,7 @@ export function S1Intro() {
           </p>
         </Section>
 
-        <Section kind="assumptions" title="這個 Lab 能回答什麼、不能回答什麼">
+        <Section kind="assumptions" title="這個 Lab 能回答什麼、不能回答什麼" id="lab-scope">
           <div className="grid-2">
             <Callout kind="ok" title="可以回答">
               <ul className="small">
@@ -150,7 +150,7 @@ export function S1Intro() {
                 <li>某顆晶片實際量到的 spur：那需要它的 DTC INL、mismatch、supply coupling 與量測</li>
                 <li>VCO / reference / PD 本身的 phase noise：這裡的輸出只有 DTC 殘差這一項</li>
                 <li>
-                  {md('$q$ 就是主迴路 BBPD 的架構（shared BBPD）：本頁的 comparator 是獨立的觀測路徑')}（<ErratumNote id="E03" />）
+                  {md('$q$ 就是主迴路 BBPD 的架構（shared BBPD）：本頁的 comparator 是獨立的觀測路徑')}（<ErratumLink id="E03" />）
                 </li>
                 <li>多參數（GOS / PHOS）同時更新的閉迴路：只在 Training 分頁做線性化的可辨識性分析</li>
               </ul>

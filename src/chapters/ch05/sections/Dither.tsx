@@ -470,7 +470,7 @@ export function DitherSection() {
     return { ...base, zero, eq, eq2, big, bigLin: signLoopLinearRms(base.mu, 60 * base.mu), bigTau: 1 / (base.mu * kq(60 * base.mu)) }
   }, [])
   return (
-    <Section kind="explore" level={2} title="7. 雜訊像 dither：沒有雜訊不行，太多雜訊也不行">
+    <Section kind="explore" level={2} id="ch05-dither" title="7. 雜訊像 dither：沒有雜訊不行，太多雜訊也不行">
       <p>
         §5 說 <Tex>{'K_q=\\sqrt{2/\\pi}/\\sigma_v'}</Tex>，好像雜訊越小、增益越大越好。但 <Tex>{'\\sigma_v\\to0'}</Tex> 時 S 曲線變成階梯：原點斜率無限大、其他地方為 0。把 comparator 放進最簡單的逐 sample Sign-LMS 迴路來看（<Tex>{'x\\equiv1'}</Tex>）：每來一個 sample，就把係數往 <Tex>{'q_n'}</Tex>{' '}
         的方向推一小步，<Tex>{'w_{n+1}=w_n+\\mu q_n'}</Tex>。這裡 <Tex>{'\\mu'}</Tex> 是學習率（每一步的步長，單位 <Tex>{'\\mathrm{fs}'}</Tex>），<Tex>{'a'}</Tex> 是真值，

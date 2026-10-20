@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
-import { Callout, ClaimTag, ModeGate, Plot, Prereq, Section, SourceTag, Tex, TexBlock, useThemeTokens } from '@/components'
+import { Callout, ClaimTag, ModeGate, Plot, Prereq, Section, SourceTag, Tex, TexBlock, useThemeTokens, ChapterErratum } from '@/components'
 import { createRng } from '@/simulation/core'
 import { meanSquareFactor } from '@/simulation/models/lms'
 import {
@@ -12,7 +12,7 @@ import {
   stabilityFactors,
   type XDist,
 } from '@/simulation/models/scalarStability'
-import { Erratum, FBlock, Fig, HC, logGrid, num, StepsBox, T, tnum, tx } from '../common'
+import { FBlock, Fig, HC, logGrid, num, StepsBox, T, tnum, tx } from '../common'
 import { CHART_IMPLICATIONS, CHART_LOG_SUM, CHART_MU_REGIONS, CHART_NOISE_INJECTION, figRef } from '../diagrams'
 import { EXAMPLE_DISTS } from './RandomMean'
 
@@ -155,20 +155,20 @@ export function AlmostSureSection() {
   return (
     <>
       <h2 id="almost-sure">4｜第三種收斂：幾乎每條路徑（Almost-Sure）</h2>
-      <Section kind="intuition" title="一個看似矛盾的現象">
+      <Section id="ch03-as-paradox" kind="intuition" title="一個看似矛盾的現象">
         <p>
           Gaussian <Tex>x</Tex>、<Tex>{T`\mu=0.8`}</Tex>（介於 MS 界 <Tex>{T`2/3`}</Tex> 與 mean 界 2 之間）、<Tex>{T`\delta_0=1`}</Tex>。第 3 節說 MSD 每步乘上{' '}
           <Tex>{T`g(0.8)=${tnum(f08.g, 4)}>1`}</Tex>，所以 <Tex>{T`\sqrt{E[\delta_{200}^2]}=g^{100}\approx10^{${tnum(rmsLog10, 4)}}`}</Tex>——爆炸。可是你在 Stability Lab
           裡跑出來的路徑，<Tex>{T`|\delta_{200}|`}</Tex> 的典型值（中位數）約 <Tex>{T`|\delta_0|\,e^{200\lambda}=10^{${tnum(typLog10, 4)}}`}</Tex>，幾乎每一條都遠小於{' '}
-          <Tex>{T`10^{-3}`}</Tex>——收斂得非常好。<strong>兩者都對</strong>，因為它們回答的是不同問題。<Erratum id="E14" />
+          <Tex>{T`10^{-3}`}</Tex>——收斂得非常好。<strong>兩者都對</strong>，因為它們回答的是不同問題。<ChapterErratum id="E14" />
         </p>
       </Section>
 
-      <Section kind="example" title="先算一次：8 個隨機因子">
+      <Section id="ch03-as-hand" kind="example" title="先算一次：8 個隨機因子">
         <ProductTable />
       </Section>
 
-      <Section kind="formula" title="乘積取對數、變成總和、再用大數法則">
+      <Section id="ch03-as-lln" kind="formula" title="乘積取對數、變成總和、再用大數法則">
         <Prereq title="對數把乘積變成總和；大數法則（law of large numbers）">
           <p>
             <strong>對數</strong>：<Tex>{T`\ln(ab)=\ln a+\ln b`}</Tex>，所以 <Tex>{T`\ln\prod_k|f_k|=\sum_k\ln|f_k|`}</Tex>。乘積很難分析，總和很容易。
@@ -214,7 +214,7 @@ export function AlmostSureSection() {
         </ModeGate>
       </Section>
 
-      <Section kind="formula" title="三種判據的大小順序（Jensen 不等式）">
+      <Section id="ch03-as-jensen" kind="formula" title="三種判據的大小順序（Jensen 不等式）">
         <Prereq title="Jensen 不等式：對數的平均不超過平均的對數（用切線證明）">
           <p>
             <Tex>{T`\ln`}</Tex> 是凹函數（二階導數 <Tex>{T`-1/y^2<0`}</Tex>），所以圖形永遠在任一條切線下方。在 <Tex>{T`m=E[Y]>0`}</Tex> 的切線：
@@ -297,7 +297,7 @@ export function AlmostSureSection() {
         </HC>
       </Section>
 
-      <Section kind="assumptions" title={tx`所以 $2/3<\mu<${tnum(gb.asMax, 3)}$ 時到底穩不穩定？`}>
+      <Section id="ch03-as-window" kind="assumptions" title={tx`所以 $2/3<\mu<${tnum(gb.asMax, 3)}$ 時到底穩不穩定？`}>
         <p>把標準 Gaussian 的三個界限排在同一條 <Tex>\mu</Tex> 軸上，就是下面四個區間：</p>
         <Fig
           chart={CHART_MU_REGIONS}
@@ -308,7 +308,7 @@ export function AlmostSureSection() {
           由上往下（<Tex>\mu</Tex> 越來越大），每跨過一個界限就少一種收斂：先是 MSD（<Tex>g</Tex> 到 1，<Tex>{T`\mu=2/3`}</Tex>）、再是 mean（<Tex>{T`|1-\mu|`}</Tex> 到 1，<Tex>{T`\mu=2`}</Tex>）、最後才是樣本路徑（
           <Tex>\lambda</Tex> 到 0，<Tex>{T`\mu=\mu_\text{as}`}</Tex>）。恰好落在界限上時算「不收斂」。中間兩格（褐色）就是這一段要討論的區間：你看到的軌跡會收斂，卻不能宣稱均方穩定。
         </p>
-        <Callout kind="warn" title={<>單一路徑收斂不推翻 mean-square 界 <Erratum id="E14" /></>}>
+        <Callout kind="warn" title={<>單一路徑收斂不推翻 mean-square 界 <ChapterErratum id="E14" /></>}>
           <p>
             <Tex>{T`2/3<\mu<${tnum(gb.asMax, 5)}`}</Tex>（Gaussian、無雜訊）：<Tex>{T`E[\delta_n^2]\to\infty`}</Tex>，但幾乎每條路徑 <Tex>{T`|\delta_n|\to0`}</Tex>。
             <Tex>{T`E[\delta_n^2]`}</Tex> 是「所有可能路徑的平方平均」，被<strong>機率極小、數值極大</strong>的少數路徑主導：這些路徑出現的機率趨近 0，但它們的 <Tex>{T`\delta^2`}</Tex> 增長得比機率下降更快。單位步的「差距」是 <Tex>{T`\tfrac12\ln g-\lambda\ge0`}</Tex>；<Tex>{T`\mu=0.8`}</Tex> 時 <Tex>{T`=${tnum(0.5 * Math.log(f08.g) - f08.lambda, 4)}`}</Tex>（自然對數 / step）。
@@ -329,7 +329,7 @@ export function AlmostSureSection() {
       </Section>
 
       <ModeGate min="engineer">
-        <Section kind="formula" title={tx`Uniform $x$ 的 $\lambda(\mu)$：只用微積分的封閉式`}>
+        <Section id="ch03-lambda-uniform" kind="formula" title={tx`Uniform $x$ 的 $\lambda(\mu)$：只用微積分的封閉式`}>
           <StepsBox
             title={tx`$x\sim U(-c,c)$`}
             steps={[
@@ -350,7 +350,7 @@ export function AlmostSureSection() {
       </ModeGate>
 
       <ModeGate min="research">
-        <Section kind="formula" title={tx`Gaussian 的 $\lambda(\mu)$：Dawson 形式（交叉驗證用）`}>
+        <Section id="ch03-lambda-gauss" kind="formula" title={tx`Gaussian 的 $\lambda(\mu)$：Dawson 形式（交叉驗證用）`}>
           <FBlock id="F-03.15" />
           <p className="small">
             推導概要：令 <Tex>{T`X=t^2\sim\chi^2_1`}</Tex>、<Tex>{T`a=1/c`}</Tex>，<Tex>{T`\lambda=\ln c+E\ln|X-a|`}</Tex>。對 <Tex>a</Tex> 微分得主值積分{' '}

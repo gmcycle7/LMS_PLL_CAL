@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, ModelLevel, Section, SourceTag, SymbolTable, SystemMap, Tex, TestBadge, type SymbolEntry } from '@/components'
+import { Callout, ClaimTag, ModelLevel, Section, SourceTag, SymbolTable, SystemMap, Tex, TestBadge, type SymbolEntry, ChapterErratum, jumpToId } from '@/components'
 import { useSettings } from '@/app/settings'
 import { stabilityBounds } from '@/simulation/models/scalarStability'
-import { Erratum, Fig, scrollToId, T, tnum, tx } from './common'
+import { Fig, T, tnum, tx } from './common'
 import { CHART_THREE_PATHS, figRef, SYSTEM_FOCUS } from './diagrams'
 import { FixedXSection } from './sections/FixedX'
 import { RandomMeanSection } from './sections/RandomMean'
@@ -24,7 +24,7 @@ export const SYMBOLS: SymbolEntry[] = [
     firstSeen: '§1',
     note: (
       <>
-        {tx`全站極性 $a-w$；規格 §3 原寫 $w-a$（遞迴相同、數值差一個負號）`} <Erratum id="E39" /> <Erratum id="E32" />
+        {tx`全站極性 $a-w$；規格 §3 原寫 $w-a$（遞迴相同、數值差一個負號）`} <ChapterErratum id="E39" /> <ChapterErratum id="E32" />
       </>
     ),
   },
@@ -50,7 +50,7 @@ export const SYMBOLS: SymbolEntry[] = [
     meaning: tx`係數均方偏差 MSD（不是 MSE 成本 $E[e^2]$）`,
     unit: '([y]/[x])^2',
     firstSeen: '§3',
-    note: <Erratum id="E42" />,
+    note: <ChapterErratum id="E42" />,
   },
   {
     symbol: '\\lambda(\\mu)=E\\ln|1-\\mu x^2|',
@@ -99,7 +99,7 @@ export const SYMBOLS: SymbolEntry[] = [
 ]
 
 function Roadmap() {
-  const go = (id: string) => () => scrollToId(id)
+  const go = (id: string) => () => jumpToId(id)
   const items: [string, string][] = [
     ['fixed-x', '1｜固定輸入：等比數列與 pole'],
     ['random-mean', '2｜隨機輸入：平均（mean）'],
@@ -149,10 +149,10 @@ export default function Chapter03() {
         <SourceTag kind="illustrative" />
         <TestBadge id="T02" />
         <TestBadge id="T03" />
-        <Erratum id="E14" />
-        <Erratum id="E38" />
-        <Erratum id="E39" />
-        <Erratum id="E42" />
+        <ChapterErratum id="E14" />
+        <ChapterErratum id="E38" />
+        <ChapterErratum id="E39" />
+        <ChapterErratum id="E42" />
       </div>
       <Callout kind="info" title="怎麼讀本章的方塊圖">
         <ul>
@@ -177,7 +177,7 @@ export default function Chapter03() {
         </ul>
       </Callout>
 
-      <Section kind="intuition" title={tx`先看結論：標準 Gaussian $x\sim\mathcal N(0,1)$ 的三個界限`}>
+      <Section id="ch03-bounds-preview" kind="intuition" title={tx`先看結論：標準 Gaussian $x\sim\mathcal N(0,1)$ 的三個界限`}>
         <p>
           先認識幾個符號（後面每一節都會從頭再說一次）：黑盒子 <Tex>{T`y=ax`}</Tex> 的斜率 <Tex>a</Tex> 是<strong>未知的真實參數</strong>；<Tex>{T`w_n`}</Tex> 是第 <Tex>n</Tex> 次更新時你對{' '}
           <Tex>a</Tex> 的<strong>估計</strong>；<Tex>{T`\delta_n=a-w_n`}</Tex> 是<strong>還差多少</strong>（剩餘參數誤差）；<Tex>{T`x_n`}</Tex> 是每一步的輸入（regressor，PLL 裡是正規化的 DSM / DTC code），
@@ -209,7 +209,7 @@ export default function Chapter03() {
               <Tex>{T`0<\mu<${tnum(gb.asMax, 5)}`}</Tex>
             </div>
             <div className="small muted">
-              <Tex>{T`|\delta_n|\to0`}</Tex>（機率 1）：你看到的那條軌跡會收斂 <Erratum id="E14" />
+              <Tex>{T`|\delta_n|\to0`}</Tex>（機率 1）：你看到的那條軌跡會收斂 <ChapterErratum id="E14" />
             </div>
           </div>
         </div>
@@ -259,7 +259,7 @@ export default function Chapter03() {
           caption={tx`$[x]$、$[y]$ 代表輸入與輸出的單位（硬體中 $x$ 是 DSM / DTC code、$y$ 是時間誤差，單位依 scaling；例如 $x$ 無因次、$y$ 為 fs 時 $a,w,\delta$ 的單位就是 fs）。$\mu$ 的單位是 $1/[x]^2$，使 $\mu x^2$ 無因次。實驗中所有量皆已正規化。全站符號總表見 Formula & Unit Reference 頁。`}
         />
         <p className="ch03-symbols-back">
-          <button type="button" className="ch03-toc" onClick={() => scrollToId('ch03-top')}>
+          <button type="button" className="ch03-toc" onClick={() => jumpToId('ch03-top')}>
             ↑ 回到本章開頭
           </button>
         </p>

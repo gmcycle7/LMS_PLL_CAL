@@ -962,7 +962,7 @@ describe('ch00 手算題：章內位置', () => {
       const id = el.id.replace('handcalc-', '')
       expect(el.parentElement?.closest('section[id^="ch00-"]')?.id, id).toBe(where[id])
       // 前面有一句邀請讀者先自己算的話
-      const lead = el.parentElement?.querySelector('.ch00-handcalc-lead')
+      const lead = el.parentElement?.querySelector('.c-chapter-hand-lead')
       expect(lead?.textContent, id).toContain('換你算')
       expect(el.parentElement?.getAttribute('data-handcalc')).toBe(id)
       expect(el.querySelectorAll('.c-step').length, id).toBeGreaterThan(0)

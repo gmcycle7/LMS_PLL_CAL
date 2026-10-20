@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { mathText, Mermaid, type ExperimentPreset } from '@/components'
+import { Badge, ChapterFig, ErratumLink, mathText, revealAnchor, type BadgeVariant, type ExperimentPreset } from '@/components'
 import { pageById } from '@/app/registry'
 import { presetsForExperiment, useUrlPreset } from '@/app/presets'
 import errataData from '@/data/errata.json'
@@ -47,15 +47,10 @@ export function pl(tex: string, aria: string): { label: ReactNode; ariaLabel: st
 /** 頁尾符號表外層的 DOM id（docs/teaching-style.md §5：符號表放在最後，頁首只留一行連結） */
 export const SYMBOLS_ANCHOR = 'symbols'
 
-/** 頁內捲動（不改網址）：HashRouter 下 href="#id" 會被當成路由；jsdom 沒有 scrollIntoView，用可選呼叫。 */
-export function scrollToId(id: string) {
-  document.getElementById(id)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
-}
-
 /** 連結樣式的按鈕：按了捲到本頁的某個區塊。 */
 export function JumpButton({ to, children }: { to: string; children: ReactNode }) {
   return (
-    <button type="button" className="rm-linkbtn" onClick={() => scrollToId(to)}>
+    <button type="button" className="rm-linkbtn" onClick={() => revealAnchor(to)}>
       {children}
     </button>
   )
@@ -72,33 +67,40 @@ export function SymbolsLink() {
 }
 
 /**
- * 方塊圖版位（docs/teaching-style.md §8）：一張 Mermaid 圖、一句圖說（要看什麼），下面緊接「先看…再看…」的導讀。
- * 圖說是純文字（Mermaid 的 caption 不渲染 KaTeX），數學符號留給 children 用 KaTeX 寫（`mt('…$\\mu$…')` 或 <Tex>）。
+ * 方塊圖版位（docs/teaching-style.md §8）：共用的 ChapterFig（Mermaid 圖＋圖說＋「怎麼看這張圖」導讀）。
+ * 數學符號留給 children 用 KaTeX 寫（`mt('…$\\mu$…')` 或 <Tex>）。`rm-diagram` 只是測試與審查腳本的 hook。
  */
 export function Diagram({ chart, caption, ariaLabel, children }: { chart: string; caption: string; ariaLabel?: string; children?: ReactNode }) {
   return (
-    <div className="rm-diagram">
-      <Mermaid chart={chart} caption={caption} ariaLabel={ariaLabel} />
-      {children && <div className="rm-diagram-walk">{children}</div>}
-    </div>
+    <ChapterFig chart={chart} caption={caption} ariaLabel={ariaLabel} className="rm-diagram">
+      {children}
+    </ChapterFig>
   )
 }
 
 /* ───────────── 狀態徽章（沒有 verified） ───────────── */
 
+/**
+ * 狀態 → Badge variant（顏色語意固定，見 docs/dev-conventions.md §2.1）：
+ * 本站已有／部分覆蓋＝琥珀描邊（partial：只做了一部分）、待辦＝灰虛線（pending）、預覽＝琥珀虛線（not-implemented）、
+ * 未開始＝灰（na）、分析中＝紫（research：仍是研究假說）。沒有任何一個用綠色或青綠 ✓——這一頁沒有 verified。
+ */
+const ITEM_VARIANT: Record<ItemStatus, BadgeVariant> = { partial: 'partial', pending: 'pending', 'not-started': 'na', 'in-analysis': 'research' }
+const SUB_VARIANT: Record<SubStatus, BadgeVariant> = { 'on-site': 'partial', preview: 'not-implemented', pending: 'pending', 'not-started': 'na', 'in-analysis': 'research' }
+
 export function StatusBadge({ status }: { status: ItemStatus }) {
   return (
-    <span className={`rm-status rm-status-${status}`} title={ITEM_STATUS_DESC[status]} data-status={status}>
+    <Badge variant={ITEM_VARIANT[status]} className={`rm-status rm-status-${status}`} title={ITEM_STATUS_DESC[status]} data-status={status}>
       {ITEM_STATUS_LABEL[status]}
-    </span>
+    </Badge>
   )
 }
 
 export function SubBadge({ status }: { status: SubStatus }) {
   return (
-    <span className={`rm-sub rm-sub-${status}`} data-status={status}>
+    <Badge variant={SUB_VARIANT[status]} className={`rm-sub rm-sub-${status}`} data-status={status}>
       {SUB_STATUS_LABEL[status]}
-    </span>
+    </Badge>
   )
 }
 
@@ -119,12 +121,7 @@ export function erratumExists(eid: string): boolean {
 
 /** 「勘誤 Exx」：本站與規格書原文不同之處，連到驗證頁（依 id 列出勘誤）。 */
 export function ErratumTag({ eid }: { eid: string }) {
-  const rec = ERRATA.find((e) => e.eid === eid)
-  return (
-    <a className={`rm-erratum rm-erratum-${rec?.severity ?? 'unknown'}`} href="#/verification" title={rec ? `規格位置：${rec.location}` : undefined}>
-      勘誤 {eid}
-    </a>
-  )
+  return <ErratumLink id={eid} />
 }
 
 /** 句中的勘誤註記：小標記 + 一句說明（字串中的 `$…$` 以 KaTeX 顯示）。 */

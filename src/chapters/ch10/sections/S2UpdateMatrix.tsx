@@ -1,8 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import type { Data } from 'plotly.js-cartesian-dist-min'
-import { Callout, ClaimTag, ModeGate, ParamControl, Plot, Section, StepDerivation, Tex, TexBlock, TestBadge, mathText, useThemeTokens, ChRef } from '@/components'
+import { Callout, ClaimTag, ModeGate, ParamControl, Plot, Section, StepDerivation, Tex, TexBlock, TestBadge, mathText, useThemeTokens, ChRef, ChapterErratum } from '@/components'
 import { DEFAULT_RULE, analyzeRule, buildPlant, corrMatrix, type RuleConfig } from '@/simulation/models/mimo'
-import { Deriv, Erratum, Fig, FigRef, Hand, TagRow, TryIt, chop, n, nint, texMat, tn } from '../common'
+import { Deriv, Fig, FigRef, Hand, TagRow, TryIt, chop, n, nint, texMat, tn } from '../common'
 import { NUM, SIGMA_KQ1 } from '../numbers'
 
 const rule = (r: Partial<RuleConfig>): RuleConfig => ({ ...DEFAULT_RULE, ...r })
@@ -500,9 +500,9 @@ export function S2UpdateMatrix() {
       >
         <TagRow>
           <span className="small muted">規格 §10.1</span>
-          <Erratum id="E05" />
-          <Erratum id="E08" />
-          <Erratum id="E21" />
+          <ChapterErratum id="E05" />
+          <ChapterErratum id="E08" />
+          <ChapterErratum id="E21" />
           <TestBadge id="T11" />
         </TagRow>
         <Callout
@@ -659,7 +659,7 @@ export function S2UpdateMatrix() {
             {n(r.Rinv[0][0], 4)} / {n(r.Rinv[0][1], 4)}
           </strong>
           ，<Tex>{String.raw`\pm25`}</Tex> 是 <Tex>{String.raw`0.5\mathbf R^{-1}`}</Tex>（而且對角為正、非對角為負，不是「<Tex>{String.raw`\pm`}</Tex>」隨意）
-          <Erratum id="E21" />。換成實體單位 <Tex>{String.raw`\mathbf M=\mathbf M_n/K_q=${texMat(ph.Mphys, 5)}\ \mathrm{fs}`}</Tex>：一個 GMAC 的單位輸出要讓係數動約{' '}
+          <ChapterErratum id="E21" />。換成實體單位 <Tex>{String.raw`\mathbf M=\mathbf M_n/K_q=${texMat(ph.Mphys, 5)}\ \mathrm{fs}`}</Tex>：一個 GMAC 的單位輸出要讓係數動約{' '}
           {n(ph.Mphys[0][0], 3)} fs，暫存器的位寬與定點誤差都要重新評估。
         </p>
         <p>
@@ -673,7 +673,7 @@ export function S2UpdateMatrix() {
         </Hand>
       </Section>
 
-      <Section
+      <Section id="ch10-rho-lab"
         kind="explore"
         title={
           <>

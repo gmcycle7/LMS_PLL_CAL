@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
+import { Callout, ClaimTag, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock, ChRef, ChapterErratum } from '@/components'
 import { buildCodeDistribution, fixedPoint, meanGmacSign, mseFixedPoint, type ErrorModel } from '@/simulation/models/bias'
 import { F } from '../formulas'
-import { CODE_KIND_TEX, Erratum, chop, num, m, texNum } from '../common'
+import { CODE_KIND_TEX, chop, num, m, texNum } from '../common'
 import { Fig, FigRef } from '../Fig'
 
 /** §11.3：code-correlated deterministic error 與 identifiability（勘誤 E12、E17）。 */
@@ -26,8 +26,8 @@ export function CorrelatedSection() {
   return (
     <Section kind="formula" title="11.3 Code-correlated deterministic error 與 identifiability" level={2} id="ch11-correlated">
       <p className="small">
-        <Erratum id="E12" note="干擾改名 ε_cc、係數 κ" />
-        <Erratum id="E17" note="這裡的干擾是 deterministic，不是 random jitter" />
+        <ChapterErratum id="E12" note={String.raw`干擾改名 $\varepsilon_{cc}$、係數 $\kappa$`} />
+        <ChapterErratum id="E17" note="這裡的干擾是 deterministic，不是 random jitter" />
         規格書標題寫「Code-Correlated Jitter」，但內文處理的是<strong>確定性</strong>的 <Tex>{String.raw`\varepsilon_{cc}=\kappa x`}</Tex>（例如 DSM pattern 經 supply ripple 或 clock
         phase 耦合到 PD，形成與 code 成正比的 deterministic jitter, DJ）。隨機、零均值的 jitter 不會造成 bias（§11.0 的類別 ① 與 ④）。
       </p>

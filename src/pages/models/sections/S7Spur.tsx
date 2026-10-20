@@ -193,7 +193,7 @@ export function S7Spur() {
       <HandCalcSlot id="HC-MD.4">
         檢查表第 9 項（dBc 與 dBc/Hz）和第 3 項（segment length）用數字算一次：為什麼 coherent 取樣之後，Welch 的主瓣積分還是比真實 spur 高了將近 <Tex>{'5\\,\\mathrm{dB}'}</Tex>？
       </HandCalcSlot>
-      <ModeGate min="engineer">
+      <ModeGate min="engineer" summary="手算與實驗共用的函式：fftHandFormulas 的程式碼">
         <CodeBlock
           source={fftSrc}
           region="fftHandFormulas"

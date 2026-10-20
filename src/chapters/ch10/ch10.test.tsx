@@ -157,7 +157,7 @@ describe('Ch10 smoke test（jsdom）', () => {
     for (const phrase of [/learning rate/, /comparator 的小訊號增益/, /相關係數/, /還差多少/, /更新矩陣/, /sample 編號/]) expect(opening).toMatch(phrase)
     // 方塊圖（docs/teaching-style.md §8）：章首的 SystemMap + diagrams.ts 登錄的每一張圖（細節在 diagrams.test.tsx）
     expect(container.querySelectorAll('figure.c-mermaid').length).toBe(CH10_DIAGRAMS.length + 1)
-    expect(Array.from(container.querySelectorAll<HTMLElement>('.ch10-fig')).map((f) => f.dataset.diagram)).toEqual(CH10_DIAGRAMS.map((d) => d.id))
+    expect(Array.from(container.querySelectorAll<HTMLElement>('.c-chapter-fig')).map((f) => f.dataset.diagram)).toEqual(CH10_DIAGRAMS.map((d) => d.id))
     expect(Array.from(container.querySelectorAll('figure.c-mermaid')).filter((f) => /系統方塊圖/.test(f.getAttribute('aria-label') ?? '')).length).toBe(1)
     expect(container.querySelectorAll('.c-prereq').length).toBeGreaterThanOrEqual(5)
     // 勘誤 E25：標題改為「四種架構比較」
@@ -167,10 +167,10 @@ describe('Ch10 smoke test（jsdom）', () => {
     expect(screen.queryByText(/三種架構比較/)).toBeNull()
     // 每個指定勘誤都有標記
     for (const e of ['E05', 'E08', 'E21', 'E22', 'E24', 'E25', 'E37']) {
-      expect(container.querySelectorAll(`a.ch10-erratum`).length).toBeGreaterThan(0)
-      expect(Array.from(container.querySelectorAll('a.ch10-erratum')).some((a) => a.textContent?.includes(e))).toBe(true)
+      expect(container.querySelectorAll(`a.c-erratum-link`).length).toBeGreaterThan(0)
+      expect(Array.from(container.querySelectorAll('a.c-erratum-link')).some((a) => a.textContent?.includes(e))).toBe(true)
     }
-    expect(container.querySelector('a.ch10-erratum')?.getAttribute('href')).toBe('#/verification')
+    expect(container.querySelector('a.c-erratum-link')?.getAttribute('href')).toMatch(/^\/verification\?e=E\d\d$/)
     // 實驗外框存在、CodeCompare 有六個分頁
     expect(container.querySelector('[data-experiment="mimo-lms"]')).toBeTruthy()
     const tabs = container.querySelectorAll('.c-code-compare .c-code-tab')
@@ -183,7 +183,7 @@ describe('Ch10 smoke test（jsdom）', () => {
     // 帶入手算（docs/teaching-style.md §7）：8 題依序出現在對應推導之後，每題前有一句「換你算」的邀請；綜合題 HC-10.8 在思考題之前
     const hc = Array.from(container.querySelectorAll('.c-handcalc'))
     expect(hc.map((e) => e.id)).toEqual(HANDCALCS.map((h) => `handcalc-${h.id}`))
-    expect(container.querySelectorAll('.ch10-hand > .ch10-hand-invite').length).toBe(HANDCALCS.length)
+    expect(container.querySelectorAll('.c-chapter-hand > .c-chapter-hand-lead').length).toBe(HANDCALCS.length)
     hc.forEach((e) => expect(e.querySelectorAll('.c-step').length, e.id).toBeGreaterThan(0))
     const firstQuiz = container.querySelector('.c-quiz') as HTMLElement
     expect(hc[hc.length - 1].compareDocumentPosition(firstQuiz) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -503,32 +503,28 @@ describe('Ch10 公式登錄與程式碼 region', () => {
 })
 
 describe('Ch10 符號表：章末的 id="symbols"（章首的連結由 PageFrame 的 strip 提供）', () => {
-  it('章末的「回到章首」⇒ window.scrollTo 到最上面（不改變路由）；符號表的內容不變', () => {
-    const scrollTo = vi.fn()
-    const scrollToSpy = vi.spyOn(window, 'scrollTo').mockImplementation(scrollTo as unknown as typeof window.scrollTo)
-    try {
-      const { container } = render(
-        <MemoryRouter initialEntries={['/ch/10']}>
-          <S7Symbols />
-        </MemoryRouter>,
-      )
-      const before = window.location.href
-      const symbols = container.querySelector('#symbols') as HTMLElement
-      expect(symbols.querySelector('.c-symbols')).toBeTruthy()
-      expect(container.textContent).not.toContain('本章符號表在最後')
-      fireEvent.click(button(container, /回到章首/))
-      expect(scrollTo).toHaveBeenCalledTimes(1)
-      expect(scrollTo.mock.calls[0][0]).toMatchObject({ top: 0 })
-      expect(window.location.href).toBe(before)
-      // 符號表的內容沒有變：δ = a − w 的極性註記與 λ_reg 的勘誤都還在
-      const tex = Array.from(symbols.querySelectorAll('annotation')).map((a) => a.textContent ?? '')
-      expect(tex).toContain('\\boldsymbol\\delta_k=\\mathbf a-\\mathbf w_k')
-      expect(tex).toContain('\\lambda_{\\mathrm{reg}}')
-      expect(symbols.textContent).toMatch(/全站約定（規格 §0）/)
-      expect(symbols.textContent).toMatch(/勘誤 E22/)
-    } finally {
-      scrollToSpy.mockRestore()
-    }
+  it('章末的「回到章首」⇒ 共用的 JumpTo 捲到章首的 #ch10-question 並聚焦（不改變路由）；符號表的內容不變', () => {
+    const { container } = render(
+      <MemoryRouter initialEntries={['/ch/10']}>
+        <div id="ch10-question" />
+        <S7Symbols />
+      </MemoryRouter>,
+    )
+    const before = window.location.href
+    const symbols = container.querySelector('#symbols') as HTMLElement
+    expect(symbols.querySelector('.c-symbols')).toBeTruthy()
+    expect(container.textContent).not.toContain('本章符號表在最後')
+    const jump = button(container, /回到章首/)
+    expect(jump.getAttribute('data-jump')).toBe('ch10-question')
+    fireEvent.click(jump)
+    expect(document.activeElement?.id).toBe('ch10-question')
+    expect(window.location.href).toBe(before)
+    // 符號表的內容沒有變：δ = a − w 的極性註記與 λ_reg 的勘誤都還在
+    const tex = Array.from(symbols.querySelectorAll('annotation')).map((a) => a.textContent ?? '')
+    expect(tex).toContain('\\boldsymbol\\delta_k=\\mathbf a-\\mathbf w_k')
+    expect(tex).toContain('\\lambda_{\\mathrm{reg}}')
+    expect(symbols.textContent).toMatch(/全站約定（規格 §0）/)
+    expect(symbols.textContent).toMatch(/勘誤 E22/)
   })
 })
 
@@ -952,8 +948,8 @@ describe('收尾：技術審查 R07 的 Ch10 部分——λ₁ = 1 + ρ 是「�
       { url: '/ch/10' },
     )
     const fig = container.querySelector('[data-diagram="eigen-modes"]') as HTMLElement
-    const walk = fig.querySelector('.ch10-fig-walk') as HTMLElement
-    expect(annotations(fig.querySelector('.ch10-fig-caption')!)).toEqual([String.raw`\rho\ge0`, String.raw`\rho<0`])
+    const walk = fig.querySelector('.c-chapter-fig-walk') as HTMLElement
+    expect(annotations(fig.querySelector('figcaption')!)).toEqual([String.raw`\rho\ge0`, String.raw`\rho<0`])
     expect(annotations(walk)).toEqual(expect.arrayContaining([String.raw`\rho\ge0`, String.raw`\lambda_1=1+\rho`, String.raw`\lambda_2=1-\rho`, String.raw`\rho<0`, String.raw`\lambda_{\max,\min}=1\pm|\rho|`]))
     expect(walk.textContent).toContain('差模快、共模慢')
     // 章首先備知識：配對對任何 ρ 成立，哪個較大看正負號；本章正文的例子都取 ρ ≥ 0

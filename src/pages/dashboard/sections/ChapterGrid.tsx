@@ -1,12 +1,12 @@
 import { memo, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { ModelLevel, ScrollRegion, TestBadge } from '@/components'
+import { ModelLevel, ScrollRegion, TestBadge, badgeClass, revealAnchor } from '@/components'
 import { chapterFrameMeta } from '@/app/chapterMeta'
 import { GROUP_LABEL, PAGES, type PageGroup } from '@/app/registry'
 import { MODES, MODE_SHORT, useSettings } from '@/app/settings'
 import { CHAPTER_META, conditionsForPage, questionsForPage } from '../data'
 import { summarizeErrata } from '../summaries'
-import { ConditionChip, Rich, scrollToId, type Progress } from '../ui'
+import { ConditionChip, Rich, type Progress } from '../ui'
 
 const GROUPS: PageGroup[] = ['A', 'B', 'C', 'D', 'tools']
 
@@ -170,7 +170,7 @@ export const ChapterGrid = memo(function ChapterGrid({ progress, compact = false
                           <ConditionChip key={c} id={c} />
                         ))}
                         {qs.map((q) => (
-                          <button key={q} type="button" className="dash-chip" onClick={() => scrollToId(`dash-q-${q}`)} title={`附錄 E 第 ${q} 題`}>
+                          <button key={q} type="button" className={badgeClass('neutral', 'dash-chip')} onClick={() => revealAnchor(`dash-q-${q}`)} title={`附錄 E 第 ${q} 題`}>
                             Q{q}
                           </button>
                         ))}

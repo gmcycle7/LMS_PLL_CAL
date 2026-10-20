@@ -265,7 +265,7 @@ export default function R10Preview() {
       </Observe>
       <h4>核心程式碼</h4>
       <CodeBlock source={modelSrc} region="inverseDesign" path={PATH} caption="每個 $N$：兩個下界（時間、slew）與兩個上界（雜訊、PM）。" />
-      <ModeGate min="research">
+      <ModeGate min="research" summary="還沒放進這個預覽的約束（spur、多 corner…）">
         <h4>Research：還沒放進來的約束</h4>
         <ul>
           <li>

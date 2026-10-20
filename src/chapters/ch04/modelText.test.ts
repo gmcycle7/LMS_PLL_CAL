@@ -88,6 +88,10 @@ const LMS_CASES: Partial<BlockLmsConfigInput>[] = [
   { pll_error_path: { kind: 'fir', parameters: { taps: [-1] } }, gain_step: 1e12, num_blocks: 60 }, // C ≤ 0、發散
   { pll_error_path: { kind: 'fir', parameters: { taps: [0] } } }, // C ≈ 0
   { pll_error_path: { kind: 'iir', parameters: { b: [1], a: [1, -1.05] } }, num_blocks: 4 }, // 不穩定的路徑
+  { comparator: { hysteresis_fs: 20, meta_window_fs: 0, meta_policy: 'drop' } as BlockLmsConfigInput['comparator'] }, // Ch05 §5b：hysteresis
+  { comparator: { hysteresis_fs: 0, meta_window_fs: 8, meta_policy: 'late' } as BlockLmsConfigInput['comparator'] }, // metastability（late）
+  { comparator: { hysteresis_fs: 10, meta_window_fs: 8, meta_policy: 'hold' } as BlockLmsConfigInput['comparator'] }, // 兩者並用（hold）
+  { comparator: { hysteresis_fs: 0, meta_window_fs: 8, meta_policy: 'drop' } as BlockLmsConfigInput['comparator'] }, // drop 沒有尾句
 ]
 
 function modelStrings(): string[] {

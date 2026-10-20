@@ -158,7 +158,7 @@ function RowDetail({ row }: { row: AcceptanceRowResult }) {
         {row.comp?.ms !== undefined && <span className="muted">（本機計算 {fmtNum(row.comp.ms, 3)} ms）</span>}
       </p>
       {g.notes && <p className="small muted">Golden 註記（golden/vectors 原文）：{g.notes}</p>}
-      <ModeGate min="engineer">
+      <ModeGate min="engineer" summary="本列實際執行的程式碼（呼叫各章模型、整理成 golden 的 key）">
         <NearGate label="本列實際執行的程式碼" minHeight={240} kind="code">
           <AcceptanceRegion
             region={row.meta.id}

@@ -12,6 +12,7 @@ import {
   Tex,
   ToggleControl,
   mathText,
+  revealAnchor,
   useDebouncedValue,
   useThemeTokens,
   type CrossCheck,
@@ -80,8 +81,7 @@ export function BlockLmsJsonLab() {
       const t = presetConfigText(urlPreset.params)
       if (t) setText(t)
       // 頁內連結（§9 的「重現」）換 preset 時，捲到實驗框
-      const el = typeof document !== 'undefined' ? document.getElementById(`exp-${EXPERIMENT_ID}`) : null
-      if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      revealAnchor(`exp-${EXPERIMENT_ID}`)
     }
   }, [urlPreset])
 
@@ -433,7 +433,7 @@ export function BlockLmsJsonLab() {
             height={240}
             csvName="block-lms-G"
           />
-          <ModeGate min="engineer">
+          <ModeGate min="engineer" summary="前幾個 block 的 sample trace（$e[n]$ 與確定性部分）">
             {plotTrace && (
               <Plot
                 title="前幾個 block 的 sample trace：$e[n]$ 與確定性部分"
@@ -445,7 +445,7 @@ export function BlockLmsJsonLab() {
               />
             )}
           </ModeGate>
-          <ModeGate min="research">
+          <ModeGate min="research" summary="後半段 $w$ 的分布與 Gaussian 預測的比較">
             {hist && (
               <Plot
                 title="後半段 $w$ 的分布 vs Gaussian 預測 $\mathcal N(w^*,\sigma_w^2)$"

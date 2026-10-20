@@ -1,21 +1,11 @@
 import { Fragment, type ReactNode } from 'react'
 import { useSettings } from '@/app/settings'
-import { HandCalc, Mermaid, Tex, type ExperimentPreset } from '@/components'
+import { ChapterFig, Tex, bindHandCalc, type ExperimentPreset } from '@/components'
 import type { PresetEntry } from '@/data/types'
 import { fmt } from '@/simulation/core'
 import type { AlgoId } from '@/simulation/models/sgd'
 import { DIAGRAM_BY_ID, type DiagramId } from './diagrams'
 import { HANDCALCS } from './handcalcs'
-
-/** 勘誤小標：連到驗證頁（驗證頁依 id 列出勘誤）。 */
-export function ErrataNote({ id, children }: { id: string; children?: ReactNode }) {
-  return (
-    <a className="ch02-erratum" href="#/verification" title={`本段依 docs/validation.md 勘誤 ${id} 修正`}>
-      勘誤 {id}
-      {children ? <span className="ch02-erratum-text">：{children}</span> : null}
-    </a>
-  )
-}
 
 /** 章節內連結（HashRouter）。 */
 export function ChapterLink({ ch, children }: { ch: string; children: ReactNode }) {
@@ -118,19 +108,7 @@ export function DerivFold({ title = '一步一步推導', children }: { title?: 
  * 「帶入手算」題（docs/teaching-style.md §7）：依 ID 從本章的 HANDCALCS 取出題目，放在對應推導／例子的正後方。
  * children 是一句引言：說明這一題對應哪個公式，並請讀者先換成自己的數字用紙筆算一次。
  */
-export function HandCalcSlot({ id, children }: { id: string; children?: ReactNode }) {
-  const def = HANDCALCS.find((h) => h.id === id)
-  if (!def) throw new Error(`ch02：找不到手算題 ${id}`)
-  return (
-    <div className="ch02-handcalc" data-handcalc={id}>
-      <p className="ch02-handcalc-lead">
-        <strong>換你算：</strong>
-        {children ?? '把數字換成你自己的，先用紙筆算一次，再展開步驟對答案。'}
-      </p>
-      <HandCalc def={def} />
-    </div>
-  )
-}
+export const HandCalcSlot = bindHandCalc(HANDCALCS)
 
 /**
  * 方塊圖（docs/teaching-style.md §8）：依 ID 從 diagrams.ts 取出 Mermaid 原始碼與圖說。
@@ -140,32 +118,9 @@ export function HandCalcSlot({ id, children }: { id: string; children?: ReactNod
 export function Diagram({ id, children }: { id: DiagramId; children?: ReactNode }) {
   const d = DIAGRAM_BY_ID[id]
   return (
-    <div className="ch02-diagram" data-diagram={id}>
-      <Mermaid chart={d.chart} caption={d.caption} />
-      {children ? <div className="ch02-diagram-walk">{children}</div> : null}
-    </div>
-  )
-}
-
-/**
- * 頁內跳轉（HashRouter 下不能用 href="#id"：那會改變路由）。改用按鈕 + scrollIntoView；
- * jsdom 沒有實作 scrollIntoView，所以先確認函式存在。捲過去之後把焦點移到目標，鍵盤與螢幕閱讀器才會跟著過去。
- */
-export function JumpTo({ target, children, className }: { target: string; children: ReactNode; className?: string }) {
-  return (
-    <button
-      type="button"
-      className={className ? `ch02-jump ${className}` : 'ch02-jump'}
-      data-jump={target}
-      onClick={() => {
-        const el = document.getElementById(target)
-        if (!el) return
-        if (typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        el.focus({ preventScroll: true })
-      }}
-    >
+    <ChapterFig chart={d.chart} caption={d.caption} dataAttrs={{ 'data-diagram': id }} walkLabel={false}>
       {children}
-    </button>
+    </ChapterFig>
   )
 }
 

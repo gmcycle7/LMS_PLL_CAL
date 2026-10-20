@@ -1,6 +1,6 @@
 import { Children, Fragment, isValidElement, useCallback, useMemo, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { Mermaid, accessibleText, mathText, usePersistentState } from '@/components'
+import { Badge, ChapterFig, accessibleText, badgeClass, mathText, usePersistentState } from '@/components'
 import { pageById } from '@/app/registry'
 import type { CheckState, ConditionId } from './thesisModel'
 import { conditionById, shortCode } from './data'
@@ -63,15 +63,15 @@ export function Glue({ children }: { children: ReactNode }) {
 }
 
 /**
- * 方塊圖 + 「怎麼讀這張圖」導讀（docs/teaching-style.md §8）。
+ * 方塊圖 + 「怎麼讀這張圖」導讀（docs/teaching-style.md §8）：共用的 ChapterFig。
  * 圖上的數學在 diagrams.ts 以 `$...$` 寫 LaTeX、由 <Mermaid> 用 KaTeX 排版；導讀與圖說（caption 支援 `$…$`）用 KaTeX 把圖上的名字對回正文的公式。
+ * `dash-diagram` 只是測試與審查腳本的 hook。
  */
 export function DiagramWalk({ chart, caption, ariaLabel, children }: { chart: string; caption: string; ariaLabel?: string; children?: ReactNode }) {
   return (
-    <div className="dash-diagram">
-      <Mermaid chart={chart} caption={caption} ariaLabel={ariaLabel ?? caption} />
-      {children && <div className="dash-diagram-walk">{children}</div>}
-    </div>
+    <ChapterFig chart={chart} caption={caption} ariaLabel={ariaLabel ?? caption} className="dash-diagram">
+      {children}
+    </ChapterFig>
   )
 }
 
@@ -93,7 +93,7 @@ export function ErratumLink({ eid }: { eid: string }) {
   // title 屬性是純文字：勘誤位置描述裡的 `$…$` 要先轉成可念的文字
   const title = e ? `${e.eid}（${e.severity}）${e.area}：${accessibleText(e.location)}` : `${eid}：請見驗證頁`
   return (
-    <Link to={verificationPath(eid)} className={`dash-erratum dash-sev-${e?.severity ?? 'low'}`} title={title}>
+    <Link to={verificationPath(eid)} className={badgeClass('erratum', `dash-erratum dash-sev-${e?.severity ?? 'low'} c-erratum-link`)} data-severity={e?.severity} data-erratum={eid} title={title}>
       勘誤 {eid}
     </Link>
   )
@@ -102,10 +102,10 @@ export function ErratumLink({ eid }: { eid: string }) {
 /** 頁面連結 chip：顯示章節短代號（Ch06）或頁面導覽名稱 */
 export function PageChip({ id, primary = false }: { id: string; primary?: boolean }) {
   const p = pageById(id)
-  if (!p) return <span className="dash-chip dash-chip-missing">{id}（不存在）</span>
+  if (!p) return <Badge variant="mismatch" className="dash-chip dash-chip-missing">{id}（不存在）</Badge>
   const code = shortCode(id)
   return (
-    <Link to={p.path} className={`dash-chip${primary ? ' dash-chip-primary' : ''}`} title={p.title}>
+    <Link to={p.path} className={badgeClass('neutral', `dash-chip${primary ? ' dash-chip-primary' : ''}`)} title={p.title}>
       {code ?? p.nav}
     </Link>
   )
@@ -115,10 +115,10 @@ export function PageChip({ id, primary = false }: { id: string; primary?: boolea
 export function ConditionChip({ id }: { id: ConditionId }) {
   const c = conditionById(id)
   return (
-    <span className="dash-cond-chip" title={`${c.n}. ${c.zh}（${c.en}）`}>
+    <Badge className="dash-cond-chip" title={`${c.n}. ${c.zh}（${c.en}）`}>
       <span className="dash-dot" style={{ background: `var(${c.color})` }} aria-hidden="true" />
       {c.zh}
-    </span>
+    </Badge>
   )
 }
 
@@ -146,12 +146,6 @@ export function StateIcon({ state, label }: { state: CheckState; label?: string 
 }
 
 export { STATE_LABEL }
-
-/** 以按鈕捲動到頁內段落（HashRouter 下不能用 href="#id"，否則會被當成路由）。 */
-export function scrollToId(id: string) {
-  const el = typeof document !== 'undefined' ? document.getElementById(id) : null
-  el?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
-}
 
 const isStringArray = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === 'string')
 

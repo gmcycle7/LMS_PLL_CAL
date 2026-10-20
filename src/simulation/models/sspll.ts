@@ -2714,3 +2714,743 @@ export interface SspllLmsCompareSpectrumResult {
 export function runSspllLmsCompareSpectrum(p: SspllLmsCompareSpectrumParams): SspllLmsCompareSpectrumResult {
   return { cases: p.cases.map((c) => ({ id: c.id, result: runSspllLmsWithSpectrum({ ...p.common, loop: c.loop, variant: c.variant, models: c.models }) })) }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Code source（DSM dither、MASH-1-1-1、PMUX 隨機旋轉）× sign-LMS（案例頁 §10b；docs/analysis/sspll-dither-interaction.md）
+//
+// code source（與 analysis/sspll/sim/sim.py 的 SeqSource 同一套構造；2^29 格點 = 一格 Δ = T_vco/8；α 量化成 32 bit）：
+//   acc1：一階累加器 Φ[n] = 8nα，P = ⌊Φ⌋，c = ρ = Φ − P ∈ [0, 1)
+//   dq  ：dithered quantizer P = ⌊Φ + u⌋，u ~ U[0, 1) iid      ⇒ c = ρ + 1 − b，b = 1{ρ + u ≥ 1}，c ∈ (0, 2)
+//   mash：MASH 1-1-1（Δ 格點），P = Φ − r，r = (1 − z⁻¹)² e₃   ⇒ c = r + 2 ∈ (0, 4)
+//   rotM：PMUX 隨機旋轉 P′ = P + m，m ~ U{0..M−1} iid           ⇒ c = ρ − m + (M − 1) ∈ (0, M)
+// 每一種都滿足 P[n] + c[n] = Φ[n] + 常數：總補償量不變，只改變 PMUX 與 DTC 之間的分配。
+//
+// 理論（線性小訊號、凍結權重、D = 0，與 §8 同一個模型）：模態 m 的 PHOS regressor
+//   z_m[n] = e^{j2πm P[n]/8} = e^{j2πmαn}·e^{−jθ_m c̃[n]}，θ_m = πm/4（c̃ = code 的隨機部分），所以
+//   Re κ_m = Σ_{ℓ≡m (8)} w_ℓ^{(s)} Re H_PD(frac(ℓα)) + Σ_{k≥0} h_PD[k] cos(2πmαk) R̃_m^{(s)}[k]     （F-CS.27）
+//   acc1：w_ℓ = 64 sin²(πℓ/8)/(πℓ)²、R̃ = 0；dq：w_ℓ = |v_k|²（v 是 e^{−jθρ}((1−ρ)+ρe^{jθ}) 的 Fourier 係數）、R̃ = [(1−cos θ)/3]；
+//   rotM：w_ℓ = |D_M(θ)|² w_ℓ^{acc1}、R̃ = [1 − |D_M|²]；mash：只有載波 ℓ = m、權重 |φ|²（φ = sinc²(θ/2) sinc θ，e₃ iid 均勻），
+//   R̃[k] = R[k] − |φ|²，R[1] = sinc²(θ/2) sinc²(3θ/2)、R[2] = sinc²(θ/2) sinc²(θ)、R[k ≥ 3] = |φ|²。
+//   GOS（regressor = c）：C_GOS = Σ_k h[k] R̃_c[k]；dq 白色 1/6、rotM 鋸齒 + (M²−1)/12、mash R̃_c = [6, −4, 1]/12。
+// 判定（F-CS.28）：κ_min = min_m Re κ_m；< −τ 反號、> τ restoring、|κ_min| ≤ τ dead zone——線性模型不判（n/a）；κ_∞（largeSignalCode）只是研究假說的提示（§10b.7）。
+// Python golden：analysis/sspll/golden/sspll_golden/dither_interaction.py；sspll.test.ts 逐項與 results/dither_interaction.json 比對。
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type CodeSource = 'acc1' | 'dq' | 'mash' | 'rot4' | 'rot8'
+export const CODE_SOURCES: CodeSource[] = ['acc1', 'dq', 'mash', 'rot4', 'rot8']
+/** DTC range（以 Δ 為單位，構造上精確） */
+export const CODE_RANGE: Record<CodeSource, number> = { acc1: 1, dq: 2, mash: 4, rot4: 4, rot8: 8 }
+const MASK29 = 0x1fffffff
+const TWO29 = 0x20000000
+const sinc = (x: number): number => (Math.abs(x) < 1e-15 ? 1 : Math.sin(x) / x)
+const csub = (a: Complex, b: Complex): Complex => ({ re: a.re - b.re, im: a.im - b.im })
+const cdiv = (a: Complex, b: Complex): Complex => {
+  const d = b.re * b.re + b.im * b.im
+  return { re: (a.re * b.re + a.im * b.im) / d, im: (a.im * b.re - a.re * b.im) / d }
+}
+const cabs2 = (a: Complex): number => a.re * a.re + a.im * a.im
+/** 95% Wilson score 區間（與 core/stats 的 wilsonCI 相同的式子；這裡用常數 z 以免再 import） */
+function wilson95(k: number, n: number): [number, number] {
+  if (!(n > 0)) return [0, 1]
+  const z = 1.959963984540054
+  const p = k / n
+  const den = 1 + (z * z) / n
+  const centre = (p + (z * z) / (2 * n)) / den
+  const half = (z * Math.sqrt((p * (1 - p)) / n + (z * z) / (4 * n * n))) / den
+  return [Math.max(0, centre - half), Math.min(1, centre + half)]
+}
+
+/** 模態編號折到 [−4, 4]：z_{8−m} = conj(z_m)（P 是整數），iid 的 closed form 要用主值角——用 θ = 7π/4 會把 mode 7 的載波算成 0 */
+export function modeFold(m: number): number {
+  return ((((m + 4) % 8) + 8) % 8) - 4
+}
+
+/** θ_m = 2πm/8 = πm/4（m 折到 [−4, 4]）：每一格 Δ 的 code 在模態 m 的相位步 */
+export function thetaMode(m: number): number {
+  return (Math.PI * modeFold(m)) / 4
+}
+
+export interface CodeSample {
+  /** DTC code [Δ]（含該 source 的固定偏移） */
+  c: number
+  /** PMUX 相位索引 0..7 */
+  p: number
+}
+
+// #region core:codeSequence
+/**
+ * 串流的 code 產生器：n ↦ (c[n], p[n])。依序呼叫（n 遞增）才會前進；最近 8 拍留在環形緩衝區，
+ * 讓 1diff／2diff 的 x[n−1]、x[n−2] 讀得到。MASH 的狀態從 nStart 歸零（與 sim 的 n_start = −64 相同）；
+ * dq／rot 的隨機數來自 createRng(seed)，同 seed 可重現。
+ */
+export function makeCodeSequence(alpha: number, source: CodeSource, seed = 12345, nStart = -64): (n: number, out: CodeSample) => void {
+  const ai = accWord(alpha)
+  if (source === 'acc1') return (n, out) => seqAccAt(ai, n, out)
+  const rng = createRng(seed).fork(`code-${source}`)
+  const RING = 8
+  const ringC = new Float64Array(RING)
+  const ringP = new Int32Array(RING)
+  let last = nStart - 1
+  // MASH 狀態（都是 mod 2³² 的整數；P 只需要 mod 8）
+  const I8 = ai >>> 29
+  const F = ai & MASK29
+  let S1 = 0
+  let S2 = 0
+  let S3 = 0
+  let C2p = 0
+  let C3p = 0
+  let C3pp = 0
+  let a3p = 0
+  let a3pp = 0
+  let kI8 = 0
+  const M = source === 'rot4' ? 4 : source === 'rot8' ? 8 : 0
+  const advance = (n: number): void => {
+    const acc = Math.imul(n | 0, ai | 0) >>> 0 // Φ[n] mod 8Δ（2^29 格點）
+    const p0 = acc >>> 29
+    const rho = (acc & MASK29) / TWO29
+    let c: number
+    let p: number
+    if (source === 'dq') {
+      const u = Math.floor(rng.uniform() * TWO29)
+      p = ((acc + u) >>> 0) >>> 29 // ← 差異：⌊Φ + u⌋
+      const b = (acc & MASK29) + u >= TWO29 ? 1 : 0 // 進位：ρ + u ≥ 1
+      c = rho + 1 - b
+    } else if (M > 0) {
+      const m = rng.int(0, M - 1)
+      p = (p0 + m) & 7 // ← 差異：PMUX 指標 + m，DTC 多補 mΔ
+      c = rho - m + (M - 1)
+    } else {
+      // MASH 1-1-1：S1 = (k+1)F（unwrapped），acc_i = S_i mod 2²⁹，C_i = ⌊S_i/2²⁹⌋（只用到 mod 8）
+      S1 = (S1 + F) >>> 0
+      const acc1 = S1 & MASK29
+      const C1 = S1 >>> 29
+      S2 = (S2 + acc1) >>> 0
+      const acc2 = S2 & MASK29
+      const C2 = S2 >>> 29
+      S3 = (S3 + acc2) >>> 0
+      const acc3 = S3 & MASK29
+      const C3 = S3 >>> 29
+      const sumY = C1 + (C2 - C2p) + (C3 - 2 * C3p + C3pp) // ← 差異：累積的 MASH 輸出，(1 − z⁻¹)³ 整形
+      kI8 = (kI8 + I8) & 7
+      p = (((kI8 + sumY) % 8) + 8) % 8
+      const r = (acc3 - 2 * a3p + a3pp) / TWO29 // 餘數 Φ − P = (1 − z⁻¹)² e₃ ∈ (−2, 2)
+      c = r + 2
+      C2p = C2
+      C3pp = C3p
+      C3p = C3
+      a3pp = a3p
+      a3p = acc3
+    }
+    last = n
+    const i = ((n % RING) + RING) % RING
+    ringC[i] = c
+    ringP[i] = p
+  }
+  return (n, out) => {
+    if (n > last) {
+      if (n > last + 1 && last >= nStart) {
+        for (let k = last + 1; k < n; k++) advance(k)
+      } else if (last < nStart) {
+        for (let k = nStart; k < n; k++) advance(k)
+      }
+      advance(n)
+    } else if (n <= last - RING) {
+      throw new Error(`makeCodeSequence：只能往前走（要求 n = ${n}，已在 ${last}，緩衝 ${RING} 拍）`)
+    }
+    const i = ((n % RING) + RING) % RING
+    out.c = ringC[i]
+    out.p = ringP[i]
+  }
+}
+// #endregion core:codeSequence
+
+/** 前 len 拍（從 n = 0）的 (c[n], p[n])（手算表、圖與測試用） */
+export function codeSequenceRows(alpha: number, source: CodeSource, len: number, seed = 12345): { c: number[]; p: number[] } {
+  const at = makeCodeSequence(alpha, source, seed)
+  const s: CodeSample = { c: 0, p: 0 }
+  const c: number[] = []
+  const p: number[] = []
+  for (let n = 0; n < len; n++) {
+    at(n, s)
+    c.push(s.c)
+    p.push(s.p)
+  }
+  return { c, p }
+}
+
+// #region core:codeFactors
+/**
+ * MASH 1-1-1（e₃ iid 均勻）：載波保留率 |φ|² 與 u = e^{−jθc} 的殘餘自相關 R̃[0..2]
+ * （c = (1 − z⁻¹)² e₃；iid 均勻數之和的特徵函數是 sinc 的乘積）。
+ */
+export function mashFactors(m: number): { phi2: number; rtilde: number[] } {
+  const th = thetaMode(m)
+  const phi = sinc(th / 2) ** 2 * sinc(th) // E[e^{−jθ(e − 2e′ + e″)}]
+  const phi2 = phi * phi
+  const R1 = sinc(th / 2) ** 2 * sinc(1.5 * th) ** 2 // c[n] − c[n−1] = e − 3e′ + 3e″ − e‴
+  const R2 = sinc(th / 2) ** 2 * sinc(th) ** 2 // c[n] − c[n−2] = e − 2e′ + 2e‴ − e⁗
+  return { phi2, rtilde: [1 - phi2, R1 - phi2, R2 - phi2] }
+}
+
+/** |v_k|²：v(ρ) = e^{−jθρ}((1 − ρ) + ρe^{jθ})（dithered quantizer 模態 m regressor 給定鋸齒 ρ 的條件平均）的第 k 條 Fourier 係數（線 ℓ = m + 8k） */
+export function dqLineWeight(m: number, k: number): number {
+  const th = thetaMode(m)
+  const w = th + TWO_PI * k
+  const jw: Complex = { re: 0, im: w }
+  const one: Complex = { re: 1, im: 0 }
+  const A = cdiv(csub(one, cExpj(-th)), jw) // ∫₀¹ e^{−jwρ} dρ
+  const B = cdiv(csub(A, cExpj(-th)), jw) // ∫₀¹ ρ e^{−jwρ} dρ
+  const v = csub(A, cMul(csub(one, cExpj(th)), B))
+  return cabs2(v)
+}
+
+/** dithered quantizer 搬到白雜訊的功率：E[2ρ(1 − ρ)](1 − cos θ) = (1 − cos θ)/3 */
+export function dqWhite(m: number): number {
+  return (1 - Math.cos(thetaMode(m))) / 3
+}
+
+/** |D_M(θ)|²，D_M = (1/M)Σ_{r<M} e^{jθr}：隨機旋轉後每條階梯線剩下的比例 */
+export function rotFactor(M: number, m: number): number {
+  const th = thetaMode(m)
+  let re = 0
+  let im = 0
+  for (let r = 0; r < M; r++) {
+    re += Math.cos(th * r)
+    im += Math.sin(th * r)
+  }
+  return (re * re + im * im) / (M * M)
+}
+
+/** w_ℓ = 64 sin²(πℓ/8)/(πℓ)²（§8：ℓ ≡ m (mod 8) 的和為 1） */
+export function acc1LineWeight(ell: number): number {
+  return (64 * Math.sin((Math.PI * ell) / NPH) ** 2) / (Math.PI * ell) ** 2
+}
+// #endregion core:codeFactors
+
+export interface CodeSpectralModel {
+  /** 線 ℓ ≡ m (mod 8) 與功率（|k| ≤ kmax） */
+  lines: { ell: number; w: number }[]
+  /** 所有線的總功率（Parseval；尾項 = total − Σ lines） */
+  total: number
+  /** 殘餘自相關 R̃[0..K]（白色時只有 k = 0） */
+  rtilde: number[]
+}
+
+/** 模態 m 的頻譜模型：線、總功率、R̃ */
+export function codeSpectralModel(source: CodeSource, m: number, kmax = 1024): CodeSpectralModel {
+  const mm = modeFold(m) // 線 ℓ = mm + 8k（與 ℓ ≡ m (mod 8) 是同一組）
+  if (source === 'mash') {
+    const f = mashFactors(m)
+    return { lines: [{ ell: mm, w: f.phi2 }], total: f.phi2, rtilde: f.rtilde }
+  }
+  const lines: { ell: number; w: number }[] = []
+  if (source === 'acc1') {
+    for (let k = -kmax; k <= kmax; k++) lines.push({ ell: mm + 8 * k, w: acc1LineWeight(mm + 8 * k) })
+    return { lines, total: 1, rtilde: [0] }
+  }
+  if (source === 'dq') {
+    for (let k = -kmax; k <= kmax; k++) lines.push({ ell: mm + 8 * k, w: dqLineWeight(m, k) })
+    const wh = dqWhite(m)
+    return { lines, total: 1 - wh, rtilde: [wh] }
+  }
+  const D2 = rotFactor(source === 'rot4' ? 4 : 8, m)
+  for (let k = -kmax; k <= kmax; k++) lines.push({ ell: mm + 8 * k, w: D2 * acc1LineWeight(mm + 8 * k) })
+  return { lines, total: D2, rtilde: [1 - D2] }
+}
+
+// #region core:kappaCode
+/** code source 的 Re κ_m（closed form，F-CS.27）：線 × Re H_PD + h_PD[k] 的短記憶修正；meanReH 可先算好（kernelMean(gammaEff(loop)).re）給掃描用 */
+export function kappaModeCode(loop: SspllLoop, alpha: number, source: CodeSource, m: number, kmax = 1024, meanReH?: number): number {
+  const sm = codeSpectralModel(source, m, kmax)
+  let val = 0
+  let wSum = 0
+  for (const { ell, w } of sm.lines) {
+    val += w * loopH(loop, frac(ell * alpha)).re // 每條線乘上該頻率的 Re H_PD
+    wSum += w
+  }
+  if (source !== 'mash') val += (sm.total - wSum) * (meanReH ?? kernelMean(gammaEff(loop)).re) // 階梯線的尾項：Re H 的等分佈平均
+  const h = loopImpulse(loop, sm.rtilde.length)
+  const mm = modeFold(m)
+  for (let k = 0; k < sm.rtilde.length; k++) val += h[k] * Math.cos(TWO_PI * mm * alpha * k) * sm.rtilde[k] // ← 差異：散開的部分（白色時只有 k = 0）
+  return val
+}
+
+export interface KappaPhosCode {
+  /** Re κ_m，m = 1..7 */
+  kappaM: number[]
+  kappaMin: number
+  worstMode: number
+}
+
+/** κ_m（m = 1..7）、最小值與最差模態 */
+export function kappaPhosCode(loop: SspllLoop, alpha: number, source: CodeSource, kmax = 1024, meanReH?: number): KappaPhosCode {
+  const kappaM = Array.from({ length: NPH - 1 }, (_, i) => kappaModeCode(loop, alpha, source, i + 1, kmax, meanReH))
+  let worst = 0
+  for (let i = 1; i < kappaM.length; i++) if (kappaM[i] < kappaM[worst]) worst = i
+  return { kappaM, kappaMin: kappaM[worst], worstMode: worst + 1 }
+}
+
+export interface GosCode {
+  /** C_GOS = Σ_k h[k] R̃_c[k] */
+  C: number
+  varC: number
+  meanC: number
+  /** κ_GOS = C/var(c)（H ≡ 1 時為 1） */
+  kappa: number
+  /** C/E[c²]：時域 sim 的正規化（開迴路參考保留 code 的 DC） */
+  kappaE2: number
+}
+
+/** GOS 的自我斜率（regressor = c，含該 source 的偏移） */
+export function gosCode(loop: SspllLoop, alpha: number, source: CodeSource, M = 8192): GosCode {
+  const h = loopImpulse(loop, 4)
+  const beta = frac(NPH * alpha)
+  const saw = gosHarmonic(alpha, gammaEff(loop), M) // 鋸齒的部分（§7）：Σ_m w_m Re H(frac(mβ))
+  const varSaw = beta !== 0 ? 1 / 12 : 0
+  let C: number
+  let varC: number
+  let meanC: number
+  if (source === 'acc1') [C, varC, meanC] = [saw, varSaw, 0.5]
+  else if (source === 'dq') [C, varC, meanC] = [h[0] / 6, 1 / 6, 1] // E[c | ρ] = 1：鋸齒被抵消，只剩白色的 1/6
+  else if (source === 'mash') [C, varC, meanC] = [(6 * h[0] - 4 * h[1] + h[2]) / 12, 0.5, 2]
+  else {
+    const Mr = source === 'rot4' ? 4 : 8
+    ;[C, varC, meanC] = [saw + (h[0] * (Mr * Mr - 1)) / 12, varSaw + (Mr * Mr - 1) / 12, 0.5 + (Mr - 1) / 2]
+  }
+  return { C, varC, meanC, kappa: varC > 0 ? C / varC : NaN, kappaE2: C / (varC + meanC * meanC) }
+}
+// #endregion core:kappaCode
+
+export type CodeVerdictKind = 'inverted' | 'restoring' | 'dead'
+
+export interface CodeVerdict extends KappaPhosCode {
+  verdict: CodeVerdictKind
+  tau: number
+}
+
+/** closed form 的判定（F-CS.28）：κ_min < −τ 反號、> τ restoring、|κ_min| ≤ τ dead zone（預設 τ = 0.05） */
+export function codeVerdict(loop: SspllLoop, alpha: number, source: CodeSource, tau = 0.05): CodeVerdict {
+  const kp = kappaPhosCode(loop, alpha, source)
+  const k = kp.kappaMin
+  return { ...kp, verdict: k < -tau ? 'inverted' : k > tau ? 'restoring' : 'dead', tau }
+}
+
+export interface KappaNumericCode extends KappaPhosCode {
+  gosC: number
+  gosVar: number
+  codeMean: number
+  N: number
+}
+
+/**
+ * 實際序列上的線性相關（對該筆紀錄精確；線性小訊號）：κ_m = ⟨conj(z_m)(h_PD * z_m)⟩/⟨|z_m|²⟩，z_m = e^{j2πmp/8}；
+ * C_GOS = ⟨c̃ (h_PD * c̃)⟩，c̃ = c − mean(c)。前 nPre 拍（濾波器暫態）不算。
+ */
+export function kappaNumericCode(loop: SspllLoop, alpha: number, source: CodeSource, N = 1 << 17, seed = 12345, nPre = 1 << 12): KappaNumericCode {
+  const len = N + nPre + 64
+  const at = makeCodeSequence(alpha, source, seed)
+  const s: CodeSample = { c: 0, p: 0 }
+  const cs = new Float64Array(len)
+  const ps = new Int32Array(len)
+  let cMean = 0
+  for (let i = 0; i < len; i++) {
+    at(i - 64, s)
+    cs[i] = s.c
+    ps[i] = s.p
+    cMean += s.c
+  }
+  cMean /= len
+  const kappaM: number[] = []
+  for (let m = 1; m < NPH; m++) {
+    const fr = new IirState(loop.bH, loop.aH)
+    const fi = new IirState(loop.bH, loop.aH)
+    let acc = 0
+    for (let i = 0; i < len; i++) {
+      const ang = (TWO_PI * m * ps[i]) / NPH
+      const zr = Math.cos(ang)
+      const zi = Math.sin(ang)
+      const yr = fr.step(zr)
+      const yi = fi.step(zi)
+      if (i >= nPre) acc += zr * yr + zi * yi // Re(conj(z)·y)
+    }
+    kappaM.push(acc / (len - nPre))
+  }
+  const fc = new IirState(loop.bH, loop.aH)
+  let gos = 0
+  let gv = 0
+  for (let i = 0; i < len; i++) {
+    const cc = cs[i] - cMean
+    const y = fc.step(cc)
+    if (i >= nPre) {
+      gos += cc * y
+      gv += cc * cc
+    }
+  }
+  let worst = 0
+  for (let i = 1; i < kappaM.length; i++) if (kappaM[i] < kappaM[worst]) worst = i
+  return { kappaM, kappaMin: kappaM[worst], worstMode: worst + 1, gosC: gos / (len - nPre), gosVar: gv / (len - nPre), codeMean: cMean, N }
+}
+
+export interface LargeSignalCode {
+  mode: number
+  ampsPs: number[]
+  /** κ_∞ = ⟨sgn(y) z⟩/|⟨sgn(d) z⟩|（A → ∞ 的 1-bit 相關，開迴路正規化） */
+  kappaInf: number
+  /** 有限振幅 A 的割線斜率（與開迴路同樣正規化） */
+  g: number[]
+  /** 線性相關 ⟨y z⟩/⟨d z⟩（= 這個方向的小訊號 κ） */
+  lin: number
+  N: number
+}
+
+// #region core:largeSignalCode
+/**
+ * 實際序列上沿模態 m 的實數方向 d_k = cos(2πmk/8) 的 1-bit 相關（§10.4 的大訊號）：
+ * d[n] = d_{p[n]}、y = h_PD * d、z[n] = d_{p[n]}；κ_∞ = ⟨sgn(y) z⟩/|⟨sgn(d) z⟩|，
+ * g(A) = ⟨erf(Ay/(√2σ_v)) z⟩σ_v/(A√(2/π)) 除以同樣算法的開迴路值。
+ */
+export function largeSignalCode(loop: SspllLoop, alpha: number, source: CodeSource, m = 1, ampsPs: number[] = [1, 5], cfg?: SspllSimCfg | null, N = 1 << 16, seed = 12345, nPre = 1 << 12): LargeSignalCode {
+  const sig = cfg?.sigmaPs ?? 0.2
+  const len = N + nPre + 64
+  const at = makeCodeSequence(alpha, source, seed)
+  const s: CodeSample = { c: 0, p: 0 }
+  const pat = Array.from({ length: NPH }, (_, k) => Math.cos((TWO_PI * m * k) / NPH))
+  const f = new IirState(loop.bH, loop.aH)
+  let sCl = 0
+  let sOl = 0
+  let lin = 0
+  let dz = 0
+  const gA = ampsPs.map(() => 0)
+  const g0 = ampsPs.map(() => 0)
+  for (let i = 0; i < len; i++) {
+    at(i - 64, s)
+    const d = pat[s.p]
+    const y = f.step(d)
+    if (i < nPre) continue
+    const z = d
+    sCl += Math.sign(y) * z // ← 1-bit：只看符號
+    sOl += Math.sign(d) * z
+    lin += y * z
+    dz += d * z
+    for (let a = 0; a < ampsPs.length; a++) {
+      gA[a] += erf((ampsPs[a] * y) / (Math.SQRT2 * sig)) * z
+      g0[a] += erf((ampsPs[a] * d) / (Math.SQRT2 * sig)) * z
+    }
+  }
+  return { mode: m, ampsPs, kappaInf: sCl / Math.abs(sOl), g: gA.map((v, a) => v / g0[a]), lin: lin / dz, N }
+}
+// #endregion core:largeSignalCode
+
+export interface SspllLmsCodeParams extends Omit<SspllLmsParams, 'seq'> {
+  source: CodeSource
+  /** code 的隨機數種子（dq／rot；預設 = seed） */
+  codeSeed?: number
+}
+
+export interface SspllLmsCodeResult extends SspllLmsResult {
+  source: CodeSource
+}
+
+// #region core:signLmsCode
+/**
+ * 閉迴路 sign-error block LMS，分數序列換成 code source（演算法與 runSspllLms 逐行相同：真 1-bit 比較器、NLMS 式步長；
+ * golden：dither_interaction.py 的 run_sign_lms_code）。regressor 第 0 條是 DTC code c（含該 source 的偏移）。
+ */
+export function runSspllLmsCode(params: SspllLmsCodeParams): SspllLmsCodeResult {
+  const { loop, alpha, variant, models, cfg, source } = params
+  const nBlocks = params.nBlocks ?? 1500
+  const nBlk = params.nBlk ?? 512
+  const tau = params.tauBlocks ?? 25
+  const recEvery = params.recEvery ?? 20
+  const nSettle = params.nSettle ?? 4096
+  const lanes = params.lanes ?? 1
+  const uOs = params.uOsPs ?? 0
+  const seed = params.seed ?? 3
+  const codeSeed = params.codeSeed ?? seed
+  const { sigmaPs: sig, deltaPs: Dl, a } = cfg
+  const eps = cfg.epsPs
+  const rowOf = (at: (n: number, out: CodeSample) => void): RowFn => {
+    const s: CodeSample = { c: 0, p: 0 }
+    return (n, out) => {
+      at(n, s)
+      out.fill(0)
+      out[0] = s.c
+      out[1 + s.p] = 1
+    }
+  }
+
+  // 步長：開迴路名義時間常數 τ + regressor 功率正規化（前 2¹⁵ 拍，去掉前 2¹² 拍；同一條序列的另一個實例）
+  const ccmp = Math.sqrt(2 / Math.PI) / sig
+  let muP = 8 / (tau * ccmp)
+  let muG = 12 / (tau * ccmp * Dl)
+  {
+    const pre = makeRegressor(variant, rowOf(makeCodeSequence(alpha, source, codeSeed)), models)
+    const r = new Float64Array(NREG)
+    let s0 = 0
+    let s00 = 0
+    let sp = 0
+    let cnt = 0
+    for (let n = 0; n < 1 << 15; n++) {
+      pre(n, r)
+      if (n < 1 << 12) continue
+      s0 += r[0]
+      s00 += r[0] * r[0]
+      for (let k = 1; k < NREG; k++) sp += r[k] * r[k]
+      cnt++
+    }
+    const var0 = s00 / cnt - (s0 / cnt) ** 2
+    muG *= 1 / 12 / Math.max(var0, 1e-12)
+    muP *= 1 / 8 / Math.max(sp / (cnt * NPH), 1e-12)
+  }
+
+  const rng = createRng(seed)
+  const noise = Array.from({ length: lanes }, (_, l) => rng.fork(`comparator-noise-${l}`))
+  const wg = new Float64Array(lanes)
+  const W = Array.from({ length: lanes }, () => new Float64Array(NPH))
+  const filt = Array.from({ length: lanes }, () => new IirState(loop.bH, loop.aH))
+  const at = makeCodeSequence(alpha, source, codeSeed) // ← 差異：code source（同一個實例給序列與 regressor）
+  const reg = makeRegressor(variant, rowOf(at), models)
+  const ph: CodeSample = { c: 0, p: 0 }
+  const r = new Float64Array(NREG)
+  const G = Array.from({ length: lanes }, () => new Float64Array(NREG))
+  const recBlock: number[] = []
+  const recRms: number[] = []
+  const recCm: number[] = []
+  const recGos: number[] = []
+
+  const record = (b: number): void => {
+    const rms: number[] = []
+    const cm: number[] = []
+    const gos: number[] = []
+    for (let l = 0; l < lanes; l++) {
+      const gain = (1 - a) * (1 + wg[l])
+      let mean = 0
+      for (let k = 0; k < NPH; k++) mean += gain * W[l][k] - eps[k]
+      mean /= NPH
+      let ss = 0
+      for (let k = 0; k < NPH; k++) ss += (gain * W[l][k] - eps[k] - mean) ** 2
+      rms.push(Math.sqrt(ss / NPH) * 1000)
+      cm.push(Math.abs(mean) * 1000)
+      gos.push(Math.abs((gain - 1) * Dl) * 1000)
+    }
+    recBlock.push(b)
+    recRms.push(median(rms))
+    recCm.push(median(cm))
+    recGos.push(median(gos))
+  }
+
+  const sample = (n: number, adapt: boolean): void => {
+    at(n, ph) // c[n]、p[n]（先前進，reg 再從緩衝讀同一拍）
+    reg(n, r)
+    const cc = ph.c
+    const p = ph.p
+    for (let l = 0; l < lanes; l++) {
+      const gain = (1 - a) * (1 + wg[l])
+      const u = cc * Dl + eps[p] - gain * (cc * Dl + W[l][p]) // 注入的時間誤差 u[n]
+      const e = filt[l].step(u) // e_PD = h_PD * u
+      if (!adapt) continue
+      const q = Math.sign(e + sig * noise[l].normal() + uOs) // 1-bit 比較器
+      const Gl = G[l]
+      for (let i = 0; i < NREG; i++) Gl[i] += q * r[i]
+    }
+  }
+
+  let n0 = 0
+  while (n0 < nSettle) {
+    for (let n = n0; n < n0 + nBlk; n++) sample(n, false)
+    n0 += nBlk
+  }
+  let aborted = false
+  let done = 0
+  for (let b = 0; b < nBlocks; b++) {
+    if (b % recEvery === 0) record(b)
+    for (let l = 0; l < lanes; l++) G[l].fill(0)
+    for (let n = n0; n < n0 + nBlk; n++) sample(n, true)
+    n0 += nBlk
+    done = b + 1
+    let big = 0
+    for (let l = 0; l < lanes; l++) {
+      wg[l] += (muG * G[l][0]) / nBlk
+      for (let k = 0; k < NPH; k++) {
+        W[l][k] += (muP * G[l][1 + k]) / nBlk
+        big = Math.max(big, Math.abs(W[l][k]))
+      }
+      big = Math.max(big, Math.abs(wg[l] * Dl))
+    }
+    if (!(big < 1e6)) {
+      aborted = true
+      break
+    }
+  }
+  record(done)
+  return {
+    source,
+    variant,
+    alpha,
+    block: Float64Array.from(recBlock),
+    phosRmsFs: Float64Array.from(recRms),
+    phosCmAbsFs: Float64Array.from(recCm),
+    gosAbsFs: Float64Array.from(recGos),
+    muG,
+    muP,
+    initPhosRmsFs: recRms[0],
+    finalPhosRmsFs: recRms[recRms.length - 1],
+    maxPhosRmsFs: Math.max(...recRms),
+    finalGosFs: recGos[recGos.length - 1],
+    finalPhosCmFs: recCm[recCm.length - 1],
+    aborted,
+    samples: n0 * lanes,
+  }
+}
+// #endregion core:signLmsCode
+
+export interface DivergenceMcParams {
+  loop: SspllLoop
+  alpha: number
+  source: CodeSource
+  cfg: SspllSimCfg
+  /** 比較器雜訊的 seeds（code 的 seed 是 1000 + seed，與 golden 相同） */
+  seeds: number[]
+  nBlocks?: number
+  nBlk?: number
+  tauBlocks?: number
+  /** 「發散」：最終 PHOS rms > grow × 初值（預設 2）；「收斂」：< shrink × 初值（預設 1/4） */
+  grow?: number
+  shrink?: number
+  recEvery?: number
+  variant?: string
+}
+
+export interface DivergenceMc {
+  seeds: number[]
+  initFs: number
+  finalFs: number[]
+  diverged: boolean[]
+  converged: boolean[]
+  n: number
+  nDiv: number
+  nConv: number
+  fracDiv: number
+  /** 95% Wilson 區間 */
+  ciDiv: [number, number]
+  fracConv: number
+  ciConv: [number, number]
+  /** 每個 seed 的 PHOS rms 軌跡（畫圖用） */
+  traces: { block: Float64Array; phosRmsFs: Float64Array; gosAbsFs: Float64Array }[]
+  nBlocks: number
+  nBlk: number
+  tauBlocks: number
+  grow: number
+  shrink: number
+}
+
+// #region core:divergenceMc
+/**
+ * 多 seed 的閉迴路判定（golden：divergence_mc）：每個 seed 跑一次 runSspllLmsCode，最終 PHOS rms（去共模）超過 grow 倍初值算「發散」、
+ * 低於 shrink 倍算「收斂」，其餘未定；回傳個數、比例與 95% Wilson 區間。
+ */
+export function divergenceMcCode(p: DivergenceMcParams): DivergenceMc {
+  const nBlocks = p.nBlocks ?? 1500
+  const nBlk = p.nBlk ?? 512
+  const tauBlocks = p.tauBlocks ?? 25
+  const grow = p.grow ?? 2
+  const shrink = p.shrink ?? 0.25
+  const finalFs: number[] = []
+  const diverged: boolean[] = []
+  const converged: boolean[] = []
+  const traces: DivergenceMc['traces'] = []
+  let initFs = NaN
+  for (const s of p.seeds) {
+    const r = runSspllLmsCode({ loop: p.loop, alpha: p.alpha, variant: p.variant ?? 'raw', cfg: p.cfg, source: p.source, nBlocks, nBlk, tauBlocks, seed: s, codeSeed: 1000 + s, recEvery: p.recEvery ?? Math.max(1, Math.round(nBlocks / 50)) })
+    if (!Number.isFinite(initFs)) initFs = r.initPhosRmsFs
+    finalFs.push(r.finalPhosRmsFs)
+    diverged.push(r.finalPhosRmsFs > grow * r.initPhosRmsFs || r.aborted)
+    converged.push(r.finalPhosRmsFs < shrink * r.initPhosRmsFs)
+    traces.push({ block: r.block, phosRmsFs: r.phosRmsFs, gosAbsFs: r.gosAbsFs })
+  }
+  const n = p.seeds.length
+  const nDiv = diverged.filter(Boolean).length
+  const nConv = converged.filter(Boolean).length
+  return { seeds: [...p.seeds], initFs, finalFs, diverged, converged, n, nDiv, nConv, fracDiv: nDiv / n, ciDiv: wilson95(nDiv, n), fracConv: nConv / n, ciConv: wilson95(nConv, n), traces, nBlocks, nBlk, tauBlocks, grow, shrink }
+}
+// #endregion core:divergenceMc
+
+export type CodeCheckStatus = 'ok' | 'mismatch' | 'n/a'
+
+/** closed form 的判定 vs Monte Carlo（golden：crosscheck）：MC 多數（區間不含 ½）與判定一致 → ok；相反 → mismatch；dead zone 或 MC 未定 → n/a */
+export function crosscheckCode(verdict: CodeVerdictKind, mc: Pick<DivergenceMc, 'ciDiv' | 'ciConv'>): { status: CodeCheckStatus; why: string } {
+  const [loD, hiD] = mc.ciDiv
+  const [loC] = mc.ciConv
+  if (verdict === 'dead') return { status: 'n/a', why: 'closed form 在 dead zone：線性模型沒有恢復力、不做預測' }
+  if (verdict === 'inverted') {
+    if (loD > 0.5) return { status: 'ok', why: 'MC 多數發散（區間下界 > ½）' }
+    if (hiD < 0.5) return { status: 'mismatch', why: 'closed form 預測反號，但 MC 多數沒有發散' }
+    return { status: 'n/a', why: 'MC 的區間含 ½：需要更多 seeds 或 blocks' }
+  }
+  if (loC > 0.5) return { status: 'ok', why: 'MC 多數收斂（區間下界 > ½）' }
+  if (loD > 0.5) return { status: 'mismatch', why: 'closed form 預測 restoring，但 MC 多數發散' }
+  return { status: 'n/a', why: 'MC 的區間含 ½（收斂很慢或未定）：需要更多 blocks' }
+}
+
+export interface SspllCodeMcCase {
+  id: string
+  source: CodeSource
+}
+
+export interface SspllCodeMcCompareParams {
+  common: Omit<DivergenceMcParams, 'source'>
+  cases: SspllCodeMcCase[]
+}
+
+export interface SspllCodeMcCompareResult {
+  cases: { id: string; source: CodeSource; result: DivergenceMc }[]
+}
+
+/** 同一組迴路、α、seeds 下比較多個 code source 的多 seed 閉迴路（給 Web Worker 呼叫；實驗 D） */
+export function runSspllCodeMcCompare(p: SspllCodeMcCompareParams): SspllCodeMcCompareResult {
+  return { cases: p.cases.map((c) => ({ id: c.id, source: c.source, result: divergenceMcCode({ ...p.common, source: c.source }) })) }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// dead zone 的候選判準（§10b.7；golden：dither_interaction.py 的 hint_verdict／two_stage_verdict／efold_verdict，
+// tools/dither_sweep.py 的 score_candidates 在 105 組 × 8 seeds 上計分）。
+// 更正（2026-10-19 審查）：F-CS.28 只有線性段——|κ_min| ≤ τ 是 dead zone、一律不判（上面 codeVerdict 的註解與 crosscheckCode 在
+// dead zone 的說明「由 1-bit 大訊號斜率決定」已不成立）。「dead zone 時看 κ_∞ 的正負號」這條兩段判定在 golden 的 18 個 dead zone
+// 案例裡 6 個一致、8 個不一致、4 個不判，只當研究假說的提示；觀測窗的 e-folding 判準（線性平均模型讀在 MC 的 block 數上）0 個不一致。
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** κ_∞ 的正負號分類（同一個 τ）：兩段判定的第二段，只當提示 */
+export function kappaInfHint(kappaInf: number, tau = 0.05): CodeVerdictKind {
+  return kappaInf < -tau ? 'inverted' : kappaInf > tau ? 'restoring' : 'dead'
+}
+
+/** 被否決的兩段判定（golden：two_stage_verdict）：線性段判得了就用線性段；dead zone 時改看 κ_∞ 的正負號。只拿來計分，不當判定 */
+export function twoStageCandidate(kappaMin: number, kappaInf: number, tau = 0.05): CodeVerdictKind {
+  const v: CodeVerdictKind = kappaMin < -tau ? 'inverted' : kappaMin > tau ? 'restoring' : 'dead'
+  return v === 'dead' ? kappaInfHint(kappaInf, tau) : v
+}
+
+export interface EfoldWindow {
+  /** κ_min < −κ_div：最慢模態在觀測窗內長大超過 grow 倍 */
+  kappaDiv: number
+  /** κ_min > κ_conv：每個模態都縮到 shrink 倍以下 */
+  kappaConv: number
+}
+
+/** 觀測窗的門檻：κ_div = N_τ ln(grow)/B、κ_conv = N_τ ln(1/shrink)/B（B = block 數；golden：efold_window） */
+export function efoldWindow(nBlocks: number, tauBlocks: number, grow = 2, shrink = 0.25): EfoldWindow {
+  return { kappaDiv: (tauBlocks * Math.log(grow)) / nBlocks, kappaConv: (tauBlocks * Math.log(1 / shrink)) / nBlocks }
+}
+
+// #region core:efoldVerdict
+/**
+ * 觀測窗的 e-folding 判準（golden：efold_verdict）：F-CS.2 的平均模型裡模態 m 每個 block 乘 e^{−κ_m/N_τ}，
+ * B 個 block 後最慢的模態乘 G = e^{−κ_min B/N_τ}。G > grow ⇒ 窗內「發散」；G < shrink ⇒ 每個模態都至少縮 G 倍，窗內「收斂」；其餘不判。
+ * 等於把 τ 換成依觀測窗而定的 κ_div、κ_conv。
+ */
+export function efoldVerdict(kappaMin: number, nBlocks: number, tauBlocks: number, grow = 2, shrink = 0.25): { verdict: CodeVerdictKind; growth: number } & EfoldWindow {
+  const growth = Math.exp((-kappaMin * nBlocks) / tauBlocks) // ← 差異：最慢模態在 B 個 block 的成長倍數
+  const verdict: CodeVerdictKind = growth > grow ? 'inverted' : growth < shrink ? 'restoring' : 'dead'
+  return { verdict, growth, ...efoldWindow(nBlocks, tauBlocks, grow, shrink) }
+}
+// #endregion core:efoldVerdict

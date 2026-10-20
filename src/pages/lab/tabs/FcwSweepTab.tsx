@@ -6,7 +6,7 @@ import { DEFAULT_SWEEP_GRID, EXP, summarizeSweep, sweepCrossCheck, sweepErrors, 
 import { ParamPanel } from '../ParamPanel'
 import { LAB_UNITS } from '../paramMeta'
 import { useLab } from '../store'
-import { figSweepBias, figSweepC, figSweepPe, figSweepPole, figSweepSlope, figSweepSpur } from './plots'
+import { figSweepBias, figSweepC, figSweepMimo, figSweepPe, figSweepPole, figSweepSlope, figSweepSpur } from './plots'
 import { PresetNote, tw, usePalette, useShellPresets } from './shared'
 
 const ASSUMPTIONS = [
@@ -16,7 +16,8 @@ const ASSUMPTIONS = [
   'bias 是線性化固定點 $w^*_{\\mathrm{lin}}-a=(E[x_{\\mathrm{ref}}H\\{d\\}]+bE[x_{\\mathrm{ref}}])/C$；$C\\le0$ 時 $w^*$ 是排斥點（到不了）。線性化只在把 $w^*_{\\mathrm{lin}}$ 代回去後、comparator 前的確定性殘差仍遠小於 $\\sigma_v$ 時可信：$C\\to0^+$ 時 bias 會大到超出這個範圍，$w^*_{\\mathrm{lin}}$ 就只是線性外推（Ch11 §11.4），這時以閉迴路的點為準',
   'fractional spur 用一階 DSM 的封閉式，並假設校正後還留有 $\\Delta a$ 的 gain 誤差（可調）；MASH 與開了 dither 的 code 沒有封閉式，該欄空白',
   'GMAC 斜率量測：凍結 $w=w^*\\pm\\Delta w$，兩邊用同一串 comparator 雜訊（common random numbers），95% CI 來自各 block 的差值',
-  '開啟定點暫存器且「每點再跑閉迴路」時，每一段 FCW 再用 quantize = false 跑一次同 seed 的浮點對照：Fixed-Point 欄逐點比閉迴路後半段的 mean $w$（定點內部暫存器 vs 浮點），SE 用 AR(1) 公式、容差 $1\\,\\mathrm{LSB}+4\\,\\mathrm{SE}$（和 Pipeline 分頁同一個判準）；執行時間因此加倍',
+  '開啟定點暫存器且「每點再跑閉迴路」時，同一次 worker 呼叫裡每點再用 quantize = false 跑一次同 seed 的浮點迴路（序列統計與斜率量測不重算）：Fixed-Point 欄逐點比閉迴路後半段的 mean $w$（定點內部暫存器 vs 浮點），SE 用 AR(1) 公式、容差 $1\\,\\mathrm{LSB}+4\\,\\mathrm{SE}$（和 Pipeline 分頁同一個判準）',
+  '8 相 PMUX（pmux8_gos）：每個 FCW 點重算 PMUX 相位序列（DSM 跑在 $(8\\alpha\\bmod 1)$、每週期固定前進 $\\lfloor8\\alpha\\rfloor$ 相），9 權重的 Jacobian $J$、可觀測子空間的條件數、$\\min\\mathrm{Re}\\,\\lambda$ 與平均模型的 $\\rho$ 都是該點自己的；極性與穩定的判讀改看 9 權重的結果，PMUX 旋轉頻率 $\\alpha f_{\\mathrm{ref}}$ 落在主迴路反號帶內的點另外標出（案例頁 §8）',
 ]
 
 function fmtFrac(v: number): string {
@@ -24,6 +25,7 @@ function fmtFrac(v: number): string {
 }
 
 function SweepTable({ pts, loop }: { pts: FcwPoint[]; loop: boolean }) {
+  const pmux = pts.some((p) => p.mimo)
   return (
     <div className="table-wrap lab-scroll-y">
       <table className="lab-table lab-table-num">
@@ -59,12 +61,36 @@ function SweepTable({ pts, loop }: { pts: FcwPoint[]; loop: boolean }) {
             <th>bias [fs]</th>
             <th>spur [dBc]</th>
             {loop && <th>閉迴路 bias [fs]</th>}
+            {pmux && (
+              <th>
+                9 權重 <Tex>{'\\min\\mathrm{Re}\\,\\lambda'}</Tex>
+              </th>
+            )}
+            {pmux && <th>條件數</th>}
+            {pmux && loop && <th>PHOS 殘差 [fs]</th>}
             <th>判讀</th>
           </tr>
         </thead>
         <tbody>
           {pts.map((p, i) => {
-            const verdict = p.signFlip ? '極性錯誤' : !p.stable ? '不穩定' : p.peLambdaMin < 1e-6 * Math.max(p.Ex2, 1e-300) ? 'PE 不足' : 'OK'
+            const m = p.mimo
+            const verdict = m
+              ? m.signFlip
+                ? '極性錯誤（9 權重）'
+                : !m.stable
+                  ? '不穩定'
+                  : m.nullDim > 1 || p.peLambdaMin < 1e-6 * Math.max(p.Ex2, 1e-300)
+                    ? 'PE 不足'
+                    : m.rotInInversionBand
+                      ? 'OK（旋轉頻率在反號帶內）'
+                      : 'OK'
+              : p.signFlip
+                ? '極性錯誤'
+                : !p.stable
+                  ? '不穩定'
+                  : p.peLambdaMin < 1e-6 * Math.max(p.Ex2, 1e-300)
+                    ? 'PE 不足'
+                    : 'OK'
             return (
               <tr key={i} data-verdict={verdict} className={verdict === 'OK' ? undefined : 'lab-row-bad'}>
                 <td className="mono">{fmtFrac(p.frac)}</td>
@@ -79,6 +105,9 @@ function SweepTable({ pts, loop }: { pts: FcwPoint[]; loop: boolean }) {
                 <td className="mono">{sig(p.biasLin, 3)}</td>
                 <td className="mono">{Number.isFinite(p.spurDbc) ? sig(p.spurDbc, 4) : '—'}</td>
                 {loop && <td className="mono">{p.loop ? `${sig(p.loop.bias, 3)}${p.loop.converged ? '' : '（未收斂）'}` : '—'}</td>}
+                {pmux && <td className="mono">{m ? sig(m.minReEig, 3) : '—'}</td>}
+                {pmux && <td className="mono">{m && Number.isFinite(m.cond) ? sig(m.cond, 4) : '—'}</td>}
+                {pmux && loop && <td className="mono">{p.loop && p.loop.phosRmsFs !== null ? sig(p.loop.phosRmsFs, 4) : '—'}</td>}
                 <td className="nowrap">{verdict}</td>
               </tr>
             )
@@ -119,6 +148,13 @@ export function FcwSweepTab() {
       { name: '$\\max\\rho$', value: summary.maxRho, claim: 'exact', formulaId: 'F-LAB.7', note: '$<1$ 才（平均）收斂' },
       { name: '$\\min\\lambda_{\\min}$（PE）', value: summary.minPe, claim: 'exact', formulaId: 'F-LAB.13', note: '$\\approx0$ 表示某個 block 沒有激勵' },
       { name: '最差 fractional spur', value: Number.isFinite(summary.worstSpurDbc) ? summary.worstSpurDbc : '—', unit: 'dBc', claim: 'approx', formulaId: 'F-LAB.12', note: Number.isFinite(summary.worstSpurFrac) ? `發生在 $\\alpha=${texNum(summary.worstSpurFrac, 4)}$；假設殘餘 $\\Delta a=${texNum(state.opts.residualGainFs)}\\,\\mathrm{fs}$` : '只有一階 DSM（無 dither）有封閉式' },
+      ...(Number.isFinite(summary.maxCond)
+        ? [
+            { name: '9 權重極性錯誤（$\\min\\mathrm{Re}\\,\\lambda\\le0$）的點數', value: summary.mimoFlips.length, analytic: 0, tolerance: 0, claim: 'approx' as const, formulaId: 'F-LAB.20', note: `其中 ${summary.mimoRotInBand.length} 個的 PMUX 旋轉頻率落在反號帶內` },
+            { name: '最大條件數（可觀測子空間）', value: summary.maxCond, claim: 'approx' as const, formulaId: 'F-LAB.20', note: `${summary.mimoUnobservable.length} 個點有共模以外的不可觀測方向` },
+            ...(Number.isFinite(summary.worstPhosRms) ? [{ name: '最差閉迴路 PHOS 殘差 RMS（去共模）', value: summary.worstPhosRms, unit: 'fs', claim: 'approx' as const }] : []),
+          ]
+        : []),
     ]
   }, [summary, state.total, state.opts.residualGainFs])
 
@@ -134,6 +170,7 @@ export function FcwSweepTab() {
   const fBias = useMemo(() => (pts.length > 1 ? figSweepBias(pts, pal, true) : null), [pts, pal])
   const fSpur = useMemo(() => (pts.length > 1 && pts.some((p) => Number.isFinite(p.spurDbc)) ? figSweepSpur(pts, pal) : null), [pts, pal])
   const fSlope = useMemo(() => (pts.length > 1 ? figSweepSlope(pts, pal) : null), [pts, pal])
+  const fMimo = useMemo(() => (pts.length > 1 ? figSweepMimo(pts, pal) : null), [pts, pal])
   const xLog = state.grid.scale === 'log'
 
   return (
@@ -206,7 +243,7 @@ export function FcwSweepTab() {
       }
     >
       <PresetNote experiment={EXP.fcw} />
-      {state.total > 0 ? <Progress done={done} total={state.total} label={running ? 'FCW sweep 進行中' : done < state.total ? 'FCW sweep 已停止' : 'FCW sweep 完成'} /> : <p className="small muted">尚未執行：設定好格點後按「執行 Run」。每點約 30–60 ms（開閉迴路時每點約 0.2–0.5 秒），可隨時停止。</p>}
+      {state.total > 0 ? <Progress done={done} total={state.total} label={running ? 'FCW sweep 進行中' : done < state.total ? 'FCW sweep 已停止' : 'FCW sweep 完成'} /> : <p className="small muted">尚未執行：設定好格點後按「執行 Run」。每點約 30–60 ms（開閉迴路時每點約 0.2–0.5 秒；8 相 PMUX 時每點約 0.3–0.4 秒，要重算 9 個 regressor 的相關矩陣與每個 block 的 PE），可隨時停止。</p>}
       {stale && (
         <Callout kind="warn" title="下方是舊設定的結果">
           <p>參數已經改過；圖表與指標仍是上一次 sweep 的結果。按「執行 Run」重新計算。</p>
@@ -223,6 +260,17 @@ export function FcwSweepTab() {
               xLog={xLog}
               height={320}
               caption="灰色帶是各 GMAC block 的 $C_k$ 範圍（單一 block 可能反向，平均由整體 $C$ 決定）。叉號是 blockLms 用前 $2^{17}$ 個樣本的估計（record 涵蓋夠多週期時兩者應重合）。"
+            />
+          )}
+          {fMimo && (
+            <Plot
+              title="8 相 PMUX + GOS：9 權重的 $\min\mathrm{Re}\,\lambda$、條件數與 PHOS 殘差 對 FCW"
+              csvName="fcw-sweep-pmux"
+              data={fMimo.data}
+              layout={fMimo.layout}
+              xLog={xLog}
+              height={320}
+              caption="$\min\mathrm{Re}\,\lambda\le0$ 的點是 9 權重的極性錯誤（通常是 PMUX 的旋轉頻率 $\alpha f_{\mathrm{ref}}$ 落在主迴路的反號帶、PHOS mode-1 反號；三角形標出這些點）。條件數是可觀測子空間（去掉共模）的 $\lambda_{\max}/\lambda_{\min}$：$8\alpha$ 接近整數時 PMUX 只走幾相，不可觀測方向變多。菱形是閉迴路的 PHOS 殘差 RMS（有開閉迴路時）。"
             />
           )}
           {fPole && <Plot title="平均模型的 pole 半徑 $\rho$ 與時間常數 $\tau$" csvName="fcw-sweep-pole" data={fPole.data} layout={fPole.layout} xLog={xLog} height={280} caption="$\rho\ge1$：平均誤差不收斂（$C\le0$ 或 $g$ 太大）。$\tau=-1/\ln\rho$；$C\to0^+$ 時 $\tau\to\infty$（學得到，但慢到沒有意義）。" />}

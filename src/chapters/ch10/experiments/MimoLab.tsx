@@ -1,24 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Data } from 'plotly.js-cartesian-dist-min'
-import {
-  CASE_IDS,
-  CaseSelector,
-  Callout,
-  ClaimTag,
-  ExperimentShell,
-  ParamControl,
-  Plot,
-  SelectControl,
-  Tex,
-  ToggleControl,
-  mathText,
-  useCases,
-  useDebouncedValue,
-  useThemeTokens,
-  type CaseId,
-  type CheckEntry,
-  type MetricRow,
-} from '@/components'
+import { CASE_IDS, CaseSelector, Callout, ClaimTag, ExperimentShell, ParamControl, Plot, SelectControl, Tex, ToggleControl, mathText, useCases, useDebouncedValue, useThemeTokens, type CaseId, type CheckEntry, type MetricRow, ChapterErratum } from '@/components'
 import { presetsForExperiment, useUrlPreset } from '@/app/presets'
 import { isWorkerCancelled, useWorkerTask } from '@/workers'
 import { identity, matAdd, matMul, matScale, studentTInv } from '@/simulation/core'
@@ -48,7 +30,7 @@ import {
   type RuleAnalysis,
   type RuleConfig,
 } from '@/simulation/models/mimo'
-import { Erratum, chop, n, nint, texMat, tint, tn } from '../common'
+import { chop, n, nint, texMat, tint, tn } from '../common'
 import {
   DEFAULT_CASES,
   DEFAULT_PARAMS,
@@ -864,9 +846,9 @@ export function MimoLab() {
         <>
           同一個 seed 下比較 scalar / diagonal / NLMS / 完整反矩陣 / regularized / sequential。poles 一律由實際使用的 <Tex>{String.raw`\mathbf M`}</Tex>（以 <Tex>{String.raw`\hat{\mathbf J}`}</Tex> 建構）與真實 <Tex>{String.raw`\mathbf J`}</Tex> 計算{' '}
           <Tex>{String.raw`\operatorname{eig}(\mathbf I+\mathbf M(\hat{\mathbf J})\mathbf J)`}</Tex>
-          <Erratum id="E24" />；穩態共變異以離散 Lyapunov 解出，並可用 Monte Carlo（worker）驗證。<Tex>{String.raw`\mu`}</Tex> 以無因次的{' '}
+          <ChapterErratum id="E24" />；穩態共變異以離散 Lyapunov 解出，並可用 Monte Carlo（worker）驗證。<Tex>{String.raw`\mu`}</Tex> 以無因次的{' '}
           <Tex>{String.raw`\mu K_q`}</Tex> 輸入並同時顯示實體 fs 值
-          <Erratum id="E05" />。「凍結 Freeze」模擬硬體的 Freeze gain（§10.2）：在目前檢視的 block（或 active case 的 <Tex>{'k_{95}'}</Tex>）之後停止更新{' '}
+          <ChapterErratum id="E05" />。「凍結 Freeze」模擬硬體的 Freeze gain（§10.2）：在目前檢視的 block（或 active case 的 <Tex>{'k_{95}'}</Tex>）之後停止更新{' '}
           <Tex>{String.raw`\mathbf w`}</Tex>，GMAC 照常量測。
         </>
       }
@@ -1008,7 +990,7 @@ export function MimoLab() {
                           {activeCfg.rule === 'scalar' && eff.params.mode === 'R' && (
                             <>
                               （<Tex>{String.raw`=\mu K_q\lambda_i`}</Tex>
-                              <Erratum id="E05" />）
+                              <ChapterErratum id="E05" />）
                             </>
                           )}
                           ：
@@ -1022,7 +1004,7 @@ export function MimoLab() {
                         {activeAn.closedModeVar && <>（封閉式 F-10.7：{activeAn.closedModeVar.map((v) => n(v, 4)).join('、')}）</>}
                         <br />
                         每參數 <Tex>{String.raw`\operatorname{Var}(\delta_j)`}</Tex>：{activeAn.perParamVar?.map((v) => n(v, 4)).join('、')} <Tex>{String.raw`\mathrm{fs}^2`}</Tex>（兩者不同
-                        <Erratum id="E37" />）
+                        <ChapterErratum id="E37" />）
                       </p>
                     )}
                   </>

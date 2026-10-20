@@ -12,6 +12,7 @@
  * 顯示的數字與靜態 import 時完全相同（同一份 JSON，沒有縮減精度）。
  */
 import { useEffect, useReducer, useState } from 'react'
+import { loadWebJson } from '@/data/golden/schemas'
 import type { HpdJson, LoopKey, SignMapJson } from './data'
 
 /** 可按需載入的資料種類與它的型別 */
@@ -57,9 +58,13 @@ export function loadSspllData<K extends SspllDataKind>(kind: K, loop: LoopKey): 
   if (!p) {
     p = IMPORTERS[kind][loop]().then(
       (m) => {
-        loaded.set(key, m.default)
+        // 載入時過一次結構驗證（schema 與 Python 的 --check-web 共用）；格式不符就丟出帶路徑的錯誤，不留下半成品
+        const name = `${kind === 'hpd' ? 'hpd' : 'signmap'}_${loop}.json`
+        const data = loadWebJson<SspllBigData[K]>(kind === 'hpd' ? 'sspll/hpd' : 'sspll/signmap', m.default, name)
+        if (data.loop !== loop) throw new Error(`${name} 的 loop 欄位是 ${data.loop}，應為 ${loop}（檔案放錯迴路？）`)
+        loaded.set(key, data)
         pending.delete(key)
-        return m.default
+        return data
       },
       (e: unknown) => {
         pending.delete(key)

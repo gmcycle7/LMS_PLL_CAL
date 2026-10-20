@@ -276,9 +276,13 @@ describe('基本正確性：freeze + ±Δw', () => {
       const outside = parts.filter((_, i) => i % 2 === 0).join(' ')
       expect(/[α-ωΑ-Ω√∑∂₀-₉²³]|\u0302/u.test(outside), w).toBe(false)
     }
-    expect(J.texNum(1234)).toBe('1.234\\times10^{3}')
-    expect(J.texNum(0.5, 2)).toBe('5.00\\times10^{-1}')
-    expect(J.texNum(2)).toBe('2.000')
+    // 共用的 texNum（digits = 小數位數，有效數字 digits + 1）：一般大小的數不再硬寫成科學記號
+    expect(J.texNum(1234)).toBe('1234')
+    expect(J.texNum(1234.5678, 5)).toBe('1234.57')
+    expect(J.texNum(0.5, 2)).toBe('0.5')
+    expect(J.texNum(2)).toBe('2')
+    expect(J.texNum(3.2e-7)).toBe('3.2\\times10^{-7}')
+    expect(J.texNum(1.2346e8)).toBe('1.235\\times10^{8}')
     expect(J.texNum(Infinity)).toBe('\\infty')
   })
 

@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, Prereq, Section, SourceTag, Tex, TexBlock, ChRef } from '@/components'
+import { Callout, ClaimTag, Prereq, Section, SourceTag, Tex, TexBlock, ChRef, JumpTo } from '@/components'
 import { calPole, kqFromSigma, toneCorrelation, toneHandTable } from '@/simulation/models/polarity'
-import { ChapterDiagram, ChapterSection, f, fx, JumpTo, radOf } from '../shared'
+import { ChapterDiagram, ChapterSection, f, fx, radOf } from '../shared'
 
 /** §1 一個問題 + 先算一次（數字先於公式）。表格中的每個數都由 toneHandTable 即時計算。 */
 export function S1Intro() {
@@ -31,7 +31,7 @@ export function S1Intro() {
         </p>
       </div>
 
-      <Section kind="intuition" title="先用一個比喻">
+      <Section id="ch06-analogy" kind="intuition" title="先用一個比喻">
         <p>
           想像你對著山谷喊一段有節奏的口令（這是 DTC 的 code <Tex>{'x[n]'}</Tex>），然後聽回音（這是 PD 看到的 <Tex>{'u[n]'}</Tex>）。你想判斷「我喊的方向對不對」，所以把<strong>自己喊的口令</strong>和<strong>聽到的回音</strong>逐拍相乘再平均。如果回音只是變小聲，相乘的平均仍然是正的；但如果回音<strong>晚了大半拍</strong>，你喊「高」的時候正好聽到上一拍的「低」，相乘的平均就變成負的——你會得到完全相反的結論。
         </p>
@@ -52,7 +52,7 @@ export function S1Intro() {
         </p>
       </ChapterDiagram>
 
-      <Section kind="example" title="先算一次：12 個 sample 的手算">
+      <Section id="ch06-hand12" kind="example" title="先算一次：12 個 sample 的手算">
         <p>
           假設主 PLL 對 DTC 誤差的整體效果剛好是一個兩拍濾波器（真實 PLL 不是，但這讓我們能用手算；§4 會說明它從哪裡來）：
         </p>

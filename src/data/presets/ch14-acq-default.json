@@ -1,0 +1,12 @@
+{
+  "id": "ch14-acq-default",
+  "title": "Ch14：acquisition——預設時間表（LOCK = 10 個 block 由模型決定）",
+  "page": "/ch/14",
+  "experiment": "cal-state-machine",
+  "description": "FLL K_f = 5×10⁻⁴、Δf_0 = 80 MHz、f_tol = 1 MHz、N_ld = 32；320 MHz 相位迴路、θ_0 = 25 ps、W = 512。無雜訊 enable 在第 9313 個 reference 週期（sine PD），N = 1024 ⇒ LOCK 10 個 block，和 §14.7 原本固定的 lockBlocks = 10 相同。",
+  "params": {
+    "acq": {}
+  },
+  "expected": "acquisition 指標：頻率鎖定約第 9.1k 個週期（有雜訊：lock detect 比無雜訊的 8793 晚）、enable 約 9.6k、LOCK 10 blocks；Analytic 欄：無雜訊模擬落在線性封閉式與 sine 上界之間。block 級狀態機的時間軸與預設情境相同（block 10 進 COARSE）。",
+  "source": "illustrative"
+}

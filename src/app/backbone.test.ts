@@ -62,20 +62,19 @@ describe('Beginner 骨幹路線（backbone.ts）', () => {
     expect(new Set(ids).size).toBe(ids.length)
   })
 
-  it('anchor／until 都在該章原始碼裡；沒有節 id 的章（ch05）用 untilHeading 標範圍', () => {
+  it('anchor／until 都在該章原始碼裡；ch05 也用 until（各節都有 id）', () => {
     for (const s of BACKBONE) {
       const src = pageSources(s.page)
       if (s.anchor) expect(anchorInSource(src, s.anchor), `${s.page} anchor ${s.anchor}`).toBe(true)
       if (s.until) expect(anchorInSource(src, s.until), `${s.page} until ${s.until}`).toBe(true)
-      // 範圍要說得清楚：until 或 untilHeading 至少一個（最後一頁的 §0 也有 until）
-      expect(!!s.until || !!s.untilHeading, `${s.page} ${s.sections} 的終點`).toBe(true)
-      if (s.untilHeading) expect(s.until, `${s.page}：until 與 untilHeading 擇一`).toBeUndefined()
+      // 範圍要說得清楚：每一步都有終點 until
+      expect(!!s.until, `${s.page} ${s.sections} 的終點`).toBe(true)
       for (const e of s.experiments) {
         expect(src.includes(`'${e}'`), `${s.page} 的實驗 ${e}`).toBe(true)
         expect(BEGINNER_CONTROLS[e], `${e} 要在 beginnerControls.ts 有 Beginner 清單`).toBeDefined()
       }
     }
-    expect(BACKBONE.find((s) => s.page === 'ch05')?.untilHeading).toBeDefined()
+    expect(BACKBONE.find((s) => s.page === 'ch05')?.until).toBe('ch05-accumulate')
   })
 
   it('分鐘數 = estimateReadingMinutes(reading)，5 的倍數、合理範圍；總時間 ≤ 6 小時', () => {

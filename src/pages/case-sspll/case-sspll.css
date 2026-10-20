@@ -204,28 +204,7 @@
   margin: 0.5rem 0;
 }
 
-/* 「帶入手算」題前的邀請句 */
-.case-sspll .cs-hand {
-  margin: 1rem 0 1.2rem;
-}
-
-.case-sspll .cs-hand-invite {
-  margin: 0 0 0.3rem;
-}
-
-.case-sspll .cs-hand .c-handcalc {
-  margin-top: 0.3rem;
-}
-
-/* 方塊圖（Mermaid）外框：圖很寬時在自己的容器內捲動，不撐開頁面 */
-.case-sspll .cs-diagram {
-  margin: 0.9rem 0 0.6rem;
-  min-width: 0;
-}
-
-.case-sspll .cs-diagram .c-mermaid {
-  margin: 0;
-}
+/* 「帶入手算」題的引言與方塊圖外框：共用的 ChapterHandCalc／ChapterFig（.c-chapter-hand、.c-chapter-fig）；.cs-diagram 只當 hook */
 
 /* 章首的系統地圖 */
 .case-sspll .cs-map {

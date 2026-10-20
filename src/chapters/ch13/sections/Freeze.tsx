@@ -1,20 +1,8 @@
 import { useMemo } from 'react'
 import type { Data } from 'plotly.js-cartesian-dist-min'
-import {
-  Callout,
-  ClaimTag,
-  Mermaid,
-  ModeGate,
-  Plot,
-  Prereq,
-  Section,
-  StepDerivation,
-  Tex,
-  TexBlock,
-  useThemeTokens,
-} from '@/components'
+import { Callout, ClaimTag, Mermaid, ModeGate, Plot, Prereq, Section, StepDerivation, Tex, TexBlock, useThemeTokens, ChapterErratum } from '@/components'
 import { makeCtx, makeGrid, quantize, toggleK } from '@/simulation/models/quantizer'
-import { DEFAULT_LAB_PARAMS, Erratum, Fold, Hand, LSB_FS_EXAMPLE, fx, tx } from '../common'
+import { DEFAULT_LAB_PARAMS, Fold, Hand, LSB_FS_EXAMPLE, fx, tx } from '../common'
 import { CHART_FREEZE } from '../diagrams'
 
 /** 靜態（DC）誤差 vs w*：A（nearest）、B（L_t = 5 的 pattern 平均）、D（ΔΣ，精確有理數 → 0） */
@@ -95,7 +83,7 @@ export function FreezeSection() {
       />
       <TexBlock id="F-13.2">{String.raw`y=Q_B(w^*),\qquad \delta w=y-w^*=${fx(nums.dw, 1)}\,\mathrm{LSB}\;\;(\delta=a-w=+${fx(-nums.dw, 1)}\,\mathrm{LSB})`}</TexBlock>
       <p>
-        <ClaimTag kind="exact" /> <Erratum id="E49" /> 規格寫「Static Error 為 <Tex>{String.raw`-0.4\,\mathrm{LSB}`}</Tex>」只在 <Tex>{String.raw`\delta w=w-w^*`}</Tex> 的約定下成立；本章所有表格都同時標出約定。
+        <ClaimTag kind="exact" /> <ChapterErratum id="E49" /> 規格寫「Static Error 為 <Tex>{String.raw`-0.4\,\mathrm{LSB}`}</Tex>」只在 <Tex>{String.raw`\delta w=w-w^*`}</Tex> 的約定下成立；本章所有表格都同時標出約定。
       </p>
       <Hand id="HC-13.1">
         把 <Tex>{'w^*'}</Tex> 換成別的數（例如 25.5、47.8）、<Tex>{String.raw`\Delta_\mathrm{LSB}`}</Tex> 換成你的 DTC 的值，先用紙筆算出 code、<Tex>{String.raw`\delta w`}</Tex>{' '}
@@ -149,7 +137,7 @@ export function FreezeSection() {
           <p className="small">
             <ClaimTag kind="exact" /> <Tex>{'1/12'}</Tex> 只有在「<Tex>{'w^*'}</Tex> 在 LSB 內均勻分布」的 ensemble 意義下成立；對固定的 <Tex>{'w^*'}</Tex>，誤差是確定值{' '}
             <Tex>{String.raw`\mathrm{round}(w^*)-w^*`}</Tex>。把它當成白雜訊（並套用 <Tex>{'1/12'}</Tex> 的 PSD）是另一個更強的假設，對常數輸入不成立（見 §13.4、
-            <Erratum id="E15" />）。
+            <ChapterErratum id="E15" />）。
           </p>
         </ModeGate>
       </Fold>

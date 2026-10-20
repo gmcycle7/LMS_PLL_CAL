@@ -1,3 +1,4 @@
+import { AnchorLink } from '@/components'
 import { S0Intro } from './sections/S0Intro'
 import { ReviewMatrix } from './sections/S1Matrix'
 import { S2Polarity } from './sections/S2Polarity'
@@ -9,7 +10,7 @@ import { S5Negative } from './sections/S5Negative'
 import { S6Limits } from './sections/S6Limits'
 import { S7Wrap } from './sections/S7Wrap'
 import { PAGE_TOP_ANCHOR, SymbolsJump, SymbolsSection } from './sections/S12Symbols'
-import { RichText, TOC, scrollToAnchor } from './shared'
+import { RichText, TOC } from './shared'
 import './signoff.css'
 
 /**
@@ -24,16 +25,9 @@ export default function SignoffPage() {
     <div className="so-page" id={PAGE_TOP_ANCHOR}>
       <nav className="so-toc" aria-label="本頁目錄">
         {TOC.map((t) => (
-          <a
-            key={t.id}
-            href="#/signoff"
-            onClick={(e) => {
-              e.preventDefault()
-              scrollToAnchor(t.id)
-            }}
-          >
+          <AnchorLink key={t.id} id={t.id}>
             <RichText text={t.label} />
-          </a>
+          </AnchorLink>
         ))}
       </nav>
       <SymbolsJump />

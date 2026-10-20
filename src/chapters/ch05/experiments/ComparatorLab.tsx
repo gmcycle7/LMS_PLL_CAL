@@ -2,6 +2,7 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import type { Data } from 'plotly.js-cartesian-dist-min'
 import {
   CaseSelector,
+  ChapterErratum,
   ClaimTag,
   ExperimentShell,
   ModeGate,
@@ -25,6 +26,8 @@ import {
   TIE_RULES,
   accumulatorBits,
   berryEsseenBound,
+  chainSumMoments,
+  comparatorChain,
   meanQ,
   sumMoments,
   sumVarianceSe,
@@ -35,7 +38,7 @@ import {
   type McMethod,
   type TieRule,
 } from '@/simulation/models/comparator'
-import { Erratum, fx, hline, int, linspace, pct, sig, texInt, texNum, texPct, vline } from '../common'
+import { fx, hline, int, linspace, pct, sig, texInt, texNum, texPct, vline } from '../common'
 import {
   DEFAULT_CASE,
   DEFAULT_SHARED,
@@ -44,6 +47,7 @@ import {
   caseCurve,
   cltCounts,
   curveNmax,
+  isNonideal,
   labWarnings,
   mcConsistency,
   parsePresetParams,
@@ -116,12 +120,12 @@ export function ComparatorLab() {
   const runMc = mcTask.run
   const runSweep = sweepTask.run
   const mcParams = useMemo<ComparatorMcParams>(
-    () => ({ s: c.s, sigma: c.sigma, theta: c.theta, N, trials: shared.trials, seed: cases.seed, tieRule: c.tieRule, method: shared.method, level: shared.level }),
+    () => ({ s: c.s, sigma: c.sigma, theta: c.theta, N, trials: shared.trials, seed: cases.seed, tieRule: c.tieRule, method: shared.method, level: shared.level, h: c.h, eps: c.eps }),
     [c, N, shared.trials, shared.method, shared.level, cases.seed],
   )
   const mcKey = JSON.stringify(mcParams)
   const sweepParams = useMemo<ComparatorSweepParams>(
-    () => ({ s: c.s, sigma: c.sigma, theta: c.theta, Ns: sweepNs(Nmax), trials: shared.sweepTrials, seed: cases.seed, tieRule: c.tieRule, level: shared.level }),
+    () => ({ s: c.s, sigma: c.sigma, theta: c.theta, Ns: sweepNs(Nmax), trials: shared.sweepTrials, seed: cases.seed, tieRule: c.tieRule, level: shared.level, h: c.h, eps: c.eps }),
     [c, Nmax, shared.sweepTrials, shared.level, cases.seed],
   )
   const sweepKey = JSON.stringify(sweepParams)
@@ -164,7 +168,13 @@ export function ComparatorLab() {
   const mcRes = mc?.res ?? null
   // 這份 MC 結果自己的 N 與理論矩（結果可能比目前的滑桿舊一拍；疊圖必須用它自己的參數）
   const mcN = mc?.params.N ?? N
-  const mcMo = useMemo(() => (mc ? sumMoments(mc.params.N, meanQ(mc.params.s, mc.params.sigma, mc.params.theta ?? 0)) : null), [mc])
+  const mcMo = useMemo(() => {
+    if (!mc) return null
+    const p = mc.params
+    if ((p.h ?? 0) > 0 || (p.eps ?? 0) > 0) return chainSumMoments(p.N, comparatorChain(p.s, p.sigma, p.h ?? 0, p.eps ?? 0, p.theta ?? 0)) // §5b：相關樣本的矩
+    return sumMoments(p.N, meanQ(p.s, p.sigma, p.theta ?? 0))
+  }, [mc])
+  const nonideal = isNonideal(c)
 
   // ---------------- 圖：PDF ----------------
   const pdfData = useMemo<Data[] | null>(() => {
@@ -219,9 +229,12 @@ export function ComparatorLab() {
       const lx = xs.filter((x) => Math.abs(x - c.s) <= 1.2 * c.sigma)
       traces.push({ x: lx, y: lx.map((x) => a.m + a.kLocal * (x - c.s)), name: '操作點的局部切線', mode: 'lines', line: { color: tokens.series[3], dash: 'dot' } })
     }
+    if (nonideal && c.sigma > 0) {
+      traces.push({ x: xs, y: xs.map((x) => comparatorChain(x, c.sigma, c.h, c.eps, c.theta).meanOut), name: String.raw`平穩 $E[y]$ vs $s$（遲滯 $h$、決策窗 $\varepsilon$ 的 chain，F-05.21）`, mode: 'lines', line: { color: tokens.series[4], width: 2.5 } })
+    }
     traces.push({ x: [c.s], y: [a.m], name: String.raw`操作點 $(s,\,E[q]) =$ (${c.s}, ${sig(a.m, 5)})`, mode: 'markers', marker: { size: 10, color: tokens.series[2] } })
     return traces
-  }, [c, a, tokens])
+  }, [c, a, tokens, nonideal])
 
   // ---------------- 圖：histogram ----------------
   const scale = shared.axis === 'average' ? 1 / mcN : 1
@@ -245,6 +258,12 @@ export function ComparatorLab() {
     for (const k of curves) {
       const col = tokens.series[k.seriesIndex]
       const tag = `${k.id}`
+      if (isNonideal(k.params)) {
+        // §5b：N ≤ 120 精確 DP（不分奇偶），其餘 CLT（Markov 變異數）
+        traces.push({ x: k.curve.oddN, y: k.curve.oddExact, name: String.raw`${tag} 精確 DP（$N \le 120$，非理想 comparator）`, mode: 'lines', line: { color: col, width: 2 } })
+        traces.push({ x: k.curve.allN, y: k.curve.cltPlain, name: String.raw`${tag} CLT（Markov 變異數，$\nu$、$P_{\mathrm{meta}}$）`, mode: 'lines', line: { color: col, width: 1, dash: 'dash' }, opacity: 0.8 })
+        continue
+      }
       traces.push({ x: k.curve.oddN, y: k.curve.oddExact, name: `${tag} 精確（奇數 $N$）`, mode: 'lines', line: { color: col, width: 2 } })
       traces.push({ x: k.curve.evenN, y: k.curve.evenExact, name: `${tag} 精確（偶數 $N$，${k.params.tieRule}）`, mode: 'lines', line: { color: col, width: 1, dash: 'dot' } })
       traces.push({ x: k.curve.allN, y: k.curve.cltPlain, name: String.raw`${tag} CLT $\Phi(m\sqrt{N}/\sqrt{1-m^2})$`, mode: 'lines', line: { color: col, width: 1, dash: 'dash' }, opacity: 0.8 })
@@ -300,7 +319,7 @@ export function ComparatorLab() {
     const shown = revealed ?? L
     const n = Array.from({ length: L }, (_, i) => i + 1)
     const avg = shared.axis === 'average'
-    const v = 1 - mcM * mcM
+    const v = mc?.res.nonideal ? mc.res.nonideal.chain.varInf : 1 - mcM * mcM // §5b：相關樣本的漸近變異數
     const y = Array.from(path.subarray(0, shown), (S, i) => (avg ? S / (i + 1) : S))
     const mean = n.map((k) => (avg ? mcM : k * mcM))
     const half = n.map((k) => (avg ? z * Math.sqrt(v / k) : z * Math.sqrt(k * v)))
@@ -310,7 +329,7 @@ export function ComparatorLab() {
       { x: n, y: mean, name: avg ? '$E[G] = m$' : String.raw`$E[S_n] = n\cdot m$`, mode: 'lines', line: { color: tokens.series[1], dash: 'dash' } },
       { x: n.slice(0, shown), y, name: avg ? '第 1 個 trial 的 $G_n = S_n/n$' : '第 1 個 trial 的 $S_n$', mode: 'lines', line: { color: tokens.series[0] } },
     ]
-  }, [path, revealed, L, mcM, z, shared.axis, shared.level, tokens])
+  }, [path, revealed, L, mcM, z, shared.axis, shared.level, tokens, mc])
 
   // ---------------- 指標與交叉比對 ----------------
   // MC 計數 vs 精確 Binomial 的接受域（只在 MC 結果與目前參數一致時才比）
@@ -324,10 +343,20 @@ export function ComparatorLab() {
       { name: `$E[S_N]$（$N=${texInt(N)}$）`, value: a.mo.meanSum, formulaId: 'F-05.4', claim: 'exact' },
       { name: String.raw`$\mathrm{SD}(S_N)$`, value: a.mo.sdSum, formulaId: 'F-05.4', claim: 'exact' },
       { name: String.raw`$\mathrm{SNR}_{\mathrm{stat}}=m\sqrt N/\sqrt{1-m^2}$`, value: a.mo.snr, formulaId: 'F-05.5', claim: 'exact' },
-      { name: '$P(S_N>0)$（精確）', value: a.split.pos, formulaId: 'F-05.6', claim: 'exact', digits: 6 },
-      { name: '$P(S_N=0)$（精確，tie）', value: a.split.tie, formulaId: 'F-05.6', claim: 'exact', digits: 6 },
-      { name: '$P(S_N<0)$（精確）', value: a.split.neg, formulaId: 'F-05.6', claim: 'exact', digits: 6 },
-      { name: String.raw`$P(\text{判對})$（精確，${c.tieRule}）`, value: a.outcome.correct, formulaId: 'F-05.6', claim: 'exact', digits: 6 },
+      ...(a.nonideal
+        ? ([
+            { name: String.raw`§5b 平穩 $E[y]$（chain）`, value: a.nonideal.chain.meanOut, formulaId: 'F-05.21', claim: 'exact', digits: 8, note: String.raw`metastable 算 0；$h=\varepsilon=0$ 時就是 $E[q]$` },
+            { name: String.raw`§5b 工作點斜率 $K_q(h,\varepsilon)/K_q$`, value: a.nonideal.summary.slopeRatio, formulaId: c.eps === 0 ? 'F-05.22' : 'F-05.25', claim: 'exact', digits: 6, note: Number.isFinite(a.nonideal.closedSlope) ? String.raw`封閉式 $${texNum(a.nonideal.closedSlope / a.Kq, 7)}$，數值微分 $${texNum(a.nonideal.summary.slopeRatio, 7)}$` : '混合情形：對 chain 的 $E[y]$ 做數值微分' },
+            { name: String.raw`§5b 記憶因子 $\nu$`, value: a.nonideal.chain.nu, formulaId: 'F-05.21', claim: 'exact', digits: 6 },
+            { name: String.raw`§5b 雜訊因子 $F=\lim\operatorname{Var}(S_N)/N$`, value: a.nonideal.summary.noiseFactor, formulaId: 'F-05.23', claim: 'exact', digits: 6, note: String.raw`iid 為 $1-m^2$；$N_{\mathrm{eff}}=${texInt(a.nonideal.nEff)}$` },
+            { name: String.raw`§5b $K_{\mathrm{eff}}/K_q$ 與所需 $N$ 的倍數`, value: a.nonideal.summary.kqEffRatio, formulaId: 'F-05.26', claim: 'approx', digits: 6, note: String.raw`$N(h,\varepsilon)/N(0,0)=${texNum(a.nonideal.summary.nRatio, 5)}$` },
+            { name: String.raw`§5b $P_{\mathrm{meta}}$ 與每 block 漏掉的 $NP_{\mathrm{meta}}$`, value: a.nonideal.chain.pMeta, formulaId: 'F-05.24', claim: 'exact', digits: 6, note: String.raw`$N P_{\mathrm{meta}}=${texNum(N * a.nonideal.chain.pMeta, 5)}$（drop）` },
+          ] as MetricRow[])
+        : []),
+      { name: a.nonideal ? (a.nonideal.exactSplit ? '$P(S_N>0)$（精確 DP）' : '$P(S_N>0)$（CLT，Markov）') : '$P(S_N>0)$（精確）', value: a.split.pos, formulaId: a.nonideal ? 'F-05.23' : 'F-05.6', claim: a.nonideal && !a.nonideal.exactSplit ? 'approx' : 'exact', digits: 6 },
+      { name: a.nonideal ? '$P(S_N=0)$（tie；任何 $N$ 都可能）' : '$P(S_N=0)$（精確，tie）', value: a.split.tie, formulaId: a.nonideal ? 'F-05.23' : 'F-05.6', claim: a.nonideal && !a.nonideal.exactSplit ? 'approx' : 'exact', digits: 6 },
+      { name: a.nonideal ? (a.nonideal.exactSplit ? '$P(S_N<0)$（精確 DP）' : '$P(S_N<0)$（CLT，Markov）') : '$P(S_N<0)$（精確）', value: a.split.neg, formulaId: a.nonideal ? 'F-05.23' : 'F-05.6', claim: a.nonideal && !a.nonideal.exactSplit ? 'approx' : 'exact', digits: 6 },
+      { name: String.raw`$P(\text{判對})$（${a.nonideal ? (a.nonideal.exactSplit ? '精確 DP' : 'CLT') : '精確'}，${c.tieRule}）`, value: a.outcome.correct, formulaId: a.nonideal ? 'F-05.23' : 'F-05.6', claim: a.nonideal && !a.nonideal.exactSplit ? 'approx' : 'exact', digits: 6 },
       {
         name: String.raw`$P(\text{判對})$：CLT 規格式`,
         value: a.cltPlain,
@@ -362,8 +391,16 @@ export function ComparatorLab() {
       const T = mcRes.trialsUsed
       const seVar = sumVarianceSe(N, a.p, T)
       const band = String.raw`容差 = 精確 Binomial 的等效 $4\sigma$ 接受域（每側機率 $<3.2\times10^{-5}$）`
+      if (mcCheck.plus) {
+        rows.push({ name: String.raw`MC：$\hat p(q=+1)$`, value: mcRes.pHatPlus, analytic: a.p, tolerance: mcCheck.plus.tol, digits: 7, note: String.raw`$N\cdot T=${texInt(N * T)}$ 個 comparator 決策；${band}` })
+      } else if (mcRes.nonideal && !mcRes.nonideal.chain.stuck) {
+        // metastable 事件經 latch 狀態彼此相關：二項 SE 乘 √((1+ν)/(1−ν))（近似，與 comparator.test.ts 相同）
+        const ch = mcRes.nonideal.chain
+        const pm = ch.pMeta
+        const corr = Math.sqrt((1 + ch.nu) / (1 - ch.nu))
+        rows.push({ name: String.raw`MC：metastable 比例`, value: mcRes.nonideal.metaCount / (N * T), analytic: pm, tolerance: 4 * Math.sqrt((pm * (1 - pm)) / (N * T)) * corr, digits: 6, note: String.raw`$N\cdot T=${texInt(N * T)}$ 個 sample；容差 $4\,\mathrm{SE}\sqrt{(1+\nu)/(1-\nu)}$（樣本經 latch 狀態相關，近似）` })
+      }
       rows.push(
-        { name: String.raw`MC：$\hat p(q=+1)$`, value: mcRes.pHatPlus, analytic: a.p, tolerance: mcCheck.plus.tol, digits: 7, note: String.raw`$N\cdot T=${texInt(N * T)}$ 個 comparator 決策；${band}` },
         {
           name: String.raw`MC：$\hat P(\text{判對})$`,
           value: mcRes.wilson.p,
@@ -372,8 +409,10 @@ export function ComparatorLab() {
           digits: 5,
           note: `Wilson ${Math.round(shared.level * 100)}% [${fx(mcRes.wilson.lo, 4)}, ${fx(mcRes.wilson.hi, 4)}]；${band}`,
         },
-        // 平均 S_N = N(2p̂ − 1)：與 p̂(q = +1) 是同一個統計量，容差也由同一個接受域換算（×2N）
-        { name: 'MC：平均 $S_N$', value: mcRes.sumMean, analytic: a.mo.meanSum, tolerance: 2 * N * mcCheck.plus.tol, digits: 6, note: String.raw`$=N(2\hat p-1)$，與上一列同一個統計量` },
+        // 平均 S_N = N(2p̂ − 1)：與 p̂(q = +1) 是同一個統計量，容差也由同一個接受域換算（×2N）；§5b 的相關樣本改用 4·SD(S_N)/√T
+        mcCheck.plus
+          ? { name: 'MC：平均 $S_N$', value: mcRes.sumMean, analytic: a.mo.meanSum, tolerance: 2 * N * mcCheck.plus.tol, digits: 6, note: String.raw`$=N(2\hat p-1)$，與上一列同一個統計量` }
+          : { name: 'MC：平均 $S_N$', value: mcRes.sumMean, analytic: a.mo.meanSum, tolerance: (4 * a.mo.sdSum) / Math.sqrt(T), digits: 6, note: String.raw`容差 $4\,\mathrm{SD}(S_N)/\sqrt T$，$\mathrm{SD}$ 含相關（F-05.23）` },
         {
           name: String.raw`MC：$\operatorname{Var}(S_N)$`,
           value: mcRes.sumVar,
@@ -394,13 +433,39 @@ export function ComparatorLab() {
     const exactStrict = a.t > 0 ? a.split.pos : a.split.neg
     const cltErr = Math.abs(a.cltPlain - exactStrict)
     const be = berryEsseenBound(a.m, N)
+    let analyticNonideal: CheckEntry | null = null
+    if (a.nonideal) {
+      // §5b：三組獨立的解析核對——
+      // (1) 精確 DP 的 pmf 直接算的 E[S_N]、Var(S_N) vs F-05.23 的封閉式（等比級數；相對 1e-9）；
+      // (2) 純遲滯／純 drop 時封閉式斜率（F-05.22／F-05.25）vs chain 的 E[y] 做數值微分（相對 1e-7）；
+      // (3) 精確 DP 與 CLT（Markov 變異數）用同一條 tie rule 算的 P(判對)，相差不超過 1/√N_eff。
+      const { chain, summary, closedSlope, exactSplit, dpMoments } = a.nonideal
+      const slopeErr = Number.isFinite(closedSlope) ? Math.abs(summary.slope / closedSlope - 1) : 0
+      const momErr = dpMoments
+        ? Math.max(Math.abs(dpMoments.mean - a.mo.meanSum) / Math.max(1, Math.abs(a.mo.meanSum)), Math.abs(dpMoments.variance / a.mo.varSum - 1))
+        : 0
+      const dpVsClt = exactSplit ? Math.abs(a.outcome.correct - a.cltCorr.correct) : 0
+      const dpTol = Number.isFinite(a.nonideal.nEff) && a.nonideal.nEff > 0 ? 1 / Math.sqrt(a.nonideal.nEff) : 1
+      const ok = !chain.stuck && momErr < 1e-9 && slopeErr < 1e-7 && dpVsClt <= dpTol
+      const parts = [
+        dpMoments ? String.raw`精確 DP 的 $E[S_N]$、$\operatorname{Var}(S_N)$ vs F-05.23 封閉式：相對差 $${texNum(momErr, 2)}\le10^{-9}$` : String.raw`$N$ 太大沒有精確 DP，只有 F-05.23 的 CLT`,
+        Number.isFinite(closedSlope) ? String.raw`封閉式斜率（${c.eps === 0 ? 'F-05.22' : 'F-05.25'}）vs 數值微分：相對差 $${texNum(slopeErr, 2)}\le10^{-7}$` : '混合情形沒有封閉式斜率（只有數值微分）',
+        exactSplit ? String.raw`精確 DP vs CLT（Markov）的 $P(\text{判對})$：相差 $${texNum(dpVsClt, 3)}\le1/\sqrt{N_{\mathrm{eff}}}=${texNum(dpTol, 3)}$` : '',
+      ].filter(Boolean)
+      analyticNonideal = chain.stuck
+        ? { status: 'n/a', note: 'latch 永遠不翻轉：沒有平穩分布可比' }
+        : ok
+          ? { status: 'ok', note: parts.join('；') }
+          : { status: 'mismatch', note: String.raw`DP 矩 vs 封閉式相對差 $${texNum(momErr, 3)}$（容許 $10^{-9}$）；斜率相對差 $${texNum(slopeErr, 3)}$（容許 $10^{-7}$）；DP vs CLT 相差 $${texNum(dpVsClt, 3)}$（容許 $${texNum(dpTol, 3)}$）` }
+    }
     const analytic: CheckEntry =
-      Math.abs(sum - 1) < 1e-9 && cltErr <= be + 1e-12
+      analyticNonideal ??
+      (Math.abs(sum - 1) < 1e-9 && cltErr <= be + 1e-12
         ? {
             status: 'ok',
             note: String.raw`exact binomial 三種結果相加 = 1（$|\Delta|=${texNum(Math.abs(sum - 1), 2)}$）；CLT 與精確的 $P(S_N\text{ 與 }s\text{ 同號})$ 相差 $${texNum(cltErr, 3)}\le${texNum(be, 3)}$（Berry–Esseen 上界）`,
           }
-        : { status: 'mismatch', note: String.raw`exact binomial 三種結果相加 = $${texNum(sum, 12)}$；CLT 與精確值相差 $${texNum(cltErr, 3)}$，Berry–Esseen 上界 $${texNum(be, 3)}$` }
+        : { status: 'mismatch', note: String.raw`exact binomial 三種結果相加 = $${texNum(sum, 12)}$；CLT 與精確值相差 $${texNum(cltErr, 3)}$，Berry–Esseen 上界 $${texNum(be, 3)}$` })
     let monteCarlo: CheckEntry = { status: 'n/a', note: stopped ? '已停止（按 Run 重新計算）' : '計算中…' }
     if (mcCheck) {
       monteCarlo = { status: mcCheck.ok ? 'ok' : 'mismatch', note: `MC 計數 vs 精確 Binomial：${mcCheck.detail}` }
@@ -415,7 +480,7 @@ export function ComparatorLab() {
         note: String.raw`$q=\pm1$ 與整數累加 $S_N$ 本身就是 bit-exact（MC 以 Int32 累加）；$N=${texInt(N)}$ 時 two's-complement 累加器需 ${accumulatorBits(N)} bits 才不溢位。位寬不足造成的 wrap 見 Ch13。`,
       },
     }
-  }, [a, N, mcCheck, mcError, stopped])
+  }, [a, c, N, mcCheck, mcError, stopped])
 
   const allWarnings = useMemo(() => {
     const w = [...warnings]
@@ -477,8 +542,8 @@ export function ComparatorLab() {
       headingLevel={3}
       description={
         <>
-          <Tex>{'e=s+v'}</Tex>、<Tex>{'v\\sim\\mathcal N(0,\\sigma_v^2)'}</Tex>、<Tex>{'q=+1\\iff e\\ge\\theta'}</Tex>；累加 <Tex>{'S_N=\\sum q_i'}</Tex>。解析曲線（exact binomial / CLT）與 Monte Carlo 使用<strong>同一條 tie rule</strong> <Erratum id="E02" />；histogram 與信賴帶可切換 sum／average 尺度{' '}
-          <Erratum id="E18" />。Case A/B/C 會疊在「<Tex>{'P(\\text{判對})'}</Tex> vs <Tex>{'N'}</Tex>」圖上做比較。
+          <Tex>{'e=s+v'}</Tex>、<Tex>{'v\\sim\\mathcal N(0,\\sigma_v^2)'}</Tex>、<Tex>{'q=+1\\iff e\\ge\\theta'}</Tex>；累加 <Tex>{'S_N=\\sum q_i'}</Tex>。解析曲線（exact binomial / CLT）與 Monte Carlo 使用<strong>同一條 tie rule</strong> <ChapterErratum id="E02" />；histogram 與信賴帶可切換 sum／average 尺度{' '}
+          <ChapterErratum id="E18" />。Case A/B/C 會疊在「<Tex>{'P(\\text{判對})'}</Tex> vs <Tex>{'N'}</Tex>」圖上做比較。
         </>
       }
       assumptions={[
@@ -487,11 +552,12 @@ export function ComparatorLab() {
         String.raw`$x\equiv1$：$S_N$ 是 $x\equiv1$ 時的 GMAC 總和；§0 的平均 $G_k=S_N/N$（勘誤 E07 / E18）`,
         String.raw`硬體慣例 $e\ge\theta\Rightarrow q=+1$；連續雜訊下單一樣本 tie 機率為 0，$S_N=0$ 依選定的 tie rule`,
         String.raw`「判對」= $\operatorname{sign}(S_N)$ 與 $\operatorname{sign}(s)$ 相同；$s=0$ 時以 $+1$ 為參考方向`,
+        String.raw`§5b 非理想 comparator（$h$ 或 $\varepsilon>0$ 時）：有效門檻 $\theta_a=\theta-q_{n-1}h$、$|e-\theta_a|<\varepsilon$ 的 sample 漏掉（drop，除數仍是 $N$）；解析用 latch 狀態的兩狀態 Markov chain（精確 DP 或 CLT），Monte Carlo 只能 sample-level；預設 $h=\varepsilon=0$ 與上面完全相同`,
       ]}
-      params={{ s: c.s, sigma_v: c.sigma, theta: c.theta, N, tie_rule: c.tieRule, trials: shared.trials, mc_method: shared.method, axis: shared.axis, ci_level: shared.level, sweep_trials: shared.sweepTrials, active_case: cases.activeId }}
+      params={{ s: c.s, sigma_v: c.sigma, theta: c.theta, h: c.h, eps: c.eps, N, tie_rule: c.tieRule, trials: shared.trials, mc_method: shared.method, axis: shared.axis, ci_level: shared.level, sweep_trials: shared.sweepTrials, active_case: cases.activeId }}
       seed={cases.seed}
       onSeedChange={setSeed}
-      units={{ s: 'fs', sigma_v: 'fs', theta: 'fs', N: 'samples', trials: '—', K_q: 'fs⁻¹' }}
+      units={{ s: 'fs', sigma_v: 'fs', theta: 'fs', h: 'fs', eps: 'fs', N: 'samples', trials: '—', K_q: 'fs⁻¹' }}
       metrics={metrics}
       warnings={allWarnings}
       crossCheck={crossCheck}
@@ -548,6 +614,30 @@ export function ComparatorLab() {
               </>
             }
           />
+          <ParamControl
+            label={mathText(String.raw`$h$（hysteresis 半寬，§5b）— Case ${cases.activeId}`)}
+            ariaLabel={`h（hysteresis 半寬）— Case ${cases.activeId}`}
+            value={c.h}
+            onChange={(h) => setCase({ h })}
+            min={0}
+            max={300}
+            step={0.5}
+            unit="fs"
+            reg={String.raw`Behavioral: $h$（comparator hysteresis，門檻 $\theta\mp h$）`}
+            hint={mathText(String.raw`0 = 無記憶的 sign；試試 $h=30$（$0.3\sigma_v$）與 $h=100$`)}
+          />
+          <ParamControl
+            label={mathText(String.raw`$\varepsilon$（metastability 決策窗，§5b）— Case ${cases.activeId}`)}
+            ariaLabel={`ε（metastability 決策窗）— Case ${cases.activeId}`}
+            value={c.eps}
+            onChange={(eps) => setCase({ eps })}
+            min={0}
+            max={100}
+            step={0.1}
+            unit="fs"
+            reg={String.raw`Behavioral: $\varepsilon$（latch 決策窗，drop 政策）`}
+            hint={mathText(String.raw`0 = 關閉；$|e-\theta_a|<\varepsilon$ 的 sample 不累加`)}
+          />
           <SelectControl<TieRule>
             label={mathText(`tie rule（$S_N=0$）— Case ${cases.activeId}`)}
             ariaLabel={`tie rule（S_N = 0）— Case ${cases.activeId}`}
@@ -594,13 +684,20 @@ export function ComparatorLab() {
       <div className="ch05-kpis" aria-live="polite">
         <div className="ch05-kpi">
           <div className="ch05-kpi-label">
-            <Tex>{'P(q=+1)=\\Phi\\big(\\tfrac{s-\\theta}{\\sigma_v}\\big)'}</Tex>
+            {/* §5b：非理想時 p、m 是 latch chain 的平穩值（F-05.21），不是單一樣本的 Φ */}
+            {nonideal ? (
+              <>
+                平穩的 <Tex>{'P(y=+1)'}</Tex>
+              </>
+            ) : (
+              <Tex>{'P(q=+1)=\\Phi\\big(\\tfrac{s-\\theta}{\\sigma_v}\\big)'}</Tex>
+            )}
           </div>
           <div className="ch05-kpi-value">{fx(a.p, 6)}</div>
         </div>
         <div className="ch05-kpi">
           <div className="ch05-kpi-label">
-            <Tex>{'m=E[q]'}</Tex>
+            <Tex>{nonideal ? 'm=E[y]' : 'm=E[q]'}</Tex>
           </div>
           <div className="ch05-kpi-value">{sig(a.m, 6)}</div>
         </div>
@@ -620,13 +717,21 @@ export function ComparatorLab() {
         </div>
         <div className="ch05-kpi">
           <div className="ch05-kpi-label">
-            <Tex>{'P(\\text{判對})'}</Tex> 精確（{c.tieRule}）
+            <Tex>{'P(\\text{判對})'}</Tex> {nonideal ? (a.nonideal?.exactSplit ? '精確 DP' : 'CLT（Markov）') : '精確'}（{c.tieRule}）
           </div>
           <div className="ch05-kpi-value">{pct(a.outcome.correct, 3)}</div>
         </div>
         <div className="ch05-kpi">
           <div className="ch05-kpi-label">
-            CLT <Tex>{'\\Phi(m\\sqrt N/\\sqrt{1-m^2})'}</Tex>
+            {nonideal ? (
+              <>
+                CLT（Markov）<Tex>{'\\Phi(E[S_N]/\\mathrm{SD}(S_N))'}</Tex>
+              </>
+            ) : (
+              <>
+                CLT <Tex>{'\\Phi(m\\sqrt N/\\sqrt{1-m^2})'}</Tex>
+              </>
+            )}
           </div>
           <div className="ch05-kpi-value">{pct(a.cltPlain, 3)}</div>
         </div>
@@ -653,11 +758,18 @@ export function ComparatorLab() {
         {statusText}
         {mcRes?.notes.length ? `；${mcRes.notes.join('；')}` : ''}
       </p>
-      {N % 2 === 0 && (
+      {N % 2 === 0 && !nonideal && (
         <p className="ch05-note">
           <Tex>{`N=${N}`}</Tex> 是偶數：<Tex>{`P(S_N=0)=${texPct(a.split.tie, 3)}`}</Tex>。依 {TIE_RULE_LABEL[c.tieRule]}：判對 {pct(a.outcome.correct, 3)}、判錯{' '}
           {pct(a.outcome.wrong, 3)}
           {a.outcome.hold > 0 ? `、不動 ${pct(a.outcome.hold, 3)}` : ''}。改成 <Tex>{`N=${N + 1}`}</Tex> 就沒有 tie。
+        </p>
+      )}
+      {nonideal && a.nonideal && (
+        <p className="ch05-note">
+          §5b 非理想 comparator（<Tex>{`h=${c.h}`}</Tex>、<Tex>{String.raw`\varepsilon=${c.eps}`}</Tex> fs）：<Tex>{`P(S_N=0)=${texPct(a.split.tie, 3)}`}</Tex>
+          {c.eps > 0 ? '（有漏掉的 0，任何 N 都可能 tie）' : ''}。依 {TIE_RULE_LABEL[c.tieRule]}：判對 {pct(a.outcome.correct, 3)}、判錯 {pct(a.outcome.wrong, 3)}
+          {a.outcome.hold > 0 ? `、不動 ${pct(a.outcome.hold, 3)}` : ''}；{a.nonideal.exactSplit ? '精確 DP' : 'CLT（Markov）近似'}。
         </p>
       )}
 
@@ -759,7 +871,7 @@ export function ComparatorLab() {
         }
       />
       <ModeGate min="engineer">
-        <Plot
+        {!nonideal && <Plot
           title={String.raw`⑤ 偶數 $N$：連續性修正 $\Phi((Nm\mp1)/\sigma_S)$ 對上精確值（Case ${cases.activeId}，${c.tieRule}）`}
           data={pnCorrected}
           layout={{ xaxis: { title: { text: '$N$（偶數）' } }, yaxis: { title: { text: String.raw`$P(\text{判對})$` } } }}
@@ -772,7 +884,7 @@ export function ComparatorLab() {
               <Tex>{'\\approx\\Phi(Nm/\\sigma_S)'}</Tex>）。無修正的規格式只對 half 正確。
             </>
           }
-        />
+        />}
       </ModeGate>
 
       {pathData && (

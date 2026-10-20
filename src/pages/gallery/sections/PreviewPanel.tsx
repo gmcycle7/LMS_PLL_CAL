@@ -88,7 +88,7 @@ export function PreviewView({
           ariaLabel={`${accessibleText(r.chart.title)}：${r.chart.series.map((s) => accessibleText(s.name)).join('、')}`}
         />
       )}
-      <ModeGate min="engineer">
+      <ModeGate min="engineer" summary="預覽的附註（模型假設與限制）">
         <ul className="small gal-notes">
           {r.notes.map((n, i) => (
             <li key={i}>
@@ -97,7 +97,7 @@ export function PreviewView({
           ))}
         </ul>
       </ModeGate>
-      <ModeGate min="research">
+      <ModeGate min="research" summary="預覽實際呼叫的模型函式名稱">
         <p className="small muted gal-fns">
           實際呼叫的模型函式：
           {r.modelFns.map((f) => (

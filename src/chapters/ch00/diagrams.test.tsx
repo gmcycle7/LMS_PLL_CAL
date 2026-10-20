@@ -831,7 +831,7 @@ describe('ch00 方塊圖：頁面上的位置', () => {
     expect(container.querySelectorAll('.c-mermaid-svg .katex').length).toBeGreaterThanOrEqual(8)
     expect(container.querySelector('.c-mermaid-error')).toBeNull()
     expect(container.querySelector('figcaption')?.textContent).toMatch(/^圖 0\.4｜更新式畫成硬體/)
-    expect(container.querySelector('.ch00-diagram-walk')?.textContent).toBe('怎麼看圖 0.4先看乘法器，再看累加器。')
+    expect(container.querySelector('.c-chapter-fig-walk')?.textContent).toBe('怎麼看圖 0.4先看乘法器，再看累加器。')
     await act(async () => {})
   })
 
@@ -896,7 +896,7 @@ describe('ch00 方塊圖：頁面上的位置', () => {
       expect(legend.querySelectorAll('.ch00-swatch')).toHaveLength(4)
 
       // ── 本章的方塊圖：順序、段落、圖號、導讀、位置 ──
-      const blocks = Array.from(container.querySelectorAll('.ch00-diagram'))
+      const blocks = Array.from(container.querySelectorAll('.c-chapter-fig'))
       expect(blocks.map((b) => b.getAttribute('data-diagram'))).toEqual(DIAGRAMS.map((d) => d.name))
       for (const d of DIAGRAMS) {
         const el = container.querySelector(`[data-diagram="${d.name}"]`)!
@@ -915,8 +915,8 @@ describe('ch00 方塊圖：頁面上的位置', () => {
         expectNoTexErrors(cap, d.name)
         expect(el.querySelector('figure')?.getAttribute('aria-label'), d.name).toBe(`${label}：${d.ariaLabel}`)
         // 導讀：「先看…再看…」＋「圖上的 X 就是公式裡的 x」
-        const walk = el.querySelector('.ch00-diagram-walk')!
-        expect(walk.querySelector('.ch00-diagram-walk-label')?.textContent, d.name).toBe(`怎麼看${label}`)
+        const walk = el.querySelector('.c-chapter-fig-walk')!
+        expect(walk.querySelector('.c-chapter-fig-walk-label')?.textContent, d.name).toBe(`怎麼看${label}`)
         const text = walk.textContent ?? ''
         expect(text.length, d.name).toBeGreaterThan(80)
         expect(text, d.name).toMatch(/先(看|由|從)/)
@@ -935,17 +935,17 @@ describe('ch00 方塊圖：頁面上的位置', () => {
       }
       // 每個講概念的段落（§0.1–§0.10）至少一張圖
       for (const id of ['ch00-blackbox', 'ch00-loop', 'ch00-update', 'ch00-hand', 'ch00-playground', 'ch00-why-ex', 'ch00-noise', 'ch00-why-matters', 'ch00-sign', 'ch00-assumptions'])
-        expect(container.querySelectorAll(`#${id} .ch00-diagram`).length, id).toBeGreaterThanOrEqual(1)
+        expect(container.querySelectorAll(`#${id} .c-chapter-fig`).length, id).toBeGreaterThanOrEqual(1)
       // 有編號的公式 F-00.1 … F-00.11：同一個段落裡、公式之前，都找得到一張圖（先看圖、再看數學）
       for (let k = 1; k <= 11; k++) {
         const f = container.querySelector(`[id="formula-F-00.${k}"]`)!
         expect(f, `F-00.${k}`).not.toBeNull()
         const sec = f.closest('section[id^="ch00-"]')!
-        const earlier = Array.from(sec.querySelectorAll('.ch00-diagram')).filter((b) => before(b, f))
+        const earlier = Array.from(sec.querySelectorAll('.c-chapter-fig')).filter((b) => before(b, f))
         expect(earlier.length, `F-00.${k}`).toBeGreaterThanOrEqual(1)
       }
       // 內文裡的「圖 0.n」是按鈕：點了捲到那張圖（不是會改變路由的 href）
-      const ref = Array.from(container.querySelectorAll('button.ch00-link-button')).find((b) => b.textContent === figureLabel('CHART_ERROR_RECURSION'))!
+      const ref = Array.from(container.querySelectorAll('button.c-figref')).find((b) => b.textContent === figureLabel('CHART_ERROR_RECURSION'))!
       const scroll = vi.mocked(Element.prototype.scrollIntoView)
       scroll.mockClear()
       fireEvent.click(ref)

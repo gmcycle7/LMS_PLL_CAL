@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import errataFile from '@/data/errata.json'
 import { ErratumLink, erratumRoute } from './index'
 
 afterEach(cleanup)
@@ -48,6 +49,25 @@ describe('ErratumLink', () => {
     const a = screen.getByText('勘誤 E99').closest('a')!
     expect(a.getAttribute('data-missing')).toBe('true')
     expect(a.getAttribute('title')).toContain('找不到此勘誤')
+  })
+
+  it('data-severity 與提示的嚴重度、區域取自精簡索引（E01 嚴重、E12 中、E44 輕微），和 errata.json 一致', () => {
+    const file = (errataFile as { errata: { eid: string; severity: string; area: string }[] }).errata
+    const NAME: Record<string, string> = { high: '嚴重', medium: '中', low: '輕微' }
+    for (const [id, sev] of [['E01', 'high'], ['E12', 'medium'], ['E44', 'low']] as const) {
+      const { unmount } = render(<ErratumLink id={id} />)
+      const a = screen.getByText(`勘誤 ${id}`).closest('a')!
+      const rec = file.find((e) => e.eid === id)!
+      expect(rec.severity).toBe(sev)
+      expect(a.getAttribute('data-severity')).toBe(sev)
+      expect(a.getAttribute('title')).toBe(`${id}（${NAME[sev]}）：${rec.area}`)
+      unmount()
+    }
+  })
+
+  it('找不到的編號沒有 data-severity（顏色退回琥珀基底）', () => {
+    render(<ErratumLink id="E99" />)
+    expect(screen.getByText('勘誤 E99').closest('a')!.hasAttribute('data-severity')).toBe(false)
   })
 
   it('erratumRoute 編碼特殊字元', () => {

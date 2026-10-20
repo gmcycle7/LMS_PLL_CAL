@@ -60,7 +60,7 @@ sign-error LMS 的平均梯度，等於「regressor 在每一條譜線上的功�
 1. **一階差分 regressor $r[n]=x[n]-x[n-1]$**：任何 $\alpha$ 都可證明不反號，條件有 closed form（Type-II：$K_i\le2K_p$ 且 $K_p+K_i/2\le2$）。regressor 是 zero-mean，所以對比較器 offset 也免疫。硬性前提是 code→比較器的延遲對齊 $D=0$。**【精確｜指定模型】**
 2. **filtered-x**：用 $\hat H_{PD}$ 先濾 regressor。BW 差 ±20% 也安全；但若用 Type-I 模型去配 Type-II 迴路，需要 $\hat K>0.1247$。代價是 9 條 IIR 必須以 4 GHz 全速運作。
 3. **校準時 hold 住積分路徑（P-only）**，同時用 zero-mean regressor：迴路暫時變成 Type-I。代價是只能做 foreground 校準、BW 改變（218 / 268–298 MHz），而且需要 dual-path 或數位 loop filter 才做得到。
-4. **PMUX 隨機旋轉／MASH**：目前只有 sim 證據。
+4. **PMUX 隨機旋轉／MASH**：已有線性小訊號的判定式（F-CS.26–28，推導見 `docs/analysis/sspll-dither-interaction.md`）；dead zone 之後為什麼長大仍是【研究假說】。
 5. **keep-out 頻道或 freeze**：keep-out 清單必須用大訊號 map 列，並留 PVT margin。
 
 **不要做**：讓相關器延遲 $D\ne0$（$\min\mathrm{Re}\,\Gamma=-1.18$），或改用二階差分 regressor。
@@ -970,7 +970,7 @@ Type-II 形狀的模型都很 robust（$\ge0.599$）。BW ±20% 的模型在 fin
 3. Type-I 在頻率漂移下有 static phase error $e_{ss}=(\Delta f/f)T_{ref}/K_p$。它與 raw one-hot 的平均值 1/8 耦合，會讓 PHOS 共模一直漂移，所以 **PHOS 也要去平均**（`zm`）。
 4. 放開積分路徑時會有 transient。
 
-### 11.4 PMUX 隨機旋轉／MASH（④，只有 sim 證據）
+### 11.4 PMUX 隨機旋轉／MASH（④，線性段見 sspll-dither-interaction.md；之後的長大是研究假說）
 
 sim 的 κ（以各自的開迴路參考正規化，`tools/extract_sim_dither.py`）：
 
@@ -982,7 +982,7 @@ sim 的 κ（以各自的開迴路參考正規化，`tools/extract_sim_dither.py
 | PMUX 隨機旋轉 M=4 | 4Δ | +0.56／+0.56／+1.00／+1.01 | +0.55 |
 | PMUX 隨機旋轉 M=8 | 8Δ $=T_{vco}$ | +1.00／+1.00／+1.00／+1.00 | +1.00 |
 
-閉迴路 LMS：MASH 與 rot8 在 L2／L3 的 7 個 α 都收斂到 3.6–5.9 fs，**但 L2-PM45 搭配 MASH 在 α=0.03 發散到 10.7 ps**，目前理論無法解釋。**【研究假說】**
+閉迴路 LMS：MASH 與 rot8 在 L2／L3 的 7 個 α 都收斂到 3.6–5.9 fs，**但 L2-PM45 搭配 MASH 在 α=0.03 發散到 10.7 ps**。沒有恢復力已由 closed form 解釋：該點落在 dead zone（Re κ₁ = +0.021，**【近似｜需驗證】**，見 `docs/analysis/sspll-dither-interaction.md` 與 F-CS.26–29）；dead zone 之後為什麼長大，仍是**【研究假說】**——以 κ∞ = −0.258 當判準，在 golden 的 18 個 dead zone 案例中錯 8 個（dither-interaction §5a），不要寫成「κ∞ < 0 所以發散」。
 
 代價：DTC range 要 2–8 倍、會多出 quantization 雜訊。隨機序列的交叉譜理論本文沒有做。
 
@@ -1352,7 +1352,7 @@ $$
 4. **$8\nmid Q$ 的「一定反號」**只有數值證據（非 normal 矩陣）。
 5. **1diff 的硬體前提**：GOS 與 PHOS 兩條路徑的延遲對齊尚未在電路上驗證。比較器前級極點 ≤0.25 GHz（L3）會失效；sampler 的 charge-sharing 記憶由 physics 審查檢查到 κ≤0.5 仍安全，本文只重跑了比較器極點與 LPTV 兩項。
 6. **P-only**：$C_1\gg C_2$ 模型與精確 $R\parallel C_2$ 的 BW 不同（268 MHz 對 298 MHz）；放開積分路徑時的 transient 沒有模擬。
-7. **MASH 與 PMUX 隨機旋轉**：只有 sim 證據；L2-PM45 搭配 MASH 在 α=0.03 的發散無法解釋；隨機序列的交叉譜理論沒有做。
+7. **MASH 與 PMUX 隨機旋轉**：線性段有判定式（F-CS.26–28）；L2-PM45 搭配 MASH 在 α=0.03 落在 dead zone，但 dead zone 之後的長大機制未解（【研究假說】）；DSM 雜訊與 LMS 的 cyclostationary 交叉項沒有做。
 8. **latency 的解讀**：本文假設「1 拍延遲」就是 $L$ 中的 $z^{-1}$（等效 CT 延遲 $T/2$），而且 $D=0$ 已對齊。若硬體在 SSPD 之後還有**額外**一整拍：重新設計時帶緣變 76.5 MHz；不重新設計時帶緣 161.6 MHz、PM 41°。定性結論不變（Type-II 低頻反號；1diff、P-only 安全）。分數拍延遲的帶緣依延遲模型而定，本文不引用。
 9. **比較器 offset 的 near-grid 行為**：zm 在 $u_{os}=100$ fs 時是否失控，取決於有理 α 的側別與 seed（§13），屬於邊際行為。
 10. **沒有建模的項目**：DTC INL、PMUX offset 的 PVT 時變、LMS 字長、SSPD 正弦增益以外的非線性、SSPD／DTC 範圍飽和的動態、FLL dead zone 與校準的交互、PMUX 切換 glitch、CPPLL 在 PMUX wrap 時的 cycle-swallow、比較器 hysteresis 或 metastability 造成的記憶。

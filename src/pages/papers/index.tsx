@@ -1,4 +1,4 @@
-import { Callout, ClaimTag, ModelLevel, Section, SourceTag, SymbolTable, Tex, TestBadge, type SymbolEntry, ChRef } from '@/components'
+import { BadgeRow, Callout, ClaimTag, ModelLevel, Section, SourceTag, SymbolTable, Tex, TestBadge, type SymbolEntry, ChRef } from '@/components'
 import { useSettings } from '@/app/settings'
 import { ErratumNote, JumpButton, PageChip, SYMBOLS_ANCHOR, SymbolsLink, TOP_ANCHOR, r } from './common'
 import { FORMULAS } from './formulas'
@@ -233,10 +233,14 @@ export default function PapersPage() {
         <strong>「論文說的（已發表主張）」</strong>與<strong>「本站自己推的（derived on this site）」</strong>分開標示。本站的數字都由網站程式即時計算，不是從任何文獻抄來的量測值。本頁自己推導的 {FORMULAS.length} 條換算／對照公式登錄為 {FORMULAS[0].id}–{FORMULAS[FORMULAS.length - 1].id}，可在{' '}
         <PageChip id="formulas" /> 頁搜尋。另有 {HANDCALCS.length} 題「帶入手算」（{HANDCALCS[0].id}–{HANDCALCS[HANDCALCS.length - 1].id}）：每一題都從書上或論文上的數字出發，用紙筆與計算機一步一步算到本站的 <Tex>{'g'}</Tex>、<Tex>{'p'}</Tex> 或步長上限，可以換成你自己的數字（全站的手算題彙整在 <PageChip id="workbook" />）。
       </p>
-      <div className="c-tag-row">
-        <SourceTag kind="literature" /> <SourceTag kind="illustrative" /> <ClaimTag kind="exact" /> <ModelLevel level="L1" /> <TestBadge id="T11" />{' '}
+      <BadgeRow label="本頁的來源、結論強度、模型層級與相關測試">
+        <SourceTag kind="literature" />
+        <SourceTag kind="illustrative" />
+        <ClaimTag kind="exact" />
+        <ModelLevel level="L1" />
+        <TestBadge id="T11" />
         <TestBadge id="T13" />
-      </div>
+      </BadgeRow>
       {mode === 'beginner' && (
         <Callout kind="info" title="入門模式：先抓住三句話">
           <ol>

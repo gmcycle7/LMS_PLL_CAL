@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { PresetEntry } from '@/data/types'
+import { DEFAULT_ACQ, acquisitionAnalytic, acquisitionMonteCarlo, acquisitionTimeline, dtcWorkingPoint, runAcquisition, type AcqParams } from '@/simulation/models/acquisition'
 import {
   DEFAULT_CAL_SM,
   cornerInterval,
@@ -156,5 +157,94 @@ describe('Ch14 presets（src/data/presets/optimizer*.json）', () => {
     expect(mc(cfg('optimizer-sm-polarity')).faultRuns).toBe(48)
     expect(runCalStateMachine(cfg('optimizer-sm-polarity')).summary.clipEvents).toBe(4)
     near(mc(cfg('optimizer-sm-register-lsb')).evalRms.mean, 0.485, 0.1)
+  })
+})
+
+describe('Ch14 §14.6b acquisition presets（src/data/presets/ch14-acq-*.json）', () => {
+  const acqPresets: PresetEntry[] = readdirSync(DIR)
+    .filter((f) => f.startsWith('ch14-acq-') && f.endsWith('.json'))
+    .map((f) => JSON.parse(readFileSync(resolve(DIR, f), 'utf8')) as PresetEntry)
+  const acqById = (id: string) => {
+    const p = acqPresets.find((q) => q.id === id)
+    if (!p) throw new Error(`missing preset ${id}`)
+    return p
+  }
+  /** 和實驗的 buildAcqConfig 同一個接法：seed／N／[w0, a0]／失鎖事件放在干擾結束的週期 */
+  const acqCfg = (id: string): AcqParams => {
+    const { acq, ...sm } = acqById(id).params as { acq?: Partial<AcqParams> } & Partial<CalSmParams>
+    const c: CalSmParams = { ...DEFAULT_CAL_SM, ...sm }
+    const hasLoss = c.lockLossStart >= 0 && c.lockLossLen > 0
+    const lossCycle = hasLoss ? (c.lockLossStart + c.lockLossLen) * c.N : -1
+    return { ...DEFAULT_ACQ, ...(acq ?? {}), seed: c.seed, blockN: c.N, dtcGainsFs: [c.w0, c.a0], lossCycle, cycles: hasLoss ? lossCycle + 32768 : 40000 }
+  }
+
+  it('格式合法：6 個、id = 檔名、page /ch/14、實驗 cal-state-machine、params 有 acq 子物件', () => {
+    expect(acqPresets.length).toBe(6)
+    for (const p of acqPresets) {
+      expect(p.page).toBe('/ch/14')
+      expect(p.experiment).toBe('cal-state-machine')
+      expect(p.source).toBe('illustrative')
+      expect(typeof (p.params as { acq?: unknown }).acq).toBe('object')
+      expect(p.expected.length).toBeGreaterThan(10)
+    }
+  })
+
+  it('default：LOCK = 10 blocks（無雜訊 enable 9313、有雜訊的 12 個 seed 全部 10）', () => {
+    const c = acqCfg('ch14-acq-default')
+    expect(acquisitionTimeline(c).summary.enableCycle).toBe(9313)
+    expect(acquisitionTimeline(c).summary.lockBlocks).toBe(10)
+    expect(acquisitionMonteCarlo({ config: c, runs: 12 }).lockBlocks.every((b) => b === 10)).toBe(true)
+  })
+
+  it('noisy-fd：σ_f = 0.4 MHz ⇒ lock 由雜訊決定，12 個 seed 全部 11 blocks；P_miss ≈ 0.33、E[T] ≈ 39.6', () => {
+    const c = acqCfg('ch14-acq-noisy-fd')
+    const mc = acquisitionMonteCarlo({ config: c, runs: 12 })
+    expect(mc.lockBlocks.every((b) => b === 11)).toBe(true)
+    expect(mc.freqLock.mean).toBeGreaterThan(acquisitionAnalytic(c).nFL + 1000)
+    const a = acquisitionAnalytic(c)
+    expect(a.pMiss).toBeCloseTo(0.3296, 3)
+    expect(a.expectedDetectCycles).toBeCloseTo(39.59, 1)
+  })
+
+  it('slow-fll：K_f = 2.5×10⁻⁴ ⇒ n_c = 17526、LOCK 18 blocks', () => {
+    const a = acquisitionAnalytic(acqCfg('ch14-acq-slow-fll'))
+    expect(a.kF).toBeCloseTo(2.5e-4, 12)
+    expect(a.nC).toBe(17526)
+    expect(a.lockBlocks).toBe(18)
+    expect(acquisitionTimeline(acqCfg('ch14-acq-slow-fll')).summary.lockBlocks).toBe(18)
+    // 實驗顯示的是預設 σ_f = 0.1 MHz 的有雜訊模擬：lock detect 晚幾百個週期，跨過 block 邊界 ⇒ 19（expected 文字寫的數字）
+    expect(acquisitionMonteCarlo({ config: acqCfg('ch14-acq-slow-fll'), runs: 12 }).lockBlocks.every((b) => b === 19)).toBe(true)
+  })
+
+  it('dtc-out-of-range：w_0 = −4000 fs 在 x = +1 飽和 ⇒ 不能 enable、LOCK = ∞', () => {
+    const c = acqCfg('ch14-acq-dtc-out-of-range')
+    expect(c.dtcGainsFs).toEqual([-4000, 100])
+    const d = dtcWorkingPoint(c)
+    expect(d.ok).toBe(false)
+    expect(d.rows[0].xMax.saturated).toBe(true)
+    const r = runAcquisition(c)
+    expect(r.summary.enableCycle).toBe(-1)
+    expect(r.summary.lockBlocks).toBe(Infinity)
+  })
+
+  it('loss-relock：干擾結束後 +50 MHz ⇒ 重新 enable 8429 週期 = 9 blocks（block 級失鎖視窗 10 + 9）', () => {
+    const c = acqCfg('ch14-acq-loss-relock')
+    expect(c.lossCycle).toBe(310 * 1024)
+    const s = acquisitionTimeline(c).summary
+    expect(s.unlocks).toBe(1)
+    expect(s.relockCycles).toBe(8429)
+    expect(s.relockBlocks).toBe(9)
+    const noisy = runAcquisition(c).summary // 實驗用的單一 seed（有雜訊）：expected 寫的 8799
+    expect(noisy.relockCycles).toBe(8799)
+    expect(noisy.relockBlocks).toBe(9)
+  })
+
+  it('phase-noise：σ_θ = 2 ps ⇒ CAL → HOLD → RECAL → CAL 走過、沒有失鎖、沒有 slip', () => {
+    const r = runAcquisition(acqCfg('ch14-acq-phase-noise'))
+    const walked = new Set(r.events.filter((e) => e.kind === 'state').map((e) => e.msg))
+    for (const t of ['CAL → HOLD', 'HOLD → RECAL', 'RECAL → CAL']) expect(walked.has(t), t).toBe(true)
+    expect(r.summary.holds).toBeGreaterThan(0)
+    expect(r.summary.unlocks).toBe(0)
+    expect(r.summary.slips).toBe(0)
   })
 })

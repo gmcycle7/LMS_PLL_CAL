@@ -183,7 +183,7 @@ export default function CodeSection() {
         title="checkExpected：必備數值找不到就是 mismatch"
         caption="標出的兩行是必備與非必備數值唯一的差別。"
       />
-      <ModeGate min="engineer">
+      <ModeGate min="engineer" summary="兩個量（偵測視窗與巧合相符機率）的程式碼並排對照">
         <CodeCompare
           caption="§2.4 的兩個量：左邊是解不等式（F-GA.2），右邊是區間聯集的長度（F-GA.3）。"
           items={[
@@ -192,7 +192,7 @@ export default function CodeSection() {
           ]}
         />
       </ModeGate>
-      <ModeGate min="research">
+      <ModeGate min="research" summary="extractNumbers 的核心程式碼（從中文敘述抽出數字與捨入半寬）">
         <CodeBlock source={formatSrc} region="extractNumbers" path="src/pages/gallery/format.ts" title="extractNumbers：從中文敘述抽出數字與捨入半寬" caption="正規表示式的 lookbehind 排除編號（T06、F-06.15、§12.1）與上標；百分比同時加入 $y_{\mathrm t}$ 與 $y_{\mathrm t}/100$。" />
       </ModeGate>
       <Callout kind="info" title="為什麼不另外寫一份「示意版」程式">

@@ -1,6 +1,6 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { SourceTag, formulaDomId, useCases } from '@/components'
+import { formulaDomId, revealAnchor, SourceTag, useCases } from '@/components'
 import { useSettings } from '@/app/settings'
 import { useUrlPreset } from '@/app/presets'
 import './dashboard.css'
@@ -24,7 +24,7 @@ import { QuestionsSection } from './sections/Questions'
 import { ModesSection } from './sections/Modes'
 import { VerificationPanel } from './sections/Verification'
 import { Wrapup } from './sections/Wrapup'
-import { scrollToId, useProgress } from './ui'
+import { useProgress } from './ui'
 
 /**
  * 展開收合卡片或載入 preset 之後的捲動：內容剛渲染（或途中才畫）的方塊圖（Mermaid，接近可視範圍才畫）與圖表會在之後幾百毫秒內把目標往下推，
@@ -124,7 +124,7 @@ export default function DashboardPage() {
       if (key && !s.openFolds.has(key)) {
         pendingJump.current = id
         setFold(key, true)
-      } else scrollToId(id)
+      } else revealAnchor(id)
     },
     [setFold],
   )

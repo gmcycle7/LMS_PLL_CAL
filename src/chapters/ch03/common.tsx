@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react'
-import { ClaimTag, HandCalc, mathText, Mermaid, StepDerivation, Tex, TexBlock, type Step } from '@/components'
+import { ChapterErratum, ChapterFig, ClaimTag, bindHandCalc, mathText, StepDerivation, Tex, TexBlock, type Step } from '@/components'
 import { useSettings } from '@/app/settings'
 import type { ClaimKind } from '@/data/types'
 import { figNo, figRef } from './diagrams'
 import { formulaById } from './formulas'
-import { handcalcById } from './handcalcs'
+import { HANDCALCS } from './handcalcs'
 
 /** TeX 字串（保留反斜線） */
 export const T = String.raw
@@ -32,31 +32,7 @@ export function texText(src: string): ReactNode {
  * `$` 不成對時丟出錯誤（和 tx 一樣，由單元測試抓到），避免圖說裡留下沒有排版的 TeX。
  */
 export function Fig({ chart, caption, ariaLabel }: { chart: string; caption: string; ariaLabel: string }) {
-  if (caption.split('$').length % 2 === 0) throw new Error(`ch03 Fig：圖說的 $ 不成對：${caption}`)
-  return (
-    <div className="ch03-fig" data-fig={figNo(chart)}>
-      <Mermaid chart={chart} caption={`${figRef(chart)}｜${caption}`} ariaLabel={ariaLabel} />
-    </div>
-  )
-}
-
-/** 捲到本頁的某個錨點（HashRouter：不可用 href="#id"，那會被當成路由） */
-export function scrollToId(id: string) {
-  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
-
-/** 驗證頁上某一條勘誤的連結（HashRouter；驗證頁以 `?e=Exx` 捲到並標示該條勘誤） */
-export function erratumHref(id: string): string {
-  return `#/verification?e=${encodeURIComponent(id)}`
-}
-
-/** 勘誤標記：連到驗證頁（#/verification）的該條勘誤 */
-export function Erratum({ id, note }: { id: string; note?: string }) {
-  return (
-    <a className="ch03-erratum" href={erratumHref(id)} title={note ?? `勘誤 ${id}：本站採用修正後版本，詳見驗證頁`}>
-      勘誤 {id}
-    </a>
-  )
+  return <ChapterFig chart={chart} label={figRef(chart)} caption={caption} ariaLabel={ariaLabel} dataAttrs={{ 'data-fig': String(figNo(chart)) }} />
 }
 
 /** 已登錄公式（formulas.ts）的獨立公式塊，附 ClaimTag 與勘誤連結 */
@@ -69,7 +45,7 @@ export function FBlock({ id, claim, note }: { id: string; claim?: ClaimKind; not
       </TexBlock>
       <div className="ch03-fblock-meta">
         <ClaimTag kind={claim ?? f.claim} />
-        {f.erratumId && <Erratum id={f.erratumId} />}
+        {f.erratumId && <ChapterErratum id={f.erratumId} />}
         <span className="small muted">{mathText(f.conditions)}</span>
         {note}
       </div>
@@ -81,17 +57,7 @@ export function FBlock({ id, claim, note }: { id: string; claim?: ClaimKind; not
  * 「帶入手算」題（handcalcs.ts 的 HC-03.n）＋一句邀請，放在對應推導／worked example 的正後方。
  * children 可以換成更貼近該題的邀請文字（預設為通用版本）。
  */
-export function HC({ id, children }: { id: string; children?: ReactNode }) {
-  return (
-    <div className="ch03-handcalc">
-      <p className="ch03-handcalc-invite">
-        <strong>換你算：</strong>
-        {children ?? '把下面的數字換成你自己的，先切到「自己算算看」用紙筆和計算機算一次，再回到「看帶入過程」逐步對照。'}
-      </p>
-      <HandCalc def={handcalcById(id)} />
-    </div>
-  )
-}
+export const HC = bindHandCalc(HANDCALCS)
 
 /**
  * 逐步推導框：Engineer / Research 模式預設展開，Beginner 預設收合（一鍵展開）。

@@ -1,10 +1,9 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, Section, SourceTag, Tex } from '@/components'
+import { Callout, ClaimTag, HandLink, Section, SourceTag, Tex } from '@/components'
 import { asymptoticFinalOptimum, calPhaseMarginDeg, convergenceMuMin, finalCostDerivative, msdAfterBlocks, optimizeMu } from '@/simulation/models/optimizer'
 import { LrOptimizerExperiment } from '../experiments/LrOptimizer'
 import { Diagram } from '../Diagram'
 import { CHART_CALC_VERIFY } from '../diagrams'
-import { HandLink } from '../Hand'
 import { md, nf, Steps, tx } from '../shared'
 import { LESSON_MODEL } from './S3Objectives'
 
@@ -136,7 +135,7 @@ export function S5Calculator() {
         </p>
       </Callout>
       <p>
-        <strong>換你算。</strong>章末的綜合手算題 <HandLink id="HC-14.8" /> 會帶你用紙筆從 <Tex>{'\\sigma_v,\\ N,\\ T,\\ \\delta_0'}</Tex> 與 <Tex>{'\\epsilon=0.05'}</Tex> 出發，一步一步重現課程的這四個數字（候選 (2) 的算法）。
+        <strong>換你算。</strong>章末的綜合手算題 <HandLink id="HC-14.8">HC-14.8</HandLink> 會帶你用紙筆從 <Tex>{'\\sigma_v,\\ N,\\ T,\\ \\delta_0'}</Tex> 與 <Tex>{'\\epsilon=0.05'}</Tex> 出發，一步一步重現課程的這四個數字（候選 (2) 的算法）。
       </p>
       <p className="small muted">
         <SourceTag kind="illustrative" /> 所有數字由 <code>optimizeMu</code>／<code>msdAfterBlocks</code> 即時計算；下方實驗載入的預設值就是這組條件，按「執行 Run」可加上 Monte Carlo 驗證。

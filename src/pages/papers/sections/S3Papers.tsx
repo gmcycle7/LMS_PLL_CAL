@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { ClaimTag, Section, SourceTag, TestBadge, Tex, type ClaimKind } from '@/components'
+import { Badge, ClaimTag, Section, SourceTag, TestBadge, Tex, type ClaimKind } from '@/components'
 import { KIND_LABEL, LEVEL_LABEL, PAPERS, doiUrl, formatCitation, pageCount, toBibtex, type PaperId, type PaperRef } from '../references'
 import { Diagram, ErratumNote, Fold, PageChips, Question, RichText, r } from '../common'
 import { CHART_PAPER_MAP } from '../diagrams'
@@ -127,9 +127,9 @@ export function PaperCard({ p }: { p: PaperRef }) {
       <header className="papers-card-head">
         <span className="papers-id">{p.id}</span>
         <span className="small muted">規格書附錄 D #{p.specIndex}</span>
-        <span className="papers-badge">{KIND_LABEL[p.kind]}</span>
-        <span className="papers-badge">{LEVEL_LABEL[p.level]}</span>
-        <span className="papers-badge">建議第 {p.order} 順位</span>
+        <Badge className="papers-badge">{KIND_LABEL[p.kind]}</Badge>
+        <Badge className="papers-badge">{LEVEL_LABEL[p.level]}</Badge>
+        <Badge className="papers-badge">建議第 {p.order} 順位</Badge>
         <SourceTag kind="literature" />
       </header>
       <h3 className="papers-card-title">{p.title}</h3>

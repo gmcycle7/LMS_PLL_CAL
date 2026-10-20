@@ -345,10 +345,10 @@ describe('Gallery 頁面上的方塊圖與符號表（teaching-style §5、§8�
     expect(flowCap).toContain('載入並執行')
     expect(flowCap).toContain('即時預覽')
     expect(flowCap).not.toMatch(/左邊|右邊/)
-    expect(el('CHART_MATCH_DECISION').closest('.gal-diagram')?.querySelector('.gal-diagram-walk')?.textContent ?? '').not.toContain('左上角')
+    expect(el('CHART_MATCH_DECISION').closest('.gal-diagram')?.querySelector('.c-chapter-fig-walk')?.textContent ?? '').not.toContain('左上角')
     // ③ 新的三張：導讀「先看…再看…」含 KaTeX，並對照圖上的方塊
     for (const name of ['CHART_LMS_LOOP', 'CHART_MATCH_DECISION', 'CHART_UNIFIED_LOOP']) {
-      const walk = el(name).closest('.gal-diagram')?.querySelector('.gal-diagram-walk')
+      const walk = el(name).closest('.gal-diagram')?.querySelector('.c-chapter-fig-walk')
       expect(walk?.textContent, name).toContain('先看')
       expect(walk?.textContent, name).toContain('再看')
       expect(walk?.textContent, name).toContain('圖上')

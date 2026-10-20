@@ -1,16 +1,16 @@
-import { Callout, CodeBlock, CodeCompare, ModeGate, Section, Tex, ChRef } from '@/components'
+import { Callout, CodeBlock, CodeCompare, ModeGate, Section, Tex, ChRef, ErratumLink } from '@/components'
 import blockSrc from '@/simulation/models/blockLms.ts?raw'
 import dsmSrc from '@/simulation/models/dsm.ts?raw'
 import pllSrc from '@/simulation/models/pll.ts?raw'
 import labSrc from '@/simulation/models/unifiedLab.ts?raw'
-import { ChLink, ErratumNote, md } from '../common'
+import { ChLink, md } from '../common'
 
 const LAB_PATH = 'src/simulation/models/unifiedLab.ts'
 
 /** §6：核心程式碼（頁面顯示的就是 worker 裡實際執行的原始碼）與演算法比較表。 */
 export function S4Code() {
   return (
-    <section aria-labelledby="lab-s6">
+    <section aria-labelledby="lab-s6" id="lab-sec-6">
       <h2 id="lab-s6">6｜核心程式碼：公式在程式裡長什麼樣子</h2>
       <p>
         下面每一段都是用 <code>?raw</code> 直接從原始檔擷取的（<code>#region core:…</code> 標記），就是 Lab 在 Web Worker 裡執行的程式，不是另外寫的示意版。黃色底的行是「差異行」（行尾有 <code>← 差異</code> 的註解）。
@@ -90,7 +90,7 @@ export function S4Code() {
                   原封不動到 comparator <Tex>{'\\Rightarrow'}</Tex> 假 gain bias
                 </td>
                 <td colSpan={2}>
-                  到不了 comparator（<ErratumNote id="E03" />）；offset 參數不可辨識（<ErratumNote id="E04" />）
+                  到不了 comparator（<ErratumLink id="E03" />）；offset 參數不可辨識（<ErratumLink id="E04" />）
                 </td>
               </tr>
               <tr>

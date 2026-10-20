@@ -444,6 +444,45 @@ export const CHART_LARGE_SIGNAL = String.raw`flowchart TB
   SGN --> C2["$\langle \mathrm{sgn}(y_v)\cdot z_v\rangle$<br/>看的是同號的時間比例 $\to$ $\kappa_\infty$"]
   class SGN,C2 warn${STYLE}`
 
+/** §10b 四種 code source：隨機化加在哪裡（量化器前、三級累加器、PMUX 指標後），每一種都保持 P + c = Φ + 常數 */
+export const CHART_CODE_SOURCES = String.raw`flowchart TB
+  subgraph A1["acc1：一階累加器"]
+    A["$\Phi = 8 n \alpha$"] --> AQ["$P = \lfloor\Phi\rfloor$<br/>$c = \rho \in [0, 1)$"]
+  end
+  subgraph DQ["dq：量化器前加 dither"]
+    D["$\Phi + u$，$u \sim U[0, 1)$"] --> DQQ["$P = \lfloor\Phi + u\rfloor$<br/>$c = \rho + 1 - b \in (0, 2)$"]
+  end
+  subgraph MA["MASH 1-1-1：整形的餘數"]
+    M["三級累加器<br/>$y = \alpha + (1 - z^{-1})^3 e_3$"] --> MQ["$P = \Phi - r$，$r = (1 - z^{-1})^2 e_3$<br/>$c = r + 2 \in (0, 4)$"]
+  end
+  subgraph RO["rotM：PMUX 指標後加隨機數"]
+    R["$m \sim U\{0..M-1\}$"] --> RQ["$P' = P + m$<br/>$c = \rho - m + M - 1 \in (0, M)$"]
+  end
+  AQ --> OUT["PMUX 選相 $p = P \bmod 8$ ＋ DTC code $c$<br/>$P + c = \Phi +$ 常數：總補償量不變"]
+  DQQ --> OUT
+  MQ --> OUT
+  RQ --> OUT
+  class DQQ,MQ,RQ focus${STYLE}`
+
+/** §10b 頻譜路徑：code source → 模態 regressor 的載波與散開 → 反號帶 → GMAC 的 κ → 判定 */
+export const CHART_CODE_PATH = String.raw`flowchart TB
+  SRC["code source（每拍）<br/>acc1、dq、MASH、rotM"] --> SPLIT["分配 $P[n] + c[n] = \Phi[n] +$ 常數"]
+  SPLIT -->|"$p[n] = P \bmod 8$"| PM["PMUX one-hot：模態 $m$ 的 regressor<br/>$z_m = e^{j 2\pi m P/8} = e^{j 2\pi m \alpha n}\, e^{-j\theta_m \tilde c}$"]
+  SPLIT -->|"$c[n]$"| DTC["DTC code：GOS 的 regressor $x_0 = c$<br/>$C_{GOS} = \textstyle\sum_k h_{PD}[k]\,\tilde R_c[k]$"]
+  PM --> SPEC["$z_m$ 的頻譜：載波 $\lvert\phi_m\rvert^2$ 在 $m\alpha f_{ref}$<br/>＋ 散開的部分 $\tilde R_m[k]$（高頻）"]
+  SPEC --> BAND{{"載波 $m\alpha f_{ref}$ 落在<br/>$\mathrm{Re}\,H_{PD} \lt 0$ 的帶內？"}}
+  BAND -- "是：$\lvert\phi\rvert^2\,\mathrm{Re}\,H \lt 0$" --> SUM(("＋"))
+  BAND -- "否：載波項為正" --> SUM
+  SPEC --> SPREAD["散開的部分乘 $h_{PD}[0..2]$<br/>$\approx \tilde R[0] = 1 - \lvert\phi\rvert^2 \gt 0$"]
+  SPREAD --> SUM
+  SUM -->|"$\mathrm{Re}\,\kappa_m$"| V{{"$\kappa_{\min}$ 和 $\pm\tau$ 比"}}
+  V -- "$\lt -\tau$" --> INV["反號：發散"]
+  V -- "$\gt \tau$" --> OK["restoring：收斂"]
+  V -- "$\lvert\kappa_{\min}\rvert \le \tau$" --> DEAD["dead zone：線性模型不判<br/>$\kappa_\infty$ 只是提示（研究假說）"]
+  class SPEC,SPREAD focus
+  class INV,DEAD warn
+  class OK ok${STYLE}`
+
 /** §11 對策並排：只換 GMAC 前的 regressor 前置濾波 G(z)（綠＝安全、紅＝有害） */
 export const CHART_REMEDY_G = String.raw`flowchart LR
   X["$x_i[n]$<br/>$\rho[n]$ 或 one-hot"] --> RAW["raw：$G = 1$<br/>$r = x$"]
@@ -689,6 +728,8 @@ export const DIAGRAMS: DiagramDef[] = [
   { id: 'psd', section: '§9', kind: 'model', chart: CHART_PSD, caption: 'PSD 定理：頻道決定譜線落在哪裡（管不了），但設計者可以選藍色的 $G$，把 kernel 的實部做成處處不為負。' },
   { id: 'sim-measure', section: '§10.1', kind: 'flow', chart: CHART_SIM_MEASURE, caption: String.raw`時域 sim 量 $\kappa$ 的步驟：重點在藍色那一步的正規化，用的是同一段紀錄的開迴路值。` },
   { id: 'large-signal', section: '§10.4', kind: 'compare', chart: CHART_LARGE_SIGNAL, caption: '小訊號與大訊號的差別：誤差一大，比較器的平均輸出就只剩正負號（紅），相關量從「面積」變成「同號的時間比例」。' },
+  { id: 'code-sources', section: '§10b', kind: 'compare', chart: CHART_CODE_SOURCES, caption: String.raw`四種 code source 的隨機化加在哪裡：dq 在量化器前加均勻 dither、MASH 把三級累加器的餘數整形、rot 在 PMUX 指標後加隨機數（藍色三格）；每一種都保持 $P+c=\Phi+$ 常數，只改變 PMUX 與 DTC 之間的分配。` },
+  { id: 'code-path', section: '§10b', kind: 'path', chart: CHART_CODE_PATH, caption: String.raw`code source 到判定的頻譜路徑：模態 regressor 的功率分成留在載波 $m\alpha f_{ref}$ 的 $\lvert\phi_m\rvert^2$ 與散開到高頻的 $1-\lvert\phi_m\rvert^2$（藍）；載波落在反號帶就是負項，散開的部分幾乎永遠是正項，兩者相加後和 $\pm\tau$ 比；紅色兩格是可能發散的結局（dead zone 沒有恢復力；之後停住還是長大，線性模型不判，1-bit 的 $\kappa_\infty$ 只是研究假說的提示）。` },
   { id: 'remedy-g', section: '§11', kind: 'compare', chart: CHART_REMEDY_G, caption: '對策並排：全部只換 GMAC 前的那一格 $G$。綠色讓 kernel 的實部處處不為負；紅色有害；藍色（去平均）不改線性的 $C$，但擋得住 offset。' },
   { id: 'onediff', section: '§11.1', kind: 'compare', chart: CHART_ONEDIFF, caption: '一階差分為什麼安全：regressor 多做一次差分（藍），剛好消掉 Type-II 迴路的一個積分器，kernel 的實部就不再是負的。' },
   { id: 'onediff-delay', section: '§11.1', kind: 'compare', chart: CHART_ONEDIFF_DELAY, caption: String.raw`一階差分的保證也看迴路：Type-I 延遲 1 拍時 $g(\Omega)$ 恆正；延遲 $d\ge2$ 拍時，差分消不掉多出來的延遲（紅），$K>1-\cos(\pi/d)$ 就出現負值。` },

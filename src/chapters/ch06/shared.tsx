@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { useSettings, type LearningMode } from '@/app/settings'
-import { HandCalc, mathText, Mermaid } from '@/components'
+import { ChapterFig, bindHandCalc, mathText } from '@/components'
 import { diagramById } from './diagrams'
 import { HANDCALCS } from './handcalcs'
 
@@ -23,29 +23,6 @@ function useSettingsSafe(): { mode: LearningMode } | null {
 export function useModeAtLeast(min: LearningMode): boolean {
   const mode = useSettingsSafe()?.mode ?? 'engineer'
   return RANK[mode] >= RANK[min]
-}
-
-/** 勘誤小標：連到驗證頁（列出所有勘誤 id）。 */
-export function Erratum({ id, children }: { id: string; children?: ReactNode }) {
-  return (
-    <a className="ch06-erratum" href="#/verification" title={`勘誤 ${id}：網站採用 docs/validation.md 的修正版本`}>
-      勘誤 {id}
-      {children ? <span className="ch06-erratum-note">：{children}</span> : null}
-    </a>
-  )
-}
-
-/** 頁內跳轉（HashRouter 下不能用 href="#id"，改用 scrollIntoView）。 */
-export function JumpTo({ target, children }: { target: string; children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      className="ch06-jump"
-      onClick={() => document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-    >
-      {children}
-    </button>
-  )
 }
 
 /**
@@ -75,21 +52,9 @@ export function StepBox({ title, children, min = 'engineer' }: { title: ReactNod
 
 /**
  * 本章的「帶入手算」題（docs/teaching-style.md §7）：依 id 取用 handcalcs.ts 的定義，
- * 前面加一句邀請讀者換數字、先用紙筆算的引導（lead 支援 `$...$`）。
+ * 前面加一句邀請讀者換數字、先用紙筆算的引導（子節點是引導句，支援 `$...$`）。
  */
-export function ChapterHandCalc({ id, lead }: { id: string; lead?: ReactNode }) {
-  const def = HANDCALCS.find((h) => h.id === id)
-  if (!def) throw new Error(`第 06 章找不到手算題 ${id}`)
-  return (
-    <div className="ch06-handcalc">
-      <p className="small ch06-handcalc-lead">
-        <strong>換你算：</strong>
-        {mathText(lead ?? '把下面的數字換成你自己的，先用紙筆和計算機算一次，再和網站逐步對答案。')}
-      </p>
-      <HandCalc def={def} />
-    </div>
-  )
-}
+export const ChapterHandCalc = bindHandCalc(HANDCALCS)
 
 /**
  * 本章的方塊圖（docs/teaching-style.md §8）：依 id 取用 diagrams.ts 的登錄（Mermaid 原始碼 + 圖號 + 圖說）。
@@ -98,15 +63,9 @@ export function ChapterHandCalc({ id, lead }: { id: string; lead?: ReactNode }) 
 export function ChapterDiagram({ id, children }: { id: string; children?: ReactNode }) {
   const d = diagramById(id)
   return (
-    <div className="ch06-diagram" id={`diagram-${d.id}`} data-diagram-kind={d.kind}>
-      <Mermaid chart={d.chart} caption={`圖 ${d.no}：${d.title}。${d.caption}`} />
-      {children ? (
-        <div className="ch06-diagram-read">
-          <span className="ch06-diagram-badge">怎麼看圖 {d.no}</span>
-          {children}
-        </div>
-      ) : null}
-    </div>
+    <ChapterFig chart={d.chart} caption={`圖 ${d.no}：${d.title}。${d.caption}`} id={`diagram-${d.id}`} dataAttrs={{ 'data-diagram-kind': d.kind }} walkLabel={`怎麼看圖 ${d.no}`}>
+      {children}
+    </ChapterFig>
   )
 }
 

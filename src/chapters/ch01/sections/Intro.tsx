@@ -1,8 +1,8 @@
 import { useMemo, type ReactNode } from 'react'
-import { ClaimTag, Prereq, Section, SourceTag, StepDerivation, SystemMap, Tex, TexBlock, ChRef } from '@/components'
+import { ClaimTag, Prereq, Section, SourceTag, StepDerivation, SystemMap, Tex, TexBlock, ChRef, ChapterErratum } from '@/components'
 import { mean } from '@/simulation/core'
 import { batchL1, batchL2 } from '@/simulation/models/lossCompare'
-import { BlockDiagram, Erratum, PllLink, f, texNum } from '../common'
+import { BlockDiagram, PllLink, f, texNum } from '../common'
 import { SYSTEM_MAP_CAPTION, SYSTEM_MAP_FOCUS } from '../diagrams'
 
 /** 黑盒子：乾淨資料與含雜訊資料（規格 §1、入門課 Lesson 1） */
@@ -254,7 +254,7 @@ export function IntroSection({ afterMap }: { afterMap?: ReactNode } = {}) {
         <TexBlock>{String.raw`\boxed{J_2(w)=E\big[(y-wx)^2\big],\qquad w^*=\arg\min_w J_2(w)}`}</TexBlock>
         <p className="small">
           規格 §1 原式（下標 2 表示「平方」、沒有 <Tex>{String.raw`\tfrac12`}</Tex>）。本站從 §1.3 起改用 <Tex>{String.raw`J=\tfrac12J_2`}</Tex>，最小值位置不變{' '}
-          <Erratum id="E41" />。
+          <ChapterErratum id="E41" />。
         </p>
 
         <Prereq title="期望值 $E[\cdot]$：「很多次的平均」">

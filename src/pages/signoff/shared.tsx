@@ -1,6 +1,6 @@
 import { Fragment, useMemo, type ComponentProps, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { HandCalc, Mermaid, StepDerivation, Tex, mathText, type ExperimentPreset } from '@/components'
+import { AnchorLink, ChapterFig, HandCalc, StepDerivation, Tex, mathText, type ExperimentPreset } from '@/components'
 import { Badge, badgeClass, type BadgeVariant } from '@/components/Tags'
 import { presetsForExperiment } from '@/app/presets'
 import { useSettings, type LearningMode } from '@/app/settings'
@@ -59,27 +59,14 @@ export function ErratumNote({ id, children }: { id: string; children: ReactNode 
   )
 }
 
-/** 平滑捲動到本頁錨點（HashRouter 下不能用 href="#id" 直接跳，會被當成路由）。 */
-export function scrollToAnchor(id: string) {
-  const el = typeof document !== 'undefined' ? document.getElementById(id) : null
-  el?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
-}
-
 /** 站內連結：'/…' 走 router；'#…' 捲動到本頁錨點。label 可含 `$…$` 行內數學。 */
 export function SiteLink({ link }: { link: LinkRef }) {
   if (link.to.startsWith('#')) {
     const id = link.to.slice(1)
     return (
-      <a
-        href={`#/signoff`}
-        data-anchor={id}
-        onClick={(e) => {
-          e.preventDefault()
-          scrollToAnchor(id)
-        }}
-      >
+      <AnchorLink id={id}>
         <RichText text={link.label} />
-      </a>
+      </AnchorLink>
     )
   }
   return (
@@ -134,16 +121,15 @@ export function HandCalcSlot({ id, children }: { id: string; children?: ReactNod
 }
 
 /**
- * 方塊圖 + 「怎麼讀這張圖」導讀（docs/teaching-style.md §8）。
+ * 方塊圖 + 「怎麼讀這張圖」導讀（docs/teaching-style.md §8）：共用的 ChapterFig。
  * 圖上的數學在 diagrams.ts 以 `$...$` 寫 LaTeX、由 <Mermaid> 用 KaTeX 排版；導讀與圖說（caption 支援 `$…$`）用 KaTeX 把圖上的名字對回正文的公式。
- * 圖放在文字說明之後、逐步推導之前。
+ * 圖放在文字說明之後、逐步推導之前。`so-diagram` 只是測試與審查腳本的 hook。
  */
 export function Diagram({ chart, caption, ariaLabel, children }: { chart: string; caption: string; ariaLabel: string; children?: ReactNode }) {
   return (
-    <div className="so-diagram">
-      <Mermaid chart={chart} caption={caption} ariaLabel={ariaLabel} />
-      {children && <div className="so-diagram-walk">{children}</div>}
-    </div>
+    <ChapterFig chart={chart} caption={caption} ariaLabel={ariaLabel} className="so-diagram">
+      {children}
+    </ChapterFig>
   )
 }
 

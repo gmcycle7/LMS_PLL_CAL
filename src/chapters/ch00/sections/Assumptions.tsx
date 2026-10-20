@@ -1,10 +1,10 @@
 import { useMemo, type ReactNode } from 'react'
 import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
-import { ClaimTag, CodeBlock, Derivation, Plot, Section, SourceTag, StepDerivation, Tex, TexBlock, useThemeTokens } from '@/components'
+import { ClaimTag, CodeBlock, Derivation, Plot, Section, SourceTag, StepDerivation, Tex, TexBlock, useThemeTokens, ChapterErratum } from '@/components'
 import { useSettings } from '@/app/settings'
 import { correlatedNoiseBias } from '../model'
 import { num, signed, texNum, texRes } from '../format'
-import { ChapterDiagram, ChapterHandCalc, ErratumRef, FigRef, Observe, PageLink } from '../common'
+import { ChapterDiagram, ChapterHandCalc, FigRef, Observe, PageLink } from '../common'
 import modelSrc from '../model.ts?raw'
 
 /** 反例的設定：±1 碼、μ = 0.02、獨立雜訊 σ_v = 0.5；只改與 code 相關的干擾 ε_cc = κ·x 的係數 κ（全站符號，勘誤 E12）。 */
@@ -71,7 +71,7 @@ const ROWS: AssumptionRow[] = [
     ),
     breaks: (
       <>
-        <Tex>{'x'}</Tex> 隨機：要分「平均收斂／均方收斂／單一路徑收斂」三種不同的界限（<ErratumRef eid="E14" />）；更新有延遲：穩定範圍縮小
+        <Tex>{'x'}</Tex> 隨機：要分「平均收斂／均方收斂／單一路徑收斂」三種不同的界限（<ChapterErratum id="E14" />）；更新有延遲：穩定範圍縮小
       </>
     ),
     where: (
@@ -232,7 +232,7 @@ export function AssumptionsSection() {
       </h3>
       <p>
         §0.7 的關鍵一步是 <Tex>{'E[v\\,x]=0'}</Tex>。如果干擾和輸入<strong>相關</strong>（例如和 code 同步的電源／基板耦合，或 DTC 非線性裡「可以被一條直線擬合掉」的那部分），這一步就不成立。最簡單的情況是干擾有一部分直接和輸入成正比。先用數字看：把這種「與 code 相關的干擾」記為 <Tex>{'\\varepsilon_{cc}=\\kappa\\,x'}</Tex>（全站符號；規格 §11.3 原寫 <Tex>{'u=cx'}</Tex>，
-        <ErratumRef eid="E12" />），於是 <Tex>{"v=\\kappa\\,x+v'"}</Tex>，其中 <Tex>{"v'"}</Tex>{' '}
+        <ChapterErratum id="E12" />），於是 <Tex>{"v=\\kappa\\,x+v'"}</Tex>，其中 <Tex>{"v'"}</Tex>{' '}
         才是和 <Tex>{'x'}</Tex> 無關的雜訊。取 <Tex>{`a=${texNum(BIAS_DEMO.a)}`}</Tex>、<Tex>{`\\kappa=${texNum(biased.kappa)}`}</Tex>，用 <code>conventionalStep</code> 跑{' '}
         <Tex>{String(BIAS_DEMO.steps)}</Tex> 步（<Tex>{`\\mu=${texNum(BIAS_DEMO.mu)}`}</Tex>、<Tex>{'x=\\pm1'}</Tex>），後半段 <Tex>{'w'}</Tex> 的平均是{' '}
         <Tex>{texRes(biased.r.wMean, 5)}</Tex>——不是 <Tex>{texNum(BIAS_DEMO.a)}</Tex>，而是 <Tex>{`a+\\kappa=${texRes(biased.r.wStar)}`}</Tex>。為什麼？
@@ -377,7 +377,7 @@ export function AssumptionsSection() {
       </Observe>
       <p className="small">
         <ClaimTag kind="exact" /> 在「<Tex>{'x_n,v_n'}</Tex> 為 iid、<Tex>{'0<\\mu<2/E[x^2]'}</Tex>」的模型下，
-        <Tex>{'E[w_n]\\to w^*'}</Tex>（平均收斂；每一條路徑仍會在 <Tex>{'w^*'}</Tex> 附近抖動）。<SourceTag kind="simulation" /> 表與圖由固定 seed 的模擬產生。只用 <Tex>{'\\mathrm{sign}(e)'}</Tex> 的 Sign-LMS，固定點由 <Tex>{'E[\\mathrm{sign}(e)\\,x]=0'}</Tex> 決定，一般和上式不同（<ErratumRef eid="E01" />）；offset、DTC 非線性、code-correlated jitter 各自造成多少 bias，見 <PageLink id="ch11" />。
+        <Tex>{'E[w_n]\\to w^*'}</Tex>（平均收斂；每一條路徑仍會在 <Tex>{'w^*'}</Tex> 附近抖動）。<SourceTag kind="simulation" /> 表與圖由固定 seed 的模擬產生。只用 <Tex>{'\\mathrm{sign}(e)'}</Tex> 的 Sign-LMS，固定點由 <Tex>{'E[\\mathrm{sign}(e)\\,x]=0'}</Tex> 決定，一般和上式不同（<ChapterErratum id="E01" />）；offset、DTC 非線性、code-correlated jitter 各自造成多少 bias，見 <PageLink id="ch11" />。
       </p>
       <Derivation
         title={

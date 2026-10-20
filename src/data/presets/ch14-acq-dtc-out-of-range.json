@@ -1,0 +1,13 @@
+{
+  "id": "ch14-acq-dtc-out-of-range",
+  "title": "Ch14：acquisition——DTC 工作點超出範圍（w_0 = −4000 fs）",
+  "page": "/ch/14",
+  "experiment": "cal-state-machine",
+  "description": "初始暫存器 w_0 = −4000 fs：x = +1 時補償量 −4000 fs 要求延遲 T_0 + 4000 fs，超過範圍 R = 81250 fs，code 飽和、∂e/∂w = 0（Ch04 §5b）。校正不能 enable。",
+  "params": {
+    "w0": -4000,
+    "acq": {}
+  },
+  "expected": "acquisition 狀態機停在 PLOCK（永遠不 enable）、LOCK blocks = ∞；block 級狀態機整段停在 LOCK，沒有進入 TRACK；警告說明是 DTC 工作點、不是調 μ 能解決。",
+  "source": "illustrative"
+}

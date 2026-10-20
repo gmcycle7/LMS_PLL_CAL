@@ -101,7 +101,7 @@ export function S1Policy() {
           </li>
         </ol>
       </Callout>
-      <ModeGate min="research">
+      <ModeGate min="research" summary="書目核對的方法與限制（Crossref 核對了什麼、沒核對什麼）">
         <Callout kind="info" title="Research：書目核對的方法與限制">
           <ul>
             <li>

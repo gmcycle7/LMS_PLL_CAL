@@ -29,7 +29,7 @@ describe('Ch03 §8 的架構約定（docs/assumptions.md §2a）', () => {
   it('「本章的符號在硬體裡是什麼」：DTC 在 reference 輸入端、PD 量 reference′ 減 feedback、補償量 w·x、LMS 的輸入是 PD 的輸出', () => {
     localStorage.setItem('lmspll.mode', 'beginner')
     const { container } = renderPage(<Chapter03 />, { url: '/ch/03' })
-    const fig = container.querySelector('.ch03-fig[data-fig="21"]')
+    const fig = container.querySelector('.c-chapter-fig[data-fig="21"]')
     expect(fig, '圖 3-21（畫回 PLL 硬體）').not.toBeNull()
     const section = fig!.closest('section.c-section') as HTMLElement
     expect(section.querySelector('h3')?.textContent).toContain('本章的符號在硬體裡是什麼')

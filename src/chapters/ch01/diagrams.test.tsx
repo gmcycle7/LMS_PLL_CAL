@@ -884,7 +884,7 @@ describe('Ch01 頁面上的方塊圖', () => {
         expect(cap.textContent, d.id).toBe(captionPlain(`${d.label}｜${d.caption}`))
         expect(capMath, d.id).toBe(Array.from(d.caption.matchAll(MATH)).length)
         // 導讀：圖的正下方，帶讀者走一遍（先看…再看…），並把圖接回公式（「圖上…就是…」），數學用 KaTeX
-        const read = box.querySelector('.ch01-diagram-read')!
+        const read = box.querySelector('.c-chapter-fig-walk')!
         expect(read.previousElementSibling?.matches('figure.c-mermaid'), d.id).toBe(true)
         expect(read.textContent ?? '', d.id).toMatch(/^怎麼看這張圖/)
         expect(read.textContent ?? '', d.id).toMatch(/先看|只要看|出發|由左到右/)

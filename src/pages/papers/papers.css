@@ -88,25 +88,26 @@
   gap: 4px 6px;
   vertical-align: middle;
 }
-.papers-chip {
+/* 顏色與尺寸來自 badgeClass('neutral')；連結型徽章只補：連結色、不加底線、太長時截斷（inline-block 才能 ellipsis） */
+.c-badge.papers-chip {
+  --b-fg: var(--accent);
+  --b-bg: var(--surface);
+  --b-bd: var(--border-strong);
   display: inline-block;
-  padding: 1px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--border-strong);
-  background: var(--surface);
-  color: var(--accent);
-  font-size: 0.82rem;
   text-decoration: none;
-  white-space: nowrap;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
+  vertical-align: middle;
+  cursor: pointer;
 }
-.papers-chip:hover {
-  border-color: var(--accent);
+a.c-badge.papers-chip:hover {
+  --b-bd: var(--accent);
+  text-decoration: none;
 }
-.papers-chip-missing {
-  color: var(--text-muted);
+.c-badge.papers-chip-missing {
+  --b-fg: var(--text-muted);
+  cursor: default;
 }
 .papers-jump {
   color: var(--accent);
@@ -136,14 +137,6 @@
   border-radius: var(--radius-sm);
   background: var(--accent);
   color: var(--accent-text);
-}
-.papers-badge {
-  font-size: 0.78rem;
-  padding: 1px 7px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  white-space: nowrap;
 }
 .papers-card-title {
   margin: 10px 0 4px;
@@ -304,24 +297,6 @@
 }
 
 /* ── 方塊圖版位：圖 + 圖說，下面緊接「先看…再看…」的導讀（docs/teaching-style.md §8） ── */
-.papers-diagram {
-  margin: 1rem 0 1.1rem;
-  min-width: 0;
-}
-
-.papers-diagram .c-mermaid {
-  margin-bottom: 0.4rem;
-}
-
-.papers-diagram-walk {
-  border-left: 3px solid var(--accent);
-  padding: 0.1rem 0 0.1rem 0.75rem;
-  font-size: 0.93rem;
-}
-
-.papers-diagram-walk > p {
-  margin: 0.35rem 0;
-}
 
 /* ── 頁首「本頁符號表在最後」與頁尾符號表的頁內跳轉（docs/teaching-style.md §5） ── */
 .papers-symbols-link {

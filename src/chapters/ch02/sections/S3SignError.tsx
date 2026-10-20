@@ -1,10 +1,10 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, CodeBlock, Derivation, ModeGate, Prereq, Quiz, Section, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
+import { Callout, ClaimTag, CodeBlock, Derivation, ModeGate, Prereq, Quiz, Section, StepDerivation, Tex, TexBlock, ChRef, ChapterErratum } from '@/components'
 import lmsSrc from '@/simulation/models/lms.ts?raw'
 import sgdSrc from '@/simulation/models/sgd.ts?raw'
 import { conventionalStep, signErrorStep, type TieRule } from '@/simulation/models/lms'
 import { GEAR_FLOOR_RATIO, IMPULSIVE_EPS, IMPULSIVE_K, noiseMedian, noiseOps, noisePdfAt, runSignErrorFixedX, signErrorLimitCycle, stepsToTravel, type NoiseKind } from '@/simulation/models/sgd'
-import { ChapterLink, Diagram, ErrataNote, HandCalcSlot, TieLabel, f4, DerivFold, tm } from '../common'
+import { ChapterLink, Diagram, HandCalcSlot, TieLabel, f4, DerivFold, tm } from '../common'
 import { LimitCycleBand } from '../experiments/LimitCycleBand'
 
 const TIES: TieRule[] = ['zero', 'plus', 'minus']
@@ -89,10 +89,10 @@ export function S3SignError() {
   )
 
   return (
-    <section>
-      <h2 id="ch02-s3">§3 MAE ⇒ Sign-Error LMS（只需要誤差的正負號）</h2>
+    <section id="ch02-s3">
+      <h2>§3 MAE ⇒ Sign-Error LMS（只需要誤差的正負號）</h2>
 
-      <Section kind="intuition" title="硬體只告訴你「太高」或「太低」">
+      <Section id="ch02-sign-intuition" kind="intuition" title="硬體只告訴你「太高」或「太低」">
         <p>
           PLL 校正裡，誤差 <Tex>{'e'}</Tex> 是一個幾 fs 的時間差，量它的大小需要 TDC；但一顆 comparator / bang-bang PD 只輸出
           <Tex>{'q=\\operatorname{sign}(e)\\in\\{+1,-1\\}'}</Tex>（<Tex>{'\\operatorname{sign}'}</Tex> 取正負號：正數給 <Tex>{'+1'}</Tex>、負數給 <Tex>{'-1'}</Tex>；<Tex>{'q'}</Tex> 就是這顆 comparator 的 1-bit 輸出）。如果更新只能用 <Tex>{'q'}</Tex>，等於在最小化什麼？答案是絕對誤差 <Tex>{'|e|'}</Tex>（MAE，<ChRef ch="01">Ch01</ChRef>）。
@@ -108,7 +108,7 @@ export function S3SignError() {
         </p>
       </Prereq>
 
-      <Section kind="formula" title="推導：MAE 的隨機次梯度">
+      <Section id="ch02-subgradient" kind="formula" title="推導：MAE 的隨機次梯度">
         <p>先看結果長什麼樣子：把 §2 的 LMS 迴圈拿來，只在誤差後面插進一顆 comparator。</p>
         <Diagram id="sign-error-loop">
           <p>
@@ -132,11 +132,11 @@ export function S3SignError() {
         <TexBlock id="F-02.6">{String.raw`\boxed{w_{n+1}=w_n+\mu\,\operatorname{sign}(e_n)\,x_n}\qquad\operatorname{sign}(0)\text{：數學 }0\text{；comparator }\pm1`}</TexBlock>
         <p>
           和 LMS 唯一的差別：<Tex>{'e_n'}</Tex> 換成 <Tex>{'\\operatorname{sign}(e_n)'}</Tex>。更新量不再與誤差大小成正比，而是<strong>固定大小</strong> <Tex>{'\\mu|x_n|'}</Tex>，只有方向由誤差決定。
-          <ErrataNote id="E40" />
+          <ChapterErratum id="E40" />
         </p>
       </Section>
 
-      <Section kind="example" title={tm('先算一次：$a=3,\\ x=1,\\ w_0=1,\\ \\mu=0.2$')}>
+      <Section id="ch02-sign-hand" kind="example" title={tm('先算一次：$a=3,\\ x=1,\\ w_0=1,\\ \\mu=0.2$')}>
         <div className="table-wrap">
           <table className="ch02-table">
             <thead>
@@ -177,7 +177,7 @@ export function S3SignError() {
         </p>
       </Section>
 
-      <Section kind="formula" title="固定步長停不下來：limit cycle 的精確解">
+      <Section id="ch02-limit-cycle" kind="formula" title="固定步長停不下來：limit cycle 的精確解">
         <p>
           每一步都走固定的距離，靠近目標時一定會衝過頭、再被拉回來。固定 <Tex>{'x'}</Tex>、沒有雜訊時，這個「來回跳」可以畫成一張只有三個狀態的圖：
         </p>
@@ -260,16 +260,16 @@ export function S3SignError() {
             </tbody>
           </table>
         </div>
-        <Callout kind="warn" title={<>浮點誤差也是一種 tie 慣例 <ErrataNote id="E40" /></>}>
+        <Callout kind="warn" title={<>浮點誤差也是一種 tie 慣例 <ChapterErratum id="E40" /></>}>
           <Tex>{'\\mu=0.1'}</Tex> 時，從 <Tex>{'w_0=1'}</Tex> 把步長 <Tex>{'h=0.2'}</Tex> 逐步累加 10 次（<Tex>{String.raw`1+0.2+\cdots+0.2`}</Tex>），IEEE double 得到的是 <code>3.0000000000000004</code>，<Tex>{'e'}</Tex> 是一個 <Tex>{'-10^{-15}'}</Tex> 量級的負數而不是 0，三種慣例都變成在 <Tex>{'2.8'}</Tex> 附近與 <code>3.0000000000000004</code> 之間跳。所以：模擬要明定 tie 規則、不可依賴 <code>Math.sign(0) = 0</code>；驗證「收斂到中位數」時容忍度至少取 <Tex>{'\\mu|x|'}</Tex>，並在報告記錄 tie 慣例與算術（exact／double／fixed-point）。
         </Callout>
       </Section>
 
-      <Section kind="explore" title="動手觀察：跳動帶與遞減步長">
+      <Section id="ch02-band-lab" kind="explore" title="動手觀察：跳動帶與遞減步長">
         <LimitCycleBand />
       </Section>
 
-      <Section kind="formula" title={tm('有雜訊時：平均更新方向 $\\psi(w)$ 與線性化增益')}>
+      <Section id="ch02-psi" kind="formula" title={tm('有雜訊時：平均更新方向 $\\psi(w)$ 與線性化增益')}>
         <Prereq title="CDF、PDF 與 Gaussian（第一次出現）">
           <p>
             隨機變數 <Tex>{'v'}</Tex> 的<strong>累積分布函數（CDF）</strong> <Tex>{'F_v(t)=P(v\\le t)'}</Tex>，<strong>機率密度（PDF）</strong> <Tex>{"f_v(t)=F_v'(t)"}</Tex>。Gaussian（常態）<Tex>{'v\\sim\\mathcal N(0,\\sigma^2)'}</Tex>：<Tex>{'f_v(t)=\\frac{1}{\\sqrt{2\\pi}\\sigma}\\mathrm{e}^{-t^2/(2\\sigma^2)}'}</Tex>，<Tex>{'F_v(t)=\\Phi(t/\\sigma)'}</Tex>，其中 <Tex>{'\\Phi'}</Tex> 是標準常態 CDF（直立的 <Tex>{'\\mathrm{e}\\approx2.718'}</Tex> 是自然對數的底；斜體的 <Tex>{'e'}</Tex> 在本章永遠是誤差）。
@@ -367,7 +367,7 @@ export function S3SignError() {
         </p>
       </Section>
 
-      <Section kind="formula" title={tm('修正方法：遞減步長 $\\mu_n=\\mu_0/(1+n/n_0)$')}>
+      <Section id="ch02-decay" kind="formula" title={tm('修正方法：遞減步長 $\\mu_n=\\mu_0/(1+n/n_0)$')}>
         <p>
           固定步長的兩個「停不下來」：無雜訊時帶寬 <Tex>{'h=\\mu|x|'}</Tex>；有雜訊時穩態變異 <Tex>{'\\propto\\mu'}</Tex>。兩者都正比於 <Tex>{'\\mu'}</Tex>，所以讓 <Tex>{'\\mu_n\\to0'}</Tex>。這裡 <Tex>{'\\mu_n'}</Tex> 是第 <Tex>{'n'}</Tex> 步用的步長，<Tex>{'\\mu_0'}</Tex> 是起始步長，<Tex>{'n_0'}</Tex> 是時間常數（走到第 <Tex>{'n_0'}</Tex> 步時步長剛好減半）。但不能降得太快：
         </p>
@@ -437,7 +437,7 @@ export function S3SignError() {
       </Section>
 
       <ModeGate min="engineer">
-        <Section kind="formula" title="核心程式碼：步長排程與 Sign-Error 單步">
+        <Section id="ch02-sign-code" kind="formula" title="核心程式碼：步長排程與 Sign-Error 單步">
           <CodeBlock source={sgdSrc} region="stepSchedule" path="src/simulation/models/sgd.ts" />
           <CodeBlock
             source={sgdSrc}

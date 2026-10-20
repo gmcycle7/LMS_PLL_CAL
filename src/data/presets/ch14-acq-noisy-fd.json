@@ -1,0 +1,14 @@
+{
+  "id": "ch14-acq-noisy-fd",
+  "title": "Ch14：acquisition——頻率估計雜訊 4 倍（σ_f = 0.4 MHz）",
+  "page": "/ch/14",
+  "experiment": "cal-state-machine",
+  "description": "f_tol/σ_f 從 10 降到 2.5：N_ld 個連續樣本要全部落在門檻內，真實誤差得先降到 f_tol 減去約 2σ_f，lock 時間改由雜訊決定（F-14.23）。",
+  "params": {
+    "acq": {
+      "sigmaFHz": 400000
+    }
+  },
+  "expected": "頻率鎖定比無雜訊的 8793 晚約一千多個週期、enable 超過 10240 ⇒ LOCK 變成 11 個 block（Monte Carlo：16 個 seed 全部 11 blocks）；P_miss(一個視窗) ≈ 0.33、E[T] ≈ 39.6 個週期。",
+  "source": "illustrative"
+}

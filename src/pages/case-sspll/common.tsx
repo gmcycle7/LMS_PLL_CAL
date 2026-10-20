@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { ClaimTag, CodeBlock, CodeCompare, HandCalc, Mermaid, Tex, TexBlock, mathText, type ClaimKind, type CodeCompareItem } from '@/components'
+import { ChapterFig, FigRef as ChapterFigRef, ClaimTag, CodeBlock, CodeCompare, Tex, TexBlock, bindHandCalc, mathText, type ClaimKind, type CodeCompareItem } from '@/components'
 import { diagramById } from './diagrams'
 import { formulaById } from './formulas'
 import { HANDCALCS } from './handcalcs'
@@ -196,65 +196,29 @@ export function fmtFs(v: number | undefined | null): ReactNode {
 }
 
 /**
- * 捲到本頁的某個錨點。HashRouter 下不能用 `href="#id"`（會被當成路由），所以一律用按鈕 + scrollIntoView；
- * 舊瀏覽器與 jsdom 沒有 scrollIntoView 時什麼都不做。
- */
-export function scrollToId(id: string): void {
-  const el = document.getElementById(id)
-  if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
-
-/**
  * 方塊圖：由 ./diagrams 的 DIAGRAMS 以 id 查表（Mermaid 原始碼、圖說都在那裡，diagrams.test.tsx 以真正的 parser 檢查）。
- * 圖說前面自動加上圖號「圖 CS-n」（n 為頁面順序），內文用 <FigRef id="…" /> 引用同一個編號。
+ * 外框是共用的 ChapterFig；圖說前面自動加上圖號「圖 CS-n」（n 為頁面順序），內文用 <FigRef id="…" /> 引用同一個編號。
  */
 export function Diagram({ id }: { id: string }) {
   const d = diagramById(id)
   return (
-    <div className="cs-diagram" id={`fig-${d.def.id}`} data-diagram={d.def.id} data-kind={d.def.kind}>
-      <Mermaid chart={d.def.chart} caption={`${d.label}｜${d.def.caption}`} ariaLabel={`${d.label}：${d.def.alt ?? d.def.caption}`} />
-    </div>
+    <ChapterFig
+      className="cs-diagram"
+      id={`fig-${d.def.id}`}
+      dataAttrs={{ 'data-diagram': d.def.id, 'data-kind': d.def.kind }}
+      chart={d.def.chart}
+      label={d.label}
+      caption={d.def.caption}
+      ariaLabel={`${d.label}：${d.def.alt ?? d.def.caption}`}
+    />
   )
 }
 
 /** 行內的圖號（「圖 CS-n」）；按下去捲到那張圖 */
 export function FigRef({ id }: { id: string }) {
   const d = diagramById(id)
-  return (
-    <button type="button" className="cs-linkbtn cs-figref" onClick={() => scrollToId(`fig-${d.def.id}`)}>
-      {d.label}
-    </button>
-  )
+  return <ChapterFigRef label={d.label} target={`fig-${d.def.id}`} className="cs-figref" />
 }
 
-const HANDCALC_BY_ID = new Map(HANDCALCS.map((h) => [h.id, h]))
-
-/**
- * 「帶入手算」題：由 ./handcalcs 的 HANDCALCS 以 id 查表，前面加一句邀請讀者先自己算。
- * children 可以換成更貼近該段落的邀請句（字串支援 `$...$`）。
- */
-export function Hand({ id, children }: { id: string; children?: ReactNode }) {
-  const def = HANDCALC_BY_ID.get(id)
-  if (!def) throw new Error(`未登錄的手算題 ${id}`)
-  return (
-    <div className="cs-hand">
-      <p className="cs-hand-invite">
-        <strong>換你算：</strong>
-        {children ? mathText(children) : '把下面的數字換成你自己的設計值，先用紙筆和計算機算一次，再按「自己算算看」對答案。'}
-      </p>
-      <HandCalc def={def} />
-    </div>
-  )
-}
-
-/**
- * 捲到本頁某一題「帶入手算」（HandCalc 的 section id 是 handcalc-<題號>）。
- * 和 <FigRef>、符號表連結一樣用按鈕：HashRouter 下 `href="#handcalc-…"` 會被當成路由（在新分頁開啟時會跳到不存在的頁面）。
- */
-export function HandLink({ id }: { id: string }) {
-  return (
-    <button type="button" className="cs-linkbtn" onClick={() => scrollToId(`handcalc-${id}`)}>
-      {id}
-    </button>
-  )
-}
+/** 「帶入手算」題：由 ./handcalcs 的 HANDCALCS 以 id 查表，前面加一句邀請讀者先自己算（共用的 bindHandCalc） */
+export const Hand = bindHandCalc(HANDCALCS)

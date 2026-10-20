@@ -230,19 +230,16 @@ describe('common：小元件', () => {
     expect(container.querySelector('#b')!.textContent).toBe('符合 3 / 10')
     expect(container.querySelector('#c .fr-count-zero')).toBeTruthy()
     expect(container.querySelector('.fr-nomatch')!.textContent).toMatch(/沒有符合的符號/)
-    const calls: ScrollToOptions[] = []
-    const orig = window.scrollTo
-    window.scrollTo = ((arg: ScrollToOptions) => {
+    // 共用的 scrollToElement：瞬間捲動（scrollIntoView）、把搜尋列高度寫進 scroll-margin-top、聚焦目標
+    const target = container.querySelector<HTMLElement>('#target')!
+    const calls: ScrollIntoViewOptions[] = []
+    target.scrollIntoView = ((arg: ScrollIntoViewOptions) => {
       calls.push(arg)
-    }) as typeof window.scrollTo
-    try {
-      expect(scrollToId('target')).toBe(true)
-      expect(calls.length).toBe(1)
-      expect(calls[0].behavior).toBe('smooth')
-      expect(scrollToId('missing')).toBe(false)
-      expect(calls.length).toBe(1)
-    } finally {
-      window.scrollTo = orig
-    }
+    }) as typeof target.scrollIntoView
+    expect(scrollToId('target')).toBe(true)
+    expect(calls.length).toBeGreaterThanOrEqual(1)
+    expect(calls[0].behavior).toBe('auto')
+    expect(target.style.scrollMarginTop).toMatch(/^\d+(\.\d+)?px$/)
+    expect(scrollToId('missing')).toBe(false)
   })
 })

@@ -12,6 +12,7 @@ import {
   SPEC_15_3_EXAMPLE,
   type BlockLmsConfigInput,
 } from '@/simulation/models/blockLms'
+import { chainSumMoments, comparatorChain, meanQ, metaProb, nonidealSummary } from '@/simulation/models/comparator'
 
 // 解析參考值由 python3（NumPy / SciPy）獨立計算後貼上；Monte Carlo 使用固定 seed 與統計容忍度。
 
@@ -470,5 +471,130 @@ describe('定點 gain register（L5）', () => {
     expect(r.metrics.limitCycleCount).toBe(199)
     // 時間平均 gain 3.0625 ≠ a = 3.05：平均正確 ≠ 量化 toggle 的佔空比正確（§13.2）
     expect(r.metrics.meanWPhys).toBe(3.0625)
+  })
+})
+
+describe('Ch05 §5b：comparator 選項（hysteresis_fs、meta_window_fs、meta_policy；預設關閉，行為不變）', () => {
+  /** x ≡ 1（振幅 1、ω = 0 的「弦波」）、凍結 w（μ = 0）：GMAC 的平均就是 comparator 在 s = a − w₀ 的平均輸出 */
+  const frozen = (over: Partial<BlockLmsConfigInput>, N = 1024, blocks = 600): BlockLmsConfigInput => ({
+    gm_accum_samples: N,
+    num_blocks: blocks,
+    gain_step: 0,
+    gain_initial: 0,
+    gain_true: 10,
+    code_normalization: 'none',
+    seeded_pattern: { kind: 'sinusoid', parameters: { amplitude: 1, omega: 0, phase_deg: 0 } },
+    record: { sample_trace_blocks: 2, decimate: 1 },
+    ...over,
+  })
+  const meanG = (G: Float64Array) => Array.from(G).reduce((x, y) => x + y, 0) / G.length
+
+  it('schema：預設 comparator = { hysteresis_fs: 0, meta_window_fs: 0, meta_policy: drop }；負值與未知欄位被擋下；DEFAULT 設定沒有 comparatorModel', () => {
+    expect(DEFAULT_BLOCK_LMS_CONFIG.comparator).toEqual({ hysteresis_fs: 0, meta_window_fs: 0, meta_policy: 'drop' })
+    expect(parseBlockLmsConfig({ comparator: { hysteresis_fs: -1 } }).ok).toBe(false)
+    expect(parseBlockLmsConfig({ comparator: { meta_policy: 'random' } }).ok).toBe(false)
+    expect(parseBlockLmsConfig({ comparator: { hysteresis: 3 } }).errors.join('\n')).toMatch(/未知的欄位/)
+    expect(parseBlockLmsConfig({ comparator: { hysteresis_fs: 30, meta_window_fs: 5, meta_policy: 'late' } }).config?.comparator).toEqual({ hysteresis_fs: 30, meta_window_fs: 5, meta_policy: 'late' })
+    expect(analyzeBlockLms({}).analytic.comparatorModel).toBeUndefined()
+    expect(analyzeBlockLms({}).assumptions.join('\n')).not.toContain('hysteresis')
+  })
+
+  it('h = ε = 0（任何 policy）與沒有 comparator 欄位時逐位元相同；T13 的預設結果不變', () => {
+    const base = runBlockLms({ num_blocks: 300, record: { sample_trace_blocks: 1, decimate: 1 } })
+    for (const meta_policy of ['drop', 'hold', 'late'] as const) {
+      const r = runBlockLms({ num_blocks: 300, record: { sample_trace_blocks: 1, decimate: 1 }, comparator: { hysteresis_fs: 0, meta_window_fs: 0, meta_policy } })
+      expect(Array.from(r.blocks.w)).toEqual(Array.from(base.blocks.w))
+      expect(Array.from(r.trace.q)).toEqual(Array.from(base.trace.q))
+      expect(r.analytic.comparatorModel).toBeUndefined()
+    }
+  })
+
+  it('hysteresis h = σ_v、x ≡ 1、凍結 w：GMAC 平均 = chain 的平穩 E[y]（4 SE 內）；解析摘要的斜率比 1.91、ν = 0.683、雜訊因子 5.30', () => {
+    const N = 1024
+    const K = 600
+    const r = runBlockLms(frozen({ comparator: { hysteresis_fs: 100, meta_window_fs: 0, meta_policy: 'drop' } }, N, K))
+    const ch = comparatorChain(10, 100, 100, 0) // s = a − w₀ = 10 fs
+    const mo = chainSumMoments(N, ch)
+    const se = mo.sdSum / N / Math.sqrt(K)
+    expect(Math.abs(meanG(r.blocks.G) - ch.meanOut)).toBeLessThan(4 * se)
+    // 遲滯讓平均輸出比理想 comparator 大（斜率 1.91 倍）
+    expect(ch.meanOut / meanQ(10, 100)).toBeGreaterThan(1.5)
+    const cm = r.analytic.comparatorModel!
+    expect(cm.h).toBe(100)
+    expect(cm.slopeRatio).toBeCloseTo(nonidealSummary(100, 100, 0).slopeRatio, 12)
+    expect(cm.slopeRatio.toFixed(2)).toBe('1.91')
+    expect(cm.nu.toFixed(3)).toBe('0.683')
+    expect(cm.noiseFactor.toFixed(2)).toBe('5.30')
+    expect(r.warnings.join('\n')).toContain('comparator hysteresis h = 100 fs')
+    expect(r.assumptions.join('\n')).toContain('hysteresis h = 100 fs')
+    // trace 的 q 仍是 ±1（沒有 metastable）
+    expect(Array.from(r.trace.q).every((q) => q === 1 || q === -1)).toBe(true)
+  })
+
+  it('metastability ε = 5 fs（drop）、x ≡ 1、凍結 w：trace 裡 q = 0 的比例 ≈ P_meta，GMAC 平均 = chain 的 E[y]（除數仍是 N）', () => {
+    const N = 1024
+    const K = 600
+    const r = runBlockLms(frozen({ comparator: { hysteresis_fs: 0, meta_window_fs: 5, meta_policy: 'drop' } }, N, K))
+    const ch = comparatorChain(10, 100, 0, 5)
+    const zeros = Array.from(r.trace.q).filter((q) => q === 0).length / r.trace.q.length
+    expect(Math.abs(zeros - ch.pMeta)).toBeLessThan(4 * Math.sqrt((ch.pMeta * (1 - ch.pMeta)) / r.trace.q.length))
+    expect(ch.pMeta).toBeCloseTo(metaProb(10, 100, 5), 14)
+    const mo = chainSumMoments(N, ch)
+    expect(Math.abs(meanG(r.blocks.G) - ch.meanOut)).toBeLessThan((4 * mo.sdSum) / N / Math.sqrt(K))
+    expect(r.warnings.join('\n')).toMatch(/metastability 窗 ε = 5 fs（drop）：每個 block 約 \d+\.\d+ 個 sample 解不出來/)
+  })
+
+  it('hold 與 late（x ≡ 1、凍結 w）：hold 的平均 = E[y_drop] + P_meta·E[σ]；late 的平均 = 理想 comparator 的 E[q]（晚一拍但都算進來）', () => {
+    const N = 1024
+    const K = 600
+    const ch = comparatorChain(10, 100, 0, 20)
+    const hold = runBlockLms(frozen({ comparator: { hysteresis_fs: 0, meta_window_fs: 20, meta_policy: 'hold' } }, N, K))
+    const predHold = ch.meanOut + ch.pMeta * ch.meanState
+    expect(Math.abs(meanG(hold.blocks.G) - predHold)).toBeLessThan(4 / Math.sqrt(N * K) * 1.5)
+    expect(Array.from(hold.trace.q).every((q) => q === 1 || q === -1)).toBe(true) // 沒有 0：沿用上一個輸出
+    const late = runBlockLms(frozen({ comparator: { hysteresis_fs: 0, meta_window_fs: 20, meta_policy: 'late' } }, N, K))
+    expect(Math.abs(meanG(late.blocks.G) - meanQ(10, 100))).toBeLessThan(4 / Math.sqrt(N * K) * 1.5)
+    // late 的 trace 裡有 0（那一拍沒有）也有 ±2（上一拍補進來的 + 這一拍的）
+    const qs = new Set(Array.from(late.trace.q))
+    expect(qs.has(0)).toBe(true)
+    expect(qs.has(2) || qs.has(-2)).toBe(true)
+  })
+
+  it('late ＋ 單頻 code：全部 metastable（ε ≫ σ_v）時 q[n] 乘到 x[n+1]，相關變成 E[x[n+1]·m((a−w)x[n])]（多一拍 code delay，Ch07）', () => {
+    const N = 1200 // 100 個週期
+    const K = 300
+    const cfg: BlockLmsConfigInput = frozen(
+      {
+        gain_true: 30,
+        seeded_pattern: { kind: 'sinusoid', parameters: { amplitude: 1, omega: Math.PI / 6, phase_deg: 0 } },
+        comparator: { hysteresis_fs: 0, meta_window_fs: 1e6, meta_policy: 'late' },
+      },
+      N,
+      K,
+    )
+    const r = runBlockLms(cfg)
+    // 期望值：對一個週期（12 點）平均 x[n+1]·(2Φ(30·x[n]/100) − 1)；對照：沒有延遲時是 x[n]·m(30x[n])
+    let late = 0
+    let aligned = 0
+    for (let n = 0; n < 12; n++) {
+      const x0 = Math.cos((Math.PI / 6) * n)
+      const x1 = Math.cos((Math.PI / 6) * (n + 1))
+      const m = meanQ(30 * x0, 100)
+      late += (x1 * m) / 12
+      aligned += (x0 * m) / 12
+    }
+    expect(late / aligned).toBeCloseTo(Math.cos(Math.PI / 6), 1) // 小訊號下剛好是 cos Ω
+    const se = 1 / Math.sqrt(N * K) // Var(q·x) ≤ 1
+    expect(Math.abs(meanG(r.blocks.G) - late)).toBeLessThan(5 * se)
+    expect(Math.abs(meanG(r.blocks.G) - aligned)).toBeGreaterThan(5 * se) // 和對齊的相關明顯不同
+    expect(r.warnings.join('\n')).toContain('等效多一拍 code delay')
+  })
+
+  it('unipolar_unmapped_bug ＋ late：每個 −1 算 0、每個 +1 算 1（兩拍補進來時 q 可以是 2）', () => {
+    const r = runBlockLms(frozen({ comparator_encoding: 'unipolar_unmapped_bug', comparator: { hysteresis_fs: 0, meta_window_fs: 1e6, meta_policy: 'late' } }, 256, 20))
+    const qs = new Set(Array.from(r.trace.q))
+    expect([...qs].every((q) => q === 0 || q === 1)).toBe(true) // 全部 late：每一拍恰好補進前一拍的一個 ±1
+    const r2 = runBlockLms(frozen({ comparator_encoding: 'unipolar_unmapped_bug', comparator: { hysteresis_fs: 0, meta_window_fs: 20, meta_policy: 'late' } }, 256, 20))
+    expect([...new Set(Array.from(r2.trace.q))].every((q) => q === 0 || q === 1 || q === 2)).toBe(true)
   })
 })

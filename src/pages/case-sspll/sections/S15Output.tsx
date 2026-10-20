@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
-import { Callout, FormulaLink, ModeGate, StepDerivation, Tex } from '@/components'
+import { Callout, FormulaLink, JumpTo, ModeGate, StepDerivation, Tex } from '@/components'
 import { cAbs, type Complex } from '@/simulation/core/complex'
 import { W1, analyseAlpha, loopT, makeL2, phosSteadyState, residualLineSpectrum, spurDbcFromToneFs } from '@/simulation/models/sspll'
 import { FREF_MHZ, LOOPS, PARAMS, PRED, SIM_CFG } from '../data'
-import { Claim, DataTable, Diagram, Formula, Hand, Src, fx, r, scrollToId, tx, txs } from '../common'
+import { Claim, DataTable, Diagram, Formula, Hand, Src, fx, r, tx, txs } from '../common'
 
 /** 插圖頻道：§10.5 的 L2、α = 0.02（80 MHz，帶內）；校準用一階差分收斂到的 PHOS rms 與 |GOS 誤差|（golden，pred_vs_sim.json） */
 export const OUTPUT_EXAMPLE = { alpha: 0.02, key1diff: 'L2|0.02|1diff', keyFx: 'L2|0.02|fx:exact', keyRaw137: 'L2|0.137|raw', keyRaw02: 'L2|0.02|raw' } as const
@@ -228,9 +228,9 @@ export function S15Output() {
       <Hand id="HC-CS.9">{r`用 §10.5 的最終 PHOS rms、$f_{vco}=16$ GHz 與 $\lvert T(f_{rot})\rvert$ 算 mode-1 基波的 spur，再看 PVT 的 peaking 最多加幾 dB。`}</Hand>
       <p>
         實驗 C 現在會在模擬結束後把權重凍結、再跑 65,536 拍（128 個 <Tex>{'N=512'}</Tex> 的 block），把輸出 <Tex>{'y=T*u'}</Tex> 做 Welch PSD 與 toneFit，印出每個 case 的 spur 表與積分 jitter——raw 與一階差分並排，就能看到同一個頻道、同一顆比較器，輸出差幾十 dB。
-        <button type="button" className="cs-linkbtn" onClick={() => scrollToId('exp-sspll-closed-loop')}>
+        <JumpTo target="exp-sspll-closed-loop" className="cs-linkbtn">
           回到實驗 C
-        </button>
+        </JumpTo>
       </p>
       <Src>
         TS port 的 <code>residualLineSpectrum</code>、<code>phosSteadyState</code>、<code>spurDbcFromToneFs</code>（<code>sspll.ts</code>）與 <code>pred_vs_sim.json</code> 的 <code>lms</code>；PVT 角落用 <code>makeL2</code> 把 <Tex>{r`K_p`}</Tex>、<Tex>{r`K_i`}</Tex> 同乘增益（與 <code>params.json</code> 的 <code>sensitivity</code> 同定義）。<Tex>{`f_{ref}=${FREF_MHZ / 1000}`}</Tex> GHz。

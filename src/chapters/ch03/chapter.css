@@ -9,23 +9,6 @@
   line-height: 1.75;
 }
 
-.ch03-erratum {
-  display: inline-block;
-  font-size: 0.75rem;
-  line-height: 1.4;
-  padding: 0 6px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--warn);
-  color: var(--warn);
-  background: var(--warn-soft);
-  text-decoration: none;
-  white-space: nowrap;
-  vertical-align: middle;
-}
-.ch03-erratum:hover {
-  text-decoration: underline;
-}
-
 .ch03-tags {
   display: flex;
   flex-wrap: wrap;
@@ -222,24 +205,6 @@
   border-left: 4px solid var(--ok);
   background: var(--ok-soft);
   border-radius: var(--radius-sm);
-}
-
-/* 帶入手算：邀請文字緊貼在題目上方 */
-.ch03-handcalc {
-  margin: 16px 0;
-}
-.ch03-handcalc-invite {
-  margin: 0 0 -8px;
-  font-size: 0.92rem;
-}
-
-/* 方塊圖（Fig）：外框負責上下間距；圖說是共用 Mermaid 元件的 <figcaption>（圖號在最前面） */
-.ch03-fig {
-  margin: 16px 0;
-  min-width: 0;
-}
-.ch03-fig .c-mermaid {
-  margin: 0;
 }
 
 /* 章末的符號表（#symbols） */

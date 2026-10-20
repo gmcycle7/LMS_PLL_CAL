@@ -226,7 +226,7 @@ export function S2Polarity() {
         <CodeBlock source={judgesSrc} region="gmacFrozenBlock" path={PATH} title="一個凍結 $w$ 的 GMAC block" />
         <CodeBlock source={judgesSrc} region="centralDiff" path={PATH} title="中央差分 + 標準誤" />
         <CodeBlock source={judgesSrc} region="polarityVerdict" path={PATH} title="三分法判決" />
-        <ModeGate min="engineer">
+        <ModeGate min="engineer" summary="精確 mean-field（Analytic 對照）的程式碼：meanField">
           <CodeBlock source={judgesSrc} region="meanField" path={PATH} title="精確 mean-field（Analytic 對照）" caption={String.raw`$\pm1$ code 用有限列舉、單頻 code 用週期函數的梯形積分；兩者都沒有 Monte Carlo 誤差。`} />
         </ModeGate>
         <p>位元映射的三種寫法（§16.1-1 與 §17「錯誤位元符號」）——差異只在一行：</p>

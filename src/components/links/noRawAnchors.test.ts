@@ -43,7 +43,7 @@ describe('沒有會被 HashRouter 當成路由的頁內 href', () => {
   })
 
   it('其他頁內錨點（#id）也沒有，除了還沒改的例外（改成 <AnchorLink> 之後就從清單拿掉）', () => {
-    // chapters/ch14/Hand.tsx 的 HandLink（#handcalc-…）：不在 links 這個範圍的檔案，等擁有者改成 <AnchorLink id={`handcalc-${id}`}>
+    // 目前沒有例外（ch14 的 HandLink 已改用 @/components 的 HandLink）
     const PENDING = new Set<string>()
     const hits: string[] = []
     for (const f of files) {

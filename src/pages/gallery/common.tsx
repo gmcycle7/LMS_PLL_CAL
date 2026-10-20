@@ -1,10 +1,10 @@
 import { useMemo, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { mathText, Mermaid, ModelLevel, StepDerivation, Tex, TestBadge, type Step } from '@/components'
+import { Badge, badgeClass, ChapterFig, ErratumLink, mathText, ModelLevel, StepDerivation, Tex, TestBadge, type BadgeVariant, type Step } from '@/components'
 import { useSettings, type LearningMode } from '@/app/settings'
 import type { ModelLevelId, PresetEntry } from '@/data/types'
 import { PAGES } from '@/app/registry'
-import { erratumInfo, levelsOf, SLOT_STATUS_LABEL, type SlotStatus } from './data'
+import { levelsOf, SLOT_STATUS_LABEL, type SlotStatus } from './data'
 import { rawToTex, texNum } from './format'
 
 /** 含 `$…$` 的字串：文字照常、`$…$` 以 KaTeX 顯示（所有數學一律 LaTeX；與共用元件的 mathText 同一套規則） */
@@ -32,7 +32,7 @@ export function Steps({ title, steps, result, open }: { title: string; steps: { 
   return (
     <details className="gal-steps" open={open ?? engineer}>
       <summary>
-        <span className="gal-steps-badge">逐步推導</span> {mathText(title)}
+        <span className={badgeClass('neutral', 'gal-steps-badge')}>逐步推導</span> {mathText(title)}
       </summary>
       <StepDerivation steps={rendered} result={result} />
     </details>
@@ -40,15 +40,14 @@ export function Steps({ title, steps, result, open }: { title: string; steps: { 
 }
 
 /**
- * 方塊圖版位（docs/teaching-style.md §8）：一張 Mermaid 圖、一句圖說（要看什麼），下面緊接「先看…再看…」的導讀。
- * 圖說是純文字（Mermaid 的 caption 不渲染 KaTeX），數學符號留給 children 用 <Tex> 寫，並對照「圖上的 X 就是公式裡的 x」。
+ * 方塊圖版位（docs/teaching-style.md §8）：共用的 ChapterFig（Mermaid 圖＋圖說＋「怎麼看這張圖」導讀）。
+ * 數學符號留給 children 用 <Tex> 寫，並對照「圖上的 X 就是公式裡的 x」。`gal-diagram` 只是測試與審查腳本的 hook。
  */
 export function Diagram({ chart, caption, ariaLabel, children }: { chart: string; caption: string; ariaLabel?: string; children?: ReactNode }) {
   return (
-    <div className="gal-diagram">
-      <Mermaid chart={chart} caption={caption} ariaLabel={ariaLabel} />
-      {children && <div className="gal-diagram-walk">{children}</div>}
-    </div>
+    <ChapterFig chart={chart} caption={caption} ariaLabel={ariaLabel} className="gal-diagram">
+      {children}
+    </ChapterFig>
   )
 }
 
@@ -59,15 +58,9 @@ export function NumTex({ value, sig = 6 }: { value: number | string; sig?: numbe
   return <Tex>{texNum(value, sig)}</Tex>
 }
 
-/** 勘誤標記：連到 #/verification（驗證頁依 id 列出勘誤） */
+/** 勘誤標記：共用的 ErratumLink（連到驗證頁該條勘誤的 ?e= 深連結；提示取自 errata.json） */
 export function ErratumChip({ eid }: { eid: string }) {
-  const info = erratumInfo(eid)
-  const title = info ? `勘誤 ${eid}（${info.severity}）：${info.area}——${info.slug}` : `勘誤 ${eid}`
-  return (
-    <a className="gal-erratum" href="#/verification" title={title} data-eid={eid}>
-      勘誤 {eid}
-    </a>
-  )
+  return <ErratumLink id={eid} />
 }
 
 export function ErrataList({ ids }: { ids: string[] }) {
@@ -118,6 +111,19 @@ export function PageLink({ path }: { path: string }) {
   return <Link to={path}>{nav}</Link>
 }
 
+/** 頁內的 ok／warn／danger／muted → Badge variant（綠／琥珀描邊／紅／灰；顏色語意見 dev-conventions §2.1） */
+export type GalKind = 'ok' | 'warn' | 'danger' | 'muted'
+const GAL_VARIANT: Record<GalKind, BadgeVariant> = { ok: 'ok', warn: 'partial', danger: 'mismatch', muted: 'na' }
+
+/** 狀態小標籤（`gal-status gal-status-<kind>` 只是測試的 hook，顏色與尺寸來自 Badge） */
+export function GalStatus({ kind, children, status }: { kind: GalKind; children: ReactNode; status?: string }) {
+  return (
+    <Badge variant={GAL_VARIANT[kind]} className={`gal-status gal-status-${kind}`} data-status={status}>
+      {children}
+    </Badge>
+  )
+}
+
 const STATUS_KIND: Record<SlotStatus, 'ok' | 'warn' | 'danger'> = {
   ok: 'ok',
   missing: 'danger',
@@ -130,10 +136,10 @@ const STATUS_KIND: Record<SlotStatus, 'ok' | 'warn' | 'danger'> = {
 
 export function SlotStatusChip({ status }: { status: SlotStatus }) {
   return (
-    <span className={`gal-status gal-status-${STATUS_KIND[status]}`} data-status={status}>
+    <GalStatus kind={STATUS_KIND[status]} status={status}>
       {status === 'ok' ? '✓ ' : status === 'tests-missing' ? '△ ' : '✗ '}
       {SLOT_STATUS_LABEL[status]}
-    </span>
+    </GalStatus>
   )
 }
 
@@ -141,11 +147,15 @@ export function SlotStatusChip({ status }: { status: SlotStatus }) {
 export function MatchMark({ status, raw }: { status: 'match' | 'absent' | 'mismatch' | 'skip'; raw?: string }) {
   if (status === 'match')
     return (
-      <span className="gal-match gal-match-ok" title={`預期文字中的「${raw ?? ''}」與重算值相符`}>
+      <Badge variant="ok" className="gal-match gal-match-ok" title={`預期文字中的「${raw ?? ''}」與重算值相符`}>
         ✓ {raw ? <Tex>{rawToTex(raw)}</Tex> : null}
-      </span>
+      </Badge>
     )
-  if (status === 'mismatch') return <span className="gal-match gal-match-bad" title="這是必備數值，但預期文字中找不到相符的數字">✗ 文字不符</span>
+  if (status === 'mismatch') return (
+      <Badge variant="mismatch" className="gal-match gal-match-bad" title="這是必備數值，但預期文字中找不到相符的數字">
+        ✗ 文字不符
+      </Badge>
+    )
   if (status === 'skip') return <span className="small muted">—</span>
   return <span className="small muted" title="預期文字沒有寫出這個量（不代表錯）">未列出</span>
 }

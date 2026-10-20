@@ -2,6 +2,7 @@ import { useDeferredValue, useMemo, useState } from 'react'
 import { Callout, CodeBlock, ModeGate, ParamControl, Section, SelectControl, StepDerivation, Tex, mathText } from '@/components'
 import { gammaEff, gosRationalBeta, loopH, typeIReH } from '@/simulation/models/sspll'
 import certJson from '../../../../analysis/sspll/golden/results/gos_certificate.json'
+import { loadWebJson } from '@/data/golden/schemas'
 import pyCertSrc from '../../../../analysis/sspll/golden/sspll_golden/gos_certificate.py?raw'
 import theoremSrc from '../gosTheorem.ts?raw'
 import { LOOPS, LOOP_KEYS, type LoopKey } from '../data'
@@ -23,11 +24,11 @@ interface GoldenCert {
   beta_min: number
   M: number
 }
-const GOLDEN = certJson as unknown as {
+const GOLDEN = loadWebJson<{
   nominal: Record<string, GoldenCert>
   extended: Record<string, GoldenCert>
   asymptote_ratio: { Ki: number; rows: Record<string, { beta: number; C: number; asym: number; ratio: number }> }
-}
+}>('sspll/gos_certificate', certJson, 'gos_certificate.json')
 
 /** 讀者自己跑一次證書：選迴路、β_0、M（即時計算；TS port 與 golden 的 Python 同一套零件） */
 function CertificateWidget() {

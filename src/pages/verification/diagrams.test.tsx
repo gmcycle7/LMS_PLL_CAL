@@ -422,12 +422,12 @@ describe('Verification 頁面上的方塊圖與符號表（teaching-style §5、
     }
     // ③ 導讀：「先看…再看…」，容忍度的導讀含 KaTeX（頁面上沒有殘留的 $）
     for (const c of VERIFICATION_CHARTS) {
-      const walk = el(c.name).closest('.ver-diagram')?.querySelector('.ver-diagram-walk')
+      const walk = el(c.name).closest('.ver-diagram')?.querySelector('.c-chapter-fig-walk')
       expect(walk?.textContent, c.name).toContain('先看')
       expect(walk?.textContent, c.name).toContain('再看')
       expect(walk?.textContent, c.name).not.toContain('$')
     }
-    expect(el('CHART_TOLERANCE').closest('.ver-diagram')?.querySelectorAll('.ver-diagram-walk .katex').length).toBeGreaterThanOrEqual(6)
+    expect(el('CHART_TOLERANCE').closest('.ver-diagram')?.querySelectorAll('.c-chapter-fig-walk .katex').length).toBeGreaterThanOrEqual(6)
     // ④ 位置：說明 → 圖 → 推導／說明卡
     const hand = container.querySelector('#ver-handcalc') as HTMLElement
     expect(hand.contains(el('CHART_TOLERANCE'))).toBe(true)

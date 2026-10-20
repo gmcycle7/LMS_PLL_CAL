@@ -256,7 +256,7 @@ export default function R7Preview() {
           { label: '逐 sample 模擬（sample rate）', source: modelSrc, region: 'multirateSim', path: PATH, note: '直接跑 $N$ 步再更新一次。' },
         ]}
       />
-      <ModeGate min="research">
+      <ModeGate min="research" summary="事件級模型要多出哪些東西">
         <h4>Research：事件級模型要多什麼</h4>
         <ul>
           <li>reference edge 經 DTC 的延遲（DTC 在 reference 輸入端、只能延遲：<Tex>{'\\tau_{\\mathrm{DTC}}=T_0-w\\,x'}</Tex>）、feedback（divider）edge 的時間序（DSM 改變 divider 比例 → edge 時間是非線性的）、PD 的取樣時刻；PD 量的是（被 DTC 延遲後的）reference edge 減 feedback edge。</li>

@@ -43,32 +43,7 @@
 }
 
 /* ── 難度徽章 ── */
-.wb-level {
-  display: inline-block;
-  font-size: 0.76rem;
-  line-height: 1.5;
-  padding: 0 8px;
-  border-radius: 999px;
-  border: 1px solid var(--border-strong);
-  background: var(--surface-2);
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-.wb-level-beginner {
-  color: var(--ok);
-  border-color: var(--ok);
-  background: var(--ok-soft);
-}
-.wb-level-engineer {
-  color: var(--info);
-  border-color: var(--info);
-  background: var(--info-soft);
-}
-.wb-level-research {
-  color: var(--tag-research);
-  border-color: var(--tag-research);
-  background: var(--tag-research-soft);
-}
+/* 顏色與尺寸來自 Badge（neutral）：難度用文字區分，不佔用 精確／近似／研究假說 的綠／琥珀／紫 */
 
 /* ── 手算工具 ── */
 .wb-tools {
@@ -315,20 +290,20 @@
   flex-wrap: wrap;
   gap: 4px;
 }
-.wb-chip {
+/* 篩選用的切換鈕：外觀來自 badgeClass('neutral')；這裡只補 <button> 要的字體與游標，以及「選取中」的填色 */
+.c-badge.wb-chip {
   font: inherit;
-  font-size: 0.82rem;
-  padding: 2px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border-strong);
-  background: var(--surface);
-  color: var(--text);
+  font-size: var(--badge-fs);
+  font-weight: 400;
+  --b-fg: var(--text);
+  --b-bg: var(--surface);
+  --b-bd: var(--border-strong);
   cursor: pointer;
 }
-.wb-chip.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-text);
+.c-badge.wb-chip.active {
+  --b-fg: var(--accent-text);
+  --b-bg: var(--accent);
+  --b-bd: var(--accent);
 }
 .wb-clear {
   padding: 1px 8px;
@@ -834,18 +809,4 @@
 }
 
 /* ── 方塊圖版位：圖 + 圖說，下面緊接「先看…再看…」的導讀（docs/teaching-style.md §8） ── */
-.wb-diagram {
-  margin: 1rem 0 1.1rem;
-  min-width: 0;
-}
-.wb-diagram .c-mermaid {
-  margin-bottom: 0.4rem;
-}
-.wb-diagram-walk {
-  border-left: 3px solid var(--accent);
-  padding: 0.1rem 0 0.1rem 0.75rem;
-  font-size: 0.93rem;
-}
-.wb-diagram-walk > p {
-  margin: 0.35rem 0;
-}
+

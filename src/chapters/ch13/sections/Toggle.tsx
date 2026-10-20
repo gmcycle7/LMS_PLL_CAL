@@ -1,19 +1,8 @@
 import { useMemo } from 'react'
 import type { Data } from 'plotly.js-cartesian-dist-min'
-import {
-  Callout,
-  ClaimTag,
-  Mermaid,
-  Plot,
-  Prereq,
-  Section,
-  StepDerivation,
-  Tex,
-  TexBlock,
-  useThemeTokens,
-} from '@/components'
+import { Callout, ClaimTag, Mermaid, Plot, Prereq, Section, StepDerivation, Tex, TexBlock, useThemeTokens, ChapterErratum } from '@/components'
 import { lineSpectrum, toggleCycle, zohGain2, zohLines } from '@/simulation/models/quantizer'
-import { Erratum, Fold, Hand, db, fx, tx } from '../common'
+import { Fold, Hand, db, fx, tx } from '../common'
 import { CHART_TOGGLE, CHART_TOGGLE_SPECTRUM, CHART_ZOH } from '../diagrams'
 
 export function ToggleSection() {
@@ -143,7 +132,7 @@ export function ToggleSection() {
         把誤差 <Tex>{String.raw`e[n]=y[n]-32.4=[-0.4,-0.4,0.6,-0.4,0.6]`}</Tex> 看成週期 5 的訊號。週期訊號只會在{' '}
         <Tex>{String.raw`f=k\,f_u/5`}</Tex> 有能量（離散譜線）。規格說「<Tex>{String.raw`f_\mathrm{toggle}/5`}</Tex> 及其諧波」，但 <Tex>{String.raw`f_\mathrm{toggle}`}</Tex> 沒有定義；本章令 <Tex>{'f_u'}</Tex> 為{' '}
         <strong>6-bit code 的更新率</strong>（
-        <Erratum id="E47" />）。
+        <ChapterErratum id="E47" />）。
       </p>
       <Mermaid
         chart={CHART_TOGGLE_SPECTRUM}
@@ -264,7 +253,7 @@ export function ToggleSection() {
       </Fold>
       <Hand id="HC-13.3">
         上面的推導用了 Euler 公式把兩項合成一個 <Tex>{String.raw`\cos`}</Tex>；手算時更直接的做法是把實部、虛部分開加。先用預設的 <Tex>{'[32,32,33,32,33]'}</Tex>（<Tex>{String.raw`n_a=2,\ n_b=4`}</Tex>）算{' '}
-        <Tex>{'k=2'}</Tex>，再把 <Tex>{'k'}</Tex> 改成 1、把兩個 33 改成相鄰（<Tex>{String.raw`n_a=3,\ n_b=4`}</Tex>），親手確認「主線在哪裡」取決於排列（<Erratum id="E47" />）。
+        <Tex>{'k=2'}</Tex>，再把 <Tex>{'k'}</Tex> 改成 1、把兩個 33 改成相鄰（<Tex>{String.raw`n_a=3,\ n_b=4`}</Tex>），親手確認「主線在哪裡」取決於排列（<ChapterErratum id="E47" />）。
       </Hand>
 
     </Section>

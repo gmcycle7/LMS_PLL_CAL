@@ -19,6 +19,30 @@ import {
   slewLimitedBlocks,
   timeConstantBlocks,
 } from '@/simulation/models/optimizer'
+import {
+  DEFAULT_ACQ,
+  expectedRunLength,
+  fllCyclesToTol,
+  fllGain,
+  fllLockCycle,
+  harmonicCapture,
+  lockDetectFalseAlarm,
+  lockDetectInWindowProb,
+  lockDetectMeanCycle,
+  lockDetectMiss,
+  phaseLockCycles,
+  phaseLoopGain,
+  rampFsPerCycle,
+  settleCycles,
+} from '@/simulation/models/acquisition'
+
+/** §14.6b.2 的 renewal 估計（預設情境）：σ_f = 0.1／0.4 MHz 時，平均宣告頻率鎖定比無雜訊的 n_FL 晚幾個週期（HC-14.9 的 note 用）。 */
+const ACQ_NOISY_DELAY = (() => {
+  const kF = fllGain(DEFAULT_ACQ)
+  const nFL = fllLockCycle(DEFAULT_ACQ.df0Hz, DEFAULT_ACQ.fTolHz, kF, DEFAULT_ACQ.nLd)
+  const delay = (sigmaF: number) => lockDetectMeanCycle(DEFAULT_ACQ.df0Hz, DEFAULT_ACQ.fTolHz, kF, sigmaF, DEFAULT_ACQ.nLd) - nFL
+  return { base: delay(DEFAULT_ACQ.sigmaFHz), hc: delay(4e5) }
+})()
 
 /**
  * Ch14 的「帶入手算」題（docs/teaching-style.md §7）。
@@ -886,6 +910,293 @@ B&=\frac{T}{N},\qquad K=\sqrt{\tfrac{2}{\pi}}\,\frac{\cos\theta}{\sigma_v},\qqua
       String.raw`按鍵順序建議：先算並記下 $K$、$p$、$\mu$ 三個數（存進記憶鍵），後面每一步都用得到。`,
       String.raw`把 $\theta$ 改成 $60^\circ$：$C=0.5$，$K$ 減半、$\mu$ 加倍，pole 與 PM 不變，但 variance 變成 4 倍（RMS 接近 2 倍）——相位沒對好的代價。`,
       String.raw`$\arcsin$ 的弧度／度換算：$1\,\mathrm{rad}=57.296^\circ$。`,
+    ],
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // HC-14.9：§14.6b F-14.22：FLL 收斂週期數（K_f 的組成、n_c、宣告鎖定的 n_FL、交棒時的殘餘誤差）
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    id: 'HC-14.9',
+    title: 'FLL 要跑幾個 reference 週期才進門檻、幾個週期才宣告鎖定',
+    page: PAGE,
+    formulaId: 'F-14.22',
+    formulaTex: String.raw`\begin{aligned}
+K_f&=\frac{K_\text{vco}\,g_f}{M f_\text{ref}},\qquad |\Delta f[n]|=(1-K_f)^n|\Delta f_0|\\
+n_c&=\Big\lceil\frac{\ln(f_\text{tol}/|\Delta f_0|)}{\ln(1-K_f)}\Big\rceil,\qquad n_\text{FL}=n_c+N_\text{ld}-1,\qquad \Delta f_h=(1-K_f)^{n_\text{FL}+1}\Delta f_0
+\end{aligned}`,
+    level: 'engineer',
+    claim: 'exact',
+    inputs: [
+      { key: 'kvco', symbol: String.raw`K_\text{vco}`, label: 'VCO／DCO 增益（每個 DAC LSB 改多少頻率）', unit: String.raw`\mathrm{Hz/LSB}`, default: 2.5e6, min: 1, max: 1e12, practice: { choices: [1e6, 2e6, 2.5e6, 5e6] } },
+      { key: 'gf', symbol: 'g_f', label: 'FLL 迴路增益（每週期、每單位正規化頻率誤差改幾個 LSB）', default: 3.2, min: 1e-9, max: 1e9, practice: { choices: [1.6, 2, 3.2, 4, 8] } },
+      { key: 'M', symbol: 'M', label: String.raw`除頻比（$f_\text{vco}=Mf_\text{ref}$）`, default: 4, min: 1, max: 1e6, integer: true, practice: { choices: [2, 4, 8] } },
+      { key: 'fref', symbol: String.raw`f_\text{ref}`, label: '參考頻率', unit: String.raw`\mathrm{Hz}`, default: 4e9, min: 1, max: 1e12, practice: { choices: [1e9, 2e9, 4e9] } },
+      { key: 'df0', symbol: String.raw`\Delta f_0`, label: '上電時 VCO 的初始頻率誤差', unit: String.raw`\mathrm{Hz}`, default: 8e7, min: -1e12, max: 1e12, practice: { choices: [2e7, 5e7, 8e7, 1e8, 2e8] } },
+      { key: 'ftol', symbol: String.raw`f_\text{tol}`, label: 'lock detect 的門檻', unit: String.raw`\mathrm{Hz}`, default: 1e6, min: 1e-9, max: 1e12, practice: { choices: [5e5, 1e6, 2e6] } },
+      { key: 'nld', symbol: String.raw`N_\text{ld}`, label: '要連續幾個週期在門檻內才宣告鎖定', default: 32, min: 1, max: 1e6, integer: true, practice: { choices: [8, 16, 32, 64] } },
+      { key: 'N', symbol: 'N', label: String.raw`校正 block 的長度（reference 週期數）`, default: 1024, min: 1, max: 1e9, integer: true, practice: { choices: [256, 512, 1024, 4096] } },
+    ],
+    validate: ({ kvco, gf, M, fref, df0, ftol }) => {
+      if (!(kvco > 0) || !(gf > 0) || !(M > 0) || !(fref > 0)) return String.raw`$K_\text{vco}$、$g_f$、$M$、$f_\text{ref}$ 都必須大於 0：$K_f=K_\text{vco}g_f/(Mf_\text{ref})$ 才是正的增益（$K_f<0$ 是極性反了，頻率誤差會發散）。`
+      const kf = fllGain({ kVcoHzPerLsb: kvco, fllGainLsb: gf, divRatio: M, fRefHz: fref })
+      if (kf >= 1) return String.raw`$K_f=${texNum(kf, 4)}\ge1$：一次就修過頭（$K_f=1$ 是 deadbeat，$K_f>1$ 每週期正負翻轉並放大），一階模型 $(1-K_f)^n$ 不收斂；請把 $g_f$ 調小到 $K_f<1$（$K_f\le0.5$ 才沒有過衝）。`
+      if (!(ftol > 0)) return String.raw`$f_\text{tol}$ 必須大於 0。`
+      if (Math.abs(df0) < ftol) return String.raw`$|\Delta f_0|=${texNum(Math.abs(df0), 4)}\,\mathrm{Hz}<f_\text{tol}$：一開始就在門檻內，$n_c=0$，沒有東西可算；請給一個比 $f_\text{tol}$ 大的初始誤差。`
+      return null
+    },
+    solve: ({ kvco, gf, M, fref, df0, ftol, nld, N }) => {
+      const kf = fllGain({ kVcoHzPerLsb: kvco, fllGainLsb: gf, divRatio: M, fRefHz: fref })
+      const num = kvco * gf
+      const den = M * fref
+      const ratio = ftol / Math.abs(df0)
+      const lnR = Math.log(ratio)
+      const ln1k = Math.log(1 - kf)
+      const x = lnR / ln1k
+      const nc = fllCyclesToTol(df0, ftol, kf)
+      const nfl = fllLockCycle(df0, ftol, kf, nld)
+      const pw = Math.pow(1 - kf, nfl + 1)
+      const dfh = pw * df0
+      const blocks = (nfl + 1) / N
+      return {
+        steps: [
+          { tex: String.raw`K_\text{vco}\,g_f=${n6p(kvco)}\times${n6(gf)}=${n6(num)}`, why: String.raw`分子：DAC 每個 LSB 改 $K_\text{vco}$ Hz，FLL 每週期改 $g_f$ 個 LSB（單位 Hz／單位正規化誤差）。` },
+          { tex: String.raw`M f_\text{ref}=${int(M)}\times${n6p(fref)}=${n6(den)}`, why: String.raw`分母：FLL 量的是正規化誤差 $\Delta f/(Mf_\text{ref})$（divider 輸出相對 reference 的頻率誤差比例），所以要除以 VCO 的標稱頻率 $Mf_\text{ref}$。` },
+          { tex: String.raw`K_f=\frac{K_\text{vco}\,g_f}{M f_\text{ref}}=\frac{${n6(num)}}{${n6(den)}}=${n6(kf)}`, why: String.raw`每個 reference 週期 VCO 的頻率誤差被修掉的比例（無因次）：$\Delta f[n+1]=(1-K_f)\Delta f[n]$。` },
+          { tex: String.raw`\frac{f_\text{tol}}{|\Delta f_0|}=\frac{${n6(ftol)}}{${n6(Math.abs(df0))}}=${n6(ratio)}`, why: '誤差要縮到門檻的多少倍（小於 1）。' },
+          { tex: String.raw`\ln\tfrac{f_\text{tol}}{|\Delta f_0|}=\ln ${n6p(ratio)}=${n6(lnR)}`, why: String.raw`兩邊取自然對數（計算機的 ln 鍵）：$(1-K_f)^n<$ 比例 $\Leftrightarrow n\ln(1-K_f)<\ln$ 比例。` },
+          { tex: String.raw`\ln(1-K_f)=\ln(1-${n6p(kf)})=\ln ${n1p(1 - kf)}=${n6(ln1k)}`, why: String.raw`每週期把誤差縮小的對數比例；$K_f$ 很小時 $\approx-K_f$（提示裡的近似）。` },
+          { tex: String.raw`\frac{\ln(f_\text{tol}/|\Delta f_0|)}{\ln(1-K_f)}=\frac{${n6(lnR)}}{${n6(ln1k)}}=${n6(x)}`, why: String.raw`兩個負數相除得正數：這是 $|\Delta f[n]|$ 剛好等於 $f_\text{tol}$ 的（非整數）週期數。` },
+          { tex: String.raw`n_c=\lceil${n6(x)}\rceil=${int(nc)}`, why: String.raw`無條件進位：第一個 $|\Delta f[n]|<f_\text{tol}$ 的整數週期。` },
+          { tex: String.raw`n_\text{FL}=n_c+N_\text{ld}-1=${int(nc)}+${int(nld)}-1=${int(nfl)}`, why: String.raw`從 $n_c$ 起每個週期都在門檻內，第 $N_\text{ld}$ 個連續樣本出現在 $n_c+N_\text{ld}-1$：這一週期宣告頻率鎖定（無雜訊）。` },
+          { tex: String.raw`(1-K_f)^{n_\text{FL}+1}=${n1p(1 - kf)}^{${int(nfl + 1)}}=${n6(pw)}`, why: String.raw`宣告鎖定的那個週期 FLL 還更新了最後一次，所以指數是 $n_\text{FL}+1$（計算機的 $y^x$ 鍵）。` },
+          { tex: String.raw`\Delta f_h=(1-K_f)^{n_\text{FL}+1}\Delta f_0=${n6(pw)}\times${n6p(df0)}=${n6(dfh)}`, why: String.raw`交棒給相位迴路時的殘餘頻率誤差（Hz）：它決定 F-14.24 的相位斜坡 $\Delta T$。` },
+          { tex: String.raw`\frac{n_\text{FL}+1}{N}=\frac{${int(nfl + 1)}}{${int(N)}}=${n6(blocks)}\ \text{blocks}`, why: String.raw`換算成校正的 block：§14.7 的 LOCK 至少要等這麼久（再加 F-14.25 的 phase lock 與穩態）。` },
+        ],
+        results: [
+          { symbol: 'K_f', label: 'FLL 每週期增益', value: kf, digits: 6 },
+          { symbol: 'n_c', label: '進門檻的週期', value: nc, digits: 6, tolerance: { abs: 0.5 } },
+          { symbol: String.raw`n_\text{FL}`, label: '宣告頻率鎖定的週期', value: nfl, digits: 6, tolerance: { abs: 0.5 } },
+          { symbol: String.raw`\Delta f_h`, label: '交棒時的殘餘頻率誤差', value: dfh, unit: String.raw`\mathrm{Hz}`, digits: 6 },
+        ],
+        notes: [
+          String.raw`FLL 的時間常數 $\tau_f=-1/\ln(1-K_f)=${texNum(-1 / ln1k, 4)}$ 個週期：$n_c$ 就是「要縮小 $\ln(|\Delta f_0|/f_\text{tol})=${texNum(-lnR, 4)}$ 個 e 倍」乘上 $\tau_f$。`,
+          String.raw`有雜訊時 lock detect 會晚：$N_\text{ld}$ 個樣本要全部落在 $\pm f_\text{tol}$ 內（F-14.23 的 $p_\text{in}$）。§14.6b.2 的 renewal 估計：預設 $\sigma_f=0.1\,\mathrm{MHz}$ 平均晚約 $${texNum(ACQ_NOISY_DELAY.base, 3)}$ 個週期、$\sigma_f=0.4\,\mathrm{MHz}$ 晚約 $${texNum(ACQ_NOISY_DELAY.hc, 4)}$ 個週期；實驗裡把 $\sigma_f$ 從 0.1 MHz 調到 0.4 MHz 就看得到。`,
+          ...(kf > 0.5 ? [String.raw`$K_f=${texNum(kf, 4)}>0.5$：$1-K_f<0.5$，每週期修掉超過一半，仍收斂但雜訊幾乎原樣進到頻率（$K_f\sigma_f$）；通常取 $K_f\ll1$。`] : []),
+          harmonicCapture(df0, { fRefHz: fref }).ok
+            ? String.raw`倍頻捕獲（§14.6b.0）：$|\Delta f_0|=${texNum(Math.abs(df0), 4)}\,\mathrm{Hz}<f_\text{ref}/2=${texNum(fref / 2, 4)}\,\mathrm{Hz}$，這個初始誤差 SSPD 自己也分得清倍頻；FLL 在這裡的作用是把殘餘誤差壓到 $\Delta f_h$，讓相位層級的靜態偏移 $\theta_\text{ss}=\Delta T/g_p$ 進得了 phase lock 與穩態的門檻（HC-14.11）。`
+            : String.raw`倍頻捕獲（§14.6b.0）：$|\Delta f_0|=${texNum(Math.abs(df0), 4)}\,\mathrm{Hz}\ge f_\text{ref}/2$，只有 SSPD 時 VCO 會被拉到 $(M+k)f_\text{ref}$、$k=${harmonicCapture(df0, { fRefHz: fref }).k}$ 那一根（錯的倍頻）；FLL 的頻率偵測走 divider、數得出 $M$，所以仍然拉得回來——這正是 SSPLL 必須先有 FLL 的第一個理由。`,
+        ],
+      }
+    },
+    tips: [
+      String.raw`範例（$K_\text{vco}=2.5\,\mathrm{MHz/LSB}$、$g_f=3.2$、$M=4$、$f_\text{ref}=4\,\mathrm{GHz}$、$\Delta f_0=80\,\mathrm{MHz}$、$f_\text{tol}=1\,\mathrm{MHz}$、$N_\text{ld}=32$）應得 $K_f=5\times10^{-4}$、$n_c=8762$、$n_\text{FL}=8793$、$\Delta f_h\approx0.985\,\mathrm{MHz}$——§14.6b 時間表的前半段。`,
+      String.raw`$\ln(1-K_f)\approx-K_f$（$K_f\le0.01$ 時誤差 $<0.5\%$），所以 $n_c\approx\ln(|\Delta f_0|/f_\text{tol})/K_f$：先算「要縮幾個 e 倍」，再除以 $K_f$。`,
+      String.raw`$(1-K_f)^{n}$ 用 $e^{n\ln(1-K_f)}$ 算比較不會按錯：$n_\text{FL}+1$ 乘上一步算好的 $\ln(1-K_f)$，再按 $e^x$。`,
+    ],
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // HC-14.10：§14.6b F-14.23：lock detect 的誤判率（p_in、漏報、期望延遲、誤報）
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    id: 'HC-14.10',
+    title: 'lock detect 的誤判率：漏報、期望延遲與誤報',
+    page: PAGE,
+    formulaId: 'F-14.23',
+    formulaTex: String.raw`\begin{aligned}
+p_\text{in}(\Delta f)&=\Phi\!\Big(\frac{f_\text{tol}-\Delta f}{\sigma_f}\Big)-\Phi\!\Big(\frac{-f_\text{tol}-\Delta f}{\sigma_f}\Big)\\
+P_\text{miss}&=1-p_\text{in}(0)^{N_\text{ld}},\qquad E[T_N]=\frac{1-p^{N}}{(1-p)p^{N}},\qquad P_\text{FA}=p_\text{in}(\Delta f_x)^{N_\text{ld}}
+\end{aligned}`,
+    level: 'research',
+    claim: 'exact',
+    inputs: [
+      { key: 'ftol', symbol: String.raw`f_\text{tol}`, label: 'lock detect 的門檻', unit: String.raw`\mathrm{Hz}`, default: 1e6, min: 1e-9, max: 1e12, practice: { choices: [5e5, 1e6, 2e6] } },
+      { key: 'sigf', symbol: String.raw`\sigma_f`, label: '頻率估計每個樣本的雜訊 RMS', unit: String.raw`\mathrm{Hz}`, default: 4e5, min: 1e-9, max: 1e12, practice: { choices: [2e5, 4e5, 5e5, 8e5] } },
+      { key: 'nld', symbol: String.raw`N_\text{ld}`, label: '連續幾個樣本', default: 32, min: 1, max: 1e6, integer: true, practice: { choices: [8, 16, 32, 64] } },
+      { key: 'rx', symbol: String.raw`r_x`, label: String.raw`誤報情境：真實誤差 $\Delta f_x=r_xf_\text{tol}$（$r_x>1$，在門檻外）`, default: 2, min: 1.0001, max: 1e3, practice: { choices: [1.5, 2, 3] } },
+    ],
+    validate: ({ ftol, sigf, nld, rx }) => {
+      if (!(ftol > 0) || !(sigf > 0)) return String.raw`$f_\text{tol}$ 與 $\sigma_f$ 都必須大於 0：$\sigma_f=0$ 沒有雜訊，誤判率是 0 或 1，沒有東西可算。`
+      if (!(nld >= 1)) return String.raw`$N_\text{ld}\ge1$。`
+      if (!(rx > 1)) return String.raw`$r_x=${texNum(rx, 4)}\le1$：$\Delta f_x$ 在門檻內，宣告鎖定不算誤報；誤報要用門檻外的真實誤差（$r_x>1$）。`
+      return null
+    },
+    solve: ({ ftol, sigf, nld, rx }) => {
+      const z = ftol / sigf
+      const phiZ = normCdf(z)
+      const pin0 = lockDetectInWindowProb(0, ftol, sigf)
+      const pN = Math.pow(pin0, nld)
+      const pmiss = lockDetectMiss(ftol, sigf, nld)
+      const et = expectedRunLength(pin0, nld)
+      const dfx = rx * ftol
+      const z1 = (ftol - dfx) / sigf
+      const z2 = (-ftol - dfx) / sigf
+      const phi1 = normCdf(z1)
+      const phi2 = normCdf(z2)
+      const pinx = lockDetectInWindowProb(dfx, ftol, sigf)
+      const pfa = lockDetectFalseAlarm(dfx, ftol, sigf, nld)
+      return {
+        steps: [
+          { tex: String.raw`z=\frac{f_\text{tol}}{\sigma_f}=\frac{${n6(ftol)}}{${n6(sigf)}}=${n6(z)}`, why: String.raw`門檻是雜訊的幾倍：查 $\Phi$ 表要用的標準化值。` },
+          { tex: String.raw`\Phi(z)=\Phi(${n6(z)})=${n6(phiZ)}`, why: String.raw`查標準常態累積分布表（或計算機的 normcdf）。` },
+          { tex: String.raw`p_\text{in}(0)=2\Phi(z)-1=2\times${n6(phiZ)}-1=${n1(pin0)}`, why: String.raw`真實誤差 0 時單一樣本落在 $\pm f_\text{tol}$ 內的機率：對稱，所以 $\Phi(z)-\Phi(-z)=2\Phi(z)-1$。` },
+          { tex: String.raw`p_\text{in}(0)^{N_\text{ld}}=${n1p(pin0)}^{${int(nld)}}=${n6(pN)}`, why: String.raw`$N_\text{ld}$ 個獨立樣本全部在窗內的機率（計算機的 $y^x$）。` },
+          { tex: String.raw`P_\text{miss}=1-p_\text{in}(0)^{N_\text{ld}}=1-${n6(pN)}=${n6(pmiss)}`, why: '漏報：已經鎖定了，這一個視窗卻因為有一個樣本跑出門檻而沒有宣告。' },
+          {
+            tex: String.raw`E[T_N]=\frac{1-p^{N}}{(1-p)\,p^{N}}=\frac{${n6(pmiss)}}{(1-${n1(pin0)})\times${n6p(pN)}}=${n6(et)}`,
+            why: String.raw`第一次出現 $N$ 個連續「在窗內」所需的期望樣本數；比 $N_\text{ld}$ 多出來的就是雜訊造成的平均延遲。`,
+          },
+          { tex: String.raw`\Delta f_x=r_xf_\text{tol}=${n6(rx)}\times${n6p(ftol)}=${n6(dfx)}`, why: '誤報情境：真實誤差在門檻外。' },
+          { tex: String.raw`z_1=\frac{f_\text{tol}-\Delta f_x}{\sigma_f}=\frac{${n6(ftol)}-${n6(dfx)}}{${n6(sigf)}}=${n6(z1)}`, why: '窗的上緣相對真實誤差的標準化距離（負的：真實誤差在窗上方）。' },
+          { tex: String.raw`z_2=\frac{-f_\text{tol}-\Delta f_x}{\sigma_f}=\frac{-${n6(ftol)}-${n6(dfx)}}{${n6(sigf)}}=${n6(z2)}`, why: '窗的下緣。' },
+          { tex: String.raw`p_\text{in}(\Delta f_x)=\Phi(z_1)-\Phi(z_2)=\Phi(${n6(z1)})-\Phi(${n6(z2)})=${n6(phi1)}-${n6p(phi2)}=${n6(pinx)}`, why: String.raw`單一樣本誤落在窗內的機率；$\Phi(z_2)$ 通常小到可以忽略。` },
+          { tex: String.raw`P_\text{FA}=p_\text{in}(\Delta f_x)^{N_\text{ld}}=${n6p(pinx)}^{${int(nld)}}=${n6(pfa)}`, why: String.raw`誤報：$N_\text{ld}$ 個連續樣本全部誤落在窗內。連續 $N$ 個的要求把單一樣本的機率變成 $N$ 次方——這就是用「連續」而不是「單一樣本」的理由。` },
+        ],
+        results: [
+          { symbol: String.raw`p_\text{in}(0)`, label: '鎖定時單一樣本在窗內的機率', value: pin0, digits: 6 },
+          { symbol: String.raw`P_\text{miss}`, label: '漏報（一個視窗沒宣告）', value: pmiss, digits: 5 },
+          { symbol: String.raw`E[T_N]`, label: '期望的宣告延遲', value: et, unit: String.raw`\text{cycles}`, digits: 5 },
+          { symbol: String.raw`P_\text{FA}`, label: '誤報', value: pfa, digits: 4 },
+        ],
+        notes: [
+          String.raw`漏報只讓宣告晚一點（平均多 $${texNum(et - nld, 4)}$ 個週期），誤報卻會讓校正在頻率還沒鎖好時就 enable：所以 $N_\text{ld}$ 寧可取大（$P_\text{FA}\propto p^{N}$ 指數下降），再用 $f_\text{tol}$ 留 $2$–$3\sigma_f$ 的餘裕壓低 $P_\text{miss}$。`,
+          String.raw`F-14.22 的 $n_c$ 用的是無雜訊的門檻；有雜訊時真實誤差要降到約 $f_\text{tol}-${texNum(2, 1)}\sigma_f=${texNum(ftol - 2 * sigf, 4)}\,\mathrm{Hz}$ 才有一半機會通過一個視窗（$p_\text{in}^{N}\approx\tfrac12$），這就是實驗裡 $\sigma_f$ 大時 lock 變晚的原因。每個週期都是新的嘗試，所以平均宣告比這個點早（§14.6b.2 的 renewal 估計：把 $1/E[T_N]$ 當成每週期的宣告率累加）。`,
+          String.raw`假設樣本獨立：若頻率估計是 counter 平均出來的（相鄰樣本相關），$N_\text{ld}$ 要換成有效的獨立樣本數，誤報會比這裡算的高。`,
+        ],
+      }
+    },
+    tips: [
+      String.raw`範例（$f_\text{tol}=1\,\mathrm{MHz}$、$\sigma_f=0.4\,\mathrm{MHz}$、$N_\text{ld}=32$、$r_x=2$）：$z=2.5$、$\Phi(2.5)=0.99379$、$p_\text{in}=0.98758$、$P_\text{miss}=0.330$、$E[T]=39.6$ 個週期、$P_\text{FA}\approx2.4\times10^{-71}$。`,
+      String.raw`常用的 $\Phi$ 值：$${PHI_TABLE}$；負的用 $\Phi(-z)=1-\Phi(z)$。`,
+      String.raw`$z\ge2.5$ 時 $1-\Phi(z)\approx\phi(z)/z=e^{-z^2/2}/(z\sqrt{2\pi})$（誤差約 $1/z^2$），查不到表時可以用這個估。`,
+    ],
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // HC-14.11：§14.6b F-14.24／F-14.25：phase lock、穩態與 enable 的總延遲預算
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    id: 'HC-14.11',
+    title: 'enable 的總延遲：g_p、靜態偏移、phase lock、rms 視窗、LOCK 的 block 數',
+    page: PAGE,
+    formulaId: 'F-14.25',
+    formulaTex: String.raw`\begin{aligned}
+g_p&=1-e^{-2\pi f_\text{BW}/f_\text{ref}},\qquad \Delta T=\frac{\Delta f_h}{Mf_\text{ref}^2},\qquad \theta_\text{ss}=\frac{\Delta T}{g_p}\\
+n_\text{PL}&=\max\Big(1,\Big\lceil\frac{\ln\big((\theta_{\max}-\theta_\text{ss})/(\theta_0-\theta_\text{ss})\big)}{\ln(1-g_p)}\Big\rceil\Big)+N_\text{pl}-1\\
+n_\text{settle}&=W+\max\Big(1,\Big\lceil\frac{\ln\big((\mathrm{rms}_{\max}^2-\theta_\text{ss}^2)W(1-(1-g_p)^2)/(\theta_0-\theta_\text{ss})^2\big)}{2\ln(1-g_p)}\Big\rceil\Big)-1\\
+n_\text{enable}&=n_\text{FL}+\max(n_\text{PL},n_\text{settle}),\qquad B_\text{LOCK}=\Big\lceil\frac{n_\text{enable}+1}{N}\Big\rceil
+\end{aligned}`,
+    level: 'engineer',
+    claim: 'exact',
+    inputs: [
+      { key: 'fbw', symbol: String.raw`f_\text{BW}`, label: 'PLL 閉迴路頻寬', unit: String.raw`\mathrm{Hz}`, default: 3.2e8, min: 1, max: 1e12, practice: { choices: [2e8, 3.2e8, 5e8] } },
+      { key: 'fref', symbol: String.raw`f_\text{ref}`, label: '參考頻率', unit: String.raw`\mathrm{Hz}`, default: 4e9, min: 1, max: 1e12, practice: { choices: [4e9] } },
+      { key: 'M', symbol: 'M', label: '除頻比', default: 4, min: 1, max: 1e6, integer: true, practice: { choices: [4] } },
+      { key: 'dfh', symbol: String.raw`\Delta f_h`, label: 'FLL 交棒時的殘餘頻率誤差（HC-14.9 的結果，取整）', unit: String.raw`\mathrm{Hz}`, default: 1e6, min: 0, max: 1e12, practice: { choices: [2e5, 5e5, 1e6] } },
+      { key: 'th0', symbol: String.raw`\theta_0`, label: '交棒時的相位誤差（以時間計）', unit: String.raw`\mathrm{fs}`, default: 25000, min: -1e9, max: 1e9, practice: { choices: [5000, 10000, 15000, 25000] } },
+      { key: 'thmax', symbol: String.raw`\theta_{\max}`, label: 'phase lock 的門檻', unit: String.raw`\mathrm{fs}`, default: 2000, min: 1e-9, max: 1e9, practice: { choices: [1000, 2000, 4000] } },
+      { key: 'npl', symbol: String.raw`N_\text{pl}`, label: '要連續幾個週期在門檻內', default: 32, min: 1, max: 1e6, integer: true, practice: { choices: [8, 16, 32] } },
+      { key: 'W', symbol: 'W', label: '穩態判定的 rms 視窗長度', unit: String.raw`\text{cycles}`, default: 512, min: 1, max: 1e7, integer: true, practice: { choices: [128, 256, 512, 1024] } },
+      { key: 'rmsmax', symbol: String.raw`\mathrm{rms}_{\max}`, label: '穩態的 rms 門檻', unit: String.raw`\mathrm{fs}`, default: 100, min: 1e-9, max: 1e9, practice: { choices: [100, 200, 400] } },
+      { key: 'nfl', symbol: String.raw`n_\text{FL}`, label: '宣告頻率鎖定的週期（HC-14.9）', default: 8793, min: 0, max: 1e9, integer: true, practice: { choices: [4000, 8793, 10000] } },
+      { key: 'N', symbol: 'N', label: '校正 block 的長度（reference 週期數）', default: 1024, min: 1, max: 1e9, integer: true, practice: { choices: [512, 1024, 4096] } },
+    ],
+    validate: ({ fbw, fref, M, dfh, th0, thmax, rmsmax }) => {
+      if (!(fref > 0) || !(M > 0) || !(fbw > 0)) return String.raw`$f_\text{ref}$、$M$、$f_\text{BW}$ 都必須大於 0。`
+      const gp = phaseLoopGain({ fBwHz: fbw, fRefHz: fref })
+      if (!(gp < 1)) return String.raw`$g_p=1-e^{-2\pi f_\text{BW}/f_\text{ref}}$ 已經是 1：$f_\text{BW}$ 遠大於 $f_\text{ref}$，一個 reference 週期內就 deadbeat，離散模型沒有意義（也違反取樣定理）；請把 $f_\text{BW}$ 降到 $f_\text{ref}/2$ 以下。`
+      const tvco = 1e15 / (M * fref)
+      if (Math.abs(th0) >= tvco / 2) return String.raw`$|\theta_0|=${texNum(Math.abs(th0), 4)}\,\mathrm{fs}\ge T_\text{vco}/2=${texNum(tvco / 2, 4)}\,\mathrm{fs}$：超出 SSPD 的吸引區，相位會 cycle slip 到相鄰的 VCO 週期（F-14.24），線性公式不適用；交棒時的相位誤差一定在 $\pm T_\text{vco}/2$ 內。`
+      const thss = rampFsPerCycle(dfh, { divRatio: M, fRefHz: fref }) / gp
+      if (!(thmax > Math.abs(thss))) return String.raw`$\theta_{\max}=${texNum(thmax, 4)}\,\mathrm{fs}\le|\theta_\text{ss}|=${texNum(Math.abs(thss), 4)}\,\mathrm{fs}$：殘餘頻率誤差造成的靜態相位偏移本身就超過門檻，永遠不會 phase lock（$n_\text{PL}=\infty$）。要嘛把 $f_\text{tol}$ 收緊（$\Delta f_h$ 變小），要嘛放寬 $\theta_{\max}$，或改用 Type-II 迴路把偏移積掉。`
+      if (!(rmsmax > Math.abs(thss))) return String.raw`$\mathrm{rms}_{\max}=${texNum(rmsmax, 4)}\,\mathrm{fs}\le|\theta_\text{ss}|=${texNum(Math.abs(thss), 4)}\,\mathrm{fs}$：rms 視窗裡光是靜態偏移就超過門檻，穩態永遠判不過（$n_\text{settle}=\infty$）。`
+      return null
+    },
+    solve: ({ fbw, fref, M, dfh, th0, thmax, npl, W, rmsmax, nfl, N }) => {
+      const arg = (2 * Math.PI * fbw) / fref
+      const ex = Math.exp(-arg)
+      const gp = phaseLoopGain({ fBwHz: fbw, fRefHz: fref })
+      const dTs = dfh / (M * fref * fref)
+      const dT = rampFsPerCycle(dfh, { divRatio: M, fRefHz: fref })
+      const thss = dT / gp
+      const margin = thmax - Math.abs(thss)
+      const dev = Math.abs(th0 - thss)
+      const rTheta = margin / dev
+      const ln1g = Math.log(1 - gp)
+      const inWindow = dev < margin
+      const xPl = Math.log(rTheta) / ln1g
+      const nTr = inWindow ? 1 : Math.max(1, Math.ceil(xPl - 1e-9))
+      const nPl = phaseLockCycles(th0, thss, thmax, gp, npl)
+      const r2 = (1 - gp) ** 2
+      const budget1 = rmsmax * rmsmax - thss * thss
+      const budget = budget1 * W
+      const dev2 = dev * dev
+      const e0 = dev2 / (1 - r2)
+      const settledAtOnce = e0 < budget
+      const xW = Math.log(budget / e0) / (2 * ln1g)
+      const nTrW = settledAtOnce ? 1 : Math.max(1, Math.ceil(xW - 1e-9))
+      const nSettle = settleCycles(th0, thss, rmsmax, gp, W)
+      const nEnable = nfl + Math.max(nPl, nSettle)
+      const blocks = Math.ceil((nEnable + 1) / N)
+      const plLarger = nPl >= nSettle
+      return {
+        steps: [
+          { tex: String.raw`\frac{2\pi f_\text{BW}}{f_\text{ref}}=\frac{2\times3.14159\times${n6p(fbw)}}{${n6(fref)}}=${n6(arg)}`, why: String.raw`一個 reference 週期（$T_\text{ref}=1/f_\text{ref}$）內一階迴路的衰減指數 $2\pi f_\text{BW}T_\text{ref}$。` },
+          { tex: String.raw`g_p=1-e^{-2\pi f_\text{BW}/f_\text{ref}}=1-e^{-${n6(arg)}}=1-${n6(ex)}=${n6(gp)}`, why: String.raw`每個 reference 週期相位誤差被修掉的比例（計算機的 $e^x$ 鍵）：$\theta[n+1]=(1-g_p)\theta[n]+\Delta T$。` },
+          { tex: String.raw`\frac{\Delta f_h}{Mf_\text{ref}^2}=\frac{${n6(dfh)}}{${int(M)}\times${n6p(fref)}^2}=${n6(dTs)}`, why: String.raw`divider 輸出週期和 $T_\text{ref}$ 的差（秒）：$T_\text{ref}-M/(Mf_\text{ref}+\Delta f_h)\approx\Delta f_h/(Mf_\text{ref}^2)$（$\Delta f_h\ll Mf_\text{ref}$ 的一階展開）。` },
+          { tex: String.raw`\Delta T=${n6(dTs)}\times10^{15}=${n6(dT)}\ \mathrm{fs}`, why: '換成 fs：每個 reference 週期相位誤差被推走這麼多。' },
+          { tex: String.raw`\theta_\text{ss}=\frac{\Delta T}{g_p}=\frac{${n6(dT)}}{${n6(gp)}}=${n6(thss)}\ \mathrm{fs}`, why: String.raw`一階迴路的靜態偏移：每週期推走 $\Delta T$、拉回 $g_p\theta$，平衡在 $\Delta T/g_p$（Type-II 的積分器會把它積成 0，這裡保留最壞情況）。` },
+          { tex: String.raw`\theta_{\max}-\theta_\text{ss}=${n6(thmax)}-${n6p(thss)}=${n6(margin)}\ \mathrm{fs}`, why: '門檻扣掉靜態偏移後，暫態還能有多大。' },
+          { tex: String.raw`\theta_0-\theta_\text{ss}=${n6(th0)}-${n6p(thss)}=${n6(th0 - thss)}\ \mathrm{fs}`, why: String.raw`暫態的起點（取絕對值 $${n6(dev)}$）。` },
+          ...(inWindow
+            ? [{ tex: String.raw`\frac{|\theta_0-\theta_\text{ss}|}{\theta_{\max}-\theta_\text{ss}}=\frac{${n6(dev)}}{${n6(margin)}}=${n6(dev / margin)}\quad(<1)\ \Rightarrow\ n_\text{tr}=1`, why: String.raw`暫態的起點已經比門檻小（比值小於 1）：不需要等暫態，但相位迴路閉合後第一個被計數的樣本在 $n_\text{FL}+1$（$\theta_0$ 本身不計），所以 $n_\text{tr}=1$。` }]
+            : [
+                { tex: String.raw`\frac{\theta_{\max}-\theta_\text{ss}}{|\theta_0-\theta_\text{ss}|}=\frac{${n6(margin)}}{${n6(dev)}}=${n6(rTheta)}`, why: '暫態要縮到起點的多少倍。' },
+                { tex: String.raw`\ln(1-g_p)=\ln ${n6p(1 - gp)}=${n6(ln1g)}`, why: String.raw`每週期暫態縮小的對數比例（剛好等於 $-2\pi f_\text{BW}/f_\text{ref}$，可以當驗算）。` },
+                { tex: String.raw`\frac{\ln ${n6p(rTheta)}}{\ln(1-g_p)}=\frac{${n6(Math.log(rTheta))}}{${n6(ln1g)}}=${n6(xPl)}\ \Rightarrow\ n_\text{tr}=\max(1,\lceil${n6(xPl)}\rceil)=${int(nTr)}`, why: String.raw`暫態進到門檻內要幾個週期（進位到整數；至少 1，因為第一個樣本在 $n_\text{FL}+1$）。` },
+              ]),
+          { tex: String.raw`n_\text{PL}=n_\text{tr}+N_\text{pl}-1=${int(nTr)}+${int(npl)}-1=${int(nPl)}`, why: String.raw`再連續 $N_\text{pl}$ 個週期才宣告 phase lock（相對於 $n_\text{FL}$）。` },
+          { tex: String.raw`\mathrm{rms}_{\max}^2-\theta_\text{ss}^2=${n6p(rmsmax)}^2-${n6p(thss)}^2=${n6(rmsmax * rmsmax)}-${n6(thss * thss)}=${n6(budget1)}\ \mathrm{fs^2}`, why: '視窗 rms 的門檻平方扣掉靜態偏移的平方：留給暫態能量的額度（每個樣本平均）。' },
+          { tex: String.raw`(\mathrm{rms}_{\max}^2-\theta_\text{ss}^2)\,W=${n6(budget1)}\times${int(W)}=${n6(budget)}\ \mathrm{fs^2}`, why: String.raw`整個視窗（$W$ 個樣本）能容納的暫態能量。` },
+          { tex: String.raw`1-(1-g_p)^2=1-${n6p(1 - gp)}^2=1-${n6(r2)}=${n6(1 - r2)}`, why: String.raw`等比級數 $\sum(1-g_p)^{2k}=1/(1-(1-g_p)^2)$ 的分母：暫態能量是一個公比 $(1-g_p)^2$ 的等比級數。` },
+          { tex: String.raw`E_0=\frac{(\theta_0-\theta_\text{ss})^2}{1-(1-g_p)^2}=\frac{${n6p(dev)}^2}{${n6(1 - r2)}}=\frac{${n6(dev2)}}{${n6(1 - r2)}}=${n6(e0)}\ \mathrm{fs^2}`, why: '從起點開始整段暫態的總能量。' },
+          ...(settledAtOnce
+            ? [{ tex: String.raw`\frac{E_0}{(\mathrm{rms}_{\max}^2-\theta_\text{ss}^2)W}=\frac{${n6p(e0)}}{${n6p(budget)}}=${n6(e0 / budget)}\quad(<1)\ \Rightarrow\ n_{\text{tr},W}=1`, why: String.raw`整段暫態的能量比額度小（比值小於 1）：視窗一填滿就通過；視窗的第一個樣本在 $n_\text{FL}+1$（$\theta_0$ 不進視窗），所以 $n_{\text{tr},W}=1$、$n_\text{settle}=W$。` }]
+            : [
+                { tex: String.raw`\ln\frac{(\mathrm{rms}_{\max}^2-\theta_\text{ss}^2)W}{E_0}=\ln\frac{${n6p(budget)}}{${n6p(e0)}}=\ln ${n6p(budget / e0)}=${n6(Math.log(budget / e0))}`, why: String.raw`額度和暫態總能量的比值取對數：剩下的能量 $E_0(1-g_p)^{2n}$ 要低於額度。` },
+                { tex: String.raw`\frac{${n6(Math.log(budget / e0))}}{2\ln(1-g_p)}=\frac{${n6(Math.log(budget / e0))}}{2\times${n6p(ln1g)}}=\frac{${n6(Math.log(budget / e0))}}{${n6(2 * ln1g)}}=${n6(xW)}\ \Rightarrow\ n_{\text{tr},W}=\max(1,\lceil${n6(xW)}\rceil)=${int(nTrW)}`, why: String.raw`能量每週期乘 $(1-g_p)^2$，所以分母是 $2\ln(1-g_p)$；進位到整數就是要滑出視窗的樣本數。` },
+              ]),
+          { tex: String.raw`n_\text{settle}=W+n_{\text{tr},W}-1=${int(W)}+${int(nTrW)}-1=${int(nSettle)}`, why: String.raw`視窗要先填滿 $W$ 個樣本，而且最前面 $n_{\text{tr},W}$ 個已經滑出去（相對於 $n_\text{FL}$）。` },
+          {
+            tex: plLarger
+              ? String.raw`n_\text{enable}=n_\text{FL}+n_\text{PL}=${int(nfl)}+${int(nPl)}=${int(nEnable)}`
+              : String.raw`n_\text{enable}=n_\text{FL}+n_\text{settle}=${int(nfl)}+${int(nSettle)}=${int(nEnable)}`,
+            why: plLarger
+              ? String.raw`$n_\text{PL}\ge n_\text{settle}$：phase lock 是最後滿足的條件（DTC 工作點的檢查是靜態的，不佔時間）。`
+              : String.raw`$n_\text{settle}>n_\text{PL}$：rms 視窗是最後滿足的條件——視窗長度 $W$ 本身就是延遲（DTC 工作點的檢查是靜態的，不佔時間）。`,
+          },
+          { tex: String.raw`B_\text{LOCK}=\Big\lceil\frac{n_\text{enable}+1}{N}\Big\rceil=\Big\lceil\frac{${int(nEnable + 1)}}{${int(N)}}\Big\rceil=\lceil${n6((nEnable + 1) / N)}\rceil=${int(blocks)}\ \text{blocks}`, why: String.raw`第一個 CAL 週期落在哪個 block，那個 block 還不能更新（整個 block 都在 CAL 才算）：§14.7 的 LOCK 要等這麼多個 block。` },
+        ],
+        results: [
+          { symbol: 'g_p', label: '相位迴路每週期增益', value: gp, digits: 6 },
+          { symbol: String.raw`\theta_\text{ss}`, label: '靜態相位偏移', value: thss, unit: String.raw`\mathrm{fs}`, digits: 5 },
+          { symbol: String.raw`n_\text{PL}`, label: 'phase lock（相對 n_FL）', value: nPl, digits: 6, tolerance: { abs: 0.5 } },
+          { symbol: String.raw`n_\text{settle}`, label: '穩態（相對 n_FL）', value: nSettle, digits: 6, tolerance: { abs: 0.5 } },
+          { symbol: String.raw`n_\text{enable}`, label: '校正 enable 的週期', value: nEnable, digits: 6, tolerance: { abs: 0.5 } },
+          { symbol: String.raw`B_\text{LOCK}`, label: 'LOCK 的 block 數', value: blocks, unit: String.raw`\text{blocks}`, digits: 6, tolerance: { abs: 0.5 } },
+        ],
+        notes: [
+          String.raw`預算的組成：FLL $${int(nfl)}$ 個週期（$${texNum((100 * nfl) / nEnable, 3)}\%$）、之後 $${int(nEnable - nfl)}$ 個週期裡 rms 視窗佔 $W=${int(W)}$；要縮短 enable 時間，先看 FLL（$K_f$、$f_\text{tol}$），再看 $W$——phase lock 本身（$n_\text{tr}=${int(nTr)}$）在 320 MHz 的迴路上只要幾個週期。`,
+          String.raw`sine 型 SSPD 比這個線性估計慢：起點 $|\theta_0|$ 越接近 $T_\text{vco}/4$ 斜率越小；F-14.25 用弦斜率 $g_\text{eff}=g_p\sin x/x$ 給上界，實驗的「Analytic」欄會列出模擬值落在 $[$線性$,$ 上界$]$ 之間。`,
+          String.raw`$\theta_\text{ss}=${texNum(thss, 4)}\,\mathrm{fs}$ 和 $\theta_{\max}=${texNum(thmax, 4)}\,\mathrm{fs}$ 的差距就是 $f_\text{tol}$ 的餘裕：$f_\text{tol}$ 放寬到 $${texNum((margin + Math.abs(thss)) / Math.abs(thss), 3)}$ 倍，phase lock 就永遠達不到。`,
+        ],
+      }
+    },
+    tips: [
+      String.raw`範例（$f_\text{BW}=320\,\mathrm{MHz}$、$f_\text{ref}=4\,\mathrm{GHz}$、$M=4$、$\Delta f_h=1\,\mathrm{MHz}$、$\theta_0=25\,\mathrm{ps}$、$\theta_{\max}=2\,\mathrm{ps}$、$N_\text{pl}=32$、$W=512$、$\mathrm{rms}_{\max}=100\,\mathrm{fs}$、$n_\text{FL}=8793$、$N=1024$）應得 $g_p=0.3951$、$\theta_\text{ss}=39.5\,\mathrm{fs}$、$n_\text{PL}=37$、$n_\text{settle}=517$、$n_\text{enable}=9310$、$B_\text{LOCK}=10$。`,
+      String.raw`$e^{-x}$ 用計算機的 $e^x$ 鍵（或 $\ln$ 的反函數）；$g_p$ 小時 $g_p\approx2\pi f_\text{BW}/f_\text{ref}$（$x\le0.1$ 誤差 $<5\%$），320 MHz／4 GHz 的 $x=0.503$ 已經不能用這個近似。`,
+      String.raw`暫態的週期數都是「$\ln$（要縮到的比例）$/\ln(1-g_p)$」：相位看振幅、rms 視窗看能量（平方，所以分母多一個 2）。`,
     ],
   },
 ]

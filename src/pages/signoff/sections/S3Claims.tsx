@@ -150,7 +150,7 @@ export function S3Claims() {
         <p>
           數值（即時計算）：mean 界 <Tex>{'2'}</Tex>、mean-square 界 <Tex>{tx(muMs, 6)}</Tex>、almost-sure 界 <Tex>{`\\mu_\\text{as}=${tx(muAs, 6)}`}</Tex>（數值積分 + 二分法）。在 <Tex>{'\\mu=0.8'}</Tex>：<Tex>{`g_2=${tx(g08, 4)}>1`}</Tex>（均方發散）但 <Tex>{`\\lambda=${tx(lam08, 4)}<0`}</Tex>（幾乎每條路徑都收斂）。這正是「200 個 seeds 都收斂，所以均方穩定」為什麼是錯的。<ClaimTag kind="exact" />
         </p>
-        <ModeGate min="research">
+        <ModeGate min="research" summary="有外加雜訊時的 heavy tail 推導（Kesten 尾指數）">
           <Steps
             title="Research：有外加雜訊時的 heavy tail（Kesten 尾指數）"
             steps={[

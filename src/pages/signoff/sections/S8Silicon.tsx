@@ -200,7 +200,7 @@ export function S8Silicon() {
         result={String.raw`A_t=\frac{2\cdot10^{\text{spur}/20}}{2\pi f_\text{out}|T|},\ \ \delta_P=\frac{A_t}{\kappa_\text{pat}}`}
       />
       <TexBlock id="F-SO.13" label="從輸出 spur 反推 timing tone 的 peak 與單相 PHOS 殘差（F-12.18 反過來用）">{String.raw`\begin{aligned}&A_t=\frac{10^{\mathrm{spur}/20}}{\pi f_\text{out}\,|T(f_m)|}\\[2pt]&\delta_P=\frac{A_t}{\kappa_\text{pat}}\\[2pt]&\kappa_\text{pat}=\frac{2\sin(\pi/P)}{\pi}\\[2pt]&\quad(\text{單相 one-hot})\end{aligned}`}</TexBlock>
-      <ModeGate min="engineer">
+      <ModeGate min="engineer" summary={String.raw`小角近似的成立條件（$\beta\ll1$）與超出時的 Bessel 精確式`}>
         <p className="small muted" data-conditions="F-SO.13">
           成立條件：小角 <Tex>{'\\beta=2\\cdot10^{\\mathrm{spur}/20}\\ll1'}</Tex>（spur 約 <Tex>{'-20'}</Tex> dBc 以下，否則用 <FormulaLink id="F-12.18" /> 的 Bessel 精確式 <Tex>{'20\\log_{10}(J_1(\\beta)/J_0(\\beta))'}</Tex>）；單邊 spur；<Tex>{'|T|'}</Tex> 取 tone 頻率 <Tex>{'f_m'}</Tex> 處的值，因為儀器量到的是經 <Tex>{'|T|'}</Tex> 的輸出（<FormulaLink id="F-12.16" />）而不是 PD 端；<Tex>{'\\kappa_\\text{pat}=2\\sin(\\pi/P)/\\pi'}</Tex> 只對「單一相有殘差、看 <Tex>{'\\alpha f_\\text{ref}'}</Tex> 的基波」成立（<Tex>{'\\alpha=s/P'}</Tex>、DTC 殘量固定時相干加總成 <Tex>{'2/P'}</Tex>），多相殘差要用案例頁 <FormulaLink id="F-CS.21" /> 的 DFT 正向公式；反推的是校正<strong>之後</strong>殘留在 <Tex>{'\\alpha f_\\text{ref}'}</Tex>（或其倍頻）的那一根 spur，reference spur 另有來源。<ClaimTag kind="approx" />
         </p>

@@ -1,21 +1,3 @@
-/* Ch07 專屬樣式（class 一律 ch07- 前綴） */
-
-.ch07-erratum {
-  display: inline;
-  font-size: 0.85rem;
-}
-.ch07-erratum-tag {
-  /* 外觀由 Badge 的 erratum variant 決定（components.css） */
-  margin: 0 4px 0 2px;
-  text-decoration: none;
-}
-.ch07-erratum-tag:hover {
-  text-decoration: underline;
-}
-.ch07-erratum-text {
-  color: var(--text-muted);
-}
-
 .ch07-lead {
   font-size: 1.02rem;
 }
@@ -158,15 +140,6 @@
   background: var(--accent-soft);
   color: var(--accent);
   font-size: 0.8rem;
-}
-
-/* 帶入手算（Hand.tsx）：題目前的一句邀請 */
-.ch07-hand {
-  margin: 14px 0 18px;
-}
-.ch07-hand-invite {
-  margin: 0 0 6px;
-  font-size: 0.95rem;
 }
 
 /* 章末的符號表（id="symbols"）：捲動過來時留一點上邊界，不要貼在視窗頂端 */

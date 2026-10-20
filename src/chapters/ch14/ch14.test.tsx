@@ -21,21 +21,23 @@ afterEach(() => {
 
 describe('Ch14 頁面（jsdom smoke）', () => {
   it('完整章節可以渲染：各節標題、勘誤 E16／E48 連到驗證頁、三個實驗、章末符號表', async () => {
+    // Engineer：§14.6b 的 F-14.23–F-14.25 在 Beginner 收進 ModeGate（Beginner 的版本由「Ch14 學習模式」檢查）
+    localStorage.setItem('lmspll.mode', 'engineer')
     const { container } = render(wrap(<Chapter14 />))
     expect(screen.getByText('本章符號')).toBeTruthy()
     // 標題內含 KaTeX（MathML）時 jsdom 計算 accessible name 會碰到 CSSOM 限制，改用 h2 的 textContent 比對
     const h2 = Array.from(container.querySelectorAll('h2')).map((h) => h.textContent ?? '')
-    for (const t of ['14.0 一個問題', '14.1 一步一步推導', '14.2 優化目標不同', '14.3 固定總預算', '14.4 重現第 10 課的設計計算器', '14.5 Corner-based 可行區間', '14.6 步長排程', '14.7 Calibration State Machine：把步長排程做成硬體', '14.8 策略比較']) {
+    for (const t of ['14.0 一個問題', '14.1 一步一步推導', '14.2 優化目標不同', '14.3 固定總預算', '14.4 重現第 10 課的設計計算器', '14.5 Corner-based 可行區間', '14.6 步長排程', '14.6b Acquisition 與校正 enable', '14.7 Calibration State Machine：把步長排程做成硬體', '14.8 策略比較']) {
       expect(h2.some((x) => x.includes(t))).toBe(true)
     }
     // 標題裡的數學是 KaTeX，不是 Unicode 拼湊（docs/teaching-style.md §3）
     expect(Array.from(container.querySelectorAll('h2')).filter((h) => h.querySelector('.katex')).length).toBeGreaterThanOrEqual(5)
-    const errata = Array.from(container.querySelectorAll('a.ch14-erratum-tag'))
+    const errata = Array.from(container.querySelectorAll('.c-erratum-block a.c-erratum-link'))
     expect(errata.map((a) => a.textContent)).toEqual(expect.arrayContaining(['勘誤 E16', '勘誤 E48']))
-    for (const a of errata) expect(a.getAttribute('href')).toBe('/verification')
+    for (const a of errata) expect(a.getAttribute('href')).toMatch(/^\/verification\?e=E\d+$/)
     for (const id of ['lr-optimizer', 'corner-interval', 'cal-state-machine']) expect(container.querySelector(`[data-experiment="${id}"]`)).toBeTruthy()
     // 公式錨點（與 formulas.ts 同 ID）
-    for (const id of ['F-14.3', 'F-14.15', 'F-14.16', 'F-14.18']) expect(container.querySelector(`[id="formula-${id}"]`)).toBeTruthy()
+    for (const id of ['F-14.3', 'F-14.15', 'F-14.16', 'F-14.18', 'F-14.22', 'F-14.23', 'F-14.24', 'F-14.25']) expect(container.querySelector(`[id="formula-${id}"]`)).toBeTruthy()
     // E48 驗證表（worker 在 jsdom 為 inline）
     await waitFor(() => expect(screen.getAllByText(/^-?\d+\.\d%$/).length).toBeGreaterThan(3), { timeout: 60000 })
   }, 150000)
@@ -145,12 +147,13 @@ describe('Ch14 Research 模式：所有內容（含 Research-only 推導與程�
     expect(container.textContent).toContain('stochastic approximation 的經典結果')
     // 散文裡不可出現 TeX 原始碼（例如把 'p^{2B}' 寫在一般字串裡）：檢查 KaTeX 與程式碼區塊以外的文字節點
     // （.c-tip：TestBadge 的 tooltip 逐字列出 src/data/verification-status.json 裡各頁測試的名稱，例如「δ_{k+1} = δ_k − gδ_{k−d}」；
+    //   .c-erratum-block-details：ChapterErratumNote 展開的「官方修正文字」，原文來自 src/data/errata.json（也是共用資料）。
     //   那是共用資料，不是本章的散文，所以和下面的 unicodeMathLeaks 一樣略過。）
     const leaks: string[] = []
     const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT)
     for (let n = walker.nextNode(); n; n = walker.nextNode()) {
       const el = n.parentElement
-      if (!el || el.closest('.katex, pre, code, script, style, .c-tip')) continue
+      if (!el || el.closest('.katex, pre, code, script, style, .c-tip, .c-erratum-block-details')) continue
       const t = n.textContent ?? ''
       if (/\^\{|_\{|\\[a-zA-Z]+/.test(t)) leaks.push(t.trim().slice(0, 80))
     }
@@ -193,7 +196,7 @@ describe('Ch14 Research 模式：所有內容（含 Research-only 推導與程�
  */
 function unicodeMathLeaks(container: HTMLElement): string[] {
   const BAD = /[\u0370-\u03FF\u00B2\u00B3\u00B9\u2070-\u209F\u1D2C-\u1D6A≤≥≈≠≪≫⇒⇔√∑∝∞∂∠±∓]|\u0302|\u0304/
-  const SKIP = '.katex, pre, code, script, style, option, .c-param-reg, .c-param-unit, .c-exp-summary, .c-exp-json, .c-plot-note, .c-metric-table th, .c-tip'
+  const SKIP = '.katex, pre, code, script, style, option, .c-param-reg, .c-param-unit, .c-exp-summary, .c-exp-json, .c-plot-note, .c-metric-table th, .c-tip, .c-erratum-block-details'
   const leaks: string[] = []
   const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT)
   for (let n = walker.nextNode(); n; n = walker.nextNode()) {
@@ -241,6 +244,20 @@ describe('Ch14 學習模式（同一計算核心、不同呈現）', () => {
     const { container, unmount } = render(wrap(<Chapter14 />))
     const collapsed = Array.from(container.querySelectorAll('details.ch14-details > summary')).filter((s) => s.textContent?.includes('Beginner 模式預設收合'))
     expect(collapsed.length).toBeGreaterThan(5)
+    // §14.6b 在 Beginner 只留結論、一張圖（acquisition 路徑）與一題手算（HC-14.9）；其餘推導、HC-14.10／11 與狀態機圖收進 ModeGate（附 summary）
+    const acq = container.querySelector('#ch14-acquisition') as HTMLElement
+    expect(acq.querySelectorAll('figure.c-mermaid').length).toBe(1)
+    expect(Array.from(acq.querySelectorAll('.c-handcalc')).map((h) => h.id)).toEqual(['handcalc-HC-14.9'])
+    expect(acq.querySelector('[id="formula-F-14.22"]')).toBeTruthy()
+    for (const id of ['F-14.23', 'F-14.24', 'F-14.25']) expect(acq.querySelector(`[id="formula-${id}"]`), id).toBeNull()
+    const gates = Array.from(acq.querySelectorAll('.c-modegate[data-min="engineer"]'))
+    expect(gates.length).toBeGreaterThanOrEqual(5)
+    for (const g of gates) expect(g.textContent, '每個 ModeGate 都有 summary').toMatch(/才展開：/)
+    // 第一個理由（倍頻模糊）與「這個例子卡住的是哪一個條件」是 Beginner 看得到的結論
+    expect(acq.querySelector('#ch14-acq-why')).toBeTruthy()
+    expect(acq.textContent).toContain('倍頻模糊')
+    expect(acq.textContent).toContain('真正卡住的')
+    expect(acq.textContent, '舊的錯誤說法（頻率沒拉好 ⇒ PD 看錯方向或跳到隔壁週期）不再出現在正文').not.toContain('PD 會看錯方向、或跳到隔壁')
     unmount()
     localStorage.setItem('lmspll.mode', 'engineer')
     const r2 = render(wrap(<Chapter14 />))
@@ -302,6 +319,26 @@ describe('Ch14 實驗：preset 與解釋型警告', () => {
     await waitFor(() => expect(screen.getByText('區間非空')).toBeTruthy())
     expect(document.querySelector('[data-experiment="corner-interval"]')?.textContent).toMatch(/79\.677/)
   })
+
+  it('cal-state-machine：LOCK 的 block 數由 acquisition 模型決定（預設 10，與原本的計數器相同）；?preset=ch14-acq-dtc-out-of-range ⇒ 校正不能 enable 的解釋', async () => {
+    const { container, unmount } = render(wrap(<CalStateMachineExperiment />))
+    const rows = Array.from(container.querySelectorAll('.c-metric-table tr'))
+    const lock = rows.find((r) => r.textContent?.includes('LOCK 的 block 數'))
+    expect(lock, 'LOCK 指標').toBeTruthy()
+    expect(lock!.querySelector('td')?.textContent).toContain('10')
+    expect(container.textContent).toContain('Acquisition 時間軸')
+    expect(container.querySelector('[aria-label="acquisition 事件紀錄"]')).toBeTruthy()
+    // 預設沒有 acquisition 的警告
+    expect(container.querySelector('.c-exp-warnings')?.textContent ?? '').not.toContain('不能 enable')
+    unmount()
+    const bad = render(wrap(<CalStateMachineExperiment />, '/ch/14?preset=ch14-acq-dtc-out-of-range'))
+    await waitFor(() => expect(bad.container.querySelector('.c-exp-warnings')?.textContent).toContain('校正不能 enable'))
+    expect(bad.container.querySelector('.c-exp-warnings')?.textContent).toContain('不是調')
+    const lock2 = Array.from(bad.container.querySelectorAll('.c-metric-table tr')).find((r) => r.textContent?.includes('LOCK 的 block 數'))
+    expect(lock2?.textContent).toContain('沒有 enable') // 指標列：名稱格、數值格、說明；數值在第二格，所以看整列
+    expect(unicodeMathLeaks(bad.container)).toEqual([])
+    bad.unmount()
+  }, 150000)
 
   it('stateSegments／trackRmsPrediction 工具', () => {
     expect(stateSegments(Uint8Array.from([0, 1, 1, 2, 2, 2]))).toEqual([

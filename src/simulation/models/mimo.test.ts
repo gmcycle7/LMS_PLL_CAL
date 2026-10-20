@@ -1,8 +1,13 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { createRng, eigSym, erf, inv, matMul, matScale, normFro, svd } from '@/simulation/core'
+import { cAbs, createRng, eigSym, erf, inv, matMul, matScale, normFro, polyRoots, svd } from '@/simulation/core'
 import {
   DEFAULT_RULE,
+  delayedMimoCovariance,
+  delayedMimoMeanModel,
+  observableEigen,
+  restrictTo,
+  uniformStepMuMax,
   MAX_NORM_DECAY_ITER,
   analyzeMimo,
   analyzeRule,
@@ -1390,5 +1395,54 @@ describe('mimo：審查 R06a——p = 1 − μK_qλ 是線性模型的 pole；1-
     const mom = propagateLinearMoments(plant, rule({ rule: 'scalar', muKq: 0.1 * plant.Kq }), plant.Jn, [1], 3)!
     expect(mom.mean[0][1]).toBeCloseTo(0.9202115439, 10)
     expect(mom.mean[0][2]).toBeCloseTo(0.9202115439 ** 2, 10)
+  })
+})
+
+describe('wave 5 附加：多權重 sign-LMS 的平均模型小工具', () => {
+  it('observableEigen：共模 null 被拿掉、條件數只看可觀測子空間；restrictTo 回到子空間的座標', () => {
+    // 一個 3×3 的 R：全 1 向量是 null（R·1 = 0）
+    const R = [
+      [2, -1, -1],
+      [-1, 2, -1],
+      [-1, -1, 2],
+    ]
+    const o = observableEigen(R)
+    expect(o.nullDim).toBe(1)
+    expect(o.values).toHaveLength(2)
+    for (const v of o.values) expect(v).toBeCloseTo(3, 12)
+    expect(o.cond).toBeCloseTo(1, 12)
+    const Robs = restrictTo(R, o.basis)
+    expect(Robs).toHaveLength(2)
+    expect(Robs[0][0]).toBeCloseTo(3, 12)
+    expect(Math.abs(Robs[0][1])).toBeLessThan(1e-12)
+  })
+
+  it('delayedMimoMeanModel：單一權重退化成 z^{d+1} − z^d + g = 0 的最大根模（d = 0…3）；穩態共變異退化成 μ²σ²/(1 − p²)（d = 0）', () => {
+    for (const d of [0, 1, 2, 3]) {
+      const g = 0.3
+      const m = delayedMimoMeanModel([[1]], [[g]], d) // J = 1、M = g ⇒ δ_{k+1} = δ_k − g δ_{k−d}
+      const char = new Array<number>(d + 2).fill(0)
+      char[0] = 1
+      char[1] = -1
+      char[d + 1] += g
+      const rho = polyRoots(char).reduce((acc, z) => Math.max(acc, cAbs(z)), 0)
+      expect(m.rho).toBeCloseTo(rho, 10)
+      expect(m.stable).toBe(rho < 1)
+      expect(m.A).toHaveLength(d + 1)
+    }
+    const g = 0.2
+    const N = 100
+    const cov = delayedMimoCovariance([[1]], [[g]], [[1]], N, 0) as number[][]
+    // δ_{k+1} = (1 − g)δ_k − g η，Var(η) = 1/N ⇒ Var(δ) = g²(1/N)/(1 − (1 − g)²)
+    expect(cov[0][0]).toBeCloseTo((g * g) / N / (1 - (1 - g) ** 2), 12)
+    expect(delayedMimoCovariance([[1]], [[g]], [[1]], N, 1, 1)).toBeNull() // 維度超過上限
+    expect(delayedMimoCovariance([[1]], [[2.5]], [[1]], N, 0)).toBeNull() // 不穩定
+  })
+
+  it('uniformStepMuMax：實特徵值 λ 給 2/λ；複數給 2 Re λ/|λ|²；有 Re λ ≤ 0 時 0', () => {
+    expect(uniformStepMuMax([{ re: 0.5, im: 0 }, { re: 2, im: 0 }])).toBeCloseTo(1, 12)
+    expect(uniformStepMuMax([{ re: 1, im: 1 }])).toBeCloseTo(1, 12)
+    expect(uniformStepMuMax([{ re: 1, im: 0 }, { re: -0.1, im: 0 }])).toBe(0)
+    expect(uniformStepMuMax([])).toBe(Infinity)
   })
 })

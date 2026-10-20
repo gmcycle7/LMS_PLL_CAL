@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom'
-import { Callout, ClaimTag, Quiz, Recap, Section, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
+import { Callout, ClaimTag, Quiz, Recap, Section, StepDerivation, Tex, TexBlock, ChRef, ChapterErratum } from '@/components'
 import { DEFAULT_RULE, analyzeRule, buildPlant, corrMatrix, inspectMatrix, kqFromSigma, stepsToDecay, stepsToDecayReal } from '@/simulation/models/mimo'
 import { inv } from '@/simulation/core'
-import { Erratum, Fig, Hand, n, tn } from '../common'
+import { Fig, Hand, n, tn } from '../common'
 import { NUM, SIGMA_KQ1 } from '../numbers'
 
 function quizNumbers() {
@@ -57,7 +57,7 @@ export function S6Wrapup() {
             <Tex>{'N'}</Tex> 個 sample」為前提。本章的線性 block 模型裡雜訊是加成的（<Tex>{String.raw`-\mathbf M\boldsymbol\eta_k`}</Tex>），所以均方（mean-square）穩定條件與平均穩定條件相同（
             <Tex>{String.raw`\rho(\mathbf A_{\mathrm{cal}})<1`}</Tex>），代價只反映在穩態共變異 F-10.15。若改成每個 sample 都更新（<Tex>{'N=1'}</Tex>）的 conventional 多位元 LMS，regressor
             本身的隨機性會變成乘性雜訊，<Tex>{String.raw`\mu=0.5`}</Tex> 在 mean-square 意義下會發散——那是<ChRef ch="09">第 9 章</ChRef>的內容
-            <Erratum id="E23" title="docs/validation.md 勘誤 E23：598 是 mean recursion；per-sample Gaussian regressor 的 mean-square 可能發散（第 9 章）" />。這三個數字還用到{' '}
+            <ChapterErratum id="E23" />。這三個數字還用到{' '}
             <Tex>{String.raw`\mathbf A_{\mathrm{cal}}`}</Tex> 對稱（<Tex>{String.raw`\mathbf R`}</Tex> 對稱、<Tex>{String.raw`\hat{\mathbf J}=\mathbf J`}</Tex>）：此時最慢 pole 的 F-10.5 就是整個誤差向量的{' '}
             <Tex>{'k_{95}'}</Tex>。<Tex>{String.raw`\mathbf A_{\mathrm{cal}}`}</Tex> 不對稱（一般 <Tex>{String.raw`\mathbf J`}</Tex>、<Tex>{String.raw`\hat{\mathbf J}\ne\mathbf J`}</Tex>、各 loop 增益不同）時 F-10.5 只是下界，要改用{' '}
             <Tex>{String.raw`\|\mathbf A^k\|_2\le0.05`}</Tex>（§10.3.1）。
@@ -68,8 +68,8 @@ export function S6Wrapup() {
           <li>
             「<Tex>{'K_q'}</Tex> 正規化為 1」的例子（598 / 5 / 65）必須換回實體單位才可用於設計：<Tex>{String.raw`\mu`}</Tex> 的單位是 fs、<Tex>{'K_q'}</Tex> 是{' '}
             <Tex>{String.raw`\mathrm{fs}^{-1}`}</Tex>，<Tex>{String.raw`\mathbf M=\mathbf M_n/K_q`}</Tex>
-            <Erratum id="E05" />
-            <Erratum id="E08" />。
+            <ChapterErratum id="E05" />
+            <ChapterErratum id="E08" />。
           </li>
         </ul>
       </Section>
@@ -90,7 +90,7 @@ export function S6Wrapup() {
         </Hand>
       </Section>
 
-      <Section kind="example" title="10.10 思考題">
+      <Section id="ch10-quiz" kind="example" title="10.10 思考題">
         <Quiz
           title="思考題 1：耦合"
           question={

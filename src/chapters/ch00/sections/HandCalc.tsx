@@ -1,16 +1,5 @@
 import { useMemo } from 'react'
-import {
-  ClaimTag,
-  CodeBlock,
-  Derivation,
-  MetricTable,
-  ModeGate,
-  Section,
-  StepDerivation,
-  Tex,
-  TexBlock,
-  TestBadge,
-} from '@/components'
+import { ClaimTag, CodeBlock, Derivation, MetricTable, ModeGate, Section, StepDerivation, Tex, TexBlock, TestBadge, ChapterErratum, ChapterErratumNote } from '@/components'
 import { useSettings } from '@/app/settings'
 import { fixedXPole } from '@/simulation/models/lms'
 import lmsSrc from '@/simulation/models/lms.ts?raw'
@@ -25,7 +14,7 @@ import {
   type HandCalcParams,
 } from '../model'
 import { num, signed, texNum, texRes } from '../format'
-import { ChapterDiagram, ChapterHandCalc, ErratumNote, ErratumRef, Observe } from '../common'
+import { ChapterDiagram, ChapterHandCalc, Observe } from '../common'
 import modelSrc from '../model.ts?raw'
 
 /** 規格 §1.2 / T01 的手算例子。 */
@@ -210,7 +199,7 @@ export function HandCalcSection() {
         <Tex>{'\\delta_{n+1}/\\delta_n'}</Tex>。
       </p>
       <HandCalcTable />
-      <ErratumNote eid="E39">
+      <ChapterErratumNote id="E39">
         表中的參數誤差一律用 <Tex>{'\\delta_n=a-w_n'}</Tex>（全站約定），所以是{' '}
         {rows.slice(0, 3).map((r, i) => (
           <span key={r.n}>
@@ -220,7 +209,7 @@ export function HandCalcSection() {
         ))}
         ……。規格 §3 原本寫 <Tex>{'\\delta_n=w_n-a'}</Tex>，數值會正負相反；遞迴式 <Tex>{'\\delta_{n+1}=(1-\\mu x^2)\\delta_n'}</Tex>{' '}
         對兩種極性都成立。
-      </ErratumNote>
+      </ChapterErratumNote>
 
       <Observe>
         <ul className="ch00-goals">
@@ -286,7 +275,7 @@ export function HandCalcSection() {
                   tex: String.raw`a-w_n=p^n\,(a-w_0)`,
                   why: (
                     <>
-                      代入 <Tex>{'\\delta_n=a-w_n'}</Tex> 的定義（<ErratumRef eid="E39" /> 的極性）。
+                      代入 <Tex>{'\\delta_n=a-w_n'}</Tex> 的定義（<ChapterErratum id="E39" /> 的極性）。
                     </>
                   ),
                 },

@@ -1,10 +1,10 @@
 import { Fragment, useMemo, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { Callout, ClaimTag, Prereq, Section, SourceTag, SystemMap, Tex, TexBlock, ChRef } from '@/components'
+import { Callout, ClaimTag, HandLink, Prereq, Section, SourceTag, SystemMap, Tex, TexBlock, ChRef } from '@/components'
 import { loopGainK, msdAfterBlocks, msdSplit } from '@/simulation/models/optimizer'
 import { Diagram } from '../Diagram'
 import { CH14_SYSTEM_FOCUS, CHART_CAL_LOOP, CHART_COMPARATOR_GAIN } from '../diagrams'
-import { Hand, HandLink } from '../Hand'
+import { Hand } from '../Hand'
 import { HANDCALCS } from '../handcalcs'
 import { BIAS2, md, nf, tx } from '../shared'
 
@@ -13,7 +13,7 @@ function handLinks(level: (typeof HANDCALCS)[number]['level']) {
   return HANDCALCS.filter((h) => h.level === level).map((h, i) => (
     <Fragment key={h.id}>
       {i > 0 && '、'}
-      <HandLink id={h.id} />
+      <HandLink id={h.id}>{h.id}</HandLink>
     </Fragment>
   ))
 }

@@ -1,21 +1,6 @@
 import { useMemo } from 'react'
 import type { Data } from 'plotly.js-cartesian-dist-min'
-import {
-  Callout,
-  ClaimTag,
-  CodeBlock,
-  Mermaid,
-  ModeGate,
-  Plot,
-  Prereq,
-  Section,
-  SourceTag,
-  StepDerivation,
-  Tex,
-  TexBlock,
-  useThemeTokens,
-  ChRef,
-} from '@/components'
+import { Callout, ClaimTag, CodeBlock, Mermaid, ModeGate, Plot, Prereq, Section, SourceTag, StepDerivation, Tex, TexBlock, useThemeTokens, ChRef, ChapterErratum } from '@/components'
 import { createRng } from '@/simulation/core'
 import quantSrc from '@/simulation/models/quantizer.ts?raw'
 import {
@@ -29,7 +14,7 @@ import {
   stochasticQuantVar,
   stochasticQuantVarApprox,
 } from '@/simulation/models/quantizer'
-import { DEFAULT_LAB_PARAMS, Erratum, Fold, STRATEGY_COLOR, SpurAt, Unit, fx, n, ntex, num, texLabel, tx } from '../common'
+import { DEFAULT_LAB_PARAMS, Fold, STRATEGY_COLOR, SpurAt, Unit, fx, n, ntex, num, texLabel, tx } from '../common'
 import { CHART_INBAND, CHART_TIME_VARYING } from '../diagrams'
 
 const L = 1 << 14
@@ -89,7 +74,7 @@ export function TimeVaryingSection() {
     <Section kind="explore" title={<>§13.5a 情境：<Tex>{'w_H'}</Tex> 含 LMS 更新雜訊時，策略才真正不同</>} level={2} id="ch13-time-varying">
       <p>
         前面幾節都假設 <Tex>{String.raw`w_H`}</Tex> 是常數 32.4。真正的晶片裡 LMS 一直在更新，<Tex>{String.raw`w_H[n]=w^*+\delta w[n]`}</Tex> 會在 <Tex>{String.raw`w^*`}</Tex> 附近以 <Tex>{String.raw`\sigma_w`}</Tex> 的 RMS 隨機擺動（<ChRef ch="12">第 12 章</ChRef>）。
-        <Erratum id="E15" /> 要求 §13.5 的五策略比較必須同時跑「<Tex>{String.raw`w_H`}</Tex> 常數」與「<Tex>{String.raw`w_H`}</Tex> 含 LMS 雜訊」兩種情境。
+        <ChapterErratum id="E15" /> 要求 §13.5 的五策略比較必須同時跑「<Tex>{String.raw`w_H`}</Tex> 常數」與「<Tex>{String.raw`w_H`}</Tex> 含 LMS 雜訊」兩種情境。
       </p>
       <Mermaid
         chart={CHART_TIME_VARYING}

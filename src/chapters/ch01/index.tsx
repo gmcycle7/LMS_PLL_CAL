@@ -1,5 +1,4 @@
-import { Callout, ClaimTag, ModelLevel, SourceTag, Tex, ChRef } from '@/components'
-import { Erratum } from './common'
+import { Callout, ClaimTag, ModelLevel, SourceTag, Tex, ChRef, ChapterErratum } from '@/components'
 import { IntroSection } from './sections/Intro'
 import { ParabolaSection } from './sections/Parabola'
 import { HandExampleSection } from './sections/HandExample'
@@ -32,10 +31,10 @@ export default function Chapter01() {
             </div>
             <Callout kind="info" title="本章套用的勘誤" className="ch01-errata-box">
               <p className="small">
-                <Erratum id="E39" /> 剩餘參數誤差採 <Tex>{String.raw`\delta=a-w`}</Tex>（真值 <Tex>{'a'}</Tex> 減去目前的猜測 <Tex>{'w'}</Tex>，不是{' '}
-                <Tex>{'w-a'}</Tex>）、<Erratum id="E40" /> <Tex>{String.raw`\operatorname{sign}(0)`}</Tex>（誤差剛好是 0 時的「正負號」）慣例明定、
-                <Erratum id="E41" /> 成本含 <Tex>{String.raw`\tfrac12`}</Tex>：<Tex>{String.raw`J=\tfrac12J_2`}</Tex>（<Tex>{'J_2'}</Tex> 是規格裡沒有{' '}
-                <Tex>{String.raw`\tfrac12`}</Tex> 的平方誤差平均）、<Erratum id="E43" /> Sign-Sign 列拼字、<Erratum id="E38" /> 輸入 <Tex>{'x'}</Tex> 是 iid 純量時
+                <ChapterErratum id="E39" /> 剩餘參數誤差採 <Tex>{String.raw`\delta=a-w`}</Tex>（真值 <Tex>{'a'}</Tex> 減去目前的猜測 <Tex>{'w'}</Tex>，不是{' '}
+                <Tex>{'w-a'}</Tex>）、<ChapterErratum id="E40" /> <Tex>{String.raw`\operatorname{sign}(0)`}</Tex>（誤差剛好是 0 時的「正負號」）慣例明定、
+                <ChapterErratum id="E41" /> 成本含 <Tex>{String.raw`\tfrac12`}</Tex>：<Tex>{String.raw`J=\tfrac12J_2`}</Tex>（<Tex>{'J_2'}</Tex> 是規格裡沒有{' '}
+                <Tex>{String.raw`\tfrac12`}</Tex> 的平方誤差平均）、<ChapterErratum id="E43" /> Sign-Sign 列拼字、<ChapterErratum id="E38" /> 輸入 <Tex>{'x'}</Tex> 是 iid 純量時
                 mean / mean-square 遞迴是精確式（詳見 <ChRef ch="03">Ch03</ChRef>）。這些符號在正文第一次出現時都會再說明一次；點擊標籤前往驗證頁的勘誤清單。
               </p>
             </Callout>

@@ -164,6 +164,9 @@ export { sanitizeMermaidSource, mermaidMathDelimiters, hasUnsupportedMarkdown, w
 // 連結：公式 ID 連結、頁內錨點連結、章節交叉參照（src/components/links）
 export * from './links'
 
+// 章節共用元件：勘誤徽章、帶入手算引言、方塊圖外框、頁內跳轉、texNum（src/components/chapter；各章原本各寫一份）
+export * from './chapter'
+
 // 全站搜尋：頂列的搜尋鈕與延後載入的命令面板（src/components/search）
 export { SearchButton, loadSearchPalette, type SearchPaletteProps } from './search'
 

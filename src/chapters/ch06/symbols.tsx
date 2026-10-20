@@ -1,5 +1,4 @@
-import { Tex, type SymbolEntry } from '@/components'
-import { Erratum } from './shared'
+import { Tex, type SymbolEntry, ChapterErratum } from '@/components'
 
 /**
  * 本章符號表（docs/teaching-style.md §5）：放在章末（index.tsx 的 #symbols），章首只留一行連結。
@@ -46,7 +45,7 @@ export const CH06_SYMBOLS: SymbolEntry[] = [
     firstSeen: '§1',
     note: (
       <>
-        §0 約定；<Erratum id="E13" />：<Tex>{'u'}</Tex> 與 <Tex>{'x'}</Tex> 同單位
+        §0 約定；<ChapterErratum id="E13" />：<Tex>{'u'}</Tex> 與 <Tex>{'x'}</Tex> 同單位
       </>
     ),
   },
@@ -61,7 +60,7 @@ export const CH06_SYMBOLS: SymbolEntry[] = [
     firstSeen: '§1',
     note: (
       <>
-        本章採 <Tex>{'\\delta=a-w'}</Tex>（§0）；規格 §3 原寫 <Tex>{'w-a'}</Tex>，見 <Erratum id="E32" />
+        本章採 <Tex>{'\\delta=a-w'}</Tex>（§0）；規格 §3 原寫 <Tex>{'w-a'}</Tex>，見 <ChapterErratum id="E32" />
       </>
     ),
   },
@@ -175,7 +174,7 @@ export const CH06_SYMBOLS: SymbolEntry[] = [
     firstSeen: '§1',
     note: (
       <>
-        與 §11 的 disturbance 不同（<Erratum id="E12" /> 已把那裡改名 <Tex>{'\\varepsilon_{cc}'}</Tex>）
+        與 §11 的 disturbance 不同（<ChapterErratum id="E12" /> 已把那裡改名 <Tex>{'\\varepsilon_{cc}'}</Tex>）
       </>
     ),
   },
@@ -187,7 +186,7 @@ export const CH06_SYMBOLS: SymbolEntry[] = [
     firstSeen: '§1',
     note: (
       <>
-        average-mode GMAC 下 <Tex>{'\\mu'}</Tex> 的單位為 fs（<Erratum id="E13" />）
+        average-mode GMAC 下 <Tex>{'\\mu'}</Tex> 的單位為 fs（<ChapterErratum id="E13" />）
       </>
     ),
   },
@@ -218,7 +217,7 @@ export const CH06_SYMBOLS: SymbolEntry[] = [
     firstSeen: '§4',
     note: (
       <>
-        <Tex>{'\\Omega=\\omega T_s'}</Tex>；不可把 <Tex>{'\\Omega'}</Tex> 直接代入 <Tex>{'H(j\\omega)'}</Tex>（<Erratum id="E44" />）
+        <Tex>{'\\Omega=\\omega T_s'}</Tex>；不可把 <Tex>{'\\Omega'}</Tex> 直接代入 <Tex>{'H(j\\omega)'}</Tex>（<ChapterErratum id="E44" />）
       </>
     ),
   },
@@ -229,7 +228,7 @@ export const CH06_SYMBOLS: SymbolEntry[] = [
     firstSeen: '§2',
     note: (
       <>
-        DT 版本見 F-06.10 <Erratum id="E44" />
+        DT 版本見 F-06.10 <ChapterErratum id="E44" />
       </>
     ),
   },
@@ -255,7 +254,7 @@ export const CH06_SYMBOLS: SymbolEntry[] = [
     firstSeen: '§2、§5',
     note: (
       <>
-        <Tex>{'f_s\\ne f_{\\mathrm{ref}}'}</Tex> 需另做 multirate 推導（<Erratum id="E44" />）
+        <Tex>{'f_s\\ne f_{\\mathrm{ref}}'}</Tex> 需另做 multirate 推導（<ChapterErratum id="E44" />）
       </>
     ),
   },
@@ -316,7 +315,7 @@ export const CH06_SYMBOLS: SymbolEntry[] = [
     firstSeen: '§6',
     note: (
       <>
-        不是 welch 的 one-sided <Tex>{'x^2/\\mathrm{Hz}'}</Tex>（<Erratum id="E28" />）
+        不是 welch 的 one-sided <Tex>{'x^2/\\mathrm{Hz}'}</Tex>（<ChapterErratum id="E28" />）
       </>
     ),
   },

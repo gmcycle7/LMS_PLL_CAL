@@ -83,7 +83,7 @@ function r08Shown() {
     claim: f16.nextElementSibling?.querySelector('.c-claim')?.className ?? '',
     section: texOf(s231),
     text: shownText(s231),
-    read: shownText(document.querySelector('[data-diagram="D-01.18"] .ch01-diagram-read')),
+    read: shownText(document.querySelector('[data-diagram="D-01.18"] .c-chapter-fig-walk-body')),
   }
 }
 
@@ -113,10 +113,10 @@ describe('Ch01 頁面（jsdom smoke）', () => {
     expect(after(mapNote, container.querySelector('.ch01-errata-box')!)).toBe(true)
     expect(after(container.querySelector('.ch01-errata-box')!, document.getElementById('formula-F-01.1')!)).toBe(true)
     // 勘誤標籤都連到驗證頁
-    const errata = Array.from(container.querySelectorAll('a.ch01-erratum'))
+    const errata = Array.from(container.querySelectorAll('a.c-erratum-link'))
     const ids = new Set(errata.map((a) => a.getAttribute('data-erratum')))
     for (const id of ['E38', 'E39', 'E40', 'E41', 'E43']) expect(ids.has(id)).toBe(true)
-    for (const a of errata) expect(a.getAttribute('href')).toBe('#/verification')
+    for (const a of errata) expect(a.getAttribute('href')).toBe(`/verification?e=${a.getAttribute('data-erratum')}`)
     // 兩個實驗
     expect(container.querySelector('[data-experiment="lms-playground"]')).toBeTruthy()
     expect(container.querySelector('[data-experiment="mse-vs-mae"]')).toBeTruthy()
@@ -165,7 +165,7 @@ describe('Ch01 頁面（jsdom smoke）', () => {
     // 圖 2-6 的導讀：圖只畫前幾格、鏈在 w = 10 附近到頭、另外兩種慣例在 w = 10 那一格也會變
     expect(r08.read).toMatch(/圖只畫前幾格.*附近就到頭了.*幾乎走不到那裡/)
     expect(r08.read).toMatch(/圖上這幾格只有.{0,6}的箭頭會變（.{0,3}剛好等於 10\s*的那一格也會變，但幾乎到不了/)
-    expect(texOf(document.querySelector('[data-diagram="D-01.18"] .ch01-diagram-read'))).toEqual(
+    expect(texOf(document.querySelector('[data-diagram="D-01.18"] .c-chapter-fig-walk-body'))).toEqual(
       expect.arrayContaining([String.raw`3^{-10/\mu}`, String.raw`3^{-50}\approx1.4\times10^{-24}`, String.raw`\overline w\approx\mu/2`]),
     )
     // §2.2 引用同一個結果時也說是小步長的近似
@@ -809,9 +809,9 @@ describe('Ch01 帶入手算：放在對應推導之後', () => {
     for (const h of HANDCALCS) {
       const el = document.getElementById(`handcalc-${h.id}`)!
       expect(el.closest('section.c-section')?.id, h.id).toBe(SECTION_OF[h.id])
-      const wrap = el.closest('.ch01-handcalc')!
+      const wrap = el.closest('.c-chapter-hand')!
       expect(wrap.getAttribute('data-handcalc')).toBe(h.id)
-      expect(wrap.querySelector('.ch01-handcalc-invite')?.textContent, h.id).toMatch(/^換你算/)
+      expect(wrap.querySelector('.c-chapter-hand-lead')?.textContent, h.id).toMatch(/^換你算/)
       // 每題的帶入過程都已渲染（預設「看帶入過程」）且有答案框
       expect(el.querySelectorAll('.c-step').length, h.id).toBeGreaterThanOrEqual(5)
       expect(el.querySelectorAll('.c-handcalc-results .c-texblock').length, h.id).toBeGreaterThanOrEqual(4)
@@ -1008,7 +1008,7 @@ describe('Ch01 架構約定（docs/assumptions.md §2a）', () => {
     expect(s26).toMatch(/校正迴路的輸入是 PD 的輸出 e（送進 loop filter 的同一個訊號），1-bit comparator（BBPD）只取它的正負號/)
     // 係數抖動經 reference 端 DTC 的補償量變成 jitter／spur，不是「DTC 插入的延遲」
     expect(s26).toMatch(/reference 端 DTC 的補償量.{0,4}跟著抖/)
-    expect(shown(document.querySelector('[data-diagram="D-01.21"] .ch01-diagram-read')!)).toMatch(/comparator 取 PD 輸出 e 的正負號/)
+    expect(shown(document.querySelector('[data-diagram="D-01.21"] .c-chapter-fig-walk-body')!)).toMatch(/comparator 取 PD 輸出 e 的正負號/)
   })
 
   it('符號表：e 是 PD 的輸出、q 是 comparator 取 PD 輸出的正負號、w·x 是 reference 端 DTC 的補償量', () => {

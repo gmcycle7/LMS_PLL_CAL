@@ -1,20 +1,6 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  ClaimTag,
-  CodeBlock,
-  Derivation,
-  ModeGate,
-  Prereq,
-  Quiz,
-  Section,
-  SourceTag,
-  StepDerivation,
-  Tex,
-  TexBlock,
-  TestBadge,
-  ChRef,
-} from '@/components'
+import { ClaimTag, CodeBlock, Derivation, ModeGate, Prereq, Quiz, Section, SourceTag, StepDerivation, Tex, TexBlock, TestBadge, ChRef, ChapterErratum } from '@/components'
 import { conventionalStep } from '@/simulation/models/lms'
 import {
   exactLmsTrace,
@@ -25,7 +11,7 @@ import {
   playgroundVarWStationary,
 } from '@/simulation/models/lossCompare'
 import lossSrc from '@/simulation/models/lossCompare.ts?raw'
-import { BehaviourLabel, BlockDiagram, ChapterHandCalc, Erratum, f, texNum, useChapterMode } from '../common'
+import { BehaviourLabel, BlockDiagram, ChapterHandCalc, f, texNum, useChapterMode } from '../common'
 import { LmsPlayground } from '../experiments/LmsPlayground'
 
 const HAND = { a: 3, w0: 1, x: 2, mu: 0.1 }
@@ -247,7 +233,7 @@ export function HandExampleSection() {
               <code>exactLmsTrace</code> 計算。<Tex>{String.raw`\delta=a-w`}</Tex>，所以是{' '}
               <Tex>{String.raw`${[0, 1, 2].map((n) => `+${texNum(tr.delta[n], 6)}`).join(',\\ ')},\dots`}</Tex>（規格 §3 的{' '}
               <Tex>{'w-a'}</Tex> 會給相反正負號）
-              <Erratum id="E39" />。
+              <ChapterErratum id="E39" />。
             </caption>
           </table>
         </div>
@@ -410,7 +396,7 @@ export function HandExampleSection() {
           </strong>
           （<Tex>{'|p|'}</Tex> 越接近 1）——這是 LMS 永遠的取捨，<ChRef ch="14">Ch14</ChRef> 會把它變成最佳化問題。<ClaimTag kind="exact" />：
           <Tex>{'v_n'}</Tex> 與 <Tex>{'w_n'}</Tex> 獨立不是假設，而是自動成立（<Tex>{'w_n'}</Tex> 只由 <Tex>{'v_0,\\dots,v_{n-1}'}</Tex> 決定）
-          <Erratum id="E38" />。注意區分兩個「均方」量 <Erratum id="E42" />：係數的 MSD{' '}
+          <ChapterErratum id="E38" />。注意區分兩個「均方」量 <ChapterErratum id="E42" />：係數的 MSD{' '}
           <Tex>{String.raw`E[\delta_n^2]=\operatorname{Var}(w_n)+\big(p^n\delta_0\big)^2`}</Tex>（穩態時第二項 → 0，所以{' '}
           <Tex>{String.raw`\operatorname{Var}(w_\infty)`}</Tex> 就是穩態 MSD），以及 §1.2 的 MSE 成本{' '}
           <Tex>{String.raw`E[e_n^2]=x^2E[\delta_n^2]+\sigma_v^2`}</Tex>（因為 <Tex>{String.raw`e_n=\delta_nx+v_n`}</Tex>，且 <Tex>{String.raw`\delta_n`}</Tex>{' '}

@@ -961,7 +961,7 @@ describe('Ch02 方塊圖：頁面（SystemMap、位置、看圖說明）', () =>
         const slot = container.querySelector(`[data-diagram="${d.id}"]`)!
         expect(slot.querySelectorAll('figure.c-mermaid'), d.id).toHaveLength(1)
         expect(slot.querySelector('figcaption')?.textContent, d.id).toBe(d.caption)
-        const walk = slot.querySelector('.ch02-diagram-walk')!
+        const walk = slot.querySelector('.c-chapter-fig-walk')!
         expect(walk, `${d.id} 沒有看圖說明`).toBeTruthy()
         expect(walk.textContent, d.id).toMatch(/先[\s\S]*看[\s\S]*再[\s\S]*看/)
         expect(walk.querySelectorAll('.katex').length, `${d.id} 的說明裡沒有數學`).toBeGreaterThan(0)
@@ -976,7 +976,7 @@ describe('Ch02 方塊圖：頁面（SystemMap、位置、看圖說明）', () =>
       }
 
       // ── §6 的 PLL 校正迴圈：文字照全站的 DTC 在 reference 端的約定（docs/assumptions.md §2a） ──
-      const pllWalk = container.querySelector('[data-diagram="pll-loop"] .ch02-diagram-walk')!
+      const pllWalk = container.querySelector('[data-diagram="pll-loop"] .c-chapter-fig-walk')!
       const pllText = pllWalk.textContent!
       const pllTex = Array.from(pllWalk.querySelectorAll('annotation')).map((x) => x.textContent ?? '')
       const pllCaption = DIAGRAM_BY_ID['pll-loop'].caption
@@ -1022,7 +1022,7 @@ describe('Ch02 方塊圖：頁面（SystemMap、位置、看圖說明）', () =>
       expect(symText('e_n=y_n-w_nx_n')).toContain('PD 的輸出')
       for (const tr of symRows) expect(tr.textContent, tr.querySelector('annotation')?.textContent ?? '').not.toMatch(/插入延遲|推回|DTC 在回授|divider 之後/)
       // 本章符號對照表：e[n] 是 PD 的輸出，comparator 取的就是送進 loop filter 的同一個 e[n]
-      const sixTable = container.querySelector('#ch02-s6')!.parentElement!.querySelector('.ch02-table')!
+      const sixTable = container.querySelector('#ch02-s6')!.querySelector('.ch02-table')!
       expect(sixTable.textContent).toContain('PD 的輸出')
       expect(sixTable.textContent).toContain('送進 loop filter 的同一個')
 
@@ -1042,7 +1042,7 @@ describe('Ch02 方塊圖：頁面（SystemMap、位置、看圖說明）', () =>
       })
 
       // 看圖說明裡的數學都是可解析的 KaTeX
-      expect(Array.from(container.querySelectorAll('.ch02-diagram .katex-error, .ch02-diagram .c-tex-error'))).toEqual([])
+      expect(Array.from(container.querySelectorAll('.c-chapter-fig .katex-error, .c-chapter-fig .c-tex-error'))).toEqual([])
     },
     T_PAGE,
   )

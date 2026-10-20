@@ -22,7 +22,7 @@ export function S5Wrap() {
   const dev = 0.09
   return (
     <>
-      <section aria-labelledby="lab-s8">
+      <section aria-labelledby="lab-s8" id="lab-sec-8">
         <h2 id="lab-s8">8｜思考題</h2>
         <Quiz
           title="思考題 1（計算）"
@@ -133,7 +133,7 @@ export function S5Wrap() {
         />
       </section>
 
-      <section aria-labelledby="lab-s9">
+      <section aria-labelledby="lab-s9" id="lab-sec-9">
         <h2 id="lab-s9">9｜本頁必記</h2>
         <Recap
           title="整條 pipeline 最重要的六個公式"

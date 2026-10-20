@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, Derivation, Prereq, Section, SourceTag, StepDerivation, TestBadge, TexBlock, ChRef } from '@/components'
+import { Callout, ClaimTag, Derivation, Prereq, Section, SourceTag, StepDerivation, TestBadge, TexBlock, ChRef, ChapterErratum } from '@/components'
 import { matScale, matVec, type Matrix } from '@/simulation/core'
 import {
   KQ_SIGMA100,
@@ -15,7 +15,7 @@ import {
   stepsToDecay,
   stepsToDecayReal,
 } from '@/simulation/models/pe'
-import { DerivBox, Diagram, Erratum, FigRef, HandCalcBox, formulaTex, m, num, texMatrix, texNum, texVec } from '../shared'
+import { DerivBox, Diagram, FigRef, HandCalcBox, formulaTex, m, num, texMatrix, texNum, texVec } from '../shared'
 
 /**
  * 1-bit 迴路自己的穩態抖動（小訊號估計）：把 F-09.18 的均方遞迴（meanSquareMap，detector = 'sign'，
@@ -170,7 +170,7 @@ export function MeanRecursion() {
       </DerivBox>
       <TexBlock id="F-09.2">{formulaTex('F-09.2')}</TexBlock>
       <TexBlock id="F-09.3">{String.raw`\boxed{${formulaTex('F-09.3')}}`}</TexBlock>
-      <Callout kind="warn" title={<>{m`K_q`} 必須明寫（<Erratum id="E05" /> <Erratum id="E08" />）</>}>
+      <Callout kind="warn" title={<>{m`K_q`} 必須明寫（<ChapterErratum id="E05" /> <ChapterErratum id="E08" />）</>}>
         規格 §9 寫成 {m`\boldsymbol\delta_{k+1}=(\mathbf I-\mu\mathbf R)\boldsymbol\delta_k`}，等於假設 {m`K_q=1`}——conventional LMS 的確如此；但 1-bit Sign-LMS 的 {m`K_q=\sqrt{2/\pi}/\sigma_v`} 帶單位 {m`\mathrm{fs}^{-1}`}。本章把 {m`g=\mu K_q`} 稱為 <strong>正規化 loop gain</strong>；規格的「{m`\mu=0.5`}」在本站讀作 {m`g=\mu K_q=0.5`}。 <ClaimTag kind="exact" />（linear；1-bit 為小訊號近似 <ClaimTag kind="approx" />）
       </Callout>
       <Callout kind="info" title="1-bit 時這是小訊號近似：多小才算小？">
@@ -368,7 +368,7 @@ export function MeanRecursion() {
       <HandCalcBox id="HC-09.3">
         換一個 {m`\rho`} 與 {m`g`}，自己走一次「eigenvalue → {m`\kappa`} → pole → {m`k_{95}`}」（要按兩次 {m`\ln`}）。先猜猜看：{m`\rho`} 從 0.99 降到 0.9，要等的 blocks 會少幾倍？
       </HandCalcBox>
-      <Callout kind="info" title={<>同樣的「{m`\mu=0.5`}」換成物理單位（<Erratum id="E05" />）</>}>
+      <Callout kind="info" title={<>同樣的「{m`\mu=0.5`}」換成物理單位（<ChapterErratum id="E05" />）</>}>
         若 {m`\mu=0.5\,\mathrm{fs}`}、1-bit comparator 的 {m`\sigma_v=100\,\mathrm{fs}`}：{m`K_q=${texNum(KQ_SIGMA100, 6)}\,\mathrm{fs}^{-1}`}，
         {m`\mu K_q\lambda_{\min}=${texNum(0.5 * KQ_SIGMA100 * 0.01, 4)}`}，慢 pole {m`=${texNum(phys.poles[1], 9)}`}，需要 <strong>{phys.k95[1].toLocaleString('en-US')}</strong> blocks（不是 598）。要得到 {m`g=0.5`} 必須
         {m`\mu=0.5/K_q=${texNum(0.5 / KQ_SIGMA100, 6)}\,\mathrm{fs}`}。 <ClaimTag kind="approx" />（1-bit：{m`K_q`} 是小訊號增益，前提是

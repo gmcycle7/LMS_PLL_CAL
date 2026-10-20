@@ -14,6 +14,7 @@ import {
   runCalStateMachine,
   type CalSmParams,
 } from '@/simulation/models/optimizer'
+import { ACQ_STATES, DEFAULT_ACQ, acquisitionTimeline, runAcquisition, type AcqParams } from '@/simulation/models/acquisition'
 import Chapter14 from './index'
 import * as D from './diagrams'
 import { CH14_CHARTS, CH14_SYSTEM_FOCUS } from './diagrams'
@@ -104,17 +105,17 @@ function labelHazard(text: string): string | null {
 }
 
 describe('Ch14 Mermaid 圖：清單', () => {
-  it('共 24 張圖（22 張新圖 + 規格原圖 + 本站實作圖），加上章首 SystemMap 共 25 張', () => {
-    expect(CH14_CHARTS.length).toBe(24)
-    expect(new Set(CH14_CHARTS.map((c) => c.name)).size).toBe(24)
-    expect(new Set(CH14_CHARTS.map((c) => c.chart)).size).toBe(24)
-    expect(CH14_CHARTS.filter((c) => c.name.startsWith('CHART_')).length).toBe(22)
+  it('共 26 張圖（24 張新圖 + 規格原圖 + 本站實作圖），加上章首 SystemMap 共 27 張', () => {
+    expect(CH14_CHARTS.length).toBe(26)
+    expect(new Set(CH14_CHARTS.map((c) => c.name)).size).toBe(26)
+    expect(new Set(CH14_CHARTS.map((c) => c.chart)).size).toBe(26)
+    expect(CH14_CHARTS.filter((c) => c.name.startsWith('CHART_')).length).toBe(24)
     // diagrams.ts 匯出的每一個 Mermaid 原始碼都在清單裡（沒有漏掉沒測到的圖）
     const exported = Object.entries(D).filter(([, v]) => typeof v === 'string' && /^(flowchart|stateDiagram|sequenceDiagram)/.test(v as string))
     expect(exported.map(([k]) => k).sort()).toEqual(CH14_CHARTS.map((c) => c.name).sort())
     for (const [k, v] of exported) expect(chartOf(k)).toBe(v)
     // 每一小節至少一張
-    for (const s of ['§14.0', '§14.1', '§14.2', '§14.3', '§14.4', '§14.5', '§14.6', '§14.7', '綜合手算']) {
+    for (const s of ['§14.0', '§14.1', '§14.2', '§14.3', '§14.4', '§14.5', '§14.6', '§14.6b', '§14.7', '綜合手算']) {
       expect(CH14_CHARTS.some((c) => c.section.startsWith(s)), s).toBe(true)
     }
     // 圖的種類：數學模型、演算法迴圈、路徑／取樣率、比較、流程、手算流程、狀態機都有
@@ -126,6 +127,26 @@ describe('Ch14 Mermaid 圖：清單', () => {
   it('實作圖涵蓋所有狀態', () => {
     for (const s of ['RESET', 'LOCK', 'COARSE', 'VERIFY', 'FINE', 'TRACK', 'FREEZE', 'RESTART', 'FAULT']) expect(D.IMPL_CHART).toContain(s)
   })
+
+  it('§14.6b 的 acquisition 狀態機圖：每條箭頭都是 acquisition.ts 真的會走的轉移，而且每一條都有情境走過（NOEN 是「不能 enable」的說明節點）', async () => {
+    const g = (await flow(D.CHART_ACQ_SM))!
+    const drawn = new Set(g.edges.map((e) => `${e.start} → ${e.end}`))
+    expect([...drawn].sort()).toEqual(['ACQ → PLOCK', 'PLOCK → CAL', 'CAL → HOLD', 'HOLD → RECAL', 'RECAL → CAL', 'CAL → ACQ', 'HOLD → ACQ', 'PLOCK → ACQ', 'PLOCK → NOEN'].sort())
+    for (const s of ACQ_STATES) expect(g.vertices.some((v) => v.id === s), s).toBe(true)
+    const walked = new Set<string>()
+    // 無雜訊的時間表（seed 無關）：上電主線；CAL 中頻率跳變（HOLD → 失鎖 → ACQ）；門檻很寬時直接 CAL → ACQ；PLOCK 中跳變（PLOCK → ACQ）
+    const deterministic: Partial<AcqParams>[] = [{}, { lossCycle: 12288, cycles: 32768 }, { lossCycle: 12288, cycles: 32768, thetaMaxFs: 30000 }, { lossCycle: 8800, cycles: 32768 }]
+    for (const sc of deterministic) for (const e of acquisitionTimeline({ ...DEFAULT_ACQ, ...sc }).events) if (e.kind === 'state') walked.add(e.msg)
+    // 有雜訊：相位雜訊大（σ_θ = 2 ps）⇒ CAL → HOLD → RECAL → CAL
+    for (const e of runAcquisition({ ...DEFAULT_ACQ, sigmaThetaFs: 2000, rmsMaxFs: 1500, cycles: 40000 }).events) if (e.kind === 'state') walked.add(e.msg)
+    for (const t of walked) expect(drawn.has(t), `程式走了「${t}」，但圖上沒有這條箭頭`).toBe(true)
+    for (const t of [...drawn].filter((t) => t !== 'PLOCK → NOEN')) expect(walked.has(t), `沒有任何情境走過「${t}」`).toBe(true)
+    // NOEN：DTC 工作點超出範圍時永遠停在 PLOCK
+    const bad = runAcquisition({ ...DEFAULT_ACQ, dtcGainsFs: [0, 90000] })
+    expect(bad.summary.dtcOk).toBe(false)
+    expect(bad.summary.enableCycle).toBe(-1)
+    expect(bad.segments.map((s) => s.state)).toEqual(['ACQ', 'PLOCK'])
+  }, 60000)
 })
 
 describe('Ch14 Mermaid 圖（真正的 mermaid parser）', () => {
@@ -552,8 +573,9 @@ describe('Ch14 架構約定（docs/assumptions.md §2a）：DTC 在 reference �
 })
 
 describe('Ch14 頁面上的方塊圖（teaching-style §8）', () => {
-  it('章首是 SystemMap（藍色：GMAC、÷N × μ、gain accumulator）；24 張圖各出現一次、順序與清單相同；每張都有圖說與「先看…」導讀，並放在對應公式之前', () => {
-    localStorage.setItem('lmspll.mode', 'beginner')
+  it('章首是 SystemMap（藍色：GMAC、÷N × μ、gain accumulator）；26 張圖各出現一次、順序與清單相同；每張都有圖說與「先看…」導讀，並放在對應公式之前', () => {
+    // Engineer：§14.6b 的狀態機圖（CHART_ACQ_SM）在 Beginner 收進 ModeGate（Beginner 的 §14.6b 只留一張圖，見 ch14.test.tsx 的學習模式）
+    localStorage.setItem('lmspll.mode', 'engineer')
     const { container } = renderPage(<Chapter14 />, { url: '/ch/14' })
     const figs = Array.from(container.querySelectorAll('figure.c-mermaid')) as HTMLElement[]
     // ① 系統地圖：第一張圖、在 14.0 之前，是手排的 SVG（figure.c-sysmap，不經過 Mermaid，所以沒有 data-chart）；藍色（is-focus）的是本章的三個方塊
@@ -601,7 +623,7 @@ describe('Ch14 頁面上的方塊圖（teaching-style §8）', () => {
     for (const c of CH14_CHARTS) {
       const wrap = el(c.name).closest('.ch14-diagram')
       expect(wrap, c.name).toBeTruthy()
-      const walk = wrap!.querySelector('.ch14-diagram-walk')
+      const walk = wrap!.querySelector('.c-chapter-fig-walk')
       expect(walk?.textContent, c.name).toContain('先看')
       if (c.name !== 'SPEC_CHART') {
         expect(walk?.textContent, c.name).toContain('圖上')
@@ -611,7 +633,7 @@ describe('Ch14 頁面上的方塊圖（teaching-style §8）', () => {
 
     // 架構約定（docs/assumptions.md §2a）：導讀與圖說都說明 e[n] 是 PD 的輸出、comparator 與 loop filter 取同一個節點（不是從 DTC 或 divider 取）
     const s2bDiagram = el('CHART_SAMPLE_TO_BLOCK').closest('.ch14-diagram')!
-    const s2bWalk = s2bDiagram.querySelector('.ch14-diagram-walk')?.textContent ?? ''
+    const s2bWalk = s2bDiagram.querySelector('.c-chapter-fig-walk')?.textContent ?? ''
     expect(s2bWalk).toContain('PD 的輸出')
     expect(s2bWalk).toContain('loop filter')
     expect(s2bWalk).toMatch(/comparator 從同一個節點分接[^。]*不是 DTC 或 divider/)
@@ -647,7 +669,7 @@ describe('Ch14 頁面上的方塊圖（teaching-style §8）', () => {
     // 為了排版從圖上挪走的字，要還留在頁面上（圖說或導讀）：clip 虛線「以 COARSE 為例，任何更新中的狀態都適用」；
     // 暫停 guard 的條件（低雜訊模式、bad-FCW 且 policy = freeze）現在寫在「是」那條邊上，導讀也有說明。
     expect(el('IMPL_CHART').closest('.ch14-diagram')?.textContent, 'clip 虛線的註解').toMatch(/clip[^。]*以 COARSE 為例，任何更新中的狀態都適用/)
-    expect(el('CHART_GUARD_ORDER').closest('.ch14-diagram')?.querySelector('.ch14-diagram-walk')?.textContent, '暫停 guard 的條件').toMatch(/低雜訊模式[^。]*bad-FCW[^。]*freeze/)
+    expect(el('CHART_GUARD_ORDER').closest('.ch14-diagram')?.querySelector('.c-chapter-fig-walk')?.textContent, '暫停 guard 的條件').toMatch(/低雜訊模式[^。]*bad-FCW[^。]*freeze/)
 
     // ④ 位置：文字說明 → 圖 → 推導／公式
     const id = (x: string) => container.querySelector(`[id="${x}"]`)
@@ -669,6 +691,8 @@ describe('Ch14 頁面上的方塊圖（teaching-style §8）', () => {
       ['CHART_SCHEDULE_COMPARE', 'formula-F-14.20'],
       ['CHART_SCHEDULE_TIMELINE', 'formula-F-14.20'],
       ['CHART_KALMAN_INFO', 'formula-F-14.18'],
+      ['CHART_ACQ_PATH', 'formula-F-14.22'],
+      ['CHART_ACQ_SM', 'ch14-state-machine'],
       ['CHART_HAND_FLOW', 'handcalc-HC-14.8'],
     ]
     for (const [name, target] of order) before(el(name), id(target), `${name} 應在 ${target} 之前`)
@@ -683,6 +707,8 @@ describe('Ch14 頁面上的方塊圖（teaching-style §8）', () => {
       ['CHART_CALC_VERIFY', 'ch14-calculator'],
       ['CHART_CORNER_FLOW', 'ch14-corner'],
       ['CHART_KALMAN_INFO', 'ch14-schedule'],
+      ['CHART_ACQ_PATH', 'ch14-acquisition'],
+      ['CHART_ACQ_SM', 'ch14-acquisition'],
       ['CHART_GUARD_ORDER', 'ch14-state-machine'],
       ['CHART_VERIFY_DECISION', 'ch14-state-machine'],
       ['CHART_ALARM_HYSTERESIS', 'ch14-state-machine'],

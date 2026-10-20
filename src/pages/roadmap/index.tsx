@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Callout, ClaimTag, ModelLevel, ModeGate, Section, SourceTag, SymbolTable } from '@/components'
+import { BadgeRow, Callout, ClaimTag, ModelLevel, ModeGate, Section, SourceTag, SymbolTable, revealAnchor } from '@/components'
 import './roadmap.css'
 import { ITEMS, itemById, type ItemId } from './data'
 import { ROADMAP_SYMBOLS } from './symbols'
@@ -41,8 +41,7 @@ export default function RoadmapPage() {
 
   useEffect(() => {
     if (!scrollTo) return
-    const el = document.getElementById(cardDomId(scrollTo))
-    el?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+    revealAnchor(cardDomId(scrollTo))
     setScrollTo(null)
   }, [scrollTo])
 
@@ -62,13 +61,13 @@ export default function RoadmapPage() {
 
   return (
     <article className="rm">
-      <div className="c-tag-row">
+      <BadgeRow label="本頁的結論強度、來源與模型層級">
         <ClaimTag kind="research" />
         <SourceTag kind="illustrative" />
         <ModelLevel level="L1" />
         <ModelLevel level="L4" />
         <ModelLevel level="L6" />
-      </div>
+      </BadgeRow>
       <p>
         規格附錄 C 的十個研究題目（R1–R10），加上使用者實際遇到的 <a href="#/case/sspll">SSPLL 8 相 PMUX + input DTC 極性案例</a>（4 GHz reference、閉迴路頻寬 320 MHz），以及網站本身的實作階段 P0–P5。每個題目列出：目標、為什麼重要、需要的數學、本站已經有的部分（連結）與還沒做的部分，並附一個可以動手算的<strong>數學預覽</strong>。
       </p>
@@ -76,7 +75,7 @@ export default function RoadmapPage() {
         這一頁上的研究項目沒有任何一個是 verified；狀態只有 partial / pending / not started / in analysis。預覽中的公式在註明的簡化模型內推導，並以「封閉式 vs 數值 vs Monte Carlo」交叉驗算，但研究題目本身仍未完成。所有數值皆為 illustrative / simulation，不是量測。
       </Callout>
       <SymbolsLink />
-      <ModeGate min="engineer">
+      <ModeGate min="engineer" summary="本頁採用的全站勘誤（E13、E22、E28、E33）與它們的意思">
         <Callout kind="info" title="本頁採用的全站勘誤">
           <ErratumTag eid="E13" /> {mt(String.raw`單位：$u$ 無因次、$w$ 與 $\mu$ 為 fs、$K=K_qC$；`)}
           <ErratumTag eid="E22" /> {mt(String.raw`正則化寫 $\varepsilon$；`)}

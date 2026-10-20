@@ -41,8 +41,8 @@ describe('RoadmapPage（jsdom smoke）', () => {
     expect(container.querySelector('#formula-F-R1\\.1')).toBeTruthy()
     expect(container.querySelector('#formula-F-SS\\.4')).toBeTruthy()
     expect(container.querySelector('#formula-F-SS\\.6')).toBeTruthy()
-    // 勘誤標記連到 #/verification
-    expect(container.querySelectorAll('a.rm-erratum[href="#/verification"]').length).toBeGreaterThan(20)
+    // 勘誤標記是共用的 ErratumLink（連到驗證頁該條勘誤的 ?e= 深連結）
+    expect(container.querySelectorAll('a.c-erratum-link[data-erratum][href*="/verification"]').length).toBeGreaterThan(20)
     // SSPLL 連到案例頁、狀態為分析中
     const ss = container.querySelector('#rm-item-SSPLL') as HTMLElement
     expect(ss.querySelector('a[href="#/case/sspll"]')).toBeTruthy()
@@ -171,9 +171,9 @@ describe('連結、錨點與 console', () => {
         expect(document.getElementById(id), id).toBeTruthy()
         expect(FORMULAS.some((f) => `formula-${f.id}` === id), id).toBe(true)
       }
-      // 站內連結只有兩種形式：HashRouter 路徑（#/…，含公式連結的 #/formulas?f=…）、Link（/…）；沒有 '#formula-…' 這種會被當成路由的 hash
+      // 站內連結只有兩種形式：HashRouter 路徑（#/…，含公式連結的 #/formulas?f=…）、Link（/…，含勘誤的 /verification?e=…）；沒有 '#formula-…' 這種會被當成路由的 hash
       for (const a of Array.from(container.querySelectorAll('a[href]'))) {
-        expect(a.getAttribute('href'), a.textContent ?? '').toMatch(/^(#\/[a-z0-9/-]*(\?[a-z]+=[\w.-]+)?|\/[a-z0-9/-]*)$/i)
+        expect(a.getAttribute('href'), a.textContent ?? '').toMatch(/^(#|)\/[a-z0-9/-]*(\?[a-z]+=[\w.-]+)?$/i)
       }
     } finally {
       spy.mockRestore()

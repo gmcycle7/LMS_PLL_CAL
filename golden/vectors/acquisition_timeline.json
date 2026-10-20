@@ -1,0 +1,267 @@
+{
+  "id": "acquisition_timeline",
+  "description_zh": "Ch14 §14.6b acquisition：FLL K_f = 5×10⁻⁴（K_vco = 2.5 MHz/LSB、g_f = 3.2、M = 4、f_ref = 4 GHz）、Δf_0 = 80 MHz、f_tol = 1 MHz、N_ld = 32 ⇒ n_c = 8762、n_FL = 8793；相位迴路 g_p = 0.395（320 MHz／4 GHz）、θ_0 = 25 ps、θ_max = 2 ps、W = 512、rms_max = 100 fs ⇒ enable 9310（線性 PD）／9313（sine PD）、LOCK = 10 個 block（N = 1024）；lock detect 誤報／漏報；失鎖（+50 MHz）後重新 enable 8429 週期",
+  "spec_section": "§14.6b",
+  "inputs": {
+    "f_ref_hz": 4000000000.0,
+    "div_ratio": 4.0,
+    "k_vco_hz_per_lsb": 2500000.0,
+    "fll_gain_lsb": 3.2,
+    "df0_hz": 80000000.0,
+    "sigma_f_hz": 100000.0,
+    "f_tol_hz": 1000000.0,
+    "n_ld": 32,
+    "f_unlock_hz": 4000000.0,
+    "n_ul": 16,
+    "f_bw_hz": 320000000.0,
+    "sigma_theta_fs": 100.0,
+    "theta0_fs": 25000.0,
+    "theta_max_fs": 2000.0,
+    "n_pl": 32,
+    "settle_window": 512,
+    "rms_max_fs": 100.0,
+    "dtc_bits": 10,
+    "dtc_cal_range_frac": 0.2,
+    "dtc_gains_fs": [
+      0.0,
+      100.0
+    ],
+    "dtc_x_range": [
+      -1.0,
+      1.0
+    ],
+    "cycles": 16384,
+    "block_n": 1024,
+    "loss_cycle": 12288,
+    "loss_df_hz": 50000000.0,
+    "loss_cycles": 32768,
+    "hc_sigma_f_hz": 400000.0,
+    "hc_df_x_hz": 2000000.0,
+    "dtc_bad_gains_fs": [
+      0.0,
+      90000.0
+    ],
+    "no_fll_cycles": 4096,
+    "wrong_harmonic_df0_hz": 4000500000.0
+  },
+  "expected": {
+    "k_f": 0.0005,
+    "t_vco_fs": 62500.0,
+    "g_p": 0.3950774372357291,
+    "n_c": 8762,
+    "n_fl": 8793,
+    "df_handoff_hz": 984055.4992143845,
+    "ramp_fs_per_cycle": 15.375867175224755,
+    "theta_ss_fs": 38.91861626623468,
+    "sigma_ss_fs": 49.615123037025626,
+    "n_pl_rel": 37,
+    "n_settle_rel": 517,
+    "n_enable": 9310,
+    "lock_blocks": 10,
+    "g_eff": 0.09239767720017582,
+    "n_pl_rel_bound": 58,
+    "n_settle_rel_bound": 546,
+    "n_enable_bound": 9339,
+    "p_in0": 1.0,
+    "p_miss": 4.876705935462773e-22,
+    "expected_detect_cycles": 32.0,
+    "df_false_alarm_hz": 1100000.0,
+    "p_false_alarm": 2.5974229425586605e-26,
+    "slip_prob_per_cycle": 0.0,
+    "noisy_lock_mean_cycle": 9118.129114241683,
+    "slip_monotonic_fs": 15625.0,
+    "slip_basin_fs": 31250.0,
+    "slip_ramp_limit_fs_per_cycle": 3929.9079400090195,
+    "slip_df_limit_hz": 251514108.16057724,
+    "dtc_ok": 1.0,
+    "dtc_t0_fs": 78125.0,
+    "dtc_range_fs": 81250.0,
+    "dtc_lsb_fs": 79.42326490713587,
+    "dtc_bad_ok": 0.0,
+    "linear_freq_lock_cycle": 8793,
+    "linear_phase_lock_cycle": 8830,
+    "linear_settle_cycle": 9310,
+    "linear_enable_cycle": 9310,
+    "linear_lock_blocks": 10,
+    "linear_df_handoff_hz": 984055.4992139082,
+    "sine_freq_lock_cycle": 8793,
+    "sine_phase_lock_cycle": 8833,
+    "sine_settle_cycle": 9313,
+    "sine_enable_cycle": 9313,
+    "sine_lock_blocks": 10,
+    "sine_slips": 0,
+    "loss_unlocks": 1,
+    "loss_holds": 1,
+    "loss_relock_cycles": 8429,
+    "loss_relock_blocks": 9,
+    "hc_p_in0": 0.9875806693484477,
+    "hc_p_miss": 0.32961763948738837,
+    "hc_expected_detect_cycles": 39.590380585607804,
+    "hc_p_in_x": 0.0062096653257442255,
+    "hc_p_false_alarm": 2.3888133335828704e-71,
+    "hc_noisy_lock_mean_cycle": 10146.608623113965,
+    "harmonic_capture_hz": 2000000000.0,
+    "harmonic_handoff_k": 0.0,
+    "harmonic_handoff_ok": 1.0,
+    "no_fll_k": 0.0,
+    "no_fll_alias_hz": 80000000.0,
+    "no_fll_harmonic_ok": 1.0,
+    "no_fll_ramp_fs_per_cycle": 1250.0,
+    "no_fll_slip_ok": 1.0,
+    "no_fll_theta_ss_fs": 3163.9366923760017,
+    "no_fll_theta_ss_pd_fs": 3219.872366659924,
+    "no_fll_phase_lock_ok": 0.0,
+    "no_fll_settle_ok": 0.0,
+    "no_fll_df_theta_max_hz": 50229877.63984734,
+    "no_fll_df_rms_max_hz": 2528453.0082283574,
+    "no_fll_sim_freq_lock_cycle": 31,
+    "no_fll_sim_phase_lock_cycle": -1,
+    "no_fll_sim_enable_cycle": -1,
+    "no_fll_sim_slips": 0,
+    "no_fll_sim_theta_end_fs": 3219.8723666599244,
+    "wrong_harmonic_k": 1.0,
+    "wrong_harmonic_alias_hz": 500000.0,
+    "wrong_harmonic_ok": 0.0,
+    "wrong_harmonic_theta_ss_pd_fs": 19.774617352197033,
+    "wrong_harmonic_sim_phase_lock_cycle": 71,
+    "wrong_harmonic_sim_settle_cycle": 551,
+    "wrong_harmonic_sim_enable_cycle": -1,
+    "wrong_harmonic_sim_slips": 0
+  },
+  "tolerance": {
+    "rel": 1e-09,
+    "abs": 1e-12
+  },
+  "tolerance_overrides": {
+    "n_c": {
+      "abs": 0.5
+    },
+    "n_fl": {
+      "abs": 0.5
+    },
+    "n_pl_rel": {
+      "abs": 0.5
+    },
+    "n_settle_rel": {
+      "abs": 0.5
+    },
+    "n_enable": {
+      "abs": 0.5
+    },
+    "lock_blocks": {
+      "abs": 0.5
+    },
+    "n_pl_rel_bound": {
+      "abs": 0.5
+    },
+    "n_settle_rel_bound": {
+      "abs": 0.5
+    },
+    "n_enable_bound": {
+      "abs": 0.5
+    },
+    "linear_freq_lock_cycle": {
+      "abs": 0.5
+    },
+    "linear_phase_lock_cycle": {
+      "abs": 0.5
+    },
+    "linear_settle_cycle": {
+      "abs": 0.5
+    },
+    "linear_enable_cycle": {
+      "abs": 0.5
+    },
+    "linear_lock_blocks": {
+      "abs": 0.5
+    },
+    "sine_freq_lock_cycle": {
+      "abs": 0.5
+    },
+    "sine_phase_lock_cycle": {
+      "abs": 0.5
+    },
+    "sine_settle_cycle": {
+      "abs": 0.5
+    },
+    "sine_enable_cycle": {
+      "abs": 0.5
+    },
+    "sine_lock_blocks": {
+      "abs": 0.5
+    },
+    "sine_slips": {
+      "abs": 0.5
+    },
+    "loss_unlocks": {
+      "abs": 0.5
+    },
+    "loss_holds": {
+      "abs": 0.5
+    },
+    "loss_relock_cycles": {
+      "abs": 0.5
+    },
+    "loss_relock_blocks": {
+      "abs": 0.5
+    },
+    "dtc_ok": {
+      "abs": 0.5
+    },
+    "dtc_bad_ok": {
+      "abs": 0.5
+    },
+    "harmonic_handoff_k": {
+      "abs": 0.5
+    },
+    "harmonic_handoff_ok": {
+      "abs": 0.5
+    },
+    "no_fll_k": {
+      "abs": 0.5
+    },
+    "no_fll_harmonic_ok": {
+      "abs": 0.5
+    },
+    "no_fll_slip_ok": {
+      "abs": 0.5
+    },
+    "no_fll_phase_lock_ok": {
+      "abs": 0.5
+    },
+    "no_fll_settle_ok": {
+      "abs": 0.5
+    },
+    "no_fll_sim_freq_lock_cycle": {
+      "abs": 0.5
+    },
+    "no_fll_sim_phase_lock_cycle": {
+      "abs": 0.5
+    },
+    "no_fll_sim_enable_cycle": {
+      "abs": 0.5
+    },
+    "no_fll_sim_slips": {
+      "abs": 0.5
+    },
+    "wrong_harmonic_k": {
+      "abs": 0.5
+    },
+    "wrong_harmonic_ok": {
+      "abs": 0.5
+    },
+    "wrong_harmonic_sim_phase_lock_cycle": {
+      "abs": 0.5
+    },
+    "wrong_harmonic_sim_settle_cycle": {
+      "abs": 0.5
+    },
+    "wrong_harmonic_sim_enable_cycle": {
+      "abs": 0.5
+    },
+    "wrong_harmonic_sim_slips": {
+      "abs": 0.5
+    }
+  },
+  "notes": "FLL n_c = ⌈ln(f_tol/|Δf_0|)/ln(1 − K_f)⌉、n_FL = n_c + N_ld − 1、Δf_h = (1 − K_f)^{n_FL+1}Δf_0；ΔT = Δf_h/(M f_ref²)、θ_ss = ΔT/g_p；n_PL = ⌈ln((θ_max − |θ_ss|)/|θ_0 − θ_ss|)/ln(1 − g_p)⌉ + N_pl − 1、n_settle = W + n_tr − 1（暫態能量低於 (rms_max² − θ_ss²)W）、enable = n_FL + max(n_PL, n_settle)、LOCK blocks = ⌈(enable + 1)/N⌉；sine PD 的上界用弦斜率 g_eff = g_p sin(x)/x、x = 2πθ_0/T_vco。lock detect：p_in = Φ((f_tol − Δf)/σ_f) − Φ((−f_tol − Δf)/σ_f)、P_FA = p_in(Δf_x)^{N_ld}、P_miss = 1 − p_in(0)^{N_ld}（erfc／log1p）、E[T_N] = (1 − p^N)/((1 − p)p^N)。模擬值（linear_*／sine_*／loss_*）是無雜訊的逐週期狀態機（run_acquisition），整數 key 完全相同；Monte Carlo（σ_f、σ_θ > 0）不放進 vector。倍頻模糊：k = ⌊Δf/f_ref + ½⌋、SSPD 只看得到 Δf − k f_ref，|Δf| < f_ref/2 才鎖在第 M 根（harmonic_*：交棒時；enable 的條件之一）。no_fll_*：不用 FLL、直接在 Δf_0 = 80 MHz 閉 SSPD（no_fll_config：K_f = 0、f_tol = 2|Δf_0| + f_ref），倍頻與 slip 都成立，卡住的是 phase lock（θ* = 3.22 ps > θ_max）與穩態；wrong_harmonic_*：Δf_0 = f_ref + 0.5 MHz，SSPD 鎖在 (M + 1) f_ref、phase lock 與穩態都過，倍頻捕獲擋住 enable。"
+}

@@ -1,25 +1,12 @@
 import { useMemo, type ReactNode } from 'react'
 import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
-import {
-  ClaimTag,
-  CodeCompare,
-  ModeGate,
-  Plot,
-  Prereq,
-  Section,
-  SourceTag,
-  StepDerivation,
-  Tex,
-  TexBlock,
-  useThemeTokens,
-  type CodeCompareItem,
-} from '@/components'
+import { ClaimTag, CodeCompare, ModeGate, Plot, Prereq, Section, SourceTag, StepDerivation, Tex, TexBlock, useThemeTokens, type CodeCompareItem, ChapterErratum, ChapterErratumNote } from '@/components'
 import { useSettings } from '@/app/settings'
 import { VARIANT_LABEL, conventionalStep, runScalarLms, signErrorStep, type LmsVariant, type TieRule } from '@/simulation/models/lms'
 import lmsSrc from '@/simulation/models/lms.ts?raw'
 import { comparatorTeaser, directionProbabilityClt, signTieDemo } from '../model'
 import { num, pct, texNum, texRes } from '../format'
-import { ChapterDiagram, ChapterHandCalc, ErratumNote, ErratumRef, FigRef, Observe, PageLink } from '../common'
+import { ChapterDiagram, ChapterHandCalc, FigRef, Observe, PageLink } from '../common'
 
 const COMPARE_SEED = 20261010
 /** 固定的版面物件（模組層級，避免每次 render 產生新參照而讓 Plot 重畫） */
@@ -278,7 +265,7 @@ export function SignTeaserSection() {
           </tbody>
         </table>
       </div>
-      <ErratumNote eid="E40">
+      <ChapterErratumNote id="E40">
         <Tex>{'\\mathrm{sign}(0)'}</Tex> 的慣例必須明定：<Tex>{`\\mu=${TIE.muExact}`}</Tex>（步長 <Tex>{`\\mu x=${texNum(TIE.muExact * TIE.x)}`}</Tex>{' '}
         是 2 的負次方）時 <Tex>{'w'}</Tex> 會剛好落在 <Tex>{texNum(TIE.a)}</Tex>、<Tex>{'e=0'}</Tex>，三種慣例分別{' '}
         {(['zero', 'plus', 'minus'] as TieRule[]).map((t, i) => (
@@ -289,7 +276,7 @@ export function SignTeaserSection() {
         ；<Tex>{`\\mu=${TIE.muT01}`}</Tex> 時，從 <Tex>{texNum(TIE.w0)}</Tex> 一路加 <Tex>{`\\mu x=${texNum(TIE.muT01 * TIE.x)}`}</Tex>{' '}
         在浮點下第一次越過時落在 <code>{String(t01Overshoot)}</code>（不是剛好 <Tex>{texNum(TIE.a)}</Tex>：0.1、0.2 都無法用二進位精確表示），<Tex>{'e'}</Tex>{' '}
         永遠不會剛好是 0，三種慣例看起來一樣。模擬不可依賴 <code>Math.sign(0) = 0</code> 的隱含行為；本站的 <code>sgn(v, tie)</code> 一律明確指定。
-      </ErratumNote>
+      </ChapterErratumNote>
 
       <h3>1-bit 比較器 + 很多筆平均 = GMAC</h3>
       <p>
@@ -366,7 +353,7 @@ export function SignTeaserSection() {
               tex: String.raw`P(S_N>0)\approx P\!\left(Z>-\frac{Nm_q}{\sqrt{N(1-m_q^2)}}\right)=\Phi\!\left(\frac{m_q\sqrt N}{\sqrt{1-m_q^2}}\right)`,
               why: (
                 <>
-                  標準化 <Tex>{'Z=(S_N-Nm_q)/\\sqrt{N(1-m_q^2)}'}</Tex>，再用對稱性質。<Tex>{'N'}</Tex> 取奇數時 <Tex>{'S_N'}</Tex> 不可能為 0（沒有平手，<ErratumRef eid="E02" />）。
+                  標準化 <Tex>{'Z=(S_N-Nm_q)/\\sqrt{N(1-m_q^2)}'}</Tex>，再用對稱性質。<Tex>{'N'}</Tex> 取奇數時 <Tex>{'S_N'}</Tex> 不可能為 0（沒有平手，<ChapterErratum id="E02" />）。
                 </>
               ),
             },
@@ -414,12 +401,12 @@ export function SignTeaserSection() {
       <p className="small">
         <ClaimTag kind="approx" /> Gaussian 雜訊 + CLT 近似；精確的 binomial 計算、平手規則與 Monte Carlo 在 <PageLink id="ch05" />。
       </p>
-      <ErratumNote eid="E18">
+      <ChapterErratumNote id="E18">
         規格 §5 把 <Tex>{'N'}</Tex> 筆 <Tex>{'q_i'}</Tex> 的<strong>總和</strong>寫成 <Tex>{'G_N'}</Tex>，和 §0 的 block <strong>平均</strong>{' '}
         <Tex>{'G_k=\\frac1N\\sum q_nx_n'}</Tex> 用了同一個字母，兩者差 <Tex>{'N'}</Tex> 倍。本站把總和記為 <Tex>{'S_N'}</Tex>、<Tex>{'E[q]'}</Tex> 記為{' '}
         <Tex>{'m_q'}</Tex>：<Tex>{'E[S_N]=Nm_q,\\ \\operatorname{Var}(S_N)=N(1-m_q^2)'}</Tex>；換成平均則是{' '}
         <Tex>{'E[G]=m_q,\\ \\operatorname{Var}(G)=(1-m_q^2)/N'}</Tex>。判斷方向的機率 <Tex>{'P(S_N>0)=P(G>0)'}</Tex> 與尺度無關。
-      </ErratumNote>
+      </ChapterErratumNote>
       <p>
         硬體上，先把 <Tex>{'N'}</Tex> 筆 <Tex>{'q_n x_n'}</Tex> 累加（GMAC），再更新一次係數。時間索引也跟著分開：<Tex>{'n'}</Tex> 是比較器取樣，
         <Tex>{'k'}</Tex> 是 GMAC block（每 <Tex>{'N'}</Tex> 筆取樣組成一個 block）；第 <Tex>{'k'}</Tex> 個 block 的平均記為 <Tex>{'G_k'}</Tex>：
@@ -444,7 +431,7 @@ export function SignTeaserSection() {
       </Observe>
       <ModeGate min="research">
         <p className="small">
-          （Research）注意 Sign-Error 的固定點由 <Tex>{'E[\\mathrm{sign}(e)\\,x]=0'}</Tex> 決定，一般不等於 MSE 的 <Tex>{'E[e\\,x]=0'}</Tex>；有雜訊時兩者的差距取決於 <Tex>{'\\sigma_v'}</Tex> 與殘差的相對大小（<ErratumRef eid="E01" />，<PageLink id="ch11" />）。
+          （Research）注意 Sign-Error 的固定點由 <Tex>{'E[\\mathrm{sign}(e)\\,x]=0'}</Tex> 決定，一般不等於 MSE 的 <Tex>{'E[e\\,x]=0'}</Tex>；有雜訊時兩者的差距取決於 <Tex>{'\\sigma_v'}</Tex> 與殘差的相對大小（<ChapterErratum id="E01" />，<PageLink id="ch11" />）。
         </p>
       </ModeGate>
     </Section>

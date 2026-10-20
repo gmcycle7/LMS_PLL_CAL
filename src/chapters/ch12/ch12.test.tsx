@@ -89,7 +89,7 @@ describe('第 12 章（jsdom smoke）', () => {
     expect(screen.queryByText('先備章節')).toBeNull()
     // 方塊圖（docs/teaching-style.md §8）：章首的系統地圖 + 本章的 Mermaid 圖（預設 Engineer 模式看不到 Research 專屬的那一張）
     expect(container.querySelectorAll('figure.c-mermaid').length).toBe(1 + CH12_CHARTS.filter((c) => !c.mode).length)
-    expect(container.querySelectorAll('.ch12-diagram').length).toBe(CH12_CHARTS.filter((c) => !c.mode).length)
+    expect(container.querySelectorAll('.c-chapter-fig').length).toBe(CH12_CHARTS.filter((c) => !c.mode).length)
     // 章首的系統地圖是手排的 SVG（figure.c-sysmap，不經過 Mermaid）：被標成藍色（is-focus）的方塊就是本章追蹤的雜訊路徑
     const sysmaps = container.querySelectorAll('figure.c-mermaid.c-sysmap')
     expect(sysmaps.length).toBe(1)
@@ -104,10 +104,10 @@ describe('第 12 章（jsdom smoke）', () => {
     // 含公式的標題確實被 KaTeX 渲染（沒有殘留的 $）
     expect(container.querySelectorAll('h2 .katex, h3 .katex').length).toBeGreaterThanOrEqual(4) // 12.6、§12.8、單頻 × 單頻、隨機 × 隨機
     expect(headings.some((t) => t.includes('$'))).toBe(false)
-    const links = Array.from(container.querySelectorAll('a.ch12-erratum')) as HTMLAnchorElement[]
-    const ids = new Set(links.map((a) => a.textContent?.replace('勘誤 ', '').trim()))
+    const links = Array.from(container.querySelectorAll('a.c-erratum-link')) as HTMLAnchorElement[]
+    const ids = new Set(links.map((a) => a.getAttribute('data-erratum')))
     for (const e of ['E06', 'E09', 'E10', 'E26', 'E27', 'E28', 'E29', 'E30', 'E33']) expect(ids.has(e)).toBe(true)
-    expect(links.every((a) => a.getAttribute('href') === '#/verification')).toBe(true)
+    expect(links.every((a) => a.getAttribute('href') === `/verification?e=${a.getAttribute('data-erratum')}`)).toBe(true)
     const badges = container.querySelector('.c-tag-row')?.textContent ?? ''
     for (const t of ['T13', 'T14', 'T15']) expect(badges).toContain(t)
     // 公式錨點
@@ -115,7 +115,7 @@ describe('第 12 章（jsdom smoke）', () => {
     // 帶入手算（docs/teaching-style.md §7）：8 題依頁面順序出現，每題前面有一句邀請讀者先自己算的話
     const hands = Array.from(container.querySelectorAll('section.c-handcalc')) as HTMLElement[]
     expect(hands.map((e) => e.id)).toEqual(HANDCALCS.map((h) => `handcalc-${h.id}`))
-    expect(container.querySelectorAll('.ch12-hand > .ch12-hand-invite').length).toBe(HANDCALCS.length)
+    expect(container.querySelectorAll('.c-chapter-hand > .c-chapter-hand-lead').length).toBe(HANDCALCS.length)
     // 每一題都放在它對應的公式（推導）之後；HC-12.1 例外：它緊接章首的「先算一次」表格（遞迴式在下一節才推導）
     for (const h of HANDCALCS) {
       if (!h.formulaId || h.id === 'HC-12.1') continue

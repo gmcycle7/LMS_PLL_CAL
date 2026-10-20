@@ -4,7 +4,7 @@
  */
 import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
 import { histogram } from '@/simulation/core'
-import type { FcwPoint, LinearPrediction, McSummary, PipelineResult, TrainingResult } from '@/simulation/models/unifiedLab'
+import type { FcwPoint, LinearPrediction, McMimoSummary, McSummary, PipelineMimo, PipelineResult, TrainingResult } from '@/simulation/models/unifiedLab'
 import { PE_ZERO_REL, timingPsdToDbc } from '../logic'
 
 export interface Fig {
@@ -368,5 +368,76 @@ export function figComparePsd(items: CompareItem[], pal: Palette, unit: PsdUnit)
       return { x: o.psdSim.f, y: unit === 'dbc' ? timingPsdToDbc(o.psdSim.psd, it.res.fOutHz) : o.psdSim.psd, name: `Case ${it.id}：$t_{\\mathrm{out}}$`, mode: 'lines', line: { color: pal.series[it.seriesIndex], width: 1 } } as Data
     }),
     layout: { xaxis: ax('$f$ [Hz]'), yaxis: ax(unit === 'dbc' ? '$\\mathcal{L}(f)$ [dBc/Hz]' : '$S_t$（one-sided）[fs$^2$/Hz]') },
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* wave 5：8 相 PMUX + GOS 的 9 個權重                                  */
+/* ------------------------------------------------------------------ */
+
+/** 9 個權重的軌跡：模擬（實線）、mean-field 平均軌跡（虛線）、目標（點線）；PHOS 以 8 個顏色輪替，GOS 用右軸（單位不同：fs per Δ） */
+export function figWeights9(m: PipelineMimo, pal: Palette): Fig {
+  const data: Data[] = []
+  const k = m.blocks.k
+  const xr = range2(k)
+  const P = m.names.length
+  for (let j = 0; j < P; j++) {
+    const gos = j === P - 1
+    const color = pal.series[j % pal.series.length]
+    const yaxis = gos ? 'y2' : 'y'
+    data.push({ x: k, y: m.blocks.w[j], name: `$${m.names[j]}$${gos ? '（GOS，右軸）' : ''}`, mode: 'lines', line: { color, width: gos ? 1.8 : 1.1 }, yaxis })
+    if (Number.isFinite(m.blocks.wMeanModel[j][0])) data.push({ x: k, y: m.blocks.wMeanModel[j], name: `$\\hat ${m.names[j]}$（mean-field）`, mode: 'lines', line: { color, width: 1, dash: 'dash' }, yaxis, visible: gos ? true : 'legendonly' })
+    data.push({ x: xr, y: [m.target[j], m.target[j]], name: gos ? '$a$' : `$\\varepsilon_{${j}}$`, mode: 'lines', line: { color, width: 0.8, dash: 'dot' }, hoverinfo: 'skip', yaxis, showlegend: false })
+  }
+  return {
+    data,
+    layout: {
+      xaxis: ax('block $k$'),
+      yaxis: ax('PHOS $w_p$ [fs]'),
+      yaxis2: { title: { text: 'GOS $w_g$ [fs per $\\Delta$]' }, overlaying: 'y', side: 'right', showgrid: false },
+    },
+  }
+}
+
+/** Monte Carlo：9 個權重跨 seeds 的平均軌跡（實線）與 mean-field（虛線）；目標為點線 */
+export function figMcMimo(s: McMimoSummary, pal: Palette): Fig {
+  const P = s.P
+  const K1 = s.wMean.length / P
+  const idx = thin(K1, 1500)
+  const data: Data[] = []
+  for (let j = 0; j < P; j++) {
+    const gos = j === P - 1
+    const color = pal.series[j % pal.series.length]
+    const yaxis = gos ? 'y2' : 'y'
+    data.push({ x: idx, y: idx.map((i) => s.wMean[i * P + j]), name: `$${s.names[j]}$ 跨 seeds 平均${gos ? '（右軸）' : ''}`, mode: 'lines', line: { color, width: gos ? 1.8 : 1.1 }, yaxis })
+    if (s.meanField) data.push({ x: idx, y: idx.map((i) => (s.meanField as Float64Array)[i * P + j]), name: `$\\hat ${s.names[j]}$（mean-field）`, mode: 'lines', line: { color, width: 1, dash: 'dash' }, yaxis, visible: gos ? true : 'legendonly' })
+    data.push({ x: [0, K1 - 1], y: [s.target[j], s.target[j]], name: gos ? '$a$' : `$\\varepsilon_{${j}}$`, mode: 'lines', line: { color, width: 0.8, dash: 'dot' }, hoverinfo: 'skip', yaxis, showlegend: false })
+  }
+  return { data, layout: { xaxis: ax('block $k$'), yaxis: ax('PHOS $w_p$ [fs]'), yaxis2: { title: { text: 'GOS $w_g$ [fs per $\\Delta$]' }, overlaying: 'y', side: 'right', showgrid: false } } }
+}
+
+/** FCW sweep（pmux8）：9 權重的 min Re λ（極性）、條件數（右軸 log）、PMUX 旋轉頻率落在反號帶的點 */
+export function figSweepMimo(pts: FcwPoint[], pal: Palette): Fig | null {
+  const s = pts.filter((p) => p.mimo)
+  if (s.length === 0) return null
+  const mm = (p: FcwPoint) => p.mimo as NonNullable<FcwPoint['mimo']>
+  const bad = s.filter((p) => mm(p).signFlip)
+  const inBand = s.filter((p) => mm(p).rotInInversionBand)
+  const data: Data[] = [
+    { x: fr(s), y: s.map((p) => mm(p).minReEig), name: '$\\min\\mathrm{Re}\\,\\lambda(J_{\\mathrm{obs}})$（9 權重）', mode: 'lines+markers', line: { color: pal.series[0], width: 1.6 }, marker: { size: 5 } },
+    hline([s[0].frac, s[s.length - 1].frac], 0, '$\\mathrm{Re}\\,\\lambda = 0$（極性邊界）', pal.danger, 'dash'),
+    { x: fr(s), y: s.map((p) => (Number.isFinite(mm(p).cond) ? mm(p).cond : NaN)), name: '條件數 $\\lambda_{\\max}/\\lambda_{\\min}$（右軸，log）', mode: 'lines+markers', line: { color: pal.series[3], width: 1.2 }, marker: { size: 4 }, yaxis: 'y2' },
+  ]
+  if (bad.length > 0) data.push({ x: fr(bad), y: bad.map((p) => mm(p).minReEig), name: '$\\mathrm{Re}\\,\\lambda \\le 0$：9 權重極性錯誤', mode: 'markers', marker: { color: pal.danger, size: 10, symbol: 'circle-open', line: { width: 2 } } })
+  if (inBand.length > 0) data.push({ x: fr(inBand), y: inBand.map((p) => mm(p).minReEig), name: 'PMUX 旋轉頻率 $\\alpha f_{\\mathrm{ref}}$ 在反號帶內', mode: 'markers', marker: { color: pal.series[1], size: 8, symbol: 'triangle-down' } })
+  const loop = s.filter((p) => p.loop && p.loop.phosRmsFs !== null)
+  if (loop.length > 0) data.push({ x: fr(loop), y: loop.map((p) => p.loop?.phosRmsFs ?? NaN), name: '閉迴路 PHOS 殘差 RMS [fs]（右軸）', mode: 'markers', marker: { color: pal.series[2], size: 7, symbol: 'diamond' }, yaxis: 'y2' })
+  return {
+    data,
+    layout: {
+      xaxis: ax('FCW 小數部分 $\\alpha$'),
+      yaxis: ax('$\\mathrm{Re}\\,\\lambda$ [fs$^{-1}$]'),
+      yaxis2: { title: { text: '條件數 / PHOS 殘差 [fs]' }, overlaying: 'y', side: 'right', type: 'log', showgrid: false },
+    },
   }
 }

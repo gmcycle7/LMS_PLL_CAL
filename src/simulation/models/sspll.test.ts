@@ -1450,3 +1450,349 @@ describe('SSPLL 殘餘誤差 → 輸出 spur／jitter（§15.4：residualLineSpe
     }
   }, 60000)
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Code source（DSM dither、MASH、PMUX 隨機旋轉）× LMS（§10b）：TS port vs results/dither_interaction.json（tools/dither_sweep.py）
+// 容差（JSON 的 _meta.tolerances）：closed form 與 factors 是同一套式子 → 相對 1e-9；closed vs numeric 絕對 0.03（MASH 在近有理數 α 有 tone）；
+// acc1／mash 的序列是決定性的（與 Python 同一個整數遞迴），numeric 與大訊號逐位相同到 1e-7；dq／rot 的隨機數不同，只比統計（絕對 0.05）。
+// ─────────────────────────────────────────────────────────────────────────────
+import {
+  CODE_RANGE,
+  CODE_SOURCES,
+  acc1LineWeight,
+  accWord,
+  codeSequenceRows,
+  codeSpectralModel,
+  codeVerdict,
+  crosscheckCode,
+  divergenceMcCode,
+  dqLineWeight,
+  dqWhite,
+  gosCode,
+  kappaModeCode,
+  kappaNumericCode,
+  kappaPhosCode,
+  largeSignalCode,
+  mashFactors,
+  modeFold,
+  rotFactor,
+  runSspllLmsCode,
+  thetaMode,
+  type CodeSource,
+} from './sspll'
+
+describe('SSPLL code source × LMS（§10b）：closed form、numeric、大訊號、閉迴路 vs golden dither_interaction.json', () => {
+  const DI = readGolden('dither_interaction.json')
+  const LOOPS_DI: Record<string, SspllLoop> = { L2: LOOPS.L2, L2_pm45: makeL2({ pm: 45 }), L3: LOOPS.L3 }
+  const SEL: number[] = DI._meta.selected_alphas
+
+  it('SSPLL: 頻譜因子——MASH 的 |φ|² = 0.73099、R̃；dq 的白雜訊 (1 − cos θ)/3 與線權重；rot4／rot8 的 |D_M|²（rot8 全部模態為 0）；每個模態的功率守恆', () => {
+    for (let m = 1; m <= 7; m++) {
+      const f = mashFactors(m)
+      const g = DI.factors.mash[`m${m}`]
+      close(f.phi2, g.phi2, 1e-12)
+      for (let k = 0; k < 3; k++) close(f.rtilde[k], g.rtilde[k], 1e-12, 1e-15)
+      close(dqWhite(m), DI.factors.dq[`m${m}`].white, 1e-12)
+      close(rotFactor(4, m), DI.factors.rot4[`m${m}`].D2, 1e-12, 1e-30)
+      expect(rotFactor(8, m)).toBeLessThan(1e-28) // Σ_{r<8} e^{jπmr/4} = 0：隨機旋轉 8 相把每條線都殺掉
+      for (const [ell, w] of Object.entries(DI.factors.dq[`m${m}`].lines)) close(dqLineWeight(m, (Number(ell) - modeFold(m)) / 8), w as number, 1e-10, 1e-18) // 線 ℓ = fold(m) + 8k
+      // Parseval：線 + 白色 = 1（dq），線 = |D|²（rot），線 = |φ|²（mash），線 = 1（acc1，尾項補足）
+      for (const src of CODE_SOURCES) {
+        const sm = codeSpectralModel(src, m)
+        const sum = sm.lines.reduce((a, l) => a + l.w, 0)
+        expect(sum).toBeLessThanOrEqual(sm.total + 1e-12)
+        if (src !== 'acc1') expect(sum).toBeGreaterThan(sm.total - 1e-4) // dq／rot：|k| ≤ 1024 之外的尾項 < 1e-4
+        close(sm.total + (src === 'mash' ? 0 : sm.rtilde[0]), src === 'mash' ? mashFactors(m).phi2 : 1, 1e-12)
+      }
+    }
+    close(mashFactors(1).phi2, 0.730986, 1e-5)
+    close(thetaMode(1), Math.PI / 4, 1e-15)
+    close(acc1LineWeight(1), W1, 1e-14)
+    expect(CODE_RANGE).toEqual({ acc1: 1, dq: 2, mash: 4, rot4: 4, rot8: 8 })
+  })
+
+  it('SSPLL: closed form 的 κ_m、κ_min、最差模態、GOS 的 C／var／mean 與 golden 逐項相同（3 個迴路 × 5 種 source × 7 個 α）', () => {
+    for (const [lk, loop] of Object.entries(LOOPS_DI)) {
+      for (const src of CODE_SOURCES) {
+        const g = DI.closed[`${lk}|${src}`]
+        for (const a of SEL) {
+          const row = g[String(a)]
+          const kp = kappaPhosCode(loop, a, src)
+          for (let m = 0; m < 7; m++) close(kp.kappaM[m], row.kappa_m[m], 1e-9, 1e-12)
+          close(kp.kappaMin, row.kappa_min, 1e-9, 1e-12)
+          // 最差模態：Re κ_m = Re κ_{8−m}（共軛對），rot8 更是 7 個模態全為 1——並列時兩邊的 argmin 可以落在不同的 m，只要求 TS 的最差模態達到 golden 的最小值
+          close(row.kappa_m[kp.worstMode - 1], row.kappa_min, 1e-9, 1e-12)
+          const gos = gosCode(loop, a, src)
+          close(gos.C, row.gos.C, 1e-9, 1e-12)
+          close(gos.varC, row.gos.var, 1e-12)
+          close(gos.meanC, row.gos.mean, 1e-12)
+          close(gos.kappaE2, row.gos.kappa_e2, 1e-9, 1e-12)
+          expect(codeVerdict(loop, a, src).verdict).toBe(row.verdict)
+        }
+      }
+    }
+    // acc1 的 closed form 與 §8 的 phosLambdaHarmonic 是同一個和（截斷與尾項不同）：1e-4 內
+    for (const a of SEL) {
+      const kp = kappaPhosCode(LOOPS.L2, a, 'acc1')
+      const an = analyseAlpha(LOOPS.L2, a)
+      for (let m = 0; m < 7; m++) close(kp.kappaM[m], an.kappaM[m].re, 0, 1e-4)
+    }
+  })
+
+  it('SSPLL: 序列——每種 source 都滿足 P + c = Φ + 常數（總補償量不變）、c 在構造的 range 內；acc1／mash 決定性', () => {
+    for (const src of CODE_SOURCES) {
+      const { c, p } = codeSequenceRows(0.137, src, 2000)
+      const off = { acc1: 0, dq: 1, mash: 2, rot4: 3, rot8: 7 }[src]
+      for (let n = 0; n < 2000; n++) {
+        expect(c[n]).toBeGreaterThanOrEqual(0)
+        expect(c[n]).toBeLessThan(CODE_RANGE[src] + 1e-12)
+        // (p + c − offset) mod 8 = 8nα mod 8（量化的 α）；MASH 的狀態從 nStart = −64 歸零、S1 = (k+1)F，所以它的相位是 (n + 65)·8α（常數偏移，與 sim 相同）
+        const nn = src === 'mash' ? n + 65 : n
+        const phi = ((Math.imul(nn | 0, accWord(0.137) | 0) >>> 0) / 2 ** 29) % 8
+        const lhs = (((p[n] + c[n] - off) % 8) + 8) % 8
+        expect(Math.abs(lhs - phi) < 1e-9 || Math.abs(Math.abs(lhs - phi) - 8) < 1e-9, `${src} n=${n}`).toBe(true)
+      }
+      const again = codeSequenceRows(0.137, src, 2000)
+      expect(again.c).toEqual(c) // 同 seed 可重現
+    }
+    expect(codeSequenceRows(0.137, 'acc1', 50)).toEqual({ c: phaseSequence(0.137, 50, 'acc32').rho, p: phaseSequence(0.137, 50, 'acc32').p })
+  })
+
+  it('SSPLL: numeric（實際序列的線性相關）——acc1／mash 與 golden 逐位相同（1e-7），dq／rot 統計一致（0.05）；closed vs numeric 的最大差與 golden 一致（0.021）', () => {
+    let maxDiff = 0
+    for (const [lk, loop] of Object.entries(LOOPS_DI)) {
+      for (const src of CODE_SOURCES) {
+        for (const a of SEL) {
+          const nu = kappaNumericCode(loop, a, src)
+          const g = DI.numeric[`${lk}|${src}`][String(a)]
+          const det = src === 'acc1' || src === 'mash'
+          for (let m = 0; m < 7; m++) close(nu.kappaM[m], g.kappa_m[m], 0, det ? 1e-7 : 0.05)
+          close(nu.gosC, g.gos_C, 0, det ? 1e-7 : 0.05 * Math.max(1, g.gos_C))
+          close(nu.codeMean, g.code_mean, 0, det ? 1e-9 : 0.05)
+          const cl = DI.closed[`${lk}|${src}`][String(a)]
+          maxDiff = Math.max(maxDiff, Math.abs(nu.kappaMin - cl.kappa_min))
+          close(nu.kappaMin, cl.kappa_min, 0, 0.03)
+        }
+      }
+    }
+    close(maxDiff, DI.sim_compare._summary.max_abs_diff_closed_numeric, 0, 0.01)
+    expect(DI.sim_compare._summary.max_abs_diff_closed_sim).toBeLessThan(0.01) // closed form vs 時域 sim 存檔（sim_dither_extract.json）
+  })
+
+  it('SSPLL: 大訊號 κ_∞（1-bit 相關）——L2-PM45／MASH／α = 0.03：線性 −0.0013（dead zone）但 κ_∞ = −0.258；PM 60° 是 +0.180；acc1／mash 與 golden 逐位相同', () => {
+    for (const [lk, loop] of Object.entries(LOOPS_DI)) {
+      for (const src of ['acc1', 'mash'] as CodeSource[]) {
+        for (const a of [0.01, 0.03, 0.137]) {
+          const g = DI.large_signal[`${lk}|${src}`][String(a)].m1
+          const ls = largeSignalCode(loop, a, src, 1, [1, 5], CFG)
+          close(ls.kappaInf, g.kappa_inf, 1e-7, 1e-9)
+          close(ls.lin, g.lin, 1e-7, 1e-9)
+          close(ls.g[0], g.g[0], 1e-6, 1e-9)
+          close(ls.g[1], g.g[1], 1e-6, 1e-9)
+        }
+      }
+    }
+    const hl = DI.headline
+    const pm45 = largeSignalCode(LOOPS_DI.L2_pm45, 0.03, 'mash', 1, [1, 5], CFG)
+    close(pm45.kappaInf, -0.2583, 0, 2e-4)
+    close(pm45.lin, -0.0013, 0, 2e-4)
+    close(pm45.kappaInf, hl.kappa_inf, 1e-7)
+    const pm60 = largeSignalCode(LOOPS.L2, 0.03, 'mash', 1, [1, 5], CFG)
+    close(pm60.kappaInf, hl.pm60.kappa_inf, 1e-7)
+    close(pm60.kappaInf, 0.1799, 0, 2e-4)
+    // dq／rot：隨機數不同，統計一致
+    for (const src of ['dq', 'rot4'] as CodeSource[]) {
+      const g = DI.large_signal[`L2|${src}`]['0.03'].m1
+      close(largeSignalCode(LOOPS.L2, 0.03, src, 1, [1, 5], CFG).kappaInf, g.kappa_inf, 0, 0.05)
+    }
+  })
+
+  it('SSPLL: headline——L2-PM45、MASH、α = 0.03 逐項：載波 0.731 × Re H(120 MHz) = −0.280，散開的三項 +0.269 +0.041 −0.009 ⇒ κ₁ = +0.0206（dead zone）；PM 60° 的 Re H = −0.095 ⇒ +0.238', () => {
+    const hl = DI.headline
+    const loop = LOOPS_DI.L2_pm45
+    const h = loopImpulse(loop, 3)
+    const f = mashFactors(1)
+    const reH = loopH(loop, 0.03).re
+    close(reH, hl.ReH, 1e-9)
+    close(reH, -0.3825, 0, 1e-4)
+    const terms = [f.phi2 * reH, h[0] * f.rtilde[0], h[1] * Math.cos(2 * Math.PI * 0.03) * f.rtilde[1], h[2] * Math.cos(4 * Math.PI * 0.03) * f.rtilde[2]]
+    close(terms[0], hl.terms.carrier, 1e-9)
+    close(terms[1], hl.terms.k0, 1e-9)
+    close(terms[2], hl.terms.k1, 1e-9)
+    close(terms[3], hl.terms.k2, 1e-9)
+    const k1 = terms.reduce((x, y) => x + y, 0)
+    close(k1, kappaModeCode(loop, 0.03, 'mash', 1), 1e-12)
+    close(k1, hl.kappa_1, 1e-9)
+    close(k1, 0.0206, 0, 1e-4)
+    expect(codeVerdict(loop, 0.03, 'mash').verdict).toBe('dead')
+    close(loopH(LOOPS.L2, 0.03).re, hl.pm60.ReH, 1e-9)
+    close(kappaModeCode(LOOPS.L2, 0.03, 'mash', 1), hl.pm60.kappa_1, 1e-9)
+    close(kappaModeCode(LOOPS.L2, 0.03, 'mash', 1), 0.2377, 0, 1e-4)
+    expect(codeVerdict(LOOPS.L2, 0.03, 'mash').verdict).toBe('restoring')
+    // 手算題 HC-CS.12 的數字：dq 的線與白雜訊、rot4 的 |D|²
+    close(dqWhite(1), hl.handcalc_dq.white, 1e-12)
+    close(dqLineWeight(1, 0), hl.handcalc_dq.line_m1, 1e-12)
+    close(kappaModeCode(loop, 0.03, 'dq', 1), hl.handcalc_dq.kappa_1, 1e-9)
+    close(rotFactor(4, 1), hl.handcalc_rot4.D2, 1e-12)
+    close(kappaModeCode(loop, 0.03, 'rot4', 1), hl.handcalc_rot4.kappa_1, 1e-9)
+    close(kappaModeCode(loop, 0.03, 'rot8', 1), 1, 1e-12)
+    // 時域 sim（sim_dither_extract.json）的閉迴路：這一點發散到 10.7 ps
+    expect(hl.sim_final_phos_fs).toBeGreaterThan(10000)
+  })
+
+  it('SSPLL: 判定 vs Monte Carlo——TS 的 crosscheck 與 golden 的 87 ok／0 mismatch／18 n/a 逐格相同；L2-PM45／MASH／α = 0.03 是 dead zone 且 8/8 發散、PM 60° 是 restoring 且 8/8 收斂', () => {
+    let ok = 0
+    let bad = 0
+    let na = 0
+    for (const lk of Object.keys(LOOPS_DI)) {
+      for (const src of CODE_SOURCES) {
+        for (const a of SEL) {
+          const g = DI.mc[`${lk}|${src}`][String(a)]
+          const v = codeVerdict(LOOPS_DI[lk], a, src)
+          expect(v.verdict).toBe(g.verdict)
+          const cc = crosscheckCode(v.verdict, { ciDiv: g.ci_div, ciConv: g.ci_conv })
+          expect(cc.status, `${lk}|${src}|${a}`).toBe(g.crosscheck.status)
+          ok += cc.status === 'ok' ? 1 : 0
+          bad += cc.status === 'mismatch' ? 1 : 0
+          na += cc.status === 'n/a' ? 1 : 0
+        }
+      }
+    }
+    expect([ok, bad, na]).toEqual([DI.mc._summary.n_ok, DI.mc._summary.n_mismatch, DI.mc._summary.n_na])
+    expect(bad).toBe(0)
+    const hl = DI.mc['L2_pm45|mash']['0.03']
+    expect(hl.n_div).toBe(8)
+    expect(hl.verdict).toBe('dead')
+    expect(DI.mc['L2|mash']['0.03'].n_conv).toBe(8)
+    expect(DI.mc['L2|rot8']['0.02'].n_conv).toBe(8)
+    expect(DI.mc['L2|acc1']['0.02'].n_div).toBe(8)
+  })
+
+  it('SSPLL: 閉迴路（TS port，runSspllLmsCode）——L2-PM45／MASH／α = 0.03 四個 seeds 都變大，PM 60° 都收斂到 1/4 以下；rot8 在 80 MHz 收斂而 acc1 發散；同 seed 可重現', () => {
+    const base = { cfg: CFG, nBlocks: 600, nBlk: 512, tauBlocks: 25, recEvery: 50, variant: 'raw' }
+    const bad = divergenceMcCode({ ...base, loop: LOOPS_DI.L2_pm45, alpha: 0.03, source: 'mash', seeds: [0, 1, 2, 3] })
+    expect(bad.finalFs.every((f) => f > bad.initFs)).toBe(true)
+    close(bad.initFs, 173.29, 0, 0.01)
+    expect(bad.traces).toHaveLength(4)
+    const good = divergenceMcCode({ ...base, loop: LOOPS.L2, alpha: 0.03, source: 'mash', seeds: [0, 1, 2, 3] })
+    expect(good.nConv).toBe(4)
+    expect(good.ciConv[0]).toBeGreaterThan(0.5) // 4/4 的 Wilson 下界 0.51：4 個 seeds 才判得了
+    expect(crosscheckCode('restoring', good).status).toBe('ok')
+    const rot = runSspllLmsCode({ ...base, loop: LOOPS.L2, alpha: 0.02, source: 'rot8', seed: 1 })
+    const raw = runSspllLmsCode({ ...base, loop: LOOPS.L2, alpha: 0.02, source: 'acc1', seed: 1 })
+    expect(rot.finalPhosRmsFs).toBeLessThan(rot.initPhosRmsFs / 4)
+    expect(raw.finalPhosRmsFs).toBeGreaterThan(raw.initPhosRmsFs * 2)
+    // acc1 的 code source 等於 runSspllLms 的 acc32 序列：同參數、同 seed 的結果逐位相同
+    const ref = runSspllLms({ ...base, loop: LOOPS.L2, alpha: 0.02, variant: 'raw', seed: 1, seq: 'acc32' })
+    expect(Array.from(raw.phosRmsFs)).toEqual(Array.from(ref.phosRmsFs))
+    expect(runSspllLmsCode({ ...base, loop: LOOPS.L2, alpha: 0.02, source: 'rot8', seed: 1 }).finalPhosRmsFs).toBe(rot.finalPhosRmsFs)
+  }, 60000)
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// dead zone 的候選判準（§10b.7）：TS port vs golden 的 score_candidates（results/dither_interaction.json 的 mc[*].candidates 與 mc._summary.candidates）。
+// 容差：判定是離散的，逐格相同；e-folding 的成長倍數是同一條式子（相對 1e-12）；最差模態的 κ_∞ 是實際序列上的 1-bit 相關——
+// acc1／mash 的序列與 Python 同一個整數遞迴，相對 1e-7（絕對 1e-9）；dq／rot 的隨機數不同（xoshiro128** vs PCG64），只比統計（絕對 0.05；實測最大差 0.018）。
+// ─────────────────────────────────────────────────────────────────────────────
+import { efoldVerdict, efoldWindow, kappaInfHint, twoStageCandidate } from './sspll'
+
+describe('SSPLL §10b.7：dead zone 的候選判準 vs golden（兩段判定被資料否決、觀測窗的 e-folding 0 個不一致）', () => {
+  const DI = readGolden('dither_interaction.json')
+  const LOOPS_DI: Record<string, SspllLoop> = { L2: LOOPS.L2, L2_pm45: makeL2({ pm: 45 }), L3: LOOPS.L3 }
+  const TAU: number = DI._meta.tau_dead
+  const rows = (): { key: string; lk: string; src: CodeSource; a: string; row: Json }[] =>
+    Object.entries(DI.mc as Json)
+      .filter(([k]) => !k.startsWith('_'))
+      .flatMap(([key, t]) => Object.entries(t as Json).map(([a, row]) => ({ key, lk: key.split('|')[0], src: key.split('|')[1] as CodeSource, a, row: row as Json })))
+
+  it('SSPLL: 每一格的兩段判定（最差模態、mode 1）與觀測窗判準都和 golden 相同；計分 87/0/18（線性段）、93/8/4（兩段，dead zone 6/8/4）、92/0/13（e-folding）', () => {
+    const idx = { ok: 0, mismatch: 1, 'n/a': 2 } as const
+    const tally: Record<string, [number, number, number]> = { two_stage: [0, 0, 0], two_stage_m1: [0, 0, 0], efold: [0, 0, 0] }
+    const dz: [number, number, number] = [0, 0, 0]
+    const mism: string[] = []
+    for (const { key, a, row } of rows()) {
+      const c = row.candidates
+      const ts = twoStageCandidate(row.kappa_min, row.kappa_inf_worst, TAU)
+      expect(ts, `${key}|${a}`).toBe(c.two_stage.verdict)
+      expect(twoStageCandidate(row.kappa_min, row.kappa_inf_m1, TAU)).toBe(c.two_stage_m1.verdict)
+      const ef = efoldVerdict(row.kappa_min, row.n_blocks, row.tau_blocks, row.grow, row.shrink)
+      expect(ef.verdict).toBe(c.efold.verdict)
+      close(ef.growth, c.efold.growth, 1e-12)
+      for (const name of ['two_stage', 'two_stage_m1', 'efold'] as const) {
+        const st = crosscheckCode(c[name].verdict, { ciDiv: row.ci_div, ciConv: row.ci_conv }).status
+        expect(st, `${name} ${key}|${a}`).toBe(c[name].status)
+        tally[name][idx[st]]++
+      }
+      if (row.verdict === 'dead') {
+        dz[idx[c.two_stage.status as keyof typeof idx]]++
+        expect(kappaInfHint(row.kappa_inf_worst, TAU)).toBe(ts)
+      }
+      if (c.two_stage.status === 'mismatch') mism.push(`${key}|${a}`)
+    }
+    const s = DI.mc._summary
+    for (const name of Object.keys(tally)) expect(tally[name], name).toEqual([s.candidates[name].n_ok, s.candidates[name].n_mismatch, s.candidates[name].n_na])
+    expect(tally.two_stage).toEqual([93, 8, 4])
+    expect(dz).toEqual([6, 8, 4])
+    expect(dz).toEqual([s.candidates.two_stage.dead_zone.n_ok, s.candidates.two_stage.dead_zone.n_mismatch, s.candidates.two_stage.dead_zone.n_na])
+    expect(mism.sort()).toEqual([...s.candidates.two_stage.mismatches].sort())
+    expect(tally.efold).toEqual([92, 0, 13])
+    expect([s.n_ok, s.n_mismatch, s.n_na, s.n_dead]).toEqual([87, 0, 18, 18])
+    const w = efoldWindow(1500, 25)
+    close(w.kappaDiv, s.candidates.efold.kappa_div, 1e-14)
+    close(w.kappaConv, s.candidates.efold.kappa_conv, 1e-14)
+    // headline：dead zone；e-folding 說窗內慢慢縮到 0.29 倍（不判），MC 卻 8/8 發散——兩條候選都解釋不了為什麼長大
+    const hl = DI.mc['L2_pm45|mash']['0.03']
+    const e45 = efoldVerdict(kappaModeCode(LOOPS_DI.L2_pm45, 0.03, 'mash', 1), 1500, 25)
+    expect(e45.verdict).toBe('dead')
+    close(e45.growth, hl.candidates.efold.growth, 1e-9)
+    expect(e45.growth).toBeGreaterThan(0.25)
+    expect(e45.growth).toBeLessThan(0.3)
+  })
+
+  it('SSPLL: 沿 closed form 最差模態的 κ_∞（頁面用的那一個）——acc1／mash 與 golden 的 kappa_inf_worst 逐位相同、dq／rot 統計一致；TS 的最差模態與 golden 相同（或是共軛的 8 − m，方向相同）', () => {
+    let det = 0
+    let stat = 0
+    let maxStat = 0
+    for (const { lk, src, a, row } of rows()) {
+      const loop = LOOPS_DI[lk]
+      const alpha = Number(a)
+      const ls = largeSignalCode(loop, alpha, src, row.worst_mode, [1, 5], CFG)
+      if (src === 'acc1' || src === 'mash') {
+        close(ls.kappaInf, row.kappa_inf_worst, 1e-7, 1e-9)
+        det++
+      } else {
+        maxStat = Math.max(maxStat, Math.abs(ls.kappaInf - row.kappa_inf_worst))
+        close(ls.kappaInf, row.kappa_inf_worst, 0, 0.05)
+        stat++
+      }
+      // 頁面用 TS 的 codeVerdict().worstMode；並列（rot8 七個模態都是 1、共軛對 m 與 8 − m）以外必須是同一個方向
+      const kp = codeVerdict(loop, alpha, src)
+      const second = Math.min(...kp.kappaM.filter((_, i) => i + 1 !== kp.worstMode && i + 1 !== 8 - kp.worstMode))
+      if (second - kp.kappaMin > 1e-9) expect([row.worst_mode, 8 - row.worst_mode], `${lk}|${src}|${a}`).toContain(kp.worstMode)
+    }
+    expect([det, stat]).toEqual([42, 63])
+    expect(maxStat).toBeLessThan(0.05)
+    // α = 0.253、0.496 的 acc1：最差模態是 2、4、6，κ_∞ 與 mode 1（+1）完全不同——審查指出頁面用的這個值以前沒有和 golden 比過
+    const r = DI.mc['L3|acc1']['0.253']
+    expect(r.worst_mode).toBe(4)
+    close(largeSignalCode(LOOPS.L3, 0.253, 'acc1', 4, [1, 5], CFG).kappaInf, r.kappa_inf_worst, 1e-7, 1e-9)
+    expect(r.kappa_inf_worst).toBeLessThan(-0.7)
+    close(r.kappa_inf_m1, 1, 0, 1e-12)
+  }, 60000)
+
+  it('SSPLL: κ_∞ 判準的反例（實驗 D 的 preset code-l3-dq：L3、40 MHz、dq）——dead zone、κ_∞ ≈ −0.18 提示發散，TS 的 4 個 seeds 卻沒有一個發散、也沒有收斂；舊的兩段判定在這裡是 mismatch', () => {
+    const v = codeVerdict(LOOPS.L3, 0.01, 'dq')
+    expect(v.verdict).toBe('dead')
+    const ls = largeSignalCode(LOOPS.L3, 0.01, 'dq', v.worstMode, [1, 5], CFG)
+    expect(kappaInfHint(ls.kappaInf)).toBe('inverted')
+    close(ls.kappaInf, DI.mc['L3|dq']['0.01'].kappa_inf_worst, 0, 0.05)
+    const mc = divergenceMcCode({ cfg: CFG, loop: LOOPS.L3, alpha: 0.01, source: 'dq', seeds: [0, 1, 2, 3], nBlocks: 1500, nBlk: 512, tauBlocks: 25, recEvery: 100, variant: 'raw' })
+    expect([mc.nDiv, mc.nConv]).toEqual([0, 0])
+    for (const f of mc.finalFs) {
+      expect(f).toBeGreaterThan(0.5 * mc.initFs)
+      expect(f).toBeLessThan(1.5 * mc.initFs)
+    }
+    expect(crosscheckCode(twoStageCandidate(v.kappaMin, ls.kappaInf), mc).status).toBe('mismatch')
+    expect(efoldVerdict(v.kappaMin, 1500, 25).verdict).toBe('dead') // 觀測窗判準：κ_min ≈ 0，倍數 ≈ 1，不判
+  }, 60000)
+})

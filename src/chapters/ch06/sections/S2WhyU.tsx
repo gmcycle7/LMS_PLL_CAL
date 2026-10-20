@@ -152,7 +152,7 @@ export function S2WhyU() {
         </p>
       </Prereq>
 
-      <Section
+      <Section id="ch06-hpd"
         kind="diagram"
         title={
           <>
@@ -311,7 +311,7 @@ export function S2WhyU() {
 
       </Section>
 
-      <Section kind="assumptions" title="注意假設">
+      <Section id="ch06-assumptions" kind="assumptions" title="注意假設">
         <ul>
           <li>
             主 PLL 已線性化（BBPD 用平均增益近似）且穩定；不穩定時 <Tex>{'H_{\\mathrm{PD}}'}</Tex> 沒有意義。

@@ -133,7 +133,7 @@ export function CompareSection() {
   return (
     <>
       <h2 id="compare">7｜三種穩定性總整理與核心程式碼</h2>
-      <Section kind="diagram" title="比較表">
+      <Section id="ch03-compare-table" kind="diagram" title="比較表">
         <SummaryTable />
         <p>
           規格 §0.1 的要求：<strong>不得寫「LMS 一定穩定」</strong>，必須說明是平均收斂、均方穩定、還是樣本路徑（機率 1）收斂。三者都是 <strong>[精確｜指定模型]</strong>——模型是「iid 純量 <Tex>x</Tex>、無量化、量測雜訊零均值且與 <Tex>x</Tex> 獨立」；超出這個模型（相關 regressor、1-bit comparator、更新延遲、PLL 動態）就要回到各自的章節重新推導。
@@ -151,7 +151,7 @@ export function CompareSection() {
         </p>
       </Section>
 
-      <Section kind="formula" title={tx`同一批 $f=1-\mu x^2$，三種平均法`}>
+      <Section id="ch03-three-means" kind="formula" title={tx`同一批 $f=1-\mu x^2$，三種平均法`}>
         <p>
           三種判據的差別可以濃縮成一行程式：對同一批單步因子 <Tex>{T`f_k=1-\mu x_k^2`}</Tex>，mean 平均 <Tex>f</Tex>、mean-square 平均 <Tex>{T`f^2`}</Tex>、almost-sure 平均{' '}
           <Tex>{T`\ln|f|`}</Tex>。下面是網站實際執行的程式碼（Stability Lab 的單步 MC 就是呼叫這三個函式），差異行已標出：
@@ -203,7 +203,7 @@ export function CompareSection() {
       </Section>
 
       <h2 id="pll">8｜連到 PLL：code 分布、GMAC 累加與 sign-off 用語</h2>
-      <Section kind="diagram" title="本章的符號在硬體裡是什麼">
+      <Section id="ch03-hw-symbols" kind="diagram" title="本章的符號在硬體裡是什麼">
         <p>
           前七節的黑盒子 <Tex>{T`y=ax`}</Tex> 在 DTC-based fractional-N PLL 裡是什麼？把章首系統地圖裡和本章有關的方塊拉出來，並把本章「拿掉」的部分標成褐色，就是下面這張圖。接法和系統地圖相同：DTC 在 reference 的輸入端（reference clock → DTC → PD），回授路徑上只有 divider／PMUX，而 LMS 校正迴路的輸入是 PD 的輸出：
         </p>
@@ -286,7 +286,7 @@ export function CompareSection() {
           <a href="#/case/sspll">案例：SSPLL 的 GOS / PHOS 極性</a>與第 6–7 章。
         </p>
       </Section>
-      <Section kind="formula" title={tx`GMAC 先累加 $N$ 筆再更新：隨機性被平均掉`}>
+      <Section id="ch03-gmac-average" kind="formula" title={tx`GMAC 先累加 $N$ 筆再更新：隨機性被平均掉`}>
         <p>
           實際硬體不是每個 sample 更新，而是 GMAC 累加 <Tex>N</Tex> 筆後才更新一次（block LMS）。以 conventional LMS 的 block 平均梯度為例，每個 block 的乘法因子是{' '}
           <Tex>{T`1-\mu S_k`}</Tex>，<Tex>{T`S_k=\frac1N\sum_{i=1}^Nx_i^2`}</Tex>（<Tex>k</Tex> 是 block 索引，<Tex>i</Tex> 是 block 內的 sample 索引，<Tex>{T`S_k`}</Tex> 是第 <Tex>k</Tex> 個 block 內{' '}
@@ -335,7 +335,7 @@ export function CompareSection() {
           <ClaimTag kind="approx" />），而且 PLL error path 讓 regressor 變成相關的 <Tex>{T`u=h*x`}</Tex>（第 6–7 章）。本章給的是「理想情況下最好也只能到這裡」的基準。
         </Callout>
       </Section>
-      <Section kind="assumptions" title="Sign-off 的寫法">
+      <Section id="ch03-signoff" kind="assumptions" title="Sign-off 的寫法">
         <blockquote className="ch03-quote">
           ✓「在 iid 純量模型、<Tex>{T`P_x=${tnum(gauss.Px)},\ M_4=${tnum(gauss.M4)}`}</Tex> 下，<Tex>{T`\mu=0.3`}</Tex> 滿足 mean-square 穩定（
           <Tex>{T`g=${tnum(g03)}<1`}</Tex>），[精確｜指定模型]。」

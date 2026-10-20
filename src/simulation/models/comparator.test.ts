@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { binomCdf, binomSf, createRng, normCdf } from '@/simulation/core'
+import { binomCdf, binomSf, createRng, normCdf, normInv } from '@/simulation/core'
 import {
   MC_TAIL_ALPHA,
   accumulatorBits,
@@ -43,6 +43,23 @@ import {
   sumVarianceSe,
   tieRuleEquilibrium,
   varQ,
+  chainSlope,
+  chainSumMoments,
+  chainSumPmf,
+  comparatorChain,
+  comparatorTransitions,
+  directionCltChain,
+  directionCurveChain,
+  directionExactChain,
+  kqHysteresis,
+  kqMetaDrop,
+  metaProb,
+  metaWindowAfter,
+  nonidealSummary,
+  nuHysteresis,
+  samplesForConfidenceChain,
+  latticeEdgesSpaced,
+  binnedPmf,
 } from './comparator'
 
 interface GoldenVector {
@@ -625,5 +642,202 @@ describe('comparator：CLT 誤差界與 tie rule 的系統偏差', () => {
     expect(Math.abs(tieRuleEquilibrium(100, 100, 'skip'))).toBeLessThan(1e-8)
     expect(Math.abs(tieRuleEquilibrium(101, 100, 'plus'))).toBeLessThan(1e-8)
     expect(tieRuleEquilibrium(4096, 100, 'plus') / (-1 / (4096 * kq(100)))).toBeCloseTo(1, 2)
+  })
+})
+
+describe('comparator §5b：非理想 comparator（hysteresis ±h、metastability 決策窗 ε；golden comparator_hysteresis）', () => {
+  const v = golden('comparator_hysteresis')
+  const inputs = (JSON.parse(readFileSync(resolve(process.cwd(), 'golden/vectors/comparator_hysteresis.json'), 'utf8')) as { inputs: { h_over_sigma_list: number[]; eps_over_sigma_list: number[] } }).inputs
+  const hs = inputs.h_over_sigma_list.map((r) => r * SIGMA)
+  const epss = inputs.eps_over_sigma_list.map((r) => r * SIGMA)
+
+  it('h = ε = 0 完全回到 §5 的 iid comparator：transitions = Φ、ν = 0、E[y] = erf、Var(S_N) = N(1 − m²)、DP 的 pmf = Binomial', () => {
+    const tr = comparatorTransitions(S, SIGMA, 0, 0, 1)
+    expect(tr.plus).toBe(P)
+    expect(tr.minus).toBeCloseTo(1 - P, 15)
+    expect(tr.meta).toBe(0)
+    const ch = comparatorChain(S, SIGMA, 0, 0)
+    expect(ch.nu).toBe(0)
+    expect(ch.meanOut).toBeCloseTo(M, 14)
+    expect(ch.varInf).toBeCloseTo(1 - M * M, 14)
+    const mo = chainSumMoments(10000, ch)
+    const ref = sumMoments(10000, M)
+    expect(mo.meanSum).toBeCloseTo(ref.meanSum, 10)
+    expect(mo.varSum).toBeCloseTo(ref.varSum, 9)
+    expect(mo.nEff).toBeCloseTo(10000, 8)
+    const dp = directionExactChain(ch, 100)!
+    const bi = directionExact(P, 100)
+    expect(dp.pos).toBeCloseTo(bi.pos, 14)
+    expect(dp.tie).toBeCloseTo(bi.tie, 14)
+    expect(dp.neg).toBeCloseTo(bi.neg, 14)
+    const t = chainSumPmf(ch, 100)!
+    const bt = binomialTable(100, P)
+    for (let k = bt.kLo; k <= bt.kHi; k++) expect(t.pmf[2 * k - 100 + t.offset]).toBeCloseTo(bt.pmf[k - bt.kLo], 14)
+    expect(nonidealSummary(SIGMA, 0, 0).slopeRatio).toBeCloseTo(1, 9)
+    expect(nonidealSummary(SIGMA, 0, 0).noiseFactor).toBeCloseTo(1, 14)
+  })
+
+  it('F-05.22：純遲滯的平穩斜率 φ(η)/(σΦ(−η))、ν = 1 − 2Φ(−η)、雜訊因子 (1+ν)/(1−ν)、K_eff 與所需 N 的倍數（golden）', () => {
+    const sums = hs.map((h) => nonidealSummary(SIGMA, h, 0))
+    expectGolden(v, 'hyst_slope_ratio_list', sums.map((x) => x.slopeRatio))
+    expectGolden(v, 'hyst_slope_closed_ratio_list', hs.map((h) => kqHysteresis(SIGMA, h) / kq(SIGMA)))
+    expectGolden(v, 'hyst_nu_list', sums.map((x) => x.nu))
+    expectGolden(v, 'hyst_noise_factor_list', sums.map((x) => x.noiseFactor))
+    expectGolden(v, 'hyst_kq_eff_ratio_list', sums.map((x) => x.kqEffRatio))
+    expectGolden(v, 'hyst_n_ratio_list', sums.map((x) => x.nRatio))
+    expectGolden(v, 'hyst_var_sum_N100_list', hs.map((h) => chainSumMoments(100, comparatorChain(0, SIGMA, h, 0)).varSum))
+    // 數值微分 = 封閉式（相對 1e-9）；斜率隨 h 變大、資訊隨 h 變少；ν = 1 − 2Φ(−η)
+    for (let i = 0; i < hs.length; i++) {
+      expect(Math.abs(sums[i].slope / kqHysteresis(SIGMA, hs[i]) - 1), `h = ${hs[i]}`).toBeLessThan(1e-9)
+      expect(sums[i].nu).toBeCloseTo(nuHysteresis(SIGMA, hs[i]), 14)
+      expect(sums[i].noiseFactor).toBeCloseTo((1 + sums[i].nu) / (1 - sums[i].nu), 12)
+      if (i > 0) {
+        expect(sums[i].slopeRatio).toBeGreaterThan(sums[i - 1].slopeRatio)
+        expect(sums[i].kqEffRatio).toBeLessThan(sums[i - 1].kqEffRatio)
+      }
+    }
+    // 手算題 HC-05.9 的數字：h = 0.3σ_v ⇒ 斜率比 1.2510、ν = 0.2358、K_eff 比 0.9837、N 多 3.3%
+    const h03 = nonidealSummary(SIGMA, 30, 0)
+    expect(h03.slopeRatio.toFixed(4)).toBe('1.2510')
+    expect(h03.nu.toFixed(4)).toBe('0.2358')
+    expect(h03.kqEffRatio.toFixed(4)).toBe('0.9837')
+    expect(h03.nRatio.toFixed(3)).toBe('1.033')
+    // h = σ_v：斜率 1.91 倍、ν = 0.6827、N 要 1.45 倍
+    const h1 = nonidealSummary(SIGMA, SIGMA, 0)
+    expect(h1.slopeRatio.toFixed(2)).toBe('1.91')
+    expect(h1.nu.toFixed(4)).toBe('0.6827')
+    expect(h1.nRatio.toFixed(2)).toBe('1.45')
+  })
+
+  it('F-05.24／F-05.25：P_meta = Φ((ε−d)/σ) − Φ((−ε−d)/σ)（≈ K_q·ε）、drop 的斜率 K_q·e^{−ε²/2σ²}、Var(y) = 1 − P_meta（golden）', () => {
+    expectGolden(v, 'meta_p_meta_at_zero_list', epss.map((e) => metaProb(0, SIGMA, e)))
+    expectGolden(v, 'meta_p_meta_s1_list', epss.map((e) => metaProb(S, SIGMA, e)))
+    const sums = epss.map((e) => nonidealSummary(SIGMA, 0, e))
+    expectGolden(v, 'meta_slope_ratio_list', sums.map((x) => x.slopeRatio))
+    expectGolden(v, 'meta_slope_closed_ratio_list', epss.map((e) => kqMetaDrop(SIGMA, e) / kq(SIGMA)))
+    expectGolden(v, 'meta_noise_factor_list', sums.map((x) => x.noiseFactor))
+    expectGolden(v, 'meta_kq_eff_ratio_list', sums.map((x) => x.kqEffRatio))
+    expectGolden(v, 'meta_dropped_per_block_N4096_eps5', 4096 * metaProb(0, SIGMA, 5))
+    for (let i = 0; i < epss.length; i++) {
+      expect(Math.abs(sums[i].slope / kqMetaDrop(SIGMA, epss[i]) - 1)).toBeLessThan(1e-9)
+      expect(sums[i].noiseFactor).toBeCloseTo(1 - metaProb(0, SIGMA, epss[i]), 12)
+      if (i > 0) expect(sums[i].infoRatio).toBeGreaterThan(1) // 漏掉的是幾乎不帶資訊的樣本
+    }
+    // 手算題 HC-05.10 的數字：ε = 0.05σ_v ⇒ P_meta = 0.03988、每 block 4096 個漏掉 163.3 個、斜率只少 0.125%
+    const pm = metaProb(0, SIGMA, 5)
+    expect(pm.toFixed(5)).toBe('0.03988')
+    expect((4096 * pm).toFixed(1)).toBe('163.3')
+    expect(Math.abs(pm / (kq(SIGMA) * 5) - 1)).toBeLessThan(5e-4) // P_meta ≈ K_q·ε，相對差 (ε/σ)²/6
+    expect((1 - kqMetaDrop(SIGMA, 5) / kq(SIGMA)) * 100).toBeCloseTo(0.125, 2)
+    // 決策時間 T 與再生時間常數：ε(T) = ε₀e^{−T/τ_m}（T = 5τ_m 時剩 0.67%）
+    expect(metaWindowAfter(100, 5, 1)).toBeCloseTo(100 * Math.exp(-5), 12)
+    expect(metaWindowAfter(100, 0, 1)).toBe(100)
+    expect(metaProb(0, SIGMA, 0)).toBe(0)
+    expect(metaProb(0, 0, 5)).toBe(1) // σ_v = 0：e 固定落在窗內
+    expect(metaProb(10, 0, 5)).toBe(0)
+  })
+
+  it('h = 30 fs、ε = 5 fs、s = 1 fs 同時存在：transitions、chain 的平穩統計、數值斜率、Var(S_N) 與 DP 精確分布（golden）', () => {
+    const ch = comparatorChain(S, SIGMA, 30, 5)
+    expectGolden(v, 'mix_t_up', ch.tUp)
+    expectGolden(v, 'mix_t_down', ch.tDown)
+    expectGolden(v, 'mix_p_plus_given_prev_plus', ch.fromPlus.plus)
+    expectGolden(v, 'mix_p_plus_given_prev_minus', ch.fromMinus.plus)
+    expectGolden(v, 'mix_p_meta_given_prev_plus', ch.fromPlus.meta)
+    expectGolden(v, 'mix_nu', ch.nu)
+    expectGolden(v, 'mix_pi_plus', ch.piPlus)
+    expectGolden(v, 'mix_mean_out', ch.meanOut)
+    expectGolden(v, 'mix_p_meta', ch.pMeta)
+    expectGolden(v, 'mix_var_inf', ch.varInf)
+    expectGolden(v, 'mix_var_sum_N1001', chainSumMoments(1001, ch).varSum)
+    expectGolden(v, 'mix_slope_numeric', chainSlope(SIGMA, 30, 5))
+    const h30 = comparatorChain(S, SIGMA, 30, 0)
+    expectGolden(v, 'h30_mean_out_s1', h30.meanOut)
+    expectGolden(v, 'h30_var_sum_N1001', chainSumMoments(1001, h30).varSum)
+    const ex100 = directionExactChain(ch, 100)!
+    expectGolden(v, 'mix_exact_N100', [ex100.pos, ex100.tie, ex100.neg])
+    const ex1001 = directionExactChain(ch, 1001)!
+    expectGolden(v, 'mix_exact_N1001', [ex1001.pos, ex1001.tie, ex1001.neg])
+    const clt = directionCltChain(ch, 1001)
+    expectGolden(v, 'mix_clt_N1001', [clt.pos, clt.tie, clt.neg])
+    // 三種結果相加 = 1；有 drop 時奇數 N 也會 tie；CLT 與精確相差 < 2e-3
+    expect(ex1001.pos + ex1001.tie + ex1001.neg).toBeCloseTo(1, 12)
+    expect(ex1001.tie).toBeGreaterThan(0)
+    expect(Math.abs(clt.pos - ex1001.pos)).toBeLessThan(2e-3)
+    // 轉移機率的結構：q_prev = +1 時門檻低（θ − h），所以 P(+1 | +1) > P(+1 | −1)
+    expect(ch.fromPlus.plus).toBeGreaterThan(ch.fromMinus.plus)
+    expect(ch.fromPlus.plus + ch.fromPlus.minus + ch.fromPlus.meta).toBeCloseTo(1, 14)
+    // 所需 N（CLT、漸近）：z²·varInf/E[y]²
+    expect(samplesForConfidenceChain(ch, 0.95)).toBeCloseTo((normInv(0.95) ** 2 * ch.varInf) / (ch.meanOut * ch.meanOut), 10)
+  })
+
+  it('Monte Carlo（帶 latch 狀態的 sample-level）：判對、tie、+1 與 metastable 的計數都落在精確 DP 的接受域；同 seed 可重現；h = ε = 0 的路徑不變', () => {
+    const N = 400
+    const T = 10000
+    const r = runComparatorMC({ s: S, sigma: SIGMA, N, trials: T, seed: 20261010, tieRule: 'half', method: 'binomial', h: 30, eps: 5 })
+    expect(r.methodUsed).toBe('sample') // binomial 引擎不適用：自動改走 sample-level
+    expect(r.notes.join(' ')).toContain('不再獨立')
+    const ch = r.nonideal!.chain
+    const ex = r.nonideal!.exact!
+    const band = (p: number, n: number) => binomialAcceptance(n, p)
+    const okIn = (k: number, p: number, n: number) => {
+      const { kLo, kHi } = band(p, n)
+      return k >= kLo && k <= kHi
+    }
+    expect(okIn(r.counts.pos, ex.pos, T)).toBe(true)
+    expect(okIn(r.counts.tie, ex.tie, T)).toBe(true)
+    expect(okIn(r.outcome.correct, ex.pos + ex.tie / 2, T)).toBe(true)
+    // metastable 的比例（樣本相關，但 P_meta 的估計以 4·SE·√((1+ν)/(1−ν)) 為容差）
+    const pm = r.nonideal!.metaCount / (N * T)
+    expect(Math.abs(pm - ch.pMeta)).toBeLessThan(4 * Math.sqrt((ch.pMeta * (1 - ch.pMeta)) / (N * T)) * Math.sqrt((1 + ch.nu) / (1 - ch.nu)))
+    // 平均與變異數對 chain 的矩
+    const mo = chainSumMoments(N, ch)
+    expect(Math.abs(r.sumMean - mo.meanSum)).toBeLessThan((4 * mo.sdSum) / Math.sqrt(T))
+    expect(r.sumVar / mo.varSum).toBeGreaterThan(0.93)
+    expect(r.sumVar / mo.varSum).toBeLessThan(1.07)
+    // histogram：格點間距 1（drop 的 0），期望個數由精確 pmf 逐 bin 加總
+    expect(r.nonideal!.lattice).toBe(1)
+    expect(r.hist.expected.reduce((x, y) => x + y, 0)).toBeCloseTo(T, 0)
+    expect(r.hist.counts.reduce((x, y) => x + y, 0) + r.hist.outside).toBe(T)
+    const r2 = runComparatorMC({ s: S, sigma: SIGMA, N, trials: T, seed: 20261010, tieRule: 'half', h: 30, eps: 5 })
+    expect(Array.from(r2.sums.slice(0, 50))).toEqual(Array.from(r.sums.slice(0, 50)))
+    // h = ε = 0：和沒有這兩個欄位時逐位元相同（既有行為不變）
+    const a = runComparatorMC({ s: S, sigma: SIGMA, N: 101, trials: 500, seed: 3, tieRule: 'half', method: 'sample' })
+    const b = runComparatorMC({ s: S, sigma: SIGMA, N: 101, trials: 500, seed: 3, tieRule: 'half', method: 'sample', h: 0, eps: 0 })
+    expect(Array.from(b.sums)).toEqual(Array.from(a.sums))
+    expect(b.nonideal).toBeUndefined()
+    expect(b.methodUsed).toBe('sample')
+  })
+
+  it('P(判對) vs N 曲線（非理想）：N ≤ 120 精確 DP、其餘 CLT；MC 掃描的 99.9% Wilson 區間涵蓋解析值；純遲滯沒有 drop 時格點仍是間距 2', () => {
+    const ch = comparatorChain(S, SIGMA, 30, 5)
+    const c = directionCurveChain(ch, 5000, 'half')
+    expect(c.oddN.length).toBe(120)
+    expect(c.evenN).toEqual([])
+    expect(c.allN.length).toBeGreaterThan(120)
+    // 精確與 CLT 在 N = 100 相差 < 5e-3；大 N 單調上升
+    const i100 = c.allN.indexOf(100)
+    expect(Math.abs(c.oddExact[99] - c.cltPlain[i100])).toBeLessThan(5e-3)
+    for (let i = 130; i < c.cltPlain.length; i++) expect(c.cltPlain[i]).toBeGreaterThanOrEqual(c.cltPlain[i - 1] - 1e-12)
+    const sw = runComparatorSweep({ s: S, sigma: SIGMA, Ns: [3, 100, 101, 1000, 1001], trials: 2000, seed: 5, tieRule: 'half', level: 0.999, h: 30, eps: 5 })
+    for (let i = 0; i < sw.N.length; i++) {
+      expect(sw.lo[i], `N = ${sw.N[i]}`).toBeLessThanOrEqual(sw.exact[i])
+      expect(sw.hi[i], `N = ${sw.N[i]}`).toBeGreaterThanOrEqual(sw.exact[i])
+    }
+    // 純遲滯：S_N 與 N 同奇偶（沒有 0），histogram 用間距 2 的格點；DP 的 tie 在奇數 N 為 0
+    const pure = comparatorChain(S, SIGMA, 30, 0)
+    expect(directionExactChain(pure, 101)!.tie).toBe(0)
+    const rp = runComparatorMC({ s: S, sigma: SIGMA, N: 101, trials: 300, seed: 1, tieRule: 'half', h: 30 })
+    expect(rp.nonideal!.lattice).toBe(2)
+    expect(rp.counts.tie).toBe(0)
+    const e1 = latticeEdgesSpaced(10, 0, 2, 1)
+    expect(Math.abs(e1[0] % 1)).toBe(0.5)
+    const pmf = Float64Array.of(0, 0.5, 0.5)
+    expect(Array.from(binnedPmf(pmf, 1, [-1.5, -0.5, 0.5, 1.5]))).toEqual([0, 0.5, 0.5])
+    // 工作量上限：超過就回傳 null（改用 CLT）
+    expect(chainSumPmf(ch, 100000, 1e6)).toBeNull()
+    // latch 卡住（σ_v = 0、|s| 落在窗內）：chain 標 stuck，DP 不適用
+    expect(comparatorChain(1, 0, 0, 5).stuck).toBe(true)
+    expect(directionExactChain(comparatorChain(1, 0, 0, 5), 10)).toBeNull()
   })
 })

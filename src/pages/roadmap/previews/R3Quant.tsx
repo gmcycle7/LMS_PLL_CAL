@@ -230,7 +230,7 @@ export default function R3Preview() {
         ]}
         layout="tabs"
       />
-      <ModeGate min="research">
+      <ModeGate min="research" summary="為什麼一定要整數實作（浮點會在 tie 上走偏）">
         <h4>Research：為什麼一定要整數實作</h4>
         <p>
           浮點的 <Tex>{'32.4'}</Tex> 不是精確的 <Tex>{'162/5'}</Tex>；累加 <Tex>{'r[n]'}</Tex> 時捨入誤差可能讓某一步剛好落在 tie 的另一邊，循環的相位（甚至週期）就跟 golden model 不同。本站的 T16 golden vector 以精確 Fraction 產生；這裡的整數實作逐點吻合（見 model.test.ts）。

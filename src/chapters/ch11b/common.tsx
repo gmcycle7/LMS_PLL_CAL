@@ -1,5 +1,5 @@
 import { Fragment, useState, type ReactNode } from 'react'
-import { Tex } from '@/components'
+import { Tex, makeTexNum } from '@/components'
 import { useSettings, type LearningMode } from '@/app/settings'
 
 /**
@@ -47,15 +47,8 @@ export function num(x: number, digits = 5): string {
   return String(Number(x.toPrecision(digits)))
 }
 
-/** 放進 TeX 的數字：非有限值改成 TeX 記號，科學記號改成 a\\times10^{b}。 */
-export function texNum(x: number, digits = 5): string {
-  if (Number.isNaN(x)) return '\\text{—}'
-  if (x === Infinity) return '\\infty'
-  if (x === -Infinity) return '-\\infty'
-  const s = num(x, digits)
-  const mm = /^(-?[\d.]+)e([+-]?\d+)$/.exec(s)
-  return mm ? `${mm[1]}\\times10^{${Number(mm[2])}}` : s
-}
+/** 放進 TeX 的數字：非有限值改成 TeX 記號，科學記號改成 a\\times10^{b}（共用的 texNumber）。 */
+export const texNum = makeTexNum(5)
 
 /** 帶正負號的數字 */
 export function signed(x: number, digits = 5): string {
@@ -66,11 +59,4 @@ export function signed(x: number, digits = 5): string {
 /** 把浮點捨入造成的「應為 0」的小數歸零（只用於顯示）。 */
 export function chop(x: number, scale = 1, tol = 1e-12): number {
   return Math.abs(x) <= tol * Math.max(Math.abs(scale), 1e-300) ? 0 : x
-}
-
-/** 頁內跳轉（HashRouter 下不能用 href="#id"）：scrollIntoView；jsdom 沒有，所以用可選呼叫。 */
-export function jumpTo(id: string) {
-  const el = document.getElementById(id)
-  el?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
-  el?.focus?.({ preventScroll: true })
 }

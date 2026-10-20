@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
 import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
-import { Callout, ClaimTag, ModeGate, Plot, Prereq, Section, Tex, TexBlock, useThemeTokens, ChRef } from '@/components'
+import { Callout, ClaimTag, ModeGate, Plot, Prereq, Section, Tex, TexBlock, useThemeTokens, ChRef, ChapterErratum } from '@/components'
 import { meanSquareFactor } from '@/simulation/models/lms'
 import { analyticTrajectory, stabilityBounds, xMoments } from '@/simulation/models/scalarStability'
-import { Erratum, FBlock, Fig, HC, num, StepsBox, T, tnum, tx, Verdict } from '../common'
+import { FBlock, Fig, HC, num, StepsBox, T, tnum, tx, Verdict } from '../common'
 import { CHART_G_BUILD, CHART_KURTOSIS_COMPARE, CHART_MSD_LOOP, CHART_NOISE_INJECTION, figRef } from '../diagrams'
 import { EXAMPLE_DISTS } from './RandomMean'
 import t03 from '../../../../golden/vectors/T03.json'
@@ -195,12 +195,12 @@ export function MeanSquareSection() {
   return (
     <>
       <h2 id="mean-square">3｜均方（Mean-Square）收斂與 MSD：把正負號拿掉</h2>
-      <Section kind="intuition" title="為什麼平均不夠">
+      <Section id="ch03-ms-why" kind="intuition" title="為什麼平均不夠">
         <p>
           模型 A 的誤差在 <Tex>{T`\pm10`}</Tex> 之間跳、模型 B 在 <Tex>{T`\pm1`}</Tex> 之間跳，兩者平均都是 0，但 B 顯然好得多。看<strong>平方的平均</strong>{' '}
           <Tex>{T`E[\delta^2]`}</Tex> 才分得出來：A 是 100、B 是 1。
         </p>
-        <Callout kind="warn" title={<>{tx`名詞：這裡的 $E[\delta^2]$ 是 MSD，不是 MSE`} <Erratum id="E42" /></>}>
+        <Callout kind="warn" title={<>{tx`名詞：這裡的 $E[\delta^2]$ 是 MSD，不是 MSE`} <ChapterErratum id="E42" /></>}>
           <Tex>{T`E[\delta_n^2]`}</Tex> 是<strong>係數均方偏差</strong>（mean-square deviation, MSD），量的是 <Tex>w</Tex> 離 <Tex>a</Tex> 多遠；<ChRef ch="01">第 1 章</ChRef>的 MSE 成本是{' '}
           <Tex>{T`J=E[e^2]`}</Tex>，量的是預測誤差。iid <Tex>x</Tex>、雜訊零均值且與 <Tex>x</Tex> 獨立時兩者的關係是 <Tex>{T`E[e^2]=P_x\,E[\delta^2]+\sigma_v^2`}</Tex>（<Tex>{T`\sigma_v^2`}</Tex> 是量測雜訊的變異數；本節後面推導）。規格 §3.1 的「均方誤差」指的是 MSD；本站圖例一律分開標示「MSD <Tex>{T`E[\delta^2]`}</Tex>」與「MSE <Tex>{T`E[e^2]`}</Tex>」。
         </Callout>
@@ -215,7 +215,7 @@ export function MeanSquareSection() {
         </Prereq>
       </Section>
 
-      <Section kind="formula" title="一步一步推導 MSD 遞迴">
+      <Section id="ch03-ms-derive" kind="formula" title="一步一步推導 MSD 遞迴">
         <p>
           做法和上一節一樣，只是先把遞迴<strong>兩邊平方</strong>再取期望值，所以每一步乘上的倍數變成 <Tex>{T`g(\mu)=E\big[(1-\mu x^2)^2\big]`}</Tex>——我們叫它 <strong>MSD 每步因子</strong>。下圖把 <Tex>g</Tex> 怎麼由輸入的兩個統計量組出來畫成訊號流：
         </p>
@@ -279,7 +279,7 @@ E[t^{k+1}]&=\int_{-\infty}^{\infty}t^{k}\,\big(t\varphi(t)\big)\,dt=\int_{-\inft
         </HC>
       </Section>
 
-      <Section kind="diagram" title="Kurtosis（峰度）決定兩個界限差多少">
+      <Section id="ch03-kurtosis" kind="diagram" title="Kurtosis（峰度）決定兩個界限差多少">
         <p>
           以下把 mean 界記為 <Tex>{T`\mu_\text{mean}=2/P_x`}</Tex>、mean-square 界記為 <Tex>{T`\mu_\text{MS}=2P_x/M_4`}</Tex>。兩者差幾倍，只看 <Tex>{T`x^2`}</Tex> 起伏得多厲害，也就是 kurtosis{' '}
           <Tex>\kappa</Tex>。下圖把三種功率相同（<Tex>{T`P_x=1`}</Tex>，所以 mean 界都是 2）的分布並排：
@@ -317,7 +317,7 @@ E[t^{k+1}]&=\int_{-\infty}^{\infty}t^{k}\,\big(t\varphi(t)\big)\,dt=\int_{-\inft
         </div>
       </Section>
 
-      <Section kind="formula" title="加入量測雜訊：MSD 的穩態與 MSE">
+      <Section id="ch03-ms-noise" kind="formula" title="加入量測雜訊：MSD 的穩態與 MSE">
         <p>
           真實量測有雜訊：<Tex>{T`y_n=ax_n+v_n`}</Tex>，<Tex>{T`v_n`}</Tex> 零均值、變異數 <Tex>{T`\sigma_v^2`}</Tex>、與 <Tex>x</Tex> 獨立。誤差變成 <Tex>{T`e_n=\delta_nx_n+v_n`}</Tex>，遞迴多了一項。先看雜訊從哪裡進到迴圈（{figRef(CHART_NOISE_INJECTION)}），再看平方、取平均之後變成什麼（{figRef(CHART_MSD_LOOP)}）：
         </p>

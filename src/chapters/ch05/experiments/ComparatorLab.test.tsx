@@ -157,6 +157,40 @@ describe('Comparator Lab（互動）', () => {
     expect(container.textContent).not.toContain('Monte Carlo 與精確值不一致')
   }, SLOW)
 
+  it('§5b：載入遲滯 preset（h = 30 fs）後 S 曲線多一條 chain 的平穩 E[y]、指標多出斜率比／ν／P_meta 列、MC（sample-level、帶 latch 狀態）交叉比對 ok；把 ε 設成 5 fs 後出現漏掉的樣本數', async () => {
+    const { container } = renderLab('/ch/05?preset=comparator-hysteresis-03sigma')
+    await waitFor(() => expect(container.textContent).toContain('遲滯 '))
+    await done(container)
+    const text = container.textContent ?? ''
+    expect(text).toContain('1.251')
+    expect(text).toContain('0.2358')
+    expect(text).toMatch(/MC 計數 vs 精確 Binomial：判對 \d+\/4000（接受域 \[\d+, \d+\]）；tie \d+\/4000/)
+    expect(text).toContain('兩狀態 chain 的精確 DP')
+    // Analytic 欄：DP 的矩 vs F-05.23 封閉式、封閉式斜率 vs 數值微分、DP vs CLT 三組獨立核對
+    expect(text).toContain('vs F-05.23 封閉式')
+    expect(text).toContain('封閉式斜率（F-05.22）vs 數值微分')
+    expect(text).not.toContain('Monte Carlo 與精確值不一致')
+    expect(text).toContain('sample 引擎')
+    // S 曲線上多一條 chain 的曲線；P(判對) vs N 的圖例改成「精確 DP」「CLT（Markov 變異數…）」
+    const strings = allChartStrings(plotCalls)
+    expect(strings.some((t) => t.includes('平穩 $E[y]$ vs $s$'))).toBe(true)
+    expect(strings.some((t) => t.includes('精確 DP（$N \\le 120$'))).toBe(true)
+    expect(strings.some((t) => t.includes('CLT（Markov 變異數'))).toBe(true)
+    expect(chartStringProblems(plotCalls)).toEqual([])
+    // 偶數 N 的連續性修正圖在非理想模式下不畫（那是 iid 的結果；DOM 上沒有那張圖的標題）
+    expect(Array.from(container.querySelectorAll('.c-plot-title')).some((e) => e.textContent?.includes('連續性修正'))).toBe(false)
+    // 再加上決策窗 ε = 5 fs：警告與指標列出 P_meta 與每 block 漏掉的個數
+    const eps = screen.getByLabelText(/ε（metastability 決策窗）— Case A$/) as HTMLInputElement
+    await act(async () => {
+      fireEvent.change(eps, { target: { value: '5' } })
+      fireEvent.blur(eps)
+    })
+    await waitFor(() => expect(container.textContent).toContain('決策窗 '))
+    await done(container)
+    expect(container.textContent).toContain('MC：metastable 比例')
+    expect(container.textContent).not.toContain('Monte Carlo 與精確值不一致')
+  }, SLOW)
+
   it('失敗模式會解釋原因：θ 蓋過 s 時出現 offset 警告；σ_v = 0 時出現 hard-limiter 警告且 MC 交叉比對仍為 ok', async () => {
     const { container } = renderLab('/ch/05?preset=comparator-offset-beats-error')
     await waitFor(() => expect(container.textContent).toContain('Offset 蓋過誤差'))

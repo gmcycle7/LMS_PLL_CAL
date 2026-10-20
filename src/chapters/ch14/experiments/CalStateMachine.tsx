@@ -26,6 +26,20 @@ import {
   type CalSmParams,
   type CalState,
 } from '@/simulation/models/optimizer'
+import {
+  ACQ_STATES,
+  DEFAULT_ACQ,
+  acquisitionAnalytic,
+  acquisitionMonteCarlo,
+  acquisitionTimeline,
+  fllGain,
+  fllGainLsbFor,
+  runAcquisition,
+  tVcoFs,
+  type AcqParams,
+  type AcqResult,
+  type AcqState,
+} from '@/simulation/models/acquisition'
 import { md, nf, tx, vBand, vLine, withAlpha } from '../shared'
 
 /** 每個狀態的顏色（Plotly 讀不到 CSS 變數，所以由 theme tokens 轉成實際色碼）。 */
@@ -116,6 +130,65 @@ export function smWarnings(cfg: CalSmParams): string[] {
   return w
 }
 
+/** 給 String.raw 模板用的 ∞（不在模板裡寫雙反斜線） */
+const INF = '\\infty'
+
+/** acquisition 狀態的顏色（和 block 級狀態對齊：ACQ／PLOCK 對 LOCK、CAL 對 TRACK、HOLD／RECAL 對 FREEZE／VERIFY）。 */
+export function acqStateColor(s: AcqState, t: ThemeTokens): string {
+  switch (s) {
+    case 'ACQ':
+      return t.series[5]
+    case 'PLOCK':
+      return t.series[4]
+    case 'CAL':
+      return t.series[2]
+    case 'HOLD':
+      return t.danger
+    case 'RECAL':
+      return t.series[3]
+  }
+}
+
+/** acquisition 模型的實驗參數（`AcqParams` 中由 block 級情境決定的欄位會在 buildAcqConfig 填入）。 */
+export type AcqExpParams = Omit<AcqParams, 'seed' | 'blockN' | 'dtcGainsFs' | 'cycles' | 'lossCycle'>
+export const DEFAULT_ACQ_EXP: AcqExpParams = (() => {
+  const { seed: _s, blockN: _n, dtcGainsFs: _g, cycles: _c, lossCycle: _l, ...rest } = DEFAULT_ACQ
+  return rest
+})()
+
+/**
+ * 把 acquisition 參數接上 block 級情境：seed 共用、block 長度 N、DTC 要檢查的 gain 是初始暫存器 w_0 與真值 a_0、
+ * 失鎖事件（外部干擾結束時 VCO 頻率仍偏 Δf_loss）放在 (lockLossStart + lockLossLen)·N；模擬長度依封閉式的 enable 週期放大。
+ */
+export function buildAcqConfig(acq: AcqExpParams, cfg: CalSmParams): AcqParams {
+  const hasLoss = cfg.lockLossStart >= 0 && cfg.lockLossLen > 0 && cfg.lockDetect
+  const lossCycle = hasLoss ? (cfg.lockLossStart + cfg.lockLossLen) * cfg.N : -1
+  const base: AcqParams = { ...acq, seed: cfg.seed, blockN: cfg.N, dtcGainsFs: [cfg.w0, cfg.a0], cycles: 16384, lossCycle }
+  const an = acquisitionAnalytic(base)
+  const need = Number.isFinite(an.nEnableBound) ? 2 * an.nEnableBound + 4096 : 16384
+  const cycles = Math.min(1 << 20, Math.max(16384, need, hasLoss ? lossCycle + need : 0))
+  return { ...base, cycles }
+}
+
+/** acquisition 模型的解釋型警告。 */
+export function acqWarnings(acq: AcqParams, res: AcqResult): string[] {
+  const w: string[] = []
+  const kF = fllGain(acq)
+  const T = tVcoFs(acq)
+  if (!(kF > 0 && kF < 1)) w.push(String.raw`FLL 增益 $K_f=${tx(kF, 3)}$ 不在 $(0,1)$：$K_f\le0$ 是極性錯誤（頻率誤差不收斂）、$K_f\ge1$ 每週期修過頭，一階模型 $(1-K_f)^n$ 發散或翻轉（F-14.22）。`)
+  if (acq.fUnlockHz <= acq.fTolHz) w.push(String.raw`$f_\text{unlock}=${tx(acq.fUnlockHz / 1e6, 3)}\,\mathrm{MHz}\le f_\text{tol}$：失鎖門檻沒有遲滯，雜訊碰到門檻就會在 ACQ 與 PLOCK 之間來回。`)
+  if (acq.thetaMaxFs >= T / 2) w.push(String.raw`$\theta_{\max}=${tx(acq.thetaMaxFs / 1000, 3)}\,\mathrm{ps}\ge T_\text{vco}/2=${tx(T / 2000, 3)}\,\mathrm{ps}$：門檻比 SSPD 的吸引區還大，phase lock 的判定沒有意義（F-14.24）。`)
+  if (!res.summary.dtcOk) w.push(String.raw`校正不能 enable：${res.summary.dtcReason}。這不是調 $\mu$ 能解決的——回 Ch04 §5b 改 DTC 的範圍預算（$T_0$、$R$）或初始暫存器 $w_0$。`)
+  else if (res.summary.enableCycle < 0) {
+    const an = acquisitionAnalytic(acq)
+    if (!Number.isFinite(an.nPlRel)) w.push(String.raw`永遠不會 phase lock：殘餘頻率誤差的靜態偏移 $\theta_\text{ss}=${tx(an.thetaSsFs, 3)}\,\mathrm{fs}$ 已超過 $\theta_{\max}$（F-14.24）；把 $f_\text{tol}$ 收緊或放寬 $\theta_{\max}$。`)
+    else if (!Number.isFinite(an.nSettleRel)) w.push(String.raw`永遠不會穩態：$\mathrm{rms}_{\max}$ 比靜態偏移 $\theta_\text{ss}=${tx(an.thetaSsFs, 3)}\,\mathrm{fs}$ 還小。`)
+    else if (res.summary.freqLockCycle < 0) w.push(String.raw`模擬長度 ${acq.cycles} 個 reference 週期內 FLL 沒有鎖定（封閉式 $n_\text{FL}=${Number.isFinite(an.nFL) ? an.nFL : INF}$）；block 級狀態機整段停在 LOCK。`)
+    else w.push(String.raw`模擬長度內沒有 enable（slip ${res.summary.slips} 次、失鎖 ${res.summary.unlocks} 次）；block 級狀態機整段停在 LOCK。`)
+  }
+  return w
+}
+
 // Plot 的軸標題、圖例名稱裡的數學寫 `$...$`（Plot 元件會轉成斜體符號與上下標，見 src/components/plotMath.ts）
 const MU_LAYOUT: Partial<Layout> = {
   xaxis: { title: { text: String.raw`block $k$` } },
@@ -135,17 +208,35 @@ function Group({ title, children, open = false }: { title: string; children: Rea
 export function CalStateMachineExperiment() {
   const tokens = useThemeTokens()
   const [cfg, setCfg] = useState<CalSmParams>(DEFAULT_CAL_SM)
+  const [acq, setAcq] = useState<AcqExpParams>(DEFAULT_ACQ_EXP)
   const [runs, setRuns] = useState(48)
   const [pendingAuto, setPendingAuto] = useState(true)
   const urlPreset = useUrlPreset('cal-state-machine')
+  /** preset 的 params：`acq` 子物件是 acquisition 參數，其餘是 block 級狀態機參數 */
+  const applyPreset = useCallback((params: Record<string, unknown>) => {
+    const { acq: acqPatch, ...sm } = params as { acq?: Partial<AcqExpParams> } & Partial<CalSmParams>
+    setCfg({ ...DEFAULT_CAL_SM, ...sm })
+    setAcq({ ...DEFAULT_ACQ_EXP, ...(acqPatch ?? {}) })
+    setPendingAuto(true)
+  }, [])
   useEffect(() => {
-    if (urlPreset) {
-      setCfg({ ...DEFAULT_CAL_SM, ...(urlPreset.params as Partial<CalSmParams>) })
-      setPendingAuto(true)
-    }
-  }, [urlPreset])
+    if (urlPreset) applyPreset(urlPreset.params)
+  }, [urlPreset, applyPreset])
   const set = <K extends keyof CalSmParams>(k: K, v: CalSmParams[K]) => setCfg((c) => ({ ...c, [k]: v }))
-  const dcfg = useDeferredValue(cfg)
+  const setA = <K extends keyof AcqExpParams>(k: K, v: AcqExpParams[K]) => setAcq((c) => ({ ...c, [k]: v }))
+  const dcfg0 = useDeferredValue(cfg)
+  const dacq = useDeferredValue(acq)
+  // §14.6b：LOCK 的長度與失鎖後的重新 acquisition 由模型決定，不再是固定的計數器
+  const acqCfg = useMemo(() => buildAcqConfig(dacq, dcfg0), [dacq, dcfg0])
+  const acqRes = useMemo(() => runAcquisition(acqCfg), [acqCfg])
+  const acqTl = useMemo(() => acquisitionTimeline(acqCfg), [acqCfg])
+  const acqAn = useMemo(() => acquisitionAnalytic(acqCfg), [acqCfg])
+  const acqMc = useMemo(() => acquisitionMonteCarlo({ config: acqCfg, runs: 12 }), [acqCfg])
+  const dcfg = useMemo<CalSmParams>(() => {
+    const lockBlocks = Number.isFinite(acqRes.summary.lockBlocks) ? acqRes.summary.lockBlocks : dcfg0.blocks
+    const relock = acqRes.summary.relockBlocks > 0 ? acqRes.summary.relockBlocks : 0
+    return { ...dcfg0, lockBlocks, lockLossLen: dcfg0.lockLossLen > 0 ? dcfg0.lockLossLen + relock : dcfg0.lockLossLen }
+  }, [dcfg0, acqRes])
   const res = useMemo(() => runCalStateMachine(dcfg), [dcfg])
   const task = useWorkerTask<{ config: CalSmParams; runs: number }, CalSmMonteCarloResult>('optimizer', 'runCalStateMachineMonteCarlo', { restartOnRun: true })
   const [mc, setMc] = useState<{ key: string; res: CalSmMonteCarloResult } | null>(null)
@@ -165,11 +256,11 @@ export function CalStateMachineExperiment() {
   }, [runTask, dcfg, runs, key])
   // 掛載時與載入 preset 後自動跑一次 MC（等 deferred 參數追上再跑），之後改參數需手動 Run
   useEffect(() => {
-    if (pendingAuto && dcfg === cfg) {
+    if (pendingAuto && dcfg0 === cfg && dacq === acq) {
       setPendingAuto(false)
       run()
     }
-  }, [pendingAuto, dcfg, cfg, run])
+  }, [pendingAuto, dcfg0, cfg, dacq, acq, run])
 
   const Bk = res.state.length
   const ks = useMemo(() => Array.from({ length: Bk + 1 }, (_, k) => k), [Bk])
@@ -209,12 +300,61 @@ export function CalStateMachineExperiment() {
     () => ({ shapes: [vBand(dcfg.evalStart, Bk, withAlpha(tokens.series[2], 1), 0.06)], xaxis: { title: { text: String.raw`block $k$` } }, yaxis: { title: { text: String.raw`RMS $\delta$ (fs，log)` } } }),
     [dcfg.evalStart, Bk, tokens],
   )
+  // §14.6b acquisition 時間軸（抽樣到 ≤ 2048 點；|Δf| 用 log 軸、θ 在 ACQ 期間是 NaN）
+  const acqPlot = useMemo(() => {
+    const n = acqRes.df.length
+    const step = Math.max(1, Math.ceil(n / 2048))
+    const xs: number[] = []
+    const df: number[] = []
+    const th: (number | null)[] = []
+    for (let i = 0; i < n; i += step) {
+      xs.push(i)
+      df.push(Math.max(Math.abs(acqRes.df[i]) / 1e6, 1e-6))
+      th.push(Number.isNaN(acqRes.theta[i]) ? null : acqRes.theta[i])
+    }
+    const bands = acqRes.segments.map((g) => vBand(g.from, g.to, withAlpha(acqStateColor(g.state, tokens), 1), 0.13))
+    const lines = acqRes.events.filter((e) => e.kind === 'slip' || e.kind === 'unlock' || e.kind === 'hold').slice(0, 200).map((e) => vLine(e.n, tokens.danger, 'dot'))
+    const T = tVcoFs(acqCfg)
+    const dfData: Data[] = [
+      { x: xs, y: df, name: String.raw`$|\Delta f[n]|$（真值）`, line: { color: tokens.text, width: 1.6 } },
+      { x: [0, n - 1], y: [acqCfg.fTolHz / 1e6, acqCfg.fTolHz / 1e6], name: String.raw`$f_\text{tol}$`, line: { color: tokens.series[2], dash: 'dash', width: 1 } },
+      { x: [0, n - 1], y: [acqCfg.fUnlockHz / 1e6, acqCfg.fUnlockHz / 1e6], name: String.raw`$f_\text{unlock}$`, line: { color: tokens.danger, dash: 'dot', width: 1 } },
+    ]
+    const thData: Data[] = [
+      { x: xs, y: th as number[], name: String.raw`$\theta[n]$（SSPD 相位誤差）`, line: { color: tokens.text, width: 1.2 }, connectgaps: false },
+      { x: [0, n - 1], y: [acqCfg.thetaMaxFs, acqCfg.thetaMaxFs], name: String.raw`$+\theta_{\max}$`, line: { color: tokens.series[2], dash: 'dash', width: 1 } },
+      { x: [0, n - 1], y: [-acqCfg.thetaMaxFs, -acqCfg.thetaMaxFs], name: String.raw`$-\theta_{\max}$`, line: { color: tokens.series[2], dash: 'dash', width: 1 }, showlegend: false },
+      { x: [0, n - 1], y: [T / 2, T / 2], name: String.raw`$\pm T_\text{vco}/2$（slip）`, line: { color: tokens.danger, dash: 'dot', width: 1 } },
+      { x: [0, n - 1], y: [-T / 2, -T / 2], name: String.raw`$-T_\text{vco}/2$`, line: { color: tokens.danger, dash: 'dot', width: 1 }, showlegend: false },
+    ]
+    const dfLayout: Partial<Layout> = { shapes: [...bands, ...lines], xaxis: { title: { text: String.raw`reference 週期 $n$` } }, yaxis: { title: { text: String.raw`$|\Delta f|$ (MHz，log)` } } }
+    const thLayout: Partial<Layout> = { shapes: [...bands, ...lines], xaxis: { title: { text: String.raw`reference 週期 $n$` } }, yaxis: { title: { text: String.raw`$\theta$ (fs)` } } }
+    return { xs, dfData, thData, dfLayout, thLayout }
+  }, [acqRes, acqCfg, tokens])
+  const acqWarn = acqWarnings(acqCfg, acqRes)
+  // Analytic（acquisition 部分）：無雜訊模擬 vs 封閉式——線性 PD 要完全一致（|差| ≤ 1 週期），sine PD 落在 [線性值, 弦斜率上界]
+  const acqCheck = (() => {
+    const s = acqTl.summary
+    if (!acqRes.summary.dtcOk) return { ok: true, note: String.raw`acquisition：DTC 工作點超出範圍，封閉式與模擬都判定不能 enable（一致）` }
+    if (!Number.isFinite(acqAn.nEnable)) return { ok: s.enableCycle < 0, note: String.raw`acquisition：封閉式 $n_\text{enable}=\infty$，無雜訊模擬${s.enableCycle < 0 ? '也沒有 enable（一致）' : `卻在 ${s.enableCycle} enable（不一致）`}` }
+    if (s.enableCycle < 0) return { ok: false, note: String.raw`acquisition：封閉式 $n_\text{enable}=${acqAn.nEnable}$，無雜訊模擬在 ${acqCfg.cycles} 個週期內沒有 enable` }
+    const lin = acqCfg.pdShape === 'linear'
+    const okFl = s.freqLockCycle === acqAn.nFL
+    const okEn = lin ? Math.abs(s.enableCycle - acqAn.nEnable) <= 1 : s.enableCycle >= acqAn.nEnable - 1 && s.enableCycle <= acqAn.nEnableBound + 1
+    return {
+      ok: okFl && okEn,
+      note:
+        String.raw`acquisition（無雜訊模擬 vs 封閉式 F-14.22／F-14.25）：頻率鎖定 ${s.freqLockCycle} vs $n_\text{FL}=${acqAn.nFL}$；enable ${s.enableCycle} vs ` +
+        (lin ? String.raw`$n_\text{enable}=${acqAn.nEnable}$（容許 1 週期）` : String.raw`線性 ${acqAn.nEnable}、sine 上界 ${acqAn.nEnableBound}（模擬要落在兩者之間）`) +
+        String.raw`；LOCK ${s.lockBlocks} vs ${acqAn.lockBlocks} blocks`,
+    }
+  })()
   const pred = trackRmsPrediction(dcfg)
   // 單一 seed 的 RMS 有多不準：AR(1) 的相關時間 ≈ 2τ，視窗內的有效獨立樣本數 ≈ 窗長/(2τ)
   const gTrack = dcfg.muTrack * comparatorKq(dcfg.sigmaV) * Math.cos((dcfg.thetaDeg * Math.PI) / 180)
   const tauTrack = gTrack > 0 && gTrack < 1 ? 1 / gTrack : NaN
   const nEff = Math.max(0, Bk - dcfg.evalStart) / (2 * tauTrack)
-  const warnings = smWarnings(dcfg)
+  const warnings = [...acqWarn, ...smWarnings(dcfg)]
   if (res.summary.fault) {
     warnings.push(`FAULT：狀態機判定無法安全校正（${res.events.filter((e) => e.kind === 'fault' || e.kind === 'clip').map((e) => `block ${e.k}：${e.msg}`).slice(-2).join('；')}），已停止更新並保持 last-known-good，需要外部（FW／mode change）重新觸發。`)
   }
@@ -224,14 +364,14 @@ export function CalStateMachineExperiment() {
           const rel = mcRes.evalRms.mean / pred - 1
           const ok = Math.abs(rel) < 0.25
           return {
-            status: ok ? 'ok' : 'mismatch',
+            status: ok && acqCheck.ok ? 'ok' : 'mismatch',
             note:
-              `狀態機 MC 評估 RMS ${nf(mcRes.evalRms.mean, 3)} vs 線性 TRACK 預測 ${nf(pred, 3)} fs（${(100 * rel).toFixed(1)}%）` +
+              `${acqCheck.note}。TRACK：狀態機 MC 評估 RMS ${nf(mcRes.evalRms.mean, 3)} vs 線性 TRACK 預測 ${nf(pred, 3)} fs（${(100 * rel).toFixed(1)}%，容許 25%）` +
               (ok ? '' : '；評估視窗內若有 RESTART／VERIFY／FAULT 或事件，純 TRACK 的穩態公式本來就不適用'),
           }
         })()
-      : { status: 'n/a', note: String.raw`$\mu_\text{track}K$ 不在 $(0,2)$` }
-    : { status: 'n/a', note: '按「執行 Run」後以 MC 對照線性 TRACK 預測' }
+      : { status: acqCheck.ok ? 'ok' : 'mismatch', note: String.raw`${acqCheck.note}。TRACK：$\mu_\text{track}K$ 不在 $(0,2)$，沒有穩態公式可比` }
+    : { status: acqCheck.ok ? 'ok' : 'mismatch', note: `${acqCheck.note}。TRACK：按「執行 Run」後以 MC 對照線性 TRACK 預測` }
   // Monte Carlo 引擎本身的檢查：沒有事件時，「固定快 μ」對照組的評估 RMS 應等於線性穩態公式（F-14.6 + F-14.12）
   const predBase = trackRmsPrediction(dcfg, dcfg.baselineMu)
   const monteCarlo: CheckEntry = !mcRes
@@ -250,7 +390,37 @@ export function CalStateMachineExperiment() {
         })()
   const fixedPoint: CheckEntry = { status: 'n/a', note: dcfg.registerLsb > 0 ? 'L5：暫存器量化已在模型中；沒有獨立 bit-true RTL 對照' : '理想浮點（暫存器 LSB 設為 0）' }
 
+  const aS = acqRes.summary
   const metrics: MetricRow[] = [
+    {
+      name: String.raw`acquisition：頻率鎖定／enable 的週期（單一 seed）`,
+      value: aS.enableCycle >= 0 ? `${aS.freqLockCycle} / ${aS.enableCycle}` : aS.freqLockCycle >= 0 ? `${aS.freqLockCycle} / 沒有 enable` : '沒有鎖定',
+      unit: 'ref 週期',
+      formulaId: 'F-14.25',
+      claim: 'exact',
+      note: String.raw`封閉式（無雜訊）$n_\text{FL}=${Number.isFinite(acqAn.nFL) ? acqAn.nFL : INF}$、$n_\text{enable}=${Number.isFinite(acqAn.nEnable) ? acqAn.nEnable : INF}$；有雜訊時 lock detect 要等 $\Delta f$ 比 $f_\text{tol}$ 再小幾個 $\sigma_f$（F-14.23）。MC ${acqMc.runs} seeds：enable 平均 ${Number.isFinite(acqMc.enable.mean) ? `${nf(acqMc.enable.mean, 5)} [${nf(acqMc.enable.lo, 5)}, ${nf(acqMc.enable.hi, 5)}]` : '—'}（沒有 enable 的 runs：${acqMc.enable.failed}）`,
+    },
+    {
+      name: 'LOCK 的 block 數（由 acquisition 模型決定）',
+      value: Number.isFinite(aS.lockBlocks) ? aS.lockBlocks : '沒有 enable（LOCK 不結束）',
+      unit: 'blocks',
+      formulaId: 'F-14.25',
+      note: String.raw`$\lceil(n_\text{enable}+1)/N\rceil$；MC 各 seed：${acqMc.lockBlocks.map((b) => (Number.isFinite(b) ? String(b) : `$${INF}$`)).join(' ')}` + (aS.relockBlocks > 0 ? String.raw`；失鎖後重新 enable ${aS.relockCycles} 個週期 = ${aS.relockBlocks} blocks（block 級失鎖視窗 ${dcfg0.lockLossLen} + ${aS.relockBlocks} = ${dcfg.lockLossLen}）` : ''),
+    },
+    {
+      name: String.raw`acquisition：slip／失鎖／HOLD 次數；靜態偏移 $\theta_\text{ss}$`,
+      value: `${aS.slips} / ${aS.unlocks} / ${aS.holds}；${nf(acqAn.thetaSsFs, 3)} fs`,
+      formulaId: 'F-14.24',
+      claim: 'approx',
+      note: String.raw`$\Delta f_h=${nf(aS.dfHandoffHz / 1e6, 3)}$ MHz $\Rightarrow\Delta T=${nf(acqAn.rampFsPerCycle, 3)}$ fs/週期；倍頻捕獲 $|\Delta f_h|<f_\text{ref}/2$：${acqAn.harmonic.ok ? 'OK' : '錯的倍頻'}；slip 上限 $\Delta f_\text{limit}=${nf(acqAn.slip.dfLimitHz / 1e6, 3)}$ MHz；穩態 $P_\text{slip}=${tx(acqAn.slipProbPerCycle, 2)}$／週期；DTC 工作點：${aS.dtcOk ? 'OK' : '超出範圍'}`,
+    },
+    {
+      name: String.raw`lock detect：$P_\text{miss}$／$E[T_N]$／$P_\text{FA}(f_\text{tol}+\sigma_f)$`,
+      value: `${nf(acqAn.pMiss, 2)} / ${nf(acqAn.expectedDetectCycles, 4)} / ${nf(acqAn.pFalseAlarm, 2)}`,
+      formulaId: 'F-14.23',
+      claim: 'exact',
+      note: String.raw`$z=f_\text{tol}/\sigma_f=${nf(acqCfg.fTolHz / acqCfg.sigmaFHz, 3)}$、$N_\text{ld}=${acqCfg.nLd}$（iid Gaussian 估計）`,
+    },
     { name: '第一次進入 TRACK 的 block', value: res.summary.firstTrackBlock >= 0 ? res.summary.firstTrackBlock : '沒有' },
     { name: 'RESTART 次數／VERIFY 失敗／clip 事件', value: `${res.summary.restarts} / ${res.summary.verifyFails} / ${res.summary.clipEvents}` },
     { name: 'FAULT', value: res.summary.fault ? '是' : '否' },
@@ -302,16 +472,25 @@ export function CalStateMachineExperiment() {
         String.raw`$x=\pm1$ iid、$C=\cos\theta$、$\sigma_\eta\approx1/\sqrt N$；$\delta=a-w$。狀態機的 RMS 以 DTC 實際誤差 $a-w_\text{applied}$ 計算：VERIFY 期間 $w_\text{applied}=w\pm\Delta$，擾動的代價也算進去`,
         String.raw`失鎖期間 $G$ 與 $\delta$ 無關，只有假相關 $\beta$（cycle slip 示意）；bad-FCW 時 $C$ 乘上一個倍率並加上假相關`,
         String.raw`PVT：$a_k=a_0+rk$ 再加上 step；guards 的門檻以 $\sigma_G/\sqrt W$ 為單位`,
+        String.raw`§14.6b：LOCK 的長度 $B_\text{LOCK}=\lceil(n_\text{enable}+1)/N\rceil$ 由 acquisition 模型決定（FLL 一階模型、lock detect 連續 $N_\text{ld}$、sine SSPD、一階相位迴路、$W$ 週期 rms 視窗、DTC 工作點檢查 $[w_0,a_0]$ 在 $x=\pm1$ 不飽和）；失鎖事件的視窗加上重新 acquisition 的 block 數。HOLD／RECAL 尚未接到 block 級（只在 acquisition 指標裡）`,
         '狀態機邏輯是教學用參考設計，不是 sign-off RTL',
       ]}
-      params={{ ...cfg, runs }}
+      params={{ ...cfg, lockBlocks: dcfg.lockBlocks, lockLossLenEffective: dcfg.lockLossLen, acq, runs }}
       seed={cfg.seed}
       onSeedChange={(s) => set('seed', s)}
-      units={{ sigmaV: 'fs', a0: 'fs', w0: 'fs', driftPerBlock: 'fs/block', stepSize: 'fs', muCoarse: 'fs', muFine: 'fs', muTrack: 'fs', verifyDelta: 'fs', verifyTol: 'fs', wMin: 'fs', wMax: 'fs', maxStep: 'fs', registerLsb: 'fs', baselineMu: 'fs', baselineMu2: 'fs', convTarget: 'fs', thetaDeg: 'deg' }}
+      units={{ fRefHz: 'Hz', kVcoHzPerLsb: 'Hz/LSB', df0Hz: 'Hz', sigmaFHz: 'Hz', fTolHz: 'Hz', fUnlockHz: 'Hz', fBwHz: 'Hz', sigmaThetaFs: 'fs', theta0Fs: 'fs', thetaMaxFs: 'fs', rmsMaxFs: 'fs', lossDfHz: 'Hz', sigmaV: 'fs', a0: 'fs', w0: 'fs', driftPerBlock: 'fs/block', stepSize: 'fs', muCoarse: 'fs', muFine: 'fs', muTrack: 'fs', verifyDelta: 'fs', verifyTol: 'fs', wMin: 'fs', wMax: 'fs', maxStep: 'fs', registerLsb: 'fs', baselineMu: 'fs', baselineMu2: 'fs', convTarget: 'fs', thetaDeg: 'deg' }}
       metrics={metrics}
       warnings={warnings}
       crossCheck={{ analytic, monteCarlo, fixedPoint }}
-      actions={{ onRun: run, onStop: task.cancel, running: task.running, onReset: () => setCfg(DEFAULT_CAL_SM) }}
+      actions={{
+        onRun: run,
+        onStop: task.cancel,
+        running: task.running,
+        onReset: () => {
+          setCfg(DEFAULT_CAL_SM)
+          setAcq(DEFAULT_ACQ_EXP)
+        },
+      }}
       exportData={() => ({
         k: ks.slice(0, Bk),
         state: Array.from(res.state, (s) => CAL_STATES[s]),
@@ -323,13 +502,14 @@ export function CalStateMachineExperiment() {
         G: res.G,
         delta_fixed_fast_fs: res.deltaBase.slice(0, Bk),
         delta_fixed_quiet_fs: res.deltaBase2.slice(0, Bk),
+        acq_cycle: acqPlot.xs,
+        acq_df_hz: acqPlot.xs.map((i) => acqRes.df[i]),
+        acq_theta_fs: acqPlot.xs.map((i) => acqRes.theta[i]),
+        acq_state: acqPlot.xs.map((i) => ACQ_STATES[acqRes.state[i]]),
         ...(mcRes ? { mc_rms_sm_fs: mcRes.rms.slice(0, Bk), mc_rms_sm_register_fs: mcRes.rmsRegister.slice(0, Bk), mc_rms_fast_fs: mcRes.rmsBase.slice(0, Bk), mc_rms_quiet_fs: mcRes.rmsBase2.slice(0, Bk) } : {}),
       })}
       presets={presets}
-      onLoadPreset={(p) => {
-        setCfg({ ...DEFAULT_CAL_SM, ...(p.params as Partial<CalSmParams>) })
-        setPendingAuto(true)
-      }}
+      onLoadPreset={(p) => applyPreset(p.params)}
       controls={
         <div className="ch14-controls">
           <Group title="情境：雜訊、PVT、事件" open>
@@ -342,7 +522,6 @@ export function CalStateMachineExperiment() {
             <ParamControl label={md(String.raw`PVT ramp $r$`)} ariaLabel="PVT ramp r" value={cfg.driftPerBlock} onChange={(v) => set('driftPerBlock', v)} min={-0.1} max={0.1} step={0.0005} unit="fs/block" reg="temperature drift" />
             <ParamControl label={md(String.raw`mode/PVT step 位置（$-1$：無）`)} ariaLabel="mode/PVT step 位置（−1 = 無）" value={cfg.stepBlock} onChange={(v) => set('stepBlock', v)} min={-1} max={5000} step={1} integer reg="mode change event" />
             <ParamControl label={md(String.raw`step 大小 $\Delta a$`)} ariaLabel="step 大小 Δa" value={cfg.stepSize} onChange={(v) => set('stepSize', v)} min={-200} max={200} step={1} unit="fs" reg="mode change step（behavioral）" />
-            <ParamControl label="開機鎖定 blocks" value={cfg.lockBlocks} onChange={(v) => set('lockBlocks', v)} min={0} max={500} step={1} integer reg="PLL lock time" />
             <ParamControl label={md(String.raw`失鎖開始（$-1$：無）`)} ariaLabel="失鎖開始（−1 = 無）" value={cfg.lockLossStart} onChange={(v) => set('lockLossStart', v)} min={-1} max={5000} step={1} integer reg="lock-loss event" />
             <ParamControl label="失鎖長度" value={cfg.lockLossLen} onChange={(v) => set('lockLossLen', v)} min={0} max={1000} step={1} integer reg="lock-loss duration" />
             <ParamControl label={md(String.raw`失鎖假相關 $\beta$`)} ariaLabel="失鎖假相關 β" value={cfg.unlockBias} onChange={(v) => set('unlockBias', v)} min={0} max={1} step={0.01} reg="cycle-slip bias" />
@@ -352,6 +531,34 @@ export function CalStateMachineExperiment() {
             <ParamControl label="bad-FCW 假相關" value={cfg.badFcwBias} onChange={(v) => set('badFcwBias', v)} min={0} max={0.5} step={0.005} reg="bad-FCW correlated bias（Ch11 §11.4）" />
             <ParamControl label={md(String.raw`低雜訊模式開始（$-1$：無）`)} ariaLabel="低雜訊模式開始（−1 = 無）" value={cfg.lowNoiseStart} onChange={(v) => set('lowNoiseStart', v)} min={-1} max={5000} step={1} integer reg="RX sensitive slot" />
             <ParamControl label="低雜訊模式長度" value={cfg.lowNoiseLen} onChange={(v) => set('lowNoiseLen', v)} min={0} max={2000} step={1} integer reg="freeze request" />
+          </Group>
+          <Group title="Acquisition（§14.6b：FLL、lock detect、SSPD、enable 條件）">
+            <ParamControl label={md(String.raw`FLL 增益 $K_f$（每週期）`)} ariaLabel="FLL 增益 K_f" value={fllGain(acq)} onChange={(v) => setA('fllGainLsb', fllGainLsbFor(v, acq))} min={1e-5} max={0.5} log digits={5} reg="FLL_GAIN（K_vco g_f/(M f_ref)）" hint={md(String.raw`$K_\text{vco}=${tx(acq.kVcoHzPerLsb / 1e6, 3)}$ MHz/LSB、$M=${acq.divRatio}$、$f_\text{ref}=${tx(acq.fRefHz / 1e9, 3)}$ GHz；改 $K_f$ 等於改 $g_f$`)} />
+            <ParamControl label={md(String.raw`初始頻率誤差 $\Delta f_0$`)} ariaLabel="初始頻率誤差 Δf_0" value={acq.df0Hz / 1e6} onChange={(v) => setA('df0Hz', v * 1e6)} min={0.1} max={2000} log unit="MHz" reg="VCO initial offset（behavioral）" />
+            <ParamControl label={md(String.raw`lock 門檻 $f_\text{tol}$`)} ariaLabel="lock 門檻 f_tol" value={acq.fTolHz / 1e6} onChange={(v) => setA('fTolHz', v * 1e6)} min={0.01} max={100} log unit="MHz" reg="LOCK_DET_FTOL" />
+            <ParamControl label={md(String.raw`頻率估計雜訊 $\sigma_f$`)} ariaLabel="頻率估計雜訊 σ_f" value={acq.sigmaFHz / 1e6} onChange={(v) => setA('sigmaFHz', v * 1e6)} min={0} max={10} step={0.01} unit="MHz" reg="FD noise rms（behavioral）" />
+            <ParamControl label={md(String.raw`連續週期數 $N_\text{ld}$`)} ariaLabel="連續週期數 N_ld" value={acq.nLd} onChange={(v) => setA('nLd', v)} min={1} max={1024} log integer clampOnBlur reg="LOCK_DET_COUNT" />
+            <ParamControl label={md(String.raw`失鎖門檻 $f_\text{unlock}$`)} ariaLabel="失鎖門檻 f_unlock" value={acq.fUnlockHz / 1e6} onChange={(v) => setA('fUnlockHz', v * 1e6)} min={0.01} max={200} log unit="MHz" reg="UNLOCK_DET_FTOL" />
+            <ParamControl label={md(String.raw`失鎖連續週期數 $N_\text{ul}$`)} ariaLabel="失鎖連續週期數 N_ul" value={acq.nUl} onChange={(v) => setA('nUl', v)} min={1} max={1024} log integer clampOnBlur reg="UNLOCK_DET_COUNT" />
+            <ParamControl label={md(String.raw`迴路頻寬 $f_\text{BW}$`)} ariaLabel="迴路頻寬 f_BW" value={acq.fBwHz / 1e6} onChange={(v) => setA('fBwHz', v * 1e6)} min={1} max={1000} log unit="MHz" reg="PLL loop bandwidth" hint={md(String.raw`$g_p=1-e^{-2\pi f_\text{BW}/f_\text{ref}}=${tx(acqAn.gp, 4)}$`)} />
+            <SelectControl
+              label="PD 特性"
+              value={acq.pdShape}
+              onChange={(v) => setA('pdShape', v)}
+              options={[
+                { value: 'sine', label: 'sine（SSPD：單調 ±T_vco/4）' },
+                { value: 'linear', label: 'linear（L1 線性化，只有 ±T_vco/2 的 wrap）' },
+              ]}
+              reg="SSPD model"
+            />
+            <ParamControl label={md(String.raw`交棒時的相位 $\theta_0$`)} ariaLabel="交棒時的相位 θ_0" value={acq.theta0Fs / 1000} onChange={(v) => setA('theta0Fs', v * 1000)} min={-31} max={31} step={0.5} unit="ps" reg="handoff phase（behavioral）" hint={md(String.raw`吸引區 $\pm T_\text{vco}/2=\pm${tx(tVcoFs(acq) / 2000, 3)}$ ps`)} />
+            <ParamControl label={md(String.raw`phase-lock 門檻 $\theta_{\max}$`)} ariaLabel="phase-lock 門檻 θ_max" value={acq.thetaMaxFs} onChange={(v) => setA('thetaMaxFs', v)} min={10} max={30000} log unit="fs" reg="PLOCK_DET_THETA" />
+            <ParamControl label={md(String.raw`phase-lock 連續週期數 $N_\text{pl}$`)} ariaLabel="phase-lock 連續週期數 N_pl" value={acq.nPl} onChange={(v) => setA('nPl', v)} min={1} max={1024} log integer clampOnBlur reg="PLOCK_DET_COUNT" />
+            <ParamControl label={md(String.raw`PD 雜訊 $\sigma_\theta$`)} ariaLabel="PD 雜訊 σ_θ" value={acq.sigmaThetaFs} onChange={(v) => setA('sigmaThetaFs', v)} min={0} max={5000} step={10} unit="fs" reg="pd_noise_rms_fs（同 σ_v 的節點）" />
+            <ParamControl label={md(String.raw`穩態視窗 $W$`)} ariaLabel="穩態視窗 W" value={acq.settleWindow} onChange={(v) => setA('settleWindow', v)} min={8} max={8192} log integer clampOnBlur reg="SETTLE_WIN" />
+            <ParamControl label={md(String.raw`穩態門檻 $\mathrm{rms}_{\max}$`)} ariaLabel="穩態門檻 rms_max" value={acq.rmsMaxFs} onChange={(v) => setA('rmsMaxFs', v)} min={1} max={10000} log unit="fs" reg="SETTLE_RMS_MAX" />
+            <ParamControl label={md(String.raw`失鎖事件的頻率跳變 $\Delta f_\text{loss}$`)} ariaLabel="失鎖事件的頻率跳變 Δf_loss" value={acq.lossDfHz / 1e6} onChange={(v) => setA('lossDfHz', v * 1e6)} min={0} max={500} step={1} unit="MHz" reg="VCO kick at lock-loss end（behavioral）" hint="失鎖事件（上一組的「失鎖開始／長度」）結束時 VCO 仍偏這麼多，要重新 acquisition" />
+            <ParamControl label="DTC 位元數" value={acq.dtcBits} onChange={(v) => setA('dtcBits', v)} min={4} max={16} step={1} integer reg="DTC_BITS（Ch04 §5b）" hint={md(String.raw`$T_0=${tx(acqAn.dtc.t0Fs / 1000, 4)}$ ps、$R=${tx(acqAn.dtc.rangeFs / 1000, 4)}$ ps、LSB $${tx(acqAn.dtc.lsbFs, 3)}$ fs；檢查 $w_0$ 與 $a_0$ 在 $x=\pm1$`)} />
           </Group>
           <Group title="步長排程與 VERIFY" open>
             <ParamControl label={md(String.raw`$\mu_\text{coarse}$`)} ariaLabel="μ_coarse" value={cfg.muCoarse} onChange={(v) => set('muCoarse', v)} min={0.01} max={500} log unit="fs" reg="REG_MU_COARSE" />
@@ -401,6 +608,48 @@ export function CalStateMachineExperiment() {
       }
     >
       {mcErr && <Callout kind="danger">Monte Carlo 失敗：{mcErr}</Callout>}
+      <h4>Acquisition 時間軸（§14.6b；reference 週期）</h4>
+      <div className="ch14-legend" aria-label="acquisition 狀態顏色">
+        {ACQ_STATES.map((s) => (
+          <span key={s}>
+            <i style={{ background: withAlpha(acqStateColor(s, tokens), 0.45) }} />
+            {s}
+          </span>
+        ))}
+      </div>
+      <Plot
+        title={String.raw`FLL：$|\Delta f[n]|$ 與 lock／unlock 門檻（背景色：acquisition 狀態；紅點線：slip／失鎖／HOLD）`}
+        data={acqPlot.dfData}
+        yLog
+        height={280}
+        csvName="ch14-acq-df"
+        layout={acqPlot.dfLayout}
+        caption={md(
+          String.raw`單一 seed（同 block 級狀態機的 seed）。$|\Delta f|$ 以 $(1-K_f)^n$ 指數下降（F-14.22），進 $f_\text{tol}$ 之後要連續 $N_\text{ld}$ 個週期才宣告頻率鎖定；之後 FLL 凍結，殘餘 $\Delta f_h$ 留下相位斜坡。失鎖事件把 $\Delta f$ 踢回門檻外，$|\hat{\Delta f}|>f_\text{unlock}$ 連續 $N_\text{ul}$ 個週期後回 ACQ 重拉。`,
+        )}
+      />
+      <Plot
+        title={String.raw`SSPD 相位誤差 $\theta[n]$ 與 $\pm\theta_{\max}$、$\pm T_\text{vco}/2$`}
+        data={acqPlot.thData}
+        height={260}
+        csvName="ch14-acq-theta"
+        layout={acqPlot.thLayout}
+        caption={md(
+          String.raw`ACQ 期間相位迴路未閉合（不畫）；頻率鎖定後從 $\theta_0$ 以 $(1-g_p)^n$ 收到門檻內（F-14.25），再等 $W$ 個週期的 rms 視窗；$|\theta|$ 超過 $\pm T_\text{vco}/2$ 就 cycle slip（F-14.24）。`,
+        )}
+      />
+      <details className="ch14-details">
+        <summary>acquisition 事件紀錄（單一 seed；共 {acqRes.events.length} 筆）</summary>
+        <div className="ch14-events" role="log" aria-label="acquisition 事件紀錄">
+          {acqRes.events.slice(0, 120).map((e, i) => (
+            <div key={i}>
+              <span className="k">n={e.n}</span> [{e.kind}] {mathText(e.msg)}
+            </div>
+          ))}
+          {acqRes.events.length > 120 && <div>…（共 {acqRes.events.length} 筆）</div>}
+        </div>
+      </details>
+      <h4>Block 級狀態機（§14.7；block）</h4>
       <div className="ch14-legend" aria-label="狀態顏色">
         {CAL_STATES.map((s) => (
           <span key={s}>

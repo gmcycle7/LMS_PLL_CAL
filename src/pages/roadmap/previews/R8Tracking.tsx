@@ -219,7 +219,7 @@ export default function R8Preview() {
           { label: '解析：穩態誤差與最佳增益', source: modelSrc, region: 'kalmanSteady', path: PATH, note: '二次方程的正根就是穩態 Kalman 增益。' },
         ]}
       />
-      <ModeGate min="research">
+      <ModeGate min="research" summary="1-bit 觀測與多參數時 Kalman 的限制">
         <h4>Research：1-bit 觀測與多參數</h4>
         <p>
           Sign-GMAC 的觀測是 <Tex>{'q=\\mathrm{sign}(\\cdot)'}</Tex>，Kalman 的線性 Gaussian 假設只在 comparator 前的確定性殘差遠小於 <Tex>{'\\sigma_v'}</Tex> 時近似成立（<Tex>{'\\pm1'}</Tex> code、無記憶 path <Tex>{'u=Cx'}</Tex> 時即{' '}

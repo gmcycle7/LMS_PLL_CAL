@@ -304,10 +304,9 @@ export function S3GmacPole() {
         <Tex>{'C'}</Tex> 的符號會隨 FCW、code 頻譜與迴路頻寬改變（§6.4），所以這不是可靠的設計。
       </p>
 
-      <ChapterHandCalc
-        id="HC-06.1"
-        lead={String.raw`上面兩個表的每一格都只是 $p=1-\mu K_qC$。換成你自己的 $C$、$K_q$、$\mu$，先用紙筆算出 pole 與前兩個 block 的平均誤差，再看把 $\mu$ 減半有沒有用。`}
-      />
+      <ChapterHandCalc id="HC-06.1">
+        {String.raw`上面兩個表的每一格都只是 $p=1-\mu K_qC$。換成你自己的 $C$、$K_q$、$\mu$，先用紙筆算出 pole 與前兩個 block 的平均誤差，再看把 $\mu$ 減半有沒有用。`}
+      </ChapterHandCalc>
 
       <h3>核心程式碼：這就是網站跑的 GMAC</h3>
       <p>

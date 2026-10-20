@@ -75,8 +75,8 @@ describe('Lab 頁的方塊圖（真正的 mermaid parser）', () => {
     mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'default', suppressErrorRendering: true })
   })
 
-  it('清單：五張圖（九級訊號鏈、兩條路、更新迴路、輸出端的兩個成分、五個分頁），diagrams.ts 匯出的每張圖都在清單裡', () => {
-    expect(LAB_CHARTS.map((c) => c.name)).toEqual(['PIPELINE_CHART', 'CHART_TWO_PATHS', 'CHART_UPDATE_LOOP', 'CHART_OUTPUT_SPLIT', 'CHART_TAB_MAP'])
+  it('清單：六張圖（九級訊號鏈、兩條路、更新迴路、輸出端的兩個成分、§5b 的 8 相 PMUX + 9 個權重、五個分頁），diagrams.ts 匯出的每張圖都在清單裡', () => {
+    expect(LAB_CHARTS.map((c) => c.name)).toEqual(['PIPELINE_CHART', 'CHART_TWO_PATHS', 'CHART_UPDATE_LOOP', 'CHART_OUTPUT_SPLIT', 'CHART_PMUX9', 'CHART_TAB_MAP'])
     const exported = Object.entries(D).filter(([, v]) => typeof v === 'string' && /^(flowchart|stateDiagram|sequenceDiagram)/.test(v as string))
     expect(exported.map(([k]) => k).sort()).toEqual(LAB_CHARTS.map((c) => c.name).sort())
     for (const [k, v] of exported) expect(LAB_CHARTS.find((c) => c.name === k)?.chart).toBe(v)
@@ -248,6 +248,31 @@ describe('Lab 頁的方塊圖（真正的 mermaid parser）', () => {
       for (const e of g.edges) if (e.text && !hasMath(e.text)) expect(plain(r.text).includes(plain(e.text)), `${c.name} 邊 ${e.start}→${e.end}：「${e.text}」沒有原樣出現在圖上`).toBe(true)
     }
   }, 120_000)
+
+  it('§5b 的 8 相 PMUX 圖（§2a 第 6 點）：累加器分出 PMUX 相位與 DTC code；PD 的兩個輸入是 PMUX（＋，回授）與 reference 端的 DTC（−）；comparator 取 H_PD 之後的 PD 輸出；同一個 q 餵 GOS 與 8 個 PHOS 的 GMAC、更新都回到 DTC', async () => {
+    const { CHART_PMUX9 } = D
+    const g = await flow(CHART_PMUX9)
+    const edge = (a: string, b: string) => {
+      const e = g.edges.find((x) => x.start === a && x.end === b)
+      if (!e) throw new Error(`CHART_PMUX9 沒有 ${a} → ${b}`)
+      return e
+    }
+    edge('ACC', 'PMUX')
+    edge('ACC', 'DTC')
+    expect(leadingSign(edge('PMUX', 'PD').text ?? '')).toBe('＋')
+    expect(leadingSign(edge('DTC', 'PD').text ?? '')).toBe('−')
+    expect(edge('PD', 'HPD').text).toContain(R`e_{\mathrm{DTC}}`)
+    expect(edge('HPD', 'CMP').text).toContain(R`u_{\mathrm{pd}}`)
+    edge('CMP', 'GG')
+    edge('CMP', 'GP')
+    expect(edge('GG', 'DTC').text).toContain(R`w_g \leftarrow`)
+    expect(edge('GP', 'DTC').text).toContain(R`w_p \leftarrow`)
+    expect(CHART_PMUX9).toContain(R`$H_{\mathrm{PD}}(1) = 0$`)
+    expect(CHART_PMUX9).toContain('回授路徑')
+    expect(CHART_PMUX9).toContain('reference 端')
+    // 沒有任何線從 DTC 回到 PMUX（DTC 不在回授路徑上）
+    expect(g.edges.some((e) => e.start === 'DTC' && e.end === 'PMUX')).toBe(false)
+  })
 
   it('圖內的數學都是 LaTeX：每張圖的每個變數標籤都含 `$...$`，且成對', () => {
     for (const c of LAB_CHARTS) {

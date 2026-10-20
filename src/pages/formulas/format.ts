@@ -1,17 +1,14 @@
+import { texNum as sharedTexNum } from '@/components/handcalcMath'
 import { fmt } from '@/simulation/core'
 
 /**
- * 數字 → TeX 字串（給 '$…$' 夾雜的說明文字與 TexBlock 用）。
+ * 數字 → TeX 字串（給 '$…$' 夾雜的說明文字與 TexBlock 用）。規則由共用的 `texNum`（components/handcalcMath.ts）決定，
+ * 本頁只改兩件事：預設 4 位有效數字、NaN 寫 `\text{n/a}`（這一頁的 NaN 都是「此條件下沒有定義」，不是計算錯誤）。
  * 例：7.978845608e-3 → '7.979\times10^{-3}'、-325.81 → '-325.8'、∞ → '\infty'、NaN → '\text{n/a}'。
  */
 export function texNum(x: number, digits = 4): string {
   if (Number.isNaN(x)) return String.raw`\text{n/a}`
-  const s = fmt(x, digits)
-  if (s === '∞') return String.raw`\infty`
-  if (s === '-∞') return String.raw`-\infty`
-  const m = /^(-?[\d.]+)e(-?\d+)$/.exec(s)
-  if (m) return `${m[1]}\\times10^{${m[2]}}`
-  return s
+  return sharedTexNum(x, digits)
 }
 
 /** 百分比（TeX）：0.0526 → '5.26\%' */

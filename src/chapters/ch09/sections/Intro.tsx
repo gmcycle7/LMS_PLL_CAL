@@ -133,7 +133,7 @@ export function Intro({ afterMap }: { afterMap?: ReactNode } = {}) {
         </p>
       </Section>
 
-      <Section kind="example" title={<>先算一次：{m`\mathbf u`} 永遠是 {m`(1,1)`}</>} level={3}>
+      <Section id="ch09-hand-first" kind="example" title={<>先算一次：{m`\mathbf u`} 永遠是 {m`(1,1)`}</>} level={3}>
         <p>
           設 {m`\mathbf a=(3,1)`}、起點 {m`\mathbf w_0=(0,0)`}、無雜訊，每一步 {m`\mathbf u=(1,1)`}。conventional LMS 每一步照「誤差 {m`\times`} regressor」修正旋鈕：{m`\mathbf w\leftarrow\mathbf w+\mu e\,\mathbf u`}，其中 {m`\mu`} 是 <strong>learning rate</strong>（步長：每一步照誤差修正多少），這裡取
           {m`\mu=0.25`}。下表的 {m`k`} 是第幾步，每一列都由 <code>lmsHandSteps()</code> 算出：
@@ -151,7 +151,7 @@ export function Intro({ afterMap }: { afterMap?: ReactNode } = {}) {
         </p>
       </Section>
 
-      <Section kind="example" title={<>再算一次：{m`\mathbf u`} 在 {m`(1,1)`} 與 {m`(1,-1)`} 之間交替</>} level={3}>
+      <Section id="ch09-hand-second" kind="example" title={<>再算一次：{m`\mathbf u`} 在 {m`(1,1)`} 與 {m`(1,-1)`} 之間交替</>} level={3}>
         <HandTable rows={alt} />
         <p>
           這次第 1 步的 regressor {m`(1,-1)`} 恰好照到「差」的方向，所以兩個方向都被推到；60 步後

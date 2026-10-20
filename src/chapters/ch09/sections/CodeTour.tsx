@@ -1,8 +1,8 @@
-import { CodeBlock, CodeCompare, ModeGate, Section } from '@/components'
+import { CodeBlock, CodeCompare, ModeGate, Section, ChapterErratum } from '@/components'
 import peSrc from '@/simulation/models/pe.ts?raw'
 import mimoPy from '../../../../golden/lms_pll_golden/mimo.py?raw'
 import { pyFunction } from '../pyExcerpt'
-import { Erratum, m } from '../shared'
+import { m } from '../shared'
 
 const PATH = 'src/simulation/models/pe.ts'
 const PY_PATH = 'golden/lms_pll_golden/mimo.py'
@@ -32,7 +32,7 @@ export function CodeTour() {
       </p>
 
       <h3>
-        2. Mean recursion vs. mean-square recursion（<Erratum id="E23" />）
+        2. Mean recursion vs. mean-square recursion（<ChapterErratum id="E23" />）
       </h3>
       <CodeCompare
         items={[
@@ -57,7 +57,7 @@ export function CodeTour() {
       <h3>4. GMAC 乘數：linear（conventional）vs. 1-bit（sign）</h3>
       <p>
         linear：{m`t=e\ \Rightarrow\ E[\mathbf G\mid\boldsymbol\delta]=\mathbf R\boldsymbol\delta`}（{m`K_q\equiv1`}）；1-bit：{m`t=\mathrm{sign}(e)\ \Rightarrow`}
-        {m`E[\mathbf G\mid\boldsymbol\delta]\approx K_q\mathbf R\boldsymbol\delta`}，{m`K_q=\sqrt{2/\pi}/\sigma_v`}（<Erratum id="E05" />）。
+        {m`E[\mathbf G\mid\boldsymbol\delta]\approx K_q\mathbf R\boldsymbol\delta`}，{m`K_q=\sqrt{2/\pi}/\sigma_v`}（<ChapterErratum id="E05" />）。
       </p>
       <CodeCompare
         items={[
@@ -84,7 +84,7 @@ export function CodeTour() {
       <h3>6. §9.2 Gauge：raw-x vs. u-domain regressor</h3>
       <p>
         raw-x：{m`\mathbf u=\tilde{\mathbf x}`}，常數 1 原封不動，{m`b`} 的 regressor 有能量；u-domain：{m`\tilde{\mathbf u}=h*\tilde{\mathbf x}`}，
-        {m`H_{\mathrm{PD}}(1)=0`} 把常數 1 濾成 0，{m`\sum_i\tilde u_i`} 也 {m`\to0`}（<Erratum id="E04" />）。
+        {m`H_{\mathrm{PD}}(1)=0`} 把常數 1 濾成 0，{m`\sum_i\tilde u_i`} 也 {m`\to0`}（<ChapterErratum id="E04" />）。
       </p>
       <CodeCompare
         items={[
@@ -150,7 +150,7 @@ export function CodeTour() {
         <h3>Python golden model 對照（TypeScript vs. NumPy）</h3>
         <p>
           獨立的 NumPy 版本（<code>{PY_PATH}</code>）產生 T10 / T11 的 golden vectors；Vitest 讀這些 JSON 與上面的 TypeScript 交叉比對。下面逐一並排「同一件事的兩種寫法」（Python 段落以函式名稱從原始檔擷取）。注意 golden 的 {m`\mathbf I-\mu\mathbf R`} 沒有 {m`K_q`}：它驗的是
-          {m`K_q=1`} 的正規化情形（<Erratum id="E05" />）。
+          {m`K_q=1`} 的正規化情形（<ChapterErratum id="E05" />）。
         </p>
         <CodeCompare
           items={[

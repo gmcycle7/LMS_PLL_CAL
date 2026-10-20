@@ -21,6 +21,11 @@ import {
   tieRuleEquilibrium,
   tieRuleEquilibriumApprox,
   varQ,
+  kqHysteresis,
+  kqMetaDrop,
+  metaProb,
+  nonidealSummary,
+  nuHysteresis,
 } from '@/simulation/models/comparator'
 
 /**
@@ -73,6 +78,11 @@ export const HC05_LIMITS = {
   poleMin: 0.002,
   /** 綜合題：g ≥ 1e-8。再小的話 1 − g 在 10 位數的計算機上和 1 分不出來，ln|p_cal| 算不出來 */
   gMin: 1e-8,
+  /** 遲滯題：η = h/σ_v ≤ 2.5（常態表查得到 Φ(−η) 的三位有效數字；再大 Φ(−η) < 0.007，四位小數的表只剩一兩位有效數字） */
+  etaMax: 2.5,
+  /** metastability 題：ε/σ_v ≤ 0.3 用一階泰勒 P_meta ≈ 2φ(0)ε/σ_v（誤差 ≤ (ε/σ_v)²/6 = 1.5%）；更大就查表 */
+  epsLinear: 0.3,
+  epsMax: 2,
 } as const
 
 /* ───────────── 「照畫面上的數字往下算」的小工具（純顯示／抄寫，不含任何模型公式） ───────────── */
@@ -880,7 +890,7 @@ export const HANDCALCS: HandCalcDef[] = [
     ],
   },
 
-  /* ───────────── HC-05.8：綜合題（放在思考題之前） ───────────── */
+  /* ───────────── HC-05.8：綜合題（放在 §9 的思考題之前；id 對外是網址，不可改號） ───────────── */
   {
     id: 'HC-05.8',
     title: String.raw`綜合題：從 $\sigma_v$ 到校正迴路——穩定上限、pole、收斂時間與 $\sigma_w$`,
@@ -1000,6 +1010,158 @@ export const HANDCALCS: HandCalcDef[] = [
       '$p_{\\mathrm{cal}}$ 的答案要寫到小數第三位以上（容許 $\\pm0.002$）：$0.92$ 和 $0.93$ 的 $\\tau$ 就差了 15%。',
       '適用範圍：$0<g\\le1.98$，而且 $g$ 不要剛好等於 1（$|p_{\\mathrm{cal}}|\\ge0.002$）——太靠近 $g=2$ 或 $g=1$ 時，5 位有效數字的手算不夠用。',
       '範例（$\\sigma_v=100\\,\\mathrm{fs}$、$\\mu=10\\,\\mathrm{fs}$、$N=4096$）：$p_{\\mathrm{cal}}=0.92021$、$\\sigma_w=0.3992\\,\\mathrm{fs}$（測試 T13）；$f_s=4\\,\\mathrm{GHz}$ 時一個 block 是 $1.024\\,\\mu\\mathrm{s}$。',
+    ],
+  },
+
+  /* ───────────── HC-05.9：遲滯 comparator（§5b）───────────── */
+  {
+    id: 'HC-05.9',
+    title: String.raw`遲滯 $\pm h$：斜率變大、記憶因子 $\nu$、雜訊因子與資訊等效增益 $K_{\mathrm{eff}}$`,
+    page: PAGE,
+    formulaId: 'F-05.22',
+    formulaTex: String.raw`\begin{aligned}&\eta=\frac{h}{\sigma_v},\qquad K_q(h)=\frac{\varphi(\eta)}{\sigma_v\,\Phi(-\eta)},\qquad \nu=1-2\Phi(-\eta),\qquad F=\frac{1+\nu}{1-\nu}\\[1ex]&K_{\mathrm{eff}}=\frac{K_q(h)}{\sqrt F},\qquad \frac{N(h)}{N(0)}=\Big(\frac{K_q}{K_{\mathrm{eff}}}\Big)^2\end{aligned}`,
+    level: 'engineer',
+    claim: 'approx', // K_q(h)、ν 是 F-05.22 的精確式；K_eff 與 N(h)/N(0) 用 F-05.26（CLT + 小訊號）
+    inputs: [
+      { key: 'h', symbol: 'h', label: '遲滯半寬（門檻依上一拍的輸出上下移動的量）', unit: FS, default: 30, min: 0, max: 100000, practice: { choices: [0, 10, 20, 30, 50, 100, 200] } },
+      inSigma(),
+    ],
+    validate: ({ h, sigma }) => {
+      if (!(sigma > 0)) return SIGMA_ZERO
+      if (h < 0) return '$h$ 是門檻的半寬，不能是負的。'
+      const eta = h / sigma
+      if (eta > HC05_LIMITS.etaMax) {
+        return String.raw`$\eta=h/\sigma_v=${texNum(eta, 3)}>${HC05_LIMITS.etaMax}$：$\Phi(-\eta)<0.007$，四位小數的常態表只剩一兩位有效數字，手算的比值會差超過 5%。這麼大的遲滯下 latch 幾乎不翻轉（$\nu\to1$），每個 block 只剩一兩次獨立決策，請把 $h$ 縮到 $2.5\sigma_v$ 以內（或直接看 §5b 的圖）。`
+      }
+      return null
+    },
+    solve: ({ h, sigma }) => {
+      const eta = rd(h / sigma)
+      const eta2 = rd(eta * eta)
+      const halfEta2 = rd(eta2 / 2)
+      const expo = rd(Math.exp(-halfEta2))
+      const phiEta = rd(PHI0_H * expo)
+      const phiNeg = phi4(-eta)
+      const KhHand = rd(phiEta / (sigma * phiNeg))
+      const ratioHand = rd(phiEta / (ROOT_H * phiNeg))
+      const twoPhi = exact(2 * phiNeg)
+      const nuHand = add(1, -twoPhi)
+      const FHand = rd(add(1, nuHand) / add(1, -nuHand))
+      const rootF = rd(Math.sqrt(FHand))
+      const keffHand = rd(ratioHand / rootF)
+      const nRatioHand = rd(1 / (keffHand * keffHand))
+      const sum = nonidealSummary(sigma, h, 0)
+      const Kh = kqHysteresis(sigma, h)
+      const nu = nuHysteresis(sigma, h)
+      const notes = [
+        String.raw`精確值（模型 nonidealSummary／kqHysteresis）：$K_q(h)=${texNum(Kh, 6)}\,${FS}^{-1}$（$${texNum(sum.slopeRatio, 5)}\,K_q$）、$\nu=${texNum(nu, 5)}$、$F=${texNum(sum.noiseFactor, 5)}$、$K_{\mathrm{eff}}/K_q=${texNum(sum.kqEffRatio, 5)}$、$N(h)/N(0)=${texNum(sum.nRatio, 5)}$。手算用四位小數的 $\Phi(-\eta)$，最後一位可能差 1。`,
+        String.raw`方向：斜率隨 $h$ 變大（latch 翻過去就黏住，平均輸出對 $s$ 更敏感），但相鄰輸出相關 $\nu>0$ 讓 block 平均的雜訊變成 $F$ 倍；兩者相除之後的 $K_{\mathrm{eff}}$ 永遠 $\le K_q$——小 $h$ 時損失只是二階小量（$1-K_{\mathrm{eff}}^2/K_q^2\approx(1-2/\pi)\,\eta^2=0.36\,\eta^2$），$h=\sigma_v$ 時要多 45% 的樣本。`,
+      ]
+      if (h === 0) notes.push('$h=0$：所有比值都是 1，回到 §5 的理想 comparator。')
+      return {
+        steps: [
+          { tex: String.raw`\eta = \frac{h}{\sigma_v} = \frac{${tn(h)}}{${tn(sigma)}} = ${tn(eta)}`, why: '把遲滯半寬用雜訊的 $\\sigma_v$ 當尺標準化。' },
+          { tex: String.raw`\eta^2 = ${tnSq(eta)} = ${tn(eta2)}`, why: '先算平方。' },
+          { tex: String.raw`\frac{\eta^2}{2} = \frac{${tn(eta2)}}{2} = ${tn(halfEta2)}`, why: '$\\varphi(\\eta)=\\varphi(0)\\,e^{-\\eta^2/2}$ 的指數。' },
+          { tex: String.raw`e^{-\eta^2/2} = e^{-${tn(halfEta2)}} = ${tn(expo)}`, why: '計算機：輸入 $\\eta^2/2$ → 變號 → $e^x$。' },
+          { tex: String.raw`\varphi(\eta) = \varphi(0)\,e^{-\eta^2/2} = ${tn(PHI0_H)}\times${tn(expo)} = ${tn(phiEta)}`, why: '標準常態 PDF 在門檻處的值（$\\varphi(0)=0.39894$）。' },
+          { tex: String.raw`\Phi(-\eta) = \Phi(${tn(-eta)}) = ${tn(phiNeg)}`, why: `latch 在 $s=\\theta$ 時翻轉的機率 $t_+=t_-$：雜訊要超過 $h$。${phiHow(-eta)}` },
+          { tex: String.raw`K_q(h) = \frac{\varphi(\eta)}{\sigma_v\,\Phi(-\eta)} = \frac{${tn(phiEta)}}{${tn(sigma)}\times${tn(phiNeg)}} = ${tn(KhHand)}\ ${FS}^{-1}`, why: 'F-05.22：平穩 $E[q]$ 在 $s=\\theta$ 的斜率。分母 $\\sigma_v\\Phi(-\\eta)$ 先算一次乘法。' },
+          { tex: String.raw`\frac{K_q(h)}{K_q} = \frac{\varphi(\eta)}{\sqrt{2/\pi}\;\Phi(-\eta)} = \frac{${tn(phiEta)}}{${tn(ROOT_H)}\times${tn(phiNeg)}} = ${tn(ratioHand)}`, why: '和理想 comparator 比：$K_q=2\\varphi(0)/\\sigma_v$，$\\sigma_v$ 約掉，只剩 $\\varphi(\\eta)/(2\\varphi(0)\\Phi(-\\eta))$。$h=0$ 時 $\\varphi(0)/(2\\varphi(0)\\cdot\\tfrac12)=1$。' },
+          { tex: String.raw`\nu = 1-2\,\Phi(-\eta) = 1-${tn(twoPhi)} = ${tn(nuHand)}`, why: '記憶因子：相鄰輸出的相關係數（$t_++t_-=2\\Phi(-\\eta)$）。' },
+          { tex: String.raw`F = \frac{1+\nu}{1-\nu} = \frac{${tn(add(1, nuHand))}}{${tn(add(1, -nuHand))}} = ${tn(FHand)}`, why: 'F-05.23：block 平均的雜訊變異數是 iid 時的幾倍（正相關的樣本「抵銷得比較慢」）。' },
+          { tex: String.raw`\sqrt{F} = \sqrt{${tn(FHand)}} = ${tn(rootF)}`, why: 'SNR 看的是標準差，所以開根號。' },
+          { tex: String.raw`\frac{K_{\mathrm{eff}}}{K_q} = \frac{K_q(h)/K_q}{\sqrt F} = \frac{${tn(ratioHand)}}{${tn(rootF)}} = ${tn(keffHand)}`, why: '資訊等效增益：同樣的 $N$ 得到同樣 $\\mathrm{SNR}_{\\mathrm{stat}}$ 的理想 comparator 要有這個增益。' },
+          { tex: String.raw`\frac{N(h)}{N(0)} = \Big(\frac{K_q}{K_{\mathrm{eff}}}\Big)^2 = \frac{1}{${tnSq(keffHand)}} = ${tn(nRatioHand)}`, why: '$N\\propto1/K^2$（F-05.9）：達到同樣的正確率要多幾倍樣本。' },
+        ],
+        results: [
+          { symbol: 'K_q(h)', label: '遲滯 comparator 的平穩小訊號斜率', value: Kh, unit: String.raw`${FS}^{-1}`, digits: 6, tolerance: { rel: 0.01, abs: 1e-12 } },
+          { symbol: 'K_q(h)/K_q', label: '斜率是理想 comparator 的幾倍', value: sum.slopeRatio, digits: 5, tolerance: { rel: 0.01, abs: 1e-12 } },
+          { symbol: String.raw`\nu`, label: '記憶因子（相鄰輸出的相關）', value: nu, digits: 5, tolerance: { abs: 0.001, rel: 0 } },
+          { symbol: String.raw`K_{\mathrm{eff}}/K_q`, label: '資訊等效增益的比', value: sum.kqEffRatio, digits: 5, tolerance: { rel: 0.01, abs: 1e-12 } },
+          { symbol: 'N(h)/N(0)', label: '達到同樣正確率所需樣本數的倍數', value: sum.nRatio, digits: 5, tolerance: { rel: 0.02, abs: 1e-12 } },
+        ],
+        notes,
+      }
+    },
+    tips: [
+      '常數：$\\varphi(0)=0.39894$、$\\sqrt{2/\\pi}=0.79788$。$\\Phi(-\\eta)$ 查常態表（$\\Phi(-x)=1-\\Phi(x)$）；$\\eta\\le0.3$ 時也可用 $\\tfrac12-0.39894\\,\\eta$。',
+      '範例（$h=0.3\\sigma_v$，$\\sigma_v=100\\,\\mathrm{fs}$）：$\\varphi(0.3)=0.38139$、$\\Phi(-0.3)=0.3821$ ⇒ 斜率 $1.251\\,K_q$、$\\nu=0.2358$、$F=1.617$、$K_{\\mathrm{eff}}=0.984\\,K_q$、$N$ 多 3.3%。',
+      '小 $\\eta$ 的級數：斜率比 $\\approx1+0.798\\,\\eta$、$\\nu\\approx0.798\\,\\eta$，兩者在 $K_{\\mathrm{eff}}$ 裡一階相消——遲滯的代價是二階小量，但相關 $\\nu$ 會讓 Ch12 的 $\\sigma_w$ 多 $\\sqrt F$ 倍（同 $\\mu$ 下）。',
+      '$h=\\sigma_v$：斜率 $1.91\\,K_q$、$\\nu=0.683$、$F=5.30$、$N$ 多 45%；$h=2\\sigma_v$ 要多 4.9 倍。',
+    ],
+  },
+
+  /* ───────────── HC-05.10：metastability 決策窗（§5b）───────────── */
+  {
+    id: 'HC-05.10',
+    title: String.raw`metastability 決策窗 $\varepsilon$：$P_{\mathrm{meta}}$、每個 block 漏掉幾個樣本、drop 之後的斜率`,
+    page: PAGE,
+    formulaId: 'F-05.24',
+    formulaTex: String.raw`P_{\mathrm{meta}}=2\Phi\!\Big(\frac{\varepsilon}{\sigma_v}\Big)-1\approx\sqrt{\frac2\pi}\,\frac{\varepsilon}{\sigma_v}=K_q\,\varepsilon,\qquad N_{\mathrm{meta}}=N\,P_{\mathrm{meta}},\qquad \frac{K_{q,\mathrm{drop}}}{K_q}=e^{-\varepsilon^2/(2\sigma_v^2)}`,
+    level: 'beginner',
+    claim: 'exact',
+    inputs: [
+      { key: 'eps', symbol: String.raw`\varepsilon`, label: 'metastability 決策窗（半寬，輸入折算）', unit: FS, default: 5, min: 0, max: 100000, practice: { choices: [1, 2, 5, 10, 20, 30] } },
+      inSigma(),
+      { key: 'N', symbol: 'N', label: '每個 GMAC block 的樣本數', unit: String.raw`\text{samples}`, default: 4096, min: 1, max: 1e8, integer: true, practice: { choices: [256, 1024, 4096, 10000, 16384] } },
+    ],
+    validate: ({ eps, sigma }) => {
+      if (!(sigma > 0)) return SIGMA_ZERO
+      if (eps < 0) return '$\\varepsilon$ 是決策窗的半寬，不能是負的。'
+      if (eps / sigma > HC05_LIMITS.epsMax) return String.raw`$\varepsilon/\sigma_v=${texNum(eps / sigma, 3)}>${HC05_LIMITS.epsMax}$：幾乎每個 sample 都解不出來（$P_{\mathrm{meta}}>0.95$），這不是 comparator 而是壞掉的 latch；請把 $\varepsilon$ 縮到 $2\sigma_v$ 以內。`
+      return null
+    },
+    solve: ({ eps, sigma, N }) => {
+      const r = rd(eps / sigma)
+      const linear = r <= HC05_LIMITS.epsLinear
+      const pLin = rd(ROOT_H * r)
+      const phiTable = phi4(r)
+      const pTable = exact(2 * phiTable - 1)
+      const pHand = linear ? pLin : pTable
+      const dropped = rd(N * pHand)
+      const r2 = rd(r * r)
+      const halfR2 = rd(r2 / 2)
+      const ratioHand = rd(Math.exp(-halfR2))
+      const pm = metaProb(0, sigma, eps)
+      const ratio = kqMetaDrop(sigma, eps) / kq(sigma)
+      const steps: HandCalcStep[] = [{ tex: String.raw`\frac{\varepsilon}{\sigma_v} = \frac{${tn(eps)}}{${tn(sigma)}} = ${tn(r)}`, why: '把決策窗用雜訊的 $\\sigma_v$ 當尺標準化。' }]
+      if (linear) {
+        steps.push({
+          tex: String.raw`P_{\mathrm{meta}} = 2\Phi(\varepsilon/\sigma_v)-1 \approx \sqrt{\tfrac2\pi}\,\frac{\varepsilon}{\sigma_v} = ${tn(ROOT_H)}\times${tn(r)} = ${tn(pHand)}`,
+          why: 'F-05.24：PDF 在門檻附近近乎平坦，窗內的面積 $\\approx2\\varphi(0)\\cdot\\varepsilon/\\sigma_v=K_q\\varepsilon$（$\\varepsilon\\ll\\sigma_v$；相對誤差 $(\\varepsilon/\\sigma_v)^2/6$）。',
+        })
+      } else {
+        steps.push(
+          { tex: String.raw`\Phi(\varepsilon/\sigma_v) = \Phi(${tn(r)}) = ${tn(phiTable)}`, why: `$\\varepsilon/\\sigma_v>${HC05_LIMITS.epsLinear}$，一階泰勒不夠準，查表。${phiHow(r)}` },
+          { tex: String.raw`P_{\mathrm{meta}} = 2\Phi(\varepsilon/\sigma_v)-1 = 2\times${tn(phiTable)}-1 = ${tn(pTable)}`, why: 'F-05.24：門檻兩側各 $\\varepsilon$ 的面積。' },
+        )
+      }
+      steps.push(
+        { tex: String.raw`N_{\mathrm{meta}} = N\,P_{\mathrm{meta}} = ${texI(N)}\times${tn(pHand)} = ${tn(dropped)}`, why: '每個 block 平均有幾個 sample 的 latch 解不出來（drop 時就是漏掉的個數）。' },
+        { tex: String.raw`\Big(\frac{\varepsilon}{\sigma_v}\Big)^2 = ${tnSq(r)} = ${tn(r2)}`, why: 'drop 之後的斜率只剩 $e^{-\\varepsilon^2/(2\\sigma_v^2)}$ 倍：先算平方。' },
+        { tex: String.raw`\frac{\varepsilon^2}{2\sigma_v^2} = \frac{${tn(r2)}}{2} = ${tn(halfR2)}`, why: '指數的引數（再除以 2）。' },
+        { tex: String.raw`\frac{K_{q,\mathrm{drop}}}{K_q} = e^{-\varepsilon^2/(2\sigma_v^2)} = e^{-${tn(halfR2)}} = ${tn(ratioHand)}`, why: 'F-05.25：漏掉的樣本是最靠近門檻、幾乎不帶方向資訊的那些，所以斜率只少二階小量；它們的雜訊卻真的少掉了（$\\operatorname{Var}(y)=1-P_{\\mathrm{meta}}$）。' },
+      )
+      const notes = [
+        String.raw`精確值（模型 metaProb／kqMetaDrop）：$P_{\mathrm{meta}}=${texNum(pm, 6)}$、$N_{\mathrm{meta}}=${texNum(N * pm, 6)}$、$K_{q,\mathrm{drop}}/K_q=${texNum(ratio, 7)}$（少 $${texNum(100 * (1 - ratio), 3)}\%$）。`,
+        String.raw`這是 $s=\theta$（校正收斂後）的數字；$s$ 離門檻 $d$ 時 $P_{\mathrm{meta}}=\Phi((\varepsilon-d)/\sigma_v)-\Phi((-\varepsilon-d)/\sigma_v)$ 更小。決策窗和時間的關係：$\varepsilon=\varepsilon_0e^{-T/\tau_m}$，多給 latch 一個 $\tau_m$ 的時間，窗就縮成 $1/e$。`,
+      ]
+      return {
+        steps,
+        results: [
+          { symbol: String.raw`P_{\mathrm{meta}}`, label: '一個 sample 解不出來的機率', value: pm, digits: 6, tolerance: { rel: 0.02, abs: 1e-9 } },
+          { symbol: String.raw`N_{\mathrm{meta}}`, label: '每個 block 平均漏掉的樣本數', value: N * pm, digits: 6, tolerance: { rel: 0.02, abs: 1e-9 } },
+          { symbol: String.raw`K_{q,\mathrm{drop}}/K_q`, label: 'drop 之後斜率還剩的比例', value: ratio, digits: 7, tolerance: { rel: 0.002, abs: 1e-12 } },
+        ],
+        notes,
+      }
+    },
+    tips: [
+      '$P_{\\mathrm{meta}}\\approx K_q\\varepsilon$：把決策窗乘上 §5 的 $K_q$ 就是漏掉的比例——同一個 $\\sqrt{2/\\pi}/\\sigma_v$ 又出現了。',
+      '範例（$\\varepsilon=5\\,\\mathrm{fs}=0.05\\sigma_v$、$N=4096$）：$P_{\\mathrm{meta}}=0.03988$、每個 block 漏掉 163.3 個、斜率只少 0.125%。',
+      '$\\varepsilon/\\sigma_v\\le0.3$ 用 $0.79788\\,\\varepsilon/\\sigma_v$（誤差 $\\le1.5\\%$）；更大就查表算 $2\\Phi(\\varepsilon/\\sigma_v)-1$。',
+      '把 $\\varepsilon$ 換成時間：latch 的再生時間常數 $\\tau_m$ 與可用的決策時間 $T$（例如 $4\\,\\mathrm{GHz}$ reference 的半個週期 $125\\,\\mathrm{ps}$）決定 $\\varepsilon=\\varepsilon_0e^{-T/\\tau_m}$；$T$ 多 $2.3\\tau_m$，$\\varepsilon$ 少 10 倍。',
     ],
   },
 ]

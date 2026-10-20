@@ -1010,7 +1010,7 @@ describe('Ch09 頁面與版面：系統地圖、方塊圖的位置、章末符�
 
     // ── 章首的系統地圖：緊跟在「這一課要回答的問題」之後、第一節之前，後面接一句「你在這裡」──
     const map = figures[0]
-    expect(map.closest('.ch09-diagram')).toBeNull() // 它是共用的 <SystemMap>，不是本章清單裡的圖
+    expect(map.closest('.c-chapter-fig')).toBeNull() // 它是共用的 <SystemMap>，不是本章清單裡的圖
     expect(map.classList.contains('c-sysmap')).toBe(true)
     // 本章的四個主角（regressor、code alignment、GMAC、gain accumulator）在頁面上真的是藍色（is-focus），其餘方塊不是
     expect(
@@ -1037,7 +1037,7 @@ describe('Ch09 頁面與版面：系統地圖、方塊圖的位置、章末符�
     expect(note?.textContent).toContain('藍色的四個方塊')
 
     // ── 本章的 20 張圖：順序＝清單順序、圖號連續、各在自己的小節、在對應公式／推導之前 ──
-    const blocks = Array.from(container.querySelectorAll('.ch09-diagram'))
+    const blocks = Array.from(container.querySelectorAll('.c-chapter-fig'))
     expect(blocks.map((el) => el.getAttribute('data-diagram'))).toEqual(CH09_DIAGRAMS.map((d) => d.id))
     CH09_DIAGRAMS.forEach((d, i) => {
       const el = blocks[i]
@@ -1045,7 +1045,7 @@ describe('Ch09 頁面與版面：系統地圖、方塊圖的位置、章末符�
       const fig = el.querySelector('figure.c-mermaid')
       expect(fig?.getAttribute('aria-label'), label).toBe(`圖 9.${i + 1}：${d.alt}`)
       // 圖說：圖號＋種類＋一句「要看什麼」
-      const cap = el.querySelector('.ch09-diagram-caption')
+      const cap = el.querySelector('.c-chapter-fig-richcap')
       expect(cap?.textContent?.startsWith(`圖 9.${i + 1}（${d.kind}）`), label).toBe(true)
       expect((cap?.textContent ?? '').length, label).toBeGreaterThan(25)
       expect(cap?.textContent, label).toMatch(/看|比較|跟著|從上往下/)
@@ -1095,7 +1095,7 @@ describe('Ch09 頁面與版面：系統地圖、方塊圖的位置、章末符�
     // 每張圖都在推導（DerivBox）之外：beginner 模式推導預設收合，圖不可以跟著被收起來
     for (const el of blocks) expect(el.closest('details'), el.getAttribute('data-diagram') ?? '').toBeNull()
     // 由模型算出的圖說數字：圖 9.2 的「差了 199 倍」
-    expect(at('[data-diagram="matrix-machine"] .ch09-diagram-caption').textContent).toContain('199')
+    expect(at('[data-diagram="matrix-machine"] .c-chapter-fig-richcap').textContent).toContain('199')
 
     // ── 符號表在章末：整章最後一個區塊、在「本課必記」與「連結到 PLL 硬體」之後；章首只有一行連結 ──
     const root = at('.ch09')
@@ -1118,7 +1118,7 @@ describe('Ch09 頁面與版面：系統地圖、方塊圖的位置、章末符�
     }
     try {
       // 目錄的最後一項捲到符號表
-      const tocLast = Array.from(container.querySelectorAll('.ch09-toc button')).pop()
+      const tocLast = Array.from(container.querySelectorAll('.ch09-toc a')).pop()
       expect(tocLast?.textContent).toContain('本章符號表')
       fireEvent.click(tocLast!)
       expect(scrolled).toEqual([symbols])

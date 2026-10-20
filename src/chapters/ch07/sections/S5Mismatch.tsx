@@ -1,6 +1,6 @@
 import { useMemo, type ReactNode } from 'react'
 import type { Data } from 'plotly.js-cartesian-dist-min'
-import { Callout, ClaimTag, Mermaid, ModeGate, Plot, Section, SourceTag, Tex, TexBlock } from '@/components'
+import { Callout, ClaimTag, Mermaid, ModeGate, Plot, Section, SourceTag, Tex, TexBlock, ChapterErratum } from '@/components'
 import {
   analyticCorr,
   buildHat,
@@ -16,7 +16,6 @@ import { cArg, wrap180 } from '@/simulation/core'
 import { freqz } from '@/simulation/signal'
 import { CHART_LATENCY_MISMATCH, CHART_MISMATCH } from '../diagrams'
 import { FoldSteps } from '../FoldSteps'
-import { ErratumNote } from '../ErratumNote'
 import { Hand } from '../Hand'
 import { S5SecondDiff } from './S5SecondDiff'
 import { DEG, fp, fx, kq, signClass, tx, txs } from '../util'
@@ -95,9 +94,9 @@ export function S5Mismatch() {
     <Section kind="assumptions" level={2} title="7.5 模型不準怎麼辦？Filtered-x 的極性條件（E45）" id="ch07-mismatch">
       <p>
         Filtered-x 的保證 <Tex>{r`E[u^2]\ge0`}</Tex> 只在 <Tex>{r`\hat H=H`}</Tex>、而且 regressor 沒有額外延遲（<Tex>{'D=0'}</Tex>）時成立。實際的 <Tex>{r`\hat H`}</Tex> 是設計者對 PLL 的<strong>模型</strong>：loop bandwidth 隨 PVT 漂移、DCO gain <Tex>{r`K_{\mathrm{DCO}}`}</Tex> 估錯、pipeline latency 少算一拍……{' '}
-        <ErratumNote id="E45">
+        <ChapterErratum id="E45" detail={<>
           規格只給了 <Tex>{r`\hat H=H`}</Tex> 的情形；有模型誤差時，analytic pole 必須用 <Tex>{r`E[u\,u_f]`}</Tex>。
-        </ErratumNote>
+        </>} />
       </p>
       <Mermaid
         chart={CHART_MISMATCH}

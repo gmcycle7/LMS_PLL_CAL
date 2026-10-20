@@ -543,21 +543,6 @@
 }
 
 /* ---------- 方塊圖與它的導讀（shared.tsx 的 Diagram；docs/teaching-style.md §8） ---------- */
-.so-diagram {
-  margin: 1rem 0 1.1rem;
-  min-width: 0;
-}
-.so-diagram .c-mermaid {
-  margin-bottom: 0.4rem;
-}
-.so-diagram-walk {
-  border-left: 3px solid var(--accent);
-  padding: 0.1rem 0 0.1rem 0.75rem;
-  font-size: 0.93rem;
-}
-.so-diagram-walk > p {
-  margin: 0.35rem 0;
-}
 
 /* ---------- 頁首「本頁符號表在最後」那一行，與頁末的符號表（sections/S12Symbols.tsx；docs/teaching-style.md §5） ---------- */
 .so-symbols-jump {

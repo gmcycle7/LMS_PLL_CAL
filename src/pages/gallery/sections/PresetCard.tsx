@@ -82,7 +82,7 @@ export function PresetCard({
           <Rich text={preset.expected} />
         </span>
       </div>
-      <ModeGate min="research">
+      <ModeGate min="research" summary="這個 preset 的參數（JSON，原樣）">
         <details className="gal-params small">
           <summary>preset 參數（JSON，原樣）</summary>
           <pre className={paramsLong ? 'mono is-long' : 'mono'}>{paramsJson}</pre>

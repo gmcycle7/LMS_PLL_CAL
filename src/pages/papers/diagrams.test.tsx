@@ -307,19 +307,19 @@ describe('Papers 頁面上的方塊圖與符號表（teaching-style §5、§8）
     }
     // ③ 新的三張：導讀「先看…再看…」含 KaTeX，並對照圖上的方塊
     for (const name of ['CHART_NUMBER_SOURCES', 'CHART_PAPER_MAP', 'CHART_CONVENTION_BRIDGE']) {
-      const walk = el(name).closest('.papers-diagram')?.querySelector('.papers-diagram-walk')
+      const walk = el(name).closest('.papers-diagram')?.querySelector('.c-chapter-fig-walk')
       expect(walk?.textContent, name).toContain('先看')
       expect(walk?.textContent, name).toContain('再看')
       expect(walk?.textContent, name).toContain('圖上')
       expect(walk?.querySelector('.katex'), name).toBeTruthy()
     }
     // 文獻對照圖的導讀（docs/assumptions.md §2a）：reference 端的 DTC 從基準延遲往回扣，PD 量 reference 減 feedback；comparator 取 PD 的輸出
-    const mapWalk = el('CHART_PAPER_MAP').closest('.papers-diagram')?.querySelector('.papers-diagram-walk')?.textContent ?? ''
+    const mapWalk = el('CHART_PAPER_MAP').closest('.papers-diagram')?.querySelector('.c-chapter-fig-walk')?.textContent ?? ''
     expect(mapWalk).toContain('reference 端 DTC')
     expect(mapWalk).toContain('基準延遲')
     expect(mapWalk).toContain('feedback（divider）edge 比理想時刻早到')
     expect(mapWalk).toContain('只能延遲、不能提前')
-    const mapWalkTex = Array.from(el('CHART_PAPER_MAP').closest('.papers-diagram')?.querySelectorAll('.papers-diagram-walk annotation') ?? []).map((a) => a.textContent ?? '')
+    const mapWalkTex = Array.from(el('CHART_PAPER_MAP').closest('.papers-diagram')?.querySelectorAll('.c-chapter-fig-walk annotation') ?? []).map((a) => a.textContent ?? '')
     expect(mapWalkTex).toContain(String.raw`\tau_{\mathrm{DTC}}=T_0-w\,x[n]`) // 延遲 = 基準延遲 − 補償量
     expect(mapWalkTex).toContain(String.raw`e[n]=t_{\mathrm{ref}}'[n]-t_{\mathrm{fb}}[n]`)
     expect(mapWalk).toContain('reference edge 減 feedback edge')

@@ -1,16 +1,8 @@
-import { SymbolTable, Tex, type SymbolEntry, ChRef } from '@/components'
+import { JumpTo, SymbolTable, Tex, type SymbolEntry, ChRef } from '@/components'
 import { md } from '../shared'
 
 /** 章末符號表的錨點（docs/teaching-style.md §5：符號表放在每章最後，外層 id="symbols"）。 */
 export const SYMBOLS_ID = 'symbols'
-
-/** 捲到某個元素並把焦點移過去（HashRouter 下不能用 #anchor 連結，否則會改到路由）。 */
-function scrollToId(id: string) {
-  const el = document.getElementById(id)
-  if (!el) return
-  el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  el.focus({ preventScroll: true })
-}
 
 export const SYMBOLS: SymbolEntry[] = [
   {
@@ -259,6 +251,115 @@ export const SYMBOLS: SymbolEntry[] = [
     unit: '\\mathrm{fs}^2,\\ —',
     firstSeen: '§14.6',
   },
+  // ───────────── §14.6b：acquisition 與校正 enable ─────────────
+  { symbol: '\\Delta f,\\ \\Delta f_0,\\ \\Delta f_h', meaning: 'VCO 端的頻率誤差、上電時的初始值、FLL 交棒（宣告頻率鎖定）時的殘餘值', unit: '\\mathrm{Hz}', firstSeen: '§14.6b' },
+  {
+    symbol: 'K_f',
+    meaning: (
+      <>
+        FLL 每個 reference 週期修掉的頻率誤差比例：<Tex>{'K_f=K_\\text{vco}g_f/(Mf_\\text{ref})'}</Tex>（<Tex>{'K_\\text{vco}'}</Tex> 每個 DAC LSB 改多少 Hz、<Tex>{'g_f'}</Tex> 每週期改幾個 LSB、<Tex>{'M'}</Tex> 除頻比）
+      </>
+    ),
+    unit: '—',
+    firstSeen: '§14.6b',
+  },
+  {
+    symbol: 'f_\\text{tol},\\ N_\\text{ld},\\ \\sigma_f',
+    meaning: 'lock detect 的門檻、要連續幾個週期在門檻內、頻率估計每個樣本的雜訊 RMS',
+    unit: '\\mathrm{Hz},\\ —,\\ \\mathrm{Hz}',
+    firstSeen: '§14.6b',
+  },
+  {
+    symbol: 'f_\\text{unlock},\\ N_\\text{ul}',
+    meaning: (
+      <>
+        失鎖判定的門檻（比 <Tex>{'f_\\text{tol}'}</Tex> 高，有遲滯）與連續週期數
+      </>
+    ),
+    unit: '\\mathrm{Hz},\\ —',
+    firstSeen: '§14.6b',
+  },
+  {
+    symbol: 'g_p,\\ f_\\text{BW}',
+    meaning: (
+      <>
+        相位迴路每個 reference 週期修掉的相位誤差比例 <Tex>{'g_p=1-e^{-2\\pi f_\\text{BW}/f_\\text{ref}}'}</Tex>（<Tex>{'f_\\text{BW}'}</Tex> 是 PLL 閉迴路頻寬）
+      </>
+    ),
+    unit: '—,\\ \\mathrm{Hz}',
+    firstSeen: '§14.6b',
+  },
+  {
+    symbol: '\\theta,\\ \\theta_0,\\ \\theta_{\\max},\\ N_\\text{pl}',
+    meaning: 'SSPD 的相位誤差（以時間計：reference edge 對 VCO 波形的時間誤差）、交棒時的初值、phase lock 的門檻與連續週期數',
+    unit: '\\mathrm{fs},\\ \\mathrm{fs},\\ \\mathrm{fs},\\ —',
+    firstSeen: '§14.6b',
+    note: (
+      <>
+        和 §14.0 的極性相位 <Tex>{'\\theta'}</Tex>（度，誤差路徑的相位 <Tex>{'C=\\cos\\theta'}</Tex>）是不同的量，依單位區分
+      </>
+    ),
+  },
+  {
+    symbol: 'T_\\text{vco}',
+    meaning: (
+      <>
+        VCO 週期 <Tex>{'1/(Mf_\\text{ref})'}</Tex>：SSPD 單調範圍 <Tex>{'\\pm T_\\text{vco}/4'}</Tex>、不 cycle slip 的吸引區 <Tex>{'\\pm T_\\text{vco}/2'}</Tex>
+      </>
+    ),
+    unit: '\\mathrm{fs}',
+    firstSeen: '§14.6b',
+  },
+  {
+    symbol: '\\Delta T,\\ \\theta_\\text{ss}',
+    meaning: (
+      <>
+        殘餘頻率誤差每個 reference 週期推走的相位 <Tex>{'\\Delta T=\\Delta f_h/(Mf_\\text{ref}^2)'}</Tex>，以及它在一階相位迴路造成的靜態偏移 <Tex>{'\\theta_\\text{ss}=\\Delta T/g_p'}</Tex>
+      </>
+    ),
+    unit: '\\mathrm{fs}',
+    firstSeen: '§14.6b',
+  },
+  {
+    symbol: 'W,\\ \\mathrm{rms}_{\\max},\\ \\sigma_\\text{ss}',
+    meaning: (
+      <>
+        迴路穩態判定的 rms 視窗長度、門檻，與穩態相位 rms <Tex>{'\\sigma_\\text{ss}=\\sigma_\\theta\\sqrt{g_p/(2-g_p)}'}</Tex>
+      </>
+    ),
+    unit: '—,\\ \\mathrm{fs},\\ \\mathrm{fs}',
+    firstSeen: '§14.6b',
+  },
+  {
+    symbol: 'n_c,\\ n_\\text{FL},\\ n_\\text{PL},\\ n_\\text{settle},\\ n_\\text{enable}',
+    meaning: (
+      <>
+        FLL 進門檻、宣告頻率鎖定、phase lock、穩態、校正 enable 的 reference 週期（後三者相對於 <Tex>{'n_\\text{FL}'}</Tex>）
+      </>
+    ),
+    unit: '\\text{ref cycle}',
+    firstSeen: '§14.6b',
+  },
+  {
+    symbol: 'B_\\text{LOCK}',
+    meaning: (
+      <>
+        §14.7 狀態機 LOCK 的 block 數 <Tex>{'\\lceil(n_\\text{enable}+1)/N\\rceil'}</Tex>：由 acquisition 模型決定，不再是固定的計數器
+      </>
+    ),
+    unit: '\\text{block}',
+    firstSeen: '§14.6b',
+  },
+  {
+    symbol: 'p_\\text{in},\\ P_\\text{FA},\\ P_\\text{miss},\\ E[T_N]',
+    meaning: (
+      <>
+        lock detect：單一樣本落在門檻內的機率、誤報、漏報、第一次出現 <Tex>{'N'}</Tex> 個連續樣本在門檻內的期望延遲
+      </>
+    ),
+    unit: '—,\\ —,\\ —,\\ \\text{ref cycle}',
+    firstSeen: '§14.6b',
+  },
 ]
 
 /** 章末（頁面最後一個區塊）：本章符號表，外層 id="symbols"。 */
@@ -270,9 +371,9 @@ export function S10Symbols() {
         caption={md(String.raw`本章極性一律 $\delta=a-w$；$K$、$\mu$ 的單位依 average-mode GMAC（$G$ 無因次）。「首次出現」欄是正文第一次用一句話說明該符號的地方。`)}
       />
       <p className="small">
-        <button type="button" className="ch14-linkbtn no-print" onClick={() => scrollToId('ch14-top')}>
+        <JumpTo target="ch14-top" className="no-print">
           ↑ 回到章首
-        </button>
+        </JumpTo>
       </p>
     </section>
   )

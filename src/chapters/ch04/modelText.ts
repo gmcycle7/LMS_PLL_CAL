@@ -39,6 +39,8 @@ const PHRASES: Record<string, string> = {
   'wrap 會讓 S 跳到另一端甚至變號，更新方向錯誤': R`wrap 會讓 $S$ 跳到另一端甚至變號，更新方向錯誤`,
   'saturate 會讓大誤差時的 G 被截小，迴路變慢但方向正確': R`saturate 會讓大誤差時的 $G$ 被截小，迴路變慢但方向正確`,
   // fixedLoopWarnings：a 超出實體範圍
+  // blockLms.ts：comparator metastability 警告的尾句
+  '，late 讓那些 sample 的 q 乘到下一個 regressor（等效多一拍 code delay，Ch07）': R`，late 讓那些 sample 的 $q$ 乘到下一個 regressor（等效多一拍 code delay，Ch07）`,
   '沒有 anti-windup 時內部積分器會持續積分（windup），a 回到範圍內後要先「放掉」多積的量才會恢復': R`沒有 anti-windup 時內部積分器會持續積分（windup），$a$ 回到範圍內後要先「放掉」多積的量才會恢復`,
 }
 
@@ -186,6 +188,22 @@ const RULES: Rule[] = [
     // sum：模型把總和也寫成 G_k；本站把總和寫成 S_k（勘誤 E07 / E18）
     pat('GMAC：G_k = Σ q·x_ref（N = #I），w_{k+1} = w_k + μG_k，更新延遲 d = #I block'),
     (m) => R`GMAC（sum 模式）：$S_k=\sum q\,x_\mathrm{ref}$（$N=${m[1]}$），$w_{k+1}=w_k+\mu S_k$，更新延遲 $d=${m[2]}$ block`,
+  ],
+  // ───────────── blockLms.ts：comparator 的 hysteresis／metastability（Ch05 §5b） ─────────────
+  [
+    pat('comparator hysteresis h = #N fs：相鄰決策相關（ν = #N），工作點的平均斜率是 K_q 的 #N 倍（同 μ 下 pole 更快），但 GMAC 雜訊是 iid 的 #N 倍；上面的 g、p、σ_w 仍以理想 K_q 與 iid 雜訊計算（Ch05 §5b）'),
+    (m) =>
+      R`comparator hysteresis $h=${n(m[1])}\,\mathrm{fs}$：相鄰決策相關（$\nu=${n(m[2])}$），工作點的平均斜率是 $K_q$ 的 ${n(m[3])} 倍（同 $\mu$ 下 pole 更快），但 GMAC 雜訊是 iid 的 ${n(m[4])} 倍；上面的 $g$、$p$、$\sigma_w$ 仍以理想 $K_q$ 與 iid 雜訊計算（Ch05 §5b）`,
+  ],
+  [
+    pat('comparator metastability 窗 ε = #N fs（#W）：每個 block 約 #N 個 sample 解不出來（P_meta = #N）；drop 時平均斜率只少 #N%#T'),
+    (m) =>
+      R`comparator metastability 窗 $\varepsilon=${n(m[1])}\,\mathrm{fs}$（${m[2]}）：每個 block 約 ${n(m[3])} 個 sample 解不出來（$P_\mathrm{meta}=${n(m[4])}$）；drop 時平均斜率只少 $${n(m[5])}\%$${phrase(m[6])}`,
+  ],
+  [
+    pat('comparator：hysteresis h = #N fs（有效門檻 −q[n−1]·h）、metastability 窗 ε = #N fs、政策 #W（drop 的除數仍是 N）；K_q、σ_w 的解析式未納入這兩個效應'),
+    (m) =>
+      R`comparator：hysteresis $h=${n(m[1])}\,\mathrm{fs}$（有效門檻 $-q[n-1]\,h$）、metastability 窗 $\varepsilon=${n(m[2])}\,\mathrm{fs}$、政策 ${m[3]}（drop 的除數仍是 $N$）；$K_q$、$\sigma_w$ 的解析式未納入這兩個效應`,
   ],
   [pat('f_s = f_ref：每個 code sample 對應一個 comparator sample'), () => R`$f_s=f_\mathrm{ref}$：每個 code sample 對應一個 comparator sample`],
   [

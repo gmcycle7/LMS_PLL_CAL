@@ -1857,3 +1857,114 @@ export function analyzeMimo(p: MimoAnalyzeParams): MimoAnalyzeResult {
     warnings,
   }
 }
+
+// ───────────────────────────── 多權重 sign-LMS 的平均模型（2026-10-19 附加；/lab 的 8 相 PMUX + GOS 用） ─────────────────────────────
+// 純函式、只依賴 linalg；回傳值可 structured clone。unifiedLab.ts 的 pmux8_gos 架構（9 個權重）用它算條件數、poles 與穩態共變異。
+
+export interface ObservableEigen {
+  /** 可觀測子空間（λ > relTol·λ_max）的特徵值，由大到小 */
+  values: number[]
+  /** 被視為 gauge／不可觀測的方向數（例如 H_PD(1) = 0 時 PMUX 的共模） */
+  nullDim: number
+  lambdaMax: number
+  lambdaMin: number
+  /** λ_max/λ_min（可觀測子空間）；沒有可觀測方向時 NaN */
+  cond: number
+  /** 可觀測子空間的正交基底（欄向量；P×m） */
+  basis: Mat
+}
+
+// #region core:observableEigen
+/**
+ * 對稱半正定的資訊矩陣 R（例如 E[φ_u φ_uᵀ]）的可觀測子空間：λ ≤ relTol·λ_max 的方向視為不可觀測（gauge），
+ * 回傳其餘特徵值、條件數與正交基底 V（Vᵀ R V 就是把 R 限制到可觀測子空間）。
+ * 8 相 PMUX 的 one-hot 經 H_PD(1) = 0 的迴路後，共模 Σ_p 1_p = 1 被濾成 0——那個方向永遠不可觀測，不該算進條件數。
+ */
+export function observableEigen(R: Mat, relTol = 1e-9): ObservableEigen {
+  const P = R.length
+  if (P === 0) return { values: [], nullDim: 0, lambdaMax: NaN, lambdaMin: NaN, cond: NaN, basis: [] }
+  const e = eigSym(R)
+  const lmax = e.values[0]
+  const keep: number[] = []
+  for (let i = 0; i < P; i++) if (e.values[i] > relTol * Math.max(lmax, 0) && e.values[i] > 0) keep.push(i)
+  const basis: Mat = Array.from({ length: P }, (_, r) => keep.map((c) => e.vectors[r][c]))
+  const values = keep.map((i) => e.values[i])
+  const lmin = values.length > 0 ? values[values.length - 1] : NaN
+  return { values, nullDim: P - keep.length, lambdaMax: values.length > 0 ? values[0] : NaN, lambdaMin: lmin, cond: values.length > 0 ? values[0] / lmin : NaN, basis }
+}
+// #endregion
+
+/** Vᵀ A V：把方陣 A 限制到基底 V（P×m）張成的子空間（m×m） */
+export function restrictTo(A: Mat, V: Mat): Mat {
+  return matMul(transpose(V), matMul(A, V))
+}
+
+export interface DelayedMimoModel {
+  /** 增廣狀態矩陣（P(d+1) 維）：s_k = [δ_k; δ_{k−1}; …; δ_{k−d}] */
+  A: Mat
+  poles: Complex[]
+  rho: number
+  stable: boolean
+}
+
+// #region core:delayedMimoMeanModel
+/**
+ * 多權重 sign-LMS 的線性化平均模型（含更新延遲 d 個 block）：
+ *   E[G_k] = J δ_{k−d}，w_{k+1} = w_k + M G_k ⇒ δ_{k+1} = δ_k − M J δ_{k−d}（δ = a − w，M = diag(μ_j)）。
+ * d = 0 時 A = I − M J；d ≥ 1 時用增廣狀態 [δ_k; …; δ_{k−d}] 寫成一階遞迴，poles 是 A 的特徵值。
+ * 單權重時退化成 z^{d+1} − z^d + g = 0（F-LAB.7）。
+ */
+export function delayedMimoMeanModel(J: Mat, M: Mat, d: number): DelayedMimoModel {
+  const P = J.length
+  const MJ = matMul(M, J)
+  const n = P * (d + 1)
+  const A = zeros(n)
+  for (let i = 0; i < P; i++) {
+    A[i][i] = 1 // δ_{k+1} = δ_k − MJ δ_{k−d}
+    for (let j = 0; j < P; j++) A[i][d * P + j] -= MJ[i][j]
+  }
+  for (let b = 1; b <= d; b++) for (let i = 0; i < P; i++) A[b * P + i][(b - 1) * P + i] = 1 // 位移暫存器
+  const poles = eigvals(A)
+  let rho = 0
+  for (const z of poles) rho = Math.max(rho, Math.hypot(z.re, z.im))
+  return { A, poles, rho, stable: rho < 1 }
+}
+// #endregion
+
+// #region core:delayedMimoCovariance
+/**
+ * 穩態 Cov(δ)：δ_{k+1} = δ_k − M J δ_{k−d} − M η_k，η_k 為 GMAC 雜訊、Cov(η) = R_ψ/N（q² = 1、近平衡）。
+ * 增廣系統 s_{k+1} = A s_k + B η_k（B = [−M; 0; …]），X = dlyap(A, B Cov(η) Bᵀ)，Cov(δ) 是 X 的左上 P×P 區塊。
+ * dlyap 直接解 n² 維線性方程，所以只在 n = P(d+1) ≤ maxDim 時計算（9 個權重時 d ≤ 3），否則回傳 null。
+ */
+export function delayedMimoCovariance(J: Mat, M: Mat, Rpsi: Mat, N: number, d: number, maxDim = 40): Mat | null {
+  const P = J.length
+  const n = P * (d + 1)
+  if (n > maxDim) return null
+  const model = delayedMimoMeanModel(J, M, d)
+  if (!model.stable) return null
+  const Q = zeros(n)
+  const MRM = matMul(M, matMul(Rpsi, transpose(M))) // M Cov(η) Mᵀ · N
+  for (let i = 0; i < P; i++) for (let j = 0; j < P; j++) Q[i][j] = MRM[i][j] / N
+  const X = dlyap(model.A, Q)
+  if (!X) return null
+  return Array.from({ length: P }, (_, i) => X[i].slice(0, P))
+}
+// #endregion
+
+// #region core:uniformStepMuMax
+/**
+ * 所有權重共用同一個步長 μ（M = μI）時的 μ 上限：每個可觀測模式的 pole 是 1 − μλ_i（λ_i 是 J_obs 的特徵值，可能是複數）。
+ * |1 − μλ|² < 1 ⟺ 0 < μ < 2 Re λ/|λ|²；Re λ ≤ 0 的模式沒有任何 μ 能救（極性錯誤）。回傳 min_i 2 Re λ_i/|λ_i|²，有 Re λ ≤ 0 時回傳 0。
+ */
+export function uniformStepMuMax(eig: Complex[]): number {
+  let mu = Infinity
+  for (const z of eig) {
+    const m2 = z.re * z.re + z.im * z.im
+    if (!(m2 > 0)) continue
+    if (!(z.re > 0)) return 0
+    mu = Math.min(mu, (2 * z.re) / m2)
+  }
+  return mu
+}
+// #endregion

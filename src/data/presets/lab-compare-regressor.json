@@ -14,6 +14,7 @@
       "dsmBits": 20,
       "dither": false,
       "normalization": "standardize",
+      "regressorSign": "legacy",
       "aFs": 3,
       "w0Fs": 0,
       "dtcOffsetFs": 0,

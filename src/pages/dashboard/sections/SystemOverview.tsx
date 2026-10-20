@@ -1,16 +1,16 @@
 import { memo } from 'react'
-import { SystemMap, Tex } from '@/components'
+import { revealAnchor, SystemMap, Tex } from '@/components'
 import { DASH_SYSTEM_FOCUS } from '../diagrams'
-import { scrollToId } from '../ui'
+
 import { SymbolsJump } from './Symbols'
 
 /**
  * 系統地圖（docs/teaching-style.md §2 第 0 步、§8）：全站共用的 PLL + LMS 校正系統方塊圖。
  * 每一章開頭都是這張圖、只把那一章的主角標成藍色；首頁談整個系統，所以全部標示。
  * 這一節的最後是「本頁符號表在最後 ↓」那一行（符號表本身在頁末，sections/Symbols.tsx）。
- * onJump：頁內跳轉（預設 scrollToId）；Beginner 模式「一條方程式」與頁末的符號表收在卡片裡，index.tsx 傳入的版本會先展開再捲。
+ * onJump：頁內跳轉（預設 revealAnchor）；Beginner 模式「一條方程式」與頁末的符號表收在卡片裡，index.tsx 傳入的版本會先展開再捲。
  */
-export const SystemOverview = memo(function SystemOverview({ onJump = scrollToId }: { onJump?: (id: string) => void }) {
+export const SystemOverview = memo(function SystemOverview({ onJump = revealAnchor }: { onJump?: (id: string) => void }) {
   return (
     <section id="dash-map" aria-labelledby="dash-map-h">
       <h2 id="dash-map-h" className="dash-h2">

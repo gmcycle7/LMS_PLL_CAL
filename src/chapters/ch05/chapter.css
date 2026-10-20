@@ -32,31 +32,6 @@
   vertical-align: 1px;
 }
 
-.ch05-erratum {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  align-items: baseline;
-  font-size: 0.82rem;
-  margin: 0 2px;
-}
-.ch05-erratum a {
-  display: inline-block;
-  padding: 0 6px;
-  border-radius: 999px;
-  border: 1px solid var(--warn);
-  background: var(--warn-soft);
-  color: var(--text);
-  text-decoration: none;
-  white-space: nowrap;
-}
-.ch05-erratum a:hover {
-  text-decoration: underline;
-}
-.ch05-erratum-text {
-  color: var(--text-muted);
-}
-
 .ch05-table td.num,
 .ch05-table th.num {
   text-align: right;
@@ -150,20 +125,6 @@
   overflow-y: hidden;
 }
 
-/* 帶入手算：題目前的一句邀請（先自己算，再對答案） */
-.ch05-handcalc {
-  margin: 14px 0;
-  min-width: 0;
-}
-.ch05-handcalc-invite {
-  margin: 0 0 6px;
-  font-size: 0.95rem;
-  color: var(--text-muted);
-}
-.ch05-handcalc-invite strong {
-  color: var(--text);
-}
-
 /* 方塊圖（teaching-style §8）：圖 + 一兩句「怎麼看這張圖」的導讀 */
 .ch05-fig {
   margin: 14px 0 16px;
@@ -178,27 +139,6 @@
   fill: currentColor !important;
   stroke: currentColor !important;
 }
-.ch05-fig-walk {
-  margin: 0;
-  padding: 6px 10px;
-  border-left: 3px solid var(--accent);
-  background: var(--surface-2);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  font-size: 0.93rem;
-}
-.ch05-fig-badge {
-  display: inline-block;
-  font-size: 0.74rem;
-  font-weight: 600;
-  padding: 0 6px;
-  border-radius: 999px;
-  border: 1px solid var(--accent);
-  color: var(--accent);
-  margin-right: 4px;
-  vertical-align: 1px;
-  white-space: nowrap;
-}
-
 .ch05-linkbtn {
   appearance: none;
   border: 0;

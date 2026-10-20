@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react'
-import { Callout, ClaimTag, HandCalc, Mermaid, ModeGate, Prereq, StepDerivation, Tex, TexBlock, ChRef } from '@/components'
+import { Callout, ChRef, ClaimTag, HandCalc, Mermaid, ModeGate, Prereq, StepDerivation, Tex, TexBlock, badgeClass, revealAnchor } from '@/components'
 import { useSettings } from '@/app/settings'
 import { SIX_CONDITIONS } from '../data'
 import { BLOCK_EQUATION_CHART, CONDITION_MAP_CHART, CONDITION_MAP_LEGEND } from '../diagrams'
@@ -17,7 +17,7 @@ import {
   polarityOf,
 } from '../thesisModel'
 import { handcalc } from '../handcalcs'
-import { DiagramWalk, ErratumLink, Glue, Rich, scrollToId } from '../ui'
+import { DiagramWalk, ErratumLink, Glue, Rich } from '../ui'
 
 const R = (t: string) => <Rich text={t} />
 
@@ -118,7 +118,7 @@ export const MathSpine = memo(function MathSpine() {
               return (
                 <tr key={row.n}>
                   <td className="nowrap">
-                    <button type="button" className="dash-chip" onClick={() => scrollToId(`dash-cond-${c.id}`)} title={c.en}>
+                    <button type="button" className={badgeClass('neutral', 'dash-chip')} onClick={() => revealAnchor(`dash-cond-${c.id}`)} title={c.en}>
                       {row.n}. {c.zh}
                     </button>
                   </td>
@@ -378,7 +378,7 @@ export const MathSpine = memo(function MathSpine() {
         lead={String.raw`把 $\sigma_w$ 與 $\Delta w$ 換算成 DTC-referred 的 $\sigma_{\delta t}$、tone 幅度 $A_t$、調變指數 $\beta$ 與 spur（預設數字就是 T15 的 $${f(sys.t15.spurDbc, 4)}\,\mathrm{dBc}$）。`}
       />
 
-      <ModeGate min="research">
+      <ModeGate min="research" summary="推導 5：commit 延遲 $d$ 個 block 時的臨界增益 $g^*$">
         <details className="dash-details" open key="spine-4">
           <summary>{R('推導 5（Research）：commit 延遲 $d$ 個 block → 臨界增益 $g^*$')}</summary>
           <div className="dash-details-body">

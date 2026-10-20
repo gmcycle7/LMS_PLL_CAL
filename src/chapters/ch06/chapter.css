@@ -55,39 +55,6 @@
   vertical-align: middle;
 }
 
-.ch06-erratum {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 2px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--warn);
-  background: var(--warn-soft);
-  border: 1px solid var(--warn);
-  border-radius: 999px;
-  padding: 0 8px;
-  margin: 0 4px;
-  text-decoration: none;
-  white-space: nowrap;
-}
-.ch06-erratum:hover {
-  text-decoration: underline;
-}
-.ch06-erratum-note {
-  font-weight: 400;
-  white-space: normal;
-}
-
-.ch06-jump {
-  background: none;
-  border: none;
-  padding: 0;
-  color: var(--accent);
-  text-decoration: underline;
-  cursor: pointer;
-  font: inherit;
-}
-
 .ch06-stepbox {
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -231,17 +198,28 @@
   font-weight: 600;
 }
 
-/* 帶入手算（HandCalc）前的引導句 */
-.ch06-handcalc {
-  margin: 14px 0 18px;
+/* 章首的系統地圖說明、章末的符號表 */
+.ch06-map-note {
+  margin: 8px 0 16px;
 }
-.ch06-handcalc-lead {
-  margin: 0 0 6px;
-  color: var(--text-muted);
+.ch06-symbols {
+  margin: 40px 0 24px;
 }
-.ch06-handcalc-lead strong {
-  color: var(--text);
-  margin-right: 4px;
+
+/*
+ * 手機上的帶入手算步驟：每一步是「符號式 = 代入數字 = 結果」的等式鏈，欄寬只剩 280px 左右，
+ * 六位有效數字的三段等式常常只比欄位寬幾個像素（寬度還隨讀者輸入的數字而變），結果是一列只能橫向捲幾個像素、沒有用途的捲動區。
+ * 讓 KaTeX 在最外層的等號／運算子後面換行（KaTeX 文件對 display math 自動換行的建議寫法），窄螢幕上就不必為了幾個像素橫向捲動；
+ * 放得下的式子仍然排成一行，桌機（> 640px）完全不受影響。通式與答案框不在 .c-step-tex 裡，維持原樣。
+ */
+@media (max-width: 640px) {
+  .ch06 .c-handcalc .c-step-tex .katex-display > .katex {
+    white-space: normal;
+  }
+  /* 換行之後上下兩行之間留一點空隙 */
+  .ch06 .c-handcalc .c-step-tex .katex-display > .katex > .katex-html > .base {
+    margin: 0.12em 0;
+  }
 }
 
 /* 章首的手算題索引 */
@@ -266,56 +244,4 @@
 .ch06-handcalc-index li {
   break-inside: avoid;
   margin: 2px 0;
-}
-
-/* 方塊圖（docs/teaching-style.md §8）：圖 + 圖下方的「怎麼看這張圖」 */
-.ch06-diagram {
-  margin: 18px 0;
-}
-.ch06-diagram .c-mermaid {
-  margin-bottom: 8px;
-}
-.ch06-diagram-read {
-  border-left: 3px solid var(--accent);
-  background: var(--accent-soft);
-  border-radius: 0 var(--radius) var(--radius) 0;
-  padding: 8px 14px;
-  font-size: 0.95rem;
-}
-.ch06-diagram-read p {
-  margin: 4px 0;
-}
-.ch06-diagram-badge {
-  display: inline-block;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--accent);
-  border: 1px solid var(--accent);
-  border-radius: 999px;
-  padding: 0 8px;
-  margin-bottom: 2px;
-}
-
-/* 章首的系統地圖說明、章末的符號表 */
-.ch06-map-note {
-  margin: 8px 0 16px;
-}
-.ch06-symbols {
-  margin: 40px 0 24px;
-}
-
-/*
- * 手機上的帶入手算步驟：每一步是「符號式 = 代入數字 = 結果」的等式鏈，欄寬只剩 280px 左右，
- * 六位有效數字的三段等式常常只比欄位寬幾個像素（寬度還隨讀者輸入的數字而變），結果是一列只能橫向捲幾個像素、沒有用途的捲動區。
- * 讓 KaTeX 在最外層的等號／運算子後面換行（KaTeX 文件對 display math 自動換行的建議寫法），窄螢幕上就不必為了幾個像素橫向捲動；
- * 放得下的式子仍然排成一行，桌機（> 640px）完全不受影響。通式與答案框不在 .c-step-tex 裡，維持原樣。
- */
-@media (max-width: 640px) {
-  .ch06 .c-handcalc .c-step-tex .katex-display > .katex {
-    white-space: normal;
-  }
-  /* 換行之後上下兩行之間留一點空隙 */
-  .ch06 .c-handcalc .c-step-tex .katex-display > .katex > .katex-html > .base {
-    margin: 0.12em 0;
-  }
 }

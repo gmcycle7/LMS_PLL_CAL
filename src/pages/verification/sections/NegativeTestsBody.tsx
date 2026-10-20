@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { Callout, ClaimTag, CodeCompare, ModeGate, SelectControl, StepDerivation, TestBadge, Tex } from '@/components'
+import { Badge, Callout, ClaimTag, CodeCompare, ModeGate, SelectControl, StepDerivation, TestBadge, Tex } from '@/components'
 import acceptanceSrc from '@/simulation/models/acceptance.ts?raw'
 import stabilitySrc from '@/simulation/models/stability.ts?raw'
 import calNoiseSrc from '@/simulation/models/calNoise.ts?raw'
@@ -54,12 +54,12 @@ function TestList({ meta }: { meta: NegativeTestMeta }) {
     <div className="small">
       {meta.ts.map((t) => (
         <div key={t.name}>
-          <span className="ver-chip">TS</span> <code>{t.file.replace('src/simulation/models/', '')}</code>：{t.name}
+          <Badge className="ver-chip">TS</Badge> <code>{t.file.replace('src/simulation/models/', '')}</code>：{t.name}
         </div>
       ))}
       {meta.py.map((t) => (
         <div key={t.name}>
-          <span className="ver-chip">PY</span> <code>{t.name}</code>
+          <Badge className="ver-chip">PY</Badge> <code>{t.name}</code>
         </div>
       ))}
     </div>
@@ -339,7 +339,7 @@ export function NegativeTestsBody() {
           </p>
         </div>
       )}
-      <ModeGate min="engineer">
+      <ModeGate min="engineer" summary="正確版本與故意寫錯版本（mutant）的程式碼並排對照">
         <CodeCompare
           items={[
             { label: '正確（章節模型）', source: correct.src, region: mut.correct.region, path: correct.path, note: '網站各章實際執行的版本' },
@@ -349,7 +349,7 @@ export function NegativeTestsBody() {
         />
       </ModeGate>
       <FBlock id="F-VF.12" />
-      <ModeGate min="research">
+      <ModeGate min="research" summary="mutant 為什麼一定被抓到的推導（誤差必須大於容忍度）">
         <StepDerivation
           title="為什麼一個 mutant 能被抓到：誤差必須大於容忍度"
           steps={steps([

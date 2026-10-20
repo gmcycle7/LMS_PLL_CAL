@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Callout, ClaimTag, ModeGate, ModelLevel, Prereq, SourceTag, TestBadge, Tex, TexBlock } from '@/components'
+import { Badge, BadgeRow, Callout, ClaimTag, ModeGate, ModelLevel, Prereq, SourceTag, TestBadge, Tex, TexBlock } from '@/components'
 import { ALL_PRESETS, presetHref } from '@/app/presets'
 import { fixedXPole, runScalarLms } from '@/simulation/models/lms'
 import { detectionWindow, matchCoverage } from '../consistency'
@@ -78,12 +78,12 @@ export function HowToRead() {
       </p>
 
       <h3>2.1 手算三步</h3>
-      <div className="c-tag-row">
+      <BadgeRow label="preset #1 的模型層級、結論強度、來源與測試">
         <ModelLevel level="L0" />
         <ClaimTag kind="exact" />
         <SourceTag kind="illustrative" />
         <TestBadge id="T01" />
-      </div>
+      </BadgeRow>
       <Diagram
         chart={CHART_LMS_LOOP}
         caption="preset #1 的 LMS 迴路：預測、比較、修正，再把新的猜測留到下一步。藍色方塊決定每次修正多少。"
@@ -286,7 +286,15 @@ export function HowToRead() {
                   <td>{d.hit ? (d.hit.tol <= PRECISE_REL * Math.abs(d.hit.value) ? '是' : '否（短數字）') : '—'}</td>
                   <td>{d.hit ? <Tex>{t(acceptHalfWidth(d.hit, 1, true), 3)}</Tex> : '—'}</td>
                   <td>{d.hit ? <Tex>{t(Math.abs(d.value - d.hit.value), 3)}</Tex> : '—'}</td>
-                  <td>{d.hit ? <span className="gal-match gal-match-ok">✓ 相符</span> : <span className="gal-match gal-match-bad">✗ 找不到</span>}</td>
+                  <td>{d.hit ? (
+                      <Badge variant="ok" className="gal-match gal-match-ok">
+                        ✓ 相符
+                      </Badge>
+                    ) : (
+                      <Badge variant="mismatch" className="gal-match gal-match-bad">
+                        ✗ 找不到
+                      </Badge>
+                    )}</td>
                 </tr>
               ))}
             </tbody>
@@ -297,7 +305,7 @@ export function HowToRead() {
           找不到 <code>galleryIndex: 1</code> 的 preset，所以這裡沒有預期文字可以示範比對；上面的手算表仍由 <code>runScalarLms</code> 以規格 §1.2 的輸入算出。
         </Callout>
       )}
-      <ModeGate min="engineer">
+      <ModeGate min="engineer" summary="抽數字的規則（科學記號、百分比、千分位、不算數的編號）">
         <details className="gal-details">
           <summary>抽數字的規則（科學記號、百分比、千分位、不算數的編號）</summary>
           <ul className="small">

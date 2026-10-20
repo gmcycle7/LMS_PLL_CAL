@@ -84,12 +84,12 @@ describe('core region 標記（只加註解，不改程式）', () => {
     expect(extractRegion(fftSrc, 'fftHandFormulas')).toContain('export function noiseFloorPerBinDbc')
     expect(extractRegion(fftSrc, 'fftHandFormulas')).toContain('export function dbPowerSum')
     const inner = extractRegion(blockLmsSrc, 'blockLmsInnerLoop').split('\n')
-    // S3 CodeCompare 的 highlight 行（1-based）：4 dt、6 u、7 e、13 q、15 acc
+    // S3 CodeCompare 的 highlight 行（1-based）：4 dt、6 u、7 e、13 q、19 acc（第 14–17 行是 comparator 非理想性的分支，blockLms.ts 的 cmpNonideal）
     expect(inner[3]).toContain('let dt = coef * x')
     expect(inner[5]).toContain('pathF.step(dt)')
     expect(inner[6]).toContain('const e = u + bOff')
     expect(inner[12]).toContain('else q = e >= 0 ? 1 : qLo')
-    expect(inner[14]).toContain('acc += q * xrn')
+    expect(inner[18]).toContain('acc += q * xrn')
   })
 
   it('region 標記行只有註解：四個共用模型檔的 #region / #endregion 成對，且標記行沒有程式碼', () => {
@@ -310,7 +310,7 @@ describe('Models 頁面（jsdom smoke）', () => {
       expect(cap.length, cap).toBeGreaterThan(20)
       expect(UNICODE_MATH.test(cap), cap).toBe(false)
       expect(cap).not.toContain('$')
-      const walk = f.closest('.models-diagram')?.querySelector('.models-diagram-walk')
+      const walk = f.closest('.models-diagram')?.querySelector('.c-chapter-fig-walk')
       expect(walk?.textContent, cap).toContain('先看')
       expect(walk?.textContent, cap).toContain('圖上')
       expect(walk?.querySelector('.katex'), cap).toBeTruthy()
@@ -330,7 +330,7 @@ describe('Models 頁面（jsdom smoke）', () => {
     expect(precedes(figPath, container.querySelector('[id="formula-F-16.1"]'))).toBe(true)
     // 架構（docs/assumptions.md §2a）：DTC 在 reference 的輸入端（補償量從基準延遲 T_0 往回扣）；comparator 取的是 PD 的輸出；
     // PD 量的是 t_ref′ − t_fb，主 PLL 反應之前等於 (a − w)·x。圖的導讀、替代文字、§4.2／§4.3 與第 1 項硬體檢查都用同一套講法
-    const walkOf = (f: HTMLElement) => f.closest('.models-diagram')?.querySelector('.models-diagram-walk') as HTMLElement
+    const walkOf = (f: HTMLElement) => f.closest('.models-diagram')?.querySelector('.c-chapter-fig-walk') as HTMLElement
     const flat = (el: Element) => nonMathText(el).replace(/\s+/g, ' ')
     expect(flat(walkOf(figLevels))).toContain('DTC 在 reference 的輸入端，殘餘誤差從 PD 的 reference 輸入進入主 PLL')
     expect(flat(walkOf(figLoop))).toContain('Feedback（divider）edge 比理想時刻早到')
@@ -380,8 +380,8 @@ describe('Models 頁面（jsdom smoke）', () => {
     expect(OLD_WORDING.test('DTC 插' + '入延遲，把 edge ' + '推回' + '理想時刻')).toBe(true)
     expect(nonMathText(container)).not.toMatch(OLD_WORDING)
     const errata = Array.from(container.querySelectorAll('.models-erratum a'))
-    expect(errata.every((a) => a.getAttribute('href') === '#/verification')).toBe(true)
-    const ids = new Set(errata.map((a) => a.textContent))
+    expect(errata.every((a) => /verification\?e=E\d+$/.test(a.getAttribute('href') ?? ''))).toBe(true) // 共用 ErratumLink：驗證頁該條勘誤的深連結
+    const ids = new Set(errata.map((a) => a.textContent?.trim()))
     for (const id of ['E07', 'E13', 'E18', 'E30', 'E34', 'E36', 'E44', 'E06', 'E03']) expect(ids.has(`勘誤 ${id}`), id).toBe(true)
     const text = container.textContent ?? ''
     expect(text).not.toContain('程式碼載入錯誤')

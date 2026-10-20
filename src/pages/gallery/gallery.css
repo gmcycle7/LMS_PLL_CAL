@@ -129,22 +129,9 @@
 }
 
 /* 三個問題的小標籤 */
+/* 外觀來自 Badge（neutral）：三個問題靠文字「(1)(2)(3)」區分，不佔用 精確／近似／研究假說 的顏色 */
 .gal-q {
-  display: inline-block;
-  padding: 1px 7px;
   margin: 1px 4px 1px 0;
-  border-radius: 999px;
-  border: 1px solid var(--border-strong);
-  white-space: nowrap;
-}
-.gal-q-converge {
-  background: var(--info-soft);
-}
-.gal-q-where {
-  background: var(--warn-soft);
-}
-.gal-q-noise {
-  background: var(--tag-research-soft);
 }
 
 /* 卡片各部分的說明 */
@@ -177,52 +164,13 @@
   font-weight: 600;
 }
 .gal-steps-badge {
-  display: inline-block;
-  font-size: 0.75rem;
-  font-weight: 700;
-  padding: 1px 7px;
-  border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent);
   margin-right: 4px;
 }
 .gal-prereqs {
   margin: 12px 0;
 }
 
-/* 狀態小標籤 */
-.gal-status,
-.gal-match {
-  display: inline-block;
-  font-size: 0.8rem;
-  font-weight: 600;
-  padding: 1px 8px;
-  border-radius: 999px;
-  border: 1px solid transparent;
-  white-space: nowrap;
-}
-.gal-status-ok,
-.gal-match-ok {
-  color: var(--ok);
-  background: var(--ok-soft);
-  border-color: color-mix(in srgb, var(--ok) 35%, transparent);
-}
-.gal-status-warn {
-  color: var(--warn);
-  background: var(--warn-soft);
-  border-color: color-mix(in srgb, var(--warn) 35%, transparent);
-}
-.gal-status-danger,
-.gal-match-bad {
-  color: var(--danger);
-  background: var(--danger-soft);
-  border-color: color-mix(in srgb, var(--danger) 35%, transparent);
-}
-.gal-status-muted {
-  color: var(--text-muted);
-  background: var(--surface-2);
-  border-color: var(--border);
-}
+/* 狀態小標籤（gal-status／gal-match）：顏色與尺寸來自 Badge（ok／partial／mismatch／na），這裡不再定義 */
 .gal-bad {
   color: var(--danger);
   font-weight: 600;
@@ -237,21 +185,6 @@
   display: inline-flex;
   flex-wrap: wrap;
   gap: 4px;
-}
-.gal-erratum {
-  display: inline-block;
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0 6px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent);
-  background: var(--warn-soft);
-  color: var(--warn);
-  text-decoration: none;
-  white-space: nowrap;
-}
-.gal-erratum:hover {
-  text-decoration: underline;
 }
 .gal-tests,
 .gal-levels {
@@ -647,21 +580,6 @@
 }
 
 /* 方塊圖版位：圖 + 圖說，下面緊接「先看…再看…」的導讀（docs/teaching-style.md §8） */
-.gal-diagram {
-  margin: 1rem 0 1.1rem;
-  min-width: 0;
-}
-.gal-diagram .c-mermaid {
-  margin-bottom: 0.4rem;
-}
-.gal-diagram-walk {
-  border-left: 3px solid var(--accent);
-  padding: 0.1rem 0 0.1rem 0.75rem;
-  font-size: 0.93rem;
-}
-.gal-diagram-walk > p {
-  margin: 0.35rem 0;
-}
 
 /* 頁首「本頁符號表在最後」的一行連結，與頁尾的符號表（docs/teaching-style.md §5） */
 .gal-symbols-link {

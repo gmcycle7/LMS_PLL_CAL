@@ -165,6 +165,18 @@
       "file": "dtc_inl_basis.json",
       "spec_section": "§11b",
       "description_zh": "Ch11b 多項式基底（M = 3、uniform x）：monomial Hankel 的條件數 67.5 vs Legendre 7 vs normalized Legendre 1；LS 最佳解與 mean-field k95（μK_qλ_max = 0.1、σ_v = 10、d_2 = 20、d_3 = 10）"
+    },
+    {
+      "id": "comparator_hysteresis",
+      "file": "comparator_hysteresis.json",
+      "spec_section": "§5b",
+      "description_zh": "Ch05 §5b 非理想 comparator：遲滯 ±h 的平穩斜率 φ(η)/(σΦ(−η))、記憶因子 ν、雜訊因子 (1+ν)/(1−ν)、資訊等效增益；metastability 窗 ε 的 P_meta 與 drop 斜率 K_q·e^{−ε²/2σ²}；h = 30 fs、ε = 5 fs 的 chain 統計與 S_N 精確分布"
+    },
+    {
+      "id": "acquisition_timeline",
+      "file": "acquisition_timeline.json",
+      "spec_section": "§14.6b",
+      "description_zh": "Ch14 §14.6b acquisition：FLL K_f = 5×10⁻⁴（K_vco = 2.5 MHz/LSB、g_f = 3.2、M = 4、f_ref = 4 GHz）、Δf_0 = 80 MHz、f_tol = 1 MHz、N_ld = 32 ⇒ n_c = 8762、n_FL = 8793；相位迴路 g_p = 0.395（320 MHz／4 GHz）、θ_0 = 25 ps、θ_max = 2 ps、W = 512、rms_max = 100 fs ⇒ enable 9310（線性 PD）／9313（sine PD）、LOCK = 10 個 block（N = 1024）；lock detect 誤報／漏報；失鎖（+50 MHz）後重新 enable 8429 週期"
     }
   ]
 }

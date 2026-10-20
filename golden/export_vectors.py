@@ -4,6 +4,7 @@
 
     python3 golden/export_vectors.py          # 寫入 golden/vectors/
     python3 golden/export_vectors.py --check  # 只比對磁碟上的 vectors 是否最新（不寫檔）
+    python3 golden/export_vectors.py --check-web  # 檢查網頁用的資料 JSON 的結構（key／維度／有限數值），不重算任何東西
 
 每個 JSON 的格式::
 
@@ -724,6 +725,186 @@ def build_vectors() -> dict[str, dict[str, Any]]:
         },
     )
 
+    # ---------------- Ch05 §5b：非理想 comparator（hysteresis ±h、metastability 決策窗 ε；無 T-id，test_S5b_*） ----------------
+    # 與 src/simulation/models/comparator.ts 檔尾的模型比對：latch 狀態的兩狀態 Markov chain（drop 政策）。
+    h_ratios = [0.0, 0.1, 0.3, 0.5, 1.0, 2.0]
+    eps_ratios = [0.0, 0.01, 0.05, 0.1, 0.3]
+    hs = [r * SIGMA_V for r in h_ratios]
+    epss = [r * SIGMA_V for r in eps_ratios]
+    sum_h = [comparator.nonideal_summary(SIGMA_V, h, 0.0) for h in hs]
+    sum_e = [comparator.nonideal_summary(SIGMA_V, 0.0, e) for e in epss]
+    ch_mix = comparator.nonideal_chain(1.0, SIGMA_V, 30.0, 5.0)  # s = 1 fs、h = 30 fs、ε = 5 fs
+    ch_h30 = comparator.nonideal_chain(1.0, SIGMA_V, 30.0, 0.0)
+    ex_mix_100 = comparator.direction_exact_chain(ch_mix, 100)
+    ex_mix_1001 = comparator.direction_exact_chain(ch_mix, 1001)
+    clt_mix_1001 = comparator.direction_clt_chain(ch_mix, 1001)
+    v['comparator_hysteresis'] = vector(
+        'comparator_hysteresis',
+        'Ch05 §5b 非理想 comparator：遲滯 ±h 的平穩斜率 φ(η)/(σΦ(−η))、記憶因子 ν、雜訊因子 (1+ν)/(1−ν)、資訊等效增益；'
+        'metastability 窗 ε 的 P_meta 與 drop 斜率 K_q·e^{−ε²/2σ²}；h = 30 fs、ε = 5 fs 的 chain 統計與 S_N 精確分布',
+        '§5b',
+        {'sigma_fs': SIGMA_V, 'h_over_sigma_list': h_ratios, 'eps_over_sigma_list': eps_ratios, 'mix': {'s_fs': 1.0, 'h_fs': 30.0, 'eps_fs': 5.0}, 'N_list': [100, 1001]},
+        {
+            'kq_per_fs': KQ,
+            'hyst_slope_ratio_list': [x['slope_ratio'] for x in sum_h],
+            'hyst_slope_closed_ratio_list': [comparator.kq_hysteresis(SIGMA_V, h) / KQ for h in hs],
+            'hyst_nu_list': [x['nu'] for x in sum_h],
+            'hyst_noise_factor_list': [x['noise_factor'] for x in sum_h],
+            'hyst_kq_eff_ratio_list': [x['kq_eff_ratio'] for x in sum_h],
+            'hyst_n_ratio_list': [x['n_ratio'] for x in sum_h],
+            'hyst_var_sum_N100_list': [comparator.chain_sum_variance(100, comparator.nonideal_chain(0.0, SIGMA_V, h, 0.0)) for h in hs],
+            'meta_p_meta_at_zero_list': [comparator.meta_prob(0.0, SIGMA_V, e) for e in epss],
+            'meta_p_meta_s1_list': [comparator.meta_prob(1.0, SIGMA_V, e) for e in epss],
+            'meta_slope_ratio_list': [x['slope_ratio'] for x in sum_e],
+            'meta_slope_closed_ratio_list': [comparator.kq_meta_drop(SIGMA_V, e) / KQ for e in epss],
+            'meta_noise_factor_list': [x['noise_factor'] for x in sum_e],
+            'meta_kq_eff_ratio_list': [x['kq_eff_ratio'] for x in sum_e],
+            'meta_dropped_per_block_N4096_eps5': 4096 * comparator.meta_prob(0.0, SIGMA_V, 5.0),
+            'mix_t_up': ch_mix['t_up'],
+            'mix_t_down': ch_mix['t_down'],
+            'mix_p_plus_given_prev_plus': ch_mix['fp'][0],
+            'mix_p_plus_given_prev_minus': ch_mix['fm'][0],
+            'mix_p_meta_given_prev_plus': ch_mix['fp'][2],
+            'mix_nu': ch_mix['nu'],
+            'mix_pi_plus': ch_mix['pi_plus'],
+            'mix_mean_out': ch_mix['mean_out'],
+            'mix_p_meta': ch_mix['p_meta'],
+            'mix_var_inf': ch_mix['var_inf'],
+            'mix_var_sum_N1001': comparator.chain_sum_variance(1001, ch_mix),
+            'mix_slope_numeric': comparator.chain_slope(SIGMA_V, 30.0, 5.0),
+            'h30_mean_out_s1': ch_h30['mean_out'],
+            'h30_var_sum_N1001': comparator.chain_sum_variance(1001, ch_h30),
+            'mix_exact_N100': list(ex_mix_100),
+            'mix_exact_N1001': list(ex_mix_1001),
+            'mix_clt_N1001': list(clt_mix_1001),
+        },
+        {'rel': 1e-12, 'abs': 1e-15},
+        'latch 狀態 σ 的兩狀態 Markov chain：t₊ = Φ((s−θ−h−ε)/σ)、t₋ = Φ((θ−h−ε−s)/σ)、ν = 1 − t₊ − t₋、π₊ = t₊/(t₊+t₋)；'
+        '輸出 y（metastable 算 0）的 Cov(y_n, y_{n+k}) = β ν^{k−1} Cov(y_n, σ_n)。斜率：純遲滯 φ(η)/(σΦ(−η))、純 drop K_q e^{−ε²/2σ²}，'
+        '一般情形以 5 點中央差分（步長 10⁻³σ）求 mean_out 的導數，所以 *_slope_ratio 與 *_slope_closed_ratio 只到 1e-9；'
+        'mix_exact_* 是 (狀態, 和) 上的 DP（1001 步的累加，容忍度 1e-10）。h = ε = 0 時全部回到 §5 的 iid 結果。',
+        tolerance_overrides={
+            'hyst_slope_ratio_list': {'rel': 1e-9},
+            'hyst_kq_eff_ratio_list': {'rel': 1e-9},
+            'hyst_n_ratio_list': {'rel': 1e-9},
+            'meta_slope_ratio_list': {'rel': 1e-9},
+            'meta_kq_eff_ratio_list': {'rel': 1e-9},
+            'mix_slope_numeric': {'rel': 1e-9},
+            'mix_exact_N100': {'rel': 1e-11, 'abs': 1e-15},
+            'mix_exact_N1001': {'rel': 1e-10, 'abs': 1e-15},
+        },
+    )
+
+    # ---------------- Ch14 §14.6b：acquisition 與校正 enable 條件（test_S14b_*，無 T-id；depth-fll） ----------------
+    from dataclasses import replace as _acq_replace  # noqa: E402  （只在這一段用到，附加在函式內）
+
+    from lms_pll_golden import acquisition  # noqa: E402
+
+    acq_p = acquisition.DEFAULT_ACQ
+    acq_a = acquisition.acquisition_analytic(acq_p)
+    acq_lin = acquisition.acquisition_timeline(_acq_replace(acq_p, pd_shape='linear'))['summary']
+    acq_sin = acquisition.acquisition_timeline(acq_p)['summary']
+    acq_loss = acquisition.acquisition_timeline(_acq_replace(acq_p, loss_cycle=12288, cycles=32768))['summary']
+    acq_bad_dtc = acquisition.dtc_working_point(_acq_replace(acq_p, dtc_gains_fs=(0.0, 90000.0)))
+    # 倍頻模糊與「不用 FLL」：直接在 Δf_0 閉 SSPD（K_f = 0、門檻放寬）；錯的倍頻：Δf_0 = f_ref + 0.5 MHz（SSPD 只看得到 0.5 MHz）
+    acq_nofll = acq_a['no_fll']
+    acq_nofll_run = acquisition.acquisition_timeline(_acq_replace(acquisition.no_fll_config(acq_p), cycles=4096))
+    acq_wh_df0 = acq_p.f_ref_hz + 5e5
+    acq_wh = acquisition.no_fll_check(acq_p, acq_wh_df0)
+    acq_wh_run = acquisition.acquisition_timeline(_acq_replace(acquisition.no_fll_config(acq_p, acq_wh_df0), cycles=4096))['summary']
+    # 手算例（HC-14.10）：σ_f = 0.4 MHz（z = 2.5）、Δf_x = 2 f_tol；lock 時間由雜訊決定的例子
+    hc_sigma_f = 4e5
+    hc_p_in0 = acquisition.lock_detect_in_window_prob(0.0, acq_p.f_tol_hz, hc_sigma_f)
+    acq_int_keys = (
+        'n_c', 'n_fl', 'n_pl_rel', 'n_settle_rel', 'n_enable', 'lock_blocks', 'n_pl_rel_bound', 'n_settle_rel_bound', 'n_enable_bound',
+        'linear_freq_lock_cycle', 'linear_phase_lock_cycle', 'linear_settle_cycle', 'linear_enable_cycle', 'linear_lock_blocks',
+        'sine_freq_lock_cycle', 'sine_phase_lock_cycle', 'sine_settle_cycle', 'sine_enable_cycle', 'sine_lock_blocks', 'sine_slips',
+        'loss_unlocks', 'loss_holds', 'loss_relock_cycles', 'loss_relock_blocks', 'dtc_ok', 'dtc_bad_ok',
+        'harmonic_handoff_k', 'harmonic_handoff_ok', 'no_fll_k', 'no_fll_harmonic_ok', 'no_fll_slip_ok', 'no_fll_phase_lock_ok',
+        'no_fll_settle_ok', 'no_fll_sim_freq_lock_cycle', 'no_fll_sim_phase_lock_cycle', 'no_fll_sim_enable_cycle', 'no_fll_sim_slips',
+        'wrong_harmonic_k', 'wrong_harmonic_ok', 'wrong_harmonic_sim_phase_lock_cycle', 'wrong_harmonic_sim_settle_cycle',
+        'wrong_harmonic_sim_enable_cycle', 'wrong_harmonic_sim_slips',
+    )
+    v['acquisition_timeline'] = vector(
+        'acquisition_timeline',
+        'Ch14 §14.6b acquisition：FLL K_f = 5×10⁻⁴（K_vco = 2.5 MHz/LSB、g_f = 3.2、M = 4、f_ref = 4 GHz）、Δf_0 = 80 MHz、f_tol = 1 MHz、N_ld = 32 '
+        '⇒ n_c = 8762、n_FL = 8793；相位迴路 g_p = 0.395（320 MHz／4 GHz）、θ_0 = 25 ps、θ_max = 2 ps、W = 512、rms_max = 100 fs '
+        '⇒ enable 9310（線性 PD）／9313（sine PD）、LOCK = 10 個 block（N = 1024）；lock detect 誤報／漏報；失鎖（+50 MHz）後重新 enable 8429 週期',
+        '§14.6b',
+        {
+            'f_ref_hz': acq_p.f_ref_hz, 'div_ratio': acq_p.div_ratio, 'k_vco_hz_per_lsb': acq_p.k_vco_hz_per_lsb, 'fll_gain_lsb': acq_p.fll_gain_lsb,
+            'df0_hz': acq_p.df0_hz, 'sigma_f_hz': acq_p.sigma_f_hz, 'f_tol_hz': acq_p.f_tol_hz, 'n_ld': acq_p.n_ld, 'f_unlock_hz': acq_p.f_unlock_hz,
+            'n_ul': acq_p.n_ul, 'f_bw_hz': acq_p.f_bw_hz, 'sigma_theta_fs': acq_p.sigma_theta_fs, 'theta0_fs': acq_p.theta0_fs,
+            'theta_max_fs': acq_p.theta_max_fs, 'n_pl': acq_p.n_pl, 'settle_window': acq_p.settle_window, 'rms_max_fs': acq_p.rms_max_fs,
+            'dtc_bits': acq_p.dtc_bits, 'dtc_cal_range_frac': acq_p.dtc_cal_range_frac, 'dtc_gains_fs': list(acq_p.dtc_gains_fs),
+            'dtc_x_range': list(acq_p.dtc_x_range), 'cycles': acq_p.cycles, 'block_n': acq_p.block_n,
+            'loss_cycle': 12288, 'loss_df_hz': acq_p.loss_df_hz, 'loss_cycles': 32768, 'hc_sigma_f_hz': hc_sigma_f, 'hc_df_x_hz': 2.0 * acq_p.f_tol_hz,
+            'dtc_bad_gains_fs': [0.0, 90000.0],
+            'no_fll_cycles': 4096, 'wrong_harmonic_df0_hz': acq_wh_df0,
+        },
+        {
+            **{k: acq_a[k] for k in (
+                'k_f', 't_vco_fs', 'g_p', 'n_c', 'n_fl', 'df_handoff_hz', 'ramp_fs_per_cycle', 'theta_ss_fs', 'sigma_ss_fs', 'n_pl_rel',
+                'n_settle_rel', 'n_enable', 'lock_blocks', 'g_eff', 'n_pl_rel_bound', 'n_settle_rel_bound', 'n_enable_bound', 'p_in0',
+                'p_miss', 'expected_detect_cycles', 'df_false_alarm_hz', 'p_false_alarm', 'slip_prob_per_cycle', 'noisy_lock_mean_cycle',
+            )},
+            'slip_monotonic_fs': acq_a['slip']['monotonic_fs'],
+            'slip_basin_fs': acq_a['slip']['basin_fs'],
+            'slip_ramp_limit_fs_per_cycle': acq_a['slip']['ramp_limit_fs_per_cycle'],
+            'slip_df_limit_hz': acq_a['slip']['df_limit_hz'],
+            'dtc_ok': 1.0 if acq_a['dtc']['ok'] else 0.0,  # 布林寫成 1／0（Vector schema 只收有限數值）
+            'dtc_t0_fs': acq_a['dtc']['t0_fs'],
+            'dtc_range_fs': acq_a['dtc']['range_fs'],
+            'dtc_lsb_fs': acq_a['dtc']['lsb_fs'],
+            'dtc_bad_ok': 1.0 if acq_bad_dtc['ok'] else 0.0,
+            **{f'linear_{k}': acq_lin[k] for k in ('freq_lock_cycle', 'phase_lock_cycle', 'settle_cycle', 'enable_cycle', 'lock_blocks')},
+            'linear_df_handoff_hz': acq_lin['df_handoff_hz'],
+            **{f'sine_{k}': acq_sin[k] for k in ('freq_lock_cycle', 'phase_lock_cycle', 'settle_cycle', 'enable_cycle', 'lock_blocks', 'slips')},
+            **{f'loss_{k}': acq_loss[k] for k in ('unlocks', 'holds', 'relock_cycles', 'relock_blocks')},
+            'hc_p_in0': hc_p_in0,
+            'hc_p_miss': acquisition.lock_detect_miss(acq_p.f_tol_hz, hc_sigma_f, acq_p.n_ld),
+            'hc_expected_detect_cycles': acquisition.expected_run_length(hc_p_in0, acq_p.n_ld),
+            'hc_p_in_x': acquisition.lock_detect_in_window_prob(2.0 * acq_p.f_tol_hz, acq_p.f_tol_hz, hc_sigma_f),
+            'hc_p_false_alarm': acquisition.lock_detect_false_alarm(2.0 * acq_p.f_tol_hz, acq_p.f_tol_hz, hc_sigma_f, acq_p.n_ld),
+            # 有雜訊時宣告頻率鎖定的平均週期（renewal 近似；和模擬的對照在 pytest／vitest 以 4·se + 1% 判定，不放進 vector）
+            'hc_noisy_lock_mean_cycle': acquisition.lock_detect_mean_cycle(acq_p.df0_hz, acq_p.f_tol_hz, acq_a['k_f'], hc_sigma_f, acq_p.n_ld),
+            # 倍頻捕獲（交棒時）與「不用 FLL」的兩層條件（布林寫成 1／0）
+            'harmonic_capture_hz': acq_a['harmonic']['capture_hz'],
+            'harmonic_handoff_k': acq_a['harmonic']['k'],
+            'harmonic_handoff_ok': 1.0 if acq_a['harmonic']['ok'] else 0.0,
+            'no_fll_k': acq_nofll['harmonic']['k'],
+            'no_fll_alias_hz': acq_nofll['harmonic']['alias_hz'],
+            'no_fll_harmonic_ok': 1.0 if acq_nofll['harmonic']['ok'] else 0.0,
+            'no_fll_ramp_fs_per_cycle': acq_nofll['ramp_fs_per_cycle'],
+            'no_fll_slip_ok': 1.0 if acq_nofll['slip_ok'] else 0.0,
+            'no_fll_theta_ss_fs': acq_nofll['theta_ss_fs'],
+            'no_fll_theta_ss_pd_fs': acq_nofll['theta_ss_pd_fs'],
+            'no_fll_phase_lock_ok': 1.0 if acq_nofll['phase_lock_ok'] else 0.0,
+            'no_fll_settle_ok': 1.0 if acq_nofll['settle_ok'] else 0.0,
+            'no_fll_df_theta_max_hz': acq_nofll['df_theta_max_hz'],
+            'no_fll_df_rms_max_hz': acq_nofll['df_rms_max_hz'],
+            **{f'no_fll_sim_{k}': acq_nofll_run['summary'][k] for k in ('freq_lock_cycle', 'phase_lock_cycle', 'enable_cycle', 'slips')},
+            'no_fll_sim_theta_end_fs': float(acq_nofll_run['theta'][-1]),
+            'wrong_harmonic_k': acq_wh['harmonic']['k'],
+            'wrong_harmonic_alias_hz': acq_wh['harmonic']['alias_hz'],
+            'wrong_harmonic_ok': 1.0 if acq_wh['harmonic']['ok'] else 0.0,
+            'wrong_harmonic_theta_ss_pd_fs': acq_wh['theta_ss_pd_fs'],
+            **{f'wrong_harmonic_sim_{k}': acq_wh_run[k] for k in ('phase_lock_cycle', 'settle_cycle', 'enable_cycle', 'slips')},
+        },
+        {'rel': 1e-9, 'abs': 1e-12},
+        'FLL n_c = ⌈ln(f_tol/|Δf_0|)/ln(1 − K_f)⌉、n_FL = n_c + N_ld − 1、Δf_h = (1 − K_f)^{n_FL+1}Δf_0；ΔT = Δf_h/(M f_ref²)、θ_ss = ΔT/g_p；'
+        'n_PL = ⌈ln((θ_max − |θ_ss|)/|θ_0 − θ_ss|)/ln(1 − g_p)⌉ + N_pl − 1、n_settle = W + n_tr − 1（暫態能量低於 (rms_max² − θ_ss²)W）、'
+        'enable = n_FL + max(n_PL, n_settle)、LOCK blocks = ⌈(enable + 1)/N⌉；sine PD 的上界用弦斜率 g_eff = g_p sin(x)/x、x = 2πθ_0/T_vco。'
+        'lock detect：p_in = Φ((f_tol − Δf)/σ_f) − Φ((−f_tol − Δf)/σ_f)、P_FA = p_in(Δf_x)^{N_ld}、P_miss = 1 − p_in(0)^{N_ld}（erfc／log1p）、'
+        'E[T_N] = (1 − p^N)/((1 − p)p^N)。模擬值（linear_*／sine_*／loss_*）是無雜訊的逐週期狀態機（run_acquisition），整數 key 完全相同；'
+        'Monte Carlo（σ_f、σ_θ > 0）不放進 vector。倍頻模糊：k = ⌊Δf/f_ref + ½⌋、SSPD 只看得到 Δf − k f_ref，|Δf| < f_ref/2 才鎖在第 M 根'
+        '（harmonic_*：交棒時；enable 的條件之一）。no_fll_*：不用 FLL、直接在 Δf_0 = 80 MHz 閉 SSPD（no_fll_config：K_f = 0、f_tol = 2|Δf_0| + f_ref），'
+        '倍頻與 slip 都成立，卡住的是 phase lock（θ* = 3.22 ps > θ_max）與穩態；wrong_harmonic_*：Δf_0 = f_ref + 0.5 MHz，SSPD 鎖在 (M + 1) f_ref、'
+        'phase lock 與穩態都過，倍頻捕獲擋住 enable。',
+        # 整數 key（週期數、block 數、次數、1／0 旗標）：abs = 0.5 ⇒ 必須完全相等；abs > 0 也滿足「期望值為 0 要有 abs」（sine_slips = 0、dtc_bad_ok = 0）
+        tolerance_overrides={k: {'abs': 0.5} for k in acq_int_keys},
+    )
+
     return v
 
 
@@ -797,11 +978,41 @@ def write_all(out_dir: Path = VECTORS_DIR) -> list[Path]:
     return written
 
 
+def check_web() -> int:
+    """``--check-web``：用 ``src/data/golden/schemas.json``（與 TypeScript 的 ``validate.ts`` 共用）檢查網頁讀的每個資料 JSON。
+
+    檢查 key 是否齊全、陣列維度（固定長度與同組欄位等長）、型別、數值是否有限（Python 的 ``json.dump`` 預設會寫出 NaN，
+    JavaScript 的 ``JSON.parse`` 讀不了），以及 golden vectors 的「期望值為 0 就要有 abs 容忍度」。
+    驗證器本體在 ``analysis/sspll/golden/tools/web_schema.py``（只用標準函式庫）。
+    """
+    import importlib.util
+
+    tool = GOLDEN_DIR.parent / 'analysis' / 'sspll' / 'golden' / 'tools' / 'web_schema.py'
+    spec = importlib.util.spec_from_file_location('web_schema', tool)
+    assert spec is not None and spec.loader is not None, tool
+    module = importlib.util.module_from_spec(spec)
+    sys.modules['web_schema'] = module
+    spec.loader.exec_module(module)
+    problems = module.check_web(GOLDEN_DIR.parent)
+    if problems:
+        print('網頁資料 JSON 的結構檢查失敗：')
+        for p in problems:
+            print('  - ' + p)
+        return 1
+    doc = module.load_schema_doc()
+    n = sum(len(module.expand(e, GOLDEN_DIR.parent)) for e in doc['files'])
+    print(f'網頁資料 JSON 結構正確：{n} 個檔案符合 {len(doc["files"])} 個 schema 條目（src/data/golden/schemas.json）')
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description='輸出 LMS × PLL golden test vectors')
     ap.add_argument('--out', type=Path, default=VECTORS_DIR, help='輸出資料夾（預設 golden/vectors）')
     ap.add_argument('--check', action='store_true', help='只檢查磁碟上的 vectors 是否與目前模型一致')
+    ap.add_argument('--check-web', action='store_true', help='檢查網頁用資料 JSON 的結構（schema 與 TypeScript 的 validate.ts 共用）')
     args = ap.parse_args(argv)
+    if args.check_web:
+        return check_web()
     if args.check:
         vectors = build_vectors()
         stale = []

@@ -1,5 +1,4 @@
-import { SymbolTable, Tex, type SymbolEntry } from '@/components'
-import { Erratum } from './common'
+import { JumpTo, SymbolTable, Tex, type SymbolEntry, ChapterErratum } from '@/components'
 
 /**
  * 本章符號表（docs/teaching-style.md §5）：放在章末（Recap 之後、頁面最底端），外層 id="symbols"；
@@ -130,7 +129,7 @@ export const SYMBOLS: SymbolEntry[] = [
     firstSeen: '§1.2',
     note: (
       <>
-        規格寫 <Tex>{'J_2=E[(y-wx)^2]'}</Tex>，argmin 相同；<Erratum id="E41" />
+        規格寫 <Tex>{'J_2=E[(y-wx)^2]'}</Tex>，argmin 相同；<ChapterErratum id="E41" />
       </>
     ),
   },
@@ -177,7 +176,7 @@ export const SYMBOLS: SymbolEntry[] = [
     firstSeen: '§1.2.1',
     note: (
       <>
-        PLL 對應：comparator 取 PD 輸出 <Tex>{'e'}</Tex> 的正負號，即 Sign-Error LMS 的 <Tex>{String.raw`\operatorname{sign}(e)`}</Tex>；<Erratum id="E40" />
+        PLL 對應：comparator 取 PD 輸出 <Tex>{'e'}</Tex> 的正負號，即 Sign-Error LMS 的 <Tex>{String.raw`\operatorname{sign}(e)`}</Tex>；<ChapterErratum id="E40" />
       </>
     ),
   },
@@ -222,7 +221,7 @@ export const SYMBOLS: SymbolEntry[] = [
     firstSeen: '§1.4',
     note: (
       <>
-        本章採 <Tex>{'a-w'}</Tex>（規格 §3 寫 <Tex>{'w-a'}</Tex>）；<Erratum id="E39" />
+        本章採 <Tex>{'a-w'}</Tex>（規格 §3 寫 <Tex>{'w-a'}</Tex>）；<ChapterErratum id="E39" />
       </>
     ),
   },
@@ -276,7 +275,7 @@ export const SYMBOLS: SymbolEntry[] = [
     firstSeen: '§2.2',
     note: (
       <>
-        <Tex>{String.raw`0\ /\ {+1}\ /\ {-1}`}</Tex>；<Erratum id="E40" />
+        <Tex>{String.raw`0\ /\ {+1}\ /\ {-1}`}</Tex>；<ChapterErratum id="E40" />
       </>
     ),
   },
@@ -426,17 +425,6 @@ export const SYMBOLS_ANCHOR = 'symbols'
 /** 章首（§1.0）的錨點 id：符號表下方的「回到章首」捲動到這裡。 */
 export const CHAPTER_TOP_ANCHOR = 'ch01-s10'
 
-/** 捲動到頁面上的某個 id。本站是 HashRouter，href="#symbols" 會被當成路由，所以用 scrollIntoView，不改網址。 */
-function scrollToId(id: string) {
-  const el = document.getElementById(id)
-  if (!el) return
-  const reduce = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  // jsdom 與很舊的瀏覽器沒有 scrollIntoView：用 ?. 保護
-  el.scrollIntoView?.({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
-  // 把鍵盤焦點也帶過去（螢幕閱讀器會從這裡接著唸）；preventScroll 避免打斷平滑捲動
-  el.focus?.({ preventScroll: true })
-}
-
 /** 章末的符號表（頁面最後一個區塊）。 */
 export function SymbolsSection() {
   return (
@@ -451,9 +439,7 @@ export function SymbolsSection() {
         }
       />
       <p className="ch01-symbols-back">
-        <button type="button" className="ch01-linklike" onClick={() => scrollToId(CHAPTER_TOP_ANCHOR)}>
-          ↑ 回到章首
-        </button>
+        <JumpTo target={CHAPTER_TOP_ANCHOR}>↑ 回到章首</JumpTo>
       </p>
     </section>
   )

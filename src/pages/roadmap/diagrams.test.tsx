@@ -377,7 +377,7 @@ describe('Roadmap 頁面上的方塊圖與符號表（teaching-style §5、§8�
     }
     // ③ 新的三張：導讀「先看…再看…」，並對照圖上的方塊；數學模型圖與條件圖的導讀含 KaTeX
     for (const name of ['CHART_SIX_CONDITIONS', 'CHART_R1_LOOP', 'CHART_STATUS_FLOW']) {
-      const walk = el(name).closest('.rm-diagram')?.querySelector('.rm-diagram-walk')
+      const walk = el(name).closest('.rm-diagram')?.querySelector('.c-chapter-fig-walk')
       expect(walk?.textContent, name).toContain('先看')
       expect(walk?.textContent, name).toContain('再看')
       expect(walk?.textContent, name).toContain('圖上')

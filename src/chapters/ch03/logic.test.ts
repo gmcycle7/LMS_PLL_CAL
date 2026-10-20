@@ -17,7 +17,8 @@ import {
   type XDist,
 } from '@/simulation/models/scalarStability'
 import { FORMULAS } from './formulas'
-import { erratumHref, mergeParams, num, pyDef, texText, tnum, tx } from './common'
+import { erratumRoute } from '@/components/links/ErratumLink'
+import { mergeParams, num, pyDef, texText, tnum, tx } from './common'
 import { DEFAULT_DIST_FIELDS, parseList, toXDist } from './experiments/DistControls'
 import { computeFixedXCase, DEFAULT_FIXED_X, FIXED_X_EXPERIMENT, stepsToReach } from './experiments/FixedXExplorer'
 import { DEFAULT_LAB, LAB_EXPERIMENT } from './experiments/StabilityLab'
@@ -208,10 +209,10 @@ describe('ch03 Fixed-x：收斂步數與勘誤連結', () => {
     }
   })
 
-  it('勘誤標記的連結是驗證頁的深連結 #/verification?e=Exx，且 ID 都存在於 errata.json', () => {
+  it('勘誤標記的連結是驗證頁的深連結 /verification?e=Exx，且 ID 都存在於 errata.json', () => {
     const known = new Set(errata.errata.map((e) => e.eid))
     for (const id of ['E14', 'E32', 'E38', 'E39', 'E42']) {
-      expect(erratumHref(id)).toBe(`#/verification?e=${id}`)
+      expect(erratumRoute(id)).toBe(`/verification?e=${id}`)
       expect(known.has(id)).toBe(true)
     }
   })

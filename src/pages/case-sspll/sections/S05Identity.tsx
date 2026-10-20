@@ -1,7 +1,7 @@
-import { Section, StepDerivation, Tex, TexBlock } from '@/components'
+import { HandLink, Section, StepDerivation, Tex, TexBlock } from '@/components'
 import { loopH } from '@/simulation/models/sspll'
 import { FREF_MHZ, LOOPS, PARAMS, SUMMARY } from '../data'
-import { Claim, DataTable, Diagram, Formula, Hand, HandLink, Src, fx, r, tx, txs } from '../common'
+import { Claim, DataTable, Diagram, Formula, Hand, Src, fx, r, tx, txs } from '../common'
 
 const F_EX_MHZ = 20
 

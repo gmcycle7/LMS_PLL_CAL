@@ -1,6 +1,6 @@
 import { Quiz, Recap, Section, Tex } from '@/components'
 import { W1, loopF3dB, typeIIFinv } from '@/simulation/models/sspll'
-import { BAND, FREF_MHZ, GOS_SCAN, LOOPS, PARAMS, PRED, P_ONLY, SIM_CFG } from '../data'
+import { BAND, DITHER_NUM, FREF_MHZ, GOS_SCAN, LOOPS, PARAMS, PRED, P_ONLY, SIM_CFG } from '../data'
 import { Claim, DataTable, Diagram, fx, intervalsText, r, tx } from '../common'
 
 /** §16 思考題 */
@@ -194,7 +194,9 @@ export function S17Recap() {
             <strong>P-only</strong>：<Tex>{r`C_1\gg C_2`}</Tex> 模型與精確 <Tex>{r`R\parallel C_2`}</Tex> 的 BW 不同（{fx(pBw[0], 0)} MHz 對 {fx(pBw[1], 0)} MHz）；放開積分路徑時的 transient 沒有模擬。
           </li>
           <li>
-            <strong>MASH 與 PMUX 隨機旋轉</strong>：只有 sim 證據；L2-PM45 搭配 MASH 在 <Tex>{r`\alpha=0.03`}</Tex> 的發散無法解釋；隨機序列的交叉譜理論沒有做。
+            <strong>MASH 與 PMUX 隨機旋轉</strong>：§10b 的判定式（F-CS.27、F-CS.28）說明了 L2-PM45 搭配 MASH 在 <Tex>{r`\alpha=0.03`}</Tex> 為什麼沒有恢復力（dead zone，<Tex>{`\\mathrm{Re}\\,\\kappa_1=+${tx(DITHER_NUM.headline.kappa_1, 2)}`}</Tex>）。仍是近似：closed form 假設 code 的隨機部分 iid，<Tex>{r`\tau`}</Tex> 是經驗門檻，判定只有線性段。
+            <Claim kind="approx" />
+            沒有恢復力之後為什麼會發散，沒有解：負的 1-bit 大訊號斜率（<Tex>{`\\kappa_\\infty=${tx(DITHER_NUM.headline.kappa_inf, 2)}`}</Tex>）是候選，但把它當 dead zone 的判準，golden 的 {DITHER_NUM.mc._summary.n_dead} 個 dead zone 案例錯了 {DITHER_NUM.mc._summary.candidates.two_stage.dead_zone.n_mismatch} 個（只沿一個模態、不含 GOS 耦合與其他模態的誤差）；DSM 量化雜訊經 PD 進比較器的交叉譜理論也沒有做。
             <Claim kind="research" />
           </li>
           <li>

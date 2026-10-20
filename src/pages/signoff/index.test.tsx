@@ -252,12 +252,12 @@ describe('Sign-off 頁（jsdom smoke）', () => {
     expect(precedes(fig('Sign-off 流程圖'), h01 ?? null)).toBe(true)
     // 導讀：圖旁有「先看…」的說明並用 KaTeX 把圖上的名字對回公式
     for (const f of figs) {
-      const walk = f.closest('.so-diagram')?.querySelector('.so-diagram-walk')
+      const walk = f.closest('.so-diagram')?.querySelector('.c-chapter-fig-walk')
       expect(walk?.textContent, f.getAttribute('aria-label') ?? '').toContain('先看')
       expect(walk?.querySelector('.katex')).toBeTruthy()
     }
     // 技術審查 R13：六個條件要逐一檢查，但不是互相獨立——單參數、μ > 0 時「穩定」已經包含「極性正確」（0 < g = μK < g_crit(d)）
-    const soWalkEl = fig('Sign-off 流程圖').closest('.so-diagram')?.querySelector('.so-diagram-walk')
+    const soWalkEl = fig('Sign-off 流程圖').closest('.so-diagram')?.querySelector('.c-chapter-fig-walk')
     const soWalk = soWalkEl?.textContent ?? ''
     expect(soWalk).toContain('不是互相獨立')
     expect(soWalk).not.toContain('它們互相獨立')
@@ -294,7 +294,7 @@ describe('Sign-off 頁（jsdom smoke）', () => {
     expect(String(k95Row?.note)).toContain('漸近估計')
     // §8（docs/assumptions.md §2a）：DTC 在 reference 輸入端，殘差在 PD 的 reference 輸入注入，θ_out = +T·φ_dtc（正號）
     const strat = container.querySelector('#so-strategy') as HTMLElement
-    const stratWalk = fig('從 gain code 偏差到輸出').closest('.so-diagram')?.querySelector('.so-diagram-walk')?.textContent ?? ''
+    const stratWalk = fig('從 gain code 偏差到輸出').closest('.so-diagram')?.querySelector('.c-chapter-fig-walk')?.textContent ?? ''
     expect(stratWalk).toContain('reference')
     const stratTex = Array.from(strat.querySelectorAll('annotation')).map((a) => a.textContent ?? '')
     expect(stratTex.some((t) => t.includes(String.raw`e_\text{PD}=\phi_\text{dtc}-\theta_\text{out}`))).toBe(true)
@@ -375,7 +375,7 @@ describe('Sign-off 頁（jsdom smoke）', () => {
     expect(sec.querySelectorAll('section.c-handcalc')).toHaveLength(2)
     expect(sec.querySelector('.c-code')).toBeTruthy()
     // Matrix 的五個項目連回 §8.5（data.ts 的 links）
-    const back = Array.from(container.querySelectorAll('#so-matrix a[data-anchor="so-silicon"]'))
+    const back = Array.from(container.querySelectorAll('#so-matrix a[data-anchor-link="so-silicon"]'))
     expect(back.length).toBe(5)
     // §2 的 freeze 說明也指到 §8.5
     expect(container.querySelector('#so-polarity a[data-anchor-link="so-silicon"]')).toBeTruthy()

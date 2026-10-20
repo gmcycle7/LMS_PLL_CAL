@@ -51,21 +51,21 @@ main [id] {
   gap: 6px;
   padding: 0 8px 10px;
 }
-.c-outline-chip {
+.c-badge.c-outline-chip {
+  /* 外觀來自 badgeClass('neutral')；這裡只補 <button> 要的字體與游標，以及按鈕底色 */
   font: inherit;
   font-size: 0.76rem;
+  font-weight: 400;
   line-height: 1.3;
-  padding: 3px 9px;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: var(--surface);
-  color: var(--text);
+  --b-fg: var(--text);
+  --b-bg: var(--surface);
+  --b-bd: var(--border-strong);
   cursor: pointer;
 }
-.c-outline-chip:hover {
-  background: var(--surface-2);
+.c-badge.c-outline-chip:hover {
+  --b-bg: var(--surface-2);
 }
-.c-outline-chip:focus-visible {
+.c-badge.c-outline-chip:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }

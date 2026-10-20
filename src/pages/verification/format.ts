@@ -1,6 +1,7 @@
 /**
  * 驗證頁的數字格式化與 Python 原始碼切片（純函式）。
  */
+import { texNum as sharedTexNum } from '@/components/handcalcMath'
 import type { Numeric, Tol } from '@/simulation/models/acceptance'
 
 /** 以有效位數顯示；整數原樣；極大或極小值用指數；−0 顯示為 0 */
@@ -150,18 +151,14 @@ export function exactDiffToFraction(x: number, num: bigint, den: bigint): number
   return Number(ad) / Number(den) / Number(scale)
 }
 
-/** TeX 版數字：科學記號寫成 a\times10^{b}（a = 1 時只寫 10^{b}） */
+/**
+ * TeX 版數字（預設 4 位有效數字）：規則由共用的 `texNum`（components/handcalcMath.ts）決定——
+ * |x| ≥ 1e6 或 < 1e-4 改寫成 a\times10^{b}（a = 1 時只寫 10^{b}）；本頁的預設位數比手算題少一位。
+ * 例外：|x| < 1e6 的整數（樣本數、決策數）原樣顯示，不捨入到 digits 位（230400 不會變成 230000），和 fmtNum 一致。
+ */
 export function texNum(x: number, digits = 4): string {
-  if (Number.isNaN(x)) return '\\mathrm{NaN}'
-  let s = fmtNum(x, digits)
-  if (Number.isInteger(x) && Math.abs(x) >= 1e7) {
-    // 很大的整數（例如 |Δ|/b = 6×10¹⁰）改用科學記號；fmtNum 會把整數原樣印出
-    const [mant, exp] = x.toExponential(Math.max(0, digits - 1)).split('e')
-    s = `${trimZeros(mant)}e${Number(exp)}`
-  }
-  const m = /^(-?[\d.]+)e(-?\d+)$/.exec(s)
-  if (m) return m[1] === '1' ? `10^{${m[2]}}` : m[1] === '-1' ? `-10^{${m[2]}}` : `${m[1]}\\times10^{${m[2]}}`
-  return s.replace('−∞', '-\\infty').replace('∞', '\\infty')
+  if (Number.isInteger(x) && Math.abs(x) < 1e6) return String(x)
+  return sharedTexNum(x, digits)
 }
 
 /** r = |Δ|/b 的 TeX（≤ 1 通過；容忍度為 0 而有誤差時為 ∞） */

@@ -1,0 +1,14 @@
+{
+  "id": "ch14-acq-slow-fll",
+  "title": "Ch14：acquisition——FLL 增益減半（K_f = 2.5×10⁻⁴）",
+  "page": "/ch/14",
+  "experiment": "cal-state-machine",
+  "description": "g_f 從 3.2 降到 1.6：FLL 時間常數加倍，n_c 從 8762 變成約 17.5k 個週期；相位迴路部分不變。",
+  "params": {
+    "acq": {
+      "fllGainLsb": 1.6
+    }
+  },
+  "expected": "封閉式（無雜訊）n_c = 17526、n_FL = 17557、enable 18074 ⇒ LOCK 18 個 block；實驗用預設 σ_f = 0.1 MHz 的單一 seed，lock detect 晚約 700 個週期、enable ≈ 18.8k ⇒ LOCK 19 個 block（Monte Carlo 各 seed 都是 19），block 級狀態機的 COARSE 延後 9 個 block，評估視窗（block 250 起）的 RMS 不受影響。",
+  "source": "illustrative"
+}

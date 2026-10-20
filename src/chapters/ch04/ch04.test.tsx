@@ -123,7 +123,7 @@ describe('Ch04 頁面（jsdom smoke test）', () => {
     expect(toc.map((b) => b.textContent)).toEqual(['§1 系統全貌', '§2 Fractional residue', '§3 GMAC 數學', '思考題', '§4 硬體對應與時序', '§5 定點 GMAC', '§5b DTC 範圍與延遲預算', '§6 RTL 檢查清單', '§7 綜合手算與思考題', '§8 本課必記'])
     act(() => toc[0].click())
     expect(scrolled).toEqual(['ch04-system'])
-    // 目錄跳到 Part 2 裡的段落時會先展開 Part 2 的摺疊框（jumpTo 用共用的 scrollToElement：展開祖先 <details>）；這個測試沒有設定模式，所以是 Beginner、Part 2 收合
+    // 目錄跳到 Part 2 裡的段落時會先展開 Part 2 的摺疊框（共用的 JumpTo 用 scrollToElement：展開祖先 <details>）；這個測試沒有設定模式，所以是 Beginner、Part 2 收合
     const part2 = container.querySelector<HTMLDetailsElement>('details.ch04-part')!
     expect(part2.open).toBe(false)
     act(() => toc[4].click())
@@ -167,7 +167,7 @@ describe('Ch04 頁面（jsdom smoke test）', () => {
     // 八題「帶入手算」都在頁面上；綜合題（HC-04.8，Part 2）在 Part 2 的思考題之前。思考題共十題：Part 1 六題（數學／訊號流）、Part 2 四題（RTL），依序編號 1–10
     const hcIds = Array.from(container.querySelectorAll('section.c-handcalc')).map((s) => s.id)
     expect(hcIds).toEqual(HANDCALCS.map((h) => `handcalc-${h.id}`))
-    expect(container.querySelectorAll('.ch04-handcalc-lead').length).toBe(HANDCALCS.length)
+    expect(container.querySelectorAll('.c-chapter-hand-lead').length).toBe(HANDCALCS.length)
     const lastHc = container.querySelector('[id="handcalc-HC-04.8"]')!
     const firstPart2Quiz = container.querySelector('#ch04-wrap .c-quiz')!
     expect(lastHc.compareDocumentPosition(firstPart2Quiz) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -185,22 +185,22 @@ describe('Ch04 頁面（jsdom smoke test）', () => {
     }
     expect(container.querySelector('#ch04-part1-quiz')!.compareDocumentPosition(part2Fold) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     for (const s of Array.from(container.querySelectorAll('section.c-handcalc'))) expect(s.querySelectorAll('.c-step').length, s.id).toBeGreaterThan(0)
-    // 23 張 Mermaid 圖的圖說由 MermaidFig 顯示：符號是 KaTeX（共用 Mermaid 的 caption 只能放純文字）；
+    // 23 張 Mermaid 圖的圖說由 ChapterFig 顯示（共用 Mermaid 的 figcaption，符號是 KaTeX）；
     // 圖的內容、順序與實際渲染由 diagrams.test.tsx 檢查
-    const figCaptions = Array.from(container.querySelectorAll('.ch04-mermaid-fig .ch04-mermaid-caption'))
+    const figCaptions = Array.from(container.querySelectorAll('.c-chapter-fig figcaption'))
     expect(figCaptions.length).toBe(CH04_DIAGRAMS.length)
     expect(figCaptions.length).toBe(23)
     for (const c of figCaptions) expect(c.querySelector('.katex'), c.textContent ?? '').not.toBeNull()
     expect(figCaptions.map((c) => texText(c)).join('\n')).toContain('乘 \\mu')
-    // 共用 Mermaid 自己的 figcaption 只有章首的系統地圖（SystemMap）那一個
-    const ownCaptions = Array.from(container.querySelectorAll('.c-mermaid figcaption'))
+    // 章首的系統地圖（SystemMap）是手排的 SVG，它的 figcaption 不在 ChapterFig 裡，只有這一個
+    const ownCaptions = Array.from(container.querySelectorAll('.c-mermaid figcaption')).filter((c) => !c.closest('.c-chapter-fig'))
     expect(ownCaptions.length).toBe(1)
     expect(ownCaptions[0].textContent).toMatch(/^系統地圖：藍色是這一課從頭走到尾的訊號路徑/)
     expect(ownCaptions[0].querySelector('.katex')).not.toBeNull() // 圖說裡的符號是 KaTeX
     expect(sysmap.contains(ownCaptions[0])).toBe(true)
     // 勘誤標籤連到驗證頁
-    const errata = Array.from(container.querySelectorAll('a.ch04-erratum'))
-    for (const id of ['E07', 'E13', 'E18']) expect(errata.some((a) => a.textContent === `勘誤 ${id}` && a.getAttribute('href') === '#/verification')).toBe(true)
+    const errata = Array.from(container.querySelectorAll('a.c-erratum-link'))
+    for (const id of ['E07', 'E13', 'E18']) expect(errata.some((a) => a.textContent === `勘誤 ${id}` && a.getAttribute('href') === `/verification?e=${id}`)).toBe(true)
     // 每個登錄的公式在頁面上都有錨點
     for (const fm of FORMULAS) expect(container.querySelector(`[id="formula-${fm.id}"]`), fm.id).not.toBeNull()
     // CodeBlock 的 region 都找得到（找不到時顯示「程式碼載入錯誤」）

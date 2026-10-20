@@ -303,6 +303,41 @@ export const CHART_S_CURVE_REGIONS = String.raw`flowchart TB
   class LIN ok
   class SAT warn`
 
+/**
+ * §5b：非理想 comparator 在 PD → comparator → GMAC 路徑上的位置——有效門檻 θ_a = θ − q[n−1]·h 由上一個輸出選（回授經 z⁻¹），
+ * |d| < ε 的 sample 在決策窗內解不出來（metastable），三種政策各自送什麼進 GMAC。
+ */
+export const CHART_NONIDEAL_CMP = String.raw`flowchart TB
+  PD["PD 輸出<br/>$e[n] = s + v[n]$"]
+  TH["有效門檻<br/>$\theta_a = \theta - q[n-1] \cdot h$"]
+  SUB(("＋"))
+  WIN{"$|d| \lt \varepsilon$ ？<br/>決策窗（時間 $T$、$\tau_m$）"}
+  META["metastable<br/>$T$ 內沒解出來"]
+  SGN["latch 解出<br/>$q[n] = \operatorname{sign}(d)$"]
+  ZERO["$y[n] = 0$<br/>不累加（除數仍是 $N$）"]
+  HOLD["$y[n] = q[n-1]$<br/>沿用上一個輸出"]
+  LATE["$q[n]$ 晚一拍<br/>乘到 $x[n+1]$"]
+  GM["GMAC<br/>$S_N = \sum y[n] \cdot x[n]$"]
+  DLY["$z^{-1}$"]
+  PD -- "$+ e[n]$" --> SUB
+  TH -- "$- \theta_a$" --> SUB
+  SUB -- "$d = e[n] - \theta_a$" --> WIN
+  WIN -- "是：機率 $P_{\mathrm{meta}}$" --> META
+  WIN -- "否" --> SGN
+  META -- "drop" --> ZERO
+  META -- "hold" --> HOLD
+  META -- "late" --> LATE
+  ZERO --> GM
+  HOLD --> GM
+  LATE --> GM
+  SGN -- "$y[n] = q[n]$" --> GM
+  SGN -- "$q[n]$" --> DLY
+  DLY -- "$q[n-1]$ 選門檻 $\theta \mp h$" --> TH
+  ${FOCUS}
+  ${WARN}
+  class SGN,GM focus
+  class WIN,META warn`
+
 /** §6：Monte Carlo 與解析值怎麼交叉比對（Wilson 區間與精確 Binomial 接受域）。 */
 export const CHART_MC_CHECK = String.raw`flowchart TB
   M1["Monte Carlo<br/>$T$ 次獨立 trial<br/>每次累加 $N$ 個 $q$"] --> M2["數判對的次數 $k$"]
@@ -514,6 +549,7 @@ export type DiagramKey =
   | 'analogVs1bit'
   | 'smallSignal'
   | 'sCurveRegions'
+  | 'nonidealCmp'
   | 'mcCheck'
   | 'sampleLoop'
   | 'ditherRegimes'
@@ -680,6 +716,14 @@ const DEFS: Omit<DiagramDef, 'no'>[] = [
     chart: CHART_S_CURVE_REGIONS,
     caption: 'S 曲線的三個工作區：先算 $r$，再照兩個菱形往下走；只有綠色的線性區可以直接用 $K_q$。',
     alt: '依標準化誤差 r 分成線性區（r 不超過 0.25）、壓縮區（r 不超過 1.5）與飽和區，各自適用的模型不同',
+    isNew: true,
+  },
+  {
+    key: 'nonidealCmp',
+    section: '§5b',
+    chart: CHART_NONIDEAL_CMP,
+    caption: String.raw`非理想 comparator 在 PD → comparator → GMAC 路徑上的位置：門檻由上一個輸出經 $z^{-1}$ 選（$\theta\mp h$，遲滯），紅色菱形是 metastability 的決策窗，三條出口是 metastable 樣本的三種處理。`,
+    alt: 'PD 輸出 e[n] 減去有效門檻 θ_a（由上一個輸出 q[n−1] 經延遲選成 θ 減 h 或 θ 加 h）；|d| 小於 ε 時 metastable，依 drop／hold／late 送 0、q[n−1] 或晚一拍的 q[n] 進 GMAC；否則 latch 解出 q[n] = sign(d) 進 GMAC 並回授選門檻',
     isNew: true,
   },
   {

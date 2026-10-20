@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { HandCalc, Mermaid, StepDerivation, mathText, type Step } from '@/components'
+import { ChapterFig, StepDerivation, bindHandCalc, makeTexNum, mathText, type Step } from '@/components'
 import { useSettings, type LearningMode } from '@/app/settings'
 import { diagramOf, type DiagramKey } from './diagrams'
 import { HANDCALCS } from './handcalcs'
@@ -36,56 +36,27 @@ export function Steps({ title, steps, result, open }: { title: ReactNode; steps:
 
 /**
  * 帶入手算（docs/teaching-style.md §7）：依 id 從本章的 HANDCALCS 取題，放在對應推導／worked example 的正後方，
- * 並先用一句話邀請讀者把數字換成自己的、用紙筆算一次再對答案。
+ * 並先用一句話邀請讀者把數字換成自己的、用紙筆算一次再對答案（共用的 ChapterHandCalc；id 打錯會丟錯）。
  */
-export function HandCalcBlock({ id, children }: { id: string; children?: ReactNode }) {
-  const def = HANDCALCS.find((h) => h.id === id)
-  if (!def) return null
-  return (
-    <div className="ch05-handcalc">
-      <p className="ch05-handcalc-invite">
-        <strong>換你算：</strong>
-        {children ?? '把下面的數字換成你手邊電路的值，先用紙筆和計算機算一次，再展開帶入過程對答案。'}
-      </p>
-      <HandCalc def={def} />
-    </div>
-  )
-}
+export const Hand = bindHandCalc(HANDCALCS)
 
 /**
- * 方塊圖（docs/teaching-style.md §8）：依 key 從 diagrams.ts 取 Mermaid 原始碼與圖說，圖號就是頁面上的順序。
+ * 方塊圖（docs/teaching-style.md §8）：依 key 從 diagrams.ts 取 Mermaid 原始碼與圖說，圖號就是頁面上的順序（共用的 ChapterFig）。
  * children 是「怎麼看這張圖」的一兩句導讀（先看…再看…），以及「圖上的 X 就是公式裡的 x」的對應；
  * 圖一律放在白話說明之後、推導之前。
  */
 export function Fig({ name, children }: { name: DiagramKey; children?: ReactNode }) {
   const d = diagramOf(name)
   return (
-    <div className="ch05-fig" data-diagram={d.key}>
-      <Mermaid chart={d.chart} caption={`圖 5-${d.no}：${d.caption}`} ariaLabel={`圖 5-${d.no}：${d.alt}`} />
-      {children && (
-        <p className="ch05-fig-walk">
-          <span className="ch05-fig-badge">怎麼看這張圖</span> {children}
-        </p>
-      )}
-    </div>
+    <ChapterFig className="ch05-fig" chart={d.chart} label={`圖 5-${d.no}`} caption={d.caption} ariaLabel={`圖 5-${d.no}：${d.alt}`} dataAttrs={{ 'data-diagram': d.key }}>
+      {children}
+    </ChapterFig>
   )
 }
 
 /** 正文中引用另一張圖時用的圖號（「圖 5-n」），與 Fig 的圖說同一個來源，圖的順序改了也不會對不上。 */
 export function figNo(name: DiagramKey): string {
   return `圖 5-${diagramOf(name).no}`
-}
-
-/** 勘誤小註：連到驗證頁（勘誤以 id 列出）。 */
-export function Erratum({ id, children }: { id: string; children?: ReactNode }) {
-  return (
-    <span className="ch05-erratum">
-      <a href="#/verification" title={`docs/validation.md 勘誤 ${id}`}>
-        勘誤 {id}
-      </a>
-      {children && <span className="ch05-erratum-text">{children}</span>}
-    </span>
-  )
 }
 
 /** 百分比字串（預設 2 位小數）。 */
@@ -132,20 +103,9 @@ export function sig(x: number, digits = 6): string {
 
 /**
  * 數字 → TeX 字串（給 <Tex> 內插值用）：很大或很小的數寫成 a\times10^{b}，不會出現「6.65e-8」這種被 KaTeX 排成斜體變數的寫法。
+ * 綁共用的 makeTexNum（預設 4 位有效數字；規則同全站 fmt）。
  */
-export function texNum(x: number, digits = 4): string {
-  if (Number.isNaN(x)) return '\\text{—}'
-  if (!Number.isFinite(x)) return x > 0 ? '\\infty' : '-\\infty'
-  if (x === 0) return '0'
-  const a = Math.abs(x)
-  if (a >= 1e7 || a < 1e-4) {
-    const [mant, exp] = x.toExponential(Math.max(0, digits - 1)).split('e')
-    const m = String(Number(mant))
-    const head = m === '1' ? '' : m === '-1' ? '-' : `${m}\\times`
-    return `${head}10^{${Number(exp)}}`
-  }
-  return String(Number(x.toPrecision(digits)))
-}
+export const texNum = makeTexNum(4)
 
 /**
  * 理論上應為 0、但受雙精度捨入限制的量（例如穩態偏差）：|x| < floor 時顯示「≈ 0」，不把捨入雜訊當成有效數字。

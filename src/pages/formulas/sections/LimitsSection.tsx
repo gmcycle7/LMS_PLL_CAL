@@ -1,4 +1,4 @@
-import { Section } from '@/components'
+import { Badge, Section } from '@/components'
 import { refValues } from '../refValues'
 import { LIMITATIONS, type Limitation } from '../appendixB'
 import { ErrataList, MatchCount, NoMatch, PageLinks, Rich } from '../common'
@@ -28,7 +28,7 @@ export function LimitsSection({ rows, searching }: { rows: Limitation[]; searchi
               <div className="fr-limit-head">
                 <span className="fr-limit-no">{l.specNo !== null ? `B${l.specNo}` : '＋'}</span>
                 <strong>{l.title}</strong>
-                {l.specNo === null && <span className="fr-badge fr-badge-added">本站補充</span>}
+                {l.specNo === null && <Badge variant="source" className="fr-badge fr-badge-added">本站補充</Badge>}
               </div>
               <p>
                 <Rich text={l.text} />

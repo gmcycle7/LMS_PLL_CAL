@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Data } from 'plotly.js-cartesian-dist-min'
 import {
   Callout,
+  ChapterErratumNote,
   ClaimTag,
   CodeBlock,
   Derivation,
@@ -21,7 +22,7 @@ import { comparatorKq, msdSplit, optimizeMu, type LinearityCheckParams, type Lin
 import { Diagram } from '../Diagram'
 import { CHART_E48_REGIMES, CHART_MSD_SPLIT, CHART_POLE_REGIMES, CHART_SAMPLE_TO_BLOCK } from '../diagrams'
 import { Hand } from '../Hand'
-import { BIAS2, ErratumNote, md, nf, Steps, tx } from '../shared'
+import { BIAS2, md, nf, Steps, tx } from '../shared'
 
 /** §14.1 圖說用的 block 長度（第 10 課／T13 的 N）：「N 個樣本只有 1 個受影響」與 2/N、1/√N 兩個數字都由它算出。 */
 const S2B_N = 4096
@@ -154,9 +155,9 @@ export function S2Msd() {
             寫成式子：真實電路是先乘後濾（DTC 先留下殘餘誤差 <Tex>{'\\delta\\,x[n]'}</Tex>，再經過誤差路徑），圖上與 L1 模型是先濾後乘（先算 <Tex>{'u[n]'}</Tex>，再乘 <Tex>{'\\delta_k'}</Tex>）。block <Tex>{'k'}</Tex>{' '}
             的第一個樣本，上一個樣本還在 block <Tex>{'k-1'}</Tex> 裡：
           </p>
-          {/* 第二個等號折成兩行：寫成一行在 375 px 的手機上會超出欄位；多出來的那一項自己一行也比較醒目 */}
+          {/* 第二個等號折成兩行：寫成一行在 375 px 的手機上會超出欄位；多出來的那一項自己一行也比較醒目。第一行不加 \, 細空白：加了會在 375 px 多出 2 px 的無用捲軸 */}
           <TexBlock>{String.raw`\begin{aligned}
-e[n]&=c\,\delta_k\,x[n]+s\,\delta_{k-1}\,x[n-1]+v[n]\\
+e[n]&=c\delta_k x[n]+s\delta_{k-1}x[n-1]+v[n]\\
 &=\delta_k\,u[n]+v[n]\\
 &\quad+s\,(\delta_{k-1}-\delta_k)\,x[n-1]
 \end{aligned}`}</TexBlock>
@@ -238,11 +239,11 @@ e[n]&=c\,\delta_k\,x[n]+s\,\delta_{k-1}\,x[n-1]+v[n]\\
       <p>
         <ClaimTag kind="exact" /> 對線性化 iid 模型精確（<Tex>{'\\eta'}</Tex> 任意分布、<Tex>{'p<0'}</Tex> 也成立——推導只用到 <Tex>{'E[\\eta]=0'}</Tex> 與獨立性）；<ClaimTag kind="approx" /> 對真正的 1-bit Sign-LMS 只是近似。
       </p>
-      <ErratumNote id="E48">
+      <ChapterErratumNote id="E48">
         規格把此式標為近似（<Tex>{'\\approx'}</Tex>）卻沒有說何時失效。本站標示：<strong>[精確｜線性化 iid 模型]</strong>；對 1-bit Sign-LMS 為 <strong>[近似｜需驗證]</strong>，只在
         <Tex>{'|\\delta_0|\\ll\\sigma_v'}</Tex> 時成立（<Tex>{'\\delta_0\\lesssim0.2\\sigma_v'}</Tex> 誤差 <Tex>{'\\le1\\%'}</Tex>、<Tex>{'\\delta_0=0.5\\sigma_v'}</Tex> 低估約 5%、<Tex>{'\\delta_0=\\sigma_v'}</Tex> 低估約 17%、
         <Tex>{'\\delta_0=2\\sigma_v'}</Tex> 低估約 52%）。另補上 <Tex>{'p^2=1'}</Tex> 的極限，以及 coarse 階段的 slew-limited 估計。
-      </ErratumNote>
+      </ChapterErratumNote>
       <Hand id="HC-14.2">
         用 F-14.3 完整算一次 <Tex>{'E[\\delta_B^2]'}</Tex>：預設值是 golden vector 的條件（<Tex>{'\\delta_0=20\\,\\mathrm{fs},\\ \\mu=10\\,\\mathrm{fs},\\ B=20'}</Tex>）。先自己按計算機，再把 <Tex>{'B'}</Tex> 改成 40、80，看 {BIAS2} 與 variance 誰先變成主角。
       </Hand>

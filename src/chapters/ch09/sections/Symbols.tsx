@@ -1,5 +1,5 @@
-import { SymbolTable, type SymbolEntry, ChRef } from '@/components'
-import { Erratum, m } from '../shared'
+import { SymbolTable, type SymbolEntry, ChRef, ChapterErratum } from '@/components'
+import { m } from '../shared'
 
 /**
  * 本章符號表（docs/teaching-style.md §5：放在章末、「本課必記」之後，外層 id="symbols"）。
@@ -24,7 +24,7 @@ const SYMBOLS: SymbolEntry[] = [
     meaning: '參數誤差向量',
     unit: String.raw`\text{同 }\mathbf a`,
     firstSeen: '§9',
-    note: <>極性採全站約定 {m`\delta=a-w`}（<Erratum id="E32" />）</>,
+    note: <>極性採全站約定 {m`\delta=a-w`}（<ChapterErratum id="E32" />）</>,
   },
   {
     symbol: String.raw`e[n],\ v[n]`,
@@ -64,7 +64,7 @@ const SYMBOLS: SymbolEntry[] = [
     firstSeen: '§9',
     note: (
       <>
-        {m`\lambda`} 只代表 eigenvalue；正則化參數另用 {m`\varepsilon`}（<Erratum id="E22" />）。F-09.5 的 {m`\lambda_{1,2}=1\pm\rho`} 固定配共模／差模：
+        {m`\lambda`} 只代表 eigenvalue；正則化參數另用 {m`\varepsilon`}（<ChapterErratum id="E22" />）。F-09.5 的 {m`\lambda_{1,2}=1\pm\rho`} 固定配共模／差模：
         {m`\rho\ge0`} 時就是由大到小，{m`\rho<0`} 時 {m`\lambda_{\max}=\lambda_2`}
       </>
     ),
@@ -82,7 +82,7 @@ const SYMBOLS: SymbolEntry[] = [
     ),
     unit: String.raw`\mathrm{fs}^{-1}`,
     firstSeen: '§9',
-    note: <>規格 §9 的 {m`\mathbf I-\mu\mathbf R`} 隱含 {m`K_q=1`}；本章一律明寫（<Erratum id="E05" />、<Erratum id="E08" />）</>,
+    note: <>規格 §9 的 {m`\mathbf I-\mu\mathbf R`} 隱含 {m`K_q=1`}；本章一律明寫（<ChapterErratum id="E05" />、<ChapterErratum id="E08" />）</>,
   },
   { symbol: String.raw`g=\mu K_q`, meaning: <>無因次 loop gain（正規化後的「{m`\mu`}」）</>, unit: String.raw`\text{無因次}`, firstSeen: '§9' },
   {
@@ -147,7 +147,7 @@ const SYMBOLS: SymbolEntry[] = [
     symbol: String.raw`H_{\mathrm{PD}}(z),\ h[n]`,
     meaning: <>DTC 殘餘誤差（在 PD 的 reference 輸入端注入）→ PD 輸出的轉移函數 {m`1/(1+L(z))`}（{m`L`}：主 PLL 的開迴路增益）與它的 impulse response；type-I/II PLL 有 {m`H_{\mathrm{PD}}(1)=0`}</>,
     firstSeen: '§9.2',
-    note: <>u-domain：{m`\tilde{\mathbf u}=h*\tilde{\mathbf x}`}（<Erratum id="E04" />）</>,
+    note: <>u-domain：{m`\tilde{\mathbf u}=h*\tilde{\mathbf x}`}（<ChapterErratum id="E04" />）</>,
   },
   {
     symbol: String.raw`\phi_{\mathrm{dtc}},\ \theta_{\mathrm{fb}}`,
@@ -175,10 +175,10 @@ export function ChapterSymbols() {
         title="本章符號表"
         caption={
           <>
-            本章所有平均遞迴都明寫 {m`K_q`}（<Erratum id="E05" />、<Erratum id="E08" />）；linear detector 時是精確的等式，1-bit 時是
+            本章所有平均遞迴都明寫 {m`K_q`}（<ChapterErratum id="E05" />、<ChapterErratum id="E08" />）；linear detector 時是精確的等式，1-bit 時是
             {m`|\mathbf u^T\boldsymbol\delta_k|\ll\sigma_v`} 的小訊號近似（F-09.3）；598 blocks 這類數字是 <strong>mean</strong> 的敘述（
-            <Erratum id="E23" />）；§9.2 的 DC-null 版本採修正文字（<Erratum id="E04" />）；{m`\lambda`} 只代表 eigenvalue（
-            <Erratum id="E22" />）。全站符號總表在 Formula &amp; Unit Reference 頁。
+            <ChapterErratum id="E23" />）；§9.2 的 DC-null 版本採修正文字（<ChapterErratum id="E04" />）；{m`\lambda`} 只代表 eigenvalue（
+            <ChapterErratum id="E22" />）。全站符號總表在 Formula &amp; Unit Reference 頁。
           </>
         }
       />

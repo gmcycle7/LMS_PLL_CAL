@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { ClaimTag, SourceTag, Tex } from '@/components'
+import { Badge, ClaimTag, SourceTag, Tex } from '@/components'
 import type { ClaimKind } from '@/data/types'
 import { texArg, texNum } from '../format'
 import { previewPreset, type PreviewResult } from '../previews'
@@ -165,7 +165,15 @@ export default function UnifiedCheck({ audit }: { audit: SlotAudit[] }) {
                   <td className="num nowrap">
                     <Tex>{t(r.model, 8)}</Tex>
                   </td>
-                  <td>{same ? <span className="gal-match gal-match-ok">✓ 相同</span> : <span className="gal-match gal-match-bad">✗ 不同</span>}</td>
+                  <td>{same ? (
+                      <Badge variant="ok" className="gal-match gal-match-ok">
+                        ✓ 相同
+                      </Badge>
+                    ) : (
+                      <Badge variant="mismatch" className="gal-match gal-match-bad">
+                        ✗ 不同
+                      </Badge>
+                    )}</td>
                 </tr>
               )
             })}

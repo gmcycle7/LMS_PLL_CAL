@@ -82,7 +82,7 @@ describe('Ch14 TeX 字串的反斜線', () => {
 
 describe('Ch14 原始碼沒有被吃掉的跳脫字元', () => {
   it("章節 TSX 與模型原始碼不含 tab／控制字元（'\\theta' 的 '\\t' 被轉成 tab 時，KaTeX 會靜靜地顯示成 heta，不會報錯）", () => {
-    const model = readFileSync(resolve(process.cwd(), 'src/simulation/models/optimizer.ts'), 'utf8')
+    const model = ['optimizer', 'acquisition'].map((m) => readFileSync(resolve(process.cwd(), `src/simulation/models/${m}.ts`), 'utf8')).join('\n')
     // eslint-disable-next-line no-control-regex
     const ctrl = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\t]/
     const hits = (chapterSources() + '\n' + model)
@@ -104,15 +104,26 @@ describe('Ch14 原始碼沒有被吃掉的跳脫字元', () => {
 })
 
 describe('Ch14 顯示的程式碼 region 都存在於實際執行的模型', () => {
-  it('每個 region="…" 都能從 optimizer.ts 擷取（含 Research 模式才顯示的）', () => {
+  it('每個 region="…" 都能從對應的模型檔擷取（optimizer.ts；§14.6b 用 acquisition.ts），含 Research 模式才顯示的', () => {
     const src = chapterSources()
-    const model = readFileSync(resolve(process.cwd(), 'src/simulation/models/optimizer.ts'), 'utf8')
-    const used = Array.from(src.matchAll(/region[=:]\s*["']([\w.-]+)["']/g), (m) => m[1])
-    expect(used.length).toBeGreaterThan(10)
-    const available = new Set(listRegions(model))
-    for (const r of used) {
-      expect(available.has(r)).toBe(true)
-      expect(extractRegion(model, r).length).toBeGreaterThan(0)
+    const models: Record<string, string> = {
+      optimizerSrc: readFileSync(resolve(process.cwd(), 'src/simulation/models/optimizer.ts'), 'utf8'),
+      acquisitionSrc: readFileSync(resolve(process.cwd(), 'src/simulation/models/acquisition.ts'), 'utf8'),
+    }
+    const regions = new Map(Object.entries(models).map(([k, m]) => [k, new Set(listRegions(m))] as const))
+    // 每個 region 往前找最近的 source={xxxSrc}／source: xxxSrc，決定它屬於哪個模型檔（沒找到就是 optimizer）
+    const used: [string, string][] = []
+    for (const m of src.matchAll(/region[=:]\s*["']([\w.-]+)["']/g)) {
+      const back = src.slice(Math.max(0, (m.index ?? 0) - 400), m.index)
+      const srcVar = Array.from(back.matchAll(/source[=:]\s*\{?(\w+Src)/g)).at(-1)?.[1] ?? 'optimizerSrc'
+      used.push([srcVar, m[1]])
+    }
+    expect(used.length).toBeGreaterThan(14)
+    expect(used.filter(([v]) => v === 'acquisitionSrc').map(([, r]) => r).sort()).toEqual(['acqStep', 'fllClosedForm', 'harmonicCapture', 'lockDetectStats', 'phaseLockClosedForm'])
+    for (const [v, r] of used) {
+      expect(models[v], `${v} 不是已知的模型檔`).toBeTruthy()
+      expect(regions.get(v)!.has(r), `${v} 沒有 region ${r}`).toBe(true)
+      expect(extractRegion(models[v], r).length).toBeGreaterThan(0)
     }
   })
 

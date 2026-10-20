@@ -1,5 +1,6 @@
 import { memo, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
+import { badgeClass } from '@/components'
 import { GROUP_LABEL, pageById } from '@/app/registry'
 import { OUTCOMES, shortCode } from '../data'
 import { Rich } from '../ui'
@@ -33,7 +34,7 @@ export const OutcomesSection = memo(function OutcomesSection() {
                   <li key={c.page + c.text}>
                     <Rich text={c.text} />
                     {page && (
-                      <Link to={page.path} className="dash-chip dash-chip-primary" title={page.title}>
+                      <Link to={page.path} className={badgeClass('neutral', 'dash-chip dash-chip-primary')} title={page.title}>
                         {shortCode(c.page) ?? page.nav} →
                       </Link>
                     )}

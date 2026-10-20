@@ -93,7 +93,7 @@ export function D5Quant() {
       <p>
         結果：週期 <Tex>{r`P=${P}`}</Tex>，循環 <Tex>{`[${d.plain.cycle.join(',')}]`}</Tex>；總誤差功率{' '}
         <Tex>{r`${num(d.plainLines.totalPower, 6)}\ \mathrm{LSB}^2`}</Tex>、DC 誤差 <Tex>{num(zero(d.plainLines.dcError), 4)}</Tex>（
-        <ErratumNote id="E15">對常數目標，ΔΣ 與週期 toggle 是同一個循環，不是 noise-shaped 寬頻雜訊</ErratumNote>）。
+        <ErratumNote id="E15">對常數目標，<Tex>{r`\Delta\Sigma`}</Tex> 與週期 toggle 是同一個循環，不是 noise-shaped 寬頻雜訊</ErratumNote>）。
       </p>
       <PrereqPsd />
       <div className="table-wrap">
@@ -446,7 +446,7 @@ export function D6Dither() {
       <MetricTable rows={rows} caption="由 src/pages/papers/bridge.ts 的 ditherCompare() 計算；固定 seed 可重現" />
       <BridgeCode region="ditherCompare" />
       <Hand id="HC-PR.7" />
-      <ModeGate min="engineer">
+      <ModeGate min="engineer" summary="subtractive dither 的代價在哪裡">
         <Callout kind="warn" title="代價在哪裡（本站的工程解讀）">
           <p>
             <ClaimTag kind="research" /> subtractive 的 <Tex>{r`\tfrac1{12}\ \mathrm{LSB}^2`}</Tex> 不是免費的：「減回 <Tex>{r`\xi`}</Tex>」那一步需要比 1 LSB 更細的解析度。對 6-bit 的 DTC gain

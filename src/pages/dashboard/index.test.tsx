@@ -97,7 +97,7 @@ function expectDiagrams(container: HTMLElement) {
   expect(precedes(flowFig, container.querySelector('#dash-cond-identifiability'))).toBe(true)
   expect(precedes(loopFig, eqFig) && precedes(eqFig, spine.querySelector('details.dash-details'))).toBe(true)
   // 檢查流程與 block 方程式各有「怎麼讀」導讀，並用 KaTeX 把圖上的名字對回公式
-  for (const f of [flowFig, eqFig]) expect(f.closest('.dash-diagram')?.querySelector('.dash-diagram-walk .katex'), f.getAttribute('aria-label') ?? '').toBeTruthy()
+  for (const f of [flowFig, eqFig]) expect(f.closest('.dash-diagram')?.querySelector('.c-chapter-fig-walk .katex'), f.getAttribute('aria-label') ?? '').toBeTruthy()
   expectReferenceSideDtc(container, map, loopFig)
 }
 

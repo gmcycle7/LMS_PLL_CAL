@@ -1,14 +1,7 @@
 import { Link } from 'react-router-dom'
-import { Callout, ClaimTag, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock, TestBadge, mathText, ChRef } from '@/components'
-import { Deriv, Erratum, Fig, Hand, TagRow, n, texMat, tn } from '../common'
+import { Callout, ClaimTag, ModeGate, Prereq, Section, StepDerivation, Tex, TexBlock, TestBadge, jumpToId, mathText, ChRef, ChapterErratum } from '@/components'
+import { Deriv, Fig, Hand, TagRow, n, texMat, tn } from '../common'
 import { NUM } from '../numbers'
-
-/** 點 preset 連結後捲到實驗（HashRouter 不能用 #anchor） */
-function scrollToLab() {
-  if (typeof document === 'undefined') return
-  const el = document.getElementById('ch10-lab')
-  if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
 
 export function S4Jacobian() {
   const t = NUM.t18
@@ -357,7 +350,7 @@ export function S4Jacobian() {
         <p>
           <Tex>{String.raw`\lambda_{\mathrm{reg}}=0`}</Tex> 時就是 <Tex>{String.raw`\mathbf M=-\gamma\mathbf J^{-1}`}</Tex>（完整反矩陣，所有 <Tex>{String.raw`p_i=1-\gamma`}</Tex>）。
           <Tex>{String.raw`\lambda_{\mathrm{reg}}`}</Tex> 在這裡與 <Tex>{String.raw`J^2`}</Tex> 同單位（實體 <Tex>{String.raw`\mathrm{fs}^{-2}`}</Tex>）
-          <Erratum id="E22" />。
+          <ChapterErratum id="E22" />。
         </p>
         <Callout
           kind="danger"
@@ -425,7 +418,7 @@ export function S4Jacobian() {
             </strong>
             （理由：<Tex>{String.raw`\hat{\mathbf J}`}</Tex> 與 <Tex>{String.raw`\mathbf J`}</Tex> 共用 eigenvectors，慢模式 pole{' '}
             <Tex>{String.raw`=1-\gamma\lambda_{\min}/\hat\lambda_{\min}=1-(1-\rho)/(1-\hat\rho)=1-0.01/0.004=-1.5`}</Tex>：慢模式被過度修正 2.5 倍。）
-            <Erratum id="E24" />
+            <ChapterErratum id="E24" />
           </p>
         </Callout>
       </Section>
@@ -531,7 +524,7 @@ export function S4Jacobian() {
         <Callout kind="danger" title="每個 loop 單獨穩定不代表 MIMO 一起穩定">
           <p>
             分別 bring-up 每個 loop 都 pass，整合後卻發散——這正是 Gallery #12「兩個 GMAC 對角斜率正確，但 off-diagonal 耦合造成發散」。在下方實驗載入{' '}
-            <Link to="/ch/10?preset=mimo-gallery12-offdiag-diverge" onClick={scrollToLab}>
+            <Link to="/ch/10?preset=mimo-gallery12-offdiag-diverge" onClick={() => jumpToId('ch10-lab')}>
               Gallery #12 preset
             </Link>：Case A（diagonal，每個 loop 單獨調成 pole 0.8）與 Case B（scalar{' '}
             <Tex>{String.raw`\mu K_q=0.2`}</Tex>，同一個 <Tex>{String.raw`\mathbf M`}</Tex>）都沿共模方向以 {n(t.rho, 3)} 倍 / block 發散，Case C（完整反矩陣{' '}

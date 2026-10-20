@@ -1,6 +1,6 @@
 import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { useDebouncedValue } from '@/components'
+import { badgeClass, useDebouncedValue } from '@/components'
 import './formulas.css'
 import { Gate, scrollToId, useFormulaAnchorHandler } from './common'
 import { FORMULA_IDS } from './registry'
@@ -197,7 +197,7 @@ export default function FormulasPage() {
         <div className="fr-examples">
           <span className="small muted">試試：</span>
           {EXAMPLES.map((ex) => (
-            <button key={ex} type="button" className="fr-chip" onClick={() => setQuery(ex)}>
+            <button key={ex} type="button" className={badgeClass('neutral', 'fr-chip')} onClick={() => setQuery(ex)}>
               {ex}
             </button>
           ))}

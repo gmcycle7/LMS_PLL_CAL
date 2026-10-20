@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
-import { Callout, ClaimTag, ModeGate, Prereq, Section, SourceTag, Tex, TexBlock, ChRef } from '@/components'
+import { Callout, ClaimTag, ModeGate, Prereq, Section, SourceTag, Tex, TexBlock, ChRef, ChapterErratum } from '@/components'
 import { createRng, erf, normSf } from '@/simulation/core'
 import { meanPole } from '@/simulation/models/lms'
 import { drawX, stabilityBounds, xMoments, type XDist } from '@/simulation/models/scalarStability'
-import { Erratum, FBlock, Fig, HC, num, StepsBox, T, tnum, tx } from '../common'
+import { FBlock, Fig, HC, num, StepsBox, T, tnum, tx } from '../common'
 import { CHART_ERROR_RECURSION, CHART_MEAN_PATH, CHART_RANDOM_GAIN, figRef } from '../diagrams'
 
 const HAND_SEED = 20261010
@@ -112,7 +112,7 @@ export function RandomMeanSection() {
   return (
     <>
       <h2 id="random-mean">2｜隨機輸入：平均誤差（Mean）</h2>
-      <Section kind="intuition" title="這一節要回答的問題">
+      <Section id="ch03-mean-question" kind="intuition" title="這一節要回答的問題">
         <p>
           真實的 PLL 校正裡，regressor 不是固定的 <Tex>{T`x=2`}</Tex>：DSM / DTC code 每個 sample 都在變。推導完全一樣，只是<strong>每一步的乘法因子都不同</strong>：
         </p>
@@ -134,7 +134,7 @@ export function RandomMeanSection() {
         </p>
       </Section>
 
-      <Section kind="example" title={tx`先算一次：Gaussian $x$、$\mu=0.5$、$\delta_0=1$`}>
+      <Section id="ch03-mean-hand" kind="example" title={tx`先算一次：Gaussian $x$、$\mu=0.5$、$\delta_0=1$`}>
         <DistributionPrereq />
         <p>
           從標準 Gaussian <Tex>{T`\mathcal N(0,1)`}</Tex> 抽 6 筆 <Tex>{T`x_n`}</Tex>，每一步照 <Tex>{T`\delta_{n+1}=(1-\mu x_n^2)\delta_n`}</Tex> 更新：
@@ -147,7 +147,7 @@ export function RandomMeanSection() {
         </p>
       </Section>
 
-      <Section kind="formula" title="定義兩個輸入統計量">
+      <Section id="ch03-mean-stats" kind="formula" title="定義兩個輸入統計量">
         <Prereq title="期望值、線性、獨立（expectation / independence）">
           <p>
             <strong>期望值</strong>（expectation）= 「重複做很多次的平均」。離散：<Tex>{T`E[X]=\sum_i p_i x_i`}</Tex>；連續（機率密度 <Tex>{T`p(x)`}</Tex>）：
@@ -179,7 +179,7 @@ export function RandomMeanSection() {
         </Callout>
       </Section>
 
-      <Section kind="formula" title="一步一步推導 mean 遞迴（為什麼可以拆開期望值）">
+      <Section id="ch03-mean-derive" kind="formula" title="一步一步推導 mean 遞迴（為什麼可以拆開期望值）">
         <p>
           每條路徑的增益都在亂跳，沒辦法直接套等比數列。但如果只問「很多條路徑的<strong>平均</strong>」，隨機增益就可以換成它自己的平均值。下圖一框是一條路徑，另一框是兩邊取期望值之後：
         </p>
@@ -220,13 +220,13 @@ export function RandomMeanSection() {
         <HC id="HC-03.3">
           {tx`真實的 code 不是 Gaussian，而是有限個取值。把下面 5 個取值換成你的 code（例如 $\{-1,0,0,1,2\}$），先手算 $P_x$、$M_4$、$\kappa$ 與 mean 界（只需要四則運算），再對答案。`}
         </HC>
-        <Callout kind="info" title={<>精確式，不是 independence approximation <Erratum id="E38" /></>}>
+        <Callout kind="info" title={<>精確式，不是 independence approximation <ChapterErratum id="E38" /></>}>
           規格 §3.1 寫「假設 <Tex>{T`x_n`}</Tex> 為 iid、且和前一輪係數誤差獨立」。後半句其實是<strong>自動成立</strong>的（上面第 3 步），所以對 iid 純量 <Tex>x</Tex>（<Tex>{T`M_4`}</Tex> 有限、雜訊零均值且與 <Tex>x</Tex> 獨立），mean 與 mean-square 遞迴都是 <strong>[精確｜指定模型]</strong>。反過來，若 regressor 有時間相關——例如 tapped delay line，或第 6–7 章經過 PLL error path 的{' '}
           <Tex>{T`u=h*x`}</Tex>（<Tex>h</Tex> 是 error path 的脈衝響應、<Tex>{T`*`}</Tex> 是卷積，也就是把 <Tex>x</Tex> 的過去幾筆加權相加；<ChRef ch="06">第 6 章</ChRef>從頭說明）——<Tex>{T`x_n`}</Tex> 與 <Tex>{T`\delta_n`}</Tex> 不再獨立，同樣的公式降為 <strong>[近似｜需驗證]</strong>。（<strong>相關</strong> correlation：相鄰 sample 彼此有關，例如 <Tex>{T`E[x_nx_{n-1}]\ne0`}</Tex>；此時 <Tex>{T`x_n`}</Tex> 透過 <Tex>{T`x_{n-1}`}</Tex> 與 <Tex>{T`\delta_n`}</Tex> 牽連在一起。）
         </Callout>
       </Section>
 
-      <Section kind="assumptions" title="Mean 只說了「平均」">
+      <Section id="ch03-mean-caveat" kind="assumptions" title="Mean 只說了「平均」">
         <p>
           <Tex>{T`\mu=1/P_x`}</Tex> 時 mean pole 為 0：<Tex>{T`E[\delta_1]=0`}</Tex>，「平均」一步歸零。但每一條路徑的 <Tex>{T`\delta_1=(1-\mu x_0^2)\delta_0`}</Tex> 幾乎都不是 0——有的路徑 <Tex>{T`\delta_1>0`}</Tex>、有的 <Tex>{T`\delta_1<0`}</Tex>，<strong>正負互相抵消</strong>才讓平均等於 0。所以 mean 收斂只是最弱的保證：它甚至不保證誤差的大小會變小。下一節用平方把正負號拿掉。
         </p>

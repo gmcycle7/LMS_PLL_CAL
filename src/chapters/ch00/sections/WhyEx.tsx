@@ -1,20 +1,6 @@
 import { useMemo } from 'react'
 import type { Data, Layout } from 'plotly.js-cartesian-dist-min'
-import {
-  ClaimTag,
-  CodeBlock,
-  Derivation,
-  MathText,
-  ModeGate,
-  Plot,
-  Prereq,
-  Section,
-  StepDerivation,
-  Tex,
-  TexBlock,
-  useThemeTokens,
-  ChRef,
-} from '@/components'
+import { ClaimTag, CodeBlock, Derivation, MathText, ModeGate, Plot, Prereq, Section, StepDerivation, Tex, TexBlock, useThemeTokens, ChRef, ChapterErratum, ChapterErratumNote } from '@/components'
 import { useSettings } from '@/app/settings'
 import {
   conventionalStep,
@@ -26,7 +12,7 @@ import {
 } from '@/simulation/models/lms'
 import { analyticGradient, centralDifference, costCurve, poleTable, sampleCost } from '../model'
 import { POLE_BEHAVIOUR_TEX, num, texNum, texRes } from '../format'
-import { ChapterDiagram, ChapterHandCalc, ErratumNote, ErratumRef, FigRef, Observe, PageLink } from '../common'
+import { ChapterDiagram, ChapterHandCalc, FigRef, Observe, PageLink } from '../common'
 import modelSrc from '../model.ts?raw'
 
 const X = 2
@@ -177,7 +163,7 @@ export function WhyExSection() {
         id="F-00.3"
         label={
           <>
-            單筆成本與平均成本都帶 <Tex>{'\\tfrac12'}</Tex>（<ErratumRef eid="E41" />）；argmin 不受 <Tex>{'\\tfrac12'}</Tex> 影響
+            單筆成本與平均成本都帶 <Tex>{'\\tfrac12'}</Tex>（<ChapterErratum id="E41" />）；argmin 不受 <Tex>{'\\tfrac12'}</Tex> 影響
           </>
         }
       >
@@ -188,11 +174,11 @@ export function WhyExSection() {
         讀作「期望值」，就是「做很多次、取平均會趨近的值」（§0.7 的先備知識框會從頭解釋）。LMS 每一步只看得到一筆資料的 <Tex>{'j_n'}</Tex>，卻是在替 <Tex>{'J(w)'}</Tex> 下坡——名字裡的
         Mean Squares 就是指它。
       </p>
-      <ErratumNote eid="E41">
+      <ChapterErratumNote id="E41">
         規格 §1 寫 <Tex>{'J_2(w)=E[(y-wx)^2]'}</Tex>（沒有 ½），但 §1.1 的單筆成本有 ½，兩者梯度差 2 倍。本站統一用{' '}
         <Tex>{'J(w)=\\tfrac12E[(y-wx)^2]'}</Tex>：最小值的位置不變，但畫切線或推步長界時，斜率才會和實際更新量{' '}
         <Tex>{'\\mu ex'}</Tex> 用同一個 scaling。
-      </ErratumNote>
+      </ChapterErratumNote>
 
       <h3>
         數字驗算：在 <Tex>{`w_0=${texNum(W0)}`}</Tex> 的斜率
@@ -267,7 +253,7 @@ export function WhyExSection() {
                   why: (
                     <>
                       二次函數 <Tex>{'f(w)'}</Tex> 的 GD 穩定界是 <Tex>{"2/f''"}</Tex>（理由見下方的等比數列推導：GD 每一步的誤差倍數是 <Tex>{"p=1-\\mu f''"}</Tex>）。用錯成本的曲率去推{' '}
-                      <Tex>{'\\mu'}</Tex> 的界，會差 2 倍（<ErratumRef eid="E41" /> 的數值證據）。
+                      <Tex>{'\\mu'}</Tex> 的界，會差 2 倍（<ChapterErratum id="E41" /> 的數值證據）。
                     </>
                   ),
                 },
@@ -341,7 +327,7 @@ export function WhyExSection() {
                   tex: String.raw`e_n=(a-w_n)\,x=\delta_n\,x`,
                   why: (
                     <>
-                      提出 <Tex>{'x'}</Tex>；<Tex>{'\\delta_n=a-w_n'}</Tex> 是「還差多少」（全站極性，<ErratumRef eid="E39" />）。
+                      提出 <Tex>{'x'}</Tex>；<Tex>{'\\delta_n=a-w_n'}</Tex> 是「還差多少」（全站極性，<ChapterErratum id="E39" />）。
                     </>
                   ),
                 },
@@ -413,7 +399,7 @@ export function WhyExSection() {
         id="F-00.4"
         label={
           <>
-            固定 <Tex>{'x'}</Tex>、無雜訊：參數誤差每步乘上同一個 pole <Tex>{'p'}</Tex>（<Tex>{'\\delta=a-w'}</Tex>，<ErratumRef eid="E39" />）
+            固定 <Tex>{'x'}</Tex>、無雜訊：參數誤差每步乘上同一個 pole <Tex>{'p'}</Tex>（<Tex>{'\\delta=a-w'}</Tex>，<ChapterErratum id="E39" />）
           </>
         }
       >
@@ -429,10 +415,10 @@ export function WhyExSection() {
       >
         {String.raw`|1-\mu x^2|<1\iff\boxed{0<\mu<\dfrac{2}{x^2}}`}
       </TexBlock>
-      <ErratumNote eid="E39">
+      <ChapterErratumNote id="E39">
         規格 §3 令 <Tex>{'\\delta_n=w_n-a'}</Tex>，與 §0 的 <Tex>{'\\delta=a-w'}</Tex> 相反。遞迴 <Tex>{'\\delta_{n+1}=(1-\\mu x^2)\\delta_n'}</Tex>{' '}
         是線性齊次的，兩種極性都成立、pole 相同；但畫 <Tex>{'\\delta'}</Tex> 的曲線時正負會相反，所以本站一律用 <Tex>{'a-w'}</Tex>。
-      </ErratumNote>
+      </ChapterErratumNote>
 
       <Prereq title={String.raw`pole（極點）與單位圓：為什麼 $|p|<1$ 就收斂`}>
         <p>
@@ -545,7 +531,7 @@ export function WhyExSection() {
             </ul>
             <p className="small">
               三個界限不一樣：在 <Tex>{`${texNum(randomBounds.ms, 4)}<\\mu<${texNum(randomBounds.as, 4)}`}</Tex> 之間，畫出來的單一路徑看起來收斂，
-              <Tex>{'E[\\delta^2]'}</Tex> 卻發散（<ErratumRef eid="E14" />）。詳細推導與 Monte Carlo 見 <PageLink id="ch03" />。<ClaimTag kind="exact" />（在 iid 模型下）
+              <Tex>{'E[\\delta^2]'}</Tex> 卻發散（<ChapterErratum id="E14" />）。詳細推導與 Monte Carlo 見 <PageLink id="ch03" />。<ClaimTag kind="exact" />（在 iid 模型下）
             </p>
           </div>
         )}

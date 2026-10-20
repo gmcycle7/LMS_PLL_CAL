@@ -1,0 +1,1350 @@
+{
+  "version": 1,
+  "description": "網頁用資料 JSON 的結構 schema（TypeScript 的 src/data/validate.ts 與 Python 的 analysis/sspll/golden/tools/web_schema.py 讀同一份；語言說明在 validate.ts 檔頭，docs/dev-conventions.md §6.2 有流程）。",
+  "defs": {
+    "Band2": {"tuple": ["number", "number"]},
+    "Band4": {"tuple": ["number", "number", "number", "number"]},
+    "Bands4": {"array": {"$ref": "Band4"}},
+    "Bands2": {"array": {"$ref": "Band2"}},
+    "NumArr": {"array": "number"},
+    "Tol": {"object": {"abs": "number", "rel": "number"}, "optional": ["abs", "rel"], "minKeys": 1},
+    "VectorValue": {"oneOf": ["number", {"array": {"oneOf": ["number", {"array": "number"}]}}]},
+    "Vector": {
+      "object": {
+        "id": "string",
+        "description_zh": "string",
+        "spec_section": "string",
+        "inputs": {"object": {}, "rest": "any", "minKeys": 1},
+        "expected": {"object": {}, "rest": {"$ref": "VectorValue"}, "minKeys": 1},
+        "tolerance": {"$ref": "Tol"},
+        "tolerance_overrides": {"object": {}, "rest": {"$ref": "Tol"}},
+        "notes": "string"
+      },
+      "optional": ["tolerance_overrides"]
+    },
+    "SignMapSummary": {
+      "object": {
+        "phos_inverted_MHz_tau0.001": {"$ref": "Bands2"},
+        "phos_inverted_MHz_tau0.01": {"$ref": "Bands2"},
+        "m1_inverted_MHz_tau0.001": {"$ref": "Bands2"},
+        "m2_inverted_MHz_tau0.001": {"$ref": "Bands2"},
+        "m3_inverted_MHz_tau0.001": {"$ref": "Bands2"},
+        "m4_inverted_MHz_tau0.001": {"$ref": "Bands2"},
+        "large_signal_inverted_MHz": {"$ref": "Bands2"},
+        "n_large_signal_inverted": "int",
+        "n_large_signal_inverted_ac": "int",
+        "n_inverted_kP_1diff": "int",
+        "n_inverted_kG_1diff": "int",
+        "n_inverted_kP_fx": "int",
+        "n_inverted_kP_D1": "int",
+        "n_inverted_kG_D1": "int",
+        "n_inverted_kP_2diff": "int",
+        "n_inverted_kP_Ponly": "int",
+        "worst_kP": "number",
+        "worst_kP_at_MHz": "number",
+        "min_kG": "number",
+        "min_kG_at_MHz": "number",
+        "min_kP_1diff": "number",
+        "min_kP_fx": "number",
+        "min_kP_D1": "number",
+        "min_kG_D1": "number",
+        "min_kP_2diff": "number",
+        "n_large_signal_inverted_Ponly_ac": {"oneOf": ["int", "null"]},
+        "min_kP_Ponly": {"oneOf": ["number", "null"]}
+      }
+    }
+  },
+  "files": [
+    {
+      "id": "sspll/params",
+      "paths": ["src/data/sspll/params.json"],
+      "tsType": "ParamsJson（src/pages/case-sspll/data.ts）",
+      "usedBy": ["src/pages/case-sspll/data.ts（PARAMS）", "src/simulation/models/sspll.test.ts"],
+      "schema": {
+        "object": {
+          "generated": {"object": {"by": "string", "golden_version": "string", "date": "string"}},
+          "assumptions": {
+            "object": {
+              "f_ref_Hz": "number",
+              "T_ref_ps": "number",
+              "closed_loop_3dB_Hz": "number",
+              "f_vco_Hz_illustrative": "number",
+              "Delta_ps_illustrative": "number",
+              "sim_physics": {
+                "object": {"a_gos": "number", "eps_ps": {"array": "number", "minLength": 1}, "eps_seed": "number"}
+              },
+              "not_modelled": {"array": "string"}
+            }
+          },
+          "loops": {
+            "object": {
+              "L1": {
+                "object": {
+                  "description": "string",
+                  "params": {"object": {}, "rest": {"oneOf": ["number", "string", "null"]}},
+                  "f3dB_MHz": "number",
+                  "PM_deg": "number",
+                  "fc_MHz": "number",
+                  "T_peak_dB": "number",
+                  "max_ReH": "number",
+                  "ReH_neg_bands_MHz": {"$ref": "Bands4"},
+                  "bL": {"array": "number", "minLength": 1},
+                  "aL": {"array": "number", "minLength": 1}
+                }
+              },
+              "L2": {
+                "object": {
+                  "description": "string",
+                  "params": {"object": {}, "rest": {"oneOf": ["number", "string", "null"]}},
+                  "f3dB_MHz": "number",
+                  "PM_deg": "number",
+                  "fc_MHz": "number",
+                  "T_peak_dB": "number",
+                  "max_ReH": "number",
+                  "ReH_neg_bands_MHz": {"$ref": "Bands4"},
+                  "bL": {"array": "number", "minLength": 1},
+                  "aL": {"array": "number", "minLength": 1}
+                }
+              },
+              "L3": {
+                "object": {
+                  "description": "string",
+                  "params": {"object": {}, "rest": {"oneOf": ["number", "string", "null"]}},
+                  "f3dB_MHz": "number",
+                  "PM_deg": "number",
+                  "fc_MHz": "number",
+                  "T_peak_dB": "number",
+                  "max_ReH": "number",
+                  "ReH_neg_bands_MHz": {"$ref": "Bands4"},
+                  "bL": {"array": "number", "minLength": 1},
+                  "aL": {"array": "number", "minLength": 1}
+                }
+              }
+            }
+          },
+          "closed_forms": {"object": {}, "rest": {"oneOf": ["number", "string"]}},
+          "P_only": {
+            "object": {},
+            "rest": {
+              "object": {
+                "f3dB_MHz": "number",
+                "PM_deg": "number",
+                "bands": {"$ref": "Bands4"},
+                "criterion": "number",
+                "kernel_min": "number",
+                "params": {"object": {}, "rest": {"oneOf": ["number", "string", "boolean", "null"]}}
+              }
+            }
+          },
+          "typeI_criteria": {
+            "object": {},
+            "rest": {
+              "object": {
+                "K": "number",
+                "criterion": "number",
+                "PM_deg": "number",
+                "bands": {"$ref": "Bands4"},
+                "p": "number"
+              },
+              "optional": ["p"]
+            }
+          },
+          "sensitivity": {
+            "object": {},
+            "rest": {"object": {"f3dB_MHz": "number", "PM_deg": "number", "bands": {"$ref": "Bands4"}}}
+          },
+          "mode1_sure": {
+            "object": {
+              "L2": {
+                "object": {
+                  "threshold_ReH": "number",
+                  "max_ReH": "number",
+                  "min_ReH": "number",
+                  "sure_MHz": {"$ref": "Band2"},
+                  "impossible_above_MHz": "number"
+                }
+              },
+              "L3": {
+                "object": {
+                  "threshold_ReH": "number",
+                  "max_ReH": "number",
+                  "min_ReH": "number",
+                  "sure_MHz": {"$ref": "Band2"},
+                  "impossible_above_MHz": "number"
+                }
+              }
+            }
+          },
+          "map_j4096": {
+            "object": {
+              "L1": {
+                "object": {
+                  "worst_kP": "number",
+                  "worst_at_MHz": "number",
+                  "n_gos_neg": "int",
+                  "min_kG": "number",
+                  "min_kG_at_MHz": "number",
+                  "bands_tau0.001": {"$ref": "Bands2"},
+                  "bands_m1_tau0.001": {"$ref": "Bands2"},
+                  "bands_tau0.01": {"$ref": "Bands2"}
+                }
+              },
+              "L2": {
+                "object": {
+                  "worst_kP": "number",
+                  "worst_at_MHz": "number",
+                  "n_gos_neg": "int",
+                  "min_kG": "number",
+                  "min_kG_at_MHz": "number",
+                  "bands_tau0.001": {"$ref": "Bands2"},
+                  "bands_m1_tau0.001": {"$ref": "Bands2"},
+                  "bands_tau0.01": {"$ref": "Bands2"}
+                }
+              },
+              "L3": {
+                "object": {
+                  "worst_kP": "number",
+                  "worst_at_MHz": "number",
+                  "n_gos_neg": "int",
+                  "min_kG": "number",
+                  "min_kG_at_MHz": "number",
+                  "bands_tau0.001": {"$ref": "Bands2"},
+                  "bands_m1_tau0.001": {"$ref": "Bands2"},
+                  "bands_tau0.01": {"$ref": "Bands2"}
+                }
+              }
+            }
+          },
+          "signmap_summary": {
+            "object": {
+              "L1": {"$ref": "SignMapSummary"},
+              "L2": {"$ref": "SignMapSummary"},
+              "L3": {"$ref": "SignMapSummary"}
+            }
+          },
+          "remedy_kernels": {
+            "object": {
+              "L1": {"object": {}, "rest": "number"},
+              "L2": {"object": {}, "rest": "number"},
+              "L3": {"object": {}, "rest": "number"},
+              "typeII_closed": {
+                "object": {"Kp_minus_Ki_over_2": "number", "Kp_plus_Ki_over_2": "number", "D1_min_closed": "number"}
+              },
+              "fx_typeI_model": {
+                "object": {"K_hat_critical": "number"},
+                "rest": {"object": {"min": "number", "neg_up_to_MHz": {"oneOf": ["number", "null"]}}}
+              },
+              "fx_typeII_model_min_cos": {"object": {}, "rest": "number"},
+              "finite_mu": {
+                "object": {},
+                "rest": {"object": {"n": "int", "examples": {"array": {"tuple": ["number", {"$ref": "Band2"}]}}}}
+              }
+            }
+          },
+          "gos_small_beta": {
+            "object": {
+              "L1": {
+                "array": {
+                  "object": {
+                    "P": "number",
+                    "beta": "number",
+                    "C_D0": "number",
+                    "asym_D0": "number",
+                    "C_D1": "number",
+                    "asym_D1": "number"
+                  }
+                },
+                "minLength": 1
+              },
+              "L2": {
+                "array": {
+                  "object": {
+                    "P": "number",
+                    "beta": "number",
+                    "C_D0": "number",
+                    "asym_D0": "number",
+                    "C_D1": "number",
+                    "asym_D1": "number"
+                  }
+                },
+                "minLength": 1
+              },
+              "L3": {
+                "array": {
+                  "object": {
+                    "P": "number",
+                    "beta": "number",
+                    "C_D0": "number",
+                    "asym_D0": "number",
+                    "C_D1": "number",
+                    "asym_D1": "number"
+                  }
+                },
+                "minLength": 1
+              }
+            }
+          },
+          "gos_rational_scan": {
+            "object": {
+              "L1": {
+                "object": {
+                  "b_max": "number",
+                  "n_beta": "int",
+                  "n_negative": "int",
+                  "min_12C": "number",
+                  "at_beta": {"$ref": "Band2"}
+                }
+              },
+              "L2": {
+                "object": {
+                  "b_max": "number",
+                  "n_beta": "int",
+                  "n_negative": "int",
+                  "min_12C": "number",
+                  "at_beta": {"$ref": "Band2"}
+                }
+              },
+              "L3": {
+                "object": {
+                  "b_max": "number",
+                  "n_beta": "int",
+                  "n_negative": "int",
+                  "min_12C": "number",
+                  "at_beta": {"$ref": "Band2"}
+                }
+              }
+            }
+          },
+          "offset": {
+            "object": {
+              "points": {
+                "object": {},
+                "rest": {
+                  "oneOf": [
+                    {
+                      "object": {
+                        "twelveC": "number",
+                        "rho_mean": "number",
+                        "Eq": "number",
+                        "Kq_ratio": "number",
+                        "gos_bias_raw_fs": "number",
+                        "gos_bias_ac_fs": "number"
+                      }
+                    },
+                    {
+                      "object": {"raw_median_fs": "number", "raw_frac_gt_1ps": "number", "ac_median_fs": "number"}
+                    }
+                  ]
+                },
+                "minKeys": 1
+              },
+              "illustrative": {"object": {}, "rest": {"object": {"u_fs": "number", "Eq": "number", "Kq_ratio": "number"}}}
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "sspll/pred_vs_sim",
+      "paths": ["src/data/sspll/pred_vs_sim.json"],
+      "tsType": "PredJson（src/pages/case-sspll/data.ts）",
+      "usedBy": ["src/pages/case-sspll/data.ts（PRED）", "src/simulation/models/sspll.test.ts"],
+      "schema": {
+        "object": {
+          "selected": {
+            "object": {
+              "L1": {
+                "array": {
+                  "object": {
+                    "alpha": "number",
+                    "f_MHz": "number",
+                    "Q": "number",
+                    "side": "string",
+                    "kP_sim": "number",
+                    "kP_sim_lin": "number",
+                    "kP_replica": "number",
+                    "kP_exact_simnorm": "number",
+                    "kP_8lam_rational": "number",
+                    "kP_8lam_ergodic": "number",
+                    "kP_m1_ergodic": "number",
+                    "kP_single_line": "number",
+                    "kG_sim": "number",
+                    "kG_replica": "number",
+                    "kG_12C_ergodic": "number",
+                    "LS_kinf_worst": "number"
+                  }
+                },
+                "minLength": 1
+              },
+              "L2": {
+                "array": {
+                  "object": {
+                    "alpha": "number",
+                    "f_MHz": "number",
+                    "Q": "number",
+                    "side": "string",
+                    "kP_sim": "number",
+                    "kP_sim_lin": "number",
+                    "kP_replica": "number",
+                    "kP_exact_simnorm": "number",
+                    "kP_8lam_rational": "number",
+                    "kP_8lam_ergodic": "number",
+                    "kP_m1_ergodic": "number",
+                    "kP_single_line": "number",
+                    "kG_sim": "number",
+                    "kG_replica": "number",
+                    "kG_12C_ergodic": "number",
+                    "LS_kinf_worst": "number"
+                  }
+                },
+                "minLength": 1
+              },
+              "L3": {
+                "array": {
+                  "object": {
+                    "alpha": "number",
+                    "f_MHz": "number",
+                    "Q": "number",
+                    "side": "string",
+                    "kP_sim": "number",
+                    "kP_sim_lin": "number",
+                    "kP_replica": "number",
+                    "kP_exact_simnorm": "number",
+                    "kP_8lam_rational": "number",
+                    "kP_8lam_ergodic": "number",
+                    "kP_m1_ergodic": "number",
+                    "kP_single_line": "number",
+                    "kG_sim": "number",
+                    "kG_replica": "number",
+                    "kG_12C_ergodic": "number",
+                    "LS_kinf_worst": "number"
+                  }
+                },
+                "minLength": 1
+              }
+            }
+          },
+          "fine": {
+            "object": {
+              "alpha": {"array": "number", "length": 500},
+              "L1": {
+                "object": {
+                  "kP_sim": {"array": "number", "length": 500},
+                  "kP_sim_lin": {"array": "number", "length": 500},
+                  "kP_theory": {"array": "number", "length": 500},
+                  "kG_sim": {"array": {"oneOf": ["number", "null"]}, "length": 500},
+                  "kG_theory": {"array": {"oneOf": ["number", "null"]}, "length": 500},
+                  "kP_sim_1diff": {"array": "number", "length": 500},
+                  "kP_theory_1diff": {"array": "number", "length": 500},
+                  "LSinf_theory": {"array": "number", "length": 500},
+                  "LS_sim_A1ps": {"array": "number", "length": 500},
+                  "LS_sim_A5ps": {"array": "number", "length": 500}
+                },
+                "sameLength": [
+                  [
+                    "kP_sim",
+                    "kP_sim_lin",
+                    "kP_theory",
+                    "kG_sim",
+                    "kG_theory",
+                    "kP_sim_1diff",
+                    "kP_theory_1diff",
+                    "LSinf_theory",
+                    "LS_sim_A1ps",
+                    "LS_sim_A5ps"
+                  ]
+                ]
+              },
+              "L2": {
+                "object": {
+                  "kP_sim": {"array": "number", "length": 500},
+                  "kP_sim_lin": {"array": "number", "length": 500},
+                  "kP_theory": {"array": "number", "length": 500},
+                  "kG_sim": {"array": {"oneOf": ["number", "null"]}, "length": 500},
+                  "kG_theory": {"array": {"oneOf": ["number", "null"]}, "length": 500},
+                  "kP_sim_1diff": {"array": "number", "length": 500},
+                  "kP_theory_1diff": {"array": "number", "length": 500},
+                  "LSinf_theory": {"array": "number", "length": 500},
+                  "LS_sim_A1ps": {"array": "number", "length": 500},
+                  "LS_sim_A5ps": {"array": "number", "length": 500}
+                },
+                "sameLength": [
+                  [
+                    "kP_sim",
+                    "kP_sim_lin",
+                    "kP_theory",
+                    "kG_sim",
+                    "kG_theory",
+                    "kP_sim_1diff",
+                    "kP_theory_1diff",
+                    "LSinf_theory",
+                    "LS_sim_A1ps",
+                    "LS_sim_A5ps"
+                  ]
+                ]
+              },
+              "L3": {
+                "object": {
+                  "kP_sim": {"array": "number", "length": 500},
+                  "kP_sim_lin": {"array": "number", "length": 500},
+                  "kP_theory": {"array": "number", "length": 500},
+                  "kG_sim": {"array": {"oneOf": ["number", "null"]}, "length": 500},
+                  "kG_theory": {"array": {"oneOf": ["number", "null"]}, "length": 500},
+                  "kP_sim_1diff": {"array": "number", "length": 500},
+                  "kP_theory_1diff": {"array": "number", "length": 500},
+                  "LSinf_theory": {"array": "number", "length": 500},
+                  "LS_sim_A1ps": {"array": "number", "length": 500},
+                  "LS_sim_A5ps": {"array": "number", "length": 500}
+                },
+                "sameLength": [
+                  [
+                    "kP_sim",
+                    "kP_sim_lin",
+                    "kP_theory",
+                    "kG_sim",
+                    "kG_theory",
+                    "kP_sim_1diff",
+                    "kP_theory_1diff",
+                    "LSinf_theory",
+                    "LS_sim_A1ps",
+                    "LS_sim_A5ps"
+                  ]
+                ]
+              }
+            }
+          },
+          "counts": {
+            "object": {
+              "L1": {
+                "object": {},
+                "rest": {
+                  "object": {
+                    "sim_phos_inv": "int",
+                    "th_phos_inv": "int",
+                    "sim_gos_inv": "int",
+                    "th_gos_inv": "int",
+                    "sim_phos_min": "number",
+                    "th_phos_min": "number",
+                    "max_abs_diff_phos": "number",
+                    "class_disagree_tau0.001": "int",
+                    "class_disagree_tau0.01": "int",
+                    "sim_lin_phos_inv": "int",
+                    "class_disagree_lin_tau0.001": "int",
+                    "sim_intervals_tau0.01": {"$ref": "Bands2"},
+                    "th_intervals_tau0.01": {"$ref": "Bands2"},
+                    "gos_ratio_12C_over_sim_median": "number",
+                    "gos_ratio_5_95": {"$ref": "Band2"}
+                  },
+                  "optional": [
+                    "sim_lin_phos_inv",
+                    "class_disagree_lin_tau0.001",
+                    "sim_intervals_tau0.01",
+                    "th_intervals_tau0.01",
+                    "gos_ratio_12C_over_sim_median",
+                    "gos_ratio_5_95"
+                  ]
+                },
+                "minKeys": 1
+              },
+              "L2": {
+                "object": {},
+                "rest": {
+                  "object": {
+                    "sim_phos_inv": "int",
+                    "th_phos_inv": "int",
+                    "sim_gos_inv": "int",
+                    "th_gos_inv": "int",
+                    "sim_phos_min": "number",
+                    "th_phos_min": "number",
+                    "max_abs_diff_phos": "number",
+                    "class_disagree_tau0.001": "int",
+                    "class_disagree_tau0.01": "int",
+                    "sim_lin_phos_inv": "int",
+                    "class_disagree_lin_tau0.001": "int",
+                    "sim_intervals_tau0.01": {"$ref": "Bands2"},
+                    "th_intervals_tau0.01": {"$ref": "Bands2"},
+                    "gos_ratio_12C_over_sim_median": "number",
+                    "gos_ratio_5_95": {"$ref": "Band2"}
+                  },
+                  "optional": [
+                    "sim_lin_phos_inv",
+                    "class_disagree_lin_tau0.001",
+                    "sim_intervals_tau0.01",
+                    "th_intervals_tau0.01",
+                    "gos_ratio_12C_over_sim_median",
+                    "gos_ratio_5_95"
+                  ]
+                },
+                "minKeys": 1
+              },
+              "L3": {
+                "object": {},
+                "rest": {
+                  "object": {
+                    "sim_phos_inv": "int",
+                    "th_phos_inv": "int",
+                    "sim_gos_inv": "int",
+                    "th_gos_inv": "int",
+                    "sim_phos_min": "number",
+                    "th_phos_min": "number",
+                    "max_abs_diff_phos": "number",
+                    "class_disagree_tau0.001": "int",
+                    "class_disagree_tau0.01": "int",
+                    "sim_lin_phos_inv": "int",
+                    "class_disagree_lin_tau0.001": "int",
+                    "sim_intervals_tau0.01": {"$ref": "Bands2"},
+                    "th_intervals_tau0.01": {"$ref": "Bands2"},
+                    "gos_ratio_12C_over_sim_median": "number",
+                    "gos_ratio_5_95": {"$ref": "Band2"}
+                  },
+                  "optional": [
+                    "sim_lin_phos_inv",
+                    "class_disagree_lin_tau0.001",
+                    "sim_intervals_tau0.01",
+                    "th_intervals_tau0.01",
+                    "gos_ratio_12C_over_sim_median",
+                    "gos_ratio_5_95"
+                  ]
+                },
+                "minKeys": 1
+              }
+            }
+          },
+          "large_signal_counts": {
+            "object": {
+              "L1": {
+                "object": {
+                  "L1_raw_inf_dirs": {"object": {"n": "int", "all_gos": "boolean", "alphas": {"array": "number"}}}
+                },
+                "optional": ["L1_raw_inf_dirs"],
+                "rest": {
+                  "object": {
+                    "A=inf": {"object": {"periodic": "int", "worst": "number", "intervals": {"$ref": "Bands2"}}},
+                    "A=1ps": {"object": {"periodic": "int", "sim": "int"}},
+                    "A=5ps": {"object": {"periodic": "int", "sim": "int"}}
+                  },
+                  "optional": ["A=1ps", "A=5ps"]
+                }
+              },
+              "L2": {
+                "object": {
+                  "L1_raw_inf_dirs": {"object": {"n": "int", "all_gos": "boolean", "alphas": {"array": "number"}}}
+                },
+                "optional": ["L1_raw_inf_dirs"],
+                "rest": {
+                  "object": {
+                    "A=inf": {"object": {"periodic": "int", "worst": "number", "intervals": {"$ref": "Bands2"}}},
+                    "A=1ps": {"object": {"periodic": "int", "sim": "int"}},
+                    "A=5ps": {"object": {"periodic": "int", "sim": "int"}}
+                  },
+                  "optional": ["A=1ps", "A=5ps"]
+                }
+              },
+              "L3": {
+                "object": {
+                  "L1_raw_inf_dirs": {"object": {"n": "int", "all_gos": "boolean", "alphas": {"array": "number"}}}
+                },
+                "optional": ["L1_raw_inf_dirs"],
+                "rest": {
+                  "object": {
+                    "A=inf": {"object": {"periodic": "int", "worst": "number", "intervals": {"$ref": "Bands2"}}},
+                    "A=1ps": {"object": {"periodic": "int", "sim": "int"}},
+                    "A=5ps": {"object": {"periodic": "int", "sim": "int"}}
+                  },
+                  "optional": ["A=1ps", "A=5ps"]
+                }
+              }
+            }
+          },
+          "lms": {
+            "object": {},
+            "rest": {
+              "object": {
+                "init_phos_rms_fs": "number",
+                "final_phos_rms_fs": "number",
+                "max_phos_rms_fs": "number",
+                "final_gos_fs": "number",
+                "blocks": {"array": "number"},
+                "phos_rms_med_fs": {"array": "number"},
+                "gos_med_fs": {"array": "number"}
+              },
+              "sameLength": [["blocks", "phos_rms_med_fs", "gos_med_fs"]]
+            },
+            "minKeys": 1
+          },
+          "lms_note": "string",
+          "offset_lms": {
+            "object": {},
+            "rest": {
+              "object": {
+                "phos_rms_fs": "number",
+                "phos_rms_max_fs": "number",
+                "phos_cm_fs": "number",
+                "gos_fs": "number"
+              }
+            },
+            "minKeys": 1
+          },
+          "offset_neargrid_u100": {"object": {}, "rest": {"array": "number"}}
+        }
+      }
+    },
+    {
+      "id": "sspll/hpd",
+      "paths": ["src/data/sspll/hpd_L1.json", "src/data/sspll/hpd_L2.json", "src/data/sspll/hpd_L3.json"],
+      "tsType": "HpdJson（src/pages/case-sspll/data.ts）",
+      "usedBy": ["src/pages/case-sspll/lazyData.ts（按需載入）", "src/simulation/models/sspll.test.ts"],
+      "schema": {
+        "object": {
+          "loop": {"enum": ["L1", "L2", "L3"]},
+          "f3dB_MHz": "number",
+          "PM_deg": "number",
+          "fc_MHz": "number",
+          "T_peak_dB": "number",
+          "max_ReH": "number",
+          "ReH_neg_bands_MHz": {"$ref": "Bands4"},
+          "ReH_Ponly": {"array": "number", "length": 1500},
+          "f_MHz": {"array": "number", "length": 1500},
+          "ReH": {"array": "number", "length": 1500},
+          "ImH": {"array": "number", "length": 1500},
+          "absH": {"array": "number", "length": 1500},
+          "absT": {"array": "number", "length": 1500},
+          "ReL": {"array": "number", "length": 1500},
+          "ReGamma_1diff": {"array": "number", "length": 1500},
+          "ReGamma_2diff": {"array": "number", "length": 1500},
+          "ReGamma_D1": {"array": "number", "length": 1500},
+          "ReGamma_fx_exact": {"array": "number", "length": 1500}
+        },
+        "optional": ["ReH_Ponly"],
+        "sameLength": [
+          [
+            "f_MHz",
+            "ReH",
+            "ImH",
+            "absH",
+            "absT",
+            "ReL",
+            "ReGamma_1diff",
+            "ReGamma_2diff",
+            "ReGamma_D1",
+            "ReGamma_fx_exact",
+            "ReH_Ponly"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "sspll/signmap",
+      "paths": ["src/data/sspll/signmap_L1.json", "src/data/sspll/signmap_L2.json", "src/data/sspll/signmap_L3.json"],
+      "tsType": "SignMapJson（src/pages/case-sspll/data.ts）",
+      "usedBy": ["src/pages/case-sspll/lazyData.ts（按需載入）", "src/simulation/models/sspll.test.ts"],
+      "schema": {
+        "object": {
+          "loop": {"enum": ["L1", "L2", "L3"]},
+          "grid": "string",
+          "summary": {"$ref": "SignMapSummary"},
+          "f_MHz": {"array": "number", "length": 2000},
+          "kG": {"array": "number", "length": 2000},
+          "kP": {"array": "number", "length": 2000},
+          "km1_re": {"array": "number", "length": 2000},
+          "km1_im": {"array": "number", "length": 2000},
+          "km2_re": {"array": "number", "length": 2000},
+          "km2_im": {"array": "number", "length": 2000},
+          "km3_re": {"array": "number", "length": 2000},
+          "km3_im": {"array": "number", "length": 2000},
+          "km4_re": {"array": "number", "length": 2000},
+          "LSinf": {"array": "number", "length": 2000},
+          "LSinf_ac": {"array": "number", "length": 2000},
+          "kP_1diff": {"array": "number", "length": 2000},
+          "kG_1diff": {"array": "number", "length": 2000},
+          "kP_fx": {"array": "number", "length": 2000},
+          "kG_fx": {"array": "number", "length": 2000},
+          "kP_D1": {"array": "number", "length": 2000},
+          "kG_D1": {"array": "number", "length": 2000},
+          "kP_2diff": {"array": "number", "length": 2000},
+          "kP_Ponly": {"oneOf": [{"array": "number", "length": 2000}, "null"]},
+          "kG_Ponly": {"oneOf": [{"array": "number", "length": 2000}, "null"]},
+          "LSinf_Ponly_ac": {"oneOf": [{"array": "number", "length": 2000}, "null"]}
+        },
+        "sameLength": [
+          [
+            "f_MHz",
+            "kG",
+            "kP",
+            "km1_re",
+            "km1_im",
+            "km2_re",
+            "km2_im",
+            "km3_re",
+            "km3_im",
+            "km4_re",
+            "LSinf",
+            "LSinf_ac",
+            "kP_1diff",
+            "kG_1diff",
+            "kP_fx",
+            "kG_fx",
+            "kP_D1",
+            "kG_D1",
+            "kP_2diff",
+            "kP_Ponly",
+            "kG_Ponly",
+            "LSinf_Ponly_ac"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "sspll/doc_numbers_subset",
+      "paths": ["src/pages/case-sspll/docNumbers.json"],
+      "tsType": "DocJoint／DocPhos（src/pages/case-sspll/data.ts）",
+      "usedBy": ["src/pages/case-sspll/data.ts（DOC_JOINT、DOC_PHOS）", "src/pages/case-sspll/docNumbers.test.ts"],
+      "schema": {
+        "object": {
+          "joint": {
+            "object": {
+              "decoupling_L2": {
+                "object": {},
+                "rest": {"object": {"eight_div_Q": "boolean", "max_cross": "number"}},
+                "minKeys": 1
+              },
+              "joint_scan": {
+                "object": {
+                  "L1": {
+                    "object": {
+                      "Q_max": "number",
+                      "n_rationals": "int",
+                      "n_joint_inverted": "int",
+                      "n_joint_only": "int"
+                    }
+                  },
+                  "L2": {
+                    "object": {
+                      "Q_max": "number",
+                      "n_rationals": "int",
+                      "n_joint_inverted": "int",
+                      "n_joint_only": "int"
+                    }
+                  },
+                  "L3": {
+                    "object": {
+                      "Q_max": "number",
+                      "n_rationals": "int",
+                      "n_joint_inverted": "int",
+                      "n_joint_only": "int"
+                    }
+                  }
+                }
+              },
+              "theorem_random_kernel_min_re_eig": "number",
+              "fvco": {
+                "object": {},
+                "rest": {"array": {"object": {"joint_min": "number", "C00": "number"}}, "minLength": 1},
+                "minKeys": 1
+              }
+            }
+          },
+          "phos": {
+            "object": {
+              "points": {
+                "object": {},
+                "rest": {
+                  "object": {
+                    "kP_occnorm": "number",
+                    "eightlam_min": "number",
+                    "kG": "number",
+                    "twelveC": "number",
+                    "ergodic_min": "number",
+                    "single_line": "number",
+                    "occupancy": {"array": "number", "length": 8}
+                  }
+                },
+                "minKeys": 1
+              },
+              "circulant_check": {
+                "object": {
+                  "L2": {
+                    "object": {"circulant_err": "number", "ergodic_vs_periodic_err": "number", "lambda0_abs": "number"}
+                  },
+                  "L3": {
+                    "object": {"circulant_err": "number", "ergodic_vs_periodic_err": "number", "lambda0_abs": "number"}
+                  }
+                }
+              },
+              "alias_rationals": {
+                "object": {
+                  "L2": {"object": {"n_hits": "int", "n_far": "int", "worst": {"array": {"$ref": "Band4"}}}},
+                  "L3": {"object": {"n_hits": "int", "n_far": "int", "worst": {"array": {"$ref": "Band4"}}}}
+                }
+              },
+              "pe_failure": {"object": {}, "rest": {"object": {"phases_visited": "int", "var_rho": "number"}}, "minKeys": 1}
+            }
+          },
+          "_meta": {
+            "object": {
+              "source": "string",
+              "note": "string",
+              "regenerate": "string",
+              "keys": {"object": {}, "rest": {"array": "string"}}
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "sspll/worked_examples",
+      "paths": ["analysis/sspll/golden/results/worked_examples.json"],
+      "tsType": "WorkedJson（src/pages/case-sspll/data.ts）",
+      "usedBy": ["src/pages/case-sspll/data.ts（WORKED）"],
+      "schema": {
+        "object": {
+          "a_Omega": "number",
+          "a_sin2": "number",
+          "a_ReL_closed": "number",
+          "a_L_complex": {"$ref": "Band2"},
+          "a_abs_1plusL_sq": "number",
+          "a_ReH": "number",
+          "b_ratio": "number",
+          "b_sqrt": "number",
+          "b_asin": "number",
+          "b_f_inv_MHz": "number",
+          "c_ReH_84MHz": "number",
+          "c_W1_ReH": "number",
+          "c_8Relam1": "number",
+          "c_rest": "number",
+          "c_lines": {
+            "array": {"object": {"l": "int", "f_MHz": "number", "w": "number", "ReH": "number"}},
+            "minLength": 1
+          },
+          "c_8lam_all": {"array": "number", "minLength": 1},
+          "d_beta": "number",
+          "d_terms": {
+            "array": {"object": {"m": "int", "f_MHz": "number", "w": "number", "ReH": "number", "contrib": "number"}},
+            "minLength": 1
+          },
+          "d_partial5_12C": "number",
+          "d_12C": "number",
+          "e_H=+1": {"array": "number", "minLength": 1},
+          "e_H=-0.2": {"array": "number", "minLength": 1},
+          "f_corr_x_d1": "number",
+          "f_corr_x_d2c": "number",
+          "f_ReH_L2_20MHz": "number",
+          "f_minusW2_over_Ki": "number",
+          "f_ReH_L1_20MHz": "number",
+          "f_typeI_lowf": "number",
+          "g_Kq_per_fs": "number",
+          "i_rho_0137": {"array": "number", "minLength": 1},
+          "i_p_0137": {"array": "number", "minLength": 1}
+        },
+        "sameLength": [["i_rho_0137", "i_p_0137"]]
+      }
+    },
+    {
+      "id": "sspll/gos_dense_scan",
+      "paths": ["analysis/sspll/golden/results/gos_dense_scan.json"],
+      "tsType": "Record<string, GosScanRow>（src/pages/case-sspll/data.ts；_runtime_s 是數值，不是列）",
+      "usedBy": ["src/pages/case-sspll/data.ts（GOS_SCAN）"],
+      "schema": {
+        "object": {"_runtime_s": "number"},
+        "optional": ["_runtime_s"],
+        "rest": {
+          "object": {
+            "b_max": "number",
+            "n_beta": "int",
+            "n_negative": "int",
+            "min_12C": "number",
+            "at": {"$ref": "Band2"},
+            "ReH_neg_band_MHz": {"array": {"array": "number"}}
+          }
+        },
+        "minKeys": 1
+      }
+    },
+    {
+      "id": "sspll/sim_dither_extract",
+      "paths": ["analysis/sspll/golden/results/sim_dither_extract.json"],
+      "tsType": "DitherJson（src/pages/case-sspll/data.ts）",
+      "usedBy": ["src/pages/case-sspll/data.ts（DITHER）"],
+      "schema": {
+        "object": {
+          "dither": {
+            "object": {},
+            "rest": {"object": {}, "rest": {"object": {"kP": "number", "kG": "number", "phases_visited": "int"}}},
+            "minKeys": 1
+          },
+          "lms": {
+            "object": {},
+            "rest": {
+              "object": {},
+              "rest": {
+                "object": {"final_phos_rms_fs": "number", "max_phos_rms_fs": "number", "final_gos_fs": "number"}
+              }
+            },
+            "minKeys": 1
+          },
+          "freeze": {
+            "object": {},
+            "rest": {
+              "object": {},
+              "rest": {"object": {"phos_initial_fs": "number", "phos_final_fs": "number", "gos_final_fs": "number"}}
+            },
+            "minKeys": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "sspll/dither_numbers",
+      "paths": ["src/pages/case-sspll/ditherNumbers.json"],
+      "tsType": "DitherNumbersJson（src/pages/case-sspll/data.ts）",
+      "usedBy": ["src/pages/case-sspll/data.ts（DITHER_NUM）", "src/pages/case-sspll/ditherNumbers.test.ts"],
+      "schema": {
+        "object": {
+          "_meta": {
+            "object": {
+              "tau_dead": "number",
+              "sources": {"array": "string", "length": 5},
+              "selected_alphas": {"array": "number", "minLength": 1},
+              "code_range_delta": {"object": {}, "rest": "int", "minKeys": 5},
+              "loops": {
+                "object": {},
+                "rest": {
+                  "object": {
+                    "name": "string",
+                    "params": {"object": {}, "rest": {"oneOf": ["number", "string"]}}
+                  }
+                },
+                "minKeys": 1
+              }
+            }
+          },
+          "numeric": {
+            "object": {},
+            "rest": {
+              "object": {},
+              "rest": {
+                "object": {
+                  "kappa_min": "number",
+                  "worst_mode": "int",
+                  "gos_C": "number",
+                  "gos_var": "number",
+                  "code_mean": "number",
+                  "N": "int"
+                }
+              },
+              "minKeys": 1
+            },
+            "minKeys": 1
+          },
+          "sim_compare": {
+            "object": {
+              "_summary": {
+                "object": {"max_abs_diff_closed_numeric": "number", "max_abs_diff_closed_sim": "number"}
+              }
+            },
+            "rest": {
+              "object": {},
+              "rest": {
+                "object": {
+                  "closed": "number",
+                  "numeric": "number",
+                  "diff_closed_numeric": "number",
+                  "sim": "number",
+                  "diff_closed_sim": "number",
+                  "sim_kG": "number",
+                  "gos_kappa_e2": "number"
+                },
+                "optional": ["sim", "diff_closed_sim", "sim_kG", "gos_kappa_e2"]
+              }
+            }
+          },
+          "mc": {
+            "object": {
+              "_summary": {
+                "object": {
+                  "n_ok": "int",
+                  "n_mismatch": "int",
+                  "n_na": "int",
+                  "seeds": {"array": "int", "minLength": 1},
+                  "n_blocks": "int",
+                  "scope": "string",
+                  "n_dead": "int",
+                  "candidates": {
+                    "object": {
+                      "two_stage": {
+                        "object": {
+                          "n_ok": "int",
+                          "n_mismatch": "int",
+                          "n_na": "int",
+                          "dead_zone": {"object": {"n_ok": "int", "n_mismatch": "int", "n_na": "int"}},
+                          "mismatches": {"array": "string"}
+                        }
+                      },
+                      "two_stage_m1": {
+                        "object": {
+                          "n_ok": "int",
+                          "n_mismatch": "int",
+                          "n_na": "int",
+                          "dead_zone": {"object": {"n_ok": "int", "n_mismatch": "int", "n_na": "int"}},
+                          "mismatches": {"array": "string"}
+                        }
+                      },
+                      "efold": {
+                        "object": {
+                          "n_ok": "int",
+                          "n_mismatch": "int",
+                          "n_na": "int",
+                          "dead_zone": {"object": {"n_ok": "int", "n_mismatch": "int", "n_na": "int"}},
+                          "mismatches": {"array": "string"},
+                          "kappa_div": "number",
+                          "kappa_conv": "number"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "rest": {
+              "object": {},
+              "rest": {
+                "object": {
+                  "init_fs": "number",
+                  "final_fs": {"array": "number", "minLength": 1},
+                  "n": "int",
+                  "n_div": "int",
+                  "n_conv": "int",
+                  "frac_div": "number",
+                  "ci_div": {"tuple": ["number", "number"]},
+                  "frac_conv": "number",
+                  "ci_conv": {"tuple": ["number", "number"]},
+                  "n_blocks": "int",
+                  "N_blk": "int",
+                  "tau_blocks": "number",
+                  "verdict": {"enum": ["inverted", "restoring", "dead"]},
+                  "kappa_min": "number",
+                  "worst_mode": "int",
+                  "kappa_inf_m1": "number",
+                  "kappa_inf_worst": "number",
+                  "crosscheck": {"object": {"status": {"enum": ["ok", "mismatch", "n/a"]}, "why": "string"}}
+                }
+              },
+              "minKeys": 1
+            },
+            "minKeys": 2
+          },
+          "headline": {
+            "object": {
+              "loop": "string",
+              "source": "string",
+              "alpha": "number",
+              "f_MHz": "number",
+              "ReH": "number",
+              "h": {"array": "number", "length": 3},
+              "phi2": "number",
+              "rtilde": {"array": "number", "length": 3},
+              "terms": {"object": {"carrier": "number", "k0": "number", "k1": "number", "k2": "number"}},
+              "kappa_1": "number",
+              "pm60": {"object": {"ReH": "number", "kappa_1": "number", "kappa_inf": "number"}},
+              "kappa_inf": "number",
+              "mc": {
+                "object": {
+                  "init_fs": "number",
+                  "final_fs": {"array": "number", "minLength": 1},
+                  "n": "int",
+                  "n_div": "int",
+                  "n_conv": "int",
+                  "frac_div": "number",
+                  "ci_div": {"tuple": ["number", "number"]},
+                  "frac_conv": "number",
+                  "ci_conv": {"tuple": ["number", "number"]},
+                  "n_blocks": "int",
+                  "N_blk": "int",
+                  "tau_blocks": "number",
+                  "verdict": {"enum": ["inverted", "restoring", "dead"]},
+                  "kappa_min": "number",
+                  "worst_mode": "int",
+                  "kappa_inf_m1": "number",
+                  "kappa_inf_worst": "number",
+                  "crosscheck": {"object": {"status": {"enum": ["ok", "mismatch", "n/a"]}, "why": "string"}}
+                }
+              },
+              "sim_final_phos_fs": "number",
+              "handcalc_dq": {
+                "object": {
+                  "white": "number",
+                  "line_m1": "number",
+                  "lines_pm1": {"array": "number", "length": 2},
+                  "kappa_1": "number"
+                }
+              },
+              "handcalc_rot8": {"object": {"D2": "number", "kappa_1": "number"}},
+              "handcalc_rot4": {"object": {"D2": "number", "raw_kappa_1": "number", "kappa_1": "number"}}
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "sspll/gos_certificate",
+      "paths": ["analysis/sspll/golden/results/gos_certificate.json"],
+      "tsType": "GoldenCert（src/pages/case-sspll/sections/S07bTheorem.tsx）",
+      "usedBy": ["src/pages/case-sspll/sections/S07bTheorem.tsx（GOLDEN）"],
+      "schema": {
+        "object": {
+          "nominal": {
+            "object": {},
+            "rest": {
+              "object": {
+                "ok": "boolean",
+                "steps": "int",
+                "worst_lower": "number",
+                "worst_at": "number",
+                "Lg": "number",
+                "g_min": "number",
+                "LamM": "number",
+                "beta_min": "number",
+                "M": "int"
+              }
+            },
+            "minKeys": 1
+          },
+          "extended": {
+            "object": {},
+            "rest": {
+              "object": {
+                "ok": "boolean",
+                "steps": "int",
+                "worst_lower": "number",
+                "worst_at": "number",
+                "Lg": "number",
+                "g_min": "number",
+                "LamM": "number",
+                "beta_min": "number",
+                "M": "int"
+              }
+            },
+            "minKeys": 1
+          },
+          "asymptote_ratio": {
+            "object": {
+              "Ki": "number",
+              "rows": {
+                "object": {},
+                "rest": {"object": {"beta": "number", "C": "number", "asym": "number", "ratio": "number"}},
+                "minKeys": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "golden/vector",
+      "glob": "golden/vectors/*.json",
+      "tsType": "GoldenVectorLike（src/simulation/models/acceptance.ts）",
+      "usedBy": [
+        "src/pages/verification/golden.ts（GOLDEN、GOLDEN_NEGATIVE）",
+        "src/chapters/ch03/sections/MeanSquare.tsx",
+        "src/chapters/*/model.test.ts"
+      ],
+      "schema": {"$ref": "Vector"}
+    },
+    {
+      "id": "golden/index",
+      "paths": ["golden/vectors/index.json"],
+      "tsType": "GoldenIndex（src/pages/verification/golden.ts）",
+      "usedBy": ["src/pages/verification/golden.ts（GOLDEN_INDEX）", "src/pages/dashboard/summaries.ts"],
+      "schema": {
+        "object": {
+          "schema_version": "int",
+          "golden_model_version": "string",
+          "generator": "string",
+          "comparison_rule": "string",
+          "vectors": {
+            "array": {
+              "object": {"id": "string", "file": "string", "spec_section": "string", "description_zh": "string"}
+            },
+            "minLength": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "data/errata",
+      "paths": ["src/data/errata.json"],
+      "tsType": "Erratum（src/pages/dashboard/summaries.ts）",
+      "usedBy": [
+        "src/pages/dashboard/summaries.ts（readErrata）",
+        "src/components/chapter/ChapterErratum.tsx",
+        "src/pages/verification/errata.ts"
+      ],
+      "schema": {
+        "object": {
+          "generatedFrom": "string",
+          "date": "string",
+          "errata": {
+            "array": {
+              "object": {
+                "eid": "string",
+                "id": "string",
+                "severity": {"enum": ["high", "medium", "low"]},
+                "area": "string",
+                "chapters": {"array": "string"},
+                "location": "string",
+                "problem": "string",
+                "correction": "string"
+              }
+            },
+            "minLength": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "data/verification-status",
+      "paths": ["src/data/verification-status.json"],
+      "tsType": "TestStatusInfo（src/components/testStatus.ts）",
+      "usedBy": ["src/components/testStatus.ts（getTestStatus）", "src/pages/dashboard/summaries.ts"],
+      "schema": {
+        "object": {
+          "generatedAt": "string",
+          "commit": "string",
+          "note": "string",
+          "tests": {
+            "object": {},
+            "rest": {
+              "object": {
+                "status": {"enum": ["pass", "partial", "fail", "missing"]},
+                "ts": {"object": {"passed": "int", "failed": "int", "names": {"array": "string"}}},
+                "py": {"object": {"passed": "int", "failed": "int", "names": {"array": "string"}}}
+              }
+            },
+            "minKeys": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "data/presets",
+      "glob": "src/data/presets/*.json",
+      "tsType": "PresetEntry（src/data/types.ts）",
+      "usedBy": ["src/app/presets.ts（import.meta.glob）"],
+      "schema": {
+        "object": {
+          "id": "string",
+          "title": "string",
+          "galleryIndex": "int",
+          "page": "string",
+          "experiment": "string",
+          "description": "string",
+          "params": {"object": {}, "rest": "any"},
+          "expected": "string",
+          "tests": {"array": "string"},
+          "source": {"enum": ["illustrative", "simulation", "literature", "measured"]}
+        },
+        "optional": ["galleryIndex", "tests"]
+      }
+    }
+  ]
+}

@@ -1,5 +1,5 @@
-import { SymbolTable, Tex, type SymbolEntry } from '@/components'
-import { ErrataNote, JumpTo, tm } from '../common'
+import { SymbolTable, Tex, type SymbolEntry, ChapterErratum, JumpTo } from '@/components'
+import { tm } from '../common'
 
 /** 章末符號表的錨點（章首的「本章符號表在最後」會捲到這裡）。 */
 export const SYMBOLS_ID = 'symbols'
@@ -21,7 +21,7 @@ export const SYMBOLS: SymbolEntry[] = [
   { symbol: '\\Delta w_n', meaning: tm('這一步的更新量：$w_{n+1}=w_n+\\Delta w_n$'), unit: '[a]', firstSeen: '§1' },
   { symbol: '\\delta_n=a-w_n', meaning: '參數誤差', unit: '[a]', firstSeen: '§1', note: tm('全站極性 $\\delta=a-w$（規格 §3 曾寫 $w-a$，勘誤 E39）') },
   { symbol: 'd=a-w', meaning: tm('同 $\\delta$，但在期望值裡當作固定的數（mean-field 推導用）'), unit: '[a]', firstSeen: '§3', note: tm('與 Ch08 的 update delay $d$ 無關') },
-  { symbol: 'J(w)=\\tfrac12E[e^2]', meaning: '平均成本（MSE 的一半）', unit: '[y]^2', firstSeen: '§1', note: <>本章採含 <Tex>{'\\tfrac12'}</Tex> 的定義 <ErrataNote id="E41" /></> },
+  { symbol: 'J(w)=\\tfrac12E[e^2]', meaning: '平均成本（MSE 的一半）', unit: '[y]^2', firstSeen: '§1', note: <>本章採含 <Tex>{'\\tfrac12'}</Tex> 的定義 <ChapterErratum id="E41" /></> },
   { symbol: "J'(w),\\;J''(w)", meaning: tm('成本對 $w$ 的一階、二階導數（切線斜率、彎曲程度）'), firstSeen: '§1' },
   { symbol: 'p=1-\\mu K', meaning: tm("pole：每一步參數誤差縮小的倍率，$\\delta_{n+1}=p\\,\\delta_n$；§1 的 $K=J''$"), unit: '1', firstSeen: '§1', note: tm('收斂需 $|p|<1$（四種行為見 Ch03）') },
   {
@@ -48,12 +48,12 @@ export const SYMBOLS: SymbolEntry[] = [
   { symbol: 'P_x=E[x^2]', meaning: '輸入功率', unit: '[x]^2', firstSeen: '§2' },
   { symbol: 'E[x^4]', meaning: tm('輸入的四階動差（$x$ 四次方的平均）；出現在 LMS 的穩態 MSD 與均方穩定界'), unit: '[x]^4', firstSeen: '§2', note: 'Ch03 詳細討論' },
   { symbol: 'w_{LS}', meaning: tm('有限 $N$ 筆資料的最小平方解 $\\sum x_iy_i/\\sum x_i^2$（batch GD 收斂到的點）'), unit: '[a]', firstSeen: '§2' },
-  { symbol: 'E[\\delta^2]_\\infty', meaning: '穩態的均方偏差（MSD）：收斂之後參數誤差平方的平均', unit: '[a]^2', firstSeen: '§2', note: <>不是成本 MSE <ErrataNote id="E42" /></> },
+  { symbol: 'E[\\delta^2]_\\infty', meaning: '穩態的均方偏差（MSD）：收斂之後參數誤差平方的平均', unit: '[a]^2', firstSeen: '§2', note: <>不是成本 MSE <ChapterErratum id="E42" /></> },
   {
     symbol: '\\operatorname{sign}(\\cdot)',
     meaning: tm('正負號；$\\operatorname{sign}(0)$ 的慣例必須明定'),
     firstSeen: '§3',
-    note: <>{tm('數學 $0$ 或 comparator $\\pm1$')} <ErrataNote id="E40" /></>,
+    note: <>{tm('數學 $0$ 或 comparator $\\pm1$')} <ChapterErratum id="E40" /></>,
   },
   {
     symbol: 'q_n=\\operatorname{sign}(e_n)',

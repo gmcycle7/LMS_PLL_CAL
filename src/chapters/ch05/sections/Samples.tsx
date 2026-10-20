@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Callout, ClaimTag, ParamControl, Section, Tex, TexBlock, mathText } from '@/components'
 import { normCdf, normInv } from '@/simulation/core'
 import { meanQ, minNForTarget, pPlus, samplesForConfidence, samplesSmallSignal } from '@/simulation/models/comparator'
-import { Fig, HandCalcBlock, Steps, fx, int, pct, texInt } from '../common'
+import { Fig, Hand, Steps, fx, int, pct, texInt } from '../common'
 
 const TARGETS = [0.8413447460685429, 0.9, 0.95, 0.99, 0.999]
 
@@ -41,6 +41,7 @@ export function SamplesSection() {
     <Section
       kind="formula"
       level={2}
+      id="ch05-samples"
       title={
         <>
           4. 要累加多少次？<Tex>{String.raw`N\approx(z\sigma_v/s)^2\cdot\pi/2`}</Tex>
@@ -127,10 +128,10 @@ export function SamplesSection() {
           </tbody>
         </table>
       </div>
-      <HandCalcBlock id="HC-05.6">
+      <Hand id="HC-05.6">
         換成你的規格：想辨識多小的 <Tex>{'s'}</Tex>、雜訊 <Tex>{'\\sigma_v'}</Tex> 多大、要幾成把握？先反查常態表得到 <Tex>{'z'}</Tex>，再用紙筆算出{' '}
         <Tex>{'N'}</Tex>，然後對答案（也可以和下面的樣本數計算器互相驗算）。
-      </HandCalcBlock>
+      </Hand>
       <Callout
         kind="info"
         title={
